@@ -1,14 +1,12 @@
 #ifndef ENGINE_ENGINE_H
 #define ENGINE_ENGINE_H
 
-#include "EngineOptions.h"
-#include "SearchOptions.h"
+#include "Parameters.h"
 
 class Engine {
 public:
     explicit Engine(std::atomic_bool &go, std::atomic_bool &quit,
-                    EngineOptions &engineOptions, SearchOptions &searchOptions,
-                    std::mutex &m, std::condition_variable &cv);
+                    Parameters &parameters, std::mutex &m, std::condition_variable &cv);
 
     [[noreturn]] void start();
 
@@ -19,8 +17,7 @@ private:
     std::atomic_bool &go;
     std::atomic_bool &quit;
 
-    EngineOptions &engineOptions;
-    SearchOptions &searchOptions;
+    Parameters &parameters;
 
     void search();
 };

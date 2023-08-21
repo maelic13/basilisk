@@ -9,6 +9,6 @@ const std::string engineAuthor = "Miloslav Macurek";
 
 
 const std::string startPosition = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-const int infiniteDepth = 1000;
+const int infiniteDepth = std::numeric_limits<int>::max();
 
 #endif //ENGINE_CONSTANTS_H

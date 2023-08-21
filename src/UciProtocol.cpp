@@ -6,10 +6,8 @@
 
 UciProtocol::UciProtocol(
         std::atomic_bool &go, std::atomic_bool &quit,
-        EngineOptions &engineOptions, SearchOptions &searchOptions,
-        std::mutex &m, std::condition_variable &cv)
-        : go(go), quit(quit), engineOptions(engineOptions), searchOptions(searchOptions),
-          m(m), cv(cv) {}
+        Parameters &parameters, std::mutex &m, std::condition_variable &cv)
+        : go(go), quit(quit), parameters(parameters), mutex(m), conditionVariable(cv) {}
 
 void UciProtocol::UciLoop() {
     std::string args, command, input;
@@ -20,53 +18,55 @@ void UciProtocol::UciLoop() {
         if (pos != std::string::npos) args = input.substr(pos + 1);
         else args = "";
 
-        if (command == "uci") Uci();
-        if (command == "isready") IsReady();
-        if (command == "go") Go(args);
-        if (command == "stop") Stop();
-        if (command == "setoption") SetOption(args);
-        if (command == "ucinewgame") UciNewGame();
-        if (command == "position") Position(args);
+        if (command == "uci") uci();
+        if (command == "isready") isReady();
+        if (command == "go") uciGo(args);
+        if (command == "stop") uciStop();
+        if (command == "setoption") uciSetOption(args);
+        if (command == "ucinewgame") uciNewGame();
+        if (command == "position") uciPosition(args);
         if (command == "quit") {
-            Quit();
+            uciQuit();
             break;
         }
     }
 }
 
-void UciProtocol::Uci() {
+void UciProtocol::uci() {
     std::cout << "id name " << engineName << " " << engineVersion << std::endl;
     std::cout << "id author " << engineAuthor << std::endl;
+    std::cout << Parameters::uciOptions();
     std::cout << "uciok" << std::endl;
 }
 
-void UciProtocol::IsReady() {
+void UciProtocol::isReady() {
     std::cout << "readyok" << std::endl;
 }
 
-void UciProtocol::Quit() {
+void UciProtocol::uciQuit() {
     quit = true;
-    cv.notify_one();
+    conditionVariable.notify_one();
 }
 
-void UciProtocol::Go(const std::string &args) {
-    std::cout << "go command called with arguments: " << args << std::endl;
+void UciProtocol::uciGo(const std::string &args) {
+    parameters.setSearchParameters(args);
     go = true;
-    cv.notify_one();
+    conditionVariable.notify_one();
 }
 
-void UciProtocol::Stop() {
+void UciProtocol::uciStop() {
     go = false;
+    conditionVariable.notify_one();
 }
 
-void UciProtocol::SetOption(const std::string &) {
-    std::cout << "No engine options currently supported." << std::endl;
+void UciProtocol::uciSetOption(const std::string &args) {
+    parameters.setOption(args);
 }
 
-void UciProtocol::UciNewGame() {
-    searchOptions.ResetPosition();
+void UciProtocol::uciPosition(const std::string &args) {
+    parameters.setPosition(args);
 }
 
-void UciProtocol::Position(const std::string &args) {
-    std::cout << "position command called with arguments: " << args << std::endl;
+void UciProtocol::uciNewGame() {
+    parameters.reset();
 }

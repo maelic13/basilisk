@@ -4,41 +4,38 @@
 #include <mutex>
 #include <thread>
 
-#include "EngineOptions.h"
-#include "SearchOptions.h"
+#include "Parameters.h"
 
 class UciProtocol {
 public:
     UciProtocol(std::atomic_bool &go, std::atomic_bool &quit,
-                EngineOptions &engineOptions, SearchOptions &searchOptions,
-                std::mutex &m, std::condition_variable &cv);
+                Parameters &parameters, std::mutex &m, std::condition_variable &cv);
 
     void UciLoop();
 
 private:
-    std::mutex &m;
-    std::condition_variable &cv;
+    std::mutex &mutex;
+    std::condition_variable &conditionVariable;
 
     std::atomic_bool &go;
     std::atomic_bool &quit;
-    EngineOptions &engineOptions;
-    SearchOptions &searchOptions;
+    Parameters &parameters;
 
-    static void IsReady();
+    static void isReady();
 
-    static void Uci();
+    static void uci();
 
-    void Go(const std::string &);
+    void uciGo(const std::string &args);
 
-    void Stop();
+    void uciStop();
 
-    void Quit();
+    void uciQuit();
 
-    static void SetOption(const std::string &);
+    void uciSetOption(const std::string &args);
 
-    void UciNewGame();
+    void uciPosition(const std::string &args);
 
-    static void Position(const std::string &);
+    void uciNewGame();
 };
 
 #endif //ENGINE_UCIPROTOCOL_H

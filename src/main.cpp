@@ -4,7 +4,6 @@
 
 #include "Constants.h"
 #include "Engine.h"
-#include "EngineOptions.h"
 #include "UciProtocol.h"
 
 int main() {
@@ -15,11 +14,10 @@ int main() {
 
     std::atomic_bool go = false;
     std::atomic_bool quit = false;
-    EngineOptions engineOptions = EngineOptions();
-    SearchOptions searchOptions = SearchOptions();
+    Parameters parameters = Parameters();
 
-    Engine engine = Engine(go, quit, engineOptions, searchOptions, m, cv);
-    UciProtocol uciProtocol = UciProtocol(go, quit, engineOptions, searchOptions, m, cv);
+    Engine engine = Engine(go, quit, parameters, m, cv);
+    UciProtocol uciProtocol = UciProtocol(go, quit, parameters, m, cv);
 
     std::thread engineThread = std::thread(&Engine::start, &engine);
     uciProtocol.UciLoop();

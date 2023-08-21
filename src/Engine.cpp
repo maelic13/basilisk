@@ -6,10 +6,8 @@
 using namespace std::chrono_literals;
 
 Engine::Engine(std::atomic_bool &go, std::atomic_bool &quit,
-               EngineOptions &engineOptions, SearchOptions &searchOptions,
-               std::mutex &m, std::condition_variable &cv)
-        : go(go), quit(quit), engineOptions(engineOptions), searchOptions(searchOptions),
-          m(m), cv(cv) {}
+               Parameters &parameters, std::mutex &m, std::condition_variable &cv)
+        : go(go), quit(quit), parameters(parameters), m(m), cv(cv) {}
 
 [[noreturn]] void Engine::start() {
     while (true) {
@@ -30,6 +28,6 @@ void Engine::search() {
     while (go && !quit) {
         std::cout << "Calculating... Depth: " << depth << std::endl;
         depth++;
-        std::this_thread::sleep_for(3s);
+        std::this_thread::sleep_for(2s);
     }
 }
