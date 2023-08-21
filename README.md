@@ -1,2 +1,2 @@
 # basilisk
-UCI chess engine in C#
+UCI chess engine in C++
