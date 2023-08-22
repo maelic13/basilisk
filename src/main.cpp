@@ -7,17 +7,17 @@
 #include "UciProtocol.h"
 
 int main() {
-    std::cout << engineName << " " << engineVersion << " by " << engineAuthor << std::endl;
+    std::cout << engineName << " " << engineVersion << " by " << engineAuthor << "\n";
 
-    std::mutex m;
-    std::condition_variable cv;
+    std::mutex mutex;
+    std::condition_variable conditionVariable;
 
     std::atomic_bool go = false;
     std::atomic_bool quit = false;
     Parameters parameters = Parameters();
 
-    Engine engine = Engine(go, quit, parameters, m, cv);
-    UciProtocol uciProtocol = UciProtocol(go, quit, parameters, m, cv);
+    Engine engine = Engine(go, quit, parameters, mutex, conditionVariable);
+    UciProtocol uciProtocol = UciProtocol(go, quit, parameters, mutex, conditionVariable);
 
     std::thread engineThread = std::thread(&Engine::start, &engine);
     uciProtocol.UciLoop();

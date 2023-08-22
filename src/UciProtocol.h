@@ -1,5 +1,5 @@
-#ifndef ENGINE_UCIPROTOCOL_H
-#define ENGINE_UCIPROTOCOL_H
+#ifndef ENGINE_UCI_PROTOCOL_H
+#define ENGINE_UCI_PROTOCOL_H
 
 #include <mutex>
 #include <thread>
@@ -9,7 +9,7 @@
 class UciProtocol {
 public:
     UciProtocol(std::atomic_bool &go, std::atomic_bool &quit,
-                Parameters &parameters, std::mutex &m, std::condition_variable &cv);
+                Parameters &parameters, std::mutex &mutex, std::condition_variable &cv);
 
     void UciLoop();
 
@@ -38,4 +38,4 @@ private:
     void uciNewGame();
 };
 
-#endif //ENGINE_UCIPROTOCOL_H
+#endif //ENGINE_UCI_PROTOCOL_H

@@ -6,18 +6,19 @@
 using namespace std::chrono_literals;
 
 Engine::Engine(std::atomic_bool &go, std::atomic_bool &quit,
-               Parameters &parameters, std::mutex &m, std::condition_variable &cv)
-        : go(go), quit(quit), parameters(parameters), m(m), cv(cv) {}
+               Parameters &parameters, std::mutex &mutex, std::condition_variable &cv)
+        : go(go), quit(quit), parameters(parameters), mutex(mutex), conditionVariable(cv) {}
 
 [[noreturn]] void Engine::start() {
     while (true) {
-        std::unique_lock lk(m);
-        cv.wait(lk, [&] { return go || quit; });
+        std::unique_lock lk(mutex);
+        conditionVariable.wait(lk, [&] { return go || quit; });
 
         if (quit) {
             lk.unlock();
             break;
-        } else if (go) {
+        }
+        if (go) {
             search();
         }
     }
@@ -26,7 +27,7 @@ Engine::Engine(std::atomic_bool &go, std::atomic_bool &quit,
 void Engine::search() {
     int depth = 0;
     while (go && !quit) {
-        std::cout << "Calculating... Depth: " << depth << std::endl;
+        std::cout << "Calculating... Depth: " << depth << "\n";
         depth++;
         std::this_thread::sleep_for(2s);
     }

@@ -5,14 +5,14 @@
 Parameters::Parameters() {
     board = Board();
 
-    moveTime = 0;               // [ms]
-    whiteTime = 0;              // [ms]
-    whiteIncrement = 0;         // [ms]
-    blackTime = 0;;             // [ms]
-    blackIncrement = 0;         // [ms]
+    moveTime = 0;                           // [ms]
+    whiteTime = 0;                          // [ms]
+    whiteIncrement = 0;                     // [ms]
+    blackTime = 0;                          // [ms]
+    blackIncrement = 0;                     // [ms]
     depth = infiniteDepth;
 
-    moveOverhead = 10;          // [ms]
+    moveOverhead = defaultMoveOverhead;     // [ms]
 }
 
 void Parameters::reset() {

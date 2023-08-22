@@ -6,17 +6,24 @@
 
 UciProtocol::UciProtocol(
         std::atomic_bool &go, std::atomic_bool &quit,
-        Parameters &parameters, std::mutex &m, std::condition_variable &cv)
-        : go(go), quit(quit), parameters(parameters), mutex(m), conditionVariable(cv) {}
+        Parameters &parameters, std::mutex &mutex, std::condition_variable &cv)
+        : go(go), quit(quit), parameters(parameters), mutex(mutex), conditionVariable(cv) {}
 
 void UciProtocol::UciLoop() {
-    std::string args, command, input;
+    std::string args;
+    std::string command;
+    std::string input;
+
     while (true) {
         getline(std::cin, input);
         auto pos = input.find(' ');
         command = input.substr(0, pos);
-        if (pos != std::string::npos) args = input.substr(pos + 1);
-        else args = "";
+
+        if (pos != std::string::npos) {
+            args = input.substr(pos + 1);
+        } else {
+            args = "";
+        }
 
         if (command == "uci") uci();
         if (command == "isready") isReady();
@@ -33,14 +40,14 @@ void UciProtocol::UciLoop() {
 }
 
 void UciProtocol::uci() {
-    std::cout << "id name " << engineName << " " << engineVersion << std::endl;
-    std::cout << "id author " << engineAuthor << std::endl;
+    std::cout << "id name " << engineName << " " << engineVersion << "\n";
+    std::cout << "id author " << engineAuthor << "\n";
     std::cout << Parameters::uciOptions();
-    std::cout << "uciok" << std::endl;
+    std::cout << "uciok" << "\n";
 }
 
 void UciProtocol::isReady() {
-    std::cout << "readyok" << std::endl;
+    std::cout << "readyok" << "\n";
 }
 
 void UciProtocol::uciQuit() {

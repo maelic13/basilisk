@@ -7,7 +7,10 @@ class Board {
 public:
     Board();
 
-    Board(std::string fen);
+    explicit Board(std::string fen);
+
+private:
+    std::string fen;
 };
 
 

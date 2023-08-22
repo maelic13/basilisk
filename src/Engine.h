@@ -11,8 +11,8 @@ public:
     [[noreturn]] void start();
 
 private:
-    std::mutex &m;
-    std::condition_variable &cv;
+    std::mutex &mutex;
+    std::condition_variable &conditionVariable;
 
     std::atomic_bool &go;
     std::atomic_bool &quit;
