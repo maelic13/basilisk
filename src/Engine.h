@@ -1,5 +1,5 @@
-#ifndef ENGINE_ENGINE_H
-#define ENGINE_ENGINE_H
+#ifndef BASILISK_ENGINE_H
+#define BASILISK_ENGINE_H
 
 #include "Parameters.h"
 
@@ -22,4 +22,4 @@ private:
     void search();
 };
 
-#endif //ENGINE_ENGINE_H
+#endif //BASILISK_ENGINE_H

@@ -1,5 +1,5 @@
-#ifndef PARAMETERS_H
-#define PARAMETERS_H
+#ifndef BASILISK_PARAMETERS_H
+#define BASILISK_PARAMETERS_H
 
 #include <string>
 #include <vector>
@@ -34,4 +34,4 @@ public:
     void setSearchParameters(const std::string &args);
 };
 
-#endif //PARAMETERS_H
+#endif //BASILISK_PARAMETERS_H

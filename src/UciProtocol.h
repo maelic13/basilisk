@@ -1,5 +1,5 @@
-#ifndef ENGINE_UCI_PROTOCOL_H
-#define ENGINE_UCI_PROTOCOL_H
+#ifndef BASILISK_UCI_PROTOCOL_H
+#define BASILISK_UCI_PROTOCOL_H
 
 #include <mutex>
 #include <thread>
@@ -38,4 +38,4 @@ private:
     void uciNewGame();
 };
 
-#endif //ENGINE_UCI_PROTOCOL_H
+#endif //BASILISK_UCI_PROTOCOL_H
