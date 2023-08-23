@@ -6,8 +6,8 @@
 
 UciProtocol::UciProtocol(
         std::atomic_bool &go, std::atomic_bool &quit,
-        Parameters &parameters, std::mutex &mutex, std::condition_variable &cv)
-        : go(go), quit(quit), parameters(parameters), mutex(mutex), conditionVariable(cv) {}
+        Parameters &parameters, std::condition_variable &cv)
+        : go(go), quit(quit), parameters(parameters), conditionVariable(cv) {}
 
 void UciProtocol::UciLoop() {
     std::string args;

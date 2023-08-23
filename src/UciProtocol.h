@@ -9,12 +9,11 @@
 class UciProtocol {
 public:
     UciProtocol(std::atomic_bool &go, std::atomic_bool &quit,
-                Parameters &parameters, std::mutex &mutex, std::condition_variable &cv);
+                Parameters &parameters, std::condition_variable &conditionVariable);
 
     void UciLoop();
 
 private:
-    std::mutex &mutex;
     std::condition_variable &conditionVariable;
 
     std::atomic_bool &go;

@@ -1,6 +1,7 @@
 #ifndef BASILISK_ENGINE_H
 #define BASILISK_ENGINE_H
 
+#include "Board.h"
 #include "Parameters.h"
 
 class Engine {
@@ -19,7 +20,8 @@ private:
 
     Parameters &parameters;
 
-    void search();
+    bool check_stop();
+    void search(Board board, int depth);
 };
 
 #endif //BASILISK_ENGINE_H

@@ -1,6 +1,7 @@
 #include <chrono>
 #include <iostream>
 
+#include "Board.h"
 #include "Engine.h"
 
 using namespace std::chrono_literals;
@@ -11,24 +12,33 @@ Engine::Engine(std::atomic_bool &go, std::atomic_bool &quit,
 
 [[noreturn]] void Engine::start() {
     while (true) {
-        std::unique_lock lk(mutex);
-        conditionVariable.wait(lk, [&] { return go || quit; });
+        std::unique_lock lock(mutex);
+        conditionVariable.wait(lock, [&] { return go || quit; });
 
         if (quit) {
-            lk.unlock();
+            lock.unlock();
             break;
         }
         if (go) {
-            search();
+            search(parameters.board, parameters.depth);
         }
     }
 }
 
-void Engine::search() {
+bool Engine::check_stop() {
+    return !go || quit;
+}
+
+void Engine::search(Board board, int max_depth) {
     int depth = 0;
-    while (go && !quit) {
-        std::cout << "Calculating... Depth: " << depth << "\n";
+    while (depth < max_depth) {
+        if (check_stop()) {
+            break;
+        }
+
         depth++;
-        std::this_thread::sleep_for(2s);
+        std::cout << "Calculating... Depth: " << depth << "\n";
+        std::this_thread::sleep_for(3s);
     }
+    std::cout << "bestmove d2d4" << "\n";
 }

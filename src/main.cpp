@@ -17,7 +17,7 @@ int main() {
     Parameters parameters = Parameters();
 
     Engine engine = Engine(go, quit, parameters, mutex, conditionVariable);
-    UciProtocol uciProtocol = UciProtocol(go, quit, parameters, mutex, conditionVariable);
+    UciProtocol uciProtocol = UciProtocol(go, quit, parameters, conditionVariable);
 
     std::thread engineThread = std::thread(&Engine::start, &engine);
     uciProtocol.UciLoop();
