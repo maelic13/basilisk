@@ -9,6 +9,8 @@ public:
 
     explicit Board(std::string fen);
 
+    bool make_move(const std::string& move);
+
 private:
     std::string fen;
 };

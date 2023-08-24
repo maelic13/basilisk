@@ -39,20 +39,18 @@ void Parameters::setSearchParameters(const std::string &args) {
 }
 
 void Parameters::setOption(const std::string &args) {
-
+    std::smatch matches;
+    if (std::regex_search(args, matches, std::regex("name (.*) value"))) {
+        std::string moves = matches[1].str();
+    }
 }
 
 void Parameters::setPosition(const std::string &args) {
     Board new_board = Board();
 
-    std::string fen_keyword = "fen";
-    std::string move_keyword = "move";
-    size_t fen_index = args.find(fen_keyword);
-    size_t move_index = args.find(move_keyword, fen_index + fen_keyword.length());
-
     std::regex fen_regexes[] = {
-            std::regex(fen_keyword + " (.*) " + move_keyword),
-            std::regex(fen_keyword + " (.*)")
+            std::regex("fen (.*) moves"),
+            std::regex("fen (.*)")
     };
     for (const std::regex& regex : fen_regexes) {
         std::smatch matches;
@@ -61,12 +59,24 @@ void Parameters::setPosition(const std::string &args) {
             break;
         }
     }
-    std::regex move_regex = std::regex(move_keyword + " (.*)");
-    std::smatch matches;
 
-    if (std::regex_search(args, matches, move_regex)) {
+    std::smatch matches;
+    if (std::regex_search(args, matches, std::regex("moves (.*)"))) {
         std::string moves = matches[1].str();
-        // TODO: play moves on new_board
+
+        if (moves.back() != ' ') {
+            moves.push_back(' ');
+        }
+
+        std::string move;
+        for (char character : moves) {
+            if (character != ' ') {
+                move.push_back(character);
+                continue;
+            }
+            board.make_move(move);
+            move = "";
+        }
     }
 
     board = new_board;
