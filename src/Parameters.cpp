@@ -35,6 +35,16 @@ void Parameters::resetTemporaryParameters() {
 }
 
 void Parameters::setSearchParameters(const std::string &args) {
+    resetTemporaryParameters();
+
+    if (args.empty()) {
+        depth = 2;
+    }
+
+    if (args.contains("infinite")) {
+        depth = infiniteDepth;
+    }
+
 
 }
 
@@ -53,10 +63,6 @@ void Parameters::setOption(const std::string &args) {
     }
     std::string value = matches[1].str();
     std::transform(value.begin(), value.end(), value.begin(), tolower);
-
-    if (value.back() != ' ') {
-        value.push_back(' ');
-    }
 
     if (name == "move overhead") {
         moveOverhead = std::stoi(value);

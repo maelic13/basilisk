@@ -19,9 +19,11 @@ Engine::Engine(std::atomic_bool &go, std::atomic_bool &quit,
             lock.unlock();
             break;
         }
-        if (go) {
-            search(parameters.board, parameters.depth);
+        if (!go) {
+            continue;
         }
+
+        search(parameters.board, parameters.depth);
     }
 }
 
