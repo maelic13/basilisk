@@ -40,8 +40,26 @@ void Parameters::setSearchParameters(const std::string &args) {
 
 void Parameters::setOption(const std::string &args) {
     std::smatch matches;
-    if (std::regex_search(args, matches, std::regex("name (.*) value"))) {
-        std::string moves = matches[1].str();
+    if (!std::regex_search(args, matches, std::regex("name (.*) value"))) {
+        std::cout << "Incorrect option name.\n";
+        return;
+    }
+    std::string name = matches[1].str();
+    std::transform(name.begin(), name.end(), name.begin(), tolower);
+
+    if (!std::regex_search(args, matches, std::regex("value (.*)"))) {
+        std::cout << "Incorrect option name.\n";
+        return;
+    }
+    std::string value = matches[1].str();
+    std::transform(value.begin(), value.end(), value.begin(), tolower);
+
+    if (value.back() != ' ') {
+        value.push_back(' ');
+    }
+
+    if (name == "move overhead") {
+        moveOverhead = std::stoi(value);
     }
 }
 

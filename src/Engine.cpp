@@ -29,7 +29,7 @@ bool Engine::check_stop() {
     return !go || quit;
 }
 
-void Engine::search(Board board, int max_depth) {
+void Engine::search(const Board& board, int max_depth) {
     int depth = 0;
     while (depth < max_depth) {
         if (check_stop()) {

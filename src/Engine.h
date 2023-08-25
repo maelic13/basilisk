@@ -21,7 +21,7 @@ private:
     Parameters &parameters;
 
     bool check_stop();
-    void search(Board board, int depth);
+    void search(const Board& board, int depth);
 };
 
 #endif //BASILISK_ENGINE_H
