@@ -1,4 +1,3 @@
-#include <chrono>
 #include <iostream>
 
 #include "Board.h"
@@ -8,7 +7,9 @@ using namespace std::chrono_literals;
 
 Engine::Engine(std::atomic_bool &go, std::atomic_bool &quit,
                Parameters &parameters, std::mutex &mutex, std::condition_variable &cv)
-        : go(go), quit(quit), parameters(parameters), mutex(mutex), conditionVariable(cv) {}
+        : go(go), quit(quit), parameters(parameters), mutex(mutex), conditionVariable(cv) {
+    timeForMove = std::numeric_limits<int>::max();
+}
 
 [[noreturn]] void Engine::start() {
     while (true) {
@@ -23,15 +24,19 @@ Engine::Engine(std::atomic_bool &go, std::atomic_bool &quit,
             continue;
         }
 
+        startTimer();
         search(parameters.board, parameters.depth);
+        go = false;
     }
 }
 
 bool Engine::check_stop() {
-    return !go || quit;
+    bool timeout = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now() - startTime).count() >= timeForMove;
+    return !go || quit || timeout;
 }
 
-void Engine::search(const Board& board, int max_depth) {
+void Engine::search(const Board& board, int& max_depth) {
     int depth = 0;
     while (depth < max_depth) {
         if (check_stop()) {
@@ -43,4 +48,19 @@ void Engine::search(const Board& board, int max_depth) {
         std::this_thread::sleep_for(3s);
     }
     std::cout << "bestmove d2d4" << "\n";
+}
+
+void Engine::startTimer() {
+    startTime = std::chrono::system_clock::now();
+    timeForMove = std::numeric_limits<int>::max();
+
+    if (parameters.moveTime != 0) {
+        timeForMove = parameters.moveTime - parameters.moveOverhead;
+    }
+    if (parameters.board.sideToMove() && parameters.whiteTime != 0) {
+        timeForMove = 0.2 * parameters.whiteTime - parameters.moveOverhead;
+    }
+    if (!parameters.board.sideToMove() && parameters.blackTime != 0) {
+        timeForMove = 0.2 * parameters.blackTime - parameters.moveOverhead;
+    }
 }

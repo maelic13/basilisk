@@ -21,8 +21,6 @@ public:
 
     Parameters();
 
-    static std::string uciOptions();
-
     void reset();
 
     void resetTemporaryParameters();
@@ -32,6 +30,13 @@ public:
     void setPosition(const std::string &args);
 
     void setSearchParameters(const std::string &args);
+
+    static std::string uciOptions();
+
+private:
+    void setSearchParameter(const std::string& parameter, const std::string& value);
+
+    static std::vector<std::string> searchParameters();
 };
 
 #endif //BASILISK_PARAMETERS_H

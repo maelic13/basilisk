@@ -1,6 +1,8 @@
 #ifndef BASILISK_ENGINE_H
 #define BASILISK_ENGINE_H
 
+#include <chrono>
+
 #include "Board.h"
 #include "Parameters.h"
 
@@ -19,9 +21,12 @@ private:
     std::atomic_bool &quit;
 
     Parameters &parameters;
+    std::chrono::time_point<std::chrono::system_clock> startTime;
+    int timeForMove;
 
     bool check_stop();
-    void search(const Board& board, int depth);
+    void search(const Board& board, int& depth);
+    void startTimer();
 };
 
 #endif //BASILISK_ENGINE_H

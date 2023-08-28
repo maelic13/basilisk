@@ -1,7 +1,6 @@
 #include <sstream>
 #include <regex>
 #include <iostream>
-#include <list>
 
 #include "Board.h"
 #include "Constants.h"
@@ -34,31 +33,74 @@ void Parameters::resetTemporaryParameters() {
     depth = infiniteDepth;
 }
 
+std::vector<std::string> Parameters::searchParameters() {
+    return {"depth", "movetime", "wtime", "btime", "winc", "binc"};
+}
+
+std::string Parameters::uciOptions() {
+    return "option name Move Overhead type spin default 10 min 0 max 5000\n";
+}
+
 void Parameters::setSearchParameters(const std::string &args) {
     resetTemporaryParameters();
 
     if (args.empty()) {
-        depth = 2;
+        depth = defaultDepth;
     }
 
     if (args.contains("infinite")) {
         depth = infiniteDepth;
     }
 
+    std::smatch matches;
+    std::vector<std::string> searchParameters = Parameters::searchParameters();
+    for (std::string& parameter : searchParameters) {
+        for (const std::regex& regex : {std::regex(parameter + " (.*) "), std::regex(parameter + " (.*)")}) {
+            if (std::regex_search(args, matches, regex)) {
+                setSearchParameter(parameter, matches[1].str());
+                break;
+            }
+        }
+    }
+}
 
+void Parameters::setSearchParameter(const std::string& parameter, const std::string& value) {
+    if (parameter == "depth") {
+        depth = std::stoi(value);
+    }
+
+    if (parameter == "movetime") {
+        moveTime = std::stoi(value);
+    }
+
+    if (parameter == "wtime") {
+        whiteTime = std::stoi(value);
+    }
+
+    if (parameter == "winc") {
+        whiteIncrement = std::stoi(value);
+    }
+
+    if (parameter == "btime") {
+        blackTime = std::stoi(value);
+    }
+
+    if (parameter == "binc") {
+        blackIncrement = std::stoi(value);
+    }
 }
 
 void Parameters::setOption(const std::string &args) {
     std::smatch matches;
     if (!std::regex_search(args, matches, std::regex("name (.*) value"))) {
-        std::cout << "Incorrect option name.\n";
+        std::cout << "Incorrect option.\n";
         return;
     }
     std::string name = matches[1].str();
     std::transform(name.begin(), name.end(), name.begin(), tolower);
 
     if (!std::regex_search(args, matches, std::regex("value (.*)"))) {
-        std::cout << "Incorrect option name.\n";
+        std::cout << "Incorrect option.\n";
         return;
     }
     std::string value = matches[1].str();
@@ -72,19 +114,14 @@ void Parameters::setOption(const std::string &args) {
 void Parameters::setPosition(const std::string &args) {
     Board new_board = Board();
 
-    std::regex fen_regexes[] = {
-            std::regex("fen (.*) moves"),
-            std::regex("fen (.*)")
-    };
-    for (const std::regex& regex : fen_regexes) {
-        std::smatch matches;
+    std::smatch matches;
+    for (const std::regex& regex : {std::regex("fen (.*) moves"), std::regex("fen (.*)")}) {
         if (std::regex_search(args, matches, regex)) {
             new_board = Board(matches[1].str());
             break;
         }
     }
 
-    std::smatch matches;
     if (std::regex_search(args, matches, std::regex("moves (.*)"))) {
         std::string moves = matches[1].str();
 
@@ -98,14 +135,10 @@ void Parameters::setPosition(const std::string &args) {
                 move.push_back(character);
                 continue;
             }
-            board.make_move(move);
+            board.makeMove(move);
             move = "";
         }
     }
 
     board = new_board;
-}
-
-std::string Parameters::uciOptions() {
-    return "option name Move Overhead type spin default 10 min 0 max 5000\n";
 }

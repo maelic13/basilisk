@@ -9,7 +9,9 @@ public:
 
     explicit Board(std::string fen);
 
-    bool make_move(const std::string& move);
+    bool makeMove(const std::string& move);
+
+    bool sideToMove();
 
 private:
     std::string fen;
