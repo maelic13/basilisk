@@ -3,6 +3,8 @@
 
 #include <string>
 
+#include "Piece.h"
+
 class Board {
 public:
     Board();
@@ -16,6 +18,5 @@ public:
 private:
     std::string fen;
 };
-
 
 #endif //BASILISK_BOARD_H
