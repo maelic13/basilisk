@@ -7,7 +7,7 @@
 #include "UciProtocol.h"
 
 int main() {
-    std::cout << engineName << " " << engineVersion << " by " << engineAuthor << "\n";
+    std::cout << engineName + " " + engineVersion + " by " + engineAuthor + "\n";
 
     std::mutex mutex;
     std::condition_variable conditionVariable;

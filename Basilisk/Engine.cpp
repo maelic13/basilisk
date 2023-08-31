@@ -58,9 +58,9 @@ void Engine::startTimer() {
         timeForMove = parameters.moveTime - parameters.moveOverhead;
     }
     if (parameters.board.sideToMove() && parameters.whiteTime != 0) {
-        timeForMove = 0.2 * parameters.whiteTime - parameters.moveOverhead;
+        timeForMove = (2 * parameters.whiteTime / 10) - parameters.moveOverhead;
     }
     if (!parameters.board.sideToMove() && parameters.blackTime != 0) {
-        timeForMove = 0.2 * parameters.blackTime - parameters.moveOverhead;
+        timeForMove = (2 * parameters.blackTime / 10) - parameters.moveOverhead;
     }
 }
