@@ -1,4 +1,8 @@
 .idea/
+.vs/
 .vscode/
 build/
 cmake-build*
+debug/
+release/
+x64/
