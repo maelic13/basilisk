@@ -11,7 +11,7 @@ Engine::Engine(std::atomic_bool &go, std::atomic_bool &quit,
     timeForMove = std::numeric_limits<int>::max();
 }
 
-[[noreturn]] void Engine::start() {
+void Engine::start() {
     while (true) {
         std::unique_lock lock(mutex);
         conditionVariable.wait(lock, [&] { return go || quit; });
@@ -36,7 +36,7 @@ bool Engine::check_stop() {
     return !go || quit || timeout;
 }
 
-void Engine::search(const Board& board, int& max_depth) {
+void Engine::search(const Board &board, int &max_depth) {
     int depth = 0;
     while (depth < max_depth) {
         if (check_stop()) {

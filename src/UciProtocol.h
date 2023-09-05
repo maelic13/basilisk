@@ -3,6 +3,7 @@
 
 #include <mutex>
 #include <thread>
+#include <condition_variable>
 
 #include "Parameters.h"
 
