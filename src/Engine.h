@@ -2,6 +2,7 @@
 #define BASILISK_ENGINE_H
 
 #include <chrono>
+#include <condition_variable>
 
 #include "Board.h"
 #include "Parameters.h"
@@ -11,7 +12,7 @@ public:
     explicit Engine(std::atomic_bool &go, std::atomic_bool &quit,
                     Parameters &parameters, std::mutex &m, std::condition_variable &cv);
 
-    [[noreturn]] void start();
+    void start();
 
 private:
     std::mutex &mutex;
@@ -25,7 +26,9 @@ private:
     int timeForMove;
 
     bool check_stop();
-    void search(const Board& board, int& depth);
+
+    void search(const Board &board, int &depth);
+
     void startTimer();
 };
 

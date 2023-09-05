@@ -1,4 +1,3 @@
-#include <sstream>
 #include <regex>
 #include <iostream>
 
@@ -54,8 +53,8 @@ void Parameters::setSearchParameters(const std::string &args) {
 
     std::smatch matches;
     std::vector<std::string> searchParameters = Parameters::searchParameters();
-    for (std::string& parameter : searchParameters) {
-        for (const std::regex& regex : {std::regex(parameter + " (.*) "), std::regex(parameter + " (.*)")}) {
+    for (std::string &parameter: searchParameters) {
+        for (const std::regex &regex: {std::regex(parameter + " (.*) "), std::regex(parameter + " (.*)")}) {
             if (std::regex_search(args, matches, regex)) {
                 setSearchParameter(parameter, matches[1].str());
                 break;
@@ -64,7 +63,7 @@ void Parameters::setSearchParameters(const std::string &args) {
     }
 }
 
-void Parameters::setSearchParameter(const std::string& parameter, const std::string& value) {
+void Parameters::setSearchParameter(const std::string &parameter, const std::string &value) {
     if (parameter == "depth") {
         depth = std::stoi(value);
     }
@@ -115,7 +114,7 @@ void Parameters::setPosition(const std::string &args) {
     Board new_board = Board();
 
     std::smatch matches;
-    for (const std::regex& regex : {std::regex("fen (.*) moves"), std::regex("fen (.*)")}) {
+    for (const std::regex &regex: {std::regex("fen (.*) moves"), std::regex("fen (.*)")}) {
         if (std::regex_search(args, matches, regex)) {
             new_board = Board(matches[1].str());
             break;
@@ -130,7 +129,7 @@ void Parameters::setPosition(const std::string &args) {
         }
 
         std::string move;
-        for (char character : moves) {
+        for (char character: moves) {
             if (character != ' ') {
                 move.push_back(character);
                 continue;

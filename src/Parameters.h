@@ -34,7 +34,7 @@ public:
     static std::string uciOptions();
 
 private:
-    void setSearchParameter(const std::string& parameter, const std::string& value);
+    void setSearchParameter(const std::string &parameter, const std::string &value);
 
     static std::vector<std::string> searchParameters();
 };

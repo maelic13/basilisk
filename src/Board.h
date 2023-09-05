@@ -11,7 +11,7 @@ public:
 
     explicit Board(std::string fen);
 
-    bool makeMove(const std::string& move);
+    bool makeMove(const std::string &move);
 
     bool sideToMove();
 

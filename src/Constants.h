@@ -1,6 +1,7 @@
 #ifndef BASILISK_CONSTANTS_H
 #define BASILISK_CONSTANTS_H
 
+#include <limits>
 #include <string>
 
 const std::string engineName = "Basilisk";
