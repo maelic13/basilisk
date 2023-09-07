@@ -1,9 +1,9 @@
 #ifndef BASILISK_UCI_PROTOCOL_H
 #define BASILISK_UCI_PROTOCOL_H
 
+#include <condition_variable>
 #include <mutex>
 #include <thread>
-#include <condition_variable>
 
 #include "Parameters.h"
 

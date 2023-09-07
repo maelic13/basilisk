@@ -1,5 +1,5 @@
-#include <regex>
 #include <iostream>
+#include <regex>
 
 #include "Board.h"
 #include "Constants.h"
