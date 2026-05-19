@@ -567,49 +567,6 @@ int Evaluator::evaluate(const Board& b) {
     // ---- Taper and return ----
     int score = (mg * phase + eg * (TOTAL_PHASE - phase)) / TOTAL_PHASE;
 
-    // ---- Endgame scaling -----------------------------------------------
-    // Scale down drawn/drawish endgames to avoid falsely confident eval.
-
-    // Opposite-color bishops: if both sides have exactly 1 bishop of opposite color
-    // (and few other pieces), the position is very drawish even with pawn advantage.
-    if (b.pieces[WHITE][BISHOP] && b.pieces[BLACK][BISHOP]
-        && !more_than_one(b.pieces[WHITE][BISHOP])
-        && !more_than_one(b.pieces[BLACK][BISHOP])) {
-
-        bool wb_light = b.pieces[WHITE][BISHOP] & 0x55AA55AA55AA55AAULL;
-        bool bb_light = b.pieces[BLACK][BISHOP] & 0x55AA55AA55AA55AAULL;
-        if (wb_light != bb_light) {
-            // Opposite color bishops
-            // Count non-pawn, non-bishop material on both sides
-            int w_np = popcount(b.pieces[WHITE][KNIGHT]) + popcount(b.pieces[WHITE][ROOK]) + popcount(b.pieces[WHITE][QUEEN]);
-            int b_np = popcount(b.pieces[BLACK][KNIGHT]) + popcount(b.pieces[BLACK][ROOK]) + popcount(b.pieces[BLACK][QUEEN]);
-            if (w_np == 0 && b_np == 0) {
-                // Pure OCB endgame: scale significantly
-                score = score / 2;
-            }
-        }
-    }
-
-    // No pawns + insufficient winning material → scale toward draw
-    bool w_pawns = b.pieces[WHITE][PAWN] != 0;
-    bool b_pawns = b.pieces[BLACK][PAWN] != 0;
-    if (!w_pawns && !b_pawns) {
-        // Pure piece endgame: scale based on how much stronger the winning side is
-        int w_mat = popcount(b.pieces[WHITE][KNIGHT]) * 300
-                  + popcount(b.pieces[WHITE][BISHOP]) * 300
-                  + popcount(b.pieces[WHITE][ROOK])   * 500
-                  + popcount(b.pieces[WHITE][QUEEN])  * 900;
-        int b_mat = popcount(b.pieces[BLACK][KNIGHT]) * 300
-                  + popcount(b.pieces[BLACK][BISHOP]) * 300
-                  + popcount(b.pieces[BLACK][ROOK])   * 500
-                  + popcount(b.pieces[BLACK][QUEEN])  * 900;
-        int diff = std::abs(w_mat - b_mat);
-        if (diff < 400) {
-            // Near-equal piece endgame with no pawns: very drawish
-            score = score * diff / 400;
-        }
-    }
-
     // Return from side-to-move perspective
     return (b.side_to_move == WHITE) ? score : -score;
 }
