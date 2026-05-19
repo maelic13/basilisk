@@ -6,3 +6,11 @@ cmake-build*
 debug/
 release/
 x64/
+
+# Diagnostic / test artifacts
+*.pgn
+calibration_*.txt
+diag*.txt
+loop_diag.txt
+test_input.txt
+test_output*.txt
