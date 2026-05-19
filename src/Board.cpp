@@ -727,16 +727,21 @@ bool Board::is_legal(Move m) const {
         return !tmp.is_square_attacked(tmp.king_sq[us], them);
     }
 
-    // Regular moves: check if moving piece is pinned
+    // Regular moves: ensure king is not in check after the move
     Square ksq = king_sq[us];
     Bitboard occ_after = (all_occ ^ sq_bb(from)) | sq_bb(to);
+    Bitboard not_captured = ~sq_bb(to);
 
-    // Check if any slider now attacks our king
-    Bitboard bishop_sliders = (pieces[them][BISHOP] | pieces[them][QUEEN]) & ~sq_bb(to);
+    // Sliding attacks (depend on occupancy after move)
+    Bitboard bishop_sliders = (pieces[them][BISHOP] | pieces[them][QUEEN]) & not_captured;
     if (bishop_attacks(ksq, occ_after) & bishop_sliders) return false;
 
-    Bitboard rook_sliders = (pieces[them][ROOK] | pieces[them][QUEEN]) & ~sq_bb(to);
+    Bitboard rook_sliders = (pieces[them][ROOK] | pieces[them][QUEEN]) & not_captured;
     if (rook_attacks(ksq, occ_after) & rook_sliders) return false;
+
+    // Knight and pawn attacks are not affected by occupancy
+    if (KnightAttacks[ksq] & pieces[them][KNIGHT] & not_captured) return false;
+    if (PawnAttacks[us][ksq] & pieces[them][PAWN]  & not_captured) return false;
 
     return true;
 }
