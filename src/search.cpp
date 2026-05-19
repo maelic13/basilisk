@@ -33,6 +33,8 @@ Searcher::Searcher(TranspositionTable& tt,
     , sel_depth_(0)
     , stopped_(false)
     , time_limit_(0.0)
+    , soft_limit_(0.0)
+    , hard_limit_(0.0)
 {
     init_lmr();
     cont_hist1_ = std::make_unique<ContHistTable>();
@@ -52,29 +54,41 @@ void Searcher::clear() {
 // ---- Time management -------------------------------------------------------
 
 void Searcher::compute_time_limit(const SearchLimits& limits, Color side) {
-    if (limits.infinite || limits.ponder) { time_limit_ = 0.0; return; }
+    soft_limit_ = 0.0;
+    hard_limit_ = 0.0;
+
+    if (limits.infinite || limits.ponder) return;
     if (limits.movetime > 0) {
-        time_limit_ = std::max(1, limits.movetime - 50) / 1000.0;
+        // Fixed movetime: hard limit only, no soft limit
+        hard_limit_ = std::max(1, limits.movetime - 50) / 1000.0;
         return;
     }
 
     int remaining = (side == WHITE) ? limits.wtime : limits.btime;
     int inc       = (side == WHITE) ? limits.winc  : limits.binc;
 
-    if (remaining <= 0 && inc <= 0) { time_limit_ = 0.0; return; }
+    if (remaining <= 0 && inc <= 0) return;
 
+    // Soft limit: target time per move
     int base;
     if (limits.movestogo > 0)
-        base = remaining / (limits.movestogo + 5);
+        base = remaining / (limits.movestogo + 3);
     else
-        base = remaining / 30;
+        base = remaining / 25;  // assume ~25 moves left
 
-    int time_ms = base + (inc * 3) / 4;
-    int hard_ms = (remaining < 1000) ? remaining * 15 / 100
-                : (remaining < 5000) ? remaining * 25 / 100
-                                     : remaining * 40 / 100;
+    int soft_ms = base + (inc * 3) / 4;
 
-    time_limit_ = std::max(50, std::min(time_ms, hard_ms)) / 1000.0;
+    // Hard limit: maximum we ever spend
+    int hard_ms = (remaining < 1000) ? remaining * 20 / 100
+                : (remaining < 5000) ? remaining * 30 / 100
+                                     : remaining * 50 / 100;
+    hard_ms = std::max(soft_ms, hard_ms);  // hard >= soft always
+
+    soft_limit_ = std::max(50, soft_ms) / 1000.0;
+    hard_limit_ = std::max(50, hard_ms) / 1000.0;
+
+    // Legacy: keep time_limit_ pointing at hard for check_stop()
+    time_limit_ = hard_limit_;
 }
 
 double Searcher::elapsed_seconds() const {
@@ -86,7 +100,7 @@ bool Searcher::check_stop() {
     if (stopped_) return true;
     // stop_ is the "go" flag: false means the GUI sent "stop"
     if (!stop_.load()) { stopped_ = true; return true; }
-    if (time_limit_ > 0.0 && elapsed_seconds() >= time_limit_) {
+    if (hard_limit_ > 0.0 && elapsed_seconds() >= hard_limit_) {
         stopped_ = true;
         return true;
     }
@@ -326,8 +340,8 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     bool in_check = board_ptr_->is_in_check();
 
     if (in_check) {
-        // Allow exactly one level of in-check search; beyond that return static eval
-        if (qply >= 1) return evaluator.evaluate(*board_ptr_);
+        // Allow up to 2 levels of in-check full-move search to catch mate-in-2 combos.
+        if (qply >= 2) return evaluator.evaluate(*board_ptr_);
         std::vector<Move> pseudo;
         board_ptr_->gen_pseudo_legal(pseudo);
         int best = -INF_SCORE;
@@ -349,15 +363,18 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         return has_legal ? best : -(MATE_SCORE - ply);
     }
 
-    // If qsearch depth exceeded, return stand_pat only (no more captures)
+    // Stand-pat evaluation
     int stand_pat = evaluator.evaluate(*board_ptr_);
-    // Apply correction to stand_pat
     Key pk = board_ptr_->pieces[WHITE][PAWN] ^ board_ptr_->pieces[BLACK][PAWN];
     stand_pat += correction_value(board_ptr_->side_to_move, pk);
     stand_pat = std::clamp(stand_pat, -(MATE_SCORE - 1), MATE_SCORE - 1);
 
-    if (stand_pat >= beta) return beta;
-    if (stand_pat < alpha - 900) return alpha; // delta pruning
+    if (stand_pat >= beta) return stand_pat;  // fail-soft for beta cutoff
+
+    // Delta pruning: skip if even capturing the best possible piece can't raise alpha
+    static constexpr int DELTA_MARGIN = 200;
+    if (stand_pat < alpha - DELTA_MARGIN - PIECE_VALUE[QUEEN]) return alpha;
+
     if (stand_pat > alpha) alpha = stand_pat;
 
     if (qply >= MAX_QSEARCH_PLY) return alpha;
@@ -376,9 +393,16 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         sm.push_back({m, score});
     }
 
+    int best_score = stand_pat;
     for (int i = 0; i < (int)sm.size(); i++) {
         Move m = pick_next(sm.data(), i, (int)sm.size());
         if (!board_ptr_->is_legal(m)) continue;
+
+        // Per-capture delta pruning: skip if this capture can't raise alpha
+        PieceType cap_pt = (move_type(m) == EN_PASSANT)
+                         ? PAWN : type_of(board_ptr_->board_sq[to_sq(m)]);
+        if (stand_pat + PIECE_VALUE[cap_pt] + DELTA_MARGIN <= alpha) continue;
+
         if (board_ptr_->see(m) < 0) continue;
 
         ss->move = m;
@@ -389,11 +413,12 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         ss->move = MOVE_NONE;
 
         if (stopped_) return 0;
-        if (s >= beta) return beta;
+        if (s > best_score) best_score = s;
+        if (s >= beta) return s;
         if (s > alpha) alpha = s;
     }
 
-    return alpha;
+    return best_score;
 }
 
 // ---- Negamax search --------------------------------------------------------
@@ -540,8 +565,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         }
     }
 
-    // IIR: reduce depth when we have no TT move to guide us
-    if (tt_move == MOVE_NONE && depth >= 4) depth--;
+    // IIR: reduce depth when no TT move to guide the search
+    if (tt_move == MOVE_NONE && depth >= 4)
+        depth -= is_pv ? 2 : 1;
 
     // ---- Generate and score moves ------------------------------------------
     std::vector<Move> pseudo;
@@ -566,7 +592,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     quiets_searched.reserve(32);
     bad_caps_searched.reserve(8);
 
-    int lmp_thresh = improving ? (3 + depth * depth) : (1 + depth * depth / 2);
+    int lmp_thresh = improving ? (3 + depth * depth) : (2 + depth * depth / 2);
 
     for (int i = 0; i < (int)move_list.size(); i++) {
         Move m      = pick_next(move_list.data(), i, (int)move_list.size());
@@ -586,26 +612,26 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 // Futility pruning
                 if (!is_pv && !in_check && depth <= 8
                     && static_eval != VALUE_NONE
-                    && static_eval + 150 + 110 * depth <= alpha)
+                    && static_eval + 90 + 110 * depth <= alpha)
                     continue;
 
-                // Late move pruning
-                if (!is_pv && !in_check && depth <= 6 && searched >= lmp_thresh)
+                // Late move pruning (LMP)
+                if (!in_check && depth <= 8 && searched >= lmp_thresh)
                     continue;
 
-                // History pruning
-                if (!is_pv && depth <= 5) {
+                // History pruning: skip moves with very bad combined history
+                if (!is_pv && depth <= 6) {
                     PieceType pt = type_of(board_ptr_->board_sq[from_sq(m)]);
                     int hist = main_hist_[board_ptr_->side_to_move][from_sq(m)][to_sq(m)]
                              + cont_hist_score(ss, pt, Square(to_sq(m)));
-                    if (hist < -(3072 * depth))
+                    if (hist < -4096 * depth)
                         continue;
                 }
             } else if (is_cap) {
                 // SEE pruning for bad captures
-                if (!is_pv && depth <= 8 && mscore < 6'000'000) {
+                if (!is_pv && depth <= 10 && mscore < 6'000'000) {
                     int embedded_see = mscore - 2'000'000;
-                    if (embedded_see < -depth * 80) continue;
+                    if (embedded_see < -depth * 70) continue;
                 }
             }
         }
@@ -649,16 +675,31 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         if (searched == 0) {
             score = -negamax(new_depth, -beta, -alpha, ply + 1, ss + 1, is_pv, true);
         } else {
+            // Compute a combined history score for this move (used in LMR and pruning)
+            int stat_score = 0;
+            if (is_quiet) {
+                stat_score = main_hist_[board_ptr_->side_to_move][from_sq(m)][to_sq(m)];
+                stat_score += cont_hist_score(ss, moved_pt, Square(to_sq(m)));
+            }
+
             // Late Move Reductions
             int reduction = 0;
-            if (searched >= 2 && depth >= 3 && !in_check && is_quiet) {
+            if (depth >= 2 && searched >= 2 && !in_check && (is_quiet || mscore < 6'000'000)) {
                 reduction = LMR_TABLE[std::min(depth, 63)][std::min(searched, 63)];
-                if (!is_pv)     reduction++;
-                if (!improving) reduction++;
 
-                // Cont-hist adjustment: good moves get reduced less
-                int ch = cont_hist_score(ss, moved_pt, Square(to_sq(m)));
-                reduction -= ch / 5000;
+                if (is_quiet) {
+                    if (!is_pv)     reduction++;
+                    if (!improving) reduction++;
+                    // History-based adjustment: good moves get reduced less, bad more
+                    reduction -= stat_score / 8192;
+                } else {
+                    // Captures get less reduction than quiets
+                    reduction = reduction / 2;
+                }
+
+                // Non-PV cut nodes: reduce more aggressively
+                if (!is_pv && !improving) reduction++;
+
                 reduction = std::clamp(reduction, 0, new_depth - 1);
             }
 
@@ -758,7 +799,9 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
     std::memset(pv_len_, 0, sizeof(pv_len_));
 
     SearchResult result;
-    int prev_score = 0;
+    int prev_score      = 0;
+    Move prev_best      = MOVE_NONE;
+    int  best_stability = 0;   // how many consecutive depths best move hasn't changed
 
     int max_depth = limits.infinite ? MAX_SEARCH_DEPTH
                   : std::min(limits.depth, MAX_SEARCH_DEPTH);
@@ -770,24 +813,25 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
         if (depth <= 3) {
             score = negamax(depth, -INF_SCORE, INF_SCORE, 0, ss, true, true);
         } else {
-            // Aspiration windows
-            int delta = 25;
+            // Aspiration windows — start tighter at deeper depths
+            int delta = 15 + 5 * (depth <= 6);
             int asp_a = prev_score - delta;
             int asp_b = prev_score + delta;
             while (true) {
                 score = negamax(depth, asp_a, asp_b, 0, ss, true, true);
                 if (stopped_) break;
                 if (score <= asp_a) {
-                    asp_a = std::max(score - delta, -INF_SCORE);
+                    asp_b  = (asp_a + asp_b) / 2;  // narrow upper on fail-low
+                    asp_a  = std::max(score - delta, -INF_SCORE);
                     delta += delta / 2;
                 } else if (score >= asp_b) {
-                    asp_b = std::min(score + delta, INF_SCORE);
+                    asp_a  = (asp_a + asp_b) / 2;  // narrow lower on fail-high
+                    asp_b  = std::min(score + delta, INF_SCORE);
                     delta += delta / 2;
                 } else {
                     break;
                 }
                 if (delta >= 900) {
-                    // Use full window on next iteration and break after
                     asp_a = -INF_SCORE;
                     asp_b =  INF_SCORE;
                     score = negamax(depth, asp_a, asp_b, 0, ss, true, true);
@@ -800,6 +844,15 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
 
         prev_score = score;
 
+        // Track best-move stability for adaptive soft time limit
+        Move cur_best = (pv_len_[0] > 0) ? pv_table_[0][0] : MOVE_NONE;
+        if (cur_best == prev_best)
+            best_stability++;
+        else {
+            best_stability = 0;
+            prev_best      = cur_best;
+        }
+
         if (pv_len_[0] > 0) {
             result.bestmove   = pv_table_[0][0];
             result.pondermove = (pv_len_[0] > 1) ? pv_table_[0][1] : MOVE_NONE;
@@ -810,9 +863,14 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
         double elapsed = elapsed_seconds();
         send_info(depth, score, nodes_, elapsed);
 
-        // Soft time limit: stop if we've used > 50% of allocated time
-        if (time_limit_ > 0.0 && elapsed >= time_limit_ * 0.5 && !limits.ponder)
-            break;
+        // Adaptive soft time limit:
+        // The more stable the best move, the less time we need to confirm it.
+        // stability=0 → 100% of soft, stability=6+ → ~64% of soft
+        if (soft_limit_ > 0.0 && !limits.ponder) {
+            double stability_scale = 1.0 - 0.06 * std::min(best_stability, 6);
+            if (elapsed >= soft_limit_ * stability_scale)
+                break;
+        }
 
         if (std::abs(score) >= MATE_SCORE - MAX_PLY)
             break;

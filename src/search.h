@@ -97,7 +97,9 @@ private:
     int  pv_len_[MAX_PLY];
 
     std::chrono::steady_clock::time_point start_time_;
-    double time_limit_;
+    double time_limit_;   // hard limit (legacy, = hard_limit_)
+    double soft_limit_;   // target time — stop early if best move is stable
+    double hard_limit_;   // absolute maximum
 
     // ---- LMR table ----
     static int  LMR_TABLE[64][64];
