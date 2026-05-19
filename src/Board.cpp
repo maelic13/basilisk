@@ -1,17 +1,3 @@
-#include <iostream>
-
+// Board.cpp — implementation absorbed into chess-library/chess.hpp (header-only).
+// This file is kept so CMake has a compilation unit, but nothing else is needed.
 #include "Board.h"
-#include "Constants.h"
-
-Board::Board() : Board(startPosition) {}
-
-Board::Board(std::string fen) : fen(std::move(fen)) {}
-
-bool Board::makeMove(const std::string &move) {
-    std::cout << "Played move: " << move << "\n";
-    return false;
-}
-
-bool Board::sideToMove() {
-    return true;
-}

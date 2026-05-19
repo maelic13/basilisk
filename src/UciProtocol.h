@@ -1,9 +1,8 @@
-#ifndef BASILISK_UCI_PROTOCOL_H
-#define BASILISK_UCI_PROTOCOL_H
+#pragma once
 
+#include <atomic>
 #include <condition_variable>
-#include <mutex>
-#include <thread>
+#include <string>
 
 #include "Parameters.h"
 
@@ -21,21 +20,16 @@ private:
     std::atomic_bool &quit;
     Parameters &parameters;
 
-    static void isReady();
+    static void cmdUci();
+    static void cmdIsReady();
+    static void cmdRegister();
 
-    static void uci();
-
-    void uciGo(const std::string &args);
-
-    void uciStop();
-
-    void uciQuit();
-
-    void uciSetOption(const std::string &args);
-
-    void uciPosition(const std::string &args);
-
-    void uciNewGame();
+    void cmdGo(const std::string &args);
+    void cmdStop();
+    void cmdQuit();
+    void cmdPonderHit();
+    void cmdSetOption(const std::string &args);
+    void cmdPosition(const std::string &args);
+    void cmdNewGame();
 };
 
-#endif //BASILISK_UCI_PROTOCOL_H

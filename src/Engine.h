@@ -1,10 +1,11 @@
-#ifndef BASILISK_ENGINE_H
-#define BASILISK_ENGINE_H
+#pragma once
 
+#include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <mutex>
+#include <string>
 
-#include "Board.h"
 #include "Parameters.h"
 
 class Engine {
@@ -12,6 +13,7 @@ public:
     explicit Engine(std::atomic_bool &go, std::atomic_bool &quit,
                     Parameters &parameters, std::mutex &m, std::condition_variable &cv);
 
+    // Runs on a dedicated thread — blocks until quit is set.
     void start();
 
 private:
@@ -22,14 +24,16 @@ private:
     std::atomic_bool &quit;
 
     Parameters &parameters;
-    std::chrono::time_point<std::chrono::system_clock> startTime;
-    int timeForMove;
+    std::chrono::steady_clock::time_point startTime;
+    int timeForMove; // [ms], INT_MAX == unlimited
 
-    bool check_stop();
+    [[nodiscard]] bool checkStop() const;
 
-    void search(const Board &board, int &depth);
+    void search();
 
     void startTimer();
+
+    // Returns the best move in UCI notation (placeholder: first legal move).
+    [[nodiscard]] std::string bestMove() const;
 };
 
-#endif //BASILISK_ENGINE_H

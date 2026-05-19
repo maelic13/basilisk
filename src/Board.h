@@ -1,22 +1,12 @@
 #ifndef BASILISK_BOARD_H
 #define BASILISK_BOARD_H
 
-#include <string>
+#include "chess-library/chess.hpp"
 
-#include "Piece.h"
+// Re-export commonly used chess-library types so the rest of the codebase
+// can include just this header.
+using Board = chess::Board;
+using Move  = chess::Move;
+using Color = chess::Color;
 
-class Board {
-public:
-    Board();
-
-    explicit Board(std::string fen);
-
-    bool makeMove(const std::string &move);
-
-    bool sideToMove();
-
-private:
-    std::string fen;
-};
-
-#endif //BASILISK_BOARD_H
+#endif // BASILISK_BOARD_H

@@ -1,0 +1,83 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": { "major": 3, "minor": 24, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
+      "name": "clang-release",
+      "displayName": "Clang — Release",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++"
+      }
+    },
+    {
+      "name": "clang-debug",
+      "displayName": "Clang — Debug + ASan/UBSan",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "SANITIZE": "ON"
+      }
+    },
+    {
+      "name": "clang-release-pext",
+      "displayName": "Clang — Release + PEXT",
+      "inherits": "clang-release",
+      "cacheVariables": {
+        "USE_PEXT": "ON"
+      }
+    },
+    {
+      "name": "gcc-release",
+      "displayName": "GCC — Release",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++"
+      }
+    },
+    {
+      "name": "gcc-debug",
+      "displayName": "GCC — Debug + ASan/UBSan",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++",
+        "SANITIZE": "ON"
+      }
+    },
+    {
+      "name": "msvc-release",
+      "displayName": "MSVC — Release",
+      "inherits": "base",
+      "generator": "Visual Studio 17 2022",
+      "architecture": { "value": "x64", "strategy": "set" },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "clang-release",      "configurePreset": "clang-release" },
+    { "name": "clang-debug",        "configurePreset": "clang-debug" },
+    { "name": "clang-release-pext", "configurePreset": "clang-release-pext" },
+    { "name": "gcc-release",        "configurePreset": "gcc-release" },
+    { "name": "gcc-debug",          "configurePreset": "gcc-debug" },
+    { "name": "msvc-release",       "configurePreset": "msvc-release" }
+  ]
+}

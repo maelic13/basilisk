@@ -1,5 +1,4 @@
-#ifndef BASILISK_PARAMETERS_H
-#define BASILISK_PARAMETERS_H
+#pragma once
 
 #include <string>
 #include <vector>
@@ -39,4 +38,3 @@ private:
     static std::vector<std::string> searchParameters();
 };
 
-#endif //BASILISK_PARAMETERS_H
