@@ -15,13 +15,18 @@ set(SOURCES
     src/Engine.cpp
     src/Parameters.cpp
     src/UciProtocol.cpp
+    src/bitboard.cpp
+    src/move.cpp
+    src/attacks.cpp
+    src/zobrist.cpp
+    src/eval.cpp
+    src/search.cpp
 )
 
 add_executable(basilisk ${SOURCES})
 
 target_include_directories(basilisk PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
 # ---------------------------------------------------------------------------
@@ -95,11 +100,11 @@ if(NOT MSVC)
 endif()
 
 # ---------------------------------------------------------------------------
-# Optional BMI2 PEXT support (faster magic bitboards in chess-library)
+# Optional BMI2 PEXT support (faster sliding piece attacks on Haswell+)
 # ---------------------------------------------------------------------------
 option(USE_PEXT "Use BMI2 PEXT instruction for magic bitboards (requires Haswell+)" OFF)
 if(USE_PEXT)
-    target_compile_definitions(basilisk PRIVATE CHESS_USE_PEXT)
+    target_compile_definitions(basilisk PRIVATE USE_PEXT)
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         target_compile_options(basilisk PRIVATE -mbmi2)
     elseif(MSVC)

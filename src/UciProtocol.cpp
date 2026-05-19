@@ -5,9 +5,9 @@
 #include "UciProtocol.h"
 
 UciProtocol::UciProtocol(
-    std::atomic_bool &go, std::atomic_bool &quit,
-    Parameters &parameters, std::condition_variable &cv)
-    : go(go), quit(quit), parameters(parameters), conditionVariable(cv) {}
+    std::atomic_bool &go_, std::atomic_bool &quit_,
+    Parameters &params_, std::condition_variable &cv)
+    : go(go_), quit(quit_), parameters(params_), conditionVariable(cv) {}
 
 void UciProtocol::UciLoop() {
     std::string input;

@@ -14,11 +14,10 @@ public:
     void UciLoop();
 
 private:
-    std::condition_variable &conditionVariable;
-
     std::atomic_bool &go;
     std::atomic_bool &quit;
     Parameters &parameters;
+    std::condition_variable &conditionVariable;
 
     static void cmdUci();
     static void cmdIsReady();

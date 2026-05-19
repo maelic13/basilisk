@@ -1,85 +1,57 @@
 #include <iostream>
-#include <limits>
 #include <string>
 
-#include "Board.h"
+#include "Constants.h"
 #include "Engine.h"
 
-Engine::Engine(std::atomic_bool &go, std::atomic_bool &quit,
-               Parameters &parameters, std::mutex &mutex, std::condition_variable &cv)
-    : go(go), quit(quit), parameters(parameters), mutex(mutex), conditionVariable(cv) {
-    timeForMove = std::numeric_limits<int>::max();
-}
+Engine::Engine(std::atomic_bool& go_, std::atomic_bool& quit_,
+               Parameters& params_, std::mutex& mutex_, std::condition_variable& cv)
+    : go(go_), quit(quit_), parameters(params_), mutex(mutex_), conditionVariable(cv)
+    , tt(64)
+{}
 
 void Engine::start() {
     while (true) {
         std::unique_lock lock(mutex);
         conditionVariable.wait(lock, [&] { return go.load() || quit.load(); });
 
-        if (quit.load()) {
-            break;
-        }
-        if (!go.load()) {
-            continue;
-        }
+        if (quit.load()) break;
+        if (!go.load())  continue;
 
-        startTimer();
-        search();
+        // Build search limits from parameters
+        SearchLimits limits;
+        limits.depth     = parameters.depth;
+        limits.movetime  = parameters.moveTime;
+        limits.wtime     = parameters.whiteTime;
+        limits.btime     = parameters.blackTime;
+        limits.winc      = parameters.whiteIncrement;
+        limits.binc      = parameters.blackIncrement;
+        limits.infinite  = (parameters.depth == infiniteDepth && parameters.moveTime == 0
+                            && parameters.whiteTime == 0 && parameters.blackTime == 0);
+
+        // Create searcher with engine's TT and the shared stop signal
+        Searcher searcher(tt, go,
+            [](const std::string& info) {
+                std::cout << info << '\n';
+                std::cout.flush();
+            });
+
+        Board board_copy = parameters.board;
+        lock.unlock();
+
+        SearchResult result = searcher.search(board_copy, limits);
+
         go = false;
-    }
-}
 
-bool Engine::checkStop() const {
-    const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-                             std::chrono::steady_clock::now() - startTime)
-                             .count();
-    return !go.load() || quit.load() || elapsed >= timeForMove;
-}
-
-void Engine::search() {
-    chess::Movelist moves;
-    chess::movegen::legalmoves(moves, parameters.board);
-
-    if (moves.empty()) {
-        // Checkmate or stalemate — no legal move to report
-        return;
-    }
-
-    int depth = 0;
-    while (depth < parameters.depth) {
-        if (checkStop()) break;
-        depth++;
-    }
-
-    std::cout << "bestmove " << bestMove() << "\n";
-}
-
-std::string Engine::bestMove() const {
-    chess::Movelist moves;
-    chess::movegen::legalmoves(moves, parameters.board);
-
-    if (moves.empty()) return "0000";
-    return chess::uci::moveToUci(moves[0]);
-}
-
-void Engine::startTimer() {
-    startTime   = std::chrono::steady_clock::now();
-    timeForMove = std::numeric_limits<int>::max();
-
-    const Color side = parameters.board.sideToMove();
-
-    if (parameters.moveTime > 0) {
-        timeForMove = std::max(1, parameters.moveTime - parameters.moveOverhead);
-        return;
-    }
-
-    const int remaining = (side == Color::WHITE) ? parameters.whiteTime : parameters.blackTime;
-    const int increment = (side == Color::WHITE) ? parameters.whiteIncrement : parameters.blackIncrement;
-
-    if (remaining > 0) {
-        // Allocate ~1/30 of remaining time plus 75% of increment
-        const int alloc = remaining / 30 + (increment * 3) / 4;
-        timeForMove = std::max(10, alloc - parameters.moveOverhead);
+        if (result.bestmove != MOVE_NONE) {
+            std::string out = "bestmove " + move_to_uci(result.bestmove);
+            if (result.pondermove != MOVE_NONE)
+                out += " ponder " + move_to_uci(result.pondermove);
+            std::cout << out << '\n';
+        } else {
+            std::cout << "bestmove 0000\n";
+        }
+        std::cout.flush();
     }
 }
 
