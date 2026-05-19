@@ -1,16 +1,17 @@
-#ifndef BASILISK_CONSTANTS_H
-#define BASILISK_CONSTANTS_H
+#pragma once
 
 #include <limits>
-#include <string>
+#include <string_view>
 
-const std::string engineName = "Basilisk";
-const std::string engineVersion = "0.1";
-const std::string engineAuthor = "Miloslav Macurek";
+inline constexpr std::string_view engineName    = "Basilisk";
+inline constexpr std::string_view engineVersion = "1.0.0";
+inline constexpr std::string_view engineAuthor  = "Miloslav Macurek";
 
-const int defaultDepth = 2;
-const int defaultMoveOverhead = 10;
-const int infiniteDepth = std::numeric_limits<int>::max();
-const std::string startPosition = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+// Default time per move when no clock information is provided [ms]
+inline constexpr int defaultMoveTime     = 500;
+inline constexpr int defaultMoveOverhead = 10;
 
-#endif //BASILISK_CONSTANTS_H
+inline constexpr int infiniteDepth = std::numeric_limits<int>::max();
+
+inline constexpr std::string_view startPosition =
+    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";

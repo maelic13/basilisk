@@ -1,35 +1,32 @@
-#ifndef BASILISK_ENGINE_H
-#define BASILISK_ENGINE_H
+#pragma once
 
+#include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <memory>
+#include <mutex>
+#include <string>
 
-#include "Board.h"
 #include "Parameters.h"
+#include "tt.h"
+#include "search.h"
 
 class Engine {
 public:
-    explicit Engine(std::atomic_bool &go, std::atomic_bool &quit,
-                    Parameters &parameters, std::mutex &m, std::condition_variable &cv);
+    explicit Engine(std::atomic_bool& go, std::atomic_bool& quit,
+                    Parameters& parameters, std::mutex& m, std::condition_variable& cv);
 
     void start();
 
 private:
-    std::mutex &mutex;
-    std::condition_variable &conditionVariable;
+    std::atomic_bool& go;
+    std::atomic_bool& quit;
 
-    std::atomic_bool &go;
-    std::atomic_bool &quit;
+    Parameters& parameters;
+    std::mutex&              mutex;
+    std::condition_variable& conditionVariable;
 
-    Parameters &parameters;
-    std::chrono::time_point<std::chrono::system_clock> startTime;
-    int timeForMove;
-
-    bool check_stop();
-
-    void search(const Board &board, int &depth);
-
-    void startTimer();
+    TranspositionTable        tt;
+    std::unique_ptr<Searcher> searcher_; // persistent: history survives between searches
 };
 
-#endif //BASILISK_ENGINE_H

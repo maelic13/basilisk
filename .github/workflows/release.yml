@@ -1,0 +1,145 @@
+name: Build and Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.os_name }} ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            os_name: linux
+            arch: x86_64
+            ext: ""
+            pext: true
+
+          - runner: ubuntu-24.04-arm
+            os_name: linux
+            arch: aarch64
+            ext: ""
+            pext: false
+
+          - runner: windows-latest
+            os_name: windows
+            arch: x86_64
+            ext: ".exe"
+            pext: true
+            msystem: CLANG64
+            mingw_pkg_prefix: mingw-w64-clang-x86_64
+            compiler_pkg: clang
+
+          - runner: windows-11-arm
+            os_name: windows
+            arch: aarch64
+            ext: ".exe"
+            pext: false
+            msystem: CLANGARM64
+            mingw_pkg_prefix: mingw-w64-clang-aarch64
+            compiler_pkg: clang
+
+          - runner: macos-latest
+            os_name: macos
+            arch: aarch64
+            ext: ""
+            pext: false
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install Clang and Ninja (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -q && sudo apt-get install -y clang ninja-build
+
+      - name: Install Ninja (macOS)
+        if: runner.os == 'macOS'
+        run: brew install ninja
+
+      - name: Set up MSYS2 / Clang (Windows)
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: ${{ matrix.msystem }}
+          update: false
+          install: >-
+            ${{ matrix.mingw_pkg_prefix }}-${{ matrix.compiler_pkg }}
+            ${{ matrix.mingw_pkg_prefix }}-cmake
+            ${{ matrix.mingw_pkg_prefix }}-ninja
+
+      - name: Configure and build (Linux / macOS)
+        if: runner.os != 'Windows'
+        env:
+          CC: clang
+          CXX: clang++
+        run: |
+          cmake --preset release
+          cmake --build --preset release
+
+      - name: Configure and build (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          cmake --preset release
+          cmake --build --preset release
+
+      - name: Smoke test
+        shell: bash
+        run: |
+          binary="build/release/basilisk${{ matrix.ext }}"
+          # 'timeout' is GNU coreutils; macOS ships 'gtimeout' instead
+          if command -v timeout >/dev/null 2>&1; then
+            TIMEOUT="timeout 15"
+          elif command -v gtimeout >/dev/null 2>&1; then
+            TIMEOUT="gtimeout 15"
+          else
+            TIMEOUT=""
+          fi
+          output=$(printf "uci\nquit\n" | $TIMEOUT "./$binary" 2>&1 || true)
+          echo "$output"
+          echo "$output" | grep -q "uciok"   || { echo "FAIL: uciok not found";   exit 1; }
+          echo "$output" | grep -q "1.0.0"   || { echo "FAIL: version not found"; exit 1; }
+          echo "Smoke test passed"
+
+      - name: Configure and build release-pext (Linux / macOS)
+        if: matrix.pext && runner.os != 'Windows'
+        env:
+          CC: clang
+          CXX: clang++
+        run: |
+          cmake --preset release-pext
+          cmake --build --preset release-pext
+
+      - name: Configure and build release-pext (Windows)
+        if: matrix.pext && runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          cmake --preset release-pext
+          cmake --build --preset release-pext
+
+      - name: Upload binary to release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${{ github.event.release.tag_name }}"
+          os="${{ matrix.os_name }}"
+          arch="${{ matrix.arch }}"
+          ext="${{ matrix.ext }}"
+
+          asset="basilisk-${tag}-${os}-${arch}${ext}"
+          cp "build/release/basilisk${ext}" "$asset"
+          gh release upload "$tag" "$asset" --clobber
+
+          if ${{ matrix.pext }}; then
+            asset_pext="basilisk-${tag}-${os}-${arch}-pext${ext}"
+            cp "build/release-pext/basilisk${ext}" "$asset_pext"
+            gh release upload "$tag" "$asset_pext" --clobber
+          fi
