@@ -1,0 +1,12 @@
+Basilisk 0.1.0 by Miloslav Macurek
+id name Basilisk 0.1.0
+id author Miloslav Macurek
+option name Hash type spin default 64 min 1 max 4096
+option name Move Overhead type spin default 10 min 0 max 5000
+uciok
+readyok
+info depth 1 seldepth 1 score cp 148 nodes 53 nps 239602 time 0 hashfull 0 pv g1f3
+info depth 2 seldepth 2 score cp 11 nodes 239 nps 391162 time 0 hashfull 0 pv g1f3 g8f6
+info depth 3 seldepth 3 score cp 130 nodes 428 nps 510131 time 0 hashfull 0 pv g1f3 g8f6 b1c3
+info depth 4 seldepth 4 score cp 11 nodes 788 nps 535107 time 1 hashfull 0 pv g1f3 g8f6 b1c3 b8c6
+info depth 5 seldepth 5 score cp 51 nodes 1064 nps 587002 time 1 hashfull 0 pv g1f3 g8f6 b1c3 b8c6 d2d4

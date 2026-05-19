@@ -3,6 +3,7 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <memory>
 #include <mutex>
 #include <string>
 
@@ -22,9 +23,10 @@ private:
     std::atomic_bool& quit;
 
     Parameters& parameters;
-    std::mutex&             mutex;
+    std::mutex&              mutex;
     std::condition_variable& conditionVariable;
 
-    TranspositionTable tt;
+    TranspositionTable        tt;
+    std::unique_ptr<Searcher> searcher_; // persistent: history survives between searches
 };
 

@@ -717,10 +717,7 @@ bool Board::is_legal(Move m) const {
     if (type_of(board_sq[from]) == KING) {
         if (mt == CASTLING) return true; // castling legality checked in gen
         Bitboard occ_after = (all_occ ^ sq_bb(from)) | sq_bb(to);
-        // Remove any captured piece
-        occ_after &= ~sq_bb(to);
-        occ_after |= sq_bb(to);
-        return !attackers_to(to, occ_after ^ sq_bb(from), them);
+        return !attackers_to(to, occ_after, them);
     }
 
     // En passant: complex — do make/unmake

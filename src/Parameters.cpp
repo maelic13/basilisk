@@ -23,6 +23,7 @@ Parameters::Parameters() {
 
 void Parameters::reset() {
     board.set_fen(std::string(startPosition));
+    new_game = true;
     resetTemporaryParameters();
 }
 

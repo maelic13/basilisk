@@ -1,0 +1,9 @@
+basilisk estimated Elo: 2045 +/- 114
+Reference: Stockfish UCI_LimitStrength/UCI_Elo
+
+Calibration points:
+  SF 1400: +14 =6 -0 (20g), diff +301.3 +/- 136.8, estimate 1701
+  SF 1600: +14 =5 -1 (20g), diff +269.4 +/- 150.9, estimate 1869
+  SF 1800: +8 =7 -5 (20g), diff +52.5 +/- 123.4, estimate 1853
+  SF 2000: +8 =11 -1 (20g), diff +127.0 +/- 99.3, estimate 2127
+  SF 2200: +7 =12 -1 (20g), diff +107.5 +/- 93.2, estimate 2308

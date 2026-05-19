@@ -436,7 +436,113 @@ int Evaluator::evaluate(const Board& b) {
         mg -= sign * SAFETY_TABLE[attack_units];
     }
 
-    // ---- Mop-up eval (push enemy king to corner in winning endgames) ----
+    // ---- King pawn shelter -------------------------------------------------
+    for (int c = 0; c < NCOLORS; c++) {
+        int sign = (c == WHITE) ? 1 : -1;
+        Color us = Color(c);
+        Square ksq = b.king_sq[c];
+        File   kf  = file_of(ksq);
+        Rank   kr  = rank_of(ksq);
+
+        // Only apply shelter bonus when king is castled or near edge
+        if (kf <= FILE_C || kf >= FILE_F) {
+            // Check pawns on the 3 files around king
+            for (int df = -1; df <= 1; df++) {
+                int f = kf + df;
+                if (f < FILE_A || f > FILE_H) continue;
+                Bitboard file_pawns = b.pieces[us][PAWN] & BB_FILES[f];
+
+                // Find closest friendly pawn on this file (in front of king)
+                if (us == WHITE) {
+                    Bitboard in_front = file_pawns & BB_FORWARD_RANKS[WHITE][kr];
+                    if (!in_front) {
+                        // No pawn — open file near king is very bad
+                        mg -= sign * (df == 0 ? 20 : 10);
+                    } else {
+                        Rank pawn_rank = rank_of(Square(lsb(in_front)));
+                        int dist = pawn_rank - kr;
+                        // Pawn close to king is good
+                        if (dist == 1) { mg += sign * 15; }
+                        else if (dist == 2) { mg += sign *  7; }
+                    }
+                } else {
+                    Bitboard in_front = file_pawns & BB_FORWARD_RANKS[BLACK][kr];
+                    if (!in_front) {
+                        mg -= sign * (df == 0 ? 20 : 10);
+                    } else {
+                        Rank pawn_rank = rank_of(Square(msb(in_front)));
+                        int dist = kr - pawn_rank;
+                        if (dist == 1) { mg += sign * 15; }
+                        else if (dist == 2) { mg += sign *  7; }
+                    }
+                }
+            }
+        }
+    }
+
+    // ---- Rook behind passed pawn ----------------------------------------
+    for (int c = 0; c < NCOLORS; c++) {
+        int sign = (c == WHITE) ? 1 : -1;
+        Color us = Color(c);
+        Color them = ~us;
+        Bitboard rooks = b.pieces[us][ROOK];
+        while (rooks) {
+            Square rsq = Square(pop_lsb(rooks));
+            int f = file_of(rsq);
+            // Check if there's a passed pawn on the same file
+            Bitboard file_passers = passed[us] & BB_FILES[f];
+            if (file_passers) {
+                // Rook is behind the passed pawn (supporting it from behind)
+                if (us == WHITE) {
+                    if (rank_of(rsq) < rank_of(Square(lsb(file_passers)))) {
+                        mg += sign * 15; eg += sign * 25;
+                    }
+                } else {
+                    if (rank_of(rsq) > rank_of(Square(msb(file_passers)))) {
+                        mg += sign * 15; eg += sign * 25;
+                    }
+                }
+            }
+            // Enemy rook behind our passed pawn is bad
+            Bitboard enemy_rooks = b.pieces[them][ROOK];
+            Bitboard enemy_same_file = enemy_rooks & BB_FILES[f];
+            while (enemy_same_file) {
+                Square er = Square(pop_lsb(enemy_same_file));
+                if (file_passers) {
+                    if (us == WHITE) {
+                        if (rank_of(er) < rank_of(Square(lsb(file_passers)))) {
+                            mg -= sign * 10; eg -= sign * 20;
+                        }
+                    } else {
+                        if (rank_of(er) > rank_of(Square(msb(file_passers)))) {
+                            mg -= sign * 10; eg -= sign * 20;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ---- Hanging pieces (attacked and not defended) ----------------------
+    for (int c = 0; c < NCOLORS; c++) {
+        int sign = (c == WHITE) ? 1 : -1;
+        Color us   = Color(c);
+        Color them = ~us;
+        // Non-pawn pieces
+        Bitboard pieces_bb = b.occupancy[us] & ~b.pieces[us][PAWN] & ~b.pieces[us][KING];
+        while (pieces_bb) {
+            Square sq = Square(pop_lsb(pieces_bb));
+            // Is it attacked by enemy?
+            if (!b.attackers_to(sq, b.all_occ, them)) continue;
+            // Is it defended by us?
+            if ( b.attackers_to(sq, b.all_occ, us))   continue;
+            // Hanging piece
+            PieceType pt = type_of(b.board_sq[sq]);
+            static constexpr int HANG_PEN[PIECE_TYPE_NB] = {0, 0, 45, 45, 60, 80, 0};
+            mg -= sign * HANG_PEN[pt];
+            eg -= sign * HANG_PEN[pt];
+        }
+    }
     if (phase <= 6) {
         int score_approx = (mg * phase + eg * (TOTAL_PHASE - phase)) / TOTAL_PHASE;
         if (std::abs(score_approx) > 200) {

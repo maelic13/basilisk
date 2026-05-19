@@ -64,6 +64,7 @@ void UciProtocol::cmdRegister() {
 // ---------------------------------------------------------------------------
 
 void UciProtocol::cmdQuit() {
+    go   = false;  // stop any ongoing search
     quit = true;
     conditionVariable.notify_one();
 }

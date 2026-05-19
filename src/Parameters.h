@@ -18,6 +18,8 @@ public:
 
     int moveOverhead;       // [ms]
 
+    bool new_game = false;  // set by "ucinewgame", cleared after engine processes it
+
     Parameters();
 
     void reset();
