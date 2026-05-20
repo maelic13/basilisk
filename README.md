@@ -80,9 +80,6 @@ cmake --preset gcc-release
 cmake --build --preset gcc-release
 ```
 
-Or use the **Zed editor tasks** (`.zed/tasks.json`): `Ctrl+Shift+P` → *task: spawn* → pick a config.  
-Build tasks auto-configure cmake if the build directory is missing.
-
 ### Build configurations
 
 | Preset              | Compiler | Type    | Notes                          |
