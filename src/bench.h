@@ -85,6 +85,7 @@ inline void run_bench(int depth = 13) {
                   << "  time "  << r.elapsed_ms << "ms"
                   << "  nps "   << pos_nps
                   << '\n';
+        std::cout.flush();
     }
 
     int64_t total_nps = total_ms > 0
