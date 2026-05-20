@@ -596,7 +596,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
     for (int i = 0; i < (int)move_list.size(); i++) {
         Move m      = pick_next(move_list.data(), i, (int)move_list.size());
-        int  mscore = move_list[i].score; // score after pick_next
+        int  mscore = move_list[static_cast<size_t>(i)].score; // score after pick_next
 
         if (!board_ptr_->is_legal(m)) continue;
 

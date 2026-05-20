@@ -51,7 +51,7 @@ void Engine::start() {
 
         // Resize TT if hash size changed
         if (desired_hash_mb != current_hash_mb) {
-            tt.resize(desired_hash_mb);
+            tt.resize(static_cast<size_t>(desired_hash_mb));
             current_hash_mb = desired_hash_mb;
         }
 

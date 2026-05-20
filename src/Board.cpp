@@ -756,7 +756,7 @@ bool Board::is_draw() const {
     int reps = 0;
     int stop = std::max(0, (int)history.size() - halfmove_clock);
     for (int i = (int)history.size() - 2; i >= stop; i -= 2) {
-        if (history[i].hash == hash) {
+        if (history[static_cast<size_t>(i)].hash == hash) {
             reps++;
             if (reps >= 1) return true; // 2-fold (current + one prior)
         }
