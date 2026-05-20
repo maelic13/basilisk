@@ -32,9 +32,9 @@ jobs:
             arch: x86_64
             ext: ".exe"
             pext: true
-            msystem: MINGW64
-            mingw_pkg_prefix: mingw-w64-x86_64
-            compiler_pkg: gcc
+            msystem: CLANG64
+            mingw_pkg_prefix: mingw-w64-clang-x86_64
+            compiler_pkg: clang
 
           - runner: windows-11-arm
             os_name: windows
@@ -55,15 +55,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Ninja (Linux)
+      - name: Install Clang and Ninja (Linux)
         if: runner.os == 'Linux'
-        run: sudo apt-get update -q && sudo apt-get install -y ninja-build
+        run: sudo apt-get update -q && sudo apt-get install -y clang ninja-build
 
       - name: Install Ninja (macOS)
         if: runner.os == 'macOS'
         run: brew install ninja
 
-      - name: Set up MSYS2 / MinGW-w64 (Windows)
+      - name: Set up MSYS2 / Clang (Windows)
         if: runner.os == 'Windows'
         uses: msys2/setup-msys2@v2
         with:
@@ -76,6 +76,9 @@ jobs:
 
       - name: Configure and build (Linux / macOS)
         if: runner.os != 'Windows'
+        env:
+          CC: clang
+          CXX: clang++
         run: |
           cmake --preset release
           cmake --build --preset release
@@ -99,6 +102,9 @@ jobs:
 
       - name: Configure and build release-pext (Linux / macOS)
         if: matrix.pext && runner.os != 'Windows'
+        env:
+          CC: clang
+          CXX: clang++
         run: |
           cmake --preset release-pext
           cmake --build --preset release-pext
