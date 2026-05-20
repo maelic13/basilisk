@@ -1,0 +1,27 @@
+{
+  "version": 6,
+
+  "configurePresets": [
+    {
+      "name": "local-base",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_MAKE_PROGRAM":  "/path/to/ninja",
+        "CMAKE_C_COMPILER":   "/path/to/gcc",
+        "CMAKE_CXX_COMPILER": "/path/to/g++"
+      }
+    },
+
+    { "name": "local-release",        "inherits": ["local-base", "release"] },
+    { "name": "local-release-pext",   "inherits": ["local-base", "release-pext"] },
+    { "name": "local-debug",          "inherits": ["local-base", "debug"] },
+    { "name": "local-relwithdebinfo", "inherits": ["local-base", "relwithdebinfo"] }
+  ],
+
+  "buildPresets": [
+    { "name": "local-release",        "configurePreset": "local-release" },
+    { "name": "local-release-pext",   "configurePreset": "local-release-pext" },
+    { "name": "local-debug",          "configurePreset": "local-debug" },
+    { "name": "local-relwithdebinfo", "configurePreset": "local-relwithdebinfo" }
+  ]
+}

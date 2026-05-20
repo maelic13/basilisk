@@ -1,6 +1,7 @@
 {
   "version": 6,
   "cmakeMinimumRequired": { "major": 3, "minor": 24, "patch": 0 },
+
   "configurePresets": [
     {
       "name": "base",
@@ -13,112 +14,49 @@
     },
 
     {
-      "name": "base-gcc",
-      "hidden": true,
+      "name": "release",
+      "displayName": "Release",
+      "description": "Optimised build: -O3 -march=native + LTO. Requires GCC or Clang.",
       "inherits": "base",
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Windows"
-      },
       "cacheVariables": {
-        "CMAKE_MAKE_PROGRAM":  "D:/msys64/mingw64/bin/ninja.exe",
-        "CMAKE_C_COMPILER":   "D:/msys64/mingw64/bin/gcc.exe",
-        "CMAKE_CXX_COMPILER": "D:/msys64/mingw64/bin/g++.exe"
+        "CMAKE_BUILD_TYPE": "Release"
       }
     },
     {
-      "name": "base-gcc-unix",
-      "hidden": true,
+      "name": "release-pext",
+      "displayName": "Release + PEXT",
+      "description": "Like release, plus BMI2 PEXT sliding-piece attacks (Haswell+ / Zen 3+).",
       "inherits": "base",
-      "condition": {
-        "type": "notEquals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Windows"
-      },
       "cacheVariables": {
-        "CMAKE_C_COMPILER":   "gcc",
-        "CMAKE_CXX_COMPILER": "g++"
-      }
-    },
-
-    {
-      "name": "base-clang",
-      "hidden": true,
-      "inherits": "base",
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Windows"
-      },
-      "cacheVariables": {
-        "CMAKE_MAKE_PROGRAM":  "D:/msys64/mingw64/bin/ninja.exe",
-        "CMAKE_C_COMPILER":   "D:/msys64/clang64/bin/clang.exe",
-        "CMAKE_CXX_COMPILER": "D:/msys64/clang64/bin/clang++.exe"
+        "CMAKE_BUILD_TYPE": "Release",
+        "USE_PEXT": "ON"
       }
     },
     {
-      "name": "base-clang-unix",
-      "hidden": true,
+      "name": "debug",
+      "displayName": "Debug",
+      "description": "Unoptimised debug build with AddressSanitizer and UBSan (GCC/Clang only).",
       "inherits": "base",
-      "condition": {
-        "type": "notEquals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Windows"
-      },
       "cacheVariables": {
-        "CMAKE_C_COMPILER":   "clang",
-        "CMAKE_CXX_COMPILER": "clang++"
+        "CMAKE_BUILD_TYPE": "Debug",
+        "SANITIZE": "ON"
       }
     },
-
     {
-      "name": "gcc-release",
-      "displayName": "GCC — Release",
-      "inherits": ["base-gcc", "base-gcc-unix"],
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
-    },
-    {
-      "name": "gcc-debug",
-      "displayName": "GCC — Debug + ASan/UBSan",
-      "inherits": ["base-gcc", "base-gcc-unix"],
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "SANITIZE": "ON" }
-    },
-
-    {
-      "name": "clang-release",
-      "displayName": "Clang — Release",
-      "inherits": ["base-clang", "base-clang-unix"],
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
-    },
-    {
-      "name": "clang-debug",
-      "displayName": "Clang — Debug + ASan/UBSan",
-      "inherits": ["base-clang", "base-clang-unix"],
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "SANITIZE": "ON" }
-    },
-    {
-      "name": "clang-release-pext",
-      "displayName": "Clang — Release + PEXT",
-      "inherits": ["base-clang", "base-clang-unix"],
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release", "USE_PEXT": "ON" }
-    },
-
-    {
-      "name": "msvc-release",
-      "displayName": "MSVC — Release",
+      "name": "relwithdebinfo",
+      "displayName": "Release with Debug Info",
+      "description": "Optimised build with debug symbols, no sanitizers.",
       "inherits": "base",
-      "generator": "Visual Studio 17 2022",
-      "architecture": { "value": "x64", "strategy": "set" },
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+      }
     }
   ],
+
   "buildPresets": [
-    { "name": "gcc-release",        "configurePreset": "gcc-release" },
-    { "name": "gcc-debug",          "configurePreset": "gcc-debug" },
-    { "name": "clang-release",      "configurePreset": "clang-release" },
-    { "name": "clang-debug",        "configurePreset": "clang-debug" },
-    { "name": "clang-release-pext", "configurePreset": "clang-release-pext" },
-    { "name": "msvc-release",       "configurePreset": "msvc-release" }
+    { "name": "release",        "configurePreset": "release" },
+    { "name": "release-pext",   "configurePreset": "release-pext" },
+    { "name": "debug",          "configurePreset": "debug" },
+    { "name": "relwithdebinfo", "configurePreset": "relwithdebinfo" }
   ]
 }

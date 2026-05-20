@@ -7,6 +7,9 @@ debug/
 release/
 x64/
 
+# Machine-local CMake toolchain overrides (see CMakeUserPresets.json.example)
+CMakeUserPresets.json
+
 # Diagnostic / test artifacts
 *.pgn
 calibration_*.txt

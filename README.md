@@ -54,54 +54,74 @@ A UCI chess engine written in C++23.
 
 ## Building
 
-Basilisk uses **CMake ≥ 3.24** and supports GCC, Clang, and MSVC. [CMake presets](CMakePresets.json) are provided for all common configurations.
+Basilisk uses **CMake ≥ 3.24** with [CMake presets](CMakePresets.json) for all common configurations.
+The recommended compiler is **GCC** (marginally faster NPS than Clang due to better auto-vectorisation of bitwise/integer loops), though Clang works equally well.
 
 ### Prerequisites
 
 | Tool | Minimum version |
 |------|----------------|
 | CMake | 3.24 |
-| GCC / Clang / MSVC | Any C++23-capable version |
-| Ninja (recommended) | any |
+| Ninja | any |
+| GCC ≥ 11 or Clang ≥ 16 | (C++23 required) |
 
-### Quick build (Linux / macOS)
+### Presets
+
+| Preset | Build type | Notes |
+|---|---|---|
+| `release` | Release | `-O3 -march=native` + LTO. **Use for playing/benchmarking.** |
+| `release-pext` | Release | Like `release` + BMI2 PEXT (Haswell+ / Zen 3+) |
+| `debug` | Debug | `-O0 -g3` + AddressSanitizer + UBSan |
+| `relwithdebinfo` | RelWithDebInfo | `-O2 -g -march=native`, no sanitizers |
+
+### Linux / macOS
+
+Install GCC (or Clang), CMake, and Ninja via your package manager, then:
 
 ```bash
-cmake --preset gcc-release   # or clang-release
-cmake --build --preset gcc-release
-# Binary: build/gcc-release/basilisk
+cmake --preset release
+cmake --build --preset release
+# Binary: build/release/basilisk
 ```
 
 ### Windows (MSYS2 / MinGW-w64)
 
+**Option 1 — Add MSYS2 to your PATH** (simplest; works from any terminal, CLion, VS Code, etc.):
+
+Open *System Properties → Environment Variables* and prepend to `Path`:
+```
+D:\msys64\mingw64\bin
+```
+Then in any terminal:
 ```powershell
-$env:Path = "D:/msys64/mingw64/bin;D:/msys64/usr/bin;$env:Path"
-cmake --preset gcc-release
-cmake --build --preset gcc-release
+cmake --preset release
+cmake --build --preset release
 ```
 
-### Build configurations
+**Option 2 — `CMakeUserPresets.json`** (no PATH change; paths stay local and are gitignored):
 
-| Preset              | Compiler | Type    | Notes                          |
-|---------------------|----------|---------|--------------------------------|
-| `gcc-release`       | GCC      | Release | `-O3 -march=native -flto`      |
-| `gcc-debug`         | GCC      | Debug   | ASan + UBSan                   |
-| `clang-release`     | Clang    | Release | `-O3 -march=native -flto`      |
-| `clang-debug`       | Clang    | Debug   | ASan + UBSan                   |
-| `clang-release-pext`| Clang    | Release | + BMI2 PEXT (Haswell+)         |
-| `msvc-release`      | MSVC     | Release | `/O2 /GL /LTCG`                |
+Copy the example and edit the paths:
+```powershell
+Copy-Item CMakeUserPresets.json.example CMakeUserPresets.json
+# Edit CMakeUserPresets.json: set the correct paths to ninja.exe, gcc.exe, g++.exe
+```
+Then build using the `local-` prefixed presets:
+```powershell
+cmake --preset local-release
+cmake --build --preset local-release
+```
 
-> **PEXT note:** Enable `USE_PEXT=ON` (or use the `clang-release-pext` preset) on Intel Haswell+ / AMD Zen 3+ for faster sliding-piece attack generation via the BMI2 `pext` instruction.
+**CLion:** configure a *MinGW* Toolchain under *Settings → Build → Toolchains* pointing to `D:\msys64\mingw64`.
+CLion will inject the compiler from that toolchain and use the `release` / `debug` presets from `CMakePresets.json` directly.
 
 ### Static binary (for external tools)
 
-To build a self-contained executable without MinGW DLL dependencies:
+A dynamically linked binary may fail when launched from outside the MSYS2 environment (missing DLLs).
+Build a fully self-contained executable with:
 
 ```powershell
-cmake -B build/gcc-static -G Ninja -DCMAKE_BUILD_TYPE=Release `
-      -DCMAKE_CXX_COMPILER=g++ `
-      -DCMAKE_EXE_LINKER_FLAGS="-static"
-cmake --build build/gcc-static
+cmake --preset release -DCMAKE_EXE_LINKER_FLAGS="-static"
+cmake --build --preset release
 ```
 
 ---

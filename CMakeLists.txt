@@ -32,28 +32,10 @@ target_include_directories(basilisk PRIVATE
 # ---------------------------------------------------------------------------
 # Compiler flags
 # ---------------------------------------------------------------------------
-if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    target_compile_options(basilisk PRIVATE
-        -Wall
-        -Wextra
-        -Wpedantic
-        -Wshadow
-        -Wconversion
-        -Wno-unused-parameter
-        $<$<CONFIG:Release>:-O3 -march=native -ffast-math>
-        $<$<CONFIG:RelWithDebInfo>:-O2 -g -march=native>
-        $<$<CONFIG:Debug>:-O0 -g3>
-    )
-    target_link_options(basilisk PRIVATE
-        $<$<CONFIG:Debug>:-g3>
-    )
-    # Clang sanitizers (opt-in via cmake -DSANITIZE=ON)
-    if(SANITIZE)
-        target_compile_options(basilisk PRIVATE -fsanitize=address,undefined)
-        target_link_options(basilisk PRIVATE -fsanitize=address,undefined)
-    endif()
-
-elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+# ---------------------------------------------------------------------------
+# Compiler flags
+# ---------------------------------------------------------------------------
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(basilisk PRIVATE
         -Wall
         -Wextra
