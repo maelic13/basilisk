@@ -46,7 +46,7 @@ A UCI chess engine written in C++23.
 
 | Option         | Type   | Default | Range     | Description                                   |
 |----------------|--------|---------|-----------|-----------------------------------------------|
-| `Hash`         | spin   | 64      | 1 – 4096  | Transposition table size in MB                |
+| `Hash`         | spin   | 64      | 1 – 33554432 | Transposition table size in MB                |
 | `Clear Hash`   | button | —       | —         | Clears the transposition table immediately    |
 | `Move Overhead`| spin   | 10      | 0 – 5000  | Extra latency to subtract from clock (ms)     |
 

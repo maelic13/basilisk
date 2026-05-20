@@ -48,7 +48,7 @@ std::vector<std::string> Parameters::searchParameters() {
 }
 
 std::string Parameters::uciOptions() {
-    return "option name Hash type spin default 64 min 1 max 4096\n"
+    return "option name Hash type spin default 64 min 1 max 33554432\n"
            "option name Clear Hash type button\n"
            "option name Move Overhead type spin default 10 min 0 max 5000\n";
 }
@@ -128,7 +128,7 @@ void Parameters::setOption(const std::string& args) {
     if (name_lower == "move overhead") {
         moveOverhead = std::stoi(value);
     } else if (name_lower == "hash") {
-        hash_mb = std::clamp(std::stoi(value), 1, 4096);
+        hash_mb = std::clamp(std::stoi(value), 1, 33554432);
     }
 }
 
