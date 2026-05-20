@@ -875,5 +875,7 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
     }
 
     board_ptr_ = nullptr;
+    result.nodes      = nodes_;
+    result.elapsed_ms = int64_t(elapsed_seconds() * 1000.0);
     return result;
 }

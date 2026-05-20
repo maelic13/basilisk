@@ -3,6 +3,7 @@
 
 #include "Constants.h"
 #include "UciProtocol.h"
+#include "bench.h"
 
 UciProtocol::UciProtocol(
     std::atomic_bool &go_, std::atomic_bool &quit_,
@@ -35,6 +36,7 @@ void UciProtocol::UciLoop() {
         else if (command == "go")         cmdGo(args);
         else if (command == "stop")       cmdStop();
         else if (command == "ponderhit")  cmdPonderHit();
+        else if (command == "bench")     cmdBench(args);
         else if (command == "quit") {
             cmdQuit();
             break;
@@ -113,5 +115,16 @@ void UciProtocol::cmdPosition(const std::string &args) {
 
 void UciProtocol::cmdNewGame() {
     parameters.reset();
+}
+
+void UciProtocol::cmdBench(const std::string& args) {
+    int depth = 13;
+    if (!args.empty()) {
+        try { depth = std::stoi(args); } catch (...) {}
+    }
+    // Stop any running search first
+    go   = false;
+    conditionVariable.notify_one();
+    run_bench(depth);
 }
 

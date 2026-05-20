@@ -33,5 +33,6 @@ private:
     void cmdSetOption(const std::string &args);
     void cmdPosition(const std::string &args);
     void cmdNewGame();
+    void cmdBench(const std::string& args);
 };
 

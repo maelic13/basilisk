@@ -140,6 +140,7 @@ go movetime 5000
 | `go [wtime … btime … winc … binc … movestogo … depth … nodes … movetime … infinite … ponder]` | Start search |
 | `stop` | Stop search; engine replies with `bestmove` |
 | `ponderhit` | Switch from ponder to normal search |
+| `bench [depth]` | Run built-in benchmark (default depth 13); prints NPS and a node-count fingerprint |
 | `quit` | Exit |
 
 ---

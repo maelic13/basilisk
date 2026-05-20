@@ -38,10 +38,12 @@ struct SearchLimits {
 };
 
 struct SearchResult {
-    Move bestmove   = MOVE_NONE;
-    Move pondermove = MOVE_NONE;
-    int  score      = 0;
-    int  depth      = 0;
+    Move    bestmove   = MOVE_NONE;
+    Move    pondermove = MOVE_NONE;
+    int     score      = 0;
+    int     depth      = 0;
+    int64_t nodes      = 0;
+    int64_t elapsed_ms = 0;
 };
 
 class Searcher {
