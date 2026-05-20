@@ -1,6 +1,12 @@
 name: Build and Release
 
 on:
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: Existing release tag to upload assets to (for example v1.1.0)
+        required: true
+        type: string
   release:
     types: [published]
 
@@ -11,6 +17,8 @@ jobs:
   build:
     name: Build ${{ matrix.os_name }} ${{ matrix.arch }}
     runs-on: ${{ matrix.runner }}
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.tag_name }}
     strategy:
       fail-fast: false
       matrix:
@@ -53,7 +61,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Install Clang and Ninja (Linux)
         if: runner.os == 'Linux'
@@ -80,14 +88,14 @@ jobs:
           CC: clang
           CXX: clang++
         run: |
-          cmake --preset release
+          cmake --preset release -DPORTABLE_BUILD=ON
           cmake --build --preset release
 
       - name: Configure and build (Windows)
         if: runner.os == 'Windows'
         shell: msys2 {0}
         run: |
-          cmake --preset release
+          cmake --preset release -DPORTABLE_BUILD=ON
           cmake --build --preset release
 
       - name: Smoke test
@@ -105,7 +113,9 @@ jobs:
           output=$(printf "uci\nquit\n" | $TIMEOUT "./$binary" 2>&1 || true)
           echo "$output"
           echo "$output" | grep -q "uciok"   || { echo "FAIL: uciok not found";   exit 1; }
-          echo "$output" | grep -q "1.0.0"   || { echo "FAIL: version not found"; exit 1; }
+          tag="$RELEASE_TAG"
+          version="${tag#v}"  # strip leading 'v' (e.g. "v1.1.0" → "1.1.0")
+          echo "$output" | grep -qF "$version" || { echo "FAIL: version $version not found"; exit 1; }
           echo "Smoke test passed"
 
       - name: Configure and build release-pext (Linux / macOS)
@@ -114,22 +124,42 @@ jobs:
           CC: clang
           CXX: clang++
         run: |
-          cmake --preset release-pext
+          cmake --preset release-pext -DPORTABLE_BUILD=ON
           cmake --build --preset release-pext
 
       - name: Configure and build release-pext (Windows)
         if: matrix.pext && runner.os == 'Windows'
         shell: msys2 {0}
         run: |
-          cmake --preset release-pext
+          cmake --preset release-pext -DPORTABLE_BUILD=ON
           cmake --build --preset release-pext
+
+      - name: Smoke test release-pext
+        if: matrix.pext
+        shell: bash
+        run: |
+          binary="build/release-pext/basilisk${{ matrix.ext }}"
+          if command -v timeout >/dev/null 2>&1; then
+            TIMEOUT="timeout 15"
+          elif command -v gtimeout >/dev/null 2>&1; then
+            TIMEOUT="gtimeout 15"
+          else
+            TIMEOUT=""
+          fi
+          output=$(printf "uci\nquit\n" | $TIMEOUT "./$binary" 2>&1 || true)
+          echo "$output"
+          echo "$output" | grep -q "uciok" || { echo "FAIL: pext uciok not found"; exit 1; }
+          tag="$RELEASE_TAG"
+          version="${tag#v}"
+          echo "$output" | grep -qF "$version" || { echo "FAIL: pext version $version not found"; exit 1; }
+          echo "PEXT smoke test passed"
 
       - name: Upload binary to release
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="${{ github.event.release.tag_name }}"
+          tag="$RELEASE_TAG"
           os="${{ matrix.os_name }}"
           arch="${{ matrix.arch }}"
           ext="${{ matrix.ext }}"

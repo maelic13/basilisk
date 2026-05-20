@@ -153,7 +153,8 @@ void Board::set_fen(const std::string& fen) {
     ss >> fullmove_number;
 
     // Compute hash from scratch
-    hash = compute_hash();
+    hash     = compute_hash();
+    checkers = attackers_to(king_sq[side_to_move], all_occ, ~side_to_move);
 }
 
 std::string Board::get_fen() const {
@@ -208,6 +209,7 @@ std::string Board::get_fen() const {
 void Board::make_move(Move m) {
     UndoInfo ui;
     ui.hash     = hash;
+    ui.checkers = checkers;
     ui.ep_sq    = ep_sq;
     ui.castling = castling_rights;
     ui.halfmove = halfmove_clock;
@@ -287,6 +289,7 @@ void Board::make_move(Move m) {
     hash ^= Zobrist::CastlingKeys[castling_rights];
 
     ply++;
+    checkers = attackers_to(king_sq[side_to_move], all_occ, ~side_to_move);
 }
 
 void Board::unmake_move(Move m) {
@@ -294,8 +297,9 @@ void Board::unmake_move(Move m) {
     UndoInfo ui = history.back();
     history.pop_back();
 
-    // Restore hash-tracked state from undo info
-    // We'll just re-derive the hash instead of tracking incremental
+    // Restore most state from undo info
+    // (hash/checkers must be restored AFTER piece movements, since put_piece/
+    //  move_piece update hash incrementally — we override them at the end)
     ep_sq           = ui.ep_sq;
     castling_rights = ui.castling;
     halfmove_clock  = ui.halfmove;
@@ -336,13 +340,16 @@ void Board::unmake_move(Move m) {
             put_piece(them, type_of(ui.captured), to);
     }
 
-    // Recompute hash from scratch (avoids complex incremental undo)
-    hash = compute_hash();
+    // Restore hash and checkers from undo info (overrides incremental updates
+    // that were applied by put_piece/move_piece/remove_piece above)
+    hash     = ui.hash;
+    checkers = ui.checkers;
 }
 
 void Board::make_null_move() {
     UndoInfo ui;
     ui.hash     = hash;
+    ui.checkers = checkers;
     ui.ep_sq    = ep_sq;
     ui.castling = castling_rights;
     ui.halfmove = halfmove_clock;
@@ -357,6 +364,9 @@ void Board::make_null_move() {
     halfmove_clock++;
     side_to_move = ~side_to_move;
     ply++;
+    // After a null move the new side-to-move cannot be in check:
+    // if they were, their previous move would have been illegal.
+    checkers = 0;
 }
 
 void Board::unmake_null_move() {
@@ -368,6 +378,7 @@ void Board::unmake_null_move() {
     castling_rights = ui.castling;
     halfmove_clock  = ui.halfmove;
     hash            = ui.hash;
+    checkers        = ui.checkers;
     side_to_move    = ~side_to_move;
     ply--;
 }
@@ -398,7 +409,7 @@ bool Board::is_square_attacked(Square sq, Color by) const {
 }
 
 bool Board::is_in_check() const {
-    return is_square_attacked(king_sq[side_to_move], ~side_to_move);
+    return checkers != 0;
 }
 
 // ---- Move generation -------------------------------------------------------
@@ -744,6 +755,401 @@ bool Board::is_legal(Move m) const {
     if (PawnAttacks[us][ksq] & pieces[them][PAWN]  & not_captured) return false;
 
     return true;
+}
+
+// ---- Legal move generation -------------------------------------------------
+//
+// gen_legal_impl<Us> generates all strictly legal moves for Us in a single pass.
+// Algorithm:
+//   1. Compute king moves (safe squares via x-ray with king removed)
+//   2. Detect double check → only king moves legal, early return
+//   3. Build check_mask: squares that resolve the single check (block or capture)
+//   4. Detect pinned pieces via x-ray from king through our own pieces
+//   5. Generate each piece type, applying pin-ray constraints and check_mask
+//
+template<Color Us>
+static void gen_legal_impl(const Board& b, MoveList& ml, bool caps_only) {
+    constexpr Color Them    = (Us == WHITE) ? BLACK : WHITE;
+    constexpr int   PushOff = (Us == WHITE) ?  8 : -8;
+    constexpr int   PushOff2= (Us == WHITE) ? 16 : -16;
+    constexpr int   CapEOff = (Us == WHITE) ?  9 : -7;
+    constexpr int   CapWOff = (Us == WHITE) ?  7 : -9;
+
+    const Square   ksq    = b.king_sq[Us];
+    const Bitboard us_bb  = b.occupancy[Us];
+    const Bitboard them_bb= b.occupancy[Them];
+    const Bitboard occ    = b.all_occ;
+    const Bitboard empty  = ~occ;
+
+    // Rank constants (can't be constexpr since BB_RANKS is a runtime array)
+    const Bitboard PromRank  = (Us == WHITE) ? BB_RANKS[RANK_7] : BB_RANKS[RANK_2];
+    const Bitboard StartRank = (Us == WHITE) ? BB_RANKS[RANK_2] : BB_RANKS[RANK_7];
+
+    // Direction-dispatched pawn shift helpers
+    auto push_one = [](Bitboard bb) -> Bitboard {
+        if constexpr (Us == WHITE) return shift<NORTH>(bb);
+        else                       return shift<SOUTH>(bb);
+    };
+    auto cap_e = [](Bitboard bb) -> Bitboard {
+        if constexpr (Us == WHITE) return shift<NORTH_EAST>(bb);
+        else                       return shift<SOUTH_EAST>(bb);
+    };
+    auto cap_w = [](Bitboard bb) -> Bitboard {
+        if constexpr (Us == WHITE) return shift<NORTH_WEST>(bb);
+        else                       return shift<SOUTH_WEST>(bb);
+    };
+
+    // ---- King moves (always generate regardless of check count) ----
+    {
+        Bitboard occ_no_king = occ ^ sq_bb(ksq);
+        Bitboard targets = KingAttacks[ksq] & ~us_bb;
+        if (caps_only) targets &= them_bb;
+        while (targets) {
+            Square to = Square(pop_lsb(targets));
+            if (!b.attackers_to(to, occ_no_king, Them))
+                ml.push(make_move(ksq, to));
+        }
+    }
+
+    // Double check → only king can move
+    Bitboard checkers = b.checkers;
+    if (popcount(checkers) > 1) return;
+
+    // ---- Check mask (all squares if no check; block/capture ray if single check) ----
+    const Bitboard check_mask = (checkers == 0)
+        ? ~Bitboard(0)
+        : (checkers | BB_BETWEEN[ksq][Square(lsb(checkers))]);
+
+    // ---- Pin detection via x-ray ----
+    Bitboard pinned = 0;
+    {
+        // Diagonal pinners (bishops & queens)
+        Bitboard bv  = bishop_attacks(ksq, occ);
+        Bitboard xrb = bishop_attacks(ksq, occ ^ (bv & us_bb));
+        Bitboard dp  = (b.pieces[Them][BISHOP] | b.pieces[Them][QUEEN]) & xrb;
+        while (dp) {
+            Square   pinner  = Square(pop_lsb(dp));
+            Bitboard blocker = BB_BETWEEN[ksq][pinner] & us_bb;
+            if (blocker && !more_than_one(blocker)) pinned |= blocker;
+        }
+        // Orthogonal pinners (rooks & queens)
+        Bitboard rv  = rook_attacks(ksq, occ);
+        Bitboard xrr = rook_attacks(ksq, occ ^ (rv & us_bb));
+        Bitboard op  = (b.pieces[Them][ROOK] | b.pieces[Them][QUEEN]) & xrr;
+        while (op) {
+            Square   pinner  = Square(pop_lsb(op));
+            Bitboard blocker = BB_BETWEEN[ksq][pinner] & us_bb;
+            if (blocker && !more_than_one(blocker)) pinned |= blocker;
+        }
+    }
+
+    // ---- Knights (absolutely pinned knights can never move) ----
+    {
+        Bitboard knights = b.pieces[Us][KNIGHT] & ~pinned;
+        while (knights) {
+            Square   from  = Square(pop_lsb(knights));
+            Bitboard dests = KnightAttacks[from] & ~us_bb & check_mask;
+            if (caps_only) dests &= them_bb;
+            while (dests) ml.push(make_move(from, Square(pop_lsb(dests))));
+        }
+    }
+
+    // ---- Bishops ----
+    {
+        Bitboard bishops = b.pieces[Us][BISHOP];
+        while (bishops) {
+            Square   from  = Square(pop_lsb(bishops));
+            Bitboard dests = bishop_attacks(from, occ) & ~us_bb & check_mask;
+            if (sq_bb(from) & pinned) dests &= BB_LINE[ksq][from];
+            if (caps_only) dests &= them_bb;
+            while (dests) ml.push(make_move(from, Square(pop_lsb(dests))));
+        }
+    }
+
+    // ---- Rooks ----
+    {
+        Bitboard rooks = b.pieces[Us][ROOK];
+        while (rooks) {
+            Square   from  = Square(pop_lsb(rooks));
+            Bitboard dests = rook_attacks(from, occ) & ~us_bb & check_mask;
+            if (sq_bb(from) & pinned) dests &= BB_LINE[ksq][from];
+            if (caps_only) dests &= them_bb;
+            while (dests) ml.push(make_move(from, Square(pop_lsb(dests))));
+        }
+    }
+
+    // ---- Queens ----
+    {
+        Bitboard queens = b.pieces[Us][QUEEN];
+        while (queens) {
+            Square   from  = Square(pop_lsb(queens));
+            Bitboard dests = queen_attacks(from, occ) & ~us_bb & check_mask;
+            if (sq_bb(from) & pinned) dests &= BB_LINE[ksq][from];
+            if (caps_only) dests &= them_bb;
+            while (dests) ml.push(make_move(from, Square(pop_lsb(dests))));
+        }
+    }
+
+    // ---- Pawns ----
+    {
+        Bitboard pawns        = b.pieces[Us][PAWN];
+        Bitboard free_pawns   = pawns & ~pinned;
+        Bitboard pinned_pawns = pawns & pinned;
+
+        // --- Free pawns (bulk bitboard ops) ---
+
+        // Promotion pushes
+        {
+            Bitboard pp = push_one(free_pawns & PromRank) & empty & check_mask;
+            while (pp) {
+                Square to   = Square(pop_lsb(pp));
+                Square from = Square(int(to) - PushOff);
+                ml.push(make_promotion(from, to, QUEEN));
+                ml.push(make_promotion(from, to, ROOK));
+                ml.push(make_promotion(from, to, BISHOP));
+                ml.push(make_promotion(from, to, KNIGHT));
+            }
+        }
+        // Promotion captures (east)
+        {
+            Bitboard pp = cap_e(free_pawns & PromRank) & them_bb & check_mask;
+            while (pp) {
+                Square to   = Square(pop_lsb(pp));
+                Square from = Square(int(to) - CapEOff);
+                ml.push(make_promotion(from, to, QUEEN));
+                ml.push(make_promotion(from, to, ROOK));
+                ml.push(make_promotion(from, to, BISHOP));
+                ml.push(make_promotion(from, to, KNIGHT));
+            }
+        }
+        // Promotion captures (west)
+        {
+            Bitboard pp = cap_w(free_pawns & PromRank) & them_bb & check_mask;
+            while (pp) {
+                Square to   = Square(pop_lsb(pp));
+                Square from = Square(int(to) - CapWOff);
+                ml.push(make_promotion(from, to, QUEEN));
+                ml.push(make_promotion(from, to, ROOK));
+                ml.push(make_promotion(from, to, BISHOP));
+                ml.push(make_promotion(from, to, KNIGHT));
+            }
+        }
+
+        if (!caps_only) {
+            // Single push (non-promo)
+            Bitboard p1 = push_one(free_pawns & ~PromRank) & empty & check_mask;
+            while (p1) {
+                Square to = Square(pop_lsb(p1));
+                ml.push(make_move(Square(int(to) - PushOff), to));
+            }
+            // Double push
+            Bitboard p2 = push_one(push_one(free_pawns & StartRank) & empty) & empty & check_mask;
+            while (p2) {
+                Square to = Square(pop_lsb(p2));
+                ml.push(make_move(Square(int(to) - PushOff2), to));
+            }
+        }
+
+        // Pawn captures east (non-promo)
+        {
+            Bitboard ce = cap_e(free_pawns & ~PromRank) & them_bb & check_mask;
+            while (ce) {
+                Square to = Square(pop_lsb(ce));
+                ml.push(make_move(Square(int(to) - CapEOff), to));
+            }
+        }
+        // Pawn captures west (non-promo)
+        {
+            Bitboard cw = cap_w(free_pawns & ~PromRank) & them_bb & check_mask;
+            while (cw) {
+                Square to = Square(pop_lsb(cw));
+                ml.push(make_move(Square(int(to) - CapWOff), to));
+            }
+        }
+
+        // --- Pinned pawns (per-pawn with pin-ray constraint) ---
+        while (pinned_pawns) {
+            Square   from    = Square(pop_lsb(pinned_pawns));
+            Bitboard pin_ray = BB_LINE[ksq][from];
+
+            bool is_promo = (sq_bb(from) & PromRank) != 0;
+
+            // Pushes (along pin ray only)
+            if (!caps_only) {
+                Square to1 = Square(int(from) + PushOff);
+                if (sq_bb(to1) & empty & pin_ray & check_mask) {
+                    if (is_promo) {
+                        ml.push(make_promotion(from, to1, QUEEN));
+                        ml.push(make_promotion(from, to1, ROOK));
+                        ml.push(make_promotion(from, to1, BISHOP));
+                        ml.push(make_promotion(from, to1, KNIGHT));
+                    } else {
+                        ml.push(make_move(from, to1));
+                        // Double push
+                        if (sq_bb(from) & StartRank) {
+                            Square to2 = Square(int(from) + PushOff2);
+                            if (sq_bb(to2) & empty & pin_ray & check_mask)
+                                ml.push(make_move(from, to2));
+                        }
+                    }
+                }
+            } else if (is_promo) {
+                // caps_only: still emit promo pushes as they are tactically important
+                Square to1 = Square(int(from) + PushOff);
+                if (sq_bb(to1) & empty & pin_ray & check_mask) {
+                    ml.push(make_promotion(from, to1, QUEEN));
+                    ml.push(make_promotion(from, to1, ROOK));
+                    ml.push(make_promotion(from, to1, BISHOP));
+                    ml.push(make_promotion(from, to1, KNIGHT));
+                }
+            }
+
+            // Captures
+            Bitboard ce1 = cap_e(sq_bb(from)) & them_bb & pin_ray & check_mask;
+            if (ce1) {
+                Square to = Square(lsb(ce1));
+                if (is_promo) {
+                    ml.push(make_promotion(from, to, QUEEN));
+                    ml.push(make_promotion(from, to, ROOK));
+                    ml.push(make_promotion(from, to, BISHOP));
+                    ml.push(make_promotion(from, to, KNIGHT));
+                } else {
+                    ml.push(make_move(from, to));
+                }
+            }
+            Bitboard cw1 = cap_w(sq_bb(from)) & them_bb & pin_ray & check_mask;
+            if (cw1) {
+                Square to = Square(lsb(cw1));
+                if (is_promo) {
+                    ml.push(make_promotion(from, to, QUEEN));
+                    ml.push(make_promotion(from, to, ROOK));
+                    ml.push(make_promotion(from, to, BISHOP));
+                    ml.push(make_promotion(from, to, KNIGHT));
+                } else {
+                    ml.push(make_move(from, to));
+                }
+            }
+        }
+
+        // --- En passant ---
+        if (b.ep_sq != SQ_NONE) {
+            Square ep       = b.ep_sq;
+            Square ep_pawn  = Square(int(ep) - PushOff);  // captured pawn square
+            // Filter: EP must either land on check_mask or capture the checking pawn
+            if ((sq_bb(ep) | sq_bb(ep_pawn)) & check_mask) {
+                Bitboard ep_atk = PawnAttacks[Them][ep] & pawns;
+                while (ep_atk) {
+                    Square   from      = Square(pop_lsb(ep_atk));
+                    // Legality: removing both pawns from occ might expose the king
+                    Bitboard occ_after = (occ ^ sq_bb(from) ^ sq_bb(ep_pawn)) | sq_bb(ep);
+                    if (!b.attackers_to(ksq, occ_after, Them))
+                        ml.push(make_ep(from, ep));
+                }
+            }
+        }
+    }
+
+    // ---- Castling (only when not in check) ----
+    if (!caps_only && checkers == 0) {
+        if constexpr (Us == WHITE) {
+            if ((b.castling_rights & WK_CASTLE)
+                && !(occ & (sq_bb(F1) | sq_bb(G1)))
+                && !b.attackers_to(F1, occ, Them)
+                && !b.attackers_to(G1, occ, Them))
+                ml.push(make_castling(E1, G1));
+            if ((b.castling_rights & WQ_CASTLE)
+                && !(occ & (sq_bb(B1) | sq_bb(C1) | sq_bb(D1)))
+                && !b.attackers_to(D1, occ, Them)
+                && !b.attackers_to(C1, occ, Them))
+                ml.push(make_castling(E1, C1));
+        } else {
+            if ((b.castling_rights & BK_CASTLE)
+                && !(occ & (sq_bb(F8) | sq_bb(G8)))
+                && !b.attackers_to(F8, occ, Them)
+                && !b.attackers_to(G8, occ, Them))
+                ml.push(make_castling(E8, G8));
+            if ((b.castling_rights & BQ_CASTLE)
+                && !(occ & (sq_bb(B8) | sq_bb(C8) | sq_bb(D8)))
+                && !b.attackers_to(D8, occ, Them)
+                && !b.attackers_to(C8, occ, Them))
+                ml.push(make_castling(E8, C8));
+        }
+    }
+}
+
+void Board::gen_legal(MoveList& ml) const {
+    if (side_to_move == WHITE) gen_legal_impl<WHITE>(*this, ml, false);
+    else                       gen_legal_impl<BLACK>(*this, ml, false);
+}
+
+void Board::gen_legal_captures(MoveList& ml) const {
+    if (side_to_move == WHITE) gen_legal_impl<WHITE>(*this, ml, true);
+    else                       gen_legal_impl<BLACK>(*this, ml, true);
+}
+
+bool Board::gives_check(Move m) const {
+    Square from      = from_sq(m);
+    Square to        = to_sq(m);
+    Color  us        = side_to_move;
+    Color  them      = ~us;
+    Square their_king = king_sq[them];
+
+    // Piece type after the move (promotion changes the type)
+    PieceType pt;
+    if (move_type(m) == PROMOTION)  pt = promo_type(m);
+    else if (move_type(m) == CASTLING) return false;  // skip for simplicity
+    else                            pt = type_of(board_sq[from]);
+
+    // Occupancy after removing `from` and adding `to`
+    Bitboard new_occ = (all_occ ^ sq_bb(from)) | sq_bb(to);
+    if (move_type(m) == EN_PASSANT) {
+        Square ep_pawn = make_square(file_of(to), rank_of(from));
+        new_occ ^= sq_bb(ep_pawn);
+    }
+
+    // 1. Direct check: does the moved piece at `to` attack their king?
+    switch (pt) {
+        case PAWN:
+            if (PawnAttacks[us][to] & sq_bb(their_king)) return true;
+            break;
+        case KNIGHT:
+            if (KnightAttacks[to] & sq_bb(their_king)) return true;
+            break;
+        case BISHOP:
+            if (bishop_attacks(to, new_occ) & sq_bb(their_king)) return true;
+            break;
+        case ROOK:
+            if (rook_attacks(to, new_occ) & sq_bb(their_king)) return true;
+            break;
+        case QUEEN:
+            if (queen_attacks(to, new_occ) & sq_bb(their_king)) return true;
+            break;
+        default:
+            break;
+    }
+
+    // 2. Discovered check: moving `from` reveals a slider attack on their king.
+    //    Use `new_occ` (from removed) and original piece arrays, excluding `from`.
+    Bitboard excl = ~sq_bb(from);
+    if (bishop_attacks(their_king, new_occ)
+            & (pieces[us][BISHOP] | pieces[us][QUEEN]) & excl) return true;
+    if (rook_attacks(their_king, new_occ)
+            & (pieces[us][ROOK]   | pieces[us][QUEEN]) & excl) return true;
+
+    return false;
+}
+
+void Board::gen_quiet_checks(MoveList& ml) const {
+    // Generate all legal moves, keep only quiet moves that give check.
+    MoveList all;
+    gen_legal(all);
+    for (Move m : all) {
+        // Skip captures and promotions (handled by gen_legal_captures)
+        bool is_cap   = (board_sq[to_sq(m)] != NO_PIECE) || (move_type(m) == EN_PASSANT);
+        bool is_promo = (move_type(m) == PROMOTION);
+        if (is_cap || is_promo) continue;
+        if (gives_check(m)) ml.push(m);
+    }
 }
 
 // ---- Draw detection --------------------------------------------------------

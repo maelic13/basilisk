@@ -1,0 +1,251 @@
+/// Search tests.
+///
+/// Covers: legal move at depth 1, mate-in-1 detection (×2), free queen capture,
+/// depth/nodes limits, near-zero score at startpos, node counter.
+///
+/// Build:
+///   cmake --build --preset release --target test_search
+///   ./build/release/test_search
+
+#include "Board.h"
+#include "attacks.h"
+#include "bitboard.h"
+#include "eval.h"
+#include "move.h"
+#include "search.h"
+#include "tt.h"
+#include "zobrist.h"
+#include "test_harness.h"
+
+#include <atomic>
+#include <string>
+
+// ---------------------------------------------------------------------------
+// Helper: run_search
+// ---------------------------------------------------------------------------
+
+struct RunResult {
+    SearchResult sr;
+    std::string  uci;
+};
+
+static RunResult run_search(const char* fen, int depth,
+                            int64_t nodes = 0, int movetime = 0) {
+    static TranspositionTable g_tt(4);
+    static std::atomic_bool   g_stop{false};
+
+    g_tt.clear();
+    g_stop = false;
+
+    Board b;
+    b.set_fen(fen);
+
+    SearchLimits lim;
+    lim.depth    = depth;
+    lim.nodes    = nodes;
+    lim.movetime = movetime;
+
+    Searcher searcher(g_tt, g_stop);
+    SearchResult sr = searcher.search(b, lim);
+
+    RunResult rr;
+    rr.sr  = sr;
+    rr.uci = (sr.bestmove != MOVE_NONE) ? move_to_uci(sr.bestmove) : "0000";
+    return rr;
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+static void test_returns_legal_move() {
+    // The engine must return a legal move for the starting position at depth 1.
+    begin_section("startpos depth 1: returns valid move");
+    auto rr = run_search("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", 1);
+    EXPECT(rr.sr.bestmove != MOVE_NONE);
+    end_section();
+
+    // Verify the returned move is actually legal
+    begin_section("startpos depth 1: move is legal");
+    Board b;
+    b.set_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+    MoveList ml;
+    b.gen_legal(ml);
+    auto rr2 = run_search("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", 1);
+    bool found = false;
+    for (int i = 0; i < ml.size(); i++) {
+        if (ml[i] == rr2.sr.bestmove) { found = true; break; }
+    }
+    EXPECT(found);
+    end_section();
+
+    begin_section("startpos depth 1: nodes > 0");
+    EXPECT(rr.sr.nodes > 0);
+    end_section();
+}
+
+static void test_mate_in_one() {
+    // Position 1: "6k1/5ppp/8/8/8/8/5PPP/1R4K1 w - - 0 1"
+    // White Rb1 can mate with Rb8#.  Black king on g8 is trapped by the rook
+    // on the back rank and by its own pawns on f7/g7/h7.
+    {
+        const char* fen = "6k1/5ppp/8/8/8/8/5PPP/1R4K1 w - - 0 1";
+
+        begin_section("mate-in-1 #1: finds Rb8#");
+        auto rr = run_search(fen, 3);
+        EXPECT_STR(rr.uci, "b1b8");
+        end_section();
+
+        begin_section("mate-in-1 #1: score >= MATE_SCORE - 10");
+        EXPECT(rr.sr.score >= MATE_SCORE - 10);
+        end_section();
+    }
+
+    // Position 2: "7k/5K2/6Q1/8/8/8/8/8 w - - 0 1"
+    // White Qg6 / Kf7 vs Black Kh8.  There are multiple mating moves (Qh5, Qh6,
+    // Qh7, etc.) because any queen move to the h-file (with Kf7 covering g7/g8)
+    // delivers mate.  We just verify the engine finds *a* mate-in-1.
+    {
+        const char* fen = "7k/5K2/6Q1/8/8/8/8/8 w - - 0 1";
+
+        begin_section("mate-in-1 #2: score >= MATE_SCORE - 10");
+        auto rr = run_search(fen, 3);
+        EXPECT(rr.sr.score >= MATE_SCORE - 10);
+        end_section();
+
+        begin_section("mate-in-1 #2: returns a move");
+        EXPECT(rr.sr.bestmove != MOVE_NONE);
+        end_section();
+    }
+}
+
+static void test_free_queen_capture() {
+    // "4k3/8/8/3q4/8/8/Q7/4K3 w - - 0 1"
+    // White Qa2 can take the hanging black queen on d5 (Qxd5 = a2d5).
+    // At depth 2 this should be clearly the best move.
+    const char* fen = "4k3/8/8/3q4/8/8/Q7/4K3 w - - 0 1";
+
+    begin_section("free queen capture: Qxd5 at depth 2");
+    auto rr = run_search(fen, 2);
+    EXPECT_STR(rr.uci, "a2d5");
+    end_section();
+
+    begin_section("free queen capture: large positive score");
+    auto rr2 = run_search(fen, 2);
+    EXPECT(rr2.sr.score > 500);
+    end_section();
+}
+
+static void test_depth_limit() {
+    // With depth=1 the result should not exceed depth 1
+    begin_section("depth limit: result.depth == 1");
+    auto rr = run_search("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", 1);
+    EXPECT(rr.sr.depth >= 1);
+    EXPECT(rr.sr.depth <= 2); // allow aspiration window iteration
+    end_section();
+}
+
+static void test_nodes_limit() {
+    // With a small node limit the search should still return a move
+    begin_section("nodes limit: returns move with limit 100");
+    auto rr = run_search(
+        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        MAX_SEARCH_DEPTH, /*nodes=*/100);
+    EXPECT(rr.sr.bestmove != MOVE_NONE);
+    end_section();
+
+    begin_section("nodes limit: nodes <= limit + safety margin");
+    // Allow significant overshoot due to check-stop frequency (~1024-node granularity)
+    EXPECT(rr.sr.nodes <= 2048);
+    end_section();
+}
+
+static void test_score_near_zero_startpos() {
+    // The starting position is roughly equal; at depth 5 the score should be
+    // well within ±100 centipawns of 0.
+    begin_section("startpos depth 5: |score| < 100");
+    auto rr = run_search("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", 5);
+    EXPECT(rr.sr.score >= -100 && rr.sr.score <= 100);
+    end_section();
+}
+
+static void test_node_counter() {
+    // After any search the node counter must be positive
+    begin_section("node counter: > 0 after depth-2 search");
+    auto rr = run_search("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", 2);
+    EXPECT(rr.sr.nodes > 0);
+    end_section();
+}
+
+static void test_only_move() {
+    // Position where there is exactly one legal move.
+    // "4k3/8/8/8/8/8/4Q3/4K3 b - - 0 1" — black king on e8, white queen on e2
+    // and king on e1.  Black has very limited moves; any legal move is the only
+    // choice.
+    begin_section("only legal move: Ke8 to d7/c6 (not 0000)");
+    auto rr = run_search("4k3/8/8/8/8/8/4Q3/4K3 b - - 0 1", 1);
+    EXPECT(rr.sr.bestmove != MOVE_NONE);
+    end_section();
+}
+
+static void test_black_to_move() {
+    // Engine should work correctly when black is to move
+    begin_section("black to move: returns legal move at depth 1");
+    auto rr = run_search("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1", 1);
+    EXPECT(rr.sr.bestmove != MOVE_NONE);
+    EXPECT(rr.sr.nodes > 0);
+    end_section();
+
+    // Black has a free queen to take.
+    // Use a position where only the black queen (not the king) can capture:
+    // "4k3/8/2Q5/3q4/8/8/8/4K3 b - - 0 1" — White Qc6 vs Black Qd5/Ke8.
+    // d5→c6 is one diagonal step — a legal queen move.
+    // Ke8 is 2 files + 2 ranks from c6 — cannot capture it.
+    begin_section("black: free queen capture at depth 2");
+    auto rr2 = run_search("4k3/8/2Q5/3q4/8/8/8/4K3 b - - 0 1", 2);
+    EXPECT_STR(rr2.uci, "d5c6");
+    end_section();
+}
+
+// ---------------------------------------------------------------------------
+// main
+// ---------------------------------------------------------------------------
+
+int main() {
+    init_bitboards();
+    init_attacks();
+    Zobrist::init();
+    init_eval_tables();
+
+    std::printf("Search tests\n");
+    std::printf("%s\n", std::string(62, '=').c_str());
+
+    std::printf("\nLegal move\n");
+    test_returns_legal_move();
+
+    std::printf("\nMate in 1\n");
+    test_mate_in_one();
+
+    std::printf("\nFree queen capture\n");
+    test_free_queen_capture();
+
+    std::printf("\nDepth limit\n");
+    test_depth_limit();
+
+    std::printf("\nNodes limit\n");
+    test_nodes_limit();
+
+    std::printf("\nScore near zero\n");
+    test_score_near_zero_startpos();
+
+    std::printf("\nNode counter\n");
+    test_node_counter();
+
+    std::printf("\nOnly move\n");
+    test_only_move();
+
+    std::printf("\nBlack to move\n");
+    test_black_to_move();
+
+    return harness_summary();
+}

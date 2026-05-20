@@ -141,12 +141,10 @@ void Parameters::setPosition(const std::string& args) {
                                   std::regex(R"(fen (.*))")}) {
         if (std::regex_search(args, matches, re)) {
             new_board.set_fen(matches[1].str());
-            goto apply_moves;
+            break;  // found FEN; stop trying further patterns
         }
     }
-    // startpos — already set to starting position in constructor
-
-apply_moves:
+    // If no FEN: startpos — already set to starting position in constructor
     if (std::regex_search(args, matches, std::regex(R"(moves (.*))"))) {
         const std::string movesStr = matches[1].str();
         std::istringstream iss(movesStr);

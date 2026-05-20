@@ -10,6 +10,21 @@ x64/
 # Machine-local CMake toolchain overrides (see CMakeUserPresets.json.example)
 CMakeUserPresets.json
 
+# CMake artifacts (generated if cmake is run in the source tree)
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+CTestTestfile.cmake
+compile_commands.json
+Testing/
+_deps/
+
+# Compiler / linker output artifacts
+*.obj
+*.pdb
+*.ilk
+*.exp
+
 # Diagnostic / test artifacts
 *.pgn
 calibration_*.txt

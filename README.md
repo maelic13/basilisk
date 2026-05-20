@@ -2,7 +2,7 @@
 
 A UCI chess engine written in C++23.
 
-**Estimated strength: ~2388 ELO** (calibrated against Stockfish; strong International Master level)
+**Estimated strength: ~2400 ELO** (calibrated against Stockfish; FIDE Master / International Master level)
 
 ---
 
@@ -17,7 +17,9 @@ A UCI chess engine written in C++23.
 - Razoring
 - ProbCut
 - Late move reductions (LMR)
+- Internal Iterative Reductions (IIR) — also fires on stale TT entries
 - Singular extensions
+- Check extension — extend by 1 ply when in check
 - Quiescence search with in-check evasion
 - Static Exchange Evaluation (SEE) for move ordering and capture pruning
 
@@ -33,6 +35,10 @@ A UCI chess engine written in C++23.
 ### Evaluation
 - Tapered material + piece-square tables (PeSTO, public domain)
 - Game phase interpolation (midgame ↔ endgame)
+- Mobility scoring
+- Pawn structure: passed pawns, isolated pawns, doubled pawns
+- King safety: attack unit table with piece coordination bonuses; reduced threat when opponent lacks a queen
+- Endgame scaling
 - Pawn-structure correction history
 
 ### Time management
@@ -73,6 +79,8 @@ Both GCC and Clang are fully supported; use `bench` to measure which produces a 
 | `release-pext` | Release | Like `release` + BMI2 PEXT (Haswell+ / Zen 3+) |
 | `debug` | Debug | `-O0 -g3` + AddressSanitizer + UBSan |
 | `relwithdebinfo` | RelWithDebInfo | `-O2 -g -march=native`, no sanitizers |
+
+For distributable binaries, add `-DPORTABLE_BUILD=ON` when configuring. This keeps the optimization level but omits `-march=native`, so release artifacts are not tied to the build machine's CPU.
 
 ### Linux / macOS
 
@@ -142,6 +150,22 @@ go movetime 5000
 | `ponderhit` | Switch from ponder to normal search |
 | `bench [depth]` | Run built-in benchmark (default depth 13); prints NPS and a node-count fingerprint |
 | `quit` | Exit |
+
+---
+
+## Testing
+
+Basilisk ships a comprehensive test suite covering board correctness, move encoding, the transposition table, evaluation, and search. Run with:
+
+```bash
+ctest --test-dir build/release --output-on-failure
+```
+
+A board performance benchmark is also included (run manually — not part of the test suite):
+
+```bash
+./build/release/board_performance_test
+```
 
 ---
 

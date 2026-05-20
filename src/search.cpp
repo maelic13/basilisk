@@ -348,15 +348,28 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
 
     bool in_check = board_ptr_->is_in_check();
 
+    // TT probe
+    Key hash = board_ptr_->hash;
+    bool tt_found = false;
+    TTEntry* tte = tt_.probe(hash, tt_found);
+    Move tt_move = MOVE_NONE;
+    if (tt_found) {
+        tt_move = move_from_tt(tte->move16);
+        int tt_score = TranspositionTable::score_from_tt(tte->score, ply);
+        TTFlag tt_flag = TTFlag(tte->flag_age & 3);
+        if (tt_flag == TT_EXACT) return tt_score;
+        if (tt_flag == TT_ALPHA && tt_score <= alpha) return tt_score;
+        if (tt_flag == TT_BETA  && tt_score >= beta)  return tt_score;
+    }
+
     if (in_check) {
-        // One level of in-check full-move search to avoid missing forced mates.
+        // Full-move search while in check (up to 1 level)
         if (qply >= 1) return evaluator.evaluate(*board_ptr_);
-        std::vector<Move> pseudo;
-        board_ptr_->gen_pseudo_legal(pseudo);
+        MoveList legal;
+        board_ptr_->gen_legal(legal);
         int best = -INF_SCORE;
         bool has_legal = false;
-        for (Move m : pseudo) {
-            if (!board_ptr_->is_legal(m)) continue;
+        for (Move m : legal) {
             has_legal = true;
             ss->move = m;
             ss->moved_piece = type_of(board_ptr_->board_sq[from_sq(m)]);
@@ -367,18 +380,25 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
             if (stopped_) return 0;
             if (s > best) best = s;
             if (s > alpha) alpha = s;
-            if (alpha >= beta) return beta;
+            if (alpha >= beta) { best = beta; break; }
         }
         return has_legal ? best : -(MATE_SCORE - ply);
     }
 
     // Stand-pat evaluation
-    int stand_pat = evaluator.evaluate(*board_ptr_);
+    int stand_pat;
+    if (tt_found && tte->static_eval != TranspositionTable::INF_EVAL)
+        stand_pat = tte->static_eval;
+    else
+        stand_pat = evaluator.evaluate(*board_ptr_);
     Key pk = board_ptr_->pieces[WHITE][PAWN] ^ board_ptr_->pieces[BLACK][PAWN];
     stand_pat += correction_value(board_ptr_->side_to_move, pk);
     stand_pat = std::clamp(stand_pat, -(MATE_SCORE - 1), MATE_SCORE - 1);
 
-    if (stand_pat >= beta) return beta;
+    if (stand_pat >= beta) {
+        tt_.store(hash, 0, stand_pat, TT_BETA, MOVE_NONE, ply, stand_pat);
+        return beta;
+    }
 
     // Delta pruning: skip if even capturing the best possible piece can't raise alpha
     if (stand_pat < alpha - PIECE_VALUE[QUEEN] - 200) return alpha;
@@ -387,23 +407,25 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
 
     if (qply >= MAX_QSEARCH_PLY) return alpha;
 
-    std::vector<Move> captures;
-    board_ptr_->gen_pseudo_legal_captures(captures);
+    MoveList captures;
+    board_ptr_->gen_legal_captures(captures);
 
-    // Score captures: MVV + cap_hist
-    std::vector<ScoredMove> sm;
-    sm.reserve(captures.size());
+    // Score captures: MVV + cap_hist; prefer TT move
+    ScoredMove sm[MoveList::CAPACITY];
+    int nm = 0;
     for (Move m : captures) {
         PieceType atk = type_of(board_ptr_->board_sq[from_sq(m)]);
         PieceType cap = (move_type(m) == EN_PASSANT) ? PAWN : type_of(board_ptr_->board_sq[to_sq(m)]);
-        int score = PIECE_VALUE[cap] * 16 - PIECE_VALUE[atk]
-                  + cap_hist_[atk][to_sq(m)][cap];
-        sm.push_back({m, score});
+        int score = (m == tt_move) ? 10'000'000
+                  : PIECE_VALUE[cap] * 16 - PIECE_VALUE[atk] + cap_hist_[atk][to_sq(m)][cap];
+        sm[nm++] = {m, score};
     }
 
-    for (int i = 0; i < (int)sm.size(); i++) {
-        Move m = pick_next(sm.data(), i, (int)sm.size());
-        if (!board_ptr_->is_legal(m)) continue;
+    Move best_move = MOVE_NONE;
+    int  orig_alpha = alpha;
+
+    for (int i = 0; i < nm; i++) {
+        Move m = pick_next(sm, i, nm);
 
         if (board_ptr_->see(m) < 0) continue;
 
@@ -415,10 +437,18 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         ss->move = MOVE_NONE;
 
         if (stopped_) return 0;
-        if (s >= beta) return beta;
-        if (s > alpha) alpha = s;
+        if (s > alpha) {
+            alpha = s;
+            best_move = m;
+        }
+        if (s >= beta) {
+            tt_.store(hash, 0, s, TT_BETA, m, ply, stand_pat);
+            return beta;
+        }
     }
 
+    TTFlag flag = (alpha > orig_alpha) ? TT_EXACT : TT_ALPHA;
+    tt_.store(hash, 0, alpha, flag, best_move, ply, stand_pat);
     return alpha;
 }
 
@@ -439,6 +469,11 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     if (ply >= MAX_PLY) return evaluator.evaluate(*board_ptr_);
 
     bool in_check = board_ptr_->is_in_check();
+
+    // Check extension: when the side to move is in check, extend by 1 ply.
+    // Guard with ss->excluded to prevent stacking with singular extensions.
+    if (in_check && ss->excluded == MOVE_NONE && ply < MAX_PLY - 2)
+        depth++;
 
     if (depth <= 0)
         return quiescence(alpha, beta, ply, 0, ss);
@@ -539,10 +574,10 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         // ProbCut: if a capture is likely to fail high at reduced depth
         if (depth >= 5 && std::abs(beta) < MATE_SCORE - MAX_PLY) {
             int pc_beta = std::min(beta + 200, MATE_SCORE - MAX_PLY - 1);
-            std::vector<Move> pcaps;
-            board_ptr_->gen_pseudo_legal_captures(pcaps);
+            MoveList pcaps;
+            board_ptr_->gen_legal_captures(pcaps);
             for (Move m : pcaps) {
-                if (m == ss->excluded || !board_ptr_->is_legal(m)) continue;
+                if (m == ss->excluded) continue;
                 if (board_ptr_->see(m) < pc_beta - static_eval) continue;
 
                 ss->move        = m;
@@ -566,21 +601,20 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         }
     }
 
-    // IIR: reduce depth when no TT move to guide the search
-    if (tt_move == MOVE_NONE && depth >= 4) depth--;
+    // IIR: reduce depth when no TT move (or stale TT entry) to guide the search
+    if (depth >= 4 && (tt_move == MOVE_NONE || (tt_found && tt_depth < depth - 3))) depth--;
 
     // ---- Generate and score moves ------------------------------------------
-    std::vector<Move> pseudo;
-    pseudo.reserve(64);
-    board_ptr_->gen_pseudo_legal(pseudo);
+    MoveList legal;
+    board_ptr_->gen_legal(legal);
 
-    std::vector<ScoredMove> move_list;
-    move_list.reserve(pseudo.size());
-    for (Move m : pseudo)
+    ScoredMove move_arr[MoveList::CAPACITY];
+    int n_moves = 0;
+    for (Move m : legal)
         if (m != ss->excluded)
-            move_list.push_back({m, 0});
+            move_arr[n_moves++] = {m, 0};
 
-    score_moves(move_list.data(), (int)move_list.size(), tt_move, ss);
+    score_moves(move_arr, n_moves, tt_move, ss);
 
     int  orig_alpha  = alpha;
     Move best_move   = MOVE_NONE;
@@ -594,11 +628,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
     int lmp_thresh = improving ? (3 + depth * depth) : (2 + depth * depth / 2);
 
-    for (int i = 0; i < (int)move_list.size(); i++) {
-        Move m      = pick_next(move_list.data(), i, (int)move_list.size());
-        int  mscore = move_list[static_cast<size_t>(i)].score; // score after pick_next
-
-        if (!board_ptr_->is_legal(m)) continue;
+    for (int i = 0; i < n_moves; i++) {
+        Move m      = pick_next(move_arr, i, n_moves);
+        int  mscore = move_arr[i].score;  // score after pick_next
 
         bool is_cap   = (board_ptr_->board_sq[to_sq(m)] != NO_PIECE)
                      || (move_type(m) == EN_PASSANT);
@@ -636,10 +668,12 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             }
         }
 
-        // ---- Singular extension (only for TT move) -------------------------
+        // ---- Extensions -------------------------------------------------------
         int extension = 0;
+
+        // ---- Singular extension (only for TT move) -------------------------
         if (!is_root && m == tt_move && ss->excluded == MOVE_NONE
-            && depth >= 8 && tt_found && tt_depth >= depth - 3
+            && depth >= 5 && tt_found && tt_depth >= depth - 3
             && (tt_flag == TT_BETA || tt_flag == TT_EXACT)
             && std::abs(tt_score) < MATE_SCORE - MAX_PLY) {
 
@@ -654,12 +688,12 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
             if (s_val < s_beta) {
                 // TT move is singular — extend it
-                extension = (!is_pv && s_val < s_beta - 20) ? 2 : 1;
+                extension += (!is_pv && s_val < s_beta - 20) ? 2 : 1;
             } else if (s_beta >= beta) {
                 // Multicut: likely to fail high without this move too
                 return s_beta;
             } else if (tt_score >= beta) {
-                extension = -1; // Negative extension: not clearly best
+                extension--; // Negative extension: not clearly best
             }
         }
 
@@ -840,6 +874,7 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
 
         if (stopped_ && depth > 1) break;
 
+        int prev_score_saved = prev_score;
         prev_score = score;
 
         // Track best-move stability for adaptive soft time limit
@@ -864,9 +899,15 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
         // Adaptive soft time limit:
         // The more stable the best move, the less time we need to confirm it.
         // stability=0 → 100% of soft, stability=6+ → ~64% of soft
+        // A significant score drop signals instability — extend time budget.
         if (soft_limit_ > 0.0 && !limits.ponder) {
             double stability_scale = 1.0 - 0.06 * std::min(best_stability, 6);
-            if (elapsed >= soft_limit_ * stability_scale)
+            // Score-based time extension: if score dropped by 30+ cp, take more time
+            int score_drop = prev_score_saved - score;
+            double score_scale = (depth > 4 && score_drop > 30)
+                               ? 1.0 + std::min(score_drop - 30, 120) / 100.0
+                               : 1.0;
+            if (elapsed >= soft_limit_ * stability_scale * score_scale)
                 break;
         }
 

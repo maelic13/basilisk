@@ -55,6 +55,7 @@ public:
     SearchResult search(Board board, const SearchLimits& limits);
     void clear(); // Reset all history (e.g., on ucinewgame)
 
+private:
     Evaluator evaluator;
 
 private:

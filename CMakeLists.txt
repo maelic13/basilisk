@@ -1,71 +1,148 @@
 cmake_minimum_required(VERSION 3.24)
 
-project(basilisk VERSION 1.0.0 LANGUAGES CXX)
+project(basilisk VERSION 1.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 # ---------------------------------------------------------------------------
-# Sources
+# Internal libraries
 # ---------------------------------------------------------------------------
-set(SOURCES
-    src/Basilisk.cpp
+
+# Core board library — shared by the engine, tests, and benchmarks
+set(BOARD_SOURCES
     src/Board.cpp
-    src/Engine.cpp
-    src/Parameters.cpp
-    src/UciProtocol.cpp
     src/bitboard.cpp
     src/move.cpp
     src/attacks.cpp
     src/zobrist.cpp
-    src/eval.cpp
-    src/search.cpp
 )
-
-add_executable(basilisk ${SOURCES})
-
-target_include_directories(basilisk PRIVATE
+add_library(basilisk_board STATIC ${BOARD_SOURCES})
+target_include_directories(basilisk_board PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
+# Engine library — evaluation and search (depends on board)
+add_library(basilisk_engine STATIC
+    src/eval.cpp
+    src/search.cpp
+)
+target_link_libraries(basilisk_engine PUBLIC basilisk_board)
+
 # ---------------------------------------------------------------------------
-# Compiler flags
+# Executables
 # ---------------------------------------------------------------------------
+add_executable(basilisk
+    src/Basilisk.cpp
+    src/bench.cpp
+    src/Engine.cpp
+    src/Parameters.cpp
+    src/UciProtocol.cpp
+)
+target_link_libraries(basilisk PRIVATE basilisk_engine)
+
 # ---------------------------------------------------------------------------
-# Compiler flags
+# Board performance benchmark
 # ---------------------------------------------------------------------------
+add_executable(board_performance_test tests/board_performance.cpp)
+target_link_libraries(board_performance_test PRIVATE basilisk_board)
+
+# ---------------------------------------------------------------------------
+# Board correctness tests
+# ---------------------------------------------------------------------------
+add_executable(test_board tests/test_board.cpp)
+target_link_libraries(test_board PRIVATE basilisk_board)
+
+# ---------------------------------------------------------------------------
+# Move encoding / decoding tests
+# ---------------------------------------------------------------------------
+add_executable(test_move tests/test_move.cpp)
+target_link_libraries(test_move PRIVATE basilisk_board)
+
+# ---------------------------------------------------------------------------
+# Transposition table tests (TT is header-only)
+# ---------------------------------------------------------------------------
+add_executable(test_tt tests/test_tt.cpp)
+target_include_directories(test_tt PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
+# ---------------------------------------------------------------------------
+# Evaluator tests
+# ---------------------------------------------------------------------------
+add_executable(test_eval tests/test_eval.cpp)
+target_link_libraries(test_eval PRIVATE basilisk_engine)
+
+# ---------------------------------------------------------------------------
+# Search tests
+# ---------------------------------------------------------------------------
+add_executable(test_search tests/test_search.cpp)
+target_link_libraries(test_search PRIVATE basilisk_engine)
+
+include(CTest)
+add_test(NAME test_board        COMMAND test_board)
+add_test(NAME test_move         COMMAND test_move)
+add_test(NAME test_tt           COMMAND test_tt)
+add_test(NAME test_eval         COMMAND test_eval)
+add_test(NAME test_search       COMMAND test_search)
+
+# board_performance_test is a standalone benchmark — build it but do not
+# register it with CTest so that a plain `ctest` run stays fast and clean.
+# Run it manually:  ./build/release/board_performance_test
+
+# ---------------------------------------------------------------------------
+# Compiler flags (applied to all targets)
+# ---------------------------------------------------------------------------
+option(PORTABLE_BUILD "Build without host-specific CPU flags for distributable binaries" OFF)
+
+set(_ALL_TARGETS
+    basilisk_board basilisk_engine
+    basilisk board_performance_test
+    test_board test_move test_tt test_eval test_search
+)
+
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-    target_compile_options(basilisk PRIVATE
-        -Wall
-        -Wextra
-        -Wpedantic
-        -Wshadow
-        -Wconversion
-        -Wno-unused-parameter
-        $<$<CONFIG:Release>:-O3 -march=native -ffast-math>
-        $<$<CONFIG:RelWithDebInfo>:-O2 -g -march=native>
-        $<$<CONFIG:Debug>:-O0 -g3>
-    )
-    target_link_options(basilisk PRIVATE
-        $<$<CONFIG:Debug>:-g3>
-    )
+    foreach(_tgt IN LISTS _ALL_TARGETS)
+        target_compile_options(${_tgt} PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+            -Wshadow
+            -Wconversion
+            -Wno-unused-parameter
+            $<$<CONFIG:Release>:-O3>
+            $<$<AND:$<CONFIG:Release>,$<NOT:$<BOOL:${PORTABLE_BUILD}>>>:-march=native>
+            $<$<CONFIG:Release>:-ffast-math>
+            $<$<CONFIG:RelWithDebInfo>:-O2 -g>
+            $<$<AND:$<CONFIG:RelWithDebInfo>,$<NOT:$<BOOL:${PORTABLE_BUILD}>>>:-march=native>
+            $<$<CONFIG:Debug>:-O0 -g3>
+        )
+        target_link_options(${_tgt} PRIVATE
+            $<$<CONFIG:Debug>:-g3>
+        )
+    endforeach()
+    if(PORTABLE_BUILD)
+        message(STATUS "Portable build enabled: omitting -march=native")
+    endif()
     if(SANITIZE)
-        target_compile_options(basilisk PRIVATE -fsanitize=address,undefined)
-        target_link_options(basilisk PRIVATE -fsanitize=address,undefined)
+        foreach(_tgt IN LISTS _ALL_TARGETS)
+            target_compile_options(${_tgt} PRIVATE -fsanitize=address,undefined)
+            target_link_options(${_tgt} PRIVATE -fsanitize=address,undefined)
+        endforeach()
     endif()
 
 elseif(MSVC)
-    target_compile_options(basilisk PRIVATE
-        /W4
-        /WX-
-        /utf-8
-        $<$<CONFIG:Release>:/O2 /GL>
-        $<$<CONFIG:Debug>:/Od /Zi>
-    )
-    target_link_options(basilisk PRIVATE
-        $<$<CONFIG:Release>:/LTCG>
-    )
+    foreach(_tgt IN LISTS _ALL_TARGETS)
+        target_compile_options(${_tgt} PRIVATE
+            /W4
+            /WX-
+            /utf-8
+            $<$<CONFIG:Release>:/O2 /GL>
+            $<$<CONFIG:Debug>:/Od /Zi>
+        )
+        target_link_options(${_tgt} PRIVATE
+            $<$<CONFIG:Release>:/LTCG>
+        )
+    endforeach()
 endif()
 
 # ---------------------------------------------------------------------------
@@ -75,7 +152,9 @@ if(NOT MSVC)
     include(CheckIPOSupported)
     check_ipo_supported(RESULT _lto_ok OUTPUT _lto_msg)
     if(_lto_ok)
-        set_property(TARGET basilisk PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
+        foreach(_tgt IN LISTS _ALL_TARGETS)
+            set_property(TARGET ${_tgt} PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
+        endforeach()
     else()
         message(STATUS "LTO not supported: ${_lto_msg}")
     endif()
@@ -86,12 +165,14 @@ endif()
 # ---------------------------------------------------------------------------
 option(USE_PEXT "Use BMI2 PEXT instruction for magic bitboards (requires Haswell+)" OFF)
 if(USE_PEXT)
-    target_compile_definitions(basilisk PRIVATE USE_PEXT)
-    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
-        target_compile_options(basilisk PRIVATE -mbmi2)
-    elseif(MSVC)
-        target_compile_options(basilisk PRIVATE /arch:AVX2)
-    endif()
+    foreach(_tgt IN LISTS _ALL_TARGETS)
+        target_compile_definitions(${_tgt} PRIVATE USE_PEXT)
+        if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+            target_compile_options(${_tgt} PRIVATE -mbmi2)
+        elseif(MSVC)
+            target_compile_options(${_tgt} PRIVATE /arch:AVX2)
+        endif()
+    endforeach()
 endif()
 
 # ---------------------------------------------------------------------------
@@ -101,7 +182,9 @@ endif()
 option(STATIC_RUNTIME "Link the C++ runtime and standard library statically" ${MINGW})
 if(STATIC_RUNTIME)
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-        target_link_options(basilisk PRIVATE -static)
+        foreach(_tgt IN LISTS _ALL_TARGETS)
+            target_link_options(${_tgt} PRIVATE -static)
+        endforeach()
         message(STATUS "Static runtime linking enabled (-static)")
     endif()
 endif()

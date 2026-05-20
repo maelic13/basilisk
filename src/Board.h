@@ -10,11 +10,28 @@
 
 // Per-move undo information
 struct UndoInfo {
-    Key    hash;
-    Square ep_sq;
-    int    castling;
-    int    halfmove;
-    Piece  captured;
+    Key      hash;
+    Bitboard checkers;
+    Square   ep_sq;
+    int      castling;
+    int      halfmove;
+    Piece    captured;
+};
+
+// Stack-allocated move list (256 slots — more than any legal position needs)
+struct MoveList {
+    static constexpr int CAPACITY = 256;
+    Move moves[CAPACITY];
+    int  count = 0;
+    void push(Move m) noexcept { moves[count++] = m; }
+    void reset()  noexcept { count = 0; }
+    int  size()  const noexcept { return count; }
+    bool empty() const noexcept { return count == 0; }
+    Move operator[](int i) const noexcept { return moves[i]; }
+    Move*       begin() noexcept       { return moves; }
+    Move*       end()   noexcept       { return moves + count; }
+    const Move* begin() const noexcept { return moves; }
+    const Move* end()   const noexcept { return moves + count; }
 };
 
 class Board {
@@ -35,6 +52,7 @@ public:
     int    halfmove_clock;
 
     Square king_sq[NCOLORS];
+    Bitboard checkers;  // pieces giving check to side_to_move (updated by make_move/set_fen)
 
     std::vector<UndoInfo> history;
 
@@ -49,6 +67,7 @@ public:
     void unmake_null_move();
 
     bool is_in_check() const;
+    bool gives_check(Move m) const;
     bool is_square_attacked(Square sq, Color by) const;
     Bitboard attackers_to(Square sq, Bitboard occ) const;
     Bitboard attackers_to(Square sq, Bitboard occ, Color by) const;
@@ -56,6 +75,11 @@ public:
     // Pseudo-legal move generation
     void gen_pseudo_legal(std::vector<Move>& moves) const;
     void gen_pseudo_legal_captures(std::vector<Move>& moves) const;
+
+    // Legal move generation (no is_legal() filter needed)
+    void gen_legal(MoveList& moves) const;
+    void gen_legal_captures(MoveList& moves) const;
+    void gen_quiet_checks(MoveList& moves) const;  // quiet moves that give check
 
     bool is_legal(Move m) const;
 

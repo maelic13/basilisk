@@ -400,19 +400,20 @@ int Evaluator::evaluate(const Board& b) {
         }
     }
 
-    // ---- King safety (simplified) ----
+    // ---- King safety (improved: attack density + coordination bonus) ----
     for (int c = 0; c < NCOLORS; c++) {
         int sign = (c == WHITE) ? 1 : -1;
         Color them = ~Color(c);
         Square ksq = b.king_sq[c];
 
         Bitboard king_zone = KingAttacks[ksq] | sq_bb(ksq);
-        // Extend one more rank toward center
         if (c == WHITE) king_zone |= shift<NORTH>(KingAttacks[ksq]);
         else            king_zone |= shift<SOUTH>(KingAttacks[ksq]);
 
         int attack_units = 0;
+        int n_attackers  = 0;
         for (int pt : {KNIGHT, BISHOP, ROOK, QUEEN}) {
+            static constexpr int UNIT[PIECE_TYPE_NB] = {0, 0, 2, 2, 3, 5, 0};
             Bitboard pcs = b.pieces[them][pt];
             while (pcs) {
                 int sq = pop_lsb(pcs);
@@ -423,15 +424,34 @@ int Evaluator::evaluate(const Board& b) {
                     case ROOK:   att = rook_attacks(Square(sq), b.all_occ); break;
                     default:     att = queen_attacks(Square(sq), b.all_occ); break;
                 }
-                if (att & king_zone) {
-                    static constexpr int UNIT[PIECE_TYPE_NB] = {0,0,2,2,3,5,0};
-                    attack_units += UNIT[pt];
+                Bitboard zone_hits = att & king_zone;
+                if (zone_hits) {
+                    n_attackers++;
+                    // Base weight + 1 per extra square attacked in zone
+                    attack_units += UNIT[pt] + popcount(zone_hits) / 2;
                 }
             }
         }
-        attack_units = std::min(attack_units, 15);
-        static constexpr int SAFETY_TABLE[16] = {
-            0, 0, 10, 25, 40, 60, 80, 95, 105, 110, 112, 114, 115, 116, 117, 118
+        // Coordinated attack bonus (2+ attackers = much more dangerous)
+        if (n_attackers >= 2) attack_units += 4;
+        // Isolated attacker is less dangerous
+        if (n_attackers == 0) attack_units = 0;
+
+        // No queen attack: king safety is less severe
+        if (!b.pieces[them][QUEEN]) attack_units = attack_units * 2 / 3;
+
+        // Open file directly in front of king: extra danger
+        {
+            Bitboard king_files = BB_FILES[file_of(ksq)];
+            if (!(b.pieces[c][PAWN] & king_files))
+                attack_units += 2;
+        }
+
+        attack_units = std::min(attack_units, 24);
+        static constexpr int SAFETY_TABLE[25] = {
+            0,  0,  5, 15, 25, 40, 55, 70, 85, 100,
+           112, 120, 126, 130, 133, 136, 138, 140, 141, 142,
+           143, 144, 145, 146, 147
         };
         mg -= sign * SAFETY_TABLE[attack_units];
     }
@@ -543,6 +563,57 @@ int Evaluator::evaluate(const Board& b) {
             eg -= sign * HANG_PEN[pt];
         }
     }
+
+    // ---- Passed pawn king proximity (endgame) ----------------------------
+    for (int c = 0; c < NCOLORS; c++) {
+        Color us = Color(c);
+        Color them = ~us;
+        int sign = (us == WHITE) ? 1 : -1;
+        Bitboard pp = passed[us];
+        while (pp) {
+            Square psq = Square(pop_lsb(pp));
+            int rel_r = (us == WHITE) ? rank_of(psq) : (RANK_8 - rank_of(psq));
+            // Reward own king close to passed pawn; penalize enemy king being close
+            int own_dist = KING_DIST[b.king_sq[us]][psq];
+            int opp_dist = KING_DIST[b.king_sq[them]][psq];
+            eg += sign * (opp_dist - own_dist) * (2 + rel_r);
+        }
+    }
+
+    // ---- Space evaluation (center control in middlegame) ----------------
+    {
+        // Center files C-F, ranks 2-4 for white, 5-7 for black
+        const Bitboard center_files =
+            BB_FILES[FILE_C] | BB_FILES[FILE_D] | BB_FILES[FILE_E] | BB_FILES[FILE_F];
+        const Bitboard white_space_ranks =
+            BB_RANKS[RANK_2] | BB_RANKS[RANK_3] | BB_RANKS[RANK_4];
+        const Bitboard black_space_ranks =
+            BB_RANKS[RANK_5] | BB_RANKS[RANK_6] | BB_RANKS[RANK_7];
+
+        // Space = center squares not occupied by own pawns and not attacked by enemy pawns
+        Bitboard wspace = (center_files & white_space_ranks) & ~b.pieces[WHITE][PAWN] & ~pawn_atk[BLACK];
+        Bitboard bspace = (center_files & black_space_ranks) & ~b.pieces[BLACK][PAWN] & ~pawn_atk[WHITE];
+        mg += (popcount(wspace) - popcount(bspace)) * 2;
+    }
+
+    // ---- Trapped bishop detection ----------------------------------------
+    // Only penalize bishops that are completely blocked (0 available moves)
+    // and not in the opening phase. Avoids penalizing bishops blocked by own pawns.
+    if (phase < TOTAL_PHASE / 2) {  // Only in middlegame/endgame
+        for (int c = 0; c < NCOLORS; c++) {
+            int sign = (c == WHITE) ? 1 : -1;
+            Bitboard bbs = b.pieces[c][BISHOP];
+            while (bbs) {
+                Square bsq = Square(pop_lsb(bbs));
+                Bitboard moves = bishop_attacks(bsq, b.all_occ) & ~b.occupancy[c];
+                if (moves == 0) {
+                    // Completely trapped bishop
+                    mg -= sign * 60;
+                    eg -= sign * 40;
+                }
+            }
+        }
+    }
     if (phase <= 6) {
         int score_approx = (mg * phase + eg * (TOTAL_PHASE - phase)) / TOTAL_PHASE;
         if (std::abs(score_approx) > 200) {
@@ -566,6 +637,37 @@ int Evaluator::evaluate(const Board& b) {
 
     // ---- Taper and return ----
     int score = (mg * phase + eg * (TOTAL_PHASE - phase)) / TOTAL_PHASE;
+
+    // ---- Draw scaling ----------------------------------------------------
+    // Opposite-color bishops: fewer pawns → more drawish
+    {
+        constexpr Bitboard DARK_SQ = 0x55AA55AA55AA55AAULL;
+        bool wb1 = !more_than_one(b.pieces[WHITE][BISHOP]) && b.pieces[WHITE][BISHOP];
+        bool bb1 = !more_than_one(b.pieces[BLACK][BISHOP]) && b.pieces[BLACK][BISHOP];
+        if (wb1 && bb1) {
+            bool wb_dark = (b.pieces[WHITE][BISHOP] & DARK_SQ) != 0;
+            bool bb_dark = (b.pieces[BLACK][BISHOP] & DARK_SQ) != 0;
+            if (wb_dark != bb_dark) {
+                int total_pawns = popcount(b.pieces[WHITE][PAWN] | b.pieces[BLACK][PAWN]);
+                // Scale: 4+ pawns → no change; 0 pawns → 50% draw scaling
+                int scale = 32 + total_pawns * 4;  // 32..48 out of 48
+                score = score * scale / 48;
+            }
+        }
+    }
+    // Two knights vs bare king is a theoretical draw
+    {
+        auto only_king = [&](Color c) {
+            return b.occupancy[c] == sq_bb(b.king_sq[c]);
+        };
+        auto only_knights = [&](Color c, int n) {
+            return !b.pieces[c][PAWN] && !b.pieces[c][BISHOP]
+                && !b.pieces[c][ROOK] && !b.pieces[c][QUEEN]
+                && popcount(b.pieces[c][KNIGHT]) == n;
+        };
+        if (only_king(WHITE) && only_knights(BLACK, 2)) score = 0;
+        if (only_king(BLACK) && only_knights(WHITE, 2)) score = 0;
+    }
 
     // Return from side-to-move perspective
     return (b.side_to_move == WHITE) ? score : -score;
