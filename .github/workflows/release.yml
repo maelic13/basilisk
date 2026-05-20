@@ -1,0 +1,91 @@
+name: Build and Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.os_name }} ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            os_name: linux
+            arch: x86_64
+            ext: ""
+
+          - runner: ubuntu-24.04-arm
+            os_name: linux
+            arch: aarch64
+            ext: ""
+
+          - runner: windows-latest
+            os_name: windows
+            arch: x86_64
+            ext: ".exe"
+
+          - runner: macos-latest
+            os_name: macos
+            arch: aarch64
+            ext: ""
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Ninja (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -q && sudo apt-get install -y ninja-build
+
+      - name: Install Ninja (macOS)
+        if: runner.os == 'macOS'
+        run: brew install ninja
+
+      - name: Set up MSYS2 / MinGW-w64 (Windows)
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: false
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+
+      - name: Configure and build (Linux / macOS)
+        if: runner.os != 'Windows'
+        run: |
+          cmake --preset release
+          cmake --build --preset release
+
+      - name: Configure and build (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          cmake --preset release
+          cmake --build --preset release
+
+      - name: Smoke test
+        shell: bash
+        run: |
+          binary="build/release/basilisk${{ matrix.ext }}"
+          output=$(printf "uci\nquit\n" | timeout 15 "./$binary" 2>&1 || true)
+          echo "$output"
+          echo "$output" | grep -q "uciok"   || { echo "FAIL: uciok not found";   exit 1; }
+          echo "$output" | grep -q "1.0.0"   || { echo "FAIL: version not found"; exit 1; }
+          echo "Smoke test passed"
+
+      - name: Upload binary to release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          asset="basilisk-${{ github.event.release.tag_name }}-${{ matrix.os_name }}-${{ matrix.arch }}${{ matrix.ext }}"
+          cp "build/release/basilisk${{ matrix.ext }}" "$asset"
+          gh release upload "${{ github.event.release.tag_name }}" "$asset" --clobber
