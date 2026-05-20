@@ -14,3 +14,5 @@ diag*.txt
 loop_diag.txt
 test_input.txt
 test_output*.txt
+
+.zed/
