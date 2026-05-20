@@ -19,6 +19,9 @@ private:
     Parameters &parameters;
     std::condition_variable &conditionVariable;
 
+    bool debug_mode = false;
+
+    void cmdDebug(const std::string &args);
     static void cmdUci();
     static void cmdIsReady();
     static void cmdRegister();

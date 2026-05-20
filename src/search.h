@@ -62,6 +62,7 @@ private:
 
     Board*   board_ptr_;
     int64_t  nodes_;
+    int64_t  nodes_limit_;  // 0 = unlimited
     int      sel_depth_;
     bool     stopped_;
 

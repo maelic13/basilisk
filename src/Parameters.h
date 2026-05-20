@@ -16,10 +16,14 @@ public:
     int blackIncrement;     // [ms]
     int depth;
 
-    int moveOverhead;       // [ms]
-    int hash_mb;            // TT size in MB
+    int     moveOverhead;   // [ms]
+    int     hash_mb;        // TT size in MB
+    int64_t nodes;          // node limit (0 = unlimited)
+    int     movestogo;      // moves until next time control (0 = sudden death)
+    bool    ponder;         // go ponder mode
 
-    bool new_game = false;  // set by "ucinewgame", cleared after engine processes it
+    bool new_game    = false;  // set by "ucinewgame", cleared after engine processes it
+    bool clear_hash  = false;  // set by "setoption name Clear Hash", cleared after engine clears TT
 
     Parameters();
 

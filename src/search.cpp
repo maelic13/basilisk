@@ -30,6 +30,7 @@ Searcher::Searcher(TranspositionTable& tt,
     , info_cb_(info_cb)
     , board_ptr_(nullptr)
     , nodes_(0)
+    , nodes_limit_(0)
     , sel_depth_(0)
     , stopped_(false)
     , time_limit_(0.0)
@@ -103,6 +104,10 @@ bool Searcher::check_stop() {
     // stop_ is the "go" flag: false means the GUI sent "stop"
     if (!stop_.load()) { stopped_ = true; return true; }
     if (hard_limit_ > 0.0 && elapsed_seconds() >= hard_limit_) {
+        stopped_ = true;
+        return true;
+    }
+    if (nodes_limit_ > 0 && nodes_ >= nodes_limit_) {
         stopped_ = true;
         return true;
     }
@@ -771,10 +776,11 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 // ---- Iterative deepening ---------------------------------------------------
 
 SearchResult Searcher::search(Board board, const SearchLimits& limits) {
-    board_ptr_ = &board;
-    nodes_     = 0;
-    sel_depth_ = 0;
-    stopped_   = false;
+    board_ptr_    = &board;
+    nodes_        = 0;
+    nodes_limit_  = limits.nodes;
+    sel_depth_    = 0;
+    stopped_      = false;
 
     start_time_ = std::chrono::steady_clock::now();
     compute_time_limit(limits, board.side_to_move);

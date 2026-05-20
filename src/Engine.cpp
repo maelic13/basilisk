@@ -33,14 +33,20 @@ void Engine::start() {
         limits.btime     = parameters.blackTime;
         limits.winc      = parameters.whiteIncrement;
         limits.binc      = parameters.blackIncrement;
+        limits.movestogo = parameters.movestogo;
+        limits.nodes     = parameters.nodes;
         limits.overhead  = parameters.moveOverhead;
+        limits.ponder    = parameters.ponder;
         limits.infinite  = (parameters.depth == infiniteDepth && parameters.moveTime == 0
-                            && parameters.whiteTime == 0 && parameters.blackTime == 0);
+                            && parameters.whiteTime == 0 && parameters.blackTime == 0
+                            && !parameters.ponder);
 
         int desired_hash_mb = parameters.hash_mb;
-        Board board_copy = parameters.board;
-        bool  is_new_game = parameters.new_game;
-        parameters.new_game = false;
+        bool  do_clear_hash = parameters.clear_hash;
+        Board board_copy    = parameters.board;
+        bool  is_new_game   = parameters.new_game;
+        parameters.new_game   = false;
+        parameters.clear_hash = false;
         lock.unlock();
 
         // Resize TT if hash size changed
@@ -49,7 +55,7 @@ void Engine::start() {
             current_hash_mb = desired_hash_mb;
         }
 
-        if (is_new_game) {
+        if (is_new_game || do_clear_hash) {
             tt.clear();
             searcher_->clear();
         }
