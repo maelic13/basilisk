@@ -32,6 +32,18 @@ jobs:
             arch: x86_64
             ext: ".exe"
             pext: true
+            msystem: MINGW64
+            mingw_pkg_prefix: mingw-w64-x86_64
+            compiler_pkg: gcc
+
+          - runner: windows-11-arm
+            os_name: windows
+            arch: aarch64
+            ext: ".exe"
+            pext: false
+            msystem: CLANGARM64
+            mingw_pkg_prefix: mingw-w64-clang-aarch64
+            compiler_pkg: clang
 
           - runner: macos-latest
             os_name: macos
@@ -55,12 +67,12 @@ jobs:
         if: runner.os == 'Windows'
         uses: msys2/setup-msys2@v2
         with:
-          msystem: MINGW64
+          msystem: ${{ matrix.msystem }}
           update: false
           install: >-
-            mingw-w64-x86_64-gcc
-            mingw-w64-x86_64-cmake
-            mingw-w64-x86_64-ninja
+            ${{ matrix.mingw_pkg_prefix }}-${{ matrix.compiler_pkg }}
+            ${{ matrix.mingw_pkg_prefix }}-cmake
+            ${{ matrix.mingw_pkg_prefix }}-ninja
 
       - name: Configure and build (Linux / macOS)
         if: runner.os != 'Windows'
