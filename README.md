@@ -55,7 +55,7 @@ A UCI chess engine written in C++23.
 ## Building
 
 Basilisk uses **CMake ≥ 3.24** with [CMake presets](CMakePresets.json) for all common configurations.
-The recommended compiler is **GCC** (marginally faster NPS than Clang due to better auto-vectorisation of bitwise/integer loops), though Clang works equally well.
+Both GCC and Clang are fully supported; use `bench` to measure which produces a faster binary on your CPU — results vary by microarchitecture and compiler version.
 
 ### Prerequisites
 
