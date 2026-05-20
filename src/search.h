@@ -32,6 +32,7 @@ struct SearchLimits {
     int winc       = 0, binc  = 0;
     int movestogo  = 0;
     int64_t nodes  = 0;
+    int overhead   = 0;   // move overhead to subtract [ms]
     bool infinite  = false;
     bool ponder    = false;
 };

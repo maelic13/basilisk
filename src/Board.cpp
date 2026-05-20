@@ -754,7 +754,7 @@ bool Board::is_draw() const {
 
     // 2-fold repetition (search back through history)
     int reps = 0;
-    int stop = (int)history.size() - halfmove_clock;
+    int stop = std::max(0, (int)history.size() - halfmove_clock);
     for (int i = (int)history.size() - 2; i >= stop; i -= 2) {
         if (history[i].hash == hash) {
             reps++;

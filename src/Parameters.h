@@ -17,6 +17,7 @@ public:
     int depth;
 
     int moveOverhead;       // [ms]
+    int hash_mb;            // TT size in MB
 
     bool new_game = false;  // set by "ucinewgame", cleared after engine processes it
 

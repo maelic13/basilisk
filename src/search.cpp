@@ -60,12 +60,14 @@ void Searcher::compute_time_limit(const SearchLimits& limits, Color side) {
     if (limits.infinite || limits.ponder) return;
     if (limits.movetime > 0) {
         // Fixed movetime: hard limit only, no soft limit
-        hard_limit_ = std::max(1, limits.movetime - 50) / 1000.0;
+        hard_limit_ = std::max(1, limits.movetime - limits.overhead) / 1000.0;
         return;
     }
 
     int remaining = (side == WHITE) ? limits.wtime : limits.btime;
     int inc       = (side == WHITE) ? limits.winc  : limits.binc;
+
+    remaining = std::max(0, remaining - limits.overhead);
 
     if (remaining <= 0 && inc <= 0) return;
 
@@ -145,10 +147,11 @@ void Searcher::update_all_histories(Move best,
     int bonus = std::min(depth * depth, 2048);
     int malus = -std::min(depth * depth, 2048);
 
-    bool best_is_cap = (board_ptr_->board_sq[to_sq(best)] != NO_PIECE)
-                    || (move_type(best) == EN_PASSANT);
+    bool best_is_cap   = (board_ptr_->board_sq[to_sq(best)] != NO_PIECE)
+                      || (move_type(best) == EN_PASSANT);
+    bool best_is_promo = (move_type(best) == PROMOTION);
 
-    if (!best_is_cap) {
+    if (!best_is_cap && !best_is_promo) {
         Square from  = Square(from_sq(best));
         Square to    = Square(to_sq(best));
         PieceType pt = type_of(board_ptr_->board_sq[from]);
@@ -194,13 +197,14 @@ void Searcher::update_all_histories(Move best,
                 update_cont(*cont_hist2_, (ss-2)->moved_piece,
                             Square(to_sq((ss-2)->move)), mpt, mt, malus);
         }
-    } else {
-        // Best was a capture
+    } else if (best_is_cap) {
+        // Best was a capture (not a quiet promotion)
         PieceType atk = type_of(board_ptr_->board_sq[from_sq(best)]);
         PieceType cap = (move_type(best) == EN_PASSANT)
                       ? PAWN : type_of(board_ptr_->board_sq[to_sq(best)]);
         update_cap(atk, Square(to_sq(best)), cap, bonus);
     }
+    // Quiet promotions: no history update (too rare to matter)
 
     // Malus for bad captures searched before best
     for (Move m : bad_caps) {

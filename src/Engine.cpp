@@ -16,6 +16,8 @@ Engine::Engine(std::atomic_bool& go_, std::atomic_bool& quit_,
 {}
 
 void Engine::start() {
+    int current_hash_mb = 64;  // matches initial tt(64) in constructor
+
     while (true) {
         std::unique_lock lock(mutex);
         conditionVariable.wait(lock, [&] { return go.load() || quit.load(); });
@@ -31,13 +33,21 @@ void Engine::start() {
         limits.btime     = parameters.blackTime;
         limits.winc      = parameters.whiteIncrement;
         limits.binc      = parameters.blackIncrement;
+        limits.overhead  = parameters.moveOverhead;
         limits.infinite  = (parameters.depth == infiniteDepth && parameters.moveTime == 0
                             && parameters.whiteTime == 0 && parameters.blackTime == 0);
 
+        int desired_hash_mb = parameters.hash_mb;
         Board board_copy = parameters.board;
         bool  is_new_game = parameters.new_game;
         parameters.new_game = false;
         lock.unlock();
+
+        // Resize TT if hash size changed
+        if (desired_hash_mb != current_hash_mb) {
+            tt.resize(desired_hash_mb);
+            current_hash_mb = desired_hash_mb;
+        }
 
         if (is_new_game) {
             tt.clear();

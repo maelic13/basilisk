@@ -19,6 +19,7 @@ Parameters::Parameters() {
     depth          = infiniteDepth;
 
     moveOverhead = defaultMoveOverhead;
+    hash_mb      = 64;
 }
 
 void Parameters::reset() {
@@ -97,8 +98,9 @@ void Parameters::setOption(const std::string& args) {
 
     if (name == "move overhead") {
         moveOverhead = std::stoi(value);
+    } else if (name == "hash") {
+        hash_mb = std::clamp(std::stoi(value), 1, 4096);
     }
-    // Hash option handled by engine (TT size)
 }
 
 void Parameters::setPosition(const std::string& args) {
