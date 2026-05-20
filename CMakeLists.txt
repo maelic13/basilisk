@@ -95,6 +95,18 @@ if(USE_PEXT)
 endif()
 
 # ---------------------------------------------------------------------------
+# Static runtime (default ON on MinGW to avoid libc++.dll / libgcc_s.dll
+# dependency failures when the binary is run outside the MSYS2 environment)
+# ---------------------------------------------------------------------------
+option(STATIC_RUNTIME "Link the C++ runtime and standard library statically" ${MINGW})
+if(STATIC_RUNTIME)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        target_link_options(basilisk PRIVATE -static)
+        message(STATUS "Static runtime linking enabled (-static)")
+    endif()
+endif()
+
+# ---------------------------------------------------------------------------
 # Default build type
 # ---------------------------------------------------------------------------
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)

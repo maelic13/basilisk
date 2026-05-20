@@ -111,18 +111,10 @@ cmake --preset local-release
 cmake --build --preset local-release
 ```
 
-**CLion:** configure a *MinGW* Toolchain under *Settings → Build → Toolchains* pointing to `D:\msys64\mingw64`.
+**CLion:** configure a *MinGW* Toolchain under *Settings → Build → Toolchains* pointing to `D:\msys64\mingw64` (for GCC) or `D:\msys64\clang64` (for Clang).
 CLion will inject the compiler from that toolchain and use the `release` / `debug` presets from `CMakePresets.json` directly.
 
-### Static binary (for external tools)
-
-A dynamically linked binary may fail when launched from outside the MSYS2 environment (missing DLLs).
-Build a fully self-contained executable with:
-
-```powershell
-cmake --preset release -DCMAKE_EXE_LINKER_FLAGS="-static"
-cmake --build --preset release
-```
+> **Note:** Release builds on Windows/MinGW automatically link the C++ runtime statically (`-static`), so the resulting `basilisk.exe` has no dependency on MSYS2 DLLs and runs on any Windows machine. Disable with `-DSTATIC_RUNTIME=OFF` if you explicitly want a dynamic build.
 
 ---
 
