@@ -1,31 +1,38 @@
 #pragma once
 
 #include <atomic>
-#include <condition_variable>
+#include <cstdint>
 #include <string>
 
+#include "EngineCommand.h"
 #include "Parameters.h"
 
 class UciProtocol {
 public:
-    UciProtocol(std::atomic_bool &go, std::atomic_bool &quit,
-                Parameters &parameters, std::condition_variable &conditionVariable);
+    UciProtocol(EngineCommandQueue& commands,
+                std::atomic_bool& stop_requested,
+                std::atomic_bool& ponderhit_requested,
+                std::atomic_bool& searching,
+                std::atomic_uint64_t& control_epoch);
 
     void UciLoop();
 
 private:
-    std::atomic_bool &go;
-    std::atomic_bool &quit;
-    Parameters &parameters;
-    std::condition_variable &conditionVariable;
+    EngineCommandQueue& commands_;
+    std::atomic_bool& stop_requested_;
+    std::atomic_bool& ponderhit_requested_;
+    std::atomic_bool& searching_;
+    std::atomic_uint64_t& control_epoch_;
 
     bool debug_mode = false;
 
     void cmdDebug(const std::string &args);
     static void cmdUci();
-    static void cmdIsReady();
+    void cmdIsReady();
     static void cmdRegister();
 
+    uint64_t next_control_epoch();
+    void enqueue(EngineCommandType type, const std::string& args = {}, uint64_t epoch = 0);
     void cmdGo(const std::string &args);
     void cmdStop();
     void cmdQuit();

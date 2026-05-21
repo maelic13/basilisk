@@ -1,8 +1,9 @@
 #include <array>
 #include <atomic>
+#include <algorithm>
 #include <cstdint>
 #include <iostream>
-#include <memory>
+#include <sstream>
 #include <string>
 #include <string_view>
 
@@ -10,10 +11,13 @@
 #include "bench.h"
 #include "search.h"
 #include "tt.h"
+#include "UciOutput.h"
 
 // 16 positions covering openings, middlegames, endgames, and tactics.
-// The final "Nodes searched" total serves as a binary fingerprint:
-// any change to search, eval, or move generation will produce a different value.
+// In single-thread mode, the final "Nodes searched" total serves as a binary
+// fingerprint: any change to search, eval, or move generation will produce a
+// different value. Multi-thread bench is intentionally non-identical because
+// helper workers run additional Lazy SMP searches.
 static constexpr std::array<std::string_view, 16> BENCH_FENS = {{
     // Starting position
     "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
@@ -49,19 +53,23 @@ static constexpr std::array<std::string_view, 16> BENCH_FENS = {{
     "1k6/1b6/8/5p2/p1p2p2/P7/1P3P2/K7 b - - 0 1",
 }};
 
-void run_bench(int depth) {
-    std::atomic_bool stop{true};  // true = keep searching (this is the "go" flag, not "stop")
+void run_bench(int depth, int threads) {
+    std::atomic_bool stop{false};
     TranspositionTable tt(16);
-    auto searcher = std::make_unique<Searcher>(tt, stop);  // no info output
+    threads = std::max(1, threads);
+
+    SearchThreadPool search_pool(tt, stop);
+    threads = search_pool.ensure_threads(threads);
 
     int64_t total_nodes = 0;
     int64_t total_ms    = 0;
 
-    std::cout << '\n';
+    uci_write_line("\nbench depth " + std::to_string(depth)
+                   + " threads " + std::to_string(threads));
 
     for (size_t i = 0; i < BENCH_FENS.size(); ++i) {
         tt.clear();
-        searcher->clear();
+        search_pool.clear();
 
         Board board;
         board.set_fen(std::string(BENCH_FENS[i]));
@@ -69,7 +77,8 @@ void run_bench(int depth) {
         SearchLimits limits;
         limits.depth = depth;
 
-        SearchResult r = searcher->search(board, limits);
+        stop.store(false, std::memory_order_release);
+        SearchResult r = search_pool.search(board, limits, threads);
 
         total_nodes += r.nodes;
         total_ms    += r.elapsed_ms;
@@ -77,22 +86,23 @@ void run_bench(int depth) {
         int64_t pos_nps = r.elapsed_ms > 0
             ? r.nodes * 1000 / r.elapsed_ms : r.nodes;
 
-        std::cout << "bench " << (i + 1) << "/" << BENCH_FENS.size()
-                  << "  depth " << r.depth
-                  << "  score " << r.score
-                  << "  nodes " << r.nodes
-                  << "  time "  << r.elapsed_ms << "ms"
-                  << "  nps "   << pos_nps
-                  << '\n';
-        std::cout.flush();
+        std::ostringstream line;
+        line << "bench " << (i + 1) << "/" << BENCH_FENS.size()
+             << "  depth " << r.depth
+             << "  score " << r.score
+             << "  nodes " << r.nodes
+             << "  time "  << r.elapsed_ms << "ms"
+             << "  nps "   << pos_nps;
+        uci_write_line(line.str());
     }
 
     int64_t total_nps = total_ms > 0
         ? total_nodes * 1000 / total_ms : total_nodes;
 
-    std::cout << "\n=========================\n"
-              << "Total time (ms) : " << total_ms    << '\n'
-              << "Nodes searched  : " << total_nodes << '\n'
-              << "Nodes/second    : " << total_nps   << '\n';
-    std::cout.flush();
+    std::ostringstream summary;
+    summary << "\n=========================\n"
+            << "Total time (ms) : " << total_ms    << '\n'
+            << "Nodes searched  : " << total_nodes << '\n'
+            << "Nodes/second    : " << total_nps   << '\n';
+    uci_write(summary.str());
 }

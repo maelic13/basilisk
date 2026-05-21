@@ -27,34 +27,34 @@ static void test_store_probe() {
 
     tt.store(key, depth, score, TT_EXACT, m, /*ply=*/0, seval);
 
-    bool found = false;
-    TTEntry* e = tt.probe(key, found);
+    TTEntry e{};
+    bool found = tt.probe_copy(key, e);
 
     begin_section("probe: found == true after store");
     EXPECT(found);
     end_section();
 
     begin_section("probe: flag == TT_EXACT");
-    EXPECT(e && (e->flag_age & 3) == TT_EXACT);
+    EXPECT(found && (e.flag_age & 3) == TT_EXACT);
     end_section();
 
     begin_section("probe: depth matches");
-    EXPECT(e && e->depth == depth);
+    EXPECT(found && e.depth == depth);
     end_section();
 
     begin_section("probe: score round-trips at ply 0");
-    if (e) {
-        int out = TranspositionTable::score_from_tt(e->score, 0);
+    if (found) {
+        int out = TranspositionTable::score_from_tt(e.score, 0);
         EXPECT_EQ(out, score);
     } else { ++g_total; }
     end_section();
 
     begin_section("probe: static_eval matches");
-    EXPECT(e && e->static_eval == seval);
+    EXPECT(found && e.static_eval == seval);
     end_section();
 
     begin_section("probe: move matches");
-    EXPECT(e && move_from_tt(e->move16) == m);
+    EXPECT(found && move_from_tt(e.move16) == m);
     end_section();
 }
 
@@ -65,8 +65,8 @@ static void test_key_miss() {
 
     tt.store(stored, 4, 100, TT_EXACT, MOVE_NONE, 0, 100);
 
-    bool found = false;
-    tt.probe(other, found);
+    TTEntry e{};
+    bool found = tt.probe_copy(other, e);
 
     begin_section("key miss: found == false for different key");
     EXPECT(!found);
@@ -79,13 +79,12 @@ static void test_clear() {
 
     tt.store(key, 3, 50, TT_BETA, MOVE_NONE, 0, 50);
 
-    bool found = false;
-    tt.probe(key, found);
+    TTEntry e{};
+    bool found = tt.probe_copy(key, e);
     EXPECT(found); // sanity — should be found
 
     tt.clear();
-    found = false;
-    tt.probe(key, found);
+    found = tt.probe_copy(key, e);
 
     begin_section("clear: entry gone after clear()");
     EXPECT(!found);
@@ -179,19 +178,19 @@ static void test_deeper_entry_preferred() {
     tt.store(key, 2, 50,  TT_ALPHA, MOVE_NONE, 0, 50);
     tt.store(key, 8, 120, TT_EXACT, MOVE_NONE, 0, 120);
 
-    bool found = false;
-    TTEntry* e = tt.probe(key, found);
+    TTEntry e{};
+    bool found = tt.probe_copy(key, e);
 
     begin_section("deeper entry: found");
     EXPECT(found);
     end_section();
 
     begin_section("deeper entry: depth == 8");
-    EXPECT(e && e->depth == 8);
+    EXPECT(found && e.depth == 8);
     end_section();
 
     begin_section("deeper entry: flag == TT_EXACT");
-    EXPECT(e && (e->flag_age & 3) == TT_EXACT);
+    EXPECT(found && (e.flag_age & 3) == TT_EXACT);
     end_section();
 }
 
@@ -209,13 +208,13 @@ static void test_age_replacement() {
     // Re-store with a different score at same key (deeper)
     tt.store(key, 6, 200, TT_EXACT, MOVE_NONE, 0, 200);
 
-    bool found = false;
-    TTEntry* e = tt.probe(key, found);
+    TTEntry e{};
+    bool found = tt.probe_copy(key, e);
 
     begin_section("age: re-store same key updates score");
     EXPECT(found);
-    if (e) {
-        int s = TranspositionTable::score_from_tt(e->score, 0);
+    if (found) {
+        int s = TranspositionTable::score_from_tt(e.score, 0);
         EXPECT_EQ(s, 200);
     } else { ++g_total; }
     end_section();
@@ -232,24 +231,21 @@ static void test_tt_flags() {
     tt.store(key_be, 5,  80, TT_BETA,  MOVE_NONE, 0, 80);
 
     bool found;
-    TTEntry* e;
+    TTEntry e{};
 
     begin_section("flag: TT_EXACT stored and retrieved");
-    found = false;
-    e = tt.probe(key_ex, found);
-    EXPECT(found && e && (e->flag_age & 3) == TT_EXACT);
+    found = tt.probe_copy(key_ex, e);
+    EXPECT(found && (e.flag_age & 3) == TT_EXACT);
     end_section();
 
     begin_section("flag: TT_ALPHA stored and retrieved");
-    found = false;
-    e = tt.probe(key_al, found);
-    EXPECT(found && e && (e->flag_age & 3) == TT_ALPHA);
+    found = tt.probe_copy(key_al, e);
+    EXPECT(found && (e.flag_age & 3) == TT_ALPHA);
     end_section();
 
     begin_section("flag: TT_BETA stored and retrieved");
-    found = false;
-    e = tt.probe(key_be, found);
-    EXPECT(found && e && (e->flag_age & 3) == TT_BETA);
+    found = tt.probe_copy(key_be, e);
+    EXPECT(found && (e.flag_age & 3) == TT_BETA);
     end_section();
 }
 
@@ -261,16 +257,16 @@ static void test_move_preserved() {
 
     tt.store(key, 6, 900, TT_EXACT, m, 0, 900);
 
-    bool found = false;
-    TTEntry* e = tt.probe(key, found);
+    TTEntry e{};
+    bool found = tt.probe_copy(key, e);
 
     begin_section("move preserved: found");
     EXPECT(found);
     end_section();
 
     begin_section("move preserved: promo queen round-trip");
-    if (e) {
-        Move rt = move_from_tt(e->move16);
+    if (found) {
+        Move rt = move_from_tt(e.move16);
         EXPECT_EQ(rt, m);
     } else { ++g_total; }
     end_section();

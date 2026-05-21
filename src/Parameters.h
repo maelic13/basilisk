@@ -18,6 +18,7 @@ public:
 
     int     moveOverhead;   // [ms]
     int     hash_mb;        // TT size in MB
+    int     threads;        // search worker count
     int64_t nodes;          // node limit (0 = unlimited)
     int     movestogo;      // moves until next time control (0 = sudden death)
     bool    ponder;         // go ponder mode
@@ -38,6 +39,7 @@ public:
     void setSearchParameters(const std::string &args);
 
     static std::string uciOptions();
+    static int maxThreads();
 
 private:
     void setSearchParameter(const std::string &parameter, const std::string &value);

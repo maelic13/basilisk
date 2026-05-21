@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.0] - 2026-05-21
+
+### Added
+
+#### Search
+- `Threads` now drives a persistent Lazy SMP search pool with shared TT and root-move feedback
+- Shared root move table for helper-thread result aggregation and root move ordering
+- Staged `MovePicker` that searches TT move, tactical moves, then quiet moves
+- Quiet-only legal move generation so quiet moves are generated only when needed
+
+#### Engine / UCI
+- Engine command queue with priority commands for `quit` and serialized state changes
+- Separate stop, search, quit, and ponderhit control flags
+- `bench [depth]` now uses the current `Threads` option and reports the active thread count
+
+#### Testing
+- Board coverage for color-aware pawn keys and quiet-only legal generation
+- Search coverage for repeated thread-pool searches and command-queue priority ordering
+- TT coverage updated to use copy-based probes
+
+### Changed
+- Transposition table storage is now a compact atomic format with 64-byte clusters for safer shared access
+- Search no longer holds pointers into TT storage; probes return stable entry copies
+- Capture move ordering avoids eager SEE calls; SEE is still used for pruning and bad-capture reductions
+- Pawn correction history now uses a color-aware pawn key instead of color-blind pawn bitboards
+- Release CI now runs the CTest suite before binary smoke tests and upload
+
+### Fixed
+- `isready`/`go` race where a readiness ping immediately after a queued search could wait behind the search
+- Queued `stop`, `quit`, and replacement `go` commands can no longer be erased by a stale search startup
+- `ponderhit` now transitions ponder searches through an atomic signal instead of restarting search state
+- Pawn-key collisions between color-swapped pawn structures
+
+---
+
 ## [1.1.0] - 2026-05-21
 
 ### Added
@@ -75,5 +110,6 @@ First public release.
 - `bench [depth]` command — 16-position built-in benchmark, prints per-position NPS and total node-count fingerprint
 - GitHub Actions release workflow — builds for Linux x86_64, Linux aarch64, Windows x86_64, Windows aarch64, macOS aarch64; all built with Clang; PEXT variant produced for x86_64 platforms
 
+[1.2.0]: https://github.com/maelic13/basilisk/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/maelic13/basilisk/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/maelic13/basilisk/releases/tag/v1.0.0

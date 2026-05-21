@@ -1,21 +1,27 @@
+#include <future>
 #include <iostream>
 #include <string>
 
 #include "Constants.h"
+#include "UciOutput.h"
 #include "UciProtocol.h"
-#include "bench.h"
 
-UciProtocol::UciProtocol(
-    std::atomic_bool &go_, std::atomic_bool &quit_,
-    Parameters &params_, std::condition_variable &cv)
-    : go(go_), quit(quit_), parameters(params_), conditionVariable(cv) {}
+UciProtocol::UciProtocol(EngineCommandQueue& commands,
+                         std::atomic_bool& stop_requested,
+                         std::atomic_bool& ponderhit_requested,
+                         std::atomic_bool& searching,
+                         std::atomic_uint64_t& control_epoch)
+    : commands_(commands)
+    , stop_requested_(stop_requested)
+    , ponderhit_requested_(ponderhit_requested)
+    , searching_(searching)
+    , control_epoch_(control_epoch) {}
 
 void UciProtocol::UciLoop() {
     std::string input;
 
     while (std::getline(std::cin, input)) {
         if (input.empty()) continue;
-        // Strip trailing \r (Windows line endings)
         if (!input.empty() && input.back() == '\r') input.pop_back();
         if (input.empty()) continue;
 
@@ -24,7 +30,7 @@ void UciProtocol::UciLoop() {
         const std::string args    = (sep != std::string::npos) ? input.substr(sep + 1) : "";
 
         if (debug_mode)
-            std::cout << "info string received: " << input << "\n";
+            uci_write_line("info string received: " + input);
 
         if      (command == "uci")        cmdUci();
         else if (command == "debug")      cmdDebug(args);
@@ -36,13 +42,20 @@ void UciProtocol::UciLoop() {
         else if (command == "go")         cmdGo(args);
         else if (command == "stop")       cmdStop();
         else if (command == "ponderhit")  cmdPonderHit();
-        else if (command == "bench")     cmdBench(args);
+        else if (command == "bench")      cmdBench(args);
         else if (command == "quit") {
             cmdQuit();
             break;
         }
-        // Unknown commands are silently ignored per UCI spec
     }
+}
+
+uint64_t UciProtocol::next_control_epoch() {
+    return control_epoch_.fetch_add(1, std::memory_order_acq_rel) + 1;
+}
+
+void UciProtocol::enqueue(EngineCommandType type, const std::string& args, uint64_t epoch) {
+    commands_.push(EngineCommand{type, args, nullptr, epoch});
 }
 
 // ---------------------------------------------------------------------------
@@ -50,22 +63,26 @@ void UciProtocol::UciLoop() {
 // ---------------------------------------------------------------------------
 
 void UciProtocol::cmdUci() {
-    std::cout << "id name "   << engineName    << " " << engineVersion << "\n"
-              << "id author " << engineAuthor  << "\n"
-              << Parameters::uciOptions()
-              << "uciok\n";
-    std::cout.flush();
+    std::string out = "id name " + std::string(engineName) + " " + std::string(engineVersion) + "\n"
+                    + "id author " + std::string(engineAuthor) + "\n"
+                    + Parameters::uciOptions()
+                    + "uciok\n";
+    uci_write(out);
 }
 
 void UciProtocol::cmdIsReady() {
-    std::cout << "readyok\n";
-    std::cout.flush();
+    if (!searching_.load(std::memory_order_acquire)) {
+        auto ack = std::make_shared<std::promise<void>>();
+        auto ready = ack->get_future();
+        commands_.push(EngineCommand{EngineCommandType::Ready, {}, ack});
+        ready.wait();
+    }
+
+    uci_write_line("readyok");
 }
 
 void UciProtocol::cmdRegister() {
-    // Registration not required
-    std::cout << "registration ok\n";
-    std::cout.flush();
+    uci_write_line("registration ok");
 }
 
 // ---------------------------------------------------------------------------
@@ -77,54 +94,44 @@ void UciProtocol::cmdDebug(const std::string &args) {
 }
 
 void UciProtocol::cmdQuit() {
-    go   = false;  // stop any ongoing search
-    quit = true;
-    conditionVariable.notify_one();
+    uint64_t epoch = next_control_epoch();
+    stop_requested_.store(true, std::memory_order_release);
+    commands_.push_priority(EngineCommand{EngineCommandType::Quit, {}, nullptr, epoch});
 }
 
 void UciProtocol::cmdGo(const std::string &args) {
-    parameters.setSearchParameters(args);
-    go = true;
-    conditionVariable.notify_one();
+    uint64_t epoch = next_control_epoch();
+    if (searching_.exchange(true, std::memory_order_acq_rel))
+        stop_requested_.store(true, std::memory_order_release);
+    enqueue(EngineCommandType::Go, args, epoch);
 }
 
 void UciProtocol::cmdStop() {
-    go = false;
-    conditionVariable.notify_one();
+    uint64_t epoch = next_control_epoch();
+    stop_requested_.store(true, std::memory_order_release);
+    enqueue(EngineCommandType::Stop, {}, epoch);
 }
 
 void UciProtocol::cmdPonderHit() {
-    // The expected move was played; switch from pondering to normal search.
-    // Stop the current ponder search and restart immediately without ponder mode
-    // so that time management activates using the clock values from the go command.
-    parameters.ponder = false;
-    go = false;
-    conditionVariable.notify_one();
-    // Small pause so engine thread wakes and exits, then restart
-    go = true;
-    conditionVariable.notify_one();
+    ponderhit_requested_.store(true, std::memory_order_release);
+    enqueue(EngineCommandType::PonderHit);
 }
 
 void UciProtocol::cmdSetOption(const std::string &args) {
-    parameters.setOption(args);
+    enqueue(EngineCommandType::SetOption, args);
 }
 
 void UciProtocol::cmdPosition(const std::string &args) {
-    parameters.setPosition(args);
+    enqueue(EngineCommandType::Position, args);
 }
 
 void UciProtocol::cmdNewGame() {
-    parameters.reset();
+    enqueue(EngineCommandType::NewGame);
 }
 
 void UciProtocol::cmdBench(const std::string& args) {
-    int depth = 13;
-    if (!args.empty()) {
-        try { depth = std::stoi(args); } catch (...) {}
-    }
-    // Stop any running search first
-    go   = false;
-    conditionVariable.notify_one();
-    run_bench(depth);
+    uint64_t epoch = next_control_epoch();
+    stop_requested_.store(true, std::memory_order_release);
+    searching_.store(true, std::memory_order_release);
+    enqueue(EngineCommandType::Bench, args, epoch);
 }
-

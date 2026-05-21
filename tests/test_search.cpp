@@ -8,6 +8,7 @@
 ///   ./build/release/test_search
 
 #include "Board.h"
+#include "EngineCommand.h"
 #include "attacks.h"
 #include "bitboard.h"
 #include "eval.h"
@@ -52,6 +53,20 @@ static RunResult run_search(const char* fen, int depth,
     rr.sr  = sr;
     rr.uci = (sr.bestmove != MOVE_NONE) ? move_to_uci(sr.bestmove) : "0000";
     return rr;
+}
+
+static bool is_legal_bestmove(const char* fen, Move move) {
+    if (move == MOVE_NONE)
+        return false;
+
+    Board b;
+    b.set_fen(fen);
+    MoveList legal;
+    b.gen_legal(legal);
+    for (Move candidate : legal)
+        if (candidate == move)
+            return true;
+    return false;
 }
 
 // ---------------------------------------------------------------------------
@@ -207,6 +222,63 @@ static void test_black_to_move() {
     end_section();
 }
 
+static void test_thread_pool_search() {
+    static constexpr const char* FEN =
+        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
+    TranspositionTable tt(8);
+    std::atomic_bool stop{false};
+    SearchThreadPool pool(tt, stop);
+    const int threads = pool.ensure_threads(2);
+
+    begin_section("thread pool: creates at least one worker slot");
+    EXPECT(threads >= 1);
+    end_section();
+
+    Board board;
+    board.set_fen(FEN);
+    SearchLimits limits;
+    limits.depth = 5;
+
+    stop.store(false, std::memory_order_release);
+    SearchResult result = pool.search(board, limits, threads);
+
+    begin_section("thread pool: returns legal move");
+    EXPECT(is_legal_bestmove(FEN, result.bestmove));
+    end_section();
+
+    begin_section("thread pool: reports searched nodes");
+    EXPECT(result.nodes > 0);
+    end_section();
+
+    board.set_fen(FEN);
+    stop.store(false, std::memory_order_release);
+    SearchResult second = pool.search(board, limits, threads);
+
+    begin_section("thread pool: repeated search after helper cancellation works");
+    EXPECT(is_legal_bestmove(FEN, second.bestmove));
+    EXPECT(second.nodes > 0);
+    end_section();
+}
+
+static void test_command_queue_priority() {
+    EngineCommandQueue queue;
+    queue.push(EngineCommand{EngineCommandType::Go, "depth 1", nullptr, 1});
+    queue.push_priority(EngineCommand{EngineCommandType::Quit, {}, nullptr, 2});
+
+    begin_section("command queue: priority command is popped first");
+    EngineCommand first = queue.wait_pop();
+    EXPECT(first.type == EngineCommandType::Quit);
+    EXPECT_EQ(static_cast<int>(first.epoch), 2);
+    end_section();
+
+    begin_section("command queue: older command remains queued");
+    EngineCommand second = queue.wait_pop();
+    EXPECT(second.type == EngineCommandType::Go);
+    EXPECT_EQ(static_cast<int>(second.epoch), 1);
+    end_section();
+}
+
 // ---------------------------------------------------------------------------
 // main
 // ---------------------------------------------------------------------------
@@ -246,6 +318,12 @@ int main() {
 
     std::printf("\nBlack to move\n");
     test_black_to_move();
+
+    std::printf("\nThread pool\n");
+    test_thread_pool_search();
+
+    std::printf("\nCommand queue\n");
+    test_command_queue_priority();
 
     return harness_summary();
 }

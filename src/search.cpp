@@ -3,8 +3,11 @@
 #include <cassert>
 #include <cmath>
 #include <cstring>
+#include <exception>
 #include <sstream>
 #include <string>
+#include <system_error>
+#include <thread>
 
 // ---- LMR table -------------------------------------------------------------
 
@@ -19,20 +22,112 @@ void Searcher::init_lmr() {
     lmr_init_ = true;
 }
 
+// ---- Shared root move table ------------------------------------------------
+
+void RootMoveTable::reset(const Board& board) {
+    MoveList legal;
+    board.gen_legal(legal);
+
+    std::lock_guard lock(mutex_);
+    entries_.clear();
+    entries_.reserve(static_cast<size_t>(legal.size()));
+    sequence_ = 0;
+
+    for (Move move : legal) {
+        Entry entry;
+        entry.bestmove = move;
+        entries_.push_back(entry);
+    }
+}
+
+void RootMoveTable::update(Move bestmove, Move pondermove, int depth, int score) {
+    if (bestmove == MOVE_NONE) return;
+
+    std::lock_guard lock(mutex_);
+    for (Entry& entry : entries_) {
+        if (entry.bestmove != bestmove) continue;
+
+        if (depth > entry.depth || (depth == entry.depth && score > entry.score)) {
+            entry.pondermove = pondermove;
+            entry.depth = depth;
+            entry.score = score;
+            entry.sequence = ++sequence_;
+        }
+        return;
+    }
+
+    Entry entry;
+    entry.bestmove = bestmove;
+    entry.pondermove = pondermove;
+    entry.depth = depth;
+    entry.score = score;
+    entry.sequence = ++sequence_;
+    entries_.push_back(entry);
+}
+
+int RootMoveTable::ordering_score(Move move) const {
+    std::lock_guard lock(mutex_);
+    for (const Entry& entry : entries_) {
+        if (entry.bestmove == move && entry.depth > 0) {
+            return 7'000'000 + entry.depth * 10'000
+                 + std::clamp(entry.score, -MATE_SCORE, MATE_SCORE);
+        }
+    }
+    return 0;
+}
+
+SearchResult RootMoveTable::best_result() const {
+    std::lock_guard lock(mutex_);
+
+    SearchResult best;
+    int best_sequence = -1;
+
+    for (const Entry& entry : entries_) {
+        if (entry.depth <= 0 || entry.bestmove == MOVE_NONE)
+            continue;
+
+        const bool entry_mates = entry.score >= MATE_SCORE - MAX_PLY;
+        const bool best_mates = best.score >= MATE_SCORE - MAX_PLY;
+
+        if (best.bestmove == MOVE_NONE
+            || (entry_mates && (!best_mates || entry.score > best.score))
+            || (!best_mates && entry.depth > best.depth)
+            || (!best_mates && entry.depth == best.depth && entry.score > best.score)
+            || (!best_mates && entry.depth == best.depth && entry.score == best.score
+                && entry.sequence > best_sequence)) {
+            best.bestmove = entry.bestmove;
+            best.pondermove = entry.pondermove;
+            best.depth = entry.depth;
+            best.score = entry.score;
+            best_sequence = entry.sequence;
+        }
+    }
+
+    return best;
+}
+
 // ---- Constructor -----------------------------------------------------------
 
 Searcher::Searcher(TranspositionTable& tt,
                    std::atomic_bool& stop_flag,
-                   std::function<void(const std::string&)> info_cb)
+                   std::function<void(const std::string&)> info_cb,
+                   std::atomic_bool* ponderhit_flag)
     : evaluator()
     , tt_(tt)
     , stop_(stop_flag)
+    , ponderhit_(ponderhit_flag)
     , info_cb_(info_cb)
     , board_ptr_(nullptr)
     , nodes_(0)
     , nodes_limit_(0)
     , sel_depth_(0)
     , stopped_(false)
+    , root_filter_index_(-1)
+    , root_filter_count_(1)
+    , thread_id_(0)
+    , root_table_(nullptr)
+    , pondering_(false)
+    , root_side_(WHITE)
     , time_limit_(0.0)
     , soft_limit_(0.0)
     , hard_limit_(0.0)
@@ -101,8 +196,20 @@ double Searcher::elapsed_seconds() const {
 
 bool Searcher::check_stop() {
     if (stopped_) return true;
-    // stop_ is the "go" flag: false means the GUI sent "stop"
-    if (!stop_.load()) { stopped_ = true; return true; }
+
+    if (stop_.load(std::memory_order_acquire)) {
+        stopped_ = true;
+        return true;
+    }
+
+    if (pondering_ && ponderhit_ && ponderhit_->load(std::memory_order_acquire)) {
+        pondering_ = false;
+        SearchLimits normal_limits = active_limits_;
+        normal_limits.ponder = false;
+        start_time_ = std::chrono::steady_clock::now();
+        compute_time_limit(normal_limits, root_side_);
+    }
+
     if (hard_limit_ > 0.0 && elapsed_seconds() >= hard_limit_) {
         stopped_ = true;
         return true;
@@ -146,8 +253,8 @@ int Searcher::cont_hist_score(const SearchStack* ss, PieceType pt, Square to) co
 }
 
 void Searcher::update_all_histories(Move best,
-                                    const std::vector<Move>& quiets,
-                                    const std::vector<Move>& bad_caps,
+                                    const Move* quiets, int quiet_count,
+                                    const Move* bad_caps, int bad_cap_count,
                                     Color stm, int depth, SearchStack* ss) {
     int bonus = std::min(depth * depth, 2048);
     int malus = -std::min(depth * depth, 2048);
@@ -188,7 +295,8 @@ void Searcher::update_all_histories(Move best,
         }
 
         // Malus for other searched quiets
-        for (Move m : quiets) {
+        for (int i = 0; i < quiet_count; ++i) {
+            Move m = quiets[i];
             if (m == best) continue;
             Square mf = Square(from_sq(m)), mt = Square(to_sq(m));
             PieceType mpt = type_of(board_ptr_->board_sq[mf]);
@@ -212,7 +320,8 @@ void Searcher::update_all_histories(Move best,
     // Quiet promotions: no history update (too rare to matter)
 
     // Malus for bad captures searched before best
-    for (Move m : bad_caps) {
+    for (int i = 0; i < bad_cap_count; ++i) {
+        Move m = bad_caps[i];
         if (m == best) continue;
         PieceType atk = type_of(board_ptr_->board_sq[from_sq(m)]);
         PieceType cap = (move_type(m) == EN_PASSANT)
@@ -257,8 +366,10 @@ void Searcher::age_history() {
 // ---- Move ordering ---------------------------------------------------------
 
 static constexpr int PIECE_VALUE[PIECE_TYPE_NB] = {0, 100, 300, 300, 500, 900, 20000};
+static constexpr int MAX_TRACKED_QUIETS = 64;
+static constexpr int MAX_TRACKED_BAD_CAPS = 32;
 
-void Searcher::score_moves(ScoredMove* moves, int n, Move tt_move, SearchStack* ss) const {
+void Searcher::score_moves(ScoredMove* moves, int n, Move tt_move, SearchStack* ss, bool is_root) const {
     const Board& b = *board_ptr_;
 
     Move cm = MOVE_NONE;
@@ -277,12 +388,8 @@ void Searcher::score_moves(ScoredMove* moves, int n, Move tt_move, SearchStack* 
         if (is_cap) {
             PieceType atk = type_of(b.board_sq[from_sq(m)]);
             PieceType cap = (move_type(m) == EN_PASSANT) ? PAWN : type_of(b.board_sq[to_sq(m)]);
-            int see = b.see(m);
-            if (see >= 0)
-                moves[i].score = 6'000'000 + PIECE_VALUE[cap] * 16 - PIECE_VALUE[atk]
-                                           + cap_hist_[atk][to_sq(m)][cap];
-            else
-                moves[i].score = 2'000'000 + see;
+            moves[i].score = 6'000'000 + PIECE_VALUE[cap] * 16 - PIECE_VALUE[atk]
+                                       + cap_hist_[atk][to_sq(m)][cap];
         } else if (is_promo) {
             moves[i].score = (promo_type(m) == QUEEN) ? 5'500'000 : -100;
         } else {
@@ -296,6 +403,9 @@ void Searcher::score_moves(ScoredMove* moves, int n, Move tt_move, SearchStack* 
             else if (m == cm)             moves[i].score = 3'800'000;
             else                          moves[i].score = hist;
         }
+
+        if (is_root && root_table_)
+            moves[i].score += root_table_->ordering_score(m);
     }
 }
 
@@ -307,6 +417,104 @@ Move Searcher::pick_next(ScoredMove* moves, int idx, int n) {
     std::swap(moves[idx], moves[best]);
     return moves[idx].move;
 }
+
+class Searcher::MovePicker {
+public:
+    MovePicker(Searcher& searcher, Move tt_move, Move excluded, SearchStack* ss, bool is_root)
+        : searcher_(searcher)
+        , tt_move_(tt_move)
+        , excluded_(excluded)
+        , ss_(ss)
+        , is_root_(is_root) {}
+
+    Move next() {
+        while (true) {
+            switch (stage_) {
+                case Stage::TT:
+                    stage_ = Stage::TacticalsInit;
+                    if (tt_move_ != MOVE_NONE && tt_move_ != excluded_) {
+                        Piece p = searcher_.board_ptr_->board_sq[from_sq(tt_move_)];
+                        if (p != NO_PIECE
+                            && color_of(p) == searcher_.board_ptr_->side_to_move
+                            && searcher_.board_ptr_->is_legal(tt_move_)) {
+                            tt_searched_ = true;
+                            return tt_move_;
+                        }
+                    }
+                    break;
+
+                case Stage::TacticalsInit:
+                    fill_tacticals();
+                    stage_ = Stage::Tacticals;
+                    break;
+
+                case Stage::Tacticals:
+                    if (idx_ < n_)
+                        return Searcher::pick_next(scored_, idx_++, n_);
+                    stage_ = Stage::QuietsInit;
+                    break;
+
+                case Stage::QuietsInit:
+                    fill_quiets();
+                    stage_ = Stage::Quiets;
+                    break;
+
+                case Stage::Quiets:
+                    if (idx_ < n_)
+                        return Searcher::pick_next(scored_, idx_++, n_);
+                    stage_ = Stage::Done;
+                    break;
+
+                case Stage::Done:
+                    return MOVE_NONE;
+            }
+        }
+    }
+
+private:
+    enum class Stage {
+        TT,
+        TacticalsInit,
+        Tacticals,
+        QuietsInit,
+        Quiets,
+        Done
+    };
+
+    void fill_tacticals() {
+        MoveList moves;
+        searcher_.board_ptr_->gen_legal_captures(moves);
+        fill_from(moves);
+    }
+
+    void fill_quiets() {
+        MoveList moves;
+        searcher_.board_ptr_->gen_legal_quiets(moves);
+        fill_from(moves);
+    }
+
+    void fill_from(const MoveList& moves) {
+        n_ = 0;
+        idx_ = 0;
+        for (Move move : moves) {
+            if (move == excluded_ || (tt_searched_ && move == tt_move_))
+                continue;
+            scored_[n_++] = {move, 0};
+        }
+        searcher_.score_moves(scored_, n_, MOVE_NONE, ss_, is_root_);
+    }
+
+    Searcher& searcher_;
+    Move tt_move_;
+    Move excluded_;
+    SearchStack* ss_;
+    bool is_root_;
+    bool tt_searched_ = false;
+    Stage stage_ = Stage::TT;
+    ScoredMove scored_[MoveList::CAPACITY];
+    int n_ = 0;
+    int idx_ = 0;
+};
 
 // ---- UCI info ---------------------------------------------------------------
 
@@ -350,13 +558,13 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
 
     // TT probe
     Key hash = board_ptr_->hash;
-    bool tt_found = false;
-    TTEntry* tte = tt_.probe(hash, tt_found);
+    TTEntry tte{};
+    bool tt_found = tt_.probe_copy(hash, tte);
     Move tt_move = MOVE_NONE;
     if (tt_found) {
-        tt_move = move_from_tt(tte->move16);
-        int tt_score = TranspositionTable::score_from_tt(tte->score, ply);
-        TTFlag tt_flag = TTFlag(tte->flag_age & 3);
+        tt_move = move_from_tt(tte.move16);
+        int tt_score = TranspositionTable::score_from_tt(tte.score, ply);
+        TTFlag tt_flag = TTFlag(tte.flag_age & 3);
         if (tt_flag == TT_EXACT) return tt_score;
         if (tt_flag == TT_ALPHA && tt_score <= alpha) return tt_score;
         if (tt_flag == TT_BETA  && tt_score >= beta)  return tt_score;
@@ -387,12 +595,11 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
 
     // Stand-pat evaluation
     int stand_pat;
-    if (tt_found && tte->static_eval != TranspositionTable::INF_EVAL)
-        stand_pat = tte->static_eval;
+    if (tt_found && tte.static_eval != TranspositionTable::INF_EVAL)
+        stand_pat = tte.static_eval;
     else
         stand_pat = evaluator.evaluate(*board_ptr_);
-    Key pk = board_ptr_->pieces[WHITE][PAWN] ^ board_ptr_->pieces[BLACK][PAWN];
-    stand_pat += correction_value(board_ptr_->side_to_move, pk);
+    stand_pat += correction_value(board_ptr_->side_to_move, board_ptr_->pawn_key);
     stand_pat = std::clamp(stand_pat, -(MATE_SCORE - 1), MATE_SCORE - 1);
 
     if (stand_pat >= beta) {
@@ -487,8 +694,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
     // ---- Transposition table lookup ----------------------------------------
     Key hash     = board_ptr_->hash;
-    bool tt_found = false;
-    TTEntry* tte  = tt_.probe(hash, tt_found);
+    TTEntry tte{};
+    bool tt_found = tt_.probe_copy(hash, tte);
 
     Move  tt_move  = MOVE_NONE;
     int   tt_score = VALUE_NONE;
@@ -496,10 +703,10 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     TTFlag tt_flag  = TT_NONE;
 
     if (tt_found) {
-        tt_move  = move_from_tt(tte->move16);
-        tt_score = TranspositionTable::score_from_tt(tte->score, ply);
-        tt_depth = tte->depth;
-        tt_flag  = TTFlag(tte->flag_age & 3);
+        tt_move  = move_from_tt(tte.move16);
+        tt_score = TranspositionTable::score_from_tt(tte.score, ply);
+        tt_depth = tte.depth;
+        tt_flag  = TTFlag(tte.flag_age & 3);
 
         if (!is_pv && ss->excluded == MOVE_NONE && tt_depth >= depth) {
             if (tt_flag == TT_EXACT) return tt_score;
@@ -516,14 +723,13 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         // Inherit eval from parent to avoid calling evaluate twice
         static_eval = ss->eval;
     } else {
-        if (tt_found && tte->static_eval != TranspositionTable::INF_EVAL)
-            static_eval = tte->static_eval;
+        if (tt_found && tte.static_eval != TranspositionTable::INF_EVAL)
+            static_eval = tte.static_eval;
         else
             static_eval = evaluator.evaluate(*board_ptr_);
 
         // Pawn-structure correction
-        Key pawn_key = board_ptr_->pieces[WHITE][PAWN] ^ board_ptr_->pieces[BLACK][PAWN];
-        static_eval += correction_value(board_ptr_->side_to_move, pawn_key);
+        static_eval += correction_value(board_ptr_->side_to_move, board_ptr_->pawn_key);
         static_eval  = std::clamp(static_eval, -(MATE_SCORE - 1), MATE_SCORE - 1);
         ss->eval = static_eval;
     }
@@ -604,38 +810,33 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     // IIR: reduce depth when no TT move (or stale TT entry) to guide the search
     if (depth >= 4 && (tt_move == MOVE_NONE || (tt_found && tt_depth < depth - 3))) depth--;
 
-    // ---- Generate and score moves ------------------------------------------
-    MoveList legal;
-    board_ptr_->gen_legal(legal);
-
-    ScoredMove move_arr[MoveList::CAPACITY];
-    int n_moves = 0;
-    for (Move m : legal)
-        if (m != ss->excluded)
-            move_arr[n_moves++] = {m, 0};
-
-    score_moves(move_arr, n_moves, tt_move, ss);
-
     int  orig_alpha  = alpha;
     Move best_move   = MOVE_NONE;
     int  best_score  = -INF_SCORE;
     int  searched    = 0;
 
-    std::vector<Move> quiets_searched;
-    std::vector<Move> bad_caps_searched;
-    quiets_searched.reserve(32);
-    bad_caps_searched.reserve(8);
+    Move quiets_searched[MAX_TRACKED_QUIETS];
+    Move bad_caps_searched[MAX_TRACKED_BAD_CAPS];
+    int quiets_count = 0;
+    int bad_caps_count = 0;
 
     int lmp_thresh = improving ? (3 + depth * depth) : (2 + depth * depth / 2);
+    int root_ordinal = 0;
+    bool immediate_return = false;
+    int immediate_score = 0;
 
-    for (int i = 0; i < n_moves; i++) {
-        Move m      = pick_next(move_arr, i, n_moves);
-        int  mscore = move_arr[i].score;  // score after pick_next
+    auto search_one = [&](Move m) {
+        if (is_root && root_filter_index_ >= 0) {
+            const int ordinal = root_ordinal++;
+            if ((ordinal % root_filter_count_) != root_filter_index_)
+                return false;
+        }
 
         bool is_cap   = (board_ptr_->board_sq[to_sq(m)] != NO_PIECE)
                      || (move_type(m) == EN_PASSANT);
         bool is_promo = (move_type(m) == PROMOTION);
         bool is_quiet = !is_cap && !is_promo;
+        int see_score = VALUE_NONE;
 
         // ---- Late-move pruning / futility ----------------------------------
         if (!is_root && searched > 0 && best_score > -(MATE_SCORE - MAX_PLY)) {
@@ -645,11 +846,11 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 if (!is_pv && !in_check && depth <= 6
                     && static_eval != VALUE_NONE
                     && static_eval + 150 + 110 * depth <= alpha)
-                    continue;
+                    return false;
 
                 // Late move pruning (LMP) — never in PV
                 if (!is_pv && !in_check && depth <= 6 && searched >= lmp_thresh)
-                    continue;
+                    return false;
 
                 // History pruning: skip moves with very bad combined history
                 if (!is_pv && depth <= 6) {
@@ -657,16 +858,19 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                     int hist = main_hist_[board_ptr_->side_to_move][from_sq(m)][to_sq(m)]
                              + cont_hist_score(ss, pt, Square(to_sq(m)));
                     if (hist < -3500 * depth)
-                        continue;
+                        return false;
                 }
             } else if (is_cap) {
                 // SEE pruning for bad captures
-                if (!is_pv && depth <= 8 && mscore < 6'000'000) {
-                    int embedded_see = mscore - 2'000'000;
-                    if (embedded_see < -depth * 80) continue;
+                if (!is_pv && depth <= 8 && !is_promo) {
+                    see_score = board_ptr_->see(m);
+                    if (see_score < -depth * 80) return false;
                 }
             }
         }
+
+        if (is_cap && !is_promo && depth >= 2 && searched >= 2 && see_score == VALUE_NONE)
+            see_score = board_ptr_->see(m);
 
         // ---- Extensions -------------------------------------------------------
         int extension = 0;
@@ -684,14 +888,20 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             int s_val = negamax(s_depth, s_beta - 1, s_beta, ply, ss, false, false);
             ss->excluded = MOVE_NONE;
 
-            if (stopped_) return 0;
+            if (stopped_) {
+                immediate_return = true;
+                immediate_score = 0;
+                return true;
+            }
 
             if (s_val < s_beta) {
                 // TT move is singular — extend it
                 extension += (!is_pv && s_val < s_beta - 20) ? 2 : 1;
             } else if (s_beta >= beta) {
                 // Multicut: likely to fail high without this move too
-                return s_beta;
+                immediate_return = true;
+                immediate_score = s_beta;
+                return true;
             } else if (tt_score >= beta) {
                 extension--; // Negative extension: not clearly best
             }
@@ -721,7 +931,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             int reduction = 0;
             // LMR applies to: quiets, and bad captures — but NOT promotions
             if (depth >= 2 && searched >= 2 && !in_check
-                && (is_quiet || (is_cap && !is_promo && mscore < 6'000'000))) {
+                && (is_quiet || (is_cap && !is_promo && see_score < 0))) {
                 reduction = LMR_TABLE[std::min(depth, 63)][std::min(searched, 63)];
 
                 if (is_quiet) {
@@ -753,15 +963,19 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         ss->move = MOVE_NONE;
 
         if (stopped_)
-            return (is_root && best_move != MOVE_NONE) ? best_score : 0;
+            return true;
 
         searched++;
 
         // Track for history updates
-        if (is_cap && mscore < 6'000'000)
-            bad_caps_searched.push_back(m);
-        else if (is_quiet)
-            quiets_searched.push_back(m);
+        if (is_cap && !is_promo) {
+            if (see_score == VALUE_NONE)
+                see_score = board_ptr_->see(m);
+            if (see_score < 0 && bad_caps_count < MAX_TRACKED_BAD_CAPS)
+                bad_caps_searched[bad_caps_count++] = m;
+        } else if (is_quiet && quiets_count < MAX_TRACKED_QUIETS) {
+            quiets_searched[quiets_count++] = m;
+        }
 
         if (score > best_score) {
             best_score = score;
@@ -777,11 +991,32 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         }
 
         if (alpha >= beta) {
-            update_all_histories(m, quiets_searched, bad_caps_searched,
+            update_all_histories(m, quiets_searched, quiets_count,
+                                 bad_caps_searched, bad_caps_count,
                                  board_ptr_->side_to_move, depth, ss);
-            break;
+            return true;
         }
+
+        return false;
+    };
+
+    // ---- Staged move picking -----------------------------------------------
+    // TT move first, then tactical moves, then quiet moves. Quiet generation and
+    // scoring are delayed until captures/promotions fail to produce a cutoff.
+    MovePicker picker(*this, tt_move, ss->excluded, ss, is_root);
+    while (true) {
+        Move move = picker.next();
+        if (move == MOVE_NONE)
+            break;
+        if (search_one(move))
+            break;
     }
+
+    if (immediate_return)
+        return immediate_score;
+
+    if (stopped_)
+        return (is_root && best_move != MOVE_NONE) ? best_score : 0;
 
     // No legal moves
     if (searched == 0)
@@ -791,8 +1026,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     if (!in_check && ss->excluded == MOVE_NONE && static_eval != VALUE_NONE
         && std::abs(best_score) < MATE_SCORE - MAX_PLY
         && (best_score >= beta || best_score > orig_alpha)) {
-        Key pawn_key = board_ptr_->pieces[WHITE][PAWN] ^ board_ptr_->pieces[BLACK][PAWN];
-        update_correction(board_ptr_->side_to_move, pawn_key,
+        update_correction(board_ptr_->side_to_move, board_ptr_->pawn_key,
                           best_score - static_eval, depth);
     }
 
@@ -815,11 +1049,22 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
     nodes_limit_  = limits.nodes;
     sel_depth_    = 0;
     stopped_      = false;
+    root_filter_count_ = std::max(1, limits.root_filter_count);
+    root_filter_index_ = (limits.root_filter_index >= 0
+                          && limits.root_filter_index < root_filter_count_)
+                       ? limits.root_filter_index
+                       : -1;
+    thread_id_    = std::max(0, limits.thread_id);
+    root_table_   = limits.root_table;
+    pondering_    = limits.ponder;
+    active_limits_ = limits;
+    root_side_    = board.side_to_move;
 
     start_time_ = std::chrono::steady_clock::now();
     compute_time_limit(limits, board.side_to_move);
 
-    tt_.new_search();
+    if (limits.update_tt_age)
+        tt_.new_search();
     age_history();
 
     // Initialize search stack sentinels
@@ -841,7 +1086,11 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
     int max_depth = limits.infinite ? MAX_SEARCH_DEPTH
                   : std::min(limits.depth, MAX_SEARCH_DEPTH);
 
-    for (int depth = 1; depth <= max_depth && !stopped_; depth++) {
+    int start_depth = 1;
+    if (thread_id_ > 0 && max_depth > 2)
+        start_depth = 1 + (thread_id_ % 2);
+
+    for (int depth = start_depth; depth <= max_depth && !stopped_; depth++) {
         pv_len_[0] = 0;
         int score;
 
@@ -893,6 +1142,9 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
         result.score = score;
         result.depth = depth;
 
+        if (root_table_ && result.bestmove != MOVE_NONE)
+            root_table_->update(result.bestmove, result.pondermove, depth, score);
+
         double elapsed = elapsed_seconds();
         send_info(depth, score, nodes_, elapsed);
 
@@ -900,7 +1152,7 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
         // The more stable the best move, the less time we need to confirm it.
         // stability=0 → 100% of soft, stability=6+ → ~64% of soft
         // A significant score drop signals instability — extend time budget.
-        if (soft_limit_ > 0.0 && !limits.ponder) {
+        if (soft_limit_ > 0.0 && !pondering_) {
             double stability_scale = 1.0 - 0.06 * std::min(best_stability, 6);
             // Score-based time extension: if score dropped by 30+ cp, take more time
             int score_drop = prev_score_saved - score;
@@ -916,7 +1168,216 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
     }
 
     board_ptr_ = nullptr;
+    root_table_ = nullptr;
+    pondering_ = false;
     result.nodes      = nodes_;
     result.elapsed_ms = int64_t(elapsed_seconds() * 1000.0);
     return result;
+}
+
+// ---- Persistent Lazy SMP thread pool ---------------------------------------
+
+SearchThreadPool::SearchThreadPool(TranspositionTable& tt,
+                                   std::atomic_bool& stop_flag,
+                                   std::function<void(const std::string&)> info_cb,
+                                   std::atomic_bool* ponderhit_flag)
+    : tt_(tt)
+    , stop_(stop_flag)
+    , ponderhit_(ponderhit_flag)
+    , info_cb_(std::move(info_cb)) {
+    ensure_threads(1);
+}
+
+SearchThreadPool::~SearchThreadPool() {
+    {
+        std::lock_guard lock(mutex_);
+        shutdown_ = true;
+        ++epoch_;
+    }
+    work_cv_.notify_all();
+
+    for (std::thread& worker : workers_) {
+        if (worker.joinable())
+            worker.join();
+    }
+}
+
+int SearchThreadPool::ensure_threads(int count) {
+    count = std::max(1, count);
+    const int requested = count;
+    const unsigned hw = std::thread::hardware_concurrency();
+    const int runtime_cap = hw == 0 ? 1 : std::max(1, static_cast<int>(std::min(4u * hw, 1024u)));
+    count = std::min(count, runtime_cap);
+
+    if (requested > count && info_cb_) {
+        info_cb_("info string Threads capped at " + std::to_string(count)
+                 + " for this process");
+    }
+
+    while (static_cast<int>(searchers_.size()) < count) {
+        const bool emit_info = searchers_.empty();
+        auto cb = emit_info ? info_cb_ : std::function<void(const std::string&)>();
+        searchers_.push_back(std::make_unique<Searcher>(tt_, stop_, std::move(cb), ponderhit_));
+    }
+
+    while (static_cast<int>(workers_.size()) + 1 < count) {
+        const int helper_slot = static_cast<int>(workers_.size());
+        try {
+            workers_.emplace_back(&SearchThreadPool::worker_loop, this, helper_slot);
+        } catch (const std::system_error& e) {
+            if (info_cb_) {
+                info_cb_("info string Threads reduced to "
+                         + std::to_string(static_cast<int>(workers_.size()) + 1)
+                         + " after worker creation failed: " + e.what());
+            }
+            break;
+        }
+    }
+
+    return std::min<int>(count, static_cast<int>(workers_.size()) + 1);
+}
+
+void SearchThreadPool::clear() {
+    for (auto& searcher : searchers_)
+        searcher->clear();
+}
+
+SearchLimits SearchThreadPool::limits_for_thread(const SearchLimits& limits,
+                                                 int thread_id,
+                                                 int thread_count,
+                                                 RootMoveTable& root_table) const {
+    SearchLimits worker_limits = limits;
+    worker_limits.update_tt_age = false;
+    worker_limits.thread_id = thread_id;
+    worker_limits.thread_count = thread_count;
+    worker_limits.root_table = &root_table;
+
+    if (worker_limits.nodes > 0)
+        worker_limits.nodes = std::max<int64_t>(1, worker_limits.nodes / thread_count);
+
+    return worker_limits;
+}
+
+SearchResult SearchThreadPool::merge_results(const std::vector<SearchResult>& results,
+                                             int count,
+                                             const RootMoveTable& root_table,
+                                             int64_t elapsed_ms) const {
+    SearchResult best = root_table.best_result();
+    int64_t total_nodes = 0;
+
+    for (int i = 0; i < count; ++i) {
+        const SearchResult& result = results[static_cast<size_t>(i)];
+        total_nodes += result.nodes;
+
+        if (result.bestmove == MOVE_NONE)
+            continue;
+
+        const bool result_mates = result.score >= MATE_SCORE - MAX_PLY;
+        const bool best_mates = best.score >= MATE_SCORE - MAX_PLY;
+        if (best.bestmove == MOVE_NONE
+            || (result_mates && (!best_mates || result.score > best.score))
+            || (!best_mates && result.depth > best.depth)
+            || (!best_mates && result.depth == best.depth && result.score > best.score)) {
+            best = result;
+        }
+    }
+
+    if (best.bestmove == MOVE_NONE && !results.empty())
+        best = results.front();
+
+    best.nodes = total_nodes;
+    best.elapsed_ms = elapsed_ms;
+    return best;
+}
+
+SearchResult SearchThreadPool::search(Board board, const SearchLimits& limits, int thread_count) {
+    thread_count = ensure_threads(thread_count);
+
+    if (thread_count <= 1) {
+        SearchLimits worker_limits = limits;
+        worker_limits.update_tt_age = true;
+        worker_limits.thread_id = 0;
+        worker_limits.thread_count = 1;
+        worker_limits.root_table = nullptr;
+        return searchers_[0]->search(std::move(board), worker_limits);
+    }
+
+    tt_.new_search();
+
+    RootMoveTable root_table;
+    root_table.reset(board);
+
+    std::vector<SearchResult> results(static_cast<size_t>(thread_count));
+    const auto wall_start = std::chrono::steady_clock::now();
+
+    {
+        std::lock_guard lock(mutex_);
+        job_board_ = board;
+        job_limits_ = limits;
+        job_results_ = &results;
+        job_root_table_ = &root_table;
+        requested_helpers_ = thread_count - 1;
+        active_helpers_ = requested_helpers_;
+        ++epoch_;
+    }
+    work_cv_.notify_all();
+
+    SearchLimits main_limits = limits_for_thread(limits, 0, thread_count, root_table);
+    results[0] = searchers_[0]->search(std::move(board), main_limits);
+    stop_.store(true, std::memory_order_release);
+
+    {
+        std::unique_lock lock(mutex_);
+        done_cv_.wait(lock, [&] { return active_helpers_ == 0; });
+        job_results_ = nullptr;
+        job_root_table_ = nullptr;
+        requested_helpers_ = 0;
+    }
+
+    const int64_t elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - wall_start).count();
+    return merge_results(results, thread_count, root_table, elapsed_ms);
+}
+
+void SearchThreadPool::worker_loop(int helper_slot) {
+    uint64_t seen_epoch = 0;
+
+    while (true) {
+        Board board;
+        SearchLimits limits;
+        RootMoveTable* root_table = nullptr;
+        std::vector<SearchResult>* results = nullptr;
+        int thread_id = helper_slot + 1;
+        int thread_count = 1;
+
+        {
+            std::unique_lock lock(mutex_);
+            work_cv_.wait(lock, [&] { return shutdown_ || epoch_ != seen_epoch; });
+            if (shutdown_)
+                return;
+
+            seen_epoch = epoch_;
+            if (helper_slot >= requested_helpers_ || !job_results_ || !job_root_table_)
+                continue;
+
+            board = job_board_;
+            root_table = job_root_table_;
+            results = job_results_;
+            thread_count = requested_helpers_ + 1;
+            limits = limits_for_thread(job_limits_, thread_id, thread_count, *root_table);
+        }
+
+        SearchResult result = searchers_[static_cast<size_t>(thread_id)]->search(std::move(board), limits);
+
+        {
+            std::lock_guard lock(mutex_);
+            if (results && thread_id < static_cast<int>(results->size()))
+                (*results)[static_cast<size_t>(thread_id)] = result;
+
+            if (active_helpers_ > 0)
+                --active_helpers_;
+            if (active_helpers_ == 0)
+                done_cv_.notify_one();
+        }
+    }
 }

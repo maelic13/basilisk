@@ -15,6 +15,7 @@ void Board::put_piece(Color c, PieceType pt, Square sq) {
     all_occ        |= bb;
     board_sq[sq]    = make_piece(c, pt);
     hash           ^= Zobrist::PieceKeys[c][pt][sq];
+    if (pt == PAWN) pawn_key ^= Zobrist::PieceKeys[c][PAWN][sq];
     if (pt == KING) king_sq[c] = sq;
 }
 
@@ -29,6 +30,7 @@ void Board::remove_piece(Square sq) {
     all_occ        &= ~bb;
     board_sq[sq]    = NO_PIECE;
     hash           ^= Zobrist::PieceKeys[c][pt][sq];
+    if (pt == PAWN) pawn_key ^= Zobrist::PieceKeys[c][PAWN][sq];
 }
 
 void Board::move_piece(Square from, Square to) {
@@ -43,6 +45,9 @@ void Board::move_piece(Square from, Square to) {
     board_sq[to]    = p;
     hash           ^= Zobrist::PieceKeys[c][pt][from]
                     ^ Zobrist::PieceKeys[c][pt][to];
+    if (pt == PAWN)
+        pawn_key ^= Zobrist::PieceKeys[c][PAWN][from]
+                  ^ Zobrist::PieceKeys[c][PAWN][to];
     if (pt == KING) king_sq[c] = to;
 }
 
@@ -64,8 +69,50 @@ Key Board::compute_hash() const {
 
 // ---- Constructor & FEN parsing ---------------------------------------------
 
-Board::Board() {
+Board::Board()
+    : history(std::make_unique<UndoInfo[]>(MAX_HISTORY))
+    , history_size(0) {
     set_fen(std::string(startPosition));
+}
+
+Board::Board(const Board& other)
+    : history(std::make_unique<UndoInfo[]>(MAX_HISTORY))
+    , history_size(0) {
+    *this = other;
+}
+
+Board& Board::operator=(const Board& other) {
+    if (this == &other) return *this;
+
+    if (!history)
+        history = std::make_unique<UndoInfo[]>(MAX_HISTORY);
+
+    for (int c = 0; c < NCOLORS; ++c) {
+        for (int pt = 0; pt < PIECE_TYPE_NB; ++pt)
+            pieces[c][pt] = other.pieces[c][pt];
+        occupancy[c] = other.occupancy[c];
+        king_sq[c] = other.king_sq[c];
+    }
+
+    all_occ = other.all_occ;
+    for (int s = 0; s < SQUARE_NB; ++s)
+        board_sq[s] = other.board_sq[s];
+
+    side_to_move = other.side_to_move;
+    fullmove_number = other.fullmove_number;
+    ply = other.ply;
+    hash = other.hash;
+    pawn_key = other.pawn_key;
+    ep_sq = other.ep_sq;
+    castling_rights = other.castling_rights;
+    halfmove_clock = other.halfmove_clock;
+    checkers = other.checkers;
+
+    history_size = other.history_size;
+    for (int i = 0; i < history_size; ++i)
+        history[static_cast<size_t>(i)] = other.history[static_cast<size_t>(i)];
+
+    return *this;
 }
 
 void Board::set_fen(const std::string& fen) {
@@ -75,8 +122,9 @@ void Board::set_fen(const std::string& fen) {
             pieces[c][pt] = 0;
     for (int c = 0; c < NCOLORS; c++) occupancy[c] = 0;
     all_occ = 0;
+    pawn_key = 0;
     for (int s = 0; s < SQUARE_NB; s++) board_sq[s] = NO_PIECE;
-    history.clear();
+    history_size = 0;
     ply = 0;
 
     std::istringstream ss(fen);
@@ -113,6 +161,7 @@ void Board::set_fen(const std::string& fen) {
             occupancy[c]  |= bb;
             all_occ       |= bb;
             board_sq[sq]   = make_piece(c, pt);
+            if (pt == PAWN) pawn_key ^= Zobrist::PieceKeys[c][PAWN][sq];
             if (pt == KING) king_sq[c] = sq;
             file++;
         }
@@ -209,12 +258,14 @@ std::string Board::get_fen() const {
 void Board::make_move(Move m) {
     UndoInfo ui;
     ui.hash     = hash;
+    ui.pawn_key = pawn_key;
     ui.checkers = checkers;
     ui.ep_sq    = ep_sq;
     ui.castling = castling_rights;
     ui.halfmove = halfmove_clock;
     ui.captured = NO_PIECE;
-    history.push_back(ui);
+    assert(history_size < MAX_HISTORY);
+    history[static_cast<size_t>(history_size++)] = ui;
 
     Square from = from_sq(m);
     Square to   = to_sq(m);
@@ -232,7 +283,7 @@ void Board::make_move(Move m) {
     if (mt == EN_PASSANT) {
         // Capture the EP pawn
         Square ep_pawn = make_square(file_of(to), rank_of(from));
-        history.back().captured = board_sq[ep_pawn];
+        history[static_cast<size_t>(history_size - 1)].captured = board_sq[ep_pawn];
         remove_piece(ep_pawn);
         move_piece(from, to);
         halfmove_clock = 0;
@@ -251,7 +302,7 @@ void Board::make_move(Move m) {
     else {
         Piece captured = board_sq[to];
         if (captured != NO_PIECE) {
-            history.back().captured = captured;
+            history[static_cast<size_t>(history_size - 1)].captured = captured;
             remove_piece(to);
             halfmove_clock = 0;
         }
@@ -293,9 +344,8 @@ void Board::make_move(Move m) {
 }
 
 void Board::unmake_move(Move m) {
-    assert(!history.empty());
-    UndoInfo ui = history.back();
-    history.pop_back();
+    assert(history_size > 0);
+    UndoInfo ui = history[static_cast<size_t>(--history_size)];
 
     // Restore most state from undo info
     // (hash/checkers must be restored AFTER piece movements, since put_piece/
@@ -343,18 +393,21 @@ void Board::unmake_move(Move m) {
     // Restore hash and checkers from undo info (overrides incremental updates
     // that were applied by put_piece/move_piece/remove_piece above)
     hash     = ui.hash;
+    pawn_key = ui.pawn_key;
     checkers = ui.checkers;
 }
 
 void Board::make_null_move() {
     UndoInfo ui;
     ui.hash     = hash;
+    ui.pawn_key = pawn_key;
     ui.checkers = checkers;
     ui.ep_sq    = ep_sq;
     ui.castling = castling_rights;
     ui.halfmove = halfmove_clock;
     ui.captured = NO_PIECE;
-    history.push_back(ui);
+    assert(history_size < MAX_HISTORY);
+    history[static_cast<size_t>(history_size++)] = ui;
 
     hash ^= Zobrist::SideKey;
     if (ep_sq != SQ_NONE) {
@@ -370,14 +423,14 @@ void Board::make_null_move() {
 }
 
 void Board::unmake_null_move() {
-    assert(!history.empty());
-    UndoInfo ui = history.back();
-    history.pop_back();
+    assert(history_size > 0);
+    UndoInfo ui = history[static_cast<size_t>(--history_size)];
 
     ep_sq           = ui.ep_sq;
     castling_rights = ui.castling;
     halfmove_clock  = ui.halfmove;
     hash            = ui.hash;
+    pawn_key        = ui.pawn_key;
     checkers        = ui.checkers;
     side_to_move    = ~side_to_move;
     ply--;
@@ -768,7 +821,7 @@ bool Board::is_legal(Move m) const {
 //   5. Generate each piece type, applying pin-ray constraints and check_mask
 //
 template<Color Us>
-static void gen_legal_impl(const Board& b, MoveList& ml, bool caps_only) {
+static void gen_legal_impl(const Board& b, MoveList& ml, bool caps_only, bool quiets_only) {
     constexpr Color Them    = (Us == WHITE) ? BLACK : WHITE;
     constexpr int   PushOff = (Us == WHITE) ?  8 : -8;
     constexpr int   PushOff2= (Us == WHITE) ? 16 : -16;
@@ -804,6 +857,7 @@ static void gen_legal_impl(const Board& b, MoveList& ml, bool caps_only) {
         Bitboard occ_no_king = occ ^ sq_bb(ksq);
         Bitboard targets = KingAttacks[ksq] & ~us_bb;
         if (caps_only) targets &= them_bb;
+        else if (quiets_only) targets &= empty;
         while (targets) {
             Square to = Square(pop_lsb(targets));
             if (!b.attackers_to(to, occ_no_king, Them))
@@ -850,6 +904,7 @@ static void gen_legal_impl(const Board& b, MoveList& ml, bool caps_only) {
             Square   from  = Square(pop_lsb(knights));
             Bitboard dests = KnightAttacks[from] & ~us_bb & check_mask;
             if (caps_only) dests &= them_bb;
+            else if (quiets_only) dests &= empty;
             while (dests) ml.push(make_move(from, Square(pop_lsb(dests))));
         }
     }
@@ -862,6 +917,7 @@ static void gen_legal_impl(const Board& b, MoveList& ml, bool caps_only) {
             Bitboard dests = bishop_attacks(from, occ) & ~us_bb & check_mask;
             if (sq_bb(from) & pinned) dests &= BB_LINE[ksq][from];
             if (caps_only) dests &= them_bb;
+            else if (quiets_only) dests &= empty;
             while (dests) ml.push(make_move(from, Square(pop_lsb(dests))));
         }
     }
@@ -874,6 +930,7 @@ static void gen_legal_impl(const Board& b, MoveList& ml, bool caps_only) {
             Bitboard dests = rook_attacks(from, occ) & ~us_bb & check_mask;
             if (sq_bb(from) & pinned) dests &= BB_LINE[ksq][from];
             if (caps_only) dests &= them_bb;
+            else if (quiets_only) dests &= empty;
             while (dests) ml.push(make_move(from, Square(pop_lsb(dests))));
         }
     }
@@ -886,6 +943,7 @@ static void gen_legal_impl(const Board& b, MoveList& ml, bool caps_only) {
             Bitboard dests = queen_attacks(from, occ) & ~us_bb & check_mask;
             if (sq_bb(from) & pinned) dests &= BB_LINE[ksq][from];
             if (caps_only) dests &= them_bb;
+            else if (quiets_only) dests &= empty;
             while (dests) ml.push(make_move(from, Square(pop_lsb(dests))));
         }
     }
@@ -899,7 +957,7 @@ static void gen_legal_impl(const Board& b, MoveList& ml, bool caps_only) {
         // --- Free pawns (bulk bitboard ops) ---
 
         // Promotion pushes
-        {
+        if (!quiets_only) {
             Bitboard pp = push_one(free_pawns & PromRank) & empty & check_mask;
             while (pp) {
                 Square to   = Square(pop_lsb(pp));
@@ -911,7 +969,7 @@ static void gen_legal_impl(const Board& b, MoveList& ml, bool caps_only) {
             }
         }
         // Promotion captures (east)
-        {
+        if (!quiets_only) {
             Bitboard pp = cap_e(free_pawns & PromRank) & them_bb & check_mask;
             while (pp) {
                 Square to   = Square(pop_lsb(pp));
@@ -923,7 +981,7 @@ static void gen_legal_impl(const Board& b, MoveList& ml, bool caps_only) {
             }
         }
         // Promotion captures (west)
-        {
+        if (!quiets_only) {
             Bitboard pp = cap_w(free_pawns & PromRank) & them_bb & check_mask;
             while (pp) {
                 Square to   = Square(pop_lsb(pp));
@@ -951,7 +1009,7 @@ static void gen_legal_impl(const Board& b, MoveList& ml, bool caps_only) {
         }
 
         // Pawn captures east (non-promo)
-        {
+        if (!quiets_only) {
             Bitboard ce = cap_e(free_pawns & ~PromRank) & them_bb & check_mask;
             while (ce) {
                 Square to = Square(pop_lsb(ce));
@@ -959,7 +1017,7 @@ static void gen_legal_impl(const Board& b, MoveList& ml, bool caps_only) {
             }
         }
         // Pawn captures west (non-promo)
-        {
+        if (!quiets_only) {
             Bitboard cw = cap_w(free_pawns & ~PromRank) & them_bb & check_mask;
             while (cw) {
                 Square to = Square(pop_lsb(cw));
@@ -978,12 +1036,12 @@ static void gen_legal_impl(const Board& b, MoveList& ml, bool caps_only) {
             if (!caps_only) {
                 Square to1 = Square(int(from) + PushOff);
                 if (sq_bb(to1) & empty & pin_ray & check_mask) {
-                    if (is_promo) {
+                    if (is_promo && !quiets_only) {
                         ml.push(make_promotion(from, to1, QUEEN));
                         ml.push(make_promotion(from, to1, ROOK));
                         ml.push(make_promotion(from, to1, BISHOP));
                         ml.push(make_promotion(from, to1, KNIGHT));
-                    } else {
+                    } else if (!is_promo) {
                         ml.push(make_move(from, to1));
                         // Double push
                         if (sq_bb(from) & StartRank) {
@@ -1005,34 +1063,36 @@ static void gen_legal_impl(const Board& b, MoveList& ml, bool caps_only) {
             }
 
             // Captures
-            Bitboard ce1 = cap_e(sq_bb(from)) & them_bb & pin_ray & check_mask;
-            if (ce1) {
-                Square to = Square(lsb(ce1));
-                if (is_promo) {
-                    ml.push(make_promotion(from, to, QUEEN));
-                    ml.push(make_promotion(from, to, ROOK));
-                    ml.push(make_promotion(from, to, BISHOP));
-                    ml.push(make_promotion(from, to, KNIGHT));
-                } else {
-                    ml.push(make_move(from, to));
+            if (!quiets_only) {
+                Bitboard ce1 = cap_e(sq_bb(from)) & them_bb & pin_ray & check_mask;
+                if (ce1) {
+                    Square to = Square(lsb(ce1));
+                    if (is_promo) {
+                        ml.push(make_promotion(from, to, QUEEN));
+                        ml.push(make_promotion(from, to, ROOK));
+                        ml.push(make_promotion(from, to, BISHOP));
+                        ml.push(make_promotion(from, to, KNIGHT));
+                    } else {
+                        ml.push(make_move(from, to));
+                    }
                 }
-            }
-            Bitboard cw1 = cap_w(sq_bb(from)) & them_bb & pin_ray & check_mask;
-            if (cw1) {
-                Square to = Square(lsb(cw1));
-                if (is_promo) {
-                    ml.push(make_promotion(from, to, QUEEN));
-                    ml.push(make_promotion(from, to, ROOK));
-                    ml.push(make_promotion(from, to, BISHOP));
-                    ml.push(make_promotion(from, to, KNIGHT));
-                } else {
-                    ml.push(make_move(from, to));
+                Bitboard cw1 = cap_w(sq_bb(from)) & them_bb & pin_ray & check_mask;
+                if (cw1) {
+                    Square to = Square(lsb(cw1));
+                    if (is_promo) {
+                        ml.push(make_promotion(from, to, QUEEN));
+                        ml.push(make_promotion(from, to, ROOK));
+                        ml.push(make_promotion(from, to, BISHOP));
+                        ml.push(make_promotion(from, to, KNIGHT));
+                    } else {
+                        ml.push(make_move(from, to));
+                    }
                 }
             }
         }
 
         // --- En passant ---
-        if (b.ep_sq != SQ_NONE) {
+        if (!quiets_only && b.ep_sq != SQ_NONE) {
             Square ep       = b.ep_sq;
             Square ep_pawn  = Square(int(ep) - PushOff);  // captured pawn square
             // Filter: EP must either land on check_mask or capture the checking pawn
@@ -1078,13 +1138,18 @@ static void gen_legal_impl(const Board& b, MoveList& ml, bool caps_only) {
 }
 
 void Board::gen_legal(MoveList& ml) const {
-    if (side_to_move == WHITE) gen_legal_impl<WHITE>(*this, ml, false);
-    else                       gen_legal_impl<BLACK>(*this, ml, false);
+    if (side_to_move == WHITE) gen_legal_impl<WHITE>(*this, ml, false, false);
+    else                       gen_legal_impl<BLACK>(*this, ml, false, false);
 }
 
 void Board::gen_legal_captures(MoveList& ml) const {
-    if (side_to_move == WHITE) gen_legal_impl<WHITE>(*this, ml, true);
-    else                       gen_legal_impl<BLACK>(*this, ml, true);
+    if (side_to_move == WHITE) gen_legal_impl<WHITE>(*this, ml, true, false);
+    else                       gen_legal_impl<BLACK>(*this, ml, true, false);
+}
+
+void Board::gen_legal_quiets(MoveList& ml) const {
+    if (side_to_move == WHITE) gen_legal_impl<WHITE>(*this, ml, false, true);
+    else                       gen_legal_impl<BLACK>(*this, ml, false, true);
 }
 
 bool Board::gives_check(Move m) const {
@@ -1160,8 +1225,8 @@ bool Board::is_draw() const {
 
     // 2-fold repetition (search back through history)
     int reps = 0;
-    int stop = std::max(0, (int)history.size() - halfmove_clock);
-    for (int i = (int)history.size() - 2; i >= stop; i -= 2) {
+    int stop = std::max(0, history_size - halfmove_clock);
+    for (int i = history_size - 2; i >= stop; i -= 2) {
         if (history[static_cast<size_t>(i)].hash == hash) {
             reps++;
             if (reps >= 1) return true; // 2-fold (current + one prior)

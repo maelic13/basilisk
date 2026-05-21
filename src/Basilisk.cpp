@@ -1,7 +1,5 @@
 #include <atomic>
-#include <condition_variable>
 #include <iostream>
-#include <mutex>
 #include <thread>
 
 #if defined(USE_PEXT)
@@ -14,6 +12,8 @@
 
 #include "Constants.h"
 #include "Engine.h"
+#include "EngineCommand.h"
+#include "UciOutput.h"
 #include "UciProtocol.h"
 #include "bitboard.h"
 #include "attacks.h"
@@ -64,18 +64,17 @@ int main() {
     Zobrist::init();
     init_eval_tables();
 
-    std::cout << engineName << " " << engineVersion << " by " << engineAuthor << "\n";
-    std::cout.flush();
+    uci_write_line(std::string(engineName) + " " + std::string(engineVersion)
+                   + " by " + std::string(engineAuthor));
 
-    std::mutex mutex;
-    std::condition_variable conditionVariable;
+    EngineCommandQueue command_queue;
+    std::atomic_bool stop_requested{false};
+    std::atomic_bool ponderhit_requested{false};
+    std::atomic_bool searching{false};
+    std::atomic_uint64_t control_epoch{0};
 
-    std::atomic_bool go   = false;
-    std::atomic_bool quit = false;
-    Parameters parameters;
-
-    Engine      engine(go, quit, parameters, mutex, conditionVariable);
-    UciProtocol uciProtocol(go, quit, parameters, conditionVariable);
+    Engine      engine(command_queue, stop_requested, ponderhit_requested, searching, control_epoch);
+    UciProtocol uciProtocol(command_queue, stop_requested, ponderhit_requested, searching, control_epoch);
 
     std::thread engineThread(&Engine::start, &engine);
     uciProtocol.UciLoop();

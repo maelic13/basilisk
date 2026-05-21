@@ -3,86 +3,168 @@
 
 #include "Constants.h"
 #include "Engine.h"
+#include "UciOutput.h"
+#include "bench.h"
 
-Engine::Engine(std::atomic_bool& go_, std::atomic_bool& quit_,
-               Parameters& params_, std::mutex& mutex_, std::condition_variable& cv)
-    : go(go_), quit(quit_), parameters(params_), mutex(mutex_), conditionVariable(cv)
+Engine::Engine(EngineCommandQueue& commands,
+               std::atomic_bool& stop_requested,
+               std::atomic_bool& ponderhit_requested,
+               std::atomic_bool& searching,
+               std::atomic_uint64_t& control_epoch)
+    : commands_(commands)
+    , stop_requested_(stop_requested)
+    , ponderhit_requested_(ponderhit_requested)
+    , searching_(searching)
+    , control_epoch_(control_epoch)
     , tt(64)
-    , searcher_(std::make_unique<Searcher>(tt, go,
+    , search_pool_(tt, stop_requested_,
           [](const std::string& info) {
-              std::cout << info << '\n';
-              std::cout.flush();
-          }))
-{}
+              uci_write_line(info);
+          },
+          &ponderhit_requested_)
+{
+}
 
-void Engine::start() {
-    int current_hash_mb = 64;  // matches initial tt(64) in constructor
+SearchLimits Engine::build_limits() const {
+    SearchLimits limits;
+    limits.depth     = parameters_.depth;
+    limits.movetime  = parameters_.moveTime;
+    limits.wtime     = parameters_.whiteTime;
+    limits.btime     = parameters_.blackTime;
+    limits.winc      = parameters_.whiteIncrement;
+    limits.binc      = parameters_.blackIncrement;
+    limits.movestogo = parameters_.movestogo;
+    limits.nodes     = parameters_.nodes;
+    limits.overhead  = parameters_.moveOverhead;
+    limits.ponder    = parameters_.ponder;
+    limits.infinite  = (parameters_.depth == infiniteDepth && parameters_.moveTime == 0
+                        && parameters_.whiteTime == 0 && parameters_.blackTime == 0
+                        && !parameters_.ponder);
+    return limits;
+}
 
-    while (true) {
-        std::unique_lock lock(mutex);
-        conditionVariable.wait(lock, [&] { return go.load() || quit.load(); });
-
-        if (quit.load()) break;
-        if (!go.load())  continue;
-
-        // Build search limits from parameters
-        SearchLimits limits;
-        limits.depth     = parameters.depth;
-        limits.movetime  = parameters.moveTime;
-        limits.wtime     = parameters.whiteTime;
-        limits.btime     = parameters.blackTime;
-        limits.winc      = parameters.whiteIncrement;
-        limits.binc      = parameters.blackIncrement;
-        limits.movestogo = parameters.movestogo;
-        limits.nodes     = parameters.nodes;
-        limits.overhead  = parameters.moveOverhead;
-        limits.ponder    = parameters.ponder;
-        limits.infinite  = (parameters.depth == infiniteDepth && parameters.moveTime == 0
-                            && parameters.whiteTime == 0 && parameters.blackTime == 0
-                            && !parameters.ponder);
-
-        int desired_hash_mb = parameters.hash_mb;
-        bool  do_clear_hash = parameters.clear_hash;
-        Board board_copy    = parameters.board;
-        bool  is_new_game   = parameters.new_game;
-        parameters.new_game   = false;
-        parameters.clear_hash = false;
-        lock.unlock();
-
-        // Resize TT if hash size changed
-        if (desired_hash_mb != current_hash_mb) {
-            tt.resize(static_cast<size_t>(desired_hash_mb));
-            current_hash_mb = desired_hash_mb;
+void Engine::send_bestmove(const SearchResult& result, const Board& root_board) const {
+    if (result.bestmove != MOVE_NONE) {
+        std::string out = "bestmove " + move_to_uci(result.bestmove);
+        if (result.pondermove != MOVE_NONE) {
+            Board ponder_board = root_board;
+            ponder_board.make_move(result.bestmove);
+            Square pfrom = from_sq(result.pondermove);
+            Piece  pp    = ponder_board.board_sq[pfrom];
+            if (pp != NO_PIECE
+                && color_of(pp) == ponder_board.side_to_move
+                && ponder_board.is_legal(result.pondermove))
+                out += " ponder " + move_to_uci(result.pondermove);
         }
-
-        if (is_new_game || do_clear_hash) {
-            tt.clear();
-            searcher_->clear();
-        }
-
-        SearchResult result = searcher_->search(board_copy, limits);
-
-        go = false;
-
-        if (result.bestmove != MOVE_NONE) {
-            std::string out = "bestmove " + move_to_uci(result.bestmove);
-            if (result.pondermove != MOVE_NONE) {
-                Board ponder_board = board_copy;
-                ponder_board.make_move(result.bestmove);
-                // Validate ponder: check piece exists at from_sq and belongs to side to move
-                Square pfrom = from_sq(result.pondermove);
-                Piece  pp    = ponder_board.board_sq[pfrom];
-                if (pp != NO_PIECE
-                    && color_of(pp) == ponder_board.side_to_move
-                    && ponder_board.is_legal(result.pondermove))
-                    out += " ponder " + move_to_uci(result.pondermove);
-            }
-            std::cout << out << '\n';
-        } else {
-            std::cout << "bestmove 0000\n";
-        }
-        std::cout.flush();
+        uci_write_line(out);
+    } else {
+        uci_write_line("bestmove 0000");
     }
 }
 
+void Engine::start_search(uint64_t command_epoch) {
+    SearchLimits limits = build_limits();
+    const int desired_hash_mb = parameters_.hash_mb;
+    const int desired_threads = parameters_.threads;
+    const bool do_clear_hash = parameters_.clear_hash;
+    const bool is_new_game = parameters_.new_game;
+    Board board_copy = parameters_.board;
 
+    parameters_.new_game = false;
+    parameters_.clear_hash = false;
+
+    if (command_epoch != 0
+        && control_epoch_.load(std::memory_order_acquire) != command_epoch) {
+        send_bestmove(SearchResult{}, board_copy);
+        return;
+    }
+
+    if (desired_hash_mb != current_hash_mb_) {
+        tt.resize(static_cast<size_t>(desired_hash_mb));
+        current_hash_mb_ = desired_hash_mb;
+    }
+
+    search_pool_.ensure_threads(desired_threads);
+
+    if (is_new_game || do_clear_hash) {
+        tt.clear();
+        search_pool_.clear();
+    }
+
+    ponderhit_requested_.store(false, std::memory_order_release);
+    stop_requested_.store(false, std::memory_order_release);
+
+    searching_.store(true, std::memory_order_release);
+
+    SearchResult result = search_pool_.search(board_copy, limits, desired_threads);
+
+    if (command_epoch == 0
+        || control_epoch_.load(std::memory_order_acquire) == command_epoch)
+        searching_.store(false, std::memory_order_release);
+    send_bestmove(result, board_copy);
+}
+
+void Engine::run_bench_command(const EngineCommand& command) {
+    int depth = 13;
+    if (!command.args.empty()) {
+        try { depth = std::stoi(command.args); } catch (...) {}
+    }
+
+    if (command.epoch != 0
+        && control_epoch_.load(std::memory_order_acquire) != command.epoch)
+        return;
+
+    stop_requested_.store(false, std::memory_order_release);
+    searching_.store(true, std::memory_order_release);
+    run_bench(depth, parameters_.threads);
+    if (command.epoch == 0
+        || control_epoch_.load(std::memory_order_acquire) == command.epoch)
+        searching_.store(false, std::memory_order_release);
+}
+
+void Engine::handle_command(const EngineCommand& command, bool& quit) {
+    switch (command.type) {
+        case EngineCommandType::SetOption:
+            parameters_.setOption(command.args);
+            break;
+        case EngineCommandType::Position:
+            parameters_.setPosition(command.args);
+            break;
+        case EngineCommandType::NewGame:
+            parameters_.reset();
+            break;
+        case EngineCommandType::Go:
+            parameters_.setSearchParameters(command.args);
+            start_search(command.epoch);
+            break;
+        case EngineCommandType::Stop:
+            stop_requested_.store(true, std::memory_order_release);
+            if (command.epoch == 0
+                || control_epoch_.load(std::memory_order_acquire) == command.epoch)
+                searching_.store(false, std::memory_order_release);
+            break;
+        case EngineCommandType::PonderHit:
+            ponderhit_requested_.store(true, std::memory_order_release);
+            parameters_.ponder = false;
+            break;
+        case EngineCommandType::Bench:
+            run_bench_command(command);
+            break;
+        case EngineCommandType::Ready:
+            if (command.ack)
+                command.ack->set_value();
+            break;
+        case EngineCommandType::Quit:
+            stop_requested_.store(true, std::memory_order_release);
+            quit = true;
+            break;
+    }
+}
+
+void Engine::start() {
+    bool quit = false;
+    while (!quit) {
+        EngineCommand command = commands_.wait_pop();
+        handle_command(command, quit);
+    }
+}

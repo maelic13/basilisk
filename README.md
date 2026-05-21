@@ -2,7 +2,7 @@
 
 A UCI chess engine written in C++23.
 
-**Estimated strength: ~2400 ELO** (calibrated against Stockfish; FIDE Master / International Master level)
+**Estimated strength: ~2400 ELO** (single-thread calibration against Stockfish; FIDE Master / International Master level)
 
 ---
 
@@ -11,7 +11,8 @@ A UCI chess engine written in C++23.
 ### Search
 - Iterative deepening with aspiration windows
 - Negamax alpha-beta / Principal Variation Search (PVS)
-- Transposition table — 3-entry clusters aligned to 32-byte cache lines, with generational aging
+- Persistent Lazy SMP thread pool with shared TT and shared root-move feedback
+- Transposition table — atomic 3-entry clusters aligned to 64-byte cache lines, with generational aging
 - Null move pruning
 - Reverse futility pruning (RFP)
 - Razoring
@@ -21,11 +22,12 @@ A UCI chess engine written in C++23.
 - Singular extensions
 - Check extension — extend by 1 ply when in check
 - Quiescence search with in-check evasion
-- Static Exchange Evaluation (SEE) for move ordering and capture pruning
+- Static Exchange Evaluation (SEE) for capture pruning and bad-capture reductions
 
 ### Move ordering
-- TT move
-- MVV/LVA captures scored with SEE and capture history
+- Staged MovePicker: TT move, tactical moves, then quiet moves
+- Lazy quiet generation; quiets are not generated if tactical moves cut off
+- MVV/LVA captures with capture history
 - Killer moves (2 per ply)
 - Countermove heuristic
 - Quiet history `[color][from][to]`
@@ -39,7 +41,7 @@ A UCI chess engine written in C++23.
 - Pawn structure: passed pawns, isolated pawns, doubled pawns
 - King safety: attack unit table with piece coordination bonuses; reduced threat when opponent lacks a queen
 - Endgame scaling
-- Pawn-structure correction history
+- Color-aware pawn key for pawn evaluation and correction history
 
 ### Time management
 - Soft limit (target) / hard limit (maximum)
@@ -52,6 +54,7 @@ A UCI chess engine written in C++23.
 
 | Option         | Type   | Default | Range     | Description                                   |
 |----------------|--------|---------|-----------|-----------------------------------------------|
+| `Threads`      | spin   | 1       | 1 – 1024 | Search worker threads; runtime may cap to a hardware-safe count |
 | `Hash`         | spin   | 64      | 1 – 33554432 | Transposition table size in MB                |
 | `Clear Hash`   | button | —       | —         | Clears the transposition table immediately    |
 | `Move Overhead`| spin   | 10      | 0 – 5000  | Extra latency to subtract from clock (ms)     |
@@ -96,9 +99,9 @@ cmake --build --preset release
 
 **Option 1 — Add MSYS2 to your PATH** (simplest; works from any terminal, CLion, VS Code, etc.):
 
-Open *System Properties → Environment Variables* and prepend to `Path`:
+Open *System Properties → Environment Variables* and prepend one MSYS2 toolchain directory to `Path`:
 ```
-D:\msys64\mingw64\bin
+D:\msys64\clang64\bin
 ```
 Then in any terminal:
 ```powershell
@@ -148,14 +151,14 @@ go movetime 5000
 | `go [wtime … btime … winc … binc … movestogo … depth … nodes … movetime … infinite … ponder]` | Start search |
 | `stop` | Stop search; engine replies with `bestmove` |
 | `ponderhit` | Switch from ponder to normal search |
-| `bench [depth]` | Run built-in benchmark (default depth 13); prints NPS and a node-count fingerprint |
+| `bench [depth]` | Run built-in benchmark (default depth 13) using the current `Threads` option |
 | `quit` | Exit |
 
 ---
 
 ## Testing
 
-Basilisk ships a comprehensive test suite covering board correctness, move encoding, the transposition table, evaluation, and search. Run with:
+Basilisk ships a comprehensive test suite covering board correctness, move encoding, the transposition table, evaluation, search, the thread pool, and command queue behavior. Run with:
 
 ```bash
 ctest --test-dir build/release --output-on-failure
@@ -166,6 +169,8 @@ A board performance benchmark is also included (run manually — not part of the
 ```bash
 ./build/release/board_performance_test
 ```
+
+Release CI runs the CTest suite before uploading binaries, then performs UCI smoke tests on the produced executables.
 
 ---
 

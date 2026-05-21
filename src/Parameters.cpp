@@ -7,6 +7,7 @@
 #include "Board.h"
 #include "Constants.h"
 #include "Parameters.h"
+#include "UciOutput.h"
 
 Parameters::Parameters() {
     board.set_fen(std::string(startPosition));
@@ -23,6 +24,7 @@ Parameters::Parameters() {
 
     moveOverhead = defaultMoveOverhead;
     hash_mb      = 64;
+    threads      = 1;
 }
 
 void Parameters::reset() {
@@ -48,9 +50,15 @@ std::vector<std::string> Parameters::searchParameters() {
 }
 
 std::string Parameters::uciOptions() {
-    return "option name Hash type spin default 64 min 1 max 33554432\n"
+    return "option name Threads type spin default 1 min 1 max "
+           + std::to_string(maxThreads()) + "\n"
+           "option name Hash type spin default 64 min 1 max 33554432\n"
            "option name Clear Hash type button\n"
            "option name Move Overhead type spin default 10 min 0 max 5000\n";
+}
+
+int Parameters::maxThreads() {
+    return 1024;
 }
 
 void Parameters::setSearchParameters(const std::string& args) {
@@ -101,7 +109,7 @@ void Parameters::setOption(const std::string& args) {
     else if (std::regex_search(args, matches, std::regex(R"(name (.*))")))
         name = matches[1].str();
     else {
-        std::cout << "info string Incorrect setoption format.\n";
+        uci_write_line("info string Incorrect setoption format.");
         return;
     }
 
@@ -120,7 +128,7 @@ void Parameters::setOption(const std::string& args) {
 
     // Extract value
     if (!std::regex_search(args, matches, std::regex(R"(value (.*))"))) {
-        std::cout << "info string Option '" << name << "' requires a value.\n";
+        uci_write_line("info string Option '" + name + "' requires a value.");
         return;
     }
     const std::string value = matches[1].str();
@@ -129,6 +137,8 @@ void Parameters::setOption(const std::string& args) {
         moveOverhead = std::stoi(value);
     } else if (name_lower == "hash") {
         hash_mb = std::clamp(std::stoi(value), 1, 33554432);
+    } else if (name_lower == "threads") {
+        threads = std::clamp(std::stoi(value), 1, maxThreads());
     }
 }
 
@@ -163,7 +173,7 @@ void Parameters::setPosition(const std::string& args) {
                 }
             }
             if (!found) {
-                std::cout << "info string Illegal or unknown move: " << token << "\n";
+                uci_write_line("info string Illegal or unknown move: " + token);
                 break;
             }
         }

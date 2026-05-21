@@ -2,31 +2,41 @@
 
 #include <atomic>
 #include <chrono>
-#include <condition_variable>
-#include <memory>
-#include <mutex>
+#include <cstdint>
 #include <string>
 
+#include "EngineCommand.h"
 #include "Parameters.h"
 #include "tt.h"
 #include "search.h"
 
 class Engine {
 public:
-    explicit Engine(std::atomic_bool& go, std::atomic_bool& quit,
-                    Parameters& parameters, std::mutex& m, std::condition_variable& cv);
+    explicit Engine(EngineCommandQueue& commands,
+                    std::atomic_bool& stop_requested,
+                    std::atomic_bool& ponderhit_requested,
+                    std::atomic_bool& searching,
+                    std::atomic_uint64_t& control_epoch);
 
     void start();
 
 private:
-    std::atomic_bool& go;
-    std::atomic_bool& quit;
+    void handle_command(const EngineCommand& command, bool& quit);
+    void start_search(uint64_t command_epoch);
+    void run_bench_command(const EngineCommand& command);
+    void send_bestmove(const SearchResult& result, const Board& root_board) const;
+    SearchLimits build_limits() const;
 
-    Parameters& parameters;
-    std::mutex&              mutex;
-    std::condition_variable& conditionVariable;
+    EngineCommandQueue& commands_;
+    std::atomic_bool& stop_requested_;
+    std::atomic_bool& ponderhit_requested_;
+    std::atomic_bool& searching_;
+    std::atomic_uint64_t& control_epoch_;
 
-    TranspositionTable        tt;
-    std::unique_ptr<Searcher> searcher_; // persistent: history survives between searches
+    Parameters parameters_;
+
+    TranspositionTable tt;
+    SearchThreadPool   search_pool_;
+    int current_hash_mb_ = 64;
 };
 

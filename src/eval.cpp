@@ -174,7 +174,7 @@ void Evaluator::eval_pawns(const Board& b,
                            int& mg_out, int& eg_out,
                            Bitboard passed[NCOLORS],
                            Bitboard attacks[NCOLORS]) {
-    Key pkey = b.pieces[WHITE][PAWN] ^ b.pieces[BLACK][PAWN];
+    Key pkey = b.pawn_key;
     PawnEntry& pe = pawn_table_[pkey & (PAWN_TABLE_SIZE - 1)];
 
     if (pe.key == pkey) {

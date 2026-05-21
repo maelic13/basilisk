@@ -5,8 +5,11 @@
 #include "eval.h"
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <functional>
 #include <memory>
+#include <mutex>
+#include <thread>
 #include <vector>
 
 static constexpr int MAX_SEARCH_DEPTH = 100;
@@ -25,6 +28,29 @@ struct SearchStack {
     PieceType moved_piece = NO_PIECE_TYPE;   // piece type that made 'move'
 };
 
+struct SearchResult;
+
+class RootMoveTable {
+public:
+    void reset(const Board& board);
+    void update(Move bestmove, Move pondermove, int depth, int score);
+    int  ordering_score(Move move) const;
+    SearchResult best_result() const;
+
+private:
+    struct Entry {
+        Move bestmove   = MOVE_NONE;
+        Move pondermove = MOVE_NONE;
+        int  depth      = 0;
+        int  score      = -INF_SCORE;
+        int  sequence   = 0;
+    };
+
+    mutable std::mutex mutex_;
+    std::vector<Entry> entries_;
+    int sequence_ = 0;
+};
+
 struct SearchLimits {
     int depth      = MAX_SEARCH_DEPTH;
     int movetime   = 0;
@@ -35,6 +61,12 @@ struct SearchLimits {
     int overhead   = 0;   // move overhead to subtract [ms]
     bool infinite  = false;
     bool ponder    = false;
+    bool update_tt_age = true;
+    int root_filter_index = -1; // -1 = search all root moves
+    int root_filter_count = 1;
+    int thread_id = 0;
+    int thread_count = 1;
+    RootMoveTable* root_table = nullptr;
 };
 
 struct SearchResult {
@@ -50,7 +82,8 @@ class Searcher {
 public:
     Searcher(TranspositionTable& tt,
              std::atomic_bool& stop_flag,
-             std::function<void(const std::string&)> info_cb = nullptr);
+             std::function<void(const std::string&)> info_cb = nullptr,
+             std::atomic_bool* ponderhit_flag = nullptr);
 
     SearchResult search(Board board, const SearchLimits& limits);
     void clear(); // Reset all history (e.g., on ucinewgame)
@@ -61,6 +94,7 @@ private:
 private:
     TranspositionTable& tt_;
     std::atomic_bool&   stop_;
+    std::atomic_bool*   ponderhit_;
     std::function<void(const std::string&)> info_cb_;
 
     Board*   board_ptr_;
@@ -68,6 +102,13 @@ private:
     int64_t  nodes_limit_;  // 0 = unlimited
     int      sel_depth_;
     bool     stopped_;
+    int      root_filter_index_;
+    int      root_filter_count_;
+    int      thread_id_;
+    RootMoveTable* root_table_;
+    bool     pondering_;
+    SearchLimits active_limits_;
+    Color    root_side_;
 
     // ---- History tables (persist across searches; aged each search) ----
     static constexpr int MAX_MAIN_HIST = 16384;
@@ -119,7 +160,8 @@ private:
 
     // ---- Move ordering ----
     struct ScoredMove { Move move; int score; };
-    void  score_moves(ScoredMove* moves, int n, Move tt_move, SearchStack* ss) const;
+    class MovePicker;
+    void  score_moves(ScoredMove* moves, int n, Move tt_move, SearchStack* ss, bool is_root) const;
     static Move pick_next(ScoredMove* moves, int idx, int n);
 
     // ---- History helpers ----
@@ -139,8 +181,8 @@ private:
 
     // Bulk history update after a beta cutoff
     void update_all_histories(Move best,
-                              const std::vector<Move>& quiets,
-                              const std::vector<Move>& bad_caps,
+                              const Move* quiets, int quiet_count,
+                              const Move* bad_caps, int bad_cap_count,
                               Color stm, int depth, SearchStack* ss);
 
     // Correction history
@@ -154,4 +196,48 @@ private:
     double elapsed_seconds() const;
     void   compute_time_limit(const SearchLimits& limits, Color side);
     void   send_info(int depth, int score, int64_t nodes, double elapsed) const;
+};
+
+class SearchThreadPool {
+public:
+    SearchThreadPool(TranspositionTable& tt,
+                     std::atomic_bool& stop_flag,
+                     std::function<void(const std::string&)> info_cb = nullptr,
+                     std::atomic_bool* ponderhit_flag = nullptr);
+    ~SearchThreadPool();
+
+    SearchThreadPool(const SearchThreadPool&) = delete;
+    SearchThreadPool& operator=(const SearchThreadPool&) = delete;
+
+    int ensure_threads(int count);
+    void clear();
+    SearchResult search(Board board, const SearchLimits& limits, int thread_count);
+
+private:
+    void worker_loop(int helper_slot);
+    SearchLimits limits_for_thread(const SearchLimits& limits, int thread_id, int thread_count,
+                                   RootMoveTable& root_table) const;
+    SearchResult merge_results(const std::vector<SearchResult>& results, int count,
+                               const RootMoveTable& root_table, int64_t elapsed_ms) const;
+
+    TranspositionTable& tt_;
+    std::atomic_bool& stop_;
+    std::atomic_bool* ponderhit_;
+    std::function<void(const std::string&)> info_cb_;
+
+    std::vector<std::unique_ptr<Searcher>> searchers_;
+    std::vector<std::thread> workers_;
+
+    mutable std::mutex mutex_;
+    std::condition_variable work_cv_;
+    std::condition_variable done_cv_;
+    bool shutdown_ = false;
+    uint64_t epoch_ = 0;
+
+    Board job_board_;
+    SearchLimits job_limits_;
+    std::vector<SearchResult>* job_results_ = nullptr;
+    RootMoveTable* job_root_table_ = nullptr;
+    int requested_helpers_ = 0;
+    int active_helpers_ = 0;
 };

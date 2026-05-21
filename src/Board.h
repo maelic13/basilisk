@@ -5,12 +5,14 @@
 #include "move.h"
 #include "attacks.h"
 #include "zobrist.h"
+#include <memory>
 #include <vector>
 #include <string>
 
 // Per-move undo information
 struct UndoInfo {
     Key      hash;
+    Key      pawn_key;
     Bitboard checkers;
     Square   ep_sq;
     int      castling;
@@ -47,6 +49,7 @@ public:
     int      ply;            // half-moves from root (for repetition check)
 
     Key    hash;
+    Key    pawn_key;
     Square ep_sq;
     int    castling_rights;
     int    halfmove_clock;
@@ -54,10 +57,17 @@ public:
     Square king_sq[NCOLORS];
     Bitboard checkers;  // pieces giving check to side_to_move (updated by make_move/set_fen)
 
-    std::vector<UndoInfo> history;
+    static constexpr int MAX_HISTORY = 1024;
+    std::unique_ptr<UndoInfo[]> history;
+    int history_size;
 
     // ---- Interface ----
     Board();
+    Board(const Board& other);
+    Board& operator=(const Board& other);
+    Board(Board&& other) noexcept = default;
+    Board& operator=(Board&& other) noexcept = default;
+
     void set_fen(const std::string& fen);
     std::string get_fen() const;
 
@@ -79,6 +89,7 @@ public:
     // Legal move generation (no is_legal() filter needed)
     void gen_legal(MoveList& moves) const;
     void gen_legal_captures(MoveList& moves) const;
+    void gen_legal_quiets(MoveList& moves) const;
     void gen_quiet_checks(MoveList& moves) const;  // quiet moves that give check
 
     bool is_legal(Move m) const;

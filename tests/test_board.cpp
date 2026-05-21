@@ -78,6 +78,7 @@ static bool boards_equal(const Board& a, const Board& b) {
         && a.fullmove_number == b.fullmove_number
         && a.ply             == b.ply
         && a.hash            == b.hash
+        && a.pawn_key        == b.pawn_key
         && a.king_sq[WHITE]  == b.king_sq[WHITE]
         && a.king_sq[BLACK]  == b.king_sq[BLACK];
 }
@@ -206,6 +207,39 @@ static void test_perft() {
     }
 }
 
+static void test_quiet_generation() {
+    static const char* POSITIONS[] = {
+        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
+        "8/P6k/8/8/8/8/6p1/K7 w - - 0 1",
+    };
+
+    for (const char* fen : POSITIONS) {
+        begin_section(fen);
+        Board b;
+        b.set_fen(fen);
+
+        MoveList legal, quiets;
+        b.gen_legal(legal);
+        b.gen_legal_quiets(quiets);
+
+        int expected_quiets = 0;
+        for (Move m : legal) {
+            bool is_cap = (b.board_sq[to_sq(m)] != NO_PIECE) || (move_type(m) == EN_PASSANT);
+            bool is_promo = move_type(m) == PROMOTION;
+            if (!is_cap && !is_promo) expected_quiets++;
+        }
+
+        EXPECT_EQ(quiets.size(), expected_quiets);
+        for (Move m : quiets) {
+            bool is_cap = (b.board_sq[to_sq(m)] != NO_PIECE) || (move_type(m) == EN_PASSANT);
+            bool is_promo = move_type(m) == PROMOTION;
+            EXPECT(!is_cap && !is_promo);
+        }
+        end_section();
+    }
+}
+
 // ---------------------------------------------------------------------------
 // 4. Make/unmake idempotency
 // ---------------------------------------------------------------------------
@@ -281,6 +315,32 @@ static void test_zobrist() {
     b1.make_move(make_move(E2, E4));
     b2.make_move(make_move(D2, D4));
     EXPECT(b1.hash != b2.hash);
+    end_section();
+}
+
+static void test_pawn_key() {
+    begin_section("pawn key preserves pawn color");
+    Board a, b;
+    a.set_fen("4k3/8/8/3p4/4P3/8/8/4K3 w - - 0 1");
+    b.set_fen("4k3/8/8/3P4/4p3/8/8/4K3 w - - 0 1");
+    EXPECT(a.pawn_key != b.pawn_key);
+    end_section();
+
+    begin_section("pawn key restored after make/unmake");
+    Board c;
+    c.set_fen("4k3/8/8/3p4/4P3/8/8/4K3 w - - 0 1");
+    Key pk = c.pawn_key;
+    Move m = make_move(E4, D5);
+    c.make_move(m);
+    c.unmake_move(m);
+    EXPECT_EQ(c.pawn_key, pk);
+    end_section();
+
+    begin_section("pawn key restored after null move");
+    Key pk2 = c.pawn_key;
+    c.make_null_move();
+    c.unmake_null_move();
+    EXPECT_EQ(c.pawn_key, pk2);
     end_section();
 }
 
@@ -597,11 +657,17 @@ int main() {
     std::printf("\nPerft (move-generation correctness)\n");
     test_perft();
 
+    std::printf("\nQuiet move generation\n");
+    test_quiet_generation();
+
     std::printf("\nMake/unmake idempotency\n");
     test_make_unmake();
 
     std::printf("\nZobrist hash\n");
     test_zobrist();
+
+    std::printf("\nPawn key\n");
+    test_pawn_key();
 
     std::printf("\nCheck detection\n");
     test_check_detection();
