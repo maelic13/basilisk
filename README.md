@@ -21,6 +21,7 @@ A UCI chess engine written in C++23.
 - Internal Iterative Reductions (IIR) — also fires on stale TT entries
 - Singular extensions
 - Check extension — extend by 1 ply when in check
+- Mate-distance handling that continues past the first forced mate to prefer shorter mates
 - Quiescence search with in-check evasion
 - Static Exchange Evaluation (SEE) for capture pruning and bad-capture reductions
 
@@ -158,7 +159,7 @@ go movetime 5000
 
 ## Testing
 
-Basilisk ships a comprehensive test suite covering board correctness, move encoding, the transposition table, evaluation, search, the thread pool, and command queue behavior. Run with:
+Basilisk ships a comprehensive test suite covering board correctness, move encoding, the transposition table, evaluation, search, mate-distance regressions, the thread pool, and command queue behavior. Run with:
 
 ```bash
 ctest --test-dir build/release --output-on-failure

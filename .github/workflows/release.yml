@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: Existing release tag to upload assets to (for example v1.2.0)
+        description: Existing release tag to upload assets to (for example v1.2.1)
         required: true
         type: string
   release:
@@ -123,7 +123,7 @@ jobs:
           echo "$output"
           echo "$output" | grep -q "uciok"   || { echo "FAIL: uciok not found";   exit 1; }
           tag="$RELEASE_TAG"
-          version="${tag#v}"  # strip leading 'v' (e.g. "v1.2.0" -> "1.2.0")
+          version="${tag#v}"  # strip leading 'v' (e.g. "v1.2.1" -> "1.2.1")
           echo "$output" | grep -qF "$version" || { echo "FAIL: version $version not found"; exit 1; }
           echo "Smoke test passed"
 

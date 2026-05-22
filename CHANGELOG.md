@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.1] - 2026-05-22
+
+### Fixed
+
+#### Search
+- Iterative deepening no longer stops at the first forced mate; it now continues searching so deeper iterations can find shorter mating nets
+- Mate-like previous scores now disable aspiration windows, avoiding unstable narrow-window re-searches around forced mates
+- Added regression coverage for a KQK endgame where the engine previously accepted a longer mate instead of resolving the shorter mate
+
+---
+
 ## [1.2.0] - 2026-05-21
 
 ### Added
@@ -110,6 +121,7 @@ First public release.
 - `bench [depth]` command — 16-position built-in benchmark, prints per-position NPS and total node-count fingerprint
 - GitHub Actions release workflow — builds for Linux x86_64, Linux aarch64, Windows x86_64, Windows aarch64, macOS aarch64; all built with Clang; PEXT variant produced for x86_64 platforms
 
+[1.2.1]: https://github.com/maelic13/basilisk/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/maelic13/basilisk/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/maelic13/basilisk/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/maelic13/basilisk/releases/tag/v1.0.0
