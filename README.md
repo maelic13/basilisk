@@ -80,11 +80,22 @@ Both GCC and Clang are fully supported; use `bench` to measure which produces a 
 | Preset | Build type | Notes |
 |---|---|---|
 | `release` | Release | `-O3 -march=native` + LTO. **Use for playing/benchmarking.** |
-| `release-pext` | Release | Like `release` + BMI2 PEXT (Haswell+ / Zen 3+) |
+| `release-avx2` | Release | Like `release` + AVX2 code generation |
+| `release-pext` | Release | Like `release` + BMI2 PEXT sliding-piece attacks (Haswell+ / Zen 3+) |
 | `debug` | Debug | `-O0 -g3` + AddressSanitizer + UBSan |
 | `relwithdebinfo` | RelWithDebInfo | `-O2 -g -march=native`, no sanitizers |
 
 For distributable binaries, add `-DPORTABLE_BUILD=ON` when configuring. This keeps the optimization level but omits `-march=native`, so release artifacts are not tied to the build machine's CPU.
+
+GitHub release assets keep the x86_64 choices intentionally small:
+
+| Asset suffix | CPU requirement | Notes |
+|---|---|---|
+| none | Generic target architecture | Safest default choice |
+| `avx2` | x86_64 with AVX2 | Modern Intel/AMD x86_64 CPUs |
+| `pext` | x86_64 with BMI2/PEXT | Usually fastest when supported |
+
+The x86 feature builds check CPU support at startup and print a clear error if the host CPU cannot run that binary.
 
 ### Linux / macOS
 
@@ -171,7 +182,7 @@ A board performance benchmark is also included (run manually — not part of the
 ./build/release/board_performance_test
 ```
 
-Release CI runs the CTest suite before uploading binaries, then performs UCI smoke tests on the produced executables.
+Release CI runs the CTest suite before uploading binaries, then performs UCI smoke tests on every produced CPU-tier executable.
 
 ---
 

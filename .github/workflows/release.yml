@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: Existing release tag to upload assets to (for example v1.2.1)
+        description: Existing release tag to upload assets to (for example v1.2.2)
         required: true
         type: string
   release:
@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   build:
-    name: Build ${{ matrix.os_name }} ${{ matrix.arch }}
+    name: Build ${{ matrix.os_name }} ${{ matrix.arch }}${{ matrix.asset_suffix }}
     runs-on: ${{ matrix.runner }}
     env:
       RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.tag_name }}
@@ -27,19 +27,56 @@ jobs:
             os_name: linux
             arch: x86_64
             ext: ""
-            pext: true
+            preset: release
+            asset_suffix: ""
+
+          - runner: ubuntu-latest
+            os_name: linux
+            arch: x86_64
+            ext: ""
+            preset: release-avx2
+            asset_suffix: "-avx2"
+
+          - runner: ubuntu-latest
+            os_name: linux
+            arch: x86_64
+            ext: ""
+            preset: release-pext
+            asset_suffix: "-pext"
 
           - runner: ubuntu-24.04-arm
             os_name: linux
             arch: aarch64
             ext: ""
-            pext: false
+            preset: release
+            asset_suffix: ""
 
           - runner: windows-latest
             os_name: windows
             arch: x86_64
             ext: ".exe"
-            pext: true
+            preset: release
+            asset_suffix: ""
+            msystem: CLANG64
+            mingw_pkg_prefix: mingw-w64-clang-x86_64
+            compiler_pkg: clang
+
+          - runner: windows-latest
+            os_name: windows
+            arch: x86_64
+            ext: ".exe"
+            preset: release-avx2
+            asset_suffix: "-avx2"
+            msystem: CLANG64
+            mingw_pkg_prefix: mingw-w64-clang-x86_64
+            compiler_pkg: clang
+
+          - runner: windows-latest
+            os_name: windows
+            arch: x86_64
+            ext: ".exe"
+            preset: release-pext
+            asset_suffix: "-pext"
             msystem: CLANG64
             mingw_pkg_prefix: mingw-w64-clang-x86_64
             compiler_pkg: clang
@@ -48,16 +85,39 @@ jobs:
             os_name: windows
             arch: aarch64
             ext: ".exe"
-            pext: false
+            preset: release
+            asset_suffix: ""
             msystem: CLANGARM64
             mingw_pkg_prefix: mingw-w64-clang-aarch64
             compiler_pkg: clang
+
+          - runner: macos-13
+            os_name: macos
+            arch: x86_64
+            ext: ""
+            preset: release
+            asset_suffix: ""
+
+          - runner: macos-13
+            os_name: macos
+            arch: x86_64
+            ext: ""
+            preset: release-avx2
+            asset_suffix: "-avx2"
+
+          - runner: macos-13
+            os_name: macos
+            arch: x86_64
+            ext: ""
+            preset: release-pext
+            asset_suffix: "-pext"
 
           - runner: macos-latest
             os_name: macos
             arch: aarch64
             ext: ""
-            pext: false
+            preset: release
+            asset_suffix: ""
 
     steps:
       - name: Checkout repository
@@ -88,29 +148,29 @@ jobs:
           CC: clang
           CXX: clang++
         run: |
-          cmake --preset release -DPORTABLE_BUILD=ON
-          cmake --build --preset release
+          cmake --preset ${{ matrix.preset }} -DPORTABLE_BUILD=ON
+          cmake --build --preset ${{ matrix.preset }}
 
       - name: Configure and build (Windows)
         if: runner.os == 'Windows'
         shell: msys2 {0}
         run: |
-          cmake --preset release -DPORTABLE_BUILD=ON
-          cmake --build --preset release
+          cmake --preset ${{ matrix.preset }} -DPORTABLE_BUILD=ON
+          cmake --build --preset ${{ matrix.preset }}
 
       - name: Run tests (Linux / macOS)
         if: runner.os != 'Windows'
-        run: ctest --test-dir build/release --output-on-failure
+        run: ctest --test-dir build/${{ matrix.preset }} --output-on-failure
 
       - name: Run tests (Windows)
         if: runner.os == 'Windows'
         shell: msys2 {0}
-        run: ctest --test-dir build/release --output-on-failure
+        run: ctest --test-dir build/${{ matrix.preset }} --output-on-failure
 
       - name: Smoke test
         shell: bash
         run: |
-          binary="build/release/basilisk${{ matrix.ext }}"
+          binary="build/${{ matrix.preset }}/basilisk${{ matrix.ext }}"
           # 'timeout' is GNU coreutils; macOS ships 'gtimeout' instead
           if command -v timeout >/dev/null 2>&1; then
             TIMEOUT="timeout 15"
@@ -123,45 +183,9 @@ jobs:
           echo "$output"
           echo "$output" | grep -q "uciok"   || { echo "FAIL: uciok not found";   exit 1; }
           tag="$RELEASE_TAG"
-          version="${tag#v}"  # strip leading 'v' (e.g. "v1.2.1" -> "1.2.1")
+          version="${tag#v}"  # strip leading 'v' (e.g. "v1.2.2" -> "1.2.2")
           echo "$output" | grep -qF "$version" || { echo "FAIL: version $version not found"; exit 1; }
           echo "Smoke test passed"
-
-      - name: Configure and build release-pext (Linux / macOS)
-        if: matrix.pext && runner.os != 'Windows'
-        env:
-          CC: clang
-          CXX: clang++
-        run: |
-          cmake --preset release-pext -DPORTABLE_BUILD=ON
-          cmake --build --preset release-pext
-
-      - name: Configure and build release-pext (Windows)
-        if: matrix.pext && runner.os == 'Windows'
-        shell: msys2 {0}
-        run: |
-          cmake --preset release-pext -DPORTABLE_BUILD=ON
-          cmake --build --preset release-pext
-
-      - name: Smoke test release-pext
-        if: matrix.pext
-        shell: bash
-        run: |
-          binary="build/release-pext/basilisk${{ matrix.ext }}"
-          if command -v timeout >/dev/null 2>&1; then
-            TIMEOUT="timeout 15"
-          elif command -v gtimeout >/dev/null 2>&1; then
-            TIMEOUT="gtimeout 15"
-          else
-            TIMEOUT=""
-          fi
-          output=$(printf "uci\nquit\n" | $TIMEOUT "./$binary" 2>&1 || true)
-          echo "$output"
-          echo "$output" | grep -q "uciok" || { echo "FAIL: pext uciok not found"; exit 1; }
-          tag="$RELEASE_TAG"
-          version="${tag#v}"
-          echo "$output" | grep -qF "$version" || { echo "FAIL: pext version $version not found"; exit 1; }
-          echo "PEXT smoke test passed"
 
       - name: Upload binary to release
         shell: bash
@@ -172,13 +196,8 @@ jobs:
           os="${{ matrix.os_name }}"
           arch="${{ matrix.arch }}"
           ext="${{ matrix.ext }}"
+          suffix="${{ matrix.asset_suffix }}"
 
-          asset="basilisk-${tag}-${os}-${arch}${ext}"
-          cp "build/release/basilisk${ext}" "$asset"
+          asset="basilisk-${tag}-${os}-${arch}${suffix}${ext}"
+          cp "build/${{ matrix.preset }}/basilisk${ext}" "$asset"
           gh release upload "$tag" "$asset" --clobber
-
-          if ${{ matrix.pext }}; then
-            asset_pext="basilisk-${tag}-${os}-${arch}-pext${ext}"
-            cp "build/release-pext/basilisk${ext}" "$asset_pext"
-            gh release upload "$tag" "$asset_pext" --clobber
-          fi

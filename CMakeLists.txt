@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.24)
 
-project(basilisk VERSION 1.2.1 LANGUAGES CXX)
+project(basilisk VERSION 1.2.2 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -164,11 +164,28 @@ endif()
 # Optional BMI2 PEXT support (faster sliding piece attacks on Haswell+)
 # ---------------------------------------------------------------------------
 option(USE_PEXT "Use BMI2 PEXT instruction for magic bitboards (requires Haswell+)" OFF)
+option(USE_AVX2 "Build for x86-64 CPUs with AVX2" OFF)
+
+if((USE_PEXT OR USE_AVX2) AND NOT CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|amd64|i.86")
+    message(FATAL_ERROR "x86 CPU feature builds require an x86/x86-64 target")
+endif()
+
 if(USE_PEXT)
     foreach(_tgt IN LISTS _ALL_TARGETS)
         target_compile_definitions(${_tgt} PRIVATE USE_PEXT)
         if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
             target_compile_options(${_tgt} PRIVATE -mbmi2)
+        elseif(MSVC)
+            target_compile_options(${_tgt} PRIVATE /arch:AVX2)
+        endif()
+    endforeach()
+endif()
+
+if(USE_AVX2)
+    foreach(_tgt IN LISTS _ALL_TARGETS)
+        target_compile_definitions(${_tgt} PRIVATE USE_AVX2)
+        if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+            target_compile_options(${_tgt} PRIVATE -mavx2 -msse4.1 -mpopcnt)
         elseif(MSVC)
             target_compile_options(${_tgt} PRIVATE /arch:AVX2)
         endif()

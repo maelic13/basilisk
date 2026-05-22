@@ -33,6 +33,16 @@
       }
     },
     {
+      "name": "release-avx2",
+      "displayName": "Release + AVX2",
+      "description": "Like release, plus AVX2 code generation for Haswell+ / Zen+ x86-64 CPUs.",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "USE_AVX2": "ON"
+      }
+    },
+    {
       "name": "debug",
       "displayName": "Debug",
       "description": "Unoptimised debug build with AddressSanitizer and UBSan (GCC/Clang only).",
@@ -56,6 +66,7 @@
   "buildPresets": [
     { "name": "release",        "configurePreset": "release" },
     { "name": "release-pext",   "configurePreset": "release-pext" },
+    { "name": "release-avx2",   "configurePreset": "release-avx2" },
     { "name": "debug",          "configurePreset": "debug" },
     { "name": "relwithdebinfo", "configurePreset": "relwithdebinfo" }
   ]
