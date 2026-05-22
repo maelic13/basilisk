@@ -1094,7 +1094,7 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
         pv_len_[0] = 0;
         int score;
 
-        if (depth <= 3) {
+        if (depth <= 3 || std::abs(prev_score) >= MATE_SCORE - MAX_PLY) {
             score = negamax(depth, -INF_SCORE, INF_SCORE, 0, ss, true, true);
         } else {
             int delta = 25;
@@ -1163,7 +1163,10 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
                 break;
         }
 
-        if (std::abs(score) >= MATE_SCORE - MAX_PLY)
+        // Do not stop at the first forced mate. A shallow iteration can find a
+        // longer checking mate before a deeper iteration sees a shorter quiet
+        // mating net. Only mate-in-1 is impossible to improve.
+        if (score >= MATE_SCORE - 1)
             break;
     }
 

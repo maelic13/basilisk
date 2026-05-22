@@ -19,6 +19,7 @@
 #include "test_harness.h"
 
 #include <atomic>
+#include <memory>
 #include <string>
 
 // ---------------------------------------------------------------------------
@@ -46,8 +47,8 @@ static RunResult run_search(const char* fen, int depth,
     lim.nodes    = nodes;
     lim.movetime = movetime;
 
-    Searcher searcher(g_tt, g_stop);
-    SearchResult sr = searcher.search(b, lim);
+    auto searcher = std::make_unique<Searcher>(g_tt, g_stop);
+    SearchResult sr = searcher->search(b, lim);
 
     RunResult rr;
     rr.sr  = sr;
@@ -67,6 +68,10 @@ static bool is_legal_bestmove(const char* fen, Move move) {
         if (candidate == move)
             return true;
     return false;
+}
+
+static int mate_in_from_score(int score) {
+    return (MATE_SCORE - std::abs(score) + 1) / 2;
 }
 
 // ---------------------------------------------------------------------------
@@ -222,6 +227,27 @@ static void test_black_to_move() {
     end_section();
 }
 
+static void test_shortest_mate_not_first_mate() {
+    // KQK endgame where a longer checking mate is visible before the shorter
+    // quiet mating net. The engine used to stop at depth 11 with Qc7-f4,
+    // reporting mate in 8, instead of continuing to find Qc7-e5.
+    const char* fen = "4K3/2Q5/6k1/8/8/8/8/8 w - - 0 1";
+
+    begin_section("mate-distance: continues past first longer mate");
+    auto rr = run_search(fen, 18);
+    EXPECT_EQ(rr.sr.depth, 18);
+    end_section();
+
+    begin_section("mate-distance: returns a legal mating move");
+    EXPECT(is_legal_bestmove(fen, rr.sr.bestmove));
+    end_section();
+
+    begin_section("mate-distance: resolves mate in 5 or better");
+    EXPECT(rr.sr.score >= MATE_SCORE - 9);
+    EXPECT(mate_in_from_score(rr.sr.score) <= 5);
+    end_section();
+}
+
 static void test_thread_pool_search() {
     static constexpr const char* FEN =
         "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -297,6 +323,9 @@ int main() {
 
     std::printf("\nMate in 1\n");
     test_mate_in_one();
+
+    std::printf("\nMate distance\n");
+    test_shortest_mate_not_first_mate();
 
     std::printf("\nFree queen capture\n");
     test_free_queen_capture();
