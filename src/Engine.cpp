@@ -1,5 +1,6 @@
 #include <iostream>
 #include <string>
+#include <thread>
 
 #include "Constants.h"
 #include "Engine.h"
@@ -44,21 +45,40 @@ SearchLimits Engine::build_limits() const {
 }
 
 void Engine::send_bestmove(const SearchResult& result, const Board& root_board) const {
-    if (result.bestmove != MOVE_NONE) {
-        std::string out = "bestmove " + move_to_uci(result.bestmove);
-        if (result.pondermove != MOVE_NONE) {
-            Board ponder_board = root_board;
-            ponder_board.make_move(result.bestmove);
-            Square pfrom = from_sq(result.pondermove);
-            Piece  pp    = ponder_board.board_sq[pfrom];
-            if (pp != NO_PIECE
-                && color_of(pp) == ponder_board.side_to_move
-                && ponder_board.is_legal(result.pondermove))
-                out += " ponder " + move_to_uci(result.pondermove);
-        }
+    SearchResult safe_result = sanitize_search_result(root_board, result);
+    if (result.bestmove != MOVE_NONE && result.bestmove != safe_result.bestmove) {
+        std::string replacement = safe_result.bestmove == MOVE_NONE
+            ? "0000"
+            : move_to_uci(safe_result.bestmove);
+        uci_write_line("info string Replaced illegal bestmove "
+                       + move_to_uci(result.bestmove)
+                       + " with " + replacement);
+    }
+
+    if (safe_result.bestmove != MOVE_NONE) {
+        std::string out = "bestmove " + move_to_uci(safe_result.bestmove);
+        if (safe_result.pondermove != MOVE_NONE)
+            out += " ponder " + move_to_uci(safe_result.pondermove);
         uci_write_line(out);
     } else {
         uci_write_line("bestmove 0000");
+    }
+}
+
+void Engine::wait_until_bestmove_allowed(const SearchLimits& limits,
+                                         uint64_t command_epoch) const {
+    if (!limits.ponder && !limits.infinite)
+        return;
+
+    // A ponder/infinite search may exhaust its depth cap before the GUI sends
+    // stop or ponderhit. Keep the completed result but do not emit bestmove yet.
+    while (!stop_requested_.load(std::memory_order_acquire)) {
+        if (limits.ponder && ponderhit_requested_.load(std::memory_order_acquire))
+            return;
+        if (command_epoch != 0
+            && control_epoch_.load(std::memory_order_acquire) != command_epoch)
+            return;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 }
 
@@ -97,6 +117,7 @@ void Engine::start_search(uint64_t command_epoch) {
     searching_.store(true, std::memory_order_release);
 
     SearchResult result = search_pool_.search(board_copy, limits, desired_threads);
+    wait_until_bestmove_allowed(limits, command_epoch);
 
     if (command_epoch == 0
         || control_epoch_.load(std::memory_order_acquire) == command_epoch)

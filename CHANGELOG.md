@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.3] - 2026-05-23
+
+### Fixed
+
+#### UCI / Search Safety
+- Added a final legality sanitizer so stale or malformed search results cannot emit an illegal `bestmove`
+- Invalid ponder moves are now cleared before `bestmove ... ponder ...` is printed
+- UCI `info ... pv` output is now truncated before any invalid PV move instead of reporting an illegal continuation
+- Shared root-move aggregation now ignores moves that are not in the legal root move table
+
+### Added
+
+#### Testing
+- Added regression coverage for the terminal positions from the tournament rules-infraction PGNs
+- Added search-result sanitizer and PV legality tests to protect future UCI output changes
+
+---
+
 ## [1.2.2] - 2026-05-22
 
 ### Changed
@@ -131,6 +149,7 @@ First public release.
 - `bench [depth]` command — 16-position built-in benchmark, prints per-position NPS and total node-count fingerprint
 - GitHub Actions release workflow — builds for Linux x86_64, Linux aarch64, Windows x86_64, Windows aarch64, macOS aarch64; all built with Clang; PEXT variant produced for x86_64 platforms
 
+[1.2.3]: https://github.com/maelic13/basilisk/compare/v1.2.2...v1.2.3
 [1.2.2]: https://github.com/maelic13/basilisk/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/maelic13/basilisk/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/maelic13/basilisk/compare/v1.1.0...v1.2.0

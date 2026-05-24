@@ -55,14 +55,20 @@ void RootMoveTable::update(Move bestmove, Move pondermove, int depth, int score)
         }
         return;
     }
+}
 
-    Entry entry;
-    entry.bestmove = bestmove;
-    entry.pondermove = pondermove;
-    entry.depth = depth;
-    entry.score = score;
-    entry.sequence = ++sequence_;
-    entries_.push_back(entry);
+bool RootMoveTable::contains(Move move) const {
+    std::lock_guard lock(mutex_);
+    for (const Entry& entry : entries_) {
+        if (entry.bestmove == move)
+            return true;
+    }
+    return false;
+}
+
+Move RootMoveTable::fallback_move() const {
+    std::lock_guard lock(mutex_);
+    return entries_.empty() ? MOVE_NONE : entries_.front().bestmove;
 }
 
 int RootMoveTable::ordering_score(Move move) const {
@@ -104,6 +110,47 @@ SearchResult RootMoveTable::best_result() const {
     }
 
     return best;
+}
+
+static bool is_legal_move_on_board(const Board& board, Move move) {
+    if (move == MOVE_NONE)
+        return false;
+
+    const Square from = from_sq(move);
+    const Piece piece = board.board_sq[from];
+    if (piece == NO_PIECE || color_of(piece) != board.side_to_move)
+        return false;
+
+    MoveList legal;
+    board.gen_legal(legal);
+    for (Move candidate : legal) {
+        if (candidate == move)
+            return true;
+    }
+    return false;
+}
+
+static Move first_legal_move(const Board& board) {
+    MoveList legal;
+    board.gen_legal(legal);
+    return legal.size() == 0 ? MOVE_NONE : legal[0];
+}
+
+SearchResult sanitize_search_result(const Board& root_board, SearchResult result) {
+    if (!is_legal_move_on_board(root_board, result.bestmove)) {
+        result.bestmove = first_legal_move(root_board);
+        result.pondermove = MOVE_NONE;
+        return result;
+    }
+
+    if (result.pondermove != MOVE_NONE) {
+        Board ponder_board = root_board;
+        ponder_board.make_move(result.bestmove);
+        if (!is_legal_move_on_board(ponder_board, result.pondermove))
+            result.pondermove = MOVE_NONE;
+    }
+
+    return result;
 }
 
 // ---- Constructor -----------------------------------------------------------
@@ -420,12 +467,14 @@ Move Searcher::pick_next(ScoredMove* moves, int idx, int n) {
 
 class Searcher::MovePicker {
 public:
-    MovePicker(Searcher& searcher, Move tt_move, Move excluded, SearchStack* ss, bool is_root)
+    MovePicker(Searcher& searcher, Move tt_move, Move excluded, SearchStack* ss,
+               bool is_root, ScoredMove* buffer)
         : searcher_(searcher)
         , tt_move_(tt_move)
         , excluded_(excluded)
         , ss_(ss)
-        , is_root_(is_root) {}
+        , is_root_(is_root)
+        , scored_(buffer) {}
 
     Move next() {
         while (true) {
@@ -511,7 +560,7 @@ private:
     bool is_root_;
     bool tt_searched_ = false;
     Stage stage_ = Stage::TT;
-    ScoredMove scored_[MoveList::CAPACITY];
+    ScoredMove* scored_;
     int n_ = 0;
     int idx_ = 0;
 };
@@ -537,9 +586,20 @@ void Searcher::send_info(int depth, int score, int64_t total_nodes, double elaps
          + " hashfull " + std::to_string(tt_.hashfull());
 
     if (pv_len_[0] > 0) {
-        line += " pv";
-        for (int i = 0; i < pv_len_[0]; i++)
-            line += ' ' + move_to_uci(pv_table_[0][i]);
+        Board pv_board = *board_ptr_;
+        bool wrote_pv = false;
+        int pv_count = std::clamp(pv_len_[0], 0, MAX_PLY);
+        for (int i = 0; i < pv_count; i++) {
+            Move pv_move = pv_table_[0][i];
+            if (!is_legal_move_on_board(pv_board, pv_move))
+                break;
+            if (!wrote_pv) {
+                line += " pv";
+                wrote_pv = true;
+            }
+            line += ' ' + move_to_uci(pv_move);
+            pv_board.make_move(pv_move);
+        }
     }
 
     if (info_cb_) info_cb_(line);
@@ -551,8 +611,8 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     nodes_++;
     if ((nodes_ & 2047) == 0) check_stop();
     if (stopped_) return 0;
-    if (board_ptr_->is_draw()) return 0;
     if (ply >= MAX_PLY) return evaluator.evaluate(*board_ptr_);
+    if (board_ptr_->is_draw()) return 0;
 
     bool in_check = board_ptr_->is_in_check();
 
@@ -618,7 +678,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     board_ptr_->gen_legal_captures(captures);
 
     // Score captures: MVV + cap_hist; prefer TT move
-    ScoredMove sm[MoveList::CAPACITY];
+    ScoredMove* sm = move_buffers_[ply];
     int nm = 0;
     for (Move m : captures) {
         PieceType atk = type_of(board_ptr_->board_sq[from_sq(m)]);
@@ -669,11 +729,12 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     }
     if (stopped_) return 0;
 
+    if (ply >= MAX_PLY) return evaluator.evaluate(*board_ptr_);
     pv_len_[ply] = ply;
+
     bool is_root = (ply == 0);
 
     if (!is_root && board_ptr_->is_draw()) return 0;
-    if (ply >= MAX_PLY) return evaluator.evaluate(*board_ptr_);
 
     bool in_check = board_ptr_->is_in_check();
 
@@ -984,9 +1045,10 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 alpha = score;
                 // Update PV
                 pv_table_[ply][ply] = m;
-                for (int k = ply + 1; k < pv_len_[ply + 1]; k++)
+                int child_pv_len = std::clamp(pv_len_[ply + 1], ply + 1, MAX_PLY);
+                for (int k = ply + 1; k < child_pv_len; k++)
                     pv_table_[ply][k] = pv_table_[ply + 1][k];
-                pv_len_[ply] = pv_len_[ply + 1];
+                pv_len_[ply] = child_pv_len;
             }
         }
 
@@ -1003,7 +1065,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     // ---- Staged move picking -----------------------------------------------
     // TT move first, then tactical moves, then quiet moves. Quiet generation and
     // scoring are delayed until captures/promotions fail to produce a cutoff.
-    MovePicker picker(*this, tt_move, ss->excluded, ss, is_root);
+    MovePicker picker(*this, tt_move, ss->excluded, ss, is_root, move_buffers_[ply]);
     while (true) {
         Move move = picker.next();
         if (move == MOVE_NONE)
@@ -1170,6 +1232,7 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
             break;
     }
 
+    result = sanitize_search_result(board, result);
     board_ptr_ = nullptr;
     root_table_ = nullptr;
     pondering_ = false;
@@ -1272,7 +1335,7 @@ SearchResult SearchThreadPool::merge_results(const std::vector<SearchResult>& re
         const SearchResult& result = results[static_cast<size_t>(i)];
         total_nodes += result.nodes;
 
-        if (result.bestmove == MOVE_NONE)
+        if (result.bestmove == MOVE_NONE || !root_table.contains(result.bestmove))
             continue;
 
         const bool result_mates = result.score >= MATE_SCORE - MAX_PLY;
@@ -1285,8 +1348,8 @@ SearchResult SearchThreadPool::merge_results(const std::vector<SearchResult>& re
         }
     }
 
-    if (best.bestmove == MOVE_NONE && !results.empty())
-        best = results.front();
+    if (best.bestmove == MOVE_NONE)
+        best.bestmove = root_table.fallback_move();
 
     best.nodes = total_nodes;
     best.elapsed_ms = elapsed_ms;
@@ -1295,6 +1358,7 @@ SearchResult SearchThreadPool::merge_results(const std::vector<SearchResult>& re
 
 SearchResult SearchThreadPool::search(Board board, const SearchLimits& limits, int thread_count) {
     thread_count = ensure_threads(thread_count);
+    const Board root_board = board;
 
     if (thread_count <= 1) {
         SearchLimits worker_limits = limits;
@@ -1302,7 +1366,7 @@ SearchResult SearchThreadPool::search(Board board, const SearchLimits& limits, i
         worker_limits.thread_id = 0;
         worker_limits.thread_count = 1;
         worker_limits.root_table = nullptr;
-        return searchers_[0]->search(std::move(board), worker_limits);
+        return sanitize_search_result(root_board, searchers_[0]->search(std::move(board), worker_limits));
     }
 
     tt_.new_search();
@@ -1339,7 +1403,7 @@ SearchResult SearchThreadPool::search(Board board, const SearchLimits& limits, i
 
     const int64_t elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::steady_clock::now() - wall_start).count();
-    return merge_results(results, thread_count, root_table, elapsed_ms);
+    return sanitize_search_result(root_board, merge_results(results, thread_count, root_table, elapsed_ms));
 }
 
 void SearchThreadPool::worker_loop(int helper_slot) {

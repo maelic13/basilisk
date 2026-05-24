@@ -34,6 +34,8 @@ class RootMoveTable {
 public:
     void reset(const Board& board);
     void update(Move bestmove, Move pondermove, int depth, int score);
+    bool contains(Move move) const;
+    Move fallback_move() const;
     int  ordering_score(Move move) const;
     SearchResult best_result() const;
 
@@ -77,6 +79,8 @@ struct SearchResult {
     int64_t nodes      = 0;
     int64_t elapsed_ms = 0;
 };
+
+SearchResult sanitize_search_result(const Board& root_board, SearchResult result);
 
 class Searcher {
 public:
@@ -142,6 +146,9 @@ private:
     Move pv_table_[MAX_PLY][MAX_PLY];
     int  pv_len_[MAX_PLY];
 
+    struct ScoredMove { Move move; int score; };
+    ScoredMove move_buffers_[MAX_PLY][MoveList::CAPACITY];
+
     std::chrono::steady_clock::time_point start_time_;
     double time_limit_;   // hard limit (legacy, = hard_limit_)
     double soft_limit_;   // target time — stop early if best move is stable
@@ -159,7 +166,6 @@ private:
     int quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss);
 
     // ---- Move ordering ----
-    struct ScoredMove { Move move; int score; };
     class MovePicker;
     void  score_moves(ScoredMove* moves, int n, Move tt_move, SearchStack* ss, bool is_root) const;
     static Move pick_next(ScoredMove* moves, int idx, int n);

@@ -48,6 +48,7 @@ A UCI chess engine written in C++23.
 - Soft limit (target) / hard limit (maximum)
 - Adaptive soft limit based on best-move stability
 - `movestogo` aware; move-overhead compensation
+- Final UCI legality guard for `bestmove`, ponder moves, and reported PV lines
 
 ---
 
@@ -170,7 +171,7 @@ go movetime 5000
 
 ## Testing
 
-Basilisk ships a comprehensive test suite covering board correctness, move encoding, the transposition table, evaluation, search, mate-distance regressions, the thread pool, and command queue behavior. Run with:
+Basilisk ships a comprehensive test suite covering board correctness, move encoding, the transposition table, evaluation, search, mate-distance regressions, illegal-move hardening, the thread pool, and command queue behavior. Run with:
 
 ```bash
 ctest --test-dir build/release --output-on-failure

@@ -20,7 +20,9 @@
 
 #include <atomic>
 #include <memory>
+#include <sstream>
 #include <string>
+#include <vector>
 
 // ---------------------------------------------------------------------------
 // Helper: run_search
@@ -33,11 +35,8 @@ struct RunResult {
 
 static RunResult run_search(const char* fen, int depth,
                             int64_t nodes = 0, int movetime = 0) {
-    static TranspositionTable g_tt(4);
-    static std::atomic_bool   g_stop{false};
-
-    g_tt.clear();
-    g_stop = false;
+    TranspositionTable tt(4);
+    std::atomic_bool stop{false};
 
     Board b;
     b.set_fen(fen);
@@ -47,7 +46,7 @@ static RunResult run_search(const char* fen, int depth,
     lim.nodes    = nodes;
     lim.movetime = movetime;
 
-    auto searcher = std::make_unique<Searcher>(g_tt, g_stop);
+    auto searcher = std::make_unique<Searcher>(tt, stop);
     SearchResult sr = searcher->search(b, lim);
 
     RunResult rr;
@@ -72,6 +71,54 @@ static bool is_legal_bestmove(const char* fen, Move move) {
 
 static int mate_in_from_score(int score) {
     return (MATE_SCORE - std::abs(score) + 1) / 2;
+}
+
+static bool apply_legal_uci(Board& board, const std::string& uci) {
+    MoveList legal;
+    board.gen_legal(legal);
+    for (Move move : legal) {
+        if (move_to_uci(move) == uci) {
+            board.make_move(move);
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool info_pv_is_legal(const char* fen, const std::string& line) {
+    const std::string marker = " pv ";
+    const size_t pv_pos = line.find(marker);
+    if (pv_pos == std::string::npos)
+        return true;
+
+    Board board;
+    board.set_fen(fen);
+
+    std::istringstream iss(line.substr(pv_pos + marker.size()));
+    std::string token;
+    while (iss >> token) {
+        if (!apply_legal_uci(board, token))
+            return false;
+    }
+    return true;
+}
+
+static std::vector<std::string> collect_info_lines(const char* fen, int depth) {
+    TranspositionTable tt(4);
+    std::atomic_bool stop{false};
+    std::vector<std::string> lines;
+
+    Board board;
+    board.set_fen(fen);
+
+    SearchLimits limits;
+    limits.depth = depth;
+
+    auto searcher = std::make_unique<Searcher>(tt, stop, [&](const std::string& info) {
+        lines.push_back(info);
+    });
+    (void)searcher->search(board, limits);
+    return lines;
 }
 
 // ---------------------------------------------------------------------------
@@ -248,6 +295,71 @@ static void test_shortest_mate_not_first_mate() {
     end_section();
 }
 
+static void test_search_result_sanitizer() {
+    static constexpr const char* FEN =
+        "8/6K1/8/8/8/p7/P7/1k6 b - - 4 71";
+
+    Board board;
+    board.set_fen(FEN);
+
+    SearchResult bad;
+    bad.bestmove = make_move(A3, A2);
+    bad.pondermove = make_move(A2, A1);
+    bad.depth = 12;
+    bad.score = 1000;
+
+    SearchResult safe = sanitize_search_result(board, bad);
+
+    begin_section("search-result sanitizer: replaces illegal bestmove");
+    EXPECT(safe.bestmove != MOVE_NONE);
+    EXPECT(safe.bestmove != bad.bestmove);
+    EXPECT(is_legal_bestmove(FEN, safe.bestmove));
+    end_section();
+
+    begin_section("search-result sanitizer: clears ponder after replacement");
+    EXPECT(safe.pondermove == MOVE_NONE);
+    end_section();
+}
+
+static void test_tournament_infraction_positions() {
+    {
+        static constexpr const char* FEN =
+            "8/6K1/8/8/8/p7/P7/1k6 b - - 4 71";
+        begin_section("rules-infraction final position #1: legal bestmove");
+        auto rr = run_search(FEN, 10);
+        EXPECT(is_legal_bestmove(FEN, rr.sr.bestmove));
+        end_section();
+    }
+
+    {
+        static constexpr const char* FEN =
+            "8/8/8/K3R3/3Q4/8/6p1/2k4q w - - 26 91";
+        begin_section("rules-infraction final position #2: legal bestmove");
+        auto rr = run_search(FEN, 6);
+        EXPECT(is_legal_bestmove(FEN, rr.sr.bestmove));
+        end_section();
+    }
+}
+
+static void test_info_pv_lines_are_legal() {
+    static constexpr const char* FEN =
+        "8/6K1/8/8/8/p7/P7/1k6 b - - 4 71";
+
+    std::vector<std::string> lines = collect_info_lines(FEN, 10);
+
+    begin_section("uci info: emits at least one pv line");
+    bool saw_pv = false;
+    for (const std::string& line : lines)
+        saw_pv = saw_pv || line.find(" pv ") != std::string::npos;
+    EXPECT(saw_pv);
+    end_section();
+
+    begin_section("uci info: pv lines remain legal from the root");
+    for (const std::string& line : lines)
+        EXPECT(info_pv_is_legal(FEN, line));
+    end_section();
+}
+
 static void test_thread_pool_search() {
     static constexpr const char* FEN =
         "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -326,6 +438,11 @@ int main() {
 
     std::printf("\nMate distance\n");
     test_shortest_mate_not_first_mate();
+
+    std::printf("\nIllegal move hardening\n");
+    test_search_result_sanitizer();
+    test_tournament_infraction_positions();
+    test_info_pv_lines_are_legal();
 
     std::printf("\nFree queen capture\n");
     test_free_queen_capture();

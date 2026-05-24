@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.24)
 
-project(basilisk VERSION 1.2.2 LANGUAGES CXX)
+project(basilisk VERSION 1.2.3 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
