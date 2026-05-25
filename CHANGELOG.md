@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.0] - 2026-05-25
+
+### Added
+
+#### Tablebases
+- Added `SyzygyProbeLimit` UCI option, matching Stockfish's `0 – 7` probe cardinality cap
+- Added Stockfish-style root tablebase metadata so root moves are ranked by tablebase outcome while the normal search still breaks equivalent TB ties
+- Added tablebase PV expansion for UCI `info ... pv` output
+- Added WDL/DTZ file count reporting when Syzygy tablebases are loaded
+
+#### Testing
+- Added coverage for bare `go` default depth, `SyzygyProbeLimit` option parsing/clamping, tablebase file counts, probe-limit gating, rule-50 root scoring, root TB metadata, and expanded TB PV legality
+
+### Changed
+
+#### Search / UCI
+- Bare `go` now defaults to depth 7 instead of a fixed 500 ms search
+- Syzygy root positions now search normally instead of returning a zero-node single tablebase move
+- Tablebase wins/losses now report Stockfish-style `cp 20000` scores
+- `Syzygy50MoveRule=true` now reports root cursed wins and blessed losses as draw scores
+- Time management uses a lower minimum move budget and caps hard limits to avoid spending too much of the remaining clock
+
+#### Version
+- Bumped engine version metadata to 1.4.0
+
+### Fixed
+
+#### Search
+- Avoided reapplying correction history to static evals loaded from the transposition table
+- Skipped repetition scanning when the halfmove clock is too small for a prior reversible position
+
+---
+
 ## [1.3.0] - 2026-05-25
 
 ### Added
@@ -178,6 +211,7 @@ First public release.
 - `bench [depth]` command — 16-position built-in benchmark, prints per-position NPS and total node-count fingerprint
 - GitHub Actions release workflow — builds for Linux x86_64, Linux aarch64, Windows x86_64, Windows aarch64, macOS aarch64; all built with Clang; PEXT variant produced for x86_64 platforms
 
+[1.4.0]: https://github.com/maelic13/basilisk/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/maelic13/basilisk/compare/v1.2.3...v1.3.0
 [1.2.3]: https://github.com/maelic13/basilisk/compare/v1.2.2...v1.2.3
 [1.2.2]: https://github.com/maelic13/basilisk/compare/v1.2.1...v1.2.2

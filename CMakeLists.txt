@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.24)
 
-project(basilisk VERSION 1.3.0 LANGUAGES CXX)
+project(basilisk VERSION 1.4.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -91,7 +91,7 @@ target_link_libraries(test_eval PRIVATE basilisk_engine)
 # ---------------------------------------------------------------------------
 # Search tests
 # ---------------------------------------------------------------------------
-add_executable(test_search tests/test_search.cpp)
+add_executable(test_search tests/test_search.cpp src/Parameters.cpp)
 target_link_libraries(test_search PRIVATE basilisk_engine)
 
 include(CTest)

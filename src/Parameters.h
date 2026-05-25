@@ -24,6 +24,7 @@ public:
     bool    ponder;         // go ponder mode
     std::string syzygyPath; // semicolon-separated Syzygy tablebase paths
     int     syzygyProbeDepth;
+    int     syzygyProbeLimit;
     bool    syzygy50MoveRule;
 
     bool new_game    = false;  // set by "ucinewgame", cleared after engine processes it

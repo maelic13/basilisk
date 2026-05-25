@@ -3,6 +3,7 @@
 #include "Board.h"
 #include "tt.h"
 #include "eval.h"
+#include "syzygy.h"
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
@@ -10,6 +11,7 @@
 #include <memory>
 #include <mutex>
 #include <thread>
+#include <utility>
 #include <vector>
 
 static constexpr int MAX_SEARCH_DEPTH = 100;
@@ -69,6 +71,9 @@ struct SearchLimits {
     int thread_id = 0;
     int thread_count = 1;
     int syzygy_probe_depth = 0; // 0 = disabled
+    int syzygy_probe_limit = 0;
+    bool syzygy_50_move_rule = true;
+    std::vector<Syzygy::RootMoveInfo> syzygy_root_moves;
     RootMoveTable* root_table = nullptr;
 };
 
@@ -116,6 +121,7 @@ private:
     bool     pondering_;
     SearchLimits active_limits_;
     Color    root_side_;
+    std::vector<Syzygy::RootMoveInfo> root_tb_moves_;
 
     // ---- History tables (persist across searches; aged each search) ----
     static constexpr int MAX_MAIN_HIST = 16384;
@@ -205,6 +211,10 @@ private:
     double elapsed_seconds() const;
     void   compute_time_limit(const SearchLimits& limits, Color side);
     void   send_info(int depth, int score, int64_t nodes, double elapsed) const;
+    void   init_root_tablebase_scores(const Board& board);
+    int    root_tablebase_score(Move move) const;
+    int    root_tablebase_ordering_score(Move move) const;
+    std::vector<Move> root_tablebase_pv(Move move) const;
 };
 
 class SearchThreadPool {

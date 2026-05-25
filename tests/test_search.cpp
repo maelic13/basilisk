@@ -8,7 +8,9 @@
 ///   ./build/release/test_search
 
 #include "Board.h"
+#include "Constants.h"
 #include "EngineCommand.h"
+#include "Parameters.h"
 #include "attacks.h"
 #include "bitboard.h"
 #include "eval.h"
@@ -20,6 +22,7 @@
 #include "test_harness.h"
 
 #include <atomic>
+#include <filesystem>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -122,9 +125,39 @@ static std::vector<std::string> collect_info_lines(const char* fen, int depth) {
     return lines;
 }
 
+static bool init_local_syzygy() {
+    static constexpr const char* TB_PATH = "D:\\chess\\Syzygy345";
+    if (!std::filesystem::exists(TB_PATH))
+        return false;
+    return Syzygy::init(TB_PATH) && Syzygy::enabled();
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
+
+static void test_default_go_depth_and_syzygy_options() {
+    Parameters params;
+
+    begin_section("parameters: bare go defaults to depth 7");
+    params.setSearchParameters("");
+    EXPECT_EQ(params.depth, defaultSearchDepth);
+    EXPECT_EQ(params.moveTime, 0);
+    end_section();
+
+    begin_section("uci options: exposes SyzygyProbeLimit");
+    EXPECT(Parameters::uciOptions().find("SyzygyProbeLimit") != std::string::npos);
+    end_section();
+
+    begin_section("parameters: SyzygyProbeLimit clamps to UCI range");
+    params.setOption("name SyzygyProbeLimit value 0");
+    EXPECT_EQ(params.syzygyProbeLimit, 0);
+    params.setOption("name SyzygyProbeLimit value 99");
+    EXPECT_EQ(params.syzygyProbeLimit, 7);
+    params.setOption("name SyzygyProbeLimit value -5");
+    EXPECT_EQ(params.syzygyProbeLimit, 0);
+    end_section();
+}
 
 static void test_returns_legal_move() {
     // The engine must return a legal move for the starting position at depth 1.
@@ -431,6 +464,125 @@ static void test_syzygy_disabled_without_path() {
     end_section();
 }
 
+static void test_syzygy_probe_limit_and_counts() {
+    Syzygy::clear();
+    if (!init_local_syzygy()) {
+        begin_section("syzygy: local tablebases unavailable");
+        EXPECT(true);
+        end_section();
+        return;
+    }
+
+    Board board;
+    board.set_fen("6k1/8/8/8/8/8/8/6KQ w - - 0 1");
+
+    begin_section("syzygy: reports loaded WDL and DTZ files");
+    EXPECT(Syzygy::wdl_file_count() > 0);
+    EXPECT(Syzygy::dtz_file_count() > 0);
+    EXPECT(Syzygy::largest() >= 3);
+    end_section();
+
+    begin_section("syzygy: ProbeLimit 0 disables probing");
+    EXPECT(!Syzygy::can_probe_root(board, 0));
+    EXPECT(!Syzygy::probe_root(board, true, 0).has_value());
+    EXPECT(Syzygy::probe_root_moves(board, true, 0, true).empty());
+    end_section();
+
+    begin_section("syzygy: ProbeLimit below cardinality disables KQK");
+    EXPECT(!Syzygy::can_probe_root(board, 2));
+    EXPECT(!Syzygy::probe_root(board, true, 2).has_value());
+    end_section();
+
+    begin_section("syzygy: ProbeLimit allows KQK root move metadata");
+    auto moves = Syzygy::probe_root_moves(board, true, 7, true);
+    EXPECT(!moves.empty());
+    EXPECT(moves.front().bestmove != MOVE_NONE);
+    EXPECT(moves.front().score == tablebaseWinScore);
+    EXPECT(!moves.front().pv.empty());
+    end_section();
+
+    Syzygy::clear();
+}
+
+static void test_syzygy_rule50_root_scores() {
+    Syzygy::clear();
+    if (!init_local_syzygy()) {
+        begin_section("syzygy: rule50 local tablebases unavailable");
+        EXPECT(true);
+        end_section();
+        return;
+    }
+
+    Board board;
+    board.set_fen("6k1/8/8/8/8/8/8/6KQ w - - 99 50");
+
+    begin_section("syzygy: rule50 cursed win is reported as draw");
+    auto rule50_moves = Syzygy::probe_root_moves(board, true, 7, true);
+    EXPECT(!rule50_moves.empty());
+    EXPECT(rule50_moves.front().score == 0);
+    end_section();
+
+    begin_section("syzygy: disabling rule50 reports tablebase win");
+    auto no_rule50_moves = Syzygy::probe_root_moves(board, false, 7, true);
+    EXPECT(!no_rule50_moves.empty());
+    EXPECT(no_rule50_moves.front().score == tablebaseWinScore);
+    end_section();
+
+    Syzygy::clear();
+}
+
+static void test_search_uses_root_tablebase_metadata() {
+    Syzygy::clear();
+    if (!init_local_syzygy()) {
+        begin_section("search syzygy: local tablebases unavailable");
+        EXPECT(true);
+        end_section();
+        return;
+    }
+
+    static constexpr const char* FEN =
+        "6k1/8/8/8/8/8/8/6KQ w - - 0 1";
+
+    Board board;
+    board.set_fen(FEN);
+    auto root_moves = Syzygy::probe_root_moves(board, true, 7, true);
+    for (auto& move : root_moves)
+        move.pv = Syzygy::extend_pv(board, {move.bestmove}, true, 7, 32);
+
+    TranspositionTable tt(4);
+    std::atomic_bool stop{false};
+    std::vector<std::string> lines;
+    SearchLimits limits;
+    limits.depth = 3;
+    limits.syzygy_probe_depth = 1;
+    limits.syzygy_probe_limit = 7;
+    limits.syzygy_root_moves = root_moves;
+
+    auto searcher = std::make_unique<Searcher>(tt, stop, [&](const std::string& info) {
+        lines.push_back(info);
+    });
+    SearchResult result = searcher->search(board, limits);
+
+    begin_section("search syzygy: reports TB win score and hits");
+    EXPECT_EQ(result.score, tablebaseWinScore);
+    EXPECT(result.tbhits > 0);
+    end_section();
+
+    begin_section("search syzygy: emits legal expanded TB PV");
+    bool saw_tb_pv = false;
+    for (const std::string& line : lines) {
+        if (line.find("score cp 20000") != std::string::npos
+            && line.find(" pv ") != std::string::npos) {
+            saw_tb_pv = true;
+        }
+        EXPECT(info_pv_is_legal(FEN, line));
+    }
+    EXPECT(saw_tb_pv);
+    end_section();
+
+    Syzygy::clear();
+}
+
 // ---------------------------------------------------------------------------
 // main
 // ---------------------------------------------------------------------------
@@ -443,6 +595,9 @@ int main() {
 
     std::printf("Search tests\n");
     std::printf("%s\n", std::string(62, '=').c_str());
+
+    std::printf("\nParameters\n");
+    test_default_go_depth_and_syzygy_options();
 
     std::printf("\nLegal move\n");
     test_returns_legal_move();
@@ -487,6 +642,9 @@ int main() {
 
     std::printf("\nSyzygy\n");
     test_syzygy_disabled_without_path();
+    test_syzygy_probe_limit_and_counts();
+    test_syzygy_rule50_root_scores();
+    test_search_uses_root_tablebase_metadata();
 
     return harness_summary();
 }

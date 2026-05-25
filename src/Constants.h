@@ -4,12 +4,13 @@
 #include <string_view>
 
 inline constexpr std::string_view engineName    = "Basilisk";
-inline constexpr std::string_view engineVersion = "1.3.0";
+inline constexpr std::string_view engineVersion = "1.4.0";
 inline constexpr std::string_view engineAuthor  = "Miloslav Macurek";
 
-// Default time per move when no clock information is provided [ms]
-inline constexpr int defaultMoveTime     = 500;
+// Default search limit when "go" is sent without explicit limits.
 inline constexpr int defaultMoveOverhead = 10;
+inline constexpr int defaultSearchDepth  = 7;
+inline constexpr int tablebaseWinScore   = 20000;
 
 inline constexpr int infiniteDepth = std::numeric_limits<int>::max();
 

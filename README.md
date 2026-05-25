@@ -22,7 +22,7 @@ A UCI chess engine written in C++23.
 - Singular extensions
 - Check extension — extend by 1 ply when in check
 - Mate-distance handling that continues past the first forced mate to prefer shorter mates
-- Optional Syzygy tablebase probing at the root and in search
+- Optional Syzygy tablebase probing at the root and in search, with Stockfish-style root ranking and tablebase PV expansion
 - Quiescence search with in-check evasion
 - Static Exchange Evaluation (SEE) for capture pruning and bad-capture reductions
 
@@ -64,6 +64,7 @@ A UCI chess engine written in C++23.
 | `SyzygyPath`   | string | `<empty>` | —       | Semicolon-separated Syzygy tablebase directories; empty disables probing |
 | `SyzygyProbeDepth` | spin | 1    | 1 – 100   | Minimum remaining search depth for non-root WDL probes |
 | `Syzygy50MoveRule` | check | true | —        | Respect the 50-move rule in root tablebase move ranking |
+| `SyzygyProbeLimit` | spin | 7 | 0 – 7 | Maximum piece count for tablebase probing; 0 disables probing |
 
 ---
 
@@ -163,6 +164,12 @@ To use Syzygy tablebases, set `SyzygyPath` to the directory containing `.rtbw`
 and `.rtbz` files before starting a search. With an empty path, tablebase code is
 disabled and normal playing strength is unchanged.
 
+When tablebases are enabled, Basilisk probes root moves before search, reports
+Stockfish-style tablebase scores (`cp 20000` for wins), expands tablebase PVs in
+`info ... pv` output, and respects `Syzygy50MoveRule` for cursed wins and blessed
+losses. `SyzygyProbeLimit` can be set to `0` to disable probing without clearing
+the configured path.
+
 ### Supported UCI commands
 
 | Command | Notes |
@@ -173,7 +180,7 @@ disabled and normal playing strength is unchanged.
 | `setoption name <n> [value <v>]` | Set an option; button types have no value |
 | `ucinewgame` | Reset search state and clear TT |
 | `position [startpos\|fen <fen>] [moves …]` | Set up board |
-| `go [wtime … btime … winc … binc … movestogo … depth … nodes … movetime … infinite … ponder]` | Start search |
+| `go [wtime … btime … winc … binc … movestogo … depth … nodes … movetime … infinite … ponder]` | Start search; bare `go` defaults to depth 7 |
 | `stop` | Stop search; engine replies with `bestmove` |
 | `ponderhit` | Switch from ponder to normal search |
 | `bench [depth]` | Run built-in benchmark (default depth 13) using the current `Threads` option |
@@ -183,7 +190,7 @@ disabled and normal playing strength is unchanged.
 
 ## Testing
 
-Basilisk ships a comprehensive test suite covering board correctness, move encoding, the transposition table, evaluation, search, mate-distance regressions, illegal-move hardening, the thread pool, and command queue behavior. Run with:
+Basilisk ships a comprehensive test suite covering board correctness, move encoding, the transposition table, evaluation, search, mate-distance regressions, illegal-move hardening, the thread pool, command queue behavior, UCI option parsing, and Syzygy tablebase behavior. The Syzygy tests use a local `D:\chess\Syzygy345` directory when present and otherwise skip the real-tablebase assertions. Run with:
 
 ```bash
 ctest --test-dir build/release --output-on-failure

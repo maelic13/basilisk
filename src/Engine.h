@@ -25,7 +25,6 @@ private:
     void start_search(uint64_t command_epoch);
     void run_bench_command(const EngineCommand& command);
     void configure_syzygy();
-    bool try_syzygy_root_probe(const Board& board, SearchResult& result) const;
     void send_bestmove(const SearchResult& result, const Board& root_board) const;
     void wait_until_bestmove_allowed(const SearchLimits& limits, uint64_t command_epoch) const;
     SearchLimits build_limits() const;

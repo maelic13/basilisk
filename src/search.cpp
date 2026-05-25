@@ -1,4 +1,5 @@
 #include "search.h"
+#include "Constants.h"
 #include "syzygy.h"
 #include <algorithm>
 #include <cassert>
@@ -15,12 +16,12 @@
 int  Searcher::LMR_TABLE[64][64];
 bool Searcher::lmr_init_ = false;
 
-static constexpr int TB_WIN_SCORE = MATE_SCORE - MAX_PLY - 1;
+static constexpr int TB_WIN_SCORE = tablebaseWinScore;
 
-static int score_from_syzygy_wdl(Syzygy::Wdl wdl, int ply) {
+static int score_from_syzygy_wdl(Syzygy::Wdl wdl) {
     switch (wdl) {
         case Syzygy::Wdl::Win:
-            return TB_WIN_SCORE - ply;
+            return TB_WIN_SCORE;
         case Syzygy::Wdl::CursedWin:
             return 2;
         case Syzygy::Wdl::Draw:
@@ -28,7 +29,7 @@ static int score_from_syzygy_wdl(Syzygy::Wdl wdl, int ply) {
         case Syzygy::Wdl::BlessedLoss:
             return -2;
         case Syzygy::Wdl::Loss:
-            return -TB_WIN_SCORE + ply;
+            return -TB_WIN_SCORE;
     }
     return 0;
 }
@@ -248,9 +249,11 @@ void Searcher::compute_time_limit(const SearchLimits& limits, Color side) {
                 : (remaining < 5000) ? remaining * 30 / 100
                                      : remaining * 50 / 100;
     hard_ms = std::max(soft_ms, hard_ms);  // hard >= soft always
+    hard_ms = std::min(hard_ms, std::max(1, remaining * 80 / 100));
+    soft_ms = std::min(soft_ms, hard_ms);
 
-    soft_limit_ = std::max(50, soft_ms) / 1000.0;
-    hard_limit_ = std::max(50, hard_ms) / 1000.0;
+    soft_limit_ = std::max(10, soft_ms) / 1000.0;
+    hard_limit_ = std::max(10, hard_ms) / 1000.0;
 
     // Legacy: keep time_limit_ pointing at hard for check_stop()
     time_limit_ = hard_limit_;
@@ -471,6 +474,9 @@ void Searcher::score_moves(ScoredMove* moves, int n, Move tt_move, SearchStack* 
             else                          moves[i].score = hist;
         }
 
+        if (is_root && !root_tb_moves_.empty())
+            moves[i].score += root_tablebase_ordering_score(m);
+
         if (is_root && root_table_)
             moves[i].score += root_table_->ordering_score(m);
     }
@@ -608,22 +614,64 @@ void Searcher::send_info(int depth, int score, int64_t total_nodes, double elaps
 
     if (pv_len_[0] > 0) {
         Board pv_board = *board_ptr_;
-        bool wrote_pv = false;
+        std::vector<Move> pv_moves;
         int pv_count = std::clamp(pv_len_[0], 0, MAX_PLY);
         for (int i = 0; i < pv_count; i++) {
             Move pv_move = pv_table_[0][i];
             if (!is_legal_move_on_board(pv_board, pv_move))
                 break;
-            if (!wrote_pv) {
-                line += " pv";
-                wrote_pv = true;
-            }
-            line += ' ' + move_to_uci(pv_move);
+            pv_moves.push_back(pv_move);
             pv_board.make_move(pv_move);
+        }
+
+        if (!pv_moves.empty()) {
+            std::vector<Move> tb_pv = root_tablebase_pv(pv_moves.front());
+            if (!tb_pv.empty())
+                pv_moves = std::move(tb_pv);
+        }
+
+        if (!pv_moves.empty()) {
+            line += " pv";
+            for (Move pv_move : pv_moves)
+                line += ' ' + move_to_uci(pv_move);
         }
     }
 
     if (info_cb_) info_cb_(line);
+}
+
+void Searcher::init_root_tablebase_scores(const Board& board) {
+    (void) board;
+    root_tb_moves_ = active_limits_.syzygy_root_moves;
+    if (!root_tb_moves_.empty() && thread_id_ == 0)
+        tb_hits_ += static_cast<int64_t>(root_tb_moves_.size());
+}
+
+int Searcher::root_tablebase_score(Move move) const {
+    for (const auto& entry : root_tb_moves_) {
+        if (entry.bestmove == move)
+            return entry.score;
+    }
+    return VALUE_NONE;
+}
+
+int Searcher::root_tablebase_ordering_score(Move move) const {
+    for (const auto& entry : root_tb_moves_) {
+        if (entry.bestmove == move) {
+            return 8'000'000
+                 + std::clamp(entry.rank, -2000, 2000) * 1000
+                 + std::clamp(entry.score, -tablebaseWinScore, tablebaseWinScore);
+        }
+    }
+    return 0;
+}
+
+std::vector<Move> Searcher::root_tablebase_pv(Move move) const {
+    for (const auto& entry : root_tb_moves_) {
+        if (entry.bestmove == move)
+            return entry.pv;
+    }
+    return {};
 }
 
 // ---- Quiescence search -----------------------------------------------------
@@ -675,16 +723,18 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     }
 
     // Stand-pat evaluation
-    int stand_pat;
+    int raw_eval;
     if (tt_found && tte.static_eval != TranspositionTable::INF_EVAL)
-        stand_pat = tte.static_eval;
+        raw_eval = tte.static_eval;
     else
-        stand_pat = evaluator.evaluate(*board_ptr_);
+        raw_eval = evaluator.evaluate(*board_ptr_);
+
+    int stand_pat = raw_eval;
     stand_pat += correction_value(board_ptr_->side_to_move, board_ptr_->pawn_key);
     stand_pat = std::clamp(stand_pat, -(MATE_SCORE - 1), MATE_SCORE - 1);
 
     if (stand_pat >= beta) {
-        tt_.store(hash, 0, stand_pat, TT_BETA, MOVE_NONE, ply, stand_pat);
+        tt_.store(hash, 0, stand_pat, TT_BETA, MOVE_NONE, ply, raw_eval);
         return beta;
     }
 
@@ -730,13 +780,13 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
             best_move = m;
         }
         if (s >= beta) {
-            tt_.store(hash, 0, s, TT_BETA, m, ply, stand_pat);
+            tt_.store(hash, 0, s, TT_BETA, m, ply, raw_eval);
             return beta;
         }
     }
 
     TTFlag flag = (alpha > orig_alpha) ? TT_EXACT : TT_ALPHA;
-    tt_.store(hash, 0, alpha, flag, best_move, ply, stand_pat);
+    tt_.store(hash, 0, alpha, flag, best_move, ply, raw_eval);
     return alpha;
 }
 
@@ -758,11 +808,14 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     if (!is_root && board_ptr_->is_draw()) return 0;
 
     if (!is_root && ss->excluded == MOVE_NONE
+        && root_tb_moves_.empty()
         && active_limits_.syzygy_probe_depth > 0
-        && depth >= active_limits_.syzygy_probe_depth) {
-        if (auto wdl = Syzygy::probe_wdl(*board_ptr_)) {
+        && (ply == 1 || depth >= active_limits_.syzygy_probe_depth)) {
+        if (auto wdl = Syzygy::probe_wdl(*board_ptr_,
+                                         active_limits_.syzygy_probe_limit,
+                                         active_limits_.syzygy_50_move_rule)) {
             tb_hits_++;
-            const int tb_score = score_from_syzygy_wdl(*wdl, ply);
+            const int tb_score = score_from_syzygy_wdl(*wdl);
             tt_.store(board_ptr_->hash, depth, tb_score, TT_EXACT, MOVE_NONE, ply,
                       TranspositionTable::INF_EVAL);
             return tb_score;
@@ -811,6 +864,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
     // ---- Static evaluation -------------------------------------------------
     int static_eval;
+    int raw_static_eval = VALUE_NONE;
     if (in_check) {
         ss->eval = static_eval = VALUE_NONE;
     } else if (ss->excluded != MOVE_NONE) {
@@ -818,11 +872,12 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         static_eval = ss->eval;
     } else {
         if (tt_found && tte.static_eval != TranspositionTable::INF_EVAL)
-            static_eval = tte.static_eval;
+            raw_static_eval = tte.static_eval;
         else
-            static_eval = evaluator.evaluate(*board_ptr_);
+            raw_static_eval = evaluator.evaluate(*board_ptr_);
 
-        // Pawn-structure correction
+        // TT stores the raw static eval; correction is applied at probe time.
+        static_eval = raw_static_eval;
         static_eval += correction_value(board_ptr_->side_to_move, board_ptr_->pawn_key);
         static_eval  = std::clamp(static_eval, -(MATE_SCORE - 1), MATE_SCORE - 1);
         ss->eval = static_eval;
@@ -893,8 +948,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 if (stopped_) return 0;
                 if (val >= pc_beta) {
                     tt_.store(hash, depth - 3, pc_beta, TT_BETA, m, ply,
-                              static_eval == VALUE_NONE
-                                  ? TranspositionTable::INF_EVAL : static_eval);
+                              raw_static_eval == VALUE_NONE
+                                  ? TranspositionTable::INF_EVAL : raw_static_eval);
                     return pc_beta;
                 }
             }
@@ -931,6 +986,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                      || (move_type(m) == EN_PASSANT);
         bool is_promo = (move_type(m) == PROMOTION);
         bool is_quiet = !is_cap && !is_promo;
+        const int tb_move_score = is_root ? root_tablebase_score(m) : VALUE_NONE;
         int see_score = VALUE_NONE;
 
         // ---- Late-move pruning / futility ----------------------------------
@@ -1054,6 +1110,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                                  ply + 1, ss + 1, true, true);
         }
 
+        if (tb_move_score != VALUE_NONE)
+            score = tb_move_score + std::clamp(score, -9000, 9000);
+
         board_ptr_->unmake_move(m);
         ss->move = MOVE_NONE;
 
@@ -1120,10 +1179,11 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
     // Update correction history with search result
     if (!in_check && ss->excluded == MOVE_NONE && static_eval != VALUE_NONE
+        && raw_static_eval != VALUE_NONE
         && std::abs(best_score) < MATE_SCORE - MAX_PLY
         && (best_score >= beta || best_score > orig_alpha)) {
         update_correction(board_ptr_->side_to_move, board_ptr_->pawn_key,
-                          best_score - static_eval, depth);
+                          best_score - raw_static_eval, depth);
     }
 
     // Store to TT
@@ -1132,7 +1192,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 :                             TT_ALPHA;
     if (ss->excluded == MOVE_NONE)
         tt_.store(hash, depth, best_score, flag, best_move, ply,
-                  static_eval == VALUE_NONE ? TranspositionTable::INF_EVAL : static_eval);
+                  raw_static_eval == VALUE_NONE ? TranspositionTable::INF_EVAL : raw_static_eval);
 
     return best_score;
 }
@@ -1174,6 +1234,7 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
     SearchStack* ss = ss_arr_ + 4; // root at offset 4
 
     std::memset(pv_len_, 0, sizeof(pv_len_));
+    init_root_tablebase_scores(board);
 
     SearchResult result;
     int prev_score      = 0;
@@ -1220,11 +1281,18 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
 
         if (stopped_ && depth > 1) break;
 
-        int prev_score_saved = prev_score;
-        prev_score = score;
-
         // Track best-move stability for adaptive soft time limit
         Move cur_best = (pv_len_[0] > 0) ? pv_table_[0][0] : MOVE_NONE;
+
+        int reported_score = score;
+        if (cur_best != MOVE_NONE) {
+            const int tb_score = root_tablebase_score(cur_best);
+            if (tb_score != VALUE_NONE)
+                reported_score = tb_score;
+        }
+
+        int prev_score_saved = prev_score;
+        prev_score = score;
         if (cur_best == prev_best)
             best_stability++;
         else {
@@ -1235,15 +1303,18 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
         if (pv_len_[0] > 0) {
             result.bestmove   = pv_table_[0][0];
             result.pondermove = (pv_len_[0] > 1) ? pv_table_[0][1] : MOVE_NONE;
+            std::vector<Move> tb_pv = root_tablebase_pv(result.bestmove);
+            if (tb_pv.size() > 1)
+                result.pondermove = tb_pv[1];
         }
-        result.score = score;
+        result.score = reported_score;
         result.depth = depth;
 
         if (root_table_ && result.bestmove != MOVE_NONE)
             root_table_->update(result.bestmove, result.pondermove, depth, score);
 
         double elapsed = elapsed_seconds();
-        send_info(depth, score, nodes_, elapsed);
+        send_info(depth, reported_score, nodes_, elapsed);
 
         // Adaptive soft time limit:
         // The more stable the best move, the less time we need to confirm it.
@@ -1271,6 +1342,7 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
     board_ptr_ = nullptr;
     root_table_ = nullptr;
     pondering_ = false;
+    root_tb_moves_.clear();
     result.nodes      = nodes_;
     result.tbhits     = tb_hits_;
     result.elapsed_ms = int64_t(elapsed_seconds() * 1000.0);

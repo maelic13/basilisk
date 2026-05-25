@@ -38,6 +38,7 @@ Parameters::Parameters() {
     threads      = 1;
     syzygyPath.clear();
     syzygyProbeDepth = 1;
+    syzygyProbeLimit = 7;
     syzygy50MoveRule = true;
 }
 
@@ -71,7 +72,8 @@ std::string Parameters::uciOptions() {
            "option name Move Overhead type spin default 10 min 0 max 5000\n"
            "option name SyzygyPath type string default <empty>\n"
            "option name SyzygyProbeDepth type spin default 1 min 1 max 100\n"
-           "option name Syzygy50MoveRule type check default true\n";
+           "option name Syzygy50MoveRule type check default true\n"
+           "option name SyzygyProbeLimit type spin default 7 min 0 max 7\n";
 }
 
 int Parameters::maxThreads() {
@@ -82,7 +84,7 @@ void Parameters::setSearchParameters(const std::string& args) {
     resetTemporaryParameters();
 
     if (args.empty()) {
-        moveTime = defaultMoveTime;
+        depth = defaultSearchDepth;
         return;
     }
 
@@ -160,6 +162,8 @@ void Parameters::setOption(const std::string& args) {
         syzygyPath = (value == "<empty>") ? std::string{} : value;
     } else if (name_lower == "syzygyprobedepth") {
         syzygyProbeDepth = std::clamp(std::stoi(value), 1, 100);
+    } else if (name_lower == "syzygyprobelimit") {
+        syzygyProbeLimit = std::clamp(std::stoi(value), 0, 7);
     } else if (name_lower == "syzygy50moverule") {
         syzygy50MoveRule = parse_bool_option(value);
     }

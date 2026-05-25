@@ -1222,6 +1222,7 @@ void Board::gen_quiet_checks(MoveList& ml) const {
 bool Board::is_draw() const {
     // 50-move rule
     if (halfmove_clock >= 100) return true;
+    if (halfmove_clock < 4) return false;
 
     // 2-fold repetition (search back through history)
     int reps = 0;
