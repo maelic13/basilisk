@@ -93,7 +93,9 @@ int main() {
                   << "Use the non-PEXT x86_64 build on this machine.\n";
         return 1;
     }
-#elif defined(USE_AVX2)
+#endif
+
+#if defined(USE_AVX2)
     if (!cpu_supports_avx2() || !cpu_supports_sse41_popcnt()) {
         std::cerr << "Basilisk AVX2 build requires a CPU with AVX2, SSE4.1, and POPCNT support.\n"
                   << "Use the generic x86_64 build on this machine.\n";

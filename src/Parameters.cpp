@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cctype>
 #include <iostream>
 #include <regex>
 #include <sstream>
@@ -8,6 +9,16 @@
 #include "Constants.h"
 #include "Parameters.h"
 #include "UciOutput.h"
+
+namespace {
+
+bool parse_bool_option(std::string value) {
+    std::transform(value.begin(), value.end(), value.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return value == "true" || value == "1" || value == "yes" || value == "on";
+}
+
+} // namespace
 
 Parameters::Parameters() {
     board.set_fen(std::string(startPosition));
@@ -25,6 +36,9 @@ Parameters::Parameters() {
     moveOverhead = defaultMoveOverhead;
     hash_mb      = 64;
     threads      = 1;
+    syzygyPath.clear();
+    syzygyProbeDepth = 1;
+    syzygy50MoveRule = true;
 }
 
 void Parameters::reset() {
@@ -54,7 +68,10 @@ std::string Parameters::uciOptions() {
            + std::to_string(maxThreads()) + "\n"
            "option name Hash type spin default 64 min 1 max 33554432\n"
            "option name Clear Hash type button\n"
-           "option name Move Overhead type spin default 10 min 0 max 5000\n";
+           "option name Move Overhead type spin default 10 min 0 max 5000\n"
+           "option name SyzygyPath type string default <empty>\n"
+           "option name SyzygyProbeDepth type spin default 1 min 1 max 100\n"
+           "option name Syzygy50MoveRule type check default true\n";
 }
 
 int Parameters::maxThreads() {
@@ -139,6 +156,12 @@ void Parameters::setOption(const std::string& args) {
         hash_mb = std::clamp(std::stoi(value), 1, 33554432);
     } else if (name_lower == "threads") {
         threads = std::clamp(std::stoi(value), 1, maxThreads());
+    } else if (name_lower == "syzygypath") {
+        syzygyPath = (value == "<empty>") ? std::string{} : value;
+    } else if (name_lower == "syzygyprobedepth") {
+        syzygyProbeDepth = std::clamp(std::stoi(value), 1, 100);
+    } else if (name_lower == "syzygy50moverule") {
+        syzygy50MoveRule = parse_bool_option(value);
     }
 }
 

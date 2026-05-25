@@ -4,7 +4,7 @@
 #include <string_view>
 
 inline constexpr std::string_view engineName    = "Basilisk";
-inline constexpr std::string_view engineVersion = "1.2.3";
+inline constexpr std::string_view engineVersion = "1.3.0";
 inline constexpr std::string_view engineAuthor  = "Miloslav Macurek";
 
 // Default time per move when no clock information is provided [ms]

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.24)
 
-project(basilisk VERSION 1.2.3 LANGUAGES CXX)
+project(basilisk VERSION 1.3.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -9,6 +9,21 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # ---------------------------------------------------------------------------
 # Internal libraries
 # ---------------------------------------------------------------------------
+
+# Fathom Syzygy tablebase probing library (MIT). tbprobe.c includes tbchess.c.
+set_source_files_properties(external/fathom/src/tbprobe.c PROPERTIES LANGUAGE CXX)
+add_library(fathom STATIC
+    external/fathom/src/tbprobe.c
+)
+target_include_directories(fathom PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/fathom/src
+)
+target_compile_definitions(fathom PRIVATE TB_NO_HELPER_API)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(fathom PRIVATE -w)
+elseif(MSVC)
+    target_compile_options(fathom PRIVATE /w)
+endif()
 
 # Core board library — shared by the engine, tests, and benchmarks
 set(BOARD_SOURCES
@@ -27,8 +42,9 @@ target_include_directories(basilisk_board PUBLIC
 add_library(basilisk_engine STATIC
     src/eval.cpp
     src/search.cpp
+    src/syzygy.cpp
 )
-target_link_libraries(basilisk_engine PUBLIC basilisk_board)
+target_link_libraries(basilisk_engine PUBLIC basilisk_board PRIVATE fathom)
 
 # ---------------------------------------------------------------------------
 # Executables

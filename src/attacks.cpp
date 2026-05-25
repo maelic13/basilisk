@@ -3,6 +3,10 @@
 #include <cassert>
 #include <algorithm>
 
+#if defined(USE_PEXT)
+#  include <immintrin.h>
+#endif
+
 Bitboard KnightAttacks[SQUARE_NB];
 Bitboard KingAttacks[SQUARE_NB];
 Bitboard PawnAttacks[NCOLORS][SQUARE_NB];
@@ -23,6 +27,7 @@ static MagicEntry BishopMagics[SQUARE_NB];
 static Bitboard RookTable[102400];
 static Bitboard BishopTable[5248];
 
+#if !defined(USE_PEXT)
 // ---- splitmix64 PRNG -------------------------------------------------------
 static uint64_t sm64_state;
 static uint64_t sm64_next() {
@@ -32,6 +37,7 @@ static uint64_t sm64_next() {
     return z ^ (z >> 31);
 }
 static uint64_t sparse64() { return sm64_next() & sm64_next() & sm64_next(); }
+#endif
 
 // ---- Slow attack generators (for magic finding) ----------------------------
 static Bitboard rook_mask(Square sq) {
@@ -74,6 +80,7 @@ static Bitboard bishop_attacks_slow(Square sq, Bitboard occ) {
     return att;
 }
 
+#if !defined(USE_PEXT)
 // ---- Magic finding ---------------------------------------------------------
 static bool try_magic(Bitboard mask, uint64_t magic, int shift, bool bishop, Square sq,
                       Bitboard* table, int tableSize) {
@@ -116,21 +123,50 @@ static void find_magic(Square sq, bool bishop, MagicEntry& entry, Bitboard* tabl
     }
     assert(false && "Failed to find magic number");
 }
+#endif
+
+#if defined(USE_PEXT)
+static void init_pext_table(Square sq, bool bishop, MagicEntry& entry, Bitboard* table) {
+    Bitboard mask = bishop ? bishop_mask(sq) : rook_mask(sq);
+
+    entry.mask    = mask;
+    entry.magic   = 0;
+    entry.shift   = 0;
+    entry.attacks = table;
+
+    Bitboard occ = 0;
+    do {
+        size_t idx = static_cast<size_t>(_pext_u64(occ, mask));
+        table[idx] = bishop ? bishop_attacks_slow(sq, occ) : rook_attacks_slow(sq, occ);
+        occ = (occ - mask) & mask;
+    } while (occ);
+}
+#endif
 
 // ---- Public attack functions -----------------------------------------------
 Bitboard bishop_attacks(Square sq, Bitboard occ) {
     const MagicEntry& e = BishopMagics[sq];
+#if defined(USE_PEXT)
+    return e.attacks[_pext_u64(occ, e.mask)];
+#else
     return e.attacks[((occ & e.mask) * e.magic) >> e.shift];
+#endif
 }
 
 Bitboard rook_attacks(Square sq, Bitboard occ) {
     const MagicEntry& e = RookMagics[sq];
+#if defined(USE_PEXT)
+    return e.attacks[_pext_u64(occ, e.mask)];
+#else
     return e.attacks[((occ & e.mask) * e.magic) >> e.shift];
+#endif
 }
 
 // ---- init_attacks ----------------------------------------------------------
 void init_attacks() {
+#if !defined(USE_PEXT)
     sm64_state = 1234567890123ULL;
+#endif
 
     // Knight attacks
     for (int s = 0; s < 64; s++) {
@@ -178,14 +214,22 @@ void init_attacks() {
     // Bishop magic tables — compute offsets
     int offset = 0;
     for (int s = 0; s < 64; s++) {
+#if defined(USE_PEXT)
+        init_pext_table(Square(s), true, BishopMagics[s], BishopTable + offset);
+#else
         find_magic(Square(s), true, BishopMagics[s], BishopTable + offset);
+#endif
         offset += 1 << popcount(bishop_mask(Square(s)));
     }
 
     // Rook magic tables
     offset = 0;
     for (int s = 0; s < 64; s++) {
+#if defined(USE_PEXT)
+        init_pext_table(Square(s), false, RookMagics[s], RookTable + offset);
+#else
         find_magic(Square(s), false, RookMagics[s], RookTable + offset);
+#endif
         offset += 1 << popcount(rook_mask(Square(s)));
     }
 }

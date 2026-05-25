@@ -14,6 +14,7 @@
 #include "eval.h"
 #include "move.h"
 #include "search.h"
+#include "syzygy.h"
 #include "tt.h"
 #include "zobrist.h"
 #include "test_harness.h"
@@ -417,6 +418,19 @@ static void test_command_queue_priority() {
     end_section();
 }
 
+static void test_syzygy_disabled_without_path() {
+    Syzygy::clear();
+
+    Board board;
+    board.set_fen("6k1/8/8/8/8/8/8/6KQ w - - 0 1");
+
+    begin_section("syzygy: disabled without configured path");
+    EXPECT(!Syzygy::enabled());
+    EXPECT(!Syzygy::can_probe_root(board));
+    EXPECT(!Syzygy::probe_root(board, true).has_value());
+    end_section();
+}
+
 // ---------------------------------------------------------------------------
 // main
 // ---------------------------------------------------------------------------
@@ -470,6 +484,9 @@ int main() {
 
     std::printf("\nCommand queue\n");
     test_command_queue_priority();
+
+    std::printf("\nSyzygy\n");
+    test_syzygy_disabled_without_path();
 
     return harness_summary();
 }

@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.0] - 2026-05-25
+
+### Added
+
+#### Tablebases
+- Added optional Syzygy tablebase support via the vendored MIT-licensed Fathom probe library
+- Added root DTZ/WDL tablebase move selection before normal search when `SyzygyPath` is configured
+- Added non-root WDL probes in search, limited to positions where the 50-move counter can be handled safely
+- Added `SyzygyPath`, `SyzygyProbeDepth`, and `Syzygy50MoveRule` UCI options
+- Added `tbhits` reporting to UCI search info
+
+### Changed
+
+#### Version
+- Bumped engine version metadata to 1.3.0
+
+#### Build / Release
+- Removed Intel macOS release assets; macOS releases now target Apple Silicon only
+- Kept x86_64 release assets for generic, AVX2, and PEXT builds on Linux and Windows
+- PEXT builds now use BMI2 PEXT sliding-piece attack lookup instead of only enabling BMI2 compiler code generation
+- AVX2 startup checks now compose correctly with PEXT when both feature flags are enabled
+
+#### Search / Evaluation
+- Internal iterative reductions now avoid PV nodes, preserving depth on the principal variation
+- Added protected/candidate passed-pawn evaluation and lightweight passed-pawn advance bonuses
+- Added enemy pawn-storm pressure against castled or flank kings
+
+---
+
 ## [1.2.3] - 2026-05-23
 
 ### Fixed
@@ -149,6 +178,7 @@ First public release.
 - `bench [depth]` command — 16-position built-in benchmark, prints per-position NPS and total node-count fingerprint
 - GitHub Actions release workflow — builds for Linux x86_64, Linux aarch64, Windows x86_64, Windows aarch64, macOS aarch64; all built with Clang; PEXT variant produced for x86_64 platforms
 
+[1.3.0]: https://github.com/maelic13/basilisk/compare/v1.2.3...v1.3.0
 [1.2.3]: https://github.com/maelic13/basilisk/compare/v1.2.2...v1.2.3
 [1.2.2]: https://github.com/maelic13/basilisk/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/maelic13/basilisk/compare/v1.2.0...v1.2.1

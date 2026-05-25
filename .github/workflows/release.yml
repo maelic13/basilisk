@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: Existing release tag to upload assets to (for example v1.2.3)
+        description: Existing release tag to upload assets to (for example v1.3.0)
         required: true
         type: string
   release:
@@ -91,27 +91,6 @@ jobs:
             mingw_pkg_prefix: mingw-w64-clang-aarch64
             compiler_pkg: clang
 
-          - runner: macos-13
-            os_name: macos
-            arch: x86_64
-            ext: ""
-            preset: release
-            asset_suffix: ""
-
-          - runner: macos-13
-            os_name: macos
-            arch: x86_64
-            ext: ""
-            preset: release-avx2
-            asset_suffix: "-avx2"
-
-          - runner: macos-13
-            os_name: macos
-            arch: x86_64
-            ext: ""
-            preset: release-pext
-            asset_suffix: "-pext"
-
           - runner: macos-latest
             os_name: macos
             arch: aarch64
@@ -183,7 +162,7 @@ jobs:
           echo "$output"
           echo "$output" | grep -q "uciok"   || { echo "FAIL: uciok not found";   exit 1; }
           tag="$RELEASE_TAG"
-          version="${tag#v}"  # strip leading 'v' (e.g. "v1.2.3" -> "1.2.3")
+          version="${tag#v}"  # strip leading 'v' (e.g. "v1.3.0" -> "1.3.0")
           echo "$output" | grep -qF "$version" || { echo "FAIL: version $version not found"; exit 1; }
           echo "Smoke test passed"
 

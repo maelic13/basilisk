@@ -22,6 +22,9 @@ public:
     int64_t nodes;          // node limit (0 = unlimited)
     int     movestogo;      // moves until next time control (0 = sudden death)
     bool    ponder;         // go ponder mode
+    std::string syzygyPath; // semicolon-separated Syzygy tablebase paths
+    int     syzygyProbeDepth;
+    bool    syzygy50MoveRule;
 
     bool new_game    = false;  // set by "ucinewgame", cleared after engine processes it
     bool clear_hash  = false;  // set by "setoption name Clear Hash", cleared after engine clears TT

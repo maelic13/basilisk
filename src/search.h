@@ -68,6 +68,7 @@ struct SearchLimits {
     int root_filter_count = 1;
     int thread_id = 0;
     int thread_count = 1;
+    int syzygy_probe_depth = 0; // 0 = disabled
     RootMoveTable* root_table = nullptr;
 };
 
@@ -77,6 +78,7 @@ struct SearchResult {
     int     score      = 0;
     int     depth      = 0;
     int64_t nodes      = 0;
+    int64_t tbhits     = 0;
     int64_t elapsed_ms = 0;
 };
 
@@ -103,6 +105,7 @@ private:
 
     Board*   board_ptr_;
     int64_t  nodes_;
+    int64_t  tb_hits_;
     int64_t  nodes_limit_;  // 0 = unlimited
     int      sel_depth_;
     bool     stopped_;

@@ -496,12 +496,12 @@ static void test_draw_detection() {
     Board b;
 
     begin_section("50-move rule: halfmove_clock = 100");
-    b.set_fen("4k3/8/8/8/8/8/8/4K3 w - - 100 50");
+    b.set_fen("4k3/8/8/8/8/8/4P3/4K3 w - - 100 50");
     EXPECT(b.is_draw());
     end_section();
 
     begin_section("50-move rule: halfmove_clock = 99");
-    b.set_fen("4k3/8/8/8/8/8/8/4K3 w - - 99 50");
+    b.set_fen("4k3/8/8/8/8/8/4P3/4K3 w - - 99 50");
     EXPECT(!b.is_draw());
     end_section();
 

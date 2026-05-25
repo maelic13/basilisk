@@ -147,6 +147,11 @@ static const int* EG_PST[PIECE_TYPE_NB] = {
     EG_ROOK_PST, EG_QUEEN_PST, EG_KING_PST
 };
 
+static Square forward_square(Color c, Square sq) {
+    const int to = int(sq) + (c == WHITE ? 8 : -8);
+    return (to >= 0 && to < 64) ? Square(to) : SQ_NONE;
+}
+
 void init_eval_tables() {
     for (int pt = PAWN; pt <= KING; pt++) {
         for (int sq = 0; sq < 64; sq++) {
@@ -223,6 +228,19 @@ void Evaluator::eval_pawns(const Board& b,
                 int rel_r = (us == WHITE) ? r : 7 - r;
                 mg += sign * PASSED_MG[rel_r];
                 eg += sign * PASSED_EG[rel_r];
+                if (PawnAttacks[them][sq] & our_pawns) {
+                    mg += sign * 8;
+                    eg += sign * (6 + rel_r * 4);
+                }
+            } else {
+                const int rel_r = (us == WHITE) ? r : 7 - r;
+                Bitboard adj_bb = BB_ADJACENT_FILES[f];
+                if (rel_r >= 3
+                    && (PawnAttacks[them][sq] & our_pawns)
+                    && !(their_pawns & adj_bb & BB_FORWARD_RANKS[us][r])) {
+                    mg += sign * 6;
+                    eg += sign * 10;
+                }
             }
 
             Bitboard file_bb = BB_FILES[f];
@@ -301,6 +319,29 @@ int Evaluator::evaluate(const Board& b) {
     eval_pawns(b, pmg, peg, passed, pawn_atk);
     mg += pmg;
     eg += peg;
+
+    // ---- Dynamic passed-pawn terms ---------------------------------------
+    // These depend on non-pawn occupancy/attacks, so they stay out of the
+    // pawn hash.
+    for (int c = 0; c < NCOLORS; c++) {
+        Color us   = Color(c);
+        Color them = ~us;
+        int sign   = (us == WHITE) ? 1 : -1;
+        Bitboard pp = passed[c];
+        while (pp) {
+            Square psq = Square(pop_lsb(pp));
+            Square stop = forward_square(us, psq);
+            if (stop == SQ_NONE || (b.all_occ & sq_bb(stop)))
+                continue;
+
+            int rel_r = relative_rank(us, psq);
+            mg += sign * (rel_r * 2);
+            eg += sign * (rel_r * 6);
+
+            if (!(pawn_atk[them] & sq_bb(stop)))
+                eg += sign * (rel_r * 8);
+        }
+    }
 
     // ---- Bishop pair ----
     for (int c = 0; c < NCOLORS; c++) {
@@ -496,6 +537,23 @@ int Evaluator::evaluate(const Board& b) {
                         else if (dist == 2) { mg += sign *  7; }
                     }
                 }
+            }
+        }
+
+        Bitboard storm_files = 0;
+        for (int df = -1; df <= 1; df++) {
+            int f = kf + df;
+            if (f >= FILE_A && f <= FILE_H)
+                storm_files |= BB_FILES[f];
+        }
+
+        Bitboard storm = b.pieces[~us][PAWN] & storm_files;
+        while (storm) {
+            Square psq = Square(pop_lsb(storm));
+            int rel_r = relative_rank(~us, psq);
+            if (rel_r >= 3) {
+                int weight = (file_of(psq) == kf) ? 7 : 4;
+                mg -= sign * rel_r * weight;
             }
         }
     }

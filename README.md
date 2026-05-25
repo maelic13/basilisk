@@ -22,6 +22,7 @@ A UCI chess engine written in C++23.
 - Singular extensions
 - Check extension — extend by 1 ply when in check
 - Mate-distance handling that continues past the first forced mate to prefer shorter mates
+- Optional Syzygy tablebase probing at the root and in search
 - Quiescence search with in-check evasion
 - Static Exchange Evaluation (SEE) for capture pruning and bad-capture reductions
 
@@ -60,6 +61,9 @@ A UCI chess engine written in C++23.
 | `Hash`         | spin   | 64      | 1 – 33554432 | Transposition table size in MB                |
 | `Clear Hash`   | button | —       | —         | Clears the transposition table immediately    |
 | `Move Overhead`| spin   | 10      | 0 – 5000  | Extra latency to subtract from clock (ms)     |
+| `SyzygyPath`   | string | `<empty>` | —       | Semicolon-separated Syzygy tablebase directories; empty disables probing |
+| `SyzygyProbeDepth` | spin | 1    | 1 – 100   | Minimum remaining search depth for non-root WDL probes |
+| `Syzygy50MoveRule` | check | true | —        | Respect the 50-move rule in root tablebase move ranking |
 
 ---
 
@@ -94,9 +98,13 @@ GitHub release assets keep the x86_64 choices intentionally small:
 |---|---|---|
 | none | Generic target architecture | Safest default choice |
 | `avx2` | x86_64 with AVX2 | Modern Intel/AMD x86_64 CPUs |
-| `pext` | x86_64 with BMI2/PEXT | Usually fastest when supported |
+| `pext` | x86_64 with BMI2/PEXT | Uses PEXT sliding-piece attack lookup; benchmark against `avx2` on your CPU |
 
 The x86 feature builds check CPU support at startup and print a clear error if the host CPU cannot run that binary.
+
+Release builds are produced for Linux x86_64, Linux aarch64, Windows x86_64,
+Windows aarch64, and macOS aarch64. Intel macOS and AVX-512 release assets are
+not published.
 
 ### Linux / macOS
 
@@ -151,6 +159,10 @@ position startpos moves e2e4 e7e5
 go movetime 5000
 ```
 
+To use Syzygy tablebases, set `SyzygyPath` to the directory containing `.rtbw`
+and `.rtbz` files before starting a search. With an empty path, tablebase code is
+disabled and normal playing strength is unchanged.
+
 ### Supported UCI commands
 
 | Command | Notes |
@@ -189,4 +201,5 @@ Release CI runs the CTest suite before uploading binaries, then performs UCI smo
 
 ## License
 
-GPL-3.0-or-later. See [LICENSE](LICENSE).
+GPL-3.0-or-later. See [LICENSE](LICENSE). Syzygy probing uses the vendored
+MIT-licensed Fathom library under [external/fathom/LICENSE](external/fathom/LICENSE).

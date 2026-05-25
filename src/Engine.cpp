@@ -1,4 +1,5 @@
 #include <iostream>
+#include <cstdlib>
 #include <string>
 #include <thread>
 
@@ -6,6 +7,7 @@
 #include "Engine.h"
 #include "UciOutput.h"
 #include "bench.h"
+#include "syzygy.h"
 
 Engine::Engine(EngineCommandQueue& commands,
                std::atomic_bool& stop_requested,
@@ -38,10 +40,61 @@ SearchLimits Engine::build_limits() const {
     limits.nodes     = parameters_.nodes;
     limits.overhead  = parameters_.moveOverhead;
     limits.ponder    = parameters_.ponder;
+    limits.syzygy_probe_depth = Syzygy::enabled() ? parameters_.syzygyProbeDepth : 0;
     limits.infinite  = (parameters_.depth == infiniteDepth && parameters_.moveTime == 0
                         && parameters_.whiteTime == 0 && parameters_.blackTime == 0
                         && !parameters_.ponder);
     return limits;
+}
+
+void Engine::configure_syzygy() {
+    if (parameters_.syzygyPath == current_syzygy_path_)
+        return;
+
+    current_syzygy_path_ = parameters_.syzygyPath;
+    const bool ok = Syzygy::init(current_syzygy_path_);
+
+    if (current_syzygy_path_.empty()) {
+        uci_write_line("info string Syzygy disabled");
+    } else if (!ok) {
+        uci_write_line("info string Syzygy initialization failed for path: "
+                       + current_syzygy_path_);
+    } else if (!Syzygy::enabled()) {
+        uci_write_line("info string Syzygy path set but no tablebase files were found");
+    } else {
+        uci_write_line("info string Syzygy loaded up to "
+                       + std::to_string(Syzygy::largest()) + " pieces");
+    }
+}
+
+static std::string uci_score(int score) {
+    if (std::abs(score) >= MATE_SCORE - MAX_PLY) {
+        int mtm = (MATE_SCORE - std::abs(score) + 1) / 2;
+        return "mate " + std::to_string(score > 0 ? mtm : -mtm);
+    }
+    return "cp " + std::to_string(score);
+}
+
+bool Engine::try_syzygy_root_probe(const Board& board, SearchResult& result) const {
+    if (!Syzygy::enabled())
+        return false;
+
+    auto tb = Syzygy::probe_root(board, parameters_.syzygy50MoveRule);
+    if (!tb || tb->bestmove == MOVE_NONE)
+        return false;
+
+    result.bestmove = tb->bestmove;
+    result.pondermove = MOVE_NONE;
+    result.score = tb->score;
+    result.depth = 1;
+    result.nodes = 0;
+    result.tbhits = 1;
+    result.elapsed_ms = 0;
+
+    uci_write_line("info depth 1 seldepth 1 score " + uci_score(result.score)
+                   + " nodes 0 nps 0 time 0 tbhits 1 hashfull " + std::to_string(tt.hashfull())
+                   + " pv " + move_to_uci(result.bestmove));
+    return true;
 }
 
 void Engine::send_bestmove(const SearchResult& result, const Board& root_board) const {
@@ -83,6 +136,8 @@ void Engine::wait_until_bestmove_allowed(const SearchLimits& limits,
 }
 
 void Engine::start_search(uint64_t command_epoch) {
+    configure_syzygy();
+
     SearchLimits limits = build_limits();
     const int desired_hash_mb = parameters_.hash_mb;
     const int desired_threads = parameters_.threads;
@@ -116,7 +171,9 @@ void Engine::start_search(uint64_t command_epoch) {
 
     searching_.store(true, std::memory_order_release);
 
-    SearchResult result = search_pool_.search(board_copy, limits, desired_threads);
+    SearchResult result;
+    if (!try_syzygy_root_probe(board_copy, result))
+        result = search_pool_.search(board_copy, limits, desired_threads);
     wait_until_bestmove_allowed(limits, command_epoch);
 
     if (command_epoch == 0
@@ -147,6 +204,7 @@ void Engine::handle_command(const EngineCommand& command, bool& quit) {
     switch (command.type) {
         case EngineCommandType::SetOption:
             parameters_.setOption(command.args);
+            configure_syzygy();
             break;
         case EngineCommandType::Position:
             parameters_.setPosition(command.args);

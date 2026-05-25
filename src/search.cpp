@@ -1,4 +1,5 @@
 #include "search.h"
+#include "syzygy.h"
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -13,6 +14,24 @@
 
 int  Searcher::LMR_TABLE[64][64];
 bool Searcher::lmr_init_ = false;
+
+static constexpr int TB_WIN_SCORE = MATE_SCORE - MAX_PLY - 1;
+
+static int score_from_syzygy_wdl(Syzygy::Wdl wdl, int ply) {
+    switch (wdl) {
+        case Syzygy::Wdl::Win:
+            return TB_WIN_SCORE - ply;
+        case Syzygy::Wdl::CursedWin:
+            return 2;
+        case Syzygy::Wdl::Draw:
+            return 0;
+        case Syzygy::Wdl::BlessedLoss:
+            return -2;
+        case Syzygy::Wdl::Loss:
+            return -TB_WIN_SCORE + ply;
+    }
+    return 0;
+}
 
 void Searcher::init_lmr() {
     if (lmr_init_) return;
@@ -166,6 +185,7 @@ Searcher::Searcher(TranspositionTable& tt,
     , info_cb_(info_cb)
     , board_ptr_(nullptr)
     , nodes_(0)
+    , tb_hits_(0)
     , nodes_limit_(0)
     , sel_depth_(0)
     , stopped_(false)
@@ -583,6 +603,7 @@ void Searcher::send_info(int depth, int score, int64_t total_nodes, double elaps
     line += " nodes " + std::to_string(total_nodes)
          + " nps "   + std::to_string(nps)
          + " time "  + std::to_string(int64_t(elapsed * 1000))
+         + " tbhits " + std::to_string(tb_hits_)
          + " hashfull " + std::to_string(tt_.hashfull());
 
     if (pv_len_[0] > 0) {
@@ -736,6 +757,18 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
     if (!is_root && board_ptr_->is_draw()) return 0;
 
+    if (!is_root && ss->excluded == MOVE_NONE
+        && active_limits_.syzygy_probe_depth > 0
+        && depth >= active_limits_.syzygy_probe_depth) {
+        if (auto wdl = Syzygy::probe_wdl(*board_ptr_)) {
+            tb_hits_++;
+            const int tb_score = score_from_syzygy_wdl(*wdl, ply);
+            tt_.store(board_ptr_->hash, depth, tb_score, TT_EXACT, MOVE_NONE, ply,
+                      TranspositionTable::INF_EVAL);
+            return tb_score;
+        }
+    }
+
     bool in_check = board_ptr_->is_in_check();
 
     // Check extension: when the side to move is in check, extend by 1 ply.
@@ -868,8 +901,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         }
     }
 
-    // IIR: reduce depth when no TT move (or stale TT entry) to guide the search
-    if (depth >= 4 && (tt_move == MOVE_NONE || (tt_found && tt_depth < depth - 3))) depth--;
+    // IIR: reduce non-PV nodes when no TT move (or a stale TT entry) guides the search.
+    if (!is_pv && depth >= 4 && (tt_move == MOVE_NONE || (tt_found && tt_depth < depth - 3)))
+        depth--;
 
     int  orig_alpha  = alpha;
     Move best_move   = MOVE_NONE;
@@ -1108,6 +1142,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 SearchResult Searcher::search(Board board, const SearchLimits& limits) {
     board_ptr_    = &board;
     nodes_        = 0;
+    tb_hits_      = 0;
     nodes_limit_  = limits.nodes;
     sel_depth_    = 0;
     stopped_      = false;
@@ -1237,6 +1272,7 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
     root_table_ = nullptr;
     pondering_ = false;
     result.nodes      = nodes_;
+    result.tbhits     = tb_hits_;
     result.elapsed_ms = int64_t(elapsed_seconds() * 1000.0);
     return result;
 }
@@ -1330,10 +1366,12 @@ SearchResult SearchThreadPool::merge_results(const std::vector<SearchResult>& re
                                              int64_t elapsed_ms) const {
     SearchResult best = root_table.best_result();
     int64_t total_nodes = 0;
+    int64_t total_tbhits = 0;
 
     for (int i = 0; i < count; ++i) {
         const SearchResult& result = results[static_cast<size_t>(i)];
         total_nodes += result.nodes;
+        total_tbhits += result.tbhits;
 
         if (result.bestmove == MOVE_NONE || !root_table.contains(result.bestmove))
             continue;
@@ -1352,6 +1390,7 @@ SearchResult SearchThreadPool::merge_results(const std::vector<SearchResult>& re
         best.bestmove = root_table.fallback_move();
 
     best.nodes = total_nodes;
+    best.tbhits = total_tbhits;
     best.elapsed_ms = elapsed_ms;
     return best;
 }
