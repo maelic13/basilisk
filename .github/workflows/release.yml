@@ -28,6 +28,7 @@ jobs:
             arch: x86_64
             ext: ""
             preset: release
+            compiler: clang
             asset_suffix: ""
 
           - runner: ubuntu-latest
@@ -35,6 +36,7 @@ jobs:
             arch: x86_64
             ext: ""
             preset: release-avx2
+            compiler: clang
             asset_suffix: "-avx2"
 
           - runner: ubuntu-latest
@@ -42,6 +44,7 @@ jobs:
             arch: x86_64
             ext: ""
             preset: release-pext
+            compiler: clang
             asset_suffix: "-pext"
 
           - runner: ubuntu-24.04-arm
@@ -49,6 +52,7 @@ jobs:
             arch: aarch64
             ext: ""
             preset: release
+            compiler: clang
             asset_suffix: ""
 
           - runner: windows-latest
@@ -56,6 +60,7 @@ jobs:
             arch: x86_64
             ext: ".exe"
             preset: release
+            compiler: clang
             asset_suffix: ""
             msystem: CLANG64
             mingw_pkg_prefix: mingw-w64-clang-x86_64
@@ -66,6 +71,7 @@ jobs:
             arch: x86_64
             ext: ".exe"
             preset: release-avx2
+            compiler: clang
             asset_suffix: "-avx2"
             msystem: CLANG64
             mingw_pkg_prefix: mingw-w64-clang-x86_64
@@ -76,6 +82,7 @@ jobs:
             arch: x86_64
             ext: ".exe"
             preset: release-pext
+            compiler: clang
             asset_suffix: "-pext"
             msystem: CLANG64
             mingw_pkg_prefix: mingw-w64-clang-x86_64
@@ -86,6 +93,7 @@ jobs:
             arch: aarch64
             ext: ".exe"
             preset: release
+            compiler: clang
             asset_suffix: ""
             msystem: CLANGARM64
             mingw_pkg_prefix: mingw-w64-clang-aarch64
@@ -96,6 +104,7 @@ jobs:
             arch: aarch64
             ext: ""
             preset: release
+            compiler: clang
             asset_suffix: ""
 
     steps:
@@ -123,18 +132,15 @@ jobs:
 
       - name: Configure and build (Linux / macOS)
         if: runner.os != 'Windows'
-        env:
-          CC: clang
-          CXX: clang++
         run: |
-          cmake --preset ${{ matrix.preset }} -DPORTABLE_BUILD=ON
+          cmake --preset ${{ matrix.preset }} -DPORTABLE_BUILD=ON -DCOMP=${{ matrix.compiler }}
           cmake --build --preset ${{ matrix.preset }}
 
       - name: Configure and build (Windows)
         if: runner.os == 'Windows'
         shell: msys2 {0}
         run: |
-          cmake --preset ${{ matrix.preset }} -DPORTABLE_BUILD=ON
+          cmake --preset ${{ matrix.preset }} -DPORTABLE_BUILD=ON -DCOMP=${{ matrix.compiler }}
           cmake --build --preset ${{ matrix.preset }}
 
       - name: Run tests (Linux / macOS)

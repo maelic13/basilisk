@@ -1,6 +1,46 @@
 cmake_minimum_required(VERSION 3.24)
 
-project(basilisk VERSION 1.4.0 LANGUAGES CXX)
+set(COMP "auto" CACHE STRING "Compiler selection: auto, clang, gcc, or llvm")
+set_property(CACHE COMP PROPERTY STRINGS auto clang gcc llvm)
+
+string(TOLOWER "${COMP}" _basilisk_compiler)
+string(REPLACE "_" "-" _basilisk_compiler "${_basilisk_compiler}")
+
+if(_basilisk_compiler STREQUAL "auto")
+    set(_basilisk_compiler "clang")
+endif()
+
+if(_basilisk_compiler STREQUAL "llvm")
+    if(NOT CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin" OR NOT CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "arm64")
+        message(FATAL_ERROR "COMP=llvm is only supported on Apple Silicon macOS.")
+    endif()
+    set(_basilisk_llvm_prefix "/opt/homebrew/opt/llvm")
+    if(NOT EXISTS "${_basilisk_llvm_prefix}/bin/clang++")
+        message(FATAL_ERROR "Homebrew LLVM was not found. Install it with: brew install llvm")
+    endif()
+    set(CMAKE_C_COMPILER "${_basilisk_llvm_prefix}/bin/clang" CACHE FILEPATH "C compiler" FORCE)
+    set(CMAKE_CXX_COMPILER "${_basilisk_llvm_prefix}/bin/clang++" CACHE FILEPATH "C++ compiler" FORCE)
+    set(CMAKE_AR "${_basilisk_llvm_prefix}/bin/llvm-ar" CACHE FILEPATH "Archive tool" FORCE)
+    set(CMAKE_RANLIB "${_basilisk_llvm_prefix}/bin/llvm-ranlib" CACHE FILEPATH "Archive index tool" FORCE)
+elseif(_basilisk_compiler STREQUAL "clang")
+    set(CMAKE_C_COMPILER "clang" CACHE FILEPATH "C compiler" FORCE)
+    set(CMAKE_CXX_COMPILER "clang++" CACHE FILEPATH "C++ compiler" FORCE)
+elseif(_basilisk_compiler STREQUAL "gcc")
+    set(CMAKE_C_COMPILER "gcc" CACHE FILEPATH "C compiler" FORCE)
+    set(CMAKE_CXX_COMPILER "g++" CACHE FILEPATH "C++ compiler" FORCE)
+else()
+    message(FATAL_ERROR "Unsupported COMP='${COMP}'. Use auto, clang, gcc, or llvm.")
+endif()
+
+set(COMP "${_basilisk_compiler}" CACHE STRING "Compiler selection: auto, clang, gcc, or llvm" FORCE)
+
+project(basilisk VERSION 1.4.1 LANGUAGES CXX)
+
+if(APPLE AND NOT CMAKE_SYSTEM_PROCESSOR MATCHES "arm64|aarch64")
+    message(FATAL_ERROR "Basilisk macOS builds support Apple Silicon only; Intel macOS is not supported.")
+endif()
+
+message(STATUS "Basilisk compiler selection: ${COMP}")
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

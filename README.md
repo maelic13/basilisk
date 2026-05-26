@@ -71,7 +71,7 @@ A UCI chess engine written in C++23.
 ## Building
 
 Basilisk uses **CMake ≥ 3.24** with [CMake presets](CMakePresets.json) for all common configurations.
-Both GCC and Clang are fully supported; use `bench` to measure which produces a faster binary on your CPU — results vary by microarchitecture and compiler version.
+GCC, Clang, and LLVM are supported where available; use `bench` to measure which produces a faster binary on your CPU because results vary by microarchitecture and compiler version.
 
 ### Prerequisites
 
@@ -80,6 +80,45 @@ Both GCC and Clang are fully supported; use `bench` to measure which produces a 
 | CMake | 3.24 |
 | Ninja | any |
 | GCC ≥ 11 or Clang ≥ 16 | (C++23 required) |
+
+### Compiler Selection
+
+The presets use `COMP=auto` by default:
+
+| Platform | `auto` compiler |
+|---|---|
+| Apple Silicon macOS | Clang from `PATH` (normally AppleClang) |
+| Linux | Clang |
+| Windows / MSYS2 | Clang |
+
+Intel macOS is intentionally not supported. Apple Silicon macOS local builds use
+AppleClang by default because it is available with Xcode Command Line Tools.
+Official macOS release assets use AppleClang for the same compatibility reason.
+
+Install the usual macOS build tools with:
+
+```bash
+brew install ninja cmake
+```
+
+Install LLVM too if you want to compare NPS locally:
+
+```bash
+brew install llvm
+```
+
+You can override the compiler when configuring a fresh build directory with a
+CMake cache variable:
+
+```bash
+cmake --preset release -DCOMP=clang
+cmake --preset release -DCOMP=gcc
+cmake --preset release -DCOMP=llvm
+```
+
+Supported values are `auto`, `clang`, `gcc`, and `llvm`. If you change
+compiler selection, remove the existing build directory first so CMake does not
+reuse the old compiler cache.
 
 ### Presets
 

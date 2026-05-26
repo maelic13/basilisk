@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.1] - 2026-05-26
+
+### Added
+
+#### Build / Release
+- Added `COMP=auto|clang|gcc|llvm` compiler selection for CMake configuration
+
+### Changed
+
+#### Build / Release
+- Local `COMP=auto` builds now default to Clang on all supported platforms, including AppleClang on macOS
+- GitHub Actions now passes compiler selection explicitly for every release asset
+- Linux and Windows release assets continue to use Clang explicitly
+- macOS release assets continue to use AppleClang for compatibility
+- Intel macOS builds now fail early because macOS release support is Apple Silicon only
+
+#### Documentation
+- Documented compiler selection, Apple Silicon defaults, and optional Homebrew LLVM comparison builds
+
+#### Version
+- Bumped engine version metadata to 1.4.1
+
+---
+
 ## [1.4.0] - 2026-05-25
 
 ### Added
@@ -211,6 +235,7 @@ First public release.
 - `bench [depth]` command — 16-position built-in benchmark, prints per-position NPS and total node-count fingerprint
 - GitHub Actions release workflow — builds for Linux x86_64, Linux aarch64, Windows x86_64, Windows aarch64, macOS aarch64; all built with Clang; PEXT variant produced for x86_64 platforms
 
+[1.4.1]: https://github.com/maelic13/basilisk/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/maelic13/basilisk/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/maelic13/basilisk/compare/v1.2.3...v1.3.0
 [1.2.3]: https://github.com/maelic13/basilisk/compare/v1.2.2...v1.2.3
