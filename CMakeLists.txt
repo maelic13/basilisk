@@ -6,13 +6,35 @@ set_property(CACHE COMP PROPERTY STRINGS auto clang gcc llvm)
 string(TOLOWER "${COMP}" _basilisk_compiler)
 string(REPLACE "_" "-" _basilisk_compiler "${_basilisk_compiler}")
 
+function(_basilisk_detect_darwin_processor out_var system_name processor)
+    set(_processor "${processor}")
+    if("${system_name}" STREQUAL "Darwin" AND _processor STREQUAL "")
+        execute_process(
+            COMMAND uname -m
+            RESULT_VARIABLE _uname_result
+            OUTPUT_VARIABLE _uname_processor
+            ERROR_QUIET
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+        if(_uname_result STREQUAL "0")
+            set(_processor "${_uname_processor}")
+        endif()
+    endif()
+    string(TOLOWER "${_processor}" _processor)
+    set("${out_var}" "${_processor}" PARENT_SCOPE)
+endfunction()
+
 if(_basilisk_compiler STREQUAL "auto")
     set(_basilisk_compiler "clang")
 endif()
 
 if(_basilisk_compiler STREQUAL "llvm")
-    if(NOT CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin" OR NOT CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "arm64")
-        message(FATAL_ERROR "COMP=llvm is only supported on Apple Silicon macOS.")
+    _basilisk_detect_darwin_processor(_basilisk_host_processor "${CMAKE_HOST_SYSTEM_NAME}" "${CMAKE_HOST_SYSTEM_PROCESSOR}")
+    if(NOT CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin" OR NOT _basilisk_host_processor MATCHES "^(arm64|aarch64)$")
+        message(FATAL_ERROR
+            "COMP=llvm is only supported on Apple Silicon macOS. "
+            "Detected host: ${CMAKE_HOST_SYSTEM_NAME}/${_basilisk_host_processor}"
+        )
     endif()
     set(_basilisk_llvm_prefix "/opt/homebrew/opt/llvm")
     if(NOT EXISTS "${_basilisk_llvm_prefix}/bin/clang++")
@@ -34,10 +56,14 @@ endif()
 
 set(COMP "${_basilisk_compiler}" CACHE STRING "Compiler selection: auto, clang, gcc, or llvm" FORCE)
 
-project(basilisk VERSION 1.4.1 LANGUAGES CXX)
+project(basilisk VERSION 1.4.2 LANGUAGES CXX)
 
-if(APPLE AND NOT CMAKE_SYSTEM_PROCESSOR MATCHES "arm64|aarch64")
-    message(FATAL_ERROR "Basilisk macOS builds support Apple Silicon only; Intel macOS is not supported.")
+_basilisk_detect_darwin_processor(_basilisk_system_processor "${CMAKE_SYSTEM_NAME}" "${CMAKE_SYSTEM_PROCESSOR}")
+if(APPLE AND NOT _basilisk_system_processor MATCHES "^(arm64|aarch64)$")
+    message(FATAL_ERROR
+        "Basilisk macOS builds support Apple Silicon only; Intel macOS is not supported. "
+        "Detected target: ${CMAKE_SYSTEM_NAME}/${_basilisk_system_processor}"
+    )
 endif()
 
 message(STATUS "Basilisk compiler selection: ${COMP}")

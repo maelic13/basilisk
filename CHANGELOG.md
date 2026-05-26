@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.2] - 2026-05-26
+
+### Fixed
+
+#### Build / Release
+- Fixed `COMP=llvm` configuration on Apple Silicon macOS when CMake reports an empty host or target processor before compiler detection
+- Improved Apple Silicon macOS build rejection diagnostics to include the detected host or target platform
+
+### Changed
+
+#### Version
+- Bumped engine version metadata to 1.4.2
+
+---
+
 ## [1.4.1] - 2026-05-26
 
 ### Added
@@ -235,6 +250,7 @@ First public release.
 - `bench [depth]` command — 16-position built-in benchmark, prints per-position NPS and total node-count fingerprint
 - GitHub Actions release workflow — builds for Linux x86_64, Linux aarch64, Windows x86_64, Windows aarch64, macOS aarch64; all built with Clang; PEXT variant produced for x86_64 platforms
 
+[1.4.2]: https://github.com/maelic13/basilisk/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/maelic13/basilisk/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/maelic13/basilisk/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/maelic13/basilisk/compare/v1.2.3...v1.3.0

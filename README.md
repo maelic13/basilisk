@@ -107,6 +107,11 @@ Install LLVM too if you want to compare NPS locally:
 brew install llvm
 ```
 
+On Apple Silicon macOS, `COMP=llvm` uses Homebrew LLVM from
+`/opt/homebrew/opt/llvm`. If CMake does not report the host or target CPU before
+compiler detection, the configure step falls back to `uname -m` so native
+Apple Silicon shells still configure correctly.
+
 You can override the compiler when configuring a fresh build directory with a
 CMake cache variable:
 
