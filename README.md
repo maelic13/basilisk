@@ -4,6 +4,8 @@ A UCI chess engine written in C++23.
 
 **Estimated strength: ~2400 ELO** (single-thread calibration against Stockfish; FIDE Master / International Master level)
 
+Latest 1.4.3 regression validation: 1,800 games at 100 ms/move, scoring 62.5% vs Basilisk 1.3.0 and 60.5% vs Lynx 1.2.1.
+
 ---
 
 ## Features
@@ -22,9 +24,10 @@ A UCI chess engine written in C++23.
 - Singular extensions
 - Check extension — extend by 1 ply when in check
 - Mate-distance handling that continues past the first forced mate to prefer shorter mates
-- Optional Syzygy tablebase probing at the root and in search, with Stockfish-style root ranking and tablebase PV expansion
+- Optional Syzygy tablebase probing at the root and in search, with Stockfish-style root ranking, best-rank filtering, and tablebase PV expansion
 - Quiescence search with in-check evasion
 - Static Exchange Evaluation (SEE) for capture pruning and bad-capture reductions
+- Checking moves are protected from late pruning and late move reductions
 
 ### Move ordering
 - Staged MovePicker: TT move, tactical moves, then quiet moves
@@ -40,7 +43,7 @@ A UCI chess engine written in C++23.
 - Tapered material + piece-square tables (PeSTO, public domain)
 - Game phase interpolation (midgame ↔ endgame)
 - Mobility scoring
-- Pawn structure: passed pawns, isolated pawns, doubled pawns
+- Pawn structure: passed pawns, isolated pawns, doubled pawns; passed-pawn advance safety accounts for all enemy attackers
 - King safety: attack unit table with piece coordination bonuses; reduced threat when opponent lacks a queen
 - Endgame scaling
 - Color-aware pawn key for pawn evaluation and correction history
@@ -247,6 +250,14 @@ A board performance benchmark is also included (run manually — not part of the
 ```
 
 Release CI runs the CTest suite before uploading binaries, then performs UCI smoke tests on every produced CPU-tier executable.
+
+The 1.4.3 release candidate was also validated with a 100 ms/move round-robin:
+
+| Match | Games | Result | Score | Elo |
+|---|---:|---:|---:|---:|
+| Basilisk 1.4.3 vs Basilisk 1.3.0 | 600 | +291 =168 -141 | 62.5% | +88.6 +/- 28.7 |
+| Basilisk 1.4.3 vs Lynx 1.2.1 | 600 | +286 =154 -160 | 60.5% | +73.9 +/- 28.4 |
+| Basilisk 1.3.0 vs Lynx 1.2.1 | 600 | +214 =149 -237 | 48.1% | -13.3 +/- 27.8 |
 
 ---
 

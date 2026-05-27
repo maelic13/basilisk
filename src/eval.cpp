@@ -338,7 +338,7 @@ int Evaluator::evaluate(const Board& b) {
             mg += sign * (rel_r * 2);
             eg += sign * (rel_r * 6);
 
-            if (!(pawn_atk[them] & sq_bb(stop)))
+            if (!b.attackers_to(stop, b.all_occ, them))
                 eg += sign * (rel_r * 8);
         }
     }

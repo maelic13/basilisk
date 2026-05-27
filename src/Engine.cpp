@@ -1,4 +1,5 @@
 #include <iostream>
+#include <algorithm>
 #include <cstdlib>
 #include <string>
 #include <thread>
@@ -125,6 +126,16 @@ void Engine::start_search(uint64_t command_epoch) {
                                                             parameters_.syzygy50MoveRule,
                                                             parameters_.syzygyProbeLimit,
                                                             true);
+        if (!limits.syzygy_root_moves.empty()) {
+            const int best_rank = limits.syzygy_root_moves.front().rank;
+            limits.syzygy_root_moves.erase(
+                std::remove_if(limits.syzygy_root_moves.begin(),
+                               limits.syzygy_root_moves.end(),
+                               [best_rank](const Syzygy::RootMoveInfo& move) {
+                                   return move.rank != best_rank;
+                               }),
+                limits.syzygy_root_moves.end());
+        }
         for (auto& move : limits.syzygy_root_moves) {
             move.pv = Syzygy::extend_pv(board_copy, {move.bestmove},
                                         parameters_.syzygy50MoveRule,

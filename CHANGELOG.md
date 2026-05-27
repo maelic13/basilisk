@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.3] - 2026-05-27
+
+### Fixed
+
+#### Search
+- Corrected pawn correction-history updates to compare search results against the corrected static evaluation, avoiding self-reinforcing correction drift
+- Quiescence search now continues legal check evasions until the qsearch ply cap instead of falling back to static evaluation after one evasion ply
+- Late move pruning, quiet-history pruning, bad-capture SEE pruning, and LMR now preserve checking moves
+
+#### Evaluation
+- Passed-pawn advance safety now checks all enemy attackers on the stop square, not only enemy pawn attacks
+
+#### Tablebases
+- Root Syzygy search now filters to the best tablebase rank before normal search, so inferior root tablebase moves are not searched as candidates
+
+### Changed
+
+#### Version
+- Bumped engine version metadata to 1.4.3
+
+### Testing
+
+#### Strength
+- Validated the release candidate with a 1,800-game 100 ms/move round-robin against Basilisk 1.3.0 and Lynx 1.2.1
+- Basilisk 1.4.3 scored 62.5% vs Basilisk 1.3.0 (+88.6 +/- 28.7 Elo) and 60.5% vs Lynx 1.2.1 (+73.9 +/- 28.4 Elo)
+
+---
+
 ## [1.4.2] - 2026-05-26
 
 ### Fixed
@@ -250,6 +278,7 @@ First public release.
 - `bench [depth]` command — 16-position built-in benchmark, prints per-position NPS and total node-count fingerprint
 - GitHub Actions release workflow — builds for Linux x86_64, Linux aarch64, Windows x86_64, Windows aarch64, macOS aarch64; all built with Clang; PEXT variant produced for x86_64 platforms
 
+[1.4.3]: https://github.com/maelic13/basilisk/compare/v1.4.2...v1.4.3
 [1.4.2]: https://github.com/maelic13/basilisk/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/maelic13/basilisk/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/maelic13/basilisk/compare/v1.3.0...v1.4.0

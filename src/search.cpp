@@ -674,6 +674,12 @@ std::vector<Move> Searcher::root_tablebase_pv(Move move) const {
     return {};
 }
 
+bool Searcher::root_tablebase_allows(Move move) const {
+    if (root_tb_moves_.empty())
+        return true;
+    return root_tablebase_score(move) != VALUE_NONE;
+}
+
 // ---- Quiescence search -----------------------------------------------------
 
 int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss) {
@@ -700,8 +706,11 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     }
 
     if (in_check) {
-        // Full-move search while in check (up to 1 level)
-        if (qply >= 1) return evaluator.evaluate(*board_ptr_);
+        if (qply >= MAX_QSEARCH_PLY) {
+            int eval = evaluator.evaluate(*board_ptr_);
+            eval += correction_value(board_ptr_->side_to_move, board_ptr_->pawn_key);
+            return std::clamp(eval, -(MATE_SCORE - 1), MATE_SCORE - 1);
+        }
         MoveList legal;
         board_ptr_->gen_legal(legal);
         int best = -INF_SCORE;
@@ -981,13 +990,23 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             if ((ordinal % root_filter_count_) != root_filter_index_)
                 return false;
         }
+        if (is_root && !root_tablebase_allows(m))
+            return false;
 
         bool is_cap   = (board_ptr_->board_sq[to_sq(m)] != NO_PIECE)
                      || (move_type(m) == EN_PASSANT);
         bool is_promo = (move_type(m) == PROMOTION);
         bool is_quiet = !is_cap && !is_promo;
-        const int tb_move_score = is_root ? root_tablebase_score(m) : VALUE_NONE;
         int see_score = VALUE_NONE;
+        bool gives_check_known = false;
+        bool gives_check = false;
+        auto move_gives_check = [&]() {
+            if (!gives_check_known) {
+                gives_check = board_ptr_->gives_check(m);
+                gives_check_known = true;
+            }
+            return gives_check;
+        };
 
         // ---- Late-move pruning / futility ----------------------------------
         if (!is_root && searched > 0 && best_score > -(MATE_SCORE - MAX_PLY)) {
@@ -996,11 +1015,13 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 // Futility pruning
                 if (!is_pv && !in_check && depth <= 6
                     && static_eval != VALUE_NONE
-                    && static_eval + 150 + 110 * depth <= alpha)
+                    && static_eval + 150 + 110 * depth <= alpha
+                    && !move_gives_check())
                     return false;
 
                 // Late move pruning (LMP) — never in PV
-                if (!is_pv && !in_check && depth <= 6 && searched >= lmp_thresh)
+                if (!is_pv && !in_check && depth <= 6 && searched >= lmp_thresh
+                    && !move_gives_check())
                     return false;
 
                 // History pruning: skip moves with very bad combined history
@@ -1008,14 +1029,14 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                     PieceType pt = type_of(board_ptr_->board_sq[from_sq(m)]);
                     int hist = main_hist_[board_ptr_->side_to_move][from_sq(m)][to_sq(m)]
                              + cont_hist_score(ss, pt, Square(to_sq(m)));
-                    if (hist < -3500 * depth)
+                    if (hist < -3500 * depth && !move_gives_check())
                         return false;
                 }
             } else if (is_cap) {
                 // SEE pruning for bad captures
                 if (!is_pv && depth <= 8 && !is_promo) {
                     see_score = board_ptr_->see(m);
-                    if (see_score < -depth * 80) return false;
+                    if (see_score < -depth * 80 && !move_gives_check()) return false;
                 }
             }
         }
@@ -1082,7 +1103,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             int reduction = 0;
             // LMR applies to: quiets, and bad captures — but NOT promotions
             if (depth >= 2 && searched >= 2 && !in_check
-                && (is_quiet || (is_cap && !is_promo && see_score < 0))) {
+                && (is_quiet || (is_cap && !is_promo && see_score < 0))
+                && !move_gives_check()) {
                 reduction = LMR_TABLE[std::min(depth, 63)][std::min(searched, 63)];
 
                 if (is_quiet) {
@@ -1109,9 +1131,6 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 score = -negamax(new_depth, -beta, -alpha,
                                  ply + 1, ss + 1, true, true);
         }
-
-        if (tb_move_score != VALUE_NONE)
-            score = tb_move_score + std::clamp(score, -9000, 9000);
 
         board_ptr_->unmake_move(m);
         ss->move = MOVE_NONE;
@@ -1179,11 +1198,10 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
     // Update correction history with search result
     if (!in_check && ss->excluded == MOVE_NONE && static_eval != VALUE_NONE
-        && raw_static_eval != VALUE_NONE
         && std::abs(best_score) < MATE_SCORE - MAX_PLY
         && (best_score >= beta || best_score > orig_alpha)) {
         update_correction(board_ptr_->side_to_move, board_ptr_->pawn_key,
-                          best_score - raw_static_eval, depth);
+                          best_score - static_eval, depth);
     }
 
     // Store to TT
