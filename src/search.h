@@ -255,6 +255,7 @@ private:
     int    root_tablebase_ordering_score(Move move) const;
     std::vector<Move> root_tablebase_pv(Move move) const;
     bool   root_tablebase_allows(Move move) const;
+    Move   ponder_from_tt(const Board& root, Move bestmove) const;
 };
 
 class SearchThreadPool {

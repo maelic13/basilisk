@@ -915,6 +915,21 @@ bool Searcher::root_tablebase_allows(Move move) const {
     return root_tablebase_score(move) != VALUE_NONE;
 }
 
+Move Searcher::ponder_from_tt(const Board& root, Move bestmove) const {
+    if (!is_legal_move_on_board(root, bestmove))
+        return MOVE_NONE;
+
+    Board child = root;
+    child.make_move(bestmove);
+
+    TTEntry entry{};
+    if (!tt_.probe_copy(child.hash, entry))
+        return MOVE_NONE;
+
+    const Move ponder = move_from_tt(entry.move16);
+    return is_legal_move_on_board(child, ponder) ? ponder : MOVE_NONE;
+}
+
 // ---- Quiescence search -----------------------------------------------------
 
 int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss) {
@@ -961,7 +976,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
             if (stopped_) return 0;
             if (s > best) best = s;
             if (s > alpha) alpha = s;
-            if (alpha >= beta) { best = beta; break; }
+            if (alpha >= beta) { best = s; break; }
         }
         return has_legal ? best : -(MATE_SCORE - ply);
     }
@@ -979,7 +994,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
 
     if (stand_pat >= beta) {
         tt_.store(hash, 0, stand_pat, TT_BETA, MOVE_NONE, ply, raw_eval);
-        return beta;
+        return stand_pat;
     }
 
     // Delta pruning: skip if even capturing the best possible piece can't raise alpha
@@ -1054,7 +1069,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         }
         if (s >= beta) {
             tt_.store(hash, 0, s, TT_BETA, m, ply, raw_eval);
-            return beta;
+            return s;
         }
     }
 
@@ -1624,6 +1639,8 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
             std::vector<Move> tb_pv = root_tablebase_pv(result.bestmove);
             if (tb_pv.size() > 1)
                 result.pondermove = tb_pv[1];
+            if (result.pondermove == MOVE_NONE)
+                result.pondermove = ponder_from_tt(board, result.bestmove);
         }
         result.score = reported_score;
         result.depth = depth;
@@ -1900,6 +1917,7 @@ SearchResult SearchThreadPool::search(Board board, const SearchLimits& limits, i
 
     const int64_t elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::steady_clock::now() - wall_start).count();
+
     return sanitize_search_result(root_board, merge_results(results, thread_count, root_table, elapsed_ms));
 }
 

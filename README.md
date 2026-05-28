@@ -4,7 +4,7 @@ A UCI chess engine written in C++23.
 
 **Estimated strength: ~2400 ELO** (single-thread self-play and limited-strength reference calibration; FIDE Master / International Master level)
 
-Latest 1.4.7 release verification: completes UCI ponder and threading support, adds root search restrictions, mate/perft commands, threshold SEE, qsearch pruning, and high-depth null-move verification, and passes the full CTest suite plus quick Cutechess and bench smoke checks.
+Latest 1.4.8 release verification: keeps the 1.4.7 UCI ponder/threading support and adds a safer ponder fallback from child-position TT data plus fail-soft qsearch returns. It passes the full CTest suite and a medium 1T/8T Cutechess regression check against 1.4.7.
 
 ---
 
@@ -27,7 +27,7 @@ Latest 1.4.7 release verification: completes UCI ponder and threading support, a
 - Check extension — extend by 1 ply when in check
 - Mate-distance handling that continues past the first forced mate to prefer shorter mates
 - Optional Syzygy tablebase probing at the root and in search, with root move ranking, best-rank filtering, and tablebase PV expansion
-- Quiescence search with in-check evasion, capture futility, and dynamic threshold-SEE pruning
+- Quiescence search with in-check evasion, capture futility, dynamic threshold-SEE pruning, and fail-soft cutoff returns
 - Static Exchange Evaluation (SEE) and threshold SEE for capture pruning and bad-capture reductions
 - Checking moves are protected from late pruning and late move reductions
 - Search-aware repetition detection that distinguishes root repeats from in-tree repeats and respects null moves
@@ -60,6 +60,7 @@ Latest 1.4.7 release verification: completes UCI ponder and threading support, a
 - `movestogo` aware; move-overhead compensation
 - Final UCI legality guard for `bestmove`, ponder moves, and reported PV lines
 - Strict TT move validation prevents stale or hash-aliased moves from corrupting board state or producing illegal PVs
+- Ponder move reporting can recover a legal reply from the child-position TT entry when the principal variation is too short
 - Complete UCI ponder lifecycle: `go ponder` waits for `stop` or `ponderhit`, `ponderhit` preserves elapsed ponder time, and stale control state is cleared between searches
 
 ---
@@ -261,16 +262,16 @@ A board performance benchmark is also included (run manually — not part of the
 
 Release CI runs the CTest suite before uploading binaries, then performs UCI smoke tests on every produced CPU-tier executable.
 
-The 1.4.7 release candidate was locally verified with:
+The 1.4.8 release candidate was locally verified with:
 
 | Check | Result |
 |---|---:|
 | CTest suite | 8/8 passed |
-| Focused test binaries | `test_board` 253/253, `test_search` 122/122, `test_engine_ponder` 10/10, `test_engine_threading` 9/9, `test_uci_protocol` 32/32 |
-| Stockfish protocol comparison | Ponder withheld `bestmove` until `stop` or `ponderhit`; `Threads` resizes before `isready` and node-limited searches return `bestmove` without requiring `stop` |
+| Focused test binaries | `test_board` 253/253, `test_search` 126/126, `test_engine_ponder` 10/10, `test_engine_threading` 9/9, `test_uci_protocol` 32/32 |
+| Stockfish protocol comparison | Ponder withheld `bestmove` until `stop` or `ponderhit`; `Threads` resizes before `isready`; node-limited searches return `bestmove` without requiring `stop`; legal child-TT ponder fallback is preserved |
 | UCI analysis command smoke | `go searchmoves e2e4 depth 1`, `go perft 1`, and `go mate 1` verified |
-| Cutechess quick smoke vs 1.4.5 | 1T book: `6 - 3 - 11`; 8T book: `16 - 0 - 0`; no illegal PV warnings attributed to current |
-| `bench 13` vs 1.4.5 | 1T avg: 2,871,808 nps vs 2,853,566; 8T avg: 16,709,108 nps vs 14,863,428 |
+| Cutechess medium smoke vs 1.4.7 | 1T book: `15 - 13 - 36` over 64 games; 8T book: `14 - 12 - 38` over 64 games; clean log scan |
+| `bench 13` vs 1.4.7 | No release-blocking NPS regression found in reduced 1.4.8 candidate testing |
 | Release build | `release-avx2` built successfully |
 
 ---

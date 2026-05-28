@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.8] - 2026-05-28
+
+### Fixed
+
+#### UCI / Ponder
+- Added a child-position TT fallback for `pondermove` reporting when the root PV is too short, so Basilisk can still report a legal ponder reply after the selected best move
+- Kept strict legality validation on the recovered ponder move before exposing it through UCI
+
+#### Search
+- Changed qsearch cutoff returns to fail-soft scores instead of clamping to `beta`, improving bound quality for callers and TT/search consumers
+
+### Added
+
+#### Testing
+- Added focused search coverage for recovering a legal ponder move from the child-position transposition table entry
+
+### Changed
+
+#### Version
+- Bumped engine version metadata to 1.4.8
+
+### Testing
+
+#### Release Verification
+- Built `release-avx2` successfully with MSYS2 Clang/Ninja
+- Passed the full CTest suite: 8/8 tests
+- Ran medium Cutechess book regression against 1.4.7: 1T scored `15 - 13 - 36` over 64 games (+10.9 +/- 56.7 Elo), 8T scored `14 - 12 - 38` over 64 games (+10.9 +/- 54.6 Elo)
+- Clean Cutechess log scan found no illegal moves, crashes, disconnects, timeouts, forfeits, warnings, or invalid-game markers
+
+---
+
 ## [1.4.7] - 2026-05-28
 
 ### Fixed
@@ -448,6 +479,7 @@ First public release.
 - `bench [depth]` command — 16-position built-in benchmark, prints per-position NPS and total node-count fingerprint
 - GitHub Actions release workflow — builds for Linux x86_64, Linux aarch64, Windows x86_64, Windows aarch64, macOS aarch64; all built with Clang; PEXT variant produced for x86_64 platforms
 
+[1.4.8]: https://github.com/maelic13/basilisk/compare/v1.4.7...v1.4.8
 [1.4.7]: https://github.com/maelic13/basilisk/compare/v1.4.5...v1.4.7
 [1.4.5]: https://github.com/maelic13/basilisk/compare/v1.4.4...v1.4.5
 [1.4.4]: https://github.com/maelic13/basilisk/compare/v1.4.3...v1.4.4

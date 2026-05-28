@@ -91,6 +91,15 @@ static bool apply_legal_uci(Board& board, const std::string& uci) {
     return false;
 }
 
+static Move legal_uci(const Board& board, const std::string& uci) {
+    MoveList legal;
+    board.gen_legal(legal);
+    for (Move move : legal)
+        if (move_to_uci(move) == uci)
+            return move;
+    return MOVE_NONE;
+}
+
 static Move find_legal_uci(const Board& board, const std::string& uci) {
     MoveList legal;
     board.gen_legal(legal);
@@ -852,6 +861,34 @@ static void test_search_uses_root_tablebase_metadata() {
     Syzygy::clear();
 }
 
+static void test_ponder_move_can_be_recovered_from_tt_child() {
+    Board root;
+    root.set_fen("rn1qkbnr/pppbpppp/8/3p4/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+    Move best = legal_uci(root, "a2a3");
+    EXPECT(best != MOVE_NONE);
+
+    Board child = root;
+    child.make_move(best);
+    Move ponder = legal_uci(child, "a7a6");
+    EXPECT(ponder != MOVE_NONE);
+
+    TranspositionTable tt(4);
+    tt.store(child.hash, 4, 0, TT_EXACT, ponder, 1, 0);
+
+    std::atomic_bool stop{false};
+    SearchLimits limits;
+    limits.depth = 1;
+    limits.root_moves.push_back(best);
+
+    auto searcher = std::make_unique<Searcher>(tt, stop);
+    SearchResult result = searcher->search(root, limits);
+
+    begin_section("search ponder: recovers child TT ponder move");
+    EXPECT_EQ(result.bestmove, best);
+    EXPECT_EQ(result.pondermove, ponder);
+    end_section();
+}
+
 // ---------------------------------------------------------------------------
 // main
 // ---------------------------------------------------------------------------
@@ -883,6 +920,7 @@ int main() {
     test_tournament_infraction_positions();
     test_info_pv_lines_are_legal();
     test_corrupt_tt_move_is_not_searched();
+    test_ponder_move_can_be_recovered_from_tt_child();
 
     std::printf("\nFree queen capture\n");
     test_free_queen_capture();
