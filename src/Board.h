@@ -110,6 +110,7 @@ public:
 
     bool has_non_pawn_material(Color c) const;
     int  see(Move m) const;
+    bool see_ge(Move m, int threshold) const;
 
     // Castling permission mask per square (AND onto castling_rights when piece moves from/to sq)
     static constexpr int CASTLING_MASK[SQUARE_NB] = {

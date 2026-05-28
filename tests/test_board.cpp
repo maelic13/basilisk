@@ -871,20 +871,41 @@ static void test_see() {
     EXPECT_EQ(b.see(make_move(E4, E7)), 500);
     end_section();
 
-    begin_section("SEE is non-negative for all legal captures");
-    // Verify the engine never assigns negative SEE to any legal capture
-    // from the kiwipete position (rich in pieces and exchange opportunities)
+    begin_section("SEE detects defended losing capture");
     b.set_fen(
         "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
-    std::vector<Move> caps;
-    caps.reserve(32);
-    b.gen_pseudo_legal_captures(caps);
-    bool all_nonneg = true;
-    for (Move m : caps) {
-        if (!b.is_legal(m)) continue;
-        if (b.see(m) < 0) { all_nonneg = false; break; }
+    EXPECT_EQ(b.see(make_move(E5, G6)), -200);
+    end_section();
+
+    begin_section("threshold SEE matches full SEE");
+    const char* fens[] = {
+        "4k3/8/8/3n4/4P3/8/8/4K3 w - - 0 1",
+        "4k2r/6P1/8/8/8/8/8/4K3 w - - 0 1",
+        "4k3/P7/8/8/8/8/8/4K3 w - - 0 1",
+        "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1"
+    };
+    const int thresholds[] = {-1200, -600, -100, -50, 0, 50, 100, 300, 600, 1200};
+    bool matches = true;
+    for (const char* fen : fens) {
+        b.set_fen(fen);
+        MoveList legal;
+        b.gen_legal(legal);
+        for (Move m : legal) {
+            const bool tactical = move_type(m) == PROMOTION
+                               || move_type(m) == EN_PASSANT
+                               || b.board_sq[to_sq(m)] != NO_PIECE;
+            if (!tactical)
+                continue;
+            const int see = b.see(m);
+            for (int threshold : thresholds) {
+                if (b.see_ge(m, threshold) != (see >= threshold)) {
+                    matches = false;
+                    break;
+                }
+            }
+        }
     }
-    EXPECT(all_nonneg);
+    EXPECT(matches);
     end_section();
 }
 

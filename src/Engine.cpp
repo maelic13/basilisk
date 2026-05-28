@@ -10,6 +10,33 @@
 #include "bench.h"
 #include "syzygy.h"
 
+namespace {
+
+uint64_t perft(Board& board, int depth) {
+    if (depth <= 0)
+        return 1;
+
+    MoveList legal;
+    board.gen_legal(legal);
+    if (depth == 1)
+        return static_cast<uint64_t>(legal.size());
+
+    uint64_t nodes = 0;
+    for (Move move : legal) {
+        board.make_move(move);
+        nodes += perft(board, depth - 1);
+        board.unmake_move(move);
+    }
+    return nodes;
+}
+
+bool move_allowed_by_root_list(Move move, const std::vector<Move>& root_moves) {
+    return root_moves.empty()
+        || std::find(root_moves.begin(), root_moves.end(), move) != root_moves.end();
+}
+
+} // namespace
+
 Engine::Engine(EngineCommandQueue& commands,
                std::atomic_bool& stop_requested,
                std::atomic_bool& ponderhit_requested,
@@ -39,8 +66,10 @@ SearchLimits Engine::build_limits() const {
     limits.binc      = parameters_.blackIncrement;
     limits.movestogo = parameters_.movestogo;
     limits.nodes     = parameters_.nodes;
+    limits.mate      = parameters_.mate;
     limits.overhead  = parameters_.moveOverhead;
     limits.ponder    = parameters_.ponder;
+    limits.root_moves = parameters_.searchMoves;
     limits.syzygy_probe_depth = Syzygy::enabled() ? parameters_.syzygyProbeDepth : 0;
     limits.syzygy_probe_limit = Syzygy::enabled() ? parameters_.syzygyProbeLimit : 0;
     limits.syzygy_50_move_rule = parameters_.syzygy50MoveRule;
@@ -49,6 +78,7 @@ SearchLimits Engine::build_limits() const {
                         && parameters_.whiteIncrement == 0 && parameters_.blackIncrement == 0
                         && parameters_.movestogo == 0
                         && parameters_.nodes == 0
+                        && parameters_.mate == 0
                         && !parameters_.ponder);
     return limits;
 }
@@ -130,6 +160,16 @@ void Engine::start_search(uint64_t command_epoch) {
                                                             parameters_.syzygy50MoveRule,
                                                             parameters_.syzygyProbeLimit,
                                                             true);
+        if (!limits.root_moves.empty()) {
+            limits.syzygy_root_moves.erase(
+                std::remove_if(limits.syzygy_root_moves.begin(),
+                               limits.syzygy_root_moves.end(),
+                               [&](const Syzygy::RootMoveInfo& move) {
+                                   return !move_allowed_by_root_list(move.bestmove,
+                                                                     limits.root_moves);
+                               }),
+                limits.syzygy_root_moves.end());
+        }
         if (!limits.syzygy_root_moves.empty()) {
             const int best_rank = limits.syzygy_root_moves.front().rank;
             limits.syzygy_root_moves.erase(
@@ -212,6 +252,24 @@ void Engine::run_bench_command(const EngineCommand& command) {
         searching_.store(false, std::memory_order_release);
 }
 
+void Engine::run_perft_command(uint64_t command_epoch) {
+    const int depth = parameters_.perft;
+    Board board_copy = parameters_.board;
+
+    if (command_epoch != 0
+        && control_epoch_.load(std::memory_order_acquire) != command_epoch)
+        return;
+
+    stop_requested_.store(false, std::memory_order_release);
+    searching_.store(true, std::memory_order_release);
+    const uint64_t nodes = perft(board_copy, depth);
+    uci_write_line("Nodes searched: " + std::to_string(nodes));
+    if (command_epoch == 0
+        || control_epoch_.load(std::memory_order_acquire) == command_epoch)
+        searching_.store(false, std::memory_order_release);
+    stop_requested_.store(false, std::memory_order_release);
+}
+
 void Engine::handle_command(const EngineCommand& command, bool& quit) {
     switch (command.type) {
         case EngineCommandType::SetOption:
@@ -236,7 +294,10 @@ void Engine::handle_command(const EngineCommand& command, bool& quit) {
             break;
         case EngineCommandType::Go:
             parameters_.setSearchParameters(command.args);
-            start_search(command.epoch);
+            if (parameters_.perft > 0)
+                run_perft_command(command.epoch);
+            else
+                start_search(command.epoch);
             break;
         case EngineCommandType::Stop:
             if (command.epoch == 0

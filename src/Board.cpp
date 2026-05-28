@@ -1703,6 +1703,8 @@ int Board::see(Move m) const {
     if (mt == EN_PASSANT) {
         Square ep_pawn = make_square(file_of(to), rank_of(from));
         occ ^= sq_bb(ep_pawn);
+    } else if (target != NO_PIECE) {
+        occ ^= sq_bb(to);
     }
 
     Color side = ~side_to_move; // first recapture is by opponent
@@ -1710,17 +1712,17 @@ int Board::see(Move m) const {
     Bitboard attackers = attackers_to(to, occ) & occ;
 
     while (true) {
-        depth++;
-        gain[depth] = SEE_VALUES[piece_on_sq] - gain[depth-1];
-
         Bitboard side_att = attackers & occupancy[side];
         if (!side_att) break;
+
+        depth++;
+        gain[depth] = SEE_VALUES[piece_on_sq] - gain[depth-1];
 
         // Find least valuable attacker
         PieceType attacker_type = NO_PIECE_TYPE;
         Bitboard attacker_bb = 0;
         for (int pt = PAWN; pt <= KING; pt++) {
-            attacker_bb = side_att & pieces[side][pt];
+            attacker_bb = side_att & pieces[side][pt] & occ;
             if (attacker_bb) { attacker_type = PieceType(pt); break; }
         }
         if (attacker_type == NO_PIECE_TYPE) break;
@@ -1739,8 +1741,87 @@ int Board::see(Move m) const {
     }
 
     // Minimax fold
-    for (int i = depth - 1; i > 0; i--)
-        gain[i-1] = std::max(gain[i-1], -gain[i]);
+    while (depth > 0) {
+        gain[depth - 1] = -std::max(-gain[depth - 1], gain[depth]);
+        --depth;
+    }
 
     return gain[0];
+}
+
+bool Board::see_ge(Move m, int threshold) const {
+    static constexpr int SEE_VALUES[PIECE_TYPE_NB] = {0, 100, 300, 300, 500, 900, 20000};
+
+    const Square from = from_sq(m);
+    const Square to   = to_sq(m);
+    const MoveType mt = move_type(m);
+    const Piece target = board_sq[to];
+    const bool is_capture = mt == EN_PASSANT || target != NO_PIECE;
+
+    int swap = 0;
+    if (mt == EN_PASSANT)
+        swap = SEE_VALUES[PAWN];
+    else if (target != NO_PIECE)
+        swap = SEE_VALUES[type_of(target)];
+
+    if (mt == PROMOTION)
+        swap += SEE_VALUES[promo_type(m)] - SEE_VALUES[PAWN];
+
+    if (!is_capture && mt != PROMOTION)
+        return swap >= threshold;
+
+    swap -= threshold;
+    if (swap < 0)
+        return false;
+
+    PieceType attacker_type = type_of(board_sq[from]);
+    if (mt == PROMOTION)
+        attacker_type = promo_type(m);
+
+    swap = SEE_VALUES[attacker_type] - swap;
+    if (swap <= 0)
+        return true;
+
+    Bitboard occ = all_occ ^ sq_bb(from);
+    if (mt == EN_PASSANT) {
+        Square ep_pawn = make_square(file_of(to), rank_of(from));
+        occ ^= sq_bb(ep_pawn);
+    } else if (target != NO_PIECE) {
+        occ ^= sq_bb(to);
+    }
+
+    Color stm = side_to_move;
+    Bitboard attackers = attackers_to(to, occ) & occ;
+    int result = 1;
+
+    while (true) {
+        stm = ~stm;
+        attackers &= occ;
+        Bitboard side_att = attackers & occupancy[stm] & occ;
+        if (!side_att)
+            break;
+
+        PieceType next_attacker = NO_PIECE_TYPE;
+        Bitboard attacker_bb = 0;
+        for (int pt = PAWN; pt <= KING; ++pt) {
+            attacker_bb = side_att & pieces[stm][pt];
+            if (attacker_bb) {
+                next_attacker = PieceType(pt);
+                break;
+            }
+        }
+        if (next_attacker == NO_PIECE_TYPE)
+            break;
+
+        result ^= 1;
+        swap = SEE_VALUES[next_attacker] - swap;
+        if (swap < result)
+            break;
+
+        Bitboard lva_bit = attacker_bb & (0ULL - attacker_bb);
+        occ ^= lva_bit;
+        attackers = attackers_to(to, occ) & occ;
+    }
+
+    return result != 0;
 }

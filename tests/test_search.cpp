@@ -91,6 +91,15 @@ static bool apply_legal_uci(Board& board, const std::string& uci) {
     return false;
 }
 
+static Move find_legal_uci(const Board& board, const std::string& uci) {
+    MoveList legal;
+    board.gen_legal(legal);
+    for (Move move : legal)
+        if (move_to_uci(move) == uci)
+            return move;
+    return MOVE_NONE;
+}
+
 static bool info_pv_is_legal(const char* fen, const std::string& line) {
     const std::string marker = " pv ";
     const size_t pv_pos = line.find(marker);
@@ -202,6 +211,24 @@ static void test_default_go_depth_and_syzygy_options() {
     EXPECT_EQ(params.depth, infiniteDepth);
     end_section();
 
+    begin_section("parameters: go mate converts to mate-search depth");
+    params.setSearchParameters("mate 2");
+    EXPECT_EQ(params.mate, 2);
+    EXPECT_EQ(params.depth, 3);
+    end_section();
+
+    begin_section("parameters: go perft records perft depth");
+    params.setSearchParameters("perft 3");
+    EXPECT_EQ(params.perft, 3);
+    end_section();
+
+    begin_section("parameters: go searchmoves keeps legal root restrictions");
+    params.setPosition("startpos");
+    params.setSearchParameters("searchmoves e2e4 g1f3 depth 2");
+    EXPECT_EQ(static_cast<int>(params.searchMoves.size()), 2);
+    EXPECT_EQ(params.depth, 2);
+    end_section();
+
     begin_section("parameters: invalid FEN preserves board");
     params.setPosition("startpos moves e2e4");
     const std::string after_e4 = params.board.get_fen();
@@ -266,6 +293,28 @@ static void test_returns_legal_move() {
     auto ep_rr = run_search(EP_CHECK_EVASION_FEN, 1);
     EXPECT_STR(ep_rr.uci, "h4g3");
     EXPECT(is_legal_bestmove(EP_CHECK_EVASION_FEN, ep_rr.sr.bestmove));
+    end_section();
+}
+
+static void test_search_respects_root_move_restrictions() {
+    static constexpr const char* FEN =
+        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
+    Board board;
+    board.set_fen(FEN);
+    const Move e2e4 = find_legal_uci(board, "e2e4");
+
+    TranspositionTable tt(4);
+    std::atomic_bool stop{false};
+    SearchLimits limits;
+    limits.depth = 2;
+    limits.root_moves.push_back(e2e4);
+
+    auto searcher = std::make_unique<Searcher>(tt, stop);
+    SearchResult result = searcher->search(board, limits);
+
+    begin_section("searchmoves: root search obeys single allowed move");
+    EXPECT(result.bestmove == e2e4);
     end_section();
 }
 
@@ -821,6 +870,7 @@ int main() {
 
     std::printf("\nLegal move\n");
     test_returns_legal_move();
+    test_search_respects_root_move_restrictions();
 
     std::printf("\nMate in 1\n");
     test_mate_in_one();

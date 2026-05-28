@@ -4,7 +4,7 @@ A UCI chess engine written in C++23.
 
 **Estimated strength: ~2400 ELO** (single-thread self-play and limited-strength reference calibration; FIDE Master / International Master level)
 
-Latest 1.4.6 release verification: completes UCI ponder and threading support, hardens TT/PV legality for tournament GUIs, and passes the full CTest suite plus quick Cutechess and bench smoke checks.
+Latest 1.4.7 release verification: completes UCI ponder and threading support, adds root search restrictions, mate/perft commands, threshold SEE, qsearch pruning, and high-depth null-move verification, and passes the full CTest suite plus quick Cutechess and bench smoke checks.
 
 ---
 
@@ -17,6 +17,7 @@ Latest 1.4.6 release verification: completes UCI ponder and threading support, h
 - Transposition table — atomic 3-entry clusters aligned to 64-byte cache lines, with generational aging
 - TT prefetching, exact-entry replacement preference, and age-aware `hashfull`
 - Null move pruning
+- High-depth null-move verification to reduce risky null cutoffs
 - Reverse futility pruning (RFP)
 - Razoring
 - ProbCut
@@ -26,8 +27,8 @@ Latest 1.4.6 release verification: completes UCI ponder and threading support, h
 - Check extension — extend by 1 ply when in check
 - Mate-distance handling that continues past the first forced mate to prefer shorter mates
 - Optional Syzygy tablebase probing at the root and in search, with root move ranking, best-rank filtering, and tablebase PV expansion
-- Quiescence search with in-check evasion
-- Static Exchange Evaluation (SEE) for capture pruning and bad-capture reductions
+- Quiescence search with in-check evasion, capture futility, and dynamic threshold-SEE pruning
+- Static Exchange Evaluation (SEE) and threshold SEE for capture pruning and bad-capture reductions
 - Checking moves are protected from late pruning and late move reductions
 - Search-aware repetition detection that distinguishes root repeats from in-tree repeats and respects null moves
 
@@ -235,7 +236,8 @@ the configured path.
 | `setoption name <n> [value <v>]` | Set an option; button types have no value |
 | `ucinewgame` | Reset search state and clear TT |
 | `position [startpos\|fen <fen>] [moves …]` | Set up board |
-| `go [wtime … btime … winc … binc … movestogo … depth … nodes … movetime … infinite … ponder]` | Start search; bare `go` defaults to depth 7 |
+| `go [searchmoves …] [wtime … btime … winc … binc … movestogo … depth … nodes … mate … movetime … infinite … ponder]` | Start search; bare `go` defaults to depth 7 |
+| `go perft <depth>` | Count legal leaf nodes from the current position; reports `Nodes searched` without `bestmove` |
 | `stop` | Stop search; engine replies with `bestmove` |
 | `ponderhit` | Switch from ponder to normal search |
 | `bench [depth]` | Run built-in benchmark (default depth 13) using the current `Threads` option |
@@ -245,7 +247,7 @@ the configured path.
 
 ## Testing
 
-Basilisk ships a comprehensive test suite covering board correctness, move encoding, the transposition table, evaluation, search, mate-distance regressions, illegal-move hardening, the thread pool, command queue behavior, UCI protocol ordering/EOF handling, UCI option parsing, engine-level ponder lifecycle behavior, engine-level threading behavior, and Syzygy tablebase behavior. The Syzygy tests use a local `D:\chess\Syzygy345` directory when present and otherwise skip the real-tablebase assertions. Run with:
+Basilisk ships a comprehensive test suite covering board correctness, move encoding, the transposition table, evaluation, search, mate-distance regressions, illegal-move hardening, threshold SEE, root move restrictions, the thread pool, command queue behavior, UCI protocol ordering/EOF handling, UCI option parsing, engine-level ponder lifecycle behavior, engine-level threading behavior, UCI `perft`, and Syzygy tablebase behavior. The Syzygy tests use a local `D:\chess\Syzygy345` directory when present and otherwise skip the real-tablebase assertions. Run with:
 
 ```bash
 ctest --test-dir build/release --output-on-failure
@@ -259,13 +261,14 @@ A board performance benchmark is also included (run manually — not part of the
 
 Release CI runs the CTest suite before uploading binaries, then performs UCI smoke tests on every produced CPU-tier executable.
 
-The 1.4.6 release candidate was locally verified with:
+The 1.4.7 release candidate was locally verified with:
 
 | Check | Result |
 |---|---:|
 | CTest suite | 8/8 passed |
-| Focused test binaries | `test_board` 252/252, `test_search` 116/116, `test_engine_ponder` 10/10, `test_engine_threading` 5/5, `test_uci_protocol` 32/32 |
+| Focused test binaries | `test_board` 253/253, `test_search` 122/122, `test_engine_ponder` 10/10, `test_engine_threading` 9/9, `test_uci_protocol` 32/32 |
 | Stockfish protocol comparison | Ponder withheld `bestmove` until `stop` or `ponderhit`; `Threads` resizes before `isready` and node-limited searches return `bestmove` without requiring `stop` |
+| UCI analysis command smoke | `go searchmoves e2e4 depth 1`, `go perft 1`, and `go mate 1` verified |
 | Cutechess quick smoke vs 1.4.5 | 1T book: `6 - 3 - 11`; 8T book: `16 - 0 - 0`; no illegal PV warnings attributed to current |
 | `bench 13` vs 1.4.5 | 1T avg: 2,871,808 nps vs 2,853,566; 8T avg: 16,709,108 nps vs 14,863,428 |
 | Release build | `release-avx2` built successfully |

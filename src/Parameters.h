@@ -21,8 +21,11 @@ public:
     int     threads;        // search worker count
     int64_t nodes;          // node limit (0 = unlimited)
     int     movestogo;      // moves until next time control (0 = sudden death)
+    int     mate;           // mate search target in moves (0 = disabled)
+    int     perft;          // perft depth requested via go perft (0 = disabled)
     bool    ponder;         // go ponder mode
     bool    ponderEnabled;  // UCI Ponder option advertised to the GUI
+    std::vector<Move> searchMoves; // root move restriction from go searchmoves
     std::string syzygyPath; // semicolon-separated Syzygy tablebase paths
     int     syzygyProbeDepth;
     int     syzygyProbeLimit;

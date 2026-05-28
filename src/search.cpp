@@ -44,7 +44,24 @@ void Searcher::init_lmr() {
 
 // ---- Shared root move table ------------------------------------------------
 
-void RootMoveTable::reset(const Board& board) {
+static bool move_in_root_moves(Move move, const std::vector<Move>& root_moves) {
+    return root_moves.empty()
+        || std::find(root_moves.begin(), root_moves.end(), move) != root_moves.end();
+}
+
+static bool move_in_syzygy_root_moves(Move move,
+                                      const std::vector<Syzygy::RootMoveInfo>& root_moves) {
+    if (root_moves.empty())
+        return true;
+    for (const auto& entry : root_moves)
+        if (entry.bestmove == move)
+            return true;
+    return false;
+}
+
+void RootMoveTable::reset(const Board& board,
+                          const std::vector<Move>& root_moves,
+                          const std::vector<Syzygy::RootMoveInfo>& syzygy_root_moves) {
     MoveList legal;
     board.gen_legal(legal);
 
@@ -54,6 +71,10 @@ void RootMoveTable::reset(const Board& board) {
     sequence_ = 0;
 
     for (Move move : legal) {
+        if (!move_in_root_moves(move, root_moves)
+            || !move_in_syzygy_root_moves(move, syzygy_root_moves)) {
+            continue;
+        }
         Entry entry;
         entry.bestmove = move;
         entries_.push_back(entry);
@@ -988,7 +1009,36 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     for (int i = 0; i < nm; i++) {
         Move m = pick_next(sm, i, nm);
 
-        if (board_ptr_->see(m) < 0) continue;
+        const MoveType mt = move_type(m);
+        const bool is_promo = mt == PROMOTION;
+        const Piece target = board_ptr_->board_sq[to_sq(m)];
+        const int captured_value = (mt == EN_PASSANT) ? PIECE_VALUE[PAWN]
+                                 : (target != NO_PIECE) ? PIECE_VALUE[type_of(target)]
+                                 : 0;
+        const int promotion_gain = is_promo ? PIECE_VALUE[promo_type(m)] - PIECE_VALUE[PAWN] : 0;
+        const int tactical_gain = captured_value + promotion_gain;
+
+        bool gives_check_known = false;
+        bool gives_check = false;
+        auto move_gives_check = [&]() {
+            if (!gives_check_known) {
+                gives_check = board_ptr_->gives_check(m);
+                gives_check_known = true;
+            }
+            return gives_check;
+        };
+
+        if (!is_promo
+            && stand_pat + tactical_gain + 150 <= alpha
+            && !move_gives_check())
+            continue;
+
+        const int see_threshold = std::clamp(alpha - stand_pat - 200, -800, 200);
+        if (!board_ptr_->see_ge(m, see_threshold))
+            continue;
+
+        if (!is_promo && i >= 6 && !board_ptr_->see_ge(m, -50) && !move_gives_check())
+            continue;
 
         ss->move = m;
         ss->moved_piece = type_of(board_ptr_->board_sq[from_sq(m)]);
@@ -1147,7 +1197,16 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             if (stopped_) return 0;
             if (null_score >= beta) {
                 if (null_score >= MATE_SCORE - MAX_PLY) null_score = beta;
-                return null_score;
+                bool verified = true;
+                if (depth >= 10) {
+                    const int verify_depth = std::max(1, depth - r);
+                    const int verify_score = negamax(verify_depth, beta - 1, beta,
+                                                     ply, ss, false, false, false);
+                    if (stopped_) return 0;
+                    verified = verify_score >= beta;
+                }
+                if (verified)
+                    return null_score;
             }
         }
 
@@ -1158,7 +1217,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             board_ptr_->gen_legal_captures(pcaps);
             for (Move m : pcaps) {
                 if (m == ss->excluded) continue;
-                if (board_ptr_->see(m) < pc_beta - static_eval) continue;
+                if (!board_ptr_->see_ge(m, pc_beta - static_eval)) continue;
 
                 ss->move        = m;
                 ss->moved_piece = type_of(board_ptr_->board_sq[from_sq(m)]);
@@ -1201,6 +1260,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     int immediate_score = 0;
 
     auto search_one = [&](Move m) {
+        if (is_root && !move_in_root_moves(m, active_limits_.root_moves))
+            return false;
         if (is_root && root_filter_index_ >= 0) {
             const int ordinal = root_ordinal++;
             if ((ordinal % root_filter_count_) != root_filter_index_)
@@ -1253,14 +1314,14 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             } else if (is_cap) {
                 // SEE pruning for bad captures
                 if (!is_pv && depth <= 8 && !is_promo) {
-                    see_score = board_ptr_->see(m);
-                    if (see_score < -depth * 80 && !move_gives_check()) return false;
+                    if (!board_ptr_->see_ge(m, -depth * 80) && !move_gives_check())
+                        return false;
                 }
             }
         }
 
         if (is_cap && !is_promo && depth >= 2 && searched >= 2 && see_score == VALUE_NONE)
-            see_score = board_ptr_->see(m);
+            see_score = board_ptr_->see_ge(m, 0) ? 0 : -1;
 
         // ---- Extensions -------------------------------------------------------
         int extension = 0;
@@ -1372,7 +1433,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         // Track for history updates
         if (is_cap && !is_promo) {
             if (see_score == VALUE_NONE)
-                see_score = board_ptr_->see(m);
+                see_score = board_ptr_->see_ge(m, 0) ? 0 : -1;
             if (see_score < 0 && bad_caps_count < MAX_TRACKED_BAD_CAPS)
                 bad_caps_searched[bad_caps_count++] = m;
         } else if (is_quiet && quiets_count < MAX_TRACKED_QUIETS) {
@@ -1594,6 +1655,11 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
         // Do not stop at the first forced mate. A shallow iteration can find a
         // longer checking mate before a deeper iteration sees a shorter quiet
         // mating net. Only mate-in-1 is impossible to improve.
+        if (limits.mate > 0 && std::abs(score) >= MATE_SCORE - MAX_PLY) {
+            const int mate_in = (MATE_SCORE - std::abs(score) + 1) / 2;
+            if (mate_in > 0 && mate_in <= limits.mate)
+                break;
+        }
         if (score >= MATE_SCORE - 1)
             break;
     }
@@ -1788,7 +1854,7 @@ SearchResult SearchThreadPool::search(Board board, const SearchLimits& limits, i
     tt_.new_search();
 
     RootMoveTable root_table;
-    root_table.reset(board);
+    root_table.reset(board, limits.root_moves, limits.syzygy_root_moves);
 
     std::vector<SearchResult> results(static_cast<size_t>(thread_count));
     std::atomic<int64_t> shared_nodes{0};

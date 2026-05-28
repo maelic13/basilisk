@@ -37,7 +37,9 @@ struct SearchResult;
 
 class RootMoveTable {
 public:
-    void reset(const Board& board);
+    void reset(const Board& board,
+               const std::vector<Move>& root_moves = {},
+               const std::vector<Syzygy::RootMoveInfo>& syzygy_root_moves = {});
     void update(Move bestmove, Move pondermove, int depth, int score);
     bool contains(Move move) const;
     Move fallback_move() const;
@@ -65,6 +67,7 @@ struct SearchLimits {
     int winc       = 0, binc  = 0;
     int movestogo  = 0;
     int64_t nodes  = 0;
+    int mate        = 0;
     std::atomic<int64_t>* shared_nodes = nullptr;
     std::atomic<int64_t>* shared_tbhits = nullptr;
     int overhead   = 0;   // move overhead to subtract [ms]
@@ -78,6 +81,7 @@ struct SearchLimits {
     int syzygy_probe_depth = 0; // 0 = disabled
     int syzygy_probe_limit = 0;
     bool syzygy_50_move_rule = true;
+    std::vector<Move> root_moves;
     std::vector<Syzygy::RootMoveInfo> syzygy_root_moves;
     RootMoveTable* root_table = nullptr;
 };

@@ -56,6 +56,35 @@ bool apply_uci_move(Board& board, const std::string& token) {
     return false;
 }
 
+bool parse_legal_move(const Board& board, const std::string& token, Move& out) {
+    MoveList legal;
+    board.gen_legal(legal);
+    for (Move move : legal) {
+        if (move_to_uci(move) == token) {
+            out = move;
+            return true;
+        }
+    }
+    out = MOVE_NONE;
+    return false;
+}
+
+bool is_go_parameter(const std::string& token) {
+    return token == "searchmoves"
+        || token == "ponder"
+        || token == "wtime"
+        || token == "btime"
+        || token == "winc"
+        || token == "binc"
+        || token == "movestogo"
+        || token == "depth"
+        || token == "nodes"
+        || token == "mate"
+        || token == "perft"
+        || token == "movetime"
+        || token == "infinite";
+}
+
 } // namespace
 
 Parameters::Parameters() {
@@ -69,7 +98,10 @@ Parameters::Parameters() {
     depth          = infiniteDepth;
     movestogo      = 0;
     nodes          = 0;
+    mate           = 0;
+    perft          = 0;
     ponder         = false;
+    searchMoves.clear();
 
     moveOverhead = defaultMoveOverhead;
     hash_mb      = 64;
@@ -96,11 +128,15 @@ void Parameters::resetTemporaryParameters() {
     depth          = infiniteDepth;
     movestogo      = 0;
     nodes          = 0;
+    mate           = 0;
+    perft          = 0;
     ponder         = false;
+    searchMoves.clear();
 }
 
 std::vector<std::string> Parameters::searchParameters() {
-    return {"depth", "movetime", "wtime", "btime", "winc", "binc", "movestogo", "nodes"};
+    return {"depth", "movetime", "wtime", "btime", "winc", "binc",
+            "movestogo", "nodes", "mate", "perft"};
 }
 
 std::string Parameters::uciOptions() {
@@ -131,29 +167,54 @@ void Parameters::setSearchParameters(const std::string& args) {
         return;
     }
 
-    const bool infinite_requested = args.find("infinite") != std::string::npos;
-    if (infinite_requested) {
-        depth = infiniteDepth;
-    }
+    std::vector<std::string> tokens;
+    std::istringstream iss(args);
+    std::string token;
+    while (iss >> token)
+        tokens.push_back(token);
 
-    ponder = (args.find("ponder") != std::string::npos);
+    bool infinite_requested = false;
+    for (size_t i = 0; i < tokens.size(); ++i) {
+        const std::string& parameter = tokens[i];
 
-    std::smatch matches;
-    const auto params = Parameters::searchParameters();
-    for (const std::string& parameter : params) {
-        for (const std::regex& re : {std::regex(parameter + " (\\S+) "),
-                                     std::regex(parameter + " (\\S+)$")}) {
-            if (std::regex_search(args, matches, re)) {
-                setSearchParameter(parameter, matches[1].str());
-                break;
-            }
+        if (parameter == "ponder") {
+            ponder = true;
+            continue;
         }
+        if (parameter == "infinite") {
+            infinite_requested = true;
+            depth = infiniteDepth;
+            continue;
+        }
+        if (parameter == "searchmoves") {
+            while (i + 1 < tokens.size() && !is_go_parameter(tokens[i + 1])) {
+                const std::string& move_token = tokens[++i];
+                Move move = MOVE_NONE;
+                if (parse_legal_move(board, move_token, move)) {
+                    searchMoves.push_back(move);
+                } else {
+                    uci_write_line("info string Invalid searchmoves move: " + move_token);
+                    break;
+                }
+            }
+            continue;
+        }
+
+        const auto params = Parameters::searchParameters();
+        if (std::find(params.begin(), params.end(), parameter) == params.end())
+            continue;
+        if (i + 1 >= tokens.size() || is_go_parameter(tokens[i + 1])) {
+            uci_write_line("info string Invalid " + parameter + " value.");
+            continue;
+        }
+
+        setSearchParameter(parameter, tokens[++i]);
     }
 
     const bool has_limit = depth != infiniteDepth
         || moveTime > 0 || whiteTime > 0 || blackTime > 0
         || whiteIncrement > 0 || blackIncrement > 0
-        || movestogo > 0 || nodes > 0;
+        || movestogo > 0 || nodes > 0 || mate > 0 || perft > 0;
     if (!has_limit && !infinite_requested && !ponder)
         depth = defaultSearchDepth;
 }
@@ -177,6 +238,18 @@ void Parameters::setSearchParameter(const std::string& parameter, const std::str
     if (parameter == "btime")     { blackTime      = std::max(0, parsed); return; }
     if (parameter == "binc")      { blackIncrement = std::max(0, parsed); return; }
     if (parameter == "movestogo") { movestogo      = std::max(0, parsed); return; }
+    if (parameter == "mate") {
+        mate = std::max(0, parsed);
+        if (mate > 0) {
+            const int capped_mate = std::min(mate, infiniteDepth / 2);
+            depth = std::clamp(2 * capped_mate - 1, 1, infiniteDepth);
+        }
+        return;
+    }
+    if (parameter == "perft") {
+        perft = std::max(0, parsed);
+        return;
+    }
 }
 
 void Parameters::setOption(const std::string& args) {

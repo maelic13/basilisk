@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.4.6] - 2026-05-28
+## [1.4.7] - 2026-05-28
 
 ### Fixed
 
@@ -27,11 +27,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Search / Move Legality
 - Hardened TT move validation so stale, aliased, or SMP-corrupted TT moves must be pseudo-legal before search can play them
 - Prevented malformed TT moves from corrupting board state and leaking illegal `info ... pv` lines to tournament GUIs
+- Corrected full SEE minimax folding so defended losing captures and quiet promotions that can be recaptured are scored correctly
 
 #### Bench
 - Corrected an invalid built-in benchmark FEN so `bench 13` completes under strict FEN validation
 
 ### Added
+
+#### UCI / Analysis Commands
+- Added `go searchmoves ...` root move restrictions, including threaded search support
+- Added `go mate N` parsing, converting mate targets to the corresponding bounded search depth and stopping once a requested mate is found
+- Added `go perft N`, which reports legal leaf nodes from the current position without emitting `bestmove`
+
+#### Search
+- Added threshold SEE (`see_ge`) for hot pruning paths
+- Added qsearch capture-futility and dynamic threshold-SEE pruning
+- Added high-depth null-move verification before accepting risky null cutoffs
 
 #### Testing
 - Added `test_engine_ponder`, an engine-thread regression target covering completed ponder searches waiting for `stop`, completed ponder searches waiting for `ponderhit`, and stale control-state cleanup before the next ponder search
@@ -39,6 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added search-layer coverage that verifies `ponderhit` uses elapsed ponder time instead of resetting the clock
 - Expanded search-layer thread-pool coverage for exact grow/shrink behavior, repeated threaded searches, aggregate node limits, and threaded UCI node reporting
 - Added strict board-legality and corrupt-TT regression coverage for the tournament-derived illegal PV sequence
+- Added board/search/engine coverage for threshold SEE, `searchmoves`, `mate`, and `go perft`
 - Verified live UCI behavior against local Stockfish: both engines withhold `bestmove` during `go ponder depth 1` and emit it only after `stop` or `ponderhit`
 
 ### Changed
@@ -50,15 +62,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The UCI `Threads` maximum now follows Stockfish's `max(1024, 4 * hardware_concurrency)` model; worker creation failure is reported and the active count is reduced
 
 #### Version
-- Bumped engine version metadata to 1.4.6
+- Bumped engine version metadata to 1.4.7
 
 ### Testing
 
 #### Release Verification
 - Built `release-avx2` successfully with MSYS2 Clang/Ninja
 - Passed the full CTest suite: 8/8 tests
-- Passed focused test binaries: `test_board` 252/252, `test_search` 116/116, `test_engine_ponder` 10/10, `test_engine_threading` 5/5, `test_uci_protocol` 32/32
+- Passed focused test binaries: `test_board` 253/253, `test_search` 122/122, `test_engine_ponder` 10/10, `test_engine_threading` 9/9, `test_uci_protocol` 32/32
 - Live UCI comparison with `D:\chess\engines\stockfish.exe`: `go ponder depth 1` withheld `bestmove` until both `stop` and `ponderhit`; Basilisk now also applies `Threads` before `isready` and completes `go nodes N` without requiring `stop`
+- Live UCI smoke verified `go searchmoves e2e4 depth 1`, `go perft 1`, and `go mate 1`
 - Verified no current-engine illegal PV warnings in the focused Cutechess repro; warnings remaining in comparison logs came from the 1.4.5 opponent
 - Ran quick Cutechess book smoke against 1.4.5: 1T scored 6-3-11 over 20 games (+52 +/- 105 Elo), 8T scored 16-0-0 over 16 games
 - Recorded `bench 13` on the local release-avx2 build: 1T averaged 11,530,305 nodes at 2,871,808 nps; 8T averaged 16,709,108 nps over three runs
@@ -435,7 +448,7 @@ First public release.
 - `bench [depth]` command — 16-position built-in benchmark, prints per-position NPS and total node-count fingerprint
 - GitHub Actions release workflow — builds for Linux x86_64, Linux aarch64, Windows x86_64, Windows aarch64, macOS aarch64; all built with Clang; PEXT variant produced for x86_64 platforms
 
-[1.4.6]: https://github.com/maelic13/basilisk/compare/v1.4.5...v1.4.6
+[1.4.7]: https://github.com/maelic13/basilisk/compare/v1.4.5...v1.4.7
 [1.4.5]: https://github.com/maelic13/basilisk/compare/v1.4.4...v1.4.5
 [1.4.4]: https://github.com/maelic13/basilisk/compare/v1.4.3...v1.4.4
 [1.4.3]: https://github.com/maelic13/basilisk/compare/v1.4.2...v1.4.3

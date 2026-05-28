@@ -106,6 +106,17 @@ public:
         return count_bestmove_lines(output()) >= expected;
     }
 
+    bool wait_for_fragment(const std::string& fragment, int timeout_ms) const {
+        const auto deadline = std::chrono::steady_clock::now()
+                            + std::chrono::milliseconds(timeout_ms);
+        while (std::chrono::steady_clock::now() < deadline) {
+            if (contains_line_fragment(output(), fragment))
+                return true;
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+        return contains_line_fragment(output(), fragment);
+    }
+
 private:
     EngineCommandQueue queue_;
     std::atomic_bool stop_requested_{false};
@@ -165,6 +176,31 @@ void test_threaded_go_nodes_returns_one_bestmove() {
     end_section();
 }
 
+void test_go_perft_returns_nodes_without_bestmove() {
+    EngineSession session;
+    session.position("startpos");
+    session.go("perft 1");
+
+    begin_section("engine uci: go perft returns node count");
+    EXPECT(session.wait_for_fragment("Nodes searched: 20", 1000));
+    end_section();
+
+    begin_section("engine uci: go perft does not emit bestmove");
+    EXPECT_EQ(count_bestmove_lines(session.output()), 0);
+    end_section();
+}
+
+void test_go_searchmoves_restricts_root_move() {
+    EngineSession session;
+    session.position("startpos");
+    session.go("searchmoves e2e4 depth 1");
+
+    begin_section("engine uci: searchmoves restricts bestmove");
+    EXPECT(session.wait_for_bestmoves(1, 1000));
+    EXPECT(contains_line_fragment(session.output(), "bestmove e2e4"));
+    end_section();
+}
+
 } // namespace
 
 int main() {
@@ -181,6 +217,10 @@ int main() {
 
     std::printf("\nThreaded search\n");
     test_threaded_go_nodes_returns_one_bestmove();
+
+    std::printf("\nRoot commands\n");
+    test_go_perft_returns_nodes_without_bestmove();
+    test_go_searchmoves_restricts_root_move();
 
     return harness_summary();
 }
