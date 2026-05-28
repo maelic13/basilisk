@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <cctype>
 #include <iostream>
+#include <limits>
 #include <regex>
 #include <sstream>
 #include <string>
@@ -16,6 +17,30 @@ bool parse_bool_option(std::string value) {
     std::transform(value.begin(), value.end(), value.begin(),
                    [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
     return value == "true" || value == "1" || value == "yes" || value == "on";
+}
+
+bool parse_i64(const std::string& value, int64_t& out) {
+    try {
+        size_t pos = 0;
+        long long parsed = std::stoll(value, &pos);
+        if (pos != value.size())
+            return false;
+        out = static_cast<int64_t>(parsed);
+        return true;
+    } catch (...) {
+        return false;
+    }
+}
+
+bool parse_int(const std::string& value, int& out) {
+    int64_t parsed = 0;
+    if (!parse_i64(value, parsed)
+        || parsed < std::numeric_limits<int>::min()
+        || parsed > std::numeric_limits<int>::max()) {
+        return false;
+    }
+    out = static_cast<int>(parsed);
+    return true;
 }
 
 } // namespace
@@ -88,7 +113,8 @@ void Parameters::setSearchParameters(const std::string& args) {
         return;
     }
 
-    if (args.find("infinite") != std::string::npos) {
+    const bool infinite_requested = args.find("infinite") != std::string::npos;
+    if (infinite_requested) {
         depth = infiniteDepth;
     }
 
@@ -105,17 +131,34 @@ void Parameters::setSearchParameters(const std::string& args) {
             }
         }
     }
+
+    const bool has_limit = depth != infiniteDepth
+        || moveTime > 0 || whiteTime > 0 || blackTime > 0
+        || whiteIncrement > 0 || blackIncrement > 0
+        || movestogo > 0 || nodes > 0;
+    if (!has_limit && !infinite_requested && !ponder)
+        depth = defaultSearchDepth;
 }
 
 void Parameters::setSearchParameter(const std::string& parameter, const std::string& value) {
-    if (parameter == "depth")     { depth          = std::stoi(value); return; }
-    if (parameter == "movetime")  { moveTime        = std::stoi(value); return; }
-    if (parameter == "wtime")     { whiteTime       = std::stoi(value); return; }
-    if (parameter == "winc")      { whiteIncrement  = std::stoi(value); return; }
-    if (parameter == "btime")     { blackTime       = std::stoi(value); return; }
-    if (parameter == "binc")      { blackIncrement  = std::stoi(value); return; }
-    if (parameter == "movestogo") { movestogo       = std::stoi(value); return; }
-    if (parameter == "nodes")     { nodes           = std::stoll(value); return; }
+    if (parameter == "nodes") {
+        int64_t parsed = 0;
+        if (parse_i64(value, parsed))
+            nodes = std::max<int64_t>(0, parsed);
+        return;
+    }
+
+    int parsed = 0;
+    if (!parse_int(value, parsed))
+        return;
+
+    if (parameter == "depth")     { depth          = std::clamp(parsed, 1, infiniteDepth); return; }
+    if (parameter == "movetime")  { moveTime       = std::max(0, parsed); return; }
+    if (parameter == "wtime")     { whiteTime      = std::max(0, parsed); return; }
+    if (parameter == "winc")      { whiteIncrement = std::max(0, parsed); return; }
+    if (parameter == "btime")     { blackTime      = std::max(0, parsed); return; }
+    if (parameter == "binc")      { blackIncrement = std::max(0, parsed); return; }
+    if (parameter == "movestogo") { movestogo      = std::max(0, parsed); return; }
 }
 
 void Parameters::setOption(const std::string& args) {
@@ -152,20 +195,23 @@ void Parameters::setOption(const std::string& args) {
     }
     const std::string value = matches[1].str();
 
-    if (name_lower == "move overhead") {
-        moveOverhead = std::stoi(value);
-    } else if (name_lower == "hash") {
-        hash_mb = std::clamp(std::stoi(value), 1, 33554432);
-    } else if (name_lower == "threads") {
-        threads = std::clamp(std::stoi(value), 1, maxThreads());
-    } else if (name_lower == "syzygypath") {
+    int parsed = 0;
+    if (name_lower == "syzygypath") {
         syzygyPath = (value == "<empty>") ? std::string{} : value;
-    } else if (name_lower == "syzygyprobedepth") {
-        syzygyProbeDepth = std::clamp(std::stoi(value), 1, 100);
-    } else if (name_lower == "syzygyprobelimit") {
-        syzygyProbeLimit = std::clamp(std::stoi(value), 0, 7);
     } else if (name_lower == "syzygy50moverule") {
         syzygy50MoveRule = parse_bool_option(value);
+    } else if (!parse_int(value, parsed)) {
+        uci_write_line("info string Invalid value for option '" + name + "': " + value);
+    } else if (name_lower == "move overhead") {
+        moveOverhead = std::clamp(parsed, 0, 5000);
+    } else if (name_lower == "hash") {
+        hash_mb = std::clamp(parsed, 1, 33554432);
+    } else if (name_lower == "threads") {
+        threads = std::clamp(parsed, 1, maxThreads());
+    } else if (name_lower == "syzygyprobedepth") {
+        syzygyProbeDepth = std::clamp(parsed, 1, 100);
+    } else if (name_lower == "syzygyprobelimit") {
+        syzygyProbeLimit = std::clamp(parsed, 0, 7);
     }
 }
 

@@ -75,12 +75,48 @@ static bool boards_equal(const Board& a, const Board& b) {
         && a.ep_sq           == b.ep_sq
         && a.castling_rights == b.castling_rights
         && a.halfmove_clock  == b.halfmove_clock
+        && a.plies_from_null == b.plies_from_null
         && a.fullmove_number == b.fullmove_number
         && a.ply             == b.ply
         && a.hash            == b.hash
         && a.pawn_key        == b.pawn_key
+        && a.minor_key       == b.minor_key
+        && a.nonpawn_key[WHITE] == b.nonpawn_key[WHITE]
+        && a.nonpawn_key[BLACK] == b.nonpawn_key[BLACK]
         && a.king_sq[WHITE]  == b.king_sq[WHITE]
         && a.king_sq[BLACK]  == b.king_sq[BLACK];
+}
+
+static Key recompute_minor_key(const Board& b) {
+    Key key = 0;
+    for (Color c : {WHITE, BLACK}) {
+        for (PieceType pt : {KNIGHT, BISHOP}) {
+            Bitboard bb = b.pieces[c][pt];
+            while (bb) {
+                Square sq = Square(pop_lsb(bb));
+                key ^= Zobrist::PieceKeys[c][pt][sq];
+            }
+        }
+    }
+    return key;
+}
+
+static Key recompute_nonpawn_key(const Board& b, Color c) {
+    Key key = 0;
+    for (PieceType pt : {KNIGHT, BISHOP, ROOK, QUEEN}) {
+        Bitboard bb = b.pieces[c][pt];
+        while (bb) {
+            Square sq = Square(pop_lsb(bb));
+            key ^= Zobrist::PieceKeys[c][pt][sq];
+        }
+    }
+    return key;
+}
+
+static bool piece_keys_match_mailbox(const Board& b) {
+    return b.minor_key == recompute_minor_key(b)
+        && b.nonpawn_key[WHITE] == recompute_nonpawn_key(b, WHITE)
+        && b.nonpawn_key[BLACK] == recompute_nonpawn_key(b, BLACK);
 }
 
 // ---------------------------------------------------------------------------
@@ -344,6 +380,56 @@ static void test_pawn_key() {
     end_section();
 }
 
+static void test_incremental_piece_keys() {
+    Board b;
+
+    begin_section("piece keys match FEN placement");
+    b.set_fen("4k3/8/3b4/8/2N1R3/8/8/4K3 w - - 0 1");
+    EXPECT(piece_keys_match_mailbox(b));
+    end_section();
+
+    begin_section("piece keys update after minor move");
+    b.make_move(make_move(C4, B6));
+    EXPECT(piece_keys_match_mailbox(b));
+    b.unmake_move(make_move(C4, B6));
+    EXPECT(piece_keys_match_mailbox(b));
+    end_section();
+
+    begin_section("piece keys update after capture");
+    b.make_move(make_move(C4, D6));
+    EXPECT(piece_keys_match_mailbox(b));
+    b.unmake_move(make_move(C4, D6));
+    EXPECT(piece_keys_match_mailbox(b));
+    end_section();
+
+    begin_section("piece keys update after promotion and unmake");
+    b.set_fen("4k3/P7/8/8/8/8/8/4K3 w - - 0 1");
+    Key minor_before = b.minor_key;
+    Key white_nonpawn_before = b.nonpawn_key[WHITE];
+    Move promo = make_promotion(A7, A8, QUEEN);
+    b.make_move(promo);
+    EXPECT(piece_keys_match_mailbox(b));
+    EXPECT(b.nonpawn_key[WHITE] != white_nonpawn_before);
+    b.unmake_move(promo);
+    EXPECT_EQ(b.minor_key, minor_before);
+    EXPECT_EQ(b.nonpawn_key[WHITE], white_nonpawn_before);
+    EXPECT(piece_keys_match_mailbox(b));
+    end_section();
+
+    begin_section("piece keys survive null move");
+    b.set_fen("4k3/8/8/8/8/8/8/R3K2R w KQ - 0 1");
+    Key minor = b.minor_key;
+    Key white_nonpawn = b.nonpawn_key[WHITE];
+    Key black_nonpawn = b.nonpawn_key[BLACK];
+    b.make_null_move();
+    EXPECT_EQ(b.minor_key, minor);
+    EXPECT_EQ(b.nonpawn_key[WHITE], white_nonpawn);
+    EXPECT_EQ(b.nonpawn_key[BLACK], black_nonpawn);
+    b.unmake_null_move();
+    EXPECT(piece_keys_match_mailbox(b));
+    end_section();
+}
+
 // ---------------------------------------------------------------------------
 // 6. Check detection
 // ---------------------------------------------------------------------------
@@ -387,6 +473,11 @@ static void test_check_detection() {
     // White queen on e7 adjacent to black king on e8 (same file, adjacent rank)
     b.set_fen("4k3/4Q3/8/8/8/8/8/4K3 b - - 0 1");
     EXPECT(b.is_in_check());
+    end_section();
+
+    begin_section("castling rook move gives check");
+    b.set_fen("5k2/8/8/8/8/8/8/4K2R w K - 0 1");
+    EXPECT(b.gives_check(make_castling(E1, G1)));
     end_section();
 }
 
@@ -435,6 +526,18 @@ static void test_castling_rights() {
     b.make_move(km);
     b.unmake_move(km);
     EXPECT_EQ(b.castling_rights, orig.castling_rights);
+    end_section();
+
+    begin_section("rights without rooks do not allow castling");
+    b.set_fen("4k3/8/8/8/8/8/8/4K3 w KQ - 0 1");
+    MoveList legal;
+    b.gen_legal(legal);
+    bool saw_castle = false;
+    for (Move m : legal)
+        saw_castle = saw_castle || move_type(m) == CASTLING;
+    EXPECT(!saw_castle);
+    EXPECT(!b.is_legal(make_castling(E1, G1)));
+    EXPECT(!b.is_legal(make_castling(E1, C1)));
     end_section();
 }
 
@@ -516,6 +619,24 @@ static void test_draw_detection() {
     EXPECT(b.is_draw());  // twofold
     end_section();
 
+    begin_section("search repetition distinguishes root and in-tree repeat");
+    b.set_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+    b.make_move(make_move(G1, F3));
+    b.make_move(make_move(G8, F6));
+    b.make_move(make_move(F3, G1));
+    b.make_move(make_move(F6, G8));
+    EXPECT(!b.is_repetition(0));
+    EXPECT(b.is_repetition(4));
+    EXPECT(b.is_draw(4));
+    end_section();
+
+    begin_section("null move limits repetition scan");
+    b.make_null_move();
+    b.make_move(make_move(G8, F6));
+    b.make_move(make_move(G1, F3));
+    EXPECT(!b.is_repetition(10));
+    end_section();
+
     begin_section("insufficient material: K vs K");
     b.set_fen("4k3/8/8/8/8/8/8/4K3 w - - 0 1");
     EXPECT(b.is_insufficient_material());
@@ -569,10 +690,13 @@ static void test_null_move() {
     begin_section("null move changes hash; unmake restores it");
     b.set_fen("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1");
     Key h0 = b.hash;
+    int pfn0 = b.plies_from_null;
     b.make_null_move();
     EXPECT(b.hash != h0);
+    EXPECT_EQ(b.plies_from_null, 0);
     b.unmake_null_move();
     EXPECT_EQ(b.hash, h0);
+    EXPECT_EQ(b.plies_from_null, pfn0);
     end_section();
 
     begin_section("null move preserves castling rights");
@@ -668,6 +792,9 @@ int main() {
 
     std::printf("\nPawn key\n");
     test_pawn_key();
+
+    std::printf("\nIncremental piece keys\n");
+    test_incremental_piece_keys();
 
     std::printf("\nCheck detection\n");
     test_check_detection();

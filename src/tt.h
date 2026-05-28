@@ -7,6 +7,9 @@
 #include <atomic>
 #include <cstdint>
 #include <memory>
+#if defined(_MSC_VER)
+#include <xmmintrin.h>
+#endif
 
 enum TTFlag : uint8_t { TT_NONE=0, TT_EXACT=1, TT_ALPHA=2, TT_BETA=3 };
 
@@ -90,6 +93,19 @@ public:
         return false;
     }
 
+    void prefetch(Key key) const {
+        if (!clusters_)
+            return;
+        const void* addr = &clusters_[key & mask_];
+#if defined(_MSC_VER)
+        _mm_prefetch(static_cast<const char*>(addr), _MM_HINT_T0);
+#elif defined(__GNUC__) || defined(__clang__)
+        __builtin_prefetch(addr, 0, 3);
+#else
+        (void)addr;
+#endif
+    }
+
     void store(Key key, int depth, int score, TTFlag flag, Move m, int ply, int static_eval) {
         TTCluster& cluster = clusters_[key & mask_];
         const uint8_t age = age_.load(std::memory_order_relaxed);
@@ -139,16 +155,18 @@ public:
     int hashfull() const {
         int count = 0;
         size_t sample = std::min(size_t(334), cluster_count_);
+        const uint8_t age = age_.load(std::memory_order_relaxed);
         for (size_t i = 0; i < sample; i++) {
             for (const TTSlot& slot : clusters_[i].entries) {
                 const uint64_t data = slot.data.load(std::memory_order_relaxed);
                 TTEntry e = unpack_entry(slot.key_xor_data.load(std::memory_order_relaxed) ^ data,
                                          data);
-                if ((e.flag_age & 3) != TT_NONE)
+                if ((e.flag_age & 3) != TT_NONE && (e.flag_age & 0xFC) == age)
                     count++;
             }
         }
-        return count; // permille (334 clusters * 3 entries = 1002 samples ~= 1000)
+        const int slots = static_cast<int>(sample * 3);
+        return slots == 0 ? 0 : count * 1000 / slots;
     }
 
     // Score adjustments for mate scores stored relative to ply
@@ -158,9 +176,11 @@ public:
         return score;
     }
 
-    static int score_from_tt(int score, int ply) {
+    static int score_from_tt(int score, int ply, int halfmove_clock = 0) {
         if (score >=  MATE_SCORE - MAX_PLY) return score - ply;
         if (score <= -MATE_SCORE + MAX_PLY) return score + ply;
+        if (halfmove_clock >= 100)
+            return 0;
         return score;
     }
 
@@ -200,6 +220,6 @@ private:
             return -100000;
 
         int age_delta = int(age - (e.flag_age & 0xFC)) & 0xFC; // 0, 4, 8, ...
-        return int(e.depth) - age_delta / 2;
+        return int(e.depth) - age_delta / 2 + (((e.flag_age & 3) == TT_EXACT) ? 2 : 0);
     }
 };

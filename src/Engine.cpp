@@ -120,6 +120,7 @@ void Engine::start_search(uint64_t command_epoch) {
     const bool do_clear_hash = parameters_.clear_hash;
     const bool is_new_game = parameters_.new_game;
     Board board_copy = parameters_.board;
+    const bool stop_was_requested = stop_requested_.load(std::memory_order_acquire);
 
     if (Syzygy::enabled()) {
         limits.syzygy_root_moves = Syzygy::probe_root_moves(board_copy,
@@ -163,6 +164,13 @@ void Engine::start_search(uint64_t command_epoch) {
     if (is_new_game || do_clear_hash) {
         tt.clear();
         search_pool_.clear();
+    }
+
+    if (stop_was_requested && (limits.infinite || limits.ponder)) {
+        ponderhit_requested_.store(false, std::memory_order_release);
+        searching_.store(false, std::memory_order_release);
+        send_bestmove(SearchResult{}, board_copy);
+        return;
     }
 
     ponderhit_requested_.store(false, std::memory_order_release);

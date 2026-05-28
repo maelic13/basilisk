@@ -157,6 +157,15 @@ static void test_default_go_depth_and_syzygy_options() {
     params.setOption("name SyzygyProbeLimit value -5");
     EXPECT_EQ(params.syzygyProbeLimit, 0);
     end_section();
+
+    begin_section("parameters: invalid numeric values are ignored");
+    params.setSearchParameters("depth nope movetime -5 nodes bad");
+    EXPECT_EQ(params.depth, defaultSearchDepth);
+    EXPECT_EQ(params.moveTime, 0);
+    EXPECT_EQ(params.nodes, 0);
+    params.setOption("name Threads value many");
+    EXPECT_EQ(params.threads, 1);
+    end_section();
 }
 
 static void test_returns_legal_move() {
@@ -261,6 +270,26 @@ static void test_nodes_limit() {
     end_section();
 }
 
+static void test_stopped_search_returns_legal_fallback() {
+    static constexpr const char* FEN =
+        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
+    TranspositionTable tt(4);
+    std::atomic_bool stop{true};
+    Board board;
+    board.set_fen(FEN);
+
+    SearchLimits limits;
+    limits.depth = MAX_SEARCH_DEPTH;
+
+    auto searcher = std::make_unique<Searcher>(tt, stop);
+    SearchResult result = searcher->search(board, limits);
+
+    begin_section("stopped search: returns legal fallback instead of 0000");
+    EXPECT(is_legal_bestmove(FEN, result.bestmove));
+    end_section();
+}
+
 static void test_score_near_zero_startpos() {
     // The starting position is roughly equal; at depth 5 the score should be
     // well within ±100 centipawns of 0.
@@ -352,6 +381,22 @@ static void test_search_result_sanitizer() {
 
     begin_section("search-result sanitizer: clears ponder after replacement");
     EXPECT(safe.pondermove == MOVE_NONE);
+    end_section();
+
+    begin_section("search-result sanitizer: replaces MOVE_NONE in legal position");
+    SearchResult none;
+    SearchResult fallback = sanitize_search_result(board, none);
+    EXPECT(fallback.bestmove != MOVE_NONE);
+    EXPECT(is_legal_bestmove(FEN, fallback.bestmove));
+    end_section();
+
+    begin_section("search-result sanitizer: keeps MOVE_NONE in checkmate");
+    static constexpr const char* MATE_FEN =
+        "7k/5KQ1/8/8/8/8/8/8 b - - 0 1";
+    Board mate_board;
+    mate_board.set_fen(MATE_FEN);
+    SearchResult mate_result = sanitize_search_result(mate_board, SearchResult{});
+    EXPECT(mate_result.bestmove == MOVE_NONE);
     end_section();
 }
 
@@ -621,6 +666,7 @@ int main() {
 
     std::printf("\nNodes limit\n");
     test_nodes_limit();
+    test_stopped_search_returns_legal_fallback();
 
     std::printf("\nScore near zero\n");
     test_score_near_zero_startpos();

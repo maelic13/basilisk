@@ -13,10 +13,13 @@
 struct UndoInfo {
     Key      hash;
     Key      pawn_key;
+    Key      minor_key;
+    Key      nonpawn_key[NCOLORS];
     Bitboard checkers;
     Square   ep_sq;
     int      castling;
     int      halfmove;
+    int      plies_from_null;
     Piece    captured;
 };
 
@@ -50,9 +53,12 @@ public:
 
     Key    hash;
     Key    pawn_key;
+    Key    minor_key;
+    Key    nonpawn_key[NCOLORS];
     Square ep_sq;
     int    castling_rights;
     int    halfmove_clock;
+    int    plies_from_null;
 
     Square king_sq[NCOLORS];
     Bitboard checkers;  // pieces giving check to side_to_move (updated by make_move/set_fen)
@@ -78,6 +84,7 @@ public:
 
     bool is_in_check() const;
     bool gives_check(Move m) const;
+    Bitboard check_squares(PieceType pt, Color us) const;
     bool is_square_attacked(Square sq, Color by) const;
     Bitboard attackers_to(Square sq, Bitboard occ) const;
     Bitboard attackers_to(Square sq, Bitboard occ, Color by) const;
@@ -95,6 +102,8 @@ public:
     bool is_legal(Move m) const;
 
     bool is_draw() const;
+    bool is_draw(int search_ply) const;
+    bool is_repetition(int search_ply) const;
     bool is_insufficient_material() const;
 
     bool has_non_pawn_material(Color c) const;

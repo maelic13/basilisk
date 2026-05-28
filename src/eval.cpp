@@ -727,6 +727,9 @@ int Evaluator::evaluate(const Board& b) {
         if (only_king(BLACK) && only_knights(WHITE, 2)) score = 0;
     }
 
+    if (b.halfmove_clock > 0)
+        score = score * std::max(0, 100 - b.halfmove_clock) / 100;
+
     // Return from side-to-move perspective
     return (b.side_to_move == WHITE) ? score : -score;
 }

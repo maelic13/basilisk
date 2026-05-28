@@ -101,6 +101,11 @@ static void test_mate_score_adjustment() {
     EXPECT_EQ(TranspositionTable::score_from_tt(200, 5), 200);
     end_section();
 
+    begin_section("score_from_tt: non-mate scores draw at 50-move limit");
+    EXPECT_EQ(TranspositionTable::score_from_tt(200, 5, 100), 0);
+    EXPECT_EQ(TranspositionTable::score_from_tt(-200, 5, 120), 0);
+    end_section();
+
     // Boundary: just below mate threshold is unchanged
     const int just_below = TranspositionTable::MATE_SCORE - TranspositionTable::MAX_PLY - 1;
     begin_section("score_to_tt: below-threshold score unchanged");
@@ -119,6 +124,10 @@ static void test_mate_score_adjustment() {
 
     begin_section("mate score: round-trip at ply 5");
     EXPECT_EQ(TranspositionTable::score_from_tt(stored, 5), mate3);
+    end_section();
+
+    begin_section("score_from_tt: mate scores ignore 50-move clamp");
+    EXPECT_EQ(TranspositionTable::score_from_tt(stored, 5, 100), mate3);
     end_section();
 
     // Mated in 5 (−MATE_SCORE + 5 = −31995).  At ply 3:
@@ -167,6 +176,27 @@ static void test_hashfull() {
 
     begin_section("hashfull: <= 1000 (valid permille range)");
     EXPECT(tt.hashfull() <= 1000);
+    end_section();
+
+    begin_section("hashfull: ignores entries from older generation");
+    tt.new_search();
+    EXPECT_EQ(tt.hashfull(), 0);
+    end_section();
+}
+
+static void test_prefetch_is_safe() {
+    TranspositionTable tt(1);
+
+    begin_section("prefetch: empty key is safe");
+    tt.prefetch(0);
+    EXPECT(true);
+    end_section();
+
+    begin_section("prefetch: stored key is safe");
+    const Key key = 0x5151515151515151ULL;
+    tt.store(key, 4, 12, TT_EXACT, make_move(E2, E4), 0, 12);
+    tt.prefetch(key);
+    EXPECT(true);
     end_section();
 }
 
@@ -294,6 +324,9 @@ int main() {
 
     std::printf("\nHashfull\n");
     test_hashfull();
+
+    std::printf("\nPrefetch\n");
+    test_prefetch_is_safe();
 
     std::printf("\nReplacement policy\n");
     test_deeper_entry_preferred();

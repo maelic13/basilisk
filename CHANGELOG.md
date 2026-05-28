@@ -7,6 +7,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.4] - 2026-05-28
+
+### Fixed
+
+#### UCI / Search Safety
+- Fixed a serious 100 ms/move tournament regression where Basilisk could emit illegal `bestmove 0000` from non-terminal positions
+- Preserved queued `go` and `bench` commands when a GUI immediately follows them with `quit`, instead of priority-inserting `quit` ahead of the queued work
+- Added EOF handling so the UCI loop always wakes the engine thread with a `quit` command when stdin closes
+- Hardened stopped infinite/ponder searches so they return a legal fallback move when the GUI has already requested stop
+- Strengthened final search-result sanitization coverage for both legal positions and terminal checkmates
+
+#### Board Rules
+- Castling generation and legality now require the king and rook to actually be present on their castling squares
+- Castling moves now correctly report rook-discovered checks
+- Repetition detection now distinguishes root repetitions from in-tree repetitions and stops scanning across null moves
+- Draw detection now includes insufficient-material positions in the general `is_draw()` path
+
+#### UCI Parsing
+- Invalid numeric `go` and `setoption` values are ignored or clamped instead of throwing through `std::stoi`
+- Invalid bare `go` numeric input falls back to the normal default depth search instead of accidental infinite search
+
+### Added
+
+#### Search
+- Added 4-ply continuation history, pawn-structure keyed quiet history, and low-ply quiet history
+- Added broader correction histories keyed by pawn structure, minor-piece placement, non-pawn placement, and continuation context
+- Added staged good/bad tactical move ordering so SEE-losing captures are delayed behind quiet moves
+- Added TT prefetching, exact-entry replacement preference, and current-age-aware `hashfull`
+- Added root best-move effort tracking for adaptive time management
+- Added Lazy SMP helper root diversification and helper history blending
+
+#### Board
+- Added incremental minor-piece and non-pawn Zobrist keys to support fast correction-history lookup
+- Added `check_squares()` helper for cheap direct-check move scoring
+
+#### Evaluation
+- Added 50-move-rule score damping for non-mating evaluations
+
+#### Testing
+- Added a dedicated `test_uci_protocol` CTest target covering queued `go`/`bench`/`quit`, EOF-triggered quit, and `uci` output
+- Added regression coverage for incremental piece keys, null-move repetition boundaries, stopped-search fallback, terminal sanitizer behavior, TT 50-move score clamping, current-age `hashfull`, and TT prefetch safety
+
+### Changed
+
+#### Move Ordering
+- Quiet move scoring now combines main history, continuation history, pawn history, low-ply history, direct-check bonuses, killers, countermoves, tablebase root ordering, and shared root ordering
+
+#### Version
+- Bumped engine version metadata to 1.4.4
+
+### Testing
+
+#### Release Verification
+- Built `release-avx2` successfully with MSYS2 Clang/Ninja
+- Passed the full CTest suite: 6/6 tests
+- Verified direct UCI stress on 40 legal non-terminal positions at 100 ms/move: 0 illegal moves and 0 `bestmove 0000`
+- Verified a short 4-game `chess_tester` smoke against Basilisk 1.3.0 at 100 ms/move with 0 engine errors
+- Recorded `bench 13` at 13,367,400 nodes and 2,435,750 nps on the local release-avx2 build
+
+---
+
 ## [1.4.3] - 2026-05-27
 
 ### Fixed
@@ -278,6 +339,7 @@ First public release.
 - `bench [depth]` command — 16-position built-in benchmark, prints per-position NPS and total node-count fingerprint
 - GitHub Actions release workflow — builds for Linux x86_64, Linux aarch64, Windows x86_64, Windows aarch64, macOS aarch64; all built with Clang; PEXT variant produced for x86_64 platforms
 
+[1.4.4]: https://github.com/maelic13/basilisk/compare/v1.4.3...v1.4.4
 [1.4.3]: https://github.com/maelic13/basilisk/compare/v1.4.2...v1.4.3
 [1.4.2]: https://github.com/maelic13/basilisk/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/maelic13/basilisk/compare/v1.4.0...v1.4.1

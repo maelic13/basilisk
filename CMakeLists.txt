@@ -56,7 +56,7 @@ endif()
 
 set(COMP "${_basilisk_compiler}" CACHE STRING "Compiler selection: auto, clang, gcc, or llvm" FORCE)
 
-project(basilisk VERSION 1.4.3 LANGUAGES CXX)
+project(basilisk VERSION 1.4.4 LANGUAGES CXX)
 
 _basilisk_detect_darwin_processor(_basilisk_system_processor "${CMAKE_SYSTEM_NAME}" "${CMAKE_SYSTEM_PROCESSOR}")
 if(APPLE AND NOT _basilisk_system_processor MATCHES "^(arm64|aarch64)$")
@@ -160,12 +160,23 @@ target_link_libraries(test_eval PRIVATE basilisk_engine)
 add_executable(test_search tests/test_search.cpp src/Parameters.cpp)
 target_link_libraries(test_search PRIVATE basilisk_engine)
 
+# ---------------------------------------------------------------------------
+# UCI protocol tests
+# ---------------------------------------------------------------------------
+add_executable(test_uci_protocol
+    tests/test_uci_protocol.cpp
+    src/UciProtocol.cpp
+    src/Parameters.cpp
+)
+target_link_libraries(test_uci_protocol PRIVATE basilisk_engine)
+
 include(CTest)
 add_test(NAME test_board        COMMAND test_board)
 add_test(NAME test_move         COMMAND test_move)
 add_test(NAME test_tt           COMMAND test_tt)
 add_test(NAME test_eval         COMMAND test_eval)
 add_test(NAME test_search       COMMAND test_search)
+add_test(NAME test_uci_protocol COMMAND test_uci_protocol)
 
 # board_performance_test is a standalone benchmark — build it but do not
 # register it with CTest so that a plain `ctest` run stays fast and clean.
@@ -179,7 +190,7 @@ option(PORTABLE_BUILD "Build without host-specific CPU flags for distributable b
 set(_ALL_TARGETS
     basilisk_board basilisk_engine
     basilisk board_performance_test
-    test_board test_move test_tt test_eval test_search
+    test_board test_move test_tt test_eval test_search test_uci_protocol
 )
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")

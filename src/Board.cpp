@@ -16,6 +16,8 @@ void Board::put_piece(Color c, PieceType pt, Square sq) {
     board_sq[sq]    = make_piece(c, pt);
     hash           ^= Zobrist::PieceKeys[c][pt][sq];
     if (pt == PAWN) pawn_key ^= Zobrist::PieceKeys[c][PAWN][sq];
+    if (pt == KNIGHT || pt == BISHOP) minor_key ^= Zobrist::PieceKeys[c][pt][sq];
+    if (pt != PAWN && pt != KING) nonpawn_key[c] ^= Zobrist::PieceKeys[c][pt][sq];
     if (pt == KING) king_sq[c] = sq;
 }
 
@@ -31,6 +33,8 @@ void Board::remove_piece(Square sq) {
     board_sq[sq]    = NO_PIECE;
     hash           ^= Zobrist::PieceKeys[c][pt][sq];
     if (pt == PAWN) pawn_key ^= Zobrist::PieceKeys[c][PAWN][sq];
+    if (pt == KNIGHT || pt == BISHOP) minor_key ^= Zobrist::PieceKeys[c][pt][sq];
+    if (pt != PAWN && pt != KING) nonpawn_key[c] ^= Zobrist::PieceKeys[c][pt][sq];
 }
 
 void Board::move_piece(Square from, Square to) {
@@ -48,6 +52,12 @@ void Board::move_piece(Square from, Square to) {
     if (pt == PAWN)
         pawn_key ^= Zobrist::PieceKeys[c][PAWN][from]
                   ^ Zobrist::PieceKeys[c][PAWN][to];
+    if (pt == KNIGHT || pt == BISHOP)
+        minor_key ^= Zobrist::PieceKeys[c][pt][from]
+                   ^ Zobrist::PieceKeys[c][pt][to];
+    if (pt != PAWN && pt != KING)
+        nonpawn_key[c] ^= Zobrist::PieceKeys[c][pt][from]
+                        ^ Zobrist::PieceKeys[c][pt][to];
     if (pt == KING) king_sq[c] = to;
 }
 
@@ -65,6 +75,31 @@ Key Board::compute_hash() const {
     h ^= Zobrist::CastlingKeys[castling_rights];
     if (ep_sq != SQ_NONE) h ^= Zobrist::EpKeys[file_of(ep_sq)];
     return h;
+}
+
+static bool has_piece_on(const Board& b, Square sq, Color color, PieceType pt) {
+    const Piece p = b.board_sq[sq];
+    return p != NO_PIECE && color_of(p) == color && type_of(p) == pt;
+}
+
+static bool can_castle_kingside(const Board& b, Color us) {
+    const Rank back = us == WHITE ? RANK_1 : RANK_8;
+    const Square king_from = make_square(FILE_E, back);
+    const Square rook_from = make_square(FILE_H, back);
+    const int right = us == WHITE ? WK_CASTLE : BK_CASTLE;
+    return (b.castling_rights & right)
+        && has_piece_on(b, king_from, us, KING)
+        && has_piece_on(b, rook_from, us, ROOK);
+}
+
+static bool can_castle_queenside(const Board& b, Color us) {
+    const Rank back = us == WHITE ? RANK_1 : RANK_8;
+    const Square king_from = make_square(FILE_E, back);
+    const Square rook_from = make_square(FILE_A, back);
+    const int right = us == WHITE ? WQ_CASTLE : BQ_CASTLE;
+    return (b.castling_rights & right)
+        && has_piece_on(b, king_from, us, KING)
+        && has_piece_on(b, rook_from, us, ROOK);
 }
 
 // ---- Constructor & FEN parsing ---------------------------------------------
@@ -103,9 +138,13 @@ Board& Board::operator=(const Board& other) {
     ply = other.ply;
     hash = other.hash;
     pawn_key = other.pawn_key;
+    minor_key = other.minor_key;
+    nonpawn_key[WHITE] = other.nonpawn_key[WHITE];
+    nonpawn_key[BLACK] = other.nonpawn_key[BLACK];
     ep_sq = other.ep_sq;
     castling_rights = other.castling_rights;
     halfmove_clock = other.halfmove_clock;
+    plies_from_null = other.plies_from_null;
     checkers = other.checkers;
 
     history_size = other.history_size;
@@ -123,9 +162,13 @@ void Board::set_fen(const std::string& fen) {
     for (int c = 0; c < NCOLORS; c++) occupancy[c] = 0;
     all_occ = 0;
     pawn_key = 0;
+    minor_key = 0;
+    nonpawn_key[WHITE] = 0;
+    nonpawn_key[BLACK] = 0;
     for (int s = 0; s < SQUARE_NB; s++) board_sq[s] = NO_PIECE;
     history_size = 0;
     ply = 0;
+    plies_from_null = 0;
 
     std::istringstream ss(fen);
     std::string token;
@@ -162,6 +205,8 @@ void Board::set_fen(const std::string& fen) {
             all_occ       |= bb;
             board_sq[sq]   = make_piece(c, pt);
             if (pt == PAWN) pawn_key ^= Zobrist::PieceKeys[c][PAWN][sq];
+            if (pt == KNIGHT || pt == BISHOP) minor_key ^= Zobrist::PieceKeys[c][pt][sq];
+            if (pt != PAWN && pt != KING) nonpawn_key[c] ^= Zobrist::PieceKeys[c][pt][sq];
             if (pt == KING) king_sq[c] = sq;
             file++;
         }
@@ -259,10 +304,14 @@ void Board::make_move(Move m) {
     UndoInfo ui;
     ui.hash     = hash;
     ui.pawn_key = pawn_key;
+    ui.minor_key = minor_key;
+    ui.nonpawn_key[WHITE] = nonpawn_key[WHITE];
+    ui.nonpawn_key[BLACK] = nonpawn_key[BLACK];
     ui.checkers = checkers;
     ui.ep_sq    = ep_sq;
     ui.castling = castling_rights;
     ui.halfmove = halfmove_clock;
+    ui.plies_from_null = plies_from_null;
     ui.captured = NO_PIECE;
     assert(history_size < MAX_HISTORY);
     history[static_cast<size_t>(history_size++)] = ui;
@@ -279,6 +328,7 @@ void Board::make_move(Move m) {
     ep_sq = SQ_NONE;
 
     halfmove_clock++;
+    plies_from_null++;
 
     if (mt == EN_PASSANT) {
         // Capture the EP pawn
@@ -353,6 +403,7 @@ void Board::unmake_move(Move m) {
     ep_sq           = ui.ep_sq;
     castling_rights = ui.castling;
     halfmove_clock  = ui.halfmove;
+    plies_from_null = ui.plies_from_null;
 
     ply--;
     if (side_to_move == WHITE) fullmove_number--;
@@ -394,6 +445,9 @@ void Board::unmake_move(Move m) {
     // that were applied by put_piece/move_piece/remove_piece above)
     hash     = ui.hash;
     pawn_key = ui.pawn_key;
+    minor_key = ui.minor_key;
+    nonpawn_key[WHITE] = ui.nonpawn_key[WHITE];
+    nonpawn_key[BLACK] = ui.nonpawn_key[BLACK];
     checkers = ui.checkers;
 }
 
@@ -401,10 +455,14 @@ void Board::make_null_move() {
     UndoInfo ui;
     ui.hash     = hash;
     ui.pawn_key = pawn_key;
+    ui.minor_key = minor_key;
+    ui.nonpawn_key[WHITE] = nonpawn_key[WHITE];
+    ui.nonpawn_key[BLACK] = nonpawn_key[BLACK];
     ui.checkers = checkers;
     ui.ep_sq    = ep_sq;
     ui.castling = castling_rights;
     ui.halfmove = halfmove_clock;
+    ui.plies_from_null = plies_from_null;
     ui.captured = NO_PIECE;
     assert(history_size < MAX_HISTORY);
     history[static_cast<size_t>(history_size++)] = ui;
@@ -415,6 +473,7 @@ void Board::make_null_move() {
         ep_sq = SQ_NONE;
     }
     halfmove_clock++;
+    plies_from_null = 0;
     side_to_move = ~side_to_move;
     ply++;
     // After a null move the new side-to-move cannot be in check:
@@ -429,8 +488,12 @@ void Board::unmake_null_move() {
     ep_sq           = ui.ep_sq;
     castling_rights = ui.castling;
     halfmove_clock  = ui.halfmove;
+    plies_from_null = ui.plies_from_null;
     hash            = ui.hash;
     pawn_key        = ui.pawn_key;
+    minor_key       = ui.minor_key;
+    nonpawn_key[WHITE] = ui.nonpawn_key[WHITE];
+    nonpawn_key[BLACK] = ui.nonpawn_key[BLACK];
     checkers        = ui.checkers;
     side_to_move    = ~side_to_move;
     ply--;
@@ -634,14 +697,14 @@ void Board::gen_pseudo_legal(std::vector<Move>& moves) const {
 
         // Castling
         if (us == WHITE) {
-            if ((castling_rights & WK_CASTLE)
+            if (can_castle_kingside(*this, WHITE)
                 && !(all_occ & ((sq_bb(F1) | sq_bb(G1))))
                 && !is_square_attacked(E1, BLACK)
                 && !is_square_attacked(F1, BLACK)
                 && !is_square_attacked(G1, BLACK)) {
                 moves.push_back(make_castling(E1, G1));
             }
-            if ((castling_rights & WQ_CASTLE)
+            if (can_castle_queenside(*this, WHITE)
                 && !(all_occ & (sq_bb(B1) | sq_bb(C1) | sq_bb(D1)))
                 && !is_square_attacked(E1, BLACK)
                 && !is_square_attacked(D1, BLACK)
@@ -649,14 +712,14 @@ void Board::gen_pseudo_legal(std::vector<Move>& moves) const {
                 moves.push_back(make_castling(E1, C1));
             }
         } else {
-            if ((castling_rights & BK_CASTLE)
+            if (can_castle_kingside(*this, BLACK)
                 && !(all_occ & (sq_bb(F8) | sq_bb(G8)))
                 && !is_square_attacked(E8, WHITE)
                 && !is_square_attacked(F8, WHITE)
                 && !is_square_attacked(G8, WHITE)) {
                 moves.push_back(make_castling(E8, G8));
             }
-            if ((castling_rights & BQ_CASTLE)
+            if (can_castle_queenside(*this, BLACK)
                 && !(all_occ & (sq_bb(B8) | sq_bb(C8) | sq_bb(D8)))
                 && !is_square_attacked(E8, WHITE)
                 && !is_square_attacked(D8, WHITE)
@@ -777,9 +840,44 @@ bool Board::is_legal(Move m) const {
     Square to   = to_sq(m);
     MoveType mt = move_type(m);
 
+    if (int(from) < 0 || int(from) >= SQUARE_NB || int(to) < 0 || int(to) >= SQUARE_NB)
+        return false;
+    const Piece moving = board_sq[from];
+    if (moving == NO_PIECE || color_of(moving) != us)
+        return false;
+
     // King moves: destination must not be attacked after king leaves
-    if (type_of(board_sq[from]) == KING) {
-        if (mt == CASTLING) return true; // castling legality checked in gen
+    if (type_of(moving) == KING) {
+        if (mt == CASTLING) {
+            const bool king_side = to > from;
+            const bool ok_rights = king_side ? can_castle_kingside(*this, us)
+                                             : can_castle_queenside(*this, us);
+            if (!ok_rights)
+                return false;
+
+            const Rank back = us == WHITE ? RANK_1 : RANK_8;
+            if (us == WHITE && from != E1)
+                return false;
+            if (us == BLACK && from != E8)
+                return false;
+
+            if (king_side) {
+                const Square f = make_square(FILE_F, back);
+                const Square g = make_square(FILE_G, back);
+                return !(all_occ & (sq_bb(f) | sq_bb(g)))
+                    && !is_square_attacked(from, them)
+                    && !is_square_attacked(f, them)
+                    && !is_square_attacked(g, them);
+            }
+
+            const Square b = make_square(FILE_B, back);
+            const Square c = make_square(FILE_C, back);
+            const Square d = make_square(FILE_D, back);
+            return !(all_occ & (sq_bb(b) | sq_bb(c) | sq_bb(d)))
+                && !is_square_attacked(from, them)
+                && !is_square_attacked(d, them)
+                && !is_square_attacked(c, them);
+        }
         Bitboard occ_after = (all_occ ^ sq_bb(from)) | sq_bb(to);
         return !attackers_to(to, occ_after, them);
     }
@@ -1112,23 +1210,23 @@ static void gen_legal_impl(const Board& b, MoveList& ml, bool caps_only, bool qu
     // ---- Castling (only when not in check) ----
     if (!caps_only && checkers == 0) {
         if constexpr (Us == WHITE) {
-            if ((b.castling_rights & WK_CASTLE)
+            if (can_castle_kingside(b, WHITE)
                 && !(occ & (sq_bb(F1) | sq_bb(G1)))
                 && !b.attackers_to(F1, occ, Them)
                 && !b.attackers_to(G1, occ, Them))
                 ml.push(make_castling(E1, G1));
-            if ((b.castling_rights & WQ_CASTLE)
+            if (can_castle_queenside(b, WHITE)
                 && !(occ & (sq_bb(B1) | sq_bb(C1) | sq_bb(D1)))
                 && !b.attackers_to(D1, occ, Them)
                 && !b.attackers_to(C1, occ, Them))
                 ml.push(make_castling(E1, C1));
         } else {
-            if ((b.castling_rights & BK_CASTLE)
+            if (can_castle_kingside(b, BLACK)
                 && !(occ & (sq_bb(F8) | sq_bb(G8)))
                 && !b.attackers_to(F8, occ, Them)
                 && !b.attackers_to(G8, occ, Them))
                 ml.push(make_castling(E8, G8));
-            if ((b.castling_rights & BQ_CASTLE)
+            if (can_castle_queenside(b, BLACK)
                 && !(occ & (sq_bb(B8) | sq_bb(C8) | sq_bb(D8)))
                 && !b.attackers_to(D8, occ, Them)
                 && !b.attackers_to(C8, occ, Them))
@@ -1152,6 +1250,18 @@ void Board::gen_legal_quiets(MoveList& ml) const {
     else                       gen_legal_impl<BLACK>(*this, ml, false, true);
 }
 
+Bitboard Board::check_squares(PieceType pt, Color us) const {
+    const Square ksq = king_sq[~us];
+    switch (pt) {
+        case PAWN:   return PawnAttacks[~us][ksq];
+        case KNIGHT: return KnightAttacks[ksq];
+        case BISHOP: return bishop_attacks(ksq, all_occ);
+        case ROOK:   return rook_attacks(ksq, all_occ);
+        case QUEEN:  return queen_attacks(ksq, all_occ);
+        default:     return 0;
+    }
+}
+
 bool Board::gives_check(Move m) const {
     Square from      = from_sq(m);
     Square to        = to_sq(m);
@@ -1159,10 +1269,20 @@ bool Board::gives_check(Move m) const {
     Color  them      = ~us;
     Square their_king = king_sq[them];
 
+    if (move_type(m) == CASTLING) {
+        const bool king_side = to > from;
+        const Square rook_from = king_side ? make_square(FILE_H, rank_of(from))
+                                           : make_square(FILE_A, rank_of(from));
+        const Square rook_to   = king_side ? make_square(FILE_F, rank_of(from))
+                                           : make_square(FILE_D, rank_of(from));
+        Bitboard occ_after = all_occ ^ sq_bb(from) ^ sq_bb(to)
+                            ^ sq_bb(rook_from) ^ sq_bb(rook_to);
+        return (rook_attacks(rook_to, occ_after) & sq_bb(their_king)) != 0;
+    }
+
     // Piece type after the move (promotion changes the type)
     PieceType pt;
     if (move_type(m) == PROMOTION)  pt = promo_type(m);
-    else if (move_type(m) == CASTLING) return false;  // skip for simplicity
     else                            pt = type_of(board_sq[from]);
 
     // Occupancy after removing `from` and adding `to`
@@ -1220,6 +1340,8 @@ void Board::gen_quiet_checks(MoveList& ml) const {
 // ---- Draw detection --------------------------------------------------------
 
 bool Board::is_draw() const {
+    if (is_insufficient_material()) return true;
+
     // 50-move rule
     if (halfmove_clock >= 100) return true;
     if (halfmove_clock < 4) return false;
@@ -1234,6 +1356,35 @@ bool Board::is_draw() const {
         }
     }
     return false;
+}
+
+bool Board::is_repetition(int search_ply) const {
+    if (halfmove_clock < 4)
+        return false;
+
+    int reps = 0;
+    const int reversible = std::min(halfmove_clock, plies_from_null);
+    const int stop = std::max(0, history_size - reversible);
+
+    for (int i = history_size - 2; i >= stop; i -= 2) {
+        if (history[static_cast<size_t>(i)].hash != hash)
+            continue;
+
+        const int distance = history_size - i;
+        if (distance <= search_ply)
+            return true;
+
+        if (++reps >= 2)
+            return true;
+    }
+
+    return false;
+}
+
+bool Board::is_draw(int search_ply) const {
+    if (is_insufficient_material()) return true;
+    if (halfmove_clock >= 100) return true;
+    return is_repetition(search_ply);
 }
 
 bool Board::is_insufficient_material() const {

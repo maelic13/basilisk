@@ -4,7 +4,7 @@ A UCI chess engine written in C++23.
 
 **Estimated strength: ~2400 ELO** (single-thread calibration against Stockfish; FIDE Master / International Master level)
 
-Latest 1.4.3 regression validation: 1,800 games at 100 ms/move, scoring 62.5% vs Basilisk 1.3.0 and 60.5% vs Lynx 1.2.1.
+Latest 1.4.4 release verification: fixes the 100 ms/move `bestmove 0000` regression, passes the full CTest suite, and includes direct UCI stress coverage for legal non-terminal positions.
 
 ---
 
@@ -15,6 +15,7 @@ Latest 1.4.3 regression validation: 1,800 games at 100 ms/move, scoring 62.5% vs
 - Negamax alpha-beta / Principal Variation Search (PVS)
 - Persistent Lazy SMP thread pool with shared TT and shared root-move feedback
 - Transposition table — atomic 3-entry clusters aligned to 64-byte cache lines, with generational aging
+- TT prefetching, exact-entry replacement preference, and age-aware `hashfull`
 - Null move pruning
 - Reverse futility pruning (RFP)
 - Razoring
@@ -28,16 +29,18 @@ Latest 1.4.3 regression validation: 1,800 games at 100 ms/move, scoring 62.5% vs
 - Quiescence search with in-check evasion
 - Static Exchange Evaluation (SEE) for capture pruning and bad-capture reductions
 - Checking moves are protected from late pruning and late move reductions
+- Search-aware repetition detection that distinguishes root repeats from in-tree repeats and respects null moves
 
 ### Move ordering
-- Staged MovePicker: TT move, tactical moves, then quiet moves
+- Staged MovePicker: TT move, good tactical moves, quiet moves, then bad tactical moves
 - Lazy quiet generation; quiets are not generated if tactical moves cut off
 - MVV/LVA captures with capture history
 - Killer moves (2 per ply)
 - Countermove heuristic
 - Quiet history `[color][from][to]`
 - Capture history `[piece][to][captured]`
-- Continuation history (1-ply and 2-ply)
+- Continuation history (1-ply, 2-ply, and 4-ply)
+- Pawn-structure keyed quiet history and low-ply quiet history
 
 ### Evaluation
 - Tapered material + piece-square tables (PeSTO, public domain)
@@ -46,11 +49,13 @@ Latest 1.4.3 regression validation: 1,800 games at 100 ms/move, scoring 62.5% vs
 - Pawn structure: passed pawns, isolated pawns, doubled pawns; passed-pawn advance safety accounts for all enemy attackers
 - King safety: attack unit table with piece coordination bonuses; reduced threat when opponent lacks a queen
 - Endgame scaling
-- Color-aware pawn key for pawn evaluation and correction history
+- Color-aware pawn, minor-piece, non-pawn, and continuation correction histories
+- 50-move-rule score damping for non-mating evaluations
 
 ### Time management
 - Soft limit (target) / hard limit (maximum)
 - Adaptive soft limit based on best-move stability
+- Root best-move effort tracking to spend less time on obvious moves and more on unstable roots
 - `movestogo` aware; move-overhead compensation
 - Final UCI legality guard for `bestmove`, ponder moves, and reported PV lines
 
@@ -237,7 +242,7 @@ the configured path.
 
 ## Testing
 
-Basilisk ships a comprehensive test suite covering board correctness, move encoding, the transposition table, evaluation, search, mate-distance regressions, illegal-move hardening, the thread pool, command queue behavior, UCI option parsing, and Syzygy tablebase behavior. The Syzygy tests use a local `D:\chess\Syzygy345` directory when present and otherwise skip the real-tablebase assertions. Run with:
+Basilisk ships a comprehensive test suite covering board correctness, move encoding, the transposition table, evaluation, search, mate-distance regressions, illegal-move hardening, the thread pool, command queue behavior, UCI protocol ordering/EOF handling, UCI option parsing, and Syzygy tablebase behavior. The Syzygy tests use a local `D:\chess\Syzygy345` directory when present and otherwise skip the real-tablebase assertions. Run with:
 
 ```bash
 ctest --test-dir build/release --output-on-failure
@@ -251,13 +256,14 @@ A board performance benchmark is also included (run manually — not part of the
 
 Release CI runs the CTest suite before uploading binaries, then performs UCI smoke tests on every produced CPU-tier executable.
 
-The 1.4.3 release candidate was also validated with a 100 ms/move round-robin:
+The 1.4.4 release candidate was locally verified with:
 
-| Match | Games | Result | Score | Elo |
-|---|---:|---:|---:|---:|
-| Basilisk 1.4.3 vs Basilisk 1.3.0 | 600 | +291 =168 -141 | 62.5% | +88.6 +/- 28.7 |
-| Basilisk 1.4.3 vs Lynx 1.2.1 | 600 | +286 =154 -160 | 60.5% | +73.9 +/- 28.4 |
-| Basilisk 1.3.0 vs Lynx 1.2.1 | 600 | +214 =149 -237 | 48.1% | -13.3 +/- 27.8 |
+| Check | Result |
+|---|---:|
+| CTest suite | 6/6 passed |
+| Direct UCI legal-position stress at 100 ms/move | 40/40 legal bestmoves, 0 `0000` |
+| Short `chess_tester` smoke vs Basilisk 1.3.0 at 100 ms/move | 4 games, 0 engine errors |
+| Built-in bench depth 13, release-avx2 | 13,367,400 nodes, 2,435,750 nps |
 
 ---
 

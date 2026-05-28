@@ -27,7 +27,10 @@ struct SearchStack {
     Move      excluded    = MOVE_NONE;       // excluded move (singular extensions)
     Move      killers[2]  = {};              // killer moves
     int       eval        = VALUE_NONE;      // static eval at this ply
+    int       stat_score  = 0;               // combined history score for this move
+    int       reduction   = 0;               // LMR reduction applied by parent
     PieceType moved_piece = NO_PIECE_TYPE;   // piece type that made 'move'
+    bool      tt_pv       = false;           // node lies near a TT/PV line
 };
 
 struct SearchResult;
@@ -98,6 +101,7 @@ public:
 
     SearchResult search(Board board, const SearchLimits& limits);
     void clear(); // Reset all history (e.g., on ucinewgame)
+    void blend_history_from(const Searcher& other);
 
 private:
     Evaluator evaluator;
@@ -122,12 +126,19 @@ private:
     SearchLimits active_limits_;
     Color    root_side_;
     std::vector<Syzygy::RootMoveInfo> root_tb_moves_;
+    int64_t  root_depth_nodes_;
+    int64_t  root_best_nodes_;
+    int      root_best_effort_;
 
     // ---- History tables (persist across searches; aged each search) ----
     static constexpr int MAX_MAIN_HIST = 16384;
     static constexpr int MAX_CAP_HIST  = 16384;
     static constexpr int MAX_CONT_HIST = 16384;
+    static constexpr int MAX_PAWN_HIST = 16384;
+    static constexpr int MAX_LOW_HIST  = 8192;
     static constexpr int CORR_SIZE     = 16384;
+    static constexpr int PAWN_HIST_SIZE = 2048;
+    static constexpr int LOW_PLY_HISTORY_SIZE = 8;
 
     // Quiet history [color][from][to]
     int16_t main_hist_[NCOLORS][SQUARE_NB][SQUARE_NB];
@@ -141,12 +152,25 @@ private:
     };
     std::unique_ptr<ContHistTable> cont_hist1_; // 1-ply continuation
     std::unique_ptr<ContHistTable> cont_hist2_; // 2-ply continuation
+    std::unique_ptr<ContHistTable> cont_hist4_; // 4-ply continuation
+
+    // Pawn-structure keyed quiet history [pawn_key][piece][to]
+    struct PawnHistTable {
+        int16_t data[PAWN_HIST_SIZE][PIECE_TYPE_NB][SQUARE_NB];
+    };
+    std::unique_ptr<PawnHistTable> pawn_hist_;
+
+    // Low-ply quiet history improves opening/root move ordering.
+    int16_t low_ply_hist_[LOW_PLY_HISTORY_SIZE][SQUARE_NB][SQUARE_NB];
 
     // Countermove [from][to] -> best response
     Move     countermove_[SQUARE_NB][SQUARE_NB];
 
-    // Pawn-structure correction history [color][pawn_key & mask]
-    int16_t  corr_hist_[NCOLORS][CORR_SIZE];
+    // Correction histories keyed by pawn, minor-piece, non-pawn, and continuation context.
+    int16_t  pawn_corr_hist_[NCOLORS][CORR_SIZE];
+    int16_t  minor_corr_hist_[NCOLORS][CORR_SIZE];
+    int16_t  nonpawn_corr_hist_[NCOLORS][NCOLORS][CORR_SIZE];
+    int16_t  cont_corr_hist_[NCOLORS][PIECE_TYPE_NB][SQUARE_NB];
 
     // ---- Per-search state ----
     // ss_arr_[0..3] = sentinels; root = ss_arr_[4] (ply 0)
@@ -156,7 +180,7 @@ private:
     int  pv_len_[MAX_PLY];
 
     struct ScoredMove { Move move; int score; };
-    ScoredMove move_buffers_[MAX_PLY][MoveList::CAPACITY];
+    ScoredMove move_buffers_[MAX_PLY][2][MoveList::CAPACITY];
 
     std::chrono::steady_clock::time_point start_time_;
     double time_limit_;   // hard limit (legacy, = hard_limit_)
@@ -171,12 +195,13 @@ private:
     // ---- Search ----
     static constexpr int MAX_QSEARCH_PLY = 10; // max extra plies of captures in qsearch
     int negamax(int depth, int alpha, int beta, int ply,
-                SearchStack* ss, bool is_pv, bool allow_null);
+                SearchStack* ss, bool is_pv, bool allow_null, bool cut_node);
     int quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss);
 
     // ---- Move ordering ----
     class MovePicker;
-    void  score_moves(ScoredMove* moves, int n, Move tt_move, SearchStack* ss, bool is_root) const;
+    void  score_moves(ScoredMove* moves, int n, Move tt_move, SearchStack* ss,
+                       bool is_root, int ply) const;
     static Move pick_next(ScoredMove* moves, int idx, int n);
 
     // ---- History helpers ----
@@ -190,9 +215,13 @@ private:
     void update_cont(ContHistTable& tbl,
                      PieceType ppt, Square pto,
                      PieceType cpt, Square cto, int bonus);
+    void update_pawn_hist(Key pawn_key, PieceType pt, Square to, int bonus);
+    void update_low_ply(int ply, Square from, Square to, int bonus);
 
-    // Combined 1+2-ply continuation history score for a (piece, to) pair
+    // Combined continuation history score for a (piece, to) pair
     int  cont_hist_score(const SearchStack* ss, PieceType pt, Square to) const;
+    int  pawn_hist_score(Key pawn_key, PieceType pt, Square to) const;
+    int  low_ply_score(int ply, Square from, Square to) const;
 
     // Bulk history update after a beta cutoff
     void update_all_histories(Move best,
@@ -201,8 +230,8 @@ private:
                               Color stm, int depth, SearchStack* ss);
 
     // Correction history
-    void update_correction(Color stm, Key pawn_key, int diff, int depth);
-    int  correction_value(Color stm, Key pawn_key) const;
+    void update_correction(Color stm, const Board& board, SearchStack* ss, int diff, int depth);
+    int  correction_value(Color stm, const Board& board, const SearchStack* ss) const;
 
     void age_history();
 

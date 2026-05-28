@@ -19,6 +19,7 @@ UciProtocol::UciProtocol(EngineCommandQueue& commands,
 
 void UciProtocol::UciLoop() {
     std::string input;
+    bool sent_quit = false;
 
     while (std::getline(std::cin, input)) {
         if (input.empty()) continue;
@@ -45,9 +46,13 @@ void UciProtocol::UciLoop() {
         else if (command == "bench")      cmdBench(args);
         else if (command == "quit") {
             cmdQuit();
+            sent_quit = true;
             break;
         }
     }
+
+    if (!sent_quit)
+        cmdQuit();
 }
 
 uint64_t UciProtocol::next_control_epoch() {
@@ -94,9 +99,9 @@ void UciProtocol::cmdDebug(const std::string &args) {
 }
 
 void UciProtocol::cmdQuit() {
-    uint64_t epoch = next_control_epoch();
+    uint64_t epoch = control_epoch_.load(std::memory_order_acquire);
     stop_requested_.store(true, std::memory_order_release);
-    commands_.push_priority(EngineCommand{EngineCommandType::Quit, {}, nullptr, epoch});
+    commands_.push(EngineCommand{EngineCommandType::Quit, {}, nullptr, epoch});
 }
 
 void UciProtocol::cmdGo(const std::string &args) {
@@ -131,7 +136,7 @@ void UciProtocol::cmdNewGame() {
 
 void UciProtocol::cmdBench(const std::string& args) {
     uint64_t epoch = next_control_epoch();
-    stop_requested_.store(true, std::memory_order_release);
-    searching_.store(true, std::memory_order_release);
+    if (searching_.exchange(true, std::memory_order_acq_rel))
+        stop_requested_.store(true, std::memory_order_release);
     enqueue(EngineCommandType::Bench, args, epoch);
 }
