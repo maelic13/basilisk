@@ -4,7 +4,7 @@ A UCI chess engine written in C++23.
 
 **Estimated strength: ~2400 ELO** (single-thread self-play and limited-strength reference calibration; FIDE Master / International Master level)
 
-Latest 1.4.5 release verification: hardens UCI `position` handling against malformed FEN and illegal move lists, fixes an en-passant check-evasion edge case, adds the `Ponder` option, passes the full CTest suite, and includes direct replay coverage for all known tournament artefacts.
+Latest 1.4.6 release verification: completes UCI ponder support, matching Stockfish-style `go ponder` / `ponderhit` lifecycle behavior, adds engine-thread ponder regression coverage, and passes the full CTest suite.
 
 ---
 
@@ -58,6 +58,7 @@ Latest 1.4.5 release verification: hardens UCI `position` handling against malfo
 - Root best-move effort tracking to spend less time on obvious moves and more on unstable roots
 - `movestogo` aware; move-overhead compensation
 - Final UCI legality guard for `bestmove`, ponder moves, and reported PV lines
+- Complete UCI ponder lifecycle: `go ponder` waits for `stop` or `ponderhit`, `ponderhit` preserves elapsed ponder time, and stale control state is cleared between searches
 
 ---
 
@@ -243,7 +244,7 @@ the configured path.
 
 ## Testing
 
-Basilisk ships a comprehensive test suite covering board correctness, move encoding, the transposition table, evaluation, search, mate-distance regressions, illegal-move hardening, the thread pool, command queue behavior, UCI protocol ordering/EOF handling, UCI option parsing, and Syzygy tablebase behavior. The Syzygy tests use a local `D:\chess\Syzygy345` directory when present and otherwise skip the real-tablebase assertions. Run with:
+Basilisk ships a comprehensive test suite covering board correctness, move encoding, the transposition table, evaluation, search, mate-distance regressions, illegal-move hardening, the thread pool, command queue behavior, UCI protocol ordering/EOF handling, UCI option parsing, engine-level ponder lifecycle behavior, and Syzygy tablebase behavior. The Syzygy tests use a local `D:\chess\Syzygy345` directory when present and otherwise skip the real-tablebase assertions. Run with:
 
 ```bash
 ctest --test-dir build/release --output-on-failure
@@ -257,14 +258,13 @@ A board performance benchmark is also included (run manually — not part of the
 
 Release CI runs the CTest suite before uploading binaries, then performs UCI smoke tests on every produced CPU-tier executable.
 
-The 1.4.5 release candidate was locally verified with:
+The 1.4.6 release candidate was locally verified with:
 
 | Check | Result |
 |---|---:|
-| CTest suite | 6/6 passed |
-| Focused test binaries | `test_board` 242/242, `test_search` 99/99, `test_uci_protocol` 32/32 |
-| Tournament artefact replay | 43/43 command files clean; 0 illegal bestmoves; 0 `0000` responses |
-| Cutechess smoke vs Basilisk 1.4.4, release-avx2 | 100 games at 1+0.1: 28-30-42, 49.0%, -6.9 +/- 52.2 Elo |
+| CTest suite | 7/7 passed |
+| Focused test binaries | `test_search` 101/101, `test_engine_ponder` 10/10, `test_uci_protocol` 32/32 |
+| Stockfish ponder comparison | Both engines withheld `bestmove` during `go ponder depth 1` until `stop` or `ponderhit` |
 | Release build | `release-avx2` built successfully |
 
 ---

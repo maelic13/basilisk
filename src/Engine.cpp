@@ -185,6 +185,8 @@ void Engine::start_search(uint64_t command_epoch) {
         || control_epoch_.load(std::memory_order_acquire) == command_epoch)
         searching_.store(false, std::memory_order_release);
     send_bestmove(result, board_copy);
+    ponderhit_requested_.store(false, std::memory_order_release);
+    stop_requested_.store(false, std::memory_order_release);
 }
 
 void Engine::run_bench_command(const EngineCommand& command) {
@@ -222,10 +224,11 @@ void Engine::handle_command(const EngineCommand& command, bool& quit) {
             start_search(command.epoch);
             break;
         case EngineCommandType::Stop:
-            stop_requested_.store(true, std::memory_order_release);
             if (command.epoch == 0
                 || control_epoch_.load(std::memory_order_acquire) == command.epoch)
                 searching_.store(false, std::memory_order_release);
+            stop_requested_.store(false, std::memory_order_release);
+            ponderhit_requested_.store(false, std::memory_order_release);
             break;
         case EngineCommandType::PonderHit:
             ponderhit_requested_.store(true, std::memory_order_release);

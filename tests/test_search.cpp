@@ -22,10 +22,12 @@
 #include "test_harness.h"
 
 #include <atomic>
+#include <chrono>
 #include <filesystem>
 #include <memory>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <vector>
 
 // ---------------------------------------------------------------------------
@@ -205,9 +207,9 @@ static void test_default_go_depth_and_syzygy_options() {
 
     begin_section("parameters: valid FEN with fullmove zero and moves accepted");
     params.setPosition(
-        "fen r1bqkb1r/pppn1ppp/3p1n2/4p1B1/3PP3/2N5/PPP2PPP/R2QKBNR w KQkq e6 0 0 moves d4d5");
+        "fen r1bqkb1r/pppn1ppp/3p1n2/4p1B1/3PP3/2N5/1PP2PPP/R2QKBNR w KQkq e6 0 0 moves d4d5");
     EXPECT_STR(params.board.get_fen(),
-               "r1bqkb1r/pppn1ppp/3p1n2/3Pp1B1/4P3/2N5/PPP2PPP/R2QKBNR b KQkq - 0 0");
+               "r1bqkb1r/pppn1ppp/3p1n2/3Pp1B1/4P3/2N5/1PP2PPP/R2QKBNR b KQkq - 0 0");
     end_section();
 }
 
@@ -339,6 +341,44 @@ static void test_stopped_search_returns_legal_fallback() {
 
     begin_section("stopped search: returns legal fallback instead of 0000");
     EXPECT(is_legal_bestmove(FEN, result.bestmove));
+    end_section();
+}
+
+static void test_ponderhit_preserves_elapsed_time() {
+    using namespace std::chrono;
+
+    static constexpr const char* FEN =
+        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
+    TranspositionTable tt(4);
+    std::atomic_bool stop{false};
+    std::atomic_bool ponderhit{false};
+
+    Board board;
+    board.set_fen(FEN);
+
+    SearchLimits limits;
+    limits.depth = MAX_SEARCH_DEPTH;
+    limits.movetime = 500;
+    limits.overhead = 0;
+    limits.ponder = true;
+
+    auto searcher = std::make_unique<Searcher>(tt, stop, nullptr, &ponderhit);
+
+    const auto start = steady_clock::now();
+    std::thread hit_thread([&] {
+        std::this_thread::sleep_for(milliseconds(300));
+        ponderhit.store(true, std::memory_order_release);
+    });
+
+    SearchResult result = searcher->search(board, limits);
+    hit_thread.join();
+
+    const auto elapsed_ms = duration_cast<milliseconds>(steady_clock::now() - start).count();
+
+    begin_section("ponderhit: normal search keeps ponder elapsed time");
+    EXPECT(is_legal_bestmove(FEN, result.bestmove));
+    EXPECT(elapsed_ms < 725);
     end_section();
 }
 
@@ -719,6 +759,7 @@ int main() {
     std::printf("\nNodes limit\n");
     test_nodes_limit();
     test_stopped_search_returns_legal_fallback();
+    test_ponderhit_preserves_elapsed_time();
 
     std::printf("\nScore near zero\n");
     test_score_near_zero_startpos();

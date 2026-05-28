@@ -333,8 +333,11 @@ bool Searcher::check_stop() {
         pondering_ = false;
         SearchLimits normal_limits = active_limits_;
         normal_limits.ponder = false;
-        start_time_ = std::chrono::steady_clock::now();
         compute_time_limit(normal_limits, root_side_);
+        if (soft_limit_ > 0.0 && elapsed_seconds() >= soft_limit_) {
+            stopped_ = true;
+            return true;
+        }
     }
 
     if (hard_limit_ > 0.0 && elapsed_seconds() >= hard_limit_) {
@@ -1730,6 +1733,13 @@ SearchResult SearchThreadPool::search(Board board, const SearchLimits& limits, i
 
     SearchLimits main_limits = limits_for_thread(limits, 0, thread_count, root_table);
     results[0] = searchers_[0]->search(std::move(board), main_limits);
+
+    while (!stop_.load(std::memory_order_acquire) && (limits.ponder || limits.infinite)) {
+        if (limits.ponder && ponderhit_ && ponderhit_->load(std::memory_order_acquire))
+            break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+
     stop_.store(true, std::memory_order_release);
 
     {
