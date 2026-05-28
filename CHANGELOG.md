@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.5] - 2026-05-28
+
+### Fixed
+
+#### UCI / Position Handling
+- Added checked FEN parsing that rejects malformed board encoding, invalid side-to-move, invalid castling fields, invalid en-passant squares, invalid counters, missing kings, adjacent kings, pawns on impossible ranks, and impossible piece counts
+- UCI `position` now rejects invalid FEN input without replacing the current valid board
+- UCI `position ... moves ...` now applies the move list atomically, so an illegal move leaves the previous board untouched
+- Castling rights from FEN are now sanitized when the corresponding king or rook is unavailable
+- Fullmove counter `0` is tolerated as `1` for compatibility with common tournament-manager FEN output
+
+#### Move Generation
+- En-passant check evasions now correctly remove the captured pawn from the post-move attack test, so the only legal reply to a pawn check is not filtered out
+
+### Added
+
+#### UCI
+- Added the `Ponder` UCI option and explicit `go ponder` / `ponderhit` protocol coverage
+
+#### Testing
+- Added FEN validation coverage for malformed placement, illegal counters, impossible material, invalid kings, castling-right repair, en-passant validation, and tournament-manager fullmove-zero input
+- Added UCI protocol coverage for invalid `position` commands, atomic move-list application, and ponder mode
+
+### Changed
+
+#### Version
+- Bumped engine version metadata to 1.4.5
+
+### Testing
+
+#### Release Verification
+- Built `release-avx2` successfully with MSYS2 Clang/Ninja
+- Passed the full CTest suite: 6/6 tests
+- Passed focused test binaries: `test_board` 242/242, `test_search` 99/99, `test_uci_protocol` 32/32
+- Replayed all 43 `illegal*` tournament artefact command files with 0 position errors, 0 illegal bestmoves, and 0 `0000` responses
+- Ran a 100-game Cutechess smoke against Basilisk 1.4.4 AVX2 at 1+0.1 with concurrency 4: current scored 28-30-42, 49.0%, -6.9 +/- 52.2 Elo
+
+---
+
 ## [1.4.4] - 2026-05-28
 
 ### Fixed
@@ -140,8 +179,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 #### Tablebases
-- Added `SyzygyProbeLimit` UCI option, matching Stockfish's `0 – 7` probe cardinality cap
-- Added Stockfish-style root tablebase metadata so root moves are ranked by tablebase outcome while the normal search still breaks equivalent TB ties
+- Added `SyzygyProbeLimit` UCI option, matching the supported 0-7 tablebase cardinality range
+- Added root tablebase metadata so root moves are ranked by tablebase outcome while the normal search still breaks equivalent TB ties
 - Added tablebase PV expansion for UCI `info ... pv` output
 - Added WDL/DTZ file count reporting when Syzygy tablebases are loaded
 
@@ -153,7 +192,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Search / UCI
 - Bare `go` now defaults to depth 7 instead of a fixed 500 ms search
 - Syzygy root positions now search normally instead of returning a zero-node single tablebase move
-- Tablebase wins/losses now report Stockfish-style `cp 20000` scores
+- Tablebase wins/losses now report bounded `cp 20000` scores
 - `Syzygy50MoveRule=true` now reports root cursed wins and blessed losses as draw scores
 - Time management uses a lower minimum move budget and caps hard limits to avoid spending too much of the remaining clock
 
@@ -301,7 +340,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Board performance benchmark for regression tracking against other implementations
 
 ### Changed
-- ELO estimate updated to ~2400 (calibrated against Stockfish UCI_LimitStrength; FIDE Master / International Master level)
+- ELO estimate updated to ~2400 (calibrated against limited-strength reference matches; FIDE Master / International Master level)
 - README expanded with full feature list, eval details, and testing instructions
 
 ---
@@ -330,7 +369,6 @@ First public release.
 - `Hash` — transposition table size in MB (1 – 32768 MB)
 - `Threads` — number of search threads (1 – 256)
 - `Move Overhead` — clock safety margin in ms
-- `Ponder` — enable ponder mode
 
 #### Build / Tooling
 - CMake presets: `release`, `release-pext`, `debug`, `relwithdebinfo`
@@ -339,6 +377,7 @@ First public release.
 - `bench [depth]` command — 16-position built-in benchmark, prints per-position NPS and total node-count fingerprint
 - GitHub Actions release workflow — builds for Linux x86_64, Linux aarch64, Windows x86_64, Windows aarch64, macOS aarch64; all built with Clang; PEXT variant produced for x86_64 platforms
 
+[1.4.5]: https://github.com/maelic13/basilisk/compare/v1.4.4...v1.4.5
 [1.4.4]: https://github.com/maelic13/basilisk/compare/v1.4.3...v1.4.4
 [1.4.3]: https://github.com/maelic13/basilisk/compare/v1.4.2...v1.4.3
 [1.4.2]: https://github.com/maelic13/basilisk/compare/v1.4.1...v1.4.2

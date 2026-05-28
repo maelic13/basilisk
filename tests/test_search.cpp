@@ -149,6 +149,12 @@ static void test_default_go_depth_and_syzygy_options() {
     EXPECT(Parameters::uciOptions().find("SyzygyProbeLimit") != std::string::npos);
     end_section();
 
+    begin_section("uci options: exposes Ponder");
+    EXPECT(Parameters::uciOptions().find("option name Ponder type check default false") != std::string::npos);
+    params.setOption("name Ponder value true");
+    EXPECT(params.ponderEnabled);
+    end_section();
+
     begin_section("parameters: SyzygyProbeLimit clamps to UCI range");
     params.setOption("name SyzygyProbeLimit value 0");
     EXPECT_EQ(params.syzygyProbeLimit, 0);
@@ -165,6 +171,43 @@ static void test_default_go_depth_and_syzygy_options() {
     EXPECT_EQ(params.nodes, 0);
     params.setOption("name Threads value many");
     EXPECT_EQ(params.threads, 1);
+    end_section();
+
+    begin_section("parameters: go ponder enables ponder search");
+    params.setSearchParameters("ponder wtime 1000 btime 1000");
+    EXPECT(params.ponder);
+    EXPECT_EQ(params.depth, infiniteDepth);
+    end_section();
+
+    begin_section("parameters: invalid FEN preserves board");
+    params.setPosition("startpos moves e2e4");
+    const std::string after_e4 = params.board.get_fen();
+    params.setPosition("fen 8/8/8/8/8/8/8/8 w - - 0 1");
+    EXPECT_STR(params.board.get_fen(), after_e4);
+    end_section();
+
+    begin_section("parameters: strict illegal FEN preserves board");
+    params.setPosition("fen 4k3/8/8/8/8/8/4R3/4K3 w - - 0 1");
+    EXPECT_STR(params.board.get_fen(), after_e4);
+    end_section();
+
+    begin_section("parameters: illegal move list preserves board");
+    params.setPosition("startpos");
+    const std::string start = params.board.get_fen();
+    params.setPosition("startpos moves e2e5");
+    EXPECT_STR(params.board.get_fen(), start);
+    end_section();
+
+    begin_section("parameters: partial illegal move list is atomic");
+    params.setPosition("startpos moves e2e4 e2e5");
+    EXPECT_STR(params.board.get_fen(), start);
+    end_section();
+
+    begin_section("parameters: valid FEN with fullmove zero and moves accepted");
+    params.setPosition(
+        "fen r1bqkb1r/pppn1ppp/3p1n2/4p1B1/3PP3/2N5/PPP2PPP/R2QKBNR w KQkq e6 0 0 moves d4d5");
+    EXPECT_STR(params.board.get_fen(),
+               "r1bqkb1r/pppn1ppp/3p1n2/3Pp1B1/4P3/2N5/PPP2PPP/R2QKBNR b KQkq - 0 0");
     end_section();
 }
 
@@ -191,6 +234,15 @@ static void test_returns_legal_move() {
 
     begin_section("startpos depth 1: nodes > 0");
     EXPECT(rr.sr.nodes > 0);
+    end_section();
+
+    static constexpr const char* EP_CHECK_EVASION_FEN =
+        "2r5/P3R3/3Q4/6pk/6Pp/5P1P/8/7K b - g3 0 1";
+
+    begin_section("root en-passant check evasion: returns h4g3");
+    auto ep_rr = run_search(EP_CHECK_EVASION_FEN, 1);
+    EXPECT_STR(ep_rr.uci, "h4g3");
+    EXPECT(is_legal_bestmove(EP_CHECK_EVASION_FEN, ep_rr.sr.bestmove));
     end_section();
 }
 

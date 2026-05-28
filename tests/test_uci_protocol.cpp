@@ -19,6 +19,7 @@ struct ProtocolRun {
     std::vector<EngineCommand> commands;
     std::string output;
     bool stop_requested = false;
+    bool ponderhit_requested = false;
     bool searching = false;
     uint64_t epoch = 0;
 };
@@ -61,6 +62,7 @@ static ProtocolRun run_protocol(const std::string& input, int expected_commands)
         run.commands.push_back(queue.wait_pop());
     run.output = output.str();
     run.stop_requested = stop_requested.load(std::memory_order_acquire);
+    run.ponderhit_requested = ponderhit_requested.load(std::memory_order_acquire);
     run.searching = searching.load(std::memory_order_acquire);
     run.epoch = control_epoch.load(std::memory_order_acquire);
     return run;
@@ -94,6 +96,20 @@ static void test_quit_keeps_prior_go_order() {
     end_section();
 }
 
+static void test_go_ponder_queued() {
+    ProtocolRun run = run_protocol(
+        "go ponder wtime 1000 btime 1000\n"
+        "quit\n",
+        2);
+
+    begin_section("uci protocol: go ponder queued with limits");
+    EXPECT(run.commands[0].type == EngineCommandType::Go);
+    EXPECT_STR(run.commands[0].args, "ponder wtime 1000 btime 1000");
+    EXPECT_EQ(static_cast<int>(run.commands[0].epoch), 1);
+    EXPECT(run.searching);
+    end_section();
+}
+
 static void test_quit_keeps_prior_bench_order() {
     ProtocolRun run = run_protocol(
         "bench 13\n"
@@ -120,6 +136,19 @@ static void test_eof_enqueues_quit() {
     end_section();
 }
 
+static void test_ponderhit_signal() {
+    ProtocolRun run = run_protocol(
+        "ponderhit\n"
+        "quit\n",
+        2);
+
+    begin_section("uci protocol: ponderhit sets signal");
+    EXPECT(run.ponderhit_requested);
+    EXPECT(run.commands[0].type == EngineCommandType::PonderHit);
+    EXPECT(run.commands[1].type == EngineCommandType::Quit);
+    end_section();
+}
+
 static void test_uci_output() {
     ProtocolRun run = run_protocol(
         "uci\n"
@@ -133,6 +162,7 @@ static void test_uci_output() {
 
     begin_section("uci protocol: uci command emits options and uciok");
     EXPECT(run.output.find("option name Threads") != std::string::npos);
+    EXPECT(run.output.find("option name Ponder type check default false") != std::string::npos);
     EXPECT(run.output.find("uciok") != std::string::npos);
     end_section();
 }
@@ -143,12 +173,16 @@ int main() {
 
     std::printf("\nGo / quit ordering\n");
     test_quit_keeps_prior_go_order();
+    test_go_ponder_queued();
 
     std::printf("\nBench / quit ordering\n");
     test_quit_keeps_prior_bench_order();
 
     std::printf("\nEOF handling\n");
     test_eof_enqueues_quit();
+
+    std::printf("\nPonderhit\n");
+    test_ponderhit_signal();
 
     std::printf("\nUCI output\n");
     test_uci_output();

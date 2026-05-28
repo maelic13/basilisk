@@ -3,6 +3,8 @@
 #include "Constants.h"
 #include <algorithm>
 #include <cassert>
+#include <cctype>
+#include <limits>
 #include <sstream>
 #include <stdexcept>
 
@@ -155,100 +157,267 @@ Board& Board::operator=(const Board& other) {
 }
 
 void Board::set_fen(const std::string& fen) {
-    // Clear board
-    for (int c = 0; c < NCOLORS; c++)
-        for (int pt = 0; pt < PIECE_TYPE_NB; pt++)
-            pieces[c][pt] = 0;
-    for (int c = 0; c < NCOLORS; c++) occupancy[c] = 0;
-    all_occ = 0;
-    pawn_key = 0;
-    minor_key = 0;
-    nonpawn_key[WHITE] = 0;
-    nonpawn_key[BLACK] = 0;
-    for (int s = 0; s < SQUARE_NB; s++) board_sq[s] = NO_PIECE;
-    history_size = 0;
-    ply = 0;
-    plies_from_null = 0;
+    std::string error;
+    if (!try_set_fen(fen, &error))
+        throw std::invalid_argument(error);
+}
+
+bool Board::try_set_fen(const std::string& fen, std::string* error,
+                        bool validate_legal_position) {
+    auto fail = [&](const std::string& message) {
+        if (error)
+            *error = message;
+        return false;
+    };
+
+    auto parse_nonnegative_int = [](const std::string& token, int max_value, int& out) {
+        if (token.empty())
+            return false;
+        long long value = 0;
+        for (char ch : token) {
+            if (!std::isdigit(static_cast<unsigned char>(ch)))
+                return false;
+            value = value * 10 + (ch - '0');
+            if (value > max_value)
+                return false;
+        }
+        out = static_cast<int>(value);
+        return true;
+    };
+
+    auto decode_piece = [](char ch, Color& color, PieceType& pt) {
+        switch (ch) {
+            case 'P': color = WHITE; pt = PAWN;   return true;
+            case 'N': color = WHITE; pt = KNIGHT; return true;
+            case 'B': color = WHITE; pt = BISHOP; return true;
+            case 'R': color = WHITE; pt = ROOK;   return true;
+            case 'Q': color = WHITE; pt = QUEEN;  return true;
+            case 'K': color = WHITE; pt = KING;   return true;
+            case 'p': color = BLACK; pt = PAWN;   return true;
+            case 'n': color = BLACK; pt = KNIGHT; return true;
+            case 'b': color = BLACK; pt = BISHOP; return true;
+            case 'r': color = BLACK; pt = ROOK;   return true;
+            case 'q': color = BLACK; pt = QUEEN;  return true;
+            case 'k': color = BLACK; pt = KING;   return true;
+            default: return false;
+        }
+    };
 
     std::istringstream ss(fen);
+    std::string placement, side_token, castling_token, ep_token;
+    if (!(ss >> placement >> side_token >> castling_token >> ep_token))
+        return fail("Invalid FEN. Expected at least four fields.");
+
+    int parsed_halfmove = 0;
+    int parsed_fullmove = 1;
     std::string token;
+    if (ss >> token) {
+        if (!parse_nonnegative_int(token, 32767, parsed_halfmove))
+            return fail("Invalid FEN. Invalid halfmove clock.");
+    }
+    if (ss >> token) {
+        if (!parse_nonnegative_int(token, 100000, parsed_fullmove))
+            return fail("Invalid FEN. Invalid fullmove number.");
+    }
+    if (ss >> token)
+        return fail("Invalid FEN. Too many fields.");
 
-    // Piece placement
-    ss >> token;
-    int rank = 7, file = 0;
-    for (char ch : token) {
-        if (ch == '/') { rank--; file = 0; }
-        else if (ch >= '1' && ch <= '8') { file += ch - '0'; }
-        else {
-            Color c;
-            PieceType pt;
+    Bitboard new_pieces[NCOLORS][PIECE_TYPE_NB] = {};
+    Bitboard new_occupancy[NCOLORS] = {};
+    Bitboard new_all_occ = 0;
+    Piece    new_board_sq[SQUARE_NB];
+    for (int s = 0; s < SQUARE_NB; ++s)
+        new_board_sq[s] = NO_PIECE;
+
+    Key new_pawn_key = 0;
+    Key new_minor_key = 0;
+    Key new_nonpawn_key[NCOLORS] = {0, 0};
+
+    int rank = 7;
+    int file = 0;
+    int num_pieces = 0;
+    for (char ch : placement) {
+        if (ch == '/') {
+            if (file != 8)
+                return fail("Invalid FEN. Rank ended before eight squares.");
+            if (rank == 0)
+                return fail("Invalid FEN. Too many ranks.");
+            --rank;
+            file = 0;
+            continue;
+        }
+
+        if (ch >= '1' && ch <= '8') {
+            file += ch - '0';
+            if (file > 8)
+                return fail("Invalid FEN. Rank has too many squares.");
+            continue;
+        }
+
+        Color c = WHITE;
+        PieceType pt = NO_PIECE_TYPE;
+        if (!decode_piece(ch, c, pt))
+            return fail(std::string("Invalid FEN. Invalid piece: ") + ch);
+        if (file >= 8)
+            return fail("Invalid FEN. Rank has too many squares.");
+        if (++num_pieces > 32)
+            return fail("Invalid FEN. More than 32 pieces on the board.");
+
+        Square sq = make_square(File(file), Rank(rank));
+        Bitboard bb = sq_bb(sq);
+        new_pieces[c][pt] |= bb;
+        new_occupancy[c]  |= bb;
+        new_all_occ       |= bb;
+        new_board_sq[sq]   = make_piece(c, pt);
+        if (pt == PAWN) new_pawn_key ^= Zobrist::PieceKeys[c][PAWN][sq];
+        if (pt == KNIGHT || pt == BISHOP) new_minor_key ^= Zobrist::PieceKeys[c][pt][sq];
+        if (pt != PAWN && pt != KING) new_nonpawn_key[c] ^= Zobrist::PieceKeys[c][pt][sq];
+        ++file;
+    }
+
+    if (rank != 0 || file != 8)
+        return fail("Invalid FEN. Board state encoding ended before eight ranks.");
+
+    const Bitboard back_ranks = BB_RANKS[RANK_1] | BB_RANKS[RANK_8];
+    if ((new_pieces[WHITE][PAWN] | new_pieces[BLACK][PAWN]) & back_ranks)
+        return fail("Unsupported position. Pawns on the first or eighth rank.");
+
+    if (popcount(new_pieces[WHITE][KING]) != 1 || popcount(new_pieces[BLACK][KING]) != 1)
+        return fail("Unsupported position. Incorrect number of kings.");
+
+    if (popcount(new_pieces[WHITE][PAWN]) > 8)
+        return fail("Unsupported position. WHITE has more than 8 pawns.");
+    if (popcount(new_pieces[BLACK][PAWN]) > 8)
+        return fail("Unsupported position. BLACK has more than 8 pawns.");
+
+    auto promoted_piece_count = [&](Color c) {
+        return std::max(popcount(new_pieces[c][KNIGHT]) - 2, 0)
+             + std::max(popcount(new_pieces[c][BISHOP]) - 2, 0)
+             + std::max(popcount(new_pieces[c][ROOK])   - 2, 0)
+             + std::max(popcount(new_pieces[c][QUEEN])  - 1, 0);
+    };
+    if (promoted_piece_count(WHITE) > 8 - popcount(new_pieces[WHITE][PAWN]))
+        return fail("Unsupported position. Too many pieces for WHITE.");
+    if (promoted_piece_count(BLACK) > 8 - popcount(new_pieces[BLACK][PAWN]))
+        return fail("Unsupported position. Too many pieces for BLACK.");
+
+    Color new_side_to_move;
+    if (side_token == "w")
+        new_side_to_move = WHITE;
+    else if (side_token == "b")
+        new_side_to_move = BLACK;
+    else
+        return fail("Invalid FEN. Invalid side to move.");
+
+    int new_castling_rights = NO_CASTLING;
+    if (castling_token != "-") {
+        for (char ch : castling_token) {
             switch (ch) {
-                case 'P': c=WHITE; pt=PAWN;   break;
-                case 'N': c=WHITE; pt=KNIGHT; break;
-                case 'B': c=WHITE; pt=BISHOP; break;
-                case 'R': c=WHITE; pt=ROOK;   break;
-                case 'Q': c=WHITE; pt=QUEEN;  break;
-                case 'K': c=WHITE; pt=KING;   break;
-                case 'p': c=BLACK; pt=PAWN;   break;
-                case 'n': c=BLACK; pt=KNIGHT; break;
-                case 'b': c=BLACK; pt=BISHOP; break;
-                case 'r': c=BLACK; pt=ROOK;   break;
-                case 'q': c=BLACK; pt=QUEEN;  break;
-                case 'k': c=BLACK; pt=KING;   break;
-                default: file++; continue;
+                case 'K': new_castling_rights |= WK_CASTLE; break;
+                case 'Q': new_castling_rights |= WQ_CASTLE; break;
+                case 'k': new_castling_rights |= BK_CASTLE; break;
+                case 'q': new_castling_rights |= BQ_CASTLE; break;
+                default:
+                    return fail("Invalid FEN. Invalid castling rights.");
             }
-            Square sq = make_square(File(file), Rank(rank));
-            // Put piece without hash (we compute hash from scratch at end)
-            Bitboard bb = sq_bb(sq);
-            pieces[c][pt] |= bb;
-            occupancy[c]  |= bb;
-            all_occ       |= bb;
-            board_sq[sq]   = make_piece(c, pt);
-            if (pt == PAWN) pawn_key ^= Zobrist::PieceKeys[c][PAWN][sq];
-            if (pt == KNIGHT || pt == BISHOP) minor_key ^= Zobrist::PieceKeys[c][pt][sq];
-            if (pt != PAWN && pt != KING) nonpawn_key[c] ^= Zobrist::PieceKeys[c][pt][sq];
-            if (pt == KING) king_sq[c] = sq;
-            file++;
         }
     }
 
-    // Side to move
-    ss >> token;
-    side_to_move = (token == "w") ? WHITE : BLACK;
+    auto has_piece = [&](Square sq, Color color, PieceType pt) {
+        Piece p = new_board_sq[sq];
+        return p != NO_PIECE && color_of(p) == color && type_of(p) == pt;
+    };
+    if (!has_piece(E1, WHITE, KING) || !has_piece(H1, WHITE, ROOK))
+        new_castling_rights &= ~WK_CASTLE;
+    if (!has_piece(E1, WHITE, KING) || !has_piece(A1, WHITE, ROOK))
+        new_castling_rights &= ~WQ_CASTLE;
+    if (!has_piece(E8, BLACK, KING) || !has_piece(H8, BLACK, ROOK))
+        new_castling_rights &= ~BK_CASTLE;
+    if (!has_piece(E8, BLACK, KING) || !has_piece(A8, BLACK, ROOK))
+        new_castling_rights &= ~BQ_CASTLE;
 
-    // Castling rights
-    ss >> token;
-    castling_rights = NO_CASTLING;
-    for (char ch : token) {
-        switch (ch) {
-            case 'K': castling_rights |= WK_CASTLE; break;
-            case 'Q': castling_rights |= WQ_CASTLE; break;
-            case 'k': castling_rights |= BK_CASTLE; break;
-            case 'q': castling_rights |= BQ_CASTLE; break;
+    Square new_ep_sq = SQ_NONE;
+    if (ep_token != "-") {
+        if (ep_token.size() != 2
+            || ep_token[0] < 'a' || ep_token[0] > 'h'
+            || ep_token[1] < '1' || ep_token[1] > '8') {
+            return fail("Invalid FEN. Invalid en-passant square.");
+        }
+
+        File ep_file = File(ep_token[0] - 'a');
+        Rank ep_rank = Rank(ep_token[1] - '1');
+        if ((new_side_to_move == WHITE && ep_rank != RANK_6)
+            || (new_side_to_move == BLACK && ep_rank != RANK_3)) {
+            return fail("Invalid FEN. Invalid en-passant square.");
+        }
+
+        new_ep_sq = make_square(ep_file, ep_rank);
+        Square pushed_pawn = Square(int(new_ep_sq) + int(pawn_push(~new_side_to_move)));
+        Square origin_sq   = Square(int(new_ep_sq) + int(pawn_push(new_side_to_move)));
+        if (new_board_sq[new_ep_sq] != NO_PIECE
+            || new_board_sq[origin_sq] != NO_PIECE
+            || !has_piece(pushed_pawn, ~new_side_to_move, PAWN)) {
+            return fail("Invalid FEN. Invalid en-passant square.");
         }
     }
 
-    // En passant
-    ss >> token;
-    ep_sq = SQ_NONE;
-    if (token != "-" && token.size() >= 2) {
-        int f = token[0] - 'a';
-        int r = token[1] - '1';
-        if (f >= 0 && f < 8 && r >= 0 && r < 8)
-            ep_sq = make_square(File(f), Rank(r));
+    Square new_king_sq[NCOLORS] = {
+        Square(lsb(new_pieces[WHITE][KING])),
+        Square(lsb(new_pieces[BLACK][KING]))
+    };
+
+    auto attackers_to_local = [&](Square sq, Color by) {
+        return (PawnAttacks[~by][sq]     & new_pieces[by][PAWN])
+             | (KnightAttacks[sq]        & new_pieces[by][KNIGHT])
+             | (bishop_attacks(sq, new_all_occ) & (new_pieces[by][BISHOP] | new_pieces[by][QUEEN]))
+             | (rook_attacks(sq, new_all_occ)   & (new_pieces[by][ROOK]   | new_pieces[by][QUEEN]))
+             | (KingAttacks[sq]          & new_pieces[by][KING]);
+    };
+
+    if (validate_legal_position
+        && attackers_to_local(new_king_sq[~new_side_to_move], new_side_to_move))
+        return fail("Unsupported position. King can be captured.");
+
+    Key new_hash = 0;
+    for (int c = 0; c < NCOLORS; ++c) {
+        for (int pt = PAWN; pt <= KING; ++pt) {
+            Bitboard bb = new_pieces[c][pt];
+            while (bb) {
+                int sq = pop_lsb(bb);
+                new_hash ^= Zobrist::PieceKeys[c][pt][sq];
+            }
+        }
     }
+    if (new_side_to_move == BLACK) new_hash ^= Zobrist::SideKey;
+    new_hash ^= Zobrist::CastlingKeys[new_castling_rights];
+    if (new_ep_sq != SQ_NONE) new_hash ^= Zobrist::EpKeys[file_of(new_ep_sq)];
 
-    // Halfmove clock
-    halfmove_clock = 0;
-    ss >> halfmove_clock;
+    for (int c = 0; c < NCOLORS; ++c) {
+        for (int pt = 0; pt < PIECE_TYPE_NB; ++pt)
+            pieces[c][pt] = new_pieces[c][pt];
+        occupancy[c] = new_occupancy[c];
+        king_sq[c] = new_king_sq[c];
+    }
+    all_occ = new_all_occ;
+    for (int s = 0; s < SQUARE_NB; ++s)
+        board_sq[s] = new_board_sq[s];
 
-    // Fullmove number
-    fullmove_number = 1;
-    ss >> fullmove_number;
+    side_to_move = new_side_to_move;
+    fullmove_number = parsed_fullmove;
+    ply = 0;
+    hash = new_hash;
+    pawn_key = new_pawn_key;
+    minor_key = new_minor_key;
+    nonpawn_key[WHITE] = new_nonpawn_key[WHITE];
+    nonpawn_key[BLACK] = new_nonpawn_key[BLACK];
+    ep_sq = new_ep_sq;
+    castling_rights = new_castling_rights;
+    halfmove_clock = parsed_halfmove;
+    plies_from_null = 0;
+    checkers = attackers_to_local(king_sq[side_to_move], ~side_to_move);
+    history_size = 0;
 
-    // Compute hash from scratch
-    hash     = compute_hash();
-    checkers = attackers_to(king_sq[side_to_move], all_occ, ~side_to_move);
+    return true;
 }
 
 std::string Board::get_fen() const {
@@ -1198,9 +1367,18 @@ static void gen_legal_impl(const Board& b, MoveList& ml, bool caps_only, bool qu
                 Bitboard ep_atk = PawnAttacks[Them][ep] & pawns;
                 while (ep_atk) {
                     Square   from      = Square(pop_lsb(ep_atk));
-                    // Legality: removing both pawns from occ might expose the king
+                    // Legality: removing both pawns from occ might expose the king.
+                    // The captured pawn must also be excluded from pawn attacks; this
+                    // matters when en passant is the only way to answer a pawn check.
                     Bitboard occ_after = (occ ^ sq_bb(from) ^ sq_bb(ep_pawn)) | sq_bb(ep);
-                    if (!b.attackers_to(ksq, occ_after, Them))
+                    Bitboard them_pawns_after = b.pieces[Them][PAWN] & ~sq_bb(ep_pawn);
+                    bool king_attacked =
+                        (PawnAttacks[Us][ksq] & them_pawns_after)
+                     || (KnightAttacks[ksq] & b.pieces[Them][KNIGHT])
+                     || (bishop_attacks(ksq, occ_after) & (b.pieces[Them][BISHOP] | b.pieces[Them][QUEEN]))
+                     || (rook_attacks(ksq, occ_after) & (b.pieces[Them][ROOK] | b.pieces[Them][QUEEN]))
+                     || (KingAttacks[ksq] & b.pieces[Them][KING]);
+                    if (!king_attacked)
                         ml.push(make_ep(from, ep));
                 }
             }

@@ -154,6 +154,72 @@ static void test_fen_roundtrip() {
     }
 }
 
+static void test_fen_validation() {
+    Board b;
+    const std::string original = b.get_fen();
+    std::string error;
+
+    auto expect_invalid_preserves = [&](const char* label, const char* fen,
+                                        bool strict = false) {
+        begin_section(label);
+        error.clear();
+        EXPECT(!b.try_set_fen(fen, &error, strict));
+        EXPECT(!error.empty());
+        EXPECT_STR(b.get_fen(), original);
+        end_section();
+    };
+
+    begin_section("invalid FEN rejected without changing board");
+    EXPECT(!b.try_set_fen("8/8/8/8/8/8/8/8 w - - 0 1", &error));
+    EXPECT(!error.empty());
+    EXPECT_STR(b.get_fen(), original);
+    end_section();
+
+    expect_invalid_preserves("malformed board rejected",
+                             "9/8/8/8/8/8/8/4K2k w - - 0 1");
+
+    expect_invalid_preserves("missing FEN fields rejected",
+                             "4k3/8/8/8/8/8/8/4K3 w -");
+
+    expect_invalid_preserves("extra FEN fields rejected",
+                             "4k3/8/8/8/8/8/8/4K3 w - - 0 1 trailing");
+
+    expect_invalid_preserves("invalid side rejected",
+                             "4k3/8/8/8/8/8/8/4K3 x - - 0 1");
+
+    expect_invalid_preserves("invalid castling rights rejected",
+                             "4k3/8/8/8/8/8/8/4K3 w A - 0 1");
+
+    expect_invalid_preserves("invalid en-passant square rejected",
+                             "4k3/8/8/8/8/8/8/4K3 w - e4 0 1");
+
+    expect_invalid_preserves("negative halfmove rejected",
+                             "4k3/8/8/8/8/8/8/4K3 w - - -1 1");
+
+    expect_invalid_preserves("too many pawns rejected",
+                             "4k3/PPPPPPPP/P7/8/8/8/8/4K3 w - - 0 1");
+
+    expect_invalid_preserves("pawns on back rank rejected",
+                             "4k3/8/8/8/8/8/8/P3K3 w - - 0 1");
+
+    expect_invalid_preserves("king can be captured rejected",
+                             "4k3/8/8/8/8/8/4R3/4K3 w - - 0 1",
+                             true);
+
+    begin_section("fullmove zero tolerated");
+    const char* fen =
+        "r1bqkb1r/pppn1ppp/3p1n2/4p1B1/3PP3/2N5/PPP2PPP/R2QKBNR w KQkq e6 0 0";
+    EXPECT(b.try_set_fen(fen, &error));
+    EXPECT_STR(b.get_fen(), fen);
+    end_section();
+
+    begin_section("castling rights sanitized for missing rooks");
+    EXPECT(b.try_set_fen("4k3/8/8/8/8/8/8/R3K3 w KQkq - 0 1", &error));
+    EXPECT_EQ(b.castling_rights, WQ_CASTLE);
+    EXPECT_STR(b.get_fen(), "4k3/8/8/8/8/8/8/R3K3 w Q - 0 1");
+    end_section();
+}
+
 // ---------------------------------------------------------------------------
 // 2. Starting position invariants
 // ---------------------------------------------------------------------------
@@ -589,6 +655,21 @@ static void test_en_passant() {
     b.set_fen("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1");
     EXPECT_EQ(b.ep_sq, E3);
     end_section();
+
+    begin_section("EP capture can evade pawn check");
+    b.set_fen("2r5/P3R3/3Q4/6pk/6Pp/5P1P/8/7K b - g3 0 1");
+    EXPECT(b.is_in_check());
+    Move ep = make_ep(H4, G3);
+    EXPECT(b.is_legal(ep));
+    MoveList legal;
+    b.gen_legal(legal);
+    bool saw_ep = false;
+    for (Move move : legal)
+        saw_ep = saw_ep || move == ep;
+    EXPECT(saw_ep);
+    b.make_move(ep);
+    EXPECT(!b.is_square_attacked(b.king_sq[BLACK], WHITE));
+    end_section();
 }
 
 // ---------------------------------------------------------------------------
@@ -774,6 +855,9 @@ int main() {
 
     std::printf("\nFEN round-trip\n");
     test_fen_roundtrip();
+
+    std::printf("\nFEN validation\n");
+    test_fen_validation();
 
     std::printf("\nStarting position invariants\n");
     test_starting_position();

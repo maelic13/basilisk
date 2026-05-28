@@ -75,6 +75,8 @@ public:
     Board& operator=(Board&& other) noexcept = default;
 
     void set_fen(const std::string& fen);
+    bool try_set_fen(const std::string& fen, std::string* error = nullptr,
+                     bool validate_legal_position = false);
     std::string get_fen() const;
 
     void make_move(Move m);

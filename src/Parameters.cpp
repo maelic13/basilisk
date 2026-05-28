@@ -43,6 +43,18 @@ bool parse_int(const std::string& value, int& out) {
     return true;
 }
 
+bool apply_uci_move(Board& board, const std::string& token) {
+    MoveList legal;
+    board.gen_legal(legal);
+    for (Move move : legal) {
+        if (move_to_uci(move) == token) {
+            board.make_move(move);
+            return true;
+        }
+    }
+    return false;
+}
+
 } // namespace
 
 Parameters::Parameters() {
@@ -61,6 +73,7 @@ Parameters::Parameters() {
     moveOverhead = defaultMoveOverhead;
     hash_mb      = 64;
     threads      = 1;
+    ponderEnabled = false;
     syzygyPath.clear();
     syzygyProbeDepth = 1;
     syzygyProbeLimit = 7;
@@ -94,6 +107,7 @@ std::string Parameters::uciOptions() {
            + std::to_string(maxThreads()) + "\n"
            "option name Hash type spin default 64 min 1 max 33554432\n"
            "option name Clear Hash type button\n"
+           "option name Ponder type check default false\n"
            "option name Move Overhead type spin default 10 min 0 max 5000\n"
            "option name SyzygyPath type string default <empty>\n"
            "option name SyzygyProbeDepth type spin default 1 min 1 max 100\n"
@@ -198,6 +212,8 @@ void Parameters::setOption(const std::string& args) {
     int parsed = 0;
     if (name_lower == "syzygypath") {
         syzygyPath = (value == "<empty>") ? std::string{} : value;
+    } else if (name_lower == "ponder") {
+        ponderEnabled = parse_bool_option(value);
     } else if (name_lower == "syzygy50moverule") {
         syzygy50MoveRule = parse_bool_option(value);
     } else if (!parse_int(value, parsed)) {
@@ -217,37 +233,54 @@ void Parameters::setOption(const std::string& args) {
 
 void Parameters::setPosition(const std::string& args) {
     Board new_board;
+    std::istringstream iss(args);
+    std::string token;
 
-    // Check for "fen ..." or default to startpos
-    std::smatch matches;
-    for (const std::regex& re : {std::regex(R"(fen (.*?) moves)"),
-                                  std::regex(R"(fen (.*))")}) {
-        if (std::regex_search(args, matches, re)) {
-            new_board.set_fen(matches[1].str());
-            break;  // found FEN; stop trying further patterns
-        }
+    if (!(iss >> token)) {
+        uci_write_line("info string Incorrect position format.");
+        return;
     }
-    // If no FEN: startpos — already set to starting position in constructor
-    if (std::regex_search(args, matches, std::regex(R"(moves (.*))"))) {
-        const std::string movesStr = matches[1].str();
-        std::istringstream iss(movesStr);
-        std::string token;
-        while (iss >> token) {
-            // Find matching legal move
-            std::vector<Move> pseudo;
-            new_board.gen_pseudo_legal(pseudo);
-            bool found = false;
-            for (Move m : pseudo) {
-                if (!new_board.is_legal(m)) continue;
-                if (move_to_uci(m) == token) {
-                    new_board.make_move(m);
-                    found = true;
-                    break;
-                }
+
+    bool moves_section = false;
+    if (token == "startpos") {
+        if (iss >> token) {
+            if (token != "moves") {
+                uci_write_line("info string Incorrect position format.");
+                return;
             }
-            if (!found) {
-                uci_write_line("info string Illegal or unknown move: " + token);
+            moves_section = true;
+        }
+    } else if (token == "fen") {
+        std::string fen;
+        while (iss >> token) {
+            if (token == "moves") {
+                moves_section = true;
                 break;
+            }
+            if (!fen.empty()) fen += ' ';
+            fen += token;
+        }
+
+        if (fen.empty()) {
+            uci_write_line("info string Invalid FEN. Missing FEN fields.");
+            return;
+        }
+
+        std::string error;
+        if (!new_board.try_set_fen(fen, &error, true)) {
+            uci_write_line("info string " + error);
+            return;
+        }
+    } else {
+        uci_write_line("info string Incorrect position format.");
+        return;
+    }
+
+    if (moves_section) {
+        while (iss >> token) {
+            if (!apply_uci_move(new_board, token)) {
+                uci_write_line("info string Illegal move: " + token);
+                return;
             }
         }
     }

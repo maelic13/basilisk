@@ -2,9 +2,9 @@
 
 A UCI chess engine written in C++23.
 
-**Estimated strength: ~2400 ELO** (single-thread calibration against Stockfish; FIDE Master / International Master level)
+**Estimated strength: ~2400 ELO** (single-thread self-play and limited-strength reference calibration; FIDE Master / International Master level)
 
-Latest 1.4.4 release verification: fixes the 100 ms/move `bestmove 0000` regression, passes the full CTest suite, and includes direct UCI stress coverage for legal non-terminal positions.
+Latest 1.4.5 release verification: hardens UCI `position` handling against malformed FEN and illegal move lists, fixes an en-passant check-evasion edge case, adds the `Ponder` option, passes the full CTest suite, and includes direct replay coverage for all known tournament artefacts.
 
 ---
 
@@ -25,7 +25,7 @@ Latest 1.4.4 release verification: fixes the 100 ms/move `bestmove 0000` regress
 - Singular extensions
 - Check extension — extend by 1 ply when in check
 - Mate-distance handling that continues past the first forced mate to prefer shorter mates
-- Optional Syzygy tablebase probing at the root and in search, with Stockfish-style root ranking, best-rank filtering, and tablebase PV expansion
+- Optional Syzygy tablebase probing at the root and in search, with root move ranking, best-rank filtering, and tablebase PV expansion
 - Quiescence search with in-check evasion
 - Static Exchange Evaluation (SEE) for capture pruning and bad-capture reductions
 - Checking moves are protected from late pruning and late move reductions
@@ -68,6 +68,7 @@ Latest 1.4.4 release verification: fixes the 100 ms/move `bestmove 0000` regress
 | `Threads`      | spin   | 1       | 1 – 1024 | Search worker threads; runtime may cap to a hardware-safe count |
 | `Hash`         | spin   | 64      | 1 – 33554432 | Transposition table size in MB                |
 | `Clear Hash`   | button | —       | —         | Clears the transposition table immediately    |
+| `Ponder`       | check  | false   | —         | Advertises support for ponder searches; GUIs start them with `go ponder` |
 | `Move Overhead`| spin   | 10      | 0 – 5000  | Extra latency to subtract from clock (ms)     |
 | `SyzygyPath`   | string | `<empty>` | —       | Semicolon-separated Syzygy tablebase directories; empty disables probing |
 | `SyzygyProbeDepth` | spin | 1    | 1 – 100   | Minimum remaining search depth for non-root WDL probes |
@@ -217,7 +218,7 @@ and `.rtbz` files before starting a search. With an empty path, tablebase code i
 disabled and normal playing strength is unchanged.
 
 When tablebases are enabled, Basilisk probes root moves before search, reports
-Stockfish-style tablebase scores (`cp 20000` for wins), expands tablebase PVs in
+bounded tablebase scores (`cp 20000` for wins), expands tablebase PVs in
 `info ... pv` output, and respects `Syzygy50MoveRule` for cursed wins and blessed
 losses. `SyzygyProbeLimit` can be set to `0` to disable probing without clearing
 the configured path.
@@ -256,14 +257,15 @@ A board performance benchmark is also included (run manually — not part of the
 
 Release CI runs the CTest suite before uploading binaries, then performs UCI smoke tests on every produced CPU-tier executable.
 
-The 1.4.4 release candidate was locally verified with:
+The 1.4.5 release candidate was locally verified with:
 
 | Check | Result |
 |---|---:|
 | CTest suite | 6/6 passed |
-| Direct UCI legal-position stress at 100 ms/move | 40/40 legal bestmoves, 0 `0000` |
-| Short `chess_tester` smoke vs Basilisk 1.3.0 at 100 ms/move | 4 games, 0 engine errors |
-| Built-in bench depth 13, release-avx2 | 13,367,400 nodes, 2,435,750 nps |
+| Focused test binaries | `test_board` 242/242, `test_search` 99/99, `test_uci_protocol` 32/32 |
+| Tournament artefact replay | 43/43 command files clean; 0 illegal bestmoves; 0 `0000` responses |
+| Cutechess smoke vs Basilisk 1.4.4, release-avx2 | 100 games at 1+0.1: 28-30-42, 49.0%, -6.9 +/- 52.2 Elo |
+| Release build | `release-avx2` built successfully |
 
 ---
 
@@ -271,3 +273,9 @@ The 1.4.4 release candidate was locally verified with:
 
 GPL-3.0-or-later. See [LICENSE](LICENSE). Syzygy probing uses the vendored
 MIT-licensed Fathom library under [external/fathom/LICENSE](external/fathom/LICENSE).
+
+---
+
+## Acknowledgements
+
+Thanks to Stockfish and its development team for the inspiration their open-source engine and engineering work have provided to the chess-engine community.

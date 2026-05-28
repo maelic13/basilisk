@@ -20,7 +20,7 @@ static constexpr int MATE_SCORE       = 32000;
 static constexpr int INF_SCORE        = 32001;
 static constexpr int VALUE_NONE       = 32002;
 
-// Per-ply search stack (Stockfish-style).
+// Per-ply search stack used by alpha-beta/PVS search.
 // Root is at ss[0]; ss[-1]..ss[-4] are sentinel slots pre-filled with MOVE_NONE.
 struct SearchStack {
     Move      move        = MOVE_NONE;       // move being searched at this ply
