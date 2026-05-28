@@ -1011,23 +1011,35 @@ bool Board::is_legal(Move m) const {
 
     if (int(from) < 0 || int(from) >= SQUARE_NB || int(to) < 0 || int(to) >= SQUARE_NB)
         return false;
+    if (from == to)
+        return false;
+
     const Piece moving = board_sq[from];
     if (moving == NO_PIECE || color_of(moving) != us)
         return false;
+    if (board_sq[to] != NO_PIECE) {
+        if (color_of(board_sq[to]) == us)
+            return false;
+        if (type_of(board_sq[to]) == KING)
+            return false;
+    }
+
+    const PieceType pt = type_of(moving);
+    const Bitboard to_bb = sq_bb(to);
 
     // King moves: destination must not be attacked after king leaves
-    if (type_of(moving) == KING) {
+    if (pt == KING) {
         if (mt == CASTLING) {
-            const bool king_side = to > from;
+            const Rank back = us == WHITE ? RANK_1 : RANK_8;
+            if (from != make_square(FILE_E, back))
+                return false;
+            if (to != make_square(FILE_G, back) && to != make_square(FILE_C, back))
+                return false;
+
+            const bool king_side = to == make_square(FILE_G, back);
             const bool ok_rights = king_side ? can_castle_kingside(*this, us)
                                              : can_castle_queenside(*this, us);
             if (!ok_rights)
-                return false;
-
-            const Rank back = us == WHITE ? RANK_1 : RANK_8;
-            if (us == WHITE && from != E1)
-                return false;
-            if (us == BLACK && from != E8)
                 return false;
 
             if (king_side) {
@@ -1047,11 +1059,79 @@ bool Board::is_legal(Move m) const {
                 && !is_square_attacked(d, them)
                 && !is_square_attacked(c, them);
         }
+        if (mt != NORMAL || !(KingAttacks[from] & to_bb))
+            return false;
         Bitboard occ_after = (all_occ ^ sq_bb(from)) | sq_bb(to);
         return !attackers_to(to, occ_after, them);
     }
 
-    // En passant: complex — do make/unmake
+    if (mt == CASTLING)
+        return false;
+
+    if (pt == PAWN) {
+        const int push = us == WHITE ? 8 : -8;
+        const Rank start_rank = us == WHITE ? RANK_2 : RANK_7;
+        const Rank penultimate_rank = us == WHITE ? RANK_7 : RANK_2;
+        const Rank promotion_rank = us == WHITE ? RANK_8 : RANK_1;
+        const int delta = int(to) - int(from);
+        const bool pawn_capture = (PawnAttacks[us][from] & to_bb) != 0;
+
+        if (mt == PROMOTION) {
+            if (rank_of(from) != penultimate_rank || rank_of(to) != promotion_rank)
+                return false;
+            if (delta == push) {
+                if (board_sq[to] != NO_PIECE)
+                    return false;
+            } else if (pawn_capture) {
+                if (board_sq[to] == NO_PIECE || color_of(board_sq[to]) != them)
+                    return false;
+            } else {
+                return false;
+            }
+        } else if (mt == EN_PASSANT) {
+            if (ep_sq == SQ_NONE || to != ep_sq || !pawn_capture || board_sq[to] != NO_PIECE)
+                return false;
+            const Square ep_pawn = make_square(file_of(to), rank_of(from));
+            if (!has_piece_on(*this, ep_pawn, them, PAWN))
+                return false;
+        } else if (mt == NORMAL) {
+            if (rank_of(to) == promotion_rank)
+                return false;
+            if (delta == push) {
+                if (board_sq[to] != NO_PIECE)
+                    return false;
+            } else if (delta == 2 * push) {
+                const Square mid = Square(int(from) + push);
+                if (rank_of(from) != start_rank
+                    || board_sq[mid] != NO_PIECE
+                    || board_sq[to] != NO_PIECE)
+                    return false;
+            } else if (pawn_capture) {
+                if (board_sq[to] == NO_PIECE || color_of(board_sq[to]) != them)
+                    return false;
+            } else {
+                return false;
+            }
+        } else {
+            return false;
+        }
+    } else {
+        if (mt != NORMAL)
+            return false;
+
+        Bitboard attacks = 0;
+        switch (pt) {
+            case KNIGHT: attacks = KnightAttacks[from]; break;
+            case BISHOP: attacks = bishop_attacks(from, all_occ); break;
+            case ROOK:   attacks = rook_attacks(from, all_occ); break;
+            case QUEEN:  attacks = queen_attacks(from, all_occ); break;
+            default:     return false;
+        }
+        if (!(attacks & to_bb))
+            return false;
+    }
+
+    // En passant: complex because both pawns leave the rank before check tests.
     if (mt == EN_PASSANT) {
         Board tmp = *this;
         tmp.make_move(m);

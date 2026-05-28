@@ -4,7 +4,7 @@ A UCI chess engine written in C++23.
 
 **Estimated strength: ~2400 ELO** (single-thread self-play and limited-strength reference calibration; FIDE Master / International Master level)
 
-Latest 1.4.6 release verification: completes UCI ponder support, matching Stockfish-style `go ponder` / `ponderhit` lifecycle behavior, adds engine-thread ponder regression coverage, and passes the full CTest suite.
+Latest 1.4.6 release verification: completes UCI ponder and threading support, hardens TT/PV legality for tournament GUIs, and passes the full CTest suite plus quick Cutechess and bench smoke checks.
 
 ---
 
@@ -13,7 +13,7 @@ Latest 1.4.6 release verification: completes UCI ponder support, matching Stockf
 ### Search
 - Iterative deepening with aspiration windows
 - Negamax alpha-beta / Principal Variation Search (PVS)
-- Persistent Lazy SMP thread pool with shared TT and shared root-move feedback
+- Persistent Lazy SMP thread pool with shared TT, shared root-move feedback, exact `Threads` resizing, and aggregate node/tbhit accounting
 - Transposition table — atomic 3-entry clusters aligned to 64-byte cache lines, with generational aging
 - TT prefetching, exact-entry replacement preference, and age-aware `hashfull`
 - Null move pruning
@@ -58,6 +58,7 @@ Latest 1.4.6 release verification: completes UCI ponder support, matching Stockf
 - Root best-move effort tracking to spend less time on obvious moves and more on unstable roots
 - `movestogo` aware; move-overhead compensation
 - Final UCI legality guard for `bestmove`, ponder moves, and reported PV lines
+- Strict TT move validation prevents stale or hash-aliased moves from corrupting board state or producing illegal PVs
 - Complete UCI ponder lifecycle: `go ponder` waits for `stop` or `ponderhit`, `ponderhit` preserves elapsed ponder time, and stale control state is cleared between searches
 
 ---
@@ -66,7 +67,7 @@ Latest 1.4.6 release verification: completes UCI ponder support, matching Stockf
 
 | Option         | Type   | Default | Range     | Description                                   |
 |----------------|--------|---------|-----------|-----------------------------------------------|
-| `Threads`      | spin   | 1       | 1 – 1024 | Search worker threads; runtime may cap to a hardware-safe count |
+| `Threads`      | spin   | 1       | 1 – max(1024, 4*hardware_concurrency) | Search worker threads; applied immediately by `setoption` |
 | `Hash`         | spin   | 64      | 1 – 33554432 | Transposition table size in MB                |
 | `Clear Hash`   | button | —       | —         | Clears the transposition table immediately    |
 | `Ponder`       | check  | false   | —         | Advertises support for ponder searches; GUIs start them with `go ponder` |
@@ -244,7 +245,7 @@ the configured path.
 
 ## Testing
 
-Basilisk ships a comprehensive test suite covering board correctness, move encoding, the transposition table, evaluation, search, mate-distance regressions, illegal-move hardening, the thread pool, command queue behavior, UCI protocol ordering/EOF handling, UCI option parsing, engine-level ponder lifecycle behavior, and Syzygy tablebase behavior. The Syzygy tests use a local `D:\chess\Syzygy345` directory when present and otherwise skip the real-tablebase assertions. Run with:
+Basilisk ships a comprehensive test suite covering board correctness, move encoding, the transposition table, evaluation, search, mate-distance regressions, illegal-move hardening, the thread pool, command queue behavior, UCI protocol ordering/EOF handling, UCI option parsing, engine-level ponder lifecycle behavior, engine-level threading behavior, and Syzygy tablebase behavior. The Syzygy tests use a local `D:\chess\Syzygy345` directory when present and otherwise skip the real-tablebase assertions. Run with:
 
 ```bash
 ctest --test-dir build/release --output-on-failure
@@ -262,9 +263,11 @@ The 1.4.6 release candidate was locally verified with:
 
 | Check | Result |
 |---|---:|
-| CTest suite | 7/7 passed |
-| Focused test binaries | `test_search` 101/101, `test_engine_ponder` 10/10, `test_uci_protocol` 32/32 |
-| Stockfish ponder comparison | Both engines withheld `bestmove` during `go ponder depth 1` until `stop` or `ponderhit` |
+| CTest suite | 8/8 passed |
+| Focused test binaries | `test_board` 252/252, `test_search` 116/116, `test_engine_ponder` 10/10, `test_engine_threading` 5/5, `test_uci_protocol` 32/32 |
+| Stockfish protocol comparison | Ponder withheld `bestmove` until `stop` or `ponderhit`; `Threads` resizes before `isready` and node-limited searches return `bestmove` without requiring `stop` |
+| Cutechess quick smoke vs 1.4.5 | 1T book: `6 - 3 - 11`; 8T book: `16 - 0 - 0`; no illegal PV warnings attributed to current |
+| `bench 13` vs 1.4.5 | 1T avg: 2,871,808 nps vs 2,853,566; 8T avg: 16,709,108 nps vs 14,863,428 |
 | Release build | `release-avx2` built successfully |
 
 ---

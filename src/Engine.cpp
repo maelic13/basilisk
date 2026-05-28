@@ -46,6 +46,9 @@ SearchLimits Engine::build_limits() const {
     limits.syzygy_50_move_rule = parameters_.syzygy50MoveRule;
     limits.infinite  = (parameters_.depth == infiniteDepth && parameters_.moveTime == 0
                         && parameters_.whiteTime == 0 && parameters_.blackTime == 0
+                        && parameters_.whiteIncrement == 0 && parameters_.blackIncrement == 0
+                        && parameters_.movestogo == 0
+                        && parameters_.nodes == 0
                         && !parameters_.ponder);
     return limits;
 }
@@ -159,7 +162,9 @@ void Engine::start_search(uint64_t command_epoch) {
         current_hash_mb_ = desired_hash_mb;
     }
 
-    search_pool_.ensure_threads(desired_threads);
+    const int active_threads = search_pool_.resize_threads(desired_threads);
+    if (active_threads != desired_threads)
+        parameters_.threads = active_threads;
 
     if (is_new_game || do_clear_hash) {
         tt.clear();
@@ -178,7 +183,7 @@ void Engine::start_search(uint64_t command_epoch) {
 
     searching_.store(true, std::memory_order_release);
 
-    SearchResult result = search_pool_.search(board_copy, limits, desired_threads);
+    SearchResult result = search_pool_.search(board_copy, limits, active_threads);
     wait_until_bestmove_allowed(limits, command_epoch);
 
     if (command_epoch == 0
@@ -210,9 +215,19 @@ void Engine::run_bench_command(const EngineCommand& command) {
 void Engine::handle_command(const EngineCommand& command, bool& quit) {
     switch (command.type) {
         case EngineCommandType::SetOption:
+        {
+            const int old_threads = parameters_.threads;
             parameters_.setOption(command.args);
             configure_syzygy();
+            if (parameters_.threads != old_threads) {
+                const int active_threads = search_pool_.resize_threads(parameters_.threads);
+                parameters_.threads = active_threads;
+                uci_write_line("info string Using "
+                               + std::to_string(active_threads)
+                               + (active_threads == 1 ? " thread" : " threads"));
+            }
             break;
+        }
         case EngineCommandType::Position:
             parameters_.setPosition(command.args);
             break;

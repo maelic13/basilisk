@@ -16,14 +16,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Ponder searches that finish their depth limit now wait for `stop` or `ponderhit` before emitting `bestmove`, including multi-threaded searches
 - Stale `stop` and `ponderhit` control flags are cleared after a search completes so a previous command cannot poison the next `go ponder`
 
+#### UCI / Search Limits
+- `go nodes N` is no longer treated as an infinite search by the engine thread, so node-limited UCI searches return `bestmove` without requiring a later `stop`
+- Increment and `movestogo` UCI parameters are now included in finite-search detection instead of falling through to the infinite/ponder wait path
+
+#### Search Threads
+- Multi-threaded node limits are now enforced against an aggregate shared node counter instead of dividing the limit per helper
+- UCI `info` from threaded searches now reports aggregate nodes and tablebase hits instead of main-thread-only values
+
+#### Search / Move Legality
+- Hardened TT move validation so stale, aliased, or SMP-corrupted TT moves must be pseudo-legal before search can play them
+- Prevented malformed TT moves from corrupting board state and leaking illegal `info ... pv` lines to tournament GUIs
+
+#### Bench
+- Corrected an invalid built-in benchmark FEN so `bench 13` completes under strict FEN validation
+
 ### Added
 
 #### Testing
 - Added `test_engine_ponder`, an engine-thread regression target covering completed ponder searches waiting for `stop`, completed ponder searches waiting for `ponderhit`, and stale control-state cleanup before the next ponder search
+- Added `test_engine_threading`, an engine-thread regression target covering immediate `Threads` resize behavior before `isready` and threaded node-limited search completion
 - Added search-layer coverage that verifies `ponderhit` uses elapsed ponder time instead of resetting the clock
+- Expanded search-layer thread-pool coverage for exact grow/shrink behavior, repeated threaded searches, aggregate node limits, and threaded UCI node reporting
+- Added strict board-legality and corrupt-TT regression coverage for the tournament-derived illegal PV sequence
 - Verified live UCI behavior against local Stockfish: both engines withhold `bestmove` during `go ponder depth 1` and emit it only after `stop` or `ponderhit`
 
 ### Changed
+
+#### Search Threads
+- `setoption name Threads value N` now resizes the persistent search pool immediately, matching Stockfish's option lifecycle rather than delaying worker creation until the next search
+- Thread resizing is exact in both directions: reducing `Threads` tears down helper workers instead of keeping stale workers alive
+- Helper threads now run full-root Lazy SMP searches over the shared TT/root table instead of partitioning root moves
+- The UCI `Threads` maximum now follows Stockfish's `max(1024, 4 * hardware_concurrency)` model; worker creation failure is reported and the active count is reduced
 
 #### Version
 - Bumped engine version metadata to 1.4.6
@@ -32,9 +56,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Release Verification
 - Built `release-avx2` successfully with MSYS2 Clang/Ninja
-- Passed the full CTest suite: 7/7 tests
-- Passed focused test binaries: `test_search` 101/101, `test_engine_ponder` 10/10, `test_uci_protocol` 32/32
-- Live UCI comparison with `D:\chess\engines\stockfish.exe`: `go ponder depth 1` withheld `bestmove` until both `stop` and `ponderhit`, matching the reference protocol behavior
+- Passed the full CTest suite: 8/8 tests
+- Passed focused test binaries: `test_board` 252/252, `test_search` 116/116, `test_engine_ponder` 10/10, `test_engine_threading` 5/5, `test_uci_protocol` 32/32
+- Live UCI comparison with `D:\chess\engines\stockfish.exe`: `go ponder depth 1` withheld `bestmove` until both `stop` and `ponderhit`; Basilisk now also applies `Threads` before `isready` and completes `go nodes N` without requiring `stop`
+- Verified no current-engine illegal PV warnings in the focused Cutechess repro; warnings remaining in comparison logs came from the 1.4.5 opponent
+- Ran quick Cutechess book smoke against 1.4.5: 1T scored 6-3-11 over 20 games (+52 +/- 105 Elo), 8T scored 16-0-0 over 16 games
+- Recorded `bench 13` on the local release-avx2 build: 1T averaged 11,530,305 nodes at 2,871,808 nps; 8T averaged 16,709,108 nps over three runs
 
 ---
 

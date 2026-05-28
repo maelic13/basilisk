@@ -127,6 +127,27 @@ static std::vector<std::string> collect_info_lines(const char* fen, int depth) {
     return lines;
 }
 
+static std::vector<std::string> collect_info_lines_with_tt_move(const char* fen,
+                                                                Move tt_move,
+                                                                int depth) {
+    TranspositionTable tt(4);
+    std::atomic_bool stop{false};
+    std::vector<std::string> lines;
+
+    Board board;
+    board.set_fen(fen);
+    tt.store(board.hash, depth + 4, 500, TT_EXACT, tt_move, 0, 0);
+
+    SearchLimits limits;
+    limits.depth = depth;
+
+    auto searcher = std::make_unique<Searcher>(tt, stop, [&](const std::string& info) {
+        lines.push_back(info);
+    });
+    (void)searcher->search(board, limits);
+    return lines;
+}
+
 static bool init_local_syzygy() {
     static constexpr const char* TB_PATH = "D:\\chess\\Syzygy345";
     if (!std::filesystem::exists(TB_PATH))
@@ -531,17 +552,41 @@ static void test_info_pv_lines_are_legal() {
     end_section();
 }
 
+static void test_corrupt_tt_move_is_not_searched() {
+    static constexpr const char* FEN =
+        "2k5/pp3pp1/5n2/2P5/bPP2P2/P3K3/6Pp/3Q1B1R w - - 0 23";
+    const Move illegal_tt_move = make_move(E3, F4);
+
+    Board board;
+    board.set_fen(FEN);
+
+    begin_section("corrupt TT move: validator rejects king move onto own pawn");
+    EXPECT(!board.is_legal(illegal_tt_move));
+    end_section();
+
+    std::vector<std::string> lines = collect_info_lines_with_tt_move(FEN, illegal_tt_move, 6);
+
+    begin_section("corrupt TT move: search still emits legal PV lines");
+    for (const std::string& line : lines)
+        EXPECT(info_pv_is_legal(FEN, line));
+    end_section();
+}
+
 static void test_thread_pool_search() {
     static constexpr const char* FEN =
         "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
     TranspositionTable tt(8);
     std::atomic_bool stop{false};
-    SearchThreadPool pool(tt, stop);
-    const int threads = pool.ensure_threads(2);
+    std::vector<std::string> info_lines;
+    SearchThreadPool pool(tt, stop, [&](const std::string& line) {
+        info_lines.push_back(line);
+    });
+    const int threads = pool.resize_threads(2);
 
-    begin_section("thread pool: creates at least one worker slot");
+    begin_section("thread pool: resizes to requested active count");
     EXPECT(threads >= 1);
+    EXPECT_EQ(pool.active_thread_count(), threads);
     end_section();
 
     Board board;
@@ -560,6 +605,14 @@ static void test_thread_pool_search() {
     EXPECT(result.nodes > 0);
     end_section();
 
+    begin_section("thread pool: UCI info reports aggregate node count");
+    bool saw_nodes = false;
+    for (const std::string& line : info_lines) {
+        saw_nodes = saw_nodes || line.find(" nodes ") != std::string::npos;
+    }
+    EXPECT(saw_nodes);
+    end_section();
+
     board.set_fen(FEN);
     stop.store(false, std::memory_order_release);
     SearchResult second = pool.search(board, limits, threads);
@@ -567,6 +620,36 @@ static void test_thread_pool_search() {
     begin_section("thread pool: repeated search after helper cancellation works");
     EXPECT(is_legal_bestmove(FEN, second.bestmove));
     EXPECT(second.nodes > 0);
+    end_section();
+
+    if (threads > 1) {
+        SearchLimits node_limits;
+        node_limits.depth = MAX_SEARCH_DEPTH;
+        node_limits.nodes = 1000;
+
+        board.set_fen(FEN);
+        stop.store(false, std::memory_order_release);
+        SearchResult limited = pool.search(board, node_limits, threads);
+
+        begin_section("thread pool: shared nodes limit is aggregate");
+        EXPECT(is_legal_bestmove(FEN, limited.bestmove));
+        EXPECT(limited.nodes <= node_limits.nodes + 512 * threads);
+        end_section();
+    }
+
+    const int single = pool.resize_threads(1);
+    begin_section("thread pool: shrinks back to one active thread");
+    EXPECT_EQ(single, 1);
+    EXPECT_EQ(pool.active_thread_count(), 1);
+    end_section();
+
+    board.set_fen(FEN);
+    stop.store(false, std::memory_order_release);
+    SearchResult single_result = pool.search(board, limits, single);
+
+    begin_section("thread pool: search works after shrinking helpers");
+    EXPECT(is_legal_bestmove(FEN, single_result.bestmove));
+    EXPECT(single_result.nodes > 0);
     end_section();
 }
 
@@ -749,6 +832,7 @@ int main() {
     test_search_result_sanitizer();
     test_tournament_infraction_positions();
     test_info_pv_lines_are_legal();
+    test_corrupt_tt_move_is_not_searched();
 
     std::printf("\nFree queen capture\n");
     test_free_queen_capture();

@@ -321,6 +321,40 @@ double Searcher::elapsed_seconds() const {
     return duration<double>(steady_clock::now() - start_time_).count();
 }
 
+int64_t Searcher::record_node() {
+    ++nodes_;
+    if (active_limits_.shared_nodes) {
+        const int64_t total =
+            active_limits_.shared_nodes->fetch_add(1, std::memory_order_relaxed) + 1;
+        if (nodes_limit_ > 0 && total >= nodes_limit_)
+            stopped_ = true;
+        return total;
+    }
+    if (nodes_limit_ > 0 && nodes_ >= nodes_limit_)
+        stopped_ = true;
+    return nodes_;
+}
+
+void Searcher::record_tbhit(int64_t count) {
+    if (count <= 0)
+        return;
+    tb_hits_ += count;
+    if (active_limits_.shared_tbhits)
+        active_limits_.shared_tbhits->fetch_add(count, std::memory_order_relaxed);
+}
+
+int64_t Searcher::current_nodes() const {
+    return active_limits_.shared_nodes
+        ? active_limits_.shared_nodes->load(std::memory_order_relaxed)
+        : nodes_;
+}
+
+int64_t Searcher::current_tbhits() const {
+    return active_limits_.shared_tbhits
+        ? active_limits_.shared_tbhits->load(std::memory_order_relaxed)
+        : tb_hits_;
+}
+
 bool Searcher::check_stop() {
     if (stopped_) return true;
 
@@ -344,7 +378,7 @@ bool Searcher::check_stop() {
         stopped_ = true;
         return true;
     }
-    if (nodes_limit_ > 0 && nodes_ >= nodes_limit_) {
+    if (nodes_limit_ > 0 && current_nodes() >= nodes_limit_) {
         stopped_ = true;
         return true;
     }
@@ -789,7 +823,7 @@ void Searcher::send_info(int depth, int score, int64_t total_nodes, double elaps
     line += " nodes " + std::to_string(total_nodes)
          + " nps "   + std::to_string(nps)
          + " time "  + std::to_string(int64_t(elapsed * 1000))
-         + " tbhits " + std::to_string(tb_hits_)
+         + " tbhits " + std::to_string(current_tbhits())
          + " hashfull " + std::to_string(tt_.hashfull());
 
     if (pv_len_[0] > 0) {
@@ -824,7 +858,7 @@ void Searcher::init_root_tablebase_scores(const Board& board) {
     (void) board;
     root_tb_moves_ = active_limits_.syzygy_root_moves;
     if (!root_tb_moves_.empty() && thread_id_ == 0)
-        tb_hits_ += static_cast<int64_t>(root_tb_moves_.size());
+        record_tbhit(static_cast<int64_t>(root_tb_moves_.size()));
 }
 
 int Searcher::root_tablebase_score(Move move) const {
@@ -863,7 +897,7 @@ bool Searcher::root_tablebase_allows(Move move) const {
 // ---- Quiescence search -----------------------------------------------------
 
 int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss) {
-    nodes_++;
+    record_node();
     if ((nodes_ & 2047) == 0) check_stop();
     if (stopped_) return 0;
     if (ply >= MAX_PLY) return evaluator.evaluate(*board_ptr_);
@@ -983,7 +1017,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
 
 int Searcher::negamax(int depth, int alpha, int beta, int ply,
                       SearchStack* ss, bool is_pv, bool allow_null, bool cut_node) {
-    nodes_++;
+    record_node();
     if ((nodes_ & 2047) == 0) {
         check_stop();
     }
@@ -1003,7 +1037,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         if (auto wdl = Syzygy::probe_wdl(*board_ptr_,
                                          active_limits_.syzygy_probe_limit,
                                          active_limits_.syzygy_50_move_rule)) {
-            tb_hits_++;
+            record_tbhit();
             const int tb_score = score_from_syzygy_wdl(*wdl);
             tt_.store(board_ptr_->hash, depth, tb_score, TT_EXACT, MOVE_NONE, ply,
                       TranspositionTable::INF_EVAL);
@@ -1537,7 +1571,7 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
             root_table_->update(result.bestmove, result.pondermove, depth, score);
 
         double elapsed = elapsed_seconds();
-        send_info(depth, reported_score, nodes_, elapsed);
+        send_info(depth, reported_score, current_nodes(), elapsed);
 
         // Adaptive soft time limit:
         // The more stable the best move, the less time we need to confirm it.
@@ -1585,7 +1619,7 @@ SearchThreadPool::SearchThreadPool(TranspositionTable& tt,
     , stop_(stop_flag)
     , ponderhit_(ponderhit_flag)
     , info_cb_(std::move(info_cb)) {
-    ensure_threads(1);
+    resize_threads(1);
 }
 
 SearchThreadPool::~SearchThreadPool() {
@@ -1603,15 +1637,56 @@ SearchThreadPool::~SearchThreadPool() {
 }
 
 int SearchThreadPool::ensure_threads(int count) {
-    count = std::max(1, count);
-    const int requested = count;
-    const unsigned hw = std::thread::hardware_concurrency();
-    const int runtime_cap = hw == 0 ? 1 : std::max(1, static_cast<int>(std::min(4u * hw, 1024u)));
-    count = std::min(count, runtime_cap);
+    return resize_threads(count);
+}
 
-    if (requested > count && info_cb_) {
-        info_cb_("info string Threads capped at " + std::to_string(count)
-                 + " for this process");
+int SearchThreadPool::normalize_thread_count(int count) {
+    count = std::max(1, count);
+    const unsigned hw = std::thread::hardware_concurrency();
+    const int runtime_cap = hw == 0 ? 1024 : static_cast<int>(std::max(1024u, 4u * hw));
+    return std::min(count, runtime_cap);
+}
+
+int SearchThreadPool::active_thread_count() const {
+    std::lock_guard lock(mutex_);
+    return static_cast<int>(searchers_.size());
+}
+
+int SearchThreadPool::resize_threads(int count) {
+    count = normalize_thread_count(count);
+
+    bool already_exact = false;
+    {
+        std::lock_guard lock(mutex_);
+        already_exact = !shutdown_
+            && static_cast<int>(searchers_.size()) == count
+            && static_cast<int>(workers_.size()) + 1 == count;
+    }
+    if (already_exact)
+        return count;
+
+    {
+        std::lock_guard lock(mutex_);
+        shutdown_ = true;
+        ++epoch_;
+    }
+    work_cv_.notify_all();
+
+    for (std::thread& worker : workers_) {
+        if (worker.joinable())
+            worker.join();
+    }
+
+    {
+        std::lock_guard lock(mutex_);
+        workers_.clear();
+        searchers_.clear();
+        job_results_ = nullptr;
+        job_root_table_ = nullptr;
+        requested_helpers_ = 0;
+        active_helpers_ = 0;
+        shutdown_ = false;
+        epoch_ = 0;
     }
 
     while (static_cast<int>(searchers_.size()) < count) {
@@ -1634,7 +1709,10 @@ int SearchThreadPool::ensure_threads(int count) {
         }
     }
 
-    return std::min<int>(count, static_cast<int>(workers_.size()) + 1);
+    const int active_count = std::min<int>(count, static_cast<int>(workers_.size()) + 1);
+    if (static_cast<int>(searchers_.size()) > active_count)
+        searchers_.resize(static_cast<size_t>(active_count));
+    return active_count;
 }
 
 void SearchThreadPool::clear() {
@@ -1651,14 +1729,8 @@ SearchLimits SearchThreadPool::limits_for_thread(const SearchLimits& limits,
     worker_limits.thread_id = thread_id;
     worker_limits.thread_count = thread_count;
     worker_limits.root_table = &root_table;
-
-    if (worker_limits.nodes > 0)
-        worker_limits.nodes = std::max<int64_t>(1, worker_limits.nodes / thread_count);
-
-    if (thread_count > 1 && thread_id > 0) {
-        worker_limits.root_filter_count = std::min(thread_count, 8);
-        worker_limits.root_filter_index = thread_id % worker_limits.root_filter_count;
-    }
+    worker_limits.root_filter_count = 1;
+    worker_limits.root_filter_index = -1;
 
     return worker_limits;
 }
@@ -1699,11 +1771,13 @@ SearchResult SearchThreadPool::merge_results(const std::vector<SearchResult>& re
 }
 
 SearchResult SearchThreadPool::search(Board board, const SearchLimits& limits, int thread_count) {
-    thread_count = ensure_threads(thread_count);
+    thread_count = resize_threads(thread_count);
     const Board root_board = board;
 
     if (thread_count <= 1) {
         SearchLimits worker_limits = limits;
+        worker_limits.shared_nodes = nullptr;
+        worker_limits.shared_tbhits = nullptr;
         worker_limits.update_tt_age = true;
         worker_limits.thread_id = 0;
         worker_limits.thread_count = 1;
@@ -1717,12 +1791,17 @@ SearchResult SearchThreadPool::search(Board board, const SearchLimits& limits, i
     root_table.reset(board);
 
     std::vector<SearchResult> results(static_cast<size_t>(thread_count));
+    std::atomic<int64_t> shared_nodes{0};
+    std::atomic<int64_t> shared_tbhits{0};
+    SearchLimits shared_limits = limits;
+    shared_limits.shared_nodes = &shared_nodes;
+    shared_limits.shared_tbhits = &shared_tbhits;
     const auto wall_start = std::chrono::steady_clock::now();
 
     {
         std::lock_guard lock(mutex_);
         job_board_ = board;
-        job_limits_ = limits;
+        job_limits_ = shared_limits;
         job_results_ = &results;
         job_root_table_ = &root_table;
         requested_helpers_ = thread_count - 1;
@@ -1731,7 +1810,7 @@ SearchResult SearchThreadPool::search(Board board, const SearchLimits& limits, i
     }
     work_cv_.notify_all();
 
-    SearchLimits main_limits = limits_for_thread(limits, 0, thread_count, root_table);
+    SearchLimits main_limits = limits_for_thread(shared_limits, 0, thread_count, root_table);
     results[0] = searchers_[0]->search(std::move(board), main_limits);
 
     while (!stop_.load(std::memory_order_acquire) && (limits.ponder || limits.infinite)) {

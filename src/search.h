@@ -65,6 +65,8 @@ struct SearchLimits {
     int winc       = 0, binc  = 0;
     int movestogo  = 0;
     int64_t nodes  = 0;
+    std::atomic<int64_t>* shared_nodes = nullptr;
+    std::atomic<int64_t>* shared_tbhits = nullptr;
     int overhead   = 0;   // move overhead to subtract [ms]
     bool infinite  = false;
     bool ponder    = false;
@@ -240,6 +242,10 @@ private:
     double elapsed_seconds() const;
     void   compute_time_limit(const SearchLimits& limits, Color side);
     void   send_info(int depth, int score, int64_t nodes, double elapsed) const;
+    int64_t record_node();
+    void   record_tbhit(int64_t count = 1);
+    int64_t current_nodes() const;
+    int64_t current_tbhits() const;
     void   init_root_tablebase_scores(const Board& board);
     int    root_tablebase_score(Move move) const;
     int    root_tablebase_ordering_score(Move move) const;
@@ -259,6 +265,8 @@ public:
     SearchThreadPool& operator=(const SearchThreadPool&) = delete;
 
     int ensure_threads(int count);
+    int resize_threads(int count);
+    int active_thread_count() const;
     void clear();
     SearchResult search(Board board, const SearchLimits& limits, int thread_count);
 
@@ -268,6 +276,7 @@ private:
                                    RootMoveTable& root_table) const;
     SearchResult merge_results(const std::vector<SearchResult>& results, int count,
                                const RootMoveTable& root_table, int64_t elapsed_ms) const;
+    static int normalize_thread_count(int count);
 
     TranspositionTable& tt_;
     std::atomic_bool& stop_;

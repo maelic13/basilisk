@@ -5,6 +5,7 @@
 #include <regex>
 #include <sstream>
 #include <string>
+#include <thread>
 
 #include "Board.h"
 #include "Constants.h"
@@ -116,7 +117,10 @@ std::string Parameters::uciOptions() {
 }
 
 int Parameters::maxThreads() {
-    return 1024;
+    const unsigned hw = std::thread::hardware_concurrency();
+    if (hw == 0)
+        return 1024;
+    return static_cast<int>(std::max(1024u, 4u * hw));
 }
 
 void Parameters::setSearchParameters(const std::string& args) {

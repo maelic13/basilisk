@@ -172,6 +172,17 @@ add_executable(test_engine_ponder
 target_link_libraries(test_engine_ponder PRIVATE basilisk_engine)
 
 # ---------------------------------------------------------------------------
+# Engine-level threading protocol tests
+# ---------------------------------------------------------------------------
+add_executable(test_engine_threading
+    tests/test_engine_threading.cpp
+    src/Engine.cpp
+    src/Parameters.cpp
+    src/bench.cpp
+)
+target_link_libraries(test_engine_threading PRIVATE basilisk_engine)
+
+# ---------------------------------------------------------------------------
 # UCI protocol tests
 # ---------------------------------------------------------------------------
 add_executable(test_uci_protocol
@@ -188,6 +199,7 @@ add_test(NAME test_tt           COMMAND test_tt)
 add_test(NAME test_eval         COMMAND test_eval)
 add_test(NAME test_search       COMMAND test_search)
 add_test(NAME test_engine_ponder COMMAND test_engine_ponder)
+add_test(NAME test_engine_threading COMMAND test_engine_threading)
 add_test(NAME test_uci_protocol COMMAND test_uci_protocol)
 
 # board_performance_test is a standalone benchmark — build it but do not
@@ -202,7 +214,7 @@ option(PORTABLE_BUILD "Build without host-specific CPU flags for distributable b
 set(_ALL_TARGETS
     basilisk_board basilisk_engine
     basilisk board_performance_test
-    test_board test_move test_tt test_eval test_search test_engine_ponder test_uci_protocol
+    test_board test_move test_tt test_eval test_search test_engine_ponder test_engine_threading test_uci_protocol
 )
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")

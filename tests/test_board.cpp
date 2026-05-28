@@ -548,7 +548,54 @@ static void test_check_detection() {
 }
 
 // ---------------------------------------------------------------------------
-// 7. Castling rights propagation
+// 7. Strict move legality
+// ---------------------------------------------------------------------------
+
+static bool generated_legal_contains(const Board& b, Move move) {
+    MoveList legal;
+    b.gen_legal(legal);
+    for (Move candidate : legal)
+        if (candidate == move)
+            return true;
+    return false;
+}
+
+static void expect_illegal_move(const char* fen, Move move) {
+    Board b;
+    b.set_fen(fen);
+    EXPECT(!b.is_legal(move));
+    EXPECT(!generated_legal_contains(b, move));
+}
+
+static void test_strict_move_legality() {
+    begin_section("illegal king move onto own pawn is rejected");
+    expect_illegal_move("8/8/8/8/5P2/4K3/8/7k w - - 0 1",
+                        make_move(E3, F4));
+    end_section();
+
+    begin_section("impossible king move is rejected");
+    expect_illegal_move("8/8/8/8/5P2/4K3/8/7k w - - 0 1",
+                        make_move(E3, E8));
+    end_section();
+
+    begin_section("tournament PV king-own-pawn move is rejected");
+    expect_illegal_move("2k5/pp3pp1/5n2/2P5/bPP2P2/P3K3/6Pp/3Q1B1R w - - 0 23",
+                        make_move(E3, F4));
+    end_section();
+
+    begin_section("tournament PV repeated king-own-pawn move is rejected");
+    expect_illegal_move("2k5/pp3pp1/5n2/2P5/1PP2P2/P2BK1p1/2b3PP/7R w - - 2 24",
+                        make_move(E3, F4));
+    end_section();
+
+    begin_section("malformed castling target is rejected");
+    expect_illegal_move("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1",
+                        make_castling(E1, H1));
+    end_section();
+}
+
+// ---------------------------------------------------------------------------
+// 8. Castling rights propagation
 // ---------------------------------------------------------------------------
 
 static void test_castling_rights() {
@@ -882,6 +929,9 @@ int main() {
 
     std::printf("\nCheck detection\n");
     test_check_detection();
+
+    std::printf("\nStrict move legality\n");
+    test_strict_move_legality();
 
     std::printf("\nCastling rights\n");
     test_castling_rights();
