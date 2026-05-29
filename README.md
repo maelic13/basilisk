@@ -1,5 +1,9 @@
 # Basilisk
 
+<p align="center">
+  <img src="logo/basilisk_detailed.png" alt="Basilisk logo" width="260">
+</p>
+
 A UCI chess engine written in C++23.
 
 ---
