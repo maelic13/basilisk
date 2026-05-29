@@ -338,7 +338,7 @@ int Evaluator::evaluate(const Board& b) {
             mg += sign * (rel_r * 2);
             eg += sign * (rel_r * 6);
 
-            if (!b.attackers_to(stop, b.all_occ, them))
+            if (!b.is_attacked_by(stop, b.all_occ, them))
                 eg += sign * (rel_r * 8);
         }
     }
@@ -611,9 +611,9 @@ int Evaluator::evaluate(const Board& b) {
         while (pieces_bb) {
             Square sq = Square(pop_lsb(pieces_bb));
             // Is it attacked by enemy?
-            if (!b.attackers_to(sq, b.all_occ, them)) continue;
+            if (!b.is_attacked_by(sq, b.all_occ, them)) continue;
             // Is it defended by us?
-            if ( b.attackers_to(sq, b.all_occ, us))   continue;
+            if ( b.is_attacked_by(sq, b.all_occ, us))   continue;
             // Hanging piece
             PieceType pt = type_of(b.board_sq[sq]);
             static constexpr int HANG_PEN[PIECE_TYPE_NB] = {0, 0, 45, 45, 60, 80, 0};

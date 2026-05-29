@@ -108,8 +108,14 @@ jobs:
             asset_suffix: ""
 
     steps:
+      - name: Configure Git line endings (Windows)
+        if: runner.os == 'Windows'
+        run: git config --global core.autocrlf input
+
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - name: Install Clang and Ninja (Linux)
         if: runner.os == 'Linux'
@@ -117,7 +123,11 @@ jobs:
 
       - name: Install Ninja (macOS)
         if: runner.os == 'macOS'
-        run: brew install ninja
+        run: |
+          if ! command -v ninja >/dev/null 2>&1; then
+            brew install ninja
+          fi
+          ninja --version
 
       - name: Set up MSYS2 / Clang (Windows)
         if: runner.os == 'Windows'
@@ -133,14 +143,14 @@ jobs:
       - name: Configure and build (Linux / macOS)
         if: runner.os != 'Windows'
         run: |
-          cmake --preset ${{ matrix.preset }} -DPORTABLE_BUILD=ON -DCOMP=${{ matrix.compiler }}
+          cmake --preset ${{ matrix.preset }} -DPORTABLE_BUILD=ON -DCOMP=${{ matrix.compiler }} -DBASILISK_DIST_TAG="$RELEASE_TAG"
           cmake --build --preset ${{ matrix.preset }}
 
       - name: Configure and build (Windows)
         if: runner.os == 'Windows'
         shell: msys2 {0}
         run: |
-          cmake --preset ${{ matrix.preset }} -DPORTABLE_BUILD=ON -DCOMP=${{ matrix.compiler }}
+          cmake --preset ${{ matrix.preset }} -DPORTABLE_BUILD=ON -DCOMP=${{ matrix.compiler }} -DBASILISK_DIST_TAG="$RELEASE_TAG"
           cmake --build --preset ${{ matrix.preset }}
 
       - name: Run tests (Linux / macOS)
@@ -184,5 +194,4 @@ jobs:
           suffix="${{ matrix.asset_suffix }}"
 
           asset="basilisk-${tag}-${os}-${arch}${suffix}${ext}"
-          cp "build/${{ matrix.preset }}/basilisk${ext}" "$asset"
-          gh release upload "$tag" "$asset" --clobber
+          gh release upload "$tag" "build/dist/${asset}" --clobber

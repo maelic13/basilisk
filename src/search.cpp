@@ -2,6 +2,7 @@
 #include "Constants.h"
 #include "syzygy.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cmath>
 #include <cstring>
@@ -220,6 +221,7 @@ Searcher::Searcher(TranspositionTable& tt,
     , root_depth_nodes_(0)
     , root_best_nodes_(0)
     , root_best_effort_(0)
+    , history_age_counter_(0)
     , time_limit_(0.0)
     , soft_limit_(0.0)
     , hard_limit_(0.0)
@@ -245,6 +247,7 @@ void Searcher::clear() {
     std::memset(minor_corr_hist_, 0, sizeof(minor_corr_hist_));
     std::memset(nonpawn_corr_hist_, 0, sizeof(nonpawn_corr_hist_));
     std::memset(cont_corr_hist_, 0, sizeof(cont_corr_hist_));
+    history_age_counter_ = 0;
 }
 
 static void blend_history_value(int16_t& dst, int16_t src) {
@@ -638,7 +641,7 @@ static constexpr int PIECE_VALUE[PIECE_TYPE_NB] = {0, 100, 300, 300, 500, 900, 2
 static constexpr int MAX_TRACKED_QUIETS = 64;
 static constexpr int MAX_TRACKED_BAD_CAPS = 32;
 
-void Searcher::score_moves(ScoredMove* moves, int n, Move tt_move, SearchStack* ss,
+void Searcher::score_moves(ScoredMove* moves, int n, SearchStack* ss,
                            bool is_root, int ply) const {
     const Board& b = *board_ptr_;
 
@@ -647,10 +650,19 @@ void Searcher::score_moves(ScoredMove* moves, int n, Move tt_move, SearchStack* 
     if (prev != MOVE_NONE && prev != MOVE_NULL)
         cm = countermove_[from_sq(prev)][to_sq(prev)];
 
+    std::array<Bitboard, PIECE_TYPE_NB> check_squares{};
+    std::array<bool, PIECE_TYPE_NB> check_squares_ready{};
+    auto checks_for = [&](PieceType pt) {
+        const auto idx = static_cast<size_t>(pt);
+        if (!check_squares_ready[idx]) {
+            check_squares[idx] = b.check_squares(pt, b.side_to_move);
+            check_squares_ready[idx] = true;
+        }
+        return check_squares[idx];
+    };
+
     for (int i = 0; i < n; i++) {
         Move m = moves[i].move;
-
-        if (m == tt_move) { moves[i].score = 10'000'000; continue; }
 
         bool is_cap   = (b.board_sq[to_sq(m)] != NO_PIECE) || (move_type(m) == EN_PASSANT);
         bool is_promo = (move_type(m) == PROMOTION);
@@ -672,7 +684,7 @@ void Searcher::score_moves(ScoredMove* moves, int n, Move tt_move, SearchStack* 
             hist += pawn_hist_score(b.pawn_key, pt, to);
             hist += low_ply_score(ply, from, to);
 
-            if (b.check_squares(pt, b.side_to_move) & sq_bb(to))
+            if (checks_for(pt) & sq_bb(to))
                 hist += 32'000;
 
             if      (m == ss->killers[0]) moves[i].score = 4'000'000;
@@ -690,12 +702,15 @@ void Searcher::score_moves(ScoredMove* moves, int n, Move tt_move, SearchStack* 
 }
 
 Move Searcher::pick_next(ScoredMove* moves, int idx, int n) {
-    int best = idx;
-    for (int i = idx + 1; i < n; i++)
-        if (moves[i].score > moves[best].score)
-            best = i;
-    std::swap(moves[idx], moves[best]);
-    return moves[idx].move;
+    ScoredMove* const first = moves + idx;
+    ScoredMove* best = first;
+    for (ScoredMove* it = first + 1, *end = moves + n; it != end; ++it)
+        if (it->score > best->score)
+            best = it;
+
+    if (best != first)
+        std::swap(*first, *best);
+    return first->move;
 }
 
 class Searcher::MovePicker {
@@ -799,7 +814,7 @@ private:
                 continue;
             scored_[n_++] = {move, 0};
         }
-        searcher_.score_moves(scored_, n_, MOVE_NONE, ss_, is_root_, ply_);
+        searcher_.score_moves(scored_, n_, ss_, is_root_, ply_);
     }
 
     bool is_bad_tactical(Move move) const {
@@ -807,7 +822,7 @@ private:
             return false;
         const Board& board = *searcher_.board_ptr_;
         const bool is_cap = board.board_sq[to_sq(move)] != NO_PIECE || move_type(move) == EN_PASSANT;
-        return is_cap && board.see(move) < 0;
+        return is_cap && !board.see_ge(move, 0);
     }
 
     Searcher& searcher_;
@@ -1184,7 +1199,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
         // Reverse futility pruning
         if (depth <= 9) {
-            int margin = 120 * depth - (improving ? 60 : 0);
+            int margin = 140 * depth - (improving ? 60 : 0);
             if (static_eval - margin >= beta)
                 return static_eval;
         }
@@ -1373,7 +1388,6 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             }
         }
 
-        const bool move_checks = move_gives_check();
         PieceType moved_pt = type_of(board_ptr_->board_sq[from_sq(m)]);
         int move_stat_score = 0;
         if (is_quiet) {
@@ -1403,7 +1417,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             // LMR applies to: quiets, and bad captures — but NOT promotions
             if (depth >= 2 && searched >= 2 && !in_check
                 && (is_quiet || (is_cap && !is_promo && see_score < 0))
-                && !move_checks) {
+                && !move_gives_check()) {
                 reduction = LMR_TABLE[std::min(depth, 63)][std::min(searched, 63)];
 
                 if (is_quiet) {
@@ -1548,7 +1562,10 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
 
     if (limits.update_tt_age)
         tt_.new_search();
-    age_history();
+    if (++history_age_counter_ >= 2) {
+        age_history();
+        history_age_counter_ = 0;
+    }
 
     // Initialize search stack sentinels
     for (auto& s : ss_arr_) s = SearchStack{};

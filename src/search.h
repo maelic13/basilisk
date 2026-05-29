@@ -135,6 +135,7 @@ private:
     int64_t  root_depth_nodes_;
     int64_t  root_best_nodes_;
     int      root_best_effort_;
+    int      history_age_counter_;
 
     // ---- History tables (persist across searches; aged each search) ----
     static constexpr int MAX_MAIN_HIST = 16384;
@@ -206,7 +207,7 @@ private:
 
     // ---- Move ordering ----
     class MovePicker;
-    void  score_moves(ScoredMove* moves, int n, Move tt_move, SearchStack* ss,
+    void  score_moves(ScoredMove* moves, int n, SearchStack* ss,
                        bool is_root, int ply) const;
     static Move pick_next(ScoredMove* moves, int idx, int n);
 

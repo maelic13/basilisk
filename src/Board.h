@@ -88,6 +88,7 @@ public:
     bool gives_check(Move m) const;
     Bitboard check_squares(PieceType pt, Color us) const;
     bool is_square_attacked(Square sq, Color by) const;
+    bool is_attacked_by(Square sq, Bitboard occ, Color by) const;
     Bitboard attackers_to(Square sq, Bitboard occ) const;
     Bitboard attackers_to(Square sq, Bitboard occ, Color by) const;
 

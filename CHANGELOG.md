@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.9] - 2026-05-29
+
+### Added
+
+#### Build / Release
+- Added profile-guided optimization support to CMake through `BASILISK_PGO=GENERATE/USE`, with Clang `.profdata` and GCC profile-directory flows
+- Added a local CMake `pgo` build target that runs the instrumented build, `bench 13` plus embedded EPD-position training, profile merge, and optimized rebuild
+- Added release-style binary copies under `build/dist`, including `-pgo` suffixed asset names for PGO builds
+- PGO training now prints concise live progress during the build while keeping detailed engine logs in the PGO profile directory
+- Expanded the embedded PGO training set with black-to-move middlegames, tactical/check positions, castling and en-passant paths, rook/minor-piece endgames, and promotion races
+- Documented local PGO release usage
+
+### Changed
+
+#### Search / Performance
+- Delayed direct-check detection in the LMR path until cheaper reduction gates have already passed
+- Cached direct-check masks during quiet move scoring and removed an unused TT-move scoring branch from the quiet scorer
+- Added a boolean attack-test helper and used it in legality, castling, passed-pawn, and hanging-piece checks to avoid materializing full attacker bitboards where only yes/no information is needed
+- Added a fast non-insufficient-material exit before expensive draw-material checks
+- Reduced move-picker overhead by scanning with pointers and avoiding self-swaps
+
+#### Version
+- Bumped engine version metadata to 1.4.9
+
+### Testing
+
+#### Release Verification
+- Built `release-avx2` successfully with MSYS2 Clang/Ninja
+- Passed the full CTest suite: 8/8 tests
+- Ran AVX2 Cutechess regression against 1.4.7: `31 - 23 - 66` over 120 games, 53.3%, +23.2 +/- 41.8 Elo, LOS 86.2%
+- Ran AVX2 Cutechess regression against the previous `Version 1.4.9` development commit: `40 - 35 - 45` over 120 games, 52.1%, +14.5 +/- 49.4 Elo, LOS 71.8%
+- Recorded `bench 13` AVX2 over three runs: candidate averaged 4,972,548 nodes, 1625.7 ms, and 3,059,573 nps; 1.4.7 averaged 5,838,881 nodes, 1917.7 ms, and 3,044,946 nps; the previous 1.4.9 development commit averaged 6,156,236 nodes, 2050.7 ms, and 3,002,864 nps
+- Verified the expanded 68-position embedded PGO training set with the AVX2 `pgo` target: no invalid or unsupported FEN messages, final PGO binary averaged 1620.9 ms and 3,068,384 nps over seven `bench 13` runs
+- Compared EPD training depths 7, 8, and 9; kept depth 7 because depths 8 and 9 increased PGO build time by 8.7% and 10.7% without a meaningful bench-speed gain
+- Clean Cutechess log scan found no illegal moves, crashes, disconnects, timeouts, or forfeits
+
+---
+
 ## [1.4.8] - 2026-05-28
 
 ### Fixed
@@ -479,6 +517,7 @@ First public release.
 - `bench [depth]` command — 16-position built-in benchmark, prints per-position NPS and total node-count fingerprint
 - GitHub Actions release workflow — builds for Linux x86_64, Linux aarch64, Windows x86_64, Windows aarch64, macOS aarch64; all built with Clang; PEXT variant produced for x86_64 platforms
 
+[1.4.9]: https://github.com/maelic13/basilisk/compare/v1.4.8...v1.4.9
 [1.4.8]: https://github.com/maelic13/basilisk/compare/v1.4.7...v1.4.8
 [1.4.7]: https://github.com/maelic13/basilisk/compare/v1.4.5...v1.4.7
 [1.4.5]: https://github.com/maelic13/basilisk/compare/v1.4.4...v1.4.5

@@ -2,10 +2,6 @@
 
 A UCI chess engine written in C++23.
 
-**Estimated strength: ~2400 ELO** (single-thread self-play and limited-strength reference calibration; FIDE Master / International Master level)
-
-Latest 1.4.8 release verification: keeps the 1.4.7 UCI ponder/threading support and adds a safer ponder fallback from child-position TT data plus fail-soft qsearch returns. It passes the full CTest suite and a medium 1T/8T Cutechess regression check against 1.4.7.
-
 ---
 
 ## Features
@@ -150,6 +146,32 @@ reuse the old compiler cache.
 
 For distributable binaries, add `-DPORTABLE_BUILD=ON` when configuring. This keeps the optimization level but omits `-march=native`, so release artifacts are not tied to the build machine's CPU.
 
+### Profile-guided release builds
+
+GitHub release builds do not use PGO; they build and upload the normal portable
+release assets. PGO is intended for local builds where you control the target
+machine and training workload.
+
+CMake exposes PGO as a build target. Configure the normal preset once, then
+build the `pgo` target:
+
+```powershell
+cmake --preset release-avx2 -DCOMP=clang
+cmake --build --preset release-avx2 --target pgo
+```
+
+The target creates an instrumented `build\<preset>-pgo-generate` binary, trains
+it with the internal `bench 13` command plus the self-contained
+`cmake/pgo-train.epd` position set, prints concise training progress, merges the
+profile with `llvm-profdata`, and builds the optimized binary in
+`build\<preset>-pgo`. Detailed engine training logs are kept under
+`build\<preset>-pgo-profile` for diagnostics. The embedded training set covers
+representative openings, black-to-move middlegames, tactical/check positions,
+castling and en-passant paths, and compact endgames. Use `release`,
+`release-avx2`, or `release-pext` as the preset depending on which CPU tier you
+want. The final PGO executable is also copied to `build/dist` with a `-pgo`
+suffix before the executable extension.
+
 GitHub release assets keep the x86_64 choices intentionally small:
 
 | Asset suffix | CPU requirement | Notes |
@@ -172,6 +194,7 @@ Install GCC (or Clang), CMake, and Ninja via your package manager, then:
 cmake --preset release
 cmake --build --preset release
 # Binary: build/release/basilisk
+# Release-style copy: build/dist/basilisk-v<version>-<os>-<arch>
 ```
 
 ### Windows (MSYS2 / MinGW-w64)
@@ -243,36 +266,6 @@ the configured path.
 | `ponderhit` | Switch from ponder to normal search |
 | `bench [depth]` | Run built-in benchmark (default depth 13) using the current `Threads` option |
 | `quit` | Exit |
-
----
-
-## Testing
-
-Basilisk ships a comprehensive test suite covering board correctness, move encoding, the transposition table, evaluation, search, mate-distance regressions, illegal-move hardening, threshold SEE, root move restrictions, the thread pool, command queue behavior, UCI protocol ordering/EOF handling, UCI option parsing, engine-level ponder lifecycle behavior, engine-level threading behavior, UCI `perft`, and Syzygy tablebase behavior. The Syzygy tests use a local `D:\chess\Syzygy345` directory when present and otherwise skip the real-tablebase assertions. Run with:
-
-```bash
-ctest --test-dir build/release --output-on-failure
-```
-
-A board performance benchmark is also included (run manually — not part of the test suite):
-
-```bash
-./build/release/board_performance_test
-```
-
-Release CI runs the CTest suite before uploading binaries, then performs UCI smoke tests on every produced CPU-tier executable.
-
-The 1.4.8 release candidate was locally verified with:
-
-| Check | Result |
-|---|---:|
-| CTest suite | 8/8 passed |
-| Focused test binaries | `test_board` 253/253, `test_search` 126/126, `test_engine_ponder` 10/10, `test_engine_threading` 9/9, `test_uci_protocol` 32/32 |
-| Stockfish protocol comparison | Ponder withheld `bestmove` until `stop` or `ponderhit`; `Threads` resizes before `isready`; node-limited searches return `bestmove` without requiring `stop`; legal child-TT ponder fallback is preserved |
-| UCI analysis command smoke | `go searchmoves e2e4 depth 1`, `go perft 1`, and `go mate 1` verified |
-| Cutechess medium smoke vs 1.4.7 | 1T book: `15 - 13 - 36` over 64 games; 8T book: `14 - 12 - 38` over 64 games; clean log scan |
-| `bench 13` vs 1.4.7 | No release-blocking NPS regression found in reduced 1.4.8 candidate testing |
-| Release build | `release-avx2` built successfully |
 
 ---
 

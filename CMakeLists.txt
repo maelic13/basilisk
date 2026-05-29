@@ -56,7 +56,7 @@ endif()
 
 set(COMP "${_basilisk_compiler}" CACHE STRING "Compiler selection: auto, clang, gcc, or llvm" FORCE)
 
-project(basilisk VERSION 1.4.8 LANGUAGES CXX)
+project(basilisk VERSION 1.4.9 LANGUAGES CXX)
 
 _basilisk_detect_darwin_processor(_basilisk_system_processor "${CMAKE_SYSTEM_NAME}" "${CMAKE_SYSTEM_PROCESSOR}")
 if(APPLE AND NOT _basilisk_system_processor MATCHES "^(arm64|aarch64)$")
@@ -71,6 +71,46 @@ message(STATUS "Basilisk compiler selection: ${COMP}")
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+
+set(BASILISK_DIST_TAG "v${PROJECT_VERSION}" CACHE STRING "Release asset tag used in dist binary names")
+
+function(_basilisk_detect_dist_os out_var)
+    if(WIN32)
+        set(_os "windows")
+    elseif(APPLE)
+        set(_os "macos")
+    else()
+        set(_os "linux")
+    endif()
+    set("${out_var}" "${_os}" PARENT_SCOPE)
+endfunction()
+
+function(_basilisk_detect_dist_arch out_var)
+    string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" _processor)
+    if(_processor MATCHES "^(x86_64|amd64)$")
+        set(_arch "x86_64")
+    elseif(_processor MATCHES "^(aarch64|arm64)$")
+        set(_arch "aarch64")
+    else()
+        set(_arch "${_processor}")
+    endif()
+    set("${out_var}" "${_arch}" PARENT_SCOPE)
+endfunction()
+
+function(_basilisk_dist_asset_name out_var pgo_suffix)
+    _basilisk_detect_dist_os(_dist_os)
+    _basilisk_detect_dist_arch(_dist_arch)
+    set(_dist_cpu_suffix "")
+    if(USE_AVX2)
+        set(_dist_cpu_suffix "-avx2")
+    elseif(USE_PEXT)
+        set(_dist_cpu_suffix "-pext")
+    endif()
+    set("${out_var}"
+        "basilisk-${BASILISK_DIST_TAG}-${_dist_os}-${_dist_arch}${_dist_cpu_suffix}${pgo_suffix}${CMAKE_EXECUTABLE_SUFFIX}"
+        PARENT_SCOPE
+    )
+endfunction()
 
 # ---------------------------------------------------------------------------
 # Internal libraries
@@ -210,6 +250,14 @@ add_test(NAME test_uci_protocol COMMAND test_uci_protocol)
 # Compiler flags (applied to all targets)
 # ---------------------------------------------------------------------------
 option(PORTABLE_BUILD "Build without host-specific CPU flags for distributable binaries" OFF)
+set(BASILISK_PGO "OFF" CACHE STRING "Profile-guided optimization phase: OFF, GENERATE, or USE")
+set_property(CACHE BASILISK_PGO PROPERTY STRINGS OFF GENERATE USE)
+set(BASILISK_PGO_PROFILE_FILE "" CACHE FILEPATH "LLVM/Clang .profdata file for BASILISK_PGO=USE")
+set(BASILISK_PGO_PROFILE_DIR "${CMAKE_BINARY_DIR}/pgo" CACHE PATH "GCC profile directory for BASILISK_PGO=GENERATE/USE")
+string(TOUPPER "${BASILISK_PGO}" _basilisk_pgo)
+if(NOT _basilisk_pgo MATCHES "^(OFF|GENERATE|USE)$")
+    message(FATAL_ERROR "BASILISK_PGO must be OFF, GENERATE, or USE")
+endif()
 
 set(_ALL_TARGETS
     basilisk_board basilisk_engine
@@ -276,6 +324,92 @@ if(NOT MSVC)
         message(STATUS "LTO not supported: ${_lto_msg}")
     endif()
 endif()
+
+# ---------------------------------------------------------------------------
+# Profile-guided optimisation
+# ---------------------------------------------------------------------------
+function(_basilisk_apply_pgo _target)
+    if(_basilisk_pgo STREQUAL "GENERATE")
+        if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+            target_compile_options(${_target} PRIVATE $<$<CONFIG:Release>:-fprofile-instr-generate>)
+            target_link_options(${_target} PRIVATE $<$<CONFIG:Release>:-fprofile-instr-generate>)
+        elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+            target_compile_options(${_target} PRIVATE $<$<CONFIG:Release>:-fprofile-generate=${BASILISK_PGO_PROFILE_DIR}>)
+            target_link_options(${_target} PRIVATE $<$<CONFIG:Release>:-fprofile-generate=${BASILISK_PGO_PROFILE_DIR}>)
+        else()
+            message(FATAL_ERROR "BASILISK_PGO=GENERATE is supported for Clang and GCC builds only")
+        endif()
+
+        # Instrumented LTO builds are slower and less portable across toolchains;
+        # keep LTO for the final PGO-use build instead.
+        set_property(TARGET ${_target} PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE FALSE)
+    elseif(_basilisk_pgo STREQUAL "USE")
+        if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+            if(NOT BASILISK_PGO_PROFILE_FILE)
+                message(FATAL_ERROR "BASILISK_PGO=USE with Clang requires BASILISK_PGO_PROFILE_FILE")
+            endif()
+            if(NOT EXISTS "${BASILISK_PGO_PROFILE_FILE}")
+                message(FATAL_ERROR "PGO profile file does not exist: ${BASILISK_PGO_PROFILE_FILE}")
+            endif()
+            target_compile_options(${_target} PRIVATE
+                $<$<CONFIG:Release>:-fprofile-instr-use=${BASILISK_PGO_PROFILE_FILE}>
+                $<$<CONFIG:Release>:-Wno-profile-instr-unprofiled>
+            )
+            target_link_options(${_target} PRIVATE $<$<CONFIG:Release>:-fprofile-instr-use=${BASILISK_PGO_PROFILE_FILE}>)
+        elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+            target_compile_options(${_target} PRIVATE
+                $<$<CONFIG:Release>:-fprofile-use=${BASILISK_PGO_PROFILE_DIR}>
+                $<$<CONFIG:Release>:-Wno-missing-profile>
+            )
+            target_link_options(${_target} PRIVATE $<$<CONFIG:Release>:-fprofile-use=${BASILISK_PGO_PROFILE_DIR}>)
+        else()
+            message(FATAL_ERROR "BASILISK_PGO=USE is supported for Clang and GCC builds only")
+        endif()
+    endif()
+endfunction()
+
+if(NOT _basilisk_pgo STREQUAL "OFF")
+    foreach(_tgt IN LISTS _ALL_TARGETS)
+        _basilisk_apply_pgo(${_tgt})
+    endforeach()
+    message(STATUS "PGO phase: ${_basilisk_pgo}")
+endif()
+
+set(_basilisk_dist_dir "${CMAKE_SOURCE_DIR}/build/dist")
+_basilisk_dist_asset_name(_basilisk_dist_asset_name "")
+_basilisk_dist_asset_name(_basilisk_dist_pgo_asset_name "-pgo")
+
+if(_basilisk_pgo STREQUAL "OFF")
+    add_custom_command(TARGET basilisk POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E make_directory "${_basilisk_dist_dir}"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+            "$<TARGET_FILE:basilisk>"
+            "${_basilisk_dist_dir}/${_basilisk_dist_asset_name}"
+        COMMENT "Copying Basilisk release binary to ${_basilisk_dist_dir}/${_basilisk_dist_asset_name}"
+        VERBATIM
+    )
+endif()
+
+if(PORTABLE_BUILD)
+    set(_basilisk_pgo_portable ON)
+else()
+    set(_basilisk_pgo_portable OFF)
+endif()
+get_filename_component(_basilisk_pgo_preset "${CMAKE_BINARY_DIR}" NAME)
+add_custom_target(pgo
+    COMMAND "${CMAKE_COMMAND}"
+        -DPGO_SOURCE_DIR=${CMAKE_SOURCE_DIR}
+        -DPGO_PRESET=${_basilisk_pgo_preset}
+        -DPGO_COMP=${COMP}
+        -DPGO_PORTABLE_BUILD=${_basilisk_pgo_portable}
+        -DPGO_EXECUTABLE_SUFFIX=${CMAKE_EXECUTABLE_SUFFIX}
+        -DPGO_DIST_DIR=${_basilisk_dist_dir}
+        -DPGO_DIST_ASSET_NAME=${_basilisk_dist_pgo_asset_name}
+        -P "${CMAKE_SOURCE_DIR}/cmake/pgo-build.cmake"
+    COMMENT "Build Basilisk with profile-guided optimization"
+    USES_TERMINAL
+    VERBATIM
+)
 
 # ---------------------------------------------------------------------------
 # Optional BMI2 PEXT support (faster sliding piece attacks on Haswell+)

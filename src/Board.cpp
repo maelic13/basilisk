@@ -690,7 +690,24 @@ Bitboard Board::attackers_to(Square sq, Bitboard occ, Color by) const {
 }
 
 bool Board::is_square_attacked(Square sq, Color by) const {
-    return attackers_to(sq, all_occ, by) != 0;
+    return is_attacked_by(sq, all_occ, by);
+}
+
+bool Board::is_attacked_by(Square sq, Bitboard occ, Color by) const {
+    if (PawnAttacks[~by][sq] & pieces[by][PAWN])
+        return true;
+    if (KnightAttacks[sq] & pieces[by][KNIGHT])
+        return true;
+
+    const Bitboard bishops = pieces[by][BISHOP] | pieces[by][QUEEN];
+    if (bishops && (bishop_attacks(sq, occ) & bishops))
+        return true;
+
+    const Bitboard rooks = pieces[by][ROOK] | pieces[by][QUEEN];
+    if (rooks && (rook_attacks(sq, occ) & rooks))
+        return true;
+
+    return (KingAttacks[sq] & pieces[by][KING]) != 0;
 }
 
 bool Board::is_in_check() const {
@@ -1062,7 +1079,7 @@ bool Board::is_legal(Move m) const {
         if (mt != NORMAL || !(KingAttacks[from] & to_bb))
             return false;
         Bitboard occ_after = (all_occ ^ sq_bb(from)) | sq_bb(to);
-        return !attackers_to(to, occ_after, them);
+        return !is_attacked_by(to, occ_after, them);
     }
 
     if (mt == CASTLING)
@@ -1207,7 +1224,7 @@ static void gen_legal_impl(const Board& b, MoveList& ml, bool caps_only, bool qu
         else if (quiets_only) targets &= empty;
         while (targets) {
             Square to = Square(pop_lsb(targets));
-            if (!b.attackers_to(to, occ_no_king, Them))
+            if (!b.is_attacked_by(to, occ_no_king, Them))
                 ml.push(make_move(ksq, to));
         }
     }
@@ -1470,24 +1487,24 @@ static void gen_legal_impl(const Board& b, MoveList& ml, bool caps_only, bool qu
         if constexpr (Us == WHITE) {
             if (can_castle_kingside(b, WHITE)
                 && !(occ & (sq_bb(F1) | sq_bb(G1)))
-                && !b.attackers_to(F1, occ, Them)
-                && !b.attackers_to(G1, occ, Them))
+                && !b.is_attacked_by(F1, occ, Them)
+                && !b.is_attacked_by(G1, occ, Them))
                 ml.push(make_castling(E1, G1));
             if (can_castle_queenside(b, WHITE)
                 && !(occ & (sq_bb(B1) | sq_bb(C1) | sq_bb(D1)))
-                && !b.attackers_to(D1, occ, Them)
-                && !b.attackers_to(C1, occ, Them))
+                && !b.is_attacked_by(D1, occ, Them)
+                && !b.is_attacked_by(C1, occ, Them))
                 ml.push(make_castling(E1, C1));
         } else {
             if (can_castle_kingside(b, BLACK)
                 && !(occ & (sq_bb(F8) | sq_bb(G8)))
-                && !b.attackers_to(F8, occ, Them)
-                && !b.attackers_to(G8, occ, Them))
+                && !b.is_attacked_by(F8, occ, Them)
+                && !b.is_attacked_by(G8, occ, Them))
                 ml.push(make_castling(E8, G8));
             if (can_castle_queenside(b, BLACK)
                 && !(occ & (sq_bb(B8) | sq_bb(C8) | sq_bb(D8)))
-                && !b.attackers_to(D8, occ, Them)
-                && !b.attackers_to(C8, occ, Them))
+                && !b.is_attacked_by(D8, occ, Them)
+                && !b.is_attacked_by(C8, occ, Them))
                 ml.push(make_castling(E8, C8));
         }
     }
@@ -1646,6 +1663,12 @@ bool Board::is_draw(int search_ply) const {
 }
 
 bool Board::is_insufficient_material() const {
+    if (pieces[WHITE][PAWN] | pieces[BLACK][PAWN]
+        | pieces[WHITE][ROOK] | pieces[BLACK][ROOK]
+        | pieces[WHITE][QUEEN] | pieces[BLACK][QUEEN]) {
+        return false;
+    }
+
     int total = popcount(all_occ);
     if (total == 2) return true; // K vs K
     if (total == 3) {
