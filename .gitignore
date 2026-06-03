@@ -34,3 +34,15 @@ test_input.txt
 test_output*.txt
 
 .zed/
+
+# Tuning toolchain — downloaded/cloned externals and built test binaries
+tools/bin/*
+tools/weather-factory/
+tools/test_engines/*.exe
+# Keep .gitkeep sentinels so empty dirs survive git clone
+!tools/bin/.gitkeep
+!tools/test_engines/.gitkeep
+
+# Opening book committed to the repo (override the *.pgn rule above)
+!tools/books/
+!tools/books/SuperGM_4mvs.pgn

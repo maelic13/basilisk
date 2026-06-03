@@ -1,0 +1,80 @@
+{
+    "RfpCoeff": {
+        "value": 140,
+        "min_value": 60,
+        "max_value": 240,
+        "step": 14
+    },
+    "RfpImproving": {
+        "value": 60,
+        "min_value": 0,
+        "max_value": 140,
+        "step": 12
+    },
+    "RazorCoeff": {
+        "value": 300,
+        "min_value": 120,
+        "max_value": 500,
+        "step": 30
+    },
+    "NullBase": {
+        "value": 4,
+        "min_value": 2,
+        "max_value": 6,
+        "step": 1
+    },
+    "NullEvalDiv": {
+        "value": 200,
+        "min_value": 80,
+        "max_value": 400,
+        "step": 24
+    },
+    "ProbCutMargin": {
+        "value": 200,
+        "min_value": 80,
+        "max_value": 360,
+        "step": 20
+    },
+    "FutilityBase": {
+        "value": 150,
+        "min_value": 40,
+        "max_value": 280,
+        "step": 18
+    },
+    "FutilityCoeff": {
+        "value": 110,
+        "min_value": 40,
+        "max_value": 200,
+        "step": 14
+    },
+    "HistPruneCoeff": {
+        "value": 3500,
+        "min_value": 1000,
+        "max_value": 7000,
+        "step": 400
+    },
+    "SeePruneCoeff": {
+        "value": 80,
+        "min_value": 30,
+        "max_value": 160,
+        "step": 12
+    },
+    "SingularBetaMult": {
+        "value": 2,
+        "min_value": 1,
+        "max_value": 6,
+        "step": 1
+    },
+    "SingularDoubleMargin": {
+        "value": 20,
+        "min_value": 0,
+        "max_value": 60,
+        "step": 8
+    },
+    "AspirationDelta": {
+        "value": 25,
+        "min_value": 10,
+        "max_value": 60,
+        "step": 6
+    }
+}

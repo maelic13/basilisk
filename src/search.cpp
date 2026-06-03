@@ -14,9 +14,6 @@
 
 // ---- LMR table -------------------------------------------------------------
 
-int  Searcher::LMR_TABLE[64][64];
-bool Searcher::lmr_init_ = false;
-
 static constexpr int TB_WIN_SCORE = tablebaseWinScore;
 
 static int score_from_syzygy_wdl(Syzygy::Wdl wdl) {
@@ -35,12 +32,10 @@ static int score_from_syzygy_wdl(Syzygy::Wdl wdl) {
     return 0;
 }
 
-void Searcher::init_lmr() {
-    if (lmr_init_) return;
+void Searcher::init_lmr(float base, float divisor) {
     for (int d = 1; d < 64; d++)
         for (int m = 1; m < 64; m++)
-            LMR_TABLE[d][m] = int(0.75 + std::log(d) * std::log(m) / 2.25);
-    lmr_init_ = true;
+            lmr_table_[d][m] = int(base + std::log(d) * std::log(m) / divisor);
 }
 
 // ---- Shared root move table ------------------------------------------------
@@ -226,7 +221,6 @@ Searcher::Searcher(TranspositionTable& tt,
     , soft_limit_(0.0)
     , hard_limit_(0.0)
 {
-    init_lmr();
     cont_hist1_ = std::make_unique<ContHistTable>();
     cont_hist2_ = std::make_unique<ContHistTable>();
     cont_hist4_ = std::make_unique<ContHistTable>();
@@ -1199,13 +1193,14 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
         // Reverse futility pruning
         if (depth <= 9) {
-            int margin = 140 * depth - (improving ? 60 : 0);
+            const auto& p = active_limits_.params;
+            int margin = p.rfp_coeff * depth - (improving ? p.rfp_improving : 0);
             if (static_eval - margin >= beta)
                 return static_eval;
         }
 
         // Razoring
-        if (depth <= 3 && static_eval + 300 * depth <= alpha) {
+        if (depth <= 3 && static_eval + active_limits_.params.razor_coeff * depth <= alpha) {
             int q = quiescence(alpha, beta, ply, 0, ss);
             if (q <= alpha) return q;
         }
@@ -1216,7 +1211,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             && board_ptr_->has_non_pawn_material(board_ptr_->side_to_move)
             && (ss-1)->move != MOVE_NULL) {
 
-            int r = 4 + depth / 4 + std::min((static_eval - beta) / 200, 3);
+            int r = active_limits_.params.null_base + depth / 4
+                  + std::min((static_eval - beta) / active_limits_.params.null_eval_div, 3);
             ss->move        = MOVE_NULL;
             ss->moved_piece = NO_PIECE_TYPE;
             board_ptr_->make_null_move();
@@ -1242,7 +1238,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
         // ProbCut: if a capture is likely to fail high at reduced depth
         if (depth >= 5 && std::abs(beta) < MATE_SCORE - MAX_PLY) {
-            int pc_beta = std::min(beta + 200, MATE_SCORE - MAX_PLY - 1);
+            int pc_beta = std::min(beta + active_limits_.params.probcut_margin,
+                                   MATE_SCORE - MAX_PLY - 1);
             MoveList pcaps;
             board_ptr_->gen_legal_captures(pcaps);
             for (Move m : pcaps) {
@@ -1322,7 +1319,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 // Futility pruning
                 if (!is_pv && !in_check && depth <= 6
                     && static_eval != VALUE_NONE
-                    && static_eval + 150 + 110 * depth <= alpha
+                    && static_eval + active_limits_.params.futility_base
+                                   + active_limits_.params.futility_coeff * depth <= alpha
                     && !move_gives_check())
                     return false;
 
@@ -1338,13 +1336,13 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                              + cont_hist_score(ss, pt, Square(to_sq(m)))
                              + pawn_hist_score(board_ptr_->pawn_key, pt, Square(to_sq(m)))
                              + low_ply_score(ply, Square(from_sq(m)), Square(to_sq(m)));
-                    if (hist < -3500 * depth && !move_gives_check())
+                    if (hist < -active_limits_.params.hist_prune_coeff * depth && !move_gives_check())
                         return false;
                 }
             } else if (is_cap) {
                 // SEE pruning for bad captures
                 if (!is_pv && depth <= 8 && !is_promo) {
-                    if (!board_ptr_->see_ge(m, -depth * 80) && !move_gives_check())
+                    if (!board_ptr_->see_ge(m, -depth * active_limits_.params.see_prune_coeff) && !move_gives_check())
                         return false;
                 }
             }
@@ -1362,7 +1360,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             && (tt_flag == TT_BETA || tt_flag == TT_EXACT)
             && std::abs(tt_score) < MATE_SCORE - MAX_PLY) {
 
-            int s_beta  = tt_score - 2 * depth;
+            int s_beta  = tt_score - active_limits_.params.singular_beta_mult * depth;
             int s_depth = (depth - 1) / 2;
 
             ss->excluded = m;
@@ -1377,7 +1375,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
             if (s_val < s_beta) {
                 // TT move is singular — extend it
-                extension += (!is_pv && s_val < s_beta - 20) ? 2 : 1;
+                extension += (!is_pv && s_val < s_beta - active_limits_.params.singular_double_margin) ? 2 : 1;
             } else if (s_beta >= beta) {
                 // Multicut: likely to fail high without this move too
                 immediate_return = true;
@@ -1418,15 +1416,16 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             if (depth >= 2 && searched >= 2 && !in_check
                 && (is_quiet || (is_cap && !is_promo && see_score < 0))
                 && !move_gives_check()) {
-                reduction = LMR_TABLE[std::min(depth, 63)][std::min(searched, 63)];
+                reduction = lmr_table_[std::min(depth, 63)][std::min(searched, 63)];
 
                 if (is_quiet) {
-                    if (!is_pv)     reduction++;
-                    if (cut_node)   reduction++;
-                    if (ss->tt_pv)  reduction--;
-                    if (!improving) reduction++;
+                    const auto& p = active_limits_.params;
+                    if (!is_pv)     reduction += p.lmr_non_pv_adj;
+                    if (cut_node)   reduction += p.lmr_cut_node_adj;
+                    if (ss->tt_pv)  reduction -= p.lmr_tt_pv_adj;
+                    if (!improving) reduction += p.lmr_not_improving_adj;
                     // History-based adjustment: good moves get reduced less, bad more
-                    reduction -= move_stat_score / 8192;
+                    reduction -= move_stat_score / p.lmr_hist_div;
                 } else {
                     // Bad captures get less reduction than quiets
                     reduction = (reduction - 1) / 2;
@@ -1557,6 +1556,9 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
     active_limits_ = limits;
     root_side_    = board.side_to_move;
 
+    init_lmr(static_cast<float>(active_limits_.params.lmr_base)    / 100.0f,
+             static_cast<float>(active_limits_.params.lmr_divisor) / 100.0f);
+
     start_time_ = std::chrono::steady_clock::now();
     compute_time_limit(limits, board.side_to_move);
 
@@ -1601,7 +1603,7 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
         if (depth <= 3 || std::abs(prev_score) >= MATE_SCORE - MAX_PLY) {
             score = negamax(depth, -INF_SCORE, INF_SCORE, 0, ss, true, true, false);
         } else {
-            int delta = 25;
+            int delta = active_limits_.params.aspiration_delta;
             int asp_a = prev_score - delta;
             int asp_b = prev_score + delta;
             while (true) {

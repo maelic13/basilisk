@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Board.h"
+#include "SearchParams.h"
 #include "tt.h"
 #include "eval.h"
 #include "syzygy.h"
@@ -84,6 +85,7 @@ struct SearchLimits {
     std::vector<Move> root_moves;
     std::vector<Syzygy::RootMoveInfo> syzygy_root_moves;
     RootMoveTable* root_table = nullptr;
+    SearchParams params;
 };
 
 struct SearchResult {
@@ -194,10 +196,9 @@ private:
     double soft_limit_;   // target time — stop early if best move is stable
     double hard_limit_;   // absolute maximum
 
-    // ---- LMR table ----
-    static int  LMR_TABLE[64][64];
-    static bool lmr_init_;
-    static void init_lmr();
+    // ---- LMR table (per-instance; recomputed at the start of each search) ----
+    int  lmr_table_[64][64];
+    void init_lmr(float base, float divisor);
 
     // ---- Search ----
     static constexpr int MAX_QSEARCH_PLY = 10; // max extra plies of captures in qsearch
