@@ -56,7 +56,7 @@ endif()
 
 set(COMP "${_basilisk_compiler}" CACHE STRING "Compiler selection: auto, clang, gcc, or llvm" FORCE)
 
-project(basilisk VERSION 1.4.9 LANGUAGES CXX)
+project(basilisk VERSION 2.1.0 LANGUAGES CXX)
 
 _basilisk_detect_darwin_processor(_basilisk_system_processor "${CMAKE_SYSTEM_NAME}" "${CMAKE_SYSTEM_PROCESSOR}")
 if(APPLE AND NOT _basilisk_system_processor MATCHES "^(arm64|aarch64)$")
@@ -72,7 +72,7 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-set(BASILISK_DIST_TAG "v${PROJECT_VERSION}" CACHE STRING "Release asset tag used in dist binary names")
+set(BASILISK_DIST_TAG "v${PROJECT_VERSION}" CACHE STRING "Release asset tag used in dist binary names" FORCE)
 
 function(_basilisk_detect_dist_os out_var)
     if(WIN32)

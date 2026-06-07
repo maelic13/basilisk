@@ -40,8 +40,9 @@ struct RunResult {
 };
 
 static RunResult run_search(const char* fen, int depth,
-                            int64_t nodes = 0, int movetime = 0) {
-    TranspositionTable tt(4);
+                            int64_t nodes = 0, int movetime = 0,
+                            int tt_mb = 4) {
+    TranspositionTable tt(static_cast<size_t>(tt_mb));
     std::atomic_bool stop{false};
 
     Board b;
@@ -515,7 +516,7 @@ static void test_shortest_mate_not_first_mate() {
     const char* fen = "4K3/2Q5/6k1/8/8/8/8/8 w - - 0 1";
 
     begin_section("mate-distance: continues past first longer mate");
-    auto rr = run_search(fen, 18);
+    auto rr = run_search(fen, 18, 0, 0, 64);
     EXPECT_EQ(rr.sr.depth, 18);
     end_section();
 

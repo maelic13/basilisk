@@ -7,6 +7,73 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.0] - 2026-06-07
+
+### Changed
+
+#### Strength / Search
+- Re-tuned the existing pruning and LMR search constants with weather-factory SPSA, keeping the search algorithm itself unchanged
+- Baked the SPRT-accepted pruning candidate:
+  `RfpCoeff=160`, `RfpImproving=72`, `RazorCoeff=243`, `NullBase=3`,
+  `NullEvalDiv=192`, `ProbCutMargin=189`, `FutilityBase=180`,
+  `FutilityCoeff=128`, `HistPruneCoeff=4210`, `SeePruneCoeff=73`,
+  `SingularBetaMult=4`, `SingularDoubleMargin=4`, `AspirationDelta=19`
+- Baked the SPRT-accepted LMR candidate:
+  `LmrBase=60`, `LmrDivisor=209`, `LmrHistDiv=7830`,
+  `LmrNonPvAdj=1`, `LmrCutNodeAdj=0`, `LmrTtPvAdj=0`,
+  `LmrNotImprovingAdj=0`
+- Rejected and reverted the narrowed combined polish candidate after it failed
+  its SPRT gate
+
+#### Version
+- Bumped engine version metadata to 2.1.0
+
+### Added
+
+#### Tooling
+- Added `tools/gauntlet.ps1` for fixed-game phase-boundary validation matches
+- Added `tools/spsa_configs/config_combined.json` for the rejected Phase 1
+  combined-polish experiment, retained as documentation and a future reference
+- Extended `tools/setup_spsa.ps1` with selectable engine suffixes and automatic
+  archival of old weather-factory state before fresh runs
+- Added `combined` as an SPSA config group for narrowed search-constant polish
+
+#### Documentation
+- Updated `PLAN.md` and `user_dev_guide.md` to record Phase 1 completion and
+  make Phase 2 evaluation tuning the next planned work
+- Documented the repo-local SPSA/SPRT/gauntlet workflow and generated-artifact
+  handling
+
+### Testing
+
+#### SPRT
+- Pruning candidate vs 1.4.9/defaults:
+  `2930` games, `850 - 691 - 1389`, `52.71%`,
+  `+18.87 +/- 8.81 Elo`, H1 accepted for `[0.00, 5.00]`
+- LMR candidate vs pruning head:
+  `3714` games, `1091 - 924 - 1699`, `52.25%`,
+  `+15.63 +/- 8.02 Elo`, H1 accepted for `[0.00, 5.00]`
+- Combined-polish candidate vs LMR head:
+  `23210` games, `6375 - 6402 - 10433`, `49.94%`,
+  `-0.40 +/- 3.20 Elo`, H0 accepted for `[0.00, 5.00]`;
+  candidate reverted
+
+#### Phase 1 Gauntlet
+- Phase1Final vs Basilisk 1.4.9/defaults:
+  `2000` games, `638 - 482 - 880`, `53.90%`, approx `+27.16 Elo`
+- Phase1Final vs Rarog 2.0.2 release:
+  `2000` games, `950 - 349 - 701`, `65.03%`, approx `+107.73 Elo`
+- Phase1Final vs local Rarog 2.1.0 development binary:
+  `2000` games, `947 - 372 - 681`, `64.38%`, approx `+102.78 Elo`
+
+#### Build / Verification
+- Built `tools\test_engines\basilisk-phase1-final-pext-pgo.exe`
+- Passed the full CTest suite: 8/8 tests
+- Recorded `bench 13` for the accepted Phase 1 head:
+  `4,283,684` nodes
+
+---
+
 ## [1.4.9] - 2026-05-29
 
 ### Added
@@ -517,6 +584,7 @@ First public release.
 - `bench [depth]` command — 16-position built-in benchmark, prints per-position NPS and total node-count fingerprint
 - GitHub Actions release workflow — builds for Linux x86_64, Linux aarch64, Windows x86_64, Windows aarch64, macOS aarch64; all built with Clang; PEXT variant produced for x86_64 platforms
 
+[2.1.0]: https://github.com/maelic13/basilisk/compare/v1.4.9...v2.1.0
 [1.4.9]: https://github.com/maelic13/basilisk/compare/v1.4.8...v1.4.9
 [1.4.8]: https://github.com/maelic13/basilisk/compare/v1.4.7...v1.4.8
 [1.4.7]: https://github.com/maelic13/basilisk/compare/v1.4.5...v1.4.7

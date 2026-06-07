@@ -10,19 +10,19 @@ This folder holds ready-made weather-factory config files for Basilisk.
 The easiest way is `tools/setup_spsa.ps1`, which does all of the below in one
 command. Run it manually only if something needs customising.
 
-1. **Download fastchess** to `D:\chess\fastchess\fastchess.exe`
-   — https://github.com/Disservin/fastchess/releases
-2. **Clone weather-factory:**
+1. **Download fastchess** into `tools\bin\fastchess.exe`
+   - https://github.com/Disservin/fastchess/releases
+2. **Clone weather-factory under the repo tools folder:**
    ```powershell
-   git clone https://github.com/jnlt3/weather-factory D:\chess\weather-factory
+   git clone https://github.com/jnlt3/weather-factory tools\weather-factory
    ```
 3. **Populate its `tuner\` folder** with:
-   - `fastchess.exe`  (copy from `D:\chess\fastchess\`)
+   - `fastchess.exe`  (copy from `tools\bin\`)
    - the Basilisk test binary you are tuning, e.g.
      `basilisk-phase1-defaults-pext-pgo.exe` (build with
      `tools\build_test.ps1 -Suffix phase1-defaults`, then copy from
-     `D:\chess\engines\test_engines\`)
-   - the opening book `SuperGM_4mvs.pgn` (copy from `D:\chess\books\`)
+     `tools\test_engines\`)
+   - the opening book `SuperGM_4mvs.pgn` (copy from `tools\books\`)
 
 ## Per-run setup
 
@@ -40,12 +40,36 @@ command. Run it manually only if something needs customising.
 ## Run
 
 ```powershell
-cd D:\chess\weather-factory
+.\tools\setup_spsa.ps1 -ConfigGroup pruning -EngineSuffix phase1-defaults -Iterations 5000
+cd tools\weather-factory
 python main.py        # progress + tuned values written to its own state files
+```
+
+For the LMR run after pruning has been accepted, build the current accepted head
+and tune from that binary:
+
+```powershell
+.\tools\build_test.ps1 -Suffix phase1-lmr-baseline
+.\tools\setup_spsa.ps1 -ConfigGroup lmr -EngineSuffix phase1-lmr-baseline -Iterations 5000
+cd tools\weather-factory
+python main.py
+```
+
+After both pruning and LMR have been accepted, run only a short narrowed polish
+from the accepted LMR head:
+
+```powershell
+.\tools\setup_spsa.ps1 -ConfigGroup combined -EngineSuffix phase1-lmr -Iterations 2000
+cd tools\weather-factory
+python main.py
 ```
 
 weather-factory writes the running parameter values to its state file every
 `save_rate` games; stop it any time with Ctrl-C.
+
+Run `python main.py` again to resume the same configured run. Re-running
+`tools\setup_spsa.ps1` starts a fresh run and archives old `state.json`,
+`games.pgn`, and graph output unless `-Resume` is passed.
 
 ## CRITICAL: SPSA finds candidates, SPRT decides
 
@@ -114,3 +138,10 @@ All defaults from `src/search.cpp` at the time of writing.
 Note: `LmrBase` and `LmrDivisor` are stored as integers × 100 in UCI; the
 engine divides by 100.0 inside `init_lmr()` and must re-run `init_lmr()`
 whenever either is changed via `setoption`.
+
+### config_combined.json — Narrowed accepted Phase 1 polish
+
+This config starts from the accepted pruning+LMR defaults and narrows ranges
+around them. It is intended for a shorter final polish run, not as the first
+search-constant tune. SPRT the resulting candidate against `phase1-lmr`, not
+against the original defaults.

@@ -27,6 +27,7 @@ _deps/
 
 # Diagnostic / test artifacts
 *.pgn
+config.json
 calibration_*.txt
 diag*.txt
 loop_diag.txt
@@ -39,9 +40,11 @@ test_output*.txt
 tools/bin/*
 tools/weather-factory/
 tools/test_engines/*.exe
+tools/results/*
 # Keep .gitkeep sentinels so empty dirs survive git clone
 !tools/bin/.gitkeep
 !tools/test_engines/.gitkeep
+!tools/results/.gitkeep
 
 # Opening book committed to the repo (override the *.pgn rule above)
 !tools/books/

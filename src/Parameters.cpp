@@ -153,26 +153,26 @@ std::string Parameters::uciOptions() {
            "option name SyzygyProbeLimit type spin default 7 min 0 max 7\n";
 #ifdef BASILISK_TUNE
     opts +=
-        "option name RfpCoeff type spin default 140 min 60 max 240\n"
-        "option name RfpImproving type spin default 60 min 0 max 140\n"
-        "option name RazorCoeff type spin default 300 min 120 max 500\n"
-        "option name NullBase type spin default 4 min 2 max 6\n"
-        "option name NullEvalDiv type spin default 200 min 80 max 400\n"
-        "option name ProbCutMargin type spin default 200 min 80 max 360\n"
-        "option name FutilityBase type spin default 150 min 40 max 280\n"
-        "option name FutilityCoeff type spin default 110 min 40 max 200\n"
-        "option name HistPruneCoeff type spin default 3500 min 1000 max 7000\n"
-        "option name SeePruneCoeff type spin default 80 min 30 max 160\n"
-        "option name SingularBetaMult type spin default 2 min 1 max 6\n"
-        "option name SingularDoubleMargin type spin default 20 min 0 max 60\n"
-        "option name AspirationDelta type spin default 25 min 10 max 60\n"
-        "option name LmrBase type spin default 75 min 0 max 150\n"
-        "option name LmrDivisor type spin default 225 min 150 max 350\n"
-        "option name LmrHistDiv type spin default 8192 min 4096 max 16384\n"
+        "option name RfpCoeff type spin default 160 min 60 max 240\n"
+        "option name RfpImproving type spin default 72 min 0 max 140\n"
+        "option name RazorCoeff type spin default 243 min 120 max 500\n"
+        "option name NullBase type spin default 3 min 2 max 6\n"
+        "option name NullEvalDiv type spin default 192 min 80 max 400\n"
+        "option name ProbCutMargin type spin default 189 min 80 max 360\n"
+        "option name FutilityBase type spin default 180 min 40 max 280\n"
+        "option name FutilityCoeff type spin default 128 min 40 max 200\n"
+        "option name HistPruneCoeff type spin default 4210 min 1000 max 7000\n"
+        "option name SeePruneCoeff type spin default 73 min 30 max 160\n"
+        "option name SingularBetaMult type spin default 4 min 1 max 6\n"
+        "option name SingularDoubleMargin type spin default 4 min 0 max 60\n"
+        "option name AspirationDelta type spin default 19 min 10 max 60\n"
+        "option name LmrBase type spin default 60 min 0 max 150\n"
+        "option name LmrDivisor type spin default 209 min 150 max 350\n"
+        "option name LmrHistDiv type spin default 7830 min 4096 max 16384\n"
         "option name LmrNonPvAdj type spin default 1 min 0 max 3\n"
-        "option name LmrCutNodeAdj type spin default 1 min 0 max 3\n"
-        "option name LmrTtPvAdj type spin default 1 min 0 max 3\n"
-        "option name LmrNotImprovingAdj type spin default 1 min 0 max 3\n";
+        "option name LmrCutNodeAdj type spin default 0 min 0 max 3\n"
+        "option name LmrTtPvAdj type spin default 0 min 0 max 3\n"
+        "option name LmrNotImprovingAdj type spin default 0 min 0 max 3\n";
 #endif
     return opts;
 }
@@ -411,4 +411,3 @@ void Parameters::setPosition(const std::string& args) {
 
     board = std::move(new_board);
 }
-

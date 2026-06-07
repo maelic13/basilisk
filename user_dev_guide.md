@@ -1,242 +1,348 @@
 # Basilisk Development Workflow Guide
 
-How to drive the improvement plan with Claude (or any AI model) and know exactly
-what to say, what to run, and when a decision is yours to make. Read alongside
-`PLAN.md`, which holds all the technical detail.
+How to drive the improvement plan with an AI coding model and know what to run,
+what to report, and when a decision is yours. Read alongside `PLAN.md`, which
+holds the technical rationale.
 
 ---
 
-## The basic rhythm
+## Current Checkpoint
 
-Every step is a ping-pong between you and the model:
+As of this guide, the repo is not at the beginning of the plan.
 
+- Phase 0 harness is complete.
+- Phase 1 search-parameter plumbing is complete.
+- `SearchParams` exists and is exposed as tune-gated UCI options with
+  `-DTUNE=ON`.
+- Default-equivalence has been recorded:
+  `bench 13 = 4,972,548 nodes`, full CTest passed.
+- Phase 1 pruning SPSA was SPRT-accepted:
+  `+18.87 +/- 8.81 Elo`, 2930 games, H1 accepted.
+- Phase 1 LMR SPSA completed:
+  **4034 iterations**, 129,088 games.
+- Phase 1 LMR SPRT was accepted:
+  `+15.63 +/- 8.02 Elo`, 3714 games, H1 accepted.
+- Narrowed combined Phase 1 polish was rejected:
+  `-0.40 +/- 3.20 Elo`, 23,210 games, H0 accepted.
+- Phase 1 external gauntlet completed:
+  - vs Basilisk 1.4.9/defaults: 2000 games, 53.90%, approx +27.16 Elo.
+  - vs Rarog 2.0.2 release: 2000 games, 65.03%, approx +107.73 Elo.
+  - vs Rarog 2.1.0 unreleased: 2000 games, 64.38%, approx +102.78 Elo.
+- **Phase 1 is complete.** The accepted search-constant head is
+  `tools\test_engines\basilisk-phase1-final-pext-pgo.exe`.
+- The next useful strength step is **Phase 2 evaluation tuning**.
+
+So if you say:
+
+> "Implement the next step of the plan."
+
+the model should not create more Phase 1 SPSA work. It should check the current
+state, keep `phase1-final` as the accepted search-constant head, and start
+Phase 2 evaluation-tuning preparation.
+
+---
+
+## The Basic Rhythm
+
+Most work is a short ping-pong:
+
+```text
+You   -> "Implement next step of the plan."
+Model -> Reads PLAN.md, inspects current state, makes only needed edits, and
+         tells you exactly what to run.
+You   -> Run the command and paste the short result.
+Model -> Acts on the result: keep, revert, rerun, or move to the next gate.
 ```
-You  →  "Implement next step of the plan."
-Model→  Writes code, verifies build + bench, tells you exactly what to run.
-You  →  Run the command, come back with the result.
-Model→  Acts on the result. Either commits and moves on, or flags a decision.
-```
 
-Most iterations cost you **one message**. You report the result; the model
-handles everything else.
+For SPSA and SPRT, the model cannot honestly guess the result. Your report from
+the long-running command is the decision input.
 
 ---
 
-## How to start a session
+## Next Commands
 
-Opening message when continuing work:
+Phase 1 is complete. The next implementation work is Phase 2: make evaluation
+weights tunable without changing default behavior, then build the Texel data and
+tuning loop.
 
-> "Implement next step of the plan."
-
-The model reads `PLAN.md`, checks the current branch + progress tracker below,
-and knows where we left off. You do not need to re-explain context.
-
-For a specific phase or step instead of "next":
-
-> "Implement Phase 1 step 2 — expose the search constants as UCI options."
-> "Start the Phase 2 king-safety Texel tuning."
-
----
-
-## After the model writes code — your turn
-
-The model ends its response with an explicit instruction, e.g.:
-
-> **Build and test:**
-> `.\tools\build_test.ps1 -Suffix phase1`
-> `.\tools\sprt.ps1 -EngineA ... -EngineB ... -NameA "Phase1" -NameB "Head"`
-
-Run those, then come back with one of these short reports:
-
-### SPRT result
-> "SPRT: **H1 accepted** after 1,840 games."
-> "SPRT: **H0 accepted** after 2,210 games."
-
-That is all the model needs. It will commit (H1) or discard (H0) and move on.
-
-### SPSA result
-After weather-factory finishes (or you stop it at a reasonable point):
-> "SPSA done (~8,000 iterations). Tuned: RfpCoeff=128, RazorCoeff=276,
-> NullEvalDiv=180, AspirationDelta=21."
-
-The model bakes those in as new defaults, builds a test binary, and gives you the
-SPRT command to confirm them.
-
-### Texel result (Phase 2)
-> "Texel pass on king-safety done. New weights written to king_safety.txt,
-> training loss 0.0712 → 0.0689."
-
-The model folds the weights into the defaults and gives you the SPRT command.
-
-### Bench fingerprint check
-When the model asks you to verify a refactor didn't change behavior:
-> "bench 13 = **X nodes** ✓" (matches baseline — safe refactor)
-> "bench 13 = **Y nodes**"   (changed — expected for real re-fits)
-
----
-
-## Decision points — when the model will stop and ask you
-
-| Situation | The question | Typical answer |
-|---|---|---|
-| **SPRT returns H0** | Discard and move on, or try a second SPSA pass? | Usually: discard and move on |
-| **SPSA converges to a range boundary** | Accept the outlier, widen the range and re-run, or discard? | Widen + re-run if plausible; discard if it looks wrong |
-| **End of a phase** | Run the external gauntlet before moving on? | Yes, always recommended |
-| **Phase 3 (new features)** | Start adding features, or keep tuning? | Only if Phases 1–2 have plateaued |
-| **Phase 4 (NNUE)** | Begin the NNUE project? | Far-future; not until HCE tuning is exhausted |
-
-Just answer in plain English; the model proceeds accordingly.
-
----
-
-## Prerequisites — complete these before Phase 1
-
-Phase 0 tooling must be created and verified once:
-
-- [x] **`tools/` created** — scripts, configs, opening book, and `.gitkeep`
-      sentinels all committed. Self-contained: run `.\tools\setup_tools.ps1`
-      on a fresh clone to download fastchess + clone weather-factory.
-- [x] **fastchess** at `tools\bin\fastchess.exe` ✓
-- [x] **Baseline `bench 13` fingerprint recorded:** `4,972,548 nodes`
-      (release-pext, MSYS2 Clang). Recorded in `PLAN.md` §3.
-- Calibration self-vs-self SPRT **skipped** — fastchess + weather-factory is
-  proven by rarog. Self-vs-self with symmetric bounds needs thousands of games
-  for a formal H0 acceptance; the cost exceeds the benefit here.
-
-**Phase 0 is complete. Phase 1 steps 1–3 are also complete (SearchParams struct,
-UCI options, default-equivalence verified). SPSA is wired and ready to run.**
-
-The external Texel tuner is only needed from Phase 2.
-
----
-
-## Quick command reference
+For a fresh clone, the historical Phase 1 commands are:
 
 ```powershell
-# Fresh-clone one-time setup (downloads fastchess, clones weather-factory)
+# One-time setup on a fresh clone
 .\tools\setup_tools.ps1
 
-# Build a named pext-PGO+TUNE test binary into tools\test_engines\
+# Build the original default tune baseline, only needed for pruning from scratch
+.\tools\build_test.ps1 -Suffix phase1-defaults
+
+# Configure pruning SPSA
+.\tools\setup_spsa.ps1 -ConfigGroup pruning -Iterations 5000
+
+# Run the tuner
+cd tools\weather-factory
+python main.py
+```
+
+Stop SPSA with Ctrl-C when values look stable or the planned run is complete.
+State is saved under `tools\weather-factory\tuner\state.json`, so rerunning
+`python main.py` resumes. Running `setup_spsa.ps1` again starts a fresh run and
+archives old tuner state unless you pass `-Resume`.
+
+After pruning is accepted, build the current accepted head as the LMR parent and
+run LMR SPSA from that engine:
+
+```powershell
+cd ..\..
+.\tools\build_test.ps1 -Suffix phase1-lmr-baseline
+.\tools\setup_spsa.ps1 -ConfigGroup lmr -EngineSuffix phase1-lmr-baseline -Iterations 5000
+cd tools\weather-factory
+python main.py
+```
+
+After both pruning and LMR are accepted, run the narrowed combined polish:
+
+```powershell
+cd ..\..
+.\tools\setup_spsa.ps1 -ConfigGroup combined -EngineSuffix phase1-lmr -Iterations 2000
+cd tools\weather-factory
+python main.py
+```
+
+For the current checkpoint, start Phase 2 by asking:
+
+> "Implement the next step of the plan."
+
+The model should begin with `EvalParams` / eval-default equivalence work, not
+another search SPSA run.
+
+---
+
+## What To Report Back
+
+### SPSA Result
+
+Minimal:
+
+> "Pruning SPSA stopped at 5,000 iterations. Final values: RfpCoeff=128,
+> RazorCoeff=276, NullEvalDiv=180, AspirationDelta=21, ..."
+
+Helpful extras:
+
+> "HistPruneCoeff sat at the max for the last 1,000 iterations."
+
+The model will decide whether to bake the values, rerun with adjusted ranges, or
+discard the noisy group.
+
+### SPRT Result
+
+Minimal:
+
+> "SPRT: H1 accepted after 1,840 games."
+
+or:
+
+> "SPRT: H0 accepted after 2,210 games."
+
+Helpful extras:
+
+> "Score 53.1%, LLR crossed +2.94."
+
+H1 usually means keep the candidate. H0 usually means revert or retry once if
+the SPSA run was obviously flawed.
+
+### Bench Result
+
+For pure refactors:
+
+> "bench 13 = 4,972,548 nodes."
+
+For tuned candidates:
+
+> "bench 13 = 4,812,903 nodes."
+
+A changed bench fingerprint is expected after tuning. It is a behavior
+fingerprint, not an Elo score.
+
+### Errors
+
+Paste the important error line:
+
+> "fastchess exited with: engine option RfpCoeff not found."
+
+or:
+
+> "bench 13 returned 0 nodes; engine crashed on startup."
+
+The model can diagnose from that.
+
+---
+
+## Decision Points
+
+| Situation | Usual decision |
+|---|---|
+| SPSA values are stable and plausible | Bake candidate values, build, test, SPRT |
+| SPSA values are noisy | Run longer or reduce the group/ranges |
+| One plausible value hits a boundary | Widen that range once and rerun |
+| Many values hit boundaries | Treat the run as suspect; narrow the problem |
+| SPRT accepts H1 | Keep, record, move to next group |
+| SPRT accepts H0 | Revert; retry once only if the run was flawed |
+| End of Phase 1 | Run external gauntlet before release work |
+| Phase 2 asks for Texel data | Build dataset and holdout before tuning |
+
+Do not keep running repeated SPRTs against tiny changes until one passes. That
+is just statistical fishing wearing a little hat.
+
+---
+
+## Phase Progress Tracker
+
+Update this when work completes.
+
+### Phase 0 - Harness
+
+- [x] `tools/setup_tools.ps1` exists for fastchess/weather-factory setup.
+- [x] `tools/sprt.ps1` exists and uses repo-local book/default paths.
+- [x] `tools/gauntlet.ps1` exists for fixed-game phase-boundary validation.
+- [x] `tools/build_test.ps1` builds pext PGO tune binaries into
+      `tools\test_engines`.
+- [x] `tools/setup_spsa.ps1` writes pruning/LMR weather-factory configs.
+- [x] Baseline `bench 13` fingerprint recorded:
+      **4,972,548 nodes**.
+- [x] Calibration self-vs-self SPRT skipped intentionally.
+
+### Phase 1 - Search Constants
+
+- [x] `SearchParams` struct exists.
+- [x] Search params are exposed as UCI spin options under `-DTUNE=ON`.
+- [x] Engine passes tuned params into search.
+- [x] Default-equivalence verified:
+      **bench 13 = 4,972,548 nodes**, 8/8 CTest passed.
+- [x] Pruning SPSA run completed.
+- [x] Pruning candidate SPRT-confirmed:
+      **+18.87 +/- 8.81 Elo**, 2930 games, H1 accepted.
+- [x] LMR SPSA run completed:
+      **4034 iterations**, 129,088 games.
+- [x] LMR candidate SPRT-confirmed:
+      **+15.63 +/- 8.02 Elo**, 3714 games, H1 accepted.
+- [x] Optional narrowed combined polish SPSA completed:
+      **2863 iterations**, 91,616 games.
+- [x] Optional narrowed combined polish SPRT-confirmed rejected:
+      **-0.40 +/- 3.20 Elo**, 23,210 games, H0 accepted; reverted.
+- [x] External gauntlet completed:
+      - vs Basilisk 1.4.9/defaults: 2000 games, 638 wins, 482 losses,
+        880 draws, 53.90%, approx +27.16 Elo.
+      - vs Rarog 2.0.2 release: 2000 games, 950 wins, 349 losses, 701 draws,
+        65.03%, approx +107.73 Elo.
+      - vs Rarog 2.1.0 unreleased: 2000 games, 947 wins, 372 losses, 681 draws,
+        64.38%, approx +102.78 Elo.
+
+Phase 1 is complete. Keep `phase1-final` as the accepted head.
+
+### Phase 1.5 - Second-Wave Search Constants
+
+- [ ] Decide whether Phase 1 results justify more search-constant exposure.
+- [ ] Add only one coherent second-wave group.
+- [ ] Default-equivalence verified.
+- [ ] SPSA and SPRT completed.
+
+### Phase 2 - Eval Tuning
+
+- [ ] `EvalParams` defaults reproduce current eval.
+- [ ] Tune-only eval params loader exists.
+- [ ] Quiet-position dataset built and deduplicated.
+- [ ] Holdout set created.
+- [ ] Texel tuner working.
+- [ ] Scalar material/phase tuned and SPRT-confirmed.
+- [ ] Mobility tuned and SPRT-confirmed.
+- [ ] Pawn/passed-pawn terms tuned and SPRT-confirmed.
+- [ ] King safety/shelter/storm tuned and SPRT-confirmed.
+- [ ] Piece-specific terms tuned and SPRT-confirmed.
+- [ ] Threats/space/tempo/draw scaling tuned and SPRT-confirmed.
+- [ ] PST tuning attempted only after enough data exists.
+
+### Later
+
+- [ ] Phase 3 features only after tuning plateaus.
+- [ ] NNUE remains future work; eval boundary stays clean.
+
+---
+
+## Common Commands
+
+```powershell
+# Build a named pext-PGO+TUNE binary
 .\tools\build_test.ps1 -Suffix <name>
 
-# SPRT — test a gain (default H0=0, H1=5)
-.\tools\sprt.ps1 -EngineA <new>.exe -EngineB <head>.exe -NameA "X" -NameB "Head"
+# SPRT a gain candidate
+.\tools\sprt.ps1 `
+    -EngineA tools\test_engines\basilisk-<candidate>-pext-pgo.exe `
+    -EngineB tools\test_engines\basilisk-<baseline>-pext-pgo.exe `
+    -NameA "Candidate" -NameB "Baseline"
 
-# SPRT — small feature (tighter bound, faster conclusion)
-.\tools\sprt.ps1 -EngineA <new>.exe -EngineB <head>.exe -NameA "X" -NameB "Head" -Elo1 3
+# SPRT a small/tighter candidate
+.\tools\sprt.ps1 `
+    -EngineA tools\test_engines\basilisk-<candidate>-pext-pgo.exe `
+    -EngineB tools\test_engines\basilisk-<baseline>-pext-pgo.exe `
+    -NameA "Candidate" -NameB "Baseline" -Elo1 3
 
-# SPRT — refactor / default-equivalence (symmetric bounds, H0 in ~1-3k games)
-.\tools\sprt.ps1 -EngineA <refactor>.exe -EngineB <head>.exe `
-    -NameA "Refactor" -NameB "Head" -Elo0 -3 -Elo1 3
+# Refactor/default-equivalence SPRT, only when needed
+.\tools\sprt.ps1 `
+    -EngineA tools\test_engines\basilisk-refactor-pext-pgo.exe `
+    -EngineB tools\test_engines\basilisk-baseline-pext-pgo.exe `
+    -NameA "Refactor" -NameB "Baseline" -Elo0 -3 -Elo1 3
 
-# SPSA tuning — see tools/spsa_configs/README.md
-.\tools\setup_spsa.ps1          # wire up weather-factory for the run
-cd tools\weather-factory; python main.py
+# Phase-boundary external gauntlet
+.\tools\gauntlet.ps1 `
+    -Engine tools\test_engines\basilisk-phase1-final-pext-pgo.exe `
+    -Opponents tools\test_engines\basilisk-phase1-defaults-pext-pgo.exe,D:\chess\engines\rarog-v2.0.2-windows-pext-pgo.exe,D:\code\rarog\target\dist\rarog-v2.1.0-windows-pext-pgo.exe `
+    -Name Phase1Final `
+    -Games 2000
 
-# Bench fingerprint — run the binary interactively (piping is unreliable):
-#   .\build\release-pext\basilisk.exe
-#   bench 13
-#   quit
-# Record the baseline value in PLAN.md §3.
+# Configure SPSA
+.\tools\setup_spsa.ps1 -ConfigGroup pruning -Iterations 5000
+.\tools\setup_spsa.ps1 -ConfigGroup lmr -Iterations 5000
+.\tools\setup_spsa.ps1 -ConfigGroup combined -EngineSuffix phase1-lmr -Iterations 2000
+
+# Run/resume SPSA
+cd tools\weather-factory
+python main.py
+```
+
+Bench is best run interactively:
+
+```text
+.\build\release-pext\basilisk.exe
+bench 13
+quit
 ```
 
 ---
 
-## Phase progress tracker
+## Why Tuning Options Exist
 
-Update as each step completes.
+weather-factory can only perturb the engine through UCI. For example, it sends:
 
-### Phase 0 — Harness
-- [x] `tools/sprt.ps1` adapted from Rarog
-- [x] `tools/build_test.ps1` (CMake `pgo` target) adapted
-- [x] `tools/spsa_configs/` (configs + setup) adapted with Basilisk option names
-- [x] fastchess at `tools\bin\fastchess.exe` ✓
-- [x] Baseline `bench 13` fingerprint recorded: **4,972,548 nodes** (release-pext, MSYS2 Clang)
-- [x] ~~Calibration test~~ skipped — harness proven by rarog; self-vs-self takes thousands of games for H0
+```text
+setoption name RfpCoeff value 128
+```
 
-### Phase 1 — Expose + SPSA-tune search constants
-- [x] `SearchParams` struct, defaults == current inline literals
-- [x] §1a constants exposed as `tune`-gated UCI spin options (`-DTUNE=ON`)
-- [x] Default-equivalence verified — bench 13 = **4,972,548 nodes** ✓, 8/8 tests pass ✓
-- [ ] SPSA group: pruning / margins
-- [ ] SPSA group: LMR terms
-- [ ] SPRT confirmation of tuned set vs. 1.4.9 head
-- [ ] (Tune flag already gated — release build shows 0 tune options ✓)
+That is why search constants are UCI options in tune builds. They are hidden in
+normal release builds through the `BASILISK_TUNE` compile definition.
 
-### Phase 2 — Texel-tune eval
-- [ ] `EvalParams` struct + file loader (`tune` flag) — default-equivalent
-- [ ] Texel dataset built (quiet positions, result-labeled)
-- [ ] External Texel tuner working
-- [ ] Material + PST tuned + SPRT confirmed
-- [ ] Mobility tuned + SPRT confirmed
-- [ ] King safety tuned + SPRT confirmed
-- [ ] Passed pawns tuned + SPRT confirmed
-- [ ] Piece terms (bishop pair / rook / knight) tuned + SPRT confirmed
-- [ ] Threats / tempo / draw-scaling tuned + SPRT confirmed
-- [ ] Global Texel re-pass + final SPRT
-
-### Phase 3 — New features (only if tuning plateaus)
-- [ ] (deferred — list items as they are chosen)
-
-### Phase 4 — NNUE (far-future, not scheduled)
-- [ ] Eval interface kept clean throughout Phases 1–3 (ongoing guardrail)
-
-### Release gates (after each phase)
-- [ ] External gauntlet vs. 1.4.9, Stockfish, Rarog 2.x
-- [ ] CHANGELOG updated
-- [ ] Version bumped, PGO asset rebuilt (`pext` + `avx2`)
+Before any public release, verify a non-tune build does not expose the tuning
+option list.
 
 ---
 
-## What makes a good result report
+## Ground Rules
 
-**Minimal (always sufficient):**
-> "H1 accepted after 2,100 games."
+- Do not accept a tuned value set without SPRT.
+- Do not interpret lower or higher node count as strength.
+- Do not bundle feature work with tuning defaults.
+- Do not skip the external gauntlet at phase boundaries.
+- Do not start Phase 3 features while Phase 1 or Phase 2 still has obvious
+  tuning work left.
+- Keep `Evaluator::evaluate(const Board&)` as the boundary between search and
+  evaluation.
 
-**Helpful extras:**
-> "H1 accepted after 2,100 games. Score 53.1%. LLR crossed +2.94."
-
-**For SPSA:**
-> "Stopped at 6,000 iterations. Final: RfpCoeff=128 RazorCoeff=276
-> FutilityBase=140 SeePruneCoeff=72 AspirationDelta=22."
-
-**If something looks wrong:**
-> "fastchess exited immediately with: [paste error]"
-> "bench 13 returned 0 nodes — engine crashed on startup."
-
-The model diagnoses and fixes; you don't need to understand the error.
-
----
-
-## Why constants become UCI options (and when to remove them)
-
-weather-factory (the SPSA driver) has no interface to the engine other than UCI.
-To perturb `RfpCoeff`, it sends `setoption name RfpCoeff value 128` before each
-mini-match. UCI options are the only mechanism.
-
-This is standard practice: Stockfish, Ethereal, and most modern engines expose
-constants during development behind a compile-time flag, then strip them from
-release builds. Basilisk does the same via the `tune` CMake flag.
-
-**During development:** build with `tune` on so the options exist.
-**Before any public release:** build with `tune` off so production binaries don't
-show a cluttered UCI option list to GUIs.
-
----
-
-## Ground rules (keep the model honest)
-
-- **Never accept a change without a bench-13 check first.** For a pure refactor
-  the fingerprint must be unchanged; for a real re-fit it will change (record
-  it). An unchanged fingerprint alone proves a refactor is equivalent — a full
-  SPRT H0 is not required (but if you run one, use `-Elo0 -3 -Elo1 3`).
-- **Never skip the SPRT gate.** If the model says "this is clearly good, let's
-  skip the test" — refuse. The whole point is that "clearly good" changes can
-  still lose Elo.
-- **SPSA/Texel propose; SPRT decides.** Tuned values are *candidates*. The
-  `st=0.1` SPRT is the final word.
-- **One change per commit.** If the model bundles two, ask it to split them.
-- **Run the external gauntlet at the end of each phase**, not just per feature —
-  self-play over-fits; external opponents catch it.
-- **Protect the eval interface.** Don't let a tuning refactor weld eval internals
-  into search — that would foreclose a future NNUE swap (`PLAN.md` §7).
+The process is the strength engine here: tune, test, keep only what survives.

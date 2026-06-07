@@ -16,12 +16,24 @@
 
     Prerequisites:
       - Run ./tools/setup_tools.ps1 once (downloads fastchess, clones weather-factory).
-      - Build the test binary: ./tools/build_test.ps1 -Suffix phase1-defaults
+      - Build the test binary you want to tune from:
+        ./tools/build_test.ps1 -Suffix phase1-defaults
 
 .PARAMETER ConfigGroup
     Which parameter group to tune.
     "pruning"  (default) - 13 pruning / margin constants.
     "lmr"                - LMR formula + adjustment constants.
+    "combined"           - narrowed Phase 1 polish around accepted pruning+LMR.
+
+.PARAMETER EngineSuffix
+    Suffix of the already-built engine under tools\test_engines.
+    The script expects:
+        tools\test_engines\basilisk-<EngineSuffix>-pext-pgo.exe
+
+.PARAMETER Resume
+    Keep existing weather-factory tuner state. Use this only when resuming the
+    same SPSA run. By default, old state/games/graphs are archived before a new
+    run is configured.
 
 .PARAMETER Iterations
     Planned total iterations (used to set A = Iterations / 10 in spsa.json).
@@ -37,11 +49,21 @@
     ./tools/setup_spsa.ps1 -Iterations 2000
 
 .EXAMPLE
+    # Resume an already-configured run without archiving its state
+    ./tools/setup_spsa.ps1 -ConfigGroup lmr -EngineSuffix phase1-lmr-baseline -Resume
+
+.EXAMPLE
     # LMR group
-    ./tools/setup_spsa.ps1 -ConfigGroup lmr
+    ./tools/setup_spsa.ps1 -ConfigGroup lmr -EngineSuffix phase1-lmr-baseline
+
+.EXAMPLE
+    # Narrow combined Phase 1 polish from the accepted LMR head
+    ./tools/setup_spsa.ps1 -ConfigGroup combined -EngineSuffix phase1-lmr -Iterations 2000
 #>
 param(
-    [ValidateSet("pruning","lmr")][string]$ConfigGroup = "pruning",
+    [ValidateSet("pruning","lmr","combined")][string]$ConfigGroup = "pruning",
+    [string]$EngineSuffix = "phase1-defaults",
+    [switch]$Resume,
     [int]$Iterations = 5000
 )
 
@@ -50,7 +72,7 @@ $ErrorActionPreference = "Stop"
 $wfRoot    = Join-Path $PSScriptRoot "weather-factory"
 $configs   = Join-Path $PSScriptRoot "spsa_configs"
 $fastchess = Join-Path $PSScriptRoot "bin\fastchess.exe"
-$engine    = Join-Path $PSScriptRoot "test_engines\basilisk-phase1-defaults-pext-pgo.exe"
+$engine    = Join-Path $PSScriptRoot "test_engines\basilisk-$EngineSuffix-pext-pgo.exe"
 $book      = Join-Path $PSScriptRoot "books\SuperGM_4mvs.pgn"
 
 # 1. Validate prerequisites
@@ -61,6 +83,28 @@ foreach ($f in @($fastchess, $engine, $book)) {
 # 2. Populate tuner\ folder
 $tuner = Join-Path $wfRoot "tuner"
 New-Item -ItemType Directory -Force -Path $tuner | Out-Null
+
+if (-not $Resume) {
+    $stateFiles = @(
+        "state.json",
+        "games.pgn",
+        "graph.png",
+        "fastchess_config.json"
+    )
+
+    $existingState = $stateFiles |
+        ForEach-Object { Join-Path $tuner $_ } |
+        Where-Object { Test-Path $_ }
+
+    if ($existingState) {
+        $archive = Join-Path $tuner ("archive_" + (Get-Date -Format "yyyyMMdd_HHmmss"))
+        New-Item -ItemType Directory -Force -Path $archive | Out-Null
+        foreach ($f in $existingState) {
+            Move-Item $f (Join-Path $archive (Split-Path $f -Leaf)) -Force
+        }
+        Write-Host "Archived previous tuner state -> $archive"
+    }
+}
 
 $engineName = Split-Path $engine -Leaf
 Write-Host "Copying engine  -> $tuner\$engineName"

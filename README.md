@@ -6,6 +6,23 @@
 
 A UCI chess engine written in C++23.
 
+Current release: **2.1.0**.
+
+### 2.1.0 strength update
+
+Basilisk 2.1.0 keeps the 1.4.9 feature set and improves playing strength by
+fitting existing search constants with SPSA and accepting only SPRT-positive
+candidates.
+
+| Validation | Result |
+|---|---:|
+| Pruning SPSA vs 1.4.9/defaults | +18.87 +/- 8.81 Elo, H1 accepted |
+| LMR SPSA vs pruning head | +15.63 +/- 8.02 Elo, H1 accepted |
+| Combined polish vs LMR head | -0.40 +/- 3.20 Elo, H0 accepted; reverted |
+| 2000-game gauntlet vs 1.4.9/defaults | 53.90%, approx +27.16 Elo |
+| 2000-game gauntlet vs Rarog 2.0.2 | 65.03%, approx +107.73 Elo |
+| 2000-game gauntlet vs local Rarog 2.1.0 dev | 64.38%, approx +102.78 Elo |
+
 ---
 
 ## Features
