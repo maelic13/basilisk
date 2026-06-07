@@ -24,10 +24,8 @@ As of this guide, the repo is not at the beginning of the plan.
   `+15.63 +/- 8.02 Elo`, 3714 games, H1 accepted.
 - Narrowed combined Phase 1 polish was rejected:
   `-0.40 +/- 3.20 Elo`, 23,210 games, H0 accepted.
-- Phase 1 external gauntlet completed:
+- Phase 1 validation completed:
   - vs Basilisk 1.4.9/defaults: 2000 games, 53.90%, approx +27.16 Elo.
-  - vs Rarog 2.0.2 release: 2000 games, 65.03%, approx +107.73 Elo.
-  - vs Rarog 2.1.0 unreleased: 2000 games, 64.38%, approx +102.78 Elo.
 - **Phase 1 is complete.** The accepted search-constant head is
   `tools\test_engines\basilisk-phase1-final-pext-pgo.exe`.
 - The next useful strength step is **Phase 2 evaluation tuning**.
@@ -186,7 +184,7 @@ The model can diagnose from that.
 | Many values hit boundaries | Treat the run as suspect; narrow the problem |
 | SPRT accepts H1 | Keep, record, move to next group |
 | SPRT accepts H0 | Revert; retry once only if the run was flawed |
-| End of Phase 1 | Run external gauntlet before release work |
+| End of Phase 1 | Run fixed-game validation before release work |
 | Phase 2 asks for Texel data | Build dataset and holdout before tuning |
 
 Do not keep running repeated SPRTs against tiny changes until one passes. That
@@ -228,22 +226,11 @@ Update this when work completes.
       **2863 iterations**, 91,616 games.
 - [x] Optional narrowed combined polish SPRT-confirmed rejected:
       **-0.40 +/- 3.20 Elo**, 23,210 games, H0 accepted; reverted.
-- [x] External gauntlet completed:
+- [x] Phase 1 validation completed:
       - vs Basilisk 1.4.9/defaults: 2000 games, 638 wins, 482 losses,
         880 draws, 53.90%, approx +27.16 Elo.
-      - vs Rarog 2.0.2 release: 2000 games, 950 wins, 349 losses, 701 draws,
-        65.03%, approx +107.73 Elo.
-      - vs Rarog 2.1.0 unreleased: 2000 games, 947 wins, 372 losses, 681 draws,
-        64.38%, approx +102.78 Elo.
 
 Phase 1 is complete. Keep `phase1-final` as the accepted head.
-
-### Phase 1.5 - Second-Wave Search Constants
-
-- [ ] Decide whether Phase 1 results justify more search-constant exposure.
-- [ ] Add only one coherent second-wave group.
-- [ ] Default-equivalence verified.
-- [ ] SPSA and SPRT completed.
 
 ### Phase 2 - Eval Tuning
 
@@ -259,6 +246,14 @@ Phase 1 is complete. Keep `phase1-final` as the accepted head.
 - [ ] Piece-specific terms tuned and SPRT-confirmed.
 - [ ] Threats/space/tempo/draw scaling tuned and SPRT-confirmed.
 - [ ] PST tuning attempted only after enough data exists.
+
+### Phase 1.5 - Second-Wave Search Constants (Deferred)
+
+- [ ] Revisit only after Phase 2 plateaus or becomes blocked.
+- [ ] Decide whether more search-constant exposure is worth the complexity.
+- [ ] If yes, add only one coherent second-wave group.
+- [ ] Default-equivalence verified.
+- [ ] SPSA and SPRT completed.
 
 ### Later
 
@@ -291,10 +286,10 @@ Phase 1 is complete. Keep `phase1-final` as the accepted head.
     -EngineB tools\test_engines\basilisk-baseline-pext-pgo.exe `
     -NameA "Refactor" -NameB "Baseline" -Elo0 -3 -Elo1 3
 
-# Phase-boundary external gauntlet
+# Phase-boundary fixed-game validation
 .\tools\gauntlet.ps1 `
     -Engine tools\test_engines\basilisk-phase1-final-pext-pgo.exe `
-    -Opponents tools\test_engines\basilisk-phase1-defaults-pext-pgo.exe,D:\chess\engines\rarog-v2.0.2-windows-pext-pgo.exe,D:\code\rarog\target\dist\rarog-v2.1.0-windows-pext-pgo.exe `
+    -Opponents tools\test_engines\basilisk-phase1-defaults-pext-pgo.exe `
     -Name Phase1Final `
     -Games 2000
 
@@ -339,7 +334,7 @@ option list.
 - Do not accept a tuned value set without SPRT.
 - Do not interpret lower or higher node count as strength.
 - Do not bundle feature work with tuning defaults.
-- Do not skip the external gauntlet at phase boundaries.
+- Do not skip fixed-game validation at phase boundaries.
 - Do not start Phase 3 features while Phase 1 or Phase 2 still has obvious
   tuning work left.
 - Keep `Evaluator::evaluate(const Board&)` as the boundary between search and

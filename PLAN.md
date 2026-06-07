@@ -1,12 +1,12 @@
 # Basilisk Strength Improvement Plan
 
 > Current checkpoint: Basilisk is a feature-rich C++23 HCE engine at version
-> `2.1.0`. The repo already has the Phase 0 harness and the Phase 1
+> `1.5.0`. The repo already has the Phase 0 harness and the Phase 1
 > `SearchParams`/UCI tuning surface. The first pruning SPSA candidate has been
 > SPRT-accepted at +18.87 +/- 8.81 Elo over the original defaults. The LMR SPSA
 > candidate was also SPRT-accepted at +15.63 +/- 8.02 Elo over the pruning head.
 > A narrowed combined polish failed its SPRT gate and was reverted. The Phase 1
-> external gauntlet is complete. The immediate next work is Phase 2 evaluation
+> validation match is complete. The immediate next work is Phase 2 evaluation
 > tuning. Do not start new search/eval features until those gates stop paying.
 >
 > Companion: `user_dev_guide.md` is the human workflow and command cheat sheet.
@@ -149,11 +149,8 @@ Current status:
   2863 iterations, 91,616 games. SPRT rejected it:
   `Elo -0.40 +/- 3.20`, 23,210 games, H0 accepted for `[0.00, 5.00]`.
   Combined values were reverted; keep `phase1-lmr` as the accepted Phase 1 head.
-- External gauntlet completed:
+- Phase 1 validation completed:
   - vs Basilisk 1.4.9/defaults: 2000 games, 53.90%, approx +27.16 Elo.
-  - vs Rarog 2.0.2 release: 2000 games, 65.03%, approx +107.73 Elo.
-  - vs local Rarog 2.1.0 development binary: 2000 games, 64.38%,
-    approx +102.78 Elo.
 - SPSA configs exist for pruning, LMR, and the rejected combined polish record:
   `config_pruning.json`, `config_lmr.json`, and `config_combined.json`.
 
@@ -203,14 +200,12 @@ Current status:
    ```
 11. Combined polish H0 accepted. Revert the combined values and keep
    `phase1-lmr`.
-12. End Phase 1 with an external gauntlet against at least:
-   - Basilisk 1.4.9 release/default head
-   - one comparable external engine
-   - Rarog if available locally
+12. End Phase 1 with a fixed-game validation match against Basilisk
+   1.4.9/defaults:
    ```powershell
    .\tools\gauntlet.ps1 `
        -Engine tools\test_engines\basilisk-phase1-final-pext-pgo.exe `
-       -Opponents tools\test_engines\basilisk-phase1-defaults-pext-pgo.exe,D:\chess\engines\rarog-v2.0.2-windows-pext-pgo.exe,D:\code\rarog\target\dist\rarog-v2.1.0-windows-pext-pgo.exe `
+       -Opponents tools\test_engines\basilisk-phase1-defaults-pext-pgo.exe `
        -Name Phase1Final `
        -Games 2000
    ```
@@ -249,32 +244,7 @@ is not alarming; it still tells us the next large lever is eval tuning.
 
 ---
 
-## 4. Phase 1.5 - Second-Wave Search Tuning (Conditional)
-
-Do this only after Phase 1 has produced at least one accepted candidate, or
-after Phase 1 clearly fails and the harness has been proven stable.
-
-Potential second-wave tunables still inline in `src/search.cpp`:
-
-- RFP, LMP, futility, SEE, ProbCut, and singular depth gates.
-- Null-move verification depth and reduced verification depth.
-- ProbCut reduced search depth.
-- LMP formula coefficients.
-- History bonus cap and continuation-history scaling.
-- Correction-history weight/clamp.
-- Qsearch capture-futility margin and threshold-SEE clamp.
-- Aspiration reset threshold.
-
-Rules:
-
-- Add only a small coherent group at a time.
-- Default-equivalence first: unchanged `bench 13` before tuning.
-- Do not expose dozens of additional knobs in one SPSA run.
-- If Phase 1 results were weak, skip most of this and go to Phase 2.
-
----
-
-## 5. Phase 2 - Eval Tuning (Big Lever)
+## 4. Phase 2 - Eval Tuning (Big Lever)
 
 Goal: fit Basilisk's HCE weights to data while preserving the clean
 `Evaluator::evaluate(const Board&)` boundary.
@@ -291,7 +261,7 @@ tuner.
 3. Under `BASILISK_TUNE`, add a simple text/JSON loader for eval params. Prefer
    an env var such as `BASILISK_EVAL_FILE` so release UCI remains clean.
 4. Build a quiet-position dataset:
-   - positions from self-play plus external/tournament PGNs where available;
+   - positions from self-play plus public/tournament PGNs where available;
    - label by game result;
    - deduplicate by hash/FEN;
    - filter positions in check, positions with obvious high-value captures,
@@ -322,6 +292,37 @@ regularization and more data.
 
 Eval tuning is likely the largest HCE lever remaining. If the dataset is clean
 and the SPRT gates are respected, multi-tens of Elo is a realistic target.
+
+---
+
+## 5. Phase 1.5 - Second-Wave Search Tuning (Deferred)
+
+Do not run this now. Phase 1 produced accepted search gains, but the narrowed
+combined polish failed a long SPRT. That is enough evidence that the currently
+exposed search constants are saturated for now. Phase 2 eval tuning is the
+higher-value next lever.
+
+Discuss this again only after Phase 2 has plateaued or if Phase 2 becomes
+blocked. At that point, decide whether more search-constant exposure is still
+worth the complexity.
+
+Potential second-wave tunables still inline in `src/search.cpp`:
+
+- RFP, LMP, futility, SEE, ProbCut, and singular depth gates.
+- Null-move verification depth and reduced verification depth.
+- ProbCut reduced search depth.
+- LMP formula coefficients.
+- History bonus cap and continuation-history scaling.
+- Correction-history weight/clamp.
+- Qsearch capture-futility margin and threshold-SEE clamp.
+- Aspiration reset threshold.
+
+Rules:
+
+- Add only a small coherent group at a time.
+- Default-equivalence first: unchanged `bench 13` before tuning.
+- Do not expose dozens of additional knobs in one SPSA run.
+- Skip Phase 1.5 while Phase 2 is still producing accepted candidates.
 
 ---
 
@@ -365,7 +366,7 @@ Guardrails now:
 - Preserve cheap access to piece placement and incremental keys.
 - Do not design the Texel/eval loader in a way that search depends on HCE
   internals.
-- Reuse the Phase 0 SPRT/gauntlet harness when NNUE work starts.
+- Reuse the Phase 0 SPRT/validation harness when NNUE work starts.
 
 ---
 
@@ -375,11 +376,11 @@ After each accepted phase:
 
 - Build fresh PGO assets for local testing (`pext`) and distribution (`avx2` or
   normal release as appropriate).
-- Run external gauntlets, not just self-play.
+- Run fixed-game validation, not just SPRT self-play.
 - Scan logs for illegal moves, timeouts, disconnects, crashes, and `bestmove
   0000` from legal positions.
 - Update `CHANGELOG.md` and version metadata only after both self-play SPRT and
-  external gauntlet are acceptable.
+  fixed-game validation are acceptable.
 
 ---
 

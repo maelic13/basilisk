@@ -1,12 +1,11 @@
 <#
 .SYNOPSIS
-    Run fixed-game validation matches against one or more external opponents.
+    Run fixed-game validation matches against one or more reference binaries.
 
 .DESCRIPTION
-    This is the phase-boundary gauntlet runner. Unlike sprt.ps1, it does not use
+    This is the phase-boundary validation runner. Unlike sprt.ps1, it does not use
     SPRT stopping. It runs a fixed number of paired games per opponent so the
-    accepted head can be sanity-checked against older Basilisk builds and local
-    external engines.
+    accepted head can be sanity-checked against older Basilisk builds.
 
 .PARAMETER Engine
     Candidate engine to test.
@@ -36,7 +35,7 @@
 .EXAMPLE
     .\tools\gauntlet.ps1 `
         -Engine tools\test_engines\basilisk-phase1-final-pext-pgo.exe `
-        -Opponents tools\test_engines\basilisk-phase1-defaults-pext-pgo.exe,D:\code\rarog\target\dist\rarog-v2.1.0-windows-pext-pgo.exe `
+        -Opponents tools\test_engines\basilisk-phase1-defaults-pext-pgo.exe `
         -Name Phase1Final `
         -Games 1000
 #>
