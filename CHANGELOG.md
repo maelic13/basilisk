@@ -7,6 +7,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.5.0] - 2026-06-07
+
+### Changed
+
+#### Strength / Search
+- Re-tuned the existing pruning and LMR search constants with weather-factory SPSA, keeping the search algorithm itself unchanged
+- Baked the SPRT-accepted pruning candidate:
+  `RfpCoeff=160`, `RfpImproving=72`, `RazorCoeff=243`, `NullBase=3`,
+  `NullEvalDiv=192`, `ProbCutMargin=189`, `FutilityBase=180`,
+  `FutilityCoeff=128`, `HistPruneCoeff=4210`, `SeePruneCoeff=73`,
+  `SingularBetaMult=4`, `SingularDoubleMargin=4`, `AspirationDelta=19`
+- Baked the SPRT-accepted LMR candidate:
+  `LmrBase=60`, `LmrDivisor=209`, `LmrHistDiv=7830`,
+  `LmrNonPvAdj=1`, `LmrCutNodeAdj=0`, `LmrTtPvAdj=0`,
+  `LmrNotImprovingAdj=0`
+- Rejected and reverted the narrowed combined polish candidate after it failed
+  its SPRT gate
+
+#### Version
+- Bumped engine version metadata to 1.5.0
+
+### Added
+
+#### Tooling
+- Added `tools/gauntlet.ps1` for fixed-game phase-boundary validation matches
+- Added `tools/spsa_configs/config_combined.json` for the rejected Phase 1
+  combined-polish experiment, retained as documentation and a future reference
+- Extended `tools/setup_spsa.ps1` with selectable engine suffixes and automatic
+  archival of old weather-factory state before fresh runs
+- Added `combined` as an SPSA config group for narrowed search-constant polish
+
+#### Documentation
+- Updated `PLAN.md` and `user_dev_guide.md` to record Phase 1 completion and
+  make Phase 2 evaluation tuning the next planned work
+- Documented the repo-local SPSA/SPRT/validation workflow and generated-artifact
+  handling
+
+### Testing
+
+#### SPRT
+- Pruning candidate vs 1.4.9/defaults:
+  `2930` games, `850 - 691 - 1389`, `52.71%`,
+  `+18.87 +/- 8.81 Elo`, H1 accepted for `[0.00, 5.00]`
+- LMR candidate vs pruning head:
+  `3714` games, `1091 - 924 - 1699`, `52.25%`,
+  `+15.63 +/- 8.02 Elo`, H1 accepted for `[0.00, 5.00]`
+- Combined-polish candidate vs LMR head:
+  `23210` games, `6375 - 6402 - 10433`, `49.94%`,
+  `-0.40 +/- 3.20 Elo`, H0 accepted for `[0.00, 5.00]`;
+  candidate reverted
+
+#### Phase 1 Validation
+- Phase1Final vs Basilisk 1.4.9/defaults:
+  `2000` games, `638 - 482 - 880`, `53.90%`, approx `+27.16 Elo`
+
+#### Build / Verification
+- Built `tools\test_engines\basilisk-phase1-final-pext-pgo.exe`
+- Passed the full CTest suite: 8/8 tests
+- Recorded `bench 13` for the accepted Phase 1 head:
+  `4,283,684` nodes
+
+---
+
 ## [1.4.9] - 2026-05-29
 
 ### Added
@@ -81,7 +144,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 #### UCI / Ponder
-- `ponderhit` now preserves elapsed ponder time when switching to normal search, matching Stockfish-style time accounting instead of granting a fresh move budget
+- `ponderhit` now preserves elapsed ponder time when switching to normal search instead of granting a fresh move budget
 - Ponder searches that finish their depth limit now wait for `stop` or `ponderhit` before emitting `bestmove`, including multi-threaded searches
 - Stale `stop` and `ponderhit` control flags are cleared after a search completes so a previous command cannot poison the next `go ponder`
 
@@ -120,15 +183,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Expanded search-layer thread-pool coverage for exact grow/shrink behavior, repeated threaded searches, aggregate node limits, and threaded UCI node reporting
 - Added strict board-legality and corrupt-TT regression coverage for the tournament-derived illegal PV sequence
 - Added board/search/engine coverage for threshold SEE, `searchmoves`, `mate`, and `go perft`
-- Verified live UCI behavior against local Stockfish: both engines withhold `bestmove` during `go ponder depth 1` and emit it only after `stop` or `ponderhit`
+- Verified live UCI ponder behavior: `bestmove` is withheld during `go ponder depth 1` and emitted only after `stop` or `ponderhit`
 
 ### Changed
 
 #### Search Threads
-- `setoption name Threads value N` now resizes the persistent search pool immediately, matching Stockfish's option lifecycle rather than delaying worker creation until the next search
+- `setoption name Threads value N` now resizes the persistent search pool immediately rather than delaying worker creation until the next search
 - Thread resizing is exact in both directions: reducing `Threads` tears down helper workers instead of keeping stale workers alive
 - Helper threads now run full-root Lazy SMP searches over the shared TT/root table instead of partitioning root moves
-- The UCI `Threads` maximum now follows Stockfish's `max(1024, 4 * hardware_concurrency)` model; worker creation failure is reported and the active count is reduced
+- The UCI `Threads` maximum now follows `max(1024, 4 * hardware_concurrency)`; worker creation failure is reported and the active count is reduced
 
 #### Version
 - Bumped engine version metadata to 1.4.7
@@ -139,7 +202,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Built `release-avx2` successfully with MSYS2 Clang/Ninja
 - Passed the full CTest suite: 8/8 tests
 - Passed focused test binaries: `test_board` 253/253, `test_search` 122/122, `test_engine_ponder` 10/10, `test_engine_threading` 9/9, `test_uci_protocol` 32/32
-- Live UCI comparison with `D:\chess\engines\stockfish.exe`: `go ponder depth 1` withheld `bestmove` until both `stop` and `ponderhit`; Basilisk now also applies `Threads` before `isready` and completes `go nodes N` without requiring `stop`
+- Live UCI comparison verified that `go ponder depth 1` withheld `bestmove` until both `stop` and `ponderhit`; Basilisk now also applies `Threads` before `isready` and completes `go nodes N` without requiring `stop`
 - Live UCI smoke verified `go searchmoves e2e4 depth 1`, `go perft 1`, and `go mate 1`
 - Verified no current-engine illegal PV warnings in the focused Cutechess repro; warnings remaining in comparison logs came from the 1.4.5 opponent
 - Ran quick Cutechess book smoke against 1.4.5: 1T scored 6-3-11 over 20 games (+52 +/- 105 Elo), 8T scored 16-0-0 over 16 games
@@ -270,8 +333,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Testing
 
 #### Strength
-- Validated the release candidate with a 1,800-game 100 ms/move round-robin against Basilisk 1.3.0 and Lynx 1.2.1
-- Basilisk 1.4.3 scored 62.5% vs Basilisk 1.3.0 (+88.6 +/- 28.7 Elo) and 60.5% vs Lynx 1.2.1 (+73.9 +/- 28.4 Elo)
+- Validated the release candidate with a 1,800-game 100 ms/move round-robin
+- Basilisk 1.4.3 scored 62.5% vs Basilisk 1.3.0 (+88.6 +/- 28.7 Elo) and 60.5% in the second validation leg (+73.9 +/- 28.4 Elo)
 
 ---
 
@@ -517,6 +580,7 @@ First public release.
 - `bench [depth]` command — 16-position built-in benchmark, prints per-position NPS and total node-count fingerprint
 - GitHub Actions release workflow — builds for Linux x86_64, Linux aarch64, Windows x86_64, Windows aarch64, macOS aarch64; all built with Clang; PEXT variant produced for x86_64 platforms
 
+[1.5.0]: https://github.com/maelic13/basilisk/compare/v1.4.9...v1.5.0
 [1.4.9]: https://github.com/maelic13/basilisk/compare/v1.4.8...v1.4.9
 [1.4.8]: https://github.com/maelic13/basilisk/compare/v1.4.7...v1.4.8
 [1.4.7]: https://github.com/maelic13/basilisk/compare/v1.4.5...v1.4.7

@@ -56,7 +56,7 @@ endif()
 
 set(COMP "${_basilisk_compiler}" CACHE STRING "Compiler selection: auto, clang, gcc, or llvm" FORCE)
 
-project(basilisk VERSION 1.4.9 LANGUAGES CXX)
+project(basilisk VERSION 1.5.0 LANGUAGES CXX)
 
 _basilisk_detect_darwin_processor(_basilisk_system_processor "${CMAKE_SYSTEM_NAME}" "${CMAKE_SYSTEM_PROCESSOR}")
 if(APPLE AND NOT _basilisk_system_processor MATCHES "^(arm64|aarch64)$")
@@ -72,7 +72,7 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-set(BASILISK_DIST_TAG "v${PROJECT_VERSION}" CACHE STRING "Release asset tag used in dist binary names")
+set(BASILISK_DIST_TAG "v${PROJECT_VERSION}" CACHE STRING "Release asset tag used in dist binary names" FORCE)
 
 function(_basilisk_detect_dist_os out_var)
     if(WIN32)
@@ -250,6 +250,7 @@ add_test(NAME test_uci_protocol COMMAND test_uci_protocol)
 # Compiler flags (applied to all targets)
 # ---------------------------------------------------------------------------
 option(PORTABLE_BUILD "Build without host-specific CPU flags for distributable binaries" OFF)
+option(TUNE "Expose search constants as UCI spin options for SPSA tuning (sets BASILISK_TUNE)" OFF)
 set(BASILISK_PGO "OFF" CACHE STRING "Profile-guided optimization phase: OFF, GENERATE, or USE")
 set_property(CACHE BASILISK_PGO PROPERTY STRINGS OFF GENERATE USE)
 set(BASILISK_PGO_PROFILE_FILE "" CACHE FILEPATH "LLVM/Clang .profdata file for BASILISK_PGO=USE")
@@ -264,6 +265,13 @@ set(_ALL_TARGETS
     basilisk board_performance_test
     test_board test_move test_tt test_eval test_search test_engine_ponder test_engine_threading test_uci_protocol
 )
+
+if(TUNE)
+    foreach(_tgt IN LISTS _ALL_TARGETS)
+        target_compile_definitions(${_tgt} PRIVATE BASILISK_TUNE)
+    endforeach()
+    message(STATUS "TUNE build: search constants exposed as UCI options (BASILISK_TUNE defined)")
+endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     foreach(_tgt IN LISTS _ALL_TARGETS)
@@ -401,6 +409,7 @@ add_custom_target(pgo
         -DPGO_SOURCE_DIR=${CMAKE_SOURCE_DIR}
         -DPGO_PRESET=${_basilisk_pgo_preset}
         -DPGO_COMP=${COMP}
+        -DPGO_TUNE=${TUNE}
         -DPGO_PORTABLE_BUILD=${_basilisk_pgo_portable}
         -DPGO_EXECUTABLE_SUFFIX=${CMAKE_EXECUTABLE_SUFFIX}
         -DPGO_DIST_DIR=${_basilisk_dist_dir}

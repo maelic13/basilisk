@@ -140,7 +140,8 @@ std::vector<std::string> Parameters::searchParameters() {
 }
 
 std::string Parameters::uciOptions() {
-    return "option name Threads type spin default 1 min 1 max "
+    std::string opts =
+           "option name Threads type spin default 1 min 1 max "
            + std::to_string(maxThreads()) + "\n"
            "option name Hash type spin default 64 min 1 max 33554432\n"
            "option name Clear Hash type button\n"
@@ -150,6 +151,30 @@ std::string Parameters::uciOptions() {
            "option name SyzygyProbeDepth type spin default 1 min 1 max 100\n"
            "option name Syzygy50MoveRule type check default true\n"
            "option name SyzygyProbeLimit type spin default 7 min 0 max 7\n";
+#ifdef BASILISK_TUNE
+    opts +=
+        "option name RfpCoeff type spin default 160 min 60 max 240\n"
+        "option name RfpImproving type spin default 72 min 0 max 140\n"
+        "option name RazorCoeff type spin default 243 min 120 max 500\n"
+        "option name NullBase type spin default 3 min 2 max 6\n"
+        "option name NullEvalDiv type spin default 192 min 80 max 400\n"
+        "option name ProbCutMargin type spin default 189 min 80 max 360\n"
+        "option name FutilityBase type spin default 180 min 40 max 280\n"
+        "option name FutilityCoeff type spin default 128 min 40 max 200\n"
+        "option name HistPruneCoeff type spin default 4210 min 1000 max 7000\n"
+        "option name SeePruneCoeff type spin default 73 min 30 max 160\n"
+        "option name SingularBetaMult type spin default 4 min 1 max 6\n"
+        "option name SingularDoubleMargin type spin default 4 min 0 max 60\n"
+        "option name AspirationDelta type spin default 19 min 10 max 60\n"
+        "option name LmrBase type spin default 60 min 0 max 150\n"
+        "option name LmrDivisor type spin default 209 min 150 max 350\n"
+        "option name LmrHistDiv type spin default 7830 min 4096 max 16384\n"
+        "option name LmrNonPvAdj type spin default 1 min 0 max 3\n"
+        "option name LmrCutNodeAdj type spin default 0 min 0 max 3\n"
+        "option name LmrTtPvAdj type spin default 0 min 0 max 3\n"
+        "option name LmrNotImprovingAdj type spin default 0 min 0 max 3\n";
+#endif
+    return opts;
 }
 
 int Parameters::maxThreads() {
@@ -306,6 +331,28 @@ void Parameters::setOption(const std::string& args) {
     } else if (name_lower == "syzygyprobelimit") {
         syzygyProbeLimit = std::clamp(parsed, 0, 7);
     }
+#ifdef BASILISK_TUNE
+    else if (name_lower == "rfpcoeff")              { search_params.rfp_coeff              = std::clamp(parsed,    60,  240); }
+    else if (name_lower == "rfpimproving")          { search_params.rfp_improving          = std::clamp(parsed,     0,  140); }
+    else if (name_lower == "razorcoeff")            { search_params.razor_coeff            = std::clamp(parsed,   120,  500); }
+    else if (name_lower == "nullbase")              { search_params.null_base              = std::clamp(parsed,     2,    6); }
+    else if (name_lower == "nullevaldiv")           { search_params.null_eval_div          = std::clamp(parsed,    80,  400); }
+    else if (name_lower == "probcutmargin")         { search_params.probcut_margin         = std::clamp(parsed,    80,  360); }
+    else if (name_lower == "futilitybase")          { search_params.futility_base          = std::clamp(parsed,    40,  280); }
+    else if (name_lower == "futilitycoeff")         { search_params.futility_coeff         = std::clamp(parsed,    40,  200); }
+    else if (name_lower == "histprunecoeff")        { search_params.hist_prune_coeff       = std::clamp(parsed,  1000, 7000); }
+    else if (name_lower == "seeprunecoeff")         { search_params.see_prune_coeff        = std::clamp(parsed,    30,  160); }
+    else if (name_lower == "singularbetamult")      { search_params.singular_beta_mult     = std::clamp(parsed,     1,    6); }
+    else if (name_lower == "singulardoublemargin")  { search_params.singular_double_margin = std::clamp(parsed,     0,   60); }
+    else if (name_lower == "aspirationdelta")       { search_params.aspiration_delta       = std::clamp(parsed,    10,   60); }
+    else if (name_lower == "lmrbase")               { search_params.lmr_base               = std::clamp(parsed,     0,  150); }
+    else if (name_lower == "lmrdivisor")            { search_params.lmr_divisor            = std::clamp(parsed,   150,  350); }
+    else if (name_lower == "lmrhistdiv")            { search_params.lmr_hist_div           = std::clamp(parsed,  4096, 16384); }
+    else if (name_lower == "lmrnonpvadj")           { search_params.lmr_non_pv_adj         = std::clamp(parsed,     0,    3); }
+    else if (name_lower == "lmrcutnodeadj")         { search_params.lmr_cut_node_adj       = std::clamp(parsed,     0,    3); }
+    else if (name_lower == "lmrttpvadj")            { search_params.lmr_tt_pv_adj          = std::clamp(parsed,     0,    3); }
+    else if (name_lower == "lmrnotimprovingadj")    { search_params.lmr_not_improving_adj  = std::clamp(parsed,     0,    3); }
+#endif
 }
 
 void Parameters::setPosition(const std::string& args) {
@@ -364,4 +411,3 @@ void Parameters::setPosition(const std::string& args) {
 
     board = std::move(new_board);
 }
-

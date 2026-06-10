@@ -12,6 +12,9 @@ endif()
 if(NOT DEFINED PGO_PORTABLE_BUILD)
     set(PGO_PORTABLE_BUILD "OFF")
 endif()
+if(NOT DEFINED PGO_TUNE)
+    set(PGO_TUNE "OFF")
+endif()
 if(NOT DEFINED PGO_EXECUTABLE_SUFFIX)
     set(PGO_EXECUTABLE_SUFFIX "")
 endif()
@@ -58,6 +61,7 @@ execute_process(
     COMMAND "${CMAKE_COMMAND}" --preset "${PGO_PRESET}" -B "${_gen_dir}"
             -DCOMP=${PGO_COMP}
             -DPORTABLE_BUILD=${PGO_PORTABLE_BUILD}
+            -DTUNE=${PGO_TUNE}
             -DBASILISK_PGO=GENERATE
     WORKING_DIRECTORY "${PGO_SOURCE_DIR}"
     COMMAND_ERROR_IS_FATAL ANY
@@ -154,6 +158,7 @@ execute_process(
     COMMAND "${CMAKE_COMMAND}" --preset "${PGO_PRESET}" -B "${_use_dir}"
             -DCOMP=${PGO_COMP}
             -DPORTABLE_BUILD=${PGO_PORTABLE_BUILD}
+            -DTUNE=${PGO_TUNE}
             -DBASILISK_PGO=USE
             -DBASILISK_PGO_PROFILE_FILE=${_profdata}
     WORKING_DIRECTORY "${PGO_SOURCE_DIR}"

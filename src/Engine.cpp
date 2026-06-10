@@ -73,6 +73,7 @@ SearchLimits Engine::build_limits() const {
     limits.syzygy_probe_depth = Syzygy::enabled() ? parameters_.syzygyProbeDepth : 0;
     limits.syzygy_probe_limit = Syzygy::enabled() ? parameters_.syzygyProbeLimit : 0;
     limits.syzygy_50_move_rule = parameters_.syzygy50MoveRule;
+    limits.params    = parameters_.search_params;
     limits.infinite  = (parameters_.depth == infiniteDepth && parameters_.moveTime == 0
                         && parameters_.whiteTime == 0 && parameters_.blackTime == 0
                         && parameters_.whiteIncrement == 0 && parameters_.blackIncrement == 0

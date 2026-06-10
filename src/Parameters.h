@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "Board.h"
+#include "SearchParams.h"
 
 class Parameters {
 public:
@@ -33,6 +34,8 @@ public:
 
     bool new_game    = false;  // set by "ucinewgame", cleared after engine processes it
     bool clear_hash  = false;  // set by "setoption name Clear Hash", cleared after engine clears TT
+
+    SearchParams search_params; // tunable constants (exposed as UCI options under BASILISK_TUNE)
 
     Parameters();
 
