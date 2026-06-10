@@ -27,16 +27,21 @@ As of this guide, the repo is not at the beginning of the plan.
 - Phase 1 validation completed:
   - vs Basilisk 1.4.9/defaults: 2000 games, 53.90%, approx +27.16 Elo.
 - **Phase 1 is complete.** The accepted search-constant head is
-  `tools\test_engines\basilisk-phase1-final-pext-pgo.exe`.
-- The next useful strength step is **Phase 2 evaluation tuning**.
+  `tools\test_engines\basilisk-phase1-final-pext-pgo.exe` (shipped as 1.5.0).
+- A 2026-06 analysis re-baselined the plan: the depth deficit vs Stockfish is
+  eval accuracy + search selectivity, not nps and not time management. PLAN.md
+  Phases 2-7 were rewritten accordingly (Texel pipeline, search efficiency
+  wave, eval features, time management, feature menu, NNUE last).
+- The next useful strength step is **Phase 2, Step 2.0: `EvalParams`
+  default-equivalence refactor**.
 
 So if you say:
 
 > "Implement the next step of the plan."
 
 the model should not create more Phase 1 SPSA work. It should check the current
-state, keep `phase1-final` as the accepted search-constant head, and start
-Phase 2 evaluation-tuning preparation.
+state, keep `phase1-final` as the accepted search-constant head, and implement
+PLAN.md Step 2.0 (then 2.1, 2.2, ... in order, with the gates listed there).
 
 ---
 
@@ -59,9 +64,12 @@ the long-running command is the decision input.
 
 ## Next Commands
 
-Phase 1 is complete. The next implementation work is Phase 2: make evaluation
-weights tunable without changing default behavior, then build the Texel data and
-tuning loop.
+Phase 1 is complete. The next implementation work is Phase 2 (PLAN.md
+Steps 2.0-2.5): make evaluation weights tunable without changing default
+behavior (`EvalParams`, bench-identical), add the trace-based Texel tuner
+target, generate the self-play dataset, then tune in the staged order
+(material -> scalars -> king safety -> PSTs -> polish), SPRT-gating each
+stage.
 
 For a fresh clone, the historical Phase 1 commands are:
 
@@ -232,33 +240,51 @@ Update this when work completes.
 
 Phase 1 is complete. Keep `phase1-final` as the accepted head.
 
-### Phase 2 - Eval Tuning
+### Phase 2 - Eval Tuning (Texel pipeline; PLAN.md Section 4)
 
-- [ ] `EvalParams` defaults reproduce current eval.
-- [ ] Tune-only eval params loader exists.
-- [ ] Quiet-position dataset built and deduplicated.
-- [ ] Holdout set created.
-- [ ] Texel tuner working.
-- [ ] Scalar material/phase tuned and SPRT-confirmed.
-- [ ] Mobility tuned and SPRT-confirmed.
-- [ ] Pawn/passed-pawn terms tuned and SPRT-confirmed.
-- [ ] King safety/shelter/storm tuned and SPRT-confirmed.
-- [ ] Piece-specific terms tuned and SPRT-confirmed.
-- [ ] Threats/space/tempo/draw scaling tuned and SPRT-confirmed.
-- [ ] PST tuning attempted only after enough data exists.
+- [ ] 2.0 `EvalParams` defaults reproduce current eval (bench identical).
+- [ ] 2.1 Tune-only loader + `dumpeval` round-trip works.
+- [ ] 2.2 `basilisk-texel` target: trace reconstruction exact on 10k positions.
+- [ ] 2.3 Self-play dataset generated, extracted, deduplicated; holdout split
+      by game; >= 1.5M train positions.
+- [ ] 2.4a Material tuned and SPRT-confirmed (pipeline proof).
+- [ ] 2.4b Scalar terms tuned and SPRT-confirmed.
+- [ ] 2.4c King safety block tuned and SPRT-confirmed.
+- [ ] 2.4d PSTs (+material refit) tuned and SPRT-confirmed.
+- [ ] 2.4e Global polish attempted; kept only if SPRT-confirmed.
+- [ ] 2.5 2000-game validation vs `phase1-final` recorded.
 
-### Phase 1.5 - Second-Wave Search Constants (Deferred)
+### Phase 3 - Search Efficiency Wave (PLAN.md Section 5)
 
-- [ ] Revisit only after Phase 2 plateaus or becomes blocked.
-- [ ] Decide whether more search-constant exposure is worth the complexity.
-- [ ] If yes, add only one coherent second-wave group.
-- [ ] Default-equivalence verified.
-- [ ] SPSA and SPRT completed.
+- [ ] 3.1 TT-bound eval refinement SPRT verdict recorded.
+- [ ] 3.2 History bonus/malus formula SPRT verdict recorded.
+- [ ] 3.3 Fractional LMR SPRT verdict recorded.
+- [ ] 3.4 TT-capture LMR input SPRT verdict recorded.
+- [ ] 3.5 Deeper/shallower re-search SPRT verdict recorded.
+- [ ] 3.6 Qsearch quiet checks SPRT verdict recorded.
+- [ ] 3.7 Double-extension cap non-regression gate recorded.
+- [ ] 3.8 Razoring restriction experiment verdict recorded.
+- [ ] 3.9 Second-wave constants exposed, SPSA run, SPRT verdict recorded.
+
+### Phase 4 - Eval Features (PLAN.md Section 6)
+
+- [ ] 4.0 Attack-map refactor with identical bench.
+- [ ] 4.1 Threats package retuned and SPRT-confirmed.
+- [ ] 4.2 King safety v2 (safe checks, weak ring) retuned and SPRT-confirmed.
+- [ ] 4.3 Per-count mobility tables retuned and SPRT-confirmed.
+- [ ] 4.4 Pawn-structure refinement retuned and SPRT-confirmed.
+- [ ] 4.5 Endgame scaling rules SPRT verdict recorded.
+
+### Phase 5 - Time Management (PLAN.md Section 7)
+
+- [ ] 5.1 Increment-aware budget formula implemented.
+- [ ] 5.2 `sprt.ps1 -Tc` support added; both clock-TC SPRTs recorded.
+- [ ] 5.3 Optional TM SPSA decision recorded.
 
 ### Later
 
-- [ ] Phase 3 features only after tuning plateaus.
-- [ ] NNUE remains future work; eval boundary stays clean.
+- [ ] Phase 6 feature menu only after Phases 2-5 plateau.
+- [ ] Phase 7 NNUE remains future work; eval boundary stays clean.
 
 ---
 
