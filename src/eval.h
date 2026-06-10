@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Board.h"
+#include "EvalParams.h"
 
 struct PawnEntry {
     Key      key;
@@ -26,4 +27,7 @@ private:
                     Bitboard attacks[NCOLORS]);
 };
 
-void init_eval_tables();
+// Global evaluation parameters. Change fields then call init_eval_tables() to apply.
+extern EvalParams g_eval_params;
+
+void init_eval_tables(const EvalParams& p = g_eval_params);

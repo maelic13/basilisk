@@ -32,8 +32,16 @@ As of this guide, the repo is not at the beginning of the plan.
   eval accuracy + search selectivity, not nps and not time management. PLAN.md
   Phases 2-7 were rewritten accordingly (Texel pipeline, search efficiency
   wave, eval features, time management, feature menu, NNUE last).
-- The next useful strength step is **Phase 2, Step 2.0: `EvalParams`
-  default-equivalence refactor**.
+- **Step 2.0 is complete.** `src/EvalParams.h` created: `struct EvalParams`
+  holds all ~900 tunable eval weights with defaults identical to the old inline
+  constants; `EVAL_PARAM_LIST` X-macro enumerates every group. `eval.cpp`
+  updated to read from `g_eval_params`; `init_eval_tables` takes
+  `const EvalParams&`. Bench fingerprint on `release-pext` (non-PGO) on this
+  machine: **4,283,684 nodes** (the recorded 4,972,548 was the PGO build;
+  4,283,684 is the correct non-PGO baseline for refactor verification).
+  8/8 CTest passed.
+- The next useful strength step is **Phase 2, Step 2.1: tune-time loader +
+  `dumpeval`** (under `BASILISK_TUNE` only).
 
 So if you say:
 
@@ -70,6 +78,20 @@ behavior (`EvalParams`, bench-identical), add the trace-based Texel tuner
 target, generate the self-play dataset, then tune in the staged order
 (material -> scalars -> king safety -> PSTs -> polish), SPRT-gating each
 stage.
+
+Step 2.0 (`EvalParams` default-equivalence refactor) is **done**. Next:
+
+```
+"Implement the next step of the plan."
+```
+
+The model should implement **Step 2.1**: under `BASILISK_TUNE`, read
+`BASILISK_EVAL_FILE` on startup and apply it via `EVAL_PARAM_LIST`; add a
+`dumpeval` console command that writes current params in `name index value`
+format; verify dump → load → dump is byte-identical; release build must not
+expose either.
+
+---
 
 For a fresh clone, the historical Phase 1 commands are:
 
@@ -242,7 +264,8 @@ Phase 1 is complete. Keep `phase1-final` as the accepted head.
 
 ### Phase 2 - Eval Tuning (Texel pipeline; PLAN.md Section 4)
 
-- [ ] 2.0 `EvalParams` defaults reproduce current eval (bench identical).
+- [x] 2.0 `EvalParams` defaults reproduce current eval (bench identical).
+      Non-PGO release-pext baseline: **4,283,684 nodes**, 8/8 CTest passed.
 - [ ] 2.1 Tune-only loader + `dumpeval` round-trip works.
 - [ ] 2.2 `basilisk-texel` target: trace reconstruction exact on 10k positions.
 - [ ] 2.3 Self-play dataset generated, extracted, deduplicated; holdout split

@@ -107,7 +107,7 @@ int main() {
     init_bitboards();
     init_attacks();
     Zobrist::init();
-    init_eval_tables();
+    init_eval_tables(g_eval_params);
 
     uci_write_line(std::string(engineName) + " " + std::string(engineVersion)
                    + " by " + std::string(engineAuthor));
