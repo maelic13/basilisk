@@ -292,43 +292,76 @@ void Searcher::blend_history_from(const Searcher& other) {
 
 // ---- Time management -------------------------------------------------------
 
-void Searcher::compute_time_limit(const SearchLimits& limits, Color side) {
+void Searcher::compute_time_limit(const SearchLimits& limits, Color side, int game_ply) {
     soft_limit_ = 0.0;
     hard_limit_ = 0.0;
 
     if (limits.infinite || limits.ponder) return;
     if (limits.movetime > 0) {
-        // Fixed movetime: hard limit only, no soft limit
-        hard_limit_ = std::max(1, limits.movetime - limits.overhead) / 1000.0;
+        // Fixed movetime: use the full movetime as the hard limit. GUIs and
+        // adjudicators tolerate ~10% over nominal, and movetime games never
+        // forfeit on time the way clock play does, so subtracting overhead
+        // here only costs depth for no safety gain.
+        hard_limit_ = std::max(1, limits.movetime) / 1000.0;
         return;
     }
 
-    int remaining = (side == WHITE) ? limits.wtime : limits.btime;
-    int inc       = (side == WHITE) ? limits.winc  : limits.binc;
+    // Phase 6 Step 6.1: Stockfish-style increment-and-ply-aware clock budget,
+    // ported from Rarog's Phase 2.2 rewrite (src/time_manager.rs) so both
+    // engines share the same proven formula and time-safety reserve.
+    const double time     = std::max(0, (side == WHITE) ? limits.wtime : limits.btime);
+    const double inc      = (side == WHITE) ? limits.winc : limits.binc;
+    const double overhead = limits.overhead;
 
-    remaining = std::max(0, remaining - limits.overhead);
+    if (time <= 0.0 && inc <= 0.0) return;
 
-    if (remaining <= 0 && inc <= 0) return;
+    const bool   explicit_mtg = limits.movestogo > 0;
+    const double mtg = explicit_mtg ? std::min(limits.movestogo, 50) : 50.0;
 
-    // Soft limit: target time per move
-    int base;
-    if (limits.movestogo > 0)
-        base = remaining / (limits.movestogo + 3);
-    else
-        base = remaining / 25;  // assume ~25 moves left
+    // SF: timeLeft = max(1, time + inc*(mtg-1) - overhead*(2+mtg))
+    const double time_left = std::max(1.0,
+        time + inc * (mtg - 1.0) - overhead * (2.0 + mtg));
 
-    int soft_ms = base + (inc * 3) / 4;
+    const double ply = static_cast<double>(std::max(0, game_ply));
 
-    // Hard limit: maximum we ever spend
-    int hard_ms = (remaining < 1000) ? remaining * 20 / 100
-                : (remaining < 5000) ? remaining * 30 / 100
-                                     : remaining * 50 / 100;
-    hard_ms = std::max(soft_ms, hard_ms);  // hard >= soft always
-    hard_ms = std::min(hard_ms, std::max(1, remaining * 80 / 100));
-    soft_ms = std::min(soft_ms, hard_ms);
+    double opt_scale, max_scale;
+    if (explicit_mtg) {
+        // Explicit movestogo branch (SF timeman.cpp)
+        opt_scale = std::min((0.88 + ply / 116.4) / mtg, 0.88 * time / time_left);
+        max_scale = 1.3 + 0.11 * mtg;
+    } else {
+        // Sudden death / increment branch (SF timeman.cpp)
+        const double log_t     = std::log10(std::max(time_left / 1000.0, 1e-9));
+        const double opt_const = std::min(0.0029869 + 0.00033554 * log_t, 0.004905);
+        const double max_const = std::max(3.3744 + 3.0608 * log_t, 3.1441);
+        opt_scale = std::min(0.012112 + std::pow(std::max(ply + 3.22713, 0.0), 0.46866) * opt_const,
+                             0.19404 * time / time_left);
+        max_scale = std::min(6.873, max_const + ply / 12.352);
+    }
 
-    soft_limit_ = std::max(10, soft_ms) / 1000.0;
-    hard_limit_ = std::max(10, hard_ms) / 1000.0;
+    double optimum_ms = std::max(opt_scale * time_left, 1.0);
+    // SF: maximum = max(optimum, min(0.8097*time - overhead, maxScale*optimum))
+    double maximum_ms = std::max(
+        std::min(0.8097 * time - overhead, max_scale * optimum_ms),
+        optimum_ms);
+
+    // Time-safety reserve (Step 2.9.1, matched here to Rarog's 2.9.1 fix). The
+    // SF maximum above leaves only ~19% of the clock plus one move overhead
+    // unused; at low remaining time that slack is just a few ms. check_stop()
+    // polls every 2048 nodes, but the wall time the GUI actually charges also
+    // includes the latency before our clock starts (command-queue dispatch,
+    // Syzygy root probing, thread-pool setup) and the latency for bestmove to
+    // reach the GUI — none of which `overhead` alone covers. Reserve an
+    // absolute 2x move-overhead margin on top of the raw clock value; this
+    // only binds in a genuine low-time scramble and leaves normal allocation
+    // (the Elo from the SF-style formula above) untouched.
+    const double reserve      = 2.0 * overhead;
+    const double hard_ceiling = std::max(time - reserve, 1.0);
+    maximum_ms = std::min(maximum_ms, hard_ceiling);
+    optimum_ms = std::min(optimum_ms, maximum_ms);
+
+    soft_limit_ = optimum_ms / 1000.0;
+    hard_limit_ = maximum_ms / 1000.0;
 
     // Legacy: keep time_limit_ pointing at hard for check_stop()
     time_limit_ = hard_limit_;
@@ -385,7 +418,10 @@ bool Searcher::check_stop() {
         pondering_ = false;
         SearchLimits normal_limits = active_limits_;
         normal_limits.ponder = false;
-        compute_time_limit(normal_limits, root_side_);
+        const int game_ply = board_ptr_
+            ? 2 * (board_ptr_->fullmove_number - 1) + (board_ptr_->side_to_move == BLACK ? 1 : 0)
+            : 0;
+        compute_time_limit(normal_limits, root_side_, game_ply);
         if (soft_limit_ > 0.0 && elapsed_seconds() >= soft_limit_) {
             stopped_ = true;
             return true;
@@ -1560,7 +1596,8 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
              static_cast<float>(active_limits_.params.lmr_divisor) / 100.0f);
 
     start_time_ = std::chrono::steady_clock::now();
-    compute_time_limit(limits, board.side_to_move);
+    const int game_ply = 2 * (board.fullmove_number - 1) + (board.side_to_move == BLACK ? 1 : 0);
+    compute_time_limit(limits, board.side_to_move, game_ply);
 
     if (limits.update_tt_age)
         tt_.new_search();

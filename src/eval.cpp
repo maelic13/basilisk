@@ -1,166 +1,103 @@
 #include "eval.h"
 #include <algorithm>
 #include <cstring>
+#ifdef BASILISK_TUNE
+#include <cstdlib>
+#include <fstream>
+#include <iostream>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <unordered_map>
+#endif
 
-// ---- Material values -------------------------------------------------------
-static constexpr int MG_VAL[PIECE_TYPE_NB] = {0, 82, 337, 365, 477, 1025, 0};
-static constexpr int EG_VAL[PIECE_TYPE_NB] = {0, 94, 281, 297, 512,  936, 0};
+// ---- Texel trace thread-local storage and macros --------------------------
+#ifdef TEXEL_TRACE
+thread_local EvalTrace g_trace{};
 
-// Phase weights: Q=4, R=2, B=1, N=1; total=24
+// Precomputed flat base offsets for PST groups indexed by PieceType [0..6].
+// PieceType 0 = no piece; valid piece types 1=PAWN .. 6=KING.
+static constexpr int PST_MG_BASE[7] = {
+    -1,
+    eval_param_offset(EPG_PstMgPawn),
+    eval_param_offset(EPG_PstMgKnight),
+    eval_param_offset(EPG_PstMgBishop),
+    eval_param_offset(EPG_PstMgRook),
+    eval_param_offset(EPG_PstMgQueen),
+    eval_param_offset(EPG_PstMgKing),
+};
+static constexpr int PST_EG_BASE[7] = {
+    -1,
+    eval_param_offset(EPG_PstEgPawn),
+    eval_param_offset(EPG_PstEgKnight),
+    eval_param_offset(EPG_PstEgBishop),
+    eval_param_offset(EPG_PstEgRook),
+    eval_param_offset(EPG_PstEgQueen),
+    eval_param_offset(EPG_PstEgKing),
+};
+
+// TR macros: record signed count contribution to mg or eg array.
+// Caller must zero g_trace before calling evaluate().
+#define TR_MG(group, idx, val) \
+    (g_trace.mg[eval_param_offset(EPG_##group) + (idx)] += static_cast<int16_t>(val))
+#define TR_EG(group, idx, val) \
+    (g_trace.eg[eval_param_offset(EPG_##group) + (idx)] += static_cast<int16_t>(val))
+#define TR_BOTH(group, idx, val) \
+    do { TR_MG(group, idx, val); TR_EG(group, idx, val); } while(0)
+#define TR_PST_MG(pt, sq, val) \
+    (g_trace.mg[PST_MG_BASE[pt] + (sq)] += static_cast<int16_t>(val))
+#define TR_PST_EG(pt, sq, val) \
+    (g_trace.eg[PST_EG_BASE[pt] + (sq)] += static_cast<int16_t>(val))
+
+// Reconstruction: linear tapered score from trace counts and weights.
+int reconstruct(const EvalTrace& tr, const EvalParams& w) {
+    int mg_dot = 0, eg_dot = 0;
+#define X(name, member, len) \
+    { const int* wptr = eval_param_cptr(w.member); \
+      int base = eval_param_offset(EPG_##name); \
+      for (int i = 0; i < (len); i++) { \
+          mg_dot += tr.mg[base + i] * wptr[i]; \
+          eg_dot += tr.eg[base + i] * wptr[i]; \
+      } }
+    EVAL_PARAM_LIST(X)
+#undef X
+    return (mg_dot * tr.phase + eg_dot * (24 - tr.phase)) / 24;
+}
+
+#else // !TEXEL_TRACE
+#define TR_MG(group, idx, val)   (void)0
+#define TR_EG(group, idx, val)   (void)0
+#define TR_BOTH(group, idx, val) (void)0
+#define TR_PST_MG(pt, sq, val)   (void)0
+#define TR_PST_EG(pt, sq, val)   (void)0
+#endif // TEXEL_TRACE
+
+// Global evaluation parameters (defaults in EvalParams.h).
+// Call init_eval_tables(g_eval_params) again after changing these.
+EvalParams g_eval_params;
+
+// Phase weights (frozen; not in EvalParams)
 static constexpr int PHASE_W[PIECE_TYPE_NB] = {0, 0, 1, 1, 2, 4, 0};
 static constexpr int TOTAL_PHASE = 24;
 
-// ---- PeSTO PST tables (public domain, from PeSTO / Rofchade) ---------------
-// Index: square a1=0 .. h8=63 (rank 1 = indices 0-7, rank 8 = indices 56-63)
-
-static constexpr int MG_PAWN_PST[64] = {
-     0,  0,  0,  0,  0,  0,  0,  0,
-   -35, -1,-20,-23,-15, 24, 38,-22,
-   -26, -4, -4,-10,  3,  3, 33,-12,
-   -27, -2, -5, 12, 17,  6, 10,-25,
-   -14, 13,  6, 21, 23, 12, 17,-23,
-    -6,  7, 26, 31, 65, 56, 25,-20,
-    98,134, 61, 95, 68,126, 34,-11,
-     0,  0,  0,  0,  0,  0,  0,  0
-};
-static constexpr int EG_PAWN_PST[64] = {
-     0,  0,  0,  0,  0,  0,  0,  0,
-   -10, -6, 10,  0, 14,  7, -5,-19,
-    -8, -4,  7, 22, 17, 16,  3,-14,
-    13,  0,-13,  1, -1,-16,  3, -6,
-    32, 24, 13,  5, -2,  4, 17, 17,
-    56, 35, 41, 22, 26, 51, 56, 20,
-   134,108,109,107,105,104,112,108,
-     0,  0,  0,  0,  0,  0,  0,  0
-};
-static constexpr int MG_KNIGHT_PST[64] = {
-  -167,-89,-34,-49, 61,-97,-15,-107,
-   -73,-41, 72, 36, 23, 62,  7, -17,
-   -47, 60, 37, 65, 84,129, 73,  44,
-    -9, 17, 19, 53, 37, 69, 18,  22,
-   -13,  4, 16, 13, 28, 19, 21,  -8,
-   -23, -9, 12, 10, 19, 17, 25, -16,
-   -29,-53,-12, -3, -1, 18,-14, -19,
-  -105,-21,-58,-33,-17,-28,-19, -23
-};
-static constexpr int EG_KNIGHT_PST[64] = {
-   -58,-38,-13,-28,-31,-27,-63,-99,
-   -25, -8,-25, -2, -9,-25,-24,-52,
-   -24,-20, 10,  9, -1, -9,-19,-41,
-   -17,  3, 22, 22, 22, 11,  8,-18,
-   -18, -6, 16, 25, 16, 17,  4,-18,
-   -23, -3, -1, 15, 10, -3,-20,-22,
-   -42,-20,-10, -5, -2,-20,-23,-44,
-   -29,-51,-23,-15,-22,-18,-50,-64
-};
-static constexpr int MG_BISHOP_PST[64] = {
-   -29,  4,-82,-37,-25,-42,  7, -8,
-   -26, 16,-18,-13, 30, 59, 18,-47,
-   -16, 37, 43, 40, 35, 50, 37, -2,
-    -4,  5, 19, 50, 37, 37,  7, -2,
-    -6, 13, 13, 26, 34, 12, 10,  4,
-     0, 15, 15, 15, 14, 27, 18, 10,
-     4, 15, 16,  0,  7, 21, 33,  1,
-   -33, -3,-14,-21,-13,-12,-39,-21
-};
-static constexpr int EG_BISHOP_PST[64] = {
-   -14,-21,-11, -8, -7, -9,-17,-24,
-    -8, -4,  7,-12, -3,-13, -4,-14,
-     2, -8,  0, -1, -2,  6,  0,  4,
-    -3,  9, 12,  9, 14, 10,  3,  2,
-    -6,  3, 13, 19,  7, 10, -3, -9,
-   -12, -3,  8, 10, 13,  3, -7,-15,
-   -14,-18, -7, -1,  4, -9,-15,-27,
-   -23, -9,-23, -5, -9,-16, -5,-17
-};
-static constexpr int MG_ROOK_PST[64] = {
-   -19,-13,  1, 17, 16,  7,-37,-26,
-   -44,-16,-20, -9, -1, 11, -6,-71,
-   -45,-25,-16,-17,  3,  0, -5,-33,
-   -36,-26,-12, -1,  9, -7,  6,-23,
-   -24,-11,  7, 26, 24, 35, -8,-20,
-    -5, 19, 26, 36, 17, 45, 61, 16,
-    27, 32, 58, 62, 80, 67, 26, 44,
-    32, 42, 32, 51, 63,  9, 31, 43
-};
-static constexpr int EG_ROOK_PST[64] = {
-    -9,  2,  3, -1, -5,-13,  4,-20,
-    -6, -6,  0,  2, -9, -9,-11, -3,
-    -4,  0, -5, -1, -7,-12, -8,-16,
-     3,  5,  8,  4, -5, -6, -8,-11,
-     4,  3, 13,  1,  2,  1, -1,  2,
-     7,  7,  7,  5,  4, -3, -5, -3,
-    11, 13, 13, 11, -3,  3,  8,  3,
-    13, 10, 18, 15, 12, 12,  8,  5
-};
-static constexpr int MG_QUEEN_PST[64] = {
-   -28,  0, 29, 12, 59, 44, 43, 45,
-   -24,-39, -5,  1,-16, 57, 28, 54,
-   -13,-17,  7,  8, 29, 56, 47, 57,
-   -27,-27,-16,-16, -1, 17, -2,  1,
-    -9,-26, -9,-10, -2, -4,  3, -3,
-   -14,  2,-11, -2, -5,  2, 14,  5,
-   -35, -8, 11,  2,  8, 15, -3,  1,
-    -1,-18, -9, 10,-15,-25,-31,-50
-};
-static constexpr int EG_QUEEN_PST[64] = {
-    -9, 22, 22, 27, 27, 19, 10, 20,
-   -17, 20, 32, 41, 58, 25, 30,  0,
-   -20,  6,  9, 49, 47, 35, 19,  9,
-     3, 22, 24, 45, 57, 40, 57, 36,
-   -18, 28, 19, 47, 31, 34, 39, 23,
-   -16,-27, 15,  6,  9, 17, 10,  5,
-   -22,-23,-30,-16,-16,-23,-36,-32,
-   -33,-28,-22,-43, -5,-32,-20,-41
-};
-static constexpr int MG_KING_PST[64] = {
-   -15, 36, 12,-54,  8,-28, 24, 14,
-     1,  7, -8,-64,-43,-16,  9,  8,
-   -14,-14,-22,-46,-44,-30,-15,-27,
-   -49, -1,-27,-39,-46,-44,-33,-51,
-   -17,-20,-12,-27,-30,-25,-14,-36,
-    -9, 24,  2,-16,-20,  6, 22,-22,
-    29, -1,-20, -7, -8, -4,-38,-29,
-   -65, 23, 16,-15,-56,-34,  2, 13
-};
-static constexpr int EG_KING_PST[64] = {
-   -74,-35,-18,-18,-11, 15,  4,-17,
-   -12, 17, 14, 17, 17, 38, 23, 11,
-    10, 17, 23, 15, 20, 45, 44, 13,
-    -8, 22, 24, 27, 26, 33, 26,  3,
-   -18, -4, 21, 24, 27, 23,  9,-11,
-   -19, -3, 11, 21, 23, 16,  7, -9,
-   -27,-11,  4, 13, 14,  4, -5,-17,
-   -53,-34,-21,-11,-28,-14,-24,-43
-};
-
-// Combined tables: MG/EG value for [color][piece_type][square]
+// Runtime tables baked from g_eval_params in init_eval_tables().
 static int MG_TABLE[NCOLORS][PIECE_TYPE_NB][SQUARE_NB];
 static int EG_TABLE[NCOLORS][PIECE_TYPE_NB][SQUARE_NB];
-
-static const int* MG_PST[PIECE_TYPE_NB] = {
-    nullptr, MG_PAWN_PST, MG_KNIGHT_PST, MG_BISHOP_PST,
-    MG_ROOK_PST, MG_QUEEN_PST, MG_KING_PST
-};
-static const int* EG_PST[PIECE_TYPE_NB] = {
-    nullptr, EG_PAWN_PST, EG_KNIGHT_PST, EG_BISHOP_PST,
-    EG_ROOK_PST, EG_QUEEN_PST, EG_KING_PST
-};
 
 static Square forward_square(Color c, Square sq) {
     const int to = int(sq) + (c == WHITE ? 8 : -8);
     return (to >= 0 && to < 64) ? Square(to) : SQ_NONE;
 }
 
-void init_eval_tables() {
+void init_eval_tables(const EvalParams& p) {
     for (int pt = PAWN; pt <= KING; pt++) {
         for (int sq = 0; sq < 64; sq++) {
-            MG_TABLE[WHITE][pt][sq] = MG_VAL[pt] + MG_PST[pt][sq];
-            EG_TABLE[WHITE][pt][sq] = EG_VAL[pt] + EG_PST[pt][sq];
+            MG_TABLE[WHITE][pt][sq] = p.mg_val[pt] + p.pst_mg[pt - 1][sq];
+            EG_TABLE[WHITE][pt][sq] = p.eg_val[pt] + p.pst_eg[pt - 1][sq];
             // Black: mirror rank
             int msq = sq ^ 56;
-            MG_TABLE[BLACK][pt][sq] = MG_VAL[pt] + MG_PST[pt][msq];
-            EG_TABLE[BLACK][pt][sq] = EG_VAL[pt] + EG_PST[pt][msq];
+            MG_TABLE[BLACK][pt][sq] = p.mg_val[pt] + p.pst_mg[pt - 1][msq];
+            EG_TABLE[BLACK][pt][sq] = p.eg_val[pt] + p.pst_eg[pt - 1][msq];
         }
     }
 }
@@ -179,6 +116,8 @@ void Evaluator::eval_pawns(const Board& b,
                            int& mg_out, int& eg_out,
                            Bitboard passed[NCOLORS],
                            Bitboard attacks[NCOLORS]) {
+#ifndef TEXEL_TRACE
+    // Cache lookup: skip recomputation if pawn structure matches.
     Key pkey = b.pawn_key;
     PawnEntry& pe = pawn_table_[pkey & (PAWN_TABLE_SIZE - 1)];
 
@@ -191,7 +130,9 @@ void Evaluator::eval_pawns(const Board& b,
         attacks[BLACK] = pe.attacks[BLACK];
         return;
     }
+#endif
 
+    const EvalParams& p = g_eval_params;
     int mg = 0, eg = 0;
 
     for (int c = 0; c < NCOLORS; c++) {
@@ -211,10 +152,6 @@ void Evaluator::eval_pawns(const Board& b,
         }
         attacks[c] = pawn_atk;
 
-        // Passed pawn bonus per rank: {0,5,10,20,35,60,100,0} mg; {0,10,17,35,62,100,170,0} eg
-        static constexpr int PASSED_MG[8] = {0, 5, 10, 20, 35, 60,100, 0};
-        static constexpr int PASSED_EG[8] = {0,10, 17, 35, 62,100,170, 0};
-
         passed[c] = 0;
         tmp = our_pawns;
         while (tmp) {
@@ -226,11 +163,13 @@ void Evaluator::eval_pawns(const Board& b,
             if (!(BB_PASSED_PAWN_MASK[us][sq] & their_pawns)) {
                 passed[c] |= sq_bb(Square(sq));
                 int rel_r = (us == WHITE) ? r : 7 - r;
-                mg += sign * PASSED_MG[rel_r];
-                eg += sign * PASSED_EG[rel_r];
+                mg += sign * p.passed_mg[rel_r]; TR_MG(PassedMg, rel_r, sign);
+                eg += sign * p.passed_eg[rel_r]; TR_EG(PassedEg, rel_r, sign);
                 if (PawnAttacks[them][sq] & our_pawns) {
-                    mg += sign * 8;
-                    eg += sign * (6 + rel_r * 4);
+                    mg += sign * p.pass_supp_mg;          TR_MG(PassSuppMg,     0, sign);
+                    eg += sign * (p.pass_supp_eg_base + rel_r * p.pass_supp_eg_rank);
+                    TR_EG(PassSuppEgBase, 0, sign);
+                    TR_EG(PassSuppEgRank, 0, sign * rel_r);
                 }
             } else {
                 const int rel_r = (us == WHITE) ? r : 7 - r;
@@ -238,54 +177,54 @@ void Evaluator::eval_pawns(const Board& b,
                 if (rel_r >= 3
                     && (PawnAttacks[them][sq] & our_pawns)
                     && !(their_pawns & adj_bb & BB_FORWARD_RANKS[us][r])) {
-                    mg += sign * 6;
-                    eg += sign * 10;
+                    mg += sign * p.cand_mg; TR_MG(CandMg, 0, sign);
+                    eg += sign * p.cand_eg; TR_EG(CandEg, 0, sign);
                 }
             }
 
             Bitboard file_bb = BB_FILES[f];
             Bitboard adj_bb  = BB_ADJACENT_FILES[f];
 
-            // Doubled pawns (more than one pawn on same file)
+            // Doubled pawns
             if (more_than_one(our_pawns & file_bb)) {
-                mg += sign * (-10);
-                eg += sign * (-20);
+                mg += sign * p.doubled_mg; TR_MG(DoubledMg, 0, sign);
+                eg += sign * p.doubled_eg; TR_EG(DoubledEg, 0, sign);
             }
 
-            // Isolated pawns (no friendly pawns on adjacent files)
+            // Isolated pawns
             if (!(our_pawns & adj_bb)) {
-                mg += sign * (-15);
-                eg += sign * (-20);
+                mg += sign * p.isolated_mg; TR_MG(IsolatedMg, 0, sign);
+                eg += sign * p.isolated_eg; TR_EG(IsolatedEg, 0, sign);
             }
 
             // Connected pawns (supported by another pawn)
             if (PawnAttacks[them][sq] & our_pawns) {
-                mg += sign * 7;
-                eg += sign * 5;
+                mg += sign * p.connected_mg; TR_MG(ConnectedMg, 0, sign);
+                eg += sign * p.connected_eg; TR_EG(ConnectedEg, 0, sign);
             }
 
-            // Backward pawn: pawn can't advance without being attacked, and not passed
-            // (simplified: pawn is behind its supports on adjacent files)
+            // Backward pawn
             if (!(our_pawns & BB_PASSED_PAWN_MASK[them][sq] & adj_bb)) {
-                // No friendly pawn behind/adjacent — if stop square attacked by enemy pawn
                 int stop_sq = (us == WHITE) ? sq + 8 : sq - 8;
                 if (stop_sq >= 0 && stop_sq < 64) {
                     if (PawnAttacks[us][stop_sq] & their_pawns) {
-                        mg += sign * (-10);
-                        eg += sign * (-15);
+                        mg += sign * p.backward_mg; TR_MG(BackwardMg, 0, sign);
+                        eg += sign * p.backward_eg; TR_EG(BackwardEg, 0, sign);
                     }
                 }
             }
         }
     }
 
-    pe.key       = pkey;
-    pe.mg        = mg;
-    pe.eg        = eg;
+#ifndef TEXEL_TRACE
+    pe.key            = pkey;
+    pe.mg             = mg;
+    pe.eg             = eg;
     pe.passed[WHITE]  = passed[WHITE];
     pe.passed[BLACK]  = passed[BLACK];
     pe.attacks[WHITE] = attacks[WHITE];
     pe.attacks[BLACK] = attacks[BLACK];
+#endif
 
     mg_out = mg;
     eg_out = eg;
@@ -294,6 +233,7 @@ void Evaluator::eval_pawns(const Board& b,
 // ---- Main evaluation -------------------------------------------------------
 
 int Evaluator::evaluate(const Board& b) {
+    const EvalParams& p = g_eval_params;
     int mg = 0, eg = 0;
     int phase = 0;
 
@@ -307,10 +247,22 @@ int Evaluator::evaluate(const Board& b) {
                 int sq = pop_lsb(bb);
                 mg += sign * MG_TABLE[c][pt][sq];
                 eg += sign * EG_TABLE[c][pt][sq];
+                TR_MG(MgVal, pt, sign);
+                TR_EG(EgVal, pt, sign);
+#ifdef TEXEL_TRACE
+                {
+                    int pst_sq = (c == WHITE) ? sq : (sq ^ 56);
+                    TR_PST_MG(pt, pst_sq, sign);
+                    TR_PST_EG(pt, pst_sq, sign);
+                }
+#endif
             }
         }
     }
     phase = std::min(phase, TOTAL_PHASE);
+#ifdef TEXEL_TRACE
+    g_trace.phase = phase;
+#endif
 
     // ---- Pawn structure (cached) ----
     Bitboard passed[NCOLORS] = {};
@@ -320,9 +272,7 @@ int Evaluator::evaluate(const Board& b) {
     mg += pmg;
     eg += peg;
 
-    // ---- Dynamic passed-pawn terms ---------------------------------------
-    // These depend on non-pawn occupancy/attacks, so they stay out of the
-    // pawn hash.
+    // ---- Dynamic passed-pawn terms (non-pawn occupancy; outside pawn hash) --
     for (int c = 0; c < NCOLORS; c++) {
         Color us   = Color(c);
         Color them = ~us;
@@ -335,11 +285,12 @@ int Evaluator::evaluate(const Board& b) {
                 continue;
 
             int rel_r = relative_rank(us, psq);
-            mg += sign * (rel_r * 2);
-            eg += sign * (rel_r * 6);
+            mg += sign * (rel_r * p.pass_free_mg); TR_MG(PassFreeMg, 0, sign * rel_r);
+            eg += sign * (rel_r * p.pass_free_eg); TR_EG(PassFreeEg, 0, sign * rel_r);
 
-            if (!b.is_attacked_by(stop, b.all_occ, them))
-                eg += sign * (rel_r * 8);
+            if (!b.is_attacked_by(stop, b.all_occ, them)) {
+                eg += sign * (rel_r * p.pass_safe_eg); TR_EG(PassSafeEg, 0, sign * rel_r);
+            }
         }
     }
 
@@ -347,8 +298,8 @@ int Evaluator::evaluate(const Board& b) {
     for (int c = 0; c < NCOLORS; c++) {
         int sign = (c == WHITE) ? 1 : -1;
         if (more_than_one(b.pieces[c][BISHOP])) {
-            mg += sign * 30;
-            eg += sign * 50;
+            mg += sign * p.bp_mg; TR_MG(BpMg, 0, sign);
+            eg += sign * p.bp_eg; TR_EG(BpEg, 0, sign);
         }
     }
 
@@ -366,14 +317,17 @@ int Evaluator::evaluate(const Board& b) {
             bool no_their_pawn = !(b.pieces[them][PAWN] & BB_FILES[f]);
 
             if (no_own_pawn && no_their_pawn) {
-                mg += sign * 25; eg += sign * 10; // open file
+                mg += sign * p.rook_open_mg; TR_MG(RookOpenMg, 0, sign);
+                eg += sign * p.rook_open_eg; TR_EG(RookOpenEg, 0, sign);
             } else if (no_own_pawn) {
-                mg += sign * 12; eg += sign *  8; // semi-open
+                mg += sign * p.rook_semi_mg; TR_MG(RookSemiMg, 0, sign);
+                eg += sign * p.rook_semi_eg; TR_EG(RookSemiEg, 0, sign);
             }
 
             // Rook on 7th rank (relative)
             if (relative_rank(us, Square(sq)) == RANK_7) {
-                mg += sign * 20; eg += sign * 40;
+                mg += sign * p.rook_7th_mg; TR_MG(Rook7thMg, 0, sign);
+                eg += sign * p.rook_7th_eg; TR_EG(Rook7thEg, 0, sign);
             }
         }
     }
@@ -386,12 +340,12 @@ int Evaluator::evaluate(const Board& b) {
         Bitboard knights = b.pieces[c][KNIGHT];
         while (knights) {
             int sq = pop_lsb(knights);
-            // Outpost: rank >= 5 (white) / <= 4 (black), supported by pawn, not attacked by enemy pawn
             Rank r = relative_rank(us, Square(sq));
             if (r >= RANK_5) {
-                if (PawnAttacks[them][sq] & b.pieces[us][PAWN]) { // supported by own pawn
-                    if (!(PawnAttacks[us][sq] & b.pieces[them][PAWN])) { // not attacked by enemy pawn
-                        mg += sign * 25; eg += sign * 15;
+                if (PawnAttacks[them][sq] & b.pieces[us][PAWN]) {
+                    if (!(PawnAttacks[us][sq] & b.pieces[them][PAWN])) {
+                        mg += sign * p.knight_outpost_mg; TR_MG(KnightOutpostMg, 0, sign);
+                        eg += sign * p.knight_outpost_eg; TR_EG(KnightOutpostEg, 0, sign);
                     }
                 }
             }
@@ -399,13 +353,10 @@ int Evaluator::evaluate(const Board& b) {
     }
 
     // ---- Mobility (safe squares not attacked by enemy pawns) ----
-    static constexpr int MOB_MG[PIECE_TYPE_NB] = {0, 0, 4, 5, 2, 1, 0};
-    static constexpr int MOB_EG[PIECE_TYPE_NB] = {0, 0, 4, 5, 4, 2, 0};
-
     for (int c = 0; c < NCOLORS; c++) {
         int sign = (c == WHITE) ? 1 : -1;
         Color them = ~Color(c);
-        Bitboard safe = ~pawn_atk[them]; // squares not attacked by enemy pawns
+        Bitboard safe = ~pawn_atk[them];
         for (int pt : {KNIGHT, BISHOP, ROOK, QUEEN}) {
             Bitboard pcs = b.pieces[c][pt];
             while (pcs) {
@@ -418,8 +369,8 @@ int Evaluator::evaluate(const Board& b) {
                     default:     att = queen_attacks(Square(sq), b.all_occ); break;
                 }
                 int mob = popcount(att & safe & ~b.occupancy[c]);
-                mg += sign * mob * MOB_MG[pt];
-                eg += sign * mob * MOB_EG[pt];
+                mg += sign * mob * p.mob_mg[pt]; TR_MG(MobMg, pt, sign * mob);
+                eg += sign * mob * p.mob_eg[pt]; TR_EG(MobEg, pt, sign * mob);
             }
         }
     }
@@ -433,15 +384,27 @@ int Evaluator::evaluate(const Board& b) {
             int sq = pop_lsb(threats);
             PieceType pt = type_of(b.board_sq[sq]);
             switch (pt) {
-                case KNIGHT: case BISHOP: mg += sign * 18; eg += sign * 12; break;
-                case ROOK:               mg += sign * 28; eg += sign * 18; break;
-                case QUEEN:              mg += sign * 45; eg += sign * 30; break;
+                case KNIGHT: case BISHOP:
+                    mg += sign * p.threat_minor_mg; TR_MG(ThreatMinorMg, 0, sign);
+                    eg += sign * p.threat_minor_eg; TR_EG(ThreatMinorEg, 0, sign);
+                    break;
+                case ROOK:
+                    mg += sign * p.threat_rook_mg; TR_MG(ThreatRookMg, 0, sign);
+                    eg += sign * p.threat_rook_eg; TR_EG(ThreatRookEg, 0, sign);
+                    break;
+                case QUEEN:
+                    mg += sign * p.threat_queen_mg; TR_MG(ThreatQueenMg, 0, sign);
+                    eg += sign * p.threat_queen_eg; TR_EG(ThreatQueenEg, 0, sign);
+                    break;
                 default: break;
             }
         }
     }
 
-    // ---- King safety (improved: attack density + coordination bonus) ----
+    // ---- King safety -------------------------------------------------------
+    // safety_table[attack_units] is a one-hot lookup into a tunable array.
+    // ks_unit/ks_coord_bonus/ks_open_file affect only the index (not traced
+    // directly here; they are tunable via finite-difference in the optimizer).
     for (int c = 0; c < NCOLORS; c++) {
         int sign = (c == WHITE) ? 1 : -1;
         Color them = ~Color(c);
@@ -454,7 +417,6 @@ int Evaluator::evaluate(const Board& b) {
         int attack_units = 0;
         int n_attackers  = 0;
         for (int pt : {KNIGHT, BISHOP, ROOK, QUEEN}) {
-            static constexpr int UNIT[PIECE_TYPE_NB] = {0, 0, 2, 2, 3, 5, 0};
             Bitboard pcs = b.pieces[them][pt];
             while (pcs) {
                 int sq = pop_lsb(pcs);
@@ -468,33 +430,24 @@ int Evaluator::evaluate(const Board& b) {
                 Bitboard zone_hits = att & king_zone;
                 if (zone_hits) {
                     n_attackers++;
-                    // Base weight + 1 per extra square attacked in zone
-                    attack_units += UNIT[pt] + popcount(zone_hits) / 2;
+                    attack_units += p.ks_unit[pt] + popcount(zone_hits) / 2;
                 }
             }
         }
-        // Coordinated attack bonus (2+ attackers = much more dangerous)
-        if (n_attackers >= 2) attack_units += 4;
-        // Isolated attacker is less dangerous
+        if (n_attackers >= 2) attack_units += p.ks_coord_bonus;
         if (n_attackers == 0) attack_units = 0;
 
-        // No queen attack: king safety is less severe
         if (!b.pieces[them][QUEEN]) attack_units = attack_units * 2 / 3;
 
-        // Open file directly in front of king: extra danger
         {
             Bitboard king_files = BB_FILES[file_of(ksq)];
             if (!(b.pieces[c][PAWN] & king_files))
-                attack_units += 2;
+                attack_units += p.ks_open_file;
         }
 
         attack_units = std::min(attack_units, 24);
-        static constexpr int SAFETY_TABLE[25] = {
-            0,  0,  5, 15, 25, 40, 55, 70, 85, 100,
-           112, 120, 126, 130, 133, 136, 138, 140, 141, 142,
-           143, 144, 145, 146, 147
-        };
-        mg -= sign * SAFETY_TABLE[attack_units];
+        mg -= sign * p.safety_table[attack_units];
+        TR_MG(SafetyTable, attack_units, -sign);
     }
 
     // ---- King pawn shelter -------------------------------------------------
@@ -505,36 +458,33 @@ int Evaluator::evaluate(const Board& b) {
         File   kf  = file_of(ksq);
         Rank   kr  = rank_of(ksq);
 
-        // Only apply shelter bonus when king is castled or near edge
         if (kf <= FILE_C || kf >= FILE_F) {
-            // Check pawns on the 3 files around king
             for (int df = -1; df <= 1; df++) {
                 int f = kf + df;
                 if (f < FILE_A || f > FILE_H) continue;
                 Bitboard file_pawns = b.pieces[us][PAWN] & BB_FILES[f];
 
-                // Find closest friendly pawn on this file (in front of king)
                 if (us == WHITE) {
                     Bitboard in_front = file_pawns & BB_FORWARD_RANKS[WHITE][kr];
                     if (!in_front) {
-                        // No pawn — open file near king is very bad
-                        mg -= sign * (df == 0 ? 20 : 10);
+                        if (df == 0) { mg -= sign * p.shelter_missing_center; TR_MG(ShelterMissingCenter, 0, -sign); }
+                        else         { mg -= sign * p.shelter_missing_flank;  TR_MG(ShelterMissingFlank,  0, -sign); }
                     } else {
                         Rank pawn_rank = rank_of(Square(lsb(in_front)));
                         int dist = pawn_rank - kr;
-                        // Pawn close to king is good
-                        if (dist == 1) { mg += sign * 15; }
-                        else if (dist == 2) { mg += sign *  7; }
+                        if (dist == 1)      { mg += sign * p.shelter_close1; TR_MG(ShelterClose1, 0, sign); }
+                        else if (dist == 2) { mg += sign * p.shelter_close2; TR_MG(ShelterClose2, 0, sign); }
                     }
                 } else {
                     Bitboard in_front = file_pawns & BB_FORWARD_RANKS[BLACK][kr];
                     if (!in_front) {
-                        mg -= sign * (df == 0 ? 20 : 10);
+                        if (df == 0) { mg -= sign * p.shelter_missing_center; TR_MG(ShelterMissingCenter, 0, -sign); }
+                        else         { mg -= sign * p.shelter_missing_flank;  TR_MG(ShelterMissingFlank,  0, -sign); }
                     } else {
                         Rank pawn_rank = rank_of(Square(msb(in_front)));
                         int dist = kr - pawn_rank;
-                        if (dist == 1) { mg += sign * 15; }
-                        else if (dist == 2) { mg += sign *  7; }
+                        if (dist == 1)      { mg += sign * p.shelter_close1; TR_MG(ShelterClose1, 0, sign); }
+                        else if (dist == 2) { mg += sign * p.shelter_close2; TR_MG(ShelterClose2, 0, sign); }
                     }
                 }
             }
@@ -552,13 +502,16 @@ int Evaluator::evaluate(const Board& b) {
             Square psq = Square(pop_lsb(storm));
             int rel_r = relative_rank(~us, psq);
             if (rel_r >= 3) {
-                int weight = (file_of(psq) == kf) ? 7 : 4;
-                mg -= sign * rel_r * weight;
+                if (file_of(psq) == kf) {
+                    mg -= sign * rel_r * p.storm_weight_kf;  TR_MG(StormWeightKf,  0, -sign * rel_r);
+                } else {
+                    mg -= sign * rel_r * p.storm_weight_adj; TR_MG(StormWeightAdj, 0, -sign * rel_r);
+                }
             }
         }
     }
 
-    // ---- Rook behind passed pawn ----------------------------------------
+    // ---- Rook behind passed pawn -------------------------------------------
     for (int c = 0; c < NCOLORS; c++) {
         int sign = (c == WHITE) ? 1 : -1;
         Color us = Color(c);
@@ -567,21 +520,20 @@ int Evaluator::evaluate(const Board& b) {
         while (rooks) {
             Square rsq = Square(pop_lsb(rooks));
             int f = file_of(rsq);
-            // Check if there's a passed pawn on the same file
             Bitboard file_passers = passed[us] & BB_FILES[f];
             if (file_passers) {
-                // Rook is behind the passed pawn (supporting it from behind)
                 if (us == WHITE) {
                     if (rank_of(rsq) < rank_of(Square(lsb(file_passers)))) {
-                        mg += sign * 15; eg += sign * 25;
+                        mg += sign * p.rook_behind_passer_mg; TR_MG(RookBehindPasserMg, 0, sign);
+                        eg += sign * p.rook_behind_passer_eg; TR_EG(RookBehindPasserEg, 0, sign);
                     }
                 } else {
                     if (rank_of(rsq) > rank_of(Square(msb(file_passers)))) {
-                        mg += sign * 15; eg += sign * 25;
+                        mg += sign * p.rook_behind_passer_mg; TR_MG(RookBehindPasserMg, 0, sign);
+                        eg += sign * p.rook_behind_passer_eg; TR_EG(RookBehindPasserEg, 0, sign);
                     }
                 }
             }
-            // Enemy rook behind our passed pawn is bad
             Bitboard enemy_rooks = b.pieces[them][ROOK];
             Bitboard enemy_same_file = enemy_rooks & BB_FILES[f];
             while (enemy_same_file) {
@@ -589,11 +541,13 @@ int Evaluator::evaluate(const Board& b) {
                 if (file_passers) {
                     if (us == WHITE) {
                         if (rank_of(er) < rank_of(Square(lsb(file_passers)))) {
-                            mg -= sign * 10; eg -= sign * 20;
+                            mg -= sign * p.enemy_rook_passer_mg; TR_MG(EnemyRookPasserMg, 0, -sign);
+                            eg -= sign * p.enemy_rook_passer_eg; TR_EG(EnemyRookPasserEg, 0, -sign);
                         }
                     } else {
                         if (rank_of(er) > rank_of(Square(msb(file_passers)))) {
-                            mg -= sign * 10; eg -= sign * 20;
+                            mg -= sign * p.enemy_rook_passer_mg; TR_MG(EnemyRookPasserMg, 0, -sign);
+                            eg -= sign * p.enemy_rook_passer_eg; TR_EG(EnemyRookPasserEg, 0, -sign);
                         }
                     }
                 }
@@ -601,28 +555,23 @@ int Evaluator::evaluate(const Board& b) {
         }
     }
 
-    // ---- Hanging pieces (attacked and not defended) ----------------------
+    // ---- Hanging pieces (attacked and not defended) ------------------------
     for (int c = 0; c < NCOLORS; c++) {
         int sign = (c == WHITE) ? 1 : -1;
         Color us   = Color(c);
         Color them = ~us;
-        // Non-pawn pieces
         Bitboard pieces_bb = b.occupancy[us] & ~b.pieces[us][PAWN] & ~b.pieces[us][KING];
         while (pieces_bb) {
             Square sq = Square(pop_lsb(pieces_bb));
-            // Is it attacked by enemy?
             if (!b.is_attacked_by(sq, b.all_occ, them)) continue;
-            // Is it defended by us?
             if ( b.is_attacked_by(sq, b.all_occ, us))   continue;
-            // Hanging piece
             PieceType pt = type_of(b.board_sq[sq]);
-            static constexpr int HANG_PEN[PIECE_TYPE_NB] = {0, 0, 45, 45, 60, 80, 0};
-            mg -= sign * HANG_PEN[pt];
-            eg -= sign * HANG_PEN[pt];
+            mg -= sign * p.hang_pen[pt]; TR_BOTH(HangPen, pt, -sign);
+            eg -= sign * p.hang_pen[pt];
         }
     }
 
-    // ---- Passed pawn king proximity (endgame) ----------------------------
+    // ---- Passed pawn king proximity (endgame) ------------------------------
     for (int c = 0; c < NCOLORS; c++) {
         Color us = Color(c);
         Color them = ~us;
@@ -631,16 +580,16 @@ int Evaluator::evaluate(const Board& b) {
         while (pp) {
             Square psq = Square(pop_lsb(pp));
             int rel_r = (us == WHITE) ? rank_of(psq) : (RANK_8 - rank_of(psq));
-            // Reward own king close to passed pawn; penalize enemy king being close
             int own_dist = KING_DIST[b.king_sq[us]][psq];
             int opp_dist = KING_DIST[b.king_sq[them]][psq];
-            eg += sign * (opp_dist - own_dist) * (2 + rel_r);
+            eg += sign * (opp_dist - own_dist) * (p.prox_base + rel_r);
+            TR_EG(ProxBase, 0, sign * (opp_dist - own_dist));
+            // rel_r * (opp_dist-own_dist) is a frozen data contribution captured in rest
         }
     }
 
-    // ---- Space evaluation (center control in middlegame) ----------------
+    // ---- Space evaluation (center control in middlegame) -------------------
     {
-        // Center files C-F, ranks 2-4 for white, 5-7 for black
         const Bitboard center_files =
             BB_FILES[FILE_C] | BB_FILES[FILE_D] | BB_FILES[FILE_E] | BB_FILES[FILE_F];
         const Bitboard white_space_ranks =
@@ -648,16 +597,15 @@ int Evaluator::evaluate(const Board& b) {
         const Bitboard black_space_ranks =
             BB_RANKS[RANK_5] | BB_RANKS[RANK_6] | BB_RANKS[RANK_7];
 
-        // Space = center squares not occupied by own pawns and not attacked by enemy pawns
         Bitboard wspace = (center_files & white_space_ranks) & ~b.pieces[WHITE][PAWN] & ~pawn_atk[BLACK];
         Bitboard bspace = (center_files & black_space_ranks) & ~b.pieces[BLACK][PAWN] & ~pawn_atk[WHITE];
-        mg += (popcount(wspace) - popcount(bspace)) * 2;
+        int space_count = popcount(wspace) - popcount(bspace);
+        mg += space_count * p.space_mg;
+        TR_MG(SpaceMg, 0, space_count);
     }
 
-    // ---- Trapped bishop detection ----------------------------------------
-    // Only penalize bishops that are completely blocked (0 available moves)
-    // and not in the opening phase. Avoids penalizing bishops blocked by own pawns.
-    if (phase < TOTAL_PHASE / 2) {  // Only in middlegame/endgame
+    // ---- Trapped bishop detection ------------------------------------------
+    if (phase < TOTAL_PHASE / 2) {
         for (int c = 0; c < NCOLORS; c++) {
             int sign = (c == WHITE) ? 1 : -1;
             Bitboard bbs = b.pieces[c][BISHOP];
@@ -665,13 +613,14 @@ int Evaluator::evaluate(const Board& b) {
                 Square bsq = Square(pop_lsb(bbs));
                 Bitboard moves = bishop_attacks(bsq, b.all_occ) & ~b.occupancy[c];
                 if (moves == 0) {
-                    // Completely trapped bishop
-                    mg -= sign * 60;
-                    eg -= sign * 40;
+                    mg -= sign * p.trapped_mg; TR_MG(TrappedMg, 0, -sign);
+                    eg -= sign * p.trapped_eg; TR_EG(TrappedEg, 0, -sign);
                 }
             }
         }
     }
+
+    // ---- Endgame mate-drive (frozen) ---------------------------------------
     if (phase <= 6) {
         int score_approx = (mg * phase + eg * (TOTAL_PHASE - phase)) / TOTAL_PHASE;
         if (std::abs(score_approx) > 200) {
@@ -680,24 +629,25 @@ int Evaluator::evaluate(const Board& b) {
             int sign = (winning == WHITE) ? 1 : -1;
             Square wksq = b.king_sq[winning];
             Square lksq = b.king_sq[losing];
-            // Push losing king to corner (distance from center)
             int lk_center = std::max(3 - file_of(lksq), file_of(lksq) - 4)
                           + std::max(3 - rank_of(lksq), rank_of(lksq) - 4);
-            // Bring kings close
             int king_dist = KING_DIST[wksq][lksq];
             eg += sign * (5 * lk_center + (14 - king_dist) * 4);
+            // Frozen: not traced; captured in rest by the tuner.
         }
     }
 
-    // ---- Tempo bonus ----
-    int tempo = (b.side_to_move == WHITE) ? 10 : -10;
-    mg += tempo;
+    // ---- Tempo bonus -------------------------------------------------------
+    {
+        int tempo_sign = (b.side_to_move == WHITE) ? 1 : -1;
+        mg += tempo_sign * p.tempo;
+        TR_MG(Tempo, 0, tempo_sign);
+    }
 
-    // ---- Taper and return ----
+    // ---- Taper and return --------------------------------------------------
     int score = (mg * phase + eg * (TOTAL_PHASE - phase)) / TOTAL_PHASE;
 
-    // ---- Draw scaling ----------------------------------------------------
-    // Opposite-color bishops: fewer pawns → more drawish
+    // ---- Draw scaling (frozen) ---------------------------------------------
     {
         constexpr Bitboard DARK_SQ = 0x55AA55AA55AA55AAULL;
         bool wb1 = !more_than_one(b.pieces[WHITE][BISHOP]) && b.pieces[WHITE][BISHOP];
@@ -707,13 +657,11 @@ int Evaluator::evaluate(const Board& b) {
             bool bb_dark = (b.pieces[BLACK][BISHOP] & DARK_SQ) != 0;
             if (wb_dark != bb_dark) {
                 int total_pawns = popcount(b.pieces[WHITE][PAWN] | b.pieces[BLACK][PAWN]);
-                // Scale: 4+ pawns → no change; 0 pawns → 50% draw scaling
-                int scale = 32 + total_pawns * 4;  // 32..48 out of 48
+                int scale = 32 + total_pawns * 4;
                 score = score * scale / 48;
             }
         }
     }
-    // Two knights vs bare king is a theoretical draw
     {
         auto only_king = [&](Color c) {
             return b.occupancy[c] == sq_bb(b.king_sq[c]);
@@ -730,6 +678,70 @@ int Evaluator::evaluate(const Board& b) {
     if (b.halfmove_clock > 0)
         score = score * std::max(0, 100 - b.halfmove_clock) / 100;
 
-    // Return from side-to-move perspective
     return (b.side_to_move == WHITE) ? score : -score;
 }
+
+// ---- Tune-only: eval file loader and dumper --------------------------------
+#ifdef BASILISK_TUNE
+
+// Write current g_eval_params to stdout in "name index value" format.
+// This defines the canonical round-trip format consumed by load_eval_params.
+void run_dumpeval() {
+    const EvalParams& p = g_eval_params;
+#define X(name, member, len) \
+    { const int* ptr = eval_param_cptr(p.member); \
+      for (int i = 0; i < (len); i++) \
+          std::cout << #name << " " << i << " " << ptr[i] << "\n"; }
+    EVAL_PARAM_LIST(X)
+#undef X
+    std::cout.flush();
+}
+
+// Load "name index value" lines from filename into p, then rebuild eval tables.
+// Unknown names are a hard error; indices out of range are a hard error.
+static void load_eval_params(const char* filename, EvalParams& p) {
+    std::unordered_map<std::string, std::pair<int*, int>> table;
+#define X(name, member, len) \
+    table[#name] = {eval_param_ptr(p.member), (len)};
+    EVAL_PARAM_LIST(X)
+#undef X
+
+    std::ifstream f(filename);
+    if (!f)
+        throw std::runtime_error(std::string("Cannot open eval file: ") + filename);
+
+    std::string line;
+    int lineno = 0;
+    while (std::getline(f, line)) {
+        ++lineno;
+        if (line.empty() || line[0] == '#') continue;
+        std::istringstream ss(line);
+        std::string name;
+        int idx, val;
+        if (!(ss >> name >> idx >> val))
+            throw std::runtime_error("Bad format at line " + std::to_string(lineno)
+                                     + ": '" + line + "'");
+        auto it = table.find(name);
+        if (it == table.end())
+            throw std::runtime_error("Unknown eval param '" + name
+                                     + "' at line " + std::to_string(lineno));
+        auto [ptr, len] = it->second;
+        if (idx < 0 || idx >= len)
+            throw std::runtime_error("Index " + std::to_string(idx)
+                                     + " out of range for '" + name
+                                     + "' (length " + std::to_string(len)
+                                     + ") at line " + std::to_string(lineno));
+        ptr[idx] = val;
+    }
+}
+
+// Called at engine startup. If BASILISK_EVAL_FILE is set, loads it and
+// rebuilds the MG/EG tables. Pawn caches are always fresh at startup.
+void load_eval_file_if_set() {
+    const char* path = std::getenv("BASILISK_EVAL_FILE");
+    if (!path || path[0] == '\0') return;
+    load_eval_params(path, g_eval_params);
+    init_eval_tables(g_eval_params);
+}
+
+#endif // BASILISK_TUNE

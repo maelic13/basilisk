@@ -6,8 +6,6 @@
 
 A UCI chess engine written in C++23.
 
----
-
 ## Features
 
 ### Search
@@ -282,4 +280,5 @@ MIT-licensed Fathom library under [external/fathom/LICENSE](external/fathom/LICE
 
 ## Acknowledgements
 
-Thanks to Stockfish and its development team for the inspiration their open-source engine and engineering work have provided to the chess-engine community.
+Thanks to the open-source chess-engine community for the technical inspiration
+and engineering examples that make projects like this possible.

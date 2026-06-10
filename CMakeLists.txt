@@ -56,7 +56,7 @@ endif()
 
 set(COMP "${_basilisk_compiler}" CACHE STRING "Compiler selection: auto, clang, gcc, or llvm" FORCE)
 
-project(basilisk VERSION 1.5.0 LANGUAGES CXX)
+project(basilisk VERSION 1.6.0 LANGUAGES CXX)
 
 _basilisk_detect_darwin_processor(_basilisk_system_processor "${CMAKE_SYSTEM_NAME}" "${CMAKE_SYSTEM_PROCESSOR}")
 if(APPLE AND NOT _basilisk_system_processor MATCHES "^(arm64|aarch64)$")
@@ -251,6 +251,7 @@ add_test(NAME test_uci_protocol COMMAND test_uci_protocol)
 # ---------------------------------------------------------------------------
 option(PORTABLE_BUILD "Build without host-specific CPU flags for distributable binaries" OFF)
 option(TUNE "Expose search constants as UCI spin options for SPSA tuning (sets BASILISK_TUNE)" OFF)
+option(TEXEL "Build Texel trace+tuner target basilisk-texel (sets TEXEL_TRACE; implies BASILISK_TUNE)" OFF)
 set(BASILISK_PGO "OFF" CACHE STRING "Profile-guided optimization phase: OFF, GENERATE, or USE")
 set_property(CACHE BASILISK_PGO PROPERTY STRINGS OFF GENERATE USE)
 set(BASILISK_PGO_PROFILE_FILE "" CACHE FILEPATH "LLVM/Clang .profdata file for BASILISK_PGO=USE")
@@ -258,6 +259,44 @@ set(BASILISK_PGO_PROFILE_DIR "${CMAKE_BINARY_DIR}/pgo" CACHE PATH "GCC profile d
 string(TOUPPER "${BASILISK_PGO}" _basilisk_pgo)
 if(NOT _basilisk_pgo MATCHES "^(OFF|GENERATE|USE)$")
     message(FATAL_ERROR "BASILISK_PGO must be OFF, GENERATE, or USE")
+endif()
+
+# ---------------------------------------------------------------------------
+# Texel trace-based eval tuner (separate target; never in _ALL_TARGETS)
+# TEXEL_TRACE is defined only here — eval.cpp is recompiled with a fresh TU.
+# ---------------------------------------------------------------------------
+if(TEXEL)
+    add_executable(basilisk-texel
+        tools/texel/tuner.cpp
+        src/eval.cpp
+    )
+    target_link_libraries(basilisk-texel PRIVATE basilisk_board)
+    target_compile_definitions(basilisk-texel PRIVATE TEXEL_TRACE BASILISK_TUNE)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        target_compile_options(basilisk-texel PRIVATE
+            -Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wno-unused-parameter
+            $<$<CONFIG:Release>:-O3>
+            $<$<AND:$<CONFIG:Release>,$<NOT:$<BOOL:${PORTABLE_BUILD}>>>:-march=native>
+            $<$<CONFIG:Release>:-ffast-math>
+            $<$<CONFIG:Debug>:-O0 -g3>
+        )
+    elseif(MSVC)
+        target_compile_options(basilisk-texel PRIVATE
+            /W4 /WX- /utf-8
+            $<$<CONFIG:Release>:/O2 /GL>
+            $<$<CONFIG:Debug>:/Od /Zi>
+        )
+        target_link_options(basilisk-texel PRIVATE $<$<CONFIG:Release>:/LTCG>)
+    endif()
+    if(USE_PEXT)
+        target_compile_definitions(basilisk-texel PRIVATE USE_PEXT)
+        if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+            target_compile_options(basilisk-texel PRIVATE -mbmi2)
+        elseif(MSVC)
+            target_compile_options(basilisk-texel PRIVATE /arch:AVX2)
+        endif()
+    endif()
+    message(STATUS "TEXEL build: basilisk-texel enabled (TEXEL_TRACE + BASILISK_TUNE defined)")
 endif()
 
 set(_ALL_TARGETS

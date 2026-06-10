@@ -107,7 +107,10 @@ int main() {
     init_bitboards();
     init_attacks();
     Zobrist::init();
-    init_eval_tables();
+    init_eval_tables(g_eval_params);
+#ifdef BASILISK_TUNE
+    load_eval_file_if_set();
+#endif
 
     uci_write_line(std::string(engineName) + " " + std::string(engineVersion)
                    + " by " + std::string(engineAuthor));

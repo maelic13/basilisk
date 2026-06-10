@@ -5,6 +5,9 @@
 #include "Constants.h"
 #include "UciOutput.h"
 #include "UciProtocol.h"
+#ifdef BASILISK_TUNE
+#include "eval.h"
+#endif
 
 UciProtocol::UciProtocol(EngineCommandQueue& commands,
                          std::atomic_bool& stop_requested,
@@ -44,6 +47,9 @@ void UciProtocol::UciLoop() {
         else if (command == "stop")       cmdStop();
         else if (command == "ponderhit")  cmdPonderHit();
         else if (command == "bench")      cmdBench(args);
+#ifdef BASILISK_TUNE
+        else if (command == "dumpeval")   run_dumpeval();
+#endif
         else if (command == "quit") {
             cmdQuit();
             sent_quit = true;

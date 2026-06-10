@@ -7,6 +7,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.6.0] - 2026-06-20
+
+### Changed
+
+#### Strength / Evaluation
+- Texel-tuned and SPRT-accepted material values (mg/eg piece values)
+- Texel-tuned and SPRT-accepted mobility weights (knight/bishop/rook/queen, mg/eg)
+- Texel-tuned and SPRT-accepted passed-pawn tables and king-proximity bonus
+- Texel-tuned and SPRT-accepted pawn-structure terms (doubled, isolated, connected, backward)
+- Baked a Texel-fit hanging-piece penalty table (holdout-loss improvement); not yet confirmed by its own isolated SPRT — see Known Gaps
+- Tried and reverted a rook-term candidate (open/semi-open file, 7th rank, behind-passer bonuses) after an inconclusive SPRT
+
+#### Time Management
+- Replaced the clock-path time budget with a Stockfish-style formula (ported from the sibling Rarog engine): logarithmic time-left scaling, ply-aware sudden-death and explicit-`movestogo` branches
+- Added an absolute time-safety reserve (2x `Move Overhead`) on top of the formula's percentage cap, bounding worst-case overshoot from command-queue dispatch latency, Syzygy root probing, and `check_stop()` polling granularity
+- Fixed-`movetime` searches no longer subtract `Move Overhead` from the budget; GUIs tolerate ~10% over nominal and movetime games never forfeit on time the way clock play does
+
+#### Version
+- Bumped engine version metadata to 1.6.0
+
+### Fixed
+
+#### Time Management
+- Fixed a regression where in-development eval/search work tripled time forfeits at fast clock controls (65 losses vs 1.5.0's 18, `tc=3+0.03`); the rewrite above produced zero time losses across a 35,000-game validation pool (see Testing)
+
+### Added
+
+#### Tooling
+- Added a linear-trace gradient (Texel) tuner: `basilisk-texel` CMake target, `EvalParams` weight struct (~900 parameters), a tune-time eval-file loader/dumper, dataset generation scripts (`tools/datagen.ps1`, `tools/texel/extract.py`, `tools/texel/sample_fens.py`, `tools/texel/import_beast.py`), and staged per-group tuning with sign/shape constraints
+- Added `-TC`/`-MoveTime`/`-TimeMargin` clock-control parameters to `tools/gauntlet.ps1`, matching `tools/sprt.ps1`'s clock-based default (`tc=10+0.1`)
+
+### Testing
+
+#### SPRT (eval scalars, vs previous accepted head, `tc=3+0.03`)
+- Material vs the Phase 2 baseline (Phase 1's accepted defaults): `1,930` games, `+29.05 +/- 11.36 Elo`, H1 accepted
+- Mobility vs material: `7,288` games, `+8.77 +/- 5.68 Elo`, H1 accepted
+- Passed pawns vs mobility: `3,462` games, `+16.57 +/- 8.28 Elo`, H1 accepted
+- Pawn structure vs passed pawns: `1,836` games, `+30.74 +/- 11.76 Elo`, H1 accepted
+- Rooks vs pawn structure: `10,666` games (stopped manually), `+3.13 +/- 4.74 Elo`, LOS `90.21%`, inconclusive below the `elo1=5` target; reverted
+
+#### Gauntlet / Pool Validation
+- 35,000-game self-play pool at `tc=3+0.03` (partial-tuning development build, before the time-management fix): 2nd of 9, approx `+54 Elo` vs Basilisk 1.5.0
+- 35,000-game LittleBlitzer pool at `tc=3+0.03` (post time-management fix, default `Move Overhead`): `0` time losses across all games for every engine in the pool; Basilisk scored rating `2696.8`, `62.7%` (2nd of 5), behind only Stockfish-18-2700-capped and well clear of Rarog 2.1.0 (`2620.0`) and Stockfish-2600/2500-capped
+
+#### Build / Verification
+- Passed the full CTest suite: 8/8 tests
+- Recorded `bench 13`: `4,033,379` nodes (non-PGO release-pext)
+
+### Known Gaps
+- The hanging-piece penalty bake does not have its own isolated SPRT confirmation, unlike the other eval terms above — only the cumulative effect including it was validated via the gauntlet and LittleBlitzer pools. A standalone confirmatory SPRT is a candidate for a future release.
+
+---
+
 ## [1.5.0] - 2026-06-07
 
 ### Changed
@@ -580,6 +633,7 @@ First public release.
 - `bench [depth]` command — 16-position built-in benchmark, prints per-position NPS and total node-count fingerprint
 - GitHub Actions release workflow — builds for Linux x86_64, Linux aarch64, Windows x86_64, Windows aarch64, macOS aarch64; all built with Clang; PEXT variant produced for x86_64 platforms
 
+[1.6.0]: https://github.com/maelic13/basilisk/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/maelic13/basilisk/compare/v1.4.9...v1.5.0
 [1.4.9]: https://github.com/maelic13/basilisk/compare/v1.4.8...v1.4.9
 [1.4.8]: https://github.com/maelic13/basilisk/compare/v1.4.7...v1.4.8

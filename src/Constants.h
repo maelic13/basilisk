@@ -4,7 +4,7 @@
 #include <string_view>
 
 inline constexpr std::string_view engineName    = "Basilisk";
-inline constexpr std::string_view engineVersion = "1.5.0";
+inline constexpr std::string_view engineVersion = "1.6.0";
 inline constexpr std::string_view engineAuthor  = "Miloslav Macurek";
 
 // Default search limit when "go" is sent without explicit limits.

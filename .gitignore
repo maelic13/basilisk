@@ -1,6 +1,8 @@
 .idea/
 .vs/
 .vscode/
+.cache/
+.clangd/
 build/
 cmake-build*
 debug/
@@ -16,16 +18,43 @@ CMakeCache.txt
 cmake_install.cmake
 CTestTestfile.cmake
 compile_commands.json
+DartConfiguration.tcl
+install_manifest.txt
+CMakeScratch/
 Testing/
 _deps/
 
+# Ninja artifacts
+.ninja_deps
+.ninja_log
+build.ninja
+rules.ninja
+
 # Compiler / linker output artifacts
+*.o
 *.obj
+*.d
+*.a
+*.lib
+*.dll
+*.so
+*.dylib
+*.exe
 *.pdb
 *.ilk
 *.exp
+*.map
+
+# Profile-guided optimization / coverage artifacts
+*.profraw
+*.profdata
+*.gcda
+*.gcno
+*.gcov
 
 # Diagnostic / test artifacts
+*.log
+*.tmp
 *.pgn
 config.json
 calibration_*.txt
@@ -35,6 +64,9 @@ test_input.txt
 test_output*.txt
 
 .zed/
+__pycache__/
+*.pyc
+.DS_Store
 
 # Tuning toolchain — downloaded/cloned externals and built test binaries
 tools/bin/*
@@ -46,6 +78,11 @@ tools/results/*
 !tools/test_engines/.gitkeep
 !tools/results/.gitkeep
 
-# Opening book committed to the repo (override the *.pgn rule above)
+# Texel generated datasets / round-trip dumps
+tools/texel/data/*
+tools/texel/out/
+tools/texel/dump*.txt
+
+# Opening books are local test/tuning inputs.
 !tools/books/
-!tools/books/SuperGM_4mvs.pgn
+!tools/books/.gitkeep

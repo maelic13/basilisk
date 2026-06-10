@@ -246,7 +246,7 @@ private:
     // ---- Misc ----
     bool   check_stop();
     double elapsed_seconds() const;
-    void   compute_time_limit(const SearchLimits& limits, Color side);
+    void   compute_time_limit(const SearchLimits& limits, Color side, int game_ply);
     void   send_info(int depth, int score, int64_t nodes, double elapsed) const;
     int64_t record_node();
     void   record_tbhit(int64_t count = 1);
