@@ -35,6 +35,7 @@ test_input.txt
 test_output*.txt
 
 .zed/
+.DS_Store
 
 # Tuning toolchain — downloaded/cloned externals and built test binaries
 tools/bin/*
