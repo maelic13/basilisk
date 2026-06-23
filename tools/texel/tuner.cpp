@@ -14,6 +14,7 @@
 #include <cassert>
 #include <chrono>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -44,6 +45,7 @@ struct TuneSet {
     std::vector<float> result;
     std::vector<float> base_score;
     std::vector<float> coeffs; // row-major: position * active_count + active index
+    std::vector<uint8_t> phase; // game phase 0..24, for bucketed holdout
 
     size_t size() const { return result.size(); }
 
@@ -60,6 +62,7 @@ struct TuneOptions {
     int max_positions = 5'000'000;
     int epochs = 200;
     double lr = 0.3;
+    double l2 = 0.0;  // L2-to-prior (toward base/default weights); 0 = off
 };
 
 // ---------------------------------------------------------------------------
@@ -116,6 +119,8 @@ static void usage(const char* exe) {
     std::cerr
         << "Usage:\n"
         << "  " << exe << " --verify <dataset.csv>\n"
+        << "  " << exe << " --feature-support <dataset.csv> [--max-positions N]\n"
+        << "  " << exe << " --tune-kingsafety <train.csv> <holdout.csv> [out.txt] [--epochs N] [--max-positions N] [--step S]\n"
         << "  " << exe << " --tune <group> <train.csv> <holdout.csv> [out/eval_params.txt] [options]\n"
         << "\n"
         << "Groups:\n"
@@ -128,7 +133,8 @@ static void usage(const char* exe) {
         << "  mobility    per-piece safe mobility terms\n"
         << "  threats     pawn threats to minor/rook/queen\n"
         << "  hanging     hanging piece penalties\n"
-        << "  misc        passed-king proximity, space, tempo\n"
+        << "  misc        passed-king proximity, space (+3.6 refinement), tempo\n"
+        << "  winnable    complexity/winnable coupling (3.6; finite-diff)\n"
         << "  kingsafety  king attack, shelter, and storm terms\n"
         << "  pst         PSTs plus material refit\n"
         << "  all         all meaningful eval params\n"
@@ -136,6 +142,7 @@ static void usage(const char* exe) {
         << "Options:\n"
         << "  --epochs N         optimizer epochs (default 200)\n"
         << "  --lr X             Adam learning rate (default 0.3)\n"
+        << "  --l2 X             L2-to-prior strength (pull toward default weights; default 0 = off)\n"
         << "  --max-positions N  cap positions loaded from each file (default 5000000; 0 = all)\n";
 }
 
@@ -163,6 +170,8 @@ static TuneOptions parse_tune_options(int argc, char* argv[]) {
             opts.lr = parse_double_arg(argv[argi++], "--lr");
         } else if (opt == "--max-positions" && argi < argc) {
             opts.max_positions = parse_int_arg(argv[argi++], "--max-positions");
+        } else if (opt == "--l2" && argi < argc) {
+            opts.l2 = parse_double_arg(argv[argi++], "--l2");
         } else {
             std::cerr << "Unknown or incomplete option: " << opt << "\n";
             usage(argv[0]);
@@ -251,16 +260,58 @@ static std::vector<int> active_indices_for_group(const std::string& group) {
         append_group(active, EPG_TrappedMg);
         append_group(active, EPG_TrappedEg);
     } else if (group == "mobility") {
-        append_group(active, EPG_MobMg);
-        append_group(active, EPG_MobEg);
+        append_groups(active, EPG_MobNMg, EPG_MobQEg);
+    } else if (group == "imbalance") {
+        // imb_linear[6] + imb_our[21] are all live. imb_their[21] has 6
+        // STRUCTURALLY-DEAD diagonal coeffs: when i==j the feature
+        // their_cnt = ic_W[i]*ic_B[i] - ic_B[i]*ic_W[i] == 0 for every
+        // position (confirmed by Step 4.0 --feature-support). Their flat
+        // sub-indices are t = i*(i+1)/2+i = {0,2,5,9,14,20}. Skip them so the
+        // fit never chases noise into a coefficient that can't ever fire.
+        append_groups(active, EPG_ImbLinear, EPG_ImbOur);
+        static const int dead_their_diag[6] = {0, 2, 5, 9, 14, 20};
+        const int their_base = eval_param_offset(EPG_ImbTheir);
+        const int their_len  = EVAL_PARAM_LENS[EPG_ImbTheir];
+        for (int t = 0; t < their_len; ++t) {
+            bool dead = false;
+            for (int d : dead_their_diag) if (d == t) { dead = true; break; }
+            if (!dead) active.push_back(their_base + t);
+        }
     } else if (group == "threats") {
-        append_groups(active, EPG_ThreatMinorMg, EPG_ThreatQueenEg);
+        // Old flat pawn-threats + the new threats package (3.1) + hang_pen, so the
+        // new threat_hanging/weak_queen_prot can absorb the flat hanging term in a
+        // joint fit (Stage 4.2 "drop the old flat hang[]").
+        append_groups(active, EPG_ThreatMinorMg, EPG_ThreatPushEg);
+        append_group(active, EPG_HangPen);
     } else if (group == "hanging") {
         append_group(active, EPG_HangPen);
     } else if (group == "misc") {
         append_group(active, EPG_ProxBase);
         append_group(active, EPG_SpaceMg);
+        append_group(active, EPG_SpacePieceMg);
+        append_group(active, EPG_SpaceBlockedMg);
         append_group(active, EPG_Tempo);
+    } else if (group == "winnable") {
+        for (int g = EPG_WinOutflanking; g <= EPG_WinBias; ++g)
+            append_group(active, g);
+    } else if (group == "phase45") {
+        // Stage 4.5: the full positional data-fit in one joint group. Covers
+        // pawn refinement (3.4), the seeded-0 small positional terms (3.7), the
+        // HCE survey adds (3.9), minors, rooks, space (3.6) and winnable (3.6).
+        // Deliberately EXCLUDES material/PST (4.7), imbalance (4.6), mobility
+        // (4.4, done), threats (4.2, done) and king safety (4.3, done).
+        // ALWAYS run with --l2 (mobility lesson: sparse/seeded terms over-fit
+        // without a prior anchor; here the L2 also keeps the already-accepted
+        // Phase-2 pawn/passer/rook cores from drifting while the seeded terms
+        // grow). The three ranges below are contiguous in EVAL_PARAM_LIST and
+        // skip exactly Imb* (between BishopPairPawnsEg and MinorBehindPawnMg)
+        // and the Mob*/Threat*/Ks*/HangPen block (between KnightOutpostEg and
+        // ProxBase). (4.8a pruned the dead survey/space/pawn-lever terms.)
+        append_groups(active, EPG_PassedMg, EPG_BishopPairPawnsEg);
+        append_groups(active, EPG_MinorBehindPawnMg, EPG_KnightOutpostEg);
+        append_groups(active, EPG_ProxBase, EPG_Tempo);
+        for (int g = EPG_WinOutflanking; g <= EPG_WinBias; ++g)
+            append_group(active, g);
     } else if (group == "kingsafety" || group == "king") {
         for (int g = EPG_KsUnit; g <= EPG_StormWeightAdj; ++g)
             append_group(active, g);
@@ -383,11 +434,6 @@ static void clamp_weights_for_group(const std::string&, double* w) {
     }
     enforce_non_decreasing(w, EPG_PassedMg, 1, 6);
     enforce_non_decreasing(w, EPG_PassedEg, 1, 6);
-    clamp_group_range(w, EPG_PassSuppMg, 0.0, 200.0);
-    clamp_group_range(w, EPG_PassSuppEgBase, 0.0, 200.0);
-    clamp_group_range(w, EPG_PassSuppEgRank, 0.0, 50.0);
-    clamp_group_range(w, EPG_CandMg, 0.0, 200.0);
-    clamp_group_range(w, EPG_CandEg, 0.0, 200.0);
     clamp_group_range(w, EPG_PassFreeMg, 0.0, 100.0);
     clamp_group_range(w, EPG_PassFreeEg, 0.0, 100.0);
     clamp_group_range(w, EPG_PassSafeEg, 0.0, 100.0);
@@ -412,13 +458,18 @@ static void clamp_weights_for_group(const std::string&, double* w) {
     clamp_group_range(w, EPG_EnemyRookPasserEg, 0.0, 200.0);
 
     for (int pt = 0; pt < PIECE_TYPE_NB; ++pt) {
-        double hi = (pt >= KNIGHT && pt <= QUEEN) ? 50.0 : 0.0;
-        clamp_range(w, flat_index(EPG_MobMg, pt), 0.0, hi);
-        clamp_range(w, flat_index(EPG_MobEg, pt), 0.0, hi);
-
-        hi = (pt >= KNIGHT && pt <= QUEEN) ? 200.0 : 0.0;
+        double hi = (pt >= KNIGHT && pt <= QUEEN) ? 200.0 : 0.0;
         clamp_range(w, flat_index(EPG_HangPen, pt), 0.0, hi);
     }
+
+    // Per-count mobility tables (Step 3.3): bounded; seeded values (queen eg max
+    // 324) sit inside the range so this never perturbs an untuned fit.
+    for (int g = EPG_MobNMg; g <= EPG_MobQEg; ++g)
+        clamp_group_range(w, g, -200.0, 600.0);
+    // Monotone in the mobility-square count (Step 4.6b): more squares is never
+    // worth less. Prevents sparse high-count entries from fitting noise.
+    for (int g = EPG_MobNMg; g <= EPG_MobQEg; ++g)
+        enforce_non_decreasing(w, g, 0, EVAL_PARAM_LENS[g] - 1);
 
     clamp_group_range(w, EPG_ThreatMinorMg, 0.0, 200.0);
     clamp_group_range(w, EPG_ThreatMinorEg, 0.0, 200.0);
@@ -432,6 +483,8 @@ static void clamp_weights_for_group(const std::string&, double* w) {
     w[flat_index(EPG_ThreatQueenEg)] = std::max(w[flat_index(EPG_ThreatQueenEg)], w[flat_index(EPG_ThreatRookEg)]);
 
     clamp_group_range(w, EPG_SpaceMg, 0.0, 50.0);
+    clamp_group_range(w, EPG_SpacePieceMg, -10.0, 10.0);
+    clamp_group_range(w, EPG_SpaceBlockedMg, -10.0, 10.0);
     clamp_group_range(w, EPG_Tempo, 0.0, 50.0);
 }
 
@@ -562,6 +615,7 @@ static TuneSet load_tune_dataset(const std::string& path,
 
         out.result.push_back(result);
         out.base_score.push_back(static_cast<float>(default_score_white(g_trace)));
+        out.phase.push_back(static_cast<uint8_t>(g_trace.phase));
         float delta_scale = linear_delta_scale(board);
         for (int idx : active)
             out.coeffs.push_back(trace_coeff(g_trace, idx) * delta_scale);
@@ -632,6 +686,141 @@ static void cmd_verify(const std::string& path) {
 }
 
 // ---------------------------------------------------------------------------
+// Feature-support diagnostic (Step 4.0). Counts, per flat parameter, how many
+// loaded positions give it a nonzero linear trace (the positions that can
+// supply gradient signal), with an opening/middlegame/endgame phase breakdown.
+// Flags any *linearly-traced* param active in fewer than max(200, 0.05% N)
+// positions. The king-safety index knobs and the winnable knobs are tuned by
+// finite difference / are frozen, so they carry no linear trace by design --
+// they are reported separately as expected-zero, not flagged. Also closes the
+// Phase-3 trace-regression item (d): every traced term must fire nonzero.
+// ---------------------------------------------------------------------------
+static const char* const FS_GROUP_NAMES[EPG_COUNT] = {
+#define X(name, member, len) #name,
+    EVAL_PARAM_LIST(X)
+#undef X
+};
+
+// Index-shaping (finite-difference) or frozen params: zero linear trace is
+// expected, not a defect.
+static bool fs_is_finite_diff_group(int g) {
+    switch (g) {
+        case EPG_KsUnit: case EPG_KsCoordBonus: case EPG_KsOpenFile:
+        case EPG_KsSafeCheck: case EPG_KsWeakRing: case EPG_KsRingPressure:
+        case EPG_KsFlankAttack: case EPG_KsFlankDefense: case EPG_KsPawnlessFlank:
+        case EPG_KsKingBlockers: case EPG_KsCentralKing: case EPG_KsShelterStorm:
+        case EPG_KsNoqueenNum: case EPG_KsNoqueenDen:
+        case EPG_WinOutflanking: case EPG_WinBothFlanks: case EPG_WinInfiltration:
+        case EPG_WinPawnEndgame: case EPG_WinPassed: case EPG_WinTotalPawns:
+        case EPG_WinBias:
+            return true;
+        default:
+            return false;
+    }
+}
+
+static void cmd_feature_support(const std::string& path, int max_positions) {
+    std::ifstream f(path);
+    if (!f) { std::cerr << "Cannot open dataset: " << path << "\n"; std::exit(1); }
+    std::cout << "Streaming positions from " << path << " for feature-support ...\n";
+
+    // Reverse map: flat index -> (group, sub-index).
+    std::vector<int> group_of(EVAL_PARAM_FLAT_SIZE), sub_of(EVAL_PARAM_FLAT_SIZE);
+    for (int g = 0; g < EPG_COUNT; ++g) {
+        int off = eval_param_offset(g), len = EVAL_PARAM_LENS[g];
+        for (int i = 0; i < len; ++i) { group_of[off + i] = g; sub_of[off + i] = i; }
+    }
+
+    std::vector<long> act(EVAL_PARAM_FLAT_SIZE, 0);
+    std::vector<long> act_op(EVAL_PARAM_FLAT_SIZE, 0);
+    std::vector<long> act_mid(EVAL_PARAM_FLAT_SIZE, 0);
+    std::vector<long> act_eg(EVAL_PARAM_FLAT_SIZE, 0);
+    std::vector<double> sum_abs(EVAL_PARAM_FLAT_SIZE, 0.0);
+
+    // Stream the dataset: evaluate+trace each position, accumulate, discard.
+    // (Materialising every EvalTrace would be ~4 KB x millions of positions.)
+    auto ev_ptr = std::make_unique<Evaluator>();
+    Evaluator& evaluator = *ev_ptr;
+    Board board;
+    long N = 0, skipped = 0;
+    std::string line;
+    while (std::getline(f, line)) {
+        if (line.empty() || line[0] == '#') continue;
+        auto sep = line.rfind(';');
+        if (sep == std::string::npos) { ++skipped; continue; }
+        std::string err;
+        if (!board.try_set_fen(line.substr(0, sep), &err)) { ++skipped; continue; }
+
+        g_trace = {};
+        evaluator.evaluate(board);
+        int ph = g_trace.phase;
+        for (int i = 0; i < EVAL_PARAM_FLAT_SIZE; ++i) {
+            if (g_trace.mg[i] != 0 || g_trace.eg[i] != 0) {
+                act[i]++;
+                if (ph >= 18)      act_op[i]++;
+                else if (ph >= 8)  act_mid[i]++;
+                else               act_eg[i]++;
+                sum_abs[i] += std::fabs(trace_coeff(g_trace, i));
+            }
+        }
+        ++N;
+        if (max_positions > 0 && N >= max_positions) break;
+        if (N % 200000 == 0) std::cerr << "  ... " << N << " positions\r";
+    }
+    if (N == 0) { std::cerr << "No positions loaded.\n"; std::exit(1); }
+    std::cout << "Processed " << N << " positions"
+              << (skipped ? " (" + std::to_string(skipped) + " skipped)" : "") << ".\n";
+
+    const long thresh = std::max(200L, static_cast<long>(0.0005 * N));
+    std::cout << "Sparse threshold: < " << thresh << " activations ("
+              << "max(200, 0.05% of N)).\n\n";
+
+    int zero_traced = 0, sparse_traced = 0, fd_zero = 0, fd_total = 0;
+    // ZERO-activation traced params are the actionable signal for item (d): on a
+    // large dataset, a traced term at 0 is either a structurally-impossible index
+    // (fine) or a trace bug. Sparse-but-nonzero params just fire rarely (freeze /
+    // L2 candidates, not bugs), so they are only counted.
+    std::cout << "LINEARLY-TRACED params with ZERO activation (scrutinise):\n";
+    std::cout << "  group[idx]\n";
+    for (int i = 0; i < EVAL_PARAM_FLAT_SIZE; ++i) {
+        int g = group_of[i];
+        if (fs_is_finite_diff_group(g)) {
+            fd_total++;
+            if (act[i] == 0) fd_zero++;
+            continue;
+        }
+        if (act[i] == 0) {
+            zero_traced++;
+            std::printf("  %s[%d]\n", FS_GROUP_NAMES[g], sub_of[i]);
+        } else if (act[i] < thresh) {
+            sparse_traced++;
+        }
+    }
+    if (zero_traced == 0)
+        std::cout << "  (none — every linearly-traced term fired at least once)\n";
+
+    std::cout << "\nSparse-but-nonzero traced params (< threshold): " << sparse_traced
+              << " (informational — rare terms; freeze / L2-to-prior in fitting,"
+                 " not bugs).\n";
+    std::cout << "Finite-diff / frozen params (zero linear trace EXPECTED): "
+              << fd_zero << " / " << fd_total << " report zero activation.\n";
+
+    std::cout << "\nVERDICT: ";
+    if (zero_traced == 0) {
+        std::cout << "PASS — every linearly-traced term fires; the only zero-"
+                     "activation params are the finite-diff/frozen funnel knobs "
+                     "(expected). Phase-3 trace-regression item (d) closed.\n";
+    } else {
+        std::cout << "CHECK the " << zero_traced << " zero-activation traced "
+                     "param(s) above — they should be ONLY structurally-impossible "
+                     "indices (piece-type none/king slots like ThreatBy*[0]/[6] and "
+                     "HangPen[0/1/6], pawn PSTs on ranks 1/8). Any other zero is a "
+                     "trace bug. Run on the FULL train set for a clean verdict (a "
+                     "small holdout under-samples rare terms).\n";
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Sigmoid / loss helpers
 // ---------------------------------------------------------------------------
 static double sigmoid(double score, double K) {
@@ -674,6 +863,30 @@ static double traced_loss(const TuneSet& set,
         loss += diff * diff;
     }
     return loss / static_cast<double>(set.size());
+}
+
+// Bucketed holdout (Step 4.0): loss split by game phase so a global drop cannot
+// hide a regression in a domain HCE strength depends on (opening / mid / endgame).
+static void report_phase_buckets(const TuneSet& set,
+                                 const std::vector<int>& active,
+                                 const double* base_w,
+                                 const double* w,
+                                 double K) {
+    double loss[3] = {0, 0, 0};
+    long   cnt[3]  = {0, 0, 0};
+    for (size_t i = 0; i < set.size(); ++i) {
+        int ph = set.phase.empty() ? 12 : set.phase[i];
+        int b = (ph >= 18) ? 0 : (ph >= 8) ? 1 : 2;
+        double sig = sigmoid(score_from_weights(set, i, active, base_w, w), K);
+        double diff = static_cast<double>(set.result[i]) - sig;
+        loss[b] += diff * diff;
+        cnt[b]++;
+    }
+    static const char* names[3] = {"opening   ", "middlegame", "endgame   "};
+    std::cout << "Holdout loss by phase:\n";
+    for (int b = 0; b < 3; ++b)
+        std::printf("  %s  loss=%.8f  (n=%ld)\n",
+                    names[b], cnt[b] ? loss[b] / cnt[b] : 0.0, cnt[b]);
 }
 
 // ---------------------------------------------------------------------------
@@ -850,7 +1063,11 @@ static void cmd_tune(const TuneOptions& opts) {
         double bc2 = 1.0 - std::pow(BETA2, static_cast<double>(t));
 
         for (size_t j = 0; j < active.size(); ++j) {
+            // Data gradient + optional L2-to-prior (pull toward the default/base
+            // weights; a guard for sparse/suspect terms, off by default).
             double g = grad[j] / n;
+            if (opts.l2 > 0.0)
+                g += 2.0 * opts.l2 * (w[active[j]] - base_w[active[j]]);
             m[j] = BETA1 * m[j] + (1.0 - BETA1) * g;
             v[j] = BETA2 * v[j] + (1.0 - BETA2) * g * g;
             double m_hat = m[j] / bc1;
@@ -885,11 +1102,209 @@ static void cmd_tune(const TuneOptions& opts) {
                   << " (holdout=" << best_holdout << ").\n";
     }
 
+    report_phase_buckets(holdout, active, base_w, w, K);
+
     write_weights(g_eval_params, w);
     print_material_delta(base_w, w);
     print_active_deltas(active, base_w, w);
     write_eval_params_file(opts.out_path);
     std::cout << "Tuned weights written to " << opts.out_path << "\n";
+}
+
+// ---------------------------------------------------------------------------
+// King-safety finite-difference tuner (Step 4.0).
+//
+// The KS funnel knobs shape the integer danger index that looks up
+// safety_table, so the linear trace is structurally blind to them
+// (feature-support confirms 0 activation). This path re-evaluates the dataset
+// with perturbed weights and does integer coordinate descent on the sigmoid
+// MSE, keeping safety_table non-decreasing. evaluate() reads only the position
+// fields snapshotted below (pawn_key is used only in the non-TEXEL cache path,
+// which this TEXEL build bypasses), so we store a compact snapshot and restore
+// it into one reused Board rather than keeping millions of heavy Board objects.
+// ---------------------------------------------------------------------------
+struct KsSnap {
+    Bitboard pieces[NCOLORS][PIECE_TYPE_NB];
+    Bitboard occ[NCOLORS];
+    Bitboard all_occ;
+    Square   king_sq[NCOLORS];
+    Piece    board_sq[SQUARE_NB];
+    Color    stm;
+    int      castling;
+    int      halfmove;
+    float    result;
+};
+
+static void ks_board_from_snap(Board& b, const KsSnap& s) {
+    for (int c = 0; c < NCOLORS; ++c) {
+        for (int pt = 0; pt < PIECE_TYPE_NB; ++pt) b.pieces[c][pt] = s.pieces[c][pt];
+        b.occupancy[c] = s.occ[c];
+        b.king_sq[c]   = s.king_sq[c];
+    }
+    b.all_occ = s.all_occ;
+    for (int q = 0; q < SQUARE_NB; ++q) b.board_sq[q] = s.board_sq[q];
+    b.side_to_move    = s.stm;
+    b.castling_rights = s.castling;
+    b.halfmove_clock  = s.halfmove;
+}
+
+static std::vector<KsSnap> ks_load(const std::string& path, int max_positions) {
+    std::ifstream f(path);
+    if (!f) { std::cerr << "Cannot open " << path << "\n"; std::exit(1); }
+    std::vector<KsSnap> out;
+    Board tmp;
+    std::string line;
+    long skipped = 0;
+    while (std::getline(f, line)) {
+        if (line.empty() || line[0] == '#') continue;
+        auto sep = line.rfind(';');
+        if (sep == std::string::npos) { ++skipped; continue; }
+        float result;
+        if (!parse_target(line.substr(sep + 1), result)) { ++skipped; continue; }
+        std::string err;
+        if (!tmp.try_set_fen(line.substr(0, sep), &err)) { ++skipped; continue; }
+        KsSnap s;
+        for (int c = 0; c < NCOLORS; ++c) {
+            for (int pt = 0; pt < PIECE_TYPE_NB; ++pt) s.pieces[c][pt] = tmp.pieces[c][pt];
+            s.occ[c] = tmp.occupancy[c];
+            s.king_sq[c] = tmp.king_sq[c];
+        }
+        s.all_occ = tmp.all_occ;
+        for (int q = 0; q < SQUARE_NB; ++q) s.board_sq[q] = tmp.board_sq[q];
+        s.stm = tmp.side_to_move;
+        s.castling = tmp.castling_rights;
+        s.halfmove = tmp.halfmove_clock;
+        s.result = result;
+        out.push_back(s);
+        if (max_positions > 0 && static_cast<int>(out.size()) >= max_positions) break;
+    }
+    if (out.empty()) { std::cerr << "No positions from " << path << "\n"; std::exit(1); }
+    if (skipped) std::cerr << "Skipped " << skipped << " rows.\n";
+    return out;
+}
+
+static double ks_mse(const std::vector<KsSnap>& pos, double K, Board& scratch, Evaluator& ev) {
+    double loss = 0.0;
+    for (const auto& s : pos) {
+        ks_board_from_snap(scratch, s);
+        int sc = ev.evaluate(scratch);                 // full eval (lazy off under TEXEL)
+        int white = (s.stm == WHITE) ? sc : -sc;
+        double sig = 1.0 / (1.0 + std::exp(-K * static_cast<double>(white) / 400.0));
+        double d = static_cast<double>(s.result) - sig;
+        loss += d * d;
+    }
+    return loss / static_cast<double>(pos.size());
+}
+
+static double ks_fit_K(const std::vector<KsSnap>& pos, Board& scratch, Evaluator& ev) {
+    double lo = 0.5, hi = 2.5;
+    for (int i = 0; i < 40; ++i) {
+        double m1 = lo + (hi - lo) / 3.0, m2 = hi - (hi - lo) / 3.0;
+        if (ks_mse(pos, m1, scratch, ev) < ks_mse(pos, m2, scratch, ev)) hi = m2; else lo = m1;
+    }
+    return (lo + hi) / 2.0;
+}
+
+static void cmd_tune_kingsafety(int argc, char* argv[]) {
+    if (argc < 4) { usage(argv[0]); std::exit(1); }
+    std::string train_path = argv[2], holdout_path = argv[3];
+    std::string out_path = "tools/texel/out/kingsafety.txt";
+    int epochs = 0, max_positions = 0, init_step = 8;
+    int argi = 4;
+    if (argi < argc && !is_option(argv[argi])) out_path = argv[argi++];
+    while (argi < argc) {
+        std::string o = argv[argi++];
+        if (o == "--epochs" && argi < argc) epochs = parse_int_arg(argv[argi++], "--epochs");
+        else if (o == "--max-positions" && argi < argc) max_positions = parse_int_arg(argv[argi++], "--max-positions");
+        else if (o == "--step" && argi < argc) init_step = parse_int_arg(argv[argi++], "--step");
+        else { std::cerr << "Unknown option " << o << "\n"; usage(argv[0]); std::exit(1); }
+    }
+
+    std::cout << "Loading train from " << train_path << " ...\n";
+    auto train = ks_load(train_path, max_positions);
+    std::cout << "Loaded " << train.size() << " train positions.\n";
+    std::cout << "Loading holdout from " << holdout_path << " ...\n";
+    auto holdout = ks_load(holdout_path, max_positions);
+    std::cout << "Loaded " << holdout.size() << " holdout positions.\n";
+
+    auto ev_ptr = std::make_unique<Evaluator>();
+    Evaluator& ev = *ev_ptr;
+    Board scratch;
+
+    double K = ks_fit_K(holdout, scratch, ev);
+    std::cout << "K = " << K << "\n";
+
+    EvalParams& P = g_eval_params;
+    struct Knob { int* p; const char* name; int sub; int lo; int hi; int table_idx; };
+    std::vector<Knob> knobs;
+    auto add = [&](int* p, const char* n, int sub, int lo, int hi, int ti) {
+        knobs.push_back({p, n, sub, lo, hi, ti});
+    };
+    for (int pt = KNIGHT; pt <= QUEEN; ++pt) add(&P.ks_unit[pt], "ks_unit", pt, 0, 20, -1);
+    add(&P.ks_coord_bonus, "ks_coord_bonus", 0, 0, 20, -1);
+    add(&P.ks_open_file, "ks_open_file", 0, 0, 20, -1);
+    for (int pt = KNIGHT; pt <= QUEEN; ++pt) add(&P.ks_safe_check[pt], "ks_safe_check", pt, 0, 30, -1);
+    add(&P.ks_weak_ring, "ks_weak_ring", 0, 0, 20, -1);
+    add(&P.ks_ring_pressure, "ks_ring_pressure", 0, 0, 20, -1);
+    add(&P.ks_flank_attack, "ks_flank_attack", 0, 0, 20, -1);
+    add(&P.ks_flank_defense, "ks_flank_defense", 0, 0, 20, -1);
+    add(&P.ks_pawnless_flank, "ks_pawnless_flank", 0, 0, 30, -1);
+    add(&P.ks_king_blockers, "ks_king_blockers", 0, 0, 20, -1);
+    add(&P.ks_central_king, "ks_central_king", 0, 0, 30, -1);
+    add(&P.ks_shelter_storm, "ks_shelter_storm", 0, 0, 20, -1);
+    add(&P.ks_noqueen_num, "ks_noqueen_num", 0, 0, 8, -1);
+    add(&P.ks_noqueen_den, "ks_noqueen_den", 0, 1, 8, -1);
+    for (int i = 2; i < 25; ++i) add(&P.safety_table[i], "safety_table", i, 0, 600, i);
+
+    std::vector<int> seed;
+    for (auto& kn : knobs) seed.push_back(*kn.p);
+
+    double best = ks_mse(train, K, scratch, ev);
+    double init_holdout = ks_mse(holdout, K, scratch, ev);
+    std::cout << "Initial train MSE = " << best << ", holdout MSE = " << init_holdout << "\n";
+    std::cout << "Tuning " << knobs.size() << " king-safety knobs (coordinate descent)...\n";
+
+    int step = init_step, pass = 0;
+    while (step >= 1) {
+        ++pass;
+        bool improved = false;
+        for (auto& kn : knobs) {
+            for (int dir = 0; dir < 2; ++dir) {
+                int delta = (dir == 0) ? step : -step;
+                int old = *kn.p;
+                int lo = kn.lo, hi = kn.hi;
+                if (kn.table_idx >= 0) {            // keep safety_table non-decreasing
+                    lo = std::max(kn.lo, P.safety_table[kn.table_idx - 1]);
+                    hi = (kn.table_idx < 24) ? std::min(kn.hi, P.safety_table[kn.table_idx + 1]) : kn.hi;
+                }
+                int trial = std::clamp(old + delta, lo, hi);
+                if (trial == old) continue;
+                *kn.p = trial;
+                double m = ks_mse(train, K, scratch, ev);
+                if (m < best - 1e-12) { best = m; improved = true; }
+                else *kn.p = old;
+            }
+        }
+        double hold = ks_mse(holdout, K, scratch, ev);
+        std::printf("pass %2d  step %2d  train=%.8f  holdout=%.8f\n", pass, step, best, hold);
+        if (!improved) step /= 2;
+        if (epochs > 0 && pass >= epochs) break;
+    }
+
+    double final_holdout = ks_mse(holdout, K, scratch, ev);
+    std::cout << "\nFinal train MSE = " << best << ", holdout MSE = " << final_holdout
+              << " (was " << init_holdout << ", delta " << (final_holdout - init_holdout) << ")\n";
+
+    std::cout << "\nChanged king-safety knobs (old -> new):\n";
+    for (size_t i = 0; i < knobs.size(); ++i) {
+        if (*knobs[i].p != seed[i]) {
+            if (knobs[i].sub) std::printf("  %s[%d]  %d -> %d\n", knobs[i].name, knobs[i].sub, seed[i], *knobs[i].p);
+            else              std::printf("  %s  %d -> %d\n", knobs[i].name, seed[i], *knobs[i].p);
+        }
+    }
+
+    write_eval_params_file(out_path);
+    std::cout << "\nWrote tuned params to " << out_path << "\n";
 }
 
 // ---------------------------------------------------------------------------
@@ -914,11 +1329,23 @@ int main(int argc, char* argv[]) {
             return 1;
         }
         cmd_verify(argv[2]);
+    } else if (mode == "--feature-support") {
+        if (argc < 3) {
+            usage(argv[0]);
+            return 1;
+        }
+        int maxpos = 0;
+        for (int a = 3; a + 1 < argc; ++a)
+            if (std::string(argv[a]) == "--max-positions")
+                maxpos = parse_int_arg(argv[a + 1], "--max-positions");
+        cmd_feature_support(argv[2], maxpos);
     } else if (mode == "--tune") {
         TuneOptions opts = parse_tune_options(argc, argv);
         cmd_tune(opts);
+    } else if (mode == "--tune-kingsafety") {
+        cmd_tune_kingsafety(argc, argv);
     } else {
-        std::cerr << "Unknown mode '" << mode << "'. Use --verify or --tune.\n";
+        std::cerr << "Unknown mode '" << mode << "'. Use --verify, --feature-support, --tune, or --tune-kingsafety.\n";
         usage(argv[0]);
         return 1;
     }

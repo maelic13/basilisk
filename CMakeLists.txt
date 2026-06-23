@@ -56,7 +56,7 @@ endif()
 
 set(COMP "${_basilisk_compiler}" CACHE STRING "Compiler selection: auto, clang, gcc, or llvm" FORCE)
 
-project(basilisk VERSION 1.6.0 LANGUAGES CXX)
+project(basilisk VERSION 1.7.0 LANGUAGES CXX)
 
 _basilisk_detect_darwin_processor(_basilisk_system_processor "${CMAKE_SYSTEM_NAME}" "${CMAKE_SYSTEM_PROCESSOR}")
 if(APPLE AND NOT _basilisk_system_processor MATCHES "^(arm64|aarch64)$")
@@ -232,6 +232,12 @@ add_executable(test_uci_protocol
 )
 target_link_libraries(test_uci_protocol PRIVATE basilisk_engine)
 
+# ---------------------------------------------------------------------------
+# Endgame regression suite (Step 3.5: scale factors + known-endgame knowledge)
+# ---------------------------------------------------------------------------
+add_executable(test_endgames tests/test_endgames.cpp src/Parameters.cpp)
+target_link_libraries(test_endgames PRIVATE basilisk_engine)
+
 include(CTest)
 add_test(NAME test_board        COMMAND test_board)
 add_test(NAME test_move         COMMAND test_move)
@@ -241,6 +247,8 @@ add_test(NAME test_search       COMMAND test_search)
 add_test(NAME test_engine_ponder COMMAND test_engine_ponder)
 add_test(NAME test_engine_threading COMMAND test_engine_threading)
 add_test(NAME test_uci_protocol COMMAND test_uci_protocol)
+add_test(NAME test_endgames     COMMAND test_endgames
+         ${CMAKE_CURRENT_SOURCE_DIR}/tests/endgames.epd)
 
 # board_performance_test is a standalone benchmark — build it but do not
 # register it with CTest so that a plain `ctest` run stays fast and clean.
@@ -303,6 +311,7 @@ set(_ALL_TARGETS
     basilisk_board basilisk_engine
     basilisk board_performance_test
     test_board test_move test_tt test_eval test_search test_engine_ponder test_engine_threading test_uci_protocol
+    test_endgames
 )
 
 if(TUNE)

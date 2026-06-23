@@ -44,6 +44,24 @@ RESULT_MAP = {
     "1/2-1/2": 0.5,
 }
 
+# Game phase, faithful to the engine's PHASE_W (eval.cpp): N/B=1, R=2, Q=4,
+# total 24. Used for phase-balanced sampling (Step 4.0).
+PHASE_W = {chess.KNIGHT: 1, chess.BISHOP: 1, chess.ROOK: 2, chess.QUEEN: 4}
+
+
+def game_phase(board) -> int:
+    ph = 0
+    for pt, w in PHASE_W.items():
+        ph += w * (len(board.pieces(pt, chess.WHITE)) + len(board.pieces(pt, chess.BLACK)))
+    return min(ph, 24)
+
+
+def phase_bucket(ph: int) -> int:
+    return 0 if ph >= 18 else 1 if ph >= 8 else 2  # opening / middlegame / endgame
+
+
+BUCKET_NAMES = ("opening", "middlegame", "endgame")
+
 
 def fen_key(fen: str) -> str:
     """Return the first 4 FEN fields as a deduplication key (position, side, castling, ep)."""
@@ -85,14 +103,14 @@ def process_game(game, skip_start: int, skip_end: int,
             board.push(move)
             continue
 
-        candidates.append(board.fen())
+        candidates.append((board.fen(), game_phase(board)))
         board.push(move)
 
     # Sample at most max_per_game positions (decorrelation)
     if len(candidates) > max_per_game:
         candidates = rng.sample(candidates, max_per_game)
 
-    return [(fen, label) for fen in candidates]
+    return [(fen, label, ph) for fen, ph in candidates]
 
 
 def main():
@@ -110,6 +128,9 @@ def main():
                         help="Plies to skip at game end (default 6)")
     parser.add_argument("--seed",         default=42,  type=int, metavar="N")
     parser.add_argument("--min-train",    default=1_500_000, type=int, metavar="N")
+    parser.add_argument("--balance-phase", default=0.0, type=float, metavar="R",
+                        help="Downsample over-represented phase buckets to R x the "
+                             "smallest bucket's train count (0 = off). E.g. 1.5.")
     args = parser.parse_args()
 
     if not os.path.isfile(args.pgn):
@@ -167,12 +188,12 @@ def main():
             is_holdout = rng.random() < holdout_threshold
             target = holdout_positions if is_holdout else train_positions
 
-            for fen, label in pairs:
+            for fen, label, phase in pairs:
                 key = fen_key(fen)
                 if key in seen:
                     continue
                 seen.add(key)
-                target.append((fen, label))
+                target.append((fen, label, phase))
 
     print(f"\nSummary:")
     print(f"  Games read       : {games_total:,}")
@@ -182,30 +203,50 @@ def main():
     print(f"  Train positions  : {len(train_positions):,}")
     print(f"  Holdout positions: {len(holdout_positions):,}")
 
+    # Phase mix (Step 4.0): always report; optionally balance the train set.
+    def mix(positions):
+        c = [0, 0, 0]
+        for _, _, ph in positions:
+            c[phase_bucket(ph)] += 1
+        return c
+
+    tc = mix(train_positions)
+    print("  Train phase mix  : " +
+          ", ".join(f"{BUCKET_NAMES[b]}={tc[b]:,}" for b in range(3)))
+
+    if args.balance_phase > 0.0:
+        buckets = [[], [], []]
+        for item in train_positions:
+            buckets[phase_bucket(item[2])].append(item)
+        smallest = min(len(b) for b in buckets if b) if any(buckets) else 0
+        cap = int(args.balance_phase * smallest)
+        balanced = []
+        for b in range(3):
+            bucket = buckets[b]
+            if len(bucket) > cap > 0:
+                bucket = rng.sample(bucket, cap)
+            balanced.extend(bucket)
+        rng.shuffle(balanced)
+        train_positions = balanced
+        bc = mix(train_positions)
+        print(f"  Balanced to {args.balance_phase}x smallest ({smallest:,}) -> "
+              f"{len(train_positions):,} train: " +
+              ", ".join(f"{BUCKET_NAMES[b]}={bc[b]:,}" for b in range(3)))
+
     # Write train
+    def label_str(label):
+        return "1" if label == 1.0 else "0" if label == 0.0 else "0.5"
+
     print(f"\nWriting {train_path} ...")
     with open(train_path, "w", encoding="utf-8") as f:
-        for fen, label in train_positions:
-            # Format label: 1.0 → "1", 0.5 → "0.5", 0.0 → "0"
-            if label == 1.0:
-                s = "1"
-            elif label == 0.0:
-                s = "0"
-            else:
-                s = "0.5"
-            f.write(f"{fen};{s}\n")
+        for fen, label, _phase in train_positions:
+            f.write(f"{fen};{label_str(label)}\n")
 
     # Write holdout
     print(f"Writing {holdout_path} ...")
     with open(holdout_path, "w", encoding="utf-8") as f:
-        for fen, label in holdout_positions:
-            if label == 1.0:
-                s = "1"
-            elif label == 0.0:
-                s = "0"
-            else:
-                s = "0.5"
-            f.write(f"{fen};{s}\n")
+        for fen, label, _phase in holdout_positions:
+            f.write(f"{fen};{label_str(label)}\n")
 
     print(f"\nDone.")
     if len(train_positions) < args.min_train:

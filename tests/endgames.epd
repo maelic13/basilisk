@@ -1,0 +1,42 @@
+# Permanent endgame regression suite (Step 3.5).
+#
+# Format:  <FEN> ; <verdict>
+# Verdicts:
+#   draw    static eval is within the draw tolerance of 0
+#   win_w   static eval is a clear win for White
+#   win_b   static eval is a clear win for Black
+#   mate_w  White delivers checkmate from the board within the move budget
+#   mate_b  Black delivers checkmate from the board within the move budget
+#
+# These positions are too rare for self-play to measure, so this suite — not
+# SPRT — is the correctness gate for the endgame-knowledge functions.
+
+# ---- Insufficient / dead-drawn material (scale -> 0) ----
+8/8/8/4k3/8/8/3NN3/4K3 w - - 0 1 ; draw
+8/8/8/4k3/8/8/3B4/4K3 w - - 0 1 ; draw
+8/8/8/4k3/8/8/3N4/4K3 w - - 0 1 ; draw
+8/8/8/3rk3/8/3RK3/8/8 w - - 0 1 ; draw
+
+# ---- KPK: exact bitbase classification ----
+7k/8/7K/7P/8/8/8/8 b - - 0 1 ; draw
+8/8/8/4k3/8/4P3/8/4K3 w - - 0 1 ; draw
+4k3/8/4K3/4P3/8/8/8/8 w - - 0 1 ; win_w
+4k3/8/4p3/8/4K3/8/8/8 w - - 0 1 ; draw
+
+# ---- KBP vs K with the wrong rook-file bishop (corner draw) ----
+7k/8/6KP/8/8/8/8/5B2 w - - 0 1 ; draw
+
+# ---- Clear material wins ----
+8/8/8/4k3/8/8/4Q3/4K3 w - - 0 1 ; win_w
+8/8/8/4k3/8/8/4R3/4K3 w - - 0 1 ; win_w
+8/8/8/4k3/8/8/4BN2/4K3 w - - 0 1 ; win_w
+4K3/4q3/4k3/8/8/8/8/8 b - - 0 1 ; win_b
+
+# ---- Forced mates delivered from the board (search playout) ----
+# Mate-in-1 deliveries (the engine must find and play the mating move):
+k7/2K5/8/8/8/8/8/7Q w - - 0 1 ; mate_w
+k7/2K5/8/8/8/8/8/7R w - - 0 1 ; mate_w
+k7/2K5/8/3N4/4B3/8/8/8 w - - 0 1 ; mate_w
+# KBNK technique: the engine must drive the bare king to the bishop's corner
+# and deliver mate from a mid-distance position:
+8/8/8/8/3k4/8/3KBN2/8 w - - 0 1 ; mate_w

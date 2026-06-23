@@ -47,7 +47,7 @@ A UCI chess engine written in C++23.
 - Mobility scoring
 - Pawn structure: passed pawns, isolated pawns, doubled pawns; passed-pawn advance safety accounts for all enemy attackers
 - King safety: attack unit table with piece coordination bonuses; reduced threat when opponent lacks a queen
-- Endgame scaling
+- Endgame scaling: scale-factor framework (0–64) with an exact KPK bitbase, KBNK wrong-corner mate technique, KNNK/no-pawn-minor draw recognition, and opposite-coloured-bishop draw scaling
 - Color-aware pawn, minor-piece, non-pawn, and continuation correction histories
 - 50-move-rule score damping for non-mating evaluations
 

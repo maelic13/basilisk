@@ -7,6 +7,83 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.7.0] - 2026-06-29
+
+A pure evaluation release: the hand-crafted eval structure built during the
+1.6.x development line is now fully data-fit and tuned. No search or
+time-management behaviour changed.
+
+### Changed
+
+#### Strength / Evaluation
+- Completed a staged Texel data-fit campaign over the full evaluation, each
+  stage SPRT-accepted against the previous head at `tc=3+0.03`:
+  - **King safety v2** — danger model feeding an `attack_units → safety_table`
+    funnel (safe checks by checker type, king-ring pressure, flank attack/
+    defence, pinned-blocker pressure), fit with a finite-difference tuner
+    (`+65.5 Elo`)
+  - **Threats package** — bonuses for enemy pieces attacked by a less valuable
+    piece (by attacker and victim type), pieces attacked by the king, hanging
+    pieces, pieces whose only defender is their queen, restricted squares, and
+    pieces attackable by a safe pawn push (`+79.1 Elo`); the old flat hanging
+    table was absorbed and dropped
+  - **Material imbalance** — quadratic terms over own-vs-own and own-vs-enemy
+    piece-count products (`+26.9 Elo`); 6 structurally-dead diagonal
+    coefficients excluded from the fit
+  - **Broad positional data-fit** — pawn-structure refinements, small
+    positional terms (outposts, bad bishop, king-ring, rook placement),
+    bishop-pair-by-pawns, space, and survey additions (`+57.2 Elo`)
+  - **Refined mobility area** — count a piece's mobility over squares that
+    exclude the own king/queen, blocked and low-rank own pawns, and own pieces
+    pinned to the king, while including squares occupied by own minors/rooks
+  - **Definitive piece-square-table + material refit** (~782 parameters), L2-
+    anchored toward the PeSTO seeds, on fresh data (combined with the mobility
+    area: `+6.5 Elo`)
+  - **Global polish** — a joint low-learning-rate re-fit of all ~1,180
+    evaluation parameters (`+33.3 Elo`)
+- Regenerated ~3.3M on-policy self-play training positions with the stronger
+  head from a diverse opening book, used for the mobility/PST/polish fits.
+- Pruned 14 evaluation parameters (8 features) that the fits drove to exactly
+  zero — a behaviour-identical removal (identical bench, exact trace
+  reconstruction), confirmed by a simplification SPRT (`+2.49 +/- 4.19 Elo`,
+  H1 accepted, 11,294 games).
+
+#### Version
+- Bumped engine version metadata to 1.7.0.
+
+### Added
+
+#### Tooling
+- Texel tuner gained a king-safety finite-difference path (`--tune-kingsafety`),
+  per-parameter feature-support diagnostics (`--feature-support`), and
+  L2-to-prior regularization (`--l2`).
+- `tools/texel/bake.py` — writes a tuner weight dump back into the eval header,
+  rewriting only the parameters that moved (including the 2-D PST blocks via
+  `--allow-pst`).
+- `tools/texel/extract_parallel.py` — multi-core PGN→training-CSV extractor,
+  output identical regardless of worker count.
+- `tools/datagen.ps1` diversity guard (warns when rounds exceed the opening-book
+  size) and a `tools/texel/README.md` documenting the full data pipeline.
+
+### Testing
+
+#### Validation (fixed games)
+- vs `phase1-final` (the 1.5.0 baseline), `tc=3+0.03`: `+280.7 +/- 40.1 Elo`,
+  83.4%, 362 games — the headline campaign delta.
+- Field gauntlet, `tc=10+0.1`: **~+200 Elo over 1.6.0**; lands in the
+  SF18-capped-2900 / Rybka 3 / Critter 1.6 band and ahead of Rarog 2.2.0.
+
+#### SPRT (each vs the previous accepted head, `tc=3+0.03`, H1 accepted)
+- King safety: `1,514` games, `+65.5 +/- 13.6 Elo`
+- Threats: `1,264` games, `+79.1 +/- 14.8 Elo`
+- Positional data-fit: `956` games, `+57.2 +/- 15.5 Elo`
+- Material imbalance: `3,218` games, `+26.9 +/- 8.4 Elo`
+- Mobility area + PST/material refit: `10,402` games, `+6.5 +/- 4.6 Elo`
+- Global polish: `2,610` games, `+33.3 +/- 9.4 Elo`
+- Dead-feature prune (simplification `[-5,0]`): `11,294` games, `+2.5 +/- 4.2 Elo`
+
+---
+
 ## [1.6.0] - 2026-06-20
 
 ### Changed
@@ -20,7 +97,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tried and reverted a rook-term candidate (open/semi-open file, 7th rank, behind-passer bonuses) after an inconclusive SPRT
 
 #### Time Management
-- Replaced the clock-path time budget with a Stockfish-style formula (ported from the sibling Rarog engine): logarithmic time-left scaling, ply-aware sudden-death and explicit-`movestogo` branches
+- Replaced the clock-path time budget with a logarithmic time-left formula (ported from the sibling Rarog engine): log-scaled allocation of the remaining time, with ply-aware sudden-death and explicit-`movestogo` branches
 - Added an absolute time-safety reserve (2x `Move Overhead`) on top of the formula's percentage cap, bounding worst-case overshoot from command-queue dispatch latency, Syzygy root probing, and `check_stop()` polling granularity
 - Fixed-`movetime` searches no longer subtract `Move Overhead` from the budget; GUIs tolerate ~10% over nominal and movetime games never forfeit on time the way clock play does
 
@@ -633,6 +710,7 @@ First public release.
 - `bench [depth]` command — 16-position built-in benchmark, prints per-position NPS and total node-count fingerprint
 - GitHub Actions release workflow — builds for Linux x86_64, Linux aarch64, Windows x86_64, Windows aarch64, macOS aarch64; all built with Clang; PEXT variant produced for x86_64 platforms
 
+[1.7.0]: https://github.com/maelic13/basilisk/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/maelic13/basilisk/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/maelic13/basilisk/compare/v1.4.9...v1.5.0
 [1.4.9]: https://github.com/maelic13/basilisk/compare/v1.4.8...v1.4.9

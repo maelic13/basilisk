@@ -88,6 +88,32 @@ try {
     $Book         = (Resolve-Path $Book).Path
     $FastchessPath = (Resolve-Path $FastchessPath).Path
 
+    # ---- Diversity guard ----------------------------------------------------
+    # Self-play between two identical engines at a fixed node limit is
+    # DETERMINISTIC: a given opening always yields the same game. So the number
+    # of DISTINCT games is capped by the number of distinct openings in the
+    # book, NOT by -Rounds. Running -Rounds far above the opening count just
+    # replays the same handful of games (e.g. 300k rounds over a 6.5k-opening
+    # book produced only ~1.5k distinct games -> a near-useless tuning set).
+    # Use a large, diverse book (the sampled beast_seed.epd, ~100k+ positions);
+    # add variety with extra passes at a DIFFERENT -Nodes value if needed.
+    if ($BookFormat -eq "epd") {
+        $openingCount = (Get-Content -LiteralPath $Book | Where-Object { $_.Trim() }).Count
+    } else {
+        $openingCount = (Select-String -LiteralPath $Book -Pattern '^\[Event ').Count
+    }
+    if ($openingCount -gt 0 -and $Rounds -gt $openingCount) {
+        Write-Host ""
+        Write-Host "  !! DIVERSITY WARNING ----------------------------------------" -ForegroundColor Yellow
+        Write-Host ("  !! Book has only {0:N0} distinct openings but -Rounds is {1:N0}." -f $openingCount, $Rounds) -ForegroundColor Yellow
+        Write-Host "  !! Deterministic self-play will REPLAY openings -> duplicate" -ForegroundColor Yellow
+        Write-Host "  !! games and a low-diversity dataset. Use a bigger/diverse" -ForegroundColor Yellow
+        Write-Host "  !! book (sample_fens.py -> *.epd) or lower -Rounds to <= the" -ForegroundColor Yellow
+        Write-Host "  !! opening count (and add passes at a different -Nodes)." -ForegroundColor Yellow
+        Write-Host "  !! -------------------------------------------------------------" -ForegroundColor Yellow
+        Write-Host ""
+    }
+
     # Auto concurrency: logical CPUs - 1, minimum 1
     if ($Concurrency -le 0) {
         $logical = [int]$env:NUMBER_OF_PROCESSORS
