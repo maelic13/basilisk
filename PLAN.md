@@ -2130,6 +2130,13 @@ short findings note in this section. Output drives 5.4/5.5 sizing.
 
 #### Step 5.4 - Start the clock at `go`-receipt (latency fix) — Opus 4.8 medium
 
+> **DONE + VALIDATED 2026-06-29.** `Searcher::search` sets `start_time_ =
+> limits.go_recv_time` (else `now()`). Bench 3,764,539, 9/9 CTest. Non-regression
+> SPRT `[-3,0]` at 3+0.03 (`phase5tm` vs `v1.7.0`): **+2.95 ± 6.74 Elo** at 4,468
+> games (LLR 0.66) — stopped early as a confirmed non-regression (a low-stakes
+> safety change measuring positive). Kept.
+
+
 Capture a `steady_clock` timestamp **in `UciProtocol::cmdGo`** (the moment the
 `go` line is parsed) and thread it through `EngineCommand` → `SearchLimits` →
 `Searcher`, using it as `start_time_` instead of the in-worker `now()`. Falls
