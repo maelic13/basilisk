@@ -1595,7 +1595,16 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
     init_lmr(static_cast<float>(active_limits_.params.lmr_base)    / 100.0f,
              static_cast<float>(active_limits_.params.lmr_divisor) / 100.0f);
 
-    start_time_ = std::chrono::steady_clock::now();
+    // Step 5.4: start the clock at the `go`-receipt instant (captured in
+    // UciProtocol::cmdGo and threaded via SearchLimits.go_recv_time), not here at
+    // the worker's search entry. This makes elapsed_seconds() account for the
+    // command-dispatch + thread-handoff latency the GUI already charges (5.3
+    // measured up to ~20 ms at bullet under load) instead of giving it away,
+    // tightening the engine against the GUI clock. Falls back to now() for
+    // internal/bench calls where go_recv_time is unset (so bench is unaffected).
+    start_time_ = (limits.go_recv_time.time_since_epoch().count() != 0)
+                ? limits.go_recv_time
+                : std::chrono::steady_clock::now();
     const int game_ply = 2 * (board.fullmove_number - 1) + (board.side_to_move == BLACK ? 1 : 0);
     compute_time_limit(limits, board.side_to_move, game_ply);
 
