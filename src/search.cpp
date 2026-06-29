@@ -306,8 +306,8 @@ void Searcher::compute_time_limit(const SearchLimits& limits, Color side, int ga
         return;
     }
 
-    // Phase 6 Step 6.1: Stockfish-style increment-and-ply-aware clock budget,
-    // ported from Rarog's Phase 2.2 rewrite (src/time_manager.rs) so both
+    // Phase 5 Step 5.1: logarithmic-time-left, increment-and-ply-aware clock
+    // budget, ported from Rarog's Phase 2.2 rewrite (src/time_manager.rs) so both
     // engines share the same proven formula and time-safety reserve.
     const double time     = std::max(0, (side == WHITE) ? limits.wtime : limits.btime);
     const double inc      = (side == WHITE) ? limits.winc : limits.binc;
