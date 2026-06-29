@@ -2096,8 +2096,11 @@ games are expensive.
 
 #### Step 5.3 - Diagnose & instrument the recurring LB time-loss — Opus 4.8 medium
 
-> **INSTRUMENTATION DONE 2026-06-29 (measurement pending).** Hidden `TM_Debug`
-> UCI check (default off, not advertised → release stays 9 options). `go`-receipt
+> **INSTRUMENTATION DONE 2026-06-29 (measurement pending).** `TM_Debug` UCI check
+> (default off) advertised **only in tune/dev builds** (`#ifdef BASILISK_TUNE`) so
+> harnesses/GUIs actually send the setoption — fastchess/LB skip *unadvertised*
+> options (first attempt logged `Warning; doesn't have option TM_Debug`, zero
+> data); release builds stay 9 options. `go`-receipt
 > timestamp captured in `UciProtocol::cmdGo`, threaded `EngineCommand.recv_time`
 > → `SearchLimits.go_recv_time`; `Searcher::search` emits one
 > `info string tm soft_ms=.. hard_ms=.. elapsed_ms=.. dispatch_ms=..` per move on

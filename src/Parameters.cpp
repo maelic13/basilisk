@@ -154,6 +154,10 @@ std::string Parameters::uciOptions() {
            "option name SyzygyProbeLimit type spin default 7 min 0 max 7\n";
 #ifdef BASILISK_TUNE
     opts +=
+        // TM diagnostic (Step 5.3): advertised only in tune/dev builds so a
+        // harness/GUI will actually send the setoption (fastchess/LB skip
+        // unadvertised options); release builds keep a clean 9-option list.
+        "option name TM_Debug type check default false\n"
         "option name RfpCoeff type spin default 160 min 60 max 240\n"
         "option name RfpImproving type spin default 72 min 0 max 140\n"
         "option name RazorCoeff type spin default 243 min 120 max 500\n"
@@ -320,9 +324,10 @@ void Parameters::setOption(const std::string& args) {
     } else if (name_lower == "syzygy50moverule") {
         syzygy50MoveRule = parse_bool_option(value);
     } else if (name_lower == "tm_debug") {
-        // Hidden diagnostic (Step 5.3): not advertised in `uci`; when on, the
-        // search emits one `info string tm ...` per move with the time budget,
-        // actual elapsed, and the go-receipt->search-start dispatch delta.
+        // Diagnostic (Step 5.3): advertised only in tune/dev builds (see
+        // uciOptions) but always parseable. When on, the search emits one
+        // `info string tm ...` per move with the time budget, actual elapsed,
+        // and the go-receipt->search-start dispatch delta.
         tmDebug = parse_bool_option(value);
     } else if (!parse_int(value, parsed)) {
         uci_write_line("info string Invalid value for option '" + name + "': " + value);
