@@ -995,10 +995,12 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     TTEntry tte{};
     bool tt_found = tt_.probe_copy(hash, tte);
     Move tt_move = MOVE_NONE;
+    int  tt_score = VALUE_NONE;       // hoisted (Step 6.1) for the stand-pat tighten
+    TTFlag tt_flag = TT_NONE;
     if (tt_found) {
         tt_move = move_from_tt(tte.move16);
-        int tt_score = TranspositionTable::score_from_tt(tte.score, ply, board_ptr_->halfmove_clock);
-        TTFlag tt_flag = TTFlag(tte.flag_age & 3);
+        tt_score = TranspositionTable::score_from_tt(tte.score, ply, board_ptr_->halfmove_clock);
+        tt_flag = TTFlag(tte.flag_age & 3);
         if (tt_flag == TT_EXACT) return tt_score;
         if (tt_flag == TT_ALPHA && tt_score <= alpha) return tt_score;
         if (tt_flag == TT_BETA  && tt_score >= beta)  return tt_score;
@@ -1040,6 +1042,14 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     int stand_pat = raw_eval;
     stand_pat += correction_value(board_ptr_->side_to_move, *board_ptr_, ss);
     stand_pat = std::clamp(stand_pat, -(MATE_SCORE - 1), MATE_SCORE - 1);
+
+    // Step 6.1 mirror: tighten the stand-pat with the TT bound when it proves a
+    // better estimate (a fail-high above it / fail-low below it). The raw eval
+    // stored as the TT static_eval (raw_eval) is unchanged.
+    if (tt_found && tt_score != VALUE_NONE
+        && ((tt_flag == TT_BETA  && tt_score > stand_pat)
+            || (tt_flag == TT_ALPHA && tt_score < stand_pat)))
+        stand_pat = tt_score;
 
     if (stand_pat >= beta) {
         tt_.store(hash, 0, stand_pat, TT_BETA, MOVE_NONE, ply, raw_eval);
@@ -1222,6 +1232,18 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         ss->eval = static_eval;
     }
 
+    // Step 6.1: value used for PRUNING decisions only. When a TT entry's bound
+    // proves its score a tighter estimate than the (corrected) static eval —
+    // exact, or a fail-high above it, or a fail-low below it — prune on that
+    // instead. ss->eval / static_eval stay the raw corrected value, so
+    // `improving` and correction-history are unaffected.
+    int eval = static_eval;
+    if (tt_found && static_eval != VALUE_NONE && tt_score != VALUE_NONE
+        && (tt_flag == TT_EXACT
+            || (tt_flag == TT_BETA  && tt_score > static_eval)
+            || (tt_flag == TT_ALPHA && tt_score < static_eval)))
+        eval = tt_score;
+
     // Improving: eval is better than 2 plies ago
     bool improving = !in_check && ply >= 2
                    && (ss-2)->eval != VALUE_NONE
@@ -1235,24 +1257,24 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         if (depth <= 9) {
             const auto& p = active_limits_.params;
             int margin = p.rfp_coeff * depth - (improving ? p.rfp_improving : 0);
-            if (static_eval - margin >= beta)
-                return static_eval;
+            if (eval - margin >= beta)
+                return eval;
         }
 
         // Razoring
-        if (depth <= 3 && static_eval + active_limits_.params.razor_coeff * depth <= alpha) {
+        if (depth <= 3 && eval + active_limits_.params.razor_coeff * depth <= alpha) {
             int q = quiescence(alpha, beta, ply, 0, ss);
             if (q <= alpha) return q;
         }
 
         // Null-move pruning
         if (allow_null && depth >= 3
-            && static_eval >= beta
+            && eval >= beta
             && board_ptr_->has_non_pawn_material(board_ptr_->side_to_move)
             && (ss-1)->move != MOVE_NULL) {
 
             int r = active_limits_.params.null_base + depth / 4
-                  + std::min((static_eval - beta) / active_limits_.params.null_eval_div, 3);
+                  + std::min((eval - beta) / active_limits_.params.null_eval_div, 3);
             ss->move        = MOVE_NULL;
             ss->moved_piece = NO_PIECE_TYPE;
             board_ptr_->make_null_move();
@@ -1358,9 +1380,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             if (is_quiet) {
                 // Futility pruning
                 if (!is_pv && !in_check && depth <= 6
-                    && static_eval != VALUE_NONE
-                    && static_eval + active_limits_.params.futility_base
-                                   + active_limits_.params.futility_coeff * depth <= alpha
+                    && eval != VALUE_NONE
+                    && eval + active_limits_.params.futility_base
+                            + active_limits_.params.futility_coeff * depth <= alpha
                     && !move_gives_check())
                     return false;
 
