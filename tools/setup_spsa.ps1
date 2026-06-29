@@ -23,6 +23,7 @@
     "pruning"  (default) - 13 pruning / margin constants.
     "lmr"                - LMR formula + adjustment constants.
     "combined"           - narrowed Phase 1 polish around accepted pruning+LMR.
+    "tm"                 - time-management budget + adaptive-stop constants (Phase 5.8).
 
 .PARAMETER EngineSuffix
     Suffix of the already-built engine under tools\test_engines.
@@ -60,7 +61,7 @@
     ./tools/setup_spsa.ps1 -ConfigGroup combined -EngineSuffix phase1-lmr -Iterations 2000
 #>
 param(
-    [ValidateSet("pruning","lmr","combined")][string]$ConfigGroup = "pruning",
+    [ValidateSet("pruning","lmr","combined","tm")][string]$ConfigGroup = "pruning",
     [string]$EngineSuffix = "phase1-defaults",
     [switch]$Resume,
     [int]$Iterations = 5000

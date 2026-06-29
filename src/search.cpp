@@ -345,6 +345,10 @@ void Searcher::compute_time_limit(const SearchLimits& limits, Color side, int ga
         std::min(0.8097 * time - overhead, max_scale * optimum_ms),
         optimum_ms);
 
+    // Step 5.8: overall SPSA-tunable budget multipliers (default ×1.00 -> no-op).
+    optimum_ms *= limits.params.tm_opt_mult / 100.0;
+    maximum_ms *= limits.params.tm_max_mult / 100.0;
+
     // Time-safety reserve (Step 2.9.1, matched here to Rarog's 2.9.1 fix). The
     // SF maximum above leaves only ~19% of the clock plus one move overhead
     // unused; at low remaining time that slack is just a few ms. check_stop()
@@ -1721,14 +1725,18 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
         // stability=0 → 100% of soft, stability=6+ → ~64% of soft
         // A significant score drop signals instability — extend time budget.
         if (soft_limit_ > 0.0 && !pondering_) {
-            double stability_scale = 1.0 - 0.06 * std::min(best_stability, 6);
-            // Score-based time extension: if score dropped by 30+ cp, take more time
+            // Step 5.8: the scaling constants below are SPSA-tunable
+            // (active_limits_.params, defaults == the baked values).
+            const SearchParams& tp = active_limits_.params;
+            double stability_scale = 1.0 - (tp.tm_stability / 1000.0) * std::min(best_stability, 6);
+            // Score-based time extension: if score dropped enough, take more time
             int score_drop = prev_score_saved - score;
-            double score_scale = (depth > 4 && score_drop > 30)
-                               ? 1.0 + std::min(score_drop - 30, 120) / 100.0
+            double score_scale = (depth > 4 && score_drop > tp.tm_scoredrop_thr)
+                               ? 1.0 + std::min(score_drop - tp.tm_scoredrop_thr, 120)
+                                       / static_cast<double>(tp.tm_scoredrop_div)
                                : 1.0;
-            double effort_scale = (depth > 5 && root_best_effort_ >= 80) ? 0.80
-                                : (depth > 5 && root_best_effort_ <= 25) ? 1.20
+            double effort_scale = (depth > 5 && root_best_effort_ >= tp.tm_effort_hi) ? tp.tm_effort_hi_mult / 100.0
+                                : (depth > 5 && root_best_effort_ <= tp.tm_effort_lo) ? tp.tm_effort_lo_mult / 100.0
                                 : 1.0;
             if (elapsed >= soft_limit_ * stability_scale * score_scale * effort_scale)
                 break;

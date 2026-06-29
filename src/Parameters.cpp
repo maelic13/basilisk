@@ -177,7 +177,16 @@ std::string Parameters::uciOptions() {
         "option name LmrNonPvAdj type spin default 1 min 0 max 3\n"
         "option name LmrCutNodeAdj type spin default 0 min 0 max 3\n"
         "option name LmrTtPvAdj type spin default 0 min 0 max 3\n"
-        "option name LmrNotImprovingAdj type spin default 0 min 0 max 3\n";
+        "option name LmrNotImprovingAdj type spin default 0 min 0 max 3\n"
+        "option name TmOptMult type spin default 100 min 50 max 200\n"
+        "option name TmMaxMult type spin default 100 min 50 max 200\n"
+        "option name TmStability type spin default 60 min 0 max 150\n"
+        "option name TmScoreDropThr type spin default 30 min 5 max 120\n"
+        "option name TmScoreDropDiv type spin default 100 min 30 max 400\n"
+        "option name TmEffortHi type spin default 80 min 50 max 99\n"
+        "option name TmEffortLo type spin default 25 min 1 max 50\n"
+        "option name TmEffortHiMult type spin default 80 min 50 max 100\n"
+        "option name TmEffortLoMult type spin default 120 min 100 max 200\n";
 #endif
     return opts;
 }
@@ -363,6 +372,15 @@ void Parameters::setOption(const std::string& args) {
     else if (name_lower == "lmrcutnodeadj")         { search_params.lmr_cut_node_adj       = std::clamp(parsed,     0,    3); }
     else if (name_lower == "lmrttpvadj")            { search_params.lmr_tt_pv_adj          = std::clamp(parsed,     0,    3); }
     else if (name_lower == "lmrnotimprovingadj")    { search_params.lmr_not_improving_adj  = std::clamp(parsed,     0,    3); }
+    else if (name_lower == "tmoptmult")             { search_params.tm_opt_mult            = std::clamp(parsed,    50,  200); }
+    else if (name_lower == "tmmaxmult")             { search_params.tm_max_mult            = std::clamp(parsed,    50,  200); }
+    else if (name_lower == "tmstability")           { search_params.tm_stability           = std::clamp(parsed,     0,  150); }
+    else if (name_lower == "tmscoredropthr")        { search_params.tm_scoredrop_thr       = std::clamp(parsed,     5,  120); }
+    else if (name_lower == "tmscoredropdiv")        { search_params.tm_scoredrop_div       = std::clamp(parsed,    30,  400); }
+    else if (name_lower == "tmefforthi")            { search_params.tm_effort_hi           = std::clamp(parsed,    50,   99); }
+    else if (name_lower == "tmeffortlo")            { search_params.tm_effort_lo           = std::clamp(parsed,     1,   50); }
+    else if (name_lower == "tmefforthimult")        { search_params.tm_effort_hi_mult      = std::clamp(parsed,    50,  100); }
+    else if (name_lower == "tmeffortlomult")        { search_params.tm_effort_lo_mult      = std::clamp(parsed,   100,  200); }
 #endif
 }
 
