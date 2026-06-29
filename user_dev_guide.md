@@ -617,7 +617,7 @@ fingerprints, PGN paths) lives in **PLAN.md §4** — this is the outcome summar
 
 ### Phase 6 - Search Efficiency Wave (PLAN.md §5; **renumbered to Phase 6 on 2026-06-29 — executed AFTER Phase 5 time management.** SPSA last — driving Sonnet 4.6 medium, dense ports Codex 5.5 medium / GPT-5.5 high)
 
-- [ ] 6.1 TT-bound eval refinement SPRT verdict recorded.
+- [~] **6.1 TT-bound eval refinement — CANDIDATE IMPLEMENTED 2026-06-29 (branch `phase6-6.1-ttbound`, SPRT pending).** In `negamax`, a separate `eval` for *pruning decisions only* (RFP/razoring/NMP/futility) prefers the TT score when its bound proves it tighter than the corrected static eval (exact / fail-high above / fail-low below); `ss->eval`/`static_eval` stay raw so `improving` + correction-history are unaffected. Mirrored in qsearch stand-pat. Bench 3,764,539→**4,102,129**, 9/9 CTest, startpos depth-14 sane (+33cp). **On its own branch** so it doesn't contaminate the Phase-5 SPSA bake on `development`. **To validate (after Phase 5 ships):** merge/cherry-pick the branch onto the post-Phase-5 head, build a PGO test binary (`build_test.ps1 -Suffix phase61-ttbound`), SPRT `elo1=3` at `3+0.03` vs the Phase-5 head. — Sonnet 4.6 medium
 - [ ] 6.2 History bonus/malus formula SPRT verdict recorded.
 - [ ] 6.3 Fractional LMR SPRT verdict recorded.
 - [ ] 6.4 TT-capture LMR input SPRT verdict recorded.
