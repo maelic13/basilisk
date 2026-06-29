@@ -2107,8 +2107,16 @@ games are expensive.
 > the reporting thread. Timing UNCHANGED (start_time_ still in-worker; go_recv
 > only read for the line). Gate met: bench 3,764,539, 9/9 CTest, 9 options,
 > debug-off identical. Diagnostic binary `basilisk-phase53-tmdebug-pext-pgo.exe`.
-> **Maintainer measurement run still owed** (LB / `1+0.01` fastchess with
-> `option.TM_Debug=true` + engine logging) → findings note + 5.4/5.5 sizing.
+>
+> **MEASURED 2026-06-29 (DONE).** 1+0.01 fastchess, 12,471 moves (`-log
+> engine=true`), plus the LB forfeit log. **The engine's TM is sound:** overshoot
+> negligible (14 moves over `hard` by ≤ 1 ms — poll rounding), allocation correct
+> (`elapsed < hard`). Only harness-independent flaw: **dispatch ≤ 20 ms**
+> (`go`→clock-start under bullet+concurrency) → 5.4 reclaims it. **LB forfeits are
+> GUI/pipe latency, not a budget bug:** LB charged 959 ms for a move the engine
+> spent 112 ms on (`dispatch_ms=0`) — ~847 ms in the LB↔engine pipe; fastchess
+> (efficient I/O) never forfeits. **⇒ 5.5 unnecessary (no overshoot); LB is not a
+> TM-budget repair; real levers are 5.4 (small, harness-independent) + 5.7 + 5.8.**
 
 Make the forfeit measurable before changing anything. Add a **debug-only**
 (`info string` behind a hidden `TM_Debug` UCI check, default off — so it's
@@ -2133,6 +2141,12 @@ count drops. SPRT non-regression `[-3,0]` at `3+0.03` (must not cost Elo at clea
 TCs). Concurrency-aware (timestamp is read-only, shared safely).
 
 #### Step 5.5 - Anti-overshoot poll granularity — Sonnet 4.6 medium
+
+> **LIKELY SKIP (5.3 data, 2026-06-29).** The premise — heavier eval per node
+> overshooting the tiny bullet budget — did not materialize: measured overshoot
+> is **≤ 1 ms over 12,471 bullet moves**, so the fixed `(nodes_ & 2047)` poll is
+> already fine. Keep this step only as a contingency if a future change shows
+> real overshoot. Do not implement now.
 
 Replace the fixed `(nodes_ & 2047)` poll with an interval that **tightens as the
 budget shrinks**: e.g. poll mask = `min(2047, max(255, hard_limit_nodes_est >> k))`,
