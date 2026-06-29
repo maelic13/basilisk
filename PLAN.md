@@ -2096,6 +2096,17 @@ games are expensive.
 
 #### Step 5.3 - Diagnose & instrument the recurring LB time-loss — Opus 4.8 medium
 
+> **INSTRUMENTATION DONE 2026-06-29 (measurement pending).** Hidden `TM_Debug`
+> UCI check (default off, not advertised → release stays 9 options). `go`-receipt
+> timestamp captured in `UciProtocol::cmdGo`, threaded `EngineCommand.recv_time`
+> → `SearchLimits.go_recv_time`; `Searcher::search` emits one
+> `info string tm soft_ms=.. hard_ms=.. elapsed_ms=.. dispatch_ms=..` per move on
+> the reporting thread. Timing UNCHANGED (start_time_ still in-worker; go_recv
+> only read for the line). Gate met: bench 3,764,539, 9/9 CTest, 9 options,
+> debug-off identical. Diagnostic binary `basilisk-phase53-tmdebug-pext-pgo.exe`.
+> **Maintainer measurement run still owed** (LB / `1+0.01` fastchess with
+> `option.TM_Debug=true` + engine logging) → findings note + 5.4/5.5 sizing.
+
 Make the forfeit measurable before changing anything. Add a **debug-only**
 (`info string` behind a hidden `TM_Debug` UCI check, default off — so it's
 bench-/play-identical when off) line per move logging: allocated `soft`/`hard`,
