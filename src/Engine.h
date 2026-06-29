@@ -22,7 +22,8 @@ public:
 
 private:
     void handle_command(const EngineCommand& command, bool& quit);
-    void start_search(uint64_t command_epoch);
+    void start_search(uint64_t command_epoch,
+                      std::chrono::steady_clock::time_point recv_time = {});
     void run_bench_command(const EngineCommand& command);
     void run_perft_command(uint64_t command_epoch);
     void configure_syzygy();

@@ -73,6 +73,7 @@ SearchLimits Engine::build_limits() const {
     limits.syzygy_probe_depth = Syzygy::enabled() ? parameters_.syzygyProbeDepth : 0;
     limits.syzygy_probe_limit = Syzygy::enabled() ? parameters_.syzygyProbeLimit : 0;
     limits.syzygy_50_move_rule = parameters_.syzygy50MoveRule;
+    limits.tm_debug  = parameters_.tmDebug;
     limits.params    = parameters_.search_params;
     limits.infinite  = (parameters_.depth == infiniteDepth && parameters_.moveTime == 0
                         && parameters_.whiteTime == 0 && parameters_.blackTime == 0
@@ -145,10 +146,12 @@ void Engine::wait_until_bestmove_allowed(const SearchLimits& limits,
     }
 }
 
-void Engine::start_search(uint64_t command_epoch) {
+void Engine::start_search(uint64_t command_epoch,
+                          std::chrono::steady_clock::time_point recv_time) {
     configure_syzygy();
 
     SearchLimits limits = build_limits();
+    limits.go_recv_time = recv_time;
     const int desired_hash_mb = parameters_.hash_mb;
     const int desired_threads = parameters_.threads;
     const bool do_clear_hash = parameters_.clear_hash;
@@ -298,7 +301,7 @@ void Engine::handle_command(const EngineCommand& command, bool& quit) {
             if (parameters_.perft > 0)
                 run_perft_command(command.epoch);
             else
-                start_search(command.epoch);
+                start_search(command.epoch, command.recv_time);
             break;
         case EngineCommandType::Stop:
             if (command.epoch == 0

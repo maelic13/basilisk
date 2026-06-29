@@ -82,6 +82,10 @@ struct SearchLimits {
     int syzygy_probe_depth = 0; // 0 = disabled
     int syzygy_probe_limit = 0;
     bool syzygy_50_move_rule = true;
+    bool tm_debug = false;      // emit per-move time-accounting info string (Step 5.3)
+    // Instant the `go` command was parsed off UCI input (default = unset). Used
+    // only to report dispatch latency in tm_debug; does not affect timing yet.
+    std::chrono::steady_clock::time_point go_recv_time{};
     std::vector<Move> root_moves;
     std::vector<Syzygy::RootMoveInfo> syzygy_root_moves;
     RootMoveTable* root_table = nullptr;

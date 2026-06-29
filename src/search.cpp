@@ -1745,6 +1745,22 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
     result.nodes      = nodes_;
     result.tbhits     = tb_hits_;
     result.elapsed_ms = int64_t(elapsed_seconds() * 1000.0);
+
+    // Step 5.3 diagnostic: one line per move with the time budget, the actual
+    // elapsed, and the go-receipt -> search-start dispatch latency the GUI
+    // charges but elapsed_seconds() (clock starts at start_time_) does not yet
+    // count. Emitted only on the reporting thread (info_cb_ set) and only with
+    // the hidden TM_Debug option on, so play/bench are unaffected when off.
+    if (info_cb_ && active_limits_.tm_debug) {
+        long long dispatch_ms = -1;
+        if (active_limits_.go_recv_time.time_since_epoch().count() != 0)
+            dispatch_ms = int64_t(std::chrono::duration<double, std::milli>(
+                              start_time_ - active_limits_.go_recv_time).count());
+        info_cb_("info string tm soft_ms=" + std::to_string(int64_t(soft_limit_ * 1000.0))
+               + " hard_ms="     + std::to_string(int64_t(hard_limit_ * 1000.0))
+               + " elapsed_ms="  + std::to_string(int64_t(elapsed_seconds() * 1000.0))
+               + " dispatch_ms=" + std::to_string(dispatch_ms));
+    }
     return result;
 }
 

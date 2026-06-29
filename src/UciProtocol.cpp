@@ -65,8 +65,9 @@ uint64_t UciProtocol::next_control_epoch() {
     return control_epoch_.fetch_add(1, std::memory_order_acq_rel) + 1;
 }
 
-void UciProtocol::enqueue(EngineCommandType type, const std::string& args, uint64_t epoch) {
-    commands_.push(EngineCommand{type, args, nullptr, epoch});
+void UciProtocol::enqueue(EngineCommandType type, const std::string& args, uint64_t epoch,
+                          std::chrono::steady_clock::time_point recv_time) {
+    commands_.push(EngineCommand{type, args, nullptr, epoch, recv_time});
 }
 
 // ---------------------------------------------------------------------------
@@ -111,10 +112,11 @@ void UciProtocol::cmdQuit() {
 }
 
 void UciProtocol::cmdGo(const std::string &args) {
+    const auto recv_time = std::chrono::steady_clock::now();
     uint64_t epoch = next_control_epoch();
     if (searching_.exchange(true, std::memory_order_acq_rel))
         stop_requested_.store(true, std::memory_order_release);
-    enqueue(EngineCommandType::Go, args, epoch);
+    enqueue(EngineCommandType::Go, args, epoch, recv_time);
 }
 
 void UciProtocol::cmdStop() {

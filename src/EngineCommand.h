@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <condition_variable>
 #include <cstdint>
 #include <deque>
@@ -24,6 +25,10 @@ struct EngineCommand {
     std::string args;
     std::shared_ptr<std::promise<void>> ack;
     uint64_t epoch = 0;
+    // Wall-clock instant the command was parsed off the UCI input (set for Go).
+    // Lets the search measure the dispatch latency the GUI already charges
+    // (Step 5.3 diagnostic; Step 5.4 will start the clock from here).
+    std::chrono::steady_clock::time_point recv_time{};
 };
 
 class EngineCommandQueue {

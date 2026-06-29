@@ -111,6 +111,7 @@ Parameters::Parameters() {
     syzygyProbeDepth = 1;
     syzygyProbeLimit = 7;
     syzygy50MoveRule = true;
+    tmDebug          = false;
 }
 
 void Parameters::reset() {
@@ -318,6 +319,11 @@ void Parameters::setOption(const std::string& args) {
         ponderEnabled = parse_bool_option(value);
     } else if (name_lower == "syzygy50moverule") {
         syzygy50MoveRule = parse_bool_option(value);
+    } else if (name_lower == "tm_debug") {
+        // Hidden diagnostic (Step 5.3): not advertised in `uci`; when on, the
+        // search emits one `info string tm ...` per move with the time budget,
+        // actual elapsed, and the go-receipt->search-start dispatch delta.
+        tmDebug = parse_bool_option(value);
     } else if (!parse_int(value, parsed)) {
         uci_write_line("info string Invalid value for option '" + name + "': " + value);
     } else if (name_lower == "move overhead") {
