@@ -1,0 +1,56 @@
+{
+    "TmOptMult": {
+        "value": 100,
+        "min_value": 50,
+        "max_value": 200,
+        "step": 8
+    },
+    "TmMaxMult": {
+        "value": 100,
+        "min_value": 50,
+        "max_value": 200,
+        "step": 8
+    },
+    "TmStability": {
+        "value": 60,
+        "min_value": 0,
+        "max_value": 150,
+        "step": 10
+    },
+    "TmScoreDropThr": {
+        "value": 30,
+        "min_value": 5,
+        "max_value": 120,
+        "step": 8
+    },
+    "TmScoreDropDiv": {
+        "value": 100,
+        "min_value": 30,
+        "max_value": 400,
+        "step": 25
+    },
+    "TmEffortHi": {
+        "value": 80,
+        "min_value": 50,
+        "max_value": 99,
+        "step": 4
+    },
+    "TmEffortLo": {
+        "value": 25,
+        "min_value": 1,
+        "max_value": 50,
+        "step": 4
+    },
+    "TmEffortHiMult": {
+        "value": 80,
+        "min_value": 50,
+        "max_value": 100,
+        "step": 4
+    },
+    "TmEffortLoMult": {
+        "value": 120,
+        "min_value": 100,
+        "max_value": 200,
+        "step": 8
+    }
+}

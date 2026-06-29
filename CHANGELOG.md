@@ -7,6 +7,76 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.0] - 2026-07-08
+
+A strength release bundling three development phases: time-management hardening,
+a search-efficiency pass, and a from-scratch evaluation refresh driven by
+self-play. The combined SPRT gain is roughly **+90 Elo over 1.7.0 at
+`tc=3+0.03`**. A separate `10+0.1` field gauntlet (vs Fruit 2.1, Rybka 3/4,
+Critter 1.6a, HIARCS 14, Shredder 12, Rarog 2.2.0, and rating-limited Stockfish)
+confirmed the improvement holds at a longer time control — head-to-head vs 1.7.0
+at `10+0.1` was about **+40 Elo**. As is typical for evaluation refits, a chunk
+of the fast-time-control gain compresses at longer time control; the release is
+sized on the honest long-TC result, not the fast-TC headline.
+
+### Changed
+
+#### Strength / Evaluation
+The entire hand-crafted evaluation was re-centered and re-fit through a two-stage
+data pipeline, each stage SPRT-accepted at `tc=3+0.03` against the previous head:
+
+- **Stockfish distillation bootstrap** (`+6.75 Elo`) — the 1.7.0 evaluation was
+  self-played and labeled by a head now ~300 Elo weaker than current Basilisk. It
+  was re-centered once against a far stronger teacher: Stockfish at 60k
+  nodes/position on a quiet-filtered position set, with centipawn targets
+  converted to a win/draw/loss expectancy. Material values stayed pinned (the L2
+  prior held the centipawn scale); the movement was in positional terms.
+- **On-policy self-play refresh** (`+21.02`, `+19.51`, `+18.29`, `+15.32 Elo`
+  over five successive cycles) — each cycle generates self-play games from the
+  current head, phase-balances the resulting positions, and jointly re-fits the
+  linear evaluation plus the king-safety danger table. This is a genuine
+  self-improvement loop: a stronger engine reaches new positions, and the
+  evaluation re-fits to them. The gains barely diminished across cycles
+  (king-ring pressure, queen infiltration, passed-pawn handling, and the
+  king-safety `safety_table` all kept moving), and were stopped as the fast-TC
+  per-cycle gain began to taper.
+
+#### Search
+- **Transposition-table-bound-aware pruning evaluation** (`+7.18 Elo`) — pruning
+  decisions (reverse-futility, razoring, null-move, futility, and quiescence
+  stand-pat) now use a separate evaluation that prefers the TT score when its
+  bound proves it a tighter estimate than the corrected static evaluation. The
+  raw static evaluation and correction history are left untouched, so the
+  `improving` heuristic and correction-history signal are unaffected. A
+  mate-score guard keeps the refinement clear of mate scores.
+
+#### Time management
+- The move clock now starts when the engine receives `go` rather than when the
+  worker thread begins searching. This accounts for the GUI→engine dispatch
+  latency (~20 ms measured under bullet time controls with concurrency), so the
+  engine stays tighter against the wall clock and reclaims time it was
+  previously spending without counting. Validated as a non-regression
+  (`+2.95 ± 6.74 Elo` vs 1.7.0 at `tc=3+0.03`, stopped early as a confirmed
+  non-regression).
+
+### Internal
+- Profile-guided-optimization training now uses the 40-position `bench` suite
+  only; the separate depth-7 EPD training set was removed. It was redundant once
+  the bench suite grew from 16 to 40 positions — the broadened suite is itself a
+  representative execution profile (matching the convention of training PGO from
+  `bench`). Final binary behaviour is unaffected.
+- Built substantial search-parameter tuning infrastructure, all shipping at
+  behaviour-neutral defaults under `BASILISK_TUNE`: asymmetric history bonus/malus
+  shaping, fractional (1024ths) late-move reductions, a post-LMR
+  continuation-history nudge, quiescence checking moves, and capture-futility /
+  SEE-quiet pruning margins. These are exposed for a future joint SPSA pass but
+  are inert in the release build.
+- Explored SPSA tuning of the nine time-management constants and **reverted** it:
+  the gain SPRT against the hand-tuned defaults was a wash (`+0.88 ± 4.03 Elo`
+  over 12,262 games, LLR flat inside `[0, 3]`), confirming the time budget was
+  already at its ceiling. The knobs remain exposed under `BASILISK_TUNE` for
+  future re-tuning.
+
 ## [1.7.0] - 2026-06-29
 
 A pure evaluation release: the hand-crafted eval structure built during the

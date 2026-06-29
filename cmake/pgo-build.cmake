@@ -21,9 +21,6 @@ endif()
 if(NOT DEFINED PGO_TRAIN_DEPTH)
     set(PGO_TRAIN_DEPTH "13")
 endif()
-if(NOT DEFINED PGO_POSITION_DEPTH)
-    set(PGO_POSITION_DEPTH "7")
-endif()
 if(NOT DEFINED PGO_DIST_DIR)
     set(PGO_DIST_DIR "")
 endif()
@@ -38,7 +35,6 @@ set(_prof_dir "${_build_root}/${PGO_PRESET}-pgo-profile")
 set(_profdata "${_prof_dir}/basilisk.profdata")
 set(_train_input "${_prof_dir}/bench.in")
 set(_train_log "${_prof_dir}/bench.log")
-set(_train_epd "${PGO_SOURCE_DIR}/cmake/pgo-train.epd")
 
 file(REMOVE_RECURSE "${_gen_dir}" "${_use_dir}" "${_prof_dir}")
 file(MAKE_DIRECTORY "${_prof_dir}")
@@ -88,46 +84,14 @@ execute_process(
 )
 _basilisk_check_training_log("${_train_log}")
 
-if(EXISTS "${_train_epd}")
-    file(STRINGS "${_train_epd}" _epd_lines)
-    set(_epd_total 0)
-    foreach(_epd_line IN LISTS _epd_lines)
-        string(STRIP "${_epd_line}" _epd_line)
-        if(_epd_line STREQUAL "" OR _epd_line MATCHES "^#")
-            continue()
-        endif()
-        math(EXPR _epd_total "${_epd_total} + 1")
-    endforeach()
-
-    message(STATUS "PGO training positions: ${_epd_total} positions at depth ${PGO_POSITION_DEPTH}")
-    set(_epd_index 0)
-    foreach(_epd_line IN LISTS _epd_lines)
-        string(STRIP "${_epd_line}" _epd_line)
-        if(_epd_line STREQUAL "" OR _epd_line MATCHES "^#")
-            continue()
-        endif()
-        if(NOT _epd_line MATCHES "^([^ ]+) ([bw]) ([^ ]+) ([^ ;]+);?")
-            message(FATAL_ERROR "Invalid PGO EPD line: ${_epd_line}")
-        endif()
-
-        math(EXPR _epd_index "${_epd_index} + 1")
-        set(_fen "${CMAKE_MATCH_1} ${CMAKE_MATCH_2} ${CMAKE_MATCH_3} ${CMAKE_MATCH_4} 0 1")
-        set(_position_input "${_prof_dir}/position-${_epd_index}.in")
-        set(_position_log "${_prof_dir}/position-${_epd_index}.log")
-        file(WRITE "${_position_input}" "position fen ${_fen}\ngo depth ${PGO_POSITION_DEPTH}\nquit\n")
-
-        message(STATUS "PGO training position ${_epd_index}/${_epd_total}: depth ${PGO_POSITION_DEPTH}")
-        execute_process(
-            COMMAND "${CMAKE_COMMAND}" -E env "LLVM_PROFILE_FILE=${_prof_dir}/position-${_epd_index}-%p.profraw" "${_instrumented_binary}"
-            INPUT_FILE "${_position_input}"
-            OUTPUT_FILE "${_position_log}"
-            ERROR_FILE "${_position_log}"
-            WORKING_DIRECTORY "${PGO_SOURCE_DIR}"
-            COMMAND_ERROR_IS_FATAL ANY
-        )
-        _basilisk_check_training_log("${_position_log}")
-    endforeach()
-endif()
+# Training input is the 40-position `bench` suite only (depth 13). That suite is
+# diverse enough on its own — openings, quiet and tactical middlegames, a broad
+# range of endgames, mates, and fortresses (30 pieces down to 8) — to be a
+# representative PGO profile, matching the Stockfish convention of training PGO
+# straight from `bench`. The older per-position EPD loop (cmake/pgo-train.epd,
+# depth 7) was dropped when bench grew from 16 to 40 positions: with a
+# well-spread bench it was redundant (it mostly re-sampled the same hot search
+# loop). See PLAN.md / user_dev_guide.md.
 
 file(GLOB _profraw_files "${_prof_dir}/*.profraw")
 if(NOT _profraw_files)

@@ -33,9 +33,13 @@ static int score_from_syzygy_wdl(Syzygy::Wdl wdl) {
 }
 
 void Searcher::init_lmr(float base, float divisor) {
+    // Phase 6.7: table stored in 1024ths of a ply (fractional LMR). The floor
+    // identity int(1024*x) >> 10 == int(x) keeps the base reduction identical to
+    // the old integer table at default knobs; the finer resolution only matters
+    // once 6.9 SPSA sets sub-ply adjustments. Consumers shift back with `>> 10`.
     for (int d = 1; d < 64; d++)
         for (int m = 1; m < 64; m++)
-            lmr_table_[d][m] = int(base + std::log(d) * std::log(m) / divisor);
+            lmr_table_[d][m] = int(1024.0f * (base + std::log(d) * std::log(m) / divisor));
 }
 
 // ---- Shared root move table ------------------------------------------------
@@ -306,8 +310,8 @@ void Searcher::compute_time_limit(const SearchLimits& limits, Color side, int ga
         return;
     }
 
-    // Phase 6 Step 6.1: Stockfish-style increment-and-ply-aware clock budget,
-    // ported from Rarog's Phase 2.2 rewrite (src/time_manager.rs) so both
+    // Phase 5 Step 5.1: logarithmic-time-left, increment-and-ply-aware clock
+    // budget, ported from Rarog's Phase 2.2 rewrite (src/time_manager.rs) so both
     // engines share the same proven formula and time-safety reserve.
     const double time     = std::max(0, (side == WHITE) ? limits.wtime : limits.btime);
     const double inc      = (side == WHITE) ? limits.winc : limits.binc;
@@ -344,6 +348,10 @@ void Searcher::compute_time_limit(const SearchLimits& limits, Color side, int ga
     double maximum_ms = std::max(
         std::min(0.8097 * time - overhead, max_scale * optimum_ms),
         optimum_ms);
+
+    // Step 5.8: overall SPSA-tunable budget multipliers (default ×1.00 -> no-op).
+    optimum_ms *= limits.params.tm_opt_mult / 100.0;
+    maximum_ms *= limits.params.tm_max_mult / 100.0;
 
     // Time-safety reserve (Step 2.9.1, matched here to Rarog's 2.9.1 fix). The
     // SF maximum above leaves only ~19% of the clock plus one move overhead
@@ -464,6 +472,38 @@ void Searcher::update_low_ply(int ply, Square from, Square to, int bonus) {
         hist_update<MAX_LOW_HIST>(low_ply_hist_[ply][from][to], bonus);
 }
 
+// Phase 6.3 bonus/malus shape: bonus = min(quad*d^2/64 + lin*d, max), malus
+// mirrored with its own knobs. Defaults reproduce the legacy min(d*d, 2048).
+int Searcher::history_bonus_value(int depth) const {
+    const auto& p = active_limits_.params;
+    return std::min(p.hist_bonus_quad * depth * depth / 64 + p.hist_bonus_lin * depth,
+                    p.hist_bonus_max);
+}
+
+int Searcher::history_malus_value(int depth) const {
+    const auto& p = active_limits_.params;
+    return -std::min(p.hist_malus_quad * depth * depth / 64 + p.hist_malus_lin * depth,
+                     p.hist_malus_max);
+}
+
+void Searcher::update_cont_for_move(SearchStack* ss, PieceType pt, Square to, int bonus) {
+    if ((ss-1)->moved_piece != NO_PIECE_TYPE && (ss-1)->move != MOVE_NONE
+        && (ss-1)->move != MOVE_NULL) {
+        update_cont(*cont_hist1_, (ss-1)->moved_piece,
+                    Square(to_sq((ss-1)->move)), pt, to, bonus);
+    }
+    if ((ss-2)->moved_piece != NO_PIECE_TYPE && (ss-2)->move != MOVE_NONE
+        && (ss-2)->move != MOVE_NULL) {
+        update_cont(*cont_hist2_, (ss-2)->moved_piece,
+                    Square(to_sq((ss-2)->move)), pt, to, bonus);
+    }
+    if ((ss-4)->moved_piece != NO_PIECE_TYPE && (ss-4)->move != MOVE_NONE
+        && (ss-4)->move != MOVE_NULL) {
+        update_cont(*cont_hist4_, (ss-4)->moved_piece,
+                    Square(to_sq((ss-4)->move)), pt, to, bonus / 2);
+    }
+}
+
 int Searcher::cont_hist_score(const SearchStack* ss, PieceType pt, Square to) const {
     int score = 0;
     // 1-ply back
@@ -492,12 +532,13 @@ int Searcher::low_ply_score(int ply, Square from, Square to) const {
     return ply < LOW_PLY_HISTORY_SIZE ? low_ply_hist_[ply][from][to] : 0;
 }
 
-void Searcher::update_all_histories(Move best,
+void Searcher::update_all_histories(Move best, bool best_is_tt,
                                     const Move* quiets, int quiet_count,
                                     const Move* bad_caps, int bad_cap_count,
                                     Color stm, int depth, SearchStack* ss) {
-    int bonus = std::min(depth * depth, 2048);
-    int malus = -std::min(depth * depth, 2048);
+    int bonus = history_bonus_value(depth)
+              + (best_is_tt ? active_limits_.params.hist_ttmove_bonus : 0);
+    int malus = history_malus_value(depth);
 
     bool best_is_cap   = (board_ptr_->board_sq[to_sq(best)] != NO_PIECE)
                       || (move_type(best) == EN_PASSANT);
@@ -525,21 +566,7 @@ void Searcher::update_all_histories(Move best,
             countermove_[from_sq(prev)][to_sq(prev)] = best;
 
         // Continuation history
-        if ((ss-1)->moved_piece != NO_PIECE_TYPE && (ss-1)->move != MOVE_NONE
-            && (ss-1)->move != MOVE_NULL) {
-            update_cont(*cont_hist1_, (ss-1)->moved_piece,
-                        Square(to_sq((ss-1)->move)), pt, to, bonus);
-        }
-        if ((ss-2)->moved_piece != NO_PIECE_TYPE && (ss-2)->move != MOVE_NONE
-            && (ss-2)->move != MOVE_NULL) {
-            update_cont(*cont_hist2_, (ss-2)->moved_piece,
-                        Square(to_sq((ss-2)->move)), pt, to, bonus);
-        }
-        if ((ss-4)->moved_piece != NO_PIECE_TYPE && (ss-4)->move != MOVE_NONE
-            && (ss-4)->move != MOVE_NULL) {
-            update_cont(*cont_hist4_, (ss-4)->moved_piece,
-                        Square(to_sq((ss-4)->move)), pt, to, bonus / 2);
-        }
+        update_cont_for_move(ss, pt, to, bonus);
 
         // Malus for other searched quiets
         for (int i = 0; i < quiet_count; ++i) {
@@ -550,18 +577,7 @@ void Searcher::update_all_histories(Move best,
             update_quiet(stm, mf, mt, malus);
             update_pawn_hist(board_ptr_->pawn_key, mpt, mt, malus);
             update_low_ply(static_cast<int>(ss - (ss_arr_ + 4)), mf, mt, malus);
-            if ((ss-1)->moved_piece != NO_PIECE_TYPE && (ss-1)->move != MOVE_NONE
-                && (ss-1)->move != MOVE_NULL)
-                update_cont(*cont_hist1_, (ss-1)->moved_piece,
-                            Square(to_sq((ss-1)->move)), mpt, mt, malus);
-            if ((ss-2)->moved_piece != NO_PIECE_TYPE && (ss-2)->move != MOVE_NONE
-                && (ss-2)->move != MOVE_NULL)
-                update_cont(*cont_hist2_, (ss-2)->moved_piece,
-                            Square(to_sq((ss-2)->move)), mpt, mt, malus);
-            if ((ss-4)->moved_piece != NO_PIECE_TYPE && (ss-4)->move != MOVE_NONE
-                && (ss-4)->move != MOVE_NULL)
-                update_cont(*cont_hist4_, (ss-4)->moved_piece,
-                            Square(to_sq((ss-4)->move)), mpt, mt, malus / 2);
+            update_cont_for_move(ss, mpt, mt, malus);
         }
     } else if (best_is_cap) {
         // Best was a capture (not a quiet promotion)
@@ -991,10 +1007,12 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     TTEntry tte{};
     bool tt_found = tt_.probe_copy(hash, tte);
     Move tt_move = MOVE_NONE;
+    int  tt_score = VALUE_NONE;       // hoisted (Step 6.1) for the stand-pat tighten
+    TTFlag tt_flag = TT_NONE;
     if (tt_found) {
         tt_move = move_from_tt(tte.move16);
-        int tt_score = TranspositionTable::score_from_tt(tte.score, ply, board_ptr_->halfmove_clock);
-        TTFlag tt_flag = TTFlag(tte.flag_age & 3);
+        tt_score = TranspositionTable::score_from_tt(tte.score, ply, board_ptr_->halfmove_clock);
+        tt_flag = TTFlag(tte.flag_age & 3);
         if (tt_flag == TT_EXACT) return tt_score;
         if (tt_flag == TT_ALPHA && tt_score <= alpha) return tt_score;
         if (tt_flag == TT_BETA  && tt_score >= beta)  return tt_score;
@@ -1036,6 +1054,14 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     int stand_pat = raw_eval;
     stand_pat += correction_value(board_ptr_->side_to_move, *board_ptr_, ss);
     stand_pat = std::clamp(stand_pat, -(MATE_SCORE - 1), MATE_SCORE - 1);
+
+    // Step 6.1 mirror: tighten the stand-pat with the TT bound when it proves a
+    // better estimate (a fail-high above it / fail-low below it). The raw eval
+    // stored as the TT static_eval (raw_eval) is unchanged.
+    if (tt_found && tt_score != VALUE_NONE
+        && ((tt_flag == TT_BETA  && tt_score > stand_pat)
+            || (tt_flag == TT_ALPHA && tt_score < stand_pat)))
+        stand_pat = tt_score;
 
     if (stand_pat >= beta) {
         tt_.store(hash, 0, stand_pat, TT_BETA, MOVE_NONE, ply, raw_eval);
@@ -1118,6 +1144,38 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         }
     }
 
+    // Qsearch quiet checks (Step 6.8): captures didn't cut off. At qply==0
+    // only (first qsearch ply — deeper plies skip this, matching SF), try
+    // quiet checking moves filtered by SEE>=0, capped at qsearch_check_cap
+    // (0 = off). SF does this; Ethereal/Weiss don't (mixed evidence).
+    if (qply == 0 && active_limits_.params.qsearch_check_cap > 0) {
+        MoveList checks;
+        board_ptr_->gen_quiet_checks(checks);
+        int tried = 0;
+        for (Move m : checks) {
+            if (tried >= active_limits_.params.qsearch_check_cap) break;
+            if (!board_ptr_->see_ge(m, 0)) continue;
+            tried++;
+
+            ss->move = m;
+            ss->moved_piece = type_of(board_ptr_->board_sq[from_sq(m)]);
+            board_ptr_->make_move(m);
+            int s = -quiescence(-beta, -alpha, ply + 1, qply + 1, ss + 1);
+            board_ptr_->unmake_move(m);
+            ss->move = MOVE_NONE;
+
+            if (stopped_) return 0;
+            if (s > alpha) {
+                alpha = s;
+                best_move = m;
+            }
+            if (s >= beta) {
+                tt_.store(hash, 0, s, TT_BETA, m, ply, raw_eval);
+                return s;
+            }
+        }
+    }
+
     TTFlag flag = (alpha > orig_alpha) ? TT_EXACT : TT_ALPHA;
     tt_.store(hash, 0, alpha, flag, best_move, ply, raw_eval);
     return alpha;
@@ -1197,6 +1255,11 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
     ss->tt_pv = is_pv || (tt_found && tt_flag == TT_EXACT && tt_depth >= depth - 1);
 
+    // Phase 6.7: is the TT move a capture? (LMR input, lmr_tt_capture)
+    const bool tt_capture = tt_move != MOVE_NONE
+        && (board_ptr_->board_sq[to_sq(tt_move)] != NO_PIECE
+            || move_type(tt_move) == EN_PASSANT);
+
     // ---- Static evaluation -------------------------------------------------
     int static_eval;
     int raw_static_eval = VALUE_NONE;
@@ -1218,6 +1281,22 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         ss->eval = static_eval;
     }
 
+    // Step 6.1: value used for PRUNING decisions only. When a TT entry's bound
+    // proves its score a tighter estimate than the (corrected) static eval —
+    // exact, or a fail-high above it, or a fail-low below it — prune on that
+    // instead. ss->eval / static_eval stay the raw corrected value, so
+    // `improving` and correction-history are unaffected.
+    // A TT mate/TB-range score must NOT drive this: RFP returns `eval` directly
+    // (unlike SF, which dampens + guards it), so a shallow mate bound would leak
+    // out as an unverified mate cutoff — clamp the refinement to normal scores.
+    int eval = static_eval;
+    if (tt_found && static_eval != VALUE_NONE && tt_score != VALUE_NONE
+        && std::abs(tt_score) < MATE_SCORE - MAX_PLY
+        && (tt_flag == TT_EXACT
+            || (tt_flag == TT_BETA  && tt_score > static_eval)
+            || (tt_flag == TT_ALPHA && tt_score < static_eval)))
+        eval = tt_score;
+
     // Improving: eval is better than 2 plies ago
     bool improving = !in_check && ply >= 2
                    && (ss-2)->eval != VALUE_NONE
@@ -1231,24 +1310,24 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         if (depth <= 9) {
             const auto& p = active_limits_.params;
             int margin = p.rfp_coeff * depth - (improving ? p.rfp_improving : 0);
-            if (static_eval - margin >= beta)
-                return static_eval;
+            if (eval - margin >= beta)
+                return eval;
         }
 
         // Razoring
-        if (depth <= 3 && static_eval + active_limits_.params.razor_coeff * depth <= alpha) {
+        if (depth <= 3 && eval + active_limits_.params.razor_coeff * depth <= alpha) {
             int q = quiescence(alpha, beta, ply, 0, ss);
             if (q <= alpha) return q;
         }
 
         // Null-move pruning
         if (allow_null && depth >= 3
-            && static_eval >= beta
+            && eval >= beta
             && board_ptr_->has_non_pawn_material(board_ptr_->side_to_move)
             && (ss-1)->move != MOVE_NULL) {
 
             int r = active_limits_.params.null_base + depth / 4
-                  + std::min((static_eval - beta) / active_limits_.params.null_eval_div, 3);
+                  + std::min((eval - beta) / active_limits_.params.null_eval_div, 3);
             ss->move        = MOVE_NULL;
             ss->moved_piece = NO_PIECE_TYPE;
             board_ptr_->make_null_move();
@@ -1351,12 +1430,20 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         // ---- Late-move pruning / futility ----------------------------------
         if (!is_root && searched > 0 && best_score > -(MATE_SCORE - MAX_PLY)) {
 
+            // Reduction-aware depth for the shallow-pruning heuristics (Step
+            // 6.5): the base LMR-table reduction, matching SF/Ethereal's use of
+            // lmrDepth here. The history/pv refinements of the real reduction
+            // are a second-order effect on the pruning decision, so the cheap
+            // base estimate is enough (and avoids hoisting the full reduction).
+            int base_r = lmr_table_[std::min(depth, 63)][std::min(searched, 63)] >> 10;  // 1024ths -> plies (6.7)
+            int lmr_depth = std::clamp(depth - base_r, 0, depth);
+
             if (is_quiet) {
                 // Futility pruning
                 if (!is_pv && !in_check && depth <= 6
-                    && static_eval != VALUE_NONE
-                    && static_eval + active_limits_.params.futility_base
-                                   + active_limits_.params.futility_coeff * depth <= alpha
+                    && eval != VALUE_NONE
+                    && eval + active_limits_.params.futility_base
+                            + active_limits_.params.futility_coeff * depth <= alpha
                     && !move_gives_check())
                     return false;
 
@@ -1375,7 +1462,37 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                     if (hist < -active_limits_.params.hist_prune_coeff * depth && !move_gives_check())
                         return false;
                 }
+
+                // SEE pruning of quiet moves (Step 6.5): skip quiets that lose
+                // material by SEE, margin scaling with lmr_depth². EXPOSED BUT
+                // INERT — quiet_see_depth defaults to 0 so `depth <= 0` never
+                // fires (a naive base-table lmr_depth broke KBNK; needs SF's
+                // history-aware lmr_depth, deferred to 6.9). See SearchParams.h.
+                if (!is_pv && depth <= active_limits_.params.quiet_see_depth
+                    && !move_gives_check()
+                    && !board_ptr_->see_ge(
+                           m, -active_limits_.params.quiet_see_coeff * lmr_depth * lmr_depth))
+                    return false;
             } else if (is_cap) {
+                // Capture futility pruning (Step 6.5): if even winning the
+                // captured piece cannot lift the static eval to alpha, skip the
+                // capture at shallow lmr_depth. Good captures (high cap_hist)
+                // are spared via the capture-history term. EXPOSED BUT INERT —
+                // cap_fut_depth defaults to 0 so `lmr_depth < 0` never fires
+                // (SPRT'd active at -2.78 Elo, reverted; re-enable in 6.9).
+                if (!is_pv && eval != VALUE_NONE && lmr_depth < active_limits_.params.cap_fut_depth
+                    && !move_gives_check()) {
+                    PieceType atk = type_of(board_ptr_->board_sq[from_sq(m)]);
+                    PieceType captured = (move_type(m) == EN_PASSANT)
+                                       ? PAWN : type_of(board_ptr_->board_sq[to_sq(m)]);
+                    int fut = eval + active_limits_.params.cap_fut_base
+                            + active_limits_.params.cap_fut_coeff * lmr_depth
+                            + PIECE_VALUE[captured]
+                            + cap_hist_[atk][to_sq(m)][captured] / 32;
+                    if (fut <= alpha)
+                        return false;
+                }
+
                 // SEE pruning for bad captures
                 if (!is_pv && depth <= 8 && !is_promo) {
                     if (!board_ptr_->see_ge(m, -depth * active_limits_.params.see_prune_coeff) && !move_gives_check())
@@ -1410,8 +1527,13 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             }
 
             if (s_val < s_beta) {
-                // TT move is singular — extend it
-                extension += (!is_pv && s_val < s_beta - active_limits_.params.singular_double_margin) ? 2 : 1;
+                // TT move is singular — extend it. Phase 6.4 rider: cap stacked
+                // 2-ply extensions along this path so a pathological line can't
+                // chain unbounded double-extensions.
+                bool allow_double = !is_pv
+                    && s_val < s_beta - active_limits_.params.singular_double_margin
+                    && ss->double_exts < active_limits_.params.double_ext_max;
+                extension += allow_double ? 2 : 1;
             } else if (s_beta >= beta) {
                 // Multicut: likely to fail high without this move too
                 immediate_return = true;
@@ -1441,6 +1563,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         sel_depth_ = std::max(sel_depth_, ply + 1);
 
         int new_depth = depth - 1 + extension;
+        // Phase 6.4 rider: propagate the stacked double-extension count to the
+        // child so a chain of singular double-extensions is eventually capped.
+        (ss + 1)->double_exts = ss->double_exts + (extension >= 2 ? 1 : 0);
 
         int score;
         if (searched == 0) {
@@ -1452,31 +1577,58 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             if (depth >= 2 && searched >= 2 && !in_check
                 && (is_quiet || (is_cap && !is_promo && see_score < 0))
                 && !move_gives_check()) {
-                reduction = lmr_table_[std::min(depth, 63)][std::min(searched, 63)];
+                // Phase 6.7: accumulate the reduction in 1024ths of a ply, then
+                // shift back at the end. Behaviour-identical at default knobs
+                // (adjustments are the old integer values ×1024; history stays
+                // integer-quantised via the ×1024-after-divide form).
+                int r = lmr_table_[std::min(depth, 63)][std::min(searched, 63)];
 
                 if (is_quiet) {
                     const auto& p = active_limits_.params;
-                    if (!is_pv)     reduction += p.lmr_non_pv_adj;
-                    if (cut_node)   reduction += p.lmr_cut_node_adj;
-                    if (ss->tt_pv)  reduction -= p.lmr_tt_pv_adj;
-                    if (!improving) reduction += p.lmr_not_improving_adj;
-                    // History-based adjustment: good moves get reduced less, bad more
-                    reduction -= move_stat_score / p.lmr_hist_div;
+                    if (!is_pv)     r += p.lmr_non_pv_adj;
+                    if (cut_node)   r += p.lmr_cut_node_adj;
+                    if (ss->tt_pv)  r -= p.lmr_tt_pv_adj;
+                    if (!improving) r += p.lmr_not_improving_adj;
+                    if (tt_capture) r += p.lmr_tt_capture;
+                    // History-based adjustment: good moves get reduced less, bad
+                    // more. Kept integer-quantised (÷div then ×1024) so 6.7 is
+                    // behaviour-identical; the fractional form (×1024 ÷ div) is a
+                    // 6.9 experiment.
+                    r -= (move_stat_score / p.lmr_hist_div) * 1024;
                 } else {
-                    // Bad captures get less reduction than quiets
-                    reduction = (reduction - 1) / 2;
+                    // Bad captures get less reduction than quiets. Computed in
+                    // integer plies then rescaled, so no rounding drift.
+                    r = (((r >> 10) - 1) / 2) << 10;
                 }
 
-                reduction = std::clamp(reduction, 0, new_depth - 1);
+                reduction = std::clamp(r >> 10, 0, new_depth - 1);
             }
             ss->reduction = reduction;
 
             score = -negamax(new_depth - reduction, -alpha - 1, -alpha,
                              ply + 1, ss + 1, false, true, true);
             // Re-search at full depth if LMR didn't fail low
-            if (reduction > 0 && score > alpha && !stopped_)
+            if (reduction > 0 && score > alpha && !stopped_) {
                 score = -negamax(new_depth, -alpha - 1, -alpha,
                                  ply + 1, ss + 1, false, true, !cut_node);
+
+                // Post-LMR continuation-history nudge (Step 6.4, Weiss form,
+                // reusing the 6.3 bonus/malus formulas, scaled by
+                // post_lmr_hist_scale -- see SearchParams.h for why it
+                // defaults to 0/provably inert). Reward or punish this quiet
+                // move's continuation history based on whether the
+                // confirmation score actually held up against the original
+                // window.
+                if (is_quiet && !stopped_ && active_limits_.params.post_lmr_hist_scale > 0) {
+                    int scale = active_limits_.params.post_lmr_hist_scale;
+                    if (score >= beta)
+                        update_cont_for_move(ss, moved_pt, Square(to_sq(m)),
+                                             history_bonus_value(depth) * scale / 100);
+                    else if (score <= alpha)
+                        update_cont_for_move(ss, moved_pt, Square(to_sq(m)),
+                                             history_malus_value(depth) * scale / 100);
+                }
+            }
             // Re-search as PV if score is within window
             if (is_pv && score > alpha && score < beta && !stopped_)
                 score = -negamax(new_depth, -beta, -alpha,
@@ -1521,7 +1673,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         }
 
         if (alpha >= beta) {
-            update_all_histories(m, quiets_searched, quiets_count,
+            update_all_histories(m, m == tt_move, quiets_searched, quiets_count,
                                  bad_caps_searched, bad_caps_count,
                                  board_ptr_->side_to_move, depth, ss);
             return true;
@@ -1595,7 +1747,16 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
     init_lmr(static_cast<float>(active_limits_.params.lmr_base)    / 100.0f,
              static_cast<float>(active_limits_.params.lmr_divisor) / 100.0f);
 
-    start_time_ = std::chrono::steady_clock::now();
+    // Step 5.4: start the clock at the `go`-receipt instant (captured in
+    // UciProtocol::cmdGo and threaded via SearchLimits.go_recv_time), not here at
+    // the worker's search entry. This makes elapsed_seconds() account for the
+    // command-dispatch + thread-handoff latency the GUI already charges (5.3
+    // measured up to ~20 ms at bullet under load) instead of giving it away,
+    // tightening the engine against the GUI clock. Falls back to now() for
+    // internal/bench calls where go_recv_time is unset (so bench is unaffected).
+    start_time_ = (limits.go_recv_time.time_since_epoch().count() != 0)
+                ? limits.go_recv_time
+                : std::chrono::steady_clock::now();
     const int game_ply = 2 * (board.fullmove_number - 1) + (board.side_to_move == BLACK ? 1 : 0);
     compute_time_limit(limits, board.side_to_move, game_ply);
 
@@ -1712,14 +1873,18 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
         // stability=0 → 100% of soft, stability=6+ → ~64% of soft
         // A significant score drop signals instability — extend time budget.
         if (soft_limit_ > 0.0 && !pondering_) {
-            double stability_scale = 1.0 - 0.06 * std::min(best_stability, 6);
-            // Score-based time extension: if score dropped by 30+ cp, take more time
+            // Step 5.8: the scaling constants below are SPSA-tunable
+            // (active_limits_.params, defaults == the baked values).
+            const SearchParams& tp = active_limits_.params;
+            double stability_scale = 1.0 - (tp.tm_stability / 1000.0) * std::min(best_stability, 6);
+            // Score-based time extension: if score dropped enough, take more time
             int score_drop = prev_score_saved - score;
-            double score_scale = (depth > 4 && score_drop > 30)
-                               ? 1.0 + std::min(score_drop - 30, 120) / 100.0
+            double score_scale = (depth > 4 && score_drop > tp.tm_scoredrop_thr)
+                               ? 1.0 + std::min(score_drop - tp.tm_scoredrop_thr, 120)
+                                       / static_cast<double>(tp.tm_scoredrop_div)
                                : 1.0;
-            double effort_scale = (depth > 5 && root_best_effort_ >= 80) ? 0.80
-                                : (depth > 5 && root_best_effort_ <= 25) ? 1.20
+            double effort_scale = (depth > 5 && root_best_effort_ >= tp.tm_effort_hi) ? tp.tm_effort_hi_mult / 100.0
+                                : (depth > 5 && root_best_effort_ <= tp.tm_effort_lo) ? tp.tm_effort_lo_mult / 100.0
                                 : 1.0;
             if (elapsed >= soft_limit_ * stability_scale * score_scale * effort_scale)
                 break;
@@ -1745,6 +1910,22 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
     result.nodes      = nodes_;
     result.tbhits     = tb_hits_;
     result.elapsed_ms = int64_t(elapsed_seconds() * 1000.0);
+
+    // Step 5.3 diagnostic: one line per move with the time budget, the actual
+    // elapsed, and the go-receipt -> search-start dispatch latency the GUI
+    // charges but elapsed_seconds() (clock starts at start_time_) does not yet
+    // count. Emitted only on the reporting thread (info_cb_ set) and only with
+    // the hidden TM_Debug option on, so play/bench are unaffected when off.
+    if (info_cb_ && active_limits_.tm_debug) {
+        long long dispatch_ms = -1;
+        if (active_limits_.go_recv_time.time_since_epoch().count() != 0)
+            dispatch_ms = int64_t(std::chrono::duration<double, std::milli>(
+                              start_time_ - active_limits_.go_recv_time).count());
+        info_cb_("info string tm soft_ms=" + std::to_string(int64_t(soft_limit_ * 1000.0))
+               + " hard_ms="     + std::to_string(int64_t(hard_limit_ * 1000.0))
+               + " elapsed_ms="  + std::to_string(int64_t(elapsed_seconds() * 1000.0))
+               + " dispatch_ms=" + std::to_string(dispatch_ms));
+    }
     return result;
 }
 

@@ -463,11 +463,15 @@ static void test_ponderhit_preserves_elapsed_time() {
 }
 
 static void test_score_near_zero_startpos() {
-    // The starting position is roughly equal; at depth 5 the score should be
-    // well within ±100 centipawns of 0.
-    begin_section("startpos depth 5: |score| < 100");
+    // The starting position is roughly equal; at shallow depth the score should
+    // stay within a modest sanity band of 0. The Phase-7.1 SF-distilled eval is
+    // slightly more optimistic for the side-to-move at shallow depth (~+122cp at
+    // d5) yet still settles to ~+50cp by d8-d12, so the band is ±150 rather than
+    // the pre-distill ±100. (Purely a shallow-depth heuristic guard, not a
+    // correctness invariant; the 7.1 SPRT is the real arbiter of the eval.)
+    begin_section("startpos depth 5: |score| < 150");
     auto rr = run_search("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", 5);
-    EXPECT(rr.sr.score >= -100 && rr.sr.score <= 100);
+    EXPECT(rr.sr.score >= -150 && rr.sr.score <= 150);
     end_section();
 }
 

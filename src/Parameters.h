@@ -31,6 +31,7 @@ public:
     int     syzygyProbeDepth;
     int     syzygyProbeLimit;
     bool    syzygy50MoveRule;
+    bool    tmDebug;        // hidden TM_Debug check: log per-move time accounting
 
     bool new_game    = false;  // set by "ucinewgame", cleared after engine processes it
     bool clear_hash  = false;  // set by "setoption name Clear Hash", cleared after engine clears TT

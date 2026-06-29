@@ -32,7 +32,8 @@ private:
     static void cmdRegister();
 
     uint64_t next_control_epoch();
-    void enqueue(EngineCommandType type, const std::string& args = {}, uint64_t epoch = 0);
+    void enqueue(EngineCommandType type, const std::string& args = {}, uint64_t epoch = 0,
+                 std::chrono::steady_clock::time_point recv_time = {});
     void cmdGo(const std::string &args);
     void cmdStop();
     void cmdQuit();

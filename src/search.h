@@ -32,6 +32,7 @@ struct SearchStack {
     int       reduction   = 0;               // LMR reduction applied by parent
     PieceType moved_piece = NO_PIECE_TYPE;   // piece type that made 'move'
     bool      tt_pv       = false;           // node lies near a TT/PV line
+    int       double_exts = 0;               // stacked 2-ply singular extensions on this path
 };
 
 struct SearchResult;
@@ -82,6 +83,10 @@ struct SearchLimits {
     int syzygy_probe_depth = 0; // 0 = disabled
     int syzygy_probe_limit = 0;
     bool syzygy_50_move_rule = true;
+    bool tm_debug = false;      // emit per-move time-accounting info string (Step 5.3)
+    // Instant the `go` command was parsed off UCI input (default = unset). Used
+    // only to report dispatch latency in tm_debug; does not affect timing yet.
+    std::chrono::steady_clock::time_point go_recv_time{};
     std::vector<Move> root_moves;
     std::vector<Syzygy::RootMoveInfo> syzygy_root_moves;
     RootMoveTable* root_table = nullptr;
@@ -226,13 +231,22 @@ private:
     void update_pawn_hist(Key pawn_key, PieceType pt, Square to, int bonus);
     void update_low_ply(int ply, Square from, Square to, int bonus);
 
+    // Phase 6.3 bonus/malus shape (single source of truth for both
+    // update_all_histories and the Step 6.4 post-LMR conthist nudge).
+    int  history_bonus_value(int depth) const;
+    int  history_malus_value(int depth) const;
+    // Applies a single (piece, to) continuation-history update at the 1/2/4-ply
+    // back-references from `ss` -- the per-move half of update_all_histories'
+    // continuation-history block, reused by the post-LMR update (Step 6.4).
+    void update_cont_for_move(SearchStack* ss, PieceType pt, Square to, int bonus);
+
     // Combined continuation history score for a (piece, to) pair
     int  cont_hist_score(const SearchStack* ss, PieceType pt, Square to) const;
     int  pawn_hist_score(Key pawn_key, PieceType pt, Square to) const;
     int  low_ply_score(int ply, Square from, Square to) const;
 
     // Bulk history update after a beta cutoff
-    void update_all_histories(Move best,
+    void update_all_histories(Move best, bool best_is_tt,
                               const Move* quiets, int quiet_count,
                               const Move* bad_caps, int bad_cap_count,
                               Color stm, int depth, SearchStack* ss);

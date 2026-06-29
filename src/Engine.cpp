@@ -1,6 +1,7 @@
 #include <iostream>
 #include <algorithm>
 #include <cstdlib>
+#include <sstream>
 #include <string>
 #include <thread>
 
@@ -73,6 +74,7 @@ SearchLimits Engine::build_limits() const {
     limits.syzygy_probe_depth = Syzygy::enabled() ? parameters_.syzygyProbeDepth : 0;
     limits.syzygy_probe_limit = Syzygy::enabled() ? parameters_.syzygyProbeLimit : 0;
     limits.syzygy_50_move_rule = parameters_.syzygy50MoveRule;
+    limits.tm_debug  = parameters_.tmDebug;
     limits.params    = parameters_.search_params;
     limits.infinite  = (parameters_.depth == infiniteDepth && parameters_.moveTime == 0
                         && parameters_.whiteTime == 0 && parameters_.blackTime == 0
@@ -145,10 +147,12 @@ void Engine::wait_until_bestmove_allowed(const SearchLimits& limits,
     }
 }
 
-void Engine::start_search(uint64_t command_epoch) {
+void Engine::start_search(uint64_t command_epoch,
+                          std::chrono::steady_clock::time_point recv_time) {
     configure_syzygy();
 
     SearchLimits limits = build_limits();
+    limits.go_recv_time = recv_time;
     const int desired_hash_mb = parameters_.hash_mb;
     const int desired_threads = parameters_.threads;
     const bool do_clear_hash = parameters_.clear_hash;
@@ -236,9 +240,15 @@ void Engine::start_search(uint64_t command_epoch) {
 }
 
 void Engine::run_bench_command(const EngineCommand& command) {
+    // bench [depth] [repeats] — single-threaded so the node total is a
+    // deterministic fingerprint (matches sibling engine Rarog's bench command).
     int depth = 13;
-    if (!command.args.empty()) {
-        try { depth = std::stoi(command.args); } catch (...) {}
+    int repeats = 1;
+    {
+        std::istringstream iss(command.args);
+        int value;
+        if (iss >> value) depth   = value;
+        if (iss >> value) repeats = value;
     }
 
     if (command.epoch != 0
@@ -247,7 +257,7 @@ void Engine::run_bench_command(const EngineCommand& command) {
 
     stop_requested_.store(false, std::memory_order_release);
     searching_.store(true, std::memory_order_release);
-    run_bench(depth, parameters_.threads);
+    run_bench(depth, repeats, 1);
     if (command.epoch == 0
         || control_epoch_.load(std::memory_order_acquire) == command.epoch)
         searching_.store(false, std::memory_order_release);
@@ -298,7 +308,7 @@ void Engine::handle_command(const EngineCommand& command, bool& quit) {
             if (parameters_.perft > 0)
                 run_perft_command(command.epoch);
             else
-                start_search(command.epoch);
+                start_search(command.epoch, command.recv_time);
             break;
         case EngineCommandType::Stop:
             if (command.epoch == 0

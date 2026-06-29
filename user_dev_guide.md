@@ -8,7 +8,23 @@ holds the technical rationale.
 
 ## Current Checkpoint
 
-As of this guide, the repo is not at the beginning of the plan.
+**CURRENT STATE (2026-07-08):** Releases 1.5.0 / 1.6.0 / 1.7.0 / **🎉 1.8.0
+RELEASED 2026-07-08** (Phases 5+6+7 bundled), bench **12,661,251**. **1.8.0 ≈ +93
+Elo over 1.7.0 at 3+0.03**, and an LTC field gauntlet (colosseum 10+0.1) confirmed
+it holds at long TC — **~+40 Elo head-to-head vs 1.7.0** (gains compress at LTC,
+as expected for eval refits). Phase breakdown: **Phase 5 (TM)** clock-at-go +2.95;
+**Phase 6 (search)** 6.1 TT-bound eval +7.18 → 6.10 bundle +9.14; **Phase 7
+(eval)** 7.1 SF@60k distill +6.75 + five on-policy self-play cycles (+21.02,
++19.51, +18.29, +15.32) ≈ +80.9. **7.4 histshape SPSA was SKIPPED** (low EV —
+family SPSA 0-for-2 at maturity, LTC-compresses to ~+2); **7.5 = the LTC gauntlet
++ release.** **⚠️ Key lesson from Phase 7: holdout-MSE-delta badly under-predicts
+Elo for on-policy self-play refits — the linear eval barely moves each cycle yet
+gains ~+15-20 (the king-safety funnel keeps re-shaping); trust the SPRT, and
+expect ~half the fast-TC gain to survive at LTC.** **▶ NEXT (post-1.8.0):** Phase
+8 (feature menu, EV≈0, skip unless evidence) or Phase 9 (NNUE, the ceiling-breaker);
+another on-policy self-play cycle is still mildly positive (~+7 LTC) if a 1.9.0 is
+wanted. The bullets that follow are the Phase-1 historical
+record.
 
 - Phase 0 harness is complete.
 - SPSA and SPRT now share the representative clock TC: `tc=3+0.03`.
@@ -27,9 +43,9 @@ As of this guide, the repo is not at the beginning of the plan.
   `+15.63 +/- 8.02 Elo`, 3714 games, H1 accepted.
 - Narrowed combined Phase 1 polish was rejected:
   `-0.40 +/- 3.20 Elo`, 23,210 games, H0 accepted.
-- Harness-corrected retry audit: retry the combined polish only later as part
-  of Phase 6.9 after eval tuning; keep the post-LMR deeper re-search in
-  Phase 6.5 and gate it with the clock harness plus LTC if it passes.
+- Harness-corrected retry audit: the combined-polish retry folds into the
+  relocated **Step 7.4 histshape SPSA** (after the eval refit); the post-LMR
+  deeper re-search became **6.4** (done, exposure-only).
 - Phase 1 validation completed:
   - vs Basilisk 1.4.9/defaults: 2000 games, 53.90%, approx +27.16 Elo.
 - **Phase 1 is complete.** The accepted search-constant head is
@@ -110,18 +126,18 @@ Read PLAN.md §0.5 for *why* this order: build all eval structure first
 (Phase 5), then run the search SPSA once last (Phase 6). Texel fits are cheap;
 SPSA/SPRT games are the conserved resource.
 
-| Phase | What | Gate | Model(s) | Elo |
+| Phase | What | Status | Model(s) | Elo |
 |---|---|---|---|---|
-| **2** (done) | Texel infra + cheap scalar fits | SPRT per subgroup | Sonnet 4.6 medium | banked |
-| **2.9** Robustness quick win (done) | time-safety floor — shipped in `1.6.0` | `bench 13` identical; `t=`→0 in a gauntlet | Sonnet 4.6 medium | reliability + a few |
-| **3** Eval structure build-out (**✅ COMPLETE** — 3.0–3.11; lazy eval +16.6 Elo H1) | attack maps, threats, KS v2, mobility tables, pawn refine, endgames (+KBNK), space/winnable, small terms | `bench 13` identical + `--verify` + CTest (**no games**; **3.5 is behaviour-changing → endgame EPD suite + SPRT**) | **Opus 4.8 high** (KS/threats/endgames/mobility); Opus 4.8 medium (attack maps/pawns); Sonnet 4.6 medium (small terms) | 0 direct (enabler) |
-| **4** Eval data-fit completion | one staged Texel campaign over the full structure; KS/threats/mobility/minors/**PST+material**/polish | SPRT per stage | Sonnet 4.6 medium (driving) | **+80–160** |
-| **5** Time management hardening + tuning (**promoted 2026-06-29**) | clock-at-`go` latency fix, anti-overshoot poll, GUI-robust reserve, root fail-low extension, **TM-constant SPSA**, cross-TC validation | bench-identical (robustness) + SPRT/SPSA + `t=0` at bullet→slow | Opus 4.8 medium (latency/fail-low/diagnosis); Sonnet 4.6 medium (granularity/reserve/SPSA) | **reliability + +8–25** |
-| **6** Search-efficiency wave | TT-bound eval, history split, fractional LMR, deeper re-search, qsearch checks, **wave2 SPSA last** | SPRT per item; SPSA once | Sonnet 4.6 medium; dense ports Codex 5.5 medium / GPT-5.5 high | **+20–50** |
-| **7** Non-NNUE ceiling: eval-refresh grind | regen self-play with the stronger head, joint refit (1–3 cycles), bank tuning-maturity Elo | SPRT + boundary gauntlet per cycle | Sonnet 4.6 medium | **+10–40** (cycle 1) |
-| **8 / 9** Feature menu / NNUE | plateau menu / ceiling | — | — | — |
+| **1–3** | search SPSA, cheap eval scalars, robustness, eval structure | done (1.5.0/1.6.0) | (historical) | **+27 / +54 / +16.6** |
+| **4** Eval data-fit campaign | staged Texel refit over the full structure | done (1.7.0) | Sonnet 4.6 medium (driving) | **+280.74** vs phase1-final |
+| **5** Time-management hardening | clock-at-`go` fix; 5.8 TM SPSA washed → reverted | done | Opus 4.8 medium / Sonnet 4.6 medium | **~+3** |
+| **6** Search-efficiency wave | 6.1 TT-bound eval; 6.2–6.8 mostly washed/inert; SPSA → 7.4 | **✅ COMPLETE** (6.10 +9.14 H1) | Sonnet 5 med; interaction-risk ports Fable 5 med-high (alt Opus 4.8) | **+9.14** (bundle) |
+| **7** Eval-refresh cycles + one search tune | SF distill +6.75, ×5 self-play cycles (+21.02/+19.51/+18.29/+15.32); 7.4 SPSA skipped; 7.5 LTC gauntlet | **✅ DONE — 1.8.0 released 2026-07-08** | Fable 5 med (alt Opus 4.8) + Sonnet 5 med | **~+93 fast / ~+40 LTC** vs 1.7.0 |
+| **8** Feature menu | demoted — audit found nothing to add | skip unless evidence | — | **~0** |
+| **9** NNUE | the ceiling-breaker | after Phase 7 flattens | Fable 5 high (alt Opus 4.8 high) | **+200…+400** |
 
-Per-step models are on each PLAN step header. **SPRT is the only verdict.**
+Per-step models + Elo are on each PLAN step header and in the Phase-7 EV table.
+**SPRT is the only verdict.**
 
 > **Gauntlet validation (2026-06-19, 35k games @ `tc=3+0.03`):** Basilisk 1.5.1
 > (dev, partial scalar tuning only) was **2nd of 9, +54 over 1.5.0**, tied with
@@ -132,13 +148,18 @@ Per-step models are on each PLAN step header. **SPRT is the only verdict.**
 > (2) **1.5.1 lost 65 games on time** (vs 1.5.0's 18) — add a hard time-safety
 > floor to `compute_time_limit` **now**; forfeits contaminate every gauntlet.
 
-So if you say *"implement the next step,"* the model should know: **`1.6.0` has
-shipped** (Phase 2 eval scalars + the Rarog-ported Stockfish-style clock TM with
-the time-safety reserve), the repo is on branch `v1.7.0`, and **Phase 3 is
-underway** — **Steps 3.0–3.6 are done** (2026-06-24/25), so the next step is
-**Phase 3.7 (small positional terms)**. Steps 3.0–3.4 and 3.6 were bench-identical;
-**3.5 (endgame knowledge) is behaviour-changing** (`bench 13` → 4,377,437,
-gated by the endgame EPD suite + a maintainer-run SPRT, not bench identity).
+So if you say *"implement the next step,"* the model should know (2026-07-04):
+**1.7.0 has shipped** (Phase 4 eval, +280), the dev head is **1.8.0** (bench
+13,495,492), and **Phases 5 and 6 are both COMPLETE** (Phase 6 closed at 6.10 =
++9.14 ± 4.62, H1). **Phase 7 is the active phase** and its on-policy self-play
+cycles keep paying ~+20 each: **7.1 +6.75 (b8c469b), 7.2 +21.02 (d113471), 7.3
++19.51 (9741070)** — all H1, cumulative ≈ +47, curve **not** flattening. **The
+next step is another self-play cycle** from the 7.3 head, same pipeline each
+time: `datagen.ps1` **with `-Book tools\texel\data\beast_seed.epd -BookFormat
+epd`** → `extract_parallel.py --balance-phase 1.5` → `--tune all` + sequential
+`--tune-kingsafety` (bake tune-all → rebuild `basilisk-texel` → re-fit KS → bake
+KS) → `build_test` → SPRT vs the prior head. **Stop when a cycle yields `<~+8`**
+(trust the SPRT — the holdout MSE stalls long before the Elo does).
 
 ---
 
@@ -327,8 +348,8 @@ python main.py
 
 The narrowed combined polish already ran and failed under the old split
 harness. Do **not** run it as a Phase 1 continuation. Its one justified retry
-belongs to Phase 6.9, after the eval refit, using the unified clock
-harness:
+folds into the relocated **Step 7.4 histshape SPSA**, after the eval refit,
+using the unified clock harness:
 
 ```powershell
 cd ..\..
@@ -337,15 +358,8 @@ cd tools\weather-factory
 python main.py
 ```
 
-Treat that command as a historical reference until Phase 6.9 rewrites/extends
-the wave2 SPSA config.
-
-For the current checkpoint, start Phase 2 by asking:
-
-> "Implement the next step of the plan."
-
-The model should begin with `EvalParams` / eval-default equivalence work, not
-another search SPSA run.
+Treat that command as a historical reference; the current search-tune config is
+`config_histshape.json` (Step 7.4) — see `tools/spsa_configs/README.md`.
 
 ---
 
@@ -567,6 +581,30 @@ fingerprints, PGN paths) lives in **PLAN.md §4** — this is the outcome summar
 > + 10 ms default Move Overhead; (4) zero TM-constant tuning. Aim: **generally
 > strong across bullet→slow, not a TC specialist.**
 
+> **PHASE 5 STATUS (2026-06-29).** Diagnosis (5.3) **overturned the premise**: the
+> engine's TM is *sound* — no overshoot (≤1 ms / 12k bullet moves), correct
+> allocation; the LB forfeits are GUI-pipe latency, **not** an engine bug. So the
+> robustness "repairs" were unnecessary: **5.5 dropped** (no overshoot), **5.6
+> dropped** (no real forfeit), **5.7 deferred** (existing adaptive logic already
+> extends on instability; a mid-iteration version needs an SPRT). Code-complete
+> and committed: **5.3** (TM_Debug instrument), **5.4** (clock-at-`go`,
+> bench-identical, **SPRT-validated +2.95 ± 6.74, kept**), **5.8** (9 TM knobs
+> exposed for SPSA, behaviour-identical at defaults). **One maintainer validation
+> remains to close Phase 5:**
+>
+> 1. ~~5.4 non-regression SPRT~~ — **DONE** (+2.95 ± 6.74 at 4,468 games, stopped
+>    early as a confirmed non-regression).
+> 2. **5.8 TM-constant SPSA** (the Elo lever, +8–25):
+>    ```
+>    ./tools/setup_spsa.ps1 -ConfigGroup tm -EngineSuffix phase5tm -Iterations 5000
+>    cd tools\weather-factory ; python main.py
+>    ```
+>    at `tc=10+0.1`; then re-validate the tuned set at `1+0.01` and `60+0.6`, bake
+>    into `SearchParams.h` defaults, and SPRT the baked set vs `phase5tm`.
+>
+> After 5.8 bakes + 5.9 cross-TC check → Phase 5 ships and Phase 6 (search wave)
+> opens. Until then the Phase-5 head is behaviour-identical to 1.7.0 except 5.4.
+
 - [x] 5.1 Increment-aware budget formula implemented — direct port of Rarog's
       Phase 2.2 SF-style rewrite (logT-based optConst/maxConst, ply-aware
       sudden-death + explicit-movestogo branches); `compute_time_limit` gained
@@ -583,37 +621,74 @@ fingerprints, PGN paths) lives in **PLAN.md §4** — this is the outcome summar
       2696.8, 62.7%, 2nd of 5 — essentially tied with SF-2700-capped, far
       ahead of Rarog/SF-2600/SF-2500. *(The optional fastchess second-harness
       leg and the old "6.3 optional SPSA" are absorbed into 5.9 / 5.8 below.)*
-- [ ] **5.3 Diagnose & instrument the LB time-loss** — debug-only `info string` (hidden `TM_Debug` check, default off → play-identical) logging allocated `soft`/`hard` vs actual `elapsed` + the `go`-receipt→`start_time_` delta; reproduce forfeits via `gauntlet.ps1 -TC 1+0.01` / `0.3+0` + a short LB run (`t=` only); confirm which defect dominates. Gate: debug-off bench-identical, 9/9 CTest. — Opus 4.8 medium
-- [ ] **5.4 Start the clock at `go`-receipt** — timestamp in `UciProtocol::cmdGo`, threaded through `EngineCommand`→`SearchLimits`→`Searcher` as `start_time_` (falls back to in-worker `now()`). Gate: bench-identical; LB/bullet `t=` drops; SPRT non-regression `[-3,0]` at `3+0.03`. — Opus 4.8 medium
-- [ ] **5.5 Anti-overshoot poll granularity** — replace fixed `(nodes_ & 2047)` with an interval that tightens as the budget shrinks (cap one batch to ~1–2% of `hard_limit_`), keeping a cheap mask on the hot path. Gate: bench-identical; bullet overshoot bounded; SPRT non-regression `[-3,0]` + `1+0.01` `t=` gauntlet. — Sonnet 4.6 medium
-- [ ] **5.6 GUI-robust reserve + Move Overhead default** — reserve `max(2*overhead, abs_floor_ms≈15–25)`; default Move Overhead 10→~20–30 ms. Gate: LB pool re-run at `3+0.03` **and** `1+0.01` → `t=0`; SPRT non-regression `[-3,0]`. **Closes the LB issue.** — Sonnet 4.6 medium
-- [ ] **5.7 Root fail-low / instability time extension** — extend soft→hard when the root best fails low or the PV is still changing late (complements the between-iterations score-drop extension). Gate: SPRT `elo1=3` at `3+0.03` + `10+0.1` confirm. — Opus 4.8 medium
-- [ ] **5.8 Expose TM constants under `BASILISK_TUNE` + SPSA** (the Elo lever; supersedes the old optional "6.3" SPSA) — `ConfigGroup tm` (optConst/maxConst+slopes, `0.8097`, stability `0.06`, score-drop `30`/`÷100`, effort `80/25`→`0.80/1.20`, the 5.7 knobs); SPSA at `10+0.1`, re-validate at `1+0.01` and `60+0.6`, bake, SPRT vs pre-SPSA head. First TM fit to Basilisk's own eval/search. — Sonnet 4.6 medium
-- [ ] **5.9 Cross-TC validation + ship gate** — gauntlet/LB at `1+0.01`, `3+0.03`, `10+0.1`, `60+0.6`; each `t=0` and non-negative vs the pre-Phase-5 head; record per-TC Elo to expose any specialization. — Sonnet 4.6 medium
+- [x] **5.3 Diagnose & instrument the LB time-loss — DONE 2026-06-29 (instrumented + measured).** **Findings (1+0.01 fastchess, 12,471 moves + the LB forfeit log):** the engine's TM is *sound* — overshoot is negligible (14/12471 moves over `hard` by ≤ **1 ms**, pure poll-rounding) and allocation is correct (`elapsed < hard` always). The only harness-independent imperfection is **dispatch ≤ 20 ms** (`go`-receipt→clock-start, under bullet+concurrency) — what 5.4 reclaims. The **LB forfeits are GUI/pipe latency, not a budget bug**: the LB log caught a forfeit with `elapsed_ms=112` but LB charging **959 ms** (`dispatch_ms=0`) — ~847 ms in the LB↔engine pipe (LB is a fragile 2012 single-threaded GUI choking on verbose bullet output). fastchess (efficient I/O, `timemargin=40`) never forfeits. **Consequences: 5.5 is unnecessary (no real overshoot); the LB issue is not a TM-budget repair.** — Opus 4.8 medium `TM_Debug` UCI check (default off) — **advertised only in tune/dev builds** (`#ifdef BASILISK_TUNE`) so a harness/GUI actually sends the `setoption` (fastchess/LB silently skip *unadvertised* options — the first attempt logged `Warning; doesn't have option TM_Debug` and produced no data); release builds keep a clean 9-option list. When on, `Searcher::search` emits one `info string tm soft_ms=.. hard_ms=.. elapsed_ms=.. dispatch_ms=..` per move. `dispatch_ms` = `go`-receipt (captured in `UciProtocol::cmdGo`) → `start_time_`, the latency the GUI charges but `elapsed_seconds()` doesn't yet count (defect #1). Timing unchanged; bench 3,764,539, 9/9 CTest, debug-off play-identical. Diagnostic binary: `tools/test_engines/basilisk-phase53-tmdebug-pext-pgo.exe`. **Pending (maintainer):** run it under LB / a `1+0.01` fastchess gauntlet with `option.TM_Debug=true` + engine logging, capture the `info string tm` lines, and confirm which defect dominates (expect `dispatch_ms` > 0 under LB and `elapsed_ms` > `hard_ms` overshoot at bullet) → sizes 5.4/5.5. — Opus 4.8 medium
+- [x] **5.4 Start the clock at `go`-receipt — DONE + VALIDATED 2026-06-29.** Non-regression SPRT `[-3,0]` at 3+0.03 (`phase5` vs `v1.7.0`): **+2.95 ± 6.74 Elo** at 4,468 games (LLR 0.66, point estimate solidly positive) — **stopped early as a confirmed non-regression** (formally crossing H1 would take ~15k more games for a low-stakes safety change measuring positive). Kept. `Searcher::search` now sets `start_time_ = limits.go_recv_time` (the `cmdGo` timestamp threaded in 5.3) instead of the in-worker `now()`, falling back to `now()` when unset (internal/bench). The engine now accounts for the ~20 ms dispatch latency 5.3 measured, tightening it against the GUI clock. `dispatch_ms` reads 0 by construction now (confirms it). Bench 3,764,539 unchanged, 9/9 CTest. Validated via the `phase5tm` binary (5.4 + 5.8-exposure, the latter behaviour-identical at defaults). — Opus 4.8 medium
+- [x] **[SKIPPED]** **5.5 Anti-overshoot poll granularity — LIKELY SKIP (5.3 data).** Premise was that heavier eval per node would overshoot the tiny bullet budget; measured overshoot is **≤ 1 ms over 12,471 bullet moves**, so the fixed `(nodes_ & 2047)` poll is already fine. Revisit only if a future change (or a real harness) shows actual overshoot. — Sonnet 4.6 medium
+- [x] **[DROPPED]** **5.6 GUI-robust reserve + Move Overhead default — DROPPED (5.3 data, 2026-06-29).** Premise was forfeits from a too-thin reserve; the engine never forfeits in robust harnesses (fastchess `1+0.01`, 12k moves, 0 losses) and the LB forfeit is GUI-pipe latency (~847 ms) a reserve can't sanely absorb. The current `2*overhead` reserve is adequate. Revisit only if a real (non-LB) forfeit appears.
+- [x] **[DEFERRED]** **5.7 Root fail-low / instability time extension — DEFERRED (2026-06-29).** The adaptive-stop block already implements instability extension (best-move *stability* scale → more time when the move just changed; *score-drop* scale → more time on a crash; *effort* scale), and 5.8 just made all of those SPSA-tunable. A *mid-iteration* fail-low extension is a behaviour-changing search heuristic with real regression risk that needs an SPRT to land — out of scope for the games-less autonomous pass. Revisit after the 5.8 SPSA (or fold into the Phase-6 search wave) if there's measured headroom. — Opus 4.8 medium
+- [x] **5.8 Expose TM constants under `BASILISK_TUNE` — EXPOSURE DONE 2026-06-29 (SPSA pending).** Added 9 SPSA-tunable knobs to `SearchParams` (defaults == baked → behaviour-identical): `TmOptMult`/`TmMaxMult` (overall budget ×100), `TmStability` (×1000), `TmScoreDropThr`/`TmScoreDropDiv`, `TmEffortHi`/`Lo`/`HiMult`/`LoMult`. `compute_time_limit` applies the multipliers; `Searcher::search` reads the adaptive-stop knobs. Exposed only under `#ifdef BASILISK_TUNE` (release stays 9 options, verified), parsed in `Parameters.cpp`, wired into `setup_spsa.ps1` as group `tm` (`tools/spsa_configs/config_tm.json`). bench 3,764,539, 9/9 CTest, tune build lists + accepts them. SPSA binary: `basilisk-phase5tm-pext-pgo.exe`. **SPSA RUN + BAKED 2026-06-30** (1147 iters @ 3+0.03, weather-factory): converged on `TmOptMult 105` / `TmMaxMult 85` (the dominant levers — more on the typical move, tighter max cap) + the secondary knobs (stability 69, scoredrop 35/104, effort 74/20/82/126). Baked into `SearchParams.h`; bench 3,764,539 unchanged, 9/9 CTest; verified the budget moves (soft 258→271, hard 1774→1508). Candidate `basilisk-phase58-tmtuned-pext-pgo.exe`. **REVERTED 2026-07-01 after the 5.9 validation (below):** the bake was a wash, so `SearchParams.h` was restored to the hand-tuned defaults (`100/100/60/30/100/80/25/80/120`); the 9 knobs stay exposed under `BASILISK_TUNE` for future re-tuning, only the baked *values* were dropped. — Sonnet 4.6 medium
+- [x] **5.9 Validation + Phase 5 finalize — DONE 2026-07-01. PHASE 5 COMPLETE.** The gain SPRT `elo1=3` at 3+0.03 (`phase58-tmtuned` vs `phase5tm`) was a **wash**: `+0.88 ± 4.03 Elo` over 12,262 games, LLR flat (~−0.05) inside `[0, 3]`, LOS 66%. The SPSA found no gain even at its *own* tuning TC — a clean confirmation of the Phase 5.3 "TM is already sound" finding. **Decision: revert the 5.8 bake** (defaults restored — see 5.8) and skip the cross-TC legs (not worth the compute for a sub-Elo, plausibly TC-overfit tweak). **Phase 5 ships on 5.4 (clock-at-go) alone**, already validated `+2.95 ± 6.74` non-regression — and the reverted defaults reproduce *exactly* the `phase5tm` binary that carried that result, so no re-validation is needed. Bundled into the **1.8.0** dev line (not released standalone; ships alongside the Phase 6 search wave). — Opus 4.8 medium
 
-### Phase 6 - Search Efficiency Wave (PLAN.md §5; **renumbered to Phase 6 on 2026-06-29 — executed AFTER Phase 5 time management.** SPSA last — driving Sonnet 4.6 medium, dense ports Codex 5.5 medium / GPT-5.5 high)
+### Phase 6 - Search Efficiency Wave (PLAN.md §5; **renumbered to Phase 6 on 2026-06-29 — executed AFTER Phase 5 time management.** SPSA last — driving Sonnet 5 medium, dense/interaction-risk ports Fable 5 medium-high with an Opus 4.8 alternative — Fable 5 is available for a limited time)
 
-- [ ] 6.1 TT-bound eval refinement SPRT verdict recorded.
-- [ ] 6.2 History bonus/malus formula SPRT verdict recorded.
-- [ ] 6.3 Fractional LMR SPRT verdict recorded.
-- [ ] 6.4 TT-capture LMR input SPRT verdict recorded.
-- [ ] 6.5 Post-LMR deeper retry: shallower reachability checked, STC SPRT
-      recorded, LTC `tc=10+0.1` recorded if STC passes.
-- [ ] 6.6 Qsearch quiet checks (start with the existing `Board::gen_quiet_checks()` helper) SPRT verdict recorded.
-- [ ] 6.7 Double-extension cap non-regression gate recorded.
-- [ ] 6.8 Razoring restriction experiment verdict recorded.
-- [ ] 6.9 Second-wave constants SPSA (wave2, the conserved compute) + rejected
-      combined-polish retry folded in; SPSA and SPRT verdict recorded.
+- [x] **6.1 TT-bound eval refinement — ACCEPTED +7.18 ± 4.05 Elo (H1, LOS 99.97%, 13,162 games, 2026-07-01).** In `negamax`, a separate `eval` for *pruning decisions only* (RFP/razoring/NMP/futility) prefers the TT score when its bound proves it tighter than the corrected static eval (exact / fail-high above / fail-low below); `ss->eval`/`static_eval` stay raw so `improving` + correction-history are unaffected. Mirrored in qsearch stand-pat. Gain SPRT `elo1=3` at `3+0.03` (`phase61-ttbound` vs `phase5final`) crossed H1 (LLR 2.96; Ptnml [318,1562,2639,1654,408]). **Merged to `development` (commit `00370b8`, the validated `b600571`).** New head fingerprint **13,503,085** (was 13,466,664; the pruning cuts the hardest bench position hard — top-pos share 19.6% → 7.2%). *Early SPRT trend was negative → recovered to +7.18: a reminder not to react to sub-3k-game noise.* **Follow-up:** a mate-score guard on the refinement (branch commit `75650d6`, house-style `abs(tt_score) < MATE_SCORE - MAX_PLY`, matching the existing ProbCut guard) is NOT in the validated head — bundle it into 6.2's SPRT as a non-regression rider, or apply as a rare-trigger correctness bugfix. — Sonnet 4.6 medium
+- [x] **[REJECTED] 6.2 History: 6-ply continuation table — REGRESSED −7.70 ± 4.77 Elo (H0, LOS 0.08%, 9,204 games, 2026-07-01).** Added `cont_hist6_` (ply-6 continuation, `/3` weight) mirroring `cont_hist4_`, on branch `phase6-6.2-history` (commit `0f4d08d`), bundling the 6.1 mate guard. Bench dropped 13,503,085 → 11,266,326 (~−16% nodes) — but the node cut came largely from the extra history magnitude feeding LMR/history-pruning (tuned *without* it) → **over-pruning → clean regression**. **Dropped; NOT merged.** Development stays at the validated 6.1 head. **Key lesson (PLAN §0.5):** cont_hist6 is a *Rarog* feature that gains for Rarog but **hurts Basilisk** — a direct confirmation that we must benchmark against SF and let SPRT decide, not copy the sibling. The bundled mate guard can't explain −7.7 (rare trigger); it survives on `phase6-6.1-ttbound` (`75650d6`) for a future non-regression rider. If ply-6 is ever revisited, do it via the wave2 SPSA (jointly with the divisors it disturbs), not as a hand-add. — Sonnet 4.6 medium
+> **Remaining steps REWORKED 2026-07-01** from a line-by-line audit of **SF
+> master (snapshot 2026-06-30) + Ethereal 14.40 + Weiss 2025** (the HCE
+> anti-bias check — PLAN §5 has the full audit + formulas). Basilisk's search
+> base is audit-confirmed modern (singular w/ multicut+double+negative ext,
+> IIR, ProbCut, LMP, history pruning, corr-hist, etc.); the steps below are the
+> *proven* remaining refinements, ordered by evidence strength. Rules
+> unchanged: one at a time, SPRT `elo1=3` @ 3+0.03, knobs exposed at
+> introduction, SPSA only in 6.9. Models: Fable 5 is limited-time — Opus 4.8 at
+> the same thinking level is the standing alternative.
+>
+> **Pattern established by 6.3 + 6.4 (both landed as exposure-only, 2026-07-01):**
+> literature constants (SF's, Weiss's) chaotically break the KBNK/KQK
+> mate-resolution CTests because Basilisk's *other* search constants weren't
+> tuned for that scale. For 6.5–6.8: implement the mechanism, expose it,
+> verify CTest passes at a provably-inert default (mathematically argued, not
+> just empirically observed to pass), and defer the real value to 6.9 — do
+> **not** spend cycles hand-picking a canary-passing constant.
 
-### Phase 7 - Non-NNUE ceiling: eval-refresh multi-cycle grind (PLAN.md §7.5; EXECUTE AFTER Phases 5–6, optional/evidence-driven — Sonnet 4.6 medium)
+- [x] **6.3 History formula — DONE 2026-07-01 as behaviour-identical EXPOSURE (commit `18c5db5`; constants deferred to 6.9).** The planned Weiss-constant transplant (and SF's, and blends) **chaotically destabilised the mate-resolution CTests** (KBNK playout + KQK mate-in-5 flipped non-monotonically under consumer knobs) — any linear form is ~30× larger at shallow depth than our `d²` and the consumers (`hist_prune_coeff`, `lmr_hist_div`) were tuned for the small scale. Shipped instead: `bonus = min(quad·d²/64 + lin·d, max)` + mirrored malus knobs + `hist_ttmove_bonus` (SF-only, default 0) — 7 knobs, defaults reproduce the legacy formula EXACTLY (bench identical, 9/9 CTest, **no SPRT owed**). The asymmetric-linear shape both references prove is reachable by the **6.9 SPSA**, tuned jointly with the consumers (`HistPruneCoeff` range widened [1000, 28000]). **6.1 mate guard merged alongside** (correctness fix): dev-head bench fingerprint now **12,736,941** (was 13,503,085 — the guard's footprint concentrates in the suite's mate positions); guard validation rides in the 6.10 cumulative SPRT. — Fable 5 medium
+- [x] **6.4 Post-LMR deeper re-search + conthist + double-ext cap — DONE 2026-07-01 as EXPOSURE ONLY (commit `945ec8c`; real values deferred to 6.9).** Hit the SAME canary fragility as 6.3, twice: (1) the `do_deeper`/`do_shallower` depth adjustment — swept flat margins 40/80/150/300/600/1200 against the KBNK CTest, **non-monotonic** (only 300 passed) with no natural "off" point in a sane range → **dropped entirely**; (2) the post-LMR conthist nudge (Weiss form) at full weight broke the KQK mate-in-5 CTest → shipped behind a new `PostLmrHistScale` knob (percent, default **0, provably inert** — `hist_update` with bonus=0 is a no-op); (3) the double-ext cap — Weiss's own seed (≤5) *also* independently broke KBNK → shipped as real infra (`ss->double_exts`, propagated via `SearchStack`) defaulting to **200, mathematically unreachable** (`double_exts ≤ MAX_PLY=128`). Bench **12,736,941 unchanged** (provable), 9/9 CTest (incl. both canaries). Extracted `history_bonus_value/malus_value/update_cont_for_move` as shared helpers (pure refactor). **No SPRT owed.** Real `PostLmrHistScale`/`DoubleExtMax` values are **6.9 SPSA material**, jointly with `LmrHistDiv`/`HistPruneCoeff`. — Sonnet 5 medium
+- [x] **[REJECTED] 6.5 SEE-quiet + capture futility — DONE 2026-07-01, both EXPOSED-BUT-INERT (`c3f1adc` → `3d14867`).** Capture futility (`eval + 200 + 200·lmr_depth + PieceValue[captured] + capHist/32 ≤ alpha`) was canary-clean so it shipped active (bench 12,736,941 → 11,806,504) and got a real SPRT vs the 6.4 head: **−2.78 ± 7.50 Elo, LOS 23%, LLR → H0 over 3.6k games — wash-to-tiny-loss → REVERTED to inert** (`CapFutDepth=0`). SEE-quiet never went active: naive base-table-`lmr_depth` broke KBNK completely (no mate in 250 plies, every coeff 25–120 failed; SF's `lmr_depth` here includes the history term that protects precise endgame quiets) → inert (`QuietSeeDepth=0`). **Net: no Elo, but both wired + exposed for 6.9 SPSA** (`cap_fut_depth`~7 + margins; `quiet_see_depth`~8 after the history-aware `lmr_depth` fix). Dev stays at validated 6.4 head (12,736,941, 9/9 CTest). **Lesson: canary-clean ≠ Elo gain — the games are the arbiter.** — Opus 4.8 high
+- [x] **[SKIPPED] 6.6 Fail-low prior countermove bonus — skipped 2026-07-02 (user decision).** Weakest evidence in the wave (SF-only) and, after 6.2–6.5's run of rejections/washes/inert-landings, decided to go straight to 6.8 rather than spend another implement/CTest/SPRT cycle on it. Revisit only if 6.9 shows spare headroom. — Sonnet 5 medium
+- [x] **6.7 Fractional LMR (1024ths) + `lmr_tt_capture` — DONE 2026-07-02, behaviour-identical infra (commit `5daae1c`).** `lmr_table_` → 1024ths (`int(1024·(base+ln·ln/div))`, floor identity keeps base reduction identical); the 4 `lmr_*_adj` knobs → 1024ths (defaults ×1024, ranges 0..3072); reduction accumulated in 1024ths, `>>10` at the end; new `lmr_tt_capture` seeded 0 (inert). History kept integer-quantised so it's **behaviour-identical (no SPRT)** rather than the spec's fractional-history rounding step (which the 6.2–6.5 run showed would just wash). Bench **12,736,941 unchanged**, 9/9 CTest; verified live in a TUNE build (`LmrNonPvAdj=1536` gives a node count distinct from 1024 *and* 2048 — sub-ply control). Gives 6.9 five fractional LMR dims + `lmr_tt_capture`. — Opus 4.8 medium
+- [x] **6.8 Qsearch quiet checks — DONE 2026-07-02, exposed-but-inert (commit `62648ca`).** At `qply==0`, after captures fail to cut off: try quiet checking moves (`gen_quiet_checks`) filtered by SEE≥0, capped at `QsearchCheckCap`. The seeded default (6, "4–6" per spec) **broke the KBNK mate CTest — the sixth mechanism in a row (6.2–6.5) to trip this canary at its literature seed.** Gated behind `QsearchCheckCap` defaulting to **0, provably inert** (loop skipped when `cap ≤ 0`). Bench **12,736,941 unchanged**, 9/9 CTest; confirmed live in a TUNE build. **No SPRT owed.** Real value → 6.9. **Phase 6's feature list is now complete** (6.1–6.8 resolved: one gain, one rejection, six exposure-only). — Sonnet 5 medium
+- [x] **[MOVED → 7.4] 6.9 wave2 joint SPSA — infrastructure built (commit `74bf5f0`), the RUN relocated by the 2026-07-02 EV review** (triggered by a 30h negative-gain Rarog SPSA). Why: (1) family SPSA base rate at maturity = 0-for-2 (5.8 TM wash; Rarog negative); (2) `config_wave2.json`'s start point activates known-negative mechanisms (`CapFutDepth=7` = the exact −2.78 config; `QuietSeeDepth=6` = the KBNK-breaking mechanism) — a local optimizer starting 5–15 Elo down a hole in 24 noisy dims; (3) §0.5's own rule: search constants are cp-denominated → tune once, at the FINAL eval scale, and Phase 7 is about to refit the eval. Replacement = **`config_histshape.json`** (11 always-live dims from current defaults) run as **Step 7.4** after the eval cycles. wave2 config + `phase69-wave2base` binary remain valid for a possible evidence-based wave3. — Sonnet 5 medium
+- [x] **6.10 Phase-6 boundary validation — ✅ DONE 2026-07-04, +9.14 ± 4.62 Elo (H1).** Cumulative SPRT `phase69-wave2base` vs `phase5final` (`elo1=3`, 3+0.03): **+9.14 ± 4.62, LOS 99.99%, 9,810 games**, Ptnml [223,1149,1953,1307,273]. Validated the whole Phase-6 bundle (6.1 +7.18 + the un-SPRT'd mate guard + the inert 6.3–6.8 exposures). **+9.14 ≥ 6.1's +7.18 → the mate guard is vindicated** (its only behaviour change beyond 6.1; neutral-to-slightly-positive, no bisect needed). **PHASE 6 COMPLETE.** Cross-TC riders skipped (TC over-fit implausible; re-check only if 7.5's gauntlet flags it). Release deferred to 7.5 (1.8.0 = Phases 5+6+7). — Sonnet 5 low
+- [x] **[SUPERSEDED — old pre-rework acceptance stubs, no open work]** These are the *original* Phase-6 acceptance-criteria stubs from before the 2026-07-02 EV-review renumbering; every one is covered by the reworked 6.3–6.10 entries above, so they are **resolved / not separately necessary**:
+  - old "6.5 Post-LMR deeper retry" + old "6.7 Double-extension cap" → folded into reworked **6.4** (exposure-only: `do_deeper`/`do_shallower` **dropped** as canary-non-monotonic; `DoubleExtMax=200` shipped **provably inert**).
+  - old "6.6 Qsearch quiet checks" → reworked **6.8** (exposed-but-inert, `QsearchCheckCap=0`).
+  - old "6.8 Razoring restriction experiment" → **not pursued** — it wasn't on the SF/Ethereal/Weiss audit shortlist and its EV was ≈0; revisit only on new evidence.
+  - old "6.9 Second-wave SPSA" → **relocated to Step 7.4** (the `config_histshape.json` run) by the EV review; see reworked 6.9 `[MOVED → 7.4]` above.
 
-- [ ] 7.0 Non-NNUE ceiling analysis read & stop-point understood: SF11 (~3440 CCRL) is the clean classical proof; SF16 ≈ SF11's *frozen* eval (removed July 2023, ~2 Elo), so it adds **no** terms over SF11 — a faithfulness cross-check only, not a source of post-SF11 ideas. Don't size off NNUE-era "HCE" ratings (Berserk/Rubi/Stash 3300+ are their NNUE builds, classical ~3000–3150); ranked levers = search wave (Phase 6) > data-refresh > shelter/storm→danger > deferred small terms; king-bucketed PSTs = NNUE gateway → do Phase 9 instead. **Basilisk caveat:** "features done, only tuning + search left" applies only AFTER Phase 4 closes.
-- [ ] 7.1 Eval data-refresh cycle 1: the dataset was self-played by a pre-Phase-4 head; once Phase 4+5 strengthen it ~+150–250, regen self-play (`datagen.ps1` → `extract.py`) and do **one joint low-lr refit** (`basilisk-texel --tune all` + `--tune-kingsafety`) + **one SPRT** + boundary gauntlet — cleaner WDL labels, NOT a re-stage. Turn on blended labels + phase-balanced sampling; ride the shelter/storm→danger fold here. Expected ~+10–40 Elo.
-- [ ] 7.2 Iterate cycles 2–3; **stop** when a cycle yields `<~+8 Elo`, holdout loss stalls between regens, or the gauntlet doesn't move. Each accepted cycle is releasable (minor if real gauntlet Elo).
+### Phase 7 - Non-NNUE ceiling: eval-refresh cycles + the one search tune (PLAN.md §7.5; THE ACTIVE PHASE after 6.10 — reworked 2026-07-02 EV review, absorbs the relocated 6.9 SPSA as 7.4)
+
+> **The EV table (decision aid — every step individually skippable; gains overlap):**
+>
+> | Step | Expected Elo (range / median) | Cost | Wash risk | Model |
+> |---|---|---|---|---|
+> | 7.1 SF-distill refit ✅ | **DELIVERED +6.75 ± 4.07** (est. +10…+35/~+20) | fit = minutes; 1 SPRT 2h48 | scale drift did NOT materialize | Fable 5 med (alt Opus 4.8 med) pipeline; Sonnet 5 med fit |
+> | 7.2 self-play refresh ✅ | **DELIVERED +21.02 ± 7.73** (est. +5…+25/~+12) | datagen 45 min + fit + SPRT 49 min | overperformed ~2× — 7.3 now high-EV | Sonnet 5 med |
+> | 7.3 cycle 2 ✅ | **DELIVERED +19.51 ± 7.04** (est. 0…+10/~+4 — under-called ~5×) | same (~2h/cycle) | curve not flat; iterate on (MSE-stall ≠ Elo-stall) | Sonnet 5 med |
+> | 7.4 histshape SPSA | **0…+12 / ~+4** | ~12–18h, abort @600 iters | **~50%** (5.8 wash + Rarog −30h precedent) | Sonnet 5 med |
+> | 7.5 boundary + 1.8.0 | 0 (banks the above) | ~4–8h | — | Sonnet 5 low |
+> | (Phase 8 menu) | **~0** — demoted, audit found nothing | — | — | skip |
+> | (Phase 9 NNUE) | **+200…+400** | months | low | Fable 5 high (alt Opus 4.8 high) |
+
+- [ ] **7.0 Non-NNUE ceiling analysis read & stop-point understood.** SF11 (~3440 CCRL) is the clean classical proof a complete HCE reaches the high-3000s; the 2026-07-01 SF/HCE audit (vs Ethereal 14.40 + Weiss 2025 + SF-classical) confirmed Basilisk's eval is **feature-complete pre-NNUE** — so Phase 7 is a **label/data-quality grind, not new terms**. Don't size off NNUE-era "HCE" ratings (Berserk/Rubi/Stash 3300+ are their NNUE builds, classical ~3000–3150). King-bucketed PSTs = NNUE input shape → do Phase 9 instead, not more HCE. — read-first
+- [x] **7.1 SF-distillation bootstrap — ✅ DONE 2026-07-04, ACCEPTED +6.75 ± 4.07 Elo** (H1, LOS 99.94%, 16,066 games, Ptnml [623,1865,2834,1999,712]; SPRT `7.1-sfdistill` vs `6.10-head`, `elo1=3` @ 3+0.03). Merged to development (`b8c469b`), bench **12,736,941 → 13,544,942**. Re-centered the HCE against **Stockfish @60k nodes** (Hydra's `annotate_sf.py` on the quiet-filtered beast set), converting `FEN;cp`→`FEN;wdl` via `1/(1+10^(-cp/400))`. Fit `basilisk-texel --tune all` on 2.0M/100k, L2=1e-6, K=1.372: holdout MSE **0.02226→0.02134**, data phase-balanced **47/30/22** (vs v17's 59% endgame). **The eval-scale risk did NOT materialize** — the L2-to-prior anchor pinned material (Pawn 83/96, Knight 322/310, Rook 514/561, Queen 1085/998) and kept startpos at +50cp@d12; 55 eval lines nudged toward SF (tempo 15→20, rook_open 25→27, PSTs, imb/mob/threats ±1-2). 9/9 CTest — KBNK/KQK canary clean; one shallow-depth sanity bound widened 100→150cp (distilled eval reads +122@d5). **KS funnel re-fit (`--tune-kingsafety`) DEFERRED as a follow-up rider** (finite-diff too slow to finish inline; isolating the distillation gave a cleaner verdict) — rolls into 7.2's `--tune-kingsafety` on fresh data or runs standalone first. The `10+0.1` boundary gauntlet rolls into 7.5. — Fable 5 medium (alt: Opus 4.8 medium) pipeline; Sonnet 5 medium fit
+- [x] **7.2 On-policy self-play refresh cycle — ✅ DONE 2026-07-06, ACCEPTED +21.02 ± 7.73 Elo** (H1, LOS 100%, 4,618 games, Ptnml [165,495,795,604,250]; SPRT `7.2-selfplay` vs `7.1-head`, `elo1=3` @ 3+0.03). Merged to development (`d113471`), bench 13,544,942 → **14,095,183**. **Biggest single-step gain since the Phase-4 eval campaign — ~2× the ~+12 EV midpoint; proves the HCE eval was not near its ceiling and the self-play curve is still climbing (→ 7.3 is high-EV).** Joint refit on **968,771 unique on-policy positions** (200k games from the 7.1 head seeded by `beast_seed.epd`; `--balance-phase 1.5` → 25/37/37 from natural 9/34/55). `--tune all --l2 1e-6` (K=2.5) + the **KS funnel re-fit deferred from 7.1** (sequential joint bake on the tune-all baseline). Eval moved substantively (queen_infiltration 5→8, minor_king_ring 1→5, safety_table tail 296→342/351, ks_central_king 0→3; material pinned). 9/9 CTest — KQK/KBNK canaries clean. *Historical plan/pipeline notes retained below.* Must follow 7.1: self-play WDL optimizes Basilisk winning from positions *its own* search reaches, correcting distillation's off-policy + representability bias. Regen self-play with the strongest head (`datagen.ps1` → `extract_parallel.py`), **one joint low-lr refit** (`--tune all` + `--tune-kingsafety`), SPRT + gauntlet — NOT a re-stage. Fold in: phase-rebalance (v17 was 59% endgame), quiet-filter (extract.py already skips in-check/capture plies), optional blended labels `λ·WDL+(1−λ)·σ(Basilisk-own score)`; ride-along re-fits: deferred **nonlinear KS re-fit** (now on correct data), sigmoid-K, tempo, lazy-margin, shelter/storm→danger fold. Expected ~+10–40 Elo. **⚠️ DATAGEN NEEDS THE DIVERSE BOOK.** A first attempt (2026-07-05) with `datagen.ps1`'s **default** `SuperGM_4mvs.pgn` book collapsed 200k games → **31,880 unique** positions (fixed-node self-play from a tiny book replays identical games). The proven fix (PLAN.md §637–664, and `datagen.ps1`'s own book-size warning) is to seed from **`tools/texel/data/beast_seed.epd`** (100k diverse openings from the Beast corpus) — Phase-2 got **1.73M unique** from 200k games that way. **Aside (2026-07-05):** reusing Hydra's ready `beast_train.csv` (WDL on the *same* 2M positions 7.1 already distilled) was tried as a shortcut and abandoned — off-policy, the eval barely moved, and it slightly degraded KQK (mate 5→6); the null result confirmed on-policy self-play is the only productive 7.2. **Concrete pipeline (this cycle):** (A) `datagen.ps1 -Suffix phase71-sfdistill -Book tools\texel\data\beast_seed.epd -BookFormat epd -Rounds 100000 -Nodes 8000 -OutputPgn ...\selfplay_72_beastseed.pgn`; (B) `extract_parallel.py ... --balance-phase 1.5` (float R = cap each bucket to R× the smallest; the parallel extractor now matches `extract.py`'s flag exactly, commit 4b399b4); (C) `--tune all --l2 1e-6`; (D) `--tune-kingsafety --max-positions 100000` (~8 min — the finite-diff path times out at 600k, calibrated 2026-07-05); (E) bake both (`--allow-pst` for the eval dump) → `build_test.ps1 -Suffix phase72-selfplay`; (F) SPRT `elo1=3` vs `basilisk-phase71-sfdistill`. — Sonnet 5 medium
+- [~] **7.3 Iterate (further self-play cycles) + stop — ▶ ITERATING, curve NOT flat.** Cycle 1 **ACCEPTED +19.51 ± 7.04 Elo** (H1, LOS 100%, 4,440 games, Ptnml [91,505,847,618,159]; SPRT `7.3-selfplay` vs `7.2-head`), merged `9741070`, bench 14,095,183 → **13,495,492** — ~as much as 7.2's +21, so **cycle-4 datagen is running**. Repeat 7.2 with the now-stronger head; **stop** when a cycle yields `<~+8 Elo`. **⚠️ The stop signal is the SPRT, NOT the holdout-MSE stall** — cycle 1's linear eval barely moved (holdout 0.0797→0.0793, all movers ±1/±2) yet gained +19.5; the KS funnel keeps re-shaping each cycle (safety_table tail 351→373). Each accepted cycle is releasable. Sustained flattening = pure-HCE tuning spent → Phase 9 (NNUE). — Sonnet 5 medium
+- [ ] **7.4 histshape SPSA — the ONE search tune, at the final eval scale (relocated 6.9).** Only after 7.1–7.3 settle. `config_histshape.json` = 11 always-live dims (6.3 history-shape 7 + `LmrHistDiv` + `HistPruneCoeff` + `LmrCutNodeAdj` + `LmrTtCapture`) **starting from current defaults** (iteration 1 = the validated head — unlike the superseded wave2, whose start activated known-negative mechanisms). **Pre-registered rules:** 1000–1500 iters (~12–18h) not 5000; **abort at ~600 if the trend ≤ 0** and keep defaults; converged candidate → bake → PGO build → **SPRT vs pre-tune head AND full `ctest`**; a wash → keep defaults, done tuning. Gated 6.4/6.5/6.8 mechanisms stay inert unless an evidence-based wave3 case appears. `./tools/build_test.ps1 -Suffix phase74-histbase` → `./tools/setup_spsa.ps1 -ConfigGroup histshape -EngineSuffix phase74-histbase -Iterations 1500` → `cd tools/weather-factory && python main.py`. — Sonnet 5 medium
+- [x] **7.5 Boundary validation + release 1.8.0 — ✅ DONE 2026-07-08.** Validation was an LTC field gauntlet in **colosseum** (`10+0.1`, 12-engine field) + an independent **LittleBlitzer** cross-check, not the originally-planned cumulative SPRT + cross-TC riders (superseded by the direct gauntlet). **1.8.0-rc beats 1.7.0 head-to-head ~+40 Elo at LTC** (the +93 fast-TC gain compresses to ~+40 at long TC — normal for eval refits; both tools agreed directionally). The absolute colosseum field-estimate (2939, Δ−111) is *not* a regression — it's anchored on strong fixed opponent ratings; the within-gauntlet 1.7.0 head-to-head is the trustworthy number. **7.4 histshape SPSA skipped** (low EV). **1.8.0 = Phases 5+6+7 bundled**, released from the cycle-5 head (bench 12,661,251). — Sonnet 5 low
 
 ### Later
 
-- [ ] Phase 8 feature menu only after the eval + search phases (and the Phase 7 refresh) plateau.
+- [ ] Phase 8 feature menu — **demoted 2026-07-02 (EV ≈ 0**; the SF/Ethereal/Weiss audit found no missing features pre-NNUE). Skip to Phase 9 (NNUE, **+200–400**, Fable 5 high / alt Opus 4.8 high) unless a specific gauntlet weakness points at a listed item.
 - [ ] Phase 9 NNUE remains the terminal option; eval boundary stays clean.
 
 ### External gauntlet (opponents) + time budget
@@ -638,12 +713,10 @@ gates in PLAN.md §10):
 |---|---|---|
 | **Phase 2.9** | Phase 2 eval scalars (**+54 vs 1.5.0**) + time-forfeit fix | **`1.6.0`** |
 | Phase 3 | bench-identical only (**except 3.5 endgame knowledge — behaviour-changing, SPRT-gated**) — nothing to release | — |
-| **Phase 4** | full eval data-fit campaign (**+80–160**) | **`1.7.0`** |
-| **Phase 5** | time-management hardening + tuning (LB forfeit fix + **+8–25** TM SPSA) | **`1.7.1`** if the LB fix ships alone, else folds into `1.8.0` |
-| **Phase 6** | search-efficiency wave (**+20–50**) | **`1.8.0`** |
-| **Phase 7** (per cycle) | eval-refresh grind (**+10–40** cycle 1) | **minor** per cycle that banks gauntlet Elo, else patch |
-| **Phase 8** | feature menu, batched | patch/minor per batch |
-| **Phase 9** | NNUE | **`2.0.0`** |
+| **Phase 4** | full eval data-fit campaign (**+280.74 vs phase1-final**) | **`1.7.0`** (shipped) |
+| **Phases 5+6+7** | TM (~+3) + search wave (**+7.18**) + eval-refresh & one search tune (**~+30**), bundled | **`1.8.0`** (unreleased; ships at Step 7.5) |
+| **Phase 8** | demoted (EV ≈ 0) — only if a gauntlet weakness surfaces | patch per batch |
+| **Phase 9** | NNUE (**+200–400**) | **`2.0.0`** |
 
 Rules: **minor** bump (`1.Y.0`) for each phase that banks SPRT+gauntlet-validated
 strength; **patch** (`1.y.Z`) for fix-only releases; **major** (`2.0.0`) for the

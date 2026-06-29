@@ -23,6 +23,25 @@
     "pruning"  (default) - 13 pruning / margin constants.
     "lmr"                - LMR formula + adjustment constants.
     "combined"           - narrowed Phase 1 polish around accepted pruning+LMR.
+    "tm"                 - time-management budget + adaptive-stop constants (Phase 5.8).
+    "histshape"          - Phase 7.4 (RECOMMENDED search tune, run AFTER the
+                            Phase-7 eval cycles settle the eval scale): 11
+                            always-live knobs -- history bonus/malus shape
+                            (6.3) + its two consumers (LmrHistDiv,
+                            HistPruneCoeff) + LmrCutNodeAdj + LmrTtCapture.
+                            Starts from CURRENT defaults, so iteration 1 is
+                            the SPRT-validated head, not a known-negative
+                            activation. ~1000-1500 iterations; pre-registered
+                            abort if the tuner trend is <= 0 after ~600.
+    "wave2"              - SUPERSEDED AS A FIRST RUN (2026-07-02, kept for a
+                            possible later wave3): 24 knobs incl. the gated
+                            6.4/6.5/6.8 mechanisms. Its start point activates
+                            mechanisms with known-negative standalone results
+                            (CapFutDepth=7 SPRT'd -2.78; QuietSeeDepth=6
+                            breaks KBNK at every coeff) -- a local optimizer
+                            starting in a hole. Use histshape instead; revisit
+                            wave2 only with repaired start values and after
+                            histshape pays.
 
 .PARAMETER EngineSuffix
     Suffix of the already-built engine under tools\test_engines.
@@ -58,9 +77,14 @@
 .EXAMPLE
     # Narrow combined Phase 1 polish from the accepted LMR head
     ./tools/setup_spsa.ps1 -ConfigGroup combined -EngineSuffix phase1-lmr -Iterations 2000
+
+.EXAMPLE
+    # Phase 7.4 histshape -- 11 always-live knobs from the post-Phase-7 head
+    ./tools/build_test.ps1 -Suffix phase74-histbase
+    ./tools/setup_spsa.ps1 -ConfigGroup histshape -EngineSuffix phase74-histbase -Iterations 1500
 #>
 param(
-    [ValidateSet("pruning","lmr","combined")][string]$ConfigGroup = "pruning",
+    [ValidateSet("pruning","lmr","combined","tm","wave2","histshape")][string]$ConfigGroup = "pruning",
     [string]$EngineSuffix = "phase1-defaults",
     [switch]$Resume,
     [int]$Iterations = 5000

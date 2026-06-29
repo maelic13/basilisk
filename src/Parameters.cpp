@@ -111,6 +111,7 @@ Parameters::Parameters() {
     syzygyProbeDepth = 1;
     syzygyProbeLimit = 7;
     syzygy50MoveRule = true;
+    tmDebug          = false;
 }
 
 void Parameters::reset() {
@@ -153,6 +154,10 @@ std::string Parameters::uciOptions() {
            "option name SyzygyProbeLimit type spin default 7 min 0 max 7\n";
 #ifdef BASILISK_TUNE
     opts +=
+        // TM diagnostic (Step 5.3): advertised only in tune/dev builds so a
+        // harness/GUI will actually send the setoption (fastchess/LB skip
+        // unadvertised options); release builds keep a clean 9-option list.
+        "option name TM_Debug type check default false\n"
         "option name RfpCoeff type spin default 160 min 60 max 240\n"
         "option name RfpImproving type spin default 72 min 0 max 140\n"
         "option name RazorCoeff type spin default 243 min 120 max 500\n"
@@ -161,18 +166,43 @@ std::string Parameters::uciOptions() {
         "option name ProbCutMargin type spin default 189 min 80 max 360\n"
         "option name FutilityBase type spin default 180 min 40 max 280\n"
         "option name FutilityCoeff type spin default 128 min 40 max 200\n"
-        "option name HistPruneCoeff type spin default 4210 min 1000 max 7000\n"
+        "option name HistPruneCoeff type spin default 4210 min 1000 max 28000\n"
         "option name SeePruneCoeff type spin default 73 min 30 max 160\n"
+        "option name CapFutDepth type spin default 0 min 0 max 10\n"
+        "option name CapFutBase type spin default 200 min 0 max 500\n"
+        "option name CapFutCoeff type spin default 200 min 0 max 500\n"
+        "option name QuietSeeDepth type spin default 0 min 0 max 10\n"
+        "option name QuietSeeCoeff type spin default 25 min 0 max 120\n"
+        "option name QsearchCheckCap type spin default 0 min 0 max 10\n"
         "option name SingularBetaMult type spin default 4 min 1 max 6\n"
         "option name SingularDoubleMargin type spin default 4 min 0 max 60\n"
+        "option name DoubleExtMax type spin default 200 min 1 max 200\n"
         "option name AspirationDelta type spin default 19 min 10 max 60\n"
         "option name LmrBase type spin default 60 min 0 max 150\n"
         "option name LmrDivisor type spin default 209 min 150 max 350\n"
         "option name LmrHistDiv type spin default 7830 min 4096 max 16384\n"
-        "option name LmrNonPvAdj type spin default 1 min 0 max 3\n"
-        "option name LmrCutNodeAdj type spin default 0 min 0 max 3\n"
-        "option name LmrTtPvAdj type spin default 0 min 0 max 3\n"
-        "option name LmrNotImprovingAdj type spin default 0 min 0 max 3\n";
+        "option name LmrNonPvAdj type spin default 1024 min 0 max 3072\n"
+        "option name LmrCutNodeAdj type spin default 0 min 0 max 3072\n"
+        "option name LmrTtPvAdj type spin default 0 min 0 max 3072\n"
+        "option name LmrNotImprovingAdj type spin default 0 min 0 max 3072\n"
+        "option name LmrTtCapture type spin default 0 min 0 max 3072\n"
+        "option name PostLmrHistScale type spin default 0 min 0 max 300\n"
+        "option name HistBonusQuad type spin default 64 min 0 max 128\n"
+        "option name HistBonusLin type spin default 0 min 0 max 400\n"
+        "option name HistBonusMax type spin default 2048 min 512 max 4096\n"
+        "option name HistMalusQuad type spin default 64 min 0 max 128\n"
+        "option name HistMalusLin type spin default 0 min 0 max 400\n"
+        "option name HistMalusMax type spin default 2048 min 512 max 4096\n"
+        "option name HistTtMoveBonus type spin default 0 min 0 max 1024\n"
+        "option name TmOptMult type spin default 100 min 50 max 200\n"
+        "option name TmMaxMult type spin default 100 min 50 max 200\n"
+        "option name TmStability type spin default 60 min 0 max 150\n"
+        "option name TmScoreDropThr type spin default 30 min 5 max 120\n"
+        "option name TmScoreDropDiv type spin default 100 min 30 max 400\n"
+        "option name TmEffortHi type spin default 80 min 50 max 99\n"
+        "option name TmEffortLo type spin default 25 min 1 max 50\n"
+        "option name TmEffortHiMult type spin default 80 min 50 max 100\n"
+        "option name TmEffortLoMult type spin default 120 min 100 max 200\n";
 #endif
     return opts;
 }
@@ -318,6 +348,12 @@ void Parameters::setOption(const std::string& args) {
         ponderEnabled = parse_bool_option(value);
     } else if (name_lower == "syzygy50moverule") {
         syzygy50MoveRule = parse_bool_option(value);
+    } else if (name_lower == "tm_debug") {
+        // Diagnostic (Step 5.3): advertised only in tune/dev builds (see
+        // uciOptions) but always parseable. When on, the search emits one
+        // `info string tm ...` per move with the time budget, actual elapsed,
+        // and the go-receipt->search-start dispatch delta.
+        tmDebug = parse_bool_option(value);
     } else if (!parse_int(value, parsed)) {
         uci_write_line("info string Invalid value for option '" + name + "': " + value);
     } else if (name_lower == "move overhead") {
@@ -340,18 +376,43 @@ void Parameters::setOption(const std::string& args) {
     else if (name_lower == "probcutmargin")         { search_params.probcut_margin         = std::clamp(parsed,    80,  360); }
     else if (name_lower == "futilitybase")          { search_params.futility_base          = std::clamp(parsed,    40,  280); }
     else if (name_lower == "futilitycoeff")         { search_params.futility_coeff         = std::clamp(parsed,    40,  200); }
-    else if (name_lower == "histprunecoeff")        { search_params.hist_prune_coeff       = std::clamp(parsed,  1000, 7000); }
+    else if (name_lower == "histprunecoeff")        { search_params.hist_prune_coeff       = std::clamp(parsed,  1000, 28000); }
     else if (name_lower == "seeprunecoeff")         { search_params.see_prune_coeff        = std::clamp(parsed,    30,  160); }
+    else if (name_lower == "capfutdepth")           { search_params.cap_fut_depth          = std::clamp(parsed,     0,   10); }
+    else if (name_lower == "capfutbase")            { search_params.cap_fut_base           = std::clamp(parsed,     0,  500); }
+    else if (name_lower == "capfutcoeff")           { search_params.cap_fut_coeff          = std::clamp(parsed,     0,  500); }
+    else if (name_lower == "quietseedepth")         { search_params.quiet_see_depth        = std::clamp(parsed,     0,   10); }
+    else if (name_lower == "quietseecoeff")         { search_params.quiet_see_coeff        = std::clamp(parsed,     0,  120); }
+    else if (name_lower == "qsearchcheckcap")       { search_params.qsearch_check_cap      = std::clamp(parsed,     0,   10); }
     else if (name_lower == "singularbetamult")      { search_params.singular_beta_mult     = std::clamp(parsed,     1,    6); }
     else if (name_lower == "singulardoublemargin")  { search_params.singular_double_margin = std::clamp(parsed,     0,   60); }
+    else if (name_lower == "doubleextmax")          { search_params.double_ext_max         = std::clamp(parsed,     1,  200); }
     else if (name_lower == "aspirationdelta")       { search_params.aspiration_delta       = std::clamp(parsed,    10,   60); }
     else if (name_lower == "lmrbase")               { search_params.lmr_base               = std::clamp(parsed,     0,  150); }
     else if (name_lower == "lmrdivisor")            { search_params.lmr_divisor            = std::clamp(parsed,   150,  350); }
     else if (name_lower == "lmrhistdiv")            { search_params.lmr_hist_div           = std::clamp(parsed,  4096, 16384); }
-    else if (name_lower == "lmrnonpvadj")           { search_params.lmr_non_pv_adj         = std::clamp(parsed,     0,    3); }
-    else if (name_lower == "lmrcutnodeadj")         { search_params.lmr_cut_node_adj       = std::clamp(parsed,     0,    3); }
-    else if (name_lower == "lmrttpvadj")            { search_params.lmr_tt_pv_adj          = std::clamp(parsed,     0,    3); }
-    else if (name_lower == "lmrnotimprovingadj")    { search_params.lmr_not_improving_adj  = std::clamp(parsed,     0,    3); }
+    else if (name_lower == "lmrnonpvadj")           { search_params.lmr_non_pv_adj         = std::clamp(parsed,     0, 3072); }
+    else if (name_lower == "lmrcutnodeadj")         { search_params.lmr_cut_node_adj       = std::clamp(parsed,     0, 3072); }
+    else if (name_lower == "lmrttpvadj")            { search_params.lmr_tt_pv_adj          = std::clamp(parsed,     0, 3072); }
+    else if (name_lower == "lmrnotimprovingadj")    { search_params.lmr_not_improving_adj  = std::clamp(parsed,     0, 3072); }
+    else if (name_lower == "lmrttcapture")          { search_params.lmr_tt_capture         = std::clamp(parsed,     0, 3072); }
+    else if (name_lower == "postlmrhistscale")      { search_params.post_lmr_hist_scale    = std::clamp(parsed,     0,  300); }
+    else if (name_lower == "histbonusquad")         { search_params.hist_bonus_quad        = std::clamp(parsed,     0,  128); }
+    else if (name_lower == "histbonuslin")          { search_params.hist_bonus_lin         = std::clamp(parsed,     0,  400); }
+    else if (name_lower == "histbonusmax")          { search_params.hist_bonus_max         = std::clamp(parsed,   512, 4096); }
+    else if (name_lower == "histmalusquad")         { search_params.hist_malus_quad        = std::clamp(parsed,     0,  128); }
+    else if (name_lower == "histmaluslin")          { search_params.hist_malus_lin         = std::clamp(parsed,     0,  400); }
+    else if (name_lower == "histmalusmax")          { search_params.hist_malus_max         = std::clamp(parsed,   512, 4096); }
+    else if (name_lower == "histttmovebonus")       { search_params.hist_ttmove_bonus      = std::clamp(parsed,     0, 1024); }
+    else if (name_lower == "tmoptmult")             { search_params.tm_opt_mult            = std::clamp(parsed,    50,  200); }
+    else if (name_lower == "tmmaxmult")             { search_params.tm_max_mult            = std::clamp(parsed,    50,  200); }
+    else if (name_lower == "tmstability")           { search_params.tm_stability           = std::clamp(parsed,     0,  150); }
+    else if (name_lower == "tmscoredropthr")        { search_params.tm_scoredrop_thr       = std::clamp(parsed,     5,  120); }
+    else if (name_lower == "tmscoredropdiv")        { search_params.tm_scoredrop_div       = std::clamp(parsed,    30,  400); }
+    else if (name_lower == "tmefforthi")            { search_params.tm_effort_hi           = std::clamp(parsed,    50,   99); }
+    else if (name_lower == "tmeffortlo")            { search_params.tm_effort_lo           = std::clamp(parsed,     1,   50); }
+    else if (name_lower == "tmefforthimult")        { search_params.tm_effort_hi_mult      = std::clamp(parsed,    50,  100); }
+    else if (name_lower == "tmeffortlomult")        { search_params.tm_effort_lo_mult      = std::clamp(parsed,   100,  200); }
 #endif
 }
 

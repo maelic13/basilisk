@@ -5,8 +5,8 @@
 .DESCRIPTION
     Configures the release-pext CMake preset (if not already configured), then
     builds the `pgo` target, which: compiles an instrumented binary, trains it
-    with bench + EPD positions, merges the profile, and builds the final
-    optimised binary.  The result is copied to
+    on the 40-position `bench` suite (depth 13), merges the profile, and builds
+    the final optimised binary.  The result is copied to
     D:\chess\engines\test_engines\ (kept SEPARATE from released engines in
     D:\chess\engines\) with a human-readable name so it can be referenced by
     sprt.ps1 and by weather-factory SPSA runs.

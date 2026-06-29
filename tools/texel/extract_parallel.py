@@ -100,6 +100,12 @@ def main():
     ap.add_argument("--skip-end", type=int, default=6)
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--jobs", type=int, default=0, help="worker processes (0 = CPUs-1)")
+    ap.add_argument("--balance-phase", default=0.0, type=float, metavar="R",
+                    help="Downsample over-represented phase buckets in the TRAIN "
+                         "split to R x the smallest bucket's count (0 = off). "
+                         "E.g. 1.5. Same semantics as extract.py. Corrects "
+                         "self-play's endgame skew (v17 was 59%% endgame). Holdout "
+                         "is left at its natural mix so early-stopping stays honest.")
     args = ap.parse_args()
 
     if not os.path.isfile(args.pgn):
@@ -138,6 +144,34 @@ def main():
                 seen.add(k)
                 target.append((fen, label, phase))
 
+    def mix(positions):
+        c = [0, 0, 0]
+        for _, _, ph in positions:
+            c[seq.phase_bucket(ph)] += 1
+        return c
+
+    # Optional phase rebalance of the TRAIN split. Self-play over-produces
+    # endgame positions (many won games grind to bare-king endings); the eval
+    # fit then over-weights the endgame. Cap each over-represented bucket to
+    # R x the smallest bucket's count -- identical semantics to extract.py so
+    # the two extractors stay drop-in equivalent.
+    natural_tc = mix(train)
+    if args.balance_phase > 0.0:
+        rng = random.Random(args.seed)
+        buckets = [[], [], []]
+        for item in train:
+            buckets[seq.phase_bucket(item[2])].append(item)
+        smallest = min(len(b) for b in buckets if b) if any(buckets) else 0
+        cap = int(args.balance_phase * smallest)
+        balanced = []
+        for b in range(3):
+            bucket = buckets[b]
+            if len(bucket) > cap > 0:
+                bucket = rng.sample(bucket, cap)
+            balanced.extend(bucket)
+        rng.shuffle(balanced)
+        train = balanced
+
     train_path = os.path.join(out_dir, args.train)
     holdout_path = os.path.join(out_dir, args.holdout)
     for path, rows in ((train_path, train), (holdout_path, holdout)):
@@ -145,19 +179,22 @@ def main():
             for fen, label, _ in rows:
                 fh.write(f"{fen};{label}\n")
 
-    def mix(positions):
-        c = [0, 0, 0]
-        for _, _, ph in positions:
-            c[seq.phase_bucket(ph)] += 1
-        return c
+    def mix_line(c):
+        tot = sum(c) or 1
+        return ", ".join(f"{seq.BUCKET_NAMES[b]}={c[b]:,} ({100*c[b]//tot}%)"
+                         for b in range(3))
 
     tc = mix(train)
     print(f"\n  Raw candidates   : {raw:,}")
     print(f"  Unique positions : {len(seen):,}")
     print(f"  Train positions  : {len(train):,}")
     print(f"  Holdout positions: {len(holdout):,}")
-    print("  Train phase mix  : " +
-          ", ".join(f"{seq.BUCKET_NAMES[b]}={tc[b]:,}" for b in range(3)))
+    if args.balance_phase > 0.0:
+        print(f"  Balanced to {args.balance_phase}x smallest bucket")
+        print("  Train mix (natural) : " + mix_line(natural_tc))
+        print("  Train mix (balanced): " + mix_line(tc))
+    else:
+        print("  Train phase mix  : " + mix_line(tc))
     print(f"\nWrote {train_path}\n      {holdout_path}")
 
 
