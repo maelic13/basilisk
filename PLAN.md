@@ -2159,6 +2159,12 @@ non-regression `[-3,0]` at `3+0.03` **and** a `1+0.01` `t=`-only gauntlet.
 
 #### Step 5.6 - GUI-robust reserve + Move Overhead default — Sonnet 4.6 medium
 
+> **DROPPED (5.3 data, 2026-06-29).** No forfeits in robust harnesses (fastchess
+> 1+0.01, 12k moves, 0 losses); the LB forfeit is ~847 ms of GUI-pipe latency a
+> reserve cannot sanely absorb. Current `2*overhead` reserve is adequate.
+> Revisit only if a real (non-LB) forfeit appears.
+
+
 With 5.4/5.5 in, re-fit the safety margin: make the reserve `max(2*overhead,
 abs_floor_ms)` (small absolute floor, e.g. 15–25 ms, covers fixed GUI latency
 that doesn't scale with overhead), and reconsider the **default Move Overhead**
@@ -2169,6 +2175,13 @@ non-regression `[-3,0]` at `3+0.03`. This is the step that *closes* the LB issue
 
 #### Step 5.7 - Root fail-low / instability time extension — Opus 4.8 medium
 
+> **DEFERRED (2026-06-29).** The adaptive-stop block already does instability
+> extension (best-move stability / score-drop / effort scaling), and 5.8 made
+> those SPSA-tunable. A *mid-iteration* fail-low extension is a behaviour-changing
+> search heuristic needing an SPRT to land — out of scope for the games-less
+> autonomous pass. Revisit after the 5.8 SPSA or fold into the Phase-6 search wave.
+
+
 Extend the soft limit when the position is unstable mid-search, not just between
 iterations: if the **root best move fails low** (score crashing through the
 aspiration window) or the PV is still changing late, grant extra time up to
@@ -2177,6 +2190,18 @@ aspiration window) or the PV is still changing late, grant extra time up to
 confirmation (this is a genuine strength lever, not just robustness).
 
 #### Step 5.8 - Expose TM constants under `BASILISK_TUNE` + SPSA — Sonnet 4.6 medium
+
+> **EXPOSURE DONE 2026-06-29 (SPSA pending — the maintainer's compute).** 9
+> SPSA-tunable knobs added to `SearchParams` (defaults == baked, behaviour-
+> identical): `TmOptMult`/`TmMaxMult` (budget ×100), `TmStability` (×1000),
+> `TmScoreDropThr`/`Div`, `TmEffortHi`/`Lo`/`HiMult`/`LoMult`. `compute_time_limit`
+> applies the multipliers; the iteration-stop block reads the rest. Guarded by
+> `#ifdef BASILISK_TUNE` (release stays 9 options — verified), parsed in
+> `Parameters.cpp`, wired into `setup_spsa.ps1` as group `tm`
+> (`tools/spsa_configs/config_tm.json`). bench 3,764,539, 9/9 CTest. SPSA binary
+> `basilisk-phase5tm-pext-pgo.exe`. Run `setup_spsa.ps1 -ConfigGroup tm` at
+> `tc=10+0.1`, re-validate at `1+0.01`/`60+0.6`, bake, SPRT vs `phase5tm`.
+
 
 The Elo lever. Expose the TM constants as a `ConfigGroup tm` (UCI spin options
 under `BASILISK_TUNE`, like the existing search-constant groups): optConst,

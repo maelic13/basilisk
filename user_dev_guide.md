@@ -567,6 +567,35 @@ fingerprints, PGN paths) lives in **PLAN.md §4** — this is the outcome summar
 > + 10 ms default Move Overhead; (4) zero TM-constant tuning. Aim: **generally
 > strong across bullet→slow, not a TC specialist.**
 
+> **PHASE 5 STATUS (2026-06-29).** Diagnosis (5.3) **overturned the premise**: the
+> engine's TM is *sound* — no overshoot (≤1 ms / 12k bullet moves), correct
+> allocation; the LB forfeits are GUI-pipe latency, **not** an engine bug. So the
+> robustness "repairs" were unnecessary: **5.5 dropped** (no overshoot), **5.6
+> dropped** (no real forfeit), **5.7 deferred** (existing adaptive logic already
+> extends on instability; a mid-iteration version needs an SPRT). Code-complete
+> and committed: **5.3** (TM_Debug instrument), **5.4** (clock-at-`go`,
+> bench-identical), **5.8** (9 TM knobs exposed for SPSA, behaviour-identical at
+> defaults). **Two maintainer validations close Phase 5:**
+>
+> 1. **5.4 non-regression SPRT** (clock-at-`go`):
+>    ```
+>    ./tools/sprt.ps1 -EngineA tools\test_engines\basilisk-phase5tm-pext-pgo.exe `
+>      -EngineB tools\test_engines\basilisk-phase48a-pruned-pext-pgo.exe `
+>      -NameA phase5 -NameB v1.7.0 -Elo0 -3 -Elo1 0
+>    ```
+>    (`phase5tm` = 5.4 + 5.8-exposure; 5.8 is behaviour-identical at defaults, so
+>    this isolates 5.4. Keep if within `[-3,0]`; else revert 5.4 — low stakes.)
+> 2. **5.8 TM-constant SPSA** (the Elo lever, +8–25):
+>    ```
+>    ./tools/setup_spsa.ps1 -ConfigGroup tm -EngineSuffix phase5tm -Iterations 5000
+>    cd tools\weather-factory ; python main.py
+>    ```
+>    at `tc=10+0.1`; then re-validate the tuned set at `1+0.01` and `60+0.6`, bake
+>    into `SearchParams.h` defaults, and SPRT the baked set vs `phase5tm`.
+>
+> After 5.8 bakes + 5.9 cross-TC check → Phase 5 ships and Phase 6 (search wave)
+> opens. Until then the Phase-5 head is behaviour-identical to 1.7.0 except 5.4.
+
 - [x] 5.1 Increment-aware budget formula implemented — direct port of Rarog's
       Phase 2.2 SF-style rewrite (logT-based optConst/maxConst, ply-aware
       sudden-death + explicit-movestogo branches); `compute_time_limit` gained
@@ -586,10 +615,10 @@ fingerprints, PGN paths) lives in **PLAN.md §4** — this is the outcome summar
 - [x] **5.3 Diagnose & instrument the LB time-loss — DONE 2026-06-29 (instrumented + measured).** **Findings (1+0.01 fastchess, 12,471 moves + the LB forfeit log):** the engine's TM is *sound* — overshoot is negligible (14/12471 moves over `hard` by ≤ **1 ms**, pure poll-rounding) and allocation is correct (`elapsed < hard` always). The only harness-independent imperfection is **dispatch ≤ 20 ms** (`go`-receipt→clock-start, under bullet+concurrency) — what 5.4 reclaims. The **LB forfeits are GUI/pipe latency, not a budget bug**: the LB log caught a forfeit with `elapsed_ms=112` but LB charging **959 ms** (`dispatch_ms=0`) — ~847 ms in the LB↔engine pipe (LB is a fragile 2012 single-threaded GUI choking on verbose bullet output). fastchess (efficient I/O, `timemargin=40`) never forfeits. **Consequences: 5.5 is unnecessary (no real overshoot); the LB issue is not a TM-budget repair.** — Opus 4.8 medium `TM_Debug` UCI check (default off) — **advertised only in tune/dev builds** (`#ifdef BASILISK_TUNE`) so a harness/GUI actually sends the `setoption` (fastchess/LB silently skip *unadvertised* options — the first attempt logged `Warning; doesn't have option TM_Debug` and produced no data); release builds keep a clean 9-option list. When on, `Searcher::search` emits one `info string tm soft_ms=.. hard_ms=.. elapsed_ms=.. dispatch_ms=..` per move. `dispatch_ms` = `go`-receipt (captured in `UciProtocol::cmdGo`) → `start_time_`, the latency the GUI charges but `elapsed_seconds()` doesn't yet count (defect #1). Timing unchanged; bench 3,764,539, 9/9 CTest, debug-off play-identical. Diagnostic binary: `tools/test_engines/basilisk-phase53-tmdebug-pext-pgo.exe`. **Pending (maintainer):** run it under LB / a `1+0.01` fastchess gauntlet with `option.TM_Debug=true` + engine logging, capture the `info string tm` lines, and confirm which defect dominates (expect `dispatch_ms` > 0 under LB and `elapsed_ms` > `hard_ms` overshoot at bullet) → sizes 5.4/5.5. — Opus 4.8 medium
 - [~] **5.4 Start the clock at `go`-receipt — IMPLEMENTED 2026-06-29, SPRT pending.** `Searcher::search` now sets `start_time_ = limits.go_recv_time` (the `cmdGo` timestamp threaded in 5.3) instead of the in-worker `now()`, falling back to `now()` when unset (internal/bench). The engine now accounts for the ~20 ms dispatch latency 5.3 measured, tightening it against the GUI clock. `dispatch_ms` reads 0 by construction now (confirms it). Bench 3,764,539 unchanged, 9/9 CTest. Candidate `phase54-clockatgo`. **Gate (maintainer):** non-regression SPRT `[-3,0]` at `3+0.03` vs `phase48a-pruned` (1.7.0). Expect ~neutral — at robust harnesses 5.4 trades a few ms of search for clock safety; keep if within `[-3,0]`. — Opus 4.8 medium
 - [~] **5.5 Anti-overshoot poll granularity — LIKELY SKIP (5.3 data).** Premise was that heavier eval per node would overshoot the tiny bullet budget; measured overshoot is **≤ 1 ms over 12,471 bullet moves**, so the fixed `(nodes_ & 2047)` poll is already fine. Revisit only if a future change (or a real harness) shows actual overshoot. — Sonnet 4.6 medium
-- [ ] **5.6 GUI-robust reserve + Move Overhead default** — reserve `max(2*overhead, abs_floor_ms≈15–25)`; default Move Overhead 10→~20–30 ms. Gate: LB pool re-run at `3+0.03` **and** `1+0.01` → `t=0`; SPRT non-regression `[-3,0]`. **Closes the LB issue.** — Sonnet 4.6 medium
-- [ ] **5.7 Root fail-low / instability time extension** — extend soft→hard when the root best fails low or the PV is still changing late (complements the between-iterations score-drop extension). Gate: SPRT `elo1=3` at `3+0.03` + `10+0.1` confirm. — Opus 4.8 medium
-- [ ] **5.8 Expose TM constants under `BASILISK_TUNE` + SPSA** (the Elo lever; supersedes the old optional "6.3" SPSA) — `ConfigGroup tm` (optConst/maxConst+slopes, `0.8097`, stability `0.06`, score-drop `30`/`÷100`, effort `80/25`→`0.80/1.20`, the 5.7 knobs); SPSA at `10+0.1`, re-validate at `1+0.01` and `60+0.6`, bake, SPRT vs pre-SPSA head. First TM fit to Basilisk's own eval/search. — Sonnet 4.6 medium
-- [ ] **5.9 Cross-TC validation + ship gate** — gauntlet/LB at `1+0.01`, `3+0.03`, `10+0.1`, `60+0.6`; each `t=0` and non-negative vs the pre-Phase-5 head; record per-TC Elo to expose any specialization. — Sonnet 4.6 medium
+- [~] **5.6 GUI-robust reserve + Move Overhead default — DROPPED (5.3 data, 2026-06-29).** Premise was forfeits from a too-thin reserve; the engine never forfeits in robust harnesses (fastchess `1+0.01`, 12k moves, 0 losses) and the LB forfeit is GUI-pipe latency (~847 ms) a reserve can't sanely absorb. The current `2*overhead` reserve is adequate. Revisit only if a real (non-LB) forfeit appears.
+- [~] **5.7 Root fail-low / instability time extension — DEFERRED (2026-06-29).** The adaptive-stop block already implements instability extension (best-move *stability* scale → more time when the move just changed; *score-drop* scale → more time on a crash; *effort* scale), and 5.8 just made all of those SPSA-tunable. A *mid-iteration* fail-low extension is a behaviour-changing search heuristic with real regression risk that needs an SPRT to land — out of scope for the games-less autonomous pass. Revisit after the 5.8 SPSA (or fold into the Phase-6 search wave) if there's measured headroom. — Opus 4.8 medium
+- [x] **5.8 Expose TM constants under `BASILISK_TUNE` — EXPOSURE DONE 2026-06-29 (SPSA pending).** Added 9 SPSA-tunable knobs to `SearchParams` (defaults == baked → behaviour-identical): `TmOptMult`/`TmMaxMult` (overall budget ×100), `TmStability` (×1000), `TmScoreDropThr`/`TmScoreDropDiv`, `TmEffortHi`/`Lo`/`HiMult`/`LoMult`. `compute_time_limit` applies the multipliers; `Searcher::search` reads the adaptive-stop knobs. Exposed only under `#ifdef BASILISK_TUNE` (release stays 9 options, verified), parsed in `Parameters.cpp`, wired into `setup_spsa.ps1` as group `tm` (`tools/spsa_configs/config_tm.json`). bench 3,764,539, 9/9 CTest, tune build lists + accepts them. SPSA binary: `basilisk-phase5tm-pext-pgo.exe`. **Pending (maintainer):** run the SPSA (`setup_spsa.ps1 -ConfigGroup tm`), bake, SPRT vs `phase5tm`. The Elo lever (+8–25). — Sonnet 4.6 medium
+- [ ] **5.9 Cross-TC validation + ship gate** — gauntlet/LB at `1+0.01`, `3+0.03`, `10+0.1`, `60+0.6`; each `t=0` and non-negative vs the pre-Phase-5 head; record per-TC Elo. (After the 5.8 SPSA bakes.) — Sonnet 4.6 medium
 
 ### Phase 6 - Search Efficiency Wave (PLAN.md §5; **renumbered to Phase 6 on 2026-06-29 — executed AFTER Phase 5 time management.** SPSA last — driving Sonnet 4.6 medium, dense ports Codex 5.5 medium / GPT-5.5 high)
 
