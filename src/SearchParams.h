@@ -47,16 +47,16 @@ struct SearchParams {
     int lmr_tt_pv_adj           = 0;     // LmrTtPvAdj
     int lmr_not_improving_adj   = 0;     // LmrNotImprovingAdj
 
-    // ---- Time management (Phase 5.8; SPSA-tunable, defaults == baked values) --
+    // ---- Time management (Phase 5.8; SPSA-tuned 2026-06-30, 1147 iters @ 3+0.03) --
     // Overall budget multipliers applied to the computed optimum/maximum (×100).
-    int tm_opt_mult         = 100;   // TmOptMult   (1.00)
-    int tm_max_mult         = 100;   // TmMaxMult   (1.00)
+    int tm_opt_mult         = 105;   // TmOptMult   (1.05; was 100)
+    int tm_max_mult         = 85;    // TmMaxMult   (0.85; was 100 — tighter max-time cap)
     // Adaptive iteration-stop scaling (Searcher::search):
-    int tm_stability        = 60;    // TmStability (0.060 step per stable iter, ×1000)
-    int tm_scoredrop_thr    = 30;    // TmScoreDropThr   (cp drop that triggers extension)
-    int tm_scoredrop_div    = 100;   // TmScoreDropDiv   (divisor of the extra-time ramp)
-    int tm_effort_hi        = 80;    // TmEffortHi       (best-move node-effort %, shrink time)
-    int tm_effort_lo        = 25;    // TmEffortLo       (low effort %, grow time)
-    int tm_effort_hi_mult   = 80;    // TmEffortHiMult   (0.80 when effort high, ×100)
-    int tm_effort_lo_mult   = 120;   // TmEffortLoMult   (1.20 when effort low, ×100)
+    int tm_stability        = 69;    // TmStability (0.069 step per stable iter, ×1000; was 60)
+    int tm_scoredrop_thr    = 35;    // TmScoreDropThr   (cp drop that triggers extension; was 30)
+    int tm_scoredrop_div    = 104;   // TmScoreDropDiv   (divisor of the extra-time ramp; was 100)
+    int tm_effort_hi        = 74;    // TmEffortHi       (best-move node-effort %, shrink time; was 80)
+    int tm_effort_lo        = 20;    // TmEffortLo       (low effort %, grow time; was 25)
+    int tm_effort_hi_mult   = 82;    // TmEffortHiMult   (0.82 when effort high, ×100; was 80)
+    int tm_effort_lo_mult   = 126;   // TmEffortLoMult   (1.26 when effort low, ×100; was 120)
 };
