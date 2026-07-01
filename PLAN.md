@@ -170,6 +170,20 @@ it is not where 200+ Elo hides. The gap is eval *resolution* — see §0.5.
 
 ## 0.5 Sequencing principle & execution order (READ THIS FIRST — revised 2026-06-18)
 
+> **⚑ Reference principle (added 2026-07-01): benchmark against the world's
+> strongest engine, not Rarog.** Rarog is a same-family HCE sibling whose SPRT/
+> SPSA *harness* Basilisk reuses — but it is **a peer we may have already passed**,
+> not a target. Do **not** adopt or reject a technique because "Rarog does/doesn't
+> do it." For every search/eval idea, the reference is the **strongest engine in
+> the world (Stockfish, NNUE, mid-2026)** and the arbiter is Basilisk's own SPRT.
+> Rarog is useful as *one* proven-on-a-similar-engine data point (its constants
+> transfer better than SF's, which are NNUE-scaled), but where SF and Rarog differ
+> — e.g. history-bonus magnitude, continuation-history plies, pruning shape — treat
+> SF as the design reference and let SPSA/SPRT decide the Basilisk-specific value.
+> Both engines are currently **< 3000 CCRL**; the gap to the top is dominated by
+> **eval accuracy (→ NNUE, Phase 9)**, so search work is diminishing-returns polish
+> until then. (The 6.1 TT-bound eval +7.18 is an SF idea, not a Rarog one.)
+
 The original plan ordered the forward work **Phase 2 (tune eval) → Phase 3
 (search) → Phase 4 (add eval features) → retune**. That order **tunes the eval
 twice**: it fits the *toy* king-safety and *pawn-only* threats in Phase 2, then
