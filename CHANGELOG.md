@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.0] - Unreleased
+
+A time-management correctness release. The move clock is now anchored to the
+moment the `go` command arrives, and an exploratory SPSA tuning pass confirmed
+the existing time budget was already near-optimal. Move selection at a fixed
+depth is unchanged, so the search fingerprint is identical to 1.7.0's
+40-position bench.
+
+### Changed
+
+#### Time management
+- The move clock now starts when the engine receives `go` rather than when the
+  worker thread begins searching. This accounts for the GUI→engine dispatch
+  latency (~20 ms measured under bullet time controls with concurrency), so the
+  engine stays tighter against the wall clock and reclaims time it was
+  previously spending without counting. Validated as a non-regression
+  (`+2.95 ± 6.74 Elo` vs 1.7.0 at `tc=3+0.03`, stopped early as a confirmed
+  non-regression).
+
+### Internal
+- Profile-guided-optimization training now uses the 40-position `bench` suite
+  only; the separate depth-7 EPD training set was removed. It was redundant once
+  the bench suite grew from 16 to 40 positions — the broadened suite is itself a
+  representative execution profile (matching the convention of training PGO from
+  `bench`). Final binary behaviour is unaffected.
+- Explored SPSA tuning of the nine time-management constants and **reverted** it:
+  the gain SPRT against the hand-tuned defaults was a wash (`+0.88 ± 4.03 Elo`
+  over 12,262 games, LLR flat inside `[0, 3]`), confirming the time budget was
+  already at its ceiling. The knobs remain exposed under `BASILISK_TUNE` for
+  future re-tuning.
+
 ## [1.7.0] - 2026-06-29
 
 A pure evaluation release: the hand-crafted eval structure built during the

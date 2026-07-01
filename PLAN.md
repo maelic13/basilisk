@@ -1943,6 +1943,16 @@ This is the **one** place worth spending extra game-compute on the eval.
 
 ## 7. Phase 5 - Time Management hardening + tuning (EXECUTE BEFORE the Phase 6 search wave)
 
+> **✅ PHASE 5 COMPLETE (2026-07-01).** Shippable content = **5.4 clock-at-`go`**
+> (dispatch-latency fix, validated `+2.95 ± 6.74` non-regression vs 1.7.0). 5.5
+> skipped / 5.6 dropped / 5.7 deferred (no real overshoot or forfeit to fix — the
+> LB losses were GUI pipe latency). **5.8 SPSA was baked then REVERTED**: the 5.9
+> gain SPRT was a wash (`+0.88 ± 4.03` over 12,262 games, LLR flat in `[0,3]`),
+> confirming the TM was already at its ceiling — the "+8–25 Elo" target below did
+> **not** materialise (the TM was already sound, not untuned). Net Phase-5 result:
+> a correctness fix, no tuning gain. Bundled into the **1.8.0** dev line (ships
+> with the Phase 6 search wave; see user_dev_guide.md §5.3–5.9 for detail).
+
 > **Promoted to Phase 5 (2026-06-29).** Steps 6.1/6.1b/6.2 below (the Rarog-port
 > budget formula + reserve + the 2026-06-20 LB validation) are **DONE** and stay
 > as the foundation. But LB **still shows time-losses** post-Phase-3/4 (heavier
