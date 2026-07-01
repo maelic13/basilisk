@@ -1237,8 +1237,12 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     // exact, or a fail-high above it, or a fail-low below it — prune on that
     // instead. ss->eval / static_eval stay the raw corrected value, so
     // `improving` and correction-history are unaffected.
+    // A TT mate/TB-range score must NOT drive this: RFP returns `eval` directly
+    // (unlike SF, which dampens + guards it), so a shallow mate bound would leak
+    // out as an unverified mate cutoff — clamp the refinement to normal scores.
     int eval = static_eval;
     if (tt_found && static_eval != VALUE_NONE && tt_score != VALUE_NONE
+        && std::abs(tt_score) < MATE_SCORE - MAX_PLY
         && (tt_flag == TT_EXACT
             || (tt_flag == TT_BETA  && tt_score > static_eval)
             || (tt_flag == TT_ALPHA && tt_score < static_eval)))
