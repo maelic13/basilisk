@@ -893,6 +893,12 @@ Expected: forfeits → 0 (reliability + a few Elo), near-zero risk. Then proceed
 
 ## 5. Phase 6 - Search Efficiency Wave (close the EBF gap) — EXECUTE AFTER Phase 5 (TM)
 
+> **▶ PHASE 6 UNDERWAY. 6.1 TT-bound eval ACCEPTED +7.18 ± 4.05 Elo** (H1, LOS
+> 99.97%, 13,162 games, 2026-07-01) — merged to `development` (commit `00370b8`).
+> Dev-head bench fingerprint now **13,503,085**. NEXT: 6.2 history / 6.3 fractional
+> LMR / 6.4 TT-capture LMR. (A mate-score guard for 6.1 sits on branch
+> `phase6-6.1-ttbound` commit `75650d6`, unmerged — bundle into 6.2's SPRT.)
+
 > **Renumbered 2026-06-29: this search-efficiency wave is now Phase 6, executed
 > AFTER the Phase 5 time-management hardening (§7 below).** TM was promoted ahead
 > of it because LB still shows time-losses and the TM constants have never been
