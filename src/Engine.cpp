@@ -1,6 +1,7 @@
 #include <iostream>
 #include <algorithm>
 #include <cstdlib>
+#include <sstream>
 #include <string>
 #include <thread>
 
@@ -239,9 +240,15 @@ void Engine::start_search(uint64_t command_epoch,
 }
 
 void Engine::run_bench_command(const EngineCommand& command) {
+    // bench [depth] [repeats] — single-threaded so the node total is a
+    // deterministic fingerprint (matches sibling engine Rarog's bench command).
     int depth = 13;
-    if (!command.args.empty()) {
-        try { depth = std::stoi(command.args); } catch (...) {}
+    int repeats = 1;
+    {
+        std::istringstream iss(command.args);
+        int value;
+        if (iss >> value) depth   = value;
+        if (iss >> value) repeats = value;
     }
 
     if (command.epoch != 0
@@ -250,7 +257,7 @@ void Engine::run_bench_command(const EngineCommand& command) {
 
     stop_requested_.store(false, std::memory_order_release);
     searching_.store(true, std::memory_order_release);
-    run_bench(depth, parameters_.threads);
+    run_bench(depth, repeats, 1);
     if (command.epoch == 0
         || control_epoch_.load(std::memory_order_acquire) == command.epoch)
         searching_.store(false, std::memory_order_release);
