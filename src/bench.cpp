@@ -31,9 +31,6 @@ static constexpr std::array<std::string_view, 40> BENCH_FENS = {{
     "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
     "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
     "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1",
-    // NB: a3 pawn is WHITE (legal). Rarog's suite has a typo here (black pawn on
-    // a3 -> 9 black pawns, illegal); Basilisk's set_fen correctly rejects that,
-    // so we keep the legal original. Flag to fix Rarog for a true byte-match.
     "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10",
     "r2q1rk1/pP1p2pp/Q4n2/bbp1p3/Np6/1B3NBn/pPPP1PPP/R3K2R b KQ - 0 1",
     "8/pp2k3/8/2p5/2P5/1P2K3/P7/8 w - - 0 1",
