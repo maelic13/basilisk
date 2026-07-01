@@ -163,13 +163,12 @@ cmake --build --preset release-avx2 --target pgo
 ```
 
 The target creates an instrumented `build\<preset>-pgo-generate` binary, trains
-it with the internal `bench 13` command plus the self-contained
-`cmake/pgo-train.epd` position set, prints concise training progress, merges the
-profile with `llvm-profdata`, and builds the optimized binary in
-`build\<preset>-pgo`. Detailed engine training logs are kept under
-`build\<preset>-pgo-profile` for diagnostics. The embedded training set covers
-representative openings, black-to-move middlegames, tactical/check positions,
-castling and en-passant paths, and compact endgames. Use `release`,
+it with the internal `bench 13` command (a fixed 40-position suite spanning
+openings, quiet and tactical middlegames, a broad range of endgames, mates, and
+fortresses), prints concise training progress, merges the profile with
+`llvm-profdata`, and builds the optimized binary in `build\<preset>-pgo`.
+Detailed engine training logs are kept under `build\<preset>-pgo-profile` for
+diagnostics. Use `release`,
 `release-avx2`, or `release-pext` as the preset depending on which CPU tier you
 want. The final PGO executable is also copied to `build/dist` with a `-pgo`
 suffix before the executable extension.
