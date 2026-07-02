@@ -468,6 +468,38 @@ void Searcher::update_low_ply(int ply, Square from, Square to, int bonus) {
         hist_update<MAX_LOW_HIST>(low_ply_hist_[ply][from][to], bonus);
 }
 
+// Phase 6.3 bonus/malus shape: bonus = min(quad*d^2/64 + lin*d, max), malus
+// mirrored with its own knobs. Defaults reproduce the legacy min(d*d, 2048).
+int Searcher::history_bonus_value(int depth) const {
+    const auto& p = active_limits_.params;
+    return std::min(p.hist_bonus_quad * depth * depth / 64 + p.hist_bonus_lin * depth,
+                    p.hist_bonus_max);
+}
+
+int Searcher::history_malus_value(int depth) const {
+    const auto& p = active_limits_.params;
+    return -std::min(p.hist_malus_quad * depth * depth / 64 + p.hist_malus_lin * depth,
+                     p.hist_malus_max);
+}
+
+void Searcher::update_cont_for_move(SearchStack* ss, PieceType pt, Square to, int bonus) {
+    if ((ss-1)->moved_piece != NO_PIECE_TYPE && (ss-1)->move != MOVE_NONE
+        && (ss-1)->move != MOVE_NULL) {
+        update_cont(*cont_hist1_, (ss-1)->moved_piece,
+                    Square(to_sq((ss-1)->move)), pt, to, bonus);
+    }
+    if ((ss-2)->moved_piece != NO_PIECE_TYPE && (ss-2)->move != MOVE_NONE
+        && (ss-2)->move != MOVE_NULL) {
+        update_cont(*cont_hist2_, (ss-2)->moved_piece,
+                    Square(to_sq((ss-2)->move)), pt, to, bonus);
+    }
+    if ((ss-4)->moved_piece != NO_PIECE_TYPE && (ss-4)->move != MOVE_NONE
+        && (ss-4)->move != MOVE_NULL) {
+        update_cont(*cont_hist4_, (ss-4)->moved_piece,
+                    Square(to_sq((ss-4)->move)), pt, to, bonus / 2);
+    }
+}
+
 int Searcher::cont_hist_score(const SearchStack* ss, PieceType pt, Square to) const {
     int score = 0;
     // 1-ply back
@@ -500,14 +532,9 @@ void Searcher::update_all_histories(Move best, bool best_is_tt,
                                     const Move* quiets, int quiet_count,
                                     const Move* bad_caps, int bad_cap_count,
                                     Color stm, int depth, SearchStack* ss) {
-    // Phase 6.3: tunable bonus/malus shape (see SearchParams.h) -- exactly the
-    // legacy min(d*d, 2048) at defaults; asymmetric linear forms reachable by SPSA.
-    const auto& p = active_limits_.params;
-    int bonus =  std::min(p.hist_bonus_quad * depth * depth / 64 + p.hist_bonus_lin * depth,
-                          p.hist_bonus_max)
-              + (best_is_tt ? p.hist_ttmove_bonus : 0);
-    int malus = -std::min(p.hist_malus_quad * depth * depth / 64 + p.hist_malus_lin * depth,
-                          p.hist_malus_max);
+    int bonus = history_bonus_value(depth)
+              + (best_is_tt ? active_limits_.params.hist_ttmove_bonus : 0);
+    int malus = history_malus_value(depth);
 
     bool best_is_cap   = (board_ptr_->board_sq[to_sq(best)] != NO_PIECE)
                       || (move_type(best) == EN_PASSANT);
@@ -535,21 +562,7 @@ void Searcher::update_all_histories(Move best, bool best_is_tt,
             countermove_[from_sq(prev)][to_sq(prev)] = best;
 
         // Continuation history
-        if ((ss-1)->moved_piece != NO_PIECE_TYPE && (ss-1)->move != MOVE_NONE
-            && (ss-1)->move != MOVE_NULL) {
-            update_cont(*cont_hist1_, (ss-1)->moved_piece,
-                        Square(to_sq((ss-1)->move)), pt, to, bonus);
-        }
-        if ((ss-2)->moved_piece != NO_PIECE_TYPE && (ss-2)->move != MOVE_NONE
-            && (ss-2)->move != MOVE_NULL) {
-            update_cont(*cont_hist2_, (ss-2)->moved_piece,
-                        Square(to_sq((ss-2)->move)), pt, to, bonus);
-        }
-        if ((ss-4)->moved_piece != NO_PIECE_TYPE && (ss-4)->move != MOVE_NONE
-            && (ss-4)->move != MOVE_NULL) {
-            update_cont(*cont_hist4_, (ss-4)->moved_piece,
-                        Square(to_sq((ss-4)->move)), pt, to, bonus / 2);
-        }
+        update_cont_for_move(ss, pt, to, bonus);
 
         // Malus for other searched quiets
         for (int i = 0; i < quiet_count; ++i) {
@@ -560,18 +573,7 @@ void Searcher::update_all_histories(Move best, bool best_is_tt,
             update_quiet(stm, mf, mt, malus);
             update_pawn_hist(board_ptr_->pawn_key, mpt, mt, malus);
             update_low_ply(static_cast<int>(ss - (ss_arr_ + 4)), mf, mt, malus);
-            if ((ss-1)->moved_piece != NO_PIECE_TYPE && (ss-1)->move != MOVE_NONE
-                && (ss-1)->move != MOVE_NULL)
-                update_cont(*cont_hist1_, (ss-1)->moved_piece,
-                            Square(to_sq((ss-1)->move)), mpt, mt, malus);
-            if ((ss-2)->moved_piece != NO_PIECE_TYPE && (ss-2)->move != MOVE_NONE
-                && (ss-2)->move != MOVE_NULL)
-                update_cont(*cont_hist2_, (ss-2)->moved_piece,
-                            Square(to_sq((ss-2)->move)), mpt, mt, malus);
-            if ((ss-4)->moved_piece != NO_PIECE_TYPE && (ss-4)->move != MOVE_NONE
-                && (ss-4)->move != MOVE_NULL)
-                update_cont(*cont_hist4_, (ss-4)->moved_piece,
-                            Square(to_sq((ss-4)->move)), mpt, mt, malus / 2);
+            update_cont_for_move(ss, mpt, mt, malus);
         }
     } else if (best_is_cap) {
         // Best was a capture (not a quiet promotion)
@@ -1446,8 +1448,13 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             }
 
             if (s_val < s_beta) {
-                // TT move is singular — extend it
-                extension += (!is_pv && s_val < s_beta - active_limits_.params.singular_double_margin) ? 2 : 1;
+                // TT move is singular — extend it. Phase 6.4 rider: cap stacked
+                // 2-ply extensions along this path so a pathological line can't
+                // chain unbounded double-extensions.
+                bool allow_double = !is_pv
+                    && s_val < s_beta - active_limits_.params.singular_double_margin
+                    && ss->double_exts < active_limits_.params.double_ext_max;
+                extension += allow_double ? 2 : 1;
             } else if (s_beta >= beta) {
                 // Multicut: likely to fail high without this move too
                 immediate_return = true;
@@ -1477,6 +1484,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         sel_depth_ = std::max(sel_depth_, ply + 1);
 
         int new_depth = depth - 1 + extension;
+        // Phase 6.4 rider: propagate the stacked double-extension count to the
+        // child so a chain of singular double-extensions is eventually capped.
+        (ss + 1)->double_exts = ss->double_exts + (extension >= 2 ? 1 : 0);
 
         int score;
         if (searched == 0) {
@@ -1510,9 +1520,27 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             score = -negamax(new_depth - reduction, -alpha - 1, -alpha,
                              ply + 1, ss + 1, false, true, true);
             // Re-search at full depth if LMR didn't fail low
-            if (reduction > 0 && score > alpha && !stopped_)
+            if (reduction > 0 && score > alpha && !stopped_) {
                 score = -negamax(new_depth, -alpha - 1, -alpha,
                                  ply + 1, ss + 1, false, true, !cut_node);
+
+                // Post-LMR continuation-history nudge (Step 6.4, Weiss form,
+                // reusing the 6.3 bonus/malus formulas, scaled by
+                // post_lmr_hist_scale -- see SearchParams.h for why it
+                // defaults to 0/provably inert). Reward or punish this quiet
+                // move's continuation history based on whether the
+                // confirmation score actually held up against the original
+                // window.
+                if (is_quiet && !stopped_ && active_limits_.params.post_lmr_hist_scale > 0) {
+                    int scale = active_limits_.params.post_lmr_hist_scale;
+                    if (score >= beta)
+                        update_cont_for_move(ss, moved_pt, Square(to_sq(m)),
+                                             history_bonus_value(depth) * scale / 100);
+                    else if (score <= alpha)
+                        update_cont_for_move(ss, moved_pt, Square(to_sq(m)),
+                                             history_malus_value(depth) * scale / 100);
+                }
+            }
             // Re-search as PV if score is within window
             if (is_pv && score > alpha && score < beta && !stopped_)
                 score = -negamax(new_depth, -beta, -alpha,

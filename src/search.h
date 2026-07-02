@@ -32,6 +32,7 @@ struct SearchStack {
     int       reduction   = 0;               // LMR reduction applied by parent
     PieceType moved_piece = NO_PIECE_TYPE;   // piece type that made 'move'
     bool      tt_pv       = false;           // node lies near a TT/PV line
+    int       double_exts = 0;               // stacked 2-ply singular extensions on this path
 };
 
 struct SearchResult;
@@ -229,6 +230,15 @@ private:
                      PieceType cpt, Square cto, int bonus);
     void update_pawn_hist(Key pawn_key, PieceType pt, Square to, int bonus);
     void update_low_ply(int ply, Square from, Square to, int bonus);
+
+    // Phase 6.3 bonus/malus shape (single source of truth for both
+    // update_all_histories and the Step 6.4 post-LMR conthist nudge).
+    int  history_bonus_value(int depth) const;
+    int  history_malus_value(int depth) const;
+    // Applies a single (piece, to) continuation-history update at the 1/2/4-ply
+    // back-references from `ss` -- the per-move half of update_all_histories'
+    // continuation-history block, reused by the post-LMR update (Step 6.4).
+    void update_cont_for_move(SearchStack* ss, PieceType pt, Square to, int bonus);
 
     // Combined continuation history score for a (piece, to) pair
     int  cont_hist_score(const SearchStack* ss, PieceType pt, Square to) const;

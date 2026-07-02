@@ -32,6 +32,14 @@ struct SearchParams {
     // ---- Singular extension -------------------------------------------------
     int singular_beta_mult      = 4;  // SingularBetaMult
     int singular_double_margin  = 4;  // SingularDoubleMargin
+    // Phase 6.4 rider: cap stacked 2-ply singular extensions (Weiss-style) so a
+    // pathological line can't chain unbounded double-extensions. Weiss's own
+    // seed (5) chaotically broke the KBNK/KQK mate-resolution CTests -- the
+    // same canary fragility diagnosed in 6.3 -- so the shipped default is
+    // PROVABLY inert (200 > MAX_PLY=128, so double_exts can never reach it)
+    // rather than an empirically-picked value. The real cap is 6.9 SPSA
+    // material, gated by SPRT + these same CTests.
+    int double_ext_max          = 200;  // DoubleExtMax
 
     // ---- Aspiration window --------------------------------------------------
     int aspiration_delta    = 19;    // AspirationDelta
@@ -46,6 +54,20 @@ struct SearchParams {
     int lmr_cut_node_adj        = 0;     // LmrCutNodeAdj
     int lmr_tt_pv_adj           = 0;     // LmrTtPvAdj
     int lmr_not_improving_adj   = 0;     // LmrNotImprovingAdj
+
+    // ---- Post-LMR continuation-history nudge (Phase 6.4) ---------------------
+    // After an LMR-reduced move's confirmation re-search, reward/punish its
+    // continuation history by whether the score held up against the original
+    // window (SF/Weiss both do this after their post-LMR re-search; a further
+    // do_deeper/do_shallower depth adjustment they also apply here was tried
+    // and dropped -- every flat margin tried chaotically broke the KBNK/KQK
+    // mate CTests, the same canary fragility diagnosed in 6.3, with no safe
+    // default in a sane range). At full (Weiss-unscaled) weight, even this
+    // narrower nudge alone still broke the KQK mate-in-5 CTest -- so the
+    // shipped default is PROVABLY inert (0 -> hist_update's bonus term is
+    // exactly 0, leaving the table untouched) rather than empirically picked.
+    // The real scale is 6.9 SPSA material, gated by SPRT + these same CTests.
+    int post_lmr_hist_scale    = 0;      // PostLmrHistScale (percent, 100 = Weiss-unscaled)
 
     // ---- History updates (Phase 6.3) -----------------------------------------
     // bonus = min((quad*d*d)/64 + lin*d, max); malus mirrored with its own knobs.

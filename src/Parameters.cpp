@@ -170,6 +170,7 @@ std::string Parameters::uciOptions() {
         "option name SeePruneCoeff type spin default 73 min 30 max 160\n"
         "option name SingularBetaMult type spin default 4 min 1 max 6\n"
         "option name SingularDoubleMargin type spin default 4 min 0 max 60\n"
+        "option name DoubleExtMax type spin default 200 min 1 max 200\n"
         "option name AspirationDelta type spin default 19 min 10 max 60\n"
         "option name LmrBase type spin default 60 min 0 max 150\n"
         "option name LmrDivisor type spin default 209 min 150 max 350\n"
@@ -178,6 +179,7 @@ std::string Parameters::uciOptions() {
         "option name LmrCutNodeAdj type spin default 0 min 0 max 3\n"
         "option name LmrTtPvAdj type spin default 0 min 0 max 3\n"
         "option name LmrNotImprovingAdj type spin default 0 min 0 max 3\n"
+        "option name PostLmrHistScale type spin default 0 min 0 max 300\n"
         "option name HistBonusQuad type spin default 64 min 0 max 128\n"
         "option name HistBonusLin type spin default 0 min 0 max 400\n"
         "option name HistBonusMax type spin default 2048 min 512 max 4096\n"
@@ -371,6 +373,7 @@ void Parameters::setOption(const std::string& args) {
     else if (name_lower == "seeprunecoeff")         { search_params.see_prune_coeff        = std::clamp(parsed,    30,  160); }
     else if (name_lower == "singularbetamult")      { search_params.singular_beta_mult     = std::clamp(parsed,     1,    6); }
     else if (name_lower == "singulardoublemargin")  { search_params.singular_double_margin = std::clamp(parsed,     0,   60); }
+    else if (name_lower == "doubleextmax")          { search_params.double_ext_max         = std::clamp(parsed,     1,  200); }
     else if (name_lower == "aspirationdelta")       { search_params.aspiration_delta       = std::clamp(parsed,    10,   60); }
     else if (name_lower == "lmrbase")               { search_params.lmr_base               = std::clamp(parsed,     0,  150); }
     else if (name_lower == "lmrdivisor")            { search_params.lmr_divisor            = std::clamp(parsed,   150,  350); }
@@ -379,6 +382,7 @@ void Parameters::setOption(const std::string& args) {
     else if (name_lower == "lmrcutnodeadj")         { search_params.lmr_cut_node_adj       = std::clamp(parsed,     0,    3); }
     else if (name_lower == "lmrttpvadj")            { search_params.lmr_tt_pv_adj          = std::clamp(parsed,     0,    3); }
     else if (name_lower == "lmrnotimprovingadj")    { search_params.lmr_not_improving_adj  = std::clamp(parsed,     0,    3); }
+    else if (name_lower == "postlmrhistscale")      { search_params.post_lmr_hist_scale    = std::clamp(parsed,     0,  300); }
     else if (name_lower == "histbonusquad")         { search_params.hist_bonus_quad        = std::clamp(parsed,     0,  128); }
     else if (name_lower == "histbonuslin")          { search_params.hist_bonus_lin         = std::clamp(parsed,     0,  400); }
     else if (name_lower == "histbonusmax")          { search_params.hist_bonus_max         = std::clamp(parsed,   512, 4096); }
