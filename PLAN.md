@@ -923,10 +923,13 @@ Expected: forfeits → 0 (reliability + a few Elo), near-zero risk. Then proceed
 > at provably-inert defaults with the real values deferred to 6.9. **Pattern
 > now established for 6.5–6.8: implement + expose, verify CTest at the inert
 > default, defer tuning to 6.9 rather than hand-picking a canary-passing
-> value.** NEXT = 6.5 SEE-quiet + capture futility → 6.6 fail-low bonus → 6.7
-> fractional LMR → 6.8 qsearch checks (opt) → 6.9 wave2 SPSA (now also covers
+> value.** **6.5 DONE, split: capture futility ACTIVE (real SPRT owed,
+> `phase65-capfut`), SEE-quiet exposed-but-inert (broke KBNK naively).** NEXT =
+> (maintainer SPRT of 6.5 capfut) → 6.6 fail-low bonus → 6.7 fractional LMR →
+> 6.8 qsearch checks (opt) → 6.9 wave2 SPSA (now also covers
 > `hist_bonus/malus_*`, `hist_ttmove_bonus`, `post_lmr_hist_scale`,
-> `double_ext_max`) → 6.10 boundary. (The 6.1 mate-score guard, branch commit
+> `double_ext_max`, `cap_fut_base/coeff`, `quiet_see_depth/coeff`) → 6.10
+> boundary. (The 6.1 mate-score guard, branch commit
 > `75650d6`, is merged — bench 12,736,941 reflects it.)
 
 > **Renumbered 2026-06-29: this search-efficiency wave is now Phase 6, executed
@@ -1052,22 +1055,34 @@ material**, tuned jointly with the constants they interact with (LMR's
 `lmr_hist_div`, the singular-extension margins), gated by SPRT + these same
 CTests.
 
-### Step 6.5 - SEE quiet pruning + capture futility (lmrDepth-based) — Fable 5 high (alt: Opus 4.8 high)
+### Step 6.5 - SEE-quiet pruning + capture futility — DONE 2026-07-01, SPLIT by CTest (commit `c3f1adc`) — Opus 4.8 high (executed)
 
-Two shallow-pruning refinements Basilisk lacks, both proven in Ethereal + SF:
+Two shallow-pruning refinements (SF + Ethereal). Implemented both with a shared
+base-table `lmr_depth` at the top of the shallow-pruning block, then **split by
+how they fared against the mate CTests** (per the PLAN's own "revert
+individually on regression"):
 
-1. **SEE pruning of quiet moves**: skip quiets failing
-   `see_ge(m, −quiet_see_coeff · d²)` (Ethereal: `SEEQuietMargin·d` linear; SF:
-   `−25·lmrDepth²`). Basilisk currently SEE-prunes only bad captures.
-2. **Capture futility pruning**: skip captures (non-check, shallow) when
-   `eval + cap_fut_base + cap_fut_coeff·lmrDepth + PieceValue[captured] +
-   captHist/scale ≤ alpha` (SF + Ethereal `fmpMargin`).
+- **Capture futility pruning — SHIPPED ACTIVE (the 6.5 SPRT candidate).** Skip a
+  capture at shallow `lmr_depth` when `eval + cap_fut_base +
+  cap_fut_coeff·lmr_depth + PieceValue[captured] + capHist/32 ≤ alpha`.
+  **Canary-clean** (KBNK/KQK have no captures to prune). Real behaviour change:
+  **bench 12,736,941 → 11,806,504**, startpos +33cp, 9/9 CTest. Knobs
+  `cap_fut_base`/`cap_fut_coeff` (200/200, SF-informed). Baseline for its SPRT =
+  `phase64-deeper` (the 6.4 head); candidate `phase65-capfut`.
+- **SEE-quiet pruning — EXPOSED BUT INERT.** The naive port (base-table
+  `lmr_depth`, no history term) **broke KBNK completely — no mate in 250 plies**,
+  and *every* `quiet_see_coeff` from 25 to 120 failed the canary (it's not the
+  margin; it's that the base-table `lmr_depth` lacks SF's history term, which
+  protects the precise endgame quiets — SF's `lmrDepth` here is
+  `newDepth − r/1024` *including* the history adjustment). Gated behind
+  `quiet_see_depth` (default **0 → `depth ≤ 0` never fires → provably inert**).
+  **Re-enable only with the history-aware `lmr_depth`, in 6.9 SPSA**, SPRT+CTest
+  gated. Its knobs (`quiet_see_depth`, `quiet_see_coeff`) join the wave2 set.
 
-Both should use `lmrDepth = new_depth − expected_reduction` rather than raw
-depth where cheap to compute (SF/Ethereal do; it makes pruning
-reduction-aware). High interaction risk with existing futility/LMP/history
-pruning — implement one at a time internally, SPRT the pair once coherent;
-revert individually on regression.
+**Maintainer SPRT owed:** `phase65-capfut` vs `phase64-deeper`, `elo1=3` @
+`3+0.03`. If it passes → keep. If wash/regress → make capture-futility inert too
+and fold into 6.9. (First 6.x step since 6.1 that owes a real SPRT — 6.3/6.4
+were behaviour-identical exposure.)
 
 ### Step 6.6 - Fail-low prior countermove bonus — Sonnet 5 medium
 
