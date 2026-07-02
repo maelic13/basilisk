@@ -982,26 +982,34 @@ Execution rules unchanged: one step at a time, in order; implement → CTest →
 constants exposed under `BASILISK_TUNE` at introduction, SPSA-tuned only in
 6.9. Skip to the next step on a failed SPRT; never stack untested changes.
 
-### Step 6.3 - History formula v2: asymmetric linear bonus/malus — Fable 5 medium (alt: Opus 4.8 medium)
+### Step 6.3 - History formula: shape exposure — ✅ DONE 2026-07-01 as behaviour-identical exposure (commit `18c5db5`); constants deferred to 6.9 — Fable 5 medium (executed)
 
-**The strongest doubly-proven gap.** Basilisk uses symmetric quadratic
-`±min(d², 2048)`; both references use **linear-in-depth, asymmetric** forms
-with independent caps:
+**The strongest doubly-proven gap** — Basilisk's symmetric quadratic
+`±min(d², 2048)` vs both references' **linear, asymmetric, independently
+capped** forms (SF: `min(134d−79, 1572)` + ttMove term vs malus
+`min(1005d−205, 2218)`; Weiss: `min(251d−267, 2418)` vs `−min(532d−163, 693)`).
+At practical depths our updates are 5–25× smaller than either reference.
 
-- SF 2026: `bonus = min(134·d − 79, 1572) + 382·(best == ttMove) +
-  (ss-1)->statScore/30`; `malus = min(1005·d − 205, 2218)` with per-quiet
-  geometric decay (×956/1024 per move).
-- Weiss (HCE): `bonus = min(251·d − 267, 2418)`; `malus = −min(532·d − 163,
-  693)` — same 16384-range gravity as Basilisk's, so its constants transfer
-  directly.
+**Outcome of the transplant attempt (recorded so it isn't retried):** seeding
+Weiss's constants (and SF's, and moderate blends) **destabilised the
+mate-resolution CTests chaotically** — the KBNK depth-18 playout and the KQK
+mate-in-5 canaries flipped non-monotonically under consumer-knob changes
+(`hist_prune_coeff` 4210→8000/12000/16000, ttMove on/off); fixes for one broke
+the other. Root cause: any linear form is ~30× larger at shallow depth than
+`d²`, and every consumer (history pruning, LMR hist divisor) was tuned for the
+small scale. **Chasing a canary-passing constant set by hand = fitting to two
+chaotic single-position tests.**
 
-Replace `update_all_histories`' bonus/malus with 6 knobs
-(`hist_bonus_mul/sub/max`, `hist_malus_mul/sub/max`) **seeded from Weiss**
-(HCE-proven, gravity-compatible) + a 7th `hist_ttmove_bonus` (SF's
-`+382·(best==ttMove)`, seed ~256). Do NOT port SF's statScore feedback or decay
-loop yet (SPSA material for 6.9). **Bundle the 6.1 mate-score guard** (branch
-`phase6-6.1-ttbound` commit `75650d6`) into this candidate as the non-regression
-rider. SPRT `elo1=3`.
+**Shipped instead:** `bonus = min(quad·d²/64 + lin·d, max)`, malus mirrored
+(own 3 knobs), + `hist_ttmove_bonus` (SF-only, default 0) — **defaults
+reproduce the legacy formula exactly** (bench 12,736,941 identical to the
+mate-guarded head, 9/9 CTest; no SPRT owed). The quadratic↔linear shape space
+and asymmetry are fully reachable by the **6.9 wave2 SPSA**, which tunes them
+**jointly with the consumers** (`hist_prune_coeff` range widened to
+[1000, 28000]) — then SPRT + CTest gate the result. The 6.1 mate-score guard
+(`75650d6`) is merged alongside (correctness fix; bench 13,503,085 →
+12,736,941 — the suite is mate-heavy, so its footprint concentrates there; its
+validation rides in the 6.10 cumulative boundary SPRT).
 
 ### Step 6.4 - Post-LMR deeper re-search + conthist update (+ double-ext cap rider) — Sonnet 5 medium
 
