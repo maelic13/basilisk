@@ -168,6 +168,7 @@ std::string Parameters::uciOptions() {
         "option name FutilityCoeff type spin default 128 min 40 max 200\n"
         "option name HistPruneCoeff type spin default 4210 min 1000 max 28000\n"
         "option name SeePruneCoeff type spin default 73 min 30 max 160\n"
+        "option name CapFutDepth type spin default 0 min 0 max 10\n"
         "option name CapFutBase type spin default 200 min 0 max 500\n"
         "option name CapFutCoeff type spin default 200 min 0 max 500\n"
         "option name QuietSeeDepth type spin default 0 min 0 max 10\n"
@@ -375,6 +376,7 @@ void Parameters::setOption(const std::string& args) {
     else if (name_lower == "futilitycoeff")         { search_params.futility_coeff         = std::clamp(parsed,    40,  200); }
     else if (name_lower == "histprunecoeff")        { search_params.hist_prune_coeff       = std::clamp(parsed,  1000, 28000); }
     else if (name_lower == "seeprunecoeff")         { search_params.see_prune_coeff        = std::clamp(parsed,    30,  160); }
+    else if (name_lower == "capfutdepth")           { search_params.cap_fut_depth          = std::clamp(parsed,     0,   10); }
     else if (name_lower == "capfutbase")            { search_params.cap_fut_base           = std::clamp(parsed,     0,  500); }
     else if (name_lower == "capfutcoeff")           { search_params.cap_fut_coeff          = std::clamp(parsed,     0,  500); }
     else if (name_lower == "quietseedepth")         { search_params.quiet_see_depth        = std::clamp(parsed,     0,   10); }

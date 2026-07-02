@@ -29,11 +29,15 @@ struct SearchParams {
     // ---- SEE pruning (bad captures) -----------------------------------------
     int see_prune_coeff     = 73;    // SeePruneCoeff
 
-    // ---- Capture futility pruning (Phase 6.5, ACTIVE) -----------------------
+    // ---- Capture futility pruning (Phase 6.5, EXPOSED BUT INERT) ------------
     // Skip a capture at shallow lmr_depth when even winning the captured piece
-    // cannot lift the static eval to alpha (SF + Ethereal). Canary-clean at
-    // these seeds (KBNK has no captures); real 6.5 SPRT candidate. SF-informed
-    // round values, SPSA-refined in 6.9.
+    // cannot lift the static eval to alpha (SF + Ethereal). Was shipped ACTIVE
+    // (cap_fut_depth 7) and SPRT'd vs the 6.4 head: -2.78 +/- 7.50 Elo, LOS 23%,
+    // LLR drifting to H0 over 3.6k games -- a wash-to-tiny-loss, so REVERTED to
+    // inert per the pre-registered rule. Gated by cap_fut_depth, default 0:
+    // lmr_depth >= 0 so `lmr_depth < 0` never fires -> provably inert. Re-enable
+    // (cap_fut_depth ~7) + tune the margins only in 6.9 SPSA, SPRT + CTest gated.
+    int cap_fut_depth    = 0;    // CapFutDepth (0 = off; enable at ~7)
     int cap_fut_base     = 200;  // CapFutBase    (capture futility base margin)
     int cap_fut_coeff    = 200;  // CapFutCoeff   (capture futility per-lmrDepth margin)
 

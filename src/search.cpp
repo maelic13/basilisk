@@ -1436,8 +1436,11 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 // Capture futility pruning (Step 6.5): if even winning the
                 // captured piece cannot lift the static eval to alpha, skip the
                 // capture at shallow lmr_depth. Good captures (high cap_hist)
-                // are spared via the capture-history term.
-                if (!is_pv && eval != VALUE_NONE && lmr_depth <= 6 && !move_gives_check()) {
+                // are spared via the capture-history term. EXPOSED BUT INERT —
+                // cap_fut_depth defaults to 0 so `lmr_depth < 0` never fires
+                // (SPRT'd active at -2.78 Elo, reverted; re-enable in 6.9).
+                if (!is_pv && eval != VALUE_NONE && lmr_depth < active_limits_.params.cap_fut_depth
+                    && !move_gives_check()) {
                     PieceType atk = type_of(board_ptr_->board_sq[from_sq(m)]);
                     PieceType captured = (move_type(m) == EN_PASSANT)
                                        ? PAWN : type_of(board_ptr_->board_sq[to_sq(m)]);
