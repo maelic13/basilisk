@@ -925,10 +925,11 @@ Expected: forfeits → 0 (reliability + a few Elo), near-zero risk. Then proceed
 > default, defer tuning to 6.9 rather than hand-picking a canary-passing
 > value.** **6.5 DONE, both halves now exposed-but-inert: capture futility
 > SPRT'd −2.78 (wash) → reverted; SEE-quiet broke KBNK naively → never active.**
-> NEXT = 6.6 fail-low bonus → 6.7 fractional LMR →
-> 6.8 qsearch checks (opt) → 6.9 wave2 SPSA (now also covers
-> `hist_bonus/malus_*`, `hist_ttmove_bonus`, `post_lmr_hist_scale`,
-> `double_ext_max`, `cap_fut_base/coeff`, `quiet_see_depth/coeff`) → 6.10
+> **6.7 DONE (fractional LMR + `lmr_tt_capture`, behaviour-identical infra).**
+> NEXT = 6.6 fail-low bonus (or skip) → 6.8 qsearch checks (opt) → 6.9 wave2
+> SPSA (now also covers `hist_bonus/malus_*`, `hist_ttmove_bonus`,
+> `post_lmr_hist_scale`, `double_ext_max`, `cap_fut_*`, `quiet_see_*`, the
+> fractional `lmr_*_adj`, `lmr_tt_capture`) → 6.10
 > boundary. (The 6.1 mate-score guard, branch commit
 > `75650d6`, is merged — bench 12,736,941 reflects it.)
 
@@ -1092,15 +1093,26 @@ simple classical form — `bonus = min(c·depth, cap)` to `(ss-1)` cont-hist +
 main-hist — not SF's full statScore-scaled block (that's NNUE-era polish).
 Cheap, self-contained, plausible at HCE accuracy.
 
-### Step 6.7 - Fractional LMR (1024ths) + TT-capture input — Fable 5 medium (alt: Opus 4.8 medium)
+### Step 6.7 - Fractional LMR (1024ths) + TT-capture input — DONE 2026-07-02 as behaviour-identical infrastructure (commit `5daae1c`) — Opus 4.8 medium (executed)
 
-Kept from the original wave (SF-style; Ethereal/Weiss stay integer, so this is
-**infrastructure for 6.9, not claimed Elo**): `lmr_table_` becomes int 1024ths
-(`1024·(base + ln d·ln m/div)`), all adjustments scale ×1024, history term
-`·1024/lmr_hist_div`, final `reduction = r >> 10` clamped as today. Add
-`lmr_tt_capture` (SF: +1039 ≈ 1 ply when the TT move is a capture, default
-1024). Convert defaults exactly (`1 → 1024`) so the SPRT isolates rounding +
-the new input; the payoff is finer SPSA granularity in 6.9.
+**Infrastructure for 6.9, not claimed Elo** (SF-style; Ethereal/Weiss stay
+integer). `lmr_table_` now stores reductions in 1024ths
+(`int(1024·(base + ln d·ln m/div))`); the floor identity `int(1024·x) >> 10 ==
+int(x)` keeps the base reduction identical at default knobs. The four adjustment
+knobs move to 1024ths (defaults = old ints ×1024, e.g. `lmr_non_pv_adj 1 →
+1024`), the reduction accumulates in 1024ths and is `>> 10`-shifted + clamped at
+the end, and the 6.5 `base_r` shifts back to plies. Added `lmr_tt_capture` (SF
+~1 ply when the TT move is a capture), **seeded 0 == inert**.
+
+**Deviation from the original spec (deliberate, per the 6.3–6.5 pattern):** the
+history term was kept **integer-quantised** (`(score/div)·1024`) rather than the
+spec's fractional `·1024/div`, so 6.7 is **behaviour-identical (no SPRT owed)**
+instead of a behaviour-changing rounding step that the 6.2–6.5 run showed would
+just be a wash. Bench **12,736,941 unchanged**, 9/9 CTest. Verified live in a
+TUNE build: `LmrNonPvAdj=1536` (1.5 ply) gives a node count distinct from 1024
+*and* 2048 — sub-ply control integer LMR couldn't express. **6.9 gains 5
+fractional LMR dimensions + `lmr_tt_capture`;** the fractional-history form is
+flagged in-code as a 6.9 experiment.
 
 ### Step 6.8 - Qsearch quiet checks (optional) — Sonnet 5 medium
 
