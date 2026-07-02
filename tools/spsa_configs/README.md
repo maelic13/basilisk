@@ -148,3 +148,65 @@ This config starts from the accepted pruning+LMR defaults and narrows ranges
 around them. It is intended for a shorter final polish run, not as the first
 search-constant tune. SPRT the resulting candidate against `phase1-lmr`, not
 against the original defaults.
+
+### config_wave2.json — Phase 6.9 joint tune (24 knobs)
+
+Tunes the history bonus/malus shape (6.3), the two 6.4 knobs, the 6.5 pair,
+`QsearchCheckCap` (6.8), and `LmrTtCapture` (6.7) **jointly** with the LMR
+formula/adjustments and `HistPruneCoeff` they interact with — every 6.3-6.8
+addition ships at a provably-inert or behaviour-identical default specifically
+because hand-picking constants against them individually chaotically broke the
+KBNK/KQK mate CTests (see PLAN.md §5 6.3-6.5/6.8). This run is where their real
+values, if any, are found. **`value` is the SPSA starting point, not the
+shipped production default** — several new knobs ship inert (0) for CTest
+safety but start this SPSA at a literature-informed, meaningfully non-zero
+value so the gradient has signal from iteration 1.
+
+| UCI option | Value | Range | Step | Introduced |
+|---|---|---|---|---|
+| `HistBonusQuad` | 64 | [0, 128] | 13 | 6.3 |
+| `HistBonusLin` | 0 | [0, 400] | 40 | 6.3 |
+| `HistBonusMax` | 2048 | [512, 4096] | 350 | 6.3 |
+| `HistMalusQuad` | 64 | [0, 128] | 13 | 6.3 |
+| `HistMalusLin` | 0 | [0, 400] | 40 | 6.3 |
+| `HistMalusMax` | 2048 | [512, 4096] | 350 | 6.3 |
+| `HistTtMoveBonus` | 256 | [0, 1024] | 100 | 6.3 |
+| `PostLmrHistScale` | 100 | [0, 300] | 30 | 6.4 (ships inert @ 0) |
+| `DoubleExtMax` | 20 | [1, 200] | 20 | 6.4 (ships inert @ 200) |
+| `CapFutDepth` | 7 | [0, 10] | 2 | 6.5 (ships inert @ 0; SPRT'd active -2.78 as a standalone) |
+| `CapFutBase` | 200 | [0, 500] | 50 | 6.5 |
+| `CapFutCoeff` | 200 | [0, 500] | 50 | 6.5 |
+| `QuietSeeDepth` | 6 | [0, 10] | 2 | 6.5 (ships inert @ 0; needs history-aware `lmr_depth`) |
+| `QuietSeeCoeff` | 25 | [0, 120] | 15 | 6.5 |
+| `QsearchCheckCap` | 5 | [0, 10] | 2 | 6.8 (ships inert @ 0) |
+| `LmrTtCapture` | 512 | [0, 3072] | 250 | 6.7 (ships inert @ 0; 1024 = 1 ply) |
+| `LmrBase` | 60 | [0, 150] | 15 | Phase 1 |
+| `LmrDivisor` | 209 | [150, 350] | 20 | Phase 1 |
+| `LmrHistDiv` | 7830 | [4096, 16384] | 1000 | Phase 1 (coupled to history magnitude) |
+| `LmrNonPvAdj` | 1024 | [0, 3072] | 250 | Phase 1 (now fractional, 6.7) |
+| `LmrCutNodeAdj` | 0 | [0, 3072] | 250 | Phase 1 (live headroom — SF/Weiss reduce cut nodes hard) |
+| `LmrTtPvAdj` | 0 | [0, 3072] | 200 | Phase 1 |
+| `LmrNotImprovingAdj` | 0 | [0, 3072] | 200 | Phase 1 |
+| `HistPruneCoeff` | 4210 | [1000, 28000] | 2500 | Phase 1 (coupled to history magnitude; range widened in 6.3) |
+
+**Not included in wave2:** the other 12 legacy pruning constants (`RfpCoeff`,
+`RfpImproving`, `RazorCoeff`, `NullBase`, `NullEvalDiv`, `ProbCutMargin`,
+`FutilityBase`, `FutilityCoeff`, `SeePruneCoeff`, `SingularBetaMult`,
+`SingularDoubleMargin`, `AspirationDelta`) stay at their Phase-1-SPSA-accepted
+values — they don't interact with the history/LMR changes the way
+`LmrHistDiv`/`HistPruneCoeff` do. Also not included: the further legacy
+constants PLAN.md's Step 6.9 prose mentions (LMP formula coefficients, NMP
+verification gate, ProbCut depth/reduction, qsearch margins, IIR gate,
+correction-history weight, razoring depth) — those were never wired up as UCI
+knobs; wiring them is a real scoping decision to make explicitly, not silently
+bundled into this run. 24 knobs already matches `config_combined.json`'s
+precedent for a single joint run; revisit as a wave3 if 6.9 shows spare
+headroom.
+
+After convergence: bake the tuned values into `SearchParams.h` (the shipped
+*production* defaults for the inert knobs may reasonably stay off even if SPSA
+finds a nonzero value helps — re-verify against CTest before baking any value
+that reintroduces the KBNK/KQK failure mode), build a fresh PGO binary, then
+**both** `sprt.ps1` (vs the pre-tune head) **and** a full `ctest` run before
+accepting — the 6.2-6.5/6.8 run showed the CTest canaries catch what a
+games-based SPRT alone might not isolate quickly.

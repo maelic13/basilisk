@@ -24,6 +24,15 @@
     "lmr"                - LMR formula + adjustment constants.
     "combined"           - narrowed Phase 1 polish around accepted pruning+LMR.
     "tm"                 - time-management budget + adaptive-stop constants (Phase 5.8).
+    "wave2"              - Phase 6.9: 24 knobs joining the 6.3-6.8 additions
+                            (history bonus/malus shape, post-LMR nudge scale,
+                            double-ext cap, capture-futility, SEE-quiet,
+                            qsearch-check cap, lmr_tt_capture) with the LMR
+                            formula/adjustments + HistPruneCoeff they interact
+                            with. Tune from the Phase-6 head (all these knobs
+                            ship at provably-inert or behaviour-identical
+                            defaults; this run is where their real values,
+                            if any, get found).
 
 .PARAMETER EngineSuffix
     Suffix of the already-built engine under tools\test_engines.
@@ -59,9 +68,14 @@
 .EXAMPLE
     # Narrow combined Phase 1 polish from the accepted LMR head
     ./tools/setup_spsa.ps1 -ConfigGroup combined -EngineSuffix phase1-lmr -Iterations 2000
+
+.EXAMPLE
+    # Phase 6.9 wave2 -- 24 knobs, tuned from the Phase-6 head
+    ./tools/build_test.ps1 -Suffix phase69-wave2base
+    ./tools/setup_spsa.ps1 -ConfigGroup wave2 -EngineSuffix phase69-wave2base -Iterations 5000
 #>
 param(
-    [ValidateSet("pruning","lmr","combined","tm")][string]$ConfigGroup = "pruning",
+    [ValidateSet("pruning","lmr","combined","tm","wave2")][string]$ConfigGroup = "pruning",
     [string]$EngineSuffix = "phase1-defaults",
     [switch]$Resume,
     [int]$Iterations = 5000
