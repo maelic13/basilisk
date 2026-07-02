@@ -923,9 +923,9 @@ Expected: forfeits → 0 (reliability + a few Elo), near-zero risk. Then proceed
 > at provably-inert defaults with the real values deferred to 6.9. **Pattern
 > now established for 6.5–6.8: implement + expose, verify CTest at the inert
 > default, defer tuning to 6.9 rather than hand-picking a canary-passing
-> value.** **6.5 DONE, split: capture futility ACTIVE (real SPRT owed,
-> `phase65-capfut`), SEE-quiet exposed-but-inert (broke KBNK naively).** NEXT =
-> (maintainer SPRT of 6.5 capfut) → 6.6 fail-low bonus → 6.7 fractional LMR →
+> value.** **6.5 DONE, both halves now exposed-but-inert: capture futility
+> SPRT'd −2.78 (wash) → reverted; SEE-quiet broke KBNK naively → never active.**
+> NEXT = 6.6 fail-low bonus → 6.7 fractional LMR →
 > 6.8 qsearch checks (opt) → 6.9 wave2 SPSA (now also covers
 > `hist_bonus/malus_*`, `hist_ttmove_bonus`, `post_lmr_hist_scale`,
 > `double_ext_max`, `cap_fut_base/coeff`, `quiet_see_depth/coeff`) → 6.10
@@ -1055,34 +1055,33 @@ material**, tuned jointly with the constants they interact with (LMR's
 `lmr_hist_div`, the singular-extension margins), gated by SPRT + these same
 CTests.
 
-### Step 6.5 - SEE-quiet pruning + capture futility — DONE 2026-07-01, SPLIT by CTest (commit `c3f1adc`) — Opus 4.8 high (executed)
+### Step 6.5 - SEE-quiet pruning + capture futility — DONE 2026-07-01, BOTH now EXPOSED-BUT-INERT (commits `c3f1adc` → `3d14867`) — Opus 4.8 high (executed)
 
-Two shallow-pruning refinements (SF + Ethereal). Implemented both with a shared
-base-table `lmr_depth` at the top of the shallow-pruning block, then **split by
-how they fared against the mate CTests** (per the PLAN's own "revert
-individually on regression"):
+Two shallow-pruning refinements (SF + Ethereal), shared base-table `lmr_depth`
+at the top of the shallow-pruning block. Implemented, SPRT-tested where it
+survived the mate CTests, and both ended inert:
 
-- **Capture futility pruning — SHIPPED ACTIVE (the 6.5 SPRT candidate).** Skip a
-  capture at shallow `lmr_depth` when `eval + cap_fut_base +
-  cap_fut_coeff·lmr_depth + PieceValue[captured] + capHist/32 ≤ alpha`.
-  **Canary-clean** (KBNK/KQK have no captures to prune). Real behaviour change:
-  **bench 12,736,941 → 11,806,504**, startpos +33cp, 9/9 CTest. Knobs
-  `cap_fut_base`/`cap_fut_coeff` (200/200, SF-informed). Baseline for its SPRT =
-  `phase64-deeper` (the 6.4 head); candidate `phase65-capfut`.
-- **SEE-quiet pruning — EXPOSED BUT INERT.** The naive port (base-table
-  `lmr_depth`, no history term) **broke KBNK completely — no mate in 250 plies**,
-  and *every* `quiet_see_coeff` from 25 to 120 failed the canary (it's not the
-  margin; it's that the base-table `lmr_depth` lacks SF's history term, which
-  protects the precise endgame quiets — SF's `lmrDepth` here is
-  `newDepth − r/1024` *including* the history adjustment). Gated behind
+- **Capture futility pruning — SPRT'd ACTIVE, then REVERTED to inert.**
+  `eval + cap_fut_base + cap_fut_coeff·lmr_depth + PieceValue[captured] +
+  capHist/32 ≤ alpha`. Canary-clean, so it shipped active (bench 12,736,941 →
+  11,806,504) and got a real SPRT (`phase65-capfut` vs `phase64-deeper`): **−2.78
+  ± 7.50 Elo, LOS 23%, LLR drifting to H0 over 3.6k games — a wash-to-tiny-loss.**
+  Reverted per the pre-registered rule: gated behind `cap_fut_depth` (default
+  **0 → `lmr_depth < 0` never fires → provably inert**).
+- **SEE-quiet pruning — never made it active.** The naive port (base-table
+  `lmr_depth`, no history term) **broke KBNK completely — no mate in 250 plies**;
+  *every* `quiet_see_coeff` 25→120 failed the canary. Root cause: SF's `lmrDepth`
+  here is `newDepth − r/1024` *including* the history adjustment that protects
+  precise endgame quiets, which the base-table estimate lacks. Gated behind
   `quiet_see_depth` (default **0 → `depth ≤ 0` never fires → provably inert**).
-  **Re-enable only with the history-aware `lmr_depth`, in 6.9 SPSA**, SPRT+CTest
-  gated. Its knobs (`quiet_see_depth`, `quiet_see_coeff`) join the wave2 set.
 
-**Maintainer SPRT owed:** `phase65-capfut` vs `phase64-deeper`, `elo1=3` @
-`3+0.03`. If it passes → keep. If wash/regress → make capture-futility inert too
-and fold into 6.9. (First 6.x step since 6.1 that owes a real SPRT — 6.3/6.4
-were behaviour-identical exposure.)
+**Net: 6.5 banks no Elo, but leaves both features wired + exposed.** Development
+stays at the validated 6.4 head (bench 12,736,941, 9/9 CTest, no SPRT owed).
+**Re-enable + tune in 6.9 SPSA** (`cap_fut_depth`~7 + margins;
+`quiet_see_depth`~8 + coeff, *after* wiring the history-aware `lmr_depth`),
+SPRT + CTest gated. **Lesson reinforced: capture-futility being canary-clean did
+not make it an Elo gain — the canary is necessary but not sufficient; the games
+are the arbiter.**
 
 ### Step 6.6 - Fail-low prior countermove bonus — Sonnet 5 medium
 
