@@ -926,12 +926,16 @@ Expected: forfeits → 0 (reliability + a few Elo), near-zero risk. Then proceed
 > value.** **6.5 DONE, both halves now exposed-but-inert: capture futility
 > SPRT'd −2.78 (wash) → reverted; SEE-quiet broke KBNK naively → never active.**
 > **6.7 DONE (fractional LMR + `lmr_tt_capture`, behaviour-identical infra).**
-> NEXT = 6.6 fail-low bonus (or skip) → 6.8 qsearch checks (opt) → 6.9 wave2
-> SPSA (now also covers `hist_bonus/malus_*`, `hist_ttmove_bonus`,
-> `post_lmr_hist_scale`, `double_ext_max`, `cap_fut_*`, `quiet_see_*`, the
-> fractional `lmr_*_adj`, `lmr_tt_capture`) → 6.10
-> boundary. (The 6.1 mate-score guard, branch commit
-> `75650d6`, is merged — bench 12,736,941 reflects it.)
+> **6.8 DONE (qsearch quiet checks, exposed-but-inert — cap=6 broke KBNK, the
+> sixth mechanism to do so; `qsearch_check_cap=0` is provably inert).** **6.6
+> skipped by user decision** (weak SF-only evidence, and 6.2/6.3/6.4/6.5/6.8 all
+> washed or landed inert — not worth another SPRT cycle before the payoff step).
+> **Phase 6's feature list is complete. NEXT = 6.9 wave2 SPSA** (covers
+> `hist_bonus/malus_*`, `hist_ttmove_bonus`, `post_lmr_hist_scale`,
+> `double_ext_max`, `cap_fut_*`, `quiet_see_*`, `qsearch_check_cap`, the
+> fractional `lmr_*_adj`, `lmr_tt_capture`) → 6.10 boundary. (The 6.1
+> mate-score guard, branch commit `75650d6`, is merged — bench 12,736,941
+> reflects it.)
 
 > **Renumbered 2026-06-29: this search-efficiency wave is now Phase 6, executed
 > AFTER the Phase 5 time-management hardening (§7 below).** TM was promoted ahead
@@ -1084,7 +1088,7 @@ SPRT + CTest gated. **Lesson reinforced: capture-futility being canary-clean did
 not make it an Elo gain — the canary is necessary but not sufficient; the games
 are the arbiter.**
 
-### Step 6.6 - Fail-low prior countermove bonus — Sonnet 5 medium
+### Step 6.6 - Fail-low prior countermove bonus — SKIPPED 2026-07-02 (user decision)
 
 SF-sourced (weaker HCE evidence — simple forms exist across the family; SPRT
 decides). When a node **fails low** and `(ss-1)`'s move was a quiet: give a
@@ -1092,6 +1096,12 @@ continuation-history bonus to that prior move (it "worked"). Implement the
 simple classical form — `bonus = min(c·depth, cap)` to `(ss-1)` cont-hist +
 main-hist — not SF's full statScore-scaled block (that's NNUE-era polish).
 Cheap, self-contained, plausible at HCE accuracy.
+
+**Skipped rather than implemented:** after 6.2–6.5's run of rejections/washes/
+inert-landings, the user chose to skip straight to 6.8 rather than spend another
+implement/CTest/SPRT cycle on the step with the weakest evidence in the wave
+(6.8 then also landed inert, reinforcing the call). Revisit only if 6.9 shows
+spare headroom or a specific need for a fail-low signal surfaces.
 
 ### Step 6.7 - Fractional LMR (1024ths) + TT-capture input — DONE 2026-07-02 as behaviour-identical infrastructure (commit `5daae1c`) — Opus 4.8 medium (executed)
 
@@ -1114,27 +1124,43 @@ TUNE build: `LmrNonPvAdj=1536` (1.5 ply) gives a node count distinct from 1024
 fractional LMR dimensions + `lmr_tt_capture`;** the fractional-history form is
 flagged in-code as a 6.9 experiment.
 
-### Step 6.8 - Qsearch quiet checks (optional) — Sonnet 5 medium
+### Step 6.8 - Qsearch quiet checks (optional) — DONE 2026-07-02 as exposed-but-inert (commit `62648ca`) — Sonnet 5 medium (executed)
 
-At `qply == 0`, not in check, after captures fail to raise alpha: try quiet
-checking moves filtered by `see_ge(m, 0)`, capped at 4–6. SF does this;
-Ethereal/Weiss do not (noisy-only qsearch) — mixed evidence, hence optional and
-last of the features. Start from `Board::gen_quiet_checks()` (`Board.h:103`).
-SPRT; drop on failure without retry.
+At `qply == 0`, after captures fail to cut off: try quiet checking moves
+(`Board::gen_quiet_checks`, `Board.h:103`) filtered by `see_ge(m, 0)`, capped at
+`qsearch_check_cap`. SF does this; Ethereal/Weiss do not (noisy-only qsearch) —
+mixed evidence, hence optional.
+
+**The seeded default (cap=6, "4–6" per spec) broke the KBNK mate CTest — the
+sixth mechanism in a row (6.2–6.5) to trip this canary at its literature/
+round-number seed.** Rather than sweep for a lucky value, gated behind
+`qsearch_check_cap` defaulting to **0 — provably inert** (the whole loop is
+skipped when `cap ≤ 0`, not an empirically-picked "safe" number). Bench
+**12,736,941 unchanged**, 9/9 CTest; confirmed live in a TUNE build (`cap=6`
+gives a distinct node count from `cap=0` on a tactical middlegame). **No SPRT
+owed.** Real value is 6.9 SPSA material, SPRT + CTest gated.
+
+**Phase 6's feature list is now complete** (6.1–6.8 all resolved: one accepted
+gain, one rejection, and six exposure-only landings feeding 6.9). Next:
+**6.9 wave2 joint SPSA**, then **6.10 boundary validation**.
 
 ### Step 6.9 - wave2 joint SPSA (the conserved compute, LAST) — Sonnet 5 medium (driving)
 
-Only after 6.3–6.8 verdicts. One coherent `wave2` group (~20–25 knobs): the
-history 7 (6.3: `hist_bonus_quad/lin/max`, `hist_malus_quad/lin/max`,
-`hist_ttmove_bonus`) + the 6.4 pair (`post_lmr_hist_scale`, `double_ext_max` —
-**both shipped inert; this is where their real values get found**, jointly
-with `lmr_hist_div` and `hist_prune_coeff` which the 6.3/6.2 canary failures
-showed are coupled to history magnitude) + quiet-SEE/capture-futility coeffs
-(6.5) + fail-low bonus (6.6) + fractional-LMR adjustments incl.
-`lmr_tt_capture` and `lmr_cut_node_adj` (currently 0 — SF/Weiss both reduce
-cut-nodes hard, this knob is live headroom) + the legacy set: LMP pair, NMP
-base/div/verification gate, ProbCut gate/depth, qsearch margins (150 futility
-/ SEE clamps / late-SEE / `i≥6` gate), history-prune coeff, IIR gate,
+6.6 skipped (user decision); 6.3–6.5/6.7/6.8 all resolved (verdicts recorded
+above). One coherent `wave2` group (~20–25 knobs): the history 7 (6.3:
+`hist_bonus_quad/lin/max`, `hist_malus_quad/lin/max`, `hist_ttmove_bonus`) +
+the 6.4 pair (`post_lmr_hist_scale`, `double_ext_max` — **both shipped inert;
+this is where their real values get found**, jointly with `lmr_hist_div` and
+`hist_prune_coeff` which the 6.3/6.2 canary failures showed are coupled to
+history magnitude) + the 6.5 pair (`cap_fut_depth`/`cap_fut_base`/
+`cap_fut_coeff`, `quiet_see_depth`/`quiet_see_coeff` — capture-futility
+SPRT'd −2.78 active, both now inert; quiet-SEE needs the history-aware
+`lmr_depth` fix first) + `qsearch_check_cap` (6.8, broke KBNK at the seeded
+6 — same treatment) + fractional-LMR adjustments (6.7) incl. `lmr_tt_capture`
+and `lmr_cut_node_adj` (currently 0 — SF/Weiss both reduce cut-nodes hard,
+this knob is live headroom) + the legacy set: LMP pair, NMP base/div/
+verification gate, ProbCut gate/depth, qsearch margins (150 futility / SEE
+clamps / late-SEE / `i≥6` gate), history-prune coeff, IIR gate,
 correction-history `/5` weight + clamp, razoring depth (the old 5.8
 experiment — now a knob, not a step). **CTest-gate every converged SPSA
 result** (not just SPRT) — 6.2/6.3/6.4 all showed the KBNK/KQK canaries catch
