@@ -236,7 +236,7 @@ private:
     int  low_ply_score(int ply, Square from, Square to) const;
 
     // Bulk history update after a beta cutoff
-    void update_all_histories(Move best,
+    void update_all_histories(Move best, bool best_is_tt,
                               const Move* quiets, int quiet_count,
                               const Move* bad_caps, int bad_cap_count,
                               Color stm, int depth, SearchStack* ss);

@@ -166,7 +166,7 @@ std::string Parameters::uciOptions() {
         "option name ProbCutMargin type spin default 189 min 80 max 360\n"
         "option name FutilityBase type spin default 180 min 40 max 280\n"
         "option name FutilityCoeff type spin default 128 min 40 max 200\n"
-        "option name HistPruneCoeff type spin default 4210 min 1000 max 7000\n"
+        "option name HistPruneCoeff type spin default 4210 min 1000 max 28000\n"
         "option name SeePruneCoeff type spin default 73 min 30 max 160\n"
         "option name SingularBetaMult type spin default 4 min 1 max 6\n"
         "option name SingularDoubleMargin type spin default 4 min 0 max 60\n"
@@ -178,6 +178,13 @@ std::string Parameters::uciOptions() {
         "option name LmrCutNodeAdj type spin default 0 min 0 max 3\n"
         "option name LmrTtPvAdj type spin default 0 min 0 max 3\n"
         "option name LmrNotImprovingAdj type spin default 0 min 0 max 3\n"
+        "option name HistBonusQuad type spin default 64 min 0 max 128\n"
+        "option name HistBonusLin type spin default 0 min 0 max 400\n"
+        "option name HistBonusMax type spin default 2048 min 512 max 4096\n"
+        "option name HistMalusQuad type spin default 64 min 0 max 128\n"
+        "option name HistMalusLin type spin default 0 min 0 max 400\n"
+        "option name HistMalusMax type spin default 2048 min 512 max 4096\n"
+        "option name HistTtMoveBonus type spin default 0 min 0 max 1024\n"
         "option name TmOptMult type spin default 100 min 50 max 200\n"
         "option name TmMaxMult type spin default 100 min 50 max 200\n"
         "option name TmStability type spin default 60 min 0 max 150\n"
@@ -360,7 +367,7 @@ void Parameters::setOption(const std::string& args) {
     else if (name_lower == "probcutmargin")         { search_params.probcut_margin         = std::clamp(parsed,    80,  360); }
     else if (name_lower == "futilitybase")          { search_params.futility_base          = std::clamp(parsed,    40,  280); }
     else if (name_lower == "futilitycoeff")         { search_params.futility_coeff         = std::clamp(parsed,    40,  200); }
-    else if (name_lower == "histprunecoeff")        { search_params.hist_prune_coeff       = std::clamp(parsed,  1000, 7000); }
+    else if (name_lower == "histprunecoeff")        { search_params.hist_prune_coeff       = std::clamp(parsed,  1000, 28000); }
     else if (name_lower == "seeprunecoeff")         { search_params.see_prune_coeff        = std::clamp(parsed,    30,  160); }
     else if (name_lower == "singularbetamult")      { search_params.singular_beta_mult     = std::clamp(parsed,     1,    6); }
     else if (name_lower == "singulardoublemargin")  { search_params.singular_double_margin = std::clamp(parsed,     0,   60); }
@@ -372,6 +379,13 @@ void Parameters::setOption(const std::string& args) {
     else if (name_lower == "lmrcutnodeadj")         { search_params.lmr_cut_node_adj       = std::clamp(parsed,     0,    3); }
     else if (name_lower == "lmrttpvadj")            { search_params.lmr_tt_pv_adj          = std::clamp(parsed,     0,    3); }
     else if (name_lower == "lmrnotimprovingadj")    { search_params.lmr_not_improving_adj  = std::clamp(parsed,     0,    3); }
+    else if (name_lower == "histbonusquad")         { search_params.hist_bonus_quad        = std::clamp(parsed,     0,  128); }
+    else if (name_lower == "histbonuslin")          { search_params.hist_bonus_lin         = std::clamp(parsed,     0,  400); }
+    else if (name_lower == "histbonusmax")          { search_params.hist_bonus_max         = std::clamp(parsed,   512, 4096); }
+    else if (name_lower == "histmalusquad")         { search_params.hist_malus_quad        = std::clamp(parsed,     0,  128); }
+    else if (name_lower == "histmaluslin")          { search_params.hist_malus_lin         = std::clamp(parsed,     0,  400); }
+    else if (name_lower == "histmalusmax")          { search_params.hist_malus_max         = std::clamp(parsed,   512, 4096); }
+    else if (name_lower == "histttmovebonus")       { search_params.hist_ttmove_bonus      = std::clamp(parsed,     0, 1024); }
     else if (name_lower == "tmoptmult")             { search_params.tm_opt_mult            = std::clamp(parsed,    50,  200); }
     else if (name_lower == "tmmaxmult")             { search_params.tm_max_mult            = std::clamp(parsed,    50,  200); }
     else if (name_lower == "tmstability")           { search_params.tm_stability           = std::clamp(parsed,     0,  150); }

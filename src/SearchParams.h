@@ -47,6 +47,25 @@ struct SearchParams {
     int lmr_tt_pv_adj           = 0;     // LmrTtPvAdj
     int lmr_not_improving_adj   = 0;     // LmrNotImprovingAdj
 
+    // ---- History updates (Phase 6.3) -----------------------------------------
+    // bonus = min((quad*d*d)/64 + lin*d, max); malus mirrored with its own knobs.
+    // Defaults (quad=64, lin=0, max=2048, ttmove=0) reproduce the legacy
+    // min(d*d, 2048) EXACTLY -- behaviour-identical seed. The references prove
+    // the *shape family* (SF: linear asymmetric 134d-79/1572 vs 1005d-205/2218;
+    // Weiss: 251d-267/2418 vs 532d-163/693 -- both linear, asymmetric,
+    // independently capped), but transplanting their constants destabilised the
+    // mate-resolution CTests chaotically (KBNK/KQK canaries) because every
+    // consumer (hist pruning, LMR hist div) was tuned for our scale. So the
+    // Basilisk-specific constants are found by the wave2 SPSA (6.9) jointly
+    // with the consumers, and the SPSA output is SPRT-gated + CTest-gated.
+    int hist_bonus_quad     = 64;    // HistBonusQuad  (x d^2 / 64)
+    int hist_bonus_lin      = 0;     // HistBonusLin   (x d)
+    int hist_bonus_max      = 2048;  // HistBonusMax
+    int hist_malus_quad     = 64;    // HistMalusQuad  (x d^2 / 64)
+    int hist_malus_lin      = 0;     // HistMalusLin   (x d)
+    int hist_malus_max      = 2048;  // HistMalusMax
+    int hist_ttmove_bonus   = 0;     // HistTtMoveBonus (extra when best == tt_move; SF-only, off)
+
     // ---- Time management (Phase 5) --------------------------------------------
     // Hand-tuned defaults. The 5.8 SPSA bake (TmOptMult 105 / TmMaxMult 85 etc.,
     // 1147 iters @ 3+0.03) was REVERTED after the 5.9 validation: the gain SPRT

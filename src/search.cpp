@@ -496,12 +496,18 @@ int Searcher::low_ply_score(int ply, Square from, Square to) const {
     return ply < LOW_PLY_HISTORY_SIZE ? low_ply_hist_[ply][from][to] : 0;
 }
 
-void Searcher::update_all_histories(Move best,
+void Searcher::update_all_histories(Move best, bool best_is_tt,
                                     const Move* quiets, int quiet_count,
                                     const Move* bad_caps, int bad_cap_count,
                                     Color stm, int depth, SearchStack* ss) {
-    int bonus = std::min(depth * depth, 2048);
-    int malus = -std::min(depth * depth, 2048);
+    // Phase 6.3: tunable bonus/malus shape (see SearchParams.h) -- exactly the
+    // legacy min(d*d, 2048) at defaults; asymmetric linear forms reachable by SPSA.
+    const auto& p = active_limits_.params;
+    int bonus =  std::min(p.hist_bonus_quad * depth * depth / 64 + p.hist_bonus_lin * depth,
+                          p.hist_bonus_max)
+              + (best_is_tt ? p.hist_ttmove_bonus : 0);
+    int malus = -std::min(p.hist_malus_quad * depth * depth / 64 + p.hist_malus_lin * depth,
+                          p.hist_malus_max);
 
     bool best_is_cap   = (board_ptr_->board_sq[to_sq(best)] != NO_PIECE)
                       || (move_type(best) == EN_PASSANT);
@@ -1551,7 +1557,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         }
 
         if (alpha >= beta) {
-            update_all_histories(m, quiets_searched, quiets_count,
+            update_all_histories(m, m == tt_move, quiets_searched, quiets_count,
                                  bad_caps_searched, bad_caps_count,
                                  board_ptr_->side_to_move, depth, ss);
             return true;
