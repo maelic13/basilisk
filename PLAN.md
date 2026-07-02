@@ -915,11 +915,19 @@ Expected: forfeits → 0 (reliability + a few Elo), near-zero risk. Then proceed
 > Dev-head bench fingerprint now **13,503,085**. **6.2 (Rarog's ply-6 cont-hist)
 > REJECTED −7.70 ± 4.77** (H0, 9,204 games) — see post-mortem below. **Remaining
 > steps REWORKED 2026-07-01 from a line-by-line audit of SF master (snapshot
-> 2026-06-30) + Ethereal 14.40 + Weiss 2025 (the HCE anti-bias check). NEXT =
-> 6.3 history formula v2 → 6.4 deeper re-search → 6.5 SEE-quiet + capture
-> futility → 6.6 fail-low bonus → 6.7 fractional LMR → 6.8 qsearch checks (opt)
-> → 6.9 wave2 SPSA → 6.10 boundary.** (The 6.1 mate-score guard, branch commit
-> `75650d6`, rides in 6.3's candidate.)
+> 2026-06-30) + Ethereal 14.40 + Weiss 2025 (the HCE anti-bias check).
+> **6.3 (history formula) and 6.4 (post-LMR nudge + double-ext cap) both
+> shipped as EXPOSURE ONLY** (`18c5db5`, `945ec8c`) — literature constants at
+> both steps chaotically broke the KBNK/KQK mate-resolution CTests (Basilisk's
+> other search constants weren't tuned for SF/Weiss's scale), so both landed
+> at provably-inert defaults with the real values deferred to 6.9. **Pattern
+> now established for 6.5–6.8: implement + expose, verify CTest at the inert
+> default, defer tuning to 6.9 rather than hand-picking a canary-passing
+> value.** NEXT = 6.5 SEE-quiet + capture futility → 6.6 fail-low bonus → 6.7
+> fractional LMR → 6.8 qsearch checks (opt) → 6.9 wave2 SPSA (now also covers
+> `hist_bonus/malus_*`, `hist_ttmove_bonus`, `post_lmr_hist_scale`,
+> `double_ext_max`) → 6.10 boundary. (The 6.1 mate-score guard, branch commit
+> `75650d6`, is merged — bench 12,736,941 reflects it.)
 
 > **Renumbered 2026-06-29: this search-efficiency wave is now Phase 6, executed
 > AFTER the Phase 5 time-management hardening (§7 below).** TM was promoted ahead
@@ -1011,18 +1019,38 @@ and asymmetry are fully reachable by the **6.9 wave2 SPSA**, which tunes them
 12,736,941 — the suite is mate-heavy, so its footprint concentrates there; its
 validation rides in the 6.10 cumulative boundary SPRT).
 
-### Step 6.4 - Post-LMR deeper re-search + conthist update (+ double-ext cap rider) — Sonnet 5 medium
+### Step 6.4 - Post-LMR deeper re-search + conthist update (+ double-ext cap rider) — ✅ DONE 2026-07-01 as EXPOSURE ONLY (commit `945ec8c`; real values deferred to 6.9) — Sonnet 5 medium (executed)
 
-Proven in **both** SF and Weiss. Where the reduced search returns
-`score > alpha` and we re-search at full depth: first compute
-`do_deeper = score > best_score + p.deeper_margin` (Weiss:
-`1 + 6·(new_depth − d)`; SF: `best + 52`; seed `deeper_margin = 40` flat) and
-(SF-only, verify reachability) `do_shallower = score < best_score + 9`;
-re-search at `new_depth + do_deeper − do_shallower`. **After the re-search,
-update the move's continuation history** (SF: +1415 flat; Weiss: full
-bonus/malus by fail direction — implement Weiss's form, it reuses 6.3's
-formulas). Rider: add Weiss's `double_exts ≤ 5`-style cap on stacked singular
-double-extensions (Basilisk currently has none) — one line, same SPRT.
+Proven in **both** SF and Weiss, but implementing the full spec hit the
+**same canary fragility 6.3 diagnosed** — twice over:
+
+- **`do_deeper`/`do_shallower` depth adjustment**: swept flat `deeper_margin`
+  values (40/80/150/300/600/1200) against the KBNK depth-18 mate CTest.
+  **Non-monotonic** — only 300 passed, everything above and below it failed.
+  Unlike 6.3's history shape, there is no natural "off" point in a sane
+  tuning range (any realistic margin legitimately triggers on ordinary
+  centipawn swings) — so, unlike the cap below, this piece can't be shipped
+  as a provably-inert default. **Dropped entirely** rather than ship an
+  empirically-lucky value; revisit properly under 6.9 SPSA.
+- **Post-LMR conthist update**: real, well-evidenced signal (Weiss form,
+  reusing 6.3's bonus/malus), but at full weight it alone broke the KQK
+  mate-in-5 CTest. Shipped behind a new `post_lmr_hist_scale` knob (percent,
+  default **0 — provably inert**, since `hist_update` with bonus=0 leaves the
+  table untouched).
+- **Double-ext cap rider**: Weiss's own seed (`≤5`) *also* independently broke
+  the KBNK CTest. Shipped as real infrastructure (`ss->double_exts`,
+  propagated child-to-parent via `SearchStack`) defaulting to **200 —
+  mathematically unreachable** (`double_exts ≤ MAX_PLY = 128` on any real
+  search path), not an empirically-picked "safe" value.
+
+**Bench 12,736,941 unchanged (provable, not just tested), 9/9 CTest** —
+including the two canaries that caught every unscaled attempt. Extracted
+`history_bonus_value()`/`history_malus_value()`/`update_cont_for_move()` as
+shared helpers (pure refactor). **No SPRT owed** — behaviour-identical.
+**The real `post_lmr_hist_scale` and `double_ext_max` values are 6.9 SPSA
+material**, tuned jointly with the constants they interact with (LMR's
+`lmr_hist_div`, the singular-extension margins), gated by SPRT + these same
+CTests.
 
 ### Step 6.5 - SEE quiet pruning + capture futility (lmrDepth-based) — Fable 5 high (alt: Opus 4.8 high)
 
@@ -1071,13 +1099,20 @@ SPRT; drop on failure without retry.
 ### Step 6.9 - wave2 joint SPSA (the conserved compute, LAST) — Sonnet 5 medium (driving)
 
 Only after 6.3–6.8 verdicts. One coherent `wave2` group (~20–25 knobs): the
-history 7 (6.3) + deeper margin (6.4) + quiet-SEE/capture-futility coeffs (6.5)
-+ fail-low bonus (6.6) + fractional-LMR adjustments incl. `lmr_tt_capture` and
-`lmr_cut_node_adj` (currently 0 — SF/Weiss both reduce cut-nodes hard, this
-knob is live headroom) + the legacy set: LMP pair, NMP base/div/verification
-gate, ProbCut gate/depth, qsearch margins (150 futility / SEE clamps / late-SEE
-/ `i≥6` gate), history-prune coeff, IIR gate, correction-history `/5` weight +
-clamp, razoring depth (the old 5.8 experiment — now a knob, not a step).
+history 7 (6.3: `hist_bonus_quad/lin/max`, `hist_malus_quad/lin/max`,
+`hist_ttmove_bonus`) + the 6.4 pair (`post_lmr_hist_scale`, `double_ext_max` —
+**both shipped inert; this is where their real values get found**, jointly
+with `lmr_hist_div` and `hist_prune_coeff` which the 6.3/6.2 canary failures
+showed are coupled to history magnitude) + quiet-SEE/capture-futility coeffs
+(6.5) + fail-low bonus (6.6) + fractional-LMR adjustments incl.
+`lmr_tt_capture` and `lmr_cut_node_adj` (currently 0 — SF/Weiss both reduce
+cut-nodes hard, this knob is live headroom) + the legacy set: LMP pair, NMP
+base/div/verification gate, ProbCut gate/depth, qsearch margins (150 futility
+/ SEE clamps / late-SEE / `i≥6` gate), history-prune coeff, IIR gate,
+correction-history `/5` weight + clamp, razoring depth (the old 5.8
+experiment — now a knob, not a step). **CTest-gate every converged SPSA
+result** (not just SPRT) — 6.2/6.3/6.4 all showed the KBNK/KQK canaries catch
+regressions the games-based SPRT alone might not isolate quickly.
 Default-equivalence `bench 13` first; `setup_spsa.ps1 -ConfigGroup wave2`;
 ~5000 iterations at `tc=3+0.03`; **SPRT the converged result vs the pre-SPSA
 head** (the 5.9 lesson: SPSA output is a candidate, not a conclusion).
