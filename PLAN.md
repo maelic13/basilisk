@@ -1144,30 +1144,44 @@ owed.** Real value is 6.9 SPSA material, SPRT + CTest gated.
 gain, one rejection, and six exposure-only landings feeding 6.9). Next:
 **6.9 wave2 joint SPSA**, then **6.10 boundary validation**.
 
-### Step 6.9 - wave2 joint SPSA (the conserved compute, LAST) — Sonnet 5 medium (driving)
+### Step 6.9 - wave2 joint SPSA (the conserved compute, LAST) — INFRASTRUCTURE READY 2026-07-02 (commit `74bf5f0`); maintainer SPSA run pending — Sonnet 5 medium (driving)
 
 6.6 skipped (user decision); 6.3–6.5/6.7/6.8 all resolved (verdicts recorded
-above). One coherent `wave2` group (~20–25 knobs): the history 7 (6.3:
-`hist_bonus_quad/lin/max`, `hist_malus_quad/lin/max`, `hist_ttmove_bonus`) +
-the 6.4 pair (`post_lmr_hist_scale`, `double_ext_max` — **both shipped inert;
-this is where their real values get found**, jointly with `lmr_hist_div` and
-`hist_prune_coeff` which the 6.3/6.2 canary failures showed are coupled to
-history magnitude) + the 6.5 pair (`cap_fut_depth`/`cap_fut_base`/
-`cap_fut_coeff`, `quiet_see_depth`/`quiet_see_coeff` — capture-futility
-SPRT'd −2.78 active, both now inert; quiet-SEE needs the history-aware
-`lmr_depth` fix first) + `qsearch_check_cap` (6.8, broke KBNK at the seeded
-6 — same treatment) + fractional-LMR adjustments (6.7) incl. `lmr_tt_capture`
-and `lmr_cut_node_adj` (currently 0 — SF/Weiss both reduce cut-nodes hard,
-this knob is live headroom) + the legacy set: LMP pair, NMP base/div/
-verification gate, ProbCut gate/depth, qsearch margins (150 futility / SEE
-clamps / late-SEE / `i≥6` gate), history-prune coeff, IIR gate,
-correction-history `/5` weight + clamp, razoring depth (the old 5.8
-experiment — now a knob, not a step). **CTest-gate every converged SPSA
-result** (not just SPRT) — 6.2/6.3/6.4 all showed the KBNK/KQK canaries catch
-regressions the games-based SPRT alone might not isolate quickly.
-Default-equivalence `bench 13` first; `setup_spsa.ps1 -ConfigGroup wave2`;
-~5000 iterations at `tc=3+0.03`; **SPRT the converged result vs the pre-SPSA
-head** (the 5.9 lesson: SPSA output is a candidate, not a conclusion).
+above). `tools/spsa_configs/config_wave2.json` holds the coherent **24-knob**
+group (scoped down from the aspirational "~20–25 incl. LMP/NMP/ProbCut/qsearch-
+margin/IIR/corr-history legacy constants" below — those were never wired as UCI
+knobs; wiring them is deferred to a possible wave3, not silently bundled in
+here — see `spsa_configs/README.md` for the full rationale table):
+
+- the history 7 (6.3: `HistBonusQuad/Lin/Max`, `HistMalusQuad/Lin/Max`,
+  `HistTtMoveBonus`)
+- the 6.4 pair (`PostLmrHistScale`, `DoubleExtMax` — **both shipped inert; this
+  is where their real values get found**)
+- the 6.5 pair (`CapFutDepth/Base/Coeff`, `QuietSeeDepth/Coeff` —
+  capture-futility SPRT'd −2.78 active, both now inert; quiet-SEE needs the
+  history-aware `lmr_depth` fix first)
+- `QsearchCheckCap` (6.8, broke KBNK at the seeded 6 — same treatment)
+- fractional-LMR adjustments (6.7) incl. `LmrTtCapture` and `LmrCutNodeAdj`
+  (currently 0 — SF/Weiss both reduce cut-nodes hard, live headroom)
+- `LmrHistDiv` + `HistPruneCoeff` (jointly, per the 6.2/6.3 canary failures —
+  coupled to history magnitude)
+
+**Not in scope for this run:** the 12 already-accepted legacy pruning constants
+(`RfpCoeff` etc. — no interaction with the history/LMR changes) and the
+never-wired legacy wishlist (LMP formula, NMP verification gate, ProbCut
+depth/reduction, qsearch margins, IIR gate, correction-history weight,
+razoring depth).
+
+**Baseline binary built:** `basilisk-phase69-wave2base-pext-pgo.exe` (Phase-6
+head, bench 12,736,941, all 24 knobs verified advertised). `setup_spsa.ps1
+-ConfigGroup wave2 -EngineSuffix phase69-wave2base` run end-to-end and verified
+— ready for `cd tools/weather-factory && python main.py`.
+
+**CTest-gate every converged SPSA result** (not just SPRT) — 6.2/6.3/6.4/6.5/6.8
+all showed the KBNK/KQK canaries catch regressions the games-based SPRT alone
+might not isolate quickly. ~5000 iterations at `tc=3+0.03`; **SPRT the
+converged result vs `phase69-wave2base`** (the 5.9 lesson: SPSA output is a
+candidate, not a conclusion) **and re-run `ctest` before accepting.**
 
 ### Step 6.10 - Phase-6 boundary validation — Sonnet 5 low
 
