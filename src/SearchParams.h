@@ -29,6 +29,26 @@ struct SearchParams {
     // ---- SEE pruning (bad captures) -----------------------------------------
     int see_prune_coeff     = 73;    // SeePruneCoeff
 
+    // ---- Capture futility pruning (Phase 6.5, ACTIVE) -----------------------
+    // Skip a capture at shallow lmr_depth when even winning the captured piece
+    // cannot lift the static eval to alpha (SF + Ethereal). Canary-clean at
+    // these seeds (KBNK has no captures); real 6.5 SPRT candidate. SF-informed
+    // round values, SPSA-refined in 6.9.
+    int cap_fut_base     = 200;  // CapFutBase    (capture futility base margin)
+    int cap_fut_coeff    = 200;  // CapFutCoeff   (capture futility per-lmrDepth margin)
+
+    // ---- SEE-quiet pruning (Phase 6.5, EXPOSED BUT INERT) -------------------
+    // Skip quiets losing material by SEE (margin -coeff * lmr_depth²; SF+Ethereal).
+    // Gated by quiet_see_depth, default 0 == OFF: search nodes always have
+    // depth >= 1, so `depth <= 0` never fires -> provably inert. A naive port
+    // (base-table lmr_depth) broke KBNK COMPLETELY (no mate in 250 plies), unlike
+    // capture futility -- SF's lmr_depth here includes the history term that
+    // protects good-history quiets, which the base-table estimate lacks. Enable
+    // + tune (quiet_see_depth ~8, quiet_see_coeff) only in 6.9 SPSA once the
+    // history-aware lmr_depth is wired; SPRT + CTest gate it. See PLAN §5 6.5.
+    int quiet_see_depth  = 0;    // QuietSeeDepth (0 = off; enable at ~8)
+    int quiet_see_coeff  = 25;   // QuietSeeCoeff (quiet SEE margin = -coeff * lmrDepth^2)
+
     // ---- Singular extension -------------------------------------------------
     int singular_beta_mult      = 4;  // SingularBetaMult
     int singular_double_margin  = 4;  // SingularDoubleMargin

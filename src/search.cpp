@@ -1389,6 +1389,14 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         // ---- Late-move pruning / futility ----------------------------------
         if (!is_root && searched > 0 && best_score > -(MATE_SCORE - MAX_PLY)) {
 
+            // Reduction-aware depth for the shallow-pruning heuristics (Step
+            // 6.5): the base LMR-table reduction, matching SF/Ethereal's use of
+            // lmrDepth here. The history/pv refinements of the real reduction
+            // are a second-order effect on the pruning decision, so the cheap
+            // base estimate is enough (and avoids hoisting the full reduction).
+            int base_r = lmr_table_[std::min(depth, 63)][std::min(searched, 63)];
+            int lmr_depth = std::clamp(depth - base_r, 0, depth);
+
             if (is_quiet) {
                 // Futility pruning
                 if (!is_pv && !in_check && depth <= 6
@@ -1413,7 +1421,34 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                     if (hist < -active_limits_.params.hist_prune_coeff * depth && !move_gives_check())
                         return false;
                 }
+
+                // SEE pruning of quiet moves (Step 6.5): skip quiets that lose
+                // material by SEE, margin scaling with lmr_depth². EXPOSED BUT
+                // INERT — quiet_see_depth defaults to 0 so `depth <= 0` never
+                // fires (a naive base-table lmr_depth broke KBNK; needs SF's
+                // history-aware lmr_depth, deferred to 6.9). See SearchParams.h.
+                if (!is_pv && depth <= active_limits_.params.quiet_see_depth
+                    && !move_gives_check()
+                    && !board_ptr_->see_ge(
+                           m, -active_limits_.params.quiet_see_coeff * lmr_depth * lmr_depth))
+                    return false;
             } else if (is_cap) {
+                // Capture futility pruning (Step 6.5): if even winning the
+                // captured piece cannot lift the static eval to alpha, skip the
+                // capture at shallow lmr_depth. Good captures (high cap_hist)
+                // are spared via the capture-history term.
+                if (!is_pv && eval != VALUE_NONE && lmr_depth <= 6 && !move_gives_check()) {
+                    PieceType atk = type_of(board_ptr_->board_sq[from_sq(m)]);
+                    PieceType captured = (move_type(m) == EN_PASSANT)
+                                       ? PAWN : type_of(board_ptr_->board_sq[to_sq(m)]);
+                    int fut = eval + active_limits_.params.cap_fut_base
+                            + active_limits_.params.cap_fut_coeff * lmr_depth
+                            + PIECE_VALUE[captured]
+                            + cap_hist_[atk][to_sq(m)][captured] / 32;
+                    if (fut <= alpha)
+                        return false;
+                }
+
                 // SEE pruning for bad captures
                 if (!is_pv && depth <= 8 && !is_promo) {
                     if (!board_ptr_->see_ge(m, -depth * active_limits_.params.see_prune_coeff) && !move_gives_check())
