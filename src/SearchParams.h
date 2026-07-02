@@ -53,6 +53,17 @@ struct SearchParams {
     int quiet_see_depth  = 0;    // QuietSeeDepth (0 = off; enable at ~8)
     int quiet_see_coeff  = 25;   // QuietSeeCoeff (quiet SEE margin = -coeff * lmrDepth^2)
 
+    // ---- Qsearch quiet checks (Phase 6.8) ------------------------------------
+    // At qply==0 only, after captures fail to raise alpha to beta: try quiet
+    // checking moves (Board::gen_quiet_checks) filtered by SEE>=0, capped at
+    // this many. SF does this; Ethereal/Weiss don't (noisy-only qsearch) --
+    // mixed evidence, hence optional. EXPOSED BUT INERT: the seeded default
+    // (6) broke the KBNK mate CTest -- the sixth mechanism in a row (6.2-6.5)
+    // to trip this canary at its literature/round-number seed. Default 0 is
+    // PROVABLY inert (`qsearch_check_cap > 0` gates the whole loop). Real
+    // value is 6.9 SPSA material, SPRT + CTest gated.
+    int qsearch_check_cap = 0;   // QsearchCheckCap (0 = off; enable at ~6)
+
     // ---- Singular extension -------------------------------------------------
     int singular_beta_mult      = 4;  // SingularBetaMult
     int singular_double_margin  = 4;  // SingularDoubleMargin

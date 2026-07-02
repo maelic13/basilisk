@@ -173,6 +173,7 @@ std::string Parameters::uciOptions() {
         "option name CapFutCoeff type spin default 200 min 0 max 500\n"
         "option name QuietSeeDepth type spin default 0 min 0 max 10\n"
         "option name QuietSeeCoeff type spin default 25 min 0 max 120\n"
+        "option name QsearchCheckCap type spin default 0 min 0 max 10\n"
         "option name SingularBetaMult type spin default 4 min 1 max 6\n"
         "option name SingularDoubleMargin type spin default 4 min 0 max 60\n"
         "option name DoubleExtMax type spin default 200 min 1 max 200\n"
@@ -382,6 +383,7 @@ void Parameters::setOption(const std::string& args) {
     else if (name_lower == "capfutcoeff")           { search_params.cap_fut_coeff          = std::clamp(parsed,     0,  500); }
     else if (name_lower == "quietseedepth")         { search_params.quiet_see_depth        = std::clamp(parsed,     0,   10); }
     else if (name_lower == "quietseecoeff")         { search_params.quiet_see_coeff        = std::clamp(parsed,     0,  120); }
+    else if (name_lower == "qsearchcheckcap")       { search_params.qsearch_check_cap      = std::clamp(parsed,     0,   10); }
     else if (name_lower == "singularbetamult")      { search_params.singular_beta_mult     = std::clamp(parsed,     1,    6); }
     else if (name_lower == "singulardoublemargin")  { search_params.singular_double_margin = std::clamp(parsed,     0,   60); }
     else if (name_lower == "doubleextmax")          { search_params.double_ext_max         = std::clamp(parsed,     1,  200); }

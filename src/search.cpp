@@ -1144,6 +1144,38 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         }
     }
 
+    // Qsearch quiet checks (Step 6.8): captures didn't cut off. At qply==0
+    // only (first qsearch ply — deeper plies skip this, matching SF), try
+    // quiet checking moves filtered by SEE>=0, capped at qsearch_check_cap
+    // (0 = off). SF does this; Ethereal/Weiss don't (mixed evidence).
+    if (qply == 0 && active_limits_.params.qsearch_check_cap > 0) {
+        MoveList checks;
+        board_ptr_->gen_quiet_checks(checks);
+        int tried = 0;
+        for (Move m : checks) {
+            if (tried >= active_limits_.params.qsearch_check_cap) break;
+            if (!board_ptr_->see_ge(m, 0)) continue;
+            tried++;
+
+            ss->move = m;
+            ss->moved_piece = type_of(board_ptr_->board_sq[from_sq(m)]);
+            board_ptr_->make_move(m);
+            int s = -quiescence(-beta, -alpha, ply + 1, qply + 1, ss + 1);
+            board_ptr_->unmake_move(m);
+            ss->move = MOVE_NONE;
+
+            if (stopped_) return 0;
+            if (s > alpha) {
+                alpha = s;
+                best_move = m;
+            }
+            if (s >= beta) {
+                tt_.store(hash, 0, s, TT_BETA, m, ply, raw_eval);
+                return s;
+            }
+        }
+    }
+
     TTFlag flag = (alpha > orig_alpha) ? TT_EXACT : TT_ALPHA;
     tt_.store(hash, 0, alpha, flag, best_move, ply, raw_eval);
     return alpha;
