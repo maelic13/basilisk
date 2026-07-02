@@ -72,12 +72,18 @@ struct SearchParams {
     int lmr_base            = 60;    // LmrBase    (represents 0.60)
     int lmr_divisor         = 209;   // LmrDivisor (represents 2.09)
 
-    // ---- LMR per-move adjustments -------------------------------------------
-    int lmr_hist_div            = 7830;  // LmrHistDiv
-    int lmr_non_pv_adj          = 1;     // LmrNonPvAdj
+    // ---- LMR per-move adjustments (Phase 6.7: in 1024ths of a ply) ----------
+    // The *_adj knobs and lmr_tt_capture are fractional (1024 == 1 ply); the
+    // reduction is accumulated in 1024ths and shifted `>> 10` at the end.
+    // Defaults are the old integer values ×1024 -> behaviour-identical; the
+    // sub-ply resolution is headroom for the 6.9 SPSA. lmr_tt_capture (SF: ~1
+    // ply when the TT move is a capture) is seeded 0 == inert.
+    int lmr_hist_div            = 7830;  // LmrHistDiv (history still integer-quantised; see search.cpp)
+    int lmr_non_pv_adj          = 1024;  // LmrNonPvAdj      (1.0 ply)
     int lmr_cut_node_adj        = 0;     // LmrCutNodeAdj
     int lmr_tt_pv_adj           = 0;     // LmrTtPvAdj
     int lmr_not_improving_adj   = 0;     // LmrNotImprovingAdj
+    int lmr_tt_capture          = 0;     // LmrTtCapture (0 = off; SF ~1039)
 
     // ---- Post-LMR continuation-history nudge (Phase 6.4) ---------------------
     // After an LMR-reduced move's confirmation re-search, reward/punish its

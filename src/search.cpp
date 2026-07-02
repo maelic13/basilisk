@@ -33,9 +33,13 @@ static int score_from_syzygy_wdl(Syzygy::Wdl wdl) {
 }
 
 void Searcher::init_lmr(float base, float divisor) {
+    // Phase 6.7: table stored in 1024ths of a ply (fractional LMR). The floor
+    // identity int(1024*x) >> 10 == int(x) keeps the base reduction identical to
+    // the old integer table at default knobs; the finer resolution only matters
+    // once 6.9 SPSA sets sub-ply adjustments. Consumers shift back with `>> 10`.
     for (int d = 1; d < 64; d++)
         for (int m = 1; m < 64; m++)
-            lmr_table_[d][m] = int(base + std::log(d) * std::log(m) / divisor);
+            lmr_table_[d][m] = int(1024.0f * (base + std::log(d) * std::log(m) / divisor));
 }
 
 // ---- Shared root move table ------------------------------------------------
@@ -1219,6 +1223,11 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
     ss->tt_pv = is_pv || (tt_found && tt_flag == TT_EXACT && tt_depth >= depth - 1);
 
+    // Phase 6.7: is the TT move a capture? (LMR input, lmr_tt_capture)
+    const bool tt_capture = tt_move != MOVE_NONE
+        && (board_ptr_->board_sq[to_sq(tt_move)] != NO_PIECE
+            || move_type(tt_move) == EN_PASSANT);
+
     // ---- Static evaluation -------------------------------------------------
     int static_eval;
     int raw_static_eval = VALUE_NONE;
@@ -1394,7 +1403,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             // lmrDepth here. The history/pv refinements of the real reduction
             // are a second-order effect on the pruning decision, so the cheap
             // base estimate is enough (and avoids hoisting the full reduction).
-            int base_r = lmr_table_[std::min(depth, 63)][std::min(searched, 63)];
+            int base_r = lmr_table_[std::min(depth, 63)][std::min(searched, 63)] >> 10;  // 1024ths -> plies (6.7)
             int lmr_depth = std::clamp(depth - base_r, 0, depth);
 
             if (is_quiet) {
@@ -1536,22 +1545,31 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             if (depth >= 2 && searched >= 2 && !in_check
                 && (is_quiet || (is_cap && !is_promo && see_score < 0))
                 && !move_gives_check()) {
-                reduction = lmr_table_[std::min(depth, 63)][std::min(searched, 63)];
+                // Phase 6.7: accumulate the reduction in 1024ths of a ply, then
+                // shift back at the end. Behaviour-identical at default knobs
+                // (adjustments are the old integer values ×1024; history stays
+                // integer-quantised via the ×1024-after-divide form).
+                int r = lmr_table_[std::min(depth, 63)][std::min(searched, 63)];
 
                 if (is_quiet) {
                     const auto& p = active_limits_.params;
-                    if (!is_pv)     reduction += p.lmr_non_pv_adj;
-                    if (cut_node)   reduction += p.lmr_cut_node_adj;
-                    if (ss->tt_pv)  reduction -= p.lmr_tt_pv_adj;
-                    if (!improving) reduction += p.lmr_not_improving_adj;
-                    // History-based adjustment: good moves get reduced less, bad more
-                    reduction -= move_stat_score / p.lmr_hist_div;
+                    if (!is_pv)     r += p.lmr_non_pv_adj;
+                    if (cut_node)   r += p.lmr_cut_node_adj;
+                    if (ss->tt_pv)  r -= p.lmr_tt_pv_adj;
+                    if (!improving) r += p.lmr_not_improving_adj;
+                    if (tt_capture) r += p.lmr_tt_capture;
+                    // History-based adjustment: good moves get reduced less, bad
+                    // more. Kept integer-quantised (÷div then ×1024) so 6.7 is
+                    // behaviour-identical; the fractional form (×1024 ÷ div) is a
+                    // 6.9 experiment.
+                    r -= (move_stat_score / p.lmr_hist_div) * 1024;
                 } else {
-                    // Bad captures get less reduction than quiets
-                    reduction = (reduction - 1) / 2;
+                    // Bad captures get less reduction than quiets. Computed in
+                    // integer plies then rescaled, so no rounding drift.
+                    r = (((r >> 10) - 1) / 2) << 10;
                 }
 
-                reduction = std::clamp(reduction, 0, new_depth - 1);
+                reduction = std::clamp(r >> 10, 0, new_depth - 1);
             }
             ss->reduction = reduction;
 

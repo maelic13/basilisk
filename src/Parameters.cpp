@@ -180,10 +180,11 @@ std::string Parameters::uciOptions() {
         "option name LmrBase type spin default 60 min 0 max 150\n"
         "option name LmrDivisor type spin default 209 min 150 max 350\n"
         "option name LmrHistDiv type spin default 7830 min 4096 max 16384\n"
-        "option name LmrNonPvAdj type spin default 1 min 0 max 3\n"
-        "option name LmrCutNodeAdj type spin default 0 min 0 max 3\n"
-        "option name LmrTtPvAdj type spin default 0 min 0 max 3\n"
-        "option name LmrNotImprovingAdj type spin default 0 min 0 max 3\n"
+        "option name LmrNonPvAdj type spin default 1024 min 0 max 3072\n"
+        "option name LmrCutNodeAdj type spin default 0 min 0 max 3072\n"
+        "option name LmrTtPvAdj type spin default 0 min 0 max 3072\n"
+        "option name LmrNotImprovingAdj type spin default 0 min 0 max 3072\n"
+        "option name LmrTtCapture type spin default 0 min 0 max 3072\n"
         "option name PostLmrHistScale type spin default 0 min 0 max 300\n"
         "option name HistBonusQuad type spin default 64 min 0 max 128\n"
         "option name HistBonusLin type spin default 0 min 0 max 400\n"
@@ -388,10 +389,11 @@ void Parameters::setOption(const std::string& args) {
     else if (name_lower == "lmrbase")               { search_params.lmr_base               = std::clamp(parsed,     0,  150); }
     else if (name_lower == "lmrdivisor")            { search_params.lmr_divisor            = std::clamp(parsed,   150,  350); }
     else if (name_lower == "lmrhistdiv")            { search_params.lmr_hist_div           = std::clamp(parsed,  4096, 16384); }
-    else if (name_lower == "lmrnonpvadj")           { search_params.lmr_non_pv_adj         = std::clamp(parsed,     0,    3); }
-    else if (name_lower == "lmrcutnodeadj")         { search_params.lmr_cut_node_adj       = std::clamp(parsed,     0,    3); }
-    else if (name_lower == "lmrttpvadj")            { search_params.lmr_tt_pv_adj          = std::clamp(parsed,     0,    3); }
-    else if (name_lower == "lmrnotimprovingadj")    { search_params.lmr_not_improving_adj  = std::clamp(parsed,     0,    3); }
+    else if (name_lower == "lmrnonpvadj")           { search_params.lmr_non_pv_adj         = std::clamp(parsed,     0, 3072); }
+    else if (name_lower == "lmrcutnodeadj")         { search_params.lmr_cut_node_adj       = std::clamp(parsed,     0, 3072); }
+    else if (name_lower == "lmrttpvadj")            { search_params.lmr_tt_pv_adj          = std::clamp(parsed,     0, 3072); }
+    else if (name_lower == "lmrnotimprovingadj")    { search_params.lmr_not_improving_adj  = std::clamp(parsed,     0, 3072); }
+    else if (name_lower == "lmrttcapture")          { search_params.lmr_tt_capture         = std::clamp(parsed,     0, 3072); }
     else if (name_lower == "postlmrhistscale")      { search_params.post_lmr_hist_scale    = std::clamp(parsed,     0,  300); }
     else if (name_lower == "histbonusquad")         { search_params.hist_bonus_quad        = std::clamp(parsed,     0,  128); }
     else if (name_lower == "histbonuslin")          { search_params.hist_bonus_lin         = std::clamp(parsed,     0,  400); }
