@@ -2503,6 +2503,48 @@ Realistic phase total: **+15…+50, median ~+30.**
 
 ### Step 7.0 - Non-NNUE ceiling analysis (read first; it sets the stop point)
 
+> **✅ CLOSED 2026-07-08 (post-1.8.0) — the priors below are now replaced by
+> measurement. Verdict: the HCE ceiling from the 1.8.0 head is ≈ +25–35 LTC
+> Elo of residual tuning, then NNUE is the only lever left.**
+>
+> **What Phase 7 measured (evidence, not estimates):**
+> - **The self-play ratchet (lever 2) massively out-delivered its prior** —
+>   five cycles paid `+6.75 / +21.02 / +19.51 / +18.29 / +15.32` at 3+0.03
+>   (~+81 cumulative vs the ~+30 prior), and the taper is shallow (~10%/cycle:
+>   21.0 → 19.5 → 18.3 → 15.3). Extrapolating that taper, cycles 6–10 are worth
+>   ~+52 fast-TC before hitting the <+8 stop rule.
+> - **But LTC compression is ~55%** (1.8.0 = +93 fast → ~+40 LTC vs 1.7.0,
+>   colosseum 10+0.1 gauntlet). So the remaining cycle budget is ~+25 LTC, and
+>   the skipped 7.4 SPSA ~+2 LTC at ~50% wash. **Total residual non-NNUE
+>   headroom from here: ≈ +25–35 LTC.** Each cycle is ~2h and mostly automated
+>   — excellent Elo/hour while it lasts, but a bounded pool.
+> - **The shelter/storm→danger fold (lever 3) is measured-low-value, closed.**
+>   The danger-side knob (`ks_shelter_storm`) was live in all five KS funnel
+>   re-fits and the tuner put exactly **1 unit** on it (0→1 in cycle 5) while
+>   keeping the parallel linear shelter terms — with every opportunity to pour
+>   weight into the fold, the data declined. The structural fold would spend a
+>   Phase-3-style step for ~nothing; drop it.
+> - **Structure is complete** (2026-07-01 audit: no missing pre-NNUE feature;
+>   Phase 8 demoted to EV≈0) and the 6.3–6.8 knob set stays inert — 7.4-style
+>   SPSA remains available but is the weakest lever (family base rate 0-for-2).
+> - **Where that lands Basilisk:** internal-gauntlet placement ≈ Rarog/
+>   Shredder-12 level, below Rybka 3 / Critter 1.6a / SF-limited-2900. Cashing
+>   the residual ~+30 LTC reaches ≈ HIARCS-14/SF-2900 territory — still far
+>   below the SF11-class 3440 proof-of-existence. **That last gap is fishtest-
+>   scale search/tuning maturity, not anything reachable with these levers.**
+>
+> **The stop point (the deliverable):** keep running self-play cycles **only
+> while a cycle pays ≥ +8 at 3+0.03** (≈ +4 LTC per ~2h — still worth it);
+> optionally bank them as a 1.9.0. The moment a cycle drops below +8 — or the
+> moment appetite exists for a big project — **go straight to Phase 9 (NNUE,
+> +200–400)**. Do NOT do king-bucketed PSTs (the NNUE-gateway trap below) and
+> do NOT open Phase 8. Note the NNUE activation energy is now much lower than
+> when this step was written: the datagen-at-scale pipeline (diverse
+> `beast_seed.epd` book, 200k games/45min), quiet-filtering, the SF-annotation
+> path (Hydra `annotate_sf.py`), and the extract/phase-balance tooling are all
+> built and battle-tested — they are exactly the data pipeline a small net
+> needs.
+
 **Question:** how far can HCE Basilisk go without a net, and what is the highest-
 value lever at this point? This sharpens the §0 ceiling note.
 
