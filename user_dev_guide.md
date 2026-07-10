@@ -28,6 +28,26 @@ PLAN §5 — nothing else HCE-side is worth games.
 
 ---
 
+## Phase Progress Tracker
+
+- [x] **Phase 0 — Harness:** fastchess/SPRT/SPSA tooling, books, build scripts; calibration verified.
+- [x] **Phase 1 — Search constants:** pruning + LMR SPSA, +27 validated → **1.5.0**.
+- [x] **Phase 2 (+2.9) — Texel infra + cheap scalar fits:** tuner/datagen pipeline + material/mobility/passers/pawn fits (+54) and the time-forfeit fix → **1.6.0**.
+- [x] **Phase 3 — Eval structure build-out:** attack maps, threats, KS-v2 danger funnel, per-count mobility, endgame scaling, lazy eval — all bench-identical, tuned later.
+- [x] **Phase 4 — Eval data-fit campaign:** staged Texel fits over the full structure, +280.74 vs phase1-final → **1.7.0**.
+- [x] **Phase 5 — Time management:** clock-at-`go` fix (+2.95); TM SPSA washed — at ceiling.
+- [x] **Phase 6 — Search efficiency wave:** TT-bound pruning eval +7.18 (bundle +9.14); the rest of the wave shipped as inert knobs for a post-NNUE SPSA.
+- [x] **Phase 7 — Eval refresh (HCE endgame):** SF@60k distillation +6.75, then five on-policy self-play cycles (+21/+19.5/+18.3/+15.3); LTC gauntlet validated ~+40 → **1.8.0**. Cycle 6 washed → **HCE closed**.
+- [ ] **Phase 9 — NNUE (ACTIVE; PLAN §4; ships as 2.0.0):**
+  - [ ] **9.1 Data at scale** — scale the proven datagen to **30–60M quiet positions** from the 1.8.0 head (`beast_seed.epd` book, quiet-filter + phase-balance); decide labels: self-play WDL vs blended with SF-cp (both pipelines exist, Hydra `annotate_sf.py` for teacher labels).
+  - [ ] **9.2 Trainer integration** — external trainer (e.g. `bullet`); 768→(256×2)→1 perspective net, SCReLU; export to a compact binary format **embedded in the engine binary** (no runtime file).
+  - [ ] **9.3 Inference core** — int16/int8 quantized accumulator + affine layers, incremental updates hooked into `make_move`/`unmake_move` beside the existing keys; debug full-recompute cross-check; perft/bench-verified. *(Fable 5 high / Opus 4.8 high.)*
+  - [ ] **9.4 Swap-in + SPRT** — net eval behind a compile flag, HCE kept as fallback during bring-up; SPRT vs the 1.8.0 head at `3+0.03`, confirm at `10+0.1`; iterate data/net size until it clearly passes both.
+  - [ ] **9.5 Search re-tune at the new eval scale** — the ONE deferred search-constant SPSA (histshape + wave2 mechanisms + TM knobs, PLAN §5), now legitimate because the eval scale is final; SPRT-gated.
+  - [ ] **9.6 Release 2.0.0** — LTC field gauntlet vs the calibrated slate (head-to-head vs 1.8.0 is the number), full release checklist (PLAN §6).
+
+---
+
 ## The Basic Rhythm
 
 Most work is a short ping-pong:
