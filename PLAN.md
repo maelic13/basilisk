@@ -2484,7 +2484,7 @@ the LB fix alone warrants shipping sooner).
 | **7.1 ✅** | SF-distill eval refit (Hydra data) | **DELIVERED +6.75 ± 4.07** (H1, 16k games; est. was +10…+35/~+20) | fit = minutes; 1 SPRT 2h48 | scale drift did NOT materialize (L2 held it) | Fable 5 medium (alt: Opus 4.8 medium) pipeline; Sonnet 5 medium fit |
 | **7.2 ✅** | on-policy self-play refresh (rebalanced 358k on-policy) | **DELIVERED +21.02 ± 7.73** (H1, 4,618 games; est. was +5…+25/~+12 — ~2× the midpoint) | datagen 45 min; fit minutes; 1 SPRT 49 min | overperformed — curve not flat, so 7.3 is now high-EV | Sonnet 5 medium driving; Fable 5 medium (alt: Opus 4.8 medium) for datagen changes |
 | **7.3 ✅** | eval cycle 2 (repeat 7.2) | **DELIVERED +19.51 ± 7.04** (est. was 0…+10/~+4 — under-called ~5×; curve not flat) | same as 7.2 (~2h/cycle) | est. ~50% wash was WRONG — MSE-stall ≠ Elo-stall; iterate on | Sonnet 5 medium |
-| **7.4** | histshape SPSA (11 always-live dims, relocated 6.9) | **0…+12 / ~+4** | ~12–18h @ 1000–1500 iters, pre-registered abort at ~600 | **~50%** — family base rate at maturity is 0-for-2 (5.8 wash, Rarog −30h); mitigations: starts from validated defaults, always-live dims only, final eval scale | Sonnet 5 medium (driving) |
+| **7.4 ⏭️** | histshape SPSA (11 always-live dims, relocated 6.9) | **SKIPPED 2026-07-08, unmeasured** (est. was 0…+12/~+4 fast ≈ ~+2 LTC) | 12–18h declined on cost/benefit | ~50% + SPSA-at-maturity 0-for-2; unrunnable while 1.9.0 cycling moves the eval scale (§0.5) | reopen only if cycling stops + no NNUE imminent |
 | **7.5 ✅** | boundary validation + release 1.8.0 | DONE — LTC gauntlet validated ~+40 LTC over 1.7.0; **1.8.0 released 2026-07-08** | colosseum + LittleBlitzer gauntlets | — | Sonnet 5 low |
 | *(ref)* | Phase 8 feature menu | **~0** — the 2026-07-01 audit found no missing features; demoted to evidence-only appendix | — | — | — |
 | *(ref)* | Phase 9 NNUE | **+200…+400** — the ceiling-breaker; every HCE hour above competes with starting this | months, big project | low (proven path) | Fable 5 high (alt: Opus 4.8 high) architecture/trainer; Sonnet 5 medium plumbing |
@@ -2720,6 +2720,19 @@ territory (Phase 9) — which is why the eval boundary (gate 7 in §1) is preser
 throughout, with king-bucketed inputs as the natural bridge to it.
 
 ### Step 7.4 - histshape SPSA: the one search tune, at the final eval scale (relocated Step 6.9) — Sonnet 5 medium (driving)
+
+> **⏭️ SKIPPED 2026-07-08 (unmeasured — deliberately NOT "rejected").** Declined
+> on cost/benefit at the 1.8.0 boundary: est. ~+4 fast ≈ **~+2 LTC at ~50%
+> wash** (family SPSA-at-maturity base rate 0-for-2: 5.8 TM wash, Rarog 30h
+> negative) for 12–18h + a confirming SPRT. A rejection is a measured verdict
+> (like 6.2's −7.70) that closes a mechanism forever; this is an unmeasured
+> pass. **It is also structurally unrunnable while the 1.9.0 self-play track is
+> active** — this step's own premise ("only after the eval cycles have settled",
+> §0.5) is violated by every further cycle, and Phase 9 NNUE would re-scale the
+> eval wholesale, invalidating any tune done now. **Reopen only if all three
+> hold: (a) HCE cycling permanently stopped, (b) NNUE not imminent, (c) a last
+> ~+2 LTC is worth ~a day.** Infrastructure stays ready (`config_histshape.json`
+> + `setup_spsa.ps1 -ConfigGroup histshape`; recipe below unchanged).
 
 Run **only after the 7.1–7.3 eval cycles have settled** (a further eval refit
 would invalidate it — §0.5). Uses `tools/spsa_configs/config_histshape.json`
