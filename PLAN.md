@@ -197,13 +197,13 @@ Execution outline (each gate = SPRT vs the 1.8.0 head, then gauntlet):
 1. **Data at scale** — scale datagen to 30–60M quiet positions from the 1.8.0
    head. **▶ IN PROGRESS 2026-07-09; labels DECIDED: blended score+result.**
    The fastchess PGNs already carry per-move search scores in comments, so both
-   labels are free — `tools/texel/extract_nnue.py` (parallel, quiet-filtered,
+   labels are free — `net_trainer` repo's `tools/extract_nnue.py` (parallel, quiet-filtered,
    deduped) emits `FEN | cp(white-POV) | result(white-POV)`; sign convention
    verified (+100cp → 84.6% white score on 1.9M positions). The training blend
    λ is chosen at trainer time (9.2). Bootstrap: the five Phase-7 self-play
    PGNs (~1M games). Scale-up: fresh `beast_seed_2m.epd` (2M openings, seed
    777) → one big datagen from the 1.8.0 head (~2M games, ~8h).
-2. **Trainer integration** — external trainer, export to a compact binary net
+2. **Trainer integration** — the shared **`D:/code/net_trainer`** repo (PyTorch; `net_trainer.nnue`), exporting the cross-engine `.mnn` binary net
    format embedded in the binary (no runtime file dependency for releases).
 3. **Inference core** — accumulator + affine layers, `make/unmake` hooks,
    perft/bench-verified incremental correctness; a `--verify`-style
