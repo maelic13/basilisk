@@ -1,5 +1,6 @@
 #include "eval.h"
 #include "attacks.h"
+#include "nnue.h"
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
@@ -577,6 +578,13 @@ void Evaluator::eval_pawns(const Board& b,
 // ---- Main evaluation -------------------------------------------------------
 
 int Evaluator::evaluate(const Board& b) {
+    // Phase 9: when a network is loaded and UseNNUE is on, the net replaces
+    // the classical evaluation wholesale (same stm-POV centipawn convention).
+    // Off by default — with no net / UseNNUE=false this branch is a single
+    // predictable-false check and the engine behaves exactly as before.
+    if (nnue::enabled())
+        return nnue::evaluate(b);
+
     const EvalParams& p = g_eval_params;
     int mg = 0, eg = 0;
     int phase = 0;

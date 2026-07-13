@@ -1,0 +1,11 @@
+# eval_stm_cp | fen  -- conformance vectors for tests/data/test_h16.mnn
+43 | rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+129 | r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3
+178 | 8/2k5/3p4/p2P1p2/P2P1P2/8/8/4K3 w - - 0 1
+165 | r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1
+121 | 4k3/8/8/8/8/8/4P3/4K3 w - - 0 1
+155 | rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8
+43 | rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1
+435 | 8/8/8/8/8/5k2/8/4K2R w K - 0 1
+-578 | r7/8/8/8/8/5k2/8/4K3 w - - 0 1
+43 | 2kr3r/pp3ppp/2p1bn2/q7/1b2P3/2N2N2/PPPQBPPP/2KR3R w - - 8 12

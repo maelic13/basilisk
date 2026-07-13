@@ -11,6 +11,7 @@
 #include "Constants.h"
 #include "Parameters.h"
 #include "UciOutput.h"
+#include "nnue.h"
 
 namespace {
 
@@ -151,7 +152,12 @@ std::string Parameters::uciOptions() {
            "option name SyzygyPath type string default <empty>\n"
            "option name SyzygyProbeDepth type spin default 1 min 1 max 100\n"
            "option name Syzygy50MoveRule type check default true\n"
-           "option name SyzygyProbeLimit type spin default 7 min 0 max 7\n";
+           "option name SyzygyProbeLimit type spin default 7 min 0 max 7\n"
+           // Phase 9 NNUE: UseNNUE routes Evaluator::evaluate through the
+           // loaded .mnn network; EvalFile loads one at runtime ("<embedded>"
+           // reselects the baked-in net, if the build carries one).
+           "option name UseNNUE type check default false\n"
+           "option name EvalFile type string default <embedded>\n";
 #ifdef BASILISK_TUNE
     opts +=
         // TM diagnostic (Step 5.3): advertised only in tune/dev builds so a
@@ -344,6 +350,20 @@ void Parameters::setOption(const std::string& args) {
     int parsed = 0;
     if (name_lower == "syzygypath") {
         syzygyPath = (value == "<empty>") ? std::string{} : value;
+    } else if (name_lower == "usennue") {
+        const bool want = parse_bool_option(value);
+        if (!nnue::set_enabled(want) && want)
+            uci_write_line("info string No NNUE network available — embed one "
+                           "(BASILISK_NNUE_FILE) or load one via EvalFile.");
+        else
+            uci_write_line("info string " + nnue::status());
+    } else if (name_lower == "evalfile") {
+        const bool ok = (value == "<embedded>") ? nnue::load_embedded()
+                                                : nnue::load_file(value);
+        if (!ok)
+            uci_write_line("info string Failed to load network: " + value);
+        else
+            uci_write_line("info string " + nnue::status());
     } else if (name_lower == "ponder") {
         ponderEnabled = parse_bool_option(value);
     } else if (name_lower == "syzygy50moverule") {

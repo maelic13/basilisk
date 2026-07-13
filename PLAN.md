@@ -207,7 +207,14 @@ Execution outline (each gate = SPRT vs the 1.8.0 head, then gauntlet):
    format embedded in the binary (no runtime file dependency for releases).
 3. **Inference core** — accumulator + affine layers, `make/unmake` hooks,
    perft/bench-verified incremental correctness; a `--verify`-style
-   full-recompute cross-check in debug.
+   full-recompute cross-check in debug. **▶ Bring-up layer DONE 2026-07-13:**
+   `src/nnue.{h,cpp}` (loader + full-recompute eval, conformance-exact vs the
+   net_trainer reference — the ±1 floored-division mismatch the vectors
+   caught is pinned in the contract now), `Evaluator::evaluate` dispatch, UCI
+   `UseNNUE`/`EvalFile`, CMake `-DBASILISK_NNUE_FILE` bake-in, `test_nnue`
+   CTest (24/24). All inert by default: bench 12,661,251 unchanged.
+   **Remaining = the performance layer** (incremental accumulators + AVX2,
+   §4.1 item 1).
 4. **Swap-in + SPRT** — net eval behind a compile flag first; SPRT vs HCE
    head; keep iterating data/net size until it clearly passes at LTC too.
 5. **Search re-tune at the new eval scale** — this is where the deferred
@@ -216,6 +223,63 @@ Execution outline (each gate = SPRT vs the 1.8.0 head, then gauntlet):
 
 Model: **Fable 5 high (alt: Opus 4.8 high)** for the inference core and
 trainer integration; Sonnet 5 medium driving.
+
+### 4.1 Efficiency migration notes — what HCE→NNUE actually requires (deep-dive, 2026-07-13)
+
+Grounded in the documented transitions of Stockfish (SF12 2020: NNUE merged
+~+80 over SF11-classical, hybrid eval dropped in SF13, classical eval deleted
+only in SF16) and the HCE→NNUE switches of Ethereal 14 / Berserk / RubiChess /
+Koivisto (each ~+100–250 self-relative, all reporting the same three
+must-dos). Ranked by necessity for Basilisk:
+
+1. **Incremental accumulators are mandatory, not an optimization (9.3).** The
+   current bring-up path recomputes both perspectives per eval (~16k int16
+   adds at H=256) — that's an NPS collapse from ~2.5M to ~200–300k. With
+   incremental updates (add/sub 2–4 `ft_w` rows per make/unmake) the
+   amortized cost is ~100ns/eval. **chess768 makes this much simpler than
+   SF's HalfKP era: no king-buckets → NO accumulator refreshes ever** — king
+   moves are ordinary row swaps, so the whole SF "dirty pieces + refresh
+   table" machinery is unnecessary. Implementation: an accumulator pair per
+   search-stack ply (each thread's Board already lives per-thread in the Lazy
+   SMP pool), eagerly updated in `make_move`/`unmake_move`; a debug
+   full-recompute cross-check mirrors the Texel `--verify` pattern. Then
+   AVX2: 16×int16 per 256-bit vector for the row add/subs, `_mm256_madd_epi16`
+   for the clamped-square output dot — the PEXT release tier implies BMI2
+   CPUs, which all have AVX2.
+2. **Expect ~40–50% NPS loss and don't panic (9.4).** SF ran at ~60% of
+   classical NPS after the switch and gained +80 anyway — eval quality
+   dominates. Bench fingerprints re-baseline; NPS comparisons vs 1.8.0 are
+   meaningless across the eval swap.
+3. **The search constants are tuned to the wrong eval (9.5 — this is why the
+   §5 SPSA waited).** Every cp-denominated margin (RFP, futility, razoring,
+   null-eval-div, ProbCut, aspiration delta, history-prune scale) plus the TM
+   stability/score-drop constants were tuned against HCE's eval
+   *distribution*; net evals are smoother with fewer extremes. SF ran
+   fishtest re-tune waves right after the merge and they paid. Post-swap
+   order: SPRT the raw swap first (margins merely suboptimal, not broken),
+   then the one §5 SPSA.
+4. **Endgame knowledge: keep the HCE overlay (decision, 9.3/9.4).** Nets are
+   notoriously weak at mate *technique* (KBNK corner-mate, KQK distance) —
+   our KBNK/KQK CTest canaries would likely fail on a raw net. Basilisk
+   already has exact KPK/KBNK/scaling knowledge in `apply_endgame`; keep it
+   as a cheap post-net overlay for lone-king/pawnless positions (a one-branch
+   gate) rather than deleting it. This preserves the canaries and costs
+   nothing in normal positions. (SF likewise kept material scaling on top of
+   the net output; classical survived inside SF for four more years.)
+5. **What carries over unchanged:** corr-history (corrects any static eval —
+   SF kept it; arguably *more* valuable with a net), the 6.1 TT-bound pruning
+   eval (more valuable: eval is pricier, so TT reuse pays more), Syzygy,
+   the whole SPRT/gauntlet harness. **What dies with HCE eval ON:** the lazy-
+   eval margin (LAZY_MARGIN short-circuit — meaningless for a net), the tempo
+   term (stm-relative nets learn it), the pawn eval cache. None need deleting
+   — they're all on the HCE path, which remains compiled as the fallback.
+6. **Cheap riders worth one SPRT each, post-swap:** 50-move-rule damping of
+   the net output (SF scales eval down as rule50 grows — helps convert/avoid
+   shuffles); eval caching per node if profiling shows repeat evals.
+7. **The NNUE-era ratchet replaces the Phase-7 loop:** net N's engine
+   generates data for net N+1 (same datagen/extract pipeline, now via
+   net_trainer). Every engine that switched reports successive nets as the
+   main ongoing lever — data quality > architecture size at this scale.
 
 ---
 

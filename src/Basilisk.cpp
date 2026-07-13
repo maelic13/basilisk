@@ -19,6 +19,7 @@
 #include "attacks.h"
 #include "zobrist.h"
 #include "eval.h"
+#include "nnue.h"
 
 namespace {
 
@@ -108,6 +109,7 @@ int main() {
     init_attacks();
     Zobrist::init();
     init_eval_tables(g_eval_params);
+    nnue::load_embedded();  // no-op unless a net was baked in at configure time
 #ifdef BASILISK_TUNE
     load_eval_file_if_set();
 #endif
