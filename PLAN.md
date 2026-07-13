@@ -10,6 +10,16 @@
 > the actual residual was ≈ 0 and 1.8.0 caught all of it. Dev head = 1.8.0,
 > bench **12,661,251**.
 >
+> **▶ BRANCH SPLIT 2026-07-13:** `master`/`development` = the HCE line. HCE
+> finalization concluded there 2026-07-13 (H0/H8/H2: no strength delta within
+> budget; engine content stays 1.8.0), and **Phase 8 — board/infra correctness
+> & hardening** is queued there from the verified 2026-07-13 external audit
+> (`analysis/infra_analysis.md`; verdicts + steps in development's PLAN §4:
+> rule-50/mate precedence, null-move clock, legal-EP hashing, SEE pin
+> legality, release/CI fixes). This branch carries Phase 9; its board
+> prerequisite is **Phase 8.5 (§4.2)** — run it after rebasing onto the
+> Phase-8 head, since the SEE/draw fixes change search behaviour and bench.
+>
 > **▶ NEXT = Phase 9: NNUE (§4).** No further HCE tuning phases. Deferred /
 > reopenable experiments live in §5.
 
@@ -280,6 +290,38 @@ must-dos). Ranked by necessity for Basilisk:
    generates data for net N+1 (same datagen/extract pipeline, now via
    net_trainer). Every engine that switched reports successive nets as the
    main ongoing lever — data quality > architecture size at this scale.
+
+### 4.2 Phase 8.5 — NNUE-ready board/state architecture (2026-07-13 infra audit)
+
+From `analysis/infra_analysis.md` (on `development`; audit verified
+claim-by-claim there — see development PLAN §4 for what was confirmed, what
+was refuted, and the Phase-8 correctness steps that must land first).
+**Precondition: rebase this branch onto development's Phase-8 head** before
+starting — Phase 8's SEE-pin and draw-detection fixes change search behaviour
+and bench, and 8.1's regression tests are the safety net for this refactor.
+
+1. **8.5.1 Per-ply `StateInfo` + cached check geometry:**
+   checkers/blockers/pinners/checkSquares computed once per node and reused
+   across the capture/quiet generation stages (today both stages recompute
+   pins); pass `gives_check` into `make_move` (checkers = 0 fast path for
+   non-checking moves). Gate: fixed-depth node counts + NPS; SPRT if
+   behaviour shifts. ~2–6 Elo NPS candidate, and it is where the accumulator
+   pair of §4.1 item 1 naturally attaches to the search stack.
+2. **8.5.2 Layout cleanups riding the same refactor:** EP TT-move legality
+   without the `Board` copy (the copy allocates a 72 KB history each call);
+   16-bit `Move`; history restructure (pre-search game deque + fixed
+   per-thread search stack, replacing the assert-only 1024 array).
+3. **8.5.3 Eager accumulator updates in `make/unmake`** per §4.1 item 1 —
+   chess768 means **no refresh machinery**: dirty-piece bookkeeping
+   degenerates to the 2–4 feature-row add/subs per move. Validate
+   incremental-vs-full-recompute inside the randomized make/unmake property
+   test (Phase 8.4 on development). A refresh/bucket cache becomes relevant
+   only if king-bucketed or threat features arrive in a later net.
+
+Skipped: incremental HCE material/PST (dead weight post-NNUE). Parked
+post-9.5 measurables: rule-50-aware TT key, `key_after()`
+prefetch-before-make + qsearch prefetch, cuckoo upcoming-repetition,
+Chess960 castling representation.
 
 ---
 

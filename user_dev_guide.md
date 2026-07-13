@@ -14,6 +14,14 @@ self-play cycle 6 **washed** (+1.37 ± 5.21 over 8,100 games, LLR flat) — the
 HCE tuning line is **closed**; 1.8.0 captured all of it. Dev head = 1.8.0,
 bench **12,661,251**.
 
+**▶ BRANCH STRUCTURE (2026-07-13):** `master`/`development` = the HCE line
+(finalization concluded 2026-07-13, engine content stays 1.8.0; **Phase 8 —
+verified correctness bugs + release/CI hardening** — is queued there). This
+`nnue` branch carries all Phase-9 work; its board prerequisite is
+**Phase 8.5** (PLAN §4.2: StateInfo/cached geometry + accumulator hooks), to
+run **after rebasing onto the Phase-8 head** (the SEE/draw fixes there change
+bench).
+
 **▶ NEXT = Phase 9: NNUE** (PLAN §4; release will be **2.0.0**, +200–400
 expected). Deferred/reopenable experiments (post-NNUE SPSA etc.) are in
 PLAN §5 — nothing else HCE-side is worth games.
@@ -38,6 +46,11 @@ PLAN §5 — nothing else HCE-side is worth games.
 - [x] **Phase 5 — Time management:** clock-at-`go` fix (+2.95); TM SPSA washed — at ceiling.
 - [x] **Phase 6 — Search efficiency wave:** TT-bound pruning eval +7.18 (bundle +9.14); the rest of the wave shipped as inert knobs for a post-NNUE SPSA.
 - [x] **Phase 7 — Eval refresh (HCE endgame):** SF@60k distillation +6.75, then five on-policy self-play cycles (+21/+19.5/+18.3/+15.3); LTC gauntlet validated ~+40 → **1.8.0**. Cycle 6 washed → **HCE closed**.
+- [ ] **Phase 8 — Correctness & infra hardening: runs on `development`, not here** (development's PLAN §4). Rebase this branch onto its head when it lands.
+- [ ] **Phase 8.5 — NNUE-ready board architecture (THIS branch; PLAN §4.2), after the rebase:**
+  - [ ] **8.5.1 StateInfo + cached check geometry** — pins/checkers/checkSquares once per node, reused across generation stages; `gives_check` into `make_move`. Node-count + NPS gated; SPRT if behaviour shifts.
+  - [ ] **8.5.2 Layout cleanups** — EP legality without the Board copy, 16-bit Move, history restructure.
+  - [ ] **8.5.3 Eager accumulator updates in make/unmake** — chess768 = no refresh machinery; validated by the randomized property test. Feeds directly into 9.3's performance layer.
 - [ ] **Phase 9 — NNUE (ACTIVE; PLAN §4; ships as 2.0.0):**
   - [~] **9.1 Data at scale — ▶ IN PROGRESS 2026-07-09; label decision MADE: blended score+result.** Discovery: our fastchess PGNs already carry per-move search scores (`{+0.28/6 ...}`), so blended labels are free — no annotation pass. New extractor (now `tools/extract_nnue.py` in the shared `D:/code/net_trainer` repo; parallel, quiet-filtered, dedup) emits `FEN | cp(white-POV) | result(white-POV)` bullet-convertible text; verified on 200k games (1.9M unique in 80s; sign check: +100cp → 84.6% white score). Bootstrap from the five Phase-7 PGNs (~1M games) + fresh 2M-opening book (`beast_seed_2m.epd`, seed 777) generated. **Remaining: the big datagen run** (~2M games from the 1.8.0 head, ~8h background) → extract → 30M+ unique target.
   - [ ] **9.2 Trainer integration — ✅ trainer BUILT 2026-07-12 in the shared `D:/code/net_trainer` repo** (PyTorch `net_trainer.nnue`: 768→(H×2)→1 perspective SCReLU, blended-label training, quantized **`.mnn`** export + parity verifier — the cross-engine format all five engines consume, spec in its `docs/mnn_format.md`). Remaining: the full-size training run once 9.1 data lands.
