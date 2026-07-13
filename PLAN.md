@@ -49,7 +49,7 @@ and the **operational discipline** (releases §6, commands §7).
 ```text
 User  -> "Implement the next step of the plan."
 Model -> Reads PLAN.md, inspects current state, implements, verifies locally
-         (build, bench fingerprint, 9/9 CTest), commits on a candidate branch,
+         (build, bench fingerprint, 10/10 CTest), commits on a candidate branch,
          and hands the user exactly one command to run (usually an SPRT).
 User  -> Runs the long compute (SPRT / SPSA / gauntlet / datagen) and pastes
          the result. The model cannot honestly guess these results — the
@@ -95,7 +95,7 @@ Division of labour, fixed by convention:
    `test_search`) are fragile canaries for search-constant changes. The proven
    pattern: implement + expose a new mechanism at a **provably inert default**
    (mathematical argument — e.g. a `>0` gate at 0, a cap above `MAX_PLY`), pass
-   9/9 CTest, and defer real values to SPSA. **Never hand-pick a
+   10/10 CTest, and defer real values to SPSA. **Never hand-pick a
    canary-passing constant** (canary results are non-monotonic in the knobs).
    *Planned refinement (lands with development's step 8.8):* the canary suite
    splits into a **hard correctness core** (endgame still won/converted under
@@ -445,6 +445,10 @@ Model: Sonnet 5 medium for the small Track-B steps (8.5.4/8.5.5/8.5.9/
 
 ## 5. Post-NNUE roadmap (Phases 10–12) & deferred experiments
 
+Presented in execution order, not numeric order: Phase 10 runs after 9.5,
+Phase 12 opens right after 9.6 and may interleave with Phase 10, and
+Phase 11 (SMP) is conditional and last.
+
 ### Phase 10 — search architecture v2 (post-NNUE; runs after 9.5)
 
 The cp-denominated / architecture-heavy remainder of the 2026-07-13 search
@@ -628,7 +632,7 @@ the audit-closed feature menu.
    honest fast-TC vs LTC framing) and `README.md` only if the feature list
    changed.
 4. Verify the release build: no `BASILISK_TUNE` UCI options exposed, `bench`
-   runs, 9/9 CTest.
+   runs, 10/10 CTest.
 5. Commit the prep on `development`. **Do not tag. Do not push.**
 6. Produce copy-pasteable GitHub release notes (summary, strength vs prior tag,
    changes, honest caveats).

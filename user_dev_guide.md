@@ -64,13 +64,11 @@ default). Nothing else HCE-side is worth games before that decision.
 - [x] **Phase 6 — Search efficiency wave:** TT-bound pruning eval +7.18 (bundle +9.14); the rest of the wave shipped as inert knobs for a post-NNUE SPSA.
 - [x] **Phase 7 — Eval refresh (HCE endgame):** SF@60k distillation +6.75, then five on-policy self-play cycles (+21/+19.5/+18.3/+15.3); LTC gauntlet validated ~+40 → **1.8.0**. Cycle 6 washed → **HCE closed**.
 - [ ] **Phase 8 — Correctness & infra hardening: runs on `development`, not here** (development's PLAN §4; steps 8.1–8.9: board/search fixes in 8.1/8.2, **the HCE audit's eval-correctness bundle in 8.3 + rule-50-damping/mate-drive SPRTs in 8.4/8.6**, infra in 8.7/8.8 — the canary split is 8.8 — and conditional 8.9). Rebase this branch onto its head when it lands.
-- [ ] **Phase 8.5 — NNUE-ready board + pre-NNUE search ladder + data prep (THIS branch; PLAN §4.2), Tracks A/B after the rebase.** Track A (board, feeds 9.3):
+- [ ] **Phase 8.5 — NNUE-ready board + pre-NNUE search ladder + data prep (THIS branch; PLAN §4.2), Tracks A/B after the rebase.** Track A = 8.5.1–8.5.3 (board, feeds 9.3); Track B = 8.5.4–8.5.11 (search, eval-independent — survives the net swap; one SPRT each, in this order); Track C = 8.5.12–8.5.13 (data/benchmark prep — no games, no rebase needed, before 9.1's big training run):
   - [ ] **8.5.1 StateInfo + cached check geometry** — pins/checkers/checkSquares once per node, reused across generation stages; `gives_check` into `make_move`. Node-count + NPS gated; SPRT if behaviour shifts.
   - [ ] **8.5.2 Layout cleanups** — EP legality without the Board copy, 16-bit Move, history restructure.
   - [ ] **8.5.3 Eager accumulator updates in make/unmake** — chess768 = no refresh machinery; validated by the randomized property test. Feeds directly into 9.3's performance layer.
-
-  Track B (search, eval-independent — survives the net swap; one SPRT each, in this order):
-  - [ ] **8.5.4 Correction-history gating** — no capture contamination, direction-gated updates (+2–8).
+  - [ ] **8.5.4 Correction-history gating** *(Track B starts here)* — no capture contamination, direction-gated updates (+2–8).
   - [ ] **8.5.5 Qsearch in-check upgrade** — ordered evasions + TT store (+2–8).
   - [ ] **8.5.6 TT-PV bit** — real PV ancestry in the TT; enabler for LMR context + Phase 10 (+0–8 alone).
   - [ ] **8.5.7 Check-extension removal** — two-sided experiment (−5…+15), needs Phase 8's 8.1 + 8.8; SPRT decides keep-or-close.
@@ -78,10 +76,8 @@ default). Nothing else HCE-side is worth games before that decision.
   - [ ] **8.5.9 History-coverage ladder (a–d)** — TT-cutoff bonus, exact-node training, failed-capture malus, fail-low countermove; own SPRT each, stop after two washes (+10–30 combined).
   - [ ] **8.5.10 Per-root-move state** — scores/PV/nodes per root move; feeds ordering, aspiration, TM, SMP (+5–15).
   - [ ] **8.5.11 Upcoming-repetition (cuckoo)** — both audits recommend; self-contained (+1–5).
-
-  Track C (data/benchmark prep from the HCE audit — no games, no rebase needed; do before 9.1's big training run):
-  - [ ] **8.5.12 Frozen teacher benchmark** — SF-labelled corpus independent of our own adjudication, game-level splits, untouched test set; residuals reported by phase/material/king-danger cohorts for full/lazy/corrected HCE (and later the net). This is how we'll *know* the net is genuinely better, and it feeds the 12.0 decision. Deliverable: the baseline report for the 1.8.0 HCE.
-  - [ ] **8.5.13 Data-pipeline hygiene** — game/trajectory-level train-holdout splits everywhere (`import_beast.py` today splits per position — leaks trajectories; same rule for the net_trainer split on top of `extract_nnue.py` dedup); confirm `.mnn` header versioning covers the Phase-12 feature ladder so later nets need no format break.
+  - [ ] **8.5.12 Frozen teacher benchmark** *(Track C starts here)* — SF-labelled corpus independent of our own adjudication, game-level splits, untouched test set; residuals reported by phase/material/king-danger cohorts for full/lazy/corrected HCE (and later the net). This is how we'll *know* the net is genuinely better, and it feeds the 12.0 decision. Deliverable: the baseline report for the 1.8.0 HCE.
+  - [ ] **8.5.13 Data-pipeline hygiene** *(Track C)* — game/trajectory-level train-holdout splits everywhere (`import_beast.py` today splits per position — leaks trajectories; same rule for the net_trainer split on top of `extract_nnue.py` dedup); confirm `.mnn` header versioning covers the Phase-12 feature ladder so later nets need no format break.
 - [ ] **Phase 9 — NNUE (ACTIVE; PLAN §4; ships as 2.0.0):**
   - [~] **9.1 Data at scale — ▶ IN PROGRESS 2026-07-09; label decision MADE: blended score+result.** Discovery: our fastchess PGNs already carry per-move search scores (`{+0.28/6 ...}`), so blended labels are free — no annotation pass. New extractor (now `tools/extract_nnue.py` in the shared `D:/code/net_trainer` repo; parallel, quiet-filtered, dedup) emits `FEN | cp(white-POV) | result(white-POV)` bullet-convertible text; verified on 200k games (1.9M unique in 80s; sign check: +100cp → 84.6% white score). Bootstrap from the five Phase-7 PGNs (~1M games) + fresh 2M-opening book (`beast_seed_2m.epd`, seed 777) generated. **Remaining: the big datagen run** (~2M games from the 1.8.0 head, ~8h background) → extract → 30M+ unique target. **Before the first full-size training run: 8.5.12 benchmark frozen + 8.5.13 hygiene applied.**
   - [ ] **9.2 Trainer integration — ✅ trainer BUILT 2026-07-12 in the shared `D:/code/net_trainer` repo** (PyTorch `net_trainer.nnue`: 768→(H×2)→1 perspective SCReLU, blended-label training, quantized **`.mnn`** export + parity verifier — the cross-engine format all five engines consume, spec in its `docs/mnn_format.md`). Remaining: the full-size training run once 9.1 data lands.
@@ -105,7 +101,7 @@ Most work is a short ping-pong:
 ```text
 You   -> "Implement next step of the plan."
 Model -> Reads PLAN.md, inspects current state, implements, verifies locally
-         (build + bench fingerprint + 9/9 CTest), commits on a candidate
+         (build + bench fingerprint + 10/10 CTest), commits on a candidate
          branch, and tells you exactly what to run.
 You   -> Run the command and paste the short result.
 Model -> Acts on the result: merge + document, or revert + document.
