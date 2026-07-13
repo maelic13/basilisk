@@ -13,21 +13,25 @@
 > **▶ BRANCH SPLIT 2026-07-13:** `master`/`development` = the HCE line. HCE
 > finalization concluded there 2026-07-13 (H0/H8/H2: no strength delta within
 > budget; engine content stays 1.8.0), and **Phase 8 — board/infra correctness
-> & hardening** is queued there from the verified 2026-07-13 external audit
-> (`analysis/infra_analysis.md`; verdicts + steps in development's PLAN §4:
-> rule-50/mate precedence, null-move clock, legal-EP hashing, SEE pin
-> legality, release/CI fixes). This branch carries Phase 9; its board
-> prerequisite is **Phase 8.5 (§4.2)** — run it after rebasing onto the
-> Phase-8 head, since the SEE/draw fixes change search behaviour and bench.
+> & hardening** is queued there from the two verified 2026-07-13 external
+> audits (`analysis/infra_analysis.md` + `analysis/search_analysis.md`;
+> verdicts + steps in development's PLAN §4: rule-50/mate precedence,
+> null-move clock, legal-EP hashing, SEE pin legality, qsearch
+> in-check/fail-soft fixes, release/CI fixes, canary policy split). This
+> branch carries Phase 9; its prerequisite is **Phase 8.5 (§4.2)** — board
+> work **plus the pre-NNUE search ladder** from the search audit — run after
+> rebasing onto the Phase-8 head, since the SEE/draw/qsearch fixes change
+> search behaviour and bench.
 >
-> **▶ NEXT = Phase 9: NNUE (§4).** No further HCE tuning phases. Deferred /
-> reopenable experiments live in §5.
+> **▶ NEXT = Phase 9: NNUE (§4).** No further HCE tuning phases. Post-NNUE
+> search work = **Phases 10–11 (§5)**; deferred / reopenable experiments also
+> live in §5.
 
 This plan was executed 2026-05 → 2026-07 as Phases 0–7. The step-by-step
 history lives in `CHANGELOG.md` and git history; this document keeps the
 **process** (how work happens, §1), the **record** (what shipped, §2–3), the
-**active phase** (NNUE, §4), the **deferred menu** (§5), and the **operational
-discipline** (releases §6, commands §7).
+**active phase** (NNUE, §4), the **post-NNUE roadmap + deferred menu** (§5),
+and the **operational discipline** (releases §6, commands §7).
 
 ---
 
@@ -86,6 +90,12 @@ Division of labour, fixed by convention:
    (mathematical argument — e.g. a `>0` gate at 0, a cap above `MAX_PLY`), pass
    9/9 CTest, and defer real values to SPSA. **Never hand-pick a
    canary-passing constant** (canary results are non-monotonic in the knobs).
+   *Planned refinement (lands with development's step 8.4):* the canary suite
+   splits into a **hard correctness core** (endgame still won/converted under
+   generous limits, legal play, no false draws) and **non-gating trajectory
+   diagnostics** (exact fixed-depth mating-ply/route expectations) — eight
+   consecutive standard mechanisms were vetoed by tree-*shape* trajectories,
+   not by correctness. Until 8.4 lands, the current rule stands unchanged.
 7. **Preserve the eval boundary** — search calls
    `Evaluator::evaluate(const Board&)` and nothing deeper. This is what makes
    the NNUE swap (Phase 9) possible.
@@ -127,6 +137,7 @@ work: Fable 5 / Opus 4.8 medium.
 | **1.8.0** | 2026-07-08 | Phase 5 TM (clock-at-`go`, +2.95; TM SPSA washed → reverted) + Phase 6 search wave (6.1 TT-bound pruning eval **+7.18**; 6.2 cont-hist6 rejected −7.70; 6.3–6.8 exposed-inert knob set; bundle 6.10 **+9.14**) + Phase 7 eval refresh (7.1 SF@60k distillation **+6.75**; on-policy self-play cycles **+21.02 / +19.51 / +18.29 / +15.32**) | **≈ +93 fast-TC / ~+40 LTC** vs 1.7.0 (colosseum 10+0.1 gauntlet) |
 | *(post-1.8.0)* | 2026-07-09 | self-play cycle 6: **wash** (+1.37 ± 5.21, 8.1k games) → **HCE line closed**, candidate discarded | — |
 | **2.0.0** | future | **Phase 9 NNUE** (§4) | target **+200…+400** |
+| **2.x** | future | **Phase 10** search architecture v2, then conditional **Phase 11** SMP (§5) | prior **+15–40** 1T non-additive; SMP +10–30 at 8T |
 
 Current dev head: 1.8.0, bench **12,661,251** (fixed-depth 40-position
 harness; TM-independent).
@@ -291,14 +302,22 @@ must-dos). Ranked by necessity for Basilisk:
    net_trainer). Every engine that switched reports successive nets as the
    main ongoing lever — data quality > architecture size at this scale.
 
-### 4.2 Phase 8.5 — NNUE-ready board/state architecture (2026-07-13 infra audit)
+### 4.2 Phase 8.5 — NNUE-ready board/state + pre-NNUE search ladder (2026-07-13 audits)
 
-From `analysis/infra_analysis.md` (on `development`; audit verified
-claim-by-claim there — see development PLAN §4 for what was confirmed, what
-was refuted, and the Phase-8 correctness steps that must land first).
+Two tracks, one phase, from the two verified 2026-07-13 audits (see
+development PLAN §4 for the full verification verdicts — what was confirmed,
+what was refuted, and the Phase-8 correctness steps that must land first).
+**Track A (8.5.1–8.5.3)** is the infra audit's board/state redesign, driven
+by NNUE. **Track B (8.5.4–8.5.11)** is the search audit's *eval-independent*
+structural work: it survives the eval swap untouched, and landing it before
+9.5 means the ONE post-NNUE search SPSA tunes the final architecture instead
+of the current one. Each Track-B step = own candidate branch + **one SPRT at
+the standard gate**; SPRTs run HCE-vs-HCE (the net is not swapped in until
+9.4), which is valid precisely because these items are eval-independent.
 **Precondition: rebase this branch onto development's Phase-8 head** before
-starting — Phase 8's SEE-pin and draw-detection fixes change search behaviour
-and bench, and 8.1's regression tests are the safety net for this refactor.
+starting — Phase 8's SEE-pin/draw-detection/qsearch fixes change search
+behaviour and bench, 8.1's regression tests are the safety net for this
+refactor, and 8.4's canary split is required by 8.5.7/8.5.8.
 
 1. **8.5.1 Per-ply `StateInfo` + cached check geometry:**
    checkers/blockers/pinners/checkSquares computed once per node and reused
@@ -318,14 +337,114 @@ and bench, and 8.1's regression tests are the safety net for this refactor.
    test (Phase 8.4 on development). A refresh/bucket cache becomes relevant
    only if king-bucketed or threat features arrive in a later net.
 
+Track B — the pre-NNUE search ladder (search audit; priors are non-additive,
+ordered by value-per-cost with dependencies):
+
+4. **8.5.4 Correction-history gating** — exclude tactical (capture/promo)
+   best moves from correction updates; update only when the bound direction
+   is informative relative to static eval (SF semantics; today the update
+   fires on any exact/fail-high, never on fail-low, captures included).
+   Hours of code. Prior **+2–8**. → SPRT.
+5. **8.5.5 Qsearch in-check upgrade** — order evasions (TT move first, then
+   history scores; today they run in raw generation order) and store
+   completed in-check qsearch results to TT (today they are never stored).
+   Prior **+2–8**. → SPRT.
+6. **8.5.6 TT-PV bit** — steal one age bit in `flag_age` (6 → 5 bits = 32
+   generations, still ample); store/propagate PV ancestry through the TT and
+   source `ss->tt_pv` from it (today reconstructed only from exact entries
+   of sufficient depth). Prior **+0–8 alone**, but it is the *enabler* for
+   `LmrTtPvAdj` (the hcefinal SPSA tuned that knob against the weak
+   reconstructed signal — re-check it once the real bit exists) and for the
+   Phase 10 reduction context. → SPRT.
+7. **8.5.7 Check-extension removal** — delete the blanket in-check `depth++`
+   as an isolated candidate. **Requires** 8.1's qsearch-in-check fix and
+   8.4's canary split (this is a tree-shape change). Honest prior
+   **−5…+15**: SF-era removals rode NNUE-scale test resolution; a weaker
+   eval may need checks more — genuinely two-sided, record node/
+   tactical-suite diagnostics and let the SPRT decide, keep-or-close. → SPRT.
+8. **8.5.8 Checking-move LMR eligibility** — let checking moves (and, second
+   candidate if the first banks, good captures) into the existing reduction
+   model instead of the blanket full-depth exemption. Run **after** the
+   8.5.7 verdict (the two interact). → SPRT.
+9. **8.5.9 History-coverage ladder** — four pre-registered sub-candidates,
+   each its own branch + SPRT, stop rule: two consecutive washes close the
+   rest. (a) quiet-TT-move bonus at TT-cutoff nodes (today the TT cutoff
+   returns before any history update); (b) train the best move at exact/PV
+   nodes, not only beta cutoffs; (c) malus for searched-but-failed captures
+   (today only SEE-negative ones); (d) fail-low prior-countermove bonus
+   (absorbs the deferred 6.6 item, §5). Combined prior **+10–30**.
+10. **8.5.10 Persistent per-root-move state** — score/previous/average,
+    bound state, selDepth, nodes, PV per root move, sorted after each root
+    move (today only the iteration best is retained). Feeds root ordering,
+    per-move aspiration, TM effort accounting, and the Phase 11 voting
+    merge. 1–2 days of code. Prior **+5–15**. → SPRT.
+11. **8.5.11 Upcoming-repetition detection (cuckoo tables)** — recommended
+    **independently by both audits** (promoted from the parked list): detect
+    that a reversible move forces repetition before searching it; enables
+    early draw cutoffs. ~1 day, self-contained. Prior **+1–5**. → SPRT.
+
 Skipped: incremental HCE material/PST (dead weight post-NNUE). Parked
 post-9.5 measurables: rule-50-aware TT key, `key_after()`
-prefetch-before-make + qsearch prefetch, cuckoo upcoming-repetition,
-Chess960 castling representation.
+prefetch-before-make + qsearch prefetch, Chess960 castling representation.
+
+Model: Sonnet 5 medium for the small Track-B steps (8.5.4/8.5.5/8.5.9/
+8.5.11); Fable 5 high (alt Opus 4.8 high) for 8.5.1/8.5.3 (make/unmake +
+accumulator interaction risk) and 8.5.6/8.5.7/8.5.10 (TT/search-semantics
+interaction risk).
 
 ---
 
-## 5. Deferred / reopenable experiments (replaces the old Phase-8 menu)
+## 5. Post-NNUE roadmap (Phases 10–11) & deferred experiments
+
+### Phase 10 — search architecture v2 (post-NNUE; runs after 9.5)
+
+The cp-denominated / architecture-heavy remainder of the 2026-07-13 search
+audit. Post-NNUE by the §1 cost principle: every margin here re-denominates
+with the net, so doing it now would pay the SPRT bill twice. Order matters —
+structure first, then the one full SPSA (deferred table below) re-tunes
+constants against the *final* architecture. Working prior: **+15–40 at 1T**,
+heavily non-additive with the Phase 8.5 ladder.
+
+1. **10.1 Unified contextual reduction** — one signed reduction `r` per move
+   (PV/cut-node status, the 8.5.6 TT-PV bit, improving, histories, move
+   count, TT-move class), with `lmrDepth = newDepth − r` reused by futility/
+   history/SEE pruning (today pruning uses the raw depth or a cheap base
+   estimate); all-move LMR from the 2nd late move; negative reduction allowed
+   in promising contexts. **Staged candidates, each SPRT'd — never one big
+   rewrite** (attribution dies otherwise). This is where the inert 6.5 knobs
+   (`QuietSeeDepth`/`CapFutDepth`) finally get their history-aware
+   `lmrDepth` prerequisite.
+2. **10.2 Result-dependent verification** — do_deeper/do_shallower re-search
+   depths after a reduced search (the flat-margin attempt broke canaries at
+   HCE scale; retry at net scale under the 8.4 diagnostics regime). → SPRT.
+3. **10.3 TT density** — 32-byte cluster / partial-key layout (~2× entries
+   at equal hash; SF layout) while keeping lock-free publication semantics.
+   Test at **LTC** where cache coverage matters. → SPRT at 10+0.1.
+4. **10.4 Bound shaping** — blend RFP/qsearch cutoff returns toward beta;
+   conservative rule-50-aware TT-cutoff guard near the boundary. → SPRT.
+5. **10.5 Small refinements** — ProbCut staging (TT-move/cap-hist ordering,
+   skip when TT evidence contradicts), null-move verification min-ply
+   region, IIR-vs-node-type audit (needs 8.5.6). Cheap standalone SPRTs.
+
+### Phase 11 — SMP scaling (conditional: only if multi-thread rating becomes a target)
+
+Both audits flag Lazy SMP duplication; a local measurement confirms it
+(depth-17 startpos: 8 threads burned **5.5× the nodes of 1T for ~1.0×
+wall-clock**). This is **0 Elo at 1 thread** — invisible to the standard
+SPRT gate — so it needs a dedicated MT harness first (fixed-*time* strength
+at 1/2/4/8/16 threads; fixed-depth wall-clock is not a valid SMP metric).
+Working prior: **0 at 1T; +10–30 at 8T LTC.**
+
+1. **11.1** Per-thread persistent root-move state (extends 8.5.10).
+2. **11.2** Measured diversity — aspiration/reduction jitter, root-ordering
+   perturbation per thread.
+3. **11.3** Score/depth-weighted voting merge + soft-stop consensus (today:
+   main thread finishing hard-stops all helpers; merge = depth-then-score).
+4. **11.4** History ownership/blending review (helpers currently re-blend
+   never-reset tables into main after every search — stale evidence
+   compounds).
+
+### Deferred / reopenable experiments (replaces the old Phase-8 menu)
 
 The old Phase-8 "feature menu" was closed by the 2026-07-01 audit (EV ≈ 0 — no
 missing pre-NNUE features; the list survives in git history). What remains
@@ -342,9 +461,9 @@ invalidates.
 | Deferred item | What it is | Est. value | When to run |
 |---|---|---|---|
 | **histshape SPSA** (was 7.4) | `config_histshape.json` — 11 always-live dims: history bonus/malus shape (quad/lin/max ×2), `HistTtMoveBonus`, `LmrHistDiv`, `HistPruneCoeff`, `LmrCutNodeAdj`, `LmrTtCapture`; starts from current defaults | ~+2–4 | fold into the post-NNUE search re-tune |
-| **wave2 mechanisms** (6.4/6.5/6.8 exposures, inert) | `CapFutDepth`(~7) + margins, `QuietSeeDepth`(~8) + coeff, `QsearchCheckCap`(~6), `PostLmrHistScale`, `DoubleExtMax`, fractional-LMR `*_adj` dims | unknown; standalone attempts washed or broke canaries at HCE scale | post-NNUE only, and **fix the start point** — never seed with the known-negative values (`config_wave2.json` kept as a template, not a start) |
-| **TM knobs** (9 `Tm*`, exposed) | time-management constants; 5.8 SPSA washed → at ceiling for the current search | ~0 now | only if the search's node economics change materially (NNUE) |
-| **6.6 fail-low prior countermove bonus** | skipped on weak (SF-only) evidence during Phase 6 | small | as a one-off SPRT experiment post-NNUE, low priority |
+| **wave2 mechanisms** (6.4/6.5/6.8 exposures, inert) | `CapFutDepth`(~7) + margins, `QuietSeeDepth`(~8) + coeff, `QsearchCheckCap`(~6), `PostLmrHistScale`, `DoubleExtMax`, fractional-LMR `*_adj` dims | unknown; standalone attempts washed or broke canaries at HCE scale; search audit: `QsearchCheckCap` prior is now *weak* (current SF dropped qsearch quiet checks) and 6.5's real prerequisite is 10.1's history-aware `lmrDepth` | post-NNUE only, and **fix the start point** — never seed with the known-negative values (`config_wave2.json` kept as a template, not a start) |
+| **TM knobs** (9 `Tm*`, exposed) | time-management constants; 5.8 SPSA washed → at ceiling for the current search | ~0 now | only if the search's node economics change materially (NNUE); revisit after 8.5.10 gives TM real per-root-move effort data |
+| **6.6 fail-low prior countermove bonus** | skipped on weak (SF-only) evidence during Phase 6 | small | **absorbed into 8.5.9(d)** — the history-coverage ladder (§4.2) |
 | **fractional history** | quantization experiment flagged during 6.7 | likely wash | only alongside the post-NNUE history re-tune |
 | **SPSA discipline** (pre-registered, from the 2026-07-02 EV review) | 1000–1500 iters, abort at ~600 if trend ≤ 0, converged candidate → bake → SPRT + full CTest; a wash → keep defaults, done | — | applies to every run above |
 
@@ -461,5 +580,8 @@ structure bench-identically, fitting it in one staged campaign, hardening time
 management, adding the one search feature that survived (TT-bound pruning
 eval), and then riding the on-policy self-play refit loop until it measurably
 exhausted. The HCE is done: feature-complete by audit, data-saturated by
-measurement. **Everything from here is Phase 9 — the net.** The harness that
-banked the first +400 is the same harness that gates the next +300.
+measurement. **Everything from here is Phase 9 — the net** (with Phase 8.5 —
+board work + the eval-independent search ladder — as its on-branch
+prerequisite), and after the net, the deferred search architecture and SMP
+work (**Phases 10–11, §5**). The harness that banked the first +400 is the
+same harness that gates the next +300.
