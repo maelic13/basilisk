@@ -12,19 +12,26 @@
 >
 > **▶ BRANCH SPLIT 2026-07-13:** `master`/`development` = the HCE line. HCE
 > finalization concluded there 2026-07-13 (H0/H8/H2: no strength delta within
-> budget; engine content stays 1.8.0), and **Phase 8 — board/infra correctness
-> & hardening** is queued there from the two verified 2026-07-13 external
-> audits (`analysis/infra_analysis.md` + `analysis/search_analysis.md`;
-> verdicts + steps in development's PLAN §4: rule-50/mate precedence,
-> null-move clock, legal-EP hashing, SEE pin legality, qsearch
-> in-check/fail-soft fixes, release/CI fixes, canary policy split). This
+> budget; engine content stays 1.8.0), and **Phase 8 — board/search/eval
+> correctness & hardening** is queued there from the **three** verified
+> 2026-07-13 external audits (`analysis/infra_analysis.md` +
+> `analysis/search_analysis.md` + `analysis/hce_analysis.md`; verdicts +
+> steps in development's PLAN §4: rule-50/mate precedence, null-move clock,
+> legal-EP hashing, SEE pin legality, qsearch in-check/fail-soft fixes,
+> **the three verified eval-activation defects — OCB scaling that amplifies,
+> dead enemy-rook-behind-passer, `attacked2` pawn doubles — plus rule-50
+> damping and mate-drive SPRT experiments (development steps 8.3/8.4/8.6)**,
+> release/CI fixes, canary policy split; steps there run 8.1–8.9). This
 > branch carries Phase 9; its prerequisite is **Phase 8.5 (§4.2)** — board
-> work **plus the pre-NNUE search ladder** from the search audit — run after
-> rebasing onto the Phase-8 head, since the SEE/draw/qsearch fixes change
-> search behaviour and bench.
+> work, **the pre-NNUE search ladder**, and **Track C: the frozen teacher
+> benchmark + data-pipeline hygiene** from the HCE audit — run after
+> rebasing onto the Phase-8 head, since the SEE/draw/qsearch/eval fixes
+> change search behaviour and bench.
 >
 > **▶ NEXT = Phase 9: NNUE (§4).** No further HCE tuning phases. Post-NNUE
-> search work = **Phases 10–11 (§5)**; deferred / reopenable experiments also
+> work = **Phases 10–12 (§5)**, including the **eval-direction decision
+> (12.0)** — iterate the net's architecture vs reopen HCE feature work, taken
+> once, on benchmark + SPRT evidence. Deferred / reopenable experiments also
 > live in §5.
 
 This plan was executed 2026-05 → 2026-07 as Phases 0–7. The step-by-step
@@ -90,12 +97,12 @@ Division of labour, fixed by convention:
    (mathematical argument — e.g. a `>0` gate at 0, a cap above `MAX_PLY`), pass
    9/9 CTest, and defer real values to SPSA. **Never hand-pick a
    canary-passing constant** (canary results are non-monotonic in the knobs).
-   *Planned refinement (lands with development's step 8.4):* the canary suite
+   *Planned refinement (lands with development's step 8.8):* the canary suite
    splits into a **hard correctness core** (endgame still won/converted under
    generous limits, legal play, no false draws) and **non-gating trajectory
    diagnostics** (exact fixed-depth mating-ply/route expectations) — eight
    consecutive standard mechanisms were vetoed by tree-*shape* trajectories,
-   not by correctness. Until 8.4 lands, the current rule stands unchanged.
+   not by correctness. Until 8.8 lands, the current rule stands unchanged.
 7. **Preserve the eval boundary** — search calls
    `Evaluator::evaluate(const Board&)` and nothing deeper. This is what makes
    the NNUE swap (Phase 9) possible.
@@ -137,7 +144,7 @@ work: Fable 5 / Opus 4.8 medium.
 | **1.8.0** | 2026-07-08 | Phase 5 TM (clock-at-`go`, +2.95; TM SPSA washed → reverted) + Phase 6 search wave (6.1 TT-bound pruning eval **+7.18**; 6.2 cont-hist6 rejected −7.70; 6.3–6.8 exposed-inert knob set; bundle 6.10 **+9.14**) + Phase 7 eval refresh (7.1 SF@60k distillation **+6.75**; on-policy self-play cycles **+21.02 / +19.51 / +18.29 / +15.32**) | **≈ +93 fast-TC / ~+40 LTC** vs 1.7.0 (colosseum 10+0.1 gauntlet) |
 | *(post-1.8.0)* | 2026-07-09 | self-play cycle 6: **wash** (+1.37 ± 5.21, 8.1k games) → **HCE line closed**, candidate discarded | — |
 | **2.0.0** | future | **Phase 9 NNUE** (§4) | target **+200…+400** |
-| **2.x** | future | **Phase 10** search architecture v2, then conditional **Phase 11** SMP (§5) | prior **+15–40** 1T non-additive; SMP +10–30 at 8T |
+| **2.x** | future | **Phase 10** search architecture v2 + **Phase 12** eval v2 (12.0 decision → net ladder / HCE recovery), then conditional **Phase 11** SMP (§5) | prior **+15–40** 1T non-additive; SMP +10–30 at 8T |
 
 Current dev head: 1.8.0, bench **12,661,251** (fixed-depth 40-position
 harness; TM-independent).
@@ -181,10 +188,17 @@ Basilisk holds no official CCRL rating — the internal gauntlet is the yardstic
    gained +40. Strength-limited Stockfish crashes/plays illegal moves in
    already-lost positions — benign, but adjudication (or a real engine at that
    level) avoids the noise.
-9. **The eval is feature-complete pre-NNUE** (2026-07-01 audit vs SF-classical /
-   Ethereal / Weiss: nothing missing worth adding). King-bucketed PSTs are the
-   NNUE input shape — ~80% of a net's work for a fraction of its gain — so the
-   next structural step *is* the net.
+9. **"Feature-complete" held for feature *names*, not activations.** The
+   2026-07-01 audit (vs SF-classical / Ethereal / Weiss) found no missing term
+   worth adding — that stands. But the 2026-07-13 `hce_analysis.md` audit
+   (verified in-session on development) found three **activation defects
+   inside existing terms** (OCB amplification, dead enemy-rook-behind-passer,
+   `attacked2` pawn doubles — fixed in development's 8.3) plus a winnability
+   block that is all-zero *and* has no tuning path. Durable form: adding
+   feature names stays EV ≈ 0, **semantic audits of existing activations can
+   still pay**, and the conditionality / representation gaps are the net's
+   job — king-bucketed PSTs are the NNUE input shape, so the next structural
+   step *is* the net.
 
 ---
 
@@ -224,6 +238,11 @@ Execution outline (each gate = SPRT vs the 1.8.0 head, then gauntlet):
    λ is chosen at trainer time (9.2). Bootstrap: the five Phase-7 self-play
    PGNs (~1M games). Scale-up: fresh `beast_seed_2m.epd` (2M openings, seed
    777) → one big datagen from the 1.8.0 head (~2M games, ~8h).
+   **Prerequisites from §4.2 Track C:** the 8.5.13 split/dedup hygiene
+   applies to every import, and the **8.5.12 frozen teacher benchmark must
+   exist before the first full-size net trains** — it is the only instrument
+   that can tell "genuinely better" from "self-consistent" (the cycle-6
+   lesson).
 2. **Trainer integration** — the shared **`D:/code/net_trainer`** repo (PyTorch; `net_trainer.nnue`), exporting the cross-engine `.mnn` binary net
    format embedded in the binary (no runtime file dependency for releases).
 3. **Inference core** — accumulator + affine layers, `make/unmake` hooks,
@@ -238,6 +257,8 @@ Execution outline (each gate = SPRT vs the 1.8.0 head, then gauntlet):
    §4.1 item 1).
 4. **Swap-in + SPRT** — net eval behind a compile flag first; SPRT vs HCE
    head; keep iterating data/net size until it clearly passes at LTC too.
+   Beside the SPRT, record the 8.5.12 benchmark cohort residuals (net vs
+   full HCE) — they are the evidence base for the 12.0 decision (§5).
 5. **Search re-tune at the new eval scale** — this is where the deferred
    search-constant SPSA (§5) finally runs once, legitimately.
 6. **Release 2.0.0** after the full §6 gate.
@@ -302,9 +323,9 @@ must-dos). Ranked by necessity for Basilisk:
    net_trainer). Every engine that switched reports successive nets as the
    main ongoing lever — data quality > architecture size at this scale.
 
-### 4.2 Phase 8.5 — NNUE-ready board/state + pre-NNUE search ladder (2026-07-13 audits)
+### 4.2 Phase 8.5 — NNUE-ready board/state + pre-NNUE search ladder + data/benchmark prep (2026-07-13 audits)
 
-Two tracks, one phase, from the two verified 2026-07-13 audits (see
+Three tracks, one phase, from the three verified 2026-07-13 audits (see
 development PLAN §4 for the full verification verdicts — what was confirmed,
 what was refuted, and the Phase-8 correctness steps that must land first).
 **Track A (8.5.1–8.5.3)** is the infra audit's board/state redesign, driven
@@ -314,10 +335,13 @@ structural work: it survives the eval swap untouched, and landing it before
 of the current one. Each Track-B step = own candidate branch + **one SPRT at
 the standard gate**; SPRTs run HCE-vs-HCE (the net is not swapped in until
 9.4), which is valid precisely because these items are eval-independent.
-**Precondition: rebase this branch onto development's Phase-8 head** before
-starting — Phase 8's SEE-pin/draw-detection/qsearch fixes change search
-behaviour and bench, 8.1's regression tests are the safety net for this
-refactor, and 8.4's canary split is required by 8.5.7/8.5.8.
+**Track C (8.5.12–8.5.13)** is the HCE audit's data/benchmark prep — no
+games, no board/search dependencies, can run any time on this branch, but
+**both must be done before 9.1's full-size training run**.
+**Precondition (Tracks A/B): rebase this branch onto development's Phase-8
+head** before starting — Phase 8's SEE-pin/draw-detection/qsearch/eval fixes
+change search behaviour and bench, 8.1's regression tests are the safety net
+for this refactor, and 8.8's canary split is required by 8.5.7/8.5.8.
 
 1. **8.5.1 Per-ply `StateInfo` + cached check geometry:**
    checkers/blockers/pinners/checkSquares computed once per node and reused
@@ -334,8 +358,8 @@ refactor, and 8.4's canary split is required by 8.5.7/8.5.8.
    chess768 means **no refresh machinery**: dirty-piece bookkeeping
    degenerates to the 2–4 feature-row add/subs per move. Validate
    incremental-vs-full-recompute inside the randomized make/unmake property
-   test (Phase 8.4 on development). A refresh/bucket cache becomes relevant
-   only if king-bucketed or threat features arrive in a later net.
+   test (step 8.8 on development). A refresh/bucket cache becomes relevant
+   only if king-bucketed or threat features arrive in a later net (12.1).
 
 Track B — the pre-NNUE search ladder (search audit; priors are non-additive,
 ordered by value-per-cost with dependencies):
@@ -358,7 +382,7 @@ ordered by value-per-cost with dependencies):
    Phase 10 reduction context. → SPRT.
 7. **8.5.7 Check-extension removal** — delete the blanket in-check `depth++`
    as an isolated candidate. **Requires** 8.1's qsearch-in-check fix and
-   8.4's canary split (this is a tree-shape change). Honest prior
+   8.8's canary split (this is a tree-shape change). Honest prior
    **−5…+15**: SF-era removals rode NNUE-scale test resolution; a weaker
    eval may need checks more — genuinely two-sided, record node/
    tactical-suite diagnostics and let the SPRT decide, keep-or-close. → SPRT.
@@ -383,18 +407,43 @@ ordered by value-per-cost with dependencies):
     that a reversible move forces repetition before searching it; enables
     early draw cutoffs. ~1 day, self-contained. Prior **+1–5**. → SPRT.
 
+Track C — data/benchmark prep (HCE audit Phase B; no games):
+
+12. **8.5.12 Frozen teacher benchmark** — the audit's best process idea, and
+    the direct answer to the cycle-6 interpretability gap ("more accurate"
+    vs "merely more self-consistent"). Build a teacher-labelled evaluation
+    corpus **independent of Basilisk's own adjudication loop**: SF-teacher
+    cp/WDL labels (Hydra `annotate_sf.py`), split by *game/trajectory* (never
+    adjacent positions across the split), with an **untouched test set** no
+    optimizer or epoch selection ever sees, enriched for endgames and
+    king-attack cohorts. Record full HCE, lazy HCE, corrected HCE, and (once
+    9.3's performance layer exists) net outputs; report residuals by phase,
+    material signature, king-danger bucket, and halfmove clock. **Gate: no
+    games — the deliverable is the frozen baseline cohort report for the
+    1.8.0 HCE, produced before the first full-size net trains.** It is then
+    the 9.4 acceptance evidence beside the SPRT, and feeds the 12.0
+    decision (§5).
+13. **8.5.13 Data-pipeline hygiene** — audit findings applied to *our*
+    pipelines: any train/holdout split over game-derived positions must be
+    **game/trajectory-level** (`import_beast.py` today assigns at position
+    level over in-order files — trajectory leakage; the net_trainer split
+    must follow the same rule on top of `extract_nnue.py`'s dedup); confirm
+    the `.mnn` header's architecture/version metadata covers the Phase-12
+    feature-set ladder (king buckets, threat inputs) so later nets need no
+    format break. **Gate: pipeline re-run + verification, no games.**
+
 Skipped: incremental HCE material/PST (dead weight post-NNUE). Parked
 post-9.5 measurables: rule-50-aware TT key, `key_after()`
 prefetch-before-make + qsearch prefetch, Chess960 castling representation.
 
 Model: Sonnet 5 medium for the small Track-B steps (8.5.4/8.5.5/8.5.9/
-8.5.11); Fable 5 high (alt Opus 4.8 high) for 8.5.1/8.5.3 (make/unmake +
-accumulator interaction risk) and 8.5.6/8.5.7/8.5.10 (TT/search-semantics
-interaction risk).
+8.5.11) and Track C (8.5.12/8.5.13); Fable 5 high (alt Opus 4.8 high) for
+8.5.1/8.5.3 (make/unmake + accumulator interaction risk) and
+8.5.6/8.5.7/8.5.10 (TT/search-semantics interaction risk).
 
 ---
 
-## 5. Post-NNUE roadmap (Phases 10–11) & deferred experiments
+## 5. Post-NNUE roadmap (Phases 10–12) & deferred experiments
 
 ### Phase 10 — search architecture v2 (post-NNUE; runs after 9.5)
 
@@ -416,7 +465,7 @@ heavily non-additive with the Phase 8.5 ladder.
    `lmrDepth` prerequisite.
 2. **10.2 Result-dependent verification** — do_deeper/do_shallower re-search
    depths after a reduced search (the flat-margin attempt broke canaries at
-   HCE scale; retry at net scale under the 8.4 diagnostics regime). → SPRT.
+   HCE scale; retry at net scale under the 8.8 diagnostics regime). → SPRT.
 3. **10.3 TT density** — 32-byte cluster / partial-key layout (~2× entries
    at equal hash; SF layout) while keeping lock-free publication semantics.
    Test at **LTC** where cache coverage matters. → SPRT at 10+0.1.
@@ -425,6 +474,75 @@ heavily non-additive with the Phase 8.5 ladder.
 5. **10.5 Small refinements** — ProbCut staging (TT-move/cap-hist ordering,
    skip when TT evidence contradicts), null-move verification min-ply
    region, IIR-vs-node-type audit (needs 8.5.6). Cheap standalone SPRTs.
+6. **10.6 Correction-history consumption v2** — both the search and HCE
+   audits point here independently: replace the flat `/5` average
+   (`search.cpp:636`) with per-source fitted weights, add 2-/4-ply
+   continuation-correction contexts, and feed `abs(correction)` into
+   selected pruning margins as an uncertainty signal. Post-NNUE because
+   every weight is cp-denominated. Prior **+2–8**, overlaps 8.5.4. → SPRT.
+
+### Phase 12 — evaluation v2: the eval-direction decision + its two menus
+
+Runs **immediately after 9.6** (or immediately after a repeated 9.4 failure —
+see below); may interleave with Phase 10. The HCE audit's strategic finding,
+verified on development: the plain 768 net is the right *bring-up baseline*
+but is below modern feature capacity (no king conditioning, no threat inputs,
+no material buckets), while the HCE's remaining gaps are *conditionality*
+gaps a net learns directly. Which evaluator gets the next unit of compute is
+a **decision, not a default** — and it is taken on evidence, once:
+
+1. **12.0 Eval-direction decision (no games; a dated verdict recorded here,
+   like the audit verdicts in development's §4).** Inputs: the 9.4 SPRT
+   margins (STC + LTC), the 8.5.12 teacher-benchmark cohort residuals (net
+   vs full HCE — *which* cohorts the net wins/loses), NPS cost, and the
+   training-iteration trajectory (was the last data/size iteration still
+   paying?). Verdicts:
+   - **Net cleared expectations (≳ +150 LTC over 1.8.0)** → the net is the
+     evaluator, period. Open **12.1**; the HCE stays as datagen bootstrap +
+     debug fallback; **12.2 stays closed**.
+   - **Net passed but underwhelmed (+50…+150 LTC)** → open **12.1** first
+     (architecture is the likelier bottleneck than data at this margin);
+     open individual **12.2** items *only* where the benchmark shows the HCE
+     beating the net in specific cohorts (those terms still teach the net
+     via datagen).
+   - **Net failed 9.4 repeatedly** (data/size iterations exhausted, still
+     not passing) → suspend Phase 9, open **12.2 as the active strength
+     line**, and revisit the net after 12.2 + Track-C data improvements.
+2. **12.1 NNUE architecture ladder** (HCE audit §16, adapted). Each stage =
+   train → fixed acceptance evidence: NPS, 8.5.12 benchmark loss by cohort,
+   **SPRT at STC + LTC vs the current net** — never static loss alone:
+   (a) **king buckets** (8 or 16; H256 → H512) — highest-prior single
+   upgrade; needs the refresh machinery 8.5.3 deliberately deferred;
+   (b) **output/material buckets** (8 piece-count buckets) + direct PSQT
+   skip connection;
+   (c) **explicit threat inputs** (SF18/PlentyChess direction) — only if
+   (a)/(b) banked and threat-cohort residuals persist;
+   (d) **pawn-pair/structure inputs** — only if residual analysis supports.
+3. **12.2 HCE recovery menu** (HCE audit §§4–11; **closed by default**,
+   opened only by the 12.0 verdict). Priority order, every item gated by:
+   activation-count report → teacher-benchmark residual delta → zero-weight
+   ablation → SPRT:
+   (a) **winnability / material-signature scaling** — build the missing
+   finite-difference/direct-reeval tuner first (the linear tuner is
+   structurally blind here — the block is untraced), endgame-enriched data,
+   then SPRT the activated model vs zero;
+   (b) **king-safety & shelter rework** — castled-shelter comparison, storm
+   semantics (blocked/lever/supported), *joint* optimization of the danger
+   funnel (the degenerate weights — B/R/Q attacker units 0, storm sign-flip
+   — are single-axis-tuner artifacts; do not hand-"fix" values without the
+   optimizer rework);
+   (c) **endgame scaling families** — R+P vs R, fortress patterns,
+   wrong-bishop generalizations, material-signature functions;
+   (d) **passer/threat semantics** — blocker type/ownership, rook-behind
+   interaction with development's 8.3 fix, `weak_queen_prot` only-defender
+   condition, restricted-square relevance;
+   (e) **lazy-eval train/serve study** — fit the served (truncated)
+   function, condition the threshold, or retire the mechanism at net scale
+   (§4.1 item 5 already expects it to die with HCE eval off);
+   (f) **phase/material specialization** of the taper.
+   Honest total prior for the whole menu: **+20–60 non-additive** — always
+   weighed against the 12.1 cost curve, never pursued in parallel with it
+   beyond the cohort-justified exceptions above.
 
 ### Phase 11 — SMP scaling (conditional: only if multi-thread rating becomes a target)
 
@@ -579,9 +697,12 @@ Elo** — by tuning search constants once, building the full SF11-class eval
 structure bench-identically, fitting it in one staged campaign, hardening time
 management, adding the one search feature that survived (TT-bound pruning
 eval), and then riding the on-policy self-play refit loop until it measurably
-exhausted. The HCE is done: feature-complete by audit, data-saturated by
-measurement. **Everything from here is Phase 9 — the net** (with Phase 8.5 —
-board work + the eval-independent search ladder — as its on-branch
-prerequisite), and after the net, the deferred search architecture and SMP
-work (**Phases 10–11, §5**). The harness that banked the first +400 is the
-same harness that gates the next +300.
+exhausted. The HCE is done: feature-name-complete by audit, data-saturated by
+measurement (its three verified activation defects are fixed on development,
+step 8.3). **Everything from here is Phase 9 — the net** (with Phase 8.5 —
+board work, the eval-independent search ladder, and the teacher-benchmark /
+data prep — as its on-branch prerequisite). After the net comes the one
+decision that shapes 2.x: **12.0 — iterate the net's architecture or reopen
+HCE feature work**, taken on benchmark + SPRT evidence, alongside the
+deferred search architecture and SMP work (**Phases 10–12, §5**). The harness
+that banked the first +400 is the same harness that gates the next +300.
