@@ -79,6 +79,123 @@ Key Board::compute_hash() const {
     return h;
 }
 
+static bool has_piece_on(const Board& b, Square sq, Color color, PieceType pt);
+
+bool Board::assert_ok() const {
+    auto fail = [](const char* what) {
+        std::fprintf(stderr, "Board::assert_ok FAILED: %s\n", what);
+        return false;
+    };
+
+    // ---- Mailbox <-> bitboards -------------------------------------------
+    Bitboard seen[NCOLORS] = {0, 0};
+    for (int s = 0; s < SQUARE_NB; ++s) {
+        const Piece p = board_sq[s];
+        if (p == NO_PIECE) {
+            if (all_occ & sq_bb(Square(s))) return fail("empty mailbox square is occupied");
+            continue;
+        }
+        const Color c = color_of(p);
+        const PieceType pt = type_of(p);
+        if (!(pieces[c][pt] & sq_bb(Square(s)))) return fail("mailbox/bitboard disagree");
+        seen[c] |= sq_bb(Square(s));
+    }
+    // Every bitboard bit must have the matching mailbox piece, and piece-type
+    // bitboards must be mutually disjoint.
+    Bitboard union_all = 0;
+    for (int c = 0; c < NCOLORS; ++c) {
+        Bitboard side = 0;
+        for (int pt = PAWN; pt <= KING; ++pt) {
+            Bitboard bb = pieces[c][pt];
+            if (side & bb) return fail("piece-type bitboards overlap within a colour");
+            side |= bb;
+            while (bb) {
+                const Square s = Square(pop_lsb(bb));
+                if (board_sq[s] != make_piece(Color(c), PieceType(pt)))
+                    return fail("bitboard bit missing from mailbox");
+            }
+        }
+        if (side != occupancy[c]) return fail("occupancy != union of piece bitboards");
+        if (side != seen[c]) return fail("mailbox occupancy != bitboard occupancy");
+        if (union_all & side) return fail("white and black occupancy overlap");
+        union_all |= side;
+    }
+    if (all_occ != (occupancy[WHITE] | occupancy[BLACK]))
+        return fail("all_occ != white | black");
+
+    // ---- Kings -----------------------------------------------------------
+    for (int c = 0; c < NCOLORS; ++c) {
+        if (popcount(pieces[c][KING]) != 1) return fail("side does not have exactly one king");
+        if (king_sq[c] != Square(lsb(pieces[c][KING]))) return fail("king_sq != king bitboard");
+    }
+    // The side not to move must not be in check (that would be an illegal
+    // position reached after our own move).
+    if (attackers_to(king_sq[~side_to_move], all_occ) & occupancy[side_to_move])
+        return fail("side-not-to-move king is in check");
+
+    // ---- Cached checkers -------------------------------------------------
+    const Bitboard real_checkers =
+        attackers_to(king_sq[side_to_move], all_occ) & occupancy[~side_to_move];
+    if (checkers != real_checkers) return fail("cached checkers stale");
+
+    // ---- Castling-rights plausibility ------------------------------------
+    for (int c = 0; c < NCOLORS; ++c) {
+        const Rank back = c == WHITE ? RANK_1 : RANK_8;
+        const int ks = c == WHITE ? WK_CASTLE : BK_CASTLE;
+        const int qs = c == WHITE ? WQ_CASTLE : BQ_CASTLE;
+        if (castling_rights & (ks | qs)) {
+            if (!has_piece_on(*this, make_square(FILE_E, back), Color(c), KING))
+                return fail("castling right without king home");
+        }
+        if ((castling_rights & ks)
+            && !has_piece_on(*this, make_square(FILE_H, back), Color(c), ROOK))
+            return fail("kingside castling right without rook home");
+        if ((castling_rights & qs)
+            && !has_piece_on(*this, make_square(FILE_A, back), Color(c), ROOK))
+            return fail("queenside castling right without rook home");
+    }
+
+    // ---- En-passant plausibility -----------------------------------------
+    if (ep_sq != SQ_NONE) {
+        const Rank r = rank_of(ep_sq);
+        if (!(r == RANK_3 || r == RANK_6)) return fail("EP square off rank 3/6");
+        // The double-pushed pawn sits just past the EP square: an EP square on
+        // rank 6 was made by a Black pawn now on rank 5; on rank 3 by a White
+        // pawn now on rank 4.
+        const Color pusher = (r == RANK_6) ? BLACK : WHITE;
+        const Square pushed = make_square(file_of(ep_sq),
+                                          r == RANK_6 ? RANK_5 : RANK_4);
+        if (!(pieces[pusher][PAWN] & sq_bb(pushed))) return fail("EP square without a pushed pawn");
+        if (all_occ & sq_bb(ep_sq)) return fail("EP square is occupied");
+    }
+
+    // ---- Incremental keys vs from-scratch --------------------------------
+    Key h = 0, pk = 0, mk = 0, npk[NCOLORS] = {0, 0};
+    for (int c = 0; c < NCOLORS; ++c)
+        for (int pt = PAWN; pt <= KING; ++pt) {
+            Bitboard bb = pieces[c][pt];
+            while (bb) {
+                const int s = pop_lsb(bb);
+                h ^= Zobrist::PieceKeys[c][pt][s];
+                if (pt == PAWN) pk ^= Zobrist::PieceKeys[c][PAWN][s];
+                if (pt == KNIGHT || pt == BISHOP) mk ^= Zobrist::PieceKeys[c][pt][s];
+                if (pt != PAWN && pt != KING) npk[c] ^= Zobrist::PieceKeys[c][pt][s];
+            }
+        }
+    if (side_to_move == BLACK) h ^= Zobrist::SideKey;
+    h ^= Zobrist::CastlingKeys[castling_rights];
+    if (ep_sq != SQ_NONE) h ^= Zobrist::EpKeys[file_of(ep_sq)];
+    if (h != hash) return fail("incremental hash stale");
+    if (pk != pawn_key) return fail("incremental pawn_key stale");
+    if (mk != minor_key) return fail("incremental minor_key stale");
+    if (npk[WHITE] != nonpawn_key[WHITE] || npk[BLACK] != nonpawn_key[BLACK])
+        return fail("incremental nonpawn_key stale");
+
+    // ---- Clock -----------------------------------------------------------
+    if (halfmove_clock < 0) return fail("negative halfmove clock");
+    return true;
+}
+
 static bool has_piece_on(const Board& b, Square sq, Color color, PieceType pt) {
     const Piece p = b.board_sq[sq];
     return p != NO_PIECE && color_of(p) == color && type_of(p) == pt;
@@ -417,6 +534,14 @@ bool Board::try_set_fen(const std::string& fen, std::string* error,
     checkers = attackers_to_local(king_sq[side_to_move], ~side_to_move);
     history_size = 0;
 
+    // The FEN's EP token is only structural; keep the square (and its hash
+    // key) only if a legal EP capture actually exists (8.1c) -- the same
+    // predicate make_move applies.
+    if (ep_sq != SQ_NONE && !ep_capture_legal(ep_sq, side_to_move)) {
+        hash ^= Zobrist::EpKeys[file_of(ep_sq)];
+        ep_sq = SQ_NONE;
+    }
+
     return true;
 }
 
@@ -483,6 +608,7 @@ void Board::make_move(Move m) {
     ui.plies_from_null = plies_from_null;
     ui.captured = NO_PIECE;
     assert(history_size < MAX_HISTORY);
+    if (history_size >= MAX_HISTORY) history_size = MAX_HISTORY - 1;  // release guard (8.1d)
     history[static_cast<size_t>(history_size++)] = ui;
 
     Square from = from_sq(m);
@@ -540,8 +666,10 @@ void Board::make_move(Move m) {
                 int diff = int(to) - int(from);
                 if (diff == 16 || diff == -16) {
                     Square ep = Square(int(from) + (diff / 2));
-                    // Only set EP if opponent pawn can actually capture
-                    if (PawnAttacks[us][ep] & pieces[them][PAWN]) {
+                    // Set/hash EP only when a LEGAL capture exists: position
+                    // identity for repetition depends on legal moves, and a
+                    // spurious EP key splits equivalent positions (8.1c).
+                    if (ep_capture_legal(ep, them)) {
                         ep_sq = ep;
                         hash ^= Zobrist::EpKeys[file_of(ep_sq)];
                     }
@@ -634,6 +762,7 @@ void Board::make_null_move() {
     ui.plies_from_null = plies_from_null;
     ui.captured = NO_PIECE;
     assert(history_size < MAX_HISTORY);
+    if (history_size >= MAX_HISTORY) history_size = MAX_HISTORY - 1;  // release guard (8.1d)
     history[static_cast<size_t>(history_size++)] = ui;
 
     hash ^= Zobrist::SideKey;
@@ -641,7 +770,10 @@ void Board::make_null_move() {
         hash ^= Zobrist::EpKeys[file_of(ep_sq)];
         ep_sq = SQ_NONE;
     }
-    halfmove_clock++;
+    // A null move is a search fiction, not a played reversible move: the
+    // rule-50 clock must NOT advance (it could manufacture false draws in
+    // null-move descendants near the boundary). Only the repetition-scan
+    // fence resets (infra audit 4.2; SF semantics).
     plies_from_null = 0;
     side_to_move = ~side_to_move;
     ply++;
@@ -1614,11 +1746,46 @@ void Board::gen_quiet_checks(MoveList& ml) const {
 
 // ---- Draw detection --------------------------------------------------------
 
+bool Board::ep_capture_legal(Square ep, Color capturer) const {
+    const Color pusher = ~capturer;
+    // The double-pushed pawn sits one step beyond the skipped square.
+    const Square pushed = Square(int(ep) + int(pawn_push(pusher)));
+    const Square ksq = king_sq[capturer];
+    // Capturer pawns pseudo-attacking the EP square.
+    Bitboard candidates = PawnAttacks[pusher][ep] & pieces[capturer][PAWN];
+    while (candidates) {
+        const Square from = Square(pop_lsb(candidates));
+        // Occupancy after fromxep e.p.: capturer pawn moves from->ep, the
+        // pushed pawn disappears.
+        const Bitboard occ = (all_occ ^ sq_bb(from) ^ sq_bb(pushed)) | sq_bb(ep);
+        const Bitboard sliders =
+              (rook_attacks(ksq, occ)   & (pieces[pusher][ROOK]   | pieces[pusher][QUEEN]))
+            | (bishop_attacks(ksq, occ) & (pieces[pusher][BISHOP] | pieces[pusher][QUEEN]));
+        const Bitboard steppers =
+              (KnightAttacks[ksq] & pieces[pusher][KNIGHT])
+            | (PawnAttacks[capturer][ksq] & (pieces[pusher][PAWN] & ~sq_bb(pushed)))
+            | (KingAttacks[ksq] & pieces[pusher][KING]);
+        if (!(sliders | steppers))
+            return true;
+    }
+    return false;
+}
+
+bool Board::rule50_draw() const {
+    if (halfmove_clock < 100) return false;
+    if (!checkers) return true;
+    // In check exactly at the boundary: rule-50 is claimable only if a legal
+    // evasion exists; with none the position is checkmate (mate precedence).
+    MoveList ml;
+    gen_legal(ml);
+    return !ml.empty();
+}
+
 bool Board::is_draw() const {
     if (is_insufficient_material()) return true;
 
-    // 50-move rule
-    if (halfmove_clock >= 100) return true;
+    // 50-move rule (with mate precedence at the boundary)
+    if (rule50_draw()) return true;
     if (halfmove_clock < 4) return false;
 
     // 2-fold repetition (search back through history)
@@ -1658,7 +1825,7 @@ bool Board::is_repetition(int search_ply) const {
 
 bool Board::is_draw(int search_ply) const {
     if (is_insufficient_material()) return true;
-    if (halfmove_clock >= 100) return true;
+    if (rule50_draw()) return true;
     return is_repetition(search_ply);
 }
 
@@ -1693,6 +1860,43 @@ bool Board::has_non_pawn_material(Color c) const {
 }
 
 // ---- SEE -------------------------------------------------------------------
+
+void Board::see_pins(Bitboard occ, Bitboard pinned[NCOLORS], Square pinner_of[SQUARE_NB]) const {
+    // `occ` is the exchange occupancy (initial mover and capture target
+    // already removed), NOT all_occ: a piece standing on the pin ray -- the
+    // mover itself included -- masks the pin until it departs, and a pin
+    // revealed by the very capture being scored must still be respected.
+    for (int ci = 0; ci < NCOLORS; ++ci) {
+        const Color c = Color(ci);
+        const Color them = ~c;
+        const Square ksq = king_sq[c];
+        const Bitboard own = occupancy[c] & occ;
+        pinned[c] = 0;
+
+        const Bitboard bv  = bishop_attacks(ksq, occ);
+        const Bitboard xrb = bishop_attacks(ksq, occ ^ (bv & own));
+        Bitboard dp = (pieces[them][BISHOP] | pieces[them][QUEEN]) & occ & xrb;
+        while (dp) {
+            const Square   pinner  = Square(pop_lsb(dp));
+            const Bitboard blocker = BB_BETWEEN[ksq][pinner] & own;
+            if (blocker && !more_than_one(blocker)) {
+                pinned[c] |= blocker;
+                pinner_of[lsb(blocker)] = pinner;
+            }
+        }
+        const Bitboard rv  = rook_attacks(ksq, occ);
+        const Bitboard xrr = rook_attacks(ksq, occ ^ (rv & own));
+        Bitboard op = (pieces[them][ROOK] | pieces[them][QUEEN]) & occ & xrr;
+        while (op) {
+            const Square   pinner  = Square(pop_lsb(op));
+            const Bitboard blocker = BB_BETWEEN[ksq][pinner] & own;
+            if (blocker && !more_than_one(blocker)) {
+                pinned[c] |= blocker;
+                pinner_of[lsb(blocker)] = pinner;
+            }
+        }
+    }
+}
 
 int Board::see(Move m) const {
     static constexpr int SEE_VALUES[PIECE_TYPE_NB] = {0, 100, 300, 300, 500, 900, 20000};
@@ -1732,25 +1936,55 @@ int Board::see(Move m) const {
 
     Color side = ~side_to_move; // first recapture is by opponent
 
+    // 8.2: absolutely pinned pieces cannot recapture while their pinner is
+    // still on the board, unless the exchange square lies on the pin line.
+    // Pins are computed once against the pre-move board; a pinner that is
+    // captured or moves during the exchange leaves `occ`, releasing the pin.
+    Bitboard pinned[NCOLORS];
+    Square pinner_of[SQUARE_NB];
+    see_pins(occ, pinned, pinner_of);
+    auto pin_filtered = [&](Bitboard bb, Color c) {
+        Bitboard p = bb & pinned[c];
+        while (p) {
+            const Square s = Square(pop_lsb(p));
+            if ((occ & sq_bb(pinner_of[s]))
+                && !(BB_LINE[king_sq[c]][s] & sq_bb(to)))
+                bb ^= sq_bb(s);
+        }
+        return bb;
+    };
+
     Bitboard attackers = attackers_to(to, occ) & occ;
 
     while (true) {
         Bitboard side_att = attackers & occupancy[side];
         if (!side_att) break;
 
-        depth++;
-        gain[depth] = SEE_VALUES[piece_on_sq] - gain[depth-1];
-
-        // Find least valuable attacker
+        // Find least valuable attacker that is not pin-excluded (selection
+        // happens BEFORE the gain write: pin filtering can empty a nonempty
+        // attacker set, and no attacker must mean no exchange ply).
         PieceType attacker_type = NO_PIECE_TYPE;
         Bitboard attacker_bb = 0;
         for (int pt = PAWN; pt <= KING; pt++) {
             attacker_bb = side_att & pieces[side][pt] & occ;
+            if (pt != KING) attacker_bb = pin_filtered(attacker_bb, side);
             if (attacker_bb) { attacker_type = PieceType(pt); break; }
         }
         if (attacker_type == NO_PIECE_TYPE) break;
 
-        // Early exit: even capturing for free doesn't help
+        depth++;
+        gain[depth] = SEE_VALUES[piece_on_sq] - gain[depth-1];
+
+        // Early exit: even capturing for free doesn't help. This standard
+        // gain-array prune is NOT exact — a slider X-ray revealed deep in the
+        // exchange (e.g. a queen uncovered when a pawn vacates its diagonal)
+        // can make the truncated result differ from the true LVA-swap value,
+        // so see() disagrees with see_ge() on such chains. That is INTENTIONAL:
+        // see() only feeds move ordering (see_ge, used for pruning, is exact
+        // and pin-aware), and removing this prune to make see() exact cost
+        // -3.80 +/- 2.63 Elo (H0 accepted, 25.4k games, 2026-07-15) -- the full
+        // swap on every ordering call is a net NPS loss for zero decision
+        // benefit. Keep the fast prune; do NOT "fix" this to match see_ge.
         if (std::max(-gain[depth-1], gain[depth]) < 0) break;
 
         // Remove attacker (reveals X-ray)
@@ -1814,6 +2048,22 @@ bool Board::see_ge(Move m, int threshold) const {
     }
 
     Color stm = side_to_move;
+
+    // 8.2: same pin exclusion as see() (see the comment there).
+    Bitboard pinned[NCOLORS];
+    Square pinner_of[SQUARE_NB];
+    see_pins(occ, pinned, pinner_of);
+    auto pin_filtered = [&](Bitboard bb, Color c) {
+        Bitboard p = bb & pinned[c];
+        while (p) {
+            const Square s = Square(pop_lsb(p));
+            if ((occ & sq_bb(pinner_of[s]))
+                && !(BB_LINE[king_sq[c]][s] & sq_bb(to)))
+                bb ^= sq_bb(s);
+        }
+        return bb;
+    };
+
     Bitboard attackers = attackers_to(to, occ) & occ;
     int result = 1;
 
@@ -1828,6 +2078,7 @@ bool Board::see_ge(Move m, int threshold) const {
         Bitboard attacker_bb = 0;
         for (int pt = PAWN; pt <= KING; ++pt) {
             attacker_bb = side_att & pieces[stm][pt];
+            if (pt != KING) attacker_bb = pin_filtered(attacker_bb, stm);
             if (attacker_bb) {
                 next_attacker = PieceType(pt);
                 break;

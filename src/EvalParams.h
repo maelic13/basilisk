@@ -289,8 +289,9 @@ struct EvalParams {
 
     // ---- King safety v2 danger inputs (Step 3.2; seeded INERT, tuned Phase 4.3) ----
     // These feed the attack_units -> safety_table funnel as extra index
-    // contributions. All seeded 0 (and the no-queen scaling seeded to reproduce
-    // the old frozen *2/3) so bench is unchanged; the Phase-4.3 nonlinear
+    // contributions. All seeded 0 (and the no-queen scaling originally seeded
+    // at the old frozen *2/3; retuned since) so bench was unchanged at
+    // introduction; the Phase-4.3 nonlinear
     // (finite-difference) tuner activates them. They are composite/index inputs,
     // not pure-linear, so they carry no linear trace (only SafetyTable is traced).
     int ks_safe_check[7] = { 0, 0, 7, 6, 6, 4, 0 };  // per safe check, by checker type (Phase 4.1)
@@ -302,7 +303,7 @@ struct EvalParams {
     int ks_king_blockers = 3;  // per own piece pinned/blocking in front of the king (Phase 4.1)
     int ks_central_king = 3;  // king central with castling rights gone
     int ks_shelter_storm = 1;  // king pawn-shelter exposure folded into danger
-    int ks_noqueen_num    = 2;  // no-enemy-queen danger scaling numerator (old 2/3)
+    int ks_noqueen_num    = 2;  // no-enemy-queen danger scaling numerator
     int ks_noqueen_den = 5;  // ... denominator
 
     // ---- King pawn shelter / storm -----------------------------------------
@@ -333,8 +334,10 @@ struct EvalParams {
     int tempo = 20;
 
     // ---- Winnable / complexity coupling (Step 3.6) -------------------------
-    // Frozen (not linearly traced); all seeded 0 so the eval/bench are
-    // unchanged. Tuned via the finite-difference path in Phase 4.5.
+    // Frozen (not linearly traced); all 0, so the eval/bench are unchanged.
+    // NOTE (8.3 rider): never actually tuned -- not traced, and the generic
+    // optimizer only consumes linear traces, so the gradient was always zero
+    // (audit hce_analysis 4). Dead until deliberately activated + re-tuned.
     int win_outflanking  = 0;  // king file-distance minus rank-distance
     int win_both_flanks  = 0;  // pawns present on both flanks
     int win_infiltration = 0;  // a king advanced into enemy territory

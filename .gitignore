@@ -71,12 +71,17 @@ __pycache__/
 # Tuning toolchain — downloaded/cloned externals and built test binaries
 tools/bin/*
 tools/weather-factory/
-tools/test_engines/*.exe
+# Test engines are ephemeral build artifacts -- ignore the binaries AND their
+# build-provenance .manifest.txt (durable record lives in commits / results/).
+tools/test_engines/*
 tools/results/*
+# Local opening books (any format: .pgn/.epd/...) — large, not committed
+tools/books/*
 # Keep .gitkeep sentinels so empty dirs survive git clone
 !tools/bin/.gitkeep
 !tools/test_engines/.gitkeep
 !tools/results/.gitkeep
+!tools/books/.gitkeep
 
 # Texel generated datasets / round-trip dumps
 tools/texel/data/*

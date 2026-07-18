@@ -27,14 +27,14 @@
 7k/8/6KP/8/8/8/8/5B2 w - - 0 1 ; draw
 
 # ---- Clear material wins ----
-8/8/8/4k3/8/8/4Q3/4K3 w - - 0 1 ; win_w
-8/8/8/4k3/8/8/4R3/4K3 w - - 0 1 ; win_w
+4k3/8/8/8/8/8/1Q6/4K3 w - - 0 1 ; win_w
+4k3/8/8/8/8/8/1R6/4K3 w - - 0 1 ; win_w
 8/8/8/4k3/8/8/4BN2/4K3 w - - 0 1 ; win_w
-4K3/4q3/4k3/8/8/8/8/8 b - - 0 1 ; win_b
+4K3/1q6/8/8/8/8/8/4k3 b - - 0 1 ; win_b
 
 # ---- Forced mates delivered from the board (search playout) ----
 # Mate-in-1 deliveries (the engine must find and play the mating move):
-k7/2K5/8/8/8/8/8/7Q w - - 0 1 ; mate_w
+k7/7Q/2K5/8/8/8/8/8 w - - 0 1 ; mate_w
 k7/2K5/8/8/8/8/8/7R w - - 0 1 ; mate_w
 k7/2K5/8/3N4/4B3/8/8/8 w - - 0 1 ; mate_w
 # KBNK technique: the engine must drive the bare king to the bishop's corner

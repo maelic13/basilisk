@@ -362,7 +362,9 @@ static float linear_delta_scale(const Board& b) {
         bool bb_dark = (b.pieces[BLACK][BISHOP] & DARK_SQ) != 0;
         if (wb_dark != bb_dark) {
             int total_pawns = popcount(b.pieces[WHITE][PAWN] | b.pieces[BLACK][PAWN]);
-            scale *= static_cast<float>(32 + total_pawns * 4) / 48.0f;
+            // 8.3: shared capped helper -- must match eval.cpp exactly or the
+            // --verify reconstruction breaks.
+            scale *= static_cast<float>(ocb_draw_scale(total_pawns)) / 48.0f;
         }
     }
 
@@ -380,7 +382,8 @@ static float linear_delta_scale(const Board& b) {
     }
 
     if (b.halfmove_clock > 0)
-        scale *= static_cast<float>(std::max(0, 100 - b.halfmove_clock)) / 100.0f;
+        // 8.4: must match eval.cpp's damp_rule50 or --verify breaks.
+        scale *= static_cast<float>(199 - b.halfmove_clock) / 199.0f;
 
     return scale;
 }

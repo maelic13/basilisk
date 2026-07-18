@@ -27,6 +27,18 @@ private:
                     Bitboard attacks[NCOLORS]);
 };
 
+// Draw-scale factor for opposite-coloured-bishop positions (8.3). Eases
+// toward normal as pawns are added but is capped at the neutral 48/48: a
+// draw scaler must never amplify the evaluation. (Pre-8.3 the uncapped
+// 32 + 4*pawns reached 96/48 = 2x at 16 pawns; the Texel fit ratified the
+// bug, so the dependent weights are re-arbitrated by SPRT run #3.)
+// Shared by the evaluator and the tuner's linear_delta_scale so the
+// --verify trace reconstruction stays exact.
+inline int ocb_draw_scale(int total_pawns) {
+    const int scale = 32 + total_pawns * 4;
+    return scale < 48 ? scale : 48;
+}
+
 // Global evaluation parameters. Change fields then call init_eval_tables() to apply.
 extern EvalParams g_eval_params;
 

@@ -42,7 +42,9 @@
     Windows scheduler / process IO jitter without changing the engine budget.
 
 .PARAMETER Book
-    Opening book PGN. Default: tools\books\SuperGM_4mvs.pgn.
+    Opening book. Default: tools\books\UHO_Lichess_4852_v1.epd (repo-local,
+    gitignored; backup in D:\chess\books). Stockfish/OpenBench unbalanced set;
+    .epd/.pgn auto-detected from extension.
 
 .PARAMETER FastchessPath
     Path to fastchess.exe. Default: tools\bin\fastchess.exe.
@@ -71,7 +73,7 @@ param(
     [string]$TC = "10+0.1",
     [double]$MoveTime = 0,
     [int]$TimeMargin = 20,
-    [string]$Book = "$PSScriptRoot\books\SuperGM_4mvs.pgn",
+    [string]$Book = "$PSScriptRoot\books\UHO_Lichess_4852_v1.epd",
     [string]$FastchessPath = "$PSScriptRoot\bin\fastchess.exe"
 )
 
@@ -103,6 +105,8 @@ foreach ($p in @($Engine, $Book) + $Opponents) {
 
 $Engine = (Resolve-Path $Engine).Path
 $Book = (Resolve-Path $Book).Path
+# Tell fastchess the opening format; derive it from the extension (.epd/.pgn).
+$bookFormat = if ([IO.Path]::GetExtension($Book) -ieq ".epd") { "epd" } else { "pgn" }
 
 $resultsDir = Join-Path $PSScriptRoot "results"
 New-Item -ItemType Directory -Force -Path $resultsDir | Out-Null
@@ -127,7 +131,7 @@ foreach ($opponent in $Opponents) {
         -engine "cmd=$Engine" "name=$Name" "option.Hash=$Hash" "option.Threads=1" `
         -engine "cmd=$opponentPath" "name=$opponentName" "option.Hash=$Hash" "option.Threads=1" `
         -each $tcArg "timemargin=$TimeMargin" `
-        -openings "file=$Book" format=pgn order=random `
+        -openings "file=$Book" "format=$bookFormat" order=random `
         -rounds $rounds -games 2 -repeat `
         -concurrency $Concurrency `
         -draw movenumber=40 movecount=8 score=10 `

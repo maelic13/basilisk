@@ -17,8 +17,10 @@
 #include "bitboard.h"
 #include "zobrist.h"
 
+#include <algorithm>
 #include <cassert>
 #include <chrono>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <string_view>
@@ -104,35 +106,47 @@ inline void do_not_optimize(T const& val) { (void)val; }
 
 struct BenchResult {
     const char* label;
-    uint64_t    ops;
-    double      secs;
+    double      median_ops_per_sec;
+    double      mad_ops_per_sec;   // median absolute deviation (dispersion)
+    uint64_t    ops_per_iter;      // work quantum, for context
 
-    double ops_per_sec() const { return static_cast<double>(ops) / secs; }
+    double ops_per_sec() const { return median_ops_per_sec; }
 };
+
+// Warm-up, then take SAMPLES timed runs and report the median throughput plus
+// the median absolute deviation (a robust dispersion measure, unlike best-of-N
+// which hides variance). The workload returns the op count it performed; it
+// must NOT copy or allocate the working set inside the timed region.
+static constexpr int SAMPLES = 11;
 
 template <typename F>
 static BenchResult benchmark(const char* label, int iterations, int warmups, F workload) {
     for (int i = 0; i < warmups; ++i)
-        workload();
+        do_not_optimize(workload());
 
-    double   best_secs = 1e18;
-    uint64_t best_ops  = 0;
-
-    for (int run = 0; run < 3; ++run) {
+    std::vector<double> rate(SAMPLES);
+    uint64_t ops_per_iter = 0;
+    for (int s = 0; s < SAMPLES; ++s) {
         uint64_t ops = 0;
         auto t0 = std::chrono::steady_clock::now();
         for (int i = 0; i < iterations; ++i)
             ops += workload();
         auto t1 = std::chrono::steady_clock::now();
-        double elapsed =
-            std::chrono::duration<double>(t1 - t0).count();
-        if (elapsed < best_secs) {
-            best_secs = elapsed;
-            best_ops  = ops;
-        }
+        const double elapsed = std::chrono::duration<double>(t1 - t0).count();
+        rate[s] = static_cast<double>(ops) / elapsed;
+        ops_per_iter = ops / static_cast<uint64_t>(iterations);
     }
 
-    return { label, best_ops, best_secs };
+    auto median_of = [](std::vector<double> v) {
+        std::sort(v.begin(), v.end());
+        return v[v.size() / 2];
+    };
+    const double med = median_of(rate);
+    std::vector<double> dev(SAMPLES);
+    for (int s = 0; s < SAMPLES; ++s) dev[s] = std::fabs(rate[s] - med);
+    const double mad = median_of(dev);
+
+    return { label, med, mad, ops_per_iter };
 }
 
 // ---------------------------------------------------------------------------
@@ -153,7 +167,10 @@ static uint64_t capture_gen_workload(const std::vector<Board>& boards) {
     return total;
 }
 
-static uint64_t make_unmake_workload(std::vector<Board> boards) {
+// Takes the working set by REFERENCE and restores it via unmake, so no Board
+// is copied inside the timed region (the by-value version copied the whole
+// vector on every call, which dominated the measurement).
+static uint64_t make_unmake_workload(std::vector<Board>& boards) {
     uint64_t ops = 0;
     MoveList moves;
     for (Board& b : boards) {
@@ -168,16 +185,24 @@ static uint64_t make_unmake_workload(std::vector<Board> boards) {
     return ops;
 }
 
-static uint64_t check_detection_workload(const std::vector<Board>& boards) {
+// Replaces the old trivial cached `is_in_check()` read with a real workload:
+// evaluate see_ge (the pruning-critical static exchange) over every legal
+// capture — a hot search operation with genuine branching and X-ray recompute.
+static uint64_t see_workload(const std::vector<Board>& boards) {
     uint64_t ops = 0;
+    MoveList caps;
     for (const Board& b : boards) {
-        do_not_optimize(b.is_in_check());
-        ++ops;
+        caps.count = 0;
+        b.gen_legal_captures(caps);
+        for (Move m : caps) {
+            do_not_optimize(b.see_ge(m, 0));
+            ++ops;
+        }
     }
     return ops;
 }
 
-static uint64_t game_simulation_workload(std::vector<Board> boards) {
+static uint64_t game_simulation_workload(std::vector<Board>& boards) {
     uint64_t ops = 0;
     MoveList outer, inner;
     for (Board& b : boards) {
@@ -240,32 +265,31 @@ int main() {
     auto mku   = benchmark("make/unmake",    2000, 20,
         [&]() { return make_unmake_workload(boards); });
 
-    auto chk   = benchmark("check detection", 500000, 5000,
-        [&]() { return check_detection_workload(boards); });
+    auto see   = benchmark("see_ge captures", 20000, 200,
+        [&]() { return see_workload(boards); });
 
     Board start;
+    start.set_fen(BENCHMARK_POSITIONS[0].fen);
     auto pft   = benchmark("perft(4) startpos", 30, 3,
-        [&]() -> uint64_t {
-            Board b;
-            return perft(b, 4);
-        });
+        [&]() { return perft(start, 4); });
 
     auto sim   = benchmark("game simulation",  300, 10,
         [&]() { return game_simulation_workload(boards); });
 
     // ---- print results ----
 
-    const BenchResult* results[] = { &legal, &caps, &mku, &chk, &pft, &sim };
+    const BenchResult* results[] = { &legal, &caps, &mku, &see, &pft, &sim };
 
     std::printf("\n");
-    std::printf("Board representation performance (%d positions)\n", N_POSITIONS);
-    std::printf("%s\n", std::string(65, '-').c_str());
+    std::printf("Board representation performance (%d positions, median of %d)\n",
+                N_POSITIONS, SAMPLES);
+    std::printf("%s\n", std::string(72, '-').c_str());
     for (const BenchResult* r : results) {
-        std::printf("%-22s %12.0f ops/s  (%9llu ops in %.3fs)\n",
-            r->label,
-            r->ops_per_sec(),
-            (unsigned long long)r->ops,
-            r->secs);
+        const double madpct = r->median_ops_per_sec > 0
+            ? 100.0 * r->mad_ops_per_sec / r->median_ops_per_sec : 0.0;
+        std::printf("%-20s %14.0f ops/s  +/- %5.1f%%  (%llu ops/iter)\n",
+            r->label, r->median_ops_per_sec, madpct,
+            (unsigned long long)r->ops_per_iter);
     }
     std::printf("\n");
 
@@ -287,7 +311,7 @@ int main() {
     ASSERT_MIN(legal, 1'000.0,  "legal movegen");
     ASSERT_MIN(caps,  1'000.0,  "capture gen");
     ASSERT_MIN(mku,     100.0,  "make/unmake");
-    ASSERT_MIN(chk,   5'000.0,  "check detection");
+    ASSERT_MIN(see,   1'000.0,  "see_ge captures");
     ASSERT_MIN(pft,     200.0,  "perft(4)");
     ASSERT_MIN(sim,      50.0,  "game simulation");
 

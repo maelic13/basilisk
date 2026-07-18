@@ -24,7 +24,7 @@
         under the old Little Blitzer-style condition. This disables the clock.
       - LTC confirmation runs at tc=10+0.1 (pass -TC "10+0.1") at phase
         boundaries and for TC-suspect features.
-      - Hash 64 MB, Threads 1, SuperGM_4mvs.pgn opening book (random order),
+      - Hash 64 MB, Threads 1, UHO_Lichess_4852_v1.epd opening book (random order),
         each opening played from both colours (-games 2 -repeat).
       - model=normalized (nElo) — fastchess default, more time-control-robust
         than logistic Elo.
@@ -85,7 +85,12 @@
     Windows scheduler / process IO jitter without changing the engine budget.
 
 .PARAMETER Book
-    Opening book PGN. Default D:\chess\books\SuperGM_4mvs.pgn.
+    Opening book. Default tools\books\UHO_Lichess_4852_v1.epd (repo-local,
+    gitignored; a backup copy lives in D:\chess\books). The Stockfish/
+    OpenBench standard Unbalanced Human Openings set: ~2.6M positions curated to
+    a built-in ~+0.5..+1.0 imbalance, so games are decisive and each carries far
+    more SPRT signal than a balanced book). Format (.epd/.pgn) is auto-detected
+    from the extension. Pass a .pgn (e.g. the old SuperGM/IM books) to override.
 
 .PARAMETER FastchessPath
     Path to fastchess.exe. Default D:\chess\fastchess\fastchess.exe (or found on PATH).
@@ -111,7 +116,7 @@ param(
     [string]$TC = "3+0.03",
     [double]$MoveTime = 0,
     [int]$TimeMargin = 20,
-    [string]$Book = "$PSScriptRoot\books\SuperGM_4mvs.pgn",
+    [string]$Book = "$PSScriptRoot\books\UHO_Lichess_4852_v1.epd",
     [string]$FastchessPath = "$PSScriptRoot\bin\fastchess.exe"
 )
 
@@ -146,35 +151,102 @@ foreach ($p in @($EngineA, $EngineB, $Book)) {
 
 $EngineA = (Resolve-Path $EngineA).Path
 $EngineB = (Resolve-Path $EngineB).Path
+$Book    = (Resolve-Path $Book).Path
+
+# fastchess needs the opening format told explicitly; derive it from the file
+# extension so .epd (UHO and friends) and .pgn books both just work.
+$bookFormat = if ([IO.Path]::GetExtension($Book) -ieq ".epd") { "epd" } else { "pgn" }
 
 $resultsDir = Join-Path $PSScriptRoot "results"
 New-Item -ItemType Directory -Force -Path $resultsDir | Out-Null
 $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
 $pgnOut    = Join-Path $resultsDir "sprt_${NameA}_vs_${NameB}_${timestamp}.pgn"
+$logOut    = Join-Path $resultsDir "sprt_${NameA}_vs_${NameB}_${timestamp}.log"
+
+# Reproducibility manifest (PLAN §1 gate 8): a PGN without this manifest is not
+# a reproducible test. Emitted next to the PGN before the match starts.
+$manifestPath = [IO.Path]::ChangeExtension($pgnOut, ".manifest.txt")
+function Get-Sha256($path) { if (Test-Path $path) { (Get-FileHash $path -Algorithm SHA256).Hash } else { "missing" } }
+function Get-EngineBench($exe) {
+    $out = ("bench`nquit" | & $exe 2>&1)
+    ($out | Select-String -Pattern 'Nodes searched\s*:\s*(\d+)').Matches.Groups[1].Value
+}
+$fcVersion = (& $fastchess --version 2>&1 | Select-Object -First 1)
+$repoSha   = (git rev-parse HEAD 2>$null); if (-not $repoSha) { $repoSha = "n/a" } else { $repoSha = $repoSha.Trim() }
+@(
+    "sprt_mode:     $Mode"
+    "engineA:       $NameA = $EngineA"
+    "engineA_sha256: $(Get-Sha256 $EngineA)"
+    "engineA_bench: $(Get-EngineBench $EngineA)"
+    "engineB:       $NameB = $EngineB"
+    "engineB_sha256: $(Get-Sha256 $EngineB)"
+    "engineB_bench: $(Get-EngineBench $EngineB)"
+    "repo_revision: $repoSha"
+    "sprt_bounds:   elo0=$Elo0 elo1=$Elo1 alpha=$Alpha beta=$Beta model=normalized"
+    "time_control:  $tcLabel  timemargin=${TimeMargin}ms"
+    "hash_mb:       $Hash"
+    "threads:       1"
+    "concurrency:   $Concurrency"
+    "book:          $Book"
+    "book_sha256:   $(Get-Sha256 $Book)"
+    "opening_order: random"
+    "adjudication:  draw(mn=40,mc=8,score=10) resign(mc=3,score=600,twosided)"
+    "fastchess:     $fcVersion"
+    "pgn:           $pgnOut"
+    "started_utc:   $((Get-Date).ToUniversalTime().ToString('u'))"
+) | Set-Content -Path $manifestPath -Encoding utf8
 
 Write-Host ""
 Write-Host "======================================================="
 Write-Host "  SPRT ($Mode): $NameA  vs  $NameB"
+Write-Host "  Manifest: $manifestPath"
 Write-Host "  H0: elo<=$Elo0   H1: elo>=$Elo1   alpha=$Alpha  beta=$Beta  (nElo)"
 Write-Host "  TC: $tcLabel   Margin: ${TimeMargin} ms   Hash: ${Hash} MB   Conc: $Concurrency"
 Write-Host "  Book: $(Split-Path $Book -Leaf)"
 Write-Host "  Runner: $fastchess"
 Write-Host "  PGN:  $pgnOut"
+Write-Host "  Log:  $logOut  (full output; console shows report blocks only)"
 Write-Host "======================================================="
 Write-Host ""
+
+# Console-noise filter (2026-07-17, ported from Rarog): the per-game 'Started
+# game …' / normal 'Finished game … {Draw/wins by adjudication}' / 'Score of …'
+# lines bury the periodic Elo/LLR report blocks and make it impossible to scroll
+# back through how the result progressed. So: TEE the FULL stream to $logOut
+# (nothing lost — grep/scroll it for detail), and on the CONSOLE keep everything
+# EXCEPT that per-game noise. Keep-by-default is deliberate — report blocks,
+# errors, and any time-loss / disconnect / illegal 'Finished game' lines (the
+# SPRT canaries) all still print. `-ratinginterval 20` reports state every 20
+# games so the console shows a clean progression of report blocks.
+$dropNoise = {
+    param($l)
+    $l = "$l"
+    if ($l -match '^\s*Started game \d+ of') { return $true }
+    if ($l -match '^\s*Score of .+ vs .+:\s*\d+ - \d+ - \d+') { return $true }
+    # Drop only NORMAL game finishes; keep anomalies (time loss / disconnect /
+    # illegal / crash / forfeit / stall) so a poisoned SPRT is still visible.
+    if (($l -match '^\s*Finished game \d') -and
+        ($l -notmatch '(?i)(on time|timeout|disconnect|illegal|crash|forfeit|stall)')) { return $true }
+    return $false
+}
 
 & $fastchess `
     -engine "cmd=$EngineA" "name=$NameA" "option.Hash=$Hash" "option.Threads=1" `
     -engine "cmd=$EngineB" "name=$NameB" "option.Hash=$Hash" "option.Threads=1" `
     -each $tcArg "timemargin=$TimeMargin" `
-    -openings "file=$Book" format=pgn order=random `
+    -openings "file=$Book" "format=$bookFormat" order=random `
     -rounds 50000 -games 2 -repeat `
     -concurrency $Concurrency `
+    -ratinginterval 20 `
     -sprt "elo0=$Elo0" "elo1=$Elo1" "alpha=$Alpha" "beta=$Beta" model=normalized `
     -draw movenumber=40 movecount=8 score=10 `
     -resign movecount=3 score=600 twosided=true `
     -pgnout "file=$pgnOut" `
-    -output format=fastchess
+    -output format=fastchess 2>&1 |    # console ticker format (not the PGN path)
+    Tee-Object -FilePath $logOut |
+    Where-Object { -not (& $dropNoise $_) }
+# $LASTEXITCODE reflects fastchess (Tee-Object/Where-Object are cmdlets and do
+# not touch it), so the exit check below stays valid.
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host ""
@@ -182,4 +254,5 @@ if ($LASTEXITCODE -ne 0) {
 } else {
     Write-Host ""
     Write-Host "Match finished. PGN saved to: $pgnOut"
+    Write-Host "Full console log (all per-game lines): $logOut"
 }

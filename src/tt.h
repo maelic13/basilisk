@@ -24,19 +24,27 @@ struct TTEntry {
     uint8_t  flag_age;   // bits 0-1: TTFlag, bits 2-7: age (generation)
 };
 
-struct TTSlot {
-    std::atomic<uint64_t> key_xor_data;
-    std::atomic<uint64_t> data;
+// Dense partial-key cluster (8.5.D1). Each entry is a 16-bit key fragment plus
+// an 8-byte payload word (score16|eval16|move16|depth8|flag_age8) — 10 bytes,
+// half the old 16-byte full-key/XOR slot, so a 32-byte cluster holds the same
+// 3 entries and equal hash fits ~2x the clusters (and entries).
+//
+// Lock-free model (SF-style): the payload words stay 8-byte aligned so each is
+// an atomic load/store; the key16 fragment is a separate 2-byte atomic. A read
+// can only "tear" across the key16/payload pair, and a mismatched pair is
+// harmless — the 1/65536 partial-key collision (or a stale pair under SMP) is
+// caught downstream (illegal tt_move rejected by is_legal; bounds validated).
+// Single-thread search is race-free. Old scheme detected torn writes; this one
+// tolerates the rare harmless race instead, the price of the density.
+struct alignas(32) TTCluster {
+    std::atomic<uint64_t> data[3];    // payload words, 8-byte aligned (offsets 0/8/16)
+    std::atomic<uint16_t> key16[3];   // partial keys (offsets 24/26/28)
 
-    TTSlot() noexcept : key_xor_data(0), data(0) {}
-    TTSlot(const TTSlot&) = delete;
-    TTSlot& operator=(const TTSlot&) = delete;
-};
-
-// 3 entries per cluster. Atomic slots make the cluster 64 bytes on common
-// 64-bit targets, which keeps one cluster on one cache line.
-struct alignas(64) TTCluster {
-    TTSlot entries[3];
+    TTCluster() noexcept {
+        for (int i = 0; i < 3; ++i) { data[i].store(0); key16[i].store(0); }
+    }
+    TTCluster(const TTCluster&) = delete;
+    TTCluster& operator=(const TTCluster&) = delete;
 };
 
 class TranspositionTable {
@@ -61,9 +69,9 @@ public:
 
     void clear() {
         for (size_t i = 0; i < cluster_count_; ++i) {
-            for (TTSlot& slot : clusters_[i].entries) {
-                slot.data.store(0, std::memory_order_relaxed);
-                slot.key_xor_data.store(0, std::memory_order_relaxed);
+            for (int j = 0; j < 3; ++j) {
+                clusters_[i].data[j].store(0, std::memory_order_relaxed);
+                clusters_[i].key16[j].store(0, std::memory_order_relaxed);
             }
         }
         age_.store(0, std::memory_order_relaxed);
@@ -76,16 +84,17 @@ public:
 
     bool probe_copy(Key key, TTEntry& out) const {
         const TTCluster& cluster = clusters_[key & mask_];
+        const uint16_t want = static_cast<uint16_t>(key >> 48);
 
-        for (const TTSlot& slot : cluster.entries) {
-            const uint64_t data = slot.data.load(std::memory_order_relaxed);
-            const uint64_t stored_key = slot.key_xor_data.load(std::memory_order_relaxed) ^ data;
-            if (stored_key == key) {
-                TTEntry e = unpack_entry(key, data);
-                if ((e.flag_age & 3) != TT_NONE) {
-                    out = e;
-                    return true;
-                }
+        for (int i = 0; i < 3; ++i) {
+            if (cluster.key16[i].load(std::memory_order_relaxed) != want)
+                continue;
+            const uint64_t data = cluster.data[i].load(std::memory_order_relaxed);
+            TTEntry e = unpack_entry(data);
+            if ((e.flag_age & 3) != TT_NONE) {   // reject an empty slot that hashes to want==0
+                e.key16 = want;
+                out = e;
+                return true;
             }
         }
 
@@ -108,6 +117,7 @@ public:
 
     void store(Key key, int depth, int score, TTFlag flag, Move m, int ply, int static_eval) {
         TTCluster& cluster = clusters_[key & mask_];
+        const uint16_t want = static_cast<uint16_t>(key >> 48);
         const uint8_t age = age_.load(std::memory_order_relaxed);
 
         int replace_idx = 0;
@@ -115,12 +125,11 @@ public:
         bool have_replace = false;
 
         for (int i = 0; i < 3; i++) {
-            TTSlot& slot = cluster.entries[i];
-            const uint64_t old_data = slot.data.load(std::memory_order_relaxed);
-            const uint64_t old_key = slot.key_xor_data.load(std::memory_order_relaxed) ^ old_data;
-            TTEntry old_entry = unpack_entry(old_key, old_data);
+            const uint16_t old_key16 = cluster.key16[i].load(std::memory_order_relaxed);
+            TTEntry old_entry = unpack_entry(cluster.data[i].load(std::memory_order_relaxed));
+            old_entry.key16 = old_key16;
 
-            if (old_key == key && (old_entry.flag_age & 3) != TT_NONE) {
+            if (old_key16 == want && (old_entry.flag_age & 3) != TT_NONE) {
                 if (flag != TT_EXACT && depth < old_entry.depth - 3
                     && (old_entry.flag_age & 0xFC) == age)
                     return;
@@ -138,18 +147,20 @@ public:
             }
         }
 
-        if (m == MOVE_NONE
-            && (cluster.entries[replace_idx].key_xor_data.load(std::memory_order_relaxed)
-                ^ cluster.entries[replace_idx].data.load(std::memory_order_relaxed)) == key)
+        // Preserve the existing best move on a MOVE_NONE store into the same key.
+        if (m == MOVE_NONE && replace_entry.key16 == want
+            && (replace_entry.flag_age & 3) != TT_NONE)
             m = move_from_tt(replace_entry.move16);
 
         const uint64_t data = pack_entry(score_to_tt(score, ply),
                                          static_eval == INF_EVAL ? INF_EVAL : static_eval,
                                          m, depth, static_cast<uint8_t>(age | uint8_t(flag)));
 
-        TTSlot& slot = cluster.entries[replace_idx];
-        slot.data.store(data, std::memory_order_relaxed);
-        slot.key_xor_data.store(key ^ data, std::memory_order_relaxed);
+        // Publish the payload before the key fragment so a concurrent reader
+        // that matches key16 sees at least this store's payload (relaxed is
+        // enough for single-thread; the SMP race is harmless as noted above).
+        cluster.data[replace_idx].store(data, std::memory_order_relaxed);
+        cluster.key16[replace_idx].store(want, std::memory_order_relaxed);
     }
 
     int hashfull() const {
@@ -157,10 +168,8 @@ public:
         size_t sample = std::min(size_t(334), cluster_count_);
         const uint8_t age = age_.load(std::memory_order_relaxed);
         for (size_t i = 0; i < sample; i++) {
-            for (const TTSlot& slot : clusters_[i].entries) {
-                const uint64_t data = slot.data.load(std::memory_order_relaxed);
-                TTEntry e = unpack_entry(slot.key_xor_data.load(std::memory_order_relaxed) ^ data,
-                                         data);
+            for (int j = 0; j < 3; ++j) {
+                TTEntry e = unpack_entry(clusters_[i].data[j].load(std::memory_order_relaxed));
                 if ((e.flag_age & 3) != TT_NONE && (e.flag_age & 0xFC) == age)
                     count++;
             }
@@ -204,9 +213,9 @@ private:
              | (uint64_t(flag_age) << 56);
     }
 
-    static TTEntry unpack_entry(Key key, uint64_t data) {
+    static TTEntry unpack_entry(uint64_t data) {
         TTEntry e{};
-        e.key16       = static_cast<uint16_t>(key >> 48);
+        e.key16       = 0;  // filled from the stored key16 fragment by the caller
         e.score       = static_cast<int16_t>(data & 0xFFFFu);
         e.static_eval = static_cast<int16_t>((data >> 16) & 0xFFFFu);
         e.move16      = static_cast<uint16_t>((data >> 32) & 0xFFFFu);

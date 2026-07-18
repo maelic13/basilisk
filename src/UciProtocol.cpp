@@ -47,6 +47,7 @@ void UciProtocol::UciLoop() {
         else if (command == "stop")       cmdStop();
         else if (command == "ponderhit")  cmdPonderHit();
         else if (command == "bench")      cmdBench(args);
+        else if (command == "wac")        cmdWac(args);
 #ifdef BASILISK_TUNE
         else if (command == "dumpeval")   run_dumpeval();
 #endif
@@ -147,4 +148,11 @@ void UciProtocol::cmdBench(const std::string& args) {
     if (searching_.exchange(true, std::memory_order_acq_rel))
         stop_requested_.store(true, std::memory_order_release);
     enqueue(EngineCommandType::Bench, args, epoch);
+}
+
+void UciProtocol::cmdWac(const std::string& args) {
+    uint64_t epoch = next_control_epoch();
+    if (searching_.exchange(true, std::memory_order_acq_rel))
+        stop_requested_.store(true, std::memory_order_release);
+    enqueue(EngineCommandType::Wac, args, epoch);
 }

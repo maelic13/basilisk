@@ -535,8 +535,12 @@ int Searcher::low_ply_score(int ply, Square from, Square to) const {
 void Searcher::update_all_histories(Move best, bool best_is_tt,
                                     const Move* quiets, int quiet_count,
                                     const Move* bad_caps, int bad_cap_count,
-                                    Color stm, int depth, SearchStack* ss) {
-    int bonus = history_bonus_value(depth)
+                                    Color stm, int depth, SearchStack* ss,
+                                    bool reward_only, int bonus_scale) {
+    // 8.5.10(e): bonus_scale (percent) lets the caller boost the reward when the
+    // cutoff was "surprising" (static eval below beta -- the search saw a good
+    // move the eval did not). Default 100 = unchanged.
+    int bonus = history_bonus_value(depth) * bonus_scale / 100
               + (best_is_tt ? active_limits_.params.hist_ttmove_bonus : 0);
     int malus = history_malus_value(depth);
 
@@ -554,21 +558,28 @@ void Searcher::update_all_histories(Move best, bool best_is_tt,
         update_pawn_hist(board_ptr_->pawn_key, pt, to, bonus);
         update_low_ply(static_cast<int>(ss - (ss_arr_ + 4)), from, to, bonus);
 
-        // Killers
-        if (ss->killers[0] != best) {
-            ss->killers[1] = ss->killers[0];
-            ss->killers[0] = best;
-        }
+        // Killers / countermove are cutoff semantics ("this move refuted the
+        // node"). In reward_only mode (exact/PV nodes) the best move improved
+        // alpha but did not refute anything, so we boost only the graded history
+        // tables and leave the categorical killer/countermove slots alone.
+        if (!reward_only) {
+            // Killers
+            if (ss->killers[0] != best) {
+                ss->killers[1] = ss->killers[0];
+                ss->killers[0] = best;
+            }
 
-        // Countermove
-        Move prev = (ss-1)->move;
-        if (prev != MOVE_NONE && prev != MOVE_NULL)
-            countermove_[from_sq(prev)][to_sq(prev)] = best;
+            // Countermove
+            Move prev = (ss-1)->move;
+            if (prev != MOVE_NONE && prev != MOVE_NULL)
+                countermove_[from_sq(prev)][to_sq(prev)] = best;
+        }
 
         // Continuation history
         update_cont_for_move(ss, pt, to, bonus);
 
         // Malus for other searched quiets
+        if (!reward_only)
         for (int i = 0; i < quiet_count; ++i) {
             Move m = quiets[i];
             if (m == best) continue;
@@ -589,6 +600,7 @@ void Searcher::update_all_histories(Move best, bool best_is_tt,
     // Quiet promotions: no history update (too rare to matter)
 
     // Malus for bad captures searched before best
+    if (!reward_only)
     for (int i = 0; i < bad_cap_count; ++i) {
         Move m = bad_caps[i];
         if (m == best) continue;
@@ -1019,11 +1031,11 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     }
 
     if (in_check) {
-        if (qply >= MAX_QSEARCH_PLY) {
-            int eval = evaluator.evaluate(*board_ptr_);
-            eval += correction_value(board_ptr_->side_to_move, *board_ptr_, ss);
-            return std::clamp(eval, -(MATE_SCORE - 1), MATE_SCORE - 1);
-        }
+        // No qsearch-depth cap for evasion nodes: a static eval of an
+        // in-check position is not a valid bound and can mask mates in long
+        // check chains, poisoning parent TT stores (search audit 7 / 8.1e).
+        // The ply >= MAX_PLY guard at the top of quiescence() remains the
+        // termination backstop; check chains cannot exceed it.
         MoveList legal;
         board_ptr_->gen_legal(legal);
         int best = -INF_SCORE;
@@ -1068,12 +1080,21 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         return stand_pat;
     }
 
-    // Delta pruning: skip if even capturing the best possible piece can't raise alpha
-    if (stand_pat < alpha - PIECE_VALUE[QUEEN] - 200) return alpha;
+    // Delta pruning: even capturing the best possible piece can't raise
+    // alpha. NOTE (8.1f): the audit's fail-soft return (stand_pat + margin)
+    // was implemented and MEASURED to break the KBNK fixed-depth conversion
+    // canary -- the fail-hard alpha echo is load-bearing for mate-range
+    // bounds under the current fail-hard qsearch + 6.1 stand-pat tightening.
+    // (Likewise, seeding the final store from the tightened stand-pat
+    // scrambled KQK mate distances: a TT_BETA-tightened value is not a
+    // provable upper bound.) Consistent fail-soft is the Phase 10.4
+    // bound-shaping job; do not change this return in isolation.
+    if (stand_pat < alpha - PIECE_VALUE[QUEEN] - 200)
+        return alpha;
 
     if (stand_pat > alpha) alpha = stand_pat;
 
-    if (qply >= MAX_QSEARCH_PLY) return alpha;
+    if (qply >= MAX_QSEARCH_PLY) return stand_pat;  // fail-soft (8.1f)
 
     MoveList captures;
     board_ptr_->gen_legal_captures(captures);
@@ -1145,9 +1166,10 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     }
 
     // Qsearch quiet checks (Step 6.8): captures didn't cut off. At qply==0
-    // only (first qsearch ply — deeper plies skip this, matching SF), try
-    // quiet checking moves filtered by SEE>=0, capped at qsearch_check_cap
-    // (0 = off). SF does this; Ethereal/Weiss don't (mixed evidence).
+    // only, try quiet checking moves filtered by SEE>=0, capped at
+    // qsearch_check_cap (0 = off; the hcefinal SPSA kept it there, and
+    // current SF restricts qsearch to captures/evasions -- kept as inert
+    // infrastructure only).
     if (qply == 0 && active_limits_.params.qsearch_check_cap > 0) {
         MoveList checks;
         board_ptr_->gen_quiet_checks(checks);
@@ -1176,6 +1198,13 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         }
     }
 
+    // Deliberately fail-hard here (store/return alpha, NOT a seeded best):
+    // stand_pat may have been tightened UPWARD by a TT_BETA (lower) bound via
+    // the 6.1 mirror above, so a best seeded from it is not a provable UPPER
+    // bound -- storing it as TT_ALPHA poisons mate-distance resolution
+    // (measured: KQK mate-in-5 degraded to "mate 63"). The audited 8.1f
+    // fail-soft fixes live in the delta-pruning and qsearch-cap returns
+    // above; bound shaping proper is Phase 10.4.
     TTFlag flag = (alpha > orig_alpha) ? TT_EXACT : TT_ALPHA;
     tt_.store(hash, 0, alpha, flag, best_move, ply, raw_eval);
     return alpha;
@@ -1673,9 +1702,14 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         }
 
         if (alpha >= beta) {
+            // 8.5.10(e): boost the bonus when the cutoff was "surprising" -- the
+            // node's static eval was below beta, so the search found a good move
+            // the eval did not credit.
+            const int es = (static_eval != VALUE_NONE && static_eval < beta) ? 125 : 100;
             update_all_histories(m, m == tt_move, quiets_searched, quiets_count,
                                  bad_caps_searched, bad_caps_count,
-                                 board_ptr_->side_to_move, depth, ss);
+                                 board_ptr_->side_to_move, depth, ss,
+                                 /*reward_only=*/false, /*bonus_scale=*/es);
             return true;
         }
 
@@ -1704,6 +1738,23 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     // No legal moves
     if (searched == 0)
         return in_check ? -(MATE_SCORE - ply) : 0;
+
+    // 8.5.10(b') exact/PV best-move history training, REWARD-ONLY.
+    // A beta cutoff trains history inside search_one. An EXACT node -- best_move
+    // improved alpha but did not cut off -- was left untrained. The full updater
+    // also maluses every non-best sibling, which at an exact node (all moves
+    // searched, best-vs-second often a few cp) poisons ordering: the reward+malus
+    // variant lost -84 Elo. Here we reward the PV move's graded history ONLY (no
+    // sibling malus, no killer/countermove) to isolate whether the reward helps.
+    // best_score < beta excludes the already-trained cutoff case (best_score >=
+    // beta there), so there is no double update.
+    if (best_move != MOVE_NONE && best_score > orig_alpha && best_score < beta) {
+        update_all_histories(best_move, best_move == tt_move,
+                             quiets_searched, quiets_count,
+                             bad_caps_searched, bad_caps_count,
+                             board_ptr_->side_to_move, depth, ss,
+                             /*reward_only=*/true);
+    }
 
     // Update correction history with search result
     if (!in_check && ss->excluded == MOVE_NONE && static_eval != VALUE_NONE
@@ -1783,6 +1834,7 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
     int prev_score      = 0;
     Move prev_best      = MOVE_NONE;
     int  best_stability = 0;   // how many consecutive depths best move hasn't changed
+    double best_move_changes = 0.0;  // 8.5.12: decaying count of root best-move flips
 
     int max_depth = limits.infinite ? MAX_SEARCH_DEPTH
                   : std::min(limits.depth, MAX_SEARCH_DEPTH);
@@ -1843,11 +1895,18 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
 
         int prev_score_saved = prev_score;
         prev_score = score;
+        // 8.5.12: decaying best-move-change signal (SF's totBestMoveChanges).
+        // Decays each iteration; a flip adds 1. Used to EXTEND time when the root
+        // best move is thrashing -- complementary to stability_scale, which only
+        // shrinks time when the move is stable.
+        best_move_changes *= 0.5;
         if (cur_best == prev_best)
             best_stability++;
         else {
             best_stability = 0;
             prev_best      = cur_best;
+            if (depth > 1)
+                best_move_changes += 1.0;
         }
 
         if (pv_len_[0] > 0) {
@@ -1886,7 +1945,10 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
             double effort_scale = (depth > 5 && root_best_effort_ >= tp.tm_effort_hi) ? tp.tm_effort_hi_mult / 100.0
                                 : (depth > 5 && root_best_effort_ <= tp.tm_effort_lo) ? tp.tm_effort_lo_mult / 100.0
                                 : 1.0;
-            if (elapsed >= soft_limit_ * stability_scale * score_scale * effort_scale)
+            // 8.5.12: instability extension — a thrashing root best move raises
+            // the threshold (buys more time), complementing stability_scale.
+            double instability_scale = 1.0 + std::min(best_move_changes, 2.0) * (tp.tm_instability / 100.0);
+            if (elapsed >= soft_limit_ * stability_scale * score_scale * effort_scale * instability_scale)
                 break;
         }
 

@@ -16,6 +16,7 @@ enum class EngineCommandType {
     Stop,
     PonderHit,
     Bench,
+    Wac,
     Ready,
     Quit
 };

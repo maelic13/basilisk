@@ -12,13 +12,18 @@
       - tools/weather-factory/          (cloned from GitHub)
       - matplotlib installed for Python
 
-    Place your local opening book at tools/books/SuperGM_4mvs.pgn before
-    running SPRT/SPSA helpers that use the default book path.
+    SPRT / SPSA / gauntlet default to the UHO opening book at
+    tools\books\UHO_Lichess_4852_v1.epd (repo-local, gitignored like all books
+    under tools/books/). Get it from github.com/official-stockfish/books; a
+    backup copy is also kept in D:\chess\books so an accidental delete of one
+    location does not break dev. Pass -Book to override with any .pgn/.epd.
+    Datagen is deliberately NOT switched to UHO -- training-data generation wants
+    a diverse/representative book (e.g. beast_seed.epd), not a deliberately
+    unbalanced one.
 
-    Then build a test binary and start SPSA:
-      ./tools/build_test.ps1 -Suffix phase1-defaults
-      ./tools/setup_spsa.ps1
-      cd tools/weather-factory && python main.py
+    Then build a test binary and start SPSA (one command, sets up AND runs):
+      ./tools/build_test.ps1 -Suffix <s>
+      ./tools/spsa.ps1 -ConfigGroup <g> -EngineSuffix <s>
 
 .PARAMETER FastchessTag
     GitHub release tag to download.  Default "latest" fetches the newest
@@ -101,9 +106,7 @@ Write-Host "  Toolchain setup complete."
 Write-Host ""
 Write-Host "  Next steps:"
 Write-Host "    1. Build a test binary:"
-Write-Host "         ./tools/build_test.ps1 -Suffix phase1-defaults"
-Write-Host "    2. Configure and start SPSA:"
-Write-Host "         ./tools/setup_spsa.ps1"
-Write-Host "         cd tools/weather-factory"
-Write-Host "         python main.py"
+Write-Host "         ./tools/build_test.ps1 -Suffix <s>"
+Write-Host "    2. Set up AND run SPSA (one command):"
+Write-Host "         ./tools/spsa.ps1 -ConfigGroup <g> -EngineSuffix <s>"
 Write-Host "============================================================"

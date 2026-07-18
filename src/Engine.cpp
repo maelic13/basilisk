@@ -9,6 +9,7 @@
 #include "Engine.h"
 #include "UciOutput.h"
 #include "bench.h"
+#include "wac.h"
 #include "syzygy.h"
 
 namespace {
@@ -239,6 +240,28 @@ void Engine::start_search(uint64_t command_epoch,
     stop_requested_.store(false, std::memory_order_release);
 }
 
+void Engine::run_wac_command(const EngineCommand& command) {
+    // wac [depth] -- WAC tactical suite at fixed depth, single-threaded,
+    // deterministic (mirrors sibling engine Rarog's wac command).
+    int depth = DEFAULT_WAC_DEPTH;
+    {
+        std::istringstream iss(command.args);
+        int value;
+        if (iss >> value) depth = value;
+    }
+
+    if (command.epoch != 0
+        && control_epoch_.load(std::memory_order_acquire) != command.epoch)
+        return;
+
+    stop_requested_.store(false, std::memory_order_release);
+    searching_.store(true, std::memory_order_release);
+    run_wac(depth);
+    if (command.epoch == 0
+        || control_epoch_.load(std::memory_order_acquire) == command.epoch)
+        searching_.store(false, std::memory_order_release);
+}
+
 void Engine::run_bench_command(const EngineCommand& command) {
     // bench [depth] [repeats] — single-threaded so the node total is a
     // deterministic fingerprint (matches sibling engine Rarog's bench command).
@@ -323,6 +346,9 @@ void Engine::handle_command(const EngineCommand& command, bool& quit) {
             break;
         case EngineCommandType::Bench:
             run_bench_command(command);
+            break;
+        case EngineCommandType::Wac:
+            run_wac_command(command);
             break;
         case EngineCommandType::Ready:
             if (command.ack)

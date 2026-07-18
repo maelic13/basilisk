@@ -56,7 +56,7 @@ endif()
 
 set(COMP "${_basilisk_compiler}" CACHE STRING "Compiler selection: auto, clang, gcc, or llvm" FORCE)
 
-project(basilisk VERSION 1.8.0 LANGUAGES CXX)
+project(basilisk VERSION 1.9.0 LANGUAGES CXX)
 
 _basilisk_detect_darwin_processor(_basilisk_system_processor "${CMAKE_SYSTEM_NAME}" "${CMAKE_SYSTEM_PROCESSOR}")
 if(APPLE AND NOT _basilisk_system_processor MATCHES "^(arm64|aarch64)$")
@@ -158,6 +158,7 @@ target_link_libraries(basilisk_engine PUBLIC basilisk_board PRIVATE fathom)
 add_executable(basilisk
     src/Basilisk.cpp
     src/bench.cpp
+    src/wac.cpp
     src/Engine.cpp
     src/Parameters.cpp
     src/UciProtocol.cpp
@@ -195,6 +196,18 @@ add_executable(test_eval tests/test_eval.cpp)
 target_link_libraries(test_eval PRIVATE basilisk_engine)
 
 # ---------------------------------------------------------------------------
+# WAC tactical-suite tests (parse/matcher correctness + solved-count floor)
+# ---------------------------------------------------------------------------
+add_executable(test_wac tests/test_wac.cpp src/wac.cpp src/Parameters.cpp)
+target_link_libraries(test_wac PRIVATE basilisk_engine)
+
+# ---------------------------------------------------------------------------
+# Invariant / property / differential / fuzz tests (Phase 8.8)
+# ---------------------------------------------------------------------------
+add_executable(test_invariants tests/test_invariants.cpp)
+target_link_libraries(test_invariants PRIVATE basilisk_board)
+
+# ---------------------------------------------------------------------------
 # Search tests
 # ---------------------------------------------------------------------------
 add_executable(test_search tests/test_search.cpp src/Parameters.cpp)
@@ -208,6 +221,7 @@ add_executable(test_engine_ponder
     src/Engine.cpp
     src/Parameters.cpp
     src/bench.cpp
+    src/wac.cpp
 )
 target_link_libraries(test_engine_ponder PRIVATE basilisk_engine)
 
@@ -219,6 +233,7 @@ add_executable(test_engine_threading
     src/Engine.cpp
     src/Parameters.cpp
     src/bench.cpp
+    src/wac.cpp
 )
 target_link_libraries(test_engine_threading PRIVATE basilisk_engine)
 
@@ -240,6 +255,8 @@ target_link_libraries(test_endgames PRIVATE basilisk_engine)
 
 include(CTest)
 add_test(NAME test_board        COMMAND test_board)
+add_test(NAME test_wac          COMMAND test_wac)
+add_test(NAME test_invariants   COMMAND test_invariants)
 add_test(NAME test_move         COMMAND test_move)
 add_test(NAME test_tt           COMMAND test_tt)
 add_test(NAME test_eval         COMMAND test_eval)

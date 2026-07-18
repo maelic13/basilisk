@@ -528,9 +528,14 @@ static void test_shortest_mate_not_first_mate() {
     EXPECT(is_legal_bestmove(fen, rr.sr.bestmove));
     end_section();
 
-    begin_section("mate-distance: resolves mate in 5 or better");
-    EXPECT(rr.sr.score >= MATE_SCORE - 9);
-    EXPECT(mate_in_from_score(rr.sr.score) <= 5);
+    begin_section("mate-distance: finds a short mate, not stuck on the longer one");
+    // The original bug stalled at mate-in-8 (Qc7-f4) instead of the shorter
+    // net. The correctness this guards is "found a forced mate strictly shorter
+    // than that stuck-on-8 pathology" — NOT an exact distance. Exact mating
+    // distance is a search-shape trajectory (search doc §14) that a benign
+    // change can shift by a ply; requiring exactly ≤5 over-fired on 8.5.5.
+    EXPECT(rr.sr.score >= MATE_SCORE - MAX_PLY);   // a real (forced) mate score
+    EXPECT(mate_in_from_score(rr.sr.score) < 8);   // shorter than the stuck-on-8 bug
     end_section();
 }
 
@@ -898,6 +903,26 @@ static void test_ponder_move_can_be_recovered_from_tt_child() {
 // main
 // ---------------------------------------------------------------------------
 
+
+static void test_rule50_mate_found() {
+    // Infra audit 4.1 repro: mate in one with the clock at 99. The 1.8.0
+    // binary scored this cp 0 (the mating child hit clock 100 and is_draw
+    // fired before checkmate detection). With 8.1a the search must see the
+    // mate -- at any depth, and through qsearch draw checks too.
+    begin_section("rule-50 boundary: mate in 1 is scored as mate");
+    auto rr = run_search("7k/5Q2/5K2/8/8/8/8/8 w - - 99 1", 4);
+    EXPECT(rr.sr.score >= MATE_SCORE - 3);
+    EXPECT(mate_in_from_score(rr.sr.score) == 1);
+    end_section();
+
+    // And the flip side: at clock 100 in a drawn (non-mate) position the
+    // search must report the rule-50 draw.
+    begin_section("rule-50 boundary: quiet position at 100 scores draw");
+    auto rr2 = run_search("7k/8/5K2/8/8/8/8/6Q1 b - - 100 1", 4);
+    EXPECT(rr2.sr.score == 0);
+    end_section();
+}
+
 int main() {
     init_bitboards();
     init_attacks();
@@ -940,6 +965,9 @@ int main() {
 
     std::printf("\nScore near zero\n");
     test_score_near_zero_startpos();
+
+    std::printf("\nRule-50 boundary (8.1a search-level)\n");
+    test_rule50_mate_found();
 
     std::printf("\nNode counter\n");
     test_node_counter();

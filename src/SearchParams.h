@@ -24,7 +24,7 @@ struct SearchParams {
     int futility_coeff      = 128;   // FutilityCoeff
 
     // ---- History pruning ----------------------------------------------------
-    int hist_prune_coeff    = 4210;  // HistPruneCoeff
+    int hist_prune_coeff    = 14004;  // HistPruneCoeff
 
     // ---- SEE pruning (bad captures) -----------------------------------------
     int see_prune_coeff     = 73;    // SeePruneCoeff
@@ -37,9 +37,9 @@ struct SearchParams {
     // inert per the pre-registered rule. Gated by cap_fut_depth, default 0:
     // lmr_depth >= 0 so `lmr_depth < 0` never fires -> provably inert. Re-enable
     // (cap_fut_depth ~7) + tune the margins only in 6.9 SPSA, SPRT + CTest gated.
-    int cap_fut_depth    = 0;    // CapFutDepth (0 = off; enable at ~7)
-    int cap_fut_base     = 200;  // CapFutBase    (capture futility base margin)
-    int cap_fut_coeff    = 200;  // CapFutCoeff   (capture futility per-lmrDepth margin)
+    int cap_fut_depth    = 1;    // CapFutDepth (hcefinal SPSA; mechanism only grazes lmr_depth<1)
+    int cap_fut_base     = 198;  // CapFutBase    (capture futility base margin)
+    int cap_fut_coeff    = 283;  // CapFutCoeff   (capture futility per-lmrDepth margin)
 
     // ---- SEE-quiet pruning (Phase 6.5, EXPOSED BUT INERT) -------------------
     // Skip quiets losing material by SEE (margin -coeff * lmr_depth²; SF+Ethereal).
@@ -56,8 +56,9 @@ struct SearchParams {
     // ---- Qsearch quiet checks (Phase 6.8) ------------------------------------
     // At qply==0 only, after captures fail to raise alpha to beta: try quiet
     // checking moves (Board::gen_quiet_checks) filtered by SEE>=0, capped at
-    // this many. SF does this; Ethereal/Weiss don't (noisy-only qsearch) --
-    // mixed evidence, hence optional. EXPOSED BUT INERT: the seeded default
+    // this many. NOTE (8.1f rider): the "SF does this" claim tracked an OLDER
+    // Stockfish -- current SF restricts qsearch to captures/evasions, and the
+    // hcefinal SPSA independently pinned this cap at 0. Inert infrastructure. EXPOSED BUT INERT: the seeded default
     // (6) broke the KBNK mate CTest -- the sixth mechanism in a row (6.2-6.5)
     // to trip this canary at its literature/round-number seed. Default 0 is
     // PROVABLY inert (`qsearch_check_cap > 0` gates the whole loop). Real
@@ -89,12 +90,12 @@ struct SearchParams {
     // Defaults are the old integer values ×1024 -> behaviour-identical; the
     // sub-ply resolution is headroom for the 6.9 SPSA. lmr_tt_capture (SF: ~1
     // ply when the TT move is a capture) is seeded 0 == inert.
-    int lmr_hist_div            = 7830;  // LmrHistDiv (history still integer-quantised; see search.cpp)
+    int lmr_hist_div            = 5683;  // LmrHistDiv (history still integer-quantised; see search.cpp)
     int lmr_non_pv_adj          = 1024;  // LmrNonPvAdj      (1.0 ply)
-    int lmr_cut_node_adj        = 0;     // LmrCutNodeAdj
-    int lmr_tt_pv_adj           = 0;     // LmrTtPvAdj
-    int lmr_not_improving_adj   = 0;     // LmrNotImprovingAdj
-    int lmr_tt_capture          = 0;     // LmrTtCapture (0 = off; SF ~1039)
+    int lmr_cut_node_adj        = 401;     // LmrCutNodeAdj (hcefinal SPSA 2026-07-14; hand seeds 1024/512 broke canaries, the JOINT tune landed here)
+    int lmr_tt_pv_adj           = 23;     // LmrTtPvAdj (hcefinal SPSA; near-noise -- tt_pv signal is weak until 8.5's TT-PV bit, re-check then)
+    int lmr_not_improving_adj   = 89;    // LmrNotImprovingAdj (hcefinal SPSA)
+    int lmr_tt_capture          = 301;   // LmrTtCapture (hcefinal SPSA; SF ~1039)
 
     // ---- Post-LMR continuation-history nudge (Phase 6.4) ---------------------
     // After an LMR-reduced move's confirmation re-search, reward/punish its
@@ -108,7 +109,7 @@ struct SearchParams {
     // shipped default is PROVABLY inert (0 -> hist_update's bonus term is
     // exactly 0, leaving the table untouched) rather than empirically picked.
     // The real scale is 6.9 SPSA material, gated by SPRT + these same CTests.
-    int post_lmr_hist_scale    = 0;      // PostLmrHistScale (percent, 100 = Weiss-unscaled)
+    int post_lmr_hist_scale    = 0;    // PostLmrHistScale (hcefinal SPSA joint-optimum 104; re-tested vs rule50-retry after the canary fix -> WASH +0.87 +/- 4.92 LLR~0 @8k -> reverted to 0. Marginal SPSA dim = ~0 on the baked head; value re-decided at 10.7 post-NNUE, so no durable reason to keep a neutral change.)
 
     // ---- History updates (Phase 6.3) -----------------------------------------
     // bonus = min((quad*d*d)/64 + lin*d, max); malus mirrored with its own knobs.
@@ -121,13 +122,13 @@ struct SearchParams {
     // consumer (hist pruning, LMR hist div) was tuned for our scale. So the
     // Basilisk-specific constants are found by the wave2 SPSA (6.9) jointly
     // with the consumers, and the SPSA output is SPRT-gated + CTest-gated.
-    int hist_bonus_quad     = 64;    // HistBonusQuad  (x d^2 / 64)
-    int hist_bonus_lin      = 0;     // HistBonusLin   (x d)
-    int hist_bonus_max      = 2048;  // HistBonusMax
-    int hist_malus_quad     = 64;    // HistMalusQuad  (x d^2 / 64)
-    int hist_malus_lin      = 0;     // HistMalusLin   (x d)
-    int hist_malus_max      = 2048;  // HistMalusMax
-    int hist_ttmove_bonus   = 0;     // HistTtMoveBonus (extra when best == tt_move; SF-only, off)
+    int hist_bonus_quad     = 62;    // HistBonusQuad  (x d^2 / 64)
+    int hist_bonus_lin      = 120;     // HistBonusLin   (x d)
+    int hist_bonus_max      = 1863;  // HistBonusMax
+    int hist_malus_quad     = 62;    // HistMalusQuad  (x d^2 / 64)
+    int hist_malus_lin      = 143;     // HistMalusLin   (x d)
+    int hist_malus_max      = 1304;  // HistMalusMax
+    int hist_ttmove_bonus   = 29;     // HistTtMoveBonus (extra when best == tt_move; SF-only, off)
 
     // ---- Time management (Phase 5) --------------------------------------------
     // Hand-tuned defaults. The 5.8 SPSA bake (TmOptMult 105 / TmMaxMult 85 etc.,
@@ -147,4 +148,7 @@ struct SearchParams {
     int tm_effort_lo        = 25;    // TmEffortLo       (low effort %, grow time)
     int tm_effort_hi_mult   = 80;    // TmEffortHiMult   (0.80 when effort high, ×100)
     int tm_effort_lo_mult   = 120;   // TmEffortLoMult   (1.20 when effort low, ×100)
+    // 8.5.12: extend time when the root best move is thrashing. The decaying
+    // best_move_changes (capped at 2) scales this: threshold *= 1 + changes*mult.
+    int tm_instability      = 35;    // TmInstability    (per-change extension, ×100)
 };

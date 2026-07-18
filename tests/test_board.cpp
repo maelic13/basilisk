@@ -19,6 +19,8 @@
 #include "zobrist.h"
 #include "test_harness.h"
 
+#include <algorithm>
+#include <climits>
 #include <cstring>
 #include <string>
 #include <vector>
@@ -130,8 +132,8 @@ static void test_fen_roundtrip() {
           "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" },
         { "kiwipete",
           "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1" },
-        { "with ep square",
-          "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1" },
+        { "with ep square (legal capture exists)",
+          "rnbqkbnr/ppp1pppp/8/8/3pP3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1" },
         { "no castling rights",
           "4k3/8/8/8/8/8/8/4K3 w - - 0 1" },
         { "high halfmove + fullmove",
@@ -207,10 +209,12 @@ static void test_fen_validation() {
                              true);
 
     begin_section("fullmove zero tolerated");
+    // (the e6 EP token has no legal capturer, so it normalizes to "-" -- 8.1c)
     const char* fen =
         "r1bqkb1r/pppn1ppp/3p1n2/4p1B1/3PP3/2N5/PPP2PPP/R2QKBNR w KQkq e6 0 0";
     EXPECT(b.try_set_fen(fen, &error));
-    EXPECT_STR(b.get_fen(), fen);
+    EXPECT_STR(b.get_fen(),
+        "r1bqkb1r/pppn1ppp/3p1n2/4p1B1/3PP3/2N5/PPP2PPP/R2QKBNR w KQkq - 0 0");
     end_section();
 
     begin_section("castling rights sanitized for missing rooks");
@@ -699,7 +703,7 @@ static void test_en_passant() {
     end_section();
 
     begin_section("FEN with ep square parsed and output correctly");
-    b.set_fen("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1");
+    b.set_fen("rnbqkbnr/ppp1pppp/8/8/3pP3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1");  // legal capture exists -> ep kept (8.1c)
     EXPECT_EQ(b.ep_sq, E3);
     end_section();
 
@@ -806,8 +810,8 @@ static void test_null_move() {
     end_section();
 
     begin_section("null move clears ep square");
-    // FEN with an explicit ep square
-    b.set_fen("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1");
+    // FEN with a legally capturable ep square (8.1c keeps only those)
+    b.set_fen("rnbqkbnr/ppp1pppp/8/8/3pP3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1");
     EXPECT_EQ(b.ep_sq, E3);
     b.make_null_move();
     EXPECT_EQ(b.ep_sq, SQ_NONE);
@@ -816,7 +820,7 @@ static void test_null_move() {
     end_section();
 
     begin_section("null move changes hash; unmake restores it");
-    b.set_fen("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1");
+    b.set_fen("rnbqkbnr/ppp1pppp/8/8/3pP3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1");
     Key h0 = b.hash;
     int pfn0 = b.plies_from_null;
     b.make_null_move();
@@ -913,6 +917,257 @@ static void test_see() {
 // main
 // ---------------------------------------------------------------------------
 
+
+// ---------------------------------------------------------------------------
+// Rule-50 / checkmate precedence (Phase 8.1a, infra audit 4.1)
+// ---------------------------------------------------------------------------
+
+static void test_rule50_mate_precedence() {
+    // 1. Quiet mating move takes the clock from 99 to 100: the child is
+    //    CHECKMATE, not a rule-50 draw.
+    {
+        Board b;
+        b.set_fen("7k/5Q2/5K2/8/8/8/8/8 w - - 99 1");
+        b.make_move(make_move(F7, G7));  // Qg7#
+        begin_section("clock 99->100 quiet mate: not a draw");
+        EXPECT(b.halfmove_clock == 100);
+        EXPECT(!b.is_draw(0));
+        EXPECT(!b.is_draw());
+        MoveList ml;
+        b.gen_legal(ml);
+        EXPECT(b.is_in_check() && ml.empty());  // checkmate
+        end_section();
+    }
+    // 2. Checkmate position loaded directly at clock 100: still not a draw.
+    {
+        Board b;
+        b.set_fen("7k/6Q1/5K2/8/8/8/8/8 b - - 100 1");
+        begin_section("checkmate at clock 100: not a draw");
+        EXPECT(!b.is_draw(0));
+        EXPECT(!b.is_draw());
+        end_section();
+    }
+    // 3. In check at clock 100 WITH a legal evasion: rule-50 draw stands.
+    {
+        Board b;
+        b.set_fen("7k/8/5Q2/8/8/8/8/K7 b - - 100 1");
+        begin_section("in check at 100 with evasion: draw");
+        EXPECT(b.is_in_check());
+        EXPECT(b.is_draw(0));
+        end_section();
+    }
+    // 4. Not in check at clock 100: plain rule-50 draw.
+    {
+        Board b;
+        b.set_fen("7k/8/5K2/8/8/8/8/6Q1 b - - 100 1");
+        begin_section("quiet position at 100: draw");
+        EXPECT(!b.is_in_check());
+        EXPECT(b.is_draw(0));
+        end_section();
+    }
+}
+
+
+// ---------------------------------------------------------------------------
+// Null move must not advance the rule-50 clock (Phase 8.1b, infra audit 4.2)
+// ---------------------------------------------------------------------------
+
+static void test_null_move_clock() {
+    Board b;
+    b.set_fen("4k3/8/8/8/8/8/4P3/4K3 w - - 57 1");
+    begin_section("make_null_move keeps halfmove_clock");
+    b.make_null_move();
+    EXPECT(b.halfmove_clock == 57);
+    b.unmake_null_move();
+    EXPECT(b.halfmove_clock == 57);
+    end_section();
+
+    // Boundary regression: at clock 99 a null move must not create a
+    // rule-50 draw in the child.
+    Board c;
+    c.set_fen("4k3/8/8/8/8/8/4P3/4K3 w - - 99 1");
+    begin_section("null move at clock 99 does not manufacture a draw");
+    c.make_null_move();
+    EXPECT(c.halfmove_clock == 99);
+    EXPECT(!c.is_draw(1));
+    c.unmake_null_move();
+    end_section();
+}
+
+
+// ---------------------------------------------------------------------------
+// Legal-EP-only hashing (Phase 8.1c, infra audit 4.5)
+// ---------------------------------------------------------------------------
+
+static void test_legal_ep_hashing() {
+    // Audit repro: after d2d4 the e4 pawn is pinned to its king by the e1
+    // rook, so e4xd3 e.p. is illegal -- no EP square may be set or hashed.
+    {
+        Board b;
+        b.set_fen("4k3/8/8/8/4p3/8/3P4/K3R3 w - - 0 1");
+        b.make_move(make_move(D2, D4));
+        begin_section("pinned EP capturer: ep square not set");
+        EXPECT_EQ(b.ep_sq, SQ_NONE);
+        end_section();
+
+        // Hash identity: the position must equal its FEN twin without EP.
+        Board twin;
+        twin.set_fen("4k3/8/8/8/3Pp3/8/8/K3R3 b - - 0 1");
+        begin_section("pinned EP: hash equals the no-EP twin");
+        EXPECT_EQ(b.hash, twin.hash);
+        end_section();
+    }
+    // Same shape without the pin: the capture is legal, EP must be set.
+    {
+        Board b;
+        b.set_fen("4k3/8/8/8/4p3/8/3P4/K7 w - - 0 1");
+        b.make_move(make_move(D2, D4));
+        begin_section("legal EP capturer: ep square set");
+        EXPECT_EQ(b.ep_sq, D3);
+        end_section();
+    }
+    // set_fen applies the same predicate: pinned-EP token is dropped.
+    {
+        Board b;
+        b.set_fen("4k3/8/8/8/3Pp3/8/8/K3R3 b - d3 0 1");
+        begin_section("set_fen drops a pinned EP token");
+        EXPECT_EQ(b.ep_sq, SQ_NONE);
+        end_section();
+    }
+}
+
+
+// ---------------------------------------------------------------------------
+// History-capacity release guard (Phase 8.1d, infra audit 4.6)
+// ---------------------------------------------------------------------------
+
+static void test_history_capacity_guard() {
+    // Push far past MAX_HISTORY via null moves: the release clamp must keep
+    // history_size in bounds (bounded state damage instead of an
+    // out-of-bounds write). Reset via set_fen afterwards.
+    Board b;
+    b.set_fen("4k3/8/8/8/8/8/4P3/4K3 w - - 0 1");
+    begin_section("history overflow is clamped, no out-of-bounds");
+    for (int i = 0; i < Board::MAX_HISTORY + 200; i++)
+        b.make_null_move();
+    EXPECT(b.history_size <= Board::MAX_HISTORY);
+    b.set_fen("4k3/8/8/8/8/8/4P3/4K3 w - - 0 1");  // clean reset
+    EXPECT(b.history_size == 0);
+    end_section();
+}
+
+
+// ---------------------------------------------------------------------------
+// Pin-aware SEE + independent slow legal-exchange oracle (Phase 8.2,
+// infra audit 4.3/4.4)
+// ---------------------------------------------------------------------------
+
+static constexpr int ORACLE_VALUES[PIECE_TYPE_NB] = {0, 100, 300, 300, 500, 900, 20000};
+
+// Value, for the side to move, of continuing the capture sequence on `to`
+// with its least valuable LEGAL attacker (may decline: >= 0). Uses real
+// make/unmake, so pins, discovered checks, and king safety are exact --
+// an oracle independent of see()/see_ge()'s bitboard bookkeeping.
+static int oracle_exchange(Board& b, Square to) {
+    MoveList legal;
+    b.gen_legal(legal);
+    Move best = MOVE_NONE;
+    int  best_attacker = INT_MAX;
+    for (Move m : legal) {
+        if (to_sq(m) != to) continue;
+        if (move_type(m) == CASTLING || move_type(m) == EN_PASSANT) continue;
+        if (b.board_sq[to] == NO_PIECE) continue;          // captures only
+        if (move_type(m) == PROMOTION) continue;           // keep the model simple
+        const int v = ORACLE_VALUES[type_of(b.board_sq[from_sq(m)])];
+        if (v < best_attacker) { best_attacker = v; best = m; }
+    }
+    if (best == MOVE_NONE) return 0;
+    const int gain = ORACLE_VALUES[type_of(b.board_sq[to])];
+    b.make_move(best);
+    const int reply = oracle_exchange(b, to);
+    b.unmake_move(best);
+    return std::max(0, gain - reply);
+}
+
+static int oracle_see(Board& b, Move m) {
+    int gain = 0;
+    if (move_type(m) == EN_PASSANT) gain = ORACLE_VALUES[PAWN];
+    else if (b.board_sq[to_sq(m)] != NO_PIECE) gain = ORACLE_VALUES[type_of(b.board_sq[to_sq(m)])];
+    b.make_move(m);
+    const int reply = oracle_exchange(b, to_sq(m));
+    b.unmake_move(m);
+    return gain - reply;
+}
+
+static Move find_capture(const Board& b, Square from, Square to) {
+    MoveList legal;
+    b.gen_legal(legal);
+    for (Move m : legal)
+        if (from_sq(m) == from && to_sq(m) == to) return m;
+    return MOVE_NONE;
+}
+
+static void check_see_case(const char* label, const char* fen,
+                           Square from, Square to, int expected) {
+    Board b;
+    b.set_fen(fen);
+    Move m = find_capture(b, from, to);
+    begin_section(label);
+    EXPECT(m != MOVE_NONE);
+    if (m != MOVE_NONE) {
+        EXPECT_EQ(b.see(m), expected);
+        EXPECT_EQ(b.see(m), oracle_see(b, m));           // oracle agreement
+        EXPECT(b.see_ge(m, expected) && !b.see_ge(m, expected + 1));
+    }
+    end_section();
+}
+
+static void test_see_pin_legality() {
+    // Audit 4.3 repro: the e7 knight is pinned by the e1 rook and cannot
+    // legally recapture on c6 -- the exchange is a clean pawn win.
+    check_see_case("pinned knight cannot recapture (audit repro)",
+                   "4k3/4n3/2p5/1B6/8/8/8/K3R3 w - - 0 1", B5, C6, 100);
+
+    // Same shape, no pin (rook off the e-file): Nxc6 recaptures, bishop lost.
+    check_see_case("unpinned twin: knight recaptures",
+                   "4k3/4n3/2p5/1B6/8/8/8/K2R4 w - - 0 1", B5, C6, -200);
+
+    // Pinned BISHOP recapturer: black Be7 pinned by Re1; Nxc6 wins the pawn
+    // (guarded only by the pinned bishop via d8? keep it direct: bishop on
+    // d7 pinned by Rd1 against Kd8; white Nxc6 attacked-by-Bd7 only).
+    check_see_case("pinned bishop cannot recapture",
+                   "3k4/3b4/2p5/8/3N4/8/8/K2R4 w - - 0 1", D4, C6, 100);
+
+    // Pinned PAWN recapturer: black pawn d7 pinned by Rd1 against Kd8;
+    // white knight takes on c6, normally d7xc6 recaptures.
+    check_see_case("pinned pawn cannot recapture",
+                   "3k4/3p4/2n5/8/3N4/8/8/K2R4 w - - 0 1", D4, C6, 300);
+
+    // Pin released when the pinner itself initiates the exchange: the e2
+    // queen pins the e5 knight, then plays Qxg4 -- with the queen gone from
+    // e2 the knight is free, so Nxg4 must NOT be pin-excluded. Correct SEE:
+    // +100 (pawn) - 900 (queen) + 300 (knight, hxg4) = -500. A filter that
+    // ignored the pinner's departure would wrongly report +100.
+    check_see_case("pinner departs: pin released mid-exchange",
+                   "4k3/8/8/4n3/6p1/7P/4Q3/K7 w - - 0 1", E2, G4, -500);
+
+    // Control twin: a different white piece (Bh5) initiates the same
+    // exchange while the e2 queen stays on the board -- the pin holds and
+    // the knight cannot recapture: +100.
+    check_see_case("pinner stays: pin holds during exchange",
+                   "4k3/8/8/4n2B/6p1/7P/4Q3/K7 w - - 0 1", H5, G4, 100);
+
+    // King recapture sanity (audit 4.4's SEE-king claim was REFUTED -- the
+    // KING=20000 sentinel + minimax fold is correct; these verify it):
+    // legal king recapture: Qxe7+ Kxe7, queen undefended -> -800.
+    check_see_case("king recapture (legal): queen sac refused",
+                   "4k3/4p3/8/8/8/8/8/4QK2 w - - 0 1", E1, E7, -800);
+    // illegal king recapture: same, but Bh4 guards e7 -> Kxe7 is illegal,
+    // and the sentinel fold reaches the same answer as true legality: +100.
+    check_see_case("king recapture (illegal): sentinel folds to legality",
+                   "4k3/4p3/8/8/7B/8/8/4QK2 w - - 0 1", E1, E7, 100);
+}
+
 int main() {
     init_bitboards();
     init_attacks();
@@ -920,6 +1175,19 @@ int main() {
 
     std::printf("Board correctness tests\n");
     std::printf("%s\n", std::string(65, '=').c_str());
+
+    std::printf("\nRule-50 / mate precedence\n");
+    test_rule50_mate_precedence();
+
+    std::printf("\nNull move preserves the rule-50 clock\n");
+    test_null_move_clock();
+
+    std::printf("\nLegal-EP-only hashing\n");
+    test_legal_ep_hashing();
+
+    std::printf("\nHistory-capacity release guard\n");
+    test_history_capacity_guard();
+    test_see_pin_legality();
 
     std::printf("\nFEN round-trip\n");
     test_fen_roundtrip();

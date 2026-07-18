@@ -151,12 +151,12 @@ For distributable binaries, add `-DPORTABLE_BUILD=ON` when configuring. This kee
 
 ### Profile-guided release builds
 
-GitHub release builds do not use PGO; they build and upload the normal portable
-release assets. PGO is intended for local builds where you control the target
-machine and training workload.
+GitHub release binaries are **profile-guided-optimized (PGO)** and portable —
+the release workflow builds the `pgo` target for each CPU tier (generic, AVX2,
+BMI2-PEXT) without `-march=native`, so each binary runs on any CPU of its tier.
 
-CMake exposes PGO as a build target. Configure the normal preset once, then
-build the `pgo` target:
+You can also build a PGO binary locally. CMake exposes PGO as a build target;
+configure the normal preset once, then build the `pgo` target:
 
 ```powershell
 cmake --preset release-avx2 -DCOMP=clang

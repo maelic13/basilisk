@@ -249,7 +249,8 @@ private:
     void update_all_histories(Move best, bool best_is_tt,
                               const Move* quiets, int quiet_count,
                               const Move* bad_caps, int bad_cap_count,
-                              Color stm, int depth, SearchStack* ss);
+                              Color stm, int depth, SearchStack* ss,
+                              bool reward_only = false, int bonus_scale = 100);
 
     // Correction history
     void update_correction(Color stm, const Board& board, SearchStack* ss, int diff, int depth);

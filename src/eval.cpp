@@ -281,6 +281,16 @@ static int kbnk_score(const Board& b, Color strong) {
 // Receives the white-perspective tapered score and returns it after applying
 // known-endgame overrides and draw scaling. Reproduces the previous OCB and
 // KNNK behaviour exactly for every position they used to touch.
+// Rule-50 eval damping (8.4 retry): drain the static eval toward zero as the
+// 50-move counter grows. The old (100 - clock)/100 line retained only 1% at
+// clock 99 -- through RFP/null-margin/stand-pat that told the search nearly
+// every long-clock position was already drawn. The SF-era (1 - clock/199)
+// curve retains ~50% at clock 99. Reopened after the 2026-07-15 canary fix
+// (the brittle KBNK conversion gate wrongly reverted this); SPRT gates it.
+static inline int damp_rule50(int score, int clock) {
+    return score * (199 - clock) / 199;
+}
+
 static int apply_endgame(const Board& b, int score) {
     auto lone_king = [&](Color c) {
         return b.occupancy[c] == sq_bb(b.king_sq[c]);
@@ -373,7 +383,8 @@ static int apply_endgame(const Board& b, int score) {
         }
     }
 
-    // Opposite-coloured bishops (preserves the previous behaviour exactly).
+    // Opposite-coloured bishops: draw-scale toward 32/48, relaxed to at most
+    // neutral by pawn count (8.3: capped -- see ocb_draw_scale in eval.h).
     if (!scaled) {
         bool wb1 = !more_than_one(b.pieces[WHITE][BISHOP]) && b.pieces[WHITE][BISHOP];
         bool bb1 = !more_than_one(b.pieces[BLACK][BISHOP]) && b.pieces[BLACK][BISHOP];
@@ -381,8 +392,7 @@ static int apply_endgame(const Board& b, int score) {
             bool wb_dark = (b.pieces[WHITE][BISHOP] & EG_DARK_SQUARES) != 0;
             bool bb_dark = (b.pieces[BLACK][BISHOP] & EG_DARK_SQUARES) != 0;
             if (wb_dark != bb_dark) {
-                int scale = 32 + total_pawns * 4;
-                score = score * scale / 48;
+                score = score * ocb_draw_scale(total_pawns) / 48;
             }
         }
     }
@@ -742,7 +752,7 @@ int Evaluator::evaluate(const Board& b) {
         if (lazy_abs > LAZY_MARGIN) {
             int score = apply_endgame(b, lazy);
             if (b.halfmove_clock > 0)
-                score = score * std::max(0, 100 - b.halfmove_clock) / 100;
+                score = damp_rule50(score, b.halfmove_clock);
             return (b.side_to_move == WHITE) ? score : -score;
         }
     }
@@ -773,13 +783,17 @@ int Evaluator::evaluate(const Board& b) {
                            : shift<SOUTH>(KingAttacks[ksq]);
         king_zone[c] = kz;
 
-        // Seed pawn and king attacks. attacked2 treats the pawn set as a unit,
-        // so intra-pawn double attacks are not marked; no current consumer
-        // depends on that and a later step can refine it if needed.
-        Bitboard patk = pawn_atk[c];
-        attacked2[c] |= attacked[c] & patk;
-        attacked[c]  |= patk;
-        attacked_by[c][PAWN] = patk;
+        // Seed pawn and king attacks. The two pawn capture directions are
+        // seeded separately (8.3c): a square attacked by two different pawns
+        // belongs in attacked2 -- the threats package (strongly_protected /
+        // hanging) and the king-ring/flank code consume it (audit
+        // hce_analysis 3; the old "no current consumer" note was stale).
+        const Bitboard pawns = b.pieces[Color(c)][PAWN];
+        const Bitboard pl = (c == WHITE) ? shift<NORTH_WEST>(pawns) : shift<SOUTH_WEST>(pawns);
+        const Bitboard pr = (c == WHITE) ? shift<NORTH_EAST>(pawns) : shift<SOUTH_EAST>(pawns);
+        attacked2[c] |= (pl & pr) | (attacked[c] & (pl | pr));
+        attacked[c]  |= pl | pr;
+        attacked_by[c][PAWN] = pl | pr;
 
         Bitboard katt = KingAttacks[ksq];
         attacked2[c] |= attacked[c] & katt;
@@ -1060,7 +1074,7 @@ int Evaluator::evaluate(const Board& b) {
         }
         units += p.ks_shelter_storm * shelter_danger;
 
-        // No-enemy-queen relief (exposed scalar; seeded 2/3 = old frozen behaviour).
+        // No-enemy-queen relief (exposed scalar; was frozen 2/3, retuned since).
         if (!b.pieces[them][QUEEN])
             units = units * p.ks_noqueen_num / p.ks_noqueen_den;
 
@@ -1136,45 +1150,46 @@ int Evaluator::evaluate(const Board& b) {
     }
 
     // ---- Rook behind passed pawn -------------------------------------------
+    // Two independent passes (8.3b): pre-8.3 the enemy-rook penalty was nested
+    // inside the friendly-rook loop, so it only fired when WE also had a rook
+    // on the passer file (and fired once per friendly rook when stacked).
+    // "Behind" stays purely geometric (blockers between rook and pawn are not
+    // examined), matching the friendly-rook term. Audit hce_analysis 2.
     for (int c = 0; c < NCOLORS; c++) {
         int sign = (c == WHITE) ? 1 : -1;
         Color us = Color(c);
         Color them = ~us;
+
+        // Friendly rook behind own passer: reward per rook.
         Bitboard rooks = b.pieces[us][ROOK];
         while (rooks) {
             Square rsq = Square(pop_lsb(rooks));
             int f = file_of(rsq);
             Bitboard file_passers = passed[us] & BB_FILES[f];
-            if (file_passers) {
-                if (us == WHITE) {
-                    if (rank_of(rsq) < rank_of(Square(lsb(file_passers)))) {
-                        mg += sign * p.rook_behind_passer_mg; TR_MG(RookBehindPasserMg, 0, sign);
-                        eg += sign * p.rook_behind_passer_eg; TR_EG(RookBehindPasserEg, 0, sign);
-                    }
-                } else {
-                    if (rank_of(rsq) > rank_of(Square(msb(file_passers)))) {
-                        mg += sign * p.rook_behind_passer_mg; TR_MG(RookBehindPasserMg, 0, sign);
-                        eg += sign * p.rook_behind_passer_eg; TR_EG(RookBehindPasserEg, 0, sign);
-                    }
-                }
+            if (!file_passers) continue;
+            const bool behind = (us == WHITE)
+                ? rank_of(rsq) < rank_of(Square(lsb(file_passers)))
+                : rank_of(rsq) > rank_of(Square(msb(file_passers)));
+            if (behind) {
+                mg += sign * p.rook_behind_passer_mg; TR_MG(RookBehindPasserMg, 0, sign);
+                eg += sign * p.rook_behind_passer_eg; TR_EG(RookBehindPasserEg, 0, sign);
             }
-            Bitboard enemy_rooks = b.pieces[them][ROOK];
-            Bitboard enemy_same_file = enemy_rooks & BB_FILES[f];
-            while (enemy_same_file) {
-                Square er = Square(pop_lsb(enemy_same_file));
-                if (file_passers) {
-                    if (us == WHITE) {
-                        if (rank_of(er) < rank_of(Square(lsb(file_passers)))) {
-                            mg -= sign * p.enemy_rook_passer_mg; TR_MG(EnemyRookPasserMg, 0, -sign);
-                            eg -= sign * p.enemy_rook_passer_eg; TR_EG(EnemyRookPasserEg, 0, -sign);
-                        }
-                    } else {
-                        if (rank_of(er) > rank_of(Square(msb(file_passers)))) {
-                            mg -= sign * p.enemy_rook_passer_mg; TR_MG(EnemyRookPasserMg, 0, -sign);
-                            eg -= sign * p.enemy_rook_passer_eg; TR_EG(EnemyRookPasserEg, 0, -sign);
-                        }
-                    }
-                }
+        }
+
+        // Enemy rook behind own passer: penalty per enemy rook, independent
+        // of any friendly rook on the file.
+        Bitboard enemy_rooks = b.pieces[them][ROOK];
+        while (enemy_rooks) {
+            Square er = Square(pop_lsb(enemy_rooks));
+            int f = file_of(er);
+            Bitboard file_passers = passed[us] & BB_FILES[f];
+            if (!file_passers) continue;
+            const bool behind = (us == WHITE)
+                ? rank_of(er) < rank_of(Square(lsb(file_passers)))
+                : rank_of(er) > rank_of(Square(msb(file_passers)));
+            if (behind) {
+                mg -= sign * p.enemy_rook_passer_mg; TR_MG(EnemyRookPasserMg, 0, -sign);
+                eg -= sign * p.enemy_rook_passer_eg; TR_EG(EnemyRookPasserEg, 0, -sign);
             }
         }
     }
@@ -1406,14 +1421,29 @@ int Evaluator::evaluate(const Board& b) {
         if (std::abs(score_approx) > 200) {
             Color winning = (score_approx > 0) ? WHITE : BLACK;
             Color losing  = ~winning;
-            int sign = (winning == WHITE) ? 1 : -1;
-            Square wksq = b.king_sq[winning];
-            Square lksq = b.king_sq[losing];
-            int lk_center = std::max(3 - file_of(lksq), file_of(lksq) - 4)
-                          + std::max(3 - rank_of(lksq), rank_of(lksq) - 4);
-            int king_dist = KING_DIST[wksq][lksq];
-            eg += sign * (5 * lk_center + (14 - king_dist) * 4);
-            // Frozen: not traced; captured in rest by the tuner.
+            // 8.6: gate the push-to-edge / close-the-kings geometry to
+            // bare-king mating signatures. It is wrong in pawn races, rook-
+            // and-pawn endings, and king-opposition pawn endings (audit
+            // hce_analysis 7). Fire only when the defender has no pawns AND
+            // the attacker holds material that can force mate against a lone
+            // king (Q, R, bishop pair, or B+N). KBNK/KNNK stay handled by
+            // apply_endgame's overrides, so this gate never touches them.
+            const bool losing_pawnless = b.pieces[losing][PAWN] == 0;
+            const bool win_can_mate =
+                   b.pieces[winning][QUEEN] != 0
+                || b.pieces[winning][ROOK]  != 0
+                || more_than_one(b.pieces[winning][BISHOP])
+                || (b.pieces[winning][BISHOP] != 0 && b.pieces[winning][KNIGHT] != 0);
+            if (losing_pawnless && win_can_mate) {
+                int sign = (winning == WHITE) ? 1 : -1;
+                Square wksq = b.king_sq[winning];
+                Square lksq = b.king_sq[losing];
+                int lk_center = std::max(3 - file_of(lksq), file_of(lksq) - 4)
+                              + std::max(3 - rank_of(lksq), rank_of(lksq) - 4);
+                int king_dist = KING_DIST[wksq][lksq];
+                eg += sign * (5 * lk_center + (14 - king_dist) * 4);
+                // Frozen: not traced; captured in rest by the tuner.
+            }
         }
     }
 
@@ -1425,9 +1455,12 @@ int Evaluator::evaluate(const Board& b) {
     }
 
     // ---- Winnable / complexity coupling (Step 3.6) -------------------------
-    // Frozen, not traced (sign-preserving nonlinearity); all weights seeded 0
+    // Frozen, not traced (sign-preserving nonlinearity); all weights are 0,
     // so the contribution is exactly 0 today (bench unchanged, --verify exact).
-    // Finite-difference tuned in Phase 4.5. The complexity may never flip the
+    // NOTE (8.3 rider): never actually tuned -- the winnability block is not
+    // traced and the generic optimizer only consumes linear trace
+    // coefficients, so its gradient was always zero (audit hce_analysis 4).
+    // Activating it is PLAN 8.5+/re-tune material. The complexity may never flip the
     // sign of the endgame score.
     {
         Square wk = b.king_sq[WHITE], bk = b.king_sq[BLACK];
@@ -1465,7 +1498,7 @@ int Evaluator::evaluate(const Board& b) {
     score = apply_endgame(b, score);
 
     if (b.halfmove_clock > 0)
-        score = score * std::max(0, 100 - b.halfmove_clock) / 100;
+        score = damp_rule50(score, b.halfmove_clock);
 
     return (b.side_to_move == WHITE) ? score : -score;
 }

@@ -63,7 +63,11 @@ public:
     Square king_sq[NCOLORS];
     Bitboard checkers;  // pieces giving check to side_to_move (updated by make_move/set_fen)
 
-    static constexpr int MAX_HISTORY = 1024;
+    // 2048 covers any real game + full search stack; the clamp below makes
+    // overflow non-UB in release (top entry overwritten -- state damage is
+    // bounded and local instead of out-of-bounds writes). The structural fix
+    // (game deque + per-thread search stack) is Phase 8.5 (infra audit 4.6).
+    static constexpr int MAX_HISTORY = 2048;
     std::unique_ptr<UndoInfo[]> history;
     int history_size;
 
@@ -78,6 +82,16 @@ public:
     bool try_set_fen(const std::string& fen, std::string* error = nullptr,
                      bool validate_legal_position = false);
     std::string get_fen() const;
+
+    // Full internal-consistency check (Phase 8.8, infra audit 4.5). Verifies
+    // mailbox <-> bitboards, occupancy unions, king counts/squares, castling-
+    // rights plausibility, EP-square plausibility, incremental Zobrist/pawn/
+    // minor/non-pawn keys against a from-scratch recompute, cached `checkers`,
+    // and the clock. Returns true when consistent; on failure writes the first
+    // offending invariant to stderr. Cheap enough that test_invariants calls it
+    // after every move across millions of random-walk states; not on any
+    // release hot path.
+    bool assert_ok() const;
 
     void make_move(Move m);
     void unmake_move(Move m);
@@ -106,6 +120,20 @@ public:
 
     bool is_draw() const;
     bool is_draw(int search_ply) const;
+    // Rule-50 with correct mate precedence: at clock >= 100 the game is a
+    // draw only if the side to move is not in check, or is in check but has
+    // a legal evasion. In check with no legal move = CHECKMATE, not a draw
+    // (SF semantics; infra audit 4.1). Generates legal moves only in the
+    // rare in-check-at-the-boundary case.
+    bool rule50_draw() const;
+    // True if at least one LEGAL en-passant capture of the pawn behind `ep`
+    // exists for `capturer` (full king-safety simulation per candidate).
+    // Position identity for repetition depends on legal moves, so ep_sq is
+    // set/hashed only when this holds (infra audit 4.5; SF semantics).
+    bool ep_capture_legal(Square ep, Color capturer) const;
+    // SEE pin support (8.2): absolute pins for both colors against the given
+    // occupancy. pinner_of[sq] is valid only where pinned[] has the bit.
+    void see_pins(Bitboard occ, Bitboard pinned[NCOLORS], Square pinner_of[SQUARE_NB]) const;
     bool is_repetition(int search_ply) const;
     bool is_insufficient_material() const;
 

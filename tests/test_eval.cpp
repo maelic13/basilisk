@@ -206,6 +206,217 @@ static void test_ocb_scaling() {
     // We just verify it doesn't crash and returns a sane range
     EXPECT(std::abs(v2) < 2000);
     end_section();
+
+    // 8.3: the OCB draw scale can never amplify -- capped at neutral 48/48.
+    begin_section("OCB scale formula: <= neutral at every pawn count, monotone");
+    for (int pawns = 0; pawns <= 16; pawns++) {
+        EXPECT(ocb_draw_scale(pawns) <= 48);
+        if (pawns > 0) EXPECT(ocb_draw_scale(pawns) >= ocb_draw_scale(pawns - 1));
+    }
+    EXPECT_EQ(ocb_draw_scale(0), 32);   // pure OCB: strongest draw pull
+    EXPECT_EQ(ocb_draw_scale(4), 48);   // behaviour identical to pre-8.3 at <= 4
+    EXPECT_EQ(ocb_draw_scale(16), 48);  // was 96 (2x amplification) pre-8.3
+    end_section();
+
+    // Behavioural check: an OCB position with a big material edge and many
+    // pawns must not evaluate ABOVE its same-colour-bishop twin (bishop moved
+    // one square: h5 light -> h6 dark, same colour as white's c3). Pre-8.3
+    // the 14-pawn multiplier was 1.83x and this failed by hundreds of cp.
+    begin_section("OCB with many pawns: no amplification vs same-colour twin");
+    int ocb  = eval_fen("1k1q4/ppppppp1/8/7b/8/2B5/PPPPPPP1/1K1Q3R w - - 0 1");
+    int same = eval_fen("1k1q4/ppppppp1/8/8/8/2B4b/PPPPPPP1/1K1Q3R w - - 0 1");
+    EXPECT(std::abs(ocb) <= std::abs(same) + 80);  // 80cp PST/mobility slack
+    end_section();
+
+    // Sign preservation: black up a rook in OCB stays negative for white.
+    begin_section("OCB scaling preserves score sign");
+    int vneg = eval_fen("1k1r4/pppppppp/8/7b/8/2B5/PPPPPPPP/1K6 w - - 0 1");
+    EXPECT(vneg < 0);
+    end_section();
+}
+
+// ---------------------------------------------------------------------------
+// 8.3b: enemy rook behind passer — decoupled activation (audit hce_analysis 2)
+// ---------------------------------------------------------------------------
+
+// White-POV eval regardless of side to move.
+static int eval_white_pov(const char* fen) {
+    Board b;
+    b.set_fen(fen);
+    Evaluator ev;
+    int v = ev.evaluate(b);
+    return (b.side_to_move == WHITE) ? v : -v;
+}
+
+// Net signed activation count of the enemy-rook-behind-passer term, measured
+// by perturbing its weight (mg == eg, so the tapered blend is exact and the
+// eval difference is precisely W per activation). +1 = a black rook behind a
+// white passer (penalty to white), -1 = mirrored.
+static int enemy_rook_passer_activations(const char* fen) {
+    const EvalParams saved = g_eval_params;
+    const int W = 64;
+    g_eval_params.enemy_rook_passer_mg = 0;
+    g_eval_params.enemy_rook_passer_eg = 0;
+    init_eval_tables();
+    const int base = eval_white_pov(fen);
+    g_eval_params.enemy_rook_passer_mg = W;
+    g_eval_params.enemy_rook_passer_eg = W;
+    init_eval_tables();
+    const int perturbed = eval_white_pov(fen);
+    g_eval_params = saved;
+    init_eval_tables();
+    // Rounded division: the taper's truncation-toward-zero costs 1cp when
+    // the perturbation flips the score's sign (diff comes out W-1).
+    const int diff = base - perturbed;
+    return (diff >= 0 ? diff + W / 2 : diff - W / 2) / W;
+}
+
+static void test_rook_passer_decoupling() {
+    // Positions keep material balanced (lazy eval short-circuits ~700cp and
+    // skips this term) and give both sides a pawn (the strong-side-no-pawns
+    // near-draw scaler would crush the measured diff).
+
+    // Enemy rook behind our passer with the friendly rook OFF the passer
+    // file: pre-8.3b the penalty was nested under the friendly-rook-on-file
+    // loop and never fired here.
+    begin_section("enemy rook behind passer, friendly rook off-file: fires");
+    EXPECT_EQ(enemy_rook_passer_activations(
+        "4k3/p7/8/4P3/8/8/4r3/R5K1 w - - 0 1"), 1);
+    end_section();
+
+    // Two stacked friendly rooks on the file: pre-8.3b the enemy penalty was
+    // counted once per friendly rook (twice); now exactly once.
+    begin_section("stacked friendly rooks: enemy penalty counted once");
+    EXPECT_EQ(enemy_rook_passer_activations(
+        "3rk3/p7/8/4P3/4R3/4R3/4r3/6K1 w - - 0 1"), 1);
+    end_section();
+
+    begin_section("enemy rook IN FRONT of passer: no penalty");
+    EXPECT_EQ(enemy_rook_passer_activations(
+        "4k3/p3r3/8/4P3/8/8/8/R5K1 w - - 0 1"), 0);
+    end_section();
+
+    // Mirrored: white rook behind a black passer.
+    begin_section("mirrored (white rook behind black passer): fires once");
+    EXPECT_EQ(enemy_rook_passer_activations(
+        "r3k3/4R3/8/8/4p3/8/P7/4K3 w - - 0 1"), -1);
+    end_section();
+
+    // A blocker between rook and passer still counts: the term is purely
+    // geometric by design (documented in eval.cpp), same as the friendly term.
+    begin_section("blocker between rook and passer: still geometric");
+    EXPECT_EQ(enemy_rook_passer_activations(
+        "1n2k3/p7/8/4P3/8/4N3/4r3/R5K1 w - - 0 1"), 1);
+    end_section();
+
+    // No passer on the rook's file: nothing fires.
+    begin_section("rook behind a non-passed pawn: no penalty");
+    EXPECT_EQ(enemy_rook_passer_activations(
+        "4k3/p3p3/8/4P3/8/8/4r3/R5K1 w - - 0 1"), 0);
+    end_section();
+}
+
+// ---------------------------------------------------------------------------
+// 8.3c: attacked2 records two-pawn double attacks (audit hce_analysis 3)
+// ---------------------------------------------------------------------------
+
+// Net signed activation count of the threat_hanging term (same perturbation
+// technique as enemy_rook_passer_activations).
+static int threat_hanging_activations(const char* fen) {
+    const EvalParams saved = g_eval_params;
+    const int W = 64;
+    g_eval_params.threat_hanging_mg = 0;
+    g_eval_params.threat_hanging_eg = 0;
+    init_eval_tables();
+    const int base = eval_white_pov(fen);
+    g_eval_params.threat_hanging_mg = W;
+    g_eval_params.threat_hanging_eg = W;
+    init_eval_tables();
+    const int perturbed = eval_white_pov(fen);
+    g_eval_params = saved;
+    init_eval_tables();
+    const int diff = perturbed - base;  // hanging is a bonus for the attacker
+    return (diff >= 0 ? diff + W / 2 : diff - W / 2) / W;
+}
+
+static void test_attacked2_pawn_pairs() {
+    // Positions carry shelter pawns on both wings so the perturbed eval stays
+    // well inside +-200cp: at phase <= 6 the frozen endgame mate-drive adds a
+    // ~44cp step the moment |score| crosses 200, which would pollute the
+    // measured activation count.
+
+    // Black knight d5 is defended once (rook d8) and attacked ONLY by the two
+    // white pawns c4/e4. It is "hanging" (weak non-pawn attacked twice) iff
+    // attacked2 records the two-pawn double attack -- pre-8.3c the pawn set
+    // was seeded as one unit and this counted zero.
+    begin_section("two pawns converging: defended piece counts as hanging");
+    EXPECT_EQ(threat_hanging_activations(
+        "3r3k/4pppp/8/3n4/2P1P3/8/6PP/R5NK w - - 0 1"), 1);
+    end_section();
+
+    // Control twin: single pawn attacker -- not attacked twice, not hanging.
+    begin_section("single pawn attacker: not hanging");
+    EXPECT_EQ(threat_hanging_activations(
+        "3r3k/5ppp/8/3n4/4P3/8/6PP/R5NK w - - 0 1"), 0);
+    end_section();
+
+    // Mirrored: white knight d4 defended by Rd1, attacked by black pawns
+    // c5/e5 only.
+    begin_section("mirrored two-pawn double attack");
+    EXPECT_EQ(threat_hanging_activations(
+        "r5nk/6pp/8/2p1p3/3N4/8/4PPPP/3R3K w - - 0 1"), -1);
+    end_section();
+}
+
+// ---------------------------------------------------------------------------
+// 8.6: mate-drive gating (audit hce_analysis 7)
+// ---------------------------------------------------------------------------
+
+// eval(defender king toward edge) - eval(defender king central), white POV.
+// The frozen mate-drive rewards edge-driving beyond the king PST. Measuring
+// it directly is confounded by (a) lazy eval, which short-circuits above
+// ~700cp and skips the term whenever a lone king is fully cornered, and
+// (b) the king PST itself. Both are cancelled with a difference-of-
+// differences: KQ-vs-KR keeps the eval in the (200, 700) active band at
+// moderate king squares, White's king is equidistant from both defender-king
+// test squares (so the mate-drive's king_dist term cancels), and the gate is
+// toggled by an equidistant defender pawn (whose passed-pawn value therefore
+// cancels too). The DiD is then purely the mate-drive's lk_center geometry.
+static int edge_minus_central(const char* edge_fen, const char* central_fen) {
+    return eval_white_pov(edge_fen) - eval_white_pov(central_fen);
+}
+
+static void test_mate_drive_gating() {
+    // Defender king a5 (edge) vs d5 (central); White Ke1 is Chebyshev-distance
+    // 4 from both. Winning KQ vs defender KR, all in the active band.
+    const int on_pawnless = edge_minus_central(
+        "8/8/8/k7/8/8/3r4/4K2Q w - - 0 1",     // bK a5, pawnless -> drive ON
+        "8/8/8/3k4/8/8/3r4/4K2Q w - - 0 1");   // bK d5, pawnless -> drive ON
+    // Defender pawn on b7 is Chebyshev-distance 2 from both a5 and d5, so its
+    // eval is identical in both and cancels; its only role is to gate the
+    // mate-drive off (defender no longer pawnless).
+    const int off_with_pawn = edge_minus_central(
+        "8/1p6/8/k7/8/8/3r4/4K2Q w - - 0 1",   // + bP b7 -> drive OFF
+        "8/1p6/8/3k4/8/8/3r4/4K2Q w - - 0 1");
+    std::printf("  pawn gate: on=%d off=%d (DiD=%d)\n",
+                on_pawnless, off_with_pawn, on_pawnless - off_with_pawn);
+    begin_section("mate-drive drives the pawnless defender to the edge");
+    EXPECT(on_pawnless > 20);          // ~33cp edge preference when firing
+    end_section();
+    begin_section("mate-drive is gated off once the defender has a pawn");
+    EXPECT(on_pawnless - off_with_pawn > 20);  // ~38cp isolated contribution
+    end_section();
+
+    // Mating-material side of the gate: a lone knight cannot force mate, and
+    // the whole KN-vs-K position is scaled to a dead draw by apply_endgame, so
+    // no spurious edge-driving can leak through. (Its should-block siblings —
+    // Km-vs-K, KNN-vs-K — are likewise zeroed/overridden, which is why the
+    // win_can_mate clause is belt-and-suspenders rather than independently
+    // observable.)
+    begin_section("no mate-drive leak in a non-mating pawnless ending");
+    EXPECT_EQ(eval_fen("8/8/8/k7/8/8/8/4K2N w - - 0 1"), 0);
+    EXPECT_EQ(eval_fen("8/8/8/3k4/8/8/8/4K2N w - - 0 1"), 0);
+    end_section();
 }
 
 static void test_knnk_draw() {
@@ -291,6 +502,15 @@ int main() {
 
     std::printf("\nOCB draw scaling\n");
     test_ocb_scaling();
+
+    std::printf("\nRook/passer decoupling\n");
+    test_rook_passer_decoupling();
+
+    std::printf("\nattacked2 two-pawn double attacks\n");
+    test_attacked2_pawn_pairs();
+
+    std::printf("\nMate-drive gating\n");
+    test_mate_drive_gating();
 
     std::printf("\nKNNK draw detection\n");
     test_knnk_draw();

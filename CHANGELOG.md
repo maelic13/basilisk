@@ -7,6 +7,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.9.0] - 2026-07-17
+
+The last pure-HCE release, and the frozen baseline the NNUE line (2.0.0) will be
+measured against. It bundles two bodies of work on top of 1.8.0: a correctness &
+infrastructure pass (Phase 8) and a pre-NNUE strength pass (Phase 8.5), every
+strength change SPRT-gated on the same `tc=3+0.03` UHO conditions.
+
+Head-to-head against 1.8.0 it scores **≈ +52 Elo** (57.4%, 105-148-59) at
+`tc=3+0.03`, and a 16-engine UHO field gauntlet places it **+66** on the field
+rating (≈ the rating-limited-Stockfish-3000 / Rybka-3 tier). As with prior
+releases a chunk of the fast-TC gain compresses at longer time control.
+
+### Strength (SPRT-accepted, cumulative over 1.8.0)
+
+- **History/eval re-tune (`hcefinal` SPSA): +35.94 ± 9.42** — the largest single
+  tune in the project's history (asymmetric-linear history bonus/malus with
+  rescaled consumers and live LMR context).
+- **Evaluation refresh (8.3): +13.97.**
+- **Instability time-management (8.5.12): +10.79** — the search now *extends*
+  time when the root best move thrashes (a decaying best-move-change signal),
+  not just shrinks it when the move is stable.
+- **Exact/PV reward-only history (8.5.10 b'): +4.90** — quiet history is now
+  trained on the best move of exact/PV nodes, reward-only (no sibling malus).
+- **Transposition-table density & replacement (8.5.D1): +4.27** — a 32-byte
+  partial-key cluster roughly doubles the entries at equal hash size.
+- **Rule-50 evaluation damping (8.4): +3.29.**
+- **Mate-drive eval nudge (8.6): +3.19.**
+- **Static-eval-surprise-scaled history (8.5.10 e): +2.50.**
+- **SEE pin-awareness (8.2): +0.65** — `see()`/`see_ge()` exclude absolutely
+  pinned attackers via a shared exchange-occupancy pin scan.
+
+### Correctness & robustness (Phase 8)
+
+- Rule-50 draw with correct mate precedence; the halfmove clock is preserved
+  across null moves; en-passant is hashed only when a legal EP capture exists;
+  history bonuses are clamped; qsearch-in-check terminates cleanly.
+- A full board invariant checker (`assert_ok`) plus differential-perft, SEE, and
+  parser fuzzing; the endgame/mate canaries were rebuilt to gate *correctness*
+  (eval recognises the win, mate is found) rather than a brittle fixed-depth
+  conversion trajectory.
+
+### Tooling / release
+
+- Release binaries are now **profile-guided-optimized (PGO)** and portable
+  (no `-march=native`), built per CPU tier (generic / AVX2 / BMI2-PEXT) for
+  Linux, Windows, and macOS.
+- SPRT/SPSA/gauntlet unified on the Stockfish/OpenBench **UHO** opening book
+  (decisive games, ~2× signal per game); one-command `spsa.ps1`; quiet consoles
+  with full logs.
+
+The per-step figures are fast-TC SPRT deltas and do not simply add; as with 1.8.0
+a chunk of fast-TC gain compresses at longer time control. This is the final HCE
+version — subsequent development moves to the embedded NNUE line.
+
 ## [1.8.0] - 2026-07-08
 
 A strength release bundling three development phases: time-management hardening,

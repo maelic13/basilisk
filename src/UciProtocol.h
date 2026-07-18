@@ -42,5 +42,6 @@ private:
     void cmdPosition(const std::string &args);
     void cmdNewGame();
     void cmdBench(const std::string& args);
+    void cmdWac(const std::string& args);
 };
 

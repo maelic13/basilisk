@@ -7,7 +7,7 @@ This folder holds ready-made weather-factory config files for Basilisk.
 
 ## One-time setup
 
-The easiest way is `tools/setup_spsa.ps1`, which does all of the below in one
+The easiest way is `tools/spsa.ps1`, which does all of the below in one
 command. Run it manually only if something needs customising.
 
 1. **Download fastchess** into `tools\bin\fastchess.exe`
@@ -40,7 +40,7 @@ command. Run it manually only if something needs customising.
 ## Run
 
 ```powershell
-.\tools\setup_spsa.ps1 -ConfigGroup pruning -EngineSuffix phase1-defaults -Iterations 5000
+.\tools\spsa.ps1 -ConfigGroup pruning -EngineSuffix phase1-defaults -Iterations 5000
 cd tools\weather-factory
 python main.py        # progress + tuned values written to its own state files
 ```
@@ -50,7 +50,7 @@ and tune from that binary:
 
 ```powershell
 .\tools\build_test.ps1 -Suffix phase1-lmr-baseline
-.\tools\setup_spsa.ps1 -ConfigGroup lmr -EngineSuffix phase1-lmr-baseline -Iterations 5000
+.\tools\spsa.ps1 -ConfigGroup lmr -EngineSuffix phase1-lmr-baseline -Iterations 5000
 cd tools\weather-factory
 python main.py
 ```
@@ -59,7 +59,7 @@ After both pruning and LMR have been accepted, run only a short narrowed polish
 from the accepted LMR head:
 
 ```powershell
-.\tools\setup_spsa.ps1 -ConfigGroup combined -EngineSuffix phase1-lmr -Iterations 2000
+.\tools\spsa.ps1 -ConfigGroup combined -EngineSuffix phase1-lmr -Iterations 2000
 cd tools\weather-factory
 python main.py
 ```
@@ -67,9 +67,10 @@ python main.py
 weather-factory writes the running parameter values to its state file every
 `save_rate` games; stop it any time with Ctrl-C.
 
-Run `python main.py` again to resume the same configured run. Re-running
-`tools\setup_spsa.ps1` starts a fresh run and archives old `state.json`,
-`games.pgn`, and graph output unless `-Resume` is passed.
+Re-running `tools\spsa.ps1` starts a *fresh* run and archives old `state.json`,
+`games.pgn`, and graph output. To continue an interrupted run instead, pass
+`-Resume` (keeps the existing state), or `-LaunchOnly` to just relaunch the
+already-configured tuner.
 
 ## CRITICAL: SPSA finds candidates, SPRT decides
 
@@ -149,7 +150,31 @@ around them. It is intended for a shorter final polish run, not as the first
 search-constant tune. SPRT the resulting candidate against `phase1-lmr`, not
 against the original defaults.
 
-### config_histshape.json — Phase 7.4 focused search tune (11 knobs, RECOMMENDED)
+### config_hcefinal.json — HCE finalization: all SPSA-able inert knobs (18 dims, CURRENT)
+
+**The one-shot "earn your place or get deleted" run (2026-07-13).** The user's
+policy for the final pure-HCE version: no inert knobs stay in the code — SPSA
+gets one joint run to find value in them, and whatever ends at/near inert is
+removed afterwards.
+
+- **= histshape's 11 dims + every remaining SPSA-able inert mechanism:**
+  `LmrTtPvAdj`, `LmrNotImprovingAdj`, `PostLmrHistScale`, `QsearchCheckCap`,
+  `CapFutDepth/Base/Coeff`.
+- **All starts = current defaults** (inert dims start at 0): iteration 1 is
+  the SPRT-validated 1.8.0 head — the repaired-wave2 protocol. SPSA may pull
+  gated mechanisms up if they carry signal; hand-seeded activations of these
+  same knobs broke the mate canaries 8 times in a row, so joint tuning is
+  their only remaining route.
+- **Excluded by design (removal candidates regardless of the run):**
+  `QuietSeeDepth/Coeff` — breaks KBNK at every tried coefficient without a
+  history-aware `lmr_depth` (not implemented); `DoubleExtMax` — inert sentinel
+  (200 ≈ ∞) with a flat SPSA gradient (all values ≳10 behave identically).
+- **Verdict policy (pre-registered):** ~2000 iterations; abort at ~600 if the
+  trend is ≤ 0. Converged candidate → bake → **SPRT `elo1=3` + full CTest**
+  (the mate canaries stay a hard gate). Wash → keep defaults, then DELETE the
+  inert mechanisms and their plumbing.
+
+### config_histshape.json — Phase 7.4 focused search tune (11 knobs, superseded by hcefinal)
 
 **This supersedes wave2 as the first (and likely only) post-Phase-6 search
 tune.** Rationale (2026-07-02 EV review, after Basilisk 5.8's TM SPSA washed

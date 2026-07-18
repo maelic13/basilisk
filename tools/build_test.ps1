@@ -72,8 +72,36 @@ try {
 
     $dest = Join-Path $TestEnginesDir "basilisk-$Suffix-pext-pgo.exe"
     Copy-Item $dist.FullName $dest -Force
+
+    # Reproducibility manifest (PLAN §1 gate 8): everything needed to rebuild
+    # and identify this exact test artifact. A binary without its manifest is
+    # not a reproducible test input.
+    $sha       = (git rev-parse HEAD).Trim()
+    $dirtyDiff = (git diff HEAD | Out-String) + (git diff --cached HEAD | Out-String)
+    $dirtyHash = if ($dirtyDiff.Trim()) {
+        $ms = [IO.MemoryStream]::new([Text.Encoding]::UTF8.GetBytes($dirtyDiff))
+        (Get-FileHash -Algorithm SHA256 -InputStream $ms).Hash
+    } else { "clean" }
+    $binSha  = (Get-FileHash $dest -Algorithm SHA256).Hash
+    $clangV  = (& clang --version 2>&1 | Select-Object -First 1)
+    $benchOut = ("bench`nquit" | & $dest 2>&1)
+    $bench   = ($benchOut | Select-String -Pattern 'Nodes searched\s*:\s*(\d+)').Matches.Groups[1].Value
+    $manifest = Join-Path $TestEnginesDir "basilisk-$Suffix-pext-pgo.manifest.txt"
+    @(
+        "suffix:       $Suffix"
+        "engine:       $dest"
+        "revision:     $sha"
+        "dirty_diff:   $dirtyHash"
+        "preset:       release-pext (USE_PEXT=ON, TUNE=ON, PGO=USE)"
+        "compiler:     $clangV"
+        "bench:        $bench"
+        "binary_sha256: $binSha"
+        "built_utc:    $((Get-Date).ToUniversalTime().ToString('u'))"
+    ) | Set-Content -Path $manifest -Encoding utf8
+
     Write-Host ""
     Write-Host "Done: $dest"
+    Write-Host "Manifest: $manifest (revision $($sha.Substring(0,10)), bench $bench)"
     Write-Host ""
 } finally {
     Pop-Location
