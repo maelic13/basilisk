@@ -1,9 +1,9 @@
 /// Engine-level threading protocol tests.
 
-#include "Engine.h"
-#include "EngineCommand.h"
-#include "Parameters.h"
-#include "UciOutput.h"
+#include "engine.h"
+#include "engine_command.h"
+#include "parameters.h"
+#include "uci_output.h"
 #include "attacks.h"
 #include "bitboard.h"
 #include "eval.h"
@@ -131,7 +131,7 @@ private:
 };
 
 void test_threads_setoption_resizes_before_ready() {
-    const int max_threads = Parameters::maxThreads();
+    const int max_threads = Parameters::max_threads();
     if (max_threads < 2) {
         begin_section("engine threads: host exposes one thread");
         EXPECT(true);
@@ -156,7 +156,7 @@ void test_threads_setoption_resizes_before_ready() {
 }
 
 void test_threaded_go_nodes_returns_one_bestmove() {
-    const int max_threads = Parameters::maxThreads();
+    const int max_threads = Parameters::max_threads();
 
     EngineSession session;
     if (max_threads >= 2) {
@@ -203,6 +203,61 @@ void test_go_searchmoves_restricts_root_move() {
 
 } // namespace
 
+// ---------------------------------------------------------------------------
+// 8.6.3a: malformed-input survival contract at the ENGINE level.
+//
+// Contract decision recorded 2026-07-20 (Rarog 9.5-A style; its 11-engine
+// survey): current Stockfish dev exits(1)+diagnostic on both a bad FEN and an
+// illegal move in `moves` — the reference implementation is tightening — but
+// we deliberately stay with REJECT-AND-RETAIN (majority practice: Critter,
+// SaberTooth, Hydra, us): print an info string, keep the previous valid
+// board, keep answering. Residual risk, on record: a GUI that ignores the
+// info string gets a legal move for the PREVIOUS board. Any flip to
+// SF-style hard-exit must be a deliberate decision that changes this test,
+// never a silent change.
+// ---------------------------------------------------------------------------
+
+void test_malformed_input_survival() {
+    begin_section("engine: survives garbage input, answers, retains board");
+    {
+        EngineSession session;
+        session.position("startpos");
+        session.position("fen not-a-fen at all");           // garbage FEN
+        session.position("fen");                             // bare `position fen`
+        session.position("");                                // no args at all
+        session.position("kentucky");                        // unknown sub-token
+        session.position("startpos moves e2e5");             // illegal move
+        session.set_option("name NoSuchOption value 42");    // unknown option
+        session.set_option("garbage without name token");    // malformed setoption
+        session.set_option("name Hash");                     // missing value
+        session.sync();                                      // isready → must return
+
+        session.go("depth 1");
+        EXPECT(session.wait_for_bestmoves(1, 5000));
+
+        // The retained board must be the STARTING position: the bestmove has
+        // to be one of the 20 legal startpos moves.
+        Board b;
+        MoveList legal;
+        b.gen_legal(legal);
+        const std::string out = session.output();
+        std::string bm;
+        std::istringstream input(out);
+        std::string line;
+        while (std::getline(input, line))
+            if (line.rfind("bestmove ", 0) == 0)
+                bm = line.substr(9, 4);
+        bool found = false;
+        for (Move m : legal)
+            if (move_to_uci(m).rfind(bm, 0) == 0) { found = true; break; }
+        EXPECT(!bm.empty());
+        EXPECT(found);
+        // And the rejections were reported, not swallowed silently.
+        EXPECT(contains_line_fragment(out, "info string"));
+    }
+    end_section();
+}
+
 int main() {
     init_bitboards();
     init_attacks();
@@ -221,6 +276,9 @@ int main() {
     std::printf("\nRoot commands\n");
     test_go_perft_returns_nodes_without_bestmove();
     test_go_searchmoves_restricts_root_move();
+
+    std::printf("\nMalformed-input survival (8.6.3a)\n");
+    test_malformed_input_survival();
 
     return harness_summary();
 }

@@ -5,6 +5,7 @@
 #include <cstring>
 #include <mutex>
 #ifdef BASILISK_TUNE
+#include <climits>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
@@ -110,7 +111,9 @@ static constexpr int KNOWN_WIN    = 10000; // static "won, mate is technique" ma
 // Lazy-eval margin (Step 3.11): if the cheap (material/PST/imbalance/pawns/minor)
 // tapered score exceeds this, the expensive positional block is skipped. Tuned
 // under a lazy-on-vs-off SPRT; conservative start.
-static constexpr int LAZY_MARGIN  = 700;
+[[maybe_unused]] static constexpr int LAZY_MARGIN  = 700;  // unused under TEXEL_TRACE (lazy eval off there)
+// 8.6.6b lazy-audit "did not fire" marker (any value the eval can't produce).
+[[maybe_unused]] static constexpr int VALUE_NONE_SENTINEL = INT_MIN;
 
 // Rough eg material values, used only for endgame material classification
 // (never for the actual evaluation, which uses the tuned EvalParams tables).
@@ -149,7 +152,7 @@ static KpkResult kpk_classify_initial(int stm, Square wk, Square bk, Square psq)
 
     // White to move: immediate promotion win on the 7th rank.
     if (stm == 0 && rank_of(psq) == RANK_7) {
-        Square promo = Square(int(psq) + 8);
+        Square promo = psq + 8;
         if (wk != promo
             && (KING_DIST[bk][promo] > 1 || (KingAttacks[wk] & sq_bb(promo))))
             return KPK_WIN;
@@ -185,11 +188,11 @@ static KpkResult kpk_classify(int stm, Square wk, Square bk, Square psq) {
     }
 
     if (stm == 0 && rank_of(psq) < RANK_7) {
-        Square push = Square(int(psq) + 8);
+        Square push = psq + 8;
         if (push != wk && push != bk) {
             r |= g_kpk[kpk_index(1, wk, bk, push)];
             if (rank_of(psq) == RANK_2) {
-                Square dbl = Square(int(push) + 8);
+                Square dbl = push + 8;
                 if (dbl != wk && dbl != bk)
                     r |= g_kpk[kpk_index(1, wk, bk, dbl)];
             }
@@ -250,9 +253,9 @@ static bool kpk_strong_wins(const Board& b, Color strong) {
     }
     // Fold pawn onto files A-D.
     if (file_of(psq) >= FILE_E) {
-        psq = Square(int(psq) ^ 7);
-        wk  = Square(int(wk)  ^ 7);
-        bk  = Square(int(bk)  ^ 7);
+        psq = flip_file(psq);
+        wk  = flip_file(wk);
+        bk  = flip_file(bk);
     }
     return g_kpk[kpk_index(stm, wk, bk, psq)] == KPK_WIN;
 }
@@ -287,9 +290,8 @@ static int kbnk_score(const Board& b, Color strong) {
 // every long-clock position was already drawn. The SF-era (1 - clock/199)
 // curve retains ~50% at clock 99. Reopened after the 2026-07-15 canary fix
 // (the brittle KBNK conversion gate wrongly reverted this); SPRT gates it.
-static inline int damp_rule50(int score, int clock) {
-    return score * (199 - clock) / 199;
-}
+// Definition lives in eval.h (8.6.2b) so the Texel tuner uses the identical
+// curve; see the shared-predicates block there.
 
 static int apply_endgame(const Board& b, int score) {
     auto lone_king = [&](Color c) {
@@ -316,13 +318,12 @@ static int apply_endgame(const Board& b, int score) {
                  + cnt[c][ROOK]   * EG_MAT[ROOK]   + cnt[c][QUEEN]  * EG_MAT[QUEEN];
         };
 
-        // ---- KNNK draw (preserves the previous behaviour) ------------------
-        auto only_n_knights = [&](Color c, int n) {
-            return !cnt[c][PAWN] && !cnt[c][BISHOP] && !cnt[c][ROOK]
-                && !cnt[c][QUEEN] && cnt[c][KNIGHT] == n;
-        };
-        if (lone_king(WHITE) && only_n_knights(BLACK, 2)) return 0;
-        if (lone_king(BLACK) && only_n_knights(WHITE, 2)) return 0;
+        // ---- KNNK draw -----------------------------------------------------
+        // Predicate shared with the tuner (8.6.2b). It recomputes its own
+        // popcounts rather than reading the cnt[] census; that census is still
+        // needed by the KPK/KBNK/scaling rules below, and this path is already
+        // gated behind the lone-king/pawnless guard.
+        if (is_knnk_draw(b)) return 0;
 
         // ---- KPK: exact bitbase classification -----------------------------
         if (total_pawns == 1 && npm(WHITE) == 0 && npm(BLACK) == 0) {
@@ -385,16 +386,8 @@ static int apply_endgame(const Board& b, int score) {
 
     // Opposite-coloured bishops: draw-scale toward 32/48, relaxed to at most
     // neutral by pawn count (8.3: capped -- see ocb_draw_scale in eval.h).
-    if (!scaled) {
-        bool wb1 = !more_than_one(b.pieces[WHITE][BISHOP]) && b.pieces[WHITE][BISHOP];
-        bool bb1 = !more_than_one(b.pieces[BLACK][BISHOP]) && b.pieces[BLACK][BISHOP];
-        if (wb1 && bb1) {
-            bool wb_dark = (b.pieces[WHITE][BISHOP] & EG_DARK_SQUARES) != 0;
-            bool bb_dark = (b.pieces[BLACK][BISHOP] & EG_DARK_SQUARES) != 0;
-            if (wb_dark != bb_dark) {
-                score = score * ocb_draw_scale(total_pawns) / 48;
-            }
-        }
+    if (!scaled && is_opposite_coloured_bishops(b)) {   // predicate shared with the tuner (8.6.2b)
+        score = score * ocb_draw_scale(total_pawns) / 48;
     }
 
     return score;
@@ -432,7 +425,9 @@ void Evaluator::eval_pawns(const Board& b,
     Key pkey = b.pawn_key;
     PawnEntry& pe = pawn_table_[pkey & (PAWN_TABLE_SIZE - 1)];
 
+    ++pawn_probes;   // 8.7.1(c)
     if (pe.key == pkey) {
+        ++pawn_hits;   // 8.7.1(c)
         mg_out = pe.mg;
         eg_out = pe.eg;
         passed[WHITE]  = pe.passed[WHITE];
@@ -587,6 +582,7 @@ void Evaluator::eval_pawns(const Board& b,
 // ---- Main evaluation -------------------------------------------------------
 
 int Evaluator::evaluate(const Board& b) {
+    ++eval_calls;   // 8.7.1(c)
     const EvalParams& p = g_eval_params;
     int mg = 0, eg = 0;
     int phase = 0;
@@ -746,6 +742,10 @@ int Evaluator::evaluate(const Board& b) {
     // scaling -- which still runs, so KBNK/KPK/draw-scaling survive the skip.
     // Disabled under TEXEL_TRACE so the tuner fits the full eval (--verify exact).
 #ifndef TEXEL_TRACE
+    // 8.6.6b: under the lazy audit the skip does NOT return — the full tail
+    // runs for measurement and the final return serves the remembered lazy
+    // value, so the audit is behaviour-identical (bench-identical) when on.
+    int lazy_served = VALUE_NONE_SENTINEL;
     {
         int lazy = (mg * phase + eg * (TOTAL_PHASE - phase)) / TOTAL_PHASE;
         int lazy_abs = lazy < 0 ? -lazy : lazy;
@@ -753,7 +753,10 @@ int Evaluator::evaluate(const Board& b) {
             int score = apply_endgame(b, lazy);
             if (b.halfmove_clock > 0)
                 score = damp_rule50(score, b.halfmove_clock);
-            return (b.side_to_move == WHITE) ? score : -score;
+            const int served = (b.side_to_move == WHITE) ? score : -score;
+            if (!diag_lazy)
+                return served;
+            lazy_served = served;
         }
     }
 #endif
@@ -823,6 +826,15 @@ int Evaluator::evaluate(const Board& b) {
         blockers_for_king[c] = blockers;
     }
 
+    // 8.7.7(a): cache each slider's attack set from the sweep so the king-ring
+    // and trapped-bishop tests below reuse it instead of recomputing the same
+    // magic lookup. Every reuse site uses bishop/rook_attacks(sq, b.all_occ) —
+    // the exact value the sweep computes — so this is bench-identical. Only
+    // BISHOP/ROOK squares are stored (the only pieces those tests iterate);
+    // every such square is written by the sweep before any test reads it, so
+    // no zero-init is needed (and none is paid per eval).
+    Bitboard slider_att[SQUARE_NB];
+
     // Single knight/slider sweep: builds the maps and accumulates both mobility
     // (for the moving color) and king-attacker pressure (against the enemy king
     // — a piece of color c presses on the king of color ~c).
@@ -843,51 +855,59 @@ int Evaluator::evaluate(const Board& b) {
         Bitboard blocked_or_low = own_pawns & (ahead | low_ranks);
         Bitboard mob_area = ~(blocked_or_low | b.pieces[c][KING] | b.pieces[c][QUEEN]
                               | pawn_atk[them] | blockers_for_king[c]);
-        for (int pt : {KNIGHT, BISHOP, ROOK, QUEEN}) {
-            Bitboard pcs = b.pieces[c][pt];
+        // 8.7.7(c): hoist the two per-piece switch(pt) out of the mobility
+        // inner loop. pt is constant across a whole `while (pcs)` run, so both
+        // switches are loop-invariant. A template lambda instantiated once per
+        // piece type folds them to compile-time constants — the att magic is
+        // picked directly, the mobility table selected at compile time — so the
+        // inner loop is branchless. Same values, same accumulation order (all
+        // knights, then bishops, rooks, queens) ⇒ bench-identical by
+        // construction, and the TR_* trace calls are unchanged so the tuner is
+        // exact.
+        auto sweep = [&]<PieceType PT>() {
+            Bitboard pcs = b.pieces[c][PT];
             while (pcs) {
                 int sq = pop_lsb(pcs);
                 Bitboard att;
-                switch (pt) {
-                    case KNIGHT: att = KnightAttacks[sq]; break;
-                    case BISHOP: att = bishop_attacks(Square(sq), b.all_occ); break;
-                    case ROOK:   att = rook_attacks(Square(sq), b.all_occ); break;
-                    default:     att = queen_attacks(Square(sq), b.all_occ); break;
-                }
+                if      constexpr (PT == KNIGHT) att = KnightAttacks[sq];
+                else if constexpr (PT == BISHOP) att = bishop_attacks(Square(sq), b.all_occ);
+                else if constexpr (PT == ROOK)   att = rook_attacks(Square(sq), b.all_occ);
+                else                             att = queen_attacks(Square(sq), b.all_occ);
 
                 attacked2[c] |= attacked[c] & att;
                 attacked[c]  |= att;
-                attacked_by[c][pt] |= att;
+                attacked_by[c][PT] |= att;
+                if constexpr (PT == BISHOP || PT == ROOK)
+                    slider_att[sq] = att;   // 8.7.7(a)
 
                 // Per-count mobility (Step 3.3): one-hot table indexed by the
                 // mobility-square count over the SF area (Step 4.6b).
                 int mob = popcount(att & mob_area);
-                switch (pt) {
-                    case KNIGHT:
-                        mg += sign * p.mob_n_mg[mob]; TR_MG(MobNMg, mob, sign);
-                        eg += sign * p.mob_n_eg[mob]; TR_EG(MobNEg, mob, sign);
-                        break;
-                    case BISHOP:
-                        mg += sign * p.mob_b_mg[mob]; TR_MG(MobBMg, mob, sign);
-                        eg += sign * p.mob_b_eg[mob]; TR_EG(MobBEg, mob, sign);
-                        break;
-                    case ROOK:
-                        mg += sign * p.mob_r_mg[mob]; TR_MG(MobRMg, mob, sign);
-                        eg += sign * p.mob_r_eg[mob]; TR_EG(MobREg, mob, sign);
-                        break;
-                    default:  // QUEEN
-                        mg += sign * p.mob_q_mg[mob]; TR_MG(MobQMg, mob, sign);
-                        eg += sign * p.mob_q_eg[mob]; TR_EG(MobQEg, mob, sign);
-                        break;
+                if constexpr (PT == KNIGHT) {
+                    mg += sign * p.mob_n_mg[mob]; TR_MG(MobNMg, mob, sign);
+                    eg += sign * p.mob_n_eg[mob]; TR_EG(MobNEg, mob, sign);
+                } else if constexpr (PT == BISHOP) {
+                    mg += sign * p.mob_b_mg[mob]; TR_MG(MobBMg, mob, sign);
+                    eg += sign * p.mob_b_eg[mob]; TR_EG(MobBEg, mob, sign);
+                } else if constexpr (PT == ROOK) {
+                    mg += sign * p.mob_r_mg[mob]; TR_MG(MobRMg, mob, sign);
+                    eg += sign * p.mob_r_eg[mob]; TR_EG(MobREg, mob, sign);
+                } else {  // QUEEN
+                    mg += sign * p.mob_q_mg[mob]; TR_MG(MobQMg, mob, sign);
+                    eg += sign * p.mob_q_eg[mob]; TR_EG(MobQEg, mob, sign);
                 }
 
                 Bitboard zone_hits = att & king_zone[them];
                 if (zone_hits) {
                     n_attackers[them]++;
-                    attack_units[them] += p.ks_unit[pt] + popcount(zone_hits) / 2;
+                    attack_units[them] += p.ks_unit[PT] + popcount(zone_hits) / 2;
                 }
             }
-        }
+        };
+        sweep.template operator()<KNIGHT>();
+        sweep.template operator()<BISHOP>();
+        sweep.template operator()<ROOK>();
+        sweep.template operator()<QUEEN>();
     }
 
     // (blockers_for_king is now computed before the mobility sweep — Step 4.6b.)
@@ -1280,7 +1300,7 @@ int Evaluator::evaluate(const Board& b) {
             int bp_on_col = popcount(our_pawns & cmask);
             mg += sign * bp_on_col * p.bad_bishop_mg; TR_MG(BadBishopMg, 0, sign * bp_on_col);
             eg += sign * bp_on_col * p.bad_bishop_eg; TR_EG(BadBishopEg, 0, sign * bp_on_col);
-            if (bishop_attacks(bsq, b.all_occ) & ring_them) {
+            if (slider_att[bsq] & ring_them) {   // 8.7.7(a): was bishop_attacks(bsq, b.all_occ)
                 mg += sign * p.minor_king_ring_mg; TR_MG(MinorKingRingMg, 0, sign);
                 eg += sign * p.minor_king_ring_eg; TR_EG(MinorKingRingEg, 0, sign);
             }
@@ -1333,7 +1353,7 @@ int Evaluator::evaluate(const Board& b) {
         while (rooks) {
             Square rsq = Square(pop_lsb(rooks));
             int f = file_of(rsq);
-            if (rook_attacks(rsq, b.all_occ) & ring_them) {
+            if (slider_att[rsq] & ring_them) {   // 8.7.7(a): was rook_attacks(rsq, b.all_occ)
                 mg += sign * p.rook_king_ring_mg; TR_MG(RookKingRingMg, 0, sign);
                 eg += sign * p.rook_king_ring_eg; TR_EG(RookKingRingEg, 0, sign);
             }
@@ -1354,7 +1374,7 @@ int Evaluator::evaluate(const Board& b) {
             Bitboard tmp = rks;
             while (tmp) {
                 Square r = Square(pop_lsb(tmp));
-                if (rook_attacks(r, b.all_occ) & rks & ~sq_bb(r)) { connected = true; break; }
+                if (slider_att[r] & rks & ~sq_bb(r)) { connected = true; break; }   // 8.7.7(a)
             }
             if (connected) {
                 mg += sign * p.connected_rooks_mg; TR_MG(ConnectedRooksMg, 0, sign);
@@ -1406,7 +1426,7 @@ int Evaluator::evaluate(const Board& b) {
             Bitboard bbs = b.pieces[c][BISHOP];
             while (bbs) {
                 Square bsq = Square(pop_lsb(bbs));
-                Bitboard moves = bishop_attacks(bsq, b.all_occ) & ~b.occupancy[c];
+                Bitboard moves = slider_att[bsq] & ~b.occupancy[c];   // 8.7.7(a): was bishop_attacks(bsq, b.all_occ)
                 if (moves == 0) {
                     mg -= sign * p.trapped_mg; TR_MG(TrappedMg, 0, -sign);
                     eg -= sign * p.trapped_eg; TR_EG(TrappedEg, 0, -sign);
@@ -1500,7 +1520,22 @@ int Evaluator::evaluate(const Board& b) {
     if (b.halfmove_clock > 0)
         score = damp_rule50(score, b.halfmove_clock);
 
-    return (b.side_to_move == WHITE) ? score : -score;
+    const int full_served = (b.side_to_move == WHITE) ? score : -score;
+#ifndef TEXEL_TRACE
+    if (lazy_served != VALUE_NONE_SENTINEL) {
+        // Lazy audit bookkeeping — the full tail ran only for measurement.
+        lazy_fires++;
+        const int64_t d = std::llabs((long long)full_served - lazy_served);
+        lazy_absdelta_sum += d;
+        lazy_absdelta_max  = std::max<int64_t>(lazy_absdelta_max, d);
+        if ((full_served > 0) != (lazy_served > 0) && full_served != 0 && lazy_served != 0)
+            lazy_sign_flips++;
+        if (std::abs(full_served) <= LAZY_MARGIN)
+            lazy_margin_crossings++;
+        return lazy_served;
+    }
+#endif
+    return full_served;
 }
 
 // ---- Tune-only: eval file loader and dumper --------------------------------

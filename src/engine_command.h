@@ -36,7 +36,7 @@ class EngineCommandQueue {
 public:
     void push(EngineCommand command) {
         {
-            std::lock_guard lock(mutex_);
+            std::scoped_lock lock(mutex_);
             commands_.push_back(std::move(command));
         }
         cv_.notify_one();
@@ -44,7 +44,7 @@ public:
 
     void push_priority(EngineCommand command) {
         {
-            std::lock_guard lock(mutex_);
+            std::scoped_lock lock(mutex_);
             commands_.push_front(std::move(command));
         }
         cv_.notify_one();

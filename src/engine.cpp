@@ -5,9 +5,9 @@
 #include <string>
 #include <thread>
 
-#include "Constants.h"
-#include "Engine.h"
-#include "UciOutput.h"
+#include "constants.h"
+#include "engine.h"
+#include "uci_output.h"
 #include "bench.h"
 #include "wac.h"
 #include "syzygy.h"
@@ -49,8 +49,8 @@ Engine::Engine(EngineCommandQueue& commands,
     , ponderhit_requested_(ponderhit_requested)
     , searching_(searching)
     , control_epoch_(control_epoch)
-    , tt(64)
-    , search_pool_(tt, stop_requested_,
+    , tt_(64)
+    , search_pool_(tt_, stop_requested_,
           [](const std::string& info) {
               uci_write_line(info);
           },
@@ -61,25 +61,26 @@ Engine::Engine(EngineCommandQueue& commands,
 SearchLimits Engine::build_limits() const {
     SearchLimits limits;
     limits.depth     = parameters_.depth;
-    limits.movetime  = parameters_.moveTime;
-    limits.wtime     = parameters_.whiteTime;
-    limits.btime     = parameters_.blackTime;
-    limits.winc      = parameters_.whiteIncrement;
-    limits.binc      = parameters_.blackIncrement;
+    limits.movetime  = parameters_.move_time;
+    limits.wtime     = parameters_.white_time;
+    limits.btime     = parameters_.black_time;
+    limits.winc      = parameters_.white_increment;
+    limits.binc      = parameters_.black_increment;
     limits.movestogo = parameters_.movestogo;
     limits.nodes     = parameters_.nodes;
     limits.mate      = parameters_.mate;
-    limits.overhead  = parameters_.moveOverhead;
+    limits.overhead  = parameters_.move_overhead;
     limits.ponder    = parameters_.ponder;
-    limits.root_moves = parameters_.searchMoves;
-    limits.syzygy_probe_depth = Syzygy::enabled() ? parameters_.syzygyProbeDepth : 0;
-    limits.syzygy_probe_limit = Syzygy::enabled() ? parameters_.syzygyProbeLimit : 0;
-    limits.syzygy_50_move_rule = parameters_.syzygy50MoveRule;
-    limits.tm_debug  = parameters_.tmDebug;
+    limits.root_moves = parameters_.search_moves;
+    limits.syzygy_probe_depth = Syzygy::enabled() ? parameters_.syzygy_probe_depth : 0;
+    limits.syzygy_probe_limit = Syzygy::enabled() ? parameters_.syzygy_probe_limit : 0;
+    limits.syzygy_50_move_rule = parameters_.syzygy_50_move_rule;
+    limits.tm_debug  = parameters_.tm_debug;
+    limits.diag      = parameters_.diag;
     limits.params    = parameters_.search_params;
-    limits.infinite  = (parameters_.depth == infiniteDepth && parameters_.moveTime == 0
-                        && parameters_.whiteTime == 0 && parameters_.blackTime == 0
-                        && parameters_.whiteIncrement == 0 && parameters_.blackIncrement == 0
+    limits.infinite  = (parameters_.depth == infiniteDepth && parameters_.move_time == 0
+                        && parameters_.white_time == 0 && parameters_.black_time == 0
+                        && parameters_.white_increment == 0 && parameters_.black_increment == 0
                         && parameters_.movestogo == 0
                         && parameters_.nodes == 0
                         && parameters_.mate == 0
@@ -88,10 +89,10 @@ SearchLimits Engine::build_limits() const {
 }
 
 void Engine::configure_syzygy() {
-    if (parameters_.syzygyPath == current_syzygy_path_)
+    if (parameters_.syzygy_path == current_syzygy_path_)
         return;
 
-    current_syzygy_path_ = parameters_.syzygyPath;
+    current_syzygy_path_ = parameters_.syzygy_path;
     const bool ok = Syzygy::init(current_syzygy_path_);
 
     if (current_syzygy_path_.empty()) {
@@ -163,8 +164,8 @@ void Engine::start_search(uint64_t command_epoch,
 
     if (Syzygy::enabled()) {
         limits.syzygy_root_moves = Syzygy::probe_root_moves(board_copy,
-                                                            parameters_.syzygy50MoveRule,
-                                                            parameters_.syzygyProbeLimit,
+                                                            parameters_.syzygy_50_move_rule,
+                                                            parameters_.syzygy_probe_limit,
                                                             true);
         if (!limits.root_moves.empty()) {
             limits.syzygy_root_moves.erase(
@@ -188,8 +189,8 @@ void Engine::start_search(uint64_t command_epoch,
         }
         for (auto& move : limits.syzygy_root_moves) {
             move.pv = Syzygy::extend_pv(board_copy, {move.bestmove},
-                                        parameters_.syzygy50MoveRule,
-                                        parameters_.syzygyProbeLimit,
+                                        parameters_.syzygy_50_move_rule,
+                                        parameters_.syzygy_probe_limit,
                                         MAX_PLY / 2);
         }
     }
@@ -204,7 +205,7 @@ void Engine::start_search(uint64_t command_epoch,
     }
 
     if (desired_hash_mb != current_hash_mb_) {
-        tt.resize(static_cast<size_t>(desired_hash_mb));
+        tt_.resize(static_cast<size_t>(desired_hash_mb));
         current_hash_mb_ = desired_hash_mb;
     }
 
@@ -213,7 +214,7 @@ void Engine::start_search(uint64_t command_epoch,
         parameters_.threads = active_threads;
 
     if (is_new_game || do_clear_hash) {
-        tt.clear();
+        tt_.clear();
         search_pool_.clear();
     }
 
@@ -309,7 +310,7 @@ void Engine::handle_command(const EngineCommand& command, bool& quit) {
         case EngineCommandType::SetOption:
         {
             const int old_threads = parameters_.threads;
-            parameters_.setOption(command.args);
+            parameters_.set_option(command.args);
             configure_syzygy();
             if (parameters_.threads != old_threads) {
                 const int active_threads = search_pool_.resize_threads(parameters_.threads);
@@ -321,13 +322,13 @@ void Engine::handle_command(const EngineCommand& command, bool& quit) {
             break;
         }
         case EngineCommandType::Position:
-            parameters_.setPosition(command.args);
+            parameters_.set_position(command.args);
             break;
         case EngineCommandType::NewGame:
             parameters_.reset();
             break;
         case EngineCommandType::Go:
-            parameters_.setSearchParameters(command.args);
+            parameters_.set_search_parameters(command.args);
             if (parameters_.perft > 0)
                 run_perft_command(command.epoch);
             else

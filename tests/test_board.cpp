@@ -13,10 +13,11 @@
 /// Or via CTest:
 ///   ctest --test-dir build/release -R test_board --output-on-failure
 
-#include "Board.h"
+#include "board.h"
 #include "attacks.h"
 #include "bitboard.h"
 #include "zobrist.h"
+#include "movegen_oracle.h"
 #include "test_harness.h"
 
 #include <algorithm>
@@ -32,7 +33,7 @@
 static std::vector<Move> legal_moves(const Board& b) {
     std::vector<Move> pseudo;
     pseudo.reserve(64);
-    b.gen_pseudo_legal(pseudo);
+    test_oracle::gen_pseudo_legal(b, pseudo);
     std::vector<Move> legal;
     legal.reserve(pseudo.size());
     for (Move m : pseudo)
@@ -45,7 +46,7 @@ static uint64_t perft(Board& b, int depth) {
 
     std::vector<Move> pseudo;
     pseudo.reserve(64);
-    b.gen_pseudo_legal(pseudo);
+    test_oracle::gen_pseudo_legal(b, pseudo);
 
     if (depth == 1) {
         uint64_t nodes = 0;
@@ -159,21 +160,21 @@ static void test_fen_roundtrip() {
 static void test_fen_validation() {
     Board b;
     const std::string original = b.get_fen();
-    std::string error;
 
     auto expect_invalid_preserves = [&](const char* label, const char* fen,
                                         bool strict = false) {
         begin_section(label);
-        error.clear();
-        EXPECT(!b.try_set_fen(fen, &error, strict));
-        EXPECT(!error.empty());
+        auto r = b.try_set_fen(fen, strict);
+        EXPECT(!r);
+        EXPECT(!r.error_or("").empty());
         EXPECT_STR(b.get_fen(), original);
         end_section();
     };
 
     begin_section("invalid FEN rejected without changing board");
-    EXPECT(!b.try_set_fen("8/8/8/8/8/8/8/8 w - - 0 1", &error));
-    EXPECT(!error.empty());
+    auto r0 = b.try_set_fen("8/8/8/8/8/8/8/8 w - - 0 1");
+    EXPECT(!r0);
+    EXPECT(!r0.error_or("").empty());
     EXPECT_STR(b.get_fen(), original);
     end_section();
 
@@ -212,13 +213,13 @@ static void test_fen_validation() {
     // (the e6 EP token has no legal capturer, so it normalizes to "-" -- 8.1c)
     const char* fen =
         "r1bqkb1r/pppn1ppp/3p1n2/4p1B1/3PP3/2N5/PPP2PPP/R2QKBNR w KQkq e6 0 0";
-    EXPECT(b.try_set_fen(fen, &error));
+    EXPECT(b.try_set_fen(fen).has_value());
     EXPECT_STR(b.get_fen(),
         "r1bqkb1r/pppn1ppp/3p1n2/4p1B1/3PP3/2N5/PPP2PPP/R2QKBNR w KQkq - 0 0");
     end_section();
 
     begin_section("castling rights sanitized for missing rooks");
-    EXPECT(b.try_set_fen("4k3/8/8/8/8/8/8/R3K3 w KQkq - 0 1", &error));
+    EXPECT(b.try_set_fen("4k3/8/8/8/8/8/8/R3K3 w KQkq - 0 1").has_value());
     EXPECT_EQ(b.castling_rights, WQ_CASTLE);
     EXPECT_STR(b.get_fen(), "4k3/8/8/8/8/8/8/R3K3 w Q - 0 1");
     end_section();
@@ -367,7 +368,7 @@ static void test_make_unmake() {
 
         std::vector<Move> pseudo;
         pseudo.reserve(64);
-        b.gen_pseudo_legal(pseudo);
+        test_oracle::gen_pseudo_legal(b, pseudo);
 
         bool all_ok = true;
         for (Move m : pseudo) {
@@ -1038,21 +1039,30 @@ static void test_legal_ep_hashing() {
 
 
 // ---------------------------------------------------------------------------
-// History-capacity release guard (Phase 8.1d, infra audit 4.6)
+// Growable history (8.6.10a; supersedes the Phase-8.1d clamp guard)
 // ---------------------------------------------------------------------------
 
-static void test_history_capacity_guard() {
-    // Push far past MAX_HISTORY via null moves: the release clamp must keep
-    // history_size in bounds (bounded state damage instead of an
-    // out-of-bounds write). Reset via set_fen afterwards.
+static void test_history_growth_and_exact_unwind() {
+    // The fixed 2048-entry array + release clamp is gone: pushing past the
+    // reserve must GROW the history, and — the part the old clamp could never
+    // deliver — every ply must unwind exactly. Under the clamp, unmake of the
+    // clamped ply restored wrong state by design ("bounded damage"); now there
+    // is nothing to damage.
     Board b;
     b.set_fen("4k3/8/8/8/8/8/4P3/4K3 w - - 0 1");
-    begin_section("history overflow is clamped, no out-of-bounds");
-    for (int i = 0; i < Board::MAX_HISTORY + 200; i++)
+    const Key start_hash = b.hash;
+
+    begin_section("history grows past the reserve and unwinds exactly");
+    const int plies = static_cast<int>(Board::HISTORY_RESERVE) + 200;
+    for (int i = 0; i < plies; i++)
         b.make_null_move();
-    EXPECT(b.history_size <= Board::MAX_HISTORY);
+    EXPECT(b.history.size() == static_cast<size_t>(plies));
+    for (int i = 0; i < plies; i++)
+        b.unmake_null_move();
+    EXPECT(b.history.empty());
+    EXPECT(b.hash == start_hash);
     b.set_fen("4k3/8/8/8/8/8/4P3/4K3 w - - 0 1");  // clean reset
-    EXPECT(b.history_size == 0);
+    EXPECT(b.history.empty());
     end_section();
 }
 
@@ -1186,7 +1196,7 @@ int main() {
     test_legal_ep_hashing();
 
     std::printf("\nHistory-capacity release guard\n");
-    test_history_capacity_guard();
+    test_history_growth_and_exact_unwind();
     test_see_pin_legality();
 
     std::printf("\nFEN round-trip\n");

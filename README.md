@@ -91,7 +91,8 @@ GCC, Clang, and LLVM are supported where available; use `bench` to measure which
 |------|----------------|
 | CMake | 3.24 |
 | Ninja | any |
-| GCC ≥ 11 or Clang ≥ 16 | (C++23 required) |
+| GCC ≥ 14, or Clang ≥ 19 with libstdc++, or Clang ≥ 16 with libc++ | (C++23 `std::expected` required; libstdc++'s copy is disabled below Clang 19) |
+| **64-bit target** | x86-64 or aarch64 — Basilisk is 64-bit-only and will not build for a 32-bit target |
 
 ### Compiler Selection
 
@@ -182,7 +183,7 @@ GitHub release assets keep the x86_64 choices intentionally small:
 | `avx2` | x86_64 with AVX2 | Modern Intel/AMD x86_64 CPUs |
 | `pext` | x86_64 with BMI2/PEXT | Uses PEXT sliding-piece attack lookup; benchmark against `avx2` on your CPU |
 
-The x86 feature builds check CPU support at startup and print a clear error if the host CPU cannot run that binary.
+The x86 feature builds check CPU support at startup and print a clear error if the host CPU cannot run that binary. The non-PEXT tiers (generic, AVX2, aarch64) use precomputed **baked magic bitboards**, so startup is near-instant instead of re-deriving them on every launch.
 
 Release builds are produced for Linux x86_64, Linux aarch64, Windows x86_64,
 Windows aarch64, and macOS aarch64. Intel macOS and AVX-512 release assets are

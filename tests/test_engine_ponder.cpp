@@ -1,8 +1,8 @@
 /// Engine-level ponder protocol tests.
 
-#include "Engine.h"
-#include "EngineCommand.h"
-#include "UciOutput.h"
+#include "engine.h"
+#include "engine_command.h"
+#include "uci_output.h"
 #include "attacks.h"
 #include "bitboard.h"
 #include "eval.h"

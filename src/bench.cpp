@@ -9,11 +9,11 @@
 #include <string_view>
 #include <vector>
 
-#include "Board.h"
+#include "board.h"
 #include "bench.h"
 #include "search.h"
 #include "tt.h"
-#include "UciOutput.h"
+#include "uci_output.h"
 
 // 40 positions covering openings, middlegames (quiet + tactical), a broad range
 // of endgames, mates, and fortresses. In single-thread mode the final "Nodes
@@ -70,6 +70,8 @@ static constexpr std::array<std::string_view, 40> BENCH_FENS = {{
     "1Q4R1/5k2/4rpp1/3K4/8/7p/8/8 b - - 2 9",
     "1R6/8/4r3/6P1/1pk1b2P/8/3K4/8 b - - 0 11",
 }};
+
+const std::array<std::string_view, 40>& bench_fens() { return BENCH_FENS; }
 
 // bench [depth] [repeats] [threads]
 //   depth   : fixed search depth per position (default 13)

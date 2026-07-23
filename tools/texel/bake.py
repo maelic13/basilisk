@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Bake a Texel tuner weight dump back into src/EvalParams.h.
+Bake a Texel tuner weight dump back into src/eval_params.h.
 
 The tuner (`basilisk-texel --tune <group> ... <out.txt>`) writes a full weight
 dump, one line per scalar:
@@ -21,7 +21,7 @@ initializers span many lines and need the dedicated path; for now no Phase-4
 stage before 4.7 touches them.
 
 Usage:
-    python tools/texel/bake.py <dump.txt> [--header src/EvalParams.h] [--dry-run]
+    python tools/texel/bake.py <dump.txt> [--header src/eval_params.h] [--dry-run]
 """
 import argparse
 import re
@@ -147,7 +147,7 @@ def format_2d_block(base, rows, cols, row_values, comments):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("dump")
-    ap.add_argument("--header", default="src/EvalParams.h")
+    ap.add_argument("--header", default="src/eval_params.h")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--allow-pst", action="store_true",
                     help="permit rewriting the 2-D PST initializers (pst_mg/pst_eg)")

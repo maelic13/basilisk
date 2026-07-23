@@ -5,8 +5,8 @@
 #include <cstdint>
 #include <string>
 
-#include "EngineCommand.h"
-#include "Parameters.h"
+#include "engine_command.h"
+#include "parameters.h"
 #include "tt.h"
 #include "search.h"
 
@@ -40,7 +40,7 @@ private:
 
     Parameters parameters_;
 
-    TranspositionTable tt;
+    TranspositionTable tt_;
     SearchThreadPool   search_pool_;
     int current_hash_mb_ = 64;
     std::string current_syzygy_path_;

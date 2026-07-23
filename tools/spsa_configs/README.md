@@ -1,5 +1,17 @@
 # SPSA tuning with weather-factory + fastchess
 
+> **⚠ STALE configs (8.6.1, 2026-07-20):** `config_lmr.json.STALE` and
+> `config_combined.json.STALE` are renamed so `spsa.ps1 -ConfigGroup` cannot
+> launch them by accident: they express the `Lmr*Adj` knobs on the pre-6.7
+> **0–2/0–3 integer scale** (the engine now uses **1024ths**, so running them
+> would silently drive those knobs to ~0), and `config_combined` additionally
+> carries pre-hcefinal seeds (`HistPruneCoeff` 4210 vs live 14004) with a
+> `LmrHistDiv` floor (6000) *above* the live default (5683). Do not "fix"
+> them piecemeal — regenerate any needed config from the
+> `src/SearchParams.h` X-macro table (the single source of truth since
+> 8.6.1) at the 10.7 tune. `TmInstability` (registered in 8.6.1) must be in
+> the 10.7 config.
+
 fastchess does **not** have a built-in SPSA tuner. The community-standard tuner
 is **weather-factory** (https://github.com/jnlt3/weather-factory), a small
 Python driver that perturbs UCI options and runs mini-matches via fastchess.
@@ -22,7 +34,7 @@ command. Run it manually only if something needs customising.
      `basilisk-phase1-defaults-pext-pgo.exe` (build with
      `tools\build_test.ps1 -Suffix phase1-defaults`, then copy from
      `tools\test_engines\`)
-   - your local opening book `SuperGM_4mvs.pgn` (copy from `tools\books\`)
+   - your local opening book `UHO_Lichess_4852_v1.epd` (copy from `tools\books\`)
 
 ## Per-run setup
 
@@ -92,7 +104,7 @@ SPSA optimizes a noisy objective and **over-fits**. The tuned values are only a
 | Runner | fastchess (`use_fastchess: true`) | less overhead than cutechess-cli |
 | `tc` | `3` -> 3+0.03 s | Clock + 1% increment, matching `sprt.ps1` so SPSA optima transfer to the confirming SPRT without the old `tc=1` / `st=0.1` condition gap. |
 | `hash` | 64 | matches deployment |
-| `threads` | 15 | concurrency = physical cores (16) − 1 |
+| `threads` | auto | `spsa.ps1` detects physical cores and leaves two free; the checked JSON is the 16-core example |
 | `games` | 32 | per iteration; multiple of 2 and ≈ 2×threads for a stable gradient |
 | `A` (spsa.json) | iterations / 10 | **must update per run** (see step 4 above) |
 | `a`, `c`, `alpha`, `gamma` | defaults | do not change (weather-factory guidance) |

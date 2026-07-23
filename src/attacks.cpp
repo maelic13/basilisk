@@ -2,6 +2,9 @@
 #include <cstring>
 #include <cassert>
 #include <algorithm>
+#if !defined(USE_PEXT)
+#  include "magics.h"   // 8.7.10 baked magic constants (non-PEXT tiers)
+#endif
 
 #if defined(USE_PEXT)
 #  include <immintrin.h>
@@ -99,27 +102,52 @@ static bool try_magic(Bitboard mask, uint64_t magic, int shift, bool bishop, Squ
     return true;
 }
 
+// 8.7.10: how many squares fell back to the live search because their baked
+// magic failed verification. MUST be 0 in a healthy build (asserted by the
+// baked_magics_cover_every_square test). A nonzero value means the baked
+// constants are stale — startup is slow again, but the fallback keeps play
+// correct.
+int g_baked_magic_fallbacks = 0;
+
+// Validate `magic` against the full occupancy enumeration and, on success,
+// commit it to `entry` + build the real attack table. Returns false on a
+// destructive collision (the magic does not work for this square).
+static bool commit_magic(Bitboard mask, uint64_t magic, int shift, bool bishop, Square sq,
+                         MagicEntry& entry, Bitboard* table, Bitboard* tmp, int tableSize) {
+    if (magic == 0 || !try_magic(mask, magic, shift, bishop, sq, tmp, tableSize))
+        return false;
+    entry.mask    = mask;
+    entry.shift   = shift;
+    entry.magic   = magic;
+    entry.attacks = table;
+    std::memcpy(table, tmp, sizeof(Bitboard) * (size_t)tableSize);
+    return true;
+}
+
 static void find_magic(Square sq, bool bishop, MagicEntry& entry, Bitboard* table) {
     Bitboard mask = bishop ? bishop_mask(sq) : rook_mask(sq);
     int n = popcount(mask);
     int shift = 64 - n;
     int tableSize = 1 << n;
 
-    entry.mask  = mask;
-    entry.shift = shift;
+    Bitboard tmp[4096];
 
-    Bitboard tmp[4096] = {};
+    // 8.7.10: try the baked magic first (the deterministic search result). On
+    // success — always, in a healthy build — the ~1e8-attempt random search
+    // below is skipped entirely, which is the whole startup saving.
+    const uint64_t baked = bishop ? BAKED_BISHOP_MAGICS[sq] : BAKED_ROOK_MAGICS[sq];
+    if (commit_magic(mask, baked, shift, bishop, sq, entry, table, tmp, tableSize))
+        return;
 
+    // Fallback: a stale/invalid baked value drops to the original live search
+    // (correctness preserved; only this square's startup slows).
+    ++g_baked_magic_fallbacks;
     for (int attempt = 0; attempt < 100000000; attempt++) {
         uint64_t magic = sparse64();
         if (popcount((mask * magic) & 0xFF00000000000000ULL) < 6)
             continue;
-        if (try_magic(mask, magic, shift, bishop, sq, tmp, tableSize)) {
-            entry.magic   = magic;
-            entry.attacks = table;
-            std::memcpy(table, tmp, sizeof(Bitboard) * (size_t)tableSize);
+        if (commit_magic(mask, magic, shift, bishop, sq, entry, table, tmp, tableSize))
             return;
-        }
     }
     assert(false && "Failed to find magic number");
 }
@@ -166,6 +194,7 @@ Bitboard rook_attacks(Square sq, Bitboard occ) {
 void init_attacks() {
 #if !defined(USE_PEXT)
     sm64_state = 1234567890123ULL;
+    g_baked_magic_fallbacks = 0;   // 8.7.10: fresh count per (re)init
 #endif
 
     // Knight attacks

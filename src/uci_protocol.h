@@ -4,8 +4,8 @@
 #include <cstdint>
 #include <string>
 
-#include "EngineCommand.h"
-#include "Parameters.h"
+#include "engine_command.h"
+#include "parameters.h"
 
 class UciProtocol {
 public:

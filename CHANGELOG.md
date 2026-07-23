@@ -7,6 +7,157 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.9.1] - 2026-07-24
+
+Two pre-NNUE waves on top of 1.9.0, shipping as a **PATCH by choice**: the
+search **algorithm is bit-identical to 1.9.0** (bench 11,941,440, same node
+counts on every position), and the only strength movement is a modest
+speed gain.
+
+**Phase 8.6 — hardening, hygiene, infrastructure** (strength-neutral): the
+pre-NNUE cleanup from the 2026-07-20 Rarog cross-review plus four in-session
+code audits — the sanitizer gate repaired, the structure-era refactor (NNUE
+runway), a C++23 pass, clang-tidy to zero, search telemetry, and CI in
+Rarog's shape. Verified neutral vs 1.9.0 by a 6,000-game fixed-N probe
+(**+0.17 ± 4.41 Elo**, dead even) and a pooled-PGO NPS comparison within
+noise — an earlier "−0.5% NPS" reading was **retracted** as single-build /
+CPU-0 / ad-hoc-script measurement noise.
+
+**8.6.8A accept-audit** (bookkeeping, no code change): after a harness
+placement-lottery incident revealed the old *unpinned* SPRT harness carried
+a persistent ~±10 Elo per-run bias, every small 1.9.0 strength accept was
+re-measured on the fixed pinned harness. **Every accept re-verified as REAL —
+nothing removed** — but the headline numbers were ~40–55% inflated by that
+bias (instability-TM +10.79 → re-verified +6.46, etc.). 1.9.0's strength
+table below is annotated accordingly; 1.9.0 itself ships unchanged.
+
+**Phase 8.7 — profile-guided speed pass** (the strength delta): a
+profile-first optimization wave, every item **bench-identical** (identical
+moves), so it can only help via wall-clock speed. Net **+4.34% NPS**
+(pooled-PGO, idle box, 16/16 rounds), which a batch SPRT against the
+pre-pass head confirmed as **+8.69 ± 6.63 Elo** at `tc=3+0.03` (95% CI
+excludes zero). Plus a **~16× faster launch** on the non-PEXT tiers (baked
+magic bitboards: 603 ms → 38 ms startup).
+
+**Why still 1.9.1 (patch):** the ~+8.7 Elo is small and grey-zone, the
+playing algorithm is unchanged, and NNUE (2.0.0) supersedes all of this
+shortly — so this is labelled a patch, not a minor. 1.9.1 remains the frozen
+HCE baseline the NNUE line is measured against.
+
+### Fixed
+
+- The **debug ASan/UBSan gate was unbuildable as shipped** (`test_wac` and
+  `test_invariants` missing from the warning/sanitizer target list; a debug
+  `assert` contradicted the history-overflow clamp). The full suite now
+  builds and passes 12/12 under sanitizers — for the first time ever — and
+  runs in CI.
+- Any Debug/scratch configure could silently **overwrite release-named
+  binaries in `build/dist/`**; publishing is now gated on optimized,
+  non-sanitized builds.
+- `PostLmrHistScale` advertised a stale UCI default (104 vs compiled 0);
+  `TmInstability` — the +10.79 knob — was **registered nowhere and therefore
+  untunable**. Both fixed structurally: all 46 search params now generate
+  struct default, UCI advertisement and clamp from one X-macro line.
+- TT `resize()` allocated the new table while the old was live (transient
+  ~3× memory spike at `setoption Hash` mid-game); byte-budget now tested
+  (≤ budget, > budget/2, negative-controlled).
+- `popcount()` called a GCC builtin unguarded (real-MSVC break) — replaced
+  by C++23 `<bit>` (identical codegen).
+- The tuner re-implemented the eval's draw-scaling predicates by hand (two
+  complementary dark-square masks, a copied rule-50 curve); a divergence
+  would have silently corrupted fitted gradients. One shared definition now.
+- POSIX builds: a GUI closing the stdout pipe no longer signal-kills the
+  engine (SIGPIPE ignored).
+
+### Changed / Internal
+
+- **64-bit-only declared** (static_assert + docs); vestigial i386 guards
+  removed. First `static_assert`s in the tree, incl. the 32-byte TT-cluster
+  density contract and power-of-two table-mask guards.
+- **Structure era** (NNUE runway, shipped early): growable game history
+  (any `position` length correct, exact unwind), shared EP-legality core
+  (Board deep-copy removed from `is_legal`), **16-bit `Move`**
+  (benchmark-confirmed), `HistoryTables` module, **one `do_move`/`undo_move`
+  seam** for all search make/unmake (the Phase-9 accumulator / dirty-piece
+  attachment point), per-root-move records (score/mean/variance/nodes/PV).
+- **Modern C++23 pass**: `std::expected` error channel for `try_set_fen`,
+  constexpr `<bit>` primitives with contract asserts, constexpr
+  Square/Direction operators (22 casts deleted), `[[nodiscard]]` on pure
+  queries, `-ffast-math` removed (measured free), scoped_lock, snake_case
+  `Parameters`, all-lowercase file names (`Basilisk.cpp` → `main.cpp`).
+- **clang-tidy at zero findings** under a checked-in `.clang-tidy` policy
+  (deliberate rejections documented in-config; two NOLINT exceptions with
+  reasons).
+- **Search telemetry** (`Diag` UCI option, TUNE builds): 23 counters + a
+  lazy dual-eval audit, always counted (cost measured nil), printed on
+  demand; baseline harvest recorded in PLAN (notably: LMR re-search rate
+  1.04%; history pruning de-facto dead post-hcefinal; lazy eval zero sign
+  flips in 21,689 fires).
+- **Tests**: engine-level malformed-input survival contract (reject-and-
+  retain pinned; SF-dev's exit(1) divergence recorded), strict legality
+  sweeps over every packaged FEN (endgames.epd, bench-40, WAC-300), parser
+  fuzz widened to 7 structurally diverse seed FENs, TT byte-contract tests,
+  history exact-unwind test. The 302-line test-only movegen oracle moved
+  out of production `board.cpp` into `tests/movegen_oracle.h`.
+- **CI**: new `ci.yml` (master-push + dispatch; Linux/Windows/macOS CTest,
+  ASan+UBSan, TUNE check, **cross-platform bench agreement with no
+  hardcoded value**). Linux CI/release builds pin **clang-19**: clang-18
+  defines `__cpp_concepts 201907L`, which disables libstdc++'s C++23
+  `<expected>` and broke every Linux build. The release workflow smoke-tests
+  each published binary with a real `bench` and finishes with a
+  cross-binary bench-agreement job over all nine PGO assets (including the
+  ARM tiers full CI doesn't run). GitHub Actions bumped to Node-24 majors
+  (checkout/upload-artifact/download-artifact v7). `sprt.ps1` hard-fails on
+  A/B compiler mismatch and archives both build manifests per run;
+  `build_test.ps1` warns on dirty trees. UHO book is repo-local
+  (`tools/books/`, gitignored).
+
+### Performance (Phase 8.7 — profile-guided speed, +4.34% NPS ≈ +8.7 Elo)
+
+All accepted items are bench-identical (11,941,440) and were measured under a
+purpose-built NPS instrument (`tools/nps_ab.ps1`: self-pair-validated,
+strictly alternating arms, pooled ≥2 PGO builds per arm, median + bootstrap
+CI, idle-box-pinned) after a profile pass located the real hot regions.
+
+- **Move-scoring continuation-history hoist (+3.03%)** — the per-move
+  `(ss-1/2/4)` guards and array-dimension multiplies are computed once per
+  node instead of per scored quiet (the standard SF pattern).
+- **Mobility `switch(pt)` hoist (+0.89%)** — the mobility inner loop's two
+  per-piece switches folded to compile-time constants via a per-type
+  template lambda; clang was not already specialising it.
+- **Eval slider-attack reuse (+0.39%)** — the mobility sweep's bishop/rook
+  attacks are cached and reused at the king-ring / trapped-bishop tests
+  instead of recomputing the identical magic lookup.
+- **SEE-verdict memoize (+0.36%)** — the move picker's good/bad `see_ge`
+  classification is threaded into the search's `see_score` (killed ~18% of
+  `see_ge` calls, 0.63 → 0.51 per node).
+- **Baked magic bitboards** — the non-PEXT tiers (portable / avx2 / aarch64)
+  ship precomputed magics instead of re-running the deterministic search at
+  every launch: **startup 603 ms → 38 ms** (~16×). Startup latency only —
+  no game-NPS effect; a coverage test asserts zero search fallbacks.
+
+### Evaluated and rejected
+
+- **Blanket check-extension removal (8.6.7): −10.17 ± 6.52 @ 4,682 games,
+  reverted.** Rarog's +30.75 for the same change did not transfer —
+  plausibly de-tuning (our hcefinal SPSA tuned the LMR/margin consumers
+  around the extension). Requeued as a removal+re-SPSA bundle at the
+  post-NNUE recalibration.
+- Cutoff-count LMR (8.6.8) skipped; anchored as MUST-INCLUDE in 10.1/10.7.
+- **Phase 8.7 speed candidates that measured negative/neutral and were
+  reverted:** per-node CheckInfo + check-hinted `make_move` (−1.8…−2.7%, a
+  repeat of the 8.5.1 result — closed permanently); pin-sharing across
+  generation stages (−0.16%); pawn-cache resize (dead — the cache already
+  hits 89–99%). PGO-workload enrichment was **retired as an anti-pattern**
+  (training stays on `bench` only). A latent LMR bug (the reduction gate
+  reads a *post-move* `gives_check`) was found in passing; its standalone
+  fix lost −21 Elo (de-tuning) and is relocated to the post-NNUE LMR rework.
+- `memset` → `= {}` modernization (C arrays are not assignable; memset is
+  correct there), `std::unreachable` (no provably exhaustive switch),
+  `std::to_underlying` / `std::print` (no target / parser risk).
+
+---
+
 ## [1.9.0] - 2026-07-17
 
 The last pure-HCE release, and the frozen baseline the NNUE line (2.0.0) will be
@@ -20,6 +171,22 @@ rating (≈ the rating-limited-Stockfish-3000 / Rybka-3 tier). As with prior
 releases a chunk of the fast-TC gain compresses at longer time control.
 
 ### Strength (SPRT-accepted, cumulative over 1.8.0)
+
+> **Re-verification note (added 2026-07-23, bookkeeping only — 1.9.0 ships as
+> released).** Every figure below was measured on the pre-2026-07-21 harness,
+> which ran fastchess without CPU pinning and so gave each run one persistent
+> scheduler-placement offset of up to ~±10 Elo (see [1.9.1]). The 8.6.8A audit
+> re-measured the small accepts on the fixed, pinned harness at fixed N:
+> instability-TM **+10.79 → +6.46 ± 4.12**; the exact/PV + surprise history
+> pair **+7.40 → +3.06 ± 4.35**; the rule-50 + mate-drive pair
+> **+6.48 → +4.24 ± 4.38**. **Every feature re-verified as REAL — no phantom
+> accepts, nothing removed** — but the headline numbers were inflated roughly
+> 40–55% by harness bias, so read them as directionally right and
+> quantitatively generous. TT density (+4.27), SEE pin-awareness (+0.65) and
+> the 8.3 eval refresh (+13.97) were not re-run: they are kept on structural
+> and correctness merit (8.3 fixed three genuine activation bugs), and their
+> Elo claims stand as unverified. The `hcefinal` SPSA (+35.94) is beyond the
+> bias radius and needs no caveat.
 
 - **History/eval re-tune (`hcefinal` SPSA): +35.94 ± 9.42** — the largest single
   tune in the project's history (asymmetric-linear history bonus/malus with

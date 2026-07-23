@@ -1,0 +1,54 @@
+# Basilisk clang-tidy policy (8.6.2b C12). The goal is a CLEAN run: checks we
+# honor are enabled and at zero; checks we deliberately reject are disabled
+# HERE, with the reason, instead of being re-litigated at every scan.
+# Individual justified exceptions use NOLINT with an in-code comment.
+#
+# Disabled, with reasons:
+#  - modernize-use-trailing-return-type: style we don't use.
+#  - modernize-avoid-c-arrays: fixed-size engine tables are deliberate
+#    (Board/eval/history layouts); std::array adds nothing at these sites.
+#  - modernize-avoid-c-style-cast: flags FUNCTIONAL casts (Square(x), int(x))
+#    on plain `enum : int` types — deliberate idiom; true (T)x casts are kept
+#    at zero by -Wold-style-cast instead.
+#  - modernize-use-auto: we use auto where it clarifies, not everywhere.
+#  - modernize-macro-to-enum: the X-macro registries (EvalParams/SearchParams)
+#    are the single-source-of-truth mechanism; converting defeats them.
+#  - modernize-use-std-print: tool scripts parse this output ("Nodes
+#    searched"); reformatting is churn with parser risk (decision 8.6.2c).
+#  - modernize-use-ranges / loop-convert: only-where-clearer policy; hot-path
+#    loops stay explicit.
+#  - modernize-use-designated-initializers: brace-init of small internal
+#    structs is fine; designated form adds noise at these sites.
+#  - modernize-use-default-member-init: Searcher's ctor-init list is kept as
+#    the single ordered place its state is documented; converting 19 members
+#    piecemeal splits that story (revisit wholesale at the Phase-10 cleanup).
+#  - readability-implicit-bool-conversion: `if (bb)` on bitboards IS the
+#    engine idiom; every hot predicate would get wordier.
+#  - performance-enum-size: shrinking enum underlying types changes layout
+#    for zero measured gain; plain `enum : int` is deliberate (types.h).
+#  - bugprone-easily-swappable-parameters: (Square, Square) and (Color, ...)
+#    signatures are the domain; the warning is unactionable noise here.
+#  - modernize-use-nodiscard: blanket application is noise; [[nodiscard]] is
+#    applied deliberately to the pure queries (8.6.2b P2).
+Checks: >
+  -*,
+  modernize-*,
+  -modernize-use-trailing-return-type,
+  -modernize-avoid-c-arrays,
+  -modernize-avoid-c-style-cast,
+  -modernize-use-auto,
+  -modernize-macro-to-enum,
+  -modernize-use-std-print,
+  -modernize-use-ranges,
+  -modernize-loop-convert,
+  -modernize-use-designated-initializers,
+  -modernize-use-default-member-init,
+  -modernize-use-nodiscard,
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  performance-*,
+  -performance-enum-size
+WarningsAsErrors: ''
+HeaderFilterRegex: 'src/.*'
+ExcludeHeaderFilterRegex: 'external/.*'
+FormatStyle: none

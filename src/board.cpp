@@ -1,6 +1,6 @@
 // Board.cpp — full board implementation
-#include "Board.h"
-#include "Constants.h"
+#include "board.h"
+#include "constants.h"
 #include <algorithm>
 #include <cassert>
 #include <cctype>
@@ -223,23 +223,18 @@ static bool can_castle_queenside(const Board& b, Color us) {
 
 // ---- Constructor & FEN parsing ---------------------------------------------
 
-Board::Board()
-    : history(std::make_unique<UndoInfo[]>(MAX_HISTORY))
-    , history_size(0) {
+Board::Board() {
+    history.reserve(HISTORY_RESERVE);
     set_fen(std::string(startPosition));
 }
 
-Board::Board(const Board& other)
-    : history(std::make_unique<UndoInfo[]>(MAX_HISTORY))
-    , history_size(0) {
+Board::Board(const Board& other) {
+    history.reserve(HISTORY_RESERVE);
     *this = other;
 }
 
 Board& Board::operator=(const Board& other) {
     if (this == &other) return *this;
-
-    if (!history)
-        history = std::make_unique<UndoInfo[]>(MAX_HISTORY);
 
     for (int c = 0; c < NCOLORS; ++c) {
         for (int pt = 0; pt < PIECE_TYPE_NB; ++pt)
@@ -266,25 +261,20 @@ Board& Board::operator=(const Board& other) {
     plies_from_null = other.plies_from_null;
     checkers = other.checkers;
 
-    history_size = other.history_size;
-    for (int i = 0; i < history_size; ++i)
-        history[static_cast<size_t>(i)] = other.history[static_cast<size_t>(i)];
+    history = other.history;   // vector copy-assign; capacity is retained
 
     return *this;
 }
 
 void Board::set_fen(const std::string& fen) {
-    std::string error;
-    if (!try_set_fen(fen, &error))
-        throw std::invalid_argument(error);
+    if (auto r = try_set_fen(fen); !r)
+        throw std::invalid_argument(r.error());
 }
 
-bool Board::try_set_fen(const std::string& fen, std::string* error,
-                        bool validate_legal_position) {
-    auto fail = [&](const std::string& message) {
-        if (error)
-            *error = message;
-        return false;
+std::expected<void, std::string>
+Board::try_set_fen(const std::string& fen, bool validate_legal_position) {
+    auto fail = [](std::string message) -> std::expected<void, std::string> {
+        return std::unexpected(std::move(message));
     };
 
     auto parse_nonnegative_int = [](const std::string& token, int max_value, int& out) {
@@ -469,8 +459,8 @@ bool Board::try_set_fen(const std::string& fen, std::string* error,
         }
 
         new_ep_sq = make_square(ep_file, ep_rank);
-        Square pushed_pawn = Square(int(new_ep_sq) + int(pawn_push(~new_side_to_move)));
-        Square origin_sq   = Square(int(new_ep_sq) + int(pawn_push(new_side_to_move)));
+        Square pushed_pawn = new_ep_sq + pawn_push(~new_side_to_move);
+        Square origin_sq   = new_ep_sq + pawn_push(new_side_to_move);
         if (new_board_sq[new_ep_sq] != NO_PIECE
             || new_board_sq[origin_sq] != NO_PIECE
             || !has_piece(pushed_pawn, ~new_side_to_move, PAWN)) {
@@ -532,7 +522,7 @@ bool Board::try_set_fen(const std::string& fen, std::string* error,
     halfmove_clock = parsed_halfmove;
     plies_from_null = 0;
     checkers = attackers_to_local(king_sq[side_to_move], ~side_to_move);
-    history_size = 0;
+    history.clear();
 
     // The FEN's EP token is only structural; keep the square (and its hash
     // key) only if a legal EP capture actually exists (8.1c) -- the same
@@ -542,7 +532,7 @@ bool Board::try_set_fen(const std::string& fen, std::string* error,
         ep_sq = SQ_NONE;
     }
 
-    return true;
+    return {};
 }
 
 std::string Board::get_fen() const {
@@ -607,9 +597,7 @@ void Board::make_move(Move m) {
     ui.halfmove = halfmove_clock;
     ui.plies_from_null = plies_from_null;
     ui.captured = NO_PIECE;
-    assert(history_size < MAX_HISTORY);
-    if (history_size >= MAX_HISTORY) history_size = MAX_HISTORY - 1;  // release guard (8.1d)
-    history[static_cast<size_t>(history_size++)] = ui;
+    history.push_back(ui);
 
     Square from = from_sq(m);
     Square to   = to_sq(m);
@@ -628,7 +616,7 @@ void Board::make_move(Move m) {
     if (mt == EN_PASSANT) {
         // Capture the EP pawn
         Square ep_pawn = make_square(file_of(to), rank_of(from));
-        history[static_cast<size_t>(history_size - 1)].captured = board_sq[ep_pawn];
+        history.back().captured = board_sq[ep_pawn];
         remove_piece(ep_pawn);
         move_piece(from, to);
         halfmove_clock = 0;
@@ -647,7 +635,7 @@ void Board::make_move(Move m) {
     else {
         Piece captured = board_sq[to];
         if (captured != NO_PIECE) {
-            history[static_cast<size_t>(history_size - 1)].captured = captured;
+            history.back().captured = captured;
             remove_piece(to);
             halfmove_clock = 0;
         }
@@ -665,7 +653,7 @@ void Board::make_move(Move m) {
                 // Double push: set EP square
                 int diff = int(to) - int(from);
                 if (diff == 16 || diff == -16) {
-                    Square ep = Square(int(from) + (diff / 2));
+                    Square ep = from + (diff / 2);
                     // Set/hash EP only when a LEGAL capture exists: position
                     // identity for repetition depends on legal moves, and a
                     // spurious EP key splits equivalent positions (8.1c).
@@ -691,8 +679,9 @@ void Board::make_move(Move m) {
 }
 
 void Board::unmake_move(Move m) {
-    assert(history_size > 0);
-    UndoInfo ui = history[static_cast<size_t>(--history_size)];
+    assert(!history.empty());
+    UndoInfo ui = history.back();
+    history.pop_back();
 
     // Restore most state from undo info
     // (hash/checkers must be restored AFTER piece movements, since put_piece/
@@ -761,9 +750,7 @@ void Board::make_null_move() {
     ui.halfmove = halfmove_clock;
     ui.plies_from_null = plies_from_null;
     ui.captured = NO_PIECE;
-    assert(history_size < MAX_HISTORY);
-    if (history_size >= MAX_HISTORY) history_size = MAX_HISTORY - 1;  // release guard (8.1d)
-    history[static_cast<size_t>(history_size++)] = ui;
+    history.push_back(ui);
 
     hash ^= Zobrist::SideKey;
     if (ep_sq != SQ_NONE) {
@@ -783,8 +770,9 @@ void Board::make_null_move() {
 }
 
 void Board::unmake_null_move() {
-    assert(history_size > 0);
-    UndoInfo ui = history[static_cast<size_t>(--history_size)];
+    assert(!history.empty());
+    UndoInfo ui = history.back();
+    history.pop_back();
 
     ep_sq           = ui.ep_sq;
     castling_rights = ui.castling;
@@ -848,308 +836,6 @@ bool Board::is_in_check() const {
 
 // ---- Move generation -------------------------------------------------------
 
-static void add_promotions(std::vector<Move>& moves, Square from, Square to) {
-    moves.push_back(make_promotion(from, to, QUEEN));
-    moves.push_back(make_promotion(from, to, ROOK));
-    moves.push_back(make_promotion(from, to, BISHOP));
-    moves.push_back(make_promotion(from, to, KNIGHT));
-}
-
-void Board::gen_pseudo_legal(std::vector<Move>& moves) const {
-    Color us   = side_to_move;
-    Color them = ~us;
-    Bitboard friendly = occupancy[us];
-    Bitboard enemy    = occupancy[them];
-    Bitboard empty    = ~all_occ;
-
-    // ---- Pawns ----
-    {
-        Bitboard pawns = pieces[us][PAWN];
-        Bitboard promo_rank = (us == WHITE) ? BB_RANKS[RANK_7] : BB_RANKS[RANK_2];
-        Bitboard push1 = (us == WHITE) ? shift<NORTH>(pawns & ~promo_rank)
-                                       : shift<SOUTH>(pawns & ~promo_rank);
-        push1 &= empty;
-        Bitboard push2 = (us == WHITE) ? (shift<NORTH>(push1) & empty & BB_RANKS[RANK_4])
-                                       : (shift<SOUTH>(push1) & empty & BB_RANKS[RANK_5]);
-
-        // Single push
-        Bitboard tmp = push1;
-        while (tmp) {
-            int to = pop_lsb(tmp);
-            int from = us == WHITE ? to - 8 : to + 8;
-            moves.push_back(::make_move(Square(from), Square(to)));
-        }
-        // Double push
-        tmp = push2;
-        while (tmp) {
-            int to = pop_lsb(tmp);
-            int from = us == WHITE ? to - 16 : to + 16;
-            moves.push_back(::make_move(Square(from), Square(to)));
-        }
-
-        // Pawn promotions (from promotion rank)
-        Bitboard promo_pawns = pawns & promo_rank;
-        if (promo_pawns) {
-            Bitboard promo_push = (us == WHITE) ? shift<NORTH>(promo_pawns)
-                                                : shift<SOUTH>(promo_pawns);
-            promo_push &= empty;
-            tmp = promo_push;
-            while (tmp) {
-                int to = pop_lsb(tmp);
-                int from = us == WHITE ? to - 8 : to + 8;
-                add_promotions(moves, Square(from), Square(to));
-            }
-
-            // Promotion captures
-            Bitboard pcap_e = (us == WHITE) ? shift<NORTH_EAST>(promo_pawns)
-                                            : shift<SOUTH_EAST>(promo_pawns);
-            Bitboard pcap_w = (us == WHITE) ? shift<NORTH_WEST>(promo_pawns)
-                                            : shift<SOUTH_WEST>(promo_pawns);
-            pcap_e &= enemy;
-            pcap_w &= enemy;
-            tmp = pcap_e;
-            while (tmp) {
-                int to = pop_lsb(tmp);
-                int from = us == WHITE ? to - 9 : to + 7;
-                add_promotions(moves, Square(from), Square(to));
-            }
-            tmp = pcap_w;
-            while (tmp) {
-                int to = pop_lsb(tmp);
-                int from = us == WHITE ? to - 7 : to + 9;
-                add_promotions(moves, Square(from), Square(to));
-            }
-        }
-
-        // Normal captures
-        Bitboard cap_e = (us == WHITE) ? shift<NORTH_EAST>(pawns & ~promo_rank)
-                                       : shift<SOUTH_EAST>(pawns & ~promo_rank);
-        Bitboard cap_w = (us == WHITE) ? shift<NORTH_WEST>(pawns & ~promo_rank)
-                                       : shift<SOUTH_WEST>(pawns & ~promo_rank);
-        cap_e &= enemy;
-        cap_w &= enemy;
-        tmp = cap_e;
-        while (tmp) {
-            int to = pop_lsb(tmp);
-            int from = us == WHITE ? to - 9 : to + 7;
-            moves.push_back(::make_move(Square(from), Square(to)));
-        }
-        tmp = cap_w;
-        while (tmp) {
-            int to = pop_lsb(tmp);
-            int from = us == WHITE ? to - 7 : to + 9;
-            moves.push_back(::make_move(Square(from), Square(to)));
-        }
-
-        // En passant
-        if (ep_sq != SQ_NONE) {
-            Bitboard ep_attackers = PawnAttacks[them][ep_sq] & pawns;
-            tmp = ep_attackers;
-            while (tmp) {
-                int from = pop_lsb(tmp);
-                moves.push_back(make_ep(Square(from), ep_sq));
-            }
-        }
-    }
-
-    // ---- Knights ----
-    {
-        Bitboard knights = pieces[us][KNIGHT];
-        while (knights) {
-            int from = pop_lsb(knights);
-            Bitboard att = KnightAttacks[from] & ~friendly;
-            while (att) {
-                int to = pop_lsb(att);
-                moves.push_back(::make_move(Square(from), Square(to)));
-            }
-        }
-    }
-
-    // ---- Bishops ----
-    {
-        Bitboard bishops = pieces[us][BISHOP];
-        while (bishops) {
-            int from = pop_lsb(bishops);
-            Bitboard att = bishop_attacks(Square(from), all_occ) & ~friendly;
-            while (att) {
-                int to = pop_lsb(att);
-                moves.push_back(::make_move(Square(from), Square(to)));
-            }
-        }
-    }
-
-    // ---- Rooks ----
-    {
-        Bitboard rooks = pieces[us][ROOK];
-        while (rooks) {
-            int from = pop_lsb(rooks);
-            Bitboard att = rook_attacks(Square(from), all_occ) & ~friendly;
-            while (att) {
-                int to = pop_lsb(att);
-                moves.push_back(::make_move(Square(from), Square(to)));
-            }
-        }
-    }
-
-    // ---- Queens ----
-    {
-        Bitboard queens = pieces[us][QUEEN];
-        while (queens) {
-            int from = pop_lsb(queens);
-            Bitboard att = queen_attacks(Square(from), all_occ) & ~friendly;
-            while (att) {
-                int to = pop_lsb(att);
-                moves.push_back(::make_move(Square(from), Square(to)));
-            }
-        }
-    }
-
-    // ---- King ----
-    {
-        int from = king_sq[us];
-        Bitboard att = KingAttacks[from] & ~friendly;
-        while (att) {
-            int to = pop_lsb(att);
-            moves.push_back(::make_move(Square(from), Square(to)));
-        }
-
-        // Castling
-        if (us == WHITE) {
-            if (can_castle_kingside(*this, WHITE)
-                && !(all_occ & ((sq_bb(F1) | sq_bb(G1))))
-                && !is_square_attacked(E1, BLACK)
-                && !is_square_attacked(F1, BLACK)
-                && !is_square_attacked(G1, BLACK)) {
-                moves.push_back(make_castling(E1, G1));
-            }
-            if (can_castle_queenside(*this, WHITE)
-                && !(all_occ & (sq_bb(B1) | sq_bb(C1) | sq_bb(D1)))
-                && !is_square_attacked(E1, BLACK)
-                && !is_square_attacked(D1, BLACK)
-                && !is_square_attacked(C1, BLACK)) {
-                moves.push_back(make_castling(E1, C1));
-            }
-        } else {
-            if (can_castle_kingside(*this, BLACK)
-                && !(all_occ & (sq_bb(F8) | sq_bb(G8)))
-                && !is_square_attacked(E8, WHITE)
-                && !is_square_attacked(F8, WHITE)
-                && !is_square_attacked(G8, WHITE)) {
-                moves.push_back(make_castling(E8, G8));
-            }
-            if (can_castle_queenside(*this, BLACK)
-                && !(all_occ & (sq_bb(B8) | sq_bb(C8) | sq_bb(D8)))
-                && !is_square_attacked(E8, WHITE)
-                && !is_square_attacked(D8, WHITE)
-                && !is_square_attacked(C8, WHITE)) {
-                moves.push_back(make_castling(E8, C8));
-            }
-        }
-    }
-}
-
-void Board::gen_pseudo_legal_captures(std::vector<Move>& moves) const {
-    Color us   = side_to_move;
-    Color them = ~us;
-    Bitboard enemy    = occupancy[them];
-
-    // ---- Pawn captures & promotions ----
-    {
-        Bitboard pawns = pieces[us][PAWN];
-        Bitboard promo_rank = (us == WHITE) ? BB_RANKS[RANK_7] : BB_RANKS[RANK_2];
-
-        // Promotion pushes (queen only for now — queen captures ordering in qsearch)
-        Bitboard promo_push = (us == WHITE) ? shift<NORTH>(pawns & promo_rank) & ~all_occ
-                                            : shift<SOUTH>(pawns & promo_rank) & ~all_occ;
-        Bitboard tmp = promo_push;
-        while (tmp) {
-            int to = pop_lsb(tmp);
-            int from = us == WHITE ? to - 8 : to + 8;
-            add_promotions(moves, Square(from), Square(to));
-        }
-
-        // Promotion captures
-        Bitboard promo_pawns = pawns & promo_rank;
-        if (promo_pawns) {
-            Bitboard pcap_e = (us == WHITE) ? shift<NORTH_EAST>(promo_pawns)
-                                            : shift<SOUTH_EAST>(promo_pawns);
-            Bitboard pcap_w = (us == WHITE) ? shift<NORTH_WEST>(promo_pawns)
-                                            : shift<SOUTH_WEST>(promo_pawns);
-            pcap_e &= enemy;
-            pcap_w &= enemy;
-            tmp = pcap_e;
-            while (tmp) {
-                int to = pop_lsb(tmp);
-                int from = us == WHITE ? to - 9 : to + 7;
-                add_promotions(moves, Square(from), Square(to));
-            }
-            tmp = pcap_w;
-            while (tmp) {
-                int to = pop_lsb(tmp);
-                int from = us == WHITE ? to - 7 : to + 9;
-                add_promotions(moves, Square(from), Square(to));
-            }
-        }
-
-        // Normal pawn captures (not promo rank)
-        Bitboard cap_e = (us == WHITE) ? shift<NORTH_EAST>(pawns & ~promo_rank)
-                                       : shift<SOUTH_EAST>(pawns & ~promo_rank);
-        Bitboard cap_w = (us == WHITE) ? shift<NORTH_WEST>(pawns & ~promo_rank)
-                                       : shift<SOUTH_WEST>(pawns & ~promo_rank);
-        cap_e &= enemy;
-        cap_w &= enemy;
-        tmp = cap_e;
-        while (tmp) {
-            int to = pop_lsb(tmp);
-            int from = us == WHITE ? to - 9 : to + 7;
-            moves.push_back(::make_move(Square(from), Square(to)));
-        }
-        tmp = cap_w;
-        while (tmp) {
-            int to = pop_lsb(tmp);
-            int from = us == WHITE ? to - 7 : to + 9;
-            moves.push_back(::make_move(Square(from), Square(to)));
-        }
-
-        // En passant
-        if (ep_sq != SQ_NONE) {
-            Bitboard ep_atk = PawnAttacks[them][ep_sq] & pawns;
-            tmp = ep_atk;
-            while (tmp) {
-                int from = pop_lsb(tmp);
-                moves.push_back(make_ep(Square(from), ep_sq));
-            }
-        }
-    }
-
-    // ---- Other pieces: captures only ----
-    auto gen_piece_caps = [&](PieceType pt) {
-        Bitboard pcs = pieces[us][pt];
-        while (pcs) {
-            int from = pop_lsb(pcs);
-            Bitboard att;
-            switch (pt) {
-                case KNIGHT: att = KnightAttacks[from]; break;
-                case BISHOP: att = bishop_attacks(Square(from), all_occ); break;
-                case ROOK:   att = rook_attacks(Square(from), all_occ); break;
-                case QUEEN:  att = queen_attacks(Square(from), all_occ); break;
-                case KING:   att = KingAttacks[from]; break;
-                default:     att = 0; break;
-            }
-            att &= enemy;
-            while (att) {
-                int to = pop_lsb(att);
-                moves.push_back(::make_move(Square(from), Square(to)));
-            }
-        }
-    };
-
-    gen_piece_caps(KNIGHT);
-    gen_piece_caps(BISHOP);
-    gen_piece_caps(ROOK);
-    gen_piece_caps(QUEEN);
-    gen_piece_caps(KING);
-}
 
 bool Board::is_legal(Move m) const {
     Color us   = side_to_move;
@@ -1250,7 +936,7 @@ bool Board::is_legal(Move m) const {
                 if (board_sq[to] != NO_PIECE)
                     return false;
             } else if (delta == 2 * push) {
-                const Square mid = Square(int(from) + push);
+                const Square mid = from + push;
                 if (rank_of(from) != start_rank
                     || board_sq[mid] != NO_PIECE
                     || board_sq[to] != NO_PIECE)
@@ -1280,12 +966,10 @@ bool Board::is_legal(Move m) const {
             return false;
     }
 
-    // En passant: complex because both pawns leave the rank before check tests.
-    if (mt == EN_PASSANT) {
-        Board tmp = *this;
-        tmp.make_move(m);
-        return !tmp.is_square_attacked(tmp.king_sq[us], them);
-    }
+    // En passant: both pawns leave the rank before the check test, so use the
+    // shared post-capture-occupancy helper (no Board copy — 8.6.10a).
+    if (mt == EN_PASSANT)
+        return ep_capture_legal_from(from, to, us);
 
     // Regular moves: ensure king is not in check after the move
     Square ksq = king_sq[us];
@@ -1457,7 +1141,7 @@ static void gen_legal_impl(const Board& b, MoveList& ml, bool caps_only, bool qu
             Bitboard pp = push_one(free_pawns & PromRank) & empty & check_mask;
             while (pp) {
                 Square to   = Square(pop_lsb(pp));
-                Square from = Square(int(to) - PushOff);
+                Square from = to - PushOff;
                 ml.push(make_promotion(from, to, QUEEN));
                 ml.push(make_promotion(from, to, ROOK));
                 ml.push(make_promotion(from, to, BISHOP));
@@ -1469,7 +1153,7 @@ static void gen_legal_impl(const Board& b, MoveList& ml, bool caps_only, bool qu
             Bitboard pp = cap_e(free_pawns & PromRank) & them_bb & check_mask;
             while (pp) {
                 Square to   = Square(pop_lsb(pp));
-                Square from = Square(int(to) - CapEOff);
+                Square from = to - CapEOff;
                 ml.push(make_promotion(from, to, QUEEN));
                 ml.push(make_promotion(from, to, ROOK));
                 ml.push(make_promotion(from, to, BISHOP));
@@ -1481,7 +1165,7 @@ static void gen_legal_impl(const Board& b, MoveList& ml, bool caps_only, bool qu
             Bitboard pp = cap_w(free_pawns & PromRank) & them_bb & check_mask;
             while (pp) {
                 Square to   = Square(pop_lsb(pp));
-                Square from = Square(int(to) - CapWOff);
+                Square from = to - CapWOff;
                 ml.push(make_promotion(from, to, QUEEN));
                 ml.push(make_promotion(from, to, ROOK));
                 ml.push(make_promotion(from, to, BISHOP));
@@ -1494,13 +1178,13 @@ static void gen_legal_impl(const Board& b, MoveList& ml, bool caps_only, bool qu
             Bitboard p1 = push_one(free_pawns & ~PromRank) & empty & check_mask;
             while (p1) {
                 Square to = Square(pop_lsb(p1));
-                ml.push(make_move(Square(int(to) - PushOff), to));
+                ml.push(make_move(to - PushOff, to));
             }
             // Double push
             Bitboard p2 = push_one(push_one(free_pawns & StartRank) & empty) & empty & check_mask;
             while (p2) {
                 Square to = Square(pop_lsb(p2));
-                ml.push(make_move(Square(int(to) - PushOff2), to));
+                ml.push(make_move(to - PushOff2, to));
             }
         }
 
@@ -1509,7 +1193,7 @@ static void gen_legal_impl(const Board& b, MoveList& ml, bool caps_only, bool qu
             Bitboard ce = cap_e(free_pawns & ~PromRank) & them_bb & check_mask;
             while (ce) {
                 Square to = Square(pop_lsb(ce));
-                ml.push(make_move(Square(int(to) - CapEOff), to));
+                ml.push(make_move(to - CapEOff, to));
             }
         }
         // Pawn captures west (non-promo)
@@ -1517,7 +1201,7 @@ static void gen_legal_impl(const Board& b, MoveList& ml, bool caps_only, bool qu
             Bitboard cw = cap_w(free_pawns & ~PromRank) & them_bb & check_mask;
             while (cw) {
                 Square to = Square(pop_lsb(cw));
-                ml.push(make_move(Square(int(to) - CapWOff), to));
+                ml.push(make_move(to - CapWOff, to));
             }
         }
 
@@ -1530,7 +1214,7 @@ static void gen_legal_impl(const Board& b, MoveList& ml, bool caps_only, bool qu
 
             // Pushes (along pin ray only)
             if (!caps_only) {
-                Square to1 = Square(int(from) + PushOff);
+                Square to1 = from + PushOff;
                 if (sq_bb(to1) & empty & pin_ray & check_mask) {
                     if (is_promo && !quiets_only) {
                         ml.push(make_promotion(from, to1, QUEEN));
@@ -1541,7 +1225,7 @@ static void gen_legal_impl(const Board& b, MoveList& ml, bool caps_only, bool qu
                         ml.push(make_move(from, to1));
                         // Double push
                         if (sq_bb(from) & StartRank) {
-                            Square to2 = Square(int(from) + PushOff2);
+                            Square to2 = from + PushOff2;
                             if (sq_bb(to2) & empty & pin_ray & check_mask)
                                 ml.push(make_move(from, to2));
                         }
@@ -1549,7 +1233,7 @@ static void gen_legal_impl(const Board& b, MoveList& ml, bool caps_only, bool qu
                 }
             } else if (is_promo) {
                 // caps_only: still emit promo pushes as they are tactically important
-                Square to1 = Square(int(from) + PushOff);
+                Square to1 = from + PushOff;
                 if (sq_bb(to1) & empty & pin_ray & check_mask) {
                     ml.push(make_promotion(from, to1, QUEEN));
                     ml.push(make_promotion(from, to1, ROOK));
@@ -1590,7 +1274,7 @@ static void gen_legal_impl(const Board& b, MoveList& ml, bool caps_only, bool qu
         // --- En passant ---
         if (!quiets_only && b.ep_sq != SQ_NONE) {
             Square ep       = b.ep_sq;
-            Square ep_pawn  = Square(int(ep) - PushOff);  // captured pawn square
+            Square ep_pawn  = ep - PushOff;  // captured pawn square
             // Filter: EP must either land on check_mask or capture the checking pawn
             if ((sq_bb(ep) | sq_bb(ep_pawn)) & check_mask) {
                 Bitboard ep_atk = PawnAttacks[Them][ep] & pawns;
@@ -1670,6 +1354,7 @@ Bitboard Board::check_squares(PieceType pt, Color us) const {
 }
 
 bool Board::gives_check(Move m) const {
+    ++diag_gives_check_calls;   // 8.7.1(c)
     Square from      = from_sq(m);
     Square to        = to_sq(m);
     Color  us        = side_to_move;
@@ -1746,26 +1431,37 @@ void Board::gen_quiet_checks(MoveList& ml) const {
 
 // ---- Draw detection --------------------------------------------------------
 
-bool Board::ep_capture_legal(Square ep, Color capturer) const {
+// Single-capture core of the EP legality test: is `from` x ep en passant
+// legal for `capturer`? Tests the capturer's king against the post-capture
+// occupancy directly — both pawns leave their ranks in one move, which is why
+// EP cannot use the generic pinned-piece shortcut. Shared by ep_capture_legal
+// (any capturer) and is_legal (a specific move) — 8.6.10a; the latter used to
+// deep-copy the entire Board and make the move just to ask this question.
+bool Board::ep_capture_legal_from(Square from, Square ep, Color capturer) const {
     const Color pusher = ~capturer;
     // The double-pushed pawn sits one step beyond the skipped square.
-    const Square pushed = Square(int(ep) + int(pawn_push(pusher)));
+    const Square pushed = ep + pawn_push(pusher);
     const Square ksq = king_sq[capturer];
+    // Occupancy after fromxep e.p.: capturer pawn moves from->ep, the
+    // pushed pawn disappears.
+    const Bitboard occ = (all_occ ^ sq_bb(from) ^ sq_bb(pushed)) | sq_bb(ep);
+    const Bitboard sliders =
+          (rook_attacks(ksq, occ)   & (pieces[pusher][ROOK]   | pieces[pusher][QUEEN]))
+        | (bishop_attacks(ksq, occ) & (pieces[pusher][BISHOP] | pieces[pusher][QUEEN]));
+    const Bitboard steppers =
+          (KnightAttacks[ksq] & pieces[pusher][KNIGHT])
+        | (PawnAttacks[capturer][ksq] & (pieces[pusher][PAWN] & ~sq_bb(pushed)))
+        | (KingAttacks[ksq] & pieces[pusher][KING]);
+    return !(sliders | steppers);
+}
+
+bool Board::ep_capture_legal(Square ep, Color capturer) const {
+    const Color pusher = ~capturer;
     // Capturer pawns pseudo-attacking the EP square.
     Bitboard candidates = PawnAttacks[pusher][ep] & pieces[capturer][PAWN];
     while (candidates) {
         const Square from = Square(pop_lsb(candidates));
-        // Occupancy after fromxep e.p.: capturer pawn moves from->ep, the
-        // pushed pawn disappears.
-        const Bitboard occ = (all_occ ^ sq_bb(from) ^ sq_bb(pushed)) | sq_bb(ep);
-        const Bitboard sliders =
-              (rook_attacks(ksq, occ)   & (pieces[pusher][ROOK]   | pieces[pusher][QUEEN]))
-            | (bishop_attacks(ksq, occ) & (pieces[pusher][BISHOP] | pieces[pusher][QUEEN]));
-        const Bitboard steppers =
-              (KnightAttacks[ksq] & pieces[pusher][KNIGHT])
-            | (PawnAttacks[capturer][ksq] & (pieces[pusher][PAWN] & ~sq_bb(pushed)))
-            | (KingAttacks[ksq] & pieces[pusher][KING]);
-        if (!(sliders | steppers))
+        if (ep_capture_legal_from(from, ep, capturer))
             return true;
     }
     return false;
@@ -1790,8 +1486,9 @@ bool Board::is_draw() const {
 
     // 2-fold repetition (search back through history)
     int reps = 0;
-    int stop = std::max(0, history_size - halfmove_clock);
-    for (int i = history_size - 2; i >= stop; i -= 2) {
+    const int hist_size = static_cast<int>(history.size());
+    int stop = std::max(0, hist_size - halfmove_clock);
+    for (int i = hist_size - 2; i >= stop; i -= 2) {
         if (history[static_cast<size_t>(i)].hash == hash) {
             reps++;
             if (reps >= 1) return true; // 2-fold (current + one prior)
@@ -1806,13 +1503,14 @@ bool Board::is_repetition(int search_ply) const {
 
     int reps = 0;
     const int reversible = std::min(halfmove_clock, plies_from_null);
-    const int stop = std::max(0, history_size - reversible);
+    const int hist_size = static_cast<int>(history.size());
+    const int stop = std::max(0, hist_size - reversible);
 
-    for (int i = history_size - 2; i >= stop; i -= 2) {
+    for (int i = hist_size - 2; i >= stop; i -= 2) {
         if (history[static_cast<size_t>(i)].hash != hash)
             continue;
 
-        const int distance = history_size - i;
+        const int distance = hist_size - i;
         if (distance <= search_ply)
             return true;
 
@@ -2007,6 +1705,7 @@ int Board::see(Move m) const {
 }
 
 bool Board::see_ge(Move m, int threshold) const {
+    ++diag_see_ge_calls;   // 8.7.1(c)
     static constexpr int SEE_VALUES[PIECE_TYPE_NB] = {0, 100, 300, 300, 500, 900, 20000};
 
     const Square from = from_sq(m);

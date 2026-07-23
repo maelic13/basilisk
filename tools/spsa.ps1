@@ -36,6 +36,11 @@
     Planned total iterations (sets A = Iterations / 10 in spsa.json).
     Default 5000. State is saved every 10 iterations to tuner\state.json.
 
+.PARAMETER Concurrency
+    Parallel games per SPSA mini-match. Default 0 auto-detects physical cores
+    and leaves two free. This is weather-factory's `threads` config field; the
+    chess engines remain Threads=1.
+
 .PARAMETER Resume
     Preserve the existing tuner state (state.json/games/graph) instead of
     archiving it — continues an interrupted run rather than starting fresh.
@@ -69,6 +74,7 @@ param(
     [string]$ConfigGroup = "lmr",
     [string]$EngineSuffix = "",
     [int]$Iterations = 5000,
+    [int]$Concurrency = 0,
     [switch]$Resume,
     [switch]$SetupOnly,
     [switch]$LaunchOnly,
@@ -76,6 +82,10 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "..\harness_common.ps1")
+
+$concurrencyInfo = Resolve-HarnessConcurrency -Requested $Concurrency
+$Concurrency = $concurrencyInfo.Concurrency
 
 if ($SetupOnly -and $LaunchOnly) { throw "-SetupOnly and -LaunchOnly are mutually exclusive." }
 
@@ -106,14 +116,24 @@ if (-not $LaunchOnly) {
     $engine = Join-Path $PSScriptRoot "test_engines\$engineFile"
 
     if (-not (Test-Path (Join-Path $wfRoot "main.py"))) {
-        Write-Host "weather-factory missing; cloning into tools\weather-factory..."
-        git clone https://github.com/jnlt3/weather-factory $wfRoot
-        if ($LASTEXITCODE -ne 0) { throw "git clone failed" }
+        Write-Host "weather-factory missing; running the pinned toolchain setup..."
+        & (Join-Path $PSScriptRoot "setup_tools.ps1")
     }
 
     foreach ($f in @($fastchess, $engine, $book)) {
         if (-not (Test-Path $f)) { throw "Required file not found: $f" }
     }
+    $fcInfo = Assert-AffinityFastchess -Path $fastchess
+
+    $wfCute = Join-Path $wfRoot "cutechess.py"
+    $expectedAffinityCpus = (Get-HarnessPhysicalCpus).Cpu -join ','
+    if (-not (Test-Path $wfCute) -or
+        (Get-Content $wfCute -Raw) -notmatch 'BASILISK_AFFINITY_PATCH_V2' -or
+        (Get-Content $wfCute -Raw) -notmatch [regex]::Escape("-use-affinity $expectedAffinityCpus ")) {
+        throw "weather-factory is not carrying the verified affinity patch; run tools/setup_tools.ps1."
+    }
+    python -m py_compile $wfCute
+    if ($LASTEXITCODE -ne 0) { throw "weather-factory Python syntax validation failed: $wfCute" }
 
     Write-Host "Installing matplotlib (weather-factory dependency)..."
     pip install matplotlib --quiet
@@ -161,7 +181,7 @@ if (-not $LaunchOnly) {
                                # with sprt.ps1's default so SPSA optima transfer to
                                # the confirming SPRT (PLAN.md guiding principle #7).
         hash          = 64
-        threads       = 15
+        threads       = $Concurrency
         save_rate     = 10
         pgnout        = "file=tuner/games.pgn"
         use_fastchess = $true
@@ -191,10 +211,30 @@ if (-not $LaunchOnly) {
 }
 
 # ─── Launch ───────────────────────────────────────────────────────────────
-foreach ($p in @((Join-Path $wfRoot "main.py"), $watch, (Join-Path $wfRoot "config.json"))) {
+foreach ($p in @((Join-Path $wfRoot "main.py"), (Join-Path $wfRoot "cutechess.py"),
+        (Join-Path $wfRoot "fastchess.exe"), $watch, (Join-Path $wfRoot "config.json"),
+        (Join-Path $wfRoot "cutechess.json"))) {
     if (-not (Test-Path $p)) {
         throw "Not found: $p — run ./tools/spsa.ps1 -ConfigGroup $ConfigGroup -EngineSuffix <s> (setup) first."
     }
+}
+$launchFastchess = Join-Path $wfRoot "fastchess.exe"
+Assert-AffinityFastchess -Path $launchFastchess | Out-Null
+$launchCute = Join-Path $wfRoot "cutechess.py"
+$expectedAffinityCpus = (Get-HarnessPhysicalCpus).Cpu -join ','
+$launchCuteContent = Get-Content $launchCute -Raw
+if ($launchCuteContent -notmatch 'BASILISK_AFFINITY_PATCH_V2' -or
+    $launchCuteContent -notmatch [regex]::Escape("-use-affinity $expectedAffinityCpus ")) {
+    throw "weather-factory is not carrying the verified affinity patch; run tools/setup_tools.ps1."
+}
+python -m py_compile $launchCute
+if ($LASTEXITCODE -ne 0) { throw "weather-factory Python syntax validation failed: $launchCute" }
+
+$launchConfigPath = Join-Path $wfRoot "cutechess.json"
+$launchConfig = Get-Content $launchConfigPath -Raw | ConvertFrom-Json
+if ([int]$launchConfig.threads -ne $Concurrency) {
+    throw "cutechess.json concurrency is $($launchConfig.threads), but this launch resolved to $Concurrency. " +
+          "Run setup again, or pass -Concurrency $($launchConfig.threads) explicitly to resume that run."
 }
 
 Write-Host "SPSA ($ConfigGroup): python main.py | watch.ps1  (Ctrl-C to stop when stable)"

@@ -1,25 +1,33 @@
 # Basilisk Strength Improvement Plan
 
-> **CURRENT STATE (2026-07-17):** **1.9.0 RELEASED** — the last pure-HCE release,
-> squashed to `master` as the single `Version 1.9.0` commit. It bundles **Phase 8**
-> (correctness & infrastructure) and **Phase 8.5** (pre-NNUE strength) on top of
-> 1.8.0. Accepted SPRT gains: hcefinal SPSA **+35.94**, eval 8.3 **+13.97**,
-> instability-TM **+10.79**, exact/PV reward-only history **+4.90**, TT density
-> **+4.27**, rule-50 damping **+3.29**, mate-drive **+3.19**, surprise-scaled
-> history **+2.50**, SEE pin-awareness **+0.65**. Engine reports `Basilisk 1.9.0`,
-> bench **11,941,440**, CTest 11/11.
+> **CURRENT STATE (2026-07-20):** **1.9.0 RELEASED 2026-07-17** (squashed to
+> `master`; accepted gains listed in §2). `development` is reset to the `master`
+> 1.9.0 state and **Phase 8.6 (§4) is ACTIVE** — one more pre-NNUE release,
+> decided 2026-07-20 from the Rarog cross-review + four in-session code audits:
+> hardening, CI in Rarog's Phase-9 shape, reproducibility, telemetry, and the
+> check-extension-removal SPRT (Rarog evidence **+30.75**), culminating in
+> **⭐ Release 1.9.1 — the final HCE release and frozen NNUE baseline**.
 >
-> **▶ NEXT:** `development` is reset to the `master` 1.9.0 state and continues from
-> there — the **Phase 8.5 post-1.9.0 NNUE runway** (8.5.3 dirty-piece contract,
-> 8.5.14 TT graph-history, 8.5.15 frozen-teacher benchmark, 8.5.16 `net_trainer`
-> preflight), then rebase `nnue` once and resume **Phase 9: NNUE (§5)** on the
-> existing `D:/code/net_trainer` Bullet/Rust/CUDA pipeline and its raw
-> `quantised.bin` contract (do not resurrect the removed PyTorch/`MNN1` path).
+> **▶ NEXT:** Phase 8.6 queue (order fixed 2026-07-20, cleanups/refactors
+> FIRST): 8.6.1 ✅ → 8.6.2a → 8.6.2b → 8.6.2c (C++23 pass) → **8.6.10
+> structure era (moved pre-release)** → 8.6.3 → 8.6.6 → 8.6.7 (8.6.4/8.6.5
+> interleave with the SPRT wait) → **8.6.8A accept-audit (added 2026-07-21
+> after the harness-bias incident)** → **Phase 8.7 profile-guided speed
+> pass (added 2026-07-22 from Rarog's 10.3 evidence: +10.35% NPS = +20.31
+> Elo, ≈ +2 Elo per 1% NPS at STC; interleaves with 8.6.8A)** →
+> ⭐ **1.9.1**, then the **post-release
+> NNUE runway — now pure NNUE prep only** (8.5.3 dirty-piece on the new
+> structure, 8.5.14 TT graph-history [down-scoped], 8.5.15 frozen-teacher
+> benchmark baselining **1.9.1**, 8.5.16 `net_trainer` preflight), then
+> rebase `nnue` once and
+> resume **Phase 9: NNUE (§5)** on the existing `D:/code/net_trainer`
+> Bullet/Rust/CUDA pipeline and its raw `quantised.bin` contract (do not
+> resurrect the removed PyTorch/`MNN1` path).
 > **Deferred to the 10.7 joint SPSA** (each over-widens/fragments as a one-off
-> flip, not as a pre-1.9.0 unit): TT-PV bit (8.5.7), history-v2 (8.5.11), the (d)
-> prior-move cont-hist rebalance, and the inert-knob set. Post-NNUE: **Phase 10
-> search architecture + final tune, Phase 11 mandatory SMP, Phase 12 NNUE
-> architecture/data iteration (§6)**. Deferred experiments also live in §6.
+> flip, not as a pre-release unit): TT-PV bit (8.5.7), history-v2 (8.5.11), the
+> (d) prior-move cont-hist rebalance, and the inert-knob set. Post-NNUE:
+> **Phase 10 search architecture + final tune, Phase 11 mandatory SMP, Phase 12
+> NNUE architecture/data iteration (§6)**. Deferred experiments also live in §6.
 
 This plan was executed 2026-05 → 2026-07 as Phases 0–7. The step-by-step
 history lives in `CHANGELOG.md` and git history; this document keeps the
@@ -73,8 +81,11 @@ Division of labour, fixed by convention:
    arbiter in both directions.)
 3. **Use the gate that matches the claim.** A strength candidate uses the
    standard SPRT `elo0=0, elo1=3` at
-   `tc=3+0.03`, Hash 64, Threads 1, `SuperGM_4mvs.pgn` book (this matches the
-   SPSA TC so optima transfer). `tc=10+0.1` for phase-boundary / LTC-suspect
+   `tc=3+0.03`, Hash 64, Threads 1, **UHO book** (`UHO_Lichess_4852_v1.epd`,
+   adopted 2026-07-17 — unbalanced-but-fair openings cut the draw rate so
+   SPRTs resolve in far fewer games; the old balanced `SuperGM_4mvs.pgn`
+   remains the gauntlet fallback for CCRL-comparable estimates). The TC
+   matches the SPSA TC so optima transfer. `tc=10+0.1` for phase-boundary / LTC-suspect
    confirmation. Don't react to sub-3k-game trends — early SPRT noise has
    flipped sign more than once. Mandatory correctness fixes and behavior-neutral
    enablers use correctness evidence plus a pre-registered **non-inferiority**
@@ -165,12 +176,12 @@ work: Fable 5 / Opus 4.8 medium.
 | **1.8.0** | 2026-07-08 | Phase 5 TM (clock-at-`go`, +2.95; TM SPSA washed → reverted) + Phase 6 search wave (6.1 TT-bound pruning eval **+7.18**; 6.2 cont-hist6 rejected −7.70; 6.3–6.8 exposed-inert knob set; bundle 6.10 **+9.14**) + Phase 7 eval refresh (7.1 SF@60k distillation **+6.75**; on-policy self-play cycles **+21.02 / +19.51 / +18.29 / +15.32**) | **≈ +93 fast-TC / ~+40 LTC** vs 1.7.0 (colosseum 10+0.1 gauntlet) |
 | **1.9.0** | 2026-07-17 | Phase 8 correctness/infra (rule-50/mate precedence, null clock, legal-EP hashing, SEE pin-awareness **+0.65**, eval 8.3 **+13.97**, mate-drive **+3.19**, assert_ok/fuzz/CI, robust canaries) + `hcefinal` SPSA **+35.94** + Phase 8.5 strength (TT density **+4.27**, rule-50 damping **+3.29**, exact/PV reward history **+4.90**, surprise-scaled history **+2.50**, instability-TM **+10.79**) | cumulative fast-TC SPRT gains over 1.8.0 (last pure-HCE release) |
 | *(post-1.8.0)* | 2026-07-09 | self-play cycle 6: **wash** (+1.37 ± 5.21, 8.1k games) → **HCE line closed**, candidate discarded | — |
-| **1.8.1 / 1.9.0** | next | **Phases 8 + 8.5 on `development`**: correctness, infra/state hardening, eval-independent search and NNUE data preparation (§4) — PATCH only for a correctness-only cut; MINOR if strength banks | — |
+| **1.9.1** | next | **Phase 8.6 on `development` (§4)**: pre-NNUE hardening from the 2026-07-20 Rarog cross-review — param/TT/protocol hygiene, CI in Rarog's 9.2 shape (master-push + dispatch; sanitizers; cross-platform bench agreement), A/B compiler-equality enforcement, search telemetry, and the check-extension-removal SPRT (Rarog evidence **+30.75**; **our SPRT rejected −10.17**) + **Phase 8.7 profile-guided speed pass** (added 2026-07-22 from Rarog 10.3: ≈ +2 Elo per 1% NPS at STC; target +3–6% NPS) | final HCE release; cumulative vs 1.9.0 gauntlet at release |
 | **2.0.0** | future | **Phase 9 NNUE** (§5) | target **+200…+400** |
 | **2.x** | future | **Phase 10** final 1T search + tune, **Phase 11** mandatory SMP, **Phase 12** NNUE architecture/data frontier loop (§6) | prior **+15–40** 1T non-additive; SMP +10–30 at 8T; NNUE scale evidence-driven |
 
-Current dev head: 1.8.0, bench **12,661,251** (fixed-depth 40-position
-harness; TM-independent).
+Current dev head: 1.9.0 (`instabtm`), bench **11,941,440** (fixed-depth
+40-position harness; TM-independent).
 
 Internal-gauntlet placement of 1.8.0 (10+0.1, 2,819 games): ≈ Rarog 2.2.0 /
 Shredder 12 level; below Rybka 3/4, HIARCS 14, Critter 1.6a, SF-limited-2900+.
@@ -221,6 +232,18 @@ Basilisk holds no official CCRL rating — the internal gauntlet is the yardstic
    audits of existing activations can still pay**, and the conditionality /
    representation gaps are the net's job — king-bucketed PSTs are the NNUE
    input shape, so the next structural step *is* the net.
+10. **Harness bias is per-run persistent and does NOT average out with
+    games** (2026-07-20/21 incident). Unpinned fastchess gave each run one
+    scheduler-placement draw worth up to ~±10 Elo (nulls: +9.34, −10.78 on
+    byte-identical binaries); more games only tighten the CI around the
+    biased value, so **no historical accept inside the bias radius is
+    validated by its sample size**. Fixes: `-use-affinity` with an explicit
+    one-logical-CPU-per-physical-core list, ≥1.7.0 fastchess, null-pair
+    calibration after every harness change judged by **estimate at fixed N,
+    never LLR** (truth at a bound stalls SPRT). Corollaries: equivalence
+    questions get fixed-N runs, not SPRTs; small pre-fix accepts need
+    re-verification (8.6.8A); **never run two pinned harnesses at once** —
+    they deterministically collide on the same core list.
 
 ---
 
@@ -232,7 +255,7 @@ head. Verification verdicts that gate this phase:
 
 - **Real, reproduced:** rule-50 draw overrides mate-in-1 (doc §4.1; live binary
   scores `cp 0` in `7k/5Q2/5K2/8/8/8/8/8 w - - 99 1`); null move advances the
-  halfmove clock (§4.2, `Board.cpp:644`); SEE accepts pinned recapturers
+  halfmove clock (§4.2, `board.cpp:644`); SEE accepts pinned recapturers
   (§4.3; `see(Bxc6)` = −200 where +100 is correct — fans out to all 9 `see_ge`
   call sites: staging, qsearch/main SEE pruning, ProbCut, LMR classification);
   EP square hashed when the EP capture is illegal (§4.5, missed-repetition
@@ -262,7 +285,7 @@ both audits found independently). Verdicts that shape this phase:
   mate-in-1 (Qh5#); the engine plays it by ordering luck while *scoring* it
   0.00. The defect is the score, not the move choice.
 - **Our stale comment confirmed:** current SF does **not** search quiet
-  checks in qsearch (the `SearchParams.h` 6.8 comment tracked an older SF) —
+  checks in qsearch (the `search_params.h` 6.8 comment tracked an older SF) —
   bears on 8.9 and weakens the `QsearchCheckCap` prior in the hcefinal SPSA.
 - **Recommendation split adopted here:** eval-independent structural items →
   the **Phase 8.5 search ladder on `development`**; cp-denominated /
@@ -271,7 +294,7 @@ both audits found independently). Verdicts that shape this phase:
 
 The third same-day audit (`analysis/hce_analysis.md`, the HCE evaluator) was
 verified to the same standard 2026-07-13: every claim checked against the
-source — evaluator, `EvalParams.h` values, both tuner paths, extraction /
+source — evaluator, `eval_params.h` values, both tuner paths, extraction /
 datagen / import scripts, tests, and the SPSA configs. Verdicts that shape
 this phase:
 
@@ -287,7 +310,7 @@ this phase:
   (`eval.cpp:779`) and its "no consumer depends on this" comment is stale.
 - **Verified process facts:** all seven winnability params are zero **and
   untunable** — the block is untraced (zero linear gradient), the FD tuner
-  covers only KS knobs, no SPSA config exposes them; the `EvalParams.h`
+  covers only KS knobs, no SPSA config exposes them; the `eval_params.h`
   "tuned via the finite-difference path in Phase 4.5" comment describes a
   path that was never built. The KS fit is degenerate-looking (`ks_unit`
   B/R/Q = 0; `storm_weight_kf = −1` *rewards* the defender) — identifiability
@@ -346,7 +369,7 @@ Steps (each = own candidate branch, §1 gates apply):
    drop the 10-ply cap for evasion nodes, `MAX_PLY` remains the guard) and
    **fail-soft qsearch** (preserve the best futility-derived value through
    delta/SEE pruning instead of returning bare `alpha`); rider: correct the
-   stale `SearchParams.h` 6.8 comment (SF no longer does qsearch quiet
+   stale `search_params.h` 6.8 comment (SF no longer does qsearch quiet
    checks). Regression tests for every reproduced position (infra §4.1–4.6
    test lists; FENs at clock 99/100/101; a deep check-chain qsearch case).
    Every subfix gets its own regression and commit. Expected Elo ≈ 0 — these
@@ -501,6 +524,14 @@ each falls on.
    shared occupancy legality helper; use dynamic pre-search game history plus
    a bounded per-thread search `StateInfo` stack; convert `Move` to 16 bits if
    full-search benchmarks confirm the layout; preserve a scalar/portable path.
+   **AMENDED 2026-07-20 (twice, same day) — final placement: PRE-release,
+   as Phase 8.6.10 "structure era"** (first amendment put it in the
+   post-1.9.1 runway; the user then decided all cleanups/refactors ship in
+   1.9.1). Full spec at 8.6.10: 8.5.2's content + `HistoryTables` +
+   per-ply `PlyContext` + make/unmake centralization + `RootMove` records,
+   one board-surgery block (Rarog 11.0 pattern). Only the pure NNUE data
+   prep (8.5.3 dirty-piece, which attaches to the new structure) stays in
+   the post-release runway.
 3. **8.5.3 [POST-1.9.0 NNUE runway] NNUE-neutral dirty-piece contract:** every real move records exact
    removed/added piece-square pairs for quiets, captures, EP, promotions and
    castling; null move records no piece delta. This is data only—no network
@@ -690,12 +721,18 @@ each falls on.
       later). Head stays `exacthist-rewardonly`. Re-open only if a future need
       (e.g. fortress/anti-3fold at LTC in a real match, or an NNUE eval that
       makes the draw-claim pay) justifies the node cost.
-14. **8.5.14 TT graph-history semantics:** separately test cut-node-compatible
-    TT cutoffs, TT-cutoff history feedback, a conservative near-rule-50 cutoff
-    guard, and a rule-50-adjusted TT key/bucket after draw/null correctness is
-    fixed. Verify partial history cannot turn mate into draw. Prefetch-before-
-    make/qsearch remains a measurement candidate because main-search child TT
-    prefetch already exists.
+14. **8.5.14 TT graph-history semantics (DOWN-SCOPED 2026-07-20):** separately
+    test cut-node-compatible TT cutoffs, TT-cutoff history feedback and a
+    conservative near-rule-50 cutoff guard. Verify partial history cannot turn
+    mate into draw. Prefetch-before-make/qsearch remains a measurement candidate
+    because main-search child TT prefetch already exists. **The rule-50-adjusted
+    TT key/bucket sub-item is PARKED** on Rarog's 7.3 verdict (2026-07-15,
+    rationale transfers verbatim): our harness adjudicates draws at move 40
+    (score < 10) and resigns at 600, so test games almost never reach high
+    clocks — the fix's benefit is invisible at our gates while its de-tuning
+    risk is not, and both of Rarog's draw-adjacent reworks lost 7–12 Elo.
+    Re-entry triggers: LTC-era primary testing, an adjudication-policy change,
+    or the post-NNUE recalibration.
 
 #### Track C — external benchmark and `net_trainer` data contract
 
@@ -704,8 +741,9 @@ each falls on.
     an untouched test set, enriched for endgames, king attacks, tactical
     cliffs and quiet positional drift. Record full/lazy/corrected HCE, qsearch
     and depth-N output; report residuals by phase, material, king danger,
-    halfmove clock and tacticality. Baseline the **final accepted Phase-8.5
-    HCE head**, not 1.8.0, before training the release net.
+    halfmove clock and tacticality. Baseline the **released 1.9.1 head**
+    (the final accepted HCE, post-Phase-8.6), not 1.8.0 or 1.9.0, before
+    training the release net.
 16. **8.5.16 [POST-1.9.0 NNUE runway] `net_trainer` preflight (`D:/code/net_trainer`):** retain the
     current Bullet-based Rust trainer at the audited handoff (currently
     `59d190e`), its pinned Bullet revision and raw `quantised.bin` contract:
@@ -723,13 +761,14 @@ each falls on.
 
 #### Track D — durable general strength pulled forward to 1.9.0 (2026-07-15)
 
-**Phase-number principle (user, 2026-07-15):** the number tracks the NNUE
-boundary — Phase ≤ 8.5 is **before** 1.9.0/NNUE, Phase 9 **is** NNUE, Phase
-≥ 10 is **strictly after**. So a general (eval-agnostic) improvement that
+**Phase-number principle (user, 2026-07-15; amended 2026-07-20):** the number
+tracks the NNUE boundary — Phase < 9 is **before** NNUE, Phase 9 **is** NNUE,
+Phase ≥ 10 is **strictly after**. So a general (eval-agnostic) improvement that
 strengthens the final HCE release *and* carries to NNUE **without re-SPSA/
-re-fit** belongs in Phase 8.5, not in the post-NNUE Phase 10. Goal: make
-1.9.0 — the last HCE release — as strong as possible, as a hedge if the NNUE
-project underdelivers.
+re-fit** belongs before Phase 9, not in the post-NNUE Phase 10. Goal: make the
+last HCE release as strong as possible, as a hedge if the NNUE project
+underdelivers. *(2026-07-20: the final HCE release is now **1.9.1** — Phase
+8.6 sits between 8.5 and 9, still pre-NNUE; the principle is unchanged.)*
 
 Inclusion test for Track D: (a) NNUE-agnostic; (b) survives the evaluator swap
 with no material re-tune/re-fit; (c) strengthens 1.9.0 and/or datagen; (d) does
@@ -762,7 +801,10 @@ priority; pull to Track D only if a strong MT 1.9.0 is explicitly wanted.
 **Excluded from 1.9.0** (need eval-calibrated re-tune or hit the mate-drive
 fragility, so they stay in post-NNUE Phase 10): 10.1 unified reduction, 10.4
 bound quality, 10.5 ProbCut/null/IIR margins, 10.6 correction-consumption v2,
-10.7 final tune; and 8.5.5, 8.5.8, 8.5.9.
+10.7 final tune; and 8.5.5, 8.5.8, 8.5.9. *(2026-07-20 amendment: **8.5.8 is
+pulled forward into Phase 8.6 as 8.6.7** — Rarog's 8.2(a) result (+30.75)
+showed the removal needs no eval-calibrated re-tune and no SPSA; 8.5.9 and
+the rest stay post-NNUE.)*
 
 **Explicitly skipped on the HCE line:** incremental HCE material/PST fields,
 NNUE accumulator code, refresh caches, threat inputs, and Chess960 (product
@@ -770,6 +812,1197 @@ feature, no standard-chess Elo). OpenBench is not mandatory before Phase 9 on
 one machine, but the manifest/result schema must be compatible with later
 OpenBench adoption; frontier-scale +1–3 Elo work will eventually benefit from
 persistent/distributed testing.
+
+### Phase 8.6 — Pre-NNUE hardening & CI wave (ACTIVE 2026-07-20)
+
+**Added 2026-07-20 (user decision): one more HCE release before the NNUE
+cutoff.** Source: the in-session cross-review of **Rarog's pre-NNUE program**
+(its Phases 7–10, including the 2026-07-19/20 Phase-9 refinements: CI shape,
+PGO-smoke, 9.5-A resolution, local-only manifests) against Basilisk 1.9.0,
+verified by **four code audits** (UCI/FEN robustness, search bug-classes,
+tests/CI extent, params/TT/bench infra) — every imported item was checked
+against our code, never assumed. Mirrors Rarog's same-day reciprocal import
+(its 8.4(e)/8.10/8.11 + two LMR dims came from our 1.9.0). Naming: "Phase
+8.6" always carries the word *Phase*; the historical **step 8.6**
+(mate-drive gating, shipped in 1.9.0) is unrelated. The NNUE runway
+(8.5.3/8.5.14/8.5.15/8.5.16) moves after this phase; **1.9.1 replaces 1.9.0
+as the final HCE release and frozen NNUE baseline** — read every
+`[POST-1.9.0 NNUE runway]` tag as "after the final HCE release", i.e.
+post-1.9.1.
+
+**Verified NON-gaps (2026-07-20; recorded so future audits don't
+re-litigate):** the aspiration loop terminates by construction (re-centers on
+the *current* fail score, delta ×1.5, full-open fallback at delta ≥ 900,
+mate-range pre-guard — `search.cpp:1853-1878`; Rarog's 7.0
+infinite-fail-high class is impossible here); the TM score-drop signal reads
+the prior-iteration snapshot *before* updating it (`search.cpp:1896` —
+Rarog's 7.5 attenuation bug absent); FEN/`position` handling validates
+strictly (incl. side-not-to-move-in-check) and retains the prior board with
+no `exit()` — stronger than Rarog's own open 9.5-A behaviour; no
+unstoppable-passer/square-rule term exists (Rarog's 7.4(iii) bug N/A); TT
+allocation never exceeds `Hash` (Rarog's pre-9.4 2× bug absent; the residual
+resize spike + pow2 waste is 8.6.2); `bench` already has repeats/best-of-N +
+geomean EBF, and `board_performance` is median-of-11 + MAD (Rarog 9.7
+parity). **Anti-lessons imported, do NOT copy from Rarog:** root-aware
+repetition / null-clock repetition fences (genuine −7…−12 there), history
+no-aging (rejected twice), standalone SF-style aspiration re-centering
+(−4.52), TT-cutoff history rewards (rejected independently by both engines).
+
+**Sequencing (order ≠ numbering; reworked 2026-07-20, user decision:
+cleanups and refactors FIRST, so everything later lands on the final
+shape):** 8.6.2a → 8.6.2b → 8.6.2c → **8.6.10 structure era** → 8.6.3 →
+8.6.6 (telemetry — written once, against the restructured search) → 8.6.7;
+the CI steps 8.6.4/8.6.5 interleave with the 8.6.7 SPRT wait. All of
+8.6.2–8.6.10 need no games (each bench-identical or test-only, so 8.6.7's
+SPRT baseline stays honest). 8.6.7 is the phase's **single planned SPRT**.
+8.6.8 is opt-in only. 8.6.9 releases — gated on the whole wave being
+resolved (Rarog 9.8 precedent). **2026-07-21 amendment:** the placement-
+lottery incident retired "single planned SPRT" — the phase now also carries
+the refactor-equivalence gate plus the **8.6.8A accept-audit** fixed-N probe
+runs, and 1.9.1 waits for 8.6.8A. **Release principle, inverted from 1.9.0:
+cleanups/refactors ship IN the release; only pure NNUE data prep
+(8.5.3/8.5.14/8.5.15/8.5.16) stays after it.** **2026-07-22 amendment
+(user decision): the release step 8.6.9 moved OUT of this phase into the
+new Phase 8.7 speed pass (its final item) — 1.9.1 now waits for 8.6.8A
+AND Phase 8.7.**
+
+1. **8.6.1 Parameter-plumbing hygiene — ✅ DONE 2026-07-20 (no games; bench
+   11,941,440 identical, CTest 11/11).** Scope upgraded by user decision:
+   the fix IS the macro. `search_params.h` now holds a single
+   `BASILISK_SEARCH_PARAMS(X)` table — 46 entries of `(field, UciName,
+   default, min, max)` — that generates all three hand-synced sites: the
+   struct field + compiled default, the TUNE-build UCI advertisement, and
+   the setoption clamp arm (Rarog 9.0a `params!` equivalent; the drift
+   class is dead by construction, incl. for every future NNUE-era knob).
+   All historical doc comments preserved in the header's FIELD NOTES block.
+   Fixes landed via the table: **(a)** `PostLmrHistScale` now advertises
+   its true compiled 0 (was 104 — the audit's stale-default find); **(b)**
+   `TmInstability` (the +10.79 knob, previously registered nowhere =
+   untunable) now exposed 0–100 default 35 — TUNE builds advertise 46
+   spins, the release list stays clean (5 spins + non-spin options).
+   Verified: bench fingerprint identical, CTest 11/11, TUNE=OFF build
+   clean, and the generated setter chain proven functional end-to-end
+   (`setoption RfpCoeff 240` → `go depth 12` nodes 173k→370k; note `bench`
+   by design never consumes setoptions — it is the fixed fingerprint/PGO
+   workload, unchanged). **(c)** stale SPSA configs renamed
+   `config_lmr.json.STALE` / `config_combined.json.STALE` so
+   `spsa.ps1 -ConfigGroup` cannot launch them (both carry the pre-6.7
+   **0–2/0–3 integer** LMR-adj scale vs the live 1024ths — running one
+   would silently drive those knobs to ~0; `config_combined` additionally
+   has pre-hcefinal seeds `HistPruneCoeff` 4210 vs live 14004 and a
+   `LmrHistDiv` floor 6000 **above** the live default 5683), with a loud
+   README warning: regenerate any needed config **from the table** at
+   10.7, and `TmInstability` must be in the 10.7 config.
+2. **8.6.2 — SPLIT 2026-07-20 into (a) TT contract + (b) clean-code package**
+   after a four-audit deep dive (TT/cache sizing + 32-bit inventory;
+   empirical lint/sanitizer scan; C++23 idiom review; architecture/
+   duplication review). Headline verdicts, recorded: **no Rarog-class sizing
+   bug anywhere** (every table sized from its own unit; the 2× Hash class is
+   absent); `src/` is already fully `-Wconversion`/`-Wsign-conversion`/
+   old-style-cast **clean** (Rarog had 245 warnings; we have 0 in src, 15 in
+   two test files); zero TODO/dead code, no raw-memory/lifetime debt, no UB
+   found, clean search↔eval boundary. BUT: **zero `static_assert`s in the
+   tree** (the 32-byte TTCluster density contract is unenforced — the latent
+   Rarog-bug form); the **debug ASan/UBSan gate is broken as shipped**
+   (`_ALL_TARGETS` omits `test_wac`/`test_invariants` → the debug preset
+   fails to link; `test_board`'s 8.1d capacity test trips the debug `assert`
+   by design-conflict, so the debug suite cannot have passed since 8.1d —
+   once bypassed, all tests pass with **zero** sanitizer reports); an
+   **unconditional POST_BUILD dist copy** lets any debug/scratch build
+   clobber release-named assets in `build/dist/` (empirically bitten during
+   the audit; pext asset restored byte-identical); and **`-ffast-math` is set
+   globally** on an integer-eval engine. Fair language-level label:
+   disciplined C++17 under a C++23 flag — `<bit>`, `[[nodiscard]]`,
+   constexpr enum operators all unused.
+   - **8.6.2a TT contract — ✅ DONE 2026-07-20 (no games; bench 11,941,440
+     identical, CTest 11/11, test_tt 52→64 assertions).** `clusters_.reset()`
+     now precedes the reallocation in `resize()` — plain assignment kept both
+     tables alive across `make_unique`, so growing 8→16 GB transiently needed
+     ~24 GB at `setoption Hash` time, i.e. mid-game (Rarog's 9.4 class, milder
+     form; nothing is carried across a resize, so dropping first costs
+     nothing). New `[[nodiscard]] allocated_bytes()` accessor + two `test_tt`
+     cases: the byte contract (**≤ budget and > budget/2**) across 9 `Hash`
+     sizes, and the same contract across a grow/shrink resize pair plus a
+     usability probe. **Both bounds negative-controlled and the controls
+     reverted** (recorded in the test's doc comment): sizing the count in the
+     WRONG UNIT — `bytes / 16` instead of `bytes / sizeof(TTCluster)`, i.e.
+     precisely the sibling-engine bug shape — fails the upper bound (11
+     assertions, exit 1); `bytes / (sizeof(TTCluster) * 4)` fails the lower
+     bound. A first control attempt was discarded as *invalid* before use
+     (over-allocating the array while `cluster_count_` stayed put doesn't move
+     `allocated_bytes()`, which derives from the count — the same value
+     `resize()` hands to `make_unique`, so it is the true footprint).
+     **static_asserts — the tree had ZERO before this step:**
+     `sizeof(TTCluster)==32` + `alignof==32` (pins the density contract that
+     both the comments and `resize()`'s `bytes/sizeof` math depend on — a
+     silently widened field was the latent Rarog-shaped failure), pow2 guards
+     on `PAWN_TABLE_SIZE`/`CORR_SIZE`/`PAWN_HIST_SIZE` (all indexed
+     `& (SIZE-1)`, where a non-pow2 value aliases silently rather than
+     failing; verified firing by a compile-only control on
+     `PAWN_TABLE_SIZE=16000`), and the **64-bit-only declaration**
+     (`sizeof(size_t) >= 8` + `sizeof(void*) >= 8` in `types.h`, README
+     prerequisite row, `release_tiers.md` paragraph). Vestigial 32-bit
+     removals: 8 `_M_IX86`/`__i386__` CPUID guard arms (`main.cpp`) and
+     the `i.86` clause (`CMakeLists.txt`). Formalization only, as scoped —
+     Basilisk never had 32-bit fallback code (unconditional 64-bit popcount;
+     all 8 shipped assets are x86-64/aarch64); the declaration also
+     retroactively proves the ~14 `Key & (SIZE-1)` index sites and the
+     `mb*1024*1024` math lossless. Full-budget (multiply-hi) indexing stays
+     §6-deferred.
+   - **8.6.2b Clean-code & build-hygiene package (no games; per-item
+     bench-identity gate):**
+     **P0 — ✅ DONE 2026-07-20** (commit `5b6c01a`; bench 11,941,440
+     identical, release CTest 11/11, zero build warnings): `_ALL_TARGETS`
+     made exhaustive — `test_wac`/`test_invariants` were missing, so they
+     compiled against sanitized libs *without* `-fsanitize` and the debug
+     preset failed to link (~150 undefined `__asan_*`/`__ubsan_*` symbols
+     each); the gate had been unbuildable since those targets were added.
+     `test_board`'s capacity guard aborted the debug suite: `board.cpp`
+     asserted `history_size < MAX_HISTORY` directly above the release clamp
+     handling that exact case — contradictory, and overflow is reachable
+     from **external input** (an over-long `position ... moves` list), so a
+     debug abort would be crash-on-demand from the GUI; assert removed, clamp
+     kept + documented (8.6.10's growable history is the real fix). The dist
+     POST_BUILD copy is now gated on an optimized/non-sanitized/non-PGO
+     build — it previously fired for every configuration, so a Debug
+     configure overwrote a release-named asset with a 10 MB ASan binary
+     (observed during the audit); gate confirmed holding. Rider: the two test
+     files are warning-clean (3 `test_invariants` warnings became visible
+     under the `_ALL_TARGETS` fix; `board_performance`'s were pre-existing).
+     **First-ever result: the full debug suite BUILDS and PASSES 11/11 under
+     ASan+UBSan in 559 s with ZERO sanitizer reports** — the code was always
+     clean; the gate was fiction.
+     **P1 — ✅ DONE 2026-07-20** (3 commits; bench 11,941,440 identical
+     throughout): `-ffast-math` **removed — measured free** (bench
+     bit-identical with and without, so the float `init_lmr` table never
+     moved; the flag was buying nothing behavioural on an integer-eval
+     engine while implying `-ffinite-math-only`). `<bit>` adopted
+     (`std::countr_zero`/`countl_zero`/`popcount`) — same codegen, fixes the
+     real-MSVC `popcount` break; `more_than_one` deliberately **not**
+     converted to `has_single_bit` (they differ on an empty board).
+     `damp_rule50` + OCB/KNvK predicates + `EVAL_DARK_SQUARES` extracted to
+     `eval.h`; the tuner's `linear_delta_scale` now calls them. Two
+     complementary dark-square masks and a hand-copied rule-50 curve are
+     gone — and the in-code claim that `--verify` would catch a divergence
+     was **wrong**: it corrupts fitted gradients silently instead. Verified
+     by tuner `--verify` 8598/8598 exact. Rider: 11 long-standing TEXEL-build
+     warnings cleared.
+     **P2 — ✅ DONE 2026-07-20** (3 commits; bench identical throughout):
+     `[[nodiscard]]` on 14 pure queries (`pop_lsb` excluded — it mutates, so
+     discarding is legitimate); constexpr `Square`/`Direction` operators +
+     `flip_file()` in `types.h`, deleting **all 22** `Square(int(...))`
+     casts; dead ray-stepping block removed (`bitboard.cpp` — it walked all
+     8 rays then discarded them via `(void)ray;` while the next loop rebuilt
+     the tables from scratch); `lmr_table_` `{}`-initialised; `Parameters`
+     22 camelCase members/methods → snake_case across 6 files; the two
+     trailing-underscore stragglers (`Searcher::evaluator_`, `Engine::tt_`)
+     + a duplicated `private:` label; `setOption`'s 3 `std::regex` objects
+     hoisted to function-local statics (they were recompiled per call —
+     thousands per SPSA run); **test-only `gen_pseudo_legal*` oracle moved
+     out of `board.cpp` (−302 lines) into `tests/movegen_oracle.h`**, with
+     its castling helpers deliberately re-stated rather than exported (an
+     oracle that borrows engine internals stops being independent — the
+     header says never to de-duplicate it); stale script doc-examples
+     refreshed. Test-file warnings were cleared earlier, with P0.
+     **File renames stay declined** (Windows case-only-rename pain +
+     `nnue`-rebase conflicts) — Phase-10 opportunistic.
+     **C-items — resolved 2026-07-20:** **C9 ✅** TT `key16` store→`release`
+     / probe load→`acquire`, so the documented payload-before-key invariant
+     is now real (it was comment-only under all-`relaxed`: accidentally true
+     on x86, not on the ARM targets we ship). **C10 ✅** debug asserts in
+     `lsb`/`msb`/`sq_bb` (landed with `<bit>`; the full ASan suite passes
+     with them live, so no call site violates the contracts). **C11 —
+     triaged, mostly declined:** `memset`→`= {}` was implemented and
+     **reverted** (raw multi-dimensional C arrays are not assignable; the
+     alternatives are invasive or worse — `memset` is correct here, now
+     recorded in-code); `perft` test-helper dedup declined (each test binary
+     is standalone by design). **C12/C13 — BLOCKED, need a user decision:**
+     neither clang-tidy nor `cl.exe` is installed, and installing a
+     toolchain is a system change not taken unprompted. **C14 — no action:**
+     `tools/weather-factory/` is a gitignored vendored clone (the user's
+     scratch area), not repository content.
+     **Recorded skips (decided 2026-07-20):** `evaluate()` decomposition —
+     permanent (NNUE bypasses it; every hour there is sunk); `negamax`
+     decomposition — Phase 10.1/10.2 rewrite that code anyway; file renames
+     — never/Phase 10 (Windows case-only-rename pain + `nnue`-rebase
+     conflicts); consteval table init and `std::format` — post-NNUE at best
+     (`std::format` additionally risks breaking tool parsers that read
+     "Nodes searched").
+   - **8.6.2c C++23 modernization pass — ⚠ PARTIALLY DONE 2026-07-20; ONE
+     OPEN DECISION (`std::expected`, see below).** Delivered: all bit
+     primitives are now **constexpr** (enabled by P1's `<bit>` switch — the
+     builtins they replaced were not portably constant-evaluable; this is
+     the prerequisite for the deferred consteval tables). Evaluated and
+     declined **with reasons recorded in-code**: `std::unreachable()` — no
+     provably exhaustive switch exists (the `PieceType` defaults are
+     genuinely reachable via `KING`/`NO_PIECE_TYPE` and return defined
+     fallbacks, so marking them unreachable would convert correct code into
+     UB); `std::to_underlying` — nothing to convert (no enum-class→int casts;
+     the plain `enum : int` types convert implicitly *by design*);
+     `std::span` for `eval_param_ptr/cptr` — the textbook case, but the
+     lengths live in X-macro expansions in both `eval.cpp` and `tuner.cpp`,
+     so it is deferred to 8.6.10 which rewrites that area anyway;
+     `std::print`/`format` — unchanged skip (tool scripts parse
+     "Nodes searched"). **OPEN: `std::expected` for `try_set_fen`'s
+     bool+out-param error channel.** `<expected>` is confirmed available in
+     this toolchain, but the conversion touches **19 call sites** across
+     engine and tests, and the same argument used to decline file renames
+     applies — every pre-rebase churn multiplies conflicts for the one-time
+     `nnue` rebase. Needs a user call: do it now, or fold it into 8.6.10.
+     Original scope, for reference:
+     **(i)** `std::expected`-shaped error channels for the cold fallible
+     APIs (`try_set_fen`'s internal fail plumbing, `load_eval_params`) —
+     replaces bool+out-param; **(ii)** `std::unreachable()` in provably
+     exhaustive switch defaults (replaces silent sentinel returns);
+     **(iii)** `std::to_underlying` for cold enum→int (complements 8.6.2b's
+     operators); **(iv)** `std::span` where pointer+length travels (test
+     oracle interface, bench suite iteration); **(v)** `constexpr` widening
+     of pure helpers (mirror/relative-square/distance) — enables future
+     consteval tables without committing to them; **(vi)** ranges/algorithm
+     upgrades in cold loops ONLY where they clarify; **(vii)** concepts/
+     deducing-this: adopt only at natural sites — `gen_legal_impl<Us>`
+     stays a plain template, decision recorded. Explicitly out (standing
+     skips): `std::print`/`std::format` (tool parsers), hot-path ranges,
+     consteval table init.
+   Gate: bench fingerprint identical per item (one documented exception: a
+   re-baseline if `-ffast-math` removal shifts the LMR table), CTest 11/11
+   **including the repaired debug/sanitizer suite**, CI dry-run where
+   workflow files are touched.
+3. **8.6.3 — ✅ DONE 2026-07-20** (bench identical, CTest 11/11): **(a)**
+   engine-level malformed-input survival test (garbage/bare/unknown
+   `position` forms, illegal move list, 3 malformed setoption shapes →
+   `isready` returns, `go` yields a legal STARTPOS move, rejections
+   reported) with the reject-and-retain contract decision recorded in the
+   test header — flipping to SF-style hard-exit must change that test,
+   never happen silently; **(b)** strict packaged-FEN sweeps over
+   endgames.epd + the 40 bench FENs (new `bench_fens()` accessor) + WAC-300
+   (loader upgraded to strict); **(c)** parser fuzz mutates all 7
+   SEED_FENS; **(d)** POSIX `SIGPIPE` ignored in main. Original spec: **(a)** UCI-layer malformed-input tests through the real
+   `setPosition`/`setOption` path (garbage FEN, bare `position fen`, illegal
+   move in `moves`, `position` with no args, unknown command, malformed
+   `setoption`) pinning the documented contract: reject + `info string` +
+   **prior board retained** + `isready` still answered. **Contract decision
+   recorded (Rarog 9.5-A style; its 11-engine survey 2026-07-19):** SF-dev
+   now exits 1 + diagnostic on both cases (the reference implementation is
+   tightening); we **deliberately stay with reject-and-retain** (majority
+   practice — Critter/SaberTooth/Hydra/us), accepting the recorded residual
+   risk that a GUI which ignores the `info string` gets a legal move for the
+   *previous* board. Any flip to SF-style hard-exit is a future deliberate
+   decision, never a silent change — these tests are the guard. **(b)**
+   packaged-FEN legality sweep: every FEN in `endgames.epd`, the WAC-300
+   suite and the `bench` suite loads through **strict** `try_set_fen` — the
+   gate that would have caught the 4 illegal `endgames.epd` positions
+   (Rarog `canary_integrity` equivalent). **(c)** widen the parser-fuzz
+   mutation seeds from startpos-only to the 7 `SEED_FENS` (Rarog fuzzes 22
+   diverse roots; junk-string half stays as is). **(d)** POSIX `SIGPIPE`
+   ignore for the shipped Linux/macOS binaries (a GUI pipe-close currently
+   signal-kills there; Windows unaffected). Gate: CTest green incl. the new
+   tests, bench-identical.
+4. **8.6.4 — ✅ DONE 2026-07-20 (`8fc0ac1`); all job paths verified locally
+   (portable Release CTest 11/11, TUNE build clean, ASan suite proven,
+   portable==pext bench-10 agreement 3,342,261); remote dispatch dry-run
+   fires with the next master push.** Original spec: 8.8's `ci.yml` was removed
+   at the 1.9.0 release because push/PR triggers didn't fit the
+   squash-to-`master` workflow; Rarog's 9.2 design does fit and is imported
+   as is: **trigger on push to `master` + `workflow_dispatch` only** (the
+   local loop already gates every `development` commit; a manual pre-merge
+   check is only useful if it faithfully previews the master gate — so both
+   triggers run the IDENTICAL job set). Jobs: Linux + Windows clang Release
+   build + full CTest; Linux Debug **ASan+UBSan** CTest (the preset exists,
+   nothing invokes it today); TUNE=ON/OFF build matrix; **cross-platform
+   bench-agreement job hardcoding NO expected value** — all platforms must
+   agree with each other (a frozen constant would need editing every
+   behavioural commit; agreement must hold forever, catches unsound code /
+   nondeterminism, and is the one thing local dev cannot verify — it is also
+   our compiler-bump UB canary, Rarog 9.1's argument). Optional rider:
+   scheduled nightly rotating-seed fuzz via the existing `BASILISK_FUZZ_SEED`
+   hook. Gate: green `workflow_dispatch` dry-run.
+5. **8.6.5 — ✅ DONE 2026-07-20 (pulled before 8.6.7 by user decision so the
+   SPRT runs under the hardened harness; mismatch + equality controls both
+   verified; `instabtm` predates manifests → warn-not-fail path).** Original
+   scope: **(a)** `sprt.ps1` copies both engines' build manifests
+   beside the result (Rarog 9.7) and **hard-fails when their `compiler:`
+   lines differ** — the C++ analog of Rarog's 9.1 toolchain pin: with no
+   `rust-toolchain.toml` equivalent, equality-by-check replaces
+   identity-by-pin (a silent MSYS2 clang upgrade between an A/B pair folds
+   compiler delta into a ±3-Elo result; recording has existed since 8.8,
+   enforcement hasn't). Warn-not-fail for pre-8.6 binaries; add the loud
+   dirty-tree console warning at build time. **(b)** `release.yml`: add a
+   real `bench` node count to the artifact smoke test (Rarog 9.3; currently
+   `uciok` + version only). **(c)** **Manifests stay local-only by design**
+   (Rarog 9.7 user decision 2026-07-20: release provenance = tag SHA +
+   artifact smoke test; `tools/test_engines/` and results stay gitignored) —
+   this also ratifies the 1.9.0 removal of 8.7's per-asset manifest
+   publishing. Gate: dispatch dry-run + a deliberate mismatched-compiler
+   negative test of (a).
+6. **8.6.6 Search telemetry counters — ✅ DONE 2026-07-20 (no games; bench
+   11,941,440 identical with Diag OFF **and ON** — the lazy audit serves the
+   remembered lazy score, so behaviour never changes; CTest 11/11; counter
+   cost measured NIL by interleaved best-of-5 NPS vs the pre-telemetry
+   commit, POST ≥ PRE both rounds).** `DiagCounters` per Searcher
+   (always-counted plain int64s, printed only under the new TUNE-advertised
+   `Diag` check option → 5 `info string diag` lines at search end), plus
+   the 8.6.6b lazy dual-eval audit in the evaluator (skip runs the full
+   tail for measurement, serves the lazy value).
+   **Baseline harvest, pre-8.6.7 head (startpos d16, recorded for
+   before/after):** interior 642,337 / qsearch 349,317; in-check share
+   **4.09%**, `check_ext` **25,892** (the 8.6.7 must-read-0 counter);
+   tt_pv **0.30%** (Rarog's 0.50% re-grade of TT-PV consumers confirmed
+   here too); TT hits 31.2%, cutoffs 38,000; LMR applied 126,817 /
+   re-searched **1.04%** (Rarog's 1.83% already meant "far too timid" —
+   ours is MORE so; strong prior for the post-NNUE 10.1/10.7 LMR work);
+   **`hist_prunes` = 2 — history pruning is de-facto DEAD** post-hcefinal
+   (`HistPruneCoeff` 14004×depth exceeds any reachable combined history;
+   legitimate SPSA output, recorded for 10.7, not "fixed"); razor 28k,
+   RFP 84k, null 18.5k/38.6k, fut 32.5k, LMP 1.55M; **lazy audit: 21,689
+   fires, ZERO sign flips, 1,056 crossings (4.9%), mean |Δ| 77 cp, max
+   500** — mirrors Rarog's zero-flip result; lean retire for any
+   lazy-margin conditioning, pending a game-conditions harvest. Original
+   spec: reverses the 8.5.4 skip on evidence: at Rarog the counters re-graded a
+   planned item **before any SPRT was spent** (`tt_pv` veto measured at
+   0.50% of nodes → EV +2–8 re-graded to +0–2 and the item folded away) and
+   identified LMR as its top live lever (re-search rate 1.83%) — and our
+   Phase-10 acceptance criteria already assume this telemetry exists.
+   Disabled-by-default (TUNE/UCI switch), end-of-search `info string diag`
+   dump: in-check node share, check-extension count (must read 0 after
+   8.6.7), LMR applied / re-search rate, prune attempts+successes by family
+   (RFP/razor/null/ProbCut/futility/LMP/history/SEE), TT probe/hit/bound
+   shares, history-update events by type, qsearch evasion/depth stats.
+   **(b) rider (Rarog 9.6b):** lazy dual-eval audit under the same switch —
+   lazy fires, |delta| sum/max, **sign flips**, margin crossings; one WAC
+   harvest decides (Rarog's: 228k fires, **zero** sign flips → lean retire).
+   Matters here because Phase-9.2 datagen labels come from this eval.
+   Record a baseline dump at the pre-8.6.7 head. Gate: bench-identical with
+   diag off.
+7. **8.6.7 — ❌ REJECTED 2026-07-20, REVERTED (user-stopped at no-path-to-H1,
+   Rarog-8.1b precedent).** SPRT vs `instabtm` (UHO 3+0.03): **−10.17 ±
+   6.52, nElo −15.53, LOS 0.11%, LLR −1.97 @ 4,682 games** (Ptnml
+   [114,627,989,504,107]). Implementation was correct and fully witnessed
+   (bench 7,939,803 = −33.5%, `check_ext` 0, canaries green, equal-cost WAC
+   no-collapse: 139/300 in 3.13M vs old 132/300 in 2.47M) — the LOSS is
+   what's real. **Classification (Rarog lesson 15): plausibly a de-tuning
+   victim, not proven a heuristic loss** — hcefinal tuned the LMR context,
+   futility and RFP/razor/null margins *with* the extension present, on a
+   tree the removal shrinks 33%; Rarog's +30.75 came *before* its LMR
+   re-tune. The standalone gate therefore partly measured de-tuning. Also a
+   fresh instance of lesson 7: Rarog priors do not transfer (cont-hist6
+   −7.70 before this). **Verdict: reverted cleanly (only `d22e4c8` —
+   restores the extension verbatim; bench back to 11,941,440, CTest 11/11,
+   WAC floor green again, no re-baseline ever happened). NOT in 1.9.1.
+   8.5.8 is CLOSED for the HCE line. Requeued as a lesson-15-fair bundle —
+   removal + joint re-SPSA of its consumers (~16 dims: RFP/razor/null/
+   futility/SEE margins + full LMR family) judged as ONE gate — at the
+   post-NNUE recalibration (§6 deferred table), where those constants get
+   re-fitted anyway.** Original spec: Remove the unconditional in-check `depth++`
+   (`search.cpp:1247-1250`) — 8.5.8's spec, pulled forward on cross-engine
+   evidence: Rarog 8.2(a) **+30.75 ± 8.83, LOS 100%** (its largest single
+   gain ever; bench −57%, EBF 2.52 → 2.42). Safe here for the same reason:
+   a checked node at depth 0 falls to qsearch, which generates the **full**
+   legal evasion list and detects mate (8.1e). The other categorical
+   in-check protections (pruning-block/futility/LMP/LMR exemptions) stay
+   untouched — this is the extension only, exactly Rarog's (a) scope; the
+   (b)/(c) LMR-of-checks variants washed there and stay post-NNUE (8.5.9).
+   Methodological rules imported with it: **judge tactics at equal node
+   cost, never equal depth** (Rarog's fixed-depth WAC *fell* 185→174 while
+   the change was strongly positive; at equal nodes it rose 185→203); the
+   WAC CTest floor may trip — leave it red through the gate and re-baseline
+   only **after** the SPRT verdict, never to make the change pass; compare
+   8.6.6's in-check share and check-extension counter before/after. Gate:
+   SPRT `[0,3]` vs the 1.9.0 head (`instabtm` engine); robust endgame
+   canaries apply (correctness core only — mate recognition + conversion
+   floor). On H0: revert, close 8.5.8 for the HCE line, re-test at the
+   post-NNUE recalibration. Prior: Rarog +30.75 on a same-family tree;
+   honest expectation **+5…+30** (our extension feeds a smaller tree than
+   Rarog's did).
+8. **8.6.8 — ⏭ SKIPPED 2026-07-20 (user decision; content anchored as a
+   MUST-INCLUDE in 10.1 [mechanism] and 10.7 [re-tune] so it cannot be
+   forgotten — see those steps).** Original spec: Rarog's measured #1 remaining lever (its 8.6; SPSA in flight
+   2026-07-20, carrying two dims imported from *our* hcefinal vector —
+   `lmr_tt_capture` 301, `lmr_not_improving` 89). Eval-agnostic (LMR lives
+   in depth/move-index space — Rarog lesson 2 — so it would survive the
+   evaluator swap), hence pre-NNUE-legal; but it costs an SPSA + SPRT and
+   delays the cutoff, and our plan already reserves LMR modernization for
+   10.1/10.7 targeting the final net. Run **only on explicit user opt-in**
+   after 8.6.7 resolves; otherwise read Rarog's 8.6 verdict as a free
+   cross-review prior for 10.1/10.7.
+9. **8.6.8A — ▶ ACTIVE 2026-07-21: accept-audit — re-verify the small
+   biased-harness accepts before 1.9.1 ships (added after the placement-
+   lottery incident; user decision).**
+
+   **Why (the bias model, from the 2026-07-20/21 incident):** every SPRT
+   before the affinity fix ran unpinned; each run inherited one persistent
+   scheduler-placement offset of up to ~±10 Elo (measured null readings:
+   **+9.34** and **−10.78** on byte-identical binaries; pinned nulls read
+   **−0.10 ± 6.00 @ 3.4k**). Crucially the offset is **per-run persistent —
+   it does NOT average out with more games**; a long run only tightens the
+   CI around the *biased* value, so a large game count does not derisk an
+   old accept. Any Elo-justified accept whose claimed margin sits inside
+   the bias radius could be a zero-value feature that drew a lucky
+   placement. Verdicts cannot be repaired retroactively; they can only be
+   re-measured on the pinned harness.
+
+   **Scope rule (pre-registered):** re-verify an accept iff (i) it was
+   justified by Elo alone, not correctness (bugfixes are exempt — they ship
+   on correctness grounds regardless of Elo); (ii) claimed margin ≤ ~12,
+   i.e. inside bias reach; (iii) no SPSA has re-tuned on top of it —
+   reverting under a later tune measures de-tuning, not the feature
+   (lesson 15; the 8.6.7 trap). The `hcefinal` SPSA concluded 2026-07-14
+   and **no SPSA has run since**, so the entire post-SPSA 1.9.0 accept
+   chain (manifests 2026-07-15 → 07-17) qualifies cleanly; everything
+   pre-hcefinal is excluded as a de-tune trap. (iv) revert cost sane.
+
+   **The audit table (1.9.0 strength claims, triaged):**
+
+   | Feature | Claimed | Verdict | Action |
+   |---|---|---|---|
+   | `hcefinal` SPSA | +35.94 ± 9.42 | beyond bias reach (survives a full draw) | SAFE — no action |
+   | 8.3 eval refresh | +13.97 | **NOT safe-by-size** (one draw ≈ 11 → could be ~+3 true); **kept on correctness merit** — 8.3 fixed three genuine activation bugs (OCB whole-eval amplification eval.cpp:384, enemy-rook-behind-passer mis-nested eval.cpp:1139, attacked2 two-pawn double-attack eval.cpp:779). You do not revert bugfixes to audit Elo; also de-tune-confounded (hcefinal tuned search on this eval). Claim downgraded to *unverified* | no run; reclassify |
+   | 8.5.12 instabtm | +10.79 | **✅ run A DONE 2026-07-21: REAL, KEEP** — off-switch costs −6.46 ± 4.12 (LOS 0.11%, 10k, clean pinned, 0 forfeits). Re-verified value +6.46 (statistically consistent with +10.79; point estimate ~4 lower = the favorable bias the audit hunts). Claim annotated, feature kept, no code change | done |
+   | 8.5.10b' exact/PV reward-only hist | +4.90 | ✅ **REAL (pair), KEEP** — hist-pair (b'+e) off = **−3.06 ± 4.35**, LOS 8.4% @10k | done |
+   | 8.5.D1 TT density | +4.27 | inside reach | **kept on structural merit** (2× entries/hash; 8.6.2a contract tests build on the 32-byte cluster; revert cost high). Claim downgraded to *unverified* in bookkeeping |
+   | 8.4 rule-50 damping | +3.29 | ✅ **REAL (pair), KEEP** — eval-pair (8.4+8.6) off = **−4.24 ± 4.38**, LOS 2.9% @10k | done |
+   | 8.6 mate-drive nudge | +3.19 | ✅ **REAL (pair), KEEP** — same eval-pair probe | done |
+   | 8.5.10e eval-surprise hist | +2.50 | ✅ **REAL (pair), KEEP** — same hist-pair probe | done |
+   | 8.2 SEE pin-awareness | +0.65 | claim ≈ 0 anyway | reclassified **correctness** (more accurate SEE); kept; Elo claim dropped |
+
+   Bias is symmetric — **rejects** are equally suspect in the other
+   direction (a −10 draw can kill a genuine +5): `cuckoo` (rejected twice
+   2026-07-17), `postlmrhist` (2026-07-16) and 8.6.7 all carry it. These
+   do NOT block 1.9.1; queued in §6 as opt-in re-trials.
+
+   **Probe design (fixed-N estimate-judged, never open-ended SPRT — an
+   equivalence question has truth at/near a bound, where SPRT stalls; the
+   calibration doctrine applies):**
+
+   - **(a) Harness prep — extend `sprt.ps1` — ✅ DONE + VALIDATED
+     2026-07-21 (syntax + all three guards + arg-construction, and run A
+     confirmed it live: manifest recorded `option.TmInstability=0`, zero
+     option errors, zero forfeits, and the −6.46 result proves the knob
+     took effect — a no-op reads ~0):** new `-Mode fixed` (fixed
+     `-Games`, no SPRT stopping rule, final Elo/nElo CI report, manifest
+     as usual, no pass/fail throw); new `-OptionsA` / `-OptionsB`
+     (per-engine `option.Name=Value` lists passed to fastchess and
+     recorded in the manifest); SHA-guard update: **identical binaries
+     become legal iff the option sets differ** (calibrate still requires
+     identical binaries AND identical options; a normal SPRT of identical
+     binaries with identical options still throws). Validate with a
+     ~200-game micro-run showing the options land (fastchess log/PGN
+     headers) before any probe is trusted.
+   - **(b) Run A — instabtm (+10.79 claim) — ✅ DONE 2026-07-21: REAL,
+     KEEP.** `basilisk-v1.9.1-pext-pgo` (the PROPER fresh build) vs itself,
+     `-OptionsA TmInstability=0` — code-verified full off-switch
+     (search.cpp:1941: `instability_scale = 1.0` exactly at 0). Result:
+     off-switch −6.46 ± 4.12, nElo −10.68 ± 6.81, LOS 0.11%, 10,000 games,
+     **0 forfeits** on the quiet pinned box (Ptnml [187,1209,2364,1083,157]).
+     Straddled −3 only at the optimistic CI edge (−2.34); every decision
+     branch → KEEP, so recorded KEEP without the 20k extension (estimate
+     −6.46 at LOS 0.11% is decisive). Also the live micro-validation of
+     substep (a): manifest recorded `option.TmInstability=0`, no option
+     errors, same binary both sides. Feature kept at default 35, no change.
+   - **(c) Run B — ✅ DONE 2026-07-22/23: ALL FOUR REAL, KEEP (no removals).**
+     Bundle (all four off) read **−6.6 ± 6.8 @4.2k** (user-stopped;
+     composition unresolved), so the pre-registered split ran — each fixed
+     10k vs `v1.9.1-pext-pgo`, **0 forfeits**:
+     **hist-pair (b'+e) −3.06 ± 4.35, LOS 8.4%** (claimed +7.40);
+     **eval-pair (8.4+8.6) −4.24 ± 4.38, LOS 2.9%** (claimed +6.48).
+     *The pre-split hypothesis — history pair = the phantom — is REFUTED:
+     both pairs pay, each at roughly HALF its claimed value.*
+     **Decisive step: the splits are independent measurements of disjoint
+     feature sets against a common baseline, so they COMBINE — total
+     −7.30 ± 6.17 (errors in quadrature) → CI [−13.5, −1.1], EXCLUDING
+     ZERO.** The sum also reconciles with the bundle's −6.6 (three
+     consistent measurements). **No further splitting is useful: resolving a
+     single ~+2 Elo feature from 0 needs error <1 Elo ≈ 200k games (~40 h)
+     per feature — the measurement floor; even 20k only reaches ±3.1 and
+     still straddles.** Per the unresolvable-straddle fallback (default
+     KEEP) plus positive combined evidence: **keep all four, revert
+     nothing.** Probe binaries (`probe-b`, `-hist`, `-eval`) kept in
+     tools/test_engines with manifests; reverts were working-tree only,
+     never committed. Original spec: one probe
+     commit on `development` reverting all four cheap suspects — 8.5.10b'
+     (skip the reward-only training call, search.cpp:~1726), 8.5.10e
+     (`es` always 100, search.cpp:~1692), 8.4 (make `damp_rule50`
+     identity — single definition, tuner follows automatically), 8.6
+     (guard out the mate-drive `eg +=` block, eval.cpp:~1418). Build via
+     `build_test.ps1` (manifest, compiler equality). Fixed 10,000 games
+     vs `phase86-final`. Probe commit is reverted or kept per the verdict
+     (retired-candidate-branch workflow: commit on dev, revert on reject).
+   - **(d) Decision rules (pre-registered; A = removal side, negative
+     estimate = removal loses = feature real):** 95% CI entirely **above
+     −3** → noise → remove the feature(s). CI entirely **below −3** →
+     real → keep (restore). CI straddles −3 → extend the same run once to
+     20k games; if still straddling: a **bundle splits** (history pair
+     b'+e claimed +7.4 vs eval pair 8.4+8.6 claimed +6.5, fixed 10k
+     each), a **single defaults to KEEP** — conservative for a PATCH
+     release — with the claim marked unverified. Judged **only at final
+     N**; interim reads are for anomaly detection, never decisions.
+   - **(e) Consolidation:** apply proven-noise removals as individual
+     commits; history/eval removals **change the bench fingerprint** — the
+     1.9.1 CHANGELOG "bit-identical" wording is amended to "bit-identical
+     refactor + verified-neutral simplifications" listing each with its
+     probe number (instabtm removal, if any, is TM-only: bench
+     unaffected); CTest + endgame/WAC canaries re-run; tuner `--verify`
+     re-run if eval was touched; 1.9.0's CHANGELOG strength table gets a
+     one-line annotation of which claims survived re-verification (1.9.0
+     itself stays released as-is — bookkeeping honesty only). Final
+     confirmation on the cleaned head: fixed 10k vs 1.9.0 supersedes the
+     refactor equivalence gate as the release evidence.
+   - **(f) (optional, user call) Ladder re-baseline:** the shipped
+     "1.9.0 ≈ +52 vs 1.8.0" head-to-head was one unpinned run (±bias).
+     One pinned fixed 10k, 1.9.1 vs 1.8.0, replaces it in §2 honestly.
+
+   **Compute:** expected 2 × 10k ≈ two ~4 h daytime runs; worst case ~5
+   runs (extend + splits + confirmation). **One harness at a time on the
+   box** — the 2026-07-21 collision (Basilisk + Rarog pinned to the same
+   explicit core list → 2× oversubscription on those cores, forfeits,
+   −58 Elo garbage) is the standing counterexample. Sequencing: the
+   refactor-equivalence gate ✅ PASSED 2026-07-21 (fresh PROPER 1.9.1 build
+   −0.5% NPS best-of-7 node-identical ≈ sub-1-Elo; clean 6k `-Mode fixed`
+   probe +0.17 ± 4.41 — the mid-dev `phase86-final` first tested was a
+   slower/wrong-versioned artifact whose −5 reading was ~−1 Elo speed +
+   machine contention, NOT a real regression), so runs A/B start whenever
+   the box is free. **Lesson for the audit: use a fresh proper release
+   build, and separate NPS (best-of-N, node-identical) from game contention
+   before trusting any small negative.**
+10. **8.6.9 ⭐ Release 1.9.1 — MOVED 2026-07-22 into Phase 8.7 (user
+   decision: a dedicated pre-release speed pass, motivated by Rarog's 10.3
+   speed→Elo evidence, now precedes the release).** The full release step
+   is the final item of **Phase 8.7** below; number kept (order ≠
+   numbering). Everything already done under this step (version bump,
+   CHANGELOG `[1.9.1]`, doc rename, refactor-equivalence gate ✅
+   2026-07-21) carries over unchanged.
+11. **8.6.10 Structure era — ✅ DONE 2026-07-20** (7 commits; bench
+    **11,941,440 identical at every step**; NPS best-of-5 measured after
+    every layout change against the pre-wave baseline 3,333,735 best /
+    3,212,655 median — all within noise, the 16-bit-Move medians slightly
+    BETTER):
+    **(a) ✅** growable game history — `std::vector<UndoInfo>` with 2048
+    reserve replaces the fixed array + release clamp; any `position` length
+    is now simply correct, and the new test unwinds RESERVE+200 plies back
+    to the exact starting hash (the property the clamp could never
+    deliver); `operator=`'s hand-copy loop collapsed into vector assign.
+    **EP TT-legality Board copy removed** — `is_legal`'s EN_PASSANT case
+    deep-copied the Board and made the move; `ep_capture_legal`'s loop body
+    is now the shared `ep_capture_legal_from()` core and both callers use
+    it (one definition of the subtlest legality rule). **16-bit `Move`
+    CONFIRMED and kept** — `uint16_t` (queen promo sets bit 15), zero new
+    diagnostics because everything already flowed through the `make_*`
+    constructors; MoveList/PV/countermove storage halved; two independent
+    best-of-5 NPS runs medians 3,275,216 / 3,251,140 vs baseline 3,212,655.
+    **(b) ✅** `HistoryTables` extracted to new `src/history.{h,cpp}` —
+    storage + clear/age/blend lifecycle behind one struct, 103 references
+    rewired; update POLICY (bonus formulas, what a cutoff trains) stays in
+    search.cpp so Phase-10 edits policy without touching layout. age()
+    keeps nested loops deliberately (a flattened pointer sweep over
+    multi-dim arrays is formally UB).
+    **(c) — SCOPE DECISION:** the full `PlyContext` AoS consolidation
+    (folding PV/move buffers per-ply) was NOT done — it is an NPS-risky
+    layout change with no present consumer, and the accumulator stack
+    attaches at (d)'s seam regardless; `SearchStack` remains the per-ply
+    context and the accumulator slot lands beside it in Phase 9. Revisit
+    only if Phase-9 integration actually wants the AoS shape.
+    **(d) ✅** make/unmake centralized — all search-side sites (6 move + 1
+    null pair across negamax/quiescence/evasions/ProbCut) route through
+    `Searcher::do_move/undo_move` (+null variants), inline in search.h,
+    with the Phase-9 accumulator push/pop and 8.5.3 dirty-piece attachment
+    points marked IN the wrappers. The three make_move calls on separate
+    boards (ponder/PV-extraction/TT-child) deliberately stay direct.
+    **(e) ✅** persistent `RootMoveStat` records — last/previous score,
+    Welford mean+variance, cumulative nodes, seldepth, in-window flag, PV
+    when leading; reset per `go`, written at the single root accounting
+    point, consumed by nothing yet (Rarog 10.1 pattern — substrate first).
+    **Also folded in: `std::expected<void,std::string>` for `try_set_fen`
+    (8.6.2c's open item)** — the internal `fail` lambda kept all 46 error
+    sites textually unchanged; 13 call sites adapted; 4 dead `err` locals
+    fell out of the tuner; tuner `--verify` 8598/8598 exact.
+    **NOT moved** (pure NNUE data prep, stays post-release): 8.5.3
+    dirty-piece recording (attaches at (d)'s seam), 8.5.14/8.5.15/8.5.16.
+    Forward-enabler check stands: with (d)+(e) landed, no known future
+    improvement requires re-plumbing before its own phase.
+
+### Phase 8.7 — Profile-guided speed pass (added 2026-07-22) → ⭐ Release 1.9.1
+
+**Added 2026-07-22 (user decision): a dedicated speed wave before 1.9.1,
+imported from Rarog's 10.3 result.** Naming: "Phase 8.7" always carries the
+word *Phase*; the historical **step 8.7** (release PGO/manifests/tiers,
+shipped in 1.9.0) is unrelated — same convention as Phase 8.6.
+
+**Why (the Rarog evidence, read from its PLAN/dev guide 2026-07-22):**
+Rarog's 10.3 profile-guided speed pass turned **+10.35% NPS into +20.31 ±
+7.13 Elo** (nElo +33.06, LOS 100%, H1 on `[-3,0]` @ 3,460 games, 3+0.03,
+both arms bench-identical — the cleanest speed→Elo datapoint either project
+owns), and revised the planning constant to **≈ +2 Elo per 1% NPS at STC**
+(~3× the old 0.7 Elo/1% estimate; do NOT transfer to LTC unmeasured —
+deeper searches plausibly gain less per extra node, and our own 1.8.0
+lesson says ~half of fast-TC gains compress at LTC). At that constant,
+speed outperformed every search-mechanism item left in Rarog's queue (its
+8.6 −7.78, 8.7 −7.29 vs speed +20.31) — the same shape as here, where
+8.6.7 just failed at −10.17. Rarog's follow-up **8.12 "speed pass II"**
+verdicts are imported as priors: incremental accumulators **REJECTED
+−0.23%** under PGO; per-node SEE pin cache est +0.5–1.5%; profile-first
+before speculation; PGO workload enrichment 0–2% "very cheap".
+
+**Basilisk's starting point differs from Rarog's — verified by a
+three-audit code review 2026-07-22 (search/movegen hot paths; eval/TT/
+caches; build/PGO/tooling), so the honest target is smaller:**
+
+- **No refactor debt to claw back.** Rarog's first +3.2% was recovering
+  its own Phase-9 clean-code regression; our entire 8.6 wave measured
+  **−0.5% NPS total** (best-of-7, node-identical — the refactor-
+  equivalence gate, 2026-07-21).
+- **Already in Rarog's "fixed" shape (verified — do NOT re-do):** move
+  ordering's check bonus uses a per-node lazily-cached `check_squares`
+  mask (search.cpp:617-652), not per-move `gives_check` (Rarog's CheckInfo
+  fix, pre-done for *ordering*); `pick_next` is already the iterator+
+  local-best selection scan with one swap (search.cpp:668-678 — Rarog's
+  8d shape); movegen is **fully legal** (no per-move `is_legal`; Rarog's
+  legality waste class absent); TT is header-only 32-byte clusters with a
+  correctly-placed child prefetch right after `do_move` (search.cpp:1564);
+  no allocations, virtuals, `std::function` or regex on the hot path;
+  `bench <depth> <repeats>` best-of-N with median/min already exists
+  engine-side (bench.cpp:107-212).
+- **Confirmed live candidates** (the steps below): unconditional
+  `checkers` recompute in `make_move`, full `gives_check` in the
+  pruning/LMR path, pins recomputed per generation stage, SEE verdicts
+  and `see_pins` recomputed per call, a transient `MoveList`+copy pass in
+  the picker, per-move conthist guard/index recomputation, redundant
+  slider lookups in the eval tail, a single-`bench 13` PGO workload, and
+  a random magic search at every startup of the non-PEXT tiers.
+
+**Collective target: +3–6% NPS ≈ +6–12 Elo at the STC constant** (honest
+range — Rarog's +10.35% is not reachable here since several of its items
+are pre-done). Order of steps = expected value; 8.7.2's profile findings
+may re-order or add sub-steps.
+
+**Gate protocol (Rarog's 10.3 shape + its rewritten NPS-measurement
+protocol, adopted wholesale):**
+
+- Every item lands **bench-identical** (fingerprint 11,941,440) unless
+  the step says otherwise; CTest 11/11 per item; commit-per-item on
+  `development`, revert on reject (retired-candidate-branch workflow).
+- **NPS is judged only through the 8.7.1 instrument** — never a single
+  best-of-N comparison. Imported rules: **validate the estimator on a
+  SELF PAIR first** (same exe both arms, must read ~0.00% — two of
+  Rarog's estimators were biased −0.2…−0.4% and produced two confident
+  false rejections before the self pair caught them; bench NPS is
+  left-skewed, so any design weighting the arms unequally against the
+  slow tail manufactures bias); strictly alternate arms; compare
+  arm-level **median and best-of** with a bootstrap CI; **pool ≥2 PGO
+  builds per arm** (identical-source PGO builds differ ~0.36% — one
+  build per arm cannot resolve a sub-1% effect); non-PGO builds are a
+  cheap deterministic **screen that OVERSTATES** the shipped gain (Rarog
+  8d: +6.35% non-PGO → +1.18% PGO) — screen non-PGO, confirm under PGO;
+  idle pinned machine only.
+- **Bench-identity does NOT imply NPS-identity** (Rarog's lesson: eight
+  individually-"neutral" steps compounded to −3.2%): the phase closes
+  with ONE end-to-end head-vs-phase-start NPS measurement on top of the
+  per-item ones.
+- An item that is a **strict work reduction AND bench-identical** but
+  below the machine's ~1% resolution may be kept on the structural
+  argument (Rarog items 5/8a precedent) — recorded as such and never
+  counted toward the collective NPS claim.
+- **Batch verdict (pre-registered):** collective NPS ≥ +2% → one batch
+  `[-3,0]` STC SPRT vs the phase-start head (Rarog 10.3 shape, H1
+  expected); < +2% → one fixed 10k `-Mode fixed` probe (calibration
+  doctrine — equivalence questions stall SPRTs). Either way the 8.6.9
+  cumulative release evidence follows on the final head.
+- **No SPSA, no behavior changes anywhere in this phase** — pure speed;
+  the no-games items interleave freely with the 8.6.8A probe runs
+  (dev work daytime; **one pinned harness on the box at a time** — the
+  2026-07-21 collision rule).
+
+**Anti-items (decided now, from Rarog measurements + our own audits — do
+NOT implement without new evidence):** incremental material/PST/phase
+accumulators (Rarog 8.12(a) built BOTH shapes, bench-identical, **rejected
+−0.23% under PGO** — bookkeeping outnumbered saved work 2:1; Basilisk is
+structurally *worse* for it: the from-scratch walk in evaluate()
+(eval.cpp:588-609) is the cheapest part of a ~950-line eval, evaluate()
+itself is gated behind the TT `static_eval` cache (search.cpp:1264-1267)
+and skipped in check, and the do_move seam is reserved for the Phase-9
+NNUE accumulator — where this same design *becomes* correct);
+**qsearch make_move check-hint** (Rarog measured −0.79%: qnodes make too
+few moves to amortize a per-node mask build); **insufficient-material
+per-node early exit** (Rarog sized the whole prize ≤ +0.23% with a probe
+binary); **`pick_next` rewrite / ordering CheckInfo** (already in final
+shape, see above); **`LAZY_MARGIN` sweep / lazy retire** (changes served
+evals = strength item → 10.7, not speed; the 8.6.6b audit already reads
+zero sign flips); **TT multiply-hi full-budget indexing** (stays §6:
+changes the bench fingerprint and pays only at non-pow2 `Hash`, which our
+harness never uses); **BOLT / `-fno-rtti` / x86-64-v2 tier** (menu-grade;
+revisit only if 8.7.2's profile shows front-end stalls).
+
+1. **8.7.1 NPS instrument + speed telemetry — 🔄 (a)(b)(c) ✅ DONE
+   2026-07-23 (`c61543d`); (d) + self-pair validation PENDING AN IDLE BOX
+   (both are NPS measurements; the user was on the machine).** Bench
+   **11,941,440 identical**, CTest **11/11**.
+   **First counter harvest (startpos d16) — numbers that did not exist
+   before:** `eval` **51.10%/node**; pawn cache **89.03% HIT**
+   (451,083/506,688 — the *inverse* of Rarog's 88.4% miss, so **8.7.8 is
+   likely a dead end here** and should be re-scoped or dropped);
+   `gives_check` **195.45%/node** (1,938,166 — ~2 full check-detections per
+   node, the largest single number in the harvest ⇒ **8.7.3 is confirmed as
+   the headline candidate**); `see_ge` **0.631/node** (625,587).
+   `in_check` 4.09% and `check_ext` 25,892 reproduce the 8.6.6 baseline
+   exactly, confirming behaviour is unchanged.
+   **(d) PHASE-START BASELINE — ✅ RECORDED 2026-07-23, idle box, pinned
+   CPU 30, bench 13 x3, 16 alternating rounds:**
+   - **Estimator self-pair: −0.13%, CI [−0.31%, +0.19%], A 6/16 — PASSES.**
+     Resolution ≈ **±0.25%**, so items ≥0.5% are individually resolvable and
+     ≥1% comfortably so. (Two earlier self-pairs FAILED and fixed the tool:
+     slot bias −0.29% at 8/8, then a ±4.5% CI from raw-repeat pooling. A
+     third, +0.29% at 13/16, was traced to a YouTube video — the same run on
+     an idle box reads −0.13%, so **background media alone invalidates a
+     sub-1% NPS run**.)
+   - **PGO build luck (headA vs headB, identical source): +0.09%, CI
+     [−0.38%, +0.28%], 8/16.** ~4× tighter than Rarog's 0.36%.
+   - **Head NPS (counters in): median ≈ 3.487M** (headA 3,487,060 / headB
+     3,483,505). **Phase-start reference binary =
+     `basilisk-v1.9.1-pext-pgo.exe`** (pre-counter; the 8.7.11 end-to-end
+     measurement runs against it, so the telemetry cost is correctly counted
+     inside the phase's net effect).
+   - **Telemetry cost: NIL confirmed** — counter builds measured *+0.70%*
+     (CI [0.29%, 0.88%]) vs pre-counter 1.9.1, i.e. certainly no slowdown.
+     ⚠ **Unresolved: v1.9.1 sits 0.70% below BOTH head builds while those
+     agree to 0.10%** — either v1.9.1 is an unlucky build or the added
+     fields shifted layout favourably. **Consequence: the 2026-07-21
+     "−0.5% refactor cost" (v1.9.1 vs 1.9.0) was single-build, ad-hoc-script
+     and pinned to CPU 0 — treat it as measurement noise, NOT a real
+     regression.** The game evidence (+0.17 ± 4.41) is unaffected. Settle by
+     building 2 pre-counter binaries and comparing pooled-vs-pooled before
+     relying on single-build arms.
+   - **Counter baseline across position types (go depth 14, Diag on):**
+
+     | position | eval/node | pawn hit | gives_check/node | see_ge/node |
+     |---|---|---|---|---|
+     | startpos | 52.2% | 88.7% | **196%** | 0.65 |
+     | middlegame | 53.4% | 94.1% | **166%** | **1.04** |
+     | R+P endgame | 42.5% | 99.6% | **141%** | 0.58 |
+     | pawn endgame | 38.7% | 98.1% | **96%** | 0.43 |
+
+     **Both phase conclusions now hold in EVERY position type, not just
+     startpos: `gives_check` runs 1–2× per node everywhere ⇒ 8.7.3 confirmed
+     headline; the pawn cache never drops below 88.7% hit ⇒ 8.7.8 is DEAD
+     (drop or re-scope).** `see_ge` peaks in middlegames (1.04/node) ⇒ that
+     is where 8.7.5 has most to gain. *(Bench-wide counters would need
+     accumulation across its 40 positions since counters reset per `go`;
+     deferred — these four positions already answer the routing questions.)*
+   **Implementation note:** the `gives_check`/`see_ge` counters live in
+   `Board` (mutable, one increment per query) rather than at the ~11 search
+   call sites, so every caller is captured including movegen's own use;
+   `Board` is per-searcher (`Searcher::search` takes it BY VALUE) so they
+   cannot race, and they are snapshotted into `DiagCounters` at teardown
+   because `board_ptr_` is nulled before `print_diag()` runs.
+   Original spec:
+   - **(a) `tools/nps_ab.ps1`** — the missing counterpart of `sprt.ps1`'s
+     Elo self-pair calibration (sprt.ps1:234-246), which exists for games
+     but not for NPS: drive `bench 13 <repeats>` on two engine builds in
+     **strictly alternating arms** (reuse `harness_common.ps1` affinity/
+     pinning helpers), report arm-level **median + best-of** with a
+     bootstrap CI on the median, and support a **self-pair mode** (same
+     exe both arms) whose ~0.00% reading is REQUIRED before the script's
+     first real use (Rarog's estimator-bias lesson).
+   - **(b) build pooling** — `nps_multibuild.ps1` or a `-Builds N` flag:
+     ≥2 independent PGO builds per arm, per-build medians printed so
+     non-overlap is visible (the 0.36% PGO-luck offset).
+   - **(c) speed telemetry counters** (8.6.6 DiagCounters pattern —
+     always-counted int64s, NIL-cost class, bench-identical Diag off+on):
+     `evaluate()` call count (→ eval rate as % of nodes), pawn-cache
+     probe/hit (eval.cpp:426-436), full-`gives_check` call count
+     (board.cpp:1356), `see_ge` call count + repeat-calls-per-node.
+     These are the counters 8.7.3/8.7.5/8.7.8 read before touching
+     anything — Rarog's decisive "eval at 34.5% of nodes, 88.4% cache
+     miss" style numbers are currently **unmeasurable here**.
+   - **(d) phase-start baseline:** pooled-PGO NPS + a counter harvest
+     (startpos d16 + bench), recorded next to 8.6.6's baseline.
+   Gate: self-pair validation passes; counters bench-identical.
+2. **8.7.2 Profile-first pass — ✅ DONE 2026-07-23 (REDONE: the first
+   attempt was invalid, see below).**
+
+   **RESULTS (PGO, dedicated idle box, 10 rounds/region, every probe
+   self-identified and bench-identical at 11,941,440; control baseA-vs-baseB
+   read +0.10%, CI [−0.24%, +0.30%] = noise floor ±0.3%):**
+
+   | region | NPS when doubled | **share of runtime** | 95% CI |
+   |---|---|---|---|
+   | **eval** | −19.54% | **24.3%** | [24.0, 24.5] |
+   | **score_moves** | −6.69% | **7.2%** | [6.9, 7.4] |
+   | **make+unmake** | −5.55% | **5.9%** | [5.6, 6.0] |
+   | **movegen** | −5.48% | **5.8%** | [5.6, 6.0] |
+   | **see_ge** | −3.94% | **4.1%** | [3.8, 4.3] |
+   | **gives_check** | −2.34% | **2.4%** | [2.1, 2.7] |
+
+   Attributed 49.7%; the remaining ~50% is TT probe/store, history updates
+   and diffuse search plumbing (no single optimisable region).
+
+   **⇒ THE PHASE ORDER IN THIS PLAN IS WRONG. Re-ranking:**
+   - **8.7.3 was the headline on the strength of `gives_check` running
+     1–2×/node — but `gives_check` is the SMALLEST region at 2.4%.** High
+     call count, cheap per call: the 8.7.1 counters alone would have sent us
+     the wrong way, which is exactly what "profile before speculating" is
+     for. 8.7.3 survives ONLY because its second half (threading the check
+     hint into `make_move` to skip the unconditional checkers scan) draws on
+     the **5.9% make+unmake** region. **Reframe: implement the make-side
+     check hint FIRST; the `gives_check` replacement is the minor half.**
+   - **`score_moves` (7.2%) is the largest search-side region and is
+     currently only a "micro-sweep" (8.7.6). PROMOTE it.**
+   - `movegen` 5.8% (8.7.4 pin sharing) is on par with make — keep.
+   - 8.7.8 pawn-cache already dead from the 8.7.1 counters (89% hit).
+   - **eval 24.3% dominates everything, but Phase 9 replaces the evaluator
+     wholesale — HCE eval work is 1.9.1-only value. USER DECISION PENDING.**
+     Note the asymmetry: `make_move` work *compounds* after NNUE (the
+     accumulator attaches to that same `do_move` seam), so it is the most
+     future-proof target on the list.
+   - Search-side regions total 25.4%; capturing 20–30% of that is **+3–5%
+     NPS, i.e. the phase target is reachable without touching eval.**
+
+   **⚠ THE FIRST ATTEMPT WAS INVALID — two independent causes, both worth
+   remembering:**
+   1. **User load contaminated part of it** (reported; all its numbers
+      discarded).
+   2. **`cmake/pgo-build.cmake` silently drops `CMAKE_CXX_FLAGS`.** It
+      re-configures its own `-pgo-generate`/`-pgo` build dirs forwarding
+      only `COMP`/`PORTABLE_BUILD`/`TUNE`/PGO flags, so `-DBASILISK_PROBE=N`
+      never reached the compiler and every "PGO probe" was a plain base
+      build reading ~0%. **Workaround: set the `CXXFLAGS` environment
+      variable** (the script wipes and re-configures both dirs, so a fresh
+      configure picks it up).
+   **Two false conclusions I drew from that bad data, recorded so they are
+   not repeated: (a) "the optimizer is CSE-ing the duplicate away" — there
+   was no folding, the probe simply was not compiled in; the argument
+   laundering added to defeat it is a harmless no-op. (b) "differing SHA-256
+   hashes prove the probes differ" — PGO builds are not byte-reproducible,
+   so distinct hashes prove nothing.**
+   **⇒ PERMANENT GUARD ADDED: every probe binary SELF-IDENTIFIES** —
+   `bench` prints `PROBE REGION : N` under `#ifdef BASILISK_PROBE`. Never
+   trust a probe number without that line. Note the null control
+   (base-vs-base) CANNOT catch this class of error: with the treatment
+   never applied, both arms are identical and the control passes happily.
+   That needs a **positive** control, which the marker provides.
+   Probe scaffolding is working-tree-only (never committed); the reusable
+   patch + `probe.h` are saved in the session scratchpad.
+
+   Original spec:
+   **⚠ TOOLING BLOCKER FOUND 2026-07-23 — Rarog's ETW/xperf route does NOT
+   port here.** `xperf` IS installed on this box
+   (`C:\Program Files (x86)\Windows Kits\10\Windows Performance Toolkit`)
+   and Rarog's `tools/profile_etw.ps1` needs an **elevated** shell (kernel
+   stack-walk sampling is admin-only, so a human runs it). But xperf/WPA
+   resolve symbols from **PDB**, and our toolchain is MSYS2 clang targeting
+   `x86_64-w64-windows-gnu` → **DWARF**, so our own frames would come back
+   unresolved. Rarog never hit this: Rust on Windows builds through the
+   MSVC toolchain and emits PDB natively. Getting PDBs here means a
+   clang-cl/MSVC-ABI build, i.e. **different codegen from the binary we
+   ship** — a profile of the wrong artifact.
+   **⇒ Adopt Rarog's OTHER tool instead as our PRIMARY: `profile_attrib.ps1`
+   duplication attribution.** Run a region's work TWICE in a probe binary;
+   `f = NPS_base/NPS_dup − 1` is that region's share of search runtime.
+   It needs **no symbols and no elevation**, runs on the **shipped PGO
+   binary**, plugs straight into the 8.7.1 `nps_ab.ps1` instrument, and is
+   immune to the inlining-attribution skew that makes sampling unreliable
+   on PGO+LTO builds anyway. Cost is one probe build per region — screen
+   with fast non-PGO builds to RANK regions, then confirm the top 2–3
+   under PGO. Regions to probe (Rarog's list, mapped): eval total /
+   pawns / activity, tt_probe, gen_captures, gen_quiets, score_quiets,
+   **gives_check** and **make_move** (the two the 8.7.1 counters already
+   implicate). ETW stays available as an optional breadth cross-check if
+   the user runs it elevated AND we accept a PDB-bearing side build.
+   Original spec: Profile the pext-PGO binary on bench + a WAC slice +
+   endgame FENs (tool: whatever works on this box — VTune / AMD uProf /
+   ETW+WPA / samply; record the working recipe in the dev guide).
+   Confirm or kill, with shares: `gives_check` + `attackers_to` cost
+   (feeds 8.7.3), `see_pins` share (8.7.5), movegen+copy share (8.7.6),
+   eval-tail split (8.7.7), TT-probe stalls. Profile findings re-order
+   the steps below and may add new sub-steps — Rarog's 10.3 found its
+   biggest item (the pick_next scan) only by looking. No gate (no code
+   change); output is a ranked table in the dev guide.
+3. **8.7.3 Per-node CheckInfo + check-hinted make_move — ❌ REJECTED &
+   REVERTED 2026-07-23, CLOSED PERMANENTLY (2nd failure; 8.5.1 was the
+   1st).** Implemented per the Rarog spec: one `CheckInfo` per node built
+   from just TWO magic lookups (the enemy-king bishop/rook attack sets serve
+   both direct-check squares AND discovered-check candidates —
+   `disc = (bishop|rook)_from_k & ours`); `gives_check_hinted` replacing the
+   full routine (promo/EP/castling + discovered-candidate movers fall back);
+   the answer threaded through `do_move`→`make_move(m, known_no_check)` to
+   skip the unconditional `attackers_to` checkers scan on proven-quiet moves.
+   **Verified CORRECT** — full ASan/UBSan CTest 11/11 with a live
+   `assert(gives_check_hinted == gives_check)` on every move both directions,
+   bench-identical 11,941,440. **But a NET SPEED LOSS under the 8.7.1
+   instrument (pooled PGO, idle box, 12 rounds):**
+   - eager (hint computed for every move at search_one top): **−2.67%**, CI
+     [−3.25, −1.99], 0/12.
+   - lazy (hint computed just before `do_move`, only for moves that survive
+     pruning, reusing the guard lambda's value when present): **−1.83%**, CI
+     [−2.14, −1.50], 0/12.
+   The make-side scan skipped for non-checking moves does not outweigh the
+   per-node `CheckInfo` build + `gives_check_hinted` cost, even when the hint
+   is paid only for played moves. Matches the 8.5.1 result and the prior-art
+   warning. **Per the pre-registered "negative → close permanently": DONE.**
+   Not reopenable without a fundamentally different mechanism (e.g. a hint
+   that is a genuine by-product of work already done, not an added compute).
+   **Bonus find, KEPT (see §6 LMR-post-move-gives_check bug): the equivalence
+   work exposed that the LMR gate consumes a post-move `gives_check`.**
+   Original spec below (kept for the §6 bug context and any future retry):
+   - Build ONE `CheckInfo` per node in negamax: `check_squares` per piece
+     type (primitive exists — board.cpp:1344-1354, already used by
+     ordering) + discovered-check blockers.
+   - Replace full `gives_check` (board.cpp:1356-1416 — direct slider
+     lookup PLUS two discovered-check slider scans from the enemy king)
+     with the two-bitboard test at the pruning lambdas + LMR gate
+     (search.cpp:1443-1500, :1581 — fires for essentially every searched
+     quiet at depth ≥ 2) and the qsearch delta-prune site
+     (search.cpp:1088); promo/EP/castling fall back to the full routine
+     (Rarog's exact shape).
+   - Thread the now-known `gives_check` through `do_move` → `make_move`
+     (the 8.6.10(d) seam exists for exactly this — search.h:264):
+     non-checking moves set `checkers = 0` and **skip the unconditional
+     `attackers_to` scan** (board.cpp:678); checking moves keep the scan
+     (Rarog's conservative shape — hint only the EMPTY case).
+   - **Prior-art warning, recorded for honesty: 8.5.1 tried "cached check
+     geometry + make-move hint" pre-1.9.0 and was a net NPS regression,
+     reverted.** Why the retry is legitimate: 8.5.1 predates the 8.6.10
+     do_move seam (its plumbing was invasive), predates this phase's NPS
+     instrument (the verdict was a single unpooled comparison), and
+     bundled a full per-ply StateInfo restructure. This retry is the
+     narrow Rarog scope only. If it measures negative under 8.7.1's
+     instrument, close permanently.
+   - Equivalence: `assert` hint == fresh `attackers_to` in debug through
+     the whole ASan suite (Rarog asserted both directions); bench-
+     identical. Est here: **+1.5–3.5%** (ordering half is pre-done).
+4. **8.7.4 Pin sharing across generation stages — ❌ REJECTED & REVERTED
+   2026-07-23 (measured −0.16%, CI [−0.36, +0.05], 3/12; complexity not
+   worth a neutral-to-negative result).** Implemented fully and VERIFIED
+   correct (bench-identical 11,941,440; a debug stale-pin assert rode
+   through 109 s of ASan/UBSan fuzz + search without firing), then measured
+   neutral-to-slightly-negative. Why it doesn't pay here (unlike Rarog's
+   ≲1%): the shared x-ray only benefits nodes reaching the QUIETS stage, but
+   many nodes cut off during captures and never reach quiets — they pay the
+   refactor overhead (extra indirection, pointer param that inhibits some
+   inlining the inline path got) for no saving; and the x-ray is only a few
+   magic lookups, cheap vs the rest of movegen. Per the user's stop rule
+   (worth ≤ 0 for real complexity cost in delicate movegen), reverted. The
+   extracted `compute_movegen_pins` helper + shared-pin overloads are gone;
+   the one-line idea is documented here if a future movegen rewrite makes it
+   free. Original spec:
+   `pinned` is computed inline on every `gen_legal` call
+   (board.cpp:1057-1078); the staged picker generates captures and quiets
+   in separate calls (search.cpp:761-782), so nodes reaching the quiets
+   stage pay it twice (qsearch pays it per `gen_legal_captures`). Compute
+   once per node, pass into both stages; stale shares caught by a debug
+   assert against a fresh compute (Rarog's guard). Gate: bench-identical;
+   keep on the structural argument if below resolution.
+5. **8.7.5 SEE work reduction — ✅ DONE 2026-07-23: (a) ACCEPTED +0.36%
+   (`873de47`); (b) SKIPPED (not cleanly cacheable); (c) INVALID (see()
+   is a test fixture, reverted).**
+   - **(a) memoize the good/bad verdict — ✅ +0.36% NPS** (CI [−0.06, +0.67],
+     10/12, bench-identical, memo assert clean through the ASan fuzz suite).
+     Picker exposes `last_see_score()` (0 good / −1 bad capture by stage);
+     search_one seeds `see_score` with it, skipping both duplicate
+     `see_ge(m,0)` recompute sites. Original spec:
+     the picker's `see_ge(m, 0)`
+     classification (search.cpp:789) is thrown away, then recomputed at
+     the capture-SEE-prune (search.cpp:1500) and the LMR/history
+     `see_score` site (:1509/:1662 — which already has a `VALUE_NONE`
+     memo channel; extend it to carry the picker's verdict).
+   - **(b) per-node SEE pin geometry — ⏭ SKIPPED 2026-07-23 (not cleanly
+     cacheable; escape hatch taken).** `see_ge` builds a move-specific
+     occupancy `occ = all_occ ^ from [^ to]` and passes THAT to `see_pins`,
+     so removing the mover/target changes which pieces are pinned — there is
+     no from/to-independent part to cache. The only alternative (incremental
+     pin maintenance across a 1–2-bit occ change inside the exchange loop) is
+     high-risk complexity in the correctness-critical SEE path for a small
+     slice of a 4.1% region that (a) already partly reclaimed. Fails the
+     worth/price rule. Original spec: `see_pins` runs a both-color x-ray scan
+     inside every `see_ge`; cache the from/to-independent part — if nothing
+     is cleanly cacheable, skip (Rarog 8.12(b) est +0.5–1.5%, did not
+     transfer).
+   - **(c) rider — ❌ INVALID, NOT DONE (2026-07-23): `Board::see()` is
+     NOT dead.** The audit claimed "zero call sites" but only checked `src/`
+     — `tests/test_board.cpp:855-1128` uses `see()` as a SEE-correctness
+     unit-test fixture (asserts exact signed values 100/300/900/−200 across
+     a suite). Deleting it (committed `fe7a629`) broke the debug/ASan build;
+     reverted (`ccf9727`). `see()` is test-only but provides real SEE
+     coverage — KEEP it. Lesson: "dead code" audits must grep `tests/` too.
+     Its production comment ("feeds ordering") is stale (ordering uses
+     MVV+capture-history) — that could be corrected in place, but the
+     function stays.
+   Gate: bench-identical per sub-item.
+6. **8.7.6 Picker + scoring micro-sweeps — ✅ DONE 2026-07-23. (b)+(d)
+   ACCEPTED +3.03% NPS (`7f133de`); (c) TT prefetch at null/ProbCut kept
+   NPS-neutral on consistency (+0.12%, sub-resolution, not counted,
+   `e1475c7`); (a) generate-into-ScoredMove and (e) history-stack DEFERRED
+   (user decision — the phase target was already banked by (b)).** Promoted to the top search-side target
+   by the 8.7.2 profile (score_moves 7.2%). The conthist row-pointer hoist (b)
+   is the headline and carries essentially all of the +3.03% — nearly the
+   whole phase target from one sub-item. Incremental base for the remaining
+   sub-items = `basilisk-876bd-scoreopt{A,B}` (the +3.03% head).
+   (Rarog's "small sweeps" +1.18% analog; each measured, keep-or-revert):**
+   - **(a)** generate moves **directly into the `ScoredMove` buffer**:
+     `fill_tacticals`/`fill_quiets` build a transient 516-B `MoveList`
+     then copy it (search.cpp:761-782) — twice per node.
+   - **(b)** conthist row-pointer hoisting (the standard SF pattern):
+     the `(ss-1/2/4)` guards, derefs and two array-dimension multiplies
+     re-evaluate per scored quiet (search.cpp:452-470); hoist the three
+     row base pointers once per node, and reuse the computed 4-table sum
+     at the hist-prune (:1458-1461) and LMR-stat (:1554-1557) sites
+     instead of recomputing it.
+   - **(c)** TT prefetch after the ProbCut/null/singular `do_move` sites
+     (search.cpp:1004, 1106, 1135, 1362 — the main move loop is already
+     covered at :1564).
+   - **(d)** `pick_next`: keep the running best score in a local (drops
+     the per-iteration `best->score` reload; the loop shape stays).
+   - **(e) measure-or-close:** `UndoInfo` (~72 B) `history.push_back`
+     per make_move (board.cpp:600) vs a flat ply-indexed stack. 8.6.10(a)
+     made history growable **deliberately** (any `position` length
+     correct) — if this measures, the fix is a hybrid (flat search stack,
+     vector only for the root `position ... moves` path), never a revert
+     of the correctness property. Below resolution → close, keep vector.
+   Gate: bench-identical per sub-item.
+7. **8.7.7 Eval-tail redundancy — ✅ DONE 2026-07-23: (c) +0.89% + (a)
+   +0.39% (both bench-identical 11,941,440, tuner --verify 8598/8598, CTest
+   11/11; commits `6c30c58`, `0d90935`). (b) SKIPPED — not provably
+   identical (the `attacked[]` map it would reuse is built ~100 lines after
+   the dynamic-passer loop; per its own spec, skip unless provable).**
+   (c) hoisted the two per-piece `switch(pt)` out of the mobility inner loop
+   via a C++23 per-type template lambda (clang was NOT already specializing
+   the range-for-over-initializer-list). (a) cached each swept bishop/rook
+   attack set (`slider_att[sq]`) and reused it at the four eval-tail tests
+   that recomputed `bishop/rook_attacks(sq, b.all_occ)` (minor/rook king-ring,
+   connected-rooks, trapped-bishop). Original spec:
+   (equivalence-class: values must not change, so bench-identical by
+   construction).**
+   - **(a)** reuse per-piece slider attacks from the main attack sweep
+     (eval.cpp:853-854) at the king-ring tests (eval.cpp:1283, 1336,
+     1357) and trapped-bishop test (:1409) — up to ~8 redundant magic
+     lookups per non-lazy eval today.
+   - **(b)** the dynamic-passer loop calls `is_attacked_by(stop, ...)`
+     per passer (eval.cpp:670) while `attacked[them]` is built ~100 lines
+     later — reorder/reuse ONLY if provably identical (the map must cover
+     the exact attacker set the predicate tests); otherwise skip.
+   - **(c)** hoist the loop-invariant `switch (pt)` out of the mobility
+     inner loop (eval.cpp:851-882) into per-type loops so the inner
+     `while (pcs)` carries no per-piece branch.
+   Gate: bench-identical (any fingerprint change = a bug, full stop).
+8. **8.7.8 Pawn-cache sizing — ❌ REJECTED 2026-07-23 (no code; killed by the
+   8.7.1(c) counter harvest before spending a step).** Premise was Rarog's
+   88.4% MISS; ours is the inverse — **88.7–99.6% HIT** across all four probe
+   position types (startpos 89.0 / middlegame 94.1 / R+P endgame 99.6 / pawn
+   endgame 98.1). At ≥~90% hit the direct-mapped 768 KB/thread cache is already
+   near-optimal: enlarging it can reclaim at most the ~10% miss tail (below the
+   ±0.25% instrument resolution) at real L2/L3 cost, and shrinking is strictly
+   worse. No sweep worth running — the profile-first "confirm/kill with shares"
+   discipline paying off. Original spec:
+   `PawnEntry` is 48 B × `PAWN_TABLE_SIZE` 16384 = **768 KB per thread**,
+   direct-mapped, embedded in `Evaluator` (eval.h:6-39). Read the 8.7.1(c)
+   hit-rate counter under bench + a game-condition harvest FIRST; sweep
+   the size only if the counter says so — **in both directions** (768 KB
+   of L2 per thread is not free; smaller may win). Bench-identical by
+   construction (the cache stores exact recomputable values). Below
+   resolution → close.
+9. **8.7.9 — (a) ❌ RETIRED 2026-07-23 (user decision: anti-pattern);
+   (b)/(c) doc-honesty riders → folded into the 8.6.9 release checklist.**
+   - **(a) PGO workload enrichment — RETIRED.** Training PGO on more than
+     `bench` (WAC slice + endgame FENs + deeper bench) is an anti-pattern:
+     bench is the single reproducible training source, its 40 positions
+     already span opening/middlegame/endgame so every hot path is profiled,
+     and enrichment risks over-fitting PGO to tactical position types for
+     ~0 measurable gain. **This reverses the deliberate 1.8.0 decision**
+     ("PGO training now uses the 40-position bench suite only; the separate
+     depth-7 EPD set removed as redundant — the broadened suite is itself a
+     representative execution profile") and is not reopened. Original spec:
+     `cmake/pgo-build.cmake:36-41` trains every shipped binary on a single
+     `bench 13` run; enrich with deeper bench + WAC slice + endgame FENs.
+   - **(b)** rider: confirm + record the portable tier's POPCNT story
+     (PORTABLE_BUILD compiles with no `-march` at all — release.yml:160
+     — so `std::popcount` may lower to a software fallback on the
+     baseline-x86-64 asset; that IS the tier contract, but it should be
+     a documented fact, not an accident; the avx2/pext tiers are the
+     fast path).
+   - **(c)** rider (doc honesty, found by this audit): `release.yml`
+     produces neither the `*.manifest.txt` (with per-tier NPS) nor the
+     `*.sha256` that docs/release_tiers.md:4-8 promises — either add the
+     generation step or amend the doc to match the 8.6.5 local-only
+     manifest decision.
+10. **8.7.10 Baked magics + startup — ✅ DONE 2026-07-23 (`bc93f26`):
+    portable startup 603 ms → 38 ms (~16×; Rarog 192→19).** Measured the
+    baseline first (none existed). Dumped the deterministic `find_magic`
+    output (seed 1234567890123) to `src/magics.h`; `init_attacks` tries the
+    baked magic via a new `commit_magic()` (validate against the full
+    occupancy enumeration → build table), skipping the ~1e8-attempt search;
+    a stale value falls back to the live search (`g_baked_magic_fallbacks++`
+    — startup cost, never correctness). `test_magics`
+    (`baked_magics_cover_every_square`) asserts 0 fallbacks, run under the
+    non-PEXT debug/ASan build (the config that uses magics); vacuous on PEXT.
+    Bench-identical both tiers (11,941,440 — same attack tables). Regenerate
+    `src/magics.h` with a `-DBASILISK_DUMP_MAGICS` portable build if the
+    search ever changes. Original spec:
+    (Rarog: 192 ms → 19 ms on its generic build). The non-PEXT tiers — portable, avx2, and
+    ALL aarch64, i.e. most shipped assets — run `find_magic`'s random
+    search (up to 1e8 splitmix64 attempts per square × 128 squares) **at
+    every launch** (attacks.cpp:102-125, 218-231). Measure startup first
+    (no number exists today), then bake: the seeded search is
+    deterministic, so the baked constants ARE what it computes; init
+    verifies each baked value and falls back to searching (a stale
+    constant costs startup time, never correctness), plus a test
+    asserting the fallback stays unused (Rarog's
+    `baked_magics_cover_every_square` shape). Pays in harness/tool
+    invocations and ultra-fast TC, not game strength — cheap, do late.
+11. **8.7.11 Phase close-out — ✅ DONE 2026-07-23.** End-to-end fresh
+    pooled-PGO head-vs-phase-start (871-head): **+4.34% NPS, CI [4.08, 4.59],
+    16/16 rounds**, both arms bench-identical 11,941,440 — close to the
+    per-item sum (+4.8%), so NO hidden compounding regression (the Rarog
+    "eight neutral steps → −3.2%" failure mode did not occur). Post-phase
+    counter harvest (startpos d16): every node count identical to 8.7.1(d)
+    (search tree unchanged); `see_ge` **0.631 → 0.514/node** (−18.5%, the
+    real calls 8.7.5(a) killed); eval/pawn-cache/gives_check rates unchanged
+    (those items cut cost-per-call, not call count). **Batch verdict:
+    +4.34% ≥ +2% ⇒ the pre-registered [-3,0] STC SPRT** (Phase-8.7 head vs
+    phase-start). **✅ CONFIRMED 2026-07-23: +8.69 ± 6.63 Elo, nElo
+    +14.64, LLR +1.49 climbing toward H1, 95% CI [+2.06, +15.32] EXCLUDES
+    ZERO, 0 forfeits @3,760 games — user-stopped (estimate-judged: CI off
+    zero + lands on the ~+8–9 the +4.34% NPS predicted, so H1 is
+    established and the exact LLR crossing is a formality).** The +4.34%
+    NPS translates to a real ~+8.7 Elo game gain — **the speed pass is a
+    genuine STRENGTH increase, not zero-change (feeds the 1.9.1-vs-1.10.0
+    version call at 8.6.9).** Phase 8.7 CLOSED.
+    Accepted-item summary: 8.7.6(b+d)
+    +3.03%, 8.7.7(c) +0.89%, 8.7.7(a) +0.39%, 8.7.5(a) +0.36%, 8.7.6(c)
+    neutral-kept, 8.7.10 startup 603→38 ms; rejected 8.7.3/8.7.4/8.7.8,
+    retired 8.7.9, skipped 8.7.5(b), invalid 8.7.5(c). Original spec:
+    One end-to-end head-vs-phase-start NPS
+    measurement (pooled PGO, both arms rebuilt fresh); post-phase counter
+    harvest next to the 8.7.1(d) baseline; the pre-registered batch
+    verdict (≥ +2% → `[-3,0]` batch SPRT; else fixed 10k probe); per-item
+    results recorded in the dev guide's Phase-8.7 block (Rarog's
+    dev-guide 10.3 block is the template).
+12. **8.6.9 ⭐ Release 1.9.1 — the final HCE release — ✅ PREP DONE
+   2026-07-23 (awaiting the user's manual publish).** Moved here 2026-07-22;
+   number kept — order ≠ numbering. Gated on 8.6.1–8.6.7,
+   **the 8.6.8A accept-audit, and Phase 8.7 resolved** (Rarog 9.8
+   precedent: the release waits for the whole wave, not its first passing
+   item) — all satisfied. Model-side prep complete: version 1.9.1 in
+   `constants.h` + `CMakeLists.txt` (verified), CHANGELOG `[1.9.1]` rewritten
+   (Phase-8.7 speed summary +4.34% NPS ≈ +8.69±6.63 Elo, 8.6.8A audit note,
+   "why still a patch"), README baked-magics note, `user_dev_guide.md`
+   restructured to future-focus, PGO ISA matrix via the 8.6.5-hardened
+   `release.yml`, release notes drafted. Cumulative `development`-vs-1.9.0
+   evidence is the Phase-8.7 batch SPRT (+8.69±6.63).
+   **Folded-in 8.7.9 doc riders — ✅ BOTH DONE 2026-07-23 (`95c1702`),
+   no code-behaviour change:** (b) `docs/release_tiers.md` now documents the
+   portable tier's software `popcount` (verified by disassembly: portable 0
+   vs `-pext` 97 `popcnt` instructions — the pext/avx2 tiers are hardware
+   POPCNT, so no speed is left on the table there); (c) the doc's promised
+   per-asset `*.manifest.txt`/`*.sha256` (which `release.yml` never uploads)
+   is amended to match reality (binary-only assets + CI smoke test; manifest
+   stays local per 8.6.5). **user (manual):** squash `development` →
+   `master` as `Version 1.9.1`, push, then **publish a GitHub Release**
+   (`gh release create v1.9.1 --target master --notes-file <notes>` — a bare
+   tag does NOT fire `release.yml`, which triggers on `release: published`).
+   **1.9.1 then replaces
+   1.9.0 everywhere as the frozen HCE baseline: 8.5.15 baselines it,
+   Phase 9's HCE comparison is against it, and the `nnue` rebase targets
+   the post-1.9.1 `development` SHA.** Prep already done 2026-07-20/21
+   (version bump, CHANGELOG draft, doc rename, refactor-equivalence gate
+   ✅) carries over.
 
 **Execution order across the NNUE boundary (explicit):**
 
@@ -780,17 +2013,23 @@ persistent/distributed testing.
    the accepted ones.
 2. **⭐ 1.9.0 RELEASE — ✅ DONE 2026-07-17.** All accepted Phase-8/8.5 work
    squashed to `master` as the single `Version 1.9.0` commit; version → 1.9.0
-   (Constants.h + CMakeLists), CHANGELOG `[1.9.0]` written, CTest 11/11, engine
+   (constants.h + CMakeLists), CHANGELOG `[1.9.0]` written, CTest 11/11, engine
    reports `Basilisk 1.9.0`. `development` is reset to this `master` state to
-   continue. This is the last pure-HCE release and the frozen HCE baseline for
-   8.5.15. **Still manual (user):** tag `v1.9.0` + push `master` (the PGO
-   `release.yml` assets + manifests fire on the tag); optional cumulative
-   `instabtm`-vs-1.8.0 confirmation gauntlet (STC + `10+0.1`) for the shipped
-   number.
-3. **Post-1.9.0 NNUE runway (`development` → `nnue`):** 8.5.3 dirty-piece,
-   8.5.14 TT graph-history, 8.5.15 teacher benchmark, 8.5.16 trainer preflight;
-   record the exact handoff SHA and **rebase `nnue` onto it once**.
-4. **Phase 9 → 10 → 11 → 12** (all post-NNUE), below.
+   continue. **Still manual (user):** tag `v1.9.0` + push `master`; optional
+   cumulative `instabtm`-vs-1.8.0 confirmation gauntlet (STC + `10+0.1`) for
+   the shipped number.
+3. **Phase 8.6 (ACTIVE, added 2026-07-20) → Phase 8.7 (added 2026-07-22)
+   → ⭐ 1.9.1 RELEASE.** The hardening/CI/telemetry wave + the 8.6.8A
+   accept-audit, then the profile-guided speed pass (Phase 8.7 — the
+   release step 8.6.9 now lives at its end); 1.9.1 becomes the final HCE
+   release and frozen NNUE baseline.
+4. **Post-1.9.1 NNUE runway (`development` → `nnue`) — pure NNUE data
+   prep only (structure era moved pre-release → 8.6.10):** 8.5.3
+   dirty-piece (attaches to 8.6.10's centralized do_move/undo_move +
+   `PlyContext`), 8.5.14 TT graph-history (down-scoped), 8.5.15 teacher
+   benchmark (baselines 1.9.1), 8.5.16 trainer preflight; record the exact
+   handoff SHA and **rebase `nnue` onto it once**.
+5. **Phase 9 → 10 → 11 → 12** (all post-NNUE), below.
 
 ---
 
@@ -816,15 +2055,16 @@ Repository ownership:
 | Board state, accumulator, raw `quantised.bin` loader/embedding, SIMD inference, UCI and search integration | `D:/code/basilisk` on `nnue` |
 | Teacher annotation, if used | Existing Hydra tooling, imported through a versioned `net_trainer` dataset path |
 
-The HCE comparison baseline is the **final accepted Phase-8.5 handoff SHA**,
-not 1.8.0. Every network is identified by `quantised.bin` SHA-256 plus its
+The HCE comparison baseline is the **released 1.9.1 head** (the post-Phase-8.6
+`development` handoff SHA), not 1.8.0/1.9.0. Every network is identified by
+`quantised.bin` SHA-256 plus its
 architecture constants, hidden size and training manifest. HCE remains
 available as debug/full-recompute comparison and a
 temporary UCI fallback during bring-up; the release default is the accepted
 embedded net.
 
-1. **9.0 Rebase and conformance inventory:** record the Phase-8.5 handoff SHA,
-   rebase `nnue` onto it once, resolve the existing partial NNUE implementation,
+1. **9.0 Rebase and conformance inventory:** record the post-1.9.1 handoff
+   SHA, rebase `nnue` onto it once, resolve the existing partial NNUE implementation,
    and map every retained component to `docs/nnue_format.md` at the recorded
    `net_trainer` SHA. No search/eval behavior change in this step. The v1 file
    deliberately has no magic/header: validate total size, 64-byte `bullet`
@@ -891,6 +2131,18 @@ embedded net.
    portable scalar; NEON when shipped),
    benchmark refresh/update/eval separately and full-search NPS, then regenerate
    the production PGO profile with the final net embedded.
+   **Rider — toolchain stabilization (do once, immediately before that PGO
+   regen):** pin ONE LLVM major across all release/CI platforms so the compiler
+   stops being an uncontrolled variable under hand-written SIMD: Linux = apt
+   `clang-NN` (already pinned at 19 by the 1.9.1 CI fix — clang-18's
+   `__cpp_concepts 201907L` disables libstdc++'s `<expected>`, so never float
+   back to distro default), Windows = an exact-tagged **llvm-mingw** release
+   (replaces rolling MSYS2 CLANG64/CLANGARM64; same clang+libc++/UCRT ABI, one
+   toolchain for x64+aarch64), macOS = Homebrew `llvm@NN` through the existing
+   `COMP=llvm` path (drops floating AppleClang). Hold the major in a single
+   `LLVM_MAJOR`-style variable per workflow, stamp the toolchain into release
+   metadata, and accept the pin/bump via CI green + the 3-way (ci.yml) and
+   9-way (release.yml) bench-agreement jobs — no other gate needed.
 7. **9.6 Swap-in and iterate:** compare NNUE against the Phase-8.5 HCE baseline
    at the standard SPRT, `10+0.1`, the frozen teacher cohorts and tactical/
    endgame suites. Iterate data amount, label blend, H=512/1024, WDL weight,
@@ -934,7 +2186,24 @@ for every candidate; total nodes alone are not a verdict. Working prior:
    history and SEE pruning. Stage separately: shared calculation with behavior
    parity; second-move eligibility; checks; good/bad captures; negative
    reductions/extensions; then removal of obsolete categorical exceptions.
-   Each behavior step gets its own SPRT.
+   Each behavior step gets its own SPRT. **MUST INCLUDE (8.6.8, skipped
+   pre-1.9.1 by user decision 2026-07-20): the SF `cutoffCnt` term — reduce
+   more when the child ply produced many cutoffs — enters here as one of
+   the reduction inputs; read Rarog's 8.6 bundle verdict first as a free
+   prior. Our telemetry baseline says the LMR family is very timid
+   (re-search rate 1.04%), so this input class has real headroom.**
+   **MUST INCLUDE #2 (the LMR post-move-`gives_check` bug — found 2026-07-23,
+   standalone fix REJECTED −18/−19 Elo @1.1k, §6): the unified `r` computes
+   the check state from the CORRECT pre-move answer BY CONSTRUCTION, so the
+   bug is designed out here rather than patched onto the old code. The
+   standalone fix lost because the hcefinal LMR constants were tuned WITH the
+   bug's accidental over-reduction (lesson-15 de-tuning); the loss is a
+   re-tune candidate, NOT proof correct check-handling is bad. Re-measured
+   here as part of the reduction rework and re-tuned in 10.7 — the aggressive-
+   reduction benefit the bug supplied must be reclaimed through the proper
+   knobs (LMR base/divisor/context) or via `cutoffCnt`. If it STILL H0s after
+   the joint re-tune, the accident was near-optimal and we keep the current
+   behavior; pre-register that outcome so it is not re-litigated.**
 2. **10.2 Result-dependent verification:** choose deeper/shallower full-search
    depth from the reduced result, node confidence and prior reduction; train
    post-LMR history from both outcomes. → staged SPRTs.
@@ -954,7 +2223,12 @@ for every candidate; total nodes alone are not a verdict. Working prior:
    SPRT, with collision/support telemetry.
 7. **10.7 Final search tune:** only after 10.1–10.6 are decided, generate a
    fresh configuration containing accepted histshape/wave2/correction/TM and
-   pruning-margin dimensions. Exclude dead, rejected and redundant knobs;
+   pruning-margin dimensions — **regenerated from the `search_params.h`
+   X-macro table (8.6.1), and it MUST carry the full LMR family incl. the
+   10.1 `cutoffCnt` term (8.6.8's re-tune half), the **10.1 pre-move-
+   `gives_check` LMR fix (its de-tuned −18 loss is re-tuned HERE — reclaim the
+   aggressiveness through the knobs, or pre-registered-close if it still H0s)**,
+   and `TmInstability`**. Exclude dead, rejected and redundant knobs;
    pre-register ranges and stop rule; SPSA → bake → CTest/telemetry → SPRT.
    Confirm at `10+0.1`, a genuinely longer TC, several hash sizes, and both
    production TUNE=OFF and test TUNE=ON binaries. This is the final tune the
@@ -1038,6 +2312,43 @@ route back to top-engine strength.
 
 ### Deferred / reopenable experiments
 
+**🐛 LMR gate reads a POST-MOVE `gives_check` (found 2026-07-23 during 8.7.3;
+latent, pre-existing).** In `negamax`'s `search_one` the `move_gives_check()`
+lambda is lazy, and the LMR reduction gate (search.cpp ~1602) is the first
+caller for any move that skipped every earlier pruning branch — but that call
+happens AFTER `do_move`, so it evaluates `gives_check(m)` on the CHILD
+position, for a move already played. The value is deterministic (hence bench
+was stable) but semantically wrong: the LMR "don't reduce checking moves"
+exemption has been keyed off a meaningless bit for exactly the moves that
+reach it. Fixing it (evaluate the pre-move `gc_premove` that 8.7.3 already
+computes correctly, and feed it to the LMR gate) moved bench 11,941,440 →
+16,365,460 — a real search change. **Deferred as a STRENGTH item (own SPRT):
+Phase 8.7 is pure-speed by contract, so 8.7.3 preserves the quirk verbatim.
+Likely positive (correct LMR data on checking moves), plausibly a wash;
+worth a `[0,3]` SPRT after the speed pass or folded into 10.1's LMR rework.
+Prior art: none — this is a fresh find.**
+
+> **STANDALONE FIX ❌ REJECTED 2026-07-23 (−19.64 ± 13.43, LLR trending H0,
+> CI excluded 0 @1.1k games, user-stopped); RELOCATED to 10.1 + 10.7, NOT
+> abandoned.** The one-line fix (`(void)move_gives_check();` before
+> `do_move(ss, m)` in `search_one`, forcing the lazy lambda pre-move) took
+> bench 11,941,440 → 16,365,460, CTest 11/11 — but lost ~18-19 Elo standalone.
+> **Why it lost, and why it is NOT abandoned:** the garbage bit usually reads
+> "not a check," so the buggy engine OVER-reduces those moves → smaller tree →
+> more depth at fixed time. The accident is a net-positive aggressive-LMR
+> heuristic, and the hcefinal SPSA tuned the LMR constants WITH it present, so
+> the standalone fix is a textbook lesson-15 de-tuning victim — the loss does
+> NOT prove correct check-handling is bad. **The fix is therefore designed
+> INTO 10.1's unified reduction (the pre-move answer by construction) and
+> re-tuned in 10.7 (reclaim the aggressiveness through LMR base/divisor/
+> context/`cutoffCnt`). Pre-registered: if it still H0s after the joint
+> re-tune, the accident was near-optimal → keep current behavior, close.**
+> User decision 2026-07-23: move to the later step, do NOT ship the standalone
+> fix. Final SPRT −21.55 ± 9.83, LOS 0.00%, LLR −1.72 @2,002 (user-stopped).
+> The fix is a documented one-liner (rebuild at 10.1, not worth keeping a
+> pre-NNUE binary). Development stays at 11,941,440; the Phase-8.7 speed pass
+> continues unaffected.
+
 (The old Phase-8 "feature menu" was closed by the 2026-07-01 audit — EV ≈ 0,
 list survives in git history. The **Phase 8 label now names the 2026-07-13
 hardening phase, §4**.) What remains
@@ -1065,6 +2376,11 @@ make the net searchable; it is not the histshape/wave2/TM campaign.
 | **TM knobs** | time-management constants; the old SPSA washed under the old root model | unknown after NNUE/root v2 | Phase 10.7 only, after 8.5.12 supplies variance/instability/root-effort inputs |
 | **6.6 fail-low prior countermove bonus** | skipped during Phase 6 | small | absorbed into 8.5.10(d) on `development` |
 | **fractional history** | quantization experiment flagged during 6.7 | likely wash | only if still meaningful after 8.5.11, then Phase 10.7 |
+| **full-budget TT indexing** (mul-hi instead of the pow2 mask; from the 2026-07-20 TT audit, recorded at 8.6.2c) | use the entire `Hash` budget — pow2 flooring wastes up to ~50% at unlucky sizes | LTC/large-hash relevant (cf. TT-density +4.27) | Phase 10/11, with the 11.5 memory work |
+| **cutoff-count LMR + LMR-family re-tune** (8.6.8 opt-in) | SF `cutoffCnt`; Rarog's measured #1 lever, its 8.6 SPSA in flight 2026-07-20 (carrying two dims from our hcefinal vector) | Rarog EV +3–8 | 10.1/10.7 by default — **read Rarog's 8.6 verdict first as a free cross-review prior**; earlier only via 8.6.8 opt-in |
+| **check-extension-removal BUNDLE** (8.6.7 standalone ❌ −10.17 @ 4.7k, 2026-07-20; 8.5.8 closed for HCE) | removal + joint re-SPSA of the consumers it de-tunes (RFP/razor/null/futility/SEE + LMR family, ~16 dims), ONE gate — the standalone gate vs the hcefinal-tuned head was partly rigged (lesson 15); Rarog's +30.75 predates its LMR re-tune; **the −10.17 also carries one unpinned-harness bias draw (lesson 10)** | unknown; +30.75 at Rarog | post-NNUE recalibration (12.x-era / with 10.7), where these constants are re-fitted anyway; pre-registered: if the bundle H0s there too, closed permanently |
+| **cuckoo re-trial** (rejected twice 2026-07-17, unpinned harness) | cuckoo-hash repetition detection; both rejects predate the affinity fix and each carries one ±10 bias draw — two same-sign draws are unlikely but possible; lesson-10 candidate for one clean fixed-N probe | probably wash (two rejects) | post-1.9.1 opt-in only; one fixed 10k probe, keep-or-close permanently |
+| **postlmrhist re-trial** (rejected 2026-07-16, unpinned harness; `PostLmrHistScale` inert at 0) | post-LMR continuation-history nudge; single biased-harness reject, knob still registered — probe is options-only (no build), same protocol as 8.6.8A run A | unknown, single reject | post-1.9.1 opt-in only; options-probe fixed 10k, keep-or-close permanently |
 | **SPSA discipline** (pre-registered, from the 2026-07-02 EV review) | 1000–1500 iters, abort at ~600 if trend ≤ 0, converged candidate → bake → SPRT + full CTest; a wash → keep defaults, done | — | applies to every run above |
 
 Explicitly **not** reopenable by default: more HCE self-play cycles (cycle 6
@@ -1114,7 +2430,7 @@ NNUE king buckets instead), and the audit-closed HCE feature-name menu.
 ### Release checklist (the model runs this when asked to "release X.Y.Z")
 
 1. Confirm the gate above passed.
-2. Bump the version in **both** places: `src/Constants.h` (`engineVersion`) and
+2. Bump the version in **both** places: `src/constants.h` (`engineVersion`) and
    `CMakeLists.txt` (`project(basilisk VERSION …)` — drives the dist tag).
 3. Update `CHANGELOG.md` (Keep-a-Changelog entry with SPRT + gauntlet numbers,
    honest fast-TC vs LTC framing) and `README.md` only if the feature list
@@ -1127,10 +2443,19 @@ NNUE king buckets instead), and the audit-closed HCE feature-name menu.
 5. Commit the prep on `development`. **Do not tag. Do not push.**
 6. Produce copy-pasteable GitHub release notes (summary, strength vs prior tag,
    changes, honest caveats).
-7. **User:** squash → `Version X.Y.Z` on `master`, push, `git tag vX.Y.Z`.
-   The tag workflow builds, tests and uploads the documented **PGO production
-   assets**; local and public binaries may use different portability tiers but
-   must share source, defaults, embedded net and recorded behavior.
+7. **User:** squash → `Version X.Y.Z` on `master`, push. Then **publish a
+   GitHub Release** — e.g. `gh release create vX.Y.Z --target master --title
+   "Basilisk X.Y.Z" --notes-file <notes>` — which creates the tag (if absent)
+   and publishes in one step. **⚠ `release.yml` fires on `release: published`,
+   NOT on a bare tag push**, and its upload step (`gh release upload`) requires
+   the release to already exist — so `git tag && git push` ALONE builds and
+   uploads NOTHING (verified 2026-07-23). Publishing the Release fires the
+   workflow, which builds/tests all tiers and uploads the documented **PGO
+   production assets** (PGO binaries named WITHOUT `-pgo`; no `*.manifest.txt`
+   or `*.sha256` shipped). Local and public binaries may use different
+   portability tiers but must share source, defaults, embedded net and
+   recorded behavior. (Manual re-run if a build flakes: the `workflow_dispatch`
+   input takes the existing release tag.)
 
 ### Compute budget
 
@@ -1208,12 +2533,21 @@ Phases 0–7 took Basilisk from 1.4.9 to 1.8.0 by building a serious test harnes
 search baseline and mature HCE. The remaining route is explicit:
 
 ```text
-Phase 8 on development
+Phase 8 on development                                        [✅ shipped in 1.9.0]
   correctness + release/CI infrastructure
-Phase 8.5 on development
-  StateInfo/dirty-piece contract + observable eval-independent search
-  + frozen teacher/data contract
-one rebase of nnue onto the accepted Phase-8.5 SHA
+Phase 8.5 on development                                      [✅ shipped in 1.9.0]
+  eval-independent strength + NNUE data preparation
+Phase 8.6 on development                                      [ACTIVE]
+  pre-NNUE hardening: param/TT/protocol hygiene, CI (Rarog 9.2 shape),
+  A/B compiler equality, search telemetry, check-extension SPRT (rejected),
+  8.6.8A accept-audit
+Phase 8.7 on development                                      [NEW 2026-07-22 → 1.9.1]
+  profile-guided speed pass (Rarog 10.3 pattern: NPS instrument →
+  profile → CheckInfo/check-hint, pin/SEE sharing, picker+eval sweeps,
+  PGO enrichment, baked magics; ≈ +2 Elo per 1% NPS at STC)
+  → Release 1.9.1 — the final HCE release and frozen NNUE baseline
+post-1.9.1 NNUE runway (8.5.3 / 8.5.14 / 8.5.15 / 8.5.16)
+one rebase of nnue onto the released 1.9.1 SHA
 Phase 9
   harden D:/code/net_trainer and integrate its Bullet 1x8 quantised.bin baseline
 Phase 10

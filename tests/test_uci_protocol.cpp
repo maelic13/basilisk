@@ -4,8 +4,8 @@
 /// They intentionally avoid "isready", because that command waits for an
 /// engine-side acknowledgement.
 
-#include "EngineCommand.h"
-#include "UciProtocol.h"
+#include "engine_command.h"
+#include "uci_protocol.h"
 #include "test_harness.h"
 
 #include <atomic>

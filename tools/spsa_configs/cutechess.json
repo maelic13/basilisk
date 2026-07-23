@@ -1,10 +1,10 @@
 {
     "engine": "basilisk-phase1-defaults-pext-pgo.exe",
-    "book": "SuperGM_4mvs.pgn",
+    "book": "UHO_Lichess_4852_v1.epd",
     "games": 32,
     "tc": 3,
     "hash": 64,
-    "threads": 15,
+    "threads": 14,
     "save_rate": 10,
     "pgnout": "file=tuner/games.pgn",
     "use_fastchess": true

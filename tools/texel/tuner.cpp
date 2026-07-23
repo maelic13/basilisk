@@ -25,7 +25,7 @@
 #include <vector>
 
 #include "../../src/eval.h"
-#include "../../src/Board.h"
+#include "../../src/board.h"
 #include "../../src/bitboard.h"
 #include "../../src/attacks.h"
 #include "../../src/zobrist.h"
@@ -351,39 +351,33 @@ static int flat_index(int group, int idx = 0) {
     return eval_param_offset(group) + idx;
 }
 
+// Linearised draw scaling: the float mirror of the evaluator's integer
+// apply_endgame() scalers, applied to the trace so the fit sees the function
+// the engine actually computes.
+//
+// 8.6.2b: every predicate and constant here now comes from eval.h — previously
+// they were re-typed by hand (with a complementary dark-square mask and a
+// hand-copied rule-50 curve) and a divergence would have silently corrupted the
+// fitted gradients rather than failing --verify. Only the float/integer shape
+// differs now, which is inherent: the tuner needs a continuous multiplier.
+//
+// Knowingly approximate: apply_endgame's KPK / KBNK / wrong-bishop /
+// no-pawn-minor scalers are NOT mirrored, so those cohorts are linearised
+// without their scaling. That is a deliberate, long-standing simplification.
 static float linear_delta_scale(const Board& b) {
     float scale = 1.0f;
 
-    constexpr Bitboard DARK_SQ = 0x55AA55AA55AA55AAULL;
-    bool wb1 = !more_than_one(b.pieces[WHITE][BISHOP]) && b.pieces[WHITE][BISHOP];
-    bool bb1 = !more_than_one(b.pieces[BLACK][BISHOP]) && b.pieces[BLACK][BISHOP];
-    if (wb1 && bb1) {
-        bool wb_dark = (b.pieces[WHITE][BISHOP] & DARK_SQ) != 0;
-        bool bb_dark = (b.pieces[BLACK][BISHOP] & DARK_SQ) != 0;
-        if (wb_dark != bb_dark) {
-            int total_pawns = popcount(b.pieces[WHITE][PAWN] | b.pieces[BLACK][PAWN]);
-            // 8.3: shared capped helper -- must match eval.cpp exactly or the
-            // --verify reconstruction breaks.
-            scale *= static_cast<float>(ocb_draw_scale(total_pawns)) / 48.0f;
-        }
+    if (is_opposite_coloured_bishops(b)) {
+        const int total_pawns = popcount(b.pieces[WHITE][PAWN] | b.pieces[BLACK][PAWN]);
+        scale *= static_cast<float>(ocb_draw_scale(total_pawns)) / 48.0f;
     }
 
-    auto only_king = [&](Color c) {
-        return b.occupancy[c] == sq_bb(b.king_sq[c]);
-    };
-    auto only_knights = [&](Color c, int n) {
-        return !b.pieces[c][PAWN] && !b.pieces[c][BISHOP]
-            && !b.pieces[c][ROOK] && !b.pieces[c][QUEEN]
-            && popcount(b.pieces[c][KNIGHT]) == n;
-    };
-    if ((only_king(WHITE) && only_knights(BLACK, 2)) ||
-        (only_king(BLACK) && only_knights(WHITE, 2))) {
+    if (is_knnk_draw(b))
         return 0.0f;
-    }
 
     if (b.halfmove_clock > 0)
-        // 8.4: must match eval.cpp's damp_rule50 or --verify breaks.
-        scale *= static_cast<float>(199 - b.halfmove_clock) / 199.0f;
+        scale *= static_cast<float>(damp_rule50_scale_num(b.halfmove_clock))
+               / static_cast<float>(DAMP_RULE50_DEN);
 
     return scale;
 }
@@ -530,9 +524,8 @@ static std::vector<TexelPos> load_verify_dataset(const std::string& path,
 
         TexelPos tp;
         tp.result = result;
-        std::string err;
-        if (!tp.board.try_set_fen(fen, &err)) {
-            std::cerr << "FEN error at line " << lineno << ": " << err << "\n";
+        if (auto r = tp.board.try_set_fen(fen); !r) {
+            std::cerr << "FEN error at line " << lineno << ": " << r.error() << "\n";
             continue;
         }
 
@@ -603,11 +596,10 @@ static TuneSet load_tune_dataset(const std::string& path,
             continue;
         }
 
-        std::string err;
-        if (!board.try_set_fen(fen, &err)) {
+        if (auto r = board.try_set_fen(fen); !r) {
             ++skipped;
             if (skipped <= 5)
-                std::cerr << "FEN error at line " << lineno << ": " << err << "\n";
+                std::cerr << "FEN error at line " << lineno << ": " << r.error() << "\n";
             continue;
         }
 
@@ -731,7 +723,11 @@ static void cmd_feature_support(const std::string& path, int max_positions) {
     std::vector<int> group_of(EVAL_PARAM_FLAT_SIZE), sub_of(EVAL_PARAM_FLAT_SIZE);
     for (int g = 0; g < EPG_COUNT; ++g) {
         int off = eval_param_offset(g), len = EVAL_PARAM_LENS[g];
-        for (int i = 0; i < len; ++i) { group_of[off + i] = g; sub_of[off + i] = i; }
+        for (int i = 0; i < len; ++i) {
+            const auto idx = static_cast<std::size_t>(off + i);
+            group_of[idx] = g;
+            sub_of[idx]   = i;
+        }
     }
 
     std::vector<long> act(EVAL_PARAM_FLAT_SIZE, 0);
@@ -751,19 +747,19 @@ static void cmd_feature_support(const std::string& path, int max_positions) {
         if (line.empty() || line[0] == '#') continue;
         auto sep = line.rfind(';');
         if (sep == std::string::npos) { ++skipped; continue; }
-        std::string err;
-        if (!board.try_set_fen(line.substr(0, sep), &err)) { ++skipped; continue; }
+        if (!board.try_set_fen(line.substr(0, sep))) { ++skipped; continue; }
 
         g_trace = {};
         evaluator.evaluate(board);
         int ph = g_trace.phase;
         for (int i = 0; i < EVAL_PARAM_FLAT_SIZE; ++i) {
             if (g_trace.mg[i] != 0 || g_trace.eg[i] != 0) {
-                act[i]++;
-                if (ph >= 18)      act_op[i]++;
-                else if (ph >= 8)  act_mid[i]++;
-                else               act_eg[i]++;
-                sum_abs[i] += std::fabs(trace_coeff(g_trace, i));
+                const auto ui = static_cast<std::size_t>(i);
+                act[ui]++;
+                if (ph >= 18)      act_op[ui]++;
+                else if (ph >= 8)  act_mid[ui]++;
+                else               act_eg[ui]++;
+                sum_abs[ui] += std::fabs(trace_coeff(g_trace, i));
             }
         }
         ++N;
@@ -786,16 +782,17 @@ static void cmd_feature_support(const std::string& path, int max_positions) {
     std::cout << "LINEARLY-TRACED params with ZERO activation (scrutinise):\n";
     std::cout << "  group[idx]\n";
     for (int i = 0; i < EVAL_PARAM_FLAT_SIZE; ++i) {
-        int g = group_of[i];
+        const auto ui = static_cast<std::size_t>(i);
+        int g = group_of[ui];
         if (fs_is_finite_diff_group(g)) {
             fd_total++;
-            if (act[i] == 0) fd_zero++;
+            if (act[ui] == 0) fd_zero++;
             continue;
         }
-        if (act[i] == 0) {
+        if (act[ui] == 0) {
             zero_traced++;
-            std::printf("  %s[%d]\n", FS_GROUP_NAMES[g], sub_of[i]);
-        } else if (act[i] < thresh) {
+            std::printf("  %s[%d]\n", FS_GROUP_NAMES[g], sub_of[ui]);
+        } else if (act[ui] < thresh) {
             sparse_traced++;
         }
     }
@@ -1164,8 +1161,7 @@ static std::vector<KsSnap> ks_load(const std::string& path, int max_positions) {
         if (sep == std::string::npos) { ++skipped; continue; }
         float result;
         if (!parse_target(line.substr(sep + 1), result)) { ++skipped; continue; }
-        std::string err;
-        if (!tmp.try_set_fen(line.substr(0, sep), &err)) { ++skipped; continue; }
+        if (!tmp.try_set_fen(line.substr(0, sep))) { ++skipped; continue; }
         KsSnap s;
         for (int c = 0; c < NCOLORS; ++c) {
             for (int pt = 0; pt < PIECE_TYPE_NB; ++pt) s.pieces[c][pt] = tmp.pieces[c][pt];

@@ -9,7 +9,7 @@
 #include "wac_epd.h"
 #include "search.h"
 #include "tt.h"
-#include "UciOutput.h"
+#include "uci_output.h"
 
 // ---------------------------------------------------------------------------
 // EPD parsing (mirrors Rarog's src/wac.rs parse_epd_line)

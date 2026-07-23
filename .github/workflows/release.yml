@@ -113,7 +113,7 @@ jobs:
         run: git config --global core.autocrlf input
 
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
 
@@ -121,11 +121,22 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y clang llvm ninja-build
-          # The PGO profile-merge needs llvm-profdata. apt may ship it only under
-          # a versioned name (llvm-profdata-NN); expose an unversioned one on PATH.
+          # clang-19, NOT the distro-default clang-18. All Linux runners here are
+          # 24.04 (ubuntu-latest + ubuntu-24.04-arm). The engine returns
+          # std::expected (C++23, added in 8.6); on Linux clang uses libstdc++,
+          # whose <expected> body is guarded behind __cpp_concepts >= 202002L.
+          # clang-18 only defines 201907L, so the header is empty and the build
+          # fails ("no template named 'expected'"). clang-19 defines 202002L.
+          # Keeps clang + libstdc++, so the shipped binary is dynamically linked
+          # and portable exactly as before (bench 11,941,440 unchanged).
+          sudo apt-get install -y clang-19 llvm-19 ninja-build
+          sudo ln -sf /usr/bin/clang-19   /usr/local/bin/clang
+          sudo ln -sf /usr/bin/clang++-19 /usr/local/bin/clang++
+          clang++ --version
+          # PGO profile-merge needs an llvm-profdata whose format matches
+          # clang-19; expose the llvm-19 one under the unversioned name on PATH.
           if ! command -v llvm-profdata >/dev/null 2>&1; then
-            pd=$(ls /usr/lib/llvm-*/bin/llvm-profdata /usr/bin/llvm-profdata-* 2>/dev/null | head -1)
+            pd=$(ls /usr/lib/llvm-19/bin/llvm-profdata /usr/bin/llvm-profdata-19 2>/dev/null | head -1)
             [ -n "$pd" ] && sudo ln -sf "$pd" /usr/local/bin/llvm-profdata
           fi
           llvm-profdata --version
@@ -195,7 +206,21 @@ jobs:
           echo "$output" | grep -q "uciok" || { echo "FAIL: uciok not found"; exit 1; }
           version="${RELEASE_TAG#v}"
           echo "$output" | grep -qF "$version" || { echo "FAIL: version $version not found"; exit 1; }
-          echo "Smoke test passed"
+          # 8.6.5b (Rarog 9.3 pattern): the uploaded artifact must SEARCH, not
+          # just answer the handshake -- a real bench node count proves the
+          # move generator, evaluator and search survived PGO on this runner.
+          bench_out=$(printf "bench 6\nquit\n" | $TIMEOUT "./$binary" 2>&1 || true)
+          nodes=$(echo "$bench_out" | grep -oE "Nodes searched *: *[0-9]+" | grep -oE "[0-9]+$" || true)
+          [ -n "$nodes" ] && [ "$nodes" -gt 0 ] || { echo "FAIL: bench produced no node count"; echo "$bench_out" | tail -20; exit 1; }
+          echo "Smoke test passed (bench 6: $nodes nodes)"
+          # Record the exact count for the cross-binary agreement job below.
+          echo "$nodes" > "relbench-${{ matrix.os_name }}-${{ matrix.arch }}${{ matrix.asset_suffix }}.txt"
+
+      - name: Upload bench fingerprint
+        uses: actions/upload-artifact@v7
+        with:
+          name: relbench-${{ matrix.os_name }}-${{ matrix.arch }}${{ matrix.asset_suffix }}
+          path: relbench-${{ matrix.os_name }}-${{ matrix.arch }}${{ matrix.asset_suffix }}.txt
 
       - name: Upload binary to release
         shell: bash
@@ -204,3 +229,34 @@ jobs:
         run: |
           asset="${{ steps.asset.outputs.asset }}"
           gh release upload "$RELEASE_TAG" "build/dist/${asset}" --clobber
+
+  # ---- Cross-binary bench agreement (no hardcoded value) ---------------------
+  # Every published binary already smoke-tested bench-6 > 0 in its own job; this
+  # asserts all nine PGO production binaries (including the ARM tiers that full
+  # CI never runs) produced the IDENTICAL node count. Search is deterministic
+  # integer logic, so any disagreement means a PGO/codegen miscompile or UB on
+  # that platform. Detect-after by design: assets are already attached when this
+  # runs — a red X here means fix and re-run, not silent shipping.
+  bench-agreement:
+    name: release bench agreement
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download fingerprints
+        # v7, not v8 — same reasoning as ci.yml (v8 no longer auto-unzips).
+        uses: actions/download-artifact@v7
+        with:
+          pattern: relbench-*
+          merge-multiple: true
+
+      - name: Compare
+        run: |
+          echo "Collected fingerprints:"
+          for f in relbench-*.txt; do echo "  $f: $(cat "$f")"; done
+          count=$(cat relbench-*.txt | sort -u | wc -l)
+          if [ "$count" -ne 1 ]; then
+            echo "FAIL: published binaries disagree on the bench node count."
+            echo "This is a PGO/codegen miscompile or UB on the outlier platform."
+            exit 1
+          fi
+          echo "All published binaries agree: $(cat relbench-*.txt | sort -u)"

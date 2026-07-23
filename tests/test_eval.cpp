@@ -8,7 +8,7 @@
 ///   cmake --build --preset release --target test_eval
 ///   ./build/release/test_eval
 
-#include "Board.h"
+#include "board.h"
 #include "eval.h"
 #include "attacks.h"
 #include "bitboard.h"

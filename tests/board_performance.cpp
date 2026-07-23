@@ -12,12 +12,13 @@
 /// Or via CTest:
 ///   ctest --test-dir build/release -R board_performance --output-on-failure
 
-#include "Board.h"
+#include "board.h"
 #include "attacks.h"
 #include "bitboard.h"
 #include "zobrist.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <cassert>
 #include <chrono>
 #include <cmath>
@@ -117,7 +118,7 @@ struct BenchResult {
 // the median absolute deviation (a robust dispersion measure, unlike best-of-N
 // which hides variance). The workload returns the op count it performed; it
 // must NOT copy or allocate the working set inside the timed region.
-static constexpr int SAMPLES = 11;
+static constexpr std::size_t SAMPLES = 11;
 
 template <typename F>
 static BenchResult benchmark(const char* label, int iterations, int warmups, F workload) {
@@ -126,7 +127,7 @@ static BenchResult benchmark(const char* label, int iterations, int warmups, F w
 
     std::vector<double> rate(SAMPLES);
     uint64_t ops_per_iter = 0;
-    for (int s = 0; s < SAMPLES; ++s) {
+    for (std::size_t s = 0; s < SAMPLES; ++s) {
         uint64_t ops = 0;
         auto t0 = std::chrono::steady_clock::now();
         for (int i = 0; i < iterations; ++i)
@@ -143,7 +144,7 @@ static BenchResult benchmark(const char* label, int iterations, int warmups, F w
     };
     const double med = median_of(rate);
     std::vector<double> dev(SAMPLES);
-    for (int s = 0; s < SAMPLES; ++s) dev[s] = std::fabs(rate[s] - med);
+    for (std::size_t s = 0; s < SAMPLES; ++s) dev[s] = std::fabs(rate[s] - med);
     const double mad = median_of(dev);
 
     return { label, med, mad, ops_per_iter };
@@ -281,7 +282,7 @@ int main() {
     const BenchResult* results[] = { &legal, &caps, &mku, &see, &pft, &sim };
 
     std::printf("\n");
-    std::printf("Board representation performance (%d positions, median of %d)\n",
+    std::printf("Board representation performance (%d positions, median of %zu)\n",
                 N_POSITIONS, SAMPLES);
     std::printf("%s\n", std::string(72, '-').c_str());
     for (const BenchResult* r : results) {

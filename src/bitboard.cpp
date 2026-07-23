@@ -47,31 +47,15 @@ void init_bitboards() {
     }
 
     // Between and line tables via ray stepping
-    const int DR[8] = {1, -1, 0, 0, 1,  1, -1, -1};
-    const int DF[8] = {0,  0, 1,-1, 1, -1,  1, -1};
-
+    // 8.6.2b: this loop used to also walk all 8 rays from each square into a
+    // local `ray`, then discard it with `(void)ray;` — the comment said the
+    // tables would be "fixed up properly below", which the second loop then does
+    // from scratch. Only the zeroing was ever load-bearing, so the dead ray
+    // stepping is gone (startup-only, but it read as if it mattered).
     for (int a = 0; a < 64; a++) {
         for (int b = 0; b < 64; b++) {
             BB_BETWEEN[a][b] = 0;
             BB_LINE[a][b]    = 0;
-        }
-
-        int ar = rank_of(Square(a)), af = file_of(Square(a));
-
-        for (int dir = 0; dir < 8; dir++) {
-            int r = ar + DR[dir], f = af + DF[dir];
-            Bitboard ray = 0;
-
-            while (r >= 0 && r < 8 && f >= 0 && f < 8) {
-                int b = r * 8 + f;
-                ray |= 1ULL << b;
-                r += DR[dir];
-                f += DF[dir];
-            }
-
-            // BB_LINE[a][b] = full ray through a in this direction
-            // We'll fix up BB_LINE and BB_BETWEEN properly below
-            (void)ray;
         }
     }
 

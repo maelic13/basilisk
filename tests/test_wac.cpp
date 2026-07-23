@@ -13,7 +13,7 @@
 ///   cmake --build --preset release --target test_wac
 ///   ./build/release/test_wac
 
-#include "Board.h"
+#include "board.h"
 #include "wac.h"
 #include "eval.h"
 #include "move.h"
@@ -47,9 +47,9 @@ static void test_suite_parses_and_matcher_is_exact() {
     bool all_ok = true;
     for (const WacPosition& pos : positions) {
         Board b;
-        std::string err;
-        if (!b.try_set_fen(pos.fen, &err)) {
-            std::fprintf(stderr, "  %s illegal FEN: %s\n", pos.id.c_str(), err.c_str());
+        auto r = b.try_set_fen(pos.fen, /*validate_legal_position=*/true);
+        if (!r) {
+            std::fprintf(stderr, "  %s illegal FEN: %s\n", pos.id.c_str(), r.error().c_str());
             all_ok = false;
             continue;
         }

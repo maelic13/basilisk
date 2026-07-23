@@ -2,9 +2,9 @@
 #include <iostream>
 #include <string>
 
-#include "Constants.h"
-#include "UciOutput.h"
-#include "UciProtocol.h"
+#include "constants.h"
+#include "uci_output.h"
+#include "uci_protocol.h"
 #ifdef BASILISK_TUNE
 #include "eval.h"
 #endif
@@ -78,7 +78,7 @@ void UciProtocol::enqueue(EngineCommandType type, const std::string& args, uint6
 void UciProtocol::cmdUci() {
     std::string out = "id name " + std::string(engineName) + " " + std::string(engineVersion) + "\n"
                     + "id author " + std::string(engineAuthor) + "\n"
-                    + Parameters::uciOptions()
+                    + Parameters::uci_options()
                     + "uciok\n";
     uci_write(out);
 }

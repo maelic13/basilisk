@@ -302,6 +302,64 @@ static void test_move_preserved() {
     end_section();
 }
 
+/// The `Hash` byte contract (8.6.2a). Two bounds, both load-bearing:
+///   upper — allocating MORE than the user asked for is the bug class that bit
+///           the sibling engine (it sized a table in another structure's unit
+///           and silently used 2x the configured Hash; in a tournament that
+///           surfaces as swapping and time losses that read as weakness);
+///   lower — the power-of-two cluster floor may waste at most half the budget,
+///           so anything <= budget/2 means the sizing math itself regressed.
+/// Verified as a real guard, not a tautology (negative controls run 2026-07-20,
+/// both reverted): sizing the count in the WRONG UNIT — `bytes / 16` instead of
+/// `bytes / sizeof(TTCluster)`, i.e. precisely the sibling-engine bug — fails
+/// the upper bound (11 assertions, exit 1); under-allocating via
+/// `bytes / (sizeof(TTCluster) * 4)` fails the lower bound (11 assertions).
+/// Note the bounds are checked through `allocated_bytes()`, which derives from
+/// `cluster_count_` — the same value `resize()` hands to `make_unique`, so it
+/// is the true footprint and not an independently-drifting number.
+static void test_allocation_within_budget() {
+    static const size_t sizes_mb[] = {1, 2, 3, 4, 16, 17, 64, 100, 129};
+
+    for (size_t mb : sizes_mb) {
+        TranspositionTable tt(mb);
+        const size_t budget = mb * 1024u * 1024u;
+
+        char name[64];
+        std::snprintf(name, sizeof(name), "Hash %zu MB: allocation within budget", mb);
+        begin_section(name);
+        EXPECT(tt.allocated_bytes() <= budget);
+        EXPECT(tt.allocated_bytes() > budget / 2);
+        end_section();
+    }
+}
+
+/// The same contract must survive a resize in both directions — the path that
+/// also exercises 8.6.2a's free-before-allocate ordering (the old table must be
+/// released before the new one is requested, or a grow transiently needs the
+/// sum of both).
+static void test_resize_keeps_budget() {
+    TranspositionTable tt(1);
+
+    begin_section("resize grow 1 -> 64 MB stays within budget");
+    tt.resize(64);
+    EXPECT(tt.allocated_bytes() <= 64u * 1024u * 1024u);
+    EXPECT(tt.allocated_bytes() > 32u * 1024u * 1024u);
+    end_section();
+
+    begin_section("resize shrink 64 -> 2 MB stays within budget");
+    tt.resize(2);
+    EXPECT(tt.allocated_bytes() <= 2u * 1024u * 1024u);
+    EXPECT(tt.allocated_bytes() > 1u * 1024u * 1024u);
+    end_section();
+
+    begin_section("table is usable after resize");
+    const Key key = 0xFEEDFACECAFEBEEFULL;
+    tt.store(key, 7, 42, TT_EXACT, make_move(E2, E4), /*ply=*/0, 30);
+    TTEntry e{};
+    EXPECT(tt.probe_copy(key, e) && e.score == 42);
+    end_section();
+}
+
 // ---------------------------------------------------------------------------
 // main
 // ---------------------------------------------------------------------------
@@ -339,6 +397,10 @@ int main() {
 
     std::printf("\nMove preservation\n");
     test_move_preserved();
+
+    std::printf("\nHash byte contract\n");
+    test_allocation_within_budget();
+    test_resize_keeps_budget();
 
     return harness_summary();
 }

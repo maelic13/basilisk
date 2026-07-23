@@ -1,9 +1,10 @@
 #pragma once
 
-#include "Board.h"
-#include "SearchParams.h"
+#include "board.h"
+#include "search_params.h"
 #include "tt.h"
 #include "eval.h"
+#include "history.h"
 #include "syzygy.h"
 #include <atomic>
 #include <chrono>
@@ -84,6 +85,7 @@ struct SearchLimits {
     int syzygy_probe_limit = 0;
     bool syzygy_50_move_rule = true;
     bool tm_debug = false;      // emit per-move time-accounting info string (Step 5.3)
+    bool diag = false;          // emit end-of-search diagnostic counters (8.6.6)
     // Instant the `go` command was parsed off UCI input (default = unset). Used
     // only to report dispatch latency in tm_debug; does not affect timing yet.
     std::chrono::steady_clock::time_point go_recv_time{};
@@ -117,13 +119,76 @@ public:
     void blend_history_from(const Searcher& other);
 
 private:
-    Evaluator evaluator;
-
-private:
+    Evaluator evaluator_;
     TranspositionTable& tt_;
     std::atomic_bool&   stop_;
     std::atomic_bool*   ponderhit_;
     std::function<void(const std::string&)> info_cb_;
+
+    // ---- Persistent per-root-move records (8.6.10e; Rarog 10.1 pattern) ----
+    // Pure bookkeeping this phase: written by the root loop, consumed by
+    // nothing yet. This is the substrate the 8.5.12 remainder
+    // (uncertainty-aware aspiration, root-effort TM), Phase-10 consumers and
+    // Phase-11 voting plug into — they become readers of existing data
+    // instead of each re-plumbing the root loop. Mean/variance are Welford
+    // over completed per-iteration scores; `nodes` is the cumulative subtree
+    // effort; `pv` is captured whenever this move was best at its ply.
+    struct RootMoveStat {
+        Move    move           = MOVE_NONE;
+        int     score          = -INF_SCORE;  // last search result for this move
+        int     previous_score = -INF_SCORE;  // result from the prior visit
+        double  mean           = 0.0;
+        double  m2             = 0.0;         // Welford accumulator
+        int     samples        = 0;
+        int64_t nodes          = 0;
+        int     seldepth       = 0;
+        bool    exact          = false;       // last result inside the window?
+        std::vector<Move> pv;                 // last PV when this move led
+
+        void add_sample(int s) noexcept {
+            previous_score = score;
+            score = s;
+            ++samples;
+            const double d = double(s) - mean;
+            mean += d / samples;
+            m2   += d * (double(s) - mean);
+        }
+        [[nodiscard]] double variance() const noexcept {
+            return samples > 1 ? m2 / (samples - 1) : 0.0;
+        }
+    };
+    std::vector<RootMoveStat> root_stats_;
+    RootMoveStat& root_stat(Move m) {
+        for (auto& r : root_stats_)
+            if (r.move == m) return r;
+        root_stats_.push_back(RootMoveStat{});
+        root_stats_.back().move = m;
+        return root_stats_.back();
+    }
+
+    // ---- 8.6.6 diagnostic counters (Rarog 7.6 pattern) ----
+    // Always counted — plain per-Searcher int64 increments on lines that are
+    // already hot, measured to cost nothing (interleaved best-of-5 NPS) — and
+    // printed only when SearchLimits.diag is set (UCI `Diag`, TUNE builds).
+    // These size candidates BEFORE they spend SPRT slots and are the substrate
+    // Phase 10's acceptance criteria assume; check_exts must read 0 once
+    // 8.6.7 lands.
+    struct DiagCounters {
+        int64_t interior_nodes = 0, in_check_nodes = 0, check_exts = 0, tt_pv_nodes = 0;
+        int64_t tt_probes = 0, tt_hits = 0, tt_cutoffs = 0;
+        int64_t rfp_cuts = 0, razor_cuts = 0, null_tries = 0, null_cuts = 0;
+        int64_t probcut_tries = 0, probcut_cuts = 0;
+        int64_t fut_prunes = 0, lmp_prunes = 0, hist_prunes = 0, see_prunes = 0;
+        int64_t lmr_applied = 0, lmr_researched = 0;
+        int64_t qs_nodes = 0, qs_evasion_nodes = 0;
+        int64_t hist_cutoff_updates = 0, hist_reward_updates = 0;
+        // 8.7.1(c): snapshotted from the Board at search teardown (see
+        // board.h) — board_ptr_ is nulled before print_diag() runs.
+        int64_t see_ge_calls = 0, gives_check_calls = 0;
+        void reset() noexcept { *this = DiagCounters{}; }
+    };
+    DiagCounters diag_;
+    void print_diag() const;
 
     Board*   board_ptr_;
     int64_t  nodes_;
@@ -145,46 +210,10 @@ private:
     int      history_age_counter_;
 
     // ---- History tables (persist across searches; aged each search) ----
-    static constexpr int MAX_MAIN_HIST = 16384;
-    static constexpr int MAX_CAP_HIST  = 16384;
-    static constexpr int MAX_CONT_HIST = 16384;
-    static constexpr int MAX_PAWN_HIST = 16384;
-    static constexpr int MAX_LOW_HIST  = 8192;
-    static constexpr int CORR_SIZE     = 16384;
-    static constexpr int PAWN_HIST_SIZE = 2048;
-    static constexpr int LOW_PLY_HISTORY_SIZE = 8;
-
-    // Quiet history [color][from][to]
-    int16_t main_hist_[NCOLORS][SQUARE_NB][SQUARE_NB];
-
-    // Capture history [attacker_pt][to][captured_pt]
-    int16_t cap_hist_[PIECE_TYPE_NB][SQUARE_NB][PIECE_TYPE_NB];
-
-    // Continuation history: heap-allocated (~400 KB each)
-    struct ContHistTable {
-        int16_t data[PIECE_TYPE_NB][SQUARE_NB][PIECE_TYPE_NB][SQUARE_NB];
-    };
-    std::unique_ptr<ContHistTable> cont_hist1_; // 1-ply continuation
-    std::unique_ptr<ContHistTable> cont_hist2_; // 2-ply continuation
-    std::unique_ptr<ContHistTable> cont_hist4_; // 4-ply continuation
-
-    // Pawn-structure keyed quiet history [pawn_key][piece][to]
-    struct PawnHistTable {
-        int16_t data[PAWN_HIST_SIZE][PIECE_TYPE_NB][SQUARE_NB];
-    };
-    std::unique_ptr<PawnHistTable> pawn_hist_;
-
-    // Low-ply quiet history improves opening/root move ordering.
-    int16_t low_ply_hist_[LOW_PLY_HISTORY_SIZE][SQUARE_NB][SQUARE_NB];
-
-    // Countermove [from][to] -> best response
-    Move     countermove_[SQUARE_NB][SQUARE_NB];
-
-    // Correction histories keyed by pawn, minor-piece, non-pawn, and continuation context.
-    int16_t  pawn_corr_hist_[NCOLORS][CORR_SIZE];
-    int16_t  minor_corr_hist_[NCOLORS][CORR_SIZE];
-    int16_t  nonpawn_corr_hist_[NCOLORS][NCOLORS][CORR_SIZE];
-    int16_t  cont_corr_hist_[NCOLORS][PIECE_TYPE_NB][SQUARE_NB];
+    // Storage + whole-table lifecycle live in HistoryTables (history.h,
+    // 8.6.10b); the update POLICY (bonus formulas, what a cutoff trains)
+    // stays in this class.
+    HistoryTables hist_;
 
     // ---- Per-search state ----
     // ss_arr_[0..3] = sentinels; root = ss_arr_[4] (ply 0)
@@ -202,7 +231,12 @@ private:
     double hard_limit_;   // absolute maximum
 
     // ---- LMR table (per-instance; recomputed at the start of each search) ----
-    int  lmr_table_[64][64];
+    // Zero-initialised: init_lmr() fills only [1..63][1..63] (a reduction is
+    // meaningless at depth 0 or move 0), and every consumer clamps its indices
+    // into that range under a searched>0 / depth>=1 guard. The {} makes row and
+    // column 0 defined rather than merely unread — cheap insurance against a
+    // future consumer that forgets the guard (8.6.2b).
+    int  lmr_table_[64][64]{};
     void init_lmr(float base, float divisor);
 
     // ---- Search ----
@@ -223,9 +257,38 @@ private:
         e += static_cast<int16_t>(bonus - static_cast<int>(e) * std::abs(bonus) / MAX_VAL);
     }
 
+    // ---- The single make/unmake seam (8.6.10d) ----
+    // EVERY search-side move execution goes through this pair (negamax,
+    // quiescence, in-check evasions, ProbCut, null move). It exists so that
+    // per-ply bookkeeping happens in exactly one place — which is where the
+    // Phase-9 NNUE accumulator push/pop and the 8.5.3 dirty-piece recording
+    // attach, once each, instead of at every call site. Do not call
+    // board.make_move directly from search code.
+    void do_move(SearchStack* ss, Move m) {
+        ss->move        = m;
+        ss->moved_piece = type_of(board_ptr_->board_sq[from_sq(m)]);
+        board_ptr_->make_move(m);
+        // Phase 9: accumulator.push(dirty piece delta) attaches here.
+    }
+    void undo_move(SearchStack* ss, Move m) {
+        board_ptr_->unmake_move(m);
+        ss->move = MOVE_NONE;
+        // Phase 9: accumulator.pop() attaches here.
+    }
+    void do_null_move(SearchStack* ss) {
+        ss->move        = MOVE_NULL;
+        ss->moved_piece = NO_PIECE_TYPE;
+        board_ptr_->make_null_move();
+        // Null move has no piece delta; the accumulator is reused as-is.
+    }
+    void undo_null_move(SearchStack* ss) {
+        board_ptr_->unmake_null_move();
+        ss->move = MOVE_NONE;
+    }
+
     void update_quiet(Color stm, Square from, Square to, int bonus);
     void update_cap(PieceType pt, Square to, PieceType cap, int bonus);
-    void update_cont(ContHistTable& tbl,
+    void update_cont(HistoryTables::ContHistTable& tbl,
                      PieceType ppt, Square pto,
                      PieceType cpt, Square cto, int bonus);
     void update_pawn_hist(Key pawn_key, PieceType pt, Square to, int bonus);

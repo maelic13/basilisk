@@ -20,7 +20,7 @@
 #include <string>
 #include <vector>
 
-#include "Board.h"
+#include "board.h"
 
 inline constexpr int DEFAULT_WAC_DEPTH = 10;
 

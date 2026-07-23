@@ -7,10 +7,10 @@
 ///   cmake --build --preset release --target test_search
 ///   ./build/release/test_search
 
-#include "Board.h"
-#include "Constants.h"
-#include "EngineCommand.h"
-#include "Parameters.h"
+#include "board.h"
+#include "constants.h"
+#include "engine_command.h"
+#include "parameters.h"
 #include "attacks.h"
 #include "bitboard.h"
 #include "eval.h"
@@ -19,6 +19,8 @@
 #include "syzygy.h"
 #include "tt.h"
 #include "zobrist.h"
+#include "bench.h"
+#include "wac.h"
 #include "test_harness.h"
 
 #include <atomic>
@@ -182,89 +184,89 @@ static void test_default_go_depth_and_syzygy_options() {
     Parameters params;
 
     begin_section("parameters: bare go defaults to depth 7");
-    params.setSearchParameters("");
+    params.set_search_parameters("");
     EXPECT_EQ(params.depth, defaultSearchDepth);
-    EXPECT_EQ(params.moveTime, 0);
+    EXPECT_EQ(params.move_time, 0);
     end_section();
 
     begin_section("uci options: exposes SyzygyProbeLimit");
-    EXPECT(Parameters::uciOptions().find("SyzygyProbeLimit") != std::string::npos);
+    EXPECT(Parameters::uci_options().find("SyzygyProbeLimit") != std::string::npos);
     end_section();
 
     begin_section("uci options: exposes Ponder");
-    EXPECT(Parameters::uciOptions().find("option name Ponder type check default false") != std::string::npos);
-    params.setOption("name Ponder value true");
-    EXPECT(params.ponderEnabled);
+    EXPECT(Parameters::uci_options().find("option name Ponder type check default false") != std::string::npos);
+    params.set_option("name Ponder value true");
+    EXPECT(params.ponder_enabled);
     end_section();
 
     begin_section("parameters: SyzygyProbeLimit clamps to UCI range");
-    params.setOption("name SyzygyProbeLimit value 0");
-    EXPECT_EQ(params.syzygyProbeLimit, 0);
-    params.setOption("name SyzygyProbeLimit value 99");
-    EXPECT_EQ(params.syzygyProbeLimit, 7);
-    params.setOption("name SyzygyProbeLimit value -5");
-    EXPECT_EQ(params.syzygyProbeLimit, 0);
+    params.set_option("name SyzygyProbeLimit value 0");
+    EXPECT_EQ(params.syzygy_probe_limit, 0);
+    params.set_option("name SyzygyProbeLimit value 99");
+    EXPECT_EQ(params.syzygy_probe_limit, 7);
+    params.set_option("name SyzygyProbeLimit value -5");
+    EXPECT_EQ(params.syzygy_probe_limit, 0);
     end_section();
 
     begin_section("parameters: invalid numeric values are ignored");
-    params.setSearchParameters("depth nope movetime -5 nodes bad");
+    params.set_search_parameters("depth nope movetime -5 nodes bad");
     EXPECT_EQ(params.depth, defaultSearchDepth);
-    EXPECT_EQ(params.moveTime, 0);
+    EXPECT_EQ(params.move_time, 0);
     EXPECT_EQ(params.nodes, 0);
-    params.setOption("name Threads value many");
+    params.set_option("name Threads value many");
     EXPECT_EQ(params.threads, 1);
     end_section();
 
     begin_section("parameters: go ponder enables ponder search");
-    params.setSearchParameters("ponder wtime 1000 btime 1000");
+    params.set_search_parameters("ponder wtime 1000 btime 1000");
     EXPECT(params.ponder);
     EXPECT_EQ(params.depth, infiniteDepth);
     end_section();
 
     begin_section("parameters: go mate converts to mate-search depth");
-    params.setSearchParameters("mate 2");
+    params.set_search_parameters("mate 2");
     EXPECT_EQ(params.mate, 2);
     EXPECT_EQ(params.depth, 3);
     end_section();
 
     begin_section("parameters: go perft records perft depth");
-    params.setSearchParameters("perft 3");
+    params.set_search_parameters("perft 3");
     EXPECT_EQ(params.perft, 3);
     end_section();
 
     begin_section("parameters: go searchmoves keeps legal root restrictions");
-    params.setPosition("startpos");
-    params.setSearchParameters("searchmoves e2e4 g1f3 depth 2");
-    EXPECT_EQ(static_cast<int>(params.searchMoves.size()), 2);
+    params.set_position("startpos");
+    params.set_search_parameters("searchmoves e2e4 g1f3 depth 2");
+    EXPECT_EQ(static_cast<int>(params.search_moves.size()), 2);
     EXPECT_EQ(params.depth, 2);
     end_section();
 
     begin_section("parameters: invalid FEN preserves board");
-    params.setPosition("startpos moves e2e4");
+    params.set_position("startpos moves e2e4");
     const std::string after_e4 = params.board.get_fen();
-    params.setPosition("fen 8/8/8/8/8/8/8/8 w - - 0 1");
+    params.set_position("fen 8/8/8/8/8/8/8/8 w - - 0 1");
     EXPECT_STR(params.board.get_fen(), after_e4);
     end_section();
 
     begin_section("parameters: strict illegal FEN preserves board");
-    params.setPosition("fen 4k3/8/8/8/8/8/4R3/4K3 w - - 0 1");
+    params.set_position("fen 4k3/8/8/8/8/8/4R3/4K3 w - - 0 1");
     EXPECT_STR(params.board.get_fen(), after_e4);
     end_section();
 
     begin_section("parameters: illegal move list preserves board");
-    params.setPosition("startpos");
+    params.set_position("startpos");
     const std::string start = params.board.get_fen();
-    params.setPosition("startpos moves e2e5");
+    params.set_position("startpos moves e2e5");
     EXPECT_STR(params.board.get_fen(), start);
     end_section();
 
     begin_section("parameters: partial illegal move list is atomic");
-    params.setPosition("startpos moves e2e4 e2e5");
+    params.set_position("startpos moves e2e4 e2e5");
     EXPECT_STR(params.board.get_fen(), start);
     end_section();
 
     begin_section("parameters: valid FEN with fullmove zero and moves accepted");
-    params.setPosition(
+    params.set_position(
         "fen r1bqkb1r/pppn1ppp/3p1n2/4p1B1/3PP3/2N5/1PP2PPP/R2QKBNR w KQkq e6 0 0 moves d4d5");
     EXPECT_STR(params.board.get_fen(),
                "r1bqkb1r/pppn1ppp/3p1n2/3Pp1B1/4P3/2N5/1PP2PPP/R2QKBNR b KQkq - 0 0");
@@ -923,6 +925,40 @@ static void test_rule50_mate_found() {
     end_section();
 }
 
+
+// ---------------------------------------------------------------------------
+// 8.6.3b: packaged-FEN legality sweep over the bench suite and WAC-300.
+// Every FEN the repo ships must parse under STRICT validation (the class of
+// gate that would have caught the four illegal endgames.epd positions; the
+// endgames sweep lives in test_endgames next to its loader).
+// ---------------------------------------------------------------------------
+
+static void test_packaged_fens_strictly_legal() {
+    begin_section("all 40 bench-suite FENs are strictly legal");
+    for (std::string_view fen : bench_fens()) {
+        Board b;
+        auto r = b.try_set_fen(std::string(fen), /*validate_legal_position=*/true);
+        EXPECT(r.has_value());
+        if (!r)
+            std::fprintf(stderr, "  illegal bench FEN: %.*s (%s)\n",
+                         int(fen.size()), fen.data(), r.error().c_str());
+    }
+    end_section();
+
+    begin_section("all 300 WAC FENs are strictly legal");
+    const auto wac = wac_positions();
+    EXPECT(wac.size() == 300);
+    for (const auto& pos : wac) {
+        Board b;
+        auto r = b.try_set_fen(pos.fen, /*validate_legal_position=*/true);
+        EXPECT(r.has_value());
+        if (!r)
+            std::fprintf(stderr, "  illegal WAC FEN: %s (%s)\n",
+                         pos.fen.c_str(), r.error().c_str());
+    }
+    end_section();
+}
+
 int main() {
     init_bitboards();
     init_attacks();
@@ -989,6 +1025,9 @@ int main() {
     test_syzygy_probe_limit_and_counts();
     test_syzygy_rule50_root_scores();
     test_search_uses_root_tablebase_metadata();
+
+    std::printf("\nPackaged-FEN legality sweep\n");
+    test_packaged_fens_strictly_legal();
 
     return harness_summary();
 }

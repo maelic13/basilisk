@@ -26,28 +26,38 @@
       ./tools/spsa.ps1 -ConfigGroup <g> -EngineSuffix <s>
 
 .PARAMETER FastchessTag
-    GitHub release tag to download.  Default "latest" fetches the newest
-    release.  Pin a tag (e.g. "v1.8.0-alpha") for reproducibility.
+    GitHub release tag to download. Default "v1.8.0-alpha", a pinned
+    Basilisk harness runner after the Windows process-affinity fix in v1.7.0.
 
 .EXAMPLE
     ./tools/setup_tools.ps1
 #>
 param(
-    [string]$FastchessTag = "latest"
+    [string]$FastchessTag = "v1.8.0-alpha"
 )
 
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "..\harness_common.ps1")
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $binDir   = Join-Path $PSScriptRoot "bin"
 $wfDir    = Join-Path $PSScriptRoot "weather-factory"
+New-Item -ItemType Directory -Force -Path $binDir | Out-Null
 
 # ---- 1. fastchess -----------------------------------------------------------
 $fastchessExe = Join-Path $binDir "fastchess.exe"
+$downloadFastchess = -not (Test-Path $fastchessExe)
 if (Test-Path $fastchessExe) {
-    $ver = & $fastchessExe --version 2>&1 | Select-Object -First 1
-    Write-Host "fastchess already present: $ver"
-    Write-Host "  Delete tools/bin/fastchess.exe to re-download."
-} else {
+    try {
+        $info = Assert-AffinityFastchess -Path $fastchessExe
+        Write-Host "fastchess already present: $($info.Text)"
+        Write-Host "  Existing compatible runner retained (version is recorded per match)."
+    } catch {
+        Write-Warning $_.Exception.Message
+        Write-Host "  Replacing incompatible runner with $FastchessTag."
+        $downloadFastchess = $true
+    }
+}
+if ($downloadFastchess) {
     Write-Host "Downloading fastchess ($FastchessTag)..."
 
     $apiUrl = if ($FastchessTag -eq "latest") {
@@ -72,9 +82,27 @@ if (Test-Path $fastchessExe) {
     $zipPath = Join-Path $binDir "fastchess.zip"
     Write-Host "  Downloading $($asset.name) from $($release.tag_name)..."
     Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $zipPath
+    if ($asset.digest -match '^sha256:(?<hash>[0-9a-fA-F]{64})$') {
+        $actualHash = (Get-FileHash $zipPath -Algorithm SHA256).Hash
+        if ($actualHash -ne $Matches['hash']) {
+            throw "fastchess archive SHA-256 mismatch: expected $($Matches['hash']), got $actualHash"
+        }
+        Write-Host "  Archive SHA-256 verified."
+    }
     Write-Host "  Extracting..."
-    Expand-Archive -Path $zipPath -DestinationPath $binDir -Force
-    Remove-Item $zipPath
+    $extractDir = Join-Path ([System.IO.Path]::GetTempPath()) ("basilisk-fastchess-" + [guid]::NewGuid())
+    New-Item -ItemType Directory -Path $extractDir | Out-Null
+    try {
+        Expand-Archive -Path $zipPath -DestinationPath $extractDir -Force
+        $extracted = @(Get-ChildItem -LiteralPath $extractDir -Recurse -Filter "fastchess.exe" -File)
+        if ($extracted.Count -ne 1) {
+            throw "Expected one fastchess.exe in $($asset.name), found $($extracted.Count)."
+        }
+        Copy-Item -LiteralPath $extracted[0].FullName -Destination $fastchessExe -Force
+    } finally {
+        Remove-Item -LiteralPath $extractDir -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $zipPath -Force -ErrorAction SilentlyContinue
+    }
 
     if (-not (Test-Path $fastchessExe)) {
         throw "fastchess.exe not found in tools/bin/ after extraction. " +
@@ -82,6 +110,7 @@ if (Test-Path $fastchessExe) {
     }
     $ver = & $fastchessExe --version 2>&1 | Select-Object -First 1
     Write-Host "  Done: $ver"
+    Assert-AffinityFastchess -Path $fastchessExe | Out-Null
 }
 
 # ---- 2. weather-factory -----------------------------------------------------
@@ -92,6 +121,37 @@ if (Test-Path (Join-Path $wfDir "main.py")) {
     git clone https://github.com/jnlt3/weather-factory $wfDir
     if ($LASTEXITCODE -ne 0) { throw "git clone failed" }
     Write-Host "  Done."
+}
+
+# ---- 2b. Local patch: -use-affinity (idempotent and syntax-checked) ----------
+# Weather-factory's fastchess mini-matches run at clock TC and are subject to
+# the same scheduler placement lottery documented in sprt.ps1's header. The
+# clone is gitignored, so the patch is applied HERE to survive re-clones.
+$wfCute = Join-Path $wfDir "cutechess.py"
+if (Test-Path $wfCute) {
+    $c = Get-Content $wfCute -Raw
+    $allPhysicalCpus = (Get-HarnessPhysicalCpus).Cpu -join ','
+    # Repair the original 2026-07-21 patch, which inserted a Python `+`
+    # expression between implicitly concatenated f-strings and caused a
+    # SyntaxError at startup.
+    $c = $c -replace '(?m)^\s*\+ \("-use-affinity " if self\.use_fastchess else ""\).*\r?\n?', ''
+    # Rebuild V2 every time so a clone moved to different hardware cannot keep
+    # a stale machine-specific CPU list.
+    $c = $c -replace '(?m)^.*BASILISK_AFFINITY_PATCH_V2.*\r?\n?', ''
+
+    $anchor = 'f"-concurrency {self.threads} "'
+    $patch  = $anchor + "`n" + ('            f"{''-use-affinity ' + $allPhysicalCpus + ' '' if self.use_fastchess else ''''}"  # BASILISK_AFFINITY_PATCH_V2')
+    if (-not $c.Contains($anchor)) {
+        throw "weather-factory/cutechess.py affinity patch anchor not found; upstream changed."
+    }
+    $c = $c.Replace($anchor, $patch)
+    Set-Content -Path $wfCute -Value $c -Encoding utf8
+
+    python -m py_compile $wfCute
+    if ($LASTEXITCODE -ne 0) {
+        throw "weather-factory affinity patch failed Python syntax validation: $wfCute"
+    }
+    Write-Host "  weather-factory affinity patch and Python syntax verified."
 }
 
 # ---- 3. Python dependency ---------------------------------------------------

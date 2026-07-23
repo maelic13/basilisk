@@ -22,11 +22,12 @@
 ///   cmake --build --preset release --target test_invariants
 ///   ./build/release/test_invariants
 
-#include "Board.h"
+#include "board.h"
 #include "attacks.h"
 #include "bitboard.h"
 #include "move.h"
 #include "zobrist.h"
+#include "movegen_oracle.h"
 #include "test_harness.h"
 
 #include <climits>
@@ -115,7 +116,7 @@ static void random_walk(Board& b, std::mt19937_64& rng, int depth,
     // Try a couple of random legal moves at this node so the walk fans out.
     const int tries = 2;
     for (int t = 0; t < tries && !bad; ++t) {
-        const Move m = legal[static_cast<int>(rng() % legal.size())];
+        const Move m = legal[static_cast<int>(rng() % static_cast<std::uint64_t>(legal.size()))];
         Board snap = b;
         b.make_move(m);
         ++states;
@@ -188,7 +189,7 @@ static uint64_t perft_legal(Board& b, int depth) {
 static uint64_t perft_pseudo(Board& b, int depth) {
     if (depth == 0) return 1;
     std::vector<Move> pseudo;
-    b.gen_pseudo_legal(pseudo);
+    test_oracle::gen_pseudo_legal(b, pseudo);
     uint64_t nodes = 0;
     for (Move m : pseudo) {
         if (!b.is_legal(m)) continue;
@@ -273,7 +274,7 @@ static void see_fuzz_walk(Board& b, std::mt19937_64& rng, int depth,
         ++checked;
     }
     if (bad || legal.empty()) return;
-    const Move m = legal[static_cast<int>(rng() % legal.size())];
+    const Move m = legal[static_cast<int>(rng() % static_cast<std::uint64_t>(legal.size()))];
     b.make_move(m);
     see_fuzz_walk(b, rng, depth - 1, checked, bad);
     b.unmake_move(m);
@@ -308,15 +309,14 @@ static void fen_walk(Board& b, std::mt19937_64& rng, int depth,
     if (bad || depth == 0) return;
     const std::string fen = b.get_fen();
     Board reparsed;
-    std::string err;
-    if (!reparsed.try_set_fen(fen, &err)) { bad = "own FEN rejected on reparse"; return; }
+    if (!reparsed.try_set_fen(fen)) { bad = "own FEN rejected on reparse"; return; }
     if (!boards_bit_equal(b, reparsed)) { bad = "FEN round-trip changed the board"; return; }
     ++checked;
 
     MoveList legal;
     b.gen_legal(legal);
     if (legal.empty()) return;
-    const Move m = legal[static_cast<int>(rng() % legal.size())];
+    const Move m = legal[static_cast<int>(rng() % static_cast<std::uint64_t>(legal.size()))];
     b.make_move(m);
     fen_walk(b, rng, depth - 1, checked, bad);
     b.unmake_move(m);
@@ -345,12 +345,14 @@ static void test_fen_roundtrip_fuzz() {
 // ---------------------------------------------------------------------------
 
 static void test_parser_robustness_fuzz() {
-    const std::string good = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+    // 8.6.3c: mutate all seven structurally diverse SEED_FENS, not just
+    // startpos — a mutation of a castling/EP/promotion-race/endgame position
+    // reaches parser paths a mutated startpos never touches (Rarog fuzzes 22
+    // diverse roots for the same reason).
     const char alphabet[] = "0123456789pnbrqkPNBRQK/wb KQkq-abcdefgh ";
     std::mt19937_64 rng(0x0BADF00DULL + fuzz_seed_offset());
 
     Board b;
-    b.set_fen(good);
     const std::string baseline = b.get_fen();
 
     int fed = 0, accepted = 0;
@@ -363,26 +365,25 @@ static void test_parser_robustness_fuzz() {
             for (int j = 0; j < len; ++j)
                 s += alphabet[rng() % (sizeof(alphabet) - 1)];
         } else {
-            s = good;
+            s = SEED_FENS[(static_cast<size_t>(i) / 2) % std::size(SEED_FENS)];
             const int muts = 1 + static_cast<int>(rng() % 4);
             for (int m = 0; m < muts && !s.empty(); ++m)
                 s[rng() % s.size()] = alphabet[rng() % (sizeof(alphabet) - 1)];
         }
-        std::string err;
         // Strict validation: an accepted FEN must be a *legal* position, so
         // assert_ok (which checks legality invariants) must then hold. Without
         // strict mode, try_set_fen intentionally accepts parseable-but-illegal
         // positions, which assert_ok would rightly reject.
-        const bool ok = b.try_set_fen(s, &err, /*validate_legal_position=*/true);
+        const bool ok = b.try_set_fen(s, /*validate_legal_position=*/true).has_value();
         ++fed;
         if (ok) {
             ++accepted;
             // Anything accepted must itself be internally consistent.
             if (!b.assert_ok()) { bad = "accepted a malformed FEN into a bad state"; break; }
-            b.set_fen(good);  // reset for the next mutation baseline
+            b.set_fen(baseline);  // reset so the reject check below stays exact
         } else {
             // A rejected FEN must leave the previous board untouched.
-            if (b.get_fen() != baseline && b.get_fen() != good) {
+            if (b.get_fen() != baseline) {
                 bad = "rejected FEN mutated the board";
                 break;
             }

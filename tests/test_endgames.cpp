@@ -11,7 +11,7 @@
 ///   cmake --build --preset release --target test_endgames
 ///   ./build/release/test_endgames tests/endgames.epd
 
-#include "Board.h"
+#include "board.h"
 #include "attacks.h"
 #include "bitboard.h"
 #include "eval.h"
@@ -190,6 +190,21 @@ int main(int argc, char** argv) {
     }
 
     std::printf("Endgame regression suite (%zu positions)\n", entries.size());
+
+    // 8.6.3b packaged-FEN legality sweep (canary_integrity class): every FEN
+    // this suite ships must parse under STRICT validation. Four ILLEGAL
+    // positions (side-not-to-move in check) hid in this very file for weeks in
+    // 2026-07 and were only caught by hand — this gate makes that structural.
+    begin_section("every packaged EPD FEN is strictly legal");
+    for (const auto& e : entries) {
+        Board b;
+        auto r = b.try_set_fen(e.fen, /*validate_legal_position=*/true);
+        EXPECT(r.has_value());
+        if (!r)
+            std::fprintf(stderr, "  illegal packaged FEN: %s (%s)\n",
+                         e.fen.c_str(), r.error().c_str());
+    }
+    end_section();
 
     int mate_total = 0, mate_converts = 0;
     for (const auto& e : entries) {

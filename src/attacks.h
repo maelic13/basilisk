@@ -18,3 +18,10 @@ inline Bitboard queen_attacks(Square sq, Bitboard occ) {
 
 // Must be called once at startup (after init_bitboards)
 void init_attacks();
+
+#if !defined(USE_PEXT)
+// 8.7.10: squares whose baked magic failed verification and fell back to the
+// live search during the last init_attacks(). 0 in a healthy build; the
+// baked_magics_cover_every_square test asserts it. (PEXT tiers have no magics.)
+extern int g_baked_magic_fallbacks;
+#endif

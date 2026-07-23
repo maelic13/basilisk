@@ -1,0 +1,175 @@
+# CI — correctness, sanitizers and cross-platform bench agreement (8.6.4).
+#
+# Rarog-9.2 shape, adopted deliberately: triggers on push to MASTER plus
+# workflow_dispatch ONLY, running the IDENTICAL job set on both — a manual
+# pre-merge check is only useful if it faithfully previews the master gate.
+# NOT on push to development: the local loop already verifies build, bench
+# fingerprint and CTest on every commit there; push/PR triggers are also why
+# the original 8.8 ci.yml was removed at the 1.9.0 release (they don't fit
+# the squash-to-master workflow).
+#
+# The bench job hardcodes NO expected node count. All platforms run bench and
+# a final job asserts they AGREE with each other. A frozen constant would need
+# editing on every behavioural commit until someone deleted the check;
+# cross-platform agreement must hold forever regardless of what we change,
+# and it is the one thing local development cannot verify. A disagreement
+# means unsound code (UB), a data race, or float nondeterminism leaking into
+# the search. It doubles as the compiler-bump UB canary (8.6.5's argument:
+# node counts are deterministic integer logic).
+
+name: CI
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  # ---- Release-mode build + full CTest + bench fingerprint ------------------
+  test:
+    name: test (${{ matrix.os_name }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            os_name: linux
+          - runner: windows-latest
+            os_name: windows
+          - runner: macos-latest
+            os_name: macos
+    defaults:
+      run:
+        shell: ${{ matrix.os_name == 'windows' && 'msys2 {0}' || 'bash' }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Install Clang and Ninja (Linux)
+        if: runner.os == 'Linux'
+        # clang-19, NOT the distro-default clang-18. try_set_fen returns
+        # std::expected (C++23, added in 8.6). On Linux clang uses libstdc++,
+        # whose <expected> body is guarded behind __cpp_concepts >= 202002L.
+        # clang-18 only defines 201907L, so the header is included but empty and
+        # the build fails with "no template named 'expected'". clang-19 defines
+        # 202002L and enables it. Keeps clang + libstdc++ (binary unchanged).
+        # (Pre-8.6 releases had no C++23 library dep, so this is the first hit.)
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y clang-19 ninja-build cmake
+          sudo ln -sf /usr/bin/clang-19   /usr/local/bin/clang
+          sudo ln -sf /usr/bin/clang++-19 /usr/local/bin/clang++
+          clang++ --version
+
+      - name: Set up MSYS2 / Clang (Windows)
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: CLANG64
+          update: false
+          install: >-
+            mingw-w64-clang-x86_64-clang
+            mingw-w64-clang-x86_64-cmake
+            mingw-w64-clang-x86_64-ninja
+
+      # macOS uses the preinstalled AppleClang + libc++ (libc++'s <expected> is
+      # not gated on __cpp_concepts, so no version bump is needed here); cmake is
+      # preinstalled on the runner, ninja is not.
+      - name: Install Ninja (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          command -v ninja >/dev/null 2>&1 || brew install ninja
+          ninja --version
+
+      # Portable release on every platform: the bench-agreement comparison
+      # must compare identical feature builds, and portable runs everywhere.
+      - name: Configure and build (Release, TUNE off)
+        run: |
+          cmake --preset release -DPORTABLE_BUILD=ON -DCOMP=clang
+          cmake --build --preset release
+
+      - name: CTest
+        run: ctest --test-dir build/release --output-on-failure
+
+      # TUNE build must also stay compilable — it is what every SPRT/SPSA
+      # binary is built from (release-pext locally; feature parity is what
+      # matters here, not the ISA tier).
+      - name: Configure and build (Release, TUNE on)
+        run: |
+          cmake --preset release -DPORTABLE_BUILD=ON -DCOMP=clang -DTUNE=ON
+          cmake --build --preset release --target basilisk
+
+      - name: Bench fingerprint
+        id: bench
+        run: |
+          out=$(printf "bench 10\nquit\n" | ./build/release/basilisk*)
+          echo "$out" | tail -8
+          nodes=$(echo "$out" | grep -oE "Nodes searched *: *[0-9]+" | grep -oE "[0-9]+$")
+          [ -n "$nodes" ] || { echo "FAIL: no node count"; exit 1; }
+          echo "$nodes" > bench-${{ matrix.os_name }}.txt
+
+      - name: Upload bench fingerprint
+        uses: actions/upload-artifact@v7
+        with:
+          name: bench-${{ matrix.os_name }}
+          path: bench-${{ matrix.os_name }}.txt
+
+  # ---- Debug + ASan/UBSan (the gate 8.6.2b P0 repaired — keep it real) ------
+  sanitize:
+    name: sanitize (linux ASan+UBSan)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Install Clang and Ninja
+        # clang-19 for the C++23 std::expected in libstdc++ (guarded behind
+        # __cpp_concepts >= 202002L, which clang-18 does not define); see the
+        # test job's install step for the full explanation.
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y clang-19 ninja-build cmake
+          sudo ln -sf /usr/bin/clang-19   /usr/local/bin/clang
+          sudo ln -sf /usr/bin/clang++-19 /usr/local/bin/clang++
+          clang++ --version
+
+      - name: Configure and build (Debug, sanitizers)
+        run: |
+          cmake --preset debug -DCOMP=clang
+          cmake --build --preset debug
+
+      - name: CTest under sanitizers
+        run: ctest --test-dir build/debug --output-on-failure --timeout 1200
+
+  # ---- Cross-platform bench agreement (no hardcoded value) ------------------
+  bench-agreement:
+    name: bench agreement
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download fingerprints
+        # v7, not v8: download-artifact v8 stopped auto-unzipping (Content-Type
+        # dependent) + moved to ESM + errors on hash mismatch, any of which could
+        # break the bench-*.txt glob below. v7 is Node 24 (no deprecation) and
+        # keeps the v4 extraction behavior this job relies on.
+        uses: actions/download-artifact@v7
+        with:
+          pattern: bench-*
+          merge-multiple: true
+
+      - name: Compare
+        run: |
+          echo "Collected fingerprints:"
+          for f in bench-*.txt; do echo "  $f: $(cat "$f")"; done
+          count=$(cat bench-*.txt | sort -u | wc -l)
+          if [ "$count" -ne 1 ]; then
+            echo "FAIL: platforms disagree on the bench node count."
+            echo "This is UB, a data race, or nondeterminism leaking into the search."
+            exit 1
+          fi
+          echo "All platforms agree: $(cat bench-*.txt | sort -u)"

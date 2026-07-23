@@ -24,7 +24,10 @@
     Hash MB per engine. Default 64.
 
 .PARAMETER Concurrency
-    Parallel games. Default 15 for this 16-physical-core machine.
+    Parallel games. Default 0 auto-detects physical cores and leaves two free.
+
+.PARAMETER Seed
+    Opening randomization seed. Default 0 generates and reports a seed.
 
 .PARAMETER TC
     Clock time control "base+inc" in seconds. Default "10+0.1" — the
@@ -51,16 +54,16 @@
 
 .EXAMPLE
     .\tools\gauntlet.ps1 `
-        -Engine tools\test_engines\basilisk-phase1-final-pext-pgo.exe `
-        -Opponents tools\test_engines\basilisk-phase1-defaults-pext-pgo.exe `
+        -Engine tools\test_engines\basilisk-phase8512-instabtm-pext-pgo.exe `
+        -Opponents tools\test_engines\basilisk-1.9.0-pext-pgo.exe `
         -Name Phase1Final `
         -Games 1000
 
 .EXAMPLE
     # Optional old fixed-movetime sanity gauntlet (no forfeits possible).
     .\tools\gauntlet.ps1 `
-        -Engine tools\test_engines\basilisk-phase1-final-pext-pgo.exe `
-        -Opponents tools\test_engines\basilisk-phase1-defaults-pext-pgo.exe `
+        -Engine tools\test_engines\basilisk-phase8512-instabtm-pext-pgo.exe `
+        -Opponents tools\test_engines\basilisk-1.9.0-pext-pgo.exe `
         -Name Phase1Final -Games 1000 -MoveTime 0.1
 #>
 param(
@@ -69,7 +72,8 @@ param(
     [string]$Name = "Candidate",
     [int]$Games = 1000,
     [int]$Hash = 64,
-    [int]$Concurrency = 15,
+    [int]$Concurrency = 0,
+    [int]$Seed = 0,
     [string]$TC = "10+0.1",
     [double]$MoveTime = 0,
     [int]$TimeMargin = 20,
@@ -78,6 +82,12 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "..\harness_common.ps1")
+
+$concurrencyInfo = Resolve-HarnessConcurrency -Requested $Concurrency
+$Concurrency = $concurrencyInfo.Concurrency
+$AffinityCpus = Get-HarnessAffinityCpuList -Concurrency $Concurrency
+$Seed = New-HarnessSeed -Requested $Seed
 
 if ($Games -lt 2) { throw "-Games must be at least 2." }
 if ($Games % 2 -ne 0) { $Games += 1 }
@@ -98,6 +108,7 @@ if (-not (Test-Path $fastchess)) {
     if ($onPath) { $fastchess = $onPath.Source }
     else { throw "fastchess not found at '$FastchessPath' or on PATH." }
 }
+$fcInfo = Assert-AffinityFastchess -Path $fastchess
 
 foreach ($p in @($Engine, $Book) + $Opponents) {
     if (-not (Test-Path $p)) { throw "Not found: $p" }
@@ -117,12 +128,15 @@ foreach ($opponent in $Opponents) {
     $safeOpponent = $opponentName -replace '[^A-Za-z0-9_.-]', '_'
     $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
     $pgnOut = Join-Path $resultsDir "gauntlet_${Name}_vs_${safeOpponent}_${timestamp}.pgn"
+    $logOut = [IO.Path]::ChangeExtension($pgnOut, ".log")
 
     Write-Host ""
     Write-Host "======================================================="
     Write-Host "  Gauntlet: $Name vs $opponentName"
     Write-Host "  Games: $Games   TC: $tcLabel   Margin: ${TimeMargin} ms   Hash: ${Hash} MB   Conc: $Concurrency"
     Write-Host "  Book: $(Split-Path $Book -Leaf)"
+    Write-Host "  Seed: $Seed   Runner: $($fcInfo.Text)"
+    Write-Host "  CPUs: $AffinityCpus"
     Write-Host "  PGN:  $pgnOut"
     Write-Host "======================================================="
     Write-Host ""
@@ -134,12 +148,16 @@ foreach ($opponent in $Opponents) {
         -openings "file=$Book" "format=$bookFormat" order=random `
         -rounds $rounds -games 2 -repeat `
         -concurrency $Concurrency `
+        -use-affinity $AffinityCpus `
+        -srand $Seed `
         -draw movenumber=40 movecount=8 score=10 `
         -resign movecount=3 score=600 twosided=true `
         -pgnout "file=$pgnOut" `
-        -output format=fastchess
+        -output format=fastchess 2>&1 |
+        Tee-Object -FilePath $logOut
 
     if ($LASTEXITCODE -ne 0) {
         throw "fastchess exited with code $LASTEXITCODE for opponent '$opponentName'."
     }
+    Assert-NoAffinityFailure -LogPath $logOut
 }

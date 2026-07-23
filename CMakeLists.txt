@@ -56,7 +56,7 @@ endif()
 
 set(COMP "${_basilisk_compiler}" CACHE STRING "Compiler selection: auto, clang, gcc, or llvm" FORCE)
 
-project(basilisk VERSION 1.9.0 LANGUAGES CXX)
+project(basilisk VERSION 1.9.1 LANGUAGES CXX)
 
 _basilisk_detect_darwin_processor(_basilisk_system_processor "${CMAKE_SYSTEM_NAME}" "${CMAKE_SYSTEM_PROCESSOR}")
 if(APPLE AND NOT _basilisk_system_processor MATCHES "^(arm64|aarch64)$")
@@ -133,7 +133,7 @@ endif()
 
 # Core board library — shared by the engine, tests, and benchmarks
 set(BOARD_SOURCES
-    src/Board.cpp
+    src/board.cpp
     src/bitboard.cpp
     src/move.cpp
     src/attacks.cpp
@@ -147,6 +147,7 @@ target_include_directories(basilisk_board PUBLIC
 # Engine library — evaluation and search (depends on board)
 add_library(basilisk_engine STATIC
     src/eval.cpp
+    src/history.cpp
     src/search.cpp
     src/syzygy.cpp
 )
@@ -156,12 +157,12 @@ target_link_libraries(basilisk_engine PUBLIC basilisk_board PRIVATE fathom)
 # Executables
 # ---------------------------------------------------------------------------
 add_executable(basilisk
-    src/Basilisk.cpp
+    src/main.cpp
     src/bench.cpp
     src/wac.cpp
-    src/Engine.cpp
-    src/Parameters.cpp
-    src/UciProtocol.cpp
+    src/engine.cpp
+    src/parameters.cpp
+    src/uci_protocol.cpp
 )
 target_link_libraries(basilisk PRIVATE basilisk_engine)
 
@@ -183,6 +184,10 @@ target_link_libraries(test_board PRIVATE basilisk_board)
 add_executable(test_move tests/test_move.cpp)
 target_link_libraries(test_move PRIVATE basilisk_board)
 
+# 8.7.10: baked magic bitboard coverage (0 startup search fallbacks)
+add_executable(test_magics tests/test_magics.cpp)
+target_link_libraries(test_magics PRIVATE basilisk_board)
+
 # ---------------------------------------------------------------------------
 # Transposition table tests (TT is header-only)
 # ---------------------------------------------------------------------------
@@ -198,7 +203,7 @@ target_link_libraries(test_eval PRIVATE basilisk_engine)
 # ---------------------------------------------------------------------------
 # WAC tactical-suite tests (parse/matcher correctness + solved-count floor)
 # ---------------------------------------------------------------------------
-add_executable(test_wac tests/test_wac.cpp src/wac.cpp src/Parameters.cpp)
+add_executable(test_wac tests/test_wac.cpp src/wac.cpp src/parameters.cpp)
 target_link_libraries(test_wac PRIVATE basilisk_engine)
 
 # ---------------------------------------------------------------------------
@@ -210,7 +215,7 @@ target_link_libraries(test_invariants PRIVATE basilisk_board)
 # ---------------------------------------------------------------------------
 # Search tests
 # ---------------------------------------------------------------------------
-add_executable(test_search tests/test_search.cpp src/Parameters.cpp)
+add_executable(test_search tests/test_search.cpp src/parameters.cpp src/bench.cpp src/wac.cpp)
 target_link_libraries(test_search PRIVATE basilisk_engine)
 
 # ---------------------------------------------------------------------------
@@ -218,8 +223,8 @@ target_link_libraries(test_search PRIVATE basilisk_engine)
 # ---------------------------------------------------------------------------
 add_executable(test_engine_ponder
     tests/test_engine_ponder.cpp
-    src/Engine.cpp
-    src/Parameters.cpp
+    src/engine.cpp
+    src/parameters.cpp
     src/bench.cpp
     src/wac.cpp
 )
@@ -230,8 +235,8 @@ target_link_libraries(test_engine_ponder PRIVATE basilisk_engine)
 # ---------------------------------------------------------------------------
 add_executable(test_engine_threading
     tests/test_engine_threading.cpp
-    src/Engine.cpp
-    src/Parameters.cpp
+    src/engine.cpp
+    src/parameters.cpp
     src/bench.cpp
     src/wac.cpp
 )
@@ -242,15 +247,15 @@ target_link_libraries(test_engine_threading PRIVATE basilisk_engine)
 # ---------------------------------------------------------------------------
 add_executable(test_uci_protocol
     tests/test_uci_protocol.cpp
-    src/UciProtocol.cpp
-    src/Parameters.cpp
+    src/uci_protocol.cpp
+    src/parameters.cpp
 )
 target_link_libraries(test_uci_protocol PRIVATE basilisk_engine)
 
 # ---------------------------------------------------------------------------
 # Endgame regression suite (Step 3.5: scale factors + known-endgame knowledge)
 # ---------------------------------------------------------------------------
-add_executable(test_endgames tests/test_endgames.cpp src/Parameters.cpp)
+add_executable(test_endgames tests/test_endgames.cpp src/parameters.cpp)
 target_link_libraries(test_endgames PRIVATE basilisk_engine)
 
 include(CTest)
@@ -258,6 +263,7 @@ add_test(NAME test_board        COMMAND test_board)
 add_test(NAME test_wac          COMMAND test_wac)
 add_test(NAME test_invariants   COMMAND test_invariants)
 add_test(NAME test_move         COMMAND test_move)
+add_test(NAME test_magics       COMMAND test_magics)
 add_test(NAME test_tt           COMMAND test_tt)
 add_test(NAME test_eval         COMMAND test_eval)
 add_test(NAME test_search       COMMAND test_search)
@@ -302,7 +308,6 @@ if(TEXEL)
             -Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wno-unused-parameter
             $<$<CONFIG:Release>:-O3>
             $<$<AND:$<CONFIG:Release>,$<NOT:$<BOOL:${PORTABLE_BUILD}>>>:-march=native>
-            $<$<CONFIG:Release>:-ffast-math>
             $<$<CONFIG:Debug>:-O0 -g3>
         )
     elseif(MSVC)
@@ -324,11 +329,21 @@ if(TEXEL)
     message(STATUS "TEXEL build: basilisk-texel enabled (TEXEL_TRACE + BASILISK_TUNE defined)")
 endif()
 
+# Every target that must receive the project's warning flags, feature defines
+# (USE_PEXT / BASILISK_TUNE), static linking and — decisively — the sanitizer
+# flags from the `debug` preset.
+#
+# 8.6.2b: test_wac and test_invariants were MISSING from this list, so they
+# compiled against sanitized libraries without -fsanitize themselves and the
+# whole `debug` preset failed to LINK (~150 undefined __asan_*/__ubsan_*
+# symbols each). The ASan/UBSan gate was therefore unbuildable — and had been
+# since those targets were added. Anything omitted here is silently exempt from
+# every project-wide guarantee, so keep this list exhaustive.
 set(_ALL_TARGETS
     basilisk_board basilisk_engine
     basilisk board_performance_test
     test_board test_move test_tt test_eval test_search test_engine_ponder test_engine_threading test_uci_protocol
-    test_endgames
+    test_endgames test_wac test_invariants test_magics
 )
 
 if(TUNE)
@@ -349,7 +364,6 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
             -Wno-unused-parameter
             $<$<CONFIG:Release>:-O3>
             $<$<AND:$<CONFIG:Release>,$<NOT:$<BOOL:${PORTABLE_BUILD}>>>:-march=native>
-            $<$<CONFIG:Release>:-ffast-math>
             $<$<CONFIG:RelWithDebInfo>:-O2 -g>
             $<$<AND:$<CONFIG:RelWithDebInfo>,$<NOT:$<BOOL:${PORTABLE_BUILD}>>>:-march=native>
             $<$<CONFIG:Debug>:-O0 -g3>
@@ -452,7 +466,22 @@ set(_basilisk_dist_dir "${CMAKE_SOURCE_DIR}/build/dist")
 _basilisk_dist_asset_name(_basilisk_dist_asset_name "")
 _basilisk_dist_asset_name(_basilisk_dist_pgo_asset_name "-pgo")
 
-if(_basilisk_pgo STREQUAL "OFF")
+# build/dist holds RELEASE-NAMED artifacts, so only an optimized, non-sanitized
+# build may publish into it. 8.6.2b: this rule previously fired for EVERY
+# configuration, so configuring a Debug (or any scratch) build in a second
+# directory silently overwrote e.g.
+# basilisk-v1.9.0-windows-x86_64-pext.exe with a 10 MB ASan debug binary under
+# the release name — observed for real during the 2026-07-20 code audit. The
+# asset name encodes the version and ISA tier, not the build type, so a
+# mismatched binary is undetectable from the filename alone.
+set(_basilisk_may_publish_dist FALSE)
+if(_basilisk_pgo STREQUAL "OFF"
+   AND NOT SANITIZE
+   AND (CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo"))
+    set(_basilisk_may_publish_dist TRUE)
+endif()
+
+if(_basilisk_may_publish_dist)
     add_custom_command(TARGET basilisk POST_BUILD
         COMMAND "${CMAKE_COMMAND}" -E make_directory "${_basilisk_dist_dir}"
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different
@@ -491,8 +520,11 @@ add_custom_target(pgo
 option(USE_PEXT "Use BMI2 PEXT instruction for magic bitboards (requires Haswell+)" OFF)
 option(USE_AVX2 "Build for x86-64 CPUs with AVX2" OFF)
 
-if((USE_PEXT OR USE_AVX2) AND NOT CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|amd64|i.86")
-    message(FATAL_ERROR "x86 CPU feature builds require an x86/x86-64 target")
+# 8.6.2a: 64-bit x86 only. The `i.86` (32-bit) alternative was dropped with the
+# rest of the 32-bit vestiges — Basilisk is 64-bit-only by contract (see the
+# static_assert in src/types.h), and no 32-bit asset has ever been shipped.
+if((USE_PEXT OR USE_AVX2) AND NOT CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|amd64")
+    message(FATAL_ERROR "x86 CPU feature builds require a 64-bit x86-64 target")
 endif()
 
 if(USE_PEXT)

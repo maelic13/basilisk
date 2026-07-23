@@ -10,13 +10,13 @@ inline std::mutex& uci_output_mutex() {
 }
 
 inline void uci_write(std::string_view text) {
-    std::lock_guard lock(uci_output_mutex());
+    std::scoped_lock lock(uci_output_mutex());
     std::cout << text;
     std::cout.flush();
 }
 
 inline void uci_write_line(std::string_view line) {
-    std::lock_guard lock(uci_output_mutex());
+    std::scoped_lock lock(uci_output_mutex());
     std::cout << line << '\n';
     std::cout.flush();
 }

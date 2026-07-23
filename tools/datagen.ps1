@@ -114,6 +114,12 @@ try {
         Write-Host ""
     }
 
+    # NOTE (2026-07-21): datagen deliberately has NO -use-affinity and keeps
+    # oversubscribed concurrency: games are NODE-limited (tc=inf), so search
+    # decisions are placement/speed-independent by construction - the
+    # scheduler lottery that biased clock-TC SPRTs (see sprt.ps1 header)
+    # cannot change a single move or label here, and throughput is all that
+    # matters. Do not "fix" this.
     # Auto concurrency: logical CPUs - 1, minimum 1
     if ($Concurrency -le 0) {
         $logical = [int]$env:NUMBER_OF_PROCESSORS

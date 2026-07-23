@@ -47,6 +47,16 @@ struct alignas(32) TTCluster {
     TTCluster& operator=(const TTCluster&) = delete;
 };
 
+// 8.6.2a: pin the density contract that the comment above AND resize()'s
+// `bytes / sizeof(TTCluster)` math both depend on. Widening any field (say
+// key16 -> uint32_t) would silently push the cluster to 64 bytes, halving the
+// entries the user's Hash buys while every comment still claimed otherwise —
+// the latent form of the sibling-engine bug where a table was sized in another
+// structure's unit. Make it a build failure instead of a silent regression.
+static_assert(sizeof(TTCluster) == 32,
+              "TTCluster must stay 32 bytes (3 entries/cluster; resize() divides Hash by it)");
+static_assert(alignof(TTCluster) == 32, "TTCluster must stay 32-byte aligned");
+
 class TranspositionTable {
 public:
     static constexpr int MATE_SCORE = 32000;
@@ -55,16 +65,32 @@ public:
 
     explicit TranspositionTable(size_t mb = 64) { resize(mb); }
 
+    // Size the table from the byte budget the user asked for. The cluster
+    // count floors to a power of two (the index is a mask), so the allocation
+    // is always <= the budget and never less than half of it. Closing that gap
+    // needs full-budget (multiply-hi) indexing — deferred, PLAN section 6.
     void resize(size_t mb) {
         size_t bytes = mb * 1024 * 1024;
         size_t count = bytes / sizeof(TTCluster);
         size_t power = 1;
         while (power * 2 <= count) power *= 2;
 
+        // Free the old table BEFORE allocating the new one (8.6.2a). Plain
+        // assignment keeps both alive across make_unique, so growing 8 -> 16 GB
+        // transiently needed ~24 GB — at `setoption Hash` time, i.e. mid-game.
+        // No entries are ever carried across a resize, so dropping first costs
+        // nothing. (make_unique value-initializes, so the new table is clear.)
+        clusters_.reset();
         clusters_ = std::make_unique<TTCluster[]>(power);
         cluster_count_ = power;
         mask_ = power - 1;
         age_.store(0, std::memory_order_relaxed);
+    }
+
+    // Allocated size in bytes — the `Hash` contract under test (8.6.2a):
+    // allocated <= requested budget, and > budget/2 given the pow2 floor.
+    [[nodiscard]] size_t allocated_bytes() const noexcept {
+        return cluster_count_ * sizeof(TTCluster);
     }
 
     void clear() {
@@ -82,12 +108,12 @@ public:
         age_.store((age + 4) & 0xFC, std::memory_order_relaxed);
     }
 
-    bool probe_copy(Key key, TTEntry& out) const {
+    [[nodiscard]] bool probe_copy(Key key, TTEntry& out) const {
         const TTCluster& cluster = clusters_[key & mask_];
         const uint16_t want = static_cast<uint16_t>(key >> 48);
 
         for (int i = 0; i < 3; ++i) {
-            if (cluster.key16[i].load(std::memory_order_relaxed) != want)
+            if (cluster.key16[i].load(std::memory_order_acquire) != want)
                 continue;
             const uint64_t data = cluster.data[i].load(std::memory_order_relaxed);
             TTEntry e = unpack_entry(data);
@@ -160,10 +186,19 @@ public:
         // that matches key16 sees at least this store's payload (relaxed is
         // enough for single-thread; the SMP race is harmless as noted above).
         cluster.data[replace_idx].store(data, std::memory_order_relaxed);
-        cluster.key16[replace_idx].store(want, std::memory_order_relaxed);
+        // Release, paired with the acquire on the key16 load in probe_copy
+        // (8.6.2b / C9): this is what actually enforces "payload published
+        // before key". Under the previous all-relaxed scheme that ordering was
+        // only a comment - free on x86, where stores are already ordered, but on
+        // the ARM targets we ship (Apple Silicon, ARM64 Windows) store-store
+        // reordering could publish a key ahead of its payload, making a
+        // mismatched pair more reachable than the 1/65536 collision figure
+        // suggests. Still self-correcting downstream, so this is defence in
+        // depth rather than a fix for an observed bug; it costs nothing on x86.
+        cluster.key16[replace_idx].store(want, std::memory_order_release);
     }
 
-    int hashfull() const {
+    [[nodiscard]] int hashfull() const {
         int count = 0;
         size_t sample = std::min(size_t(334), cluster_count_);
         const uint8_t age = age_.load(std::memory_order_relaxed);

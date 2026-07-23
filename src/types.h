@@ -1,8 +1,21 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <cassert>
 #include <string>
+
+// ---- Platform contract (8.6.2a, 2026-07-20) --------------------------------
+// Basilisk is 64-bit-only, and always has been in practice: the bitboard
+// primitives call the unconditional 64-bit builtins (no 32-bit SWAR fallback
+// was ever written), every shipped asset is x86-64 or aarch64, and the TT's
+// `mb * 1024 * 1024` byte math would overflow a 32-bit size_t at Hash >= 4096.
+// Making the assumption explicit turns a would-be silent miscompile into a
+// build failure, and retroactively proves the `Key & (SIZE - 1)` table indices
+// lossless. There is no 32-bit code path to maintain — this is the contract,
+// not a portability aspiration.
+static_assert(sizeof(std::size_t) >= 8, "Basilisk requires a 64-bit target (x86-64 or aarch64)");
+static_assert(sizeof(void*) >= 8, "Basilisk requires 64-bit pointers");
 
 using Bitboard = uint64_t;
 using Key      = uint64_t;
@@ -68,6 +81,7 @@ inline constexpr File   file_of(Square s)            { return File(s & 7); }
 inline constexpr Rank   rank_of(Square s)            { return Rank(s >> 3); }
 inline constexpr Square make_square(File f, Rank r)  { return Square((r << 3) | f); }
 inline constexpr Square flip_rank(Square s)          { return Square(s ^ 56); }
+inline constexpr Square flip_file(Square s)          { return Square(s ^ 7); }
 
 inline constexpr Rank relative_rank(Color c, Rank r) {
     return c == WHITE ? r : Rank(7 - r);
@@ -81,3 +95,20 @@ inline constexpr Square relative_square(Color c, Square s) {
 inline constexpr Direction pawn_push(Color c) {
     return c == WHITE ? NORTH : SOUTH;
 }
+
+// ---- Square arithmetic ------------------------------------------------------
+// 8.6.2b: square/direction maths used to be written `Square(int(s) + off)` at 22
+// sites. The enums stay plain `enum : int` deliberately — bitboard and index
+// maths wants the implicit int conversion, and enum class would ADD casts rather
+// than remove them — but the offset arithmetic deserves to read as arithmetic.
+// These are the Stockfish-style incremental operators; all constexpr, so codegen
+// is unchanged. Results are NOT range-checked: an offset that leaves the board is
+// caught by sq_bb()'s debug assert at the point of use, which is where the
+// meaningful context is.
+inline constexpr Square operator+(Square s, int d) noexcept { return Square(int(s) + d); }
+inline constexpr Square operator-(Square s, int d) noexcept { return Square(int(s) - d); }
+inline constexpr Square operator+(Square s, Direction d) noexcept { return Square(int(s) + int(d)); }
+inline constexpr Square operator-(Square s, Direction d) noexcept { return Square(int(s) - int(d)); }
+inline constexpr Square& operator+=(Square& s, Direction d) noexcept { return s = s + d; }
+inline constexpr Square& operator-=(Square& s, Direction d) noexcept { return s = s - d; }
+inline constexpr Direction operator-(Square a, Square b) noexcept { return Direction(int(a) - int(b)); }

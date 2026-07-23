@@ -22,15 +22,15 @@
         `pacman -S mingw-w64-clang-x86_64-llvm` if missing).
 
 .PARAMETER Suffix
-    Short label for the output file, e.g. "phase1-defaults" or "phase1-tuned".
+    Short label for the output file, e.g. "phase867-nocheckext" or "1.9.0-base".
     Output: tools\test_engines\basilisk-<Suffix>-pext-pgo.exe
 
 .PARAMETER TestEnginesDir
     Directory where the binary is copied.  Default: tools\test_engines (repo-relative)
 
 .EXAMPLE
-    ./tools/build_test.ps1 -Suffix phase1-defaults
-    # -> tools\test_engines\basilisk-phase1-defaults-pext-pgo.exe
+    ./tools/build_test.ps1 -Suffix phase867-nocheckext
+    # -> tools\test_engines\basilisk-phase867-nocheckext-pext-pgo.exe
 #>
 param(
     [Parameter(Mandatory)][string]$Suffix,
@@ -82,6 +82,11 @@ try {
         $ms = [IO.MemoryStream]::new([Text.Encoding]::UTF8.GetBytes($dirtyDiff))
         (Get-FileHash -Algorithm SHA256 -InputStream $ms).Hash
     } else { "clean" }
+    if ($dirtyHash -ne "clean") {
+        # 8.6.5a (Rarog 9.7 pattern): a binary built from uncommitted changes is
+        # untraceable from its revision SHA alone -- say so loudly at build time.
+        Write-Warning "DIRTY TREE: this binary includes uncommitted changes (dirty_diff $($dirtyHash.Substring(0,12))...). Commit first for a traceable test artifact."
+    }
     $binSha  = (Get-FileHash $dest -Algorithm SHA256).Hash
     $clangV  = (& clang --version 2>&1 | Select-Object -First 1)
     $benchOut = ("bench`nquit" | & $dest 2>&1)

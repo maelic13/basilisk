@@ -1,13 +1,14 @@
 #include "syzygy.h"
 
 #include "bitboard.h"
-#include "Constants.h"
+#include "constants.h"
 
 #include <algorithm>
 #include <atomic>
 #include <filesystem>
 #include <mutex>
 #include <system_error>
+#include <utility>
 
 extern "C" {
 #include "tbprobe.h"
@@ -229,7 +230,7 @@ int effective_probe_limit(int probe_limit) {
 namespace Syzygy {
 
 bool init(const std::string& path) {
-    std::lock_guard lock(g_init_mutex);
+    std::scoped_lock lock(g_init_mutex);
 
     tb_free();
     g_path = path;
@@ -255,7 +256,7 @@ bool init(const std::string& path) {
 }
 
 void clear() {
-    std::lock_guard lock(g_init_mutex);
+    std::scoped_lock lock(g_init_mutex);
     tb_free();
     g_path.clear();
     g_enabled.store(false, std::memory_order_release);
@@ -281,7 +282,7 @@ int dtz_file_count() {
 }
 
 std::string path() {
-    std::lock_guard lock(g_init_mutex);
+    std::scoped_lock lock(g_init_mutex);
     return g_path;
 }
 
@@ -370,7 +371,7 @@ std::vector<Move> extend_pv(const Board& root, const std::vector<Move>& initial_
     pv.reserve(static_cast<size_t>(std::max(0, max_plies)));
 
     for (Move move : initial_pv) {
-        if (static_cast<int>(pv.size()) >= max_plies || !is_legal_root_move(board, move))
+        if (std::cmp_greater_equal(pv.size(), max_plies) || !is_legal_root_move(board, move))
             return pv;
         pv.push_back(move);
         board.make_move(move);
@@ -378,7 +379,7 @@ std::vector<Move> extend_pv(const Board& root, const std::vector<Move>& initial_
             return pv;
     }
 
-    while (static_cast<int>(pv.size()) < max_plies && can_probe_root(board, probe_limit)) {
+    while (std::cmp_less(pv.size(), max_plies) && can_probe_root(board, probe_limit)) {
         auto moves = probe_root_moves(board, use_rule50, probe_limit, true);
         if (moves.empty())
             break;
