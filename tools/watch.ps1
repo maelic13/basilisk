@@ -23,8 +23,19 @@
 .PARAMETER LogFile
     Path for the full (unfiltered) log. Created if its directory is missing.
     Omit to filter without logging.
+
+.PARAMETER Append
+    Append to -LogFile instead of truncating it. Required for anything that can
+    be RESUMED: an SPSA run's parameter trajectory is what the tail-mean bake
+    reads, and truncating on resume silently deletes the earlier part of it
+    (Rarog lost 1,086 of 3,670 iterations exactly this way). spsa.ps1 always
+    passes this and rotates the old log into tuner\archive_* on a fresh setup.
+    Single-shot runs (SPRT) keep the default truncate.
 #>
-param([string]$LogFile = "")
+param(
+    [string]$LogFile = "",
+    [switch]$Append
+)
 
 begin {
     $writer = $null
@@ -33,8 +44,11 @@ begin {
         if ($dir -and -not (Test-Path $dir)) {
             New-Item -ItemType Directory -Force -Path $dir | Out-Null
         }
-        $writer = [System.IO.StreamWriter]::new($LogFile, $false)
+        $writer = [System.IO.StreamWriter]::new($LogFile, [bool]$Append)
         $writer.AutoFlush = $true
+        if ($Append) {
+            $writer.WriteLine("=== session start: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') ===")
+        }
     }
 }
 process {

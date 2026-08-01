@@ -683,7 +683,7 @@ static void cmd_verify(const std::string& path) {
 // ---------------------------------------------------------------------------
 // Feature-support diagnostic (Step 4.0). Counts, per flat parameter, how many
 // loaded positions give it a nonzero linear trace (the positions that can
-// supply gradient signal), with an opening/middlegame/endgame phase breakdown.
+// supply gradient signal).
 // Flags any *linearly-traced* param active in fewer than max(200, 0.05% N)
 // positions. The king-safety index knobs and the winnable knobs are tuned by
 // finite difference / are frozen, so they carry no linear trace by design --
@@ -731,9 +731,6 @@ static void cmd_feature_support(const std::string& path, int max_positions) {
     }
 
     std::vector<long> act(EVAL_PARAM_FLAT_SIZE, 0);
-    std::vector<long> act_op(EVAL_PARAM_FLAT_SIZE, 0);
-    std::vector<long> act_mid(EVAL_PARAM_FLAT_SIZE, 0);
-    std::vector<long> act_eg(EVAL_PARAM_FLAT_SIZE, 0);
     std::vector<double> sum_abs(EVAL_PARAM_FLAT_SIZE, 0.0);
 
     // Stream the dataset: evaluate+trace each position, accumulate, discard.
@@ -751,14 +748,10 @@ static void cmd_feature_support(const std::string& path, int max_positions) {
 
         g_trace = {};
         evaluator.evaluate(board);
-        int ph = g_trace.phase;
         for (int i = 0; i < EVAL_PARAM_FLAT_SIZE; ++i) {
             if (g_trace.mg[i] != 0 || g_trace.eg[i] != 0) {
                 const auto ui = static_cast<std::size_t>(i);
                 act[ui]++;
-                if (ph >= 18)      act_op[ui]++;
-                else if (ph >= 8)  act_mid[ui]++;
-                else               act_eg[ui]++;
                 sum_abs[ui] += std::fabs(trace_coeff(g_trace, i));
             }
         }
@@ -865,28 +858,43 @@ static double traced_loss(const TuneSet& set,
     return loss / static_cast<double>(set.size());
 }
 
-// Bucketed holdout (Step 4.0): loss split by game phase so a global drop cannot
-// hide a regression in a domain HCE strength depends on (opening / mid / endgame).
+// Bucketed holdout: use the same five material-phase boundaries as the Phase
+// 9.11 corpus builder so a global drop cannot hide a domain regression.
 static void report_phase_buckets(const TuneSet& set,
                                  const std::vector<int>& active,
                                  const double* base_w,
                                  const double* w,
                                  double K) {
-    double loss[3] = {0, 0, 0};
-    long   cnt[3]  = {0, 0, 0};
+    double initial_loss[5] = {0, 0, 0, 0, 0};
+    double tuned_loss[5] = {0, 0, 0, 0, 0};
+    long   cnt[5]  = {0, 0, 0, 0, 0};
     for (size_t i = 0; i < set.size(); ++i) {
         int ph = set.phase.empty() ? 12 : set.phase[i];
-        int b = (ph >= 18) ? 0 : (ph >= 8) ? 1 : 2;
-        double sig = sigmoid(score_from_weights(set, i, active, base_w, w), K);
-        double diff = static_cast<double>(set.result[i]) - sig;
-        loss[b] += diff * diff;
+        int b = (ph >= 20) ? 0
+              : (ph >= 14) ? 1
+              : (ph >= 8)  ? 2
+              : (ph >= 3)  ? 3
+                           : 4;
+        double initial_sig = sigmoid(score_from_weights(set, i, active, base_w, base_w), K);
+        double tuned_sig = sigmoid(score_from_weights(set, i, active, base_w, w), K);
+        double initial_diff = static_cast<double>(set.result[i]) - initial_sig;
+        double tuned_diff = static_cast<double>(set.result[i]) - tuned_sig;
+        initial_loss[b] += initial_diff * initial_diff;
+        tuned_loss[b] += tuned_diff * tuned_diff;
         cnt[b]++;
     }
-    static const char* names[3] = {"opening   ", "middlegame", "endgame   "};
-    std::cout << "Holdout loss by phase:\n";
-    for (int b = 0; b < 3; ++b)
-        std::printf("  %s  loss=%.8f  (n=%ld)\n",
-                    names[b], cnt[b] ? loss[b] / cnt[b] : 0.0, cnt[b]);
+    static const char* names[5] = {
+        "opening      ", "early_mid    ", "middlegame   ",
+        "endgame     ", "deep_endgame"
+    };
+    std::cout << "Holdout loss by phase (initial -> tuned):\n";
+    for (int b = 0; b < 5; ++b)
+        std::printf("  %s  %.8f -> %.8f  delta=%+.8f  (n=%ld)\n",
+                    names[b],
+                    cnt[b] ? initial_loss[b] / cnt[b] : 0.0,
+                    cnt[b] ? tuned_loss[b] / cnt[b] : 0.0,
+                    cnt[b] ? (tuned_loss[b] - initial_loss[b]) / cnt[b] : 0.0,
+                    cnt[b]);
 }
 
 // ---------------------------------------------------------------------------
@@ -1260,6 +1268,9 @@ static void cmd_tune_kingsafety(int argc, char* argv[]) {
 
     double best = ks_mse(train, K, scratch, ev);
     double init_holdout = ks_mse(holdout, K, scratch, ev);
+    double best_holdout = init_holdout;
+    int best_holdout_pass = 0;
+    std::vector<int> best_holdout_values = seed;
     std::cout << "Initial train MSE = " << best << ", holdout MSE = " << init_holdout << "\n";
     std::cout << "Tuning " << knobs.size() << " king-safety knobs (coordinate descent)...\n";
 
@@ -1286,12 +1297,23 @@ static void cmd_tune_kingsafety(int argc, char* argv[]) {
         }
         double hold = ks_mse(holdout, K, scratch, ev);
         std::printf("pass %2d  step %2d  train=%.8f  holdout=%.8f\n", pass, step, best, hold);
+        if (hold < best_holdout - 1e-12) {
+            best_holdout = hold;
+            best_holdout_pass = pass;
+            for (size_t i = 0; i < knobs.size(); ++i)
+                best_holdout_values[i] = *knobs[i].p;
+        }
         if (!improved) step /= 2;
         if (epochs > 0 && pass >= epochs) break;
     }
 
+    for (size_t i = 0; i < knobs.size(); ++i)
+        *knobs[i].p = best_holdout_values[i];
+    double final_train = ks_mse(train, K, scratch, ev);
     double final_holdout = ks_mse(holdout, K, scratch, ev);
-    std::cout << "\nFinal train MSE = " << best << ", holdout MSE = " << final_holdout
+    std::cout << "Restored best holdout pass " << best_holdout_pass
+              << " (holdout=" << best_holdout << ").\n";
+    std::cout << "\nFinal train MSE = " << final_train << ", holdout MSE = " << final_holdout
               << " (was " << init_holdout << ", delta " << (final_holdout - init_holdout) << ")\n";
 
     std::cout << "\nChanged king-safety knobs (old -> new):\n";

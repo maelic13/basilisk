@@ -23,7 +23,7 @@ struct EvalParams {
     // ---- PSTs: pst_mg/eg[piece_idx][sq] -------------------------------------
     // piece_idx = PieceType - 1: 0=PAWN, 1=KNIGHT, 2=BISHOP, 3=ROOK, 4=QUEEN, 5=KING
     // sq: a1=0 .. h8=63, white perspective (init_eval_tables mirrors rank for Black)
-                                int pst_mg[6][64] = {
+    int pst_mg[6][64] = {
         // PAWN
         {    0,    0,    0,    0,    0,    0,    0,    0,
            -32,   -2,  -17,  -23,  -14,   34,   42,  -29,
@@ -80,7 +80,7 @@ struct EvalParams {
            -65,   23,   16,  -15,  -56,  -34,    2,   13 }
     };
 
-                                int pst_eg[6][64] = {
+    int pst_eg[6][64] = {
         // PAWN
         {    0,    0,    0,    0,    0,    0,    0,    0,
             -4,   -4,   10,    0,   14,    7,   -5,  -19,
@@ -269,7 +269,7 @@ struct EvalParams {
     int threat_by_rook_mg[7] = { 0, -4, 17, 25, 4, 46, 0 };  // weak enemy attacked by rook
     int threat_by_rook_eg[7] = { 0, 25, 19, 22, 8, 33, 0 };
     int threat_by_king_mg     = 20;  // weak enemy attacked by our king
-    int threat_by_king_eg     = 40;
+    int threat_by_king_eg = 40;
     int threat_hanging_mg = 24;  // per weak enemy that is undefended or doubly attacked
     int threat_hanging_eg = 25;
     int weak_queen_prot_mg = 17;  // per weak enemy whose only defender is its queen
@@ -281,8 +281,8 @@ struct EvalParams {
 
     // ---- King safety (Phase 4.1 fit via --tune-kingsafety) -----------------
     int ks_unit[7] = { 0, 0, 4, 0, 0, 0, 0 };  // attacker weight by PieceType
-    int ks_coord_bonus =  4;  // extra attack_units when 2+ attackers in zone
-    int ks_open_file   =  0;  // extra attack_units for open file in front of king
+    int ks_coord_bonus = 4;  // extra attack_units when 2+ attackers in zone
+    int ks_open_file = 0;  // extra attack_units for open file in front of king
 
     // Penalty lookup: index = clamped attack_units [0..24]
     int safety_table[25] = { -3, 0, 6, 29, 32, 37, 55, 58, 59, 81, 111, 135, 161, 177, 191, 192, 202, 203, 272, 290, 302, 302, 316, 348, 407 };

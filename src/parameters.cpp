@@ -5,7 +5,6 @@
 #include <regex>
 #include <sstream>
 #include <string>
-#include <thread>
 
 #include "board.h"
 #include "constants.h"
@@ -187,11 +186,12 @@ std::string Parameters::uci_options() {
     return opts;
 }
 
+// The advertised maximum must be exactly what the pool will actually accept,
+// so both read the single definition in search.cpp (9.3a). Advertising a
+// maximum the pool then silently clamps is a protocol lie; advertising one it
+// would honour is a 2 GB allocation waiting for a curious operator.
 int Parameters::max_threads() {
-    const unsigned hw = std::thread::hardware_concurrency();
-    if (hw == 0)
-        return 1024;
-    return static_cast<int>(std::max(1024u, 4u * hw));
+    return max_search_threads();
 }
 
 void Parameters::set_search_parameters(const std::string& args) {

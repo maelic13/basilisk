@@ -9,8 +9,14 @@
 
     After this script:
       - tools/bin/fastchess.exe         (downloaded from GitHub)
-      - tools/weather-factory/          (cloned from GitHub)
+      - tools/weather-factory/          (cloned from GitHub, then patched:
+                                         the -use-affinity insert into
+                                         cutechess.py plus the tracked overlay
+                                         from tools/weather-factory-overlay/)
       - matplotlib installed for Python
+
+    Re-run it after pulling: the clone is gitignored, so a repo update that
+    changes the overlay only reaches the tuner through this script.
 
     SPRT / SPSA / gauntlet default to the UHO opening book at
     tools\books\UHO_Lichess_4852_v1.epd (repo-local, gitignored like all books
@@ -152,6 +158,16 @@ if (Test-Path $wfCute) {
         throw "weather-factory affinity patch failed Python syntax validation: $wfCute"
     }
     Write-Host "  weather-factory affinity patch and Python syntax verified."
+}
+
+# ---- 2c. Local overlay: SPSA schedule + runner (Phase 9.1) -------------------
+# spsa.py / main.py / write_spsa_json.py are replaced wholesale from
+# tools/weather-factory-overlay/ (too much changed for an anchored patch). This
+# carries the games-vs-iterations schedule repair, the fishtest end-state
+# parameterization and the multi-session hardening. spsa.ps1 refuses to set up
+# or launch if the clone's copies drift from the tracked originals.
+if (Test-Path (Join-Path $wfDir "main.py")) {
+    Install-WfOverlay -WeatherFactoryDir $wfDir
 }
 
 # ---- 3. Python dependency ---------------------------------------------------

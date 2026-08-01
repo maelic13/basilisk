@@ -5,6 +5,92 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+This changelog is **user-facing**: it records what changed between released
+versions, and the GitHub release notes are written from it. The developer-facing
+documents are `PLAN.md` (scope, gates, evidence) and `GUIDE.md` (current state
+and next step).
+
+---
+
+## [1.9.2] - 2026-08-01
+
+A focused maintenance release for multi-core play. Single-thread search is
+behavior-identical to 1.9.1 (`bench` fingerprint 11,941,440); the principal
+playing change is safer and more effective use of helper threads.
+
+In the accepted four-thread clock-safety test, 1.9.2 scored **+30.42 ± 8.77
+Elo** over 1.9.1 at `tc=3+0.03`, with **zero time forfeits** in 2,450 games.
+That figure is an SPRT-stopped estimate and measures the complete clock/helper
+bundle, so it is likely optimistic and must not be read as a guaranteed release
+gain.
+
+The fixed-game release gauntlets all pointed in the same positive direction
+against 1.9.1: **+11 ±24 Elo at 1 thread** (`107-199-94`), **+14 ±34 Elo at
+4 threads** (`55-98-47`), and **+26 ±35 Elo at `10+0.1`, 4 threads**
+(`59-97-44`). These small samples are confirmation rather than independent
+proof; the formal SPRT above remains the primary strength evidence. Across
+5,800 Colosseum games at 1 and 4 threads there were no reported Basilisk
+forfeits, crashes, or illegal moves. The longer 1-thread condition was not
+repeated because its search is behavior-identical to 1.9.1 and the 400-game
+1-thread head-to-head already showed no regression.
+
+### Improved
+
+- Helper threads no longer stop on private soft-clock limits; the main thread
+  owns the time decision and stops the pool together. This keeps the pool busy
+  when time management deliberately extends a difficult search.
+- Helper threads no longer inherit a fixed-depth limit. The main thread still
+  honours `go depth N`, while helpers can continue filling the shared table
+  until the reported search finishes.
+- Multi-thread searches reserve an additional 30 ms against scheduler and node-
+  polling delays in low-time situations. Single-thread timing is unchanged.
+- Shared node counters publish in batches and occupy separate cache lines. The
+  change was neutral at 1 and 4 threads and improved an indicative 16-thread
+  throughput check by 12.8%; it is a scaling fix, not an Elo claim.
+- Repeated history-table row calculations were hoisted out of hot move loops.
+  Pooled PGO testing measured **+1.29% median NPS**, with a 95% confidence
+  interval of **−0.25% to +2.64%**.
+
+### Changed
+
+- Removed the post-search helper-history merge. It touched roughly 1.6 MB per
+  helper after every search but showed no strength benefit; removal measured
+  +0.48% NPS with a wide confidence interval and a game result consistent with
+  no change.
+- The `Threads` option and the search pool now share one maximum of 1024, so
+  the value advertised through UCI is always the value the engine accepts.
+- `bench [depth] [repeats] [threads]` now honours its optional thread argument.
+  The default remains one thread for a deterministic fingerprint.
+- Multi-thread diagnostic output now reports aggregate pool nodes, table use,
+  same-key stores, and completed depth per worker.
+
+### Development tooling
+
+- Multi-thread SPRT runs now scale hash and concurrency with thread count,
+  disable unsafe per-game affinity above one thread, record complete manifests,
+  and treat time forfeits as invalidating anomalies.
+- SPSA scheduling now derives annealing from the requested horizon, preserves
+  resumable state and full trajectories, enforces meaningful run lengths, and
+  supports reproducible tail-mean bakes.
+- Self-play data generation now has deterministic seeds, provenance manifests,
+  output hashes, and safe append/restart rules.
+- The Texel corpus pipeline now supports five balanced material phases, quiet-
+  position filtering, global deduplication, game-level holdouts, exact quotas,
+  atomic outputs, and best-validation-checkpoint restoration. The balanced
+  corpus is retained for future NNUE training.
+
+### Evaluated but not shipped
+
+- Additional helper coordination, aspiration sharing, search diversification,
+  a transposition-table provenance gate, and a new HCE fit did not demonstrate
+  strength and were removed. The HCE fit was stopped at **+1.52 ± 5.77 Elo** after
+  6,398 games, still inside the test's indifference region; the 1.9.1 weights
+  remain in use.
+
+**Why 1.9.2:** the accepted production scope is a focused multi-thread
+maintenance bundle plus modest speed and scaling work, not a broad feature or
+architecture campaign. The next major engine change remains NNUE in 2.0.0.
+
 ---
 
 ## [1.9.1] - 2026-07-24

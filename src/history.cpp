@@ -1,6 +1,5 @@
 #include "history.h"
 
-#include <algorithm>
 #include <cstring>
 
 HistoryTables::HistoryTables()
@@ -58,51 +57,3 @@ void HistoryTables::age() {
     halve3(cont_corr);
 }
 
-static void blend_history_value(int16_t& dst, int16_t src) {
-    const int value = std::clamp(int(dst) + int(src) / 4, -16384, 16384);
-    dst = static_cast<int16_t>(value);
-}
-
-// Merge a helper thread's ordering knowledge into this table set (dst +=
-// src/4, clamped). Called only after all helpers have stopped — never
-// concurrently with search.
-void HistoryTables::blend_from(const HistoryTables& other) {
-    for (Color c : {WHITE, BLACK})
-        for (int from = 0; from < SQUARE_NB; ++from)
-            for (int to = 0; to < SQUARE_NB; ++to)
-                blend_history_value(main[c][from][to],
-                                    other.main[c][from][to]);
-
-    for (int pt = 0; pt < PIECE_TYPE_NB; ++pt)
-        for (int to = 0; to < SQUARE_NB; ++to)
-            for (int cap = 0; cap < PIECE_TYPE_NB; ++cap)
-                blend_history_value(capture[pt][to][cap],
-                                    other.capture[pt][to][cap]);
-
-    for (int p_pt = 0; p_pt < PIECE_TYPE_NB; ++p_pt) {
-        for (int p_to = 0; p_to < SQUARE_NB; ++p_to) {
-            for (int c_pt = 0; c_pt < PIECE_TYPE_NB; ++c_pt) {
-                for (int c_to = 0; c_to < SQUARE_NB; ++c_to) {
-                    blend_history_value(cont1->data[p_pt][p_to][c_pt][c_to],
-                                        other.cont1->data[p_pt][p_to][c_pt][c_to]);
-                    blend_history_value(cont2->data[p_pt][p_to][c_pt][c_to],
-                                        other.cont2->data[p_pt][p_to][c_pt][c_to]);
-                    blend_history_value(cont4->data[p_pt][p_to][c_pt][c_to],
-                                        other.cont4->data[p_pt][p_to][c_pt][c_to]);
-                }
-            }
-        }
-    }
-
-    for (int key = 0; key < PAWN_HIST_SIZE; ++key)
-        for (int pt = 0; pt < PIECE_TYPE_NB; ++pt)
-            for (int to = 0; to < SQUARE_NB; ++to)
-                blend_history_value(pawn->data[key][pt][to],
-                                    other.pawn->data[key][pt][to]);
-
-    for (int ply = 0; ply < LOW_PLY_HISTORY_SIZE; ++ply)
-        for (int from = 0; from < SQUARE_NB; ++from)
-            for (int to = 0; to < SQUARE_NB; ++to)
-                blend_history_value(low_ply[ply][from][to],
-                                    other.low_ply[ply][from][to]);
-}

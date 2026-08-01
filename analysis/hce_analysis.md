@@ -59,7 +59,7 @@ The audit covers:
 - Stockfish-distillation import in [`tools/texel/import_beast.py`](../tools/texel/import_beast.py);
 - self-play adjudication in [`tools/datagen.ps1`](../tools/datagen.ps1);
 - evaluator tests in [`tests/test_eval.cpp`](../tests/test_eval.cpp); and
-- the planned NNUE direction in [`PLAN.md`](../PLAN.md) and [`user_dev_guide.md`](../user_dev_guide.md).
+- the planned NNUE direction in [`PLAN.md`](../PLAN.md) and [`GUIDE.md`](../GUIDE.md).
 
 At a high level, the current HCE computes:
 

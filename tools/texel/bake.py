@@ -115,13 +115,19 @@ def find_2d_span(header_text, base):
                 break
         i += 1
     end = header_text.index(";", i) + 1
-    block = header_text[m.start():end]
+    # Include the existing line indentation in the replacement span.  Starting
+    # at `int` left the old indentation in place while format_2d_block added
+    # another four spaces on every bake.
+    line_start = header_text.rfind("\n", 0, m.start()) + 1
+    if not header_text[line_start:m.start()].isspace():
+        line_start = m.start()
+    block = header_text[line_start:end]
     nums = [int(x) for x in re.findall(r"-?\d+", block) if True]
     # the first two ints in the match are the dimensions R and C -> drop them
     nums = nums[2:]
     flat = nums[: rows * cols]
     cur = [flat[r * cols:(r + 1) * cols] for r in range(rows)]
-    return (m.start(), end), rows, cols, cur
+    return (line_start, end), rows, cols, cur
 
 
 def format_2d_block(base, rows, cols, row_values, comments):

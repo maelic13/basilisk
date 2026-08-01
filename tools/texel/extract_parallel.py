@@ -1,202 +1,212 @@
 #!/usr/bin/env python3
+"""Parallel, deterministic Texel extractor for large Basilisk self-play PGNs.
+
+This is the production path for :mod:`extract`.  It preserves the same five
+phase, per-game sampling, quiet-filter, global-dedup and exact-reservoir
+contract while parsing byte-aligned PGN ranges in worker processes.
 """
-Parallel PGN -> FEN;result extractor (drop-in fast path for extract.py).
 
-extract.py is single-threaded: python-chess fully parses and replays every
-game, which dominates wall time on multi-hundred-thousand-game self-play PGNs.
-This script splits the PGN into byte ranges aligned to game boundaries, parses
-each range in a separate process (reusing extract.py's *exact* per-game
-extraction logic), then merges with the SAME global dedup + by-game holdout
-semantics as the sequential tool, in file order -> identical train/holdout
-content (modulo which 5% of games land in holdout, see below).
+from __future__ import annotations
 
-Holdout assignment: sequential uses an order-dependent RNG draw per game; here
-each game is assigned by a stable hash of its first FEN (parallel-safe,
-order-independent). Both yield ~holdout_pct% of games with no position leakage
-between train and holdout; the fits are indifferent to which games are held out.
-
-Usage:
-    python tools/texel/extract_parallel.py <selfplay.pgn> \
-        --train train_v17.csv --holdout holdout_v17.csv [--jobs N] [extract.py opts]
-"""
 import argparse
-import hashlib
 import io
 import os
 import random
 import sys
 from multiprocessing import Pool
+from pathlib import Path
 
 import chess.pgn
 
-# Reuse the validated per-game logic verbatim.
-import extract as seq  # process_game, game_phase, phase_bucket, fen_key, BUCKET_NAMES
+import extract as seq
 
 
-def next_game_offset(path, nominal, filesize):
-    """First byte offset of a game header ('[Event ') at or after `nominal`."""
+def next_game_offset(path: str, nominal: int, filesize: int) -> int:
+    """Return the first ``[Event `` game header at or after nominal."""
     if nominal <= 0:
         return 0
     if nominal >= filesize:
         return filesize
-    with open(path, "rb") as f:
-        # Back up one byte so a boundary right at `nominal` is caught via '\n[Event '.
+    with open(path, "rb") as pgn:
         pos = max(0, nominal - 1)
-        f.seek(pos)
+        pgn.seek(pos)
         carry = b""
         base = pos
         while True:
-            chunk = f.read(1 << 16)
+            chunk = pgn.read(1 << 16)
             if not chunk:
                 return filesize
             buf = carry + chunk
-            idx = buf.find(b"\n[Event ")
-            if idx != -1:
-                return base - len(carry) + idx + 1  # position of '['
-            carry = buf[-8:]               # keep enough to span the marker
+            index = buf.find(b"\n[Event ")
+            if index != -1:
+                return base - len(carry) + index + 1
+            carry = buf[-8:]
             base += len(chunk)
 
 
 def worker(task):
     path, start, end, opts = task
-    with open(path, "rb") as f:
-        f.seek(start)
-        data = f.read(end - start)
-    text = data.decode("utf-8", errors="replace")
-    sio = io.StringIO(text)
-    pct = opts["holdout_pct"]
-    seed = opts["seed"]
-    out = []  # list of (is_holdout, [(fen, label, phase), ...]) in file order
+    with open(path, "rb") as pgn:
+        pgn.seek(start)
+        text = pgn.read(end - start).decode("utf-8", errors="replace")
+    stream = io.StringIO(text)
+    output = []
+    games = skipped = quiet_rejected = raw = parse_errors = 0
+    holdout_cut = round(opts["holdout_pct"] * 100)
+
     while True:
         try:
-            game = chess.pgn.read_game(sio)
+            game = chess.pgn.read_game(stream)
         except Exception:
+            parse_errors += 1
             continue
         if game is None:
             break
-        # Seed sampling by the game's own movetext so the result is identical
-        # regardless of how many workers split the file (reproducible runs).
-        moves_str = " ".join(m.uci() for m in game.mainline_moves())
-        g_digest = int(hashlib.md5(moves_str.encode("utf-8")).hexdigest(), 16)
-        g_rng = random.Random(seed ^ (g_digest & 0xFFFFFFFFFFFF))
-        pairs = seq.process_game(game, opts["skip_start"], opts["skip_end"],
-                                 opts["max_per_game"], g_rng)
+        games += 1
+        digest = seq.game_digest(game)
+        rng = random.Random(opts["seed"] ^ digest)
+        pairs, rejected = seq.process_game(
+            game,
+            opts["skip_start"],
+            opts["skip_end"],
+            opts["max_per_phase_per_game"],
+            opts["max_per_game"],
+            opts["quiet_filter"],
+            rng,
+        )
+        quiet_rejected += rejected
         if not pairs:
+            skipped += 1
             continue
-        is_holdout = (g_digest % 100) < pct
-        out.append((is_holdout, pairs))
-    return out
+        result = seq.RESULT_MAP[game.headers["Result"]]
+        rows = [(fen, result, bucket) for fen, bucket in pairs]
+        raw += len(rows)
+        output.append((digest % 10_000 < holdout_cut, rows))
+
+    return output, {
+        "games": games,
+        "skipped": skipped,
+        "quiet_rejected": quiet_rejected,
+        "raw": raw,
+        "parse_errors": parse_errors,
+    }
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("pgn")
-    ap.add_argument("--out-dir", default="")
-    ap.add_argument("--train", default="train.csv")
-    ap.add_argument("--holdout", default="holdout.csv")
-    ap.add_argument("--holdout-pct", type=int, default=5)
-    ap.add_argument("--max-per-game", type=int, default=12)
-    ap.add_argument("--skip-start", type=int, default=16)
-    ap.add_argument("--skip-end", type=int, default=6)
-    ap.add_argument("--seed", type=int, default=42)
-    ap.add_argument("--jobs", type=int, default=0, help="worker processes (0 = CPUs-1)")
-    ap.add_argument("--balance-phase", default=0.0, type=float, metavar="R",
-                    help="Downsample over-represented phase buckets in the TRAIN "
-                         "split to R x the smallest bucket's count (0 = off). "
-                         "E.g. 1.5. Same semantics as extract.py. Corrects "
-                         "self-play's endgame skew (v17 was 59%% endgame). Holdout "
-                         "is left at its natural mix so early-stopping stays honest.")
-    args = ap.parse_args()
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("pgn")
+    parser.add_argument("--out-dir", default="")
+    parser.add_argument("--train", default="train.csv")
+    parser.add_argument("--holdout", default="holdout.csv")
+    parser.add_argument("--target-train", default=3_500_000, type=int, metavar="N")
+    parser.add_argument("--phase-weights", default=seq.parse_phase_weights("1,1,1,1,1"),
+                        type=seq.parse_phase_weights, metavar="A,B,C,D,E")
+    parser.add_argument("--holdout-pct", default=5.0, type=float)
+    parser.add_argument("--max-per-phase-per-game", default=8, type=int)
+    parser.add_argument("--max-per-game", default=0, type=int)
+    parser.add_argument("--skip-start", default=0, type=int)
+    parser.add_argument("--skip-end", default=6, type=int)
+    parser.add_argument("--seed", default=42, type=int)
+    parser.add_argument("--jobs", default=0, type=int, help="worker processes (0 = CPUs-1)")
+    parser.add_argument("--no-quiet-filter", dest="quiet_filter", action="store_false")
+    parser.add_argument("--audit-only", action="store_true",
+                        help="report exact eligible counts without publishing CSVs")
+    args = parser.parse_args()
 
     if not os.path.isfile(args.pgn):
-        sys.exit(f"ERROR: PGN not found: {args.pgn}")
+        parser.error(f"PGN not found: {args.pgn}")
+    if args.target_train <= 0:
+        parser.error("--target-train must be positive")
+    if not 0.0 <= args.holdout_pct < 100.0:
+        parser.error("--holdout-pct must be in [0,100)")
+    if args.max_per_phase_per_game <= 0:
+        parser.error("--max-per-phase-per-game must be positive")
+    if args.skip_start < 0 or args.skip_end < 0:
+        parser.error("skip counts cannot be negative")
 
     jobs = args.jobs if args.jobs > 0 else max(1, (os.cpu_count() or 2) - 1)
     filesize = os.path.getsize(args.pgn)
-    out_dir = args.out_dir or os.path.dirname(os.path.abspath(args.pgn))
-    os.makedirs(out_dir, exist_ok=True)
-
-    # Byte ranges aligned to game starts.
-    nominal = [filesize * i // jobs for i in range(jobs + 1)]
-    starts = [next_game_offset(args.pgn, n, filesize) for n in nominal]
+    nominal = [filesize * index // jobs for index in range(jobs + 1)]
+    starts = [next_game_offset(args.pgn, offset, filesize) for offset in nominal]
     starts[0], starts[-1] = 0, filesize
-    opts = {k: getattr(args, k) for k in
-            ("holdout_pct", "max_per_game", "skip_start", "skip_end", "seed")}
-    tasks = [(args.pgn, starts[i], starts[i + 1], opts)
-             for i in range(jobs) if starts[i + 1] > starts[i]]
+    opts = {name: getattr(args, name) for name in (
+        "holdout_pct", "max_per_phase_per_game", "max_per_game",
+        "skip_start", "skip_end", "seed", "quiet_filter",
+    )}
+    tasks = [(args.pgn, starts[index], starts[index + 1], opts)
+             for index in range(jobs) if starts[index + 1] > starts[index]]
 
-    print(f"Parallel extract: {args.pgn}  ({filesize/1e6:.0f} MB, {len(tasks)} workers)")
+    quotas = seq.allocate(args.target_train, args.phase_weights)
+    holdout_total = round(args.target_train * args.holdout_pct / (100.0 - args.holdout_pct))
+    holdout_quotas = seq.allocate(holdout_total, args.phase_weights)
+    train = [seq.Reservoir(quota, random.Random(args.seed ^ (index + 1) * 0x9E3779B1))
+             for index, quota in enumerate(quotas)]
+    holdout = [seq.Reservoir(quota, random.Random(args.seed ^ (index + 11) * 0x85EBCA77))
+               for index, quota in enumerate(holdout_quotas)]
+
+    print(f"Parallel extract: {args.pgn} ({filesize / 1e6:.0f} MB, {len(tasks)} workers)")
+    print("Train quotas: " + ", ".join(
+        f"{seq.BUCKET_NAMES[index]}={quota:,}" for index, quota in enumerate(quotas)))
+    print(f"skip_start={args.skip_start}, skip_end={args.skip_end}, "
+          f"max/phase/game={args.max_per_phase_per_game}, "
+          f"quiet_filter={'on' if args.quiet_filter else 'OFF'}")
+
+    seen: set[str] = set()
+    totals = {name: 0 for name in ("games", "skipped", "quiet_rejected", "raw", "parse_errors")}
     with Pool(len(tasks)) as pool:
-        results = pool.map(worker, tasks)
+        for task_output, stats in pool.imap(worker, tasks):
+            for name, value in stats.items():
+                totals[name] += value
+            for is_holdout, rows in task_output:
+                reservoirs = holdout if is_holdout else train
+                for fen, result, bucket in rows:
+                    key = seq.fen_key(fen)
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    reservoirs[bucket].offer((fen, result, bucket))
 
-    # Merge in file order with global dedup (matches sequential semantics).
-    seen = set()
-    train, holdout = [], []
-    raw = 0
-    for task_result in results:                 # task order == file order
-        for is_holdout, pairs in task_result:
-            raw += len(pairs)
-            target = holdout if is_holdout else train
-            for fen, label, phase in pairs:
-                k = seq.fen_key(fen)
-                if k in seen:
-                    continue
-                seen.add(k)
-                target.append((fen, label, phase))
+    print(f"\nGames read       : {totals['games']:,}")
+    print(f"Games skipped    : {totals['skipped']:,}")
+    print(f"Parse errors     : {totals['parse_errors']:,}")
+    print(f"Raw candidates   : {totals['raw']:,}")
+    print(f"Quiet rejected   : {totals['quiet_rejected']:,}")
+    print(f"Unique positions : {len(seen):,}")
 
-    def mix(positions):
-        c = [0, 0, 0]
-        for _, _, ph in positions:
-            c[seq.phase_bucket(ph)] += 1
-        return c
+    short = []
+    for index, name in enumerate(seq.BUCKET_NAMES):
+        train_count = len(train[index].items)
+        holdout_count = len(holdout[index].items)
+        print(f"  {name:13}: train {train_count:,}/{quotas[index]:,} "
+              f"holdout {holdout_count:,}/{holdout_quotas[index]:,} "
+              f"eligible train={train[index].seen:,} holdout={holdout[index].seen:,}")
+        if train_count < quotas[index] or holdout_count < holdout_quotas[index]:
+            short.append(index)
 
-    # Optional phase rebalance of the TRAIN split. Self-play over-produces
-    # endgame positions (many won games grind to bare-king endings); the eval
-    # fit then over-weights the endgame. Cap each over-represented bucket to
-    # R x the smallest bucket's count -- identical semantics to extract.py so
-    # the two extractors stay drop-in equivalent.
-    natural_tc = mix(train)
-    if args.balance_phase > 0.0:
-        rng = random.Random(args.seed)
-        buckets = [[], [], []]
-        for item in train:
-            buckets[seq.phase_bucket(item[2])].append(item)
-        smallest = min(len(b) for b in buckets if b) if any(buckets) else 0
-        cap = int(args.balance_phase * smallest)
-        balanced = []
-        for b in range(3):
-            bucket = buckets[b]
-            if len(bucket) > cap > 0:
-                bucket = rng.sample(bucket, cap)
-            balanced.extend(bucket)
-        rng.shuffle(balanced)
-        train = balanced
+    if short:
+        print("ERROR: phase quotas not met; existing outputs left untouched.", file=sys.stderr)
+        return 2
+    if args.audit_only:
+        print("Audit complete: all requested quotas are available; no CSVs written.")
+        return 0
 
-    train_path = os.path.join(out_dir, args.train)
-    holdout_path = os.path.join(out_dir, args.holdout)
-    for path, rows in ((train_path, train), (holdout_path, holdout)):
-        with open(path, "w", encoding="utf-8", newline="\n") as fh:
-            for fen, label, _ in rows:
-                fh.write(f"{fen};{label}\n")
-
-    def mix_line(c):
-        tot = sum(c) or 1
-        return ", ".join(f"{seq.BUCKET_NAMES[b]}={c[b]:,} ({100*c[b]//tot}%)"
-                         for b in range(3))
-
-    tc = mix(train)
-    print(f"\n  Raw candidates   : {raw:,}")
-    print(f"  Unique positions : {len(seen):,}")
-    print(f"  Train positions  : {len(train):,}")
-    print(f"  Holdout positions: {len(holdout):,}")
-    if args.balance_phase > 0.0:
-        print(f"  Balanced to {args.balance_phase}x smallest bucket")
-        print("  Train mix (natural) : " + mix_line(natural_tc))
-        print("  Train mix (balanced): " + mix_line(tc))
-    else:
-        print("  Train phase mix  : " + mix_line(tc))
-    print(f"\nWrote {train_path}\n      {holdout_path}")
+    rng = random.Random(args.seed)
+    train_rows = [(fen, result) for reservoir in train for fen, result, _ in reservoir.items]
+    holdout_rows = [(fen, result) for reservoir in holdout for fen, result, _ in reservoir.items]
+    rng.shuffle(train_rows)
+    rng.shuffle(holdout_rows)
+    out_dir = Path(args.out_dir).resolve() if args.out_dir else Path(args.pgn).resolve().parent
+    out_dir.mkdir(parents=True, exist_ok=True)
+    train_path = out_dir / args.train
+    holdout_path = out_dir / args.holdout
+    train_tmp = seq.stage_rows(train_path, train_rows)
+    holdout_tmp = seq.stage_rows(holdout_path, holdout_rows)
+    os.replace(train_tmp, train_path)
+    os.replace(holdout_tmp, holdout_path)
+    print(f"Wrote {len(train_rows):,} train -> {train_path}")
+    print(f"Wrote {len(holdout_rows):,} holdout -> {holdout_path}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

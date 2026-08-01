@@ -4,271 +4,198 @@
   <img src="logo/basilisk_detailed.png" alt="Basilisk logo" width="260">
 </p>
 
-A UCI chess engine written in C++23.
-
-## Features
-
-### Search
-- Iterative deepening with aspiration windows
-- Negamax alpha-beta / Principal Variation Search (PVS)
-- Persistent Lazy SMP thread pool with shared TT, shared root-move feedback, exact `Threads` resizing, and aggregate node/tbhit accounting
-- Transposition table — atomic 3-entry clusters aligned to 64-byte cache lines, with generational aging
-- TT prefetching, exact-entry replacement preference, and age-aware `hashfull`
-- Null move pruning
-- High-depth null-move verification to reduce risky null cutoffs
-- Reverse futility pruning (RFP)
-- Razoring
-- ProbCut
-- Transposition-table-bound-aware pruning evaluation — pruning decisions prefer the TT score when its bound is a tighter estimate than the corrected static eval, leaving the raw static eval and correction history untouched
-- Late move reductions (LMR)
-- Internal Iterative Reductions (IIR) — also fires on stale TT entries
-- Singular extensions
-- Check extension — extend by 1 ply when in check
-- Mate-distance handling that continues past the first forced mate to prefer shorter mates
-- Optional Syzygy tablebase probing at the root and in search, with root move ranking, best-rank filtering, and tablebase PV expansion
-- Quiescence search with in-check evasion, capture futility, dynamic threshold-SEE pruning, and fail-soft cutoff returns
-- Static Exchange Evaluation (SEE) and threshold SEE for capture pruning and bad-capture reductions
-- Checking moves are protected from late pruning and late move reductions
-- Search-aware repetition detection that distinguishes root repeats from in-tree repeats and respects null moves
-
-### Move ordering
-- Staged MovePicker: TT move, good tactical moves, quiet moves, then bad tactical moves
-- Lazy quiet generation; quiets are not generated if tactical moves cut off
-- MVV/LVA captures with capture history
-- Killer moves (2 per ply)
-- Countermove heuristic
-- Quiet history `[color][from][to]`
-- Capture history `[piece][to][captured]`
-- Continuation history (1-ply, 2-ply, and 4-ply)
-- Pawn-structure keyed quiet history and low-ply quiet history
-
-### Evaluation
-- Tapered material + piece-square tables (PeSTO, public domain)
-- Game phase interpolation (midgame ↔ endgame)
-- Mobility scoring
-- Pawn structure: passed pawns, isolated pawns, doubled pawns; passed-pawn advance safety accounts for all enemy attackers
-- King safety: attack unit table with piece coordination bonuses; reduced threat when opponent lacks a queen
-- Endgame scaling: scale-factor framework (0–64) with an exact KPK bitbase, KBNK wrong-corner mate technique, KNNK/no-pawn-minor draw recognition, and opposite-coloured-bishop draw scaling
-- Color-aware pawn, minor-piece, non-pawn, and continuation correction histories
-- 50-move-rule score damping for non-mating evaluations
-
-### Time management
-- Soft limit (target) / hard limit (maximum)
-- Adaptive soft limit based on best-move stability
-- Root best-move effort tracking to spend less time on obvious moves and more on unstable roots
-- `movestogo` aware; move-overhead compensation
-- Final UCI legality guard for `bestmove`, ponder moves, and reported PV lines
-- Strict TT move validation prevents stale or hash-aliased moves from corrupting board state or producing illegal PVs
-- Ponder move reporting can recover a legal reply from the child-position TT entry when the principal variation is too short
-- Complete UCI ponder lifecycle: `go ponder` waits for `stop` or `ponderhit`, `ponderhit` preserves elapsed ponder time, and stale control state is cleared between searches
+Basilisk is a strong UCI chess engine written in C++23. It is meant to be used
+from a chess GUI or an engine-testing tool.
 
 ---
 
-## UCI options
+## Highlights
 
-| Option         | Type   | Default | Range     | Description                                   |
-|----------------|--------|---------|-----------|-----------------------------------------------|
-| `Threads`      | spin   | 1       | 1 – max(1024, 4*hardware_concurrency) | Search worker threads; applied immediately by `setoption` |
-| `Hash`         | spin   | 64      | 1 – 33554432 | Transposition table size in MB                |
-| `Clear Hash`   | button | —       | —         | Clears the transposition table immediately    |
-| `Ponder`       | check  | false   | —         | Advertises support for ponder searches; GUIs start them with `go ponder` |
-| `Move Overhead`| spin   | 10      | 0 – 5000  | Extra latency to subtract from clock (ms)     |
-| `SyzygyPath`   | string | `<empty>` | —       | Semicolon-separated Syzygy tablebase directories; empty disables probing |
-| `SyzygyProbeDepth` | spin | 1    | 1 – 100   | Minimum remaining search depth for non-root WDL probes |
-| `Syzygy50MoveRule` | check | true | —        | Respect the 50-move rule in root tablebase move ranking |
-| `SyzygyProbeLimit` | spin | 7 | 0 – 7 | Maximum piece count for tablebase probing; 0 disables probing |
+- **Strong modern search** — iterative deepening with principal variation
+  search, aspiration windows, null-move pruning, razoring, ProbCut, singular
+  extensions, late move reductions and a quiescence search that handles checks
+  and prunes losing captures.
+- **Multi-threaded** — parallel search across cores with a shared transposition
+  table, enabled with the standard `Threads` option. Version 1.9.2 improves
+  helper-thread utilization and clock safety in multi-core play.
+- **Tuned evaluation** — a tapered evaluation fitted to millions of positions,
+  covering king safety, mobility, threats, pawn structure and passed pawns,
+  material imbalance, and endgame knowledge including an exact KPK bitbase and
+  KBNK mating technique.
+- **Syzygy tablebases** — optional endgame tablebase probing, both in-search and
+  at the root, with tablebase moves ranked and tablebase lines shown in the PV.
+- **Careful time management** — handles increments, `movestogo` and GUI latency,
+  and spends longer on unstable positions than on obvious moves.
+- **Pondering** — thinks on the opponent's clock when the GUI enables it.
+- **Optimized binaries** — published for Windows, Linux and macOS, on both
+  x86-64 and ARM64, and profile-guided-optimized.
+- **Built-in benchmark** — a `bench` command for reproducible speed and search
+  comparisons.
 
 ---
 
-## Building
+## Download
 
-Basilisk uses **CMake ≥ 3.24** with [CMake presets](CMakePresets.json) for all common configurations.
-GCC, Clang, and LLVM are supported where available; use `bench` to measure which produces a faster binary on your CPU because results vary by microarchitecture and compiler version.
+- [Latest release](https://github.com/maelic13/basilisk/releases/latest)
+- [All releases](https://github.com/maelic13/basilisk/releases)
 
-### Prerequisites
+Every release provides ready-to-run executables — no installation needed. Pick
+the one matching your operating system and CPU:
 
-| Tool | Minimum version |
-|------|----------------|
-| CMake | 3.24 |
-| Ninja | any |
-| GCC ≥ 14, or Clang ≥ 19 with libstdc++, or Clang ≥ 16 with libc++ | (C++23 `std::expected` required; libstdc++'s copy is disabled below Clang 19) |
-| **64-bit target** | x86-64 or aarch64 — Basilisk is 64-bit-only and will not build for a 32-bit target |
+| Asset suffix | Use when |
+| --- | --- |
+| `pext` | Modern Intel, or AMD Zen 3 and newer. Usually the fastest. |
+| `avx2` | AVX2-capable CPUs without fast PEXT, such as AMD Zen 1 and Zen 2. |
+| *(none)*, `x86_64` | Any 64-bit Intel or AMD CPU. Use this if the others do not start. |
+| *(none)*, `aarch64` | ARM64 Linux, Windows on ARM, and Apple Silicon Macs. |
 
-### Compiler Selection
+If unsure, try `pext` first and fall back to `avx2`, then the plain `x86_64`
+build. All builds play identically; they differ only in speed. A binary started
+on a CPU that lacks its required instructions reports a clear error instead of
+crashing.
 
-The presets use `COMP=auto` by default:
+Basilisk is 64-bit only — there is no 32-bit build.
 
-| Platform | `auto` compiler |
-|---|---|
-| Apple Silicon macOS | Clang from `PATH` (normally AppleClang) |
-| Linux | Clang |
-| Windows / MSYS2 | Clang |
+### What changed in 1.9.2
 
-Intel macOS is intentionally not supported. Apple Silicon macOS local builds use
-AppleClang by default because it is available with Xcode Command Line Tools.
-Official macOS release assets use AppleClang for the same compatibility reason.
+Version 1.9.2 is a focused maintenance release for multi-core play. Helper
+threads now remain useful until the main search finishes, low-time searches
+reserve a little more scheduler margin when several threads are active, and
+shared node accounting scales more cleanly at high thread counts. It also
+includes a small search-speed cleanup and removes an expensive helper-history
+merge that showed no playing-strength benefit. Single-thread search remains
+behavior-identical to 1.9.1 (`bench` fingerprint 11,941,440).
 
-Install the usual macOS build tools with:
+---
 
-```bash
-brew install ninja cmake
-```
+## Use With A GUI
 
-Install LLVM too if you want to compare NPS locally:
+1. Download the executable for your system, or build one from source.
+2. Add it as a UCI engine in your chess GUI.
+3. Set `Hash` to a comfortable amount of memory and `Threads` to the number of
+   cores you want to use.
+4. Start a game or an analysis session.
 
-```bash
-brew install llvm
-```
+Basilisk speaks standard UCI, so any UCI-compatible GUI should work — Arena,
+Cutechess, ChessBase/Fritz, Banksia and others.
 
-On Apple Silicon macOS, `COMP=llvm` uses Homebrew LLVM from
-`/opt/homebrew/opt/llvm`. If CMake does not report the host or target CPU before
-compiler detection, the configure step falls back to `uname -m` so native
-Apple Silicon shells still configure correctly.
+---
 
-You can override the compiler when configuring a fresh build directory with a
-CMake cache variable:
+## UCI Options
 
-```bash
-cmake --preset release -DCOMP=clang
-cmake --preset release -DCOMP=gcc
-cmake --preset release -DCOMP=llvm
-```
+| Option | Default | Description |
+| --- | --- | --- |
+| `Hash` | `64` | Transposition table size in MB. More memory helps longer searches, and helps more the more threads you use. |
+| `Clear Hash` | — | Empties the transposition table. |
+| `Threads` | `1` | Search threads. Set to the number of cores you want to use. Applied immediately. |
+| `Ponder` | `false` | Think while the opponent moves. Enabled by the GUI. |
+| `Move Overhead` | `10` | Milliseconds reserved for GUI and network delay. Raise it if you lose on time. |
+| `SyzygyPath` | empty | Folders holding Syzygy tablebases. Empty disables probing. |
+| `SyzygyProbeDepth` | `1` | Minimum depth at which tablebases are probed. |
+| `SyzygyProbeLimit` | `7` | Largest tablebase to probe. `0` disables probing. |
+| `Syzygy50MoveRule` | `true` | Whether tablebase results respect the fifty-move rule. |
 
-Supported values are `auto`, `clang`, `gcc`, and `llvm`. If you change
-compiler selection, remove the existing build directory first so CMake does not
-reuse the old compiler cache.
+`SyzygyPath` accepts several folders separated by `;` on Windows or `:`
+elsewhere. With tablebases enabled, Basilisk ranks the root moves from the
+tablebase, reports bounded tablebase scores, extends `info … pv` lines with the
+tablebase continuation, and counts resolved positions in `tbhits`. Playing
+strength with an empty path is unchanged.
 
-### Presets
+### Supported commands
 
-| Preset | Build type | Notes |
-|---|---|---|
-| `release` | Release | `-O3 -march=native` + LTO. **Use for playing/benchmarking.** |
-| `release-avx2` | Release | Like `release` + AVX2 code generation |
-| `release-pext` | Release | Like `release` + BMI2 PEXT sliding-piece attacks (Haswell+ / Zen 3+) |
-| `debug` | Debug | `-O0 -g3` + AddressSanitizer + UBSan |
-| `relwithdebinfo` | RelWithDebInfo | `-O2 -g -march=native`, no sanitizers |
+`uci`, `debug`, `isready`, `setoption`, `ucinewgame`, `position`, `go`, `stop`,
+`ponderhit`, `bench` and `quit`.
 
-For distributable binaries, add `-DPORTABLE_BUILD=ON` when configuring. This keeps the optimization level but omits `-march=native`, so release artifacts are not tied to the build machine's CPU.
+`go` supports `depth`, `nodes`, `movetime`, `wtime`, `btime`, `winc`, `binc`,
+`movestogo`, `mate`, `searchmoves`, `ponder`, `perft` and `infinite`. A bare
+`go` searches to depth 7.
 
-### Profile-guided release builds
+---
 
-GitHub release binaries are **profile-guided-optimized (PGO)** and portable —
-the release workflow builds the `pgo` target for each CPU tier (generic, AVX2,
-BMI2-PEXT) without `-march=native`, so each binary runs on any CPU of its tier.
+## Build From Source
 
-You can also build a PGO binary locally. CMake exposes PGO as a build target;
-configure the normal preset once, then build the `pgo` target:
-
-```powershell
-cmake --preset release-avx2 -DCOMP=clang
-cmake --build --preset release-avx2 --target pgo
-```
-
-The target creates an instrumented `build\<preset>-pgo-generate` binary, trains
-it with the internal `bench 13` command (a fixed 40-position suite spanning
-openings, quiet and tactical middlegames, a broad range of endgames, mates, and
-fortresses), prints concise training progress, merges the profile with
-`llvm-profdata`, and builds the optimized binary in `build\<preset>-pgo`.
-Detailed engine training logs are kept under `build\<preset>-pgo-profile` for
-diagnostics. Use `release`,
-`release-avx2`, or `release-pext` as the preset depending on which CPU tier you
-want. The final PGO executable is also copied to `build/dist` with a `-pgo`
-suffix before the executable extension.
-
-GitHub release assets keep the x86_64 choices intentionally small:
-
-| Asset suffix | CPU requirement | Notes |
-|---|---|---|
-| none | Generic target architecture | Safest default choice |
-| `avx2` | x86_64 with AVX2 | Modern Intel/AMD x86_64 CPUs |
-| `pext` | x86_64 with BMI2/PEXT | Uses PEXT sliding-piece attack lookup; benchmark against `avx2` on your CPU |
-
-The x86 feature builds check CPU support at startup and print a clear error if the host CPU cannot run that binary. The non-PEXT tiers (generic, AVX2, aarch64) use precomputed **baked magic bitboards**, so startup is near-instant instead of re-deriving them on every launch.
-
-Release builds are produced for Linux x86_64, Linux aarch64, Windows x86_64,
-Windows aarch64, and macOS aarch64. Intel macOS and AVX-512 release assets are
-not published.
-
-### Linux / macOS
-
-Install GCC (or Clang), CMake, and Ninja via your package manager, then:
+Basilisk builds with **CMake ≥ 3.24** and Ninja, using the presets in
+[`CMakePresets.json`](CMakePresets.json). You need a C++23 compiler: GCC 14+,
+Clang 19+ with libstdc++, or Clang 16+ with libc++.
 
 ```bash
 cmake --preset release
 cmake --build --preset release
 # Binary: build/release/basilisk
-# Release-style copy: build/dist/basilisk-v<version>-<os>-<arch>
 ```
 
-### Windows (MSYS2 / MinGW-w64)
+### Presets
 
-**Option 1 — Add MSYS2 to your PATH** (simplest; works from any terminal, CLion, VS Code, etc.):
+| Preset | Notes |
+| --- | --- |
+| `release` | `-O3 -march=native` + LTO. Use this for playing and benchmarking. |
+| `release-avx2` | Like `release`, plus AVX2 code generation. |
+| `release-pext` | Like `release`, plus BMI2/PEXT sliding-piece attacks. |
+| `relwithdebinfo` | Optimized with debug info, no sanitizers. |
+| `debug` | Unoptimized, with AddressSanitizer and UBSan. |
 
-Open *System Properties → Environment Variables* and prepend one MSYS2 toolchain directory to `Path`:
+Add `-DPORTABLE_BUILD=ON` when configuring if the binary has to run on other
+machines: it keeps the optimization level but drops `-march=native`.
+
+Pick the compiler with `-DCOMP=clang`, `-DCOMP=gcc` or `-DCOMP=llvm` (default
+`auto`: Clang on Linux and Windows, AppleClang on macOS). Remove the build
+directory before switching compilers. Which one is faster varies by CPU — use
+`bench` to compare.
+
+**Windows:** build in an MSYS2 Clang shell, or add `D:\msys64\clang64\bin` to
+your `PATH` and build from any terminal. Release builds link the C++ runtime
+statically, so the resulting `basilisk.exe` needs no MSYS2 DLLs
+(`-DSTATIC_RUNTIME=OFF` disables that).
+
+**macOS:** `brew install cmake ninja` is enough; add `brew install llvm` if you
+want to compare against Homebrew LLVM with `-DCOMP=llvm`. Apple Silicon only —
+Intel Macs are not supported.
+
+### Profile-guided builds
+
+Published binaries are profile-guided-optimized (PGO), which is worth a few
+percent of speed. To build one yourself, configure a preset and build the `pgo`
+target:
+
+```bash
+cmake --preset release-pext -DCOMP=clang
+cmake --build --preset release-pext --target pgo
 ```
-D:\msys64\clang64\bin
-```
-Then in any terminal:
-```powershell
-cmake --preset release
-cmake --build --preset release
-```
 
-**Option 2 — `CMakeUserPresets.json`** (no PATH change; paths stay local and are gitignored):
+This builds an instrumented engine, trains it on the `bench` suite, and rebuilds
+using the collected profile. The finished binary lands in `build/dist`.
 
-Copy the example and edit the paths:
-```powershell
-Copy-Item CMakeUserPresets.json.example CMakeUserPresets.json
-# Edit CMakeUserPresets.json: set the correct paths to ninja.exe, gcc.exe, g++.exe
+### Tests
+
+```bash
+ctest --test-dir build/release --output-on-failure
 ```
-Then build using the `local-` prefixed presets:
-```powershell
-cmake --preset local-release
-cmake --build --preset local-release
-```
-
-**CLion:** configure a *MinGW* Toolchain under *Settings → Build → Toolchains* pointing to `D:\msys64\mingw64` (for GCC) or `D:\msys64\clang64` (for Clang).
-CLion will inject the compiler from that toolchain and use the `release` / `debug` presets from `CMakePresets.json` directly.
-
-> **Note:** Release builds on Windows/MinGW automatically link the C++ runtime statically (`-static`), so the resulting `basilisk.exe` has no dependency on MSYS2 DLLs and runs on any Windows machine. Disable with `-DSTATIC_RUNTIME=OFF` if you explicitly want a dynamic build.
 
 ---
 
-## Usage
+## Bench
 
-Basilisk is a standard UCI engine. Load it in any UCI-compatible GUI (Arena, Cutechess, Fritz, Banksia, …) or use it from the command line for analysis:
+`bench` searches a fixed 40-position suite and reports a node count and speed.
+The node count is identical on every platform, which makes it a quick way to
+confirm a build is correct; the speed tells you how fast the machine is.
 
+```text
+bench
+bench 13
 ```
-position startpos moves e2e4 e7e5
-go movetime 5000
+
+`bench` is **single-threaded by default and ignores the `Threads` option**, so
+the node count stays reproducible no matter how your GUI left the engine
+configured. For a multi-threaded speed reading, pass the thread count as the
+third argument — `bench [depth] [repeats] [threads]`:
+
+```text
+bench 13 1 8
 ```
 
-To use Syzygy tablebases, set `SyzygyPath` to the directory containing `.rtbw`
-and `.rtbz` files before starting a search. With an empty path, tablebase code is
-disabled and normal playing strength is unchanged.
-
-When tablebases are enabled, Basilisk probes root moves before search, reports
-bounded tablebase scores (`cp 20000` for wins), expands tablebase PVs in
-`info ... pv` output, and respects `Syzygy50MoveRule` for cursed wins and blessed
-losses. `SyzygyProbeLimit` can be set to `0` to disable probing without clearing
-the configured path.
-
-### Supported UCI commands
-
-| Command | Notes |
-|---------|-------|
-| `uci` | Identify engine and list options |
-| `debug on\|off` | Toggle debug echoing of received commands |
-| `isready` | Synchronise; always answered with `readyok` |
-| `setoption name <n> [value <v>]` | Set an option; button types have no value |
-| `ucinewgame` | Reset search state and clear TT |
-| `position [startpos\|fen <fen>] [moves …]` | Set up board |
-| `go [searchmoves …] [wtime … btime … winc … binc … movestogo … depth … nodes … mate … movetime … infinite … ponder]` | Start search; bare `go` defaults to depth 7 |
-| `go perft <depth>` | Count legal leaf nodes from the current position; reports `Nodes searched` without `bestmove` |
-| `stop` | Stop search; engine replies with `bestmove` |
-| `ponderhit` | Switch from ponder to normal search |
-| `bench [depth]` | Run built-in benchmark (default depth 13) using the current `Threads` option |
-| `quit` | Exit |
+Above one thread the node count is no longer identical between runs (the extra
+threads do genuinely different work), so use that form for speed only, not to
+check that a build is correct.
 
 ---
 
@@ -281,5 +208,7 @@ MIT-licensed Fathom library under [external/fathom/LICENSE](external/fathom/LICE
 
 ## Acknowledgements
 
-Thanks to the open-source chess-engine community for the technical inspiration
-and engineering examples that make projects like this possible.
+Basilisk is an independent engine, but it benefits from the open chess-engine
+community's published ideas, testing practices and protocol conventions. Special
+thanks to Stockfish and its team for the inspiration their work provides to
+chess engine authors and testers.

@@ -14,6 +14,7 @@
 #include "attacks.h"
 #include "bitboard.h"
 #include "eval.h"
+#include "history.h"
 #include "move.h"
 #include "search.h"
 #include "syzygy.h"
@@ -179,6 +180,43 @@ static bool init_local_syzygy() {
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
+
+static void test_history_row_base_decomposition() {
+    HistoryTables hist;
+    constexpr Color side = BLACK;
+    constexpr Key pawn_key = 0x123456789ABCDEF0ULL;
+    constexpr int ply = HistoryTables::LOW_PLY_HISTORY_SIZE - 1;
+    constexpr Square from = C3;
+    constexpr Square to = F6;
+    constexpr PieceType pt = KNIGHT;
+
+    hist.main[side][from][to] = 101;
+    hist.pawn->data[pawn_key & (HistoryTables::PAWN_HIST_SIZE - 1)][pt][to] = 202;
+    hist.low_ply[ply][from][to] = 303;
+
+    const auto& main_row = hist.main[side];
+    const auto& pawn_row = hist.pawn->data[
+        pawn_key & (HistoryTables::PAWN_HIST_SIZE - 1)];
+    const auto low_ply_row_for = [&hist](int row) {
+        return row < HistoryTables::LOW_PLY_HISTORY_SIZE
+             ? &hist.low_ply[row] : nullptr;
+    };
+    const auto* low_ply_row = low_ply_row_for(ply);
+    const auto* out_of_range_row =
+        low_ply_row_for(HistoryTables::LOW_PLY_HISTORY_SIZE);
+
+    begin_section("history row bases preserve full-index addressing");
+    EXPECT(&main_row[from][to] == &hist.main[side][from][to]);
+    EXPECT(&pawn_row[pt][to]
+           == &hist.pawn->data[pawn_key & (HistoryTables::PAWN_HIST_SIZE - 1)][pt][to]);
+    EXPECT(low_ply_row != nullptr);
+    EXPECT(&(*low_ply_row)[from][to] == &hist.low_ply[ply][from][to]);
+    EXPECT_EQ(main_row[from][to], 101);
+    EXPECT_EQ(pawn_row[pt][to], 202);
+    EXPECT_EQ((*low_ply_row)[from][to], 303);
+    EXPECT(out_of_range_row == nullptr);
+    end_section();
+}
 
 static void test_default_go_depth_and_syzygy_options() {
     Parameters params;
@@ -669,6 +707,7 @@ static void test_thread_pool_search() {
 
     begin_section("thread pool: returns legal move");
     EXPECT(is_legal_bestmove(FEN, result.bestmove));
+    EXPECT(result.nodes > 0);
     end_section();
 
     begin_section("thread pool: reports searched nodes");
@@ -970,6 +1009,9 @@ int main() {
 
     std::printf("\nParameters\n");
     test_default_go_depth_and_syzygy_options();
+
+    std::printf("\nHistory row decomposition (9.6)\n");
+    test_history_row_base_decomposition();
 
     std::printf("\nLegal move\n");
     test_returns_legal_move();

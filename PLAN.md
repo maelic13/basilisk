@@ -1,43 +1,66 @@
 # Basilisk Strength Improvement Plan
 
-> **CURRENT STATE (2026-07-20):** **1.9.0 RELEASED 2026-07-17** (squashed to
-> `master`; accepted gains listed in §2). `development` is reset to the `master`
-> 1.9.0 state and **Phase 8.6 (§4) is ACTIVE** — one more pre-NNUE release,
-> decided 2026-07-20 from the Rarog cross-review + four in-session code audits:
-> hardening, CI in Rarog's Phase-9 shape, reproducibility, telemetry, and the
-> check-extension-removal SPRT (Rarog evidence **+30.75**), culminating in
-> **⭐ Release 1.9.1 — the final HCE release and frozen NNUE baseline**.
+> **CURRENT STATE (2026-08-01):** **1.9.2 RELEASE READY** on `development`;
+> Phase 9 is CLOSED. 1.9.1 remains the last public tag only until the user's
+> manual squash/publish. The release head is single-thread
+> behavior-identical to 1.9.1 (bench 11,941,440). Its principal production
+> change is the accepted SMP clock/helper-safety bundle; the later Phase-9
+> coordination, TT, diversification and HCE-refit candidates were rejected.
 >
-> **▶ NEXT:** Phase 8.6 queue (order fixed 2026-07-20, cleanups/refactors
-> FIRST): 8.6.1 ✅ → 8.6.2a → 8.6.2b → 8.6.2c (C++23 pass) → **8.6.10
-> structure era (moved pre-release)** → 8.6.3 → 8.6.6 → 8.6.7 (8.6.4/8.6.5
-> interleave with the SPRT wait) → **8.6.8A accept-audit (added 2026-07-21
-> after the harness-bias incident)** → **Phase 8.7 profile-guided speed
-> pass (added 2026-07-22 from Rarog's 10.3 evidence: +10.35% NPS = +20.31
-> Elo, ≈ +2 Elo per 1% NPS at STC; interleaves with 8.6.8A)** →
-> ⭐ **1.9.1**, then the **post-release
-> NNUE runway — now pure NNUE prep only** (8.5.3 dirty-piece on the new
-> structure, 8.5.14 TT graph-history [down-scoped], 8.5.15 frozen-teacher
-> benchmark baselining **1.9.1**, 8.5.16 `net_trainer` preflight), then
-> rebase `nnue` once and
-> resume **Phase 9: NNUE (§5)** on the existing `D:/code/net_trainer`
+> **✅ 9.12 CLOSED:** the formal 4T fastchess gate passed, Colosseum boundary
+> gauntlets confirmed positive direction against 1.9.1 at 1T fast (**+11 ±24**),
+> 4T fast (**+14 ±34**) and 4T `10+0.1` (**+26 ±35**), and all 5,800 Colosseum
+> games completed without a reported Basilisk forfeit, crash or illegal move.
+> The user explicitly waived the redundant standalone 1T NPS and 4T scaling/
+> diagnostic reruns: 1T is bench-identical, 9.6 already has pooled-PGO NPS
+> evidence, and the completed 1T/4T games directly cover deployed behavior.
+> By explicit user decision, the focused accepted scope ships as **1.9.2**, not
+> the originally planned 1.10.0.
+>
+> **Then, unchanged:** the post-release **NNUE runway** (8.5.3 dirty-piece on
+> the 8.6.10 structure, 8.5.14 TT graph-history [down-scoped], 8.5.15
+> frozen-teacher benchmark, 8.5.16 `net_trainer` preflight) → rebase `nnue`
+> once → **Phase 10: NNUE (§6)** on the existing `D:/code/net_trainer`
 > Bullet/Rust/CUDA pipeline and its raw `quantised.bin` contract (do not
 > resurrect the removed PyTorch/`MNN1` path).
-> **Deferred to the 10.7 joint SPSA** (each over-widens/fragments as a one-off
+> **Deferred to the 11.7 joint SPSA** (each over-widens/fragments as a one-off
 > flip, not as a pre-release unit): TT-PV bit (8.5.7), history-v2 (8.5.11), the
 > (d) prior-move cont-hist rebalance, and the inert-knob set. Post-NNUE:
-> **Phase 10 search architecture + final tune, Phase 11 mandatory SMP, Phase 12
-> NNUE architecture/data iteration (§6)**. Deferred experiments also live in §6.
+> **Phase 11 search architecture + final tune, Phase 12 MT scaling beyond
+> Phase 9, Phase 13 NNUE architecture/data iteration (§7)**. Deferred
+> experiments also live in §7.
 
-This plan was executed 2026-05 → 2026-07 as Phases 0–7. The step-by-step
+This plan was executed 2026-05 → 2026-07 as Phases 0–8.7. The step-by-step
 history lives in `CHANGELOG.md` and git history; this document keeps the
 **process** (how work happens, §1), the **record** (what shipped, §2–3), the
-**active phases** (hardening §4, NNUE §5), the **post-NNUE roadmap + deferred
-menu** (§6), and the **operational discipline** (releases §7, commands §8).
+**closed pre-NNUE phases** (§4), the **closed Phase 9 record** (§5), the
+**NNUE line** (§6), the **post-NNUE roadmap + deferred menu** (§7), and the **operational
+discipline** (releases §8, commands §9).
 
 ---
 
 ## 1. The development process
+
+### Document audience (fixed 2026-07-29 — check it before writing into any of them)
+
+Every document in this repo is written for exactly one of two audiences, and
+the split is a rule, not a habit. Content written at the wrong altitude is a
+defect in that document even when every fact in it is true.
+
+| Document | Audience | What belongs in it |
+|---|---|---|
+| `README.md` | **User** (plays/analyses with the engine) | what the engine is, where to download it, which asset to pick, how to load it in a GUI, UCI options in plain language, how to build it if they want to. No phases, no SPRT numbers, no roadmap. |
+| `CHANGELOG.md` | **User** | what changed between released versions, in released-version terms. Strength claims stay, stated honestly (fast-TC vs LTC); internal step numbers only where they genuinely help a reader place a change. |
+| **GitHub release notes** | **User** | the per-release summary: strength vs the prior tag, what changed, which asset to download, honest caveats. Derived from `CHANGELOG.md`, never from `PLAN.md`. |
+| `PLAN.md` | **Developer / maintainer** | scope, phases, dependencies, gates, evidence, measured results, doctrine, rejected candidates. Authoritative for *what we do and why*. |
+| `GUIDE.md` | **Developer / maintainer** | the at-a-glance companion to `PLAN.md`: where we are, what is next, what to run. |
+| `docs/`, `analysis/` | **Developer / maintainer** | contracts, audits, deep-dives referenced from `PLAN.md`. |
+
+Practical consequences: a user-facing document never gains a phase number, an
+SPRT interval or a roadmap item; a developer-facing document never softens a
+measured result to make it read better. When a release is cut, the notes are
+written *from* `CHANGELOG.md` — translating `PLAN.md` into release notes is how
+internal vocabulary leaks to users.
 
 ### The working rhythm (user ↔ model)
 
@@ -64,10 +87,34 @@ Division of labour, fixed by convention:
   committed **directly on `development`** — that branch is the working line and
   may carry SPRT-pending work. A rejected candidate is reverted with a recorded
   null result. (`master` still only receives squashed `Version X.Y.Z` commits.)
-- **After every step:** update `PLAN.md` + `user_dev_guide.md`, commit
+- **After every step:** update `PLAN.md` + `GUIDE.md`, commit
   **without** a co-author trailer.
 - **Releases:** user squashes `development` onto `master` as a single
-  `Version X.Y.Z` commit, then tags manually. See §7.
+  `Version X.Y.Z` commit, then tags manually. See §8.
+
+### Strength-first engineering doctrine (user decision 2026-08-01)
+
+The project objective is the **strongest possible chess engine**, not merely
+finishing the current checklist inside inherited constraints. This applies to
+engine code, testing, tuning, data generation, tooling, and this plan itself.
+
+- If the model finds something plausibly **wrong, weak, sub-optimal, obsolete,
+  or badly implemented**, or sees that a current constraint is avoidable, it
+  must tell the user before silently adapting the work around it.
+- State the evidence, likely strength/correctness/reliability benefit, expected
+  implementation and measurement cost, and whether it would invalidate or
+  delay the active experiment. Distinguish a demonstrated defect from a
+  promising hypothesis.
+- If fixing it materially expands scope or changes a registered protocol,
+  **pause and decide with the user first**. The user chooses whether to improve
+  it now, schedule it, or deliberately accept the constraint. Discovery is not
+  automatic authorization to bundle unrelated changes.
+- Do not preserve a legacy design merely because Basilisk already uses it or
+  because the current plan assumed it. Compare stronger available designs and
+  repair the plan when the evidence warrants it.
+- Once the decision is made, retain the normal discipline: one semantic
+  candidate, reproducible evidence, and the appropriate gate. “Strongest
+  possible” raises the quality bar; it does not excuse unmeasured changes.
 
 ### Non-negotiable gates (apply to every change)
 
@@ -131,7 +178,7 @@ Division of labour, fixed by convention:
    *robust* core, which is now much smaller.
 7. **Preserve the eval boundary** — search calls
    `Evaluator::evaluate(const Board&)` and nothing deeper. This is what makes
-   the NNUE swap (Phase 9) possible.
+   the NNUE swap (Phase 10) possible.
 8. **Every tested artifact is reproducible.** `build_test.ps1`/`sprt.ps1`
    must emit and retain a manifest containing engine SHA + dirty-diff hash,
    compiler/linker versions, complete CMake/ISA/TUNE flags, PGO profile input
@@ -141,15 +188,55 @@ Division of labour, fixed by convention:
 9. **Release UCI stays clean** — tuning knobs exist only behind `-DTUNE=ON`;
    releases run compiled-in defaults (accepted values are baked into headers,
    never shipped as config).
+10. **Deployment is 1T AND 4T (user decision 2026-07-28).** Both are
+    first-class competition conditions (Colosseum/CCRL 1CPU and 4CPU), so
+    multi-thread Elo counts exactly as much as single-thread Elo, and a change
+    must regress neither. Practical consequences, all enforced by Phase 9:
+    - a multi-thread item gates at **Threads=4** as a matter of course, and
+      any 1T-visible part of it also carries a 1T non-inferiority check;
+    - **hash scales with threads** — 4× the nodes needs 4× the table, so a 4T
+      gate runs `Hash 256` against 1T's `Hash 64`; a fixed-`Hash` MT comparison
+      measures table thrash, not the change;
+    - at 4T, **nothing under ~10k games separates 0 from +3** (Rarog measured
+      the same run at +1.78 @1.5k, +2.90 @3.1k and −0.81 @28.4k). Do not form
+      an opinion from a 4T run's first few thousand games;
+    - `-use-affinity` is **dropped** whenever Threads>1 (see 9.2), and every
+      thread count needs its own null calibration before a verdict is trusted.
+11. **SPSA doctrine (established 9.1, applies to every future tune).** SPSA is
+    the most expensive thing this project runs; these rules are what make a
+    tune worth its nights.
+    - **≥5,000 iterations or don't start.** Below ~2,500 a tune barely beats
+      its own seed — a 1,000-iteration SPSA is a null result with a bake
+      attached. Every Basilisk tune to date sat in that range.
+    - **Bake tail means (final ~500 iterations), never endpoints**, and bake
+      the **whole vector**. SPSA estimates a *joint* optimum; reverting a
+      subset yields a point the tuner never evaluated. A knob wandering on
+      noise already has a tail mean ≈ its seed, so the tail mean *is* the
+      filter. Decompose on a rejection, not at bake time.
+    - **Merge groups.** Per-iteration cost is 2 evaluations regardless of
+      dimension (p=6 and p=26 converge at nearly the same rate), so merging is
+      free *and* captures interaction. One tune beats three sequential ones.
+    - **Never pin a discrete A/B knob ON inside the tune that fits its own
+      consumers.** Rarog pinned one such guard "so the signal is honest",
+      the guard silently discarded 59.7% of its correction-history training,
+      and 117,536 games produced a **−55.98** candidate that could not have
+      detected the cause. Gate the discrete knob separately *first*.
+    - **Kill-checkpoint at ~1,500 iterations:** seed two knobs a full step off
+      their baked values; the schedule must visibly walk them back. If they
+      wander, stop — the tuner has no resolving power at that noise level and
+      the rest of the run cannot help either.
+    - **Re-tuning an already-fitted group is low-EV.** Our accepted Elo has
+      come overwhelmingly from mechanism and speed; prefer mechanism, speed and
+      correctness work whenever machine time is contested.
 
-### The cost principle (§0.5, kept because it still governs §6)
+### The cost principle (§0.5, kept because it still governs §7)
 
 - **Texel weight-fitting is CPU-minutes — run it freely.** SPSA and SPRT are
   **thousands of games each — conserved.**
 - **Search constants are denominated in eval centipawns.** Any eval re-fit
   changes what a centipawn means, so a search-constant SPSA run before the
   eval is final is thrown away. This is why the search SPSA was deferred
-  through Phase 7 — and why it is now a **post-NNUE** item (§6): NNUE re-scales
+  through Phase 7 — and why it is now a **post-NNUE** item (§7): NNUE re-scales
   the eval wholesale.
 - New eval structure always enters as a behaviour-identical refactor (new
   terms seeded inert/equivalent, bench fingerprint unchanged, `--verify`
@@ -176,12 +263,14 @@ work: Fable 5 / Opus 4.8 medium.
 | **1.8.0** | 2026-07-08 | Phase 5 TM (clock-at-`go`, +2.95; TM SPSA washed → reverted) + Phase 6 search wave (6.1 TT-bound pruning eval **+7.18**; 6.2 cont-hist6 rejected −7.70; 6.3–6.8 exposed-inert knob set; bundle 6.10 **+9.14**) + Phase 7 eval refresh (7.1 SF@60k distillation **+6.75**; on-policy self-play cycles **+21.02 / +19.51 / +18.29 / +15.32**) | **≈ +93 fast-TC / ~+40 LTC** vs 1.7.0 (colosseum 10+0.1 gauntlet) |
 | **1.9.0** | 2026-07-17 | Phase 8 correctness/infra (rule-50/mate precedence, null clock, legal-EP hashing, SEE pin-awareness **+0.65**, eval 8.3 **+13.97**, mate-drive **+3.19**, assert_ok/fuzz/CI, robust canaries) + `hcefinal` SPSA **+35.94** + Phase 8.5 strength (TT density **+4.27**, rule-50 damping **+3.29**, exact/PV reward history **+4.90**, surprise-scaled history **+2.50**, instability-TM **+10.79**) | cumulative fast-TC SPRT gains over 1.8.0 (last pure-HCE release) |
 | *(post-1.8.0)* | 2026-07-09 | self-play cycle 6: **wash** (+1.37 ± 5.21, 8.1k games) → **HCE line closed**, candidate discarded | — |
-| **1.9.1** | next | **Phase 8.6 on `development` (§4)**: pre-NNUE hardening from the 2026-07-20 Rarog cross-review — param/TT/protocol hygiene, CI in Rarog's 9.2 shape (master-push + dispatch; sanitizers; cross-platform bench agreement), A/B compiler-equality enforcement, search telemetry, and the check-extension-removal SPRT (Rarog evidence **+30.75**; **our SPRT rejected −10.17**) + **Phase 8.7 profile-guided speed pass** (added 2026-07-22 from Rarog 10.3: ≈ +2 Elo per 1% NPS at STC; target +3–6% NPS) | final HCE release; cumulative vs 1.9.0 gauntlet at release |
-| **2.0.0** | future | **Phase 9 NNUE** (§5) | target **+200…+400** |
-| **2.x** | future | **Phase 10** final 1T search + tune, **Phase 11** mandatory SMP, **Phase 12** NNUE architecture/data frontier loop (§6) | prior **+15–40** 1T non-additive; SMP +10–30 at 8T; NNUE scale evidence-driven |
+| **1.9.1** | 2026-07-23 | **Phase 8.6** pre-NNUE hardening from the 2026-07-20 Rarog cross-review — param/TT/protocol hygiene, CI in Rarog's 9.2 shape (master-push + dispatch; sanitizers; cross-platform bench agreement), A/B compiler-equality enforcement, search telemetry, the check-extension-removal SPRT (Rarog evidence **+30.75**; **our SPRT rejected −10.17**) + **Phase 8.7 profile-guided speed pass** (**+4.34% NPS ≈ +8.69 ± 6.63 Elo**; search bit-identical to 1.9.0) | last public HCE release until 1.9.2 is published |
+| **1.9.2** | **release ready 2026-08-01** | **Phase 9 (§5)** focused harness/SMP/durability wave — SPSA schedule repair, MT-capable SPRT harness, thread-count + node-counter safety, accepted SMP clock/helper safety, index-hoists II, removal of unproven helper-history blending, and upgraded five-phase data/Texel infrastructure. Coordination/TT/diversification/HCE-refit candidates were rejected and are not shipped. User chose a patch rather than the pre-registered 1.10.0 because the accepted production scope is focused. | **9.4: +30.42 ± 8.77 Elo @4T, 0 forfeits** (SPRT-stopped, optimistic, bundle value); boundary H2H vs 1.9.1: +11 @1T fast, +14 @4T fast, +26 @4T `10+0.1`; release gate passed |
+| **2.0.0** | future | **Phase 10 NNUE** (§6) | target **+200…+400** |
+| **2.x** | future | **Phase 11** final 1T search + tune, **Phase 12** MT scaling beyond Phase 9, **Phase 13** NNUE architecture/data frontier loop (§7) | prior **+15–40** 1T non-additive; NNUE scale evidence-driven |
 
-Current dev head: 1.9.0 (`instabtm`), bench **11,941,440** (fixed-depth
-40-position harness; TM-independent).
+Current dev head: 1.9.2 release-ready, bench **11,941,440** (fixed-depth
+40-position harness; TM-independent). Deployment conditions: **1T and 4T**
+(gate 10).
 
 Internal-gauntlet placement of 1.8.0 (10+0.1, 2,819 games): ≈ Rarog 2.2.0 /
 Shredder 12 level; below Rybka 3/4, HIARCS 14, Critter 1.6a, SF-limited-2900+.
@@ -244,10 +333,31 @@ Basilisk holds no official CCRL rating — the internal gauntlet is the yardstic
     questions get fixed-N runs, not SPRTs; small pre-fix accepts need
     re-verification (8.6.8A); **never run two pinned harnesses at once** —
     they deterministically collide on the same core list.
+11. **Bundle membership is not evidence about a component** (Rarog 2026-07-27,
+    imported as doctrine). Rarog's SMP rework won **+102.78 @4T** as an
+    undecomposed five-change bundle; its own later decomposition then showed
+    the diversification half was worth **zero** (−0.81 over 28,362 games) and
+    the coordination half carried everything. In the same project, treating
+    "it was in the winning bundle" as proof of a component's value is exactly
+    what let an untested guard ship and cost −56. **Consequence:** when a
+    bundle is gated as a bundle, pre-register the decomposition order *before*
+    the result, and never quote the bundle number as a component's EV.
+12. **An early SPRT positive is the default shape of a null.** Three Rarog
+    runs in two days peaked at +11.6 / +5.9 / +4.7 in their first 1–2k games
+    and settled at +1.4 / −0.5 / −0.8. Combined with lesson 10 (per-run bias
+    does not average out), the rule is: **the estimate at the CI you actually
+    need is the only reading**, and at 4T that CI costs ~10k games.
+13. **Cross-engine transfer is a prior, never a verdict — and it runs both
+    ways.** Measured pairs so far: mop-up gating **+3.19 here / −7.37 there**;
+    the node-invariant index hoist **+3.03% here / +3.76% there**; per-node
+    `CheckInfo` **−1.8% here / +2.75% there**; `cutoffCnt` untested here /
+    **−7.78 there**; fail-soft qsearch **canary-blocked here / −5.96 there**.
+    Same family, opposite signs, in both directions. Import the *mechanism and
+    the measurement method*, re-measure the *value*.
 
 ---
 
-## 4. Phase 8 — board/search/eval correctness & hardening (ACTIVE on `development`)
+## 4. Phase 8 — board/search/eval correctness & hardening (CLOSED; shipped in 1.9.0/1.9.1)
 
 Source: `analysis/infra_analysis.md` (external audit, 2026-07-13), **verified
 claim-by-claim in-session 2026-07-13** — every repro re-run against the current
@@ -264,8 +374,8 @@ head. Verification verdicts that gate this phase:
   `KING = 20000` sentinel + minimax fold handles every king case correctly
   (verified empirically on all three scenarios). Any explicit king branch
   would be dead code at best.
-- **Doc errors to remember:** §6.4 is wrong that no TT prefetch exists
-  (`search.cpp:1562` prefetches the child entry); §5.3's cost claim is inert
+- **Doc errors to remember:** §7.4 is wrong that no TT prefetch exists
+  (`search.cpp:1562` prefetches the child entry); §6.3's cost claim is inert
   at defaults (`qsearch_check_cap = 0` gates the whole quiet-check loop off).
 
 The same-day **search audit** (`analysis/search_analysis.md`) was verified to
@@ -289,7 +399,7 @@ both audits found independently). Verdicts that shape this phase:
   bears on 8.9 and weakens the `QsearchCheckCap` prior in the hcefinal SPSA.
 - **Recommendation split adopted here:** eval-independent structural items →
   the **Phase 8.5 search ladder on `development`**; cp-denominated /
-  architecture-heavy items → **Phase 10 (§6)**; SMP → **Phase 11 (§6)**.
+  architecture-heavy items → **Phase 11 (§7)**; SMP → **Phase 12 (§7)**.
   Its Elo priors overlap heavily — never sum the rows.
 
 The third same-day audit (`analysis/hce_analysis.md`, the HCE evaluator) was
@@ -328,7 +438,7 @@ this phase:
   eval-semantics repairs → **8.4/8.6**; teacher benchmark + data hygiene
   (NNUE-enabling) → **Phase 8.5 Track C**; the big HCE reworks (king safety,
   winnability model, threat/passer semantics, phase buckets) remain a closed
-  Phase-12 fallback menu — NNUE learns those relationships directly, so they
+  Phase-13 fallback menu — NNUE learns those relationships directly, so they
   are not the default frontier path.
 
 **Sequencing:** 8.1/8.2/8.3/8.4/8.6 change bench and engine behaviour — do
@@ -461,7 +571,7 @@ Steps (each = own candidate branch, §1 gates apply):
    trajectories, not correctness; SPRT is the strength arbiter. Fold the 8.3
    eval-semantic tests into the CTest suite here. This step is the
    prerequisite for 8.5.8/8.5.9 below; §1 gate 6 is updated when it lands.
-8. **8.9 (LAST) Conditional direct quiet-check generation** (doc §5.3):
+8. **8.9 (LAST) Conditional direct quiet-check generation** (doc §6.3):
    **gate on the hcefinal SPSA outcome** — if `QsearchCheckCap` baked at 0,
    the `gen_quiet_checks()` path is provably inert → **skip, close the item**.
    If it baked > 0, first measure the generate-all-then-filter cost in the
@@ -472,16 +582,23 @@ Steps (each = own candidate branch, §1 gates apply):
 
 ### Phase 8.5 — NNUE-neutral board/search completion and data preparation (`development` ONLY)
 
+> **Status 2026-07-28:** the pre-1.9.0 half is CLOSED and shipped. The four
+> remaining items (8.5.3, 8.5.14, 8.5.15, 8.5.16) are the **NNUE runway** and
+> now run **after Phase 9 (§5)**, not before it — they are data-prep for the
+> `nnue` rebase, while Phase 9 is the last HCE-line work and fixes the
+> measurement tooling the whole NNUE line depends on. Nothing in Phase 9
+> touches the evaluator, so the runway is unaffected by it.
+
 **Branch rule, fixed by the user on 2026-07-14:** all Basilisk Phase-8.5 work
 lands on `development`. The `nnue` branch remains frozen while 8.5 runs. When
 8.5 is complete and the accepted HCE head is tagged/recorded, rebase `nnue`
-**once** onto that exact `development` SHA and begin Phase 9. Do not implement
+**once** onto that exact `development` SHA and begin Phase 10. Do not implement
 parallel copies of StateInfo/search changes on `nnue`, and do not merge partial
 NNUE code back into `development`.
 
 Phase 8.5 contains only work that remains useful after the evaluator swap.
 Actual Bullet `quantised.bin` loading, accumulator storage/update and SIMD
-inference stay in Phase 9 because those already exist in partial form on
+inference stay in Phase 10 because those already exist in partial form on
 `nnue`. Each behavior
 candidate gets its own branch and matching SPRT/non-inferiority gate. Pure
 refactors/enablers must be bench-identical and pass the strengthened 8.8 tests;
@@ -500,10 +617,10 @@ pure NNUE data prep that adds no Elo to the shipped engine. New order:
    (gauntlet fast + LTC spot check), bump version, CHANGELOG, then the manual
    user tag/push via the 8.7 PGO `release.yml`.
 3. **Post-1.9.0 NNUE runway (0 Elo, done as one contiguous block feeding
-   Phase 9):** `8.5.3` dirty-piece contract → `8.5.15` frozen teacher
+   Phase 10):** `8.5.3` dirty-piece contract → `8.5.15` frozen teacher
    benchmark (baselines the **released** final HCE head — consistent only
    because no Elo work is left for "after") → `8.5.16` `net_trainer` preflight
-   → `nnue` rebase → Phase 9.
+   → `nnue` rebase → Phase 10.
 
 Rule that keeps 8.5.15 coherent: **no Elo-bearing (Track B) work is deferred
 past the release** — only the three pure-NNUE items (`8.5.3`, `8.5.15`,
@@ -536,7 +653,7 @@ each falls on.
    removed/added piece-square pairs for quiets, captures, EP, promotions and
    castling; null move records no piece delta. This is data only—no network
    weights or accumulator in `development`. Extend the 8.8 random walker to
-   reconstruct the child board from each delta. Phase 9 consumes this contract
+   reconstruct the child board from each delta. Phase 10 consumes this contract
    after the rebase.
 
 #### Track B — search observability and eval-independent architecture
@@ -556,7 +673,14 @@ each falls on.
    playout — correction-history is *eval-adjacent*, and any perturbation of
    the won-endgame static eval breaks the fragile frozen HCE mate-drive
    (same class that reverted 8.4). **Blocked by HCE mate-drive fragility;
-   naturally unblocked once Phase 9 NNUE replaces the HCE eval.** Reverted.
+   naturally unblocked once Phase 10 NNUE replaces the HCE eval.** Reverted.
+   ⚠ **EV DOWNGRADED 2026-07-28 (Rarog cross-review, §5 table).** Rarog got the
+   same family to a gate and decomposed it: the tactical-outcome **guard** —
+   the (a)-class semantics above — is worth **−56 Elo** (it silently discarded
+   59.7% of all correction training), and everything else in the bundle
+   measured **+1.43 ± 4.85** combined. So the guard is REFUTED, not merely
+   untested, and must not be revived; what survives is the margin/weight half
+   at ~+1.5, which belongs in 11.6/11.7's fit rather than its own gate.
 6. **8.5.6 Qsearch in-check upgrade:** order evasions by TT move and contextual
    history, and store completed in-check qsearch bounds in TT. → SPRT.
    **ATTEMPTED 2026-07-15 → both parts negative on the bench (fixed-depth node
@@ -566,12 +690,12 @@ each falls on.
    in-check evasion children are *non-check* qsearch nodes that return the
    non-provable fail-hard bounds documented at the 8.1f trap — aggregating
    them into a stored bound poisons later cutoffs. **The store part is BLOCKED
-   on Phase 10.4 qsearch bound-shaping** (provable qsearch bounds) and cannot
+   on Phase 11.4 qsearch bound-shaping** (provable qsearch bounds) and cannot
    land safely before it. Reverted to the 8.1e baseline. Revisit the store
-   only after 10.4; the reordering is simply not a win here.
+   only after 11.4; the reordering is simply not a win here.
 7. **8.5.7 Persistent TT-PV bit:** store/propagate PV ancestry through all
    eligible TT bounds rather than reconstructing it only from deep exact
-   entries. It is an enabler for Phase 10 even if neutral alone; validate age/
+   entries. It is an enabler for Phase 11 even if neutral alone; validate age/
    replacement behavior explicitly. → non-inferiority + ordinary Elo report.
    - **Prototyped 2026-07-16 (SF `genBound8`) then reverted — NOT a clean flip;
      do it as bit-infra + companion re-tune.** Implemented correctly: stole
@@ -588,9 +712,9 @@ each falls on.
      Verdict: land TT-PV as *enable-bit + SPSA the `tt_pv`-gated LMR/pruning
      knobs together* (and add SF-style `ttPv` pruning-conservatism consumers),
      not a one-shot flip. 32 generations is standard (SF) and fine for real
-     play — the bench wrap is not a game regression. Requeue with 10.7 SPSA or a
+     play — the bench wrap is not a game regression. Requeue with 11.7 SPSA or a
      dedicated tune. Deferred in favor of the genuinely-clean cuckoo (8.5.13).
-   - **Re-tested 2026-07-17 on the `instabtm` head → confirmed 10.7 sub-project,
+   - **Re-tested 2026-07-17 on the `instabtm` head → confirmed 11.7 sub-project,
      no SPRT spent.** Re-applied genBound8 (CTest 11/11) and measured the real
      node impact with a **fresh-TT fixed-depth** search (sidesteps the shared-TT
      gen-wrap that corrupts bench): depth-18 startpos **3.90M vs 2.57M = +51%
@@ -598,14 +722,14 @@ each falls on.
      `lmr_tt_pv_adj` reduction *is* the cost, so any value that matters
      over-widens. TT-PV only pays via **pruning conservatism** (relax
      futility/LMP on tt_pv nodes), a consumer we don't have. Land it as
-     bit + ttPv pruning guards + joint SPSA at 10.7. Reverted; head `instabtm`.
+     bit + ttPv pruning guards + joint SPSA at 11.7. Reverted; head `instabtm`.
 8. **8.5.8 Blanket check-extension removal:** isolated two-sided experiment,
    after 8.1 qsearch correctness and 8.8 canary split. Record telemetry,
    tactical/quiet/endgame node-budget suites and SPRT. Keep or close on games.
 9. **8.5.9 Checking-move LMR under the existing model:** after the 8.5.8
    verdict, allow contextually bad late checks to reduce/SEE-prune rather than
    receive categorical protection. Do **not** make a later good-capture test
-   conditional on this result; good-capture/all-move LMR belongs to 10.1 after
+   conditional on this result; good-capture/all-move LMR belongs to 11.1 after
    the shared contextual reduction exists. → SPRT.
 10. **8.5.10 History-coverage ladder:** independently test (a) TT-cutoff quiet
     rewards and prior-quiet maluses, (b) exact/PV best-move training,
@@ -655,7 +779,7 @@ each falls on.
       bonus drifts entries toward +MAX and flattens ordering at any useful
       magnitude. **Verdict: (d) is a continuation-history *rebalancing*
       sub-project (bonus on restrict + malus on refute, jointly SPSA-tuned), not
-      a clean rung.** Requeue it under 8.5.11 (history rep v2) / 10.7 SPSA, not
+      a clean rung.** Requeue it under 8.5.11 (history rep v2) / 11.7 SPSA, not
       here. `is_capture` infra reverted with it (no dead code).
     - **(c) searched-but-failed capture maluses — ❌ BENCH-VETOED 2026-07-17, no
       SPRT.** Tracked EVERY searched capture (not just SEE<0) so a cutoff maluses
@@ -684,14 +808,14 @@ each falls on.
     collision, saturation and aging. Test replacing fixed categorical killer/
     countermove priority with contextual evidence, or at minimum age the
     countermove table. Feed the accepted histories into both ordering and the
-    future 10.1 reduction model. Staged SPRTs, never one table explosion.
+    future 11.1 reduction model. Staged SPRTs, never one table explosion.
 12. **8.5.12 Persistent root-move model, aspiration and TM inputs:** retain per
     root move score, previous score, running mean **and variance**, bound/
     completion, seldepth, nodes and PV; sort after each root result. Then test
     per-move uncertainty-aware aspiration, repeated-fail recovery depth, and
     time management based on best-move instability plus full root effort
     distribution. Separate state refactor from behavioral candidates. This is
-    also the required input for Phase 11 voting.
+    also the required input for Phase 12 voting.
     - **instability-extension TM — ✅ ACCEPTED 2026-07-17. New head `instabtm`.**
       First (behavioral) slice, no state refactor: a decaying `best_move_changes`
       (SF totBestMoveChanges) + `tm_instability` knob (35) that raises the
@@ -703,7 +827,7 @@ each falls on.
       (ceiling was for existing signals, not the missing extension). Durable/
       NNUE-agnostic. Engine `basilisk-phase8512-instabtm-pext-pgo`. The per-move
       variance/aspiration/root-effort refactor remains as a later extension
-      (also the Phase-11 voting input).
+      (also the Phase-12 voting input).
 13. **8.5.13 Upcoming repetition:** cuckoo reversible-move lookup, validated
     against a slow legal oracle and graph-history/rule-50 edge suites. → SPRT.
     - **❌ TESTED & REVERTED 2026-07-17.** Full SF/Hagen-van der Tak cuckoo was
@@ -756,16 +880,16 @@ each falls on.
     deterministic shuffle, feature indices, all eight output buckets, raw
     payload/padding/H inference, truncation-toward-zero on negative division,
     export/load and committed conformance vectors. Record the Rust/Cargo,
-    Bullet revision and CUDA toolchain needed to reproduce training. Phase 9
+    Bullet revision and CUDA toolchain needed to reproduce training. Phase 10
     adds trainer validation/resume and large-scale data.
 
 #### Track D — durable general strength pulled forward to 1.9.0 (2026-07-15)
 
 **Phase-number principle (user, 2026-07-15; amended 2026-07-20):** the number
-tracks the NNUE boundary — Phase < 9 is **before** NNUE, Phase 9 **is** NNUE,
+tracks the NNUE boundary — Phase < 10 is **before** NNUE, Phase 10 **is** NNUE,
 Phase ≥ 10 is **strictly after**. So a general (eval-agnostic) improvement that
 strengthens the final HCE release *and* carries to NNUE **without re-SPSA/
-re-fit** belongs before Phase 9, not in the post-NNUE Phase 10. Goal: make the
+re-fit** belongs before Phase 10, not in the post-NNUE Phase 11. Goal: make the
 last HCE release as strong as possible, as a hedge if the NNUE project
 underdelivers. *(2026-07-20: the final HCE release is now **1.9.1** — Phase
 8.6 sits between 8.5 and 9, still pre-NNUE; the principle is unchanged.)*
@@ -775,7 +899,7 @@ with no material re-tune/re-fit; (c) strengthens 1.9.0 and/or datagen; (d) does
 **not** touch the won-endgame static eval (avoids the HCE mate-drive canary that
 blocked 8.4/8.5.5).
 
-1. **8.5.D1 TT density & replacement (pulled from old 10.3):** 32-byte
+1. **8.5.D1 TT density & replacement (pulled from old 11.3):** 32-byte
    cluster / partial-key layout for ~2× entries at equal hash, with safe
    lock-free publication and collision/replacement telemetry. Durable (a memory
    layout, not an eval constant), strengthens long-TC / large-hash play, and
@@ -785,40 +909,40 @@ blocked 8.4/8.5.5).
 2. **8.5.D2 = 8.5.13 upcoming repetition (cuckoo):** already pre-1.9.0;
    eval-agnostic, durable correctness+strength. Keep in the 1.9.0 set.
 3. **8.5.D3 = 8.5.7 persistent TT-PV bit:** already pre-1.9.0; durable TT bit,
-   enabler for the post-NNUE 10.1 reduction model. Non-inferiority gate.
+   enabler for the post-NNUE 11.1 reduction model. Non-inferiority gate.
 
 **Eligible but lower-certainty:** the history ladder (8.5.10) and history v2
 (8.5.11) are move-ordering (no eval touch → no fragility), so they can be tried
 for 1.9.0; their tables/benefit are re-validated (not re-SPSA'd) after NNUE, so
 durability is less certain than D1–D3.
 
-**Optional big lever — SMP (Phase 11):** fully eval-agnostic and durable, and
+**Optional big lever — SMP (Phase 12):** fully eval-agnostic and durable, and
 would materially strengthen 1.9.0 for multi-thread users (a real hedge if NNUE
 fails). But it is a large effort and does **not** accelerate datagen (which
 parallelizes at the game level, not via Lazy SMP). Default: keep post-NNUE by
 priority; pull to Track D only if a strong MT 1.9.0 is explicitly wanted.
 
 **Excluded from 1.9.0** (need eval-calibrated re-tune or hit the mate-drive
-fragility, so they stay in post-NNUE Phase 10): 10.1 unified reduction, 10.4
-bound quality, 10.5 ProbCut/null/IIR margins, 10.6 correction-consumption v2,
-10.7 final tune; and 8.5.5, 8.5.8, 8.5.9. *(2026-07-20 amendment: **8.5.8 is
+fragility, so they stay in post-NNUE Phase 11): 11.1 unified reduction, 11.4
+bound quality, 11.5 ProbCut/null/IIR margins, 11.6 correction-consumption v2,
+11.7 final tune; and 8.5.5, 8.5.8, 8.5.9. *(2026-07-20 amendment: **8.5.8 is
 pulled forward into Phase 8.6 as 8.6.7** — Rarog's 8.2(a) result (+30.75)
 showed the removal needs no eval-calibrated re-tune and no SPSA; 8.5.9 and
 the rest stay post-NNUE.)*
 
 **Explicitly skipped on the HCE line:** incremental HCE material/PST fields,
 NNUE accumulator code, refresh caches, threat inputs, and Chess960 (product
-feature, no standard-chess Elo). OpenBench is not mandatory before Phase 9 on
+feature, no standard-chess Elo). OpenBench is not mandatory before Phase 10 on
 one machine, but the manifest/result schema must be compatible with later
 OpenBench adoption; frontier-scale +1–3 Elo work will eventually benefit from
 persistent/distributed testing.
 
-### Phase 8.6 — Pre-NNUE hardening & CI wave (ACTIVE 2026-07-20)
+### Phase 8.6 — Pre-NNUE hardening & CI wave (CLOSED; shipped in 1.9.1)
 
 **Added 2026-07-20 (user decision): one more HCE release before the NNUE
 cutoff.** Source: the in-session cross-review of **Rarog's pre-NNUE program**
-(its Phases 7–10, including the 2026-07-19/20 Phase-9 refinements: CI shape,
-PGO-smoke, 9.5-A resolution, local-only manifests) against Basilisk 1.9.0,
+(its Phases 7–9, including the 2026-07-19/20 Phase-9 refinements: CI shape,
+PGO-smoke, 10.5-A resolution, local-only manifests) against Basilisk 1.9.0,
 verified by **four code audits** (UCI/FEN robustness, search bug-classes,
 tests/CI extent, params/TT/bench infra) — every imported item was checked
 against our code, never assumed. Mirrors Rarog's same-day reciprocal import
@@ -892,7 +1016,7 @@ AND Phase 8.7.**
    has pre-hcefinal seeds `HistPruneCoeff` 4210 vs live 14004 and a
    `LmrHistDiv` floor 6000 **above** the live default 5683), with a loud
    README warning: regenerate any needed config **from the table** at
-   10.7, and `TmInstability` must be in the 10.7 config.
+   11.7, and `TmInstability` must be in the 11.7 config.
 2. **8.6.2 — SPLIT 2026-07-20 into (a) TT contract + (b) clean-code package**
    after a four-audit deep dive (TT/cache sizing + 32-bit inventory;
    empirical lint/sanitizer scan; C++23 idiom review; architecture/
@@ -948,7 +1072,7 @@ AND Phase 8.7.**
      all 8 shipped assets are x86-64/aarch64); the declaration also
      retroactively proves the ~14 `Key & (SIZE-1)` index sites and the
      `mb*1024*1024` math lossless. Full-budget (multiply-hi) indexing stays
-     §6-deferred.
+     §7-deferred.
    - **8.6.2b Clean-code & build-hygiene package (no games; per-item
      bench-identity gate):**
      **P0 — ✅ DONE 2026-07-20** (commit `5b6c01a`; bench 11,941,440
@@ -1005,7 +1129,7 @@ AND Phase 8.7.**
      header says never to de-duplicate it); stale script doc-examples
      refreshed. Test-file warnings were cleared earlier, with P0.
      **File renames stay declined** (Windows case-only-rename pain +
-     `nnue`-rebase conflicts) — Phase-10 opportunistic.
+     `nnue`-rebase conflicts) — Phase-11 opportunistic.
      **C-items — resolved 2026-07-20:** **C9 ✅** TT `key16` store→`release`
      / probe load→`acquire`, so the documented payload-before-key invariant
      is now real (it was comment-only under all-`relaxed`: accidentally true
@@ -1020,11 +1144,13 @@ AND Phase 8.7.**
      neither clang-tidy nor `cl.exe` is installed, and installing a
      toolchain is a system change not taken unprompted. **C14 — no action:**
      `tools/weather-factory/` is a gitignored vendored clone (the user's
-     scratch area), not repository content.
+     scratch area), not repository content. *(Amended by 9.1: the clone is
+     still gitignored, but the files we patch now live tracked in
+     `tools/weather-factory-overlay/` and are hash-verified into it.)*
      **Recorded skips (decided 2026-07-20):** `evaluate()` decomposition —
      permanent (NNUE bypasses it; every hour there is sunk); `negamax`
-     decomposition — Phase 10.1/10.2 rewrite that code anyway; file renames
-     — never/Phase 10 (Windows case-only-rename pain + `nnue`-rebase
+     decomposition — Phase 11.1/11.2 rewrite that code anyway; file renames
+     — never/Phase 11 (Windows case-only-rename pain + `nnue`-rebase
      conflicts); consteval table init and `std::format` — post-NNUE at best
      (`std::format` additionally risks breaking tool parsers that read
      "Nodes searched").
@@ -1150,10 +1276,10 @@ AND Phase 8.7.**
    tt_pv **0.30%** (Rarog's 0.50% re-grade of TT-PV consumers confirmed
    here too); TT hits 31.2%, cutoffs 38,000; LMR applied 126,817 /
    re-searched **1.04%** (Rarog's 1.83% already meant "far too timid" —
-   ours is MORE so; strong prior for the post-NNUE 10.1/10.7 LMR work);
+   ours is MORE so; strong prior for the post-NNUE 11.1/11.7 LMR work);
    **`hist_prunes` = 2 — history pruning is de-facto DEAD** post-hcefinal
    (`HistPruneCoeff` 14004×depth exceeds any reachable combined history;
-   legitimate SPSA output, recorded for 10.7, not "fixed"); razor 28k,
+   legitimate SPSA output, recorded for 11.7, not "fixed"); razor 28k,
    RFP 84k, null 18.5k/38.6k, fut 32.5k, LMP 1.55M; **lazy audit: 21,689
    fires, ZERO sign flips, 1,056 crossings (4.9%), mean |Δ| 77 cp, max
    500** — mirrors Rarog's zero-flip result; lean retire for any
@@ -1162,7 +1288,7 @@ AND Phase 8.7.**
    planned item **before any SPRT was spent** (`tt_pv` veto measured at
    0.50% of nodes → EV +2–8 re-graded to +0–2 and the item folded away) and
    identified LMR as its top live lever (re-search rate 1.83%) — and our
-   Phase-10 acceptance criteria already assume this telemetry exists.
+   Phase-11 acceptance criteria already assume this telemetry exists.
    Disabled-by-default (TUNE/UCI switch), end-of-search `info string diag`
    dump: in-check node share, check-extension count (must read 0 after
    8.6.7), LMR applied / re-search rate, prune attempts+successes by family
@@ -1171,7 +1297,7 @@ AND Phase 8.7.**
    **(b) rider (Rarog 9.6b):** lazy dual-eval audit under the same switch —
    lazy fires, |delta| sum/max, **sign flips**, margin crossings; one WAC
    harvest decides (Rarog's: 228k fires, **zero** sign flips → lean retire).
-   Matters here because Phase-9.2 datagen labels come from this eval.
+   Matters here because Phase-10.2 datagen labels come from this eval.
    Record a baseline dump at the pre-8.6.7 head. Gate: bench-identical with
    diag off.
 7. **8.6.7 — ❌ REJECTED 2026-07-20, REVERTED (user-stopped at no-path-to-H1,
@@ -1192,7 +1318,7 @@ AND Phase 8.7.**
    8.5.8 is CLOSED for the HCE line. Requeued as a lesson-15-fair bundle —
    removal + joint re-SPSA of its consumers (~16 dims: RFP/razor/null/
    futility/SEE margins + full LMR family) judged as ONE gate — at the
-   post-NNUE recalibration (§6 deferred table), where those constants get
+   post-NNUE recalibration (§7 deferred table), where those constants get
    re-fitted anyway.** Original spec: Remove the unconditional in-check `depth++`
    (`search.cpp:1247-1250`) — 8.5.8's spec, pulled forward on cross-engine
    evidence: Rarog 8.2(a) **+30.75 ± 8.83, LOS 100%** (its largest single
@@ -1215,19 +1341,21 @@ AND Phase 8.7.**
    honest expectation **+5…+30** (our extension feeds a smaller tree than
    Rarog's did).
 8. **8.6.8 — ⏭ SKIPPED 2026-07-20 (user decision; content anchored as a
-   MUST-INCLUDE in 10.1 [mechanism] and 10.7 [re-tune] so it cannot be
+   MUST-INCLUDE in 11.1 [mechanism] and 11.7 [re-tune] so it cannot be
    forgotten — see those steps).** Original spec: Rarog's measured #1 remaining lever (its 8.6; SPSA in flight
    2026-07-20, carrying two dims imported from *our* hcefinal vector —
    `lmr_tt_capture` 301, `lmr_not_improving` 89). Eval-agnostic (LMR lives
    in depth/move-index space — Rarog lesson 2 — so it would survive the
    evaluator swap), hence pre-NNUE-legal; but it costs an SPSA + SPRT and
    delays the cutoff, and our plan already reserves LMR modernization for
-   10.1/10.7 targeting the final net. Run **only on explicit user opt-in**
+   11.1/11.7 targeting the final net. Run **only on explicit user opt-in**
    after 8.6.7 resolves; otherwise read Rarog's 8.6 verdict as a free
-   cross-review prior for 10.1/10.7.
-9. **8.6.8A — ▶ ACTIVE 2026-07-21: accept-audit — re-verify the small
-   biased-harness accepts before 1.9.1 ships (added after the placement-
-   lottery incident; user decision).**
+   cross-review prior for 11.1/11.7.
+9. **8.6.8A — ✅ CLOSED 2026-07-23: accept-audit — re-verified the small
+   biased-harness accepts before 1.9.1 shipped (added after the placement-
+   lottery incident; user decision). Outcome: every re-measured accept was
+   REAL, nothing was removed, and the original headline numbers were ~40–55%
+   bias-inflated.**
 
    **Why (the bias model, from the 2026-07-20/21 incident):** every SPRT
    before the affinity fix ran unpinned; each run inherited one persistent
@@ -1268,7 +1396,7 @@ AND Phase 8.7.**
    Bias is symmetric — **rejects** are equally suspect in the other
    direction (a −10 draw can kill a genuine +5): `cuckoo` (rejected twice
    2026-07-17), `postlmrhist` (2026-07-16) and 8.6.7 all carry it. These
-   do NOT block 1.9.1; queued in §6 as opt-in re-trials.
+   do NOT block 1.9.1; queued in §7 as opt-in re-trials.
 
    **Probe design (fixed-N estimate-judged, never open-ended SPRT — an
    equivalence question has truth at/near a bound, where SPRT stalls; the
@@ -1392,19 +1520,19 @@ AND Phase 8.7.**
     **(b) ✅** `HistoryTables` extracted to new `src/history.{h,cpp}` —
     storage + clear/age/blend lifecycle behind one struct, 103 references
     rewired; update POLICY (bonus formulas, what a cutoff trains) stays in
-    search.cpp so Phase-10 edits policy without touching layout. age()
+    search.cpp so Phase-11 edits policy without touching layout. age()
     keeps nested loops deliberately (a flattened pointer sweep over
     multi-dim arrays is formally UB).
     **(c) — SCOPE DECISION:** the full `PlyContext` AoS consolidation
     (folding PV/move buffers per-ply) was NOT done — it is an NPS-risky
     layout change with no present consumer, and the accumulator stack
     attaches at (d)'s seam regardless; `SearchStack` remains the per-ply
-    context and the accumulator slot lands beside it in Phase 9. Revisit
-    only if Phase-9 integration actually wants the AoS shape.
+    context and the accumulator slot lands beside it in Phase 10. Revisit
+    only if Phase-10 integration actually wants the AoS shape.
     **(d) ✅** make/unmake centralized — all search-side sites (6 move + 1
     null pair across negamax/quiescence/evasions/ProbCut) route through
     `Searcher::do_move/undo_move` (+null variants), inline in search.h,
-    with the Phase-9 accumulator push/pop and 8.5.3 dirty-piece attachment
+    with the Phase-10 accumulator push/pop and 8.5.3 dirty-piece attachment
     points marked IN the wrappers. The three make_move calls on separate
     boards (ponder/PV-extraction/TT-child) deliberately stay direct.
     **(e) ✅** persistent `RootMoveStat` records — last/previous score,
@@ -1420,7 +1548,7 @@ AND Phase 8.7.**
     Forward-enabler check stands: with (d)+(e) landed, no known future
     improvement requires re-plumbing before its own phase.
 
-### Phase 8.7 — Profile-guided speed pass (added 2026-07-22) → ⭐ Release 1.9.1
+### Phase 8.7 — Profile-guided speed pass (CLOSED; shipped in 1.9.1)
 
 **Added 2026-07-22 (user decision): a dedicated speed wave before 1.9.1,
 imported from Rarog's 10.3 result.** Naming: "Phase 8.7" always carries the
@@ -1447,7 +1575,7 @@ three-audit code review 2026-07-22 (search/movegen hot paths; eval/TT/
 caches; build/PGO/tooling), so the honest target is smaller:**
 
 - **No refactor debt to claw back.** Rarog's first +3.2% was recovering
-  its own Phase-9 clean-code regression; our entire 8.6 wave measured
+  its own Phase-10 clean-code regression; our entire 8.6 wave measured
   **−0.5% NPS total** (best-of-7, node-identical — the refactor-
   equivalence gate, 2026-07-21).
 - **Already in Rarog's "fixed" shape (verified — do NOT re-do):** move
@@ -1518,15 +1646,15 @@ accumulators (Rarog 8.12(a) built BOTH shapes, bench-identical, **rejected
 structurally *worse* for it: the from-scratch walk in evaluate()
 (eval.cpp:588-609) is the cheapest part of a ~950-line eval, evaluate()
 itself is gated behind the TT `static_eval` cache (search.cpp:1264-1267)
-and skipped in check, and the do_move seam is reserved for the Phase-9
+and skipped in check, and the do_move seam is reserved for the Phase-10
 NNUE accumulator — where this same design *becomes* correct);
 **qsearch make_move check-hint** (Rarog measured −0.79%: qnodes make too
 few moves to amortize a per-node mask build); **insufficient-material
 per-node early exit** (Rarog sized the whole prize ≤ +0.23% with a probe
 binary); **`pick_next` rewrite / ordering CheckInfo** (already in final
 shape, see above); **`LAZY_MARGIN` sweep / lazy retire** (changes served
-evals = strength item → 10.7, not speed; the 8.6.6b audit already reads
-zero sign flips); **TT multiply-hi full-budget indexing** (stays §6:
+evals = strength item → 11.7, not speed; the 8.6.6b audit already reads
+zero sign flips); **TT multiply-hi full-budget indexing** (stays §7:
 changes the bench fingerprint and pays only at non-pow2 `Hash`, which our
 harness never uses); **BOLT / `-fno-rtti` / x86-64-v2 tier** (menu-grade;
 revisit only if 8.7.2's profile shows front-end stalls).
@@ -1647,7 +1775,7 @@ revisit only if 8.7.2's profile shows front-end stalls).
      currently only a "micro-sweep" (8.7.6). PROMOTE it.**
    - `movegen` 5.8% (8.7.4 pin sharing) is on par with make — keep.
    - 8.7.8 pawn-cache already dead from the 8.7.1 counters (89% hit).
-   - **eval 24.3% dominates everything, but Phase 9 replaces the evaluator
+   - **eval 24.3% dominates everything, but Phase 10 replaces the evaluator
      wholesale — HCE eval work is 1.9.1-only value. USER DECISION PENDING.**
      Note the asymmetry: `make_move` work *compounds* after NNUE (the
      accumulator attaches to that same `do_move` seam), so it is the most
@@ -1739,9 +1867,9 @@ revisit only if 8.7.2's profile shows front-end stalls).
    warning. **Per the pre-registered "negative → close permanently": DONE.**
    Not reopenable without a fundamentally different mechanism (e.g. a hint
    that is a genuine by-product of work already done, not an added compute).
-   **Bonus find, KEPT (see §6 LMR-post-move-gives_check bug): the equivalence
+   **Bonus find, KEPT (see §7 LMR-post-move-gives_check bug): the equivalence
    work exposed that the LMR gate consumes a post-move `gives_check`.**
-   Original spec below (kept for the §6 bug context and any future retry):
+   Original spec below (kept for the §7 bug context and any future retry):
    - Build ONE `CheckInfo` per node in negamax: `check_squares` per piece
      type (primitive exists — board.cpp:1344-1354, already used by
      ordering) + discovered-check blockers.
@@ -1982,7 +2110,7 @@ revisit only if 8.7.2's profile shows front-end stalls).
    item) — all satisfied. Model-side prep complete: version 1.9.1 in
    `constants.h` + `CMakeLists.txt` (verified), CHANGELOG `[1.9.1]` rewritten
    (Phase-8.7 speed summary +4.34% NPS ≈ +8.69±6.63 Elo, 8.6.8A audit note,
-   "why still a patch"), README baked-magics note, `user_dev_guide.md`
+   "why still a patch"), README baked-magics note, `GUIDE.md`
    restructured to future-focus, PGO ISA matrix via the 8.6.5-hardened
    `release.yml`, release notes drafted. Cumulative `development`-vs-1.9.0
    evidence is the Phase-8.7 batch SPRT (+8.69±6.63).
@@ -1999,10 +2127,15 @@ revisit only if 8.7.2's profile shows front-end stalls).
    tag does NOT fire `release.yml`, which triggers on `release: published`).
    **1.9.1 then replaces
    1.9.0 everywhere as the frozen HCE baseline: 8.5.15 baselines it,
-   Phase 9's HCE comparison is against it, and the `nnue` rebase targets
+   Phase 10's HCE comparison is against it, and the `nnue` rebase targets
    the post-1.9.1 `development` SHA.** Prep already done 2026-07-20/21
    (version bump, CHANGELOG draft, doc rename, refactor-equivalence gate
    ✅) carries over.
+   ⚠ **Amended 2026-08-01:** Phase 9 (§5) ran on `development` before the NNUE
+   runway and now ships as **1.9.2** by explicit user decision. Its release
+   gates passed on 2026-08-01, so 1.9.2 is the frozen HCE baseline and the
+   handoff SHA is post-1.9.2. Until publication, 1.9.1 remains the last public
+   release.
 
 **Execution order across the NNUE boundary (explicit):**
 
@@ -2018,22 +2151,969 @@ revisit only if 8.7.2's profile shows front-end stalls).
    continue. **Still manual (user):** tag `v1.9.0` + push `master`; optional
    cumulative `instabtm`-vs-1.8.0 confirmation gauntlet (STC + `10+0.1`) for
    the shipped number.
-3. **Phase 8.6 (ACTIVE, added 2026-07-20) → Phase 8.7 (added 2026-07-22)
-   → ⭐ 1.9.1 RELEASE.** The hardening/CI/telemetry wave + the 8.6.8A
-   accept-audit, then the profile-guided speed pass (Phase 8.7 — the
-   release step 8.6.9 now lives at its end); 1.9.1 becomes the final HCE
-   release and frozen NNUE baseline.
-4. **Post-1.9.1 NNUE runway (`development` → `nnue`) — pure NNUE data
+3. **Phase 8.6 (added 2026-07-20) → Phase 8.7 (added 2026-07-22)
+   → ⭐ 1.9.1 RELEASE — ✅ DONE.** The hardening/CI/telemetry wave + the
+   8.6.8A accept-audit, then the profile-guided speed pass (Phase 8.7 — the
+   release step 8.6.9 lives at its end); 1.9.1 is the last shipped HCE
+   release.
+4. **✅ Phase 9 (§5, CLOSED 2026-08-01) — harness, SMP
+   and pre-NNUE durability, on `development`.** Inserted here, *ahead of* the NNUE runway,
+   because 9.1/9.2 are measurement prerequisites for everything after them
+   and because 1T+4T deployment (gate 10) turns the audited SMP defects into
+   strength defects. The original 1.10.0 trigger was met by 9.4's MT result,
+   but the user selected **⭐ 1.9.2** on 2026-08-01 because the final accepted
+   production scope is focused. The 1T/4T boundary gates passed; only manual
+   publication remains.
+5. **Post-Phase-9 NNUE runway (`development` → `nnue`) — pure NNUE data
    prep only (structure era moved pre-release → 8.6.10):** 8.5.3
    dirty-piece (attaches to 8.6.10's centralized do_move/undo_move +
    `PlyContext`), 8.5.14 TT graph-history (down-scoped), 8.5.15 teacher
-   benchmark (baselines 1.9.1), 8.5.16 trainer preflight; record the exact
-   handoff SHA and **rebase `nnue` onto it once**.
-5. **Phase 9 → 10 → 11 → 12** (all post-NNUE), below.
+   benchmark (baselines the released **1.9.2** HCE head), 8.5.16 trainer
+   preflight; record the exact handoff SHA and
+   **rebase `nnue` onto it once**.
+6. **Phase 10 → 11 → 12 → 13** (all post-NNUE), below.
 
 ---
 
-## 5. Phase 9 — NNUE baseline and 2.0.0 (`nnue` after the one Phase-8.5 rebase)
+## 5. Phase 9 — harness, SMP and pre-NNUE durability (CLOSED)
+
+**Added 2026-07-28.** Two sources, kept separate on purpose so a claim can be
+traced to its evidence:
+
+- **(R) the Rarog Phase-8→10 cross-review** (read at `b5d88f2^`, i.e. before
+  that repo condensed its completed phases). Rarog ran the SMP, harness and
+  SPSA work we have not, and both its wins *and* its nulls are free evidence.
+- **(A) an in-session audit of our own threading, time-management, harness and
+  move-scoring code**, 2026-07-28. Every finding below carries the file and
+  line it was read at, and none of them is a transcription of a Rarog item.
+
+**Why this phase runs NOW, before the NNUE runway.** Three independent reasons,
+in descending order of force:
+
+1. **9.1 and 9.2 are measurement prerequisites.** Our SPSA schedule is
+   dimensionally wrong (§9.1), so *every* tune we run from here — including
+   the one big post-NNUE tune at 11.7 — under-anneals by construction. Our
+   SPRT harness hardcodes `Threads=1` (§9.2), so we cannot gate a
+   multi-thread change at all. Fixing measurement after spending machine time
+   on it is the one ordering that is always wrong.
+2. **Gate 10 (1T+4T deployment) reclassifies the SMP findings.** The audit
+   found a latent 4T time-forfeit exposure, helpers that stop searching while
+   the main thread is still extending, and an unbounded `Threads` cap. Under
+   1T-only deployment those were curiosities; under 4T they are strength and
+   robustness defects in a shipped configuration.
+3. **It is all NNUE-durable.** Nothing here touches the evaluator. Harness,
+   thread coordination, clock safety and node-invariant hoists survive the
+   eval swap untouched, so doing them now costs the NNUE line nothing and
+   makes every measurement it depends on trustworthy.
+
+**Standing constraints for the whole phase**
+
+- 1T behaviour is **bench-identical** unless a step says otherwise; every
+  MT-only mechanism is gated on `shared_state`/`thread_count > 1` so the 1T
+  fingerprint (11,941,440) cannot drift silently.
+- ⚠ **Bench-identity is not NPS-identity** (Rarog measured a 3.2% NPS loss
+  across a program of individually "bench-identical, NPS-neutral" refactors).
+  Any step touching a hot path carries a pooled-PGO `nps_ab.ps1` reading, and
+  9.11 runs ONE end-to-end 1T NPS check against the phase-start head.
+- MT gates run at **Threads=4, Hash 256, ~10k games minimum** (gate 10), after
+  a Threads=4 null calibration. 1T gates keep `Hash 64`.
+- ⛔ **Engine-side thread/core pinning is out of scope, permanently** (matches
+  Rarog's standing user decision). Harness-side affinity for SPRT/SPSA is a
+  separate, legitimate thing and is unaffected.
+
+**Execution order (dependencies, not value):**
+`9.1 ∥ 9.2` (no games, either order, both block what follows) → `9.3`
+(enabler: safety + counters + telemetry) → `9.4` (clock safety before any
+mechanism that spends more time) → **`9.5` (the value item)** → `9.6 ∥ 9.7`
+(interleave with 9.5's gate wait) → `9.8` → `9.9` → `9.10` (needs 9.5c) →
+`9.11` (OPTIONAL Texel re-fit) → `9.12` close-out + release decision.
+9.6 has no dependency on the SMP chain at all and can be pulled forward into
+any gate wait — it is the only step that pays at both 1T and 4T with no games.
+9.11's *datagen* is likewise free-floating (nothing in this phase changes 1T
+fixed-node search), so if it is run at all, generate the corpus during an
+earlier gate wait rather than idling the box in this slot.
+
+**Not duplicated here — these stay where they are, deliberately:**
+
+| Item | Lives at | Why not in Phase 9 |
+|---|---|---|
+| `cutoffCnt` reduction input | 11.1 mechanism / 11.7 re-tune | needs the unified `r`; its prior is now **negative** (R: −7.78) — see the correction recorded at 11.1 |
+| LMR post-move-`gives_check` fix | 11.1 (by construction) / 11.7 (re-tune) | standalone fix already measured −21 here; it is a de-tuning victim, so it only makes sense inside the LMR re-tune |
+| History-coverage residue (scoped capture malus, countermove aging) | 11.7 SPSA | a dedicated SPSA now would violate gate 11's "re-tuning a fitted group is low-EV"; R fitted the same items as *scaled* knobs inside one joint tune (+6.01) — that is the shape 11.7 should use |
+| Correction-history update semantics | 8.5.5 | still canary-blocked pre-NNUE; **EV downgraded 2026-07-28** by R's decomposition: the tactical guard is worth **−56** and everything else in that family ≈ +1.4 combined. Do not revive the guard |
+| Fail-soft qsearch prune exits | closed (8.1f) | measured here already: the fail-hard `alpha` echo is load-bearing for mate-distance bounds (KQK mate-in-5 → "mate 63"). R independently rejected its own version at −5.96 |
+| do-deeper re-search | closed | rejected here (§7 deferred) and at R (−7.29) |
+| TT multiply-hi full-budget indexing | §7 deferred / 12.x | large-hash/LTC item, belongs with the 12.x memory work |
+
+---
+
+1. **9.1 SPSA harness repair + doctrine — no games; blocks every future tune.**
+   **(R + A.)** Rarog found the bug in its own tuner and explicitly relayed it;
+   the audit confirmed our copy is affected **verbatim**, not merely similarly.
+   - **The defect, verified here:** `tools/weather-factory/spsa.py:68` advances
+     `self.t += self.cutechess.games` — `t` counts **games** (32 per iteration)
+     — while `tools/spsa.ps1:193-194` writes `A = Iterations / 10` in
+     **iterations** and `a: 1.0`. Both schedule terms read `t`
+     (`a_t = a/(t+A)^alpha`, `c_t = c/t^gamma`), so `A` is effectively 1/32 of
+     its intended value: the "damp the first 10% of the run" term damps
+     essentially nothing, and the gain decays ~8× faster than the design
+     implies. **Every Basilisk SPSA ever run, `hcefinal` included, annealed far
+     too fast.** Accepted bakes each won a real SPRT and stand; what was lost is
+     unrealized upside, and nothing is re-fitted retroactively without a gate.
+   - **(a) Schedule fix:** convert `t` to iteration units inside
+     `spsa.py::step` (`it = t / games`), keeping `t` and `tuner/state.json` in
+     games so existing states resume correctly, and keeping `A = Iterations/10`
+     in `spsa.ps1` — which is then dimensionally right.
+   - **(b) ⚠ Do NOT ship (a) alone — R shipped it and retracted the same day.**
+     For `k ≫ A/32` the old games-fed decay was the correct *shape* times a
+     constant (`(32k)^-0.601 = 0.126·k^-0.601`), so `a=1.0` under the broken
+     schedule behaved like `a ≈ 0.126` under the fixed one. Restoring the shape
+     without the magnitude multiplies every step by ~8; R's
+     trajectory-validated simulation read RMSE **0.78 fixed-with-a=1.0 vs 0.53
+     broken vs 0.32 at a≈0.1**. So adopt fishtest's **end-state
+     parameterization** instead of hand-picking `a`: take `c_end` and `r_end`
+     per parameter and back-solve
+     `c = c_end·N^gamma`, `a_end = r_end·c_end²`, `a = a_end·(A+N)^alpha`,
+     `A = 0.1·N`. Because both constants derive from the planned horizon `N`,
+     changing the horizon can no longer silently change end behaviour, and `a`
+     can never be left stale. Default `-REnd 0.0031` (fishtest's own default is
+     ~0.002; our current `a=1.0` corresponds to r_end ≈ 0.031, ~15× hotter than
+     fishtest has ever defaulted to).
+   - **(c) Multi-session hardening — all three hazards confirmed present.**
+     `main.py:73` is `while True:` (the target iteration count lives only in
+     the operator's head); `main.py:50-55` restores `spsa_params` from
+     `state.json`, so **`A` is frozen at first launch** and re-passing
+     `-Iterations` on a resume is silently ignored; and the run log truncates
+     rather than appends on resume (R lost 1,086 of 3,670 iterations that way,
+     and the trajectory is precisely what the tail-mean bake reads). Fix all
+     three: env-var iteration target with self-stop, append-on-resume, and an
+     iteration/percent/ETA line printed on every launch **plus a loud warning
+     that `A` is fixed by the first launch**.
+   - **(d) Doctrine → gate 11 (§1).** 5,000-iteration floor, tail-mean bake of
+     the whole vector, merged groups, no pinned discrete knobs,
+     1,500-iteration kill-checkpoint.
+   - **Verification (no games):** reproduce the `a_t` table old-vs-new at
+     iterations 1/100/600/3673 and check the invariance of `r_end` across
+     `N = 1,000 / 2,500 / 5,000 / 10,000`; confirm an existing `state.json`
+     still resumes. **Nothing is re-tuned in this step** — it is the
+     instrument, not a candidate.
+
+   > **✅ 9.1 DONE 2026-07-29.** All four parts landed, no engine code touched
+   > (`bench` and CTest cannot move). Verification:
+   > `python tools/verify_spsa_schedule.py` — 30 checks, all pass, and it is
+   > the pre-registered evidence above plus two additions.
+   >
+   > **The overlay, and why the shape changed.** `tools/weather-factory/` is a
+   > **gitignored clone**: an edit to `spsa.py` there is untracked, invisible to
+   > review, and destroyed by the next re-clone. Only `cutechess.py`'s one-line
+   > affinity insert was ever patched in place, and that survives because
+   > `setup_tools.ps1` re-applies it. 9.1 rewrites far too much for an anchored
+   > insert, so the changed files are kept whole in **`tools/weather-factory-overlay/`**
+   > (tracked) and copied over the clone: `Install-WfOverlay` in
+   > `harness_common.ps1` installs + `py_compile`s them, and **`Assert-WfOverlay`
+   > hash-compares them at BOTH spsa.ps1 setup and launch** — a stale clone
+   > silently reinstates the bug and nothing in the run output would say so.
+   > Re-run `tools/setup_tools.ps1` after pulling.
+   >
+   > **(a)+(b) as implemented.** `SpsaParams.schedule()` is now the single
+   > definition of `a_t`/`c_t` and converts games→iterations
+   > (`it = t / games`); `t` and `state.json` stay in games, so old states
+   > resume. The back-solve is `SpsaParams.from_end_state()`, and in
+   > weather-factory's factorization (one global `a`/`c`, per-parameter
+   > `param.step`) fishtest's per-parameter form collapses to
+   > **`c = N^gamma`, `a = r_end·(A+N)^alpha`, `A = 0.1·N`** — `param.step`
+   > *is* `c_end`, and it cancels out of the gain. Equality with fishtest's
+   > update magnitude is exact at every iteration, not just at `N`; the probe
+   > equals one `param.step` at `k = N` by construction. `spsa.ps1` no longer
+   > writes `spsa.json` itself (it calls the overlay's `write_spsa_json.py`), so
+   > the formula exists once. Measured: the historical schedule's `a_t` was
+   > **1.05× → 7.60× too small** across iterations 1 → 3673 (the "~8× faster
+   > decay"), `A`'s share of the denominator at iteration 1 goes 0.920 → 0.997,
+   > and `c_t` was uniformly `32^gamma = 1.424×` too small. Shipping (a) alone
+   > would have inflated the step **6.09×** at iteration 600 — the retraction R
+   > made. PLAN's "`a=1.0` ≈ r_end 0.031" is confirmed **at N = 1,000**
+   > (0.03007); the old form's implied `r_end` drifts **3.16×** across
+   > N = 1k…10k, which is the staleness the parameterization removes.
+   >
+   > **(c) as implemented.** Self-stop at the horizon; the horizon is **recorded
+   > in the schedule (`N`) and wins over the environment**, because a run
+   > continued past `N` is annealing against a schedule that no longer describes
+   > it — a disagreement prints rather than resolving silently. Resumes print
+   > the frozen `a`/`c`/`A`/`N` and state that `-Iterations`/`-REnd` are ignored;
+   > `spsa.ps1` repeats the warning before the tuner starts. `watch.ps1` gained
+   > `-Append` (SPSA always passes it; SPRT keeps truncate) and a session-start
+   > marker, and a fresh setup rotates the old log into `tuner/archive_*`
+   > instead of overwriting it. Progress lines carry
+   > iteration/target/percent/ETA. **Addition:** the parameter vector is
+   > appended to **`tuner/trajectory.csv`** every iteration — the tail-mean bake
+   > (gate 11) reads a trajectory, and having its only copy in a console log is
+   > what made truncate-on-resume destructive in the first place.
+   >
+   > **(d)** is in §1 gate 11 already; `spsa.ps1` now **enforces** the floor —
+   > `-Iterations` below 5,000 throws unless `-AllowShortRun` is passed.
+   >
+   > **Two findings worth keeping.** (1) PowerShell cannot read `state.json` at
+   > all — `ConvertFrom-Json` rejects it because `a` and `A` collide under
+   > case-insensitive keys (the same reason `spsa.json` was hand-written), so
+   > the shell reads it through the overlay's `describe_state.py`, which emits
+   > deliberately unambiguous key names (`gain_a`/`damp_A`). The first draft hit
+   > exactly this collision and printed `a=500.0`; the verifier now pins it.
+   > (2) `spsa.py`'s `cutechess` import is deferred under `TYPE_CHECKING` so the
+   > schedule maths can be imported and verified without weather-factory's
+   > runtime.
+   >
+   > **Not re-tuned, not re-fitted.** Every accepted bake stands on its SPRT.
+   > What the repair buys is future tunes; the first user of it is 11.7.
+
+2. **9.2 SPRT harness: multi-thread gating — no games; blocks every 4T gate.**
+   **(A**, with R's incident as the cautionary evidence.**)**
+   - **The defect:** `tools/sprt.ps1:359-360` hardcodes `option.Threads=1` on
+     both engines and `:390` always passes `-use-affinity $AffinityCpus`.
+     There is no way to run a multi-thread gate, and — critically — **removing
+     only the hardcode would silently produce garbage**: fastchess 1.8.0 binds
+     each *game* to ONE core regardless of the engine's `Threads`, so a
+     `Threads=4 concurrency=3` run pins 3 cores for 12 engine threads. R hit
+     exactly this and measured **−100 ± 27 purely from starvation** on a
+     variant that inspects clean; that run was void.
+   - **Changes:** add `-Threads` (plus `-ThreadsA`/`-ThreadsB` for asymmetric
+     scaling runs); make the concurrency arithmetic threads-aware —
+     `concurrency = floor((physical − 2) / max(ThreadsA, ThreadsB))`, throwing
+     on oversubscription (16 physical: T1→14, T2→7, T4→3, T8→1); **drop
+     `-use-affinity` entirely when threads > 1** and keep it at Threads=1 where
+     one-core-per-game is correct and the pin removes the Zen-3 placement bias
+     (lesson 10); default `Hash` to `64 × Threads` (gate 10) and print threads,
+     hash and the affinity decision in the run header and manifest.
+   - **Also:** teach `-Mode calibrate` to run at the requested thread count,
+     and record in the script's help that a 4T verdict needs ~10k games and a
+     preceding 4T null.
+   - **Acceptance:** a Threads=4 null calibration on byte-identical binaries
+     whose 95% nElo CI fits the tolerance, with **zero time forfeits** — that
+     null is also 9.4's canary, so run it once and use it twice.
+
+   > **✅ 9.2 IMPLEMENTED 2026-07-29; acceptance run is PENDING (it costs an
+   > overnight).** No engine code touched. All of it lives in `tools/sprt.ps1`
+   > plus two `harness_common.ps1` helpers.
+   > - **`-Threads`** (both sides) plus **`-ThreadsA`/`-ThreadsB`** for an
+   >   asymmetric scaling run. `option.Threads=1` is gone from both engine
+   >   argument arrays.
+   > - **Concurrency is threads-aware** via `Resolve-HarnessConcurrency
+   >   -ThreadsPerGame`: `floor((physical − 2) / threads)`, verified on this box
+   >   as **T1→14, T2→7, T4→3, T8→1** — exactly the table in this step. An
+   >   explicit `-Concurrency` that would oversubscribe now throws with the
+   >   arithmetic shown. At `ThreadsPerGame=1` the helper is byte-identical to
+   >   its pre-9.2 behaviour, so `gauntlet.ps1`/`spsa.ps1` are unaffected.
+   > - **`-use-affinity` is dropped whenever threads > 1** and kept at 1T. The
+   >   header and manifest print *which* decision was taken and why, and the MT
+   >   path prints a standing warning that an unpinned thread count needs its
+   >   own null before any verdict there is trusted.
+   > - **Hash defaults to 64 × that side's threads** (64 at 1T, 256 at 4T).
+   >   Per-side rather than global so an asymmetric run configures both sides as
+   >   deployed; `-Hash` forces them equal, `-HashA`/`-HashB` are explicit.
+   > - **Time forfeits are counted and reported on every run**, and called out
+   >   as run-invalidating at MT (9.4's canary, ready before 9.4 needs it). The
+   >   pattern deliberately excludes fastchess's own `Timeouts: 0` summary line.
+   > - **Two guards were widened, because threads are part of "same thing":**
+   >   `-Mode calibrate` now also requires equal threads and hash (a null
+   >   calibrates ONE thread count), and the degenerate-null throw no longer
+   >   fires when the sides differ only by thread count — which is precisely
+   >   the 9.12 scaling diagnostic. That diagnostic also gets its own reporting:
+   >   the "A is the removal side" framing is replaced by a scaling reading, and
+   >   the 8.6.8A −3 Elo classifier is suppressed as not applicable.
+   > - **Robustness found while smoke-testing:** fastchess emits `inf`/`nan` for
+   >   the estimate and/or error at tiny/degenerate samples (`nElo: inf +/- nan`
+   >   on a clean sweep), which the old regexes could not match — the operator
+   >   got "could not parse" instead of "your sample is too small". Both report
+   >   paths now match those tokens and name the condition
+   >   (`Test-HarnessFiniteNumber`); a zero-width interval is called out too.
+   > - **Smoke-tested end to end** on real 4-game matches: fastchess confirmed
+   >   `4t, 256MB` symmetric, `4t - 1t, 256MB - 64MB` asymmetric, and `1t, 64MB`
+   >   pinned to 14 CPUs for the unchanged 1T path.
+   >
+   > **✅ ACCEPTANCE 2026-07-30 — accepted by the user on a SHORT null, with the
+   > pre-registered ±5 bound NOT established.** Recorded plainly because it is a
+   > deliberate amendment, not a pass:
+   > - Run: 600 games, Threads=4, Hash 256, concurrency 3, 31 min.
+   >   **Elo +4.63 ± 18.24, nElo +7.07 ± 27.80**, Ptnml [12,75,120,79,14].
+   > - **Time forfeits: 0.** This is the reading that mattered most and it is
+   >   clean — it is also 9.4's before-measurement, so 9.4 does not re-buy it.
+   > - Mechanics confirmed under load: `4t, 256MB` reached both engines,
+   >   concurrency 3 = 12 of 16 cores, no starvation, CPU ~35% as predicted for
+   >   3 games × 4 threads on 32 logical.
+   > - The script FAILED it: the CI is ±27.80 and the tolerance was ±25. That is
+   >   a sizing error of mine, not a harness finding — I scaled from a past
+   >   **Elo** CI and applied it to an **nElo** tolerance, and nElo runs ~1.5×
+   >   wider here (27.80/18.24 = 1.52).
+   > - **Measured throughput: 1,155 games/h at 4T**, so ±5 nElo needs ~18,000
+   >   games (~16 h) and 10,000 games would only reach ±6.8. ⚠ `-Games 10000`
+   >   with the DEFAULT tolerance 5 would therefore fail again after 9 hours.
+   > - **User decision (2026-07-30): keep this null and proceed**, on the
+   >   grounds that Rarog independently validated the same 4T configuration.
+   >   **Consequence to carry:** we have bounded 4T harness bias at roughly
+   >   ±28 nElo, not ±5. That does **not** exclude the ~±10 Elo per-run
+   >   placement class of lesson 10, so a 4T result inside ±10 Elo is not
+   >   separable from harness bias on this evidence alone. Where that matters —
+   >   9.5's `[0,3]` in particular, whose honest prior is +5…+25 — either run
+   >   the long null first or treat a sub-+10 reading as unresolved.
+
+2b. **9.3 Thread-count safety, node-counter batching and MT telemetry.**
+
+   > **✅ 9.3 DONE 2026-07-30** (`aba3941` + `0239014`). No games. Hard gates:
+   > **bench 11,941,440 — identical**, **CTest 12/12**.
+   > - **(a)** The cap is now defined **once**: the two sites computed
+   >   `max(1024, 4*hw)` independently and could drift, so
+   >   `Parameters::max_threads()` forwards to the definition in `search.cpp`.
+   >   A test pins the invariant that survives any policy change — the `uci`
+   >   string must quote the same number the pool actually honours.
+   >   **⚠ VALUE AMENDED 2026-07-30 (user decision): flat `1024`, matching
+   >   Stockfish's `Option(1, 1, 1024)`.** Picking a sane thread count is the
+   >   operator's job, and `hardware_concurrency()` under-reports in exactly
+   >   the containerised environments where a machine-derived cap would bite.
+   >   The first implementation used `min(1024, 4×hw)` (128 on this box).
+   >   **Honest correction to this step's framing:** with a flat 1024 the old
+   >   `max(1024, 4*hw)` was *already* 1024 on any machine under 256 logical
+   >   CPUs, so the "we advertise 1024 and accept it, ~2 GB of history tables"
+   >   line overstated it — that is Stockfish's behaviour too, and the real
+   >   backstop is the graceful "Threads reduced to N" path on creation
+   >   failure, not the cap. What 9.3(a) genuinely repaired is the duplicated,
+   >   incoherent formula (and its >1024 result on ≥256-logical machines).
+   > - **(b)** Batched at 1024 nodes/thread; `shared_nodes`/`shared_tbhits` are
+   >   `alignas(64)`. 1T never sets `shared_nodes`, hence the identical bench.
+   >   ⚠ Self-review caught a regression pre-build: checking the limit only at
+   >   batch boundaries would miss any `go nodes N` below one batch (~10×
+   >   overshoot at 4T). The limit is now checked every node against local
+   >   arithmetic — the *atomic* is what got batched, not the check.
+   > - **(c)** Pool aggregation lands; see the archived baseline below.
+   > - **NPS, stated honestly (`analysis/mt_baseline_9.3.md`):** neutral at both
+   >   deployed conditions — 1T identical by construction, 4T 13.55 → 13.63
+   >   M nps inside a ±10% spread, 8T flat — and **+12.8% at 16 threads**
+   >   (37.04 → 41.79, no overlap across 3 reps). Mechanism-consistent: one
+   >   shared cache line, contention scaling with thread count. Justified as
+   >   removing a **Phase-12 scaling ceiling**, NOT as a 1T/4T speed win, and
+   >   it is an indicative reading rather than the pooled-PGO `nps_ab` protocol
+   >   a strength claim would need.
+   > - **Instrument defect found and fixed:** `bench` could not measure MT NPS
+   >   at all. `run_bench()` has always taken and documented a thread count, but
+   >   `Engine::run_bench_command` parsed only depth/repeats and passed a
+   >   hardcoded `1`, so `bench [depth] [repeats] [threads]` was unreachable.
+   >   Now parsed; default still 1, fingerprint untouched. `README.md`'s claim
+   >   that bench honours the `Threads` option was **wrong** (it predates this
+   >   phase and was repeated in the 2026-07-29 rewrite) and is corrected.
+   > - **MT baseline archived:** `analysis/mt_baseline_9.3.md` — Threads=4 diag
+   >   run showing main at 25.6% of pool nodes, main TT hit 39.60% vs pool
+   >   40.68% (the number Rarog's throttling experiment moved; our unthrottled
+   >   writes keep main level with the pool), **same-key store share 33.90%**
+   >   (the new counter, and the quantity 9.5 moves), per-thread depths
+   >   16/15/15/16.
+
+3. **9.3 Thread-count safety, node-counter batching and MT telemetry — no
+   games; 1T bench-identical.** **(A.)** Pure enabler: 9.5 cannot be measured
+   without (c), and (a)/(b) are defects found while reading the pool.
+   - **(a) 🐛 The `Threads` cap is inverted.** `Parameters::max_threads()`
+     (`parameters.cpp:190-195`) and `SearchThreadPool::normalize_thread_count()`
+     (`search.cpp:2115-2120`) both compute `std::max(1024u, 4u * hw)` where
+     `min` was clearly intended, so the UCI option advertises `max 1024` on
+     every machine and `setoption name Threads value 1024` is accepted. Each
+     `Searcher` owns ~2 MB of history tables (three `cont` tables at 512 KB
+     each), so that is a ~2 GB allocation plus a 1024-thread creation storm on
+     a 16-core box. Fix to a real cap, add a test that the advertised maximum
+     tracks `hardware_concurrency`, and keep the existing graceful
+     "Threads reduced to N" path for creation failure.
+   - **(b) Batch the shared node counter.** `Searcher::record_node()`
+     (`search.cpp:328-340`) does an atomic `fetch_add` on one shared cache line
+     **at every node from every thread**, and `shared_nodes`/`shared_tbhits`
+     are adjacent stack atomics (`search.cpp:2266-2267`) so they share a line.
+     Accumulate thread-locally and flush every 1024 nodes (R batches at 128 and
+     measured contention negligible *because* of the batching); pad the two
+     counters apart. Node-limit semantics become granular to the batch — that
+     is acceptable and matches every engine that does this. 1T path unchanged
+     (it never touches `shared_nodes`), so bench is identical; measure 4T NPS
+     before/after and record it.
+   - **(c) MT-aware diagnostics.** `print_diag()` (`search.cpp:869`) is guarded
+     by `info_cb_`, which only thread 0 has, so **at Threads>1 every diag
+     counter we print describes the main thread alone** — sound, but blind to
+     the pool. Add a pool aggregation pass (sum the helpers' `DiagCounters`
+     after the join) plus three counters that 9.5 needs to be interpretable:
+     main-thread TT probe/hit split, TT store same-key share, and per-thread
+     completed depth. ⚠ Read them with R's corrections: divide aspiration
+     re-search counts by thread count before comparing across T, and **do not
+     use depth-at-fixed-time as a verdict** — its rep-to-rep spread is ±2
+     iterations, the same size as the effect.
+   - **Gate:** bench identical at 1T, CTest green, 4T NPS recorded, one
+     Threads=4 diag run archived as the phase's MT baseline.
+
+4. **9.4 SMP clock safety: helpers run to the stop + SMP-aware reserve —
+   `[-3,0]` at 4T with a forfeit canary; 1T byte-identical.** **(A**, with R's
+   measured fix as the prior.**)** Two defects, one gate, because both change
+   only how long helpers search and share a single canary.
+   - **(a) 🐛 Helpers stop searching while main is still extending.** Every
+     thread runs the full time-management block (`search.cpp:2017-2036`) with
+     its own `best_stability` / instability / score-drop scales, so a helper
+     breaks its own iterative-deepening loop and then idles until the main
+     thread finishes — exactly when main has *extended* on an unstable root and
+     most needs the pool. Helpers must not own a clock: skip the soft-limit
+     break for `thread_id > 0` and let `stop_` end them.
+   - **(b) 🐛 Helpers inherit the depth limit.** `limits_for_thread()`
+     (`search.cpp:2195-2208`) copies `limits` wholesale, so under `go depth N`
+     every helper stops at `N` and idles instead of continuing to widen the
+     shared TT. Clear `depth` for helpers; the main thread keeps the depth
+     contract, so the reported result is unchanged. (R shipped exactly this as
+     its "zero-risk" SMP fix.) Clock games are unaffected; bench is 1T so it
+     cannot move.
+   - **(c) SMP-aware time reserve.** We poll the clock every 2048 nodes
+     (`search.cpp:1037`, `:1240`) and reserve a flat `2 × overhead`
+     (`search.cpp:311`). That is the *identical* configuration in which R
+     measured **10 time forfeits in 240 games at Threads=4**: under scheduler
+     contention the 2048-node poll stretches from ≤1 ms to 50–100 ms and
+     overruns the hard cap by up to 46 ms whenever the clock is low. Their fix
+     — `min_reserve = 2·overhead + 30 ms` when `Threads > 1`, leaving Threads=1
+     TM byte-identical — took it to 0/103. `timeBeginPeriod(1)` was measured
+     **not** to be the fix. Adopt the same shape and verify the arithmetic
+     against our own TM, not by transcription.
+   - **Gate:** the 9.2 Threads=4 null doubles as the before-measurement; run
+     `[-3,0]` at 4T on the bundle with **time forfeits as the hard canary**
+     (any nonzero count fails the step regardless of Elo). 1T: byte-identical
+     binary, no games. ⚠ (a) makes helpers search *longer*, which is a real
+     behaviour change at MT — if the gate goes negative, decompose (a) first,
+     since (b) and (c) have correctness arguments and (a) does not.
+
+   > **🎉 9.4 ACCEPTED 2026-07-30 — `[-3,0]` @4T returned +30.42 ± 8.77 Elo
+   > (nElo +47.97 ± 13.76), LOS 100%, LLR 2.95 → H1 @ 2,450 games, 2h08.
+   > TIME FORFEITS: 0 — the hard canary is clean.** Ptnml
+   > [33,230,525,364,73]. Gated as a *correctness* step expected to be neutral;
+   > it is instead the first real MT strength in the phase.
+   > - **The 95% CI [21.65, 39.19] Elo is ~3× the ±10 Elo placement class**, so
+   >   the short-null caveat (bias bounded only at ~±28 nElo) does not threaten
+   >   this reading. It would threaten a ±10 Elo reading; it does not threaten
+   >   this one.
+   > - **Mechanism-consistent with the pre-measurement:** main's share of pool
+   >   nodes was drifting to 33% instead of 25%, i.e. roughly a quarter of the
+   >   pool's throughput was being lost to idling helpers. Recovering that is
+   >   worth about this much at 4T.
+   > - ⚠ **Two qualifications on the number.** (1) It is an **SPRT-stopped
+   >   estimate** — you stop when the LLR crosses, which correlates with a
+   >   favourable stretch, so the magnitude is optimistically biased. Direction
+   >   and significance are solid; the value is an upper-ish bound and only a
+   >   fixed-N run would pin it (not worth 2 h — the decision is unambiguous).
+   >   (2) It is a **BUNDLE number** (§3 lesson 11): (a)+(b)+(c) shipped
+   >   together and the pre-registered decomposition was required only on a
+   >   negative. **Never quote +30.42 as (a)'s value.** The mechanism evidence
+   >   points at (a) as the likely carrier — inference, not measurement.
+   > - 1T is byte-identical, so this is a pure-MT gain and needs no 1T games.
+   >
+   > **✅ 9.4 IMPLEMENTED 2026-07-30 (`2e1d632`).** All three
+   > parts landed as one commit, one gate. **1T is byte-identical by
+   > construction** — (a) gated on `thread_id_ == 0`, (b) unreachable at 1T
+   > (`limits_for_thread` is only called on the multi-thread path), (c) gated
+   > on `thread_count > 1`. Verified: bench **11,941,440**, CTest **12/12**.
+   > - **(c) arithmetic checked, not transcribed:** our two poll sites fire
+   >   every 2048 nodes (`search.cpp` qsearch + negamax), under a millisecond
+   >   at 1T. The default `Move Overhead 10` makes the old reserve ~20 ms
+   >   against a poll that stretches to 50–100 ms under contention, i.e. 30–80
+   >   ms of exposure. `+30 ms` when `thread_count > 1` covers the common case.
+   > - **Mechanism confirmed BEFORE spending the SPRT**, using 9.3's pool
+   >   telemetry. `go wtime 20000` at Threads=4, five reps, main's share of pool
+   >   nodes (25% = a fully-used 4-thread pool):
+   >   `pre-9.4: 26.1 33.4 26.5 24.8 25.1` → `9.4: 24.9 24.9 24.9 25.2 25.1`.
+   >   **The variance collapse is the signature** — main was picking up work the
+   >   helpers had stopped doing. `go depth 16` @4T likewise rose 2.46M → 3.00M
+   >   pool nodes for the same reported answer (that is (b)).
+   > - Candidate `basilisk-phase94-clocksafety-pext-pgo` vs baseline
+   >   `basilisk-phase93-base-pext-pgo` (both clang 22.1.8, both bench
+   >   11,941,440, revisions `2e1d632` / `1ef2ab6`).
+   > - ⚠ **Reading caveat from the short 9.2 null:** bias at 4T is bounded at
+   >   ~±28 nElo, so this `[-3,0]` decides non-inferiority only if it lands
+   >   clearly; the **forfeit count is the reading that is trustworthy
+   >   regardless of bias**, and it is the canary that actually gates the step.
+
+5. **9.5 SMP coordination wave — the value item. One `[0,3]` at Threads=4 plus
+   an LTC confirm.** **(R mechanism, A gap analysis.)**
+   **What we already have** (audited, do not re-implement): a shared atomic TT
+   (`tt.h`), a pooled `RootMoveTable` consumed for root ordering
+   (`search.cpp:116-125`, `:685-686`), staggered helper start depths
+   (`search.cpp:1926-1927`), unthrottled helper TT writes — R re-measured
+   throttling and found it costs main 12 points of TT hit rate at 4T and 27 at
+   16T for 9–15% of nodes, i.e. *our* current behaviour is the measured-correct
+   one — and per-thread `RootMoveStat` records with score/variance/effort/exact
+   (`search.h:136-167`), which is the substrate this step publishes.
+   **What is missing**, and is therefore this step:
+   - **(a) Bound-typed publication of every searched root move.**
+     `RootMoveTable::update()` (`search.cpp:85-100`) records only each thread's
+     *iteration bestmove*; every other root move a thread proved something
+     about is discarded. Publish each thread's `root_stats_` entries with their
+     bound (Exact / Lower / Upper from the existing `exact` flag plus the
+     window result), and have `ordering_score()` consume the bound — a proven
+     fail-low demoted, an Exact preferred — instead of treating one move's
+     depth as the whole pool's knowledge.
+   - **(b) Pool-seeded aspiration windows.** Centre a thread's window on the
+     pool's deepest Exact score when that is deeper than the thread's own
+     progress. R's counters refuted the obvious objection: per-thread
+     aspiration re-searches *fall* monotonically with thread count
+     (21.5 → 17.9 from 1T to 16T), so pool seeding helps window placement
+     rather than causing re-search storms.
+   - **(c) Symmetric majority soft-stop.** Main's expiry becomes one vote; the
+     pool can also **extend** main past its solo target, bounded by the
+     existing `hard_limit_` and 9.4(c)'s reserve, with a strict majority
+     (`votes·2 > thread_count`) and one latched vote per thread so a single
+     helper cannot re-vote its way to a majority. ⚠ R's direct evidence on the
+     direction: at Threads=2 requiring *both* votes beat requiring one by
+     **+15.85 ± 6.12** — the pool was stopping too early, and under a real
+     `maximum_ms` bound extra search time is worth more than fidelity to a
+     heuristic estimate. Forfeit count is the canary.
+   - **(d) Fix the result merge.** `merge_results()` (`search.cpp:2210-2242`)
+     selects by depth-then-score, which our own Phase-12 spec says never to do,
+     and ignores the effort/variance data `RootMoveStat` already carries. Use
+     agreement- and effort-aware selection over the bound-typed pool from (a).
+     Also tighten the mate branch, which can currently prefer a *shallower*
+     mate result.
+   - **Gate:** one `[0,3]` at Threads=4, Hash 256, ≥10k games, after the 9.2
+     null. **Then an LTC confirm at `10+0.1` @4T**, because (c) touches time
+     management and TM changes are TC-suspect by rule. 1T must be
+     bench-identical (every mechanism gated on `thread_count > 1`); add a test
+     that pins it, in the shape of R's `smp_machinery_is_inert_on_a_single_thread`.
+   - **⚠ Expectation management, recorded before the run.** R's headline
+     +102.78 @4T was a five-change bundle measured against its *original* SMP,
+     and was never decomposed (lesson 11). Its one decomposed number is
+     **+43.1 nElo for the coordination half alone**, and our baseline already
+     contains two of those coordination pieces. So the honest prior for
+     (a)–(d) is "the remainder", not the headline — a positive result in the
+     +5…+25 range would be consistent with R's evidence; +100 would not.
+   - **Pre-registered decomposition on H0**, so nothing is improvised after
+     seeing data: drop **(c)** first (the TM piece, the only TC-suspect and
+     forfeit-relevant one), re-gate (a)+(b)+(d); if that also H0s, drop **(b)**
+     and gate (a)+(d) alone; (a)+(d) are the substrate the rest depends on and
+     are kept only if they gate positive on their own.
+
+   > **❌ 9.5 BUNDLE REJECTED (user-stopped) 2026-07-30.** `[0,3]` @4T vs the
+   > 9.4 head: **Elo −41.45 ± 17.75** (nElo −63.53 ± 26.92), LOS 0.00%,
+   > LLR −1.01 (34% toward H0), **640 games**, PairsRatio 0.55, Ptnml
+   > [25,101,125,63,6], **zero forfeits**. Stopped before H0 to free the box;
+   > the CI [−59.2, −23.7] excludes zero by >4σ, so unlike the 360-game read
+   > this is a real negative, not a trend. Recorded as *rejected on a stopped
+   > run*, not as a formal H0.
+   >
+   > **▶ Pre-registered decomposition executed: (c) dropped**, ballot plumbing
+   > removed with it, `(a)+(b)+(d)` regated vs the same 9.4 baseline
+   > (`basilisk-phase95abd-nostop`). ⚠ The −41.45 is a BUNDLE number and
+   > **(c) is a suspect, not a convicted party** — (b) is a live alternative
+   > (pool-seeded windows could centre a thread on a deeper-but-different
+   > score and provoke re-searches). The regate discriminates: positive ⇒ (c)
+   > was the problem; still negative ⇒ it was (b) and the suspicion was wrong.
+   >
+   > **⭐ IF `(a)+(b)+(d)` IS ACCEPTED, (c) GETS ONE REPAIR ATTEMPT** — gated
+   > against the NEW accepted head, not against 9.4, and as its own single
+   > candidate (gate 1). Suspected mechanism, reasoned but unmeasured: main
+   > waited for a strict majority (itself + 2 helpers at 4T) while helpers
+   > evaluate their own stability/instability state at staggered start depths
+   > with no depth limit since 9.4(b); if they arrive late, main overspends on
+   > every move. Zero forfeits is consistent with that — 9.4(c)'s reserve
+   > prevents the flag fall, chronic overspend still loses games later.
+   > Re-designs, in preference order:
+   > 1. **Bound the extension** — break on majority *or* at
+   >    `own_expiry × 1.25`, whichever comes first. Keeps the pool's say,
+   >    makes the worst case a 25% overspend instead of unbounded-to-hard-limit.
+   >    One line; addresses the suspected mechanism rather than its label.
+   > 2. **Equalise the vote condition** — helpers vote on bare
+   >    `elapsed >= soft_limit_`, without their per-thread scales, so votes
+   >    arrive together and the majority forms near main's own expiry.
+   > 3. **Lower the threshold rather than raise it.**
+   > **⚠ Consequence for 9.10, which is now probably backwards.** Rarog's
+   > supporting evidence was at **2 threads**, where "both votes" is
+   > *unanimity*; 3-of-4 is a different point on that curve and PLAN already
+   > warned the 2T result need not extrapolate. This run is evidence that
+   > *waiting longer* is what hurt, so 9.10 — queued to test raising 3-of-4 to
+   > 4-of-4 — should be **re-scoped to test lowering it, or closed**. Do not
+   > run 9.10 as written.
+   >
+   > **CLOSED 2026-07-31 — no 9.5 candidate is banked.** The isolated `b`
+   > pool-window gate washed: last report **+1.26 ± 5.28 Elo**, nElo
+   > **+2.05 ± 8.57**, LLR **+0.09** at 6,320 games, zero forfeits; it was
+   > removed as pure unproven surface area. The first `a` gate was invalid:
+   > its root selector could choose a deeper Upper-bound (refuted) move and
+   > lost every opening before the defect was fixed. Corrected sparse `a` was
+   > user-stopped at 2,450 games on a sustained negative trend: last report
+   > **−6.98 ± 8.51 Elo**, nElo **−11.31 ± 13.79**, LLR **−0.78**, zero
+   > forfeits. Neither stopped gate is a formal H0, but neither is accepted.
+   > `c` remains excluded: its repair was explicitly conditional on the
+   > `(a)+(b)+(d)` gate accepting. The Phase-9 head is restored to **9.4**.
+
+6. **9.6 Node-invariant index hoists II — bench-identical, NPS-gated, pays at
+   1T and 4T.** **(A**, from R's class verdict.**)** Phase 8.7 hoisted the
+   continuation-history rows out of the per-quiet-move loop for **+3.03%**;
+   R took the same lead and got **+3.76%**, then swept for more and found the
+   payoff scales with loop frequency — per-move and per-node loops pay, per-piece
+   loops do not. Our per-quiet-move loop still re-derives three node-invariant
+   row bases on **every** move (`search.cpp:648-680`):
+   `pawn_hist_score()` re-masks `pawn_key & (PAWN_HIST_SIZE-1)` (`:472-474`);
+   `hist_.main[b.side_to_move]` re-loads the side and re-indexes the colour
+   row; `low_ply_score()` re-tests `ply < LOW_PLY_HISTORY_SIZE` and re-indexes
+   the ply row (`:476-478`). The same three appear in the negamax move loop's
+   history-prune and `stat_score` paths (`search.cpp:1543-1544`, `:1639-1640`).
+   Resolve all three once per node beside the existing `check_info`/cont-row
+   hoist, leaving only the per-move `piece/to` index varying.
+   ⚠ **Do not assume the compiler already does this** — R predicted its
+   compiler would hoist the identical pattern (the loads look hoistable) and
+   was **wrong**; the measured gain was its single biggest speed win of the
+   wave. Unit-test the decomposition (`row_base + piece_to_index == full
+   index`). **Gate:** bench identical (11,941,440) + `nps_ab.ps1` pooled PGO,
+   ≥2 builds per arm, self-pair validated first; accepted on NPS evidence per
+   the 8.7 precedent (bench-identical ⇒ no search risk). At ≈2 Elo per 1% NPS
+   this is the cheapest Elo in the phase.
+
+   > **✅ ACCEPTED 2026-07-31: +1.29% pooled-PGO NPS**, 95% CI
+   > **[−0.25%, +2.64%]**, best-of **+0.50%**, 9/16 rounds, identical
+   > 11,941,440 fingerprints. The original
+   > implementation was not source-isolated from the stopped 9.5(c) clock
+   > experiment and omitted this item's focused decomposition test. Fixed by
+   > committing a clean post-9.5 / exact-9.4 baseline (`206cd60`), then applying
+   > only the three row hoists plus the required full-index/address-equivalence
+   > test (`28dead9`). Bench is **11,941,440** and CTest is **12/12**. Two clean,
+   > independent PGO builds exist per arm, all with distinct SHA-256 values.
+   > The first pooled self-pair failed **−3.77%, CI [−10.91%, +2.84%]** with an
+   > extreme 3.03–3.64M NPS range because an unrelated concurrency-14 Rarog
+   > tuner was active across every physical core, including pinned CPU 30.
+   > Per the idle-box rule this run is **INVALID and says nothing about 9.6**.
+   > After the tuner stopped, the valid A/B used two independent PGO builds per
+   > arm pinned to CPU 30. Per user direction the already-validated harness did
+   > not need another self-pair. The CI narrowly crosses zero and the build
+   > pairs disagree, so do not overstate precision; retention follows the 8.7
+   > strict-work-reduction precedent (+0.36% was accepted with CI [−0.06%,
+   > +0.67%]). This is a measured positive for a behavior-neutral simplification,
+   > not a direct Elo result.
+
+7. **9.7 Helper history blending: measure or delete.** **(A + R.)**
+   `SearchThreadPool::search()` calls `blend_history_from()` for every helper
+   at the end of every MT search (`search.cpp:2304-2305` →
+   `history.cpp:69-105`), blending main + capture + **all three continuation
+   tables** + pawn history — on the order of 800k `int16` blend operations per
+   helper per search, i.e. ~1.6 MB touched per helper. **It has never been
+   measured, in either direction.** R implemented the *cheap* version of this
+   idea (ordering tables only, 21 KB) precisely because we had it, gated it at
+   Threads=4, and measured **−0.52 ± 7.45 over 3,320 games** — a clean null —
+   then wrote the explicit warning: *do not escalate to `cont_history` /
+   `pawn_history`*, because helpers search the same root through the same TT so
+   their tables are largely redundant, and the expensive version inherits the
+   same prior at many times the cost. We were running the expensive version.
+   - **Do:** put the blend behind a temporary UCI switch so both arms come from
+     **one binary** (removing the ~0.36% per-build PGO offset), measure 4T NPS
+     with it on and off, and run one `[-5,0]` simplify-shaped gate at 4T for
+     the removal.
+   - **Expected outcome:** deletion — free NPS at MT and ~35 lines gone. If it
+     unexpectedly gates positive, keep it and delete the switch (temporary
+     scaffolding must never ship, either way).
+
+   > **✅ CLOSED 2026-07-31: BLENDING REMOVED (user-stopped simplify decision,
+   > not a formal H1).** Added the temporary TUNE-only
+   > `HelperHistoryBlend` check option (default `true`, so release behavior is
+   > unchanged) and carried it through `Parameters` → `SearchLimits` → the
+   > post-join pool merge. `bench` receives the same option, preventing the
+   > silent split where SPRT would test the switch but NPS would ignore it.
+   > `nps_ab.ps1` now accepts per-arm `Name=Value` options and an explicit
+   > thread count; at Threads=4 it pins the process to four physical cores
+   > rather than forcing four workers onto the old single-core affinity mask.
+   > Exact 1T bench **11,941,440**; CTest **12/12**; TUNE-on focused tests pass.
+   > Same-binary 4T NPS with removal (`false`) as A and current behavior (`true`)
+   > as B measured **+0.48%**, 95% CI **[−1.66%, +3.45%]**, best-of **+0.97%**,
+   > 9/16 rounds. This is directionally favorable but unresolved. Lazy-SMP node
+   > totals differed 45,122,343 vs 36,193,107, so the reading includes tree and
+   > scheduling effects and is not a pure merge-cost measurement. The 4T
+   > simplify SPRT was user-stopped after its early favorable drift settled
+   > into a wash: last complete report at 1,400 games was **+0.99 ±11.70 Elo**,
+   > nElo **+1.54 ±18.20**, LLR **+0.23**, Ptnml
+   > **[30,170,293,180,27]**, zero forfeits; another 34 games finished without
+   > a report block. It was projected to need roughly 18k games at the current
+   > estimate or ~28k if truly neutral. Removal was accepted by explicit user
+   > decision on the combined evidence: no adverse strength trend, positive NPS
+   > direction, Rarog's cheap analogue neutral, and substantial unconditional
+   > memory traffic/code with no demonstrated value. The merge implementation
+   > and all temporary switch plumbing are deleted; `nps_ab.ps1` keeps its
+   > reusable same-binary option support and corrected Threads>1 affinity.
+
+8. **9.8 Pruning-input provenance: `EvalPruneTtMinDepth` — inert knob now, one
+   `[0,3]` at 1T, then it joins 11.7's group.** **(A + R.)** Our pruning eval
+   (`search.cpp:1356-1362`) lets a TT score stand in for the corrected static
+   eval whenever its bound proves it tighter — with **no minimum entry depth**.
+   Qsearch stores at depth 0 (`search.cpp:1108`, `:1215`), so a qsearch entry
+   can decide a reverse-futility cut at depth 8, which is hard to defend on
+   principle. Add a neutral-seeded knob (0 = today, bench-identical) requiring
+   a minimum TT depth before the substitution; the principled value is **1**,
+   which excludes exactly the qsearch entries.
+   ⚠ **R's warning, which is the whole reason this is a `[0,3]` and not a
+   sweep:** larger values reduce node counts sharply, and **fewer nodes is not
+   evidence of strength** — it is more aggressive pruning, the failure mode
+   that made a self-play-tuned candidate win its SPSA and then lose −7.78 to
+   the more accurate baseline. Gate value 1 only; larger values belong to
+   11.7's pruning group, never a one-off A/B. R's related finding, recorded so
+   we do not re-derive it: the qsearch **stand-pat** TT refinement
+   (`search.cpp:1101-1104`) is the compounding path — a lower stored Upper
+   bound lowers the stand pat, suppressing the primary qsearch exit — so if
+   this step is interesting, the follow-up is gating *that* refinement on bound
+   provenance, not widening this knob.
+
+   > **❌ CLOSED / REJECTED 2026-07-31.** The TUNE-only 0-vs-1 gate was
+   > user-stopped after the signal settled into a wash. Last complete report:
+   > **4,120 games, −2.02 ±6.76 Elo, −3.18 ±10.61 nElo, LLR −0.48**,
+   > Ptnml **[85,508,898,484,85]**, zero anomalies; 38 more games completed
+   > without another report. Across the run LLR stayed between +0.27 and
+   > −0.48. Formal resolution was projected to take many more hours, while the
+   > candidate showed no strength evidence. The temporary option, main-search
+   > guard and tests are removed; qsearch stand-pat was never changed. Larger
+   > minimum-depth experiments remain deferred to 11.7's joint pruning group.
+
+9. **9.9 Diversification retries — LOW PRIOR, one bundled 4T gate, revert on a
+   wash.** **(R nulls; kept because our engine is not theirs — lesson 13.)**
+   R shipped root-move rotation, per-thread LMR jitter and whole-tree quiet-
+   ordering jitter, then measured the jitter pair at **−0.81 ± 2.55 over 28,362
+   games** (a textbook null: pentanomial 559/538 and 3438/3414) and left
+   rotation unresolved at −3.31 ± 10.62. Our diversification is different —
+   staggered start depths only, and after 9.5 our threads will be *more*
+   correlated than R's were (pool-seeded windows pull them together), so the
+   question is genuinely re-opened rather than answered.
+   - **Implement all three behind one switch** and gate the bundle once at 4T:
+     (a) per-thread LMR reduction jitter from a **proper PRNG** — R's first
+     attempt was `(nodes + id·27) % 128 − 59`, measured at lag-1
+     autocorrelation **0.95** with a **+4.48/1024 mean reduction bias present
+     only at Threads>1** (a pruning change wearing a diversification label);
+     use a per-thread xorshift64 re-seeded from `thread_id`, taking the **top**
+     bits (the low bits are xorshift's weakest and skew the mean);
+     (b) whole-tree quiet-**ordering** jitter as a hash of (thread, move), not
+     a stream — a PRNG would make a thread disagree with itself between the
+     null-window and full-window passes of the same node — sized below the
+     tier gaps so it can only reorder near-tied quiets, and hoisting the
+     `thread_count > 1` test **out** of the per-move loop (R had to do this
+     after leaving it in);
+     (c) root-move rotation for helpers.
+   - **Pre-registered:** wash ⇒ revert all three and delete the switch. None of
+     them has a correctness argument, so "keep it anyway" does not apply.
+     ⚠ Do not fold this into 9.5 — a null here must not be able to mask 9.5.
+
+   > **❌ CLOSED 2026-07-31; user-stopped neutral, bundle removed.** This was
+   > not a formal H0. Last complete report at 640 games: **+0.54 ±17.20 Elo**,
+   > **+0.85 ±26.92 nElo**, **LLR −0.01**, Ptnml **[15,71,146,74,14]**, zero
+   > anomalies; three more games completed. There was no useful trend, and the
+   > experiment's special premise had disappeared: 9.5's pool-seeded windows
+   > were rejected, so our threads are not made more correlated than Rarog's
+   > robust null (**−0.81 ±2.55 over 28,362**). Per the pre-registration, all
+   > three mechanisms and the temporary switch/tests were removed.
+
+10. **9.10 Stop-threshold sweep — needs 9.5(c); one line, one 4T gate.**
+    **(R lead, untested anywhere.)** R's 2T measurement says a pool that waits
+    for *unanimity* beats one that stops on a bare majority by ~16 Elo, i.e.
+    the vote fires too early. The cheapest well-motivated 4T experiment on the
+    books is therefore raising the threshold from 3-of-4 to **4-of-4** at
+    Threads=4: no tuning, one binary, one `[0,3]`. The prior is genuinely
+    uncertain — 3-of-4 is already above-median, so the 2T result need not
+    extrapolate — which is exactly why it is a cheap test and not a
+    pre-decided change. **Do not bundle it with anything**, and re-check
+    forfeits, since it can only make the pool search longer.
+
+    > **CLOSED / NOT APPLICABLE 2026-07-31; no code, no games.** 9.5(c) was
+    > never accepted, so there is no 3-of-4 threshold in the accepted head to
+    > sweep. The bundle containing it was already strongly negative
+    > (**−41.45 ±17.75 Elo at 640 games**). Rarog's Threads=2 evidence is not
+    > a 4T extrapolation: 2-of-2 is unanimity, while 3-of-4 already waits past
+    > a bare majority. Restoring rejected ballot plumbing solely to make the
+    > pool wait still longer would be a new riskier feature, not this one-line
+    > follow-up, so 9.10 closes with its dependency.
+
+11. **9.11 ❌ CLOSED: USER-STOPPED WASH — one final HCE Texel re-fit on post-1.9.1 labels.**
+    **(User request 2026-07-28, after a Colosseum Grand Bullet arena appeared
+    to show 1.9.1 ~5–10 Elo below 1.9.0 against external opposition.)**
+
+    **First, the premise — the arena does not show a regression.** Read at
+    9,857/36,400 games, 3+0.03, 1T, 15 parallel games:
+    - **Direct head-to-head, the only paired measurement in the table:
+      1.9.1 beats 1.9.0 27–57–24** (108 games, ≈ +10 Elo ± 40). It points the
+      *other* way, and §3 lesson 8 is explicit that the within-gauntlet
+      head-to-head is what we trust, not the pool rating.
+    - The pool-score gap is 763.0 vs 774.0 of 1,398 games = **54.58% vs
+      55.36%, i.e. 0.79% ≈ 5.5 Elo**, with a per-engine standard error near
+      1.3% — so the difference sits comfortably inside one SE, before even
+      accounting for the shared-opponent correlation.
+    - Per-opponent it is scatter, not a trend: 1.9.1 is **better** vs SF
+      dev-3000 (+6.0 pts) and Rarog 2.2.0 (+4.5), **worse** vs SF dev-2800
+      (−6.5) and Rybka 3 (−6.5), level vs the other eight.
+    - **Mechanism says it cannot be real:** 1.9.1's search is *bit-identical*
+      to 1.9.0 (bench 11,941,440 both) — the only delta is NPS, measured
+      +4.34%, and the arena's own `Avg depth` column corroborates it
+      (12.8 vs 12.7 at the same time/move). Our dedicated batch SPRT read
+      **+8.69 ± 6.63 over 3,764 games**, which is a far tighter instrument
+      than 108 head-to-head games inside a 15-way loaded arena (§3 lesson 10:
+      a loaded box is exactly where placement bias lives).
+    **Conclusion: nothing to recover — 1.9.1 ≥ 1.9.0.** This step therefore
+    is not a repair; it is a separate, optional question about whether the
+    *evaluator* has residual headroom.
+
+    **The honest case for it.** Our own record says the on-policy self-play
+    re-fit was the biggest post-campaign lever (+15…+21 per cycle) until
+    **cycle 6 washed (+1.37 ± 5.21, 8.1k games)** and closed the HCE line
+    (§3 lessons 1–2). The one thing that has changed since is real: cycle 6's
+    labels were generated by the pre-1.9.0 head, and the label generator has
+    since gained **≈ +52 Elo** (Phase 8/8.5 + `hcefinal`). Better search ⇒
+    game outcomes correlate better with true eval, so the same fit on
+    better-labelled data is a genuinely different experiment. Rarog filed the
+    identical item (its 10.4.3) for the identical reason.
+
+    **The honest case against, which is why this is OPTIONAL and last.**
+    1. **The cliff.** Three measurements across two engines say a well-fit HCE
+       has no *unchanged-representation* headroom: our cycle 6 wash, Rarog's
+       off-policy −17.11 and its on-policy −1.28. Better labels do not add
+       representational capacity.
+    2. **It de-tunes the search.** `hcefinal` (+35.94) was fitted *after* the
+       eval froze at cycle 5, so every cp-denominated margin is calibrated to
+       the current weights. A re-fit is an eval rescale in the sense that
+       matters, which makes a standalone gate a **lesson-15 de-tuning victim**
+       — rigged low. The re-tune that would recover it is 11.7, and 11.7
+       targets the *net*, not the HCE. **Pre-registered: we do NOT chase a
+       wash here with a pre-NNUE search re-tune.**
+    3. **Phase 10 deletes the evaluator.** Spending days on the thing we are
+       about to replace is what the §1 cost principle exists to prevent.
+
+    **What makes it cheap enough to be worth offering anyway: the datagen is
+    dual-use.** `datagen.ps1` already writes a fastchess PGN with per-move
+    score/depth comments, and that same corpus feeds **both**
+    `tools/texel/extract_parallel.py` (Texel CSV) **and** `net_trainer`'s
+    `extract_nnue.py` (Phase 10.2 training data). So generate the corpus once
+    at the released head: if the fit washes, the games are not wasted — they
+    become an early slice of the NNUE dataset that 10.2 needs regardless.
+    Size it to 10.2's requirements, not to the Texel fit's.
+
+    **⚙ Datagen configuration — 1T, and the reasoning matters:**
+    - **Threads=1, `tc=inf nodes=N`** (what `datagen.ps1` already does).
+      Labels are a function of *search quality per node*, and at a fixed node
+      budget Lazy SMP is strictly worse than one thread — the pool duplicates
+      work, so 4T at N nodes reaches a shallower, noisier result than 1T at N
+      nodes. 4T would also make the corpus non-deterministic and therefore
+      non-reproducible from its manifest.
+    - **Throughput agrees.** Datagen is embarrassingly parallel at the *game*
+      level; 15 concurrent 1T games saturate the box far better than 4
+      concurrent 4T games, because SMP efficiency is below 1 and the fixed-node
+      contract throws away the extra nodes anyway.
+    - **The quality axis is nodes-per-move, not threads.** If we want better
+      labels for the same wall clock, raise `-Nodes` and cut `-Rounds`; do not
+      add threads. (Gate 10's 1T-and-4T rule is about *playing* conditions —
+      it has no bearing on how labels are produced.)
+    - **Always the diverse book** (`tools/texel/data/beast_seed.epd`) — §3
+      lesson 4: a tiny book collapsed 200k games to 31,880 unique positions.
+    - **Timing is free-floating.** Nothing in Phase 9 changes 1T fixed-node
+      search — 9.5/9.9/9.10 are MT-only and 9.6 is pure speed, which a
+      node-limited search cannot observe — so the label generator is *already*
+      in its final pre-NNUE state and datagen can run in any earlier gate wait
+      rather than waiting for this slot.
+    **Protocol: ONE dataset, ONE fit, ONE gate.** Sequential joint bake
+    (`--tune all` → bake → rebuild → `--tune-kingsafety` → bake, §3 lesson 5),
+    `--verify` reconstruction, then a single `[0,3]` at 1T vs the phase head.
+    **Pre-registered outcome:** if it washes, the HCE evaluator is closed
+    **permanently** — no second cycle, no margin re-tune, no "one more
+    dataset" — and we go to the NNUE runway with the corpus already in hand.
+
+    > **DATA POLICY CORRECTED + EXACT DATASET COMPLETE 2026-08-01.** The first
+    > 200,000-game corpus produced 3,508,199 unique positions and 3,334,121
+    > natural train rows, but the 1:1.5:1.5 phase cap retained only **1,237,744**
+    > (309,436 / 464,154 / 464,154). This exposed a registration arithmetic
+    > error: the run was sized for 3.5M *before* lossy balance, despite the
+    > extractor's 1.5M warning floor, the README's ≈3M target, and v17's actual
+    > 3,351,075 train rows. The resulting fit and `805abb2` candidate were
+    > declared void before arena games and reverted by `dfebea7`.
+    >
+    > A second audit corrected the correction rather than preserving legacy
+    > policy. Rarog's current extractor and Hydra both use five equal material-
+    > phase reservoirs; Rarog also samples inside each phase per game and applies
+    > a winning-capture quiet filter. Basilisk now adopts those stronger
+    > contracts: **700,000 each** of opening (20–24), early-mid (14–19), middle
+    > (8–13), endgame (3–7), and deep endgame (0–2), plus an exact balanced
+    > game-level holdout, global FEN dedup, bounded per-phase-per-game sampling,
+    > quiet filtering, and atomic publication. There was no empirical basis for
+    > the inherited 1:1.5:1.5 compromise, so it is retired before the valid fit.
+    >
+    > The 16-ply start skip was also wrong for this corpus: Basilisk's own
+    > original Beast-EPD recipe specified `--skip-start 0`, because each supplied
+    > FEN is itself a candidate position, not a played conventional book line.
+    > The user stopped the registered append at **424,071 complete games**
+    > (200,000 original + 224,071 disjoint extension starts). A header audit found
+    > **424,071 exact unique starts, zero duplicates**; pawn-family concentration
+    > is low (largest opening family 30 games, top 100 only 0.74%), though the
+    > source files do not retain ICCF/MEGA game IDs and therefore cannot prove
+    > source-game independence. No more games are generated unless the exact
+    > five-reservoir extraction reports a real short bucket. This PGN
+    > remains an initial NNUE slice; 10.2 extends it to 30–60M. The one-fit,
+    > sequential bake/rebuild/KS-bake/rebuild/verify protocol is unchanged.
+    > **Measured extraction:** 424,071 games, zero parse errors, 6,262,111 raw
+    > candidates, 1,067,049 rejected by the quiet filter, and 6,202,261 unique
+    > positions. The exact train set is **3,500,000 = 700,000 × 5** plus 184,211
+    > balanced holdout rows. Eligible train streams were 875,444 / 1,196,846 /
+    > 1,467,791 / 1,604,024 / 745,848; deep endgame was limiting but still had
+    > 6.5% headroom. Therefore the stopped corpus is sufficient and datagen is
+    > closed.
+    >
+    > **Registered fit complete 2026-08-01.** The joint fit used all 3.5M train
+    > rows and 184,211 holdout rows, with 1,165 active parameters and
+    > `L2=1e-6`. It restored the best holdout checkpoint at epoch 28:
+    > **0.105861 → 0.105147**. The sequential king-safety refit then improved
+    > its 100k-position holdout **0.105322 → 0.105126**. Exact score
+    > reconstruction passed on 10k train and 10k holdout positions; all 12 C++
+    > tests and all 13 Texel Python tests pass. The baked candidate changes 115
+    > of 1,165 rounded joint parameters plus the registered king-safety pass;
+    > bench fingerprint is **15,312,647**. The tuner now reports initial, tuned
+    > and delta holdout loss with the same five phase boundaries as extraction;
+    > the king-safety optimizer restores its best holdout checkpoint (pass 27,
+    > rather than overfitting through pass 39); and the bake tool no longer
+    > accumulates PST indentation. These are tooling corrections discovered
+    > before games; the gated engine candidate remains one learned weight set.
+    > **SPRT artifact ready:** clean PGO build
+    > `basilisk-phase911-texel5-pext-pgo.exe` at revision `15ddd26`, bench
+    > **15,312,647**, SHA-256 `A917BCDE687CF77A6C2F75D23D06F081EB1973170F8FEE965A9C09F373ABF765`.
+    > Against the registered pre-fit `phase911-datagen` baseline, the complete
+    > engine-source diff is exactly `src/eval_params.h`. The earlier PGO build
+    > without king-safety best-checkpoint restoration is preserved only as
+    > `VOID-no-best-checkpoint` and must not be tested.
+    >
+    > **VERDICT 2026-08-01: USER-STOPPED WASH; fitted weights rejected and
+    > restored.** The valid 1T `[0,3]` SPRT was stopped at **6,398 games**:
+    > **+1.52 ± 5.77 Elo, +2.24 ± 8.51 nElo**, W/L/D
+    > **1,791/1,763/2,844**, LLR **+0.12 / +2.94**. Its trajectory sat in the
+    > indifference region (+1.38 nElo at 3,004; +0.65 at 3,998; +1.03 at
+    > 5,000), so more games risked a long midpoint stall and there was no
+    > evidence for the registered +3 target. Two time losses occurred, one by
+    > each engine; they add no directional explanation but make the run less
+    > than perfectly clean. Per the pre-registration, there is **no second HCE
+    > fit and no pre-NNUE search SPSA rescue**. The old Phase-9 eval weights are
+    > restored (bench **11,941,440**). The five-phase extractor, fitter fixes,
+    > manifests and 424,071-game dual-use corpus remain accepted infrastructure
+    > and an initial Phase-10 NNUE data slice. The tested PGO artifact is renamed
+    > `REJECTED-wash`; the HCE refit line is closed.
+
+12. **9.12 ✅ CLOSED — Phase close-out and 1.9.2 release gate (2026-08-01).**
+    - **Correctness/build:** release metadata reports 1.9.2; bench remains
+      **11,941,440**; CTest **12/12** and Texel/Python **13/13** pass.
+    - **Primary MT evidence:** 9.4's `[-3,0]` fastchess gate passed at 2,450
+      games, **+30.42 ±8.77 Elo @4T**, with zero forfeits under the tight 20 ms
+      margin. It is an optimistic SPRT-stopped estimate and a bundle value.
+    - **Colosseum 1.0.1 boundary campaign:** 3,600 games at 1T `3+0.03`, 1,800
+      at 4T `3+0.03`, and 400 at 4T `10+0.1`; UHO paired openings, ponder/TB
+      off. Direct 1.9.2-vs-1.9.1 results were respectively **107-199-94
+      (+11 ±24)**, **55-98-47 (+14 ±34)**, and **59-97-44 (+26 ±35)**.
+      Every condition pointed positive. All 5,800 games completed without a
+      reported Basilisk forfeit, crash or illegal move. Colosseum's generous
+      timeout grace does not replace the tight fastchess clock evidence above.
+    - **Field sanity:** against Rarog 2.3.0, 1.9.2 scored +66 ±29 at 1T fast,
+      +10 ±40 at 4T fast and +28 ±40 at 4T `10+0.1`; the wider field contained
+      Houdini 1.5a, Critter 1.6a, Rybka 3/4, SF-dev-2800, HIARCS 14 and Fruit
+      2.1. Absolute field ratings remain secondary to the direct prior-release
+      head-to-head.
+    - **Explicit close-out waiver (user decision):** do not spend more machine
+      time on the standalone end-to-end 1T NPS rerun, the 4T diagnostic/scaling
+      rerun, a 1T `10+0.1` duplicate, or `60+0.6`. The relevant evidence already
+      exists: 1T behavior is fingerprint-identical, 9.6 has pooled-PGO NPS,
+      9.3/9.4 recorded MT utilization/scaling, and the deployment games above
+      show no reversal. These items are waived, not falsely recorded as run.
+    - **Version decision:** the original 1.10.0 trigger was met by 9.4, but the
+      user explicitly chose **1.9.2** because the final accepted production
+      scope is focused. 1.9.2 is release-ready and becomes the frozen HCE/NNUE
+      baseline after the user's manual squash/publish.
+
+---
+
+## 6. Phase 10 — NNUE baseline and 2.0.0 (`nnue` after the one Phase-8.5 rebase)
 
 The strategic direction is NNUE. The +200–400 target is a hypothesis, not a
 schedule commitment. The actual training implementation already exists in
@@ -2044,7 +3124,7 @@ shuffle, a blended search-score/WDL target, cosine LR, and raw Bullet
 `chess768 -> (H×2 perspectives) -> 1×8 material buckets` with SCReLU,
 H=1024 by default, QA=255, QB=64 and SCALE=400. NumPy, C++17 and Rust integer
 references plus a committed H32 conformance net/vectors define exact engine
-behavior. Phase 9 hardens and consumes this implementation. **Do not restore
+behavior. Phase 10 hardens and consumes this implementation. **Do not restore
 the retired PyTorch/`MNN1` pipeline or invent a parallel trainer/format.**
 
 Repository ownership:
@@ -2055,15 +3135,15 @@ Repository ownership:
 | Board state, accumulator, raw `quantised.bin` loader/embedding, SIMD inference, UCI and search integration | `D:/code/basilisk` on `nnue` |
 | Teacher annotation, if used | Existing Hydra tooling, imported through a versioned `net_trainer` dataset path |
 
-The HCE comparison baseline is the **released 1.9.1 head** (the post-Phase-8.6
-`development` handoff SHA), not 1.8.0/1.9.0. Every network is identified by
+The HCE comparison baseline is the **released 1.9.2 head** (the post-Phase-9
+`development` handoff SHA), not 1.8.0/1.9.0/1.9.1. Every network is identified by
 `quantised.bin` SHA-256 plus its
 architecture constants, hidden size and training manifest. HCE remains
 available as debug/full-recompute comparison and a
 temporary UCI fallback during bring-up; the release default is the accepted
 embedded net.
 
-1. **9.0 Rebase and conformance inventory:** record the post-1.9.1 handoff
+1. **10.0 Rebase and conformance inventory:** record the post-1.9.2 handoff
    SHA, rebase `nnue` onto it once, resolve the existing partial NNUE implementation,
    and map every retained component to `docs/nnue_format.md` at the recorded
    `net_trainer` SHA. No search/eval behavior change in this step. The v1 file
@@ -2071,7 +3151,7 @@ embedded net.
    padding, inferred/expected H, tensor dimensions and SHA before use. Future
    layouts receive a separately documented contract and conformance artifact;
    do not pretend a nonexistent `MNN1/MNN2` dispatch field is present.
-2. **9.1 Harden `net_trainer` for real experiments:** add train/validation/
+2. **10.1 Harden `net_trainer` for real experiments:** add train/validation/
    untouched-test handling, validation loss and best-checkpoint selection,
    deterministic run manifests, dataset/output hashes and CI/unit tests for
    the Python data tools, Rust converter/shuffler/trainer contract and all
@@ -2089,7 +3169,7 @@ embedded net.
    truncation toward zero for negative values and accumulator/output range
    bounds. Static loss selects checkpoints within one run; it never replaces
    SPRT.
-3. **9.2 Data at scale with controlled provenance:** use
+3. **10.2 Data at scale with controlled provenance:** use
    `net_trainer/tools/datagen.py` and a one-opening-per-pair diverse EPD book.
    Generate an initial 30–60M **unique** positions from the Phase-8.5 HCE head,
    retaining both PGN search scores and final WDL. Start with the trainer's
@@ -2100,7 +3180,29 @@ embedded net.
    scale; 60M is a first serious run, not a permanent ceiling. Seed and record
    shuffle order; the built-in shuffle loads the whole file, so switch to
    Bullet's chunked shuffle tooling when the dataset exceeds available RAM.
-4. **9.3 Baseline training:** train the existing
+   - **Candidate: select positions by BEHAVIOURAL disagreement, not eval
+     error** (added 2026-07-30, external report + our own lesson 3). The same
+     r/chessprogramming post measured two mining strategies on identical
+     infrastructure: selecting training positions by **centipawn loss yielded
+     0.5%**, selecting by **recall failure** — positions where the teacher's
+     best move falls outside the model's top-K — **yielded ~30%**, and two
+     fine-tuning rounds moved recall@4 from 68.6% to 78.1%. A ~60× difference
+     in what the selection criterion was worth.
+     **This is §3 lesson 3 arriving from an independent direction:** we
+     measured that holdout-MSE delta does not predict Elo in either direction
+     (the distillation with the biggest MSE drop gained least; cycles with
+     near-zero linear movement gained +15–20). They measured that eval-error
+     selection is near-worthless while behaviour-level disagreement is not.
+     Same shape, different mechanism, so it is corroboration rather than a new
+     claim — and it says our current selection (diversity via
+     `beast_seed.epd`, and nothing else) is leaving the lever untouched.
+     ⚠ **Define the analogue before spending machine time:** theirs is a
+     *policy* net where "recall failure" is native; ours is a *value* net, so
+     the transfer is "positions where the net's eval leads search to a
+     different move than the teacher", NOT "positions with large eval error"
+     — the latter is precisely the criterion that measured 0.5% for them.
+     A/B it as one of 10.2's independent label/selection axes.
+4. **10.3 Baseline training:** train the existing
    `chess768 -> (H×2 perspectives) -> 1×8 material buckets` SCReLU model,
    H=1024 baseline for the 30–60M run (H=512 for sub-20M pilots or as a
    measured speed/strength candidate), using the Rust `net-trainer` CLI.
@@ -2112,7 +3214,7 @@ embedded net.
    trainer SHA, engine/datagen SHA, data/book hashes, split IDs, commands,
    seed, Rust/Cargo/Bullet/CUDA/driver/GPU versions, hyperparameters,
    checkpoint and net hash.
-5. **9.4 Scalar engine integration first:** validate the raw Bullet loader and
+5. **10.4 Scalar engine integration first:** validate the raw Bullet loader and
    a full-recompute scalar evaluator against `net_trainer`'s committed H32 net
    and vectors—covering both STM colors and all eight output buckets—and a
    large generated FEN corpus with exact integer equality. Validate inferred H,
@@ -2120,7 +3222,7 @@ embedded net.
    search boundary. The release net is embedded; optional `EvalFile` is
    allowed for development/custom nets but must validate raw size/H/padding
    fully and report the active net SHA.
-6. **9.5 Incremental and optimized inference:** consume 8.5.3 dirty-piece
+6. **10.5 Incremental and optimized inference:** consume 8.5.3 dirty-piece
    deltas in a per-thread/per-ply accumulator stack; cover quiet, capture, EP,
    promotion, castling, null and full unwind. Debug/sanitizer builds compare
    incremental accumulators and eval against full recomputation after every
@@ -2143,24 +3245,24 @@ embedded net.
    `LLVM_MAJOR`-style variable per workflow, stamp the toolchain into release
    metadata, and accept the pin/bump via CI green + the 3-way (ci.yml) and
    9-way (release.yml) bench-agreement jobs — no other gate needed.
-7. **9.6 Swap-in and iterate:** compare NNUE against the Phase-8.5 HCE baseline
+7. **10.6 Swap-in and iterate:** compare NNUE against the released **1.9.2** HCE baseline
    at the standard SPRT, `10+0.1`, the frozen teacher cohorts and tactical/
    endgame suites. Iterate data amount, label blend, H=512/1024, WDL weight,
    learning rate and training duration one variable at a time until the net
    passes both game gates and
    has acceptable NPS. A failed baseline triggers contract/data/trainer/
    architecture diagnosis—not a claim that HCE is the frontier path.
-8. **9.7 Provisional search-scale safety pass, not the final tune:** inspect
+8. **10.7 Provisional search-scale safety pass, not the final tune:** inspect
    score distribution, correction magnitude, pruning telemetry and tactical
    regressions. Change only margins required to prevent gross NNUE-scale
    miscalibration, as isolated SPRTs. **Do not run the comprehensive histshape/
-   wave2/TM SPSA here:** Phase 10 still changes the search architecture and
+   wave2/TM SPSA here:** Phase 11 still changes the search architecture and
    would invalidate it.
-9. **9.8 Release 2.0.0:** full §7 gate against the Phase-8.5 HCE head and field
+9. **10.8 Release 2.0.0:** full §8 gate against the released HCE head and field
    slate, exact embedded-net SHA plus H/bucket/constants/trainer/Bullet revision
    in release metadata, production PGO/ISA assets smoke-tested, zero
    incremental/full-recompute mismatches, and STC + LTC strength stated
-   separately. Phase 10 produces the final search architecture and tune for
+   separately. Phase 11 produces the final search architecture and tune for
    the next 2.x strength release.
 
 Model: **Fable 5 high (alt: Opus 4.8 high)** for StateInfo/accumulator/SIMD and
@@ -2168,17 +3270,50 @@ trainer-core changes; Sonnet 5 medium for orchestration, data runs and docs.
 
 ---
 
-## 6. Post-NNUE roadmap — execution order is Phase 10 → 11 → 12
+## 7. Post-NNUE roadmap — execution order is Phase 11 → 12 → 13
 
-### Phase 10 — final single-thread search architecture and tune
+### Phase 11 — final single-thread search architecture and tune
 
-Phase 9.7 performs only emergency NNUE-scale safety calibration. Phase 10
+Phase 10.7 performs only emergency NNUE-scale safety calibration. Phase 11
 builds the final search architecture **first**, then runs the comprehensive
 tune **once at the end**. Search telemetry from 8.5.4 is an acceptance input
 for every candidate; total nodes alone are not a verdict. Working prior:
 **+15–40 at 1T**, heavily non-additive with Phase 8.5.
 
-1. **10.1 Unified contextual reduction:** compute one signed `r` for every
+> **11.0 (prep, no games) — ordering/pruning recall telemetry.** Added
+> 2026-07-30 from an r/chessprogramming post (a 39M policy-net + alpha-beta
+> engine; the *result* does not transfer — see below — but the method does).
+> They expanded only the policy's top-4 moves per node and never checked
+> whether the reference best move was in that beam; it was absent **29.4%** of
+> the time (recall@1 33.7%, @4 70.6%, @16 96.3%). Their line is the useful
+> one: *no amount of depth or pruning recovers a move you never generate.*
+>
+> **Our analogue is pruning, not generation.** The staged MovePicker emits
+> every legal move, so nothing is structurally absent — but LMP, futility and
+> history pruning *discard* moves, and we count how many
+> (`lmp_prunes`/`fut_prunes`/`hist_prunes`) without ever recording **whether
+> the move that turned out best was among them**. Same blind spot, one layer
+> over.
+>
+> **Why this is worth building here specifically:** the whole 8.5.10 ladder was
+> adjudicated on bench node counts — (a) +82%, (c) +30%, (d) +22…60%, all
+> vetoed without an SPRT — and the one rung that did reach a gate read **−26%
+> nodes and −84 Elo**. Node count conflates *orders better* with *prunes
+> harder*, and that is exactly the distinction all four turned on. Add: a
+> cutoff-rank histogram (move index at beta cutoff, capped ~8 + overflow),
+> first-move-cutoff rate, and a best-move-was-pruned counter. Pure counting,
+> bench-neutral, slots into the 8.6.6/9.3(c) telemetry. It is a **diagnostic,
+> never a gate** (§1: SPRT decides), and it is the acceptance input 11.1–11.6
+> and the 8.5.10 residue at 11.7 should be read against.
+>
+> ⚠ Do **not** import their Elo. ~2000 → ~2192 is an engine repairing a
+> structural hole far below our level; the fix was *enabling LMR*, which we
+> have had since Phase 1 and have SPSA-tuned repeatedly; and it was measured
+> against fixed SF-limited brackets, not an SPRT (§3 lesson 8 — and "two
+> independent brackets agreed within 1 Elo" is not a credible precision claim
+> at that sample size).
+
+1. **11.1 Unified contextual reduction:** compute one signed `r` for every
    move after the first from PV/cut status, TT-PV/depth/bound/move class,
    improving/opponent-worsening, move count, check/capture state, accepted
    quiet/capture/continuation histories, correction uncertainty and prior
@@ -2186,89 +3321,126 @@ for every candidate; total nodes alone are not a verdict. Working prior:
    history and SEE pruning. Stage separately: shared calculation with behavior
    parity; second-move eligibility; checks; good/bad captures; negative
    reductions/extensions; then removal of obsolete categorical exceptions.
-   Each behavior step gets its own SPRT. **MUST INCLUDE (8.6.8, skipped
-   pre-1.9.1 by user decision 2026-07-20): the SF `cutoffCnt` term — reduce
-   more when the child ply produced many cutoffs — enters here as one of
-   the reduction inputs; read Rarog's 8.6 bundle verdict first as a free
-   prior. Our telemetry baseline says the LMR family is very timid
-   (re-search rate 1.04%), so this input class has real headroom.**
+   Each behavior step gets its own SPRT. **`cutoffCnt` (8.6.8, skipped
+   pre-1.9.1 by user decision 2026-07-20) — DOWNGRADED 2026-07-28 from
+   MUST-INCLUDE to *candidate input*.** The free cross-review prior this item
+   asked for came back **negative**: Rarog gated the SF `cutoffCnt` term inside
+   a full LMR-family re-tune and lost **−7.78 ± 8.00**, abandoned with no
+   retry, on the first clean run after its harness-affinity fix (the candidate
+   ran in the historically *favoured* slot and still lost, so the −8 is if
+   anything conservative). Its root cause is the one to fear here: the tuned
+   candidate searched **16% more aggressively**, won its self-play SPSA, and
+   then lost to the more accurate baseline. Rarog also corrected the record on
+   our side — the "+15.6" we remembered is Basilisk 1.5.0's re-tune of an
+   *untuned* LMR formula under the pre-pinning harness, not a `cutoffCnt`
+   validation — so no engine has yet shown this term positive. It may still
+   enter as one input among the others (our telemetry does say the LMR family
+   is very timid, re-search rate 1.04%), but it enters on its own merits with a
+   negative prior, is never auto-included, and **must be gated against the
+   accepted head, never against a sibling of its own tuning run.**
    **MUST INCLUDE #2 (the LMR post-move-`gives_check` bug — found 2026-07-23,
-   standalone fix REJECTED −18/−19 Elo @1.1k, §6): the unified `r` computes
+   standalone fix REJECTED −18/−19 Elo @1.1k, §7): the unified `r` computes
    the check state from the CORRECT pre-move answer BY CONSTRUCTION, so the
    bug is designed out here rather than patched onto the old code. The
    standalone fix lost because the hcefinal LMR constants were tuned WITH the
    bug's accidental over-reduction (lesson-15 de-tuning); the loss is a
    re-tune candidate, NOT proof correct check-handling is bad. Re-measured
-   here as part of the reduction rework and re-tuned in 10.7 — the aggressive-
+   here as part of the reduction rework and re-tuned in 11.7 — the aggressive-
    reduction benefit the bug supplied must be reclaimed through the proper
    knobs (LMR base/divisor/context) or via `cutoffCnt`. If it STILL H0s after
    the joint re-tune, the accident was near-optimal and we keep the current
    behavior; pre-register that outcome so it is not re-litigated.**
-2. **10.2 Result-dependent verification:** choose deeper/shallower full-search
+2. **11.2 Result-dependent verification:** choose deeper/shallower full-search
    depth from the reduced result, node confidence and prior reduction; train
    post-LMR history from both outcomes. → staged SPRTs.
-3. **10.3 TT density and replacement → PULLED to pre-1.9.0 as 8.5.D1**
+3. **11.3 TT density and replacement → PULLED to pre-1.9.0 as 8.5.D1**
    (2026-07-15): it is eval-agnostic and durable, so it strengthens the final
    HCE release and carries to NNUE with no re-tune. See Phase 8.5 Track D.
-   (Slot kept to preserve 10.4–10.7 references.)
-4. **10.4 Bound quality:** blend RFP/qsearch proof values conservatively toward
+   (Slot kept to preserve 11.4–11.7 references.)
+4. **11.4 Bound quality:** blend RFP/qsearch proof values conservatively toward
    beta, preserve fail-soft futility bounds, and finish near-rule-50 TT cutoff
    safeguards from 8.5.14. → separate SPRTs.
-5. **10.5 ProbCut/null/IIR:** staged ProbCut MovePicker with TT/capture-history/
+5. **11.5 ProbCut/null/IIR:** staged ProbCut MovePicker with TT/capture-history/
    SEE ordering and TT-disproof skip; null-move verification min-ply region;
    audit IIR against PV/cut/all-node and TT-PV semantics. → standalone SPRTs.
-6. **10.6 Correction-history consumption v2:** fit per-source weights instead
+6. **11.6 Correction-history consumption v2:** fit per-source weights instead
    of `/5`, add accepted 2-/4-ply continuation-correction contexts, and use
    absolute correction as uncertainty in selected margins. → staged fit +
    SPRT, with collision/support telemetry.
-7. **10.7 Final search tune:** only after 10.1–10.6 are decided, generate a
+7. **11.7 Final search tune:** only after 11.1–11.6 are decided, generate a
    fresh configuration containing accepted histshape/wave2/correction/TM and
    pruning-margin dimensions — **regenerated from the `search_params.h`
    X-macro table (8.6.1), and it MUST carry the full LMR family incl. the
-   10.1 `cutoffCnt` term (8.6.8's re-tune half), the **10.1 pre-move-
+   11.1 `cutoffCnt` term (8.6.8's re-tune half), the **11.1 pre-move-
    `gives_check` LMR fix (its de-tuned −18 loss is re-tuned HERE — reclaim the
    aggressiveness through the knobs, or pre-registered-close if it still H0s)**,
    and `TmInstability`**. Exclude dead, rejected and redundant knobs;
    pre-register ranges and stop rule; SPSA → bake → CTest/telemetry → SPRT.
    Confirm at `10+0.1`, a genuinely longer TC, several hash sizes, and both
    production TUNE=OFF and test TUNE=ON binaries. This is the final tune the
-   old plan incorrectly scheduled in 9.5.
+   old plan incorrectly scheduled in 10.5.
 
-**Phase-10 completion:** no known unsound bound, every search mechanism has a
+**Phase-11 completion:** no known unsound bound, every search mechanism has a
 telemetry/semantic test, final constants target the final net and architecture,
 and 1T strength is validated against the prior 2.x head and current open-source
 frontier opponents.
 
-### Phase 11 — mandatory SMP and hardware scaling
+### Phase 12 — MT scaling beyond Phase 9 (what Phase 9 deliberately did not do)
 
-If Basilisk ships `Threads > 1`, SMP is part of engine quality, not optional.
-The local startpos depth-17 smoke measurement was **5.72× aggregate nodes for
-1.49× wall-clock speedup at 8 threads**; it is diagnostic, not a general
-benchmark. The ordinary 1T SPRT cannot see SMP Elo, so first build a fixed-time
-paired harness at 1/2/4/8/16 threads with recorded affinity, hash per engine,
-NUMA/topology and manifests.
+**RE-SCOPED 2026-07-28.** The core of this phase — the MT harness, per-thread
+root state, coordination, voting/stopping, clock safety, shared-state ownership
+and diversity — **moved to Phase 9 (§5) and runs pre-NNUE**, because deployment
+is 1T+4T (gate 10) and those are the two conditions we actually compete in.
+What remains here is genuinely post-NNUE: the ≥8-thread regime, the NUMA/memory
+work that only pays there, and the re-validation everything needs once the
+evaluator has been replaced. Enter this phase only with Phase 9's MT harness
+and 4T baseline already in hand.
 
-1. **11.1 Per-thread root state:** extend 8.5.12; retain each thread's complete
-   root scores/PVs/variance/nodes and completed depth.
-2. **11.2 Controlled diversity:** independently test aspiration, reduction/
-   depth jitter and root-order perturbation; measure root/key overlap so
-   diversity is demonstrated rather than assumed.
-3. **11.3 Voting and stopping:** score/depth/effort-weighted best-thread voting,
-   agreement-aware soft stop, then bounded hard stop; never select solely by
-   depth then score.
-4. **11.4 Shared-state ownership:** define which histories/corrections are
-   thread-local or shared, stop repeatedly re-blending stale helper tables,
-   and test false sharing/cache-line placement.
-5. **11.5 Topology and memory:** thread pinning/NUMA policy, TT sharing and
-   first-touch, large-page support where portable, and scaling at realistic
-   hash sizes. Preserve deterministic 1T behavior.
+1. **12.1 Re-validate the Phase-9 SMP design on the net.** NNUE changes the
+   node/eval cost ratio, which is exactly what the coordination and
+   time-allocation decisions were tuned against: re-measure 9.5's mechanisms
+   (bound-typed publication, pool-seeded windows, majority stop) and 9.10's
+   threshold at 4T on the NNUE head before assuming they still hold.
+   ⚠ Do not re-open 9.9's diversification question here unless 12.2 gives a
+   *new* reason — it was measured at 4T on the HCE head and its prior is a
+   null in two engines.
+2. **12.2 The ≥8-thread regime.** Our own 1T→8T smoke reading was **5.72×
+   aggregate nodes for 1.49× wall-clock**, and the 2026-07-25 cross-engine set
+   put Basilisk 1.9.1 at 13.44×/84% NPS scaling at 16T (vs Stockfish 14.42×/90%,
+   Reckless 13.37×/84%). ⚠ Rarog chased its own 16T deficit and found it was
+   **not** in the engine: with the whole table resident in L3 the deficit
+   survived (bandwidth ≈3%), turbo contributed ≈0%, and ~6% was OS/SMT
+   placement — i.e. the lever the item was written around did not exist, and
+   the TT design was exonerated (64-byte aligned, prefetched, batched
+   counters). Read that as the prior before spending time here, and note that
+   scaling *percentage* correlates inversely with per-thread NPS across
+   engines, so it is a confounded metric: chase shared-memory traffic and
+   absolute throughput, never the percentage.
+3. **12.3 Voting and stopping at scale.** Phase 9.5(d)/9.10 settle 4T; revisit
+   only the parts that are genuinely N-dependent (a strict majority is a very
+   different rule at 16 threads than at 4). ⚠ Depth-weighted votes are
+   **closed, not deferred**: they exist to stop a late deep thread holding the
+   search open, and that is the direction Rarog measured as costing **−15.85**
+   at 2T. Do not re-derive them.
+4. **12.4 Shared-state ownership at the NNUE scale:** which histories,
+   corrections and accumulator caches are thread-local versus shared, and
+   false-sharing/cache-line placement for the structures NNUE adds. Helper
+   history blending is already resolved by 9.7 — do not re-add it.
+5. **12.5 Topology and memory:** NUMA policy, TT sharing and first-touch,
+   large-page support where portable, and scaling at realistic hash sizes
+   (the 12.x home of the deferred TT multiply-hi full-budget indexing).
+   Preserve deterministic 1T behavior.
+   ⛔ **Engine-side thread/core pinning stays out of scope** (gate 10). It is
+   not a lever we are allowed to pull, however good the placement number
+   looks; the ~6% Rarog measured is diagnostic evidence about the OS, not a
+   proposal. Harness-side affinity for SPRT/SPSA is unaffected.
 
-**Phase-11 completion:** no 1T regression; statistically positive fixed-time
+**Phase-12 completion:** no 1T regression; statistically positive fixed-time
 strength at the supported MT targets; scaling report for 1/2/4/8/16 threads;
 zero races under sanitizer/stress; exact release-binary tests on the primary
 Ryzen platform and at least one different CPU family.
 
-### Phase 12 — NNUE architecture, data and frontier loop
+### Phase 13 — NNUE architecture, data and frontier loop
 
 Chess768 is the bring-up baseline, not the expected final frontier evaluator.
 NNUE remains the strategic path even if the first net underperforms; failure
@@ -2276,11 +3448,11 @@ triggers contract/data/training/architecture diagnosis. The HCE remains a
 debug/datagen reference and optional maintenance fallback, not the default
 route back to top-engine strength.
 
-1. **12.0 Evidence review:** record STC/LTC/MT Elo, NPS, net/data learning
+1. **13.0 Evidence review:** record STC/LTC/MT Elo, NPS, net/data learning
    curves, quantization loss and 8.5.15 cohort residuals. Select the next net
    feature from measured residuals; do not use a single arbitrary +150-Elo
    threshold to declare the evaluator finished.
-2. **12.1 Versioned architecture ladder:** each layout change updates the raw
+2. **13.1 Versioned architecture ladder:** each layout change updates the raw
    Bullet format document, reference inference, conformance net/vectors,
    accumulator tests and scalar/SIMD parity before training at scale. Dispatch
    by an explicit engine/network contract (or separate compiled evaluator),
@@ -2292,18 +3464,18 @@ route back to top-engine strength.
    engine complexity. Eight material output buckets are already part of v1,
    not a future milestone. Train → NPS → frozen benchmark → STC/LTC/MT SPRT
    against the accepted current net, one architecture change at a time.
-3. **12.2 Data/training ladder:** scale beyond 60M according to held-out and
+3. **13.2 Data/training ladder:** scale beyond 60M according to held-out and
    Elo learning curves; A/B Basilisk versus stronger-teacher scores, search
    depth/node mix, WDL lambda, natural-end share, hard-position mining,
    endgame/king-attack/tactical cohort balance, optimizer/schedule and hidden
    size. Keep untouched test data and manifests immutable; never select a
    release net on test loss.
-4. **12.3 HCE recovery menu (closed by default):** only if explicitly chosen
+4. **13.3 HCE recovery menu (closed by default):** only if explicitly chosen
    for product fallback or a benchmark cohort where HCE must remain useful:
    winnability/material scaling, king safety/shelter, specialized endgames,
    passer/threat semantics, lazy-eval train/serve study and phase specialization.
    These do not replace the NNUE frontier loop.
-5. **12.4 Frontier acceptance:** compare current Basilisk against full-strength
+5. **13.4 Frontier acceptance:** compare current Basilisk against full-strength
    contemporary Stockfish, Reckless, PlentyChess and at least one other current
    independent engine, using direct games where informative and calibrated
    node odds otherwise. Validate 1T and target MT, multiple hash sizes, STC,
@@ -2325,11 +3497,11 @@ computes correctly, and feed it to the LMR gate) moved bench 11,941,440 →
 16,365,460 — a real search change. **Deferred as a STRENGTH item (own SPRT):
 Phase 8.7 is pure-speed by contract, so 8.7.3 preserves the quirk verbatim.
 Likely positive (correct LMR data on checking moves), plausibly a wash;
-worth a `[0,3]` SPRT after the speed pass or folded into 10.1's LMR rework.
+worth a `[0,3]` SPRT after the speed pass or folded into 11.1's LMR rework.
 Prior art: none — this is a fresh find.**
 
 > **STANDALONE FIX ❌ REJECTED 2026-07-23 (−19.64 ± 13.43, LLR trending H0,
-> CI excluded 0 @1.1k games, user-stopped); RELOCATED to 10.1 + 10.7, NOT
+> CI excluded 0 @1.1k games, user-stopped); RELOCATED to 11.1 + 11.7, NOT
 > abandoned.** The one-line fix (`(void)move_gives_check();` before
 > `do_move(ss, m)` in `search_one`, forcing the lazy lambda pre-move) took
 > bench 11,941,440 → 16,365,460, CTest 11/11 — but lost ~18-19 Elo standalone.
@@ -2339,13 +3511,13 @@ Prior art: none — this is a fresh find.**
 > heuristic, and the hcefinal SPSA tuned the LMR constants WITH it present, so
 > the standalone fix is a textbook lesson-15 de-tuning victim — the loss does
 > NOT prove correct check-handling is bad. **The fix is therefore designed
-> INTO 10.1's unified reduction (the pre-move answer by construction) and
-> re-tuned in 10.7 (reclaim the aggressiveness through LMR base/divisor/
+> INTO 11.1's unified reduction (the pre-move answer by construction) and
+> re-tuned in 11.7 (reclaim the aggressiveness through LMR base/divisor/
 > context/`cutoffCnt`). Pre-registered: if it still H0s after the joint
 > re-tune, the accident was near-optimal → keep current behavior, close.**
 > User decision 2026-07-23: move to the later step, do NOT ship the standalone
 > fix. Final SPRT −21.55 ± 9.83, LOS 0.00%, LLR −1.72 @2,002 (user-stopped).
-> The fix is a documented one-liner (rebuild at 10.1, not worth keeping a
+> The fix is a documented one-liner (rebuild at 11.1, not worth keeping a
 > pre-NNUE binary). Development stays at 11,941,440; the Phase-8.7 speed pass
 > continues unaffected.
 
@@ -2358,8 +3530,8 @@ Rejected-with-measurement items (6.2 cont-hist6 −7.70, capture-futility-active
 −2.78, do_deeper margins, TM SPSA values) stay closed.
 
 **The unifying rule (§1 cost principle): comprehensive search-constant tuning
-happens once, in Phase 10.7, after NNUE and after the final Phase-10 search
-architecture.** Phase 9.7 permits only isolated safety calibration required to
+happens once, in Phase 11.7, after NNUE and after the final Phase-11 search
+architecture.** Phase 10.7 permits only isolated safety calibration required to
 make the net searchable; it is not the histshape/wave2/TM campaign.
 
 > **⚑ HCE-line note (2026-07-13):** after the HCE/NNUE branch split, the
@@ -2371,14 +3543,14 @@ make the net searchable; it is not the histshape/wave2/TM campaign.
 
 | Deferred item | What it is | Est. value | When to run |
 |---|---|---|---|
-| **histshape SPSA** (was 7.4) | history bonus/malus shape plus accepted history/LMR dimensions; regenerate the config after 8.5.10/8.5.11/10.1 so it contains no obsolete tables or knobs | unknown | Phase 10.7 final tune only |
-| **wave2 mechanisms** | accepted `CapFutDepth`/`QuietSeeDepth`/post-LMR/fractional-LMR dimensions; `QsearchCheckCap` is excluded unless 8.9 made quiet qchecks live | unknown | Phase 10.7, after history-aware `lmrDepth`; never seed known-negative values |
-| **TM knobs** | time-management constants; the old SPSA washed under the old root model | unknown after NNUE/root v2 | Phase 10.7 only, after 8.5.12 supplies variance/instability/root-effort inputs |
+| **histshape SPSA** (was 7.4) | history bonus/malus shape plus accepted history/LMR dimensions; regenerate the config after 8.5.10/8.5.11/11.1 so it contains no obsolete tables or knobs | unknown | Phase 11.7 final tune only |
+| **wave2 mechanisms** | accepted `CapFutDepth`/`QuietSeeDepth`/post-LMR/fractional-LMR dimensions; `QsearchCheckCap` is excluded unless 8.9 made quiet qchecks live | unknown | Phase 11.7, after history-aware `lmrDepth`; never seed known-negative values |
+| **TM knobs** | time-management constants; the old SPSA washed under the old root model | unknown after NNUE/root v2 | Phase 11.7 only, after 8.5.12 supplies variance/instability/root-effort inputs |
 | **6.6 fail-low prior countermove bonus** | skipped during Phase 6 | small | absorbed into 8.5.10(d) on `development` |
-| **fractional history** | quantization experiment flagged during 6.7 | likely wash | only if still meaningful after 8.5.11, then Phase 10.7 |
-| **full-budget TT indexing** (mul-hi instead of the pow2 mask; from the 2026-07-20 TT audit, recorded at 8.6.2c) | use the entire `Hash` budget — pow2 flooring wastes up to ~50% at unlucky sizes | LTC/large-hash relevant (cf. TT-density +4.27) | Phase 10/11, with the 11.5 memory work |
-| **cutoff-count LMR + LMR-family re-tune** (8.6.8 opt-in) | SF `cutoffCnt`; Rarog's measured #1 lever, its 8.6 SPSA in flight 2026-07-20 (carrying two dims from our hcefinal vector) | Rarog EV +3–8 | 10.1/10.7 by default — **read Rarog's 8.6 verdict first as a free cross-review prior**; earlier only via 8.6.8 opt-in |
-| **check-extension-removal BUNDLE** (8.6.7 standalone ❌ −10.17 @ 4.7k, 2026-07-20; 8.5.8 closed for HCE) | removal + joint re-SPSA of the consumers it de-tunes (RFP/razor/null/futility/SEE + LMR family, ~16 dims), ONE gate — the standalone gate vs the hcefinal-tuned head was partly rigged (lesson 15); Rarog's +30.75 predates its LMR re-tune; **the −10.17 also carries one unpinned-harness bias draw (lesson 10)** | unknown; +30.75 at Rarog | post-NNUE recalibration (12.x-era / with 10.7), where these constants are re-fitted anyway; pre-registered: if the bundle H0s there too, closed permanently |
+| **fractional history** | quantization experiment flagged during 6.7 | likely wash | only if still meaningful after 8.5.11, then Phase 11.7 |
+| **full-budget TT indexing** (mul-hi instead of the pow2 mask; from the 2026-07-20 TT audit, recorded at 8.6.2c) | use the entire `Hash` budget — pow2 flooring wastes up to ~50% at unlucky sizes | LTC/large-hash relevant (cf. TT-density +4.27) | Phase 12.5, with the topology/memory work |
+| **cutoff-count LMR + LMR-family re-tune** (8.6.8 opt-in) | SF `cutoffCnt`. **VERDICT IN 2026-07-28:** the cross-review prior we were waiting for came back **negative** — Rarog gated it inside a full LMR-family re-tune and lost **−7.78 ± 8.00** (abandoned, no retry; its candidate searched 16% more aggressively, won its self-play SPSA and then lost to the accurate baseline). The "+15.6" prior was our own 1.5.0 re-tune of an *untuned* LMR formula, not a `cutoffCnt` validation | **negative** (was: Rarog EV +3–8) | 11.1 as a *candidate input only*, never auto-included; re-tuned at 11.7. No standalone opt-in |
+| **check-extension-removal BUNDLE** (8.6.7 standalone ❌ −10.17 @ 4.7k, 2026-07-20; 8.5.8 closed for HCE) | removal + joint re-SPSA of the consumers it de-tunes (RFP/razor/null/futility/SEE + LMR family, ~16 dims), ONE gate — the standalone gate vs the hcefinal-tuned head was partly rigged (lesson 15); Rarog's +30.75 predates its LMR re-tune; **the −10.17 also carries one unpinned-harness bias draw (lesson 10)** | unknown; +30.75 at Rarog | post-NNUE recalibration (13.x-era / with 11.7), where these constants are re-fitted anyway; pre-registered: if the bundle H0s there too, closed permanently |
 | **cuckoo re-trial** (rejected twice 2026-07-17, unpinned harness) | cuckoo-hash repetition detection; both rejects predate the affinity fix and each carries one ±10 bias draw — two same-sign draws are unlikely but possible; lesson-10 candidate for one clean fixed-N probe | probably wash (two rejects) | post-1.9.1 opt-in only; one fixed 10k probe, keep-or-close permanently |
 | **postlmrhist re-trial** (rejected 2026-07-16, unpinned harness; `PostLmrHistScale` inert at 0) | post-LMR continuation-history nudge; single biased-harness reject, knob still registered — probe is options-only (no build), same protocol as 8.6.8A run A | unknown, single reject | post-1.9.1 opt-in only; options-probe fixed 10k, keep-or-close permanently |
 | **SPSA discipline** (pre-registered, from the 2026-07-02 EV review) | 1000–1500 iters, abort at ~600 if trend ≤ 0, converged candidate → bake → SPRT + full CTest; a wash → keep defaults, done | — | applies to every run above |
@@ -2389,7 +3561,7 @@ NNUE king buckets instead), and the audit-closed HCE feature-name menu.
 
 ---
 
-## 7. Release discipline
+## 8. Release discipline
 
 ### Versioning (SemVer-adapted; no public API, so it maps to strength)
 
@@ -2397,7 +3569,9 @@ NNUE king buckets instead), and the audit-closed HCE feature-name menu.
 - **MINOR** — a phase/campaign banking SPRT + gauntlet-validated strength
   (1.5.0 → 1.8.0 were all this). The version reflects **cumulative content
   since the last tag**, not the latest step.
-- **PATCH** — robustness/bugfix only, no strength claim.
+- **PATCH** — focused maintenance/robustness/speed work without a broad new
+  engine campaign. A modest measured gain may still be reported honestly
+  (1.9.1 and 1.9.2 are explicit user-chosen precedents).
 - Releases stay rare and curated; don't ship bench-identical work, don't sit
   on validated Elo.
 
@@ -2412,7 +3586,10 @@ NNUE king buckets instead), and the audit-closed HCE feature-name menu.
    compress or reverse with depth; `10+0.1` alone is not called real LTC.
 3. **Field gauntlet** — tooling: **colosseum**
    (`D:\code\colosseum`, the user's GUI tournament manager — user drives it) or
-   `tools/gauntlet.ps1`; optional LittleBlitzer cross-check. Calibrated slate
+   `tools/gauntlet.ps1`. **Colosseum is the tournament manager** (LittleBlitzer
+   is out of scope as of 2026-07-28 — Colosseum supersedes it; historical
+   LittleBlitzer numbers in `CHANGELOG.md` stay as record). Per gate 10 a
+   boundary gauntlet runs at **both 1T and 4T**. Calibrated slate
    (all in `D:\chess\engines`): prior Basilisk release (the head-to-head that
    matters), Fruit 2.1, Rarog 2.2.0, Rybka 3, Critter 1.6a, SF
    `UCI_LimitStrength` 2800/2900/3000, HIARCS 14, Shredder 12. Read the
@@ -2421,11 +3598,18 @@ NNUE king buckets instead), and the audit-closed HCE feature-name menu.
    PlentyChess and another current independent engine; use calibrated node
    odds when direct scores are too one-sided.
 4. Scan for illegal moves / forfeits / crashes (`t=`, `i=` counts = 0 for
-   Basilisk; throttled-SF incidents in lost positions are benign).
+   Basilisk; throttled-SF incidents in lost positions are benign). **Do not use
+   Colosseum 1.0.2's zero-forfeit count as the sole tight clock-safety gate:**
+   its hard-coded 2 s timeout tolerance masks smaller overruns. Preserve a
+   fastchess clock run at 20 ms margin until that tolerance is configurable.
 5. For a CCRL-style estimate: anchor Ordo to a published engine
    (`ordo -a <ccrl> -A "<name>"`), slower TC, treat as ±50–100.
-6. For releases claiming MT strength, repeat the target 4/8-thread fixed-time
-   gate with recorded affinity/topology/hash; 1T SPRT is insufficient.
+6. **Every release from Phase 9 on validates BOTH deployment conditions**
+   (gate 10): the 1T gate above **and** a Threads=4 run at `Hash 256` with
+   recorded topology/hash/manifests and **zero time forfeits**. A 1T SPRT
+   cannot see MT strength or MT clock safety, and 4T is a shipped condition,
+   not a claim we opt into. Thread counts beyond 4 are reported as scaling
+   diagnostics, not gates, until Phase 12.
 
 ### Release checklist (the model runs this when asked to "release X.Y.Z")
 
@@ -2433,8 +3617,10 @@ NNUE king buckets instead), and the audit-closed HCE feature-name menu.
 2. Bump the version in **both** places: `src/constants.h` (`engineVersion`) and
    `CMakeLists.txt` (`project(basilisk VERSION …)` — drives the dist tag).
 3. Update `CHANGELOG.md` (Keep-a-Changelog entry with SPRT + gauntlet numbers,
-   honest fast-TC vs LTC framing) and `README.md` only if the feature list
-   changed.
+   honest fast-TC vs LTC framing) and `README.md` only if something a *user*
+   sees changed — a feature, a UCI option, an asset tier, a build instruction.
+   Both are **user-facing** documents (§1 audience table): no phase numbers, no
+   step-level bookkeeping, no roadmap.
 4. Build the complete production ISA matrix with fresh revision-matched PGO.
    Test the **exact files to upload**: no `BASILISK_TUNE` UCI options, all
    CTest/sanitizer-required gates pass, bench runs, manifests/checksums match,
@@ -2442,7 +3628,8 @@ NNUE king buckets instead), and the audit-closed HCE feature-name menu.
    embedded-net SHA/architecture and require incremental/full/reference parity.
 5. Commit the prep on `development`. **Do not tag. Do not push.**
 6. Produce copy-pasteable GitHub release notes (summary, strength vs prior tag,
-   changes, honest caveats).
+   changes, which asset to download, honest caveats). **User-facing** — write
+   them from `CHANGELOG.md`, not from this plan (§1 audience table).
 7. **User:** squash → `Version X.Y.Z` on `master`, push. Then **publish a
    GitHub Release** — e.g. `gh release create vX.Y.Z --target master --title
    "Basilisk X.Y.Z" --notes-file <notes>` — which creates the tag (if absent)
@@ -2466,7 +3653,7 @@ before any micro-optimisation.
 
 ---
 
-## 8. Quick commands
+## 9. Quick commands
 
 ```powershell
 # One-time fresh-clone setup
@@ -2482,13 +3669,33 @@ before any micro-optimisation.
     -NameA "Candidate" -NameB "Baseline" -Elo1 3
 # Non-regression variant: -Elo0 -3 -Elo1 0 ; LTC confirmation: -TC "10+0.1"
 
+# 4-THREAD gate (deployment condition #2). Everything follows from -Threads 4:
+# Hash 256 (64 x threads), concurrency 3 (floor((cores-2)/threads)), and
+# -use-affinity dropped by the script itself. Run the Threads=4 null FIRST and
+# require zero forfeits (the script counts them), then the candidate:
+.\tools\sprt.ps1 -EngineA <copy.exe> -EngineB <same.exe> `
+    -NameA Self -NameB Self2 -Mode calibrate -Threads 4 -Games 10000
+.\tools\sprt.ps1 -EngineA <cand.exe> -EngineB <base.exe> `
+    -NameA Candidate -NameB Baseline -Elo1 3 -Threads 4
+# ~10k games minimum at 4T — nothing shorter separates 0 from +3 (gate 10) —
+# and at concurrency 3 that is a ~10-12 h run. Pass -Games explicitly for a
+# null: the 30k calibrate default is sized for 1T's concurrency 14.
+# MT scaling number (a diagnostic, not a gate; one binary, equal TC):
+.\tools\sprt.ps1 -EngineA <head.exe> -EngineB <head.exe> `
+    -NameA "4T" -NameB "1T" -ThreadsA 4 -ThreadsB 1 -Mode fixed -Games 4000
+
+# NPS A/B (self-pair validate first; pool >=2 PGO builds per arm; idle box)
+.\tools\nps_ab.ps1 -EngineA <cand.exe> -EngineB <cand.exe>            # self pair
+.\tools\nps_ab.ps1 -EngineA <cand.exe> -EngineB <base.exe> -Rounds 12
+
 # Self-play datagen (ALWAYS the diverse book — see §3 lesson 4)
 .\tools\datagen.ps1 -Suffix <head> -Book tools\texel\data\beast_seed.epd `
     -BookFormat epd -Rounds 100000 -Nodes 8000 -OutputPgn tools\texel\data\selfplay_X.pgn
 
 # Extract + phase-balance
 python tools\texel\extract_parallel.py tools\texel\data\selfplay_X.pgn `
-    --train train_X.csv --holdout holdout_X.csv --balance-phase 1.5
+    --train train_X.csv --holdout holdout_X.csv --balance-phase 1.5 `
+    --target-train 3500000
 
 # Texel fit (sequential joint-bake — see §3 lesson 5)
 cmake --build build\texel-verify --target basilisk-texel
@@ -2500,7 +3707,7 @@ cmake --build build\texel-verify --target basilisk-texel   # rebuild before KS
     tools\texel\data\holdout_X.csv out_ks.txt --max-positions 100000
 python tools\texel\bake.py out_ks.txt
 
-# NNUE Bullet baseline pipeline (Phase 9; NVIDIA CUDA training)
+# NNUE Bullet baseline pipeline (Phase 10; NVIDIA CUDA training)
 cd D:\code\net_trainer\trainer
 cargo build --release --features cuda
 cd ..
@@ -2517,17 +3724,25 @@ python -m net_trainer.nnue.vectors `
     --out trainer\checkpoints\run1-160\vectors.json
 cd D:\code\basilisk
 
-# Comprehensive SPSA (Phase 10.7 only, after final search architecture)
-.\tools\spsa.ps1 -ConfigGroup histshape -EngineSuffix <base> -Iterations 1500
-cd tools\weather-factory && python main.py
+# SPSA (post-9.1 schedule: -Iterations sets the horizon, the run stops itself
+# there, and it is FROZEN at first launch; <5000 throws without -AllowShortRun;
+# -REnd 0.0031 sets the end-of-run step ratio; resume with -Resume, which
+# ignores a new -Iterations/-REnd by design and says so).
+.\tools\spsa.ps1 -ConfigGroup <group> -EngineSuffix <base> -Iterations 5000
+.\tools\spsa.ps1 -ConfigGroup <group> -Resume
+python .\tools\verify_spsa_schedule.py     # schedule self-test (no games)
+# Bake the TAIL MEAN of the whole vector from
+# tools\weather-factory\tuner\trajectory.csv — not endpoints, not a subset.
+# The comprehensive tune is Phase 11.7 ONLY, after the final search architecture.
 
-# Fixed-game boundary gauntlet (or use colosseum)
+# Fixed-game boundary gauntlet — Colosseum is the tournament manager;
+# gauntlet.ps1 is the scripted fallback. Run BOTH 1T and 4T (gate 10).
 .\tools\gauntlet.ps1 -Engine <candidate> -Opponents <prior-release>,<field...> -TC "10+0.1"
 ```
 
 ---
 
-## 9. Bottom line
+## 10. Bottom line
 
 Phases 0–7 took Basilisk from 1.4.9 to 1.8.0 by building a serious test harness,
 search baseline and mature HCE. The remaining route is explicit:
@@ -2537,24 +3752,28 @@ Phase 8 on development                                        [✅ shipped in 1.
   correctness + release/CI infrastructure
 Phase 8.5 on development                                      [✅ shipped in 1.9.0]
   eval-independent strength + NNUE data preparation
-Phase 8.6 on development                                      [ACTIVE]
+Phase 8.6 on development                                      [✅ shipped in 1.9.1]
   pre-NNUE hardening: param/TT/protocol hygiene, CI (Rarog 9.2 shape),
   A/B compiler equality, search telemetry, check-extension SPRT (rejected),
   8.6.8A accept-audit
-Phase 8.7 on development                                      [NEW 2026-07-22 → 1.9.1]
-  profile-guided speed pass (Rarog 10.3 pattern: NPS instrument →
-  profile → CheckInfo/check-hint, pin/SEE sharing, picker+eval sweeps,
-  PGO enrichment, baked magics; ≈ +2 Elo per 1% NPS at STC)
-  → Release 1.9.1 — the final HCE release and frozen NNUE baseline
-post-1.9.1 NNUE runway (8.5.3 / 8.5.14 / 8.5.15 / 8.5.16)
-one rebase of nnue onto the released 1.9.1 SHA
-Phase 9
-  harden D:/code/net_trainer and integrate its Bullet 1x8 quantised.bin baseline
+Phase 8.7 on development                                      [✅ shipped in 1.9.1]
+  profile-guided speed pass, +4.34% NPS ≈ +8.69 Elo, search bit-identical
+  → Release 1.9.1 — the last shipped HCE release
+Phase 9 on development                                        [✅ CLOSED — 1.9.2 release ready]
+  harness first (SPSA schedule repair, MT-capable SPRT), then the audited
+  SMP defects (thread cap, node counter, helper clock, coordination),
+  index-hoists II, blending/pruning hygiene
+  → Release 1.9.2 (explicit user version choice; focused accepted scope;
+    1T+4T boundary gates passed, manual publish remains)
+post-Phase-9 NNUE runway (8.5.3 / 8.5.14 / 8.5.15 / 8.5.16)
+one rebase of nnue onto the released handoff SHA
 Phase 10
-  final 1T search architecture, then the one comprehensive search tune
+  harden D:/code/net_trainer and integrate its Bullet 1x8 quantised.bin baseline
 Phase 11
-  mandatory SMP/hardware scaling
+  final 1T search architecture, then the one comprehensive search tune
 Phase 12
+  MT scaling beyond Phase 9: the >=8-thread regime, NUMA/memory, NNUE re-validation
+Phase 13
   versioned NNUE architecture/data ladder and frontier validation
 ```
 

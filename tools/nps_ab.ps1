@@ -46,6 +46,15 @@
     (this script flags anything beyond -SelfPairTolerance) before any real
     comparison is trusted.
 
+.PARAMETER OptionsA / OptionsB
+    Per-arm UCI options as "Name=Value" strings. This permits a same-binary
+    feature A/B without independent-build layout luck, e.g.
+    `-OptionsA HelperHistoryBlend=false -OptionsB HelperHistoryBlend=true`.
+
+.PARAMETER Threads
+    Worker count passed as the third `bench` argument. Default 1 preserves the
+    deterministic fingerprint workload; use 4 for an explicitly MT-only cost.
+
 .PARAMETER Depth
     Bench depth. Default 13 = the standard fingerprint workload (11,941,440).
 
@@ -56,8 +65,9 @@
     Alternating A/B rounds. Total samples per arm = Rounds * Repeats.
 
 .PARAMETER Cpu
-    Physical CPU to pin to. Default 0 = first physical core from
-    harness_common.ps1's topology (SMT siblings excluded).
+    Highest-numbered physical CPU in the pinned set. The set contains one
+    physical CPU per requested thread and ends at this CPU. Default selects
+    the highest available physical CPUs; SMT siblings are excluded.
 
 .EXAMPLE
     # REQUIRED first: validate the estimator reads zero on a self pair
@@ -72,6 +82,9 @@ param(
     [Parameter(Mandatory)][string[]]$EnginesA,
     [string[]]$EnginesB = @(),
     [switch]$SelfPair,
+    [string[]]$OptionsA = @(),
+    [string[]]$OptionsB = @(),
+    [int]$Threads = 1,
     [int]$Depth = 13,
     [int]$Repeats = 3,
     [int]$Rounds = 16,
@@ -84,7 +97,7 @@ param(
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "..\harness_common.ps1")
 
-if ($SelfPair) { $EnginesB = $EnginesA }
+if ($SelfPair) { $EnginesB = $EnginesA; $OptionsB = $OptionsA }
 if (-not $EnginesB -or $EnginesB.Count -eq 0) {
     throw "-EnginesB is required unless -SelfPair is given."
 }
@@ -93,6 +106,20 @@ foreach ($e in ($EnginesA + $EnginesB)) {
 }
 $EnginesA = @($EnginesA | ForEach-Object { (Resolve-Path $_).Path })
 $EnginesB = @($EnginesB | ForEach-Object { (Resolve-Path $_).Path })
+if ($Threads -lt 1) { throw "-Threads must be >= 1." }
+
+function ConvertTo-SetOptionCommands {
+    param([string[]]$Options)
+    @($Options | Where-Object { $_ } | ForEach-Object {
+        if ($_ -notmatch '^([^=]+)=(.*)$') {
+            throw "Invalid UCI option '$_': expected Name=Value."
+        }
+        "setoption name $($Matches[1]) value $($Matches[2])"
+    })
+}
+
+$optionCommandsA = @(ConvertTo-SetOptionCommands $OptionsA)
+$optionCommandsB = @(ConvertTo-SetOptionCommands $OptionsB)
 
 # Pin to one physical core so the process cannot migrate mid-bench. Topology
 # comes from harness_common so SMT siblings are never chosen.
@@ -104,11 +131,37 @@ $EnginesB = @($EnginesB | ForEach-Object { (Resolve-Path $_).Path })
 # sample stalled to 2.15M against a 3.2M norm (-33%) and the self-pair CI blew
 # out to +/-4%, which cannot resolve the sub-1% effects this phase measures.
 $cores = @(Get-HarnessPhysicalCpus)
-if ($Cpu -lt 0) { $Cpu = $cores[-1].Cpu }
-$affinityMask = [IntPtr]([int64]1 -shl $Cpu)
+if ($Threads -gt $cores.Count) {
+    throw "-Threads $Threads exceeds the $($cores.Count) detected physical cores."
+}
+$endCoreIndex = $cores.Count - 1
+if ($Cpu -ge 0) {
+    $matchingCore = @($cores | ForEach-Object -Begin { $i = -1 } -Process {
+        ++$i
+        if ($_.Cpu -eq $Cpu) { $i }
+    })
+    if ($matchingCore.Count -ne 1) {
+        throw "-Cpu $Cpu is not one of the detected physical CPUs: $($cores.Cpu -join ', ')."
+    }
+    $endCoreIndex = $matchingCore[0]
+}
+$startCoreIndex = $endCoreIndex - $Threads + 1
+if ($startCoreIndex -lt 0) {
+    throw "Not enough physical CPUs at or below -Cpu $Cpu for -Threads $Threads."
+}
+$selectedCores = @($cores[$startCoreIndex..$endCoreIndex])
+$affinityBits = [int64]0
+foreach ($core in $selectedCores) {
+    if ($core.Cpu -ge 63) {
+        throw "Processor-group affinity above CPU 62 is not supported by this harness."
+    }
+    $affinityBits = $affinityBits -bor ([int64]1 -shl $core.Cpu)
+}
+$affinityMask = [IntPtr]$affinityBits
+$pinnedCpuLabel = $selectedCores.Cpu -join ','
 
 function Invoke-Bench {
-    param([string]$Exe, [int]$D, [int]$R)
+    param([string]$Exe, [int]$D, [int]$R, [int]$T, [string[]]$OptionCommands)
 
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $psi.FileName               = $Exe
@@ -122,7 +175,8 @@ function Invoke-Bench {
     } catch {
         Write-Warning "Could not pin/prioritise $([IO.Path]::GetFileName($Exe)): $($_.Exception.Message)"
     }
-    $p.StandardInput.WriteLine("bench $D $R")
+    foreach ($command in $OptionCommands) { $p.StandardInput.WriteLine($command) }
+    $p.StandardInput.WriteLine("bench $D $R $T")
     $p.StandardInput.WriteLine("quit")
     $p.StandardInput.Close()
     $text = $p.StandardOutput.ReadToEnd()
@@ -154,8 +208,10 @@ Write-Host ""
 Write-Host "======================================================="
 Write-Host "  NPS $modeLabel$(if ($Label) { "  [$Label]" })"
 Write-Host "  Arm A builds: $($EnginesA.Count)   Arm B builds: $($EnginesB.Count)"
-Write-Host "  bench $Depth x $Repeats  x $Rounds alternating rounds"
-Write-Host "  Samples/arm: $($Rounds * $Repeats)   Pinned CPU: $Cpu (High priority)"
+Write-Host "  bench $Depth x $Repeats x $Rounds alternating rounds  Threads: $Threads"
+Write-Host "  Samples/arm: $($Rounds * $Repeats)   Pinned CPUs: $pinnedCpuLabel (High priority)"
+if ($OptionsA.Count) { Write-Host "  Options A: $($OptionsA -join ', ')" }
+if ($OptionsB.Count) { Write-Host "  Options B: $($OptionsB -join ', ')" }
 Write-Host "======================================================="
 Write-Host ""
 
@@ -165,7 +221,7 @@ $perBuildA = @{}; $perBuildB = @{}
 $nodesA = 0; $nodesB = 0
 
 Write-Host "Warm-up..."
-Invoke-Bench -Exe $EnginesA[0] -D $Depth -R 1 | Out-Null
+Invoke-Bench -Exe $EnginesA[0] -D $Depth -R 1 -T $Threads -OptionCommands $optionCommandsA | Out-Null
 
 for ($r = 0; $r -lt $Rounds; $r++) {
     # Cycle builds within each arm so every build gets even coverage.
@@ -181,11 +237,11 @@ for ($r = 0; $r -lt $Rounds; $r++) {
     # -0.2..-0.4% signature Rarog's two discarded estimators produced. Swapping
     # the slot each round cancels it.
     if ($r % 2 -eq 0) {
-        $ra = Invoke-Bench -Exe $ea -D $Depth -R $Repeats
-        $rb = Invoke-Bench -Exe $eb -D $Depth -R $Repeats
+        $ra = Invoke-Bench -Exe $ea -D $Depth -R $Repeats -T $Threads -OptionCommands $optionCommandsA
+        $rb = Invoke-Bench -Exe $eb -D $Depth -R $Repeats -T $Threads -OptionCommands $optionCommandsB
     } else {
-        $rb = Invoke-Bench -Exe $eb -D $Depth -R $Repeats
-        $ra = Invoke-Bench -Exe $ea -D $Depth -R $Repeats
+        $rb = Invoke-Bench -Exe $eb -D $Depth -R $Repeats -T $Threads -OptionCommands $optionCommandsB
+        $ra = Invoke-Bench -Exe $ea -D $Depth -R $Repeats -T $Threads -OptionCommands $optionCommandsA
     }
 
     # SAMPLE UNIT = the best of this invocation's repeats, not every repeat
@@ -227,8 +283,12 @@ $boot = New-Object System.Collections.Generic.List[double]
 for ($i = 0; $i -lt $Bootstrap; $i++) {
     $ba = @(1..$sampA.Count | ForEach-Object { $sampA[$rand.Next($sampA.Count)] })
     $bb = @(1..$sampB.Count | ForEach-Object { $sampB[$rand.Next($sampB.Count)] })
-    $mb = Get-Median $bb
-    if ($mb -gt 0) { $boot.Add(100.0 * ((Get-Median $ba) - $mb) / $mb) }
+    # NOT $mb: PowerShell variable names are case-insensitive, so $mb and the
+    # per-round $mB above are ONE variable. Harmless as written (the two loops
+    # never overlap), but it is the exact shape of the bug that clobbered a
+    # Rarog schedule constant, so the two meanings get two names.
+    $bootMedB = Get-Median $bb
+    if ($bootMedB -gt 0) { $boot.Add(100.0 * ((Get-Median $ba) - $bootMedB) / $bootMedB) }
 }
 $bootSorted = @($boot | Sort-Object)
 $lo = $bootSorted[[int][Math]::Floor(0.025 * $bootSorted.Count)]
@@ -254,6 +314,8 @@ for ($j = 0; $j -lt $roundMedA.Count; $j++) { if ($roundMedA[$j] -gt $roundMedB[
 Write-Host ("  A faster in    : {0}/{1} rounds" -f $aWins, $roundMedA.Count)
 if ($nodesA -eq $nodesB) {
     Write-Host "  fingerprints   : IDENTICAL ($nodesA) — pure speed comparison"
+} elseif ($Threads -gt 1) {
+    Write-Host "  fingerprints   : A=$nodesA B=$nodesB — expected Lazy-SMP variation; NPS includes tree/scheduling effects"
 } else {
     Write-Warning "  fingerprints DIFFER (A=$nodesA B=$nodesB) — the arms do different work; this delta is NOT pure speed."
 }
@@ -269,6 +331,6 @@ if ($SelfPair) {
     }
 } else {
     Write-Host ""
-    Write-Host "Reminder: a real verdict needs the self pair validated first (-SelfPair), >=2 PGO builds"
-    Write-Host "per arm, and an idle box. Non-PGO readings OVERSTATE the shipped gain — confirm under PGO."
+    Write-Host "Reminder: use >=2 PGO builds per arm, or one byte-identical binary with differing options,"
+    Write-Host "and an idle box. Non-PGO readings OVERSTATE the shipped gain — confirm under PGO."
 }

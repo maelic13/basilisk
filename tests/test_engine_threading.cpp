@@ -2,6 +2,7 @@
 
 #include "engine.h"
 #include "engine_command.h"
+#include "constants.h"
 #include "parameters.h"
 #include "uci_output.h"
 #include "attacks.h"
@@ -10,6 +11,7 @@
 #include "test_harness.h"
 #include "zobrist.h"
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <future>
@@ -57,6 +59,10 @@ public:
 
     void set_option(const std::string& args) {
         queue_.push(EngineCommand{EngineCommandType::SetOption, args, nullptr, 0});
+    }
+
+    void new_game() {
+        queue_.push(EngineCommand{EngineCommandType::NewGame, {}, nullptr, 0});
     }
 
     void position(const std::string& args) {
@@ -155,6 +161,32 @@ void test_threads_setoption_resizes_before_ready() {
     end_section();
 }
 
+// 9.3(a): the Threads cap must be ONE value, not two independently computed
+// ones. It used to be `max(1024, 4*hw)` in both parameters.cpp and search.cpp
+// — `min` was meant — so the advertisement and the pool's real limit could
+// drift apart on a large enough machine. The VALUE is a flat 1024, matching
+// Stockfish's Option(1, 1, 1024): picking a sane thread count is the
+// operator's job, and hardware_concurrency() under-reports in exactly the
+// containerised environments where a machine-derived cap would bite.
+void test_threads_maximum_is_the_single_definition() {
+    const int advertised = Parameters::max_threads();
+
+    begin_section("engine threads: advertised maximum is the flat cap");
+    EXPECT_EQ(advertised, maxSearchThreads);
+    EXPECT_EQ(advertised, 1024);
+    end_section();
+
+    // The invariant that actually matters and survives any policy change:
+    // an option that claims a maximum the pool silently clamps is a protocol
+    // lie, so the advertised string must quote the same number the pool honours.
+    begin_section("engine threads: uci advertisement matches the real cap");
+    const std::string options = Parameters::uci_options();
+    const std::string expected =
+        "option name Threads type spin default 1 min 1 max " + std::to_string(advertised);
+    EXPECT(options.find(expected) != std::string::npos);
+    end_section();
+}
+
 void test_threaded_go_nodes_returns_one_bestmove() {
     const int max_threads = Parameters::max_threads();
 
@@ -174,6 +206,75 @@ void test_threaded_go_nodes_returns_one_bestmove() {
     begin_section("engine threads: threaded search emits node info");
     EXPECT(contains_line_fragment(session.output(), " nodes "));
     end_section();
+}
+
+// 9.5: the SMP machinery must be INERT on a single thread. Every Phase-9
+// mechanism is gated on thread_count > 1 or on root_table != nullptr (which
+// the 1T path never sets), so a single-thread search must be exactly as
+// deterministic as it was before any of it existed. This also catches the
+// subtler failure: multi-thread state leaking ACROSS searches — a stale stop
+// ballot (9.5c) or unflushed shared node count (9.3b) would show up here as a
+// 1T search that no longer reproduces itself after a 4-thread one.
+void test_smp_machinery_is_inert_on_a_single_thread() {
+    auto fixed_depth_nodes = [](EngineSession& s) {
+        // ucinewgame first: the TT and the history tables persist across
+        // searches BY DESIGN, so without clearing them this would measure
+        // ordinary carryover rather than anything about the SMP machinery.
+        s.new_game();
+        s.sync();
+        // Bestmove counting is CUMULATIVE over the session, so wait for one
+        // MORE than we have already seen — waiting for "1" would return
+        // instantly on a previous search's bestmove and parse its nodes.
+        const int already = count_bestmove_lines(s.output());
+        s.position("startpos");
+        s.go("depth 10");
+        s.wait_for_bestmoves(already + 1, 20000);
+        // The last "nodes N" reported for this search.
+        std::istringstream in(s.output());
+        std::string line, last;
+        while (std::getline(in, line))
+            if (line.find(" nodes ") != std::string::npos) last = line;
+        const size_t at = last.find(" nodes ");
+        return at == std::string::npos ? std::string()
+                                       : last.substr(at + 7, last.find(' ', at + 7) - at - 7);
+    };
+
+    std::string first, again, after_mt;
+    {
+        EngineSession session;
+        session.set_option("name Threads value 1");
+        session.sync();
+        first = fixed_depth_nodes(session);
+    }
+    {
+        EngineSession session;
+        session.set_option("name Threads value 1");
+        session.sync();
+        again = fixed_depth_nodes(session);
+    }
+
+    begin_section("smp: single-thread fixed-depth search is deterministic");
+    EXPECT(!first.empty());
+    EXPECT(first == again);
+    end_section();
+
+    // Same engine instance: 4 threads, then back to 1. The 1T result must be
+    // the SAME node count as a process that never ran a multi-thread search.
+    if (Parameters::max_threads() >= 4) {
+        EngineSession session;
+        session.set_option("name Threads value 4");
+        session.sync();
+        session.position("startpos");
+        session.go("depth 10");
+        session.wait_for_bestmoves(1, 30000);
+        session.set_option("name Threads value 1");
+        session.sync();
+        after_mt = fixed_depth_nodes(session);
+
+        begin_section("smp: 1T is unaffected by a preceding multi-thread search");
+        EXPECT(after_mt == first);
+        end_section();
+    }
 }
 
 void test_go_perft_returns_nodes_without_bestmove() {
@@ -269,9 +370,11 @@ int main() {
 
     std::printf("\nThreads option\n");
     test_threads_setoption_resizes_before_ready();
+    test_threads_maximum_is_the_single_definition();
 
     std::printf("\nThreaded search\n");
     test_threaded_go_nodes_returns_one_bestmove();
+    test_smp_machinery_is_inert_on_a_single_thread();
 
     std::printf("\nRoot commands\n");
     test_go_perft_returns_nodes_without_bestmove();

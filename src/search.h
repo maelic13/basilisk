@@ -116,7 +116,20 @@ public:
 
     SearchResult search(Board board, const SearchLimits& limits);
     void clear(); // Reset all history (e.g., on ucinewgame)
-    void blend_history_from(const Searcher& other);
+
+    // ---- 9.3(c) multi-thread diagnostics ----
+    // print_diag() is gated on info_cb_, which only thread 0 owns, so at
+    // Threads>1 every counter it printed described the MAIN THREAD ALONE —
+    // sound, but blind to the pool, and 9.5 cannot be read that way. The pool
+    // collects each helper's counters after the join and hands the aggregate
+    // back to thread 0 to print. Main's own lines are unchanged, so 1T output
+    // is byte-for-byte what it was.
+    // Takes the pool itself rather than a pre-summed struct: same-class access
+    // reaches each helper's private counters directly, so no accessor has to be
+    // opened up and DiagCounters stays private.
+    void print_pool_diag(const std::vector<std::unique_ptr<Searcher>>& pool,
+                         int thread_count,
+                         const std::vector<int>& completed_depths) const;
 
 private:
     Evaluator evaluator_;
@@ -185,15 +198,74 @@ private:
         // 8.7.1(c): snapshotted from the Board at search teardown (see
         // board.h) — board_ptr_ is nulled before print_diag() runs.
         int64_t see_ge_calls = 0, gives_check_calls = 0;
+        // 9.3(c): TT stores that landed on a slot already holding this
+        // position's key, versus stores that claimed a different slot. At
+        // Threads>1 the same-key share is how much the pool is re-writing
+        // entries it (or another thread) already owns rather than competing
+        // for capacity — the quantity 9.5's TT-coordination work moves.
+        int64_t tt_stores = 0, tt_stores_same_key = 0;
         void reset() noexcept { *this = DiagCounters{}; }
+        // Pool aggregation (9.3c): sum a helper's counters into this one.
+        // Written out rather than punned through an int64_t* — the
+        // static_assert below is what catches a counter added without a
+        // matching line here (it fires the moment the field count changes).
+        void add(const DiagCounters& o) noexcept {
+            interior_nodes += o.interior_nodes;
+            in_check_nodes += o.in_check_nodes;
+            check_exts += o.check_exts;
+            tt_pv_nodes += o.tt_pv_nodes;
+            tt_probes += o.tt_probes;
+            tt_hits += o.tt_hits;
+            tt_cutoffs += o.tt_cutoffs;
+            rfp_cuts += o.rfp_cuts;
+            razor_cuts += o.razor_cuts;
+            null_tries += o.null_tries;
+            null_cuts += o.null_cuts;
+            probcut_tries += o.probcut_tries;
+            probcut_cuts += o.probcut_cuts;
+            fut_prunes += o.fut_prunes;
+            lmp_prunes += o.lmp_prunes;
+            hist_prunes += o.hist_prunes;
+            see_prunes += o.see_prunes;
+            lmr_applied += o.lmr_applied;
+            lmr_researched += o.lmr_researched;
+            qs_nodes += o.qs_nodes;
+            qs_evasion_nodes += o.qs_evasion_nodes;
+            hist_cutoff_updates += o.hist_cutoff_updates;
+            hist_reward_updates += o.hist_reward_updates;
+            see_ge_calls += o.see_ge_calls;
+            gives_check_calls += o.gives_check_calls;
+            tt_stores += o.tt_stores;
+            tt_stores_same_key += o.tt_stores_same_key;
+        }
     };
+    // 27 counters, all int64_t. If this fails you added a counter: add it to
+    // add() above and update the count, or the pool aggregate silently drops it.
+    static_assert(sizeof(DiagCounters) == 27 * sizeof(int64_t),
+                  "DiagCounters changed shape — update DiagCounters::add()");
     DiagCounters diag_;
     void print_diag() const;
+    // Publish this thread's unpublished node count to the shared counter
+    // (9.3b). Called on every batch boundary and once at search teardown so no
+    // node is left unpublished when the pool reads the total.
+    void flush_shared_nodes();
+    // 9.3(c): every TT store in the search goes through this wrapper, so the
+    // same-key telemetry cannot drift out of sync with the actual store sites.
+    void tt_store(Key key, int depth, int score, TTFlag flag, Move m, int ply,
+                  int static_eval);
 
     Board*   board_ptr_;
     int64_t  nodes_;
     int64_t  tb_hits_;
     int64_t  nodes_limit_;  // 0 = unlimited
+    // 9.3(b) shared-counter batching. The multi-thread node total used to take
+    // an atomic fetch_add on ONE shared cache line at EVERY node from EVERY
+    // thread. Now each thread publishes in blocks of sharedNodeBatch and keeps
+    // the last published total here so the node-limit check and current_nodes()
+    // still see a sane figure between flushes. Single-thread searches never set
+    // `shared_nodes` at all, so that path is untouched (bench cannot move).
+    int64_t  shared_nodes_flushed_;  // local nodes already published
+    int64_t  shared_nodes_total_;    // pool total as of the last publish
     int      sel_depth_;
     bool     stopped_;
     int      root_filter_index_;
@@ -305,8 +377,6 @@ private:
 
     // Combined continuation history score for a (piece, to) pair
     int  cont_hist_score(const SearchStack* ss, PieceType pt, Square to) const;
-    int  pawn_hist_score(Key pawn_key, PieceType pt, Square to) const;
-    int  low_ply_score(int ply, Square from, Square to) const;
 
     // Bulk history update after a beta cutoff
     void update_all_histories(Move best, bool best_is_tt,

@@ -91,7 +91,7 @@ _basilisk_check_training_log("${_train_log}")
 # straight from `bench`. The older per-position EPD loop (cmake/pgo-train.epd,
 # depth 7) was dropped when bench grew from 16 to 40 positions: with a
 # well-spread bench it was redundant (it mostly re-sampled the same hot search
-# loop). See PLAN.md / user_dev_guide.md.
+# loop). See PLAN.md / GUIDE.md.
 
 file(GLOB _profraw_files "${_prof_dir}/*.profraw")
 if(NOT _profraw_files)

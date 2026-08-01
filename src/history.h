@@ -78,5 +78,4 @@ struct HistoryTables {
 
     void clear();                                // zero everything (ucinewgame)
     void age();                                  // halve everything between searches
-    void blend_from(const HistoryTables& other); // helper-thread merge (dst += src/4, clamped)
 };

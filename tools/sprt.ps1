@@ -24,10 +24,35 @@
         under the old Little Blitzer-style condition. This disables the clock.
       - LTC confirmation runs at tc=10+0.1 (pass -TC "10+0.1") at phase
         boundaries and for TC-suspect features.
-      - Hash 64 MB, Threads 1, UHO_Lichess_4852_v1.epd opening book (random order),
-        each opening played from both colours (-games 2 -repeat).
+      - Hash 64 MB per thread, Threads 1 by default, UHO_Lichess_4852_v1.epd
+        opening book (random order), each opening played from both colours
+        (-games 2 -repeat).
       - model=normalized (nElo) — fastchess default, more time-control-robust
         than logistic Elo.
+
+    MULTI-THREAD GATES (9.2; deployment is 1T AND 4T per PLAN gate 10):
+      - Pass -Threads 4 to gate a multi-thread change. Hash then defaults to
+        64 x Threads (256 MB at 4T): a fixed-Hash MT comparison measures table
+        thrash, not the change.
+      - Concurrency becomes threads-aware — floor((physical - 2) / threads),
+        so 16 physical cores give T1 -> 14, T2 -> 7, T4 -> 3, T8 -> 1 — and
+        oversubscription throws instead of quietly starving the engines.
+      - -use-affinity is DROPPED whenever threads > 1. fastchess 1.8.0 binds
+        each *game* to one core regardless of the engine's Threads, so a
+        Threads=4 concurrency=3 run would pin 3 cores for 12 engine threads;
+        Rarog measured -100 +/- 27 of pure starvation exactly that way, on a
+        variant that inspects clean. That run was void.
+      - Because the pin is gone at MT, the per-run placement lottery (lesson 10)
+        is back: EVERY thread count needs its own -Mode calibrate null before
+        any verdict at that thread count is trusted.
+      - Budget ~10k games for a 4T verdict. At 4T nothing under that separates
+        0 from +3 — Rarog read the same run at +1.78 @1.5k, +2.90 @3.1k and
+        -0.81 @28.4k. Do not form an opinion from the first few thousand games.
+      - The 4T null is an overnight run: concurrency drops to 3 on a 16-core
+        box, so ~10k games takes roughly 10-12 hours. Pass -Games 10000
+        explicitly; the 30000 default is sized for 1T's concurrency 14.
+      - Time forfeits are the MT canary (9.4): the run summary counts them, and
+        a calibration containing any is invalid.
 
     IMPORTANT — affinity and calibration (2026-07-21 incident): a null pair
     measured +9.34 +/- 8.20 over only 2,566 games. That single 95% interval is
@@ -103,16 +128,38 @@
     incremental features (e.g. a single tuned search constant) to demand a
     cleaner signal.
 
+.PARAMETER Threads
+    Engine `Threads` for BOTH sides. Default 1. Set 4 for a multi-thread gate
+    (deployment is 1T and 4T — PLAN gate 10). Changing this changes the
+    concurrency arithmetic, the Hash default and the affinity decision; see the
+    MULTI-THREAD GATES note above.
+
+.PARAMETER ThreadsA / ThreadsB
+    Per-side overrides for an asymmetric scaling run, e.g.
+    `-ThreadsA 4 -ThreadsB 1` to measure what four threads buy over one at the
+    same TC. Default 0 = use -Threads. Concurrency is sized from the LARGER of
+    the two. An asymmetric run is a scaling diagnostic, not a strength gate.
+
 .PARAMETER Hash
-    Hash MB per engine. Default 64 (matches deployment).
+    Hash MB for BOTH engines. Default 0 = derive per side as 64 x that side's
+    threads (64 at 1T, 256 at 4T — gate 10: 4x the nodes needs 4x the table).
+    Pass a value to force both sides equal, e.g. to isolate the thread variable
+    in an asymmetric run.
+
+.PARAMETER HashA / HashB
+    Per-side Hash overrides. Default 0 = derive as above (or -Hash if given).
 
 .PARAMETER Concurrency
-    Parallel games. Default 0 auto-detects physical cores and leaves two free.
+    Parallel games. Default 0 auto-detects: floor((physical cores - 2) /
+    threads-per-game). An explicit value that would oversubscribe the box
+    (concurrency x threads > physical cores) is rejected.
 
 .PARAMETER Games
     Fixed game count for -Mode calibrate and -Mode fixed. Default 30000; pass
-    e.g. 10000 for an 8.6.8A probe. Must be even. In calibrate, too wide a
-    final interval is an explicit fail; in fixed, the CI is simply reported.
+    e.g. 10000 for an 8.6.8A probe, and 10000 for a 4T null (the default is
+    sized for 1T concurrency — at 4T it would run for days). Must be even. In
+    calibrate, too wide a final interval is an explicit fail; in fixed, the CI
+    is simply reported.
 
 .PARAMETER CalibrationTolerance
     Absolute nElo tolerance for calibration. Default 5. PASS requires the full
@@ -152,6 +199,18 @@
         -EngineA "tools\test_engines\basilisk-phase867-nocheckext-pext-pgo.exe" `
         -EngineB "tools\test_engines\basilisk-head-pext-pgo.exe" `
         -NameA "Phase1" -NameB "Head" -Elo1 3
+
+.EXAMPLE
+    # A 4T gate. Run the null FIRST at the same thread count, then the candidate.
+    ./tools/sprt.ps1 -EngineA <head.exe> -EngineB <head-copy.exe> `
+        -NameA Self -NameB Self2 -Mode calibrate -Threads 4
+    ./tools/sprt.ps1 -EngineA <cand.exe> -EngineB <head.exe> `
+        -NameA Cand -NameB Head -Elo1 3 -Threads 4
+
+.EXAMPLE
+    # Thread-scaling diagnostic (not a gate): 4T vs 1T at the same TC.
+    ./tools/sprt.ps1 -EngineA <head.exe> -EngineB <head-copy.exe> `
+        -NameA "4T" -NameB "1T" -ThreadsA 4 -ThreadsB 1 -Mode fixed -Games 4000
 #>
 param(
     [Parameter(Mandatory)][string]$EngineA,
@@ -165,7 +224,12 @@ param(
     [Nullable[int]]$Elo1 = $null,
     [double]$Alpha = 0.05,
     [double]$Beta  = 0.05,
-    [int]$Hash = 64,
+    [int]$Threads = 1,
+    [int]$ThreadsA = 0,
+    [int]$ThreadsB = 0,
+    [int]$Hash = 0,
+    [int]$HashA = 0,
+    [int]$HashB = 0,
     [int]$Concurrency = 0,
     [int]$Games = 30000,
     [double]$CalibrationTolerance = 5,
@@ -182,9 +246,44 @@ $ErrorActionPreference = "Stop"
 
 function Get-Sha256($path) { if (Test-Path $path) { (Get-FileHash $path -Algorithm SHA256).Hash } else { "missing" } }
 
-$concurrencyInfo = Resolve-HarnessConcurrency -Requested $Concurrency
+# ── Threads / Hash / concurrency / affinity (9.2) ────────────────────────────
+# Deployment is 1T AND 4T (PLAN gate 10), so a thread count is a first-class
+# run condition rather than a constant. Everything downstream — how many games
+# fit on the box, how big the table has to be, whether pinning is valid — is
+# derived from it here, in one place.
+if ($Threads -lt 1) { throw "-Threads must be >= 1." }
+if ($ThreadsA -lt 0 -or $ThreadsB -lt 0) { throw "-ThreadsA/-ThreadsB must be >= 0 (0 = use -Threads)." }
+if ($ThreadsA -eq 0) { $ThreadsA = $Threads }
+if ($ThreadsB -eq 0) { $ThreadsB = $Threads }
+$maxThreads = [Math]::Max($ThreadsA, $ThreadsB)
+
+# Gate 10: 4x the nodes needs 4x the table. A fixed-Hash MT comparison measures
+# table thrash, not the change. Each side is sized from ITS OWN thread count so
+# an asymmetric scaling run configures both sides as they would be deployed;
+# -Hash forces them equal when isolating the thread variable is the point.
+if ($Hash -lt 0 -or $HashA -lt 0 -or $HashB -lt 0) { throw "-Hash/-HashA/-HashB must be >= 0 (0 = derive)." }
+if ($HashA -eq 0) { $HashA = if ($Hash -gt 0) { $Hash } else { 64 * $ThreadsA } }
+if ($HashB -eq 0) { $HashB = if ($Hash -gt 0) { $Hash } else { 64 * $ThreadsB } }
+
+$concurrencyInfo = Resolve-HarnessConcurrency -Requested $Concurrency -ThreadsPerGame $maxThreads
 $Concurrency = $concurrencyInfo.Concurrency
-$AffinityCpus = Get-HarnessAffinityCpuList -Concurrency $Concurrency
+
+# ⛔ -use-affinity is DROPPED whenever threads > 1. fastchess 1.8.0 pins each
+# GAME to one core regardless of the engine's Threads, so a Threads=4
+# concurrency=3 run would confine 12 engine threads to 3 cores; Rarog measured
+# -100 +/- 27 of pure starvation that way on a variant that inspected clean.
+# At Threads=1 one-core-per-game is exactly right and the pin removes the
+# Zen-3 placement bias (PLAN lesson 10), so it stays.
+$useAffinity = ($maxThreads -eq 1)
+$AffinityCpus = if ($useAffinity) { Get-HarnessAffinityCpuList -Concurrency $Concurrency } else { "" }
+$affinityArgs = if ($useAffinity) { @("-use-affinity", $AffinityCpus) } else { @() }
+$affinityNote = if ($useAffinity) {
+    "$AffinityCpus (one logical CPU per physical core)"
+} else {
+    "DROPPED (threads>1: fastchess pins per GAME, which would starve the pool) " +
+    "-- placement bias is unpinned, so this thread count needs its own -Mode calibrate null"
+}
+
 $Seed = New-HarnessSeed -Requested $Seed
 
 if ($Mode -eq "calibrate" -or $Mode -eq "fixed") {
@@ -231,6 +330,11 @@ $Book    = (Resolve-Path $Book).Path
 
 $shaA = Get-Sha256 $EngineA
 $shaB = Get-Sha256 $EngineB
+# 9.2: threads and hash are part of "are these two sides the same thing?".
+# An asymmetric run (-ThreadsA 4 -ThreadsB 1) is two genuinely different
+# configurations of one binary, and a null is only a null if BOTH sides match
+# in every respect, run conditions included.
+$sameConfig = ($ThreadsA -eq $ThreadsB) -and ($HashA -eq $HashB)
 if ($Mode -eq "calibrate") {
     if ($shaA -ne $shaB) {
         throw "Calibration requires byte-identical engine binaries (SHA-256 differs)."
@@ -238,11 +342,17 @@ if ($Mode -eq "calibrate") {
     if (-not $sameOptions) {
         throw "Calibration requires identical UCI options on both sides (a true null). Use -Mode fixed to A/B-test a knob."
     }
-} elseif ($shaA -eq $shaB -and $sameOptions) {
-    # Same binary AND same options => truth is exactly 0, a degenerate null an
-    # SPRT can never resolve. A knob probe (-Mode fixed with differing options)
-    # is the legitimate same-binary case and is allowed.
-    throw "Identical binaries with identical options is a degenerate null: use -Mode calibrate, or pass differing -OptionsA/-OptionsB (with -Mode fixed) to A/B-test a UCI knob."
+    if (-not $sameConfig) {
+        throw "Calibration requires identical run conditions on both sides (a true null), but " +
+              "threads A=$ThreadsA B=$ThreadsB and hash A=$HashA B=$HashB. A null calibrates ONE " +
+              "thread count at a time; use -Mode fixed for an asymmetric scaling diagnostic."
+    }
+} elseif ($shaA -eq $shaB -and $sameOptions -and $sameConfig) {
+    # Same binary AND same options AND same conditions => truth is exactly 0, a
+    # degenerate null an SPRT can never resolve. A knob probe (-Mode fixed with
+    # differing options) and a thread-scaling probe (differing -ThreadsA/B) are
+    # the legitimate same-binary cases and are allowed.
+    throw "Identical binaries with identical options and identical thread/hash conditions is a degenerate null: use -Mode calibrate, or pass differing -OptionsA/-OptionsB or -ThreadsA/-ThreadsB (with -Mode fixed)."
 }
 
 # fastchess needs the opening format told explicitly; derive it from the file
@@ -307,11 +417,11 @@ $repoSha   = (git rev-parse HEAD 2>$null); if (-not $repoSha) { $repoSha = "n/a"
     "optionsA:      $(if ($optArgsA.Count) { $optArgsA -join ' ' } else { '(none)' })"
     "optionsB:      $(if ($optArgsB.Count) { $optArgsB -join ' ' } else { '(none)' })"
     "time_control:  $tcLabel  timemargin=${TimeMargin}ms"
-    "hash_mb:       $Hash"
-    "threads:       1"
-    "concurrency:   $Concurrency"
+    "hash_mb:       A=$HashA B=$HashB$(if ($HashA -eq $HashB) { '' } else { '  (per-side, scaled with that side''s threads)' })"
+    "threads:       A=$ThreadsA B=$ThreadsB"
+    "concurrency:   $Concurrency  (x $maxThreads threads/game = $($concurrencyInfo.CoresUsed) of $($concurrencyInfo.PhysicalCores) physical cores)"
     "physical_cores: $($concurrencyInfo.PhysicalCores)"
-    "affinity_cpus: $AffinityCpus (one logical CPU per physical core)"
+    "affinity_cpus: $affinityNote"
     "book:          $Book"
     "book_sha256:   $(Get-Sha256 $Book)"
     "opening_order: random"
@@ -336,8 +446,24 @@ if ($Mode -eq "calibrate") {
 }
 if ($optArgsA.Count) { Write-Host "  OptionsA: $($optArgsA -join ' ')" }
 if ($optArgsB.Count) { Write-Host "  OptionsB: $($optArgsB -join ' ')" }
-Write-Host "  TC: $tcLabel   Margin: ${TimeMargin} ms   Hash: ${Hash} MB   Conc: $Concurrency"
-Write-Host "  CPUs: $AffinityCpus"
+Write-Host "  TC: $tcLabel   Margin: ${TimeMargin} ms"
+Write-Host ("  Threads: A={0} B={1}   Hash: A={2} MB B={3} MB   Conc: {4} ({5}/{6} cores)" -f `
+    $ThreadsA, $ThreadsB, $HashA, $HashB, $Concurrency, $concurrencyInfo.CoresUsed, $concurrencyInfo.PhysicalCores)
+Write-Host "  CPUs: $affinityNote"
+if ($maxThreads -gt 1) {
+    Write-Host ""
+    Write-Warning ("MULTI-THREAD RUN (threads>1). Three things this changes: affinity is OFF, so " +
+        "this thread count needs its OWN -Mode calibrate null before any verdict here is trusted; " +
+        "budget ~10k games (at 4T nothing under that separates 0 from +3 -- the same run read " +
+        "+1.78 @1.5k and -0.81 @28.4k elsewhere); and TIME FORFEITS are the canary -- the summary " +
+        "counts them and any nonzero count invalidates the run.")
+    if ($ThreadsA -ne $ThreadsB) {
+        Write-Warning ("ASYMMETRIC threads (A=$ThreadsA, B=$ThreadsB): this is a SCALING DIAGNOSTIC, " +
+            "not a strength gate -- the two sides are different configurations, not a candidate " +
+            "and its baseline.")
+    }
+    Write-Host ""
+}
 Write-Host "  Book: $(Split-Path $Book -Leaf)"
 Write-Host "  Runner: $fastchess"
 Write-Host "  PGN:  $pgnOut"
@@ -356,8 +482,8 @@ $sprtArgs = if ($fixedSize) {
 
 # Per-engine argument arrays so a variable number of UCI options can be
 # appended cleanly (splatted into the native call below).
-$engineArgsA = @("-engine", "cmd=$EngineA", "name=$NameA", "option.Hash=$Hash", "option.Threads=1") + $optArgsA
-$engineArgsB = @("-engine", "cmd=$EngineB", "name=$NameB", "option.Hash=$Hash", "option.Threads=1") + $optArgsB
+$engineArgsA = @("-engine", "cmd=$EngineA", "name=$NameA", "option.Hash=$HashA", "option.Threads=$ThreadsA") + $optArgsA
+$engineArgsB = @("-engine", "cmd=$EngineB", "name=$NameB", "option.Hash=$HashB", "option.Threads=$ThreadsB") + $optArgsB
 
 # Console-noise filter (2026-07-17, ported from Rarog): the per-game 'Started
 # game …' / normal 'Finished game … {Draw/wins by adjudication}' / 'Score of …'
@@ -387,7 +513,7 @@ $dropNoise = {
     -openings "file=$Book" "format=$bookFormat" order=random `
     -rounds $rounds -games 2 -repeat `
     -concurrency $Concurrency `
-    -use-affinity $AffinityCpus `
+    @affinityArgs `
     -srand $Seed `
     -ratinginterval 20 `
     @sprtArgs `
@@ -404,10 +530,31 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host ""
     Write-Error "fastchess exited with code $LASTEXITCODE — no games were played."
 } else {
-    Assert-NoAffinityFailure -LogPath $logOut
+    if ($useAffinity) { Assert-NoAffinityFailure -LogPath $logOut }
     Write-Host ""
     Write-Host "Match finished. PGN saved to: $pgnOut"
     Write-Host "Full console log (all per-game lines): $logOut"
+
+    # Time forfeits are the multi-thread canary (9.4): under scheduler
+    # contention the 2048-node clock poll stretches from <=1 ms to 50-100 ms and
+    # can overrun the hard cap. Rarog measured 10 forfeits in 240 games at
+    # Threads=4 in this exact configuration. Always counted, and called out
+    # loudly at MT, where it is a step-failing condition rather than trivia.
+    # Note the pattern: a bare "timeout" would match fastchess's own
+    # "Timeouts: 0" summary line and report a forfeit on a clean run.
+    $forfeits = @(Select-String -LiteralPath $logOut `
+        -Pattern '(?i)loses on time|timeouts:\s*[1-9]' -ErrorAction SilentlyContinue).Count
+    if ($forfeits -gt 0) {
+        Write-Warning ("TIME FORFEITS: $forfeits log line(s) report a loss on time. " +
+            $(if ($maxThreads -gt 1) {
+                "At threads>1 this is the 9.4 canary and FAILS the run regardless of Elo -- " +
+                "investigate the clock reserve before reading the result."
+            } else {
+                "Investigate before trusting the result."
+            }))
+    } elseif ($maxThreads -gt 1) {
+        Write-Host "Time forfeits: 0 (the MT clock-safety canary is clean)."
+    }
 
     # A timeout/crash/protocol anomaly biases any fixed-size result (the slower
     # or dying side loses games it should not). Both calibrate and fixed care.
@@ -420,21 +567,39 @@ if ($LASTEXITCODE -ne 0) {
             throw "Calibration contained a timeout/crash/protocol anomaly and is invalid. See '$logOut'."
         }
 
+        # fastchess emits 'inf'/'nan' for the estimate and/or the error term
+        # when the sample is too small or degenerate (e.g. a clean sweep gives
+        # nElo: inf +/- nan). Match those too, so the operator is told what
+        # happened instead of getting "could not parse".
         $eloLine = Select-String -LiteralPath $logOut `
-            -Pattern '\bnElo:\s*(?<estimate>[+-]?\d+(?:\.\d+)?)\s*\+/-\s*(?<error>\d+(?:\.\d+)?)' |
+            -Pattern '\bnElo:\s*(?<estimate>[+-]?(?:\d+(?:\.\d+)?|inf|nan))\s*\+/-\s*(?<error>[+-]?(?:\d+(?:\.\d+)?|inf|nan))' |
             Select-Object -Last 1
         if (-not $eloLine) { throw "Could not parse the final nElo confidence interval from '$logOut'." }
+        if (-not (Test-HarnessFiniteNumber $eloLine.Matches[0].Groups['estimate'].Value) -or
+            -not (Test-HarnessFiniteNumber $eloLine.Matches[0].Groups['error'].Value)) {
+            throw "CALIBRATION INVALID: fastchess reported no usable confidence interval " +
+                  "(nElo $($eloLine.Matches[0].Groups['estimate'].Value) +/- " +
+                  "$($eloLine.Matches[0].Groups['error'].Value)) — the sample is far too small to " +
+                  "bound harness bias. Raise -Games."
+        }
 
         $estimate = [double]$eloLine.Matches[0].Groups['estimate'].Value
-        $error = [double]$eloLine.Matches[0].Groups['error'].Value
-        $lower = $estimate - $error
-        $upper = $estimate + $error
+        # NOT $error: that is a PowerShell AUTOMATIC variable (the error-history
+        # collection). Assigning it shadows the real one for the rest of this
+        # scope, so anything later inspecting error history would read a double.
+        # Same family as the case-collision that cost Rarog a schedule constant.
+        $halfWidth = [double]$eloLine.Matches[0].Groups['error'].Value
+        $lower = $estimate - $halfWidth
+        $upper = $estimate + $halfWidth
         $passes = $lower -ge -$CalibrationTolerance -and $upper -le $CalibrationTolerance
 
         Write-Host ""
         Write-Host ("Calibration 95% nElo CI: [{0:F2}, {1:F2}]; required inside [-{2:F2}, +{2:F2}]" -f $lower, $upper, $CalibrationTolerance)
         if ($passes) {
-            Write-Host "CALIBRATION PASS" -ForegroundColor Green
+            # A null is only valid for the thread count it ran at: affinity,
+            # concurrency and the contention profile all change with Threads.
+            Write-Host ("CALIBRATION PASS at Threads=$maxThreads, Hash=$HashA, Conc=$Concurrency" +
+                        "$(if ($useAffinity) { ', pinned' } else { ', UNPINNED' })") -ForegroundColor Green
         } else {
             throw "CALIBRATION INCONCLUSIVE/FAIL: the confidence interval does not establish the requested bias bound. Increase -Games only after resolving anomalies."
         }
@@ -447,15 +612,30 @@ if ($LASTEXITCODE -ne 0) {
         # accept/keep/split decision (bundle-splitting, extend-to-2x) is the
         # operator's per PLAN 8.6.8A(d). Convention: engine A is the removal
         # side, so a NEGATIVE estimate means removal lost => the feature is real.
+        # 'inf'/'nan' appear when the sample is too small or degenerate (a clean
+        # sweep reports nElo: inf +/- nan); matched so the failure mode is named
+        # rather than surfacing as a parse error.
+        $num = '[+-]?(?:\d+(?:\.\d+)?|inf|nan)'
         $eloLine = Select-String -LiteralPath $logOut `
-            -Pattern '^\s*Elo:\s*(?<est>[+-]?\d+(?:\.\d+)?)\s*\+/-\s*(?<err>\d+(?:\.\d+)?).*?nElo:\s*(?<nest>[+-]?\d+(?:\.\d+)?)\s*\+/-\s*(?<nerr>\d+(?:\.\d+)?)' |
+            -Pattern "^\s*Elo:\s*(?<est>$num)\s*\+/-\s*(?<err>$num).*?nElo:\s*(?<nest>$num)\s*\+/-\s*(?<nerr>$num)" |
             Select-Object -Last 1
         if (-not $eloLine) { throw "Could not parse the final Elo/nElo confidence interval from '$logOut'." }
+        $g = $eloLine.Matches[0].Groups
+        if (-not (Test-HarnessFiniteNumber $g['est'].Value) -or -not (Test-HarnessFiniteNumber $g['err'].Value)) {
+            Write-Host ""
+            Write-Warning ("fastchess reported no usable confidence interval after $Games games " +
+                "(Elo $($g['est'].Value) +/- $($g['err'].Value)): the sample is too small or " +
+                "degenerate to estimate a variance. The point estimate alone decides nothing — " +
+                "rerun with a real -Games (10k for an 8.6.8A probe).")
+            return
+        }
 
-        $est  = [double]$eloLine.Matches[0].Groups['est'].Value
-        $err  = [double]$eloLine.Matches[0].Groups['err'].Value
-        $nest = [double]$eloLine.Matches[0].Groups['nest'].Value
-        $nerr = [double]$eloLine.Matches[0].Groups['nerr'].Value
+        $est  = [double]$g['est'].Value
+        $err  = [double]$g['err'].Value
+        # nElo can be non-finite while Elo is fine; report it as-is rather than
+        # failing the whole summary over a secondary figure.
+        $nest = if (Test-HarnessFiniteNumber $g['nest'].Value) { [double]$g['nest'].Value } else { [double]::NaN }
+        $nerr = if (Test-HarnessFiniteNumber $g['nerr'].Value) { [double]$g['nerr'].Value } else { [double]::NaN }
         $lo   = $est - $err
         $hi   = $est + $err
 
@@ -464,8 +644,20 @@ if ($LASTEXITCODE -ne 0) {
             Write-Warning "This probe contains a timeout/crash/protocol anomaly (see '$logOut') — the estimate is SUSPECT. Resolve the anomaly and rerun before trusting it."
         }
         Write-Host ("Fixed probe ($Games games):  Elo {0:F2} +/- {1:F2}  [{2:F2}, {3:F2}]   (nElo {4:F2} +/- {5:F2})" -f $est, $err, $lo, $hi, $nest, $nerr)
-        Write-Host "  A = $NameA (removal side); a NEGATIVE estimate means removing the feature lost => the feature is REAL."
-        $hint = if ($lo -ge -3) {
+        if ($err -le 0) {
+            Write-Warning ("The reported interval has zero width, which is not a real confidence " +
+                "interval — the sample is too small for this summary to mean anything.")
+        }
+        if ($ThreadsA -ne $ThreadsB) {
+            # Asymmetric run: the removal-side framing below does not apply.
+            Write-Host "  A = $NameA (Threads=$ThreadsA) vs B = $NameB (Threads=$ThreadsB): this is a SCALING number,"
+            Write-Host "  not a feature verdict — a POSITIVE estimate is what the extra threads bought at this TC."
+        } else {
+            Write-Host "  A = $NameA (removal side); a NEGATIVE estimate means removing the feature lost => the feature is REAL."
+        }
+        $hint = if ($ThreadsA -ne $ThreadsB) {
+            "n/a for a scaling probe — the 8.6.8A -3 Elo removal threshold classifies feature removals, not thread counts."
+        } elseif ($lo -ge -3) {
             "NOISE — 95% CI entirely above -3 Elo: removal costs < 3 Elo => remove the feature (8.6.8A(d))."
         } elseif ($hi -le -3) {
             "REAL  — 95% CI entirely below -3 Elo: removal costs >= 3 Elo => KEEP the feature (8.6.8A(d))."

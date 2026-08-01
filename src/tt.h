@@ -141,7 +141,12 @@ public:
 #endif
     }
 
-    void store(Key key, int depth, int score, TTFlag flag, Move m, int ply, int static_eval) {
+    // Returns true when the store landed on a slot that ALREADY held this
+    // position's key (an update of our own or another thread's entry) rather
+    // than evicting a different position (9.3c telemetry — the caller
+    // accumulates it into DiagCounters; the return is free to ignore and the
+    // stored data is identical either way).
+    bool store(Key key, int depth, int score, TTFlag flag, Move m, int ply, int static_eval) {
         TTCluster& cluster = clusters_[key & mask_];
         const uint16_t want = static_cast<uint16_t>(key >> 48);
         const uint8_t age = age_.load(std::memory_order_relaxed);
@@ -149,6 +154,7 @@ public:
         int replace_idx = 0;
         TTEntry replace_entry{};
         bool have_replace = false;
+        bool same_key = false;
 
         for (int i = 0; i < 3; i++) {
             const uint16_t old_key16 = cluster.key16[i].load(std::memory_order_relaxed);
@@ -158,8 +164,9 @@ public:
             if (old_key16 == want && (old_entry.flag_age & 3) != TT_NONE) {
                 if (flag != TT_EXACT && depth < old_entry.depth - 3
                     && (old_entry.flag_age & 0xFC) == age)
-                    return;
+                    return true;   // declined, but it WAS our own key
 
+                same_key = true;
                 replace_idx = i;
                 replace_entry = old_entry;
                 have_replace = true;
@@ -196,6 +203,7 @@ public:
         // suggests. Still self-correcting downstream, so this is defence in
         // depth rather than a fix for an observed bug; it costs nothing on x86.
         cluster.key16[replace_idx].store(want, std::memory_order_release);
+        return same_key;
     }
 
     [[nodiscard]] int hashfull() const {

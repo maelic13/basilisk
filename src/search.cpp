@@ -124,6 +124,7 @@ int RootMoveTable::ordering_score(Move move) const {
     return 0;
 }
 
+
 SearchResult RootMoveTable::best_result() const {
     std::scoped_lock lock(mutex_);
 
@@ -133,7 +134,6 @@ SearchResult RootMoveTable::best_result() const {
     for (const Entry& entry : entries_) {
         if (entry.depth <= 0 || entry.bestmove == MOVE_NONE)
             continue;
-
         const bool entry_mates = entry.score >= MATE_SCORE - MAX_PLY;
         const bool best_mates = best.score >= MATE_SCORE - MAX_PLY;
 
@@ -210,6 +210,8 @@ Searcher::Searcher(TranspositionTable& tt,
     , nodes_(0)
     , tb_hits_(0)
     , nodes_limit_(0)
+    , shared_nodes_flushed_(0)
+    , shared_nodes_total_(0)
     , sel_depth_(0)
     , stopped_(false)
     , root_filter_index_(-1)
@@ -233,10 +235,6 @@ Searcher::Searcher(TranspositionTable& tt,
 void Searcher::clear() {
     hist_.clear();
     history_age_counter_ = 0;
-}
-
-void Searcher::blend_history_from(const Searcher& other) {
-    hist_.blend_from(other.hist_);
 }
 
 // ---- Time management -------------------------------------------------------
@@ -308,7 +306,25 @@ void Searcher::compute_time_limit(const SearchLimits& limits, Color side, int ga
     // absolute 2x move-overhead margin on top of the raw clock value; this
     // only binds in a genuine low-time scramble and leaves normal allocation
     // (the Elo from the SF-style formula above) untouched.
-    const double reserve      = 2.0 * overhead;
+    // 9.4(c): the reserve above assumes the clock poll lands promptly. It does
+    // at Threads=1, where our two poll sites fire every 2048 nodes — under a
+    // millisecond. Under multi-thread scheduler contention that same interval
+    // stretches to tens of milliseconds, and 2 x overhead is only ~20 ms at the
+    // default Move Overhead of 10, so the hard cap can be overrun by the
+    // difference. This is the exact configuration in which Rarog measured 10
+    // time forfeits in 240 games at Threads=4; their fix — an extra flat 30 ms
+    // once Threads > 1 — took it to 0 in 103. `timeBeginPeriod(1)` was measured
+    // NOT to be the fix, so this is not a timer-resolution problem.
+    //
+    // Checked against our own numbers rather than transcribed: 2 x 10 ms = 20 ms
+    // of reserve against a poll that can stretch to 50-100 ms leaves 30-80 ms of
+    // exposure; +30 ms covers the common case and cuts the tail. It binds only
+    // in a genuine low-time scramble.
+    //
+    // Threads=1 is BYTE-IDENTICAL: the term is gated on thread_count > 1, so no
+    // single-thread game's budget moves by a microsecond.
+    const double smp_reserve  = (limits.thread_count > 1) ? 30.0 : 0.0;
+    const double reserve      = 2.0 * overhead + smp_reserve;
     const double hard_ceiling = std::max(time - reserve, 1.0);
     maximum_ms = std::min(maximum_ms, hard_ceiling);
     optimum_ms = std::min(optimum_ms, maximum_ms);
@@ -325,14 +341,50 @@ double Searcher::elapsed_seconds() const {
     return duration<double>(steady_clock::now() - start_time_).count();
 }
 
+// 9.3(b): publish the shared node count in batches instead of one atomic
+// fetch_add per node per thread on a single cache line. The batch is a power of
+// two so the test is a mask, and the node LIMIT is now granular to the batch —
+// accepted, documented, and what every engine that does this accepts.
+// Single-thread searches leave `shared_nodes` null and never enter this path.
+static constexpr int64_t sharedNodeBatch = 1024;
+static_assert((sharedNodeBatch & (sharedNodeBatch - 1)) == 0,
+              "sharedNodeBatch must be a power of two (the flush test is a mask)");
+
+void Searcher::tt_store(Key key, int depth, int score, TTFlag flag, Move m,
+                        int ply, int static_eval) {
+    ++diag_.tt_stores;
+    if (tt_.store(key, depth, score, flag, m, ply, static_eval))
+        ++diag_.tt_stores_same_key;
+}
+
+void Searcher::flush_shared_nodes() {
+    if (!active_limits_.shared_nodes)
+        return;
+    const int64_t pending = nodes_ - shared_nodes_flushed_;
+    if (pending <= 0)
+        return;
+    shared_nodes_flushed_ = nodes_;
+    shared_nodes_total_ =
+        active_limits_.shared_nodes->fetch_add(pending, std::memory_order_relaxed) + pending;
+}
+
 int64_t Searcher::record_node() {
     ++nodes_;
     if (active_limits_.shared_nodes) {
-        const int64_t total =
-            active_limits_.shared_nodes->fetch_add(1, std::memory_order_relaxed) + 1;
-        if (nodes_limit_ > 0 && total >= nodes_limit_)
+        if ((nodes_ & (sharedNodeBatch - 1)) == 0)
+            flush_shared_nodes();
+        // The node LIMIT is still checked every node, against the last
+        // published pool total plus this thread's unpublished nodes. That
+        // estimate is a lower bound on the true total (other threads hold
+        // unpublished nodes of their own) and is exact immediately after a
+        // flush — so `go nodes N` keeps roughly its old accuracy, which
+        // checking only at batch boundaries would NOT: a limit smaller than
+        // one batch would have been missed entirely and overshot ~10x.
+        // The comparison is local arithmetic; the atomic is what got batched.
+        const int64_t estimate = shared_nodes_total_ + (nodes_ - shared_nodes_flushed_);
+        if (nodes_limit_ > 0 && estimate >= nodes_limit_)
             stopped_ = true;
-        return total;
+        return estimate;
     }
     if (nodes_limit_ > 0 && nodes_ >= nodes_limit_)
         stopped_ = true;
@@ -469,14 +521,6 @@ int Searcher::cont_hist_score(const SearchStack* ss, PieceType pt, Square to) co
     return score;
 }
 
-int Searcher::pawn_hist_score(Key pawn_key, PieceType pt, Square to) const {
-    return hist_.pawn->data[pawn_key & (HistoryTables::PAWN_HIST_SIZE - 1)][pt][to];
-}
-
-int Searcher::low_ply_score(int ply, Square from, Square to) const {
-    return ply < HistoryTables::LOW_PLY_HISTORY_SIZE ? hist_.low_ply[ply][from][to] : 0;
-}
-
 // (8.6.6: first statement counts the update event by type)
 void Searcher::update_all_histories(Move best, bool best_is_tt,
                                     const Move* quiets, int quiet_count,
@@ -609,6 +653,16 @@ void Searcher::score_moves(ScoredMove* moves, int n, SearchStack* ss,
                            bool is_root, int ply) const {
     const Board& b = *board_ptr_;
 
+    // 9.6: these history-table dimensions are constant for every quiet move at
+    // this node. Hoist them beside the continuation rows so the move loop only
+    // indexes its varying piece/from/to dimensions. Keeping the additions in
+    // the same order preserves the fixed-depth bench exactly.
+    const auto& main_hist = hist_.main[b.side_to_move];
+    const auto& pawn_hist = hist_.pawn->data[
+        b.pawn_key & (HistoryTables::PAWN_HIST_SIZE - 1)];
+    const auto* low_ply_hist = ply < HistoryTables::LOW_PLY_HISTORY_SIZE
+                             ? &hist_.low_ply[ply] : nullptr;
+
     Move cm = MOVE_NONE;
     Move prev = (ss-1)->move;
     if (prev != MOVE_NONE && prev != MOVE_NULL)
@@ -663,12 +717,12 @@ void Searcher::score_moves(ScoredMove* moves, int n, SearchStack* ss,
             const Square from = Square(from_sq(m));
             const Square to = Square(to_sq(m));
             const PieceType pt = type_of(b.board_sq[from]);
-            int hist = hist_.main[b.side_to_move][from][to];
+            int hist = main_hist[from][to];
             if (ch1) hist += ch1[pt][to];
             if (ch2) hist += ch2[pt][to];
             if (ch4) hist += ch4[pt][to] / 2;
-            hist += pawn_hist_score(b.pawn_key, pt, to);
-            hist += low_ply_score(ply, from, to);
+            hist += pawn_hist[pt][to];
+            if (low_ply_hist) hist += (*low_ply_hist)[from][to];
 
             if (checks_for(pt) & sq_bb(to))
                 hist += 32'000;
@@ -928,6 +982,63 @@ void Searcher::print_diag() const {
     }
 }
 
+// 9.3(c): the pool section. Printed by thread 0 AFTER the join (main's own
+// search — and its per-thread diag lines — finish before the helpers do), so
+// this appends rather than replacing anything. Emitted only at Threads>1.
+void Searcher::print_pool_diag(const std::vector<std::unique_ptr<Searcher>>& pool,
+                               int thread_count,
+                               const std::vector<int>& completed_depths) const {
+    if (!info_cb_ || !active_limits_.diag || thread_count <= 1) return;
+
+    DiagCounters total;
+    const int counted = std::min<int>(thread_count, static_cast<int>(pool.size()));
+    for (int i = 0; i < counted; ++i)
+        total.add(pool[static_cast<size_t>(i)]->diag_);
+
+    auto pct = [](int64_t a, int64_t b) {
+        return b > 0 ? 100.0 * double(a) / double(b) : 0.0;
+    };
+    char buf[256];
+    auto emit = [&](const char* text) { info_cb_(std::string("info string diag ") + text); };
+
+    const int64_t pool_nodes = total.interior_nodes + total.qs_nodes;
+    const int64_t main_nodes = diag_.interior_nodes + diag_.qs_nodes;
+    std::snprintf(buf, sizeof(buf),
+        "pool threads %d nodes %lld (main %lld = %.1f%%) | main tt %lld/%lld (%.2f%% hit) "
+        "pool tt %lld/%lld (%.2f%% hit)",
+        thread_count, (long long)pool_nodes, (long long)main_nodes,
+        pct(main_nodes, pool_nodes),
+        (long long)diag_.tt_hits, (long long)diag_.tt_probes,
+        pct(diag_.tt_hits, diag_.tt_probes),
+        (long long)total.tt_hits, (long long)total.tt_probes,
+        pct(total.tt_hits, total.tt_probes));
+    emit(buf);
+
+    // Same-key share: how much of the pool's TT traffic updates an entry for a
+    // position the table already holds, versus evicting a different one. This
+    // is the quantity 9.5's coordination work moves; read it as a share, never
+    // as an absolute.
+    std::snprintf(buf, sizeof(buf),
+        "pool tt_stores %lld same_key %lld (%.2f%%) | main stores %lld same_key %lld (%.2f%%)",
+        (long long)total.tt_stores, (long long)total.tt_stores_same_key,
+        pct(total.tt_stores_same_key, total.tt_stores),
+        (long long)diag_.tt_stores, (long long)diag_.tt_stores_same_key,
+        pct(diag_.tt_stores_same_key, diag_.tt_stores));
+    emit(buf);
+
+    // Per-thread completed depth. ⚠ A DIAGNOSTIC, never a verdict: its
+    // rep-to-rep spread at fixed time is ~±2 iterations, the same size as any
+    // effect worth measuring. Likewise divide aspiration/re-search counts by
+    // the thread count before comparing across thread counts.
+    std::string depths = "pool depths";
+    for (size_t i = 0; i < completed_depths.size(); ++i) {
+        depths += (i == 0 ? " main=" : " t" + std::to_string(i) + "=");
+        depths += std::to_string(completed_depths[i]);
+    }
+    depths += "  (diagnostic only: +/-2 iterations rep-to-rep at fixed time)";
+    emit(depths.c_str());
+}
+
 void Searcher::send_info(int depth, int score, int64_t total_nodes, double elapsed) const {
     std::string line = "info depth " + std::to_string(depth)
         + " seldepth " + std::to_string(sel_depth_)
@@ -1104,7 +1215,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         stand_pat = tt_score;
 
     if (stand_pat >= beta) {
-        tt_.store(hash, 0, stand_pat, TT_BETA, MOVE_NONE, ply, raw_eval);
+        tt_store(hash, 0, stand_pat, TT_BETA, MOVE_NONE, ply, raw_eval);
         return stand_pat;
     }
 
@@ -1185,7 +1296,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
             best_move = m;
         }
         if (s >= beta) {
-            tt_.store(hash, 0, s, TT_BETA, m, ply, raw_eval);
+            tt_store(hash, 0, s, TT_BETA, m, ply, raw_eval);
             return s;
         }
     }
@@ -1214,7 +1325,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
                 best_move = m;
             }
             if (s >= beta) {
-                tt_.store(hash, 0, s, TT_BETA, m, ply, raw_eval);
+                tt_store(hash, 0, s, TT_BETA, m, ply, raw_eval);
                 return s;
             }
         }
@@ -1228,7 +1339,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     // fail-soft fixes live in the delta-pruning and qsearch-cap returns
     // above; bound shaping proper is Phase 10.4.
     TTFlag flag = (alpha > orig_alpha) ? TT_EXACT : TT_ALPHA;
-    tt_.store(hash, 0, alpha, flag, best_move, ply, raw_eval);
+    tt_store(hash, 0, alpha, flag, best_move, ply, raw_eval);
     return alpha;
 }
 
@@ -1258,7 +1369,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                                          active_limits_.syzygy_50_move_rule)) {
             record_tbhit();
             const int tb_score = score_from_syzygy_wdl(*wdl);
-            tt_.store(board_ptr_->hash, depth, tb_score, TT_EXACT, MOVE_NONE, ply,
+            tt_store(board_ptr_->hash, depth, tb_score, TT_EXACT, MOVE_NONE, ply,
                       TranspositionTable::INF_EVAL);
             return tb_score;
         }
@@ -1442,7 +1553,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 undo_move(ss, m);
                 if (stopped_) return 0;
                 if (val >= pc_beta) {
-                    tt_.store(hash, depth - 3, pc_beta, TT_BETA, m, ply,
+                    tt_store(hash, depth - 3, pc_beta, TT_BETA, m, ply,
                               raw_static_eval == VALUE_NONE
                                   ? TranspositionTable::INF_EVAL : raw_static_eval);
                     diag_.probcut_cuts++;
@@ -1470,6 +1581,15 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     int root_ordinal = 0;
     bool immediate_return = false;
     int immediate_score = 0;
+
+    // 9.6: score_moves() has already hoisted these bases for ordering. The
+    // history-pruning and LMR-stat paths below revisit the same quiet move, so
+    // hoist their node-invariant dimensions here as well.
+    const auto& main_hist = hist_.main[board_ptr_->side_to_move];
+    const auto& pawn_hist = hist_.pawn->data[
+        board_ptr_->pawn_key & (HistoryTables::PAWN_HIST_SIZE - 1)];
+    const auto* low_ply_hist = ply < HistoryTables::LOW_PLY_HISTORY_SIZE
+                             ? &hist_.low_ply[ply] : nullptr;
 
     auto search_one = [&](Move m, int picker_see) {
         if (is_root && !move_in_root_moves(m, active_limits_.root_moves))
@@ -1538,10 +1658,10 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 // History pruning: skip moves with very bad combined history
                 if (!is_pv && depth <= 6) {
                     PieceType pt = type_of(board_ptr_->board_sq[from_sq(m)]);
-                    int hist = hist_.main[board_ptr_->side_to_move][from_sq(m)][to_sq(m)]
+                    int hist = main_hist[from_sq(m)][to_sq(m)]
                              + cont_hist_score(ss, pt, Square(to_sq(m)))
-                             + pawn_hist_score(board_ptr_->pawn_key, pt, Square(to_sq(m)))
-                             + low_ply_score(ply, Square(from_sq(m)), Square(to_sq(m)));
+                             + pawn_hist[pt][to_sq(m)]
+                             + (low_ply_hist ? (*low_ply_hist)[from_sq(m)][to_sq(m)] : 0);
                     if (hist < -active_limits_.params.hist_prune_coeff * depth && !move_gives_check()) {
                         diag_.hist_prunes++;
                         return false;
@@ -1634,10 +1754,11 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         PieceType moved_pt = type_of(board_ptr_->board_sq[from_sq(m)]);
         int move_stat_score = 0;
         if (is_quiet) {
-            move_stat_score = hist_.main[board_ptr_->side_to_move][from_sq(m)][to_sq(m)];
+            move_stat_score = main_hist[from_sq(m)][to_sq(m)];
             move_stat_score += cont_hist_score(ss, moved_pt, Square(to_sq(m)));
-            move_stat_score += pawn_hist_score(board_ptr_->pawn_key, moved_pt, Square(to_sq(m)));
-            move_stat_score += low_ply_score(ply, Square(from_sq(m)), Square(to_sq(m)));
+            move_stat_score += pawn_hist[moved_pt][to_sq(m)];
+            if (low_ply_hist)
+                move_stat_score += (*low_ply_hist)[from_sq(m)][to_sq(m)];
         }
 
         ss->stat_score  = move_stat_score;
@@ -1836,7 +1957,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 : (best_score > orig_alpha) ? TT_EXACT
                 :                             TT_ALPHA;
     if (ss->excluded == MOVE_NONE)
-        tt_.store(hash, depth, best_score, flag, best_move, ply,
+        tt_store(hash, depth, best_score, flag, best_move, ply,
                   raw_static_eval == VALUE_NONE ? TranspositionTable::INF_EVAL : raw_static_eval);
 
     return best_score;
@@ -1849,6 +1970,8 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
     nodes_        = 0;
     tb_hits_      = 0;
     nodes_limit_  = limits.nodes;
+    shared_nodes_flushed_ = 0;   // 9.3(b): per-search batching state
+    shared_nodes_total_   = 0;
     sel_depth_    = 0;
     stopped_      = false;
     root_filter_count_ = std::max(1, limits.root_filter_count);
@@ -2014,7 +2137,11 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
         // The more stable the best move, the less time we need to confirm it.
         // stability=0 → 100% of soft, stability=6+ → ~64% of soft
         // A significant score drop signals instability — extend time budget.
-        if (soft_limit_ > 0.0 && !pondering_) {
+        // 9.4(a): ONLY the main thread owns a clock. Helpers run until `stop_`,
+        // which the pool sets when main returns. Keep this gate outside the
+        // whole time-management calculation so the restored 9.4 baseline is
+        // source- and code-shape-identical in this path.
+        if (soft_limit_ > 0.0 && !pondering_ && thread_id_ == 0) {
             // Step 5.8: the scaling constants below are SPSA-tunable
             // (active_limits_.params, defaults == the baked values).
             const SearchParams& tp = active_limits_.params;
@@ -2031,7 +2158,8 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
             // 8.5.12: instability extension — a thrashing root best move raises
             // the threshold (buys more time), complementing stability_scale.
             double instability_scale = 1.0 + std::min(best_move_changes, 2.0) * (tp.tm_instability / 100.0);
-            if (elapsed >= soft_limit_ * stability_scale * score_scale * effort_scale * instability_scale)
+            if (elapsed >= soft_limit_ * stability_scale * score_scale
+                         * effort_scale * instability_scale)
                 break;
         }
 
@@ -2048,6 +2176,9 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
     }
 
     result = sanitize_search_result(board, result);
+    // 9.3(b): publish whatever this thread accumulated since the last batch
+    // boundary, so the shared total is exact once the pool joins.
+    flush_shared_nodes();
     // 8.7.1(c): harvest the Board-side speed counters BEFORE board_ptr_ is
     // dropped — print_diag() runs after this point.
     diag_.see_ge_calls      = board.diag_see_ge_calls;
@@ -2112,11 +2243,19 @@ int SearchThreadPool::ensure_threads(int count) {
     return resize_threads(count);
 }
 
+// The ONE definition of the Threads cap (declared in constants.h). Flat 1024,
+// as Stockfish does it — see constants.h for why the machine is not consulted.
+// What 9.3(a) actually repaired is that this existed TWICE, computed
+// independently in two files as `max(1024, 4*hw)` where `min` was meant, so
+// the advertisement and the pool's real limit could drift apart. That is the
+// part worth keeping; the value itself is a policy choice.
+int max_search_threads() {
+    return maxSearchThreads;
+}
+
 int SearchThreadPool::normalize_thread_count(int count) {
     count = std::max(1, count);
-    const unsigned hw = std::thread::hardware_concurrency();
-    const int runtime_cap = hw == 0 ? 1024 : static_cast<int>(std::max(1024u, 4u * hw));
-    return std::min(count, runtime_cap);
+    return std::min(count, max_search_threads());
 }
 
 int SearchThreadPool::active_thread_count() const {
@@ -2204,6 +2343,16 @@ SearchLimits SearchThreadPool::limits_for_thread(const SearchLimits& limits,
     worker_limits.root_filter_count = 1;
     worker_limits.root_filter_index = -1;
 
+    // 9.4(b): helpers must not inherit the DEPTH limit. `limits` was copied
+    // wholesale, so under `go depth N` every helper stopped at N and then idled
+    // instead of continuing to widen the shared TT for the main thread. The
+    // main thread keeps the depth contract — it is the one whose result is
+    // reported — so the answer to `go depth N` is unchanged; only the helpers'
+    // idle time becomes useful work. Clock-limited games are unaffected (they
+    // carry no depth limit), and 1T never reaches this function.
+    if (thread_id > 0)
+        worker_limits.depth = infiniteDepth;
+
     return worker_limits;
 }
 
@@ -2263,8 +2412,12 @@ SearchResult SearchThreadPool::search(Board board, const SearchLimits& limits, i
     root_table.reset(board, limits.root_moves, limits.syzygy_root_moves);
 
     std::vector<SearchResult> results(static_cast<size_t>(thread_count));
-    std::atomic<int64_t> shared_nodes{0};
-    std::atomic<int64_t> shared_tbhits{0};
+    // 9.3(b): these were adjacent stack atomics, i.e. the same cache line, so
+    // every tbhit publish invalidated the node counter's line for every thread
+    // and vice versa. One cache line each. (Batching in record_node() is what
+    // makes the traffic rare; this makes what remains non-interfering.)
+    alignas(64) std::atomic<int64_t> shared_nodes{0};
+    alignas(64) std::atomic<int64_t> shared_tbhits{0};
     SearchLimits shared_limits = limits;
     shared_limits.shared_nodes = &shared_nodes;
     shared_limits.shared_tbhits = &shared_tbhits;
@@ -2301,8 +2454,17 @@ SearchResult SearchThreadPool::search(Board board, const SearchLimits& limits, i
         requested_helpers_ = 0;
     }
 
-    for (int i = 1; i < thread_count && std::cmp_less(i, searchers_.size()); ++i)
-        searchers_[0]->blend_history_from(*searchers_[static_cast<size_t>(i)]);
+    // 9.3(c): the pool aggregate, printed after the join because that is the
+    // first moment the helpers' counters are complete. Thread 0 owns info_cb_,
+    // so it does the printing. Gated here as well as inside, so normal play
+    // does not build the depth vector on every multi-thread search.
+    if (limits.diag) {
+        std::vector<int> completed_depths;
+        completed_depths.reserve(static_cast<size_t>(thread_count));
+        for (int i = 0; i < thread_count; ++i)
+            completed_depths.push_back(results[static_cast<size_t>(i)].depth);
+        searchers_[0]->print_pool_diag(searchers_, thread_count, completed_depths);
+    }
 
     const int64_t elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::steady_clock::now() - wall_start).count();

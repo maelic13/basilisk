@@ -1,5 +1,9 @@
 # Release binary tiers and ISA contract
 
+> **Audience: developer / maintainer** (PLAN §1, "Document audience"). This is
+> the build/ISA contract behind the published assets. The *user-facing* version
+> of "which download do I pick" is the download table in `README.md`.
+
 Basilisk ships one binary per (OS, architecture, CPU-feature tier). Every
 release asset is built **PGO** (profile-guided: instrument → train on the bench
 suite → merge → optimised link) from the exact tagged revision with production
@@ -29,9 +33,11 @@ now stated as a contract rather than left implicit.
 | aarch64 *(none)* | ARMv8-A / NEON | Apple Silicon, ARM64 servers/Windows | NEON is baseline on ARMv8; no separate SIMD tier. |
 
 Pick the **most specific tier your CPU satisfies**: `-pext` on Zen 3+/Haswell+,
-`-avx2` on Zen 1–2 and older AVX2 x86, portable on anything else. A binary run
-on a CPU that lacks its required features will fault with an illegal
-instruction — when unsure, the portable binary always works.
+`-avx2` on Zen 1–2 and older AVX2 x86, portable on anything else. The `-avx2`
+and `-pext` binaries check their required CPU features at startup
+(`src/main.cpp`, before the UCI loop) and exit with a message naming the tier to
+use instead, rather than faulting on an illegal instruction — when unsure, the
+portable binary always works.
 
 There is intentionally **no `x86-64-v2`/POPCNT tier** yet: it would sit between
 portable and `-avx2` and has not been shown to be worth a fourth x86 asset.

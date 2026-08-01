@@ -264,15 +264,28 @@ void Engine::run_wac_command(const EngineCommand& command) {
 }
 
 void Engine::run_bench_command(const EngineCommand& command) {
-    // bench [depth] [repeats] — single-threaded so the node total is a
-    // deterministic fingerprint (matches sibling engine Rarog's bench command).
+    // bench [depth] [repeats] [threads] — single-threaded BY DEFAULT so the
+    // node total is a deterministic fingerprint (matches sibling engine
+    // Rarog's bench command).
+    // 9.3: the third argument is now actually parsed. run_bench() has always
+    // taken and documented a thread count, but this parser dropped it and
+    // hardcoded 1, so the documented `bench [depth] [repeats] [threads]` form
+    // was unreachable and there was NO way to measure multi-thread NPS from
+    // the engine at all — which is exactly what this phase's 4T gate needs.
+    // The default is unchanged (1), so the bench fingerprint is untouched;
+    // above 1 the node total is deliberately non-deterministic (Lazy SMP
+    // helpers add work) and is a speed reading, never a fingerprint.
+    // NOTE: this is deliberately NOT the `Threads` UCI option. Bench must stay
+    // reproducible regardless of how the GUI or a harness left that option.
     int depth = 13;
     int repeats = 1;
+    int threads = 1;
     {
         std::istringstream iss(command.args);
         int value;
         if (iss >> value) depth   = value;
         if (iss >> value) repeats = value;
+        if (iss >> value) threads = value;
     }
 
     if (command.epoch != 0
@@ -281,7 +294,7 @@ void Engine::run_bench_command(const EngineCommand& command) {
 
     stop_requested_.store(false, std::memory_order_release);
     searching_.store(true, std::memory_order_release);
-    run_bench(depth, repeats, 1);
+    run_bench(depth, repeats, threads);
     if (command.epoch == 0
         || control_epoch_.load(std::memory_order_acquire) == command.epoch)
         searching_.store(false, std::memory_order_release);
