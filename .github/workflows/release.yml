@@ -133,13 +133,11 @@ jobs:
           sudo ln -sf /usr/bin/clang-19   /usr/local/bin/clang
           sudo ln -sf /usr/bin/clang++-19 /usr/local/bin/clang++
           clang++ --version
-          # PGO profile-merge needs an llvm-profdata whose format matches
-          # clang-19; expose the llvm-19 one under the unversioned name on PATH.
-          if ! command -v llvm-profdata >/dev/null 2>&1; then
-            pd=$(ls /usr/lib/llvm-19/bin/llvm-profdata /usr/bin/llvm-profdata-19 2>/dev/null | head -1)
-            [ -n "$pd" ] && sudo ln -sf "$pd" /usr/local/bin/llvm-profdata
-          fi
-          llvm-profdata --version
+          # Verify the exact llvm-profdata selected by the clang driver. The
+          # PGO target uses this same lookup rather than PATH ordering.
+          pd=$(clang++ --print-prog-name=llvm-profdata)
+          [ -x "$pd" ] || { echo "FAIL: clang companion llvm-profdata not found: $pd"; exit 1; }
+          "$pd" --version
 
       - name: Install Ninja (macOS)
         if: runner.os == 'macOS'

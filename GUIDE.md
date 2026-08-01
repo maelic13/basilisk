@@ -21,9 +21,10 @@ is ticked — the **reason for closure** (`PASSED`, `REJECTED`, `DONE`, `CLOSED`
 
 ## ▶ Where we are
 
-> **1.9.2 is release-ready** on `development`; Phase 9 is CLOSED. 1.9.1 remains
-> the last public release only until the manual squash/publish. Single-thread
-> behavior remains identical (bench 11,941,440).
+> **1.9.3 is release-ready** as a tooling-only patch on the published 1.9.2
+> engine; Phase 9 remains CLOSED. It makes Clang PGO select the compiler's
+> matching `llvm-profdata`. Search behavior remains identical (bench
+> 11,941,440).
 >
 > **9.12 CLOSED:** the formal 4T gate passed; Colosseum confirmed positive
 > direction against 1.9.1 at 1T fast (+11 ±24), 4T fast (+14 ±34), and 4T
@@ -74,8 +75,8 @@ is ticked — the **reason for closure** (`PASSED`, `REJECTED`, `DONE`, `CLOSED`
 ### Branch sequence
 
 ```text
-development: … → 1.9.1 → Phase 9 → ✅ 1.9.2 release-ready
-             → publish → NNUE runway (8.5.3/14/15/16) → record handoff SHA
+master:      … → 1.9.1 → Phase 9 → ✅ 1.9.2 → 1.9.3 release-ready
+development: NNUE runway (8.5.3/14/15/16) → record handoff SHA
 nnue:        frozen → rebase once onto the handoff SHA → Phase 10
 ```
 
@@ -86,7 +87,8 @@ Do not merge partial NNUE work back into `development`.
 |---|---|
 | 1.9.0 ✅ | Phases 8 + 8.5: correctness, infra/state, eval-independent search, NNUE prep |
 | 1.9.1 ✅ | Phase 8.6 (hardening/CI/telemetry, neutral +0.17 ± 4.41) + Phase 8.7 (speed, **+4.34% NPS ≈ +8.69 ± 6.63 Elo**) |
-| 1.9.2 **READY** | Phase 9 — focused accepted SMP safety/scaling and speed work; 9.4 measured +30.42 ± 8.77 Elo @4T with 0 forfeits (SPRT-stopped/bundle caveat), and the 1T/4T boundary campaign showed no reversal. User selected a patch; manual publish remains |
+| 1.9.2 ✅ | Phase 9 — focused accepted SMP safety/scaling and speed work; 9.4 measured +30.42 ± 8.77 Elo @4T with 0 forfeits (SPRT-stopped/bundle caveat), and the 1T/4T boundary campaign showed no reversal |
+| 1.9.3 **READY** | Tooling-only patch: Clang PGO always merges profiles with the selected compiler's companion `llvm-profdata`; engine behavior is unchanged |
 | 2.0.0 | Phase 10: accepted embedded baseline NNUE via `net_trainer` |
 | 2.x | Phase 11 final 1T search + tune · Phase 12 MT scaling beyond Phase 9 · Phase 13 NNUE architecture/data ladder |
 
@@ -328,8 +330,8 @@ and can be pulled into any gate wait.
       User explicitly waived the standalone 1T NPS, 4T diag/scaling, duplicate
       1T `10+0.1`, and `60+0.6` runs because fingerprint identity, 9.6 pooled
       PGO NPS, 9.3/9.4 MT evidence and the deployment gauntlets already cover
-      the release risk. Version/README/changelog are final; manual publish
-      remains.
+      the release risk. Version/README/changelog were finalized and 1.9.2 was
+      published on 2026-08-01.
 
 **Explicitly not in Phase 9** (no duplicates — see the table in PLAN §5):
 `cutoffCnt` and the LMR `gives_check` fix stay in 11.1/11.7; the

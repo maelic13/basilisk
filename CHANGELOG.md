@@ -12,6 +12,22 @@ and next step).
 
 ---
 
+## [1.9.3] - 2026-08-01
+
+A build-tooling maintenance release. Engine search behavior and playing
+strength are unchanged from 1.9.2 (`bench` fingerprint 11,941,440).
+
+### Fixed
+
+- Clang PGO builds now use the `llvm-profdata` companion reported by the
+  selected compiler instead of the first executable found on `PATH`. This
+  prevents profile records from being discarded when different LLVM versions
+  are installed together, such as Apple LLVM alongside Homebrew LLVM on macOS.
+- The Linux release workflow verifies that same compiler-selected
+  `llvm-profdata`, keeping local and release PGO builds on one toolchain.
+
+---
+
 ## [1.9.2] - 2026-08-01
 
 A focused maintenance release for multi-core play. Single-thread search is
@@ -1087,6 +1103,11 @@ First public release.
 - `bench [depth]` command — 16-position built-in benchmark, prints per-position NPS and total node-count fingerprint
 - GitHub Actions release workflow — builds for Linux x86_64, Linux aarch64, Windows x86_64, Windows aarch64, macOS aarch64; all built with Clang; PEXT variant produced for x86_64 platforms
 
+[1.9.3]: https://github.com/maelic13/basilisk/compare/v1.9.2...v1.9.3
+[1.9.2]: https://github.com/maelic13/basilisk/compare/v1.9.1...v1.9.2
+[1.9.1]: https://github.com/maelic13/basilisk/compare/v1.9.0...v1.9.1
+[1.9.0]: https://github.com/maelic13/basilisk/compare/v1.8.0...v1.9.0
+[1.8.0]: https://github.com/maelic13/basilisk/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/maelic13/basilisk/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/maelic13/basilisk/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/maelic13/basilisk/compare/v1.4.9...v1.5.0

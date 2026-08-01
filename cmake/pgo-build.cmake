@@ -98,19 +98,19 @@ if(NOT _profraw_files)
     message(FATAL_ERROR "No .profraw files were produced in ${_prof_dir}")
 endif()
 
-find_program(_llvm_profdata llvm-profdata)
-if(_llvm_profdata)
-    set(_profdata_command "${_llvm_profdata}")
-else()
-    find_program(_xcrun xcrun)
-    if(_xcrun)
-        set(_profdata_command "${_xcrun}" llvm-profdata)
-    else()
-        message(FATAL_ERROR "llvm-profdata was not found")
+if(DEFINED PGO_LLVM_PROFDATA AND PGO_LLVM_PROFDATA)
+    if(NOT EXISTS "${PGO_LLVM_PROFDATA}")
+        message(FATAL_ERROR "Configured llvm-profdata does not exist: ${PGO_LLVM_PROFDATA}")
     endif()
+    set(_profdata_command "${PGO_LLVM_PROFDATA}")
+else()
+    message(FATAL_ERROR
+        "PGO_LLVM_PROFDATA was not provided; configure through the pgo target "
+        "so llvm-profdata matches the selected Clang toolchain"
+    )
 endif()
 
-message(STATUS "PGO merge: ${_profdata}")
+message(STATUS "PGO merge: ${_profdata} (using ${PGO_LLVM_PROFDATA})")
 execute_process(
     COMMAND ${_profdata_command} merge -sparse ${_profraw_files} -o "${_profdata}"
     WORKING_DIRECTORY "${PGO_SOURCE_DIR}"

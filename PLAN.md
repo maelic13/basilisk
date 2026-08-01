@@ -1,11 +1,10 @@
 # Basilisk Strength Improvement Plan
 
-> **CURRENT STATE (2026-08-01):** **1.9.2 RELEASE READY** on `development`;
-> Phase 9 is CLOSED. 1.9.1 remains the last public tag only until the user's
-> manual squash/publish. The release head is single-thread
-> behavior-identical to 1.9.1 (bench 11,941,440). Its principal production
-> change is the accepted SMP clock/helper-safety bundle; the later Phase-9
-> coordination, TT, diversification and HCE-refit candidates were rejected.
+> **CURRENT STATE (2026-08-01):** **1.9.3 RELEASE READY** as a tooling-only
+> patch on the published 1.9.2 engine; Phase 9 is CLOSED. Clang PGO now asks
+> the selected compiler for its matching `llvm-profdata`, preventing mixed
+> LLVM installations from discarding profile records. Engine behavior remains
+> identical (bench 11,941,440); the frozen HCE/NNUE baseline is unchanged.
 >
 > **✅ 9.12 CLOSED:** the formal 4T fastchess gate passed, Colosseum boundary
 > gauntlets confirmed positive direction against 1.9.1 at 1T fast (**+11 ±24**),
@@ -263,12 +262,13 @@ work: Fable 5 / Opus 4.8 medium.
 | **1.8.0** | 2026-07-08 | Phase 5 TM (clock-at-`go`, +2.95; TM SPSA washed → reverted) + Phase 6 search wave (6.1 TT-bound pruning eval **+7.18**; 6.2 cont-hist6 rejected −7.70; 6.3–6.8 exposed-inert knob set; bundle 6.10 **+9.14**) + Phase 7 eval refresh (7.1 SF@60k distillation **+6.75**; on-policy self-play cycles **+21.02 / +19.51 / +18.29 / +15.32**) | **≈ +93 fast-TC / ~+40 LTC** vs 1.7.0 (colosseum 10+0.1 gauntlet) |
 | **1.9.0** | 2026-07-17 | Phase 8 correctness/infra (rule-50/mate precedence, null clock, legal-EP hashing, SEE pin-awareness **+0.65**, eval 8.3 **+13.97**, mate-drive **+3.19**, assert_ok/fuzz/CI, robust canaries) + `hcefinal` SPSA **+35.94** + Phase 8.5 strength (TT density **+4.27**, rule-50 damping **+3.29**, exact/PV reward history **+4.90**, surprise-scaled history **+2.50**, instability-TM **+10.79**) | cumulative fast-TC SPRT gains over 1.8.0 (last pure-HCE release) |
 | *(post-1.8.0)* | 2026-07-09 | self-play cycle 6: **wash** (+1.37 ± 5.21, 8.1k games) → **HCE line closed**, candidate discarded | — |
-| **1.9.1** | 2026-07-23 | **Phase 8.6** pre-NNUE hardening from the 2026-07-20 Rarog cross-review — param/TT/protocol hygiene, CI in Rarog's 9.2 shape (master-push + dispatch; sanitizers; cross-platform bench agreement), A/B compiler-equality enforcement, search telemetry, the check-extension-removal SPRT (Rarog evidence **+30.75**; **our SPRT rejected −10.17**) + **Phase 8.7 profile-guided speed pass** (**+4.34% NPS ≈ +8.69 ± 6.63 Elo**; search bit-identical to 1.9.0) | last public HCE release until 1.9.2 is published |
-| **1.9.2** | **release ready 2026-08-01** | **Phase 9 (§5)** focused harness/SMP/durability wave — SPSA schedule repair, MT-capable SPRT harness, thread-count + node-counter safety, accepted SMP clock/helper safety, index-hoists II, removal of unproven helper-history blending, and upgraded five-phase data/Texel infrastructure. Coordination/TT/diversification/HCE-refit candidates were rejected and are not shipped. User chose a patch rather than the pre-registered 1.10.0 because the accepted production scope is focused. | **9.4: +30.42 ± 8.77 Elo @4T, 0 forfeits** (SPRT-stopped, optimistic, bundle value); boundary H2H vs 1.9.1: +11 @1T fast, +14 @4T fast, +26 @4T `10+0.1`; release gate passed |
+| **1.9.1** | 2026-07-23 | **Phase 8.6** pre-NNUE hardening from the 2026-07-20 Rarog cross-review — param/TT/protocol hygiene, CI in Rarog's 9.2 shape (master-push + dispatch; sanitizers; cross-platform bench agreement), A/B compiler-equality enforcement, search telemetry, the check-extension-removal SPRT (Rarog evidence **+30.75**; **our SPRT rejected −10.17**) + **Phase 8.7 profile-guided speed pass** (**+4.34% NPS ≈ +8.69 ± 6.63 Elo**; search bit-identical to 1.9.0) | released pre-Phase-9 HCE baseline |
+| **1.9.2** | **2026-08-01** | **Phase 9 (§5)** focused harness/SMP/durability wave — SPSA schedule repair, MT-capable SPRT harness, thread-count + node-counter safety, accepted SMP clock/helper safety, index-hoists II, removal of unproven helper-history blending, and upgraded five-phase data/Texel infrastructure. Coordination/TT/diversification/HCE-refit candidates were rejected and are not shipped. User chose a patch rather than the pre-registered 1.10.0 because the accepted production scope is focused. | **9.4: +30.42 ± 8.77 Elo @4T, 0 forfeits** (SPRT-stopped, optimistic, bundle value); boundary H2H vs 1.9.1: +11 @1T fast, +14 @4T fast, +26 @4T `10+0.1`; released |
+| **1.9.3** | **release ready 2026-08-01** | Tooling-only patch: Clang PGO resolves `llvm-profdata` from the selected compiler rather than global `PATH`, preventing mixed LLVM toolchains. | Engine behavior unchanged; bench **11,941,440** |
 | **2.0.0** | future | **Phase 10 NNUE** (§6) | target **+200…+400** |
 | **2.x** | future | **Phase 11** final 1T search + tune, **Phase 12** MT scaling beyond Phase 9, **Phase 13** NNUE architecture/data frontier loop (§7) | prior **+15–40** 1T non-additive; NNUE scale evidence-driven |
 
-Current dev head: 1.9.2 release-ready, bench **11,941,440** (fixed-depth
+Current release head: 1.9.3 release-ready, bench **11,941,440** (fixed-depth
 40-position harness; TM-independent). Deployment conditions: **1T and 4T**
 (gate 10).
 
@@ -2102,8 +2102,8 @@ revisit only if 8.7.2's profile shows front-end stalls).
     verdict (≥ +2% → `[-3,0]` batch SPRT; else fixed 10k probe); per-item
     results recorded in the dev guide's Phase-8.7 block (Rarog's
     dev-guide 10.3 block is the template).
-12. **8.6.9 ⭐ Release 1.9.1 — the final HCE release — ✅ PREP DONE
-   2026-07-23 (awaiting the user's manual publish).** Moved here 2026-07-22;
+12. **8.6.9 ⭐ Release 1.9.1 — the final HCE release — ✅ PUBLISHED
+   2026-07-24.** Moved here 2026-07-22;
    number kept — order ≠ numbering. Gated on 8.6.1–8.6.7,
    **the 8.6.8A accept-audit, and Phase 8.7 resolved** (Rarog 9.8
    precedent: the release waits for the whole wave, not its first passing
@@ -2134,8 +2134,8 @@ revisit only if 8.7.2's profile shows front-end stalls).
    ⚠ **Amended 2026-08-01:** Phase 9 (§5) ran on `development` before the NNUE
    runway and now ships as **1.9.2** by explicit user decision. Its release
    gates passed on 2026-08-01, so 1.9.2 is the frozen HCE baseline and the
-   handoff SHA is post-1.9.2. Until publication, 1.9.1 remains the last public
-   release.
+   handoff SHA is post-1.9.2. Version 1.9.2 was published on 2026-08-01;
+   1.9.3 follows as a tooling-only PGO repair with the same engine behavior.
 
 **Execution order across the NNUE boundary (explicit):**
 
@@ -3108,8 +3108,8 @@ earlier gate wait rather than idling the box in this slot.
       show no reversal. These items are waived, not falsely recorded as run.
     - **Version decision:** the original 1.10.0 trigger was met by 9.4, but the
       user explicitly chose **1.9.2** because the final accepted production
-      scope is focused. 1.9.2 is release-ready and becomes the frozen HCE/NNUE
-      baseline after the user's manual squash/publish.
+      scope is focused. Version 1.9.2 is the frozen HCE/NNUE baseline; 1.9.3
+      changes only PGO tool selection and does not replace that engine baseline.
 
 ---
 
@@ -3759,12 +3759,13 @@ Phase 8.6 on development                                      [✅ shipped in 1.
 Phase 8.7 on development                                      [✅ shipped in 1.9.1]
   profile-guided speed pass, +4.34% NPS ≈ +8.69 Elo, search bit-identical
   → Release 1.9.1 — the last shipped HCE release
-Phase 9 on development                                        [✅ CLOSED — 1.9.2 release ready]
+Phase 9 on development                                        [✅ shipped in 1.9.2]
   harness first (SPSA schedule repair, MT-capable SPRT), then the audited
   SMP defects (thread cap, node counter, helper clock, coordination),
   index-hoists II, blending/pruning hygiene
   → Release 1.9.2 (explicit user version choice; focused accepted scope;
-    1T+4T boundary gates passed, manual publish remains)
+    1T+4T boundary gates passed)
+  → Release 1.9.3 (tooling-only matching-llvm-profdata repair)
 post-Phase-9 NNUE runway (8.5.3 / 8.5.14 / 8.5.15 / 8.5.16)
 one rebase of nnue onto the released handoff SHA
 Phase 10

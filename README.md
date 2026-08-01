@@ -16,8 +16,8 @@ from a chess GUI or an engine-testing tool.
   extensions, late move reductions and a quiescence search that handles checks
   and prunes losing captures.
 - **Multi-threaded** — parallel search across cores with a shared transposition
-  table, enabled with the standard `Threads` option. Version 1.9.2 improves
-  helper-thread utilization and clock safety in multi-core play.
+  table, enabled with the standard `Threads` option, with coordinated clock
+  handling and efficient shared node accounting.
 - **Tuned evaluation** — a tapered evaluation fitted to millions of positions,
   covering king safety, mobility, threats, pawn structure and passed pawns,
   material imbalance, and endgame knowledge including an exact KPK bitbase and
@@ -55,16 +55,6 @@ on a CPU that lacks its required instructions reports a clear error instead of
 crashing.
 
 Basilisk is 64-bit only — there is no 32-bit build.
-
-### What changed in 1.9.2
-
-Version 1.9.2 is a focused maintenance release for multi-core play. Helper
-threads now remain useful until the main search finishes, low-time searches
-reserve a little more scheduler margin when several threads are active, and
-shared node accounting scales more cleanly at high thread counts. It also
-includes a small search-speed cleanup and removes an expensive helper-history
-merge that showed no playing-strength benefit. Single-thread search remains
-behavior-identical to 1.9.1 (`bench` fingerprint 11,941,440).
 
 ---
 
@@ -163,7 +153,9 @@ cmake --build --preset release-pext --target pgo
 ```
 
 This builds an instrumented engine, trains it on the `bench` suite, and rebuilds
-using the collected profile. The finished binary lands in `build/dist`.
+using the collected profile. For Clang builds, CMake selects the
+`llvm-profdata` shipped with the configured compiler, so multiple installed LLVM
+versions do not get mixed. The finished binary lands in `build/dist`.
 
 ### Tests
 

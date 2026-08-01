@@ -56,7 +56,7 @@ endif()
 
 set(COMP "${_basilisk_compiler}" CACHE STRING "Compiler selection: auto, clang, gcc, or llvm" FORCE)
 
-project(basilisk VERSION 1.9.2 LANGUAGES CXX)
+project(basilisk VERSION 1.9.3 LANGUAGES CXX)
 
 _basilisk_detect_darwin_processor(_basilisk_system_processor "${CMAKE_SYSTEM_NAME}" "${CMAKE_SYSTEM_PROCESSOR}")
 if(APPLE AND NOT _basilisk_system_processor MATCHES "^(arm64|aarch64)$")
@@ -498,6 +498,62 @@ else()
     set(_basilisk_pgo_portable OFF)
 endif()
 get_filename_component(_basilisk_pgo_preset "${CMAKE_BINARY_DIR}" NAME)
+
+# Clang instrumentation profiles are tied to their LLVM toolchain. Asking the
+# selected compiler for its companion tool avoids accidentally merging a
+# Homebrew/packaged profile with Apple LLVM or another version found first on
+# PATH.
+set(_basilisk_llvm_profdata "")
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    execute_process(
+        COMMAND "${CMAKE_CXX_COMPILER}" --print-prog-name=llvm-profdata
+        RESULT_VARIABLE _basilisk_profdata_result
+        OUTPUT_VARIABLE _basilisk_profdata_reported
+        ERROR_QUIET
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+
+    # GCC-style --print-prog-name output does not necessarily carry the host
+    # executable suffix. In particular, MSYS2 Clang reports an absolute
+    # C:/.../llvm-profdata path while the file is llvm-profdata.exe. Keep the
+    # compiler-selected path (and therefore its LLVM version), but resolve the
+    # platform suffix before validating it.
+    set(_basilisk_profdata_candidates "${_basilisk_profdata_reported}")
+    if(CMAKE_EXECUTABLE_SUFFIX AND
+       NOT _basilisk_profdata_reported MATCHES "${CMAKE_EXECUTABLE_SUFFIX}$")
+        list(APPEND _basilisk_profdata_candidates
+            "${_basilisk_profdata_reported}${CMAKE_EXECUTABLE_SUFFIX}")
+    endif()
+
+    if(_basilisk_profdata_result EQUAL 0)
+        foreach(_basilisk_profdata_candidate IN LISTS _basilisk_profdata_candidates)
+            if(IS_ABSOLUTE "${_basilisk_profdata_candidate}" AND
+               EXISTS "${_basilisk_profdata_candidate}")
+                execute_process(
+                    COMMAND "${_basilisk_profdata_candidate}" --version
+                    RESULT_VARIABLE _basilisk_profdata_version_result
+                    OUTPUT_QUIET
+                    ERROR_QUIET
+                )
+                if(_basilisk_profdata_version_result EQUAL 0)
+                    set(_basilisk_llvm_profdata "${_basilisk_profdata_candidate}")
+                    break()
+                endif()
+            endif()
+        endforeach()
+    endif()
+
+    if(NOT _basilisk_llvm_profdata)
+        message(STATUS
+            "The selected Clang compiler has no usable companion llvm-profdata; "
+            "driver reported '${_basilisk_profdata_reported}'. Ordinary builds "
+            "remain available, but the pgo target will fail"
+        )
+    else()
+        message(STATUS "Basilisk llvm-profdata: ${_basilisk_llvm_profdata}")
+    endif()
+endif()
+
 add_custom_target(pgo
     COMMAND "${CMAKE_COMMAND}"
         -DPGO_SOURCE_DIR=${CMAKE_SOURCE_DIR}
@@ -508,6 +564,7 @@ add_custom_target(pgo
         -DPGO_EXECUTABLE_SUFFIX=${CMAKE_EXECUTABLE_SUFFIX}
         -DPGO_DIST_DIR=${_basilisk_dist_dir}
         -DPGO_DIST_ASSET_NAME=${_basilisk_dist_pgo_asset_name}
+        -DPGO_LLVM_PROFDATA=${_basilisk_llvm_profdata}
         -P "${CMAKE_SOURCE_DIR}/cmake/pgo-build.cmake"
     COMMENT "Build Basilisk with profile-guided optimization"
     USES_TERMINAL
