@@ -12,6 +12,14 @@ and next step).
 
 ---
 
+## [Unreleased]
+
+### Performance
+
+- Apple Silicon TT storage now groups four existing 32-byte logical clusters
+  into 128-byte-aligned allocation blocks. Table capacity, associativity,
+  indexing, replacement, and search behaviour are unchanged.
+
 ## [1.9.3] - 2026-08-01
 
 A build-tooling maintenance release. Engine search behavior and playing

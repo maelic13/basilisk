@@ -57,6 +57,28 @@ static_assert(sizeof(TTCluster) == 32,
               "TTCluster must stay 32 bytes (3 entries/cluster; resize() divides Hash by it)");
 static_assert(alignof(TTCluster) == 32, "TTCluster must stay 32-byte aligned");
 
+// Apple Silicon has 128-byte data-cache lines. Keep the logical 32-byte
+// clusters (and therefore probing/replacement behaviour) unchanged, but group
+// four adjacent clusters in one cache-line-aligned allocation unit. This
+// prevents the first cluster from inheriting a weaker allocator alignment and
+// makes every group of four clusters line-exact on Apple ARM64.
+#if defined(__APPLE__) && defined(__aarch64__)
+inline constexpr size_t TT_STORAGE_ALIGNMENT = 128;
+inline constexpr size_t TT_CLUSTERS_PER_BLOCK = 4;
+#else
+inline constexpr size_t TT_STORAGE_ALIGNMENT = 32;
+inline constexpr size_t TT_CLUSTERS_PER_BLOCK = 1;
+#endif
+
+struct alignas(TT_STORAGE_ALIGNMENT) TTStorageBlock {
+    TTCluster clusters[TT_CLUSTERS_PER_BLOCK];
+};
+
+static_assert(sizeof(TTStorageBlock) == TT_STORAGE_ALIGNMENT,
+              "TT storage blocks must occupy exactly one target cache line");
+static_assert(alignof(TTStorageBlock) == TT_STORAGE_ALIGNMENT,
+              "TT storage blocks must use the target cache-line alignment");
+
 class TranspositionTable {
 public:
     static constexpr int MATE_SCORE = 32000;
@@ -80,8 +102,10 @@ public:
         // transiently needed ~24 GB — at `setoption Hash` time, i.e. mid-game.
         // No entries are ever carried across a resize, so dropping first costs
         // nothing. (make_unique value-initializes, so the new table is clear.)
-        clusters_.reset();
-        clusters_ = std::make_unique<TTCluster[]>(power);
+        blocks_.reset();
+        const size_t block_count =
+            std::max<size_t>(1, power / TT_CLUSTERS_PER_BLOCK);
+        blocks_ = std::make_unique<TTStorageBlock[]>(block_count);
         cluster_count_ = power;
         mask_ = power - 1;
         age_.store(0, std::memory_order_relaxed);
@@ -96,8 +120,8 @@ public:
     void clear() {
         for (size_t i = 0; i < cluster_count_; ++i) {
             for (int j = 0; j < 3; ++j) {
-                clusters_[i].data[j].store(0, std::memory_order_relaxed);
-                clusters_[i].key16[j].store(0, std::memory_order_relaxed);
+                cluster_at(i).data[j].store(0, std::memory_order_relaxed);
+                cluster_at(i).key16[j].store(0, std::memory_order_relaxed);
             }
         }
         age_.store(0, std::memory_order_relaxed);
@@ -109,7 +133,7 @@ public:
     }
 
     [[nodiscard]] bool probe_copy(Key key, TTEntry& out) const {
-        const TTCluster& cluster = clusters_[key & mask_];
+        const TTCluster& cluster = cluster_at(key & mask_);
         const uint16_t want = static_cast<uint16_t>(key >> 48);
 
         for (int i = 0; i < 3; ++i) {
@@ -129,9 +153,9 @@ public:
     }
 
     void prefetch(Key key) const {
-        if (!clusters_)
+        if (!blocks_)
             return;
-        const void* addr = &clusters_[key & mask_];
+        const void* addr = &cluster_at(key & mask_);
 #if defined(_MSC_VER)
         _mm_prefetch(static_cast<const char*>(addr), _MM_HINT_T0);
 #elif defined(__GNUC__) || defined(__clang__)
@@ -147,7 +171,7 @@ public:
     // accumulates it into DiagCounters; the return is free to ignore and the
     // stored data is identical either way).
     bool store(Key key, int depth, int score, TTFlag flag, Move m, int ply, int static_eval) {
-        TTCluster& cluster = clusters_[key & mask_];
+        TTCluster& cluster = cluster_at(key & mask_);
         const uint16_t want = static_cast<uint16_t>(key >> 48);
         const uint8_t age = age_.load(std::memory_order_relaxed);
 
@@ -212,7 +236,7 @@ public:
         const uint8_t age = age_.load(std::memory_order_relaxed);
         for (size_t i = 0; i < sample; i++) {
             for (int j = 0; j < 3; ++j) {
-                TTEntry e = unpack_entry(clusters_[i].data[j].load(std::memory_order_relaxed));
+                TTEntry e = unpack_entry(cluster_at(i).data[j].load(std::memory_order_relaxed));
                 if ((e.flag_age & 3) != TT_NONE && (e.flag_age & 0xFC) == age)
                     count++;
             }
@@ -237,10 +261,20 @@ public:
     }
 
 private:
-    std::unique_ptr<TTCluster[]> clusters_;
+    std::unique_ptr<TTStorageBlock[]> blocks_;
     size_t cluster_count_ = 0;
     size_t mask_ = 0;
     std::atomic<uint8_t> age_{0};
+
+    [[nodiscard]] TTCluster& cluster_at(size_t index) noexcept {
+        return blocks_[index / TT_CLUSTERS_PER_BLOCK]
+            .clusters[index % TT_CLUSTERS_PER_BLOCK];
+    }
+
+    [[nodiscard]] const TTCluster& cluster_at(size_t index) const noexcept {
+        return blocks_[index / TT_CLUSTERS_PER_BLOCK]
+            .clusters[index % TT_CLUSTERS_PER_BLOCK];
+    }
 
     static uint64_t pack_entry(int score, int static_eval, Move move, int depth, uint8_t flag_age) {
         const auto score16 = static_cast<uint16_t>(static_cast<int16_t>(score));
