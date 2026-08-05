@@ -1,8 +1,9 @@
 # Basilisk development plan
 
-This is the maintainer-facing source of truth. `GUIDE.md` is its short
-operational mirror; `README.md` and `CHANGELOG.md` remain user-facing and must
-not contain experiment bookkeeping.
+This is the maintainer-facing source of truth for future work. `GUIDE.md` is
+its short operational mirror; [`EXPERIMENTS.md`](EXPERIMENTS.md) is the
+indexed, conditional evidence ledger. `README.md` and `CHANGELOG.md` remain
+user-facing and must not contain experiment bookkeeping.
 
 ## 1. Current state
 
@@ -51,6 +52,9 @@ Model  -> accept/revert from the registered verdict, update docs, commit.
 - Commit after every completed plan step. Use an imperative subject and useful
   experiment body, no co-author trailers, and never push unless asked.
 - Keep `PLAN.md` and `GUIDE.md` synchronized in the same commit.
+- Before proposing or retrying a mechanism, consult `EXPERIMENTS.md` by
+  subsystem. Update its verdict, conditions, lesson and retry trigger in the
+  same commit that closes an experiment; keep forward sequencing only here.
 - Preserve unrelated user changes. Dirty test artifacts record their diff hash
   and cannot become release baselines.
 - While the shared Rating Tournament/Rarog SPSA occupies the machine: no
