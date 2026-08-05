@@ -8,11 +8,11 @@ not contain experiment bookkeeping.
 
 | Item | State |
 |---|---|
-| Branches | `master`, `development` and `v1.9.3` are at `d737123`. `origin/nnue` contains an old partial implementation and must be inventoried/rebased once, not merged piecemeal. |
+| Branches | `master`, `development` and `v1.9.3` are at `d737123`. `origin/nnue` contains an old partial implementation. `origin/arm_fix` is the one-commit `67a987b` TT-alignment experiment based on 1.9.3; Phase 5.8 inventories it, but it must not be merged as a finished fix. |
 | Released baseline | **Basilisk 1.9.3**, bench-13 fingerprint **11,941,440**. It is search-identical to 1.9.2; 1.9.3 repaired Clang/`llvm-profdata` PGO tool matching. |
 | Evaluation | The accepted HCE remains the comparison/fallback evaluator, but all new HCE strength work is frozen. Phase 10 is the optional HCE fallback and is entered only if NNUE is abandoned. |
 | Active work | The shared 36,400-game Rating Tournament is running. No Basilisk candidate or tuner is active. |
-| Next strength release | **1.10.0 at Phase 5.10**, after the complete pre-NNUE search program and direct target ladder. |
+| Next strength release | **1.10.0 at Phase 5.11**, after the complete pre-NNUE search, portability and direct target ladder. |
 | NNUE release | **2.0.0 at Phase 7.7**, using `D:/code/net_trainer`. |
 
 ### Live rating evidence — provisional 2026-08-05
@@ -76,7 +76,7 @@ counts, static loss, WAC and telemetry explain it.
 
 ### SPSA budget
 
-1. **One pre-NNUE search SPSA:** Phase 5.9, after architecture freezes.
+1. **One pre-NNUE search SPSA:** Phase 5.10, after architecture freezes.
    Diagnostics select at most ~24 non-redundant coordinates.
 2. **One post-NNUE search SPSA:** Phase 8.3, after the retained NNUE
    architecture/score scale freezes.
@@ -108,6 +108,9 @@ counts, static loss, WAC and telemetry explain it.
 8. Multi-thread strength is a separate deployment condition.
 9. HCE is frozen, not deleted: it remains a debug oracle, teacher and fallback.
 10. Git/CHANGELOG preserve experiment history; the forward GUIDE stays short.
+11. A cross-compiled binary is not a validated asset. Compatibility requires
+    target-native execution, exact search agreement, an executable ISA
+    contract and same-target performance evidence.
 
 ## 4. Released phases
 
@@ -236,7 +239,7 @@ Derive LMP, history pruning, futility, quiet/capture SEE and LMR from one
 history-aware prospective depth. Repair the known checking-move LMR bug by
 construction; do not repeat its de-tuned standalone gate. Test check/evasion
 classes, result-dependent verification and post-LMR learning. Track overlap and
-best-move-was-pruned recall. Keep switches ablatable for 5.9.
+best-move-was-pruned recall. Keep switches ablatable for 5.10.
 
 ### 5.6 — History and correction attribution
 
@@ -257,16 +260,87 @@ never authoritative. Pool worker instability for timing while a designated
 completed root owns the result. Gate aspiration `[0,3]`; root/TM/SMP `[-3,3]`
 at 1T STC/LTC and 4T LTC with zero forfeits.
 
-### 5.8 — Throughput, TT capacity and scaling
+### 5.8 — Cross-platform and ISA baseline (`origin/arm_fix`)
+
+Make the shipped x86-64/ARM64 assets first-class release conditions before
+measuring final throughput. The current development machine proves only a
+Windows x86-64 native PEXT build on a Ryzen 9 5950X. Cross-compilation, a UCI
+handshake and equal node count are necessary but do not prove that the asset
+uses its intended instructions or retains reasonable speed.
+
+Pinned platform references: Apple requires querying
+[`hw.cachelinesize`](https://developer.apple.com/documentation/apple-silicon/addressing-architectural-differences-in-your-macos-code)
+rather than assuming it from the architecture; Clang documents
+[`__builtin_prefetch`](https://clang.llvm.org/docs/LanguageExtensions.html#builtin-prefetch)
+as a cache hint whose value depends on measured access; and GitHub currently
+provides native
+[Linux, Windows and macOS ARM64 runners](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
+
+#### Branch and sibling-engine disposition
+
+| Evidence | Finding | Disposition |
+|---|---|---|
+| Basilisk `origin/arm_fix` / `67a987b` | Wraps four 32-byte TT clusters in a 128-byte-aligned block on Apple ARM64. It has no ARM timing evidence. A 32-byte-aligned 32-byte cluster already cannot straddle a 128-byte boundary, while the wrapper changes address arithmetic. | Preserve as a target-measured hypothesis; do not merge or describe as a fix. |
+| Rarog `0ddc8e5` | Its child-TT prefetch was x86-only; the branch emits AArch64 `PRFM PLDL1KEEP`. | Basilisk already uses Clang/GCC `__builtin_prefetch` on AArch64. Inspect emitted code on every ARM production compiler and add a target-specific fallback only if the builtin disappears. |
+| Rarog `3ee4660` | Applies the same unmeasured 128-byte Apple TT grouping to 32-byte local and 64-byte shared clusters. | Use it to widen the audit to all hot shared atomics/false-sharing boundaries, not as evidence for the TT wrapper. |
+| Rarog release infrastructure | Separates ISA tier from host-native tuning and runs bench fingerprints on Linux/Windows/macOS ARM64 before release. | Adopt the explicit contract and five-platform pre-release fingerprint shape. |
+
+Execute in this order:
+
+1. **Make the asset contract executable.** Supported production assets are
+   Linux/Windows x86-64 baseline, AVX2 and PEXT, plus Linux/Windows/macOS
+   ARM64. Reconcile the current contradiction in which `release_tiers.md`
+   calls PEXT an AVX2/POPCNT tier while portable CMake adds only `-mbmi2` and
+   startup checks only BMI2. Either make PEXT explicitly x86-64-v3 + BMI2 or
+   document/test a BMI2-only tier; artifact names, compile flags, runtime
+   checks and user guidance must describe exactly the same ISA. Prove that the
+   baseline contains no forbidden instruction and that every faster asset
+   refuses unsupported hardware before search.
+2. **Move ARM correctness before release.** Extend manually dispatched CI so
+   Linux ARM64, Windows ARM64 and macOS ARM64 build and execute the production
+   feature set; run the full suite on at least one ARM OS and bench/UCI/perft/
+   Syzygy smoke plus cross-platform node agreement on all five OS/architecture
+   cells. Assert the TT atomics required by the lock-free design are lock-free
+   on every supported target. Release-only jobs are too late to discover a
+   development regression.
+3. **Inspect generated artifacts.** Record target triple, compiler/stdlib,
+   flags, PGO profile/tool, CPU requirements, dynamic dependencies, binary
+   hash and bench fingerprint. Disassemble representative hot paths to prove
+   PEXT/magic selection, POPCNT/AVX2 contract and AArch64 prefetch emission.
+   Re-run this inspection on compiler/toolchain changes.
+4. **Measure the branch hypotheses on their target.** Query/log the real cache
+   line and page sizes. Audit the TT plus `shared_nodes`, `shared_tbhits`, stop/
+   root publication and future accumulator storage for destructive sharing;
+   the two `alignas(64)` counters may still share one 128-byte Apple line.
+   Compare flat storage, over-aligned allocation and block wrappers with
+   identical capacity/indexing/replacement. Accept a layout or explicit
+   AArch64 prefetch only after target-native paired PGO A/B, emitted-code
+   inspection and no x86 regression.
+5. **Create per-target performance anchors.** On stable native hardware, use
+   identical-binary calibration followed by interleaved baseline/candidate
+   PGO runs for each tier. Never compare raw NPS between unrelated GitHub
+   runners or CPU families. CI timing is diagnostic; a stable target-local A/B
+   decides. On the 5950X, also exercise baseline and AVX2 assets for semantics,
+   illegal-instruction guards and same-tier regression, not only native PEXT.
+
+Behaviour-neutral platform work uses exact bench/search agreement and
+same-target NPS, never SPSA. Any change to move choice follows the normal
+strength gate. Exit when the development revision passes the complete matrix,
+the ISA manifest matches the executable, ARM prefetch/layout claims have real
+target evidence, and `origin/arm_fix` is recorded as accepted pieces or a
+closed hypothesis rather than merged wholesale.
+
+### 5.9 — Throughput, TT capacity and scaling
 
 Profile accepted semantics at 1/2/4/8T: NPS, time-to-depth, TT hit/replacement/
 same-key, root stability and strength. Audit cluster contention after
 provenance and test multiply-high full-budget indexing at non-power-of-two
 Hash. Take only proven invariant hoists/batching through pooled-PGO interleaved
-NPS. Regenerate PGO after final code shape. Do not reopen generic helper
-diversification without a specific measured failure.
+NPS. Preserve the 5.8 platform/ISA matrix and regenerate target-native PGO
+after final code shape. Do not reopen generic helper diversification without
+a specific measured failure.
 
-### 5.9 — Single consolidated pre-NNUE search fit
+### 5.10 — Single consolidated pre-NNUE search fit
 
 Freeze architecture. Generate configuration from `search_params.h`; use
 sensitivity/collinearity diagnostics to select ≤24 coordinates across
@@ -276,11 +350,12 @@ HCE, dead/off and redundant knobs. Clean PGO + CTest/telemetry + `[0,3]`
 against the pre-fit architecture. Post-fit switch ablations must show the tune
 is not compensating for a harmful subsystem.
 
-### 5.10 — Cumulative target ladder and release 1.10.0
+### 5.11 — Cumulative target ladder and release 1.10.0
 
 Beat 1.9.3 cumulatively at 1T STC/LTC and transfer at 4T with zero forfeits;
 pass correctness/tactical/mate/zugzwang/TB/provenance/history/extension/root
-telemetry. Then run paired Basilisk, every installed Rybka (minimum
+telemetry and the Phase-5.8 production platform/ISA matrix. Then run paired
+Basilisk, every installed Rybka (minimum
 3/4.1/4/5/6), Critter 1.6a, Houdini 1.5a/2.0c and Fritz 16. Every required
 target needs a logistic-Elo lower bound above zero under the primary 1T
 condition, with Holm-adjusted 95% family-wise confidence; confirm 1T/4T LTC.
@@ -372,8 +447,10 @@ margins through isolated tests; comprehensive search SPSA waits for Phase 8.
 ### 7.7 — Release 2.0.0
 
 Default embedded NNUE beats 1.10.0 at STC/LTC, transfers at 4T, has zero
-incremental/full mismatches and passes external/ISA/net-metadata gates. Complete
-user docs/version and commit; do not push/tag.
+incremental/full mismatches and passes external/net-metadata gates. Portable
+scalar inference must pass the Phase-5.8 matrix; every shipped x86 SIMD and
+ARM64/NEON kernel is bit-exact to it and target-native PGO-smoked. Complete user
+docs/version and commit; do not push/tag.
 
 ## 8. Phase 8 — NNUE frontier and final search fit
 
@@ -413,14 +490,16 @@ release the next 2.x strength version when the matrix passes.
 Measure 8T+ topology, first-touch/NUMA, TT/accumulator sharing, root stopping
 and false sharing while preserving 1T/4T.
 
-### 9.1 — Memory and dispatch
+### 9.1 — Advanced memory and dispatch
 
-Finish full-budget TT if supported, runtime ISA dispatch, large-page/prefetch
-and net placement. Every path has scalar parity and real-hardware tests.
+Revisit full-budget TT if supported, runtime ISA dispatch, large pages,
+topology-specific prefetch and net placement. Phase 5.8 already guarantees the
+baseline asset matrix; this step takes only additional real-hardware gains.
 
 ### 9.2 — Protocol/platform completion
 
-Add demanded work such as Chess960 and ARM64/NEON parity with normal gates.
+Add demanded work such as Chess960 or additional platform/tier support. ARM64
+correctness is already required by Phase 5.8 and NNUE/NEON parity by 7.4/7.7.
 
 ### 9.3 — Scaling release
 

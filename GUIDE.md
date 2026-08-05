@@ -12,7 +12,8 @@ and lessons live in [`PLAN.md`](PLAN.md).
 | Live tournament | At 8,626/36,400: Basilisk 3006; Rybka 4.1/4/5/6 +82/+96/+150/+172; Critter +184; Houdini 1.5a +211. Provisional pool evidence only. |
 | Evaluation | HCE frozen. No HCE feature/weight/Texel work before NNUE. |
 | Current phase | **Phase 5 — evidence-coherent pre-NNUE search** |
-| Next releases | **1.10.0 at 5.10**; baseline NNUE **2.0.0 at 7.7** |
+| Portability branch | `origin/arm_fix` = unproven Apple-TT alignment hypothesis; inventory at 5.8, never merge wholesale |
+| Next releases | **1.10.0 at 5.11**; baseline NNUE **2.0.0 at 7.7** |
 
 The 1.10.0 target is direct paired superiority over every installed Rybka,
 Critter 1.6a, Houdini 2.0c and Fritz 16. Catching one rung does not close it.
@@ -59,11 +60,16 @@ matching without changing search.
       confidence and test compact contextual signals.
 - [ ] **5.7 Root confidence:** connect root variance to aspiration, TM,
       completed legal fallback and SMP ownership.
-- [ ] **5.8 Throughput/scaling:** profile accepted semantics, TT capacity and
-      1/2/4/8T; take only measured behaviour-neutral speed work.
-- [ ] **5.9 One search SPSA:** freeze architecture, select ≤24 coordinates and
+- [ ] **5.8 Portability/ISA:** inventory `origin/arm_fix`; make x86 tier
+      contracts executable, run Linux/Windows/macOS ARM64 before release,
+      inspect emitted instructions and target-measure prefetch/alignment/
+      false sharing. Adopt Rarog's five-platform fingerprint pattern.
+- [ ] **5.9 Throughput/scaling:** profile accepted semantics, TT capacity and
+      1/2/4/8T without regressing the platform/ISA matrix.
+- [ ] **5.10 One search SPSA:** freeze architecture, select ≤24 coordinates and
       run the only consolidated pre-NNUE fit plus post-fit ablations.
-- [ ] **5.10 Release gate:** cumulative 1T/LTC/4T matrix and Holm-adjusted
+- [ ] **5.11 Release gate:** cumulative 1T/LTC/4T plus production platform/ISA
+      matrix and Holm-adjusted
       paired wins over every Rybka, Critter 1.6a, Houdini 2.0c and Fritz 16;
       then release 1.10.0.
 
@@ -81,7 +87,7 @@ matching without changing search.
 - [ ] **7.1** controlled 30–60M initial data and label/mining A/Bs.
 - [ ] **7.2** H=512 pilot/H=1024 baseline with at least two seeds.
 - [ ] **7.3** strict scalar loader/embedded net and exact references.
-- [ ] **7.4** incremental accumulators and exact portable/SIMD kernels.
+- [ ] **7.4** incremental accumulators and exact portable/x86/ARM64 kernels.
 - [ ] **7.5** baseline data/architecture iteration one variable at a time.
 - [ ] **7.6** gross NNUE-scale search safety calibration only.
 - [ ] **7.7** HCE/STC/LTC/4T/external/parity gates and release 2.0.0.
@@ -97,8 +103,9 @@ matching without changing search.
 ### Phase 9 — Scaling, platforms and product completeness
 
 - [ ] **9.0** high-thread/NUMA/root/TT/accumulator scaling.
-- [ ] **9.1** memory, full-budget TT and runtime ISA/platform dispatch.
-- [ ] **9.2** demanded product work such as Chess960 and ARM64/NEON parity.
+- [ ] **9.1** advanced memory, full-budget TT and runtime ISA dispatch.
+- [ ] **9.2** demanded product or additional-platform work; baseline ARM64 and
+      NNUE/NEON parity are already release gates in 5.8 and 7.4/7.7.
 - [ ] **9.3** scaling/platform release matrix.
 
 ### Phase 10 — Optional HCE fallback
@@ -127,8 +134,8 @@ implement 5.1 before requesting a long job.
 | Behaviour-neutral | Exact bench plus correctness/performance evidence |
 | Strength candidate | Registered SPRT; H1 accepts, otherwise revert behaviour |
 | Root/TM/SMP | 1T STC/LTC plus 4T LTC, zero forfeits |
-| Mechanism de-tunes consumers | Keep inert/ablatable until 5.9; post-fit ablation required |
-| SPSA | Phase 5.9 and 8.3 only unless new evidence explicitly authorizes another |
+| Mechanism de-tunes consumers | Keep inert/ablatable until 5.10; post-fit ablation required |
+| SPSA | Phase 5.10 and 8.3 only unless new evidence explicitly authorizes another |
 | NNUE baseline loses | Diagnose contract/data/training/architecture; do not jump to HCE |
 | Target unavailable | Phase 5 stays open; rating-list inference is insufficient |
 
