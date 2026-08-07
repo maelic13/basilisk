@@ -1,0 +1,6 @@
+extend = "strength.toml"
+
+[options]
+a-option = ["Hash=256", "Threads=4"]
+b-option = ["Hash=256", "Threads=4"]
+cores-per-engine = 4

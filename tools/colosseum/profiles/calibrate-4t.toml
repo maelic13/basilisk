@@ -1,0 +1,6 @@
+extend = "strength-4t.toml"
+
+[options]
+games = 10000
+confidence = 0.95
+tolerance-nelo = 5

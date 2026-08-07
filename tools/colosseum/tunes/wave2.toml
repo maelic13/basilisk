@@ -1,0 +1,170 @@
+# Converted from the legacy 5,000-iteration weather-factory vector.
+# c_end = max(0.5, step * 5000^-0.102).
+
+[[parameters]]
+name = "HistBonusQuad"
+initial = 64
+min = 0
+max = 128
+c_end = 5.453162
+
+[[parameters]]
+name = "HistBonusLin"
+initial = 0
+min = 0
+max = 400
+c_end = 16.77896
+
+[[parameters]]
+name = "HistBonusMax"
+initial = 2048
+min = 512
+max = 4096
+c_end = 146.815904
+
+[[parameters]]
+name = "HistMalusQuad"
+initial = 64
+min = 0
+max = 128
+c_end = 5.453162
+
+[[parameters]]
+name = "HistMalusLin"
+initial = 0
+min = 0
+max = 400
+c_end = 16.77896
+
+[[parameters]]
+name = "HistMalusMax"
+initial = 2048
+min = 512
+max = 4096
+c_end = 146.815904
+
+[[parameters]]
+name = "HistTtMoveBonus"
+initial = 256
+min = 0
+max = 1024
+c_end = 41.947401
+
+[[parameters]]
+name = "PostLmrHistScale"
+initial = 100
+min = 0
+max = 300
+c_end = 12.58422
+
+[[parameters]]
+name = "DoubleExtMax"
+initial = 20
+min = 1
+max = 200
+c_end = 8.38948
+
+[[parameters]]
+name = "CapFutDepth"
+initial = 7
+min = 0
+max = 10
+c_end = 0.838948
+
+[[parameters]]
+name = "CapFutBase"
+initial = 200
+min = 0
+max = 500
+c_end = 20.973701
+
+[[parameters]]
+name = "CapFutCoeff"
+initial = 200
+min = 0
+max = 500
+c_end = 20.973701
+
+[[parameters]]
+name = "QuietSeeDepth"
+initial = 6
+min = 0
+max = 10
+c_end = 0.838948
+
+[[parameters]]
+name = "QuietSeeCoeff"
+initial = 25
+min = 0
+max = 120
+c_end = 6.29211
+
+[[parameters]]
+name = "QsearchCheckCap"
+initial = 5
+min = 0
+max = 10
+c_end = 0.838948
+
+[[parameters]]
+name = "LmrTtCapture"
+initial = 512
+min = 0
+max = 3072
+c_end = 104.868503
+
+[[parameters]]
+name = "LmrBase"
+initial = 60
+min = 0
+max = 150
+c_end = 6.29211
+
+[[parameters]]
+name = "LmrDivisor"
+initial = 209
+min = 150
+max = 350
+c_end = 8.38948
+
+[[parameters]]
+name = "LmrHistDiv"
+initial = 7830
+min = 4096
+max = 16384
+c_end = 419.474012
+
+[[parameters]]
+name = "LmrNonPvAdj"
+initial = 1024
+min = 0
+max = 3072
+c_end = 104.868503
+
+[[parameters]]
+name = "LmrCutNodeAdj"
+initial = 0
+min = 0
+max = 3072
+c_end = 104.868503
+
+[[parameters]]
+name = "LmrTtPvAdj"
+initial = 0
+min = 0
+max = 3072
+c_end = 83.894802
+
+[[parameters]]
+name = "LmrNotImprovingAdj"
+initial = 0
+min = 0
+max = 3072
+c_end = 83.894802
+
+[[parameters]]
+name = "HistPruneCoeff"
+initial = 4210
+min = 1000
+max = 28000
+c_end = 1048.685029

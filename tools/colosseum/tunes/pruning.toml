@@ -1,0 +1,93 @@
+# Converted from the legacy 5,000-iteration weather-factory vector.
+# c_end = max(0.5, step * 5000^-0.102).
+
+[[parameters]]
+name = "RfpCoeff"
+initial = 140
+min = 60
+max = 240
+c_end = 5.872636
+
+[[parameters]]
+name = "RfpImproving"
+initial = 60
+min = 0
+max = 140
+c_end = 5.033688
+
+[[parameters]]
+name = "RazorCoeff"
+initial = 300
+min = 120
+max = 500
+c_end = 12.58422
+
+[[parameters]]
+name = "NullBase"
+initial = 4
+min = 2
+max = 6
+c_end = 0.5
+
+[[parameters]]
+name = "NullEvalDiv"
+initial = 200
+min = 80
+max = 400
+c_end = 10.067376
+
+[[parameters]]
+name = "ProbCutMargin"
+initial = 200
+min = 80
+max = 360
+c_end = 8.38948
+
+[[parameters]]
+name = "FutilityBase"
+initial = 150
+min = 40
+max = 280
+c_end = 7.550532
+
+[[parameters]]
+name = "FutilityCoeff"
+initial = 110
+min = 40
+max = 200
+c_end = 5.872636
+
+[[parameters]]
+name = "HistPruneCoeff"
+initial = 3500
+min = 1000
+max = 7000
+c_end = 167.789605
+
+[[parameters]]
+name = "SeePruneCoeff"
+initial = 80
+min = 30
+max = 160
+c_end = 5.033688
+
+[[parameters]]
+name = "SingularBetaMult"
+initial = 2
+min = 1
+max = 6
+c_end = 0.5
+
+[[parameters]]
+name = "SingularDoubleMargin"
+initial = 20
+min = 0
+max = 60
+c_end = 3.355792
+
+[[parameters]]
+name = "AspirationDelta"
+initial = 25
+min = 10
+max = 60
+c_end = 2.516844

@@ -1,0 +1,79 @@
+# Converted from the legacy 5,000-iteration weather-factory vector.
+# c_end = max(0.5, step * 5000^-0.102).
+
+[[parameters]]
+name = "HistBonusQuad"
+initial = 64
+min = 0
+max = 128
+c_end = 5.453162
+
+[[parameters]]
+name = "HistBonusLin"
+initial = 0
+min = 0
+max = 400
+c_end = 16.77896
+
+[[parameters]]
+name = "HistBonusMax"
+initial = 2048
+min = 512
+max = 4096
+c_end = 146.815904
+
+[[parameters]]
+name = "HistMalusQuad"
+initial = 64
+min = 0
+max = 128
+c_end = 5.453162
+
+[[parameters]]
+name = "HistMalusLin"
+initial = 0
+min = 0
+max = 400
+c_end = 16.77896
+
+[[parameters]]
+name = "HistMalusMax"
+initial = 2048
+min = 512
+max = 4096
+c_end = 146.815904
+
+[[parameters]]
+name = "HistTtMoveBonus"
+initial = 0
+min = 0
+max = 1024
+c_end = 41.947401
+
+[[parameters]]
+name = "LmrHistDiv"
+initial = 7830
+min = 4096
+max = 16384
+c_end = 419.474012
+
+[[parameters]]
+name = "HistPruneCoeff"
+initial = 4210
+min = 1000
+max = 28000
+c_end = 1048.685029
+
+[[parameters]]
+name = "LmrCutNodeAdj"
+initial = 0
+min = 0
+max = 3072
+c_end = 104.868503
+
+[[parameters]]
+name = "LmrTtCapture"
+initial = 0
+min = 0
+max = 3072
+c_end = 104.868503

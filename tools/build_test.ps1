@@ -8,8 +8,8 @@
     on the 40-position `bench` suite (depth 13), merges the profile, and builds
     the final optimised binary.  The result is copied to
     D:\chess\engines\test_engines\ (kept SEPARATE from released engines in
-    D:\chess\engines\) with a human-readable name so it can be referenced by
-    sprt.ps1 and by weather-factory SPSA runs.
+    D:\chess\engines\) with a human-readable name so it can be passed to the
+    independent Colosseum CLI.
 
     Always use this script (not a plain cmake --build) when building binaries
     for SPRT or gauntlet testing.  PGO shifts hot-path timing enough to affect
@@ -48,7 +48,7 @@ try {
     Write-Host ""
 
     # Configure release-pext preset with TUNE=ON (always required for test binaries —
-    # weather-factory needs the UCI options exposed).
+    # Colosseum SPSA needs the UCI tuning options exposed).
     cmake --preset release-pext -DCOMP=clang -DTUNE=ON
     if ($LASTEXITCODE -ne 0) { throw "cmake configure failed (exit $LASTEXITCODE)" }
 

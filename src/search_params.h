@@ -1,7 +1,7 @@
 #pragma once
 
 // Search tuning parameters. Under the BASILISK_TUNE build flag each field is
-// exposed as a UCI spin option so weather-factory can SPSA-tune it. In release
+// exposed as a UCI spin option so an external SPSA tool can tune it. In release
 // builds the struct is a plain bag of compile-time constants.
 //
 // SINGLE SOURCE OF TRUTH (Phase 8.6.1, 2026-07-20): the X-macro table below
@@ -14,10 +14,8 @@
 // value (104) while compiling 0, and tm_instability — the +10.79 knob — was
 // registered nowhere, i.e. permanently untunable. Rarog fixed the same
 // disease (12 stale defaults) with its `params!` macro; this is the C++
-// equivalent. The SPSA JSON configs under tools/spsa_configs/ necessarily
-// stay separate files — regenerate them FROM THIS TABLE at the 10.7 tune
-// (the pre-8.6 configs carrying the old integer LMR-adj scale are renamed
-// *.STALE so they cannot be launched by accident).
+// equivalent. Colosseum tune vectors under tools/colosseum/tunes/ necessarily
+// stay separate files — regenerate them FROM THIS TABLE before a new tune.
 //
 // ============================== FIELD NOTES ==============================
 // Rationale & history per group; the table itself stays scannable. Do not
