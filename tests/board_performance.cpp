@@ -1,16 +1,21 @@
 /// Board representation performance benchmark.
 ///
-/// Mirrors the beast/hydra/whitespine pattern: measure throughput for the
-/// operations that dominate a chess-engine search loop, assert generous
-/// minimums that should hold even in a debug build, and print a formatted
-/// results table so release-mode numbers are easy to read at a glance.
+/// Measures throughput for the operations that dominate a chess-engine search
+/// loop. The timed region must contain board work and nothing else: no heap
+/// allocation, no container copy, no dead code.
+///
+/// Two profiles:
+///   cross-engine-board-v1  (default) — 150 ms warm-up, 11 x 150 ms samples,
+///                          median +/- MAD. Comparable across engines that
+///                          implement the same contract and work counts.
+///   legacy-board-a-v1      — the historical fixed-iteration schedule with the
+///                          same 11-sample median/MAD estimator. Kept so older
+///                          Basilisk numbers stay interpretable; never mix the
+///                          two profiles in one comparison.
 ///
 /// Run from the repo root:
-///   cmake --preset release && cmake --build --preset release --target board_performance_test
-///   ./build/release/board_performance_test
-///
-/// Or via CTest:
-///   ctest --test-dir build/release -R board_performance --output-on-failure
+///   cmake --preset release-pext && cmake --build --preset release-pext --target board_performance_test
+///   ./build/release-pext/board_performance_test.exe [--profile legacy-board-a-v1] [--preflight-only]
 
 #include "board.h"
 #include "attacks.h"
@@ -19,16 +24,15 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <cassert>
+#include <cstring>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
-#include <string_view>
 #include <vector>
 
 // ---------------------------------------------------------------------------
-// Benchmark positions — same set used by beast / hydra / whitespine
+// Benchmark corpus — the cross-engine-board-v1 five positions, in order
 // ---------------------------------------------------------------------------
 
 struct Position {
@@ -52,21 +56,36 @@ static constexpr Position BENCHMARK_POSITIONS[] = {
 static constexpr int N_POSITIONS =
     static_cast<int>(sizeof(BENCHMARK_POSITIONS) / sizeof(BENCHMARK_POSITIONS[0]));
 
+// Frozen work quanta. The benchmark refuses to time anything that does not
+// perform exactly this much work, so "same benchmark" is enforced rather than
+// assumed. Order matches the results table.
+static constexpr uint64_t EXPECTED_LEGAL_MOVES   = 128;
+static constexpr uint64_t EXPECTED_CAPTURES      = 10;
+static constexpr uint64_t EXPECTED_MAKE_UNMAKE   = 128;
+static constexpr uint64_t EXPECTED_SEE           = 10;
+static constexpr uint64_t EXPECTED_PERFT4        = 197281;
+static constexpr uint64_t EXPECTED_SIMULATION    = 4597;
+
 // ---------------------------------------------------------------------------
-// Helper — collect legal moves into a MoveList
+// Dead-code-elimination barriers
 // ---------------------------------------------------------------------------
 
-static MoveList legal_moves_list(const Board& b) {
-    MoveList ml;
-    b.gen_legal(ml);
-    return ml;
+#if defined(__GNUC__) || defined(__clang__)
+template<typename T>
+inline void do_not_optimize(T const& val) {
+    asm volatile("" : : "r,m"(val) : "memory");
 }
-
-static MoveList legal_captures_list(const Board& b) {
-    MoveList ml;
-    b.gen_legal_captures(ml);
-    return ml;
+// Large aggregates (MoveList is 256 slots) cannot go through an "r" constraint.
+// Feeding the address with a memory clobber keeps the stores to the list alive
+// without copying it, which is what a by-value barrier would have cost.
+inline void keep_alive(const void* p) {
+    asm volatile("" : : "r"(p) : "memory");
 }
+#else
+template<typename T>
+inline void do_not_optimize(T const& val) { (void)val; }
+inline void keep_alive(const void* p) { (void)p; }
+#endif
 
 // ---------------------------------------------------------------------------
 // Perft — needed by the benchmark, not built into Board
@@ -90,95 +109,44 @@ static uint64_t perft(Board& b, int depth) {
 }
 
 // ---------------------------------------------------------------------------
-// Benchmark harness — identical logic to beast / whitespine
-// ---------------------------------------------------------------------------
-
-// Prevent dead-code elimination of computed values (GCC/Clang)
-#if defined(__GNUC__) || defined(__clang__)
-template<typename T>
-inline void do_not_optimize(T const& val) {
-    asm volatile("" : : "r,m"(val) : "memory");
-}
-#else
-// MSVC: volatile read/write is sufficient
-template<typename T>
-inline void do_not_optimize(T const& val) { (void)val; }
-#endif
-
-struct BenchResult {
-    const char* label;
-    double      median_ops_per_sec;
-    double      mad_ops_per_sec;   // median absolute deviation (dispersion)
-    uint64_t    ops_per_iter;      // work quantum, for context
-
-    double ops_per_sec() const { return median_ops_per_sec; }
-};
-
-// Warm-up, then take SAMPLES timed runs and report the median throughput plus
-// the median absolute deviation (a robust dispersion measure, unlike best-of-N
-// which hides variance). The workload returns the op count it performed; it
-// must NOT copy or allocate the working set inside the timed region.
-static constexpr std::size_t SAMPLES = 11;
-
-template <typename F>
-static BenchResult benchmark(const char* label, int iterations, int warmups, F workload) {
-    for (int i = 0; i < warmups; ++i)
-        do_not_optimize(workload());
-
-    std::vector<double> rate(SAMPLES);
-    uint64_t ops_per_iter = 0;
-    for (std::size_t s = 0; s < SAMPLES; ++s) {
-        uint64_t ops = 0;
-        auto t0 = std::chrono::steady_clock::now();
-        for (int i = 0; i < iterations; ++i)
-            ops += workload();
-        auto t1 = std::chrono::steady_clock::now();
-        const double elapsed = std::chrono::duration<double>(t1 - t0).count();
-        rate[s] = static_cast<double>(ops) / elapsed;
-        ops_per_iter = ops / static_cast<uint64_t>(iterations);
-    }
-
-    auto median_of = [](std::vector<double> v) {
-        std::sort(v.begin(), v.end());
-        return v[v.size() / 2];
-    };
-    const double med = median_of(rate);
-    std::vector<double> dev(SAMPLES);
-    for (std::size_t s = 0; s < SAMPLES; ++s) dev[s] = std::fabs(rate[s] - med);
-    const double mad = median_of(dev);
-
-    return { label, med, mad, ops_per_iter };
-}
-
-// ---------------------------------------------------------------------------
 // Workloads
+//
+// Every list is a reused stack MoveList reset with `count = 0`. Nothing here
+// returns a MoveList by value: the previous version did, which put a 1 KB
+// aggregate copy inside the timed region of the two generation workloads and
+// measured the copy as if it were move generation.
 // ---------------------------------------------------------------------------
 
-static uint64_t legal_moves_workload(const std::vector<Board>& boards) {
+static uint64_t legal_moves_workload(const std::vector<Board>& boards, MoveList& ml) {
     uint64_t total = 0;
-    for (const Board& b : boards)
-        total += static_cast<uint64_t>(legal_moves_list(b).size());
+    for (const Board& b : boards) {
+        ml.count = 0;
+        b.gen_legal(ml);
+        total += static_cast<uint64_t>(ml.size());
+        keep_alive(&ml);
+    }
     return total;
 }
 
-static uint64_t capture_gen_workload(const std::vector<Board>& boards) {
+static uint64_t capture_gen_workload(const std::vector<Board>& boards, MoveList& ml) {
     uint64_t total = 0;
-    for (const Board& b : boards)
-        total += static_cast<uint64_t>(legal_captures_list(b).size());
+    for (const Board& b : boards) {
+        ml.count = 0;
+        b.gen_legal_captures(ml);
+        total += static_cast<uint64_t>(ml.size());
+        keep_alive(&ml);
+    }
     return total;
 }
 
-// Takes the working set by REFERENCE and restores it via unmake, so no Board
-// is copied inside the timed region (the by-value version copied the whole
-// vector on every call, which dominated the measurement).
-static uint64_t make_unmake_workload(std::vector<Board>& boards) {
+static uint64_t make_unmake_workload(std::vector<Board>& boards, MoveList& ml) {
     uint64_t ops = 0;
-    MoveList moves;
     for (Board& b : boards) {
-        moves.count = 0;
-        b.gen_legal(moves);
-        for (Move m : moves) {
+        ml.count = 0;
+        b.gen_legal(ml);
+        for (Move m : ml) {
             b.make_move(m);
+            do_not_optimize(b.all_occ);
             b.unmake_move(m);
             ++ops;
         }
@@ -186,16 +154,14 @@ static uint64_t make_unmake_workload(std::vector<Board>& boards) {
     return ops;
 }
 
-// Replaces the old trivial cached `is_in_check()` read with a real workload:
-// evaluate see_ge (the pruning-critical static exchange) over every legal
-// capture — a hot search operation with genuine branching and X-ray recompute.
-static uint64_t see_workload(const std::vector<Board>& boards) {
+// Threshold SEE (`see_ge(m, 0)`) over every legal capture — the pruning-hot
+// form, not the full-value variant used only for move ordering.
+static uint64_t see_workload(const std::vector<Board>& boards, MoveList& ml) {
     uint64_t ops = 0;
-    MoveList caps;
     for (const Board& b : boards) {
-        caps.count = 0;
-        b.gen_legal_captures(caps);
-        for (Move m : caps) {
+        ml.count = 0;
+        b.gen_legal_captures(ml);
+        for (Move m : ml) {
             do_not_optimize(b.see_ge(m, 0));
             ++ops;
         }
@@ -203,9 +169,9 @@ static uint64_t see_workload(const std::vector<Board>& boards) {
     return ops;
 }
 
-static uint64_t game_simulation_workload(std::vector<Board>& boards) {
+static uint64_t game_simulation_workload(std::vector<Board>& boards,
+                                         MoveList& outer, MoveList& inner) {
     uint64_t ops = 0;
-    MoveList outer, inner;
     for (Board& b : boards) {
         outer.count = 0;
         b.gen_legal(outer);
@@ -214,6 +180,7 @@ static uint64_t game_simulation_workload(std::vector<Board>& boards) {
             inner.count = 0;
             b.gen_legal(inner);
             ops += static_cast<uint64_t>(inner.count);
+            keep_alive(&inner);
             b.unmake_move(m);
         }
     }
@@ -221,31 +188,144 @@ static uint64_t game_simulation_workload(std::vector<Board>& boards) {
 }
 
 // ---------------------------------------------------------------------------
+// Harness
+// ---------------------------------------------------------------------------
+
+static constexpr std::size_t SAMPLES = 11;
+static constexpr auto WARMUP_TIME = std::chrono::milliseconds(150);
+static constexpr auto SAMPLE_TIME = std::chrono::milliseconds(150);
+
+struct BenchResult {
+    const char* label;
+    const char* unit;
+    double      median_ops_per_sec;
+    double      mad_ops_per_sec;
+    uint64_t    ops_per_iter;
+    uint64_t    iterations;
+
+    double ops_per_sec() const { return median_ops_per_sec; }
+};
+
+static double median_of(std::vector<double> v) {
+    std::sort(v.begin(), v.end());
+    return v[v.size() / 2];
+}
+
+static BenchResult summarize(const char* label, const char* unit,
+                             std::vector<double>& rate,
+                             uint64_t ops_per_iter, uint64_t iterations) {
+    const double med = median_of(rate);
+    std::vector<double> dev(rate.size());
+    for (std::size_t s = 0; s < rate.size(); ++s) dev[s] = std::fabs(rate[s] - med);
+    return { label, unit, med, median_of(dev), ops_per_iter, iterations };
+}
+
+// Batch size is calibrated so the clock is read roughly once per millisecond.
+// A steady_clock read costs tens of nanoseconds; the 10-op workloads run an
+// iteration in ~100 ns, so checking the deadline once per iteration would put
+// a double-digit percentage of clock overhead inside the timed region and
+// publish it as board throughput.
+static constexpr double BATCH_TARGET_SECONDS = 0.001;
+static constexpr uint64_t MAX_BATCH = 1000000;
+
+template <typename F>
+static uint64_t calibrate_batch(F workload) {
+    const auto c0 = std::chrono::steady_clock::now();
+    for (int i = 0; i < 32; ++i) do_not_optimize(workload());
+    const auto c1 = std::chrono::steady_clock::now();
+    const double per_iter = std::chrono::duration<double>(c1 - c0).count() / 32.0;
+    if (per_iter <= 0) return MAX_BATCH;
+    const double batch = BATCH_TARGET_SECONDS / per_iter;
+    if (batch <= 1.0) return 1;
+    if (batch >= static_cast<double>(MAX_BATCH)) return MAX_BATCH;
+    return static_cast<uint64_t>(batch);
+}
+
+// cross-engine-board-v1: fixed wall-clock per sample, so every workload gets
+// the same measurement budget regardless of how fast it is.
+template <typename F>
+static BenchResult benchmark_timed(const char* label, const char* unit,
+                                   uint64_t expected_ops, F workload) {
+    const auto warm0 = std::chrono::steady_clock::now();
+    while (std::chrono::steady_clock::now() - warm0 < WARMUP_TIME)
+        do_not_optimize(workload());
+
+    const uint64_t batch = calibrate_batch(workload);
+
+    std::vector<double> rate(SAMPLES);
+    uint64_t iterations = 0;
+    for (std::size_t s = 0; s < SAMPLES; ++s) {
+        uint64_t ops = 0;
+        uint64_t iters = 0;
+        const auto t0 = std::chrono::steady_clock::now();
+        while (std::chrono::steady_clock::now() - t0 < SAMPLE_TIME) {
+            for (uint64_t i = 0; i < batch; ++i) ops += workload();
+            iters += batch;
+        }
+        const auto t1 = std::chrono::steady_clock::now();
+        const double elapsed = std::chrono::duration<double>(t1 - t0).count();
+        rate[s] = static_cast<double>(ops) / elapsed;
+        iterations += iters;
+        if (ops != expected_ops * iters) {
+            std::fprintf(stderr, "FAIL: %s performed %llu ops, expected %llu\n",
+                label, (unsigned long long)ops,
+                (unsigned long long)(expected_ops * iters));
+            std::exit(EXIT_FAILURE);
+        }
+    }
+    return summarize(label, unit, rate, expected_ops, iterations);
+}
+
+// legacy-board-a-v1: the historical fixed-iteration schedule.
+template <typename F>
+static BenchResult benchmark_fixed(const char* label, const char* unit,
+                                   int iterations, int warmups,
+                                   uint64_t expected_ops, F workload) {
+    for (int i = 0; i < warmups; ++i)
+        do_not_optimize(workload());
+
+    std::vector<double> rate(SAMPLES);
+    for (std::size_t s = 0; s < SAMPLES; ++s) {
+        uint64_t ops = 0;
+        const auto t0 = std::chrono::steady_clock::now();
+        for (int i = 0; i < iterations; ++i)
+            ops += workload();
+        const auto t1 = std::chrono::steady_clock::now();
+        const double elapsed = std::chrono::duration<double>(t1 - t0).count();
+        rate[s] = static_cast<double>(ops) / elapsed;
+    }
+    return summarize(label, unit, rate, expected_ops,
+                     static_cast<uint64_t>(iterations) * SAMPLES);
+}
+
+// ---------------------------------------------------------------------------
 // main
 // ---------------------------------------------------------------------------
 
-int main() {
-    // One-time engine init (magic bitboards, Zobrist keys)
+int main(int argc, char** argv) {
+    bool legacy = false;
+    bool preflight_only = false;
+    for (int i = 1; i < argc; ++i) {
+        if (std::strcmp(argv[i], "--preflight-only") == 0) {
+            preflight_only = true;
+        } else if (std::strcmp(argv[i], "--profile") == 0 && i + 1 < argc) {
+            ++i;
+            if (std::strcmp(argv[i], "legacy-board-a-v1") == 0) legacy = true;
+            else if (std::strcmp(argv[i], "cross-engine-board-v1") != 0) {
+                std::fprintf(stderr, "unknown profile: %s\n", argv[i]);
+                return EXIT_FAILURE;
+            }
+        } else {
+            std::fprintf(stderr,
+                "usage: board_performance_test [--profile cross-engine-board-v1|"
+                "legacy-board-a-v1] [--preflight-only]\n");
+            return EXIT_FAILURE;
+        }
+    }
+
     init_bitboards();
     init_attacks();
     Zobrist::init();
-
-    // Sanity-check perft at each depth to pinpoint any move generation bug
-    {
-        const uint64_t expected[] = { 0, 20, 400, 8902, 197281 };
-        bool perft_ok = true;
-        for (int d = 1; d <= 4; ++d) {
-            Board b;
-            uint64_t nodes = perft(b, d);
-            if (nodes != expected[d]) {
-                std::fprintf(stderr,
-                    "perft(%d) = %llu, expected %llu\n",
-                    d, (unsigned long long)nodes, (unsigned long long)expected[d]);
-                perft_ok = false;
-            }
-        }
-        if (!perft_ok) return EXIT_FAILURE;
-    }
 
     std::vector<Board> boards;
     boards.reserve(N_POSITIONS);
@@ -255,68 +335,93 @@ int main() {
         boards.push_back(b);
     }
 
-    // ---- run benchmarks ----
-
-    auto legal = benchmark("legal moves",    5000, 50,
-        [&]() { return legal_moves_workload(boards); });
-
-    auto caps  = benchmark("captures",       10000, 100,
-        [&]() { return capture_gen_workload(boards); });
-
-    auto mku   = benchmark("make/unmake",    2000, 20,
-        [&]() { return make_unmake_workload(boards); });
-
-    auto see   = benchmark("see_ge captures", 20000, 200,
-        [&]() { return see_workload(boards); });
+    // Reused scratch lists, created once outside every timed region.
+    MoveList scratch, outer, inner;
 
     Board start;
     start.set_fen(BENCHMARK_POSITIONS[0].fen);
-    auto pft   = benchmark("perft(4) startpos", 30, 3,
-        [&]() { return perft(start, 4); });
 
-    auto sim   = benchmark("game simulation",  300, 10,
-        [&]() { return game_simulation_workload(boards); });
+    // ---- preflight: prove the work quanta before timing anything ----
+    {
+        struct Check { const char* name; uint64_t got; uint64_t want; };
+        const Check checks[] = {
+            { "legal moves",       legal_moves_workload(boards, scratch),        EXPECTED_LEGAL_MOVES },
+            { "legal captures",    capture_gen_workload(boards, scratch),        EXPECTED_CAPTURES },
+            { "make/unmake",       make_unmake_workload(boards, scratch),        EXPECTED_MAKE_UNMAKE },
+            { "threshold SEE",     see_workload(boards, scratch),                EXPECTED_SEE },
+            { "perft(4) startpos", perft(start, 4),                              EXPECTED_PERFT4 },
+            { "two-ply simulation",game_simulation_workload(boards, outer, inner),EXPECTED_SIMULATION },
+        };
+        bool ok = true;
+        for (const Check& c : checks) {
+            if (c.got != c.want) {
+                std::fprintf(stderr, "work mismatch for %s: expected %llu, received %llu\n",
+                    c.name, (unsigned long long)c.want, (unsigned long long)c.got);
+                ok = false;
+            }
+        }
+        if (!ok) return EXIT_FAILURE;
+    }
 
-    // ---- print results ----
+    std::printf("\nBasilisk board benchmark\n");
+    std::printf("profile: %s\n", legacy ? "legacy-board-a-v1" : "cross-engine-board-v1");
+    std::printf("positions: %d\n", N_POSITIONS);
+    std::printf("samples: %s\n", legacy
+        ? "11 fixed-work samples (median +/- MAD)"
+        : "11 x 150 ms after a 150 ms warm-up (median +/- MAD)");
+    std::printf("preflight: PASS\n");
+    if (preflight_only) return EXIT_SUCCESS;
 
-    const BenchResult* results[] = { &legal, &caps, &mku, &see, &pft, &sim };
+    std::vector<BenchResult> results;
+    if (legacy) {
+        results.push_back(benchmark_fixed("legal moves", "moves", 5000, 50,
+            EXPECTED_LEGAL_MOVES, [&]() { return legal_moves_workload(boards, scratch); }));
+        results.push_back(benchmark_fixed("legal captures", "moves", 10000, 100,
+            EXPECTED_CAPTURES, [&]() { return capture_gen_workload(boards, scratch); }));
+        results.push_back(benchmark_fixed("make/unmake", "moves", 2000, 20,
+            EXPECTED_MAKE_UNMAKE, [&]() { return make_unmake_workload(boards, scratch); }));
+        results.push_back(benchmark_fixed("threshold SEE", "captures", 20000, 200,
+            EXPECTED_SEE, [&]() { return see_workload(boards, scratch); }));
+        results.push_back(benchmark_fixed("perft(4) startpos", "nodes", 30, 3,
+            EXPECTED_PERFT4, [&]() { return perft(start, 4); }));
+        results.push_back(benchmark_fixed("two-ply simulation", "moves", 300, 10,
+            EXPECTED_SIMULATION, [&]() { return game_simulation_workload(boards, outer, inner); }));
+    } else {
+        results.push_back(benchmark_timed("legal moves", "moves",
+            EXPECTED_LEGAL_MOVES, [&]() { return legal_moves_workload(boards, scratch); }));
+        results.push_back(benchmark_timed("legal captures", "moves",
+            EXPECTED_CAPTURES, [&]() { return capture_gen_workload(boards, scratch); }));
+        results.push_back(benchmark_timed("make/unmake", "moves",
+            EXPECTED_MAKE_UNMAKE, [&]() { return make_unmake_workload(boards, scratch); }));
+        results.push_back(benchmark_timed("threshold SEE", "captures",
+            EXPECTED_SEE, [&]() { return see_workload(boards, scratch); }));
+        results.push_back(benchmark_timed("perft(4) startpos", "nodes",
+            EXPECTED_PERFT4, [&]() { return perft(start, 4); }));
+        results.push_back(benchmark_timed("two-ply simulation", "moves",
+            EXPECTED_SIMULATION, [&]() { return game_simulation_workload(boards, outer, inner); }));
+    }
 
-    std::printf("\n");
-    std::printf("Board representation performance (%d positions, median of %zu)\n",
-                N_POSITIONS, SAMPLES);
-    std::printf("%s\n", std::string(72, '-').c_str());
-    for (const BenchResult* r : results) {
-        const double madpct = r->median_ops_per_sec > 0
-            ? 100.0 * r->mad_ops_per_sec / r->median_ops_per_sec : 0.0;
-        std::printf("%-20s %14.0f ops/s  +/- %5.1f%%  (%llu ops/iter)\n",
-            r->label, r->median_ops_per_sec, madpct,
-            (unsigned long long)r->ops_per_iter);
+    std::printf("\n%-22s %15s %15s %10s %12s %12s\n",
+        "workload", "estimate ops/s", "MAD ops/s", "MAD %", "ops/iter", "total iters");
+    for (const BenchResult& r : results) {
+        const double madpct = r.median_ops_per_sec > 0
+            ? 100.0 * r.mad_ops_per_sec / r.median_ops_per_sec : 0.0;
+        std::printf("%-22s %15.0f %15.0f %9.2f%% %12llu %12llu %s\n",
+            r.label, r.median_ops_per_sec, r.mad_ops_per_sec, madpct,
+            (unsigned long long)r.ops_per_iter,
+            (unsigned long long)r.iterations, r.unit);
     }
     std::printf("\n");
 
-    // ---- assert generous minimums ----
-    // These are conservative enough to pass even in a debug build;
-    // release-mode numbers will be 10-100× higher.
-
+    // ---- generous floors, meaningful even in a debug build ----
     bool ok = true;
-
-#define ASSERT_MIN(result, min, name)                                       \
-    do {                                                                    \
-        if ((result).ops_per_sec() < (min)) {                              \
-            std::fprintf(stderr, "FAIL: %s too slow: %.0f ops/s (min %g)\n", \
-                (name), (result).ops_per_sec(), (double)(min));            \
-            ok = false;                                                     \
-        }                                                                   \
-    } while (0)
-
-    ASSERT_MIN(legal, 1'000.0,  "legal movegen");
-    ASSERT_MIN(caps,  1'000.0,  "capture gen");
-    ASSERT_MIN(mku,     100.0,  "make/unmake");
-    ASSERT_MIN(see,   1'000.0,  "see_ge captures");
-    ASSERT_MIN(pft,     200.0,  "perft(4)");
-    ASSERT_MIN(sim,      50.0,  "game simulation");
-
-#undef ASSERT_MIN
-
+    const double floors[] = { 1000.0, 1000.0, 100.0, 1000.0, 200.0, 50.0 };
+    for (std::size_t i = 0; i < results.size(); ++i) {
+        if (results[i].ops_per_sec() < floors[i]) {
+            std::fprintf(stderr, "FAIL: %s too slow: %.0f ops/s (min %g)\n",
+                results[i].label, results[i].ops_per_sec(), floors[i]);
+            ok = false;
+        }
+    }
     return ok ? EXIT_SUCCESS : EXIT_FAILURE;
 }
