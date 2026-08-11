@@ -308,18 +308,36 @@ proceeding on Rarog's numbers.
 
 ### 5.2 — Differential diagnostic harness
 
-The former "bounded diagnostics" step, widened to serve convergence. Define a
-versioned fixed suite spanning UHO openings, quiet middlegames, tactics,
-checks, zugzwangs and endgames. At fixed depth/nodes on one thread, emit
-deterministic counters for: nodes and qnodes; move-picker source; fail-high
-move index; TT producer/consumer kind; history update attribution; LMR
-population and re-searches; NMP, ProbCut, futility and razoring; extensions;
-aspiration retries; completed-root ownership; SMP work distribution.
+The former "bounded diagnostics and semantic census", **retained in full** and
+widened to serve convergence. Define a versioned fixed suite spanning UHO
+openings, quiet middlegames, tactics, checks, zugzwangs and endgames. At fixed
+depth/nodes on one thread, emit deterministic counters for:
+
+- **TT producer/consumer kind** — which mechanism wrote an entry and which read
+  it, kept distinct per durable lesson 6;
+- **prune recall and overlap** — not just node savings. Durable lesson 5 is
+  explicit that a smaller tree can be worse; measure best-move recall and
+  contradiction, and which prunes fire redundantly on the same node;
+- **correction attribution** — which correction context claimed a node and
+  whether the correction changed the decision;
+- **history update attribution** — main, capture, continuation, low-ply, pawn;
+- **completed-root ownership** and **SMP work distribution**;
+- nodes and qnodes; move-picker source; fail-high move index; LMR population
+  and re-searches; NMP, ProbCut, futility and razoring; extensions; aspiration
+  retries.
 
 Diagnostics **off** must preserve bench 11,941,440 exactly. Diagnostics **on**
 must preserve best move and node counts with bounded overhead. Do not spend an
 age bit, widen the dense TT or persist provenance until a measured consumer
-needs it.
+needs it. Transient `OutcomeKind`/capability predicates may land here when
+behaviour-neutral.
+
+**Shadow-evidence discipline.** A concern this step surfaces but does not own —
+stand-pat provenance, ProbCut, NMP/IIR/singular cooperation, checking-move LMR,
+root confidence — is recorded as shadow evidence rather than acted on here. Its
+first owner is the cluster that reaches it (5.4–5.8); anything no cluster
+reaches falls through to Phase 8.3. Recording it is mandatory; acting on it in
+this step is not permitted.
 
 Run the same suite against the 5.1 oracle. A counter that differs sharply
 between Basilisk and the oracle is the phase's primary work-selection signal —
@@ -405,9 +423,20 @@ history updates. The existing NMP unproven-mate clamp already matches the
 useful Rarog fix and needs only coverage, not reimplementation.
 
 A heuristic being mechanically cleaner is not a correctness proof. This step is
-for residual safety defects only — the checking-move LMR repair, qsearch
-staging, subtree-null policy, correction weighting and aspiration model are all
-owned by their 5.4–5.8 clusters and must not be re-litigated here as "cleanups".
+for residual safety defects only. In particular, do not force any of these here
+as a "cleanup" — each has a named cluster owner and a history of losing when
+moved alone:
+
+| Deferred item | Owner | Why not here |
+|---|---|---|
+| Checking-move LMR repair | 5.4 | standalone repair lost −21.55 ±9.83 |
+| New qsearch staging | 5.5 | stand-pat/capture provenance must move together |
+| Subtree-null policy | 5.6 | couples to NMP verification and ProbCut |
+| Correction weighting | 5.5 | attribution must be measured at 5.2 first |
+| Aspiration model | 5.8 | root evidence must be coherent before the clock |
+
+If a cluster has already closed, re-opening one of these is a new registered
+experiment against the accepted head — not an amendment to a closed verdict.
 
 If a repair changes reachable play, isolate it and apply the normal strength
 gate. If it belongs to a cluster that already closed, it is a new registered
@@ -515,7 +544,10 @@ individually plausible search mechanisms that did not compose.
 1. Each cluster starts from the last **accepted** integration head — never from
    another unresolved candidate.
 2. Register the hypothesis, dependency map, baseline SHA, gate, cap and stop
-   rule in `EXPERIMENTS.md` **before** any games.
+   rule in `EXPERIMENTS.md` **before** any games. A coherent cluster with a
+   plausible 10 nElo prior uses a preregistered `[3,10]` nElo SPRT; anything
+   without that prior falls back to the §2 gate table. Do not use `[3,10]` to
+   flatter a cluster that was never expected to pay that much.
 3. Implement the smallest dependency-complete change. Substeps may be compiled
    and diagnosed separately, but an incomplete cluster never becomes the next
    strength baseline.

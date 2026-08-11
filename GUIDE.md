@@ -71,12 +71,17 @@ matching without changing search.
       directly — no DLL/FFI needed. Adjudication **off**. Measures our search
       gap and our HCE gap separately. **Stop rule: if the search contrast is
       under ~50 Elo, close the convergence program and go to NNUE.**
-- [ ] **5.2 Differential diagnostic harness:** versioned fixed suite, fixed
-      depth/nodes, 1T. Counters for move source, cutoff index, TT kind,
-      history attribution, LMR/re-searches, pruning, extensions, aspiration,
-      root ownership, SMP share. Off ⇒ bench 11,941,440 exactly; on ⇒ same
-      best move and nodes. Run it against the oracle: the counters that differ
-      most select the work.
+- [ ] **5.2 Differential diagnostic harness** (the old "bounded diagnostics",
+      kept whole): versioned fixed suite, fixed depth/nodes, 1T. Counters for
+      TT producer/consumer kind, **prune recall and overlap** (not just node
+      savings — lesson 5), **correction attribution**, history attribution,
+      move source, cutoff index, LMR/re-searches, pruning, extensions,
+      aspiration, root ownership, SMP share. Off ⇒ bench 11,941,440 exactly;
+      on ⇒ same best move and nodes. Transient `OutcomeKind`/capability
+      predicates may land when behaviour-neutral. **Shadow-record** stand-pat,
+      ProbCut, NMP/IIR/singular, checking-LMR and root-confidence concerns —
+      owned by the cluster that reaches them, else 8.3. Run it against the
+      oracle: the counters that differ most select the work.
 - [ ] **5.3 Contract map and order freeze:** classify each reference contract
       as equivalent / intentionally different / missing / coupled. If evidence
       contradicts the cluster order, edit PLAN *before* implementing.
@@ -109,7 +114,10 @@ before the next starts
 **Consolidation and release**
 
 - [ ] **5.10 Correctness/safety only:** repair demonstrated legal-root,
-      mate/rule-50, TT atomic/replacement or attribution failures.
+      mate/rule-50, TT atomic/replacement or attribution failures. Do **not**
+      force checking-move LMR (→5.4), qsearch staging (→5.5), subtree-null
+      (→5.6), correction weighting (→5.5) or aspiration (→5.8) here as
+      "cleanups"; each has a cluster owner and a history of losing alone.
 - [ ] **5.11 Portability/ISA:** enforce x86 tier and ARM64 asset contracts,
       inspect emitted instructions and establish target anchors. Close the
       invalid `origin/arm_fix` wrapper; verify Basilisk's existing ARM prefetch.
