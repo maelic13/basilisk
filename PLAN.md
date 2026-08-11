@@ -9,36 +9,26 @@ user-facing and must not contain experiment bookkeeping.
 
 | Item | State |
 |---|---|
-| Branches | `master` and `v1.9.3` are at `d737123`; `development` is at `f045b37` with documentation/tooling/benchmark work but unchanged playing code. `origin/nnue` is an obsolete partial implementation whose useful seams must be reimplemented against the current trainer contract. `origin/arm_fix` is the one-commit `67a987b` TT-alignment experiment; Phase 5.3 closes the invalid wrapper hypothesis and retains only evidence-backed portability work. |
-| Released baseline | **Basilisk 1.9.3**, bench-13 fingerprint **11,941,440**. It is search-identical to 1.9.2; 1.9.3 repaired Clang/`llvm-profdata` PGO tool matching. |
+| Branches | `master` and `v1.9.3` are at `d737123`; `development` is at `16eff20` with documentation/tooling/benchmark work. The only `src/` divergence is a comment-only edit in `search_params.h`, so playing code is unchanged. `origin/nnue` is an obsolete partial implementation whose useful seams must be reimplemented against the current trainer contract. `origin/arm_fix` is the one-commit `67a987b` TT-alignment experiment; Phase 5.3 closes the invalid wrapper hypothesis and retains only evidence-backed portability work. |
+| Released baseline | **Basilisk 1.9.3**, bench-13 fingerprint **11,941,440**. It is search-identical to 1.9.2; 1.9.3 repaired Clang/`llvm-profdata` PGO tool matching. Reproduced clean at Phase 5.0 (see below). |
 | Evaluation | The accepted HCE remains the comparison/fallback evaluator, but all new HCE strength work is frozen. Phase 10 is the optional HCE fallback and is entered only if NNUE is abandoned. |
-| Active work | No Basilisk candidate or tuner is active. The last recorded 36,400-game Rating Tournament observation is provisional; Phase 5.0 determines whether it is complete/running and archives its exact state. |
+| Active work | No Basilisk candidate or tuner is active. A Rarog-seeded Colosseum gauntlet occupies the machine at concurrency 14; do not start competing timed work while it runs. |
 | Next release | **1.9.4 by default at Phase 5.5.** Promote it to **1.10.0 only if** the bounded Phase-5 work produces a material, independently confirmed strength gain. |
 | NNUE release | **2.0.0 at Phase 7.7**, using `D:/code/net_trainer`. |
 
-### Live rating evidence — provisional 2026-08-05
+### Live rating evidence — context only
 
-At 8,626/36,400 games (~1,232 per engine), the pool reads:
+The 36,400-game observation previously recorded here is superseded and is not
+maintained. Basilisk's registered pool rating is now **3023**, with the
+historical frontier (Houdini 1.5a, Critter 1.6a, Fritz 16) roughly **165–185
+Elo** ahead and Rybka 4 about **+79**. These are mutually fitted pool ratings,
+not independent confidence intervals.
 
-| Engine | Rating | Gap from Basilisk 1.9.3 |
-|---|---:|---:|
-| Houdini 1.5a | 3217 | +211 |
-| Critter 1.6a | 3190 | +184 |
-| Rybka 6 | 3178 | +172 |
-| Rybka 5 | 3156 | +150 |
-| Rybka 4 | 3102 | +96 |
-| Rybka 4.1 | 3088 | +82 |
-| **Basilisk 1.9.3** | **3006** | — |
-| Rarog 2.4.0-dev | 2967 | −39 |
-| Rarog 2.3.1 | 2956 | −50 |
-| Rybka 3 | 2928 | −78 |
-
-These are mutually fitted live ratings, not independent confidence intervals.
-Houdini 2.0c and Fritz 16 are absent. The historical ladder remains useful
-context, but it is not a sensible precondition for starting NNUE and moves to
-Phase 8.4. Closing 150–210 Elo with bounded pre-NNUE maintenance is not
-expected; Phase 5 is successful if it leaves a correct, portable, reproducible
-handoff without losing strength.
+This ladder is contextual evidence only. It gates nothing in Phase 5, is not a
+precondition for starting NNUE, and moves to Phase 8.4. Do not schedule,
+archive or curate rating tournaments as plan work. Closing 165–185 Elo with
+bounded pre-NNUE maintenance is not expected; Phase 5 is successful if it
+leaves a correct, portable, reproducible handoff without losing strength.
 
 ## 2. Development process
 
@@ -174,12 +164,22 @@ Move full-budget TT and generic hotspot work to Phase 9.1, where NNUE has made
 the final memory profile visible. Move the Rybka/Critter/Houdini/Fritz ladder
 to Phase 8.4 as contextual frontier evidence, not a blocker for NNUE.
 
-### 5.0 — Freeze baseline and close live observation
+### 5.0 — Freeze baseline — CLOSED 2026-08-11
 
-Determine whether the 36,400-game tournament is complete or still running and
-archive its exact PGN/config/binary/manifest state without extrapolating the
-provisional ratings. Reproduce clean 1.9.3 with CTest 12/12, PGO manifest and
-bench 11,941,440. Record the actual `development`/release branch divergence.
+The rating tournament is closed as contextual evidence and deliberately not
+archived; no Basilisk plan artefact depends on it.
+
+Clean 1.9.3 reproduced from `development` `16eff20` on a clean tree:
+
+| Gate | Result |
+|---|---|
+| Bench-13 fingerprint | **11,941,440** — exact match |
+| CTest | **12/12** passed |
+| PGO manifest | complete (revision, `dirty_diff: clean`, Clang 22.1.8, binary SHA-256) |
+| Branch divergence | docs/tooling only; the sole `src/` change is a comment in `search_params.h` |
+
+Artefact: `tools/test_engines/basilisk-1.9.3-baseline-pext-pgo.exe`, SHA-256
+`D80A4A7F…B3F87496`. This is the Phase-5 comparison baseline.
 
 ### 5.1 — Bounded diagnostics and semantic census
 

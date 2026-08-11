@@ -7,11 +7,11 @@ and lessons live in [`PLAN.md`](PLAN.md).
 
 | Item | State |
 |---|---|
-| Branch/release | `master`/`v1.9.3` at `d737123`; `development` at `f045b37`, with unchanged playing code |
-| Baseline | Basilisk **1.9.3**, bench **11,941,440**; search-identical to 1.9.2 |
-| Tournament record | Last observation at 8,626/36,400: Basilisk 3006; Rybka 4.1/4/5/6 +82/+96/+150/+172; Critter +184; Houdini 1.5a +211. Provisional pool evidence only; 5.0 determines and archives current state. |
+| Branch/release | `master`/`v1.9.3` at `d737123`; `development` at `16eff20`, with unchanged playing code |
+| Baseline | Basilisk **1.9.3**, bench **11,941,440**; search-identical to 1.9.2. Reproduced clean at 5.0: CTest 12/12, manifest complete, artefact `tools/test_engines/basilisk-1.9.3-baseline-pext-pgo.exe` |
+| Tournament record | Context only, gates nothing. Basilisk sits at 3023; the historical frontier is ~165–185 Elo ahead. Do not schedule or curate rating tournaments as plan work. |
 | Evaluation | HCE frozen. No HCE feature/weight/Texel work before NNUE. |
-| Current phase | **Phase 5 — bounded pre-NNUE hardening** |
+| Current phase | **Phase 5 — bounded pre-NNUE hardening** (5.0 closed) |
 | Portability branch | `origin/arm_fix` wrapper rejected at 5.3; retain ISA/ARM verification, never merge the branch wholesale |
 | Next releases | **1.9.4 by default at 5.5**; **1.10.0 only for material verified gain**; baseline NNUE **2.0.0 at 7.7** |
 
@@ -46,8 +46,8 @@ matching without changing search.
 
 ### Phase 5 — Bounded pre-NNUE hardening (→ 1.9.4 by default)
 
-- [ ] **5.0 Baseline:** determine/archive tournament state and reproduce clean
-      1.9.3, PGO manifest and bench 11,941,440.
+- [x] **5.0 Baseline:** ✅ clean 1.9.3 reproduced — bench 11,941,440, CTest
+      12/12, complete PGO manifest. Rating tournaments closed as context only.
 - [ ] **5.1 Bounded diagnostics:** one behaviour-neutral sampled substrate for
       result consumers, pruning recall, attribution, root ownership and SMP.
       Keep speculative search concerns as shadows for 8.3; do not widen TT.
@@ -117,10 +117,15 @@ the user explicitly abandons that program.
 
 ## What you run now
 
-First determine whether the 36,400-game tournament is still running. If so,
-let it finish unchanged and do not start competing bench/NPS/PGO/game work. If
-not, archive the available PGN/config/binaries/manifests and begin 5.0 by
-reproducing the 1.9.3 baseline. No pre-NNUE SPSA is planned.
+5.0 is closed and the 1.9.3 baseline binary exists. Next is **5.1 — bounded
+diagnostics**: one sampled, deterministic, behaviour-neutral substrate, added
+only where it answers a Phase-5 decision or seeds a Phase-8 baseline.
+Diagnostics off must preserve bench 11,941,440; diagnostics on must preserve
+best move and node counts. Do not widen the TT or spend an age bit.
+
+A Rarog-seeded gauntlet currently occupies the machine at concurrency 14. 5.1
+is code work and can proceed, but defer NPS/PGO timing comparisons until it
+finishes. No pre-NNUE SPSA is planned.
 
 ## Decision rules
 
