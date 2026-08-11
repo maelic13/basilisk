@@ -238,15 +238,43 @@ fixed-time search gained no depth; this is not proof of better chess scaling.
 Basilisk's current full ladder is older and incomplete despite its accepted 4T
 strength bundle and indicative +12.8% 16T node-counter batching result.
 
+The historical cross-engine result also needs a current check. Rarog 2.3.0
+minus Basilisk 1.9.1 was measured as pool Elo with one anchor:
+
+| Threads | `3+0.03` | `10+0.1` |
+|---|---:|---:|
+| 1T | −55 ± 21 | −38 ± 27 |
+| 4T | −32 ± 50 | **+34 ± 24** |
+
+This does not show that Basilisk was generally weaker at longer TC: it led at
+both 1T conditions, and the sign flipped only at 4T LTC. It does establish a
+plausible thread × time-control crossover. Because Basilisk 1.9.2/1.9.3 then
+changed SMP, the old versions cannot answer whether the crossover remains.
+
 Run one null-calibrated, alternating same-process 1/2/4/8/16T sweep using a
 clean PGO binary. Record NPS, nodes/time-to-fixed-depth, completed depth at
-fixed time, main/helper node share, useful TT cutoffs, same-key writes, root
-stability and 4T real-clock strength. If Basilisk converts threads efficiently
-and preserves 4T strength, close this step with no code change.
+fixed time, main/helper node share, useful TT cutoffs, same-key writes and root
+stability.
 
-If a deficit is reproduced, classify it first as contention, redundant width,
-root ownership/stop publication or missing depth diversity, then test **at
-most one** targeted mitigation through the full SMP gate. Do not copy Rarog's
+Then run one bounded paired UHO matrix for the current release pair: Basilisk
+1.9.3 versus Rarog 2.3.2, or a newer pinned Rarog release if registered before
+the run, at `{1T, 4T} × {3+0.03, 10+0.1}` with the same book, hash, affinity,
+topology and adjudication. Pre-register per-cell minimum/cap and report Elo/CI,
+forfeits and completed-depth telemetry. Report the time contrast at each thread
+count, the thread contrast at each TC and their difference-in-differences with
+propagated or bootstrap uncertainty; four point estimates alone cannot prove a
+crossover.
+
+If Basilisk converts threads efficiently, preserves 4T strength and the
+historical crossover is not confirmed, close this step with no code change.
+If the matchup crossover remains while internal depth conversion is healthy,
+classify it as search/selectivity/time-management evidence for Phase 8.3, not
+as an SMP implementation defect.
+
+If an internal conversion deficit is reproduced, classify it first as
+contention, redundant width, root ownership/stop publication or missing depth
+diversity, then test **at most one** targeted mitigation through the full SMP
+gate. Do not copy Rarog's
 iteration-staggering table: it was tested and rejected. Defer high-thread NUMA
 and accumulator-specific work to Phase 9.0.
 

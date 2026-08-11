@@ -57,10 +57,13 @@ matching without changing search.
 - [ ] **5.3 Portability/ISA:** enforce x86 tier and ARM64 asset contracts,
       inspect emitted instructions and establish target anchors. Close the
       invalid `origin/arm_fix` wrapper; verify Basilisk's existing ARM prefetch.
-- [ ] **5.4 SMP checkpoint:** null-calibrated 1/2/4/8/16T NPS, time-to-depth,
-      completed-depth, TT/root/work-share and 4T-strength sweep. If a deficit
-      exists, classify it and test at most one targeted mitigation; otherwise
-      close without code changes. Do not copy Rarog's rejected staggering.
+- [ ] **5.4 SMP/TC checkpoint:** null-calibrated 1/2/4/8/16T NPS,
+      time-to-depth, completed-depth and TT/root/work-share sweep; then a
+      bounded current Basilisk-vs-Rarog `{1T,4T} × {3+0.03,10+0.1}` matrix.
+      Test the thread × TC interaction with uncertainty. If an internal SMP
+      deficit exists, classify it and test at most one targeted mitigation;
+      otherwise close without code changes. Do not copy Rarog's rejected
+      staggering.
 - [ ] **5.5 Release:** prior-release non-regression plus platform/SMP gates.
       Release 1.9.4 by default; use 1.10.0 only after a registered material
       `[3,10]` nElo gate and positive LTC/4T transfer.
