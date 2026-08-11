@@ -152,34 +152,42 @@ NNUE is explicitly abandoned.
 ## 8. Cross-engine evidence imported from Rarog
 
 These are ideas, warnings or ordering priors already incorporated where useful
-in Basilisk's forward plan. No additional roadmap item is created merely by
-listing them here.
+in Basilisk's forward plan. Listing an item here does not by itself create a
+roadmap item.
+
+**BAS-X09/X10 are the exception.** They did not refine an existing plan item —
+they changed Phase 5's purpose from bounded pre-NNUE hardening to a search and
+evaluation convergence program. They remain *imported priors*: they size and
+order Basilisk's work and can never accept a Basilisk change.
 
 | ID | Rarog evidence | Possible Basilisk implication | Existing PLAN coverage |
 |---|---|---|---|
 | BAS-X01 | Check-extension removal was +30.75 Elo in Rarog but −10.17 ± 6.52 in Basilisk. | Search mechanisms can be jointly de-tuned; copy the experiment design, not the verdict. | 8.3 |
 | BAS-X02 | Stockfish distillation improved holdout loss by 4.9% yet lost −17.11 Elo in Rarog, while Basilisk gained +6.75. | Teacher transfer depends on corpus, representation, scale and current policy; games remain the gate. | 6.2–6.4, 7.0–7.2 |
 | BAS-X03 | Rarog's full `cutoffCnt`/LMR-family candidate lost −7.78 ± 8.00 despite its tuning trajectory. | Tuner success can select a self-play-local optimum. Treat `cutoffCnt` as an optional diagnosed coordinate, not required parity. | 8.3 |
-| BAS-X04 | Rarog gained +22.13 from history bonus/malus work and +6.01 from a broader history bundle. | Result-source attribution and consumer normalization may unlock history value, but Basilisk's 6-ply channel already showed duplication risk. | 5.1 shadow, then 8.3 |
-| BAS-X05 | Rarog's accepted SMP rework was +102.78 ± 16.38 at 4T. Historical Rarog 2.3.0 minus Basilisk 1.9.1 pool Elo was 1T STC −55 ± 21, 1T LTC −38 ± 27, 4T STC −32 ± 50 and 4T LTC **+34 ± 24**. Rarog later showed ~12.3× 16T NPS but no fixed-time depth gain. | The old matrix suggests a thread × TC crossover, not general Basilisk LTC inferiority: Basilisk led both 1T cells. Since Basilisk subsequently changed SMP, repeat the current-version 2×2 with uncertainty and pair it with internal time-to-depth diagnostics before assigning the cause or changing code. | 5.4, 9.0 |
-| BAS-X06 | Rarog's bench-identical speed wave gained +10.35% NPS and +20.31 ± 7.13 Elo at STC. | It corroborates that wall-clock speed can convert to strength near this host/TC, while leaving LTC and ISA transfer unknown. | 5.3, 5.4, 9.1 |
-| BAS-X07 | Rarog `arm_fix` adds an AArch64 prefetch path and a runtime-hoist idea; x64 evidence was bundled and ARM untested. | Basilisk already uses compiler prefetch on ARM. Verify emitted code; do not copy the Rust implementation, wrapper or constants. | 5.3 |
-| BAS-X08 | Rarog's parity audit emphasizes shared `MoveEvidence`, prospective depth and correction attribution. | These abstractions may reduce contradictory consumers in Basilisk if the telemetry confirms the same failure modes. | 5.1 shadow, 5.2 safety, then 8.3 |
+| BAS-X04 | Rarog gained +22.13 from history bonus/malus work and +6.01 from a broader history bundle. | Result-source attribution and consumer normalization may unlock history value, but Basilisk's 6-ply channel already showed duplication risk. | 5.2 diagnostics, then the 5.4 history cluster; residue to 8.3 |
+| BAS-X05 | Rarog's accepted SMP rework was +102.78 ± 16.38 at 4T. Historical Rarog 2.3.0 minus Basilisk 1.9.1 pool Elo was 1T STC −55 ± 21, 1T LTC −38 ± 27, 4T STC −32 ± 50 and 4T LTC **+34 ± 24**. Rarog later showed ~12.3× 16T NPS but no fixed-time depth gain. | The old matrix suggests a thread × TC crossover, not general Basilisk LTC inferiority: Basilisk led both 1T cells. Since Basilisk subsequently changed SMP, repeat the current-version 2×2 with uncertainty and pair it with internal time-to-depth diagnostics before assigning the cause or changing code. | 5.12, 9.0 |
+| BAS-X06 | Rarog's bench-identical speed wave gained +10.35% NPS and +20.31 ± 7.13 Elo at STC. | It corroborates that wall-clock speed can convert to strength near this host/TC, while leaving LTC and ISA transfer unknown. | 5.11, 5.12, 9.1 |
+| BAS-X07 | Rarog `arm_fix` adds an AArch64 prefetch path and a runtime-hoist idea; x64 evidence was bundled and ARM untested. | Basilisk already uses compiler prefetch on ARM. Verify emitted code; do not copy the Rust implementation, wrapper or constants. | 5.11 |
+| BAS-X08 | Rarog's parity audit emphasizes shared `MoveEvidence`, prospective depth and correction attribution. | These abstractions may reduce contradictory consumers in Basilisk if the telemetry confirms the same failure modes. | 5.2 diagnostics, 5.10 safety, then the 5.4-5.8 clusters; residue to 8.3 |
+| BAS-X09 | Rarog RAR-O02 (no adjudication, 1,238 games, 982 natural mates, `3+0.03`, 1T): Stockfish `9587eeeb` search driving Rarog's 2.3.2 HCE beat **Basilisk 1.9.3 by ~+196.5 Elo** while running 1.5M NPS against Basilisk's 2.5M. Basilisk − Rarog was +30.4 in the same pool. | Basilisk's dominant measurable deficit is search coordination, not evaluation capacity or NNUE absence, and it is not a throughput artifact. Logistic point estimates from a stopped run — they size a target and are never added or quoted as a release claim. Basilisk-specific magnitude is unknown until 5.1 measures our own evaluator under the same search. | **5.1** oracle, then 5.2–5.8 convergence |
+| BAS-X10 | In the same run, the exact-revision Stockfish HCE beat that hybrid by **~+328.6 Elo** with the search held identical. RAR-O01, the adjudicated variant, inflated the sibling contrast from +196.5 to +270.9. | A second large deficit exists in HCE structural coverage, isolated cleanly because only the evaluator changed. Justifies unfreezing HCE for structural convergence (5.9) while keeping the constant-refit freeze. The adjudication delta is a standing warning: cross-evaluator cohorts run with adjudication off. | **5.9**; adjudication rule in PLAN durable lesson 14 |
 
-The cross-review found no additional high-value Rarog item missing from the
-current Basilisk plan. Items above are already covered, contradicted by local
-evidence, or deliberately postponed to the NNUE/scaling phases.
+Apart from the search-oracle result, the cross-review found no additional
+high-value Rarog item missing from the current Basilisk plan. The remaining
+items are already covered, contradicted by local evidence, or deliberately
+postponed to the NNUE/scaling phases.
 
 ## 9. Open retry map
 
 | Prior IDs | Retry condition | PLAN destination |
 |---|---|---|
-| BAS-S08, BAS-S09, BAS-S11 | Unified pre-move evidence and prospective-depth model implemented; consumers included in the single joint fit; post-fit ablations registered. | 5.1 shadow, then 8.3 |
-| BAS-S07, BAS-S10, BAS-S12 | Diagnostics show a distinct source/consumer gap that the existing history tables cannot represent. | 5.1 shadow, then 8.3 |
+| BAS-S08, BAS-S09, BAS-S11 | Unified pre-move evidence and prospective-depth model implemented; consumers included in the single joint fit; post-fit ablations registered. | 5.4 and 5.6 clusters; residue to 8.3 |
+| BAS-S07, BAS-S10, BAS-S12 | Diagnostics show a distinct source/consumer gap that the existing history tables cannot represent. | 5.2, then the 5.4 cluster; residue to 8.3 |
 | BAS-R02, BAS-R03 | Root-confidence inputs or NNUE score scale materially change. | 7.6, 8.3 |
 | BAS-P04, BAS-P05, BAS-P06 | A new profile demonstrates changed reuse, cache pressure or PGO coverage. | 9.1 |
-| BAS-P07, BAS-X07 | Production ARM64 artifacts show missing prefetch or measured hot-state contention; isolate one valid variant per target-native A/B. | 5.3 |
-| BAS-E03, BAS-E04, BAS-E06 | NNUE data/teacher experiment, not another HCE fit; frozen teacher and holdout are available. | 6.2–7.2 |
+| BAS-P07, BAS-X07 | Production ARM64 artifacts show missing prefetch or measured hot-state contention; isolate one valid variant per target-native A/B. | 5.11 |
+| BAS-E03, BAS-E04, BAS-E06 | NNUE data/teacher experiment, not another HCE **constant** fit; frozen teacher and holdout are available. Structural HCE coverage is a different question owned by 5.9. | 5.9, 6.2–7.2 |
 
 Anything not meeting its trigger stays closed. A retry is a new experiment with
 a new ID and manifest; it does not overwrite the historical row.

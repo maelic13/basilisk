@@ -10,14 +10,30 @@ and lessons live in [`PLAN.md`](PLAN.md).
 | Branch/release | `master`/`v1.9.3` at `d737123`; `development` at `16eff20`, with unchanged playing code |
 | Baseline | Basilisk **1.9.3**, bench **11,941,440**; search-identical to 1.9.2. Reproduced clean at 5.0: CTest 12/12, manifest complete, artefact `tools/test_engines/basilisk-1.9.3-baseline-pext-pgo.exe` |
 | Tournament record | Context only, gates nothing. Basilisk sits at 3023; the historical frontier is ~165–185 Elo ahead. Do not schedule or curate rating tournaments as plan work. |
-| Evaluation | HCE frozen. No HCE feature/weight/Texel work before NNUE. |
-| Current phase | **Phase 5 — bounded pre-NNUE hardening** (5.0 closed) |
-| Portability branch | `origin/arm_fix` wrapper rejected at 5.3; retain ISA/ARM verification, never merge the branch wholesale |
-| Next releases | **1.9.4 by default at 5.5**; **1.10.0 only for material verified gain**; baseline NNUE **2.0.0 at 7.7** |
+| Evaluation | HCE constant refitting stays frozen. **Structural** feature convergence is unfrozen at 5.9 only. No Texel/SPSA refit. |
+| Current phase | **Phase 5 — search and evaluation convergence** (5.0 closed) |
+| Reference | Stockfish `9587eeeb`, the last pure-HCE master commit before NNUE. A specification, never a transcription source. |
+| Portability branch | `origin/arm_fix` wrapper rejected at 5.11; retain ISA/ARM verification, never merge the branch wholesale |
+| Next releases | **1.10.0 at 5.13** if convergence transfers (higher minor if the gain is large); **1.9.4** is the maintenance-only fallback; baseline NNUE **2.0.0 at 7.7** |
 
-Phase 5 has no booked Elo gain. Its expected result is neutral to slightly
-positive; correctness, portability and a reproducible NNUE handoff are enough
-for 1.9.4. The historical engine ladder moves to 8.4 and does not block NNUE.
+**Phase 5 changed scope on 2026-08-12.** It was bounded hardening with no
+booked Elo. Rarog's search-oracle experiment (BAS-X09/X10) measured Stockfish's
+last pure-HCE search — driving Rarog's weaker evaluator, at 1.5M NPS against
+our 2.5M — beating Basilisk 1.9.3 by about **+196 Elo**, and the matching
+Stockfish HCE beating that hybrid by another **+329**. So the largest
+measurable deficit is search coordination, with a second in HCE feature
+coverage, and both can be converged against a public reference instead of
+redesigned blindly.
+
+Those are logistic estimates from someone else's stopped run against someone
+else's evaluator. They size a target and order the work; they never accept a
+Basilisk change and are never quoted as a release claim. **5.1 measures our own
+magnitudes before any code moves.**
+
+Search convergence is evaluator-agnostic, so it survives NNUE intact — this is
+not work spent on a surface NNUE will replace. HCE convergence also pays
+forward as a better NNUE teacher at 7.1. The historical engine ladder still
+moves to 8.4 and still does not block NNUE.
 
 ## Closed phases
 
@@ -44,29 +60,72 @@ matching without changing search.
 
 ## Forward phases
 
-### Phase 5 — Bounded pre-NNUE hardening (→ 1.9.4 by default)
+### Phase 5 — Search and evaluation convergence (→ 1.10.0 or higher)
+
+**Evidence and instrumentation**
 
 - [x] **5.0 Baseline:** ✅ clean 1.9.3 reproduced — bench 11,941,440, CTest
       12/12, complete PGO manifest. Rating tournaments closed as context only.
-- [ ] **5.1 Bounded diagnostics:** one behaviour-neutral sampled substrate for
-      result consumers, pruning recall, attribution, root ownership and SMP.
-      Keep speculative search concerns as shadows for 8.3; do not widen TT.
-- [ ] **5.2 Correctness/safety only:** repair demonstrated legal-root,
-      mate/rule-50, TT atomic/replacement or attribution failures. Do not force
-      cleaner but de-tuned search heuristics before NNUE.
-- [ ] **5.3 Portability/ISA:** enforce x86 tier and ARM64 asset contracts,
+- [ ] **5.1 Basilisk search oracle:** build Stockfish `9587eeeb` calling
+      Basilisk's exact 1.9.3 HCE, plus its own HCE as control. C++ links
+      directly — no DLL/FFI needed. Adjudication **off**. Measures our search
+      gap and our HCE gap separately. **Stop rule: if the search contrast is
+      under ~50 Elo, close the convergence program and go to NNUE.**
+- [ ] **5.2 Differential diagnostic harness:** versioned fixed suite, fixed
+      depth/nodes, 1T. Counters for move source, cutoff index, TT kind,
+      history attribution, LMR/re-searches, pruning, extensions, aspiration,
+      root ownership, SMP share. Off ⇒ bench 11,941,440 exactly; on ⇒ same
+      best move and nodes. Run it against the oracle: the counters that differ
+      most select the work.
+- [ ] **5.3 Contract map and order freeze:** classify each reference contract
+      as equivalent / intentionally different / missing / coupled. If evidence
+      contradicts the cluster order, edit PLAN *before* implementing.
+
+**Search convergence clusters** — one at a time, each accepted or reverted
+before the next starts
+
+- [ ] **5.4 Cluster A — ordering, histories, LMR.** Owns the latent post-move
+      `gives_check` LMR defect; repair it *inside* the cluster (durable lesson
+      2: its standalone repair lost −21.55 ±9.83).
+- [ ] **5.5 Cluster B — static eval, TT, qsearch.** Keep raw eval, pruning
+      eval and searched bounds distinct. Preserve our draw/mate/rule-50
+      semantics; they are assets, not targets.
+- [ ] **5.6 Cluster C — main selectivity.** Razoring, RFP, NMP verification,
+      ProbCut, move-count/history pruning, futility. Categoricals before
+      constants; no broad SPSA.
+- [ ] **5.7 Cluster D — extensions and depth authority.** Check, singular,
+      double/negative, IIR vs TT provenance and LMR.
+- [ ] **5.8 Cluster E — root and clock.** Aspiration, completed-root
+      authority, PV/fallback, stability. Time allocation moves last and is
+      gated separately.
+
+**Evaluation convergence**
+
+- [ ] **5.9 HCE structural convergence:** missing or materially weaker terms
+      only, each with its local refit. **Not** another broad constant fit —
+      cycle 6 washed at +1.37 ±5.21 and that stands. Two failed clusters ⇒
+      close the track and carry the residual into NNUE data selection.
+
+**Consolidation and release**
+
+- [ ] **5.10 Correctness/safety only:** repair demonstrated legal-root,
+      mate/rule-50, TT atomic/replacement or attribution failures.
+- [ ] **5.11 Portability/ISA:** enforce x86 tier and ARM64 asset contracts,
       inspect emitted instructions and establish target anchors. Close the
       invalid `origin/arm_fix` wrapper; verify Basilisk's existing ARM prefetch.
-- [ ] **5.4 SMP/TC checkpoint:** null-calibrated 1/2/4/8/16T NPS,
+- [ ] **5.12 SMP/TC checkpoint:** null-calibrated 1/2/4/8/16T NPS,
       time-to-depth, completed-depth and TT/root/work-share sweep; then a
       bounded current Basilisk-vs-Rarog `{1T,4T} × {3+0.03,10+0.1}` matrix.
       Test the thread × TC interaction with uncertainty. If an internal SMP
       deficit exists, classify it and test at most one targeted mitigation;
       otherwise close without code changes. Do not copy Rarog's rejected
       staggering.
-- [ ] **5.5 Release:** prior-release non-regression plus platform/SMP gates.
-      Release 1.9.4 by default; use 1.10.0 only after a registered material
-      `[3,10]` nElo gate and positive LTC/4T transfer.
+- [ ] **5.13 Cumulative checkpoint and release:** same pinned PGO path both
+      arms, direct 1.9.3 comparison, 1T STC/LTC + 4T LTC, zero forfeits,
+      correctness matrix, 5.11 platform contract, final cross-engine cohort
+      with adjudication off. **1.10.0** needs ≥ +40 Elo STC point estimate with
+      95% lower bound above +25, plus positive LTC/4T lower bounds. Otherwise
+      fall back to a maintenance 1.9.4.
 
 ### Phase 6 — NNUE runway and branch convergence
 
@@ -117,15 +176,44 @@ the user explicitly abandons that program.
 
 ## What you run now
 
-5.0 is closed and the 1.9.3 baseline binary exists. Next is **5.1 — bounded
-diagnostics**: one sampled, deterministic, behaviour-neutral substrate, added
-only where it answers a Phase-5 decision or seeds a Phase-8 baseline.
-Diagnostics off must preserve bench 11,941,440; diagnostics on must preserve
-best move and node counts. Do not widen the TT or spend an age bit.
+5.0 is closed and the 1.9.3 baseline binary exists. Next is **5.1 — the
+Basilisk search oracle**: Stockfish `9587eeeb` calling our exact 1.9.3 HCE,
+with its own evaluator as control, run with adjudication off.
 
-A Rarog-seeded gauntlet currently occupies the machine at concurrency 14. 5.1
-is code work and can proceed, but defer NPS/PGO timing comparisons until it
-finishes. No pre-NNUE SPSA is planned.
+Do this before any convergence code. It is the step that tells us whether the
+~+196/+329 split is real *for Basilisk*, and it carries the stop rule that can
+end this program cheaply. Building the oracle is code work and can start now;
+its games must wait for the machine.
+
+A Rarog-seeded gauntlet currently occupies the machine at concurrency 14.
+Defer all game and NPS/PGO timing work until it finishes. No pre-NNUE broad
+SPSA is planned.
+
+### Convergence step lifecycle (5.4–5.9)
+
+1. **Audit** — name the reference contract, its Basilisk owner, every
+   interacting consumer and the 5.2 diagnostic population. Update PLAN's order
+   first if evidence contradicts it.
+2. **Register** — add an `EXPERIMENTS.md` ID with hypothesis, baseline SHA,
+   scope, expected direction, gate, cap and stop rule, *before* games.
+3. **Implement** — smallest dependency-complete change. Substeps may be
+   diagnosed separately; an incomplete cluster never becomes a baseline.
+4. **Prove correctness** — CTest 12/12, sanitizers where relevant, canaries.
+   Diagnostics off ⇒ exact accepted fingerprint.
+5. **Explain** — the fixed suite compares nodes, qnodes, move source, cutoff
+   index, TT use, reductions, pruning, extensions, aspiration. Counters
+   explain; they never accept.
+6. **Gate** — revision-matched final-PGO both arms, registered paired UHO
+   SPRT. Do not change candidate, bounds, cap, book or adjudication after
+   seeing games.
+7. **Close** — accept and commit, or revert the behaviour and restore the
+   fingerprint. Keep the evidence row either way. Ablate a surprising
+   integrated result before crediting a subcomponent.
+8. **Advance** — only after the previous item is accepted, rejected or
+   explicitly closed.
+
+**Two fully implemented clusters with no accepted gain ⇒ stop and re-audit
+5.2–5.3.** Do not continue down the list by sunk cost.
 
 ## Decision rules
 
@@ -134,8 +222,11 @@ finishes. No pre-NNUE SPSA is planned.
 | Behaviour-neutral | Exact bench plus correctness/performance evidence |
 | Strength candidate | Registered SPRT; H1 accepts, otherwise revert behaviour |
 | Root/TM/SMP | 1T STC/LTC plus 4T LTC, zero forfeits |
-| Mechanism de-tunes consumers | Keep shadowed/deferred until post-NNUE 8.3; post-fit ablation required |
-| SPSA | Phase 8.3 only; any pre-NNUE exception needs a demonstrated blocker and approval |
+| Mechanism de-tunes consumers | Fix it inside its 5.4–5.8 cluster and fit jointly; defer to 8.3 only if no cluster owns it |
+| Reference contract differs | Converge on behaviour, not code. "Looks more like the reference" never accepts a cluster |
+| Cross-evaluator cohort | Adjudication **off** — score-based adjudication moved a headline estimate ~75 Elo |
+| HCE proposal | Structural gap vs the reference ⇒ 5.9. Another constant refit ⇒ refused; cycle 6 washed |
+| SPSA | Phase 8.3 only. A cluster's own small local refit is part of the cluster, not a tune |
 | NNUE baseline loses | Diagnose contract/data/training/architecture; do not jump to HCE |
 | Historical target unavailable | Record the gap; it does not block Phase 5 or NNUE |
 
