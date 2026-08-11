@@ -9,11 +9,11 @@ user-facing and must not contain experiment bookkeeping.
 
 | Item | State |
 |---|---|
-| Branches | `master`, `development` and `v1.9.3` are at `d737123`. `origin/nnue` contains an old partial implementation. `origin/arm_fix` is the one-commit `67a987b` TT-alignment experiment based on 1.9.3; Phase 5.8 inventories it, but it must not be merged as a finished fix. |
+| Branches | `master` and `v1.9.3` are at `d737123`; `development` is at `f045b37` with documentation/tooling/benchmark work but unchanged playing code. `origin/nnue` is an obsolete partial implementation whose useful seams must be reimplemented against the current trainer contract. `origin/arm_fix` is the one-commit `67a987b` TT-alignment experiment; Phase 5.3 closes the invalid wrapper hypothesis and retains only evidence-backed portability work. |
 | Released baseline | **Basilisk 1.9.3**, bench-13 fingerprint **11,941,440**. It is search-identical to 1.9.2; 1.9.3 repaired Clang/`llvm-profdata` PGO tool matching. |
 | Evaluation | The accepted HCE remains the comparison/fallback evaluator, but all new HCE strength work is frozen. Phase 10 is the optional HCE fallback and is entered only if NNUE is abandoned. |
-| Active work | The shared 36,400-game Rating Tournament is running. No Basilisk candidate or tuner is active. |
-| Next strength release | **1.10.0 at Phase 5.11**, after the complete pre-NNUE search, portability and direct target ladder. |
+| Active work | No Basilisk candidate or tuner is active. The last recorded 36,400-game Rating Tournament observation is provisional; Phase 5.0 determines whether it is complete/running and archives its exact state. |
+| Next release | **1.9.4 by default at Phase 5.5.** Promote it to **1.10.0 only if** the bounded Phase-5 work produces a material, independently confirmed strength gain. |
 | NNUE release | **2.0.0 at Phase 7.7**, using `D:/code/net_trainer`. |
 
 ### Live rating evidence — provisional 2026-08-05
@@ -34,10 +34,11 @@ At 8,626/36,400 games (~1,232 per engine), the pool reads:
 | Rybka 3 | 2928 | −78 |
 
 These are mutually fitted live ratings, not independent confidence intervals.
-Houdini 2.0c and Fritz 16 are absent and must be added to the Phase-5 cohort.
-Closing 150–210 Elo with search alone cannot be promised. Phase 5 attacks
-defects whose effects compound; if the direct target gate fails, 1.10.0 does
-not ship.
+Houdini 2.0c and Fritz 16 are absent. The historical ladder remains useful
+context, but it is not a sensible precondition for starting NNUE and moves to
+Phase 8.4. Closing 150–210 Elo with bounded pre-NNUE maintenance is not
+expected; Phase 5 is successful if it leaves a correct, portable, reproducible
+handoff without losing strength.
 
 ## 2. Development process
 
@@ -57,8 +58,8 @@ Model  -> accept/revert from the registered verdict, update docs, commit.
   same commit that closes an experiment; keep forward sequencing only here.
 - Preserve unrelated user changes. Dirty test artifacts record their diff hash
   and cannot become release baselines.
-- While the shared Rating Tournament/Rarog SPSA occupies the machine: no
-  bench/NPS/PGO/SPRT/datagen or competing game work.
+- While any long tournament, SPSA, SPRT or datagen job occupies the machine:
+  do not start competing bench/NPS/PGO/game work.
 
 ### Required gates
 
@@ -80,11 +81,11 @@ counts, static loss, WAC and telemetry explain it.
 
 ### SPSA budget
 
-1. **One pre-NNUE search SPSA:** Phase 5.10, after architecture freezes.
-   Diagnostics select at most ~24 non-redundant coordinates.
-2. **One post-NNUE search SPSA:** Phase 8.3, after the retained NNUE
+1. **One post-NNUE search SPSA:** Phase 8.3, after the retained NNUE
    architecture/score scale freezes.
-3. A further run needs explicit evidence that the prior run could not identify
+2. A pre-NNUE tune is out of scope: its surface will be invalidated by NNUE.
+   Any exception needs a demonstrated release blocker and explicit approval.
+3. A further post-NNUE run needs explicit evidence that the prior run could not identify
    the needed parameter class. No HCE coordinate enters either run.
 4. Discrete mechanisms use A/B switches or small registered grids. Potentially
    de-tuned mechanisms may land inert and be adjudicated in the joint fit with
@@ -146,234 +147,136 @@ removed unproven helper-history blending. The accepted 4T bundle measured
 +30.42 ±8.77 Elo with zero forfeits. 1.9.3 fixed PGO tool matching without
 changing bench 11,941,440.
 
-## 5. Phase 5 — Evidence-coherent pre-NNUE search (→ 1.10.0)
+## 5. Phase 5 — Bounded pre-NNUE hardening (→ 1.9.4 by default)
 
-### Objective and source references
+### Objective and disposition
 
-Build the strongest evaluator-agnostic search possible, then directly beat
-every installed Rybka, Critter 1.6a, Houdini 2.0c and Fritz 16. No HCE feature,
-weight or Texel work is permitted. Stockfish/Reckless are design references,
-never code or constant donors:
+Create a correct, portable and reproducible NNUE handoff without spending
+months fitting the soon-to-be-replaced HCE search surface. No HCE work, broad
+search redesign, pre-NNUE SPSA or mandatory historical-engine ladder belongs
+here. Expected strength is **zero to a small positive gain**, not a booked Elo
+improvement; neutral correctness/platform work still completes this phase.
 
-- [Stockfish search.cpp](https://github.com/official-stockfish/Stockfish/blob/762dd1da9a5db458180b2c5db6c53dc40ec61e1a/src/search.cpp)
-- [Reckless search.rs](https://github.com/codedeliveryservice/Reckless/blob/d6603046e76d66edd43622ded23458da1af50c68/src/search.rs)
-- Stockfish [stand-pat TT repair](https://github.com/official-stockfish/Stockfish/commit/bb4eb04a), [PV-IIR repair](https://github.com/official-stockfish/Stockfish/commit/e20ef7ed), [TT mismatch penalty](https://github.com/official-stockfish/Stockfish/commit/319d61ef)
-- Historical [null-move/TT provenance](https://talkchess.com/viewtopic.php?t=33679) and [`lmrDepth`](https://talkchess.com/viewtopic.php?t=63521) discussions
+Rarog's Phase 4 is cautionary evidence, not a language verdict. Its interacting
+search candidates did not compose, persisted TT provenance was neutral/costly,
+and its planned broad SPSA was cancelled. C++23 remains the appropriate engine
+implementation language here; Rust ownership did not cause the experimental
+design and transfer failures, and changing languages would not cure them.
 
-Forum material supplies hypotheses only; Basilisk measurements decide.
+Move evaluator-scale-sensitive work to Phase 8.3 after NNUE freezes:
 
-### Current audit and missing symbiosis
+- persisted TT provenance and changed qsearch/ProbCut consumers;
+- NMP/IIR/singular alternatives and the joint prospective-depth/LMR repair;
+- history/correction contexts and root-confidence aspiration/TM changes;
+- the single search SPSA and mechanism ablations.
 
-| Area | Basilisk today | Repair |
-|---|---|---|
-| TT evidence | 10-byte entry has score/raw eval/move/depth/bound/six-bit age, no result provenance. | Prototype compact provenance without losing three entries per 32-byte cluster; publish consumer capabilities. |
-| Qsearch → main | No-TT stand-pat beta cutoff is stored depth-0 lower; any normal TT bound can refine static eval for RFP through depth 9. | Separate raw/corrected/stand-pat/searched evidence; stop laundering stand pat. |
-| ProbCut → singular | Stores `pc_beta`, not searched `val`, at `depth-3`; singular accepts lower/exact at `depth-3`. | Store actual speculative score; forbid it from singular authority. |
-| NMP | Verification disables null only at its root; descendants re-enable it. Missing subtree suppression, cut-node/potential-singularity and raw-eval/non-decisive contracts. | Add subtree suppression and evidence/node-role guards before tuning. |
-| IIR | Safer than Rarog because it is non-PV, but begins at depth 4 and treats stale/missing TT guidance uniformly. | Audit all/cut roles and expose IIR debt downstream. |
-| LMR/selectivity | Base `lmr_depth` feeds some pruning, but not the history/context refinements of real LMR. Checking-move exemption reads invalid post-move lazy state. | One pre-move `MoveEvidence`, history-aware prospective depth, joint repair/refit. |
-| Qsearch evasions | In-check qsearch uses raw legal order and stores no searched evasion evidence. | TT/evasion staging with complete legality and mate safety. |
-| Correction | Pawn/minor/non-pawn/one-step continuation are averaged `/5`; captures can train positional correction. | Attribution guards, per-source confidence, true compact 2/4-ply continuation correction. |
-| Root | Per-move mean/variance/PV/nodes are collected but unused; aspiration/TM use separate coarser signals. | One completed-iteration confidence model for aspiration/TM/fallback/SMP. |
-| SMP result | Shared table/final merge prefer deepest helper evidence; losses are not symmetric with wins and incomplete work is untyped. | Completed-root ownership, symmetric decisive scores, legal fallback; pool instability informs time only. |
-| TT budget | Power-of-two indexing can waste almost half of requested non-power-of-two Hash. | Measure multiply-high/full-budget indexing after semantic TT work. |
-
-### Cross-feature invariants
-
-1. Every result carries an evidence kind: full, verified reduced, qsearch move,
-   stand pat, ProbCut, null or incomplete.
-2. Every consumer declares accepted evidence, bound, depth and node role.
-3. LMP/futility/SEE/LMR share one prospective depth and monotone thresholds.
-4. History/correction learn only from completed attributable searches.
-5. Aspiration/TM/fallback/SMP share one completed root snapshot.
-6. Every joint-fit mechanism remains independently ablatable.
+Move full-budget TT and generic hotspot work to Phase 9.1, where NNUE has made
+the final memory profile visible. Move the Rybka/Critter/Houdini/Fritz ladder
+to Phase 8.4 as contextual frontier evidence, not a blocker for NNUE.
 
 ### 5.0 — Freeze baseline and close live observation
 
-Finish/archive the 36,400-game tournament unchanged. Reproduce clean 1.9.3:
-CTest 12/12, PGO manifest and bench 11,941,440; capture fixed-position 1T/4T
-diagnostics only once the machine is idle. Pool ratings establish gaps, not
-mechanism Elo.
+Determine whether the 36,400-game tournament is complete or still running and
+archive its exact PGN/config/binary/manifest state without extrapolating the
+provisional ratings. Reproduce clean 1.9.3 with CTest 12/12, PGO manifest and
+bench 11,941,440. Record the actual `development`/release branch divergence.
 
-### 5.1 — Diagnostic substrate and interaction map
+### 5.1 — Bounded diagnostics and semantic census
 
-Add deterministic sampled traces for TT producer/consumer and contradiction;
-stand-pat/qmove; NMP nested verification and raw/corrected/TT eval; ProbCut
-storage/reuse/singularity; IIR/extension debt; move stage/prospective depth/
-prune reasons/best-move recall; correction capture/collision/saturation; and
-root variance/gap/effort/fails/fallback/worker instability. Add shadow
-predicates for 5.2–5.7. Diagnostics off preserves fingerprint; on preserves
-nodes/best moves with bounded overhead.
+Add one sampled, deterministic diagnostic substrate only where it answers a
+Phase-5 decision or establishes a Phase-8 baseline: TT producer/consumer kind,
+prune-recall/overlap, correction attribution, completed-root ownership and SMP
+work distribution. Diagnostics off must preserve fingerprint; diagnostics on
+must preserve best move/nodes and have bounded overhead.
 
-### 5.2 — Result evidence and TT contract
+Transient `OutcomeKind`/capability predicates may land when behaviour-neutral.
+Do not spend an age bit, widen the dense TT or persist provenance until a
+measured consumer needs it. Record stand-pat, ProbCut, NMP/IIR/singular,
+checking-LMR and root-confidence concerns as shadow evidence for Phase 8.3.
 
-Introduce transient `OutcomeKind`, `NodeEvidence` and `MoveEvidence`. Compare
-compact persisted provenance using one age bit with stack-only provenance;
-widen only if both fail. Audit age wrap, replacement, torn reads, mate/rule-50
-conversion and every reader. Define which evidence may cut off, refine eval,
-suppress IIR, seed NMP or authorize singularity. Shadow-test a small confidence/
-depth penalty for inexact bounds contradicting the current window, including
-shared-TT races. Correctness/bench first, then `[0,3]` if behaviour changes.
+### 5.2 — Correctness and safety repairs only
 
-### 5.3 — Qsearch and ProbCut evidence hygiene
+Repair only demonstrated safety or semantic failures with deterministic
+regressions: legal completed-root fallback, symmetric decisive-score handling,
+mate/rule-50 conversion, TT atomic/replacement invariants and attributable
+history updates. The existing NMP unproven-mate clamp already matches the
+useful Rarog fix and needs only coverage, not reimplementation.
 
-Do not manufacture a searched lower bound from no-TT stand pat. Keep depth-0
-stand-pat estimates out of deep main-search pruning. Store actual ProbCut
-results with speculative provenance and measured depth; never authorize
-singularity or exact learning. Stage in-check qsearch with TT/good/bad evasion
-ordering and complete legality. Test qsearch capture/SEE history plus coherent
-delta/SEE/futility only after storage semantics are correct. Gate useful arms
-`[0,3]`, combined `[-3,3]`.
+A heuristic being mechanically cleaner is not a correctness proof. In
+particular, do not force the previously losing checking-move LMR repair, new
+qsearch staging, subtree-null policy, correction weighting or aspiration model
+before NNUE. If a repair changes reachable play, isolate it and apply the
+normal strength gate; otherwise defer it to Phase 8.3 rather than keeping
+Phase 5 open.
 
-### 5.4 — NMP, IIR and singular cooperation
+### 5.3 — Portability and ISA baseline (`origin/arm_fix`)
 
-Add subtree null suppression, raw-eval/non-decisive/material and cut-node
-guards, potential-singularity protection and zugzwang coverage. Compare raw
-versus TT-adjusted null windows in shadow mode; nested verification nulls are
-forbidden unless separately proven. Restrict IIR by measured node/TT quality
-and propagate debt. Singular requires compatible full-search evidence,
-separate single/double rules and extension-debt caps. Test isolated `[0,3]`
-arms then a `[-3,3]` joint composition.
+Make Linux/Windows x86-64 baseline, AVX2 and PEXT plus Linux/Windows/macOS
+ARM64 executable release contracts. Artifact names, flags, startup guards and
+documentation must agree; record compiler/stdlib/PGO tool, target, binary hash,
+dependencies and bench. Run production feature smokes on every target, the
+full suite on at least one ARM64 OS, assert required TT atomics are lock-free,
+and inspect representative binaries for the promised ISA and AArch64 prefetch.
 
-### 5.5 — Unified prospective-depth selectivity
+`origin/arm_fix`'s 128-byte TT wrapper is closed as rejected: a 32-byte-aligned
+32-byte cluster cannot straddle a 128-byte boundary, the wrapper changes
+address arithmetic, and Rarog found no material Apple 4T false-sharing case.
+Do not port or target-benchmark that wrapper absent new evidence. Basilisk
+already expresses ARM prefetch through `__builtin_prefetch`; verify emitted
+`PRFM` and add a fallback only if a production compiler drops it.
 
-Create pre-move `MoveEvidence` containing correct check state, move class,
-node/TT evidence, SEE, histories, correction confidence and extension/IIR debt.
-Derive LMP, history pruning, futility, quiet/capture SEE and LMR from one
-history-aware prospective depth. Repair the known checking-move LMR bug by
-construction; do not repeat its de-tuned standalone gate. Test check/evasion
-classes, result-dependent verification and post-LMR learning. Track overlap and
-best-move-was-pruned recall. Keep switches ablatable for 5.10.
+Query real cache-line/page sizes and inspect actual hot shared state (node/TB
+counters, stop/root publication and later accumulators). Any measured layout
+or prefetch candidate needs target-native interleaved PGO NPS A/B and no x86
+regression. Create stable per-target performance anchors, but never compare raw
+NPS between unrelated machines or GitHub runners.
 
-### 5.6 — History and correction attribution
+### 5.4 — SMP effectiveness checkpoint
 
-Prevent capture/speculative/null/aborted outcomes from training quiet
-correction. Fit per-source confidence instead of unconditional `/5`; test true
-2/4-ply continuation-correction pairs with cache-conscious layout. Add threat,
-check/evasion or halfmove context only if held-out residual/ordering evidence
-shows unique value. Centralize saturation/aging and prevent correction
-double-counting across eval/pruning/reduction. No dedicated SPSA.
+Rarog has better measured throughput scaling (about 12.3× NPS at 16T), but its
+fixed-time search gained no depth; this is not proof of better chess scaling.
+Basilisk's current full ladder is older and incomplete despite its accepted 4T
+strength bundle and indicative +12.8% 16T node-counter batching result.
 
-### 5.7 — One root-confidence model
+Run one null-calibrated, alternating same-process 1/2/4/8/16T sweep using a
+clean PGO binary. Record NPS, nodes/time-to-fixed-depth, completed depth at
+fixed time, main/helper node share, useful TT cutoffs, same-key writes, root
+stability and 4T real-clock strength. If Basilisk converts threads efficiently
+and preserves 4T strength, close this step with no code change.
 
-Derive completed-iteration confidence from per-move mean/variance, score gap,
-PV continuity, best-move age, effort, fail direction/count and depth. Use it
-for bounded/asymmetric aspiration and TM without double-counting. On abort,
-publish only last completed legal evidence; incomplete mate/win/loss scores are
-never authoritative. Pool worker instability for timing while a designated
-completed root owns the result. Gate aspiration `[0,3]`; root/TM/SMP `[-3,3]`
-at 1T STC/LTC and 4T LTC with zero forfeits.
+If a deficit is reproduced, classify it first as contention, redundant width,
+root ownership/stop publication or missing depth diversity, then test **at
+most one** targeted mitigation through the full SMP gate. Do not copy Rarog's
+iteration-staggering table: it was tested and rejected. Defer high-thread NUMA
+and accumulator-specific work to Phase 9.0.
 
-### 5.8 — Cross-platform and ISA baseline (`origin/arm_fix`)
+### 5.5 — Handoff and release gate
 
-Make the shipped x86-64/ARM64 assets first-class release conditions before
-measuring final throughput. The current development machine proves only a
-Windows x86-64 native PEXT build on a Ryzen 9 5950X. Cross-compilation, a UCI
-handshake and equal node count are necessary but do not prove that the asset
-uses its intended instructions or retains reasonable speed.
+Compare the cumulative Phase-5 candidate with 1.9.3 at 1T STC/LTC and 4T LTC;
+require zero forfeits, the correctness matrix and the Phase-5.3 platform/ISA
+contract. This is a prior-release non-regression gate, not an attempt to close
+the entire historical rating gap.
 
-Pinned platform references: Apple requires querying
-[`hw.cachelinesize`](https://developer.apple.com/documentation/apple-silicon/addressing-architectural-differences-in-your-macos-code)
-rather than assuming it from the architecture; Clang documents
-[`__builtin_prefetch`](https://clang.llvm.org/docs/LanguageExtensions.html#builtin-prefetch)
-as a cache hint whose value depends on measured access; and GitHub currently
-provides native
-[Linux, Windows and macOS ARM64 runners](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
+- Release **1.9.4** when the maintenance/platform/SMP result is non-regressing
+  but does not show a material strength gain.
+- Release **1.10.0** only if a preregistered material gate (normally `[3,10]`
+  nElo) accepts and positive transfer is independently confirmed at LTC/4T.
+- If a candidate regresses, revert or defer it; do not extend Phase 5 into an
+  open-ended rescue campaign.
 
-#### Branch and sibling-engine disposition
-
-| Evidence | Finding | Disposition |
-|---|---|---|
-| Basilisk `origin/arm_fix` / `67a987b` | Wraps four 32-byte TT clusters in a 128-byte-aligned block on Apple ARM64. It has no ARM timing evidence. A 32-byte-aligned 32-byte cluster already cannot straddle a 128-byte boundary, while the wrapper changes address arithmetic. | Preserve as a target-measured hypothesis; do not merge or describe as a fix. |
-| Rarog `0ddc8e5` | Its child-TT prefetch was x86-only; the branch emits AArch64 `PRFM PLDL1KEEP`. | Basilisk already uses Clang/GCC `__builtin_prefetch` on AArch64. Inspect emitted code on every ARM production compiler and add a target-specific fallback only if the builtin disappears. |
-| Rarog `3ee4660` | Applies the same unmeasured 128-byte Apple TT grouping to 32-byte local and 64-byte shared clusters. | Use it to widen the audit to all hot shared atomics/false-sharing boundaries, not as evidence for the TT wrapper. |
-| Rarog release infrastructure | Separates ISA tier from host-native tuning and runs bench fingerprints on Linux/Windows/macOS ARM64 before release. | Adopt the explicit contract and five-platform pre-release fingerprint shape. |
-
-Execute in this order:
-
-1. **Make the asset contract executable.** Supported production assets are
-   Linux/Windows x86-64 baseline, AVX2 and PEXT, plus Linux/Windows/macOS
-   ARM64. Reconcile the current contradiction in which `release_tiers.md`
-   calls PEXT an AVX2/POPCNT tier while portable CMake adds only `-mbmi2` and
-   startup checks only BMI2. Either make PEXT explicitly x86-64-v3 + BMI2 or
-   document/test a BMI2-only tier; artifact names, compile flags, runtime
-   checks and user guidance must describe exactly the same ISA. Prove that the
-   baseline contains no forbidden instruction and that every faster asset
-   refuses unsupported hardware before search.
-2. **Move ARM correctness before release.** Extend manually dispatched CI so
-   Linux ARM64, Windows ARM64 and macOS ARM64 build and execute the production
-   feature set; run the full suite on at least one ARM OS and bench/UCI/perft/
-   Syzygy smoke plus cross-platform node agreement on all five OS/architecture
-   cells. Assert the TT atomics required by the lock-free design are lock-free
-   on every supported target. Release-only jobs are too late to discover a
-   development regression.
-3. **Inspect generated artifacts.** Record target triple, compiler/stdlib,
-   flags, PGO profile/tool, CPU requirements, dynamic dependencies, binary
-   hash and bench fingerprint. Disassemble representative hot paths to prove
-   PEXT/magic selection, POPCNT/AVX2 contract and AArch64 prefetch emission.
-   Re-run this inspection on compiler/toolchain changes.
-4. **Measure the branch hypotheses on their target.** Query/log the real cache
-   line and page sizes. Audit the TT plus `shared_nodes`, `shared_tbhits`, stop/
-   root publication and future accumulator storage for destructive sharing;
-   the two `alignas(64)` counters may still share one 128-byte Apple line.
-   Compare flat storage, over-aligned allocation and block wrappers with
-   identical capacity/indexing/replacement. Accept a layout or explicit
-   AArch64 prefetch only after target-native paired PGO A/B, emitted-code
-   inspection and no x86 regression.
-5. **Create per-target performance anchors.** On stable native hardware, use
-   identical-binary calibration followed by interleaved baseline/candidate
-   PGO runs for each tier. Never compare raw NPS between unrelated GitHub
-   runners or CPU families. CI timing is diagnostic; a stable target-local A/B
-   decides. On the 5950X, also exercise baseline and AVX2 assets for semantics,
-   illegal-instruction guards and same-tier regression, not only native PEXT.
-
-Behaviour-neutral platform work uses exact bench/search agreement and
-same-target NPS, never SPSA. Any change to move choice follows the normal
-strength gate. Exit when the development revision passes the complete matrix,
-the ISA manifest matches the executable, ARM prefetch/layout claims have real
-target evidence, and `origin/arm_fix` is recorded as accepted pieces or a
-closed hypothesis rather than merged wholesale.
-
-### 5.9 — Throughput, TT capacity and scaling
-
-Profile accepted semantics at 1/2/4/8T: NPS, time-to-depth, TT hit/replacement/
-same-key, root stability and strength. Audit cluster contention after
-provenance and test multiply-high full-budget indexing at non-power-of-two
-Hash. Take only proven invariant hoists/batching through pooled-PGO interleaved
-NPS. Preserve the 5.8 platform/ISA matrix and regenerate target-native PGO
-after final code shape. Do not reopen generic helper diversification without
-a specific measured failure.
-
-### 5.10 — Single consolidated pre-NNUE search fit
-
-Freeze architecture. Generate configuration from `search_params.h`; use
-sensitivity/collinearity diagnostics to select ≤24 coordinates across
-prospective-depth/pruning, NMP family, correction/history, qsearch and root/TM.
-Run one registered 5,000-iteration SPSA, one estimator and one bake. Exclude
-HCE, dead/off and redundant knobs. Clean PGO + CTest/telemetry + `[0,3]`
-against the pre-fit architecture. Post-fit switch ablations must show the tune
-is not compensating for a harmful subsystem.
-
-### 5.11 — Cumulative target ladder and release 1.10.0
-
-Beat 1.9.3 cumulatively at 1T STC/LTC and transfer at 4T with zero forfeits;
-pass correctness/tactical/mate/zugzwang/TB/provenance/history/extension/root
-telemetry and the Phase-5.8 production platform/ISA matrix. Then run paired
-Basilisk, every installed Rybka (minimum
-3/4.1/4/5/6), Critter 1.6a, Houdini 1.5a/2.0c and Fritz 16. Every required
-target needs a logistic-Elo lower bound above zero under the primary 1T
-condition, with Holm-adjusted 95% family-wise confidence; confirm 1T/4T LTC.
-Rating-list inference cannot replace a missing engine. If all pass: version,
-PGO/ISA/default-UCI/docs/archive and commit 1.10.0; do not push/tag. Otherwise
-Phase 5 stays open.
+Version, rebuild revision-matched PGO/ISA assets, update user documentation and
+archive the evidence; commit but do not push/tag.
 
 ## 6. Phase 6 — NNUE runway and branch convergence
 
 ### 6.0 — Branch handoff and inventory
 
-Record Phase-5 handoff. Inventory the nine old `origin/nnue` commits against
-current development and `D:/code/net_trainer`; port useful pieces in small
-commits or rebase once. Do not resurrect removed tests/tooling/layout.
+Record the Phase-5 handoff. Inventory the nine old `origin/nnue` commits against
+current development and `D:/code/net_trainer`, but do **not** rebase that branch
+wholesale: its `.mnn`, single-output and full-recompute contracts predate the
+current Bullet quantised format, output buckets and integer math. Reimplement
+or cherry-pick only useful current-contract seams in small commits. Do not
+resurrect removed tests, tooling or layout.
 
 ### 6.1 — State/dirty-piece contract
 
@@ -383,7 +286,7 @@ compare state, keys, attacks and dirty data after unwind.
 
 ### 6.2 — Frozen teacher and data contract
 
-Freeze diverse 1.10.0 quiet/tactical/endgame/rule-50, phase-balanced and
+Freeze diverse Phase-5-release quiet/tactical/endgame/rule-50, phase-balanced and
 search-disagreement cohorts. Record teacher SHA/settings/labels/hashes and
 untouched split IDs. Define the integer engine/trainer contract in
 `net_trainer/docs/nnue_format.md`.
@@ -450,9 +353,10 @@ margins through isolated tests; comprehensive search SPSA waits for Phase 8.
 
 ### 7.7 — Release 2.0.0
 
-Default embedded NNUE beats 1.10.0 at STC/LTC, transfers at 4T, has zero
+Default embedded NNUE beats the Phase-5 release (1.9.4 unless promoted) at
+STC/LTC, transfers at 4T, has zero
 incremental/full mismatches and passes external/net-metadata gates. Portable
-scalar inference must pass the Phase-5.8 matrix; every shipped x86 SIMD and
+scalar inference must pass the Phase-5.3 matrix; every shipped x86 SIMD and
 ARM64/NEON kernel is bit-exact to it and target-native PGO-smoked. Complete user
 docs/version and commit; do not push/tag.
 
@@ -475,35 +379,42 @@ Test king/perspective buckets, threat inputs, material/output buckets, width/
 activation and refresh-friendly variants one axis at a time. Require two seeds,
 integer conformance, NPS and SPRT; static loss alone cannot promote.
 
-### 8.3 — Single post-NNUE search SPSA
+### 8.3 — Post-NNUE search architecture and single fit
 
-After architecture/scale freezes, reselect ≤24 search/history/correction/
-qsearch/root coordinates whose optima may have moved. Run the second and
-normally last search SPSA; clean bake/PGO/SPRT/LTC/4T and ablations.
+After architecture/scale freezes, resolve Phase-5 shadow findings with isolated
+categorical A/Bs: TT/result evidence, qsearch/ProbCut consumers, NMP/IIR/
+singular cooperation, prospective-depth/LMR, history/correction attribution
+and root confidence. Keep only mechanisms with diagnostic and game evidence.
+Then select ≤24 non-redundant search coordinates and run the only planned
+search SPSA; require clean bake/PGO/SPRT/LTC/4T and post-fit ablations.
 
 ### 8.4 — Frontier release gate
 
 Beat 2.0.0 and test contemporary Stockfish, Reckless, PlentyChess and another
-independent engine with calibrated odds if needed. Archive all manifests and
+independent engine with calibrated odds if needed. Use installed Rybka,
+Critter, Houdini and Fritz versions as a contextual historical ladder; missing
+commercial engines do not block NNUE development. Archive all manifests and
 release the next 2.x strength version when the matrix passes.
 
 ## 9. Phase 9 — Scaling, platforms and product completeness
 
 ### 9.0 — High-thread/NUMA scaling
 
-Measure 8T+ topology, first-touch/NUMA, TT/accumulator sharing, root stopping
-and false sharing while preserving 1T/4T.
+Continue from the Phase-5.4 baseline: measure 8T+ topology, first-touch/NUMA,
+TT/accumulator sharing, root stopping and false sharing while preserving
+1T/4T. Do not retry Rarog-style iteration staggering without a new,
+Basilisk-specific depth-diversity signal.
 
 ### 9.1 — Advanced memory and dispatch
 
 Revisit full-budget TT if supported, runtime ISA dispatch, large pages,
-topology-specific prefetch and net placement. Phase 5.8 already guarantees the
+topology-specific prefetch and net placement. Phase 5.3 already guarantees the
 baseline asset matrix; this step takes only additional real-hardware gains.
 
 ### 9.2 — Protocol/platform completion
 
 Add demanded work such as Chess960 or additional platform/tier support. ARM64
-correctness is already required by Phase 5.8 and NNUE/NEON parity by 7.4/7.7.
+correctness is already required by Phase 5.3 and NNUE/NEON parity by 7.4/7.7.
 
 ### 9.3 — Scaling release
 
