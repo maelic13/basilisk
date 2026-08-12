@@ -11,7 +11,7 @@ and lessons live in [`PLAN.md`](PLAN.md).
 | Baseline | Basilisk **1.9.3**, bench **11,941,440**; search-identical to 1.9.2. Reproduced clean at 5.0: CTest 12/12, manifest complete, artefact `tools/test_engines/basilisk-1.9.3-baseline-pext-pgo.exe` |
 | Tournament record | Context only, gates nothing. Basilisk sits at 3023; the historical frontier is ~165–185 Elo ahead. Do not schedule or curate rating tournaments as plan work. |
 | Evaluation | HCE constant refitting stays frozen. **Structural** feature work is unfrozen at 5.9 only. No Texel/SPSA refit. |
-| Current phase | **Phase 5 — search and evaluation acceleration** (5.0–5.2 closed; next 5.3) |
+| Current phase | **Phase 5 — search and evaluation acceleration** (5.0–5.3 closed; next 5.4) |
 | Reference | Stockfish `9587eeeb`, the last pure-HCE master commit before NNUE. An **idea source and oracle** — never a transcription source. Basilisk stays independent. |
 | Oracle | Branch `hybrid` `01df815`, binary `7E2433C3…`. Frozen. The 5.2 harness comparison target; never merge or ship it. |
 | Diagnostics | `Diag`=true ⇒ `info string diag kv` counters. Fixed suite `tools/diag/suite_v1.epd` (107 pos, do not edit — mint v2), runner `tools/diag/run_suite.py`, baseline `tools/diag/baseline_v1.json`. |
@@ -130,20 +130,28 @@ matching without changing search.
       the oracle's 32.87 (**+12.07 plies**, identical evaluation).
       ⇒ the width is **under-reduction**, so 5.4's centre is 5.4.3, not the
       move picker. See EXPERIMENTS BAS-D01/D02.
-- [ ] **5.3 Idea inventory and order freeze:** find which *problems* the
-      reference solves that we don't. Classify each equivalent / intentionally
-      different / missing / coupled, ranked by 5.2 populations. Output is a
-      list of problems worth solving, **not** upstream functions to reproduce
-      — the design is each cluster's own work. An inventory with no
-      "intentionally different" entries means transcription, not analysis. If
-      evidence contradicts the cluster order, edit PLAN *before* implementing.
+- [x] **5.3 Idea inventory and order freeze:** ✅ **CLOSED 2026-08-12** —
+      `analysis/idea_inventory_v1.md`. Seven items classified.
+      **#1 reduction modulation is nearly inert**: we have the right shape but
+      ~10× too little magnitude — **+0.39 plies at cut nodes vs ~+2**, −0.02 on
+      TT-PV vs ~−2. Those came from `hcefinal` (+35.94, so not arbitrary) fitted
+      inside a search already built around timid reductions — lesson 2.
+      **#5 ordering is EQUIVALENT** — move-picker rework leaves the cluster.
+      **#4 history pruning is dead** (142 fires in 15.1M nodes) → 5.6.
+      **Order amended before implementing:** check-move depth policy moves
+      5.7 → **5.4.4**, because the unconditional check extension (15.8% of
+      interior nodes) and the never-reduce-checks rule are one question and
+      8.6.7 showed changing either alone loses ~10 Elo.
 
 **Search acceleration clusters** — one at a time, each accepted or reverted
 before the next starts
 
-- [ ] **5.4 Cluster A — ordering, histories, LMR.** Owns the latent post-move
-      `gives_check` LMR defect; repair it *inside* the cluster (durable lesson
-      2: its standalone repair lost −21.55 ±9.83).
+- [ ] **5.4 Cluster A — ordering, histories, LMR.** **Payload is 5.4.3**, the
+      reduction/re-search contract; ordering needs no work (BAS-D01). Also owns
+      **5.4.4 check-move depth policy** (moved from 5.7) and the latent
+      post-move `gives_check` LMR defect — repair inside the cluster, never
+      alone (lesson 2: standalone repair lost −21.55 ±9.83; standalone
+      check-ext removal lost −10.17 ±6.52).
 - [ ] **5.5 Cluster B — static eval, TT, qsearch.** Keep raw eval, pruning
       eval and searched bounds distinct. Preserve our draw/mate/rule-50
       semantics; they are assets, not targets.

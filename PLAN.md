@@ -12,7 +12,7 @@ user-facing and must not contain experiment bookkeeping.
 | Branches | `master` and `v1.9.3` are at `d737123`; `development` is at `16eff20` with documentation/tooling/benchmark work. The only `src/` divergence is a comment-only edit in `search_params.h`, so playing code is unchanged. `origin/nnue` is an obsolete partial implementation whose useful seams must be reimplemented against the current trainer contract. `origin/arm_fix` is the one-commit `67a987b` TT-alignment experiment; Phase 5.11 closes the invalid wrapper hypothesis and retains only evidence-backed portability work. |
 | Released baseline | **Basilisk 1.9.3**, bench-13 fingerprint **11,941,440**. It is search-identical to 1.9.2; 1.9.3 repaired Clang/`llvm-profdata` PGO tool matching. Reproduced clean at Phase 5.0 (see below). |
 | Evaluation | The accepted HCE is the comparison/fallback evaluator. Constant refitting stays frozen; **structural** feature work is unfrozen at Phase 5.9 only. Phase 10 is the optional HCE fallback, entered only if NNUE is abandoned. |
-| Active work | No Basilisk candidate or tuner is active; the machine is free. Phase 5.1–5.2 closed 2026-08-12: search gap **+322.7 ±36**, evaluation gap **+232.8 ±32**; the width is under-reduction, not mis-ordering (BAS-O01–O03, BAS-D01/D02). Next step is 5.3. |
+| Active work | No Basilisk candidate or tuner is active; the machine is free. Phase 5.1–5.3 closed 2026-08-12: search gap **+322.7 ±36**, evaluation gap **+232.8 ±32**; the width is under-reduction, not mis-ordering (BAS-O01–O03, BAS-D01/D02). Next step is 5.4 — cluster A, payload 5.4.3. |
 | Next release | **1.10.0 at Phase 5.13** if search/HCE acceleration transfers, or a higher minor version if the cumulative gain is large. **1.9.4** is the maintenance-only fallback if the acceleration tracks close without transfer. |
 | NNUE release | **2.0.0 at Phase 7.7**, using `D:/code/net_trainer`. |
 
@@ -533,6 +533,47 @@ was transcription, not analysis.
 If the evidence contradicts the provisional cluster order below, **edit this
 plan before implementing** — never after seeing games.
 
+### 5.3 — CLOSED 2026-08-12: `analysis/idea_inventory_v1.md`
+
+Seven items classified against the reference, ranked by the 5.2 populations.
+The full inventory, with what each item must achieve and why, is in
+`analysis/idea_inventory_v1.md`; the headlines:
+
+| # | Item | Class | Owner |
+|---|---|---|---|
+| 1 | **Reduction modulation is nearly inert** | Missing | 5.4.3 |
+| 2 | Reduction eligibility excludes captures/checks | Intentionally different — suspect | 5.4.3 |
+| 3 | Check extension is unconditional | Intentionally different — suspect | **5.4.4** |
+| 4 | History pruning unreachable (142 fires in 15.1M nodes) | Missing consumer | 5.6 |
+| 5 | Move ordering | **Equivalent — no action** | — |
+| 6 | Reduction context we lack entirely | Missing (low rank) | 5.4.3, after item 1 |
+| 7 | TT/qsearch/eval separation, aspiration, correction | Not yet inventoried | 5.5 / 5.8 |
+
+Item 1 is where the width is. Basilisk has the right *shape* — every adjustment
+exists and is wired — but the magnitudes are roughly an order of magnitude
+smaller than the reference's, so context barely moves the reduction: **+0.39
+plies at cut nodes against ~+2**, and −0.02 on a TT-PV line against ~−2. Those
+values came from the `hcefinal` SPSA, which accepted +35.94 Elo, so they are not
+arbitrary — they were fitted inside a search whose other constants were already
+built around timid reductions. Durable lesson 2, exactly.
+
+Item 5 is the useful negative: ordering is genuinely equivalent, so move-picker
+rework leaves the cluster and is not measured against an already-good baseline.
+
+**Cluster order amended, before implementation.** Check-move depth policy moves
+from 5.7 to **5.4.4**. Item 3 and item 2 are two halves of one question, and
+8.6.7 demonstrated that changing one alone loses ~10 Elo. Leaving the extension
+in 5.7 would have 5.4 ship a reduction contract forbidden from touching a sixth
+of all interior nodes, then have 5.7 test an extension change against a surface
+refitted around the old exclusion — each half looking worse alone than the pair
+is together. No new mechanism enters Phase 5; one moves so it can be adjudicated
+jointly.
+
+**Scope stated honestly.** Item 7 is deferred rather than done. Those surfaces
+are what 5.4 is about to change, so inventorying them now would map a search that
+is about to move; each cluster's audit step re-runs this exercise against a
+current baseline.
+
 ### 5.4 — Cluster A: move ordering, histories, LMR
 
 Implement in dependency order, as one coherent cluster:
@@ -543,7 +584,14 @@ Implement in dependency order, as one coherent cluster:
   history indexing, normalization, aging and cutoff attribution.
 - **5.4.3** reduction/re-search contract: LMR population, improving/PV/cut-node
   adjustments, history feedback, zero-reduction floor, full-depth verification.
-- **5.4.4** integrated gate, then ablate surprising contributors.
+  **This is the cluster's payload** — 5.2 found ordering already healthy and the
+  width created here.
+- **5.4.4** check-move depth policy — *moved from 5.7 by the 5.3 inventory*.
+  The unconditional check extension (15.84% of interior nodes) and the rule that
+  checking moves are never reduced are two halves of one question: how much depth
+  we spend on checks. 8.6.7 showed that changing one alone loses ~10 Elo, so they
+  are adjudicated jointly, here, against the reduction contract that 5.4.3 sets.
+- **5.4.5** integrated gate, then ablate surprising contributors.
 
 This cluster owns the latent post-move `gives_check` LMR defect. Durable lesson
 2 applies directly: its standalone repair lost −21.55 ±9.83 because the old
@@ -565,9 +613,14 @@ architecture before any narrow constant fit; do not launch a broad SPSA.
 
 ### 5.7 — Cluster D: extensions and depth authority
 
-Reconcile check, singular, double/negative extension and IIR semantics against
-TT provenance and LMR. Preserve mate and abort correctness. Gate the integrated
+Reconcile singular, double/negative extension and IIR semantics against TT
+provenance and LMR. Preserve mate and abort correctness. Gate the integrated
 contract, not the individual extensions.
+
+**Check extensions are no longer owned here** — the 5.3 inventory moved them to
+5.4.4, because they are inseparable from the never-reduce-checking-moves rule.
+What remains here genuinely depends on cluster 5.5's TT provenance: singular
+verification needs a trustworthy TT move with sound depth and bound.
 
 ### 5.8 — Cluster E: root search and clock handoff
 
