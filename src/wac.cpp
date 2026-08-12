@@ -145,7 +145,7 @@ bool wac_move_matches_any(const Board& board, Move mv,
 // line-compatible so the two engines' reports diff cleanly)
 // ---------------------------------------------------------------------------
 
-void run_wac(int depth) {
+void run_wac(int depth, const SearchParams& params) {
     std::atomic_bool stop{false};
     TranspositionTable tt(16);
     SearchThreadPool search_pool(tt, stop);
@@ -172,6 +172,7 @@ void run_wac(int depth) {
 
         SearchLimits limits;
         limits.depth = depth;
+        limits.params = params;   // 5.4.4: honour UCI-set search parameters
         stop.store(false, std::memory_order_release);
         SearchResult r = search_pool.search(board, limits, 1);
 

@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "board.h"
+#include "search_params.h"
 
 inline constexpr int DEFAULT_WAC_DEPTH = 10;
 
@@ -49,4 +50,9 @@ bool wac_move_matches_any(const Board& board, Move mv,
 
 // wac [depth] — run the full suite at a fixed depth, print per-position
 // progress and the solved-count summary (single-threaded, deterministic).
-void run_wac(int depth = DEFAULT_WAC_DEPTH);
+// 5.4.4: takes the engine's live SearchParams. It previously constructed a
+// default SearchLimits, so every UCI-set search parameter was silently
+// ignored — a diagnostic whose stated purpose is comparing candidates was
+// unable to see a candidate at all, and reported byte-identical node counts
+// for genuinely different settings.
+void run_wac(int depth = DEFAULT_WAC_DEPTH, const SearchParams& params = SearchParams{});

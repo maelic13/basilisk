@@ -1463,8 +1463,16 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     // Guard with ss->excluded to prevent stacking with singular extensions.
     diag_.interior_nodes++;
     if (in_check) diag_.in_check_nodes++;
-    if (in_check && ss->excluded == MOVE_NONE && ply < MAX_PLY - 2) {
+    // 5.4.4: the extension is unconditional today — every in-check node gets a
+    // ply, with nothing bounding how many a single forcing line may collect.
+    // check_ext_path_cap bounds the accumulation per path; 0 keeps the current
+    // policy exactly, so this is inert until an experiment sets it.
+    const int check_ext_cap = active_limits_.params.check_ext_path_cap;
+    bool did_check_ext = false;
+    if (in_check && ss->excluded == MOVE_NONE && ply < MAX_PLY - 2
+        && (check_ext_cap == 0 || ss->check_exts < check_ext_cap)) {
         depth++;
+        did_check_ext = true;
         diag_.check_exts++;
     }
 
@@ -1854,6 +1862,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         // Phase 6.4 rider: propagate the stacked double-extension count to the
         // child so a chain of singular double-extensions is eventually capped.
         (ss + 1)->double_exts = ss->double_exts + (extension >= 2 ? 1 : 0);
+        (ss + 1)->check_exts  = ss->check_exts + (did_check_ext ? 1 : 0);
 
         int score;
         if (searched == 0) {
@@ -1877,7 +1886,11 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             else if (searched < 2)  ++diag_.lmr_blocked_searched;
             else if (in_check)      ++diag_.lmr_blocked_in_check;
             else if (!lmr_type_ok)  ++diag_.lmr_blocked_movetype;
-            else if (move_gives_check()) ++diag_.lmr_blocked_gives_check;
+            // 5.4.4: lmr_allow_check=1 lets checking moves be reduced. Short-
+            // circuiting on the flag first also skips the gives_check probe,
+            // which is why the counter is guarded the same way.
+            else if (!active_limits_.params.lmr_allow_check && move_gives_check())
+                ++diag_.lmr_blocked_gives_check;
             // LMR applies to: quiets, and bad captures — but NOT promotions
             else {
                 // Phase 6.7: accumulate the reduction in 1024ths of a ply, then

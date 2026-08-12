@@ -156,6 +156,18 @@
     X(lmr_tt_capture,        LmrTtCapture,         301,    0,  3072)     \
     /* Post-LMR cont-hist nudge (inert at 0; see FIELD NOTES) */         \
     X(post_lmr_hist_scale,   PostLmrHistScale,       0,    0,   300)     \
+    /* 5.4.4 check-move depth policy — both INERT at their defaults, so   \
+       bench stays 11,941,440 until an experiment sets them.              \
+       check_ext_path_cap: max check extensions accumulated on one path;  \
+         0 = unlimited = today's unconditional policy. BAS-D02 measured    \
+         check extensions on 15.84% of interior nodes, each +1 ply, with   \
+         nothing bounding a forcing sequence from extending repeatedly.    \
+       lmr_allow_check: 1 lets checking moves be reduced. Today they are   \
+         barred outright, so the same moves are extended AND unreducible.  \
+       Adjudicated jointly (PLAN 5.4.4): 8.6.7 showed that removing the    \
+       extension alone loses −10.17 ±6.52. */                             \
+    X(check_ext_path_cap,    CheckExtPathCap,        0,    0,    32)     \
+    X(lmr_allow_check,       LmrAllowCheck,          0,    0,     1)     \
     /* History updates (see FIELD NOTES) */                              \
     X(hist_bonus_quad,       HistBonusQuad,         62,    0,   128)     \
     X(hist_bonus_lin,        HistBonusLin,         120,    0,   400)     \
