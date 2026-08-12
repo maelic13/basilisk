@@ -173,6 +173,21 @@ adding a ply, and those same moves are barred from reduction. That is a direct,
 unconditional depth cost that no reduction knob can reach. Cluster 5.5's
 qsearch is the other candidate — qsearch is 8.09M of 23.2M total nodes.
 
+### Registered and awaiting a verdict
+
+| ID | BAS-S16 — cluster 5.4.4 check-move depth policy |
+|---|---|
+| **Registered** | 2026-08-12, before any games. |
+| **Baseline** | `development` `5d7b088`, defaults inert, bench 11,941,440. |
+| **Candidate** | The **same binary** with `CheckExtPathCap=2` and `LmrAllowCheck=1`. One build for both arms, so compiler, PGO profile and binary hash are identical and the arms differ only in those two UCI values. |
+| **Hypothesis** | Basilisk extends every in-check node by a ply with no bound on how many one forcing line may collect (15.84% of interior nodes), and bars those same moves from reduction. Bounding the accumulation and allowing checking moves to be reduced converts spent depth into search depth, worth more than the tactical resolution it costs. |
+| **Expected direction** | Positive but modest. This buys ~0.46 ply at equal nodes and costs ~6 WAC at equal depth; the two are not commensurable without games. |
+| **Gate** | Registered `[0,3]` nElo SPRT at `3+0.03`, 1T, Hash 64, paired `UHO_Lichess_4852_v1.epd`, adjudication per the standard strength profile (both arms share Basilisk's score scale, so score-based adjudication is valid here — unlike the cross-evaluator oracle cohorts). |
+| **Cap** | 30,000 games. |
+| **Stop rule** | SPRT bounds decide. If it rejects, revert to the inert defaults and record which of the two switches, if either, is worth isolating; do not re-run with a different cap value as if it were the same experiment. |
+| **Prior evidence** | Paired depth at 300k nodes +0.458 (43 better / 21 worse of 107). WAC at depth 12: 245/300 against the baseline's 251. Component arms measured separately: cap alone +0.411, `LmrAllowCheck` alone +0.140. |
+| **Why jointly** | PLAN 5.4.4. 8.6.7 removed check extensions standalone and lost −10.17 ±6.52; durable lesson 2 says the extension and the reduction exclusion were fitted around each other and must move together. If this accepts, the post-fit ablation separates them. |
+
 ### Accepted or retained
 
 | ID | Experiment and conditions | Result / disposition | Conditional lesson | Source |

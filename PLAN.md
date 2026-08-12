@@ -591,7 +591,12 @@ Implement in dependency order, as one coherent cluster:
   sub-step has no supported candidate. Do not retry a magnitude change without
   a new mechanism; the retry trigger for BAS-S13 is recorded in the ledger.
 - **5.4.4** check-move depth policy — *moved from 5.7 by the 5.3 inventory, and
-  now the cluster's payload after 5.4.3 came up empty*.
+  the cluster's payload after 5.4.3 came up empty*. **Candidate registered as
+  BAS-S16, awaiting SPRT.** Two inert switches: `CheckExtPathCap` bounds check
+  extensions accumulated on one path, `LmrAllowCheck` lets checking moves be
+  reduced. At `cap=2, allow=1`: **+0.458 paired ply** at equal nodes (43 better
+  / 21 worse of 107) against **−6 WAC** at equal depth. The first monotonic
+  lever this cluster has found.
   The unconditional check extension (15.84% of interior nodes) and the rule that
   checking moves are never reduced are two halves of one question: how much depth
   we spend on checks. 8.6.7 showed that changing one alone loses ~10 Elo, so they

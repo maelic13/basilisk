@@ -153,12 +153,13 @@ before the next starts
       before games (BAS-S13 fractional history, BAS-S14 reference-scale
       magnitudes, BAS-S15 depth ceiling). Depth at equal nodes got worse or
       flat every time; nothing sent to SPRT.
-      **⇒ 5.4.4 check-move depth policy is now the payload**: check extensions
-      fire on **15.84% of interior nodes**, each +1 ply, and those same moves
-      are barred from reduction — a direct depth cost no reduction knob
-      reaches. Repair inside the cluster, never alone (lesson 2: standalone
-      LMR repair lost −21.55 ±9.83; standalone check-ext removal lost
-      −10.17 ±6.52).
+      **5.4.4 check-move depth policy — CANDIDATE REGISTERED (BAS-S16),
+      awaiting your SPRT.** Two inert switches added (bench unchanged):
+      `CheckExtPathCap` bounds check extensions per path, `LmrAllowCheck`
+      permits reducing checking moves. At `cap=2, allow=1`: **+0.458 paired
+      ply** at equal nodes (43 better / 21 worse of 107) against **−6 WAC** at
+      equal depth. Monotonic in the cap, unlike 5.4.3. Adjudicated jointly
+      (lesson 2: standalone check-ext removal lost −10.17 ±6.52).
 - [ ] **5.5 Cluster B — static eval, TT, qsearch.** Keep raw eval, pruning
       eval and searched bounds distinct. Preserve our draw/mate/rule-50
       semantics; they are assets, not targets.
@@ -251,7 +252,16 @@ the user explicitly abandons that program.
 
 ## What you run now
 
-**5.1 is closed and the phase premise is confirmed.** Search ≈ **+323 Elo**
+****Run this now: the BAS-S16 SPRT.** Register
+`tools/test_engines/basilisk-5.4.4-checkdepth-pext-pgo.exe` **twice** in
+Colosseum — baseline with default options, candidate with
+`CheckExtPathCap=2` and `LmrAllowCheck=1`. One binary for both arms, so the
+compiler, PGO profile and binary hash are identical and only those two values
+differ. Gate `[0,3]` nElo at `3+0.03`, 1T, Hash 64, paired UHO, cap 30k games.
+Score-based adjudication is valid here — both arms share Basilisk's evaluator,
+unlike the 5.1 oracle cohorts.
+
+5.1 is closed and the phase premise is confirmed.** Search ≈ **+323 Elo**
 available, evaluation ≈ **+233**, and the mechanism is visible: at equal time
 Basilisk reaches **15.6** plies where the oracle reaches **25.2**, on *more*
 nodes. Effective branching factor **2.20 against 1.61** — our tree is too
