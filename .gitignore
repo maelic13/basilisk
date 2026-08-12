@@ -91,3 +91,8 @@ tools/texel/dump*.txt
 # Opening books are local test/tuning inputs.
 !tools/books/
 !tools/books/.gitkeep
+
+# The PLAN 5.1 oracle lives on the frozen `hybrid` branch and must never be
+# committed to development or merged into the engine. Ignoring it here keeps a
+# stray `git add -A` from dragging Stockfish sources into the product tree.
+hybrid/

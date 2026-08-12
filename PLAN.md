@@ -358,6 +358,25 @@ Freeze the oracle branch and its binary hashes on completion; never merge it,
 never edit it retrospectively, and never ship any part of it. It exists to
 size and later to explain, not to become product code.
 
+**Instrument built — branch `hybrid` at `01df815`, 2026-08-12.** See
+`hybrid/README.md` on that branch. Nothing under `src/` is modified, so the
+evaluator under test is the released one. Verified before any game:
+
+| Check | Result |
+|---|---|
+| Adapter conformance | 471,519 random-walk positions (1,931 en passant, 21,361 in check) — bitboard reconstruction is evaluation-identical to Basilisk's own parsed board, **0 mismatches** |
+| Scale mapping | Basilisk `+74` cp ⇒ oracle `eval` `0.74` |
+| Evaluator switch | `+0.74` vs `+0.13` on one position — the arms genuinely differ |
+| Throughput | oracle **2.55M** NPS, control **2.96M**, native Basilisk ~2.5M |
+
+The ~14% adapter cost matters to the result's strength: Rarog's DLL hybrid paid
+~37% and still won by ~196, so their figure carried an obvious objection. Ours
+runs at essentially native Basilisk speed, making the search contrast close to
+throughput-neutral.
+
+**Remaining: run the three contrasts.** Adjudication off, `3+0.03`, 1T, paired
+UHO, tablebases and ponder off, per durable lesson 14.
+
 **Stop rule.** If the search contrast is small — under roughly 50 Elo — the
 premise of this phase is wrong for Basilisk. Close the acceleration program,
 restore bounded hardening and go to NNUE. Record that honestly rather than

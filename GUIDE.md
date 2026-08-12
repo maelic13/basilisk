@@ -98,11 +98,15 @@ matching without changing search.
 
 - [x] **5.0 Baseline:** ✅ clean 1.9.3 reproduced — bench 11,941,440, CTest
       12/12, complete PGO manifest. Rating tournaments closed as context only.
-- [ ] **5.1 Basilisk search oracle:** build Stockfish `9587eeeb` calling
-      Basilisk's exact 1.9.3 HCE, plus its own HCE as control. C++ links
-      directly — no DLL/FFI needed. Adjudication **off**. Measures our search
-      gap and our HCE gap separately. **Stop rule: if the search contrast is
-      under ~50 Elo, close the acceleration program and go to NNUE.**
+- [~] **5.1 Basilisk search oracle** — instrument **BUILT** on branch
+      `hybrid` (`01df815`), games pending. Stockfish `9587eeeb` calling our
+      exact 1.9.3 HCE, its own HCE as control, one binary, `src/` unmodified.
+      Verified: 471,519-position adapter conformance with 0 mismatches,
+      scale mapping exact (+74 cp ⇒ 0.74), arms genuinely differ, throughput
+      2.55M vs 2.96M NPS against ~2.5M native — a ~14% adapter cost where
+      Rarog paid ~37%, so our search contrast is near throughput-neutral.
+      **Next: run the three contrasts, adjudication off.** Stop rule: search
+      contrast under ~50 Elo ⇒ close the acceleration program, go to NNUE.
 - [ ] **5.2 Differential diagnostic harness** (the old "bounded diagnostics",
       kept whole): versioned fixed suite, fixed depth/nodes, 1T. Counters for
       TT producer/consumer kind, **prune recall and overlap** (not just node
@@ -220,18 +224,32 @@ the user explicitly abandons that program.
 
 ## What you run now
 
-5.0 is closed and the 1.9.3 baseline binary exists. Next is **5.1 — the
-Basilisk search oracle**: Stockfish `9587eeeb` calling our exact 1.9.3 HCE,
-with its own evaluator as control, run with adjudication off.
+**The 5.1 oracle is built and verified; it needs games.** Branch `hybrid` at
+`01df815`, built with `hybrid\build.ps1`. The machine is free — the Rarog
+gauntlet has finished.
 
-Do this before any acceleration code. It is the step that tells us whether the
-~+196/+329 split is real *for Basilisk*, and it carries the stop rule that can
-end this program cheaply. Building the oracle is code work and can start now;
-its games must wait for the machine.
+Register the **same executable twice** in Colosseum:
 
-A Rarog-seeded gauntlet currently occupies the machine at concurrency 14.
-Defer all game and NPS/PGO timing work until it finishes. No pre-NNUE broad
-SPSA is planned.
+| Colosseum name | `Use Basilisk HCE` |
+|---|---|
+| `Basilisk-SF-Oracle` | `true` |
+| `SF-9587eeeb-HCE-control` | `false` |
+
+Run against Basilisk 1.9.3 and Rarog 2.3.2 — `3+0.03`, 1T, Hash 64, paired
+`tools/books/UHO_Lichess_4852_v1.epd`, tablebases and ponder off, and
+**adjudication OFF** (durable lesson 14: score-based adjudication is invalid
+across different evaluators and moved a headline estimate ~75 Elo).
+
+| Contrast | Isolates | Decides |
+|---|---|---|
+| Oracle − Basilisk 1.9.3 | search, our HCE held constant | size of the search track |
+| Control − Oracle | HCE, Stockfish search held constant | size of the HCE track |
+| Oracle − Rarog hybrid | our HCE vs Rarog's, one search | whether our HCE already leads |
+
+**Stop rule: search contrast under ~50 Elo ⇒ the premise is wrong for
+Basilisk. Close the acceleration program and go to NNUE.**
+
+No pre-NNUE broad SPSA is planned.
 
 ### Acceleration step lifecycle (5.4–5.9)
 
