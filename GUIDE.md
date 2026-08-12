@@ -11,24 +11,36 @@ and lessons live in [`PLAN.md`](PLAN.md).
 | Baseline | Basilisk **1.9.3**, bench **11,941,440**; search-identical to 1.9.2. Reproduced clean at 5.0: CTest 12/12, manifest complete, artefact `tools/test_engines/basilisk-1.9.3-baseline-pext-pgo.exe` |
 | Tournament record | Context only, gates nothing. Basilisk sits at 3023; the historical frontier is ~165–185 Elo ahead. Do not schedule or curate rating tournaments as plan work. |
 | Evaluation | HCE constant refitting stays frozen. **Structural** feature work is unfrozen at 5.9 only. No Texel/SPSA refit. |
-| Current phase | **Phase 5 — search and evaluation acceleration** (5.0 closed) |
+| Current phase | **Phase 5 — search and evaluation acceleration** (5.0, 5.1 closed; next 5.2) |
 | Reference | Stockfish `9587eeeb`, the last pure-HCE master commit before NNUE. An **idea source and oracle** — never a transcription source. Basilisk stays independent. |
+| Oracle | Branch `hybrid` `01df815`, binary `7E2433C3…`. Frozen. Reuse it as the 5.2 comparison target; never merge or ship it. |
 | Portability branch | `origin/arm_fix` wrapper rejected at 5.11; retain ISA/ARM verification, never merge the branch wholesale |
 | Next releases | **1.10.0 at 5.13** if the acceleration work transfers (higher minor if the gain is large); **1.9.4** is the maintenance-only fallback; baseline NNUE **2.0.0 at 7.7** |
 
-**Phase 5 changed scope on 2026-08-12.** It was bounded hardening with no
-booked Elo. Rarog's search-oracle experiment (BAS-X09/X10) measured Stockfish's
-last pure-HCE search — driving Rarog's weaker evaluator, at 1.5M NPS against
-our 2.5M — beating Basilisk 1.9.3 by about **+196 Elo**, and the matching
-Stockfish HCE beating that hybrid by another **+329**. So the largest
-measurable deficit is search coordination, with a second in HCE feature
-coverage, and both can be attacked with ideas from a public reference instead of
-being redesigned blindly.
+**Phase 5 changed scope on 2026-08-12** from bounded hardening with no booked
+Elo, on Rarog's search-oracle prior — and **5.1 has now confirmed the premise
+on our own engine** (EXPERIMENTS BAS-O01–O03, 2,400 games, adjudication off):
 
-Those are logistic estimates from someone else's stopped run against someone
-else's evaluator. They size a target and order the work; they never accept a
-Basilisk change and are never quoted as a release claim. **5.1 measures our own
-magnitudes before any code moves.**
+| Contrast | Isolates | Result |
+|---|---|---|
+| Oracle − Basilisk 1.9.3 | search, our HCE constant | **+322.7 ±36** |
+| Stockfish HCE − Oracle | evaluation, SF search constant | **+232.8 ±32** |
+| Full Stockfish − Basilisk | the whole gap | +516.1 ±59 |
+
+Both tracks are real and **search is the larger**, so the ordering stands. The
+oracle won while searching *fewer* nodes per move (170k vs 226k) at lower NPS,
+so the search figure is understated, and the two isolated legs compose to
+within 39 Elo of the directly measured whole — the isolation held.
+
+The mechanism is visible rather than inferred: at equal time Basilisk finishes
+**15.6** plies where the oracle finishes **25.2**, giving an effective
+branching factor of **2.20 against 1.61**. Our tree is not too small, it is too
+**wide**. That points at ordering, reductions and selectivity — cluster 5.4 —
+which is now first on evidence, not just on dependency order.
+
+Rarog's original figures (+196 search, +329 evaluation) are superseded for
+Basilisk: our search gap is larger and our evaluation gap smaller, the latter
+indicating our HCE is materially better than theirs.
 
 ### Independence — binding, not aspirational
 
@@ -98,15 +110,14 @@ matching without changing search.
 
 - [x] **5.0 Baseline:** ✅ clean 1.9.3 reproduced — bench 11,941,440, CTest
       12/12, complete PGO manifest. Rating tournaments closed as context only.
-- [~] **5.1 Basilisk search oracle** — instrument **BUILT** on branch
-      `hybrid` (`01df815`), games pending. Stockfish `9587eeeb` calling our
-      exact 1.9.3 HCE, its own HCE as control, one binary, `src/` unmodified.
-      Verified: 471,519-position adapter conformance with 0 mismatches,
-      scale mapping exact (+74 cp ⇒ 0.74), arms genuinely differ, throughput
-      2.55M vs 2.96M NPS against ~2.5M native — a ~14% adapter cost where
-      Rarog paid ~37%, so our search contrast is near throughput-neutral.
-      **Next: run the three contrasts, adjudication off.** Stop rule: search
-      contrast under ~50 Elo ⇒ close the acceleration program, go to NNUE.
+- [x] **5.1 Basilisk search oracle:** ✅ **CLOSED 2026-08-12.** 2,400 games,
+      adjudication off, zero forfeits, all-natural terminations.
+      **Search +322.7 ±36** (our HCE constant) · **HCE +232.8 ±32** (SF search
+      constant) · whole gap +516.1 ±59 · Basilisk−Rarog +14.8 ±27.
+      Stop rule cleared by a wide margin. The oracle won on *fewer* nodes
+      (170k vs 226k) at lower NPS, so the search figure is understated.
+      Mechanism: **EBF 2.20 vs 1.61** — 15.6 plies against 25.2 at equal time.
+      Our tree is too **wide**, not too small. See EXPERIMENTS BAS-O01–O03.
 - [ ] **5.2 Differential diagnostic harness** (the old "bounded diagnostics",
       kept whole): versioned fixed suite, fixed depth/nodes, 1T. Counters for
       TT producer/consumer kind, **prune recall and overlap** (not just node
@@ -224,32 +235,28 @@ the user explicitly abandons that program.
 
 ## What you run now
 
-**The 5.1 oracle is built and verified; it needs games.** Branch `hybrid` at
-`01df815`, built with `hybrid\build.ps1`. The machine is free — the Rarog
-gauntlet has finished.
+**5.1 is closed and the phase premise is confirmed.** Search ≈ **+323 Elo**
+available, evaluation ≈ **+233**, and the mechanism is visible: at equal time
+Basilisk reaches **15.6** plies where the oracle reaches **25.2**, on *more*
+nodes. Effective branching factor **2.20 against 1.61** — our tree is too
+**wide**, not too small.
 
-Register the **same executable twice** in Colosseum:
+Next is **5.2 — the differential diagnostic harness**, and BAS-O03 tells us
+what it must explain first. The oracle is the comparison target: run the fixed
+suite against both and find *where* the extra width is created. Priority
+counters, in order of what the EBF gap implicates:
 
-| Colosseum name | `Use Basilisk HCE` |
-|---|---|
-| `Basilisk-SF-Oracle` | `true` |
-| `SF-9587eeeb-HCE-control` | `false` |
+1. **LMR population and re-searches** — how many nodes are reduced at all, and
+   how often a reduction is undone. A timid reduction policy is the most
+   direct way to a 2.20 EBF.
+2. **Move-picker source and fail-high move index** — if the best move is found
+   late, everything downstream searches more.
+3. **Pruning recall and overlap** — which prunes fire, which never fire, and
+   which fire redundantly on the same node.
+4. Then TT kind, correction and history attribution, extensions, aspiration.
 
-Run against Basilisk 1.9.3 and Rarog 2.3.2 — `3+0.03`, 1T, Hash 64, paired
-`tools/books/UHO_Lichess_4852_v1.epd`, tablebases and ponder off, and
-**adjudication OFF** (durable lesson 14: score-based adjudication is invalid
-across different evaluators and moved a headline estimate ~75 Elo).
-
-| Contrast | Isolates | Decides |
-|---|---|---|
-| Oracle − Basilisk 1.9.3 | search, our HCE held constant | size of the search track |
-| Control − Oracle | HCE, Stockfish search held constant | size of the HCE track |
-| Oracle − Rarog hybrid | our HCE vs Rarog's, one search | whether our HCE already leads |
-
-**Stop rule: search contrast under ~50 Elo ⇒ the premise is wrong for
-Basilisk. Close the acceleration program and go to NNUE.**
-
-No pre-NNUE broad SPSA is planned.
+Diagnostics off ⇒ bench 11,941,440 exactly. Diagnostics on ⇒ same best move
+and node counts. The machine is free. No pre-NNUE broad SPSA is planned.
 
 ### Acceleration step lifecycle (5.4–5.9)
 

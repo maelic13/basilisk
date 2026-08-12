@@ -79,6 +79,41 @@ X is good/bad”. If conditions or artifacts are unknown, say so.
 
 ## 3. Search and selectivity
 
+### Search-oracle observations (Basilisk's own)
+
+These size Phase 5's two tracks. They are **observations**, not acceptance
+verdicts: they identify where strength is available and in what order to
+pursue it, and they credit no individual mechanism with any Elo. Elo below is
+the ordinary logistic estimate from the score with a trinomial CI, not the
+project's paired-pentanomial SPRT estimator.
+
+Shared conditions for BAS-O01–O03 — Colosseum "Basilisk Oracle", 2026-08-12,
+round robin ×200, **2,400 games**, 400 per pair, `3+0.03`, 1T, Hash 64, paired
+`UHO_Lichess_4852_v1.epd`, concurrency 14, ponder/tablebases off, and **every
+adjudication off** (max-moves, draw and resign). Terminations were entirely
+natural: 1,919 checkmates, 316 threefold, 89 insufficient material, 74
+fifty-move, 2 stalemate. **Zero forfeits.** Instrument: branch `hybrid`
+`01df815`, binary SHA-256 `7E2433C3…5B99B06C`, Basilisk rev `39f1563` with
+`src/` clean, Stockfish `9587eeeb`, Clang 22.1.8.
+
+| ID | Experiment | Result | Conditional lesson |
+|---|---|---|---|
+| BAS-O01 | **Search isolated.** Stockfish `9587eeeb` search driving Basilisk's own unmodified 1.9.3 HCE, against native Basilisk 1.9.3. Only the search differs. | **302-88-10, 86.5%, ≈ +322.7 ±36 Elo.** The oracle won while running *fewer* nodes per move (170k vs 226k) and lower NPS (2.4M vs 2.9M). | Basilisk's dominant deficit is search coordination, and it is not a throughput artifact — the oracle was handicapped on speed and still won by a wide margin. Far larger than the ~+196 Rarog measured, partly because our direct-link adapter costs ~14% where their DLL cost ~37%. Sizes the Phase-5 search track. |
+| BAS-O02 | **Evaluation isolated.** The same binary's exact-revision Stockfish HCE against Basilisk's HCE, with Stockfish's search held identical. | **264-106-30, 79.2%, ≈ +232.8 ±32 Elo.** | A second large but *smaller* deficit in HCE feature coverage. Notably below the +328.6 Rarog measured for their evaluator on the same instrument, so Basilisk's HCE is materially the better of the two — indicatively by ~96 Elo, though that is a cross-run comparison and not a controlled one. Sizes the Phase-5 HCE track and confirms it ranks second. |
+| BAS-O03 | **Mechanism.** Average completed depth and effective branching factor at equal time, from the same tournament. | Control 29.7 plies / EBF 1.51; oracle 25.2 / 1.61; **Basilisk 15.6 / 2.20**; Rarog 15.5 / 2.21. Basilisk searched *more* nodes per move than the oracle and finished **9.6 plies shallower**. | The gap is tree shape, not speed: our effective branching factor is ~2.20 against ~1.61. This is the single most actionable number the experiment produced and it points squarely at ordering, reductions and selectivity — i.e. cluster 5.4 first. It also matches durable lesson 5 in reverse: our tree is not too small, it is too wide. |
+
+**Internal consistency.** Measured directly, full Stockfish beat Basilisk 1.9.3
+by 364-33-3, ≈ **+516.1 ±59**. Composing the two isolated legs gives
++232.8 + 322.7 = +555.5. The 39-Elo shortfall sits inside the combined
+interval and is the expected direction for non-additive Elo, so the two legs
+and the whole measure the same thing. A large disagreement here would have
+meant the isolation was leaking; it did not.
+
+**Also recorded.** Basilisk 1.9.3 − Rarog 2.3.2 measured 137-143-120,
+≈ **+14.8 ±27** — consistent with, but weaker than, the +30.4 from Rarog's run,
+and not distinguishable from zero at this sample. Do not treat the two engines
+as separated at STC on this evidence.
+
 ### Accepted or retained
 
 | ID | Experiment and conditions | Result / disposition | Conditional lesson | Source |

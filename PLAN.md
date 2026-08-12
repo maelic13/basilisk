@@ -12,7 +12,7 @@ user-facing and must not contain experiment bookkeeping.
 | Branches | `master` and `v1.9.3` are at `d737123`; `development` is at `16eff20` with documentation/tooling/benchmark work. The only `src/` divergence is a comment-only edit in `search_params.h`, so playing code is unchanged. `origin/nnue` is an obsolete partial implementation whose useful seams must be reimplemented against the current trainer contract. `origin/arm_fix` is the one-commit `67a987b` TT-alignment experiment; Phase 5.11 closes the invalid wrapper hypothesis and retains only evidence-backed portability work. |
 | Released baseline | **Basilisk 1.9.3**, bench-13 fingerprint **11,941,440**. It is search-identical to 1.9.2; 1.9.3 repaired Clang/`llvm-profdata` PGO tool matching. Reproduced clean at Phase 5.0 (see below). |
 | Evaluation | The accepted HCE is the comparison/fallback evaluator. Constant refitting stays frozen; **structural** feature work is unfrozen at Phase 5.9 only. Phase 10 is the optional HCE fallback, entered only if NNUE is abandoned. |
-| Active work | No Basilisk candidate or tuner is active. A Rarog-seeded Colosseum gauntlet occupies the machine at concurrency 14; do not start competing timed work while it runs. |
+| Active work | No Basilisk candidate or tuner is active; the machine is free. Phase 5.1 closed 2026-08-12: search gap **+322.7 ±36**, evaluation gap **+232.8 ±32**, EBF 2.20 vs 1.61 (EXPERIMENTS BAS-O01–O03). Next step is 5.2. |
 | Next release | **1.10.0 at Phase 5.13** if search/HCE acceleration transfers, or a higher minor version if the cumulative gain is large. **1.9.4** is the maintenance-only fallback if the acceleration tracks close without transfer. |
 | NNUE release | **2.0.0 at Phase 7.7**, using `D:/code/net_trainer`. |
 
@@ -232,8 +232,11 @@ Read these with discipline:
 1. They are ordinary logistic point estimates from a deliberately stopped run,
    **not** paired-pentanomial SPRT results. They size a target; they are never
    a release claim and are never added to anything.
-2. They are *Rarog's* measurements against *Rarog's* HCE. The Basilisk-specific
-   magnitudes are unknown until 5.1 measures them directly.
+2. They are *Rarog's* measurements against *Rarog's* HCE. **Superseded for
+   Basilisk by BAS-O01–O03**, which measured our own magnitudes directly: the
+   search gap is larger than theirs (+323 vs +196) and the evaluation gap
+   smaller (+233 vs +329). Rarog's figures remain useful only as the prior
+   that justified building the instrument.
 3. RAR-O01 with evaluator-dependent adjudication reported +270.9 where RAR-O02
    without it reported +196.5. **Cross-evaluator cohorts must run with
    adjudication off**; the confounder is worth ~75 Elo here.
@@ -242,18 +245,22 @@ Read these with discipline:
 
 ### Two acceleration tracks
 
-**Search track (5.1–5.8).** Evaluator-agnostic. Every accepted search contract
-survives NNUE intact, so this work is not spent against a soon-to-be-replaced
-surface — it is the opposite of the constant-fitting that durable lesson 7
-forbids. This track has priority.
+**Search track (5.1–5.8) — measured at ≈ +323 Elo (BAS-O01).**
+Evaluator-agnostic. Every accepted search contract survives NNUE intact, so
+this work is not spent against a soon-to-be-replaced surface — it is the
+opposite of the constant-fitting that durable lesson 7 forbids. This track has
+priority, now on evidence rather than expectation.
 
-**HCE track (5.9).** The freeze is lifted **only** for structural feature
-gap closure against the reference: terms Basilisk lacks entirely, or expresses
-in a materially weaker form. It is **not** lifted for another broad constant
-refit — HCE cycle 6 washed out at ±5.21 over 8.1k games and that verdict
-stands. A stronger HCE also pays forward as a better NNUE teacher for Phase
-7.1 datagen, which is the second reason it precedes NNUE rather than following
-it.
+**HCE track (5.9) — measured at ≈ +233 Elo (BAS-O02).** The freeze is lifted
+**only** for structural feature gap closure against the reference: terms
+Basilisk lacks entirely, or expresses in a materially weaker form. It is
+**not** lifted for another broad constant refit — HCE cycle 6 washed out at
+±5.21 over 8.1k games and that verdict stands. A stronger HCE also pays
+forward as a better NNUE teacher for Phase 7.1 datagen, which is the second
+reason it precedes NNUE rather than following it.
+
+Neither number is a budget. They bound what is available if convergence were
+perfect, which it will not be; each cluster still has to earn its own SPRT.
 
 ### Independence contract
 
@@ -381,6 +388,48 @@ UHO, tablebases and ponder off, per durable lesson 14.
 premise of this phase is wrong for Basilisk. Close the acceleration program,
 restore bounded hardening and go to NNUE. Record that honestly rather than
 proceeding on Rarog's numbers.
+
+### 5.1 — CLOSED 2026-08-12: both tracks confirmed, search first
+
+2,400 games, adjudication fully off, zero forfeits, all-natural terminations.
+Full conditions and caveats in `EXPERIMENTS.md` BAS-O01–O03.
+
+| Contrast | What it isolates | Result |
+|---|---|---|
+| Oracle − Basilisk 1.9.3 | **search**, our HCE held constant | **+322.7 ±36** |
+| Stockfish HCE − Oracle | **evaluation**, SF search held constant | **+232.8 ±32** |
+| Full Stockfish − Basilisk 1.9.3 | the whole gap | +516.1 ±59 |
+| Basilisk 1.9.3 − Rarog 2.3.2 | our own prior | +14.8 ±27 |
+
+**The stop rule is cleared by a wide margin** — +323 against a ~50 threshold.
+Both tracks are real, and the search track is the larger, so the plan's
+existing ordering stands unchanged.
+
+Three things make this stronger than the Rarog result it replicates:
+
+1. **The oracle was handicapped and still won.** It ran 2.4M NPS against
+   Basilisk's 2.9M and searched *fewer* nodes per move — 170k against 226k.
+   The search advantage is therefore understated, and the "it only won because
+   of speed" objection is not available.
+2. **The legs compose.** +232.8 + 322.7 = +555.5 against a directly measured
+   +516.1; the 39-Elo shortfall is inside the combined interval and in the
+   expected direction for non-additive Elo. Had isolation been leaking, these
+   would not have agreed.
+3. **The mechanism is visible, not inferred.** At equal time Basilisk finishes
+   **15.6** plies where the oracle finishes **25.2** — 9.6 plies shallower on
+   more nodes. Effective branching factor **2.20 against 1.61**.
+
+That last number is the phase's most actionable finding. Our tree is not too
+small, it is too **wide**: we spend nodes on breadth the reference spends on
+depth. This is ordering, reduction and selectivity work — exactly cluster 5.4
+— and it is why 5.4 goes first on evidence rather than merely on dependency
+order.
+
+Our HCE also measured meaningfully better than Rarog's on the same instrument
+(+232.8 here against their +328.6, so ~96 Elo in our favour). That is a
+cross-run comparison, not a controlled one — treat it as indicative. It does
+support keeping the HCE track second, and it means Phase 5.9 starts from a
+better base than Rarog's would have.
 
 ### 5.2 — Differential diagnostic harness
 
