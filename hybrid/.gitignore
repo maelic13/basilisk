@@ -1,0 +1,5 @@
+# Build artifacts. The oracle binary is identified by the SHA-256 in its
+# manifest, which is recorded in EXPERIMENTS.md when the experiment closes —
+# the binary itself is not a repository asset.
+build/
+dist/
