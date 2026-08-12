@@ -5,6 +5,7 @@
 #include <array>
 #include <cassert>
 #include <cmath>
+#include <cstdint>
 #include <cstring>
 #include <exception>
 #include <sstream>
@@ -1010,13 +1011,13 @@ void Searcher::print_diag() const {
             "lmr_reduction_plies=%lld lmr_clamped_zero=%lld "
             "lmr_blocked_depth=%lld lmr_blocked_searched=%lld "
             "lmr_blocked_in_check=%lld lmr_blocked_movetype=%lld "
-            "lmr_blocked_gives_check=%lld",
+            "lmr_blocked_gives_check=%lld lmr_clamped_high=%lld",
             (long long)d.lmr_eligible, (long long)d.lmr_applied,
             (long long)d.lmr_researched, (long long)d.lmr_reduction_plies,
             (long long)d.lmr_clamped_zero,
             (long long)d.lmr_blocked_depth, (long long)d.lmr_blocked_searched,
             (long long)d.lmr_blocked_in_check, (long long)d.lmr_blocked_movetype,
-            (long long)d.lmr_blocked_gives_check);
+            (long long)d.lmr_blocked_gives_check, (long long)d.lmr_clamped_high);
         emit(buf);
         std::snprintf(buf, sizeof(buf),
             "kv interior_nodes=%lld qs_nodes=%lld tt_probes=%lld tt_hits=%lld "
@@ -1896,6 +1897,18 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                     // more. Kept integer-quantised (÷div then ×1024) so 6.7 is
                     // behaviour-identical; the fractional form (×1024 ÷ div) is a
                     // 6.9 experiment.
+                    //
+                    // 5.4.3 tested that fractional form and MEASURED IT WORSE
+                    // (BAS-S13): applied 36.1%→32.5%, clamp-to-zero 16.2%→19.8%,
+                    // depth at equal nodes 20.80→20.70. The quantisation is not
+                    // only a resolution defect — it also acts as a threshold.
+                    // Most moves carry positive history and history SUBTRACTS
+                    // from r, so a continuous response shaves a little off nearly
+                    // every reduction, while the integer form shaved a whole ply
+                    // off only the |stat| ≥ div minority. Retry trigger: base and
+                    // context reductions are materially larger, so there is
+                    // enough r for a continuous response to modulate rather than
+                    // erase.
                     r -= (move_stat_score / p.lmr_hist_div) * 1024;
                 } else {
                     // Bad captures get less reduction than quiets. Computed in
@@ -1903,6 +1916,12 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                     r = (((r >> 10) - 1) / 2) << 10;
                 }
 
+                // 5.4.3: record whether the ceiling bound before clamping, so
+                // "modulation too small" and "modulation cannot matter here" are
+                // separable. Most LMR-eligible nodes sit near the leaves, where
+                // new_depth-1 is 1 or 2 and no policy change can move the
+                // reduction actually taken.
+                if ((r >> 10) > new_depth - 1) ++diag_.lmr_clamped_high;
                 reduction = std::clamp(r >> 10, 0, new_depth - 1);
                 // 5.2: the gate passed but the computed reduction was zero —
                 // distinct from being blocked, and a different repair. Counted

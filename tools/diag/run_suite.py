@@ -133,11 +133,12 @@ def last_depth_nodes(text):
     return depth, nodes
 
 
-def run_internal(engine, fens, depth):
+def run_internal(engine, fens, depth, options=()):
     total = {}
     print(f"internal breakdown: {len(fens)} positions at depth {depth}")
     for i, fen in enumerate(fens, 1):
         out = uci_run(engine, [
+            *options,
             "setoption name Diag value true",
             "ucinewgame",
             f"position fen {fen}",
@@ -150,11 +151,12 @@ def run_internal(engine, fens, depth):
     return total
 
 
-def run_differential(engine, oracle, fens, nodes, oracle_opts):
+def run_differential(engine, oracle, fens, nodes, oracle_opts, engine_opts=()):
     rows = []
     print(f"differential: {len(fens)} positions at {nodes:,} nodes")
     for i, fen in enumerate(fens, 1):
-        a = uci_run(engine, ["ucinewgame", f"position fen {fen}", f"go nodes {nodes}"])
+        a = uci_run(engine, [*engine_opts, "ucinewgame", f"position fen {fen}",
+                             f"go nodes {nodes}"])
         b = uci_run(oracle, oracle_opts + ["ucinewgame", f"position fen {fen}",
                                            f"go nodes {nodes}"])
         da, na = last_depth_nodes(a)
@@ -177,6 +179,9 @@ def main():
     ap.add_argument("--depth", type=int, default=14)
     ap.add_argument("--nodes", type=int, default=300000)
     ap.add_argument("--out", default=None)
+    ap.add_argument("--option", action="append", default=[], metavar="Name=Value",
+                    help="UCI setoption applied to the engine under test "
+                         "(repeatable). Search knobs need a TUNE build.")
     args = ap.parse_args()
 
     fens = load_suite(pathlib.Path(args.suite))
@@ -186,7 +191,14 @@ def main():
     report = {"suite": pathlib.Path(args.suite).name, "positions": len(fens),
               "depth": args.depth}
 
-    counters = run_internal(pathlib.Path(args.engine), fens, args.depth)
+    # A fresh engine process is started per position, so options are re-applied
+    # every time rather than once at startup.
+    engine_opts = [f"setoption name {o.split('=', 1)[0]} value {o.split('=', 1)[1]}"
+                   for o in args.option]
+    if engine_opts:
+        report["engine_options"] = args.option
+        print("engine options: " + ", ".join(args.option))
+    counters = run_internal(pathlib.Path(args.engine), fens, args.depth, engine_opts)
     report["counters"] = counters
     report["derived"] = {name: fn(counters) for name, fn in DERIVED}
 
@@ -210,7 +222,7 @@ def main():
     if args.oracle:
         opts = [f"setoption name Use Basilisk HCE value {args.oracle_hce}"]
         rows = run_differential(pathlib.Path(args.engine), pathlib.Path(args.oracle),
-                                fens, args.nodes, opts)
+                                fens, args.nodes, opts, engine_opts)
         report["differential"] = rows
         ok = [r for r in rows if r["basilisk_depth"] and r["oracle_depth"]]
         if not ok:

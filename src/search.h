@@ -229,6 +229,11 @@ private:
         // `reduction_plies / applied` is the mean reduction actually taken,
         // which is the number a timid-LMR hypothesis lives or dies on.
         int64_t lmr_eligible = 0, lmr_reduction_plies = 0, lmr_clamped_zero = 0;
+        // 5.4.3: the formula's raw output exceeded the new_depth-1 ceiling,
+        // so the reduction actually taken was set by remaining depth rather
+        // than by the policy. Distinguishes "our modulation is too small"
+        // from "our modulation cannot matter here" — opposite repairs.
+        int64_t lmr_clamped_high = 0;
         int64_t lmr_blocked_depth = 0, lmr_blocked_searched = 0;
         int64_t lmr_blocked_in_check = 0, lmr_blocked_movetype = 0;
         int64_t lmr_blocked_gives_check = 0;
@@ -276,6 +281,7 @@ private:
             lmr_eligible += o.lmr_eligible;
             lmr_reduction_plies += o.lmr_reduction_plies;
             lmr_clamped_zero += o.lmr_clamped_zero;
+            lmr_clamped_high += o.lmr_clamped_high;
             lmr_blocked_depth += o.lmr_blocked_depth;
             lmr_blocked_searched += o.lmr_blocked_searched;
             lmr_blocked_in_check += o.lmr_blocked_in_check;
@@ -283,9 +289,9 @@ private:
             lmr_blocked_gives_check += o.lmr_blocked_gives_check;
         }
     };
-    // 42 counters, all int64_t. If this fails you added a counter: add it to
+    // 43 counters, all int64_t. If this fails you added a counter: add it to
     // add() above and update the count, or the pool aggregate silently drops it.
-    static_assert(sizeof(DiagCounters) == 42 * sizeof(int64_t),
+    static_assert(sizeof(DiagCounters) == 43 * sizeof(int64_t),
                   "DiagCounters changed shape — update DiagCounters::add()");
     DiagCounters diag_;
     void print_diag() const;

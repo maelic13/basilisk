@@ -146,12 +146,19 @@ matching without changing search.
 **Search acceleration clusters** — one at a time, each accepted or reverted
 before the next starts
 
-- [ ] **5.4 Cluster A — ordering, histories, LMR.** **Payload is 5.4.3**, the
-      reduction/re-search contract; ordering needs no work (BAS-D01). Also owns
-      **5.4.4 check-move depth policy** (moved from 5.7) and the latent
-      post-move `gives_check` LMR defect — repair inside the cluster, never
-      alone (lesson 2: standalone repair lost −21.55 ±9.83; standalone
-      check-ext removal lost −10.17 ±6.52).
+- [~] **5.4 Cluster A — ordering, histories, LMR.** In progress.
+      5.4.1/5.4.2 preconditions **satisfied** (BAS-D01 ordering healthy, all
+      five history channels feed the reduction).
+      **5.4.3 reduction magnitude: NO CANDIDATE** — three hypotheses refuted
+      before games (BAS-S13 fractional history, BAS-S14 reference-scale
+      magnitudes, BAS-S15 depth ceiling). Depth at equal nodes got worse or
+      flat every time; nothing sent to SPRT.
+      **⇒ 5.4.4 check-move depth policy is now the payload**: check extensions
+      fire on **15.84% of interior nodes**, each +1 ply, and those same moves
+      are barred from reduction — a direct depth cost no reduction knob
+      reaches. Repair inside the cluster, never alone (lesson 2: standalone
+      LMR repair lost −21.55 ±9.83; standalone check-ext removal lost
+      −10.17 ±6.52).
 - [ ] **5.5 Cluster B — static eval, TT, qsearch.** Keep raw eval, pruning
       eval and searched bounds distinct. Preserve our draw/mate/rule-50
       semantics; they are assets, not targets.

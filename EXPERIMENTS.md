@@ -141,6 +141,38 @@ must gate any reduction change on games, and prune recall (would a pruned move
 have been best?) is not yet instrumented, so "reduce more" remains a hypothesis
 with a mechanism, not a finding.
 
+### Cluster 5.4.3 — reduction hypotheses, all refuted before games
+
+Three attempts to act on the 5.3 inventory's item 1 ("reduction modulation is
+nearly inert — raise it"). All were measured on `tools/diag/suite_v1.epd` and
+all moved the target metric the **wrong way**, so none reached an SPRT. Target
+metric is mean depth at a fixed 300,000-node budget, where the 5.2 baseline is
+20.80 against the oracle's 32.87.
+
+| ID | Change | Result | Conditional lesson |
+|---|---|---|---|
+| BAS-S13 | Fractional history response: `(stat/div)*1024` → `stat*1024/div`, removing the whole-ply quantisation. Motivated by BAS-D02's 16.2% reduce-to-zero rate. | **Worse.** applied 36.1%→32.5%, clamp-to-zero 16.2%→**19.8%**, depth 20.80→20.70. Reverted. | The quantisation is not only a resolution defect, it is also a **threshold**. History *subtracts* from `r` and most moves carry positive history, so a continuous response shaves a little off nearly every reduction, where the integer form shaved a whole ply off only the `|stat| ≥ div` minority. Retry trigger: base and context reductions are materially larger, so there is enough `r` to modulate rather than erase. |
+| BAS-S14 | Raise the context magnitudes toward reference scale via the TUNE knobs: `LmrCutNodeAdj` 401→1024/2048, `LmrTtPvAdj` 23→1024. | **Worse or flat.** Mean reduction essentially unmoved (2.354 → 2.229 / 2.338 / 2.294) and non-monotonic in the knob; depth at equal nodes **20.80 → 20.10** at the largest setting. Not adopted. | The reference's magnitudes do not transfer, and this is exactly why PLAN forbids importing constants: they were fitted to a different search. More importantly the response is non-monotonic, which says the aggregate is not a clean lever — changing reductions changes which nodes are eligible, so the ratio and its input move together. |
+| BAS-S15 | Hypothesis that the `new_depth - 1` ceiling caps mean reduction, making modulation unable to matter near the leaves. Tested by adding the `lmr_clamped_high` counter. | **Refuted.** The ceiling binds on **4.8% of applied** reductions (145,854 of 3,014,380). | Not the constraint. The counter is retained: it permanently separates "our modulation is too small" from "our modulation cannot matter here", which are opposite repairs and were previously indistinguishable. |
+
+**Disposition.** Cluster 5.4.3 has **no supported candidate**. Nothing was
+handed to an SPRT, because our own harness predicts all three arms are worse
+than the accepted head — spending games to confirm that would be waste.
+
+Applying PLAN's negative-result triage: preconditions were healthy (BAS-D01
+ordering, live histories), the changes were small and self-contained rather
+than incomplete clusters, and reference constants were used only as targets to
+validate — which is what showed they do not transfer. That leaves reason 4: for
+**reduction magnitude specifically**, the mechanism does not transfer to
+Basilisk. The 12-ply gap at equal nodes is real and unexplained, but it is not
+explained by how much each late move is reduced.
+
+**Where this points.** The untested lever in this cluster with a large measured
+population is 5.4.4: check extensions fire on **15.84% of interior nodes**, each
+adding a ply, and those same moves are barred from reduction. That is a direct,
+unconditional depth cost that no reduction knob can reach. Cluster 5.5's
+qsearch is the other candidate — qsearch is 8.09M of 23.2M total nodes.
+
 ### Accepted or retained
 
 | ID | Experiment and conditions | Result / disposition | Conditional lesson | Source |
