@@ -1,0 +1,122 @@
+# Basilisk Phase-5.2 differential suite, version 1.
+#
+# FIXED AND VERSIONED. Every 5.2-5.8 measurement compares against an
+# earlier run over this exact file. Do not edit it: mint suite_v2 and
+# re-baseline instead, or old counters become incomparable in a way
+# nothing will flag.
+#
+# Regenerate with: python tools/diag/build_suite.py
+# Deterministic seed: 0x5115C0DE
+#
+# --- openings (40) ---
+r1bq1rk1/ppp2pp1/2np1n1p/2b1p1B1/2B1P2P/P2P4/1PP2PP1/RN1QK1NR w KQ - 0 1
+rn2kbnr/pppq1ppp/8/8/3NP3/8/PPP3PP/RNBQK2R b KQkq - 0 1
+r1bqkbnr/ppp3pp/2n1p3/3P1p2/3P4/3BB3/PPP2PPP/RN1QK1NR b KQkq - 0 1
+r1b1k2r/pp1p1ppp/1qn1pn2/8/Q3P3/2N1P3/PPP3PP/R3KBNR w KQkq - 0 1
+r2qk2r/pbpp1ppp/1pn2n2/4p3/4P3/1Pb3P1/P1PPNPBP/R1BQ1RK1 w kq - 0 1
+rnb1k2r/pppp1ppp/8/2b1p1q1/4n3/P3PN1P/1PPP1P2/RNBQKB1R b KQkq - 0 1
+r1bq1rk1/1pp1ppbp/p1n2np1/3p4/3P1B1P/2N2P2/PPPQP1P1/2KR1BNR w - - 0 1
+rnq1k1nr/1bppppbp/pp4p1/3P4/2P1P3/3B1N2/PP3PPP/RNBQK2R b KQkq - 0 1
+r1bqk2r/pp1nnpbp/4p1p1/2ppP3/3P4/2P2NP1/PP3PBP/RNBQ1RK1 b kq - 0 1
+r3k2r/ppp1qppp/2nbpn2/3p1b2/5P2/2P1P1P1/PP1PN1BP/RNBQ1RK1 w kq - 0 1
+r2qk2r/pppb1ppp/2n1pn2/3pN3/1b1P4/2NBP3/PPPB1PPP/R2QK2R w KQkq - 0 1
+rn2kb1r/pp2pppp/2p5/3q4/3P1Bb1/5NP1/PPP2P1P/R2QKB1R w KQkq - 0 1
+r1bqkbnr/pppn1pp1/3p3p/4p3/2PPP3/3B4/PP3PPP/RNBQK1NR w KQkq - 0 1
+rnbq1rk1/1p3pbp/2pppnp1/p7/2PP4/2N2NP1/PP2PPBP/R1BQR1K1 w - - 0 1
+rn1qkb1r/pb1pppp1/1p3n2/2p5/2P4p/2N1PPN1/PP1P2PP/R1BQKB1R w KQkq - 0 1
+r1bqkbnr/2p2pp1/p1npp2p/1p2P3/3P1P2/2NB1N2/PPP3PP/R1BQK2R b KQkq - 0 1
+r2qkbnr/pp1b1ppp/2n1p3/8/2B5/1Q3N2/PP1P1PPP/RNB2RK1 b kq - 0 1
+r1bqk2r/pppp1ppp/2n2n2/2b5/8/1PN2N2/PBPQ1PPP/R3KB1R b KQkq - 0 1
+rn1q1rk1/ppp1bppp/5nb1/3p4/3N4/1PN5/PBPPBPPP/R2QK2R w KQ - 0 1
+r2qkbnr/ppp2p1p/2n3p1/3pP3/3P2b1/5N2/PP2BPPP/RNBQK2R w KQkq - 0 1
+rnbqkb1r/ppp2ppp/4n3/3pP3/3P1P1P/8/PP4P1/RNBQKBNR b KQkq - 0 1
+rn2kb1r/pppqn1p1/3pp2p/4p1N1/4P3/2PP4/PP3PPP/RNBQK2R w KQkq - 0 1
+rnbqkbnr/pp5p/2p2p2/3p4/3P2pP/2N1B3/PPPN1PP1/R2QKB1R b KQkq - 0 1
+r1bqkb1r/pp2n1pp/2n1pp2/3pP3/3B4/2P2N2/PP3PPP/RN1QKB1R w KQkq - 0 1
+rnbqk1nr/ppp2ppp/8/2b5/2Pp4/6P1/PP1PNPBP/RNBQK2R w KQkq - 0 1
+r2qkb1r/ppp1p1pp/2npbn2/5p2/3P4/5N2/PPP1BPPP/RNBQK2R b KQkq - 0 1
+r1bqkb1r/2p1nppp/p1n1p3/1p1pP3/3P4/3BBN2/PPPN1PPP/R2QK2R b KQkq - 0 1
+rnbqk2r/ppp1n1bp/4p1p1/3pPp2/5P2/1BN2N2/PPPP2PP/R1BQK2R b KQkq - 0 1
+rnbqkb1r/pp1n2pp/2p2P2/3p4/8/1Q1P4/PP2PPBP/RNB1K1NR b KQkq - 0 1
+rnbq1rk1/ppp2ppp/3p4/2b1p3/4n3/2PP1N1P/PP2PPP1/R1BQKB1R w KQ - 0 1
+rn1qk2r/1pp1bpp1/p2pbn1p/8/2PP4/2N2N2/PP2BPPP/R1BQ1RK1 w kq - 0 1
+rnbq3r/ppp1pk2/3p1bpp/5p2/2PP4/2N1PN2/PP2BPPP/R2QK2R w KQ - 0 1
+rnbqk2r/pp1p1pp1/5p1p/2p5/1b1P4/2NQ4/PPP1PPPP/R3KBNR w KQkq - 0 1
+r1bqkbnr/1p3ppp/p1n1p3/P1pp4/8/3PP1P1/1PP2PBP/RNBQK1NR b KQkq - 0 1
+rnbqkb1r/pp1p1ppp/2p5/4pn2/2P5/2N3P1/PP1PPPBP/R1BQK1NR w KQkq - 0 1
+rn1qk2r/pp3ppp/1bpp1n2/8/3PPPb1/3B1N2/PP4PP/RNBQ1RK1 w kq - 0 1
+r1bqkbnr/pp2pppp/2n5/2p5/2PpP3/1P1P4/P3QPPP/RNB1KBNR b KQkq - 0 1
+r1bqk1nr/pppp2pp/2nb1p2/4p3/3P4/1PP1PN2/PB3PPP/RN1QKB1R b KQkq - 0 1
+rnb1kb1r/1pppqp2/p3pn1p/6p1/1PP5/P3P3/1B1PBPPP/RN1QK1NR w KQkq - 0 1
+r1b1k2r/ppp2ppp/2n5/3n4/1b6/3P4/PPP2PPP/RNB1KBNR w KQkq - 0 1
+# --- tactics (40) ---
+1b5k/7P/p1p2np1/2P2p2/PP3P2/4RQ1R/q2r3P/6K1 w - - 0 1
+r3k2r/pb1q1p2/8/2p1pP2/4p1p1/B1P1Q1P1/P1P3K1/R4R2 b kq - 0 1
+6k1/pp5p/2p3q1/6BP/2nPr1Q1/8/PP3R1K/8 w - - 0 1
+b2b1r1k/3R1ppp/4qP2/4p1PQ/4P3/5B2/4N1K1/8 w - - 0 1
+r5r1/pQ5p/1qp2R2/2k1p3/4P3/2PP4/P1P3PP/6K1 w - - 0 1
+5bk1/1rQ4p/5pp1/2pP4/3n1PP1/7P/1q3BB1/4R1K1 w - - 0 1
+r3k2r/pbp2pp1/3b1n2/1p6/3P3p/1B2N1Pq/PP1PQP1P/R1B2RK1 b kq - 0 1
+r3r1k1/pppq1ppp/8/8/1Q4n1/7P/PPP2PP1/RNB1R1K1 b - - 0 1
+1n2rr2/1pk3pp/pNn2p2/2N1p3/8/6P1/PP2PPKP/2RR4 w - - 0 1
+4rrk1/pppb4/7p/3P2pq/3Qn3/P5P1/1PP4P/R3RNNK b - - 0 1
+3r1bk1/ppq3pp/2p5/2P2Q1B/8/1P4P1/P6P/5RK1 w - - 0 1
+3qrbk1/ppp1r2n/3pP2p/3P4/2P4P/1P3Q2/PB6/R4R1K w - - 0 1
+3r1rk1/pp1q1ppp/3pn3/2pN4/5PP1/P5PQ/1PP1B3/1K1R4 w - - 0 1
+r1b4k/ppp2Bb1/6Pp/3pP3/1qnP1p1Q/8/PPP3P1/1K1R3R w - - 0 1
+3rr1k1/ppp2ppp/8/5Q2/4n3/1B5R/PPP1qPP1/5RK1 b - - 0 1
+1nbq1r1k/3rbp1p/p1p1pp1Q/1p6/P1pPN3/5NP1/1P2PPBP/R4RK1 w - - 0 1
+5r1k/3b2p1/p6p/1pRpR3/1P1P2q1/P4pP1/5QnP/1B4K1 w - - 0 1
+2r1r1k1/pp1q1ppp/3p1b2/3P4/3Q4/5N2/PP2RPPP/4R1K1 w - - 0 1
+r3q2r/2p1k1p1/p5p1/1p2Nb2/1P2nB2/P7/2PNQbPP/R2R3K b - - 0 1
+r2r2k1/pb3ppp/1p1bp3/7q/3n2nP/PP1B2P1/1B1N1P2/RQ2NRK1 b - - 0 1
+1rbq1rk1/p1p1bppp/2p2n2/8/Q1BP4/2N5/PP3PPP/R1B2RK1 b - - 0 1
+rnb3kr/ppp2ppp/1b6/3q4/3pN3/Q4N2/PPP2KPP/R1B1R3 w - - 0 1
+b4r1k/pq2rp2/1p1bpn1p/3PN2n/2P2P2/P2B3K/1B2Q2N/3R2R1 w - - 0 1
+3r4/2p1rk2/1pQq1pp1/7p/1P1P4/P4P2/6PP/R1R3K1 b - - 0 1
+r4q1k/p2bR1rp/2p2Q1N/5p2/5p2/2P5/PP3PPP/R5K1 w - - 0 1
+3r1rk1/p3qp1p/2bb2p1/2p5/3P4/1P6/PBQN1PPP/2R2RK1 b - - 0 1
+2kr2nr/pp1n1ppp/2p1p3/q7/1b1P1B2/P1N2Q1P/1PP1BPP1/R3K2R w KQ - 0 1
+rn3k1r/pp2bBpp/2p2n2/q5N1/3P4/1P6/P1P3PP/R1BQ1RK1 w - - 0 1
+r1b2rk1/ppbn1ppp/4p3/1QP4q/3P4/N4N2/5PPP/R1B2RK1 w - - 0 1
+r5r1/p1q2p1k/1p1R2pB/3pP3/6bQ/2p5/P1P1NPPP/6K1 w - - 0 1
+r1b2rk1/1p1n1ppp/p1p2q2/4p3/P1B1Pn2/1QN2N2/1P3PPP/3R1RK1 b - - 0 1
+rb3qk1/pQ3ppp/4p3/3P4/8/1P3N2/1P3PPP/3R2K1 w - - 0 1
+2Q2n2/2R4p/1p1qpp1k/8/3P3P/3B2P1/5PK1/r7 w - - 0 1
+2r1r2k/1q3ppp/p2Rp3/2p1P3/6QB/p3P3/bP3PPP/3R2K1 w - - 0 1
+r1b1r1k1/pp1nqp2/2p1p1pp/8/4N3/P1Q1P3/1P3PPP/1BRR2K1 w - - 0 1
+5r1k/p5pp/8/1P1pq3/P1p2nR1/Q7/5BPP/6K1 b - - 0 1
+4rrn1/ppq3bk/3pPnpp/2p5/2PB4/2NQ1RPB/PP5P/5R1K w - - 0 1
+2k1r3/1p2Bq2/p2Qp3/Pb1p1p1P/2pP1P2/2P5/2P2KP1/1R6 w - - 0 1
+7k/pp4np/2p3p1/3pN1q1/3P4/Q7/1r3rPP/2R2RK1 w - - 0 1
+3r2k1/p2q4/1p4p1/3rRp1p/5P1P/6PK/P3R3/3Q4 w - - 0 1
+# --- endgames (17) ---
+8/8/8/4k3/8/8/3NN3/4K3 w - - 0 1
+8/8/8/4k3/8/8/3B4/4K3 w - - 0 1
+8/8/8/4k3/8/8/3N4/4K3 w - - 0 1
+8/8/8/3rk3/8/3RK3/8/8 w - - 0 1
+7k/8/7K/7P/8/8/8/8 b - - 0 1
+8/8/8/4k3/8/4P3/8/4K3 w - - 0 1
+4k3/8/4K3/4P3/8/8/8/8 w - - 0 1
+4k3/8/4p3/8/4K3/8/8/8 w - - 0 1
+7k/8/6KP/8/8/8/8/5B2 w - - 0 1
+4k3/8/8/8/8/8/1Q6/4K3 w - - 0 1
+4k3/8/8/8/8/8/1R6/4K3 w - - 0 1
+8/8/8/4k3/8/8/4BN2/4K3 w - - 0 1
+4K3/1q6/8/8/8/8/8/4k3 b - - 0 1
+k7/7Q/2K5/8/8/8/8/8 w - - 0 1
+k7/2K5/8/8/8/8/8/7R w - - 0 1
+k7/2K5/8/3N4/4B3/8/8/8 w - - 0 1
+8/8/8/8/3k4/8/3KBN2/8 w - - 0 1
+# --- zugzwang (6) ---
+8/8/p1p5/1p5p/1P5p/8/PPP2K1p/4R1rk w - - 0 1
+8/6B1/p5p1/Pp4kp/1P5r/5P1Q/4q1PK/8 w - - 0 32
+8/8/1p1r1k2/p1pPN1p1/P3KnP1/1P6/8/3R4 b - - 0 1
+6k1/5ppp/8/8/8/8/5PPP/6K1 w - - 0 1
+8/8/8/p7/8/1P6/P7/K1k5 w - - 0 1
+1r6/8/8/8/8/8/1K6/kR6 w - - 0 1
+# --- in_check (4) ---
+rnb1kbnr/pppp1ppp/8/4p3/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq - 1 3
+r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3
+4k3/8/8/8/8/8/4r3/4K3 w - - 0 1
+8/8/8/3k4/8/3K4/8/6q1 w - - 0 1

@@ -11,9 +11,10 @@ and lessons live in [`PLAN.md`](PLAN.md).
 | Baseline | Basilisk **1.9.3**, bench **11,941,440**; search-identical to 1.9.2. Reproduced clean at 5.0: CTest 12/12, manifest complete, artefact `tools/test_engines/basilisk-1.9.3-baseline-pext-pgo.exe` |
 | Tournament record | Context only, gates nothing. Basilisk sits at 3023; the historical frontier is ~165–185 Elo ahead. Do not schedule or curate rating tournaments as plan work. |
 | Evaluation | HCE constant refitting stays frozen. **Structural** feature work is unfrozen at 5.9 only. No Texel/SPSA refit. |
-| Current phase | **Phase 5 — search and evaluation acceleration** (5.0, 5.1 closed; next 5.2) |
+| Current phase | **Phase 5 — search and evaluation acceleration** (5.0–5.2 closed; next 5.3) |
 | Reference | Stockfish `9587eeeb`, the last pure-HCE master commit before NNUE. An **idea source and oracle** — never a transcription source. Basilisk stays independent. |
-| Oracle | Branch `hybrid` `01df815`, binary `7E2433C3…`. Frozen. Reuse it as the 5.2 comparison target; never merge or ship it. |
+| Oracle | Branch `hybrid` `01df815`, binary `7E2433C3…`. Frozen. The 5.2 harness comparison target; never merge or ship it. |
+| Diagnostics | `Diag`=true ⇒ `info string diag kv` counters. Fixed suite `tools/diag/suite_v1.epd` (107 pos, do not edit — mint v2), runner `tools/diag/run_suite.py`, baseline `tools/diag/baseline_v1.json`. |
 | Portability branch | `origin/arm_fix` wrapper rejected at 5.11; retain ISA/ARM verification, never merge the branch wholesale |
 | Next releases | **1.10.0 at 5.13** if the acceleration work transfers (higher minor if the gain is large); **1.9.4** is the maintenance-only fallback; baseline NNUE **2.0.0 at 7.7** |
 
@@ -118,17 +119,17 @@ matching without changing search.
       (170k vs 226k) at lower NPS, so the search figure is understated.
       Mechanism: **EBF 2.20 vs 1.61** — 15.6 plies against 25.2 at equal time.
       Our tree is too **wide**, not too small. See EXPERIMENTS BAS-O01–O03.
-- [ ] **5.2 Differential diagnostic harness** (the old "bounded diagnostics",
-      kept whole): versioned fixed suite, fixed depth/nodes, 1T. Counters for
-      TT producer/consumer kind, **prune recall and overlap** (not just node
-      savings — lesson 5), **correction attribution**, history attribution,
-      move source, cutoff index, LMR/re-searches, pruning, extensions,
-      aspiration, root ownership, SMP share. Off ⇒ bench 11,941,440 exactly;
-      on ⇒ same best move and nodes. Transient `OutcomeKind`/capability
-      predicates may land when behaviour-neutral. **Shadow-record** stand-pat,
-      ProbCut, NMP/IIR/singular, checking-LMR and root-confidence concerns —
-      owned by the cluster that reaches them, else 8.3. Run it against the
-      oracle: the counters that differ most select the work.
+- [x] **5.2 Differential diagnostic harness:** ✅ **CLOSED 2026-08-12.**
+      15 counters added to the 8.6.6 substrate + machine-readable `diag kv`
+      mirror + fixed 107-position `tools/diag/suite_v1.epd` +
+      `tools/diag/run_suite.py`. Bench 11,941,440 unchanged, CTest 12/12,
+      diag on/off identical nodes/PV/bestmove.
+      **Ordering is fine** — 89.1% first-move cutoffs, mean index 0.214.
+      **Reductions are not** — 36.1% of eligible reduced, 16.2% clamped to
+      zero, **re-search rate 1.744%**. At 300k nodes we reach depth 20.80 vs
+      the oracle's 32.87 (**+12.07 plies**, identical evaluation).
+      ⇒ the width is **under-reduction**, so 5.4's centre is 5.4.3, not the
+      move picker. See EXPERIMENTS BAS-D01/D02.
 - [ ] **5.3 Idea inventory and order freeze:** find which *problems* the
       reference solves that we don't. Classify each equivalent / intentionally
       different / missing / coupled, ranked by 5.2 populations. Output is a

@@ -114,6 +114,33 @@ meant the isolation was leaking; it did not.
 and not distinguishable from zero at this sample. Do not treat the two engines
 as separated at STC on this evidence.
 
+### Differential-harness observations
+
+Conditions for BAS-D01–D02 — `tools/diag/suite_v1.epd` (107 positions: 40 UHO
+openings, 40 WAC tactics, 17 endgames, 6 zugzwang, 4 in-check), Basilisk
+`development` with the 5.2 counters, 1T, `Diag` on, driven by
+`tools/diag/run_suite.py`. Internal counters at fixed **depth 12**;
+differential at fixed **300,000 nodes** against the 5.1 oracle (`hybrid`
+`01df815`, `Use Basilisk HCE=true`, so the evaluator is ours and only the
+search differs). Baseline artifact `tools/diag/baseline_v1.json`.
+
+| ID | Measurement | Result | Conditional lesson |
+|---|---|---|---|
+| BAS-D01 | **Where the width is not.** Move-ordering quality at the cutoff. | **First-move cutoffs 89.10%**, mean cutoff index **0.214**. Cutoff sources: TT 24.6%, good captures 49.3%, quiets 25.4%, bad captures ~0%. | Ordering is already strong and is **not** the cause of the EBF gap. This refutes the second-priority hypothesis carried into 5.2 and removes move-picker rework from cluster 5.4's likely content — a saving, since ordering work is expensive and would have been measured against an unmoving baseline. |
+| BAS-D02 | **Where the width is.** LMR gate accounting; the identity `eligible = applied + clamped_zero + Σ blocked` holds exactly on every run. | Of eligible moves only **36.1%** are reduced; **16.2%** pass every gate and then compute a reduction of **zero**; mean reduction when applied is 2.354 plies; and the **re-search rate is 1.744%**. | Reductions are far too conservative. A re-search rate near 1.7% means reductions almost never need undoing, which is the signature of under-reduction rather than of a well-tuned policy — a healthy LMR pays for its depth with visibly more re-searches. Combined with a sixth of eligible moves being reduced by zero, this is where the tree width is created. Points directly at the reduction/re-search contract, cluster **5.4.3**. |
+
+**Differential at equal nodes.** Given the same 300,000-node budget, Basilisk
+reaches mean depth **20.80** and the oracle **32.87** — **+12.07 plies** on
+identical evaluation. This reproduces BAS-O03's time-based EBF finding under a
+node budget, so it is not a throughput artifact in any form.
+
+**What this does not yet say.** The counters localize the width; they do not
+prove that reducing more would gain Elo, and they credit no specific change.
+Durable lesson 5 cuts both ways — a smaller tree can also be worse. Cluster 5.4
+must gate any reduction change on games, and prune recall (would a pruned move
+have been best?) is not yet instrumented, so "reduce more" remains a hypothesis
+with a mechanism, not a finding.
+
 ### Accepted or retained
 
 | ID | Experiment and conditions | Result / disposition | Conditional lesson | Source |

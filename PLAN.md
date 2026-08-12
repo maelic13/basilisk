@@ -12,7 +12,7 @@ user-facing and must not contain experiment bookkeeping.
 | Branches | `master` and `v1.9.3` are at `d737123`; `development` is at `16eff20` with documentation/tooling/benchmark work. The only `src/` divergence is a comment-only edit in `search_params.h`, so playing code is unchanged. `origin/nnue` is an obsolete partial implementation whose useful seams must be reimplemented against the current trainer contract. `origin/arm_fix` is the one-commit `67a987b` TT-alignment experiment; Phase 5.11 closes the invalid wrapper hypothesis and retains only evidence-backed portability work. |
 | Released baseline | **Basilisk 1.9.3**, bench-13 fingerprint **11,941,440**. It is search-identical to 1.9.2; 1.9.3 repaired Clang/`llvm-profdata` PGO tool matching. Reproduced clean at Phase 5.0 (see below). |
 | Evaluation | The accepted HCE is the comparison/fallback evaluator. Constant refitting stays frozen; **structural** feature work is unfrozen at Phase 5.9 only. Phase 10 is the optional HCE fallback, entered only if NNUE is abandoned. |
-| Active work | No Basilisk candidate or tuner is active; the machine is free. Phase 5.1 closed 2026-08-12: search gap **+322.7 ±36**, evaluation gap **+232.8 ±32**, EBF 2.20 vs 1.61 (EXPERIMENTS BAS-O01–O03). Next step is 5.2. |
+| Active work | No Basilisk candidate or tuner is active; the machine is free. Phase 5.1–5.2 closed 2026-08-12: search gap **+322.7 ±36**, evaluation gap **+232.8 ±32**; the width is under-reduction, not mis-ordering (BAS-O01–O03, BAS-D01/D02). Next step is 5.3. |
 | Next release | **1.10.0 at Phase 5.13** if search/HCE acceleration transfers, or a higher minor version if the cumulative gain is large. **1.9.4** is the maintenance-only fallback if the acceleration tracks close without transfer. |
 | NNUE release | **2.0.0 at Phase 7.7**, using `D:/code/net_trainer`. |
 
@@ -467,6 +467,46 @@ this step is not permitted.
 Run the same suite against the 5.1 oracle. A counter that differs sharply
 between Basilisk and the oracle is the phase's primary work-selection signal —
 this is what replaces guessing which mechanism to change.
+
+### 5.2 — CLOSED 2026-08-12: the width is under-reduction, not mis-ordering
+
+Substrate: 15 counters added to the existing 8.6.6 `DiagCounters`, a
+machine-readable `info string diag kv` mirror, the fixed 107-position
+`tools/diag/suite_v1.epd`, and `tools/diag/run_suite.py`. Gates: bench
+**11,941,440** unchanged, CTest **12/12**, and diagnostics on reproduce the
+same nodes, seldepth, PV and best move as diagnostics off.
+
+Findings (BAS-D01/D02, `tools/diag/baseline_v1.json`):
+
+| Signal | Value | Reading |
+|---|---|---|
+| First-move cutoffs | **89.10%** | ordering is already strong |
+| Mean cutoff index | **0.214** | ordering is **not** the width source |
+| LMR applied / eligible | **36.1%** | most eligible moves are never reduced |
+| Reduction clamped to zero | **16.2%** of eligible | passed every gate, then reduced by nothing |
+| Mean reduction when applied | 2.354 plies | |
+| **LMR re-search rate** | **1.744%** | reductions almost never need undoing |
+| Depth at 300k nodes | **20.80** vs oracle **32.87** | +12.07 plies on identical evaluation |
+
+The re-search rate is the diagnostic. A well-tuned reduction policy pays for
+its depth with visibly more re-searches; at 1.7% ours are so conservative they
+are almost never wrong, which is exactly what under-reduction looks like. That,
+plus a sixth of eligible moves reduced by zero, is where the width comes from.
+
+Two consequences for cluster ordering:
+
+1. **Move-picker rework leaves 5.4's likely content.** BAS-D01 refutes the
+   ordering hypothesis we carried in. This is a saving: the work is expensive
+   and would have been measured against a baseline that was already good.
+2. **5.4.3, the reduction/re-search contract, is the cluster's centre.** 5.4.1
+   and 5.4.2 remain as preconditions — histories feed the reduction formula, so
+   they must still be coherent — but the payload is reductions.
+
+**What this does not establish.** The counters localize the width; they do not
+show that reducing more gains Elo, and durable lesson 5 cuts both ways — a
+smaller tree can be worse. Prune recall is still uninstrumented, so "reduce
+more" is a hypothesis with a mechanism, not a finding. Cluster 5.4 gates it on
+games like anything else.
 
 ### 5.3 — Idea inventory and order freeze
 

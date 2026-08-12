@@ -774,6 +774,7 @@ public:
 
     Move next() {
         last_see_ = VALUE_NONE;   // 8.7.5(a): reset the per-move SEE verdict
+        last_src_ = Src::None;    // 5.2: reset the per-move picker source
         while (true) {
             switch (stage_) {
                 case Stage::TT:
@@ -784,6 +785,7 @@ public:
                             && color_of(p) == searcher_.board_ptr_->side_to_move
                             && searcher_.board_ptr_->is_legal(tt_move_)) {
                             tt_searched_ = true;
+                            last_src_ = Src::TT;
                             return tt_move_;
                         }
                     }
@@ -807,6 +809,7 @@ public:
                         // recompute the identical see_ge. Promotions carry no
                         // SEE verdict (search skips SEE for them).
                         last_see_ = is_nonpromo_capture(move) ? 0 : VALUE_NONE;
+                        last_src_ = Src::GoodTactical;
                         return move;
                     }
                     stage_ = Stage::QuietsInit;
@@ -818,8 +821,10 @@ public:
                     break;
 
                 case Stage::Quiets:
-                    if (idx_ < n_)
+                    if (idx_ < n_) {
+                        last_src_ = Src::Quiet;
                         return Searcher::pick_next(scored_, idx_++, n_);
+                    }
                     stage_ = Stage::BadTacticals;
                     bad_idx_ = 0;
                     break;
@@ -829,6 +834,7 @@ public:
                         // 8.7.5(a): the bad-tactical buffer holds only non-promo
                         // captures with see_ge(m,0) == FALSE → see_score = -1.
                         last_see_ = -1;
+                        last_src_ = Src::BadTactical;
                         return Searcher::pick_next(bad_, bad_idx_++, bad_count_);
                     }
                     stage_ = Stage::Done;
@@ -896,6 +902,11 @@ public:
     // -1 (bad capture), or VALUE_NONE (TT move / promo / quiet / not a capture)
     // — lets search_one skip recomputing the identical see_ge(m,0).
     int last_see_score() const { return last_see_; }
+    // 5.2: which stage produced the move just returned. Recorded at each
+    // return rather than read from stage_, because the TT and tactical
+    // stages advance stage_ before returning.
+    enum class Src { None, TT, GoodTactical, Quiet, BadTactical };
+    Src last_source() const { return last_src_; }
 private:
 
     Searcher& searcher_;
@@ -913,6 +924,7 @@ private:
     int bad_count_ = 0;
     int bad_idx_ = 0;
     int last_see_ = VALUE_NONE;   // 8.7.5(a): SEE verdict of the last move returned
+    Src last_src_ = Src::None;    // 5.2: picker stage of the last move returned
 };
 
 // ---- UCI info ---------------------------------------------------------------
@@ -955,6 +967,75 @@ void Searcher::print_diag() const {
         (long long)d.hist_cutoff_updates, (long long)d.hist_reward_updates,
         (long long)d.qs_evasion_nodes);
     emit(buf);
+    // ---- 5.2 differential harness (BAS-O03) --------------------------------
+    // Read these against the oracle's tree shape, not in isolation.
+    std::snprintf(buf, sizeof(buf),
+        "order fail_highs %lld first %lld (%.2f%%) mean_idx %.3f | src tt %lld goodcap %lld quiet %lld badcap %lld",
+        (long long)d.fail_highs, (long long)d.fail_high_first,
+        pct(d.fail_high_first, d.fail_highs),
+        d.fail_highs > 0 ? double(d.fail_high_index_sum) / double(d.fail_highs) : 0.0,
+        (long long)d.cutoff_src_tt, (long long)d.cutoff_src_good_tactical,
+        (long long)d.cutoff_src_quiet, (long long)d.cutoff_src_bad_tactical);
+    emit(buf);
+    std::snprintf(buf, sizeof(buf),
+        "lmrgate eligible %lld applied %lld (%.2f%%) mean_r %.3f clamp0 %lld",
+        (long long)d.lmr_eligible, (long long)d.lmr_applied,
+        pct(d.lmr_applied, d.lmr_eligible),
+        d.lmr_applied > 0 ? double(d.lmr_reduction_plies) / double(d.lmr_applied) : 0.0,
+        (long long)d.lmr_clamped_zero);
+    emit(buf);
+    std::snprintf(buf, sizeof(buf),
+        "lmrblock depth %lld searched %lld in_check %lld movetype %lld gives_check %lld",
+        (long long)d.lmr_blocked_depth, (long long)d.lmr_blocked_searched,
+        (long long)d.lmr_blocked_in_check, (long long)d.lmr_blocked_movetype,
+        (long long)d.lmr_blocked_gives_check);
+    emit(buf);
+    // Machine-readable mirror. The lines above are shaped for a human reading
+    // one search; the harness aggregates over a 107-position suite and must not
+    // have to reverse-engineer prose, percentages or floats to do it. Integers
+    // only, canonical names, one token per counter — derived ratios are the
+    // consumer's job, since summing a percentage across positions is wrong.
+    {
+        std::snprintf(buf, sizeof(buf),
+            "kv fail_highs=%lld fail_high_first=%lld fail_high_index_sum=%lld "
+            "cutoff_src_tt=%lld cutoff_src_goodcap=%lld cutoff_src_quiet=%lld "
+            "cutoff_src_badcap=%lld",
+            (long long)d.fail_highs, (long long)d.fail_high_first,
+            (long long)d.fail_high_index_sum,
+            (long long)d.cutoff_src_tt, (long long)d.cutoff_src_good_tactical,
+            (long long)d.cutoff_src_quiet, (long long)d.cutoff_src_bad_tactical);
+        emit(buf);
+        std::snprintf(buf, sizeof(buf),
+            "kv lmr_eligible=%lld lmr_applied=%lld lmr_researched=%lld "
+            "lmr_reduction_plies=%lld lmr_clamped_zero=%lld "
+            "lmr_blocked_depth=%lld lmr_blocked_searched=%lld "
+            "lmr_blocked_in_check=%lld lmr_blocked_movetype=%lld "
+            "lmr_blocked_gives_check=%lld",
+            (long long)d.lmr_eligible, (long long)d.lmr_applied,
+            (long long)d.lmr_researched, (long long)d.lmr_reduction_plies,
+            (long long)d.lmr_clamped_zero,
+            (long long)d.lmr_blocked_depth, (long long)d.lmr_blocked_searched,
+            (long long)d.lmr_blocked_in_check, (long long)d.lmr_blocked_movetype,
+            (long long)d.lmr_blocked_gives_check);
+        emit(buf);
+        std::snprintf(buf, sizeof(buf),
+            "kv interior_nodes=%lld qs_nodes=%lld tt_probes=%lld tt_hits=%lld "
+            "tt_cutoffs=%lld in_check_nodes=%lld check_exts=%lld",
+            (long long)d.interior_nodes, (long long)d.qs_nodes,
+            (long long)d.tt_probes, (long long)d.tt_hits, (long long)d.tt_cutoffs,
+            (long long)d.in_check_nodes, (long long)d.check_exts);
+        emit(buf);
+        std::snprintf(buf, sizeof(buf),
+            "kv rfp_cuts=%lld razor_cuts=%lld null_tries=%lld null_cuts=%lld "
+            "probcut_tries=%lld probcut_cuts=%lld fut_prunes=%lld lmp_prunes=%lld "
+            "hist_prunes=%lld see_prunes=%lld",
+            (long long)d.rfp_cuts, (long long)d.razor_cuts,
+            (long long)d.null_tries, (long long)d.null_cuts,
+            (long long)d.probcut_tries, (long long)d.probcut_cuts,
+            (long long)d.fut_prunes, (long long)d.lmp_prunes,
+            (long long)d.hist_prunes, (long long)d.see_prunes);
+        emit(buf);
+    }
     // 8.7.1(c) speed telemetry — the numbers Phase 8.7 steps read before
     // touching anything: eval rate (8.7.7), pawn-cache hit rate (8.7.8),
     // full-gives_check rate (8.7.3), SEE calls per node (8.7.5).
@@ -1591,7 +1672,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     const auto* low_ply_hist = ply < HistoryTables::LOW_PLY_HISTORY_SIZE
                              ? &hist_.low_ply[ply] : nullptr;
 
-    auto search_one = [&](Move m, int picker_see) {
+    auto search_one = [&](Move m, int picker_see, MovePicker::Src picker_src) {
         if (is_root && !move_in_root_moves(m, active_limits_.root_moves))
             return false;
         if (is_root && root_filter_index_ >= 0) {
@@ -1779,10 +1860,25 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         } else {
             // Late Move Reductions
             int reduction = 0;
+            // 5.2 (BAS-O03): the gate below is unchanged, but it is now
+            // evaluated as an if/else-if chain so each rejection is
+            // attributable. The predicate order and short-circuiting are
+            // identical to the original single condition — in particular
+            // move_gives_check() is still reached only when the first four
+            // pass, so its call count and cost do not move.
+            //
+            // This matters because lmr_applied alone cannot tell "rarely
+            // eligible" from "eligible but never reduced", and those have
+            // opposite repairs. Our EBF is 2.20 against the reference's 1.61.
+            ++diag_.lmr_eligible;
+            const bool lmr_type_ok = is_quiet || (is_cap && !is_promo && see_score < 0);
+            if (depth < 2)          ++diag_.lmr_blocked_depth;
+            else if (searched < 2)  ++diag_.lmr_blocked_searched;
+            else if (in_check)      ++diag_.lmr_blocked_in_check;
+            else if (!lmr_type_ok)  ++diag_.lmr_blocked_movetype;
+            else if (move_gives_check()) ++diag_.lmr_blocked_gives_check;
             // LMR applies to: quiets, and bad captures — but NOT promotions
-            if (depth >= 2 && searched >= 2 && !in_check
-                && (is_quiet || (is_cap && !is_promo && see_score < 0))
-                && !move_gives_check()) {
+            else {
                 // Phase 6.7: accumulate the reduction in 1024ths of a ply, then
                 // shift back at the end. Behaviour-identical at default knobs
                 // (adjustments are the old integer values ×1024; history stays
@@ -1808,9 +1904,21 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 }
 
                 reduction = std::clamp(r >> 10, 0, new_depth - 1);
+                // 5.2: the gate passed but the computed reduction was zero —
+                // distinct from being blocked, and a different repair. Counted
+                // here so that
+                //   eligible = applied + clamped_zero + sum(blocked_*)
+                // holds exactly, which is what makes the breakdown auditable.
+                if (reduction == 0) ++diag_.lmr_clamped_zero;
             }
             ss->reduction = reduction;
-            if (reduction > 0) diag_.lmr_applied++;
+            if (reduction > 0) {
+                diag_.lmr_applied++;
+                // Mean reduction over applied = reduction_plies / applied. A
+                // timid-LMR hypothesis is decided by this number, not by how
+                // often LMR fired.
+                diag_.lmr_reduction_plies += reduction;
+            }
 
             score = -negamax(new_depth - reduction, -alpha - 1, -alpha,
                              ply + 1, ss + 1, false, true, true);
@@ -1890,6 +1998,23 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         }
 
         if (alpha >= beta) {
+            // 5.2 (BAS-O03): ordering quality at the point it costs something.
+            // `searched` was incremented above, so the cutting move's index is
+            // searched - 1. A cutoff on index 0 costs one move's search; on
+            // index n it costs n+1, so the mean index is a direct multiplier on
+            // tree width — the quantity separating our 2.20 EBF from ~1.61.
+            // cutoff_src says which picker stage to fix rather than merely that
+            // ordering is imperfect.
+            ++diag_.fail_highs;
+            diag_.fail_high_index_sum += searched - 1;
+            if (searched == 1) ++diag_.fail_high_first;
+            switch (picker_src) {
+                case MovePicker::Src::TT:           ++diag_.cutoff_src_tt; break;
+                case MovePicker::Src::GoodTactical: ++diag_.cutoff_src_good_tactical; break;
+                case MovePicker::Src::Quiet:        ++diag_.cutoff_src_quiet; break;
+                case MovePicker::Src::BadTactical:  ++diag_.cutoff_src_bad_tactical; break;
+                case MovePicker::Src::None:         break;
+            }
             // 8.5.10(e): boost the bonus when the cutoff was "surprising" -- the
             // node's static eval was below beta, so the search found a good move
             // the eval did not credit.
@@ -1913,7 +2038,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         Move move = picker.next();
         if (move == MOVE_NONE)
             break;
-        if (search_one(move, picker.last_see_score()))
+        if (search_one(move, picker.last_see_score(), picker.last_source()))
             break;
     }
 
