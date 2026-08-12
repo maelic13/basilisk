@@ -608,6 +608,51 @@ Remove diagnostic scaffolding that has no future owner, resolve dormant
 switches, version, rebuild revision-matched PGO/ISA assets, update user
 documentation and archive the evidence; commit but do not push/tag.
 
+### Maturity preconditions — do not adopt a feature its host cannot support
+
+A mechanism that is strong in a mature search can be worthless or harmful in a
+search that lacks its inputs. Adopting it early does not "get us partway there";
+it produces a measured loss, and the natural but wrong conclusion is that the
+mechanism does not transfer. Sibling-project evidence: Manta implemented a
+feature ahead of its search maturity and it failed for this reason. Rarog's
+Phase 4 failed the same way at bundle scale — individually plausible mechanisms
+that did not compose.
+
+Each cluster therefore declares **preconditions** and may not begin until every
+one is present in Basilisk *and* measurably healthy in the 5.2 diagnostics.
+"Planned", "in the next cluster" or "roughly equivalent" does not satisfy a
+precondition.
+
+| Cluster | Preconditions | Why the feature is worthless without them |
+|---|---|---|
+| 5.4 A — ordering, histories, LMR | staged generation, a TT move at most interior nodes, existing history tables, post-move check knowledge | this cluster *is* the foundation; it has no upstream dependency and therefore goes first |
+| 5.5 B — static eval, TT, qsearch | A accepted | qsearch capture ordering and TT bound use are only as good as the move ordering and history feeding them |
+| 5.6 C — main selectivity | B accepted | every margin is measured against a pruning eval; if raw eval, pruning eval and searched bounds are not yet separated, the margins fit the wrong quantity. Move-count and history pruning additionally read A's normalized histories |
+| 5.7 D — extensions | A and B accepted | singular verification needs a trustworthy TT move with sound depth/bound provenance; extension and reduction decisions must be arbitrated against a settled LMR |
+| 5.8 E — root and clock | C and D accepted | aspiration and time policy fitted to an unsettled interior search are refitted the moment the interior changes |
+| 5.9 HCE | the search track closed | evaluation terms are judged by the search that consumes them |
+
+**Precondition failure is work, not a blocker.** If a precondition is absent or
+the diagnostics show it unhealthy, that enabling work becomes the cluster and
+the dependent feature defers to a later one. Record the deferral and its
+trigger; do not carry the feature forward as an unlisted intention.
+
+**Negative-result triage.** When a cluster fails its gate, answer *in this
+order* before concluding the mechanism does not transfer:
+
+1. Was a declared precondition actually unhealthy at the nodes where the
+   mechanism fires? Check the diagnostics, not the design.
+2. Was the cluster dependency-complete, or did it ship a consumer without its
+   producer?
+3. Were reference constants used unvalidated against our scale?
+4. Only then: the mechanism genuinely does not transfer to Basilisk.
+
+Record which of the four applied. A mechanism rejected for reason 1–3 is
+**requeued with its trigger**, not closed; a mechanism closed under reason 4
+needs new evidence to reopen. Misfiling a premature adoption as reason 4
+permanently discards a real gain, which is the specific cost this section
+exists to prevent.
+
 ### Cluster discipline and stop rules
 
 These govern 5.4–5.9 and exist because Rarog's Phase 4 failed by accumulating

@@ -263,6 +263,31 @@ SPSA is planned.
 **Two fully implemented clusters with no accepted gain ⇒ stop and re-audit
 5.2–5.3.** Do not continue down the list by sunk cost.
 
+### Maturity preconditions — never adopt ahead of the host search
+
+A mechanism strong in a mature search can be harmful in one lacking its inputs.
+Adopting early doesn't get us partway — it measures a loss, and the wrong
+conclusion is "doesn't transfer". Manta failed exactly this way.
+
+| Cluster | Cannot start until |
+|---|---|
+| 5.4 A ordering/histories/LMR | — (the foundation; no upstream dependency) |
+| 5.5 B eval/TT/qsearch | A accepted |
+| 5.6 C selectivity | B accepted (margins need the pruning eval separated) |
+| 5.7 D extensions | A + B accepted (singular needs a trustworthy TT move) |
+| 5.8 E root/clock | C + D accepted (else refitted the moment the interior moves) |
+| 5.9 HCE | search track closed |
+
+Preconditions must be **present and healthy in the 5.2 diagnostics** — not
+planned, not "roughly equivalent". If one is missing, that enabling work
+*becomes* the cluster and the feature defers with a recorded trigger.
+
+**When a cluster fails, triage in this order** before blaming the mechanism:
+(1) was a precondition unhealthy where the mechanism fires? (2) was the cluster
+dependency-complete? (3) were reference constants used unvalidated? (4) only
+then — it genuinely doesn't transfer. Reasons 1–3 requeue with a trigger; only
+reason 4 closes. Misfiling a premature adoption as (4) discards a real gain.
+
 ## Decision rules
 
 | Situation | Action |
