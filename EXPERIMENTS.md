@@ -157,8 +157,14 @@ roadmap item.
 
 **BAS-X09/X10 are the exception.** They did not refine an existing plan item —
 they changed Phase 5's purpose from bounded pre-NNUE hardening to a search and
-evaluation convergence program. They remain *imported priors*: they size and
+evaluation acceleration program. They remain *imported priors*: they size and
 order Basilisk's work and can never accept a Basilisk change.
+
+Note what they do **not** license. They establish that a mature search is worth
+roughly 200 Elo to us and that a mature HCE is worth more again. They say
+nothing about which specific mechanism earns it, and they are not permission to
+transcribe Stockfish. Basilisk remains an independent engine; the reference is
+an idea source and an oracle. See PLAN's Independence contract.
 
 | ID | Rarog evidence | Possible Basilisk implication | Existing PLAN coverage |
 |---|---|---|---|
