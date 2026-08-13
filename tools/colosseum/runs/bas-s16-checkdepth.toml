@@ -10,12 +10,18 @@
 # Registered in EXPERIMENTS.md before any games. Artifact revision 4936e9b,
 # dirty_diff clean, bench 11,941,440, SHA-256 379442F1...D49B8116.
 
+# NOTE: every relative path in a run file resolves against THIS FILE's
+# directory, not the working directory. Paths below are therefore
+# ../../ back to tools/. Getting this wrong does not fail loudly: the
+# engines simply do not exist, every game becomes an infrastructure
+# fault, and the run dies with "pair 1 contains a non-scorable
+# infrastructure game".
 extend = "../profiles/sprt-gainer.toml"
 
 command = ["sprt"]
 positionals = [
-  "tools/test_engines/basilisk-5.4.4-checkdepth-pext-pgo.exe",
-  "tools/test_engines/basilisk-5.4.4-checkdepth-pext-pgo.exe",
+  "../../test_engines/basilisk-5.4.4-checkdepth-pext-pgo.exe",
+  "../../test_engines/basilisk-5.4.4-checkdepth-pext-pgo.exe",
 ]
 
 [options]
@@ -50,4 +56,4 @@ b-option = ["Hash=64", "Threads=1"]
 concurrency = 7
 cores-per-engine = 1
 
-dir = "tools/results/bas-s16"
+dir = "../../results/bas-s16"
