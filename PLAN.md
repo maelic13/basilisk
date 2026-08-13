@@ -12,7 +12,7 @@ user-facing and must not contain experiment bookkeeping.
 | Branches | `master` and `v1.9.3` are at `d737123`; `development` is at `16eff20` with documentation/tooling/benchmark work. The only `src/` divergence is a comment-only edit in `search_params.h`, so playing code is unchanged. `origin/nnue` is an obsolete partial implementation whose useful seams must be reimplemented against the current trainer contract. `origin/arm_fix` is the one-commit `67a987b` TT-alignment experiment; Phase 5.11 closes the invalid wrapper hypothesis and retains only evidence-backed portability work. |
 | Released baseline | **Basilisk 1.9.3**, bench-13 fingerprint **11,941,440**. It is search-identical to 1.9.2; 1.9.3 repaired Clang/`llvm-profdata` PGO tool matching. Reproduced clean at Phase 5.0 (see below). |
 | Evaluation | The accepted HCE is the comparison/fallback evaluator. Constant refitting stays frozen; **structural** feature work is unfrozen at Phase 5.9 only. Phase 10 is the optional HCE fallback, entered only if NNUE is abandoned. |
-| Active work | No Basilisk candidate or tuner is active; the machine is free. Phase 5.1–5.3 closed 2026-08-12: search gap **+322.7 ±36**, evaluation gap **+232.8 ±32**; the width is under-reduction, not mis-ordering (BAS-O01–O03, BAS-D01/D02). Next step is 5.4 — cluster A, payload 5.4.3. |
+| Active work | No Basilisk candidate or tuner is active; the machine is free. Phase 5.1–5.4 closed. Cluster A produced **no accepted change** — reduction magnitude refuted on the harness (BAS-S13/S14/S15) and check-depth rejected by games (BAS-S16, −3.48 ±3.32 over 17,058). Re-audit triggered; working hypothesis is that tree width is a symptom of evaluation quality, so **5.5 is next**. |
 | Next release | **1.10.0 at Phase 5.13** if search/HCE acceleration transfers, or a higher minor version if the cumulative gain is large. **1.9.4** is the maintenance-only fallback if the acceleration tracks close without transfer. |
 | NNUE release | **2.0.0 at Phase 7.7**, using `D:/code/net_trainer`. |
 
@@ -101,7 +101,9 @@ counts, static loss, WAC and telemetry explain it.
 4. Bench identity is behaviour identity, not speed identity. Pool/interleave
    independent PGO builds.
 5. A smaller tree can be worse. Measure best-move recall and contradiction,
-   not just node savings.
+   not just node savings. Confirmed directly at 5.4.4: a 28% smaller tree
+   measured −3.48 ±3.32 Elo. Width is not waste to be trimmed — it is priced
+   against how far the evaluation can be trusted.
 6. Static eval, stand pat, qsearch moves, ProbCut, null cutoffs, reduced search
    and full search require different provenance.
 7. Do not tune before architecture freezes; a tune can hide a defect and make
@@ -590,9 +592,10 @@ Implement in dependency order, as one coherent cluster:
   proved irrelevant. Reduction *magnitude* is not Basilisk's lever and this
   sub-step has no supported candidate. Do not retry a magnitude change without
   a new mechanism; the retry trigger for BAS-S13 is recorded in the ledger.
-- **5.4.4** check-move depth policy — *moved from 5.7 by the 5.3 inventory, and
-  the cluster's payload after 5.4.3 came up empty*. **Candidate registered as
-  BAS-S16, awaiting SPRT.** Two inert switches: `CheckExtPathCap` bounds check
+- **5.4.4** check-move depth policy — **REJECTED (BAS-S16).** SPRT accepted H0
+  at the bound: −3.48 ±3.32 Elo over 17,058 games. Capping check extensions and
+  permitting reduction of checking moves shrank the tree 28% and lost strength.
+  Reverted; never committed active. Two inert switches: `CheckExtPathCap` bounds check
   extensions accumulated on one path, `LmrAllowCheck` lets checking moves be
   reduced. At `cap=2, allow=1`: **+0.458 paired ply** at equal nodes (43 better
   / 21 worse of 107) against **−6 WAC** at equal depth. The first monotonic
@@ -602,6 +605,48 @@ Implement in dependency order, as one coherent cluster:
   we spend on checks. 8.6.7 showed that changing one alone loses ~10 Elo, so they
   are adjudicated jointly, here, against the reduction contract that 5.4.3 sets.
 - **5.4.5** integrated gate, then ablate surprising contributors.
+
+### 5.4 — CLOSED 2026-08-13: no accepted gain, re-audit triggered
+
+Both of the cluster's hypotheses failed and ordering needed no work, so the
+cluster closes with **no change to the engine**. The accepted head is untouched
+at bench 11,941,440.
+
+| Sub-step | Outcome |
+|---|---|
+| 5.4.1 move picker | **Equivalent** — no work needed (BAS-D01: 89.1% first-move cutoffs) |
+| 5.4.2 history channels | Precondition satisfied; all five feed the reduction |
+| 5.4.3 reduction magnitude | **Refuted on the harness** before games (BAS-S13/S14/S15) |
+| 5.4.4 check-move depth | **Rejected by games** — −3.48 ±3.32 over 17,058 (BAS-S16) |
+
+Cluster discipline rule 7 has fired: stop and re-audit 5.2–5.3 rather than
+continue down the list by sunk cost.
+
+**What the cluster established.** The 12-ply gap at equal nodes is real, but it
+is not reachable by pruning harder on the same decisions. Every attempt to
+narrow the tree either failed to move the metric or measured worse in games.
+The reference is narrow *and* strong, so its narrowness cannot be mere
+aggression — it must come from better-informed decisions that let it prune
+safely where we cannot.
+
+Note the magnitude of the loss: a **28% smaller tree cost only −3.48 Elo**. The
+depth-for-tactics trade is nearly balanced and merely sits on the wrong side of
+zero. That is consistent with width being close to correctly priced *for the
+quality of information we currently have*.
+
+**Working hypothesis for the re-audit — width is a symptom, not the disease.**
+BAS-O02 measured our HCE at **−232.8 Elo** against the reference's under an
+identical search. An evaluator that much weaker yields pruning and reduction
+decisions that much less trustworthy, and a search that cannot trust its own
+margins must stay wide to stay safe. If that holds, the value 5.4 did not find
+sits in **cluster 5.5** (separating raw evaluation, pruning evaluation and
+searched bounds; TT provenance; qsearch, which is 8.09M of 23.2M nodes) and in
+the **5.9 HCE track** — not in further selectivity tuning.
+
+This reorders nothing yet. 5.5's preconditions were already "A accepted", and A
+closed without changes, so 5.5 may begin. Whether 5.6 selectivity is still
+worth its slot is a question for the re-audit, since its levers are the ones
+5.4 just found inert.
 
 This cluster owns the latent post-move `gives_check` LMR defect. Durable lesson
 2 applies directly: its standalone repair lost −21.55 ±9.83 because the old

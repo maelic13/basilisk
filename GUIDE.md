@@ -252,30 +252,34 @@ the user explicitly abandons that program.
 
 ## What you run now
 
-**The BAS-S16 SPRT — cluster 5.4.4 check-move depth policy.**
+**Nothing is queued.** Cluster 5.4 closed on 2026-08-13 with no accepted
+change, and the re-audit trigger has fired — the next step is analysis, not a
+game job.
 
-```powershell
-.\tools\sprt.ps1 `
-  -EngineA .\tools\test_engines\basilisk-5.4.4-cand-pext-pgo.exe `
-  -EngineB .\tools\test_engines\basilisk-5.4.4-base-pext-pgo.exe `
-  -NameA CheckDepth -NameB Base -Elo1 3 `
-  -Book D:\chess\books\UHO_Lichess_4852_v1.epd
-```
+BAS-S16 was rejected: −3.48 ±3.32 Elo, LLR −2.95 against the −2.94 bound at
+17,058 games. Capping check extensions and allowing checking moves to be
+reduced made the tree 28% smaller and lost strength. Reverted; the switches
+were never committed active, so the accepted head is untouched at bench
+11,941,440.
 
-Two binaries, because `sprt.ps1` exposes only `Threads`/`Hash` per arm and not
-arbitrary UCI options. They are built from the same revision and differ only in
-two compiled defaults — `CheckExtPathCap` 0→2 and `LmrAllowCheck` 0→1. The
-candidate's manifest records its dirty-diff hash, since those defaults are
-flipped in the working tree rather than committed while the verdict is pending.
+**Cluster 5.4, in full:** ordering was already equivalent, reduction magnitude
+was refuted on the harness before games, and check-depth was rejected by games.
+Three hypotheses, no gain, and the engine unchanged.
 
-Gate `[0,3]` nElo, `3+0.03`, 1T, Hash 64, paired UHO, cap 30,000 games.
-Concurrency resolves to **14** (one pinned physical core per game).
-Score-based adjudication is valid here — both arms share Basilisk's evaluator,
-unlike the 5.1 oracle cohorts.
+**What it taught us.** The 12-ply gap at equal nodes is real but is not
+reachable by pruning harder on the same decisions. The reference is narrow
+*and* strong, so its narrowness must come from better-informed decisions rather
+than more aggression. A 28% smaller tree costing only −3.48 Elo says our width
+is close to correctly priced *for the information we currently have*.
 
-Expected result, recorded before the games so the verdict can be read against
-it: positive but modest. The candidate buys ~0.46 ply at equal nodes and costs
-~6 WAC at equal depth, and those are not commensurable without games.
+**Working hypothesis:** width is a symptom of evaluation quality. Our HCE
+measures −232.8 Elo against the reference's under an identical search
+(BAS-O02); a search that cannot trust its own margins must stay wide. If so,
+the value sits in **5.5** (raw vs pruning vs searched-bound separation, TT
+provenance, qsearch at 8.09M of 23.2M nodes) and the **5.9 HCE track**.
+
+Next: re-audit 5.2–5.3 against this hypothesis, then open cluster 5.5. Its
+precondition — "A accepted" — is met, since A closed without changes.
 
 ### Acceleration step lifecycle (5.4–5.9)
 
