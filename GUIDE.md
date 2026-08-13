@@ -255,28 +255,23 @@ the user explicitly abandons that program.
 **The BAS-S16 SPRT — cluster 5.4.4 check-move depth policy.**
 
 ```powershell
-.\tools\bin\colosseum-cli.exe --run-file tools\colosseum\runs\bas-s16-checkdepth.toml
+.\tools\sprt.ps1 `
+  -EngineA .\tools\test_engines\basilisk-5.4.4-cand-pext-pgo.exe `
+  -EngineB .\tools\test_engines\basilisk-5.4.4-base-pext-pgo.exe `
+  -NameA CheckDepth -NameB Base -Elo1 3 `
+  -Book D:\chess\books\UHO_Lichess_4852_v1.epd
 ```
 
-Everything is in the run file and it dry-run validates. Both arms are the
-**same executable**, so compiler, PGO profile and binary hash are identical and
-only `CheckExtPathCap=2` / `LmrAllowCheck=1` differ — the comparison carries no
-PGO-profile variance at all. Gate `[0,3]` nElo, `3+0.03`, 1T, Hash 64, paired
-UHO, cap 15,000 pairs. Score-based adjudication is valid here because both arms
-share Basilisk's evaluator, unlike the 5.1 oracle cohorts.
+Two binaries, because `sprt.ps1` exposes only `Threads`/`Hash` per arm and not
+arbitrary UCI options. They are built from the same revision and differ only in
+two compiled defaults — `CheckExtPathCap` 0→2 and `LmrAllowCheck` 0→1. The
+candidate's manifest records its dirty-diff hash, since those defaults are
+flipped in the working tree rather than committed while the verdict is pending.
 
-Two things worth knowing before you start it:
-
-- **Concurrency is 7, not the GUI's 14.** Colosseum pins one physical core per
-  engine, so a slot costs two cores and 16 physical minus 2 headroom allows
-  seven. Unpinning would restore 14 slots but reintroduces durable lesson 0's
-  persistent ~±10 Elo placement bias, which no sample size removes.
-- **Roughly 10 hours at the full cap**, usually much less because the SPRT
-  stops at a boundary.
-
-`--dry-run` re-prints the resolved configuration without launching engines;
-`--json` emits machine-readable output; `--dir` already points at
-`tools/results/bas-s16`, and re-running the same command resumes it.
+Gate `[0,3]` nElo, `3+0.03`, 1T, Hash 64, paired UHO, cap 30,000 games.
+Concurrency resolves to **14** (one pinned physical core per game).
+Score-based adjudication is valid here — both arms share Basilisk's evaluator,
+unlike the 5.1 oracle cohorts.
 
 Expected result, recorded before the games so the verdict can be read against
 it: positive but modest. The candidate buys ~0.46 ply at equal nodes and costs
@@ -363,13 +358,25 @@ You   -> Run only the requested SPSA/SPRT/gauntlet/datagen job.
 ## Common commands
 
 ```powershell
+.\tools\setup_tools.ps1
 .\tools\build_test.ps1 -Suffix <name>
-colosseum-cli --run-file tools/colosseum/profiles/sprt-gainer.toml `
-  sprt <candidate> <baseline> --book <book.epd> --concurrency <games>
-colosseum-cli nps <candidate> --self-pair --nodes 10000000
-colosseum-cli nps <candidate> --against <baseline> --nodes 10000000 --repetitions 12
+.\tools\sprt.ps1 -EngineA <candidate> -EngineB <baseline> `
+  -NameA Candidate -NameB Baseline -Elo1 3
+.\tools\sprt.ps1 -EngineA <copy> -EngineB <same> `
+  -NameA Self -NameB Self2 -Mode calibrate -Games 30000
+.\tools\nps_ab.ps1 -EngineA <candidate> -EngineB <baseline> -Rounds 12
+.\tools\gauntlet.ps1 -Engine <candidate> -Opponents <list> -TC "10+0.1"
 ```
 
-Use `tools/colosseum/README.md` for SPSA, calibration, tournament, datagen and
-analysis commands. Colosseum owns generic harness behaviour; Basilisk owns
-builds, engine correctness, profiling and engine-specific data/tuning policy.
+The fastchess harness pins one physical core per **game**, so `Threads=1`
+resolves to **14 concurrent games** on this 16-core host — the two engines in a
+game alternate and share the core. `harness_common.ps1` owns topology
+discovery, the `-use-affinity` core list and the fastchess >= 1.7.0 gate that
+BAS-M01 required.
+
+**The Colosseum CLI is not adopted.** It was trialled and reverted: it
+allocates a disjoint physical core to *each engine*, so 14 slots would need 28
+physical cores and the pinned ceiling is 7 — half throughput for no measurement
+benefit. The Colosseum **GUI** remains the tournament tool.
+`tools/colosseum/` keeps converted profiles and tune vectors for when the CLI
+is ready; nothing in the current workflow reads them.

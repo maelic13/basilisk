@@ -1048,18 +1048,27 @@ NNUE branches/artifacts for later return.
 ## 12. Common commands
 
 ```powershell
+.\tools\setup_tools.ps1
 .\tools\build_test.ps1 -Suffix <name>
-colosseum-cli --run-file tools/colosseum/profiles/sprt-gainer.toml `
-  sprt <candidate> <baseline> --book <book.epd> --concurrency <games>
-colosseum-cli --run-file tools/colosseum/profiles/calibrate-4t.toml `
-  calibrate <engine> <identical-copy> --book <book.epd> --concurrency <games>
-colosseum-cli nps <candidate> --self-pair --nodes 10000000
-colosseum-cli nps <candidate> --against <baseline> --nodes 10000000 --repetitions 12
-colosseum-cli --run-file tools/colosseum/profiles/spsa.toml `
-  spsa <tune-engine> --tune tools/colosseum/tunes/<group>.toml `
-  --book <book.epd> --concurrency <games> --dir <run-directory>
+.\tools\sprt.ps1 -EngineA <candidate> -EngineB <baseline> `
+  -NameA Candidate -NameB Baseline -Elo1 3
+.\tools\sprt.ps1 -EngineA <copy> -EngineB <same> `
+  -NameA Self -NameB Self2 -Mode calibrate -Threads 4 -Games 10000
+.\tools\nps_ab.ps1 -EngineA <candidate> -EngineB <candidate>
+.\tools\nps_ab.ps1 -EngineA <candidate> -EngineB <baseline> -Rounds 12
+.\tools\spsa.ps1 -ConfigGroup search_final -EngineSuffix <base> -Iterations 5000
+.\tools\spsa.ps1 -ConfigGroup search_final -Resume
+.\tools\gauntlet.ps1 -Engine <candidate> -Opponents <list> -TC "10+0.1"
 ```
 
-Generic engine testing is owned by the independent Colosseum CLI. See
-`tools/colosseum/README.md` for the complete workflow and responsibility
-boundary.
+**Harness status (2026-08-12).** Colosseum's GUI remains the tournament tool.
+Its **CLI is not adopted**: it was trialled and reverted because it cannot pin
+14 concurrent games on this host. Colosseum allocates a disjoint physical core
+to *each engine*, so 14 slots demand 28 physical cores against the 16 available
+and the pinned ceiling is 7 — half throughput for no measurement benefit, since
+with ponder off the two engines in a game alternate and share one core happily.
+The fastchess harness above pins one core per **game** and reaches 14.
+
+`tools/colosseum/` keeps the converted profiles and SPSA tune vectors for when
+the CLI is ready; nothing in the current workflow reads them.
+

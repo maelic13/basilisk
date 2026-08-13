@@ -1,0 +1,122 @@
+{
+    "RfpCoeff": {
+        "value": 160,
+        "min_value": 120,
+        "max_value": 200,
+        "step": 8
+    },
+    "RfpImproving": {
+        "value": 72,
+        "min_value": 30,
+        "max_value": 110,
+        "step": 8
+    },
+    "RazorCoeff": {
+        "value": 243,
+        "min_value": 180,
+        "max_value": 320,
+        "step": 18
+    },
+    "NullBase": {
+        "value": 3,
+        "min_value": 2,
+        "max_value": 5,
+        "step": 1
+    },
+    "NullEvalDiv": {
+        "value": 192,
+        "min_value": 130,
+        "max_value": 270,
+        "step": 16
+    },
+    "ProbCutMargin": {
+        "value": 189,
+        "min_value": 130,
+        "max_value": 260,
+        "step": 14
+    },
+    "FutilityBase": {
+        "value": 180,
+        "min_value": 110,
+        "max_value": 240,
+        "step": 14
+    },
+    "FutilityCoeff": {
+        "value": 128,
+        "min_value": 80,
+        "max_value": 170,
+        "step": 10
+    },
+    "HistPruneCoeff": {
+        "value": 4210,
+        "min_value": 2600,
+        "max_value": 5600,
+        "step": 250
+    },
+    "SeePruneCoeff": {
+        "value": 73,
+        "min_value": 45,
+        "max_value": 115,
+        "step": 8
+    },
+    "SingularBetaMult": {
+        "value": 4,
+        "min_value": 2,
+        "max_value": 6,
+        "step": 1
+    },
+    "SingularDoubleMargin": {
+        "value": 4,
+        "min_value": 0,
+        "max_value": 24,
+        "step": 4
+    },
+    "AspirationDelta": {
+        "value": 19,
+        "min_value": 10,
+        "max_value": 36,
+        "step": 4
+    },
+    "LmrBase": {
+        "value": 60,
+        "min_value": 25,
+        "max_value": 95,
+        "step": 8
+    },
+    "LmrDivisor": {
+        "value": 209,
+        "min_value": 175,
+        "max_value": 250,
+        "step": 12
+    },
+    "LmrHistDiv": {
+        "value": 7830,
+        "min_value": 6000,
+        "max_value": 10000,
+        "step": 512
+    },
+    "LmrNonPvAdj": {
+        "value": 1,
+        "min_value": 0,
+        "max_value": 2,
+        "step": 1
+    },
+    "LmrCutNodeAdj": {
+        "value": 0,
+        "min_value": 0,
+        "max_value": 2,
+        "step": 1
+    },
+    "LmrTtPvAdj": {
+        "value": 0,
+        "min_value": 0,
+        "max_value": 2,
+        "step": 1
+    },
+    "LmrNotImprovingAdj": {
+        "value": 0,
+        "min_value": 0,
+        "max_value": 2,
+        "step": 1
+    }
+}
