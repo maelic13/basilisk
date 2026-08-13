@@ -252,37 +252,35 @@ the user explicitly abandons that program.
 
 ## What you run now
 
-****Run this now: the BAS-S16 SPRT.** Register
-`tools/test_engines/basilisk-5.4.4-checkdepth-pext-pgo.exe` **twice** in
-Colosseum — baseline with default options, candidate with
-`CheckExtPathCap=2` and `LmrAllowCheck=1`. One binary for both arms, so the
-compiler, PGO profile and binary hash are identical and only those two values
-differ. Gate `[0,3]` nElo at `3+0.03`, 1T, Hash 64, paired UHO, cap 30k games.
-Score-based adjudication is valid here — both arms share Basilisk's evaluator,
-unlike the 5.1 oracle cohorts.
+**The BAS-S16 SPRT — cluster 5.4.4 check-move depth policy.**
 
-5.1 is closed and the phase premise is confirmed.** Search ≈ **+323 Elo**
-available, evaluation ≈ **+233**, and the mechanism is visible: at equal time
-Basilisk reaches **15.6** plies where the oracle reaches **25.2**, on *more*
-nodes. Effective branching factor **2.20 against 1.61** — our tree is too
-**wide**, not too small.
+```powershell
+.\tools\bin\colosseum-cli.exe --run-file tools\colosseum\runs\bas-s16-checkdepth.toml
+```
 
-Next is **5.2 — the differential diagnostic harness**, and BAS-O03 tells us
-what it must explain first. The oracle is the comparison target: run the fixed
-suite against both and find *where* the extra width is created. Priority
-counters, in order of what the EBF gap implicates:
+Everything is in the run file and it dry-run validates. Both arms are the
+**same executable**, so compiler, PGO profile and binary hash are identical and
+only `CheckExtPathCap=2` / `LmrAllowCheck=1` differ — the comparison carries no
+PGO-profile variance at all. Gate `[0,3]` nElo, `3+0.03`, 1T, Hash 64, paired
+UHO, cap 15,000 pairs. Score-based adjudication is valid here because both arms
+share Basilisk's evaluator, unlike the 5.1 oracle cohorts.
 
-1. **LMR population and re-searches** — how many nodes are reduced at all, and
-   how often a reduction is undone. A timid reduction policy is the most
-   direct way to a 2.20 EBF.
-2. **Move-picker source and fail-high move index** — if the best move is found
-   late, everything downstream searches more.
-3. **Pruning recall and overlap** — which prunes fire, which never fire, and
-   which fire redundantly on the same node.
-4. Then TT kind, correction and history attribution, extensions, aspiration.
+Two things worth knowing before you start it:
 
-Diagnostics off ⇒ bench 11,941,440 exactly. Diagnostics on ⇒ same best move
-and node counts. The machine is free. No pre-NNUE broad SPSA is planned.
+- **Concurrency is 7, not the GUI's 14.** Colosseum pins one physical core per
+  engine, so a slot costs two cores and 16 physical minus 2 headroom allows
+  seven. Unpinning would restore 14 slots but reintroduces durable lesson 0's
+  persistent ~±10 Elo placement bias, which no sample size removes.
+- **Roughly 10 hours at the full cap**, usually much less because the SPRT
+  stops at a boundary.
+
+`--dry-run` re-prints the resolved configuration without launching engines;
+`--json` emits machine-readable output; `--dir` already points at
+`tools/results/bas-s16`, and re-running the same command resumes it.
+
+Expected result, recorded before the games so the verdict can be read against
+it: positive but modest. The candidate buys ~0.46 ply at equal nodes and costs
+~6 WAC at equal depth, and those are not commensurable without games.
 
 ### Acceleration step lifecycle (5.4–5.9)
 

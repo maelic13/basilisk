@@ -187,6 +187,8 @@ qsearch is the other candidate — qsearch is 8.09M of 23.2M total nodes.
 | **Cap** | 30,000 games. |
 | **Stop rule** | SPRT bounds decide. If it rejects, revert to the inert defaults and record which of the two switches, if either, is worth isolating; do not re-run with a different cap value as if it were the same experiment. |
 | **Prior evidence** | Paired depth at 300k nodes +0.458 (43 better / 21 worse of 107). WAC at depth 12: 245/300 against the baseline's 251. Component arms measured separately: cap alone +0.411, `LmrAllowCheck` alone +0.140. |
+| **Harness** | `colosseum-cli` built from `D:/code/colosseum` branch `cli` at `dcfdc7e`, binary SHA-256 `b76042281ce3aec6…`, installed at `tools/bin/` (gitignored). Run file `tools/colosseum/runs/bas-s16-checkdepth.toml`; the run records its own config SHA-256. |
+| **Placement** | Pinned, `auto` with 2 physical cores held back. Each slot costs one core per engine, so concurrency is **7**, not the GUI's 14 — durable lesson 0's unpinned placement bias is ~±10 Elo *per run* and does not average out with games. |
 | **Why jointly** | PLAN 5.4.4. 8.6.7 removed check extensions standalone and lost −10.17 ±6.52; durable lesson 2 says the extension and the reduction exclusion were fitted around each other and must move together. If this accepts, the post-fit ablation separates them. |
 
 ### Accepted or retained
