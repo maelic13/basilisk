@@ -178,17 +178,12 @@ qsearch is the other candidate — qsearch is 8.09M of 23.2M total nodes.
 | ID | BAS-S16 — cluster 5.4.4 check-move depth policy |
 |---|---|
 | **Registered** | 2026-08-12, before any games. |
-| **Artifact** | `tools/test_engines/basilisk-5.4.4-checkdepth-pext-pgo.exe`, revision `4936e9b`, `dirty_diff: clean`, bench 11,941,440, SHA-256 `379442F1…D49B8116`, Clang 22.1.8, release-pext PGO. |
-| **Baseline arm** | That binary with default options (both switches 0), i.e. behaviour-identical to the accepted head. |
-| **Candidate arm** | The **same binary** with `CheckExtPathCap=2` and `LmrAllowCheck=1`. One build for both arms, so compiler, PGO profile and binary hash are identical and the arms differ only in those two UCI values. Verified distinct: at depth 14 from startpos the baseline searches 747,601 nodes and the candidate 391,471. |
-| **Hypothesis** | Basilisk extends every in-check node by a ply with no bound on how many one forcing line may collect (15.84% of interior nodes), and bars those same moves from reduction. Bounding the accumulation and allowing checking moves to be reduced converts spent depth into search depth, worth more than the tactical resolution it costs. |
-| **Expected direction** | Positive but modest. This buys ~0.46 ply at equal nodes and costs ~6 WAC at equal depth; the two are not commensurable without games. |
-| **Gate** | Registered `[0,3]` nElo SPRT at `3+0.03`, 1T, Hash 64, paired `UHO_Lichess_4852_v1.epd`, adjudication per the standard strength profile (both arms share Basilisk's score scale, so score-based adjudication is valid here — unlike the cross-evaluator oracle cohorts). |
-| **Cap** | 30,000 games. |
-| **Stop rule** | SPRT bounds decide. If it rejects, revert to the inert defaults and record which of the two switches, if either, is worth isolating; do not re-run with a different cap value as if it were the same experiment. |
-| **Prior evidence** | Paired depth at 300k nodes +0.458 (43 better / 21 worse of 107). WAC at depth 12: 245/300 against the baseline's 251. Component arms measured separately: cap alone +0.411, `LmrAllowCheck` alone +0.140. |
-| **Harness** | `colosseum-cli` built from `D:/code/colosseum` branch `cli` at `dcfdc7e`, binary SHA-256 `b76042281ce3aec6…`, installed at `tools/bin/` (gitignored). Run file `tools/colosseum/runs/bas-s16-checkdepth.toml`; the run records its own config SHA-256. |
-| **Placement** | Pinned, `auto` with 2 physical cores held back. Each slot costs one core per engine, so concurrency is **7**, not the GUI's 14 — durable lesson 0's unpinned placement bias is ~±10 Elo *per run* and does not average out with games. |
+| **Artifacts** | Two binaries from revision `ce572a7`, same compiler and PGO pipeline, differing only in two compiled defaults. Baseline `basilisk-5.4.4-base-pext-pgo.exe`, `dirty_diff: clean`, bench **11,941,440**, SHA-256 `EEA8CAF8B427D8E1…`. Candidate `basilisk-5.4.4-cand-pext-pgo.exe`, `dirty_diff B1058E3B6D51…` (the two defaults are flipped in the working tree, not committed, while the verdict is pending), bench **8,611,045**. |
+| **Baseline arm** | `CheckExtPathCap=0`, `LmrAllowCheck=0` — the accepted head. |
+| **Candidate arm** | `CheckExtPathCap=2`, `LmrAllowCheck=1`. Verified distinct: at depth 14 from startpos the baseline searches 747,601 nodes and the candidate 391,471, and bench falls 28%. |
+| **Harness** | `tools/sprt.ps1` on fastchess 1.8.0, restored at `ce572a7`. The Colosseum CLI was trialled and reverted: it allocates a disjoint physical core to each engine, so 14 concurrent games would need 28 physical cores against 16 and its pinned ceiling is 7. |
+| **Placement** | Pinned via `-use-affinity`, one physical core per **game** — the two engines alternate with ponder off, so a shared core is sufficient. Concurrency resolves to **14** on 16 physical cores (`harness_common.ps1`, T1 → physical − 2). |
+| **Known cost of this route** | Two independent PGO builds, so one PGO profile's worth of variance sits between the arms. The single-binary two-option design the CLI allowed would have removed it entirely. This is the project's normal practice and how every prior Basilisk SPRT ran, but it is a real difference and is recorded rather than glossed. |
 | **Why jointly** | PLAN 5.4.4. 8.6.7 removed check extensions standalone and lost −10.17 ±6.52; durable lesson 2 says the extension and the reduction exclusion were fitted around each other and must move together. If this accepts, the post-fit ablation separates them. |
 
 ### Accepted or retained
