@@ -152,14 +152,16 @@ before the next starts
       depth rejected by games (BAS-S16, **−3.48 ±3.32** over 17,058, LLR −2.95).
       The engine is unchanged at bench 11,941,440. Re-audit done:
       `analysis/reaudit_v1.md`.
-- [ ] **5.5 Cluster B — static eval, TT, qsearch.** Keep raw eval, pruning
-      eval and searched bounds distinct. Preserve our draw/mate/rule-50
-      semantics; they are assets, not targets. **Re-motivated by the 5.4
-      re-audit**: not "better margins let us prune harder" (BAS-O04 kills
-      that), but provenance correctness, the TT contracts selectivity depends
-      on, and **qsearch at 35% of all nodes** — 8.09M of 23.2M, never
-      inventoried against the reference. Starts with the lifted 5.3 item-7
-      inventory.
+- [x] **5.5 Cluster B — static eval, TT, qsearch:** ✅ **CLOSED 2026-08-13,
+      no candidate.** `analysis/cluster55_audit_v1.md`. Eval provenance is
+      already correct (raw→TT, corrected→improving, TT-refined→pruning only,
+      mate-clamped) and we hold **correction history, which `9587eeeb` lacks**.
+      Qsearch mirrors it exactly and its structure is equivalent. **Qsearch
+      share measured: ours 30.8% vs the reference's 36–37%** (BAS-D03) — ours
+      is *smaller*, so qsearch is not a width source. TT layout is mature; the
+      persisted TT-PV bit is missing but already adjudicated (costs an age bit,
+      barred by 5.2; the 8.5.7 re-test measured +51% nodes, no operating point).
+      Engine unchanged at bench 11,941,440.
 - [ ] **5.6 Cluster C — main selectivity.** Razoring, RFP, NMP verification,
       ProbCut, move-count/history pruning, futility. Categoricals before
       constants; no broad SPSA. **Expected value RAISED by the 5.4 re-audit**
@@ -263,51 +265,44 @@ the user explicitly abandons that program.
 
 ## What you run now
 
-**Nothing is queued.** Cluster 5.4 closed with no accepted change and the
-re-audit is done — `analysis/reaudit_v1.md`. Next is cluster 5.5, which starts
-as inventory work, not a game job.
+**Nothing is queued.** Cluster 5.5 closed with no candidate — the next step is
+5.6, which starts as inventory work.
 
-### The re-audit refuted my own hypothesis
+### 5.5 found sound contracts, not gaps
 
-When 5.4 closed I proposed that width was a *symptom* of evaluation quality.
-BAS-O04 tested it directly on `suite_v1.epd` at a fixed 300,000 nodes, holding
-one side constant at a time:
+Eval provenance was already correct, and on one contract we are **ahead** of
+the reference: we apply correction history, which `9587eeeb` has no equivalent
+of. Qsearch mirrors the main search exactly.
 
-| Arm | Depth | EBF |
-|---|---:|---:|
-| Basilisk native | 20.80 | 1.834 |
-| SF search + **our** eval | 32.87 | 1.468 |
-| SF search + SF eval | 33.38 | 1.459 |
+The one open question the re-audit named was qsearch size. Measured on all
+three arms at a fixed 300,000 nodes:
 
-**Search accounts for +12.07 ply (95.9%); evaluation for +0.51 (4.1%).** An
-evaluator +232.8 Elo stronger buys half a ply and is not even consistently
-deeper (36 better / 42 worse). The hypothesis is withdrawn.
+| Arm | Qsearch share |
+|---|---:|
+| **Basilisk native** | **30.8%** |
+| SF search + our eval | 36.1% |
+| SF search + SF eval | 37.0% |
 
-Reconciled with BAS-S16: 5.4 aimed at the right subsystem with the wrong
-levers. The reference is narrow because its decisions are better informed **at
-the point of pruning**, not because its margins are more aggressive. Pruning
-the same decisions harder is blindness, and games priced it at −3.48 Elo.
+Ours is *smaller*. The reference spends more of its nodes in qsearch and still
+reaches 12 more plies, so qsearch is not where our width goes.
 
-### What changed
+To measure that I instrumented the reference's qsearch — on a **derived branch
+`hybrid-diag`**, leaving the frozen oracle at `01df815` with its tournament
+binary untouched. That was the decision the re-audit said to take deliberately
+rather than drift into.
 
-- **5.3 item 7's deferral is lifted.** It was deferred because those surfaces
-  were about to move under 5.4; 5.4 changed nothing, so the reason expired.
-  The uninventoried selectivity, qsearch and TT contracts are the remaining
-  work.
-- **5.6 gains expected value** — the opposite of what I suggested at 5.4's
-  close. That was the refuted hypothesis talking.
-- **5.5 is re-motivated**: provenance correctness, the TT contracts
-  selectivity depends on, and qsearch at **35% of all nodes** (8.09M of 23.2M),
-  never inventoried against the reference.
-- **History pruning is 5.6's first candidate**: 142 fires in 15.1M interior
-  nodes — a width mechanism indistinguishable from absent.
+### Next: 5.6 — main selectivity
+
+By elimination this is where the remaining width lives, and it has one
+concrete, quantified target rather than a hope: **history pruning fires 142
+times in 15.1M interior nodes** — a whole mechanism indistinguishable from
+absent. ProbCut at 0.4% is the second anomaly.
 
 ### Budget honesty
 
-Phase 5 has spent three sub-steps for no strength. That is within tolerance —
-it is what the stop rules buy, and rejecting cheaply is most of their value.
-But if 5.5 and 5.6 also close empty, re-open whether the remaining Phase-5
-budget is better spent going to NNUE rather than inventing a fourth cluster.
+PLAN's clause names 5.5 and 5.6. **5.5 is now one of the two**, closed empty.
+If 5.6 also closes empty, honour the clause and re-open whether the remaining
+Phase-5 budget is better spent going to NNUE — do not argue around it.
 
 ### Acceleration step lifecycle (5.4–5.9)
 

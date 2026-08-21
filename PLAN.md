@@ -12,7 +12,7 @@ user-facing and must not contain experiment bookkeeping.
 | Branches | `master` and `v1.9.3` are at `d737123`; `development` is at `16eff20` with documentation/tooling/benchmark work. The only `src/` divergence is a comment-only edit in `search_params.h`, so playing code is unchanged. `origin/nnue` is an obsolete partial implementation whose useful seams must be reimplemented against the current trainer contract. `origin/arm_fix` is the one-commit `67a987b` TT-alignment experiment; Phase 5.11 closes the invalid wrapper hypothesis and retains only evidence-backed portability work. |
 | Released baseline | **Basilisk 1.9.3**, bench-13 fingerprint **11,941,440**. It is search-identical to 1.9.2; 1.9.3 repaired Clang/`llvm-profdata` PGO tool matching. Reproduced clean at Phase 5.0 (see below). |
 | Evaluation | The accepted HCE is the comparison/fallback evaluator. Constant refitting stays frozen; **structural** feature work is unfrozen at Phase 5.9 only. Phase 10 is the optional HCE fallback, entered only if NNUE is abandoned. |
-| Active work | No Basilisk candidate or tuner is active; the machine is free. Phase 5.1–5.4 closed. Cluster A produced **no accepted change** — reduction magnitude refuted on the harness (BAS-S13/S14/S15) and check-depth rejected by games (BAS-S16, −3.48 ±3.32 over 17,058). Re-audited 2026-08-13 (`analysis/reaudit_v1.md`): BAS-O04 attributes the depth gap **95.9% to search policy, 4.1% to evaluation**, refuting the eval-symptom hypothesis. 5.3 item 7's deferral is lifted; **5.5 is next**, then 5.6 with raised expected value. |
+| Active work | No Basilisk candidate or tuner is active; the machine is free. Phase 5.1–5.4 closed. Cluster A produced **no accepted change** — reduction magnitude refuted on the harness (BAS-S13/S14/S15) and check-depth rejected by games (BAS-S16, −3.48 ±3.32 over 17,058). Re-audited 2026-08-13 (`analysis/reaudit_v1.md`): BAS-O04 attributes the depth gap **95.9% to search policy, 4.1% to evaluation**, refuting the eval-symptom hypothesis. **5.5 closed 2026-08-13 with no candidate** — eval provenance, qsearch and TT contracts are already sound, and our qsearch share (30.8%) is *smaller* than the reference's 36–37% (BAS-D03). **5.6 is next**, targeting history pruning at 142 fires in 15.1M nodes. |
 | Next release | **1.10.0 at Phase 5.13** if search/HCE acceleration transfers, or a higher minor version if the cumulative gain is large. **1.9.4** is the maintenance-only fallback if the acceleration tracks close without transfer. |
 | NNUE release | **2.0.0 at Phase 7.7**, using `D:/code/net_trainer`. |
 
@@ -693,6 +693,36 @@ Separate raw evaluation, pruning evaluation and searched bounds; align TT
 capabilities, qsearch stand-pat, capture ordering and check handling, and
 correction attribution. Preserve Basilisk's proven draw, mate-distance and
 rule-50 semantics — these are correctness assets, not targets to change.
+
+### 5.5 — CLOSED 2026-08-13: no candidate, contracts already sound
+
+Full audit in `analysis/cluster55_audit_v1.md`. The lifted 5.3 item-7
+inventory for this surface found every contract equivalent or intentionally
+different for a recorded reason. **No engine change**; bench 11,941,440.
+
+| Contract | Verdict |
+|---|---|
+| Raw / corrected / TT-refined eval separation | **Equivalent** — and we hold correction history, which `9587eeeb` lacks entirely |
+| Mate-range clamp on the TT refinement | Present, with its reason recorded in place |
+| Qsearch provenance | **Equivalent** — mirrors the main search exactly |
+| Qsearch structure (MVV+caphist, delta, SEE, evasions) | **Equivalent**; uncapped evasions are a deliberate correctness choice |
+| Qsearch quiet checks | **Intentionally different**, inert — matches current reference behaviour |
+| **Qsearch share of nodes** | **30.8% against the reference's 36–37%** (BAS-D03) — ours is *smaller*; not a width source |
+| TT layout | Mature: dense 10-byte, 3/cluster, lock-free |
+| Persisted TT-PV bit | **Missing but adjudicated** — costs an age bit (barred by 5.2), and the 8.5.7 re-test measured +51% nodes with no operating point |
+
+Instrumenting the reference was the decision the re-audit named. It was done on
+a **derived branch `hybrid-diag`**, leaving the frozen oracle at `01df815` with
+its tournament binary untouched — diagnostic work that would change the oracle
+uses another branch.
+
+This closing empty is a finding, not a failure: sound contracts here are what
+make the remaining width attributable to 5.6's mechanisms by elimination.
+
+**Budget note.** PLAN's honesty clause names 5.5 and 5.6. 5.5 is now one of the
+two. 5.6 has a concrete quantified target — history pruning at 142 fires in
+15.1M interior nodes — so it is not a hopeful step. If it also closes empty,
+honour the clause and re-open going to NNUE rather than arguing around it.
 
 ### 5.6 — Cluster C: main selectivity
 

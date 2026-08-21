@@ -131,6 +131,16 @@ search differs). Baseline artifact `tools/diag/baseline_v1.json`.
 | BAS-D01 | **Where the width is not.** Move-ordering quality at the cutoff. | **First-move cutoffs 89.10%**, mean cutoff index **0.214**. Cutoff sources: TT 24.6%, good captures 49.3%, quiets 25.4%, bad captures ~0%. | Ordering is already strong and is **not** the cause of the EBF gap. This refutes the second-priority hypothesis carried into 5.2 and removes move-picker rework from cluster 5.4's likely content — a saving, since ordering work is expensive and would have been measured against an unmoving baseline. |
 | BAS-D02 | **Where the width is.** LMR gate accounting; the identity `eligible = applied + clamped_zero + Σ blocked` holds exactly on every run. | Of eligible moves only **36.1%** are reduced; **16.2%** pass every gate and then compute a reduction of **zero**; mean reduction when applied is 2.354 plies; and the **re-search rate is 1.744%**. | Reductions are far too conservative. A re-search rate near 1.7% means reductions almost never need undoing, which is the signature of under-reduction rather than of a well-tuned policy — a healthy LMR pays for its depth with visibly more re-searches. Combined with a sixth of eligible moves being reduced by zero, this is where the tree width is created. Points directly at the reduction/re-search contract, cluster **5.4.3**. |
 
+**BAS-D03 — qsearch share, all three arms** (`suite_v1.epd`, fixed 300,000
+nodes, 2026-08-13). Basilisk native **30.8%**; SF search + Basilisk HCE
+**36.1%**; SF search + SF HCE **37.0%**. Our qsearch is *smaller* than the
+reference's, which spends a larger share of its nodes there while still
+reaching 12 more plies. **Qsearch is not a source of wasted width** and the
+hypothesis that it might be is closed. Measured by adding a behaviour-neutral
+qsearch counter to the vendored Stockfish on a **derived branch `hybrid-diag`**;
+the frozen `hybrid` oracle stays at `01df815` with its tournament binary
+untouched.
+
 **Differential at equal nodes.** Given the same 300,000-node budget, Basilisk
 reaches mean depth **20.80** and the oracle **32.87** — **+12.07 plies** on
 identical evaluation. This reproduces BAS-O03's time-based EBF finding under a
