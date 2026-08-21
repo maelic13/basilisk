@@ -1,0 +1,8 @@
+artifact:        D:\code\basilisk\hybrid\dist-diag\basilisk-stockfish-hce-oracle.exe
+binary_sha256:   BA6024BDE7E9110B0224663BF247F6C9D51ACEE0139C18DB278244026936774C
+basilisk_rev:    01df815d5cfcd435cdba397d81858aec8c6fb923
+basilisk_src_dirty: clean
+stockfish_rev:   9587eeeb5ed29f834d4f956b92e0e732877c47a7
+compiler:        clang version 22.1.8 (https://github.com/msys2/MINGW-packages 6e4e79c2f86eeb534e324e583f2057dc9fd5ecab)
+flags:           -O3 -DNDEBUG -DIS_64BIT -DUSE_POPCNT -DUSE_PEXT -mbmi2 -mpopcnt -flto
+built_utc:       2026-08-21 12:13:09Z

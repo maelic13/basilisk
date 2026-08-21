@@ -152,6 +152,11 @@ namespace {
   template <NodeType NT>
   Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth = 0);
 
+  // Basilisk 5.5 diagnostic (branch hybrid-diag only; `hybrid` stays frozen).
+  // Counts qsearch entries so the reference's qsearch share of total nodes can
+  // be compared with ours. Behaviour-neutral: incremented, never read by search.
+  std::atomic<int64_t> g_qsearch_nodes{0};
+
   Value value_to_tt(Value v, int ply);
   Value value_from_tt(Value v, int ply, int r50c);
   void update_pv(Move* pv, Move move, Move* childPv);
@@ -274,6 +279,9 @@ void MainThread::search() {
   // Send again PV info if we have a new best thread
   if (bestThread != this)
       sync_cout << UCI::pv(bestThread->rootPos, bestThread->completedDepth, -VALUE_INFINITE, VALUE_INFINITE) << sync_endl;
+
+  sync_cout << "info string diag kv qs_nodes=" << g_qsearch_nodes.load()
+            << " total_nodes=" << Threads.nodes_searched() << sync_endl;
 
   sync_cout << "bestmove " << UCI::move(bestThread->rootMoves[0].pv[0], rootPos.is_chess960());
 
@@ -1406,6 +1414,8 @@ moves_loop: // When in check, search starts from here
   // function with zero depth, or recursively with further decreasing depth per call.
   template <NodeType NT>
   Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth) {
+
+    g_qsearch_nodes.fetch_add(1, std::memory_order_relaxed);
 
     constexpr bool PvNode = NT == PV;
 
