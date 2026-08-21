@@ -10,7 +10,7 @@ and lessons live in [`PLAN.md`](PLAN.md).
 | Branch/release | `master`/`v1.9.3` at `d737123`; `development` at `16eff20`, with unchanged playing code |
 | Baseline | Basilisk **1.9.3**, bench **11,941,440**; search-identical to 1.9.2. Reproduced clean at 5.0: CTest 12/12, manifest complete, artefact `tools/test_engines/basilisk-1.9.3-baseline-pext-pgo.exe` |
 | Tournament record | Context only, gates nothing. Basilisk sits at 3023; the historical frontier is ~165–185 Elo ahead. Do not schedule or curate rating tournaments as plan work. |
-| Evaluation | HCE constant refitting stays frozen. **Structural** feature work is unfrozen at 5.9 only. No Texel/SPSA refit. |
+| Evaluation | HCE constant refitting stays frozen; **structural** feature work unfrozen at 5.9 only. Audit (BAS-E07): structurally mature, functionally behind — the −232.8 Elo gap is values not features, so 5.9 is worth ~6 minor terms and **the gap is NNUE's to close**. |
 | Current phase | **Phase 5 — search and evaluation acceleration** (5.0–5.3 closed; next 5.4) |
 | Reference | Stockfish `9587eeeb`, the last pure-HCE master commit before NNUE. An **idea source and oracle** — never a transcription source. Basilisk stays independent. |
 | Oracle | Branch `hybrid` `01df815`, binary `7E2433C3…`. Frozen. The 5.2 harness comparison target; never merge or ship it. |
@@ -177,10 +177,18 @@ before the next starts
 
 **Evaluation gap closure**
 
-- [ ] **5.9 HCE structural gap closure:** missing or materially weaker terms
-      only, each with its local refit. **Not** another broad constant fit —
-      cycle 6 washed at +1.37 ±5.21 and that stands. Two failed clusters ⇒
-      close the track and carry the residual into NNUE data selection.
+- [ ] **5.9 HCE structural gap closure — RE-SCOPED, expect small.** Maturity
+      audit done (`analysis/hce_maturity_v1.md`, BAS-E07): our HCE is
+      **structurally mature, functionally behind**. Term coverage vs the
+      reference is near-complete — only `BadOutpost`, `BishopXRayPawns`,
+      `LongDiagonalBishop`, `KnightOnQueen`, `SliderOnQueen`, `TrappedRook`
+      are absent — yet the evaluators correlate at only **r = 0.790**, ours
+      compressed ~**1.75×**, disagreeing on **which side is better in 17%** of
+      positions. So the −232.8 Elo gap is in the *values*, not the features,
+      and this step bars constant refitting. **It therefore cannot close the
+      gap it was created to close**; its realistic yield is those six terms.
+      A small result here is the expected result, not a failure, and is not
+      grounds to reopen the refit. **The evaluation gap is NNUE's to close.**
 
 **Consolidation and release**
 

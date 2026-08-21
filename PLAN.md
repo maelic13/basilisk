@@ -719,23 +719,58 @@ and stability inputs. Total time allocation must not move until the root
 evidence is coherent; then gate any real-clock change separately under the
 time/root/SMP evidence rule.
 
-### 5.9 — HCE structural gap closure
+### 5.9 — HCE structural gap closure — RE-SCOPED 2026-08-13
 
 Entered only after the search track closes, so that evaluation is measured
-against a settled search. Scope is **structural coverage**, set by the 5.1
-Stockfish-HCE contrast and 5.2 residuals:
+against a settled search.
 
-- terms the reference has that Basilisk lacks entirely;
-- terms Basilisk expresses in a materially weaker form;
-- each structural change carries its own local refit.
+**Maturity audit first (`analysis/hce_maturity_v1.md`, BAS-E07).** Before
+planning work here, the question "is our HCE immature?" was measured rather
+than assumed. The answer is **structurally mature, functionally behind**:
 
-Explicitly **out of scope**: another broad Texel or SPSA constant fit over the
-existing feature set. HCE cycle 6 washed at +1.37 ±5.21 over 8.1k games and
-that verdict stands; do not retry it under a new name.
+- Term coverage against the reference is near-complete. Genuinely absent:
+  `BadOutpost`, `BishopXRayPawns`, `LongDiagonalBishop`, `KnightOnQueen`,
+  `SliderOnQueen`, `TrappedRook`, plus the "safe square" qualifier on our
+  pawn-threat terms. Every once-inert term is now live.
+- Yet the evaluators agree poorly: **r = 0.790** over `suite_v1.epd`, our scores
+  compressed ~**1.75×** against the reference's, and a **17% sign-disagreement
+  rate** — one position in six where the two disagree on who stands better.
 
-Gate each feature cluster on games like any other. If two consecutive HCE
-clusters fail to transfer, close this track and carry the residual into NNUE
-data selection instead.
+So the **−232.8 Elo** evaluation gap (BAS-O02) is in the *values*, not the
+features. Six minor terms cannot carry it.
+
+**The scope contradiction, stated plainly.** This step bars another constant
+refit, and rightly — HCE cycle 6 washed at +1.37 ±5.21 over 8,100 games and
+holdout MSE never predicted Elo. But the gap is almost entirely constants, so
+**5.9 as scoped cannot close the gap it was created to close.** Its realistic
+yield is the six terms above: individually gate-able, plausibly a handful of
+Elo in total.
+
+That is recorded, not worked around. Do **not** widen this step into a
+game-outcome refit: it would contradict both the HCE freeze and the pre-NNUE
+SPSA ban, would need fishtest-scale games we do not have, and would fit a
+surface Phase 7 then discards.
+
+**Scope, therefore:**
+
+- The six absent terms, each as an ordinary gated candidate with its own local
+  refit. Expect small.
+- Nothing else. A weak result here is the *expected* result and must not be
+  read as failure, nor used to argue for reopening the constant refit.
+
+**The evaluation gap is NNUE's to close.** NNUE fits by game-derived labels at
+scale, which is exactly the capability our static-objective tuning lacks. This
+gap is the reason NNUE is in the plan at all.
+
+**Knock-on to the teacher argument.** This phase justified 5.9 partly as
+producing a better NNUE teacher. That weakens with the same evidence: if the
+HCE cannot improve much, neither can the teacher. Phase 7.1 should expect its
+teacher quality to come from search depth and from the Stockfish-distillation
+route (BAS-X02, +6.75 in Basilisk) rather than from HCE feature work.
+
+Gate each feature candidate on games like any other. If two consecutive HCE
+candidates fail, close this track and carry the residual into NNUE data
+selection.
 
 ### 5.10 — Correctness and safety repairs only
 
