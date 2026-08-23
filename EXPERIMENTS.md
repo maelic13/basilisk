@@ -131,6 +131,39 @@ search differs). Baseline artifact `tools/diag/baseline_v1.json`.
 | BAS-D01 | **Where the width is not.** Move-ordering quality at the cutoff. | **First-move cutoffs 89.10%**, mean cutoff index **0.214**. Cutoff sources: TT 24.6%, good captures 49.3%, quiets 25.4%, bad captures ~0%. | Ordering is already strong and is **not** the cause of the EBF gap. This refutes the second-priority hypothesis carried into 5.2 and removes move-picker rework from cluster 5.4's likely content — a saving, since ordering work is expensive and would have been measured against an unmoving baseline. |
 | BAS-D02 | **Where the width is.** LMR gate accounting; the identity `eligible = applied + clamped_zero + Σ blocked` holds exactly on every run. | Of eligible moves only **36.1%** are reduced; **16.2%** pass every gate and then compute a reduction of **zero**; mean reduction when applied is 2.354 plies; and the **re-search rate is 1.744%**. | Reductions are far too conservative. A re-search rate near 1.7% means reductions almost never need undoing, which is the signature of under-reduction rather than of a well-tuned policy — a healthy LMR pays for its depth with visibly more re-searches. Combined with a sixth of eligible moves being reduced by zero, this is where the tree width is created. Points directly at the reduction/re-search contract, cluster **5.4.3**. |
 
+**BAS-D04 — history-pruning reachability** (`suite_v1.epd`, depth 12,
+2026-08-13; `analysis/cluster56_audit_v1.md`). The live condition compares
+`hist_prune_coeff * depth` against a sum of six **bounded** history channels
+whose maximum magnitude is **81,920**. At `coeff = 14004` the depth-6 threshold
+is 84,024 — **provably unsatisfiable**; depth 5 needs 85% of theoretical maximum
+negative on every channel at once. The mechanism is live only at depths 1–2 and
+fires **142 times in 5,355,599** tested quiet moves (0.003%). Loosening would
+activate a real population — `coeff/2` 95,418, `coeff/4` 234,235, `coeff/8`
+467,647 — but paired depth at 300k nodes is flat at every value (−0.019, +0.037,
+−0.019).
+
+*Conditional lesson.* A threshold that scales with depth against a signal that
+does not is unreachable at the top of its own range; this one was stranded when
+`hcefinal` re-scaled the history space. But reviving it is **not** a candidate:
+it would prune 4–9% of tested quiets for no depth, and BAS-S16 measured a tree
+that shrinks without gaining depth at −3.48 ±3.32 Elo. Move-count pruning
+already fires 22.2M times against 15.1M interior nodes, so the quiets history
+pruning would catch are largely gone before it is consulted.
+
+*Retry trigger.* Only if move-count pruning is restructured so the surviving
+quiet population changes materially, or if a diagnostic shows the pruned moves
+carry quality cost rather than node cost. Not on a new coefficient alone.
+
+*Also recorded.* ProbCut's 0.4% share is **correct rarity, not a defect** — it
+succeeds 56,311 of 84,469 tries, a 67% hit rate.
+
+*Harness defect found and fixed in the same work.* `print_diag` built its kv
+line into `char buf[256]`; the grown line overflowed and `snprintf` truncated
+silently, always losing the tail field, so corruption scaled with counter
+magnitude. It was caught only because the threshold series has a monotonicity
+invariant that made the result visibly impossible. Buffer now 512 with the
+probe on its own line.
+
 **BAS-D03 — qsearch share, all three arms** (`suite_v1.epd`, fixed 300,000
 nodes, 2026-08-13). Basilisk native **30.8%**; SF search + Basilisk HCE
 **36.1%**; SF search + SF HCE **37.0%**. Our qsearch is *smaller* than the

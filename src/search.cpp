@@ -939,7 +939,12 @@ void Searcher::print_diag() const {
     auto pct = [](int64_t a, int64_t b) {
         return b > 0 ? 100.0 * double(a) / double(b) : 0.0;
     };
-    char buf[256];
+    // 5.6: 256 was too small once the kv mirror grew. snprintf truncates
+    // silently and always loses the TAIL field, so the corruption scales
+    // with the counter magnitudes - it produced a non-monotonic threshold
+    // series that is arithmetically impossible. Sized with headroom, and
+    // the history probe moved to its own line below.
+    char buf[512];
     auto emit = [&](const char* text) { info_cb_(std::string("info string diag ") + text); };
     std::snprintf(buf, sizeof(buf),
         "nodes interior %lld qsearch %lld | in_check %lld (%.2f%%) check_ext %lld tt_pv %lld (%.2f%%)",
@@ -1035,6 +1040,12 @@ void Searcher::print_diag() const {
             (long long)d.probcut_tries, (long long)d.probcut_cuts,
             (long long)d.fut_prunes, (long long)d.lmp_prunes,
             (long long)d.hist_prunes, (long long)d.see_prunes);
+        emit(buf);
+        std::snprintf(buf, sizeof(buf),
+            "kv hist_prune_tested=%lld hist_below_half=%lld "
+            "hist_below_quarter=%lld hist_below_eighth=%lld",
+            (long long)d.hist_prune_tested, (long long)d.hist_below_half,
+            (long long)d.hist_below_quarter, (long long)d.hist_below_eighth);
         emit(buf);
     }
     // 8.7.1(c) speed telemetry — the numbers Phase 8.7 steps read before
@@ -1752,6 +1763,18 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                              + cont_hist_score(ss, pt, Square(to_sq(m)))
                              + pawn_hist[pt][to_sq(m)]
                              + (low_ply_hist ? (*low_ply_hist)[from_sq(m)][to_sq(m)] : 0);
+                    // 5.6 reachability probe. The live condition below is
+                    // byte-identical; these only observe how far the actual
+                    // history distribution sits from the threshold, and add no
+                    // move_gives_check() calls.
+                    {
+                        const int64_t thr =
+                            int64_t(active_limits_.params.hist_prune_coeff) * depth;
+                        ++diag_.hist_prune_tested;
+                        if (hist < -(thr / 2)) ++diag_.hist_below_half;
+                        if (hist < -(thr / 4)) ++diag_.hist_below_quarter;
+                        if (hist < -(thr / 8)) ++diag_.hist_below_eighth;
+                    }
                     if (hist < -active_limits_.params.hist_prune_coeff * depth && !move_gives_check()) {
                         diag_.hist_prunes++;
                         return false;

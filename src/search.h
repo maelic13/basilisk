@@ -235,6 +235,15 @@ private:
         // than by the policy. Distinguishes "our modulation is too small"
         // from "our modulation cannot matter here" — opposite repairs.
         int64_t lmr_clamped_high = 0;
+        // 5.6: history-pruning reachability. The live threshold is
+        // hist_prune_coeff * depth against a SUM of six bounded history
+        // channels whose maximum magnitude is 81,920 — so at depth 6 the
+        // condition is provably unsatisfiable and at depth 5 it needs 85% of
+        // theoretical maximum negative on every channel at once. These count
+        // how many quiet moves would fall below a looser threshold, sizing a
+        // candidate before one is built.
+        int64_t hist_prune_tested = 0, hist_below_half = 0;
+        int64_t hist_below_quarter = 0, hist_below_eighth = 0;
         int64_t lmr_blocked_depth = 0, lmr_blocked_searched = 0;
         int64_t lmr_blocked_in_check = 0, lmr_blocked_movetype = 0;
         int64_t lmr_blocked_gives_check = 0;
@@ -283,6 +292,10 @@ private:
             lmr_reduction_plies += o.lmr_reduction_plies;
             lmr_clamped_zero += o.lmr_clamped_zero;
             lmr_clamped_high += o.lmr_clamped_high;
+            hist_prune_tested += o.hist_prune_tested;
+            hist_below_half += o.hist_below_half;
+            hist_below_quarter += o.hist_below_quarter;
+            hist_below_eighth += o.hist_below_eighth;
             lmr_blocked_depth += o.lmr_blocked_depth;
             lmr_blocked_searched += o.lmr_blocked_searched;
             lmr_blocked_in_check += o.lmr_blocked_in_check;
@@ -290,9 +303,9 @@ private:
             lmr_blocked_gives_check += o.lmr_blocked_gives_check;
         }
     };
-    // 43 counters, all int64_t. If this fails you added a counter: add it to
+    // 47 counters, all int64_t. If this fails you added a counter: add it to
     // add() above and update the count, or the pool aggregate silently drops it.
-    static_assert(sizeof(DiagCounters) == 43 * sizeof(int64_t),
+    static_assert(sizeof(DiagCounters) == 47 * sizeof(int64_t),
                   "DiagCounters changed shape — update DiagCounters::add()");
     DiagCounters diag_;
     void print_diag() const;

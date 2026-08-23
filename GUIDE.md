@@ -162,13 +162,15 @@ before the next starts
       persisted TT-PV bit is missing but already adjudicated (costs an age bit,
       barred by 5.2; the 8.5.7 re-test measured +51% nodes, no operating point).
       Engine unchanged at bench 11,941,440.
-- [ ] **5.6 Cluster C — main selectivity.** Razoring, RFP, NMP verification,
-      ProbCut, move-count/history pruning, futility. Categoricals before
-      constants; no broad SPSA. **Expected value RAISED by the 5.4 re-audit**
-      — width is 96% search policy (BAS-O04), and this is where the
-      uninventoried width mechanisms live. First candidate: **history pruning
-      fires 142 times in 15.1M interior nodes**, a mechanism indistinguishable
-      from absent. ProbCut at 0.4% is the second anomaly.
+- [x] **5.6 Cluster C — main selectivity:** ✅ **CLOSED 2026-08-13, no
+      candidate.** `analysis/cluster56_audit_v1.md`. History pruning is
+      genuinely defective — its `coeff × depth` threshold is compared against a
+      sum of six bounded channels (max 81,920), so the depth-6 threshold of
+      84,024 is **provably unsatisfiable**; it fires 142 times in 5,355,599
+      tested quiets. But loosening it buys **no depth** (−0.019 / +0.037 /
+      −0.019), and BAS-S16 priced that trade at −3.48 Elo. Recorded with a
+      retry trigger (BAS-D04), not gated. ProbCut's 0.4% is correct rarity —
+      67% hit rate. Engine unchanged.
 - [ ] **5.7 Cluster D — extensions and depth authority.** Singular,
       double/negative, IIR vs TT provenance and LMR. **Check extensions are no
       longer owned here** — moved to 5.4.4 by the 5.3 inventory and closed
@@ -265,44 +267,52 @@ the user explicitly abandons that program.
 
 ## What you run now
 
-**Nothing is queued.** Cluster 5.5 closed with no candidate — the next step is
-5.6, which starts as inventory work.
+**Nothing is queued, and a scope decision is owed.**
 
-### 5.5 found sound contracts, not gaps
+Cluster 5.6 closed with no candidate. **The Phase-5 budget clause has fired**:
+it named 5.5 and 5.6, and both closed empty.
 
-Eval provenance was already correct, and on one contract we are **ahead** of
-the reference: we apply correction history, which `9587eeeb` has no equivalent
-of. Qsearch mirrors the main search exactly.
+### The record
 
-The one open question the re-audit named was qsearch size. Measured on all
-three arms at a fixed 300,000 nodes:
+| Step | Outcome |
+|---|---|
+| 5.1 oracle | search gap **+322.7**, evaluation gap **+232.8** |
+| 5.2 harness | built; ordering healthy, width localised |
+| 5.3 inventory | seven items classified |
+| 5.4 cluster A | **no change** — 3 hypotheses refuted, 1 SPRT lost (−3.48) |
+| 5.5 cluster B | **no change** — eval/TT/qsearch contracts already sound |
+| 5.6 cluster C | **no change** — one real defect, not worth gating |
 
-| Arm | Qsearch share |
-|---|---:|
-| **Basilisk native** | **30.8%** |
-| SF search + our eval | 36.1% |
-| SF search + SF eval | 37.0% |
+Three clusters, one lost SPRT, no strength. The gap is real and measured; it
+has not yielded to the levers Phase 5 was scoped to use.
 
-Ours is *smaller*. The reference spends more of its nodes in qsearch and still
-reaches 12 more plies, so qsearch is not where our width goes.
+### 5.6 in one paragraph
 
-To measure that I instrumented the reference's qsearch — on a **derived branch
-`hybrid-diag`**, leaving the frozen oracle at `01df815` with its tournament
-binary untouched. That was the decision the re-audit said to take deliberately
-rather than drift into.
+History pruning is genuinely broken — its threshold scales with depth against a
+bounded signal, so at depth 6 it is provably unsatisfiable, and it fires 142
+times in 5.36M tested quiets. But reviving it buys **no depth**, and BAS-S16
+already priced "smaller tree, no depth" at −3.48 Elo. Recorded with a retry
+trigger rather than gated. ProbCut's 0.4% turned out to be correct rarity, at a
+67% hit rate.
 
-### Next: 5.6 — main selectivity
+I also found and fixed a harness bug: the diag line was built into a 256-byte
+buffer and silently truncated its tail field, so corruption scaled with counter
+size. It was caught only because that particular series has a monotonicity
+invariant which made the wrong answer visibly impossible — one without such an
+invariant would have been believed.
 
-By elimination this is where the remaining width lives, and it has one
-concrete, quantified target rather than a hope: **history pruning fires 142
-times in 15.1M interior nodes** — a whole mechanism indistinguishable from
-absent. ProbCut at 0.4% is the second anomaly.
+### The decision
 
-### Budget honesty
+1. **Continue to 5.7/5.8** (extensions, root/clock) — both get re-fitted at
+   Phase 8.3 anyway once NNUE moves the score scale.
+2. **Close the strength track; finish Phase 5 as maintenance** — 5.10
+   correctness, 5.11 portability/ISA, 5.12 SMP, release **1.9.4** at 5.13, then
+   Phase 6/7 NNUE. 5.9 is already re-scoped to ~6 minor terms, and the −232.8
+   evaluation gap is NNUE's to close.
+3. Something else the evidence supports.
 
-PLAN's clause names 5.5 and 5.6. **5.5 is now one of the two**, closed empty.
-If 5.6 also closes empty, honour the clause and re-open whether the remaining
-Phase-5 budget is better spent going to NNUE — do not argue around it.
+**Option 2 is what the evidence favours** — but it is a scope decision and it
+is yours, not mine.
 
 ### Acceleration step lifecycle (5.4–5.9)
 

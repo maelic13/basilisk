@@ -12,7 +12,7 @@ user-facing and must not contain experiment bookkeeping.
 | Branches | `master` and `v1.9.3` are at `d737123`; `development` is at `16eff20` with documentation/tooling/benchmark work. The only `src/` divergence is a comment-only edit in `search_params.h`, so playing code is unchanged. `origin/nnue` is an obsolete partial implementation whose useful seams must be reimplemented against the current trainer contract. `origin/arm_fix` is the one-commit `67a987b` TT-alignment experiment; Phase 5.11 closes the invalid wrapper hypothesis and retains only evidence-backed portability work. |
 | Released baseline | **Basilisk 1.9.3**, bench-13 fingerprint **11,941,440**. It is search-identical to 1.9.2; 1.9.3 repaired Clang/`llvm-profdata` PGO tool matching. Reproduced clean at Phase 5.0 (see below). |
 | Evaluation | The accepted HCE is the comparison/fallback evaluator. Constant refitting stays frozen; **structural** feature work is unfrozen at Phase 5.9 only. Phase 10 is the optional HCE fallback, entered only if NNUE is abandoned. |
-| Active work | No Basilisk candidate or tuner is active; the machine is free. Phase 5.1–5.4 closed. Cluster A produced **no accepted change** — reduction magnitude refuted on the harness (BAS-S13/S14/S15) and check-depth rejected by games (BAS-S16, −3.48 ±3.32 over 17,058). Re-audited 2026-08-13 (`analysis/reaudit_v1.md`): BAS-O04 attributes the depth gap **95.9% to search policy, 4.1% to evaluation**, refuting the eval-symptom hypothesis. **5.5 closed 2026-08-13 with no candidate** — eval provenance, qsearch and TT contracts are already sound, and our qsearch share (30.8%) is *smaller* than the reference's 36–37% (BAS-D03). **5.6 is next**, targeting history pruning at 142 fires in 15.1M nodes. |
+| Active work | No Basilisk candidate or tuner is active; the machine is free. Phase 5.1–5.4 closed. Cluster A produced **no accepted change** — reduction magnitude refuted on the harness (BAS-S13/S14/S15) and check-depth rejected by games (BAS-S16, −3.48 ±3.32 over 17,058). Re-audited 2026-08-13 (`analysis/reaudit_v1.md`): BAS-O04 attributes the depth gap **95.9% to search policy, 4.1% to evaluation**, refuting the eval-symptom hypothesis. **5.4, 5.5 and 5.6 have all closed with no engine change.** The Phase-5 **budget clause has fired**: three clusters, one lost SPRT, no strength. A scope decision is now owed — continue to 5.7/5.8, or close the strength track and finish Phase 5 as maintenance (5.10–5.13, release 1.9.4) then go to NNUE. |
 | Next release | **1.10.0 at Phase 5.13** if search/HCE acceleration transfers, or a higher minor version if the cumulative gain is large. **1.9.4** is the maintenance-only fallback if the acceleration tracks close without transfer. |
 | NNUE release | **2.0.0 at Phase 7.7**, using `D:/code/net_trainer`. |
 
@@ -730,6 +730,67 @@ In observed dependency order, reconcile razoring, reverse futility, null-move
 verification, ProbCut, move-count and history pruning, and quiet/capture
 futility. Use prospective searched depth consistently. Gate categorical
 architecture before any narrow constant fit; do not launch a broad SPSA.
+
+### 5.6 — CLOSED 2026-08-13: no candidate; the budget clause now fires
+
+Full audit in `analysis/cluster56_audit_v1.md`. Engine unchanged, bench
+11,941,440, CTest 12/12.
+
+**History pruning is genuinely defective and still not a candidate.** Its
+threshold `coeff * depth` is compared against a sum of six bounded history
+channels whose maximum is 81,920, so the depth-6 threshold of 84,024 is
+**provably unsatisfiable** and depth 5 needs 85% of theoretical maximum negative
+on every channel at once. It fires 142 times in 5,355,599 tested quiets. The
+`hcefinal` SPSA stranded it above the distribution it was meant to cut.
+
+Loosening would activate a real population (`coeff/4` → 234,235 fires, 4.4%),
+but paired depth at 300k nodes is flat at every value tested (−0.019, +0.037,
+−0.019). Pruning 4–9% more quiets for no depth is exactly the trade BAS-S16
+priced at −3.48 ±3.32 Elo. Recorded with a retry trigger (BAS-D04) rather than
+gated — a coefficient change alone does not reopen it.
+
+**ProbCut's 0.4% is correct rarity, not a defect** — 56,311 cuts from 84,469
+tries, a 67% hit rate. Every other selectivity mechanism has a healthy
+population.
+
+**A harness defect was found and fixed in the same work**: `print_diag` built
+its kv line into `char buf[256]` and silently truncated the tail field, so the
+corruption scaled with counter magnitude. Caught only because the threshold
+series has a monotonicity invariant that made the result visibly impossible.
+Buffer now 512, probe on its own line.
+
+### Phase 5 budget clause — FIRED, decision belongs to the maintainer
+
+The clause named 5.5 and 5.6. **Both have closed empty**, and it says to
+re-open the question rather than argue around it.
+
+The record so far:
+
+| Step | Outcome |
+|---|---|
+| 5.1 oracle | search gap +322.7, evaluation gap +232.8 |
+| 5.2 harness | built; ordering healthy, width localised |
+| 5.3 inventory | seven items classified |
+| 5.4 cluster A | **no change** — 3 hypotheses refuted, 1 SPRT lost |
+| 5.5 cluster B | **no change** — contracts already sound |
+| 5.6 cluster C | **no change** — one real defect, not worth gating |
+
+Three clusters, one lost SPRT, no strength. The search gap is real and
+measured, but has not yielded to the levers Phase 5 was scoped to use.
+
+**Options, for the maintainer:**
+
+1. **Continue to 5.7/5.8** (extensions, root/clock). Both are re-fitted anyway
+   at Phase 8.3 once NNUE changes the score scale, so their value here is
+   partly borrowed against that step.
+2. **Close the strength track and finish Phase 5 as maintenance** — run 5.10
+   correctness, 5.11 portability/ISA, 5.12 SMP, release **1.9.4** at 5.13, then
+   go to Phase 6/7 NNUE. 5.9 is already re-scoped to roughly six minor terms
+   and the evaluation gap is NNUE's to close.
+3. Something else the evidence supports.
+
+Option 2 is what the evidence favours, but this is a scope decision and belongs
+to the maintainer, not to this document.
 
 ### 5.7 — Cluster D: extensions and depth authority
 
