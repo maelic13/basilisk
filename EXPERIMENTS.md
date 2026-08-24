@@ -24,6 +24,7 @@ for Basilisk and never bypasses Basilisk's own gates.
 - [6. Throughput, build and platforms](#6-throughput-build-and-platforms)
 - [7. Correctness and protocol lessons](#7-correctness-and-protocol-lessons)
 - [8. Cross-engine evidence imported from Rarog](#8-cross-engine-evidence-imported-from-rarog)
+- [8b. Cross-engine evidence imported from Manta](#8b-cross-engine-evidence-imported-from-manta)
 - [9. Open retry map](#9-open-retry-map)
 - [10. Template for a new experiment](#10-template-for-a-new-experiment)
 
@@ -102,7 +103,7 @@ fifty-move, 2 stalemate. **Zero forfeits.** Instrument: branch `hybrid`
 | BAS-O02 | **Evaluation isolated.** The same binary's exact-revision Stockfish HCE against Basilisk's HCE, with Stockfish's search held identical. | **264-106-30, 79.2%, ≈ +232.8 ±32 Elo.** | A second large but *smaller* deficit in HCE feature coverage. Notably below the +328.6 Rarog measured for their evaluator on the same instrument, so Basilisk's HCE is materially the better of the two — indicatively by ~96 Elo, though that is a cross-run comparison and not a controlled one. Sizes the Phase-5 HCE track and confirms it ranks second. |
 | BAS-O03 | **Mechanism.** Average completed depth and effective branching factor at equal time, from the same tournament. | Control 29.7 plies / EBF 1.51; oracle 25.2 / 1.61; **Basilisk 15.6 / 2.20**; Rarog 15.5 / 2.21. Basilisk searched *more* nodes per move than the oracle and finished **9.6 plies shallower**. | The gap is tree shape, not speed: our effective branching factor is ~2.20 against ~1.61. This is the single most actionable number the experiment produced and it points squarely at ordering, reductions and selectivity — i.e. cluster 5.4 first. It also matches durable lesson 5 in reverse: our tree is not too small, it is too wide. |
 
-| BAS-O04 | **Width attribution.** Mean completed depth over `suite_v1.epd` at a fixed 300,000 nodes, three arms, holding one side constant at a time. Run 2026-08-13 during the cluster-5.4 re-audit. | Basilisk native **20.80** (EBF 1.834); SF search + **our** eval **32.87** (1.468); SF search + SF eval **33.38** (1.459). Attribution: **search +12.07 ply = 95.9%**, evaluation +0.51 ply = 4.1%. The evaluation arm's paired split was 36 better / 42 worse. | Tree width is a **search-policy** property, not a symptom of evaluation quality — an evaluator +232.8 Elo stronger (BAS-O02) buys half a ply and is not even consistently deeper. This **refutes** the working hypothesis recorded when cluster 5.4 closed, which is withdrawn. Combined with BAS-S16 it says the reference is narrow because its decisions are better informed at the point of pruning, not because its margins are more aggressive: pruning the same decisions harder is blindness, and games price it as such. |
+| BAS-O04 | **Width attribution.** Mean completed depth over `suite_v1.epd` at a fixed 300,000 nodes, three arms, holding one side constant at a time. Run 2026-08-13 during the cluster-5.4 re-audit. | Basilisk native **20.80** (EBF 1.834); SF search + **our** eval **32.87** (1.468); SF search + SF eval **33.38** (1.459). Attribution: **search +12.07 ply = 95.9%**, evaluation +0.51 ply = 4.1%. **CORRECTED 2026-08-13** — those arms ran at unequal hash (Basilisk defaults to 64, the oracle to 16) and mixed two estimators. Re-measured with every arm at Hash 64 and one estimator: Basilisk 21.47, oracle 32.88, control 33.07 — **search 98.4%, evaluation 1.6%**. Conclusion unchanged and slightly strengthened. The EBF figures in this row are superseded by BAS-D05. The evaluation arm's paired split was 36 better / 42 worse. | Tree width is a **search-policy** property, not a symptom of evaluation quality — an evaluator +232.8 Elo stronger (BAS-O02) buys half a ply and is not even consistently deeper. This **refutes** the working hypothesis recorded when cluster 5.4 closed, which is withdrawn. Combined with BAS-S16 it says the reference is narrow because its decisions are better informed at the point of pruning, not because its margins are more aggressive: pruning the same decisions harder is blindness, and games price it as such. |
 
 **Internal consistency.** Measured directly, full Stockfish beat Basilisk 1.9.3
 by 364-33-3, ≈ **+516.1 ±59**. Composing the two isolated legs gives
@@ -130,6 +131,37 @@ search differs). Baseline artifact `tools/diag/baseline_v1.json`.
 |---|---|---|---|
 | BAS-D01 | **Where the width is not.** Move-ordering quality at the cutoff. | **First-move cutoffs 89.10%**, mean cutoff index **0.214**. Cutoff sources: TT 24.6%, good captures 49.3%, quiets 25.4%, bad captures ~0%. | Ordering is already strong and is **not** the cause of the EBF gap. This refutes the second-priority hypothesis carried into 5.2 and removes move-picker rework from cluster 5.4's likely content — a saving, since ordering work is expensive and would have been measured against an unmoving baseline. |
 | BAS-D02 | **Where the width is.** LMR gate accounting; the identity `eligible = applied + clamped_zero + Σ blocked` holds exactly on every run. | Of eligible moves only **36.1%** are reduced; **16.2%** pass every gate and then compute a reduction of **zero**; mean reduction when applied is 2.354 plies; and the **re-search rate is 1.744%**. | Reductions are far too conservative. A re-search rate near 1.7% means reductions almost never need undoing, which is the signature of under-reduction rather than of a well-tuned policy — a healthy LMR pays for its depth with visibly more re-searches. Combined with a sixth of eligible moves being reduced by zero, this is where the tree width is created. Points directly at the reduction/re-search contract, cluster **5.4.3**. |
+
+**BAS-D05 — consecutive-depth branching; the leading diagnosis is overturned**
+(16 suite positions, depths 4–11, **Hash 64 on every arm**, 2026-08-13;
+`analysis/manta_import_v1.md`). Method imported from Manta `MAN-S23`: branching
+is the ratio between consecutive depths, because a single-depth
+`nodes^(1/depth)` estimate folds in the fixed cost of the first plies. Every EBF
+figure previously recorded here used that folded estimator.
+
+| | Basilisk | SF search + our eval |
+|---|---:|---:|
+| b(4–11) aggregate | **1.692** | 1.894 |
+| per-position median | 1.699 | 1.899 |
+| nodes at depth 4 | 29,482 | 6,732 (**4.38×**) |
+| nodes at depth 11 | 1,170,224 | 588,190 (1.99×) |
+
+**Our per-ply growth is BETTER than the reference search's.** The deficit is a
+constant factor — 4.4× at depth 4 decaying to 2.0× by depth 11, which is what a
+better ratio does to a worse starting point.
+
+*Conditional lesson.* Phase 5 spent three clusters on the premise that our tree
+is too wide per ply, and every attempt to cut harder failed (BAS-S13/S14
+neutral, BAS-S16 −3.48 Elo, BAS-D04 no depth). Those failures now share one
+explanation: **the growth rate was never the deficit**, so cutting harder could
+not help. What is deficient is what a shallow subtree costs us. The 12-ply
+equal-node gap and the ~9.6-ply equal-time gap (BAS-O01/O03, engine-agnostic)
+both stand; only their attribution changes. Absolute node counts are never
+comparable across engines, but both count interior and quiescence nodes, so the
+ratio is sound in kind.
+
+*Disposition.* Supersedes the EBF framing in BAS-O03/O04. Registered as PLAN
+5.14.
 
 **BAS-D04 — history-pruning reachability** (`suite_v1.epd`, depth 12,
 2026-08-13; `analysis/cluster56_audit_v1.md`). The live condition compares
@@ -225,6 +257,7 @@ qsearch is the other candidate — qsearch is 8.09M of 23.2M total nodes.
 | **Verdict** | **Rejected.** SPRT `[0,3]` nElo accepted H0 at the bound: LLR **−2.95** against −2.94, at **17,058 games** in 3h09. Reverted — the switches were never committed active, so the accepted head is untouched at bench 11,941,440. |
 | **Result** | Elo **−3.48 ±3.32**, nElo **−5.47 ±5.21**, LOS **2.00%**. W 4,351 / L 4,522 / D 8,185, 49.50%. Ptnml(0-2) [377, 2074, 3767, 1965, 346], pairs ratio 0.94, WL/DD 0.82, draw ratio 44.17%. |
 | **Candidate** | `CheckExtPathCap=2` + `LmrAllowCheck=1`, adjudicated jointly per PLAN 5.4.4. Two binaries from revision `ce572a7` differing only in those defaults; candidate bench 8,611,045 against baseline 11,941,440. |
+| **Methodology note — CORRECTED 2026-08-13** | The two-binary design was chosen because `sprt.ps1` was believed to lack per-arm UCI options, and one PGO profile's worth of variance between arms was recorded as its unavoidable cost. **That was wrong.** `sprt.ps1` has had `-OptionsA`/`-OptionsB` since before this phase (lines 221–222), documented as letting "a single binary be A/B-tested on a UCI knob without a rebuild"; a grep for `[string]` did not match `[string[]]`. The two binaries and their variance were unnecessary. The verdict is unaffected. Future single-binary gates use `-OptionsA`/`-OptionsB`. |
 | **Conditions** | `tools/sprt.ps1` on fastchess 1.8.0, `3+0.03`, 1T, Hash 64, paired `UHO_Lichess_4852_v1.epd`, concurrency 14 pinned one core per game, standard `strength-v1` adjudication (valid — both arms share Basilisk's evaluator). |
 | **Triage** | PLAN's ordered check: (1) preconditions were healthy — BAS-D01 ordering, five live history channels; (2) the change was dependency-complete, both halves of the check-depth question moved together as 5.4.4 requires; (3) no reference constant was imported — `cap=2` came from our own sweep. So **reason 4**: for Basilisk, this mechanism does not transfer. |
 | **Conditional lesson** | Trading tree width for depth **loses** here, and durable lesson 5 lands on its other side: our width is buying something real. Note the magnitude — a **28% smaller tree** cost only **−3.48 Elo**, so the depth-for-tactics trade is nearly balanced but sits on the wrong side of zero. The pre-registered rule forbids re-running with a softer cap as though it were the same experiment; a milder setting is a new hypothesis needing a new ID and a new reason to believe it. |
@@ -383,6 +416,22 @@ Apart from the search-oracle result, the cross-review found no additional
 high-value Rarog item missing from the current Basilisk plan. The remaining
 items are already covered, contradicted by local evidence, or deliberately
 postponed to the NNUE/scaling phases.
+
+## 8b. Cross-engine evidence imported from Manta
+
+Manta is a Zig engine by the same maintainer, developed against the same
+reference snapshot. These are **imported priors**: they order and warn, and they
+never accept a Basilisk change.
+
+| ID | Manta evidence | Basilisk implication | Coverage |
+|---|---|---|---|
+| BAS-X11 | `MAN-E05` (endgame conversion grading, −16.32 Elo) and `MAN-E07` (nonlinear material imbalance, −7.00) — two faithful reference-family evaluation concepts with hand-reasoned coefficients, about **−23 Elo between them**. Manta's conclusion: adopting reference concepts with reasoned constants "reproduces its structure without its calibration". | A direct warning about **5.9 as currently scoped** — six absent terms, each hand-set and individually gated, is precisely the design that lost twice there. Manta's answer was to land structure on deterministic evidence and promote the block through **one** joint fit and **one** gate. Our HCE freeze bars that, which is further support for BAS-E07's conclusion that the evaluation gap is NNUE's to close rather than 5.9's. | 5.9 |
+| BAS-X12 | `MAN-S18` and `MAN-S20`: two selectivity clusters, 12,000 games each, that **grew** the tree (755,581→772,203 and 744,899→761,703 nodes) while losing. The direction of travel was toward more protective search while the tree was already too wide. | Converges with BAS-S13, where a more principled continuous history response also made reductions *smaller*. Selectivity work drifts toward protection unless a tree-shape measurement is checked at design time, not after. | 5.4, 5.6 |
+| BAS-X13 | `MAN-S23`: a registered pre-gate branching filter refuted a candidate "in minutes of arithmetic" where the two clusters above had cost 12,000 games each. Its `b(4-12)` measure was then found to have been decided by **one position of forty** exploding 41.5% at the endpoint depth. | Independent validation of the harness-before-SPRT discipline this phase used to reject BAS-S13/S14/S15 and BAS-D04 without spending games. The endpoint-measure trap is adopted directly: `tools/diag/branching.py` reports per-position ratios and a median beside the aggregate. | 5.2, 5.14 |
+| BAS-X14 | Manta's fit catalogue classifies coefficients **free / fixed / excluded**, excluding nonlinear king danger, capped winnability and truncated tables because "a linear count model would misrepresent their caps, squares, per-application truncation or dispatch". | Independent support for BAS-E07: our king-safety funnel is exactly that class of term, so a static linear objective cannot price it. Reinforces that our fitting method — not our effort — is what the evaluation gap reflects. | 5.9, 7.x |
+
+Manta also supplied the **method** that produced BAS-D05, which is recorded
+there rather than here because it is our own measurement.
 
 ## 9. Open retry map
 

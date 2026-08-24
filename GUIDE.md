@@ -267,52 +267,60 @@ the user explicitly abandons that program.
 
 ## What you run now
 
-**Nothing is queued, and a scope decision is owed.**
+**Nothing is queued. The budget decision is still owed — but it changed.**
 
-Cluster 5.6 closed with no candidate. **The Phase-5 budget clause has fired**:
-it named 5.5 and 5.6, and both closed empty.
+A cross-project import from Manta (`analysis/manta_import_v1.md`) **overturned
+this phase's leading diagnosis** and corrected two of our own records.
 
-### The record
+### Our branching is better than the reference's
 
-| Step | Outcome |
-|---|---|
-| 5.1 oracle | search gap **+322.7**, evaluation gap **+232.8** |
-| 5.2 harness | built; ordering healthy, width localised |
-| 5.3 inventory | seven items classified |
-| 5.4 cluster A | **no change** — 3 hypotheses refuted, 1 SPRT lost (−3.48) |
-| 5.5 cluster B | **no change** — eval/TT/qsearch contracts already sound |
-| 5.6 cluster C | **no change** — one real defect, not worth gating |
+Manta measures branching as the ratio between **consecutive depths**, because a
+single-depth `nodes^(1/depth)` estimate folds in the fixed cost of the first
+plies. Every EBF figure we acted on used that folded estimator. Measured
+properly, Hash 64 on every arm:
 
-Three clusters, one lost SPRT, no strength. The gap is real and measured; it
-has not yielded to the levers Phase 5 was scoped to use.
+| | Basilisk | SF search + our eval |
+|---|---:|---:|
+| **b(4–11)** | **1.692** | 1.894 |
+| nodes at depth 4 | 29,482 | 6,732 — **4.38×** |
+| nodes at depth 11 | 1,170,224 | 588,190 — 1.99× |
 
-### 5.6 in one paragraph
+**Our per-ply growth is better.** The deficit is a **constant factor**: a
+depth-4 search costs us 4.4× what it costs the reference, decaying to 2× by
+depth 11 exactly as a better ratio predicts.
 
-History pruning is genuinely broken — its threshold scales with depth against a
-bounded signal, so at depth 6 it is provably unsatisfiable, and it fires 142
-times in 5.36M tested quiets. But reviving it buys **no depth**, and BAS-S16
-already priced "smaller tree, no depth" at −3.48 Elo. Recorded with a retry
-trigger rather than gated. ProbCut's 0.4% turned out to be correct rarity, at a
-67% hit rate.
+That explains all three failed clusters at once — 5.4, 5.5 and 5.6 attacked
+per-ply width, which was never deficient. Cutting harder could not help, and
+BAS-S16 charged −3.48 Elo for trying. **New step 5.14** owns the real target.
 
-I also found and fixed a harness bug: the diag line was built into a 256-byte
-buffer and silently truncated its tail field, so corruption scaled with counter
-size. It was caught only because that particular series has a monotonicity
-invariant which made the wrong answer visibly impossible — one without such an
-invariant would have been believed.
+### Two corrections to our own records
 
-### The decision
+- **Hash was not held constant.** Basilisk defaults to 64, the oracle to 16,
+  and our harness never set it — the same splice Manta had to retract. Redone
+  at Hash 64: search **98.4%** / evaluation **1.6%** (was 95.9/4.1). Conclusion
+  unchanged, slightly strengthened. `--hash` is now explicit in both tools.
+- **BAS-S16 did not need two binaries.** I recorded that `sprt.ps1` lacks
+  per-arm UCI options. It has had `-OptionsA`/`-OptionsB` all along; my grep for
+  `[string]` missed `[string[]]`. The PGO-profile variance we accepted was
+  avoidable. The verdict stands; the methodology note was wrong.
 
-1. **Continue to 5.7/5.8** (extensions, root/clock) — both get re-fitted at
-   Phase 8.3 anyway once NNUE moves the score scale.
-2. **Close the strength track; finish Phase 5 as maintenance** — 5.10
-   correctness, 5.11 portability/ISA, 5.12 SMP, release **1.9.4** at 5.13, then
-   Phase 6/7 NNUE. 5.9 is already re-scoped to ~6 minor terms, and the −232.8
-   evaluation gap is NNUE's to close.
-3. Something else the evidence supports.
+### Tools
 
-**Option 2 is what the evidence favours** — but it is a scope decision and it
-is yours, not mine.
+Adopted: `tools/diag/branching.py` (new capability), explicit `--hash`,
+per-position medians beside aggregates. **Kept ours:** `sprt.ps1` and
+`harness_common.ps1` — Manta's differences are refactoring plus `-Nodes`, which
+our clock-based gates do not need, and ours is what BAS-M01/M02 calibrated. **No
+value here:** Manta's Zig-native HCE fit substrate, since our HCE is frozen.
+
+### The decision, restated
+
+Options 1 and 2 stand as before, but the input has changed: the case for
+closing the strength track rested on "three clusters found nothing", and we now
+know all three were aimed at the wrong quantity. **5.14 is a bounded diagnostic,
+not a fourth pruning cluster** — it names a cause or it closes.
+
+I would run 5.14 before taking the decision. It is cheap, and deciding without
+it means choosing on a diagnosis we have just shown was wrong.
 
 ### Acceleration step lifecycle (5.4–5.9)
 

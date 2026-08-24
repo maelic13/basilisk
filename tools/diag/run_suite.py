@@ -178,6 +178,14 @@ def main():
     ap.add_argument("--suite", default=str(REPO / "tools" / "diag" / "suite_v1.epd"))
     ap.add_argument("--depth", type=int, default=14)
     ap.add_argument("--nodes", type=int, default=300000)
+    # HASH IS PART OF THE MEASUREMENT. Imported from Manta MAN-S23, which found
+    # its own branching baseline had spliced 16 MiB and 64 MiB runs: the same
+    # engine scored 171,653,746 nodes at depth 12 with 16 MiB against
+    # 159,169,542 with 64 MiB, ~8%. Our own cross-engine runs had the same flaw
+    # -- Basilisk defaults to Hash 64 and the Stockfish-based oracle to 16 --
+    # so every arm is now set explicitly and the size belongs in the report.
+    ap.add_argument("--hash", type=int, default=64,
+                    help="Hash MiB applied to EVERY arm; never compare sizes")
     ap.add_argument("--out", default=None)
     ap.add_argument("--option", action="append", default=[], metavar="Name=Value",
                     help="UCI setoption applied to the engine under test "
@@ -193,8 +201,9 @@ def main():
 
     # A fresh engine process is started per position, so options are re-applied
     # every time rather than once at startup.
-    engine_opts = [f"setoption name {o.split('=', 1)[0]} value {o.split('=', 1)[1]}"
-                   for o in args.option]
+    engine_opts = ["setoption name Hash value %d" % args.hash]
+    engine_opts += [f"setoption name {o.split('=', 1)[0]} value {o.split('=', 1)[1]}"
+                    for o in args.option]
     if engine_opts:
         report["engine_options"] = args.option
         print("engine options: " + ", ".join(args.option))
@@ -220,7 +229,8 @@ def main():
     report["lmr_identity_ok"] = ident_ok
 
     if args.oracle:
-        opts = [f"setoption name Use Basilisk HCE value {args.oracle_hce}"]
+        opts = ["setoption name Hash value %d" % args.hash,
+                f"setoption name Use Basilisk HCE value {args.oracle_hce}"]
         rows = run_differential(pathlib.Path(args.engine), pathlib.Path(args.oracle),
                                 fens, args.nodes, opts, engine_opts)
         report["differential"] = rows

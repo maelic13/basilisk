@@ -12,7 +12,7 @@ user-facing and must not contain experiment bookkeeping.
 | Branches | `master` and `v1.9.3` are at `d737123`; `development` is at `16eff20` with documentation/tooling/benchmark work. The only `src/` divergence is a comment-only edit in `search_params.h`, so playing code is unchanged. `origin/nnue` is an obsolete partial implementation whose useful seams must be reimplemented against the current trainer contract. `origin/arm_fix` is the one-commit `67a987b` TT-alignment experiment; Phase 5.11 closes the invalid wrapper hypothesis and retains only evidence-backed portability work. |
 | Released baseline | **Basilisk 1.9.3**, bench-13 fingerprint **11,941,440**. It is search-identical to 1.9.2; 1.9.3 repaired Clang/`llvm-profdata` PGO tool matching. Reproduced clean at Phase 5.0 (see below). |
 | Evaluation | The accepted HCE is the comparison/fallback evaluator. Constant refitting stays frozen; **structural** feature work is unfrozen at Phase 5.9 only. Phase 10 is the optional HCE fallback, entered only if NNUE is abandoned. |
-| Active work | No Basilisk candidate or tuner is active; the machine is free. Phase 5.1–5.4 closed. Cluster A produced **no accepted change** — reduction magnitude refuted on the harness (BAS-S13/S14/S15) and check-depth rejected by games (BAS-S16, −3.48 ±3.32 over 17,058). Re-audited 2026-08-13 (`analysis/reaudit_v1.md`): BAS-O04 attributes the depth gap **95.9% to search policy, 4.1% to evaluation**, refuting the eval-symptom hypothesis. **5.4, 5.5 and 5.6 have all closed with no engine change.** The Phase-5 **budget clause has fired**: three clusters, one lost SPRT, no strength. A scope decision is now owed — continue to 5.7/5.8, or close the strength track and finish Phase 5 as maintenance (5.10–5.13, release 1.9.4) then go to NNUE. |
+| Active work | No Basilisk candidate or tuner is active; the machine is free. Phase 5.1–5.4 closed. Cluster A produced **no accepted change** — reduction magnitude refuted on the harness (BAS-S13/S14/S15) and check-depth rejected by games (BAS-S16, −3.48 ±3.32 over 17,058). Re-audited 2026-08-13 (`analysis/reaudit_v1.md`): BAS-O04 attributes the depth gap **95.9% to search policy, 4.1% to evaluation**, refuting the eval-symptom hypothesis. **5.4, 5.5 and 5.6 closed with no engine change and the budget clause fired.** But the 2026-08-13 Manta import (BAS-D05) shows all three attacked a quantity that was never deficient: our per-ply branching is **1.692 against the reference's 1.894**, and the real deficit is a **4.4× constant-factor cost at shallow depth**. New step **5.14** owns that; the budget decision should be taken with it in view. |
 | Next release | **1.10.0 at Phase 5.13** if search/HCE acceleration transfers, or a higher minor version if the cumulative gain is large. **1.9.4** is the maintenance-only fallback if the acceleration tracks close without transfer. |
 | NNUE release | **2.0.0 at Phase 7.7**, using `D:/code/net_trainer`. |
 
@@ -862,6 +862,48 @@ route (BAS-X02, +6.75 in Basilisk) rather than from HCE feature work.
 Gate each feature candidate on games like any other. If two consecutive HCE
 candidates fail, close this track and carry the residual into NNUE data
 selection.
+
+### 5.14 — Shallow-depth node cost (NEW 2026-08-13, from the Manta import)
+
+**Why this exists.** Importing Manta's consecutive-depth branching method
+(BAS-D05) overturned this phase's leading diagnosis. Measured properly, at
+Hash 64 on every arm:
+
+| | Basilisk | SF search + our eval |
+|---|---:|---:|
+| b(4–11) | **1.692** | 1.894 |
+| nodes at depth 4 | 29,482 | 6,732 — **4.38×** |
+| nodes at depth 11 | 1,170,224 | 588,190 — 1.99× |
+
+**Our per-ply growth is better than the reference's.** Every EBF figure this
+phase acted on came from `nodes^(1/depth)`, which folds the fixed cost of the
+first plies into the estimate and pointed at the wrong quantity.
+
+That explains the three failed clusters at once: 5.4, 5.5 and 5.6 all attacked
+per-ply width, which was never deficient. Cutting harder could not help, and
+BAS-S16 charged −3.48 Elo for trying.
+
+**The target.** A depth-4 search costs us **4.4×** what it costs the reference,
+and the multiple decays with depth exactly as a better ratio predicts. The
+deficit is concentrated in shallow subtrees. Nothing in Phase 5 has examined
+that, because the whole phase was framed around growth rate.
+
+**Scope, deliberately narrow.**
+
+- Diagnostic first. Decompose the depth-4 cost: interior against quiescence,
+  nodes per root move, re-searches from aspiration, and how much is spent
+  before the first fail-high. The 5.2 substrate already carries most of it.
+- No candidate until the decomposition names a cause. This step is registered
+  as measurement, not as a fourth pruning cluster — the budget clause forbids
+  inventing one of those, and this is not that.
+- If the cause is a mechanism, it becomes an ordinary registered candidate with
+  its own gate. If it is a cost we cannot move, the step closes and the budget
+  decision proceeds unchanged.
+
+**Caveat.** Absolute node counts are not comparable across engines; the ratio
+is. The 4.4× is stated as an observation about our own cost curve set beside
+theirs, and the equal-time gap from BAS-O01/O03 — 15.6 plies against 25.2 — is
+the engine-agnostic evidence that the deficit is real.
 
 ### 5.10 — Correctness and safety repairs only
 
