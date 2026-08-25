@@ -269,25 +269,41 @@ the user explicitly abandons that program.
 
 **5.14 is done. Next is 5.9 — the HCE maturity program.**
 
-### 5.14 result: the target is depths 2–6
+### 5.14 result — revised after measuring to depth 19
 
-| depth | 1 | 2 | 3 | **4** | 6 | 8 | 11 |
+Stopping at depth 11 was a blind spot and it produced the wrong conclusion.
+
+| depth | 4 | 8 | 11 | 13 | 15 | 17 | 19 |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Basilisk / oracle nodes | 1.50× | 3.12× | 3.41× | **4.38×** | 3.45× | 3.18× | 1.99× |
+| Basilisk / oracle nodes | 4.38× | 3.18× | 1.99× | 2.06× | 1.75× | 1.92× | 1.80× |
 
-Not startup overhead — the excess *rises* to a peak at depth 4, then decays as
-our better branching ratio (1.692 vs 1.894) erodes it. Interior and quiescence
-carry the **same** ratio at every depth, so this is one cause in both, not two.
+| segment | Basilisk | oracle |
+|---|---:|---:|
+| b(4–11) | 1.692 | 1.894 |
+| **b(11–19)** | **1.570** | **1.590** |
 
-The band is where razoring (`<= 3`), futility, LMP and history pruning (`<= 6`)
-live — and **Phase 5 has never tested it**. Clusters 5.4 and 5.6 judged
-candidates on depth-at-300k-nodes, dominated by deep search, which a
-shallow-band saving barely moves. BAS-D04's "no depth" on history pruning is
-consistent with that, not contradicted: the metric was insensitive to where the
-mechanism acts. Any future cluster here needs a band-sensitive metric —
-nodes-to-fixed-depth over 2–6 — defined *before* a candidate (BAS-X13).
+**Two things I had wrong:**
 
-No candidate proposed; 5.14 was a diagnostic and it named its cause.
+- **Deep branching is equal, not better for us.** The "our growth is better"
+  claim came from the shallow segment only. Over 11–19 — where games run — the
+  two are indistinguishable. So the ratio **plateaus at ~1.9× and never closes**;
+  the crossover I projected does not exist.
+- **The gap is 4 plies, not 12.** BAS-O04's 12.07 was a mean over a distribution
+  with forced mates running to depth 100 and 245 (10 of 105 positions ≥100). The
+  **median is 4.00**. Every "12 plies shallower" statement overstated by ~3×.
+  Paired comparisons were never affected — only the absolute means.
+
+**The real target:** a persistent ~1.9× node multiplier across the whole playing
+range, set by about depth 4 and then carried. Because deep branching is equal, a
+saving achieved by depth ~11 propagates unchanged — so depths 2–6 remain the
+place to attack, but because they set a multiplier that never decays.
+
+**One thing left open:** a 1.9× cost at b≈1.55 predicts ~1.5 plies, but the
+measured median gap is 4.0. About 2.5 plies is unexplained — possibly the
+16-position summed sample not representing the 107-position median, possibly a
+difference in when an iteration counts as complete. **No cluster should open
+against the shallow band until that is settled**, or its metric inherits the
+same ambiguity.
 
 ### The HCE is unfrozen (2026-08-25)
 

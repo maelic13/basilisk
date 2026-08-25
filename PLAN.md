@@ -938,31 +938,50 @@ is. The 4.4× is stated as an observation about our own cost curve set beside
 theirs, and the equal-time gap from BAS-O01/O03 — 15.6 plies against 25.2 — is
 the engine-agnostic evidence that the deficit is real.
 
-### 5.14 — CLOSED 2026-08-25: the target is depths 2–6
+### 5.14 — CLOSED 2026-08-25 (revised same day after measuring to depth 19)
 
-Full result in `analysis/step514_shallow_cost.md`, recorded as BAS-D06. Engine
-unchanged, bench 11,941,440.
+Results in `analysis/step514_shallow_cost.md`; evidence BAS-D06 and **BAS-D07**.
+Engine unchanged, bench 11,941,440.
 
-| depth | 1 | 2 | 3 | **4** | 6 | 8 | 11 |
+The first pass stopped at depth 11 and drew the wrong conclusion. Extended to
+depth 19 — the range games actually reach — the picture changes:
+
+| depth | 4 | 8 | 11 | 13 | 15 | 17 | 19 |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Basilisk / oracle | 1.50× | 3.12× | 3.41× | **4.38×** | 3.45× | 3.18× | 1.99× |
+| Basilisk / oracle nodes | 4.38× | 3.18× | 1.99× | 2.06× | 1.75× | 1.92× | 1.80× |
 
-The excess is **not** startup overhead — it rises to a peak at depth 4 and then
-decays. Interior and quiescence carry the same ratio at every depth and converge
-together, so this is **one** cause expressed in both, not two.
+| segment | Basilisk | oracle |
+|---|---:|---:|
+| b(4–11) | 1.692 | 1.894 |
+| **b(11–19)** | **1.570** | **1.590** |
 
-**The target band is depths 2–6**, where razoring (`<= 3`), futility, late-move
-pruning and history pruning (`<= 6`) live. Phase 5 has never tested that band:
-5.4 and 5.6 judged their candidates on depth reached at 300,000 nodes, which is
-dominated by deep search and barely moves on a shallow-band saving. BAS-D04's
-"no depth" verdict on history pruning is consistent with that rather than
-contradicted by it — the metric was insensitive to where the mechanism acts.
+**Two corrections to what this phase believed.**
 
-**No candidate proposed.** 5.14 was registered as a diagnostic that names a
-cause or closes, and it named one. Opening a cluster against the shallow band
-requires a metric sensitive to that band — nodes-to-fixed-depth in the 2–6
-range, not depth-at-fixed-nodes — defined before any candidate, per the
-endpoint-measure lesson (BAS-X13).
+1. **Deep branching is equal, not better for us.** BAS-D05's "our growth is
+   better" came from the 4–11 segment alone; over 11–19 the two are
+   indistinguishable (medians 1.548 against 1.558). The ratio therefore
+   **plateaus at ~1.8–2.0× and never closes** — the projected crossover does not
+   exist.
+2. **The gap is 4 plies, not 12.** BAS-O04's 12.07 was a mean over a
+   distribution containing forced mates reaching depth 100 and 245; 10 of 105
+   positions hit depth ≥100. The **median gap is 4.00 plies**. Every "12 plies
+   shallower" statement in this plan overstates by about three times.
+
+**What the target actually is.** A persistent ~1.9× node multiplier across the
+whole playing range, established by roughly depth 4 and then carried. Because
+deep branching is equal, **a node saving achieved by depth ~11 propagates
+unchanged through the playing range** — so the depth 2–6 band remains the place
+to attack, but because it sets a multiplier that never decays, not because the
+excess is concentrated there.
+
+**One discrepancy left open.** A flat 1.9× cost at b≈1.55 predicts ~1.5 plies,
+while the measured median gap is 4.0. About 2.5 plies is unexplained. Candidate
+causes, not yet separated: the 16-position summed branching sample is dominated
+by its most expensive positions and may not represent the 107-position median,
+and the engines may differ in when an iteration counts as complete. Recorded as
+open rather than resolved by picking the convenient number. **A cluster against
+the shallow band should not open until this is settled** — otherwise its metric
+inherits the same ambiguity.
 
 ### 5.10 — Correctness and safety repairs only
 

@@ -68,3 +68,33 @@ depths 2–6, present in interior and quiescence alike.
 Recorded as **BAS-D06**. Whether to open a cluster against the shallow band is
 part of the pending budget decision, now taken alongside the maintainer's
 2026-08-25 decision to unfreeze the HCE and run 5.9 as a maturity program.
+
+---
+
+## Revision, same day — measured to depth 19
+
+Stopping at depth 11 was a blind spot; games reach 15–25 plies and the ratio was
+still moving. Extended:
+
+| depth | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| ratio | 1.99× | 1.78× | 2.06× | 2.06× | 1.75× | 1.95× | 1.92× | 1.86× | 1.80× |
+
+| segment | Basilisk | oracle |
+|---|---:|---:|
+| b(4–11) | 1.692 | 1.894 |
+| b(11–19) | **1.570** | **1.590** |
+| b(11–19) per-position median | 1.548 | 1.558 |
+
+**The ratio plateaus at ~1.8–2.0× and does not close.** Deep branching is
+**equal**, not better for us — the shallow-segment advantage was an artifact of
+that band and does not describe asymptotic behaviour. The crossover projected
+from the 4–11 data does not exist.
+
+**BAS-O04's 12-ply gap is also corrected.** It was a mean over a distribution
+containing forced mates at depth 100 and 245; 10 of 105 positions reached ≥100.
+The median gap is **4.00 plies** (13 against 17).
+
+**Open discrepancy.** A flat 1.9× cost at b≈1.55 predicts ~1.5 plies against a
+measured median of 4.0; ~2.5 plies is unexplained. Recorded as open. A cluster
+against the shallow band should wait until it is settled.
