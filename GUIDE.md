@@ -293,10 +293,21 @@ Stopping at depth 11 was a blind spot and it produced the wrong conclusion.
   **median is 4.00**. Every "12 plies shallower" statement overstated by ~3×.
   Paired comparisons were never affected — only the absolute means.
 
-**The real target:** a persistent ~1.9× node multiplier across the whole playing
-range, set by about depth 4 and then carried. Because deep branching is equal, a
-saving achieved by depth ~11 propagates unchanged — so depths 2–6 remain the
-place to attack, but because they set a multiplier that never decays.
+**Correction 3 — there is no shallow target.** Differencing the cumulative
+counts gives each iteration's own cost:
+
+| depth | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| per-iteration ratio | 1.56× | 2.56× | 2.05× | 1.31× | 2.37× | 1.85× | 1.75× | 1.69× |
+
+Our depth-19 **iteration itself** costs ~1.7× theirs — the cumulative ratio is
+flat because every iteration costs that multiple, not because shallow overhead
+is carried. And **depths ≤6 are 0.205% of a depth-19 search**: deleting the band
+outright would change nothing.
+
+So **5.14 yields no actionable target.** The deficit is a uniform ~1.9×
+per-iteration cost at every depth, with no band where work pays
+disproportionately — the same wall 5.4–5.6 hit.
 
 **One thing left open:** a 1.9× cost at b≈1.55 predicts ~1.5 plies, but the
 measured median gap is 4.0. About 2.5 plies is unexplained — possibly the

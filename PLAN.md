@@ -967,12 +967,27 @@ depth 19 — the range games actually reach — the picture changes:
    positions hit depth ≥100. The **median gap is 4.00 plies**. Every "12 plies
    shallower" statement in this plan overstates by about three times.
 
-**What the target actually is.** A persistent ~1.9× node multiplier across the
-whole playing range, established by roughly depth 4 and then carried. Because
-deep branching is equal, **a node saving achieved by depth ~11 propagates
-unchanged through the playing range** — so the depth 2–6 band remains the place
-to attack, but because it sets a multiplier that never decays, not because the
-excess is concentrated there.
+**Correction 3 (BAS-D08) — there is no shallow target, and 5.14 yields none.**
+Differencing the cumulative counts gives each iteration's own cost:
+
+| depth | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| per-iteration ratio | 1.56× | 2.56× | 2.05× | 1.31× | 2.37× | 1.85× | 1.75× | 1.69× |
+
+Our depth-19 **iteration itself** costs ~1.7× theirs. The cumulative ratio sits
+near 1.9× because every iteration costs about that multiple — not because a
+shallow overhead is carried. And **depths ≤6 are 0.205% of a depth-19 search**,
+so removing that band entirely would change nothing.
+
+Both earlier readings of this step were wrong: the depth-4 peak of 4.38× is an
+artifact of cumulative accounting, and the "a saving propagates unchanged"
+argument inferred a mechanism from a constant ratio whose simpler explanation is
+a uniform per-iteration multiple.
+
+**5.14 therefore produces no actionable target.** The deficit is a uniform ~1.9×
+per-iteration cost at all depths, with no band where work pays
+disproportionately — which is the same wall clusters 5.4–5.6 hit. The ~2.5-ply
+discrepancy from BAS-D07 is the only concrete unexplained quantity left here.
 
 **One discrepancy left open.** A flat 1.9× cost at b≈1.55 predicts ~1.5 plies,
 while the measured median gap is 4.0. About 2.5 plies is unexplained. Candidate

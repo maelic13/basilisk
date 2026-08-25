@@ -132,6 +132,37 @@ search differs). Baseline artifact `tools/diag/baseline_v1.json`.
 | BAS-D01 | **Where the width is not.** Move-ordering quality at the cutoff. | **First-move cutoffs 89.10%**, mean cutoff index **0.214**. Cutoff sources: TT 24.6%, good captures 49.3%, quiets 25.4%, bad captures ~0%. | Ordering is already strong and is **not** the cause of the EBF gap. This refutes the second-priority hypothesis carried into 5.2 and removes move-picker rework from cluster 5.4's likely content — a saving, since ordering work is expensive and would have been measured against an unmoving baseline. |
 | BAS-D02 | **Where the width is.** LMR gate accounting; the identity `eligible = applied + clamped_zero + Σ blocked` holds exactly on every run. | Of eligible moves only **36.1%** are reduced; **16.2%** pass every gate and then compute a reduction of **zero**; mean reduction when applied is 2.354 plies; and the **re-search rate is 1.744%**. | Reductions are far too conservative. A re-search rate near 1.7% means reductions almost never need undoing, which is the signature of under-reduction rather than of a well-tuned policy — a healthy LMR pays for its depth with visibly more re-searches. Combined with a sixth of eligible moves being reduced by zero, this is where the tree width is created. Points directly at the reduction/re-search contract, cluster **5.4.3**. |
 
+**BAS-D08 — per-iteration cost; there is no shallow target** (same runs,
+2026-08-25). Cumulative counts hide where the cost is. Differencing them gives
+the cost of each iteration on its own:
+
+| depth | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| per-iteration ratio | 1.56× | 2.56× | 2.05× | 1.31× | 2.37× | 1.85× | 1.75× | 1.69× |
+
+Our **depth-19 iteration itself** costs about 1.7× theirs. The cumulative ratio
+sits near 1.9× because the per-iteration ratio is near 1.9× at every depth — not
+because a shallow overhead is carried forward.
+
+**Depths ≤6 are 0.205% of a depth-19 search.** Removing that entire band
+outright would change nothing.
+
+*Correction.* BAS-D06 and BAS-D07 both concluded that depths 2–6 were the place
+to attack — first because the excess peaked there, then because a saving there
+would "propagate unchanged". **Both readings were wrong.** The depth-4 peak of
+4.38× is an artifact of cumulative accounting: at shallow depths the early
+iterations are most of the total, so their ratio dominates it. The propagation
+argument was worse — it inferred a mechanism from a constant ratio when the
+constancy has the simpler explanation that every iteration costs the same
+multiple.
+
+*Disposition.* **5.14 yields no localized target.** The deficit is a uniform
+per-iteration cost multiplier of roughly 1.9× at all depths, with no band where
+work would pay disproportionately. Any attack has to make the whole search
+cheaper per unit depth, which is what clusters 5.4–5.6 already failed to do. The
+~2.5-ply discrepancy from BAS-D07 remains open and is now the only concrete
+unexplained quantity left in this line of enquiry.
+
 **BAS-D07 — deep-segment branching; corrects BAS-D05 and BAS-O04** (16 suite
 positions, depths 11–19, Hash 64 every arm, 2026-08-25). Measuring only to depth
 11 was a blind spot: games reach 15–25 plies and the ratio was still moving.

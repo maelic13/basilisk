@@ -98,3 +98,30 @@ The median gap is **4.00 plies** (13 against 17).
 **Open discrepancy.** A flat 1.9× cost at b≈1.55 predicts ~1.5 plies against a
 measured median of 4.0; ~2.5 plies is unexplained. Recorded as open. A cluster
 against the shallow band should wait until it is settled.
+
+---
+
+## Second revision — per-iteration cost, and the step yields nothing
+
+Cumulative counts hide where cost lives. Differenced:
+
+| depth | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| per-iteration ratio | 1.56× | 2.56× | 2.05× | 1.31× | 2.37× | 1.85× | 1.75× | 1.69× |
+
+Our depth-19 iteration on its own costs ~1.7× theirs. The flat cumulative ratio
+has the simple explanation that **every** iteration costs about 1.9×, not that a
+shallow overhead propagates.
+
+**Depths ≤6 are 0.205% of a depth-19 search.** Deleting the band would change
+nothing.
+
+Both earlier conclusions of this step are withdrawn. The depth-4 peak of 4.38×
+is an artifact of cumulative accounting — at shallow depths the early iterations
+*are* most of the total. The "propagates unchanged" argument inferred a
+mechanism from a constant ratio whose simpler cause is a uniform multiple.
+
+**Disposition: 5.14 produces no actionable target.** A uniform per-iteration
+cost multiplier is the same wall clusters 5.4–5.6 hit from other directions. The
+~2.5-ply discrepancy in the previous section is the only concrete unexplained
+quantity remaining.
