@@ -181,18 +181,18 @@ before the next starts
 
 **Evaluation gap closure**
 
-- [ ] **5.9 HCE structural gap closure — RE-SCOPED, expect small.** Maturity
-      audit done (`analysis/hce_maturity_v1.md`, BAS-E07): our HCE is
-      **structurally mature, functionally behind**. Term coverage vs the
-      reference is near-complete — only `BadOutpost`, `BishopXRayPawns`,
-      `LongDiagonalBishop`, `KnightOnQueen`, `SliderOnQueen`, `TrappedRook`
-      are absent — yet the evaluators correlate at only **r = 0.790**, ours
-      compressed ~**1.75×**, disagreeing on **which side is better in 17%** of
-      positions. So the −232.8 Elo gap is in the *values*, not the features,
-      and this step bars constant refitting. **It therefore cannot close the
-      gap it was created to close**; its realistic yield is those six terms.
-      A small result here is the expected result, not a failure, and is not
-      grounds to reopen the refit. **The evaluation gap is NNUE's to close.**
+- [ ] **5.9 HCE maturity program — UNFROZEN 2026-08-25.** The HCE is no longer
+      frozen. Ordered: **5.9.1** implement the six absent terms (`BadOutpost`,
+      `BishopXRayPawns`, `LongDiagonalBishop`, `KnightOnQueen`, `SliderOnQueen`,
+      `TrappedRook`) plus the safe-square pawn-threat qualifier, landed inert on
+      deterministic evidence — **no individual SPRT**, that design lost twice in
+      Manta (BAS-X11, ~−23 Elo); **5.9.2** hunt terms we price in simpler form
+      than the reference; **5.9.3** freeze structure; **5.9.4** joint Texel refit
+      of the *enlarged* surface, coefficients classified free/fixed/excluded
+      first (BAS-X14); **5.9.5** one registered SPSA over what Texel cannot price
+      — the capped nonlinear king-danger funnel; **5.9.6** one promoting SPRT
+      plus post-fit ablation. Cycle 6's wash forbids refitting the *same*
+      features, not an enlarged surface — that is what makes this a real retry.
 
 **Consolidation and release**
 
@@ -267,60 +267,51 @@ the user explicitly abandons that program.
 
 ## What you run now
 
-**Nothing is queued. The budget decision is still owed — but it changed.**
+**5.14 is done. Next is 5.9 — the HCE maturity program.**
 
-A cross-project import from Manta (`analysis/manta_import_v1.md`) **overturned
-this phase's leading diagnosis** and corrected two of our own records.
+### 5.14 result: the target is depths 2–6
 
-### Our branching is better than the reference's
+| depth | 1 | 2 | 3 | **4** | 6 | 8 | 11 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Basilisk / oracle nodes | 1.50× | 3.12× | 3.41× | **4.38×** | 3.45× | 3.18× | 1.99× |
 
-Manta measures branching as the ratio between **consecutive depths**, because a
-single-depth `nodes^(1/depth)` estimate folds in the fixed cost of the first
-plies. Every EBF figure we acted on used that folded estimator. Measured
-properly, Hash 64 on every arm:
+Not startup overhead — the excess *rises* to a peak at depth 4, then decays as
+our better branching ratio (1.692 vs 1.894) erodes it. Interior and quiescence
+carry the **same** ratio at every depth, so this is one cause in both, not two.
 
-| | Basilisk | SF search + our eval |
-|---|---:|---:|
-| **b(4–11)** | **1.692** | 1.894 |
-| nodes at depth 4 | 29,482 | 6,732 — **4.38×** |
-| nodes at depth 11 | 1,170,224 | 588,190 — 1.99× |
+The band is where razoring (`<= 3`), futility, LMP and history pruning (`<= 6`)
+live — and **Phase 5 has never tested it**. Clusters 5.4 and 5.6 judged
+candidates on depth-at-300k-nodes, dominated by deep search, which a
+shallow-band saving barely moves. BAS-D04's "no depth" on history pruning is
+consistent with that, not contradicted: the metric was insensitive to where the
+mechanism acts. Any future cluster here needs a band-sensitive metric —
+nodes-to-fixed-depth over 2–6 — defined *before* a candidate (BAS-X13).
 
-**Our per-ply growth is better.** The deficit is a **constant factor**: a
-depth-4 search costs us 4.4× what it costs the reference, decaying to 2× by
-depth 11 exactly as a better ratio predicts.
+No candidate proposed; 5.14 was a diagnostic and it named its cause.
 
-That explains all three failed clusters at once — 5.4, 5.5 and 5.6 attacked
-per-ply width, which was never deficient. Cutting harder could not help, and
-BAS-S16 charged −3.48 Elo for trying. **New step 5.14** owns the real target.
+### The HCE is unfrozen (2026-08-25)
 
-### Two corrections to our own records
+5.9 is now a maturity program, ordered so it respects the evidence rather than
+repeating it:
 
-- **Hash was not held constant.** Basilisk defaults to 64, the oracle to 16,
-  and our harness never set it — the same splice Manta had to retract. Redone
-  at Hash 64: search **98.4%** / evaluation **1.6%** (was 95.9/4.1). Conclusion
-  unchanged, slightly strengthened. `--hash` is now explicit in both tools.
-- **BAS-S16 did not need two binaries.** I recorded that `sprt.ps1` lacks
-  per-arm UCI options. It has had `-OptionsA`/`-OptionsB` all along; my grep for
-  `[string]` missed `[string[]]`. The PGO-profile variance we accepted was
-  avoidable. The verdict stands; the methodology note was wrong.
+| | |
+|---|---|
+| 5.9.1 | six absent terms + safe-square pawn threats, landed inert on deterministic evidence — **no individual SPRTs** |
+| 5.9.2 | terms we price in simpler form than the reference |
+| 5.9.3 | structure freeze |
+| 5.9.4 | joint Texel refit of the **enlarged** surface, coefficients classified free/fixed/excluded first |
+| 5.9.5 | one registered SPSA over what Texel cannot price — the capped king-danger funnel |
+| 5.9.6 | one promoting SPRT + post-fit ablation |
 
-### Tools
+Why this is a real retry and not a repeat of cycle 6: **cycle 6 refit the same
+features and washed at +1.37 ±5.21. This refits an enlarged surface.** And
+individual hand-set reference-family terms are exactly what lost ~−23 Elo across
+two Manta gates, which is why 5.9.1/5.9.2 carry no SPRT of their own.
 
-Adopted: `tools/diag/branching.py` (new capability), explicit `--hash`,
-per-position medians beside aggregates. **Kept ours:** `sprt.ps1` and
-`harness_common.ps1` — Manta's differences are refactoring plus `-Nodes`, which
-our clock-based gates do not need, and ours is what BAS-M01/M02 calibrated. **No
-value here:** Manta's Zig-native HCE fit substrate, since our HCE is frozen.
-
-### The decision, restated
-
-Options 1 and 2 stand as before, but the input has changed: the case for
-closing the strength track rested on "three clusters found nothing", and we now
-know all three were aimed at the wrong quantity. **5.14 is a bounded diagnostic,
-not a fourth pruning cluster** — it names a cause or it closes.
-
-I would run 5.14 before taking the decision. It is cheap, and deciding without
-it means choosing on a diagnosis we have just shown was wrong.
+Honest expectation: BAS-E07 measured the −232.8 Elo gap as calibration at
+fishtest scale, which we cannot reproduce. Expect a real but bounded gain, not a
+material fraction of it — and note the work is not lost either way, since a
+stronger HCE is a better NNUE teacher at 7.1.
 
 ### Acceleration step lifecycle (5.4–5.9)
 

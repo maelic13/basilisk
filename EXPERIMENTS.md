@@ -132,6 +132,38 @@ search differs). Baseline artifact `tools/diag/baseline_v1.json`.
 | BAS-D01 | **Where the width is not.** Move-ordering quality at the cutoff. | **First-move cutoffs 89.10%**, mean cutoff index **0.214**. Cutoff sources: TT 24.6%, good captures 49.3%, quiets 25.4%, bad captures ~0%. | Ordering is already strong and is **not** the cause of the EBF gap. This refutes the second-priority hypothesis carried into 5.2 and removes move-picker rework from cluster 5.4's likely content — a saving, since ordering work is expensive and would have been measured against an unmoving baseline. |
 | BAS-D02 | **Where the width is.** LMR gate accounting; the identity `eligible = applied + clamped_zero + Σ blocked` holds exactly on every run. | Of eligible moves only **36.1%** are reduced; **16.2%** pass every gate and then compute a reduction of **zero**; mean reduction when applied is 2.354 plies; and the **re-search rate is 1.744%**. | Reductions are far too conservative. A re-search rate near 1.7% means reductions almost never need undoing, which is the signature of under-reduction rather than of a well-tuned policy — a healthy LMR pays for its depth with visibly more re-searches. Combined with a sixth of eligible moves being reduced by zero, this is where the tree width is created. Points directly at the reduction/re-search contract, cluster **5.4.3**. |
 
+**BAS-D06 — shallow-depth node cost, step 5.14** (16 suite positions, Hash 64
+every arm, fresh process per depth, 2026-08-25;
+`analysis/step514_shallow_cost.md`). Cumulative nodes to reach each depth,
+Basilisk against SF search driving our own evaluator:
+
+| depth | 1 | 2 | 3 | **4** | 6 | 8 | 11 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| ratio | 1.50× | 3.12× | 3.41× | **4.38×** | 3.45× | 3.18× | 1.99× |
+
+The excess is not startup overhead: it **rises** to a peak at depth 4 and then
+decays, which with our better branching ratio (BAS-D05) describes a search that
+pays a large penalty in a narrow band and then grows more slowly. Interior and
+quiescence carry the **same** ratio at every depth (4.69×/4.05× at depth 4,
+1.95×/2.05× at depth 11) and converge together.
+
+*Conditional lesson.* One cause, not two — a multiplier applied above the
+subtree shows up identically in interior and quiescence, and it rules out both
+"qsearch is expensive" and "interior pruning is weak" as separate diagnoses.
+The target band is **depths 2–6**, where our shallow pruning lives (razoring
+`<= 3`; futility, LMP and history pruning `<= 6`). Phase 5 has never tested that
+band: clusters 5.4 and 5.6 judged candidates on depth reached at 300,000 nodes,
+a metric dominated by deep search that a shallow-band saving barely moves.
+BAS-D04's "no depth" verdict on history pruning is consistent with this and is
+not contradicted — it was measured against the wrong band.
+
+*Caveat.* Absolute node counts are never comparable across engines; the shape of
+the ratio is. The engine-agnostic evidence of a real deficit remains the
+equal-time 15.6 against 25.2 plies (BAS-O01/O03).
+
+*Disposition.* Diagnostic complete, no candidate proposed. Whether to open a
+cluster against the shallow band is part of the pending budget decision.
+
 **BAS-D05 — consecutive-depth branching; the leading diagnosis is overturned**
 (16 suite positions, depths 4–11, **Hash 64 on every arm**, 2026-08-13;
 `analysis/manta_import_v1.md`). Method imported from Manta `MAN-S23`: branching

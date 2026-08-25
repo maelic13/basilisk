@@ -11,7 +11,7 @@ user-facing and must not contain experiment bookkeeping.
 |---|---|
 | Branches | `master` and `v1.9.3` are at `d737123`; `development` is at `16eff20` with documentation/tooling/benchmark work. The only `src/` divergence is a comment-only edit in `search_params.h`, so playing code is unchanged. `origin/nnue` is an obsolete partial implementation whose useful seams must be reimplemented against the current trainer contract. `origin/arm_fix` is the one-commit `67a987b` TT-alignment experiment; Phase 5.11 closes the invalid wrapper hypothesis and retains only evidence-backed portability work. |
 | Released baseline | **Basilisk 1.9.3**, bench-13 fingerprint **11,941,440**. It is search-identical to 1.9.2; 1.9.3 repaired Clang/`llvm-profdata` PGO tool matching. Reproduced clean at Phase 5.0 (see below). |
-| Evaluation | The accepted HCE is the comparison/fallback evaluator. Constant refitting stays frozen; **structural** feature work is unfrozen at Phase 5.9 only. Phase 10 is the optional HCE fallback, entered only if NNUE is abandoned. |
+| Evaluation | **HCE UNFROZEN 2026-08-25 by maintainer decision.** Phase 5.9 is now a maturity program: new mechanisms, a joint Texel refit of the enlarged surface, and SPSA over the coefficients Texel cannot price. Cycle 6's wash forbids refitting the *same* feature set, not an enlarged one. Phase 10 remains the optional HCE fallback if NNUE is abandoned. |
 | Active work | No Basilisk candidate or tuner is active; the machine is free. Phase 5.1–5.4 closed. Cluster A produced **no accepted change** — reduction magnitude refuted on the harness (BAS-S13/S14/S15) and check-depth rejected by games (BAS-S16, −3.48 ±3.32 over 17,058). Re-audited 2026-08-13 (`analysis/reaudit_v1.md`): BAS-O04 attributes the depth gap **95.9% to search policy, 4.1% to evaluation**, refuting the eval-symptom hypothesis. **5.4, 5.5 and 5.6 closed with no engine change and the budget clause fired.** But the 2026-08-13 Manta import (BAS-D05) shows all three attacked a quantity that was never deficient: our per-ply branching is **1.692 against the reference's 1.894**, and the real deficit is a **4.4× constant-factor cost at shallow depth**. New step **5.14** owns that; the budget decision should be taken with it in view. |
 | Next release | **1.10.0 at Phase 5.13** if search/HCE acceleration transfers, or a higher minor version if the cumulative gain is large. **1.9.4** is the maintenance-only fallback if the acceleration tracks close without transfer. |
 | NNUE release | **2.0.0 at Phase 7.7**, using `D:/code/net_trainer`. |
@@ -76,9 +76,14 @@ counts, static loss, WAC and telemetry explain it.
 
 1. **One post-NNUE search SPSA:** Phase 8.3, after the retained NNUE
    architecture/score scale freezes.
-2. A pre-NNUE **broad** tune is out of scope: its surface will be invalidated
-   by NNUE. Any exception needs a demonstrated release blocker and explicit
-   approval. Phase 5 acceleration clusters may carry the small local refit a
+2. A pre-NNUE **broad search** tune is out of scope: that surface will be
+   invalidated by NNUE. **Exception, granted 2026-08-25: evaluation.** Phase
+   5.9.5 runs one registered SPSA over the evaluation coefficients a static
+   Texel objective cannot price — the capped, nonlinear king-danger funnel above
+   all (BAS-X14). It is bounded to that coordinate set, follows the same
+   doctrine as any other run, and does not consume the single post-NNUE
+   **search** SPSA reserved for Phase 8.3. Any other exception still needs a
+   demonstrated release blocker and explicit approval. Phase 5 acceleration clusters may carry the small local refit a
    structural change requires — that is part of the cluster, not a tune — but
    must gate categorical architecture before fitting any constant.
 3. A further post-NNUE run needs explicit evidence that the prior run could not identify
@@ -113,9 +118,13 @@ counts, static loss, WAC and telemetry explain it.
 7. Do not tune before architecture freezes; a tune can hide a defect and make
    its repair look negative.
 8. Multi-thread strength is a separate deployment condition.
-9. HCE is frozen, not deleted: it remains a debug oracle, teacher and fallback.
-   Frozen means no further constant refitting; structural gaps against a
-   stronger reference are a separate question with a separate answer.
+9. **Superseded 2026-08-25 — the HCE is no longer frozen.** What the freeze
+   correctly captured survives as a narrower rule: refitting the *same* feature
+   set is exhausted (cycle 6 washed at +1.37 ±5.21 over 8,100 games), and
+   adding reference-family terms with hand-set coefficients loses (BAS-X11,
+   ~−23 Elo across two Manta gates). A refit is justified only when the surface
+   itself has changed. The HCE also remains a debug oracle, NNUE teacher and
+   fallback.
 10. Git/CHANGELOG preserve experiment history; the forward GUIDE stays short.
 11. A cross-compiled binary is not a validated asset. Compatibility requires
     target-native execution, exact search agreement, an executable ISA
@@ -810,58 +819,82 @@ and stability inputs. Total time allocation must not move until the root
 evidence is coherent; then gate any real-clock change separately under the
 time/root/SMP evidence rule.
 
-### 5.9 — HCE structural gap closure — RE-SCOPED 2026-08-13
+### 5.9 — HCE maturity program — UNFROZEN 2026-08-25 by maintainer decision
 
-Entered only after the search track closes, so that evaluation is measured
-against a settled search.
+**Scope decision.** The HCE is no longer frozen. It is to be brought to
+maturity: new mechanisms added, then re-fitted by Texel, and SPSA is permitted
+where it earns strength. This supersedes the constant-refit freeze, the
+"structural convergence only" scope of 2026-08-13, and the pre-NNUE broad-tune
+ban **for evaluation work specifically**. Search SPSA remains at Phase 8.3.
 
-**Maturity audit first (`analysis/hce_maturity_v1.md`, BAS-E07).** Before
-planning work here, the question "is our HCE immature?" was measured rather
-than assumed. The answer is **structurally mature, functionally behind**:
+**The evidence this must respect.** Three recorded results argue against a
+naive retry, and the step is designed around them rather than in spite of them:
 
-- Term coverage against the reference is near-complete. Genuinely absent:
+| Evidence | What it forbids |
+|---|---|
+| HCE cycle 6 washed at **+1.37 ±5.21** over 8,100 games | Refitting the **same feature set** again. That surface is exhausted. |
+| BAS-E07: coverage near-complete, r = 0.790, 17% sign disagreement | Expecting new *features* alone to close −232.8 Elo. The gap is in values. |
+| BAS-X11: Manta's `MAN-E05`/`MAN-E07` lost ~−23 Elo between them | Adding reference-family terms with **hand-set coefficients**, each individually gated. That exact design lost twice. |
+| BAS-X14: a linear static objective misprices capped, squared and truncated terms | Assuming Texel can fit the king-safety funnel. It cannot. |
+
+The distinction that makes this a genuine retry rather than a repeat: **cycle 6
+refit the same features; this refits an enlarged feature set.** A fit surface
+with new terms is not the surface that washed.
+
+**Ordered sub-steps.**
+
+- **5.9.1 Coverage close-out.** Implement the six terms BAS-E07 found absent —
   `BadOutpost`, `BishopXRayPawns`, `LongDiagonalBishop`, `KnightOnQueen`,
-  `SliderOnQueen`, `TrappedRook`, plus the "safe square" qualifier on our
-  pawn-threat terms. Every once-inert term is now live.
-- Yet the evaluators agree poorly: **r = 0.790** over `suite_v1.epd`, our scores
-  compressed ~**1.75×** against the reference's, and a **17% sign-disagreement
-  rate** — one position in six where the two disagree on who stands better.
+  `SliderOnQueen`, `TrappedRook` — plus the "safe square" qualifier on our pawn
+  threats. Land them **seeded inert or at provably neutral values**, gated on
+  deterministic evidence only: tuner trace correctness, colour and phase
+  symmetry, special-move cases, an independently ablatable switch, and a stated
+  throughput budget. **No individual SPRT** — that is the design BAS-X11 shows
+  losing.
+- **5.9.2 Mechanism search beyond coverage.** Re-audit against the reference for
+  concepts we price only in a simpler functional form, not merely those absent.
+  Manta found three such terms after declaring coverage closed; expect the same
+  class here. Same deterministic gating as 5.9.1.
+- **5.9.3 Structure freeze.** No further evaluation structure changes until the
+  fit completes. A fit against a moving structure has to be redone.
+- **5.9.4 Joint Texel refit.** Refit the enlarged linear surface on a fresh
+  corpus. Classify every coefficient **free / fixed / excluded** before fitting
+  (BAS-X14): exclude the nonlinear king-danger funnel, capped winnability and
+  truncated tables, and carry their combined contribution as a fixed residual
+  per sample. Record the catalogue; a coefficient silently fitted through a cap
+  is a corrupted gradient, not a tuned value.
+- **5.9.5 SPSA for what Texel cannot price.** The excluded set from 5.9.4 —
+  principally king safety — is exactly where a static objective fails and a
+  game-outcome objective is the right instrument. One registered SPSA over that
+  bounded coordinate set, under PLAN's SPSA doctrine: registered horizon,
+  bounds and stop rule before launch, ≥5,000 iterations, no post-hoc tail
+  selection. This is the strongest available answer to BAS-E07's finding that
+  the reference's advantage is calibration, not features.
+- **5.9.6 One promoting gate.** A single registered SPRT of the cumulative
+  evaluator against the accepted head, then targeted post-fit ablation to
+  attribute a surprising result. Individual terms are not separately gated.
 
-So the **−232.8 Elo** evaluation gap (BAS-O02) is in the *values*, not the
-features. Six minor terms cannot carry it.
+**Stop rule.** If 5.9.6 rejects, ablate to separate the added structure from the
+refit from the SPSA. Do not hand-retune a failed gate — that is forbidden in
+both the Basilisk and Manta records. If the ablation shows the structure is
+sound but the calibration is not, the residual carries into NNUE data selection
+rather than into another fit.
 
-**The scope contradiction, stated plainly.** This step bars another constant
-refit, and rightly — HCE cycle 6 washed at +1.37 ±5.21 over 8,100 games and
-holdout MSE never predicted Elo. But the gap is almost entirely constants, so
-**5.9 as scoped cannot close the gap it was created to close.** Its realistic
-yield is the six terms above: individually gate-able, plausibly a handful of
-Elo in total.
+**Honest expectation.** BAS-E07 measured the gap as calibration at fishtest
+scale, which we cannot reproduce. A material fraction of −232.8 Elo is not the
+expected outcome; a real but bounded gain is. The step is worth running because
+a stronger HCE is also a better NNUE teacher for Phase 7.1, so the work is not
+lost even if the direct gain is modest.
 
-That is recorded, not worked around. Do **not** widen this step into a
-game-outcome refit: it would contradict both the HCE freeze and the pre-NNUE
-SPSA ban, would need fishtest-scale games we do not have, and would fit a
-surface Phase 7 then discards.
+### Execution order after the 2026-08-25 decision
 
-**Scope, therefore:**
+Numbering is historical; execution order is this:
 
-- The six absent terms, each as an ordinary gated candidate with its own local
-  refit. Expect small.
-- Nothing else. A weak result here is the *expected* result and must not be
-  read as failure, nor used to argue for reopening the constant refit.
-
-**The evaluation gap is NNUE's to close.** NNUE fits by game-derived labels at
-scale, which is exactly the capability our static-objective tuning lacks. This
-gap is the reason NNUE is in the plan at all.
-
-**Knock-on to the teacher argument.** This phase justified 5.9 partly as
-producing a better NNUE teacher. That weakens with the same evidence: if the
-HCE cannot improve much, neither can the teacher. Phase 7.1 should expect its
-teacher quality to come from search depth and from the Stockfish-distillation
-route (BAS-X02, +6.75 in Basilisk) rather than from HCE feature work.
-
-Gate each feature candidate on games like any other. If two consecutive HCE
-candidates fail, close this track and carry the residual into NNUE data
-selection.
+1. **5.14** shallow-depth node cost — the next step.
+2. The budget decision, taken with 5.14's result in hand.
+3. **5.9** HCE maturity program (unfrozen). Its precondition, "the search track
+   has closed", holds for 5.4–5.6 and is subject to that decision for 5.7/5.8.
+4. 5.10–5.13 correctness, portability, SMP and the release gate.
 
 ### 5.14 — Shallow-depth node cost (NEW 2026-08-13, from the Manta import)
 
@@ -904,6 +937,32 @@ that, because the whole phase was framed around growth rate.
 is. The 4.4× is stated as an observation about our own cost curve set beside
 theirs, and the equal-time gap from BAS-O01/O03 — 15.6 plies against 25.2 — is
 the engine-agnostic evidence that the deficit is real.
+
+### 5.14 — CLOSED 2026-08-25: the target is depths 2–6
+
+Full result in `analysis/step514_shallow_cost.md`, recorded as BAS-D06. Engine
+unchanged, bench 11,941,440.
+
+| depth | 1 | 2 | 3 | **4** | 6 | 8 | 11 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Basilisk / oracle | 1.50× | 3.12× | 3.41× | **4.38×** | 3.45× | 3.18× | 1.99× |
+
+The excess is **not** startup overhead — it rises to a peak at depth 4 and then
+decays. Interior and quiescence carry the same ratio at every depth and converge
+together, so this is **one** cause expressed in both, not two.
+
+**The target band is depths 2–6**, where razoring (`<= 3`), futility, late-move
+pruning and history pruning (`<= 6`) live. Phase 5 has never tested that band:
+5.4 and 5.6 judged their candidates on depth reached at 300,000 nodes, which is
+dominated by deep search and barely moves on a shallow-band saving. BAS-D04's
+"no depth" verdict on history pruning is consistent with that rather than
+contradicted by it — the metric was insensitive to where the mechanism acts.
+
+**No candidate proposed.** 5.14 was registered as a diagnostic that names a
+cause or closes, and it named one. Opening a cluster against the shallow band
+requires a metric sensitive to that band — nodes-to-fixed-depth in the 2–6
+range, not depth-at-fixed-nodes — defined before any candidate, per the
+endpoint-measure lesson (BAS-X13).
 
 ### 5.10 — Correctness and safety repairs only
 
