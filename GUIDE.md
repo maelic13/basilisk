@@ -321,6 +321,11 @@ same ambiguity.
 5.9 is now a maturity program, ordered so it respects the evidence rather than
 repeating it:
 
+**Order (maintainer decision, 2026-08-25):** 5.9 now, then back to **5.7 and
+5.8**, which are deferred rather than skipped and keep their preconditions.
+Search has failed to yield across 5.4, 5.5, 5.6 and 5.14; the evaluation gap is
+measured and untouched.
+
 | | |
 |---|---|
 | 5.9.1 | six absent terms + safe-square pawn threats, landed inert on deterministic evidence — **no individual SPRTs** |

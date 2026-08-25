@@ -890,11 +890,17 @@ lost even if the direct gain is modest.
 
 Numbering is historical; execution order is this:
 
-1. **5.14** shallow-depth node cost — the next step.
-2. The budget decision, taken with 5.14's result in hand.
-3. **5.9** HCE maturity program (unfrozen). Its precondition, "the search track
-   has closed", holds for 5.4–5.6 and is subject to that decision for 5.7/5.8.
+1. ~~5.14 shallow-depth node cost~~ — **closed 2026-08-25, no target found.**
+2. **5.9 HCE maturity program** — running now. Maintainer decision of
+   2026-08-25: take the measured, unexploited evaluation gap first.
+3. **5.7 and 5.8** — Cluster D (extensions, singular, IIR) and Cluster E (root
+   and clock). **Deliberately deferred, not skipped**, and to be attempted after
+   5.9. They remain open steps with their preconditions unchanged.
 4. 5.10–5.13 correctness, portability, SMP and the release gate.
+
+The order is inverted from the numbering because search has now failed to yield
+across 5.4, 5.5, 5.6 and 5.14, while the −232.8 Elo evaluation gap (BAS-O02) is
+measured and untouched. 5.7/5.8 are still owed a real attempt.
 
 ### 5.14 — Shallow-depth node cost (NEW 2026-08-13, from the Manta import)
 
