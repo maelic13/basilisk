@@ -193,6 +193,10 @@ before the next starts
 | 5.9.4 | Joint Texel refit of the enlarged surface | ▶ **next** |
 | 5.9.5 | SPSA over the king-danger funnel Texel cannot price | pending |
 | 5.9.6 | One promoting SPRT + post-fit ablation | **only Elo verdict** |
+| 5.9.7 | Endgame recogniser inventory, ordered by measured frequency | after 5.9.6 |
+| 5.9.8 | Recognisers only — no grading (the `MAN-E05` correction) | after 5.9.7 |
+| 5.9.9 | Conversion grading, only on classified endings | after 5.9.8 |
+| 5.9.10 | Endgame gate — SPRT **with the TC ladder** (BAS-M07) | after 5.9.9 |
 
 Evidence carried by 5.9.1 and 5.9.2, both structural: bench **11,941,440**
 unchanged, CTest **12/12**, `basilisk-texel --verify` exact on 10,000 positions,

@@ -897,8 +897,32 @@ with new terms is not the surface that washed.
   verdict, and design it recogniser-first — decide whether an ending is winnable
   before grading how well it converts. That is the correction `MAN-E05`'s own
   post-mortem demanded and never received.
-- **5.9.4 Joint Texel refit.** Refit the enlarged linear surface on a fresh
-  corpus. Classify every coefficient **free / fixed / excluded** before fitting
+- **5.9.4 Joint Texel refit — RUNNING.** **No new datagen needed.** The existing
+  corpus already satisfies this step: `beast_sf_all_train.csv` holds **116.5M**
+  labelled rows with a 6.1M holdout, built by the pipeline this step would
+  otherwise rebuild — Beast pool supplies starts, Basilisk self-play produces
+  white-perspective WDL labels, extraction quiet-filters, dedups and balances
+  across five phases. The new terms fire on it 1,173–14,234 per 20,000
+  positions, so the surface is exercised.
+
+  Manta's positions were considered and are **not** worth importing: their
+  corpus is smaller, labelled by a weaker engine's self-play, and reusing their
+  FENs would still require replaying them to obtain our own labels — which is
+  the expensive half. There is no saving.
+
+  The one real caveat is that these labels come from an older Basilisk's
+  self-play, so they are slightly off-policy for 1.9.3. That is accepted for now
+  because it costs nothing to try: if 5.9.6 rejects, fresh on-policy datagen is
+  the first retry, not the first move.
+
+  Group membership was verified rather than assumed: all fourteen new registry
+  entries sit at indices 62–81, inside the `scalars` range (17–156) and clear of
+  the king-safety skip (128–148), so `--tune scalars` reaches every one. A
+  3-epoch smoke fit moved all of them off zero and already separated
+  `KingProtectorN` from `KingProtectorB`, which is what 5.9.2's split existed to
+  make possible.
+
+  Refit the enlarged linear surface. Classify every coefficient **free / fixed / excluded** before fitting
   (BAS-X14): exclude the nonlinear king-danger funnel, capped winnability and
   truncated tables, and carry their combined contribution as a fixed residual
   per sample. Record the catalogue; a coefficient silently fitted through a cap
@@ -913,6 +937,35 @@ with new terms is not the surface that washed.
 - **5.9.6 One promoting gate.** A single registered SPRT of the cumulative
   evaluator against the accepted head, then targeted post-fit ablation to
   attribute a surprising result. Individual terms are not separately gated.
+
+**Endgame knowledge — numbered, and deliberately after the fit.** 5.9.3 recorded
+why these cannot ride on the linear fit: they are scale factors and exact
+evaluations, so BAS-X14 puts them in the excluded set, and an endgame rule
+cannot be seeded inert because the recogniser that selects a scale is behaviour
+from its first line. `MAN-E05` lost −16.32 Elo on this class. They therefore get
+their own steps, opened only once 5.9.6 has a verdict:
+
+- **5.9.7 Recogniser inventory and risk order.** Enumerate the absent classes —
+  rook-ending scaling (`KRPKR`, `KRPKB`), rook vs pawn, queen vs rook, rook vs
+  minor, the bishop-pawn scale family, generic bare-king drive — and order them
+  by *how often a fast-TC game actually reaches them*, not by how interesting
+  they are. Frequency comes from the corpus, measured, not assumed.
+- **5.9.8 Recognisers before grading.** Implement classification only: rules
+  that answer "is this ending winnable / drawn / scaled", with no conversion
+  grading on top. `MAN-E05`'s post-mortem is that it graded conversion while
+  having no recogniser able to say whether an ending was winnable; this step
+  exists so that cannot repeat. Deterministic evidence: exact-result tests
+  against known theory, colour and phase symmetry, and **the mate canaries**,
+  which this class has broken eight times.
+- **5.9.9 Grading on top, if 5.9.8 holds.** Only after recognisers are accepted
+  may conversion grading be added, and only for classes a recogniser already
+  classifies.
+- **5.9.10 Endgame gate.** One registered SPRT for the endgame block, with the
+  TC ladder — endgame knowledge is exactly the class that shows at LTC and
+  hides at STC (BAS-M07), so an STC-only verdict is not sufficient here.
+
+If 5.9.6 rejects, these steps do not open: a failed calibration is not repaired
+by adding a harder-to-fit class of knowledge on top of it.
 
 **Stop rule.** If 5.9.6 rejects, ablate to separate the added structure from the
 refit from the SPSA. Do not hand-retune a failed gate — that is forbidden in
