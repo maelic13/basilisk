@@ -277,6 +277,83 @@ threshold as engine-scale dependent for the same reason. Not repaired here — i
 is registered as a known consequence carried into 5.9.6's verdict, and it is
 exactly the failure mode 5.9.12's mandatory score-scale audit exists to catch.
 
+**BAS-E11 — 5.9.6 REJECTED at −77.92 Elo; no measured mechanism explains it**
+(2026-08-26). `basilisk-5.9.5-cand-pext-pgo` (`fd048497a5`, bench 18,228,447)
+against `basilisk-1.9.3-baseline-pext-pgo` (`16eff201`, clean, bench
+11,941,440). `3+0.03`, 1T, Hash 64 both arms, UHO, concurrency 14.
+
+**Elo −77.92 ±15.32, nElo −99.71 ±18.94, LOS 0.00%, 1,292 games, LLR −2.95 →
+H0.** Ptnml [117, 199, 219, 74, 37], PairsRatio 0.35. The loss is broad and
+consistent, not a few catastrophic games.
+
+Every hypothesis was then tested **without further games**. None of them, alone
+or summed, accounts for the result.
+
+| hypothesis | measurement | verdict |
+|---|---|---|
+| NPS regression | new-term code costs **4.1%** (3.358M → 3.221M) at *identical* bench nodes | real, ~2–4 Elo |
+| tree growth | bench nodes +52.6% at fixed depth; time-to-depth **+60%** | real, maybe 10–15 Elo |
+| depth at equal nodes | **−0.196 ply** at 1M, 107 paired positions | real, small |
+| static eval quality | holdout **0.0656034** vs baseline 0.0703086 — **6.7% better** | refuted as cause |
+| tactical ability | WAC@12: **49 fails baseline, 48 candidate** | refuted as cause |
+| lazy-eval divergence | 0 sign flips both; crossings 2.191% → **1.365%** (better); mean abs delta 157.8 → 181.1 | refuted as cause |
+| score-scale drift | `K` 1.41868 → 1.47613, **4.1% compression** | real, few Elo |
+
+*The residual is the finding.* Identified costs sum to perhaps 15–20 Elo against
+a measured 78. **The fitted values are simply worse in play while being better on
+the corpus.** This is BAS-X02's lesson at roughly four times the magnitude —
+there, Stockfish distillation improved holdout 4.9% and lost 17.11 Elo in Rarog;
+here 6.7% better holdout costs 77.92.
+
+*The most probable reason, and it matches 5.9.5's canary failure exactly.* The
+corpus is **quiet-filtered and off-policy**. Quiet filtering removes positions
+with live attacks on the king — precisely where king safety governs — so the
+objective cannot see whether king-safety values are right where they matter, and
+the fit is free to set them wrongly at no measured cost. BAS-E10 found the same
+blindness for mating positions, which the corpus lacks entirely. Two independent
+manifestations of one defect: **the corpus does not contain the position classes
+these terms exist to price.**
+
+*A structural blindness worth recording separately.* The tuner builds with
+`TEXEL_TRACE`, which **disables the lazy-eval skip** (`eval.cpp`, `#ifndef
+TEXEL_TRACE`). It therefore fits the full evaluation and is constitutionally
+unable to see that every centipawn it adds to the skipped block widens the error
+`LAZY_MARGIN = 700` silently accepts. Measured here as harmless — sign flips
+stayed at zero — but it is a real gap between what is fitted and what is played.
+
+*Retry trigger.* Do not re-gate any fit produced from a quiet-filtered
+off-policy corpus. 5.9.11 must regenerate on-policy **and** carry the position
+classes the terms govern — sharp king attacks and mating material — before
+5.9.12 refits.
+
+**BAS-E12 — recovering the NPS the new terms cost** (2026-08-26, speed only,
+behaviour-identical). Bench stays **18,228,447** across the change and CTest is
+12/12, so this is a pure throughput measurement, not a behaviour change.
+
+The 4.1% NPS that BAS-E11 attributes to the 5.9.1/5.9.2 term code was paid from
+the moment those terms landed and was **never measured** — 5.9.1 and 5.9.2 both
+recorded "bench unchanged", which is a *node-count* identity and says nothing
+about speed. Three fixes, all exact rather than approximate:
+
+1. `bishop_xray_pawn` called `bishop_attacks(sq, 0ULL)` per bishop per eval. The
+   empty-board ray set is a per-square **constant**; tabled once in
+   `init_eval_tables`.
+2. `trapped_rook` recomputed `rook_attacks(rsq, b.all_occ)` for a square whose
+   attack set the attack-map substrate already caches in `slider_att[]` — the
+   same 8.7.7(a) substitution already made for the king-ring and connected-rook
+   probes.
+3. `slider_on_queen` did four magic lookups whenever the enemy held a queen,
+   including when we held no slider that could be counted. Now gated on holding
+   the piece, each half independently. Exact: the popcount was zero regardless.
+
+NPS **3.208M → 3.299M, +2.8%**, leaving 1.8% against pre-5.9.1's 3.358M. The
+tuner still reconstructs all 10,000 verification positions exactly.
+
+*Not done, and why.* `bishop_outpost` sits **before** the lazy checkpoint, so it
+is paid on every eval including skips. Moving it after would recover more, but
+it would change the lazy score and therefore behaviour — that is an SPRT-gated
+change, not a free one.
+
 **BAS-D08 — per-iteration cost; there is no shallow target** (same runs,
 2026-08-25). Cumulative counts hide where the cost is. Differencing them gives
 the cost of each iteration on its own:

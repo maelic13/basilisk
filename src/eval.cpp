@@ -393,7 +393,16 @@ static int apply_endgame(const Board& b, int score) {
     return score;
 }
 
+// 5.9.6a: empty-board bishop rays. bishop_xray_pawn wants the diagonals a
+// bishop would command with nothing in the way, which does not depend on the
+// position at all -- so the magic lookup it was doing per bishop per eval is
+// pure overhead. Filled by init_eval_tables (after init_attacks).
+static Bitboard EVAL_BISHOP_EMPTY[SQUARE_NB];
+
 void init_eval_tables(const EvalParams& p) {
+    for (int sq = 0; sq < SQUARE_NB; sq++)
+        EVAL_BISHOP_EMPTY[sq] = bishop_attacks(Square(sq), 0ULL);
+
     for (int pt = PAWN; pt <= KING; pt++) {
         for (int sq = 0; sq < 64; sq++) {
             MG_TABLE[WHITE][pt][sq] = p.mg_val[pt] + p.pst_mg[pt - 1][sq];
@@ -1354,7 +1363,7 @@ int Evaluator::evaluate(const Board& b) {
             // would command with nothing in the way, so a pawn counts whether or
             // not something else already blocks it.
             {
-                int xr = popcount(bishop_attacks(bsq, 0ULL) & b.pieces[them][PAWN]);
+                int xr = popcount(EVAL_BISHOP_EMPTY[bsq] & b.pieces[them][PAWN]);
                 mg += sign * xr * p.bishop_xray_pawn_mg; TR_MG(BishopXrayPawnMg, 0, sign * xr);
                 eg += sign * xr * p.bishop_xray_pawn_eg; TR_EG(BishopXrayPawnEg, 0, sign * xr);
             }
@@ -1437,13 +1446,21 @@ int Evaluator::evaluate(const Board& b) {
         // are one capture away from bearing on her — a pin-and-skewer motif the
         // evaluator otherwise cannot see, and distinct from threat_by_minor,
         // which needs a present attack.
-        if (b.pieces[them][QUEEN]) {
+        if (b.pieces[them][QUEEN] && (b.pieces[us][BISHOP] | b.pieces[us][ROOK])) {
             const Square  qs  = Square(lsb(b.pieces[them][QUEEN]));
             const Bitboard occ = b.all_occ;
-            const Bitboard diag_block = bishop_attacks(qs, occ) & occ;
-            const Bitboard line_block = rook_attacks(qs, occ) & occ;
-            int soq = popcount(bishop_attacks(qs, occ ^ diag_block) & b.pieces[us][BISHOP])
-                    + popcount(rook_attacks(qs, occ ^ line_block) & b.pieces[us][ROOK]);
+            // Each half is skipped when we hold no piece of that kind: the
+            // popcount would be zero regardless, so this is exact, not an
+            // approximation.
+            int soq = 0;
+            if (b.pieces[us][BISHOP]) {
+                const Bitboard diag_block = bishop_attacks(qs, occ) & occ;
+                soq += popcount(bishop_attacks(qs, occ ^ diag_block) & b.pieces[us][BISHOP]);
+            }
+            if (b.pieces[us][ROOK]) {
+                const Bitboard line_block = rook_attacks(qs, occ) & occ;
+                soq += popcount(rook_attacks(qs, occ ^ line_block) & b.pieces[us][ROOK]);
+            }
             mg += sign * soq * p.slider_on_queen_mg; TR_MG(SliderOnQueenMg, 0, sign * soq);
             eg += sign * soq * p.slider_on_queen_eg; TR_EG(SliderOnQueenEg, 0, sign * soq);
         }
@@ -1457,7 +1474,7 @@ int Evaluator::evaluate(const Board& b) {
             Bitboard rr = b.pieces[us][ROOK];
             while (rr) {
                 const Square rsq = Square(pop_lsb(rr));
-                const int mob = popcount(rook_attacks(rsq, b.all_occ) & ~b.occupancy[us]);
+                const int mob = popcount(slider_att[rsq] & ~b.occupancy[us]);   // 8.7.7(a)
                 if (mob <= 3) {
                     const int kf = file_of(b.king_sq[us]);
                     const int rf = file_of(rsq);
