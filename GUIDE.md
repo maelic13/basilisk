@@ -191,11 +191,12 @@ before the next starts
 | 5.9.2 | Simpler-form audit — `king_protector` split, bishop outpost added | ✅ done 2026-08-25 |
 | 5.9.3 | Structure freeze + maturity verdict | ✅ done 2026-08-25 |
 | 5.9.4 | Joint Texel refit of the enlarged surface | ✅ done — see caveat |
-| 5.9.5 | King-safety fit (finite-diff first, SPSA only if it stalls) | ▶ **next** |
-| 5.9.6 | One promoting SPRT + post-fit ablation | **only Elo verdict** |
+| 5.9.5 | King-safety fit — variant A only, table deferred | ✅ done 2026-08-26 |
+| 5.9.6 | Promoting SPRT of the 5.9.1–5.9.5 candidate | ▶ **now — needs your machine** |
 | 5.9.7–5.9.10 | Endgame recognisers → grading → gate | only if 5.9.6 accepts |
 | 5.9.11 | Regenerate corpus on-policy | **runs regardless of 5.9.6** |
 | 5.9.12 | Full-surface refit — 1,116 params, material pinned | **runs regardless of 5.9.6** |
+| 5.9.13 | Post-refit SPRT | second and final Elo verdict |
 | 5.9.7 | Endgame recogniser inventory, ordered by measured frequency | after 5.9.6 |
 | 5.9.8 | Recognisers only — no grading (the `MAN-E05` correction) | after 5.9.7 |
 | 5.9.9 | Conversion grading, only on classified endings | after 5.9.8 |
@@ -288,12 +289,38 @@ the user explicitly abandons that program.
 
 | | |
 |---|---|
-| Engine state | **CHANGED** — bench **15,655,764** (was 11,941,440), CTest 12/12 |
-| Last completed | **5.9.4** joint Texel refit — holdout −6.2%, but see the ablation |
-| Running now | **5.9.5** king-safety fit |
+| Engine state | **CHANGED** — bench **18,228,447** (head was 11,941,440), CTest 12/12 |
+| Last completed | **5.9.5** king-safety fit — variant A, `safety_table` deferred |
+| Running now | **5.9.6** promoting SPRT — awaiting your run |
 | Next Elo verdict | **5.9.6**, after the 5.9.4 fit and 5.9.5 SPSA |
 | Deferred, not skipped | **5.7** extensions/singular/IIR, **5.8** root/clock — after 5.9 |
 | Nothing queued for your machine | 5.9.1–5.9.4 are code and fitting work |
+
+### 5.9.5 — what shipped, and what did not
+
+The king-safety coordinate descent converged (83 passes, holdout −0.99%) and
+found two knobs sitting at **zero**: `ks_unit[ROOK]` and `ks_unit[QUEEN]`. Rook
+and queen attacks were contributing *nothing* to the attack-unit count. Both
+fitted to 2. That is a real coverage gap, not a tuning artifact.
+
+**Only variant A shipped — eleven scalar knobs, `safety_table` reverted.** The
+full fit reshaped the table to be sharply convex (low end halved, high end up
+~45%) and that **failed the mate-drive canary**: edge preference collapsed from
+29cp to 4cp against a `>20` threshold. Bisection pinned it to `safety_table`
+alone.
+
+The cause is the corpus, not the fitter: it is quiet-filtered and contains no
+forced-mate positions, so the objective is blind to mating and traded it away.
+It also exposed that **the canary was passing partly by accident** — the
+mate-drive's own contribution there is ~15cp, and king safety was incidentally
+supplying the rest of the 29.
+
+Deferred to 5.9.12, with 5.9.11's corpus required to carry mating material.
+
+**Also noted:** `K` moved 1.41868 → 1.49757 between the two fits, i.e. the 5.9.4
+refit **compressed the eval scale ~5.6%**. Our futility/razoring/delta margins
+are centipawn constants and are now that much more aggressive. Registered as a
+known consequence, not repaired here.
 
 ### Which parameters get fitted, and by what
 

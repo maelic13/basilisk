@@ -955,7 +955,7 @@ with new terms is not the surface that washed.
   The BAS-X14 classification held: the king-danger funnel, capped winnability and
   truncated tables stayed outside `scalars` (indices 128–148 skipped), so no
   coefficient was fitted through a cap. Those are 5.9.5's subject.
-- **5.9.5 King-safety fit — finite difference first, SPSA only if it stalls.**
+- **5.9.5 King-safety fit — DONE 2026-08-26 (BAS-E10), variant A.**
   The excluded set from 5.9.4 — principally king safety — is where a *linear*
   static objective fails. The plan previously jumped straight to SPSA. That was
   wrong about the available instruments: our own tuner already carries
@@ -967,8 +967,24 @@ with new terms is not the surface that washed.
   established path that produced the shipped king-safety values, and it costs
   CPU hours rather than an SPSA's thousands of games.
 
-  So: run the finite-difference fit first and read its holdout delta. Escalate
-  to SPSA only if it stalls — meaning it either finds no holdout improvement, or
+  **Result.** Converged in 83 passes, best holdout restored from pass 75,
+  holdout 0.0658991 → 0.0652499 (−0.99%). It found `ks_unit[ROOK]` and
+  `ks_unit[QUEEN]` both sitting at **0** — rook and queen attacks contributed
+  nothing to the attack-unit count — and fitted both to 2.
+
+  **Only variant A ships: the eleven scalar knobs, `safety_table` reverted.**
+  Baking the full fit fails the mate-drive canary, collapsing the edge
+  preference from 29cp to 4cp against a `>20` threshold; bisection isolated it
+  to `safety_table` alone. The cause is corpus coverage — the corpus is
+  quiet-filtered and carries no forced-mate positions, so the objective has no
+  signal there. It also exposed that the canary was passing partly by accident:
+  the mate-drive's own contribution in that position is ~15cp, and king safety
+  was incidentally supplying the rest. **The table reshape is deferred to
+  5.9.12**, and 5.9.11's corpus must carry mating material so the fit can price
+  it. Bench 15,655,764 → 18,228,447; paired depth −0.196 ply, unchanged from
+  5.9.4 alone.
+
+  SPSA is still the escalation if it stalls — meaning it either finds no holdout improvement, or
   finds one that 5.9.6 then rejects. If SPSA is escalated to, it runs under
   PLAN's SPSA doctrine unchanged: registered horizon, bounds and stop rule
   before launch, ≥5,000 iterations, no post-hoc tail selection. Either way this
@@ -1055,6 +1071,14 @@ without removing any reachable evaluator.
   changes is the policy that produced the labels. Record row count, holdout
   split and the generating revision.
 
+  **It must additionally carry mating and near-mating material.** BAS-E10 showed
+  the existing quiet-filtered corpus has no forced-mate positions at all, so the
+  objective is blind there and a fit will happily destroy mating behaviour to
+  buy loss elsewhere — which is exactly what happened to `safety_table`. Include
+  a deliberate slice of bare-king and near-bare-king endings so the objective
+  can price them, and verify the mate-drive canary against the fitted result
+  rather than trusting the aggregate loss.
+
 - **5.9.12 Full-surface Texel refit.** Fit the 1,116-parameter Texel set jointly
   on the 5.9.11 corpus, material pinned. Then re-run the 64 non-Texel
   coefficients on their own instruments and **iterate** — the two sets interact,
@@ -1082,11 +1106,25 @@ without removing any reachable evaluator.
 **same 348-parameter subset on the same off-policy labels**. 5.9.12 changes both
 variables at once — 3.2× the parameters, and labels from the current policy.
 
+- **5.9.13 Post-refit gate.** One registered SPRT of the 5.9.12 evaluator
+  against whatever is the accepted head at that point. This is the second and
+  final Elo verdict in 5.9. It exists because 5.9.6 gates a candidate fitted on
+  **29% of the surface with off-policy labels**, and 5.9.12 changes both of
+  those; a verdict on the first does not transfer to the second.
+
 **Stop rule.** If 5.9.6 rejects, ablate to separate the added structure from the
-refit from the SPSA. Do not hand-retune a failed gate — that is forbidden in
-both the Basilisk and Manta records. If the ablation shows the structure is
-sound but the calibration is not, the residual carries into NNUE data selection
-rather than into another fit.
+refit from the king-safety fit. Do not hand-retune a failed gate — that is
+forbidden in both the Basilisk and Manta records. If the ablation shows the
+structure is sound but the calibration is not, the residual carries into NNUE
+data selection rather than into another fit.
+
+**A 5.9.6 rejection does not revert the added structure.** The earlier stop rule
+implied it would, and that would destroy 5.9.12's central test — *do the new
+terms come alive once the 768 PSTs are free to move?* — which cannot be asked if
+the terms have been removed first. On rejection the candidate is unshipped, the
+structure stays on `development` unbaked or reverted-in-values-only, and the
+question passes to 5.9.12/5.9.13. The terms are removed for good only if the
+BAS-E08 ablation still measures them inert **after** the full-surface refit.
 
 **Honest expectation.** BAS-E07 measured the gap as calibration at fishtest
 scale, which we cannot reproduce. A material fraction of −232.8 Elo is not the

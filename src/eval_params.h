@@ -314,9 +314,9 @@ struct EvalParams {
     int threat_push_eg = 15;
 
     // ---- King safety (Phase 4.1 fit via --tune-kingsafety) -----------------
-    int ks_unit[7] = { 0, 0, 4, 0, 0, 0, 0 };  // attacker weight by PieceType
+    int ks_unit[7] = { 0, 0, 3, 0, 2, 2, 0 };  // attacker weight by PieceType
     int ks_coord_bonus = 4;  // extra attack_units when 2+ attackers in zone
-    int ks_open_file = 0;  // extra attack_units for open file in front of king
+    int ks_open_file = 1;  // extra attack_units for open file in front of king
 
     // Penalty lookup: index = clamped attack_units [0..24]
     int safety_table[25] = { -3, 0, 6, 29, 32, 37, 55, 58, 59, 81, 111, 135, 161, 177, 191, 192, 202, 203, 272, 290, 302, 302, 316, 348, 407 };
@@ -328,16 +328,16 @@ struct EvalParams {
     // introduction; the Phase-4.3 nonlinear
     // (finite-difference) tuner activates them. They are composite/index inputs,
     // not pure-linear, so they carry no linear trace (only SafetyTable is traced).
-    int ks_safe_check[7] = { 0, 0, 7, 6, 6, 4, 0 };  // per safe check, by checker type (Phase 4.1)
+    int ks_safe_check[7] = { 0, 0, 5, 4, 5, 4, 0 };  // per safe check, by checker type (Phase 4.1)
     int ks_weak_ring = 1;  // per king-ring square attacked and not solidly defended
     int ks_ring_pressure  = 0;  // per king-ring square the enemy attacks
     int ks_flank_attack   = 0;  // per enemy attack in the king's flank
     int ks_flank_defense  = 0;  // per friendly defense in the king's flank (subtracted)
-    int ks_pawnless_flank = 0;  // king on a flank with no friendly pawns
+    int ks_pawnless_flank = 1;  // king on a flank with no friendly pawns
     int ks_king_blockers = 3;  // per own piece pinned/blocking in front of the king (Phase 4.1)
-    int ks_central_king = 3;  // king central with castling rights gone
-    int ks_shelter_storm = 1;  // king pawn-shelter exposure folded into danger
-    int ks_noqueen_num    = 2;  // no-enemy-queen danger scaling numerator
+    int ks_central_king = 0;  // king central with castling rights gone
+    int ks_shelter_storm = 2;  // king pawn-shelter exposure folded into danger
+    int ks_noqueen_num = 4;  // no-enemy-queen danger scaling numerator
     int ks_noqueen_den = 5;  // ... denominator
 
     // ---- King pawn shelter / storm -----------------------------------------
