@@ -318,10 +318,24 @@ openings, and 80,000 rounds against it gave 2,668 distinct games repeated 15
 times — **93.3% duplicates**. Rounds above book size buy nothing. The detector
 was visible immediately: raw 137,815 against unique 56,985.
 
-Revised to **one slice — UHO, adjudication none, 250,000 rounds**. UHO holds
-2,632,036 openings (measured dedup 0.2%) and is the book our SPRTs use.
-Adjudication none is now the whole run, not a slice: per game it yields
-deep_endgame **1.387 → 2.612** and endgame **3.460 → 5.105**.
+**A second, larger error was then found in the labels themselves.** The
+`beast_sf_*` corpus every 5.9 fit used is **Stockfish-distillation labelled** —
+427 distinct target values on [0,1] in 200,000 rows, not game results. So 5.9.4
+fitted 348 coefficients to reproduce *Stockfish's evaluation*, and its "6.7%
+better holdout" measured agreement with Stockfish, not with winning. BAS-X02
+already recorded the cost of exactly this: **−17.11 Elo in Rarog**. This is now
+the primary explanation for 5.9.6's −77.92, ahead of the quiet-filter account.
+
+Final design — **Beast positions as starts, self-play results as labels**,
+adjudication none, 320,000 rounds, from `beast_seed_2m.epd` (2,000,000 starts).
+An opening book makes every game traverse an opening before reaching an endgame;
+Beast starts span all phases. Measured: deep_endgame **2.612 → 3.018**/game, and
+the binding phase moves off deep_endgame onto opening — **116,528 games needed
+against 173,036**.
+
+This adopts Manta's `HCE_DATAGEN` design, which was reviewed and **wrongly
+rejected** earlier on the grounds that importing their data saved no compute.
+The method costs the same and yields better data.
 
 ### 5.9.6 REJECTED — and why no confirmation SPRT was run
 

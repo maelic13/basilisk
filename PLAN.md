@@ -1093,26 +1093,49 @@ without removing any reachable evaluator.
   changes is the policy that produced the labels. Record row count, holdout
   split and the generating revision.
 
-  **One slice: UHO, adjudication none, 250,000 rounds, 8,000 nodes/move.**
+  **Beast positions as STARTS, self-play game results as LABELS, adjudication
+  none, 320,000 rounds, 8,000 nodes/move** — `beast_seed_2m.epd`, which already
+  holds 2,000,000 sampled positions.
 
-  A three-slice design using `SuperGM_4mvs` for the bulk was tried first and
-  **failed on duplication** (BAS-E15): fixed-node self-play with the same binary
+  **The label change is the important one.** The old `beast_sf_*` corpus is
+  **Stockfish-distillation labelled** — `import_beast.py` reads `FEN<TAB>target`
+  where the target is a Stockfish expected score, and 200,000 rows contain 427
+  distinct target values on [0,1]. 5.9.4 fitted 348 coefficients to reproduce
+  *Stockfish's static evaluation*, and BAS-X02 already recorded what that costs:
+  holdout −4.9%, Elo **−17.11** in Rarog. Every row from here on carries the
+  white-perspective **result of its own game** (BAS-E11 correction, BAS-E16).
+
+  **Starts, not an opening book.** An opening book makes every game traverse an
+  opening before it can reach an endgame, buying the scarce classes at ~60 plies
+  each. Beast starts span all phases. Measured (BAS-E16): deep_endgame
+  **2.612 → 3.018** per game and endgame **5.105 → 5.335**, and the binding
+  constraint moves off `deep_endgame` onto `opening`, which we have in
+  abundance — **116,528 games needed against 173,036**, a third fewer.
+
+  This adopts Manta's `HCE_DATAGEN` design, which was reviewed and wrongly
+  rejected earlier in Phase 5 on the grounds that importing their data saved no
+  compute. That was the wrong question; the method costs the same and yields
+  better data.
+
+  Two earlier designs were tried and discarded. A UHO-only slice was specified
+  but never run, superseded by the start-based design above. Before it, a
+  three-slice design using `SuperGM_4mvs` for the bulk **failed on duplication**
+  (BAS-E15): fixed-node self-play with the same binary
   on both sides is deterministic, that book holds only 2,668 openings, and
   80,000 rounds against it produced 2,668 distinct games repeated 15 times —
   93.3% duplicates. Rounds above book size buy nothing.
 
-  UHO carries **2,632,036** openings, so duplication is structurally impossible
-  at any practical round count (measured dedup 0.2%), and it is the book our
-  SPRTs use, so the eval is fitted on the distribution it is judged on.
+  Rounds above book size buy nothing. `beast_seed_2m.epd` carries 2,000,000
+  distinct starts, so duplication is structurally impossible here.
 
-  Adjudication is `none` for the whole run, not for a special slice. BAS-E15
-  measured why, in positions per game: deep_endgame **1.387 → 2.612** and
-  endgame **3.460 → 5.105**, at unchanged opening/midgame rates, for ~19% more
-  wall time — and it removes adjudication's label error as well.
+  Adjudication stays `none` for the whole run, not for a special slice. BAS-E15
+  measured why in positions per game, and it removes adjudication's label error
+  as well, for ~19% more wall time.
 
-  **Recorded bias to watch:** UHO is unbalanced by construction, so the corpus
-  skews toward decisive positions. `SuperGM_4mvs` is not a remedy; it cannot
-  supply more than 2,668 distinct games.
+  **Biases to watch.** Beast starts are positions a *different* engine reached,
+  so they are off-policy as starts — accepted deliberately, because the labels
+  are now ours and breadth of coverage is the point. Extraction still applies
+  the quiet filter, which is correct for fitting a static evaluation.
 
   **It must additionally carry mating and near-mating material.** BAS-E10 showed
   the existing quiet-filtered corpus has no forced-mate positions at all, so the
