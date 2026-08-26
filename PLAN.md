@@ -1093,20 +1093,26 @@ without removing any reachable evaluator.
   changes is the policy that produced the labels. Record row count, holdout
   split and the generating revision.
 
-  **Three slices, because one setting cannot produce all three classes.**
-  BAS-E14 measured the mechanism: resign-at-600 ended 209 of 300 games and left
-  only 1.3% reaching checkmate against 62.3% with adjudication off.
+  **One slice: UHO, adjudication none, 250,000 rounds, 8,000 nodes/move.**
 
-  | slice | book | adjudication | rounds | purpose |
-  |---|---|---|---:|---|
-  | A general | SuperGM_4mvs | standard | 80,000 | the bulk; normal play |
-  | B sharp | UHO_Lichess_4852 | standard | 40,000 | unbalanced/decisive structures where king safety governs |
-  | C endgame | SuperGM_4mvs | **none** | 60,000 | bare-king and mating material, absent until now |
+  A three-slice design using `SuperGM_4mvs` for the bulk was tried first and
+  **failed on duplication** (BAS-E15): fixed-node self-play with the same binary
+  on both sides is deterministic, that book holds only 2,668 openings, and
+  80,000 rounds against it produced 2,668 distinct games repeated 15 times —
+  93.3% duplicates. Rounds above book size buy nothing.
 
-  All three at 8,000 nodes/move on the **current** binary, distinct seeds,
-  appended into one PGN for `extract_parallel.py`. Slice C is the one BAS-E14
-  justifies; slice B addresses the sharp-middlegame half of the same defect,
-  which adjudication alone does not fix.
+  UHO carries **2,632,036** openings, so duplication is structurally impossible
+  at any practical round count (measured dedup 0.2%), and it is the book our
+  SPRTs use, so the eval is fitted on the distribution it is judged on.
+
+  Adjudication is `none` for the whole run, not for a special slice. BAS-E15
+  measured why, in positions per game: deep_endgame **1.387 → 2.612** and
+  endgame **3.460 → 5.105**, at unchanged opening/midgame rates, for ~19% more
+  wall time — and it removes adjudication's label error as well.
+
+  **Recorded bias to watch:** UHO is unbalanced by construction, so the corpus
+  skews toward decisive positions. `SuperGM_4mvs` is not a remedy; it cannot
+  supply more than 2,668 distinct games.
 
   **It must additionally carry mating and near-mating material.** BAS-E10 showed
   the existing quiet-filtered corpus has no forced-mate positions at all, so the

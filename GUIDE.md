@@ -310,10 +310,18 @@ Resign-at-600 ends the game ~22 plies before the material the fit needs. That is
 why `safety_table` could be reshaped into something that breaks mating at no
 measured loss (BAS-E10), and it is the best available explanation for BAS-E11.
 
-`datagen.ps1` now takes `-Adjudication standard|none`. Three slices are
-specified: **A general** (SuperGM, standard, 80k), **B sharp** (UHO, standard,
-40k — the sharp-middlegame half, which adjudication alone does not fix), and
-**C endgame** (SuperGM, **none**, 60k).
+`datagen.ps1` now takes `-Adjudication standard|none`.
+
+**The first corpus attempt failed and was discarded (BAS-E15).** Fixed-node
+self-play with one binary is deterministic, `SuperGM_4mvs` holds only 2,668
+openings, and 80,000 rounds against it gave 2,668 distinct games repeated 15
+times — **93.3% duplicates**. Rounds above book size buy nothing. The detector
+was visible immediately: raw 137,815 against unique 56,985.
+
+Revised to **one slice — UHO, adjudication none, 250,000 rounds**. UHO holds
+2,632,036 openings (measured dedup 0.2%) and is the book our SPRTs use.
+Adjudication none is now the whole run, not a slice: per game it yields
+deep_endgame **1.387 → 2.612** and endgame **3.460 → 5.105**.
 
 ### 5.9.6 REJECTED — and why no confirmation SPRT was run
 
