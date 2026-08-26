@@ -296,6 +296,25 @@ the user explicitly abandons that program.
 | Deferred, not skipped | **5.7** extensions/singular/IIR, **5.8** root/clock — after 5.9 |
 | Nothing queued for your machine | 5.9.1–5.9.4 are code and fitting work |
 
+### 5.9.11 — the corpus defect, measured
+
+Same binary, same book, same seed; the only variable is adjudication:
+
+| | standard (resign 600/3) | **none** |
+|---|---:|---:|
+| games reaching **checkmate** | **1.3%** | **62.3%** |
+| bare-officer material | 25.0% | 64.7% |
+| ended by adjudication | **209 / 300** | 0 |
+
+Resign-at-600 ends the game ~22 plies before the material the fit needs. That is
+why `safety_table` could be reshaped into something that breaks mating at no
+measured loss (BAS-E10), and it is the best available explanation for BAS-E11.
+
+`datagen.ps1` now takes `-Adjudication standard|none`. Three slices are
+specified: **A general** (SuperGM, standard, 80k), **B sharp** (UHO, standard,
+40k — the sharp-middlegame half, which adjudication alone does not fix), and
+**C endgame** (SuperGM, **none**, 60k).
+
 ### 5.9.6 REJECTED — and why no confirmation SPRT was run
 
 **−77.92 ±15.32 Elo, nElo −99.71, LLR −2.95 → H0 in 1,292 games.** Every

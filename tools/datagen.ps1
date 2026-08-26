@@ -18,6 +18,18 @@
     resign after 3 moves at score > 600 cp (both sides). These defaults match the
     SPRT/gauntlet scripts.
 
+    -Adjudication none turns BOTH off, so games end only naturally: checkmate,
+    stalemate, threefold, fifty-move or insufficient material. Step 5.9.11 needs
+    this. BAS-E10 and BAS-E11 traced a corpus defect to exactly this setting --
+    resign at 600 cp truncates every decisive game long before a mating ending,
+    so the Texel corpus contained no bare-king positions at all and the fit was
+    free to destroy mate-drive and king-safety behaviour at no measured cost.
+    Precedent that it works: the 2026-08-12 oracle round robin ran with every
+    adjudication off and produced 1,919 checkmates in 2,400 games.
+
+    Games are much longer with it off. Budget roughly 2-3x the wall time per
+    round, and expect the deep_endgame phase bucket to fill for the first time.
+
 .PARAMETER Suffix
     Engine binary suffix. Looks for
     tools\test_engines\basilisk-<Suffix>-pext-pgo.exe.
@@ -83,6 +95,8 @@ param(
     [string]$BookFormat  = "pgn",
     [string]$FastchessPath = "",
     [int]   $Seed        = 42,
+    [ValidateSet("standard", "none")]
+    [string]$Adjudication = "standard",
     [switch]$AllowAppend,
     [switch]$PreflightOnly
 )
@@ -245,6 +259,12 @@ try {
     $appendMode = $AllowAppend.IsPresent.ToString().ToLowerInvariant()
     $commandLine = ".\tools\datagen.ps1 -Suffix $Suffix -Rounds $Rounds -Nodes $Nodes -Hash $Hash -Concurrency $Concurrency -Book `"$Book`" -BookFormat $BookFormat -OutputPgn `"$OutputPgn`" -Seed $Seed"
     if ($AllowAppend) { $commandLine += " -AllowAppend" }
+    $adjManifest = if ($Adjudication -eq "standard") {
+        "draw movenumber=40 movecount=8 score=10; resign movecount=3 score=600 twosided=true"
+    } else {
+        "NONE - natural terminations only (5.9.11)"
+    }
+
     $manifestLines = @(
         "schema: datagen-v1"
         "status: running"
@@ -272,7 +292,7 @@ try {
         "opening_order: random"
         "opening_seed: $Seed"
         "pgn_append: $appendMode"
-        "adjudication: draw movenumber=40 movecount=8 score=10; resign movecount=3 score=600 twosided=true"
+        "adjudication: $adjManifest"
         "fastchess: $fastchessVersion"
         "output_pgn: $OutputPgn"
     )
@@ -286,6 +306,16 @@ try {
         $manifestLines | Set-Content -LiteralPath $manifestPath -Encoding utf8
     }
 
+    # Adjudication flags are assembled rather than inlined so that "none" omits
+    # them entirely; passing a disabled -resign/-draw is not the same thing.
+    $adjArgs = @()
+    if ($Adjudication -eq "standard") {
+        $adjArgs = @(
+            "-draw", "movenumber=40", "movecount=8", "score=10",
+            "-resign", "movecount=3", "score=600", "twosided=true"
+        )
+    }
+
     & $FastchessPath `
         -engine "cmd=$enginePath" "name=A" "option.Hash=$Hash" "option.Threads=1" `
         -engine "cmd=$enginePath" "name=B" "option.Hash=$Hash" "option.Threads=1" `
@@ -294,8 +324,7 @@ try {
         -srand $Seed `
         -rounds $Rounds -games 1 `
         -concurrency $Concurrency `
-        -draw movenumber=40 movecount=8 score=10 `
-        -resign movecount=3 score=600 twosided=true `
+        @adjArgs `
         -pgnout "file=$OutputPgn" "append=$appendMode" `
         -output format=fastchess
 

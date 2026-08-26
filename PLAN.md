@@ -1093,6 +1093,21 @@ without removing any reachable evaluator.
   changes is the policy that produced the labels. Record row count, holdout
   split and the generating revision.
 
+  **Three slices, because one setting cannot produce all three classes.**
+  BAS-E14 measured the mechanism: resign-at-600 ended 209 of 300 games and left
+  only 1.3% reaching checkmate against 62.3% with adjudication off.
+
+  | slice | book | adjudication | rounds | purpose |
+  |---|---|---|---:|---|
+  | A general | SuperGM_4mvs | standard | 80,000 | the bulk; normal play |
+  | B sharp | UHO_Lichess_4852 | standard | 40,000 | unbalanced/decisive structures where king safety governs |
+  | C endgame | SuperGM_4mvs | **none** | 60,000 | bare-king and mating material, absent until now |
+
+  All three at 8,000 nodes/move on the **current** binary, distinct seeds,
+  appended into one PGN for `extract_parallel.py`. Slice C is the one BAS-E14
+  justifies; slice B addresses the sharp-middlegame half of the same defect,
+  which adjudication alone does not fix.
+
   **It must additionally carry mating and near-mating material.** BAS-E10 showed
   the existing quiet-filtered corpus has no forced-mate positions at all, so the
   objective is blind there and a fit will happily destroy mating behaviour to
