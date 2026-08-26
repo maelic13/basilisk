@@ -192,9 +192,9 @@ before the next starts
 | 5.9.3 | Structure freeze + maturity verdict | ✅ done 2026-08-25 |
 | 5.9.4 | Joint Texel refit of the enlarged surface | ✅ done — see caveat |
 | 5.9.5 | King-safety fit — variant A only, table deferred | ✅ done 2026-08-26 |
-| 5.9.6 | Promoting SPRT of the 5.9.1–5.9.5 candidate | ▶ **now — needs your machine** |
+| 5.9.6 | Promoting SPRT of the 5.9.1–5.9.5 candidate | ❌ **REJECTED −77.92 Elo** |
 | 5.9.7–5.9.10 | Endgame recognisers → grading → gate | only if 5.9.6 accepts |
-| 5.9.11 | Regenerate corpus on-policy | **runs regardless of 5.9.6** |
+| 5.9.11 | Regenerate corpus on-policy **+ mating + sharp positions** | ▶ **next** |
 | 5.9.12 | Full-surface refit — 1,116 params, material pinned | **runs regardless of 5.9.6** |
 | 5.9.13 | Post-refit SPRT | second and final Elo verdict |
 | 5.9.7 | Endgame recogniser inventory, ordered by measured frequency | after 5.9.6 |
@@ -289,12 +289,42 @@ the user explicitly abandons that program.
 
 | | |
 |---|---|
-| Engine state | **CHANGED** — bench **18,228,447** (head was 11,941,440), CTest 12/12 |
-| Last completed | **5.9.5** king-safety fit — variant A, `safety_table` deferred |
-| Running now | **5.9.6** promoting SPRT — awaiting your run |
+| Engine state | back to **1.9.3 behaviour** — bench **11,941,440**, CTest 12/12, provably identical (BAS-E13) |
+| Last completed | **5.9.6** — REJECTED at −77.92 Elo; values reverted, speed work kept |
+| Running now | **5.9.11** regenerate the corpus |
 | Next Elo verdict | **5.9.6**, after the 5.9.4 fit and 5.9.5 SPSA |
 | Deferred, not skipped | **5.7** extensions/singular/IIR, **5.8** root/clock — after 5.9 |
 | Nothing queued for your machine | 5.9.1–5.9.4 are code and fitting work |
+
+### 5.9.6 REJECTED — and why no confirmation SPRT was run
+
+**−77.92 ±15.32 Elo, nElo −99.71, LLR −2.95 → H0 in 1,292 games.** Every
+hypothesis was tested without games:
+
+| hypothesis | measurement | verdict |
+|---|---|---|
+| NPS | 4.1% from new-term code, at identical nodes | real, ~2–4 Elo |
+| tree growth | bench nodes +52.6%, time-to-depth +60% | real, ~10–15 Elo |
+| static eval | holdout **6.7% better** than baseline | refuted |
+| tactics | WAC@12 — 49 fails base, **48** candidate | refuted |
+| lazy eval | **0 sign flips**, crossings 2.19% → 1.37% | refuted |
+| score scale | `K` 1.41868 → 1.47613 | real, few Elo |
+
+Identified costs total ~15–20 Elo against 78. **The residual is the finding:
+the values are worse in play while better on the corpus.** The corpus is
+quiet-filtered — which strips out exactly the positions where king safety
+governs — and off-policy. Same defect that failed the mate-drive canary at
+5.9.5. This makes **5.9.11 the load-bearing step**, not a tidy-up.
+
+**Values reverted, structure and speed work kept.** The result is *provably*
+the 1.9.3 engine: 0 best-move and 0 node-count mismatches over 107 positions at
+fixed depth, bench 11,941,440. A confirmation SPRT would spend ~20k games
+failing to detect a difference already proven absent — the deterministic check
+is cheaper **and strictly stronger** than a null SPRT.
+
+Speed: the retained inert terms cost −3.73% NPS (interleaved), cut to **−1.37%**
+by zero-guards. That residual is the price of keeping the structure for 5.9.12's
+ablation; if the terms are still inert with PSTs free, remove them and recover it.
 
 ### 5.9.5 — what shipped, and what did not
 

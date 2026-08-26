@@ -990,7 +990,29 @@ with new terms is not the surface that washed.
   before launch, ≥5,000 iterations, no post-hoc tail selection. Either way this
   is the answer to BAS-E07's finding that the reference's advantage is
   calibration, not features.
-- **5.9.6 One promoting gate.** A single registered SPRT of the cumulative
+- **5.9.6 One promoting gate — REJECTED 2026-08-26 (BAS-E11), −77.92 ±15.32
+  Elo, nElo −99.71, LLR −2.95 → H0 in 1,292 games.** Every hypothesis was tested
+  without further games and none explains it: static holdout was **6.7% better**,
+  WAC was unchanged (49 fails vs 48), the lazy audit showed **zero sign flips**
+  and *fewer* margin crossings. Identified costs — 4.1% NPS, +52.6% bench nodes,
+  −0.196 ply, 4.1% scale compression — sum to perhaps 15–20 Elo against 78.
+
+  **The residual is the finding: the fitted values are worse in play while
+  better on the corpus.** The corpus is quiet-filtered and off-policy, and quiet
+  filtering removes exactly the positions where king safety governs, so the fit
+  set those values wrongly at no measured cost. BAS-E10 found the same blindness
+  for mating positions. One defect, two symptoms — **the corpus lacks the
+  position classes these terms exist to price**, which is why 5.9.11 is now the
+  load-bearing step rather than a tidy-up.
+
+  **Disposition.** Values reverted to baseline; the structure is retained
+  unbaked for 5.9.12's ablation, per the amended stop rule. The speed work
+  (BAS-E12) is kept — it is behaviour-neutral and applies to any future
+  candidate. The revert is **provably** the 1.9.3 engine (BAS-E13: 0 move and 0
+  node mismatches over 107 positions), so no confirmation SPRT was spent.
+  Endgame steps 5.9.7–5.9.10 **do not open**.
+
+- **5.9.6 (original text)** A single registered SPRT of the cumulative
   evaluator against the accepted head, then targeted post-fit ablation to
   attribute a surprising result. Individual terms are not separately gated.
 

@@ -354,6 +354,37 @@ is paid on every eval including skips. Moving it after would recover more, but
 it would change the lazy score and therefore behaviour — that is an SPRT-gated
 change, not a free one.
 
+*Second pass: zero-guards, after reverting the values.* With 5.9.6 rejected and
+every new coefficient back at 0, an **interleaved** measurement (BAS-M06
+protocol; the earlier non-interleaved reading understated this) put the retained
+term code at **−3.73%** NPS against pre-5.9.1 — speed spent on arithmetic
+multiplied by zero. Six terms now skip when both their coefficients are zero,
+via `EVAL_TERM_ACTIVE`. The macro is **always true under `TEXEL_TRACE`**: the
+tuner needs a term's feature counts precisely when its coefficient is 0, since
+that is the state it fits from, so gating the trace would break `--verify` and
+the fit itself. Deficit **−3.73% → −1.37%**; `--verify` still exact on 10,000
+positions.
+
+The residual −1.37% is the standing price of retaining the structure for
+5.9.12's ablation. If the terms still measure inert once the PSTs are free, they
+should be removed and that comes back.
+
+**BAS-E13 — the revert is provably the 1.9.3 engine** (2026-08-26). An SPRT can
+only *fail to detect* a difference; this proves there is none. At fixed depth
+the search is deterministic, so identical best moves **and** identical node
+counts imply the same engine. Over the 107-position `suite_v1.epd` at depth 12,
+Hash 64 both arms, against `basilisk-1.9.3-baseline-pext-pgo`: **0 best-move
+mismatches, 0 node-count mismatches**, and bench **11,941,440** exactly.
+
+*Conditional lesson.* A confirmation SPRT here would spend ~20k games failing to
+detect a difference already proven absent. Where a change is claimed
+behaviour-neutral, the deterministic identity check is both cheaper and
+**strictly stronger** than a null SPRT, and should be preferred. Only the
+−1.37% NPS delta is real, and at roughly 1 Elo it sits far below what this
+harness resolves (BAS-M06; BAS-M01's ±10 Elo placement floor).
+
+
+
 **BAS-D08 — per-iteration cost; there is no shallow target** (same runs,
 2026-08-25). Cumulative counts hide where the cost is. Differencing them gives
 the cost of each iteration on its own:

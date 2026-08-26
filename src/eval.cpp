@@ -111,6 +111,20 @@ static constexpr int KNOWN_WIN    = 10000; // static "won, mate is technique" ma
 // Lazy-eval margin (Step 3.11): if the cheap (material/PST/imbalance/pawns/minor)
 // tapered score exceeds this, the expensive positional block is skipped. Tuned
 // under a lazy-on-vs-off SPRT; conservative start.
+// 5.9.6b: skip a term whose whole contribution is multiplied by zero.
+// BAS-E12 measured the 5.9.1/5.9.2 term code costing 3.73% NPS while every one
+// of those coefficients sat at 0 after the 5.9.6 revert -- speed paid for
+// arithmetic that cannot change the score.
+//
+// MUST stay always-true under TEXEL_TRACE. The tuner needs the feature COUNTS
+// for a term precisely when its coefficient is 0 -- that is the state it fits
+// from -- so gating the trace would break both --verify and the fit itself.
+#ifdef TEXEL_TRACE
+#define EVAL_TERM_ACTIVE(a, b) (true)
+#else
+#define EVAL_TERM_ACTIVE(a, b) (((a) | (b)) != 0)
+#endif
+
 [[maybe_unused]] static constexpr int LAZY_MARGIN  = 700;  // unused under TEXEL_TRACE (lazy eval off there)
 // 8.6.6b lazy-audit "did not fire" marker (any value the eval can't produce).
 [[maybe_unused]] static constexpr int VALUE_NONE_SENTINEL = INT_MIN;
@@ -748,7 +762,8 @@ int Evaluator::evaluate(const Board& b) {
         // in the attack-map block so lazy eval treats both minors alike --
         // pricing one before the checkpoint and the other after would make the
         // pair's relative value depend on whether the margin fired.
-        Bitboard bishops_c = b.pieces[c][BISHOP];
+        Bitboard bishops_c = EVAL_TERM_ACTIVE(p.bishop_outpost_mg, p.bishop_outpost_eg)
+                           ? b.pieces[c][BISHOP] : 0ULL;
         while (bishops_c) {
             int sq = pop_lsb(bishops_c);
             if (relative_rank(us, Square(sq)) >= RANK_5
@@ -948,7 +963,7 @@ int Evaluator::evaluate(const Board& b) {
         // separate term for threats delivered from squares no enemy pawn
         // attacks. It layers on top rather than replacing the existing terms, so
         // the fit at 5.9.4 can price the qualifier independently of the threat.
-        {
+        if (EVAL_TERM_ACTIVE(p.threat_safe_pawn_mg, p.threat_safe_pawn_eg)) {
             const Bitboard safe_pawns = b.pieces[c][PAWN] & ~pawn_atk[~Color(c)];
             const Bitboard safe_atk = (c == WHITE)
                 ? (((safe_pawns & ~BB_FILES[FILE_A]) << 7) | ((safe_pawns & ~BB_FILES[FILE_H]) << 9))
@@ -1362,7 +1377,7 @@ int Evaluator::evaluate(const Board& b) {
             // on its diagonals. Empty-board attacks give the rays the bishop
             // would command with nothing in the way, so a pawn counts whether or
             // not something else already blocks it.
-            {
+            if (EVAL_TERM_ACTIVE(p.bishop_xray_pawn_mg, p.bishop_xray_pawn_eg)) {
                 int xr = popcount(EVAL_BISHOP_EMPTY[bsq] & b.pieces[them][PAWN]);
                 mg += sign * xr * p.bishop_xray_pawn_mg; TR_MG(BishopXrayPawnMg, 0, sign * xr);
                 eg += sign * xr * p.bishop_xray_pawn_eg; TR_EG(BishopXrayPawnEg, 0, sign * xr);
@@ -1421,7 +1436,8 @@ int Evaluator::evaluate(const Board& b) {
             // enemy pawn covers, from which it would attack the enemy queen.
             // A latent fork threat rather than a present attack — a present one
             // is already priced by threat_by_minor.
-            if (b.pieces[them][QUEEN]) {
+            if (b.pieces[them][QUEEN]
+                && EVAL_TERM_ACTIVE(p.knight_on_queen_mg, p.knight_on_queen_eg)) {
                 const Square qs = Square(lsb(b.pieces[them][QUEEN]));
                 Bitboard hops = KnightAttacks[nsq] & ~b.occupancy[us] & ~pawn_atk[them];
                 int koq = popcount(hops & KnightAttacks[qs]);
@@ -1446,7 +1462,8 @@ int Evaluator::evaluate(const Board& b) {
         // are one capture away from bearing on her — a pin-and-skewer motif the
         // evaluator otherwise cannot see, and distinct from threat_by_minor,
         // which needs a present attack.
-        if (b.pieces[them][QUEEN] && (b.pieces[us][BISHOP] | b.pieces[us][ROOK])) {
+        if (b.pieces[them][QUEEN] && (b.pieces[us][BISHOP] | b.pieces[us][ROOK])
+            && EVAL_TERM_ACTIVE(p.slider_on_queen_mg, p.slider_on_queen_eg)) {
             const Square  qs  = Square(lsb(b.pieces[them][QUEEN]));
             const Bitboard occ = b.all_occ;
             // Each half is skipped when we hold no piece of that kind: the
@@ -1471,7 +1488,8 @@ int Evaluator::evaluate(const Board& b) {
         // does not catch it, because a rook can be cheaply immobile without
         // being trapped.
         {
-            Bitboard rr = b.pieces[us][ROOK];
+            Bitboard rr = EVAL_TERM_ACTIVE(p.trapped_rook_mg, p.trapped_rook_eg)
+                        ? b.pieces[us][ROOK] : 0ULL;
             while (rr) {
                 const Square rsq = Square(pop_lsb(rr));
                 const int mob = popcount(slider_att[rsq] & ~b.occupancy[us]);   // 8.7.7(a)
