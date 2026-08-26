@@ -866,8 +866,37 @@ with new terms is not the surface that washed.
     the knight's in the cheap block, so lazy eval treats both minors alike —
     pricing one before the checkpoint and the other after would make the pair's
     relative value depend on whether the lazy margin fired.
-- **5.9.3 Structure freeze.** No further evaluation structure changes until the
-  fit completes. A fit against a moving structure has to be redone.
+- **5.9.3 Structure freeze — DONE 2026-08-25.** Maturity verdict in
+  `analysis/hce_maturity_v2.md`.
+
+  **Named term coverage is now at reference parity**: all 31 named terms have a
+  counterpart, and the shapes match — threats graded by attacked piece type,
+  mobility as per-count tables, rook-on-file decomposed, hanging indexed,
+  king-protector per piece. Nothing is a scalar standing in for a table.
+
+  **Endgame knowledge is partial and stays that way for now.** We carry six
+  rules — KNNK, KPK bitbase, KBNK drive, wrong-rook-file KBP, no-pawn ≤ minor
+  scaling, opposite-coloured bishops — against roughly 29 reference classes.
+  Absent: rook-ending scaling, rook vs pawn, queen vs rook, rook vs minor, the
+  bishop-pawn scale family, and a generic bare-king drive.
+
+  Not added before the fit, deliberately: endgame rules are scale factors and
+  exact evaluations, so BAS-X14 puts them in the *excluded* set where the fit
+  cannot price them — the whole reason 5.9.1/5.9.2 landed inert does not extend
+  here. `MAN-E05` lost −16.32 Elo on exactly this class. And an endgame rule
+  cannot be seeded inert the way an additive term can: a scale factor of 1.0 is
+  inert, but the recogniser that selects it is behaviour from the first line,
+  which is how eight consecutive mechanisms tripped the KBNK/KQK canaries.
+
+  Freezing an incomplete structure is normally the ADR-0050 error, but that
+  warning is about *fittable* structure and the linear surface is complete.
+  Endgame rules sit outside the fit, so adding them later does not invalidate
+  these coefficients.
+
+  **Retry trigger:** open the endgame program only after 5.9.6 returns a
+  verdict, and design it recogniser-first — decide whether an ending is winnable
+  before grading how well it converts. That is the correction `MAN-E05`'s own
+  post-mortem demanded and never received.
 - **5.9.4 Joint Texel refit.** Refit the enlarged linear surface on a fresh
   corpus. Classify every coefficient **free / fixed / excluded** before fitting
   (BAS-X14): exclude the nonlinear king-danger funnel, capped winnability and
