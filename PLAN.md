@@ -897,7 +897,7 @@ with new terms is not the surface that washed.
   verdict, and design it recogniser-first — decide whether an ending is winnable
   before grading how well it converts. That is the correction `MAN-E05`'s own
   post-mortem demanded and never received.
-- **5.9.4 Joint Texel refit — RUNNING.** **No new datagen needed.** The existing
+- **5.9.4 Joint Texel refit — DONE 2026-08-25 (BAS-E08).** **No new datagen needed.** The existing
   corpus already satisfies this step: `beast_sf_all_train.csv` holds **116.5M**
   labelled rows with a 6.1M holdout, built by the pipeline this step would
   otherwise rebuild — Beast pool supplies starts, Basilisk self-play produces
@@ -922,18 +922,50 @@ with new terms is not the surface that washed.
   `KingProtectorN` from `KingProtectorB`, which is what 5.9.2's split existed to
   make possible.
 
-  Refit the enlarged linear surface. Classify every coefficient **free / fixed / excluded** before fitting
-  (BAS-X14): exclude the nonlinear king-danger funnel, capped winnability and
-  truncated tables, and carry their combined contribution as a fixed residual
-  per sample. Record the catalogue; a coefficient silently fitted through a cap
-  is a corrupted gradient, not a tuned value.
-- **5.9.5 SPSA for what Texel cannot price.** The excluded set from 5.9.4 —
-  principally king safety — is exactly where a static objective fails and a
-  game-outcome objective is the right instrument. One registered SPSA over that
-  bounded coordinate set, under PLAN's SPSA doctrine: registered horizon,
-  bounds and stop rule before launch, ≥5,000 iterations, no post-hoc tail
-  selection. This is the strongest available answer to BAS-E07's finding that
-  the reference's advantage is calibration, not features.
+  **Result, and the ablation matters more than the headline.** Holdout loss fell
+  6.2% (0.0703086 → 0.0659483), 348 params, `--l2 1e-6`. But applying **only**
+  the twenty new-term values, existing params untouched, gives **0.0703113**
+  against a 0.0703086 baseline — marginally worse, inside noise. **The added
+  structure carries no independent signal; the whole gain is the refit of the
+  pre-existing surface.**
+
+  That is recorded as a *weakened* prior for 5.9.6, not a strengthened one.
+  Refitting the existing surface is close to what cycle 6 did, and cycle 6
+  washed at +1.37 ±5.21 over 8,100 games. The claim that made this a genuine
+  retry — an enlarged surface is not the surface that washed — does not survive
+  the ablation intact. The loss number cannot rescue it: holdout-MSE-delta does
+  not predict Elo (durable lesson), and BAS-X02 improved holdout 4.9% while
+  losing −17.11 Elo.
+
+  Endgame moved **0.4%** against opening's 12.4%, independently confirming
+  5.9.3: the gap is endgame knowledge and the linear surface cannot reach it.
+
+  **A cost is now carried into the gate.** Bench **11,941,440 → 15,655,764**,
+  +31% nodes at fixed depth, taking our per-iteration deficit from BAS-D08's
+  ~1.9× to roughly 2.5×. The evaluation gain must outrun that.
+
+  The BAS-X14 classification held: the king-danger funnel, capped winnability and
+  truncated tables stayed outside `scalars` (indices 128–148 skipped), so no
+  coefficient was fitted through a cap. Those are 5.9.5's subject.
+- **5.9.5 King-safety fit — finite difference first, SPSA only if it stalls.**
+  The excluded set from 5.9.4 — principally king safety — is where a *linear*
+  static objective fails. The plan previously jumped straight to SPSA. That was
+  wrong about the available instruments: our own tuner already carries
+  `--tune-kingsafety`, a **coordinate descent over 40 integer knobs** —
+  `ks_unit`, `ks_safe_check`, shelter/storm, flank, and `safety_table[2..24]`
+  under a monotonicity constraint — scored against the **real nonlinear
+  evaluator**, with holdout-best restore. BAS-X14's objection is to *linearity*,
+  not to static objectives, and this instrument is not linear. It is also the
+  established path that produced the shipped king-safety values, and it costs
+  CPU hours rather than an SPSA's thousands of games.
+
+  So: run the finite-difference fit first and read its holdout delta. Escalate
+  to SPSA only if it stalls — meaning it either finds no holdout improvement, or
+  finds one that 5.9.6 then rejects. If SPSA is escalated to, it runs under
+  PLAN's SPSA doctrine unchanged: registered horizon, bounds and stop rule
+  before launch, ≥5,000 iterations, no post-hoc tail selection. Either way this
+  is the answer to BAS-E07's finding that the reference's advantage is
+  calibration, not features.
 - **5.9.6 One promoting gate.** A single registered SPRT of the cumulative
   evaluator against the accepted head, then targeted post-fit ablation to
   attribute a surprising result. Individual terms are not separately gated.
