@@ -132,6 +132,54 @@ search differs). Baseline artifact `tools/diag/baseline_v1.json`.
 | BAS-D01 | **Where the width is not.** Move-ordering quality at the cutoff. | **First-move cutoffs 89.10%**, mean cutoff index **0.214**. Cutoff sources: TT 24.6%, good captures 49.3%, quiets 25.4%, bad captures ~0%. | Ordering is already strong and is **not** the cause of the EBF gap. This refutes the second-priority hypothesis carried into 5.2 and removes move-picker rework from cluster 5.4's likely content — a saving, since ordering work is expensive and would have been measured against an unmoving baseline. |
 | BAS-D02 | **Where the width is.** LMR gate accounting; the identity `eligible = applied + clamped_zero + Σ blocked` holds exactly on every run. | Of eligible moves only **36.1%** are reduced; **16.2%** pass every gate and then compute a reduction of **zero**; mean reduction when applied is 2.354 plies; and the **re-search rate is 1.744%**. | Reductions are far too conservative. A re-search rate near 1.7% means reductions almost never need undoing, which is the signature of under-reduction rather than of a well-tuned policy — a healthy LMR pays for its depth with visibly more re-searches. Combined with a sixth of eligible moves being reduced by zero, this is where the tree width is created. Points directly at the reduction/re-search contract, cluster **5.4.3**. |
 
+**BAS-E08 — 5.9.4 joint Texel refit of the enlarged surface** (2026-08-25,
+`--tune scalars`, 348 active params, 1,520,109 train / 79,891 holdout rows from
+`beast_sf_*`, `--l2 1e-6`, 200 epochs, K = 1.41868).
+
+| | initial | tuned | delta |
+|---|---:|---:|---:|
+| holdout loss | 0.0703086 | **0.0659483** | **−6.2%** |
+| opening (n=29,421) | 0.06477 | 0.05676 | −12.4% |
+| early-mid (n=17,117) | 0.08900 | 0.08441 | −5.2% |
+| middlegame (n=16,313) | 0.07211 | 0.07038 | −2.4% |
+| **endgame** (n=13,932) | 0.05976 | 0.05951 | **−0.4%** |
+| deep endgame (n=3,108) | 0.05761 | 0.05689 | −1.2% |
+
+**Ablation — the new structure contributes essentially nothing.** Applying only
+the twenty new-term values while leaving the 348 existing parameters at their
+shipped values gives holdout **0.0703113** against the baseline **0.0703086** —
+marginally *worse*, and inside noise. The entire 6.2% therefore comes from
+refitting the pre-existing surface.
+
+*Conditional lesson, and it is not comfortable.* That refit is close to what HCE
+cycle 6 already did, and cycle 6 **washed at +1.37 ±5.21 over 8,100 games**. The
+distinction this program relied on — that an enlarged surface is not the surface
+that washed — is weakened by the ablation: the enlargement measures inert, so
+what remains is largely cycle 7. Two recorded results say holdout loss cannot
+rescue that read: durable lesson "holdout-MSE-delta does not predict Elo", and
+BAS-X02, where Stockfish distillation improved holdout by 4.9% and lost −17.11
+Elo in Rarog.
+
+*Two individual terms are suspect.* `SliderOnQueen` fitted to exactly **0**
+despite firing on 2,260 of 20,000 positions, and `LongDiagonalBishop` fitted
+**negative** where the concept predicts a bonus. Both are the signature BAS-X11
+describes of a term whose relations duplicate signal already priced elsewhere —
+mobility and `bad_bishop` in this case.
+
+*One clear success.* Splitting `king_protector` at 5.9.2 was justified: the fit
+separated the pieces it could not previously distinguish, to `(−1, +4)` for
+knights against `(−2, 0)` for bishops. The endgame divergence is the whole point
+— a knight near its own king in the endgame is worth something a bishop is not.
+
+*Cost carried into the gate.* Bench moves **11,941,440 → 15,655,764**, a **+31%
+node increase at fixed depth**: the candidate searches a substantially larger
+tree for the same depth. Against BAS-D08's finding that we already pay ~1.9× the
+reference per iteration, this raises it to roughly 2.5×. The evaluation gain
+must outrun that cost, and nothing measured so far shows it does.
+
+*Correctness.* CTest 12/12 including the KBNK/KQK mate canaries — notable, since
+this class of change tripped them eight consecutive times historically.
+
 **BAS-D08 — per-iteration cost; there is no shallow target** (same runs,
 2026-08-25). Cumulative counts hide where the cost is. Differencing them gives
 the cost of each iteration on its own:

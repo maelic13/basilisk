@@ -190,8 +190,8 @@ before the next starts
 | 5.9.1 | Coverage close-out — seven absent terms, seeded 0 | ✅ done 2026-08-25 |
 | 5.9.2 | Simpler-form audit — `king_protector` split, bishop outpost added | ✅ done 2026-08-25 |
 | 5.9.3 | Structure freeze + maturity verdict | ✅ done 2026-08-25 |
-| 5.9.4 | Joint Texel refit of the enlarged surface | ▶ **next** |
-| 5.9.5 | SPSA over the king-danger funnel Texel cannot price | pending |
+| 5.9.4 | Joint Texel refit of the enlarged surface | ✅ done — see caveat |
+| 5.9.5 | King-safety fit (finite-diff first, SPSA only if it stalls) | ▶ **next** |
 | 5.9.6 | One promoting SPRT + post-fit ablation | **only Elo verdict** |
 | 5.9.7 | Endgame recogniser inventory, ordered by measured frequency | after 5.9.6 |
 | 5.9.8 | Recognisers only — no grading (the `MAN-E05` correction) | after 5.9.7 |
@@ -285,12 +285,47 @@ the user explicitly abandons that program.
 
 | | |
 |---|---|
-| Engine state | unchanged — bench **11,941,440**, CTest 12/12 |
-| Last completed | **5.9.3** structure freeze + maturity verdict |
-| Running now | **5.9.4** joint Texel refit of the enlarged surface |
+| Engine state | **CHANGED** — bench **15,655,764** (was 11,941,440), CTest 12/12 |
+| Last completed | **5.9.4** joint Texel refit — holdout −6.2%, but see the ablation |
+| Running now | **5.9.5** king-safety fit |
 | Next Elo verdict | **5.9.6**, after the 5.9.4 fit and 5.9.5 SPSA |
 | Deferred, not skipped | **5.7** extensions/singular/IIR, **5.8** root/clock — after 5.9 |
 | Nothing queued for your machine | 5.9.1–5.9.4 are code and fitting work |
+
+### 5.9.4 result — read the ablation, not the headline
+
+The fit converged and holdout loss fell **6.2%** (0.0703086 → 0.0659483), with
+the opening phase gaining most (−12.4%) and **endgame almost nothing (−0.4%)**,
+which independently confirms 5.9.3's verdict that endgame knowledge is our gap
+and a linear surface cannot reach it.
+
+**But the new structure contributes essentially nothing.** Applying only the
+twenty new-term values, leaving the 348 existing parameters shipped, gives
+holdout **0.0703113** against a **0.0703086** baseline — marginally *worse*, and
+inside noise. **The whole 6.2% is the refit of the pre-existing surface.**
+
+That matters because refitting the existing surface is close to what HCE cycle 6
+already did, and cycle 6 **washed at +1.37 ±5.21 over 8,100 games**. The
+argument that made this a genuine retry — an enlarged surface is not the surface
+that washed — is weakened: the enlargement measures inert, so what remains is
+largely cycle 7.
+
+Two terms look like duplicated signal rather than new information:
+`SliderOnQueen` fitted to exactly **0** despite firing 2,260 times per 20,000
+positions, and `LongDiagonalBishop` fitted **negative** where the concept
+predicts a bonus.
+
+One clear win: splitting `king_protector` at 5.9.2 was right. The fit separated
+what it previously could not — `(−1, +4)` for knights against `(−2, 0)` for
+bishops.
+
+**And the candidate carries a cost into the gate:** bench **11,941,440 →
+15,655,764**, a **+31% larger tree at fixed depth**. Against BAS-D08's ~1.9×
+per-iteration deficit that becomes roughly 2.5×. The evaluation gain has to
+outrun that, and nothing measured so far shows it does.
+
+CTest 12/12 including the KBNK/KQK mate canaries — worth noting, since this
+class of change tripped them eight consecutive times historically.
 
 ### Is the HCE mature now?
 
@@ -440,8 +475,8 @@ before the next starts
 | 5.9.1 | Coverage close-out — seven absent terms, seeded 0 | ✅ done 2026-08-25 |
 | 5.9.2 | Simpler-form audit — `king_protector` split, bishop outpost added | ✅ done 2026-08-25 |
 | 5.9.3 | Structure freeze + maturity verdict | ✅ done 2026-08-25 |
-| 5.9.4 | Joint Texel refit of the enlarged surface | ▶ **next** |
-| 5.9.5 | SPSA over the king-danger funnel Texel cannot price | pending |
+| 5.9.4 | Joint Texel refit of the enlarged surface | ✅ done — see caveat |
+| 5.9.5 | King-safety fit (finite-diff first, SPSA only if it stalls) | ▶ **next** |
 | 5.9.6 | One promoting SPRT + post-fit ablation | **only Elo verdict** |
 
 Evidence carried by 5.9.1 and 5.9.2, both structural: bench **11,941,440**
@@ -531,9 +566,9 @@ the user explicitly abandons that program.
 
 | | |
 |---|---|
-| Engine state | unchanged — bench **11,941,440**, CTest 12/12 |
-| Last completed | **5.9.3** structure freeze + maturity verdict |
-| Running now | **5.9.4** joint Texel refit of the enlarged surface |
+| Engine state | **CHANGED** — bench **15,655,764** (was 11,941,440), CTest 12/12 |
+| Last completed | **5.9.4** joint Texel refit — holdout −6.2%, but see the ablation |
+| Running now | **5.9.5** king-safety fit |
 | Next Elo verdict | **5.9.6**, after the 5.9.4 fit and 5.9.5 SPSA |
 | Deferred, not skipped | **5.7** extensions/singular/IIR, **5.8** root/clock — after 5.9 |
 | Nothing queued for your machine | 5.9.1–5.9.4 are code and fitting work |

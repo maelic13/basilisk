@@ -138,60 +138,60 @@ struct EvalParams {
     };
 
     // ---- Passed pawn bonuses [rank 0..7] ------------------------------------
-    int passed_mg[8] = { 0, 4, 6, 6, 23, 91, 91, 0 };
-    int passed_eg[8] = { 0, 5, 6, 51, 84, 111, 122, 0 };
+    int passed_mg[8] = { 0, 4, 5, 5, 23, 92, 92, 0 };
+    int passed_eg[8] = { 0, 5, 5, 50, 84, 112, 123, 0 };
 
 
     // Dynamic passer bonuses (per-rank multipliers; evaluated outside pawn hash)
-    int pass_free_mg = 2;  // stop square empty
-    int pass_free_eg = 2;  // stop square empty
+    int pass_free_mg = 0;  // stop square empty
+    int pass_free_eg = 4;  // stop square empty
     int pass_safe_eg = 8;  // stop square not attacked by enemy (additional)
 
     // ---- Pawn structure (signed values; negative = penalty) ----------------
-    int doubled_mg = 0;
-    int doubled_eg = -7;
-    int isolated_mg = -2;
-    int isolated_eg = -12;
-    int connected_mg = 14;
-    int connected_eg = 0;
-    int backward_mg = -1;
-    int backward_eg = -11;
+    int doubled_mg = -3;
+    int doubled_eg = -8;
+    int isolated_mg = -4;
+    int isolated_eg = -15;
+    int connected_mg = 13;
+    int connected_eg = 1;
+    int backward_mg = -3;
+    int backward_eg = -12;
 
     // ---- Pawn-structure refinement (Step 3.4; seeded INERT, tuned Phase 4.5) ----
     // Pawn-cache-safe (depend only on pawns); seeded 0 so bench is unchanged. The
     // existing flat doubled/isolated/connected/backward terms stay active.
-    int connected_rank_mg[8] = { 0, 3, 5, -3, -2, 1, 0, 0 };  // connected/phalanx by rel rank
-    int connected_rank_eg[8] = { 0, 0, -2, 1, 3, 5, 0, 0 };
-    int weak_unopposed_mg = -6;  // weak (isolated/backward) pawn on a half-open file
+    int connected_rank_mg[8] = { 0, 3, 3, -3, 3, 2, 0, 0 };  // connected/phalanx by rel rank
+    int connected_rank_eg[8] = { 0, 2, -2, 1, 5, 6, 0, 0 };
+    int weak_unopposed_mg = -8;  // weak (isolated/backward) pawn on a half-open file
     int weak_unopposed_eg = -2;
-    int blocked_pawn_mg[2] = { -8, 2 };  // own pawn rammed by an enemy pawn, rel rank 5 / 6
-    int blocked_pawn_eg[2] = { -4, 0 };
+    int blocked_pawn_mg[2] = { -5, 3 };  // own pawn rammed by an enemy pawn, rel rank 5 / 6
+    int blocked_pawn_eg[2] = { -3, 1 };
     int pawn_majority_mg = 4;  // own pawn majority on a flank (breakthrough potential)
-    int pawn_majority_eg = 8;
+    int pawn_majority_eg = 10;
 
     // ---- Passed-pawn promotion-path safety (Step 3.4; piece-dependent, seeded 0) ----
     int passed_path_safe_eg = 6;  // promotion path free of enemy attack (x rel rank)
-    int passed_block_defended_eg = 4;  // immediate block square defended by us
-    int passed_king_block_eg = 17;  // (enemy - own) king distance to the block square
+    int passed_block_defended_eg = 6;  // immediate block square defended by us
+    int passed_king_block_eg = 16;  // (enemy - own) king distance to the block square
 
     // ---- Small positional terms (Step 3.7; seeded INERT, tuned Phase 4.5) ----
     // All seeded 0 so bench is unchanged; traced one-hot/linear, tuner decides.
-    int reachable_outpost_mg = 7;  // per outpost square a knight can hop to
-    int reachable_outpost_eg = 2;
-    int bad_bishop_mg = -7;  // per own pawn on the bishop's colour
-    int bad_bishop_eg = -11;
+    int reachable_outpost_mg = 9;  // per outpost square a knight can hop to
+    int reachable_outpost_eg = 3;
+    int bad_bishop_mg = -11;  // per own pawn on the bishop's colour
+    int bad_bishop_eg = -12;
     int minor_king_ring_mg = 5;  // our minor attacking the enemy king ring
-    int minor_king_ring_eg = -2;
-    int rook_king_ring_mg = -2;  // our rook attacking the enemy king ring
-    int rook_king_ring_eg = -4;
-    int rook_closed_mg = -7;  // rook on a closed file (own + enemy pawn present)
-    int rook_closed_eg = 1;
+    int minor_king_ring_eg = 0;
+    int rook_king_ring_mg = 0;  // our rook attacking the enemy king ring
+    int rook_king_ring_eg = -2;
+    int rook_closed_mg = -11;  // rook on a closed file (own + enemy pawn present)
+    int rook_closed_eg = 0;
     int rook_queen_file_mg = 5;  // our rook shares a file with the enemy queen
     int rook_queen_file_eg    = 0;
     int connected_rooks_mg = 8;  // our rooks defend each other along an open line
     int connected_rooks_eg = 3;
-    int bishop_pair_pawns_mg = 3;  // bishop pair scaled by own pawn count
-    int bishop_pair_pawns_eg = 1;
+    int bishop_pair_pawns_mg = 1;  // bishop pair scaled by own pawn count
+    int bishop_pair_pawns_eg = 3;
 
     // ---- Material imbalance (Step 3.8; SF-style quadratic, seeded INERT) ----
     // Piece index: 0 = bishop pair, 1 = pawn, 2 = knight, 3 = bishop, 4 = rook,
@@ -200,28 +200,28 @@ struct EvalParams {
     // `imb_linear[i]` is the per-piece linear term. The eval is LINEAR in these
     // coefficients (feature = count products), so they are traced normally and
     // fit by the linear tuner in Phase 4. All seeded 0 -> contributes 0 today.
-    int imb_linear[6] = { 0, -1, 0, 4, 6, 2 };
-    int imb_our[21] = { 0, 2, 4, 0, 10, -2, 0, 9, 2, 3, 0, 7, 4, 4, 5, 0, 15, 1, 2, 3, 2 };
-    int imb_their[21] = { 0, 3, 0, 0, 7, 0, 1, 8, 0, 0, -1, 13, 2, -4, 0, 1, 23, 3, 4, 3, 0 };
+    int imb_linear[6] = { 0, 1, -1, 3, 5, 1 };
+    int imb_our[21] = { 0, 2, 5, -2, 1, -6, 1, 1, -3, 3, -1, -2, -1, 0, 1, 0, 11, -2, 1, 1, 1 };
+    int imb_their[21] = { 0, 1, 0, -2, 0, 0, 1, 4, 3, 0, -2, 6, 4, -4, 0, 1, 22, 5, 5, 4, 0 };
 
     // ---- HCE survey additions (Step 3.9; SF11-classical, seeded INERT) ------
     // All seeded 0 so bench is unchanged; traced, tuned in Phase 4.5.
-    int minor_behind_pawn_mg = 4;  // minor shielded by a friendly pawn directly ahead
+    int minor_behind_pawn_mg = 6;  // minor shielded by a friendly pawn directly ahead
     int minor_behind_pawn_eg  = 0;
     // ---- 5.9.2 simpler-form repairs (seeded to preserve behaviour) --------
     // king_protector was ONE scalar applied to both knights and bishops, so the
     // fit could never learn that the two pieces value king proximity
     // differently. Split per piece type, both seeded at the shared value so
     // bench is unchanged; 5.9.4 separates them.
-    int king_protector_n_mg = -2;   // knight distance-to-own-king
-    int king_protector_n_eg = 0;
+    int king_protector_n_mg = -1;   // knight distance-to-own-king
+    int king_protector_n_eg = 4;
     int king_protector_b_mg = -2;   // bishop distance-to-own-king
     int king_protector_b_eg = 0;
     // Outposts were priced for knights only. A bishop on a protected advanced
     // square the enemy cannot challenge with a pawn is the same concept and was
     // simply missing. Seeded inert.
-    int bishop_outpost_mg = 0;
-    int bishop_outpost_eg = 0;
+    int bishop_outpost_mg = 1;
+    int bishop_outpost_eg = 1;
     // ---- 5.9.1 coverage close-out (seeded INERT; fitted at 5.9.4) ----------
     // The six concepts BAS-E07 found absent from our evaluator plus the
     // safe-square qualifier our pawn threats lacked. Every weight is 0, so the
@@ -229,45 +229,45 @@ struct EvalParams {
     // from the joint fit at 5.9.4, never from hand-reasoning: BAS-X11 records
     // Manta losing ~-23 Elo across two gates by hand-scaling exactly this class
     // of reference-family concept.
-    int bad_outpost_mg = 0;        // outpost knight the enemy can still contest
+    int bad_outpost_mg = 1;        // outpost knight the enemy can still contest
     int bad_outpost_eg = 0;
-    int bishop_xray_pawn_mg = 0;   // enemy pawns on the bishop's unobstructed rays
-    int bishop_xray_pawn_eg = 0;
-    int long_diagonal_bishop_mg = 0;  // bishop eyeing the centre down a long diagonal
+    int bishop_xray_pawn_mg = -5;   // enemy pawns on the bishop's unobstructed rays
+    int bishop_xray_pawn_eg = -2;
+    int long_diagonal_bishop_mg = -1;  // bishop eyeing the centre down a long diagonal
     int long_diagonal_bishop_eg = 0;
-    int knight_on_queen_mg = 0;    // knight one safe hop from attacking the queen
+    int knight_on_queen_mg = 2;    // knight one safe hop from attacking the queen
     int knight_on_queen_eg = 0;
     int slider_on_queen_mg = 0;    // our slider x-rays the enemy queen
     int slider_on_queen_eg = 0;
-    int trapped_rook_mg = 0;       // near-immobile rook boxed in by its own king
+    int trapped_rook_mg = -1;       // near-immobile rook boxed in by its own king
     int trapped_rook_eg = 0;
-    int threat_safe_pawn_mg = 0;   // pawn threat from a square no enemy pawn attacks
-    int threat_safe_pawn_eg = 0;
+    int threat_safe_pawn_mg = 2;   // pawn threat from a square no enemy pawn attacks
+    int threat_safe_pawn_eg = 1;
 
-    int queen_infiltration_mg = 15;  // our queen safely deep in the enemy half
-    int queen_infiltration_eg = 12;
-    int pawn_islands_mg = -1;  // per disconnected own-pawn group (penalty)
-    int pawn_islands_eg = 5;
+    int queen_infiltration_mg = 17;  // our queen safely deep in the enemy half
+    int queen_infiltration_eg = 13;
+    int pawn_islands_mg = -3;  // per disconnected own-pawn group (penalty)
+    int pawn_islands_eg = 4;
 
     // ---- Bishop pair -------------------------------------------------------
     int bp_mg = 30;
     int bp_eg = 50;
 
     // ---- Rook bonuses ------------------------------------------------------
-    int rook_open_mg = 32;
-    int rook_open_eg = 7;
+    int rook_open_mg = 35;
+    int rook_open_eg = 9;
     int rook_semi_mg = 13;
-    int rook_semi_eg = 13;
+    int rook_semi_eg = 12;
     int rook_7th_mg = 6;
-    int rook_7th_eg = 23;
+    int rook_7th_eg = 24;
     int rook_behind_passer_mg = 14;
     int rook_behind_passer_eg = 25;
     int enemy_rook_passer_mg  = 10;  // subtracted (enemy rook behind our passer)
     int enemy_rook_passer_eg  = 20;  // subtracted
 
     // ---- Knight outpost ----------------------------------------------------
-    int knight_outpost_mg = 31;
-    int knight_outpost_eg = 15;
+    int knight_outpost_mg = 32;
+    int knight_outpost_eg = 16;
 
     // ---- Mobility: per-count one-hot tables (Step 3.3) ---------------------
     // Indexed by the safe-mobility square count. Seeded table[i] = i * old linear
@@ -276,42 +276,42 @@ struct EvalParams {
     // (The mobility *area* is unchanged here — its SF-style refinement, excluding
     // own K/Q, blocked pawns, and pinned pieces via blockers_for_king, is a
     // behaviour change deferred to Phase 4.4 where it interacts with the fit.)
-    int mob_n_mg[9] = { 0, 5, 9, 15, 20, 24, 31, 36, 40 };
-    int mob_n_eg[9] = { 0, 5, 10, 16, 21, 26, 30, 35, 37 };
-    int mob_b_mg[14] = { 0, 4, 7, 12, 21, 27, 32, 36, 40, 45, 50, 55, 60, 65 };
-    int mob_b_eg[14] = { 0, 7, 14, 21, 29, 37, 45, 50, 56, 63, 69, 76, 84, 91 };
-    int mob_r_mg[15] = { -1, 1, 1, 1, 2, 7, 7, 10, 13, 14, 14, 14, 14, 14, 14 };
-    int mob_r_eg[15] = { 0, 7, 14, 21, 28, 36, 45, 50, 58, 67, 71, 77, 83, 90, 96 };
-    int mob_q_mg[28] = { 0, 2, 4, 6, 8, 9, 11, 13, 16, 18, 20, 23, 25, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54 };
+    int mob_n_mg[9] = { 0, 4, 8, 15, 19, 24, 31, 36, 40 };
+    int mob_n_eg[9] = { 0, 5, 10, 16, 21, 26, 31, 36, 37 };
+    int mob_b_mg[14] = { 0, 3, 6, 12, 22, 28, 33, 36, 40, 45, 50, 55, 60, 65 };
+    int mob_b_eg[14] = { 0, 7, 13, 21, 29, 37, 45, 50, 56, 63, 69, 76, 84, 91 };
+    int mob_r_mg[15] = { -1, -1, -1, -1, 1, 6, 7, 11, 15, 15, 15, 15, 15, 15, 15 };
+    int mob_r_eg[15] = { 0, 7, 14, 20, 27, 36, 45, 50, 59, 68, 72, 77, 83, 90, 96 };
+    int mob_q_mg[28] = { 0, 2, 4, 6, 8, 8, 10, 12, 15, 18, 20, 24, 26, 27, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54 };
     int mob_q_eg[28] = { 0, 12, 24, 36, 48, 60, 72, 84, 96, 108, 120, 132, 144, 156, 168, 180, 192, 204, 216, 228, 240, 252, 264, 276, 288, 300, 312, 324 };
 
     // ---- Pawn threats to enemy pieces (re-tuned Phase 4.2) -----------------
-    int threat_minor_mg = 58;
-    int threat_minor_eg = 25;
-    int threat_rook_mg  = 58;
-    int threat_rook_eg  = 25;
-    int threat_queen_mg = 58;
-    int threat_queen_eg = 25;
+    int threat_minor_mg = 59;
+    int threat_minor_eg = 26;
+    int threat_rook_mg = 59;
+    int threat_rook_eg = 26;
+    int threat_queen_mg = 59;
+    int threat_queen_eg = 26;
 
     // ---- Threats package (Step 3.1; SF-style, seeded INERT, tuned in Phase 4.2) ----
     // Every weight seeded 0 so the structure computes + traces but does not change
     // eval (bench identical); the Phase-4.2 fit activates them. Per-type arrays are
     // indexed by the attacked PieceType [0..6].
     // (Phase 4.2 fit; the new package absorbed the old flat hang_pen, now zeroed.)
-    int threat_by_minor_mg[7] = { 0, 2, 37, 47, 59, 51, 0 };  // weak/defended enemy attacked by N/B
-    int threat_by_minor_eg[7] = { 0, 26, 3, 11, 22, 30, 0 };
-    int threat_by_rook_mg[7] = { 0, -4, 17, 25, 4, 46, 0 };  // weak enemy attacked by rook
-    int threat_by_rook_eg[7] = { 0, 25, 19, 22, 8, 33, 0 };
+    int threat_by_minor_mg[7] = { 0, 2, 38, 48, 59, 50, 0 };  // weak/defended enemy attacked by N/B
+    int threat_by_minor_eg[7] = { 0, 27, 3, 11, 22, 30, 0 };
+    int threat_by_rook_mg[7] = { 0, -2, 17, 26, 4, 46, 0 };  // weak enemy attacked by rook
+    int threat_by_rook_eg[7] = { 0, 27, 19, 23, 8, 33, 0 };
     int threat_by_king_mg     = 20;  // weak enemy attacked by our king
     int threat_by_king_eg = 40;
-    int threat_hanging_mg = 24;  // per weak enemy that is undefended or doubly attacked
-    int threat_hanging_eg = 25;
+    int threat_hanging_mg = 27;  // per weak enemy that is undefended or doubly attacked
+    int threat_hanging_eg = 27;
     int weak_queen_prot_mg = 17;  // per weak enemy whose only defender is its queen
-    int weak_queen_prot_eg    =  7;
+    int weak_queen_prot_eg = 8;
     int restricted_mg = 5;  // per square the enemy attacks but cannot safely hold
-    int restricted_eg = -4;
-    int threat_push_mg = 20;  // per enemy non-pawn attackable by a safe pawn push
-    int threat_push_eg = 14;
+    int restricted_eg = -5;
+    int threat_push_mg = 22;  // per enemy non-pawn attackable by a safe pawn push
+    int threat_push_eg = 15;
 
     // ---- King safety (Phase 4.1 fit via --tune-kingsafety) -----------------
     int ks_unit[7] = { 0, 0, 4, 0, 0, 0, 0 };  // attacker weight by PieceType
@@ -349,23 +349,23 @@ struct EvalParams {
     int storm_weight_adj = 1;  // mg penalty per rank, adjacent files
 
     // ---- Hanging pieces penalty (indexed by PieceType 0..6) ----------------
-    int hang_pen[7] = {0, 0, 0, 0, 0, 0, 0};  // dropped Phase 4.2 (absorbed by threats package)
+    int hang_pen[7] = { 0, 0, 1, 2, 1, 0, 0 };  // dropped Phase 4.2 (absorbed by threats package)
 
     // ---- Passed pawn king proximity (endgame) ------------------------------
     int prox_base = 0;  // constant in (prox_base + rel_r) distance multiplier
 
     // ---- Space evaluation --------------------------------------------------
-    int space_mg = 0;
+    int space_mg = 5;
     // Step 3.6 space refinement (seeded 0; tuned in Phase 4.5):
-    int space_piece_mg = 0;  // space weighted by own non-pawn piece count
-    int space_blocked_mg = -2;  // space weighted by own blocked-pawn count
+    int space_piece_mg = 4;  // space weighted by own non-pawn piece count
+    int space_blocked_mg = -3;  // space weighted by own blocked-pawn count
 
     // ---- Trapped bishop ----------------------------------------------------
     int trapped_mg = 60;
     int trapped_eg = 40;
 
     // ---- Tempo bonus -------------------------------------------------------
-    int tempo = 20;
+    int tempo = 42;
 
     // ---- Winnable / complexity coupling (Step 3.6) -------------------------
     // Frozen (not linearly traced); all 0, so the eval/bench are unchanged.
