@@ -319,10 +319,14 @@ One clear win: splitting `king_protector` at 5.9.2 was right. The fit separated
 what it previously could not — `(−1, +4)` for knights against `(−2, 0)` for
 bishops.
 
-**And the candidate carries a cost into the gate:** bench **11,941,440 →
-15,655,764**, a **+31% larger tree at fixed depth**. Against BAS-D08's ~1.9×
-per-iteration deficit that becomes roughly 2.5×. The evaluation gain has to
-outrun that, and nothing measured so far shows it does.
+**The candidate carries a small cost into the gate — and the first reading of
+it here was wrong.** Bench moves **11,941,440 → 15,655,764**; that +31% was
+initially written up as a ~2.5× deficit. Measured directly (BAS-E09), it is not.
+Bench counts nodes to *fixed depth 13*, and two evaluators that disagree diverge
+in aspiration and TT behaviour, so a big bench delta between different evals is
+expected. NPS is unchanged. Paired depth at equal nodes over 107 positions:
+**+0.019 ply at 300k, −0.168 at 1M**. Real headwind ≈ **a quarter ply** — a
+small single-digit Elo cost, not a reason to expect rejection.
 
 CTest 12/12 including the KBNK/KQK mate canaries — worth noting, since this
 class of change tripped them eight consecutive times historically.

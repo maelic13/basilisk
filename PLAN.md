@@ -940,9 +940,17 @@ with new terms is not the surface that washed.
   Endgame moved **0.4%** against opening's 12.4%, independently confirming
   5.9.3: the gap is endgame knowledge and the linear surface cannot reach it.
 
-  **A cost is now carried into the gate.** Bench **11,941,440 → 15,655,764**,
-  +31% nodes at fixed depth, taking our per-iteration deficit from BAS-D08's
-  ~1.9× to roughly 2.5×. The evaluation gain must outrun that.
+  **A cost is carried into the gate, but it is small — the first reading here
+  was wrong.** Bench moves **11,941,440 → 15,655,764**, and that +31% was first
+  written up as a ~2.5× per-iteration deficit. **BAS-E09 measured it and it does
+  not hold.** Bench counts nodes to a *fixed depth 13*; two evaluators that
+  disagree (251 against 281 on the last bench position) diverge in aspiration
+  windows and TT behaviour, so a large bench delta between different evaluators
+  is expected and is not itself an efficiency regression. NPS is unchanged, so
+  it is not a costlier evaluator either. Paired depth at equal nodes over 107
+  positions gives **+0.019 ply at 300k and −0.168 at 1M** (−0.250 excluding
+  mate runaways). The real headwind is **about a quarter ply**, a small
+  single-digit Elo cost — worth stating, not enough to predict rejection.
 
   The BAS-X14 classification held: the king-danger funnel, capped winnability and
   truncated tables stayed outside `scalars` (indices 128–148 skipped), so no

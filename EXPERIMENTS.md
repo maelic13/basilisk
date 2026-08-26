@@ -171,14 +171,49 @@ separated the pieces it could not previously distinguish, to `(−1, +4)` for
 knights against `(−2, 0)` for bishops. The endgame divergence is the whole point
 — a knight near its own king in the endgame is worth something a bishop is not.
 
-*Cost carried into the gate.* Bench moves **11,941,440 → 15,655,764**, a **+31%
-node increase at fixed depth**: the candidate searches a substantially larger
-tree for the same depth. Against BAS-D08's finding that we already pay ~1.9× the
-reference per iteration, this raises it to roughly 2.5×. The evaluation gain
-must outrun that cost, and nothing measured so far shows it does.
+*Cost carried into the gate — measured, after a first reading that was wrong.*
+Bench moves **11,941,440 → 15,655,764**, +31% nodes at the bench's fixed depth
+13, and this was first recorded here as a ~2.5× per-iteration deficit that the
+evaluation gain would have to outrun. **BAS-E09 measured it directly and that
+reading does not hold.** The real cost at realistic depths is about a quarter of
+a ply. See BAS-E09.
 
 *Correctness.* CTest 12/12 including the KBNK/KQK mate canaries — notable, since
 this class of change tripped them eight consecutive times historically.
+
+**BAS-E09 — the +31% bench does not buy a proportional depth loss** (2026-08-26,
+diagnostic, no Elo claim). Paired depth-at-equal-nodes over the 107-position
+`suite_v1.epd`, candidate `41797a7` against pre-bake baseline `8c5d7cc`, both
+built plain Release from the same toolchain, **Hash 64 on both arms**.
+
+| nodes/position | base mean depth | cand mean depth | paired Δ (mean) | Δ excl. mate runaways | deeper / shallower / equal |
+|---:|---:|---:|---:|---:|---|
+| 300,000 | 21.47 | 21.49 | **+0.019** | −0.010 | 27 / 32 / 48 |
+| 1,000,000 | 26.29 | 26.12 | **−0.168** | −0.250 | 25 / 37 / 45 |
+
+*Why the bench number misled.* Bench counts nodes to a **fixed depth 13** on a
+different 40-position set. Two evaluators that disagree score a position
+differently — the candidate returns 251 where the baseline returns 281 — so
+aspiration windows, fail-high/low patterns and TT behaviour all diverge. A large
+bench-node delta between two *different* evaluators is expected and is not by
+itself evidence of a search-efficiency regression. NPS is unchanged (3.23M vs
+3.31M), so the extra nodes are not a more expensive evaluator either.
+
+*What the cost actually is.* Roughly **0.17–0.25 ply at 1M nodes**, and
+indistinguishable from zero at 300k. That is a small single-digit Elo headwind
+into 5.9.6, not the ~2.5× deficit first recorded. It is a real headwind and it
+is the right size to state, but it does not on its own predict rejection.
+
+*Method note, carried from BAS-O04.* The mean is reported alongside a
+mate-runaway exclusion because BAS-O04's "12.07-ply gap" was a mean dominated by
+ten positions running past depth 100. Here the two agree, so the conclusion does
+not rest on the choice.
+
+*Standing caution.* Depth at fixed nodes is a coarse instrument: one iteration
+costs ~1.9× the previous (BAS-D08), so a 31% node difference is about a third of
+an iteration and rounds to zero in most single positions. The median is 0 at
+both operating points for that reason; the mean over 107 paired positions is
+what carries the signal.
 
 **BAS-D08 — per-iteration cost; there is no shallow target** (same runs,
 2026-08-25). Cumulative counts hide where the cost is. Differencing them gives
