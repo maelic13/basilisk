@@ -193,6 +193,9 @@ before the next starts
 | 5.9.4 | Joint Texel refit of the enlarged surface | ✅ done — see caveat |
 | 5.9.5 | King-safety fit (finite-diff first, SPSA only if it stalls) | ▶ **next** |
 | 5.9.6 | One promoting SPRT + post-fit ablation | **only Elo verdict** |
+| 5.9.7–5.9.10 | Endgame recognisers → grading → gate | only if 5.9.6 accepts |
+| 5.9.11 | Regenerate corpus on-policy | **runs regardless of 5.9.6** |
+| 5.9.12 | Full-surface refit — 1,116 params, material pinned | **runs regardless of 5.9.6** |
 | 5.9.7 | Endgame recogniser inventory, ordered by measured frequency | after 5.9.6 |
 | 5.9.8 | Recognisers only — no grading (the `MAN-E05` correction) | after 5.9.7 |
 | 5.9.9 | Conversion grading, only on classified endings | after 5.9.8 |
@@ -291,6 +294,31 @@ the user explicitly abandons that program.
 | Next Elo verdict | **5.9.6**, after the 5.9.4 fit and 5.9.5 SPSA |
 | Deferred, not skipped | **5.7** extensions/singular/IIR, **5.8** root/clock — after 5.9 |
 | Nothing queued for your machine | 5.9.1–5.9.4 are code and fitting work |
+
+### Which parameters get fitted, and by what
+
+5.9.4 fitted **348 of 1,190** — 29%. The **768 PST** coefficients were frozen
+through the whole program, which is the leading explanation for why the new
+terms measured inert: they are geometry terms competing with a frozen geometry
+table. 5.9.12 fixes this.
+
+| class | count | instrument |
+|---|---:|---|
+| `scalars` | 348 | Texel gradient |
+| PSTs | 768 | Texel gradient |
+| **Texel total** | **1,116** | |
+| `kingsafety` | 57 | coordinate descent |
+| `winnable` | 7 | finite difference |
+| material | 10 | pinned — collinear with PST |
+| total | **1,190** | |
+
+**Never run `--tune all`.** It reaches 1,183 — sweeping king safety into a
+gradient fit that corrupts it (BAS-X14) — while silently omitting the 7
+`winnable` params, which sit after `EPG_Tempo`, outside its range.
+
+Pinning material costs nothing: `eval.cpp:399` is
+`MG_TABLE = mg_val[pt] + pst_mg[pt-1][sq]`, so a constant across a piece's 64
+PST squares *is* a material change. Fitting both is a perfect null direction.
 
 ### 5.9.4 result — read the ablation, not the headline
 

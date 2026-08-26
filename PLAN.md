@@ -1007,6 +1007,81 @@ their own steps, opened only once 5.9.6 has a verdict:
 If 5.9.6 rejects, these steps do not open: a failed calibration is not repaired
 by adding a harder-to-fit class of knowledge on top of it.
 
+**On-policy refit of the whole surface — numbered, and unconditional.** These
+two run **whatever 5.9.6 returns**. They are not a retry of a rejected gate;
+they close two defects in how 5.9.4 was executed, both found after the fact.
+
+*Defect one: two thirds of the surface was never fitted.* 5.9.4 used
+`--tune scalars` and moved **348 of 1,190** fittable parameters — 29%. The
+**768 piece-square-table** coefficients sat frozen through the entire program.
+This is the leading candidate explanation for BAS-E08's ablation, where the new
+terms measured inert: `bad_outpost`, `bishop_outpost`, `long_diagonal_bishop`
+and `knight_on_queen` are all square-and-geometry dependent, and a PST is the
+most expressive geometry container in the evaluator. A frozen PST that already
+absorbs that signal leaves a new scalar term nothing to claim, and the ablation
+would read exactly as it did. Coverage was assumed rather than checked.
+
+*Defect two: the labels are off-policy.* They come from an older Basilisk's
+self-play, so they describe a distribution the candidate no longer produces.
+
+**The parameter taxonomy. Every fittable parameter has a home, and `--tune all`
+is not the way to reach them.**
+
+| class | count | instrument | why |
+|---|---:|---|---|
+| `scalars` | 348 | Texel gradient | well-behaved, uncapped |
+| PSTs | 768 | Texel gradient | well-behaved; **never fitted since Phase 4.7** |
+| **Texel total** | **1,116** | | |
+| `kingsafety` | 57 | coordinate descent | capped nonlinear funnel (BAS-X14) |
+| `winnable` | 7 | finite difference | capped; tuner's own help marks it finite-diff |
+| material | 10 | **pinned, not fitted** | exactly collinear with PST |
+| total | **1,190** | | |
+
+Do **not** run `--tune all`. It is a trap in both directions: it reaches 1,183
+parameters, sweeping the 57 king-safety coefficients into a gradient fit that
+corrupts them, while silently **omitting the 7 `winnable` params**, which sit
+after `EPG_Tempo` and fall outside its range.
+
+Material is pinned and this costs **zero expressiveness**: `eval.cpp:399` builds
+`MG_TABLE = mg_val[pt] + pst_mg[pt-1][sq]`, so adding a constant across a
+piece's 64 PST squares *is* a material change. Fitting both is a perfect null
+direction — rank-deficient by construction. Pinning removes the degeneracy
+without removing any reachable evaluator.
+
+- **5.9.11 Regenerate the corpus on-policy.** Full extract → label → pack cycle
+  driven by the **current** binary, replacing the older Basilisk's self-play
+  labels. Same pipeline as the existing corpus — Beast pool starts, self-play
+  WDL, quiet filtering, dedup, five-phase balance — so the only variable that
+  changes is the policy that produced the labels. Record row count, holdout
+  split and the generating revision.
+
+- **5.9.12 Full-surface Texel refit.** Fit the 1,116-parameter Texel set jointly
+  on the 5.9.11 corpus, material pinned. Then re-run the 64 non-Texel
+  coefficients on their own instruments and **iterate** — the two sets interact,
+  so one pass of each is not a converged fit.
+
+  Two checks are mandatory, not optional:
+
+  1. **Score-scale audit.** Texel refits `K`, so a fit can rescale the entire
+     centipawn scale at constant WDL loss and let `K` silently absorb it. Our
+     futility, razoring and delta-pruning margins are centipawn constants
+     calibrated to the current scale, and BAS-M05 records the resign threshold
+     as engine-scale dependent — mechanism and consumer constants are one
+     system. Compare the fitted `K` against the baseline (5.9.4 used
+     **1.41868**) and report effective piece values as `mg_val + mean(PST)`. A
+     moved `K` means the margins need re-examining, not that the fit failed.
+  2. **Repeat the BAS-E08 ablation.** Apply only the new terms' values against
+     the refit surface. If they are still inert once PSTs are free to move, the
+     terms are genuinely redundant and should be considered for removal rather
+     than carried as dead weight.
+
+  SPSA remains available for whatever neither instrument prices, but it is not
+  scheduled here: it is the escalation, on evidence, under PLAN's SPSA doctrine.
+
+*Why this is not another cycle-6 repeat.* Cycle 6 and 5.9.4 both refit the
+**same 348-parameter subset on the same off-policy labels**. 5.9.12 changes both
+variables at once — 3.2× the parameters, and labels from the current policy.
+
 **Stop rule.** If 5.9.6 rejects, ablate to separate the added structure from the
 refit from the SPSA. Do not hand-retune a failed gate — that is forbidden in
 both the Basilisk and Manta records. If the ablation shows the structure is
