@@ -208,8 +208,20 @@ struct EvalParams {
     // All seeded 0 so bench is unchanged; traced, tuned in Phase 4.5.
     int minor_behind_pawn_mg = 4;  // minor shielded by a friendly pawn directly ahead
     int minor_behind_pawn_eg  = 0;
-    int king_protector_mg = -2;  // per square of own-minor distance to our king (penalty)
-    int king_protector_eg = 0;
+    // ---- 5.9.2 simpler-form repairs (seeded to preserve behaviour) --------
+    // king_protector was ONE scalar applied to both knights and bishops, so the
+    // fit could never learn that the two pieces value king proximity
+    // differently. Split per piece type, both seeded at the shared value so
+    // bench is unchanged; 5.9.4 separates them.
+    int king_protector_n_mg = -2;   // knight distance-to-own-king
+    int king_protector_n_eg = 0;
+    int king_protector_b_mg = -2;   // bishop distance-to-own-king
+    int king_protector_b_eg = 0;
+    // Outposts were priced for knights only. A bishop on a protected advanced
+    // square the enemy cannot challenge with a pawn is the same concept and was
+    // simply missing. Seeded inert.
+    int bishop_outpost_mg = 0;
+    int bishop_outpost_eg = 0;
     // ---- 5.9.1 coverage close-out (seeded INERT; fitted at 5.9.4) ----------
     // The six concepts BAS-E07 found absent from our evaluator plus the
     // safe-square qualifier our pawn threats lacked. Every weight is 0, so the
@@ -449,8 +461,12 @@ inline const int* eval_param_cptr(const T& v) {
     X(ImbTheir,             imb_their,            21)               \
     X(MinorBehindPawnMg,    minor_behind_pawn_mg,  1)               \
     X(MinorBehindPawnEg,    minor_behind_pawn_eg,  1)               \
-    X(KingProtectorMg,      king_protector_mg,     1)               \
-    X(KingProtectorEg,      king_protector_eg,     1)               \
+    X(KingProtectorNMg,     king_protector_n_mg,   1)             \
+    X(KingProtectorNEg,     king_protector_n_eg,   1)             \
+    X(KingProtectorBMg,     king_protector_b_mg,   1)             \
+    X(KingProtectorBEg,     king_protector_b_eg,   1)             \
+    X(BishopOutpostMg,      bishop_outpost_mg,     1)             \
+    X(BishopOutpostEg,      bishop_outpost_eg,     1)             \
     X(BadOutpostMg,         bad_outpost_mg,        1)             \
     X(BadOutpostEg,         bad_outpost_eg,        1)             \
     X(BishopXrayPawnMg,     bishop_xray_pawn_mg,   1)             \

@@ -181,18 +181,41 @@ before the next starts
 
 **Evaluation gap closure**
 
-- [ ] **5.9 HCE maturity program — UNFROZEN 2026-08-25.** The HCE is no longer
-      frozen. Ordered: **5.9.1** implement the six absent terms (`BadOutpost`,
-      `BishopXRayPawns`, `LongDiagonalBishop`, `KnightOnQueen`, `SliderOnQueen`,
-      `TrappedRook`) plus the safe-square pawn-threat qualifier, landed inert on
-      deterministic evidence — **no individual SPRT**, that design lost twice in
-      Manta (BAS-X11, ~−23 Elo); **5.9.2** hunt terms we price in simpler form
-      than the reference; **5.9.3** freeze structure; **5.9.4** joint Texel refit
-      of the *enlarged* surface, coefficients classified free/fixed/excluded
-      first (BAS-X14); **5.9.5** one registered SPSA over what Texel cannot price
-      — the capped nonlinear king-danger funnel; **5.9.6** one promoting SPRT
-      plus post-fit ablation. Cycle 6's wash forbids refitting the *same*
-      features, not an enlarged surface — that is what makes this a real retry.
+- [~] **5.9 HCE maturity program — IN PROGRESS** (unfrozen 2026-08-25). Sub-steps
+      below. Only 5.9.6 produces an Elo verdict; everything before it is
+      scaffolding and is **expected** to show no strength.
+
+  - [x] **5.9.1 Coverage close-out — DONE 2026-08-25.** Seven terms added
+        (`bad_outpost`, `bishop_xray_pawn`, `long_diagonal_bishop`,
+        `knight_on_queen`, `slider_on_queen`, `trapped_rook`,
+        `threat_safe_pawn`), all **seeded 0**. Evidence: bench 11,941,440
+        unchanged, CTest 12/12, `--verify` exact on 10,000 positions, and every
+        term shown to fire over 20,000 corpus positions (1,442–9,932 each).
+        *No strength change, by design — inert terms cannot move Elo.*
+  - [x] **5.9.2 Simpler-form audit — DONE 2026-08-25.** Most shapes already
+        match the reference (threats graded by attacked piece, mobility as
+        per-count tables, rook-on-file decomposed, hanging indexed). Two real
+        defects repaired: `king_protector` was **one scalar shared by knight and
+        bishop** — split per piece, seeded at the shared value; and **bishop
+        outposts were never priced** despite a stale comment claiming they were.
+        Evidence: bench 11,941,440, CTest 12/12, `--verify` exact,
+        BishopOutpost fires 1,173 / KingProtectorN 13,399 / KingProtectorB
+        14,234 of 20,000. *Still no Elo — by design.*
+  - [ ] **5.9.3 Structure freeze.** No further evaluation structure changes; a
+        fit against a moving structure has to be redone.
+  - [ ] **5.9.4 Joint Texel refit** of the **enlarged** surface. Classify every
+        coefficient free/fixed/excluded first (BAS-X14) — a coefficient fitted
+        through a cap is a corrupted gradient, not a tuned value.
+  - [ ] **5.9.5 SPSA** over what Texel cannot price: the capped, nonlinear
+        king-danger funnel. Registered horizon/bounds/stop rule before launch.
+  - [ ] **5.9.6 One promoting SPRT** + post-fit ablation. **This is the only
+        step that can gain or lose Elo.**
+
+      Why no individual SPRTs before 5.9.6: BAS-X11 records Manta losing ~−23
+      Elo across two gates by hand-scaling exactly this class of term and gating
+      each alone. Why this is a real retry and not cycle 6 repeated: cycle 6
+      refit the **same** features and washed at +1.37 ±5.21; this refits an
+      **enlarged** surface.
 
 **Consolidation and release**
 
@@ -265,85 +288,42 @@ the user explicitly abandons that program.
 - [ ] **10.1** select a small residual-driven HCE program.
 - [ ] **10.2** run one HCE fit and full external release matrix.
 
-## What you run now
+## Where we are
 
-**5.14 is done. Next is 5.9 — the HCE maturity program.**
-
-### 5.14 result — revised after measuring to depth 19
-
-Stopping at depth 11 was a blind spot and it produced the wrong conclusion.
-
-| depth | 4 | 8 | 11 | 13 | 15 | 17 | 19 |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| Basilisk / oracle nodes | 4.38× | 3.18× | 1.99× | 2.06× | 1.75× | 1.92× | 1.80× |
-
-| segment | Basilisk | oracle |
-|---|---:|---:|
-| b(4–11) | 1.692 | 1.894 |
-| **b(11–19)** | **1.570** | **1.590** |
-
-**Two things I had wrong:**
-
-- **Deep branching is equal, not better for us.** The "our growth is better"
-  claim came from the shallow segment only. Over 11–19 — where games run — the
-  two are indistinguishable. So the ratio **plateaus at ~1.9× and never closes**;
-  the crossover I projected does not exist.
-- **The gap is 4 plies, not 12.** BAS-O04's 12.07 was a mean over a distribution
-  with forced mates running to depth 100 and 245 (10 of 105 positions ≥100). The
-  **median is 4.00**. Every "12 plies shallower" statement overstated by ~3×.
-  Paired comparisons were never affected — only the absolute means.
-
-**Correction 3 — there is no shallow target.** Differencing the cumulative
-counts gives each iteration's own cost:
-
-| depth | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| per-iteration ratio | 1.56× | 2.56× | 2.05× | 1.31× | 2.37× | 1.85× | 1.75× | 1.69× |
-
-Our depth-19 **iteration itself** costs ~1.7× theirs — the cumulative ratio is
-flat because every iteration costs that multiple, not because shallow overhead
-is carried. And **depths ≤6 are 0.205% of a depth-19 search**: deleting the band
-outright would change nothing.
-
-So **5.14 yields no actionable target.** The deficit is a uniform ~1.9×
-per-iteration cost at every depth, with no band where work pays
-disproportionately — the same wall 5.4–5.6 hit.
-
-**One thing left open:** a 1.9× cost at b≈1.55 predicts ~1.5 plies, but the
-measured median gap is 4.0. About 2.5 plies is unexplained — possibly the
-16-position summed sample not representing the 107-position median, possibly a
-difference in when an iteration counts as complete. **No cluster should open
-against the shallow band until that is settled**, or its metric inherits the
-same ambiguity.
-
-### The HCE is unfrozen (2026-08-25)
-
-5.9 is now a maturity program, ordered so it respects the evidence rather than
-repeating it:
-
-**Order (maintainer decision, 2026-08-25):** 5.9 now, then back to **5.7 and
-5.8**, which are deferred rather than skipped and keep their preconditions.
-Search has failed to yield across 5.4, 5.5, 5.6 and 5.14; the evaluation gap is
-measured and untouched.
+**Phase 5.9, sub-step 5.9.2.** The checklist above tracks all six sub-steps.
 
 | | |
 |---|---|
-| 5.9.1 | six absent terms + safe-square pawn threats, landed inert on deterministic evidence — **no individual SPRTs** |
-| 5.9.2 | terms we price in simpler form than the reference |
-| 5.9.3 | structure freeze |
-| 5.9.4 | joint Texel refit of the **enlarged** surface, coefficients classified free/fixed/excluded first |
-| 5.9.5 | one registered SPSA over what Texel cannot price — the capped king-danger funnel |
-| 5.9.6 | one promoting SPRT + post-fit ablation |
+| Engine state | unchanged — bench **11,941,440**, CTest 12/12 |
+| Last completed | **5.9.2** simpler-form audit (structural, no Elo by design) |
+| Running now | **5.9.3** structure freeze, then **5.9.4** the joint fit |
+| Next Elo verdict | **5.9.6**, after the 5.9.4 fit and 5.9.5 SPSA |
+| Deferred, not skipped | **5.7** extensions/singular/IIR, **5.8** root/clock — after 5.9 |
+| Nothing queued for your machine | 5.9.1–5.9.4 are code and fitting work |
 
-Why this is a real retry and not a repeat of cycle 6: **cycle 6 refit the same
-features and washed at +1.37 ±5.21. This refits an enlarged surface.** And
-individual hand-set reference-family terms are exactly what lost ~−23 Elo across
-two Manta gates, which is why 5.9.1/5.9.2 carry no SPRT of their own.
+### Was 5.9.1 successful?
 
-Honest expectation: BAS-E07 measured the −232.8 Elo gap as calibration at
-fishtest scale, which we cannot reproduce. Expect a real but bounded gain, not a
-material fraction of it — and note the work is not lost either way, since a
-stronger HCE is a better NNUE teacher at 7.1.
+Yes, for what it is — but it produced **no strength, and could not have.**
+
+All seven terms are seeded to **0**, so the evaluator computes them and the
+tuner can see them, while the engine plays exactly as before. That is deliberate:
+the values come from the joint fit at 5.9.4, never from hand-reasoning, because
+hand-set reference-family terms are what lost Manta ~−23 Elo across two gates.
+
+So "success" at 5.9.1 means four things, all verified:
+
+- the terms **exist and compute** — each fires on 1,442–9,932 of 20,000 corpus
+  positions;
+- they are **provably inert** — bench 11,941,440 unchanged, CTest 12/12;
+- the tuner can **reconstruct the evaluator exactly** with them present
+  (`--verify` on 10,000 positions);
+- so they are **fittable** at 5.9.4.
+
+**Nothing here is worth Elo yet, and the plan does not claim otherwise.** The
+first and only Elo verdict in this program is 5.9.6. If you want a one-line
+summary of 5.9.1: the scaffolding is in and provably harmless.
+
+
 
 ### Acceleration step lifecycle (5.4–5.9)
 

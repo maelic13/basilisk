@@ -851,10 +851,21 @@ with new terms is not the surface that washed.
   symmetry, special-move cases, an independently ablatable switch, and a stated
   throughput budget. **No individual SPRT** — that is the design BAS-X11 shows
   losing.
-- **5.9.2 Mechanism search beyond coverage.** Re-audit against the reference for
-  concepts we price only in a simpler functional form, not merely those absent.
-  Manta found three such terms after declaring coverage closed; expect the same
-  class here. Same deterministic gating as 5.9.1.
+- **5.9.2 Mechanism search beyond coverage — DONE 2026-08-25.** Audited our term
+  *shapes* against the reference's, not just presence. Most already match: our
+  threat-by-minor and threat-by-rook are graded arrays over the attacked piece
+  type, our mobility is a per-count table per piece, our rook-on-file is
+  decomposed into open and semi-open, and hanging is indexed. Two genuine
+  simpler-form defects found and repaired:
+
+  - `king_protector` was **one scalar shared by knights and bishops**, so no fit
+    could ever learn that the two pieces value king proximity differently. Split
+    per piece type, both seeded at the shared value so behaviour is unchanged.
+  - **Bishop outposts were never priced.** The concept existed for knights only;
+    a comment in the bishop loop claimed otherwise and was stale. Added beside
+    the knight's in the cheap block, so lazy eval treats both minors alike —
+    pricing one before the checkpoint and the other after would make the pair's
+    relative value depend on whether the lazy margin fired.
 - **5.9.3 Structure freeze.** No further evaluation structure changes until the
   fit completes. A fit against a moving structure has to be redone.
 - **5.9.4 Joint Texel refit.** Refit the enlarged linear surface on a fresh

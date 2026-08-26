@@ -48,6 +48,9 @@ int main() {
         {"SliderOnQueen",     &EvalParams::slider_on_queen_mg},
         {"TrappedRook",       &EvalParams::trapped_rook_mg},
         {"ThreatSafePawn",    &EvalParams::threat_safe_pawn_mg},
+        {"BishopOutpost",     &EvalParams::bishop_outpost_mg},
+        {"KingProtectorN",    &EvalParams::king_protector_n_mg},
+        {"KingProtectorB",    &EvalParams::king_protector_b_mg},
     };
     int bad = 0;
     for (auto& t : terms) {

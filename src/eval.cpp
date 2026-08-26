@@ -732,6 +732,23 @@ int Evaluator::evaluate(const Board& b) {
                 }
             }
         }
+
+        // 5.9.2 bishop outpost. The same concept the knight loop above prices,
+        // for the piece it was never applied to: a bishop on a protected
+        // advanced square no enemy pawn can challenge. Placed here rather than
+        // in the attack-map block so lazy eval treats both minors alike --
+        // pricing one before the checkpoint and the other after would make the
+        // pair's relative value depend on whether the margin fired.
+        Bitboard bishops_c = b.pieces[c][BISHOP];
+        while (bishops_c) {
+            int sq = pop_lsb(bishops_c);
+            if (relative_rank(us, Square(sq)) >= RANK_5
+                && (PawnAttacks[them][sq] & b.pieces[us][PAWN])
+                && !(PawnAttacks[us][sq] & b.pieces[them][PAWN])) {
+                mg += sign * p.bishop_outpost_mg; TR_MG(BishopOutpostMg, 0, sign);
+                eg += sign * p.bishop_outpost_eg; TR_EG(BishopOutpostEg, 0, sign);
+            }
+        }
     }
 
     // ---- Lazy eval checkpoint (Step 3.11; behaviour-changing, SPRT-gated) ---
@@ -1308,7 +1325,8 @@ int Evaluator::evaluate(const Board& b) {
             eg += sign * np * p.bishop_pair_pawns_eg; TR_EG(BishopPairPawnsEg, 0, sign * np);
         }
 
-        // Bishops: outpost, bad bishop, king-ring pressure.
+        // Bishops: bad bishop, king-ring pressure, x-ray pawns, long diagonal.
+        // (The outpost bonus lives in the cheap block beside the knight's.)
         Bitboard bishops = b.pieces[us][BISHOP];
         while (bishops) {
             Square bsq = Square(pop_lsb(bishops));
@@ -1327,8 +1345,8 @@ int Evaluator::evaluate(const Board& b) {
                 eg += sign * p.minor_behind_pawn_eg; TR_EG(MinorBehindPawnEg, 0, sign);
             }
             int b_kd = KING_DIST[b.king_sq[us]][bsq];
-            mg += sign * b_kd * p.king_protector_mg; TR_MG(KingProtectorMg, 0, sign * b_kd);
-            eg += sign * b_kd * p.king_protector_eg; TR_EG(KingProtectorEg, 0, sign * b_kd);
+            mg += sign * b_kd * p.king_protector_b_mg; TR_MG(KingProtectorBMg, 0, sign * b_kd);
+            eg += sign * b_kd * p.king_protector_b_eg; TR_EG(KingProtectorBEg, 0, sign * b_kd);
 
             // 5.9.1 bishop x-ray pawns. bad_bishop already prices OUR pawns on
             // the bishop's colour; this prices the ENEMY pawns actually sitting
@@ -1369,8 +1387,8 @@ int Evaluator::evaluate(const Board& b) {
                 eg += sign * p.minor_behind_pawn_eg; TR_EG(MinorBehindPawnEg, 0, sign);
             }
             int n_kd = KING_DIST[b.king_sq[us]][nsq];
-            mg += sign * n_kd * p.king_protector_mg; TR_MG(KingProtectorMg, 0, sign * n_kd);
-            eg += sign * n_kd * p.king_protector_eg; TR_EG(KingProtectorEg, 0, sign * n_kd);
+            mg += sign * n_kd * p.king_protector_n_mg; TR_MG(KingProtectorNMg, 0, sign * n_kd);
+            eg += sign * n_kd * p.king_protector_n_eg; TR_EG(KingProtectorNEg, 0, sign * n_kd);
 
             // 5.9.1 bad outpost: the knight_outpost bonus assumes an outpost is
             // permanent, but it is only worth full value if the enemy cannot
