@@ -1093,8 +1093,21 @@ without removing any reachable evaluator.
   changes is the policy that produced the labels. Record row count, holdout
   split and the generating revision.
 
+  **Run as a three-arm label-source experiment (BAS-E17), registered before
+  launch.** The single variable is which engine's games produce the WDL labels:
+  **A** Basilisk at 8,000 nodes, **B** Stockfish dev-20260716 at 8,000, **C**
+  Basilisk at **25,000**. 125,000 rounds each, identical starts, adjudication
+  none, identical extraction, and the same 348-parameter `scalars` fit 5.9.4
+  used — so a pass directly confirms the BAS-E11 correction. Arm C separates
+  *label quality* from *label source*: it buys less-noisy outcomes from our own
+  engine, with none of the transfer risk. Decision rule and prediction are
+  registered in BAS-E17 and must not be revised after results.
+
+  Whichever source wins carries into 5.9.12's full-surface fit. The underlying
+  design in all three arms is:
+
   **Beast positions as STARTS, self-play game results as LABELS, adjudication
-  none, 320,000 rounds, 8,000 nodes/move** — `beast_seed_2m.epd`, which already
+  none, 8,000 nodes/move** — `beast_seed_2m.epd`, which already
   holds 2,000,000 sampled positions.
 
   **The label change is the important one.** The old `beast_sf_*` corpus is

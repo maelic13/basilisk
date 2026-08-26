@@ -34,6 +34,16 @@
     Engine binary suffix. Looks for
     tools\test_engines\basilisk-<Suffix>-pext-pgo.exe.
     Build with:  .\tools\build_test.ps1 -Suffix <Suffix>
+    Ignored when -EnginePath is given, but still used to name the manifest.
+
+.PARAMETER EnginePath
+    Explicit path to ANY UCI engine, overriding the Suffix lookup. Added for the
+    5.9.11 label-source experiment, which needs a non-Basilisk engine to produce
+    the game outcomes.
+
+    Labels are game RESULTS either way. This does not make the run an evaluation
+    oracle -- the failure recorded in BAS-E11 came from fitting Stockfish's
+    static SCORES, which is a different thing entirely and stays forbidden.
 
 .PARAMETER Rounds
     Number of distinct openings/games. Datagen uses one game per opening:
@@ -97,6 +107,7 @@ param(
     [int]   $Seed        = 42,
     [ValidateSet("standard", "none")]
     [string]$Adjudication = "standard",
+    [string]$EnginePath  = "",
     [switch]$AllowAppend,
     [switch]$PreflightOnly
 )
@@ -112,7 +123,8 @@ try {
     if (-not $FastchessPath) { $FastchessPath = "$PSScriptRoot\bin\fastchess.exe" }
     if (-not $OutputPgn)     { $OutputPgn     = "$PSScriptRoot\texel\data\selfplay.pgn" }
 
-    $enginePath = "$PSScriptRoot\test_engines\basilisk-$Suffix-pext-pgo.exe"
+    $enginePath = if ($EnginePath) { $EnginePath }
+                  else { "$PSScriptRoot\test_engines\basilisk-$Suffix-pext-pgo.exe" }
 
     foreach ($p in @($Book, $FastchessPath, $enginePath)) {
         if (-not (Test-Path $p)) { throw "Not found: $p" }
@@ -131,7 +143,11 @@ try {
     $manifestPath  = "$OutputPgn.manifest.txt"
     $engineManifest = [IO.Path]::ChangeExtension($enginePath, ".manifest.txt")
 
-    if (-not (Test-Path -LiteralPath $engineManifest)) {
+    # A Basilisk test binary must carry its build manifest -- that is how a
+    # corpus is traced back to a revision and a clean tree. A foreign engine
+    # supplied via -EnginePath has no such manifest; its provenance is the
+    # sha256 and self-reported id name recorded in the manifest instead.
+    if (-not $EnginePath -and -not (Test-Path -LiteralPath $engineManifest)) {
         throw "Engine manifest not found: $engineManifest. Build the datagen engine with tools\build_test.ps1."
     }
 
@@ -249,16 +265,33 @@ try {
 
     $engineSha = (Get-FileHash -LiteralPath $enginePath -Algorithm SHA256).Hash
     $bookSha = (Get-FileHash -LiteralPath $Book -Algorithm SHA256).Hash
-    $engineManifestSha = (Get-FileHash -LiteralPath $engineManifest -Algorithm SHA256).Hash
-    $revision = "unknown"
-    $revisionLine = Get-Content -LiteralPath $engineManifest |
-        Where-Object { $_ -match '^revision:\s+' } | Select-Object -First 1
-    if ($revisionLine) { $revision = ($revisionLine -replace '^revision:\s+', '').Trim() }
+    # A foreign engine has no Basilisk build manifest, so there is no revision
+    # to quote. Saying "unknown" is correct here and must not be confused with a
+    # Basilisk run whose manifest went missing -- label_engine_* carries the
+    # provenance for that case.
+    $engineManifestSha = if (Test-Path -LiteralPath $engineManifest) {
+        (Get-FileHash -LiteralPath $engineManifest -Algorithm SHA256).Hash
+    } else { "n/a (foreign engine)" }
+    $revision = if ($EnginePath) { "n/a (foreign engine)" } else { "unknown" }
+    if (Test-Path -LiteralPath $engineManifest) {
+        $revisionLine = Get-Content -LiteralPath $engineManifest |
+            Where-Object { $_ -match '^revision:\s+' } | Select-Object -First 1
+        if ($revisionLine) { $revision = ($revisionLine -replace '^revision:\s+', '').Trim() }
+    }
     $fastchessVersion = (& $FastchessPath --version 2>&1 | Select-Object -First 1)
     $startedUtc = (Get-Date).ToUniversalTime().ToString('u')
     $appendMode = $AllowAppend.IsPresent.ToString().ToLowerInvariant()
     $commandLine = ".\tools\datagen.ps1 -Suffix $Suffix -Rounds $Rounds -Nodes $Nodes -Hash $Hash -Concurrency $Concurrency -Book `"$Book`" -BookFormat $BookFormat -OutputPgn `"$OutputPgn`" -Seed $Seed"
     if ($AllowAppend) { $commandLine += " -AllowAppend" }
+    # The engine names itself. In a multi-arm label-source experiment the
+    # manifest must be able to prove which engine produced which corpus.
+    $engineIdName = try {
+        ("uci`nquit`n" | & $enginePath 2>$null |
+            Select-String -Pattern '^id name (.+)$' |
+            Select-Object -First 1).Matches.Groups[1].Value
+    } catch { "unknown" }
+    if (-not $engineIdName) { $engineIdName = "unknown" }
+
     $adjManifest = if ($Adjudication -eq "standard") {
         "draw movenumber=40 movecount=8 score=10; resign movecount=3 score=600 twosided=true"
     } else {
@@ -293,6 +326,9 @@ try {
         "opening_seed: $Seed"
         "pgn_append: $appendMode"
         "adjudication: $adjManifest"
+        "label_engine: $enginePath"
+        "label_engine_sha256: $(Get-FileHash $enginePath -Algorithm SHA256 | ForEach-Object Hash)"
+        "label_engine_id: $engineIdName"
         "fastchess: $fastchessVersion"
         "output_pgn: $OutputPgn"
     )

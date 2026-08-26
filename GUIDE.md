@@ -194,7 +194,7 @@ before the next starts
 | 5.9.5 | King-safety fit — variant A only, table deferred | ✅ done 2026-08-26 |
 | 5.9.6 | Promoting SPRT of the 5.9.1–5.9.5 candidate | ❌ **REJECTED −77.92 Elo** |
 | 5.9.7–5.9.10 | Endgame recognisers → grading → gate | only if 5.9.6 accepts |
-| 5.9.11 | Regenerate corpus on-policy **+ mating + sharp positions** | ▶ **next** |
+| 5.9.11 | Corpus regen — **three-arm label-source experiment** (BAS-E17) | ▶ **running** |
 | 5.9.12 | Full-surface refit — 1,116 params, material pinned | **runs regardless of 5.9.6** |
 | 5.9.13 | Post-refit SPRT | second and final Elo verdict |
 | 5.9.7 | Endgame recogniser inventory, ordered by measured frequency | after 5.9.6 |
