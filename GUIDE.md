@@ -194,7 +194,7 @@ before the next starts
 | 5.9.5 | King-safety fit — variant A only, table deferred | ✅ done 2026-08-26 |
 | 5.9.6 | Promoting SPRT of the 5.9.1–5.9.5 candidate | ❌ **REJECTED −77.92 Elo** |
 | 5.9.7–5.9.10 | Endgame recognisers → grading → gate | only if 5.9.6 accepts |
-| 5.9.11 | Corpus regen — **three-arm label-source experiment** (BAS-E17) | ▶ **running** |
+| 5.9.11 | Corpus regen — **three-arm label-source experiment** (BAS-E17) | ✅ done — no arm passed |
 | 5.9.12 | Full-surface refit — 1,116 params, material pinned | **runs regardless of 5.9.6** |
 | 5.9.13 | Post-refit SPRT | second and final Elo verdict |
 | **5.9.14** | **King-safety `safety_table` reshape — RETRY** | queued, never Elo-tested |
@@ -296,8 +296,8 @@ the user explicitly abandons that program.
 | | |
 |---|---|
 | Engine state | back to **1.9.3 behaviour** — bench **11,941,440**, CTest 12/12, provably identical (BAS-E13) |
-| Last completed | **5.9.6** — REJECTED at −77.92 Elo; values reverted, speed work kept |
-| Running now | **5.9.11** regenerate the corpus |
+| Last completed | **5.9.11** — 3 arms, none passed; self-play labels beat the Stockfish oracle |
+| Running now | **5.9.15** LTC probe — next up, awaiting your run |
 | Next Elo verdict | **5.9.6**, after the 5.9.4 fit and 5.9.5 SPSA |
 | Deferred, not skipped | **5.7** extensions/singular/IIR, **5.8** root/clock — after 5.9 |
 | Nothing queued for your machine | 5.9.1–5.9.4 are code and fitting work |
@@ -308,12 +308,20 @@ the user explicitly abandons that program.
 |---|---|---:|---|
 | A | Basilisk @ 8k | **−2.85 ±3.11** | rejected (H0) |
 | C | Basilisk @ 25k | **+1.00 ±2.11** | no verdict, stopped by decision |
-| B | Stockfish @ 8k | running | — |
+| B | Stockfish @ 8k | **−7.30 ±4.76** | rejected — **worst arm** |
 | *5.9.6* | *SF **evaluations*** | *−77.92* | *rejected* |
 
 **Arm A differs from 5.9.6 in one thing only — game results instead of
 Stockfish evaluations — and the same fit moves −77.92 → −2.85.** About 75 Elo
 recovered by the label change alone. The BAS-E11 correction is confirmed.
+
+**The oracle lost.** Stockfish-labelled games made the evaluation *worse* than
+our own self-play labels (−7.30 vs −2.85), rejected in under two hours. Its
+labels genuinely were cleaner — wider W/L skew — and it still lost. A label
+should reflect what **our** search can realize; fitting to what a stronger
+engine converts teaches the eval to value what our search cannot cash. PLAN's
+independence constraint and the best measured option agree, so no trade-off was
+needed.
 
 **But no arm gains.** Four results now agree the 348-parameter scalar surface is
 saturated: cycle 6 (+1.37 ±5.21), BAS-E08's inert ablation, arm A, arm C. Clean
