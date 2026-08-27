@@ -27,13 +27,12 @@
 .PARAMETER Games
     Per-SPRT game cap. Default 30,000, the project standard.
 
-    TIMING: a decisive arm stops early -- the 5.9.6 rejection resolved in 1,292
-    games (~15 min). An arm sitting near zero runs to the cap, about 5.6 hours
-    at the measured 1.48 games/s. Worst case for three arms is therefore ~17
-    hours, which will overrun a single night. Lower this to bound it: 16,000
-    games is roughly 3 hours per arm and still resolves anything past about
-    +/-5 nElo, at the cost of returning "cap reached" instead of a verdict on a
-    genuinely neutral arm.
+    TIMING -- and note this value is ROUNDS, not games. sprt.ps1 passes it as
+    `-rounds` with `-games 2 -repeat`, so each round is a colour-swapped PAIR
+    and the real game cap is DOUBLE this number. Measured: -Games 16000 let arm
+    A reach 20,096 games in 3h45m before stopping decisively, so budget roughly
+    4-6 hours per arm at that setting rather than the 3 first estimated here.
+    A decisive arm stops early; an arm sitting near zero runs to the cap.
 
 .PARAMETER PreflightOnly
     Verify binaries and print their benches, then exit without running anything.
@@ -150,14 +149,16 @@ foreach ($arm in $arms) {
     # Keep the last Elo/LLR/verdict lines; that is what a verdict is made of.
     $elo  = ($out | Select-String -Pattern '^Elo:'   | Select-Object -Last 1).ToString()
     $llr  = ($out | Select-String -Pattern '^LLR:'   | Select-Object -Last 1).ToString()
-    $games= ($out | Select-String -Pattern '^Games:' | Select-Object -Last 1).ToString()
+    # NB: do NOT name this $games -- PowerShell is case-insensitive and it would
+    # alias the [int]$Games parameter, throwing on assignment.
+    $gameLine = ($out | Select-String -Pattern '^Games:' | Select-Object -Last 1).ToString()
     $sprt = ($out | Select-String -Pattern 'SPRT .*completed' | Select-Object -Last 1)
     $verdict = if ($sprt) { $sprt.ToString().Trim() } else { "cap reached - no SPRT verdict" }
 
     $summary = @(
         "arm $($arm.Name) [$($arm.Desc)]  vs $baseName"
         "  $elo"
-        "  $games"
+        "  $gameLine"
         "  $llr"
         "  verdict: $verdict"
         "  wall: $mins min"

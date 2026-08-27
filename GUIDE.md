@@ -197,6 +197,12 @@ before the next starts
 | 5.9.11 | Corpus regen — **three-arm label-source experiment** (BAS-E17) | ▶ **running** |
 | 5.9.12 | Full-surface refit — 1,116 params, material pinned | **runs regardless of 5.9.6** |
 | 5.9.13 | Post-refit SPRT | second and final Elo verdict |
+| **5.9.14** | **King-safety `safety_table` reshape — RETRY** | queued, never Elo-tested |
+| **5.9.15** | **LTC probe at `10+0.1`** | queued, estimate not a gate |
+
+**Run order after 5.9.11 closes: 5.9.15 (LTC) → 5.9.14 (king safety) → 5.9.12
+(full surface) → 5.9.13 (gate).** The numbers are identifiers; 5.9.12 is last
+because it is the biggest and because the two before it feed into it.
 | 5.9.7 | Endgame recogniser inventory, ordered by measured frequency | after 5.9.6 |
 | 5.9.8 | Recognisers only — no grading (the `MAN-E05` correction) | after 5.9.7 |
 | 5.9.9 | Conversion grading, only on classified endings | after 5.9.8 |

@@ -1045,6 +1045,20 @@ their own steps, opened only once 5.9.6 has a verdict:
 If 5.9.6 rejects, these steps do not open: a failed calibration is not repaired
 by adding a harder-to-fit class of knowledge on top of it.
 
+**Execution order for the rest of 5.9** (the numbers are identifiers, not the
+running order — later-numbered steps run first here, deliberately):
+
+1. **5.9.11** — close it on arm B's result.
+2. **5.9.15 LTC probe** — cheap, and it reframes everything after it. If the
+   neutral arms are positive at depth, the phase's verdict changes.
+3. **5.9.14 king-safety reshape** — cheapest real shot at Elo remaining, and
+   the only candidate blocked by a bug rather than by evidence.
+4. **5.9.12** full-surface fit including the 768 PSTs, then **5.9.13** gates it.
+
+5.9.12 goes last because it is the largest and slowest, and because both steps
+before it feed into it: the LTC probe says whether to weight endgame terms, and
+the king-safety result determines what the non-Texel half of 5.9.12 starts from.
+
 **On-policy refit of the whole surface — numbered, and unconditional.** These
 two run **whatever 5.9.6 returns**. They are not a retry of a rejected gate;
 they close two defects in how 5.9.4 was executed, both found after the fact.
@@ -1184,6 +1198,35 @@ without removing any reachable evaluator.
 *Why this is not another cycle-6 repeat.* Cycle 6 and 5.9.4 both refit the
 **same 348-parameter subset on the same off-policy labels**. 5.9.12 changes both
 variables at once — 3.2× the parameters, and labels from the current policy.
+
+- **5.9.14 King-safety `safety_table` reshape — RETRY, and it is genuinely
+  untested.** 5.9.5's coordinate descent found a sharply convex reshaping of
+  `safety_table` (low end roughly halved, high end up ~45%) worth −0.99% holdout.
+  **It never received an Elo verdict.** It was withdrawn because it collapsed the
+  mate-drive canary from 29cp to 4cp — and BAS-E14 then showed that failure was
+  caused by the corpus containing no mating positions at all, which 5.9.11 fixed.
+
+  So: re-run `--tune-kingsafety` on the 5.9.11 corpus, bake the **whole** result
+  including the table, verify the canary, and gate it. Do not split it into
+  scalars-only again; BAS-E10 shows the scalars and the table are jointly
+  fitted and splitting them ships half a solution.
+
+  This is the highest information-per-hour item left: costs CPU hours rather
+  than games, targets the capped non-linear funnel that BAS-E07 identified as
+  where the reference's advantage actually lives, and tests a candidate that was
+  blocked by a defect we have since repaired rather than by evidence.
+
+- **5.9.15 LTC probe — a fixed-N estimate, NOT a gate.** Every 5.9 verdict so
+  far is `3+0.03`. BAS-M07 records fast-TC results compressing at longer TC, and
+  5.9.10 already requires the TC ladder on the grounds that endgame knowledge
+  shows at LTC and hides at STC. The 5.9.11 arms improved the mate-drive canary
+  (29 → 34) while measuring neutral at STC, which is exactly that profile.
+
+  Run the best 5.9.11 arm at `10+0.1`, ~6,000 games (~3.5h at the measured
+  rate). **Read it as an estimate with a ±6 Elo CI**: enough to detect a +10-15
+  Elo depth effect, not enough to resolve +3, and not enough to promote
+  anything. Its job is to tell us whether a depth story exists that STC is blind
+  to — a question that changes what the rest of the phase is worth.
 
 - **5.9.13 Post-refit gate.** One registered SPRT of the 5.9.12 evaluator
   against whatever is the accepted head at that point. This is the second and
