@@ -302,6 +302,30 @@ the user explicitly abandons that program.
 | Deferred, not skipped | **5.7** extensions/singular/IIR, **5.8** root/clock — after 5.9 |
 | Nothing queued for your machine | 5.9.1–5.9.4 are code and fitting work |
 
+### 5.9.11 results — diagnosis confirmed, surface saturated
+
+| arm | labels | Elo | outcome |
+|---|---|---:|---|
+| A | Basilisk @ 8k | **−2.85 ±3.11** | rejected (H0) |
+| C | Basilisk @ 25k | **+1.00 ±2.11** | no verdict, stopped by decision |
+| B | Stockfish @ 8k | running | — |
+| *5.9.6* | *SF **evaluations*** | *−77.92* | *rejected* |
+
+**Arm A differs from 5.9.6 in one thing only — game results instead of
+Stockfish evaluations — and the same fit moves −77.92 → −2.85.** About 75 Elo
+recovered by the label change alone. The BAS-E11 correction is confirmed.
+
+**But no arm gains.** Four results now agree the 348-parameter scalar surface is
+saturated: cycle 6 (+1.37 ±5.21), BAS-E08's inert ablation, arm A, arm C. Clean
+labels stop the harm; they add nothing.
+
+**Arm C is an estimate, not a verdict** — its LLR sat at +0.03 and it was halted
+at 44,800 games so arm B could run. Never quote it as pass or fail.
+
+**Footgun fixed:** `sprt.ps1` silently ignored `-Games` outside `fixed`/
+`calibrate` mode, so "capped at 3h per arm" was never true. It now throws
+instead. A neutral arm does not stop early — budget one long arm per night.
+
 ### 5.9.11 — the corpus defect, measured
 
 Same binary, same book, same seed; the only variable is adjudication:

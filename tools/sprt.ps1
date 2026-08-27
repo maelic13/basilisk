@@ -473,6 +473,19 @@ Write-Host ""
 
 # calibrate and fixed run a fixed number of rounds with NO SPRT stopping rule.
 $fixedSize = ($Mode -eq "calibrate" -or $Mode -eq "fixed")
+
+# -Games only means anything for the fixed-size modes; a gainer/simplify run is
+# bounded by its LLR boundaries and a hard 50,000-round stop. Accepting the
+# parameter and discarding it cost ~10 hours on 2026-08-27: a run launched with
+# -Games 16000 was believed capped at 3 hours per arm and instead ground toward
+# 100,000 games. Refuse it explicitly rather than ignore it.
+if ($PSBoundParameters.ContainsKey('Games') -and -not $fixedSize) {
+    throw ("-Games is only honoured by -Mode calibrate or fixed. In '$Mode' the " +
+           "run stops on the SPRT boundaries or at the 50,000-round hard stop, " +
+           "so a cap here would be silently ignored. Drop -Games, or use " +
+           "-Mode fixed if you want a fixed-N probe.")
+}
+
 $rounds = if ($fixedSize) { [int]($Games / 2) } else { 50000 }
 $sprtArgs = if ($fixedSize) {
     @()

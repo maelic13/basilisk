@@ -24,15 +24,15 @@
     (our own labels), C is the predicted winner, B carries the independence
     question and is the one most acceptable to lose if the night runs out.
 
-.PARAMETER Games
-    Per-SPRT game cap. Default 30,000, the project standard.
+    THERE IS NO GAME CAP, and an earlier version of this file wrongly claimed
+    otherwise. sprt.ps1 honours -Games only in its fixed/calibrate modes; a
+    gainer-mode SPRT runs until the LLR crosses a boundary or it hits the
+    50,000-round (100,000-game) hard stop.
 
-    TIMING -- and note this value is ROUNDS, not games. sprt.ps1 passes it as
-    `-rounds` with `-games 2 -repeat`, so each round is a colour-swapped PAIR
-    and the real game cap is DOUBLE this number. Measured: -Games 16000 let arm
-    A reach 20,096 games in 3h45m before stopping decisively, so budget roughly
-    4-6 hours per arm at that setting rather than the 3 first estimated here.
-    A decisive arm stops early; an arm sitting near zero runs to the cap.
+    Budget accordingly. A decisive arm is quick -- arm A resolved in 20,096
+    games (3h45m). An arm sitting near zero does NOT stop: arm C reached 44,800
+    games in 8h20m at LLR +0.03 and was still ~10 hours from the hard stop when
+    it was halted by decision. Plan for one long arm per night, not three.
 
 .PARAMETER PreflightOnly
     Verify binaries and print their benches, then exit without running anything.
@@ -42,7 +42,6 @@
     sprt.ps1 default is 5; this script does not inherit it.
 #>
 param(
-    [int]$Games = 30000,
     [int]$Elo1  = 3,
     [switch]$PreflightOnly
 )
@@ -116,10 +115,9 @@ if ($PreflightOnly) {
 }
 
 Write-Host ""
-Say "Running $($arms.Count) SPRTs, cap $Games games each, nElo [0, $Elo1]"
-if ($Games -ge 30000) {
-    Say "NOTE: at this cap a neutral arm can take ~5.6h; three could overrun a night."
-}
+Say "Running $($arms.Count) SPRTs, nElo [0, $Elo1], no game cap"
+Say "NOTE: a NEUTRAL arm does not stop early. Measured: 8h20m and still running."
+
 Write-Host ""
 
 $started = Get-Date
@@ -139,10 +137,12 @@ foreach ($arm in $arms) {
     Say "arm $($arm.Name) [$($arm.Desc)] vs $baseName ..."
     $t0 = Get-Date
 
+    # No -Games: gainer mode cannot honour it (see sprt.ps1). Each arm runs to
+    # an SPRT boundary or the 50,000-round hard stop.
     $out = & "$PSScriptRoot\sprt.ps1" `
         -EngineA $exe -EngineB $basePath `
         -NameA $tag -NameB $baseName `
-        -Elo1 $Elo1 -Games $Games *>&1
+        -Elo1 $Elo1 *>&1
 
     $mins = [math]::Round(((Get-Date) - $t0).TotalMinutes, 1)
 

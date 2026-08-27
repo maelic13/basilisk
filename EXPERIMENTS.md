@@ -585,6 +585,61 @@ inspired by its ideas.
 *Cost:* ~4h50m of datagen (43 min + 2h17m + 1h51m), plus extraction, three
 fits, and three-to-four SPRTs.
 
+**BAS-E18 — 5.9.11 results: the labels were the defect, and the scalar surface
+is saturated** (2026-08-27, arm B still running). Conditions per BAS-E17: same
+starts, same extraction, same 348-parameter `scalars` fit, `3+0.03`, 1T, Hash 64
+both arms, UHO. Baseline `5911-base` = current head, bench 11,941,440.
+
+| arm | labels | Elo | games | outcome |
+|---|---|---:|---:|---|
+| **A** | Basilisk self-play @ 8k | **−2.85 ±3.11** | 20,096 | H0 accepted — **rejected** |
+| **C** | Basilisk self-play @ 25k | **+1.00 ±2.11** | 44,800 | **no verdict** — stopped by decision |
+| **B** | Stockfish self-play @ 8k | *running* | — | — |
+| *5.9.6* | *Stockfish **evaluations*** | *−77.92 ±15.32* | *1,292* | *H0 — rejected* |
+
+**The diagnosis is confirmed.** Arm A differs from 5.9.6 in exactly one thing —
+the labels are game results instead of Stockfish evaluations — and the same fit
+of the same 348 parameters moves from **−77.92 to −2.85**. Changing only the
+label source recovered roughly **75 Elo**. The BAS-E11 correction stands: the
+distillation was the primary cause, not the quiet filter.
+
+**And the scalar surface is saturated.** Neither Basilisk-labelled arm gains
+anything. That is now four independent results agreeing: cycle 6 washed at
++1.37 ±5.21; BAS-E08's ablation found the added structure inert; arm A −2.85;
+arm C +1.00. Clean labels stop the fit doing harm; they do not extract anything
+further from those 348 coefficients. Arm C beating arm A by ~3.9 Elo is the
+predicted direction for stronger labels, but far too small to matter.
+
+*Registered prediction, scored honestly.* BAS-E17 predicted **all three beat the
+head, ordering C > A > B**. Arms A and C both **falsify the first half**. The
+C > A ordering held. B is still open.
+
+**Arm C carries a protocol deviation and must be reported as an estimate.** Its
+SPRT never reached a boundary — LLR sat at **+0.03**, dead centre of
+(−2.94, 2.94) — and it was halted at 44,800 games by maintainer decision so that
+arm B could run. Never quote it as a pass or a fail. The ±2.11 interval is
+tighter than most accepted verdicts in this project; what is missing is a
+stopping-rule decision, not precision.
+
+*Why it could not simply be left to finish.* `sprt.ps1` honours `-Games` only in
+`fixed`/`calibrate` modes — line 476, `$rounds = if ($fixedSize) {...} else
+{ 50000 }`. A **gainer**-mode run silently discards the cap and stops only on an
+LLR boundary or the 50,000-round (100,000-game) hard stop. The run was launched
+with `-Games 16000` believing each arm was capped near 3 hours; arm A resolved
+in 3h45m only because it was decisive, and arm C was ~10 hours from stopping
+with no prospect of deciding.
+
+*Lessons.*
+
+1. **A parameter that is accepted and ignored is a defect.** `sprt.ps1` now
+   throws when `-Games` is passed in a mode that cannot honour it, and the
+   runner no longer passes it.
+2. **A neutral SPRT does not stop.** Budget one long arm per night, not three.
+   Decisiveness, not the cap, is what makes an arm cheap.
+3. **Stopping a run early is legitimate when it cannot decide, and must be
+   recorded as such.** The reason to stop was that the informative arm was
+   waiting behind an uninformative one — not that the numbers looked settled.
+
 **BAS-D08 — per-iteration cost; there is no shallow target** (same runs,
 2026-08-25). Cumulative counts hide where the cost is. Differencing them gives
 the cost of each iteration on its own:
