@@ -87,6 +87,28 @@ static bool parse_target(const std::string& text, float& out) {
     if (end == text.c_str() || *end != '\0' || parsed < 0.0f || parsed > 1.0f)
         return false;
 
+    // Targets must be GAME RESULTS. Basilisk's Texel fits have always used
+    // self-play WDL, so the only legal values are 0, 0.5 and 1.
+    //
+    // This is a hard abort rather than a skipped row because the failure it
+    // prevents is silent and expensive. On 2026-08-26 a 348-parameter fit was
+    // run against an old discarded corpus carrying Stockfish expected-score
+    // targets; nothing objected, because a continuous target in [0,1] is
+    // perfectly well-formed input to a least-squares fit -- it is simply the
+    // wrong question. The candidate lost 77.92 Elo and the cause took a day and
+    // three SPRTs to isolate. A corpus that is the wrong KIND of data must fail
+    // loudly on contact, not quietly produce a worse engine.
+    if (parsed != 0.0f && parsed != 0.5f && parsed != 1.0f) {
+        std::cerr << "\nFATAL: target '" << text << "' is not a game result.\n"
+                  << "  Texel targets must be self-play WDL: exactly 0, 0.5 or 1.\n"
+                  << "  A continuous target means this corpus holds ENGINE EVALUATIONS,\n"
+                  << "  which fits the evaluation to imitate another engine instead of\n"
+                  << "  to win. beast_sf_*.csv is an old discarded distillation set;\n"
+                  << "  the project corpora (train_beast_seed, train_phase911, ...) are\n"
+                  << "  game-result labelled.\n";
+        std::exit(2);
+    }
+
     out = parsed;
     return true;
 }

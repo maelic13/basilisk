@@ -27,7 +27,7 @@ int main() {
     // "rare" from "dead". Format is "FEN;result" per line.
     std::vector<std::string> fens;
     {
-        std::FILE* f = std::fopen("tools/texel/data/beast_sf_holdout.csv", "r");
+        std::FILE* f = std::fopen("tools/texel/data/armC_basilisk25k_holdout.csv", "r");
         if (!f) { std::printf("corpus not found\n"); return 2; }
         char line[512];
         while (fens.size() < 20000 && std::fgets(line, sizeof(line), f)) {
