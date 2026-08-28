@@ -21,6 +21,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -1264,6 +1265,67 @@ static double ks_fit_K(const std::vector<KsSnap>& pos, Board& scratch, Evaluator
     return (lo + hi) / 2.0;
 }
 
+// ---------------------------------------------------------------------------
+// Coverage audit: prove every fittable parameter has an instrument.
+//
+// 5.9.4 fitted 348 of 1,190 parameters and reported that number without
+// checking what the group actually covered; the 768 PSTs were silently frozen
+// and it went unnoticed until BAS-E16. This enumerates EVERY slot in the
+// registry and reports which instrument reaches it, so that an exclusion has to
+// be a decision someone made rather than an oversight nobody saw.
+// ---------------------------------------------------------------------------
+static const char* const EVAL_GROUP_NAMES[] = {
+#define X(name, member, len) #name,
+    EVAL_PARAM_LIST(X)
+#undef X
+};
+
+static void cmd_audit_coverage() {
+    const int total = EVAL_PARAM_FLAT_SIZE;
+    std::vector<std::string> owner(total);
+
+    auto claim = [&](const std::vector<int>& idx, const char* who) {
+        for (int i : idx) {
+            if (i < 0 || i >= total) continue;
+            if (!owner[i].empty()) owner[i] += "+";
+            owner[i] += who;
+        }
+    };
+
+    claim(active_indices_for_group("texel"),      "texel");
+    claim(active_indices_for_group("kingsafety"), "kingsafety");
+    claim(active_indices_for_group("winnable"),   "winnable");
+    std::vector<int> mat; append_material(mat);
+    claim(mat, "material");
+
+    std::printf("Registry: %d fittable parameter slots across %d groups\n\n",
+                total, int(EPG_COUNT));
+
+    std::map<std::string, int> tally;
+    int uncovered = 0;
+    for (int i = 0; i < total; ++i) {
+        if (owner[i].empty()) { ++uncovered; tally["** UNCOVERED **"]++; }
+        else tally[owner[i]]++;
+    }
+
+    std::printf("By instrument:\n");
+    for (const auto& kv : tally)
+        std::printf("  %-22s %5d\n", kv.first.c_str(), kv.second);
+
+    if (uncovered == 0) {
+        std::printf("\nEVERY parameter is claimed by an instrument.\n");
+        return;
+    }
+
+    std::printf("\n%d UNCOVERED slots, by registry group:\n", uncovered);
+    for (int g = 0; g < int(EPG_COUNT); ++g) {
+        const int base = eval_param_offset(g), len = EVAL_PARAM_LENS[g];
+        int n = 0;
+        for (int i = base; i < base + len; ++i) if (owner[i].empty()) ++n;
+        if (n) std::printf("  %-28s %4d of %4d\n", EVAL_GROUP_NAMES[g], n, len);
+    }
+}
+
 static void cmd_tune_kingsafety(int argc, char* argv[]) {
     if (argc < 4) { usage(argv[0]); std::exit(1); }
     std::string train_path = argv[2], holdout_path = argv[3];
@@ -1415,6 +1477,8 @@ int main(int argc, char* argv[]) {
     } else if (mode == "--tune") {
         TuneOptions opts = parse_tune_options(argc, argv);
         cmd_tune(opts);
+    } else if (mode == "--audit-coverage") {
+        cmd_audit_coverage();
     } else if (mode == "--tune-kingsafety") {
         cmd_tune_kingsafety(argc, argv);
     } else {
