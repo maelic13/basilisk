@@ -159,6 +159,7 @@ static void usage(const char* exe) {
         << "  winnable    complexity/winnable coupling (3.6; finite-diff)\n"
         << "  kingsafety  king attack, shelter, and storm terms\n"
         << "  pst         PSTs plus material refit\n"
+        << "  texel       PSTs + scalars, material PINNED (1116; the 5.9.12 set)\n"
         << "  all         all meaningful eval params\n"
         << "\n"
         << "Options:\n"
@@ -337,6 +338,35 @@ static std::vector<int> active_indices_for_group(const std::string& group) {
     } else if (group == "kingsafety" || group == "king") {
         for (int g = EPG_KsUnit; g <= EPG_StormWeightAdj; ++g)
             append_group(active, g);
+    } else if (group == "texel") {
+        // 5.9.12: everything a GRADIENT fit should touch, and nothing it should
+        // not. 1,116 params = 768 PST + 348 scalars.
+        //
+        // Material is deliberately ABSENT. eval.cpp builds
+        // MG_TABLE = mg_val[pt] + pst_mg[pt-1][sq], so material and PST are
+        // exactly collinear: adding a constant across a piece's 64 PST squares
+        // IS a material change. Fitting both is a perfect null direction and
+        // rank-deficient by construction. Pinning material costs ZERO
+        // expressiveness because the PST can already express any material
+        // change; it only removes the degeneracy.
+        //
+        // King safety (57) and winnable (7) are absent because they are capped
+        // and non-linear -- BAS-X14. They belong to --tune-kingsafety and the
+        // finite-difference winnable group. BAS-E21 is the evidence that this
+        // split matters: the king-safety funnel produced +2.64 Elo through the
+        // coordinate-descent fitter after a linear fit had nothing to say about
+        // it.
+        //
+        // Do NOT use "all" for this. It reaches 1,183 -- sweeping king safety
+        // into the gradient fit -- while silently omitting the 7 winnable
+        // params, which sit after EPG_Tempo and fall outside its range.
+        for (int g = EPG_PstMgPawn; g <= EPG_PstEgKing; ++g)
+            append_group(active, g);
+        for (int g = EPG_PassedMg; g <= EPG_Tempo; ++g) {
+            if (g >= EPG_KsUnit && g <= EPG_StormWeightAdj)
+                continue;
+            append_group(active, g);
+        }
     } else if (group == "pst") {
         append_material(active);
         for (int g = EPG_PstMgPawn; g <= EPG_PstEgKing; ++g)
