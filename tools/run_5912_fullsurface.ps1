@@ -44,12 +44,21 @@
 
 .PARAMETER Epochs
     Gradient epochs per Texel stage. Default 200.
+
+.PARAMETER Smoke
+    Validate the whole pipeline in ~2 minutes instead of ~3 hours: 3 gradient
+    epochs, a single short king-safety pass on 50k positions, one iteration, and
+    the tree restored to HEAD at the end. Proves the bake/rebuild/parse chain
+    works before committing real time to it. Results are meaningless.
 #>
 param(
     [string]$Corpus     = "armC_basilisk25k",
     [int]   $Iterations = 2,
-    [int]   $Epochs     = 200
+    [int]   $Epochs     = 200,
+    [switch]$Smoke
 )
+
+if ($Smoke) { $Iterations = 1; $Epochs = 3 }
 
 $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $PSScriptRoot
@@ -65,6 +74,26 @@ foreach ($f in @($train, $hold)) {
 }
 
 function Say($m) { Write-Host ("[{0}] {1}" -f (Get-Date).ToString("HH:mm:ss"), $m) }
+
+function Invoke-Bake {
+    param([string]$Vector, [switch]$AllowPst)
+
+    # --allow-pst is REQUIRED for the texel stage. bake.py refuses to rewrite
+    # 2-D arrays without it, so omitting it silently bakes the 348 scalars and
+    # DISCARDS all 768 PST changes -- which are the whole point of 5.9.12.
+    $bakeArgs = @('tools\texel\bake.py', $Vector)
+    if ($AllowPst) { $bakeArgs += '--allow-pst' }
+
+    $out = & python @bakeArgs 2>&1
+    # $ErrorActionPreference does not cover native commands; check explicitly.
+    if ($LASTEXITCODE -ne 0) {
+        $out | ForEach-Object { Write-Host "      $_" }
+        throw "bake.py FAILED for $Vector (exit $LASTEXITCODE). Nothing was written."
+    }
+    $summary = ($out | Select-String -Pattern 'changed' | Select-Object -First 1)
+    if (-not $summary) { throw "bake.py wrote nothing recognisable for $Vector" }
+    Write-Host "      $summary"
+}
 
 function Rebuild-Tuner {
     # The tuner's starting values come from the COMPILED eval_params.h, so it
@@ -95,22 +124,27 @@ for ($it = 1; $it -le $Iterations; $it++) {
     $o = & $texel --tune texel $train $hold $vec --l2 1e-6 --epochs $Epochs 2>&1
     $o | Select-String -Pattern '^K =|^Initial holdout|^Restored best' |
         ForEach-Object { Write-Host "      $_" }
-    $hl = ($o | Select-String -Pattern 'Restored best holdout epoch .*\(holdout=([\d.]+)\)' |
-           Select-Object -Last 1)
-    $log += "iter $it texel   : $($hl -replace '.*holdout=','' -replace '\).*','')"
+    $m = ($o | Select-String -Pattern 'holdout=([\d.]+)' | Select-Object -Last 1)
+    $hl = if ($m) { $m.Matches.Groups[1].Value } else { "n/a" }
+    $log += "iter $it texel      holdout $hl"
 
-    & python tools\texel\bake.py $vec | Select-Object -Last 1
+    Invoke-Bake -Vector $vec -AllowPst
     Rebuild-Tuner
 
     # ---- stage B: coordinate descent over the king-danger funnel ------------
     Say "iter $it/$Iterations  stage B: --tune-kingsafety (57 knobs) ... ~90 min"
     $ksv = "$outDir\5912_ks_it$it.txt"
-    $o = & $texel --tune-kingsafety $train $hold $ksv --step 8 2>&1
+    $ksArgs = @('--tune-kingsafety', $train, $hold, $ksv, '--step', '8')
+    if ($Smoke) { $ksArgs += @('--epochs', '1', '--max-positions', '50000') }
+    $o = & $texel @ksArgs 2>&1
     $o | Select-String -Pattern '^K =|^Initial train|^Restored best|^Final train' |
         ForEach-Object { Write-Host "      $_" }
-    $log += "iter $it ks      : $(($o | Select-String 'Final train' | Select-Object -Last 1))"
+    $mk = ($o | Select-String -Pattern 'holdout MSE = ([\d.]+)' | Select-Object -Last 1)
+    $ksl = if ($mk) { $mk.Matches.Groups[1].Value } else { "n/a" }
+    $log += "iter $it kingsafety holdout $ksl"
 
-    & python tools\texel\bake.py $ksv | Select-Object -Last 1
+    # King safety is all scalars and 1-D tables, so no -AllowPst here.
+    Invoke-Bake -Vector $ksv
     Rebuild-Tuner
 
     Write-Host ""
@@ -124,6 +158,13 @@ $bench = ("bench`nquit`n" | & .\build\release\basilisk.exe 2>$null |
     Select-String '^Nodes searched\s*:\s*(\d+)').Matches.Groups[1].Value
 $ct = (& ctest --test-dir build/release 2>&1 | Select-String 'tests passed' | Select-Object -First 1)
 $canary = (& .\build\release\test_eval.exe 2>&1 | Select-String 'pawn gate|mate-drive drives')
+
+if ($bench -eq '12844350' -and -not $Smoke) {
+    Write-Host ""
+    Write-Host "WARNING: bench is UNCHANGED from the 5.9.14 head. The fit produced"
+    Write-Host "no behavioural change, which for a 1,116-parameter refit means"
+    Write-Host "something did not take. Do NOT gate this; investigate the bakes."
+}
 
 $hrs = [math]::Round(((Get-Date) - $started).TotalHours, 2)
 Write-Host ""
@@ -142,5 +183,14 @@ Write-Host "       a moved K silently rescales every centipawn search margin."
 Write-Host "    2. repeat the BAS-E08 ablation -- are the 5.9.1/5.9.2 terms STILL"
 Write-Host "       inert now that the 768 PSTs were free to move? If yes, remove them."
 Write-Host ("=" * 70)
+
+if ($Smoke) {
+    Write-Host ""
+    Say "SMOKE: restoring eval_params.h to HEAD and rebuilding"
+    & git checkout HEAD -- src/eval_params.h
+    Rebuild-Tuner
+    cmake --build build/release -j 16 2>&1 | Out-Null
+    Say "SMOKE complete -- pipeline works, results discarded."
+}
 
 Pop-Location
