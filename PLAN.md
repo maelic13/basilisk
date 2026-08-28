@@ -1048,12 +1048,12 @@ by adding a harder-to-fit class of knowledge on top of it.
 **Execution order for the rest of 5.9** (the numbers are identifiers, not the
 running order — later-numbered steps run first here, deliberately):
 
-1. **5.9.11** — close it on arm B's result.
-2. **5.9.15 LTC probe** — cheap, and it reframes everything after it. If the
-   neutral arms are positive at depth, the phase's verdict changes.
-3. **5.9.14 king-safety reshape** — cheapest real shot at Elo remaining, and
-   the only candidate blocked by a bug rather than by evidence.
+1. ~~**5.9.11**~~ — closed, no arm passed.
+2. ~~**5.9.15 LTC probe**~~ — closed, no depth story.
+3. ~~**5.9.14 king-safety reshape**~~ — **ACCEPTED, +2.64 Elo.**
 4. **5.9.12** full-surface fit including the 768 PSTs, then **5.9.13** gates it.
+   **Its baseline is now the 5.9.14 head**, and its non-Texel half starts from
+   the accepted king-safety values rather than the pre-5.9.14 ones.
 
 5.9.12 goes last because it is the largest and slowest, and because both steps
 before it feed into it: the LTC probe says whether to weight endgame terms, and
@@ -1199,8 +1199,7 @@ without removing any reachable evaluator.
 **same 348-parameter subset on the same off-policy labels**. 5.9.12 changes both
 variables at once — 3.2× the parameters, and labels from the current policy.
 
-- **5.9.14 King-safety `safety_table` reshape — RETRY, and it is genuinely
-  untested.** 5.9.5's coordinate descent found a sharply convex reshaping of
+- **5.9.14 King-safety `safety_table` reshape — ACCEPTED 2026-08-28, +2.64 ±2.05 Elo (BAS-E21).** The first and so far only gain of Phase 5.9. 5.9.5's coordinate descent found a sharply convex reshaping of
   `safety_table` (low end roughly halved, high end up ~45%) worth −0.99% holdout.
   **It never received an Elo verdict.** It was withdrawn because it collapsed the
   mate-drive canary from 29cp to 4cp — and BAS-E14 then showed that failure was

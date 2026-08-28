@@ -197,7 +197,7 @@ before the next starts
 | 5.9.11 | Corpus regen — **three-arm label-source experiment** (BAS-E17) | ✅ done — no arm passed |
 | 5.9.12 | Full-surface refit — 1,116 params, material pinned | **runs regardless of 5.9.6** |
 | 5.9.13 | Post-refit SPRT | second and final Elo verdict |
-| **5.9.14** | **King-safety `safety_table` reshape — RETRY** | ▶ **baked, awaiting SPRT** |
+| **5.9.14** | **King-safety `safety_table` reshape** | ✅ **ACCEPTED +2.64 ±2.05 Elo** |
 | 5.9.15 | LTC probe at `10+0.1` | ✅ done — **+0.29 ±5.46, no depth story** |
 
 **Run order after 5.9.11 closes: 5.9.15 (LTC) → 5.9.14 (king safety) → 5.9.12
@@ -295,9 +295,9 @@ the user explicitly abandons that program.
 
 | | |
 |---|---|
-| Engine state | **5.9.14 candidate baked** — bench **12,844,350**, CTest 12/12, canary on=37 (was 29) |
-| Last completed | **5.9.15** LTC probe — no depth story; 5.9.14 fit now baked |
-| Running now | **5.9.14** king-safety reshape — candidate built, gate pending |
+| Engine state | **5.9.14 shipped** — bench **12,844,350**, CTest 12/12, canary on=37 (was 29) |
+| Last completed | **5.9.14** — ACCEPTED, **+2.64 ±2.05 Elo**, the phase's first gain |
+| Running now | **5.9.12** full-surface fit — next up |
 | Next Elo verdict | **5.9.6**, after the 5.9.4 fit and 5.9.5 SPSA |
 | Deferred, not skipped | **5.7** extensions/singular/IIR, **5.8** root/clock — after 5.9 |
 | Nothing queued for your machine | 5.9.1–5.9.4 are code and fitting work |
