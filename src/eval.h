@@ -80,13 +80,6 @@ inline int ocb_draw_scale(int total_pawns) {
 
 inline constexpr Bitboard EVAL_DARK_SQUARES = 0xAA55AA55AA55AA55ULL;
 
-// 5.9.1 geometry shared with the tuner, kept here for the same reason the dark
-// mask is: a hand-copied second definition is a silent divergence that --verify
-// cannot see, because it corrupts fitted gradients rather than failing loudly.
-inline constexpr Bitboard EVAL_LONG_DIAGONALS =
-    0x8040201008040201ULL | 0x0102040810204080ULL;   // a1-h8 and h1-a8
-inline constexpr Bitboard EVAL_CENTRE_SQUARES = 0x0000001818000000ULL;  // d4 e4 d5 e5
-
 // Rule-50 damping: the evaluation decays toward zero as the halfmove clock
 // grows, retaining ~50% at clock 99 (SF-era curve; the pre-8.4 (100-clock)/100
 // line kept only 1%, which told the search almost every long-clock position was

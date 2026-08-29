@@ -220,8 +220,6 @@ struct EvalParams {
     // Outposts were priced for knights only. A bishop on a protected advanced
     // square the enemy cannot challenge with a pawn is the same concept and was
     // simply missing. Seeded inert.
-    int bishop_outpost_mg = 0;
-    int bishop_outpost_eg = 0;
     // ---- 5.9.1 coverage close-out (seeded INERT; fitted at 5.9.4) ----------
     // The six concepts BAS-E07 found absent from our evaluator plus the
     // safe-square qualifier our pawn threats lacked. Every weight is 0, so the
@@ -229,20 +227,6 @@ struct EvalParams {
     // from the joint fit at 5.9.4, never from hand-reasoning: BAS-X11 records
     // Manta losing ~-23 Elo across two gates by hand-scaling exactly this class
     // of reference-family concept.
-    int bad_outpost_mg = 2;        // outpost knight the enemy can still contest
-    int bad_outpost_eg = 0;
-    int bishop_xray_pawn_mg = -4;   // enemy pawns on the bishop's unobstructed rays
-    int bishop_xray_pawn_eg = -1;
-    int long_diagonal_bishop_mg = 0;  // bishop eyeing the centre down a long diagonal
-    int long_diagonal_bishop_eg = -2;
-    int knight_on_queen_mg = 3;    // knight one safe hop from attacking the queen
-    int knight_on_queen_eg = 0;
-    int slider_on_queen_mg = 1;    // our slider x-rays the enemy queen
-    int slider_on_queen_eg = 0;
-    int trapped_rook_mg = 0;       // near-immobile rook boxed in by its own king
-    int trapped_rook_eg = 0;
-    int threat_safe_pawn_mg = 0;   // pawn threat from a square no enemy pawn attacks
-    int threat_safe_pawn_eg = 0;
 
     int queen_infiltration_mg = 18;  // our queen safely deep in the enemy half
     int queen_infiltration_eg = 15;
@@ -465,22 +449,6 @@ inline const int* eval_param_cptr(const T& v) {
     X(KingProtectorNEg,     king_protector_n_eg,   1)             \
     X(KingProtectorBMg,     king_protector_b_mg,   1)             \
     X(KingProtectorBEg,     king_protector_b_eg,   1)             \
-    X(BishopOutpostMg,      bishop_outpost_mg,     1)             \
-    X(BishopOutpostEg,      bishop_outpost_eg,     1)             \
-    X(BadOutpostMg,         bad_outpost_mg,        1)             \
-    X(BadOutpostEg,         bad_outpost_eg,        1)             \
-    X(BishopXrayPawnMg,     bishop_xray_pawn_mg,   1)             \
-    X(BishopXrayPawnEg,     bishop_xray_pawn_eg,   1)             \
-    X(LongDiagonalBishopMg, long_diagonal_bishop_mg, 1)           \
-    X(LongDiagonalBishopEg, long_diagonal_bishop_eg, 1)           \
-    X(KnightOnQueenMg,      knight_on_queen_mg,    1)             \
-    X(KnightOnQueenEg,      knight_on_queen_eg,    1)             \
-    X(SliderOnQueenMg,      slider_on_queen_mg,    1)             \
-    X(SliderOnQueenEg,      slider_on_queen_eg,    1)             \
-    X(TrappedRookMg,        trapped_rook_mg,       1)             \
-    X(TrappedRookEg,        trapped_rook_eg,       1)             \
-    X(ThreatSafePawnMg,     threat_safe_pawn_mg,   1)             \
-    X(ThreatSafePawnEg,     threat_safe_pawn_eg,   1)             \
     X(QueenInfiltrationMg,  queen_infiltration_mg, 1)             \
     X(QueenInfiltrationEg,  queen_infiltration_eg, 1)               \
     X(PawnIslandsMg,        pawn_islands_mg,       1)               \

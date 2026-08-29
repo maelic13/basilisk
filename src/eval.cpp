@@ -111,20 +111,6 @@ static constexpr int KNOWN_WIN    = 10000; // static "won, mate is technique" ma
 // Lazy-eval margin (Step 3.11): if the cheap (material/PST/imbalance/pawns/minor)
 // tapered score exceeds this, the expensive positional block is skipped. Tuned
 // under a lazy-on-vs-off SPRT; conservative start.
-// 5.9.6b: skip a term whose whole contribution is multiplied by zero.
-// BAS-E12 measured the 5.9.1/5.9.2 term code costing 3.73% NPS while every one
-// of those coefficients sat at 0 after the 5.9.6 revert -- speed paid for
-// arithmetic that cannot change the score.
-//
-// MUST stay always-true under TEXEL_TRACE. The tuner needs the feature COUNTS
-// for a term precisely when its coefficient is 0 -- that is the state it fits
-// from -- so gating the trace would break both --verify and the fit itself.
-#ifdef TEXEL_TRACE
-#define EVAL_TERM_ACTIVE(a, b) (true)
-#else
-#define EVAL_TERM_ACTIVE(a, b) (((a) | (b)) != 0)
-#endif
-
 [[maybe_unused]] static constexpr int LAZY_MARGIN  = 700;  // unused under TEXEL_TRACE (lazy eval off there)
 // 8.6.6b lazy-audit "did not fire" marker (any value the eval can't produce).
 [[maybe_unused]] static constexpr int VALUE_NONE_SENTINEL = INT_MIN;
@@ -407,15 +393,7 @@ static int apply_endgame(const Board& b, int score) {
     return score;
 }
 
-// 5.9.6a: empty-board bishop rays. bishop_xray_pawn wants the diagonals a
-// bishop would command with nothing in the way, which does not depend on the
-// position at all -- so the magic lookup it was doing per bishop per eval is
-// pure overhead. Filled by init_eval_tables (after init_attacks).
-static Bitboard EVAL_BISHOP_EMPTY[SQUARE_NB];
-
 void init_eval_tables(const EvalParams& p) {
-    for (int sq = 0; sq < SQUARE_NB; sq++)
-        EVAL_BISHOP_EMPTY[sq] = bishop_attacks(Square(sq), 0ULL);
 
     for (int pt = PAWN; pt <= KING; pt++) {
         for (int sq = 0; sq < 64; sq++) {
@@ -755,24 +733,6 @@ int Evaluator::evaluate(const Board& b) {
                 }
             }
         }
-
-        // 5.9.2 bishop outpost. The same concept the knight loop above prices,
-        // for the piece it was never applied to: a bishop on a protected
-        // advanced square no enemy pawn can challenge. Placed here rather than
-        // in the attack-map block so lazy eval treats both minors alike --
-        // pricing one before the checkpoint and the other after would make the
-        // pair's relative value depend on whether the margin fired.
-        Bitboard bishops_c = EVAL_TERM_ACTIVE(p.bishop_outpost_mg, p.bishop_outpost_eg)
-                           ? b.pieces[c][BISHOP] : 0ULL;
-        while (bishops_c) {
-            int sq = pop_lsb(bishops_c);
-            if (relative_rank(us, Square(sq)) >= RANK_5
-                && (PawnAttacks[them][sq] & b.pieces[us][PAWN])
-                && !(PawnAttacks[us][sq] & b.pieces[them][PAWN])) {
-                mg += sign * p.bishop_outpost_mg; TR_MG(BishopOutpostMg, 0, sign);
-                eg += sign * p.bishop_outpost_eg; TR_EG(BishopOutpostEg, 0, sign);
-            }
-        }
     }
 
     // ---- Lazy eval checkpoint (Step 3.11; behaviour-changing, SPRT-gated) ---
@@ -957,22 +917,6 @@ int Evaluator::evaluate(const Board& b) {
     for (int c = 0; c < NCOLORS; c++) {
         int sign = (c == WHITE) ? 1 : -1;
         Color them = ~Color(c);
-        // 5.9.1 safe-square qualifier. Our pawn threats fire wherever a pawn
-        // attacks a piece, including from a square an enemy pawn covers, where
-        // the threat costs a pawn to execute and is often empty. This adds a
-        // separate term for threats delivered from squares no enemy pawn
-        // attacks. It layers on top rather than replacing the existing terms, so
-        // the fit at 5.9.4 can price the qualifier independently of the threat.
-        if (EVAL_TERM_ACTIVE(p.threat_safe_pawn_mg, p.threat_safe_pawn_eg)) {
-            const Bitboard safe_pawns = b.pieces[c][PAWN] & ~pawn_atk[~Color(c)];
-            const Bitboard safe_atk = (c == WHITE)
-                ? (((safe_pawns & ~BB_FILES[FILE_A]) << 7) | ((safe_pawns & ~BB_FILES[FILE_H]) << 9))
-                : (((safe_pawns & ~BB_FILES[FILE_A]) >> 9) | ((safe_pawns & ~BB_FILES[FILE_H]) >> 7));
-            const Bitboard tgt = b.occupancy[them] & ~b.pieces[them][PAWN];
-            const int n = popcount(safe_atk & tgt);
-            mg += sign * n * p.threat_safe_pawn_mg; TR_MG(ThreatSafePawnMg, 0, sign * n);
-            eg += sign * n * p.threat_safe_pawn_eg; TR_EG(ThreatSafePawnEg, 0, sign * n);
-        }
         Bitboard threats = pawn_atk[c] & b.occupancy[them];
         while (threats) {
             int sq = pop_lsb(threats);
@@ -1371,26 +1315,6 @@ int Evaluator::evaluate(const Board& b) {
             int b_kd = KING_DIST[b.king_sq[us]][bsq];
             mg += sign * b_kd * p.king_protector_b_mg; TR_MG(KingProtectorBMg, 0, sign * b_kd);
             eg += sign * b_kd * p.king_protector_b_eg; TR_EG(KingProtectorBEg, 0, sign * b_kd);
-
-            // 5.9.1 bishop x-ray pawns. bad_bishop already prices OUR pawns on
-            // the bishop's colour; this prices the ENEMY pawns actually sitting
-            // on its diagonals. Empty-board attacks give the rays the bishop
-            // would command with nothing in the way, so a pawn counts whether or
-            // not something else already blocks it.
-            if (EVAL_TERM_ACTIVE(p.bishop_xray_pawn_mg, p.bishop_xray_pawn_eg)) {
-                int xr = popcount(EVAL_BISHOP_EMPTY[bsq] & b.pieces[them][PAWN]);
-                mg += sign * xr * p.bishop_xray_pawn_mg; TR_MG(BishopXrayPawnMg, 0, sign * xr);
-                eg += sign * xr * p.bishop_xray_pawn_eg; TR_EG(BishopXrayPawnEg, 0, sign * xr);
-            }
-
-            // 5.9.1 long-diagonal bishop: on a1-h8 or h1-a8 with an unobstructed
-            // view of at least one central square. Complements bad_bishop, which
-            // counts pawns by colour and says nothing about what the bishop sees.
-            if ((sq_bb(bsq) & EVAL_LONG_DIAGONALS)
-                && (slider_att[bsq] & EVAL_CENTRE_SQUARES)) {
-                mg += sign * p.long_diagonal_bishop_mg; TR_MG(LongDiagonalBishopMg, 0, sign);
-                eg += sign * p.long_diagonal_bishop_eg; TR_EG(LongDiagonalBishopEg, 0, sign);
-            }
         }
 
         // Knights: reachable outpost, king-ring pressure.
@@ -1413,37 +1337,6 @@ int Evaluator::evaluate(const Board& b) {
             int n_kd = KING_DIST[b.king_sq[us]][nsq];
             mg += sign * n_kd * p.king_protector_n_mg; TR_MG(KingProtectorNMg, 0, sign * n_kd);
             eg += sign * n_kd * p.king_protector_n_eg; TR_EG(KingProtectorNEg, 0, sign * n_kd);
-
-            // 5.9.1 bad outpost: the knight_outpost bonus assumes an outpost is
-            // permanent, but it is only worth full value if the enemy cannot
-            // trade it off. If they still hold a knight, or a bishop on the
-            // outpost's own square colour, the post is contestable and the bonus
-            // is overstated. This term prices that back down; it fires only
-            // where knight_outpost fired, so the two compose rather than
-            // double-count.
-            if (relative_rank(us, nsq) >= RANK_5
-                && (PawnAttacks[them][nsq] & our_pawns)
-                && !(PawnAttacks[us][nsq] & b.pieces[them][PAWN])) {
-                const Bitboard same_colour =
-                    (sq_bb(nsq) & EVAL_DARK_SQUARES) ? EVAL_DARK_SQUARES : ~EVAL_DARK_SQUARES;
-                if (b.pieces[them][KNIGHT] || (b.pieces[them][BISHOP] & same_colour)) {
-                    mg += sign * p.bad_outpost_mg; TR_MG(BadOutpostMg, 0, sign);
-                    eg += sign * p.bad_outpost_eg; TR_EG(BadOutpostEg, 0, sign);
-                }
-            }
-
-            // 5.9.1 knight on queen: squares this knight can reach, that no
-            // enemy pawn covers, from which it would attack the enemy queen.
-            // A latent fork threat rather than a present attack — a present one
-            // is already priced by threat_by_minor.
-            if (b.pieces[them][QUEEN]
-                && EVAL_TERM_ACTIVE(p.knight_on_queen_mg, p.knight_on_queen_eg)) {
-                const Square qs = Square(lsb(b.pieces[them][QUEEN]));
-                Bitboard hops = KnightAttacks[nsq] & ~b.occupancy[us] & ~pawn_atk[them];
-                int koq = popcount(hops & KnightAttacks[qs]);
-                mg += sign * koq * p.knight_on_queen_mg; TR_MG(KnightOnQueenMg, 0, sign * koq);
-                eg += sign * koq * p.knight_on_queen_eg; TR_EG(KnightOnQueenEg, 0, sign * koq);
-            }
         }
 
         // Queen infiltration (Step 3.9): our queen safely deep in the enemy half.
@@ -1453,56 +1346,6 @@ int Evaluator::evaluate(const Board& b) {
             if (relative_rank(us, qsq) >= RANK_5 && !(pawn_atk[them] & sq_bb(qsq))) {
                 mg += sign * p.queen_infiltration_mg; TR_MG(QueenInfiltrationMg, 0, sign);
                 eg += sign * p.queen_infiltration_eg; TR_EG(QueenInfiltrationEg, 0, sign);
-            }
-        }
-
-        // 5.9.1 slider on queen: our bishop/rook bearing on the enemy queen
-        // THROUGH one blocker. Removing every first blocker from the occupancy
-        // and re-casting from the queen's square finds exactly the sliders that
-        // are one capture away from bearing on her — a pin-and-skewer motif the
-        // evaluator otherwise cannot see, and distinct from threat_by_minor,
-        // which needs a present attack.
-        if (b.pieces[them][QUEEN] && (b.pieces[us][BISHOP] | b.pieces[us][ROOK])
-            && EVAL_TERM_ACTIVE(p.slider_on_queen_mg, p.slider_on_queen_eg)) {
-            const Square  qs  = Square(lsb(b.pieces[them][QUEEN]));
-            const Bitboard occ = b.all_occ;
-            // Each half is skipped when we hold no piece of that kind: the
-            // popcount would be zero regardless, so this is exact, not an
-            // approximation.
-            int soq = 0;
-            if (b.pieces[us][BISHOP]) {
-                const Bitboard diag_block = bishop_attacks(qs, occ) & occ;
-                soq += popcount(bishop_attacks(qs, occ ^ diag_block) & b.pieces[us][BISHOP]);
-            }
-            if (b.pieces[us][ROOK]) {
-                const Bitboard line_block = rook_attacks(qs, occ) & occ;
-                soq += popcount(rook_attacks(qs, occ ^ line_block) & b.pieces[us][ROOK]);
-            }
-            mg += sign * soq * p.slider_on_queen_mg; TR_MG(SliderOnQueenMg, 0, sign * soq);
-            eg += sign * soq * p.slider_on_queen_eg; TR_EG(SliderOnQueenEg, 0, sign * soq);
-        }
-
-        // 5.9.1 trapped rook: a rook with almost nowhere to go, boxed in on the
-        // side its own king sits on. The classic shape after castling rights are
-        // lost and the king blocks its own rook in the corner. Mobility alone
-        // does not catch it, because a rook can be cheaply immobile without
-        // being trapped.
-        {
-            Bitboard rr = EVAL_TERM_ACTIVE(p.trapped_rook_mg, p.trapped_rook_eg)
-                        ? b.pieces[us][ROOK] : 0ULL;
-            while (rr) {
-                const Square rsq = Square(pop_lsb(rr));
-                const int mob = popcount(slider_att[rsq] & ~b.occupancy[us]);   // 8.7.7(a)
-                if (mob <= 3) {
-                    const int kf = file_of(b.king_sq[us]);
-                    const int rf = file_of(rsq);
-                    const bool king_side_of_rook =
-                        (rf < kf && kf <= FILE_D) || (rf > kf && kf >= FILE_E);
-                    if (king_side_of_rook) {
-                        mg += sign * p.trapped_rook_mg; TR_MG(TrappedRookMg, 0, sign);
-                        eg += sign * p.trapped_rook_eg; TR_EG(TrappedRookEg, 0, sign);
-                    }
-                }
             }
         }
 
