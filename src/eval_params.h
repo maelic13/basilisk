@@ -26,33 +26,33 @@ struct EvalParams {
     int pst_mg[6][64] = {
         // PAWN
         {    0,    0,    0,    0,    0,    0,    0,    0,
-           -32,   -2,  -17,  -23,  -14,   34,   42,  -29,
-           -23,   -6,   -9,  -11,    3,    2,   25,   -9,
-           -24,   -3,   -5,    7,   15,    6,    3,  -23,
+           -30,   -2,  -17,  -23,  -13,   35,   39,  -29,
+           -24,   -6,  -11,  -11,    3,    2,   24,  -10,
+           -24,   -3,   -5,    6,   13,    6,    3,  -23,
            -10,   12,    6,   18,   22,   12,   15,  -22,
             -5,    7,   26,   31,   65,   56,   25,  -20,
             98,  134,   61,   95,   68,  126,   34,  -11,
              0,    0,    0,    0,    0,    0,    0,    0 },
         // KNIGHT
         { -167,  -89,  -34,  -49,   61,  -97,  -15, -107,
-           -73,  -41,   68,   33,   25,   62,    7,  -17,
-           -47,   58,   38,   65,   84,  114,   73,   44,
+           -73,  -41,   66,   33,   25,   62,    7,  -17,
+           -47,   58,   38,   65,   84,  110,   73,   44,
             -9,   17,   22,   54,   37,   68,   18,   22,
            -13,    4,   16,   13,   28,   19,   21,   -7,
            -23,   -9,   12,   10,   19,   17,   25,  -16,
            -29,  -53,  -12,   -3,   -1,   18,  -14,  -19,
           -105,  -21,  -58,  -33,  -17,  -28,  -19,  -23 },
         // BISHOP
-        {  -29,    4,  -81,  -37,  -25,  -42,    7,   -8,
-           -26,   12,  -18,  -13,   28,   57,   21,  -47,
-           -16,   37,   43,   37,   35,   51,   37,   -1,
+        {  -29,    4,  -77,  -37,  -25,  -41,    7,   -8,
+           -26,   10,  -18,  -11,   24,   57,   23,  -47,
+           -16,   37,   43,   35,   35,   51,   37,   -1,
             -4,    5,   19,   50,   37,   37,    7,   -2,
             -6,   13,   13,   26,   34,   12,   10,    4,
              0,   15,   15,   15,   14,   27,   18,   10,
              4,   15,   16,    0,    7,   21,   33,    1,
            -33,   -3,  -14,  -21,  -13,  -12,  -39,  -21 },
         // ROOK
-        {  -17,  -12,   -2,   12,   14,   13,  -34,  -26,
+        {  -15,  -12,   -2,   12,   14,   11,  -34,  -26,
            -44,  -16,  -20,  -10,   -1,   11,   -6,  -71,
            -45,  -25,  -16,  -17,    3,    0,   -5,  -33,
            -36,  -26,  -12,   -1,    9,   -7,    6,  -23,
@@ -61,17 +61,17 @@ struct EvalParams {
             26,   31,   57,   62,   80,   67,   26,   44,
             32,   42,   32,   51,   63,    9,   31,   43 },
         // QUEEN
-        {  -28,    0,   27,   12,   49,   41,   43,   45,
-           -24,  -39,   -4,    0,  -16,   53,   28,   54,
-           -13,  -17,    7,    8,   29,   57,   47,   57,
+        {  -28,    0,   27,   12,   47,   41,   43,   45,
+           -24,  -39,   -4,    0,  -16,   51,   28,   54,
+           -13,  -15,    7,    8,   29,   57,   47,   57,
            -27,  -27,  -15,  -16,   -1,   18,   -2,    1,
             -9,  -26,   -9,  -10,   -2,   -4,    3,   -3,
            -14,    2,  -11,   -2,   -5,    2,   14,    5,
            -35,   -8,   11,    2,    8,   15,   -3,    1,
             -1,  -18,   -9,   10,  -15,  -25,  -31,  -50 },
         // KING
-        {  -15,   36,   12,  -54,    8,  -29,   23,    8,
-             1,    7,   -8,  -64,  -43,  -16,   11,    8,
+        {  -15,   36,   12,  -54,    8,  -29,   21,    6,
+             1,    7,   -8,  -64,  -43,  -16,   13,    8,
            -14,  -14,  -22,  -46,  -44,  -30,  -15,  -27,
            -49,   -1,  -27,  -39,  -46,  -44,  -33,  -51,
            -17,  -20,  -12,  -27,  -30,  -25,  -14,  -36,
@@ -83,9 +83,9 @@ struct EvalParams {
     int pst_eg[6][64] = {
         // PAWN
         {    0,    0,    0,    0,    0,    0,    0,    0,
-            -4,   -4,   10,    0,   14,    7,   -5,  -19,
+            -2,   -4,   10,    0,   14,    7,   -5,  -19,
             -3,   -1,    4,   19,    8,   11,   -5,  -13,
-            15,    2,  -12,   -6,   -3,  -13,    1,   -4,
+            15,    2,  -12,   -6,   -3,  -12,    1,   -4,
             33,   23,   13,    2,   -2,    4,   18,   16,
             56,   37,   41,   22,   26,   51,   56,   24,
            134,  108,  109,  107,  105,  104,  112,  108,
@@ -93,7 +93,7 @@ struct EvalParams {
         // KNIGHT
         {  -58,  -38,  -13,  -28,  -31,  -27,  -63,  -99,
            -25,   -8,  -25,   -2,   -9,  -25,  -24,  -52,
-           -24,  -20,   10,    9,   -1,  -16,  -19,  -41,
+           -24,  -20,   10,    9,   -1,  -18,  -19,  -41,
            -17,    3,   22,   22,   22,   11,    8,  -18,
            -18,   -6,   16,   25,   16,   17,    4,  -18,
            -23,   -3,   -1,   15,   10,   -3,  -20,  -22,
@@ -127,7 +127,7 @@ struct EvalParams {
            -22,  -23,  -30,  -16,  -16,  -23,  -36,  -32,
            -33,  -28,  -22,  -43,   -5,  -32,  -20,  -41 },
         // KING
-        {  -74,  -35,  -18,  -18,  -11,   14,   -3,  -19,
+        {  -74,  -35,  -18,  -18,  -11,   14,   -4,  -19,
            -12,   17,   14,   17,   17,   33,   21,   10,
             10,   17,   23,   15,   20,   43,   37,   13,
             -8,   22,   24,   27,   26,   33,   26,    3,
@@ -138,20 +138,20 @@ struct EvalParams {
     };
 
     // ---- Passed pawn bonuses [rank 0..7] ------------------------------------
-    int passed_mg[8] = { 0, 4, 6, 6, 23, 91, 91, 0 };
-    int passed_eg[8] = { 0, 5, 6, 51, 84, 111, 122, 0 };
+    int passed_mg[8] = { 0, 4, 5, 5, 23, 91, 91, 0 };
+    int passed_eg[8] = { 0, 5, 6, 49, 84, 113, 123, 0 };
 
 
     // Dynamic passer bonuses (per-rank multipliers; evaluated outside pawn hash)
-    int pass_free_mg = 2;  // stop square empty
-    int pass_free_eg = 2;  // stop square empty
-    int pass_safe_eg = 8;  // stop square not attacked by enemy (additional)
+    int pass_free_mg = 0;  // stop square empty
+    int pass_free_eg = 5;  // stop square empty
+    int pass_safe_eg = 10;  // stop square not attacked by enemy (additional)
 
     // ---- Pawn structure (signed values; negative = penalty) ----------------
     int doubled_mg = 0;
     int doubled_eg = -7;
-    int isolated_mg = -2;
-    int isolated_eg = -12;
+    int isolated_mg = -3;
+    int isolated_eg = -13;
     int connected_mg = 14;
     int connected_eg = 0;
     int backward_mg = -1;
@@ -160,27 +160,27 @@ struct EvalParams {
     // ---- Pawn-structure refinement (Step 3.4; seeded INERT, tuned Phase 4.5) ----
     // Pawn-cache-safe (depend only on pawns); seeded 0 so bench is unchanged. The
     // existing flat doubled/isolated/connected/backward terms stay active.
-    int connected_rank_mg[8] = { 0, 3, 5, -3, -2, 1, 0, 0 };  // connected/phalanx by rel rank
-    int connected_rank_eg[8] = { 0, 0, -2, 1, 3, 5, 0, 0 };
-    int weak_unopposed_mg = -6;  // weak (isolated/backward) pawn on a half-open file
+    int connected_rank_mg[8] = { 0, 2, 6, -3, 0, 1, 0, 0 };  // connected/phalanx by rel rank
+    int connected_rank_eg[8] = { 0, 0, -2, 1, 5, 6, 0, 0 };
+    int weak_unopposed_mg = -9;  // weak (isolated/backward) pawn on a half-open file
     int weak_unopposed_eg = -2;
     int blocked_pawn_mg[2] = { -8, 2 };  // own pawn rammed by an enemy pawn, rel rank 5 / 6
     int blocked_pawn_eg[2] = { -4, 0 };
     int pawn_majority_mg = 4;  // own pawn majority on a flank (breakthrough potential)
-    int pawn_majority_eg = 8;
+    int pawn_majority_eg = 11;
 
     // ---- Passed-pawn promotion-path safety (Step 3.4; piece-dependent, seeded 0) ----
-    int passed_path_safe_eg = 6;  // promotion path free of enemy attack (x rel rank)
-    int passed_block_defended_eg = 4;  // immediate block square defended by us
-    int passed_king_block_eg = 17;  // (enemy - own) king distance to the block square
+    int passed_path_safe_eg = 9;  // promotion path free of enemy attack (x rel rank)
+    int passed_block_defended_eg = 5;  // immediate block square defended by us
+    int passed_king_block_eg = 19;  // (enemy - own) king distance to the block square
 
     // ---- Small positional terms (Step 3.7; seeded INERT, tuned Phase 4.5) ----
     // All seeded 0 so bench is unchanged; traced one-hot/linear, tuner decides.
     int reachable_outpost_mg = 7;  // per outpost square a knight can hop to
     int reachable_outpost_eg = 2;
     int bad_bishop_mg = -7;  // per own pawn on the bishop's colour
-    int bad_bishop_eg = -11;
-    int minor_king_ring_mg = 5;  // our minor attacking the enemy king ring
+    int bad_bishop_eg = -13;
+    int minor_king_ring_mg = 6;  // our minor attacking the enemy king ring
     int minor_king_ring_eg = -2;
     int rook_king_ring_mg = -2;  // our rook attacking the enemy king ring
     int rook_king_ring_eg = -4;
@@ -200,20 +200,20 @@ struct EvalParams {
     // `imb_linear[i]` is the per-piece linear term. The eval is LINEAR in these
     // coefficients (feature = count products), so they are traced normally and
     // fit by the linear tuner in Phase 4. All seeded 0 -> contributes 0 today.
-    int imb_linear[6] = { 0, -1, 0, 4, 6, 2 };
-    int imb_our[21] = { 0, 2, 4, 0, 10, -2, 0, 9, 2, 3, 0, 7, 4, 4, 5, 0, 15, 1, 2, 3, 2 };
-    int imb_their[21] = { 0, 3, 0, 0, 7, 0, 1, 8, 0, 0, -1, 13, 2, -4, 0, 1, 23, 3, 4, 3, 0 };
+    int imb_linear[6] = { 0, 0, 0, 4, 8, 2 };
+    int imb_our[21] = { 0, 2, 5, 0, 10, -2, 0, 9, 2, 3, 0, 9, 4, 6, 6, 0, 18, 1, 3, 5, 2 };
+    int imb_their[21] = { 0, 3, 0, 0, 9, 0, 1, 12, 0, 0, -1, 16, 2, -4, 0, 1, 27, 5, 4, 3, 0 };
 
     // ---- HCE survey additions (Step 3.9; SF11-classical, seeded INERT) ------
     // All seeded 0 so bench is unchanged; traced, tuned in Phase 4.5.
-    int minor_behind_pawn_mg = 4;  // minor shielded by a friendly pawn directly ahead
+    int minor_behind_pawn_mg = 5;  // minor shielded by a friendly pawn directly ahead
     int minor_behind_pawn_eg  = 0;
     // ---- 5.9.2 simpler-form repairs (seeded to preserve behaviour) --------
     // king_protector was ONE scalar applied to both knights and bishops, so the
     // fit could never learn that the two pieces value king proximity
     // differently. Split per piece type, both seeded at the shared value so
     // bench is unchanged; 5.9.4 separates them.
-    int king_protector_n_mg = -2;   // knight distance-to-own-king
+    int king_protector_n_mg = 1;   // knight distance-to-own-king
     int king_protector_n_eg = 0;
     int king_protector_b_mg = -2;   // bishop distance-to-own-king
     int king_protector_b_eg = 0;
@@ -229,25 +229,25 @@ struct EvalParams {
     // from the joint fit at 5.9.4, never from hand-reasoning: BAS-X11 records
     // Manta losing ~-23 Elo across two gates by hand-scaling exactly this class
     // of reference-family concept.
-    int bad_outpost_mg = 0;        // outpost knight the enemy can still contest
+    int bad_outpost_mg = 2;        // outpost knight the enemy can still contest
     int bad_outpost_eg = 0;
-    int bishop_xray_pawn_mg = 0;   // enemy pawns on the bishop's unobstructed rays
-    int bishop_xray_pawn_eg = 0;
+    int bishop_xray_pawn_mg = -4;   // enemy pawns on the bishop's unobstructed rays
+    int bishop_xray_pawn_eg = -1;
     int long_diagonal_bishop_mg = 0;  // bishop eyeing the centre down a long diagonal
-    int long_diagonal_bishop_eg = 0;
-    int knight_on_queen_mg = 0;    // knight one safe hop from attacking the queen
+    int long_diagonal_bishop_eg = -2;
+    int knight_on_queen_mg = 3;    // knight one safe hop from attacking the queen
     int knight_on_queen_eg = 0;
-    int slider_on_queen_mg = 0;    // our slider x-rays the enemy queen
+    int slider_on_queen_mg = 1;    // our slider x-rays the enemy queen
     int slider_on_queen_eg = 0;
     int trapped_rook_mg = 0;       // near-immobile rook boxed in by its own king
     int trapped_rook_eg = 0;
     int threat_safe_pawn_mg = 0;   // pawn threat from a square no enemy pawn attacks
     int threat_safe_pawn_eg = 0;
 
-    int queen_infiltration_mg = 15;  // our queen safely deep in the enemy half
-    int queen_infiltration_eg = 12;
-    int pawn_islands_mg = -1;  // per disconnected own-pawn group (penalty)
-    int pawn_islands_eg = 5;
+    int queen_infiltration_mg = 18;  // our queen safely deep in the enemy half
+    int queen_infiltration_eg = 15;
+    int pawn_islands_mg = -4;  // per disconnected own-pawn group (penalty)
+    int pawn_islands_eg = 6;
 
     // ---- Bishop pair -------------------------------------------------------
     int bp_mg = 30;
@@ -258,15 +258,15 @@ struct EvalParams {
     int rook_open_eg = 7;
     int rook_semi_mg = 13;
     int rook_semi_eg = 13;
-    int rook_7th_mg = 6;
-    int rook_7th_eg = 23;
+    int rook_7th_mg = 4;
+    int rook_7th_eg = 22;
     int rook_behind_passer_mg = 14;
     int rook_behind_passer_eg = 25;
     int enemy_rook_passer_mg  = 10;  // subtracted (enemy rook behind our passer)
     int enemy_rook_passer_eg  = 20;  // subtracted
 
     // ---- Knight outpost ----------------------------------------------------
-    int knight_outpost_mg = 31;
+    int knight_outpost_mg = 33;
     int knight_outpost_eg = 15;
 
     // ---- Mobility: per-count one-hot tables (Step 3.3) ---------------------
@@ -278,7 +278,7 @@ struct EvalParams {
     // behaviour change deferred to Phase 4.4 where it interacts with the fit.)
     int mob_n_mg[9] = { 0, 5, 9, 15, 20, 24, 31, 36, 40 };
     int mob_n_eg[9] = { 0, 5, 10, 16, 21, 26, 30, 35, 37 };
-    int mob_b_mg[14] = { 0, 4, 7, 12, 21, 27, 32, 36, 40, 45, 50, 55, 60, 65 };
+    int mob_b_mg[14] = { 0, 4, 7, 12, 22, 28, 32, 36, 40, 45, 50, 55, 60, 65 };
     int mob_b_eg[14] = { 0, 7, 14, 21, 29, 37, 45, 50, 56, 63, 69, 76, 84, 91 };
     int mob_r_mg[15] = { -1, 1, 1, 1, 2, 7, 7, 10, 13, 14, 14, 14, 14, 14, 14 };
     int mob_r_eg[15] = { 0, 7, 14, 21, 28, 36, 45, 50, 58, 67, 71, 77, 83, 90, 96 };
@@ -298,7 +298,7 @@ struct EvalParams {
     // eval (bench identical); the Phase-4.2 fit activates them. Per-type arrays are
     // indexed by the attacked PieceType [0..6].
     // (Phase 4.2 fit; the new package absorbed the old flat hang_pen, now zeroed.)
-    int threat_by_minor_mg[7] = { 0, 2, 37, 47, 59, 51, 0 };  // weak/defended enemy attacked by N/B
+    int threat_by_minor_mg[7] = { 0, 2, 38, 47, 59, 51, 0 };  // weak/defended enemy attacked by N/B
     int threat_by_minor_eg[7] = { 0, 26, 3, 11, 22, 30, 0 };
     int threat_by_rook_mg[7] = { 0, -4, 17, 25, 4, 46, 0 };  // weak enemy attacked by rook
     int threat_by_rook_eg[7] = { 0, 25, 19, 22, 8, 33, 0 };
@@ -319,7 +319,7 @@ struct EvalParams {
     int ks_open_file = 0;  // extra attack_units for open file in front of king
 
     // Penalty lookup: index = clamped attack_units [0..24]
-    int safety_table[25] = { -3, 0, 0, 12, 24, 31, 45, 59, 76, 88, 101, 117, 152, 163, 177, 210, 248, 281, 285, 305, 307, 352, 369, 398, 406 };
+    int safety_table[25] = { -3, 0, 0, 12, 28, 31, 45, 59, 76, 88, 105, 121, 156, 167, 189, 226, 256, 293, 301, 331, 339, 360, 393, 393, 430 };
 
     // ---- King safety v2 danger inputs (Step 3.2; seeded INERT, tuned Phase 4.3) ----
     // These feed the attack_units -> safety_table funnel as extra index
@@ -365,7 +365,7 @@ struct EvalParams {
     int trapped_eg = 40;
 
     // ---- Tempo bonus -------------------------------------------------------
-    int tempo = 20;
+    int tempo = 22;
 
     // ---- Winnable / complexity coupling (Step 3.6) -------------------------
     // Frozen (not linearly traced); all 0, so the eval/bench are unchanged.

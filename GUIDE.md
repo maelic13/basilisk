@@ -295,9 +295,9 @@ the user explicitly abandons that program.
 
 | | |
 |---|---|
-| Engine state | **5.9.14 shipped** — bench **12,844,350**, CTest 12/12, canary on=37 (was 29) |
-| Last completed | **5.9.14** — ACCEPTED, **+2.64 ±2.05 Elo**, the phase's first gain |
-| Running now | **5.9.12** full-surface fit — next up |
+| Engine state | **5.9.12 candidate baked** — bench **20,005,943**, CTest 12/12, canary on=35 |
+| Last completed | **5.9.12** full-surface fit — holdout −0.43%, PSTs unfrozen; added terms REFUTED |
+| Running now | **5.9.13** gate for the 5.9.12 candidate |
 | Next Elo verdict | **5.9.6**, after the 5.9.4 fit and 5.9.5 SPSA |
 | Deferred, not skipped | **5.7** extensions/singular/IIR, **5.8** root/clock — after 5.9 |
 | Nothing queued for your machine | 5.9.1–5.9.4 are code and fitting work |
