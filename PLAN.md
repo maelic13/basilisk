@@ -1051,9 +1051,20 @@ running order — later-numbered steps run first here, deliberately):
 1. ~~**5.9.11**~~ — closed, no arm passed.
 2. ~~**5.9.15 LTC probe**~~ — closed, no depth story.
 3. ~~**5.9.14 king-safety reshape**~~ — **ACCEPTED, +2.64 Elo.**
-4. **5.9.12** full-surface fit including the 768 PSTs, then **5.9.13** gates it.
-   **Its baseline is now the 5.9.14 head**, and its non-Texel half starts from
-   the accepted king-safety values rather than the pre-5.9.14 ones.
+4. ~~**5.9.12** / **5.9.13**~~ — **ACCEPTED, +9.52 Elo.**
+
+**Phase 5.9 is done bar cleanup: +2.64 and +9.52, about +12 Elo total.** What
+remains is not more fitting but two tidy-ups and a decision:
+
+5. **Remove the refuted 5.9.1/5.9.2 terms** — inert in three separate
+   measurements, 12 of 20 fitted to exactly zero. A `-Mode simplify` gate, never
+   bundled with a gain. Also recovers the NPS the zero-guards cannot reclaim
+   while eight values are non-zero.
+6. **`winnable` finite-difference instrument** (optional) — the last 7 reachable
+   parameters, independent of everything else, needing a small coordinate-descent
+   mode like `--tune-kingsafety`.
+7. Then **5.7 / 5.8**, the deferred search work, where BAS-O01 measured a
+   **+322.7 Elo** gap with our own evaluation on both sides.
 
 5.9.12 goes last because it is the largest and slowest, and because both steps
 before it feed into it: the LTC probe says whether to weight endgame terms, and
@@ -1227,7 +1238,9 @@ variables at once — 3.2× the parameters, and labels from the current policy.
   anything. Its job is to tell us whether a depth story exists that STC is blind
   to — a question that changes what the rest of the phase is worth.
 
-- **5.9.13 Post-refit gate.** One registered SPRT of the 5.9.12 evaluator
+- **5.9.13 Post-refit gate — ACCEPTED 2026-08-29, +9.52 ±4.66 Elo (BAS-E23).** The largest gain of Phase 5.9; the 768 PSTs had been frozen since Phase 4.7.
+
+- **5.9.13 (original text).** One registered SPRT of the 5.9.12 evaluator
   against whatever is the accepted head at that point. This is the second and
   final Elo verdict in 5.9. It exists because 5.9.6 gates a candidate fitted on
   **29% of the surface with off-policy labels**, and 5.9.12 changes both of

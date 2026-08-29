@@ -195,8 +195,8 @@ before the next starts
 | 5.9.6 | Promoting SPRT of the 5.9.1–5.9.5 candidate | ❌ **REJECTED −77.92 Elo** |
 | 5.9.7–5.9.10 | Endgame recognisers → grading → gate | only if 5.9.6 accepts |
 | 5.9.11 | Corpus regen — **three-arm label-source experiment** (BAS-E17) | ✅ done — no arm passed |
-| 5.9.12 | Full-surface refit — 1,116 params, material pinned | **runs regardless of 5.9.6** |
-| 5.9.13 | Post-refit SPRT | second and final Elo verdict |
+| 5.9.12 | Full-surface refit — 1,116 params, material pinned | ✅ done — PSTs unfrozen |
+| 5.9.13 | Post-refit SPRT | ✅ **ACCEPTED +9.52 ±4.66 Elo** |
 | **5.9.14** | **King-safety `safety_table` reshape** | ✅ **ACCEPTED +2.64 ±2.05 Elo** |
 | 5.9.15 | LTC probe at `10+0.1` | ✅ done — **+0.29 ±5.46, no depth story** |
 
@@ -295,9 +295,9 @@ the user explicitly abandons that program.
 
 | | |
 |---|---|
-| Engine state | **5.9.12 candidate baked** — bench **20,005,943**, CTest 12/12, canary on=35 |
-| Last completed | **5.9.12** full-surface fit — holdout −0.43%, PSTs unfrozen; added terms REFUTED |
-| Running now | **5.9.13** gate for the 5.9.12 candidate |
+| Engine state | **5.9.12 shipped** — bench **20,005,943**, CTest 12/12, canary on=35 |
+| Last completed | **5.9.13** — ACCEPTED **+9.52 ±4.66 Elo**; phase total ≈ **+12 Elo** |
+| Running now | phase cleanup — remove the refuted terms |
 | Next Elo verdict | **5.9.6**, after the 5.9.4 fit and 5.9.5 SPSA |
 | Deferred, not skipped | **5.7** extensions/singular/IIR, **5.8** root/clock — after 5.9 |
 | Nothing queued for your machine | 5.9.1–5.9.4 are code and fitting work |
