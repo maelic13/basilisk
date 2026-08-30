@@ -1261,6 +1261,83 @@ bound teeth for the first time.
 
 Verified: bench **12,709,666** unchanged, CTest 12/12, WAC 137/300.
 
+**BAS-D16 — 5.8.2 aspiration instrumentation, and 5.8.3/5.8.4 REFUTED**
+(2026-08-30). Nothing had ever counted the aspiration path, so none of cluster
+E's candidates could be sized before implementing them.
+
+*Measured*, 107 positions at depth 14 — **events per window, not percentages
+of windows**:
+
+| | count | per window |
+|---|---:|---:|
+| root iterations using a window | 1,066 | — |
+| fail-low events | 544 | **0.51** |
+| fail-high events | 910 | **0.85** |
+| total re-searches | 1,463 | **1.37** |
+| `delta >= 900` give-up | 9 | 0.008 |
+
+**More than one full root re-search per iteration on average**, and the give-up
+hatch does fire — rarely, but it is not dead code.
+
+*Then the two window candidates, swept at 300k nodes:*
+
+| config | re-searches | depth mean | median | better / worse |
+|---|---:|---:|---:|---|
+| current | 1,305 | — | — | — |
+| **5.8.3** fail-low narrows beta | **1,342** | +0.131 | +0.0 | **18 / 19** |
+| **5.8.4** delta growth /4 (ref-like) | 1,419 | **−0.243** | +0.0 | 20 / 33 |
+| both | 1,515 | −0.009 | +0.0 | 21 / 25 |
+
+**5.8.3 refutes its own rationale.** The argument was that pulling beta to the
+midpoint makes the fail-low re-search cheaper. It makes re-searches **more
+frequent** — 1,305 to 1,342 — because a tighter window simply fails again.
+The depth split is 18/19, no direction, so the +0.131 mean is the BAS-D13
+pattern again.
+
+**5.8.4 is clearly worse.** The reference's slower growth (`delta/4 + 5` against
+our `delta/2`) costs 0.243 ply on a 20/33 split and adds re-searches. Our faster
+escalation is the better trade here.
+
+**BAS-D17 — 5.8.5 fail-high depth reduction REFUTED, fails the floor**
+(2026-08-30). The reference re-searches shallower after each fail-high
+(`failedHighCnt`).
+
+| | re-searches | depth mean | better/worse | **WAC** |
+|---|---:|---:|---|---:|
+| current | 1,305 | — | — | **137** |
+| reduce | **1,450** | +0.477 | 33 / 24 | **119** |
+
+**WAC 137 to 119 against a floor of 130** — a floor failure, not a comparison,
+so BAS-D14's bias caveat does not rescue it (the bias runs *against* less depth
+here anyway). Re-searches also rose. A root failing high is often a tactical
+shot; searching it shallower misses it. The +0.477 mean is again outlier-carried
+(+11, +10, +6).
+
+## Cluster 5.8 closing summary
+
+| step | outcome |
+|---|---|
+| 5.8.1 inventory | done — all divergences are in the aspiration window |
+| 5.8.2 instrumentation | done — 1.37 re-searches per root iteration |
+| 5.8.3 fail-low narrows beta | **REFUTED** — more re-searches, no direction |
+| 5.8.4 delta growth | **REFUTED** — −0.243 ply, 20/33 |
+| 5.8.5 fail-high depth reduction | **REFUTED** — WAC 119, fails floor |
+| 5.8.6 documentation | done — `reported_score`/`score` split stated in place |
+| 5.8.7 clock | not opened; PLAN's precondition never met |
+
+**No candidate survived. No games were spent.** Combined with 5.7 — one
+reading kept, three refuted, one undecided — **seven of the eight
+reference-derived search candidates across both clusters do not transfer.**
+
+That is the cluster's actual finding, and it is consistent: `9587eeeb` is the
+last pure-HCE master and is **older than large parts of our search**. Where we
+diverge, we are frequently the later idiom, not the deficient one. Both audits
+independently reached "blend of eras, not behind", and the measurements bore it
+out.
+
+*Retained:* the five aspiration counters and the singular probes. Everything
+future work needs to re-open either cluster is now counted rather than guessed.
+
 **BAS-D08 — per-iteration cost; there is no shallow target** (same runs,
 2026-08-25). Cumulative counts hide where the cost is. Differencing them gives
 the cost of each iteration on its own:

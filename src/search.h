@@ -244,6 +244,13 @@ private:
         int64_t sing_in_check = 0;
         int64_t sing_triple = 0;   // double AND in check: the full 3-ply stack
         int64_t sing_ttbeta = 0;   // 5.7.4: the tt_score >= beta branch
+        // 5.8.2: the aspiration path. Nothing counted these, so none of the
+        // cluster's candidates could be sized before implementing them.
+        int64_t asp_windows = 0;    // root iterations that used a window at all
+        int64_t asp_fail_low = 0;
+        int64_t asp_fail_high = 0;
+        int64_t asp_researches = 0; // total re-searches across all iterations
+        int64_t asp_giveup = 0;     // the delta >= 900 full-width bail
         // 5.6: history-pruning reachability. The live threshold is
         // hist_prune_coeff * depth against a SUM of six bounded history
         // channels whose maximum magnitude is 81,920 — so at depth 6 the
@@ -306,6 +313,11 @@ private:
             sing_in_check += o.sing_in_check;
             sing_triple += o.sing_triple;
             sing_ttbeta += o.sing_ttbeta;
+            asp_windows += o.asp_windows;
+            asp_fail_low += o.asp_fail_low;
+            asp_fail_high += o.asp_fail_high;
+            asp_researches += o.asp_researches;
+            asp_giveup += o.asp_giveup;
             hist_prune_tested += o.hist_prune_tested;
             hist_below_half += o.hist_below_half;
             hist_below_quarter += o.hist_below_quarter;
@@ -319,7 +331,7 @@ private:
     };
     // 47 counters, all int64_t. If this fails you added a counter: add it to
     // add() above and update the count, or the pool aggregate silently drops it.
-    static_assert(sizeof(DiagCounters) == 52 * sizeof(int64_t),
+    static_assert(sizeof(DiagCounters) == 57 * sizeof(int64_t),
                   "DiagCounters changed shape — update DiagCounters::add()");
     DiagCounters diag_;
     void print_diag() const;

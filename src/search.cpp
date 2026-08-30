@@ -1067,6 +1067,16 @@ void Searcher::print_diag() const {
     {
         char b[256];
         std::snprintf(b, sizeof(b),
+            "aspiration windows %lld fail_low %lld fail_high %lld researches %lld giveup %lld",
+            (long long)diag_.asp_windows, (long long)diag_.asp_fail_low,
+            (long long)diag_.asp_fail_high, (long long)diag_.asp_researches,
+            (long long)diag_.asp_giveup);
+        emit(b);
+    }
+
+    {
+        char b[256];
+        std::snprintf(b, sizeof(b),
             "singular fired %lld double %lld in_check %lld triple %lld ttbeta %lld (%.2f%% of fired)",
             (long long)diag_.sing_fired, (long long)diag_.sing_double,
             (long long)diag_.sing_in_check, (long long)diag_.sing_triple,
@@ -2303,19 +2313,41 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
             int delta = active_limits_.params.aspiration_delta;
             int asp_a = prev_score - delta;
             int asp_b = prev_score + delta;
+            ++diag_.asp_windows;
             while (true) {
+                // 5.8.5 REFUTED: the reference re-searches SHALLOWER after each
+                // fail-high (failedHighCnt). Measured: WAC 137 -> 119 against a
+                // floor of 130, and re-searches ROSE 1305 -> 1450. A root
+                // failing high is often a tactical shot, and searching it
+                // shallower misses it. Full depth every time. (BAS-D17)
                 score = negamax(depth, asp_a, asp_b, 0, ss, true, true, false);
                 if (stopped_) break;
                 if (score <= asp_a) {
+                    ++diag_.asp_fail_low;
+                    ++diag_.asp_researches;
+                    // 5.8.3 REFUTED: the reference also pulls beta to the
+                    // window midpoint here, reasoning that a fail-low proves the
+                    // standing beta far too generous. Measured, it makes things
+                    // WORSE in the way that matters: re-searches ROSE 1305 ->
+                    // 1342, because a tighter window simply fails again, and the
+                    // depth split was 18 better / 19 worse -- no direction.
+                    // 5.8.4 REFUTED with it: the reference's slower delta growth
+                    // (delta/4 + 5 against our delta/2) measured -0.243 ply,
+                    // 20 better / 33 worse. Ours escalates faster and that is
+                    // the better trade here. (BAS-D16)
                     asp_a  = std::max(score - delta, -INF_SCORE);
                     delta += delta / 2;
                 } else if (score >= asp_b) {
+                    ++diag_.asp_fail_high;
+                    ++diag_.asp_researches;
                     asp_b  = std::min(score + delta, INF_SCORE);
                     delta += delta / 2;
                 } else {
                     break;
                 }
                 if (delta >= 900) {
+                    ++diag_.asp_giveup;
+                    ++diag_.asp_researches;
                     asp_a = -INF_SCORE;
                     asp_b =  INF_SCORE;
                     score = negamax(depth, asp_a, asp_b, 0, ss, true, true, false);
@@ -2368,6 +2400,12 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
         result.score = reported_score;
         result.depth = depth;
 
+        // 5.8.6: the table is given the RAW `score`, not the tablebase-
+        // corrected `reported_score` that goes out over UCI. That is deliberate
+        // and not a bug: the table's scores exist to ORDER root moves for the
+        // next iteration and for helper threads, and a TB-corrected value is a
+        // fixed mate/draw verdict that carries no ordering information. Stating
+        // it here because the asymmetry two lines apart reads as an oversight.
         if (root_table_ && result.bestmove != MOVE_NONE)
             root_table_->update(result.bestmove, result.pondermove, depth, score);
 

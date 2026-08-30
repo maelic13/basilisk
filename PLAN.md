@@ -949,7 +949,26 @@ case, defensible, but nothing counts whether it ever fires.
 
 **Sub-steps, numbered so none is dropped:**
 
-- **5.8.2 Instrument the aspiration path.** Count fail-lows, fail-highs,
+- **5.8.2 Instrument the aspiration path — DONE (BAS-D16).** 1,066 windows at
+  depth 14: **0.51 fail-low, 0.85 fail-high, 1.37 re-searches per window**; the
+  `delta >= 900` hatch fires 9 times, so it is rare but not dead.
+- **5.8.3 Fail-low narrows beta — REFUTED (BAS-D16).** Re-searches ROSE
+  1,305 to 1,342; a tighter window simply fails again. Depth split 18/19.
+- **5.8.4 Delta growth — REFUTED (BAS-D16).** Reference's slower growth costs
+  **−0.243 ply** on a 20/33 split. Ours escalates faster and that is better.
+- **5.8.5 Fail-high depth reduction — REFUTED (BAS-D17).** **WAC 137 to 119**
+  against a floor of 130, and re-searches rose to 1,450.
+- **5.8.6 Documentation — DONE.** The `reported_score`/`score` asymmetry at
+  `root_table_->update` is now stated in place.
+- **5.8.7 Clock — NOT OPENED.** PLAN's precondition is that the root evidence
+  be coherent first; no root change survived, so there is nothing for a clock
+  change to be fitted to.
+
+**Cluster E closes with no candidate and no games spent.** With 5.7, seven of
+eight reference-derived search candidates do not transfer — consistent with
+both audits' finding that `9587eeeb` is older than large parts of our search.
+
+- **5.8.2 (original text).** Count fail-lows, fail-highs,
   re-searches per iteration and whether the give-up hatch fires. **Runs first**:
   5.7 showed four times over that measuring reach before implementing is what
   keeps candidates cheap and refutations free.
