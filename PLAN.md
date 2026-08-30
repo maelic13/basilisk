@@ -874,7 +874,15 @@ reference's 36–37% band, so "ours is smaller" no longer holds.
   `ss->check_exts` is already propagated and consumed by nothing. Not a re-run
   of 5.4.4's path cap (BAS-S16, −3.48): that tested a budget, this tests
   whether the two extensions should compose at all.
-- **5.7.4 `ttValue >= beta` semantics.** Reference runs a second verification
+- **5.7.4 `ttValue >= beta` semantics — REFUTED 2026-08-30 (BAS-D13).**
+  Implemented behind an inert knob and measured: depth mean **+0.383** ply but
+  **median +0.000**, better/worse **27/25**, the mean carried entirely by three
+  trivial pawn/king endgames (+11, +11, +9). WAC 138 vs 137, noise. No broad
+  gain, and the reference's form costs an extra search per firing. **Our
+  negative extension stays** — a decision on evidence, not a gap left open. The
+  branch's reach is 0.1775% of interior nodes.
+
+- **5.7.4 (original text).** Reference runs a second verification
   search and can return a cutoff; we apply a negative extension. Two mechanisms,
   not two variants — decide which we want, do not port.
 - **5.7.5 Singular gate depth 5 vs 6.** One constant, tested only after

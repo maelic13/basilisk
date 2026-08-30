@@ -1067,9 +1067,10 @@ void Searcher::print_diag() const {
     {
         char b[256];
         std::snprintf(b, sizeof(b),
-            "singular fired %lld double %lld in_check %lld triple %lld (%.2f%% of fired)",
+            "singular fired %lld double %lld in_check %lld triple %lld ttbeta %lld (%.2f%% of fired)",
             (long long)diag_.sing_fired, (long long)diag_.sing_double,
             (long long)diag_.sing_in_check, (long long)diag_.sing_triple,
+            (long long)diag_.sing_ttbeta,
             diag_.sing_fired ? 100.0 * double(diag_.sing_in_check) / double(diag_.sing_fired) : 0.0);
         emit(b);
     }
@@ -1907,6 +1908,16 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 immediate_score = s_beta;
                 return true;
             } else if (tt_score >= beta) {
+                ++diag_.sing_ttbeta;
+
+                // 5.7.4 REFUTED: the reference replaces this negative
+                // extension with a SECOND verification search that can cut the
+                // whole subtree. Implemented behind a knob and measured: depth
+                // at equal nodes was mean +0.383 ply but **median +0.0**, with
+                // 27 better against 25 worse -- the mean carried entirely by
+                // three trivial pawn/king endgames (+11, +11, +9) where depth is
+                // cheap. WAC 138 vs 137, noise. No broad gain by either
+                // instrument, and it costs an extra search. Ours stays. (BAS-D13)
                 extension--; // Negative extension: not clearly best
             }
         }
