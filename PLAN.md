@@ -844,11 +844,31 @@ reference's 36–37% band, so "ours is smaller" no longer holds.
 
 **Sub-steps — every candidate numbered so none is silently dropped.**
 
-- **5.7.2 `singularQuietLMR` — IMPLEMENTED 2026-08-30, awaiting gate (BAS-D10).**
+- **5.7.2 `singularQuietLMR` — READING TAKEN, kept provisionally (BAS-D10, BAS-D12).**
+  Gate stopped by decision at 24,956 games: **+1.49 ±2.77 Elo, LOS 83.52%**, LLR
+  drift implying ~149,000 games to resolve. Not a regression, plausibly a small
+  positive. **NOT accepted** — it carries into 5.7.7's integrated gate and comes
+  back out if that fails.
   A singular TT move relaxes LMR for that node's *remaining* moves. Verified
   inert at 0 (bench exact), swept, shipped at **401** — the reference's
   full-ply value measured **−0.215 ply** and broke a mate test.
-- **5.7.3 Check-and-singular stacking.** Our check extension is unconditional
+- **5.7.3 Check-and-singular stacking — REFUTED 2026-08-30 (BAS-D11).**
+  Measured, implemented behind an inert knob, swept, and reverted without
+  spending games. Exclusivity — the reference's rule — **fails the WAC floor**
+  (137 → 124 against a floor of 130) while gaining +0.065 ply; the intermediate
+  setting costs 5 solved positions for noise. Our check extension is per-node
+  and unconditional where the reference's is per-move and gated on
+  discovery-or-SEE, so removing our composition removes strictly more. **The
+  3-ply stack is also rarer than the audit implied: 0.123% of interior nodes.**
+  Composition stays; the knob was removed rather than parked.
+
+  *Two findings carried out of it:* `singular_double_margin = 4` lets **53.52%**
+  of singular extensions take the double, but tightening it measurably gains
+  nothing (margin 25 → −0.009 ply, 40 → +0.000). And **`double_ext_max` is dead
+  code** — capping at 16 versus its 200 default changes nothing on any of 107
+  positions, so the Phase 6.4 path cap has never bound. That goes to 5.7.6.
+
+- **5.7.3 (original text).** Our check extension is unconditional
   and applied to `depth` before the move loop, so a checking node with a
   singular TT move takes up to **3 plies** where the reference allows **1**.
   `ss->check_exts` is already propagated and consumed by nothing. Not a re-run
@@ -861,7 +881,8 @@ reference's 36–37% band, so "ours is smaller" no longer holds.
   5.7.2–5.7.4 settle, since it interacts with all of them.
 - **5.7.6 Dead instrumentation and inert switches.** `ss->check_exts` is
   propagated and unread; `check_ext_path_cap` and `lmr_allow_check` are 5.4.4
-  leftovers sitting at 0. Either 5.7.3 consumes them or they come out — an
+  leftovers sitting at 0; and **`double_ext_max` is measured dead** (BAS-D11) —
+  its cap never binds at any value ≤ 200. Either 5.7.3 consumes them or they come out — an
   untested mechanism parked in the code is a trap for the next reader.
 - **5.7.7 Integrated gate.** PLAN requires gating the integrated contract, not
   individual extensions. Once 5.7.2–5.7.6 have individual readings, the set that

@@ -235,6 +235,15 @@ private:
         // than by the policy. Distinguishes "our modulation is too small"
         // from "our modulation cannot matter here" — opposite repairs.
         int64_t lmr_clamped_high = 0;
+        // 5.7.3 probe: how often does an extension actually stack?
+        //   sing_fired      -- singular extension applied (+1 or +2)
+        //   sing_double     -- of those, the +2 double-extension path
+        //   sing_in_check   -- of those, at a node that ALSO took the check
+        //                      extension, i.e. the 3-ply case the audit flagged
+        int64_t sing_fired = 0;
+        int64_t sing_double = 0;
+        int64_t sing_in_check = 0;
+        int64_t sing_triple = 0;   // double AND in check: the full 3-ply stack
         // 5.6: history-pruning reachability. The live threshold is
         // hist_prune_coeff * depth against a SUM of six bounded history
         // channels whose maximum magnitude is 81,920 — so at depth 6 the
@@ -292,6 +301,10 @@ private:
             lmr_reduction_plies += o.lmr_reduction_plies;
             lmr_clamped_zero += o.lmr_clamped_zero;
             lmr_clamped_high += o.lmr_clamped_high;
+            sing_fired += o.sing_fired;
+            sing_double += o.sing_double;
+            sing_in_check += o.sing_in_check;
+            sing_triple += o.sing_triple;
             hist_prune_tested += o.hist_prune_tested;
             hist_below_half += o.hist_below_half;
             hist_below_quarter += o.hist_below_quarter;
@@ -305,7 +318,7 @@ private:
     };
     // 47 counters, all int64_t. If this fails you added a counter: add it to
     // add() above and update the count, or the pool aggregate silently drops it.
-    static_assert(sizeof(DiagCounters) == 47 * sizeof(int64_t),
+    static_assert(sizeof(DiagCounters) == 51 * sizeof(int64_t),
                   "DiagCounters changed shape — update DiagCounters::add()");
     DiagCounters diag_;
     void print_diag() const;

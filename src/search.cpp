@@ -1064,6 +1064,16 @@ void Searcher::print_diag() const {
             total_nodes > 0 ? double(d.see_ge_calls) / double(total_nodes) : 0.0);
         emit(buf);
     }
+    {
+        char b[256];
+        std::snprintf(b, sizeof(b),
+            "singular fired %lld double %lld in_check %lld triple %lld (%.2f%% of fired)",
+            (long long)diag_.sing_fired, (long long)diag_.sing_double,
+            (long long)diag_.sing_in_check, (long long)diag_.sing_triple,
+            diag_.sing_fired ? 100.0 * double(diag_.sing_in_check) / double(diag_.sing_fired) : 0.0);
+        emit(b);
+    }
+
     if (evaluator_.lazy_fires > 0) {
         std::snprintf(buf, sizeof(buf),
             "lazy fires %lld sign_flips %lld crossings %lld absdelta mean %.1f max %lld",
@@ -1868,7 +1878,22 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 bool allow_double = !is_pv
                     && s_val < s_beta - active_limits_.params.singular_double_margin
                     && ss->double_exts < active_limits_.params.double_ext_max;
+                // 5.7.3 REFUTED: our per-node check extension composes with
+                // this per-move one, so a checking node with a singular TT move
+                // can take 3 plies where the reference allows 1. Making them
+                // exclusive was measured and is WORSE -- WAC 137 -> 124 against
+                // a floor of 130, failing outright; the intermediate "no double
+                // when in check" still cost 5 solved for +0.009 ply. Our check
+                // extension is unconditional where the reference gates on
+                // discovery-or-SEE, so removing the composition removes strictly
+                // more than it would there. Composition stays. (BAS-D11)
                 extension += allow_double ? 2 : 1;
+
+                // 5.7.3 probe: count the stack, do not change it yet.
+                ++diag_.sing_fired;
+                if (allow_double)   ++diag_.sing_double;
+                if (did_check_ext)  ++diag_.sing_in_check;
+                if (allow_double && did_check_ext) ++diag_.sing_triple;
 
                 // 5.7.2: relax LMR for this node's remaining moves. Suppressed
                 // when the TT move is a capture -- a singular capture says the

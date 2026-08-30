@@ -1094,6 +1094,79 @@ node count for every value, which is what it did here before the mistake was
 caught. This is correct for a fingerprint and useless for a sweep. `sweep.py`
 sets options on a real `go nodes` search and is the instrument for this.
 
+**BAS-D11 — 5.7.3 REFUTED: the reference's extension exclusivity fails our
+tactical floor** (2026-08-30). Three measurements, one implemented change
+reverted, no games spent.
+
+*First, how often the stack the audit flagged actually happens* — instrumented
+with three new diag counters, 107-position suite, depth 12:
+
+| | count | share |
+|---|---:|---:|
+| interior nodes | 14,154,475 | |
+| singular extension fired | 70,790 | 0.50% of interior |
+| …of which **+2 double** | 37,884 | **53.52% of fired** |
+| …at an in-check node | 22,940 | 32.41% of fired |
+| …**both → the full 3-ply stack** | 17,412 | 24.60% of fired = **0.123% of interior** |
+
+**The double-extension rate is the surprise: more than half of all singular
+extensions take +2.** `singular_double_margin` is **4** on a range of 0–60, so
+the double fires when `s_val < s_beta - 4` — barely stricter than the singular
+test itself. A mechanism meant to mark "one move is overwhelmingly best" is the
+common case.
+
+*But tightening it buys nothing.* Swept on `sweep.py` (107 positions, 300k
+nodes, paired): margin 12 → **−0.178** ply, 25 → −0.009, 40 → +0.000. The
+permissive setting looks wrong and does not measurably cost depth. Not pursued.
+
+**`double_ext_max` is dead code.** Capping it at 16 instead of the 200 default
+gives **0 better, 0 worse, 107 same** — `ss->double_exts` never reaches 16, so
+the Phase 6.4 path cap has never once bound. Recorded for 5.7.6.
+
+*Then the audit's actual candidate*, landed behind an inert knob and swept:
+
+| `SingCheckMaxExt` | paired Δ depth | WAC @ depth 6 | floor 130 |
+|---|---:|---:|---|
+| **2 — compose (current)** | — | **137** | pass |
+| 1 — no double when in check | +0.009 | 132 | pass |
+| 0 — exclusive (the reference) | **+0.065** | **124** | **FAIL** |
+
+**The reference's semantics do not transfer, and the knob was removed.**
+Exclusivity fails the WAC floor outright; the intermediate setting costs 5
+solved positions to buy noise. The reason is structural: our check extension is
+**per-node and unconditional**, the reference's is **per-move and gated on
+discovery-or-SEE**. Removing our composition therefore removes strictly more
+extension than removing theirs would. Composition stays.
+
+**Durable lesson — depth-at-fixed-nodes is not sufficient for extension work.**
+That instrument ranked exclusivity **best** at +0.065 ply. WAC caught it as a
+tactical regression that fails a correctness floor. Extensions exist to find
+forcing lines, and a metric that averages depth over quiet and tactical
+positions alike cannot see that. **Any future extension candidate must clear WAC
+as well as the depth sweep before it is considered for a gate.** The two
+instruments disagreeing is itself the finding.
+
+*Kept:* the three probe counters (`sing_fired`, `sing_double`, `sing_in_check`,
+`sing_triple`), as the evidence base for anything revisiting this interaction.
+Bench restored to 12,709,666, CTest 12/12, WAC 137/300.
+
+**BAS-D12 — 5.7.2 reading, not a verdict** (2026-08-30). `572-sqlmr` against
+`5912-slim`, stopped by decision at **24,956 games**: **Elo +1.49 ±2.77, nElo
++2.32 ±4.31, LOS 83.52%, LLR +0.51 (17.3%)**.
+
+Stopped because it could not resolve: the LLR drift implied ~149,000 further
+games to reach a boundary, past the 100,000 hard stop, with the nElo estimate
+straddling the upper bound of 3 — the classic indifference-region case. The
+45,000-game criterion set beforehand was revised for that reason, stated rather
+than quietly dropped; running on would have narrowed the interval to ±2.05
+without changing the disposition.
+
+**Read as: not a regression, plausibly a small positive.** Consistent with its
++0.121 ply sweep and a 9% smaller tree. It is **kept provisionally and is NOT
+accepted** — PLAN's 5.7.7 gates the surviving set as one integrated contract,
+and a +1.5 Elo change is below what a single SPRT resolves economically. If
+5.7.7 fails, 5.7.2 has no independent claim to survival and comes back out.
+
 **BAS-D08 — per-iteration cost; there is no shallow target** (same runs,
 2026-08-25). Cumulative counts hide where the cost is. Differencing them gives
 the cost of each iteration on its own:

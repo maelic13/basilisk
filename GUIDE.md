@@ -296,19 +296,19 @@ the user explicitly abandons that program.
 | | |
 |---|---|
 | Engine state | **5.7.2 candidate** — bench **12,709,666**, CTest 12/12, canary on=35 |
-| Last completed | **5.7.2** `singularQuietLMR` at 401 — reference's value was 8× too large |
-| Running now | **5.7.2** `singularQuietLMR` — implemented, awaiting gate |
+| Last completed | **5.7.3** REFUTED — reference's exclusivity fails our WAC floor |
+| Running now | **5.7.4** `ttValue >= beta` semantics |
 
 **Cluster 5.7 sub-steps** (all numbered so none is dropped):
 
 | step | candidate | state |
 |---|---|---|
 | 5.7.1 | contract inventory | ✅ done |
-| **5.7.2** | **`singularQuietLMR`** | **implemented @ 401, gate pending** |
-| 5.7.3 | check-and-singular stacking (3 plies vs 1) | queued |
+| 5.7.2 | `singularQuietLMR` @ 401 | reading **+1.49 ±2.77**, kept for 5.7.7 |
+| 5.7.3 | check-and-singular stacking | ❌ **REFUTED** — fails WAC floor |
 | 5.7.4 | `ttValue >= beta`: negative ext vs second search | queued |
 | 5.7.5 | singular gate depth 5 vs 6 | queued, after 5.7.2–4 |
-| 5.7.6 | dead `check_exts` + inert 5.4.4 switches | queued |
+| 5.7.6 | dead `check_exts`, inert 5.4.4 switches, **dead `double_ext_max`** | queued |
 | 5.7.7 | integrated gate of whatever survives | queued |
 
 **Diagnostics re-measured after Phase 5.9 (BAS-D09):** ordering, LMR and
