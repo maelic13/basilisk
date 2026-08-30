@@ -837,6 +837,39 @@ Missing minor extensions (passed pawn, last captures, castling) are inventory
 only. Adding unmeasured extensions to a search whose extension *semantics* are
 unsettled is the ordering error the precondition rule exists to prevent.
 
+**Diagnostics re-measured before ranking (BAS-D09).** Every metric the ranking
+rests on was taken pre-5.9; ordering and LMR are unmoved, branching holds, and
+**BAS-D03's qsearch finding is stale** — 30.8% → 35.1%, now inside the
+reference's 36–37% band, so "ours is smaller" no longer holds.
+
+**Sub-steps — every candidate numbered so none is silently dropped.**
+
+- **5.7.2 `singularQuietLMR` — IMPLEMENTED 2026-08-30, awaiting gate (BAS-D10).**
+  A singular TT move relaxes LMR for that node's *remaining* moves. Verified
+  inert at 0 (bench exact), swept, shipped at **401** — the reference's
+  full-ply value measured **−0.215 ply** and broke a mate test.
+- **5.7.3 Check-and-singular stacking.** Our check extension is unconditional
+  and applied to `depth` before the move loop, so a checking node with a
+  singular TT move takes up to **3 plies** where the reference allows **1**.
+  `ss->check_exts` is already propagated and consumed by nothing. Not a re-run
+  of 5.4.4's path cap (BAS-S16, −3.48): that tested a budget, this tests
+  whether the two extensions should compose at all.
+- **5.7.4 `ttValue >= beta` semantics.** Reference runs a second verification
+  search and can return a cutoff; we apply a negative extension. Two mechanisms,
+  not two variants — decide which we want, do not port.
+- **5.7.5 Singular gate depth 5 vs 6.** One constant, tested only after
+  5.7.2–5.7.4 settle, since it interacts with all of them.
+- **5.7.6 Dead instrumentation and inert switches.** `ss->check_exts` is
+  propagated and unread; `check_ext_path_cap` and `lmr_allow_check` are 5.4.4
+  leftovers sitting at 0. Either 5.7.3 consumes them or they come out — an
+  untested mechanism parked in the code is a trap for the next reader.
+- **5.7.7 Integrated gate.** PLAN requires gating the integrated contract, not
+  individual extensions. Once 5.7.2–5.7.6 have individual readings, the set that
+  survives goes to **one** SPRT together.
+
+Minor extensions (passed pawn, last captures, castling) stay out of the
+numbering: they are additions, and this cluster is about coherence.
+
 **Check extensions are no longer owned here** — the 5.3 inventory moved them to
 5.4.4, because they are inseparable from the never-reduce-checking-moves rule.
 What remains here genuinely depends on cluster 5.5's TT provenance: singular

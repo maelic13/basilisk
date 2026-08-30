@@ -295,9 +295,25 @@ the user explicitly abandons that program.
 
 | | |
 |---|---|
-| Engine state | **5.9 final** — bench **13,981,020**, CTest 12/12, canary on=35 |
-| Last completed | **5.7.1** extension contract inventory — `analysis/cluster57_audit_v1.md` |
-| Running now | **5.7.2** — pick a candidate from the 5.7.1 audit |
+| Engine state | **5.7.2 candidate** — bench **12,709,666**, CTest 12/12, canary on=35 |
+| Last completed | **5.7.2** `singularQuietLMR` at 401 — reference's value was 8× too large |
+| Running now | **5.7.2** `singularQuietLMR` — implemented, awaiting gate |
+
+**Cluster 5.7 sub-steps** (all numbered so none is dropped):
+
+| step | candidate | state |
+|---|---|---|
+| 5.7.1 | contract inventory | ✅ done |
+| **5.7.2** | **`singularQuietLMR`** | **implemented @ 401, gate pending** |
+| 5.7.3 | check-and-singular stacking (3 plies vs 1) | queued |
+| 5.7.4 | `ttValue >= beta`: negative ext vs second search | queued |
+| 5.7.5 | singular gate depth 5 vs 6 | queued, after 5.7.2–4 |
+| 5.7.6 | dead `check_exts` + inert 5.4.4 switches | queued |
+| 5.7.7 | integrated gate of whatever survives | queued |
+
+**Diagnostics re-measured after Phase 5.9 (BAS-D09):** ordering, LMR and
+branching all hold; **BAS-D03's qsearch finding is stale** — 30.8% → 35.1%, now
+inside the reference band, so "ours is smaller" no longer holds.
 | Next Elo verdict | **5.9.6**, after the 5.9.4 fit and 5.9.5 SPSA |
 | Deferred, not skipped | **5.7** extensions/singular/IIR, **5.8** root/clock — after 5.9 |
 | Nothing queued for your machine | 5.9.1–5.9.4 are code and fitting work |

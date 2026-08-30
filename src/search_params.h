@@ -154,6 +154,7 @@
     X(lmr_tt_pv_adj,         LmrTtPvAdj,            23,    0,  3072)     \
     X(lmr_not_improving_adj, LmrNotImprovingAdj,    89,    0,  3072)     \
     X(lmr_tt_capture,        LmrTtCapture,         301,    0,  3072)     \
+    X(lmr_singular_quiet,    LmrSingularQuiet,     401,    0,  3072)     \
     /* Post-LMR cont-hist nudge (inert at 0; see FIELD NOTES) */         \
     X(post_lmr_hist_scale,   PostLmrHistScale,       0,    0,   300)     \
     /* 5.4.4 check-move depth policy — both INERT at their defaults, so   \

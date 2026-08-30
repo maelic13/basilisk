@@ -1020,6 +1020,80 @@ deleted. **The evaluation was mis-calibrated, not under-featured.**
 6. **A stronger engine is not a better labeller.** Stockfish outcomes lost 7.30
    Elo to our own; an evaluation belongs to the search that consumes it.
 
+**BAS-D09 — search diagnostics re-measured after Phase 5.9; one is stale**
+(2026-08-30). Every search diagnostic that 5.7's candidate ranking rests on was
+taken on the **pre-5.9 evaluation**, which has since moved ~+12 Elo. Re-measured
+on head `e763a52`, same suite and protocol.
+
+| metric | pre-5.9 | current | verdict |
+|---|---:|---:|---|
+| first-move cutoff | 89.101% | 88.872% | **holds** |
+| mean cutoff index | 0.2137 | 0.216 | holds |
+| LMR applied | 36.115% | 36.008% | holds |
+| LMR mean reduction | 2.354 | 2.337 | holds |
+| LMR re-search | 1.744% | 1.798% | holds |
+| LMR clamp-0 | 16.217% | 16.458% | holds |
+| branching b(4–11) | 1.692 | **1.754** | holds directionally (ref 1.894) |
+| **qsearch share** | **30.8%** | **35.1%** | **STALE — see below** |
+
+*Ordering and LMR are unmoved.* A 12-Elo evaluation change left every ordering
+and reduction statistic within 0.3 percentage points. BAS-D01's "ordering is
+healthy" and the LMR picture that 5.4.3 refuted candidates against both stand.
+
+**BAS-D03 is superseded.** Qsearch share moved **30.8% → 35.1%** (suite-wide,
+depth 12, same protocol — a first single-position reading of 35.0% was
+discarded as non-comparable before this was concluded). BAS-D03 concluded "ours
+is *smaller* than the reference's 36–37%; not a width source". **We are now
+inside that band.** The conclusion no longer follows; qsearch share is a matched
+quantity, not a favourable outlier. Nothing in 5.7 depends on it, but any future
+argument citing BAS-D03's *smaller* must use this row instead.
+
+*Not re-measured, and why that is defensible:* BAS-O01/O04's oracle attribution
+(+322.7 Elo search, 95.9%/4.1% split) holds **Basilisk's evaluation constant on
+both arms** — the hybrid runs SF's search against our eval versus our search
+against our eval. An evaluation improvement lifts both arms, so the *search*
+contrast is structurally insensitive to it. Re-measuring costs 2,400 games and a
+rebuilt bridge to move a 322-Elo finding by at most a few Elo. Deferred with the
+reason recorded; re-open if a decision ever turns on the exact split.
+
+**BAS-D10 — `singularQuietLMR` implemented; the reference's magnitude is wrong
+for us by 8×** (2026-08-30, step 5.7.2).
+
+*The semantics were nearly misread, and the misreading would have shipped dead
+code.* The flag is reset **once per node**, not per move, and set when the TT
+move proves singular — so it relaxes LMR for **every later move at that node**,
+not for the extended move itself. The extended move is the TT move, ordered
+first, so `searched < 2` blocks LMR from ever reaching it. "Reduce the extended
+move less" is unimplementable; "reduce its siblings less because the position is
+sharp" is the mechanism.
+
+*Plumbing verified before magnitude:* at `LmrSingularQuiet = 0` the bench is
+**13,981,020**, matching the head **exactly**, so the mechanism is inert when
+disabled and fires only through the intended path.
+
+*Magnitude swept with `sweep.py`* (107 positions, 300k nodes, Hash 64, paired):
+
+| value | mean depth | paired Δ | better / worse |
+|---:|---:|---:|---|
+| 0 | 21.30 | — | — |
+| 128 | 21.38 | +0.084 | 32 / 24 |
+| 256 | 21.41 | +0.112 | 26 / 32 |
+| **401** | **21.42** | **+0.121** | **32 / 23** |
+| **1024** (the reference's `r -= 1`) | 21.08 | **−0.215** | 26 / 33 |
+
+**Porting the reference's constant would have been a regression**, and a large
+one — a full ply doubled the bench (13.98M → 29.47M) and broke a mate-distance
+test. Our LMR mean reduction is 2.337 plies and our singular gate is one ply
+earlier than the reference's, so a full-ply relaxation removes ~43% of the
+reduction at every singular node. Shipped at **401**; 128/256/401 are within
+noise of each other, so this is a plausible operating point, not a tuned one.
+
+*Instrument note.* `run_bench()` takes no `SearchParams` and therefore ignores
+UCI options entirely — a parameter sweep driven by `bench` returns the identical
+node count for every value, which is what it did here before the mistake was
+caught. This is correct for a fingerprint and useless for a sweep. `sweep.py`
+sets options on a real `go nodes` search and is the instrument for this.
+
 **BAS-D08 — per-iteration cost; there is no shallow target** (same runs,
 2026-08-25). Cumulative counts hide where the cost is. Differencing them gives
 the cost of each iteration on its own:

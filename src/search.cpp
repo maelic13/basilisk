@@ -1692,6 +1692,21 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     const auto* low_ply_hist = ply < HistoryTables::LOW_PLY_HISTORY_SIZE
                              ? &hist_.low_ply[ply] : nullptr;
 
+    // 5.7.2: set when the TT move proves singular at this node, and then read
+    // by LMR for every LATER move here.
+    //
+    // The scope is the subtle part and is the whole mechanism: the reference
+    // resets this once per NODE, not per move, so a singular TT move relaxes
+    // the reduction on all its siblings. A singular TT move means one move is
+    // materially better than every alternative, which is exactly a position
+    // where the alternatives deserve a closer look before being reduced away.
+    //
+    // It deliberately does NOT reduce the singular move itself: that move is
+    // the TT move, ordered first, so `searched < 2` blocks LMR from ever
+    // reaching it. Reading the flag as "reduce the extended move less" produces
+    // dead code.
+    bool singular_quiet_lmr = false;
+
     auto search_one = [&](Move m, int picker_see, MovePicker::Src picker_src) {
         if (is_root && !move_in_root_moves(m, active_limits_.root_moves))
             return false;
@@ -1854,6 +1869,13 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                     && s_val < s_beta - active_limits_.params.singular_double_margin
                     && ss->double_exts < active_limits_.params.double_ext_max;
                 extension += allow_double ? 2 : 1;
+
+                // 5.7.2: relax LMR for this node's remaining moves. Suppressed
+                // when the TT move is a capture -- a singular capture says the
+                // tactics are forced, not that the quiet alternatives are
+                // delicate, and `lmr_tt_capture` already raises r for exactly
+                // that case. Letting both fire would have them cancel.
+                singular_quiet_lmr = !tt_capture;
             } else if (s_beta >= beta) {
                 // Multicut: likely to fail high without this move too
                 immediate_return = true;
@@ -1929,6 +1951,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                     if (ss->tt_pv)  r -= p.lmr_tt_pv_adj;
                     if (!improving) r += p.lmr_not_improving_adj;
                     if (tt_capture) r += p.lmr_tt_capture;
+                    // 5.7.2: see the declaration of singular_quiet_lmr.
+                    if (singular_quiet_lmr) r -= p.lmr_singular_quiet;
                     // History-based adjustment: good moves get reduced less, bad
                     // more. Kept integer-quantised (÷div then ×1024) so 6.7 is
                     // behaviour-identical; the fractional form (×1024 ÷ div) is a
