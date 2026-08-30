@@ -296,8 +296,8 @@ the user explicitly abandons that program.
 | | |
 |---|---|
 | Engine state | **5.9 final** — bench **13,981,020**, CTest 12/12, canary on=35 |
-| Last completed | **Phase 5.9 CLOSED** — ≈ **+12 Elo**, none of it from a new feature |
-| Running now | **5.7 / 5.8** — deferred search work, the +322.7 Elo gap |
+| Last completed | **5.7.1** extension contract inventory — `analysis/cluster57_audit_v1.md` |
+| Running now | **5.7.2** — pick a candidate from the 5.7.1 audit |
 | Next Elo verdict | **5.9.6**, after the 5.9.4 fit and 5.9.5 SPSA |
 | Deferred, not skipped | **5.7** extensions/singular/IIR, **5.8** root/clock — after 5.9 |
 | Nothing queued for your machine | 5.9.1–5.9.4 are code and fitting work |

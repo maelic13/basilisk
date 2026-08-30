@@ -807,6 +807,36 @@ Reconcile singular, double/negative extension and IIR semantics against TT
 provenance and LMR. Preserve mate and abort correctness. Gate the integrated
 contract, not the individual extensions.
 
+**5.7.1 Contract inventory — DONE 2026-08-30**, `analysis/cluster57_audit_v1.md`.
+Precondition confirmed satisfied: 5.4 closed with ordering measured healthy
+(BAS-D01, 89.1%) and 5.5 with TT provenance equivalent.
+
+*The audit reframes the cluster.* Double extensions, negative extensions and
+IIR-on-stale-TT all **post-date** `9587eeeb` — the vendored reference is the
+last pure-HCE master and is older than parts of our search. We are not behind
+it here; we are a **blend of eras**, and 5.7's job is **internal coherence**,
+not catching up.
+
+Four candidates, in expected-value order:
+
+1. **`singularQuietLMR` — ABSENT.** The reference reduces LMR for a move it just
+   extended; we do not. This is exactly the "extension and reduction decisions
+   arbitrated against a settled LMR" the cluster is defined by. Cheapest and
+   most directly on-mandate.
+2. **Check-and-singular stacking.** Our check extension is unconditional and
+   applied to `depth` *before* the move loop, so a checking node with a singular
+   TT move can take **3 plies** where the reference allows **1**. `ss->check_exts`
+   is already propagated and consumed by nothing. Care required: 5.4.4 lost
+   BAS-S16 (−3.48 ±3.32) to a naive path cap, so this is not a re-run of that.
+3. **`ttValue >= beta` semantics.** The reference runs a second verification
+   search and can return a cutoff; we apply a negative extension. Different
+   mechanisms, not variants — a design decision to take, not a port.
+4. Singular gate depth 5 vs 6 — one constant, tested only after 1–3 settle.
+
+Missing minor extensions (passed pawn, last captures, castling) are inventory
+only. Adding unmeasured extensions to a search whose extension *semantics* are
+unsettled is the ordering error the precondition rule exists to prevent.
+
 **Check extensions are no longer owned here** — the 5.3 inventory moved them to
 5.4.4, because they are inseparable from the never-reduce-checking-moves rule.
 What remains here genuinely depends on cluster 5.5's TT provenance: singular
