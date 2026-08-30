@@ -295,9 +295,9 @@ the user explicitly abandons that program.
 
 | | |
 |---|---|
-| Engine state | **terms removed** — bench **13,981,020**, CTest 12/12, canary on=35, `--verify` PASS |
-| Last completed | **5.9.13** — ACCEPTED **+9.52 ±4.66 Elo**; phase total ≈ **+12 Elo** |
-| Running now | cleanup gate — `-Mode simplify` on the term removal |
+| Engine state | **5.9 final** — bench **13,981,020**, CTest 12/12, canary on=35 |
+| Last completed | **Phase 5.9 CLOSED** — ≈ **+12 Elo**, none of it from a new feature |
+| Running now | **5.7 / 5.8** — deferred search work, the +322.7 Elo gap |
 | Next Elo verdict | **5.9.6**, after the 5.9.4 fit and 5.9.5 SPSA |
 | Deferred, not skipped | **5.7** extensions/singular/IIR, **5.8** root/clock — after 5.9 |
 | Nothing queued for your machine | 5.9.1–5.9.4 are code and fitting work |

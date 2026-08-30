@@ -958,6 +958,68 @@ were measured inert three times, the fit set 12 of 20 values to zero, and less
 evaluation code is worth having for its own sake. Whether it costs strength is
 a question only the gate answers.
 
+**BAS-E25 — term removal ACCEPTED as a non-regression; Phase 5.9 closes**
+(2026-08-29). `5912-slim` (`eb717a7033`, bench 13,981,020) against `5912-full`
+(`e7e6b61211`, bench 20,005,943). `-Mode simplify`, H0 elo ≤ −5, H1 elo ≥ 0.
+
+**Elo +0.49 ±2.96, nElo +0.76 ±4.59, LLR 2.97 → H1 accepted** in 21,990 games /
+4h06m. Ptnml [470, 2682, 4661, 2711, 471], PairsRatio 1.01.
+
+The eight refuted terms are gone with no measurable cost. The LLR drifted
+steadily (+0.07 → +1.22 → +2.97) rather than hovering, and the point estimate
+moved *toward* zero as the interval halved — the profile of a genuinely neutral
+change.
+
+*Forfeit note, and it points the other way this time.* One game (4111) was lost
+on time by **`5912-full`, the baseline** — so it handed the candidate a free
+win rather than penalising it. Worth ~0.03 Elo on one game in 21,990, and the
+verdict holds without it, but unlike BAS-E21 this forfeit is **not**
+conservative and should not be dismissed with the same reasoning.
+
+---
+
+## Phase 5.9 closing summary
+
+| step | change | verdict |
+|---|---|---|
+| 5.9.1–5.9.6 | 16 new evaluation terms, fitted on a distilled corpus | **−77.92 Elo, reverted** |
+| 5.9.11 | corpus rebuilt on-policy; three label sources | none passed |
+| 5.9.15 | LTC probe at `10+0.1` | no depth story |
+| **5.9.14** | **king-safety funnel refit** | **ACCEPTED +2.64** |
+| **5.9.13** | **full-surface refit, 768 PSTs unfrozen** | **ACCEPTED +9.52** |
+| cleanup | the 16 added parameters removed | accepted, neutral |
+
+**Net ≈ +12 Elo, and not one point of it came from a new feature.** Both gains
+came from fitting surfaces the engine already had:
+
+- the **capped non-linear king-danger funnel**, reachable only by coordinate
+  descent — a linear fit had nothing to say about it;
+- the **768 piece-square tables**, frozen since **Phase 4.7** and untouched by
+  every fit in this phase until 5.9.12.
+
+The sixteen terms added at 5.9.1/5.9.2 were measured inert three times and then
+deleted. **The evaluation was mis-calibrated, not under-featured.**
+
+**Durable lessons from the phase:**
+
+1. **Verify what a data file contains before fitting it.** The −77.92 came from
+   fitting Stockfish *evaluations* believing they were game results, because a
+   summary said so and nobody checked. `parse_target` now aborts on any target
+   that is not 0, 0.5 or 1.
+2. **Holdout loss does not predict Elo — it has now inverted twice** (−6.2% →
+   −77.92; −0.43% → +9.52). Never rank or justify a candidate by it.
+3. **Check which parameters a fit actually reaches.** `--audit-coverage` exists
+   because 348 of 1,190 were fitted while the number was reported as if it were
+   the surface.
+4. **A hovering LLR means neutral; a drifting one means real.** Visible in every
+   run here long before it finished, and a better early signal than the Elo
+   estimate.
+5. **A candidate withdrawn over a canary deserves re-examination once the
+   canary's cause is understood.** 5.9.14's +2.64 was blocked since 5.9.5 by a
+   corpus artifact, not by evidence.
+6. **A stronger engine is not a better labeller.** Stockfish outcomes lost 7.30
+   Elo to our own; an evaluation belongs to the search that consumes it.
+
 **BAS-D08 — per-iteration cost; there is no shallow target** (same runs,
 2026-08-25). Cumulative counts hide where the cost is. Differencing them gives
 the cost of each iteration on its own:
