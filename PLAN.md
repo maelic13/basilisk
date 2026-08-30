@@ -885,9 +885,23 @@ reference's 36–37% band, so "ours is smaller" no longer holds.
 - **5.7.4 (original text).** Reference runs a second verification
   search and can return a cutoff; we apply a negative extension. Two mechanisms,
   not two variants — decide which we want, do not port.
-- **5.7.5 Singular gate depth 5 vs 6.** One constant, tested only after
+- **5.7.5 Singular gate depth — UNDECIDED, gate stays at 5 (BAS-D14).**
+  Parameterised and swept. Lowering to 4 costs depth (−0.121) and gains WAC
+  (137 → 162); raising to 6/7 gains depth (+0.31) and costs WAC (→ 131/130, the
+  floor). **One trade-off read from both ends, and WAC-at-fixed-depth is biased
+  toward more extension** — at depth 6 a lower gate extends critical lines
+  inside the fixed depth, which is protocol, not strength. Neither instrument
+  can decide it. `singular_min_depth` kept as legitimate SPSA material.
+
+- **5.7.5 (original text).** One constant, tested only after
   5.7.2–5.7.4 settle, since it interacts with all of them.
-- **5.7.6 Dead instrumentation and inert switches.** `ss->check_exts` is
+- **5.7.6 Dead instrumentation — DONE 2026-08-30, behaviour-neutral (BAS-D15).**
+  Removed `check_ext_path_cap`, `lmr_allow_check`, `SearchStack::check_exts` and
+  a stale doc block describing a trial that had already failed. `double_ext_max`
+  **200 → 16**: at 200 it can never bind, and 16 is behaviour-identical on all
+  107 positions — a decorative valve made real. Bench unchanged at 12,709,666.
+
+- **5.7.6 (original text).** `ss->check_exts` is
   propagated and unread; `check_ext_path_cap` and `lmr_allow_check` are 5.4.4
   leftovers sitting at 0; and **`double_ext_max` is measured dead** (BAS-D11) —
   its cap never binds at any value ≤ 200. Either 5.7.3 consumes them or they come out — an

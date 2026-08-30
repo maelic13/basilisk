@@ -1485,14 +1485,15 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     // Guard with ss->excluded to prevent stacking with singular extensions.
     diag_.interior_nodes++;
     if (in_check) diag_.in_check_nodes++;
-    // 5.4.4: the extension is unconditional today — every in-check node gets a
-    // ply, with nothing bounding how many a single forcing line may collect.
-    // check_ext_path_cap bounds the accumulation per path; 0 keeps the current
-    // policy exactly, so this is inert until an experiment sets it.
-    const int check_ext_cap = active_limits_.params.check_ext_path_cap;
+    // The extension is unconditional: every in-check node gets a ply.
+    //
+    // 5.7.6 removed check_ext_path_cap, which bounded the accumulation per path
+    // and defaulted to 0 (disabled). It was added inert for 5.4.4, and that
+    // cluster closed with BAS-S16 REJECTED at -3.48 +/- 3.32 -- so it was the
+    // residue of a failed trial, not an avenue still open. 5.7.3 separately
+    // measured that reducing extension at checking nodes fails our WAC floor.
     bool did_check_ext = false;
-    if (in_check && ss->excluded == MOVE_NONE && ply < MAX_PLY - 2
-        && (check_ext_cap == 0 || ss->check_exts < check_ext_cap)) {
+    if (in_check && ss->excluded == MOVE_NONE && ply < MAX_PLY - 2) {
         depth++;
         did_check_ext = true;
         diag_.check_exts++;
@@ -1855,7 +1856,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
         // ---- Singular extension (only for TT move) -------------------------
         if (!is_root && m == tt_move && ss->excluded == MOVE_NONE
-            && depth >= 5 && tt_found && tt_depth >= depth - 3
+            && depth >= active_limits_.params.singular_min_depth
+            && tt_found && tt_depth >= depth - 3
             && (tt_flag == TT_BETA || tt_flag == TT_EXACT)
             && std::abs(tt_score) < MATE_SCORE - MAX_PLY) {
 
@@ -1943,7 +1945,6 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         // Phase 6.4 rider: propagate the stacked double-extension count to the
         // child so a chain of singular double-extensions is eventually capped.
         (ss + 1)->double_exts = ss->double_exts + (extension >= 2 ? 1 : 0);
-        (ss + 1)->check_exts  = ss->check_exts + (did_check_ext ? 1 : 0);
 
         int score;
         if (searched == 0) {
@@ -1967,10 +1968,10 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             else if (searched < 2)  ++diag_.lmr_blocked_searched;
             else if (in_check)      ++diag_.lmr_blocked_in_check;
             else if (!lmr_type_ok)  ++diag_.lmr_blocked_movetype;
-            // 5.4.4: lmr_allow_check=1 lets checking moves be reduced. Short-
-            // circuiting on the flag first also skips the gives_check probe,
-            // which is why the counter is guarded the same way.
-            else if (!active_limits_.params.lmr_allow_check && move_gives_check())
+            // Checking moves are never reduced. 5.7.6 removed the
+            // lmr_allow_check switch that could have relaxed this: it was added
+            // inert for 5.4.4, which closed rejected (BAS-S16).
+            else if (move_gives_check())
                 ++diag_.lmr_blocked_gives_check;
             // LMR applies to: quiets, and bad captures — but NOT promotions
             else {

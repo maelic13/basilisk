@@ -34,7 +34,6 @@ struct SearchStack {
     PieceType moved_piece = NO_PIECE_TYPE;   // piece type that made 'move'
     bool      tt_pv       = false;           // node lies near a TT/PV line
     int       double_exts = 0;               // stacked 2-ply singular extensions on this path
-    int       check_exts  = 0;               // 5.4.4: check extensions spent on this path
 };
 
 struct SearchResult;

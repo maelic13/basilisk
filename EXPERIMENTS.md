@@ -1206,6 +1206,61 @@ directional split, and clear WAC as well. Both refutations came free.
 *Kept:* the `sing_ttbeta` counter, since the branch still fires and its reach is
 the evidence base for anything revisiting it.
 
+**BAS-D14 — 5.7.5 singular gate depth: the two instruments measure the same
+trade-off from opposite ends, and WAC-at-fixed-depth is biased** (2026-08-30).
+`singular_min_depth` parameterised (default 5, unchanged) and swept.
+
+| gate | depth mean | median | better/worse | WAC @6 |
+|---:|---:|---:|---|---:|
+| 4 | −0.121 | +0.0 | 18 / 38 | **162** |
+| **5 (current)** | — | — | — | 137 |
+| 6 (the reference) | +0.308 | +0.0 | 33 / 23 | 131 |
+| 7 | +0.318 | +0.0 | 40 / 24 | **130** (at the floor) |
+
+Lowering the gate runs more singular searches: worse depth, dramatically better
+WAC. Raising it does the reverse. One trade-off, read from both ends.
+
+**WAC at a fixed shallow depth is structurally biased toward more extension, and
+this is the measurement that exposes it.** At depth 6, a gate of 4 lets singular
+fire at depths 4–6 instead of 5–6, so critical lines are extended and more
+tactics resolve *within the fixed depth*. That is a mechanical consequence of
+the protocol, not evidence of strength. The +25 WAC positions at gate 4 are
+largely this effect.
+
+*This refines BAS-D11 rather than overturning it.* WAC remains a valid **floor**
+— a candidate that drops below 130 has broken something. It is **not** a fair
+comparator between settings that differ in how much they extend, because it
+rewards extension mechanically. 5.7.3's WAC drop was partly this bias too; the
+conclusion there still holds because it broke the floor outright, which is a
+floor question rather than a comparison.
+
+**Disposition: gate stays at 5.** Neither instrument can decide a trade-off it
+is biased on, and nothing here justifies games. `singular_min_depth` is kept as
+a tunable — unlike the refuted knobs of 5.7.3/5.7.4, its alternatives are not
+measured worse, merely undecided, which makes it legitimate SPSA material later.
+
+**BAS-D15 — 5.7.6 dead-code removal, behaviour-neutral** (2026-08-30).
+
+| removed | why |
+|---|---|
+| `check_ext_path_cap` | added inert for 5.4.4, which closed **REJECTED** (BAS-S16, −3.48 ±3.32) |
+| `lmr_allow_check` | same; current policy (never reduce checking moves) hardcoded |
+| `SearchStack::check_exts` | existed only to feed the removed cap |
+| stale 5.4.4 doc block | described both as "awaiting an experiment" that had already failed |
+
+| changed | why |
+|---|---|
+| `double_ext_max` **200 → 16** | at 200 the cap **can never bind**; BAS-D11 measured 16 as behaviour-identical across all 107 positions, so this converts a decorative valve into a real one at no measured cost |
+
+*The distinction that governed this step:* a parked switch whose trial already
+**failed** is residue and comes out — leaving it implies an avenue is open when
+it is closed. A safety valve that never fires is different: it should be made
+capable of firing, not deleted. Deleting `double_ext_max` would have removed the
+only bound on a pathological double-extension chain; setting it to 16 gives that
+bound teeth for the first time.
+
+Verified: bench **12,709,666** unchanged, CTest 12/12, WAC 137/300.
+
 **BAS-D08 — per-iteration cost; there is no shallow target** (same runs,
 2026-08-25). Cumulative counts hide where the cost is. Differencing them gives
 the cost of each iteration on its own:

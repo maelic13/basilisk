@@ -296,8 +296,8 @@ the user explicitly abandons that program.
 | | |
 |---|---|
 | Engine state | **5.7.2 candidate** — bench **12,709,666**, CTest 12/12, canary on=35 |
-| Last completed | **5.7.4** REFUTED — median 0, better/worse 27/25 |
-| Running now | **5.7.5 / 5.7.6** — gate depth, then dead-code cleanup |
+| Last completed | **5.7.6** dead-code removal; 5.7.5 undecided |
+| Running now | **5.7.2 gate** — the cluster's only surviving change |
 
 **Cluster 5.7 sub-steps** (all numbered so none is dropped):
 
@@ -307,9 +307,9 @@ the user explicitly abandons that program.
 | 5.7.2 | `singularQuietLMR` @ 401 | reading **+1.49 ±2.77**, kept for 5.7.7 |
 | 5.7.3 | check-and-singular stacking | ❌ **REFUTED** — fails WAC floor |
 | 5.7.4 | `ttValue >= beta`: negative ext vs second search | ❌ **REFUTED** — mean was an outlier artifact |
-| 5.7.5 | singular gate depth 5 vs 6 | queued, after 5.7.2–4 |
-| 5.7.6 | dead `check_exts`, inert 5.4.4 switches, **dead `double_ext_max`** | queued |
-| 5.7.7 | integrated gate of whatever survives | queued |
+| 5.7.5 | singular gate depth | ⚖️ **undecided** — instruments biased opposite ways |
+| 5.7.6 | dead code removal | ✅ done — behaviour-neutral |
+| 5.7.7 | integrated gate | **SKIPPED** — only 5.7.2 survives; gate it directly |
 
 **Diagnostics re-measured after Phase 5.9 (BAS-D09):** ordering, LMR and
 branching all hold; **BAS-D03's qsearch finding is stale** — 30.8% → 35.1%, now

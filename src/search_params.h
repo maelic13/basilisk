@@ -139,9 +139,10 @@
     /* Qsearch quiet checks (inert at 0; see FIELD NOTES) */             \
     X(qsearch_check_cap,     QsearchCheckCap,        0,    0,    10)     \
     /* Singular extension */                                             \
+    X(singular_min_depth,    SingularMinDepth,       5,    4,     8)     \
     X(singular_beta_mult,    SingularBetaMult,       4,    1,     6)     \
     X(singular_double_margin, SingularDoubleMargin,  4,    0,    60)     \
-    X(double_ext_max,        DoubleExtMax,         200,    1,   200)     \
+    X(double_ext_max,        DoubleExtMax,          16,    1,   200)     \
     /* Aspiration window */                                              \
     X(aspiration_delta,      AspirationDelta,       19,   10,    60)     \
     /* LMR base table (x100; see FIELD NOTES) */                         \
@@ -157,18 +158,13 @@
     X(lmr_singular_quiet,    LmrSingularQuiet,     401,    0,  3072)     \
     /* Post-LMR cont-hist nudge (inert at 0; see FIELD NOTES) */         \
     X(post_lmr_hist_scale,   PostLmrHistScale,       0,    0,   300)     \
-    /* 5.4.4 check-move depth policy — both INERT at their defaults, so   \
-       bench stays 11,941,440 until an experiment sets them.              \
-       check_ext_path_cap: max check extensions accumulated on one path;  \
-         0 = unlimited = today's unconditional policy. BAS-D02 measured    \
-         check extensions on 15.84% of interior nodes, each +1 ply, with   \
-         nothing bounding a forcing sequence from extending repeatedly.    \
-       lmr_allow_check: 1 lets checking moves be reduced. Today they are   \
-         barred outright, so the same moves are extended AND unreducible.  \
-       Adjudicated jointly (PLAN 5.4.4): 8.6.7 showed that removing the    \
-       extension alone loses −10.17 ±6.52. */                             \
-    X(check_ext_path_cap,    CheckExtPathCap,        0,    0,    32)     \
-    X(lmr_allow_check,       LmrAllowCheck,          0,    0,     1)     \
+    /* 5.7.6 removed check_ext_path_cap and lmr_allow_check. Both were    \
+       added inert for 5.4.4, which closed REJECTED (BAS-S16, −3.48       \
+       ±3.32), so they were the residue of a failed trial rather than an  \
+       avenue still open. 5.7.3 then measured that reducing extension at  \
+       checking nodes fails our WAC floor (137 → 124, floor 130), which   \
+       is independent evidence for keeping today's policy: checking moves \
+       are extended AND unreducible, deliberately. */                     \
     /* History updates (see FIELD NOTES) */                              \
     X(hist_bonus_quad,       HistBonusQuad,         62,    0,   128)     \
     X(hist_bonus_lin,        HistBonusLin,         120,    0,   400)     \
