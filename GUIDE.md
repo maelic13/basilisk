@@ -296,8 +296,20 @@ the user explicitly abandons that program.
 | | |
 |---|---|
 | Engine state | **5.7.2 candidate** — bench **12,709,666**, CTest 12/12, canary on=35 |
-| Last completed | **5.7.6** dead-code removal; 5.7.5 undecided |
-| Running now | **5.7.2 gate** — the cluster's only surviving change |
+| Last completed | **5.8.1** root/clock contract inventory — all divergences are in aspiration |
+| Running now | **5.8.2** — instrument the aspiration path |
+
+**Cluster 5.8 sub-steps:**
+
+| step | candidate | state |
+|---|---|---|
+| 5.8.1 | contract inventory | ✅ done |
+| **5.8.2** | **instrument the aspiration path** | ▶ **next** |
+| 5.8.3 | fail-low narrows beta (strongest) | queued |
+| 5.8.4 | delta growth rate | queued, after 5.8.3 |
+| 5.8.5 | fail-high depth reduction | queued |
+| 5.8.6 | document `reported_score`/`score` split | queued |
+| 5.8.7 | clock — not opened until 5.8.3–5 have readings | queued |
 
 **Cluster 5.7 sub-steps** (all numbered so none is dropped):
 

@@ -925,6 +925,48 @@ and stability inputs. Total time allocation must not move until the root
 evidence is coherent; then gate any real-clock change separately under the
 time/root/SMP evidence rule.
 
+**5.8.1 Contract inventory — DONE 2026-08-30**, `analysis/cluster58_audit_v1.md`.
+Precondition confirmed: 5.6 (C) closed with contracts audited and its one defect
+recorded not gated (BAS-D04); 5.7 (D) closed 2026-08-30.
+
+*Root authority, PV and fallback are sound* — no candidate. An aborted iteration
+cannot overwrite a completed one (`if (stopped_ && depth > 1) break;` precedes
+publication), and the tablebase override of the ponder move is deliberate.
+
+*All three divergences are in the **aspiration window**:*
+
+- **Fail-low does not narrow beta.** The reference sets `beta = (alpha+beta)/2`
+  as well as dropping alpha; we drop alpha only, so our fail-low re-search is
+  strictly wider than it needs to be. A fail-low proves the old beta was far too
+  generous. Two lines, clear rationale.
+- **No depth reduction on repeated fail-highs.** The reference re-searches
+  shallower via `failedHighCnt`; we always re-search at full depth.
+- **Delta grows faster in ours** — `delta += delta/2` against `delta += delta/4
+  + 5` — so combined with the first item our fail-low path is doubly wide.
+
+Ours alone: a `delta >= 900` give-up to a full-width re-search. Bounded worst
+case, defensible, but nothing counts whether it ever fires.
+
+**Sub-steps, numbered so none is dropped:**
+
+- **5.8.2 Instrument the aspiration path.** Count fail-lows, fail-highs,
+  re-searches per iteration and whether the give-up hatch fires. **Runs first**:
+  5.7 showed four times over that measuring reach before implementing is what
+  keeps candidates cheap and refutations free.
+- **5.8.3 Fail-low narrows beta.** The strongest candidate.
+- **5.8.4 Delta growth rate.** Interacts with 5.8.3; test after, not alone.
+- **5.8.5 Fail-high depth reduction.** Larger change; size the fail-high
+  distribution from 5.8.2 first.
+- **5.8.6 Document the `reported_score` / `score` split** at the
+  `root_table_->update` call site — deliberate, but unstated, and reads as a bug.
+- **5.8.7 Clock.** Not opened until 5.8.3–5.8.5 have readings, per PLAN's rule.
+  Our time management (stability, best-move-changes, score-drop, effort scaling)
+  post-dates `9587eeeb`'s, so this is another blend-of-eras surface.
+
+Method carried from 5.7 and not optional: report **mean, median and the
+directional split** (BAS-D13), and treat WAC as a **floor, not a comparator**
+(BAS-D14).
+
 ### 5.9 — HCE maturity program — UNFROZEN 2026-08-25 by maintainer decision
 
 **Scope decision.** The HCE is no longer frozen. It is to be brought to
