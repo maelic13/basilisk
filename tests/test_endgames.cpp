@@ -254,6 +254,52 @@ struct Family { const char* name; std::vector<PieceType> pieces; int n; int floo
 
 }  // namespace
 
+// ---------------------------------------------------------------------------
+// Drawn-ending bias floor (BAS-E32).
+//
+// The conversion floors above ask "can we finish a won ending". This asks the
+// other half: "do we know a drawn one when we see it". Positions come from
+// tests/endgame_draws.epd -- corpus positions whose GAME finished drawn.
+//
+// That is weaker than theoretical drawness, so this is a STATISTICAL floor: a
+// count of how many drawn positions we score as a clear win. Individual
+// positions may genuinely be wins that the players missed, which is exactly why
+// there is no per-position assertion here.
+//
+// TIGHTEN THE BUDGET as each scaling function lands (5.9.24 onward). A budget
+// left at the pre-implementation count stops protecting the gain.
+// ---------------------------------------------------------------------------
+static void test_drawn_ending_bias(const std::string& path) {
+    std::ifstream in(path);
+    if (!in) {
+        std::printf("  [skip] %s not found\n", path.c_str());
+        return;
+    }
+    // A "clear win" claim on a drawn position. Deliberately generous: we are
+    // catching gross misvaluation, not asking for a perfect zero.
+    constexpr int CLEAR_WIN = 250;
+    // Measured 2026-08-31, before ANY scaling function exists: 22/60. The budget
+    // sits a little above that so unrelated evaluation churn cannot flap it,
+    // and far below 60 so a regression to "everything looks won" fails loudly.
+    // TIGHTEN with each scaling function (5.9.24 onward).
+    constexpr int MAX_CLAIMED_WINS = 26;
+
+    int total = 0, claimed = 0;
+    std::string line;
+    while (std::getline(in, line)) {
+        if (line.empty() || line[0] == '#') continue;
+        const std::size_t c0 = line.find(" c0 ");
+        const std::string fen = (c0 == std::string::npos) ? line : line.substr(0, c0);
+        ++total;
+        if (std::abs(eval_white(fen)) >= CLEAR_WIN) ++claimed;
+    }
+    begin_section("drawn endings not scored as clear wins");
+    std::printf("  %d/%d drawn positions scored >= %dcp (budget %d)\n",
+                claimed, total, CLEAR_WIN, MAX_CLAIMED_WINS);
+    EXPECT(claimed <= MAX_CLAIMED_WINS);
+    end_section();
+}
+
 static void test_conversion_floors() {
     // Two bishops are generated on random squares, so a same-colour pair (a
     // genuine draw) can occur; the floor accounts for that rather than
@@ -388,6 +434,7 @@ int main(int argc, char** argv) {
 
     test_near_mate_recognition();
     test_conversion_floors();
+    test_drawn_ending_bias("tests/endgame_draws.epd");
     test_kbnk_corner_preference();
 
     return harness_summary();

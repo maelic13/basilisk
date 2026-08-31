@@ -1239,7 +1239,54 @@ their own steps, opened only once 5.9.6 has a verdict:
   `KQ-K` 12/12, `KR-K` 12/12, `KBB-K` 1, `KBN-K` 10. **Raise each when the
   matching conversion step lands.**
 
-- **5.9.19 KBNK stalemate avoidance.** 14.5% of KBNK attempts end in stalemate
+**Endgame program — every one of the reference's 18 functions, ordered by
+measured impact and gated in three bundles.** Frequency measured over 20,000
+corpus games (BAS-E33); drawn-bias is our predicted win-rate on positions that
+actually finished drawn, where 0.500 is correct (BAS-E32).
+
+*Why three gates and not sixteen.* Each function is worth well under 1 Elo on
+its own, and 5.7.2 established that a sub-2 Elo change cannot be resolved by a
+single SPRT before the 100,000-game hard stop. Gating each one individually
+would spend days to learn nothing. The groups below are the integrated contracts
+PLAN's cluster rule already prescribes.
+
+**Group A — mate technique** (`KXK` alone is reached by 44.38% of games):
+- **5.9.19 `KXK` generic mate-drive gradient.** 44.38%. Weights are **5 and 4
+  cp/step**, an order of magnitude below the 100-500cp pruning margins that
+  BAS-E29 showed erase such gradients. Everything without its own recogniser
+  depends on this, and `KBBK` converts 3/12 because of it.
+- **5.9.20 `KBBK` conversion**, after 5.9.19 — it may need nothing further.
+- **5.9.21 `KBNK` stalemate avoidance.** 14.5%, and BAS-E29 left it unchanged.
+- **5.9.22 `KBNK` fifty-move cases.** 31%.
+- **5.9.23 GATE A.** One SPRT for the group.
+
+**Group B — rook-ending draw scaling, the largest measured error:**
+- **5.9.24 `KRPPKRP` scaling.** 11.32% of games, drawn bias **+0.138**.
+- **5.9.25 `KRPKR` scaling.** 9.09%, drawn bias **+0.171**.
+- **5.9.26 `KRKP` verdict.** 2.38%, drawn bias **+0.280** — the largest bias
+  outside KBNK.
+- **5.9.27 `KQKRPs` scaling.** 2.16%.
+- **5.9.28 `KRPKB` scaling.** 0.99%.
+- **5.9.29 GATE B.** One SPRT for the group.
+
+**Group C — remaining verdicts, all under 2% of games:**
+- **5.9.30 `KPsK` scaling** (3.34%) · **5.9.31 `KQKP`** (1.97%) ·
+  **5.9.32 `KRKB`+`KRKN`** (1.11%, 0.70%) · **5.9.33 `KQKR`** (0.88%).
+- **5.9.34 `KPKP` scaling** (2.56%). Listed for completeness, but our drawn-
+  subset bias here is already ~0 (0.498) — **expected to close empty**, and it
+  should be allowed to.
+- **5.9.35 `KNNKP`** (0.04%). Almost certainly not worth implementing; recorded
+  so the decision is made rather than forgotten.
+- **5.9.36 GATE C**, only if Group C carries enough to be worth the games.
+
+*Already implemented and measured sound:* `KPK` (bitbase, 4.63%), `KNNK`
+(0.01%), `KBNK` (5.9.17, partial), OCB and KBP scaling. `KQ-K` and `KR-K`
+convert 100/100 and need no work.
+
+**5.9.8, 5.9.9 and 5.9.10 are superseded.** The program above *is* recognisers
+before grading, and Groups A-C carry the gates 5.9.10 asked for.
+
+- **5.9.19 (superseded numbering below; kept for history)** KBNK stalemate avoidance. 14.5% of KBNK attempts end in stalemate
   and BAS-E29 left that number **unchanged** (15.0% → 14.5%) — nothing so far
   has addressed it. A third of the remaining loss in this ending.
 

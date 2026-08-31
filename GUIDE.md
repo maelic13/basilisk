@@ -117,17 +117,44 @@ line; this is the tracker only.
 - [x] **5.9.16** remove the 3×-refuted 5.9.1/5.9.2 terms — accepted, neutral.
 - [x] **5.9.7** recogniser inventory — rook endings dominate (5 of top 7).
 - [x] **5.9.17** KBNK conversion (partial) — **13.0% → 54.5%** mated; stalemates still open.
-- [x] **5.9.18** endgame conversion floors in CTest — 4 families, 48s.
-- [ ] **5.9.19 KBNK stalemate avoidance** — 14.5%, unchanged so far. ← **NEXT**
-- [ ] **5.9.20** KBNK fifty-move cases — 31%.
-- [ ] **5.9.21** generic mate-drive gradient — 5 and 4 cp/step; KBBK 3/12.
-- [ ] **5.9.22** KBBK conversion, after 5.9.21. `KQ-K`/`KR-K` need no step: 100/100.
-- [ ] **5.9.23** rook-ending draw scaling `KRPKR`/`KRPPKRP` — largest target.
-- [ ] **5.9.24** `KRKP` verdict — 66% drawn, we predict 0.780.
-- [ ] **5.9.25** extend bishop-pawn scaling — `KBPP-KBP` 85% drawn.
-- [ ] **5.9.8** classification recognisers — the second hypothesis.
-- [ ] **5.9.9** grading on top, only if 5.9.8 holds.
-- [ ] **5.9.10** endgame gate — one SPRT, TC ladder required.
+- [x] **5.9.18** conversion floors + drawn-ending bias floor in CTest.
+
+**Endgame program — all 18 reference functions, ordered by measured impact.**
+Frequency is share of games reaching the class (20,000-game corpus); bias is our
+predicted win-rate on positions that were actually DRAWN, where 0.500 is right.
+
+*Group A — mate technique. `KXK` alone is reached by 44% of games.*
+
+- [ ] **5.9.19 `KXK` generic mate-drive gradient** — 44.38%. Weights are 5 and
+      4 cp/step, far under the pruning margins; BAS-E29's remedy applies.
+- [ ] **5.9.20** `KBBK` conversion — 3/12 today, depends on 5.9.19.
+- [ ] **5.9.21** `KBNK` stalemate avoidance — 14.5%, untouched by 5.9.17.
+- [ ] **5.9.22** `KBNK` fifty-move cases — 31%.
+- [ ] **5.9.23 GATE A** — one SPRT for the whole mate-technique group.
+
+*Group B — rook-ending draw scaling. The largest measured error.*
+
+- [ ] **5.9.24 `KRPPKRP` scaling** — 11.32%, drawn bias **+0.138**.
+- [ ] **5.9.25 `KRPKR` scaling** — 9.09%, drawn bias **+0.171**.
+- [ ] **5.9.26 `KRKP` verdict** — 2.38%, drawn bias **+0.280**, the largest.
+- [ ] **5.9.27** `KQKRPs` scaling — 2.16%.
+- [ ] **5.9.28** `KRPKB` scaling — 0.99%.
+- [ ] **5.9.29 GATE B** — one SPRT for the rook-ending group.
+
+*Group C — remaining verdicts, all under 2% of games.*
+
+- [ ] **5.9.30** `KPsK` scaling — 3.34%.
+- [ ] **5.9.31** `KQKP` verdict — 1.97%.
+- [ ] **5.9.32** `KRKB` + `KRKN` verdicts — 1.11% and 0.70%.
+- [ ] **5.9.33** `KQKR` verdict — 0.88%.
+- [ ] **5.9.34** `KPKP` scaling — 2.56%, but drawn bias already ~0; may close empty.
+- [ ] **5.9.35** `KNNKP` verdict — 0.04%; likely not worth implementing.
+- [ ] **5.9.36 GATE C** — one SPRT for Group C, only if it is worth gating.
+- [x] **5.9.8/5.9.9/5.9.10** superseded — the program above IS classification
+      before grading, with the gates 5.9.10 called for.
+
+Already sound, no step: `KPK` bitbase (4.63%), `KNNK` (0.01%), OCB and KBP
+scaling, and `KQ-K`/`KR-K` which convert 100/100.
 
 **5.7 extensions — reopens after 5.9**
 
