@@ -11,7 +11,7 @@ and lessons live in [`PLAN.md`](PLAN.md).
 | Engine | bench **12,709,666** · CTest **12/12** · WAC **137/300** |
 | Baseline for gates | `basilisk-5912-slim-pext-pgo` (bench 13,981,020) |
 | Cumulative vs 1.9.3 | **≈ +12 Elo** — 5.9.14 +2.64, 5.9.13 +9.52 |
-| Current phase | **Phase 5**, step **5.9.17** in progress |
+| Current phase | **Phase 5**, step **5.9.19** next |
 | Evaluation | HCE **unfrozen** since 2026-08-25; corpus is on-policy self-play WDL |
 | Corpus | `armC_basilisk25k_*` — game-result labels only, never engine evaluations |
 | Reference | Stockfish `9587eeeb` — idea source only; 7 of 8 of its search ideas did not transfer |
@@ -117,7 +117,14 @@ line; this is the tracker only.
 - [x] **5.9.16** remove the 3×-refuted 5.9.1/5.9.2 terms — accepted, neutral.
 - [x] **5.9.7** recogniser inventory — rook endings dominate (5 of top 7).
 - [~] **5.9.17** KBNK conversion — **13.0% → 54.5%** mated; stalemates still open.
+- [x] **5.9.18** endgame conversion floors in CTest — 4 families, 48s.
+- [ ] **5.9.19 KBNK stalemate avoidance** — 14.5%, unchanged so far. ← **NEXT**
+- [ ] **5.9.20** KBNK fifty-move cases — 31%.
+- [ ] **5.9.21** generic mate-drive gradient — 5 and 4 cp/step; KBBK 3/12.
+- [ ] **5.9.22** KBBK conversion, after 5.9.21.
 - [ ] **5.9.8** classification recognisers — the second hypothesis.
+
+  `KQ-K` and `KR-K` convert **100/100** — no step, no attention needed.
 - [ ] **5.9.9** grading on top, only if 5.9.8 holds.
 - [ ] **5.9.10** endgame gate — one SPRT, TC ladder required.
 
@@ -202,7 +209,7 @@ the user explicitly abandons that program.
 |---|---|
 | Engine | bench **12,709,666** · CTest **12/12** · WAC **137/300** |
 | Cumulative vs 1.9.3 | **≈ +12 Elo** |
-| Next step | **5.9.17** KBNK conversion — continue, or move to 5.9.8 |
+| Next step | **5.9.19** — KBNK stalemate avoidance |
 
 Evidence and reasoning for every step live in `EXPERIMENTS.md`; scope and
 rationale live in `PLAN.md`.

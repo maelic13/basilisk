@@ -36,6 +36,11 @@
 static constexpr int DRAW_TOL    = 75;    // |cp| <= this counts as a draw
 static constexpr int WIN_MIN     = 150;   // |cp| >= this counts as a clear win
 static constexpr int MATE_DEPTH  = 18;    // fixed search depth per playout move
+// 5.9.18: the randomised floors use a NODE limit, not a depth limit, so they
+// measure the same thing BAS-E28/E29 measured. A fixed depth turned out to
+// conflate knowledge with search effort -- KBB-K scored 2/12 at depth 10 AND at
+// depth 14, while converting 87% at this node count.
+static constexpr int64_t CONV_NODES = 60000;
 static constexpr int MATE_BUDGET = 100;   // max plies to deliver mate
 
 // White-perspective static eval.
@@ -47,11 +52,12 @@ static int eval_white(const std::string& fen) {
     return (b.side_to_move == WHITE) ? s : -s;
 }
 
-static Move best_move(Board& b, int depth) {
+static Move best_move(Board& b, int depth, int64_t node_cap = 0) {
     TranspositionTable tt(8);
     std::atomic_bool stop{false};
     SearchLimits lim;
     lim.depth = depth;
+    lim.nodes = node_cap;
     auto searcher = std::make_unique<Searcher>(tt, stop);
     SearchResult sr = searcher->search(b, lim);
     return sr.bestmove;
@@ -61,7 +67,8 @@ static Move best_move(Board& b, int depth) {
 // count at which `winner` delivers checkmate, or -1 if no mate is reached
 // within MATE_BUDGET (a generous budget). Every move played is legal by
 // construction (drawn from gen_legal / the searcher's legal root).
-static int mate_playout_plies(const std::string& fen, Color winner) {
+static int mate_playout_plies(const std::string& fen, Color winner,
+                              int depth = MATE_DEPTH, int64_t node_cap = 0) {
     Board b;
     b.set_fen(fen);
     for (int ply = 0; ply < MATE_BUDGET; ply++) {
@@ -73,7 +80,7 @@ static int mate_playout_plies(const std::string& fen, Color winner) {
             if (b.is_in_check() && b.side_to_move == ~winner) return ply;
             return -1;  // stalemate or the wrong side mated — a false result
         }
-        Move m = best_move(b, MATE_DEPTH);
+        Move m = best_move(b, depth, node_cap);
         if (m == MOVE_NONE)
             return -1;
         b.make_move(m);
@@ -162,6 +169,128 @@ static std::vector<EpdEntry> load_epd(const std::string& path) {
 // Targeted KBNK orientation check: the strong side must prefer driving the
 // bare king toward the bishop-coloured corner.
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// 5.9.18 — randomised conversion floors, one per forced-win family.
+//
+// The EPD floor above gates a handful of chosen positions. BAS-E28 showed that
+// is not enough: KBNK converted 13% of RANDOM legal positions while every
+// hand-picked case still passed. A class-level floor catches the collapse the
+// per-position gate cannot see.
+//
+// Measured rates when these floors were set (60k nodes, engine both sides):
+//   KQ-K 100%   KR-K 100%   KBB-K 87%   KBN-K 54%
+// Floors sit far below those so ordinary search churn cannot trip them.
+// RAISE THEM whenever a conversion improvement lands -- a floor left at an old
+// rate silently stops protecting the gain that replaced it.
+// ---------------------------------------------------------------------------
+namespace {
+
+// Fixed-seed LCG: the position set must be identical on every run so a failure
+// is reproducible rather than a lottery.
+struct Lcg {
+    uint64_t s;
+    explicit Lcg(uint64_t seed) : s(seed) {}
+    uint32_t next() { s = s * 6364136223846793005ULL + 1442695040888963407ULL;
+                      return uint32_t(s >> 33); }
+    int below(int n) { return int(next() % uint32_t(n)); }
+};
+
+// A random legal position with `winner` holding `pieces`, the loser bare.
+static bool random_family(Lcg& rng, std::string& out_fen, Color winner,
+                          const std::vector<PieceType>& pieces) {
+    for (int attempt = 0; attempt < 400; ++attempt) {
+        int sq[4];
+        const int need = 2 + int(pieces.size());
+        bool clash = false;
+        for (int i = 0; i < need; ++i) {
+            sq[i] = rng.below(64);
+            for (int j = 0; j < i; ++j) if (sq[j] == sq[i]) clash = true;
+        }
+        if (clash) continue;
+
+        std::string fen_board[8];
+        char grid[64];
+        for (int i = 0; i < 64; ++i) grid[i] = 0;
+        grid[sq[0]] = (winner == WHITE) ? 'K' : 'k';
+        for (size_t i = 0; i < pieces.size(); ++i) {
+            char c = "  NBRQ"[pieces[i]];
+            grid[sq[1 + i]] = (winner == WHITE) ? c : char(c - 'A' + 'a');
+        }
+        grid[sq[need - 1]] = (winner == WHITE) ? 'k' : 'K';
+
+        std::string fen;
+        for (int r = 7; r >= 0; --r) {
+            int run = 0;
+            for (int f = 0; f < 8; ++f) {
+                char c = grid[r * 8 + f];
+                if (!c) { ++run; continue; }
+                if (run) { fen += char('0' + run); run = 0; }
+                fen += c;
+            }
+            if (run) fen += char('0' + run);
+            if (r) fen += '/';
+        }
+        fen += (winner == WHITE) ? " w - - 0 1" : " b - - 0 1";
+
+        // Two bishops on the SAME colour cannot force mate -- including such a
+        // pair would measure the generator, not the engine.
+        if (pieces.size() == 2 && pieces[0] == BISHOP && pieces[1] == BISHOP) {
+            const int a = sq[1], c = sq[2];
+            if (((a / 8 + a % 8) & 1) == ((c / 8 + c % 8) & 1)) continue;
+        }
+        Board probe;
+        if (!probe.try_set_fen(fen)) continue;
+        if (probe.is_in_check()) continue;      // side to move already in check
+        MoveList ml; probe.gen_legal(ml);
+        if (ml.empty()) continue;
+        out_fen = fen;
+        return true;
+    }
+    return false;
+}
+
+struct Family { const char* name; std::vector<PieceType> pieces; int n; int floor_; };
+
+}  // namespace
+
+static void test_conversion_floors() {
+    // Two bishops are generated on random squares, so a same-colour pair (a
+    // genuine draw) can occur; the floor accounts for that rather than
+    // rejecting them, which keeps the position set reproducible.
+    const std::vector<Family> fams = {
+        // Floors calibrated 2026-08-31 against measured rates in THIS harness.
+        // They are NOT comparable to BAS-E28/E29: best_move() builds a fresh TT
+        // for every move, where a real game keeps one across the whole playout,
+        // so this is a harsher instrument by design -- deterministic, and no
+        // history dependence between positions.
+        //   measured: KQ 12/12  KR 12/12  KBB 3/12  KBN 14/16
+        // RAISE EACH FLOOR when the matching conversion work lands. A floor left
+        // at an old rate stops protecting the improvement that replaced it.
+        { "KQ-K",  { QUEEN },           12, 12 },   // deterministic; must stay perfect
+        { "KR-K",  { ROOK },            12, 12 },   // deterministic; must stay perfect
+        { "KBB-K", { BISHOP, BISHOP },  12,  1 },   // 3/12 -- generic mate-drive is weak (5.9.21)
+        { "KBN-K", { BISHOP, KNIGHT },  16, 10 },   // 14/16 after 5.9.17
+    };
+
+    for (const Family& f : fams) {
+        Lcg rng(0x5E9D18ULL);           // same seed for every family
+        int converted = 0, generated = 0;
+        for (int i = 0; i < f.n; ++i) {
+            std::string fen;
+            if (!random_family(rng, fen, WHITE, f.pieces)) continue;
+            ++generated;
+            if (mate_playout_plies(fen, WHITE, MAX_PLY - 1, CONV_NODES) >= 0) ++converted;
+        }
+        char label[96];
+        std::snprintf(label, sizeof(label), "%s conversion floor", f.name);
+        begin_section(label);
+        std::printf("  %s converted %d/%d (floor %d)\n",
+                    f.name, converted, generated, f.floor_);
+        EXPECT(converted >= f.floor_);
+        end_section();
+    }
+}
 
 static void test_kbnk_corner_preference() {
     // Same dark-squared bishop (d2) and knight (f3) in both positions; only the
@@ -258,6 +387,7 @@ int main(int argc, char** argv) {
     end_section();
 
     test_near_mate_recognition();
+    test_conversion_floors();
     test_kbnk_corner_preference();
 
     return harness_summary();

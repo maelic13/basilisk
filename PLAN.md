@@ -1233,7 +1233,37 @@ their own steps, opened only once 5.9.6 has a verdict:
   Chebyshev distance where the standard formulation uses a corner table, and
   more Elo remains here than this step banks.
 
-- **5.9.8 Recognisers before grading — runs AFTER 5.9.17.** PLAN's original
+- **5.9.18 Endgame conversion floors in CTest — DONE 2026-08-31 (BAS-E31).**
+  Four randomised per-family floors, fixed seed, 48s. The old suite gated
+  hand-picked EPD positions and stayed green while KBNK converted 13%. Floors:
+  `KQ-K` 12/12, `KR-K` 12/12, `KBB-K` 1, `KBN-K` 10. **Raise each when the
+  matching conversion step lands.**
+
+- **5.9.19 KBNK stalemate avoidance.** 14.5% of KBNK attempts end in stalemate
+  and BAS-E29 left that number **unchanged** (15.0% → 14.5%) — nothing so far
+  has addressed it. A third of the remaining loss in this ending.
+
+- **5.9.20 KBNK fifty-move cases.** 31% still reach the fifty-move rule:
+  technique too slow rather than absent. Attack after 5.9.19, since a stalemate
+  fix may change which positions run long.
+
+- **5.9.21 Generic mate-drive gradient — and it is the bigger prize.** The
+  drive is `5 × lk_center + (14 − king_dist) × 4`: **5 and 4 centipawns per
+  step**, an order of magnitude below the 100–500cp pruning margins that
+  BAS-E29 showed erase such gradients. Everything without its own recogniser
+  depends on it, and **`KBB-K` converts 3/12 because of it** — worse than the
+  far harder KBNK. KQK and KRK survive only because their material is
+  overwhelming. Apply BAS-E29's remedy: Manhattan potential, an edge term, and
+  weights above the pruning margins.
+
+- **5.9.22 KBBK conversion**, once 5.9.21 lands — it may need nothing further.
+
+  *Endings deliberately NOT given steps:* `KQ-K` and `KR-K` convert **100/100**
+  (BAS-E30) and need no attention. Rook-and-pawn endings are not forced wins, so
+  conversion is undefined for them; BAS-E27 already measured our evaluation
+  there as **better** than our global average.
+
+- **5.9.8 Recognisers before grading — runs AFTER the conversion work.** PLAN's original
   classification-first step, kept because the maintainer wants both approaches
   tried. Note its rationale is Manta's failure mode (MAN-E05 graded conversion
   with no recogniser); **ours is the opposite** — we recognise KBNK correctly
@@ -1620,8 +1650,11 @@ inherits the same ambiguity.
 Steps run in this order. It was reviewed for a reason to reorder and there is
 none, so the numbering is left alone rather than churned:
 
-1. **5.9.7 → 5.9.10** — endgame recognisers. The gate that blocked them was
-   lifted once 5.9.13/5.9.14 repaired the calibration it protected against.
+1. **Endgame work**, in this order:
+   **5.9.7** inventory (done) → **5.9.17** KBNK drive (done, 13% → 54.5%) →
+   **5.9.18** conversion floors (done) → **5.9.19** KBNK stalemate →
+   **5.9.20** KBNK fifty-move → **5.9.21** generic mate-drive gradient →
+   **5.9.22** KBBK → **5.9.8/5.9.9/5.9.10** classification, grading, gate.
 2. **5.7.5** — singular gate depth, the one undecided item in cluster D.
 3. **5.8.7** — clock and time allocation.
 4. **5.10 → 5.13** — correctness, portability, SMP, release.
