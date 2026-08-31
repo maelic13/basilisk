@@ -116,18 +116,16 @@ line; this is the tracker only.
 - [x] **5.9.13** gate — **ACCEPTED +9.52 ±4.66**.
 - [x] **5.9.16** remove the 3×-refuted 5.9.1/5.9.2 terms — accepted, neutral.
 - [x] **5.9.7** recogniser inventory — rook endings dominate (5 of top 7).
-- [~] **5.9.17** KBNK conversion — **13.0% → 54.5%** mated; stalemates still open.
+- [x] **5.9.17** KBNK conversion (partial) — **13.0% → 54.5%** mated; stalemates still open.
 - [x] **5.9.18** endgame conversion floors in CTest — 4 families, 48s.
 - [ ] **5.9.19 KBNK stalemate avoidance** — 14.5%, unchanged so far. ← **NEXT**
 - [ ] **5.9.20** KBNK fifty-move cases — 31%.
 - [ ] **5.9.21** generic mate-drive gradient — 5 and 4 cp/step; KBBK 3/12.
-- [ ] **5.9.22** KBBK conversion, after 5.9.21.
+- [ ] **5.9.22** KBBK conversion, after 5.9.21. `KQ-K`/`KR-K` need no step: 100/100.
 - [ ] **5.9.23** rook-ending draw scaling `KRPKR`/`KRPPKRP` — largest target.
 - [ ] **5.9.24** `KRKP` verdict — 66% drawn, we predict 0.780.
 - [ ] **5.9.25** extend bishop-pawn scaling — `KBPP-KBP` 85% drawn.
 - [ ] **5.9.8** classification recognisers — the second hypothesis.
-
-  `KQ-K` and `KR-K` convert **100/100** — no step, no attention needed.
 - [ ] **5.9.9** grading on top, only if 5.9.8 holds.
 - [ ] **5.9.10** endgame gate — one SPRT, TC ladder required.
 
