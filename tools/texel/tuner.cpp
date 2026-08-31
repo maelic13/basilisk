@@ -687,6 +687,21 @@ static TuneSet load_tune_dataset(const std::string& path,
 // ---------------------------------------------------------------------------
 // Reconstruction check
 // ---------------------------------------------------------------------------
+static void cmd_dump_eval(const std::string& path, int limit) {
+    auto positions = load_verify_dataset(path, limit);
+    if (positions.empty()) {
+        std::cerr << "No positions loaded from " << path << "\n";
+        std::exit(1);
+    }
+    // load_verify_dataset already evaluated every position, so nothing is
+    // recomputed here. One line per position, IN INPUT ORDER, so the caller
+    // can join it against the same CSV's FEN column.
+    for (const auto& tp : positions) {
+        const int white_pov = (tp.board.side_to_move == WHITE) ? tp.score : -tp.score;
+        std::cout << white_pov << ' ' << tp.result << '\n';
+    }
+}
+
 static void cmd_verify(const std::string& path) {
     constexpr int VERIFY_COUNT = 10000;
     std::cout << "Loading up to " << VERIFY_COUNT
@@ -1477,6 +1492,9 @@ int main(int argc, char* argv[]) {
     } else if (mode == "--tune") {
         TuneOptions opts = parse_tune_options(argc, argv);
         cmd_tune(opts);
+    } else if (mode == "--dump-eval") {
+        if (argc < 3) { usage(argv[0]); std::exit(1); }
+        cmd_dump_eval(argv[2], argc > 3 ? std::atoi(argv[3]) : 0);
     } else if (mode == "--audit-coverage") {
         cmd_audit_coverage();
     } else if (mode == "--tune-kingsafety") {
