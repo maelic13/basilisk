@@ -132,24 +132,37 @@ predicted win-rate on positions that were actually DRAWN, where 0.500 is right.
 - [ ] **5.9.22** `KBNK` fifty-move cases — 31%.
 - [ ] **5.9.23 GATE A** — one SPRT for the whole mate-technique group.
 
-*Group B — rook-ending draw scaling. The largest measured error.*
+*The gradient-magnitude class, continued — broad eval, so its own gate.*
 
-- [ ] **5.9.24 `KRPPKRP` scaling** — 11.32%, drawn bias **+0.138**.
-- [ ] **5.9.25 `KRPKR` scaling** — 9.09%, drawn bias **+0.171**.
-- [ ] **5.9.26 `KRKP` verdict** — 2.38%, drawn bias **+0.280**, the largest.
-- [ ] **5.9.27** `KQKRPs` scaling — 2.16%.
-- [ ] **5.9.28** `KRPKB` scaling — 0.99%.
-- [ ] **5.9.29 GATE B** — one SPRT for the rook-ending group.
+- [ ] **5.9.24 passed-pawn king approach gradient** — `passed_king_block_eg`
+      is **19** cp/step and `prox_base` fitted to **0**, so the king's walk to a
+      passer is worth ~20-25 cp/step. KBNK's refuted drive was **30**. Own SPRT:
+      unlike Group A this touches every endgame with a passer.
+- [ ] **5.9.25 systematic magnitude audit** — analysis only, no games. Sweep
+      every subsystem for the BAS-E29 signature: present, wired, and too small
+      to survive pruning. Runs before Groups B/C because it may reorder them.
+
+*Group B — draw scaling (rook endings, then the bishop-pawn family).
+The largest measured error.*
+
+- [ ] **5.9.26 `KRPPKRP` scaling** — 11.32%, drawn bias **+0.138**.
+- [ ] **5.9.27 `KRPKR` scaling** — 9.09%, drawn bias **+0.171**.
+- [ ] **5.9.28 `KRKP` verdict** — 2.38%, drawn bias **+0.280**, the largest.
+- [ ] **5.9.29** `KQKRPs` scaling — 2.16%.
+- [ ] **5.9.30** `KRPKB` scaling — 0.99%.
+- [ ] **5.9.31** `KBPP-KBP` bishop-pawn family — 84.7% drawn, predicted
+      **0.639**; our `KBP` scaling covers a narrower shape than the reference.
+- [ ] **5.9.32 GATE B** — one SPRT for the draw-scaling group.
 
 *Group C — remaining verdicts, all under 2% of games.*
 
-- [ ] **5.9.30** `KPsK` scaling — 3.34%.
-- [ ] **5.9.31** `KQKP` verdict — 1.97%.
-- [ ] **5.9.32** `KRKB` + `KRKN` verdicts — 1.11% and 0.70%.
-- [ ] **5.9.33** `KQKR` verdict — 0.88%.
-- [ ] **5.9.34** `KPKP` scaling — 2.56%, but drawn bias already ~0; may close empty.
-- [ ] **5.9.35** `KNNKP` verdict — 0.04%; likely not worth implementing.
-- [ ] **5.9.36 GATE C** — one SPRT for Group C, only if it is worth gating.
+- [ ] **5.9.33** `KPsK` scaling — 3.34%.
+- [ ] **5.9.34** `KQKP` verdict — 1.97%.
+- [ ] **5.9.35** `KRKB` + `KRKN` verdicts — 1.11% and 0.70%.
+- [ ] **5.9.36** `KQKR` verdict — 0.88%.
+- [ ] **5.9.37** `KPKP` scaling — 2.56%, but drawn bias already ~0; may close empty.
+- [ ] **5.9.38** `KNNKP` verdict — 0.04%; likely not worth implementing.
+- [ ] **5.9.39 GATE C** — one SPRT for Group C, only if it is worth gating.
 - [x] **5.9.8/5.9.9/5.9.10** superseded — the program above IS classification
       before grading, with the gates 5.9.10 called for.
 
@@ -237,7 +250,7 @@ the user explicitly abandons that program.
 |---|---|
 | Engine | bench **12,709,666** · CTest **12/12** · WAC **137/300** |
 | Cumulative vs 1.9.3 | **≈ +12 Elo** |
-| Next step | **5.9.19** — KBNK stalemate avoidance |
+| Next step | **5.9.19** — `KXK` generic mate-drive gradient |
 
 Evidence and reasoning for every step live in `EXPERIMENTS.md`; scope and
 rationale live in `PLAN.md`.

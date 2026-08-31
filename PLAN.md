@@ -1260,74 +1260,76 @@ PLAN's cluster rule already prescribes.
 - **5.9.22 `KBNK` fifty-move cases.** 31%.
 - **5.9.23 GATE A.** One SPRT for the group.
 
-**Group B — rook-ending draw scaling, the largest measured error:**
-- **5.9.24 `KRPPKRP` scaling.** 11.32% of games, drawn bias **+0.138**.
-- **5.9.25 `KRPKR` scaling.** 9.09%, drawn bias **+0.171**.
-- **5.9.26 `KRKP` verdict.** 2.38%, drawn bias **+0.280** — the largest bias
+**The gradient-magnitude class, continued — and it gets its own gate:**
+- **5.9.24 Passed-pawn king approach gradient.** The same BAS-E29 signature as
+  5.9.19, found by sweeping every distance-driven term in eval against the
+  100-500cp pruning margins. `passed_king_block_eg` is **19** cp/step
+  (`eval_params.h:175`) and `prox_base` fitted to **0** (`eval.cpp:1272`), so the
+  multiplier there is just `rel_r` — 1 to 6. The king's walk toward a passer is
+  therefore worth **~20-25 cp/step**, and KBNK's refuted drive was **30**: this
+  term sits *below* a magnitude we have already measured as insufficient.
+
+  *Why `prox_base` fitted to zero is the mechanism, not an accident.* Texel fits
+  static loss. A term whose entire value is guiding a multi-move plan shows no
+  static benefit, so the fit drives it to zero — exactly how the evaluation can
+  be well-calibrated (5.9.13) and still unable to steer.
+
+  *Why its own SPRT and not GATE A.* Group A is bare-king mate technique: low
+  risk, and the drive is the only eval signal present. This touches **every**
+  endgame with a passer, where the pawn's own advance already supplies signal and
+  promotion is often inside the horizon. The evidence is weaker than KBNK's and
+  the change could plausibly be negative; bundling it with Group A would make a
+  failed gate uninterpretable.
+
+- **5.9.25 Systematic magnitude audit — analysis only, no games.** The
+  generalised form of the question the endgame work kept answering by accident.
+  The maturity review that missed KBNK asked *"does the function exist?"*, and
+  every recogniser did exist — KBNK was present, wired, and wrong. The audit that
+  catches it asks **"is the effect large enough for the search to act on?"**
+
+  Sweep each subsystem for the BAS-E29 signature — present, wired, and too small
+  to survive pruning — and record magnitudes against the margins they compete
+  with. Already swept and clean: time management (stability, decaying best-move
+  changes, node effort, overhead reserve), Syzygy (wired *and* exercised, 65
+  references), draw/repetition detection, SMP NPS (1.95x/4.21x at 2/4 threads).
+  Known blank: **5.12 SMP Elo scaling has never been run** — NPS is not Elo.
+
+  Runs **before** Groups B and C because its findings may reorder them. That is
+  the 5.9.7 precedent: measuring what games actually reach overturned the
+  ranking, and measuring error on the targeted sub-population overturned it
+  again.
+
+**Group B — draw scaling, the largest measured error.** Rook endings
+first by frequency, then the bishop-pawn family:
+- **5.9.26 `KRPPKRP` scaling.** 11.32% of games, drawn bias **+0.138**.
+- **5.9.27 `KRPKR` scaling.** 9.09%, drawn bias **+0.171**.
+- **5.9.28 `KRKP` verdict.** 2.38%, drawn bias **+0.280** — the largest bias
   outside KBNK.
-- **5.9.27 `KQKRPs` scaling.** 2.16%.
-- **5.9.28 `KRPKB` scaling.** 0.99%.
-- **5.9.29 GATE B.** One SPRT for the group.
+- **5.9.29 `KQKRPs` scaling.** 2.16%.
+- **5.9.30 `KRPKB` scaling.** 0.99%.
+- **5.9.31 Extend the bishop-pawn scaling family.** `KBPP-KBP` is **84.7%**
+  drawn and we predict **0.639**. Our `KBP` scaling covers a narrower shape
+  than the reference's family. Recovered from the superseded numbering, where
+  it would otherwise have been dropped.
+- **5.9.32 GATE B.** One SPRT for the group.
 
 **Group C — remaining verdicts, all under 2% of games:**
-- **5.9.30 `KPsK` scaling** (3.34%) · **5.9.31 `KQKP`** (1.97%) ·
-  **5.9.32 `KRKB`+`KRKN`** (1.11%, 0.70%) · **5.9.33 `KQKR`** (0.88%).
-- **5.9.34 `KPKP` scaling** (2.56%). Listed for completeness, but our drawn-
+- **5.9.33 `KPsK` scaling** (3.34%) · **5.9.34 `KQKP`** (1.97%) ·
+  **5.9.35 `KRKB`+`KRKN`** (1.11%, 0.70%) · **5.9.36 `KQKR`** (0.88%).
+- **5.9.37 `KPKP` scaling** (2.56%). Listed for completeness, but our drawn-
   subset bias here is already ~0 (0.498) — **expected to close empty**, and it
   should be allowed to.
-- **5.9.35 `KNNKP`** (0.04%). Almost certainly not worth implementing; recorded
+- **5.9.38 `KNNKP`** (0.04%). Almost certainly not worth implementing; recorded
   so the decision is made rather than forgotten.
-- **5.9.36 GATE C**, only if Group C carries enough to be worth the games.
+- **5.9.39 GATE C**, only if Group C carries enough to be worth the games.
 
 *Already implemented and measured sound:* `KPK` (bitbase, 4.63%), `KNNK`
 (0.01%), `KBNK` (5.9.17, partial), OCB and KBP scaling. `KQ-K` and `KR-K`
-convert 100/100 and need no work.
+convert 100/100 and need no work. `KRP-KRP` and `KPP-KPP` are already
+accurate on their drawn subsets (0.498, 0.489).
 
 **5.9.8, 5.9.9 and 5.9.10 are superseded.** The program above *is* recognisers
 before grading, and Groups A-C carry the gates 5.9.10 asked for.
-
-- **5.9.19 (superseded numbering below; kept for history)** KBNK stalemate avoidance. 14.5% of KBNK attempts end in stalemate
-  and BAS-E29 left that number **unchanged** (15.0% → 14.5%) — nothing so far
-  has addressed it. A third of the remaining loss in this ending.
-
-- **5.9.20 KBNK fifty-move cases.** 31% still reach the fifty-move rule:
-  technique too slow rather than absent. Attack after 5.9.19, since a stalemate
-  fix may change which positions run long.
-
-- **5.9.21 Generic mate-drive gradient — and it is the bigger prize.** The
-  drive is `5 × lk_center + (14 − king_dist) × 4`: **5 and 4 centipawns per
-  step**, an order of magnitude below the 100–500cp pruning margins that
-  BAS-E29 showed erase such gradients. Everything without its own recogniser
-  depends on it, and **`KBB-K` converts 3/12 because of it** — worse than the
-  far harder KBNK. KQK and KRK survive only because their material is
-  overwhelming. Apply BAS-E29's remedy: Manhattan potential, an edge term, and
-  weights above the pruning margins.
-
-- **5.9.22 KBBK conversion**, once 5.9.21 lands — it may need nothing further.
-
-  *Endings deliberately NOT given steps:* `KQ-K` and `KR-K` convert **100/100**
-  (BAS-E30) and need no attention. Rook-and-pawn endings are not forced wins, so
-  conversion is undefined for them; BAS-E27 already measured our evaluation
-  there as **better** than our global average.
-
-- **5.9.23 Rook-ending draw scaling — `KRPKR` and `KRPPKRP`. The largest
-  measured target left.** BAS-E32: these are the two most frequently reached
-  classes (**9.09%** and **11.32%** of games), they are **59%** and **62%**
-  drawn, and we score those drawn positions at **0.671** and **0.638** instead
-  of 0.5. The reference implements scaling functions for both. Classification
-  only — recognise the draw, scale the score; no conversion grading.
-
-- **5.9.24 `KRKP` verdict.** 66.1% drawn and we predict **0.780** — the
-  largest single bias outside KBNK. 2.38% of games. The reference has `KRKP`.
-
-- **5.9.25 Extend the bishop-pawn scaling family.** `KBPP-KBP` is 84.7% drawn
-  and predicted 0.639. Our `KBP` scaling covers a narrower shape than the
-  reference's family.
-
-  *Measured NOT to need work, and deliberately given no step:* `KQ-K` and `KR-K`
-  convert 100/100 (BAS-E30); `KRP-KRP` and `KPP-KPP` are already accurate on
-  their drawn subsets (0.498, 0.489); `KRKB`, `KRKN`, `KQKR`, `KQKP` and
-  `KNNKP` are each below 2% of games.
 
 - **5.9.8 Recognisers before grading — runs AFTER the conversion work.** PLAN's original
   classification-first step, kept because the maintainer wants both approaches
@@ -1718,9 +1720,12 @@ none, so the numbering is left alone rather than churned:
 
 1. **Endgame work**, in this order:
    **5.9.7** inventory (done) → **5.9.17** KBNK drive (done, 13% → 54.5%) →
-   **5.9.18** conversion floors (done) → **5.9.19** KBNK stalemate →
-   **5.9.20** KBNK fifty-move → **5.9.21** generic mate-drive gradient →
-   **5.9.22** KBBK → **5.9.8/5.9.9/5.9.10** classification, grading, gate.
+   **5.9.18** floors (done) → **Group A 5.9.19-5.9.23** (mate technique, one
+   gate) → **5.9.24** passed-pawn king approach (own gate) → **5.9.25**
+   systematic magnitude audit (analysis only; may reorder what follows) →
+   **Group B 5.9.26-5.9.32** (draw scaling) → **Group C 5.9.33-5.9.39**.
+   5.9.8/5.9.9/5.9.10 are superseded — the program above *is* classification
+   before grading.
 2. **5.7.5** — singular gate depth, the one undecided item in cluster D.
 3. **5.8.7** — clock and time allocation.
 4. **5.10 → 5.13** — correctness, portability, SMP, release.
