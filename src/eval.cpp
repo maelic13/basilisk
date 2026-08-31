@@ -273,23 +273,32 @@ static int kbnk_score(const Board& b, Color strong) {
     if (dark_bishop) { c1 = A1; c2 = H8; }   // dark corners
     else             { c1 = A8; c2 = H1; }   // light corners
 
-    int corner_dist = std::min(KING_DIST[wksq][c1], KING_DIST[wksq][c2]);
-    int king_dist   = KING_DIST[sk][wksq];
+    // 5.9.17: the drive used Chebyshev distance to the corner, which has large
+    // plateaus -- a whole L-shaped band shares one value -- so over most of the
+    // board there was no gradient to follow. Manhattan distance has the same
+    // minimum but far fewer ties, and an explicit edge term prices the first
+    // half of the technique (edge first, then corner) which nothing rewarded.
+    constexpr int KBNK_W_CORNER = 800;   // per step of Manhattan corner distance
+    constexpr int KBNK_W_EDGE   = 900;   // per step the weak king is off the edge
+    constexpr int KBNK_W_KING   = 220;   // per step the kings are apart
+    constexpr int KBNK_W_KNIGHT = 220;   // per step the knight is from the weak king
 
-    // 5.9.17: the two terms above price only the KINGS. Nothing rewards
-    // bringing the minors to bear, and in KBNK it is the knight that removes
-    // the weak king's escape squares -- so the search has no gradient toward
-    // the one piece the mate depends on.
-    // Hardcoded like the 250/30 weights above and the mate-drive block: these
-    // are conversion technique, not fitted evaluation, and the tuner captures
-    // their effect in `rest`. 20 was measured, not guessed -- see BAS-E28.
-    constexpr int KBNK_KNIGHT_PROX = 20;
-    int minor_prox = 0;
+    auto manhattan = [](Square a, Square b) {
+        return std::abs(int(file_of(a)) - int(file_of(b)))
+             + std::abs(int(rank_of(a)) - int(rank_of(b)));
+    };
+    const int corner_md = std::min(manhattan(wksq, c1), manhattan(wksq, c2));
+    const int wf = int(file_of(wksq)), wr = int(rank_of(wksq));
+    const int edge_dist = std::min(std::min(wf, 7 - wf), std::min(wr, 7 - wr));
+    const int king_dist = KING_DIST[sk][wksq];
+
+    int v = KNOWN_WIN
+          + (14 - corner_md) * KBNK_W_CORNER
+          + (3  - edge_dist) * KBNK_W_EDGE
+          + (8  - king_dist) * KBNK_W_KING;
     if (b.pieces[strong][KNIGHT])
-        minor_prox = (8 - KING_DIST[lsb(b.pieces[strong][KNIGHT])][wksq])
-                   * KBNK_KNIGHT_PROX;
+        v += (8 - KING_DIST[lsb(b.pieces[strong][KNIGHT])][wksq]) * KBNK_W_KNIGHT;
 
-    int v = KNOWN_WIN + (7 - corner_dist) * 250 + (8 - king_dist) * 30 + minor_prox;
     return (strong == WHITE) ? v : -v;
 }
 

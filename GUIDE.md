@@ -116,7 +116,7 @@ line; this is the tracker only.
 - [x] **5.9.13** gate — **ACCEPTED +9.52 ±4.66**.
 - [x] **5.9.16** remove the 3×-refuted 5.9.1/5.9.2 terms — accepted, neutral.
 - [x] **5.9.7** recogniser inventory — rook endings dominate (5 of top 7).
-- [~] **5.9.17** KBNK conversion — 11.7% → 21.7% mated; still open.
+- [~] **5.9.17** KBNK conversion — **13.0% → 54.5%** mated; stalemates still open.
 - [ ] **5.9.8** classification recognisers — the second hypothesis.
 - [ ] **5.9.9** grading on top, only if 5.9.8 holds.
 - [ ] **5.9.10** endgame gate — one SPRT, TC ladder required.
