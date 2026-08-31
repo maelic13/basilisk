@@ -276,7 +276,20 @@ static int kbnk_score(const Board& b, Color strong) {
     int corner_dist = std::min(KING_DIST[wksq][c1], KING_DIST[wksq][c2]);
     int king_dist   = KING_DIST[sk][wksq];
 
-    int v = KNOWN_WIN + (7 - corner_dist) * 250 + (8 - king_dist) * 30;
+    // 5.9.17: the two terms above price only the KINGS. Nothing rewards
+    // bringing the minors to bear, and in KBNK it is the knight that removes
+    // the weak king's escape squares -- so the search has no gradient toward
+    // the one piece the mate depends on.
+    // Hardcoded like the 250/30 weights above and the mate-drive block: these
+    // are conversion technique, not fitted evaluation, and the tuner captures
+    // their effect in `rest`. 20 was measured, not guessed -- see BAS-E28.
+    constexpr int KBNK_KNIGHT_PROX = 20;
+    int minor_prox = 0;
+    if (b.pieces[strong][KNIGHT])
+        minor_prox = (8 - KING_DIST[lsb(b.pieces[strong][KNIGHT])][wksq])
+                   * KBNK_KNIGHT_PROX;
+
+    int v = KNOWN_WIN + (7 - corner_dist) * 250 + (8 - king_dist) * 30 + minor_prox;
     return (strong == WHITE) ? v : -v;
 }
 

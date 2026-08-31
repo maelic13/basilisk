@@ -1215,7 +1215,32 @@ their own steps, opened only once 5.9.6 has a verdict:
   minor, the bishop-pawn scale family, generic bare-king drive — and order them
   by *how often a fast-TC game actually reaches them*, not by how interesting
   they are. Frequency comes from the corpus, measured, not assumed.
-- **5.9.8 Recognisers before grading.** Implement classification only: rules
+- **5.9.17 KBNK conversion — IN PROGRESS 2026-08-31 (BAS-E27, BAS-E28).**
+  Added because measuring *error* rather than *frequency* changed the target.
+  BAS-E27 found the rook endings that dominate by frequency are **better** than
+  our global loss (`KRPP-KRP` 0.67×, `KRP-KR` 0.52×), while **`KBN-K` is
+  2.86×** with a **+0.451** bias — scored +8563 and converted 0.549.
+
+  Direct test: **20% of random legal KBNK positions get mated**; 62.5% reach the
+  fifty-move rule. Cause: `kbnk_score` priced only the two kings, so nothing
+  rewarded bringing the knight — the piece that removes escape squares — to
+  bear. Adding a knight-proximity term at 20/step took conversion **11.7% →
+  21.7%** at n=120 (~3 SE). Hardcoded beside its 250/30 siblings, not registered:
+  the audit caught the registry version landing inside the `kingsafety` index
+  range, where no instrument would ever have fitted it.
+
+  **Still open.** 21.7% is not a fixed endgame. The corner drive is a coarse
+  Chebyshev distance where the standard formulation uses a corner table, and
+  more Elo remains here than this step banks.
+
+- **5.9.8 Recognisers before grading — runs AFTER 5.9.17.** PLAN's original
+  classification-first step, kept because the maintainer wants both approaches
+  tried. Note its rationale is Manta's failure mode (MAN-E05 graded conversion
+  with no recogniser); **ours is the opposite** — we recognise KBNK correctly
+  and fail to convert it — so this step is a genuine second hypothesis rather
+  than the obvious next move.
+
+- **5.9.8 (original text).** Implement classification only: rules
   that answer "is this ending winnable / drawn / scaled", with no conversion
   grading on top. `MAN-E05`'s post-mortem is that it graded conversion while
   having no recogniser able to say whether an ending was winnable; this step
