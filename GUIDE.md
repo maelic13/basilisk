@@ -7,41 +7,18 @@ and lessons live in [`PLAN.md`](PLAN.md).
 
 | Item | State |
 |---|---|
-| Branch/release | `master`/`v1.9.3` at `d737123`; `development` at `16eff20`, with unchanged playing code |
-| Baseline | Basilisk **1.9.3**, bench **11,941,440**; search-identical to 1.9.2. Reproduced clean at 5.0: CTest 12/12, manifest complete, artefact `tools/test_engines/basilisk-1.9.3-baseline-pext-pgo.exe` |
-| Tournament record | Context only, gates nothing. Basilisk sits at 3023; the historical frontier is ~165–185 Elo ahead. Do not schedule or curate rating tournaments as plan work. |
-| Evaluation | HCE constant refitting stays frozen; **structural** feature work unfrozen at 5.9 only. Audit (BAS-E07): structurally mature, functionally behind — the −232.8 Elo gap is values not features, so 5.9 is worth ~6 minor terms and **the gap is NNUE's to close**. |
-| Current phase | **Phase 5 — search and evaluation acceleration** (5.0–5.3 closed; next 5.4) |
-| Reference | Stockfish `9587eeeb`, the last pure-HCE master commit before NNUE. An **idea source and oracle** — never a transcription source. Basilisk stays independent. |
-| Oracle | Branch `hybrid` `01df815`, binary `7E2433C3…`. Frozen. The 5.2 harness comparison target; never merge or ship it. |
-| Diagnostics | `Diag`=true ⇒ `info string diag kv` counters. Fixed suite `tools/diag/suite_v1.epd` (107 pos, do not edit — mint v2), runner `tools/diag/run_suite.py`, baseline `tools/diag/baseline_v1.json`. |
-| Portability branch | `origin/arm_fix` wrapper rejected at 5.11; retain ISA/ARM verification, never merge the branch wholesale |
-| Next releases | **1.10.0 at 5.13** if the acceleration work transfers (higher minor if the gain is large); **1.9.4** is the maintenance-only fallback; baseline NNUE **2.0.0 at 7.7** |
-
-**Phase 5 changed scope on 2026-08-12** from bounded hardening with no booked
-Elo, on Rarog's search-oracle prior — and **5.1 has now confirmed the premise
-on our own engine** (EXPERIMENTS BAS-O01–O03, 2,400 games, adjudication off):
-
-| Contrast | Isolates | Result |
-|---|---|---|
-| Oracle − Basilisk 1.9.3 | search, our HCE constant | **+322.7 ±36** |
-| Stockfish HCE − Oracle | evaluation, SF search constant | **+232.8 ±32** |
-| Full Stockfish − Basilisk | the whole gap | +516.1 ±59 |
-
-Both tracks are real and **search is the larger**, so the ordering stands. The
-oracle won while searching *fewer* nodes per move (170k vs 226k) at lower NPS,
-so the search figure is understated, and the two isolated legs compose to
-within 39 Elo of the directly measured whole — the isolation held.
-
-The mechanism is visible rather than inferred: at equal time Basilisk finishes
-**15.6** plies where the oracle finishes **25.2**, giving an effective
-branching factor of **2.20 against 1.61**. Our tree is not too small, it is too
-**wide**. That points at ordering, reductions and selectivity — cluster 5.4 —
-which is now first on evidence, not just on dependency order.
-
-Rarog's original figures (+196 search, +329 evaluation) are superseded for
-Basilisk: our search gap is larger and our evaluation gap smaller, the latter
-indicating our HCE is materially better than theirs.
+| Branch | `development`; `master`/`v1.9.3` at `d737123` |
+| Engine | bench **12,709,666** · CTest **12/12** · WAC **137/300** |
+| Baseline for gates | `basilisk-5912-slim-pext-pgo` (bench 13,981,020) |
+| Cumulative vs 1.9.3 | **≈ +12 Elo** — 5.9.14 +2.64, 5.9.13 +9.52 |
+| Current phase | **Phase 5**, step **5.9.7** next |
+| Evaluation | HCE **unfrozen** since 2026-08-25; corpus is on-policy self-play WDL |
+| Corpus | `armC_basilisk25k_*` — game-result labels only, never engine evaluations |
+| Reference | Stockfish `9587eeeb` — idea source only; 7 of 8 of its search ideas did not transfer |
+| Oracle | branch `hybrid` `01df815`, frozen |
+| Diagnostics | `Diag`=true ⇒ `info string diag kv`; suite `tools/diag/suite_v1.epd` |
+| Portability | `origin/arm_fix` unmerged, owned by 5.11 |
+| Next release | **1.9.4** at 5.13 on current evidence; 1.10.0 needs +40 Elo |
 
 ### Independence — binding, not aspirational
 
@@ -107,140 +84,69 @@ matching without changing search.
 
 ### Phase 5 — Search and evaluation acceleration (→ 1.10.0 or higher)
 
+Steps run in the order listed. `EXPERIMENTS.md` holds the evidence for every
+line; this is the tracker only.
+
 **Evidence and instrumentation**
 
-- [x] **5.0 Baseline:** ✅ clean 1.9.3 reproduced — bench 11,941,440, CTest
-      12/12, complete PGO manifest. Rating tournaments closed as context only.
-- [x] **5.1 Basilisk search oracle:** ✅ **CLOSED 2026-08-12.** 2,400 games,
-      adjudication off, zero forfeits, all-natural terminations.
-      **Search +322.7 ±36** (our HCE constant) · **HCE +232.8 ±32** (SF search
-      constant) · whole gap +516.1 ±59 · Basilisk−Rarog +14.8 ±27.
-      Stop rule cleared by a wide margin. The oracle won on *fewer* nodes
-      (170k vs 226k) at lower NPS, so the search figure is understated.
-      Mechanism: **EBF 2.20 vs 1.61** — 15.6 plies against 25.2 at equal time.
-      Our tree is too **wide**, not too small. See EXPERIMENTS BAS-O01–O03.
-- [x] **5.2 Differential diagnostic harness:** ✅ **CLOSED 2026-08-12.**
-      15 counters added to the 8.6.6 substrate + machine-readable `diag kv`
-      mirror + fixed 107-position `tools/diag/suite_v1.epd` +
-      `tools/diag/run_suite.py`. Bench 11,941,440 unchanged, CTest 12/12,
-      diag on/off identical nodes/PV/bestmove.
-      **Ordering is fine** — 89.1% first-move cutoffs, mean index 0.214.
-      **Reductions are not** — 36.1% of eligible reduced, 16.2% clamped to
-      zero, **re-search rate 1.744%**. At 300k nodes we reach depth 20.80 vs
-      the oracle's 32.87 (**+12.07 plies**, identical evaluation).
-      ⇒ the width is **under-reduction**, so 5.4's centre is 5.4.3, not the
-      move picker. See EXPERIMENTS BAS-D01/D02.
-- [x] **5.3 Idea inventory and order freeze:** ✅ **CLOSED 2026-08-12** —
-      `analysis/idea_inventory_v1.md`. Seven items classified.
-      **#1 reduction modulation is nearly inert**: we have the right shape but
-      ~10× too little magnitude — **+0.39 plies at cut nodes vs ~+2**, −0.02 on
-      TT-PV vs ~−2. Those came from `hcefinal` (+35.94, so not arbitrary) fitted
-      inside a search already built around timid reductions — lesson 2.
-      **#5 ordering is EQUIVALENT** — move-picker rework leaves the cluster.
-      **#4 history pruning is dead** (142 fires in 15.1M nodes) → 5.6.
-      **Order amended before implementing:** check-move depth policy moves
-      5.7 → **5.4.4**, because the unconditional check extension (15.8% of
-      interior nodes) and the never-reduce-checks rule are one question and
-      8.6.7 showed changing either alone loses ~10 Elo.
+- [x] **5.0** Baseline — clean 1.9.3 reproduced.
+- [x] **5.1** Search oracle — search **+322.7 ±36**, HCE **+232.8 ±32**.
+- [x] **5.2** Differential diagnostic harness — 107-position suite, `diag kv`.
+- [x] **5.3** Idea inventory and cluster split.
 
-**Search acceleration clusters** — one at a time, each accepted or reverted
-before the next starts
+**Search clusters — closed**
 
-- [x] **5.4 Cluster A — ordering, histories, LMR:** ✅ **CLOSED 2026-08-13,
-      no accepted change.** Ordering was already equivalent (BAS-D01);
-      reduction magnitude refuted on the harness (BAS-S13/S14/S15); check-move
-      depth rejected by games (BAS-S16, **−3.48 ±3.32** over 17,058, LLR −2.95).
-      The engine is unchanged at bench 11,941,440. Re-audit done:
-      `analysis/reaudit_v1.md`.
-- [x] **5.5 Cluster B — static eval, TT, qsearch:** ✅ **CLOSED 2026-08-13,
-      no candidate.** `analysis/cluster55_audit_v1.md`. Eval provenance is
-      already correct (raw→TT, corrected→improving, TT-refined→pruning only,
-      mate-clamped) and we hold **correction history, which `9587eeeb` lacks**.
-      Qsearch mirrors it exactly and its structure is equivalent. **Qsearch
-      share measured: ours 30.8% vs the reference's 36–37%** (BAS-D03) — ours
-      is *smaller*, so qsearch is not a width source. TT layout is mature; the
-      persisted TT-PV bit is missing but already adjudicated (costs an age bit,
-      barred by 5.2; the 8.5.7 re-test measured +51% nodes, no operating point).
-      Engine unchanged at bench 11,941,440.
-- [x] **5.6 Cluster C — main selectivity:** ✅ **CLOSED 2026-08-13, no
-      candidate.** `analysis/cluster56_audit_v1.md`. History pruning is
-      genuinely defective — its `coeff × depth` threshold is compared against a
-      sum of six bounded channels (max 81,920), so the depth-6 threshold of
-      84,024 is **provably unsatisfiable**; it fires 142 times in 5,355,599
-      tested quiets. But loosening it buys **no depth** (−0.019 / +0.037 /
-      −0.019), and BAS-S16 priced that trade at −3.48 Elo. Recorded with a
-      retry trigger (BAS-D04), not gated. ProbCut's 0.4% is correct rarity —
-      67% hit rate. Engine unchanged.
-- [ ] **5.7 Cluster D — extensions and depth authority.** Singular,
-      double/negative, IIR vs TT provenance and LMR. **Check extensions are no
-      longer owned here** — moved to 5.4.4 by the 5.3 inventory and closed
-      there as rejected (BAS-S16).
-- [ ] **5.8 Cluster E — root and clock.** Aspiration, completed-root
-      authority, PV/fallback, stability. Time allocation moves last and is
-      gated separately.
+- [x] **5.4 A** ordering, histories, LMR — no accepted change.
+- [x] **5.5 B** static eval, TT, qsearch — contracts already sound.
+- [x] **5.6 C** main selectivity — history-pruning defect recorded, not gated.
+- [x] **5.14** shallow-depth node cost — target withdrawn after measuring.
 
-**Evaluation gap closure**
+**5.9 HCE maturity — IN PROGRESS (≈ +12 Elo so far)**
 
-- [~] **5.9 HCE maturity program — IN PROGRESS** (unfrozen 2026-08-25).
-      Only **5.9.6** produces an Elo verdict; every step before it is
-      scaffolding and is *expected* to show no strength.
+- [x] **5.9.1** coverage close-out — 7 terms added.
+- [x] **5.9.2** mechanism search — bishop outpost, `king_protector` split.
+- [x] **5.9.3** structure freeze — endgame named as the real gap.
+- [x] **5.9.4** joint Texel refit — ran on a distilled corpus; the defect.
+- [x] **5.9.5** king-safety fit — scalars only, table deferred.
+- [x] **5.9.6** gate — **REJECTED −77.92**; labels were Stockfish evaluations.
+- [x] **5.9.11** corpus rebuilt on-policy — 3 label sources, none passed.
+- [x] **5.9.15** LTC probe at `10+0.1` — no depth story.
+- [x] **5.9.14** king-safety reshape — **ACCEPTED +2.64 ±2.05**.
+- [x] **5.9.12** full-surface fit — 768 PSTs unfrozen.
+- [x] **5.9.13** gate — **ACCEPTED +9.52 ±4.66**.
+- [x] **5.9.16** remove the 3×-refuted 5.9.1/5.9.2 terms — accepted, neutral.
+- [ ] **5.9.7 recogniser inventory and risk order** ← **NEXT**
+- [ ] **5.9.8** recognisers before grading — classification only.
+- [ ] **5.9.9** grading on top, only if 5.9.8 holds.
+- [ ] **5.9.10** endgame gate — one SPRT, TC ladder required.
 
-| | sub-step | state |
-|---|---|---|
-| 5.9.1 | Coverage close-out — seven absent terms, seeded 0 | ✅ done 2026-08-25 |
-| 5.9.2 | Simpler-form audit — `king_protector` split, bishop outpost added | ✅ done 2026-08-25 |
-| 5.9.3 | Structure freeze + maturity verdict | ✅ done 2026-08-25 |
-| 5.9.4 | Joint Texel refit of the enlarged surface | ✅ done — see caveat |
-| 5.9.5 | King-safety fit — variant A only, table deferred | ✅ done 2026-08-26 |
-| 5.9.6 | Promoting SPRT of the 5.9.1–5.9.5 candidate | ❌ **REJECTED −77.92 Elo** |
-| 5.9.7–5.9.10 | Endgame recognisers → grading → gate | only if 5.9.6 accepts |
-| 5.9.11 | Corpus regen — **three-arm label-source experiment** (BAS-E17) | ✅ done — no arm passed |
-| 5.9.12 | Full-surface refit — 1,116 params, material pinned | ✅ done — PSTs unfrozen |
-| 5.9.13 | Post-refit SPRT | ✅ **ACCEPTED +9.52 ±4.66 Elo** |
-| **5.9.14** | **King-safety `safety_table` reshape** | ✅ **ACCEPTED +2.64 ±2.05 Elo** |
-| 5.9.15 | LTC probe at `10+0.1` | ✅ done — **+0.29 ±5.46, no depth story** |
+**5.7 extensions — reopens after 5.9**
 
-**Run order after 5.9.11 closes: 5.9.15 (LTC) → 5.9.14 (king safety) → 5.9.12
-(full surface) → 5.9.13 (gate).** The numbers are identifiers; 5.9.12 is last
-because it is the biggest and because the two before it feed into it.
-| 5.9.7 | Endgame recogniser inventory, ordered by measured frequency | after 5.9.6 |
-| 5.9.8 | Recognisers only — no grading (the `MAN-E05` correction) | after 5.9.7 |
-| 5.9.9 | Conversion grading, only on classified endings | after 5.9.8 |
-| 5.9.10 | Endgame gate — SPRT **with the TC ladder** (BAS-M07) | after 5.9.9 |
+- [x] **5.7.1** contract inventory.
+- [x] **5.7.2** `singularQuietLMR` @ 401 — **ACCEPTED by decision**, not a gate.
+- [x] **5.7.3** check/singular exclusivity — refuted, fails WAC floor.
+- [x] **5.7.4** `ttValue >= beta` verification search — refuted.
+- [x] **5.7.6** dead-code removal — behaviour-neutral.
+- [ ] **5.7.5** singular gate depth 5 vs 6 — **undecided**, needs games or SPSA.
+- [x] **5.7.7** integrated gate — skipped; only 5.7.2 survived.
 
-Evidence carried by 5.9.1 and 5.9.2, both structural: bench **11,941,440**
-unchanged, CTest **12/12**, `basilisk-texel --verify` exact on 10,000 positions,
-and every new term shown to fire over 20,000 corpus positions (1,173–14,234
-each). No strength change from either, by design — inert terms cannot move Elo.
+**5.8 root and clock — reopens after 5.9**
 
-No individual SPRTs before 5.9.6: BAS-X11 records Manta losing ~−23 Elo across
-two gates by hand-scaling exactly this class of term and gating each alone.
-This is not cycle 6 repeated: cycle 6 refit the **same** features and washed at
-+1.37 ±5.21; this refits an **enlarged** surface.
+- [x] **5.8.1** contract inventory.
+- [x] **5.8.2** aspiration instrumentation — 1.37 re-searches per iteration.
+- [x] **5.8.3** fail-low narrows beta — refuted.
+- [x] **5.8.4** delta growth rate — refuted.
+- [x] **5.8.5** fail-high depth reduction — refuted, fails WAC floor.
+- [x] **5.8.6** document the `reported_score`/`score` split.
+- [ ] **5.8.7** clock and time allocation — not yet opened.
 
 **Consolidation and release**
 
-- [ ] **5.10 Correctness/safety only:** repair demonstrated legal-root,
-      mate/rule-50, TT atomic/replacement or attribution failures. Do **not**
-      force checking-move LMR (→5.4), qsearch staging (→5.5), subtree-null
-      (→5.6), correction weighting (→5.5) or aspiration (→5.8) here as
-      "cleanups"; each has a cluster owner and a history of losing alone.
-- [ ] **5.11 Portability/ISA:** enforce x86 tier and ARM64 asset contracts,
-      inspect emitted instructions and establish target anchors. Close the
-      invalid `origin/arm_fix` wrapper; verify Basilisk's existing ARM prefetch.
-- [ ] **5.12 SMP/TC checkpoint:** null-calibrated 1/2/4/8/16T NPS,
-      time-to-depth, completed-depth and TT/root/work-share sweep; then a
-      bounded current Basilisk-vs-Rarog `{1T,4T} × {3+0.03,10+0.1}` matrix.
-      Test the thread × TC interaction with uncertainty. If an internal SMP
-      deficit exists, classify it and test at most one targeted mitigation;
-      otherwise close without code changes. Do not copy Rarog's rejected
-      staggering.
-- [ ] **5.13 Cumulative checkpoint and release:** same pinned PGO path both
-      arms, direct 1.9.3 comparison, 1T STC/LTC + 4T LTC, zero forfeits,
-      correctness matrix, 5.11 platform contract, final cross-engine cohort
-      with adjudication off. **1.10.0** needs ≥ +40 Elo STC point estimate with
-      95% lower bound above +25, plus positive LTC/4T lower bounds. Otherwise
-      fall back to a maintenance 1.9.4.
+- [ ] **5.10** correctness and safety repairs only.
+- [ ] **5.11** portability and ISA baseline — `origin/arm_fix` unmerged.
+- [ ] **5.12** SMP effectiveness checkpoint.
+- [ ] **5.13** cumulative checkpoint and release gate — **1.10.0** needs +40 Elo
+      over 1.9.3; at ≈ +12 the fallback **1.9.4** is the likely release.
 
 ### Phase 6 — NNUE runway and branch convergence
 
@@ -293,371 +199,12 @@ the user explicitly abandons that program.
 
 | | |
 |---|---|
-| Engine state | bench **12,709,666**, CTest **12/12**, WAC **137/300**, canary on=35 |
-| Cumulative vs 1.9.3 | **≈ +12 Elo** (5.9.14 +2.64, 5.9.13 +9.52; 5.7.2 accepted by decision) |
-| Last completed | **5.8 CLOSED** — no candidate survived, no games spent |
-| Next | **decision required** — see "What is left before NNUE" below |
-| Queued for your machine | nothing |
-
-### Phase 5 step board — every step, current state
-
-**Evidence (5.0–5.3)** — all ✅ closed.
-
-| step | subject | state |
-|---|---|---|
-| 5.4 A | ordering, histories, LMR | ✅ closed — no accepted change |
-| 5.5 B | static eval, TT, qsearch | ✅ closed — contracts already sound |
-| 5.6 C | main selectivity | ✅ closed — history pruning defect recorded, not gated |
-| **5.7 D** | **extensions, singular, IIR** | ✅ **closed** — see below |
-| **5.8 E** | **root search and clock** | ✅ **closed** — see below |
-| **5.9** | **HCE maturity program** | ✅ **closed — ≈ +12 Elo** |
-| 5.14 | shallow-depth node cost | ✅ closed — target withdrawn |
-| **5.10** | correctness/safety repairs only | ⬜ **not started** |
-| **5.11** | portability / ISA baseline | ⬜ **not started** — `origin/arm_fix` exists, unmerged |
-| **5.12** | SMP effectiveness checkpoint | ⬜ **not started** |
-| **5.13** | cumulative checkpoint + release gate | ⬜ **not started** |
-
-#### 5.7 — extensions (closed 2026-08-30)
-
-| sub-step | outcome |
-|---|---|
-| 5.7.1 inventory | ✅ reframed the cluster: we are a *blend of eras*, not behind |
-| **5.7.2 `singularQuietLMR` @ 401** | ✅ **ACCEPTED by maintainer decision** — reading +1.49 ±2.77, LOS 83.5% |
-| 5.7.3 check/singular exclusivity | ❌ refuted — fails the WAC floor (137 → 124) |
-| 5.7.4 `ttValue >= beta` verification | ❌ refuted — mean was an outlier artifact, median 0 |
-| 5.7.5 singular gate depth | ⚖️ undecided — instruments biased opposite ways |
-| 5.7.6 dead-code removal | ✅ done — behaviour-neutral |
-| 5.7.7 integrated gate | ⏭️ skipped — only 5.7.2 survived; same match under another name |
-
-#### 5.8 — root and clock (closed 2026-08-30)
-
-| sub-step | outcome |
-|---|---|
-| 5.8.1 inventory | ✅ all divergences are in the aspiration window |
-| 5.8.2 instrumentation | ✅ **1.37 re-searches per root iteration** |
-| 5.8.3 fail-low narrows beta | ❌ refuted — re-searches *rose*, no direction |
-| 5.8.4 delta growth rate | ❌ refuted — −0.243 ply, 20/33 |
-| 5.8.5 fail-high depth reduction | ❌ refuted — WAC 119, fails floor |
-| 5.8.6 documentation | ✅ done |
-| 5.8.7 clock | ⏭️ not opened — precondition never met |
-
-**Seven of the eight reference-derived search candidates across 5.7 and 5.8 do
-not transfer.** `9587eeeb` is the last pure-HCE master and is *older than large
-parts of our search*.
-
-#### 5.9 — HCE maturity (closed 2026-08-29, ≈ +12 Elo)
-
-| sub-step | outcome |
-|---|---|
-| 5.9.1–5.9.2 new terms | ❌ removed — measured inert three times |
-| 5.9.3 structure freeze | ✅ endgame identified as the real gap |
-| 5.9.4 joint refit | ⚠️ fitted on a **distilled** corpus — the defect |
-| 5.9.5 king-safety fit | ⚠️ variant A only; table deferred |
-| **5.9.6 gate** | ❌ **REJECTED −77.92** — Stockfish *evaluations* as labels |
-| 5.9.11 corpus rebuild | ✅ 3 arms; none passed; SF-labelled arm worst |
-| 5.9.15 LTC probe | ✅ no depth story |
-| **5.9.14 king-safety reshape** | ✅ **ACCEPTED +2.64 ±2.05** |
-| **5.9.12 / 5.9.13 full surface** | ✅ **ACCEPTED +9.52 ±4.66** — 768 PSTs unfrozen |
-| cleanup | ✅ accepted, neutral |
-| **5.9.7–5.9.10 endgame recognisers** | ⬜ **OPEN** — gate lifted 2026-08-31 |
-
-### What is left before NNUE
-
-1. **5.9.7–5.9.10 endgame recognisers.** Blocked by *"if 5.9.6 rejects, these
-   do not open"* — but the calibration was then fixed and accepted at 5.9.14 and
-   5.9.13, so **the reason for the gate is gone**. BAS-E08 measured endgame
-   holdout moving **0.4%** against opening's **12.4%**. It is also the most
-   NNUE-durable HCE work we have: `apply_endgame` scaling sits outside the main
-   evaluation. **The only remaining work with a measured diagnosis behind it.**
-2. **5.10 / 5.11 / 5.12** — process steps, not strength.
-3. **5.13 release gate.** Needs **+40 Elo** cumulative for 1.10.0; we have
-   **≈ +12**. On current evidence this releases the **1.9.4** fallback.
-
-### 5.9.11 results — diagnosis confirmed, surface saturated
-
-| arm | labels | Elo | outcome |
-|---|---|---:|---|
-| A | Basilisk @ 8k | **−2.85 ±3.11** | rejected (H0) |
-| C | Basilisk @ 25k | **+1.00 ±2.11** | no verdict, stopped by decision |
-| B | Stockfish @ 8k | **−7.30 ±4.76** | rejected — **worst arm** |
-| *5.9.6* | *SF **evaluations*** | *−77.92* | *rejected* |
-
-**Arm A differs from 5.9.6 in one thing only — game results instead of
-Stockfish evaluations — and the same fit moves −77.92 → −2.85.** About 75 Elo
-recovered by the label change alone. The BAS-E11 correction is confirmed.
-
-**The oracle lost.** Stockfish-labelled games made the evaluation *worse* than
-our own self-play labels (−7.30 vs −2.85), rejected in under two hours. Its
-labels genuinely were cleaner — wider W/L skew — and it still lost. A label
-should reflect what **our** search can realize; fitting to what a stronger
-engine converts teaches the eval to value what our search cannot cash. PLAN's
-independence constraint and the best measured option agree, so no trade-off was
-needed.
-
-**But no arm gains.** Four results now agree the 348-parameter scalar surface is
-saturated: cycle 6 (+1.37 ±5.21), BAS-E08's inert ablation, arm A, arm C. Clean
-labels stop the harm; they add nothing.
-
-**Arm C is an estimate, not a verdict** — its LLR sat at +0.03 and it was halted
-at 44,800 games so arm B could run. Never quote it as pass or fail.
-
-**Footgun fixed:** `sprt.ps1` silently ignored `-Games` outside `fixed`/
-`calibrate` mode, so "capped at 3h per arm" was never true. It now throws
-instead. A neutral arm does not stop early — budget one long arm per night.
-
-### 5.9.11 — the corpus defect, measured
-
-Same binary, same book, same seed; the only variable is adjudication:
-
-| | standard (resign 600/3) | **none** |
-|---|---:|---:|
-| games reaching **checkmate** | **1.3%** | **62.3%** |
-| bare-officer material | 25.0% | 64.7% |
-| ended by adjudication | **209 / 300** | 0 |
-
-Resign-at-600 ends the game ~22 plies before the material the fit needs. That is
-why `safety_table` could be reshaped into something that breaks mating at no
-measured loss (BAS-E10), and it is the best available explanation for BAS-E11.
-
-`datagen.ps1` now takes `-Adjudication standard|none`.
-
-**The first corpus attempt failed and was discarded (BAS-E15).** Fixed-node
-self-play with one binary is deterministic, `SuperGM_4mvs` holds only 2,668
-openings, and 80,000 rounds against it gave 2,668 distinct games repeated 15
-times — **93.3% duplicates**. Rounds above book size buy nothing. The detector
-was visible immediately: raw 137,815 against unique 56,985.
-
-**A second, larger error was then found in the labels themselves.** The
-`beast_sf_*` corpus every 5.9 fit used is **Stockfish-distillation labelled** —
-427 distinct target values on [0,1] in 200,000 rows, not game results. So 5.9.4
-fitted 348 coefficients to reproduce *Stockfish's evaluation*, and its "6.7%
-better holdout" measured agreement with Stockfish, not with winning. BAS-X02
-already recorded the cost of exactly this: **−17.11 Elo in Rarog**. This is now
-the primary explanation for 5.9.6's −77.92, ahead of the quiet-filter account.
-
-Final design — **Beast positions as starts, self-play results as labels**,
-adjudication none, 320,000 rounds, from `beast_seed_2m.epd` (2,000,000 starts).
-An opening book makes every game traverse an opening before reaching an endgame;
-Beast starts span all phases. Measured: deep_endgame **2.612 → 3.018**/game, and
-the binding phase moves off deep_endgame onto opening — **116,528 games needed
-against 173,036**.
-
-This adopts Manta's `HCE_DATAGEN` design, which was reviewed and **wrongly
-rejected** earlier on the grounds that importing their data saved no compute.
-The method costs the same and yields better data.
-
-### 5.9.6 REJECTED — and why no confirmation SPRT was run
-
-**−77.92 ±15.32 Elo, nElo −99.71, LLR −2.95 → H0 in 1,292 games.** Every
-hypothesis was tested without games:
-
-| hypothesis | measurement | verdict |
-|---|---|---|
-| NPS | 4.1% from new-term code, at identical nodes | real, ~2–4 Elo |
-| tree growth | bench nodes +52.6%, time-to-depth +60% | real, ~10–15 Elo |
-| static eval | holdout **6.7% better** than baseline | refuted |
-| tactics | WAC@12 — 49 fails base, **48** candidate | refuted |
-| lazy eval | **0 sign flips**, crossings 2.19% → 1.37% | refuted |
-| score scale | `K` 1.41868 → 1.47613 | real, few Elo |
-
-Identified costs total ~15–20 Elo against 78. **The residual is the finding:
-the values are worse in play while better on the corpus.** The corpus is
-quiet-filtered — which strips out exactly the positions where king safety
-governs — and off-policy. Same defect that failed the mate-drive canary at
-5.9.5. This makes **5.9.11 the load-bearing step**, not a tidy-up.
-
-**Values reverted, structure and speed work kept.** The result is *provably*
-the 1.9.3 engine: 0 best-move and 0 node-count mismatches over 107 positions at
-fixed depth, bench 11,941,440. A confirmation SPRT would spend ~20k games
-failing to detect a difference already proven absent — the deterministic check
-is cheaper **and strictly stronger** than a null SPRT.
-
-Speed: the retained inert terms cost −3.73% NPS (interleaved), cut to **−1.37%**
-by zero-guards. That residual is the price of keeping the structure for 5.9.12's
-ablation; if the terms are still inert with PSTs free, remove them and recover it.
-
-### 5.9.5 — what shipped, and what did not
-
-The king-safety coordinate descent converged (83 passes, holdout −0.99%) and
-found two knobs sitting at **zero**: `ks_unit[ROOK]` and `ks_unit[QUEEN]`. Rook
-and queen attacks were contributing *nothing* to the attack-unit count. Both
-fitted to 2. That is a real coverage gap, not a tuning artifact.
-
-**Only variant A shipped — eleven scalar knobs, `safety_table` reverted.** The
-full fit reshaped the table to be sharply convex (low end halved, high end up
-~45%) and that **failed the mate-drive canary**: edge preference collapsed from
-29cp to 4cp against a `>20` threshold. Bisection pinned it to `safety_table`
-alone.
-
-The cause is the corpus, not the fitter: it is quiet-filtered and contains no
-forced-mate positions, so the objective is blind to mating and traded it away.
-It also exposed that **the canary was passing partly by accident** — the
-mate-drive's own contribution there is ~15cp, and king safety was incidentally
-supplying the rest of the 29.
-
-Deferred to 5.9.12, with 5.9.11's corpus required to carry mating material.
-
-**Also noted:** `K` moved 1.41868 → 1.49757 between the two fits, i.e. the 5.9.4
-refit **compressed the eval scale ~5.6%**. Our futility/razoring/delta margins
-are centipawn constants and are now that much more aggressive. Registered as a
-known consequence, not repaired here.
-
-### Which parameters get fitted, and by what
-
-5.9.4 fitted **348 of 1,190** — 29%. The **768 PST** coefficients were frozen
-through the whole program, which is the leading explanation for why the new
-terms measured inert: they are geometry terms competing with a frozen geometry
-table. 5.9.12 fixes this.
-
-| class | count | instrument |
-|---|---:|---|
-| `scalars` | 348 | Texel gradient |
-| PSTs | 768 | Texel gradient |
-| **Texel total** | **1,116** | |
-| `kingsafety` | 57 | coordinate descent |
-| `winnable` | 7 | finite difference |
-| material | 10 | pinned — collinear with PST |
-| total | **1,190** | |
-
-**Never run `--tune all`.** It reaches 1,183 — sweeping king safety into a
-gradient fit that corrupts it (BAS-X14) — while silently omitting the 7
-`winnable` params, which sit after `EPG_Tempo`, outside its range.
-
-Pinning material costs nothing: `eval.cpp:399` is
-`MG_TABLE = mg_val[pt] + pst_mg[pt-1][sq]`, so a constant across a piece's 64
-PST squares *is* a material change. Fitting both is a perfect null direction.
-
-### 5.9.4 result — read the ablation, not the headline
-
-The fit converged and holdout loss fell **6.2%** (0.0703086 → 0.0659483), with
-the opening phase gaining most (−12.4%) and **endgame almost nothing (−0.4%)**,
-which independently confirms 5.9.3's verdict that endgame knowledge is our gap
-and a linear surface cannot reach it.
-
-**But the new structure contributes essentially nothing.** Applying only the
-twenty new-term values, leaving the 348 existing parameters shipped, gives
-holdout **0.0703113** against a **0.0703086** baseline — marginally *worse*, and
-inside noise. **The whole 6.2% is the refit of the pre-existing surface.**
-
-That matters because refitting the existing surface is close to what HCE cycle 6
-already did, and cycle 6 **washed at +1.37 ±5.21 over 8,100 games**. The
-argument that made this a genuine retry — an enlarged surface is not the surface
-that washed — is weakened: the enlargement measures inert, so what remains is
-largely cycle 7.
-
-Two terms look like duplicated signal rather than new information:
-`SliderOnQueen` fitted to exactly **0** despite firing 2,260 times per 20,000
-positions, and `LongDiagonalBishop` fitted **negative** where the concept
-predicts a bonus.
-
-One clear win: splitting `king_protector` at 5.9.2 was right. The fit separated
-what it previously could not — `(−1, +4)` for knights against `(−2, 0)` for
-bishops.
-
-**The candidate carries a small cost into the gate — and the first reading of
-it here was wrong.** Bench moves **11,941,440 → 15,655,764**; that +31% was
-initially written up as a ~2.5× deficit. Measured directly (BAS-E09), it is not.
-Bench counts nodes to *fixed depth 13*, and two evaluators that disagree diverge
-in aspiration and TT behaviour, so a big bench delta between different evals is
-expected. NPS is unchanged. Paired depth at equal nodes over 107 positions:
-**+0.019 ply at 300k, −0.168 at 1M**. Real headwind ≈ **a quarter ply** — a
-small single-digit Elo cost, not a reason to expect rejection.
-
-CTest 12/12 including the KBNK/KQK mate canaries — worth noting, since this
-class of change tripped them eight consecutive times historically.
-
-### Is the HCE mature now?
-
-Verdict at the freeze (`analysis/hce_maturity_v2.md`):
-
-| axis | state |
-|---|---|
-| Named term coverage | **mature** — all 31 reference terms have a counterpart |
-| Term functional form | **mature** — no scalar standing in for a table |
-| Trace / fit readiness | **mature** — `--verify` exact, every term fires |
-| Endgame knowledge | **partial** — 6 rules against ~29, deferred with cause |
-| Calibration | **not yet** — that is 5.9.4 and 5.9.5 |
-
-**Term coverage is done.** The six absent terms landed at 5.9.1 and the two
-weaker-form ones were repaired at 5.9.2.
-
-**Endgame knowledge is the real remaining gap** — we carry KNNK, KPK bitbase,
-KBNK drive, wrong-rook-file KBP, no-pawn scaling and opposite-coloured bishops;
-the reference carries roughly 29 classes. Absent: rook-ending scaling, rook vs
-pawn, queen vs rook, rook vs minor, the bishop-pawn scale family, generic
-bare-king drive.
-
-I did **not** add them before the fit, deliberately. They are scale factors and
-exact evaluations, so BAS-X14 puts them in the *excluded* set where the fit
-cannot price them — the reason 5.9.1/5.9.2 landed inert does not extend here.
-`MAN-E05` lost **−16.32 Elo** on exactly this class. And unlike an additive term,
-an endgame rule cannot be seeded inert: a scale factor of 1.0 is inert, but the
-recogniser choosing it is behaviour from the first line — which is how eight
-consecutive mechanisms tripped our KBNK/KQK canaries.
-
-Because endgame rules sit outside the linear fit, adding them later does **not**
-invalidate the coefficients 5.9.4 produces. So the freeze is safe, and the
-endgame program is a separate, riskier step to open after 5.9.6 — designed
-recogniser-first, which is the correction `MAN-E05`'s post-mortem demanded.
-
-**Short answer: ready to fit, not yet a finished classical evaluator.** The
-remaining distance is endgame knowledge plus the calibration BAS-E07 identified
-as the real gap all along.
-
-### Acceleration step lifecycle (5.4–5.9)
-
-1. **Audit** — name the *problem* the reference solves, its Basilisk owner,
-   every interacting consumer and the 5.2 diagnostic population. Update PLAN's
-   order first if evidence contradicts it.
-2. **Design** — decide Basilisk's answer and write down why, without appealing
-   to upstream authority. Reference constants are starting points to validate,
-   never values to trust.
-3. **Register** — add an `EXPERIMENTS.md` ID with hypothesis, baseline SHA,
-   scope, expected direction, gate, cap and stop rule, *before* games.
-4. **Implement** — smallest dependency-complete change, in our own idiom and
-   structure. Substeps may be diagnosed separately; an incomplete cluster never
-   becomes a baseline.
-5. **Prove correctness** — CTest 12/12, sanitizers where relevant, canaries.
-   Diagnostics off ⇒ exact accepted fingerprint.
-6. **Explain** — the fixed suite compares nodes, qnodes, move source, cutoff
-   index, TT use, reductions, pruning, extensions, aspiration. Counters
-   explain; they never accept.
-7. **Gate** — revision-matched final-PGO both arms, registered paired UHO
-   SPRT. Do not change candidate, bounds, cap, book or adjudication after
-   seeing games.
-8. **Close** — accept and commit, or revert the behaviour and restore the
-   fingerprint. Keep the evidence row either way. Ablate a surprising
-   integrated result before crediting a subcomponent.
-9. **Advance** — only after the previous item is accepted, rejected or
-   explicitly closed.
-
-**Two fully implemented clusters with no accepted gain ⇒ stop and re-audit
-5.2–5.3.** Do not continue down the list by sunk cost.
-
-### Maturity preconditions — never adopt ahead of the host search
-
-A mechanism strong in a mature search can be harmful in one lacking its inputs.
-Adopting early doesn't get us partway — it measures a loss, and the wrong
-conclusion is "doesn't transfer". Manta failed exactly this way.
-
-| Cluster | Cannot start until |
-|---|---|
-| 5.4 A ordering/histories/LMR | — (the foundation; no upstream dependency) |
-| 5.5 B eval/TT/qsearch | A accepted |
-| 5.6 C selectivity | B accepted (margins need the pruning eval separated) |
-| 5.7 D extensions | A + B accepted (singular needs a trustworthy TT move) |
-| 5.8 E root/clock | C + D accepted (else refitted the moment the interior moves) |
-| 5.9 HCE | search track closed |
-
-Preconditions must be **present and healthy in the 5.2 diagnostics** — not
-planned, not "roughly equivalent". If one is missing, that enabling work
-*becomes* the cluster and the feature defers with a recorded trigger.
-
-**When a cluster fails, triage in this order** before blaming the mechanism:
-(1) was a precondition unhealthy where the mechanism fires? (2) was the cluster
-dependency-complete? (3) were reference constants used unvalidated? (4) only
-then — it genuinely doesn't transfer. Reasons 1–3 requeue with a trigger; only
-reason 4 closes. Misfiling a premature adoption as (4) discards a real gain.
+| Engine | bench **12,709,666** · CTest **12/12** · WAC **137/300** |
+| Cumulative vs 1.9.3 | **≈ +12 Elo** |
+| Next step | **5.9.7** — endgame recogniser inventory |
+
+Evidence and reasoning for every step live in `EXPERIMENTS.md`; scope and
+rationale live in `PLAN.md`.
 
 ## Decision rules
 

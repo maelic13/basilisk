@@ -1574,6 +1574,23 @@ open rather than resolved by picking the convenient number. **A cluster against
 the shallow band should not open until this is settled** — otherwise its metric
 inherits the same ambiguity.
 
+### Phase 5 execution order (fixed 2026-08-31)
+
+Steps run in this order. It was reviewed for a reason to reorder and there is
+none, so the numbering is left alone rather than churned:
+
+1. **5.9.7 → 5.9.10** — endgame recognisers. The gate that blocked them was
+   lifted once 5.9.13/5.9.14 repaired the calibration it protected against.
+2. **5.7.5** — singular gate depth, the one undecided item in cluster D.
+3. **5.8.7** — clock and time allocation.
+4. **5.10 → 5.13** — correctness, portability, SMP, release.
+
+*Why this order and not another.* Endgame recognisers change the evaluation, and
+both 5.7.5 and 5.8.7 are fitted **to** the evaluation — 5.8.7 explicitly so,
+since PLAN forbids moving time allocation until the root evidence is coherent.
+Doing the clock first would mean refitting it the moment the recognisers land.
+5.10–5.13 are consolidation and must come after anything that changes behaviour.
+
 ### 5.10 — Correctness and safety repairs only
 
 Repair only demonstrated safety or semantic failures with deterministic
