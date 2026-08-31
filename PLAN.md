@@ -844,7 +844,11 @@ reference's 36–37% band, so "ours is smaller" no longer holds.
 
 **Sub-steps — every candidate numbered so none is silently dropped.**
 
-- **5.7.2 `singularQuietLMR` — READING TAKEN, kept provisionally (BAS-D10, BAS-D12).**
+- **5.7.2 `singularQuietLMR` — ACCEPTED 2026-08-31 by maintainer decision
+  (BAS-D18), not by a gate.** The SPRT cannot decide it: ~149,000 further games
+  would be needed against a 100,000 hard stop. Accepted on the reading below.
+  **Its contribution must be treated as unmeasured in any cumulative claim.**
+  (BAS-D10, BAS-D12).**
   Gate stopped by decision at 24,956 games: **+1.49 ±2.77 Elo, LOS 83.52%**, LLR
   drift implying ~149,000 games to resolve. Not a regression, plausibly a small
   positive. **NOT accepted** — it carries into 5.7.7's integrated gate and comes
@@ -1209,8 +1213,27 @@ their own steps, opened only once 5.9.6 has a verdict:
   TC ladder — endgame knowledge is exactly the class that shows at LTC and
   hides at STC (BAS-M07), so an STC-only verdict is not sufficient here.
 
-If 5.9.6 rejects, these steps do not open: a failed calibration is not repaired
-by adding a harder-to-fit class of knowledge on top of it.
+~~If 5.9.6 rejects, these steps do not open: a failed calibration is not repaired
+by adding a harder-to-fit class of knowledge on top of it.~~
+
+**GATE LIFTED 2026-08-31.** 5.9.6 did reject — but the calibration was then
+repaired and accepted: **5.9.14 (+2.64)** fixed the king-safety funnel and
+**5.9.13 (+9.52)** unfroze the 768 PSTs on a corrected corpus. The condition the
+gate protected against — building harder knowledge on a failed calibration —
+no longer holds. **5.9.7–5.9.10 are open.**
+
+Three reasons this is now the strongest remaining pre-NNUE work:
+
+1. **It is the only remaining item with a measured diagnosis.** BAS-E08 put
+   endgame holdout movement at **0.4%** against opening's **12.4%**, and 5.9.3
+   concluded a linear surface cannot reach endgame knowledge. That finding was
+   never acted on.
+2. **It is the most NNUE-durable HCE work available.** `apply_endgame` scaling
+   sits outside the main evaluation, so recognisers survive an evaluation
+   replacement in a way PST or scalar tuning does not.
+3. **The corpus now contains the position class.** BAS-E14 fixed the
+   adjudication defect that left the old corpus with no bare-king endings at
+   all; the 5.9.11 corpora carry them.
 
 **Execution order for the rest of 5.9** (the numbers are identifiers, not the
 running order — later-numbered steps run first here, deliberately):
