@@ -1263,6 +1263,25 @@ their own steps, opened only once 5.9.6 has a verdict:
   conversion is undefined for them; BAS-E27 already measured our evaluation
   there as **better** than our global average.
 
+- **5.9.23 Rook-ending draw scaling — `KRPKR` and `KRPPKRP`. The largest
+  measured target left.** BAS-E32: these are the two most frequently reached
+  classes (**9.09%** and **11.32%** of games), they are **59%** and **62%**
+  drawn, and we score those drawn positions at **0.671** and **0.638** instead
+  of 0.5. The reference implements scaling functions for both. Classification
+  only — recognise the draw, scale the score; no conversion grading.
+
+- **5.9.24 `KRKP` verdict.** 66.1% drawn and we predict **0.780** — the
+  largest single bias outside KBNK. 2.38% of games. The reference has `KRKP`.
+
+- **5.9.25 Extend the bishop-pawn scaling family.** `KBPP-KBP` is 84.7% drawn
+  and predicted 0.639. Our `KBP` scaling covers a narrower shape than the
+  reference's family.
+
+  *Measured NOT to need work, and deliberately given no step:* `KQ-K` and `KR-K`
+  convert 100/100 (BAS-E30); `KRP-KRP` and `KPP-KPP` are already accurate on
+  their drawn subsets (0.498, 0.489); `KRKB`, `KRKN`, `KQKR`, `KQKP` and
+  `KNNKP` are each below 2% of games.
+
 - **5.9.8 Recognisers before grading — runs AFTER the conversion work.** PLAN's original
   classification-first step, kept because the maintainer wants both approaches
   tried. Note its rationale is Manta's failure mode (MAN-E05 graded conversion

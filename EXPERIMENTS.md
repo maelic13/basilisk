@@ -1622,6 +1622,58 @@ instrument.
 matching conversion work lands. A floor left at an old rate silently stops
 protecting the improvement that replaced it.
 
+**BAS-E32 — CORRECTION to BAS-E27: the per-class mean hid a systematic error
+on the drawn subset** (2026-08-31). BAS-E27 compared our evaluation against the
+game result per endgame class, found the rook endings *better* than global loss,
+and concluded they needed nothing. **That conclusion was wrong, and the method
+was the reason.**
+
+A scaling function exists to recognise that a materially-winning position is in
+fact **drawn**. A per-class mean cannot see that: if a class is 40% decisive and
+we score those correctly, the mean looks healthy while every drawn position is
+called a win. Splitting each class by actual game result:
+
+| class | drawn share | we predicted | bias | reference has? |
+|---|---:|---:|---:|---|
+| **`KBN-K`** | 90.2% | **1.000** | **+0.500** | `KBNK` |
+| `KRPP-KR` | 25.1% | 0.848 | +0.348 | — |
+| **`KR-KP`** | 66.1% | **0.780** | **+0.280** | **`KRKP`** |
+| **`KRP-KR`** | 59.0% | **0.671** | **+0.171** | **`KRPKR`** |
+| `KBPP-KBP` | 84.7% | 0.639 | +0.139 | `KBPKB` family |
+| **`KRPP-KRP`** | 61.9% | **0.638** | **+0.138** | **`KRPPKRP`** |
+| `KRP-KRP` | 90.1% | 0.498 | ~0 | — |
+| `KPP-KPP` | 65.7% | 0.489 | ~0 | — |
+
+**We systematically score drawn rook endings as won**, and the classes where we
+are wrong are precisely the ones the reference implements scaling functions for.
+Where material is symmetric — `KRP-KRP`, `KPP-KPP` — we are accurate. It is
+the **up-a-pawn** cases that fail: our evaluation sees +1 pawn and has no notion
+that Philidor exists.
+
+*Recorded as a method lesson, because it is the second time in this phase.*
+BAS-E27 replaced a frequency ordering with an error ordering and that was an
+improvement; it then used a **mean** where the quantity of interest lived in a
+**subset**. Frequency → mean error → error on the sub-population the mechanism
+targets. When evaluating whether a *recogniser* is needed, measure the
+population that recogniser would fire on.
+
+**BAS-E33 — the reference's endgame table against ours** (2026-08-31). Not
+previously enumerated; 5.9.7 measured our corpus but never asked what a mature
+engine implements. The reference carries **18** endgame functions and **we have
+6**.
+
+| | reference | Basilisk |
+|---|---|---|
+| verdicts | `KNNK` `KNNKP` `KXK` `KBNK` `KPK` `KRKP` `KRKB` `KRKN` `KQKP` `KQKR` | `KNNK` `KXK` `KBNK` `KPK` |
+| scaling | `KQKRPs` `KRPKR` `KRPKB` `KRPPKRP` `KPsK` `KPKP` | KBP, OCB, insufficient |
+
+**Missing and measured to matter:** `KRPKR` (9.09% of games, +0.171 drawn bias),
+`KRPPKRP` (11.32%, +0.138), `KRKP` (2.38%, +0.280).
+
+**Missing and measured NOT to matter:** `KPKP` — our `KP-KP` and `KPP-KPP`
+predictions are already accurate on the drawn subset. `KRKB`/`KRKN`/`KQKR`/
+`KQKP`/`KNNKP` are each below 2% of games and are not proposed.
+
 **BAS-D08 — per-iteration cost; there is no shallow target** (same runs,
 2026-08-25). Cumulative counts hide where the cost is. Differencing them gives
 the cost of each iteration on its own:

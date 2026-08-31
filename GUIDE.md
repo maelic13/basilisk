@@ -122,6 +122,9 @@ line; this is the tracker only.
 - [ ] **5.9.20** KBNK fifty-move cases — 31%.
 - [ ] **5.9.21** generic mate-drive gradient — 5 and 4 cp/step; KBBK 3/12.
 - [ ] **5.9.22** KBBK conversion, after 5.9.21.
+- [ ] **5.9.23** rook-ending draw scaling `KRPKR`/`KRPPKRP` — largest target.
+- [ ] **5.9.24** `KRKP` verdict — 66% drawn, we predict 0.780.
+- [ ] **5.9.25** extend bishop-pawn scaling — `KBPP-KBP` 85% drawn.
 - [ ] **5.9.8** classification recognisers — the second hypothesis.
 
   `KQ-K` and `KR-K` convert **100/100** — no step, no attention needed.
