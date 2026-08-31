@@ -1194,7 +1194,23 @@ cannot be seeded inert because the recogniser that selects a scale is behaviour
 from its first line. `MAN-E05` lost −16.32 Elo on this class. They therefore get
 their own steps, opened only once 5.9.6 has a verdict:
 
-- **5.9.7 Recogniser inventory and risk order.** Enumerate the absent classes —
+- **5.9.7 Recogniser inventory — DONE 2026-08-31 (BAS-E26).**
+  `analysis/endgame_inventory_v1.md`. **Rook endings dominate: five of the top
+  seven classes, none recognised.** `KRPP-KRP` 11.32%, `KRP-KR` 9.09%,
+  `KRP-KRP` 6.50%, `KR-KR` 6.11%, `KRPP-KR` 5.62%. Second family is multi-pawn
+  endings (~12% combined), where our only exact knowledge is the single-pawn KPK
+  bitbase.
+
+  *This ordering corrects the one below.* `KRPKR` was named first and is right
+  as far as it goes, but **`KRPP-KRP` is more frequent** and the drawn
+  **`KR-KR`** was not listed at all. Frequency was measured, not assumed, which
+  is what changed the target.
+
+  *Limitation to carry into 5.9.8:* value is frequency × **error**, and only
+  frequency is measured. Bucket the holdout by these classes and compare static
+  evaluation against game result per bucket before choosing what to implement.
+
+- **5.9.7 (original text).** Enumerate the absent classes —
   rook-ending scaling (`KRPKR`, `KRPKB`), rook vs pawn, queen vs rook, rook vs
   minor, the bishop-pawn scale family, generic bare-king drive — and order them
   by *how often a fast-TC game actually reaches them*, not by how interesting
