@@ -132,8 +132,9 @@ predicted win-rate on positions that were actually DRAWN, where 0.500 is right.
 - [x] **5.9.21** `KBNK` stalemate avoidance — **closed empty**. The 14.5% was a
       mixed bucket; stalemates all land at ply 91-99, inside a fifty-move draw,
       and cost nothing (BAS-E35).
-- [ ] **5.9.22** `KBNK` fifty-move cases — **38.9%**, now the only real defect
-      left in this ending.
+- [ ] **5.9.22** `KBNK` fifty-move cases — **38.9%**. Diagnosed **stuck, not
+      slow** (1.0x optimal when we win; 6 plies of progress in 100 when we
+      don't). Bishop proximity and escape-square count both refuted (BAS-E36).
 - [ ] **5.9.23 GATE A** — one SPRT for the whole mate-technique group.
 
 *The gradient-magnitude class, continued — broad eval, so its own gate.*

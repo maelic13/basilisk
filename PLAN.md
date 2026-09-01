@@ -1273,11 +1273,28 @@ PLAN's cluster rule already prescribes.
   ply 80**, inside a fifty-move draw the engine was already taking. They cost
   nothing. There is no stalemate defect to fix, and the piece-loss finding earns
   no step for the same reason.
-- **5.9.22 `KBNK` fifty-move cases. Now the ONLY remaining defect in this
-  ending, and the whole of it.** **38.9%** of Syzygy-confirmed wins hit the
-  fifty-move rule (47.5% are mated). Technique too slow, not absent. Everything
-  5.9.21 and the piece-loss bucket appeared to be is downstream of this number.
-  Instrument: `tools/diag/kbnk_outcomes.py`.
+- **5.9.22 `KBNK` fifty-move cases. OPEN — diagnosed, two remedies refuted**
+  (BAS-E36). **38.9%** of Syzygy-confirmed wins hit the fifty-move rule.
+
+  *Not "too slow" — STUCK.* Where we convert we do it in **1.0x optimal** (47
+  plies against 47). Where we fail we spend 100 plies to travel 6 and still have
+  46 to go, losing ground on 47.7% of our moves. Re-word any future attempt
+  accordingly: this is not a speed problem.
+
+  *Mechanism.* Every term in `kbnk_score` is a function of the weak king, our
+  king or the knight. **Nothing depends on the bishop**, so all bishop moves tie
+  exactly, and the traces show the engine shuffling the bishop while the king
+  stands still. The potential has a flat maximum that is not mate.
+
+  *Closed off — do not retry:* **bishop proximity** (no gain, and the bishop is
+  captured at ply 6 — a long-range piece must not be pulled beside a bare king);
+  **weak-king escape-square count** (14/16 -> 9/16, fails the floor; it rewards
+  stalemate-adjacent confinement and competes with the corner drive).
+
+  *Note for whoever takes this up:* bench is byte-identical under every arm —
+  the bench suite contains no KBNK position — and an SPRT cannot see a change
+  this narrow either. `tools/diag/kbnk_outcomes.py` is the only instrument that
+  measures it.
 - **5.9.23 GATE A.** One SPRT for the group.
 
 **The gradient-magnitude class, continued — and it gets its own gate:**

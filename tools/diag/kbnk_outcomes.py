@@ -13,13 +13,13 @@ What this fixes:
   * sends ucinewgame per position, so one game cannot poison the next through
     the TT (the first sweep reused one engine and was not reproducible).
 
-Needs: python-chess, and the read-only Syzygy 3-4-5 set on the archive.
+Needs: python-chess, and the Syzygy 3-4-5-6 set at D:/chess/tablebases/syzygy3456.
 Usage:  python tools/diag/kbnk_outcomes.py
 """
 import chess, chess.engine, chess.syzygy, collections
 
 ENGINE = "D:/code/basilisk/build/release/basilisk.exe"
-TB     = "A:/Chess/Tablebases/Syzygy345"
+TB     = "D:/chess/tablebases/syzygy3456"
 NODES  = 60000
 
 M64 = (1 << 64) - 1
