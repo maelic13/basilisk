@@ -11,7 +11,7 @@ and lessons live in [`PLAN.md`](PLAN.md).
 | Engine | bench **12,709,666** · CTest **12/12** · WAC **137/300** |
 | Baseline for gates | `basilisk-5912-slim-pext-pgo` (bench 13,981,020) |
 | Cumulative vs 1.9.3 | **≈ +12 Elo** — 5.9.14 +2.64, 5.9.13 +9.52 |
-| Current phase | **Phase 5**, step **5.9.19** next |
+| Current phase | **Phase 5**, step **5.9.21** next |
 | Evaluation | HCE **unfrozen** since 2026-08-25; corpus is on-policy self-play WDL |
 | Corpus | `armC_basilisk25k_*` — game-result labels only, never engine evaluations |
 | Reference | Stockfish `9587eeeb` — idea source only; 7 of 8 of its search ideas did not transfer |
@@ -125,9 +125,10 @@ predicted win-rate on positions that were actually DRAWN, where 0.500 is right.
 
 *Group A — mate technique. `KXK` alone is reached by 44% of games.*
 
-- [ ] **5.9.19 `KXK` generic mate-drive gradient** — 44.38%. Weights are 5 and
-      4 cp/step, far under the pruning margins; BAS-E29's remedy applies.
-- [ ] **5.9.20** `KBBK` conversion — 3/12 today, depends on 5.9.19.
+- [x] **5.9.19 `KXK` generic mate-drive gradient** — **KBB-K 3/12 -> 12/12**,
+      bench unchanged. Override scoped to minor-piece mates only: covering Q/R
+      too cost +20.5% bench nodes for no gain (BAS-E34).
+- [x] **5.9.20** `KBBK` conversion — **closed empty**, 12/12 from 5.9.19.
 - [ ] **5.9.21** `KBNK` stalemate avoidance — 14.5%, untouched by 5.9.17.
 - [ ] **5.9.22** `KBNK` fifty-move cases — 31%.
 - [ ] **5.9.23 GATE A** — one SPRT for the whole mate-technique group.
@@ -250,7 +251,7 @@ the user explicitly abandons that program.
 |---|---|
 | Engine | bench **12,709,666** · CTest **12/12** · WAC **137/300** |
 | Cumulative vs 1.9.3 | **≈ +12 Elo** |
-| Next step | **5.9.19** — `KXK` generic mate-drive gradient |
+| Next step | **5.9.21** — `KBNK` stalemate avoidance |
 
 Evidence and reasoning for every step live in `EXPERIMENTS.md`; scope and
 rationale live in `PLAN.md`.

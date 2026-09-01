@@ -1251,11 +1251,21 @@ would spend days to learn nothing. The groups below are the integrated contracts
 PLAN's cluster rule already prescribes.
 
 **Group A — mate technique** (`KXK` alone is reached by 44.38% of games):
-- **5.9.19 `KXK` generic mate-drive gradient.** 44.38%. Weights are **5 and 4
-  cp/step**, an order of magnitude below the 100-500cp pruning margins that
-  BAS-E29 showed erase such gradients. Everything without its own recogniser
-  depends on this, and `KBBK` converts 3/12 because of it.
-- **5.9.20 `KBBK` conversion**, after 5.9.19 — it may need nothing further.
+- **5.9.19 `KXK` generic mate-drive gradient. DONE** (2026-09-01, BAS-E34).
+  `kxk_score` override in BAS-E29's shape — Manhattan corner potential, edge
+  term, weights above the margins. **KBB-K 3/12 -> 12/12**; KQ-K, KR-K, KBN-K
+  and the drawn-ending bias all unchanged; **bench identical**.
+
+  *Scoped to minor-piece mates, and that is the result worth keeping.* The first
+  version overrode every bare-king mate. It converted KBB-K just as well and
+  cost **+20.5% bench nodes** across all positions — a regression no endgame
+  test would have caught. BAS-E30 had already measured KQ-K and KR-K at 100/100:
+  search solves those inside the horizon, so they never used the gradient.
+  **A recogniser is worth adding only where search cannot already solve the
+  class**, and the conversion table is what separates "the term is too small"
+  from "the term matters".
+- **5.9.20 `KBBK` conversion. CLOSED EMPTY** — 12/12 directly from 5.9.19,
+  exactly the contingency this step was written for.
 - **5.9.21 `KBNK` stalemate avoidance.** 14.5%, and BAS-E29 left it unchanged.
 - **5.9.22 `KBNK` fifty-move cases.** 31%.
 - **5.9.23 GATE A.** One SPRT for the group.

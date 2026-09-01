@@ -315,7 +315,7 @@ static void test_conversion_floors() {
         // at an old rate stops protecting the improvement that replaced it.
         { "KQ-K",  { QUEEN },           12, 12 },   // deterministic; must stay perfect
         { "KR-K",  { ROOK },            12, 12 },   // deterministic; must stay perfect
-        { "KBB-K", { BISHOP, BISHOP },  12,  1 },   // 3/12 -- generic mate-drive is weak (5.9.21)
+        { "KBB-K", { BISHOP, BISHOP },  12, 11 },   // 3/12 -> 12/12 at 5.9.19; floor 11 leaves one position of slack
         { "KBN-K", { BISHOP, KNIGHT },  16, 10 },   // 14/16 after 5.9.17
     };
 

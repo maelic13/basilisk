@@ -302,6 +302,63 @@ static int kbnk_score(const Board& b, Color strong) {
     return (strong == WHITE) ? v : -v;
 }
 
+// ---- KXK: mate a bare king with Q, R, bishop pair, or B+N ------------------
+// 5.9.19. The generic drive was `5*lk_center + 4*(14 - king_dist)` -- **5 and 4
+// centipawns per step**, an order of magnitude below the 100-500cp futility and
+// razoring margins, so the search pruned the king walk before it could pay off.
+// That is the BAS-E29 defect that held KBNK at 13% conversion.
+//
+// It is why KBB-K converts 3/12 while the far harder KBNK now converts 54.5%.
+// KQ-K and KR-K survive the defect only because their mates sit inside the
+// search horizon (BAS-E30 measured both at 100/100) -- they never needed the
+// gradient, which is exactly why the defect stayed invisible here.
+//
+// An override rather than a bonus added to `eg`, for the same reason KBNK is
+// one: a gradient large enough to beat the pruning margins spans thousands of
+// centipawns, which would swamp material if it were added to a normal score.
+// As an override the whole class sits above KNOWN_WIN and the drive only orders
+// moves *within* it. Dropping below mating material (KBB-K -> KB-K) leaves this
+// function entirely and collapses to the dead-draw scale, so the large weights
+// cannot bribe the engine into a losing simplification. Non-pawn material is
+// carried in the score so that KQ-K still outranks KR-K.
+static int kxk_score(const Board& b, Color strong) {
+    const Color  weak = ~strong;
+    const Square wksq = b.king_sq[weak];
+    const Square sk   = b.king_sq[strong];
+
+    const int npm = popcount(b.pieces[strong][KNIGHT]) * EG_MAT[KNIGHT]
+                  + popcount(b.pieces[strong][BISHOP]) * EG_MAT[BISHOP]
+                  + popcount(b.pieces[strong][ROOK])   * EG_MAT[ROOK]
+                  + popcount(b.pieces[strong][QUEEN])  * EG_MAT[QUEEN];
+
+    // Only minor-piece mates reach here; the caller sends Q and R elsewhere.
+    // That is what makes these weights safe: the attacker's material cannot
+    // vary within the class, exactly as in KBNK (5.9.17), so a drive spanning
+    // thousands of centipawns can never outrank a piece. Edge first, then
+    // corner, then close the kings -- the order the technique is executed in.
+    // Every weight clears the razoring margin (243) so the walk survives
+    // pruning, which is the whole point of the step.
+    constexpr int w_edge   = 900;
+    constexpr int w_corner = 250;
+    constexpr int w_king   = 300;
+
+    const int wf = int(file_of(wksq)), wr = int(rank_of(wksq));
+    const int edge_dist = std::min(std::min(wf, 7 - wf), std::min(wr, 7 - wr));
+    // Unlike KBNK, Q/R/BB mate in ALL FOUR corners, so the nearest one is the
+    // target; for a corner set that symmetric, Manhattan distance collapses to
+    // this closed form. Manhattan rather than Chebyshev because Chebyshev has
+    // wide plateaus -- whole L-shaped bands share a value, leaving no gradient
+    // to follow over most of the board (the 5.9.17 finding).
+    const int corner_md = std::min(wf, 7 - wf) + std::min(wr, 7 - wr);
+    const int king_dist = KING_DIST[sk][wksq];
+
+    const int v = KNOWN_WIN + npm
+                + (3 - edge_dist) * w_edge
+                + (6 - corner_md) * w_corner
+                + (8 - king_dist) * w_king;
+    return (strong == WHITE) ? v : -v;
+}
+
 // ---- Endgame scaling + knowledge -------------------------------------------
 // Receives the white-perspective tapered score and returns it after applying
 // known-endgame overrides and draw scaling. Reproduces the previous OCB and
@@ -361,6 +418,26 @@ static int apply_endgame(const Board& b, int score) {
             if (lone_king(weak) && !cnt[strong][PAWN] && cnt[strong][KNIGHT] == 1
                 && cnt[strong][BISHOP] == 1 && !cnt[strong][ROOK] && !cnt[strong][QUEEN])
                 return kbnk_score(b, strong);
+        }
+
+        // ---- KXK: any other bare-king mate (5.9.19) -----------------------
+        // Must follow KBNK, which keeps its own colour-bound corner logic.
+        // Two same-coloured bishops cannot mate, so the pair is tested by
+        // square colour rather than by count.
+        for (int s = 0; s < NCOLORS; s++) {
+            Color strong = Color(s), weak = ~strong;
+            if (!lone_king(weak) || cnt[strong][PAWN])
+                continue;   // pawns are KPK/KPsK territory, not this drive
+            // Queen and rook mates are deliberately NOT overridden. BAS-E30
+            // measured KQ-K and KR-K at 100/100 with the old drive -- they are
+            // solved by search, not by the gradient -- and an override there
+            // cost **+20.5% bench nodes** for no conversion gain (BAS-E34).
+            if (cnt[strong][QUEEN] || cnt[strong][ROOK])
+                continue;
+            const Bitboard bb = b.pieces[strong][BISHOP];
+            const bool bishop_pair = (bb & EG_DARK_SQUARES) && (bb & ~EG_DARK_SQUARES);
+            if (bishop_pair || (cnt[strong][BISHOP] && cnt[strong][KNIGHT]))
+                return kxk_score(b, strong);
         }
 
         // ---- KBP(s) vs K with the wrong rook-file bishop is a draw ---------
@@ -1487,6 +1564,14 @@ int Evaluator::evaluate(const Board& b) {
                 int king_dist = KING_DIST[wksq][lksq];
                 eg += sign * (5 * lk_center + (14 - king_dist) * 4);
                 // Frozen: not traced; captured in rest by the tuner.
+                // 5.9.19: bare-king positions no longer reach this -- they are
+                // overridden by kxk_score in apply_endgame. What is left here
+                // is the case the gate's comment does not describe: the
+                // defender is PAWNLESS but still has material (KQ-KR and
+                // friends). That is a heuristic, not a forced mate, so a
+                // margin-beating weight would make the engine prefer chasing
+                // the king to converting. Those classes have their own steps
+                // (5.9.29, 5.9.35, 5.9.36); the 5 and 4 stay until then.
             }
         }
     }
