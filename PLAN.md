@@ -1266,8 +1266,18 @@ PLAN's cluster rule already prescribes.
   from "the term matters".
 - **5.9.20 `KBBK` conversion. CLOSED EMPTY** — 12/12 directly from 5.9.19,
   exactly the contingency this step was written for.
-- **5.9.21 `KBNK` stalemate avoidance.** 14.5%, and BAS-E29 left it unchanged.
-- **5.9.22 `KBNK` fifty-move cases.** 31%.
+- **5.9.21 `KBNK` stalemate avoidance. CLOSED EMPTY** (2026-09-01, BAS-E35).
+  The 14.5% this step was written against was a bucket labelled *"other /
+  stalemate"*, not a stalemate rate. Split and Syzygy-validated, it is 8.1%
+  stalemate plus 5.6% piece-loss — and **both occur at ply 91-100, none below
+  ply 80**, inside a fifty-move draw the engine was already taking. They cost
+  nothing. There is no stalemate defect to fix, and the piece-loss finding earns
+  no step for the same reason.
+- **5.9.22 `KBNK` fifty-move cases. Now the ONLY remaining defect in this
+  ending, and the whole of it.** **38.9%** of Syzygy-confirmed wins hit the
+  fifty-move rule (47.5% are mated). Technique too slow, not absent. Everything
+  5.9.21 and the piece-loss bucket appeared to be is downstream of this number.
+  Instrument: `tools/diag/kbnk_outcomes.py`.
 - **5.9.23 GATE A.** One SPRT for the group.
 
 **The gradient-magnitude class, continued — and it gets its own gate:**
