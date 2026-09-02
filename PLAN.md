@@ -167,7 +167,7 @@ completed item has a number after unfinished work.
 - [ ] **6.0** Establish the truth baseline before another evaluator edit.
   - [x] **6.0.a** Freeze 770 Syzygy-verified positions across 21 endgame families.
   - [x] **6.0.b** Measure the accepted Basilisk head and a strong reference at identical nodes.
-  - [ ] **6.0.c** Set achievable family ceilings; do not assume 100% at a finite node budget.
+  - [x] **6.0.c** Set achievable family ceilings; do not assume 100% at a finite node budget.
   - [ ] **6.0.d** Define paired confidence rules: aggregate beyond 2 SE reports, family beyond 3 SE blocks.
   - [ ] **6.0.e** Add hard theory vetoes for clean-win discard, illegal play, crash and rule-50 regression.
   - [ ] **6.0.f** Census disagreements between self-play WDL labels and Syzygy on every <=6-man corpus row.
@@ -196,6 +196,50 @@ autocorrelated; 6.0.c sets finite-budget ceilings and 6.0.d owns confidence.
 The largest conversion deficits were KBP-K (6/24 versus 22/24), KQ-KR
 (11/24 versus 24/24), KNN-KP (1/24 versus 14/24), KBN-K (12/24 versus 24/24)
 and KQ-KRP (13/24 versus 23/24).
+
+Step 6.0.c freezes `tools/diag/endgame_ceilings_v1.json`. For this contract,
+the **attained finite-node ceiling** is the best conversion count produced by
+either complete single-engine run within each family. It is a demonstrated,
+reachable comparison target—not a hard maximum or acceptance threshold. The
+paired union is a stretch diagnostic only: it proves that each included
+position was converted by at least one engine, not that one engine can convert
+the union. A future accepted head may ratchet an attained ceiling upward only
+through another complete run under the identical cohort and search contract.
+Conversion is not applicable to KNN-K because the frozen family contains no
+clean theoretical wins. Move-level WDL/DTZ rates remain explanatory rather
+than ceilings because their variable game lengths make the samples dependent;
+6.0.d owns their comparison rule.
+
+| Family | Clean wins | Accepted | Attained 60k ceiling | Paired union |
+|---|---:|---:|---:|---:|
+| KQ-K | 24 | 24 | 24 (100%) | 24 |
+| KR-K | 24 | 24 | 24 (100%) | 24 |
+| KBB-K | 24 | 24 | 24 (100%) | 24 |
+| KBN-K | 24 | 12 | 24 (100%) | 24 |
+| KNN-K | 0 | n/a | n/a | n/a |
+| KP-K | 24 | 24 | 24 (100%) | 24 |
+| KPP-K | 24 | 10 | 12 (50.0%) | 13 |
+| KBP-K | 24 | 6 | 22 (91.7%) | 23 |
+| KR-KP | 24 | 23 | 24 (100%) | 24 |
+| KR-KB | 24 | 21 | 24 (100%) | 24 |
+| KR-KN | 24 | 19 | 23 (95.8%) | 23 |
+| KQ-KP | 24 | 24 | 24 (100%) | 24 |
+| KQ-KR | 24 | 11 | 24 (100%) | 24 |
+| KNN-KP | 24 | 1 | 14 (58.3%) | 15 |
+| KRP-KR | 24 | 3 | 9 (37.5%) | 10 |
+| KRP-KB | 24 | 5 | 9 (37.5%) | 12 |
+| KBP-KB | 24 | 7 | 16 (66.7%) | 18 |
+| KBP-KN | 24 | 13 | 15 (62.5%) | 19 |
+| KP-KP | 24 | 24 | 24 (100%) | 24 |
+| KQ-KRP | 24 | 13 | 23 (95.8%) | 23 |
+| KBPP-KB | 24 | 5 | 6 (25.0%) | 9 |
+
+Across all families the attained ceiling is 389/480 (81.04%); the non-additive
+paired union is 405/480 (84.38%). `tools/diag/endgame_ceilings.py` validates
+the source schemas, hashes, identical contract and exact ID/FEN/theory pairing
+before reproducing the artifact, so neither number can silently mix cohorts.
+The frozen artifact SHA-256 is
+19E43A2E7EEF9069E1EE8575ABF0E622BDF97887557A64023ED15F8C7E46508D.
 
 ### 6.1 Complete KBNK mate drive
 

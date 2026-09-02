@@ -91,7 +91,7 @@ Run this checklist in order; PLAN.md owns rationale and gates.
 - [ ] **6.0** Establish the truth baseline before another evaluator edit
   - [x] **6.0.a** Freeze 770 Syzygy-verified positions across 21 endgame families
   - [x] **6.0.b** Measure accepted Basilisk and Stockfish on all 770 positions at identical nodes
-  - [ ] **6.0.c** Set achievable family ceilings; do not assume 100% at a finite node budget
+  - [x] **6.0.c** Freeze attained 60k family ceilings and separate paired-union stretch evidence
   - [ ] **6.0.d** Define paired confidence rules: aggregate beyond 2 SE reports, family beyond 3 SE blocks
   - [ ] **6.0.e** Add hard theory vetoes for clean-win discard, illegal play, crash and rule-50 regression
   - [ ] **6.0.f** Census disagreements between self-play WDL labels and Syzygy on every <=6-man corpus row
