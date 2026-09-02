@@ -168,7 +168,7 @@ completed item has a number after unfinished work.
   - [x] **6.0.a** Freeze 770 Syzygy-verified positions across 21 endgame families.
   - [x] **6.0.b** Measure the accepted Basilisk head and a strong reference at identical nodes.
   - [x] **6.0.c** Set achievable family ceilings; do not assume 100% at a finite node budget.
-  - [ ] **6.0.d** Define paired confidence rules: aggregate beyond 2 SE reports, family beyond 3 SE blocks.
+  - [x] **6.0.d** Define paired confidence rules: aggregate beyond 2 SE reports, family beyond 3 SE blocks.
   - [ ] **6.0.e** Add hard theory vetoes for clean-win discard, illegal play, crash and rule-50 regression.
   - [ ] **6.0.f** Census disagreements between self-play WDL labels and Syzygy on every <=6-man corpus row.
 
@@ -240,6 +240,19 @@ the source schemas, hashes, identical contract and exact ID/FEN/theory pairing
 before reproducing the artifact, so neither number can silently mix cohorts.
 The frozen artifact SHA-256 is
 19E43A2E7EEF9069E1EE8575ABF0E622BDF97887557A64023ED15F8C7E46508D.
+
+Step 6.0.d is implemented by `tools/diag/endgame_compare.py`. The independent
+unit is one paired frozen position, not one engine move. Conversion is binary;
+win-preservation and DTZ progress are first reduced to one rate per position,
+giving long games no artificial extra weight. A clean-win position whose
+candidate discards before any DTZ comparison receives zero DTZ progress rather
+than disappearing from the sample. Aggregate movement at or beyond 2 SE is
+reported and must be explained but is not by itself a veto. Within a family,
+movement at or beyond 2 SE is reported and a regression at or beyond 3 SE
+blocks the candidate. Improvements never establish strength or bypass SPRT;
+they nominate a later accepted result for ceiling/floor ratcheting. Invalid or
+unpaired reports fail closed, while the absolute theory rules remain 6.0.e's
+separate responsibility.
 
 ### 6.1 Complete KBNK mate drive
 
