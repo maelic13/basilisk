@@ -45,9 +45,11 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import queue
 import random
 import statistics
 import sys
+import threading
 from collections import Counter, defaultdict
 from pathlib import Path
 
@@ -293,6 +295,133 @@ def play_and_grade(
     }
 
 
+def configure_engine(
+    engine: chess.engine.SimpleEngine,
+    hash_mb: int,
+) -> None:
+    """Configure an engine for isolated one-thread evaluation measurement."""
+    options = {}
+    if "Hash" in engine.options:
+        options["Hash"] = hash_mb
+    if "Threads" in engine.options:
+        options["Threads"] = 1
+    # The engine must not consult the tablebases itself: this measures the
+    # evaluation's own endgame knowledge, and a TB-backed root would measure
+    # the tables instead.
+    if "SyzygyPath" in engine.options:
+        options["SyzygyPath"] = ""
+    if options:
+        engine.configure(options)
+
+
+class EngineWorkerPool:
+    """Persistent one-thread UCI engines consuming independent positions."""
+
+    def __init__(
+        self,
+        workers: int,
+        engine_path: Path,
+        syzygy_path: Path,
+        nodes: int,
+        max_plies: int,
+        hash_mb: int,
+    ) -> None:
+        self.tasks: queue.Queue = queue.Queue()
+        self.results: queue.Queue = queue.Queue()
+        self.ready: queue.Queue = queue.Queue()
+        self.next_token = 0
+        self.threads = [
+            threading.Thread(
+                target=self._work,
+                args=(engine_path, syzygy_path, nodes, max_plies, hash_mb),
+                name=f"endgame-worker-{index + 1}",
+            )
+            for index in range(workers)
+        ]
+        for thread in self.threads:
+            thread.start()
+        startup_errors = []
+        for _ in self.threads:
+            error = self.ready.get()
+            if error:
+                startup_errors.append(error)
+        if startup_errors:
+            self.close()
+            raise RuntimeError("worker startup failed: " + "; ".join(startup_errors))
+
+    def _work(
+        self,
+        engine_path: Path,
+        syzygy_path: Path,
+        nodes: int,
+        max_plies: int,
+        hash_mb: int,
+    ) -> None:
+        engine = None
+        tb = None
+        try:
+            tb = chess.syzygy.open_tablebase(str(syzygy_path))
+            engine = chess.engine.SimpleEngine.popen_uci(str(engine_path))
+            configure_engine(engine, hash_mb)
+        except BaseException as exc:
+            self.ready.put(f"{threading.current_thread().name}: {exc}")
+            return
+        self.ready.put(None)
+        try:
+            while True:
+                item = self.tasks.get()
+                if item is None:
+                    break
+                token, fen = item
+                try:
+                    played = play_and_grade(
+                        engine,
+                        tb,
+                        chess.Board(fen),
+                        nodes,
+                        max_plies,
+                        object(),
+                    )
+                    self.results.put((token, played, None))
+                except BaseException as exc:
+                    self.results.put(
+                        (token, None, f"{threading.current_thread().name}: {exc}")
+                    )
+        finally:
+            if engine is not None:
+                try:
+                    engine.quit()
+                except Exception:
+                    pass
+            if tb is not None:
+                tb.close()
+
+    def map(self, fens: list[str]) -> list[dict]:
+        """Return results in input order regardless of worker completion order."""
+        start = self.next_token
+        self.next_token += len(fens)
+        for offset, fen in enumerate(fens):
+            self.tasks.put((start + offset, fen))
+
+        ordered = [None] * len(fens)
+        errors = []
+        for _ in fens:
+            token, played, error = self.results.get()
+            ordered[token - start] = played
+            if error:
+                errors.append(error)
+        if errors:
+            raise RuntimeError("worker search failed: " + "; ".join(errors))
+        return ordered
+
+    def close(self) -> None:
+        for thread in self.threads:
+            if thread.is_alive():
+                self.tasks.put(None)
+        for thread in self.threads:
+            thread.join()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--engine", required=True, type=Path)
@@ -312,6 +441,12 @@ def main() -> int:
     )
     parser.add_argument("--hash", type=int, default=16)
     parser.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help="independent one-thread engine processes (default: 1)",
+    )
+    parser.add_argument(
         "--per-position",
         action="store_true",
         help="write every position's record, so two runs can be paired",
@@ -324,8 +459,8 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    if min(args.positions, args.nodes, args.max_plies) <= 0:
-        parser.error("positions, nodes and max-plies must be positive")
+    if min(args.positions, args.nodes, args.max_plies, args.workers) <= 0:
+        parser.error("positions, nodes, max-plies and workers must be positive")
     engine_path = args.engine.resolve()
     if not engine_path.is_file():
         parser.error(f"engine not found: {engine_path}")
@@ -373,6 +508,8 @@ def main() -> int:
         "max_plies": args.max_plies,
         "seed": args.seed,
         "hash_mb": args.hash,
+        "workers": args.workers,
+        "engine_threads_per_worker": 1,
         "persistent_tt_per_game": True,
         "score_adjudication": False,
         "families": {},
@@ -398,20 +535,10 @@ def main() -> int:
 
     tb = chess.syzygy.open_tablebase(str(args.syzygy))
     engine = chess.engine.SimpleEngine.popen_uci(str(engine_path))
+    executor = None
     try:
         report["engine_id"] = dict(engine.id)
-        options = {}
-        if "Hash" in engine.options:
-            options["Hash"] = args.hash
-        if "Threads" in engine.options:
-            options["Threads"] = 1
-        # The engine must not consult the tablebases itself: this measures the
-        # evaluation's own endgame knowledge, and a TB-backed root would
-        # measure the tables instead.
-        if "SyzygyPath" in engine.options:
-            options["SyzygyPath"] = ""
-        if options:
-            engine.configure(options)
+        configure_engine(engine, args.hash)
 
         if cohort_path:
             # Do not silently benchmark stale labels. WDL is signed for White;
@@ -444,6 +571,20 @@ def main() -> int:
                 )
                 return 0
 
+        if args.workers > 1:
+            # The probe engine above established identity/configuration. Do
+            # not leave it idle beside the requested number of worker engines.
+            engine.quit()
+            engine = None
+            executor = EngineWorkerPool(
+                args.workers,
+                engine_path,
+                args.syzygy.resolve(),
+                args.nodes,
+                args.max_plies,
+                args.hash,
+            )
+
         for name in families:
             strong, weak = specs[name]
             # Seed from the family NAME, never its index in the list. A subset
@@ -465,6 +606,7 @@ def main() -> int:
             source_records = (
                 cohort_records[name] if cohort_path else [None] * args.positions
             )
+            prepared = []
             for index, frozen in enumerate(source_records):
                 board = (
                     chess.Board(frozen["fen"])
@@ -483,10 +625,26 @@ def main() -> int:
                     parser.error(f"no tablebase for {name}: {exc}")
                 theory[{2: "win", 1: "cursed_win", 0: "draw",
                         -1: "blessed_loss", -2: "loss"}[verdict]] += 1
+                prepared.append((index, frozen, fen, verdict, start_dtz))
 
-                played = play_and_grade(
-                    engine, tb, board, args.nodes, args.max_plies, object()
+            if executor:
+                played_results = executor.map([item[2] for item in prepared])
+            else:
+                played_results = (
+                    play_and_grade(
+                        engine,
+                        tb,
+                        chess.Board(item[2]),
+                        args.nodes,
+                        args.max_plies,
+                        object(),
+                    )
+                    for item in prepared
                 )
+
+            for (index, frozen, fen, verdict, start_dtz), played in zip(
+                prepared, played_results, strict=True
+            ):
                 outcomes[played["outcome"]] += 1
                 graded += played["graded_moves"]
                 preserved += played["win_preserving_moves"]
@@ -594,7 +752,10 @@ def main() -> int:
                 flush=True,
             )
     finally:
-        engine.quit()
+        if executor:
+            executor.close()
+        if engine:
+            engine.quit()
         tb.close()
 
     rendered = json.dumps(report, indent=2) + "\n"

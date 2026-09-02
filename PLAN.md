@@ -16,7 +16,7 @@ historical evidence ledger.
 | Evaluation | HCE is unfrozen for structural improvement and complete, controlled refits |
 | Corpus rule | Game-result labels only; no engine-evaluation labels |
 | Match/data rule | Natural termination by default; score-based adjudication requires explicit opt-in and registration |
-| Long job | The delegated 6.0.b paired endgame baseline is running; do not start a competing CPU-heavy job |
+| Long job | None active; 6.0.b reports have returned and are recorded below |
 | Release target | Classical release after Phase 8; NNUE 2.0.0 after Phase 10 |
 
 The next engine change is not authorized by this planning pass. Step 6.1 records
@@ -166,7 +166,7 @@ completed item has a number after unfinished work.
 
 - [ ] **6.0** Establish the truth baseline before another evaluator edit.
   - [x] **6.0.a** Freeze 770 Syzygy-verified positions across 21 endgame families.
-  - [ ] **6.0.b** Measure the accepted Basilisk head and a strong reference at identical nodes.
+  - [x] **6.0.b** Measure the accepted Basilisk head and a strong reference at identical nodes.
   - [ ] **6.0.c** Set achievable family ceilings; do not assume 100% at a finite node budget.
   - [ ] **6.0.d** Define paired confidence rules: aggregate beyond 2 SE reports, family beyond 3 SE blocks.
   - [ ] **6.0.e** Add hard theory vetoes for clean-win discard, illegal play, crash and rule-50 regression.
@@ -180,6 +180,22 @@ each carries family-stable seed, FEN, exact WDL and signed DTZ. The requested
 24-clean-win/16-rule-draw family mix is left explicitly short where theory
 does not supply that class. KRPP-KRP is seven men and remains outside the
 available six-man tables.
+
+Step 6.0.b used 60,000 nodes/move, one engine thread, 16 MB hash, a
+100-ply diagnostic limit, disabled engine tablebases and no score adjudication.
+All 770 IDs, FENs and theory labels paired exactly. Accepted head `294a3e2`
+(binary SHA-256 D0E558F8A113CD9D17905B6EF701040CF5B0FB450FC058EFB9C49DF2329F8430)
+converted 293/480 clean wins (61.04%); Stockfish
+`dev-20260716-ebcea3ef` (binary SHA-256
+91AE61DFCAEF1A5FDFEE9722EDE0591DA1FCB124D1DE7FBD44DD8786BD6531E3)
+converted 389/480 (81.04%). The paired conversion matrix was 277 both, 16
+Basilisk only, 112 reference only and 75 neither. Aggregate move-level
+win-preservation was 98.08% versus 99.78%, and absolute-DTZ progress was
+43.46% versus 56.41%. These variable-length move samples are descriptive and
+autocorrelated; 6.0.c sets finite-budget ceilings and 6.0.d owns confidence.
+The largest conversion deficits were KBP-K (6/24 versus 22/24), KQ-KR
+(11/24 versus 24/24), KNN-KP (1/24 versus 14/24), KBN-K (12/24 versus 24/24)
+and KQ-KRP (13/24 versus 23/24).
 
 ### 6.1 Complete KBNK mate drive
 

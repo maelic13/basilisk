@@ -4,10 +4,11 @@
 
 .DESCRIPTION
     Measures the accepted Basilisk binary and a strong reference sequentially
-    at one thread, the same nodes per move, and with engine tablebase probing
-    disabled. The diagnostic itself uses Syzygy only to verify and grade play.
-    Games terminate by chess rules or the registered diagnostic ply limit;
-    there is no score adjudication.
+    using independent position workers. Every worker runs a one-thread engine
+    at the same nodes per move, with engine tablebase probing disabled. The
+    diagnostic itself uses Syzygy only to verify and grade play. Games
+    terminate by chess rules or the registered diagnostic ply limit; there is
+    no score adjudication.
 #>
 param(
     [Parameter(Mandatory)][string]$Basilisk,
@@ -18,6 +19,7 @@ param(
     [int]$Nodes = 60000,
     [int]$MaxPlies = 100,
     [int]$Hash = 16,
+    [int]$Workers = 30,
     [switch]$ValidateOnly
 )
 
@@ -32,8 +34,8 @@ foreach ($path in @($Basilisk, $Reference, $Cohort, $runner)) {
 if (-not (Test-Path -LiteralPath $Syzygy -PathType Container)) {
     throw "Syzygy directory not found: $Syzygy"
 }
-if ($Nodes -le 0 -or $MaxPlies -le 0 -or $Hash -le 0) {
-    throw "Nodes, MaxPlies and Hash must be positive"
+if ($Nodes -le 0 -or $MaxPlies -le 0 -or $Hash -le 0 -or $Workers -le 0) {
+    throw "Nodes, MaxPlies, Hash and Workers must be positive"
 }
 
 $common = @(
@@ -42,7 +44,8 @@ $common = @(
     "--cohort", (Resolve-Path -LiteralPath $Cohort).Path,
     "--nodes", $Nodes,
     "--max-plies", $MaxPlies,
-    "--hash", $Hash
+    "--hash", $Hash,
+    "--workers", $Workers
 )
 
 if ($ValidateOnly) {
