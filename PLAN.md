@@ -165,12 +165,21 @@ completed item has a number after unfinished work.
 ### 6.0 Evidence contract
 
 - [ ] **6.0** Establish the truth baseline before another evaluator edit.
-  - [ ] **6.0.a** Generate a frozen, Syzygy-verified multi-family cohort with per-position output.
+  - [x] **6.0.a** Freeze 770 Syzygy-verified positions across 21 endgame families.
   - [ ] **6.0.b** Measure the accepted Basilisk head and a strong reference at identical nodes.
   - [ ] **6.0.c** Set achievable family ceilings; do not assume 100% at a finite node budget.
   - [ ] **6.0.d** Define paired confidence rules: aggregate beyond 2 SE reports, family beyond 3 SE blocks.
   - [ ] **6.0.e** Add hard theory vetoes for clean-win discard, illegal play, crash and rule-50 regression.
   - [ ] **6.0.f** Census disagreements between self-play WDL labels and Syzygy on every <=6-man corpus row.
+
+Step 6.0.a artifact: tools/diag/endgame_cohort_v1.epd and its manifest use
+seed 0x4E9A2 and SHA-256
+3CCF28EA3C8BC6C7E995BDA0BDD4833496B4C46758FF55C0B812E30E8AC6BF1B.
+The 770 unique records contain 480 clean wins, 289 draws and one cursed win;
+each carries family-stable seed, FEN, exact WDL and signed DTZ. The requested
+24-clean-win/16-rule-draw family mix is left explicitly short where theory
+does not supply that class. KRPP-KRP is seven men and remains outside the
+available six-man tables.
 
 ### 6.1 Complete KBNK mate drive
 

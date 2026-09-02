@@ -89,7 +89,7 @@ Run this checklist in order; PLAN.md owns rationale and gates.
 ## Phase 6 — Endgame maturity
 
 - [ ] **6.0** Establish the truth baseline before another evaluator edit
-  - [ ] **6.0.a** Generate a frozen, Syzygy-verified multi-family cohort with per-position output
+  - [x] **6.0.a** Freeze 770 Syzygy-verified positions across 21 endgame families
   - [ ] **6.0.b** Measure the accepted Basilisk head and a strong reference at identical nodes
   - [ ] **6.0.c** Set achievable family ceilings; do not assume 100% at a finite node budget
   - [ ] **6.0.d** Define paired confidence rules: aggregate beyond 2 SE reports, family beyond 3 SE blocks

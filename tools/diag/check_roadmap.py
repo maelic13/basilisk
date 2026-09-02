@@ -52,11 +52,29 @@ def main() -> int:
             print("state mismatch:", ", ".join(changed), file=sys.stderr)
         return 1
 
-    complete = [key for key, done in plan.items() if done]
-    open_items = [key for key, done in plan.items() if not done]
-    if complete and open_items:
-        last_done = max(complete, key=sort_key)
-        first_open = min(open_items, key=sort_key)
+    parents = {
+        key for key in plan
+        if any(other.startswith(key + ".") for other in plan)
+    }
+    for parent in sorted(parents, key=sort_key):
+        descendants = [
+            done for key, done in plan.items() if key.startswith(parent + ".")
+        ]
+        expected = all(descendants)
+        if plan[parent] != expected:
+            state = "complete" if expected else "open"
+            print(
+                f"parent {parent} must be {state} to match its substeps",
+                file=sys.stderr,
+            )
+            return 1
+
+    leaves = {key: done for key, done in plan.items() if key not in parents}
+    complete_leaves = [key for key, done in leaves.items() if done]
+    open_leaves = [key for key, done in leaves.items() if not done]
+    if complete_leaves and open_leaves:
+        last_done = max(complete_leaves, key=sort_key)
+        first_open = min(open_leaves, key=sort_key)
         if sort_key(last_done) > sort_key(first_open):
             print(
                 f"completed {last_done} sorts after open {first_open}",
@@ -65,8 +83,9 @@ def main() -> int:
             return 1
 
     print(
-        f"roadmap synchronized: {len(complete)} complete, "
-        f"{len(open_items)} open; next {min(open_items, key=sort_key)}"
+        f"roadmap synchronized: {sum(plan.values())} complete, "
+        f"{len(plan) - sum(plan.values())} open; "
+        f"next {min(open_leaves, key=sort_key) if open_leaves else 'none'}"
     )
     return 0
 
