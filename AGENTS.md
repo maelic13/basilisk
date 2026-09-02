@@ -59,6 +59,10 @@ evidence rather than intuition alone.
 - A behavior-neutral engine change normally needs focused tests and exact bench
   identity. Memory, state or concurrency work also needs the relevant
   sanitizer/stress coverage.
+- Exact bench identity is a necessary deterministic fingerprint, not proof of
+  behavioral identity. Evaluation activation, terminal logic, time handling
+  and other path-dependent changes can alter play while leaving bench equal;
+  apply their domain-specific tests and registered game gates regardless.
 - A playing change needs deterministic regression evidence, the relevant
   tactical/endgame tests, bench accounting and an appropriately registered
   strength gate. Reasoning, node counts and static fit loss do not prove Elo.

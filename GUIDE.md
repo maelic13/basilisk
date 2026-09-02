@@ -101,7 +101,7 @@ Run this checklist in order; PLAN.md owns rationale and gates.
   - [ ] **6.1.c** Scale coefficients to Basilisk and test interaction with its existing corner, edge, king-distance and knight-distance terms
   - [ ] **6.1.d** Do not retry bishop proximity or escape-square count unless new evidence overturns their earlier failure
   - [ ] **6.1.e** Compare on the identical 198 positions; report WDL preservation, rule-50 failures, conversion and mate efficiency
-  - [ ] **6.1.f** Require KQK/KRK/KBBK non-regression and tactical/bench stability
+  - [ ] **6.1.f** Require endgame/tactical gates; bench identity is necessary, not behavioral proof
 - [ ] **6.2** Gate KBNK and accepted mate-drive changes
   - [ ] **6.2.a** Run a fresh no-adjudication [0,3] nElo SPRT against the accepted head
   - [ ] **6.2.b** Treat the old approximately 5,860-game adjudicated Group A run as preliminary only
@@ -145,10 +145,14 @@ Run this checklist in order; PLAN.md owns rationale and gates.
   - [ ] **7.1.c** Freeze train/validation/test splits; open the test set once after selection
   - [ ] **7.1.d** Enforce exact surface coverage, gauge anchors and source restore on failure
   - [ ] **7.1.e** Hash corpora, splits, configs, binaries, tablebases, fitted vectors and reports
+  - [ ] **7.1.f** Audit labels as exactly 0, 0.5 or 1 and report rejection reasons
+  - [ ] **7.1.g** Version materially different corpus contracts; never silently widen gates
 - [ ] **7.2** Design a phase-efficient, natural-termination corpus
-  - [ ] **7.2.a** Pilot an opening/start book that yields opening, middlegame and endgame rows efficiently
-  - [ ] **7.2.b** Keep one extractor definition, sampling policy and split seed for all arms
-  - [ ] **7.2.c** Register corpus size, phase/material coverage and stop conditions before launch
+  - [ ] **7.2.a** Locate and hash the verified D:/chess source position store
+  - [ ] **7.2.b** Define material-phase buckets and validate phase yield on extracted rows
+  - [ ] **7.2.c** Freeze extractor, sampling, deduplication, ordering and split semantics across arms
+  - [ ] **7.2.d** Size the corpus by identifiable coordinates, label quality and a learning curve
+  - [ ] **7.2.e** Register extracted-row quality targets, stop rules and generation budget
 - [ ] **7.3** Generate self-play with the accepted post-endgame head
   - [ ] **7.3.a** Use no adjudication and game-result WDL labels
   - [ ] **7.3.b** Verify termination mix, duplicate rate, phase coverage and <=6-man yield

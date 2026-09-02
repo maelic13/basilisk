@@ -16,7 +16,7 @@ historical evidence ledger.
 | Evaluation | HCE is unfrozen for structural improvement and complete, controlled refits |
 | Corpus rule | Game-result labels only; no engine-evaluation labels |
 | Match/data rule | Natural termination by default; score-based adjudication requires explicit opt-in and registration |
-| Long job | Rarog Texel datagen is active; do not run Basilisk builds, benches, games, extraction, tuning, or other CPU-heavy work |
+| Long job | The delegated 6.0.b paired endgame baseline is running; do not start a competing CPU-heavy job |
 | Release target | Classical release after Phase 8; NNUE 2.0.0 after Phase 10 |
 
 The next engine change is not authorized by this planning pass. Step 6.1 records
@@ -189,7 +189,7 @@ available six-man tables.
   - [ ] **6.1.c** Scale coefficients to Basilisk and test interaction with its existing corner, edge, king-distance and knight-distance terms.
   - [ ] **6.1.d** Do not retry bishop proximity or escape-square count unless new evidence overturns their earlier failure.
   - [ ] **6.1.e** Compare on the identical 198 positions; report WDL preservation, rule-50 failures, conversion and mate efficiency.
-  - [ ] **6.1.f** Require KQK/KRK/KBBK non-regression and tactical/bench stability.
+  - [ ] **6.1.f** Require KQK/KRK/KBBK non-regression, tactical stability and bench accounting; exact bench identity is necessary but cannot prove this path-dependent evaluation change behaviorally neutral.
 
 ### 6.2 Gate endgame Group A
 
@@ -260,13 +260,17 @@ The target is a mature final classical evaluator, not merely another fit.
   - [ ] **7.1.c** Freeze train/validation/test splits; open the test set once after selection.
   - [ ] **7.1.d** Enforce exact surface coverage, gauge anchors and source restore on failure.
   - [ ] **7.1.e** Hash corpora, splits, configs, binaries, tablebases, fitted vectors and reports.
+  - [ ] **7.1.f** Enforce the row-label domain exactly as 0, 0.5 or 1; publish counts plus every rejected-row reason before fitting.
+  - [ ] **7.1.g** Give materially different corpus semantics a new versioned contract; never make an old contract appear compatible by silently widening its gates.
 
 ### 7.2 Corpus design
 
 - [ ] **7.2** Design a phase-efficient, natural-termination corpus.
-  - [ ] **7.2.a** Pilot an opening/start book that yields opening, middlegame and endgame rows efficiently.
-  - [ ] **7.2.b** Keep one extractor definition, sampling policy and split seed for all arms.
-  - [ ] **7.2.c** Register corpus size, phase/material coverage and stop conditions before launch.
+  - [ ] **7.2.a** Locate the actual source position store under D:/chess before relying on it; record its canonical path, format, row count, duplicate rate, material-phase distribution and content hash rather than importing an unverified Rarog path.
+  - [ ] **7.2.b** Define phase buckets from Basilisk's evaluator/material phase, never nominal game ply; pilot a start book and measure the phase-yield matrix on extracted rows so randomized preflight games cannot masquerade as opening coverage.
+  - [ ] **7.2.c** Freeze one extractor contract across every arm, including skip_start, max_per_game, sampling, deduplication, row filters, ordering and split seed; document any intentional difference from Rarog defaults.
+  - [ ] **7.2.d** Derive the initial corpus target from effective rows per identifiable tunable coordinate and label quality, then confirm adequacy with a held-out learning curve instead of treating a raw row count as sufficient.
+  - [ ] **7.2.e** Register extracted-row phase/material targets, duplicate and rejection ceilings, learning-curve stop conditions and maximum generation budget before production launch.
 
 ### 7.3 Generate and freeze the source corpus
 
