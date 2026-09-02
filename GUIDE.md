@@ -1,310 +1,257 @@
-# Basilisk Development Workflow Guide
-
-This is the short operational roadmap. Detailed rationale, contracts, gates
-and lessons live in [`PLAN.md`](PLAN.md).
-
-## Current checkpoint
-
-| Item | State |
-|---|---|
-| Branch | `development`; `master`/`v1.9.3` at `d737123` |
-| Engine | bench **12,709,666** · CTest **12/12** · WAC **137/300** |
-| Baseline for gates | `basilisk-5912-slim-pext-pgo` (bench 13,981,020) |
-| Cumulative vs 1.9.3 | **≈ +12 Elo** — 5.9.14 +2.64, 5.9.13 +9.52 |
-| Current phase | **Phase 5**, step **5.9.22** next |
-| Evaluation | HCE **unfrozen** since 2026-08-25; corpus is on-policy self-play WDL |
-| Corpus | `armC_basilisk25k_*` — game-result labels only, never engine evaluations |
-| Reference | Stockfish `9587eeeb` — idea source only; 7 of 8 of its search ideas did not transfer |
-| Oracle | branch `hybrid` `01df815`, frozen |
-| Diagnostics | `Diag`=true ⇒ `info string diag kv`; suite `tools/diag/suite_v1.epd` |
-| Portability | `origin/arm_fix` unmerged, owned by 5.11 |
-| Next release | **1.9.4** at 5.13 on current evidence; 1.10.0 needs +40 Elo |
-
-### Independence — binding, not aspirational
-
-**Basilisk stays an independent engine.** Stockfish is an idea source, a
-diagnostic oracle and evidence of what a mature search achieves — never
-something to become. Both are GPLv3, so copying would be legal; that is not the
-constraint. A transcribed engine inherits decisions we cannot explain and
-discards work that already measured well.
-
-| Do | Don't |
-|---|---|
-| Learn what problem a mechanism solves, then design our answer | Copy source, or paraphrase it into a translation |
-| Reimplement in our idiom, types, structure and parameter table | Mirror upstream file layout, decomposition or naming |
-| Treat reference constants as starting points to validate | Import constant tables verbatim — they were fitted to another search and scale |
-| Record deliberate divergence as *intentionally different* | Delete a Basilisk-original mechanism because upstream lacks it |
-| Attribute the idea in source and `README.md` | Accept a cluster because its trace looks more Stockfish-like |
-
-**The test:** state why Basilisk does it this way *without* saying "because
-Stockfish does". No such answer ⇒ not understood well enough to ship.
-
-### Program order — Phase 5 is not an NNUE shortcut
-
-```text
-Phase 5  build the engine up: search → HCE → correctness/platform/SMP → release
-Phase 6  NNUE runway: corpus, state contract, trainer preflight
-Phase 7  train and integrate the baseline NNUE → 2.0.0
-Phase 8  the engine adjustments NNUE makes necessary, then the single SPSA
-```
-
-Phase 5 ends when **its own** release gate passes, not when NNUE looks
-reachable. No datagen or trainer work during Phase 5. A stronger engine is a
-better NNUE teacher, so skipping ahead costs twice.
-
-Equally, this is not a reason to abandon NNUE: search work here is
-evaluator-agnostic and survives intact, and HCE work here improves the 7.1
-teacher. The historical engine ladder still moves to 8.4 and still does not
-block NNUE.
-
-## Closed phases
-
-### Phase 1 — Foundations and first strength line — ✅ 1.0.0–1.8.0
-
-Built the board/UCI/search/TT/history/SEE/Syzygy/SMP stack, serious testing and
-the accepted HCE. Repeated HCE self-play fitting stopped transferring.
-
-### Phase 2 — Correctness and search architecture — ✅ 1.9.0
-
-Banked state, repetition/rule-50, TT/mate/SEE correctness, staged ordering,
-correction/history, root-instability TM and dense TT improvements.
-
-### Phase 3 — Hardening, CI and PGO speed — ✅ 1.9.1
-
-Centralized parameters, expanded invariants/CI/telemetry and shipped a
-behaviour-identical **+4.34% NPS** PGO speed pass.
-
-### Phase 4 — SMP durability and release tooling — ✅ 1.9.2/1.9.3
-
-Repaired SPSA/MT harnesses, helper clock/node/thread safety and data tooling;
-accepted +30.42 ±8.77 Elo at 4T with zero forfeits. 1.9.3 fixed PGO tool
-matching without changing search.
-
-## Forward phases
-
-### Phase 5 — Search and evaluation acceleration (→ 1.10.0 or higher)
-
-Steps run in the order listed. `EXPERIMENTS.md` holds the evidence for every
-line; this is the tracker only.
-
-**Evidence and instrumentation**
-
-- [x] **5.0** Baseline — clean 1.9.3 reproduced.
-- [x] **5.1** Search oracle — search **+322.7 ±36**, HCE **+232.8 ±32**.
-- [x] **5.2** Differential diagnostic harness — 107-position suite, `diag kv`.
-- [x] **5.3** Idea inventory and cluster split.
-
-**Search clusters — closed**
-
-- [x] **5.4 A** ordering, histories, LMR — no accepted change.
-- [x] **5.5 B** static eval, TT, qsearch — contracts already sound.
-- [x] **5.6 C** main selectivity — history-pruning defect recorded, not gated.
-- [x] **5.14** shallow-depth node cost — target withdrawn after measuring.
-
-**5.9 HCE maturity — IN PROGRESS (≈ +12 Elo so far)**
-
-- [x] **5.9.1** coverage close-out — 7 terms added.
-- [x] **5.9.2** mechanism search — bishop outpost, `king_protector` split.
-- [x] **5.9.3** structure freeze — endgame named as the real gap.
-- [x] **5.9.4** joint Texel refit — ran on a distilled corpus; the defect.
-- [x] **5.9.5** king-safety fit — scalars only, table deferred.
-- [x] **5.9.6** gate — **REJECTED −77.92**; labels were Stockfish evaluations.
-- [x] **5.9.11** corpus rebuilt on-policy — 3 label sources, none passed.
-- [x] **5.9.15** LTC probe at `10+0.1` — no depth story.
-- [x] **5.9.14** king-safety reshape — **ACCEPTED +2.64 ±2.05**.
-- [x] **5.9.12** full-surface fit — 768 PSTs unfrozen.
-- [x] **5.9.13** gate — **ACCEPTED +9.52 ±4.66**.
-- [x] **5.9.16** remove the 3×-refuted 5.9.1/5.9.2 terms — accepted, neutral.
-- [x] **5.9.7** recogniser inventory — rook endings dominate (5 of top 7).
-- [x] **5.9.17** KBNK conversion (partial) — **13.0% → 54.5%** mated; stalemates still open.
-- [x] **5.9.18** conversion floors + drawn-ending bias floor in CTest.
-
-**Endgame program — all 18 reference functions, ordered by measured impact.**
-Frequency is share of games reaching the class (20,000-game corpus); bias is our
-predicted win-rate on positions that were actually DRAWN, where 0.500 is right.
-
-*Group A — mate technique. `KXK` alone is reached by 44% of games.*
-
-- [x] **5.9.19 `KXK` generic mate-drive gradient** — **KBB-K 3/12 -> 12/12**,
-      bench unchanged. Override scoped to minor-piece mates only: covering Q/R
-      too cost +20.5% bench nodes for no gain (BAS-E34).
-- [x] **5.9.20** `KBBK` conversion — **closed empty**, 12/12 from 5.9.19.
-- [x] **5.9.21** `KBNK` stalemate avoidance — **closed empty**. The 14.5% was a
-      mixed bucket; stalemates all land at ply 91-99, inside a fifty-move draw,
-      and cost nothing (BAS-E35).
-- [ ] **5.9.22** `KBNK` fifty-move cases — **38.9%**. Diagnosed **stuck, not
-      slow** (1.0x optimal when we win; 6 plies of progress in 100 when we
-      don't). Bishop proximity and escape-square count both refuted (BAS-E36).
-- [ ] **5.9.23 GATE A** — one SPRT for the whole mate-technique group.
-
-*The gradient-magnitude class, continued — broad eval, so its own gate.*
-
-- [ ] **5.9.24 passed-pawn king approach gradient** — `passed_king_block_eg`
-      is **19** cp/step and `prox_base` fitted to **0**, so the king's walk to a
-      passer is worth ~20-25 cp/step. KBNK's refuted drive was **30**. Own SPRT:
-      unlike Group A this touches every endgame with a passer.
-- [ ] **5.9.25 systematic magnitude audit** — analysis only, no games. Sweep
-      every subsystem for the BAS-E29 signature: present, wired, and too small
-      to survive pruning. Runs before Groups B/C because it may reorder them.
-
-*Group B — draw scaling (rook endings, then the bishop-pawn family).
-The largest measured error.*
-
-- [ ] **5.9.26 `KRPPKRP` scaling** — 11.32%, drawn bias **+0.138**.
-- [ ] **5.9.27 `KRPKR` scaling** — 9.09%, drawn bias **+0.171**.
-- [ ] **5.9.28 `KRKP` verdict** — 2.38%, drawn bias **+0.280**, the largest.
-- [ ] **5.9.29** `KQKRPs` scaling — 2.16%.
-- [ ] **5.9.30** `KRPKB` scaling — 0.99%.
-- [ ] **5.9.31** `KBPP-KBP` bishop-pawn family — 84.7% drawn, predicted
-      **0.639**; our `KBP` scaling covers a narrower shape than the reference.
-- [ ] **5.9.32 GATE B** — one SPRT for the draw-scaling group.
-
-*Group C — remaining verdicts, all under 2% of games.*
-
-- [ ] **5.9.33** `KPsK` scaling — 3.34%.
-- [ ] **5.9.34** `KQKP` verdict — 1.97%.
-- [ ] **5.9.35** `KRKB` + `KRKN` verdicts — 1.11% and 0.70%.
-- [ ] **5.9.36** `KQKR` verdict — 0.88%.
-- [ ] **5.9.37** `KPKP` scaling — 2.56%, but drawn bias already ~0; may close empty.
-- [ ] **5.9.38** `KNNKP` verdict — 0.04%; likely not worth implementing.
-- [ ] **5.9.39 GATE C** — one SPRT for Group C, only if it is worth gating.
-- [x] **5.9.8/5.9.9/5.9.10** superseded — the program above IS classification
-      before grading, with the gates 5.9.10 called for.
-
-Already sound, no step: `KPK` bitbase (4.63%), `KNNK` (0.01%), OCB and KBP
-scaling, and `KQ-K`/`KR-K` which convert 100/100.
-
-**5.7 extensions — reopens after 5.9**
-
-- [x] **5.7.1** contract inventory.
-- [x] **5.7.2** `singularQuietLMR` @ 401 — **ACCEPTED by decision**, not a gate.
-- [x] **5.7.3** check/singular exclusivity — refuted, fails WAC floor.
-- [x] **5.7.4** `ttValue >= beta` verification search — refuted.
-- [x] **5.7.6** dead-code removal — behaviour-neutral.
-- [ ] **5.7.5** singular gate depth 5 vs 6 — **undecided**, needs games or SPSA.
-- [x] **5.7.7** integrated gate — skipped; only 5.7.2 survived.
-
-**5.8 root and clock — reopens after 5.9**
-
-- [x] **5.8.1** contract inventory.
-- [x] **5.8.2** aspiration instrumentation — 1.37 re-searches per iteration.
-- [x] **5.8.3** fail-low narrows beta — refuted.
-- [x] **5.8.4** delta growth rate — refuted.
-- [x] **5.8.5** fail-high depth reduction — refuted, fails WAC floor.
-- [x] **5.8.6** document the `reported_score`/`score` split.
-- [ ] **5.8.7** clock and time allocation — not yet opened.
-
-**Consolidation and release**
-
-- [ ] **5.10** correctness and safety repairs only.
-- [ ] **5.11** portability and ISA baseline — `origin/arm_fix` unmerged.
-- [ ] **5.12** SMP effectiveness checkpoint.
-- [ ] **5.13** cumulative checkpoint and release gate — **1.10.0** needs +40 Elo
-      over 1.9.3; at ≈ +12 the fallback **1.9.4** is the likely release.
-
-### Phase 6 — NNUE runway and branch convergence
-
-- [ ] **6.0** inventory old `origin/nnue`, then reimplement/cherry-pick only
-      useful seams; do not rebase its obsolete `.mnn` contract wholesale.
-- [ ] **6.1** per-ply state and complete dirty-piece make/unmake contracts.
-- [ ] **6.2** frozen teacher/residual/search-disagreement corpora.
-- [ ] **6.3** pinned `D:/code/net_trainer` data/manifests/resume preflight.
-- [ ] **6.4** bench-identical runway gate and integration branch.
-
-### Phase 7 — Baseline NNUE (→ 2.0.0)
-
-- [ ] **7.0** harden trainer CLI, splits, manifests, determinism/conformance.
-- [ ] **7.1** controlled 30–60M initial data and label/mining A/Bs.
-- [ ] **7.2** H=512 pilot/H=1024 baseline with at least two seeds.
-- [ ] **7.3** strict scalar loader/embedded net and exact references.
-- [ ] **7.4** incremental accumulators and exact portable/x86/ARM64 kernels.
-- [ ] **7.5** baseline data/architecture iteration one variable at a time.
-- [ ] **7.6** gross NNUE-scale search safety calibration only.
-- [ ] **7.7** HCE/STC/LTC/4T/external/parity gates and release 2.0.0.
-
-### Phase 8 — NNUE frontier and final search fit
-
-- [ ] **8.0** residual and search-disagreement analysis.
-- [ ] **8.1** scale/deduplicate data, natural finishes and hard-position mining.
-- [ ] **8.2** evidence-led king/threat/material/width architecture ladder.
-- [ ] **8.3** resolve deferred search architecture with categorical A/Bs, then
-      run the single planned post-NNUE search SPSA and ablations.
-- [ ] **8.4** contemporary frontier plus contextual historical-engine ladder.
-
-### Phase 9 — Scaling, platforms and product completeness
-
-- [ ] **9.0** continue the 5.4 baseline into high-thread/NUMA/root/TT/
-      accumulator scaling; no staggering retry without new Basilisk evidence.
-- [ ] **9.1** advanced memory, full-budget TT and runtime ISA dispatch.
-- [ ] **9.2** demanded product or additional-platform work; baseline ARM64 and
-      NNUE/NEON parity are already release gates in 5.3 and 7.4/7.7.
-- [ ] **9.3** scaling/platform release matrix.
-
-### Phase 10 — Optional HCE fallback
-
-Enter only after serious NNUE integration/data/architecture retries fail and
-the user explicitly abandons that program.
-
-- [ ] **10.0** document NNUE failure and approve HCE scope.
-- [ ] **10.1** select a small residual-driven HCE program.
-- [ ] **10.2** run one HCE fit and full external release matrix.
-
-## Where we are
-
-| | |
-|---|---|
-| Engine | bench **12,709,666** · CTest **12/12** · WAC **137/300** |
-| Cumulative vs 1.9.3 | **≈ +12 Elo** |
-| Next step | **5.9.22** — `KBNK` fifty-move cases (38.9%) |
-
-Evidence and reasoning for every step live in `EXPERIMENTS.md`; scope and
-rationale live in `PLAN.md`.
-
-## Decision rules
-
-| Situation | Action |
-|---|---|
-| Behaviour-neutral | Exact bench plus correctness/performance evidence |
-| Strength candidate | Registered SPRT; H1 accepts, otherwise revert behaviour |
-| Root/TM/SMP | 1T STC/LTC plus 4T LTC, zero forfeits |
-| Mechanism de-tunes consumers | Fix it inside its 5.4–5.8 cluster and fit jointly; defer to 8.3 only if no cluster owns it |
-| Reference contract differs | Adopt the *idea*, implement it our way. "Looks more like the reference" never accepts a cluster |
-| Cross-evaluator cohort | Adjudication **off** — score-based adjudication moved a headline estimate ~75 Elo |
-| HCE proposal | Structural gap vs the reference ⇒ 5.9. Another constant refit ⇒ refused; cycle 6 washed |
-| SPSA | Phase 8.3 only. A cluster's own small local refit is part of the cluster, not a tune |
-| NNUE baseline loses | Diagnose contract/data/training/architecture; do not jump to HCE |
-| Historical target unavailable | Record the gap; it does not block Phase 5 or NNUE |
-
-## Working rhythm
-
-```text
-You   -> Paste completed long-job artifacts or ask for the next step.
-Model -> Implements, verifies, updates PLAN + GUIDE and commits without push.
-You   -> Run only the requested SPSA/SPRT/gauntlet/datagen job.
-```
-
-## Common commands
-
-```powershell
-.\tools\setup_tools.ps1
-.\tools\build_test.ps1 -Suffix <name>
-.\tools\sprt.ps1 -EngineA <candidate> -EngineB <baseline> `
-  -NameA Candidate -NameB Baseline -Elo1 3
-.\tools\sprt.ps1 -EngineA <copy> -EngineB <same> `
-  -NameA Self -NameB Self2 -Mode calibrate -Games 30000
-.\tools\nps_ab.ps1 -EngineA <candidate> -EngineB <baseline> -Rounds 12
-.\tools\gauntlet.ps1 -Engine <candidate> -Opponents <list> -TC "10+0.1"
-```
-
-The fastchess harness pins one physical core per **game**, so `Threads=1`
-resolves to **14 concurrent games** on this 16-core host — the two engines in a
-game alternate and share the core. `harness_common.ps1` owns topology
-discovery, the `-use-affinity` core list and the fastchess >= 1.7.0 gate that
-BAS-M01 required.
-
-**The Colosseum CLI is not adopted.** It was trialled and reverted: it
-allocates a disjoint physical core to *each engine*, so 14 slots would need 28
-physical cores and the pinned ceiling is 7 — half throughput for no measurement
-benefit. The Colosseum **GUI** remains the tournament tool.
-`tools/colosseum/` keeps converted profiles and tune vectors for when the CLI
-is ready; nothing in the current workflow reads them.
+# Basilisk development guide
+
+Run this checklist in order; PLAN.md owns rationale and gates.
+
+## Phase 1 — Foundations
+
+- [x] **1.0** Foundations and first strength line — 1.0.0 through 1.8.0
+  - [x] **1.0.a** Board, move generation, UCI, PVS/qsearch, TT, histories, SEE and Syzygy
+  - [x] **1.0.b** Time management, Lazy SMP, reproducible tests and accepted HCE
+
+## Phase 2 — Correctness and search
+
+- [x] **2.0** Correctness and search architecture — 1.9.0
+  - [x] **2.0.a** State, repetition/rule-50, TT/mate and SEE/pin correctness
+  - [x] **2.0.b** Staged ordering, correction/history, root-instability timing and dense TT
+
+## Phase 3 — Hardening and speed
+
+- [x] **3.0** Hardening, CI and PGO speed — 1.9.1
+  - [x] **3.0.a** Centralized parameters, invariants, fuzzing, CI and telemetry
+  - [x] **3.0.b** Behavior-identical PGO speed pass accepted at +4.34% NPS
+
+## Phase 4 — SMP and release tooling
+
+- [x] **4.0** SMP durability and release tooling — 1.9.2/1.9.3
+  - [x] **4.0.a** SPSA/MT harness and helper clock/node/thread safety repaired
+  - [x] **4.0.b** Four-thread bundle accepted; PGO tool matching fixed without search change
+
+## Phase 5 — Completed foundation
+
+- [x] **5.0** Reproduce the 1.9.3 baseline
+  - [x] **5.0.a** Freeze benchmark, test and compiler evidence
+- [x] **5.1** Measure search/evaluation authority
+  - [x] **5.1.a** Search oracle measured +322.7 +/-36 Elo
+  - [x] **5.1.b** HCE oracle measured +232.8 +/-32 Elo
+- [x] **5.2** Build differential diagnostics and inventory
+  - [x] **5.2.a** Add the 107-position diagnostic suite and diag-kv telemetry
+  - [x] **5.2.b** Split candidate work into dependency-complete clusters
+- [x] **5.3** Close search cluster A: ordering, histories and LMR
+  - [x] **5.3.a** Reject reduction magnitude on harness evidence
+  - [x] **5.3.b** Reject check-depth change by games
+- [x] **5.4** Close search cluster B: static-eval, TT and qsearch contracts
+  - [x] **5.4.a** Confirm existing contracts; accept no engine change
+- [x] **5.5** Close search cluster C: main selectivity
+  - [x] **5.5.a** Record the history-pruning defect and exhausted budget boundary
+- [x] **5.6** Close completed extension and root evidence
+  - [x] **5.6.a** Retain only mechanisms supported by completed gates
+  - [x] **5.6.b** Defer singular-extension depth and clock work to Phase 8
+- [x] **5.7** Audit shallow-depth node cost
+  - [x] **5.7.a** Measure rather than assume a width deficit
+  - [x] **5.7.b** Withdraw the target after the constant-factor diagnosis
+- [x] **5.8** Enlarge and freeze the HCE feature surface
+  - [x] **5.8.a** Add seven coverage terms
+  - [x] **5.8.b** Add bishop outpost and split king-protector structure
+  - [x] **5.8.c** Identify endgame technique as the remaining structural gap
+- [x] **5.9** Diagnose the first joint-fit failure
+  - [x] **5.9.a** Run the distilled-corpus refit
+  - [x] **5.9.b** Trace mate-drive loss to score-adjudicated corpus truncation
+  - [x] **5.9.c** Establish on-policy self-play WDL labels as the fit contract
+- [x] **5.10** Accept the repaired HCE line
+  - [x] **5.10.a** Accept king-safety refit
+  - [x] **5.10.b** Accept full-surface refit and freeze its baseline artifact
+- [x] **5.11** Remove redundant HCE terms
+  - [x] **5.11.a** Gate simplification without losing accepted strength
+- [x] **5.12** Inventory and improve endgames
+  - [x] **5.12.a** Inventory twenty reference endgame families
+  - [x] **5.12.b** Improve KBNK conversion from 13% to 54.5%
+- [x] **5.13** Add deterministic conversion floors
+  - [x] **5.13.a** Cover KQK, KRK, KBBK and KBNK with fixed-seed tests
+  - [x] **5.13.b** Record denominators and avoid treating tiny percentage changes as truth
+- [x] **5.14** Repair basic mate drive and diagnose KBNK residue
+  - [x] **5.14.a** Complete KXK/KBBK drive
+  - [x] **5.14.b** Classify KBNK failures: stalled drive, bishop-move ties and rule-50 loss
+  - [x] **5.14.c** Preserve the 198-position cohort for paired follow-up
+- [x] **5.15** Port the generalized endgame-truth instrument
+  - [x] **5.15.a** Support named <=6-man families with family-stable deterministic seeds
+  - [x] **5.15.b** Separate Syzygy WDL truth, WDL preservation, DTZ progress and conversion
+  - [x] **5.15.c** Emit per-position records and honest denominators for paired analysis
+  - [x] **5.15.d** Record engine identity/hash and prevent the tested engine from using Syzygy
+- [x] **5.16** Make no-adjudication the toolchain default
+  - [x] **5.16.a** Default SPRT, fixed gauntlet and datagen to natural termination
+  - [x] **5.16.b** Default weather-factory SPSA and its reinstall patch to natural termination
+  - [x] **5.16.c** Remove adjudication from all Colosseum strength, SPSA, tournament and datagen profiles
+  - [x] **5.16.d** Retain explicit opt-in only for registered legacy-compatibility runs
+- [x] **5.17** Synchronize the roadmap mechanically
+  - [x] **5.17.a** Reorder phases around endgame-first HCE development
+  - [x] **5.17.b** Add a PLAN/GUIDE checklist consistency checker
+
+## Phase 6 — Endgame maturity
+
+- [ ] **6.0** Establish the truth baseline before another evaluator edit
+  - [ ] **6.0.a** Generate a frozen, Syzygy-verified multi-family cohort with per-position output
+  - [ ] **6.0.b** Measure the accepted Basilisk head and a strong reference at identical nodes
+  - [ ] **6.0.c** Set achievable family ceilings; do not assume 100% at a finite node budget
+  - [ ] **6.0.d** Define paired confidence rules: aggregate beyond 2 SE reports, family beyond 3 SE blocks
+  - [ ] **6.0.e** Add hard theory vetoes for clean-win discard, illegal play, crash and rule-50 regression
+  - [ ] **6.0.f** Census disagreements between self-play WDL labels and Syzygy on every <=6-man corpus row
+- [ ] **6.1** Implement and tune the missing KBNK technique (historical step 5.9.22)
+  - [ ] **6.1.a** Start from Rarog's useful finding: bishop-color corner diagonal potential can solve the drive without a bishop-position term
+  - [ ] **6.1.b** Port the mechanism shape, not constants: correct-corner diagonal resolution, magnitude and ratio must dominate king-distance terms
+  - [ ] **6.1.c** Scale coefficients to Basilisk and test interaction with its existing corner, edge, king-distance and knight-distance terms
+  - [ ] **6.1.d** Do not retry bishop proximity or escape-square count unless new evidence overturns their earlier failure
+  - [ ] **6.1.e** Compare on the identical 198 positions; report WDL preservation, rule-50 failures, conversion and mate efficiency
+  - [ ] **6.1.f** Require KQK/KRK/KBBK non-regression and tactical/bench stability
+- [ ] **6.2** Gate KBNK and accepted mate-drive changes
+  - [ ] **6.2.a** Run a fresh no-adjudication [0,3] nElo SPRT against the accepted head
+  - [ ] **6.2.b** Treat the old approximately 5,860-game adjudicated Group A run as preliminary only
+  - [ ] **6.2.c** Never resume that run if the KBNK candidate or match policy changes
+- [ ] **6.3** Add general king-to-passed-pawn approach logic
+  - [ ] **6.3.a** Derive the feature from Basilisk truth failures, not reference constants
+  - [ ] **6.3.b** Verify KP-K, KPP-K, KBP-K and mixed rook/minor pawn families
+  - [ ] **6.3.c** Gate the isolated candidate with no adjudication
+- [ ] **6.4** Audit every endgame term before broadening the evaluator
+  - [ ] **6.4.a** Test score resolution, saturation and interaction at Basilisk's scale
+  - [ ] **6.4.b** Keep theory truth, move quality, conversion and game strength separate
+  - [ ] **6.4.c** Freeze the accepted Group A head and truth report
+- [ ] **6.5** Implement high-value rook and bishop-pawn families
+  - [ ] **6.5.a** Cover KRPP-KRP and KRP-KR
+  - [ ] **6.5.b** Cover KR-KP, KQ-KRP and KR-KB
+  - [ ] **6.5.c** Cover bishop-pawn families, including wrong-bishop/rook-pawn draw logic
+  - [ ] **6.5.d** Add deterministic truth cases before coefficient fitting
+- [ ] **6.6** Gate Group B
+  - [ ] **6.6.a** Require paired truth improvement and no family veto
+  - [ ] **6.6.b** Run no-adjudication SPRT on the frozen Group A baseline
+- [ ] **6.7** Evaluate remaining lower-yield families
+  - [ ] **6.7.a** Cover KPs-K, KQ-KP, KR-KN, KQ-KR, KP-KP and KNN-KP
+  - [ ] **6.7.b** Implement only mechanisms with a measurable truth gap and plausible game frequency
+  - [ ] **6.7.c** Stop the group when marginal value no longer pays for complexity
+- [ ] **6.8** Close endgame maturity
+  - [ ] **6.8.a** Freeze the accepted evaluator, truth corpus, reports and thresholds
+  - [ ] **6.8.b** Record every rejected mechanism and its retry trigger
+  - [ ] **6.8.c** Authorize post-endgame corpus generation only after closure
+
+## Phase 7 — Post-endgame HCE refit
+
+- [ ] **7.0** Harden the fit pipeline before generating expensive data
+  - [ ] **7.0.a** Fit K once on training data and freeze it across all compared fits
+  - [ ] **7.0.b** Accept an explicit initial vector and record every surface coordinate
+  - [ ] **7.0.c** Freeze train/validation/test splits; open the test set once after selection
+  - [ ] **7.0.d** Enforce exact surface coverage, gauge anchors and source restore on failure
+  - [ ] **7.0.e** Hash corpora, splits, configs, binaries, tablebases, fitted vectors and reports
+- [ ] **7.1** Design a phase-efficient, natural-termination corpus
+  - [ ] **7.1.a** Pilot an opening/start book that yields opening, middlegame and endgame rows efficiently
+  - [ ] **7.1.b** Keep one extractor definition, sampling policy and split seed for all arms
+  - [ ] **7.1.c** Register corpus size, phase/material coverage and stop conditions before launch
+- [ ] **7.2** Generate self-play with the accepted post-endgame head
+  - [ ] **7.2.a** Use no adjudication and game-result WDL labels
+  - [ ] **7.2.b** Verify termination mix, duplicate rate, phase coverage and <=6-man yield
+  - [ ] **7.2.c** Freeze corpus A, its row order and hashes before any relabeling
+- [ ] **7.3** Create the tablebase-relabel comparison
+  - [ ] **7.3.a** Corpus A keeps original self-play game-result labels
+  - [ ] **7.3.b** Corpus B is a byte-order-preserving copy except eligible <=6-man rows receive Syzygy truth labels
+  - [ ] **7.3.c** Treat cursed wins/losses as draws for rule-50-compatible WDL labels
+  - [ ] **7.3.d** Preserve identical rows, ordering and train/validation/test membership
+  - [ ] **7.3.e** At execution time analyze exactly which positions may be relabeled; do not propagate an ending verdict backward into non-tablebase opening/middlegame rows without a separately justified rule
+  - [ ] **7.3.f** Publish the changed-row count, fraction, family distribution and before/after label matrix
+- [ ] **7.4** Decide whether datagen-v3 deserves a third arm
+  - [ ] **7.4.a** Inspect its semantics and provenance when this step is reached
+  - [ ] **7.4.b** Distinguish whole-game tablebase adjudication from row-local post-hoc relabeling
+  - [ ] **7.4.c** Pilot corpus C only if it can be matched closely enough for a causal comparison
+  - [ ] **7.4.d** Never merge corpus C evidence into the registered A-versus-B verdict
+- [ ] **7.5** Measure optimizer dependence before the production fit
+  - [ ] **7.5.a** Fit identical targets from accepted-head and neutral initial vectors
+  - [ ] **7.5.b** Compare validation convergence, parameter distance and held-out loss
+  - [ ] **7.5.c** Register the production initialization rule before opening the test set
+- [ ] **7.6** Refit every relevant Texel-tunable HCE coordinate
+  - [ ] **7.6.a** Use the same complete surface, fixed K, optimizer budget and initial rule for A and B
+  - [ ] **7.6.b** Alternate nonlinear blocks where joint fitting is not valid
+  - [ ] **7.6.c** Produce independently applicable candidate vectors and exact manifests
+  - [ ] **7.6.d** Reject any fit with missing/frozen-by-accident coordinates or source drift
+- [ ] **7.7** Test whether tablebase relabeling transfers
+  - [ ] **7.7.a** Compare each candidate with the same accepted pre-fit baseline
+  - [ ] **7.7.b** Run the pre-registered A-versus-B no-adjudication gate
+  - [ ] **7.7.c** Use truth reports to explain endgame effects; use SPRT for strength
+  - [ ] **7.7.d** Accept the label policy and vector only by the registered rule
+- [ ] **7.8** Refresh data from the accepted fitted head
+  - [ ] **7.8.a** Generate a new no-adjudication corpus from the accepted engine
+  - [ ] **7.8.b** Reapply the accepted label contract and complete-surface fit
+  - [ ] **7.8.c** Repeat only while each cycle passes its independent gate
+  - [ ] **7.8.d** Stop at the first rejected cycle; do not average rejected vectors into the head
+- [ ] **7.9** Freeze the classical evaluator
+  - [ ] **7.9.a** Revalidate score scale, pruning margins, tactical suites and all endgame floors
+  - [ ] **7.9.b** Ablate new endgame mechanisms and low-information fitted coordinates
+  - [ ] **7.9.c** Archive the final surface, corpus policy, fit artifacts and retry triggers
+
+## Phase 8 — Classical consolidation
+
+- [ ] **8.0** Revisit singular-extension gate depth
+  - [ ] **8.0.a** Re-measure only on the frozen post-refit evaluator
+  - [ ] **8.0.b** Gate isolated search behavior before tuning constants
+- [ ] **8.1** Remeasure search/evaluation authority
+  - [ ] **8.1.a** Repeat the oracle split on the final classical head
+  - [ ] **8.1.b** Use the result to prioritize post-release work, not to rewrite completed evidence
+- [ ] **8.2** Complete clock and time-management work
+  - [ ] **8.2.a** Diagnose remaining root-instability/time-allocation issues
+  - [ ] **8.2.b** Pass 1T and 4T clock gates with zero forfeits
+- [ ] **8.3** Complete correctness hardening
+  - [ ] **8.3.a** Run state, repetition/rule-50, TT/mate, SEE/pin and sanitizer matrices
+  - [ ] **8.3.b** Add regressions for every defect found
+- [ ] **8.4** Complete portability and ISA validation
+  - [ ] **8.4.a** Validate target-native execution and exact search agreement
+  - [ ] **8.4.b** Publish executable ISA and same-target performance evidence
+- [ ] **8.5** Complete SMP validation
+  - [ ] **8.5.a** Revalidate node/thread/helper-clock safety
+  - [ ] **8.5.b** Pass registered 1T/4T strength and scaling gates
+- [ ] **8.6** Release the final classical line
+  - [ ] **8.6.a** Reproduce clean PGO binaries and manifests
+  - [ ] **8.6.b** Pass cumulative 1.9.3 and external-cohort matches
+  - [ ] **8.6.c** Release as 1.9.4 if maintenance-scale, otherwise the warranted higher minor
+
+## Phase 9 — NNUE runway
+
+- [ ] **9.0** Freeze the NNUE state and feature contract
+  - [ ] **9.0.a** Specify inputs, perspective, accumulators, serialization and refresh rules
+  - [ ] **9.0.b** Add scalar oracle and incremental-state differential tests
+- [ ] **9.1** Prepare the trainer and corpus
+  - [ ] **9.1.a** Audit D:/code/net_trainer against the frozen contract
+  - [ ] **9.1.b** Generate, validate, hash and split the teacher corpus
+  - [ ] **9.1.c** Complete trainer preflight and reproducibility manifest
+
+## Phase 10 — Baseline NNUE
+
+- [ ] **10.0** Train and integrate the baseline network
+  - [ ] **10.0.a** Train registered baselines and select on frozen validation data
+  - [ ] **10.0.b** Integrate inference, accumulator updates and network packaging
+  - [ ] **10.0.c** Pass scalar/incremental equality, bench and performance gates
+- [ ] **10.1** Adapt search to NNUE
+  - [ ] **10.1.a** Reprice evaluation-dependent pruning and correction mechanisms
+  - [ ] **10.1.b** Run the single reserved post-NNUE search SPSA
+  - [ ] **10.1.c** Gate 1T, LTC and 4T deployment conditions
+- [ ] **10.2** Release 2.0.0
+  - [ ] **10.2.a** Pass correctness, network provenance and fallback checks
+  - [ ] **10.2.b** Pass prior-release and external-cohort gates
+
+## Phase 11 — Post-NNUE frontier
+
+- [ ] **11.0** Improve architecture and data only from measured bottlenecks
+  - [ ] **11.0.a** Evaluate larger/sparser architectures and better feature transforms
+  - [ ] **11.0.b** Refresh data only under a registered label and sampling contract
+- [ ] **11.1** Extend search selectively
+  - [ ] **11.1.a** Revisit rejected classical mechanisms only when NNUE changes their retry trigger
+  - [ ] **11.1.b** Require isolated gates and preserve Basilisk-specific design
+
+## Phase 12 — Scaling and platform
+
+- [ ] **12.0** Improve parallel scaling
+  - [ ] **12.0.a** Profile split points, contention and TT traffic at 2/4/8 threads
+  - [ ] **12.0.b** Gate strength and throughput independently
+- [ ] **12.1** Expand supported platforms
+  - [ ] **12.1.a** Validate compilers, ISAs and packaging on target-native hardware
+  - [ ] **12.1.b** Keep portable fallbacks behaviorally checked
+
+## Phase 13 — Optional HCE fallback
+
+- [ ] **13.0** Reopen HCE only if NNUE is abandoned or a release blocker demands it
+  - [ ] **13.0.a** Require a new feature surface or new data contract; never refit the unchanged surface again
+  - [ ] **13.0.b** Register budget and acceptance before work begins

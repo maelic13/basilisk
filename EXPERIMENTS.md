@@ -5,6 +5,10 @@ that may inform later work. It is not a roadmap: [`PLAN.md`](PLAN.md) owns what
 will be done and in what order. [`CHANGELOG.md`](CHANGELOG.md) remains the
 user-facing release record.
 
+Numbered references in this ledger are historical identifiers. The current
+forward numbering and old-to-new map live in PLAN.md section 14; do not rewrite
+measured records merely because the roadmap was reordered.
+
 Every lesson below is conditional. A result describes one engine state, test
 protocol, time control, compiler and machine population; it does not establish
 a universal chess-programming rule. An experiment from Rarog is only a prior

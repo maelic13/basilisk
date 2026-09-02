@@ -14,17 +14,15 @@
     A provenance manifest is written beside the PGN before fastchess starts and
     completed with the output hash after success.
 
-    Adjudication: draw after movenumber 40 with 8 move window at score < 10 cp,
-    resign after 3 moves at score > 600 cp (both sides). These defaults match the
-    SPRT/gauntlet scripts.
-
-    -Adjudication none turns BOTH off, so games end only naturally: checkmate,
+    Adjudication is OFF by default, so games end only naturally: checkmate,
     stalemate, threefold, fifty-move or insufficient material. Step 5.9.11 needs
     this. BAS-E10 and BAS-E11 traced a corpus defect to exactly this setting --
     resign at 600 cp truncates every decisive game long before a mating ending,
     so the Texel corpus contained no bare-king positions at all and the fit was
     free to destroy mate-drive and king-safety behaviour at no measured cost.
-    Precedent that it works: the 2026-08-12 oracle round robin ran with every
+    Pass -Adjudication standard only for a deliberately registered compatibility
+    experiment; it enables draw 40/8/10 and two-sided resign 600/3. Precedent
+    that natural termination works: the 2026-08-12 oracle round robin ran with every
     adjudication off and produced 1,919 checkmates in 2,400 games.
 
     Games are much longer with it off. Budget roughly 2-3x the wall time per
@@ -106,7 +104,7 @@ param(
     [string]$FastchessPath = "",
     [int]   $Seed        = 42,
     [ValidateSet("standard", "none")]
-    [string]$Adjudication = "standard",
+    [string]$Adjudication = "none",
     [string]$EnginePath  = "",
     [switch]$AllowAppend,
     [switch]$PreflightOnly
@@ -281,7 +279,7 @@ try {
     $fastchessVersion = (& $FastchessPath --version 2>&1 | Select-Object -First 1)
     $startedUtc = (Get-Date).ToUniversalTime().ToString('u')
     $appendMode = $AllowAppend.IsPresent.ToString().ToLowerInvariant()
-    $commandLine = ".\tools\datagen.ps1 -Suffix $Suffix -Rounds $Rounds -Nodes $Nodes -Hash $Hash -Concurrency $Concurrency -Book `"$Book`" -BookFormat $BookFormat -OutputPgn `"$OutputPgn`" -Seed $Seed"
+    $commandLine = ".\tools\datagen.ps1 -Suffix $Suffix -Rounds $Rounds -Nodes $Nodes -Hash $Hash -Concurrency $Concurrency -Book `"$Book`" -BookFormat $BookFormat -OutputPgn `"$OutputPgn`" -Seed $Seed -Adjudication $Adjudication"
     if ($AllowAppend) { $commandLine += " -AllowAppend" }
     # The engine names itself. In a multi-arm label-source experiment the
     # manifest must be able to prove which engine produced which corpus.
@@ -295,7 +293,7 @@ try {
     $adjManifest = if ($Adjudication -eq "standard") {
         "draw movenumber=40 movecount=8 score=10; resign movecount=3 score=600 twosided=true"
     } else {
-        "NONE - natural terminations only (5.9.11)"
+        "NONE - natural terminations only (default)"
     }
 
     $manifestLines = @(

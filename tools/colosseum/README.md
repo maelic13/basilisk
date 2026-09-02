@@ -11,9 +11,10 @@ executable paths, books, run directories and host concurrency are arguments.
 
 ## Strength tests and calibration
 
-The profiles preserve Basilisk's `3+0.03`, draw 40/8/10, two-sided resign
-600/3, Hash 64 per thread and normalized-Elo conventions. No opening book is
-bundled. Pass one explicitly when available and choose concurrency for the
+The profiles preserve Basilisk's `3+0.03`, Hash 64 per thread and
+normalized-Elo conventions. Score-based draw/resign adjudication is absent by
+default; add it only for a deliberately registered compatibility experiment.
+No opening book is bundled. Pass one explicitly when available and choose concurrency for the
 current host:
 
 ```powershell

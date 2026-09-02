@@ -129,7 +129,7 @@ if (Test-Path (Join-Path $wfDir "main.py")) {
     Write-Host "  Done."
 }
 
-# ---- 2b. Local patch: -use-affinity (idempotent and syntax-checked) ----------
+# ---- 2b. Local patches: affinity + no-adjudication default ------------------
 # Weather-factory's fastchess mini-matches run at clock TC and are subject to
 # the same scheduler placement lottery documented in sprt.ps1's header. The
 # clone is gitignored, so the patch is applied HERE to survive re-clones.
@@ -145,6 +145,27 @@ if (Test-Path $wfCute) {
     # a stale machine-specific CPU list.
     $c = $c -replace '(?m)^.*BASILISK_AFFINITY_PATCH_V2.*\r?\n?', ''
 
+    # Score-based draw/resign truncates precisely the endgame positions needed
+    # by evaluation and Texel work. Keep it behind explicit config opt-in.
+    $c = $c -replace '(?m)^\s*"-resign movecount=3 score=400 "\r?\n?', ''
+    $c = $c -replace '(?m)^\s*"-draw movenumber=40 movecount=8 score=10 "\r?\n?', ''
+    if ($c -notmatch 'BASILISK_NO_ADJUDICATION_DEFAULT_V1') {
+        $signatureAnchor = '        use_fastchess: bool = True'
+        $signaturePatch = $signatureAnchor + ",`n" + '        adjudicate: bool = False'
+        $fieldAnchor = '        self.use_fastchess = use_fastchess'
+        $fieldPatch = $fieldAnchor + "`n" + '        self.adjudicate = adjudicate'
+        $commandAnchor = '            "-recover "'
+        $commandPatch = ('            f"{''-resign movecount=3 score=400 -draw movenumber=40 movecount=8 score=10 '' if self.adjudicate else ''''}"  # BASILISK_NO_ADJUDICATION_DEFAULT_V1') + "`n" + $commandAnchor
+        foreach ($requiredAnchor in @($signatureAnchor, $fieldAnchor, $commandAnchor)) {
+            if (-not $c.Contains($requiredAnchor)) {
+                throw "weather-factory/cutechess.py no-adjudication patch anchor not found; upstream changed."
+            }
+        }
+        $c = $c.Replace($signatureAnchor, $signaturePatch)
+        $c = $c.Replace($fieldAnchor, $fieldPatch)
+        $c = $c.Replace($commandAnchor, $commandPatch)
+    }
+
     $anchor = 'f"-concurrency {self.threads} "'
     $patch  = $anchor + "`n" + ('            f"{''-use-affinity ' + $allPhysicalCpus + ' '' if self.use_fastchess else ''''}"  # BASILISK_AFFINITY_PATCH_V2')
     if (-not $c.Contains($anchor)) {
@@ -157,7 +178,7 @@ if (Test-Path $wfCute) {
     if ($LASTEXITCODE -ne 0) {
         throw "weather-factory affinity patch failed Python syntax validation: $wfCute"
     }
-    Write-Host "  weather-factory affinity patch and Python syntax verified."
+    Write-Host "  weather-factory affinity/no-adjudication patches and Python syntax verified."
 }
 
 # ---- 2c. Local overlay: SPSA schedule + runner (Phase 9.1) -------------------

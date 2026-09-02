@@ -52,6 +52,10 @@
 .PARAMETER FastchessPath
     Path to fastchess.exe. Default: tools\bin\fastchess.exe.
 
+.PARAMETER Adjudicate
+    Opt in to legacy score-based draw 40/8/10 and two-sided resign 600/3.
+    Omitted by default: games end only by chess rules.
+
 .EXAMPLE
     .\tools\gauntlet.ps1 `
         -Engine tools\test_engines\basilisk-phase8512-instabtm-pext-pgo.exe `
@@ -78,7 +82,8 @@ param(
     [double]$MoveTime = 0,
     [int]$TimeMargin = 20,
     [string]$Book = "$PSScriptRoot\books\UHO_Lichess_4852_v1.epd",
-    [string]$FastchessPath = "$PSScriptRoot\bin\fastchess.exe"
+    [string]$FastchessPath = "$PSScriptRoot\bin\fastchess.exe",
+    [switch]$Adjudicate
 )
 
 $ErrorActionPreference = "Stop"
@@ -88,6 +93,14 @@ $concurrencyInfo = Resolve-HarnessConcurrency -Requested $Concurrency
 $Concurrency = $concurrencyInfo.Concurrency
 $AffinityCpus = Get-HarnessAffinityCpuList -Concurrency $Concurrency
 $Seed = New-HarnessSeed -Requested $Seed
+
+$adjudicationArgs = @()
+if ($Adjudicate) {
+    $adjudicationArgs = @(
+        "-draw", "movenumber=40", "movecount=8", "score=10",
+        "-resign", "movecount=3", "score=600", "twosided=true"
+    )
+}
 
 if ($Games -lt 2) { throw "-Games must be at least 2." }
 if ($Games % 2 -ne 0) { $Games += 1 }
@@ -150,8 +163,7 @@ foreach ($opponent in $Opponents) {
         -concurrency $Concurrency `
         -use-affinity $AffinityCpus `
         -srand $Seed `
-        -draw movenumber=40 movecount=8 score=10 `
-        -resign movecount=3 score=600 twosided=true `
+        @adjudicationArgs `
         -pgnout "file=$pgnOut" `
         -output format=fastchess 2>&1 |
         Tee-Object -FilePath $logOut

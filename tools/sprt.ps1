@@ -183,6 +183,10 @@
     fastchess timeout margin in milliseconds. Default 20. This absorbs small
     Windows scheduler / process IO jitter without changing the engine budget.
 
+.PARAMETER Adjudicate
+    Opt in to legacy score-based draw 40/8/10 and two-sided resign 600/3.
+    Omitted by default: games end only by chess rules.
+
 .PARAMETER Book
     Opening book. Default tools\books\UHO_Lichess_4852_v1.epd (repo-local,
     gitignored; a backup copy lives in D:\chess\books). The Stockfish/
@@ -238,7 +242,8 @@ param(
     [double]$MoveTime = 0,
     [int]$TimeMargin = 20,
     [string]$Book = "$PSScriptRoot\books\UHO_Lichess_4852_v1.epd",
-    [string]$FastchessPath = "$PSScriptRoot\bin\fastchess.exe"
+    [string]$FastchessPath = "$PSScriptRoot\bin\fastchess.exe",
+    [switch]$Adjudicate
 )
 
 $ErrorActionPreference = "Stop"
@@ -365,6 +370,21 @@ $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
 $pgnOut    = Join-Path $resultsDir "sprt_${NameA}_vs_${NameB}_${timestamp}.pgn"
 $logOut    = Join-Path $resultsDir "sprt_${NameA}_vs_${NameB}_${timestamp}.log"
 
+# Score-based adjudication is a legacy compatibility condition, never an
+# implicit part of an experiment.
+$adjudicationLabel = if ($Adjudicate) {
+    "draw(mn=40,mc=8,score=10) resign(mc=3,score=600,twosided)"
+} else {
+    "NONE - natural terminations only (default)"
+}
+$adjudicationArgs = @()
+if ($Adjudicate) {
+    $adjudicationArgs = @(
+        "-draw", "movenumber=40", "movecount=8", "score=10",
+        "-resign", "movecount=3", "score=600", "twosided=true"
+    )
+}
+
 # Reproducibility manifest (PLAN §1 gate 8): a PGN without this manifest is not
 # a reproducible test. Emitted next to the PGN before the match starts.
 $manifestPath = [IO.Path]::ChangeExtension($pgnOut, ".manifest.txt")
@@ -426,7 +446,7 @@ $repoSha   = (git rev-parse HEAD 2>$null); if (-not $repoSha) { $repoSha = "n/a"
     "book_sha256:   $(Get-Sha256 $Book)"
     "opening_order: random"
     "opening_seed:  $Seed"
-    "adjudication:  draw(mn=40,mc=8,score=10) resign(mc=3,score=600,twosided)"
+    "adjudication:  $adjudicationLabel"
     "fastchess:     $fcVersion"
     "fastchess_sha256: $(Get-Sha256 $fastchess)"
     "pgn:           $pgnOut"
@@ -530,8 +550,7 @@ $dropNoise = {
     -srand $Seed `
     -ratinginterval 20 `
     @sprtArgs `
-    -draw movenumber=40 movecount=8 score=10 `
-    -resign movecount=3 score=600 twosided=true `
+    @adjudicationArgs `
     -pgnout "file=$pgnOut" `
     -output format=fastchess 2>&1 |    # console ticker format (not the PGN path)
     Tee-Object -FilePath $logOut |
