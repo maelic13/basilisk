@@ -131,82 +131,117 @@ Run this checklist in order; PLAN.md owns rationale and gates.
   - [ ] **6.8.b** Record every rejected mechanism and its retry trigger
   - [ ] **6.8.c** Authorize post-endgame corpus generation only after closure
 
-## Phase 7 — Post-endgame HCE refit
+## Phase 7 — Mature HCE refit
 
-- [ ] **7.0** Harden the fit pipeline before generating expensive data
-  - [ ] **7.0.a** Fit K once on training data and freeze it across all compared fits
-  - [ ] **7.0.b** Accept an explicit initial vector and record every surface coordinate
-  - [ ] **7.0.c** Freeze train/validation/test splits; open the test set once after selection
-  - [ ] **7.0.d** Enforce exact surface coverage, gauge anchors and source restore on failure
-  - [ ] **7.0.e** Hash corpora, splits, configs, binaries, tablebases, fitted vectors and reports
-- [ ] **7.1** Design a phase-efficient, natural-termination corpus
-  - [ ] **7.1.a** Pilot an opening/start book that yields opening, middlegame and endgame rows efficiently
-  - [ ] **7.1.b** Keep one extractor definition, sampling policy and split seed for all arms
-  - [ ] **7.1.c** Register corpus size, phase/material coverage and stop conditions before launch
-- [ ] **7.2** Generate self-play with the accepted post-endgame head
-  - [ ] **7.2.a** Use no adjudication and game-result WDL labels
-  - [ ] **7.2.b** Verify termination mix, duplicate rate, phase coverage and <=6-man yield
-  - [ ] **7.2.c** Freeze corpus A, its row order and hashes before any relabeling
-- [ ] **7.3** Create the tablebase-relabel comparison
-  - [ ] **7.3.a** Corpus A keeps original self-play game-result labels
-  - [ ] **7.3.b** Corpus B is a byte-order-preserving copy except eligible <=6-man rows receive Syzygy truth labels
-  - [ ] **7.3.c** Treat cursed wins/losses as draws for rule-50-compatible WDL labels
-  - [ ] **7.3.d** Preserve identical rows, ordering and train/validation/test membership
-  - [ ] **7.3.e** At execution time analyze exactly which positions may be relabeled; do not propagate an ending verdict backward into non-tablebase opening/middlegame rows without a separately justified rule
-  - [ ] **7.3.f** Publish the changed-row count, fraction, family distribution and before/after label matrix
-- [ ] **7.4** Decide whether datagen-v3 deserves a third arm
-  - [ ] **7.4.a** Inspect its semantics and provenance when this step is reached
-  - [ ] **7.4.b** Distinguish whole-game tablebase adjudication from row-local post-hoc relabeling
-  - [ ] **7.4.c** Pilot corpus C only if it can be matched closely enough for a causal comparison
-  - [ ] **7.4.d** Never merge corpus C evidence into the registered A-versus-B verdict
-- [ ] **7.5** Measure optimizer dependence before the production fit
-  - [ ] **7.5.a** Fit identical targets from accepted-head and neutral initial vectors
-  - [ ] **7.5.b** Compare validation convergence, parameter distance and held-out loss
-  - [ ] **7.5.c** Register the production initialization rule before opening the test set
-- [ ] **7.6** Refit every relevant Texel-tunable HCE coordinate
-  - [ ] **7.6.a** Use the same complete surface, fixed K, optimizer budget and initial rule for A and B
-  - [ ] **7.6.b** Alternate nonlinear blocks where joint fitting is not valid
-  - [ ] **7.6.c** Produce independently applicable candidate vectors and exact manifests
-  - [ ] **7.6.d** Reject any fit with missing/frozen-by-accident coordinates or source drift
-- [ ] **7.7** Test whether tablebase relabeling transfers
-  - [ ] **7.7.a** Compare each candidate with the same accepted pre-fit baseline
-  - [ ] **7.7.b** Run the pre-registered A-versus-B no-adjudication gate
-  - [ ] **7.7.c** Use truth reports to explain endgame effects; use SPRT for strength
-  - [ ] **7.7.d** Accept the label policy and vector only by the registered rule
-- [ ] **7.8** Refresh data from the accepted fitted head
-  - [ ] **7.8.a** Generate a new no-adjudication corpus from the accepted engine
-  - [ ] **7.8.b** Reapply the accepted label contract and complete-surface fit
-  - [ ] **7.8.c** Repeat only while each cycle passes its independent gate
-  - [ ] **7.8.d** Stop at the first rejected cycle; do not average rejected vectors into the head
-- [ ] **7.9** Freeze the classical evaluator
-  - [ ] **7.9.a** Revalidate score scale, pruning margins, tactical suites and all endgame floors
-  - [ ] **7.9.b** Ablate new endgame mechanisms and low-information fitted coordinates
-  - [ ] **7.9.c** Archive the final surface, corpus policy, fit artifacts and retry triggers
+- [ ] **7.0** Define and close the final handcrafted-evaluation surface
+  - [ ] **7.0.a** Compare Basilisk conceptually with strong maintained HCE engines in D:/code; learn coverage and interactions without copying code or constants
+  - [ ] **7.0.b** Audit material/imbalance, PST, mobility, pawn structure, passers, outposts, threats, space, king safety, initiative/winnability and draw scaling
+  - [ ] **7.0.c** Measure feature firing, phase/material coverage, correlation and ablation value on a phase-balanced corpus
+  - [ ] **7.0.d** Identify dead, duplicate, saturated and uncovered terms; simplify or add mechanisms only with position-level evidence
+  - [ ] **7.0.e** Add deterministic tests for every new categorical mechanism and freeze the architecture before production datagen
+- [ ] **7.1** Harden the fit pipeline before generating expensive data
+  - [ ] **7.1.a** Fit K once on training data and freeze it across all compared fits
+  - [ ] **7.1.b** Accept an explicit initial vector and record every surface coordinate
+  - [ ] **7.1.c** Freeze train/validation/test splits; open the test set once after selection
+  - [ ] **7.1.d** Enforce exact surface coverage, gauge anchors and source restore on failure
+  - [ ] **7.1.e** Hash corpora, splits, configs, binaries, tablebases, fitted vectors and reports
+- [ ] **7.2** Design a phase-efficient, natural-termination corpus
+  - [ ] **7.2.a** Pilot an opening/start book that yields opening, middlegame and endgame rows efficiently
+  - [ ] **7.2.b** Keep one extractor definition, sampling policy and split seed for all arms
+  - [ ] **7.2.c** Register corpus size, phase/material coverage and stop conditions before launch
+- [ ] **7.3** Generate self-play with the accepted post-endgame head
+  - [ ] **7.3.a** Use no adjudication and game-result WDL labels
+  - [ ] **7.3.b** Verify termination mix, duplicate rate, phase coverage and <=6-man yield
+  - [ ] **7.3.c** Freeze corpus A, its row order and hashes before any relabeling
+- [ ] **7.4** Create the tablebase-relabel comparison
+  - [ ] **7.4.a** Corpus A keeps original self-play game-result labels
+  - [ ] **7.4.b** Corpus B is a byte-order-preserving copy except eligible <=6-man rows receive Syzygy truth labels
+  - [ ] **7.4.c** Treat cursed wins/losses as draws for rule-50-compatible WDL labels
+  - [ ] **7.4.d** Preserve identical rows, ordering and train/validation/test membership
+  - [ ] **7.4.e** At execution time analyze exactly which positions may be relabeled; never propagate an ending verdict backward into non-tablebase rows without a separately justified rule
+  - [ ] **7.4.f** Publish changed-row count, fraction, family distribution and before/after label matrix
+- [ ] **7.5** Decide whether datagen-v3 deserves a third arm
+  - [ ] **7.5.a** Inspect its semantics and provenance when this step is reached
+  - [ ] **7.5.b** Distinguish whole-game tablebase adjudication from row-local post-hoc relabeling
+  - [ ] **7.5.c** Pilot corpus C only if it can be matched closely enough for causal comparison
+  - [ ] **7.5.d** Never merge corpus C evidence into the registered A-versus-B verdict
+- [ ] **7.6** Measure optimizer dependence before the production fit
+  - [ ] **7.6.a** Fit identical targets from accepted-head and neutral initial vectors
+  - [ ] **7.6.b** Compare validation convergence, parameter distance and held-out loss
+  - [ ] **7.6.c** Register the production initialization rule before opening the test set
+- [ ] **7.7** Refit every relevant Texel-tunable HCE coordinate
+  - [ ] **7.7.a** Use the same complete surface, fixed K, optimizer budget and initial rule for A and B
+  - [ ] **7.7.b** Alternate nonlinear blocks where joint fitting is not valid
+  - [ ] **7.7.c** Produce independently applicable candidate vectors and exact manifests
+  - [ ] **7.7.d** Reject any fit with missing/frozen-by-accident coordinates or source drift
+- [ ] **7.8** Test whether tablebase relabeling transfers
+  - [ ] **7.8.a** Compare each candidate with the same accepted pre-fit baseline
+  - [ ] **7.8.b** Run the pre-registered A-versus-B no-adjudication gate
+  - [ ] **7.8.c** Use truth reports to explain endgame effects; use SPRT for strength
+  - [ ] **7.8.d** Accept the label policy and vector only by the registered rule
+- [ ] **7.9** Refresh data from the accepted fitted head
+  - [ ] **7.9.a** Generate a new no-adjudication corpus from the accepted engine
+  - [ ] **7.9.b** Reapply the accepted label contract and complete-surface fit
+  - [ ] **7.9.c** Repeat only while each cycle passes its independent gate
+  - [ ] **7.9.d** Stop at the first rejected cycle; never average rejected vectors into the head
+- [ ] **7.10** Tune evaluation terms that Texel cannot price correctly
+  - [ ] **7.10.a** Inventory nonlinear, capped, thresholded and contextual terms after the accepted linear fit
+  - [ ] **7.10.b** Include only live, sufficiently frequent coordinates; likely candidates include the king-danger funnel and validated contextual scaling
+  - [ ] **7.10.c** Exclude sparse recognizer switches, exact endgame truth rules and every linear coordinate already handled by Texel
+  - [ ] **7.10.d** Wire only the selected coordinates as bounded tune options, generate configuration from current defaults and verify perturbation visibility
+  - [ ] **7.10.e** Run natural-termination SPSA and accept its clean PGO candidate only through an independent SPRT and truth/correctness gates
+- [ ] **7.11** Freeze the classical evaluator
+  - [ ] **7.11.a** Revalidate score scale, calibration, tactical suites and all endgame floors
+  - [ ] **7.11.b** Ablate new mechanisms and low-information fitted coordinates
+  - [ ] **7.11.c** Compare held-out loss, truth quality and game strength against the pre-Phase-7 head and selected HCE references
+  - [ ] **7.11.d** Archive the final surface, corpus policy, fit/tune artifacts and retry triggers
 
-## Phase 8 — Classical consolidation
+## Phase 8 — Classical search and release
 
-- [ ] **8.0** Revisit singular-extension gate depth
-  - [ ] **8.0.a** Re-measure only on the frozen post-refit evaluator
-  - [ ] **8.0.b** Gate isolated search behavior before tuning constants
-- [ ] **8.1** Remeasure search/evaluation authority
-  - [ ] **8.1.a** Repeat the oracle split on the final classical head
-  - [ ] **8.1.b** Use the result to prioritize post-release work, not to rewrite completed evidence
-- [ ] **8.2** Complete clock and time-management work
-  - [ ] **8.2.a** Diagnose remaining root-instability/time-allocation issues
-  - [ ] **8.2.b** Pass 1T and 4T clock gates with zero forfeits
-- [ ] **8.3** Complete correctness hardening
-  - [ ] **8.3.a** Run state, repetition/rule-50, TT/mate, SEE/pin and sanitizer matrices
-  - [ ] **8.3.b** Add regressions for every defect found
-- [ ] **8.4** Complete portability and ISA validation
-  - [ ] **8.4.a** Validate target-native execution and exact search agreement
-  - [ ] **8.4.b** Publish executable ISA and same-target performance evidence
-- [ ] **8.5** Complete SMP validation
-  - [ ] **8.5.a** Revalidate node/thread/helper-clock safety
-  - [ ] **8.5.b** Pass registered 1T/4T strength and scaling gates
-- [ ] **8.6** Release the final classical line
-  - [ ] **8.6.a** Reproduce clean PGO binaries and manifests
-  - [ ] **8.6.b** Pass cumulative 1.9.3 and external-cohort matches
-  - [ ] **8.6.c** Release as 1.9.4 if maintenance-scale, otherwise the warranted higher minor
+- [ ] **8.0** Update compilers and build tools to the newest validated stable versions
+  - [ ] **8.0.a** Inventory exact local, Linux CI, Windows MSYS2 and macOS AppleClang/compiler, standard-library, CMake, Ninja and profile-tool versions
+  - [ ] **8.0.b** Test current versus newest stable compiler families one change at a time; newest is a candidate, not an automatic winner
+  - [ ] **8.0.c** Require clean compile, CTest, sanitizers and identical cross-platform bench search before accepting a toolchain
+  - [ ] **8.0.d** Compare old/new release-mode and PGO throughput with pooled independent builds; retain the faster non-regressing production toolchain
+  - [ ] **8.0.e** Freeze validated major lines where exact package pins are impractical and record exact resolved versions/hashes in release manifests
+  - [ ] **8.0.f** Keep compiler-matched llvm-profdata and verify every supported architecture
+- [ ] **8.1** Revisit singular-extension gate depth
+  - [ ] **8.1.a** Re-measure only on the frozen post-refit evaluator and selected release toolchain
+  - [ ] **8.1.b** Gate isolated search behavior before tuning constants
+- [ ] **8.2** Audit and regenerate SPSA parameters from the final HCE head
+  - [ ] **8.2.a** Map every tunable consumer to eval scale, history scale, depth, node type and time control
+  - [ ] **8.2.b** Stage A contains live eval-coupled margins: reverse futility, razoring, futility, ProbCut, null-eval scaling, SEE pruning and aspiration as supported
+  - [ ] **8.2.c** Stage B contains coupled history/LMR coordinates and their consumers only where telemetry shows signal
+  - [ ] **8.2.d** Exclude categorical mechanism switches, mate/endgame constants, TT/hash/thread settings and clock policy from ordinary search SPSA
+  - [ ] **8.2.e** Replace stale config seeds with exact accepted defaults; verify every plus/minus perturbation at start, midpoint and end
+  - [ ] **8.2.f** Register dimensions, ranges, step sizes, schedule, game budget, seed/tail estimator and independent acceptance gates
+- [ ] **8.3** Tune the final-HCE search surface without adjudication
+  - [ ] **8.3.a** Calibrate the runner and use at least the current 5,000-iteration doctrine per production block unless a validated estimator changes it
+  - [ ] **8.3.b** Run and independently gate Stage A against the frozen HCE head
+  - [ ] **8.3.c** Start Stage B from the accepted Stage A head; run and independently gate it
+  - [ ] **8.3.d** Permit one narrow final polish only if residual sensitivity and budget were pre-registered
+  - [ ] **8.3.e** Bake a tail/averaged candidate chosen by the registered estimator, then require clean PGO SPRT, CTest, tactics and endgame truth
+  - [ ] **8.3.f** Preserve rejected tunes as evidence; never combine their apparent gains arithmetically
+- [ ] **8.4** Remeasure search/evaluation authority
+  - [ ] **8.4.a** Repeat the oracle split on the final tuned classical head
+  - [ ] **8.4.b** Use the result to prioritize post-release work, not rewrite completed evidence
+- [ ] **8.5** Complete clock and time-management work
+  - [ ] **8.5.a** Diagnose remaining root-instability and time-allocation issues
+  - [ ] **8.5.b** If parameters need tuning, use a separate clock-based tune and gate; never mix them into fixed-node/search SPSA
+  - [ ] **8.5.c** Pass 1T and 4T clock gates with zero forfeits
+- [ ] **8.6** Complete correctness hardening
+  - [ ] **8.6.a** Run state, repetition/rule-50, TT/mate, SEE/pin and sanitizer matrices
+  - [ ] **8.6.b** Add regressions for every defect found
+- [ ] **8.7** Complete portability and ISA validation
+  - [ ] **8.7.a** Validate target-native execution and exact search agreement
+  - [ ] **8.7.b** Publish executable ISA and same-target performance evidence
+- [ ] **8.8** Complete SMP validation
+  - [ ] **8.8.a** Revalidate node/thread/helper-clock safety
+  - [ ] **8.8.b** Pass registered 1T/4T strength and scaling gates
+- [ ] **8.9** Release the final classical line
+  - [ ] **8.9.a** Reproduce clean PGO binaries and manifests with the frozen toolchains
+  - [ ] **8.9.b** Pass cumulative 1.9.3 and external-cohort matches
+  - [ ] **8.9.c** Publish the warranted version from measured cumulative strength
 
 ## Phase 9 — NNUE runway
 

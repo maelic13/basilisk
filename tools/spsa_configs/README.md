@@ -1,5 +1,12 @@
 # SPSA tuning with weather-factory + fastchess
 
+> **Roadmap status (2026-09-02):** the checked configurations document earlier
+> search surfaces and are not authorized unchanged for the final classical
+> tune. Phase 7.10 must create a focused nonlinear-evaluation group from the
+> accepted HCE defaults; Phase 8.1 must regenerate staged search groups from
+> the final HCE head. Never launch a production tune from stale seeds merely
+> because a JSON file is present.
+
 > **⚠ STALE configs (8.6.1, 2026-07-20):** `config_lmr.json.STALE` and
 > `config_combined.json.STALE` are renamed so `spsa.ps1 -ConfigGroup` cannot
 > launch them by accident: they express the `Lmr*Adj` knobs on the pre-6.7
