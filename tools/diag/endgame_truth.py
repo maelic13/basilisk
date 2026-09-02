@@ -25,17 +25,18 @@ KBN-K failure mode: the engine can still "see" a win that the fifty-move rule
 has already turned into a draw. Such a move is scored as discarding the clean
 win, not as preserving it.
 
-With `--per-position`, every position carries its generation seed and is
-written to the report, so two runs over the same seed are paired
-position-by-position and a later comparison can use a paired test rather than
-comparing two aggregates.
+With `--cohort`, positions come from a frozen manifest, are re-probed before
+play, and are always written to the report. Two engines run against that same
+manifest are therefore paired position-by-position instead of being compared
+only as aggregates.
 
 Example:
 
   python tools/diag/endgame_truth.py \
       --engine tools/test_engines/basilisk-hce-refit-candidate-pext-pgo.exe \
       --syzygy D:/chess/tablebases/syzygy3456 \
-      --positions 100 --nodes 60000 --max-plies 100 \
+      --cohort tools/diag/endgame_cohort_v1.manifest.json \
+      --nodes 60000 --max-plies 100 \
       --output tools/results/hce-accepted/endgame-truth-accepted.json
 """
 
@@ -47,7 +48,7 @@ import json
 import random
 import statistics
 import sys
-from collections import Counter
+from collections import Counter, defaultdict
 from pathlib import Path
 
 import chess
@@ -154,6 +155,57 @@ def dtz_abs(tb: chess.syzygy.Tablebase, board: chess.Board) -> int | None:
         return None
 
 
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest().upper()
+
+
+def load_cohort(path: Path) -> tuple[dict, dict[str, list[dict]]]:
+    """Load and structurally validate a frozen endgame cohort manifest."""
+    try:
+        manifest = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"cannot read cohort manifest {path}: {exc}") from exc
+    if manifest.get("schema") != "basilisk-endgame-cohort-v1":
+        raise ValueError(
+            f"unsupported cohort schema {manifest.get('schema')!r}; "
+            "expected 'basilisk-endgame-cohort-v1'"
+        )
+    records = manifest.get("records")
+    if not isinstance(records, list) or not records:
+        raise ValueError("cohort manifest has no records")
+    if manifest.get("position_count") != len(records):
+        raise ValueError(
+            f"cohort position_count={manifest.get('position_count')} but has "
+            f"{len(records)} records"
+        )
+
+    by_family: dict[str, list[dict]] = defaultdict(list)
+    ids: set[str] = set()
+    fens: set[str] = set()
+    required = {"id", "family", "fen", "theory_wdl", "theory_dtz"}
+    for index, record in enumerate(records):
+        if not isinstance(record, dict) or not required.issubset(record):
+            missing = required - set(record if isinstance(record, dict) else {})
+            raise ValueError(f"cohort record {index} missing {sorted(missing)}")
+        if record["id"] in ids:
+            raise ValueError(f"duplicate cohort id {record['id']}")
+        if record["fen"] in fens:
+            raise ValueError(f"duplicate cohort FEN at {record['id']}")
+        ids.add(record["id"])
+        fens.add(record["fen"])
+        by_family[record["family"]].append(record)
+    if manifest.get("unique_positions") != len(fens):
+        raise ValueError(
+            f"cohort unique_positions={manifest.get('unique_positions')} but "
+            f"has {len(fens)} unique FENs"
+        )
+    return manifest, dict(by_family)
+
+
 def play_and_grade(
     engine: chess.engine.SimpleEngine,
     tb: chess.syzygy.Tablebase,
@@ -245,11 +297,19 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--engine", required=True, type=Path)
     parser.add_argument("--syzygy", required=True, type=Path)
+    parser.add_argument(
+        "--cohort",
+        type=Path,
+        help="frozen basilisk-endgame-cohort-v1 manifest to measure",
+    )
     parser.add_argument("--positions", type=int, default=100)
     parser.add_argument("--nodes", type=int, default=60_000)
     parser.add_argument("--max-plies", type=int, default=100)
     parser.add_argument("--seed", type=int, default=0x5E9D18)
-    parser.add_argument("--families", default=",".join(DEFAULT_FAMILIES))
+    parser.add_argument(
+        "--families",
+        help="comma-separated subset (default: all cohort or legacy defaults)",
+    )
     parser.add_argument("--hash", type=int, default=16)
     parser.add_argument(
         "--per-position",
@@ -257,6 +317,11 @@ def main() -> int:
         help="write every position's record, so two runs can be paired",
     )
     parser.add_argument("--output", type=Path)
+    parser.add_argument(
+        "--validate-only",
+        action="store_true",
+        help="verify cohort truth and engine configuration without searching",
+    )
     args = parser.parse_args()
 
     if min(args.positions, args.nodes, args.max_plies) <= 0:
@@ -267,7 +332,30 @@ def main() -> int:
     if not args.syzygy.is_dir():
         parser.error(f"syzygy path is not a directory: {args.syzygy}")
 
-    families = [f for f in args.families.split(",") if f]
+    cohort_path = args.cohort.resolve() if args.cohort else None
+    cohort_manifest = None
+    cohort_records = None
+    if cohort_path:
+        if not cohort_path.is_file():
+            parser.error(f"cohort manifest not found: {cohort_path}")
+        try:
+            cohort_manifest, cohort_records = load_cohort(cohort_path)
+        except ValueError as exc:
+            parser.error(str(exc))
+        families = (
+            [f for f in args.families.split(",") if f]
+            if args.families else list(cohort_records)
+        )
+        unknown = [name for name in families if name not in cohort_records]
+        if unknown:
+            parser.error(f"families absent from cohort: {','.join(unknown)}")
+    else:
+        if args.validate_only:
+            parser.error("--validate-only requires --cohort")
+        families = [
+            f for f in (args.families or ",".join(DEFAULT_FAMILIES)).split(",") if f
+        ]
+
     specs = {}
     for name in families:
         try:
@@ -278,20 +366,40 @@ def main() -> int:
     report = {
         "schema": "basilisk-endgame-truth-v1",
         "engine": str(engine_path),
-        "engine_sha256": hashlib.sha256(engine_path.read_bytes()).hexdigest(),
+        "engine_sha256": sha256_file(engine_path),
         "syzygy": str(args.syzygy.resolve()),
-        "positions_per_family": args.positions,
+        "positions_per_family": args.positions if not cohort_path else None,
         "nodes_per_move": args.nodes,
         "max_plies": args.max_plies,
         "seed": args.seed,
         "hash_mb": args.hash,
         "persistent_tt_per_game": True,
+        "score_adjudication": False,
         "families": {},
     }
+    if cohort_path:
+        book_path = cohort_path.parent / cohort_manifest["book"]
+        if not book_path.is_file():
+            parser.error(f"cohort EPD not found: {book_path}")
+        actual_book_sha = sha256_file(book_path)
+        if actual_book_sha != cohort_manifest["book_sha256"].upper():
+            parser.error(
+                f"cohort EPD SHA-256 mismatch: {actual_book_sha} != "
+                f"{cohort_manifest['book_sha256']}"
+            )
+        report["cohort"] = {
+            "manifest": str(cohort_path),
+            "manifest_sha256": sha256_file(cohort_path),
+            "schema": cohort_manifest["schema"],
+            "book": str(book_path.resolve()),
+            "book_sha256": actual_book_sha,
+            "position_count": sum(len(cohort_records[name]) for name in families),
+        }
 
     tb = chess.syzygy.open_tablebase(str(args.syzygy))
     engine = chess.engine.SimpleEngine.popen_uci(str(engine_path))
     try:
+        report["engine_id"] = dict(engine.id)
         options = {}
         if "Hash" in engine.options:
             options["Hash"] = args.hash
@@ -304,6 +412,37 @@ def main() -> int:
             options["SyzygyPath"] = ""
         if options:
             engine.configure(options)
+
+        if cohort_path:
+            # Do not silently benchmark stale labels. WDL is signed for White;
+            # DTZ in the cohort retains Syzygy's signed side-to-move value.
+            verified = 0
+            for name in families:
+                for record in cohort_records[name]:
+                    board = chess.Board(record["fen"])
+                    try:
+                        actual_wdl = wdl_for_white(tb, board)
+                        actual_dtz = tb.probe_dtz(board)
+                    except (chess.syzygy.MissingTableError, KeyError, ValueError) as exc:
+                        parser.error(f"cannot verify {record['id']}: {exc}")
+                    if actual_wdl != record["theory_wdl"]:
+                        parser.error(
+                            f"{record['id']} WDL drift: {actual_wdl} != "
+                            f"{record['theory_wdl']}"
+                        )
+                    if actual_dtz != record["theory_dtz"]:
+                        parser.error(
+                            f"{record['id']} DTZ drift: {actual_dtz} != "
+                            f"{record['theory_dtz']}"
+                        )
+                    verified += 1
+            report["cohort"]["verified_positions"] = verified
+            if args.validate_only:
+                print(
+                    f"Validated {verified} frozen positions and engine "
+                    f"{report['engine_id'].get('name', engine_path.name)}"
+                )
+                return 0
 
         for name in families:
             strong, weak = specs[name]
@@ -323,12 +462,23 @@ def main() -> int:
             records = []
             efficiency_pairs = []
 
-            for index in range(args.positions):
-                board = random_position(rng, strong, weak)
+            source_records = (
+                cohort_records[name] if cohort_path else [None] * args.positions
+            )
+            for index, frozen in enumerate(source_records):
+                board = (
+                    chess.Board(frozen["fen"])
+                    if frozen else random_position(rng, strong, weak)
+                )
                 fen = board.fen()
                 try:
-                    verdict = wdl_for_white(tb, board)
-                    start_dtz = dtz_abs(tb, board)
+                    verdict = (
+                        frozen["theory_wdl"] if frozen else wdl_for_white(tb, board)
+                    )
+                    start_dtz = (
+                        abs(frozen["theory_dtz"])
+                        if frozen else dtz_abs(tb, board)
+                    )
                 except (chess.syzygy.MissingTableError, KeyError, ValueError) as exc:
                     parser.error(f"no tablebase for {name}: {exc}")
                 theory[{2: "win", 1: "cursed_win", 0: "draw",
@@ -354,19 +504,24 @@ def main() -> int:
                     if start_dtz is not None:
                         optimal_dtz.append(start_dtz)
 
-                if args.per_position:
-                    records.append({
+                if args.per_position or cohort_path:
+                    record = {
                         "index": index,
-                        "generation_seed": family_seed,
                         "fen": fen,
                         "theory_wdl": verdict,
                         "theory_dtz": start_dtz,
                         **played,
-                    })
+                    }
+                    if frozen:
+                        record["id"] = frozen["id"]
+                        record["generation_seed"] = frozen["family_seed"]
+                    else:
+                        record["generation_seed"] = family_seed
+                    records.append(record)
 
-                if (index + 1) % 25 == 0:
+                if (index + 1) % 25 == 0 or index + 1 == len(source_records):
                     print(
-                        f"{name}: {index + 1}/{args.positions} "
+                        f"{name}: {index + 1}/{len(source_records)} "
                         f"converted={converted}/{won_positions} "
                         f"preserved={preserved}/{graded}",
                         flush=True,
@@ -427,7 +582,7 @@ def main() -> int:
                     "reported only for pawnless strong side vs bare king, "
                     "where DTZ equals DTM"
                 )
-            if args.per_position:
+            if args.per_position or cohort_path:
                 entry["positions"] = records
             report["families"][name] = entry
             print(
