@@ -93,7 +93,7 @@ Run this checklist in order; PLAN.md owns rationale and gates.
   - [x] **6.0.b** Measure accepted Basilisk and Stockfish on all 770 positions at identical nodes
   - [x] **6.0.c** Freeze attained 60k family ceilings and separate paired-union stretch evidence
   - [x] **6.0.d** Pair by position; report at 2 SE and block family regressions at 3 SE
-  - [ ] **6.0.e** Add hard theory vetoes for clean-win discard, illegal play, crash and rule-50 regression
+  - [x] **6.0.e** Veto new truth/rule-50 failures and every engine anomaly
   - [ ] **6.0.f** Census disagreements between self-play WDL labels and Syzygy on every <=6-man corpus row
 - [ ] **6.1** Implement and tune the missing KBNK technique (historical step 5.9.22)
   - [ ] **6.1.a** Start from Rarog's useful finding: bishop-color corner diagonal potential can solve the drive without a bishop-position term

@@ -169,7 +169,7 @@ completed item has a number after unfinished work.
   - [x] **6.0.b** Measure the accepted Basilisk head and a strong reference at identical nodes.
   - [x] **6.0.c** Set achievable family ceilings; do not assume 100% at a finite node budget.
   - [x] **6.0.d** Define paired confidence rules: aggregate beyond 2 SE reports, family beyond 3 SE blocks.
-  - [ ] **6.0.e** Add hard theory vetoes for clean-win discard, illegal play, crash and rule-50 regression.
+  - [x] **6.0.e** Add hard theory vetoes for clean-win discard, illegal play, crash and rule-50 regression.
   - [ ] **6.0.f** Census disagreements between self-play WDL labels and Syzygy on every <=6-man corpus row.
 
 Step 6.0.a artifact: tools/diag/endgame_cohort_v1.epd and its manifest use
@@ -253,6 +253,20 @@ blocks the candidate. Improvements never establish strength or bypass SPRT;
 they nominate a later accepted result for ceiling/floor ratcheting. Invalid or
 unpaired reports fail closed, while the absolute theory rules remain 6.0.e's
 separate responsibility.
+
+Step 6.0.e is implemented by `tools/diag/endgame_vetoes.py` and fail-closed
+reporting in `endgame_truth.py`. Engine crash/error, illegal move and a no-move
+response from a nonterminal position are absolute vetoes anywhere in the
+cohort. Existing accepted-head theory debt is grandfathered, but a candidate
+may not introduce a clean-win discard or rule-50 failure on a clean-win
+position where the accepted baseline avoided it. These position-level vetoes
+are objective trajectory regressions and cannot be traded against aggregate
+improvement or a positive SPRT. The accepted report passes itself with zero
+vetoes. As an intentional independence check, the stronger reference is not an
+acceptable Basilisk candidate under this contract: despite its aggregate gain,
+it newly discards clean wins at KNN-KP EG0459/EG0460 and newly reaches rule 50
+at EG0464. This confirms that the ceiling oracle and the candidate correctness
+gate answer different questions.
 
 ### 6.1 Complete KBNK mate drive
 

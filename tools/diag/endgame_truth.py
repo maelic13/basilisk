@@ -229,6 +229,7 @@ def play_and_grade(
     dtz_checked = 0
     dtz_progress = 0
     first_discard_ply = None
+    anomaly = None
 
     for ply in range(max_plies):
         if board.is_checkmate():
@@ -256,9 +257,24 @@ def play_and_grade(
             except (chess.syzygy.MissingTableError, KeyError, ValueError):
                 before_wdl = None
 
-        result = engine.play(board, chess.engine.Limit(nodes=nodes), game=game_token)
+        try:
+            result = engine.play(
+                board, chess.engine.Limit(nodes=nodes), game=game_token
+            )
+        except chess.engine.EngineTerminatedError as exc:
+            outcome = "engine_crash"
+            anomaly = {"type": type(exc).__name__, "message": str(exc)}
+            break
+        except (chess.engine.EngineError, OSError) as exc:
+            outcome = "engine_error"
+            anomaly = {"type": type(exc).__name__, "message": str(exc)}
+            break
         if result.move is None:
             outcome = "no_move"
+            break
+        if not board.is_legal(result.move):
+            outcome = "illegal_move"
+            anomaly = {"move": result.move.uci()}
             break
         board.push(result.move)
 
@@ -292,6 +308,7 @@ def play_and_grade(
         "dtz_checked_moves": dtz_checked,
         "dtz_progress_moves": dtz_progress,
         "first_discard_ply": first_discard_ply,
+        "anomaly": anomaly,
     }
 
 
@@ -755,7 +772,13 @@ def main() -> int:
         if executor:
             executor.close()
         if engine:
-            engine.quit()
+            try:
+                engine.quit()
+            except Exception:
+                # A crashed engine is preserved as an engine_crash record and
+                # rejected by the hard-veto layer; teardown must not erase the
+                # diagnostic report that proves it.
+                pass
         tb.close()
 
     rendered = json.dumps(report, indent=2) + "\n"
