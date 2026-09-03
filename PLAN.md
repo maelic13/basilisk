@@ -589,7 +589,7 @@ bishop analogue on evidence, so it does not belong to this step.
 ### 6.2 Gate endgame Group A
 
 - [ ] **6.2** Gate KBNK and accepted mate-drive changes.
-  - [ ] **6.2.a** Run a fresh no-adjudication [0,3] nElo SPRT against the accepted head.
+  - [x] **6.2.a** Run a fresh no-adjudication [0,3] nElo SPRT against the accepted head.
   - [ ] **6.2.b** Treat the old approximately 5,860-game adjudicated Group A run as preliminary only.
   - [ ] **6.2.c** Never resume that run if the KBNK candidate or match policy changes.
 
@@ -641,6 +641,48 @@ which Windows PowerShell 5.1 mis-decodes into unterminated string literals, so
 both fail to parse there. They run correctly under `pwsh` 7. Every prepared
 command therefore names `pwsh` explicitly.
 
+
+Step 6.2.a outcome (BAS-E44). The gate ran as prepared -- no adjudication,
+tc=3+0.03, 1 thread, 64 MB, concurrency 14, both benches 12,709,666 -- and the
+maintainer stopped it at 7,720 games with LLR -0.05, that is 1.7% of the way to
+a bound. Elo -1.40 +/- 4.07, nElo -2.66 +/- 7.75, LOS 25.09%, PairsRatio 0.97,
+Ptnml [88, 736, 2236, 719, 81].
+
+The claim this licenses is deliberately narrow: the candidate is not
+distinguishable from the pre-6.1 baseline in play, and a regression worse than
+about -5.5 Elo is excluded at 95%. It is practical equivalence, not a
+demonstrated null and not a pass of the registered bound; the interval still
+admits a real two-to-three Elo regression. The item is closed on the
+maintainer's decision to stop, and reopening it costs only machine time if that
+judgement is revisited.
+
+An earlier interim reading at 3,484 games showed -4.29 Elo with LLR -0.82 and
+was treated as a possible regression. It was noise and returned to the origin.
+The standing lesson is that an SPRT a quarter of the way to its bound is not
+evidence, and it should not have been discussed as though it were.
+
+The PGO speed confound was measured rather than assumed, and does not flatter
+the candidate. A first measurement was discarded because a maintainer job was
+running concurrently; re-measured idle with five interleaved `bench 13` repeats
+per side, the candidate averages 3,604,125 nps against 3,565,130, or +1.09%
+(t = +1.70, inside a 1.6-3.0% within-engine spread). The candidate is if
+anything faster, so speed cannot manufacture a negative result; if that edge is
+real it is worth one to two Elo here, which would put the behavioural effect
+nearer -3 than -1.4.
+
+This is the outcome BAS-E43 predicted. A KBNK-only change has almost no surface
+on which to move a 3+0.03 result, and 6.1's value stays where BAS-E41 measured
+it -- conversion 95 to 144 of 198 when the family is actually reached.
+
+Two follow-ups are prepared and unrun, both needing an idle machine.
+`tools/diag/run_kbnk_budget_transfer.ps1` asks whether the 6.1.e ranking
+survives a game-representative node budget, bracketing it at 200k and 600k
+against the existing 60k result. `tools/diag/datagen_label_audit.py` asks
+whether 8,000-node datagen mislabels won endings as draws, which would bias
+Phase 7's refit exactly where 6.1 works; because `armA` at 8,000 nodes and
+`armC` at 25,000 nodes already exist, that is a measurement rather than a
+guess. A 60-game smoke read 25.9% of clean wins unconverted, well above the
+6.0.f 14.12% baseline, but n=60 settles nothing.
 
 ### 6.3 Passed-pawn king approach
 
