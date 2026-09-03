@@ -887,16 +887,37 @@ conditioning on family, so there is no candidate for 6.3.b to verify or 6.3.c
 to gate. Both are marked complete as vacuous rather than left dangling, and no
 king-to-passed-pawn term is implemented or licensed.
 
-The one large addressable gap the measurement did find, **KBP-K at 15 positions
-behind the reference (9/24 against 24/24)**, is absorbed by 6.5.c, which already
-owns bishop-pawn families including wrong-bishop and rook-pawn draw logic. It
-enters 6.5 as a measured deficit with a known size rather than as a suspicion,
-and it must be attacked as bishop-pawn technique, not as king geometry --
+The one large addressable gap the measurement found, **KBP-K**, is absorbed by
+6.5.c, which already owns bishop-pawn families including wrong-bishop and
+rook-pawn draw logic. Its size at the current head is 7 positions (17/24
+against the reference's 24/24); the 15 quoted from the pre-6.1 arm was stale,
+because the 6.1 KBNK vector unexpectedly moved KBP-K from 9/24 to 17/24
+(BAS-E49). It must be attacked as bishop-pawn technique, not king geometry --
 6.3.a's within-family evidence specifically rules out the latter as the cause.
 
 Closing empty costs nothing that was ever demonstrated. Nothing in 6.3 was ever
 supported by Basilisk's own evidence; the step existed because strong engines
 have such a term, which is the reasoning 6.3.a was written to prevent.
+
+**Current-head baseline (BAS-E49).** The 6.0.b arms measure `294a3e2`, which
+predates 6.1. Re-measured on the same cohort and conditions, the current head
+converts **377/480 (78.54%)** against the reference's 466/480 (97.08%), closing
+the gap from 105 positions to 89. 6.1 is worth +16 there: KBN-K 12 to 20,
+KBP-K 9 to 17, KBP-KN +1, KBP-KB -1.
+
+The KBP-K movement was not intended and is not a build artifact: on one binary
+with only the UCI vector changed, the legacy weights give 9/24 and the accepted
+weights 17/24, and the old PGO binary independently reproduces 9/24. Since
+KBP-K contains no knight and `kbnk_score` fires only on bishop-plus-knight
+against a bare king, every KBN-K node in a KBP-K tree must come from a knight
+promotion, and the drive's larger magnitude reprices those lines. **6.4.a
+inherits this as its first concrete case**: an evaluation term with a
+31,660-point ceiling is reaching families it was never scoped to touch.
+
+Families level with the reference and needing no further work: KQ-K, KR-K,
+KBB-K, KP-K, KPP-K, KQ-KP, KP-KP. Remaining deficits at the current head are
+KQ-KR 13, KNN-KP 13, KQ-KRP 10, KBPP-KB 9, KBP-KB 8, KRP-KR 7, KBP-K 7,
+KBP-KN 6, KR-KN 4, KRP-KB 4, KBN-K 4, KR-KB 3, KR-KP 1.
 
 ### 6.4 Magnitude and coverage audit
 
@@ -910,7 +931,7 @@ have such a term, which is the reasoning 6.3.a was written to prevent.
 - [ ] **6.5** Implement high-value rook and bishop-pawn families.
   - [ ] **6.5.a** Cover KRPP-KRP and KRP-KR.
   - [ ] **6.5.b** Cover KR-KP, KQ-KRP and KR-KB.
-  - [ ] **6.5.c** Cover bishop-pawn families, including wrong-bishop/rook-pawn draw logic. Absorbs 6.3's KBP-K deficit: 9/24 against the reference's 24/24 in the corrected 6.0.b baseline, to be attacked as bishop-pawn technique, not king geometry (BAS-E48).
+  - [ ] **6.5.c** Cover bishop-pawn families, including wrong-bishop/rook-pawn draw logic. Absorbs 6.3's KBP-K deficit, which is **7** positions at the current head (17/24 against the reference's 24/24), not the 15 the pre-6.1 arm showed; attack it as bishop-pawn technique, not king geometry (BAS-E48, BAS-E49).
   - [ ] **6.5.d** Add deterministic truth cases before coefficient fitting.
 
 - [ ] **6.6** Gate Group B.
