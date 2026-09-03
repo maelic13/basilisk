@@ -74,6 +74,15 @@ def summarize_reports(
             for p in positions.values()
         )
         discarded = sum(p.get("first_discard_ply") is not None for p in positions.values())
+        # BAS-E35 established that the historical discards occur only at
+        # plies 94-98, after the win is already dying at the rule-50 boundary.
+        # A discard before ply 80 is therefore a new live truth failure, not
+        # ordinary late cleanup noise, and is ranked as a correctness veto.
+        live_discards = sum(
+            p.get("first_discard_ply") is not None
+            and p["first_discard_ply"] < 80
+            for p in positions.values()
+        )
         rows.append({
             "variant": name,
             "uci_kbnk_drive": weights,
@@ -87,6 +96,7 @@ def summarize_reports(
             "median_mate_plies": family["median_mate_plies"],
             "mate_efficiency": family["mate_efficiency"],
             "discarded_clean_wins": discarded,
+            "live_truth_discards": live_discards,
             "hard_anomalies": hard,
             "outcomes": family["outcomes"],
         })
@@ -95,6 +105,7 @@ def summarize_reports(
         rows,
         key=lambda row: (
             row["hard_anomalies"],
+            row["live_truth_discards"],
             -row["converted"],
             row["discarded_clean_wins"],
             row["median_mate_plies"] if row["median_mate_plies"] is not None else 10**9,
@@ -111,6 +122,7 @@ def summarize_reports(
         "workers": baseline["workers"],
         "ranking_policy": [
             "reject engine/protocol anomalies",
+            "reject new live truth discards before ply 80",
             "prefer conversion count on identical positions",
             "use clean-win preservation, DTZ progress and mate efficiency diagnostically",
             "prefer the simpler coefficient vector when practical results are tied",
@@ -122,13 +134,14 @@ def summarize_reports(
     rendered = json.dumps(summary, indent=2) + "\n"
     output.write_text(rendered, encoding="utf-8", newline="\n")
 
-    print("variant              weights             conv  delta  gain/loss  discard  hard")
+    print("variant              weights                   conv  delta  gain/loss  discard  live  hard")
     for row in ranked:
         print(
             f'{row["variant"]:<20} {row["uci_kbnk_drive"]:<25} '
             f'{row["converted"]:>3}/{len(baseline_ids):<3} {row["conversion_delta_vs_baseline"]:>+5} '
             f'{row["paired_conversions_gained"]:>3}/{row["paired_conversions_lost"]:<3} '
-            f'{row["discarded_clean_wins"]:>7} {row["hard_anomalies"]:>5}'
+            f'{row["discarded_clean_wins"]:>7} {row["live_truth_discards"]:>5} '
+            f'{row["hard_anomalies"]:>5}'
         )
     print(f"Summary: {output.resolve()}")
 
@@ -144,7 +157,7 @@ def main() -> int:
             args.output or args.result_dir / "summary.json",
             VARIANTS,
             "baseline",
-            "basilisk-kbnk-coefficient-sweep-v1",
+            "basilisk-kbnk-coefficient-sweep-v2",
             "6.1.c paired 60-position screen; selection requires review, not automatic adoption",
         )
     except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:

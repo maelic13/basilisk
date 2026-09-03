@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate and summarize the confound-corrected PLAN 6.1.c refinement."""
+"""Validate and summarize the PLAN 6.1.c upper-range KBNK sweep."""
 
 from __future__ import annotations
 
@@ -10,32 +10,29 @@ from pathlib import Path
 
 try:
     from .kbnk_sweep_summary import summarize_reports
-except ImportError:  # Direct script execution puts this directory on sys.path.
+except ImportError:
     from kbnk_sweep_summary import summarize_reports
 
 VARIANTS = {
     "legacy-baseline": "15600,800,900,220,220",
-    "pass1-winner": "17000,1000,0,220,0",
-    "d0900-k220": "15600,900,0,220,0",
-    "d1000-k140": "15600,1000,0,140,0",
-    "d1000-k220": "15600,1000,0,220,0",
-    "d1000-k300": "15600,1000,0,300,0",
-    "d1250-k140": "15600,1250,0,140,0",
-    "d1250-k220": "15600,1250,0,220,0",
-    "d1250-k300": "15600,1250,0,300,0",
-    "d1450-k140": "15600,1450,0,140,0",
-    "d1450-k220": "15600,1450,0,220,0",
-    "d1450-k300": "15600,1450,0,300,0",
-    "base14200": "14200,1250,0,220,0",
-    "base17000": "17000,1250,0,220,0",
-    "base18400": "18400,1250,0,220,0",
+    "boundary-control": "15600,1450,0,300,0",
+    "d1350-k340": "15600,1350,0,340,0",
+    "d1350-k460": "15600,1350,0,460,0",
+    "d1450-k340": "15600,1450,0,340,0",
+    "d1450-k460": "15600,1450,0,460,0",
+    "d1550-k340": "15600,1550,0,340,0",
+    "d1550-k460": "15600,1550,0,460,0",
+    "d1650-k460": "15600,1650,0,460,0",
+    "d1750-k340": "15600,1750,0,340,0",
+    "d1750-k460": "15600,1750,0,460,0",
+    "d1850-k340": "15600,1850,0,340,0",
+    "d1850-k460": "15600,1850,0,460,0",
+    "d1900-k340": "15600,1900,0,340,0",
+    "d1900-k460": "15600,1900,0,460,0",
 }
 CONTROL_FINGERPRINTS = {
-    # Canonical SHA-256 of the complete 60 per-position records returned by
-    # the original four-field sweep. The corrected five-field controls must
-    # reproduce these exactly or the refactor is not behavior-neutral.
     "legacy-baseline": "A28D2843263A8DDCB760C1133D5F105AE08E1F110AE4BB410210C683A15F1BF8",
-    "pass1-winner": "792065BAC0D447E0B1577406103566AB0BDD65344BECF691747B20B2D085B5EB",
+    "boundary-control": "ACB112FE78F1C074CD9C49AD16641BF8B1DA9DB872A9386BFC6DF672C964869E",
 }
 
 
@@ -46,9 +43,7 @@ def validate_control_fingerprints(result_dir: Path) -> None:
         canonical = json.dumps(positions, sort_keys=True, separators=(",", ":")).encode()
         actual = hashlib.sha256(canonical).hexdigest().upper()
         if actual != expected:
-            raise ValueError(
-                f"{name}: behavior-neutral control drift {actual} != {expected}"
-            )
+            raise ValueError(f"{name}: control drift {actual} != {expected}")
 
 
 def main() -> int:
@@ -63,8 +58,8 @@ def main() -> int:
             args.output or args.result_dir / "summary.json",
             VARIANTS,
             "legacy-baseline",
-            "basilisk-kbnk-coefficient-refinement-v2",
-            "6.1.c confound-corrected paired 60-position base/diagonal/king refinement",
+            "basilisk-kbnk-upper-sweep-v1",
+            "6.1.c paired upper-range screen bounded by live-truth safety",
         )
     except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
         parser.error(str(exc))

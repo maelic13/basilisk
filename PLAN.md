@@ -16,12 +16,13 @@ historical evidence ledger.
 | Evaluation | HCE is unfrozen for structural improvement and complete, controlled refits |
 | Corpus rule | Game-result labels only; no engine-evaluation labels |
 | Match/data rule | Natural termination by default; score-based adjudication requires explicit opt-in and registration |
-| Long job | Corrected 6.1.c refinement prepared; maintainer command pending |
+| Long job | 6.1.c upper-range safety sweep prepared; maintainer command pending |
 | Release target | Classical release after Phase 8; NNUE 2.0.0 after Phase 10 |
 
-Step 6.1.c was reopened because its first sweep coupled diagonal slope to a
-class-wide score offset. The corrected independent-coordinate refinement is
-prepared; no later leaf may proceed until it is returned and analyzed.
+Step 6.1.c remains open. Its corrected refinement proved that stronger
+diagonal slope is useful but placed the best aggregate result on the tested
+boundary and exposed a live truth loss there. A final safety-bounded upper
+sweep is prepared; no later leaf may proceed until it is returned and analyzed.
 
 ## 2. Operating contract
 
@@ -373,8 +374,29 @@ conversion first, clean-win discards second, and use WDL preservation, DTZ
 progress and mate efficiency diagnostically. Because these 60 positions select
 among 15 arms, they are development data, not confirmation: 6.1.e must make
 positions 61-198 its primary held-out verdict and report the all-198 aggregate
-only as secondary context. Run:
-`powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\diag\run_kbnk_refinement.ps1`.
+only as secondary context. The refinement completed with summary SHA-256
+`FAF6D1CC1A4AB43AF67DAD4D97B9CA2E247AC65F36807A3260C3D3F55814F5FA`.
+Both behavior-neutral controls reproduced their original per-position
+fingerprints exactly.
+
+The result rose strongly through the diagonal boundary: legacy converted
+26/60; the best 1250 arm converted 39/60; and diagonal 1450 converted 42, 46,
+and 47 with king weights 140, 220, and 300. The independent base axis at
+diagonal 1250/king 220 converted 35, 36, 31, and 36 at bases 14200, 15600,
+17000, and 18400, so base-score inflation neither explains nor monotonically
+drives the gain. However, all three diagonal-1450 arms discarded the clean win
+at ply zero on `KBNK0039`; the 220 and 300 arms then lost a piece at ply four.
+They are correctness failures regardless of aggregate conversion. The current
+provisional default therefore remains only a control, not an accepted choice.
+
+The final upper-range screen retains exact legacy and 1450/300 fingerprints,
+tests diagonal 1350-1900 against king weights 340/460 where mate-band safety
+allows, and admits no candidate with a new truth discard before ply 80. A
+one-position 60k preflight excluded combinations already known to discard
+`KBNK0039`; diagonal 2000 also fails that gate, so 1900 plus the static
+mate-score bound closes the useful upper search interval. All other conditions
+remain identical. Run:
+`powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\diag\run_kbnk_upper_sweep.ps1`.
 
 ### 6.2 Gate endgame Group A
 
