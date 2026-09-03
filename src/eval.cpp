@@ -261,6 +261,62 @@ static bool kpk_strong_wins(const Board& b, Color strong) {
 }
 
 // ---- KBNK: drive the bare king to the bishop-coloured corner ---------------
+struct KbnkDriveWeights {
+    int diagonal;
+    int edge;
+    int king;
+    int knight;
+};
+
+#ifdef BASILISK_TUNE
+static KbnkDriveWeights g_kbnk_drive{800, 900, 220, 220};
+
+bool set_kbnk_drive_weights(const std::string& value, std::string& error) {
+    KbnkDriveWeights candidate{};
+    int* fields[] = {
+        &candidate.diagonal, &candidate.edge, &candidate.king, &candidate.knight
+    };
+    std::istringstream input(value);
+    std::string token;
+    for (int* field : fields) {
+        if (!std::getline(input, token, ',')) {
+            error = "expected four comma-separated integers (diagonal,edge,king,knight)";
+            return false;
+        }
+        std::istringstream number(token);
+        if (!(number >> *field) || (number >> std::ws && !number.eof()) || *field < 0) {
+            error = "weights must be four non-negative integers";
+            return false;
+        }
+    }
+    if (std::getline(input, token, ',')) {
+        error = "expected exactly four comma-separated integers";
+        return false;
+    }
+
+    // The largest legal term multipliers are diagonal=14, edge=3,
+    // king=6 (the kings cannot touch), and knight=7. Keep every static KBNK
+    // score below the search's mate-score band (32000 - MAX_PLY 128), or a
+    // mere evaluation could be encoded/stored as a mate score in the TT.
+    constexpr int STATIC_MATE_FLOOR = 31872;
+    const int64_t maximum = int64_t(KNOWN_WIN)
+        + int64_t(14) * candidate.diagonal
+        + int64_t(3) * candidate.edge
+        + int64_t(6) * candidate.king
+        + int64_t(7) * candidate.knight;
+    if (maximum >= STATIC_MATE_FLOOR) {
+        error = "maximum KBNK score enters the mate-score band";
+        return false;
+    }
+
+    g_kbnk_drive = candidate;
+    error.clear();
+    return true;
+}
+#else
+static constexpr KbnkDriveWeights g_kbnk_drive{800, 900, 220, 220};
+#endif
+
 static int kbnk_score(const Board& b, Color strong) {
     Color  weak = ~strong;
     Square sk   = b.king_sq[strong];
@@ -285,20 +341,15 @@ static int kbnk_score(const Board& b, Color strong) {
     const int wf = int(file_of(wksq)), wr = int(rank_of(wksq));
     const int diagonal = dark_bishop ? std::abs(7 - wr - wf) : std::abs(wr - wf);
 
-    constexpr int KBNK_W_DIAGONAL = 800; // existing Basilisk gradient, not Rarog's 360
-    constexpr int KBNK_W_EDGE   = 900;   // per step the weak king is off the edge
-    constexpr int KBNK_W_KING   = 220;   // per step the kings are apart
-    constexpr int KBNK_W_KNIGHT = 220;   // per step the knight is from the weak king
-
     const int edge_dist = std::min(std::min(wf, 7 - wf), std::min(wr, 7 - wr));
     const int king_dist = KING_DIST[sk][wksq];
 
     int v = KNOWN_WIN
-          + (7 + diagonal) * KBNK_W_DIAGONAL
-          + (3  - edge_dist) * KBNK_W_EDGE
-          + (8  - king_dist) * KBNK_W_KING;
+          + (7 + diagonal) * g_kbnk_drive.diagonal
+          + (3  - edge_dist) * g_kbnk_drive.edge
+          + (8  - king_dist) * g_kbnk_drive.king;
     if (b.pieces[strong][KNIGHT])
-        v += (8 - KING_DIST[lsb(b.pieces[strong][KNIGHT])][wksq]) * KBNK_W_KNIGHT;
+        v += (8 - KING_DIST[lsb(b.pieces[strong][KNIGHT])][wksq]) * g_kbnk_drive.knight;
 
     return (strong == WHITE) ? v : -v;
 }

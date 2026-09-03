@@ -16,12 +16,12 @@ historical evidence ledger.
 | Evaluation | HCE is unfrozen for structural improvement and complete, controlled refits |
 | Corpus rule | Game-result labels only; no engine-evaluation labels |
 | Match/data rule | Natural termination by default; score-based adjudication requires explicit opt-in and registration |
-| Long job | None active; the complete 6.0 truth baseline is recorded below |
+| Long job | 6.1.c prepared; maintainer command pending for the paired KBNK coefficient screen |
 | Release target | Classical release after Phase 8; NNUE 2.0.0 after Phase 10 |
 
-The next engine change is not authorized by this planning pass. Step 6.1.c is
-the next leaf and measures diagonal scale plus interaction with Basilisk's
-existing edge, friendly-king and knight pulls.
+Step 6.1.c is prepared but remains open until its registered long run is
+returned and analyzed. It measures diagonal scale plus interaction with
+Basilisk's existing edge, friendly-king and knight pulls.
 
 ## 2. Operating contract
 
@@ -320,6 +320,26 @@ focused regression coverage. Consequently no new geometry candidate exists:
 edge, friendly-king and knight terms. Release `test_eval` and `test_endgames`
 pass, and `bench 13` remains exactly 12,709,666 nodes. No conversion gain is
 claimed because the score is unchanged.
+
+Step 6.1.c uses a tune-build-only atomic `KBNK Drive` option in
+`diagonal,edge,king,knight` order; release defaults and UCI surface are
+unchanged. The option rejects malformed, negative and combined vectors whose
+largest legal KBNK score would enter the mate-score band. The historical
+BAS-E35 LCG source is frozen as `tools/diag/kbnk_cohort_v1.*`: exactly 198
+Syzygy clean wins retained from the original 200 generated positions, with
+source indices, WDL/DTZ labels and tablebase inventory provenance.
+
+The registered screen runs baseline, diagonal 600/1000, each competing-term
+ablation, edge+knight ablation, and three increasingly Rarog-shaped dominant
+diagonal vectors. It uses the first 60 frozen positions, 60,000 nodes/move,
+100 plies, 30 independent one-thread workers, persistent TT only within each
+game, engine tablebases disabled, and natural termination with no score
+adjudication. All variants use the same tune binary and positions. Reject any
+engine/protocol anomaly; then rank conversion on the paired positions, using
+clean-win preservation, DTZ progress and mate efficiency diagnostically and
+preferring the simpler vector when practically tied. This screen selects a
+candidate only: 6.1.e owns confirmation on all 198 positions. Run:
+`powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\diag\run_kbnk_sweep.ps1`.
 
 ### 6.2 Gate endgame Group A
 

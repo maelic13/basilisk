@@ -8,6 +8,7 @@
 
 #include "board.h"
 #include "constants.h"
+#include "eval.h"
 #include "parameters.h"
 #include "uci_output.h"
 
@@ -172,7 +173,10 @@ std::string Parameters::uci_options() {
         // unadvertised options); release builds keep a clean 9-option list.
         "option name TM_Debug type check default false\n"
         // Diagnostic counters + lazy dual-eval audit (8.6.6).
-        "option name Diag type check default false\n";
+        "option name Diag type check default false\n"
+        // Atomic string keeps an SPSA/sweep harness from briefly installing
+        // an unsafe partial KBNK vector while four independent options arrive.
+        "option name KBNK Drive type string default 800,900,220,220\n";
     // 8.6.1: generated from the SearchParams X-macro table — the advertised
     // default IS the compiled default by construction (the hand-written list
     // this replaces had drifted: PostLmrHistScale said 104, engine ran 0;
@@ -349,6 +353,12 @@ void Parameters::set_option(const std::string& args) {
         // `info string tm ...` per move with the time budget, actual elapsed,
         // and the go-receipt->search-start dispatch delta.
         tm_debug = parse_bool_option(value);
+#ifdef BASILISK_TUNE
+    } else if (name_lower == "kbnk drive") {
+        std::string error;
+        if (!set_kbnk_drive_weights(value, error))
+            uci_write_line("info string Invalid KBNK Drive: " + error);
+#endif
     } else if (!parse_int(value, parsed)) {
         uci_write_line("info string Invalid value for option '" + name + "': " + value);
     } else if (name_lower == "move overhead") {

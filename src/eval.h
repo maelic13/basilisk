@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 #include "board.h"
 #include "eval_params.h"
 
@@ -132,4 +134,9 @@ void init_eval_tables(const EvalParams& p = g_eval_params);
 void load_eval_file_if_set();
 // Dump g_eval_params to stdout in "name index value" format (one line per element).
 void run_dumpeval();
+
+// Tune-build-only control for the four KBNK drive terms, in the order
+// diagonal,edge,strong-king,knight. The update is atomic: malformed or unsafe
+// vectors leave the active weights unchanged and explain why in `error`.
+bool set_kbnk_drive_weights(const std::string& value, std::string& error);
 #endif

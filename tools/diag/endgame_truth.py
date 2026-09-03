@@ -312,9 +312,28 @@ def play_and_grade(
     }
 
 
+def parse_engine_options(raw_options: list[str]) -> dict[str, str]:
+    """Parse repeatable NAME=VALUE controls without weakening instrument invariants."""
+    parsed = {}
+    reserved = {"threads", "hash", "syzygypath"}
+    for raw in raw_options:
+        if "=" not in raw:
+            raise ValueError(f"engine option must be NAME=VALUE, got {raw!r}")
+        name, value = (part.strip() for part in raw.split("=", 1))
+        if not name or not value:
+            raise ValueError(f"engine option must have a name and value: {raw!r}")
+        if name.casefold() in reserved:
+            raise ValueError(f"--engine-option cannot override instrument option {name!r}")
+        if any(existing.casefold() == name.casefold() for existing in parsed):
+            raise ValueError(f"duplicate engine option {name!r}")
+        parsed[name] = value
+    return parsed
+
+
 def configure_engine(
     engine: chess.engine.SimpleEngine,
     hash_mb: int,
+    engine_options: dict[str, str],
 ) -> None:
     """Configure an engine for isolated one-thread evaluation measurement."""
     options = {}
@@ -327,6 +346,12 @@ def configure_engine(
     # the tables instead.
     if "SyzygyPath" in engine.options:
         options["SyzygyPath"] = ""
+    available = {name.casefold(): name for name in engine.options}
+    for requested, value in engine_options.items():
+        actual = available.get(requested.casefold())
+        if actual is None:
+            raise ValueError(f"engine does not advertise option {requested!r}")
+        options[actual] = value
     if options:
         engine.configure(options)
 
@@ -342,6 +367,7 @@ class EngineWorkerPool:
         nodes: int,
         max_plies: int,
         hash_mb: int,
+        engine_options: dict[str, str],
     ) -> None:
         self.tasks: queue.Queue = queue.Queue()
         self.results: queue.Queue = queue.Queue()
@@ -350,7 +376,7 @@ class EngineWorkerPool:
         self.threads = [
             threading.Thread(
                 target=self._work,
-                args=(engine_path, syzygy_path, nodes, max_plies, hash_mb),
+                args=(engine_path, syzygy_path, nodes, max_plies, hash_mb, engine_options),
                 name=f"endgame-worker-{index + 1}",
             )
             for index in range(workers)
@@ -373,13 +399,14 @@ class EngineWorkerPool:
         nodes: int,
         max_plies: int,
         hash_mb: int,
+        engine_options: dict[str, str],
     ) -> None:
         engine = None
         tb = None
         try:
             tb = chess.syzygy.open_tablebase(str(syzygy_path))
             engine = chess.engine.SimpleEngine.popen_uci(str(engine_path))
-            configure_engine(engine, hash_mb)
+            configure_engine(engine, hash_mb, engine_options)
         except BaseException as exc:
             self.ready.put(f"{threading.current_thread().name}: {exc}")
             return
@@ -458,6 +485,19 @@ def main() -> int:
     )
     parser.add_argument("--hash", type=int, default=16)
     parser.add_argument(
+        "--engine-option",
+        action="append",
+        default=[],
+        metavar="NAME=VALUE",
+        help="repeatable extra advertised UCI option applied identically to every worker",
+    )
+    parser.add_argument(
+        "--cohort-limit-per-family",
+        type=int,
+        default=0,
+        help="use the first N frozen records per selected family (0 means all)",
+    )
+    parser.add_argument(
         "--workers",
         type=int,
         default=1,
@@ -478,6 +518,12 @@ def main() -> int:
 
     if min(args.positions, args.nodes, args.max_plies, args.workers) <= 0:
         parser.error("positions, nodes, max-plies and workers must be positive")
+    if args.cohort_limit_per_family < 0:
+        parser.error("cohort-limit-per-family cannot be negative")
+    try:
+        engine_options = parse_engine_options(args.engine_option)
+    except ValueError as exc:
+        parser.error(str(exc))
     engine_path = args.engine.resolve()
     if not engine_path.is_file():
         parser.error(f"engine not found: {engine_path}")
@@ -501,6 +547,11 @@ def main() -> int:
         unknown = [name for name in families if name not in cohort_records]
         if unknown:
             parser.error(f"families absent from cohort: {','.join(unknown)}")
+        if args.cohort_limit_per_family:
+            cohort_records = {
+                name: records[:args.cohort_limit_per_family]
+                for name, records in cohort_records.items()
+            }
     else:
         if args.validate_only:
             parser.error("--validate-only requires --cohort")
@@ -527,6 +578,7 @@ def main() -> int:
         "hash_mb": args.hash,
         "workers": args.workers,
         "engine_threads_per_worker": 1,
+        "engine_options": engine_options,
         "persistent_tt_per_game": True,
         "score_adjudication": False,
         "families": {},
@@ -548,6 +600,10 @@ def main() -> int:
             "book": str(book_path.resolve()),
             "book_sha256": actual_book_sha,
             "position_count": sum(len(cohort_records[name]) for name in families),
+            "selection": (
+                f"first {args.cohort_limit_per_family} records per family"
+                if args.cohort_limit_per_family else "all records"
+            ),
         }
 
     tb = chess.syzygy.open_tablebase(str(args.syzygy))
@@ -555,7 +611,10 @@ def main() -> int:
     executor = None
     try:
         report["engine_id"] = dict(engine.id)
-        configure_engine(engine, args.hash)
+        try:
+            configure_engine(engine, args.hash, engine_options)
+        except ValueError as exc:
+            parser.error(str(exc))
 
         if cohort_path:
             # Do not silently benchmark stale labels. WDL is signed for White;
@@ -600,6 +659,7 @@ def main() -> int:
                 args.nodes,
                 args.max_plies,
                 args.hash,
+                engine_options,
             )
 
         for name in families:
