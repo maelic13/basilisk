@@ -802,10 +802,10 @@ worse than about -5.5 Elo excluded at 95% and no claim of a gain.
 
 ### 6.3 Passed-pawn king approach
 
-- [ ] **6.3** Add general king-to-passed-pawn approach logic.
+- [x] **6.3** Add general king-to-passed-pawn approach logic.
   - [x] **6.3.a** Derive the feature from Basilisk truth failures, not reference constants.
-  - [ ] **6.3.b** Verify KP-K, KPP-K, KBP-K and mixed rook/minor pawn families.
-  - [ ] **6.3.c** Gate the isolated candidate with no adjudication.
+  - [x] **6.3.b** Verify KP-K, KPP-K, KBP-K and mixed rook/minor pawn families.
+  - [x] **6.3.c** Gate the isolated candidate with no adjudication.
 
 **6.3.a is BLOCKED by an instrument defect, found while gathering its
 evidence.** The leaf requires the feature to be derived from measured Basilisk
@@ -881,6 +881,23 @@ open rather than ticked, because closing them is a scope decision for the
 maintainer: either 6.3 closes empty in the manner of 5.9.21, or it is re-scoped
 around the family-specific gaps this measurement actually found.
 
+**6.3 closes empty (maintainer decision, 2026-09-03), in the manner of
+5.9.21.** 6.3.a's derivation found no king-approach signature that survives
+conditioning on family, so there is no candidate for 6.3.b to verify or 6.3.c
+to gate. Both are marked complete as vacuous rather than left dangling, and no
+king-to-passed-pawn term is implemented or licensed.
+
+The one large addressable gap the measurement did find, **KBP-K at 15 positions
+behind the reference (9/24 against 24/24)**, is absorbed by 6.5.c, which already
+owns bishop-pawn families including wrong-bishop and rook-pawn draw logic. It
+enters 6.5 as a measured deficit with a known size rather than as a suspicion,
+and it must be attacked as bishop-pawn technique, not as king geometry --
+6.3.a's within-family evidence specifically rules out the latter as the cause.
+
+Closing empty costs nothing that was ever demonstrated. Nothing in 6.3 was ever
+supported by Basilisk's own evidence; the step existed because strong engines
+have such a term, which is the reasoning 6.3.a was written to prevent.
+
 ### 6.4 Magnitude and coverage audit
 
 - [ ] **6.4** Audit every endgame term before broadening the evaluator.
@@ -893,7 +910,7 @@ around the family-specific gaps this measurement actually found.
 - [ ] **6.5** Implement high-value rook and bishop-pawn families.
   - [ ] **6.5.a** Cover KRPP-KRP and KRP-KR.
   - [ ] **6.5.b** Cover KR-KP, KQ-KRP and KR-KB.
-  - [ ] **6.5.c** Cover bishop-pawn families, including wrong-bishop/rook-pawn draw logic.
+  - [ ] **6.5.c** Cover bishop-pawn families, including wrong-bishop/rook-pawn draw logic. Absorbs 6.3's KBP-K deficit: 9/24 against the reference's 24/24 in the corrected 6.0.b baseline, to be attacked as bishop-pawn technique, not king geometry (BAS-E48).
   - [ ] **6.5.d** Add deterministic truth cases before coefficient fitting.
 
 - [ ] **6.6** Gate Group B.
