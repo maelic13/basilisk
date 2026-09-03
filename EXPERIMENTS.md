@@ -2154,6 +2154,71 @@ conflated, and 6.0.f declined to license relabeling without its own
 halfmove-clock and row-domain analysis. This entry quantifies the prize for
 those registered arms; it does not spend it.
 
+**BAS-E47 - the endgame instrument aborted correct pawn play; 6.0.b corrected**
+(2026-09-03). `endgame_truth.py` ended a game whenever the strong side's piece
+count fell below its start value. Sound for KBN-K, where losing a minor is a
+dead draw; false for pawn technique, where giving a pawn to promote another is
+the winning method. Over ten pawn families at 200,000 nodes, 216 clean-win
+roots produced 148 such aborts and **139 occurred before the engine had played
+a single non-win-preserving move**. `EG0171`, KPP-K at DTZ 3, aborted at ply 2
+because Black captured a pawn the winning line gives away.
+
+The rule now records `shed_material_ply` and stops nothing; the tablebase
+decides whether a win was thrown, which the harness already tracked as
+`first_discard_ply`. Bare-king families are unaffected because hanging the
+bishop in KBN-K leaves K+N versus K, which the insufficient-material test
+catches on the same ply.
+
+*No prior KBNK result moves, by construction rather than by assumption.* Every
+KBNK artifact -- kbnk-upper-6.1.c, kbnk-holdout-6.1.e, kbnk-budget-200k and
+-600k -- contains zero `material_lost` outcomes. BAS-E39, BAS-E41 and BAS-E45
+stand unchanged.
+
+6.0.b was re-run under its own registered conditions, both binaries verified by
+SHA-256, only the termination rule changed:
+
+| arm | before | after |
+|---|---:|---:|
+| Basilisk `294a3e2` | 293/480 (61.04%) | **361/480 (75.21%)** |
+| Stockfish `dev-20260716-ebcea3ef` | 389/480 (81.04%) | **466/480 (97.08%)** |
+| gap | 96 (20.0pp) | **105 (21.9pp)** |
+
+Both arms were contaminated; both improved; the reference improved more. The
+endgame deficit motivating 6.3-6.7 is real and marginally larger than recorded,
+so nothing about the sub-phase is excused. Downstream consequence to check
+before reuse: 6.0.c's frozen ceilings were derived from the contaminated
+reference arm, whose conversion was 389/480 and is now 466/480.
+
+**BAS-E48 - 6.3.a: no king-to-passed-pawn approach signature exists in
+Basilisk's own failures** (2026-09-03). Frozen as
+`analysis/passed_pawn_king_approach_v1.md`.
+
+For every clean-win root the strong side's most advanced passer was located and
+the geometry a king-approach term would act on was measured: `own_dist`,
+`foe_dist`, and `race = own_dist - foe_dist`, negative when the strong king is
+closer. Aggregated over 288 roots at 60,000 nodes there is a weak apparent
+trend, 82.2% conversion at king distance 0-1 falling to 56.8% at distance 5 --
+but it is non-monotone, recovering to 70.0% at 6-7.
+
+**Conditioning on family destroys it.** Within-family comparison of race < 0
+against race > 0 gives +25.0, +20.0, +9.2, +9.1, 0.0, -3.5, -7.1, -11.9, -27.1
+and -35.7 percentage points across the ten families with enough roots. Four
+favour the closer king, six the further one; mean -2.2pp, median -1.8pp. The
+aggregate trend was family composition -- the families whose roots place the
+king far from the passer are also the ones Basilisk is worst at, for unrelated
+reasons. At 200,000 nodes the trend is absent even in aggregate.
+
+The deficit is real but material-specific: KBP-K 15 positions behind, KNN-KP
+13, KQ-KR 13, KBN-K 12 (pre-6.1 head, since addressed), KQ-KRP 10, KBPP-KB 9.
+Those belong to 6.5.c and 6.7.a. A general king-approach term touches none of
+them, and adding one anyway would be importing a reference constant, which is
+precisely what 6.3.a forbids.
+
+*Retry trigger:* a king-approach signature that survives conditioning on family
+-- consistent sign across families and a mean within-family delta beyond noise.
+Aggregate correlation over a mixed family set is not sufficient, and is the
+specific error this entry exists to prevent.
+
 **BAS-E40 — 6.1.d: both bishop-dependent KBNK remedies stay closed, and the
 reason is now stronger than their refutations** (2026-09-03). No new games were
 run; this entry registers the closure and its retry triggers.

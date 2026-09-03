@@ -200,6 +200,20 @@ The largest conversion deficits were KBP-K (6/24 versus 22/24), KQ-KR
 (11/24 versus 24/24), KNN-KP (1/24 versus 14/24), KBN-K (12/24 versus 24/24)
 and KQ-KRP (13/24 versus 23/24).
 
+**6.0.b correction (2026-09-03, BAS-E47).** The figures above were produced by
+an instrument that ended a game whenever the strong side's piece count dropped,
+which aborts correct pawn technique. In those artifacts 178 of the Basilisk
+arm's 193 `material_lost` outcomes, and 173 of the reference arm's 174,
+occurred with no non-win-preserving move played. Both arms were re-run under
+the same registered conditions with both binaries verified by SHA-256, only the
+termination rule changed: Basilisk converts **361/480 (75.21%)**, not 293/480,
+and the reference **466/480 (97.08%)**, not 389/480. The gap widens slightly
+from 96 to 105 positions, so the deficit motivating 6.3-6.7 is real. The
+original numbers are left above as the historical record and are superseded;
+artifacts are in `tools/results/endgame-truth-6.0.b-refixed/`. 6.0.c's frozen
+ceilings derive from the contaminated reference arm and must be re-checked
+before reuse.
+
 Step 6.0.c freezes `tools/diag/endgame_ceilings_v1.json`. Its historical field
 name `attained_single_engine_ceiling` means only the best conversion count
 observed in the two complete 60k runs. The accurate term is **attained reference
@@ -789,7 +803,7 @@ worse than about -5.5 Elo excluded at 95% and no claim of a gain.
 ### 6.3 Passed-pawn king approach
 
 - [ ] **6.3** Add general king-to-passed-pawn approach logic.
-  - [ ] **6.3.a** Derive the feature from Basilisk truth failures, not reference constants.
+  - [x] **6.3.a** Derive the feature from Basilisk truth failures, not reference constants.
   - [ ] **6.3.b** Verify KP-K, KPP-K, KBP-K and mixed rook/minor pawn families.
   - [ ] **6.3.c** Gate the isolated candidate with no adjudication.
 
@@ -841,6 +855,31 @@ decision, not a silent repair.
 whether king-to-passer geometry actually separates converted from unconverted
 roots, which is what 6.3.a needs in order to derive rather than assume, and it
 is ready to re-run once the instrument is trustworthy.
+
+Step 6.3.a is complete with a **negative** derivation, frozen as
+`analysis/passed_pawn_king_approach_v1.md` and recorded as BAS-E48. The blocker
+reported above is resolved: the instrument was fixed, 6.3.a's evidence
+re-measured, and 6.0.b re-run.
+
+The leaf demanded the feature be derived from Basilisk's failures rather than
+imported. Measured properly, those failures carry no king-approach signature.
+Aggregated over 288 clean-win roots at 60,000 nodes there is a weak trend --
+82.2% conversion at king distance 0-1 down to 56.8% at distance 5 -- but it is
+non-monotone and recovers to 70.0% at 6-7. Conditioning on family destroys it:
+the within-family delta between a closer and a further strong king runs +25.0,
++20.0, +9.2, +9.1, 0.0, -3.5, -7.1, -11.9, -27.1 and -35.7 percentage points,
+four families one way and six the other, mean -2.2pp. The aggregate trend was
+family composition. At 200,000 nodes it is absent even in aggregate.
+
+The deficit itself is real and material-specific: KBP-K 15 positions behind the
+reference, KNN-KP 13, KQ-KR 13, KBN-K 12 against the pre-6.1 head, KQ-KRP 10,
+KBPP-KB 9. Those are owned by 6.5.c and 6.7.a. A general king-approach term
+touches none of them, and adding one anyway would import a reference constant.
+
+Consequently 6.3.b and 6.3.c have no candidate to verify or gate. They are left
+open rather than ticked, because closing them is a scope decision for the
+maintainer: either 6.3 closes empty in the manner of 5.9.21, or it is re-scoped
+around the family-specific gaps this measurement actually found.
 
 ### 6.4 Magnitude and coverage audit
 

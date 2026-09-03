@@ -108,7 +108,7 @@ Run this checklist in order; PLAN.md owns rationale and gates.
   - [x] **6.2.b** Treat the old approximately 5,860-game adjudicated Group A run as preliminary only
   - [x] **6.2.c** Never resume that run if the KBNK candidate or match policy changes
 - [ ] **6.3** Add general king-to-passed-pawn approach logic
-  - [ ] **6.3.a** Derive the feature from Basilisk truth failures, not reference constants
+  - [x] **6.3.a** Derive the feature from Basilisk truth failures, not reference constants
   - [ ] **6.3.b** Verify KP-K, KPP-K, KBP-K and mixed rook/minor pawn families
   - [ ] **6.3.c** Gate the isolated candidate with no adjudication
 - [ ] **6.4** Audit every endgame term before broadening the evaluator
