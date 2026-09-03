@@ -36,7 +36,7 @@ $root = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..")).Path
 # Frozen provenance for this gate. A binary built from a different revision, or
 # from a dirty tree, is not the artifact this step registered.
 $expected = @{
-    "6.2a-cand" = "af6420c7d3ddf073f30fdf2e71d43b95e456413d"
+    "6.2a-cand" = "a3078cf1846fc427a7f7f86d7894db9691e7c841"
     "6.2a-base" = "6accfe6c9885977475d8dab48e219e8d4eb840e7"
 }
 $engines = @{}
