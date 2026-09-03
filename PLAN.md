@@ -471,6 +471,45 @@ corner drive, and it clears the KBN-K floor it broke. Neither is licensed for
 6.1.e or 6.1.f.
 
 
+Step 6.1.e runs the complete frozen 198-position cohort once per arm and
+decides on positions 61-198 only. Three arms: the legacy control
+`15600,800,900,220,220`, the 6.1.c selection `15600,1750,0,340,0`, and the
+plateau probe `15600,1900,0,460,0` carried forward because BAS-E39 could not
+separate them. Conditions are identical to the screens it confirms: 60,000
+nodes/move, 100-ply limit, 16 MB hash, 30 independent one-thread workers,
+engine tablebases disabled, natural termination, no score adjudication.
+
+Two preparation measurements license the design. First, batch size does not
+perturb per-position results: the first 60 records of a 198-position legacy
+run reproduce the published BAS-E39 legacy fingerprint
+`A28D2843263A8DDCB760C1133D5F105AE08E1F110AE4BB410210C683A15F1BF8`
+byte-for-byte, so one run can be split into development and held-out halves
+without changing what the development half means. Second, two independent
+198-position legacy runs produced the identical fingerprint
+`8CCB2C20380879C2025B017A661167CC60309A469C996F0C69F545D985CFD539`, so the
+instrument is deterministic at this worker count. Both are hard gates in
+`tools/diag/kbnk_holdout_summary.py`; either mismatch voids the run before any
+candidate may be read. The drift gate was verified to fire on a perturbed
+control, and the truth veto to override a large positive conversion result.
+
+Disclosed pre-exposure: those preparation runs were the legacy control, whose
+all-198 conversion is 95/198 at 0.9958 win preservation, giving a held-out
+baseline of 69/138. The control is not a candidate and the verdict rule below
+was registered before any candidate arm was run.
+
+Pre-registered verdict. Reject any arm with a hard anomaly, or with a live
+truth discard before ply 80 on either split, regardless of conversion. The
+primary verdict is paired conversion against the legacy control on held-out
+positions 61-198, accepted at McNemar z >= 2.0. Two surviving candidates count
+as separated only at |z| >= 2.0 between them; otherwise prefer fewer discarded
+clean wins, then higher DTZ progress, then the simpler vector. Positions 1-60
+are reported solely to quantify shrinkage from the selection estimate and can
+never rescue a failed held-out verdict. The all-198 aggregate, rule-50
+failures, stalemates, WDL preservation and mate efficiency are diagnostic
+context, not the verdict. Expect roughly four minutes at 30 workers. Run:
+`powershell -NoProfile -ExecutionPolicy Bypass -File .	ools\diagun_kbnk_holdout.ps1`.
+
+
 ### 6.2 Gate endgame Group A
 
 - [ ] **6.2** Gate KBNK and accepted mate-drive changes.
