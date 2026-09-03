@@ -13,17 +13,17 @@
     Adjudication is OFF, as the project default requires.
 
     BAS-E43 measured KBNK occurrence at zero across 30.5M nodes from 86
-    non-endgame roots, so 6.2 is a NON-REGRESSION gate. The registered [0,3]
-    gainer test is the default here because changing registered bounds is a
-    plan-structure decision for the maintainer; -NonRegression switches to the
-    [-5,0] simplify test that the revised purpose actually calls for.
+    non-endgame roots, so 6.2 is a NON-REGRESSION gate. The maintainer approved
+    the bounds change on 2026-09-03, so the [-5,0] simplify test is now the
+    registered primary and the default here. -Gainer still runs the original
+    [0,3] test, which is expected to accept H0 and would not license anything.
 
     REQUIRES pwsh 7. tools/sprt.ps1 is UTF-8 without a BOM and contains
     non-ASCII em-dashes that Windows PowerShell 5.1 mis-decodes into
     unterminated string literals, so it does not parse under 5.1.
 #>
 param(
-    [switch]$NonRegression,
+    [switch]$Gainer,
     [int]$Hash = 64,
     [int]$Threads = 1,
     [string]$TC = "3+0.03",
@@ -79,12 +79,12 @@ $sprtArgs = @(
     "-Hash", $Hash,
     "-TC", $TC
 )
-if ($NonRegression) {
-    $sprtArgs += @("-Mode", "simplify")
-    Write-Host "Test design: SPRT [-5,0] nElo non-regression, no adjudication"
-} else {
+if ($Gainer) {
     $sprtArgs += @("-Mode", "gainer", "-Elo1", 3)
-    Write-Host "Test design: SPRT [0,3] nElo gainer (as registered), no adjudication"
+    Write-Host "Test design: SPRT [0,3] nElo gainer (superseded), no adjudication"
+} else {
+    $sprtArgs += @("-Mode", "simplify")
+    Write-Host "Test design: SPRT [-5,0] nElo non-regression (registered), no adjudication"
 }
 Write-Host "Adjudication: OFF (no -Adjudicate switch is passed)"
 

@@ -358,6 +358,54 @@ static void test_kbnk_corner_preference() {
     end_section();
 }
 
+// 6.1.f anchor for the position that rejected the 6.1.c candidate (BAS-E41).
+// `8/8/8/2K5/8/3k4/8/N1B5 w` is a Syzygy clean win at DTZ 52. The rejected
+// vector `15600,1750,0,340,0` played 2.Nc2 here, letting 2...Kd1 fork the
+// undefended bishop on c1 and knight on c2; after 3.Ke4 Kxc1 the game was
+// K+N versus K by ply 5.
+//
+// This is a correctness anchor, not a conversion trajectory: it asserts only
+// that the strong side still owns both minors, which is cheap, deterministic
+// and cannot over-fire on benign search-shape changes. The 60,000-node budget
+// is the cohort's, so a regression reproduces the historical failure rather
+// than some other one. The underlying exposure is real and unfixed -- with
+// edge and knight weights zero, no term in kbnk_score refers to the knight,
+// so every knight move scores alike and the tiebreak is arbitrary.
+static void test_kbnk_keeps_both_minors() {
+    begin_section("KBNK0061: the drive never hands over a minor piece");
+    Board b;
+    b.set_fen("8/8/8/2K5/8/3k4/8/N1B5 w - - 0 1");
+    // Reproduce the cohort's conditions, not a convenient approximation: one
+    // engine playing both sides at 60,000 nodes with NO depth cap, and a table
+    // that persists across the game exactly as `ucinewgame` per position gave
+    // it. A fresh table per move, or a depth cap binding before the node cap,
+    // does not reproduce the failure and would make this anchor guard nothing.
+    TranspositionTable tt(16);
+    std::atomic_bool stop{false};
+    auto searcher = std::make_unique<Searcher>(tt, stop);
+    bool keeps_both = true;
+    for (int ply = 0; ply < 10; ply++) {
+        MoveList ml;
+        b.gen_legal(ml);
+        if (ml.empty())
+            break;
+        SearchLimits lim;
+        lim.nodes = 60000;
+        Move m = searcher->search(b, lim).bestmove;
+        if (m == MOVE_NONE)
+            break;
+        b.make_move(m);
+        if (popcount(b.pieces[WHITE][BISHOP]) != 1
+            || popcount(b.pieces[WHITE][KNIGHT]) != 1) {
+            keeps_both = false;
+            break;
+        }
+    }
+    EXPECT(keeps_both);
+    end_section();
+}
+
+
 // ---------------------------------------------------------------------------
 
 int main(int argc, char** argv) {
@@ -445,6 +493,7 @@ int main(int argc, char** argv) {
     test_conversion_floors();
     test_drawn_ending_bias("tests/endgame_draws.epd");
     test_kbnk_corner_preference();
+    test_kbnk_keeps_both_minors();
 
     return harness_summary();
 }

@@ -611,10 +611,20 @@ is licensed by that cohort plus the absence of a strength regression, so if the
 [0,3] run accepts H0 the follow-up that matters is a non-regression bound, not
 another attempt at a gain.
 
-Because the bounds question is a plan-structure change it is left to the
-maintainer rather than altered here. `tools/sprt.ps1 -Mode gainer -Elo1 3` runs
-the registered [0,3] test; `-Mode simplify` runs the [-5,0] non-regression test
-the revised purpose actually calls for.
+The maintainer approved the bounds change on 2026-09-03, so 6.2.a's registered
+primary is now the [-5,0] nElo non-regression test and the [0,3] gainer is
+superseded. The gainer form remains available as `-Gainer` for the record, but
+accepting H0 on it would license nothing: it asks a question the occurrence
+census already answered.
+
+A deterministic anchor for the 6.1.e failure was added to `test_endgames` at
+the same time. It replays `KBNK0061` under the cohort's exact conditions and
+asserts only that the strong side keeps both minors. Its first form used a
+fresh table per move and a depth cap, and it passed under the rejected vector
+too -- guarding nothing. Reproducing the cohort's conditions (60,000 nodes, no
+depth cap, one table persisting across the game) makes it fail under
+`15600,1750,0,340,0` and pass under the accepted vector, so it is a real guard
+rather than a decorative one.
 
 Step 6.2.a is prepared as a single-variable A/B that isolates 6.1. The baseline
 is commit `6accfe6` (Complete 6.1.b), the last revision whose KBNK scoring is
