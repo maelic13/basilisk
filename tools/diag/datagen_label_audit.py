@@ -29,7 +29,9 @@ from __future__ import annotations
 
 import argparse
 import collections
+import functools
 import json
+import multiprocessing
 import sys
 from pathlib import Path
 
@@ -52,21 +54,39 @@ def material_key(board: chess.Board) -> str:
     return f"{white}-{black}" if len(white) >= len(black) else f"{black}-{white}"
 
 
-def audit(pgn_path: Path, tb, max_games: int, stride: int) -> dict:
+def _shard(pgn_path: Path, syzygy: str, max_games: int, stride: int,
+           workers: int, shard: int):
+    """Audit only the games this shard owns.
+
+    The selected game set is fixed up front as indices 0, stride, 2*stride,
+    ... so sharding cannot change WHICH games are audited -- only who audits
+    them. That keeps a parallel run byte-identical to a serial one, which a
+    naive "each worker takes the next N games" split would not.
+    """
     stats = collections.Counter()
     families = collections.defaultdict(collections.Counter)
-    seen = 0
-    with pgn_path.open(encoding="utf-8", errors="replace") as stream:
-        while stats["scanned"] < max_games:
+    index = 0          # index over all games in the file
+    selected = 0       # index over the games the stride selects
+    with chess.syzygy.open_tablebase(syzygy) as tb, pgn_path.open(
+            encoding="utf-8", errors="replace") as stream:
+        while selected < max_games:
+            owned = (index % stride == 0) and ((index // stride) % workers == shard)
+            if not owned:
+                if index % stride == 0:
+                    selected += 1
+                if not chess.pgn.skip_game(stream):
+                    break
+                index += 1
+                continue
             try:
                 game = chess.pgn.read_game(stream)
             except (ValueError, RuntimeError):
+                index += 1
                 continue
             if game is None:
                 break
-            seen += 1
-            if (seen - 1) % stride:
-                continue
+            index += 1
+            selected += 1
             result = game.headers.get("Result", "*")
             if result not in RESULT_POINTS:
                 stats["unfinished"] += 1
@@ -120,6 +140,25 @@ def audit(pgn_path: Path, tb, max_games: int, stride: int) -> dict:
                 if points != 0.5:
                     stats["drawn_position_decided"] += 1
 
+    return stats, {k: dict(v) for k, v in families.items()}
+
+
+def audit(pgn_path: Path, syzygy: str, max_games: int, stride: int,
+          workers: int) -> dict:
+    call = functools.partial(_shard, pgn_path, syzygy, max_games, stride, workers)
+    if workers == 1:
+        parts = [call(0)]
+    else:
+        with multiprocessing.Pool(workers) as pool:
+            parts = pool.map(call, range(workers))
+
+    stats = collections.Counter()
+    families = collections.defaultdict(collections.Counter)
+    for part_stats, part_families in parts:
+        stats.update(part_stats)
+        for family, counts in part_families.items():
+            families[family].update(counts)
+
     reached = stats["clean_win_reached"]
     mislabelled = stats["clean_win_drawn"] + stats["clean_win_lost"]
     return {
@@ -144,11 +183,17 @@ def main() -> int:
     parser.add_argument("--stride", type=int, default=1,
                         help="audit every Nth game, to spread the sample across "
                              "the whole file instead of taking a prefix")
+    parser.add_argument("--workers", type=int, default=1,
+                        help="independent processes over disjoint game shards. "
+                             "The audited game set is fixed by --stride, so this "
+                             "changes wall time only, never the result.")
     parser.add_argument("--out", type=Path)
     args = parser.parse_args()
 
     if args.max_games <= 0 or args.stride <= 0:
         parser.error("max-games and stride must be positive")
+    if args.workers <= 0:
+        parser.error("workers must be positive")
     if not args.syzygy.is_dir():
         parser.error(f"syzygy directory not found: {args.syzygy}")
     for pgn in args.pgn:
@@ -156,10 +201,10 @@ def main() -> int:
             parser.error(f"PGN not found: {pgn}")
 
     reports = []
-    with chess.syzygy.open_tablebase(str(args.syzygy)) as tb:
-        for pgn in args.pgn:
-            print(f"auditing {pgn.name} ...", file=sys.stderr)
-            reports.append(audit(pgn, tb, args.max_games, args.stride))
+    for pgn in args.pgn:
+        print(f"auditing {pgn.name} on {args.workers} worker(s) ...", file=sys.stderr)
+        reports.append(
+            audit(pgn, str(args.syzygy), args.max_games, args.stride, args.workers))
 
     print()
     print("%-26s %8s %10s %9s %8s %8s" % (

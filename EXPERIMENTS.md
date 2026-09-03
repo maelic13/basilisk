@@ -2079,6 +2079,81 @@ move a 3+0.03 result. Equivalence is the expected outcome. 6.1's value remains
 where BAS-E41 measured it: conversion 95 to 144 of 198 when the family is
 actually reached on the board.
 
+**BAS-E45 - the 6.1 mechanism transfers across a 10x node budget, but the
+6.1.e rejection does not** (2026-09-03). The same three arms and the same 198
+frozen positions at 200,000 and 600,000 nodes per move, against the existing
+60,000-node result. Held-out rows 61-198:
+
+| budget | legacy | `1750,340` | `1900,460` | verdicts |
+|---:|---:|---:|---:|---|
+| 60,000 | 69/138 | 103/138, live 1 | 98/138 | 1750 **REJECTED**, 1900 confirmed |
+| 200,000 | 84/138 | 116/138, live 0 | 119/138 | both confirmed |
+| 600,000 | 109/138 | 133/138, live 0 | 132/138 | both confirmed |
+
+**Two findings, and the second is a correction to a closed leaf.**
+
+*The mechanism is robust.* Both candidates beat legacy at every budget with
+paired z from +4.13 to +5.00, and the gain is not a shallow-search artifact: at
+600,000 nodes legacy still converts only 109/138 while the candidates convert
+133 and 132, with fifty-move draws at 22 against 4 and 5. Diagonal dominance is
+real technique, not compensation for a weak search.
+
+*The 6.1.e rejection was a 60,000-node artifact.* `15600,1750,0,340,0` was
+rejected on a single live truth discard -- 2.Nc2 on KBNK0061 allowing 2...Kd1
+to fork bishop and knight. At 200,000 and 600,000 nodes that arm has **no live
+discard at all**: the fork is a two-ply tactic the search sees once it has a
+game-representative budget. The verdict rule was applied correctly to the data
+it had, but the data was taken at a budget the engine never plays at, so the
+stated reason for preferring `1900,460` does not hold where it matters.
+
+*The shipped vector still needs no change*, which is luck rather than
+vindication. The two candidates are statistically indistinguishable at every
+budget -- 116 against 119, then 133 against 132 -- so the plateau BAS-E39 found
+persists, and `1900,460` remains defensible on the secondary criteria it won at
+60,000 (8 discarded clean wins against 15). What changes is the strength of the
+justification, not the choice.
+
+*Consequence for the 6.1.f anchor.* `KBNK0061` at 60,000 nodes is now known to
+be a low-budget canary. It still guards the historical failure and still fires
+under the rejected vector, but it must not be read as evidence of game-level
+safety, because at game budgets neither vector fails it.
+
+**BAS-E46 - 8,000-node datagen mislabels a fifth of won endings, concentrated
+in the Group B families** (2026-09-03). 20,000 games per corpus, stride 6 over
+125,000, Syzygy six-man, cursed wins excluded.
+
+| corpus | nodes | clean wins reached | converted | drawn | lost | mislabel rate |
+|---|---:|---:|---:|---:|---:|---:|
+| armA | 8,000 | 8,538 | 6,850 | 1,684 | 4 | **19.77%** |
+| armC | 25,000 | 8,190 | 7,072 | 1,116 | 2 | **13.65%** |
+
+About 43% of games reach a tablebase-adjudicable clean win, so at 8,000 nodes
+roughly 8.5% of ALL games carry a final result that contradicts tablebase
+truth, and the error is one-directional: won endings become draws. That teaches
+the evaluator to undervalue exactly the advantages that win endgames. The
+converse error is far smaller -- 296 of 3,605 objectively drawn positions were
+decided, 8.2%.
+
+*It is concentrated where the roadmap goes next.* Mislabel rate by family,
+8,000 against 25,000 nodes: KRPP-KR 26.2% -> 13.4%, KRP-KRP 30.7% -> 14.0%,
+KPP-KPP 25.2% -> 8.7%, KBPP-KP 17.9% -> 13.9%. Those are PLAN 6.5's Group B
+rook- and bishop-pawn families almost exactly. KBN-K does not appear at all,
+consistent with BAS-E43.
+
+*Correcting an earlier recommendation.* The judgement that datagen should stay
+fast because WDL labels self-average was too confident. A one-directional 20%
+error in won endings does not average out. But raising the budget is the weaker
+of the two available fixes: 3.1x the compute buys only a 31% relative
+reduction, from 19.77% to 13.65%, and even 25,000 nodes leaves one ending in
+seven mislabelled. Adjudicating a game by tablebase once it reaches six men
+would remove the bias outright at the cost of one probe per game.
+
+*That is not authorized here.* PLAN 7 keeps post-hoc tablebase relabeling and
+datagen-v3 game adjudication as deliberately distinct arms that must not be
+conflated, and 6.0.f declined to license relabeling without its own
+halfmove-clock and row-domain analysis. This entry quantifies the prize for
+those registered arms; it does not spend it.
+
 **BAS-E40 — 6.1.d: both bishop-dependent KBNK remedies stay closed, and the
 reason is now stronger than their refutations** (2026-09-03). No new games were
 run; this entry registers the closure and its retry triggers.

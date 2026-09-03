@@ -105,7 +105,7 @@ Run this checklist in order; PLAN.md owns rationale and gates.
   - [x] **6.1.f** Require endgame/tactical gates; bench identity is necessary, not behavioral proof
 - [ ] **6.2** Gate KBNK and accepted mate-drive changes
   - [x] **6.2.a** Run a fresh no-adjudication [0,3] nElo SPRT against the accepted head
-  - [ ] **6.2.b** Treat the old approximately 5,860-game adjudicated Group A run as preliminary only
+  - [x] **6.2.b** Treat the old approximately 5,860-game adjudicated Group A run as preliminary only
   - [ ] **6.2.c** Never resume that run if the KBNK candidate or match policy changes
 - [ ] **6.3** Add general king-to-passed-pawn approach logic
   - [ ] **6.3.a** Derive the feature from Basilisk truth failures, not reference constants

@@ -590,7 +590,7 @@ bishop analogue on evidence, so it does not belong to this step.
 
 - [ ] **6.2** Gate KBNK and accepted mate-drive changes.
   - [x] **6.2.a** Run a fresh no-adjudication [0,3] nElo SPRT against the accepted head.
-  - [ ] **6.2.b** Treat the old approximately 5,860-game adjudicated Group A run as preliminary only.
+  - [x] **6.2.b** Treat the old approximately 5,860-game adjudicated Group A run as preliminary only.
   - [ ] **6.2.c** Never resume that run if the KBNK candidate or match policy changes.
 
 Step 6.2 expectation, revised on evidence before the run (BAS-E43). The 6.0.g
@@ -683,6 +683,64 @@ Phase 7's refit exactly where 6.1 works; because `armA` at 8,000 nodes and
 `armC` at 25,000 nodes already exist, that is a measurement rather than a
 guess. A 60-game smoke read 25.9% of clean wins unconverted, well above the
 6.0.f 14.12% baseline, but n=60 settles nothing.
+
+Step 6.2.b records why the earlier Group A run is preliminary only. That run,
+`5.9.23-groupA` against `5.9.18-base` on 2026-09-01, stopped at 5,840 games
+with Elo -0.59 +/- 4.88, nElo -1.09 +/- 8.91, LLR +0.34 -- 11.6% of the way to
+a bound. Three separate reasons bar it from being cited as the Group A verdict,
+and only the third is about its statistics.
+
+First, **it was adjudicated**: `draw(mn=40,mc=8,score=10)` and
+`resign(mc=3,score=600,twosided)`. Score-based adjudication is off by default in
+this project precisely because it substitutes the engine's own evaluation for
+play, and its log shows games ending "by adjudication" throughout. For a change
+that alters endgame evaluation, adjudication is not merely noisy, it is
+circular: the candidate's own scores help decide the games that are supposed to
+judge the candidate.
+
+Second, **its candidate no longer exists**. It tested the 5.9.23 Group A bundle
+against a 5.9.18 base, whereas the accepted KBNK vector was chosen in 6.1.c,
+revoked, re-chosen, rejected on held-out data and finally settled at
+`15600,1900,0,460,0` in 6.1.e. 6.2.c already forbids resuming that run for
+exactly this reason, and its baseline differs too.
+
+Third, it never reached a bound, so even on its own terms it decided nothing.
+
+Its one legitimate use is as weak corroboration that the Group A direction was
+not catastrophic. BAS-E44 supersedes it on every count: no adjudication, a
+single-variable A/B against `6accfe6`, and a candidate that is the shipped one.
+
+**Correction to 6.1.e, pending the maintainer's decision (BAS-E45).** The
+budget-transfer run shows that 6.1.e's rejection of `15600,1750,0,340,0` was an
+artifact of its 60,000-node budget. At 200,000 and 600,000 nodes that arm has no
+live truth discard: 2.Nc2 on `KBNK0061` is a two-ply tactic the search sees once
+it has a game-representative budget. The verdict rule was applied correctly to
+the data it had, but the data came from a budget the engine never plays at.
+
+The shipped vector still needs no change, and that is luck rather than
+vindication. The two candidates are indistinguishable at every budget (116
+against 119 at 200k, 133 against 132 at 600k), so `15600,1900,0,460,0` remains
+defensible on the secondary criteria it won at 60,000. What is invalidated is
+the justification, not the choice. 6.1.e's checkbox is left ticked because its
+outcome stands; reopening it is the maintainer's call, and the correction is
+recorded here either way.
+
+The `KBNK0061` anchor added in 6.1.f is consequently a low-budget canary. It
+still fires under the rejected vector and still guards the historical failure,
+but it is not evidence of game-level safety, since at game budgets neither
+vector fails it.
+
+What the run does establish, and this is the stronger half: the diagonal
+dominance mechanism transfers across a 10x budget span, beating legacy at paired
+z +4.13 to +5.00 everywhere. At 600,000 nodes legacy converts 109/138 against
+the candidates' 133 and 132, with fifty-move draws 22 against 4 and 5, so 6.1's
+gain is real technique rather than compensation for a shallow search.
+
+Registered consequence for future work: node budget is a first-class run
+condition. Any fixed-node endgame screen must state its budget, justify it
+against the deployment time control, and treat a result that only appears at a
+low budget as provisional until it is shown to survive a game-representative
+one.
 
 ### 6.3 Passed-pawn king approach
 
