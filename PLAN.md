@@ -306,13 +306,13 @@ measures family frequency, not `kxk_score` firings.
 
 ### 6.1 Complete KBNK mate drive
 
-- [ ] **6.1** Implement and tune the missing KBNK technique (historical step 5.9.22).
+- [x] **6.1** Implement and tune the missing KBNK technique (historical step 5.9.22).
   - [x] **6.1.a** Start from Rarog's useful finding: bishop-color corner diagonal potential can solve the drive without a bishop-position term.
   - [x] **6.1.b** Make the bishop-colour diagonal mechanism explicit and prove the existing Manhattan form was algebraically identical.
   - [x] **6.1.c** Scale coefficients to Basilisk and test the required diagonal dominance against its existing edge, king-distance and knight-distance terms.
   - [x] **6.1.d** Do not retry bishop proximity or escape-square count unless new evidence overturns their earlier failure.
   - [x] **6.1.e** Compare on all 198 positions, with positions 61-198 as the held-out confirmation set; report WDL preservation, rule-50 failures, conversion and mate efficiency.
-  - [ ] **6.1.f** Require KQK/KRK/KBBK non-regression, tactical stability and bench accounting; exact bench identity is necessary but cannot prove this path-dependent evaluation change behaviorally neutral.
+  - [x] **6.1.f** Require KQK/KRK/KBBK non-regression, tactical stability and bench accounting; exact bench identity is necessary but cannot prove this path-dependent evaluation change behaviorally neutral.
 
 Step 6.1.a is frozen in `analysis/kbnk_diagonal_port_v1.md`. Rarog commit
 `4aea0c7` replaced a coarse corner drive with a weak-king diagonal potential
@@ -545,6 +545,45 @@ And the accepted vector's largest static KBNK score is 31,660 against the
 31,872 mate-band floor, only 212 points of headroom, so the diagonal and king
 weights are now effectively bounded from above by that check rather than by
 evidence.
+
+
+Step 6.1.f closes 6.1 with acceptance accounting rather than new games.
+Non-regression is exact rather than merely absent: KQ-K, KR-K and KBB-K at 100
+positions each, seed 424242, produce byte-identical per-position records under
+the accepted vector, the legacy vector and the rejected 6.1.c winner — KQ-K
+98/100 at 99.91% preservation, KR-K 97/100 at 99.93%, KBB-K 99/100 at 99.93%.
+`g_kbnk_drive` feeds only `kbnk_score`, which the dispatcher reaches only for
+bishop and knight against a bare king, so those families cannot see the change;
+the run confirms that rather than assuming it. WAC at depth 12 is likewise
+identical across all three vectors at 244/300 and 83,444,716 nodes with the
+same failure list.
+
+The mate-band bound was checked against the search rather than re-read from the
+validator. Every mate comparison in the engine — TT store and probe adjustment,
+null-move verification, razoring, futility, singular extension and root
+reporting — uses `MATE_SCORE - MAX_PLY`, with no lower threshold anywhere, so
+32000 - 128 = 31872 is exactly `STATIC_MATE_FLOOR`. The accepted vector's
+largest legal static score is 31,660, leaving 212 points of headroom, and a new
+test pins the boundary behaviourally: `15600,1900,0,495,0` reaches 31,870 and is
+accepted while `15600,1900,0,496,0` reaches 31,876 and is rejected, so a future
+change to `MATE_SCORE` or `MAX_PLY` fires a test instead of silently letting an
+evaluation be stored as a mate score.
+
+Bench accounting: `bench 13` is 12,709,666 nodes at geomean EBF 2.876, identical
+to the pre-6.1 head, and it proves nothing here because the bench suite contains
+no KBNK position. The behavioural evidence is BAS-E41's held-out cohort. Full
+CTest 12/12, test_eval 112/112, test_endgames 47/47, and the release default
+plays 1.Nb3 on `KBNK0061`. Recorded as BAS-E42. Conversion on a tablebase cohort
+is still not Elo; 6.2 owns that.
+
+One residual defect is documented and deliberately not repaired inside 6.1. The
+accepted vector sets edge and knight weights to zero, so no term in
+`kbnk_score` refers to the knight and all knight moves score alike, which is the
+flat-maximum pathology BAS-E36 named for the bishop. It cost the rejected
+candidate a clean win on `KBNK0061`. The accepted vector happens to break that
+tie safely on all 198 rows, but nothing makes it do so. A knight-referencing
+term is a new mechanism needing its own registration, and 6.1.d closed the
+bishop analogue on evidence, so it does not belong to this step.
 
 
 ### 6.2 Gate endgame Group A

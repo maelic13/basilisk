@@ -96,13 +96,13 @@ Run this checklist in order; PLAN.md owns rationale and gates.
   - [x] **6.0.e** Veto new truth/rule-50 failures and every engine anomaly
   - [x] **6.0.f** Census all Arm C <=6-man labels against Syzygy; freeze the 14.12% disagreement baseline
   - [x] **6.0.g** Measure exact reference-family occurrence inside search trees
-- [ ] **6.1** Implement and tune the missing KBNK technique (historical step 5.9.22)
+- [x] **6.1** Implement and tune the missing KBNK technique (historical step 5.9.22)
   - [x] **6.1.a** Map Rarog's bishop-colour diagonal potential onto Basilisk without a bishop-position term
   - [x] **6.1.b** Make the already-equivalent diagonal geometry explicit; defer scale and competing pulls
   - [x] **6.1.c** Bound the strongest truth-safe KBNK diagonal/king vector
   - [x] **6.1.d** Do not retry bishop proximity or escape-square count unless new evidence overturns their earlier failure
   - [x] **6.1.e** Confirm on held-out positions 61-198, then report all 198 positions
-  - [ ] **6.1.f** Require endgame/tactical gates; bench identity is necessary, not behavioral proof
+  - [x] **6.1.f** Require endgame/tactical gates; bench identity is necessary, not behavioral proof
 - [ ] **6.2** Gate KBNK and accepted mate-drive changes
   - [ ] **6.2.a** Run a fresh no-adjudication [0,3] nElo SPRT against the accepted head
   - [ ] **6.2.b** Treat the old approximately 5,860-game adjudicated Group A run as preliminary only

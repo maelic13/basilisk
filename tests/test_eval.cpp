@@ -578,6 +578,21 @@ static void test_kbnk_drive_option() {
     EXPECT(set_kbnk_drive_weights("17000,1000,0,220,0", error));
     end_section();
 
+    begin_section("KBNK drive: 6.1.f mate-band boundary is exact and the "
+                  "shipped default clears it");
+    // Every mate-band comparison in the search uses MATE_SCORE - MAX_PLY,
+    // i.e. 32000 - 128 = 31872; a static evaluation at or above that would be
+    // ply-adjusted as a mate score on its way into the TT. The validator's
+    // largest legal KBNK score is base + 7*diagonal + 3*edge + 6*king +
+    // 7*knight, so with base 15600 and diagonal 1900 the king weight decides
+    // the boundary: 495 gives 31870 and must be accepted, 496 gives 31876 and
+    // must not. If MATE_SCORE or MAX_PLY ever moves, this pins the mismatch.
+    EXPECT(set_kbnk_drive_weights("15600,1900,0,495,0", error));
+    EXPECT(!set_kbnk_drive_weights("15600,1900,0,496,0", error));
+    // The 6.1.e accepted default tops out at 31660, 212 below the floor.
+    EXPECT(set_kbnk_drive_weights("15600,1900,0,460,0", error));
+    end_section();
+
     begin_section("KBNK drive: legacy four-field form preserves exact score");
     EXPECT(set_kbnk_drive_weights("800,900,220,220", error));
     const int legacy = eval_fen(KBNK);
