@@ -224,6 +224,7 @@ def play_and_grade(
         return chess.popcount(b.occupied_co[chess.WHITE])
 
     initial_material = strong_material(board)
+    shed_material_ply = None
     graded = 0
     preserved = 0
     dtz_checked = 0
@@ -244,9 +245,18 @@ def play_and_grade(
         if board.is_fifty_moves() or board.can_claim_fifty_moves():
             outcome = "fifty_move"
             break
-        if strong_material(board) < initial_material:
-            outcome = "material_lost"
-            break
+        # A drop in the strong side's material is NOT a failure. Sacrificing a
+        # pawn to promote another, or trading into a won king-and-pawn ending,
+        # is the winning method in most pawn technique; the old unconditional
+        # abort here ended 139 of 148 such games while the engine had not yet
+        # played a single non-win-preserving move. Truth, not material, decides
+        # whether the win is gone, and `first_discard_ply` already records that
+        # from the tablebase. Bare-king families lose nothing by this: hanging
+        # the bishop in KBN-K leaves K+N versus K, which the insufficient
+        # material test above catches on the same ply. Verified against every
+        # KBNK artifact, none of which contains a single `material_lost`.
+        if shed_material_ply is None and strong_material(board) < initial_material:
+            shed_material_ply = ply
 
         white_to_move = board.turn == chess.WHITE
         before_wdl = before_dtz = None
@@ -308,6 +318,10 @@ def play_and_grade(
         "dtz_checked_moves": dtz_checked,
         "dtz_progress_moves": dtz_progress,
         "first_discard_ply": first_discard_ply,
+        # Recorded, no longer a stopping rule: the ply at which the strong side
+        # first shed material. In pawn technique that is usually the winning
+        # idea, so it is a diagnostic to inspect, not a failure to count.
+        "shed_material_ply": shed_material_ply,
         "anomaly": anomaly,
     }
 
