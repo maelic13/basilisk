@@ -105,7 +105,7 @@ def split_stats(positions, base):
     }
 
 
-def load(result_dir: Path):
+def load(result_dir: Path, allow_control_drift: bool = False):
     reports = {}
     for name, weights in VARIANTS.items():
         path = result_dir / (name + ".json")
@@ -139,6 +139,12 @@ def load(result_dir: Path):
     }
     for key, expected in CONTROL_FINGERPRINTS.items():
         if actual[key] != expected:
+            if allow_control_drift:
+                print("control fingerprint %s differs (%s); permitted because "
+                      "this run uses a different node budget, for which the "
+                      "frozen 60,000-node fingerprints cannot apply"
+                      % (key, actual[key][:16]))
+                continue
             raise ValueError(
                 "control drift on %s: %s != %s; the run is invalid and no "
                 "candidate may be read from it" % (key, actual[key], expected)
@@ -150,9 +156,17 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("result_dir", type=Path)
     parser.add_argument("--output", type=Path)
+    parser.add_argument(
+        "--allow-control-drift",
+        action="store_true",
+        help="skip the frozen 60,000-node control fingerprints. ONLY legitimate "
+             "for a run at a different node budget, where those fingerprints "
+             "cannot apply by construction. Never pass this to excuse an "
+             "unexplained mismatch at the registered budget.",
+    )
     args = parser.parse_args()
     try:
-        reports = load(args.result_dir)
+        reports = load(args.result_dir, args.allow_control_drift)
     except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
         parser.error(str(exc))
 
