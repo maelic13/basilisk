@@ -310,7 +310,7 @@ measures family frequency, not `kxk_score` firings.
   - [x] **6.1.a** Start from Rarog's useful finding: bishop-color corner diagonal potential can solve the drive without a bishop-position term.
   - [x] **6.1.b** Make the bishop-colour diagonal mechanism explicit and prove the existing Manhattan form was algebraically identical.
   - [x] **6.1.c** Scale coefficients to Basilisk and test the required diagonal dominance against its existing edge, king-distance and knight-distance terms.
-  - [ ] **6.1.d** Do not retry bishop proximity or escape-square count unless new evidence overturns their earlier failure.
+  - [x] **6.1.d** Do not retry bishop proximity or escape-square count unless new evidence overturns their earlier failure.
   - [ ] **6.1.e** Compare on all 198 positions, with positions 61-198 as the held-out confirmation set; report WDL preservation, rule-50 failures, conversion and mate efficiency.
   - [ ] **6.1.f** Require KQK/KRK/KBBK non-regression, tactical stability and bench accounting; exact bench identity is necessary but cannot prove this path-dependent evaluation change behaviorally neutral.
 
@@ -444,6 +444,32 @@ that (1750, 340) is its optimum. Accordingly 6.1.e must treat positions
 61-198 as its primary verdict, and should carry `15600,1900,0,460,0` (46/60,
 2 discards, 99.8987% preservation) as a second arm so that a noisy peak can
 be distinguished from the true plateau level.
+
+Step 6.1.d records the closure rather than implementing anything. BAS-E36
+diagnosed the KBNK failures as stuck rather than slow and traced the cause
+correctly: nothing in `kbnk_score` depends on the bishop, so every bishop move
+scores alike and the potential has a flat maximum that is not mate. The
+inference drawn at the time was to add a bishop-dependent term, and both
+attempts failed. Bishop proximity (weight 300) moved conversion 94 to 88,
+inside one SE, but took piece loss before ply 10 from zero to two: a long-range
+piece parked beside a bare king gets captured. Escape-square count (weight 400)
+dropped KBN-K conversion from 14/16 to 9/16, roughly 3.8 SE, failing the
+deterministic CTest floor.
+
+BAS-E39 has since removed the motivation as well as leaving the refutations
+standing. The flat-maximum diagnosis was right, but the remedy was never a
+bishop term: steepening the diagonal gradient and deleting the competing edge
+and knight pulls fixed most of the stuckness with the bishop still absent from
+the potential, cutting fifty-move draws from 27/60 to 8/60 and stalemates from
+7 to 1. A bishop feature would now pay its known costs against a much smaller
+residual. Both mechanisms are entered in the EXPERIMENTS.md retry map with
+narrow triggers: proximity only if an instrument against the accepted vector
+still shows bishop shuffling dominant, gated on zero clean-win loss and zero
+piece loss before ply 10; escape-square count only if stalemate adjacency is
+tested directly, the term is shown to reinforce rather than compete with the
+corner drive, and it clears the KBN-K floor it broke. Neither is licensed for
+6.1.e or 6.1.f.
+
 
 ### 6.2 Gate endgame Group A
 
