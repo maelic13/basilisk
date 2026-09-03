@@ -593,6 +593,45 @@ bishop analogue on evidence, so it does not belong to this step.
   - [ ] **6.2.b** Treat the old approximately 5,860-game adjudicated Group A run as preliminary only.
   - [ ] **6.2.c** Never resume that run if the KBNK candidate or match policy changes.
 
+Step 6.2 expectation, revised on evidence before the run (BAS-E43). The 6.0.g
+census was executed for the first time at depth 13 on `suite_v1.epd`. Its
+headline number is an artifact and must not be quoted: 21 of that suite's 107
+roots are already seven men or fewer, and those roots are themselves bare-king
+endgames, so they generated essentially every KBNK evaluation. Restricted to
+the 86 roots with eight or more men, KBNK occurs **zero times** in 30.5M nodes
+and 14.1M evaluations, and the whole <=7-man band is 0.283% of evaluations.
+
+KBN-K therefore cannot reach the score sheet through search-tree influence; it
+pays only when the position is actually reached on the board, which is rare.
+**6.2 is a non-regression gate, not a strength gate.** The pre-registered
+expectation is that a [0,3] nElo test accepts H0, and H0 acceptance here means
+"no measurable gain", not "the change is harmful"; it must not be read as a
+rejection of 6.1, whose evidence is BAS-E41's held-out truth cohort. Retention
+is licensed by that cohort plus the absence of a strength regression, so if the
+[0,3] run accepts H0 the follow-up that matters is a non-regression bound, not
+another attempt at a gain.
+
+Because the bounds question is a plan-structure change it is left to the
+maintainer rather than altered here. `tools/sprt.ps1 -Mode gainer -Elo1 3` runs
+the registered [0,3] test; `-Mode simplify` runs the [-5,0] non-regression test
+the revised purpose actually calls for.
+
+Step 6.2.a is prepared as a single-variable A/B that isolates 6.1. The baseline
+is commit `6accfe6` (Complete 6.1.b), the last revision whose KBNK scoring is
+the pre-6.1 one -- 6.1.b was proven score- and bench-identical, so everything
+outside `kbnk_score` matches the candidate exactly. That deliberately differs
+from the superseded Group A run's `5.9.18-base`: 6.2.b already declares that
+approximately 5,860-game adjudicated run preliminary, and re-running a stale
+multi-change comparison would not isolate what 6.2 gates. Adjudication is off,
+as the default requires.
+
+Harness note found during preparation: `tools/sprt.ps1` and
+`tools/build_test.ps1` are UTF-8 without a BOM and contain non-ASCII em-dashes,
+which Windows PowerShell 5.1 mis-decodes into unterminated string literals, so
+both fail to parse there. They run correctly under `pwsh` 7. Every prepared
+command therefore names `pwsh` explicitly.
+
+
 ### 6.3 Passed-pawn king approach
 
 - [ ] **6.3** Add general king-to-passed-pawn approach logic.
