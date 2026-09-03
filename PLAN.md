@@ -166,10 +166,10 @@ completed item has a number after unfinished work.
 
 ### 6.0 Evidence contract
 
-- [x] **6.0** Establish the truth baseline before another evaluator edit.
+- [ ] **6.0** Establish the truth baseline before another evaluator edit.
   - [x] **6.0.a** Freeze 770 Syzygy-verified positions across 21 endgame families.
   - [x] **6.0.b** Measure the accepted Basilisk head and a strong reference at identical nodes.
-  - [x] **6.0.c** Record attained family reference results; neither 100% nor the reference result is a finite-node ceiling.
+  - [ ] **6.0.c** (REOPENED) Record attained family reference results; neither 100% nor the reference result is a finite-node ceiling.
   - [x] **6.0.d** Define paired confidence rules: aggregate beyond 2 SE reports, family beyond 3 SE blocks.
   - [x] **6.0.e** Add hard theory vetoes for clean-win discard, illegal play, crash and rule-50 regression.
   - [x] **6.0.f** Census disagreements between self-play WDL labels and Syzygy on every <=6-man corpus row.
@@ -320,13 +320,13 @@ measures family frequency, not `kxk_score` firings.
 
 ### 6.1 Complete KBNK mate drive
 
-- [x] **6.1** Implement and tune the missing KBNK technique (historical step 5.9.22).
+- [ ] **6.1** Implement and tune the missing KBNK technique (historical step 5.9.22).
   - [x] **6.1.a** Start from Rarog's useful finding: bishop-color corner diagonal potential can solve the drive without a bishop-position term.
   - [x] **6.1.b** Make the bishop-colour diagonal mechanism explicit and prove the existing Manhattan form was algebraically identical.
   - [x] **6.1.c** Scale coefficients to Basilisk and test the required diagonal dominance against its existing edge, king-distance and knight-distance terms.
   - [x] **6.1.d** Do not retry bishop proximity or escape-square count unless new evidence overturns their earlier failure.
   - [x] **6.1.e** Compare on all 198 positions, with positions 61-198 as the held-out confirmation set; report WDL preservation, rule-50 failures, conversion and mate efficiency.
-  - [x] **6.1.f** Require KQK/KRK/KBBK non-regression, tactical stability and bench accounting; exact bench identity is necessary but cannot prove this path-dependent evaluation change behaviorally neutral.
+  - [ ] **6.1.f** (REOPENED) Require KQK/KRK/KBBK non-regression, tactical stability and bench accounting; exact bench identity is necessary but cannot prove this path-dependent evaluation change behaviorally neutral.
 
 Step 6.1.a is frozen in `analysis/kbnk_diagonal_port_v1.md`. Rarog commit
 `4aea0c7` replaced a coarse corner drive with a weak-king diagonal potential
@@ -918,6 +918,53 @@ Families level with the reference and needing no further work: KQ-K, KR-K,
 KBB-K, KP-K, KPP-K, KQ-KP, KP-KP. Remaining deficits at the current head are
 KQ-KR 13, KNN-KP 13, KQ-KRP 10, KBPP-KB 9, KBP-KB 8, KRP-KR 7, KBP-K 7,
 KBP-KN 6, KR-KN 4, KRP-KB 4, KBN-K 4, KR-KB 3, KR-KP 1.
+
+## Reopened work, 2026-09-03
+
+Two completed leaves were invalidated by the endgame-instrument defect found
+while gathering 6.3.a's evidence, and both are reopened and marked `(REOPENED)`
+in the checklist. `check_roadmap.py` now understands that marker: a reopened
+leaf is exempt from the sequential-ordering rule, because a measurement defect
+can invalidate an early step after later ones have closed, but it is never
+exempt from being open, and an accidental un-tick still fails the check.
+
+**6.0.c - frozen ceilings are understated.** The file
+`tools/diag/endgame_ceilings_v1.json` records the reference arm's attained 60k
+conversion, and that arm aborted correct pawn play. Seven families are wrong,
+by 77 positions in aggregate: KBPP-KB 6 to 23, KRP-KR 9 to 24, KRP-KB 9 to 24,
+KPP-K 12 to 24, KBP-KN 15 to 24, KBP-KB 16 to 23, KBP-K 22 to 24. These
+ceilings are used downstream as acceptance targets, so leaving them stands is
+worse than having none: they are far too lenient in exactly the families 6.5
+will implement. Redo from `tools/results/endgame-truth-6.0.b-refixed/`, which
+already contains both corrected arms; no new games are required.
+
+**6.1.f - the non-regression set was circular.** It verified isolation on
+KQ-K, KR-K and KBB-K, and argued they could not be affected because
+`g_kbnk_drive` feeds only `kbnk_score`, which the dispatcher reaches only for
+bishop-plus-knight against a bare king. That reasoning is sound for those three
+families, which is exactly why testing them proves nothing: they were chosen
+because they are provably unreachable. BAS-E49 then showed KBP-K moving 9/24 to
+17/24 and KBP-KB 16/24 to 15/24 on the same change, through knight-promotion
+lines the argument did not consider. The step must re-run its non-regression
+accounting over families that CAN reach `kbnk_score` through promotion --
+bishop-pawn and pawn families -- and record the small KBP-KB regression rather
+than omit it.
+
+Deliberately NOT reopened, with reasons, so tomorrow does not relitigate them:
+
+- **6.0.b** has already been re-measured under its own registered conditions;
+  the corrected figures and a superseded-notice sit with the original text.
+- **6.0.d and 6.0.e** define comparison and veto RULES, not data. The rules are
+  unaffected: `endgame_vetoes.py` keys on `first_discard_ply`, never on
+  `material_lost`. Any stale baseline report they were run against should be
+  regenerated when next used, which is ordinary hygiene rather than rework.
+- **6.0.f** censused datagen labels against Syzygy on the Arm C corpus and never
+  used the playout instrument, so it is independent of this defect.
+- **6.1.e** is corrected but not reopened; re-deciding it at a
+  game-representative budget has already been done in BAS-E45 and returns the
+  same vector.
+- **6.2.a** was stopped undecided by maintainer decision, which is recorded as
+  such rather than as a pass.
 
 ### 6.4 Magnitude and coverage audit
 
