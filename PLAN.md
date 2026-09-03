@@ -311,7 +311,7 @@ measures family frequency, not `kxk_score` firings.
   - [x] **6.1.b** Make the bishop-colour diagonal mechanism explicit and prove the existing Manhattan form was algebraically identical.
   - [x] **6.1.c** Scale coefficients to Basilisk and test the required diagonal dominance against its existing edge, king-distance and knight-distance terms.
   - [x] **6.1.d** Do not retry bishop proximity or escape-square count unless new evidence overturns their earlier failure.
-  - [ ] **6.1.e** Compare on all 198 positions, with positions 61-198 as the held-out confirmation set; report WDL preservation, rule-50 failures, conversion and mate efficiency.
+  - [x] **6.1.e** Compare on all 198 positions, with positions 61-198 as the held-out confirmation set; report WDL preservation, rule-50 failures, conversion and mate efficiency.
   - [ ] **6.1.f** Require KQK/KRK/KBBK non-regression, tactical stability and bench accounting; exact bench identity is necessary but cannot prove this path-dependent evaluation change behaviorally neutral.
 
 Step 6.1.a is frozen in `analysis/kbnk_diagonal_port_v1.md`. Rarog commit
@@ -508,6 +508,43 @@ never rescue a failed held-out verdict. The all-198 aggregate, rule-50
 failures, stalemates, WDL preservation and mate efficiency are diagnostic
 context, not the verdict. Expect roughly four minutes at 30 workers. Run:
 `powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\diag\run_kbnk_holdout.ps1`.
+
+
+Step 6.1.e result: the held-out set rejected the 6.1.c winner and confirmed
+the plateau probe, so the accepted vector is now `15600,1900,0,460,0`. Both
+control fingerprints reproduced. On held-out `KBNK0061`
+(`8/8/8/2K5/8/3k4/8/N1B5 w`, clean win at DTZ 52) the 6.1.c winner plays
+1.Kd5 Ke2 2.Nc2, which Syzygy scores from +2 to 0; Black replies 2...Kd1
+forking the undefended bishop on c1 and knight on c2, and after 3.Ke4 Kxc1 the
+game is K+N versus K by ply 5. That is a correctness veto and outranks its
+higher raw conversion of 103/138. The accepted vector plays 1.Nb3 and converts,
+scoring 98/138 held out for 42 paired gains against 13 losses at z +3.91, with
+no live discard anywhere in the 198.
+
+The cause is the flat-maximum pathology BAS-E36 named for the bishop, now
+visible for the knight: with edge and knight weights zero, no term in
+`kbnk_score` refers to the knight, so all knight moves score alike and the
+search tiebreak can pick a losing one. Steepening the diagonal does not remove
+that degree of freedom. It is not licensed for repair inside 6.1 — 6.1.d closed
+the bishop analogue and any knight-referencing term is a new mechanism needing
+its own registration.
+
+The registered caveat held in both directions. Head-to-head on held-out rows
+the candidates are 24/19 discordant at z +0.76, statistically
+indistinguishable, which is the plateau BAS-E39 predicted; and shrinkage was
+real, 85.0% to 74.6% for the rejected arm and 76.7% to 71.0% for the accepted
+one. Carrying the second arm is the only reason 6.1.e ends with a replacement
+rather than an empty result. Diagnostics across all 198: conversion 95 to 144,
+rule-50 draws 87 to 53, stalemates 16 to 1, clean-win preservation 99.5750% to
+99.8467%, DTZ progress 0.4897 to 0.5880, discarded clean wins 32 to 10 with the
+earliest at ply 96. Full record in EXPERIMENTS.md as BAS-E41; summary SHA-256
+`FD09E1E1E872144E7476DE045D65A439C4F17D69496340F49B371EF0CCC437A1`.
+
+Two limits carried into 6.1.f and 6.2. Conversion on a truth cohort is not Elo.
+And the accepted vector's largest static KBNK score is 31,660 against the
+31,872 mate-band floor, only 212 points of headroom, so the diagonal and king
+weights are now effectively bounded from above by that check rather than by
+evidence.
 
 
 ### 6.2 Gate endgame Group A

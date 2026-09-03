@@ -271,12 +271,15 @@ struct KbnkDriveWeights {
 };
 
 #ifdef BASILISK_TUNE
-// 6.1.c selection: base 15600, diagonal 1750, no edge pull, king 340, no
-// knight pull. Chosen by the truth-safe upper sweep on cohort positions 1-60
-// (51/60 conversions against the legacy 26/60, 27 paired gains for 2 losses,
-// no live truth discard). Provisional until 6.1.e confirms it on the held-out
-// positions 61-198 and 6.1.f closes the non-regression accounting.
-static KbnkDriveWeights g_kbnk_drive{15600, 1750, 0, 340, 0};
+// 6.1.e selection: base 15600, diagonal 1900, no edge pull, king 460, no
+// knight pull. The 6.1.c screen winner (diagonal 1750, king 340) was REJECTED
+// here: on held-out KBNK0061 it plays 2.Nc2 into 2...Kd1, forking the
+// undefended bishop and knight, and draws a DTZ-52 win by ply 5. This vector
+// converts 98/138 held-out for 42 paired gains against 13 losses (z +3.91),
+// keeps 99.8241% of clean-win moves, and takes its earliest discard at ply 96
+// -- inside the benign rule-50 cleanup band BAS-E35 established. 6.1.f still
+// owns the non-regression accounting.
+static KbnkDriveWeights g_kbnk_drive{15600, 1900, 0, 460, 0};
 
 bool set_kbnk_drive_weights(const std::string& value, std::string& error) {
     if (value.empty() || value.back() == ',') {
@@ -344,7 +347,7 @@ bool set_kbnk_drive_weights(const std::string& value, std::string& error) {
     return true;
 }
 #else
-static constexpr KbnkDriveWeights g_kbnk_drive{15600, 1750, 0, 340, 0};
+static constexpr KbnkDriveWeights g_kbnk_drive{15600, 1900, 0, 460, 0};
 #endif
 
 #ifdef BASILISK_TUNE
