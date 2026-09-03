@@ -309,7 +309,7 @@ measures family frequency, not `kxk_score` firings.
 - [ ] **6.1** Implement and tune the missing KBNK technique (historical step 5.9.22).
   - [x] **6.1.a** Start from Rarog's useful finding: bishop-color corner diagonal potential can solve the drive without a bishop-position term.
   - [x] **6.1.b** Make the bishop-colour diagonal mechanism explicit and prove the existing Manhattan form was algebraically identical.
-  - [ ] **6.1.c** Scale coefficients to Basilisk and test the required diagonal dominance against its existing edge, king-distance and knight-distance terms.
+  - [x] **6.1.c** Scale coefficients to Basilisk and test the required diagonal dominance against its existing edge, king-distance and knight-distance terms.
   - [ ] **6.1.d** Do not retry bishop proximity or escape-square count unless new evidence overturns their earlier failure.
   - [ ] **6.1.e** Compare on all 198 positions, with positions 61-198 as the held-out confirmation set; report WDL preservation, rule-50 failures, conversion and mate efficiency.
   - [ ] **6.1.f** Require KQK/KRK/KBBK non-regression, tactical stability and bench accounting; exact bench identity is necessary but cannot prove this path-dependent evaluation change behaviorally neutral.
@@ -405,14 +405,45 @@ at ply zero on `KBNK0039`; the 220 and 300 arms then lost a piece at ply four.
 They are correctness failures regardless of aggregate conversion. The current
 provisional default therefore remains only a control, not an accepted choice.
 
-The final upper-range screen retains exact legacy and 1450/300 fingerprints,
-tests diagonal 1350-1900 against king weights 340/460 where mate-band safety
-allows, and admits no candidate with a new truth discard before ply 80. A
+The final upper-range screen retained exact legacy and 1450/300 fingerprints,
+tested diagonal 1350-1900 against king weights 340/460 where mate-band safety
+allowed, and admitted no candidate with a new truth discard before ply 80. A
 one-position 60k preflight excluded combinations already known to discard
 `KBNK0039`; diagonal 2000 also fails that gate, so 1900 plus the static
-mate-score bound closes the useful upper search interval. All other conditions
-remain identical. Run:
-`powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\diag\run_kbnk_upper_sweep.ps1`.
+mate-score bound closed the useful upper search interval.
+
+Both registered controls reproduced exactly: legacy converted 26/60 at
+99.5800% clean-win preservation with seven stalemates, and the 1450/300
+boundary control converted 47/60 while still discarding `KBNK0039` at ply
+zero into `insufficient_material`. The run is therefore valid. Its engine was
+built from `12b40b6`, before the pending 6.0.g diagnostic landed; engine
+SHA-256 `34AB7B682425020D8BBD97C80924BF2140119D127A57532811D09FDC5D2963B8`
+and summary SHA-256
+`12D7B76C69662C1B91A01AAE02E4CD6FEAD4792C30DB73762EA083FE7E6D4B59`.
+
+The truth veto removed exactly two arms, and no arm produced a hard anomaly:
+the 1450/300 control (`KBNK0039`, ply 0) and candidate `d1650-k460`
+(`KBNK0023`, ply 6). Ranking the survivors by paired conversion selects
+`15600,1750,0,340,0`, now the provisional default. It converted 51/60 against
+the legacy 26/60 for 27 paired gains and 2 losses, cut discarded clean wins
+from 10 to 3, raised clean-win preservation to 99.8448%, posted the best
+admissible DTZ progress at 0.6192, reduced stalemates from 7 to 1 and
+fifty-move draws from 27 to 8 -- the next best arm reaches only 14 -- and
+solved `KBNK0039` in 43 plies, faster than any other variant.
+
+Registered design caveat carried into 6.1.e: the winner is separated from the
+legacy baseline overwhelmingly (paired z approximately +4.6) but is not
+separated from its own plateau. Against `d1750-k460`, `d1850-k340` and
+`d1900-k460` the paired z values are only +1.61, +1.70 and +1.21, and the
+king-340 row is non-monotone across diagonal 1350-1900 (37, 33, 41, 51, 44,
+40). These 60 positions have now selected across three rounds and 42 arms, so
+51/60 is a winner's-curse point estimate and the held-out result should be
+expected to fall. The defensible claim from 6.1.c is that the
+diagonal-dominant region as a whole beats the legacy vector decisively, not
+that (1750, 340) is its optimum. Accordingly 6.1.e must treat positions
+61-198 as its primary verdict, and should carry `15600,1900,0,460,0` (46/60,
+2 discards, 99.8987% preservation) as a second arm so that a noisy peak can
+be distinguished from the true plateau level.
 
 ### 6.2 Gate endgame Group A
 

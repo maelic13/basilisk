@@ -271,11 +271,12 @@ struct KbnkDriveWeights {
 };
 
 #ifdef BASILISK_TUNE
-// Equivalent to the provisional first-pass vector (7 + diagonal) * 1000,
-// with its class-wide 7000 points now represented independently. Keeping the
-// exact score here makes the parameterisation fix behaviour-neutral until the
-// corrected sweep selects a replacement.
-static KbnkDriveWeights g_kbnk_drive{17000, 1000, 0, 220, 0};
+// 6.1.c selection: base 15600, diagonal 1750, no edge pull, king 340, no
+// knight pull. Chosen by the truth-safe upper sweep on cohort positions 1-60
+// (51/60 conversions against the legacy 26/60, 27 paired gains for 2 losses,
+// no live truth discard). Provisional until 6.1.e confirms it on the held-out
+// positions 61-198 and 6.1.f closes the non-regression accounting.
+static KbnkDriveWeights g_kbnk_drive{15600, 1750, 0, 340, 0};
 
 bool set_kbnk_drive_weights(const std::string& value, std::string& error) {
     if (value.empty() || value.back() == ',') {
@@ -343,7 +344,7 @@ bool set_kbnk_drive_weights(const std::string& value, std::string& error) {
     return true;
 }
 #else
-static constexpr KbnkDriveWeights g_kbnk_drive{17000, 1000, 0, 220, 0};
+static constexpr KbnkDriveWeights g_kbnk_drive{15600, 1750, 0, 340, 0};
 #endif
 
 #ifdef BASILISK_TUNE

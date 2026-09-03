@@ -99,7 +99,7 @@ Run this checklist in order; PLAN.md owns rationale and gates.
 - [ ] **6.1** Implement and tune the missing KBNK technique (historical step 5.9.22)
   - [x] **6.1.a** Map Rarog's bishop-colour diagonal potential onto Basilisk without a bishop-position term
   - [x] **6.1.b** Make the already-equivalent diagonal geometry explicit; defer scale and competing pulls
-  - [ ] **6.1.c** Bound the strongest truth-safe KBNK diagonal/king vector
+  - [x] **6.1.c** Bound the strongest truth-safe KBNK diagonal/king vector
   - [ ] **6.1.d** Do not retry bishop proximity or escape-square count unless new evidence overturns their earlier failure
   - [ ] **6.1.e** Confirm on held-out positions 61-198, then report all 198 positions
   - [ ] **6.1.f** Require endgame/tactical gates; bench identity is necessary, not behavioral proof
