@@ -793,6 +793,55 @@ worse than about -5.5 Elo excluded at 95% and no claim of a gain.
   - [ ] **6.3.b** Verify KP-K, KPP-K, KBP-K and mixed rook/minor pawn families.
   - [ ] **6.3.c** Gate the isolated candidate with no adjudication.
 
+**6.3.a is BLOCKED by an instrument defect, found while gathering its
+evidence.** The leaf requires the feature to be derived from measured Basilisk
+truth failures. The measurement is not currently trustworthy for pawn families,
+so no derivation is written and the checklist item stays open.
+
+`endgame_truth.py` ends a game as `material_lost` whenever the strong side's
+piece count falls below its starting value:
+
+    def strong_material(b): return chess.popcount(b.occupied_co[chess.WHITE])
+    ...
+    if strong_material(board) < initial_material: outcome = "material_lost"
+
+That is a sound proxy for "threw the win" in KBN-K, where losing either minor
+converts the win to a dead draw. It is false wherever the strong side can
+correctly shed material -- which is most pawn technique, because sacrificing
+one pawn to promote another, or trading into a won king-and-pawn ending, is the
+winning method rather than a mistake.
+
+Measured on the frozen 6.0.a cohort at 200,000 nodes over ten pawn families,
+216 clean-win roots produced 148 `material_lost` aborts, and **139 of those
+occurred without the engine ever playing a single non-win-preserving move**.
+Example `EG0171`, KPP-K at DTZ 3: `8/8/8/3K4/8/5Pk1/6P1/8 w`, aborted at ply 2
+because Black captured a pawn the winning line gives up. Only 9 of the 148 came
+after a genuinely losing move.
+
+The reported conversion rates are therefore artifacts. KPP-K reading 12/24 with
+100% win preservation is the signature: the engine never erred, it was stopped.
+
+*Scope of the damage.* KBN-K is unaffected, because there any minor loss really
+does end the win, so 6.1's results and BAS-E39/E41/E45 stand. The families at
+risk are exactly those where the strong side holds more than one unit or a
+trade is part of the technique: KPP-K, KBP-KB, KBP-KN, KBPP-KB, KRP-KR, KP-KP,
+KBP-K and KQ-KP. Any earlier baseline that scored those families through this
+instrument -- 6.0.b in particular -- needs re-checking before its numbers are
+reused.
+
+*Proposed fix, not applied.* The tablebase already knows the answer the
+heuristic is guessing at. Terminate on truth rather than on material: keep
+playing unless the position's WDL for the strong side drops below a clean win,
+which the harness already tracks for `first_discard_ply`. `material_lost` then
+becomes a recorded reason rather than a stopping rule. This changes the meaning
+of every family baseline the instrument has produced, so it is a maintainer
+decision, not a silent repair.
+
+`tools/diag/passer_king_geometry.py` is committed with this note. It tests
+whether king-to-passer geometry actually separates converted from unconverted
+roots, which is what 6.3.a needs in order to derive rather than assume, and it
+is ready to re-run once the instrument is trustworthy.
+
 ### 6.4 Magnitude and coverage audit
 
 - [ ] **6.4** Audit every endgame term before broadening the evaluator.
