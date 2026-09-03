@@ -12,15 +12,16 @@ historical evidence ledger.
 | Released baseline | Basilisk 1.9.3; bench-13 fingerprint 11,941,440 |
 | Current head | Bench 12,709,666; last recorded CTest 12/12; WAC 137/300 |
 | Strength baseline | basilisk-5912-slim-pext-pgo; accepted HCE line about +12 Elo versus 1.9.3 |
-| Current phase | Phase 6, step 6.1.a |
+| Current phase | Phase 6, step 6.1.b |
 | Evaluation | HCE is unfrozen for structural improvement and complete, controlled refits |
 | Corpus rule | Game-result labels only; no engine-evaluation labels |
 | Match/data rule | Natural termination by default; score-based adjudication requires explicit opt-in and registration |
 | Long job | None active; the complete 6.0 truth baseline is recorded below |
 | Release target | Classical release after Phase 8; NNUE 2.0.0 after Phase 10 |
 
-The next engine change is not authorized by this planning pass. Step 6.1.a is
-the next leaf and begins the registered Rarog mate-drive investigation.
+The next engine change is not authorized by this planning pass. Step 6.1.b is
+the next leaf and ports the audited diagonal-potential shape without adopting
+Rarog's constants.
 
 ## 2. Operating contract
 
@@ -167,7 +168,7 @@ completed item has a number after unfinished work.
 - [x] **6.0** Establish the truth baseline before another evaluator edit.
   - [x] **6.0.a** Freeze 770 Syzygy-verified positions across 21 endgame families.
   - [x] **6.0.b** Measure the accepted Basilisk head and a strong reference at identical nodes.
-  - [x] **6.0.c** Set achievable family ceilings; do not assume 100% at a finite node budget.
+  - [x] **6.0.c** Record attained family reference results; neither 100% nor the reference result is a finite-node ceiling.
   - [x] **6.0.d** Define paired confidence rules: aggregate beyond 2 SE reports, family beyond 3 SE blocks.
   - [x] **6.0.e** Add hard theory vetoes for clean-win discard, illegal play, crash and rule-50 regression.
   - [x] **6.0.f** Census disagreements between self-play WDL labels and Syzygy on every <=6-man corpus row.
@@ -197,20 +198,21 @@ The largest conversion deficits were KBP-K (6/24 versus 22/24), KQ-KR
 (11/24 versus 24/24), KNN-KP (1/24 versus 14/24), KBN-K (12/24 versus 24/24)
 and KQ-KRP (13/24 versus 23/24).
 
-Step 6.0.c freezes `tools/diag/endgame_ceilings_v1.json`. For this contract,
-the **attained finite-node ceiling** is the best conversion count produced by
-either complete single-engine run within each family. It is a demonstrated,
-reachable comparison target—not a hard maximum or acceptance threshold. The
-paired union is a stretch diagnostic only: it proves that each included
-position was converted by at least one engine, not that one engine can convert
-the union. A future accepted head may ratchet an attained ceiling upward only
-through another complete run under the identical cohort and search contract.
+Step 6.0.c freezes `tools/diag/endgame_ceilings_v1.json`. Its historical field
+name `attained_single_engine_ceiling` means only the best conversion count
+observed in the two complete 60k runs. The accurate term is **attained reference
+result**: it is neither a theoretical nor empirical upper bound, Basilisk may
+surpass it, and failure to equal it is not itself a rejection. The paired union
+is a stretch diagnostic only: it proves that each included position was
+converted by at least one engine, not that one engine can convert the union.
+A future accepted head may ratchet the recorded reference result upward through
+another complete run under the identical cohort and search contract.
 Conversion is not applicable to KNN-K because the frozen family contains no
-clean theoretical wins. Move-level WDL/DTZ rates remain explanatory rather
-than ceilings because their variable game lengths make the samples dependent;
-6.0.d owns their comparison rule.
+clean theoretical wins. Move-level WDL/DTZ rates remain explanatory because
+their variable game lengths make the samples dependent; 6.0.d owns their
+comparison rule.
 
-| Family | Clean wins | Accepted | Attained 60k ceiling | Paired union |
+| Family | Clean wins | Accepted | Attained 60k reference | Paired union |
 |---|---:|---:|---:|---:|
 | KQ-K | 24 | 24 | 24 (100%) | 24 |
 | KR-K | 24 | 24 | 24 (100%) | 24 |
@@ -234,7 +236,7 @@ than ceilings because their variable game lengths make the samples dependent;
 | KQ-KRP | 24 | 13 | 23 (95.8%) | 23 |
 | KBPP-KB | 24 | 5 | 6 (25.0%) | 9 |
 
-Across all families the attained ceiling is 389/480 (81.04%); the non-additive
+Across all families the attained reference result is 389/480 (81.04%); the non-additive
 paired union is 405/480 (84.38%). `tools/diag/endgame_ceilings.py` validates
 the source schemas, hashes, identical contract and exact ID/FEN/theory pairing
 before reproducing the artifact, so neither number can silently mix cohorts.
@@ -288,12 +290,24 @@ no-adjudication PGN provenance are embedded in the artifact; its SHA-256 is
 ### 6.1 Complete KBNK mate drive
 
 - [ ] **6.1** Implement and tune the missing KBNK technique (historical step 5.9.22).
-  - [ ] **6.1.a** Start from Rarog's useful finding: bishop-color corner diagonal potential can solve the drive without a bishop-position term.
+  - [x] **6.1.a** Start from Rarog's useful finding: bishop-color corner diagonal potential can solve the drive without a bishop-position term.
   - [ ] **6.1.b** Port the mechanism shape, not constants: correct-corner diagonal resolution, magnitude and ratio must dominate king-distance terms.
   - [ ] **6.1.c** Scale coefficients to Basilisk and test interaction with its existing corner, edge, king-distance and knight-distance terms.
   - [ ] **6.1.d** Do not retry bishop proximity or escape-square count unless new evidence overturns their earlier failure.
   - [ ] **6.1.e** Compare on the identical 198 positions; report WDL preservation, rule-50 failures, conversion and mate efficiency.
   - [ ] **6.1.f** Require KQK/KRK/KBBK non-regression, tactical stability and bench accounting; exact bench identity is necessary but cannot prove this path-dependent evaluation change behaviorally neutral.
+
+Step 6.1.a is frozen in `analysis/kbnk_diagonal_port_v1.md`. Rarog commit
+`4aea0c7` replaced a coarse corner drive with a weak-king diagonal potential
+selected only by the winning bishop's square colour. At 60k nodes it moved
+KBN-K conversion from 19.4% to 96.9% and eliminated 61 rule-50 failures; the
+successful sweep also showed that the corner pull must dominate the king pull.
+For Basilisk, a dark-squared bishop uses `abs(7-rank-file)` toward a1/h8 and a
+light-squared bishop uses `abs(rank-file)` toward a8/h1. Basilisk's existing
+exact-material dispatcher already supplies the required bishop colour, weak
+king square, score sign and narrow activation. Therefore 6.1.b owns only the
+geometry port; 6.1.c owns Basilisk-scale constants and interaction with the
+current edge, king and knight pulls. No bishop-position term is licensed.
 
 ### 6.2 Gate endgame Group A
 

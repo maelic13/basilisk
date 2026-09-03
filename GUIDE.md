@@ -91,12 +91,12 @@ Run this checklist in order; PLAN.md owns rationale and gates.
 - [x] **6.0** Establish the truth baseline before another evaluator edit
   - [x] **6.0.a** Freeze 770 Syzygy-verified positions across 21 endgame families
   - [x] **6.0.b** Measure accepted Basilisk and Stockfish on all 770 positions at identical nodes
-  - [x] **6.0.c** Freeze attained 60k family ceilings and separate paired-union stretch evidence
+  - [x] **6.0.c** Freeze attained 60k reference results—not theoretical ceilings—and paired-union stretch evidence
   - [x] **6.0.d** Pair by position; report at 2 SE and block family regressions at 3 SE
   - [x] **6.0.e** Veto new truth/rule-50 failures and every engine anomaly
   - [x] **6.0.f** Census all Arm C <=6-man labels against Syzygy; freeze the 14.12% disagreement baseline
 - [ ] **6.1** Implement and tune the missing KBNK technique (historical step 5.9.22)
-  - [ ] **6.1.a** Start from Rarog's useful finding: bishop-color corner diagonal potential can solve the drive without a bishop-position term
+  - [x] **6.1.a** Map Rarog's bishop-colour diagonal potential onto Basilisk without a bishop-position term
   - [ ] **6.1.b** Port the mechanism shape, not constants: correct-corner diagonal resolution, magnitude and ratio must dominate king-distance terms
   - [ ] **6.1.c** Scale coefficients to Basilisk and test interaction with its existing corner, edge, king-distance and knight-distance terms
   - [ ] **6.1.d** Do not retry bishop proximity or escape-square count unless new evidence overturns their earlier failure
