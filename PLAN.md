@@ -12,16 +12,16 @@ historical evidence ledger.
 | Released baseline | Basilisk 1.9.3; bench-13 fingerprint 11,941,440 |
 | Current head | Bench 12,709,666; last recorded CTest 12/12; WAC 137/300 |
 | Strength baseline | basilisk-5912-slim-pext-pgo; accepted HCE line about +12 Elo versus 1.9.3 |
-| Current phase | Phase 6, step 6.1.c |
+| Current phase | Phase 6, step 6.1.d |
 | Evaluation | HCE is unfrozen for structural improvement and complete, controlled refits |
 | Corpus rule | Game-result labels only; no engine-evaluation labels |
 | Match/data rule | Natural termination by default; score-based adjudication requires explicit opt-in and registration |
-| Long job | 6.1.c prepared; maintainer command pending for the paired KBNK coefficient screen |
+| Long job | None active; the completed 6.1.c coefficient screen is recorded below |
 | Release target | Classical release after Phase 8; NNUE 2.0.0 after Phase 10 |
 
-Step 6.1.c is prepared but remains open until its registered long run is
-returned and analyzed. It measures diagonal scale plus interaction with
-Basilisk's existing edge, friendly-king and knight pulls.
+Step 6.1.c selected a provisional KBNK vector from its paired screen. Step
+6.1.d is the next leaf and closes the already-refuted feature families unless
+new evidence exists.
 
 ## 2. Operating contract
 
@@ -292,7 +292,7 @@ no-adjudication PGN provenance are embedded in the artifact; its SHA-256 is
 - [ ] **6.1** Implement and tune the missing KBNK technique (historical step 5.9.22).
   - [x] **6.1.a** Start from Rarog's useful finding: bishop-color corner diagonal potential can solve the drive without a bishop-position term.
   - [x] **6.1.b** Make the bishop-colour diagonal mechanism explicit and prove the existing Manhattan form was algebraically identical.
-  - [ ] **6.1.c** Scale coefficients to Basilisk and test the required diagonal dominance against its existing edge, king-distance and knight-distance terms.
+  - [x] **6.1.c** Scale coefficients to Basilisk and test the required diagonal dominance against its existing edge, king-distance and knight-distance terms.
   - [ ] **6.1.d** Do not retry bishop proximity or escape-square count unless new evidence overturns their earlier failure.
   - [ ] **6.1.e** Compare on the identical 198 positions; report WDL preservation, rule-50 failures, conversion and mate efficiency.
   - [ ] **6.1.f** Require KQK/KRK/KBBK non-regression, tactical stability and bench accounting; exact bench identity is necessary but cannot prove this path-dependent evaluation change behaviorally neutral.
@@ -321,13 +321,13 @@ edge, friendly-king and knight terms. Release `test_eval` and `test_endgames`
 pass, and `bench 13` remains exactly 12,709,666 nodes. No conversion gain is
 claimed because the score is unchanged.
 
-Step 6.1.c uses a tune-build-only atomic `KBNK Drive` option in
-`diagonal,edge,king,knight` order; release defaults and UCI surface are
-unchanged. The option rejects malformed, negative and combined vectors whose
-largest legal KBNK score would enter the mate-score band. The historical
-BAS-E35 LCG source is frozen as `tools/diag/kbnk_cohort_v1.*`: exactly 198
-Syzygy clean wins retained from the original 200 generated positions, with
-source indices, WDL/DTZ labels and tablebase inventory provenance.
+Step 6.1.c used a tune-build-only atomic `KBNK Drive` option in
+`diagonal,edge,king,knight` order. The option rejects malformed, negative and
+combined vectors whose largest legal KBNK score would enter the mate-score
+band. The release UCI remains clean. The historical BAS-E35 LCG source is
+frozen as `tools/diag/kbnk_cohort_v1.*`: exactly 198 Syzygy clean wins retained
+from the original 200 generated positions, with source indices, WDL/DTZ labels
+and tablebase inventory provenance.
 
 The registered screen runs baseline, diagonal 600/1000, each competing-term
 ablation, edge+knight ablation, and three increasingly Rarog-shaped dominant
@@ -337,9 +337,15 @@ game, engine tablebases disabled, and natural termination with no score
 adjudication. All variants use the same tune binary and positions. Reject any
 engine/protocol anomaly; then rank conversion on the paired positions, using
 clean-win preservation, DTZ progress and mate efficiency diagnostically and
-preferring the simpler vector when practically tied. This screen selects a
-candidate only: 6.1.e owns confirmation on all 198 positions. Run:
-`powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\diag\run_kbnk_sweep.ps1`.
+preferring the simpler vector when practically tied. The two leaders both
+converted 31/60 versus baseline 26/60. `dominant-diagonal` (`1000,0,220,0`)
+won the tie: it discarded only 3 clean wins versus 12 for
+`diagonal-1000` (`1000,900,220,220`), had no hard anomaly, raised clean-win
+move preservation from 99.5800% to 99.8676%, reduced stalemates 7 to 2, and
+removed the edge and knight pulls. Its 15 paired gains and 10 losses show a
+promising screen rather than proof; the default is provisional until 6.1.e
+confirms it on all 198 positions. Summary SHA-256:
+`ED0A554855D9B61273E968EDF73A5FBEE96046AA5E8F5D0DBCC1616A77FAAEDF`.
 
 ### 6.2 Gate endgame Group A
 

@@ -269,7 +269,7 @@ struct KbnkDriveWeights {
 };
 
 #ifdef BASILISK_TUNE
-static KbnkDriveWeights g_kbnk_drive{800, 900, 220, 220};
+static KbnkDriveWeights g_kbnk_drive{1000, 0, 220, 0};
 
 bool set_kbnk_drive_weights(const std::string& value, std::string& error) {
     KbnkDriveWeights candidate{};
@@ -314,7 +314,7 @@ bool set_kbnk_drive_weights(const std::string& value, std::string& error) {
     return true;
 }
 #else
-static constexpr KbnkDriveWeights g_kbnk_drive{800, 900, 220, 220};
+static constexpr KbnkDriveWeights g_kbnk_drive{1000, 0, 220, 0};
 #endif
 
 static int kbnk_score(const Board& b, Color strong) {

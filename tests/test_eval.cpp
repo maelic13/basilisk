@@ -481,15 +481,15 @@ static void test_kbnk_drive_option() {
     std::string error;
 
     begin_section("KBNK drive: valid vector changes score atomically");
-    EXPECT(set_kbnk_drive_weights("800,900,220,220", error));
+    EXPECT(set_kbnk_drive_weights("1000,0,220,0", error));
     const int baseline = eval_fen(KBNK);
-    EXPECT(set_kbnk_drive_weights("900,900,220,220", error));
+    EXPECT(set_kbnk_drive_weights("1100,0,220,0", error));
     const int changed = eval_fen(KBNK);
     EXPECT(changed != baseline);
     end_section();
 
     begin_section("KBNK drive: malformed vector is rejected and retained");
-    EXPECT(!set_kbnk_drive_weights("900,-1,220,220", error));
+    EXPECT(!set_kbnk_drive_weights("1100,-1,220,0", error));
     EXPECT_EQ(eval_fen(KBNK), changed);
     EXPECT(!set_kbnk_drive_weights("900,220", error));
     EXPECT_EQ(eval_fen(KBNK), changed);
@@ -498,7 +498,7 @@ static void test_kbnk_drive_option() {
     begin_section("KBNK drive: mate-band vector is rejected and retained");
     EXPECT(!set_kbnk_drive_weights("1500,900,220,220", error));
     EXPECT_EQ(eval_fen(KBNK), changed);
-    EXPECT(set_kbnk_drive_weights("800,900,220,220", error));
+    EXPECT(set_kbnk_drive_weights("1000,0,220,0", error));
     end_section();
 }
 #endif

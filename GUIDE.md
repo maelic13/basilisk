@@ -98,7 +98,7 @@ Run this checklist in order; PLAN.md owns rationale and gates.
 - [ ] **6.1** Implement and tune the missing KBNK technique (historical step 5.9.22)
   - [x] **6.1.a** Map Rarog's bishop-colour diagonal potential onto Basilisk without a bishop-position term
   - [x] **6.1.b** Make the already-equivalent diagonal geometry explicit; defer scale and competing pulls
-  - [ ] **6.1.c** Screen diagonal scale and competing KBNK pulls on the frozen cohort
+  - [x] **6.1.c** Screen diagonal scale and competing KBNK pulls on the frozen cohort
   - [ ] **6.1.d** Do not retry bishop proximity or escape-square count unless new evidence overturns their earlier failure
   - [ ] **6.1.e** Compare on the identical 198 positions; report WDL preservation, rule-50 failures, conversion and mate efficiency
   - [ ] **6.1.f** Require endgame/tactical gates; bench identity is necessary, not behavioral proof

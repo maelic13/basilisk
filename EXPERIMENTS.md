@@ -1813,6 +1813,30 @@ bench suite contains no KBNK position — so only the endgame instruments can se
 this work at all, which is exactly why it needs `tools/diag/kbnk_outcomes.py`
 rather than an SPRT.
 
+**BAS-E37 — 6.1.c: KBNK diagonal dominance screen selects `1000,0,220,0`**
+(2026-09-03). Ten coefficient vectors in `diagonal,edge,king,knight` order were
+run at 60,000 nodes/move on the identical first 60 positions of the frozen
+BAS-E35 198-win cohort. Each arm used 30 independent one-thread engine workers,
+engine tablebases disabled, a 100-ply limit, and no score adjudication.
+
+| vector | converted | paired gain/loss vs baseline | clean wins discarded | DTZ progress | hard anomalies |
+|---|---:|---:|---:|---:|---:|
+| baseline `800,900,220,220` | 26/60 | — | 10 | 47.45% | 0 |
+| diagonal `1000,900,220,220` | **31/60** | 19/14 | 12 | 49.74% | 0 |
+| **dominant diagonal `1000,0,220,0`** | **31/60** | **15/10** | **3** | **49.85%** | **0** |
+| no edge `800,0,220,220` | 30/60 | 10/6 | 7 | 49.87% | 0 |
+
+The preregistered rule breaks the conversion tie in favour of
+`1000,0,220,0`: it preserves substantially more clean wins and is the simpler
+shape, removing the generic edge pull and knight-distance pull while retaining
+the strong-king approach term. It also reduced stalemates from 7 to 2 and
+raised per-move clean-win preservation from 99.5800% to 99.8676%. This is a
+**provisional candidate**, not a 60-position claim of general superiority:
+15 baseline failures converted but 10 baseline successes regressed. Step 6.1.e
+must confirm it on all 198 frozen wins before the mechanism is accepted.
+Summary SHA-256:
+`ED0A554855D9B61273E968EDF73A5FBEE96046AA5E8F5D0DBCC1616A77FAAEDF`.
+
 **Missing and measured NOT to matter:** `KPKP` — our `KP-KP` and `KPP-KPP`
 predictions are already accurate on the drawn subset. `KRKB`/`KRKN`/`KQKR`/
 `KQKP`/`KNNKP` are each below 2% of games and are not proposed.
