@@ -22,40 +22,43 @@ VARIANTS = {
 HARD_OUTCOMES = {"engine_crash", "illegal_move", "no_move"}
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("result_dir", type=Path)
-    parser.add_argument("--output", type=Path)
-    args = parser.parse_args()
-
+def summarize_reports(
+    result_dir: Path,
+    output: Path,
+    variants: dict[str, str],
+    baseline_name: str,
+    schema: str,
+    purpose: str,
+) -> None:
+    """Shared paired validator; experiment wrappers own their frozen registry."""
     reports = {}
-    for name, weights in VARIANTS.items():
-        path = args.result_dir / f"{name}.json"
+    for name, weights in variants.items():
+        path = result_dir / f"{name}.json"
         if not path.is_file():
-            parser.error(f"missing variant report: {path}")
+            raise ValueError(f"missing variant report: {path}")
         report = json.loads(path.read_text(encoding="utf-8"))
         if report.get("engine_options", {}).get("KBNK Drive") != weights:
-            parser.error(f"{name}: KBNK Drive provenance does not match registry")
+            raise ValueError(f"{name}: KBNK Drive provenance does not match registry")
         reports[name] = report
 
-    baseline = reports["baseline"]
+    baseline = reports[baseline_name]
     invariant_keys = ("engine_sha256", "nodes_per_move", "max_plies", "hash_mb")
     baseline_ids = [p["id"] for p in baseline["families"]["KBN-K"]["positions"]]
     for name, report in reports.items():
         for key in invariant_keys:
             if report.get(key) != baseline.get(key):
-                parser.error(f"{name}: mismatched {key}")
+                raise ValueError(f"{name}: mismatched {key}")
         if report.get("cohort", {}).get("book_sha256") != baseline["cohort"]["book_sha256"]:
-            parser.error(f"{name}: mismatched frozen cohort")
+            raise ValueError(f"{name}: mismatched frozen cohort")
         ids = [p["id"] for p in report["families"]["KBN-K"]["positions"]]
         if ids != baseline_ids:
-            parser.error(f"{name}: position pairing/order differs")
+            raise ValueError(f"{name}: position pairing/order differs")
 
     base_positions = {
         p["id"]: p for p in baseline["families"]["KBN-K"]["positions"]
     }
     rows = []
-    for name, weights in VARIANTS.items():
+    for name, weights in variants.items():
         family = reports[name]["families"]["KBN-K"]
         positions = {p["id"]: p for p in family["positions"]}
         gained = sum(
@@ -73,7 +76,7 @@ def main() -> int:
         discarded = sum(p.get("first_discard_ply") is not None for p in positions.values())
         rows.append({
             "variant": name,
-            "weights_diagonal_edge_king_knight": weights,
+            "uci_kbnk_drive": weights,
             "converted": family["converted"],
             "conversion_rate": family["conversion_rate"],
             "conversion_delta_vs_baseline": family["converted"] - baseline["families"]["KBN-K"]["converted"],
@@ -98,8 +101,8 @@ def main() -> int:
         ),
     )
     summary = {
-        "schema": "basilisk-kbnk-coefficient-sweep-v1",
-        "purpose": "6.1.c paired 60-position screen; selection requires review, not automatic adoption",
+        "schema": schema,
+        "purpose": purpose,
         "engine_sha256": baseline["engine_sha256"],
         "cohort_book_sha256": baseline["cohort"]["book_sha256"],
         "position_ids": baseline_ids,
@@ -117,18 +120,35 @@ def main() -> int:
         "ranked_variants": [row["variant"] for row in ranked],
     }
     rendered = json.dumps(summary, indent=2) + "\n"
-    output = args.output or args.result_dir / "summary.json"
     output.write_text(rendered, encoding="utf-8", newline="\n")
 
     print("variant              weights             conv  delta  gain/loss  discard  hard")
     for row in ranked:
         print(
-            f'{row["variant"]:<20} {row["weights_diagonal_edge_king_knight"]:<19} '
+            f'{row["variant"]:<20} {row["uci_kbnk_drive"]:<25} '
             f'{row["converted"]:>3}/{len(baseline_ids):<3} {row["conversion_delta_vs_baseline"]:>+5} '
             f'{row["paired_conversions_gained"]:>3}/{row["paired_conversions_lost"]:<3} '
             f'{row["discarded_clean_wins"]:>7} {row["hard_anomalies"]:>5}'
         )
     print(f"Summary: {output.resolve()}")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("result_dir", type=Path)
+    parser.add_argument("--output", type=Path)
+    args = parser.parse_args()
+    try:
+        summarize_reports(
+            args.result_dir,
+            args.output or args.result_dir / "summary.json",
+            VARIANTS,
+            "baseline",
+            "basilisk-kbnk-coefficient-sweep-v1",
+            "6.1.c paired 60-position screen; selection requires review, not automatic adoption",
+        )
+    except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
+        parser.error(str(exc))
     return 0
 
 

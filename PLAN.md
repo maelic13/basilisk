@@ -12,16 +12,16 @@ historical evidence ledger.
 | Released baseline | Basilisk 1.9.3; bench-13 fingerprint 11,941,440 |
 | Current head | Bench 12,709,666; last recorded CTest 12/12; WAC 137/300 |
 | Strength baseline | basilisk-5912-slim-pext-pgo; accepted HCE line about +12 Elo versus 1.9.3 |
-| Current phase | Phase 6, step 6.1.d |
+| Current phase | Phase 6, step 6.1.c |
 | Evaluation | HCE is unfrozen for structural improvement and complete, controlled refits |
 | Corpus rule | Game-result labels only; no engine-evaluation labels |
 | Match/data rule | Natural termination by default; score-based adjudication requires explicit opt-in and registration |
-| Long job | None active; the completed 6.1.c coefficient screen is recorded below |
+| Long job | Corrected 6.1.c refinement prepared; maintainer command pending |
 | Release target | Classical release after Phase 8; NNUE 2.0.0 after Phase 10 |
 
-Step 6.1.c selected a provisional KBNK vector from its paired screen. Step
-6.1.d is the next leaf and closes the already-refuted feature families unless
-new evidence exists.
+Step 6.1.c was reopened because its first sweep coupled diagonal slope to a
+class-wide score offset. The corrected independent-coordinate refinement is
+prepared; no later leaf may proceed until it is returned and analyzed.
 
 ## 2. Operating contract
 
@@ -292,9 +292,9 @@ no-adjudication PGN provenance are embedded in the artifact; its SHA-256 is
 - [ ] **6.1** Implement and tune the missing KBNK technique (historical step 5.9.22).
   - [x] **6.1.a** Start from Rarog's useful finding: bishop-color corner diagonal potential can solve the drive without a bishop-position term.
   - [x] **6.1.b** Make the bishop-colour diagonal mechanism explicit and prove the existing Manhattan form was algebraically identical.
-  - [x] **6.1.c** Scale coefficients to Basilisk and test the required diagonal dominance against its existing edge, king-distance and knight-distance terms.
+  - [ ] **6.1.c** Scale coefficients to Basilisk and test the required diagonal dominance against its existing edge, king-distance and knight-distance terms.
   - [ ] **6.1.d** Do not retry bishop proximity or escape-square count unless new evidence overturns their earlier failure.
-  - [ ] **6.1.e** Compare on the identical 198 positions; report WDL preservation, rule-50 failures, conversion and mate efficiency.
+  - [ ] **6.1.e** Compare on all 198 positions, with positions 61-198 as the held-out confirmation set; report WDL preservation, rule-50 failures, conversion and mate efficiency.
   - [ ] **6.1.f** Require KQK/KRK/KBBK non-regression, tactical stability and bench accounting; exact bench identity is necessary but cannot prove this path-dependent evaluation change behaviorally neutral.
 
 Step 6.1.a is frozen in `analysis/kbnk_diagonal_port_v1.md`. Rarog commit
@@ -342,10 +342,39 @@ converted 31/60 versus baseline 26/60. `dominant-diagonal` (`1000,0,220,0`)
 won the tie: it discarded only 3 clean wins versus 12 for
 `diagonal-1000` (`1000,900,220,220`), had no hard anomaly, raised clean-win
 move preservation from 99.5800% to 99.8676%, reduced stalemates 7 to 2, and
-removed the edge and knight pulls. Its 15 paired gains and 10 losses show a
-promising screen rather than proof; the default is provisional until 6.1.e
-confirms it on all 198 positions. Summary SHA-256:
+removed the edge and knight pulls. Its 15 paired gains and 10 losses made it a
+promising first-pass bundle rather than proof; the correction below supersedes
+its provisional completion. Summary SHA-256:
 `ED0A554855D9B61273E968EDF73A5FBEE96046AA5E8F5D0DBCC1616A77FAAEDF`.
+
+**6.1.c correction (2026-09-03):** that first-pass comparison did not isolate
+the claimed mechanism. The implementation was `(7 + diagonal) * weight`, so
+800 -> 1000 strengthened the position-dependent slope but also raised every
+KBNK score by 1,400. Absolute score changes can alter pruning and search even
+though they do not alter static move ordering inside the class. The selected
+vector also removed edge and knight pulls, so its 31/60 cannot be attributed
+to diagonal dominance alone. The completion was revoked before 6.1.e.
+
+The corrected parameterization is `base + diagonal*slope + edge*E +
+king-distance*K + knight-distance*N`, controlled atomically in tune builds as
+`base,diagonal,edge,king,knight`. Its current defaults reproduce the provisional
+first-pass score exactly, so the refactor itself is behavior-neutral. The old
+four-field form remains accepted and maps to `base = 10000 + 7*diagonal`,
+allowing the original artifacts and script to remain reproducible.
+
+The registered refinement first requires the exact old baseline
+`15600,800,900,220,220` and first-pass winner `17000,1000,0,220,0` to reproduce
+their earlier paired results. It then holds base at 15,600 while testing a
+3-by-3 diagonal/king grid, adds a lower diagonal boundary, and independently
+tests base 14,200/17,000/18,400 at the centre vector. All other cohort, node,
+ply, worker, tablebase and no-adjudication conditions remain identical. Any
+control drift or hard anomaly invalidates the run. Otherwise rank paired
+conversion first, clean-win discards second, and use WDL preservation, DTZ
+progress and mate efficiency diagnostically. Because these 60 positions select
+among 15 arms, they are development data, not confirmation: 6.1.e must make
+positions 61-198 its primary held-out verdict and report the all-198 aggregate
+only as secondary context. Run:
+`powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\diag\run_kbnk_refinement.ps1`.
 
 ### 6.2 Gate endgame Group A
 

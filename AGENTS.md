@@ -53,6 +53,16 @@ evidence rather than intuition alone.
 
 ## Verification and acceptance
 
+- Before closing an experimental leaf, audit whether the intervention isolates
+  the claimed variable. Check especially for offset-versus-slope coupling,
+  multiple parameters changing together, corpus/label policy changing
+  together, search-policy changes that alter the sampled distribution, and
+  candidate selection being evaluated again on the same data without a
+  clearly reported held-out verdict.
+- Report an experimental-design confound or unresolved alternative explanation
+  immediately. Do not bury it in a later report, call the step complete, or
+  advance to confirmation while it can materially change the conclusion. If
+  discovered after closure, reopen the affected leaf and correct it first.
 - Match verification cost to risk. Do not run the entire suite reflexively
   when a syntax check or focused test proves the current change; do not skip a
   bench, game gate or chess-specific test when that is what acceptance needs.

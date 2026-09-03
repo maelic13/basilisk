@@ -1837,6 +1837,16 @@ must confirm it on all 198 frozen wins before the mechanism is accepted.
 Summary SHA-256:
 `ED0A554855D9B61273E968EDF73A5FBEE96046AA5E8F5D0DBCC1616A77FAAEDF`.
 
+**Correction (2026-09-03): not accepted; 6.1.c reopened.** The first-pass
+parameterization was `(7 + diagonal) * weight`. Raising 800 to 1000 therefore
+changed both the diagonal slope and a class-wide offset (+1,400), while the
+selected arm simultaneously removed the edge and knight pulls. Its result is
+valid as a measured bundle but cannot establish which mechanism caused it.
+The default was re-expressed without behavior change as
+`base=17000, diagonal=1000, edge=0, king=220, knight=0`; a corrected paired
+refinement now varies base, diagonal and king independently. This correction
+must close before the 198-position confirmation.
+
 **Missing and measured NOT to matter:** `KPKP` — our `KP-KP` and `KPP-KPP`
 predictions are already accurate on the drawn subset. `KRKB`/`KRKN`/`KQKR`/
 `KQKP`/`KNNKP` are each below 2% of games and are not proposed.

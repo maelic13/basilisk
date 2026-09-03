@@ -175,8 +175,8 @@ std::string Parameters::uci_options() {
         // Diagnostic counters + lazy dual-eval audit (8.6.6).
         "option name Diag type check default false\n"
         // Atomic string keeps an SPSA/sweep harness from briefly installing
-        // an unsafe partial KBNK vector while four independent options arrive.
-        "option name KBNK Drive type string default 1000,0,220,0\n";
+        // an unsafe partial KBNK vector while separate options arrive.
+        "option name KBNK Drive type string default 17000,1000,0,220,0\n";
     // 8.6.1: generated from the SearchParams X-macro table — the advertised
     // default IS the compiled default by construction (the hand-written list
     // this replaces had drifted: PostLmrHistScale said 104, engine ran 0;

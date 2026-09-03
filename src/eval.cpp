@@ -262,6 +262,7 @@ static bool kpk_strong_wins(const Board& b, Color strong) {
 
 // ---- KBNK: drive the bare king to the bishop-coloured corner ---------------
 struct KbnkDriveWeights {
+    int base;
     int diagonal;
     int edge;
     int king;
@@ -269,38 +270,65 @@ struct KbnkDriveWeights {
 };
 
 #ifdef BASILISK_TUNE
-static KbnkDriveWeights g_kbnk_drive{1000, 0, 220, 0};
+// Equivalent to the provisional first-pass vector (7 + diagonal) * 1000,
+// with its class-wide 7000 points now represented independently. Keeping the
+// exact score here makes the parameterisation fix behaviour-neutral until the
+// corrected sweep selects a replacement.
+static KbnkDriveWeights g_kbnk_drive{17000, 1000, 0, 220, 0};
 
 bool set_kbnk_drive_weights(const std::string& value, std::string& error) {
-    KbnkDriveWeights candidate{};
-    int* fields[] = {
-        &candidate.diagonal, &candidate.edge, &candidate.king, &candidate.knight
-    };
+    if (value.empty() || value.back() == ',') {
+        error = "weights cannot be empty or end with a comma";
+        return false;
+    }
+    int parsed[5]{};
+    int count = 0;
     std::istringstream input(value);
     std::string token;
-    for (int* field : fields) {
-        if (!std::getline(input, token, ',')) {
-            error = "expected four comma-separated integers (diagonal,edge,king,knight)";
+    while (std::getline(input, token, ',')) {
+        if (count == 5) {
+            error = "expected four legacy fields or five explicit fields";
             return false;
         }
         std::istringstream number(token);
-        if (!(number >> *field) || (number >> std::ws && !number.eof()) || *field < 0) {
-            error = "weights must be four non-negative integers";
+        if (!(number >> parsed[count]) || (number >> std::ws && !number.eof())
+            || parsed[count] < 0) {
+            error = "weights must be non-negative integers";
             return false;
         }
+        ++count;
     }
-    if (std::getline(input, token, ',')) {
-        error = "expected exactly four comma-separated integers";
+    if (count != 4 && count != 5) {
+        error = "expected diagonal,edge,king,knight or base,diagonal,edge,king,knight";
         return false;
     }
 
-    // The largest legal term multipliers are diagonal=14, edge=3,
+    KbnkDriveWeights candidate{};
+    if (count == 4) {
+        const int64_t legacy_base = int64_t(KNOWN_WIN) + int64_t(7) * parsed[0];
+        if (legacy_base > INT_MAX) {
+            error = "legacy diagonal weight overflows its implied base";
+            return false;
+        }
+        candidate = {
+            int(legacy_base), parsed[0], parsed[1], parsed[2], parsed[3]
+        };
+    } else {
+        candidate = {parsed[0], parsed[1], parsed[2], parsed[3], parsed[4]};
+    }
+    if (candidate.base < KNOWN_WIN) {
+        error = "base must remain at or above KNOWN_WIN (10000)";
+        return false;
+    }
+
+    // After separating the old +7 offset, the largest legal term multipliers
+    // are diagonal=7, edge=3,
     // king=6 (the kings cannot touch), and knight=7. Keep every static KBNK
     // score below the search's mate-score band (32000 - MAX_PLY 128), or a
     // mere evaluation could be encoded/stored as a mate score in the TT.
     constexpr int STATIC_MATE_FLOOR = 31872;
-    const int64_t maximum = int64_t(KNOWN_WIN)
-        + int64_t(14) * candidate.diagonal
+    const int64_t maximum = int64_t(candidate.base)
+        + int64_t(7) * candidate.diagonal
         + int64_t(3) * candidate.edge
         + int64_t(6) * candidate.king
         + int64_t(7) * candidate.knight;
@@ -314,7 +342,7 @@ bool set_kbnk_drive_weights(const std::string& value, std::string& error) {
     return true;
 }
 #else
-static constexpr KbnkDriveWeights g_kbnk_drive{1000, 0, 220, 0};
+static constexpr KbnkDriveWeights g_kbnk_drive{17000, 1000, 0, 220, 0};
 #endif
 
 static int kbnk_score(const Board& b, Color strong) {
@@ -344,8 +372,8 @@ static int kbnk_score(const Board& b, Color strong) {
     const int edge_dist = std::min(std::min(wf, 7 - wf), std::min(wr, 7 - wr));
     const int king_dist = KING_DIST[sk][wksq];
 
-    int v = KNOWN_WIN
-          + (7 + diagonal) * g_kbnk_drive.diagonal
+    int v = g_kbnk_drive.base
+          + diagonal * g_kbnk_drive.diagonal
           + (3  - edge_dist) * g_kbnk_drive.edge
           + (8  - king_dist) * g_kbnk_drive.king;
     if (b.pieces[strong][KNIGHT])
