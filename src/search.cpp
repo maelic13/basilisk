@@ -1063,7 +1063,44 @@ void Searcher::print_diag() const {
             (long long)d.see_ge_calls,
             total_nodes > 0 ? double(d.see_ge_calls) / double(total_nodes) : 0.0);
         emit(buf);
+        std::snprintf(buf, sizeof(buf),
+            "kv eval_calls=%lld pawn_probes=%lld pawn_hits=%lld "
+            "gives_check_calls=%lld see_ge_calls=%lld",
+            (long long)evaluator_.eval_calls,
+            (long long)evaluator_.pawn_probes, (long long)evaluator_.pawn_hits,
+            (long long)d.gives_check_calls, (long long)d.see_ge_calls);
+        emit(buf);
     }
+#ifdef BASILISK_TUNE
+    {
+        const auto& e = evaluator_.endgame_occurrence;
+        std::snprintf(buf, sizeof(buf),
+            "endgames <=7men %lld (%.3f%% eval, %.3f%% node)",
+            (long long)e.classified,
+            pct(e.classified, evaluator_.eval_calls),
+            pct(e.classified, d.interior_nodes + d.qs_nodes));
+        emit(buf);
+        std::snprintf(buf, sizeof(buf),
+            "kv eg_classified=%lld eg_krpkr=%lld eg_krpkb=%lld eg_kpsk=%lld "
+            "eg_kpk=%lld eg_krkp=%lld eg_kbpsk=%lld eg_kpkp=%lld",
+            (long long)e.classified, (long long)e.krpkr, (long long)e.krpkb,
+            (long long)e.kpsk, (long long)e.kpk, (long long)e.krkp,
+            (long long)e.kbpsk, (long long)e.kpkp);
+        emit(buf);
+        std::snprintf(buf, sizeof(buf),
+            "kv eg_kqkp=%lld eg_kbpkb=%lld eg_kbppkb=%lld eg_krkn=%lld "
+            "eg_krkb=%lld eg_kbpkn=%lld eg_knnkp=%lld eg_knnk=%lld",
+            (long long)e.kqkp, (long long)e.kbpkb, (long long)e.kbppkb,
+            (long long)e.krkn, (long long)e.krkb, (long long)e.kbpkn,
+            (long long)e.knnkp, (long long)e.knnk);
+        emit(buf);
+        std::snprintf(buf, sizeof(buf),
+            "kv eg_kqkr=%lld eg_kqkrps=%lld eg_krppkrp=%lld eg_kxk=%lld eg_kbnk=%lld",
+            (long long)e.kqkr, (long long)e.kqkrps, (long long)e.krppkrp,
+            (long long)e.kxk, (long long)e.kbnk);
+        emit(buf);
+    }
+#endif
     {
         char b[256];
         std::snprintf(b, sizeof(b),
@@ -2292,6 +2329,10 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
     // whose own counters may be stale.
     evaluator_.eval_calls = 0;
     evaluator_.pawn_probes = evaluator_.pawn_hits = 0;
+#ifdef BASILISK_TUNE
+    evaluator_.diag_endgames = active_limits_.diag;
+    evaluator_.endgame_occurrence.reset();
+#endif
     if (board_ptr_) {
         board_ptr_->diag_see_ge_calls = 0;
         board_ptr_->diag_gives_check_calls = 0;

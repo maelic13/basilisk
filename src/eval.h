@@ -20,6 +20,23 @@ static constexpr int PAWN_TABLE_SIZE = 16384;
 static_assert((PAWN_TABLE_SIZE & (PAWN_TABLE_SIZE - 1)) == 0,
               "PAWN_TABLE_SIZE must be a power of two: indexed with & (SIZE - 1)");
 
+#ifdef BASILISK_TUNE
+// Exact search-tree occurrence of the 20 pre-NNUE reference endgame families.
+// This is tune-build-only diagnostic state: release binaries contain neither
+// the counters nor the classifier. `classified` is the denominator (every
+// evaluated position with at most seven men), not a sum of the family fields;
+// KPK also belongs to KPsK, and KBNK also belongs to KXK.
+struct EndgameOccurrenceCounters {
+    int64_t krpkr = 0, krpkb = 0, kpsk = 0, kpk = 0, krkp = 0;
+    int64_t kbpsk = 0, kpkp = 0, kqkp = 0, kbpkb = 0, kbppkb = 0;
+    int64_t krkn = 0, krkb = 0, kbpkn = 0, knnkp = 0, knnk = 0;
+    int64_t kqkr = 0, kqkrps = 0, krppkrp = 0, kxk = 0, kbnk = 0;
+    int64_t classified = 0;
+
+    void reset() noexcept { *this = EndgameOccurrenceCounters{}; }
+};
+#endif
+
 class Evaluator {
 public:
     Evaluator();
@@ -46,6 +63,14 @@ public:
     // from. Reset per `go` alongside the lazy-audit block.
     int64_t eval_calls = 0;
     int64_t pawn_probes = 0, pawn_hits = 0;
+
+#ifdef BASILISK_TUNE
+    // Enabled only by the hidden tune-build UCI `Diag` option. Counted at the
+    // top of evaluate(), before any endgame or lazy-eval early return, because
+    // every invocation represents a family reached by the search tree.
+    bool diag_endgames = false;
+    EndgameOccurrenceCounters endgame_occurrence;
+#endif
 
 private:
     PawnEntry pawn_table_[PAWN_TABLE_SIZE];

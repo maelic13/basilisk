@@ -173,6 +173,7 @@ completed item has a number after unfinished work.
   - [x] **6.0.d** Define paired confidence rules: aggregate beyond 2 SE reports, family beyond 3 SE blocks.
   - [x] **6.0.e** Add hard theory vetoes for clean-win discard, illegal play, crash and rule-50 regression.
   - [x] **6.0.f** Census disagreements between self-play WDL labels and Syzygy on every <=6-man corpus row.
+  - [x] **6.0.g** Port Rarog's exact search-tree occurrence census for the 20 reference endgame families.
 
 Step 6.0.a artifact: tools/diag/endgame_cohort_v1.epd and its manifest use
 seed 0x4E9A2 and SHA-256
@@ -287,6 +288,21 @@ zeroing-clock WDL and does not authorize Phase 7.4 relabeling without its
 separate halfmove-clock and row-domain analysis. Corpus hashes and parent
 no-adjudication PGN provenance are embedded in the artifact; its SHA-256 is
 609E60489838F6708ADF83D851B8CDB5D1E963102A2C599879ECC9C9F2E5CB46.
+
+Step 6.0.g adds tune-build-only exact counters at the start of every full
+evaluation and `tools/diag/endgame_search_occurrence.py` to aggregate a fixed
+suite at fixed depth. The runner defaults to 30 independent workers on this
+32-thread machine, while every engine remains `Threads=1`; worker count changes
+wall time, not the deterministic tree. The report records engine and suite
+hashes, nodes, full evaluations and the <=7-man denominator. Counts are a
+candidate-priority screen, never an Elo gate. KPK overlaps the KPsK aggregate
+and KBNK overlaps KXK. Unlike the source instrument, Basilisk's KXK counter
+requires actual mating material: queen, rook, bishop+knight, or a bishop pair
+tested by SQUARE COLOUR rather than by count, matching `apply_endgame`'s own
+KXK gate. Dead KBK, KNK and same-coloured KBBK are therefore excluded. Queen
+and rook stay in the family census even though the engine deliberately leaves
+their search-solved mates unoverridden (BAS-E30, BAS-E34): the instrument
+measures family frequency, not `kxk_score` firings.
 
 ### 6.1 Complete KBNK mate drive
 

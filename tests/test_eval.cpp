@@ -476,6 +476,79 @@ static void test_tempo_bonus() {
 }
 
 #ifdef BASILISK_TUNE
+static EndgameOccurrenceCounters classify_endgame(const char* fen) {
+    Board b;
+    b.set_fen(fen);
+    Evaluator ev;
+    ev.diag_endgames = true;
+    (void)ev.evaluate(b);
+    return ev.endgame_occurrence;
+}
+
+static void test_endgame_occurrence_classifier() {
+    begin_section("endgame occurrence: >7 men excluded");
+    const auto opening = classify_endgame(
+        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+    EXPECT_EQ(opening.classified, 0);
+    end_section();
+
+    begin_section("endgame occurrence: KPK also counts KPsK");
+    const auto kpk = classify_endgame("7k/8/8/8/8/8/P7/K7 w - - 0 1");
+    EXPECT_EQ(kpk.classified, 1);
+    EXPECT_EQ(kpk.kpk, 1);
+    EXPECT_EQ(kpk.kpsk, 1);
+    end_section();
+
+    begin_section("endgame occurrence: symmetric KPKP counted once");
+    const auto kpkp = classify_endgame("7k/7p/8/8/8/8/P7/K7 w - - 0 1");
+    EXPECT_EQ(kpkp.kpkp, 1);
+    end_section();
+
+    begin_section("endgame occurrence: reversed KRPKB orientation");
+    const auto krpkb = classify_endgame("4k3/8/8/8/8/p7/r7/B3K3 w - - 0 1");
+    EXPECT_EQ(krpkb.krpkb, 1);
+    end_section();
+
+    begin_section("endgame occurrence: KQKRPs accepts multiple pawns");
+    const auto kqkrps = classify_endgame("4k3/pp6/r7/8/8/8/Q7/4K3 w - - 0 1");
+    EXPECT_EQ(kqkrps.kqkrps, 1);
+    end_section();
+
+    begin_section("endgame occurrence: KBNK overlaps valid KXK");
+    const auto kbnk = classify_endgame("7k/8/8/8/8/8/BN6/K7 w - - 0 1");
+    EXPECT_EQ(kbnk.kbnk, 1);
+    EXPECT_EQ(kbnk.kxk, 1);
+    end_section();
+
+    begin_section("endgame occurrence: dead KBK/KNK excluded from KXK");
+    const auto kbk = classify_endgame("7k/8/8/8/8/8/B7/K7 w - - 0 1");
+    const auto knk = classify_endgame("7k/8/8/8/8/8/N7/K7 w - - 0 1");
+    EXPECT_EQ(kbk.kxk, 0);
+    EXPECT_EQ(knk.kxk, 0);
+    end_section();
+
+    begin_section("endgame occurrence: KBBK included in KXK");
+    // a2 is light and b2 is dark: a genuine, mating bishop pair.
+    const auto kbbk = classify_endgame("7k/8/8/8/8/8/BB6/K7 w - - 0 1");
+    EXPECT_EQ(kbbk.kxk, 1);
+    end_section();
+
+    begin_section("endgame occurrence: same-coloured KBBK excluded from KXK");
+    // b2 and d2 are both dark, so this promotion-reachable pair cannot mate.
+    // apply_endgame's KXK gate tests colour, not count; the census must agree.
+    const auto kbbk_same = classify_endgame("7k/8/8/8/8/8/1B1B4/K7 w - - 0 1");
+    EXPECT_EQ(kbbk_same.classified, 1);
+    EXPECT_EQ(kbbk_same.kxk, 0);
+    end_section();
+
+    begin_section("endgame occurrence: KQK and KRK remain in the KXK family");
+    const auto kqk = classify_endgame("7k/8/8/8/8/8/Q7/K7 w - - 0 1");
+    const auto krk = classify_endgame("7k/8/8/8/8/8/R7/K7 w - - 0 1");
+    EXPECT_EQ(kqk.kxk, 1);
+    EXPECT_EQ(krk.kxk, 1);
+    end_section();
+}
+
 static void test_kbnk_drive_option() {
     // Black king e5 is one diagonal step away from the dark bishop's neutral
     // f+r=7 line, so changing the diagonal slope must change this score.
@@ -559,6 +632,9 @@ int main() {
     test_tempo_bonus();
 
 #ifdef BASILISK_TUNE
+    std::printf("\nEndgame occurrence classifier\n");
+    test_endgame_occurrence_classifier();
+
     std::printf("\nKBNK drive tuning option\n");
     test_kbnk_drive_option();
 #endif

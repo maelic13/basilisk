@@ -1,6 +1,7 @@
 #include "eval.h"
 #include "attacks.h"
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <cstring>
 #include <mutex>
@@ -343,6 +344,124 @@ bool set_kbnk_drive_weights(const std::string& value, std::string& error) {
 }
 #else
 static constexpr KbnkDriveWeights g_kbnk_drive{17000, 1000, 0, 220, 0};
+#endif
+
+#ifdef BASILISK_TUNE
+namespace {
+
+using MaterialCounts = std::array<int, 5>; // P, N, B, R, Q
+constexpr int ANY = -1;                    // one or more
+
+bool material_is(const MaterialCounts& actual, const MaterialCounts& pattern) {
+    for (size_t i = 0; i < actual.size(); ++i) {
+        if (pattern[i] == ANY ? actual[i] < 1 : actual[i] != pattern[i])
+            return false;
+    }
+    return true;
+}
+
+void record_endgame_occurrence(const Board& b, EndgameOccurrenceCounters& out) {
+    // The largest named family has five non-king pieces. Avoid five popcounts
+    // per side on every ordinary middlegame evaluation.
+    if (popcount(b.all_occ) > 7)
+        return;
+
+    ++out.classified;
+    MaterialCounts side[NCOLORS];
+    for (int c = 0; c < NCOLORS; ++c)
+        for (int pt = PAWN; pt <= QUEEN; ++pt)
+            side[c][static_cast<size_t>(pt - PAWN)] = popcount(b.pieces[c][pt]);
+
+    constexpr MaterialCounts BARE      = {0, 0, 0, 0, 0};
+    constexpr MaterialCounts KRP       = {1, 0, 0, 1, 0};
+    constexpr MaterialCounts KR        = {0, 0, 0, 1, 0};
+    constexpr MaterialCounts KB        = {0, 0, 1, 0, 0};
+    constexpr MaterialCounts KN        = {0, 1, 0, 0, 0};
+    constexpr MaterialCounts KP        = {1, 0, 0, 0, 0};
+
+    for (int orientation = 0; orientation < NCOLORS; ++orientation) {
+        const MaterialCounts& strong = side[orientation];
+        const MaterialCounts& weak   = side[orientation ^ 1];
+
+        // KPKP is symmetric. Trying both orientations must still count one
+        // evaluated position once, not twice.
+        if (orientation == 1 && side[WHITE] == side[BLACK])
+            break;
+
+        if (material_is(strong, KRP) && material_is(weak, KR))
+            ++out.krpkr;
+        else if (material_is(strong, KRP) && material_is(weak, KB))
+            ++out.krpkb;
+        else if (material_is(strong, {2, 0, 0, 1, 0})
+                 && material_is(weak, KRP))
+            ++out.krppkrp;
+        else if (material_is(strong, KP) && material_is(weak, BARE)) {
+            ++out.kpk;
+            ++out.kpsk;
+        } else if (material_is(strong, {ANY, 0, 0, 0, 0})
+                   && material_is(weak, BARE))
+            ++out.kpsk;
+        else if (material_is(strong, KR) && material_is(weak, KP))
+            ++out.krkp;
+        else if (material_is(strong, KP) && material_is(weak, KP))
+            ++out.kpkp;
+        else if (material_is(strong, {ANY, 0, 1, 0, 0})
+                   && material_is(weak, BARE))
+            ++out.kbpsk;
+        else if (material_is(strong, {0, 0, 0, 0, 1})
+                   && material_is(weak, KP))
+            ++out.kqkp;
+        else if (material_is(strong, {2, 0, 1, 0, 0})
+                   && material_is(weak, KB))
+            ++out.kbppkb;
+        else if (material_is(strong, {1, 0, 1, 0, 0})
+                   && material_is(weak, KB))
+            ++out.kbpkb;
+        else if (material_is(strong, {1, 0, 1, 0, 0})
+                   && material_is(weak, KN))
+            ++out.kbpkn;
+        else if (material_is(strong, KR) && material_is(weak, KN))
+            ++out.krkn;
+        else if (material_is(strong, KR) && material_is(weak, KB))
+            ++out.krkb;
+        else if (material_is(strong, {0, 2, 0, 0, 0})
+                   && material_is(weak, KP))
+            ++out.knnkp;
+        else if (material_is(strong, {0, 2, 0, 0, 0})
+                   && material_is(weak, BARE))
+            ++out.knnk;
+        else if (material_is(strong, {0, 0, 0, 0, 1})
+                   && material_is(weak, KR))
+            ++out.kqkr;
+        else if (material_is(strong, {0, 0, 0, 0, 1})
+                   && material_is(weak, {ANY, 0, 0, 1, 0}))
+            ++out.kqkrps;
+        else if (material_is(strong, {0, 1, 1, 0, 0})
+                   && material_is(weak, BARE)) {
+            ++out.kbnk;
+            ++out.kxk;
+        } else if (strong[0] == 0 && material_is(weak, BARE)) {
+            // Count actual mating material, not Rarog's coarser test: KBK and
+            // KNK are dead draws and must not enter KXK. The bishop pair is
+            // tested by SQUARE COLOUR, exactly as apply_endgame's KXK gate
+            // does, because two same-coloured bishops -- reachable by
+            // promotion -- also cannot force mate. Queen and rook stay in the
+            // family census even though the engine deliberately does not
+            // override their search-solved mates (BAS-E30, BAS-E34); this
+            // instrument measures family frequency, not kxk_score firings.
+            const Bitboard bishops = b.pieces[Color(orientation)][BISHOP];
+            const bool bishop_pair =
+                (bishops & EG_DARK_SQUARES) && (bishops & ~EG_DARK_SQUARES);
+            const bool can_mate = strong[4] > 0 || strong[3] > 0
+                               || bishop_pair
+                               || (strong[2] > 0 && strong[1] > 0);
+            if (can_mate)
+                ++out.kxk;
+        }
+    }
+}
+
+} // namespace
 #endif
 
 static int kbnk_score(const Board& b, Color strong) {
@@ -763,6 +882,10 @@ void Evaluator::eval_pawns(const Board& b,
 
 int Evaluator::evaluate(const Board& b) {
     ++eval_calls;   // 8.7.1(c)
+#ifdef BASILISK_TUNE
+    if (diag_endgames)
+        record_endgame_occurrence(b, endgame_occurrence);
+#endif
     const EvalParams& p = g_eval_params;
     int mg = 0, eg = 0;
     int phase = 0;
