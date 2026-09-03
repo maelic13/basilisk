@@ -88,10 +88,10 @@ Run this checklist in order; PLAN.md owns rationale and gates.
 
 ## Phase 6 — Endgame maturity
 
-- [ ] **6.0** Establish the truth baseline before another evaluator edit
+- [x] **6.0** Establish the truth baseline before another evaluator edit
   - [x] **6.0.a** Freeze 770 Syzygy-verified positions across 21 endgame families
   - [x] **6.0.b** Measure accepted Basilisk and Stockfish on all 770 positions at identical nodes
-  - [ ] **6.0.c** (REOPENED) Freeze attained 60k reference results—not theoretical ceilings—and paired-union stretch evidence
+  - [x] **6.0.c** Freeze attained 60k reference results—not theoretical ceilings—and paired-union stretch evidence
   - [x] **6.0.d** Pair by position; report at 2 SE and block family regressions at 3 SE
   - [x] **6.0.e** Veto new truth/rule-50 failures and every engine anomaly
   - [x] **6.0.f** Census all Arm C <=6-man labels against Syzygy; freeze the 14.12% disagreement baseline

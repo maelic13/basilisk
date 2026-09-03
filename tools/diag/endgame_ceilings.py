@@ -74,17 +74,22 @@ def main() -> int:
     parser.add_argument(
         "--accepted",
         type=Path,
-        default=root / "tools/results/endgame-truth-6.0.b/basilisk.json",
+        # The original 6.0.b artifacts are superseded: they were produced by an
+        # instrument that aborted correct pawn technique as material loss, which
+        # understated seven families' ceilings by 77 positions in aggregate.
+        # Defaults point at the corrected re-run so a regeneration cannot
+        # silently reintroduce v1's numbers.
+        default=root / "tools/results/endgame-truth-6.0.b-refixed/basilisk.json",
     )
     parser.add_argument(
         "--reference",
         type=Path,
-        default=root / "tools/results/endgame-truth-6.0.b/reference.json",
+        default=root / "tools/results/endgame-truth-6.0.b-refixed/reference.json",
     )
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path(__file__).with_name("endgame_ceilings_v1.json"),
+        default=Path(__file__).with_name("endgame_ceilings_v2.json"),
     )
     args = parser.parse_args()
 

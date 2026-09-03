@@ -166,10 +166,10 @@ completed item has a number after unfinished work.
 
 ### 6.0 Evidence contract
 
-- [ ] **6.0** Establish the truth baseline before another evaluator edit.
+- [x] **6.0** Establish the truth baseline before another evaluator edit.
   - [x] **6.0.a** Freeze 770 Syzygy-verified positions across 21 endgame families.
   - [x] **6.0.b** Measure the accepted Basilisk head and a strong reference at identical nodes.
-  - [ ] **6.0.c** (REOPENED) Record attained family reference results; neither 100% nor the reference result is a finite-node ceiling.
+  - [x] **6.0.c** Record attained family reference results; neither 100% nor the reference result is a finite-node ceiling.
   - [x] **6.0.d** Define paired confidence rules: aggregate beyond 2 SE reports, family beyond 3 SE blocks.
   - [x] **6.0.e** Add hard theory vetoes for clean-win discard, illegal play, crash and rule-50 regression.
   - [x] **6.0.f** Census disagreements between self-play WDL labels and Syzygy on every <=6-man corpus row.
@@ -258,6 +258,27 @@ the source schemas, hashes, identical contract and exact ID/FEN/theory pairing
 before reproducing the artifact, so neither number can silently mix cohorts.
 The frozen artifact SHA-256 is
 19E43A2E7EEF9069E1EE8575ABF0E622BDF97887557A64023ED15F8C7E46508D.
+
+**6.0.c correction (2026-09-03, BAS-E50).** The table above and
+`endgame_ceilings_v1.json` were derived from the contaminated 6.0.b arms.
+Regenerated from the corrected re-run with the identical two binaries -- so the
+instrument fix is the only delta -- as `tools/diag/endgame_ceilings_v2.json`:
+the attained 60k reference result rises from 389/480 to **466/480** and the
+paired union from 405/480 to **467/480**. Seven family ceilings were
+understated: KBPP-KB 6 to 23, KRP-KR 9 to 24, KRP-KB 9 to 24, KPP-K 12 to 24,
+KBP-KN 15 to 24, KBP-KB 16 to 23, KBP-K 22 to 24.
+
+The paired matrix moves too, and its shape is the more interesting part. "Both
+converted" rises 277 to 360, "neither" collapses 75 to **13**, and
+"accepted-only" falls 16 to 1. Most of the old `neither` bucket was not a pair
+of engines failing a hard position; it was two aborted games. Of 480 clean
+wins, 467 are now demonstrably convertible by at least one engine at 60,000
+nodes, so the residual genuinely-hard set is 13 positions, not 75.
+
+v1 is left in place as the historical artifact and is superseded, not deleted.
+`endgame_ceilings.py` now defaults to the corrected inputs and to a v2 output,
+so a regeneration cannot silently restore v1's numbers. No new games were
+required; both corrected arms already existed.
 
 Step 6.0.d is implemented by `tools/diag/endgame_compare.py`. The independent
 unit is one paired frozen position, not one engine move. Conversion is binary;
@@ -928,7 +949,7 @@ leaf is exempt from the sequential-ordering rule, because a measurement defect
 can invalidate an early step after later ones have closed, but it is never
 exempt from being open, and an accidental un-tick still fails the check.
 
-**6.0.c - frozen ceilings are understated.** The file
+**6.0.c - DONE 2026-09-03 (BAS-E50), left here for the record.** The file
 `tools/diag/endgame_ceilings_v1.json` records the reference arm's attained 60k
 conversion, and that arm aborted correct pawn play. Seven families are wrong,
 by 77 positions in aggregate: KBPP-KB 6 to 23, KRP-KR 9 to 24, KRP-KB 9 to 24,
