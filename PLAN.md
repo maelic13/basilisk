@@ -507,7 +507,7 @@ are reported solely to quantify shrinkage from the selection estimate and can
 never rescue a failed held-out verdict. The all-198 aggregate, rule-50
 failures, stalemates, WDL preservation and mate efficiency are diagnostic
 context, not the verdict. Expect roughly four minutes at 30 workers. Run:
-`powershell -NoProfile -ExecutionPolicy Bypass -File .	ools\diagun_kbnk_holdout.ps1`.
+`powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\diag\run_kbnk_holdout.ps1`.
 
 
 ### 6.2 Gate endgame Group A
