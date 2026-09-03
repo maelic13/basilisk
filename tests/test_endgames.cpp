@@ -371,6 +371,13 @@ static void test_kbnk_corner_preference() {
 // than some other one. The underlying exposure is real and unfixed -- with
 // edge and knight weights zero, no term in kbnk_score refers to the knight,
 // so every knight move scores alike and the tiebreak is arbitrary.
+//
+// BAS-E45 narrowed what this proves. At 200,000 and 600,000 nodes the rejected
+// vector does NOT lose the piece here: 2...Kd1 is a two-ply fork the search
+// sees once it has a game-representative budget. So this is a LOW-BUDGET
+// canary. It still fires under the rejected vector at the cohort's own budget
+// and still pins the historical failure, which is what a regression anchor is
+// for, but passing it is not evidence that a vector is safe at game depth.
 static void test_kbnk_keeps_both_minors() {
     begin_section("KBNK0061: the drive never hands over a minor piece");
     Board b;

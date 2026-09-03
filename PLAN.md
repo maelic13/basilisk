@@ -588,10 +588,10 @@ bishop analogue on evidence, so it does not belong to this step.
 
 ### 6.2 Gate endgame Group A
 
-- [ ] **6.2** Gate KBNK and accepted mate-drive changes.
+- [x] **6.2** Gate KBNK and accepted mate-drive changes.
   - [x] **6.2.a** Run a fresh no-adjudication [0,3] nElo SPRT against the accepted head.
   - [x] **6.2.b** Treat the old approximately 5,860-game adjudicated Group A run as preliminary only.
-  - [ ] **6.2.c** Never resume that run if the KBNK candidate or match policy changes.
+  - [x] **6.2.c** Never resume that run if the KBNK candidate or match policy changes.
 
 Step 6.2 expectation, revised on evidence before the run (BAS-E43). The 6.0.g
 census was executed for the first time at depth 13 on `suite_v1.epd`. Its
@@ -721,9 +721,16 @@ The shipped vector still needs no change, and that is luck rather than
 vindication. The two candidates are indistinguishable at every budget (116
 against 119 at 200k, 133 against 132 at 600k), so `15600,1900,0,460,0` remains
 defensible on the secondary criteria it won at 60,000. What is invalidated is
-the justification, not the choice. 6.1.e's checkbox is left ticked because its
-outcome stands; reopening it is the maintainer's call, and the correction is
-recorded here either way.
+the justification, not the choice.
+
+6.1.e is therefore NOT reopened, and the reason is substantive rather than
+procedural. Reopening would mean re-deciding the held-out comparison at a
+game-representative budget -- but that comparison has now been run, at both
+200,000 and 600,000 nodes, and it returns the same answer: the two vectors are
+statistically indistinguishable and `15600,1900,0,460,0` remains at least as
+good on every secondary criterion. A reopened leaf would consume machine time
+to arrive at the vector already shipped. The correction stands recorded here
+and in BAS-E45, which is where it does its work.
 
 The `KBNK0061` anchor added in 6.1.f is consequently a low-budget canary. It
 still fires under the rejected vector and still guards the historical failure,
@@ -741,6 +748,43 @@ condition. Any fixed-node endgame screen must state its budget, justify it
 against the deployment time control, and treat a result that only appears at a
 low budget as provisional until it is shown to survive a game-representative
 one.
+
+Step 6.2.c makes the non-resumption rule explicit and states its trigger, so
+that a future agent finding 5,840 games of apparently usable data cannot treat
+them as a head start.
+
+**The rule.** The `5.9.23-groupA` run is closed permanently. It must never be
+resumed, extended, pooled with a later run, or cited as the Group A verdict.
+Its log and PGN stay on disk as a historical record only.
+
+**Its triggers, all three already fired.** Any one of them is sufficient on its
+own. The KBNK candidate changed -- repeatedly, ending at `15600,1900,0,460,0`,
+which that run never played. The match policy changed: that run adjudicated
+with `draw(mn=40,mc=8,score=10)` and `resign(mc=3,score=600,twosided)`, and
+6.2.a required no adjudication. The baseline changed, from `5.9.18-base` to
+`6accfe6`.
+
+**Why resumption is not merely stale but invalid.** Games from two different
+match policies cannot be pooled: pooled Elo assumes one sampling process, and
+adjudicated and natural terminations are different processes with different
+draw rates, so the combined estimate would be biased by the mixing ratio rather
+than by the engines. Resuming an SPRT after its candidate changed is worse
+still, because the likelihood ratio accumulated under the old candidate is
+carried into a test of a different one. And for an endgame-evaluation change
+specifically, score adjudication is circular: the candidate's own evaluation
+helps decide the games meant to judge that evaluation.
+
+**The general rule this instantiates**, for any future gate: an SPRT is
+invalidated by a change to either engine binary, either engine's options, the
+book, the time control, the adjudication policy, or the hardware conditions
+under which it is scored. When any of those move, the run is finished and a new
+experiment ID begins. Partial results from the old run are diagnostics at best
+and are never evidence for the new candidate.
+
+With 6.2.a, 6.2.b and 6.2.c closed, step 6.2 is complete. The Group A gate
+stands as BAS-E44: no adjudication, single-variable against `6accfe6`, stopped
+by the maintainer at 7,720 games as practical equivalence, with a regression
+worse than about -5.5 Elo excluded at 95% and no claim of a gain.
 
 ### 6.3 Passed-pawn king approach
 
