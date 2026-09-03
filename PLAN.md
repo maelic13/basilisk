@@ -12,16 +12,16 @@ historical evidence ledger.
 | Released baseline | Basilisk 1.9.3; bench-13 fingerprint 11,941,440 |
 | Current head | Bench 12,709,666; last recorded CTest 12/12; WAC 137/300 |
 | Strength baseline | basilisk-5912-slim-pext-pgo; accepted HCE line about +12 Elo versus 1.9.3 |
-| Current phase | Phase 6, step 6.1.b |
+| Current phase | Phase 6, step 6.1.c |
 | Evaluation | HCE is unfrozen for structural improvement and complete, controlled refits |
 | Corpus rule | Game-result labels only; no engine-evaluation labels |
 | Match/data rule | Natural termination by default; score-based adjudication requires explicit opt-in and registration |
 | Long job | None active; the complete 6.0 truth baseline is recorded below |
 | Release target | Classical release after Phase 8; NNUE 2.0.0 after Phase 10 |
 
-The next engine change is not authorized by this planning pass. Step 6.1.b is
-the next leaf and ports the audited diagonal-potential shape without adopting
-Rarog's constants.
+The next engine change is not authorized by this planning pass. Step 6.1.c is
+the next leaf and measures diagonal scale plus interaction with Basilisk's
+existing edge, friendly-king and knight pulls.
 
 ## 2. Operating contract
 
@@ -291,8 +291,8 @@ no-adjudication PGN provenance are embedded in the artifact; its SHA-256 is
 
 - [ ] **6.1** Implement and tune the missing KBNK technique (historical step 5.9.22).
   - [x] **6.1.a** Start from Rarog's useful finding: bishop-color corner diagonal potential can solve the drive without a bishop-position term.
-  - [ ] **6.1.b** Port the mechanism shape, not constants: correct-corner diagonal resolution, magnitude and ratio must dominate king-distance terms.
-  - [ ] **6.1.c** Scale coefficients to Basilisk and test interaction with its existing corner, edge, king-distance and knight-distance terms.
+  - [x] **6.1.b** Make the bishop-colour diagonal mechanism explicit and prove the existing Manhattan form was algebraically identical.
+  - [ ] **6.1.c** Scale coefficients to Basilisk and test the required diagonal dominance against its existing edge, king-distance and knight-distance terms.
   - [ ] **6.1.d** Do not retry bishop proximity or escape-square count unless new evidence overturns their earlier failure.
   - [ ] **6.1.e** Compare on the identical 198 positions; report WDL preservation, rule-50 failures, conversion and mate efficiency.
   - [ ] **6.1.f** Require KQK/KRK/KBBK non-regression, tactical stability and bench accounting; exact bench identity is necessary but cannot prove this path-dependent evaluation change behaviorally neutral.
@@ -308,6 +308,18 @@ exact-material dispatcher already supplies the required bishop colour, weak
 king square, score sign and narrow activation. Therefore 6.1.b owns only the
 geometry port; 6.1.c owns Basilisk-scale constants and interaction with the
 current edge, king and knight pulls. No bishop-position term is licensed.
+
+Step 6.1.b found that the proposed geometry was already present. For the a1/h8
+corner complex, Basilisk's existing `14 - min(Manhattan)` is algebraically
+`7 + abs(7-rank-file)`; for a8/h1 it is `7 + abs(rank-file)`. The constant seven
+cannot affect ordering. `kbnk_score()` now spells those diagonal formulas
+directly while retaining the constant and Basilisk's existing weight, making
+the rewrite score- and bench-identical. Both bishop-colour orientations have
+focused regression coverage. Consequently no new geometry candidate exists:
+6.1.c owns the remaining Rarog finding—scale and dominance relative to the
+edge, friendly-king and knight terms. Release `test_eval` and `test_endgames`
+pass, and `bench 13` remains exactly 12,709,666 nodes. No conversion gain is
+claimed because the score is unchanged.
 
 ### 6.2 Gate endgame Group A
 

@@ -269,31 +269,32 @@ static int kbnk_score(const Board& b, Color strong) {
 
     // The two same-coloured corners as the bishop are a diagonal pair.
     bool dark_bishop = (sq_bb(bsq) & EG_DARK_SQUARES) != 0;
-    Square c1, c2;
-    if (dark_bishop) { c1 = A1; c2 = H8; }   // dark corners
-    else             { c1 = A8; c2 = H1; }   // light corners
 
     // 5.9.17: the drive used Chebyshev distance to the corner, which has large
     // plateaus -- a whole L-shaped band shares one value -- so over most of the
-    // board there was no gradient to follow. Manhattan distance has the same
-    // minimum but far fewer ties, and an explicit edge term prices the first
-    // half of the technique (edge first, then corner) which nothing rewarded.
-    constexpr int KBNK_W_CORNER = 800;   // per step of Manhattan corner distance
+    // board there was no gradient to follow. 6.1.b makes the existing
+    // Manhattan-to-nearest-correct-corner potential explicit as its equivalent
+    // bishop-colour diagonal formula. For dark-corner bishops:
+    //
+    //   14 - min(f+r, 14-f-r) == 7 + abs(7-r-f)
+    //
+    // and for light-corner bishops the variable part is abs(r-f). The +7 is a
+    // class-wide constant retained for exact score and bench identity. Thus the
+    // shape Rarog found was already present in Basilisk; 6.1.c owns the real
+    // open question, its scale and interaction with the other pulls below.
+    const int wf = int(file_of(wksq)), wr = int(rank_of(wksq));
+    const int diagonal = dark_bishop ? std::abs(7 - wr - wf) : std::abs(wr - wf);
+
+    constexpr int KBNK_W_DIAGONAL = 800; // existing Basilisk gradient, not Rarog's 360
     constexpr int KBNK_W_EDGE   = 900;   // per step the weak king is off the edge
     constexpr int KBNK_W_KING   = 220;   // per step the kings are apart
     constexpr int KBNK_W_KNIGHT = 220;   // per step the knight is from the weak king
 
-    auto manhattan = [](Square a, Square b) {
-        return std::abs(int(file_of(a)) - int(file_of(b)))
-             + std::abs(int(rank_of(a)) - int(rank_of(b)));
-    };
-    const int corner_md = std::min(manhattan(wksq, c1), manhattan(wksq, c2));
-    const int wf = int(file_of(wksq)), wr = int(rank_of(wksq));
     const int edge_dist = std::min(std::min(wf, 7 - wf), std::min(wr, 7 - wr));
     const int king_dist = KING_DIST[sk][wksq];
 
     int v = KNOWN_WIN
-          + (14 - corner_md) * KBNK_W_CORNER
+          + (7 + diagonal) * KBNK_W_DIAGONAL
           + (3  - edge_dist) * KBNK_W_EDGE
           + (8  - king_dist) * KBNK_W_KING;
     if (b.pieces[strong][KNIGHT])

@@ -347,6 +347,15 @@ static void test_kbnk_corner_preference() {
     int wrong = eval_white("k7/8/8/8/4K3/5N2/3B4/8 b - - 0 1");  // black king a8 (light, wrong)
     EXPECT(right > wrong);
     end_section();
+
+    // Light-squared bishop (d3): the correct pair reverses to a8 / h1. King,
+    // knight and edge distances are equal between these two positions, so this
+    // isolates the other diagonal-potential orientation.
+    begin_section("KBNK light bishop reverses the target-corner diagonal");
+    right = eval_white("k7/8/8/8/4K3/3B1N2/8/8 b - - 0 1");  // black king a8 (light, right)
+    wrong = eval_white("8/8/8/8/4K3/3B1N2/8/k7 b - - 0 1");  // black king a1 (dark, wrong)
+    EXPECT(right > wrong);
+    end_section();
 }
 
 // ---------------------------------------------------------------------------

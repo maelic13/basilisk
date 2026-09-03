@@ -97,8 +97,8 @@ Run this checklist in order; PLAN.md owns rationale and gates.
   - [x] **6.0.f** Census all Arm C <=6-man labels against Syzygy; freeze the 14.12% disagreement baseline
 - [ ] **6.1** Implement and tune the missing KBNK technique (historical step 5.9.22)
   - [x] **6.1.a** Map Rarog's bishop-colour diagonal potential onto Basilisk without a bishop-position term
-  - [ ] **6.1.b** Port the mechanism shape, not constants: correct-corner diagonal resolution, magnitude and ratio must dominate king-distance terms
-  - [ ] **6.1.c** Scale coefficients to Basilisk and test interaction with its existing corner, edge, king-distance and knight-distance terms
+  - [x] **6.1.b** Make the already-equivalent diagonal geometry explicit; defer scale and competing pulls
+  - [ ] **6.1.c** Tune diagonal dominance against Basilisk's edge, king-distance and knight-distance pulls
   - [ ] **6.1.d** Do not retry bishop proximity or escape-square count unless new evidence overturns their earlier failure
   - [ ] **6.1.e** Compare on the identical 198 positions; report WDL preservation, rule-50 failures, conversion and mate efficiency
   - [ ] **6.1.f** Require endgame/tactical gates; bench identity is necessary, not behavioral proof

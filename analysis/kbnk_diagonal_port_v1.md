@@ -1,9 +1,43 @@
 # KBNK diagonal-potential transfer audit
 
-This is the source and chess-mechanism audit for PLAN 6.1.a. It freezes what
-Rarog actually demonstrated and maps only that mechanism onto Basilisk. It does
-not choose Basilisk coefficients or change engine behaviour; those belong to
-6.1.b and 6.1.c.
+This is the source and chess-mechanism audit for PLAN 6.1.a–b. It freezes what
+Rarog actually demonstrated and maps only that mechanism onto Basilisk. Step
+6.1.b then established that Basilisk already had the same geometric potential
+in an algebraically equivalent form. It does not choose new Basilisk
+coefficients; that belongs to 6.1.c.
+
+## 6.1.b correction: the geometry was already present
+
+The 6.1.a audit correctly mapped both diagonal formulas but missed that
+Basilisk's existing Manhattan distance to the nearer correct corner is the same
+function plus a constant. For a dark-squared bishop with correct corners a1/h8:
+
+```text
+corner_md = min(f + r, 14 - f - r)
+14 - corner_md = 7 + abs(7 - r - f)
+```
+
+For a light-squared bishop with correct corners a8/h1:
+
+```text
+corner_md = min(f + 7 - r, 7 - f + r)
+14 - corner_md = 7 + abs(r - f)
+```
+
+The added seven is constant throughout KBNK, so it cannot affect move ordering.
+Step 6.1.b rewrites `kbnk_score()` in the explicit diagonal form while retaining
+that constant and the existing coefficient. This is score-identical, makes the
+transfer seam visible, and proves that another geometry port cannot explain the
+remaining Basilisk failures.
+
+The transferable Rarog lesson is now narrower: its conversion gain came from
+the diagonal potential's **dominance over competing king pulls** after a sweep,
+not from geometry absent in Basilisk. Measuring that scale and its interaction
+with Basilisk's edge, friendly-king and knight terms is exactly 6.1.c.
+
+Verification of the explicit rewrite: release `test_eval` and `test_endgames`
+pass, including both bishop-colour orientations, and `bench 13` remains exactly
+12,709,666 nodes. No conversion claim is made because the score is unchanged.
 
 ## Source evidence
 
@@ -88,14 +122,17 @@ KNOWN_WIN
 + 220 * (8 - knight distance)
 ```
 
-The transfer seam for 6.1.b is therefore the corner/edge geometry inside
-`kbnk_score()`, not the material dispatcher, score perspective, bishop
-placement or generic KXK logic. Unlike Rarog's broader mop-up gate, Basilisk's
-exact KBNK dispatch cannot leak into middlegames, queen mates or rook mates.
+The initial transfer seam appeared to be the corner geometry inside
+`kbnk_score()`. The 6.1.b algebra above shows that geometry is already present.
+What remains is coefficient and interaction work inside `kbnk_score()`, not the
+material dispatcher, score perspective, bishop placement or generic KXK logic.
+Unlike Rarog's broader mop-up gate, Basilisk's exact KBNK dispatch cannot leak
+into middlegames, queen mates or rook mates.
 
 ## Constraints carried into 6.1.b and 6.1.c
 
-- Port the two colour-complex formulas, not `360` or any other Rarog constant.
+- Keep the now-explicit colour-complex formulas; do not import `360` or another
+  Rarog constant.
 - Keep the exact KBNK activation and White-score sign unchanged.
 - Do not add a bishop-position, bishop-proximity or flight-square term.
 - Treat the existing edge, friendly-king and knight pulls as interacting
@@ -104,5 +141,5 @@ exact KBNK dispatch cannot leak into middlegames, queen mates or rook mates.
 - Judge the mechanism on the frozen position cohort with Syzygy WDL/DTZ and
   rule-50 outcomes. Bench identity alone is not an acceptance signal.
 
-This audit establishes a compatible mechanism and a narrow implementation
-seam. It does not predict that Basilisk will reproduce Rarog's 96.9% result.
+This audit establishes that the geometric mechanism is compatible and already
+present. It does not predict that Basilisk will reproduce Rarog's 96.9% result.
