@@ -12,15 +12,15 @@ historical evidence ledger.
 | Released baseline | Basilisk 1.9.3; bench-13 fingerprint 11,941,440 |
 | Current head | Bench 12,709,666; last recorded CTest 12/12; WAC 137/300 |
 | Strength baseline | basilisk-5912-slim-pext-pgo; accepted HCE line about +12 Elo versus 1.9.3 |
-| Current phase | Phase 6, step 6.0 |
+| Current phase | Phase 6, step 6.1.a |
 | Evaluation | HCE is unfrozen for structural improvement and complete, controlled refits |
 | Corpus rule | Game-result labels only; no engine-evaluation labels |
 | Match/data rule | Natural termination by default; score-based adjudication requires explicit opt-in and registration |
-| Long job | None active; 6.0.b reports have returned and are recorded below |
+| Long job | None active; the complete 6.0 truth baseline is recorded below |
 | Release target | Classical release after Phase 8; NNUE 2.0.0 after Phase 10 |
 
-The next engine change is not authorized by this planning pass. Step 6.1 records
-the Rarog mate-drive lead for implementation only when that step is started.
+The next engine change is not authorized by this planning pass. Step 6.1.a is
+the next leaf and begins the registered Rarog mate-drive investigation.
 
 ## 2. Operating contract
 
@@ -164,13 +164,13 @@ completed item has a number after unfinished work.
 
 ### 6.0 Evidence contract
 
-- [ ] **6.0** Establish the truth baseline before another evaluator edit.
+- [x] **6.0** Establish the truth baseline before another evaluator edit.
   - [x] **6.0.a** Freeze 770 Syzygy-verified positions across 21 endgame families.
   - [x] **6.0.b** Measure the accepted Basilisk head and a strong reference at identical nodes.
   - [x] **6.0.c** Set achievable family ceilings; do not assume 100% at a finite node budget.
   - [x] **6.0.d** Define paired confidence rules: aggregate beyond 2 SE reports, family beyond 3 SE blocks.
   - [x] **6.0.e** Add hard theory vetoes for clean-win discard, illegal play, crash and rule-50 regression.
-  - [ ] **6.0.f** Census disagreements between self-play WDL labels and Syzygy on every <=6-man corpus row.
+  - [x] **6.0.f** Census disagreements between self-play WDL labels and Syzygy on every <=6-man corpus row.
 
 Step 6.0.a artifact: tools/diag/endgame_cohort_v1.epd and its manifest use
 seed 0x4E9A2 and SHA-256
@@ -267,6 +267,23 @@ acceptable Basilisk candidate under this contract: despite its aggregate gain,
 it newly discards clean wins at KNN-KP EG0459/EG0460 and newly reaches rule 50
 at EG0464. This confirms that the ceiling oracle and the candidate correctness
 gate answer different questions.
+
+Step 6.0.f is implemented by `tools/diag/endgame_label_census.py` and freezes
+`tools/diag/endgame_label_census_v1.json`. It scanned all 1,052,632 rows of the
+accepted Arm C corpus (1,000,000 train and 52,632 holdout), verified exact
+`0/0.5/1` White-perspective labels, and probed every one of the 173,750 rows
+with at most six pieces. There were 24,530 self-play/Syzygy disagreements
+(14.12%): 22,392 are self-play draws in tablebase-decisive positions, 2,128
+are decisive game labels on tablebase draws, and only 10 reverse the decisive
+winner. KBN-K alone contributes 6,117/6,547 disagreements and K-KBN contributes
+4,778/5,248; together, all 10,895 disagreements are natural-termination draws
+where Arm C failed to convert the theoretical KBNK win. This directly supports
+doing 6.1 before the next full HCE refit. Syzygy's seven cursed and fourteen
+blessed rows remain draws in the label domain. The census deliberately uses
+zeroing-clock WDL and does not authorize Phase 7.4 relabeling without its
+separate halfmove-clock and row-domain analysis. Corpus hashes and parent
+no-adjudication PGN provenance are embedded in the artifact; its SHA-256 is
+609E60489838F6708ADF83D851B8CDB5D1E963102A2C599879ECC9C9F2E5CB46.
 
 ### 6.1 Complete KBNK mate drive
 
