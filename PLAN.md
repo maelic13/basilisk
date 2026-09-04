@@ -1035,7 +1035,7 @@ Deliberately NOT reopened, with reasons, so tomorrow does not relitigate them:
 - [ ] **6.4** Audit every endgame term before broadening the evaluator.
   - [x] **6.4.a** Test score resolution, saturation and interaction at Basilisk's scale.
   - [ ] **6.4.b** Keep theory truth, move quality, conversion and game strength separate.
-  - [ ] **6.4.c** Freeze the accepted Group A head and truth report.
+  - [ ] **6.4.c** Freeze the accepted Group A head and truth report. Includes the 6.4.a carry-over that has no other owner: lift `STATIC_MATE_FLOOR` to file scope and `static_assert` the compiled `g_kbnk_drive` default against it, so the mate-band guarantee holds in release builds too. Today it is enforced only by `set_kbnk_drive_weights`, which is `#ifdef BASILISK_TUNE`, so the shipped constant is unchecked (BAS-E52).
 
 Step 6.4.a is complete. The static audit is frozen as
 `analysis/endgame_magnitude_audit_v1.md` and the measurement it registered has
@@ -1098,7 +1098,7 @@ build's compiled KBNK default is validated by nothing, and a file-scope
 
 ### 6.5 Group B endgames
 
-- [ ] **6.5** Implement high-value rook and bishop-pawn families.
+- [ ] **6.5** Implement high-value rook and bishop-pawn families. **Every new family term must state its promotion closure and include those families in its non-regression set.** BAS-E51: the KBNK vector reached KBP-K, KBP-KB, KBP-KN and KBPP-KB through knight promotion, and 6.1.f's original accounting missed it by testing only families its own safety argument had already excluded.
   - [ ] **6.5.a** Cover KRPP-KRP and KRP-KR.
   - [ ] **6.5.b** Cover KR-KP, KQ-KRP and KR-KB.
   - [ ] **6.5.c** Cover bishop-pawn families, including wrong-bishop/rook-pawn draw logic. Absorbs 6.3's KBP-K deficit, which is **7** positions at the current head (17/24 against the reference's 24/24), not the 15 the pre-6.1 arm showed; attack it as bishop-pawn technique, not king geometry (BAS-E48, BAS-E49).
@@ -1110,7 +1110,7 @@ build's compiled KBNK default is validated by nothing, and a file-scope
 
 ### 6.7 Group C and closure
 
-- [ ] **6.7** Evaluate remaining lower-yield families.
+- [ ] **6.7** Evaluate remaining lower-yield families. Same promotion-closure requirement as 6.5 (BAS-E51). Note KBP-K promoting to a bishop reaches `kxk_score`, which has never been checked.
   - [ ] **6.7.a** Cover KPs-K, KQ-KP, KR-KN, KQ-KR, KP-KP and KNN-KP.
   - [ ] **6.7.b** Implement only mechanisms with a measurable truth gap and plausible game frequency.
   - [ ] **6.7.c** Stop the group when marginal value no longer pays for complexity.
@@ -1165,7 +1165,7 @@ The target is a mature final classical evaluator, not merely another fit.
 
 ### 7.4 Build matched label arms
 
-- [ ] **7.4** Create the tablebase-relabel comparison.
+- [ ] **7.4** Create the tablebase-relabel comparison. Sizing is already measured (BAS-E46): at 8,000 datagen nodes **19.77%** of tablebase clean wins are not won, falling to 13.65% at 25,000, and about 43% of games reach an adjudicable clean win, so roughly 8.5% of all games carry a result contradicting tablebase truth, one-directionally toward draws. It concentrates in KRP-KRP 30.7%, KRPP-KR 26.2% and KPP-KPP 25.2% -- the Group B families. Raising datagen nodes recovers only a third of it at 3.1x the cost, which is why relabeling is the arm worth running.
   - [ ] **7.4.a** Corpus A keeps original self-play game-result labels.
   - [ ] **7.4.b** Corpus B is a byte-order-preserving copy except eligible <=6-man rows receive Syzygy truth labels.
   - [ ] **7.4.c** Treat cursed wins/losses as draws for rule-50-compatible WDL labels.

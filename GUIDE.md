@@ -114,8 +114,8 @@ Run this checklist in order; PLAN.md owns rationale and gates.
 - [ ] **6.4** Audit every endgame term before broadening the evaluator
   - [x] **6.4.a** Test score resolution, saturation and interaction at Basilisk's scale
   - [ ] **6.4.b** Keep theory truth, move quality, conversion and game strength separate
-  - [ ] **6.4.c** Freeze the accepted Group A head and truth report
-- [ ] **6.5** Implement high-value rook and bishop-pawn families
+  - [ ] **6.4.c** Freeze the accepted Group A head and truth report (also: static_assert the shipped KBNK default)
+- [ ] **6.5** Implement high-value rook and bishop-pawn families -- state each term's promotion closure in its non-regression set
   - [ ] **6.5.a** Cover KRPP-KRP and KRP-KR
   - [ ] **6.5.b** Cover KR-KP, KQ-KRP and KR-KB
   - [ ] **6.5.c** Cover bishop-pawn families, including wrong-bishop/rook-pawn draw logic
@@ -123,7 +123,7 @@ Run this checklist in order; PLAN.md owns rationale and gates.
 - [ ] **6.6** Gate Group B
   - [ ] **6.6.a** Require paired truth improvement and no family veto
   - [ ] **6.6.b** Run no-adjudication SPRT on the frozen Group A baseline
-- [ ] **6.7** Evaluate remaining lower-yield families
+- [ ] **6.7** Evaluate remaining lower-yield families -- same promotion-closure rule
   - [ ] **6.7.a** Cover KPs-K, KQ-KP, KR-KN, KQ-KR, KP-KP and KNN-KP
   - [ ] **6.7.b** Implement only mechanisms with a measurable truth gap and plausible game frequency
   - [ ] **6.7.c** Stop the group when marginal value no longer pays for complexity
@@ -158,7 +158,7 @@ Run this checklist in order; PLAN.md owns rationale and gates.
   - [ ] **7.3.a** Use no adjudication and game-result WDL labels
   - [ ] **7.3.b** Verify termination mix, duplicate rate, phase coverage and <=6-man yield
   - [ ] **7.3.c** Freeze corpus A, its row order and hashes before any relabeling
-- [ ] **7.4** Create the tablebase-relabel comparison
+- [ ] **7.4** Create the tablebase-relabel comparison -- prize measured in BAS-E46
   - [ ] **7.4.a** Corpus A keeps original self-play game-result labels
   - [ ] **7.4.b** Corpus B is a byte-order-preserving copy except eligible <=6-man rows receive Syzygy truth labels
   - [ ] **7.4.c** Treat cursed wins/losses as draws for rule-50-compatible WDL labels
