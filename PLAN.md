@@ -1260,6 +1260,38 @@ implemented yet: it is a playing change, it needs its own registered gate, and
 committing to it while half the leaf is unmeasurable would fix the scope by
 accident.
 
+**KRPP-KRP is now measurable and it is the worst family yet seen.** The
+KRPPvKRP table pair is installed in `D:\chess	ablebases\syzygy7` and
+verified two ways: both files match the server's Content-Length, and five
+positions spanning draws and wins at differing DTZ agree exactly with the
+independent Lichess tablebase API on both WDL and DTZ. The frozen cohort is
+`tools/diag/krppkrp_cohort_v1` (seed 0x6B1AC, 24 clean wins and 16 draws,
+clean-win DTZ 3 to 19, book SHA-256 8DA2D418...).
+
+First measurement at 60,000 nodes: **17/24 converted (70.8%)**, win-preservation
+**0.9610** -- the worst of any family measured, against KRP-KR's 0.9876 and
+KBN-K's 0.9987 -- and DTZ progress 0.3857. **Twelve of the 24 clean wins carry a
+live truth discard**, five of them on the very first move. Separately,
+`EG0039` (`8/8/5r2/3R4/4P3/8/p1k3KP/8 w`) is a theoretical **DRAW that Basilisk
+LOST**, recorded as `wrong_mate` at ply 52; the graded-move machinery does not
+count that as a discard because it only grades moves from clean wins, which is
+exactly why the cohort carries 16 drawn rows.
+
+**The KRP-KR mechanism does not transfer, and assuming it would have been the
+error.** In KRP-KR the losing move was the passed-pawn push in three of six
+cases. Across the five KRPP-KRP first-move throws the losing move is a pawn
+move **zero** times out of five: every one is a rook or king placement error,
+and every winning alternative is also a rook or king move. Several involve an
+enemy pawn near promotion that the engine declines to stop -- in
+`7R/6r1/P7/8/5P2/8/K1p3k1/8 w` the only winning move is `Kb2`, stopping the c2
+pawn, and the engine plays `Rc8` instead. Two others require the rook to hold a
+specific rank or file that the engine abandons.
+
+That is a suggestive family of causes rather than one mechanism, and five cases
+do not establish it. 6.5.a stays open: the next step is to characterise these
+failures properly before proposing any term, because the one thing now
+established is that KRP-KR and KRPP-KRP do **not** share a fix.
+
 - [ ] **6.6** Gate Group B.
   - [ ] **6.6.a** Require paired truth improvement and no family veto.
   - [ ] **6.6.b** Run no-adjudication SPRT on the frozen Group A baseline.
