@@ -1037,6 +1037,48 @@ Deliberately NOT reopened, with reasons, so tomorrow does not relitigate them:
   - [ ] **6.4.b** Keep theory truth, move quality, conversion and game strength separate.
   - [ ] **6.4.c** Freeze the accepted Group A head and truth report.
 
+Step 6.4.a is HALF DONE. The static audit is complete and frozen as
+`analysis/endgame_magnitude_audit_v1.md`; the measurement it registers is
+prepared and unrun, because a maintainer SPSA job held the machine. The leaf
+stays open until that run lands.
+
+**Saturation.** No term collides with the 31,872 mate-band floor.
+`kxk_score` tops out near 17,320 even with promotion-added bishops, leaving
+14,552 points of headroom and needing no guard. `kbnk_score` sits 212 points
+below the floor, and the check that keeps it there lives in
+`set_kbnk_drive_weights`, which is `#ifdef BASILISK_TUNE`: **a release build's
+compiled default is validated by nothing**, and 6.1.f's test exercises the
+validator rather than the constant. Recommended and not applied: lift
+`STATIC_MATE_FLOOR` to file scope and `static_assert` the compiled default, so
+the guarantee holds at compile time in both build types.
+
+**Resolution, and this is the substantive finding.** `kxk_score`'s comment
+claims every weight clears the 243 razoring margin so the walk survives
+pruning. That holds for the raw weights and fails for the scores the search
+sees, because `damp_rule50` multiplies by `(199 - clock) / 199` after
+`apply_endgame` and therefore scales the override band too. The kxk king step
+(300) is already below the margin at clock 50, at 224, and the corner step
+(250) at 187; the kbnk king step (460) falls below at clock 99, at 231.
+Neither component is wrong on its own -- damping toward zero is deliberate, and
+the weights were chosen against the undamped margin -- but the interaction was
+never audited, and it means the gradient a mate drive depends on is weakest
+exactly when conversion is most urgent. Ordering inside the class survives,
+since damping is monotone; the pruning margin does not.
+
+**Interaction.** BAS-E51's promotion leakage generalises. A family term's blast
+radius is not its dispatcher condition but that condition's promotion closure:
+KBP-K promoting to a knight reaches `kbnk_score`, and promoting to a bishop
+reaches `kxk_score`, which was never checked. Every new family term in 6.5 and
+6.7 must state which families reach it by promotion and include them in its
+non-regression set.
+
+The registered experiment re-emits the frozen cohort's bare-king mate families
+at starting clocks 0, 50 and 80 and compares conversion. If damping is the
+cause, the fall is faster than the shortened rule-50 horizon explains and is
+concentrated in the kxk families, whose steps cross the margin earliest, and
+the fix is to exempt the override band from `damp_rule50`. If not, the
+interaction is a curiosity and nothing changes.
+
 ### 6.5 Group B endgames
 
 - [ ] **6.5** Implement high-value rook and bishop-pawn families.
