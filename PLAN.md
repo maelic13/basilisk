@@ -1042,7 +1042,7 @@ Deliberately NOT reopened, with reasons, so tomorrow does not relitigate them:
 
 - [ ] **6.4** Audit every endgame term before broadening the evaluator.
   - [x] **6.4.a** Test score resolution, saturation and interaction at Basilisk's scale.
-  - [ ] **6.4.b** Keep theory truth, move quality, conversion and game strength separate.
+  - [x] **6.4.b** Keep theory truth, move quality, conversion and game strength separate.
   - [ ] **6.4.c** Freeze the accepted Group A head and truth report. Includes the 6.4.a carry-over that has no other owner: lift `STATIC_MATE_FLOOR` to file scope and `static_assert` the compiled `g_kbnk_drive` default against it, so the mate-band guarantee holds in release builds too. Today it is enforced only by `set_kbnk_drive_weights`, which is `#ifdef BASILISK_TUNE`, so the shipped constant is unchecked (BAS-E52).
 
 Step 6.4.a is complete. The static audit is frozen as
@@ -1103,6 +1103,49 @@ working as designed.
 The audit's other finding is untouched by this and still stands: the release
 build's compiled KBNK default is validated by nothing, and a file-scope
 `static_assert` remains the recommended fix.
+
+Step 6.4.b is frozen as `analysis/endgame_measurement_layers_v1.md`. It is a
+documentation leaf, and Phase 6 happened to supply a case where each pair of
+these layers disagreed, so the rules are anchored in evidence rather than in
+taste.
+
+**The four layers.** Theory truth asks whether a won position was thrown, per
+move, from Syzygy WDL and `first_discard_ply`. Move quality asks whether the
+moves progress, per move, from DTZ progress and win-preservation. Conversion
+asks whether the win was finished inside the rules, per position, from the
+cohort outcome. Game strength asks whether it wins more games, per game pair,
+from an SPRT at a real time control. **Occurrence** is not a layer but gates
+whether the first three can ever reach the fourth.
+
+**Precedence, with the case that forced each rule.** Theory truth is an
+absolute veto: 6.1.e rejected the arm converting 103/138 in favour of one
+converting 98/138, on a single live discard (BAS-E41). Conversion never
+establishes strength: 6.1 moved conversion 95 to 144 of 198 and the SPRT
+returned -1.40 +/- 4.07 Elo (BAS-E44), because the family occurs zero times in
+trees from real roots (BAS-E43). Move quality and conversion can move in
+opposite directions: at 200,000 nodes the accepted vector converts one fewer
+KBPP-KB root while carrying one fewer live truth discard (BAS-E51). And
+strength never overrides truth -- stated now, though Phase 6 never tested that
+direction, so it is not discovered by argument later.
+
+**Three confounds, each found the hard way.** Conversion is confounded by DTZ
+slack across families, because an eligibility cut equalises feasibility and not
+margin, and on this cohort slack cannot be matched since the distributions
+barely overlap (BAS-E52). Conversion is confounded by node budget: 6.1.e's
+verdict does not reproduce at 200,000 or 600,000 nodes (BAS-E45). And truth
+itself can be faked by an instrument that conflates losing material with losing
+the win, which is what aborted 139 of 148 pawn games before any bad move was
+played (BAS-E47) -- a layer-3 number produced by a layer-1 category error is
+not a weak measurement but a different one wearing the wrong label.
+
+**Reporting rules now binding on 6.5 onward.** State layer, instrument, node
+budget and position set for every number; a bare conversion percentage is not a
+result. Never aggregate layers into one score, because there is no exchange rate
+between a truth failure and a conversion gain. When two layers disagree, say so
+and say which decides -- that disagreement is usually the finding. Bench
+identity belongs to no layer: it is a provenance fingerprint, and it was blind
+to the whole of 6.1 by construction because the bench suite contains no KBNK
+position.
 
 ### 6.5 Group B endgames
 
