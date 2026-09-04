@@ -15,6 +15,14 @@ struct PawnEntry {
 
 static constexpr int PAWN_TABLE_SIZE = 16384;
 
+// The search treats any score at or above MATE_SCORE - MAX_PLY as a mate and
+// ply-adjusts it on its way into the TT, so a STATIC evaluation must stay
+// strictly below it. The value lives here rather than in search.h so that eval
+// does not acquire a dependency on search; tests/test_endgames.cpp
+// static_asserts that the two definitions agree, which is what catches a future
+// change to MATE_SCORE or MAX_PLY.
+inline constexpr int KBNK_STATIC_MATE_FLOOR = 31872;
+
 // 8.6.2a: the pawn cache is indexed `pkey & (PAWN_TABLE_SIZE - 1)`, which is a
 // modulo only for powers of two — a non-pow2 size would silently alias entries
 // (returning another position's pawn eval) rather than fail.

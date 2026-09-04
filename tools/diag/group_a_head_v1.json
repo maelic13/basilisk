@@ -1,0 +1,173 @@
+{
+  "schema": "basilisk-group-a-head-v1",
+  "purpose": "PLAN 6.4.c: the accepted Group A head and its truth report",
+  "accepted_kbnk_drive": "15600,1900,0,460,0",
+  "bench_13_nodes": 12709666,
+  "binaries": {
+    "release_pext": {
+      "path": "D:\\code\\basilisk\\build\\release-pext\\basilisk.exe",
+      "sha256": "641845CF2D6BD99417A2B8511CD7EA15D3589CFAC27DE4AC2D8592EE0A05EB6E"
+    },
+    "tune_pext": {
+      "path": "D:\\code\\basilisk\\build\\tune\\basilisk.exe",
+      "sha256": "E0614E9D189DF085D092496A87838B94F5E52F9CB74EAFB91F2D7419C08C2D59"
+    }
+  },
+  "truth_report": {
+    "path": "D:\\code\\basilisk\\tools\\results\\group-a-head\\truth.json",
+    "sha256": "9AA7838E38C09110DEFBB3608A6B85F653201ECCD66C39438BE87BF3A46BBAF1",
+    "cohort_manifest_sha256": "77D2F84EAA824272BA5566CE3038169527C126C07E146CC57CB28C4A54EC85BE",
+    "nodes_per_move": 60000,
+    "max_plies": 100,
+    "hash_mb": 16,
+    "start_halfmove_clock": 0,
+    "score_adjudication": false
+  },
+  "aggregate": {
+    "clean_wins": 480,
+    "converted": 377,
+    "conversion_rate": 0.785417
+  },
+  "families": {
+    "KQ-K": {
+      "clean_wins": 24,
+      "converted": 24,
+      "win_preserving_rate": 1.0,
+      "dtz_progress_rate": 0.5070422535211268
+    },
+    "KR-K": {
+      "clean_wins": 24,
+      "converted": 24,
+      "win_preserving_rate": 1.0,
+      "dtz_progress_rate": 0.584070796460177
+    },
+    "KBB-K": {
+      "clean_wins": 24,
+      "converted": 24,
+      "win_preserving_rate": 1.0,
+      "dtz_progress_rate": 0.697560975609756
+    },
+    "KBN-K": {
+      "clean_wins": 24,
+      "converted": 20,
+      "win_preserving_rate": 0.998745294855709,
+      "dtz_progress_rate": 0.635678391959799
+    },
+    "KNN-K": {
+      "clean_wins": 0,
+      "converted": 0,
+      "win_preserving_rate": null,
+      "dtz_progress_rate": null
+    },
+    "KP-K": {
+      "clean_wins": 24,
+      "converted": 24,
+      "win_preserving_rate": 1.0,
+      "dtz_progress_rate": 0.38943248532289626
+    },
+    "KPP-K": {
+      "clean_wins": 24,
+      "converted": 24,
+      "win_preserving_rate": 1.0,
+      "dtz_progress_rate": 0.3670886075949367
+    },
+    "KBP-K": {
+      "clean_wins": 24,
+      "converted": 17,
+      "win_preserving_rate": 1.0,
+      "dtz_progress_rate": 0.5286975717439294
+    },
+    "KR-KP": {
+      "clean_wins": 24,
+      "converted": 23,
+      "win_preserving_rate": 0.9975186104218362,
+      "dtz_progress_rate": 0.5422885572139303
+    },
+    "KR-KB": {
+      "clean_wins": 24,
+      "converted": 21,
+      "win_preserving_rate": 0.9714285714285714,
+      "dtz_progress_rate": 0.45955882352941174
+    },
+    "KR-KN": {
+      "clean_wins": 24,
+      "converted": 19,
+      "win_preserving_rate": 0.9437086092715232,
+      "dtz_progress_rate": 0.5140350877192983
+    },
+    "KQ-KP": {
+      "clean_wins": 24,
+      "converted": 24,
+      "win_preserving_rate": 0.9962121212121212,
+      "dtz_progress_rate": 0.44106463878326996
+    },
+    "KQ-KR": {
+      "clean_wins": 24,
+      "converted": 11,
+      "win_preserving_rate": 1.0,
+      "dtz_progress_rate": 0.31839080459770114
+    },
+    "KNN-KP": {
+      "clean_wins": 24,
+      "converted": 1,
+      "win_preserving_rate": 0.9059196617336153,
+      "dtz_progress_rate": 0.4620770128354726
+    },
+    "KRP-KR": {
+      "clean_wins": 24,
+      "converted": 17,
+      "win_preserving_rate": 0.9875666074600356,
+      "dtz_progress_rate": 0.4892086330935252
+    },
+    "KRP-KB": {
+      "clean_wins": 24,
+      "converted": 20,
+      "win_preserving_rate": 0.9806896551724138,
+      "dtz_progress_rate": 0.3755274261603376
+    },
+    "KBP-KB": {
+      "clean_wins": 24,
+      "converted": 15,
+      "win_preserving_rate": 0.9971098265895953,
+      "dtz_progress_rate": 0.36231884057971014
+    },
+    "KBP-KN": {
+      "clean_wins": 24,
+      "converted": 18,
+      "win_preserving_rate": 0.9781021897810219,
+      "dtz_progress_rate": 0.4701492537313433
+    },
+    "KP-KP": {
+      "clean_wins": 24,
+      "converted": 24,
+      "win_preserving_rate": 1.0,
+      "dtz_progress_rate": 0.3500931098696462
+    },
+    "KQ-KRP": {
+      "clean_wins": 24,
+      "converted": 13,
+      "win_preserving_rate": 0.9873417721518988,
+      "dtz_progress_rate": 0.37713675213675213
+    },
+    "KBPP-KB": {
+      "clean_wins": 24,
+      "converted": 14,
+      "win_preserving_rate": 0.9791411042944785,
+      "dtz_progress_rate": 0.2844611528822055
+    }
+  },
+  "reference_ceilings": {
+    "path": "D:\\code\\basilisk\\tools\\diag\\endgame_ceilings_v2.json",
+    "sha256": "C7726280C76584D8B9D011EAD9F570C191FD11615E2D88A239A30AAB94B4DA1D",
+    "note": "attained reference results, not theoretical ceilings; regenerated in 6.0.c from the corrected arms (BAS-E50)"
+  },
+  "what_this_licenses": [
+    "a fixed baseline for 6.5 candidates to be paired against",
+    "the identity of the binary any Group B gate must start from"
+  ],
+  "what_this_does_not_license": [
+    "any Elo claim: 6.2.a stopped undecided at practical equivalence",
+    "reuse of the 198-position KBNK cohort for SELECTION, which is spent",
+    "reading conversion across families without matching DTZ slack"
+  ]
+}

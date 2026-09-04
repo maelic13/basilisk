@@ -271,6 +271,24 @@ struct KbnkDriveWeights {
     int knight;
 };
 
+// Largest score this vector can ever produce. The extremal legal multipliers
+// are diagonal 7, edge 3, king 6 (the kings cannot touch) and knight 7.
+static constexpr int kbnk_drive_max(const KbnkDriveWeights& w) {
+    return w.base + 7 * w.diagonal + 3 * w.edge + 6 * w.king + 7 * w.knight;
+}
+
+// 6.4.a found the shipped constant guarded by nothing: the bound was enforced
+// only inside set_kbnk_drive_weights, which is #ifdef BASILISK_TUNE, so a
+// release build's compiled default was never checked, and 6.1.f's test
+// exercised the validator rather than the constant. One constexpr default now
+// serves both build types and is checked here, at compile time, in both.
+static constexpr KbnkDriveWeights KBNK_DRIVE_DEFAULT{15600, 1900, 0, 460, 0};
+static_assert(KBNK_DRIVE_DEFAULT.base >= KNOWN_WIN,
+              "KBNK base must sit at or above KNOWN_WIN so the class outranks material");
+static_assert(kbnk_drive_max(KBNK_DRIVE_DEFAULT) < KBNK_STATIC_MATE_FLOOR,
+              "compiled KBNK default can reach the mate-score band: a static "
+              "evaluation would be ply-adjusted and stored as a mate in the TT");
+
 #ifdef BASILISK_TUNE
 // 6.1.e selection: base 15600, diagonal 1900, no edge pull, king 460, no
 // knight pull. The 6.1.c screen winner (diagonal 1750, king 340) was REJECTED
@@ -280,7 +298,7 @@ struct KbnkDriveWeights {
 // keeps 99.8241% of clean-win moves, and takes its earliest discard at ply 96
 // -- inside the benign rule-50 cleanup band BAS-E35 established. 6.1.f still
 // owns the non-regression accounting.
-static KbnkDriveWeights g_kbnk_drive{15600, 1900, 0, 460, 0};
+static KbnkDriveWeights g_kbnk_drive = KBNK_DRIVE_DEFAULT;
 
 bool set_kbnk_drive_weights(const std::string& value, std::string& error) {
     if (value.empty() || value.back() == ',') {
@@ -332,13 +350,12 @@ bool set_kbnk_drive_weights(const std::string& value, std::string& error) {
     // king=6 (the kings cannot touch), and knight=7. Keep every static KBNK
     // score below the search's mate-score band (32000 - MAX_PLY 128), or a
     // mere evaluation could be encoded/stored as a mate score in the TT.
-    constexpr int STATIC_MATE_FLOOR = 31872;
     const int64_t maximum = int64_t(candidate.base)
         + int64_t(7) * candidate.diagonal
         + int64_t(3) * candidate.edge
         + int64_t(6) * candidate.king
         + int64_t(7) * candidate.knight;
-    if (maximum >= STATIC_MATE_FLOOR) {
+    if (maximum >= KBNK_STATIC_MATE_FLOOR) {
         error = "maximum KBNK score enters the mate-score band";
         return false;
     }
@@ -348,7 +365,7 @@ bool set_kbnk_drive_weights(const std::string& value, std::string& error) {
     return true;
 }
 #else
-static constexpr KbnkDriveWeights g_kbnk_drive{15600, 1900, 0, 460, 0};
+static constexpr KbnkDriveWeights g_kbnk_drive = KBNK_DRIVE_DEFAULT;
 #endif
 
 #ifdef BASILISK_TUNE

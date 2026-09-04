@@ -111,10 +111,10 @@ Run this checklist in order; PLAN.md owns rationale and gates.
   - [x] **6.3.a** Derive the feature from Basilisk truth failures, not reference constants
   - [x] **6.3.b** Verify KP-K, KPP-K, KBP-K and mixed rook/minor pawn families
   - [x] **6.3.c** Gate the isolated candidate with no adjudication
-- [ ] **6.4** Audit every endgame term before broadening the evaluator
+- [x] **6.4** Audit every endgame term before broadening the evaluator
   - [x] **6.4.a** Test score resolution, saturation and interaction at Basilisk's scale
   - [x] **6.4.b** Keep theory truth, move quality, conversion and game strength separate
-  - [ ] **6.4.c** Freeze the accepted Group A head and truth report (also: static_assert the shipped KBNK default)
+  - [x] **6.4.c** Freeze the accepted Group A head and truth report (also: static_assert the shipped KBNK default)
 - [ ] **6.5** Implement high-value rook and bishop-pawn families -- state each term's promotion closure in its non-regression set
   - [ ] **6.5.a** Cover KRPP-KRP and KRP-KR
   - [ ] **6.5.b** Cover KR-KP, KQ-KRP and KR-KB

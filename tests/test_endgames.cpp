@@ -21,6 +21,15 @@
 #include "zobrist.h"
 #include "test_harness.h"
 
+// 6.4.c: eval.h carries the mate-band floor so that eval does not depend on
+// search, which leaves the two definitions free to drift. This file includes
+// both, so it is where they are tied together. If MATE_SCORE or MAX_PLY ever
+// moves, this fails to compile instead of letting a static evaluation be
+// ply-adjusted and stored as a mate score in the TT.
+static_assert(KBNK_STATIC_MATE_FLOOR == MATE_SCORE - MAX_PLY,
+              "eval.h KBNK_STATIC_MATE_FLOOR no longer matches "
+              "search.h MATE_SCORE - MAX_PLY");
+
 #include <algorithm>
 #include <atomic>
 #include <cstdint>
