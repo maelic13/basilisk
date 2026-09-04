@@ -2434,12 +2434,22 @@ sanitized run.
 maintainer-run). Conditions: 3s+30ms, two games per pair, parallel 10, no draw
 or resign adjudication, UHO_Lichess_4852_v1 openings, **tablebases off**.
 
-| engine | pool Elo | avg nps | avg depth |
+**Correction (same day): the Elo column in that run was NOT computed.** Ratings
+were frozen and maintainer-estimated; only Perf was calculated. The figures
+below are therefore Perf, and the estimated-Elo column is omitted rather than
+quoted. The head-to-head values further down are unaffected, being derived
+directly from W-D-L.
+
+| engine | Perf | avg nps | avg depth |
 |---|---:|---:|---:|
-| Basilisk 1.10.0dev | 2955 | 2.3M | 14.2 |
-| Basilisk 1.9.3 | 2951 | 2.2M | 14.1 |
-| Rarog 2.4.0dev | 2907 | 2.0M | 14.6 |
-| Rarog 2.3.2 | 2903 | 2.1M | 14.7 |
+| Basilisk 1.10.0dev | 2959 | 2.3M | 14.2 |
+| Basilisk 1.9.3 | 2949 | 2.2M | 14.1 |
+| Rarog 2.4.0dev | 2934 | 2.0M | 14.6 |
+| Rarog 2.3.2 | 2873 | 2.1M | 14.7 |
+
+Perf in a four-engine pool is itself a weak statistic: it is a rating implied by
+the score against opponents whose own ratings are unsettled, so it should be
+read as ordering within this pool and not as a strength estimate.
 
 Head-to-head over 2,000 games each: 1.10.0dev over 1.9.3 **+16.0 +/- 15.2**;
 1.10.0dev over Rarog 2.4.0dev +28.4 +/- 15.3; 1.9.3 over Rarog 2.4.0dev
