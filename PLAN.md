@@ -1018,10 +1018,18 @@ Deliberately NOT reopened, with reasons, so tomorrow does not relitigate them:
 
 - **6.0.b** has already been re-measured under its own registered conditions;
   the corrected figures and a superseded-notice sit with the original text.
-- **6.0.d and 6.0.e** define comparison and veto RULES, not data. The rules are
-  unaffected: `endgame_vetoes.py` keys on `first_discard_ply`, never on
-  `material_lost`. Any stale baseline report they were run against should be
-  regenerated when next used, which is ordinary hygiene rather than rework.
+- **6.0.d and 6.0.e** define comparison and veto RULES, not data, and both were
+  **re-verified on 2026-09-04 against the corrected arms** rather than left as
+  an assumption. `endgame_vetoes.py` keys on `first_discard_ply`, never on
+  `material_lost`, and the recorded artifacts are outputs rather than inputs, so
+  nothing consumed them. Regenerated from
+  `tools/results/endgame-truth-6.0.b-refixed/`, the accepted head still passes
+  itself with zero hard vetoes and zero confidence movement, which is exactly
+  6.0.e's registered self-check. The reference arm still trips three
+  position-level vetoes against the accepted baseline (KNN-KP `EG0459`,
+  `EG0460` clean-win discards and `EG0464` rule-50), which is the intended
+  independence check rather than a failure: 6.0.e states that the stronger
+  reference is not an acceptance target. Neither leaf needs reopening.
 - **6.0.f** censused datagen labels against Syzygy on the Arm C corpus and never
   used the playout instrument, so it is independent of this defect.
 - **6.1.e** is corrected but not reopened; re-deciding it at a
