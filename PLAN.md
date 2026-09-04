@@ -1197,7 +1197,32 @@ assumed.
 **6.5.a is SPLIT: one half is derived, the other is not measurable.** No
 implementation yet; the leaf stays open.
 
-**KRPP-KRP cannot be validated with the installed tablebases.** It is seven men,
+**Correction (2026-09-04): the KRPP-KRP blocker below was my framing error, not
+a real obstacle.** It assumed the family needs a tablebase-validated WIN
+recognizer. It does not. In the reference taxonomy this roadmap is derived from,
+`KRPPKRP` is a **scaling** function, not an evaluation function -- its job is to
+recognise DRAWISHNESS, and its historical shape is "if either strong pawn is
+passed, do not scale; otherwise, if the weak king is near the pawns, scale down
+by pawn advancement". A draw-scaling heuristic is validated by drawn-share bias
+and by game strength, neither of which needs seven-man truth.
+
+The evidence for it is already in the repository and is game-outcome based.
+BAS-E32 measured `KRPP-KRP` at **11.32% of games** with the class **61.9%
+drawn** while Basilisk predicts **0.638**, a **+0.138** bias, and recorded the
+conclusion directly: we systematically score drawn rook endings as won, and the
+classes where we are wrong are precisely the ones the reference gives scaling
+functions to. `KRP-KR` is the same story at 9.09% of games and +0.171. BAS-E43
+agrees from the other direction: `KRPPKRP` occurs **352 times** in trees from
+real non-endgame roots, where `KBNK` occurs **zero** times.
+
+So 6.5.a needs no seven-man tablebase and no Lichess dependency. It needs a
+draw-scaling mechanism, validated on the six-man cousins that ARE installed --
+`KRPvKRP`, `KRPvKR`, `KRPPvKR` are all present locally -- plus the drawn-share
+bias metric and an SPRT. The paragraph below remains as the record of the wrong
+turn.
+
+**Superseded framing: KRPP-KRP cannot be validated with the installed
+tablebases.** It is seven men,
 and `D:/chess/tablebases/syzygy3456` stops at six -- `KRPPvKRP.rtbw` is absent,
 and the largest file in the set carries six pieces. 6.0.a already recorded this
 when the cohort was frozen, and it is the reason the family has no cohort rows:
