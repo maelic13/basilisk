@@ -1033,14 +1033,14 @@ Deliberately NOT reopened, with reasons, so tomorrow does not relitigate them:
 ### 6.4 Magnitude and coverage audit
 
 - [ ] **6.4** Audit every endgame term before broadening the evaluator.
-  - [ ] **6.4.a** Test score resolution, saturation and interaction at Basilisk's scale.
+  - [x] **6.4.a** Test score resolution, saturation and interaction at Basilisk's scale.
   - [ ] **6.4.b** Keep theory truth, move quality, conversion and game strength separate.
   - [ ] **6.4.c** Freeze the accepted Group A head and truth report.
 
-Step 6.4.a is HALF DONE. The static audit is complete and frozen as
-`analysis/endgame_magnitude_audit_v1.md`; the measurement it registers is
-prepared and unrun, because a maintainer SPSA job held the machine. The leaf
-stays open until that run lands.
+Step 6.4.a is complete. The static audit is frozen as
+`analysis/endgame_magnitude_audit_v1.md` and the measurement it registered has
+run (BAS-E52); the result **refutes the audit's own hypothesis**, which is
+recorded below rather than quietly dropped.
 
 **Saturation.** No term collides with the 31,872 mate-band floor.
 `kxk_score` tops out near 17,320 even with promotion-added bishops, leaving
@@ -1072,12 +1072,29 @@ reaches `kxk_score`, which was never checked. Every new family term in 6.5 and
 6.7 must state which families reach it by promotion and include them in its
 non-regression set.
 
-The registered experiment re-emits the frozen cohort's bare-king mate families
-at starting clocks 0, 50 and 80 and compares conversion. If damping is the
-cause, the fall is faster than the shortened rule-50 horizon explains and is
-concentrated in the kxk families, whose steps cross the margin earliest, and
-the fix is to exempt the override band from `damp_rule50`. If not, the
-interaction is a curiosity and nothing changes.
+**Result (BAS-E52): the hypothesis is refuted backwards.** Three arms at
+starting clocks 0, 25 and 50 -- 80 was abandoned because it leaves KBN-K one
+eligible root out of 24 -- gave DTZ progress falling 0.5962 to 0.5946 for the
+kxk families, a drop of 0.0016, against 0.6357 to 0.4900 for KBN-K. The
+families whose steps cross the 243 margin show no measurable move-quality
+degradation; the family whose gradient never approaches it degrades most. The
+pruning-margin mechanism does not bind in practice, and `damp_rule50` is left
+alone.
+
+Two cautions on how far to read that. DTZ progress is per-move, so each family
+is its own control across clocks and that comparison is clean. The conversion
+row is **not**: the eligibility cut equalises feasibility but not slack -- at
+budget 50 a KQ-K root with median DTZ 10 has 40 halfmoves spare while KBN-K's
+median 50 has none -- so cross-family conversion gaps are mostly slack, and a
+slack-matched comparison is impossible here because the DTZ distributions
+barely overlap. The leading explanation for KBN-K's within-family collapse is
+BAS-E35's indifference effect, the evaluation being damped toward zero until
+the engine stops distinguishing winning continuations, which is the curve
+working as designed.
+
+The audit's other finding is untouched by this and still stands: the release
+build's compiled KBNK default is validated by nothing, and a file-scope
+`static_assert` remains the recommended fix.
 
 ### 6.5 Group B endgames
 

@@ -499,6 +499,14 @@ def main() -> int:
     )
     parser.add_argument("--hash", type=int, default=16)
     parser.add_argument(
+        "--start-halfmove-clock",
+        type=int,
+        default=0,
+        help="begin every game with the fifty-move counter at this value "
+             "(PLAN 6.4.a damping probe). Theory labels are unaffected because "
+             "Syzygy ignores the clock; the engine's rule-50 damping is not.",
+    )
+    parser.add_argument(
         "--engine-option",
         action="append",
         default=[],
@@ -590,6 +598,7 @@ def main() -> int:
         "max_plies": args.max_plies,
         "seed": args.seed,
         "hash_mb": args.hash,
+        "start_halfmove_clock": args.start_halfmove_clock,
         "workers": args.workers,
         "engine_threads_per_worker": 1,
         "engine_options": engine_options,
@@ -703,6 +712,14 @@ def main() -> int:
                     chess.Board(frozen["fen"])
                     if frozen else random_position(rng, strong, weak)
                 )
+                # PLAN 6.4.a: start the game with the fifty-move counter already
+                # advanced. Syzygy WDL and DTZ ignore the halfmove clock, so the
+                # theory labels verified above stay valid; what changes is how
+                # much rule-50 damping the engine's own evaluation carries, and
+                # how many plies remain. The clock is set AFTER verification and
+                # lands in the recorded FEN, so a report always states it.
+                if args.start_halfmove_clock:
+                    board.halfmove_clock = args.start_halfmove_clock
                 fen = board.fen()
                 try:
                     verdict = (

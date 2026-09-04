@@ -38,17 +38,38 @@ DEVELOPMENT_POSITIONS = 60
 # confirms. The all-198 value was derived during 6.1.e preparation on commit
 # 5a8da16 and verified to contain those first-60 records unchanged, which is
 # what licenses splitting one run into development and held-out halves.
+# Recomputed 2026-09-04 over FINGERPRINT_FIELDS from the same stored 6.1.e
+# legacy-control report. The engine did not change: every shared field of every
+# record still matches the pre-fix artifacts exactly, verified position by
+# position. Only the hashing basis changed, from whole records to behavioural
+# fields. The superseded whole-record values were
+# first_60 A28D2843... and all_198 8CCB2C20...
 CONTROL_FINGERPRINTS = {
-    "first_60": "A28D2843263A8DDCB760C1133D5F105AE08E1F110AE4BB410210C683A15F1BF8",
-    "all_198": "8CCB2C20380879C2025B017A661167CC60309A469C996F0C69F545D985CFD539",
+    "first_60": "436CC064F3921E9E01473169D4A4014794AA1028E49BE30022EF5E071F327B34",
+    "all_198": "E0A8D67321093315B73B6A9F4CE5A8843FC155572FB8BFA40ACFB5C4A65571E8",
 }
 
 # Pre-registered before any candidate result exists.
 ACCEPT_Z = 2.0
 
 
+# Hash BEHAVIOUR, not record layout. The first version hashed whole records, so
+# adding one diagnostic field to the report schema -- `shed_material_ply`, when
+# the material-abort rule was fixed -- made every frozen control fingerprint
+# permanently unreachable even though the engine had not changed at all. These
+# are the fields that describe what the engine did; a new diagnostic column must
+# not void a control.
+FINGERPRINT_FIELDS = (
+    "id", "outcome", "plies", "graded_moves", "win_preserving_moves",
+    "dtz_checked_moves", "dtz_progress_moves", "first_discard_ply", "anomaly",
+)
+
+
 def fingerprint(positions):
-    canonical = json.dumps(positions, sort_keys=True, separators=(",", ":")).encode()
+    reduced = [
+        {k: p.get(k) for k in FINGERPRINT_FIELDS} for p in positions
+    ]
+    canonical = json.dumps(reduced, sort_keys=True, separators=(",", ":")).encode()
     return hashlib.sha256(canonical).hexdigest().upper()
 
 
