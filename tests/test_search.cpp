@@ -26,10 +26,14 @@
 
 #include <atomic>
 #include <chrono>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 #include <filesystem>
 #include <memory>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <vector>
 

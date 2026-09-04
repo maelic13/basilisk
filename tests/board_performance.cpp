@@ -30,6 +30,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <vector>
+#include <cstdint>
 
 // ---------------------------------------------------------------------------
 // Benchmark corpus — the cross-engine-board-v1 five positions, in order

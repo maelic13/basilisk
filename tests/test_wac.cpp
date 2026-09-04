@@ -28,6 +28,7 @@
 #include <cstdio>
 #include <memory>
 #include <string>
+#include <vector>
 
 static const int TEST_DEPTH = 6;
 // Calibrated 2026-07-15 (8.3 head after the 8.4 revert, bench 11,555,879):

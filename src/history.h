@@ -18,6 +18,7 @@
 #include "types.h"
 #include "move.h"
 
+#include <cstdint>
 #include <memory>
 
 struct HistoryTables {

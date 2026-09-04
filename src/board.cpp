@@ -4,9 +4,13 @@
 #include <algorithm>
 #include <cassert>
 #include <cctype>
+#include <cstdio>
+#include <expected>
 #include <limits>
 #include <sstream>
 #include <stdexcept>
+#include <string>
+#include <utility>
 
 // ---- Internal helpers -------------------------------------------------------
 

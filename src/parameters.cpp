@@ -1,10 +1,13 @@
 #include <algorithm>
 #include <cctype>
+#include <cstdint>
 #include <iostream>
 #include <limits>
 #include <regex>
 #include <sstream>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "board.h"
 #include "constants.h"

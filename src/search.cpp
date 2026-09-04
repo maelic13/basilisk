@@ -3,16 +3,25 @@
 #include "syzygy.h"
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cassert>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <exception>
+#include <functional>
+#include <memory>
+#include <mutex>
+#include <ratio>
 #include <sstream>
 #include <string>
 #include <system_error>
 #include <thread>
 #include <utility>
+#include <vector>
 
 // ---- LMR table -------------------------------------------------------------
 

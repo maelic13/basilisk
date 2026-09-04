@@ -22,7 +22,10 @@
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <memory>
+#include <ratio>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "../../src/eval.h"

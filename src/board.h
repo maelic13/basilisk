@@ -9,6 +9,7 @@
 #include <vector>
 #include <expected>
 #include <string>
+#include <cstdint>
 
 // Per-move undo information
 struct UndoInfo {

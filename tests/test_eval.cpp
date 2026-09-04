@@ -16,6 +16,8 @@
 #include "test_harness.h"
 
 #include <cmath>
+#include <cstdio>
+#include <cstdlib>
 #include <string>
 
 // ---------------------------------------------------------------------------

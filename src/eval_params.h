@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <type_traits>
 
 // Tunable evaluation weights for Basilisk's HCE eval.

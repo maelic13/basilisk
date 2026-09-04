@@ -2,6 +2,7 @@
 #include <cstring>
 #include <cassert>
 #include <algorithm>
+#include <cstdint>
 #if !defined(USE_PEXT)
 #  include "magics.h"   // 8.7.10 baked magic constants (non-PEXT tiers)
 #endif

@@ -1,6 +1,7 @@
 #include "history.h"
 
 #include <cstring>
+#include <memory>
 
 HistoryTables::HistoryTables()
     : cont1(std::make_unique<ContHistTable>())

@@ -4,6 +4,10 @@
 #include <sstream>
 #include <string>
 #include <thread>
+#include <atomic>
+#include <chrono>
+#include <cstdint>
+#include <vector>
 
 #include "constants.h"
 #include "engine.h"

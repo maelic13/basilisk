@@ -5,10 +5,14 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cstdint>
 #include <filesystem>
 #include <mutex>
+#include <optional>
+#include <string>
 #include <system_error>
 #include <utility>
+#include <vector>
 
 extern "C" {
 #include "tbprobe.h"

@@ -9,9 +9,12 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <cstdint>
+#include <cstdlib>
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <string>
 #include <thread>
 #include <utility>
 #include <vector>
