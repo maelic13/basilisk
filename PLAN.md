@@ -341,13 +341,13 @@ measures family frequency, not `kxk_score` firings.
 
 ### 6.1 Complete KBNK mate drive
 
-- [ ] **6.1** Implement and tune the missing KBNK technique (historical step 5.9.22).
+- [x] **6.1** Implement and tune the missing KBNK technique (historical step 5.9.22).
   - [x] **6.1.a** Start from Rarog's useful finding: bishop-color corner diagonal potential can solve the drive without a bishop-position term.
   - [x] **6.1.b** Make the bishop-colour diagonal mechanism explicit and prove the existing Manhattan form was algebraically identical.
   - [x] **6.1.c** Scale coefficients to Basilisk and test the required diagonal dominance against its existing edge, king-distance and knight-distance terms.
   - [x] **6.1.d** Do not retry bishop proximity or escape-square count unless new evidence overturns their earlier failure.
   - [x] **6.1.e** Compare on all 198 positions, with positions 61-198 as the held-out confirmation set; report WDL preservation, rule-50 failures, conversion and mate efficiency.
-  - [ ] **6.1.f** (REOPENED) Require KQK/KRK/KBBK non-regression, tactical stability and bench accounting; exact bench identity is necessary but cannot prove this path-dependent evaluation change behaviorally neutral.
+  - [x] **6.1.f** Require KQK/KRK/KBBK non-regression, tactical stability and bench accounting; exact bench identity is necessary but cannot prove this path-dependent evaluation change behaviorally neutral.
 
 Step 6.1.a is frozen in `analysis/kbnk_diagonal_port_v1.md`. Rarog commit
 `4aea0c7` replaced a coarse corner drive with a weak-king diagonal potential
@@ -582,6 +582,9 @@ weights are now effectively bounded from above by that check rather than by
 evidence.
 
 
+**Step 6.1.f was redone on 2026-09-04; see the correction below. The paragraph
+that follows is the original, superseded accounting.**
+
 Step 6.1.f closes 6.1 with acceptance accounting rather than new games.
 Non-regression is exact rather than merely absent: KQ-K, KR-K and KBB-K at 100
 positions each, seed 424242, produce byte-identical per-position records under
@@ -620,6 +623,46 @@ tie safely on all 198 rows, but nothing makes it do so. A knight-referencing
 term is a new mechanism needing its own registration, and 6.1.d closed the
 bishop analogue on evidence, so it does not belong to this step.
 
+
+**6.1.f correction (2026-09-04, BAS-E51).** The accounting above tested KQ-K,
+KR-K and KBB-K and argued they were unreachable because `g_kbnk_drive` feeds
+only `kbnk_score`. The argument is correct, and that is why the test was
+worthless: those families were chosen *because* they are provably unreachable,
+so passing confirmed only that the reasoning was self-consistent.
+
+Redone without pre-selection -- one binary, the frozen 770-position cohort, all
+21 families, only the UCI vector changed. **Exactly five families' records
+differ: KBN-K, KBP-K, KBP-KB, KBP-KN and KBPP-KB.** Every one holds a bishop
+and a promotable pawn, or is KBN-K itself; that is the knight-promotion
+reachability closure, the only route by which a KBN-K node can appear in a tree
+whose root has no knight. The other sixteen, including every pawnless family
+and KP-K, KPP-K and KP-KP, are byte-identical, which is the part of the
+original claim that survives.
+
+| budget | KBN-K | KBP-K | KBP-KB | KBP-KN | KBPP-KB | net |
+|---|---|---|---|---|---|---|
+| 60,000 | 12 to 20 | 9 to 17 | 16 to 15 | 17 to 18 | 14 to 14 | +16 |
+| 200,000 | 11 to 23 | 19 to 21 | 21 to 22 | 19 to 20 | 18 to 17 | +15 |
+
+Every regression is `ply_limit` with a null `first_discard_ply` -- `EG0573`,
+KBP-KB at DTZ 21, is mated on ply 53 by legacy and unfinished inside the
+100-ply cap by the accepted vector. The engine never left a won position in any
+of them, so these are conversion-speed regressions, not correctness ones.
+
+Truth is equal or better at both budgets: live discards before ply 80 are
+identical position-for-position at 60,000, and at 200,000 the accepted vector
+has one fewer in KBPP-KB. KBN-K win-preservation rises 0.9955 to 0.9987 at
+60,000 and 0.9935 to 1.0000 at 200,000, where it converts 23/24 against the
+legacy 11/24 with twelve gained and none lost.
+
+The step is accepted with the leakage documented rather than denied. The
+original assertion that the change is confined to KBN-K is false; the corrected
+claim is narrower and testable, and it holds.
+
+**Method rule this establishes:** a non-regression set chosen by the same
+argument that predicts safety cannot test that argument. Choose the set the
+mechanism could plausibly reach, or test everything and let the data name the
+affected families.
 
 ### 6.2 Gate endgame Group A
 
@@ -959,7 +1002,7 @@ worse than having none: they are far too lenient in exactly the families 6.5
 will implement. Redo from `tools/results/endgame-truth-6.0.b-refixed/`, which
 already contains both corrected arms; no new games are required.
 
-**6.1.f - the non-regression set was circular.** It verified isolation on
+**6.1.f - DONE 2026-09-04 (BAS-E51), left here for the record.** It verified isolation on
 KQ-K, KR-K and KBB-K, and argued they could not be affected because
 `g_kbnk_drive` feeds only `kbnk_score`, which the dispatcher reaches only for
 bishop-plus-knight against a bare king. That reasoning is sound for those three
