@@ -1287,10 +1287,57 @@ enemy pawn near promotion that the engine declines to stop -- in
 pawn, and the engine plays `Rc8` instead. Two others require the rook to hold a
 specific rank or file that the engine abandons.
 
-That is a suggestive family of causes rather than one mechanism, and five cases
-do not establish it. 6.5.a stays open: the next step is to characterise these
-failures properly before proposing any term, because the one thing now
-established is that KRP-KR and KRPP-KRP do **not** share a fix.
+That was a suggestive family of causes rather than one mechanism, and five
+cases did not establish it. The characterisation below supersedes it and
+corrects two claims made above.
+
+**Characterisation with a control (`tools/diag/rook_ending_failure_profile.py`).**
+Listing features of losing moves proves nothing, because anything common in the
+family is common in its failures too. So every White-to-move node where the
+tablebase still says WIN was classified as PRESERVED or THREW and each feature
+compared across both groups. One feature separates them, and it separates
+enormously:
+
+| feature | KRP-KR preserved / threw | KRPP-KRP preserved / threw |
+|---|---|---|
+| **winning moves available** | **14.09 / 2.67** | **13.48 / 2.55** |
+| engine chose a pawn move | 0.108 / 0.500 | 0.198 / 0.364 |
+| enemy passer distance | n/a | 2.54 / 2.71 |
+| king closes on enemy passer | 0.000 / 0.000 | 0.021 / 0.000 |
+| rook to enemy passer's file | 0.000 / 0.000 | 0.039 / 0.182 |
+
+**Correction 1.** The claim that the two families do not share a fix is wrong.
+They share the dominant signature exactly: the engine holds the win while about
+fourteen of roughly twenty legal moves preserve it, and throws it almost only
+where about two and a half do.
+
+**Correction 2.** The earlier finding that only-move precision is NOT the
+explanation for KRP-KR is also wrong, and wrong for a specific reason worth
+keeping: that test counted winning moves at the ROOT. The engine navigates
+several correct moves and then errs at a narrow node, so root width is nearly
+uninformative. Measured at the node where the engine actually chose, precision
+is the dominant factor in both families. The enemy-passer hypothesis is not
+supported; the pawn-move tendency is real but secondary, and is what reaching
+for the natural move in a narrow position looks like.
+
+**What this implies for the mechanism, and it is not an evaluation term.** A
+static evaluation supplies a gradient over many moves; it cannot reliably pick
+two exact moves out of twenty. That is the same shape of conclusion 6.3.a
+reached, and it points away from the KRPKR/KRPPKRP scaling term as a fix for
+THIS defect -- draw scaling addresses the separate drawn-share bias of BAS-E32,
+which remains real and unaddressed.
+
+**The measurement conditions matter here more than usual.** `configure_engine`
+deliberately clears `SyzygyPath` so the harness measures the evaluator's own
+knowledge rather than the tables. Basilisk supports in-search Syzygy
+(`src/syzygy.cpp`), and every failure profiled here is a position the engine
+would play perfectly with tablebases enabled. Before spending evaluator
+complexity on narrow-window rook precision, 6.5 must decide whether the
+deployment configuration carries tablebases; if it does, this failure class is
+largely an artifact of a deliberately TB-blind instrument, and the drawn-share
+bias is the part that survives.
+
+6.5.a stays open pending that scope decision.
 
 - [ ] **6.6** Gate Group B.
   - [ ] **6.6.a** Require paired truth improvement and no family veto.
