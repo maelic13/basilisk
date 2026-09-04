@@ -52,6 +52,9 @@ def parse_int(value: str) -> int:
     return int(value, 0)
 
 
+MAX_SUPPORTED_MEN = 7
+
+
 def parse_family(spec: str) -> tuple[tuple[int, ...], tuple[int, ...]]:
     try:
         strong_text, weak_text = spec.split("-")
@@ -69,8 +72,16 @@ def parse_family(spec: str) -> tuple[tuple[int, ...], tuple[int, ...]]:
             pieces.append(PIECE_OF[symbol])
         parsed.append(tuple(pieces))
 
-    if 2 + len(parsed[0]) + len(parsed[1]) > 6:
-        raise ValueError(f"{spec!r} exceeds the available 6-man tables")
+    # Six-man Syzygy is complete locally; seven-man tables are fetched per
+    # family because each is tens of gigabytes. The probe is the real authority
+    # on what resolves, so this guard exists to fail with a useful message
+    # rather than a MissingTableError mid-generation.
+    men = 2 + len(parsed[0]) + len(parsed[1])
+    if men > MAX_SUPPORTED_MEN:
+        raise ValueError(
+            f"{spec!r} has {men} men; this generator supports up to "
+            f"{MAX_SUPPORTED_MEN}. Install the table and raise the limit."
+        )
     return parsed[0], parsed[1]
 
 
@@ -111,9 +122,12 @@ def random_position(
     return board
 
 
-def syzygy_inventory(path: Path) -> dict[str, int | str]:
+def syzygy_inventory(paths) -> dict[str, int | str]:
+    if isinstance(paths, Path):
+        paths = [paths]
     entries = sorted(
         (item.name, item.stat().st_size)
+        for path in paths
         for item in path.iterdir()
         if item.is_file() and item.suffix.lower() in {".rtbw", ".rtbz"}
     )
@@ -133,7 +147,7 @@ def epd_line(record: dict) -> str:
     )
 
 
-def verify_manifest(manifest_path: Path, syzygy_path: Path) -> dict:
+def verify_manifest(manifest_path: Path, syzygy_paths) -> dict:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     if manifest.get("schema") != SCHEMA:
         raise ValueError(f"unsupported schema: {manifest.get('schema')!r}")
@@ -157,7 +171,9 @@ def verify_manifest(manifest_path: Path, syzygy_path: Path) -> dict:
     if actual_lines != expected_lines:
         raise ValueError("EPD lines do not match manifest records")
 
-    tb = chess.syzygy.open_tablebase(str(syzygy_path))
+    tb = chess.syzygy.open_tablebase(str(syzygy_paths[0]))
+    for extra in syzygy_paths[1:]:
+        tb.add_directory(str(extra))
     try:
         for record in records:
             board = chess.Board(record["fen"])
@@ -193,7 +209,9 @@ def generate(args: argparse.Namespace) -> tuple[Path, Path, dict]:
     summaries: dict[str, dict] = {}
     seen: set[str] = set()
 
-    tb = chess.syzygy.open_tablebase(str(args.syzygy))
+    tb = chess.syzygy.open_tablebase(str(args.syzygy[0]))
+    for extra in args.syzygy[1:]:
+        tb.add_directory(str(extra))
     try:
         for family in families:
             strong, weak = specs[family]
@@ -302,7 +320,7 @@ def generate(args: argparse.Namespace) -> tuple[Path, Path, dict]:
         "per_family": args.per_family,
         "target_clean_win_share": args.win_share,
         "min_clean_win_abs_dtz": args.min_win_dtz,
-        "syzygy": str(args.syzygy.resolve()),
+        "syzygy": [str(d.resolve()) for d in args.syzygy],
         "syzygy_inventory": syzygy_inventory(args.syzygy),
         "python_chess": chess.__version__,
         "unverifiable_at_6_men": UNVERIFIABLE_AT_6_MEN,
@@ -323,7 +341,14 @@ def main() -> int:
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("--syzygy", required=True, type=Path)
+    parser.add_argument(
+        "--syzygy",
+        required=True,
+        action="append",
+        type=Path,
+        help="Syzygy directory; repeat to add more, e.g. the 3-4-5-6 set plus a "
+             "separate seven-man directory.",
+    )
     action = parser.add_mutually_exclusive_group(required=True)
     action.add_argument("--out", type=Path)
     action.add_argument("--verify", type=Path, metavar="MANIFEST")
@@ -336,8 +361,9 @@ def main() -> int:
     parser.add_argument("--stall-attempts", type=int, default=8_000)
     args = parser.parse_args()
 
-    if not args.syzygy.is_dir():
-        parser.error(f"Syzygy path is not a directory: {args.syzygy}")
+    for directory in args.syzygy:
+        if not directory.is_dir():
+            parser.error(f"Syzygy path is not a directory: {directory}")
     if args.per_family <= 0:
         parser.error("--per-family must be positive")
     if not 0.0 <= args.win_share <= 1.0:
