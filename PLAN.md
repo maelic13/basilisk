@@ -1194,6 +1194,47 @@ assumed.
   - [ ] **6.5.c** Cover bishop-pawn families, including wrong-bishop/rook-pawn draw logic. Absorbs 6.3's KBP-K deficit, which is **7** positions at the current head (17/24 against the reference's 24/24), not the 15 the pre-6.1 arm showed; attack it as bishop-pawn technique, not king geometry (BAS-E48, BAS-E49).
   - [ ] **6.5.d** Add deterministic truth cases before coefficient fitting.
 
+**6.5.a is SPLIT: one half is derived, the other is not measurable.** No
+implementation yet; the leaf stays open.
+
+**KRPP-KRP cannot be validated with the installed tablebases.** It is seven men,
+and `D:/chess/tablebases/syzygy3456` stops at six -- `KRPPvKRP.rtbw` is absent,
+and the largest file in the set carries six pieces. 6.0.a already recorded this
+when the cohort was frozen, and it is the reason the family has no cohort rows:
+the frozen 770 positions cover twenty-one families and KRPP-KRP is not among
+them. Nothing can be derived from its truth failures, nothing can gate on them,
+and 6.6.a's "paired truth improvement" requirement is unsatisfiable for it. The
+options are to install seven-man tables, which is a very large download, to
+validate the family by a non-tablebase basis that 6.6 would have to accept, or
+to drop it from 6.5 and say so. That is a scope decision, not something to
+assume.
+
+**KRP-KR is measurable and the failure mode is derived.** At the frozen head it
+converts 17/24 against the reference's 24/24. The seven failures are not slow
+technique: **six are live truth discards**, at plies 0, 0, 2, 8, 10 and 10, so
+the engine leaves a won position outright rather than running out of clock.
+
+Two hypotheses were tested and one survives. *Only-move precision is NOT the
+explanation*: the engine converts five positions that have exactly one winning
+root move, and fails `EG0497`, which has fourteen. Median winning root moves are
+3.0 for converted and 2.0 for failed, which is not a separation.
+
+Replaying each failure to the exact losing move gives the pattern. In
+`EG0497`, `EG0501` and `EG0512` **the losing move is the passed-pawn push**,
+and in every one of those the winning alternatives are rook or king
+improvements -- `Kd6 Kd7 Ke7 Kf6 Kf7 Rd8 Rh7` instead of `h7`; `Rf4` instead of
+`d4`; `Kg5 Rd1 Rd3 Rd4 Rd5` instead of `e5`. In `EG0496` the engine prefers a
+check, `Rf7+`, where the quiet `Kd5` wins. The candidate mechanism is therefore
+**premature passer advance in rook endings**: the pawn must be escorted, the
+rook or king improved first, and the engine's general passed-pawn advancement
+reward has no rook-ending brake.
+
+That is a derived hypothesis with a named mechanism and six worked cases, not a
+ported constant, so it satisfies the standard 6.3.a set. It is deliberately not
+implemented yet: it is a playing change, it needs its own registered gate, and
+committing to it while half the leaf is unmeasurable would fix the scope by
+accident.
+
 - [ ] **6.6** Gate Group B.
   - [ ] **6.6.a** Require paired truth improvement and no family veto.
   - [ ] **6.6.b** Run no-adjudication SPRT on the frozen Group A baseline.
