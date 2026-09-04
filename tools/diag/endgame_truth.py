@@ -77,6 +77,12 @@ DEFAULT_FAMILIES = [
 ]
 
 
+# Six-man Syzygy is complete locally; seven-man tables are fetched per family
+# (currently KRPPvKRP, in a separate directory) because each is tens of
+# gigabytes. Raise this only alongside the tables that justify it.
+MAX_SUPPORTED_MEN = 7
+
+
 def parse_family(spec: str) -> tuple[tuple[int, ...], tuple[int, ...]]:
     """"KRP-KR" -> ((ROOK, PAWN), (ROOK,)). Kings are implicit."""
     try:
@@ -93,8 +99,17 @@ def parse_family(spec: str) -> tuple[tuple[int, ...], tuple[int, ...]]:
                 raise ValueError(f"unknown piece {ch!r} in {spec!r}")
             pieces.append(PIECE_OF[ch])
         out.append(tuple(pieces))
-    if 2 + len(out[0]) + len(out[1]) > 6:
-        raise ValueError(f"{spec!r} exceeds 6 men; no table for it here")
+    # Seven men is allowed only where the table is actually installed. The
+    # 3-4-5-6 set is complete, so anything up to six men always resolves; above
+    # that, only the families whose tables were fetched deliberately do. The
+    # probe itself is the authority -- this check exists to fail with a useful
+    # message rather than a MissingTableError deep inside a playout.
+    men = 2 + len(out[0]) + len(out[1])
+    if men > MAX_SUPPORTED_MEN:
+        raise ValueError(
+            f"{spec!r} has {men} men; this harness supports up to "
+            f"{MAX_SUPPORTED_MEN}. Install the table and raise the limit."
+        )
     return out[0], out[1]
 
 
@@ -206,6 +221,21 @@ def load_cohort(path: Path) -> tuple[dict, dict[str, list[dict]]]:
             f"has {len(fens)} unique FENs"
         )
     return manifest, dict(by_family)
+
+
+def open_tablebases(paths) -> chess.syzygy.Tablebase:
+    """Open one or more Syzygy directories as a single tablebase.
+
+    The 3-4-5-6 set and the 7-man tables live in separate directories because
+    the seven-man files are enormous and are fetched per family. python-chess
+    resolves a probe by material key across every directory added, so a KRPP-KRP
+    probe finds the seven-man table while its six-man successors continue to
+    come from the original set.
+    """
+    tb = chess.syzygy.open_tablebase(str(paths[0]))
+    for extra in paths[1:]:
+        tb.add_directory(str(extra))
+    return tb
 
 
 def play_and_grade(
@@ -418,7 +448,7 @@ class EngineWorkerPool:
         engine = None
         tb = None
         try:
-            tb = chess.syzygy.open_tablebase(str(syzygy_path))
+            tb = open_tablebases(syzygy_path)
             engine = chess.engine.SimpleEngine.popen_uci(str(engine_path))
             configure_engine(engine, hash_mb, engine_options)
         except BaseException as exc:
@@ -483,7 +513,15 @@ class EngineWorkerPool:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--engine", required=True, type=Path)
-    parser.add_argument("--syzygy", required=True, type=Path)
+    parser.add_argument(
+        "--syzygy",
+        required=True,
+        action="append",
+        type=Path,
+        help="Syzygy directory; repeat to add more, e.g. the 3-4-5-6 set plus a "
+             "separate seven-man directory. Probes resolve by material key "
+             "across all of them.",
+    )
     parser.add_argument(
         "--cohort",
         type=Path,
@@ -549,8 +587,10 @@ def main() -> int:
     engine_path = args.engine.resolve()
     if not engine_path.is_file():
         parser.error(f"engine not found: {engine_path}")
-    if not args.syzygy.is_dir():
-        parser.error(f"syzygy path is not a directory: {args.syzygy}")
+    syzygy_dirs = [d.resolve() for d in args.syzygy]
+    for directory in syzygy_dirs:
+        if not directory.is_dir():
+            parser.error(f"syzygy path is not a directory: {directory}")
 
     cohort_path = args.cohort.resolve() if args.cohort else None
     cohort_manifest = None
@@ -592,7 +632,7 @@ def main() -> int:
         "schema": "basilisk-endgame-truth-v1",
         "engine": str(engine_path),
         "engine_sha256": sha256_file(engine_path),
-        "syzygy": str(args.syzygy.resolve()),
+        "syzygy": [str(d) for d in syzygy_dirs],
         "positions_per_family": args.positions if not cohort_path else None,
         "nodes_per_move": args.nodes,
         "max_plies": args.max_plies,
@@ -629,7 +669,7 @@ def main() -> int:
             ),
         }
 
-    tb = chess.syzygy.open_tablebase(str(args.syzygy))
+    tb = open_tablebases(syzygy_dirs)
     engine = chess.engine.SimpleEngine.popen_uci(str(engine_path))
     executor = None
     try:
@@ -678,7 +718,7 @@ def main() -> int:
             executor = EngineWorkerPool(
                 args.workers,
                 engine_path,
-                args.syzygy.resolve(),
+                syzygy_dirs,
                 args.nodes,
                 args.max_plies,
                 args.hash,
