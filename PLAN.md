@@ -1327,17 +1327,29 @@ reached, and it points away from the KRPKR/KRPPKRP scaling term as a fix for
 THIS defect -- draw scaling addresses the separate drawn-share bias of BAS-E32,
 which remains real and unaddressed.
 
-**The measurement conditions matter here more than usual.** `configure_engine`
-deliberately clears `SyzygyPath` so the harness measures the evaluator's own
-knowledge rather than the tables. Basilisk supports in-search Syzygy
-(`src/syzygy.cpp`), and every failure profiled here is a position the engine
-would play perfectly with tablebases enabled. Before spending evaluator
-complexity on narrow-window rook precision, 6.5 must decide whether the
-deployment configuration carries tablebases; if it does, this failure class is
-largely an artifact of a deliberately TB-blind instrument, and the drawn-share
-bias is the part that survives.
+**Scope question resolved by the maintainer's 2026-09-04 tournament: the
+strength metric runs with TABLEBASES OFF.** `configure_engine` clears
+`SyzygyPath` so the harness measures the evaluator rather than the tables, and
+the natural worry was that this made the failure class an artifact. It does
+not. The 12,000-game Colosseum run that defines current standing -- 3s+30ms,
+round robin, two games per pair, no draw or resign adjudication,
+UHO_Lichess_4852_v1 openings -- also has **tablebases off**. The harness is
+therefore blind in the same way the games are, so every narrow-window rook
+failure profiled above costs real measured Elo. The earlier hedge that this was
+"largely an artifact" is withdrawn.
 
-6.5.a stays open pending that scope decision.
+Two numbers from that run size the opportunity. **510 of 12,000 games (4.25%)
+end by the fifty-move rule**, which is the game-level signature of exactly this
+conversion failure -- though an unknown share of them are genuine theoretical
+draws, so it bounds the prize rather than measuring it. And the overall drawn
+share is 33.0%, the population in which BAS-E32's drawn-rook-ending bias lives.
+
+This does not resurrect an evaluation term as the fix. The profile still says
+the engine errs where about two of twenty moves win, which no gradient can
+reliably resolve. What changes is that the defect is worth solving, and that a
+search-side or knowledge-side answer must be judged against a TB-off metric.
+
+6.5.a stays open on the mechanism question, no longer on scope.
 
 - [ ] **6.6** Gate Group B.
   - [ ] **6.6.a** Require paired truth improvement and no family veto.

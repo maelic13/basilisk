@@ -2430,6 +2430,37 @@ ten-minute budget. Five suites were run individually instead and all passed;
 the sanitized build is functional, but no claim is made about the complete
 sanitized run.
 
+**BAS-X11 - current standing, 12,000-game Colosseum round robin** (2026-09-04,
+maintainer-run). Conditions: 3s+30ms, two games per pair, parallel 10, no draw
+or resign adjudication, UHO_Lichess_4852_v1 openings, **tablebases off**.
+
+| engine | pool Elo | avg nps | avg depth |
+|---|---:|---:|---:|
+| Basilisk 1.10.0dev | 2955 | 2.3M | 14.2 |
+| Basilisk 1.9.3 | 2951 | 2.2M | 14.1 |
+| Rarog 2.4.0dev | 2907 | 2.0M | 14.6 |
+| Rarog 2.3.2 | 2903 | 2.1M | 14.7 |
+
+Head-to-head over 2,000 games each: 1.10.0dev over 1.9.3 **+16.0 +/- 15.2**;
+1.10.0dev over Rarog 2.4.0dev +28.4 +/- 15.3; 1.9.3 over Rarog 2.4.0dev
++32.1 +/- 15.3.
+
+*Read conservatively.* The dev-over-release margin barely excludes zero at
+2,000 games, so the accumulated Phase 5-6 work is probably positive and not
+firmly established by this run. Note also that 1.9.3 scores nominally BETTER
+against Rarog 2.4.0dev than 1.10.0dev does, by 3.7 Elo -- comfortably inside
+the interval, and a caution against reading the pool table as a clean ordering.
+
+*Three things it does establish.* First, the strength metric is TB-OFF, which
+resolves 6.5.a's scope question: endgame failures the truth harness finds are
+not artifacts of a TB-blind instrument, because the games are equally blind.
+Second, **510 of 12,000 games (4.25%) end by the fifty-move rule**, the
+game-level signature of conversion failure, bounding the Phase 6 prize; the
+overall drawn share is 33.0%. Third, **Rarog reaches greater depth on fewer
+nodes** -- 14.6 ply at 2.0M nps against Basilisk's 14.2 at 2.3M -- which
+corroborates BAS-X09's search-coordination deficit as still present rather than
+closed.
+
 **BAS-E40 — 6.1.d: both bishop-dependent KBNK remedies stay closed, and the
 reason is now stronger than their refutations** (2026-09-03). No new games were
 run; this entry registers the closure and its retry triggers.
