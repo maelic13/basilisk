@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <span>
 #include <type_traits>
 
 // Tunable evaluation weights for Basilisk's HCE eval.
@@ -379,6 +380,19 @@ template<typename T>
 inline const int* eval_param_cptr(const T& v) {
     if constexpr (std::is_array_v<T>) return v;
     else return &v;
+}
+
+// Span forms. The X-macro already knows each field's length, so carrying it
+// alongside a bare pointer -- in a std::pair, or as a second loop bound -- is
+// an invitation to pass the wrong one. A span makes the length intrinsic and
+// bounds-checkable, and compiles to the same code.
+template<typename T>
+inline std::span<int> eval_param_span(T& v, size_t len) {
+    return std::span<int>(eval_param_ptr(v), len);
+}
+template<typename T>
+inline std::span<const int> eval_param_cspan(const T& v, size_t len) {
+    return std::span<const int>(eval_param_cptr(v), len);
 }
 
 // ---- X-macro parameter registry -------------------------------------------

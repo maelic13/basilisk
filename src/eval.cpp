@@ -59,11 +59,11 @@ static constexpr int PST_EG_BASE[7] = {
 int reconstruct(const EvalTrace& tr, const EvalParams& w) {
     int mg_dot = 0, eg_dot = 0;
 #define X(name, member, len) \
-    { const int* wptr = eval_param_cptr(w.member); \
+    { const auto weights = eval_param_cspan(w.member, (len)); \
       int base = eval_param_offset(EPG_##name); \
-      for (int i = 0; i < (len); i++) { \
-          mg_dot += tr.mg[base + i] * wptr[i]; \
-          eg_dot += tr.eg[base + i] * wptr[i]; \
+      for (size_t i = 0; i < weights.size(); i++) { \
+          mg_dot += tr.mg[base + int(i)] * weights[i]; \
+          eg_dot += tr.eg[base + int(i)] * weights[i]; \
       } }
     EVAL_PARAM_LIST(X)
 #undef X
@@ -1880,9 +1880,9 @@ int Evaluator::evaluate(const Board& b) {
 void run_dumpeval() {
     const EvalParams& p = g_eval_params;
 #define X(name, member, len) \
-    { const int* ptr = eval_param_cptr(p.member); \
-      for (int i = 0; i < (len); i++) \
-          std::cout << #name << " " << i << " " << ptr[i] << "\n"; }
+    { const auto values = eval_param_cspan(p.member, (len)); \
+      for (size_t i = 0; i < values.size(); i++) \
+          std::cout << #name << " " << i << " " << values[i] << "\n"; }
     EVAL_PARAM_LIST(X)
 #undef X
     std::cout.flush();
@@ -1891,9 +1891,11 @@ void run_dumpeval() {
 // Load "name index value" lines from filename into p, then rebuild eval tables.
 // Unknown names are a hard error; indices out of range are a hard error.
 static void load_eval_params(const char* filename, EvalParams& p) {
-    std::unordered_map<std::string, std::pair<int*, int>> table;
+    // A span rather than a {pointer, length} pair: the length travels with the
+    // data, so the range check below cannot consult the wrong one.
+    std::unordered_map<std::string, std::span<int>> table;
 #define X(name, member, len) \
-    table[#name] = {eval_param_ptr(p.member), (len)};
+    table[#name] = eval_param_span(p.member, (len));
     EVAL_PARAM_LIST(X)
 #undef X
 
@@ -1916,13 +1918,13 @@ static void load_eval_params(const char* filename, EvalParams& p) {
         if (it == table.end())
             throw std::runtime_error("Unknown eval param '" + name
                                      + "' at line " + std::to_string(lineno));
-        auto [ptr, len] = it->second;
-        if (idx < 0 || idx >= len)
+        const std::span<int> slot = it->second;
+        if (idx < 0 || size_t(idx) >= slot.size())
             throw std::runtime_error("Index " + std::to_string(idx)
                                      + " out of range for '" + name
-                                     + "' (length " + std::to_string(len)
+                                     + "' (length " + std::to_string(slot.size())
                                      + ") at line " + std::to_string(lineno));
-        ptr[idx] = val;
+        slot[size_t(idx)] = val;
     }
 }
 

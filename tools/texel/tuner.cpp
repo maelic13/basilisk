@@ -220,8 +220,8 @@ static TuneOptions parse_tune_options(int argc, char* argv[]) {
 static void read_weights(const EvalParams& p, double* w) {
     int idx = 0;
 #define X(name, member, len) \
-    { const int* ptr = eval_param_cptr(p.member); \
-      for (int i = 0; i < (len); i++) w[idx++] = static_cast<double>(ptr[i]); }
+    { const auto values = eval_param_cspan(p.member, (len)); \
+      for (int v : values) w[idx++] = static_cast<double>(v); }
     EVAL_PARAM_LIST(X)
 #undef X
 }
@@ -229,8 +229,8 @@ static void read_weights(const EvalParams& p, double* w) {
 static void write_weights(EvalParams& p, const double* w) {
     int idx = 0;
 #define X(name, member, len) \
-    { int* ptr = eval_param_ptr(p.member); \
-      for (int i = 0; i < (len); i++) ptr[i] = static_cast<int>(std::round(w[idx++])); }
+    { auto values = eval_param_span(p.member, (len)); \
+      for (int& v : values) v = static_cast<int>(std::round(w[idx++])); }
     EVAL_PARAM_LIST(X)
 #undef X
 }
@@ -1305,8 +1305,9 @@ static void cmd_audit_coverage() {
     auto claim = [&](const std::vector<int>& idx, const char* who) {
         for (int i : idx) {
             if (i < 0 || i >= total) continue;
-            if (!owner[i].empty()) owner[i] += "+";
-            owner[i] += who;
+            const size_t slot = static_cast<size_t>(i);
+            if (!owner[slot].empty()) owner[slot] += "+";
+            owner[slot] += who;
         }
     };
 
@@ -1321,14 +1322,14 @@ static void cmd_audit_coverage() {
 
     std::map<std::string, int> tally;
     int uncovered = 0;
-    for (int i = 0; i < total; ++i) {
+    for (size_t i = 0; i < owner.size(); ++i) {
         if (owner[i].empty()) { ++uncovered; tally["** UNCOVERED **"]++; }
         else tally[owner[i]]++;
     }
 
     std::printf("By instrument:\n");
-    for (const auto& kv : tally)
-        std::printf("  %-22s %5d\n", kv.first.c_str(), kv.second);
+    for (const auto& [instrument, count] : tally)
+        std::printf("  %-22s %5d\n", instrument.c_str(), count);
 
     if (uncovered == 0) {
         std::printf("\nEVERY parameter is claimed by an instrument.\n");
@@ -1339,7 +1340,8 @@ static void cmd_audit_coverage() {
     for (int g = 0; g < int(EPG_COUNT); ++g) {
         const int base = eval_param_offset(g), len = EVAL_PARAM_LENS[g];
         int n = 0;
-        for (int i = base; i < base + len; ++i) if (owner[i].empty()) ++n;
+        for (int i = base; i < base + len; ++i)
+            if (owner[static_cast<size_t>(i)].empty()) ++n;
         if (n) std::printf("  %-28s %4d of %4d\n", EVAL_GROUP_NAMES[g], n, len);
     }
 }

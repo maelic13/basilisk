@@ -200,6 +200,11 @@ Run this checklist in order; PLAN.md owns rationale and gates.
   - [ ] **7.11.b** Ablate new mechanisms and low-information fitted coordinates
   - [ ] **7.11.c** Compare held-out loss, truth quality and game strength against the pre-Phase-7 head and selected HCE references
   - [ ] **7.11.d** Archive the final surface, corpus policy, fit/tune artifacts and retry triggers
+- [ ] **7.12** Optimise the frozen evaluator's cost without changing what it computes
+  - [ ] **7.12.a** Profile per term and per phase on a phase-balanced corpus first
+  - [ ] **7.12.b** Optimise measured hot terms bit-exactly; exact bench identity is the acceptance test
+  - [ ] **7.12.c** Audit lazy-eval and early-exit thresholds against the final surface
+  - [ ] **7.12.d** Gate on interleaved idle-machine NPS plus a no-adjudication SPRT
 
 ## Phase 8 — Classical search and release
 
@@ -247,6 +252,11 @@ Run this checklist in order; PLAN.md owns rationale and gates.
   - [ ] **8.9.a** Reproduce clean PGO binaries and manifests with the frozen toolchains
   - [ ] **8.9.b** Pass cumulative 1.9.3 and external-cohort matches
   - [ ] **8.9.c** Publish the warranted version from measured cumulative strength
+- [ ] **8.10** Optimise search and board throughput against a measured bottleneck
+  - [ ] **8.10.a** Locate the deficit first: BAS-X11 shows more nps and less depth than Rarog, so nodes-to-depth is the gap, not raw speed
+  - [ ] **8.10.b** Profile make/unmake, movegen, the growable undo history and TT access; confirm PEXT behaves as assumed
+  - [ ] **8.10.c** Attack SMP scaling: false sharing on shared counters and TT clusters, and time-to-depth per thread count
+  - [ ] **8.10.d** Hold to exact bench identity, then gate NPS and a no-adjudication SPRT at 1T and 4T
 
 ## Phase 9 — NNUE runway
 

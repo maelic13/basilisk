@@ -282,6 +282,13 @@ add_test(NAME test_endgames     COMMAND test_endgames
 # ---------------------------------------------------------------------------
 option(PORTABLE_BUILD "Build without host-specific CPU flags for distributable binaries" OFF)
 option(TUNE "Expose search constants as UCI spin options for SPSA tuning (sets BASILISK_TUNE)" OFF)
+# Warnings are only a signal if something enforces them. The tree builds clean
+# under -Wall -Wextra -Wpedantic -Wshadow -Wconversion, and -Wconversion in
+# particular catches real defects, so the default is to fail on any warning.
+# It stays an OPTION because a newer compiler can invent a warning this tree has
+# not seen: -DWARNINGS_AS_ERRORS=OFF unblocks a build without editing this file
+# or weakening the flag set.
+option(WARNINGS_AS_ERRORS "Treat compiler warnings as errors" ON)
 option(TEXEL "Build Texel trace+tuner target basilisk-texel (sets TEXEL_TRACE; implies BASILISK_TUNE)" OFF)
 set(BASILISK_PGO "OFF" CACHE STRING "Profile-guided optimization phase: OFF, GENERATE, or USE")
 set_property(CACHE BASILISK_PGO PROPERTY STRINGS OFF GENERATE USE)
@@ -306,6 +313,7 @@ if(TEXEL)
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         target_compile_options(basilisk-texel PRIVATE
             -Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wno-unused-parameter
+            $<$<BOOL:${WARNINGS_AS_ERRORS}>:-Werror>
             $<$<CONFIG:Release>:-O3>
             $<$<AND:$<CONFIG:Release>,$<NOT:$<BOOL:${PORTABLE_BUILD}>>>:-march=native>
             $<$<CONFIG:Debug>:-O0 -g3>
@@ -362,6 +370,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
             -Wshadow
             -Wconversion
             -Wno-unused-parameter
+            $<$<BOOL:${WARNINGS_AS_ERRORS}>:-Werror>
             $<$<CONFIG:Release>:-O3>
             $<$<AND:$<CONFIG:Release>,$<NOT:$<BOOL:${PORTABLE_BUILD}>>>:-march=native>
             $<$<CONFIG:RelWithDebInfo>:-O2 -g>

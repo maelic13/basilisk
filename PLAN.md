@@ -1476,6 +1476,21 @@ The target is a mature final classical evaluator, not merely another fit.
   - [ ] **7.11.c** Compare held-out loss, truth quality and game strength against the pre-Phase-7 head and selected HCE references.
   - [ ] **7.11.d** Archive the final surface, corpus policy, fit/tune artifacts and retry triggers.
 
+### 7.12 Evaluation throughput optimisation
+
+- [ ] **7.12** Optimise the frozen evaluator's cost without changing what it computes.
+  - [ ] **7.12.a** Profile the evaluator on a phase-balanced corpus; attribute cost per term and per phase before touching anything.
+  - [ ] **7.12.b** Optimise only measured hot terms, keeping the evaluation bit-exact: exact `bench` identity is the acceptance test, and any score change means the step failed rather than succeeded.
+  - [ ] **7.12.c** Audit lazy-eval and early-exit thresholds against the final surface, since 7.x may have moved which terms dominate.
+  - [ ] **7.12.d** Gate on NPS measured on an idle machine with interleaved repeats, plus a no-adjudication SPRT; a throughput gain that does not convert is recorded and not shipped.
+
+Step 7.12 exists because evaluation cost is only worth attacking once the
+surface is frozen: optimising a moving evaluator wastes the work twice. It is
+deliberately a **bit-exactness** step. Anything that changes a score belongs to
+7.10 or earlier, and exact bench identity is what separates the two -- with the
+6.1.f caveat that identity is necessary and not sufficient, since a bench suite
+covers only the positions it contains.
+
 ## 8. Classical search consolidation and release
 
 The final HCE invalidates assumptions embedded in centipawn margins and changes
@@ -1557,6 +1572,21 @@ toolchain that will actually ship.
   - [ ] **8.9.a** Reproduce clean PGO binaries and manifests with the frozen toolchains.
   - [ ] **8.9.b** Pass cumulative 1.9.3 and external-cohort matches.
   - [ ] **8.9.c** Publish the warranted version from measured cumulative strength.
+
+### 8.10 Search and board throughput optimisation
+
+- [ ] **8.10** Optimise search and board throughput against a measured bottleneck.
+  - [ ] **8.10.a** Establish where the deficit actually is before optimising: BAS-X11 has Basilisk at 2.3M nps and 14.2 ply against Rarog's 2.0M and 14.6, so the engine is already FASTER per node and shallower per second. Raw NPS is not the gap; nodes-to-depth is.
+  - [ ] **8.10.b** Profile make/unmake, move generation, the undo history and TT access; treat the growable undo history and any per-node allocation as prime suspects, and confirm PEXT is doing what it is assumed to.
+  - [ ] **8.10.c** Attack SMP scaling specifically, which BAS-X05 sized as a real sibling gap: check false sharing on shared counters and TT clusters with explicit alignment, and measure time-to-depth per thread count rather than NPS alone.
+  - [ ] **8.10.d** Hold every optimisation to exact `bench` identity, then gate NPS on an idle machine with interleaved repeats and confirm with a no-adjudication SPRT at 1T and 4T.
+
+Step 8.10 is placed after the release rather than before it because throughput
+work is the one class of change that cannot alter play, so it never needs to
+block a strength release. Its first substep is deliberately a measurement:
+BAS-X11 shows the sibling deficit is depth per node, not nodes per second, so
+optimising the board would widen an advantage the engine does not lack. The
+plan records that so a future agent does not reach for the obvious lever.
 
 ## 9. NNUE runway
 
