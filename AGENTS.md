@@ -94,6 +94,13 @@ changing experimental meaning after exposure.
   promotion/material-shed closure, and diagnostic/deployment budget mismatch.
   When an important interaction is cheaply separable, prefer a bounded
   baseline/A/B/A+B screen; this is not a demand to factorial-test every change.
+- **Recommend before you document.** When research reaches a decision the
+  maintainer is present to make, the first output is a short recommendation
+  with its evidence and its main counter-argument -- not a packet. Write the
+  full `analysis/` packet once the direction is chosen, or when the maintainer
+  asks for it, or when the leaf will be handed off and returned to later. A
+  packet written to answer a question that is about to be settled in one
+  sentence spends the maintainer's clock on an artifact nobody needed yet.
 - Price the experiment before substantial work: maintainer time, agent effort,
   CPU/game budget, implementation complexity and future maintenance burden.
   Prefer cheap discriminating evidence to elaborate implementation of an
@@ -229,5 +236,12 @@ Completed historical model tags may remain unchanged.
   unless the maintainer explicitly asks.
 - Preserve unrelated maintainer changes and keep generated result artifacts out
   of source commits unless the roadmap explicitly requires them.
+- **Every report opens with a one-line recommendation** -- what to do next and
+  why, in one sentence, before any evidence. "Revert it; 1.22% NPS is too
+  expensive for a defect that has never cost a game" is a recommendation.
+  "Here is the measurement, the decision is yours" is not, and neither is a
+  command handed over with a caveat explaining why it will not work. Evidence
+  and options come after the line, and a genuine judgement call still ends with
+  the agent's own position stated plainly.
 - End-step reports are short: outcome, essential verification, commit, any
   separate findings/ideas, and the exact next unchecked leaf.

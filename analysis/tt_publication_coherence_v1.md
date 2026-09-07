@@ -347,3 +347,23 @@ The word layout is **2.7 percentage points faster than the rejected tag** and is
 what `dev` now carries. Whether ~-2.4 Elo is an acceptable price for closing a
 wrong-position cutoff is a maintainer judgement, not a measurement, and it is
 the question the registered 4T gate now asks.
+
+## Closure (2026-09-07) — `NO_CHANGE`, risk accepted
+
+Maintainer decision after seeing the -1.22%: revert to plain-key and record the
+incoherence as an accepted risk. Neither repair ships.
+
+Reasoning, in the order that decided it: ~2.4 Elo is a quarter of the entire
+BAS-P01 speed wave; the defect has never cost a measured game; Stockfish ships
+this same tolerance in this same 10-byte structure; and coherence is not
+purchasable at this density, since key+score+eval+depth+flag+move needs 80 bits
+against a 64-bit word. No game gate was run, because a `[-5,0]` SPRT on a true
+value near -2.4 sits between the hypotheses and cannot terminate.
+
+The risk is now recorded where the next reader will hit it -- the `src/tt.h`
+comment that used to assert the mismatch was "harmless ... bounds validated",
+and `DESIGN.md` section 3 -- rather than only in this packet. That correction
+is the durable output of this leaf; the two rejected implementations are not.
+
+Retry trigger: see the BAS-C05 row in the open retry map. Reasoning alone does
+not reopen it. Both repairs were correct, and both lost Elo.

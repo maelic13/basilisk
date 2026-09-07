@@ -87,35 +87,37 @@ line names where it lives.
   families the safety argument already excluded.
 
 ### Transposition table
-- 32-byte cluster, 3 entries, 10-byte slots (`src/tt.h`).
-- **Every field that can decide a bound, a cutoff or an extension is published
-  in one atomic 64-bit word together with its partial key**: `key16 |
-  score16<<16 | eval16<<32 | depth8<<48 | flag_age8<<56`, exactly 64 bits with
-  none spare (BAS-C05). A reader therefore cannot pair a matching key with
-  another position's bound — the tear is unrepresentable, not merely detected.
-  This is load-bearing for the depth-preferred cutoff at `src/search.cpp:1589`
-  and the singular multicut at `src/search.cpp:1967`, both of which return a
-  TT-derived score. `tt_layout_check` in `src/tt.h` static-asserts the
-  round-trip; widening any field is a build failure.
-- **`move16` is explicitly outside that guarantee**, because there are no spare
-  bits. Under SMP it may come from a different publication, so **every consumer
-  must validate it before use** — `MovePicker` checks piece/colour/`is_legal`
+- 32-byte cluster, 3 entries, 10-byte slots: a plain 16-bit partial key plus an
+  8-byte payload (`score16|eval16|move16|depth8|flag_age8`) (`src/tt.h`).
+- **The key and the payload are two separate publications, and that incoherence
+  is an ACCEPTED RISK, not a harmless race** (BAS-C05, decided 2026-09-07).
+  Under SMP a reader can match its key against one store and consume the
+  score/depth/bound of another position's store. Nothing downstream catches it:
+  `src/search.cpp:1589` returns `tt_score` as the node value on a
+  depth-and-bound match with no verification, and `src/search.cpp:1967`
+  multicuts on a singular beta derived from it. Worst case is a foreign mate
+  score reaching the root. Do not repeat the pre-2026-09-07 claim that a
+  mismatched pair is "harmless" because bounds are validated — they are not.
+- **Why it is accepted.** Both repairs cost more than the defect, measured at
+  identical bench nodes with `tools/nps_ab.ps1`: the `key16 ^ fold16(payload)`
+  tag **-3.91% NPS** (~-7.8 Elo), and packing the whole validated record into
+  one atomic word **-1.22%** (~-2.4 Elo, 95% CI [-1.72%, -0.76%]). Coherence
+  cannot be free at this density — key+score+eval+depth+flag+move needs 80 bits
+  and the word holds 64 — and Stockfish ships this same tolerance in this same
+  structure. Reopen only on the BAS-C05 retry trigger.
+- `move16` likewise has no publication guarantee, and **every consumer must
+  validate it** — `MovePicker` checks piece/colour/`is_legal`
   (`src/search.cpp:792`), `ponder_from_tt` checks legality, qsearch only
-  compares it against generated legal moves. A foreign move can mis-order a
-  node; it can never produce a wrong bound or an illegal move. All `Move`
-  accessors mask (`src/move.h:41`), so any 16-bit value decodes in-bounds.
-- All fields are **relaxed** atomics, and that is deliberate: atomicity of the
-  single word is the entire requirement for the validated record, and the only
-  cross-field pairing left (word/move) is the one carrying no guarantee.
+  compares it against generated legal moves. All `Move` accessors mask
+  (`src/move.h:41`), so any 16-bit value decodes in-bounds.
 - Detection strength against a genuinely different position is the plain 16-bit
-  partial-key collision, 1/65536 — unchanged from the pre-BAS-C05 scheme.
-- An empty slot is `(word 0, move 0)`, which decodes to `key16 == 0`. The
-  `flag_age` check is what rejects it when `want == 0`. Preserve that.
-- **Coherence must not be bought with throughput.** The rejected
-  `key16 ^ fold16(payload)` tag was correct and cost **3.91% NPS at identical
-  node counts** (~-7.8 Elo at BAS-P01's ratio), because a probe could no longer
-  reject a slot without loading and folding the payload. Any future scheme is
-  measured at 1T with `tools/nps_ab.ps1` before it is gated on games.
+  partial-key collision, 1/65536.
+- An empty slot is `(data 0, key16 0)`. The `flag_age` check is what rejects it
+  when `want == 0`. Preserve that.
+- **Coherence must not be bought with throughput.** Any future scheme is
+  measured at 1T with `tools/nps_ab.ps1` — pooled, >=2 PGO builds per arm —
+  before it is gated on games. A bench-identical correctness repair can still be
+  a pure speed regression; that is how both BAS-C05 candidates died.
 
 ### Match and measurement
 - **Score-based adjudication is off by default in every tool.** Opt-in runs
