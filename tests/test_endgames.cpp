@@ -61,7 +61,7 @@ static int eval_white(const std::string& fen) {
     b.set_fen(fen);
     Evaluator ev;
     int s = ev.evaluate(b);
-    return (b.side_to_move == WHITE) ? s : -s;
+    return (b.turn() == WHITE) ? s : -s;
 }
 
 static Move best_move(Board& b, int depth, int64_t node_cap = 0) {
@@ -89,7 +89,7 @@ static int mate_playout_plies(const std::string& fen, Color winner,
         if (ml.empty()) {
             // Terminal: checkmate only if the side to move is in check, and the
             // mated side must be the loser (opponent of the winner).
-            if (b.is_in_check() && b.side_to_move == ~winner) return ply;
+            if (b.is_in_check() && b.turn() == ~winner) return ply;
             return -1;  // stalemate or the wrong side mated — a false result
         }
         Move m = best_move(b, depth, node_cap);
@@ -414,8 +414,8 @@ static void test_kbnk_keeps_both_minors() {
         if (m == MOVE_NONE)
             break;
         b.make_move(m);
-        if (popcount(b.pieces[WHITE][BISHOP]) != 1
-            || popcount(b.pieces[WHITE][KNIGHT]) != 1) {
+        if (popcount(b.piece_bb(WHITE, BISHOP)) != 1
+            || popcount(b.piece_bb(WHITE, KNIGHT)) != 1) {
             keeps_both = false;
             break;
         }

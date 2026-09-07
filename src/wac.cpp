@@ -114,7 +114,7 @@ bool wac_san_matches(const Board& board, Move mv, const std::string& raw_san) {
     san.erase(std::remove(san.begin(), san.end(), 'x'), san.end());
     if (san.size() < 2) return false;
 
-    if (type_of(board.board_sq[from_sq(mv)]) != piece) return false;
+    if (type_of(board.piece_on(from_sq(mv))) != piece) return false;
 
     // Destination square.
     const Square to = to_sq(mv);

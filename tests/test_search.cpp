@@ -165,7 +165,7 @@ static std::vector<std::string> collect_info_lines_with_tt_move(const char* fen,
 
     Board board;
     board.set_fen(fen);
-    tt.store(board.hash, depth + 4, 500, TT_EXACT, tt_move, 0, 0);
+    tt.store(board.position_key(), depth + 4, 500, TT_EXACT, tt_move, 0, 0);
 
     SearchLimits limits;
     limits.depth = depth;
@@ -1016,7 +1016,7 @@ static void test_ponder_move_can_be_recovered_from_tt_child() {
     EXPECT(ponder != MOVE_NONE);
 
     TranspositionTable tt(4);
-    tt.store(child.hash, 4, 0, TT_EXACT, ponder, 1, 0);
+    tt.store(child.position_key(), 4, 0, TT_EXACT, ponder, 1, 0);
 
     std::atomic_bool stop{false};
     SearchLimits limits;

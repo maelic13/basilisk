@@ -94,7 +94,7 @@ static void test_san_matcher_rejects_wrong_piece_and_destination() {
     }
     EXPECT_EQ(matches, 1);
     EXPECT(matched != MOVE_NONE
-           && type_of(b.board_sq[from_sq(matched)]) == QUEEN
+           && type_of(b.piece_on(from_sq(matched))) == QUEEN
            && to_sq(matched) == G6);
     end_section();
 }

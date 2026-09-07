@@ -46,7 +46,7 @@ static std::string mirror_fen(const char* fen) {
         int empty = 0;
         for (int f = 0; f < 8; f++) {
             Square sq = make_square(File(f), Rank(orig_rank));
-            Piece  p  = orig.board_sq[sq];
+            Piece  p  = orig.piece_on(sq);
             if (p == NO_PIECE) { empty++; continue; }
             if (empty) { placement += static_cast<char>('0' + empty); empty = 0; }
             // Swap color: white piece becomes black and vice-versa
@@ -62,28 +62,28 @@ static std::string mirror_fen(const char* fen) {
     }
 
     // Flip side to move
-    char stm = (orig.side_to_move == WHITE) ? 'b' : 'w';
+    char stm = (orig.turn() == WHITE) ? 'b' : 'w';
 
     // Mirror castling rights: WK↔BK, WQ↔BQ
     std::string castling;
-    if (orig.castling_rights & BK_CASTLE) castling += 'K';
-    if (orig.castling_rights & BQ_CASTLE) castling += 'Q';
-    if (orig.castling_rights & WK_CASTLE) castling += 'k';
-    if (orig.castling_rights & WQ_CASTLE) castling += 'q';
+    if (orig.castling() & BK_CASTLE) castling += 'K';
+    if (orig.castling() & BQ_CASTLE) castling += 'Q';
+    if (orig.castling() & WK_CASTLE) castling += 'k';
+    if (orig.castling() & WQ_CASTLE) castling += 'q';
     if (castling.empty()) castling = "-";
 
     // Mirror EP square (flip rank)
     std::string ep = "-";
-    if (orig.ep_sq != SQ_NONE) {
-        Square mep = flip_rank(orig.ep_sq);
+    if (orig.ep_square() != SQ_NONE) {
+        Square mep = flip_rank(orig.ep_square());
         static const char files[] = "abcdefgh";
         static const char ranks[] = "12345678";
         ep  = std::string() + files[file_of(mep)] + ranks[rank_of(mep)];
     }
 
     return placement + " " + stm + " " + castling + " " + ep
-         + " " + std::to_string(orig.halfmove_clock)
-         + " " + std::to_string(orig.fullmove_number);
+         + " " + std::to_string(orig.rule50_count())
+         + " " + std::to_string(orig.fullmove());
 }
 
 // ---------------------------------------------------------------------------
@@ -247,7 +247,7 @@ static int eval_white_pov(const char* fen) {
     b.set_fen(fen);
     Evaluator ev;
     int v = ev.evaluate(b);
-    return (b.side_to_move == WHITE) ? v : -v;
+    return (b.turn() == WHITE) ? v : -v;
 }
 
 // Net signed activation count of the enemy-rook-behind-passer term, measured

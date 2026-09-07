@@ -147,7 +147,7 @@ static uint64_t make_unmake_workload(std::vector<Board>& boards, MoveList& ml) {
         b.gen_legal(ml);
         for (Move m : ml) {
             b.make_move(m);
-            do_not_optimize(b.all_occ);
+            do_not_optimize(b.all_pieces());
             b.unmake_move(m);
             ++ops;
         }

@@ -263,10 +263,10 @@ static void kpk_init() {
 static bool kpk_strong_wins(const Board& b, Color strong) {
     std::call_once(g_kpk_once, kpk_init);
     Color weak = ~strong;
-    Square psq = Square(lsb(b.pieces[strong][PAWN]));
-    Square wk  = b.king_sq[strong];
-    Square bk  = b.king_sq[weak];
-    int stm    = (b.side_to_move == strong) ? 0 : 1;
+    Square psq = Square(lsb(b.piece_bb(strong, PAWN)));
+    Square wk  = b.king_square(strong);
+    Square bk  = b.king_square(weak);
+    int stm    = (b.turn() == strong) ? 0 : 1;
 
     // Reorient so the pawn marches toward rank 8 (north).
     if (strong == BLACK) {
@@ -406,14 +406,14 @@ bool material_is(const MaterialCounts& actual, const MaterialCounts& pattern) {
 void record_endgame_occurrence(const Board& b, EndgameOccurrenceCounters& out) {
     // The largest named family has five non-king pieces. Avoid five popcounts
     // per side on every ordinary middlegame evaluation.
-    if (popcount(b.all_occ) > 7)
+    if (popcount(b.all_pieces()) > 7)
         return;
 
     ++out.classified;
     MaterialCounts side[NCOLORS];
     for (int c = 0; c < NCOLORS; ++c)
         for (int pt = PAWN; pt <= QUEEN; ++pt)
-            side[c][static_cast<size_t>(pt - PAWN)] = popcount(b.pieces[c][pt]);
+            side[c][static_cast<size_t>(pt - PAWN)] = popcount(b.piece_bb(c, pt));
 
     constexpr MaterialCounts BARE      = {0, 0, 0, 0, 0};
     constexpr MaterialCounts KRP       = {1, 0, 0, 1, 0};
@@ -492,7 +492,7 @@ void record_endgame_occurrence(const Board& b, EndgameOccurrenceCounters& out) {
             // family census even though the engine deliberately does not
             // override their search-solved mates (BAS-E30, BAS-E34); this
             // instrument measures family frequency, not kxk_score firings.
-            const Bitboard bishops = b.pieces[Color(orientation)][BISHOP];
+            const Bitboard bishops = b.piece_bb(Color(orientation), BISHOP);
             const bool bishop_pair =
                 (bishops & EG_DARK_SQUARES) && (bishops & ~EG_DARK_SQUARES);
             const bool can_mate = strong[4] > 0 || strong[3] > 0
@@ -509,9 +509,9 @@ void record_endgame_occurrence(const Board& b, EndgameOccurrenceCounters& out) {
 
 static int kbnk_score(const Board& b, Color strong) {
     Color  weak = ~strong;
-    Square sk   = b.king_sq[strong];
-    Square wksq = b.king_sq[weak];
-    Square bsq  = Square(lsb(b.pieces[strong][BISHOP]));
+    Square sk   = b.king_square(strong);
+    Square wksq = b.king_square(weak);
+    Square bsq  = Square(lsb(b.piece_bb(strong, BISHOP)));
 
     // The two same-coloured corners as the bishop are a diagonal pair.
     bool dark_bishop = (sq_bb(bsq) & EG_DARK_SQUARES) != 0;
@@ -538,8 +538,8 @@ static int kbnk_score(const Board& b, Color strong) {
           + diagonal * g_kbnk_drive.diagonal
           + (3  - edge_dist) * g_kbnk_drive.edge
           + (8  - king_dist) * g_kbnk_drive.king;
-    if (b.pieces[strong][KNIGHT])
-        v += (8 - KING_DIST[lsb(b.pieces[strong][KNIGHT])][wksq]) * g_kbnk_drive.knight;
+    if (b.piece_bb(strong, KNIGHT))
+        v += (8 - KING_DIST[lsb(b.piece_bb(strong, KNIGHT))][wksq]) * g_kbnk_drive.knight;
 
     return (strong == WHITE) ? v : -v;
 }
@@ -565,13 +565,13 @@ static int kbnk_score(const Board& b, Color strong) {
 // carried in the score so that KQ-K still outranks KR-K.
 static int kxk_score(const Board& b, Color strong) {
     const Color  weak = ~strong;
-    const Square wksq = b.king_sq[weak];
-    const Square sk   = b.king_sq[strong];
+    const Square wksq = b.king_square(weak);
+    const Square sk   = b.king_square(strong);
 
-    const int npm = popcount(b.pieces[strong][KNIGHT]) * EG_MAT[KNIGHT]
-                  + popcount(b.pieces[strong][BISHOP]) * EG_MAT[BISHOP]
-                  + popcount(b.pieces[strong][ROOK])   * EG_MAT[ROOK]
-                  + popcount(b.pieces[strong][QUEEN])  * EG_MAT[QUEEN];
+    const int npm = popcount(b.piece_bb(strong, KNIGHT)) * EG_MAT[KNIGHT]
+                  + popcount(b.piece_bb(strong, BISHOP)) * EG_MAT[BISHOP]
+                  + popcount(b.piece_bb(strong, ROOK))   * EG_MAT[ROOK]
+                  + popcount(b.piece_bb(strong, QUEEN))  * EG_MAT[QUEEN];
 
     // Only minor-piece mates reach here; the caller sends Q and R elsewhere.
     // That is what makes these weights safe: the attacker's material cannot
@@ -638,17 +638,17 @@ static constexpr int KRPPKRP_SCALE[RANK_NB] = { 0, 9, 10, 14, 21, 44, 0, 0 };
 
 static int krppkrp_scale(const Board& b, Color strong) {
     const Color weak = ~strong;
-    const Bitboard strong_pawns = b.pieces[strong][PAWN];
+    const Bitboard strong_pawns = b.piece_bb(strong, PAWN);
     const Square p1 = Square(lsb(strong_pawns));
     const Square p2 = Square(msb(strong_pawns));
 
     // A passed pawn changes the ending completely; the defender's blockade
     // argument does not apply and the material edge is real.
-    if (eg_pawn_passed(strong, p1, b.pieces[weak][PAWN])
-        || eg_pawn_passed(strong, p2, b.pieces[weak][PAWN]))
+    if (eg_pawn_passed(strong, p1, b.piece_bb(weak, PAWN))
+        || eg_pawn_passed(strong, p2, b.piece_bb(weak, PAWN)))
         return -1;
 
-    const Square wk = b.king_sq[weak];
+    const Square wk = b.king_square(weak);
     const int r = int(std::max(relative_rank(strong, p1), relative_rank(strong, p2)));
 
     // The defending king must be blockading: within one file of both pawns and
@@ -664,18 +664,18 @@ static int krppkrp_scale(const Board& b, Color strong) {
 
 static int krpkr_scale(const Board& b, Color strong) {
     const Color weak = ~strong;
-    const Square wk = relative_square(strong, b.king_sq[strong]);
-    const Square bk = relative_square(strong, b.king_sq[weak]);
-    const Square wr = relative_square(strong, Square(lsb(b.pieces[strong][ROOK])));
-    const Square br = relative_square(strong, Square(lsb(b.pieces[weak][ROOK])));
-    const Square wp = relative_square(strong, Square(lsb(b.pieces[strong][PAWN])));
+    const Square wk = relative_square(strong, b.king_square(strong));
+    const Square bk = relative_square(strong, b.king_square(weak));
+    const Square wr = relative_square(strong, Square(lsb(b.piece_bb(strong, ROOK))));
+    const Square br = relative_square(strong, Square(lsb(b.piece_bb(weak, ROOK))));
+    const Square wp = relative_square(strong, Square(lsb(b.piece_bb(strong, PAWN))));
 
     const int f = int(file_of(wp));
     const int r = int(rank_of(wp));
     const Square queening = make_square(File(f), RANK_8);
     // A tempo is worth a whole rank in these races, so every rule below that
     // compares king distances has to know who is to move.
-    const int tempo = (b.side_to_move == strong) ? 1 : 0;
+    const int tempo = (b.turn() == strong) ? 1 : 0;
 
     const auto dist  = [](Square a, Square c) { return KING_DIST[a][c]; };
     const auto fdist = [](Square a, Square c) {
@@ -749,10 +749,10 @@ static int krpkr_scale(const Board& b, Color strong) {
 // Returns a scale out of SCALE_NORMAL, or -1 for "this is not one of ours".
 static int rook_ending_scale(const Board& b) {
     // Exactly one rook a side and nothing else but kings and pawns.
-    if (popcount(b.pieces[WHITE][ROOK]) != 1 || popcount(b.pieces[BLACK][ROOK]) != 1)
+    if (popcount(b.piece_bb(WHITE, ROOK)) != 1 || popcount(b.piece_bb(BLACK, ROOK)) != 1)
         return -1;
-    const int wp = popcount(b.pieces[WHITE][PAWN]);
-    const int bp = popcount(b.pieces[BLACK][PAWN]);
+    const int wp = popcount(b.piece_bb(WHITE, PAWN));
+    const int bp = popcount(b.piece_bb(BLACK, PAWN));
     const Color strong = (wp >= bp) ? WHITE : BLACK;
     const int sp = std::max(wp, bp), dp = std::min(wp, bp);
     int scale = -1;
@@ -779,9 +779,9 @@ static int rook_ending_scale(const Board& b) {
 
 static int apply_endgame(const Board& b, int score) {
     auto lone_king = [&](Color c) {
-        return b.occupancy[c] == sq_bb(b.king_sq[c]);
+        return b.occupancy_bb(c) == sq_bb(b.king_square(c));
     };
-    int total_pawns = popcount(b.pieces[WHITE][PAWN] | b.pieces[BLACK][PAWN]);
+    int total_pawns = popcount(b.piece_bb(WHITE, PAWN) | b.piece_bb(BLACK, PAWN));
     bool scaled = false;
 
     // ---- Step 3.10 guard: the known-endgame rules (KNNK / KPK / KBNK / KBP /
@@ -791,11 +791,11 @@ static int apply_endgame(const Board& b, int score) {
     // avoids the per-node 12-popcount census in the opening/middlegame -- the cost
     // behind 3.5's fast-TC SPRT result.
     if (lone_king(WHITE) || lone_king(BLACK)
-        || !b.pieces[WHITE][PAWN] || !b.pieces[BLACK][PAWN]) {
+        || !b.piece_bb(WHITE, PAWN) || !b.piece_bb(BLACK, PAWN)) {
         int cnt[NCOLORS][PIECE_TYPE_NB];
         for (int c = 0; c < NCOLORS; c++)
             for (int pt = PAWN; pt <= QUEEN; pt++)
-                cnt[c][pt] = popcount(b.pieces[c][pt]);
+                cnt[c][pt] = popcount(b.piece_bb(c, pt));
 
         auto npm = [&](Color c) {
             return cnt[c][KNIGHT] * EG_MAT[KNIGHT] + cnt[c][BISHOP] * EG_MAT[BISHOP]
@@ -839,7 +839,7 @@ static int apply_endgame(const Board& b, int score) {
             // cost **+20.5% bench nodes** for no conversion gain (BAS-E34).
             if (cnt[strong][QUEEN] || cnt[strong][ROOK])
                 continue;
-            const Bitboard bb = b.pieces[strong][BISHOP];
+            const Bitboard bb = b.piece_bb(strong, BISHOP);
             const bool bishop_pair = (bb & EG_DARK_SQUARES) && (bb & ~EG_DARK_SQUARES);
             if (bishop_pair || (cnt[strong][BISHOP] && cnt[strong][KNIGHT]))
                 return kxk_score(b, strong);
@@ -852,7 +852,7 @@ static int apply_endgame(const Board& b, int score) {
                 continue;
             if (cnt[strong][KNIGHT] || cnt[strong][ROOK] || cnt[strong][QUEEN])
                 continue;
-            Bitboard pawns = b.pieces[strong][PAWN];
+            Bitboard pawns = b.piece_bb(strong, PAWN);
             bool all_a = (pawns & ~BB_FILES[FILE_A]) == 0;
             bool all_h = (pawns & ~BB_FILES[FILE_H]) == 0;
             if (!all_a && !all_h)
@@ -862,10 +862,10 @@ static int apply_endgame(const Board& b, int score) {
             bool promo_dark = (sq_bb(promo) & EG_DARK_SQUARES) != 0;
             // Wrong bishop = no bishop controls the promotion-square colour.
             Bitboard right_mask = promo_dark ? EG_DARK_SQUARES : ~EG_DARK_SQUARES;
-            bool has_right_bishop = (b.pieces[strong][BISHOP] & right_mask) != 0;
+            bool has_right_bishop = (b.piece_bb(strong, BISHOP) & right_mask) != 0;
             if (has_right_bishop)
                 continue;
-            if (KING_DIST[b.king_sq[weak]][promo] <= 1)
+            if (KING_DIST[b.king_square(weak)][promo] <= 1)
                 return 0; // defender holds the wrong-corner draw
         }
 
@@ -896,8 +896,8 @@ static int apply_endgame(const Board& b, int score) {
     // the middlegame path costs (+20.5% bench nodes).
     if (!scaled) {
         const Bitboard minors_queens =
-              b.pieces[WHITE][KNIGHT] | b.pieces[WHITE][BISHOP] | b.pieces[WHITE][QUEEN]
-            | b.pieces[BLACK][KNIGHT] | b.pieces[BLACK][BISHOP] | b.pieces[BLACK][QUEEN];
+              b.piece_bb(WHITE, KNIGHT) | b.piece_bb(WHITE, BISHOP) | b.piece_bb(WHITE, QUEEN)
+            | b.piece_bb(BLACK, KNIGHT) | b.piece_bb(BLACK, BISHOP) | b.piece_bb(BLACK, QUEEN);
         if (!minors_queens) {
             const int scale = rook_ending_scale(b);
             if (scale >= 0) {
@@ -946,7 +946,7 @@ void Evaluator::eval_pawns(const Board& b,
                            Bitboard attacks[NCOLORS]) {
 #ifndef TEXEL_TRACE
     // Cache lookup: skip recomputation if pawn structure matches.
-    Key pkey = b.pawn_key;
+    Key pkey = b.pawn_key_value();
     PawnEntry& pe = pawn_table_[pkey & (PAWN_TABLE_SIZE - 1)];
 
     ++pawn_probes;   // 8.7.1(c)
@@ -970,8 +970,8 @@ void Evaluator::eval_pawns(const Board& b,
         Color them = ~us;
         int sign   = (us == WHITE) ? 1 : -1;
 
-        Bitboard our_pawns   = b.pieces[us][PAWN];
-        Bitboard their_pawns = b.pieces[them][PAWN];
+        Bitboard our_pawns   = b.piece_bb(us, PAWN);
+        Bitboard their_pawns = b.piece_bb(them, PAWN);
 
         // Pawn attack map
         Bitboard pawn_atk = 0;
@@ -1119,7 +1119,7 @@ int Evaluator::evaluate(const Board& b) {
     for (int c = 0; c < NCOLORS; c++) {
         int sign = (c == WHITE) ? 1 : -1;
         for (int pt = PAWN; pt <= KING; pt++) {
-            Bitboard bb = b.pieces[c][pt];
+            Bitboard bb = b.piece_bb(c, pt);
             phase += popcount(bb) * PHASE_W[pt];
             while (bb) {
                 int sq = pop_lsb(bb);
@@ -1150,12 +1150,12 @@ int Evaluator::evaluate(const Board& b) {
     {
         int ic[NCOLORS][6];
         for (int c = 0; c < NCOLORS; c++) {
-            ic[c][0] = (popcount(b.pieces[c][BISHOP]) >= 2) ? 1 : 0;  // bishop pair
-            ic[c][1] = popcount(b.pieces[c][PAWN]);
-            ic[c][2] = popcount(b.pieces[c][KNIGHT]);
-            ic[c][3] = popcount(b.pieces[c][BISHOP]);
-            ic[c][4] = popcount(b.pieces[c][ROOK]);
-            ic[c][5] = popcount(b.pieces[c][QUEEN]);
+            ic[c][0] = (popcount(b.piece_bb(c, BISHOP)) >= 2) ? 1 : 0;  // bishop pair
+            ic[c][1] = popcount(b.piece_bb(c, PAWN));
+            ic[c][2] = popcount(b.piece_bb(c, KNIGHT));
+            ic[c][3] = popcount(b.piece_bb(c, BISHOP));
+            ic[c][4] = popcount(b.piece_bb(c, ROOK));
+            ic[c][5] = popcount(b.piece_bb(c, QUEEN));
         }
         int imbalance = 0;
         for (int i = 0; i < 6; i++) {
@@ -1191,14 +1191,14 @@ int Evaluator::evaluate(const Board& b) {
         while (pp) {
             Square psq = Square(pop_lsb(pp));
             Square stop = forward_square(us, psq);
-            if (stop == SQ_NONE || (b.all_occ & sq_bb(stop)))
+            if (stop == SQ_NONE || (b.all_pieces() & sq_bb(stop)))
                 continue;
 
             int rel_r = relative_rank(us, psq);
             mg += sign * (rel_r * p.pass_free_mg); TR_MG(PassFreeMg, 0, sign * rel_r);
             eg += sign * (rel_r * p.pass_free_eg); TR_EG(PassFreeEg, 0, sign * rel_r);
 
-            if (!b.is_attacked_by(stop, b.all_occ, them)) {
+            if (!b.is_attacked_by(stop, b.all_pieces(), them)) {
                 eg += sign * (rel_r * p.pass_safe_eg); TR_EG(PassSafeEg, 0, sign * rel_r);
             }
         }
@@ -1207,7 +1207,7 @@ int Evaluator::evaluate(const Board& b) {
     // ---- Bishop pair ----
     for (int c = 0; c < NCOLORS; c++) {
         int sign = (c == WHITE) ? 1 : -1;
-        if (more_than_one(b.pieces[c][BISHOP])) {
+        if (more_than_one(b.piece_bb(c, BISHOP))) {
             mg += sign * p.bp_mg; TR_MG(BpMg, 0, sign);
             eg += sign * p.bp_eg; TR_EG(BpEg, 0, sign);
         }
@@ -1218,13 +1218,13 @@ int Evaluator::evaluate(const Board& b) {
         int sign = (c == WHITE) ? 1 : -1;
         Color us   = Color(c);
         Color them = ~us;
-        Bitboard rooks = b.pieces[c][ROOK];
+        Bitboard rooks = b.piece_bb(c, ROOK);
         while (rooks) {
             int sq = pop_lsb(rooks);
             int f = file_of(Square(sq));
 
-            bool no_own_pawn   = !(b.pieces[us][PAWN]   & BB_FILES[f]);
-            bool no_their_pawn = !(b.pieces[them][PAWN] & BB_FILES[f]);
+            bool no_own_pawn   = !(b.piece_bb(us, PAWN)   & BB_FILES[f]);
+            bool no_their_pawn = !(b.piece_bb(them, PAWN) & BB_FILES[f]);
 
             if (no_own_pawn && no_their_pawn) {
                 mg += sign * p.rook_open_mg; TR_MG(RookOpenMg, 0, sign);
@@ -1247,13 +1247,13 @@ int Evaluator::evaluate(const Board& b) {
         int sign = (c == WHITE) ? 1 : -1;
         Color us   = Color(c);
         Color them = ~us;
-        Bitboard knights = b.pieces[c][KNIGHT];
+        Bitboard knights = b.piece_bb(c, KNIGHT);
         while (knights) {
             int sq = pop_lsb(knights);
             Rank r = relative_rank(us, Square(sq));
             if (r >= RANK_5) {
-                if (PawnAttacks[them][sq] & b.pieces[us][PAWN]) {
-                    if (!(PawnAttacks[us][sq] & b.pieces[them][PAWN])) {
+                if (PawnAttacks[them][sq] & b.piece_bb(us, PAWN)) {
+                    if (!(PawnAttacks[us][sq] & b.piece_bb(them, PAWN))) {
                         mg += sign * p.knight_outpost_mg; TR_MG(KnightOutpostMg, 0, sign);
                         eg += sign * p.knight_outpost_eg; TR_EG(KnightOutpostEg, 0, sign);
                     }
@@ -1279,9 +1279,9 @@ int Evaluator::evaluate(const Board& b) {
         int lazy_abs = lazy < 0 ? -lazy : lazy;
         if (lazy_abs > LAZY_MARGIN) {
             int score = apply_endgame(b, lazy);
-            if (b.halfmove_clock > 0)
-                score = damp_rule50(score, b.halfmove_clock);
-            const int served = (b.side_to_move == WHITE) ? score : -score;
+            if (b.rule50_count() > 0)
+                score = damp_rule50(score, b.rule50_count());
+            const int served = (b.turn() == WHITE) ? score : -score;
             if (!diag_lazy)
                 return served;
             lazy_served = served;
@@ -1308,7 +1308,7 @@ int Evaluator::evaluate(const Board& b) {
     int n_attackers[NCOLORS]  = {0, 0};
 
     for (int c = 0; c < NCOLORS; c++) {
-        Square ksq = b.king_sq[c];
+        Square ksq = b.king_square(c);
         Bitboard kz = KingAttacks[ksq] | sq_bb(ksq);
         kz |= (c == WHITE) ? shift<NORTH>(KingAttacks[ksq])
                            : shift<SOUTH>(KingAttacks[ksq]);
@@ -1319,7 +1319,7 @@ int Evaluator::evaluate(const Board& b) {
         // belongs in attacked2 -- the threats package (strongly_protected /
         // hanging) and the king-ring/flank code consume it (audit
         // hce_analysis 3; the old "no current consumer" note was stale).
-        const Bitboard pawns = b.pieces[Color(c)][PAWN];
+        const Bitboard pawns = b.piece_bb(Color(c), PAWN);
         const Bitboard pl = (c == WHITE) ? shift<NORTH_WEST>(pawns) : shift<SOUTH_WEST>(pawns);
         const Bitboard pr = (c == WHITE) ? shift<NORTH_EAST>(pawns) : shift<SOUTH_EAST>(pawns);
         attacked2[c] |= (pl & pr) | (attacked[c] & (pl | pr));
@@ -1340,23 +1340,23 @@ int Evaluator::evaluate(const Board& b) {
     Bitboard blockers_for_king[NCOLORS] = {0, 0};
     for (int c = 0; c < NCOLORS; c++) {
         Color us = Color(c), them = ~us;
-        Square ksq = b.king_sq[us];
+        Square ksq = b.king_square(us);
         Bitboard snipers =
-            (rook_attacks(ksq, 0ULL)   & (b.pieces[them][ROOK]   | b.pieces[them][QUEEN]))
-          | (bishop_attacks(ksq, 0ULL) & (b.pieces[them][BISHOP] | b.pieces[them][QUEEN]));
+            (rook_attacks(ksq, 0ULL)   & (b.piece_bb(them, ROOK)   | b.piece_bb(them, QUEEN)))
+          | (bishop_attacks(ksq, 0ULL) & (b.piece_bb(them, BISHOP) | b.piece_bb(them, QUEEN)));
         Bitboard blockers = 0;
         while (snipers) {
             Square s = Square(pop_lsb(snipers));
-            Bitboard between = BB_BETWEEN[ksq][s] & b.all_occ;
+            Bitboard between = BB_BETWEEN[ksq][s] & b.all_pieces();
             if (between && !more_than_one(between))
-                blockers |= between & b.occupancy[us];
+                blockers |= between & b.occupancy_bb(us);
         }
         blockers_for_king[c] = blockers;
     }
 
     // 8.7.7(a): cache each slider's attack set from the sweep so the king-ring
     // and trapped-bishop tests below reuse it instead of recomputing the same
-    // magic lookup. Every reuse site uses bishop/rook_attacks(sq, b.all_occ) —
+    // magic lookup. Every reuse site uses bishop/rook_attacks(sq, b.all_pieces()) —
     // the exact value the sweep computes — so this is bench-identical. Only
     // BISHOP/ROOK squares are stored (the only pieces those tests iterate);
     // every such square is written by the sweep before any test reads it, so
@@ -1375,13 +1375,13 @@ int Evaluator::evaluate(const Board& b) {
         // our king. Own minors/rooks are NOT excluded (controlling the square
         // under a friendly piece is real mobility); enemy-occupied squares stay
         // includable (mobility onto/against them counts).
-        Bitboard own_pawns = b.pieces[c][PAWN];
+        Bitboard own_pawns = b.piece_bb(c, PAWN);
         Bitboard low_ranks = (c == WHITE) ? (BB_RANKS[1] | BB_RANKS[2])
                                           : (BB_RANKS[6] | BB_RANKS[5]);
-        Bitboard ahead = (c == WHITE) ? shift<SOUTH>(b.all_occ)
-                                      : shift<NORTH>(b.all_occ);
+        Bitboard ahead = (c == WHITE) ? shift<SOUTH>(b.all_pieces())
+                                      : shift<NORTH>(b.all_pieces());
         Bitboard blocked_or_low = own_pawns & (ahead | low_ranks);
-        Bitboard mob_area = ~(blocked_or_low | b.pieces[c][KING] | b.pieces[c][QUEEN]
+        Bitboard mob_area = ~(blocked_or_low | b.piece_bb(c, KING) | b.piece_bb(c, QUEEN)
                               | pawn_atk[them] | blockers_for_king[c]);
         // 8.7.7(c): hoist the two per-piece switch(pt) out of the mobility
         // inner loop. pt is constant across a whole `while (pcs)` run, so both
@@ -1393,14 +1393,14 @@ int Evaluator::evaluate(const Board& b) {
         // construction, and the TR_* trace calls are unchanged so the tuner is
         // exact.
         auto sweep = [&]<PieceType PT>() {
-            Bitboard pcs = b.pieces[c][PT];
+            Bitboard pcs = b.piece_bb(c, PT);
             while (pcs) {
                 int sq = pop_lsb(pcs);
                 Bitboard att;
                 if      constexpr (PT == KNIGHT) att = KnightAttacks[sq];
-                else if constexpr (PT == BISHOP) att = bishop_attacks(Square(sq), b.all_occ);
-                else if constexpr (PT == ROOK)   att = rook_attacks(Square(sq), b.all_occ);
-                else                             att = queen_attacks(Square(sq), b.all_occ);
+                else if constexpr (PT == BISHOP) att = bishop_attacks(Square(sq), b.all_pieces());
+                else if constexpr (PT == ROOK)   att = rook_attacks(Square(sq), b.all_pieces());
+                else                             att = queen_attacks(Square(sq), b.all_pieces());
 
                 attacked2[c] |= attacked[c] & att;
                 attacked[c]  |= att;
@@ -1444,10 +1444,10 @@ int Evaluator::evaluate(const Board& b) {
     for (int c = 0; c < NCOLORS; c++) {
         int sign = (c == WHITE) ? 1 : -1;
         Color them = ~Color(c);
-        Bitboard threats = pawn_atk[c] & b.occupancy[them];
+        Bitboard threats = pawn_atk[c] & b.occupancy_bb(them);
         while (threats) {
             int sq = pop_lsb(threats);
-            PieceType pt = type_of(b.board_sq[sq]);
+            PieceType pt = type_of(b.piece_on(sq));
             switch (pt) {
                 case KNIGHT: case BISHOP:
                     mg += sign * p.threat_minor_mg; TR_MG(ThreatMinorMg, 0, sign);
@@ -1476,20 +1476,20 @@ int Evaluator::evaluate(const Board& b) {
         Color us   = Color(c);
         Color them = ~us;
 
-        Bitboard nonpawn_enemies = b.occupancy[them] & ~b.pieces[them][PAWN];
+        Bitboard nonpawn_enemies = b.occupancy_bb(them) & ~b.piece_bb(them, PAWN);
         // Squares the enemy holds firmly: defended by a pawn, or attacked twice by
         // them and not twice by us.
         Bitboard strongly_protected =
             attacked_by[them][PAWN] | (attacked2[them] & ~attacked2[us]);
         Bitboard defended = nonpawn_enemies & strongly_protected;
         // Enemy pieces we attack that are not firmly held.
-        Bitboard weak = b.occupancy[them] & ~strongly_protected & attacked[us];
+        Bitboard weak = b.occupancy_bb(them) & ~strongly_protected & attacked[us];
 
         // Threats by a minor (knight or bishop) on weak or defended targets.
         Bitboard minor_att = attacked_by[us][KNIGHT] | attacked_by[us][BISHOP];
         Bitboard tb = (defended | weak) & minor_att;
         while (tb) {
-            PieceType pt = type_of(b.board_sq[pop_lsb(tb)]);
+            PieceType pt = type_of(b.piece_on(pop_lsb(tb)));
             mg += sign * p.threat_by_minor_mg[pt]; TR_MG(ThreatByMinorMg, pt, sign);
             eg += sign * p.threat_by_minor_eg[pt]; TR_EG(ThreatByMinorEg, pt, sign);
         }
@@ -1497,7 +1497,7 @@ int Evaluator::evaluate(const Board& b) {
         // Threats by a rook on weak targets.
         tb = weak & attacked_by[us][ROOK];
         while (tb) {
-            PieceType pt = type_of(b.board_sq[pop_lsb(tb)]);
+            PieceType pt = type_of(b.piece_on(pop_lsb(tb)));
             mg += sign * p.threat_by_rook_mg[pt]; TR_MG(ThreatByRookMg, pt, sign);
             eg += sign * p.threat_by_rook_eg[pt]; TR_EG(ThreatByRookEg, pt, sign);
         }
@@ -1527,16 +1527,16 @@ int Evaluator::evaluate(const Board& b) {
 
         // Threat by a safe pawn push: squares our pawns can (double-)push to that
         // are safe, whose resulting pawn attacks would hit an enemy non-pawn.
-        Bitboard empty = ~b.all_occ;
+        Bitboard empty = ~b.all_pieces();
         Bitboard safe  = ~attacked[them] | attacked[us];
         Bitboard push, push_att;
         if (us == WHITE) {
-            push  = shift<NORTH>(b.pieces[us][PAWN]) & empty;
+            push  = shift<NORTH>(b.piece_bb(us, PAWN)) & empty;
             push |= shift<NORTH>(push & BB_RANKS[RANK_3]) & empty;
             push &= ~attacked_by[them][PAWN] & safe;
             push_att = shift<NORTH_WEST>(push) | shift<NORTH_EAST>(push);
         } else {
-            push  = shift<SOUTH>(b.pieces[us][PAWN]) & empty;
+            push  = shift<SOUTH>(b.piece_bb(us, PAWN)) & empty;
             push |= shift<SOUTH>(push & BB_RANKS[RANK_6]) & empty;
             push &= ~attacked_by[them][PAWN] & safe;
             push_att = shift<SOUTH_WEST>(push) | shift<SOUTH_EAST>(push);
@@ -1558,7 +1558,7 @@ int Evaluator::evaluate(const Board& b) {
         int sign   = (c == WHITE) ? 1 : -1;
         Color us   = Color(c);
         Color them = ~us;
-        Square ksq = b.king_sq[us];
+        Square ksq = b.king_square(us);
         File   kf  = file_of(ksq);
 
         int units = attack_units[c];
@@ -1575,7 +1575,7 @@ int Evaluator::evaluate(const Board& b) {
             flank_files = BB_FILES[FILE_C] | BB_FILES[FILE_D] | BB_FILES[FILE_E] | BB_FILES[FILE_F];
 
         // Safe checks: enemy checking squares it attacks and we do not hold.
-        Bitboard safe_sq = ~b.occupancy[them] & ~attacked[us];
+        Bitboard safe_sq = ~b.occupancy_bb(them) & ~attacked[us];
         for (int pt : {KNIGHT, BISHOP, ROOK, QUEEN}) {
             Bitboard checks = b.check_squares(PieceType(pt), them)
                             & attacked_by[them][pt] & safe_sq;
@@ -1602,7 +1602,7 @@ int Evaluator::evaluate(const Board& b) {
         units += p.ks_flank_attack * flank_attack - p.ks_flank_defense * flank_defense;
 
         // Pawnless flank.
-        if (!(b.pieces[us][PAWN] & flank_files))
+        if (!(b.piece_bb(us, PAWN) & flank_files))
             units += p.ks_pawnless_flank;
 
         // Own pieces pinned in front of the king (a pinned defender doesn't defend).
@@ -1610,7 +1610,7 @@ int Evaluator::evaluate(const Board& b) {
 
         // Central king with castling rights gone.
         const int our_castle_mask = (us == WHITE) ? 3 : 12;
-        if (kf >= FILE_C && kf <= FILE_F && !(b.castling_rights & our_castle_mask))
+        if (kf >= FILE_C && kf <= FILE_F && !(b.castling() & our_castle_mask))
             units += p.ks_central_king;
 
         // Pawn-shelter exposure folded into the danger funnel (open files near king).
@@ -1618,16 +1618,16 @@ int Evaluator::evaluate(const Board& b) {
         for (int df = -1; df <= 1; df++) {
             int f = int(kf) + df;
             if (f < FILE_A || f > FILE_H) continue;
-            if (!(b.pieces[us][PAWN] & BB_FILES[f])) shelter_danger++;
+            if (!(b.piece_bb(us, PAWN) & BB_FILES[f])) shelter_danger++;
         }
         units += p.ks_shelter_storm * shelter_danger;
 
         // No-enemy-queen relief (exposed scalar; was frozen 2/3, retuned since).
-        if (!b.pieces[them][QUEEN])
+        if (!b.piece_bb(them, QUEEN))
             units = units * p.ks_noqueen_num / p.ks_noqueen_den;
 
         // Open king file (existing term).
-        if (!(b.pieces[us][PAWN] & BB_FILES[kf]))
+        if (!(b.piece_bb(us, PAWN) & BB_FILES[kf]))
             units += p.ks_open_file;
 
         units = std::min(units, 24);
@@ -1640,7 +1640,7 @@ int Evaluator::evaluate(const Board& b) {
     for (int c = 0; c < NCOLORS; c++) {
         int sign = (c == WHITE) ? 1 : -1;
         Color us = Color(c);
-        Square ksq = b.king_sq[c];
+        Square ksq = b.king_square(c);
         File   kf  = file_of(ksq);
         Rank   kr  = rank_of(ksq);
 
@@ -1648,7 +1648,7 @@ int Evaluator::evaluate(const Board& b) {
             for (int df = -1; df <= 1; df++) {
                 int f = kf + df;
                 if (f < FILE_A || f > FILE_H) continue;
-                Bitboard file_pawns = b.pieces[us][PAWN] & BB_FILES[f];
+                Bitboard file_pawns = b.piece_bb(us, PAWN) & BB_FILES[f];
 
                 if (us == WHITE) {
                     Bitboard in_front = file_pawns & BB_FORWARD_RANKS[WHITE][kr];
@@ -1683,7 +1683,7 @@ int Evaluator::evaluate(const Board& b) {
                 storm_files |= BB_FILES[f];
         }
 
-        Bitboard storm = b.pieces[~us][PAWN] & storm_files;
+        Bitboard storm = b.piece_bb(~us, PAWN) & storm_files;
         while (storm) {
             Square psq = Square(pop_lsb(storm));
             int rel_r = relative_rank(~us, psq);
@@ -1709,7 +1709,7 @@ int Evaluator::evaluate(const Board& b) {
         Color them = ~us;
 
         // Friendly rook behind own passer: reward per rook.
-        Bitboard rooks = b.pieces[us][ROOK];
+        Bitboard rooks = b.piece_bb(us, ROOK);
         while (rooks) {
             Square rsq = Square(pop_lsb(rooks));
             int f = file_of(rsq);
@@ -1726,7 +1726,7 @@ int Evaluator::evaluate(const Board& b) {
 
         // Enemy rook behind own passer: penalty per enemy rook, independent
         // of any friendly rook on the file.
-        Bitboard enemy_rooks = b.pieces[them][ROOK];
+        Bitboard enemy_rooks = b.piece_bb(them, ROOK);
         while (enemy_rooks) {
             Square er = Square(pop_lsb(enemy_rooks));
             int f = file_of(er);
@@ -1747,14 +1747,14 @@ int Evaluator::evaluate(const Board& b) {
         int sign = (c == WHITE) ? 1 : -1;
         Color us   = Color(c);
         Color them = ~us;
-        Bitboard pieces_bb = b.occupancy[us] & ~b.pieces[us][PAWN] & ~b.pieces[us][KING];
+        Bitboard pieces_bb = b.occupancy_bb(us) & ~b.piece_bb(us, PAWN) & ~b.piece_bb(us, KING);
         while (pieces_bb) {
             Square sq = Square(pop_lsb(pieces_bb));
             // attacked[c] is the full union, identical to is_attacked_by(sq, all_occ, c):
             // skip if not attacked by them, or if defended by us.
             if (!(attacked[them] & sq_bb(sq))) continue;
             if  (attacked[us]   & sq_bb(sq))   continue;
-            PieceType pt = type_of(b.board_sq[sq]);
+            PieceType pt = type_of(b.piece_on(sq));
             mg -= sign * p.hang_pen[pt]; TR_BOTH(HangPen, pt, -sign);
             eg -= sign * p.hang_pen[pt];
         }
@@ -1772,8 +1772,8 @@ int Evaluator::evaluate(const Board& b) {
         while (pp) {
             Square psq = Square(pop_lsb(pp));
             int rel_r = (us == WHITE) ? rank_of(psq) : (RANK_8 - rank_of(psq));
-            int own_dist = KING_DIST[b.king_sq[us]][psq];
-            int opp_dist = KING_DIST[b.king_sq[them]][psq];
+            int own_dist = KING_DIST[b.king_square(us)][psq];
+            int opp_dist = KING_DIST[b.king_square(them)][psq];
             eg += sign * (opp_dist - own_dist) * (p.prox_base + rel_r);
             TR_EG(ProxBase, 0, sign * (opp_dist - own_dist));
             // rel_r * (opp_dist-own_dist) is a frozen data contribution captured in rest
@@ -1790,8 +1790,8 @@ int Evaluator::evaluate(const Board& b) {
                     eg += sign * p.passed_block_defended_eg;
                     TR_EG(PassedBlockDefendedEg, 0, sign);
                 }
-                int own_bd = KING_DIST[b.king_sq[us]][block];
-                int opp_bd = KING_DIST[b.king_sq[them]][block];
+                int own_bd = KING_DIST[b.king_square(us)][block];
+                int opp_bd = KING_DIST[b.king_square(them)][block];
                 eg += sign * (opp_bd - own_bd) * p.passed_king_block_eg;
                 TR_EG(PassedKingBlockEg, 0, sign * (opp_bd - own_bd));
             }
@@ -1805,8 +1805,8 @@ int Evaluator::evaluate(const Board& b) {
     for (int c = 0; c < NCOLORS; c++) {
         int sign = (c == WHITE) ? 1 : -1;
         Color us = Color(c), them = ~us;
-        Bitboard our_pawns   = b.pieces[us][PAWN];
-        Bitboard their_pawns = b.pieces[them][PAWN];
+        Bitboard our_pawns   = b.piece_bb(us, PAWN);
+        Bitboard their_pawns = b.piece_bb(them, PAWN);
         Bitboard ring_them   = king_zone[them];
         Bitboard advanced = (us == WHITE)
             ? (BB_RANKS[RANK_5] | BB_RANKS[RANK_6] | BB_RANKS[RANK_7])
@@ -1814,7 +1814,7 @@ int Evaluator::evaluate(const Board& b) {
         Bitboard outpost_sqs = pawn_atk[us] & ~pawn_atk[them] & advanced;
 
         // Bishop pair scaled by own pawn count.
-        if (more_than_one(b.pieces[us][BISHOP])) {
+        if (more_than_one(b.piece_bb(us, BISHOP))) {
             int np = popcount(our_pawns);
             mg += sign * np * p.bishop_pair_pawns_mg; TR_MG(BishopPairPawnsMg, 0, sign * np);
             eg += sign * np * p.bishop_pair_pawns_eg; TR_EG(BishopPairPawnsEg, 0, sign * np);
@@ -1822,14 +1822,14 @@ int Evaluator::evaluate(const Board& b) {
 
         // Bishops: bad bishop, king-ring pressure, x-ray pawns, long diagonal.
         // (The outpost bonus lives in the cheap block beside the knight's.)
-        Bitboard bishops = b.pieces[us][BISHOP];
+        Bitboard bishops = b.piece_bb(us, BISHOP);
         while (bishops) {
             Square bsq = Square(pop_lsb(bishops));
             Bitboard cmask = (sq_bb(bsq) & EG_DARK_SQUARES) ? EG_DARK_SQUARES : ~EG_DARK_SQUARES;
             int bp_on_col = popcount(our_pawns & cmask);
             mg += sign * bp_on_col * p.bad_bishop_mg; TR_MG(BadBishopMg, 0, sign * bp_on_col);
             eg += sign * bp_on_col * p.bad_bishop_eg; TR_EG(BadBishopEg, 0, sign * bp_on_col);
-            if (slider_att[bsq] & ring_them) {   // 8.7.7(a): was bishop_attacks(bsq, b.all_occ)
+            if (slider_att[bsq] & ring_them) {   // 8.7.7(a): was bishop_attacks(bsq, b.all_pieces())
                 mg += sign * p.minor_king_ring_mg; TR_MG(MinorKingRingMg, 0, sign);
                 eg += sign * p.minor_king_ring_eg; TR_EG(MinorKingRingEg, 0, sign);
             }
@@ -1839,16 +1839,16 @@ int Evaluator::evaluate(const Board& b) {
                 mg += sign * p.minor_behind_pawn_mg; TR_MG(MinorBehindPawnMg, 0, sign);
                 eg += sign * p.minor_behind_pawn_eg; TR_EG(MinorBehindPawnEg, 0, sign);
             }
-            int b_kd = KING_DIST[b.king_sq[us]][bsq];
+            int b_kd = KING_DIST[b.king_square(us)][bsq];
             mg += sign * b_kd * p.king_protector_b_mg; TR_MG(KingProtectorBMg, 0, sign * b_kd);
             eg += sign * b_kd * p.king_protector_b_eg; TR_EG(KingProtectorBEg, 0, sign * b_kd);
         }
 
         // Knights: reachable outpost, king-ring pressure.
-        Bitboard knights = b.pieces[us][KNIGHT];
+        Bitboard knights = b.piece_bb(us, KNIGHT);
         while (knights) {
             Square nsq = Square(pop_lsb(knights));
-            int reach = popcount(KnightAttacks[nsq] & outpost_sqs & ~b.occupancy[us]);
+            int reach = popcount(KnightAttacks[nsq] & outpost_sqs & ~b.occupancy_bb(us));
             mg += sign * reach * p.reachable_outpost_mg; TR_MG(ReachableOutpostMg, 0, sign * reach);
             eg += sign * reach * p.reachable_outpost_eg; TR_EG(ReachableOutpostEg, 0, sign * reach);
             if (KnightAttacks[nsq] & ring_them) {
@@ -1861,13 +1861,13 @@ int Evaluator::evaluate(const Board& b) {
                 mg += sign * p.minor_behind_pawn_mg; TR_MG(MinorBehindPawnMg, 0, sign);
                 eg += sign * p.minor_behind_pawn_eg; TR_EG(MinorBehindPawnEg, 0, sign);
             }
-            int n_kd = KING_DIST[b.king_sq[us]][nsq];
+            int n_kd = KING_DIST[b.king_square(us)][nsq];
             mg += sign * n_kd * p.king_protector_n_mg; TR_MG(KingProtectorNMg, 0, sign * n_kd);
             eg += sign * n_kd * p.king_protector_n_eg; TR_EG(KingProtectorNEg, 0, sign * n_kd);
         }
 
         // Queen infiltration (Step 3.9): our queen safely deep in the enemy half.
-        Bitboard queens_us = b.pieces[us][QUEEN];
+        Bitboard queens_us = b.piece_bb(us, QUEEN);
         while (queens_us) {
             Square qsq = Square(pop_lsb(queens_us));
             if (relative_rank(us, qsq) >= RANK_5 && !(pawn_atk[them] & sq_bb(qsq))) {
@@ -1877,12 +1877,12 @@ int Evaluator::evaluate(const Board& b) {
         }
 
         // Rooks: king-ring pressure, closed file, enemy-queen file.
-        Bitboard rooks  = b.pieces[us][ROOK];
-        Bitboard q_them = b.pieces[them][QUEEN];
+        Bitboard rooks  = b.piece_bb(us, ROOK);
+        Bitboard q_them = b.piece_bb(them, QUEEN);
         while (rooks) {
             Square rsq = Square(pop_lsb(rooks));
             int f = file_of(rsq);
-            if (slider_att[rsq] & ring_them) {   // 8.7.7(a): was rook_attacks(rsq, b.all_occ)
+            if (slider_att[rsq] & ring_them) {   // 8.7.7(a): was rook_attacks(rsq, b.all_pieces())
                 mg += sign * p.rook_king_ring_mg; TR_MG(RookKingRingMg, 0, sign);
                 eg += sign * p.rook_king_ring_eg; TR_EG(RookKingRingEg, 0, sign);
             }
@@ -1897,8 +1897,8 @@ int Evaluator::evaluate(const Board& b) {
         }
 
         // Connected rooks (one rook defends the other along an open line).
-        if (more_than_one(b.pieces[us][ROOK])) {
-            Bitboard rks = b.pieces[us][ROOK];
+        if (more_than_one(b.piece_bb(us, ROOK))) {
+            Bitboard rks = b.piece_bb(us, ROOK);
             bool connected = false;
             Bitboard tmp = rks;
             while (tmp) {
@@ -1922,27 +1922,27 @@ int Evaluator::evaluate(const Board& b) {
         const Bitboard black_space_ranks =
             BB_RANKS[RANK_5] | BB_RANKS[RANK_6] | BB_RANKS[RANK_7];
 
-        Bitboard wspace = (center_files & white_space_ranks) & ~b.pieces[WHITE][PAWN] & ~pawn_atk[BLACK];
-        Bitboard bspace = (center_files & black_space_ranks) & ~b.pieces[BLACK][PAWN] & ~pawn_atk[WHITE];
+        Bitboard wspace = (center_files & white_space_ranks) & ~b.piece_bb(WHITE, PAWN) & ~pawn_atk[BLACK];
+        Bitboard bspace = (center_files & black_space_ranks) & ~b.piece_bb(BLACK, PAWN) & ~pawn_atk[WHITE];
         int wsp = popcount(wspace), bsp = popcount(bspace);
         int space_count = wsp - bsp;
         mg += space_count * p.space_mg;
         TR_MG(SpaceMg, 0, space_count);
 
         // ---- Step 3.6 space refinement (traced) ----
-        Bitboard wp = b.pieces[WHITE][PAWN];
-        Bitboard bp = b.pieces[BLACK][PAWN];
+        Bitboard wp = b.piece_bb(WHITE, PAWN);
+        Bitboard bp = b.piece_bb(BLACK, PAWN);
 
         // Space weighted by own non-pawn piece count (SF weights by piece count).
-        int wpc = popcount(b.occupancy[WHITE]) - popcount(wp) - 1;
-        int bpc = popcount(b.occupancy[BLACK]) - popcount(bp) - 1;
+        int wpc = popcount(b.occupancy_bb(WHITE)) - popcount(wp) - 1;
+        int bpc = popcount(b.occupancy_bb(BLACK)) - popcount(bp) - 1;
         int piece_w = wsp * wpc - bsp * bpc;
         mg += piece_w * p.space_piece_mg;
         TR_MG(SpacePieceMg, 0, piece_w);
 
         // Space weighted by own blocked-pawn count (a piece directly ahead).
-        int wblk = popcount(wp & (b.all_occ >> 8));
-        int bblk = popcount(bp & (b.all_occ << 8));
+        int wblk = popcount(wp & (b.all_pieces() >> 8));
+        int bblk = popcount(bp & (b.all_pieces() << 8));
         int blocked_w = wsp * wblk - bsp * bblk;
         mg += blocked_w * p.space_blocked_mg;
         TR_MG(SpaceBlockedMg, 0, blocked_w);
@@ -1952,10 +1952,10 @@ int Evaluator::evaluate(const Board& b) {
     if (phase < TOTAL_PHASE / 2) {
         for (int c = 0; c < NCOLORS; c++) {
             int sign = (c == WHITE) ? 1 : -1;
-            Bitboard bbs = b.pieces[c][BISHOP];
+            Bitboard bbs = b.piece_bb(c, BISHOP);
             while (bbs) {
                 Square bsq = Square(pop_lsb(bbs));
-                Bitboard moves = slider_att[bsq] & ~b.occupancy[c];   // 8.7.7(a): was bishop_attacks(bsq, b.all_occ)
+                Bitboard moves = slider_att[bsq] & ~b.occupancy_bb(c);   // 8.7.7(a): was bishop_attacks(bsq, b.all_pieces())
                 if (moves == 0) {
                     mg -= sign * p.trapped_mg; TR_MG(TrappedMg, 0, -sign);
                     eg -= sign * p.trapped_eg; TR_EG(TrappedEg, 0, -sign);
@@ -1977,16 +1977,16 @@ int Evaluator::evaluate(const Board& b) {
             // the attacker holds material that can force mate against a lone
             // king (Q, R, bishop pair, or B+N). KBNK/KNNK stay handled by
             // apply_endgame's overrides, so this gate never touches them.
-            const bool losing_pawnless = b.pieces[losing][PAWN] == 0;
+            const bool losing_pawnless = b.piece_bb(losing, PAWN) == 0;
             const bool win_can_mate =
-                   b.pieces[winning][QUEEN] != 0
-                || b.pieces[winning][ROOK]  != 0
-                || more_than_one(b.pieces[winning][BISHOP])
-                || (b.pieces[winning][BISHOP] != 0 && b.pieces[winning][KNIGHT] != 0);
+                   b.piece_bb(winning, QUEEN) != 0
+                || b.piece_bb(winning, ROOK)  != 0
+                || more_than_one(b.piece_bb(winning, BISHOP))
+                || (b.piece_bb(winning, BISHOP) != 0 && b.piece_bb(winning, KNIGHT) != 0);
             if (losing_pawnless && win_can_mate) {
                 int sign = (winning == WHITE) ? 1 : -1;
-                Square wksq = b.king_sq[winning];
-                Square lksq = b.king_sq[losing];
+                Square wksq = b.king_square(winning);
+                Square lksq = b.king_square(losing);
                 int lk_center = std::max(3 - file_of(lksq), file_of(lksq) - 4)
                               + std::max(3 - rank_of(lksq), rank_of(lksq) - 4);
                 int king_dist = KING_DIST[wksq][lksq];
@@ -2006,7 +2006,7 @@ int Evaluator::evaluate(const Board& b) {
 
     // ---- Tempo bonus -------------------------------------------------------
     {
-        int tempo_sign = (b.side_to_move == WHITE) ? 1 : -1;
+        int tempo_sign = (b.turn() == WHITE) ? 1 : -1;
         mg += tempo_sign * p.tempo;
         TR_MG(Tempo, 0, tempo_sign);
     }
@@ -2020,18 +2020,18 @@ int Evaluator::evaluate(const Board& b) {
     // Activating it is PLAN 8.5+/re-tune material. The complexity may never flip the
     // sign of the endgame score.
     {
-        Square wk = b.king_sq[WHITE], bk = b.king_sq[BLACK];
+        Square wk = b.king_square(WHITE), bk = b.king_square(BLACK);
         int outflanking = std::abs(file_of(wk) - file_of(bk))
                         - std::abs(rank_of(wk) - rank_of(bk));
-        Bitboard all_pawns = b.pieces[WHITE][PAWN] | b.pieces[BLACK][PAWN];
+        Bitboard all_pawns = b.piece_bb(WHITE, PAWN) | b.piece_bb(BLACK, PAWN);
         bool both_flanks =
             (all_pawns & (BB_FILES[FILE_A] | BB_FILES[FILE_B] | BB_FILES[FILE_C])) &&
             (all_pawns & (BB_FILES[FILE_F] | BB_FILES[FILE_G] | BB_FILES[FILE_H]));
         bool infiltration = rank_of(wk) > RANK_4 || rank_of(bk) < RANK_5;
-        Bitboard pieces = b.pieces[WHITE][KNIGHT] | b.pieces[WHITE][BISHOP]
-                        | b.pieces[WHITE][ROOK]   | b.pieces[WHITE][QUEEN]
-                        | b.pieces[BLACK][KNIGHT] | b.pieces[BLACK][BISHOP]
-                        | b.pieces[BLACK][ROOK]   | b.pieces[BLACK][QUEEN];
+        Bitboard pieces = b.piece_bb(WHITE, KNIGHT) | b.piece_bb(WHITE, BISHOP)
+                        | b.piece_bb(WHITE, ROOK)   | b.piece_bb(WHITE, QUEEN)
+                        | b.piece_bb(BLACK, KNIGHT) | b.piece_bb(BLACK, BISHOP)
+                        | b.piece_bb(BLACK, ROOK)   | b.piece_bb(BLACK, QUEEN);
         bool pawn_endgame = (pieces == 0);
         int passed_cnt = popcount(passed[WHITE]) + popcount(passed[BLACK]);
         int total_pawns = popcount(all_pawns);
@@ -2054,10 +2054,10 @@ int Evaluator::evaluate(const Board& b) {
     // ---- Endgame scaling + knowledge (Step 3.5) ----------------------------
     score = apply_endgame(b, score);
 
-    if (b.halfmove_clock > 0)
-        score = damp_rule50(score, b.halfmove_clock);
+    if (b.rule50_count() > 0)
+        score = damp_rule50(score, b.rule50_count());
 
-    const int full_served = (b.side_to_move == WHITE) ? score : -score;
+    const int full_served = (b.turn() == WHITE) ? score : -score;
 #ifndef TEXEL_TRACE
     if (lazy_served != VALUE_NONE_SENTINEL) {
         // Lazy audit bookkeeping — the full tail ran only for measurement.

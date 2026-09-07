@@ -29,7 +29,7 @@ namespace test_oracle {
 // from Board.cpp: the oracle's whole value is being an independent
 // implementation, so it does not borrow the engine's internals (8.6.2b).
 inline bool has_piece_on(const Board& b, Square sq, Color c, PieceType pt) {
-    return (b.pieces[c][pt] & sq_bb(sq)) != 0;
+    return (b.piece_bb(c, pt) & sq_bb(sq)) != 0;
 }
 
 inline bool can_castle_kingside(const Board& b, Color us) {
@@ -37,7 +37,7 @@ inline bool can_castle_kingside(const Board& b, Color us) {
     const Square king_from = make_square(FILE_E, back);
     const Square rook_from = make_square(FILE_H, back);
     const int right = us == WHITE ? WK_CASTLE : BK_CASTLE;
-    return (b.castling_rights & right)
+    return (b.castling() & right)
         && has_piece_on(b, king_from, us, KING)
         && has_piece_on(b, rook_from, us, ROOK);
 }
@@ -47,7 +47,7 @@ inline bool can_castle_queenside(const Board& b, Color us) {
     const Square king_from = make_square(FILE_E, back);
     const Square rook_from = make_square(FILE_A, back);
     const int right = us == WHITE ? WQ_CASTLE : BQ_CASTLE;
-    return (b.castling_rights & right)
+    return (b.castling() & right)
         && has_piece_on(b, king_from, us, KING)
         && has_piece_on(b, rook_from, us, ROOK);
 }
@@ -60,15 +60,15 @@ inline void add_promotions(std::vector<Move>& moves, Square from, Square to) {
 }
 
 inline void gen_pseudo_legal(const Board& b, std::vector<Move>& moves) {
-    // Data-member aliases so the body below is the original code verbatim
-    // (8.6.2b move-out); Board's state is public by design.
-    const Color&    side_to_move    = b.side_to_move;
-    const Bitboard& all_occ         = b.all_occ;
-    const auto&     occupancy       = b.occupancy;
-    const auto&     pieces          = b.pieces;
-    const Square&   ep_sq           = b.ep_sq;
-    const auto&     king_sq         = b.king_sq;
-    const int&      castling_rights = b.castling_rights;
+    // Read-only aliases keep this independent oracle compact without exposing
+    // writable redundant Board state.
+    const Color&    side_to_move    = b.turn();
+    const Bitboard& all_occ         = b.all_pieces();
+    const auto&     occupancy       = b.occupancies();
+    const auto&     pieces          = b.piece_bitboards();
+    const Square&   ep_sq           = b.ep_square();
+    const auto&     king_sq         = b.king_squares();
+    const int&      castling_rights = b.castling();
     (void)king_sq; (void)castling_rights;
 
     Color us   = side_to_move;
@@ -264,15 +264,15 @@ inline void gen_pseudo_legal(const Board& b, std::vector<Move>& moves) {
 }
 
 inline void gen_pseudo_legal_captures(const Board& b, std::vector<Move>& moves) {
-    // Data-member aliases so the body below is the original code verbatim
-    // (8.6.2b move-out); Board's state is public by design.
-    const Color&    side_to_move    = b.side_to_move;
-    const Bitboard& all_occ         = b.all_occ;
-    const auto&     occupancy       = b.occupancy;
-    const auto&     pieces          = b.pieces;
-    const Square&   ep_sq           = b.ep_sq;
-    const auto&     king_sq         = b.king_sq;
-    const int&      castling_rights = b.castling_rights;
+    // Read-only aliases keep this independent oracle compact without exposing
+    // writable redundant Board state.
+    const Color&    side_to_move    = b.turn();
+    const Bitboard& all_occ         = b.all_pieces();
+    const auto&     occupancy       = b.occupancies();
+    const auto&     pieces          = b.piece_bitboards();
+    const Square&   ep_sq           = b.ep_square();
+    const auto&     king_sq         = b.king_squares();
+    const int&      castling_rights = b.castling();
     (void)king_sq; (void)castling_rights;
 
     Color us   = side_to_move;

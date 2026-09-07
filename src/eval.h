@@ -133,23 +133,23 @@ inline constexpr int DAMP_RULE50_DEN = 199;
 // the material — the scaler deliberately fires with other pieces present, which
 // is the scope refinement deferred to PLAN 13.8.
 [[nodiscard]] inline bool is_opposite_coloured_bishops(const Board& b) {
-    const bool wb1 = !more_than_one(b.pieces[WHITE][BISHOP]) && b.pieces[WHITE][BISHOP];
-    const bool bb1 = !more_than_one(b.pieces[BLACK][BISHOP]) && b.pieces[BLACK][BISHOP];
+    const bool wb1 = !more_than_one(b.piece_bb(WHITE, BISHOP)) && b.piece_bb(WHITE, BISHOP);
+    const bool bb1 = !more_than_one(b.piece_bb(BLACK, BISHOP)) && b.piece_bb(BLACK, BISHOP);
     if (!wb1 || !bb1)
         return false;
-    const bool wb_dark = (b.pieces[WHITE][BISHOP] & EVAL_DARK_SQUARES) != 0;
-    const bool bb_dark = (b.pieces[BLACK][BISHOP] & EVAL_DARK_SQUARES) != 0;
+    const bool wb_dark = (b.piece_bb(WHITE, BISHOP) & EVAL_DARK_SQUARES) != 0;
+    const bool bb_dark = (b.piece_bb(BLACK, BISHOP) & EVAL_DARK_SQUARES) != 0;
     return wb_dark != bb_dark;
 }
 
 [[nodiscard]] inline bool is_lone_king(const Board& b, Color c) {
-    return b.occupancy[c] == sq_bb(b.king_sq[c]);
+    return b.occupancy_bb(c) == sq_bb(b.king_square(c));
 }
 
 // King and exactly n knights, nothing else.
 [[nodiscard]] inline bool is_king_and_n_knights(const Board& b, Color c, int n) {
-    return !b.pieces[c][PAWN] && !b.pieces[c][BISHOP] && !b.pieces[c][ROOK]
-        && !b.pieces[c][QUEEN] && popcount(b.pieces[c][KNIGHT]) == n;
+    return !b.piece_bb(c, PAWN) && !b.piece_bb(c, BISHOP) && !b.piece_bb(c, ROOK)
+        && !b.piece_bb(c, QUEEN) && popcount(b.piece_bb(c, KNIGHT)) == n;
 }
 
 // KNNK is a dead draw: two knights cannot force mate against a bare king.

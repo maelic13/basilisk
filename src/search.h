@@ -431,7 +431,7 @@ private:
     // board.make_move directly from search code.
     void do_move(SearchStack* ss, Move m) {
         ss->move        = m;
-        ss->moved_piece = type_of(board_ptr_->board_sq[from_sq(m)]);
+        ss->moved_piece = type_of(board_ptr_->piece_on(from_sq(m)));
         board_ptr_->make_move(m);
         // Phase 9: accumulator.push(dirty piece delta) attaches here.
     }

@@ -62,25 +62,25 @@ static const char* const SEED_FENS[] = {
 
 static bool boards_bit_equal(const Board& a, const Board& b) {
     for (int c = 0; c < NCOLORS; ++c) {
-        if (a.occupancy[c] != b.occupancy[c]) return false;
+        if (a.occupancy_bb(c) != b.occupancy_bb(c)) return false;
         for (int pt = 0; pt < PIECE_TYPE_NB; ++pt)
-            if (a.pieces[c][pt] != b.pieces[c][pt]) return false;
+            if (a.piece_bb(c, pt) != b.piece_bb(c, pt)) return false;
     }
     for (int s = 0; s < SQUARE_NB; ++s)
-        if (a.board_sq[s] != b.board_sq[s]) return false;
-    return a.all_occ == b.all_occ
-        && a.side_to_move == b.side_to_move
-        && a.ep_sq == b.ep_sq
-        && a.castling_rights == b.castling_rights
-        && a.halfmove_clock == b.halfmove_clock
-        && a.hash == b.hash
-        && a.pawn_key == b.pawn_key
-        && a.minor_key == b.minor_key
-        && a.nonpawn_key[WHITE] == b.nonpawn_key[WHITE]
-        && a.nonpawn_key[BLACK] == b.nonpawn_key[BLACK]
-        && a.king_sq[WHITE] == b.king_sq[WHITE]
-        && a.king_sq[BLACK] == b.king_sq[BLACK]
-        && a.checkers == b.checkers;
+        if (a.piece_on(s) != b.piece_on(s)) return false;
+    return a.all_pieces() == b.all_pieces()
+        && a.turn() == b.turn()
+        && a.ep_square() == b.ep_square()
+        && a.castling() == b.castling()
+        && a.rule50_count() == b.rule50_count()
+        && a.position_key() == b.position_key()
+        && a.pawn_key_value() == b.pawn_key_value()
+        && a.minor_key_value() == b.minor_key_value()
+        && a.nonpawn_key_value(WHITE) == b.nonpawn_key_value(WHITE)
+        && a.nonpawn_key_value(BLACK) == b.nonpawn_key_value(BLACK)
+        && a.king_square(WHITE) == b.king_square(WHITE)
+        && a.king_square(BLACK) == b.king_square(BLACK)
+        && a.checking_pieces() == b.checking_pieces();
 }
 
 // ---------------------------------------------------------------------------
@@ -102,7 +102,7 @@ static void random_walk(Board& b, std::mt19937_64& rng, int depth,
     if (legal.empty()) return;  // mate/stalemate leaf
 
     // Occasional null move (never while in check — that is illegal).
-    if (!b.checkers && (rng() & 7) == 0) {
+    if (!b.checking_pieces() && (rng() & 7) == 0) {
         Board snap = b;
         b.make_null_move();
         ++states;
@@ -265,9 +265,9 @@ static void see_fuzz_walk(Board& b, std::mt19937_64& rng, int depth,
         if (b.see_ge(m, 30000))   bad = "see_ge true at +30000 (above any exchange)";
         // A capture of an undefended piece must clear (captured - own) — the
         // attacker can at worst be recaptured, so value >= captured - attacker.
-        if (move_type(m) == NORMAL && b.board_sq[to_sq(m)] != NO_PIECE) {
-            const int captured = SEE_PIECE[type_of(b.board_sq[to_sq(m)])];
-            const int attacker = SEE_PIECE[type_of(b.board_sq[from_sq(m)])];
+        if (move_type(m) == NORMAL && b.piece_on(to_sq(m)) != NO_PIECE) {
+            const int captured = SEE_PIECE[type_of(b.piece_on(to_sq(m)))];
+            const int attacker = SEE_PIECE[type_of(b.piece_on(from_sq(m)))];
             if (!b.see_ge(m, captured - attacker))
                 bad = "see_ge below the guaranteed capture floor";
         }
