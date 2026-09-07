@@ -26,6 +26,10 @@ over 6,332 games. The next unchecked leaf is 6.6.a.
 
 ## 2. Operating contract
 
+`DESIGN.md` holds the engine invariants and the four questions every mechanism
+must answer before it is implemented. `AGENTS.md` makes reasoned refusal and
+refutation deliverables of equal standing to a diff.
+
 - Work strictly in numbered order. A later step may be prepared, but may not
   change engine policy or consume experimental budget before its dependencies close.
 - Commit each completed step with PLAN and GUIDE synchronized.

@@ -34,6 +34,62 @@ evidence rather than intuition alone.
 - Respect temporary resource reservations stated in the conversation. Do not
   compete with an active engine job merely because a command is normally short.
 
+## Before implementing a mechanism
+
+- Read `DESIGN.md` first. It holds the engine invariants, the score and mate
+  semantics, the TT publication contract and the measurement doctrine.
+- Answer these four questions **in the report, before writing the diff**:
+  1. What mechanism should produce strength? Name the chess or search property.
+     "The reference engine has it" is not a mechanism.
+  2. What existing features interact with it? Name them from this codebase with
+     file and line. "None" is a claim that has to be defended.
+  3. What engine invariants must remain true? From `DESIGN.md` section 3, plus
+     any the change touches.
+  4. What experiment would falsify the idea? Register it, with its verdict rule,
+     before running it. An experiment that cannot fail is not evidence.
+- Chess-engine techniques are not independent parts. Two engines can both carry
+  LMR, correction history, SEE pruning and singular extensions and still need
+  different thresholds, because the whole selectivity stack differs. Porting a
+  named function is not implementing a mechanism.
+- Consult `EXPERIMENTS.md` before answering question 1. A closed mechanism may
+  not be re-proposed without meeting its recorded retry trigger.
+
+## Refutation and refusal
+
+Refusing to build something, and refuting a claim the roadmap already believes,
+are **deliverables of equal standing to a diff**. An agent that only ever
+implements is failing at half the job.
+
+- **Say "this does not fit; do not implement it yet."** When the four questions
+  do not come out clean, the correct output is the reasoned refusal, not a
+  best-effort implementation with caveats. A leaf may legitimately close as
+  "not implemented, and here is why" -- record it in `EXPERIMENTS.md` with a
+  retry trigger and mark the leaf accordingly.
+- **Challenge the plan when the evidence does not support it.** PLAN and
+  EXPERIMENTS are the maintainer's working beliefs, not settled fact. An
+  unmeasured claim carried in the roadmap is a target, not an authority. When a
+  step's stated premise is wrong, say so, measure it, and correct the file --
+  BAS-E53 exists because a load-bearing claim in 6.5.a had never been measured
+  and turned out to be false.
+- **Report the cost even when the change works.** A candidate that does what it
+  claims and costs +79% bench nodes is a rejection, not a trade-off to bury in
+  a report's tail.
+- **A refusal must be falsifiable too.** State what evidence would change it,
+  and what the cheapest experiment producing that evidence would be. "It feels
+  risky" is not a refusal; "this violates the mate-band invariant at
+  `eval.cpp:131`, and the check that would settle it is X" is.
+- **Do not soften a negative result to match what was hoped for**, and do not
+  manufacture a disagreement to look rigorous. Both are failures of the same
+  duty.
+
+## Agent and effort tags
+
+PLAN and GUIDE leaves may carry a `` `[Agent/Effort]` `` tag, e.g.
+`` `[Astra/XH]` ``. It records the maintainer's intended assignment and expected
+difficulty. It is **advisory routing, not permission**: an agent asked to do a
+leaf tagged for another agent should do it, and should say if the tag looks
+wrong. Effort letters are M/H/XH. Tags sit on leaves; parents are untagged.
+
 ## Scope and discoveries
 
 - Do the work specified by the current leaf. Avoid opportunistic refactors,
