@@ -116,10 +116,11 @@ Run this checklist in order; PLAN.md owns rationale and gates.
   - [x] **6.4.b** Keep theory truth, move quality, conversion and game strength separate
   - [x] **6.4.c** Freeze the accepted Group A head and truth report (also: static_assert the shipped KBNK default)
 - [ ] **6.5** Implement high-value rook and bishop-pawn families -- state each term's promotion closure in its non-regression set
-  - [ ] **6.5.a** Cover KRPP-KRP and KRP-KR (BAS-E53: the narrow only-move class IS resolvable at 60k nodes and depth does not fix it; mechanism still unknown)
+  - [ ] **6.5.a** Correct the drawn-share bias in KRP-KR and KRPP-KRP with draw scaling (BAS-E32)
   - [ ] **6.5.b** Cover KR-KP, KQ-KRP and KR-KB
   - [ ] **6.5.c** Cover bishop-pawn families, including wrong-bishop/rook-pawn draw logic
   - [ ] **6.5.d** Add deterministic truth cases before coefficient fitting
+  - [ ] **6.5.e** Resolve the only-move precision defect in won rook endings (BAS-E53: resolvable at 60k, depth does not fix it, mechanism unknown)
 - [ ] **6.6** Gate Group B
   - [ ] **6.6.a** Require paired truth improvement and no family veto
   - [ ] **6.6.b** Run no-adjudication SPRT on the frozen Group A baseline

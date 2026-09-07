@@ -1189,10 +1189,21 @@ assumed.
 ### 6.5 Group B endgames
 
 - [ ] **6.5** Implement high-value rook and bishop-pawn families. **Every new family term must state its promotion closure and include those families in its non-regression set.** BAS-E51: the KBNK vector reached KBP-K, KBP-KB, KBP-KN and KBPP-KB through knight promotion, and 6.1.f's original accounting missed it by testing only families its own safety argument had already excluded.
-  - [ ] **6.5.a** Cover KRPP-KRP and KRP-KR.
+  - [ ] **6.5.a** Correct the drawn-share bias in KRP-KR and KRPP-KRP with draw scaling (BAS-E32: +0.138 and +0.171, and these classes are 11.32% and 9.09% of games). This is the half that is implementable now: a scaling function recognises drawishness, so it needs no seven-man truth and is validated by drawn-share bias plus an SPRT.
   - [ ] **6.5.b** Cover KR-KP, KQ-KRP and KR-KB.
   - [ ] **6.5.c** Cover bishop-pawn families, including wrong-bishop/rook-pawn draw logic. Absorbs 6.3's KBP-K deficit, which is **7** positions at the current head (17/24 against the reference's 24/24), not the 15 the pre-6.1 arm showed; attack it as bishop-pawn technique, not king geometry (BAS-E48, BAS-E49).
   - [ ] **6.5.d** Add deterministic truth cases before coefficient fitting.
+  - [ ] **6.5.e** Resolve the only-move precision defect in won rook endings (BAS-E53). Split out of 6.5.a on 2026-09-07: it is a different problem with a different gate, no known mechanism, and it must not block the scaling work. Depth is NOT the answer, so it does not belong in Phase 8 either.
+
+**2026-09-07: 6.5.a was split into 6.5.a and 6.5.e, with the maintainer's
+sign-off.** BAS-E53 established that the two problems bundled here are
+unrelated. The drawn-share bias is a scaling question, needs no tablebase
+truth, and is implementable now -- it keeps 6.5.a. The only-move precision
+defect is a knowledge question with no known mechanism and its own gate, so
+it became 6.5.e rather than blocking the scaling work behind open research.
+Everything below this line was written before that split and is kept as the
+record of how it was reached; where it says "6.5.a" of the precision defect,
+read 6.5.e.
 
 **6.5.a is SPLIT: one half is derived, the other is not measurable.** No
 implementation yet; the leaf stays open.
