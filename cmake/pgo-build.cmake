@@ -59,6 +59,7 @@ execute_process(
             -DPORTABLE_BUILD=${PGO_PORTABLE_BUILD}
             -DTUNE=${PGO_TUNE}
             -DBASILISK_PGO=GENERATE
+            -DBASILISK_PGO_PROFILE_DIR=${_prof_dir}
     WORKING_DIRECTORY "${PGO_SOURCE_DIR}"
     COMMAND_ERROR_IS_FATAL ANY
 )
@@ -93,48 +94,83 @@ _basilisk_check_training_log("${_train_log}")
 # well-spread bench it was redundant (it mostly re-sampled the same hot search
 # loop). See PLAN.md / GUIDE.md.
 
-file(GLOB _profraw_files "${_prof_dir}/*.profraw")
-if(NOT _profraw_files)
-    message(FATAL_ERROR "No .profraw files were produced in ${_prof_dir}")
-endif()
-
-if(DEFINED PGO_LLVM_PROFDATA AND PGO_LLVM_PROFDATA)
-    if(NOT EXISTS "${PGO_LLVM_PROFDATA}")
-        message(FATAL_ERROR "Configured llvm-profdata does not exist: ${PGO_LLVM_PROFDATA}")
+if(PGO_COMP STREQUAL "msvc")
+    set(_msvc_pgd "${_prof_dir}/basilisk.pgd")
+    # MSVC writes each training run's .pgc beside the instrumented executable,
+    # even when /GENPROFILE gives the .pgd an explicit directory. Put the run
+    # files beside the database before /USEPROFILE consumes them.
+    file(GLOB _msvc_pgc_files "${_gen_dir}/*.pgc")
+    if(NOT EXISTS "${_msvc_pgd}" OR NOT _msvc_pgc_files)
+        message(FATAL_ERROR "MSVC training did not produce the expected .pgd/.pgc profile")
     endif()
-    set(_profdata_command "${PGO_LLVM_PROFDATA}")
-else()
-    message(FATAL_ERROR
-        "PGO_LLVM_PROFDATA was not provided; configure through the pgo target "
-        "so llvm-profdata matches the selected Clang toolchain"
+    foreach(_msvc_pgc IN LISTS _msvc_pgc_files)
+        file(COPY "${_msvc_pgc}" DESTINATION "${_prof_dir}")
+    endforeach()
+
+    # MSVC's final /USEPROFILE link must reuse the /GL objects which produced
+    # the instrumented image. Reconfigure the generation tree and let the
+    # changed link command relink those same objects.
+    message(STATUS "PGO final MSVC relink: ${_gen_dir}")
+    execute_process(
+        COMMAND "${CMAKE_COMMAND}" --preset "${PGO_PRESET}" -B "${_gen_dir}"
+                -DCOMP=${PGO_COMP}
+                -DPORTABLE_BUILD=${PGO_PORTABLE_BUILD}
+                -DTUNE=${PGO_TUNE}
+                -DBASILISK_PGO=USE
+                -DBASILISK_PGO_PROFILE_DIR=${_prof_dir}
+        WORKING_DIRECTORY "${PGO_SOURCE_DIR}"
+        COMMAND_ERROR_IS_FATAL ANY
     )
+    execute_process(
+        COMMAND "${CMAKE_COMMAND}" --build "${_gen_dir}" --target basilisk
+        WORKING_DIRECTORY "${PGO_SOURCE_DIR}"
+        COMMAND_ERROR_IS_FATAL ANY
+    )
+    set(_pgo_binary "${_gen_dir}/basilisk${PGO_EXECUTABLE_SUFFIX}")
+else()
+    file(GLOB _profraw_files "${_prof_dir}/*.profraw")
+    if(NOT _profraw_files)
+        message(FATAL_ERROR "No .profraw files were produced in ${_prof_dir}")
+    endif()
+
+    if(DEFINED PGO_LLVM_PROFDATA AND PGO_LLVM_PROFDATA)
+        if(NOT EXISTS "${PGO_LLVM_PROFDATA}")
+            message(FATAL_ERROR "Configured llvm-profdata does not exist: ${PGO_LLVM_PROFDATA}")
+        endif()
+        set(_profdata_command "${PGO_LLVM_PROFDATA}")
+    else()
+        message(FATAL_ERROR
+            "PGO_LLVM_PROFDATA was not provided; configure through the pgo target "
+            "so llvm-profdata matches the selected Clang toolchain"
+        )
+    endif()
+
+    message(STATUS "PGO merge: ${_profdata} (using ${PGO_LLVM_PROFDATA})")
+    execute_process(
+        COMMAND ${_profdata_command} merge -sparse ${_profraw_files} -o "${_profdata}"
+        WORKING_DIRECTORY "${PGO_SOURCE_DIR}"
+        COMMAND_ERROR_IS_FATAL ANY
+    )
+
+    message(STATUS "PGO final build: ${_use_dir}")
+    execute_process(
+        COMMAND "${CMAKE_COMMAND}" --preset "${PGO_PRESET}" -B "${_use_dir}"
+                -DCOMP=${PGO_COMP}
+                -DPORTABLE_BUILD=${PGO_PORTABLE_BUILD}
+                -DTUNE=${PGO_TUNE}
+                -DBASILISK_PGO=USE
+                -DBASILISK_PGO_PROFILE_FILE=${_profdata}
+        WORKING_DIRECTORY "${PGO_SOURCE_DIR}"
+        COMMAND_ERROR_IS_FATAL ANY
+    )
+    execute_process(
+        COMMAND "${CMAKE_COMMAND}" --build "${_use_dir}" --target basilisk
+        WORKING_DIRECTORY "${PGO_SOURCE_DIR}"
+        COMMAND_ERROR_IS_FATAL ANY
+    )
+    set(_pgo_binary "${_use_dir}/basilisk${PGO_EXECUTABLE_SUFFIX}")
 endif()
 
-message(STATUS "PGO merge: ${_profdata} (using ${PGO_LLVM_PROFDATA})")
-execute_process(
-    COMMAND ${_profdata_command} merge -sparse ${_profraw_files} -o "${_profdata}"
-    WORKING_DIRECTORY "${PGO_SOURCE_DIR}"
-    COMMAND_ERROR_IS_FATAL ANY
-)
-
-message(STATUS "PGO final build: ${_use_dir}")
-execute_process(
-    COMMAND "${CMAKE_COMMAND}" --preset "${PGO_PRESET}" -B "${_use_dir}"
-            -DCOMP=${PGO_COMP}
-            -DPORTABLE_BUILD=${PGO_PORTABLE_BUILD}
-            -DTUNE=${PGO_TUNE}
-            -DBASILISK_PGO=USE
-            -DBASILISK_PGO_PROFILE_FILE=${_profdata}
-    WORKING_DIRECTORY "${PGO_SOURCE_DIR}"
-    COMMAND_ERROR_IS_FATAL ANY
-)
-execute_process(
-    COMMAND "${CMAKE_COMMAND}" --build "${_use_dir}" --target basilisk
-    WORKING_DIRECTORY "${PGO_SOURCE_DIR}"
-    COMMAND_ERROR_IS_FATAL ANY
-)
-
-set(_pgo_binary "${_use_dir}/basilisk${PGO_EXECUTABLE_SUFFIX}")
 message(STATUS "PGO binary: ${_pgo_binary}")
 
 if(PGO_DIST_DIR AND PGO_DIST_ASSET_NAME)

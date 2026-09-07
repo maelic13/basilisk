@@ -54,11 +54,13 @@ static bool parse_epd_line(const std::string& raw, WacPosition& out) {
 std::vector<WacPosition> wac_positions() {
     std::vector<WacPosition> positions;
     positions.reserve(300);
-    std::istringstream epd(WAC_EPD);
-    std::string line;
-    while (std::getline(epd, line)) {
-        WacPosition pos;
-        if (parse_epd_line(line, pos)) positions.push_back(std::move(pos));
+    for (const char* chunk : WAC_EPD) {
+        std::istringstream epd(chunk);
+        std::string line;
+        while (std::getline(epd, line)) {
+            WacPosition pos;
+            if (parse_epd_line(line, pos)) positions.push_back(std::move(pos));
+        }
     }
     return positions;
 }
