@@ -2,6 +2,11 @@
 
 Run this checklist in order; PLAN.md owns rationale and gates.
 
+Model tags: `Astra` = GPT-6 Astra, `Fable` = Claude Fable 5.1,
+`Sol`/`Terra` = GPT-5.6, `Sonnet` = Claude Sonnet 5; `M`/`H`/`XH` =
+Medium/High/Extra High thinking. Tags apply to executable leaves; parents
+inherit their earliest open child.
+
 ## Phase 1 — Foundations
 
 - [x] **1.0** Foundations and first strength line — 1.0.0 through 1.8.0
@@ -115,194 +120,237 @@ Run this checklist in order; PLAN.md owns rationale and gates.
   - [x] **6.4.a** Test score resolution, saturation and interaction at Basilisk's scale
   - [x] **6.4.b** Keep theory truth, move quality, conversion and game strength separate
   - [x] **6.4.c** Freeze the accepted Group A head and truth report (also: static_assert the shipped KBNK default)
-- [ ] **6.5** Implement high-value rook and bishop-pawn families -- state each term's promotion closure in its non-regression set
-  - [ ] **6.5.a** Correct the drawn-share bias in KRP-KR and KRPP-KRP with draw scaling (BAS-E54: implemented and prepared; awaiting SPRT)
-  - [ ] **6.5.b** Cover KR-KP, KQ-KRP and KR-KB
-  - [ ] **6.5.c** Cover bishop-pawn families, including wrong-bishop/rook-pawn draw logic
-  - [ ] **6.5.d** Add deterministic truth cases before coefficient fitting
-  - [ ] **6.5.e** Resolve the only-move precision defect in won rook endings (BAS-E53: resolvable at 60k, depth does not fix it, mechanism unknown)
-- [ ] **6.6** Gate Group B
-  - [ ] **6.6.a** Require paired truth improvement and no family veto
-  - [ ] **6.6.b** Run no-adjudication SPRT on the frozen Group A baseline
-- [ ] **6.7** Evaluate remaining lower-yield families -- same promotion-closure rule
-  - [ ] **6.7.a** Cover KPs-K, KQ-KP, KR-KN, KQ-KR, KP-KP and KNN-KP
-  - [ ] **6.7.b** Implement only mechanisms with a measurable truth gap and plausible game frequency
-  - [ ] **6.7.c** Stop the group when marginal value no longer pays for complexity
-- [ ] **6.8** Close endgame maturity
-  - [ ] **6.8.a** Freeze the accepted evaluator, truth corpus, reports and thresholds
-  - [ ] **6.8.b** Record every rejected mechanism and its retry trigger
-  - [ ] **6.8.c** Authorize post-endgame corpus generation only after closure
+- [ ] **6.5** Finish the prepared rook-ending scale candidate
+  - [ ] **6.5.a** `[Sol/H]` Analyze the registered KRPKR/KRPPKRP no-adjudication SPRT; accept or revert
+- [ ] **6.6** Upgrade instrument and gate integrity
+  - [ ] **6.6.a** `[Astra/H]` Audit Basilisk tools against Rarog 4.10
+  - [ ] **6.6.b** `[Sol/H]` Add versioned schemas, cohort digests and serial-identical sharding
+  - [ ] **6.6.c** `[Sol/H]` Prove every guard fails on known-bad inputs; stamp layer/budget/cohort
+  - [ ] **6.6.d** `[Astra/H]` Measure deployed nodes/move and derive Basilisk's budget bracket
+  - [ ] **6.6.e** `[Sol/H]` Generalize FEN-hash holdout, runner-up, McNemar and spent-cohort rules
+  - [ ] **6.6.f** `[Sol/H]` Refuse dirty/wrong-revision/config-mismatched gates and ignored options
+  - [ ] **6.6.g** `[Sonnet/H]` Add CMake feature/ISA combination coverage
+  - [ ] **6.6.h** `[Sol/H]` Re-run invalidated baselines and refreeze Group A
+- [ ] **6.7** Rank and classify remaining endgames from Basilisk evidence
+  - [ ] **6.7.a** `[Astra/XH]` Recompute board/tree occurrence and root concentration
+  - [ ] **6.7.b** `[Fable/XH]` Classify recognizer, scale, move-quality and conversion work
+  - [ ] **6.7.c** `[Astra/XH]` Record every dispatcher's promotion/material-shed closure
+  - [ ] **6.7.d** `[Astra/H]` Re-rank by local defect, occurrence and deployment budget
+- [ ] **6.8** Implement demonstrated Group B work
+  - [ ] **6.8.a** `[Astra/XH]` Resolve the BAS-E53 won-rook only-move defect
+  - [ ] **6.8.b** `[Astra/H]` Cover KR-KP, KQ-KRP and KR-KB by their measured kind
+  - [ ] **6.8.c** `[Fable/XH]` Cover bishop-pawn fortress and promotion families
+  - [ ] **6.8.d** `[Sol/H]` Add deterministic theory/truth/closure cases before fitting
+  - [ ] **6.8.e** `[Astra/XH]` Fit the dependency-complete local family cluster
+- [ ] **6.9** Qualify Group B
+  - [ ] **6.9.a** `[Astra/H]` Register occurrence-tiered whole-match/cohort/no-regression gates
+  - [ ] **6.9.b** `[Sol/H]` Require truth improvement, no veto and the registered PGO verdict
+- [ ] **6.10** Evaluate the lower-yield remainder
+  - [ ] **6.10.a** `[Astra/H]` Measure KPs-K and KP-KP first
+  - [ ] **6.10.b** `[Astra/XH]` Reconcile KQ-KP and KQ-KR across deployment budgets
+  - [ ] **6.10.c** `[Fable/XH]` Audit KR-KN and KNN-KP/KNN-K theory and rule 50
+  - [ ] **6.10.d** `[Astra/H]` Implement only measured, occurrence-supported mechanisms
+  - [ ] **6.10.e** `[Sol/H]` Gate the dependency-complete remainder and apply the stop rule
+- [ ] **6.11** Close classical endgame maturity
+  - [ ] **6.11.a** `[Sol/H]` Freeze accepted cohorts, reports, budgets and floors
+  - [ ] **6.11.b** `[Fable/H]` Record rejects, gaps and retry triggers
+  - [ ] **6.11.c** `[Astra/H]` Reconcile every family layer and hard veto
+  - [ ] **6.11.d** `[Terra/M]` Synchronize the accepted head before later phases
 
-## Phase 7 — Mature HCE refit
+## Phase 7 — Toolchain and board/HCE throughput
 
-- [ ] **7.0** Define and close the final handcrafted-evaluation surface
-  - [ ] **7.0.a** Compare Basilisk conceptually with strong maintained HCE engines in D:/code; learn coverage and interactions without copying code or constants
-  - [ ] **7.0.b** Audit material/imbalance, PST, mobility, pawn structure, passers, outposts, threats, space, king safety, initiative/winnability and draw scaling
-  - [ ] **7.0.c** Measure feature firing, phase/material coverage, correlation and ablation value on a phase-balanced corpus
-  - [ ] **7.0.d** Identify dead, duplicate, saturated and uncovered terms; simplify or add mechanisms only with position-level evidence
-  - [ ] **7.0.e** Add deterministic tests for every new categorical mechanism and freeze the architecture before production datagen
-- [ ] **7.1** Harden the fit pipeline before generating expensive data
-  - [ ] **7.1.a** Fit K once on training data and freeze it across all compared fits
-  - [ ] **7.1.b** Accept an explicit initial vector and record every surface coordinate
-  - [ ] **7.1.c** Freeze train/validation/test splits; open the test set once after selection
-  - [ ] **7.1.d** Enforce exact surface coverage, gauge anchors and source restore on failure
-  - [ ] **7.1.e** Hash corpora, splits, configs, binaries, tablebases, fitted vectors and reports
-  - [ ] **7.1.f** Audit labels as exactly 0, 0.5 or 1 and report rejection reasons
-  - [ ] **7.1.g** Version materially different corpus contracts; never silently widen gates
-- [ ] **7.2** Design a phase-efficient, natural-termination corpus
-  - [ ] **7.2.a** Locate and hash the verified D:/chess source position store
-  - [ ] **7.2.b** Define material-phase buckets and validate phase yield on extracted rows
-  - [ ] **7.2.c** Freeze extractor, sampling, deduplication, ordering and split semantics across arms
-  - [ ] **7.2.d** Size the corpus by identifiable coordinates, label quality and a learning curve
-  - [ ] **7.2.e** Register extracted-row quality targets, stop rules and generation budget
-- [ ] **7.3** Generate self-play with the accepted post-endgame head
-  - [ ] **7.3.a** Use no adjudication and game-result WDL labels
-  - [ ] **7.3.b** Verify termination mix, duplicate rate, phase coverage and <=6-man yield
-  - [ ] **7.3.c** Freeze corpus A, its row order and hashes before any relabeling
-- [ ] **7.4** Create the tablebase-relabel comparison -- prize measured in BAS-E46
-  - [ ] **7.4.a** Corpus A keeps original self-play game-result labels
-  - [ ] **7.4.b** Corpus B is a byte-order-preserving copy except eligible <=6-man rows receive Syzygy truth labels
-  - [ ] **7.4.c** Treat cursed wins/losses as draws for rule-50-compatible WDL labels
-  - [ ] **7.4.d** Preserve identical rows, ordering and train/validation/test membership
-  - [ ] **7.4.e** At execution time analyze exactly which positions may be relabeled; never propagate an ending verdict backward into non-tablebase rows without a separately justified rule
-  - [ ] **7.4.f** Publish changed-row count, fraction, family distribution and before/after label matrix
-- [ ] **7.5** Decide whether datagen-v3 deserves a third arm
-  - [ ] **7.5.a** Inspect its semantics and provenance when this step is reached
-  - [ ] **7.5.b** Distinguish whole-game tablebase adjudication from row-local post-hoc relabeling
-  - [ ] **7.5.c** Pilot corpus C only if it can be matched closely enough for causal comparison
-  - [ ] **7.5.d** Never merge corpus C evidence into the registered A-versus-B verdict
-- [ ] **7.6** Measure optimizer dependence before the production fit
-  - [ ] **7.6.a** Fit identical targets from accepted-head and neutral initial vectors
-  - [ ] **7.6.b** Compare validation convergence, parameter distance and held-out loss
-  - [ ] **7.6.c** Register the production initialization rule before opening the test set
-- [ ] **7.7** Refit every relevant Texel-tunable HCE coordinate
-  - [ ] **7.7.a** Use the same complete surface, fixed K, optimizer budget and initial rule for A and B
-  - [ ] **7.7.b** Alternate nonlinear blocks where joint fitting is not valid
-  - [ ] **7.7.c** Produce independently applicable candidate vectors and exact manifests
-  - [ ] **7.7.d** Reject any fit with missing/frozen-by-accident coordinates or source drift
-- [ ] **7.8** Test whether tablebase relabeling transfers
-  - [ ] **7.8.a** Compare each candidate with the same accepted pre-fit baseline
-  - [ ] **7.8.b** Run the pre-registered A-versus-B no-adjudication gate
-  - [ ] **7.8.c** Use truth reports to explain endgame effects; use SPRT for strength
-  - [ ] **7.8.d** Accept the label policy and vector only by the registered rule
-- [ ] **7.9** Refresh data from the accepted fitted head
-  - [ ] **7.9.a** Generate a new no-adjudication corpus from the accepted engine
-  - [ ] **7.9.b** Reapply the accepted label contract and complete-surface fit
-  - [ ] **7.9.c** Repeat only while each cycle passes its independent gate
-  - [ ] **7.9.d** Stop at the first rejected cycle; never average rejected vectors into the head
-- [ ] **7.10** Tune evaluation terms that Texel cannot price correctly
-  - [ ] **7.10.a** Inventory nonlinear, capped, thresholded and contextual terms after the accepted linear fit
-  - [ ] **7.10.b** Include only live, sufficiently frequent coordinates; likely candidates include the king-danger funnel and validated contextual scaling
-  - [ ] **7.10.c** Exclude sparse recognizer switches, exact endgame truth rules and every linear coordinate already handled by Texel
-  - [ ] **7.10.d** Wire only the selected coordinates as bounded tune options, generate configuration from current defaults and verify perturbation visibility
-  - [ ] **7.10.e** Run natural-termination SPSA and accept its clean PGO candidate only through an independent SPRT and truth/correctness gates
-- [ ] **7.11** Freeze the classical evaluator
-  - [ ] **7.11.a** Revalidate score scale, calibration, tactical suites and all endgame floors
-  - [ ] **7.11.b** Ablate new mechanisms and low-information fitted coordinates
-  - [ ] **7.11.c** Compare held-out loss, truth quality and game strength against the pre-Phase-7 head and selected HCE references
-  - [ ] **7.11.d** Archive the final surface, corpus policy, fit/tune artifacts and retry triggers
-- [ ] **7.12** Optimise the frozen evaluator's cost without changing what it computes
-  - [ ] **7.12.a** Profile per term and per phase on a phase-balanced corpus first
-  - [ ] **7.12.b** Optimise measured hot terms bit-exactly; exact bench identity is the acceptance test
-  - [ ] **7.12.c** Audit lazy-eval and early-exit thresholds against the final surface
-  - [ ] **7.12.d** Gate on interleaved idle-machine NPS plus a no-adjudication SPRT
+- [ ] **7.0** `[Sol/H]` Refresh and freeze the validated classical toolchain
+- [ ] **7.1** `[Astra/H]` Port board-v2 tests and audit board/parser/SEE contracts
+- [ ] **7.2** `[Astra/XH]` Profile board work inside actual HCE search
+- [ ] **7.3** `[Astra/XH]` Optimize legal generation/list delivery only if hot
+- [ ] **7.4** `[Sol/H]` Measure fused piece relocation only if hot
+- [ ] **7.5** `[Astra/XH]` Share pin/check information only with a valid lifetime contract
+- [ ] **7.6** `[Astra/H]` Optimize SEE only after independent contract parity
+- [ ] **7.7** `[Sol/H]` Make history capacity and mutation contracts explicit
+- [ ] **7.8** `[Astra/XH]` Decide whether a larger board representation change pays
+- [ ] **7.9** `[Fable/XH]` Audit draw/repetition/null policy separately from speed
+- [ ] **7.10** `[Sol/H]` Qualify the integrated board candidate
+- [ ] **7.11** `[Astra/H]` Gate deliberate playing changes
+- [ ] **7.12** `[Astra/H]` Refresh affected endgame evidence and close
 
-## Phase 8 — Classical search and release
+## Phase 8 — Mature HCE refit
 
-- [ ] **8.0** Update compilers and build tools to the newest validated stable versions
-  - [ ] **8.0.a** Inventory exact local, Linux CI, Windows MSYS2 and macOS AppleClang/compiler, standard-library, CMake, Ninja and profile-tool versions
-  - [ ] **8.0.b** Test current versus newest stable compiler families one change at a time; newest is a candidate, not an automatic winner
-  - [ ] **8.0.c** Require clean compile, CTest, sanitizers and identical cross-platform bench search before accepting a toolchain
-  - [ ] **8.0.d** Compare old/new release-mode and PGO throughput with pooled independent builds; retain the faster non-regressing production toolchain
-  - [ ] **8.0.e** Freeze validated major lines where exact package pins are impractical and record exact resolved versions/hashes in release manifests
-  - [ ] **8.0.f** Keep compiler-matched llvm-profdata and verify every supported architecture
-- [ ] **8.1** Revisit singular-extension gate depth
-  - [ ] **8.1.a** Re-measure only on the frozen post-refit evaluator and selected release toolchain
-  - [ ] **8.1.b** Gate isolated search behavior before tuning constants
-- [ ] **8.2** Audit and regenerate SPSA parameters from the final HCE head
-  - [ ] **8.2.a** Map every tunable consumer to eval scale, history scale, depth, node type and time control
-  - [ ] **8.2.b** Stage A contains live eval-coupled margins: reverse futility, razoring, futility, ProbCut, null-eval scaling, SEE pruning and aspiration as supported
-  - [ ] **8.2.c** Stage B contains coupled history/LMR coordinates and their consumers only where telemetry shows signal
-  - [ ] **8.2.d** Exclude categorical mechanism switches, mate/endgame constants, TT/hash/thread settings and clock policy from ordinary search SPSA
-  - [ ] **8.2.e** Replace stale config seeds with exact accepted defaults; verify every plus/minus perturbation at start, midpoint and end
-  - [ ] **8.2.f** Register dimensions, ranges, step sizes, schedule, game budget, seed/tail estimator and independent acceptance gates
-- [ ] **8.3** Tune the final-HCE search surface without adjudication
-  - [ ] **8.3.a** Calibrate the runner and use at least the current 5,000-iteration doctrine per production block unless a validated estimator changes it
-  - [ ] **8.3.b** Run and independently gate Stage A against the frozen HCE head
-  - [ ] **8.3.c** Start Stage B from the accepted Stage A head; run and independently gate it
-  - [ ] **8.3.d** Permit one narrow final polish only if residual sensitivity and budget were pre-registered
-  - [ ] **8.3.e** Bake a tail/averaged candidate chosen by the registered estimator, then require clean PGO SPRT, CTest, tactics and endgame truth
-  - [ ] **8.3.f** Preserve rejected tunes as evidence; never combine their apparent gains arithmetically
-- [ ] **8.4** Remeasure search/evaluation authority
-  - [ ] **8.4.a** Repeat the oracle split on the final tuned classical head
-  - [ ] **8.4.b** Use the result to prioritize post-release work, not rewrite completed evidence
-- [ ] **8.5** Complete clock and time-management work
-  - [ ] **8.5.a** Diagnose remaining root-instability and time-allocation issues
-  - [ ] **8.5.b** If parameters need tuning, use a separate clock-based tune and gate; never mix them into fixed-node/search SPSA
-  - [ ] **8.5.c** Pass 1T and 4T clock gates with zero forfeits
-- [ ] **8.6** Complete correctness hardening
-  - [ ] **8.6.a** Run state, repetition/rule-50, TT/mate, SEE/pin and sanitizer matrices
-  - [ ] **8.6.b** Add regressions for every defect found
-- [ ] **8.7** Complete portability and ISA validation
-  - [ ] **8.7.a** Validate target-native execution and exact search agreement
-  - [ ] **8.7.b** Publish executable ISA and same-target performance evidence
-- [ ] **8.8** Complete SMP validation
-  - [ ] **8.8.a** Revalidate node/thread/helper-clock safety
-  - [ ] **8.8.b** Pass registered 1T/4T strength and scaling gates
-- [ ] **8.9** Release the final classical line
-  - [ ] **8.9.a** Reproduce clean PGO binaries and manifests with the frozen toolchains
-  - [ ] **8.9.b** Pass cumulative 1.9.3 and external-cohort matches
-  - [ ] **8.9.c** Publish the warranted version from measured cumulative strength
-- [ ] **8.10** Optimise search and board throughput against a measured bottleneck
-  - [ ] **8.10.a** Locate the deficit first: BAS-X11 shows more nps and less depth than Rarog, so nodes-to-depth is the gap, not raw speed
-  - [ ] **8.10.b** Profile make/unmake, movegen, the growable undo history and TT access; confirm PEXT behaves as assumed
-  - [ ] **8.10.c** Attack SMP scaling: false sharing on shared counters and TT clusters, and time-to-depth per thread count
-  - [ ] **8.10.d** Hold to exact bench identity, then gate NPS and a no-adjudication SPRT at 1T and 4T
+- [ ] **8.0** Define and close the final HCE surface
+  - [ ] **8.0.a** `[Astra/XH]` Compare pinned HCE references by contracts and interactions
+  - [ ] **8.0.b** `[Fable/XH]` Audit the complete HCE feature and score surface
+  - [ ] **8.0.c** `[Astra/XH]` Trace activation, caches and search consumers
+  - [ ] **8.0.d** `[Astra/H]` Classify repairs, candidates, fit issues and no-change findings
+  - [ ] **8.0.e** `[Sol/H]` Add categorical tests and freeze architecture
+- [ ] **8.1** Harden and document the complete fit pipeline
+  - [ ] **8.1.a** `[Sol/H]` Fit and freeze K across stages/arms
+  - [ ] **8.1.b** `[Sol/H]` Require complete explicit initial vectors
+  - [ ] **8.1.c** `[Sol/H]` Freeze by-game splits and atomically claim test once
+  - [ ] **8.1.d** `[Astra/H]` Partition every coordinate free/fixed/excluded
+  - [ ] **8.1.e** `[Terra/M]` Hash all inputs/outputs and restore source/binary
+  - [ ] **8.1.f** `[Sol/H]` Enforce label domain and rejection accounting
+  - [ ] **8.1.g** `[Sol/H]` Version contracts and port useful Rarog fit tools
+  - [ ] **8.1.h** `[Fable/H]` Write the Basilisk Texel handbook
+- [ ] **8.2** Design a phase-efficient natural-termination corpus
+  - [ ] **8.2.a** `[Sol/H]` Locate/profile/hash the source store
+  - [ ] **8.2.b** `[Astra/XH]` Measure row yield by material-phase start bucket
+  - [ ] **8.2.c** `[Sol/H]` Freeze extraction/dedup/split semantics
+  - [ ] **8.2.d** `[Astra/H]` Size by effective rows and learning curve
+  - [ ] **8.2.e** `[Terra/M]` Register book/corpus quality and budget
+- [ ] **8.3** Generate and publish self-play corpus A
+  - [ ] **8.3.a** `[Sol/H]` Prepare the exact long-run generator and command
+  - [ ] **8.3.b** `[Astra/H]` Audit returned composition, lineage and manifest
+  - [ ] **8.3.c** `[Terra/M]` Publish immutable corpus A
+- [ ] **8.4** Build matched self-play versus Syzygy-row label arms
+  - [ ] **8.4.a** `[Terra/M]` Preserve corpus A labels
+  - [ ] **8.4.b** `[Sol/H]` Build row-identical Syzygy corpus B
+  - [ ] **8.4.c** `[Astra/H]` Treat cursed outcomes and halfmove clocks correctly
+  - [ ] **8.4.d** `[Sol/H]` Prove row/order/split identity
+  - [ ] **8.4.e** `[Fable/H]` Bound row-local relabel eligibility
+  - [ ] **8.4.f** `[Terra/M]` Publish changed-label matrix and provenance
+- [ ] **8.5** Analyze whole-game TB adjudication separately
+  - [ ] **8.5.a** `[Astra/XH]` Audit game-to-row causal semantics
+  - [ ] **8.5.b** `[Sol/H]` Pilot matched corpus C only if isolatable
+  - [ ] **8.5.c** `[Astra/H]` Register C separately; never use TB in strength gates
+  - [ ] **8.5.d** `[Fable/H]` Close no-arm if sampling cannot be isolated
+- [ ] **8.6** Measure optimizer initialization dependence
+  - [ ] **8.6.a** `[Sol/H]` Fit accepted and neutral starts identically
+  - [ ] **8.6.b** `[Astra/H]` Compare convergence, covariance and held-out loss
+  - [ ] **8.6.c** `[Terra/M]` Register the production initialization
+- [ ] **8.7** Complete matched whole-surface fits
+  - [ ] **8.7.a** `[Sol/H]` Hold surface/K/budget/initialization equal
+  - [ ] **8.7.b** `[Astra/H]` Alternate nonlinear and complete-linear stages
+  - [ ] **8.7.c** `[Sol/H]` Verify reconstruction, activation and convergence
+  - [ ] **8.7.d** `[Terra/M]` Produce independent vectors/manifests
+  - [ ] **8.7.e** `[Sol/H]` Reject source/test/surface drift
+- [ ] **8.8** Gate the label contract
+  - [ ] **8.8.a** `[Astra/H]` Register matched candidates and gates
+  - [ ] **8.8.b** `[Sol/H]` Run clean-PGO natural-termination gates
+  - [ ] **8.8.c** `[Fable/H]` Explain with loss/truth; decide with SPRT
+  - [ ] **8.8.d** `[Astra/H]` Accept by the prospective rule only
+- [ ] **8.9** Run iterative whole-surface Texel cycles
+  - [ ] **8.9.a** `[Astra/H]` Register mandatory cycle 1 and loop cap/stop
+  - [ ] **8.9.b** `[Sol/H]` Generate each accepted-head corpus
+  - [ ] **8.9.c** `[Sol/H]` Refit complete surface with fresh test
+  - [ ] **8.9.d** `[Astra/H]` Gate each cycle; stop at first non-acceptance
+  - [ ] **8.9.e** `[Fable/H]` Publish cycle/residual closure
+- [ ] **8.10** Conditionally tune nonlinear HCE residue
+  - [ ] **8.10.a** `[Astra/XH]` Measure activation, interaction and curvature
+  - [ ] **8.10.b** `[Astra/H]` Select only live non-Texel coordinates
+  - [ ] **8.10.c** `[Sol/H]` Wire/verify or close SPSA no-change
+  - [ ] **8.10.d** `[Astra/H]` Register pilot and immutable full tune if justified
+  - [ ] **8.10.e** `[Sol/H]` Run, bake and independently gate
+- [ ] **8.11** Freeze the classical evaluator
+  - [ ] **8.11.a** `[Sol/H]` Revalidate scale, tactics, mate and endgame floors
+  - [ ] **8.11.b** `[Astra/H]` Ablate new/low-information mechanisms
+  - [ ] **8.11.c** `[Fable/XH]` Reconcile loss, truth and strength
+  - [ ] **8.11.d** `[Terra/M]` Archive surface, data, cycles and retry triggers
+- [ ] **8.12** Optimize frozen evaluation cost bit-exactly
+  - [ ] **8.12.a** `[Astra/XH]` Profile terms/phases/cache paths
+  - [ ] **8.12.b** `[Sonnet/H]` Optimize only measured hot paths bit-exactly
+  - [ ] **8.12.c** `[Astra/H]` Audit lazy thresholds separately
+  - [ ] **8.12.d** `[Sol/H]` Gate pooled NPS and natural-termination strength
 
-## Phase 9 — NNUE runway
+## Phase 9 — Classical search and release
 
-- [ ] **9.0** Freeze the NNUE state and feature contract
-  - [ ] **9.0.a** Specify inputs, perspective, accumulators, serialization and refresh rules
-  - [ ] **9.0.b** Add scalar oracle and incremental-state differential tests
-- [ ] **9.1** Prepare the trainer and corpus
-  - [ ] **9.1.a** Audit D:/code/net_trainer against the frozen contract
-  - [ ] **9.1.b** Generate, validate, hash and split the teacher corpus
-  - [ ] **9.1.c** Complete trainer preflight and reproducibility manifest
+- [ ] **9.0** Audit complete search composition and authority
+  - [ ] **9.0.a** `[Astra/XH]` Inventory search, picker, histories, qsearch, pruning/reduction/extension and score contracts
+  - [ ] **9.0.b** `[Fable/XH]` Test interaction/cancellation hypotheses with bounded factorial screens
+  - [ ] **9.0.c** `[Astra/H]` Rerun oracle/counter/depth profiles and derive candidates or no-change
+- [ ] **9.1** Revisit categorical search work
+  - [ ] **9.1.a** `[Astra/XH]` Measure extension authority at fixed depth/nodes/equal cost
+  - [ ] **9.1.b** `[Astra/H]` Implement and gate only an isolated dependency-complete candidate
+- [ ] **9.2** Audit and conditionally fit SEE/move-order value scale
+  - [ ] **9.2.a** `[Astra/H]` Count real SEE/order/delta decisions changed by final HCE scale
+  - [ ] **9.2.b** `[Sonnet/H]` Add exact-default value injection only if justified
+  - [ ] **9.2.c** `[Astra/H]` Fit/gate separately and preserve normalized benchmarking
+- [ ] **9.3** `[Fable/XH]` Audit TT, caches, hashes and hot memory
+- [ ] **9.4** `[Astra/XH]` Audit threading, UCI lifecycle and tablebases
+- [ ] **9.5** `[Fable/H]` Audit diagnostics, harnesses and build delivery
+- [ ] **9.6** Run optional post-HCE search SPSA only on a displaced optimum
+  - [ ] **9.6.a** `[Astra/XH]` Select live interacting non-clock search coordinates
+  - [ ] **9.6.b** `[Sol/H]` Rebuild seeds/wires and register immutable tune metadata
+  - [ ] **9.6.c** `[Astra/H]` Pilot only if useful; skip flat/monotone/low-value surfaces
+  - [ ] **9.6.d** `[Sol/H]` Complete, bake and independently gate justified stages
+  - [ ] **9.6.e** `[Fable/H]` Preserve rejects; forbid post-selected vectors
+- [ ] **9.7** Complete time management separately
+  - [ ] **9.7.a** `[Astra/XH]` Audit clock/root/worker interactions
+  - [ ] **9.7.b** `[Astra/H]` Size overhead/forfeit experiments prospectively
+  - [ ] **9.7.c** `[Fable/XH]` Resolve completed-root confidence consumers
+  - [ ] **9.7.d** `[Sol/H]` Tune/gate clock policy separately and require zero forfeits
+- [ ] **9.8** Correctness, cleanup and checkpoint
+  - [ ] **9.8.a** `[Astra/H]` Close audit ownership and dead/dormant mechanisms
+  - [ ] **9.8.b** `[Sol/H]` Run full correctness/sanitizer/config matrices
+  - [ ] **9.8.c** `[Sol/H]` Freeze benchmark/NPS/node/game checkpoint
+- [ ] **9.9** `[Astra/H]` Run final classical attribution, authority and cumulative gates
+- [ ] **9.10** Portability, SMP and classical release
+  - [ ] **9.10.a** `[Sol/H]` Validate target-native builds, ISA and reproducible PGO
+  - [ ] **9.10.b** `[Astra/XH]` Revalidate SMP contention, time-to-depth and strength
+  - [ ] **9.10.c** `[Sol/H]` Pass prior-release STC/LTC/4T and external gates
+  - [ ] **9.10.d** `[Terra/M]` Publish the warranted release and manifests
+- [ ] **9.11** Investigate universal CPU-dispatched binaries
+  - [ ] **9.11.a** `[Astra/XH]` Specify safe dispatch and build ownership
+  - [ ] **9.11.b** `[Sonnet/H]` Build one isolated prototype
+  - [ ] **9.11.c** `[Sol/H]` Verify tiers, identity and target-native cost
+  - [ ] **9.11.d** `[Fable/H]` Adopt/defer/reject and repeat affected release gates
 
-## Phase 10 — Baseline NNUE
+## Phase 10 — NNUE runway
 
-- [ ] **10.0** Train and integrate the baseline network
-  - [ ] **10.0.a** Train registered baselines and select on frozen validation data
-  - [ ] **10.0.b** Integrate inference, accumulator updates and network packaging
-  - [ ] **10.0.c** Pass scalar/incremental equality, bench and performance gates
-- [ ] **10.1** Adapt search to NNUE
-  - [ ] **10.1.a** Reprice evaluation-dependent pruning and correction mechanisms
-  - [ ] **10.1.b** Run the single reserved post-NNUE search SPSA
-  - [ ] **10.1.c** Gate 1T, LTC and 4T deployment conditions
-- [ ] **10.2** Release 2.0.0
-  - [ ] **10.2.a** Pass correctness, network provenance and fallback checks
-  - [ ] **10.2.b** Pass prior-release and external-cohort gates
+- [ ] **10.0** Hand off the final classical measurement/data contract
+  - [ ] **10.0.a** `[Terra/M]` Freeze data, score, board and reference manifests
+- [ ] **10.1** Add factual per-ply dirty-piece deltas
+  - [ ] **10.1.a** `[Astra/XH]` Define every move/null/refresh transition
+  - [ ] **10.1.b** `[Sonnet/H]` Implement, differentially verify and price the seam
+- [ ] **10.2** Add evaluator-owned accumulator scaffolding
+  - [ ] **10.2.a** `[Astra/H]` Define storage, validity, refresh, clone and unwind
+  - [ ] **10.2.b** `[Sonnet/H]` Verify full-refresh parity and HCE overhead
+- [ ] **10.3** Prepare trainer/corpus path
+  - [ ] **10.3.a** `[Astra/XH]` Audit trainer, toolchain, formats, splits and resume
+  - [ ] **10.3.b** `[Sol/H]` Run pilot train/reload and freeze manifests
+- [ ] **10.4** Close the runway gate
+  - [ ] **10.4.a** `[Sol/H]` Pass transition, oracle, build and performance gates
 
-## Phase 11 — Post-NNUE frontier
+## Phase 11 — Baseline NNUE and 2.0.0
 
-- [ ] **11.0** Improve architecture and data only from measured bottlenecks
-  - [ ] **11.0.a** Evaluate larger/sparser architectures and better feature transforms
-  - [ ] **11.0.b** Refresh data only under a registered label and sampling contract
-- [ ] **11.1** Extend search selectively
-  - [ ] **11.1.a** Revisit rejected classical mechanisms only when NNUE changes their retry trigger
-  - [ ] **11.1.b** Require isolated gates and preserve Basilisk-specific design
+- [ ] **11.0** Harden trainer and controlled data
+  - [ ] **11.0.a** `[Sol/H]` Enforce deterministic CLI/splits/hashes/checkpoints
+  - [ ] **11.0.b** `[Astra/H]` Size and publish data by learning curve
+- [ ] **11.1** Train registered baseline networks
+  - [ ] **11.1.a** `[Astra/XH]` Compare one axis and multiple seeds on frozen data
+- [ ] **11.2** Integrate scalar inference and packaging
+  - [ ] **11.2.a** `[Sonnet/H]` Require integer-exact trainer/engine conformance
+- [ ] **11.3** Integrate incremental and SIMD inference
+  - [ ] **11.3.a** `[Astra/H]` Prove actual-network incremental/full parity
+  - [ ] **11.3.b** `[Sol/H]` Qualify SIMD/scalar and bounds per target
+  - [ ] **11.3.c** `[Astra/H]` Attribute update/refresh/inference costs
+- [ ] **11.4** Adapt search to NNUE
+  - [ ] **11.4.a** `[Astra/XH]` Re-audit score authority and eval-coupled margins
+  - [ ] **11.4.b** `[Astra/H]` Run one justified post-NNUE search SPSA
+  - [ ] **11.4.c** `[Sol/H]` Pass deployment strength/correctness/time gates
+- [ ] **11.5** Release 2.0.0
+  - [ ] **11.5.a** `[Sol/H]` Reproduce network, binaries and fallbacks
+  - [ ] **11.5.b** `[Astra/H]` Beat classical/prior baselines at STC/LTC/4T
 
-## Phase 12 — Scaling and platform
+## Phase 12 — Post-NNUE frontier
 
-- [ ] **12.0** Improve parallel scaling
-  - [ ] **12.0.a** Profile split points, contention and TT traffic at 2/4/8 threads
-  - [ ] **12.0.b** Gate strength and throughput independently
-- [ ] **12.1** Expand supported platforms
-  - [ ] **12.1.a** Validate compilers, ISAs and packaging on target-native hardware
-  - [ ] **12.1.b** Keep portable fallbacks behaviorally checked
+- [ ] **12.0** Improve data/architecture only from residuals
+  - [ ] **12.0.a** `[Astra/XH]` Analyze residuals by phase/material/king/family
+  - [ ] **12.0.b** `[Fable/XH]` Test scale, hard mining and architectures one axis at a time
+  - [ ] **12.0.c** `[Sol/H]` Refresh only under a registered data hypothesis
+- [ ] **12.1** Extend search selectively
+  - [ ] **12.1.a** `[Astra/XH]` Reopen only mechanisms whose retry trigger fired
+  - [ ] **12.1.b** `[Astra/H]` Require isolated clean-PGO gates
 
-## Phase 13 — Optional HCE fallback
+## Phase 13 — Scaling and platform
 
-- [ ] **13.0** Reopen HCE only if NNUE is abandoned or a release blocker demands it
-  - [ ] **13.0.a** Require a new feature surface or new data contract; never refit the unchanged surface again
-  - [ ] **13.0.b** Register budget and acceptance before work begins
+- [ ] **13.0** Improve high-thread/NUMA scaling
+  - [ ] **13.0.a** `[Astra/XH]` Profile diversity, useful TT traffic, contention and bandwidth
+  - [ ] **13.0.b** `[Astra/H]` Optimize measured causes; gate depth and strength
+- [ ] **13.1** Expand platforms and delivery
+  - [ ] **13.1.a** `[Sol/H]` Validate compilers/ISAs/dispatch on native hardware
+  - [ ] **13.1.b** `[Sonnet/H]` Preserve tested portable fallbacks
+
+## Phase 14 — Optional HCE fallback
+
+- [ ] **14.0** Reopen HCE only if NNUE is abandoned or blocked
+  - [ ] **14.0.a** `[Fable/XH]` Require a new structural residual or data contract
+  - [ ] **14.0.b** `[Astra/H]` Register mechanism, fit, budget and acceptance

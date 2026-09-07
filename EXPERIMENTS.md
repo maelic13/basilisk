@@ -2136,7 +2136,7 @@ decided, 8.2%.
 
 *It is concentrated where the roadmap goes next.* Mislabel rate by family,
 8,000 against 25,000 nodes: KRPP-KR 26.2% -> 13.4%, KRP-KRP 30.7% -> 14.0%,
-KPP-KPP 25.2% -> 8.7%, KBPP-KP 17.9% -> 13.9%. Those are PLAN 6.5's Group B
+KPP-KPP 25.2% -> 8.7%, KBPP-KP 17.9% -> 13.9%. Those are Plan 6.8's Group B
 rook- and bishop-pawn families almost exactly. KBN-K does not appear at all,
 consistent with BAS-E43.
 
@@ -2148,7 +2148,7 @@ reduction, from 19.77% to 13.65%, and even 25,000 nodes leaves one ending in
 seven mislabelled. Adjudicating a game by tablebase once it reaches six men
 would remove the bias outright at the cost of one probe per game.
 
-*That is not authorized here.* PLAN 7 keeps post-hoc tablebase relabeling and
+*That is not authorized here.* Phase 8 keeps post-hoc tablebase relabeling and
 datagen-v3 game adjudication as deliberately distinct arms that must not be
 conflated, and 6.0.f declined to license relabeling without its own
 halfmove-clock and row-domain analysis. This entry quantifies the prize for
@@ -2184,7 +2184,8 @@ SHA-256, only the termination rule changed:
 | gap | 96 (20.0pp) | **105 (21.9pp)** |
 
 Both arms were contaminated; both improved; the reference improved more. The
-endgame deficit motivating 6.3-6.7 is real and marginally larger than recorded,
+endgame deficit motivating the remaining Phase-6 work is real and marginally
+larger than recorded,
 so nothing about the sub-phase is excused. Downstream consequence to check
 before reuse: 6.0.c's frozen ceilings were derived from the contaminated
 reference arm, whose conversion was 389/480 and is now 466/480.
@@ -2210,7 +2211,8 @@ reasons. At 200,000 nodes the trend is absent even in aggregate.
 
 The deficit is real but material-specific: KBP-K 15 positions behind, KNN-KP
 13, KQ-KR 13, KBN-K 12 (pre-6.1 head, since addressed), KQ-KRP 10, KBPP-KB 9.
-Those belong to 6.5.c and 6.7.a. A general king-approach term touches none of
+Those are now distributed across 6.8.b/6.8.c and 6.10.b/6.10.c. A general
+king-approach term touches none of
 them, and adding one anyway would be importing a reference constant, which is
 precisely what 6.3.a forbids.
 
@@ -2253,7 +2255,7 @@ rather than the root evaluation.
 *Consequences.* First, BAS-E43's finding that KBNK never occurs in trees from
 real roots stands, but is narrower than it sounded: it excluded endgame roots by
 construction, and KBNK nodes plainly do occur in four-man endgame trees. Second,
-the KBP-K deficit routed into 6.5.c is 7 positions at the current head, not the
+the KBP-K deficit routed into 6.8.c is 7 positions at the current head, not the
 15 the stale pre-6.1 arm showed. Third, this is precisely 6.4.a's subject --
 score resolution, saturation and interaction at Basilisk's scale -- and it now
 has a concrete, reproducible instance to audit rather than a hypothetical one.
@@ -2283,7 +2285,7 @@ so the residual hard set is **13**. Any reasoning that treated the 75 as a
 difficulty floor was reasoning about the instrument.
 
 These ceilings are acceptance targets for later steps, so v1's values were not
-merely wrong but lenient in exactly the families 6.5 will implement. v1 is kept
+merely wrong but lenient in exactly the families 6.8 and 6.10 may implement. v1 is kept
 as the historical artifact and superseded; the generator's defaults now point
 at the corrected inputs and a v2 output so a regeneration cannot restore them.
 Supersedes the ceiling figures quoted in BAS-E08.
@@ -2430,7 +2432,7 @@ ten-minute budget. Five suites were run individually instead and all passed;
 the sanitized build is functional, but no claim is made about the complete
 sanitized run.
 
-**BAS-E53 - 6.5.a: the narrow-window rook failure IS resolvable, and not by
+**BAS-E53 - current 6.8.a: the narrow-window rook failure IS resolvable, and not by
 depth** (2026-09-07). The leaf's direction rested on the claim that "a static
 evaluation supplies a gradient over many moves; it cannot reliably pick two
 exact moves out of twenty". That is an assertion about possibility, and it has
@@ -2459,8 +2461,8 @@ z = 3.61**; basilisk@600k 6-2, z = 1.41; basilisk@300k 4-2, z = 0.82.
 **The claim is refuted.** Stockfish resolves 160 of 161 narrow nodes at the
 SAME budget where Basilisk resolves 147. **Depth is not the answer either**:
 ten times the nodes recovers 4 of 14 errors and does not approach
-stockfish@60k, so this is not deferrable to Phase 8. The wide bucket is at
-ceiling for both engines, so the deficit is specific to the failure class and
+stockfish@60k, so this is not deferrable to the later whole-search phase. The
+wide bucket is at ceiling for both engines, so the deficit is specific to the failure class and
 not general strength -- 13 lost nodes out of 161 narrow against 4 out of 680
 elsewhere.
 
@@ -2482,9 +2484,9 @@ rook placement but are not a mechanism either -- thirteen cases is the same
 sample size that already misled this leaf once. Cross-engine node parity is
 approximate; the 600k arm is what protects the conclusion.
 
-*Disposition.* Observation. No engine change. 6.5.a stays open, with its
-direction corrected: the question is no longer whether the class is resolvable
-but what knowledge resolves it. Analysis in
+*Disposition.* Observation. No engine change. The only-move question is now
+6.8.a: it is no longer whether the class is resolvable, but what knowledge
+resolves it. The separate 6.5.a scale candidate remains prepared. Analysis in
 `analysis/rook_narrow_node_resolvability_v1.md`.
 
 **BAS-E54 - 6.5.a: the reference's rook-ending scaling ports, but only with a
@@ -2580,7 +2582,7 @@ against Rarog 2.4.0dev than 1.10.0dev does, by 3.7 Elo -- comfortably inside
 the interval, and a caution against reading the pool table as a clean ordering.
 
 *Three things it does establish.* First, the strength metric is TB-OFF, which
-resolves 6.5.a's scope question: endgame failures the truth harness finds are
+resolves the Phase-6 scope question: endgame failures the truth harness finds are
 not artifacts of a TB-blind instrument, because the games are equally blind.
 Second, **510 of 12,000 games (4.25%) end by the fifty-move rule**, the
 game-level signature of conversion failure, bounding the Phase 6 prize; the
@@ -2889,15 +2891,15 @@ margins must stay wide to be safe. If that is right, width is a *symptom* and
 cluster 5.5 (static eval / TT / qsearch separation) and the 5.9 HCE track carry
 the value that 5.4 did not.
 
-### Accepted or retained### Accepted or retained
+### Accepted or retained
 
 | ID | Experiment and conditions | Result / disposition | Conditional lesson | Source |
 |---|---|---|---|---|
-| BAS-S01 | TT-bound-aware pruning evaluation used a proving TT bound for RFP, razoring, NMP, futility and qsearch stand pat while preserving raw/corrected eval for improving and correction updates. | **Accepted, +7.18 Elo** in the 1.8.0 search state. | In that state, separating pruning evidence from training evidence improved their cooperation. Preserve this separation in the 5.1 shadow census and any 8.3 result-evidence redesign. | `CHANGELOG.md` 1.8.0 |
+| BAS-S01 | TT-bound-aware pruning evaluation used a proving TT bound for RFP, razoring, NMP, futility and qsearch stand pat while preserving raw/corrected eval for improving and correction updates. | **Accepted, +7.18 Elo** in the 1.8.0 search state. | In that state, separating pruning evidence from training evidence improved their cooperation. Preserve this separation in the 5.1 shadow census and any Phase-9 result-evidence redesign. | `CHANGELOG.md` 1.8.0 |
 | BAS-S02 | A jointly exposed search bundle after several knobs had landed inert at defaults. | **Accepted, +9.14 Elo** in the 1.8.0 campaign. | Mechanisms that are neutral alone may become measurable after related consumers exist and are jointly fitted. This does not justify bundling without diagnostics and ablations. | legacy plan at `8dc0a24^` |
-| BAS-S03 | Exact/PV-node best-move quiet-history reward, without sibling maluses. | **Accepted, +4.90 Elo** before harness re-audit; paired with surprise history it reverified at +3.06 ± 4.35. | In that search state, result semantics mattered to history training. Plan 5.1 shadows attribution; any consumer redesign belongs to 8.3. | `CHANGELOG.md` 1.9.0 |
+| BAS-S03 | Exact/PV-node best-move quiet-history reward, without sibling maluses. | **Accepted, +4.90 Elo** before harness re-audit; paired with surprise history it reverified at +3.06 ± 4.35. | In that search state, result semantics mattered to history training. Plan 5.1 shadows attribution; any consumer redesign belongs to the Phase-9 audit and diagnosed search work. | `CHANGELOG.md` 1.9.0 |
 | BAS-S04 | Static-eval-surprise scaling of history. | **Accepted, +2.50 Elo** pre-affinity; retained after the paired fixed-harness audit. | Eval surprise was a useful confidence signal in that baseline, but must be regenerated when evaluation scale changes. | `CHANGELOG.md` 1.9.0 |
-| BAS-S05 | Denser 32-byte partial-key TT cluster and replacement changes. | **Accepted, +4.27 Elo** pre-affinity; retained with structural merit, not re-run on the corrected harness. | More effective TT capacity appeared useful at the tested hash/TC; Plan 8.3/9.1 must separate semantic consumers, density, replacement and indexing before generalizing. | `CHANGELOG.md` 1.9.0 |
+| BAS-S05 | Denser 32-byte partial-key TT cluster and replacement changes. | **Accepted, +4.27 Elo** pre-affinity; retained with structural merit, not re-run on the corrected harness. | More effective TT capacity appeared useful at the tested hash/TC; Plan 9.3 must separate semantic consumers, density, replacement and indexing before generalizing. | `CHANGELOG.md` 1.9.0 |
 | BAS-S06 | SEE excluded absolutely pinned attackers through a shared exchange-occupancy pin scan. | **Retained for correctness; +0.65 Elo claim unverified** after harness repair. | Correct exchange legality is a valid prerequisite even when the isolated strength effect is below resolution. | `CHANGELOG.md` 1.9.0 |
 
 ### Rejected, neutral or deferred
@@ -2905,28 +2907,31 @@ the value that 5.4 did not.
 | ID | Experiment and conditions | Result / disposition | Conditional lesson and retry trigger | Source |
 |---|---|---|---|---|
 | BAS-S07 | Added a 6-ply continuation-history channel to the then-current history stack. | **Rejected, −7.70 Elo.** | In that stack, the extra channel likely duplicated or distorted existing evidence. Retry only after history ownership/indexing changes and with a post-fit ablation. | legacy plan at `8dc0a24^` |
-| BAS-S08 | Blanket removal of the check extension against the `hcefinal`-tuned head. | **Rejected, −10.17 ± 6.52 over 4,682 games; reverted.** | The result may reflect consumers tuned around the extension, not a universal need for it. Retry only in the post-NNUE joint architecture/fit at 8.3; Rarog's opposite result is a prior, not a verdict. | `CHANGELOG.md` 1.9.1 |
-| BAS-S09 | Corrected an LMR reduction gate that consumed `gives_check` after making the move. | **Standalone rejected, about −20 Elo; reverted/deferred.** | The incorrect path may have acted as an aggressive-reduction heuristic and the surrounding constants were fitted with it. Reintroduce only inside unified pre-move evidence plus the post-NNUE joint fit in Plan 8.3. | `CHANGELOG.md` 1.9.1; `analysis/search_analysis.md` |
+| BAS-S08 | Blanket removal of the check extension against the `hcefinal`-tuned head. | **Rejected, −10.17 ± 6.52 over 4,682 games; reverted.** | The result may reflect consumers tuned around the extension, not a universal need for it. Retry only in the post-NNUE joint architecture/fit at Plan 11.4; Rarog's opposite result is a prior, not a verdict. | `CHANGELOG.md` 1.9.1 |
+| BAS-S09 | Corrected an LMR reduction gate that consumed `gives_check` after making the move. | **Standalone rejected, about −20 Elo; reverted/deferred.** | The incorrect path may have acted as an aggressive-reduction heuristic and the surrounding constants were fitted with it. Reintroduce only inside unified pre-move evidence plus the post-NNUE joint fit in Plan 11.4. | `CHANGELOG.md` 1.9.1; `analysis/search_analysis.md` |
 | BAS-S10 | Exact-node history update reused cutoff-style sibling maluses. | **Rejected, −84.21 ± 18.85 over 652 games.** | Under this history design, sibling malus semantics did not transfer from cutoffs to exact nodes. Any retry must distinguish reward-only exact evidence from cutoff evidence. | legacy plan at `8dc0a24^` |
-| BAS-S11 | Cutoff-count LMR was considered after Rarog tested a full LMR-family retune. | **Not implemented standalone; imported Rarog result was −7.78 ± 8.00.** | `cutoffCnt` is not a mandatory improvement. It may be tested only as a diagnosed coordinate within Plan 8.3, followed by ablation. | legacy plan at `8dc0a24^`; Rarog `CHANGELOG.md` |
-| BAS-S12 | Cuckoo repetition and post-LMR history candidates were tested on the old unpinned harness. | **Rejected/closed for the old state; measurements carried harness uncertainty.** | The old conditions leave residual uncertainty, but repeated retries have low expected value. Reopen in 8.3 only if the 5.1 shadow census identifies the exact missing consumer and pre-registers one terminal test. | legacy plan at `8dc0a24^` |
+| BAS-S11 | Cutoff-count LMR was considered after Rarog tested a full LMR-family retune. | **Not implemented standalone; imported Rarog result was −7.78 ± 8.00.** | `cutoffCnt` is not a mandatory improvement. It may be tested only as a diagnosed coordinate within Plan 9.6, followed by ablation. | legacy plan at `8dc0a24^`; Rarog `CHANGELOG.md` |
+| BAS-S12 | Cuckoo repetition and post-LMR history candidates were tested on the old unpinned harness. | **Rejected/closed for the old state; measurements carried harness uncertainty.** | The old conditions leave residual uncertainty, but repeated retries have low expected value. Reopen in Phase 9 only if the audit identifies the exact missing consumer and pre-registers one terminal test. | legacy plan at `8dc0a24^` |
 
 ## 4. Root search, time management and SMP
 
 | ID | Experiment and conditions | Result / disposition | Conditional lesson and retry trigger | Source |
 |---|---|---|---|---|
 | BAS-R01 | Start the move clock at receipt of `go`, including GUI-to-worker dispatch latency. | **Retained non-regression, +2.95 ± 6.74 Elo** versus 1.7.0. | At bullet TC with concurrent engines, dispatch latency was material to safety. Recheck on materially different UCI scheduling architectures. | `CHANGELOG.md` 1.8.0 |
-| BAS-R02 | SPSA of nine time-management constants on the old root model. | **Neutral, +0.88 ± 4.03 over 12,262 games; reverted.** | The tested constants appeared near a local ceiling in that root model. A retry is justified only after post-NNUE Plan 8.3 changes the confidence inputs. | `CHANGELOG.md` 1.8.0 |
+| BAS-R02 | SPSA of nine time-management constants on the old root model. | **Neutral, +0.88 ± 4.03 over 12,262 games; reverted.** | The tested constants appeared near a local ceiling in that root model. A retry is justified only after Plan 11.4 changes the post-NNUE confidence inputs. | `CHANGELOG.md` 1.8.0 |
 | BAS-R03 | Best-move-instability time extension using a decaying root-change signal. | **Accepted; +10.79 pre-affinity, +6.46 ± 4.12 on fixed harness.** | Root instability was useful at the tested TC/model. Preserve the signal but recalibrate it when root confidence or score scale changes. | `CHANGELOG.md` 1.9.0 |
 | BAS-R04 | Phase-9 helper clock/node/thread safety bundle at 4T. | **Accepted, +30.42 ± 8.77 at 4T, zero forfeits in 2,450 games.** Boundary H2H was +11 1T fast, +14 4T fast and +26 4T `10+0.1`, all with wide intervals. | Most measured value belonged to the combined deployed SMP condition, not a single isolated mechanism. Keep 1T and 4T claims separate and require topology/hash manifests. | `CHANGELOG.md` 1.9.2 |
-| BAS-R05 | Shared-node batching/scaling change. | **Retained:** neutral at 1T/4T and +12.8% in an indicative 16T throughput check; no Elo claim. | A scaling fix can be useful beyond the tested release topology without proving strength. Re-measure under Phase 9 high-thread/NUMA work. | `CHANGELOG.md` 1.9.2 |
+| BAS-R05 | Shared-node batching/scaling change. | **Retained:** neutral at 1T/4T and +12.8% in an indicative 16T throughput check; no Elo claim. | A scaling fix can be useful beyond the tested release topology without proving strength. Re-measure at the 9.10 release topology and under Phase-13 high-thread/NUMA work. | `CHANGELOG.md` 1.9.2 |
 | BAS-R06 | Extra helper coordination, aspiration sharing, diversification, TT variants and HCE refit during Phase 9. | **Rejected or removed; not shipped.** | Additional shared signals can create correlated work or overwrite useful diversity. Retry only when diagnostics identify a specific scaling bottleneck. | `CHANGELOG.md` 1.9.2; `analysis/mt_baseline_9.3.md` |
 
 ## 5. Evaluation and data experiments
 
-New HCE strength work is frozen. These rows remain relevant to NNUE data,
-teacher and measurement design; they do not authorize Plan-10 HCE work unless
-NNUE is explicitly abandoned.
+The rows below preserve the historical decision to freeze HCE and route the
+remaining gap to NNUE. That scheduling conclusion is superseded by the current
+Plan 8.0-8.12: Rarog's later controlled HCE/data evidence now justifies a
+bounded whole-surface audit, matched label experiment and iterative Texel
+cycles. The old results remain binding priors and retry constraints; they do
+not accept any new feature, vector or label policy by themselves.
 
 **BAS-E07 — HCE maturity audit, 2026-08-13** (`analysis/hce_maturity_v1.md`).
 Term coverage against Stockfish `9587eeeb` is near-complete: only `BadOutpost`,
@@ -2993,35 +2998,55 @@ These are ideas, warnings or ordering priors already incorporated where useful
 in Basilisk's forward plan. Listing an item here does not by itself create a
 roadmap item.
 
-**BAS-X09/X10 are the exception.** They did not refine an existing plan item —
-they changed Phase 5's purpose from bounded pre-NNUE hardening to a search and
-evaluation acceleration program. They remain *imported priors*: they size and
-order Basilisk's work and can never accept a Basilisk change.
+The 2026-09-07 refresh audited Rarog `dev` at `881c821` (clean and matching
+`origin/dev`), including PLAN Phase 4, GUIDE, EXPERIMENTS, PROCESS,
+SPSA_IMPROVEMENTS and the linked board/endgame/SEE/Texel analyses. Later donor
+changes require a new import record rather than silently updating these claims.
+
+**BAS-X09/X10 and BAS-X16 are the exceptions.** X09/X10 changed Phase 5's
+purpose from bounded pre-NNUE hardening to a search and evaluation acceleration
+program. X16 contains measurements of Basilisk itself made by Rarog's
+cross-engine harness. Even there, the host/build/protocol limits remain and the
+result cannot accept a Basilisk change.
 
 Note what they do **not** license. They establish that a mature search is worth
 roughly 200 Elo to us and that a mature HCE is worth more again. They say
 nothing about which specific mechanism earns it, and they are not permission to
 transcribe Stockfish. Basilisk remains an independent engine; the reference is
-an idea source and an oracle. See PLAN's Independence contract.
+an idea source and an oracle. See PLAN's operating contract.
 
 | ID | Rarog evidence | Possible Basilisk implication | Existing PLAN coverage |
 |---|---|---|---|
-| BAS-X01 | Check-extension removal was +30.75 Elo in Rarog but −10.17 ± 6.52 in Basilisk. | Search mechanisms can be jointly de-tuned; copy the experiment design, not the verdict. | 8.3 |
-| BAS-X02 | Stockfish distillation improved holdout loss by 4.9% yet lost −17.11 Elo in Rarog, while Basilisk gained +6.75. | Teacher transfer depends on corpus, representation, scale and current policy; games remain the gate. | 6.2–6.4, 7.0–7.2 |
-| BAS-X03 | Rarog's full `cutoffCnt`/LMR-family candidate lost −7.78 ± 8.00 despite its tuning trajectory. | Tuner success can select a self-play-local optimum. Treat `cutoffCnt` as an optional diagnosed coordinate, not required parity. | 8.3 |
-| BAS-X04 | Rarog gained +22.13 from history bonus/malus work and +6.01 from a broader history bundle. | Result-source attribution and consumer normalization may unlock history value, but Basilisk's 6-ply channel already showed duplication risk. | 5.2 diagnostics, then the 5.4 history cluster; residue to 8.3 |
-| BAS-X05 | Rarog's accepted SMP rework was +102.78 ± 16.38 at 4T. Historical Rarog 2.3.0 minus Basilisk 1.9.1 pool Elo was 1T STC −55 ± 21, 1T LTC −38 ± 27, 4T STC −32 ± 50 and 4T LTC **+34 ± 24**. Rarog later showed ~12.3× 16T NPS but no fixed-time depth gain. | The old matrix suggests a thread × TC crossover, not general Basilisk LTC inferiority: Basilisk led both 1T cells. Since Basilisk subsequently changed SMP, repeat the current-version 2×2 with uncertainty and pair it with internal time-to-depth diagnostics before assigning the cause or changing code. | 5.12, 9.0 |
-| BAS-X06 | Rarog's bench-identical speed wave gained +10.35% NPS and +20.31 ± 7.13 Elo at STC. | It corroborates that wall-clock speed can convert to strength near this host/TC, while leaving LTC and ISA transfer unknown. | 5.11, 5.12, 9.1 |
-| BAS-X07 | Rarog `arm_fix` adds an AArch64 prefetch path and a runtime-hoist idea; x64 evidence was bundled and ARM untested. | Basilisk already uses compiler prefetch on ARM. Verify emitted code; do not copy the Rust implementation, wrapper or constants. | 5.11 |
-| BAS-X08 | Rarog's parity audit emphasizes shared `MoveEvidence`, prospective depth and correction attribution. | These abstractions may reduce contradictory consumers in Basilisk if the telemetry confirms the same failure modes. | 5.2 diagnostics, 5.10 safety, then the 5.4-5.8 clusters; residue to 8.3 |
-| BAS-X09 | Rarog RAR-O02 (no adjudication, 1,238 games, 982 natural mates, `3+0.03`, 1T): Stockfish `9587eeeb` search driving Rarog's 2.3.2 HCE beat **Basilisk 1.9.3 by ~+196.5 Elo** while running 1.5M NPS against Basilisk's 2.5M. Basilisk − Rarog was +30.4 in the same pool. | Basilisk's dominant measurable deficit is search coordination, not evaluation capacity or NNUE absence, and it is not a throughput artifact. Logistic point estimates from a stopped run — they size a target and are never added or quoted as a release claim. Basilisk-specific magnitude is unknown until 5.1 measures our own evaluator under the same search. | **5.1** oracle, then 5.2–5.8 convergence |
-| BAS-X10 | In the same run, the exact-revision Stockfish HCE beat that hybrid by **~+328.6 Elo** with the search held identical. RAR-O01, the adjudicated variant, inflated the sibling contrast from +196.5 to +270.9. | A second large deficit exists in HCE structural coverage, isolated cleanly because only the evaluator changed. Justifies unfreezing HCE for structural convergence (5.9) while keeping the constant-refit freeze. The adjudication delta is a standing warning: cross-evaluator cohorts run with adjudication off. | **5.9**; adjudication rule in PLAN durable lesson 14 |
+| BAS-X01 | Check-extension removal was +30.75 Elo in Rarog but −10.17 ± 6.52 in Basilisk. | Search mechanisms can be jointly de-tuned; copy the experiment design, not the verdict. | 9.0–9.1 |
+| BAS-X02 | Stockfish distillation improved holdout loss by 4.9% yet lost −17.11 Elo in Rarog, while Basilisk gained +6.75. | Teacher transfer depends on corpus, representation, scale and current policy; games remain the gate. | 8.0–8.9, 11.0–11.1 |
+| BAS-X03 | Rarog's full `cutoffCnt`/LMR-family candidate lost −7.78 ± 8.00 despite its tuning trajectory. | Tuner success can select a self-play-local optimum. Treat `cutoffCnt` as an optional diagnosed coordinate, not required parity. | 9.0, 9.6 |
+| BAS-X04 | Rarog gained +22.13 from history bonus/malus work and +6.01 from a broader history bundle. | Result-source attribution and consumer normalization may unlock history value, but Basilisk's 6-ply channel already showed duplication risk. | completed Phase 5 evidence; retry only at 9.0/9.6 |
+| BAS-X05 | Rarog's accepted SMP rework was +102.78 ± 16.38 at 4T. Historical Rarog 2.3.0 minus Basilisk 1.9.1 pool Elo was 1T STC −55 ± 21, 1T LTC −38 ± 27, 4T STC −32 ± 50 and 4T LTC **+34 ± 24**. Rarog later showed ~12.3× 16T NPS but no fixed-time depth gain. | The old matrix suggests a thread × TC crossover, not general Basilisk LTC inferiority: Basilisk led both 1T cells. Repeat current 1T/4T conditions and pair games with time-to-depth/useful-TT evidence before assigning cause. | 9.10, 13.0 |
+| BAS-X06 | Rarog's bench-identical speed wave gained +10.35% NPS and +20.31 ± 7.13 Elo at STC. | Wall-clock speed can convert near this host/TC, but LTC/ISA transfer remains unknown and each Basilisk speed cluster still needs its own controlled evidence. | Phase 7, 8.12, 9.10 |
+| BAS-X07 | Rarog's AArch64 TT prefetch later measured +1.42% NPS on M4 with 12/12 paired wins and exact search identity; a proposed 128-byte TT wrapper was flat because allocations were already aligned. | Verify emitted instructions and the mechanical premise of a layout change. Basilisk already has ARM prefetch; target-native evidence, not donor code, decides any retry. | 7.0, 9.10, 13.1 |
+| BAS-X08 | Rarog's parity audit emphasizes shared `MoveEvidence`, prospective depth and correction attribution. | These abstractions may reduce contradictory consumers only if Basilisk telemetry confirms the same failure modes. | 9.0, 9.6 |
+| BAS-X09 | Rarog RAR-O02 (no adjudication, 1,238 games, 982 natural mates, `3+0.03`, 1T): Stockfish `9587eeeb` search driving Rarog's 2.3.2 HCE beat **Basilisk 1.9.3 by ~+196.5 Elo** while running 1.5M NPS against Basilisk's 2.5M. Basilisk − Rarog was +30.4 in the same pool. | Basilisk's dominant measured deficit was search coordination, not raw NPS. The stopped-run logistic estimates size a target and are not release claims. | completed 5.1; final reassessment 9.0/9.9 |
+| BAS-X10 | In the same run, the exact-revision Stockfish HCE beat that hybrid by **~+328.6 Elo** with search held identical. RAR-O01's adjudicated variant inflated the sibling contrast from +196.5 to +270.9. | Structural HCE coverage mattered and adjudication can be a large cross-evaluator confound. | completed Phase 5; 8.0–8.11 |
 | BAS-X15 | Rarog `4aea0c7`/RAR-E10 replaced its coarse KBNK corner metric with a bishop-colour-selected weak-king diagonal potential. At 60k nodes KBN-K conversion moved **19.4% -> 96.9%**, KBB-K 78.0% -> 100%, and 61 rule-50 failures fell to zero. A near-1:1 diagonal/king balance was ineffective; strong corner-pull dominance was essential. | **6.1.b correction:** Basilisk's existing Manhattan-to-nearest-correct-corner term is algebraically the same diagonal potential plus a constant. No geometry was missing. The transferable question is its dominance over Basilisk's edge/king/knight pulls, owned by 6.1.c; no Rarog constant or bishop-position term is licensed. | **6.1.a–f**; `analysis/kbnk_diagonal_port_v1.md` |
+| BAS-X16 | Rarog RAR-M20 directly benchmarked Basilisk `d734766` against Rarog `ca03a46` and Reckless `91b56c2` on a Ryzen 9 5950X, native optimized non-PGO, three cyclic rounds. Basilisk led Rarog by **43.7% legal generation, 22.3% captures, 29.4% generation+make/unmake, 39.8% perft and 46.0% two-ply simulation**; RAR-M29's normalized SEE rerun was **58.335 vs 44.923 M captures/s (+29.9%)**. | This measures Basilisk directly and rejects a broad board-throughput deficit as the default hypothesis. Active-desktop load and scatter prevent small-gain claims; microbenchmarks do not establish whole-search share or Elo. Profile HCE search before opening board work. | 7.1–7.12; donor `analysis/board_audit_2026-09-05.md`, RAR-M20/M29 |
+| BAS-X17 | Rarog RAR-M21 reran one fixed cohort at 60k/200k/600k nodes: its net reference conversion deficit fell **85 -> 27 -> 16**, with KBN-K and KQ-KP reaching full conversion at both higher budgets; gains/losses remained position-dependent. | A low-budget deficit can be search-budget sensitivity rather than missing HCE knowledge. Derive Basilisk's bracket from deployed nodes/move and preserve static-draw or causal debts that a larger conversion budget does not test. | 6.6.d, 6.7, 6.10.b |
+| BAS-X18 | Rarog's 36,400-game occurrence census corrected prior zeroes, found KRPPKRP in **5.40%** of its games and KQKRPs in **4.41%** of its measured tree, and showed strong root concentration. | Family priority and feasible gate type must use local board and tree occurrence with per-root distributions. These percentages are Rarog-policy-specific and cannot rank Basilisk directly. | 6.7, 6.9 |
+| BAS-X19 | Rarog RAR-M22 found raw first-clean-win contradictions in **4.39%** of `hce-v2` games and **8.99%** of its `hce-v3` source games. RAR-E08's matched <=6-man Syzygy relabel fit was accepted at **+6.73 ±3.82 Elo**; whole-game TB adjudication remained causally distinct. | Independently corroborates Basilisk BAS-E46: label error is material and policy-dependent. Preserve the matched row-local relabel experiment and test whole-game termination only as a separate arm. Donor rates and Elo do not transfer. | 8.4–8.8 |
+| BAS-X20 | Rarog 4.10 found a material-shed termination bug, zero-overlap cohorts compared as if matched, a regression anchor that passed a broken KBNK drive, thin denominators, dirty/wrong-revision gate gaps and single-feature-only build coverage. It repaired them with versioned schemas, cohort digests, serial-identical sharding, known-bad guard tests, FEN-hash holdout/McNemar, provenance refusals and combination matrices. | These are directly reusable failure classes and much of the generic Python/PowerShell can be adapted or copied. Historical Basilisk results remain valid only under their recorded instrument semantics; any changed contract requires explicit supersession/re-measurement. | 6.6, 9.5 |
+| BAS-X21 | Rarog RAR-M25's board-v2 corpus covers canonical FEN/legal/capture identities, checks/evasions, pinned EP, all castles and underpromotions, perft/divides, keys/state restoration across normal/hinted/staged/null/clone/unwind, negative controls and warmed allocation checks. | Port the corpus/oracle shape before optimizing Basilisk's board. Adapter and language differences require independent wire proof; the donor instrument is not evidence that Basilisk already passes. | 7.1 |
+| BAS-X22 | Rarog RAR-M27/M28 found three SEE defects (selected-king legality, created pins, recapture promotions), repaired them against 41 independent fixtures/1,802 captures, and changed its bench tree by +10.14%. RAR-M29 then separated value injection from tuning and normalized peer timing. | Add equivalent independent fixtures and caller contracts before speed work. The defects were demonstrated in Rarog, not Basilisk. Correctness can materially move search while ordinary tests or cross-engine native-value timing mislead. Basilisk's legacy 100/300/300/500/900 search/SEE scale still deserves a post-HCE decision-level audit. | 7.1, 7.6, 9.2 |
+| BAS-X23 | Rarog's complete HCE refit RAR-E06 accepted **+22.04 ±7.51 Elo**; matched TB relabel RAR-E08 accepted **+6.73 ±3.82**; a new no-adjudication, phase-yield-shaped corpus refit RAR-E12 accepted **+11.81 ±5.33**. | Supports whole-surface fitting, label correction and iterative corpus refresh as separate potential gains. Rarog's representation, labels, search and scale differ, so none predicts Basilisk Elo or licenses its vector/constants. | 8.0–8.11 |
+| BAS-X24 | Rarog's fitting handbook records why phase-balanced starts were inefficient: only opening starts materially fed its opening bucket, while direct later-phase starts bought independence. Its adopted book, full-surface schedule, one-shot test marker and contract-named manifests caught real pipeline failures. | Measure Basilisk's own start-phase yield and copy the safeguards, not Rarog's 50/10/10/10/20 mix, 1,218-slot partition, epochs or corpus size. | 8.1–8.3 |
+| BAS-X25 | Rarog canceled a prepared 320k-game broad SPSA after expected-value review; its durable workflow makes SPSA conditional on live interacting curvature and adds transactional resume, immutable horizon, non-overlapping opening cursors, whole-vector tail extraction and semantic-rail diagnostics. | Spend Texel on linear HCE; reserve HCE/search SPSA for separate small demonstrated surfaces. Review each runner feature independently and prove interrupt/resume behavior before an expensive tune. | 8.10, 9.6, 11.4.b |
+| BAS-X26 | Rarog's Phase-4 subsystem audit contract requires producer/state/consumer/invalidation inventories, realistic cost profiles, interaction screens, finding classification and an analysis-only handoff before implementation. | Adopted as Basilisk's common design gate for board, HCE, search, caches, lifecycle, time and NNUE state. It prevents feature-checklist ports and speculative rewrites. | PLAN §2; Phases 7–13 |
+| BAS-X27 | Rarog `881c821` adds exact board-call/work counters for its pending 4.11b.7 HCE-search profile, but its PLAN/GUIDE still mark the profile incomplete and no result is recorded. | The counter categories/code are a useful donor implementation, not evidence about cost or priority. Basilisk may adapt them at 7.2 only with live-wire and instrumentation-off identity tests. | 7.2 |
 
-Apart from the search-oracle result and the KBNK diagonal potential, the
-cross-review found no additional high-value Rarog item missing from the current
-Basilisk plan. The remaining items are already covered, contradicted by local
-evidence, or deliberately postponed to the NNUE/scaling phases.
+The 2026-09-07 re-audit supersedes the earlier conclusion that no additional
+high-value Rarog item was missing. Rarog's newer Phase-4 work added substantial
+instrument, board, endgame-ranking, HCE-cycle, subsystem-audit and delivery
+knowledge after the original cross-review. BAS-X16–X27 record that delta. Each
+is an imported prior or method unless it explicitly measured Basilisk; none is
+an acceptance verdict for a future Basilisk change.
 
 ## 8b. Cross-engine evidence imported from Manta
 
@@ -3031,10 +3056,10 @@ never accept a Basilisk change.
 
 | ID | Manta evidence | Basilisk implication | Coverage |
 |---|---|---|---|
-| BAS-X11 | `MAN-E05` (endgame conversion grading, −16.32 Elo) and `MAN-E07` (nonlinear material imbalance, −7.00) — two faithful reference-family evaluation concepts with hand-reasoned coefficients, about **−23 Elo between them**. Manta's conclusion: adopting reference concepts with reasoned constants "reproduces its structure without its calibration". | A direct warning about **5.9 as currently scoped** — six absent terms, each hand-set and individually gated, is precisely the design that lost twice there. Manta's answer was to land structure on deterministic evidence and promote the block through **one** joint fit and **one** gate. Our HCE freeze bars that, which is further support for BAS-E07's conclusion that the evaluation gap is NNUE's to close rather than 5.9's. | 5.9 |
+| BAS-X11 | `MAN-E05` (endgame conversion grading, −16.32 Elo) and `MAN-E07` (nonlinear material imbalance, −7.00) — two faithful reference-family evaluation concepts with hand-reasoned coefficients, about **−23 Elo between them**. Manta's conclusion: adopting reference concepts with reasoned constants "reproduces its structure without its calibration". | A direct warning against adding reference terms with hand-set constants one by one. Manta's answer was to land dependency-complete structure on deterministic evidence, then promote it through one whole-surface fit and one gate; current Plan 8 adopts that discipline without importing its terms or values. | 8.0, 8.7–8.9 |
 | BAS-X12 | `MAN-S18` and `MAN-S20`: two selectivity clusters, 12,000 games each, that **grew** the tree (755,581→772,203 and 744,899→761,703 nodes) while losing. The direction of travel was toward more protective search while the tree was already too wide. | Converges with BAS-S13, where a more principled continuous history response also made reductions *smaller*. Selectivity work drifts toward protection unless a tree-shape measurement is checked at design time, not after. | 5.4, 5.6 |
 | BAS-X13 | `MAN-S23`: a registered pre-gate branching filter refuted a candidate "in minutes of arithmetic" where the two clusters above had cost 12,000 games each. Its `b(4-12)` measure was then found to have been decided by **one position of forty** exploding 41.5% at the endpoint depth. | Independent validation of the harness-before-SPRT discipline this phase used to reject BAS-S13/S14/S15 and BAS-D04 without spending games. The endpoint-measure trap is adopted directly: `tools/diag/branching.py` reports per-position ratios and a median beside the aggregate. | 5.2, 5.14 |
-| BAS-X14 | Manta's fit catalogue classifies coefficients **free / fixed / excluded**, excluding nonlinear king danger, capped winnability and truncated tables because "a linear count model would misrepresent their caps, squares, per-application truncation or dispatch". | Independent support for BAS-E07: our king-safety funnel is exactly that class of term, so a static linear objective cannot price it. Reinforces that our fitting method — not our effort — is what the evaluation gap reflects. | 5.9, 7.x |
+| BAS-X14 | Manta's fit catalogue classifies coefficients **free / fixed / excluded**, excluding nonlinear king danger, capped winnability and truncated tables because "a linear count model would misrepresent their caps, squares, per-application truncation or dispatch". | Independent support for splitting complete linear Texel fitting from capped/contextual HCE tuning. Classification prevents a linear objective from silently mispricing nonlinear terms; it does not prove SPSA is worthwhile. | 8.1.d, 8.7, 8.10 |
 
 Manta also supplied the **method** that produced BAS-D05, which is recorded
 there rather than here because it is our own measurement.
@@ -3043,14 +3068,14 @@ there rather than here because it is our own measurement.
 
 | Prior IDs | Retry condition | PLAN destination |
 |---|---|---|
-| BAS-S08, BAS-S09, BAS-S11 | Unified pre-move evidence and prospective-depth model implemented; consumers included in the single joint fit; post-fit ablations registered. | 5.4 and 5.6 clusters; residue to 8.3 |
-| BAS-S07, BAS-S10, BAS-S12 | Diagnostics show a distinct source/consumer gap that the existing history tables cannot represent. | 5.2, then the 5.4 cluster; residue to 8.3 |
-| BAS-R02, BAS-R03 | Root-confidence inputs or NNUE score scale materially change. | 7.6, 8.3 |
-| BAS-P04, BAS-P05, BAS-P06 | A new profile demonstrates changed reuse, cache pressure or PGO coverage. | 9.1 |
-| BAS-P07, BAS-X07 | Production ARM64 artifacts show missing prefetch or measured hot-state contention; isolate one valid variant per target-native A/B. | 5.11 |
-| BAS-E03, BAS-E04, BAS-E06 | NNUE data/teacher experiment, not another HCE **constant** fit; frozen teacher and holdout are available. Structural HCE coverage is a different question owned by 5.9. | 5.9, 6.2–7.2 |
-| BAS-E36 Arm B (bishop proximity) | An instrument run against the accepted 6.1.c vector shows bishop shuffling is still the dominant residual failure mode; the candidate is gated on zero clean-win loss and zero piece loss before ply 10. | 6.4, then a registered Group A gate |
-| BAS-E36 Arm C (escape-square count) | The stalemate-adjacency hypothesis is tested directly rather than assumed, the term is shown to reinforce rather than compete with the corner drive, and it clears the deterministic KBN-K floor it previously broke. | 6.4, then a registered Group A gate |
+| BAS-S08, BAS-S09, BAS-S11 | Unified pre-move evidence and prospective-depth model implemented; consumers included in a single justified joint fit; post-fit ablations registered. | 9.0/9.6, then 11.4 if NNUE fires the trigger |
+| BAS-S07, BAS-S10, BAS-S12 | Diagnostics show a distinct source/consumer gap that existing histories cannot represent. | 9.0/9.6 |
+| BAS-R02, BAS-R03 | Root-confidence inputs or evaluator score scale materially change. | 9.7; re-audit at 11.4 |
+| BAS-P04, BAS-P05, BAS-P06 | A new profile demonstrates changed reuse, cache pressure or PGO coverage. | Phase 7, 8.12 or 9.3 by owner |
+| BAS-P07, BAS-X07 | Production ARM64 artifacts show missing prefetch or measured hot-state contention; isolate one valid variant per target-native A/B. | 7.0, 9.10, 13.1 |
+| BAS-E03, BAS-E04, BAS-E06 | NNUE data/teacher experiment, not another unchanged-surface HCE constant fit; frozen teacher and holdout are available. | 11.0–11.1 |
+| BAS-E36 Arm B (bishop proximity) | A current instrument run shows bishop shuffling remains the dominant residual failure mode and the candidate clears promotion closure and all mate floors. | 6.7/6.10 only if re-ranked |
+| BAS-E36 Arm C (escape-square count) | The stalemate-adjacency hypothesis is tested directly, shown to reinforce rather than compete with the corner drive, and clears deterministic KBN-K/promotion-closure floors. | 6.7/6.10 only if re-ranked |
 
 Anything not meeting its trigger stays closed. A retry is a new experiment with
 a new ID and manifest; it does not overwrite the historical row.
