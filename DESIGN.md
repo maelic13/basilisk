@@ -88,14 +88,34 @@ line names where it lives.
 
 ### Transposition table
 - 32-byte cluster, 3 entries, 10-byte slots (`src/tt.h`).
-- The 16-bit field is a **tag**, `key16 ^ fold16(payload)`, not a plain key. A
-  reader reconstructs the key from the payload it actually observed, so a
-  payload and tag from different publications fail validation. Detection is
-  16-bit, the same strength as the old partial key (BAS-C05).
-- Both fields are **relaxed** atomics, and that is deliberate: the tag makes
-  detection order-independent, so no release/acquire pair is required.
-- An empty slot is `(data 0, tag 0)`, which reconstructs `key16 == 0`. The
+- **Every field that can decide a bound, a cutoff or an extension is published
+  in one atomic 64-bit word together with its partial key**: `key16 |
+  score16<<16 | eval16<<32 | depth8<<48 | flag_age8<<56`, exactly 64 bits with
+  none spare (BAS-C05). A reader therefore cannot pair a matching key with
+  another position's bound — the tear is unrepresentable, not merely detected.
+  This is load-bearing for the depth-preferred cutoff at `src/search.cpp:1589`
+  and the singular multicut at `src/search.cpp:1967`, both of which return a
+  TT-derived score. `tt_layout_check` in `src/tt.h` static-asserts the
+  round-trip; widening any field is a build failure.
+- **`move16` is explicitly outside that guarantee**, because there are no spare
+  bits. Under SMP it may come from a different publication, so **every consumer
+  must validate it before use** — `MovePicker` checks piece/colour/`is_legal`
+  (`src/search.cpp:792`), `ponder_from_tt` checks legality, qsearch only
+  compares it against generated legal moves. A foreign move can mis-order a
+  node; it can never produce a wrong bound or an illegal move. All `Move`
+  accessors mask (`src/move.h:41`), so any 16-bit value decodes in-bounds.
+- All fields are **relaxed** atomics, and that is deliberate: atomicity of the
+  single word is the entire requirement for the validated record, and the only
+  cross-field pairing left (word/move) is the one carrying no guarantee.
+- Detection strength against a genuinely different position is the plain 16-bit
+  partial-key collision, 1/65536 — unchanged from the pre-BAS-C05 scheme.
+- An empty slot is `(word 0, move 0)`, which decodes to `key16 == 0`. The
   `flag_age` check is what rejects it when `want == 0`. Preserve that.
+- **Coherence must not be bought with throughput.** The rejected
+  `key16 ^ fold16(payload)` tag was correct and cost **3.91% NPS at identical
+  node counts** (~-7.8 Elo at BAS-P01's ratio), because a probe could no longer
+  reject a slot without loading and folding the payload. Any future scheme is
+  measured at 1T with `tools/nps_ab.ps1` before it is gated on games.
 
 ### Match and measurement
 - **Score-based adjudication is off by default in every tool.** Opt-in runs

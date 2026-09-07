@@ -199,11 +199,11 @@ one loosely-published move) -> consumers:
    together with its partial key; `move16` is explicitly outside that guarantee
    and every consumer must validate it before use.* Right now the tolerance is
    implicit and each consumer re-derives it.
-4. **`tools/run_tt_coherence_sprt.ps1`** hard-codes `Mode = "simplify"` with no
-   `-Games`, so it inherits the 30,000 default at concurrency 3, and it does not
-   require the 4T calibration null that both `sprt.ps1:45-47` and BAS-M02
-   mandate. It needs new frozen revisions, `-Games 10000`, and a hard
-   precondition on an existing 4T null.
+4. **`tools/run_tt_coherence_sprt.ps1` is deleted** (maintainer decision,
+   2026-09-07). It existed only to rebuild frozen revisions in temporary
+   worktrees for a second machine, a workflow that will not recur. Gate arms are
+   now built here with `tools/build_test.ps1` and handed over as one `sprt.ps1`
+   command line.
 
 ## Cheapest discriminating tests
 

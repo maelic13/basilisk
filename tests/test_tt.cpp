@@ -78,28 +78,84 @@ static void test_key_miss() {
     end_section();
 }
 
-static void test_torn_publication_is_rejected() {
-    TTCluster cluster;
-    constexpr uint16_t old_key = 0x1357;
-    constexpr uint16_t new_key = 0x2468;
-    constexpr uint64_t old_data = 0x0102030405060708ULL;
-    constexpr uint64_t new_data = 0x1122334455667788ULL;
-    static_assert(tt_fold16(old_data) != tt_fold16(new_data));
+// BAS-C05. The predecessor of this test constructed a torn key/payload pair and
+// asserted the reader rejected it. Under the current layout that test cannot be
+// written: the validated record is one 64-bit word, so a torn pair is
+// unrepresentable rather than merely detected. The invariant worth asserting is
+// therefore structural — every field that can decide a bound is genuinely
+// carried by that one word, and none has been quietly moved out to make room.
+static void test_validated_record_is_one_publication() {
+    // Extremes at the real limits: deepest mate band, the INF_EVAL sentinel,
+    // the depth=-1 qsearch sentinel, a full age byte.
+    constexpr int mate_band = -(TranspositionTable::MATE_SCORE + TranspositionTable::MAX_PLY);
+    const uint64_t word = tt_pack(0xBEEF, mate_band, TranspositionTable::INF_EVAL, -1, 0xFC);
+    const TTEntry e = tt_unpack(word);
 
-    cluster.store(0, old_key, old_data);
-    cluster.data[0].store(new_data, std::memory_order_relaxed);
-    uint64_t observed = 0;
-
-    begin_section("torn publication: old tag plus new payload is rejected");
-    EXPECT(!cluster.load(0, old_key, observed));
+    begin_section("validated record: key/score/eval/depth/flag round-trip one word");
+    EXPECT(e.key16 == 0xBEEF);
+    EXPECT(e.score == mate_band);
+    EXPECT(e.static_eval == TranspositionTable::INF_EVAL);
+    EXPECT(e.depth == -1);
+    EXPECT(e.flag_age == 0xFC);
     end_section();
 
-    cluster.store(0, old_key, old_data);
-    cluster.tags[0].store(static_cast<uint16_t>(new_key ^ tt_fold16(new_data)),
-                          std::memory_order_relaxed);
+    begin_section("validated record: the key is the low 16 bits probe_copy compares");
+    EXPECT(static_cast<uint16_t>(word) == 0xBEEF);
+    end_section();
 
-    begin_section("torn publication: new tag plus old payload is rejected");
-    EXPECT(!cluster.load(0, new_key, observed));
+    // Negative control for "a field was moved out of the word to make room":
+    // perturbing any single validated field must change the published word.
+    begin_section("validated record: every field is actually carried by the word");
+    EXPECT(tt_pack(0xBEEE, mate_band, TranspositionTable::INF_EVAL, -1, 0xFC) != word);
+    EXPECT(tt_pack(0xBEEF, mate_band + 1, TranspositionTable::INF_EVAL, -1, 0xFC) != word);
+    EXPECT(tt_pack(0xBEEF, mate_band, TranspositionTable::INF_EVAL - 1, -1, 0xFC) != word);
+    EXPECT(tt_pack(0xBEEF, mate_band, TranspositionTable::INF_EVAL, 0, 0xFC) != word);
+    EXPECT(tt_pack(0xBEEF, mate_band, TranspositionTable::INF_EVAL, -1, 0xF8) != word);
+    end_section();
+
+    // An all-zero slot must still decode to key16 0 with TT_NONE, so a position
+    // whose partial key is 0 does not read an empty slot as a hit.
+    begin_section("validated record: an empty slot decodes to key16 0 and TT_NONE");
+    EXPECT(tt_unpack(0).key16 == 0);
+    EXPECT((tt_unpack(0).flag_age & 3) == TT_NONE);
+    end_section();
+
+    TranspositionTable tt(1);
+    TTEntry probed{};
+    begin_section("validated record: a zero partial key does not hit an empty slot");
+    EXPECT(!tt.probe_copy(0x0000000000001234ULL, probed));
+    end_section();
+}
+
+// The other half of the contract, asserted rather than assumed: `move16` lives
+// outside the guarantee (DESIGN.md section 3). A move from a different
+// publication cannot corrupt the record it arrives with, and every consumer
+// validates it before use.
+static void test_move_is_outside_the_guarantee() {
+    TTCluster cluster;
+    const uint64_t word = tt_pack(0x1357, 100, 200, 7, static_cast<uint8_t>(0x04 | TT_EXACT));
+    cluster.store(0, word, static_cast<uint16_t>(move_to_tt(make_move(E2, E4))));
+
+    // Simulate a later publication of a different position landing on this slot
+    // between a reader's word load and its move load.
+    cluster.moves[0].store(static_cast<uint16_t>(move_to_tt(make_move(D2, D4))),
+                           std::memory_order_relaxed);
+
+    const TTEntry e = tt_unpack(cluster.load_word(0));
+
+    begin_section("move16: a foreign move cannot corrupt the validated record");
+    EXPECT(e.key16 == 0x1357);
+    EXPECT(e.score == 100);
+    EXPECT(e.static_eval == 200);
+    EXPECT(e.depth == 7);
+    EXPECT((e.flag_age & 3) == TT_EXACT);
+    end_section();
+
+    // Documented, deliberate tolerance — not an accident. If this ever starts
+    // returning the original move, the contract has changed and DESIGN.md
+    // section 3 must change with it.
+    begin_section("move16: it is explicitly NOT guaranteed to match the record");
+    EXPECT(move_from_tt(cluster.load_move(0)) == make_move(D2, D4));
     end_section();
 }
 
@@ -116,34 +172,53 @@ static void test_concurrent_publication_stays_coherent() {
         for (int i = 0; i < iterations; ++i)
             tt.store(key, 12, score, TT_EXACT, move, 0, static_eval);
     };
-    auto reader = [&](Key key, int score, int static_eval, Move move) {
+    const Move move_a = make_move(E2, E4);
+    const Move move_b = make_move(D2, D4);
+    std::atomic<bool> move_torn{false};
+
+    // The validated fields must all belong to THIS key's publication, key16
+    // included. The move is checked only for being a value some thread actually
+    // published — it is a single atomic field, so it can be foreign but never a
+    // mixture of two moves. MOVE_NONE is admissible: it is the constructor's
+    // value, and on a weakly ordered target it can still be visible when the
+    // word from the store that replaced it already is.
+    auto reader = [&](Key key, int score, int static_eval) {
+        const auto key16 = static_cast<uint16_t>(key >> 48);
         while (!start.load(std::memory_order_acquire)) {}
         for (int i = 0; i < iterations; ++i) {
             TTEntry entry{};
-            if (tt.probe_copy(key, entry)
-                && (entry.score != score || entry.static_eval != static_eval
-                    || move_from_tt(entry.move16) != move
-                    || (entry.flag_age & 3) != TT_EXACT)) {
+            if (!tt.probe_copy(key, entry))
+                continue;
+            if (entry.key16 != key16 || entry.score != score
+                || entry.static_eval != static_eval || entry.depth != 12
+                || (entry.flag_age & 3) != TT_EXACT) {
                 failed.store(true, std::memory_order_relaxed);
+                return;
+            }
+            const Move seen = move_from_tt(entry.move16);
+            if (seen != move_a && seen != move_b && seen != MOVE_NONE) {
+                move_torn.store(true, std::memory_order_relaxed);
                 return;
             }
         }
     };
 
-    const Move move_a = make_move(E2, E4);
-    const Move move_b = make_move(D2, D4);
     std::thread writer_a(writer, key_a, 111, 211, move_a);
     std::thread writer_b(writer, key_b, 122, 222, move_b);
-    std::thread reader_a(reader, key_a, 111, 211, move_a);
-    std::thread reader_b(reader, key_b, 122, 222, move_b);
+    std::thread reader_a(reader, key_a, 111, 211);
+    std::thread reader_b(reader, key_b, 122, 222);
     start.store(true, std::memory_order_release);
     writer_a.join();
     writer_b.join();
     reader_a.join();
     reader_b.join();
 
-    begin_section("concurrent publication: returned records remain coherent");
+    begin_section("concurrent publication: every validated field matches the key");
     EXPECT(!failed.load(std::memory_order_relaxed));
+    end_section();
+
+    begin_section("concurrent publication: move16 is never a mixture of two moves");
+    EXPECT(!move_torn.load(std::memory_order_relaxed));
     end_section();
 }
 
@@ -449,7 +524,8 @@ int main() {
     test_key_miss();
 
     std::printf("\nPublication coherence\n");
-    test_torn_publication_is_rejected();
+    test_validated_record_is_one_publication();
+    test_move_is_outside_the_guarantee();
     test_concurrent_publication_stays_coherent();
 
     std::printf("\nClear\n");
