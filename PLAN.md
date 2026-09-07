@@ -10,20 +10,19 @@ historical evidence ledger.
 |---|---|
 | Branch | development |
 | Released baseline | Basilisk 1.9.3; bench-13 fingerprint 11,941,440 |
-| Prepared engine candidate | 6.5.a at `489c331`; bench 12,568,898; CTest 12/12 |
-| Strength baseline | Frozen Group-A head; bench 12,709,666; accepted HCE line about +12 Elo versus 1.9.3 |
-| Current phase | Phase 6, step 6.5.a |
+| Accepted engine head | Group A plus 6.5.a rook scaling; bench 12,568,898; CTest 12/12 |
+| Strength baseline | 6.5.a accepted at +3.29 +/- 4.61 Elo over frozen Group A; accepted HCE line previously about +12 Elo versus 1.9.3 |
+| Current phase | Phase 6, step 6.6.a |
 | Evaluation | HCE is unfrozen for structural improvement and complete, controlled refits |
 | Corpus rule | Game-result labels only; no engine-evaluation labels |
 | Match/data rule | Natural termination by default; score-based adjudication requires explicit opt-in and registration |
-| Long job | 6.5.a KRPKR/KRPPKRP draw-scaling SPRT prepared; maintainer command pending |
+| Long job | None |
 | Release target | Classical release after Phase 9; NNUE 2.0.0 after Phase 11 |
 
-Step 6.5.a remains open. Its truth-floored rook-ending scaling candidate is
-implemented at `489c331`, benches 12,568,898 against the accepted Group-A
-12,709,666, and is prepared for its registered no-adjudication SPRT. No later
-leaf may proceed until the returned artifact is analyzed and the candidate is
-accepted or reverted.
+Step 6.5.a is accepted. Its truth-floored rook-ending scaling candidate was
+implemented at `489c331`, benches 12,568,898 against the Group-A 12,709,666,
+and passed its registered no-adjudication `[-5,+3]` SPRT at +3.29 +/- 4.61 Elo
+over 6,332 games. The next unchecked leaf is 6.6.a.
 
 ## 2. Operating contract
 
@@ -1225,8 +1224,8 @@ assumed.
 
 ### 6.5 Prepared rook-ending scale gate
 
-- [ ] **6.5** Finish the already-prepared rook-ending scale candidate.
-  - [ ] **6.5.a** `[Sol/H]` Analyze the registered no-adjudication SPRT for the truth-floored KRPKR/KRPPKRP draw-scaling candidate. **Re-measured at the current head (BAS-E54): +0.302 and +0.262, not the +0.171 and +0.138 BAS-E32 recorded on 2026-08-31.** The candidate is implemented and prepared; accept or revert it by the pre-registered verdict before changing any tool or engine dependency.
+- [x] **6.5** Finish the already-prepared rook-ending scale candidate.
+  - [x] **6.5.a** `[Sol/H]` Analyze the registered no-adjudication SPRT for the truth-floored KRPKR/KRPPKRP draw-scaling candidate. **Accepted H1:** +3.29 +/- 4.61 Elo, 6,332 games, LLR 2.98 through the `[-5,+3]` upper bound.
 
 **6.5.a implementation status (2026-09-07, BAS-E54).** KRPKR and KRPPKRP draw
 scaling is implemented in `apply_endgame` and prepared for a gate; the leaf
@@ -1249,6 +1248,18 @@ stays open until the SPRT returns. Three findings worth carrying forward:
   +0.262 -> +0.231, at bench -1.1% and NPS +1.24%. That is roughly a fifth of
   one bias and an eighth of the other, so it is a down payment on 6.5.a rather
   than a fix, and it is far too small to assume Elo from.
+
+**6.5.a completion (2026-09-07, BAS-E54).** The maintainer-returned
+no-adjudication SPRT accepted H1 at **+3.29 +/- 4.61 Elo** and **+6.11 +/- 8.56
+nElo**, LOS 91.91%, after 6,332 games (1,641 wins, 1,581 losses, 3,110 draws;
+56.10% draw ratio; pentanomial `[67,606,1776,634,83]`). LLR reached **2.98**
+against bounds `(-2.94, 2.94)` for the registered `[-5,+3]` test. Conditions:
+`3+0.03`, 1 thread, Hash 64, paired `UHO_Lichess_4852_v1.epd`, tablebases off
+and no score adjudication. The candidate is retained and the leaf is closed.
+The returned paths named `_rookscale_vs_base_20260907_094516.pgn` and `.log`,
+but those raw artifacts were not present under `D:/code` when closure was
+performed; this limitation is recorded rather than silently treating the raw
+files as re-verified.
 
 **2026-09-07: historical 6.5.a was split into current 6.5.a and 6.8.a, with the maintainer's
 sign-off.** BAS-E53 established that the two problems bundled here are

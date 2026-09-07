@@ -2546,9 +2546,20 @@ threshold was 150 where the position scores 19 with the rule and 53 without.
 Both guards were then re-checked by neutering the gate and confirming they
 fail.
 
-*Disposition.* Prepared, not accepted. Corrects about 20% of the KRP-KR bias
-and 12% of KRPP-KRP at no measured cost; too small to assume Elo, so it is
-gated on a no-adjudication SPRT. 6.5.a stays open.
+*Strength gate and disposition.* The maintainer-returned no-adjudication SPRT
+used the prepared `rookscale` candidate against `base` at `3+0.03`, 1 thread,
+Hash 64, paired `UHO_Lichess_4852_v1.epd`, tablebases off and natural
+termination. It accepted H1 for the registered `[-5,+3]` bounds after **6,332
+games: 1,641 wins, 1,581 losses, 3,110 draws**, +3.29 +/- 4.61 Elo, +6.11 +/-
+8.56 nElo, LOS 91.91%, draw ratio 56.10%, pentanomial
+`[67,606,1776,634,83]`, LLR **2.98** against `(-2.94,2.94)`. **Accepted and
+retained.** This establishes the registered strength verdict under these
+conditions; it does not claim that the residual rook-ending bias is solved.
+The returned PGN/log paths were
+`tools/results/sprt/_rookscale_vs_base_20260907_094516.{pgn,log}`, but neither
+raw artifact was present under `D:/code` at closure time, so their contents and
+hashes were not independently re-verified. Retry only if the evaluator/search
+surface or rook-ending occurrence materially changes.
 
 **BAS-X11 - current standing, 12,000-game Colosseum round robin** (2026-09-04,
 maintainer-run). Conditions: 3s+30ms, two games per pair, parallel 10, no draw

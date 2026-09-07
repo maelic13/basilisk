@@ -120,8 +120,8 @@ inherit their earliest open child.
   - [x] **6.4.a** Test score resolution, saturation and interaction at Basilisk's scale
   - [x] **6.4.b** Keep theory truth, move quality, conversion and game strength separate
   - [x] **6.4.c** Freeze the accepted Group A head and truth report (also: static_assert the shipped KBNK default)
-- [ ] **6.5** Finish the prepared rook-ending scale candidate
-  - [ ] **6.5.a** `[Sol/H]` Analyze the registered KRPKR/KRPPKRP no-adjudication SPRT; accept or revert
+- [x] **6.5** Finish the prepared rook-ending scale candidate
+  - [x] **6.5.a** `[Sol/H]` Accept KRPKR/KRPPKRP scaling: +3.29 +/- 4.61 Elo, 6,332 games, H1
 - [ ] **6.6** Upgrade instrument and gate integrity
   - [ ] **6.6.a** `[Astra/H]` Audit Basilisk tools against Rarog 4.10
   - [ ] **6.6.b** `[Sol/H]` Add versioned schemas, cohort digests and serial-identical sharding
