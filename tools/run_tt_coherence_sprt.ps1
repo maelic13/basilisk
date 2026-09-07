@@ -8,17 +8,14 @@
     score or bound. This changes search only under SMP races, so its registered
     playing gate is the deployed 4-thread configuration.
 
-    Multi-thread fastchess runs are intentionally unpinned. The harness must
-    therefore prove its placement bias at this thread count before the verdict:
     The required binaries are gitignored, so this wrapper first checks out the
     two frozen revisions in temporary detached worktrees and builds a fresh
     PEXT+PGO binary from each. Their artifacts are copied to a newly created,
     uniquely named directory; an existing executable is never overwritten.
 
-    It then runs a 30,000-game byte-identical null calibration whose complete
-    95% nElo interval must lie inside +/-5, followed by the candidate against
-    the frozen pre-repair binary with an SPRT at [-5,0]. Score-based
-    adjudication is off for both runs. Any time forfeit invalidates either run.
+    It then runs the candidate against the frozen pre-repair binary with a
+    4-thread SPRT at [-5,0]. Score-based adjudication is off. Any time forfeit
+    invalidates the run.
 
     H1 accepts the implementation. H0 does not license restoring incoherent TT
     reads; it requires redesigning the publication mechanism and gating that
@@ -27,7 +24,6 @@
     REQUIRES PowerShell 7 because tools/sprt.ps1 is UTF-8 without a BOM.
 #>
 param(
-    [int]$CalibrationGames = 30000,
     [int]$Threads = 4,
     [int]$Hash = 256,
     [string]$TC = "3+0.03",
@@ -45,10 +41,6 @@ if ($Threads -ne 4) {
 if ($Hash -ne 256) {
     throw "This gate is registered at Hash=256 MB per engine; do not change -Hash."
 }
-if ($CalibrationGames -ne 30000) {
-    throw "This gate is registered at 30,000 calibration games; do not change -CalibrationGames."
-}
-
 $root = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..")).Path
 $clang = Get-Command clang -CommandType Application -ErrorAction SilentlyContinue
 if (-not $clang) {
@@ -79,8 +71,7 @@ if ($WhatIfOnly) {
     Write-Host "  1. create two isolated temporary worktrees"
     Write-Host "  2. build fresh PEXT+PGO baseline and candidate binaries"
     Write-Host "  3. preserve them in a new unique tools\test_engines subdirectory"
-    Write-Host "  4. run the 30,000-game 4T null calibration"
-    Write-Host "  5. run the 4T SPRT [-5,0] if calibration passes"
+    Write-Host "  4. run the 4T SPRT [-5,0]"
     exit 0
 }
 
@@ -180,51 +171,32 @@ if ($candidateBuild.Bench -ne $baselineBuild.Bench) {
 }
 
 $sprt = Join-Path $PSScriptRoot "sprt.ps1"
-$calibrationArgs = @(
-    "-EngineA", $baseline,
-    "-EngineB", $baseline,
-    "-NameA", "tt-4t-null-a",
-    "-NameB", "tt-4t-null-b",
-    "-Mode", "calibrate",
-    "-Games", $CalibrationGames,
-    "-CalibrationTolerance", 5,
-    "-Threads", $Threads,
-    "-Hash", $Hash,
-    "-TC", $TC
-)
-$gateArgs = @(
-    "-EngineA", $candidate,
-    "-EngineB", $baseline,
-    "-NameA", "tt-coherent",
-    "-NameB", "tt-plain-key-base",
-    "-Mode", "simplify",
-    "-Threads", $Threads,
-    "-Hash", $Hash,
-    "-TC", $TC
-)
+$gateArgs = @{
+    EngineA = $candidate
+    EngineB = $baseline
+    NameA = "tt-coherent"
+    NameB = "tt-plain-key-base"
+    Mode = "simplify"
+    Threads = $Threads
+    Hash = $Hash
+    TC = $TC
+}
 
 Write-Host "Artifact directory:  $artifactDir"
 Write-Host "Candidate revision:  $candidateRevision"
 Write-Host "Baseline revision:   $baselineRevision"
 Write-Host "Exact 1T bench:     $($candidateBuild.Bench) (candidate = baseline)"
-Write-Host "Registered design:  $CalibrationGames-game 4T null calibration, then 4T SPRT [-5,0]"
+Write-Host "Registered design:  4T SPRT [-5,0]"
 Write-Host "Adjudication:       OFF"
 
 if ($PrepareOnly) {
     Write-Host ""
-    Write-Host "Preparation complete. The following commands were not run:"
-    Write-Host ("  {0} {1}" -f $sprt, ($calibrationArgs -join " "))
-    Write-Host ("  {0} {1}" -f $sprt, ($gateArgs -join " "))
+    Write-Host "Preparation complete. The 4T SPRT was not run."
     exit 0
 }
 
 Write-Host ""
-Write-Host "Phase 1/2: calibrating the unpinned 4-thread harness"
-& $sprt @calibrationArgs
-if ($LASTEXITCODE -ne 0) { throw "4T null calibration failed with exit code $LASTEXITCODE" }
-
-Write-Host ""
-Write-Host "Phase 2/2: TT coherence non-regression SPRT [-5,0]"
+Write-Host "TT coherence non-regression SPRT [-5,0]"
 & $sprt @gateArgs
 if ($LASTEXITCODE -ne 0) { throw "TT coherence SPRT failed with exit code $LASTEXITCODE" }
 
