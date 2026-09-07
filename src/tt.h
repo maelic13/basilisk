@@ -31,21 +31,49 @@ struct TTEntry {
 // 3 entries and equal hash fits ~2x the clusters (and entries).
 //
 // Lock-free model (SF-style): the payload words stay 8-byte aligned so each is
-// an atomic load/store; the key16 fragment is a separate 2-byte atomic. A read
-// can only "tear" across the key16/payload pair, and a mismatched pair is
-// harmless — the 1/65536 partial-key collision (or a stale pair under SMP) is
-// caught downstream (illegal tt_move rejected by is_legal; bounds validated).
-// Single-thread search is race-free. Old scheme detected torn writes; this one
-// tolerates the rare harmless race instead, the price of the density.
+// an atomic load/store; the separate 16-bit field stores
+// `key16 ^ fold16(payload)`. A reader folds the payload it actually observed,
+// so a key from one publication and payload from another reconstruct a garbage
+// key and are rejected. Detection is 16 bits, the same collision strength as a
+// plain partial key, without giving up the 10-byte slot density.
+[[nodiscard]] inline constexpr uint16_t tt_fold16(uint64_t data) noexcept {
+    const uint64_t folded32 = data ^ (data >> 32);
+    return static_cast<uint16_t>(folded32 ^ (folded32 >> 16));
+}
+
 struct alignas(32) TTCluster {
     std::atomic<uint64_t> data[3];    // payload words, 8-byte aligned (offsets 0/8/16)
-    std::atomic<uint16_t> key16[3];   // partial keys (offsets 24/26/28)
+    std::atomic<uint16_t> tags[3];    // key16 ^ payload fold (offsets 24/26/28)
 
     TTCluster() noexcept {
-        for (int i = 0; i < 3; ++i) { data[i].store(0); key16[i].store(0); }
+        for (int i = 0; i < 3; ++i) { data[i].store(0); tags[i].store(0); }
     }
     TTCluster(const TTCluster&) = delete;
     TTCluster& operator=(const TTCluster&) = delete;
+
+    [[nodiscard]] bool load(int index, uint16_t wanted_key16,
+                            uint64_t& payload) const noexcept {
+        payload = data[index].load(std::memory_order_relaxed);
+        const uint16_t tag = tags[index].load(std::memory_order_relaxed);
+        return static_cast<uint16_t>(tag ^ tt_fold16(payload)) == wanted_key16;
+    }
+
+    void load_any(int index, uint16_t& key16, uint64_t& payload) const noexcept {
+        payload = data[index].load(std::memory_order_relaxed);
+        const uint16_t tag = tags[index].load(std::memory_order_relaxed);
+        key16 = static_cast<uint16_t>(tag ^ tt_fold16(payload));
+    }
+
+    void store(int index, uint16_t key16, uint64_t payload) noexcept {
+        data[index].store(payload, std::memory_order_relaxed);
+        tags[index].store(static_cast<uint16_t>(key16 ^ tt_fold16(payload)),
+                          std::memory_order_relaxed);
+    }
+
+    void clear(int index) noexcept {
+        data[index].store(0, std::memory_order_relaxed);
+        tags[index].store(0, std::memory_order_relaxed);
+    }
 };
 
 // 8.6.2a: pin the density contract that the comment above AND resize()'s
@@ -97,8 +125,7 @@ public:
     void clear() {
         for (size_t i = 0; i < cluster_count_; ++i) {
             for (int j = 0; j < 3; ++j) {
-                clusters_[i].data[j].store(0, std::memory_order_relaxed);
-                clusters_[i].key16[j].store(0, std::memory_order_relaxed);
+                clusters_[i].clear(j);
             }
         }
         age_.store(0, std::memory_order_relaxed);
@@ -114,9 +141,9 @@ public:
         const uint16_t want = static_cast<uint16_t>(key >> 48);
 
         for (int i = 0; i < 3; ++i) {
-            if (cluster.key16[i].load(std::memory_order_acquire) != want)
+            uint64_t data = 0;
+            if (!cluster.load(i, want, data))
                 continue;
-            const uint64_t data = cluster.data[i].load(std::memory_order_relaxed);
             TTEntry e = unpack_entry(data);
             if ((e.flag_age & 3) != TT_NONE) {   // reject an empty slot that hashes to want==0
                 e.key16 = want;
@@ -158,8 +185,10 @@ public:
         bool same_key = false;
 
         for (int i = 0; i < 3; i++) {
-            const uint16_t old_key16 = cluster.key16[i].load(std::memory_order_relaxed);
-            TTEntry old_entry = unpack_entry(cluster.data[i].load(std::memory_order_relaxed));
+            uint16_t old_key16 = 0;
+            uint64_t old_data = 0;
+            cluster.load_any(i, old_key16, old_data);
+            TTEntry old_entry = unpack_entry(old_data);
             old_entry.key16 = old_key16;
 
             if (old_key16 == want && (old_entry.flag_age & 3) != TT_NONE) {
@@ -190,20 +219,7 @@ public:
                                          static_eval == INF_EVAL ? INF_EVAL : static_eval,
                                          m, depth, static_cast<uint8_t>(age | uint8_t(flag)));
 
-        // Publish the payload before the key fragment so a concurrent reader
-        // that matches key16 sees at least this store's payload (relaxed is
-        // enough for single-thread; the SMP race is harmless as noted above).
-        cluster.data[replace_idx].store(data, std::memory_order_relaxed);
-        // Release, paired with the acquire on the key16 load in probe_copy
-        // (8.6.2b / C9): this is what actually enforces "payload published
-        // before key". Under the previous all-relaxed scheme that ordering was
-        // only a comment - free on x86, where stores are already ordered, but on
-        // the ARM targets we ship (Apple Silicon, ARM64 Windows) store-store
-        // reordering could publish a key ahead of its payload, making a
-        // mismatched pair more reachable than the 1/65536 collision figure
-        // suggests. Still self-correcting downstream, so this is defence in
-        // depth rather than a fix for an observed bug; it costs nothing on x86.
-        cluster.key16[replace_idx].store(want, std::memory_order_release);
+        cluster.store(replace_idx, want, data);
         return same_key;
     }
 

@@ -12,8 +12,10 @@
 #include "types.h"
 #include "test_harness.h"
 
+#include <atomic>
 #include <cstdio>
 #include <string>
+#include <thread>
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -73,6 +75,75 @@ static void test_key_miss() {
 
     begin_section("key miss: found == false for different key");
     EXPECT(!found);
+    end_section();
+}
+
+static void test_torn_publication_is_rejected() {
+    TTCluster cluster;
+    constexpr uint16_t old_key = 0x1357;
+    constexpr uint16_t new_key = 0x2468;
+    constexpr uint64_t old_data = 0x0102030405060708ULL;
+    constexpr uint64_t new_data = 0x1122334455667788ULL;
+    static_assert(tt_fold16(old_data) != tt_fold16(new_data));
+
+    cluster.store(0, old_key, old_data);
+    cluster.data[0].store(new_data, std::memory_order_relaxed);
+    uint64_t observed = 0;
+
+    begin_section("torn publication: old tag plus new payload is rejected");
+    EXPECT(!cluster.load(0, old_key, observed));
+    end_section();
+
+    cluster.store(0, old_key, old_data);
+    cluster.tags[0].store(static_cast<uint16_t>(new_key ^ tt_fold16(new_data)),
+                          std::memory_order_relaxed);
+
+    begin_section("torn publication: new tag plus old payload is rejected");
+    EXPECT(!cluster.load(0, new_key, observed));
+    end_section();
+}
+
+static void test_concurrent_publication_stays_coherent() {
+    TranspositionTable tt(1);
+    constexpr Key key_a = 0x1111000000000042ULL;
+    constexpr Key key_b = 0x2222000000000042ULL;
+    constexpr int iterations = 200000;
+    std::atomic<bool> start{false};
+    std::atomic<bool> failed{false};
+
+    auto writer = [&](Key key, int score, int static_eval, Move move) {
+        while (!start.load(std::memory_order_acquire)) {}
+        for (int i = 0; i < iterations; ++i)
+            tt.store(key, 12, score, TT_EXACT, move, 0, static_eval);
+    };
+    auto reader = [&](Key key, int score, int static_eval, Move move) {
+        while (!start.load(std::memory_order_acquire)) {}
+        for (int i = 0; i < iterations; ++i) {
+            TTEntry entry{};
+            if (tt.probe_copy(key, entry)
+                && (entry.score != score || entry.static_eval != static_eval
+                    || move_from_tt(entry.move16) != move
+                    || (entry.flag_age & 3) != TT_EXACT)) {
+                failed.store(true, std::memory_order_relaxed);
+                return;
+            }
+        }
+    };
+
+    const Move move_a = make_move(E2, E4);
+    const Move move_b = make_move(D2, D4);
+    std::thread writer_a(writer, key_a, 111, 211, move_a);
+    std::thread writer_b(writer, key_b, 122, 222, move_b);
+    std::thread reader_a(reader, key_a, 111, 211, move_a);
+    std::thread reader_b(reader, key_b, 122, 222, move_b);
+    start.store(true, std::memory_order_release);
+    writer_a.join();
+    writer_b.join();
+    reader_a.join();
+    reader_b.join();
+
+    begin_section("concurrent publication: returned records remain coherent");
+    EXPECT(!failed.load(std::memory_order_relaxed));
     end_section();
 }
 
@@ -376,6 +447,10 @@ int main() {
 
     std::printf("\nKey miss\n");
     test_key_miss();
+
+    std::printf("\nPublication coherence\n");
+    test_torn_publication_is_rejected();
+    test_concurrent_publication_stays_coherent();
 
     std::printf("\nClear\n");
     test_clear();
