@@ -922,6 +922,19 @@ static void test_syzygy_probe_limit_and_counts() {
     Syzygy::clear();
 }
 
+// These test rule-50 CLAMPING at the root: a clean tablebase win whose halfmove
+// clock has already run out is scored as a draw, and is scored as a win again
+// when Rule50 is off. That is a different mechanism from a CURSED WIN, and the
+// distinction is load-bearing in this project -- `endgame_truth.py` grades WDL 2
+// against WDL 1 precisely because downgrading one to the other is a real
+// failure mode.
+//
+// A cursed win is WDL == 1: the table itself reports "won, but the fifty-move
+// rule has already drawn it" because DTZ exceeds 100, independent of the
+// position's current clock. The KQvK fixture contains no WDL == +/-1 entries at
+// all -- every KQvK win is clean at small DTZ -- so the WDL +/-1 decode path is
+// NOT covered here. See tests/fixtures/syzygy/README.md; covering it needs a
+// five-man table such as KNNvKP, which is far too large to embed.
 static void test_syzygy_rule50_root_scores() {
     Syzygy::clear();
     init_test_syzygy();
@@ -929,7 +942,7 @@ static void test_syzygy_rule50_root_scores() {
     Board board;
     board.set_fen("6k1/8/8/8/8/8/8/6KQ w - - 99 50");
 
-    begin_section("syzygy: rule50 cursed win is reported as draw");
+    begin_section("syzygy: rule50 clamps an exhausted-clock win to a draw");
     auto rule50_moves = Syzygy::probe_root_moves(board, true, 7, true);
     EXPECT(!rule50_moves.empty());
     EXPECT(rule50_moves.front().score == 0);
