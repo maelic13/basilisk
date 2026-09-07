@@ -224,6 +224,9 @@ target_link_libraries(test_invariants PRIVATE basilisk_board)
 # ---------------------------------------------------------------------------
 add_executable(test_search tests/test_search.cpp src/parameters.cpp src/bench.cpp src/wac.cpp)
 target_link_libraries(test_search PRIVATE basilisk_engine)
+target_compile_definitions(test_search PRIVATE
+    BASILISK_TEST_SYZYGY_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/syzygy"
+)
 
 # ---------------------------------------------------------------------------
 # Engine-level ponder protocol tests
