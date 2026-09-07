@@ -1320,6 +1320,8 @@ is the dominant factor in both families. The enemy-passer hypothesis is not
 supported; the pawn-move tendency is real but secondary, and is what reaching
 for the natural move in a narrow position looks like.
 
+**Superseded by BAS-E53 (2026-09-07): the impossibility claim below is false.**
+
 **What this implies for the mechanism, and it is not an evaluation term.** A
 static evaluation supplies a gradient over many moves; it cannot reliably pick
 two exact moves out of twenty. That is the same shape of conclusion 6.3.a
@@ -1349,7 +1351,48 @@ the engine errs where about two of twenty moves win, which no gradient can
 reliably resolve. What changes is that the defect is worth solving, and that a
 search-side or knowledge-side answer must be judged against a TB-off metric.
 
-6.5.a stays open on the mechanism question, no longer on scope.
+**The narrow-window class IS resolvable, and depth is not the answer
+(BAS-E53, `tools/diag/narrow_node_probe.py`).** The superseded paragraph above
+asserted that no gradient can pick two exact moves out of twenty. It was never
+measured, and it is false. All 48 clean wins of the two families were replayed
+once by the frozen head to freeze **841 decision nodes** with their
+winning-move counts; every arm then answered those SAME nodes with one move,
+fresh TT per node, `SyzygyPath` cleared.
+
+| arm | narrow (161) | mid (133) | wide (547) |
+|---|---|---|---|
+| basilisk@60k | **91.3%** | 98.5% | 99.6% |
+| basilisk@300k | **92.5%** | 98.5% | 100.0% |
+| basilisk@600k | **93.8%** | 99.2% | 100.0% |
+| stockfish@60k | **99.4%** | 100.0% | 100.0% |
+
+Paired on narrow nodes against basilisk@60k: **stockfish@60k 13-0, z = 3.61**;
+basilisk@600k 6-2, z = 1.41. Three things follow, and they redirect the leaf.
+
+**One: the class is resolvable at the deployment budget.** A strong evaluator
+takes 160 of 161 narrow nodes on the same 60,000 nodes where we take 147.
+
+**Two: it is not a search-volume problem.** Ten times the nodes buys 4 of 14
+errors and does not approach stockfish@60k. This is NOT deferrable to Phase 8.
+
+**Three: it is an only-move problem, and not a piece-selection problem.** At
+`win_moves == 1` (68 nodes) we preserve 85%, at 600k 90%, Stockfish 100%; every
+bucket at four or more winning moves is at ceiling for everyone. At the 13
+discordant nodes our losing moves are 8 rook, 4 king, 1 pawn against Stockfish's
+8 rook, 5 king -- **the right piece to the wrong square**. That kills premature
+passer advance and any wrong-piece account outright.
+
+**What it does not license.** Stockfish evaluates with an NNUE, so this removes
+the impossibility argument without supplying a mechanism, and must not be read
+as licensing an HCE rook coefficient. Thirteen discordant nodes are not a
+mechanism either; that is the sample size that already misled this leaf once.
+
+**6.5.a stays open, with its question changed.** No longer "can anything resolve
+this" but "what knowledge resolves it, and can this engine express it". The
+failure lives in 68 only-move nodes -- small enough to study exhaustively, too
+small to fit coefficients against without a held-out split. BAS-E32's
+drawn-share bias in the same families remains separate and unaddressed.
+Analysis: `analysis/rook_narrow_node_resolvability_v1.md`.
 
 - [ ] **6.6** Gate Group B.
   - [ ] **6.6.a** Require paired truth improvement and no family veto.
