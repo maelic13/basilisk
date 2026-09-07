@@ -157,7 +157,10 @@ inherit their earliest open child.
   - [ ] **6.11.c** `[Astra/H]` Reconcile every family layer and hard veto
   - [ ] **6.11.d** `[Terra/M]` Synchronize the accepted head before later phases
 
-## Phase 7 — Toolchain and board/HCE throughput
+## Phase 7 — Board CORRECTNESS (defect hunt, not a speed phase)
+
+Basilisk already leads on board throughput (BAS-X16). 7.3-7.8 are conditional on
+7.2 and "profiled, not hot, no change" closes them successfully.
 
 - [ ] **7.0** `[Sol/H]` Refresh and freeze the validated classical toolchain
 - [ ] **7.1** `[Astra/H]` Port board-v2 tests and audit board/parser/SEE contracts

@@ -36,7 +36,15 @@ over 6,332 games. The next unchecked leaf is 6.6.a.
 - A behavior-neutral change needs the relevant static checks, CTest and exact
   bench. A playing change additionally needs its registered game gate.
 - Strength tests use paired UHO openings and normalized Elo. Default SPRT is
-  [0,3] nElo; broad/risky bundles use [-3,3]; simplification uses [-3,0].
+  [0,3] nElo and broad/risky bundles use [-3,3]. **Non-regression uses [-5,0],
+  which is what `tools/sprt.ps1 -Mode simplify` actually runs (`Elo0=-5,
+  Elo1=0`);** this line previously said [-3,0] and disagreed with both the tool
+  and 6.2's own text. A run may widen the upper bound deliberately -- 6.5.a used
+  [-5,+3] -- but must record the bracket it used.
+- **Accepting H1 is a decision, not an effect size.** H1 at [-5,+3] means the
+  evidence favours "not a regression" over "a real loss"; it does not assert that
+  the gain exceeds the upper bound. Report the point estimate and its interval
+  beside the verdict, and never quote a bound as the measured Elo.
 - Score-based draw/resign adjudication is off by default in every tool. An
   opt-in compatibility run must record the exact adjudication policy and must
   never be mixed with natural-termination evidence.
@@ -1021,8 +1029,11 @@ KBP-KN 6, KR-KN 4, KRP-KB 4, KBN-K 4, KR-KB 3, KR-KP 1.
 ## Reopened work, 2026-09-03
 
 Two completed leaves were invalidated by the endgame-instrument defect found
-while gathering 6.3.a's evidence, and both are reopened and marked `(REOPENED)`
-in the checklist. `check_roadmap.py` now understands that marker: a reopened
+while gathering 6.3.a's evidence. **Both were reworked and closed -- 6.0.c on
+2026-09-03 and 6.1.f on 2026-09-04 -- so no checklist item carries the
+`(REOPENED)` marker today and `check_roadmap.py` reports none.** The section is
+kept for the marker's definition and the record of what was redone:
+`check_roadmap.py` understands the marker, and a reopened
 leaf is exempt from the sequential-ordering rule, because a measurement defect
 can invalidate an early step after later ones have closed, but it is never
 exempt from being open, and an accidental un-tick still fails the check.
@@ -1271,8 +1282,14 @@ Everything below this line was written before that split and is kept as the
 record of how it was reached; where it says "6.5.a" of the precision defect,
 read 6.8.a.
 
-**6.5.a is SPLIT: one half is derived, the other is not measurable.** No
-implementation yet; the leaf stays open.
+**Superseded 2026-09-07: 6.5.a is CLOSED and its candidate accepted.** The two
+lines below say "no implementation yet". They were written before the split and
+before the candidate existed, and are kept only so the reasoning that follows
+still reads in order. Nothing from here to the end of this section describes
+current status.
+
+> **6.5.a is SPLIT: one half is derived, the other is not measurable.** No
+> implementation yet; the leaf stays open.
 
 **Correction (2026-09-04): the KRPP-KRP blocker below was my framing error, not
 a real obstacle.** It assumed the family needs a tablebase-validated WIN
@@ -1530,17 +1547,40 @@ numbers are donor priors only (BAS-X18); 6.7 must measure Basilisk's own policy.
   - [ ] **6.11.c** `[Astra/H]` Reconcile all family layers and confirm that no correctness, mate, rule-50 or tablebase veto remains hidden by an aggregate result.
   - [ ] **6.11.d** `[Terra/M]` Authorize board/toolchain work and post-endgame corpus generation only after PLAN, GUIDE and EXPERIMENTS agree on the accepted head.
 
-## 7. Toolchain, board correctness and HCE-search throughput
+## 7. Toolchain and board CORRECTNESS (not a speed phase)
 
-Rarog RAR-M20 measured the current Basilisk board source (`d734766`, still the
-board at this roadmap revision) directly. On the same Ryzen 9 5950X workload,
-Basilisk beat Rarog by 43.7% in legal generation, 22.3% in legal captures,
-29.4% in generation plus make/unmake, 39.8% in perft and 46.0% in two-ply
-simulation. RAR-M29's normalized SEE rerun put Basilisk 29.9% ahead. These are
-active-desktop, non-PGO microbenchmarks with material scatter, not whole-search
-or Elo results, but they reject "Basilisk's board is broadly slow" as the
-default premise. Profile actual HCE search first and permit every optimization
-leaf to close no-change.
+**Maintainer direction, 2026-09-07: this phase hunts defects. It does not chase
+throughput. Basilisk already has the speed.** Rarog RAR-M20 measured the current
+Basilisk board source (`d734766`, still the board at this roadmap revision)
+directly on the same Ryzen 9 5950X workload: Basilisk beat Rarog by 43.7% in
+legal generation, 22.3% in legal captures, 29.4% in generation plus
+make/unmake, 39.8% in perft and 46.0% in two-ply simulation, and RAR-M29's
+normalized SEE rerun put Basilisk 29.9% ahead. Those are active-desktop,
+non-PGO microbenchmarks with material scatter, so they do not measure
+whole-search share or Elo -- but they are more than enough to retire
+"Basilisk's board is slow" as a motivation for this phase.
+
+What justifies the phase instead is that a peer audit of the same subsystem
+found **three real SEE defects** in Rarog (BAS-X22) -- selected-king legality,
+created pins, recapture promotions -- one of which moved its bench tree by
+10.14%. Correctness defects in generation, SEE, make/unmake and repetition are
+invisible to NPS and to ordinary tests, and they cost Elo silently. That is the
+prize here.
+
+Consequences for how the leaves are read:
+
+* **7.1, 7.9 and 7.10 are the phase.** Contract auditing, policy separation and
+  qualification are unconditional, because they are what finds defects.
+* **7.3-7.8 are conditional and default to no-change.** They may only open if
+  7.2 proves the component hot in real HCE search, and closing one with "profiled,
+  not hot, no change" is a SUCCESS, not an unfinished leaf. Do not treat them as
+  a speed backlog to work through.
+* **A speedup is not a reason to accept a diff here.** Any behaviour change found
+  while optimizing is a playing change and goes to 7.11's registered gate; a
+  behaviour-neutral speedup with no defect behind it needs no gate and also
+  earns no credit against this phase's purpose.
+* **Report defects found, not percent gained.** The phase closes on 7.12 with an
+  explicit no-change disposition for every conditional leaf that stayed shut.
 
 - [ ] **7.0** `[Sol/H]` Refresh and freeze the classical toolchain before performance work. Inventory Windows/MSYS2, Linux CI and macOS compiler, C++ library, CMake, Ninja and profile-tool versions; compare current versus newest stable one axis at a time; require CTest, sanitizers, exact search agreement, ISA checks and pooled release/PGO throughput before selecting the faster non-regressing line.
 - [ ] **7.1** `[Astra/H]` Port/adapt Rarog's board-v2 instrument and audit Basilisk's current contracts. Freeze canonical FEN, sorted legal/capture sets, perft/divides, keys, occupancy, normal/hinted/staged/null/clone/unwind restoration, checks/evasions, pinned EP, every castle and quiet/capture underpromotions. Add negative controls and an allocation guard. Audit malformed UCI, maximum move counters and every production SEE caller; use an independent legal same-square capture oracle rather than `see == see_ge` as the sole oracle.
@@ -1860,8 +1900,10 @@ rewriting historical evidence.
 | pre-2026-09-07 6.5.b/6.5.c/6.5.d/6.5.e | 6.8.b/6.8.c/6.8.d/6.8.a |
 | pre-2026-09-07 6.6–6.8 | 6.9–6.11 |
 | pre-2026-09-07 Phase 7 | Phase 8 |
+| pre-2026-09-07 8.0 compiler/build refresh | 7.0 |
 | pre-2026-09-07 8.1 singular work | 9.1 |
 | pre-2026-09-07 8.2–8.3 search SPSA | 9.6 |
+| pre-2026-09-07 8.4 authority remeasurement | 9.0 |
 | pre-2026-09-07 8.5 clock work | 9.7 |
 | pre-2026-09-07 8.6–8.9 closure/release | 9.8–9.10 |
 | pre-2026-09-07 7.12/8.10 throughput | 8.12 and Phase 7 |

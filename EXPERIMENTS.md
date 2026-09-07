@@ -2556,9 +2556,26 @@ games: 1,641 wins, 1,581 losses, 3,110 draws**, +3.29 +/- 4.61 Elo, +6.11 +/-
 retained.** This establishes the registered strength verdict under these
 conditions; it does not claim that the residual rook-ending bias is solved.
 The returned PGN/log paths were
-`tools/results/sprt/_rookscale_vs_base_20260907_094516.{pgn,log}`, but neither
-raw artifact was present under `D:/code` at closure time, so their contents and
-hashes were not independently re-verified. Retry only if the evaluator/search
+`tools/results/sprt_rookscale_vs_base_20260907_094516.{pgn,log}`. The path was
+first recorded as `results/sprt/_rookscale...`, which does not exist, and the
+artifacts were reported unverified for that reason. **They were present all
+along and are now verified** (2026-09-07): the run manifest records
+`repo_revision 489c33130c`, engineA bench 12,568,898 / SHA-256 `6637B574...`,
+engineB bench 12,709,666 / SHA-256 `0AE15B45...`, `elo0=-5 elo1=3
+alpha=0.05 beta=0.05 model=normalized`, `tc=3+0.03`, Hash 64 both sides,
+Threads 1 both sides, concurrency 14 on 16 physical cores with one logical CPU
+per core, book `UHO_Lichess_4852_v1.epd` SHA-256 `7A7F6470...`, opening seed
+1089228159, and **adjudication NONE**. The PGN holds 6,334 `[Event ]` tags
+against the 6,332 games the SPRT counted, the ordinary two-game overrun of a
+concurrent run stopping on its boundary.
+
+*Read the verdict correctly.* H1 at `[-5,+3]` is a decision that the evidence
+favours "not a regression" over "a real loss". The measured effect is
+**+3.29 +/- 4.61 Elo, an interval that contains zero**, so this is an accepted
+non-regression with a positive point estimate, not a demonstrated +3 Elo gain.
+The mode used was `simplify` with the upper bound widened to +3.
+
+Retry only if the evaluator/search
 surface or rook-ending occurrence materially changes.
 
 **BAS-X11 - current standing, 12,000-game Colosseum round robin** (2026-09-04,
@@ -3055,6 +3072,7 @@ an idea source and an oracle. See PLAN's operating contract.
 | BAS-X25 | Rarog canceled a prepared 320k-game broad SPSA after expected-value review; its durable workflow makes SPSA conditional on live interacting curvature and adds transactional resume, immutable horizon, non-overlapping opening cursors, whole-vector tail extraction and semantic-rail diagnostics. | Spend Texel on linear HCE; reserve HCE/search SPSA for separate small demonstrated surfaces. Review each runner feature independently and prove interrupt/resume behavior before an expensive tune. | 8.10, 9.6, 11.4.b |
 | BAS-X26 | Rarog's Phase-4 subsystem audit contract requires producer/state/consumer/invalidation inventories, realistic cost profiles, interaction screens, finding classification and an analysis-only handoff before implementation. | Adopted as Basilisk's common design gate for board, HCE, search, caches, lifecycle, time and NNUE state. It prevents feature-checklist ports and speculative rewrites. | PLAN §2; Phases 7–13 |
 | BAS-X27 | Rarog `881c821` adds exact board-call/work counters for its pending 4.11b.7 HCE-search profile, but its PLAN/GUIDE still mark the profile incomplete and no result is recorded. | The counter categories/code are a useful donor implementation, not evidence about cost or priority. Basilisk may adapt them at 7.2 only with live-wire and instrumentation-off identity tests. | 7.2 |
+| BAS-X28 | Independent review of the 2026-09-07 fix stack (`bdb828a`..`6dd9ada`) from a session that could not build, because the 4T TT gate was running. **BAS-C05's XOR tag is sound and its dropped release/acquire pair is safe:** detection is order-independent, since any payload/tag pair from different publications reconstructs `key16 ^ fold16(p_new) ^ fold16(p_old)` and fails except on a 1/65536 fold collision, the same strength the plain partial key had. Single-thread identity is structural, not lucky -- the tag reconstructs the stored key exactly, and the empty slot still yields `0 ^ fold16(0) == 0`, preserving the `want == 0` rejection that the `flag_age` check performs. **BAS-C06 was more serious than its row implies:** the removed placeholders were three literal `EXPECT(true)` calls, and the hard-coded `D:\chess\Syzygy345` never matched this machine's `D:/chess/tablebases/syzygy3456`, so positive Syzygy coverage was zero everywhere, not merely on machines lacking the directory. **BAS-P09 carried an unrecorded risk:** MSVC's 64 KB string-literal limit forced `WAC_EPD` into a chunk array, and a chunk boundary falling inside an EPD line would silently drop a position. Verified safe -- the split is between `WAC.150` and `WAC.151`, all 300 ids are present, and `tests/test_wac.cpp` already asserts `positions.size() == 300`, so a future re-chunk cannot regress it unnoticed. | Reviewing a diff can settle order-independence and structural identity that a build cannot, and a build cannot settle them alone either; the two are complements. Unverified in this review because no binary could be produced: the recorded bench, sanitizer and stress results of BAS-C05/C06/P10, which stand on their own runs. | `src/tt.h`; `tests/test_search.cpp`; `src/wac_epd.h`; 7.1, 9.5 |
 
 The 2026-09-07 re-audit supersedes the earlier conclusion that no additional
 high-value Rarog item was missing. Rarog's newer Phase-4 work added substantial
