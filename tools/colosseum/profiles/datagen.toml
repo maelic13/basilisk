@@ -1,7 +1,0 @@
-[options]
-a-nodes = 8000
-b-nodes = 8000
-a-option = ["Hash=16", "Threads=1"]
-b-option = ["Hash=16", "Threads=1"]
-placement = "auto"
-headroom-cores = 2

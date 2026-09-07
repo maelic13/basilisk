@@ -1,8 +1,0 @@
-[options]
-base-ms = 10000
-increment-ms = 100
-margin-ms = 20
-option = ["Hash=64", "Threads=1"]
-placement = "auto"
-headroom-cores = 2
-games-per-pair = 2

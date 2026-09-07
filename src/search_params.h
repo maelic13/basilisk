@@ -14,8 +14,8 @@
 // value (104) while compiling 0, and tm_instability — the +10.79 knob — was
 // registered nowhere, i.e. permanently untunable. Rarog fixed the same
 // disease (12 stale defaults) with its `params!` macro; this is the C++
-// equivalent. Colosseum tune vectors under tools/colosseum/tunes/ necessarily
-// stay separate files — regenerate them FROM THIS TABLE before a new tune.
+// equivalent. External tune vectors necessarily stay separate files —
+// regenerate them FROM THIS TABLE before a new tune.
 //
 // ============================== FIELD NOTES ==============================
 // Rationale & history per group; the table itself stays scannable. Do not

@@ -1,6 +1,0 @@
-extend = "strength.toml"
-
-[options]
-games = 30000
-confidence = 0.95
-tolerance-nelo = 5
