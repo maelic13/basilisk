@@ -43,9 +43,11 @@ gate, not a failure to deliver. See `AGENTS.md`, "Refutation and refusal".
 - **Categorical knowledge earns its place by measurement, not by taxonomy.**
   A family term is justified by a measured local defect plus occurrence, not by
   the reference engine having a function with that name.
-- **A gradient and a recogniser are different instruments.** A static
-  evaluation supplies a gradient over many moves. It does not reliably pick one
-  exact move out of twenty; BAS-E53 measured that failure class directly.
+- **A gradient and a recogniser are different instruments.** BAS-E53 measured
+  an only-move failure class and refuted the blanket claim that an evaluator
+  cannot resolve it: Stockfish resolved the paired nodes at the same nominal
+  budget. That result does not identify a transferable HCE mechanism or make a
+  recogniser equivalent to a gradient; current 6.8.a remains `RESEARCH`.
 - **Draw scaling never asserts a draw it cannot prove.** Heuristic scaling is
   floored (`SCALE_FLOOR`) so a misfire discounts rather than throwing a win.
 

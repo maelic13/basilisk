@@ -1,8 +1,38 @@
-# PLAN 6.5.a — is the narrow-window rook failure resolvable?
+# PLAN 6.8.a — what resolves the won-rook only-move defect?
 
 **Date:** 2026-09-07
-**Status:** measured. Instrument `tools/diag/narrow_node_probe.py`;
+**State / class:** `RESEARCH` / `R3`.
+**Prior measurement status:** BAS-E53 measured the former 6.5.a possibility
+question. Instrument `tools/diag/narrow_node_probe.py`;
 results `tools/results/narrow-nodes-6.5.a/` (gitignored).
+
+## Current decision needed
+
+Determine whether the 68 one-winning-move nodes support a falsifiable
+search-, HCE- or explicit-knowledge mechanism in Basilisk, or close with
+`NO_CHANGE`. BAS-E53 proves the class is locally resolvable and refutes more
+depth and wrong-piece explanations; it does not identify a mechanism.
+
+Known evidence is BAS-E32 (separate drawn-share bias) and BAS-E53 (paired node
+probe below). Credible competing explanations remain evaluation authority,
+search realization, explicit rook-ending knowledge and an instrument/sample
+artifact. Relevant interactions include rook/pawn evaluation, search
+selectivity, TT carry-over, tablebase-off deployment, rule 50 and the separation
+between draw scaling and won-position move precision.
+
+The cheapest next discriminator is the already-roadmapped exhaustive
+classification of the 68 nodes with a prospectively frozen held-out split. No
+substantial implementation is licensed before that classification names an
+isolated mechanism and a falsifier. **No mechanism prediction is backfilled
+here:** BAS-E53 is already exposed. The next research pass must freeze its own
+expected diagnostic movement, probability/confidence and stopping rule before
+opening its held-out result.
+
+`READY_FOR_IMPLEMENTATION` requires exact intended semantics, a producer/state/
+consumer and interaction map, promotion/material closure where relevant,
+deterministic known-bad cases, cheap qualification, a maintainer-owned game
+gate and explicit non-goals. Otherwise the decision remains `MORE_RESEARCH` or
+`NO_CHANGE`.
 
 ## The claim under test
 

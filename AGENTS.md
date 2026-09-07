@@ -7,16 +7,47 @@ evidence rather than intuition alone.
 ## Unit of work
 
 - Treat PLAN.md as the detailed roadmap and GUIDE.md as its checklist mirror.
-- "Implement the next step" means implement only the earliest unchecked leaf
-  item in roadmap order. If a numbered step has lettered substeps, the next
-  unit is the earliest unchecked substep, not the whole parent step. For
-  example, when 6.0.a is first, "next step" means 6.0.a only.
+- First classify the requested work as research/diagnosis, experiment design,
+  implementation, deterministic qualification, performance qualification,
+  playing-strength gate, or documentation/provenance. Not every roadmap leaf
+  asks for code.
+- "Do the next step" means handle only the earliest unchecked leaf item in
+  roadmap order. If a numbered step has lettered substeps, the next unit is the
+  earliest unchecked substep, not the whole parent step. For example, when
+  6.0.a is first, "next step" means 6.0.a only.
 - Do not start later substeps, combine adjacent steps, or pull forward useful
   side work. Mark a parent complete only after all its substeps are complete.
 - Finish the requested leaf, verify it proportionately, update PLAN.md and
   GUIDE.md together, commit it, report briefly, name the next unchecked leaf,
   and stop for the maintainer's next command.
 - Run python tools/diag/check_roadmap.py whenever either roadmap file changes.
+
+## Workflow states and ownership
+
+The normal playing-change path is:
+
+`RESEARCH -> READY_FOR_IMPLEMENTATION -> IMPLEMENTED -> LOCAL_QUALIFIED -> GAME_GATE -> CLOSED`
+
+Not every task uses every state. Documentation may close after implementation;
+correctness and behavior-neutral performance work use their relevant proof or
+performance gate; research may close with `NO_CHANGE` or
+`NOT_WORTH_PURSUING`. A playing-strength change normally may not bypass
+`GAME_GATE`.
+
+`READY_FOR_IMPLEMENTATION` is the hard boundary. It means the measured defect,
+intended mechanism, local interactions, exact semantics, invariants,
+instrumentation, falsifier, cheap qualification and deciding gate are concrete
+enough that implementation does not need to invent the chess research. If a
+material premise fails during implementation, preserve useful instrumentation,
+record the contradiction and return the leaf to `RESEARCH`; do not silently
+redesign or rescue it with adjacent heuristics.
+
+The implementation owner may make ordinary local engineering choices: use
+idiomatic structure, perform necessary local refactoring, compile and debug,
+write focused tests/instrumentation and run cheap deterministic qualification.
+That autonomy does not permit changing the hypothesis, broadening the
+mechanism, tuning unrelated constants, importing adjacent donor behavior or
+changing experimental meaning after exposure.
 
 ## Long-running work
 
@@ -53,6 +84,20 @@ evidence rather than intuition alone.
   named function is not implementing a mechanism.
 - Consult `EXPERIMENTS.md` before answering question 1. A closed mechanism may
   not be re-proposed without meeting its recorded retry trigger.
+- For a substantial playing change, also state the measured defect/opportunity,
+  evidence supporting it, credible competing explanations, the cheapest test
+  capable of killing the leading hypothesis, and the exact condition for
+  `READY_FOR_IMPLEMENTATION`. A plausible idea is not sufficient evidence.
+- Prefer interaction-first analysis. Check for duplicate signals, calibration
+  around another feature, evaluation/search population shifts, ordering-to-
+  pruning feedback, TT amplification/masking, rule-50/repetition/mate effects,
+  promotion/material-shed closure, and diagnostic/deployment budget mismatch.
+  When an important interaction is cheaply separable, prefer a bounded
+  baseline/A/B/A+B screen; this is not a demand to factorial-test every change.
+- Price the experiment before substantial work: maintainer time, agent effort,
+  CPU/game budget, implementation complexity and future maintenance burden.
+  Prefer cheap discriminating evidence to elaborate implementation of an
+  uncertain idea.
 
 ## Refutation and refusal
 
@@ -82,13 +127,22 @@ implements is failing at half the job.
   manufacture a disagreement to look rigorous. Both are failures of the same
   duty.
 
-## Agent and effort tags
+## Capability classes
 
-PLAN and GUIDE leaves may carry a `` `[Agent/Effort]` `` tag, e.g.
-`` `[Astra/XH]` ``. It records the maintainer's intended assignment and expected
-difficulty. It is **advisory routing, not permission**: an agent asked to do a
-leaf tagged for another agent should do it, and should say if the tag looks
-wrong. Effort letters are M/H/XH. Tags sit on leaves; parents are untagged.
+Open PLAN and GUIDE leaves may carry an advisory capability tag:
+
+| Class | Use |
+|---|---|
+| `R3` | frontier research; unresolved causal or architecture work |
+| `R2` | bounded but correctness-sensitive architecture/reasoning |
+| `I2` | difficult implementation requiring strong reasoning |
+| `I1` | well-specified implementation |
+| `M` | mechanical documentation, manifests or provenance |
+| `V` | verification or measurement work |
+
+Classes are routing hints, not permission, state or evidence. The editable
+mapping from classes to currently available models belongs only in GUIDE.md.
+Completed historical model tags may remain unchanged.
 
 ## Scope and discoveries
 
@@ -141,6 +195,31 @@ wrong. Effort letters are M/H/XH. Tags sit on leaves; parents are untagged.
   tablebase or time-forfeit gate even if its strength estimate is positive.
 - Consult EXPERIMENTS.md before retrying a mechanism and record completed
   experimental evidence there without rewriting historical identifiers.
+- Freeze the prospective prediction, confidence, falsifiers and stopping rule
+  before result exposure. Afterward append calibration against that frozen
+  record. A persuasive retrospective explanation does not prove the result was
+  predicted; ask which part of the original causal model was wrong. Clerical
+  corrections to a frozen prediction must be explicit.
+- Keep evidence layers separate. Better fit loss, tree size, depth, NPS,
+  conversion, tactics or donor resemblance is not automatically Elo. Name the
+  layer and the gate that actually decides acceptance; do not invent exchange
+  rates between unlike measurements.
+
+## Interruptions, delegation and communication
+
+- If the maintainer interrupts work with a correction, finish and cheaply
+  qualify that correction, report it and return control. Do not resume the
+  interrupted objective unless explicitly asked.
+- Do not spawn broad parallel agents merely because they are available.
+  Delegate only a concrete bounded subproblem whose value exceeds its context
+  and compute cost; ordinary bounded work should normally remain coherent in
+  one agent.
+- Before nontrivial edits, briefly state the approach and affected contracts.
+  During longer local work, report meaningful milestones and changed
+  assumptions rather than narrating commands.
+- A nontrivial final report normally names files changed, semantic effect,
+  interactions/invariants, qualification and result, remaining expensive gate,
+  false assumptions and unresolved concerns.
 
 ## Commits and reporting
 

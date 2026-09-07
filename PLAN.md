@@ -73,25 +73,53 @@ refutation deliverables of equal standing to a diff.
   finding, and finish the analysis with a bounded implementation/no-change
   decision. A faster operation can still build a worse tree.
 
-### Model and reasoning assignments
+### Development states, ownership and capability classes
 
-Every open executable leaf below carries one primary recommendation. Parent
-rows inherit the assignment of their earliest open child. The tags mean:
+The normal playing-change path is:
 
-| Tag | Model and thinking | Use |
-|---|---|---|
-| `Astra/XH` | GPT-6 Astra — Extra High | unresolved chess, causal, architecture or cross-subsystem optimization analysis |
-| `Astra/H` | GPT-6 Astra — High | bounded but correctness-sensitive design and gate analysis |
-| `Fable/XH` | Claude Fable 5.1 — Extra High | frontier independent analysis of complex interactions or alternative explanations |
-| `Fable/H` | Claude Fable 5.1 — High | bounded frontier review and synthesis |
-| `Sol/H` | GPT-5.6 Sol — High | well-defined implementation, instrumentation and qualification |
-| `Terra/M` | GPT-5.6 Terra — Medium | mechanical manifests, documentation and deterministic plumbing |
-| `Sonnet/H` | Claude Sonnet 5 — High | well-specified implementation with nontrivial tests |
+`RESEARCH -> READY_FOR_IMPLEMENTATION -> IMPLEMENTED -> LOCAL_QUALIFIED -> GAME_GATE -> CLOSED`
 
-These are task recommendations, not evidence and not automatic model changes.
-Long runtime does not require deeper reasoning; ambiguity, interaction and
-correctness risk do. Escalate a supposedly mechanical leaf to `Astra/H` when
-its premises fail or it uncovers an unowned chess-policy decision.
+The path is descriptive, not bureaucracy. Research can close with `NO_CHANGE`
+or `NOT_WORTH_PURSUING`; documentation/provenance may close after
+implementation; correctness and behavior-neutral work substitute the relevant
+proof or performance gate. A playing-strength change normally may not bypass
+`GAME_GATE`.
+
+`READY_FOR_IMPLEMENTATION` is the critical boundary. Promotion requires a
+measured local defect/opportunity, an explicit mechanism and semantics, credible
+competing explanations, interacting mechanisms, invariants, the cheapest
+falsifier, required instrumentation, deterministic/cheap qualification, an
+expensive gate where applicable, acceptance/rejection rules and explicit
+non-goals. The implementation owner may make normal engineering decisions but
+does not redesign that research decision. A false premise returns the leaf to
+`RESEARCH`.
+
+PLAN owns current state, dependencies, readiness and deciding gates.
+EXPERIMENTS owns frozen predictions, conditions, results, dispositions,
+calibration and retry triggers. Linked `analysis/` packets hold detail; their
+format is defined in [`analysis/README.md`](analysis/README.md). Measured
+evidence outranks roadmap assumptions. Diagnostics explain; the registered gate
+decides. No fit, depth, NPS, node, conversion or donor result silently converts
+into Elo.
+
+The maintainer owns long tournaments/SPRTs, large datagen, expensive tuning,
+large PGO/profiling campaigns and other machine-saturating jobs. Agents prepare
+and validate them, then analyze returned artifacts. Cheap local qualification
+does not require command-by-command maintainer direction.
+
+Open executable leaves carry an advisory capability class:
+
+| Class | Use |
+|---|---|
+| `R3` | frontier research; unresolved causal or architecture work |
+| `R2` | bounded but correctness-sensitive architecture/reasoning |
+| `I2` | difficult implementation requiring strong reasoning |
+| `I1` | well-specified implementation |
+| `M` | mechanical documentation, manifests or provenance |
+| `V` | verification or measurement work |
+
+Classes are not workflow states or evidence. GUIDE owns the editable mapping to
+current models. Completed historical model tags remain untouched.
 
 ## 3. Required evidence
 
@@ -109,6 +137,68 @@ its premises fail or it uncovers an unowned chess-policy decision.
 
 Use tools/books/UHO_Lichess_4852_v1.epd for paired gates. SPRT decides strength;
 node counts, traces, tactical suites, WDL/DTZ and fit loss explain the result.
+
+### Active Phase 6 readiness map
+
+Only the earliest unchecked leaf is active. Later Phase 6 leaves remain
+`RESEARCH` until predecessor evidence supplies a valid handoff; imperative old
+wording does not make them implementation-ready. The checklist line supplies
+the leaf goal, roadmap order supplies the default dependency, and this table
+supplies current state, evidence basis and promotion/deciding gate. **No open
+Phase 6 implementation leaf is `READY_FOR_IMPLEMENTATION` today.**
+
+| Leaves | State / class | Evidence and unresolved decision | Ready-to-advance condition / deciding gate |
+|---|---|---|---|
+| 6.6.a | `RESEARCH` / `R2` | BAS-X20 plus Basilisk's BAS-E47/E50/E51 instrument failures; exact donor deltas and affected history are unclassified | Complete the registered static audit below; each delta classified with historical dependants and no instrument edit |
+| 6.6.b, 6.6.e, 6.6.f, 6.6.g | `RESEARCH` / `I2` | BAS-X20 demonstrates the failure classes, but 6.6.a must establish local semantics and adapters | 6.6.a produces exact implementation handoffs; deterministic parity/refusal/combination tests decide local qualification |
+| 6.6.c | `RESEARCH` / `V` | Known-bad cases are named but depend on the selected 6.6.b schema/lifecycle | Implemented guards exist; every named mutant fails while the valid reference passes |
+| 6.6.d | `RESEARCH` / `R2` | BAS-E45 and BAS-X17 show budget sensitivity; Basilisk deployment bracket is unmeasured | Real-clock measurement defines a justified bracket; provenance and repeat rule frozen |
+| 6.6.h | `RESEARCH` / `V` | Which baselines are invalidated is an output of 6.6.a-g | Dependency map names only affected artifacts; matched reruns and explicit supersession refreeze Group A |
+| 6.7.a-6.7.d | `RESEARCH` / `R3` (`6.7.d` `R2`) | BAS-E43/BAS-E49/BAS-X18 are priors; current local occurrence, kind, closure and budget ranking are unresolved | Local censuses/classification close with uncertainty and a ranked no-change-permitted decision; no implementation gate |
+| 6.8.a | `RESEARCH` / `R3` | BAS-E53 proves an only-move defect and refutes depth/piece-choice accounts, but supplies no HCE/search/knowledge mechanism | Linked packet yields a held-out, falsifiable mechanism handoff or `NO_CHANGE`; research evidence decides promotion |
+| 6.8.b-6.8.c | `RESEARCH` / `R2` (`6.8.c` `R3`) | BAS-E48/E49 and future 6.7 classifications establish questions, not mechanisms | Per-family local mechanism, interaction/closure map, falsifier and acceptance rule exist |
+| 6.8.d | `RESEARCH` / `I2` | Tests cannot be specified honestly before 6.8.a-c select mechanisms | Accepted handoffs name deterministic theory/truth/closure cases and known-bad mutants |
+| 6.8.e | `RESEARCH` / `R3` | No dependency-complete fitted surface exists yet | 6.8.a-d define the covariant cluster, frozen train/validation split and stop rule |
+| 6.9.a | `RESEARCH` / `R2` | Gate tier depends on 6.7 occurrence and the complete 6.8 candidate | Candidate and occurrence are frozen; prospective tier, prediction and stop rule registered |
+| 6.9.b | `RESEARCH` / `V` | No locally qualified Group B candidate exists | Required truth/no-veto/deterministic/tactical checks pass; maintainer-owned clean-PGO game gate decides closure |
+| 6.10.a-6.10.c | `RESEARCH` / `R3` (`6.10.a` `R2`) | Current deficits are measured, but budget/theory/scale causes remain unresolved | Each packet reaches a falsifiable local mechanism or `NO_CHANGE` under 6.7 ranking and 6.6 instruments |
+| 6.10.d | `RESEARCH` / `I2` | Implementation is conditional on 6.10.a-c evidence and valid promotion closure | Exact semantics and handoff exist; local qualification passes without adjacent changes |
+| 6.10.e | `RESEARCH` / `V` | Gate is undefined until the dependency-complete remainder exists | 6.9 tier rule and marginal-value stop are preregistered; maintainer-owned gate decides |
+| 6.11.a | `RESEARCH` / `M` | Final accepted evaluator/artifact set does not exist | All Phase 6 dispositions closed; immutable artifacts and hashes agree |
+| 6.11.b | `RESEARCH` / `R2` | Rejects and gaps remain prospective | Ledger contains alternatives, calibration and objective retry triggers |
+| 6.11.c | `RESEARCH` / `V` | Reconciliation depends on all family results | Every layer and hard veto reconciles without aggregate masking |
+| 6.11.d | `RESEARCH` / `M` | Phase closure is not yet authorized | PLAN/GUIDE/EXPERIMENTS agree on accepted head; documentation check is the deciding gate |
+
+#### Current research card: 6.6.a
+
+- **Research question:** Which Rarog 4.10 instrument, lifecycle and provenance
+  changes transfer to Basilisk without changing the meaning of existing
+  evidence?
+- **Known evidence:** BAS-X20 names the donor failures and repairs; BAS-E47,
+  BAS-E50 and BAS-E51 show that Basilisk has already suffered material-shed,
+  cohort and closure mistakes. Donor revision is fixed at `881c821`.
+- **Leading hypothesis:** generic schema/cohort/provenance/refusal contracts are
+  reusable, while process lifetime, UCI, language/build and report-field details
+  need Basilisk adapters.
+- **Competing hypotheses:** a repair is already covered locally; it is
+  inapplicable; or changing it would invalidate a historical consumer and needs
+  versioning plus explicit supersession rather than a port.
+- **Interactions:** truth/report schemas, family seeding and sharding, holdout
+  identity, engine lifecycle, build/revision manifests and every baseline or
+  floor consuming those artifacts.
+- **Cheapest discriminating work:** static source/contract delta plus a
+  producer -> artifact -> consumer dependency map. Do not modify an instrument
+  during this pass.
+- **Falsifiers:** no semantic local equivalent exists, or an apparently direct
+  port changes a recorded historical condition that cannot be isolated by a
+  new version.
+- **Prospective prediction (frozen before the audit):** most generic validation
+  and provenance guards will be directly portable or already covered; runtime
+  adapters and build matrices will need local design. Confidence: medium (70%).
+- **Stop / READY condition:** stop after every donor delta and historical
+  dependant is classified. Promote follow-on leaves only when exact semantics,
+  non-goals, tests and supersession consequences are written; `NO_CHANGE` is
+  valid for already-covered or inapplicable deltas.
 
 ## 4. Closed release phases
 
@@ -1493,14 +1583,14 @@ drawn-share bias remains the separate subject of the already-prepared 6.5.a
 candidate. Analysis: `analysis/rook_narrow_node_resolvability_v1.md`.
 
 - [ ] **6.6** Upgrade instrument and gate integrity before selecting another endgame candidate.
-  - [ ] **6.6.a** `[Astra/H]` Audit Basilisk's current tools against Rarog 4.10 at donor revision `881c821`; classify every delta as directly portable, adapter-specific, already covered or inapplicable. Do not change an instrument before recording which historical results depend on its semantics.
-  - [ ] **6.6.b** `[Sol/H]` Add a versioned truth-report schema, per-family FEN-sequence digests and an overall cohort identity; seed families by name, refuse cross-cohort comparisons, and add sharded workers whose ordered output is byte-identical to the serial reference. Port/adapt Rarog's `endgame_truth.py`, `endgame_floors.py` and lifecycle tests where that is cheaper than reimplementation.
-  - [ ] **6.6.c** `[Sol/H]` Prove every guard fails on a known-bad input: material-shed/truth confusion, changed FEN cohort, thin denominator, broken regression anchor, serial/parallel drift and an engine that retains cross-position state. Stamp layer, budget, ply cap and cohort on every report.
-  - [ ] **6.6.d** `[Astra/H]` Measure Basilisk's deployed nodes per move through its real clock path, then justify a fixed-node bracket around deployment rather than inheriting Rarog's 60k/200k/600k values. Re-run after material time-management or NPS changes.
-  - [ ] **6.6.e** `[Sol/H]` Generalize held-out tooling: assign by FEN hash, prospectively freeze the deciding half and runner-up, use paired discordances/McNemar with a thin-sample refusal, report plateaus, and mark a selected cohort spent except as a safety veto.
-  - [ ] **6.6.f** `[Sol/H]` Harden SPRT/build provenance: refuse dirty or wrong-revision candidates by default, require binary/hash/compiler/flavor/bench manifests, reject options a selected mode cannot honor, record natural termination, and test each refusal live. Adapt the Rarog guards; retain Basilisk's C++/CMake manifest format.
-  - [ ] **6.6.g** `[Sonnet/H]` Add a supported CMake/feature/ISA matrix that covers combinations rather than only single options, distinguishes production from diagnostic builds, and verifies required instruction classes when behavior cannot reveal a missing optimization.
-  - [ ] **6.6.h** `[Sol/H]` Re-run only the endgame baselines invalidated by 6.6, preserve old artifacts as superseded, derive new floors from matched cohorts, and freeze the accepted Group-A head under the repaired contract.
+  - [ ] **6.6.a** `[R2]` Audit Basilisk's current tools against Rarog 4.10 at donor revision `881c821`; classify every delta as directly portable, adapter-specific, already covered or inapplicable. Do not change an instrument before recording which historical results depend on its semantics.
+  - [ ] **6.6.b** `[I2]` Add a versioned truth-report schema, per-family FEN-sequence digests and an overall cohort identity; seed families by name, refuse cross-cohort comparisons, and add sharded workers whose ordered output is byte-identical to the serial reference. Port/adapt Rarog's `endgame_truth.py`, `endgame_floors.py` and lifecycle tests where that is cheaper than reimplementation.
+  - [ ] **6.6.c** `[V]` Prove every guard fails on a known-bad input: material-shed/truth confusion, changed FEN cohort, thin denominator, broken regression anchor, serial/parallel drift and an engine that retains cross-position state. Stamp layer, budget, ply cap and cohort on every report.
+  - [ ] **6.6.d** `[R2]` Measure Basilisk's deployed nodes per move through its real clock path, then justify a fixed-node bracket around deployment rather than inheriting Rarog's 60k/200k/600k values. Re-run after material time-management or NPS changes.
+  - [ ] **6.6.e** `[I2]` Generalize held-out tooling: assign by FEN hash, prospectively freeze the deciding half and runner-up, use paired discordances/McNemar with a thin-sample refusal, report plateaus, and mark a selected cohort spent except as a safety veto.
+  - [ ] **6.6.f** `[I2]` Harden SPRT/build provenance: refuse dirty or wrong-revision candidates by default, require binary/hash/compiler/flavor/bench manifests, reject options a selected mode cannot honor, record natural termination, and test each refusal live. Adapt the Rarog guards; retain Basilisk's C++/CMake manifest format.
+  - [ ] **6.6.g** `[I2]` Add a supported CMake/feature/ISA matrix that covers combinations rather than only single options, distinguishes production from diagnostic builds, and verifies required instruction classes when behavior cannot reveal a missing optimization.
+  - [ ] **6.6.h** `[V]` Re-run only the endgame baselines invalidated by 6.6, preserve old artifacts as superseded, derive new floors from matched cohorts, and freeze the accepted Group-A head under the repaired contract.
 
 Rarog's exact tools may be copied because both projects are owned by the
 maintainer, but their conclusions do not transfer automatically. Rust feature
@@ -1510,10 +1600,10 @@ adapters. The required behavior is the contract above, not source identity.
 ### 6.7 Local endgame ranking and family contracts
 
 - [ ] **6.7** Rank and classify remaining work from Basilisk evidence.
-  - [ ] **6.7.a** `[Astra/XH]` Recompute board occurrence over a large current rated corpus and search-tree occurrence over a root-balanced suite. Report per-root concentration, board versus tree rates and uncertainty; occurrence prioritizes work but never proves value.
-  - [ ] **6.7.b** `[Fable/XH]` Classify every remaining family as exact recognizer, scale/drawn-overclaim, move-quality or conversion/guidance work, and pre-register the deciding instrument. A scale that leaves won-position conversion unchanged has not failed its intended test.
-  - [ ] **6.7.c** `[Astra/XH]` For every dispatcher, record its exact runtime condition, direct root-material matches and full promotion/material-shed closure. Test all families when the closure cannot be proved. Report paired gains and losses, not only net conversion.
-  - [ ] **6.7.d** `[Astra/H]` Re-rank on local defect x board occurrence x tree occurrence, qualified by the deployment node bracket. Record seven-man truth availability separately; a missing table is unknown, not agreement, but does not block independently labelled draw-scaling work.
+  - [ ] **6.7.a** `[R3]` Recompute board occurrence over a large current rated corpus and search-tree occurrence over a root-balanced suite. Report per-root concentration, board versus tree rates and uncertainty; occurrence prioritizes work but never proves value.
+  - [ ] **6.7.b** `[R3]` Classify every remaining family as exact recognizer, scale/drawn-overclaim, move-quality or conversion/guidance work, and pre-register the deciding instrument. A scale that leaves won-position conversion unchanged has not failed its intended test.
+  - [ ] **6.7.c** `[R3]` For every dispatcher, record its exact runtime condition, direct root-material matches and full promotion/material-shed closure. Test all families when the closure cannot be proved. Report paired gains and losses, not only net conversion.
+  - [ ] **6.7.d** `[R2]` Re-rank on local defect x board occurrence x tree occurrence, qualified by the deployment node bracket. Record seven-man truth availability separately; a missing table is unknown, not agreement, but does not block independently labelled draw-scaling work.
 
 Rarog's 36,400-game census changed two apparent zero-occurrence families into
 real targets and found its seven-man KRPPKRP family in 5.40% of games. Those
@@ -1521,35 +1611,35 @@ numbers are donor priors only (BAS-X18); 6.7 must measure Basilisk's own policy.
 
 ### 6.8 High-value Group B families
 
-- [ ] **6.8** Implement only locally demonstrated, dependency-complete Group B work.
-  - [ ] **6.8.a** `[Astra/XH]` Resolve the won-rook-ending only-move precision defect from BAS-E53. Study all 68 one-winning-move nodes with a held-out split, compare search/evaluation/knowledge explanations, and produce a mechanism or a justified no-change verdict. More depth is already refuted.
-  - [ ] **6.8.b** `[Astra/H]` Cover KR-KP, KQ-KRP and KR-KB according to 6.7's kind classification; protect winning rook endings while correcting drawn overclaim.
-  - [ ] **6.8.c** `[Fable/XH]` Cover bishop-pawn families, including wrong-bishop/rook-pawn fortresses and promotion races. Absorb the current KBP-K deficit as bishop-pawn technique, not king geometry (BAS-E48/BAS-E49).
-  - [ ] **6.8.d** `[Sol/H]` Add deterministic theory, WDL, move-quality and promotion-closure cases before fitting. Each test must be shown to fail on the defect or known-bad mutant it claims to catch.
-  - [ ] **6.8.e** `[Astra/XH]` Group mutually covariant family value, scale and generic guidance terms; fit the complete local cluster on training/validation only. Never freeze old coefficients while adding a new term or SPRT every recognizer alone.
+- [ ] **6.8** Resolve, then implement only locally demonstrated, dependency-complete Group B work.
+  - [ ] **6.8.a** `[R3]` Resolve the won-rook-ending only-move precision defect from BAS-E53. Study all 68 one-winning-move nodes with a held-out split, compare search/evaluation/knowledge explanations, and produce a mechanism or a justified no-change verdict. More depth is already refuted.
+  - [ ] **6.8.b** `[R2]` Cover KR-KP, KQ-KRP and KR-KB according to 6.7's kind classification; protect winning rook endings while correcting drawn overclaim.
+  - [ ] **6.8.c** `[R3]` Cover bishop-pawn families, including wrong-bishop/rook-pawn fortresses and promotion races. Absorb the current KBP-K deficit as bishop-pawn technique, not king geometry (BAS-E48/BAS-E49).
+  - [ ] **6.8.d** `[I2]` Add deterministic theory, WDL, move-quality and promotion-closure cases before fitting. Each test must be shown to fail on the defect or known-bad mutant it claims to catch.
+  - [ ] **6.8.e** `[R3]` Group mutually covariant family value, scale and generic guidance terms; fit the complete local cluster on training/validation only. Never freeze old coefficients while adding a new term or SPRT every recognizer alone.
 
 ### 6.9 Group B qualification
 
 - [ ] **6.9** Qualify Group B against the frozen Group-A head.
-  - [ ] **6.9.a** `[Astra/H]` Register gates by occurrence: normal no-adjudication STC for common families, endgame-start cohorts for medium-frequency families, and theory/WDL/DTZ plus a loss-permitting no-regression SPRT for tails that cannot move whole-match Elo at feasible budget.
-  - [ ] **6.9.b** `[Sol/H]` Require paired truth/move-quality improvement, zero family vetoes, deterministic/tactical passes and the registered clean-PGO game verdict. A correctness failure cannot be traded for aggregate conversion or Elo.
+  - [ ] **6.9.a** `[R2]` Register gates by occurrence: normal no-adjudication STC for common families, endgame-start cohorts for medium-frequency families, and theory/WDL/DTZ plus a loss-permitting no-regression SPRT for tails that cannot move whole-match Elo at feasible budget.
+  - [ ] **6.9.b** `[V]` Require paired truth/move-quality improvement, zero family vetoes, deterministic/tactical passes and the registered clean-PGO game verdict. A correctness failure cannot be traded for aggregate conversion or Elo.
 
 ### 6.10 Group C and marginal-value stop
 
 - [ ] **6.10** Evaluate remaining lower-yield families in the local 6.7 order.
-  - [ ] **6.10.a** `[Astra/H]` Measure KPs-K and KP-KP scale/technique gaps before implementation.
-  - [ ] **6.10.b** `[Astra/XH]` Reconcile KQ-KP and KQ-KR at deployment-representative budgets; do not preserve a low-budget deficit that disappears with search.
-  - [ ] **6.10.c** `[Fable/XH]` Audit KR-KN and KNN-KP/KNN-K theoretical scaling, fortress residue and rule-50 behavior.
-  - [ ] **6.10.d** `[Astra/H]` Implement and locally fit only mechanisms with measurable defect, sufficient occurrence and a valid promotion closure.
-  - [ ] **6.10.e** `[Sol/H]` Gate the dependency-complete remainder by the 6.9 tier rules and stop when marginal value no longer pays for complexity.
+  - [ ] **6.10.a** `[R2]` Measure KPs-K and KP-KP scale/technique gaps before implementation.
+  - [ ] **6.10.b** `[R3]` Reconcile KQ-KP and KQ-KR at deployment-representative budgets; do not preserve a low-budget deficit that disappears with search.
+  - [ ] **6.10.c** `[R3]` Audit KR-KN and KNN-KP/KNN-K theoretical scaling, fortress residue and rule-50 behavior.
+  - [ ] **6.10.d** `[I2]` Implement and locally fit only mechanisms with measurable defect, sufficient occurrence and a valid promotion closure.
+  - [ ] **6.10.e** `[V]` Gate the dependency-complete remainder by the 6.9 tier rules and stop when marginal value no longer pays for complexity.
 
 ### 6.11 Endgame closure
 
 - [ ] **6.11** Close classical endgame maturity.
-  - [ ] **6.11.a** `[Sol/H]` Freeze the accepted evaluator, versioned truth cohorts, reports, budgets, floors and family gate dispositions.
-  - [ ] **6.11.b** `[Fable/H]` Record every rejected mechanism, alternative explanation, unresolved seven-man gap and exact retry trigger.
-  - [ ] **6.11.c** `[Astra/H]` Reconcile all family layers and confirm that no correctness, mate, rule-50 or tablebase veto remains hidden by an aggregate result.
-  - [ ] **6.11.d** `[Terra/M]` Authorize board/toolchain work and post-endgame corpus generation only after PLAN, GUIDE and EXPERIMENTS agree on the accepted head.
+  - [ ] **6.11.a** `[M]` Freeze the accepted evaluator, versioned truth cohorts, reports, budgets, floors and family gate dispositions.
+  - [ ] **6.11.b** `[R2]` Record every rejected mechanism, alternative explanation, unresolved seven-man gap and exact retry trigger.
+  - [ ] **6.11.c** `[V]` Reconcile all family layers and confirm that no correctness, mate, rule-50 or tablebase veto remains hidden by an aggregate result.
+  - [ ] **6.11.d** `[M]` Authorize board/toolchain work and post-endgame corpus generation only after PLAN, GUIDE and EXPERIMENTS agree on the accepted head.
 
 ## 7. Toolchain and board CORRECTNESS (not a speed phase)
 
@@ -1586,19 +1676,19 @@ Consequences for how the leaves are read:
 * **Report defects found, not percent gained.** The phase closes on 7.12 with an
   explicit no-change disposition for every conditional leaf that stayed shut.
 
-- [ ] **7.0** `[Sol/H]` Refresh and freeze the classical toolchain before performance work. Inventory Windows/MSYS2, Linux CI and macOS compiler, C++ library, CMake, Ninja and profile-tool versions; compare current versus newest stable one axis at a time; require CTest, sanitizers, exact search agreement, ISA checks and pooled release/PGO throughput before selecting the faster non-regressing line.
-- [ ] **7.1** `[Astra/H]` Port/adapt Rarog's board-v2 instrument and audit Basilisk's current contracts. Freeze canonical FEN, sorted legal/capture sets, perft/divides, keys, occupancy, normal/hinted/staged/null/clone/unwind restoration, checks/evasions, pinned EP, every castle and quiet/capture underpromotions. Add negative controls and an allocation guard. Audit malformed UCI, maximum move counters and every production SEE caller; use an independent legal same-square capture oracle rather than `see == see_ge` as the sole oracle.
-- [ ] **7.2** `[Astra/XH]` Profile board work in actual HCE search on opening, middlegame, check-heavy, promotion and sparse-endgame cohorts at realistic budgets. Attribute generation, legality, pin/check queries, SEE, make/unmake, key/history work and allocations as shares of full-search time; prove instrumentation-off identity and each counter wire. Set a written component-time budget before opening optimization work.
-- [ ] **7.3** `[Astra/XH]` Optimize legal generation and move-list delivery only if 7.2 makes them hot. Examine color/mode specialization, setwise pawns, pin discovery, king safety and repeated list initialization/copying in emitted code. Preserve exact legal sets, underpromotions and capture/quiet partitions; treat changed move order as a search change, not a neutral speedup.
-- [ ] **7.4** `[Sol/H]` Measure a fused ordinary-piece relocation path against remove-plus-add only if make/unmake is hot. Preserve mailbox, both occupancies, keys, evaluator state and every special move through make and unmake; retain only a robust whole-search benefit.
-- [ ] **7.5** `[Astra/XH]` Share pin/check/attack information only where 7.2 proves duplicate work. Specify node/ply ownership, both-king semantics and real/null/undo/clone invalidation; never reuse original-position pin masks inside an evolving SEE exchange.
-- [ ] **7.6** `[Astra/H]` Optimize the corrected SEE kernel only after 7.1's independent contract passes. Carry attackers/rays incrementally where profitable while preserving king legality, created/released pins, en passant, recapture promotions and threshold equality at real production thresholds; compare kernel and whole-search performance separately.
-- [ ] **7.7** `[Sol/H]` Make game/search history capacity and mutation contracts explicit. Preserve arbitrary legal game history, reserve search headroom before hot paths and worker clones, prove no mid-search growth, and narrow unsafe mutable-derived-state APIs without adding hot validation.
-- [ ] **7.8** `[Astra/XH]` Decide whether king-square caching or a larger board representation change pays only after earlier measured work. Compare complete alternatives, cache footprint and HCE/NNUE seams; keep mailbox, hashes, compact moves and portable slider backends; stop after one bounded architecture comparison fails.
-- [ ] **7.9** `[Fable/XH]` Audit rule-50, repetition, null boundaries, mate precedence and TT/evaluation identity as separate policies. Preserve accepted invariants and historical rejected-policy retry conditions; never bundle a semantic change into a speed refactor.
-- [ ] **7.10** `[Sol/H]` Qualify the integrated board candidate with debug/release state and SEE tests, randomized independent comparison, sanitizers, all slider/ISA backends, exact fingerprint accounting and interleaved pooled-PGO NPS. Correctness changes and behavior-neutral speed changes retain separate baselines.
-- [ ] **7.11** `[Astra/H]` Register one dependency-complete no-adjudication playing gate for any board/SEE semantic change; use a symmetric bracket for an unknown-sign repair and do not gate each neutral optimization separately.
-- [ ] **7.12** `[Astra/H]` Refresh only endgame evidence affected by the accepted board head, version changed baselines/floors/rankings, and preserve unchanged reference arms. Close the phase with source/binary recipes and an explicit no-change disposition for every conditional optimization.
+- [ ] **7.0** `[I1]` Refresh and freeze the classical toolchain before performance work. Inventory Windows/MSYS2, Linux CI and macOS compiler, C++ library, CMake, Ninja and profile-tool versions; compare current versus newest stable one axis at a time; require CTest, sanitizers, exact search agreement, ISA checks and pooled release/PGO throughput before selecting the faster non-regressing line.
+- [ ] **7.1** `[R2]` Port/adapt Rarog's board-v2 instrument and audit Basilisk's current contracts. Freeze canonical FEN, sorted legal/capture sets, perft/divides, keys, occupancy, normal/hinted/staged/null/clone/unwind restoration, checks/evasions, pinned EP, every castle and quiet/capture underpromotions. Add negative controls and an allocation guard. Audit malformed UCI, maximum move counters and every production SEE caller; use an independent legal same-square capture oracle rather than `see == see_ge` as the sole oracle.
+- [ ] **7.2** `[R3]` Profile board work in actual HCE search on opening, middlegame, check-heavy, promotion and sparse-endgame cohorts at realistic budgets. Attribute generation, legality, pin/check queries, SEE, make/unmake, key/history work and allocations as shares of full-search time; prove instrumentation-off identity and each counter wire. Set a written component-time budget before opening optimization work.
+- [ ] **7.3** `[R3]` Optimize legal generation and move-list delivery only if 7.2 makes them hot. Examine color/mode specialization, setwise pawns, pin discovery, king safety and repeated list initialization/copying in emitted code. Preserve exact legal sets, underpromotions and capture/quiet partitions; treat changed move order as a search change, not a neutral speedup.
+- [ ] **7.4** `[I1]` Measure a fused ordinary-piece relocation path against remove-plus-add only if make/unmake is hot. Preserve mailbox, both occupancies, keys, evaluator state and every special move through make and unmake; retain only a robust whole-search benefit.
+- [ ] **7.5** `[R3]` Share pin/check/attack information only where 7.2 proves duplicate work. Specify node/ply ownership, both-king semantics and real/null/undo/clone invalidation; never reuse original-position pin masks inside an evolving SEE exchange.
+- [ ] **7.6** `[R2]` Optimize the corrected SEE kernel only after 7.1's independent contract passes. Carry attackers/rays incrementally where profitable while preserving king legality, created/released pins, en passant, recapture promotions and threshold equality at real production thresholds; compare kernel and whole-search performance separately.
+- [ ] **7.7** `[I1]` Make game/search history capacity and mutation contracts explicit. Preserve arbitrary legal game history, reserve search headroom before hot paths and worker clones, prove no mid-search growth, and narrow unsafe mutable-derived-state APIs without adding hot validation.
+- [ ] **7.8** `[R3]` Decide whether king-square caching or a larger board representation change pays only after earlier measured work. Compare complete alternatives, cache footprint and HCE/NNUE seams; keep mailbox, hashes, compact moves and portable slider backends; stop after one bounded architecture comparison fails.
+- [ ] **7.9** `[R3]` Audit rule-50, repetition, null boundaries, mate precedence and TT/evaluation identity as separate policies. Preserve accepted invariants and historical rejected-policy retry conditions; never bundle a semantic change into a speed refactor.
+- [ ] **7.10** `[I1]` Qualify the integrated board candidate with debug/release state and SEE tests, randomized independent comparison, sanitizers, all slider/ISA backends, exact fingerprint accounting and interleaved pooled-PGO NPS. Correctness changes and behavior-neutral speed changes retain separate baselines.
+- [ ] **7.11** `[R2]` Register one dependency-complete no-adjudication playing gate for any board/SEE semantic change; use a symmetric bracket for an unknown-sign repair and do not gate each neutral optimization separately.
+- [ ] **7.12** `[R2]` Refresh only endgame evidence affected by the accepted board head, version changed baselines/floors/rankings, and preserve unchanged reference arms. Close the phase with source/binary recipes and an explicit no-change disposition for every conditional optimization.
 
 Directly reusable Rarog sources include `tools/diag/board_v2_oracle.py`,
 `board_v2_run.py`, `see_contract_oracle.py`, `normalized_see_compare.py` and the
@@ -1616,115 +1706,115 @@ The target is a mature final classical evaluator, not merely another fit.
 ### 8.0 HCE maturity and feature-completeness audit
 
 - [ ] **8.0** Define and close the final handcrafted-evaluation surface.
-  - [ ] **8.0.a** `[Astra/XH]` Compare Basilisk conceptually with strong maintained HCE engines in D:/code; pin revisions and learn contracts/interactions rather than treating feature parity as an objective.
-  - [ ] **8.0.b** `[Fable/XH]` Audit material/imbalance, PST, mobility, pawn structure, passers, outposts, threats, space, king safety, initiative/winnability, draw scaling, rule-50 damping and score saturation.
-  - [ ] **8.0.c** `[Astra/XH]` Trace every term through EvalTrace, caches, qsearch stand-pat, correction, pruning margins and TT score storage; measure activation, phase/material coverage, correlation, clipping and factorial interactions on representative cohorts.
-  - [ ] **8.0.d** `[Astra/H]` Identify dead, duplicate, saturated, mutually cancelled and uncovered terms; classify each as repair, structural candidate, fit issue, neutral cost change or no-change with a deciding test.
-  - [ ] **8.0.e** `[Sol/H]` Add deterministic tests for every accepted categorical mechanism, expand the roadmap with any evidence-backed implementation clusters, and freeze the architecture before production datagen.
+  - [ ] **8.0.a** `[R3]` Compare Basilisk conceptually with strong maintained HCE engines in D:/code; pin revisions and learn contracts/interactions rather than treating feature parity as an objective.
+  - [ ] **8.0.b** `[R3]` Audit material/imbalance, PST, mobility, pawn structure, passers, outposts, threats, space, king safety, initiative/winnability, draw scaling, rule-50 damping and score saturation.
+  - [ ] **8.0.c** `[R3]` Trace every term through EvalTrace, caches, qsearch stand-pat, correction, pruning margins and TT score storage; measure activation, phase/material coverage, correlation, clipping and factorial interactions on representative cohorts.
+  - [ ] **8.0.d** `[R2]` Identify dead, duplicate, saturated, mutually cancelled and uncovered terms; classify each as repair, structural candidate, fit issue, neutral cost change or no-change with a deciding test.
+  - [ ] **8.0.e** `[I1]` Add deterministic tests for every accepted categorical mechanism, expand the roadmap with any evidence-backed implementation clusters, and freeze the architecture before production datagen.
 
 ### 8.1 Fit-tooling contract
 
 - [ ] **8.1** Harden and document the complete fit pipeline before generating expensive data.
-  - [ ] **8.1.a** `[Sol/H]` Fit K once on training/validation data and freeze it across all compared stages and arms.
-  - [ ] **8.1.b** `[Sol/H]` Accept an explicit complete initial vector, record every surface coordinate and reject partial/missing-by-accident vectors.
-  - [ ] **8.1.c** `[Sol/H]` Freeze by-game train/validation/test splits and atomically claim the test set so it can be opened once after model selection.
-  - [ ] **8.1.d** `[Astra/H]` Enforce an exact free/fixed/excluded surface partition, gauge anchors, reconstruction and semantic bounds; every production scalar has one instrument or a written invariant/unidentifiable disposition.
-  - [ ] **8.1.e** `[Terra/M]` Hash corpora, row order, splits, configs, binaries, source revisions, tablebases, vectors and reports; restore source and the production binary byte-for-byte on success or failure.
-  - [ ] **8.1.f** `[Sol/H]` Enforce labels exactly in {0, 0.5, 1}; publish accepted counts and every rejection reason, and fail on suspiciously large rejection fractions.
-  - [ ] **8.1.g** `[Sol/H]` Give materially different corpus semantics a named versioned contract. Port/adapt Rarog's `build_book.py`, `book_yield.py`, `relabel_tb.py`, complete-fit driver, confirmation driver and manifest writers where useful; never widen a gate until unknown data silently passes.
-  - [ ] **8.1.h** `[Fable/H]` Write a Basilisk Texel handbook containing canonical paths, immutable resources, supported commands, surface partition, pipeline, traps, reference timings and recovery procedure. Rarog's handbook is a template, not a source of Basilisk constants.
+  - [ ] **8.1.a** `[I1]` Fit K once on training/validation data and freeze it across all compared stages and arms.
+  - [ ] **8.1.b** `[I1]` Accept an explicit complete initial vector, record every surface coordinate and reject partial/missing-by-accident vectors.
+  - [ ] **8.1.c** `[I1]` Freeze by-game train/validation/test splits and atomically claim the test set so it can be opened once after model selection.
+  - [ ] **8.1.d** `[R2]` Enforce an exact free/fixed/excluded surface partition, gauge anchors, reconstruction and semantic bounds; every production scalar has one instrument or a written invariant/unidentifiable disposition.
+  - [ ] **8.1.e** `[M]` Hash corpora, row order, splits, configs, binaries, source revisions, tablebases, vectors and reports; restore source and the production binary byte-for-byte on success or failure.
+  - [ ] **8.1.f** `[I1]` Enforce labels exactly in {0, 0.5, 1}; publish accepted counts and every rejection reason, and fail on suspiciously large rejection fractions.
+  - [ ] **8.1.g** `[I1]` Give materially different corpus semantics a named versioned contract. Port/adapt Rarog's `build_book.py`, `book_yield.py`, `relabel_tb.py`, complete-fit driver, confirmation driver and manifest writers where useful; never widen a gate until unknown data silently passes.
+  - [ ] **8.1.h** `[R2]` Write a Basilisk Texel handbook containing canonical paths, immutable resources, supported commands, surface partition, pipeline, traps, reference timings and recovery procedure. Rarog's handbook is a template, not a source of Basilisk constants.
 
 ### 8.2 Corpus design
 
 - [ ] **8.2** Design a phase-efficient, natural-termination corpus.
-  - [ ] **8.2.a** `[Sol/H]` Locate the actual source position store under D:/chess; record canonical path, format, row count, duplicate rate, material-phase distribution and content hash rather than importing Rarog's path or counts.
-  - [ ] **8.2.b** `[Astra/XH]` Define buckets from Basilisk's evaluator/material phase, never nominal ply. Measure rows/game conditioned on start-position phase; only opening starts can feed an opening bucket, while direct later-phase starts can improve independence.
-  - [ ] **8.2.c** `[Sol/H]` Freeze one extractor contract across every arm: start/end skips, per-phase and per-game caps, tactical filters, deduplication, ordering and by-game split seed. Change one causal axis at a time.
-  - [ ] **8.2.d** `[Astra/H]` Derive corpus size from effective independent rows per identifiable coordinate and label quality; confirm with a held-out learning curve instead of treating raw rows as capacity.
-  - [ ] **8.2.e** `[Terra/M]` Register phase/material targets, start-book composition, independent starts, duplicate/rejection ceilings, learning-curve stop conditions, maximum generation budget and immutable publication names before launch.
+  - [ ] **8.2.a** `[I1]` Locate the actual source position store under D:/chess; record canonical path, format, row count, duplicate rate, material-phase distribution and content hash rather than importing Rarog's path or counts.
+  - [ ] **8.2.b** `[R3]` Define buckets from Basilisk's evaluator/material phase, never nominal ply. Measure rows/game conditioned on start-position phase; only opening starts can feed an opening bucket, while direct later-phase starts can improve independence.
+  - [ ] **8.2.c** `[I1]` Freeze one extractor contract across every arm: start/end skips, per-phase and per-game caps, tactical filters, deduplication, ordering and by-game split seed. Change one causal axis at a time.
+  - [ ] **8.2.d** `[R2]` Derive corpus size from effective independent rows per identifiable coordinate and label quality; confirm with a held-out learning curve instead of treating raw rows as capacity.
+  - [ ] **8.2.e** `[M]` Register phase/material targets, start-book composition, independent starts, duplicate/rejection ceilings, learning-curve stop conditions, maximum generation budget and immutable publication names before launch.
 
 ### 8.3 Generate and freeze the source corpus
 
 - [ ] **8.3** Generate self-play with the accepted post-endgame/board head.
-  - [ ] **8.3.a** `[Sol/H]` Prepare and verify the exact PGO generator, fixed-node budget, book segment, seed, concurrency and no-score-adjudication profile; then hand the single long-run command to the maintainer.
-  - [ ] **8.3.b** `[Astra/H]` Audit returned termination mix, natural mates, duplicate/leakage rate, by-phase yield, family coverage and <=6-man yield; reject a run whose manifest or registered contract drifted.
-  - [ ] **8.3.c** `[Terra/M]` Publish corpus A atomically under a new name with immutable row order, splits and hashes before relabeling.
+  - [ ] **8.3.a** `[I1]` Prepare and verify the exact PGO generator, fixed-node budget, book segment, seed, concurrency and no-score-adjudication profile; then hand the single long-run command to the maintainer.
+  - [ ] **8.3.b** `[R2]` Audit returned termination mix, natural mates, duplicate/leakage rate, by-phase yield, family coverage and <=6-man yield; reject a run whose manifest or registered contract drifted.
+  - [ ] **8.3.c** `[M]` Publish corpus A atomically under a new name with immutable row order, splits and hashes before relabeling.
 
 ### 8.4 Build matched label arms
 
 - [ ] **8.4** Create the matched tablebase-relabel comparison. BAS-E46 already sizes the opportunity: at 8,000 nodes 19.77% of clean tablebase wins were not won, falling to 13.65% at 25,000; more nodes recovered only about a third at 3.1x cost.
-  - [ ] **8.4.a** `[Terra/M]` Keep corpus A's original white-perspective self-play game-result labels unchanged.
-  - [ ] **8.4.b** `[Sol/H]` Create corpus B as a row/order/split-identical copy except eligible local-tablebase rows receive Syzygy WDL labels.
-  - [ ] **8.4.c** `[Astra/H]` Treat cursed wins/losses as draws under rule 50 and analyze halfmove-clock semantics before relabeling.
-  - [ ] **8.4.d** `[Sol/H]` Prove identical FENs, ordering and by-game membership; reject missing tables as unknown rather than agreement.
-  - [ ] **8.4.e** `[Fable/H]` Decide row-local eligibility explicitly; never propagate an ending verdict backward into >tablebase positions without a separately registered causal rule.
-  - [ ] **8.4.f** `[Terra/M]` Publish changed-row count/fraction, family and phase distribution, before/after label matrix, probe failures and a derived-from manifest.
+  - [ ] **8.4.a** `[M]` Keep corpus A's original white-perspective self-play game-result labels unchanged.
+  - [ ] **8.4.b** `[I1]` Create corpus B as a row/order/split-identical copy except eligible local-tablebase rows receive Syzygy WDL labels.
+  - [ ] **8.4.c** `[R2]` Treat cursed wins/losses as draws under rule 50 and analyze halfmove-clock semantics before relabeling.
+  - [ ] **8.4.d** `[I1]` Prove identical FENs, ordering and by-game membership; reject missing tables as unknown rather than agreement.
+  - [ ] **8.4.e** `[R2]` Decide row-local eligibility explicitly; never propagate an ending verdict backward into >tablebase positions without a separately registered causal rule.
+  - [ ] **8.4.f** `[M]` Publish changed-row count/fraction, family and phase distribution, before/after label matrix, probe failures and a derived-from manifest.
 
 ### 8.5 Analyze whole-game tablebase adjudication separately
 
 - [ ] **8.5** Decide whether a whole-game Syzygy-adjudicated corpus deserves a third arm.
-  - [ ] **8.5.a** `[Astra/XH]` Audit semantics/provenance and game-to-row lineage: tablebase termination changes the result label of every sampled row in that game, unlike local relabeling.
-  - [ ] **8.5.b** `[Sol/H]` Pilot corpus C only if its starts, extraction and non-label semantics can be matched closely enough for a useful comparison.
-  - [ ] **8.5.c** `[Astra/H]` Register C as a separate experiment with its own hypothesis and gate; never merge it into A-versus-B or use tablebase adjudication in strength games.
-  - [ ] **8.5.d** `[Fable/H]` Record a no-arm verdict if the design cannot isolate whole-game termination from changed sampling distribution.
+  - [ ] **8.5.a** `[R3]` Audit semantics/provenance and game-to-row lineage: tablebase termination changes the result label of every sampled row in that game, unlike local relabeling.
+  - [ ] **8.5.b** `[I1]` Pilot corpus C only if its starts, extraction and non-label semantics can be matched closely enough for a useful comparison.
+  - [ ] **8.5.c** `[R2]` Register C as a separate experiment with its own hypothesis and gate; never merge it into A-versus-B or use tablebase adjudication in strength games.
+  - [ ] **8.5.d** `[R2]` Record a no-arm verdict if the design cannot isolate whole-game termination from changed sampling distribution.
 
 ### 8.6 Initialization control
 
 - [ ] **8.6** Measure optimizer dependence before the production fit.
-  - [ ] **8.6.a** `[Sol/H]` Fit identical targets from accepted-head and neutral/gauge-correct initial vectors under the same K, data and schedule.
-  - [ ] **8.6.b** `[Astra/H]` Compare validation convergence, parameter distance, covariance and untouched held-out loss; account for regularization toward the stage prior and local nonlinear search.
-  - [ ] **8.6.c** `[Terra/M]` Register the production initialization rule before opening the test set.
+  - [ ] **8.6.a** `[I1]` Fit identical targets from accepted-head and neutral/gauge-correct initial vectors under the same K, data and schedule.
+  - [ ] **8.6.b** `[R2]` Compare validation convergence, parameter distance, covariance and untouched held-out loss; account for regularization toward the stage prior and local nonlinear search.
+  - [ ] **8.6.c** `[M]` Register the production initialization rule before opening the test set.
 
 ### 8.7 Complete matched fits
 
 - [ ] **8.7** Refit every relevant Texel-tunable HCE coordinate.
-  - [ ] **8.7.a** `[Sol/H]` Use the same complete surface, fixed K, optimizer budget and registered initialization for A and B.
-  - [ ] **8.7.b** `[Astra/H]` Use an alternating schedule when nonlinear selectors gate linear features: nonlinear prefit, complete linear fit, nonlinear refit and linear polish, with stage budgets validated for Basilisk rather than copied from Rarog.
-  - [ ] **8.7.c** `[Sol/H]` Verify perturbation/reconstruction, activation, gauge anchors, bounds, settled trajectories and every plus/minus wire.
-  - [ ] **8.7.d** `[Terra/M]` Produce independently applicable vectors, source patches, candidate binaries and hash-complete manifests.
-  - [ ] **8.7.e** `[Sol/H]` Reject missing/frozen-by-accident coordinates, source drift, repeated test access or a fit that cannot restore the original source/binary.
+  - [ ] **8.7.a** `[I1]` Use the same complete surface, fixed K, optimizer budget and registered initialization for A and B.
+  - [ ] **8.7.b** `[R2]` Use an alternating schedule when nonlinear selectors gate linear features: nonlinear prefit, complete linear fit, nonlinear refit and linear polish, with stage budgets validated for Basilisk rather than copied from Rarog.
+  - [ ] **8.7.c** `[I1]` Verify perturbation/reconstruction, activation, gauge anchors, bounds, settled trajectories and every plus/minus wire.
+  - [ ] **8.7.d** `[M]` Produce independently applicable vectors, source patches, candidate binaries and hash-complete manifests.
+  - [ ] **8.7.e** `[I1]` Reject missing/frozen-by-accident coordinates, source drift, repeated test access or a fit that cannot restore the original source/binary.
 
 ### 8.8 Registered label-contract gate
 
 - [ ] **8.8** Test whether tablebase relabeling transfers to Basilisk strength.
-  - [ ] **8.8.a** `[Astra/H]` Register exact candidates, common accepted pre-fit baseline, bracket/cap/stop rule and the causal A-versus-B comparison before games.
-  - [ ] **8.8.b** `[Sol/H]` Build clean PGO arms and run natural-termination gates under identical conditions.
-  - [ ] **8.8.c** `[Fable/H]` Use fit loss and truth reports to explain phase/family effects; only the registered SPRT decides strength.
-  - [ ] **8.8.d** `[Astra/H]` Accept one label policy/vector by the prospective rule; preserve rejected vectors and alternative explanations.
+  - [ ] **8.8.a** `[R2]` Register exact candidates, common accepted pre-fit baseline, bracket/cap/stop rule and the causal A-versus-B comparison before games.
+  - [ ] **8.8.b** `[I1]` Build clean PGO arms and run natural-termination gates under identical conditions.
+  - [ ] **8.8.c** `[R2]` Use fit loss and truth reports to explain phase/family effects; only the registered SPRT decides strength.
+  - [ ] **8.8.d** `[R2]` Accept one label policy/vector by the prospective rule; preserve rejected vectors and alternative explanations.
 
 ### 8.9 Iterative refresh
 
 - [ ] **8.9** Run iterative whole-surface Texel cycles; at least one refresh from the accepted fitted head is mandatory.
-  - [ ] **8.9.a** `[Astra/H]` Prospectively cap the loop and define "repeat while the previous independent gate accepts; stop at the first non-acceptance" before cycle 1.
-  - [ ] **8.9.b** `[Sol/H]` Generate and publish a new no-adjudication corpus from the accepted engine under the winning label contract.
-  - [ ] **8.9.c** `[Sol/H]` Refit the complete surface with a new untouched test and exact manifests; never tune only the coordinates that looked promising in the prior test.
-  - [ ] **8.9.d** `[Astra/H]` Independently gate each cycle and stop at the first rejection/cap; never average a rejected vector into the head.
-  - [ ] **8.9.e** `[Fable/H]` Publish the cycle table (corpus, composition, test loss, gate, cumulative strength) and repeat the residual/cohort audit to decide whether structure stays closed.
+  - [ ] **8.9.a** `[R2]` Prospectively cap the loop and define "repeat while the previous independent gate accepts; stop at the first non-acceptance" before cycle 1.
+  - [ ] **8.9.b** `[I1]` Generate and publish a new no-adjudication corpus from the accepted engine under the winning label contract.
+  - [ ] **8.9.c** `[I1]` Refit the complete surface with a new untouched test and exact manifests; never tune only the coordinates that looked promising in the prior test.
+  - [ ] **8.9.d** `[R2]` Independently gate each cycle and stop at the first rejection/cap; never average a rejected vector into the head.
+  - [ ] **8.9.e** `[R2]` Publish the cycle table (corpus, composition, test loss, gate, cumulative strength) and repeat the residual/cohort audit to decide whether structure stays closed.
 
 ### 8.10 Nonlinear HCE tuning
 
 - [ ] **8.10** Conditionally tune evaluation terms Texel cannot price correctly.
-  - [ ] **8.10.a** `[Astra/XH]` Inventory nonlinear, capped, thresholded and contextual terms after the accepted linear cycles; measure activation, interaction and local curvature with zero games.
-  - [ ] **8.10.b** `[Astra/H]` Include only live, sufficiently frequent coordinates such as a demonstrated king-danger funnel or validated contextual scale; exclude sparse recognizer switches, exact truth rules and Texel-owned linear weights.
-  - [ ] **8.10.c** `[Sol/H]` Wire the selected bounded options from exact accepted defaults and prove plus/minus perturbations reach every consumer. Close SPSA no-change if the surface is flat, monotone, unidentifiable or not worth its prospective gate.
-  - [ ] **8.10.d** `[Astra/H]` If justified, register a small sensitivity pilot and immutable full horizon/estimator. Pilot theta diagnoses only; the full tune starts from accepted defaults and HCE never shares a tune with search.
-  - [ ] **8.10.e** `[Sol/H]` Run natural-termination SPSA and accept only a fresh clean-PGO bake through an independent SPRT plus truth/correctness gates.
+  - [ ] **8.10.a** `[R3]` Inventory nonlinear, capped, thresholded and contextual terms after the accepted linear cycles; measure activation, interaction and local curvature with zero games.
+  - [ ] **8.10.b** `[R2]` Include only live, sufficiently frequent coordinates such as a demonstrated king-danger funnel or validated contextual scale; exclude sparse recognizer switches, exact truth rules and Texel-owned linear weights.
+  - [ ] **8.10.c** `[I1]` Wire the selected bounded options from exact accepted defaults and prove plus/minus perturbations reach every consumer. Close SPSA no-change if the surface is flat, monotone, unidentifiable or not worth its prospective gate.
+  - [ ] **8.10.d** `[R2]` If justified, register a small sensitivity pilot and immutable full horizon/estimator. Pilot theta diagnoses only; the full tune starts from accepted defaults and HCE never shares a tune with search.
+  - [ ] **8.10.e** `[I1]` Run natural-termination SPSA and accept only a fresh clean-PGO bake through an independent SPRT plus truth/correctness gates.
 
 ### 8.11 HCE closure
 
 - [ ] **8.11** Freeze the classical evaluator.
-  - [ ] **8.11.a** `[Sol/H]` Revalidate score scale, calibration, tactics, mate bounds and all endgame floors under the final vector.
-  - [ ] **8.11.b** `[Astra/H]` Ablate new mechanisms and low-information fitted coordinates on held-out data and registered playing tests where needed.
-  - [ ] **8.11.c** `[Fable/XH]` Compare held-out loss, truth quality and game strength against the pre-Phase-8 head and selected HCE references; reconcile disagreements without inventing an exchange rate.
-  - [ ] **8.11.d** `[Terra/M]` Archive final surface, corpus/label policy, cycles, fit/tune artifacts, source/binary hashes and retry triggers.
+  - [ ] **8.11.a** `[I1]` Revalidate score scale, calibration, tactics, mate bounds and all endgame floors under the final vector.
+  - [ ] **8.11.b** `[R2]` Ablate new mechanisms and low-information fitted coordinates on held-out data and registered playing tests where needed.
+  - [ ] **8.11.c** `[R3]` Compare held-out loss, truth quality and game strength against the pre-Phase-8 head and selected HCE references; reconcile disagreements without inventing an exchange rate.
+  - [ ] **8.11.d** `[M]` Archive final surface, corpus/label policy, cycles, fit/tune artifacts, source/binary hashes and retry triggers.
 
 ### 8.12 Evaluation throughput optimisation
 
 - [ ] **8.12** Optimize the frozen evaluator's cost without changing what it computes.
-  - [ ] **8.12.a** `[Astra/XH]` Profile full evaluations and cache hit/miss paths on phase-balanced and narrow activation cohorts; attribute cost per term/phase and repeated attack/board work.
-  - [ ] **8.12.b** `[Sonnet/H]` Optimize only measured hot terms while keeping every evaluation bit-exact; exact bench plus direct score-corpus identity is required, and any score change returns the work to 8.10 or earlier.
-  - [ ] **8.12.c** `[Astra/H]` Audit lazy-eval and early-exit thresholds against the final surface as a separate behavior-changing question.
-  - [ ] **8.12.d** `[Sol/H]` Require interleaved pooled-PGO NPS on an idle-enough host and a no-adjudication SPRT; record but do not ship a speed gain that fails to convert.
+  - [ ] **8.12.a** `[R3]` Profile full evaluations and cache hit/miss paths on phase-balanced and narrow activation cohorts; attribute cost per term/phase and repeated attack/board work.
+  - [ ] **8.12.b** `[I2]` Optimize only measured hot terms while keeping every evaluation bit-exact; exact bench plus direct score-corpus identity is required, and any score change returns the work to 8.10 or earlier.
+  - [ ] **8.12.c** `[R2]` Audit lazy-eval and early-exit thresholds against the final surface as a separate behavior-changing question.
+  - [ ] **8.12.d** `[I1]` Require interleaved pooled-PGO NPS on an idle-enough host and a no-adjudication SPRT; record but do not ship a speed gain that fails to convert.
 
 Step 8.12 exists because evaluation cost is only worth attacking once the
 surface is frozen: optimising a moving evaluator wastes the work twice. It is
@@ -1743,43 +1833,43 @@ activation, interaction and curvature justify it.
 ### 9.0 Search implementation, interaction and authority audit
 
 - [ ] **9.0** Audit the complete current search before proposing another mechanism.
-  - [ ] **9.0.a** `[Astra/XH]` Inventory iterative deepening, aspiration/PVS, move-picker stages, all histories and updates, ordering-versus-pruning reuse, qsearch, pruning, null move, reductions, extensions/singular verification, re-search and cutoff semantics. Trace node/ply/depth/window/bound, mate/draw/abort, excluded-move and TT evidence contracts through every consumer.
-  - [ ] **9.0.b** `[Fable/XH]` Test interaction hypotheses with bounded ablation/factorial screens: baseline, A, B and A+B where justified. Look for cancellation, masking, stale evidence and a faster node that expands a worse tree; honor every prior retry trigger.
-  - [ ] **9.0.c** `[Astra/H]` Re-run the revision-matched oracle differential at sample stride 1 and profile cumulative/per-iteration nodes at shallow, mid and playing depth. Report per-position distributions and same-unit denominators; prove every UCI/counter wire with an absurd value. End with evidence-backed candidate/no-change leaves.
+  - [ ] **9.0.a** `[R3]` Inventory iterative deepening, aspiration/PVS, move-picker stages, all histories and updates, ordering-versus-pruning reuse, qsearch, pruning, null move, reductions, extensions/singular verification, re-search and cutoff semantics. Trace node/ply/depth/window/bound, mate/draw/abort, excluded-move and TT evidence contracts through every consumer.
+  - [ ] **9.0.b** `[R3]` Test interaction hypotheses with bounded ablation/factorial screens: baseline, A, B and A+B where justified. Look for cancellation, masking, stale evidence and a faster node that expands a worse tree; honor every prior retry trigger.
+  - [ ] **9.0.c** `[R2]` Re-run the revision-matched oracle differential at sample stride 1 and profile cumulative/per-iteration nodes at shallow, mid and playing depth. Report per-position distributions and same-unit denominators; prove every UCI/counter wire with an absurd value. End with evidence-backed candidate/no-change leaves.
 
 ### 9.1 Categorical search work
 
 - [ ] **9.1** Revisit singular-extension gate depth and any unique defects isolated by 9.0.
-  - [ ] **9.1.a** `[Astra/XH]` Re-measure extension/depth authority on the frozen HCE/toolchain at fixed nodes, fixed depth and equal node cost; correctness canaries veto while aggregate disagreement remains inconclusive until per-position analysis resolves it.
-  - [ ] **9.1.b** `[Astra/H]` Implement the smallest dependency-complete categorical candidate, prove switch-off identity and gate it before tuning related constants. Close without code if 9.0 isolates no unique defect.
+  - [ ] **9.1.a** `[R3]` Re-measure extension/depth authority on the frozen HCE/toolchain at fixed nodes, fixed depth and equal node cost; correctness canaries veto while aggregate disagreement remains inconclusive until per-position analysis resolves it.
+  - [ ] **9.1.b** `[R2]` Implement the smallest dependency-complete categorical candidate, prove switch-off identity and gate it before tuning related constants. Close without code if 9.0 isolates no unique defect.
 
 ### 9.2 SEE and move-ordering value scale
 
 - [ ] **9.2** Audit and, only if justified, fit Basilisk's production SEE/value policy.
-  - [ ] **9.2.a** `[Astra/H]` Zero-game audit the dedicated 100/300/300/500/900/20000 SEE vector and `search.cpp`'s same legacy values against the final HCE scale. Count changed `see_ge` verdicts at real thresholds, MVV-LVA order changes and qsearch delta-margin decisions; unequal values alone are not a defect.
-  - [ ] **9.2.b** `[Sonnet/H]` If decisions move materially, expose a board/search-owned injectable value surface with exact-default identity, independent special-move fixtures and no dynamic hot-path cost. Keep normalized benchmark values separate from playing values.
-  - [ ] **9.2.c** `[Astra/H]` Fit the live policy separately from HCE, using SPSA only if 9.6's prerequisites hold; use a symmetric unknown-sign gate and revalidate normalized SEE timing after acceptance.
+  - [ ] **9.2.a** `[R2]` Zero-game audit the dedicated 100/300/300/500/900/20000 SEE vector and `search.cpp`'s same legacy values against the final HCE scale. Count changed `see_ge` verdicts at real thresholds, MVV-LVA order changes and qsearch delta-margin decisions; unequal values alone are not a defect.
+  - [ ] **9.2.b** `[I2]` If decisions move materially, expose a board/search-owned injectable value surface with exact-default identity, independent special-move fixtures and no dynamic hot-path cost. Keep normalized benchmark values separate from playing values.
+  - [ ] **9.2.c** `[R2]` Fit the live policy separately from HCE, using SPSA only if 9.6's prerequisites hold; use a symmetric unknown-sign gate and revalidate normalized SEE timing after acceptance.
 
 ### 9.3 TT, caches, hashing and hot memory
 
-- [ ] **9.3** `[Fable/XH]` Audit TT/eval/pawn cache keys, replacement, publication/atomicity, aging, collisions, mate normalization, bounds/depth, rule-50/repetition identity, parameter invalidation, resets, sharing, alignment, prefetch and real hit/miss populations. Derive bounded repair/optimization leaves before 9.6; deleting validation or density is not a neutral speedup.
+- [ ] **9.3** `[R3]` Audit TT/eval/pawn cache keys, replacement, publication/atomicity, aging, collisions, mate normalization, bounds/depth, rule-50/repetition identity, parameter invalidation, resets, sharing, alignment, prefetch and real hit/miss populations. Derive bounded repair/optimization leaves before 9.6; deleting validation or density is not a neutral speedup.
 
 ### 9.4 Threading, UCI lifecycle and tablebases
 
-- [ ] **9.4** `[Astra/XH]` Audit worker start/stop/join, cancellation, completed-result authority, shared TT/root state, new-game/position/options resets, clone/resource lifetime, UCI command ordering and Syzygy FFI/thread/halfmove/WDL/DTZ contracts. Use deterministic interleavings plus stress; leave high-thread NUMA designs to Phase 13.
+- [ ] **9.4** `[R3]` Audit worker start/stop/join, cancellation, completed-result authority, shared TT/root state, new-game/position/options resets, clone/resource lifetime, UCI command ordering and Syzygy FFI/thread/halfmove/WDL/DTZ contracts. Use deterministic interleavings plus stress; leave high-thread NUMA designs to Phase 13.
 
 ### 9.5 Diagnostic, harness and build-delivery audit
 
-- [ ] **9.5** `[Fable/H]` Re-audit counter sampling/units, parser/timeout/exit handling, benchmark barriers and corpus, instrument-off identity, game pairing/clock/stop rules, PGO/ISA provenance and artifact reproducibility after all preceding tool changes. Suspend and correct any gate whose instrument is invalid; preserve historical values as superseded.
+- [ ] **9.5** `[R2]` Re-audit counter sampling/units, parser/timeout/exit handling, benchmark barriers and corpus, instrument-off identity, game pairing/clock/stop rules, PGO/ISA provenance and artifact reproducibility after all preceding tool changes. Suspend and correct any gate whose instrument is invalid; preserve historical values as superseded.
 
 ### 9.6 Conditional post-HCE search SPSA
 
 - [ ] **9.6** Tune only a demonstrated displaced interacting optimum.
-  - [ ] **9.6.a** `[Astra/XH]` Select live cp-valued RFP, null, futility, ProbCut, qsearch, correction, aspiration, SEE or history/LMR coordinates from 9.0-9.5 telemetry. Exclude categorical switches, mate/endgame constants, TT/hash/thread settings and clock policy.
-  - [ ] **9.6.b** `[Sol/H]` Replace stale seeds with exact accepted defaults; verify plus/minus perturbations and semantic rails at start/mid/end; register dimensions, ranges, steps, immutable horizon, games, book, seed, tail estimator and independent gates.
-  - [ ] **9.6.c** `[Astra/H]` Run a bounded sensitivity pilot only when needed. Pilot theta is neither candidate nor seed; re-audit the complete active interaction surface before the full run. Skip with a recorded reason if flat, monotone, unidentifiable or low-value.
-  - [ ] **9.6.d** `[Sol/H]` Run natural-termination SPSA in dependency-complete stages only when separate surfaces are justified; complete the registered horizon, bake the registered endpoint/tail estimator into fresh PGO and gate each accepted stage independently.
-  - [ ] **9.6.e** `[Fable/H]` Preserve rejected tunes and convergence diagnostics; never add apparent gains or post-select a checkpoint/coordinate subset.
+  - [ ] **9.6.a** `[R3]` Select live cp-valued RFP, null, futility, ProbCut, qsearch, correction, aspiration, SEE or history/LMR coordinates from 9.0-9.5 telemetry. Exclude categorical switches, mate/endgame constants, TT/hash/thread settings and clock policy.
+  - [ ] **9.6.b** `[I1]` Replace stale seeds with exact accepted defaults; verify plus/minus perturbations and semantic rails at start/mid/end; register dimensions, ranges, steps, immutable horizon, games, book, seed, tail estimator and independent gates.
+  - [ ] **9.6.c** `[R2]` Run a bounded sensitivity pilot only when needed. Pilot theta is neither candidate nor seed; re-audit the complete active interaction surface before the full run. Skip with a recorded reason if flat, monotone, unidentifiable or low-value.
+  - [ ] **9.6.d** `[I1]` Run natural-termination SPSA in dependency-complete stages only when separate surfaces are justified; complete the registered horizon, bake the registered endpoint/tail estimator into fresh PGO and gate each accepted stage independently.
+  - [ ] **9.6.e** `[R2]` Preserve rejected tunes and convergence diagnostics; never add apparent gains or post-select a checkpoint/coordinate subset.
 
 Rarog's SPSA workflow is a source of tooling ideas, not a package to merge:
 transactional resume, immutable run metadata, deterministic non-overlapping
@@ -1790,99 +1880,99 @@ interrupt/resume test before use.
 ### 9.7 Time management
 
 - [ ] **9.7** Complete clock/root-confidence work separately from search SPSA.
-  - [ ] **9.7.a** `[Astra/XH]` Trace units, overhead/reserve, soft/hard stop, node polling, completed-root scores, aspiration instability, worker results and deadline behavior at 1T/4T; separate deadline correctness from think-time strength policy.
-  - [ ] **9.7.b** `[Astra/H]` Size any overhead/forfeit sweep prospectively on a null pair. Zero forfeits is a precondition, not a strength verdict.
-  - [ ] **9.7.c** `[Fable/XH]` Diagnose remaining root-instability/confidence consumers from completed authoritative snapshots only; tune or remove unowned paths.
-  - [ ] **9.7.d** `[Sol/H]` If continuous parameters need tuning, run a separate clock-based tune and clean-PGO gate; never mix clock policy into fixed-node/search SPSA. Pass 1T and 4T clock gates with zero forfeits.
+  - [ ] **9.7.a** `[R3]` Trace units, overhead/reserve, soft/hard stop, node polling, completed-root scores, aspiration instability, worker results and deadline behavior at 1T/4T; separate deadline correctness from think-time strength policy.
+  - [ ] **9.7.b** `[R2]` Size any overhead/forfeit sweep prospectively on a null pair. Zero forfeits is a precondition, not a strength verdict.
+  - [ ] **9.7.c** `[R3]` Diagnose remaining root-instability/confidence consumers from completed authoritative snapshots only; tune or remove unowned paths.
+  - [ ] **9.7.d** `[I1]` If continuous parameters need tuning, run a separate clock-based tune and clean-PGO gate; never mix clock policy into fixed-node/search SPSA. Pass 1T and 4T clock gates with zero forfeits.
 
 ### 9.8 Correctness, cleanup and checkpoint
 
 - [ ] **9.8** Close implementation debt before final claims.
-  - [ ] **9.8.a** `[Astra/H]` Reconcile module/audit ownership, dead/unreachable paths, dormant switches and retry triggers. Remove unconsumed alternatives; keep diagnostics only with a named future owner.
-  - [ ] **9.8.b** `[Sol/H]` Run state, repetition/rule-50, TT/mate, SEE/pin, qsearch, parser, sanitizer, debug/release and supported-feature matrices; add regressions for every demonstrated defect.
-  - [ ] **9.8.c** `[Sol/H]` Reproduce exact benchmark, pooled-PGO NPS, fixed-time/fixed-node profiles and accepted game verdicts on the clean checkpoint.
+  - [ ] **9.8.a** `[R2]` Reconcile module/audit ownership, dead/unreachable paths, dormant switches and retry triggers. Remove unconsumed alternatives; keep diagnostics only with a named future owner.
+  - [ ] **9.8.b** `[I1]` Run state, repetition/rule-50, TT/mate, SEE/pin, qsearch, parser, sanitizer, debug/release and supported-feature matrices; add regressions for every demonstrated defect.
+  - [ ] **9.8.c** `[I1]` Reproduce exact benchmark, pooled-PGO NPS, fixed-time/fixed-node profiles and accepted game verdicts on the clean checkpoint.
 
 ### 9.9 Final classical checkpoint
 
-- [ ] **9.9** `[Astra/H]` Compare the final head with the pre-Phase-8 head and 1.9.3 using revision-matched clean-PGO binaries and no adjudication. Record HCE and post-HCE-search attribution, NPS, fixed-node behavior, STC/LTC/4T direction, re-run the oracle split, ablate surprising contributors and close every maturity classification.
+- [ ] **9.9** `[R2]` Compare the final head with the pre-Phase-8 head and 1.9.3 using revision-matched clean-PGO binaries and no adjudication. Record HCE and post-HCE-search attribution, NPS, fixed-node behavior, STC/LTC/4T direction, re-run the oracle split, ablate surprising contributors and close every maturity classification.
 
 ### 9.10 Portability, SMP and classical release
 
 - [ ] **9.10** Release the strongest qualified classical line.
-  - [ ] **9.10.a** `[Sol/H]` Validate target-native execution, exact same-target search agreement, emitted ISA, sanitizer/CTest/UCI behavior and reproducible PGO assets/manifests on every supported platform.
-  - [ ] **9.10.b** `[Astra/XH]` Revalidate SMP node/thread/helper-clock safety, contention and time-to-depth at 1/2/4/8 threads. Gate throughput and strength independently; do not infer scaling value from NPS alone.
-  - [ ] **9.10.c** `[Sol/H]` Pass prior-release STC, LTC `10+0.1`, 4T and external-cohort gates with zero hard-correctness/time failures; record topology, affinity and hash.
-  - [ ] **9.10.d** `[Terra/M]` Publish the warranted version and user-facing compiler/ISA/tablebase manifests from measured cumulative strength.
+  - [ ] **9.10.a** `[I1]` Validate target-native execution, exact same-target search agreement, emitted ISA, sanitizer/CTest/UCI behavior and reproducible PGO assets/manifests on every supported platform.
+  - [ ] **9.10.b** `[R3]` Revalidate SMP node/thread/helper-clock safety, contention and time-to-depth at 1/2/4/8 threads. Gate throughput and strength independently; do not infer scaling value from NPS alone.
+  - [ ] **9.10.c** `[I1]` Pass prior-release STC, LTC `10+0.1`, 4T and external-cohort gates with zero hard-correctness/time failures; record topology, affinity and hash.
+  - [ ] **9.10.d** `[M]` Publish the warranted version and user-facing compiler/ISA/tablebase manifests from measured cumulative strength.
 
 ### 9.11 Universal binary investigation
 
 - [ ] **9.11** Determine whether startup CPU dispatch is worth adopting.
-  - [ ] **9.11.a** `[Astra/XH]` Pin reference implementations and map Basilisk's current tiers, PEXT/magic tables, startup guard, PGO/linking and future NNUE ownership. Compare whole-engine variant dispatch with function-level dispatch; specify CPU plus OS checks and a test override.
-  - [ ] **9.11.b** `[Sonnet/H]` Build one isolated HCE prototype only after the design audit; keep ordinary release artifacts unchanged and record exact build/binary hashes.
-  - [ ] **9.11.c** `[Sol/H]` Force every tier on suitable hardware, verify baseline-safe startup and specialized regions, exact chess identity, target-native performance, startup, size and memory against separate binaries.
-  - [ ] **9.11.d** `[Fable/H]` Adopt, defer or reject with explicit hardware gaps and NNUE/release owners. Any adopted executable repeats affected 9.10 gates.
+  - [ ] **9.11.a** `[R3]` Pin reference implementations and map Basilisk's current tiers, PEXT/magic tables, startup guard, PGO/linking and future NNUE ownership. Compare whole-engine variant dispatch with function-level dispatch; specify CPU plus OS checks and a test override.
+  - [ ] **9.11.b** `[I2]` Build one isolated HCE prototype only after the design audit; keep ordinary release artifacts unchanged and record exact build/binary hashes.
+  - [ ] **9.11.c** `[I1]` Force every tier on suitable hardware, verify baseline-safe startup and specialized regions, exact chess identity, target-native performance, startup, size and memory against separate binaries.
+  - [ ] **9.11.d** `[R2]` Adopt, defer or reject with explicit hardware gaps and NNUE/release owners. Any adopted executable repeats affected 9.10 gates.
 
 ## 10. NNUE runway
 
 - [ ] **10.0** Hand off the final classical measurement/data contract.
-  - [ ] **10.0.a** `[Terra/M]` Freeze Phase-8 corpus splits, label manifests, final HCE/search score scale, board fingerprints and reference binaries for trainer and inference comparison.
+  - [ ] **10.0.a** `[M]` Freeze Phase-8 corpus splits, label manifests, final HCE/search score scale, board fingerprints and reference binaries for trainer and inference comparison.
 - [ ] **10.1** Add factual per-ply state and dirty-piece deltas without NNUE inference.
-  - [ ] **10.1.a** `[Astra/XH]` Freeze board baselines, including Rarog/Reckless reference contracts where useful, and define piece-add/remove/move, capture, off-target EP victim, promotion, castling, null and refresh timing from board facts rather than evaluator assumptions.
-  - [ ] **10.1.b** `[Sonnet/H]` Add the update interface and ownership seam; verify every transition against board reconstruction and qualify HCE identity plus move-event cost.
+  - [ ] **10.1.a** `[R3]` Freeze board baselines, including Rarog/Reckless reference contracts where useful, and define piece-add/remove/move, capture, off-target EP victim, promotion, castling, null and refresh timing from board facts rather than evaluator assumptions.
+  - [ ] **10.1.b** `[I2]` Add the update interface and ownership seam; verify every transition against board reconstruction and qualify HCE identity plus move-event cost.
 - [ ] **10.2** Add evaluator-owned accumulator scaffolding.
-  - [ ] **10.2.a** `[Astra/H]` Define per-thread/per-ply storage, perspective, validity, refresh, null, clone and unwind semantics without committing to a network architecture.
-  - [ ] **10.2.b** `[Sonnet/H]` Implement scaffold/full-refresh differential tests, exact HCE behavior and measured scaffold overhead.
+  - [ ] **10.2.a** `[R2]` Define per-thread/per-ply storage, perspective, validity, refresh, null, clone and unwind semantics without committing to a network architecture.
+  - [ ] **10.2.b** `[I2]` Implement scaffold/full-refresh differential tests, exact HCE behavior and measured scaffold overhead.
 - [ ] **10.3** Prepare the trainer and corpus path.
-  - [ ] **10.3.a** `[Astra/XH]` Audit D:/code/net_trainer, Bullet/toolchain/GPU, serialization, quantization, buckets, deterministic splits, seeds and resume against the frozen contract.
-  - [ ] **10.3.b** `[Sol/H]` Run a pilot corpus/training/reload smoke and produce a reproducibility manifest; no large training before this passes.
+  - [ ] **10.3.a** `[R3]` Audit D:/code/net_trainer, Bullet/toolchain/GPU, serialization, quantization, buckets, deterministic splits, seeds and resume against the frozen contract.
+  - [ ] **10.3.b** `[I1]` Run a pilot corpus/training/reload smoke and produce a reproducibility manifest; no large training before this passes.
 - [ ] **10.4** Close the runway gate.
-  - [ ] **10.4.a** `[Sol/H]` Pass debug/release, scalar-oracle, every move transition, refresh/unwind, PGO fingerprint and bounded performance gates; reserve threat/relation hooks only if the selected network demonstrably needs them.
+  - [ ] **10.4.a** `[I1]` Pass debug/release, scalar-oracle, every move transition, refresh/unwind, PGO fingerprint and bounded performance gates; reserve threat/relation hooks only if the selected network demonstrably needs them.
 
 ## 11. Baseline NNUE and 2.0.0
 
 - [ ] **11.0** Harden the trainer and controlled data contract.
-  - [ ] **11.0.a** `[Sol/H]` Enforce strict CLI, deterministic by-game splits, hashes, seeds, checkpoints/resume, malformed-row refusals and exact feature/network metadata.
-  - [ ] **11.0.b** `[Astra/H]` Size unique training positions by learning curve and architecture capacity; generate, deduplicate and publish the corpus under the accepted label/sampling policy rather than inheriting a donor's 30-60M target blindly.
+  - [ ] **11.0.a** `[I1]` Enforce strict CLI, deterministic by-game splits, hashes, seeds, checkpoints/resume, malformed-row refusals and exact feature/network metadata.
+  - [ ] **11.0.b** `[R2]` Size unique training positions by learning curve and architecture capacity; generate, deduplicate and publish the corpus under the accepted label/sampling policy rather than inheriting a donor's 30-60M target blindly.
 - [ ] **11.1** Train registered baseline networks.
-  - [ ] **11.1.a** `[Astra/XH]` Compare one architecture axis at a time and at least two seeds per serious width/bucket configuration; select on frozen validation only and open test once.
+  - [ ] **11.1.a** `[R3]` Compare one architecture axis at a time and at least two seeds per serious width/bucket configuration; select on frozen validation only and open test once.
 - [ ] **11.2** Integrate scalar inference and packaging.
-  - [ ] **11.2.a** `[Sonnet/H]` Define the quantized network file/version/hash contract, integer bounds and scalar evaluator; require trainer-versus-engine integer-exact conformance.
+  - [ ] **11.2.a** `[I2]` Define the quantized network file/version/hash contract, integer bounds and scalar evaluator; require trainer-versus-engine integer-exact conformance.
 - [ ] **11.3** Integrate incremental and SIMD inference.
-  - [ ] **11.3.a** `[Astra/H]` Prove actual-network incremental/full-refresh parity across every move/null/clone/unwind transition.
-  - [ ] **11.3.b** `[Sol/H]` Qualify SIMD/scalar parity, integer overflow bounds and every supported target/ISA.
-  - [ ] **11.3.c** `[Astra/H]` Attribute board updates, accumulator refresh/update and inference cost separately; gate whole-search NPS and memory.
+  - [ ] **11.3.a** `[R2]` Prove actual-network incremental/full-refresh parity across every move/null/clone/unwind transition.
+  - [ ] **11.3.b** `[I1]` Qualify SIMD/scalar parity, integer overflow bounds and every supported target/ISA.
+  - [ ] **11.3.c** `[R2]` Attribute board updates, accumulator refresh/update and inference cost separately; gate whole-search NPS and memory.
 - [ ] **11.4** Adapt search to NNUE.
-  - [ ] **11.4.a** `[Astra/XH]` Re-audit score authority, qsearch, correction and every eval-coupled margin under NNUE; categorical mechanisms still gate before constants.
-  - [ ] **11.4.b** `[Astra/H]` Run one reserved post-NNUE search SPSA only on demonstrated displaced live coordinates, under the Phase-9 SPSA contract.
-  - [ ] **11.4.c** `[Sol/H]` Pass 1T STC/LTC, 4T, tactics, endgames, time and network-fallback gates.
+  - [ ] **11.4.a** `[R3]` Re-audit score authority, qsearch, correction and every eval-coupled margin under NNUE; categorical mechanisms still gate before constants.
+  - [ ] **11.4.b** `[R2]` Run one reserved post-NNUE search SPSA only on demonstrated displaced live coordinates, under the Phase-9 SPSA contract.
+  - [ ] **11.4.c** `[I1]` Pass 1T STC/LTC, 4T, tactics, endgames, time and network-fallback gates.
 - [ ] **11.5** Release 2.0.0.
-  - [ ] **11.5.a** `[Sol/H]` Reproduce network and binaries from manifests; pass correctness, provenance, portable fallback and packaging checks.
-  - [ ] **11.5.b** `[Astra/H]` Beat the final classical head and prior release at registered STC/LTC/4T conditions and confirm against the external cohort.
+  - [ ] **11.5.a** `[I1]` Reproduce network and binaries from manifests; pass correctness, provenance, portable fallback and packaging checks.
+  - [ ] **11.5.b** `[R2]` Beat the final classical head and prior release at registered STC/LTC/4T conditions and confirm against the external cohort.
 
 ## 12. Post-NNUE frontier
 
 - [ ] **12.0** Improve data and architecture only from measured residuals.
-  - [ ] **12.0.a** `[Astra/XH]` Analyze disagreement/residuals by phase, material, king bucket, family, confidence and search outcome; distinguish representation limits from data/label defects.
-  - [ ] **12.0.b** `[Fable/XH]` Evaluate scale, deduplication, hard-position mining and larger/sparser architectures one axis at a time with multiple seeds and held-out tests.
-  - [ ] **12.0.c** `[Sol/H]` Refresh data only under a registered changed-policy hypothesis and immutable label/sampling contract.
+  - [ ] **12.0.a** `[R3]` Analyze disagreement/residuals by phase, material, king bucket, family, confidence and search outcome; distinguish representation limits from data/label defects.
+  - [ ] **12.0.b** `[R3]` Evaluate scale, deduplication, hard-position mining and larger/sparser architectures one axis at a time with multiple seeds and held-out tests.
+  - [ ] **12.0.c** `[I1]` Refresh data only under a registered changed-policy hypothesis and immutable label/sampling contract.
 - [ ] **12.1** Extend search selectively.
-  - [ ] **12.1.a** `[Astra/XH]` Revisit rejected classical mechanisms only when NNUE changes their recorded retry trigger; re-audit interactions and fit only displaced continuous consumers.
-  - [ ] **12.1.b** `[Astra/H]` Require isolated clean-PGO gates and preserve Basilisk-specific design.
+  - [ ] **12.1.a** `[R3]` Revisit rejected classical mechanisms only when NNUE changes their recorded retry trigger; re-audit interactions and fit only displaced continuous consumers.
+  - [ ] **12.1.b** `[R2]` Require isolated clean-PGO gates and preserve Basilisk-specific design.
 
 ## 13. Scaling and platform
 
 - [ ] **13.0** Improve high-thread/NUMA scaling.
-  - [ ] **13.0.a** `[Astra/XH]` Profile split points/iteration diversity, cutoff-usable TT traffic, contention, false sharing and memory bandwidth at 2/4/8/16 threads; measure time-to-depth and strength, not NPS alone.
-  - [ ] **13.0.b** `[Astra/H]` Optimize topology, TT/network placement and large-page policy only from measured causes; gate throughput and strength independently.
+  - [ ] **13.0.a** `[R3]` Profile split points/iteration diversity, cutoff-usable TT traffic, contention, false sharing and memory bandwidth at 2/4/8/16 threads; measure time-to-depth and strength, not NPS alone.
+  - [ ] **13.0.b** `[R2]` Optimize topology, TT/network placement and large-page policy only from measured causes; gate throughput and strength independently.
 - [ ] **13.1** Expand platforms and delivery.
-  - [ ] **13.1.a** `[Sol/H]` Validate compilers, ISAs, universal/specialized dispatch and packaging on target-native hardware.
-  - [ ] **13.1.b** `[Sonnet/H]` Keep scalar/base and magic/portable fallbacks behaviorally identical and independently packaged.
+  - [ ] **13.1.a** `[I1]` Validate compilers, ISAs, universal/specialized dispatch and packaging on target-native hardware.
+  - [ ] **13.1.b** `[I2]` Keep scalar/base and magic/portable fallbacks behaviorally identical and independently packaged.
 
 ## 14. Optional classical fallback
 
 - [ ] **14.0** Reopen HCE only if NNUE is abandoned or a release blocker demands it.
-  - [ ] **14.0.a** `[Fable/XH]` Require a new structural residual or changed data contract; never refit the unchanged surface again.
-  - [ ] **14.0.b** `[Astra/H]` Register mechanism, fit, budget and acceptance before work; preserve the Phase-8 frozen classical head.
+  - [ ] **14.0.a** `[R3]` Require a new structural residual or changed data contract; never refit the unchanged surface again.
+  - [ ] **14.0.b** `[R2]` Register mechanism, fit, budget and acceptance before work; preserve the Phase-8 frozen classical head.
 
 ## 15. Historical number map
 

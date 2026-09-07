@@ -6,8 +6,16 @@ will be done and in what order. [`CHANGELOG.md`](CHANGELOG.md) remains the
 user-facing release record.
 
 Numbered references in this ledger are historical identifiers. The current
-forward numbering and old-to-new map live in PLAN.md section 14; do not rewrite
+forward numbering and old-to-new map live in PLAN.md section 15; do not rewrite
 measured records merely because the roadmap was reordered.
+
+Two identifier collisions predate this contract and are preserved rather than
+silently renumbered: `BAS-X08` names both the Windows include-ownership check
+and a Rarog parity-audit prior; `BAS-X11` names both the 12,000-game current-
+standing observation and a Manta HCE prior. Cite those four records by ID plus
+short title/source. New-style `### BAS-...` registrations must be globally
+unique; the checker rejects a new heading that collides with any existing
+definition.
 
 Every lesson below is conditional. A result describes one engine state, test
 protocol, time control, compiler and machine population; it does not establish
@@ -30,7 +38,8 @@ for Basilisk and never bypasses Basilisk's own gates.
 - [8. Cross-engine evidence imported from Rarog](#8-cross-engine-evidence-imported-from-rarog)
 - [8b. Cross-engine evidence imported from Manta](#8b-cross-engine-evidence-imported-from-manta)
 - [9. Open retry map](#9-open-retry-map)
-- [10. Template for a new experiment](#10-template-for-a-new-experiment)
+- [10. Prediction calibration review](#10-prediction-calibration-review)
+- [11. Template for a new experiment](#11-template-for-a-new-experiment)
 
 ## 1. How to use this ledger
 
@@ -56,16 +65,29 @@ TC deltas are non-additive and may compress or reverse at longer TC.
 
 ### Recording contract
 
-For every experiment that reaches a verdict, update this file in the same
-commit that accepts, reverts or closes it. Record:
+Register the entry before result exposure, then update the same entry when the
+experiment reaches a verdict. The prospective section is frozen at exposure;
+only an explicitly labelled clerical correction may alter it. Historical
+entries without preregistration remain without it: never manufacture a
+prediction after the fact.
 
-1. baseline and candidate source SHAs, dirty-diff hash if applicable;
-2. hypothesis and interactions expected to move;
-3. binary/compiler/PGO, book, TC, threads, hash, concurrency, affinity and
-   adjudication profile;
-4. registered gate, games, W-D-L, estimate/CI and LLR where available;
-5. diagnostics separately from the verdict;
-6. disposition, conditional lesson and an objective retry trigger.
+Record baseline/candidate/dirty-diff and binary/compiler/PGO identity; research
+question, mechanism, interacting consumers and competing hypotheses; the
+cheapest prior falsifier and whether implementation remained justified; full
+book/corpus/split/seed/tablebase/TC/thread/hash/concurrency/affinity/
+adjudication provenance; and a registered gate/stop rule.
+
+Before exposure, freeze expected diagnostic movement, a defensible Elo
+sign/range (or `not defensible`), probability the candidate is positive/useful,
+confidence, most likely failure mode and falsification criteria. After exposure,
+record diagnostics separately from the deciding result, disposition, prediction
+calibration, postmortem, conditional lesson, objective retry trigger and
+artifacts/commits.
+
+Use dispositions `accepted`, `retained`, `rejected`, `neutral/inconclusive`,
+`observation`, `no-change` or `deferred`. Useful calibration categories include
+search/selectivity, evaluation/HCE, endgames, TT/cache, SMP/time,
+board/performance, tooling/instrumentation, data/tuning and NNUE.
 
 Use cautious language: “under these conditions this suggests …”, not “feature
 X is good/bad”. If conditions or artifacts are unknown, say so.
@@ -3115,21 +3137,68 @@ there rather than here because it is our own measurement.
 Anything not meeting its trigger stays closed. A retry is a new experiment with
 a new ID and manifest; it does not overwrite the historical row.
 
-## 10. Template for a new experiment
+## 10. Prediction calibration review
+
+Periodically review only experiments that actually froze a prospective
+prediction. Do not score older records by reconstructing what somebody "must
+have believed." Keep the review lightweight:
+
+| Question | Review |
+|---|---|
+| Sign | Was the predicted direction usually correct? |
+| Magnitude | Are intervals systematically too optimistic or too narrow? |
+| Confidence | Are high-confidence predictions more reliable than low-confidence ones? |
+| Mechanism | Which categories repeatedly surprise, and which interaction is repeatedly missed? |
+| Retry discipline | Was any rejected mechanism retried before its objective trigger fired? |
+
+Summarize patterns and changed forecasting rules; never rewrite the frozen
+prediction. A good retrospective story is not proof that the result was
+predicted. After a surprise ask: **which part of the original causal model was
+wrong?**
+
+## 11. Template for a new experiment
 
 ```markdown
 ### BAS-<area><number> — <short name>
 
-- Date / owner:
-- Baseline SHA / candidate SHA / dirty-diff hash:
-- Hypothesis and interacting consumers:
-- Registered gate and stop rule:
-- Build: compiler, flags, PGO manifest, binary hashes:
-- Games: book/hash, TC, threads, hash, concurrency, affinity, adjudication:
-- Result: games, W-D-L, Elo/nElo and CI, LLR:
-- Diagnostics: nodes, EBF, NPS, depth, counters, suites (not the verdict):
-- Disposition: accepted / retained / rejected / neutral / observation:
+- Date / owner / calibration category:
+- Baseline source revision / candidate source revision / dirty-diff identity:
+- Binary / compiler / flags / PGO identity and hashes:
+- Research question:
+- Hypothesis / proposed mechanism:
+- Interacting mechanisms / consumers:
+- Credible competing hypotheses:
+
+#### PRE-REGISTERED PREDICTION — freeze before exposure
+
+- Expected diagnostic movement:
+- Expected Elo sign/range, or `not defensible`:
+- Probability candidate is positive/useful:
+- Confidence and basis:
+- Most likely failure mode:
+- Falsification criteria:
+- Cheapest prior falsifier: test / result / did implementation remain justified?
+- Registered gate / stop rule:
+- Full conditions / provenance: book or corpus and hash, split, seed, tablebases,
+  TC or node budget, threads, hash, concurrency, affinity, adjudication:
+
+#### RESULT — append after exposure
+
+- Diagnostics (not the verdict): nodes, EBF, NPS, depth, counters, suites:
+- Deciding result: games, W-D-L, Elo/nElo and CI, LLR, or relevant proof/gate:
+- Disposition: accepted / retained / rejected / neutral-inconclusive /
+  observation / no-change / deferred:
+
+#### PREDICTION CALIBRATION — preserve the original prediction above
+
+- Original prediction summary:
+- Observed result:
+- Sign correct? / magnitude reasonable?:
+- Proposed causal mechanism supported?:
+- Important missed interaction?:
+- Confidence over- or under-calibrated?:
+- Postmortem: causal assumption changed / what did not change / alternatives:
 - Conditional lesson:
-- Retry trigger or `closed`:
+- Objective retry trigger or `CLOSED`:
 - Artifacts / commits:
 ```

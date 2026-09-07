@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Fail when PLAN.md and GUIDE.md checklist identifiers or states drift."""
+"""Fail on roadmap synchronization and obvious documentation-process drift."""
 
 from __future__ import annotations
 
 import re
 import sys
+import tempfile
 from pathlib import Path
 
 ITEM = re.compile(
@@ -17,11 +18,32 @@ ITEM = re.compile(
 # but it must be declared, so that an accidental un-tick still fails the order
 # check. Marked items are exempt from ordering only, never from being open.
 REOPENED = "(REOPENED)"
+CAPABILITY = re.compile(r"`\[(R3|R2|I2|I1|M|V)\]`")
+LEGACY_CAPABILITY = re.compile(
+    r"`\[(?:Astra|Fable|Sol|Terra|Sonnet)/(?:M|H|XH)\]`"
+)
+STATE_FIELD = re.compile(
+    r"(?:\*\*)?State(?:\s*/\s*class)?\s*:(?:\*\*)?\s*`?([A-Z_]+)"
+)
+VALID_STATES = {
+    "RESEARCH",
+    "READY_FOR_IMPLEMENTATION",
+    "IMPLEMENTED",
+    "LOCAL_QUALIFIED",
+    "GAME_GATE",
+    "CLOSED",
+}
+EXPERIMENT_DEFINITION = re.compile(
+    r"^(?:###\s+|\*\*|\|\s*)(BAS-[A-Z]\d+)(?:\s|\||\*)"
+)
+NEW_EXPERIMENT = re.compile(r"^###\s+(BAS-[A-Z]\d+)\b")
+MARKDOWN_LINK = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 
 
-def checklist(path: Path) -> tuple[dict[str, bool], set[str]]:
+def checklist(path: Path) -> tuple[dict[str, bool], set[str], dict[str, str]]:
     items: dict[str, bool] = {}
     reopened: set[str] = set()
+    capabilities: dict[str, str] = {}
     for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
         match = ITEM.match(line)
         if not match:
@@ -36,7 +58,125 @@ def checklist(path: Path) -> tuple[dict[str, bool], set[str]]:
                     f"{path}:{number}: {key} is marked {REOPENED} but ticked"
                 )
             reopened.add(key)
-    return items, reopened
+        tags = CAPABILITY.findall(match.group("rest"))
+        if len(tags) > 1:
+            raise ValueError(f"{path}:{number}: multiple capability tags on {key}")
+        if tags:
+            capabilities[key] = tags[0]
+        if not items[key] and LEGACY_CAPABILITY.search(match.group("rest")):
+            raise ValueError(f"{path}:{number}: legacy model tag on open item {key}")
+
+    parents = {
+        key for key in items if any(other.startswith(key + ".") for other in items)
+    }
+    for key, done in items.items():
+        if not done and key not in parents and key not in capabilities:
+            raise ValueError(f"{path}: open leaf {key} lacks a valid capability tag")
+    return items, reopened, capabilities
+
+
+def validate_state_fields(paths: list[Path]) -> None:
+    for path in paths:
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            match = STATE_FIELD.search(line)
+            if match and match.group(1) not in VALID_STATES:
+                raise ValueError(
+                    f"{path}:{number}: invalid workflow state {match.group(1)}"
+                )
+
+
+def validate_capability_match(
+    plan_capabilities: dict[str, str], guide_capabilities: dict[str, str]
+) -> None:
+    if plan_capabilities == guide_capabilities:
+        return
+    changed = sorted(
+        key for key in set(plan_capabilities) | set(guide_capabilities)
+        if plan_capabilities.get(key) != guide_capabilities.get(key)
+    )
+    raise ValueError("capability mismatch: " + ", ".join(changed))
+
+
+def validate_experiment_ids(path: Path) -> None:
+    definitions: dict[str, list[int]] = {}
+    new_ids: set[str] = set()
+    for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        match = EXPERIMENT_DEFINITION.match(line)
+        if match:
+            definitions.setdefault(match.group(1), []).append(number)
+        new_match = NEW_EXPERIMENT.match(line)
+        if new_match:
+            key = new_match.group(1)
+            if key in new_ids:
+                raise ValueError(f"{path}:{number}: duplicate new experiment id {key}")
+            new_ids.add(key)
+    for key in new_ids:
+        if len(definitions.get(key, [])) != 1:
+            raise ValueError(
+                f"{path}: new experiment id {key} collides at lines "
+                f"{definitions.get(key, [])}"
+            )
+
+
+def validate_local_links(paths: list[Path]) -> None:
+    for path in paths:
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            for raw_target in MARKDOWN_LINK.findall(line):
+                target = raw_target.strip().strip("<>").split("#", 1)[0]
+                if not target or "://" in target or target.startswith(("mailto:", "#")):
+                    continue
+                if not (path.parent / target).resolve().exists():
+                    raise ValueError(f"{path}:{number}: broken local link {raw_target}")
+
+
+def self_test() -> None:
+    with tempfile.TemporaryDirectory() as temp:
+        root = Path(temp)
+        valid = "- [ ] **1.0** Parent\n  - [ ] **1.0.a** `[R2]` Leaf\n"
+        (root / "PLAN.md").write_text(valid, encoding="utf-8")
+        checklist(root / "PLAN.md")
+
+        (root / "PLAN.md").write_text(valid.replace("[R2]", "[R4]"), encoding="utf-8")
+        try:
+            checklist(root / "PLAN.md")
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("malformed capability tag was accepted")
+
+        try:
+            validate_capability_match({"1.0.a": "R2"}, {"1.0.a": "I1"})
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("PLAN/GUIDE capability mismatch was accepted")
+
+        (root / "state.md").write_text("**State:** INVENTED\n", encoding="utf-8")
+        try:
+            validate_state_fields([root / "state.md"])
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("invalid workflow state was accepted")
+
+        (root / "EXPERIMENTS.md").write_text(
+            "### BAS-E99 — first\n### BAS-E99 — duplicate\n", encoding="utf-8"
+        )
+        try:
+            validate_experiment_ids(root / "EXPERIMENTS.md")
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("duplicate experiment id was accepted")
+
+        (root / "doc.md").write_text("[missing](nope.md)\n", encoding="utf-8")
+        try:
+            validate_local_links([root / "doc.md"])
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("broken local link was accepted")
+    print("roadmap checker self-test: known-bad inputs rejected")
 
 
 def sort_key(identifier: str) -> tuple[tuple[int, int], ...]:
@@ -47,9 +187,27 @@ def sort_key(identifier: str) -> tuple[tuple[int, int], ...]:
 
 
 def main() -> int:
+    if "--self-test" in sys.argv[1:]:
+        self_test()
+        return 0
+
     root = Path(__file__).resolve().parents[2]
-    plan, plan_reopened = checklist(root / "PLAN.md")
-    guide, guide_reopened = checklist(root / "GUIDE.md")
+    plan, plan_reopened, plan_capabilities = checklist(root / "PLAN.md")
+    guide, guide_reopened, guide_capabilities = checklist(root / "GUIDE.md")
+
+    validate_capability_match(plan_capabilities, guide_capabilities)
+
+    process_docs = [
+        root / "AGENTS.md",
+        root / "GUIDE.md",
+        root / "PLAN.md",
+        root / "EXPERIMENTS.md",
+        root / "DESIGN.md",
+        root / "analysis" / "README.md",
+    ]
+    validate_state_fields(process_docs)
+    validate_experiment_ids(root / "EXPERIMENTS.md")
+    validate_local_links(process_docs)
 
     # Both files must agree on WHICH items are reopened, for the same reason
     # they must agree on which are ticked.
