@@ -301,3 +301,49 @@ atomic word *and* pooled NPS shows the fold costing under 0.5%.
 - **Non-goals.** Do not change replacement policy, aging, cluster size, hash
   sizing, prefetch, or any search constant. Do not "recover" the 11 Elo by
   touching selectivity. Do not widen the slot to 16 bytes in this leaf.
+
+---
+
+## Post-exposure calibration (appended 2026-09-07; the frozen sections above are unchanged)
+
+Implemented as `2bf43fb`. Deterministic qualification passed: bench exactly
+12,568,898 on both arms, release CTest 12/12, ASan/UBSan CTest 12/12.
+
+**Falsifier (b) fired.** Predicted pooled NPS `[-0.5%, +1.5%]`, central `+0.3%`;
+measured **-1.22%, 95% CI [-1.72%, -0.76%]** against plain-key at the same head
+(`tools/nps_ab.ps1`, 2 pooled PGO builds per arm, 16 alternating rounds,
+identical fingerprints, A faster in 1/16 rounds). Per-build medians agree to
+0.03% within arm A and 0.14% within arm B, so this is not PGO luck.
+
+What the original causal model got wrong: I costed the probe scan as "one load
+per slot either way, same cache line, therefore a wash". It is not a wash — the
+baseline rejects on a 2-byte load and only widens to 8 bytes on a match, and
+that asymmetry is worth ~1.2%. The **failure mode was predicted correctly and in
+range** ("if pooled NPS comes back at -1% to -2%, this is why"), so the mechanism
+model was sound and only the magnitude estimate was optimistic. That is the part
+of the model to distrust next time: I treat same-cache-line accesses as free and
+they are not.
+
+Instrument caveat, not hidden: the self-pair read `+0.33%` against a `0.30%`
+tolerance, CI `[-0.27%, +1.05%]`. It marginally failed. A 32-round re-run was
+started and deliberately abandoned to save maintainer clock, because a possible
+0.3% bias cannot change a 2.7-point separation between encodings — but it does
+sit inside the acceptance band, so the -1.22% figure should be read as
+"-1.2% +/- instrument", not as a sharp number.
+
+**Decision stands at `MORE_RESEARCH` on the cost, `IMPLEMENTED` on the
+mechanism.** Per the frozen rule the field split was NOT trimmed to rescue the
+number. The constraint is arithmetic: key+score+eval+depth+flag+move needs 80
+bits, so no 10-byte layout buys this coherence for free. The live options are
+therefore only:
+
+| option | probe cost | coherence |
+|---|---|---|
+| plain key (pre-BAS-C05) | baseline | none — the defect at `search.cpp:1589` and `1967` is live |
+| **word layout (`2bf43fb`)** | **-1.22%** | every bound-deciding field, structurally |
+| `key16 ^ fold16` tag (rejected) | -3.91% | as above, plus `move16`, minus a 1/65536 residual |
+
+The word layout is **2.7 percentage points faster than the rejected tag** and is
+what `dev` now carries. Whether ~-2.4 Elo is an acceptable price for closing a
+wrong-position cutoff is a maintainer judgement, not a measurement, and it is
+the question the registered 4T gate now asks.
