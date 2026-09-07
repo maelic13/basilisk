@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Run the calibrated 4-thread gate for the TT publication-coherence repair.
+    Run the 4-thread SPRT gate for the TT publication-coherence repair.
 
 .DESCRIPTION
     The candidate binds each TT partial key to the payload observed by the
