@@ -609,6 +609,38 @@ static void test_kbnk_drive_option() {
 // main
 // ---------------------------------------------------------------------------
 
+static void test_rook_ending_scaling() {
+    // PLAN 6.5.a. These are draw-SCALING rules, not verdicts, and the property
+    // that makes them safe is the floor: no rule here may assert a dead draw,
+    // because none of them is backed by a tablebase. Checked against Syzygy on
+    // 3,000 random KRPKR positions the unfloored rules called 18 genuinely WON
+    // positions dead draws; with the floor, none (BAS-E54).
+
+    // Philidor third-rank defence: white pawn on the fifth, black king on the
+    // queening square, black rook cutting on the sixth. The control moves ONLY
+    // the defending rook off the sixth, which is what the rule keys on.
+    begin_section("Philidor KRPKR scores below the same position without the cut");
+    int held = eval_fen("8/3k4/r7/3PK3/8/8/8/1R6 w - - 0 1");
+    int uncut = eval_fen("r7/3k4/8/3PK3/8/8/8/1R6 w - - 0 1");
+    EXPECT(held < uncut);
+    end_section();
+
+    // The floor, stated as a test: a scaled rook ending keeps a signal. Zero
+    // here would mean a rule had asserted a draw it cannot prove.
+    begin_section("scaled Philidor is discounted, never zeroed");
+    EXPECT(held != 0);
+    end_section();
+
+    // KRPPKRP: neither white pawn is passed and the black king blockades in
+    // front of both, so the extra pawn is heavily discounted.
+    begin_section("blockaded KRPP-KRP keeps far less than a clean extra pawn");
+    int blocked = eval_fen("7r/8/5k2/4p3/4PP2/8/8/R5K1 w - - 0 1");
+    // Calibrated to discriminate, not decorate: 19 with the rule, 53 without.
+    EXPECT(blocked < 35);
+    EXPECT(blocked != 0);
+    end_section();
+}
+
 int main() {
     init_bitboards();
     init_attacks();
@@ -632,6 +664,9 @@ int main() {
 
     std::printf("\nOCB draw scaling\n");
     test_ocb_scaling();
+
+    std::printf("\nRook-ending draw scaling (6.5.a)\n");
+    test_rook_ending_scaling();
 
     std::printf("\nRook/passer decoupling\n");
     test_rook_passer_decoupling();

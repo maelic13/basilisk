@@ -108,6 +108,27 @@ static Square forward_square(Color c, Square sq) {
 
 static constexpr int SCALE_NORMAL = 64;   // no endgame scaling
 static constexpr int SCALE_DRAW   = 0;    // dead-drawn scale factor
+// Above normal: a scale that AMPLIFIES, for positions the strong side is known
+// to be converting. 6.5.a's Lucena rules need this -- reading them against
+// SCALE_NORMAL instead turns a won rook ending into a near-draw.
+static constexpr int SCALE_MAX    = 128;
+// The floor under 6.5.a's rook-ending rules, and the reason they are usable at
+// all. Two independent arguments, one of correctness and one of cost.
+//
+// Correctness: these are heuristics with no tablebase behind them. Checked
+// against Syzygy on 3,000 random KRPKR positions, the unfloored draw rules call
+// 1.3% of genuinely WON positions dead draws. A floor means no rule here can
+// ever assert a draw -- it can only discount -- so a misfire costs accuracy
+// instead of throwing a win.
+//
+// Cost: unfloored, the reference's most aggressive scales (9-21 of 64) flatten
+// the evaluation across large regions of rook-ending search space and cost
+// **+79% bench nodes** for KRPKR and +108% for KRPPKRP (BAS-E54). Every floor
+// from 24 up avoids that. 24 is the largest discount that keeps a clear
+// majority of each rule's effect; it is NOT selected by benching the floors,
+// because that curve is chaotic (32 costs +28.5% while 24 and 40 are within
+// 9% of baseline) and picking its minimum would be fitting to noise.
+static constexpr int SCALE_FLOOR  = 24;
 static constexpr int KNOWN_WIN    = 10000; // static "won, mate is technique" magnitude
 
 // Lazy-eval margin (Step 3.11): if the cheap (material/PST/imbalance/pawns/minor)
@@ -580,6 +601,169 @@ static int kxk_score(const Board& b, Color strong) {
     return (strong == WHITE) ? v : -v;
 }
 
+// ---- Rook-ending draw scaling: KRPKR and KRPPKRP (6.5.a) -------------------
+//
+// These are SCALING functions, not verdicts. They do not claim a position is
+// drawn; they shrink a material advantage the defender is known to be able to
+// hold. BAS-E32 measured the defect: on the drawn subset of the 25k holdout we
+// predict 0.802 in KRP-KR and 0.762 in KRPP-KRP where the truth is 0.5, while
+// the symmetric classes KRP-KRP and KPP-KPP are already accurate. The failure
+// is specifically the up-a-pawn case -- the evaluation sees +1 pawn and has no
+// notion that Philidor exists.
+//
+// All squares are taken from the strong side's perspective via
+// relative_square, so the rules below read as if the strong side were White.
+
+// Passed for `c`, tested against the enemy pawns directly rather than the
+// eval_pawns passed[] bitboard: apply_endgame also runs on the LAZY path,
+// where that bitboard has never been computed.
+static bool eg_pawn_passed(Color c, Square sq, Bitboard enemy_pawns) {
+    const int f = int(file_of(sq));
+    Bitboard mask = BB_FILES[f];
+    if (f > int(FILE_A)) mask |= BB_FILES[f - 1];
+    if (f < int(FILE_H)) mask |= BB_FILES[f + 1];
+    const Rank rr = relative_rank(c, sq);
+    for (Bitboard e = enemy_pawns & mask; e; ) {
+        const Square es = Square(pop_lsb(e));
+        if (relative_rank(c, es) > rr)
+            return false;
+    }
+    return true;
+}
+
+// Indexed by the relative rank of the more advanced strong pawn. Ranks 1, 7
+// and 8 are unreachable for a blockaded non-passer and are left at 0, which
+// the caller treats as "do not scale" rather than as a dead draw.
+static constexpr int KRPPKRP_SCALE[RANK_NB] = { 0, 9, 10, 14, 21, 44, 0, 0 };
+
+static int krppkrp_scale(const Board& b, Color strong) {
+    const Color weak = ~strong;
+    const Bitboard strong_pawns = b.pieces[strong][PAWN];
+    const Square p1 = Square(lsb(strong_pawns));
+    const Square p2 = Square(msb(strong_pawns));
+
+    // A passed pawn changes the ending completely; the defender's blockade
+    // argument does not apply and the material edge is real.
+    if (eg_pawn_passed(strong, p1, b.pieces[weak][PAWN])
+        || eg_pawn_passed(strong, p2, b.pieces[weak][PAWN]))
+        return -1;
+
+    const Square wk = b.king_sq[weak];
+    const int r = int(std::max(relative_rank(strong, p1), relative_rank(strong, p2)));
+
+    // The defending king must be blockading: within one file of both pawns and
+    // in front of the more advanced one.
+    if (std::abs(int(file_of(wk)) - int(file_of(p1))) <= 1
+        && std::abs(int(file_of(wk)) - int(file_of(p2))) <= 1
+        && int(relative_rank(strong, wk)) > r) {
+        const int scale = KRPPKRP_SCALE[r];
+        return scale ? scale : -1;
+    }
+    return -1;
+}
+
+static int krpkr_scale(const Board& b, Color strong) {
+    const Color weak = ~strong;
+    const Square wk = relative_square(strong, b.king_sq[strong]);
+    const Square bk = relative_square(strong, b.king_sq[weak]);
+    const Square wr = relative_square(strong, Square(lsb(b.pieces[strong][ROOK])));
+    const Square br = relative_square(strong, Square(lsb(b.pieces[weak][ROOK])));
+    const Square wp = relative_square(strong, Square(lsb(b.pieces[strong][PAWN])));
+
+    const int f = int(file_of(wp));
+    const int r = int(rank_of(wp));
+    const Square queening = make_square(File(f), RANK_8);
+    // A tempo is worth a whole rank in these races, so every rule below that
+    // compares king distances has to know who is to move.
+    const int tempo = (b.side_to_move == strong) ? 1 : 0;
+
+    const auto dist  = [](Square a, Square c) { return KING_DIST[a][c]; };
+    const auto fdist = [](Square a, Square c) {
+        return std::abs(int(file_of(a)) - int(file_of(c)));
+    };
+
+    // Philidor: pawn not yet on the sixth, defending king on the queening
+    // square, defending rook cutting along the sixth rank.
+    if (r <= int(RANK_5) && dist(bk, queening) <= 1 && wk <= H5
+        && (rank_of(br) == RANK_6
+            || (r <= int(RANK_3) && rank_of(wr) != RANK_6)))
+        return SCALE_DRAW;
+
+    // Pawn on the sixth, defender in front, checking from behind.
+    if (r == int(RANK_6) && dist(bk, queening) <= 1
+        && int(rank_of(wk)) + tempo <= int(RANK_6)
+        && (rank_of(br) == RANK_1 || (!tempo && fdist(br, wp) >= 3)))
+        return SCALE_DRAW;
+
+    // Defending king ON the queening square with the rook checking from the
+    // first rank: the attacker cannot both shield and advance.
+    if (r >= int(RANK_6) && bk == queening && rank_of(br) == RANK_1
+        && (!tempo || dist(wk, wp) >= 2))
+        return SCALE_DRAW;
+
+    // The rook-pawn special case: pawn a7, rook a8, defending king boxed on
+    // the short side. The attacking rook is entombed in front of its own pawn.
+    if (wp == A7 && wr == A8 && (bk == H7 || bk == G7)
+        && file_of(br) == FILE_A
+        && (int(rank_of(br)) <= int(RANK_3) || int(file_of(wk)) >= int(FILE_D)
+            || int(rank_of(wk)) <= int(RANK_5)))
+        return SCALE_DRAW;
+
+    // Defending king blockading the pawn with the attacking king too far away
+    // to dislodge it.
+    if (r <= int(RANK_5) && bk == wp + NORTH
+        && dist(wk, wp) - tempo >= 2 && dist(wk, br) - tempo >= 2)
+        return SCALE_DRAW;
+
+    // Lucena-side: pawn on the seventh with its own rook behind it and the
+    // attacking king close enough. Not a draw -- scale toward the full value,
+    // less the king's distance from the queening square.
+    if (r == int(RANK_7) && f != int(FILE_A) && int(file_of(wr)) == f
+        && wr != queening
+        && dist(wk, queening) < dist(bk, queening) - 2 + tempo
+        && dist(wk, queening) < dist(bk, wr) + tempo)
+        return SCALE_MAX - 2 * dist(wk, queening);
+
+    // The same idea with the pawn further back.
+    if (f != int(FILE_A) && int(file_of(wr)) == f && wr < wp
+        && dist(wk, queening) < dist(bk, queening) - 2 + tempo
+        && dist(wk, Square(wp + NORTH)) < dist(bk, Square(wp + NORTH)) - 2 + tempo
+        && (dist(bk, wr) + tempo >= 3
+            || (dist(wk, queening) < dist(bk, wr) + tempo
+                && dist(wk, Square(wp + NORTH)) < dist(bk, wr) + tempo))) {
+        const int v = SCALE_MAX - 8 * dist(wp, queening) - 2 * dist(wk, queening);
+        return v > 0 ? v : 1;
+    }
+
+    // Pawn still low and the defending king somewhere in its path: drawish,
+    // and more so the further away the attacking king is.
+    if (r <= int(RANK_4) && bk > wp) {
+        if (file_of(bk) == file_of(wp))
+            return 10;
+        if (fdist(bk, wp) == 1 && dist(wk, bk) > 2)
+            return 24 - 2 * dist(wk, bk);
+    }
+    return -1;
+}
+
+// Returns a scale out of SCALE_NORMAL, or -1 for "this is not one of ours".
+static int rook_ending_scale(const Board& b) {
+    // Exactly one rook a side and nothing else but kings and pawns.
+    if (popcount(b.pieces[WHITE][ROOK]) != 1 || popcount(b.pieces[BLACK][ROOK]) != 1)
+        return -1;
+    const int wp = popcount(b.pieces[WHITE][PAWN]);
+    const int bp = popcount(b.pieces[BLACK][PAWN]);
+    const Color strong = (wp >= bp) ? WHITE : BLACK;
+    const int sp = std::max(wp, bp), dp = std::min(wp, bp);
+    int scale = -1;
+    if (sp == 1 && dp == 0)      scale = krpkr_scale(b, strong);
+    else if (sp == 2 && dp == 1) scale = krppkrp_scale(b, strong);
+    // Bound the discount. See SCALE_FLOOR: unfloored these rules both throw
+    // wins the tablebase says are won and wreck the search's node counts.
+    if (scale >= 0 && scale < SCALE_FLOOR) scale = SCALE_FLOOR;
+    return scale;
+}
+
 // ---- Endgame scaling + knowledge -------------------------------------------
 // Receives the white-perspective tapered score and returns it after applying
 // known-endgame overrides and draw scaling. Reproduces the previous OCB and
@@ -698,6 +882,25 @@ static int apply_endgame(const Board& b, int score) {
                     scale = SCALE_DRAW;                   // KmK, KmKm: dead draw
                 else
                     scale = (npm(~strong) > 0) ? 4 : 14;  // KRKm etc.: near draw
+                score = score * scale / SCALE_NORMAL;
+                scaled = true;
+            }
+        }
+    }
+
+    // ---- Rook endings: KRPKR / KRPPKRP draw scaling (6.5.a) ---------------
+    // KRPKR reaches here through the census block above (the defender is
+    // pawnless); KRPPKRP does NOT, because both sides have pawns, so the test
+    // lives out here. The gate is a few bitboard ORs rather than a popcount
+    // census: this runs on every node, and BAS-E34 measured what a census on
+    // the middlegame path costs (+20.5% bench nodes).
+    if (!scaled) {
+        const Bitboard minors_queens =
+              b.pieces[WHITE][KNIGHT] | b.pieces[WHITE][BISHOP] | b.pieces[WHITE][QUEEN]
+            | b.pieces[BLACK][KNIGHT] | b.pieces[BLACK][BISHOP] | b.pieces[BLACK][QUEEN];
+        if (!minors_queens) {
+            const int scale = rook_ending_scale(b);
+            if (scale >= 0) {
                 score = score * scale / SCALE_NORMAL;
                 scaled = true;
             }

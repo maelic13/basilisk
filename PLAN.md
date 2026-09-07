@@ -1189,11 +1189,33 @@ assumed.
 ### 6.5 Group B endgames
 
 - [ ] **6.5** Implement high-value rook and bishop-pawn families. **Every new family term must state its promotion closure and include those families in its non-regression set.** BAS-E51: the KBNK vector reached KBP-K, KBP-KB, KBP-KN and KBPP-KB through knight promotion, and 6.1.f's original accounting missed it by testing only families its own safety argument had already excluded.
-  - [ ] **6.5.a** Correct the drawn-share bias in KRP-KR and KRPP-KRP with draw scaling (BAS-E32: +0.138 and +0.171, and these classes are 11.32% and 9.09% of games). This is the half that is implementable now: a scaling function recognises drawishness, so it needs no seven-man truth and is validated by drawn-share bias plus an SPRT.
+  - [ ] **6.5.a** Correct the drawn-share bias in KRP-KR and KRPP-KRP with draw scaling. **Re-measured at the current head (BAS-E54): +0.302 and +0.262, not the +0.171 and +0.138 BAS-E32 recorded on 2026-08-31** -- the up-a-pawn classes drifted while the symmetric controls did not. These classes are 9.09% and 11.32% of games. **PREPARED, awaiting SPRT.** This is the half that is implementable now: a scaling function recognises drawishness, so it needs no seven-man truth and is validated by drawn-share bias plus an SPRT.
   - [ ] **6.5.b** Cover KR-KP, KQ-KRP and KR-KB.
   - [ ] **6.5.c** Cover bishop-pawn families, including wrong-bishop/rook-pawn draw logic. Absorbs 6.3's KBP-K deficit, which is **7** positions at the current head (17/24 against the reference's 24/24), not the 15 the pre-6.1 arm showed; attack it as bishop-pawn technique, not king geometry (BAS-E48, BAS-E49).
   - [ ] **6.5.d** Add deterministic truth cases before coefficient fitting.
   - [ ] **6.5.e** Resolve the only-move precision defect in won rook endings (BAS-E53). Split out of 6.5.a on 2026-09-07: it is a different problem with a different gate, no known mechanism, and it must not block the scaling work. Depth is NOT the answer, so it does not belong in Phase 8 either.
+
+**6.5.a implementation status (2026-09-07, BAS-E54).** KRPKR and KRPPKRP draw
+scaling is implemented in `apply_endgame` and prepared for a gate; the leaf
+stays open until the SPRT returns. Three findings worth carrying forward:
+
+* **The gate is free but the rules are not.** A cheap bitboard gate benches
+  identically to baseline. A faithful unfloored port of the reference's rules
+  costs **+79% bench nodes for KRPKR and +108% for KRPPKRP**, and one rule --
+  the loosest condition carrying the most aggressive scale, 10 of 64 -- is the
+  entire KRPKR figure. Aggressive scale factors flatten the evaluation across
+  the region they cover, and this engine's search pays for that in a way the
+  reference's does not.
+* **The rules are heuristics and must never assert a draw.** Against Syzygy on
+  3,000 random KRPKR positions the unfloored draw rules call 18 genuinely WON
+  positions dead draws. `SCALE_FLOOR = 24` takes that to zero. That correctness
+  argument, not the bench curve, is why the floor exists: the floor sweep is
+  chaotic (32 costs +28.5%, 24 and 40 are near baseline) and selecting on it
+  would be fitting to noise.
+* **What it buys is real but partial.** KRP-KR +0.302 -> +0.242 and KRPP-KRP
+  +0.262 -> +0.231, at bench -1.1% and NPS +1.24%. That is roughly a fifth of
+  one bias and an eighth of the other, so it is a down payment on 6.5.a rather
+  than a fix, and it is far too small to assume Elo from.
 
 **2026-09-07: 6.5.a was split into 6.5.a and 6.5.e, with the maintainer's
 sign-off.** BAS-E53 established that the two problems bundled here are

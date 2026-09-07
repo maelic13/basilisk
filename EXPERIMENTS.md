@@ -2487,6 +2487,67 @@ direction corrected: the question is no longer whether the class is resolvable
 but what knowledge resolves it. Analysis in
 `analysis/rook_narrow_node_resolvability_v1.md`.
 
+**BAS-E54 - 6.5.a: the reference's rook-ending scaling ports, but only with a
+floor on the discount** (2026-09-07). KRPKR and KRPPKRP draw scaling implemented
+in `apply_endgame`, gated by a few bitboard ORs rather than a popcount census
+(BAS-E34's lesson). Measured on the 25k holdout's drawn subset with
+`tools/diag/endgame_drawn_bias.py`, which reproduces BAS-E32's eight recorded
+drawn shares exactly and identified the dataset as `armC_basilisk25k`.
+
+*The baseline is worse than BAS-E32 recorded, and the roadmap's quoted figures
+were stale.* At the current head the drawn-subset bias is **+0.302** in KRP-KR
+and **+0.262** in KRPP-KRP, against the +0.171 and +0.138 of 2026-08-31, while
+the symmetric controls KRP-KRP and KPP-KPP are unchanged at +0.003 and -0.021.
+Whatever moved between those dates moved the up-a-pawn classes only.
+
+*Unfloored, a faithful port is disqualifying.* Cost decomposition, one bench
+each, every binary hash distinct:
+
+| arm | bench | vs base |
+|---|---|---|
+| gate only, rules disabled | 12,709,666 | **0.0%** |
+| KRPKR rules 1-7 | 12,525,875 | -1.4% |
+| **KRPKR rule 8 alone** | **22,750,756** | **+79.0%** |
+| KRPPKRP alone | 26,402,512 | +107.7% |
+
+The gate is free. **One rule -- the loosest condition with the most aggressive
+scale, 10 of 64 -- is the entire KRPKR explosion**, and KRPPKRP's 9-21 range
+costs more still. These flatten the evaluation across large regions of
+rook-ending search space; two bench positions lost mate scores outright.
+
+*A floor fixes both problems at once, and the correctness argument is the one
+that matters.* Checked against Syzygy on 3,000 random KRPKR positions, the
+unfloored draw rules call **18 genuinely WON positions dead draws**. With
+`SCALE_FLOOR = 24` that count is **zero**: no rule here can assert a draw it
+cannot prove, only discount. Accepted candidate:
+
+| | bench | KRP-KR bias | KRPP-KRP bias |
+|---|---|---|---|
+| baseline | 12,709,666 | +0.302 | +0.262 |
+| **floor 24** | **12,568,898 (-1.1%)** | **+0.242** | **+0.231** |
+
+NPS +1.24% (ABBA, 12 runs each, idle machine), full CTest 12/12.
+
+*The floor was NOT selected by benching floors, and that is deliberate.* That
+curve is chaotic -- floor 32 costs +28.5% while 24 and 40 sit within 9% of
+baseline -- so its minimum is noise, and picking it would be fitting to the
+instrument. 24 is the largest discount that keeps a clear majority of each
+rule's effect; the correctness argument above is what justifies having a floor
+at all.
+
+*Two bugs found in my own port, both by measurement rather than review.* The
+Lucena rules return `SCALE_FACTOR_MAX` in the reference, which is 128 -- twice
+normal, an amplification for a won position. Reading them against
+`SCALE_NORMAL` turned won rook endings into near-draws. And the first version
+of the deterministic test passed with the rules disabled: the KRPP-KRP
+threshold was 150 where the position scores 19 with the rule and 53 without.
+Both guards were then re-checked by neutering the gate and confirming they
+fail.
+
+*Disposition.* Prepared, not accepted. Corrects about 20% of the KRP-KR bias
+and 12% of KRPP-KRP at no measured cost; too small to assume Elo, so it is
+gated on a no-adjudication SPRT. 6.5.a stays open.
+
 **BAS-X11 - current standing, 12,000-game Colosseum round robin** (2026-09-04,
 maintainer-run). Conditions: 3s+30ms, two games per pair, parallel 10, no draw
 or resign adjudication, UHO_Lichess_4852_v1 openings, **tablebases off**.

@@ -116,7 +116,7 @@ Run this checklist in order; PLAN.md owns rationale and gates.
   - [x] **6.4.b** Keep theory truth, move quality, conversion and game strength separate
   - [x] **6.4.c** Freeze the accepted Group A head and truth report (also: static_assert the shipped KBNK default)
 - [ ] **6.5** Implement high-value rook and bishop-pawn families -- state each term's promotion closure in its non-regression set
-  - [ ] **6.5.a** Correct the drawn-share bias in KRP-KR and KRPP-KRP with draw scaling (BAS-E32)
+  - [ ] **6.5.a** Correct the drawn-share bias in KRP-KR and KRPP-KRP with draw scaling (BAS-E54: implemented and prepared; awaiting SPRT)
   - [ ] **6.5.b** Cover KR-KP, KQ-KRP and KR-KB
   - [ ] **6.5.c** Cover bishop-pawn families, including wrong-bishop/rook-pawn draw logic
   - [ ] **6.5.d** Add deterministic truth cases before coefficient fitting
