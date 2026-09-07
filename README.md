@@ -162,7 +162,10 @@ cmake --build --preset release-pext --target pgo
 This builds an instrumented engine, trains it on the `bench` suite, and rebuilds
 using the collected profile. For Clang builds, CMake selects the
 `llvm-profdata` shipped with the configured compiler, so multiple installed LLVM
-versions do not get mixed. The finished binary lands in `build/dist`.
+versions do not get mixed. GCC builds retain their generated `.gcda` files and
+rebuild in the same object tree so GCC can resolve every profile by its original
+object path. Select GCC at configure time with `-DCOMP=gcc`; no
+`llvm-profdata` is involved. The finished binary lands in `build/dist`.
 
 ### Tests
 

@@ -588,6 +588,7 @@ add_custom_target(pgo
         -DPGO_SOURCE_DIR=${CMAKE_SOURCE_DIR}
         -DPGO_PRESET=${_basilisk_pgo_preset}
         -DPGO_COMP=${COMP}
+        -DPGO_COMPILER_ID=${CMAKE_CXX_COMPILER_ID}
         -DPGO_TUNE=${TUNE}
         -DPGO_PORTABLE_BUILD=${_basilisk_pgo_portable}
         -DPGO_EXECUTABLE_SUFFIX=${CMAKE_EXECUTABLE_SUFFIX}

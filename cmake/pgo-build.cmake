@@ -9,6 +9,9 @@ endif()
 if(NOT DEFINED PGO_COMP)
     set(PGO_COMP "auto")
 endif()
+if(NOT DEFINED PGO_COMPILER_ID)
+    message(FATAL_ERROR "PGO_COMPILER_ID is required")
+endif()
 if(NOT DEFINED PGO_PORTABLE_BUILD)
     set(PGO_PORTABLE_BUILD "OFF")
 endif()
@@ -75,14 +78,28 @@ if(NOT EXISTS "${_instrumented_binary}")
 endif()
 
 message(STATUS "PGO training bench: depth ${PGO_TRAIN_DEPTH}")
-execute_process(
-    COMMAND "${CMAKE_COMMAND}" -E env "LLVM_PROFILE_FILE=${_prof_dir}/basilisk-%p.profraw" "${_instrumented_binary}"
-    INPUT_FILE "${_train_input}"
-    OUTPUT_FILE "${_train_log}"
-    ERROR_FILE "${_train_log}"
-    WORKING_DIRECTORY "${PGO_SOURCE_DIR}"
-    COMMAND_ERROR_IS_FATAL ANY
-)
+if(PGO_COMPILER_ID MATCHES "Clang")
+    execute_process(
+        COMMAND "${CMAKE_COMMAND}" -E env "LLVM_PROFILE_FILE=${_prof_dir}/basilisk-%p.profraw" "${_instrumented_binary}"
+        INPUT_FILE "${_train_input}"
+        OUTPUT_FILE "${_train_log}"
+        ERROR_FILE "${_train_log}"
+        WORKING_DIRECTORY "${PGO_SOURCE_DIR}"
+        COMMAND_ERROR_IS_FATAL ANY
+    )
+else()
+    # GCC writes .gcda files through -fprofile-generate's directory argument;
+    # MSVC writes .pgc/.pgd files through its linker instrumentation. Neither
+    # consumes LLVM_PROFILE_FILE.
+    execute_process(
+        COMMAND "${_instrumented_binary}"
+        INPUT_FILE "${_train_input}"
+        OUTPUT_FILE "${_train_log}"
+        ERROR_FILE "${_train_log}"
+        WORKING_DIRECTORY "${PGO_SOURCE_DIR}"
+        COMMAND_ERROR_IS_FATAL ANY
+    )
+endif()
 _basilisk_check_training_log("${_train_log}")
 
 # Training input is the 40-position `bench` suite only (depth 13). That suite is
@@ -94,7 +111,7 @@ _basilisk_check_training_log("${_train_log}")
 # well-spread bench it was redundant (it mostly re-sampled the same hot search
 # loop). See PLAN.md / GUIDE.md.
 
-if(PGO_COMP STREQUAL "msvc")
+if(PGO_COMPILER_ID STREQUAL "MSVC")
     set(_msvc_pgd "${_prof_dir}/basilisk.pgd")
     # MSVC writes each training run's .pgc beside the instrumented executable,
     # even when /GENPROFILE gives the .pgd an explicit directory. Put the run
@@ -127,7 +144,35 @@ if(PGO_COMP STREQUAL "msvc")
         COMMAND_ERROR_IS_FATAL ANY
     )
     set(_pgo_binary "${_gen_dir}/basilisk${PGO_EXECUTABLE_SUFFIX}")
-else()
+elseif(PGO_COMPILER_ID STREQUAL "GNU")
+    file(GLOB_RECURSE _gcda_files "${_prof_dir}/*.gcda")
+    if(NOT _gcda_files)
+        message(FATAL_ERROR "GCC training did not produce any .gcda files in ${_prof_dir}")
+    endif()
+    list(LENGTH _gcda_files _gcda_count)
+
+    # GCC keys profile files to the object-file paths. Reusing the generation
+    # build tree keeps those paths identical; reconfiguration changes the
+    # compile/link commands, so Ninja rebuilds the instrumented objects with
+    # -fprofile-use and the final optimized binary replaces the training one.
+    message(STATUS "PGO final GCC rebuild: ${_gen_dir} (${_gcda_count} .gcda files)")
+    execute_process(
+        COMMAND "${CMAKE_COMMAND}" --preset "${PGO_PRESET}" -B "${_gen_dir}"
+                -DCOMP=${PGO_COMP}
+                -DPORTABLE_BUILD=${PGO_PORTABLE_BUILD}
+                -DTUNE=${PGO_TUNE}
+                -DBASILISK_PGO=USE
+                -DBASILISK_PGO_PROFILE_DIR=${_prof_dir}
+        WORKING_DIRECTORY "${PGO_SOURCE_DIR}"
+        COMMAND_ERROR_IS_FATAL ANY
+    )
+    execute_process(
+        COMMAND "${CMAKE_COMMAND}" --build "${_gen_dir}" --target basilisk
+        WORKING_DIRECTORY "${PGO_SOURCE_DIR}"
+        COMMAND_ERROR_IS_FATAL ANY
+    )
+    set(_pgo_binary "${_gen_dir}/basilisk${PGO_EXECUTABLE_SUFFIX}")
+elseif(PGO_COMPILER_ID MATCHES "Clang")
     file(GLOB _profraw_files "${_prof_dir}/*.profraw")
     if(NOT _profraw_files)
         message(FATAL_ERROR "No .profraw files were produced in ${_prof_dir}")
@@ -169,6 +214,8 @@ else()
         COMMAND_ERROR_IS_FATAL ANY
     )
     set(_pgo_binary "${_use_dir}/basilisk${PGO_EXECUTABLE_SUFFIX}")
+else()
+    message(FATAL_ERROR "Unsupported PGO compiler id: ${PGO_COMPILER_ID}")
 endif()
 
 message(STATUS "PGO binary: ${_pgo_binary}")
