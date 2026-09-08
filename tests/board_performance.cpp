@@ -170,6 +170,24 @@ static uint64_t see_workload(const std::vector<Board>& boards, MoveList& ml) {
     return ops;
 }
 
+// Setup-only semantic output for Manta's cross-engine comparator. This reports
+// each threshold-zero decision but never changes or enters a timed workload.
+static uint64_t write_see_signature(const std::vector<Board>& boards, MoveList& ml) {
+    uint64_t count = 0;
+    for (std::size_t position = 0; position < boards.size(); ++position) {
+        const Board& b = boards[position];
+        ml.count = 0;
+        b.gen_legal_captures(ml);
+        for (Move m : ml) {
+            std::printf("SEE-CONTRACT-V1 position=%zu move=%s result=%s\n",
+                position, move_to_uci(m).c_str(), b.see_ge(m, 0) ? "true" : "false");
+            ++count;
+        }
+    }
+    std::printf("SEE-CONTRACT-V1 count=%llu\n", (unsigned long long)count);
+    return count;
+}
+
 static uint64_t game_simulation_workload(std::vector<Board>& boards,
                                          MoveList& outer, MoveList& inner) {
     uint64_t ops = 0;
@@ -306,9 +324,12 @@ static BenchResult benchmark_fixed(const char* label, const char* unit,
 int main(int argc, char** argv) {
     bool legacy = false;
     bool preflight_only = false;
+    bool see_signature = false;
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "--preflight-only") == 0) {
             preflight_only = true;
+        } else if (std::strcmp(argv[i], "--see-signature") == 0) {
+            see_signature = true;
         } else if (std::strcmp(argv[i], "--profile") == 0 && i + 1 < argc) {
             ++i;
             if (std::strcmp(argv[i], "legacy-board-a-v1") == 0) legacy = true;
@@ -319,9 +340,13 @@ int main(int argc, char** argv) {
         } else {
             std::fprintf(stderr,
                 "usage: board_performance_test [--profile cross-engine-board-v1|"
-                "legacy-board-a-v1] [--preflight-only]\n");
+                "legacy-board-a-v1] [--preflight-only] [--see-signature]\n");
             return EXIT_FAILURE;
         }
+    }
+    if (see_signature && legacy) {
+        std::fprintf(stderr, "--see-signature requires cross-engine-board-v1\n");
+        return EXIT_FAILURE;
     }
 
     init_bitboards();
@@ -371,6 +396,10 @@ int main(int argc, char** argv) {
         ? "11 fixed-work samples (median +/- MAD)"
         : "11 x 150 ms after a 150 ms warm-up (median +/- MAD)");
     std::printf("preflight: PASS\n");
+    if (see_signature && write_see_signature(boards, scratch) != EXPECTED_SEE) {
+        std::fprintf(stderr, "SEE signature count does not match frozen work\n");
+        return EXIT_FAILURE;
+    }
     if (preflight_only) return EXIT_SUCCESS;
 
     std::vector<BenchResult> results;
