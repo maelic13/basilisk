@@ -2600,6 +2600,43 @@ The mode used was `simplify` with the upper bound widened to +3.
 Retry only if the evaluator/search
 surface or rook-ending occurrence materially changes.
 
+**BAS-E55 - 15.1.a freeze-release gate: the SEE-repaired dev head against
+the 1.9.3 release binary - REGISTERED, NOT YET RUN** (2026-09-09).
+
+- Date / owner / calibration category: 2026-09-09 / maintainer-run / release gate.
+- Baseline: `basilisk-v1.9.3-windows-x86_64-pext-pgo.exe` (bench 11,941,440).
+  Candidate: the Phase 15.0 head (dev `d0f2627` plus 15.0.a-15.0.c), fresh
+  PGO pext build, hash recorded in the run manifest.
+- Research question: does the 1.9.4 line (accepted Group A endgames, 6.5.a
+  rook scaling, SEE king legality and any 15.0.b repair) beat 1.9.3 at STC,
+  and does it transfer at 4T?
+- Hypothesis: yes; the accepted line measured about +12 Elo over 1.9.3 before
+  6.5.a, and the SEE king rule removes illegal king recaptures from every SEE
+  consumer (capture pruning, qsearch floor, ordering) as Rarog's repaired
+  cluster did.
+- Interacting mechanisms: SEE consumers in search; the repair changes the
+  bench tree (Rarog: +10% nodes) so fixed-depth comparisons are not
+  comparable and only games decide.
+- Competing hypotheses: the king rule prunes fewer captures and costs time to
+  depth with no accuracy gain at `3+0.03`; the 4T line has an untuned
+  interaction with the repaired SEE.
+
+PRE-REGISTERED PREDICTION, frozen before exposure:
+
+- Expected Elo: **+10 to +20** at STC 1T against 1.9.3; 4T direction positive.
+- Probability the candidate is positive: 0.85. Confidence moderate; the
+  6.5.a and Group A gates were paired against each other, not against 1.9.3.
+- Most likely failure mode: the SEE repair's node increase costs more at
+  `3+0.03` than its accuracy returns, reading as a null instead of a loss.
+- Registered gate: `tools/sprt.ps1` STC `3+0.03`, 1T, Hash 64, paired UHO
+  (`tools/books/UHO_Lichess_4852_v1.epd`), no adjudication, `[0,3]` nElo,
+  cap 20,000 games; plus a 4T `10+0.1` 400-game direction check, zero
+  forfeits required. H0 returns 15.0 to research; it does not license
+  reverting the repairs.
+
+RESULT and PREDICTION CALIBRATION: append after exposure, per the section 11
+template.
+
 **BAS-X11 - current standing, 12,000-game Colosseum round robin** (2026-09-04,
 maintainer-run). Conditions: 3s+30ms, two games per pair, parallel 10, no draw
 or resign adjudication, UHO_Lichess_4852_v1 openings, **tablebases off**.
@@ -3097,6 +3134,7 @@ an idea source and an oracle. See PLAN's operating contract.
 | BAS-X26 | Rarog's Phase-4 subsystem audit contract requires producer/state/consumer/invalidation inventories, realistic cost profiles, interaction screens, finding classification and an analysis-only handoff before implementation. | Adopted as Basilisk's common design gate for board, HCE, search, caches, lifecycle, time and NNUE state. It prevents feature-checklist ports and speculative rewrites. | PLAN §2; Phases 7–13 |
 | BAS-X27 | Rarog `881c821` adds exact board-call/work counters for its pending 4.11b.7 HCE-search profile, but its PLAN/GUIDE still mark the profile incomplete and no result is recorded. | The counter categories/code are a useful donor implementation, not evidence about cost or priority. Basilisk may adapt them at 7.2 only with live-wire and instrumentation-off identity tests. | 7.2 |
 | BAS-X28 | Independent review of the 2026-09-07 fix stack (`bdb828a`..`6dd9ada`) from a session that could not build, because the 4T TT gate was running. **BAS-C05's XOR tag is sound and its dropped release/acquire pair is safe:** detection is order-independent, since any payload/tag pair from different publications reconstructs `key16 ^ fold16(p_new) ^ fold16(p_old)` and fails except on a 1/65536 fold collision, the same strength the plain partial key had. Single-thread identity is structural, not lucky -- the tag reconstructs the stored key exactly, and the empty slot still yields `0 ^ fold16(0) == 0`, preserving the `want == 0` rejection that the `flag_age` check performs. **BAS-C06 was more serious than its row implies:** the removed placeholders were three literal `EXPECT(true)` calls, and the hard-coded `D:\chess\Syzygy345` never matched this machine's `D:/chess/tablebases/syzygy3456`, so positive Syzygy coverage was zero everywhere, not merely on machines lacking the directory. **BAS-P09 carried an unrecorded risk:** MSVC's 64 KB string-literal limit forced `WAC_EPD` into a chunk array, and a chunk boundary falling inside an EPD line would silently drop a position. Verified safe -- the split is between `WAC.150` and `WAC.151`, all 300 ids are present, and `tests/test_wac.cpp` already asserts `positions.size() == 300`, so a future re-chunk cannot regress it unnoticed. | Reviewing a diff can settle order-independence and structural identity that a build cannot, and a build cannot settle them alone either; the two are complements. Unverified in this review because no binary could be produced: the recorded bench, sanitizer and stress results of BAS-C05/C06/P10, which stand on their own runs. | `src/tt.h`; `tests/test_search.cpp`; `src/wac_epd.h`; 7.1, 9.5 |
+| BAS-X29 | Rarog's 2026-09-09 review of the shared SEE lineage: Basilisk's `see_ge` has no king rule (the king recaptures regardless of remaining attackers), pins are frozen at the exchange's starting occupancy, and pawn recaptures on the last rank are scored as pawns. Rarog's exact-legality kernel costs about 8% of the SEE column and its cluster measured +12.12 +/- 10.17 Elo; the cheap Stockfish king rule was never tested in either engine on its own. | Phase 15 fixes the king rule first (15.0.a), decides created pins and promotions on reachability and cost (15.0.b), and gates the release line against 1.9.3 (BAS-E55). The rule itself is two lines; the fixtures are the deliverable. | 15.0.a, 15.0.b, 15.1.a |
 
 The 2026-09-07 re-audit supersedes the earlier conclusion that no additional
 high-value Rarog item was missing. Rarog's newer Phase-4 work added substantial
