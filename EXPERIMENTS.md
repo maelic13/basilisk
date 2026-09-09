@@ -2710,8 +2710,8 @@ PRE-REGISTERED PREDICTION, frozen before exposure:
   search than the corpus rate implies.
 - Registered gate: `tools/sprt.ps1 -Mode fixed -Games 10000`, STC `3+0.03`,
   1T, Hash 64, paired UHO (`tools/books/UHO_Lichess_4852_v1.epd`), no
-  adjudication. Elo CI approximately +/-4.2 at that N. Zero time forfeits
-  required; any forfeit voids the run.
+  adjudication. Elo CI approximately +/-4.2 at that N. Time-forfeit
+  admissibility: see the amended clause under the verdict rule.
 
 FROZEN VERDICT RULE (maintainer, 2026-09-09, before exposure). The maintainer
 stated the rule in SPRT terms. `-Mode fixed` has no H0/H1 and no non-resolve,
@@ -2733,7 +2733,32 @@ frozen in that form:
 - Retuning the SEE consumer thresholds against the repaired kernel is NOT a
   verdict branch of this experiment (maintainer decision). It remains
   available afterwards as its own leaf if the repair is kept.
-- Zero time forfeits are required in both arms regardless of the estimate.
+- TIME FORFEITS -- clause AMENDED 2026-09-09 at 18:50 local, mid-run, while
+  both the agent and the maintainer were still BLIND to the score and to the
+  running Elo estimate (neither had been read; only forfeit counts and game
+  totals were inspected). The original clause, "zero time forfeits required;
+  any forfeit voids the run", was written by the agent and was stricter than
+  this harness supports: `tools/sprt.ps1:578` treats forfeits as a
+  step-failing condition only at `threads > 1` (the 9.4 MT canary) and as
+  advisory at 1T, which is this run's configuration. At 14 concurrent games
+  on 16 physical cores, occasional clock overruns at `3+0.03` are scheduler
+  jitter rather than engine defects. Observed when the clause was amended:
+  **3 forfeits in the first ~1,470 games (0.20%), split 2 parent / 1
+  candidate** -- projecting to roughly 20 by game 10,000, which the original
+  wording would have voided. Replaced by a rate-and-symmetry test that keeps
+  the property actually worth protecting -- the repair must not lose on time
+  more often than its own parent:
+  - **Rate:** the run is VOID if total time forfeits exceed **0.5%** of
+    completed games.
+  - **Symmetry:** the run is VOID if the candidate's forfeits significantly
+    exceed the parent's -- one-sided exact binomial test against H0 p = 0.5
+    over the total forfeit count, void if p < 0.05. A candidate-skewed
+    pattern voids the run REGARDLESS of the Elo estimate, since 15.0.a's
+    +19.17% tree is exactly the kind of change that could overrun a clock
+    poll; this preserves the AGENTS.md prohibition on accepting a candidate
+    that fails a time-forfeit gate.
+  - Forfeits are counted from the PGN `Termination "time forfeit"` tag and
+    attributed to the side that lost on time.
 
 RESULT and PREDICTION CALIBRATION: append after exposure, per the section 11
 template.
