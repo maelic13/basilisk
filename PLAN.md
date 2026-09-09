@@ -158,7 +158,12 @@ Basilisk.
       uniform: per-position median +3.6%, 15 of 40 positions shrank, p75
       +36.9%, max +207.8%. +19.17% is large enough to be a real risk to
       BAS-E55; it is carried into 15.1.a as a correctness repair, not as a
-      strength claim.
+      strength claim. **Acceptance is provisional pending BAS-E56**, an
+      isolated fixed-N cost gate registered 2026-09-09 against this leaf's own
+      parent (`ed8db0fc94`); its frozen verdict rule may revert the repair and
+      accept the pre-repair behaviour as documented incorrectness. BAS-E55's
+      "does not license reverting the repairs" clause was explicitly amended
+      for 15.0.a before any exposure.
     - [ ] **15.0.b** `[R2]` **Created pins and recapture promotions.** Port the
       remaining Rarog fixtures for pins created during the exchange and for
       promotion recaptures. Decide with evidence, not by analogy: (1) if the

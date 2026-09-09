@@ -87,7 +87,7 @@ Capability tags are advisory routing, not state, evidence or permission.
 ## Phase 15 — Board correctness, release 1.9.4, freeze
 
 - [ ] **15.0** Board correctness repairs, before the release gate
-    - [x] **15.0.a** `[I2]` SEE king legality in `see_ge` and `see`; sentinel read the pin-filtered set, repair reads the unfiltered one; 9 fixtures, oracle 6481-0/301-0 over 1.9M captures; bench 12,568,898 -> 14,978,465 (+19.17%)
+    - [x] **15.0.a** `[I2]` SEE king legality in `see_ge` and `see`; sentinel read the pin-filtered set, repair reads the unfiltered one; 9 fixtures, oracle 6481-0/301-0 over 1.9M captures; bench 12,568,898 -> 14,978,465 (+19.17%); acceptance provisional pending isolated cost gate BAS-E56
     - [ ] **15.0.b** `[R2]` Created pins and recapture promotions: fixtures, reachability from production callers, cost; repair or documented approximation
     - [ ] **15.0.c** `[I1]` Malformed input and counter boundaries: non-ASCII moves, long move lists, absurd `go`, unknown options
     - [ ] **15.0.d** `[V]` Deterministic qualification: CTest debug/release, sanitizers, invariants, perft, bench, SEE cost report, ISA check

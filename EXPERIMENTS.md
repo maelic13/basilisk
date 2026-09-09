@@ -2633,6 +2633,81 @@ PRE-REGISTERED PREDICTION, frozen before exposure:
   cap 20,000 games; plus a 4T `10+0.1` 400-game direction check, zero
   forfeits required. H0 returns 15.0 to research; it does not license
   reverting the repairs.
+- **AMENDED 2026-09-09, BEFORE ANY EXPOSURE** (maintainer decision, no
+  result of any kind observed): the clause above is superseded for 15.0.a
+  only. 15.0.a now carries its own isolated gate, BAS-E56, whose verdict
+  rule may revert the king-legality repair and accept the pre-repair
+  behaviour as a documented risk, on the BAS-C05 precedent. BAS-E55 is
+  otherwise unchanged and still decides the 15.0 head against 1.9.3.
+  Recorded as an explicit clerical amendment to a frozen registration.
+
+**BAS-E56 - 15.0.a isolated cost gate: the SEE king-legality repair against
+its own parent - REGISTERED, NOT YET RUN** (2026-09-09).
+
+- Date / owner / calibration category: 2026-09-09 / maintainer-run / isolated
+  A/B cost probe (not a release gate).
+- Baseline: `tools/test_engines/basilisk-15.0a-base-pext-pgo.exe`
+  (revision `ed8db0fc94`, bench 12,568,898). Candidate:
+  `basilisk-15.0a-cand-pext-pgo.exe` (revision `044b7f072d`, bench
+  14,978,465). The two revisions differ in `src/board.cpp` only (+24 lines);
+  both are fresh pext-PGO builds from the same toolchain and training bench.
+- Research question: what does 15.0.a's **+19.17% bench-node cost** actually
+  cost in Elo? This is a magnitude question, not an existence question.
+- Why fixed-N and not SPRT: the expected effect sits at or between the usual
+  hypotheses, where SPRT stalls and burns to its cap. BAS-C05 recorded this
+  exact failure ("a `[-5,0]` SPRT on a true ~-2.4 sits between the hypotheses
+  and cannot terminate") and `tools/sprt.ps1` documents `-Mode fixed` as the
+  instrument for it. Judged by the ESTIMATE at fixed N.
+- Why now rather than folded into BAS-E55: attribution. If the 15.0 head is
+  gated as one lump and returns H0, 15.0.a and 15.0.b are inseparable. 15.0.b
+  additionally decides "repair or documented approximation" on cost grounds,
+  so this number is a required input to the next leaf.
+- Interacting mechanisms: every SEE consumer prunes or deprioritizes on
+  `see_ge == FALSE` (`search.cpp:1443`, `:1446`, `:1475`, `:1712`, `:1874`,
+  `:1899`, and classification at `:898`/`:1908`/`:2146`). The repair raises
+  SEE verdicts, so it loosens all of those gates at once. Their thresholds
+  were tuned against the pre-repair, systematically pessimistic SEE.
+- Competing hypotheses: (a) the node cost dominates at `3+0.03` and the
+  accuracy gain is too rare to pay for it; (b) the loss is threshold
+  MIScalibration rather than the legality rule being wrong; (c) the random-walk
+  corpus that measured the correctness direction understates how often the
+  changed verdicts occur in real search, so the true accuracy benefit is
+  larger than 333/1,896,743 suggests.
+
+PRE-REGISTERED PREDICTION, frozen before exposure:
+
+- Expected Elo: **-8 to +2** at STC 1T against its parent; central **-3**.
+- Probability the candidate is positive: **0.30**. Confidence moderate.
+- Most likely failure mode: +19.17% nodes costs more time-to-depth than the
+  rarer-but-correct SEE verdicts return.
+- Known instrument caveat, stated in advance: the 1,896,743-capture corpus
+  measured the correctness DIRECTION well (6,481-0 / 301-0) but is a random
+  walk that drifts to sparse endgames, so its 0.018% verdict-change rate is
+  not a frequency estimate for bench- or game-like positions. The +19.17%
+  bench delta is the better frequency signal, and the gap between the two is
+  itself evidence that the changed verdicts are far more common in real
+  search than the corpus rate implies.
+- Registered gate: `tools/sprt.ps1 -Mode fixed -Games 10000`, STC `3+0.03`,
+  1T, Hash 64, paired UHO (`tools/books/UHO_Lichess_4852_v1.epd`), no
+  adjudication. Elo CI approximately +/-4.2 at that N. Zero time forfeits
+  required; any forfeit voids the run.
+
+FROZEN VERDICT RULE (maintainer, 2026-09-09, before exposure). The maintainer
+stated the rule in SPRT terms; `-Mode fixed` has no H0/H1 and no non-resolve,
+so it is translated here to the reported 95% Elo CI and frozen in that form:
+
+- **Whole 95% CI above 0** (their "H1"): **keep** the repair. 15.0.a stands.
+- **Whole 95% CI below 0** (their "H0"): **revert** the king-legality repair
+  and accept the pre-repair behaviour as a precisely documented incorrectness,
+  on the BAS-C05 precedent -- recorded in `src/board.cpp` at the kernel and in
+  `DESIGN.md`, not only in this ledger. Note the materiality this implies at
+  N=10,000: revert requires a measured harm worse than about **-4.2 Elo**.
+- **CI straddling 0** (their "non-resolve"): **keep** the repair. Correctness
+  is the default when the games cannot separate the arms.
+- Retuning the SEE consumer thresholds against the repaired kernel is NOT a
+  verdict branch of this experiment (maintainer decision). It remains
+  available afterwards as its own leaf if the repair is kept.
+- Zero time forfeits are required in both arms regardless of the estimate.
 
 RESULT and PREDICTION CALIBRATION: append after exposure, per the section 11
 template.
