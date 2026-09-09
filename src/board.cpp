@@ -1674,6 +1674,24 @@ int Board::see(Move m) const {
         }
         if (attacker_type == NO_PIECE_TYPE) break;
 
+        // 15.0.a: king legality. The LVA loop tries KING last, so the king is
+        // only ever selected when it is the side's sole remaining attacker. It
+        // may capture only if the opponent has no attacker left on the target
+        // under the current exchange occupancy; otherwise the exchange ends
+        // BEFORE the king move.
+        //
+        // The opponent set here is deliberately NOT pin-filtered. A piece
+        // pinned against its own king still controls squares against the enemy
+        // king, so it forbids the king recapture even though it could not
+        // legally recapture itself. That distinction is exactly what the
+        // KING=20000 sentinel got wrong: the sentinel relied on the opponent
+        // producing a recapture on the next ply, and the 8.2 pin filter had
+        // already removed the pinned defender from that set. Do NOT "tidy"
+        // this by reusing pin_filtered() -- see tests/test_board.cpp,
+        // "king legality: pinned defender still forbids Kxf6".
+        if (attacker_type == KING && (attackers & occupancy[~side] & occ))
+            break;
+
         depth++;
         gain[depth] = SEE_VALUES[piece_on_sq] - gain[depth-1];
 
@@ -1788,6 +1806,12 @@ bool Board::see_ge(Move m, int threshold) const {
             }
         }
         if (next_attacker == NO_PIECE_TYPE)
+            break;
+
+        // 15.0.a: king legality. Identical rule to see(), including the
+        // deliberately unfiltered opponent set -- see the comment there for
+        // why the pin filter must not be applied to it.
+        if (next_attacker == KING && (attackers & occupancy[~stm] & occ))
             break;
 
         result ^= 1;

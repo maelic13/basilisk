@@ -113,7 +113,7 @@ retry map in `EXPERIMENTS.md` section 9 remains valid for whoever reopens
 Basilisk.
 
 - [ ] **15.0** Board correctness repairs, before the release gate
-    - [ ] **15.0.a** `[I2]` **SEE king legality.** In `see_ge` and `see`, when
+    - [x] **15.0.a** `[I2]` **SEE king legality.** In `see_ge` and `see`, when
       the side to move's least valuable remaining attacker is the king, the
       king may capture only if the opponent has no attackers left on the
       target under the current exchange occupancy; otherwise the exchange
@@ -127,6 +127,38 @@ Basilisk.
       re-run the movegen oracle. Record the new bench fingerprint; this is a
       playing change and is gated at 15.1.a. Done criteria: fixtures pass,
       CTest passes, bench recorded with its delta explained by SEE consumers.
+      **Done 2026-09-09.** Rule added to both kernels (`src/board.cpp`
+      `see()`/`see_ge()`, 12 lines). Nine fixtures in `tests/test_board.cpp`;
+      the seven ported from Rarog all **passed on the unrepaired kernel**, so
+      the two that fail first are new: the defender of the king's destination
+      is itself absolutely pinned. Mechanism correction to BAS-X29: `see_ge`
+      was not missing a king rule -- the `KING=20000` sentinel plus the
+      minimax fold already implemented it, but it derived the opponent's
+      reply from the 8.2 **pin-filtered** attacker set. A pinned piece still
+      controls squares against the enemy king, so a pinned defender was
+      dropped and the king recaptured illegally. The rule therefore reads the
+      **unfiltered** opponent set; pin-filtering it would reintroduce the bug.
+      Evidence: 1,896,743 captures over a seeded 4,000-game random-walk
+      corpus, kernel diffed against itself. 6,919 `see()` values and 333
+      `see_ge` threshold verdicts changed; adjudicated against an independent
+      make/unmake legality oracle the repair is correct **6,481-0** on the
+      `see()` cases and **301-0** on the `see_ge` cases, with 0 regressions.
+      `see`/`see_ge` disagreement fell 4.579% -> 4.236% of captures (the
+      residual is the deliberate, SPRT-backed X-ray truncation in `see()`;
+      exact parity is not an engine invariant, contrary to this leaf's
+      original wording). CTest 12/12 release. **Cost: bench 12,568,898 ->
+      14,978,465 nodes, +19.17%**; NPS 3,495,244 -> 3,450,464 (-1.28%).
+      Accounted for by the SEE consumers: every call site
+      (`search.cpp:1443`, `:1446`, `:1475`, `:1712`, `:1874`, `:1899`, and
+      the bad-tactical classification at `:898`/`:1908`/`:2146`) prunes or
+      deprioritizes when `see_ge` is FALSE, and the repair moves verdicts
+      overwhelmingly the other way -- `see()` rose in 5,946 of 6,919 changed
+      cases and `see_ge(m,0)` flipped FALSE->TRUE 119 times against 15 the
+      other way -- so less is pruned. The aggregate is tail-driven, not
+      uniform: per-position median +3.6%, 15 of 40 positions shrank, p75
+      +36.9%, max +207.8%. +19.17% is large enough to be a real risk to
+      BAS-E55; it is carried into 15.1.a as a correctness repair, not as a
+      strength claim.
     - [ ] **15.0.b** `[R2]` **Created pins and recapture promotions.** Port the
       remaining Rarog fixtures for pins created during the exchange and for
       promotion recaptures. Decide with evidence, not by analogy: (1) if the

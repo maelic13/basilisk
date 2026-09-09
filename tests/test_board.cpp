@@ -1200,6 +1200,53 @@ static void test_see_pin_legality() {
                    "4k3/4p3/8/8/7B/8/8/4QK2 w - - 0 1", E1, E7, 100);
 }
 
+// King legality in the SEE kernels (15.0.a). Cases ported from Rarog's
+// independent fixtures `see-contract-v1.tsv` and `see-repair-v1.tsv`
+// (D:/code/rarog/tests/data), retargeted to Basilisk's 100/300/300/500/900
+// value vector. Every case is cross-checked against `oracle_see`, which uses
+// real make/unmake and therefore knows true king legality.
+static void test_see_king_legality() {
+    // contract-v1 `king-after-pawn`: Rxd5 cxd5 Kxd5 -- d5 is undefended after
+    // the pawn recapture, so the king recapture is legal.
+    check_see_case("king legality: legal king recapture after pawn",
+                   "7k/8/2p5/3pK3/8/8/3R4/8 w - - 0 1", D2, D5, -300);
+
+    // contract-v1 `legal-king-recapture`: Qxd8 Kxd8, d8 undefended -> 0.
+    check_see_case("king legality: legal king recapture of a queen",
+                   "3qk3/8/8/8/8/8/3Q4/3K4 w - - 0 1", D2, D8, 0);
+
+    // contract-v1 `defended-king-destination`: same, but Bg5 guards d8, so
+    // Kxd8 is illegal and the exchange ends before it -> +900.
+    check_see_case("king legality: defended destination refuses king recapture",
+                   "3qk3/8/8/6B1/8/8/3Q4/3K4 w - - 0 1", D2, D8, 900);
+
+    // contract-v1 `initial-king-capture`: the king is the initial mover; the
+    // mover's own legality is movegen's job, not SEE's -> +300 (knight).
+    check_see_case("king legality: king as the initial capturer",
+                   "k7/7p/8/3n4/4K3/8/7P/8 w - - 0 1", E4, D5, 300);
+
+    // repair-v1 mirrors, black to move: the rule must be colour-symmetric.
+    check_see_case("king legality: mirror legal king recapture after pawn",
+                   "8/3r4/8/8/3Pk3/2P5/8/7K b - - 0 1", D7, D4, -300);
+    check_see_case("king legality: mirror legal king recapture of a queen",
+                   "3k4/3q4/8/8/8/8/8/3QK3 b - - 0 1", D7, D1, 0);
+    check_see_case("king legality: mirror defended destination",
+                   "3k4/3q4/8/8/6b1/8/8/3QK3 b - - 0 1", D7, D1, 900);
+
+    // The case the Rarog fixtures do not cover, and the one the pre-15.0.a
+    // kernel actually got wrong: the defender of the king's destination is
+    // itself absolutely pinned. Bxf6+ is met by Kxf6 only if f6 is undefended;
+    // white's Qf2 defends f6 but is pinned by Be1 against Kh4. A pinned piece
+    // still controls squares against the enemy king, so Kxf6 is illegal and
+    // the exchange ends before it (+100). The 8.2 pin filter removes Qf2 from
+    // white's *recapture* set, which is right for recaptures and wrong for
+    // king legality -- hence the rule reads the unfiltered attacker set.
+    check_see_case("king legality: pinned defender still forbids Kxf6",
+                   "8/6k1/5p2/8/3B3K/8/5Q2/4b3 w - - 0 1", D4, F6, 100);
+    check_see_case("king legality: pinned defender, mirror",
+                   "4B3/5q2/8/3b3k/8/5P2/6K1/8 b - - 0 1", D5, F3, 100);
+}
+
 int main() {
     init_bitboards();
     init_attacks();
@@ -1220,6 +1267,7 @@ int main() {
     std::printf("\nHistory-capacity release guard\n");
     test_history_growth_and_exact_unwind();
     test_see_pin_legality();
+    test_see_king_legality();
 
     std::printf("\nFEN round-trip\n");
     test_fen_roundtrip();
