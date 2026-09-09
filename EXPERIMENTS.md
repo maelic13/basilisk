@@ -2763,6 +2763,34 @@ frozen in that form:
 RESULT and PREDICTION CALIBRATION: append after exposure, per the section 11
 template.
 
+**BAS-E56 - 15.0.e harness reserve sweep: `Move Overhead` 40 against 10 on
+the same binary - REGISTERED, NOT YET RUN** (2026-09-09).
+
+- Binary: `basilisk-15.0a-cand-pext-pgo.exe` (bench 14,978,465, SHA-256
+  `1F7877B2...`) on both sides; arm A `option.Move Overhead=40`, arm B the
+  default 10. `tools/sprt.ps1 -Mode fixed -Games 10000`, `3+0.03`, 1T, Hash
+  64, paired UHO, concurrency 14, natural termination. Runs third in Rarog's
+  `tools/results/night-20260909/run_night.ps1`.
+- Research question: does a 30 ms wider reserve remove the residual time
+  forfeits (4 in 2,927 on the 15.0.a gate; 3 in 24,989 and 1 in 21,994
+  earlier), and what does it cost?
+- Mechanism: Basilisk already counts `go` dispatch latency (Step 5.4) and polls
+  the clock every 2,048 nodes; Rarog's reconstruction of seven forfeits shows
+  50-500 ms host stalls invisible to any engine mid-search. Only the reserve
+  can absorb part of that.
+
+PRE-REGISTERED PREDICTION, frozen before exposure:
+
+- Arm B (10 ms): 4 to 12 forfeits in 10,000; arm A (40 ms): 0 to 4.
+- Paired Elo of arm A: -2 to +1; probability the wider overhead at least
+  halves the rate: 0.6. Confidence low at these rates.
+- Registered rule: adopt 40 in the harness profiles only if arm A forfeits at
+  most a quarter of arm B AND the paired interval excludes -3; otherwise keep
+  10 and record the rate as the harness floor. Symmetric in every gate, so no
+  verdict changes either way. No engine source changes.
+
+RESULT and PREDICTION CALIBRATION: append after exposure.
+
 **BAS-X11 - current standing, 12,000-game Colosseum round robin** (2026-09-04,
 maintainer-run). Conditions: 3s+30ms, two games per pair, parallel 10, no draw
 or resign adjudication, UHO_Lichess_4852_v1 openings, **tablebases off**.
