@@ -94,4 +94,4 @@ Capability tags are advisory routing, not state, evidence or permission.
 - [ ] **15.1** Release 1.9.4 and freeze
     - [ ] **15.1.a** `[V]` Registered release gate BAS-E55: fixed head vs 1.9.3, STC `[0,3]`, plus 4T `10+0.1` direction check
     - [ ] **15.1.b** `[M]` Release 1.9.4: changelog, versions, README, PGO assets, tag on instruction
-    - [ ] **15.1.c** `[M]` Freeze: HISTORY record, merge to `master`, tag and delete stale branches, reopening rule
+    - [ ] **15.1.c** `[M]` Freeze: HISTORY record, merge to `master`, reopening rule (branches already tagged and deleted 2026-09-09)

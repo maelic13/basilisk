@@ -166,9 +166,13 @@ Basilisk.
       `v1.9.4` and publish on maintainer instruction only.
     - [ ] **15.1.c** `[M]` **Freeze.** Record the frozen state in HISTORY
       (revision, bench, asset hashes, pool position), merge `dev` into
-      `master`, tag and delete the stale branches (`backup`, `nnue`, `hybrid`,
-      `hybrid-diag`, `arm_fix`) after confirming every ledger citation resolves
-      through a tag, and note the reopening rule: any later work starts by
+      `master`, and note the reopening rule. Branch disposition was done early
+      on 2026-09-09 at the maintainer's request: `backup` (merged), `nnue`
+      (local and origin heads differed; both kept as `archive/nnue-local` and
+      `archive/nnue-origin`), `arm_fix` (`archive/arm_fix`), `hybrid` and
+      `hybrid-diag` (`oracle/hybrid`, `oracle/hybrid-diag`, cited by BAS-X rows
+      and two cluster audits) are tags now and the branches are deleted locally
+      and on origin; only `master` and `dev` remain. Reopening rule: any later work starts by
       reading HISTORY and the archived roadmap, not by resuming 6.6.a.
 
 ## 4. Number map
