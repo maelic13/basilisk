@@ -2653,11 +2653,32 @@ its own parent - REGISTERED, NOT YET RUN** (2026-09-09).
   both are fresh pext-PGO builds from the same toolchain and training bench.
 - Research question: what does 15.0.a's **+19.17% bench-node cost** actually
   cost in Elo? This is a magnitude question, not an existence question.
-- Why fixed-N and not SPRT: the expected effect sits at or between the usual
-  hypotheses, where SPRT stalls and burns to its cap. BAS-C05 recorded this
-  exact failure ("a `[-5,0]` SPRT on a true ~-2.4 sits between the hypotheses
-  and cannot terminate") and `tools/sprt.ps1` documents `-Mode fixed` as the
-  instrument for it. Judged by the ESTIMATE at fixed N.
+- Instrument: `-Mode fixed`, judged by the ESTIMATE at fixed N. This was
+  challenged on 2026-09-09 and briefly re-registered as a capped SPRT before
+  any exposure; the revision was WRONG and is reverted. Recorded in full
+  because the reasoning is the useful part:
+  - A `gainer [0,3]` SPRT -- the default, and BAS-E55's shape -- is the wrong
+    test here. Its H0 ("not a >= 3 nElo gainer") is near-certain a priori for
+    a change predicted at -3, so accepting it carries no information about the
+    decision actually in front of us.
+  - A `simplify [-5,0]` SPRT DOES bracket the keep/revert decision correctly,
+    and the maintainer's verdict rule was already stated in H0/H1 terms, so it
+    would need no translation. On that much the challenge was right.
+  - It is nevertheless unavailable: `tools/sprt.ps1:502` hard-refuses `-Games`
+    in every SPRT mode, and without it the run stops only on the LLR
+    boundaries or a 50,000-ROUND (100,000-game) hard stop. The refusal exists
+    because on 2026-08-27 a `-Games 16000` SPRT was believed capped at three
+    hours per arm and ground toward 100,000 games, costing about ten hours.
+  - This experiment's own frozen central prediction is -3, which sits almost
+    exactly midway between -5 and 0 -- the region where an uncapped SPRT
+    cannot terminate. Expected cost would be roughly 18 hours against about
+    two for the fixed-N probe, for a strictly less useful output.
+  So the operative argument is not that SPRT stalls in the abstract, which is
+  a weak claim, but that THIS harness cannot cap one and our own prediction
+  lands in the stall region. BAS-C05 recorded the same shape of failure
+  ("a `[-5,0]` SPRT on a true ~-2.4 sits between the hypotheses and cannot
+  terminate"), and `tools/sprt.ps1` documents `-Mode fixed` as the instrument
+  for exactly this near-bound question.
 - Why now rather than folded into BAS-E55: attribution. If the 15.0 head is
   gated as one lump and returns H0, 15.0.a and 15.0.b are inseparable. 15.0.b
   additionally decides "repair or documented approximation" on cost grounds,
@@ -2693,17 +2714,22 @@ PRE-REGISTERED PREDICTION, frozen before exposure:
   required; any forfeit voids the run.
 
 FROZEN VERDICT RULE (maintainer, 2026-09-09, before exposure). The maintainer
-stated the rule in SPRT terms; `-Mode fixed` has no H0/H1 and no non-resolve,
-so it is translated here to the reported 95% Elo CI and frozen in that form:
+stated the rule in SPRT terms. `-Mode fixed` has no H0/H1 and no non-resolve,
+and the SPRT that would carry those terms natively is not runnable here (see
+Instrument above), so the rule is translated to the reported 95% Elo CI and
+frozen in that form:
 
 - **Whole 95% CI above 0** (their "H1"): **keep** the repair. 15.0.a stands.
 - **Whole 95% CI below 0** (their "H0"): **revert** the king-legality repair
   and accept the pre-repair behaviour as a precisely documented incorrectness,
   on the BAS-C05 precedent -- recorded in `src/board.cpp` at the kernel and in
-  `DESIGN.md`, not only in this ledger. Note the materiality this implies at
-  N=10,000: revert requires a measured harm worse than about **-4.2 Elo**.
+  `DESIGN.md`, not only in this ledger. Materiality this implies at N=10,000:
+  revert requires a measured harm worse than about **-4.2 Elo**, which is
+  close to the -3.2 Elo that an H0 bound of -5 nElo would have meant
+  (paired-UHO nElo runs about 1.55x Elo on this harness).
 - **CI straddling 0** (their "non-resolve"): **keep** the repair. Correctness
-  is the default when the games cannot separate the arms.
+  is the default when the games cannot separate the arms. The estimate at the
+  fixed N is unbiased and is the magnitude 15.0.b consumes.
 - Retuning the SEE consumer thresholds against the repaired kernel is NOT a
   verdict branch of this experiment (maintainer decision). It remains
   available afterwards as its own leaf if the repair is kept.
