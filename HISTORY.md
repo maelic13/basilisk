@@ -61,7 +61,22 @@ complete HCE refit, Phase 9 classical search consolidation, Phases 10–14 NNUE
 and platforms. Their evidence, retry triggers and dispositions remain in
 `EXPERIMENTS.md` (section 9 is the retry map) and in the archived roadmap.
 
-## Release record
+## Release record — 1.10.0
 
-Filled in at 15.1.c: release revision, bench fingerprint, asset hashes and
-pool position.
+| Item | Value |
+|---|---|
+| Version | **1.10.0** (2026-09-10) |
+| Bench-13 fingerprint | **14,978,465** |
+| Previous release | 1.9.3, bench 11,941,440 |
+| Strength | **+19.18 ± 6.76 Elo** over 1.9.3, `3+0.03` 1T, H1 accepted at 4,224 games, LOS 100% (BAS-E55) |
+| 4T smoke gate | Clean: zero crashes, zero time forfeits, 95% lower bound −1.17 Elo |
+| Qualification | CTest 12/12 release and 12/12 under ASan/UBSan; perft exact on all six standard positions; `test_invariants` 18/18 across four seeds |
+| Pool position, `3+0.03` 1T (2026-09-04) | Houdini 1.5a −197, Critter 1.6a −187, Fritz 16 −178, Rybka 4 −84 |
+| Accepted risks carried | TT publication coherence (BAS-C05); SEE created-pin and promotion-recapture approximations (BAS-C09) |
+
+Release revision and published asset hashes: fill in after `dev` is merged to
+`master` as the `Version 1.10.0` commit and the release workflow has uploaded
+its nine assets. The locally built reference asset was
+`basilisk-v1.10.0-windows-x86_64-pext-pgo.exe`, sha256
+`542247ca44a90d74abc793eb6cb121171e2b1224a78310c0cbb4e9915b522913`; the
+published assets are built by CI and will differ.

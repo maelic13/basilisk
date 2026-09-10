@@ -94,7 +94,9 @@ deterministically (CTest release + sanitizer, perft, invariants, ISA); and
 passed the release gate at **+19.18 ± 6.76 Elo** over 1.9.3 (BAS-E55). Full
 summary in `PLAN.md`, measured detail in `EXPERIMENTS.md`.
 
-- [ ] **15.1.c** `[M]` Tag `v1.10.0` and push it; merge `dev` into `master` as a
-  squashed Version commit; then fill the release record in
-  [HISTORY.md](HISTORY.md) with the revision, bench fingerprint, asset hashes
-  and pool position once CI has published the assets.
+- [ ] **15.1.c** `[M]` Merge `dev` into `master` as a single `Version 1.10.0`
+  commit and check CI; create and publish the `v1.10.0` release, which is what
+  triggers `release.yml` (it fires on `release: published`, **not** on a tag
+  push); check the release workflow uploads all nine assets; then fill the
+  release revision and published asset hashes into the release record in
+  [HISTORY.md](HISTORY.md).

@@ -2604,6 +2604,11 @@ surface or rook-ending occurrence materially changes.
 the 1.9.3 release binary - CLOSED, BOTH LEGS PASS** (2026-09-09).
 
 - Date / owner / calibration category: 2026-09-09 / maintainer-run / release gate.
+- **Clerical correction, 2026-09-10, after the result:** the release this gate
+  qualified was renamed from **1.9.4 to 1.10.0**. The text below still says
+  "1.9.4" and is left as frozen -- that was its name when the prediction was
+  registered. Nothing measured changed; the rename follows this project's
+  bench-fingerprint rule for minor versus patch.
 - Baseline: `basilisk-v1.9.3-windows-x86_64-pext-pgo.exe` (bench 11,941,440).
   Candidate: the Phase 15.0 head (dev `d0f2627` plus 15.0.a-15.0.d), fresh
   PGO pext build, hash recorded in the run manifest.
