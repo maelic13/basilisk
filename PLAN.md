@@ -112,7 +112,7 @@ no search work. Every open leaf of the archived roadmap stays archived; the
 retry map in `EXPERIMENTS.md` section 9 remains valid for whoever reopens
 Basilisk.
 
-- [ ] **15.0** Board correctness repairs, before the release gate
+- [x] **15.0** Board correctness repairs, before the release gate
     - [x] **15.0.a** `[I2]` **SEE king legality.** In `see_ge` and `see`, when
       the side to move's least valuable remaining attacker is the king, the
       king may capture only if the opponent has no attackers left on the
@@ -243,11 +243,49 @@ Basilisk.
       not. Fixed with a terminating `else` that emits
       `info string Unknown option: '<name>'`. Output-only: bench unchanged at
       14,978,465, CTest 12/12.
-    - [ ] **15.0.e** `[V]` **Deterministic qualification.** Debug and release
+    - [x] **15.0.e** `[V]` **Deterministic qualification.** Debug and release
       CTest, the sanitizer preset, random-walk board invariants
       (`test_invariants`), perft, `bench` recorded on the fixed head, the
       `board_performance_test` SEE column against the 1.9.3 binary (a cost
       report, not a gate), and the ISA check on the PGO asset.
+      **Done 2026-09-10 at head `b0da99f`. All items pass; no defect found.**
+      - **Release CTest** 12/12. **Debug + sanitizer CTest** (the `debug`
+        preset is the sanitizer preset: Debug with `-fsanitize=address,undefined`)
+        12/12 in 811.7 s, no ASan or UBSan report; `test_endgames` alone took
+        666.5 s under instrumentation.
+      - **Random-walk board invariants**: `test_invariants` 18/18 at
+        `BASILISK_FUZZ_SEED` offsets 0, 1, 2 and 3 -- four independent walk
+        families, not just the default seed.
+      - **Perft**, all six standard references exact, about 594 M nodes:
+        startpos d6 `119,060,324`; kiwipete d5 `193,690,690`; pos3 d6
+        `11,030,083`; pos4 d5 `15,833,292`; pos5 d5 `89,941,194`; pos6 d5
+        `164,075,551`.
+      - **Bench on the fixed head: `14,978,465`**, identical from the release
+        build and from the freshly built PGO asset (node count is
+        deterministic; NPS differs as expected, 3.64 M vs 3.81 M).
+      - **SEE cost report vs 1.9.3 (report, not a gate): the head is FASTER,
+        about +3.6%.** `board_performance_test` `threshold SEE` median
+        **52,565,815 ops/s** at head against **50,718,941 ops/s** at v1.9.3
+        (`61e6f23`, built from a scratch worktree with the same preset and
+        compiler), three alternating pairs; the head's slowest run beat
+        1.9.3's fastest. Comparable by construction -- identical benchmark
+        position set, identical workload body, identical 20000/200 iteration
+        counts; only the column label changed. 15.0.a's king rule adds two
+        branches but can also END the exchange a ply early, which plausibly
+        pays for them. Note this compares whole binaries across the entire
+        1.9.3->head line, not an isolate of 15.0.a; the isolated cost of that
+        leaf is BAS-C08/BAS-E56's bench `+19.17%` nodes and `-1.28%` NPS.
+      - **ISA check on the PGO asset**: the freshly built
+        `basilisk-v1.9.3-windows-x86_64-pext-pgo.exe` carries the BMI2 and
+        POPCNT fast path -- 246 `pextq`, 152 `popcntq`, 393 `blsrq`, 499
+        `tzcntq`, 9 `lzcntq`. Contract intact. `docs/release_tiers.md` records
+        97 `popcnt` for this tier; the current asset has 152, so that number
+        is stale but not wrong in kind.
+      - Method note: `board_performance_test.exe` was a STALE binary left from
+        15.0.c's per-ply-pin experiment and had to be rebuilt before the cost
+        report; the first measurement reproduced the experiment's numbers, not
+        the head's. The 15.0.c cost figure itself is unaffected -- both arms
+        there were built immediately before being timed.
 - [ ] **15.1** Release 1.9.4 and freeze
     - [ ] **15.1.a** `[V]` **Registered release gate — BAS-E55.** The 15.0 head
       as a fresh PGO pext build against the 1.9.3 release binary, `3+0.03`,
