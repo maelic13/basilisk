@@ -182,7 +182,7 @@ Basilisk.
       profiles only if the 40 arm forfeits at most a quarter of the 10 arm and
       the paired interval excludes -3 Elo; either way the verdict is recorded
       and no engine source changes.
-    - [ ] **15.0.c** `[R2]` **Created pins and recapture promotions.** Port the
+    - [x] **15.0.c** `[R2]` **Created pins and recapture promotions.** Port the
       remaining Rarog fixtures for pins created during the exchange and for
       promotion recaptures. Decide with evidence, not by analogy: (1) if the
       failing fixtures are reachable from a production SEE caller (capture
@@ -194,6 +194,28 @@ Basilisk.
       fixtures marked expected-fail and a written reason. Either outcome
       closes the leaf. Promotion recaptures add the promotion gain and the
       promoted piece's value; queen suffices for a material-only exchange.
+      **Done 2026-09-10 -- branch (2), documented approximation, BAS-C09. No
+      engine source change; bench unchanged at 14,978,465, CTest 12/12.**
+      Both defects are narrower than their names. Three of the four
+      created-pin fixtures already pass, because `see_pins` runs on the
+      exchange occupancy with the mover removed, so a pin opened by the
+      mover's own departure is already honoured; only a pin opened
+      mid-exchange by a later capturer fails, and only in `see_ge`. For
+      promotion recaptures the missing promotion gain and the pawn-instead-of-
+      queen error are each exactly (queen - pawn) = 800 and **cancel exactly**
+      when the promoted piece is recaptured, so only the surviving-promotion
+      case diverges. **Not reachable:** 0 created-pin verdict changes and 0
+      promotion recaptures in 339,607 production `see_ge` calls (40 bench
+      positions, depth 13, instrumented build recomputing pins per ply);
+      0.0030% and 0.018% respectively on an adversarial endgame-heavy
+      random-walk corpus of 5,728,160 calls. **Over cost:** the
+      current-occupancy recapturer measures **+16.8% of the SEE column** in
+      `tests/board_performance.cpp` (7,650,000 -> 6,547,556 captures) against
+      the 10% ceiling, and the promotion repair separately invalidates
+      `see_ge`'s `swap <= 0` fast exit for last-rank targets, 8.9% of
+      production calls. Nine fixtures added to `tests/test_board.cpp` with a
+      promotion-aware oracle; the three diverging cases pin both the truth and
+      the kernel's approximate answer.
     - [ ] **15.0.d** `[I1]` **Malformed input and counter boundaries.** Add
       tests that fail first for: a non-ASCII move token in `position ...
       moves` (Rarog panicked slicing UTF-8, RAR-M26), a `moves` list longer

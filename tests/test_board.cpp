@@ -1105,16 +1105,25 @@ static int oracle_exchange(Board& b, Square to) {
     b.gen_legal(legal);
     Move best = MOVE_NONE;
     int  best_attacker = INT_MAX;
+    int  best_promo    = -1;
     for (Move m : legal) {
         if (to_sq(m) != to) continue;
         if (move_type(m) == CASTLING || move_type(m) == EN_PASSANT) continue;
         if (b.piece_on(to) == NO_PIECE) continue;          // captures only
-        if (move_type(m) == PROMOTION) continue;           // keep the model simple
-        const int v = ORACLE_VALUES[type_of(b.piece_on(from_sq(m)))];
-        if (v < best_attacker) { best_attacker = v; best = m; }
+        // 15.0.c: promotion recaptures are modelled. Among equal-value
+        // attackers prefer the largest promotion -- queen dominates for a
+        // material-only exchange.
+        const int v  = ORACLE_VALUES[type_of(b.piece_on(from_sq(m)))];
+        const int pg = move_type(m) == PROMOTION
+                     ? ORACLE_VALUES[promo_type(m)] - ORACLE_VALUES[PAWN] : 0;
+        if (v < best_attacker || (v == best_attacker && pg > best_promo)) {
+            best_attacker = v; best_promo = pg; best = m;
+        }
     }
     if (best == MOVE_NONE) return 0;
-    const int gain = ORACLE_VALUES[type_of(b.piece_on(to))];
+    const int gain = ORACLE_VALUES[type_of(b.piece_on(to))]
+                   + (move_type(best) == PROMOTION
+                      ? ORACLE_VALUES[promo_type(best)] - ORACLE_VALUES[PAWN] : 0);
     b.make_move(best);
     const int reply = oracle_exchange(b, to);
     b.unmake_move(best);
@@ -1125,6 +1134,8 @@ static int oracle_see(Board& b, Move m) {
     int gain = 0;
     if (move_type(m) == EN_PASSANT) gain = ORACLE_VALUES[PAWN];
     else if (b.piece_on(to_sq(m)) != NO_PIECE) gain = ORACLE_VALUES[type_of(b.piece_on(to_sq(m)))];
+    if (move_type(m) == PROMOTION)
+        gain += ORACLE_VALUES[promo_type(m)] - ORACLE_VALUES[PAWN];
     b.make_move(m);
     const int reply = oracle_exchange(b, to_sq(m));
     b.unmake_move(m);
@@ -1247,6 +1258,87 @@ static void test_see_king_legality() {
                    "4B3/5q2/8/3b3k/8/5P2/6K1/8 b - - 0 1", D5, F3, 100);
 }
 
+
+// 15.0.c: the two SEE approximations Basilisk deliberately keeps. These
+// fixtures pin BOTH the truth (the promotion-aware legality oracle) and the
+// kernel's approximate answer, so the divergence cannot drift unnoticed and
+// cannot be "fixed" by accident without this test going red.
+static int see_ge_boundary(const Board& b, Move m) {
+    // see_ge(m, t) is monotone non-increasing in t; return the largest true t.
+    int lo = -30000, hi = 30000;
+    while (lo < hi) {
+        const int mid = lo + (hi - lo + 1) / 2;
+        if (b.see_ge(m, mid)) lo = mid; else hi = mid - 1;
+    }
+    return lo;
+}
+
+static void check_see_approx(const char* label, const char* fen,
+                             Square from, Square to,
+                             int truth, int kernel_see, int kernel_ge_boundary) {
+    Board b;
+    b.set_fen(fen);
+    Move m = find_capture(b, from, to);
+    begin_section(label);
+    EXPECT(m != MOVE_NONE);
+    if (m != MOVE_NONE) {
+        EXPECT_EQ(oracle_see(b, m), truth);              // what is actually true
+        EXPECT_EQ(b.see(m), kernel_see);                 // what the kernel says
+        EXPECT_EQ(see_ge_boundary(b, m), kernel_ge_boundary);
+    }
+    end_section();
+}
+
+// Created pins and promotion recaptures (15.0.c). Fixtures ported from Rarog's
+// `see-contract-v1.tsv` / `see-repair-v1.tsv`, retargeted to Basilisk's
+// 100/300/300/500/900 vector. CLOSED as a documented approximation, not a
+// repair: neither defect changed a single verdict in 339,607 production
+// `see_ge` calls, and the created-pin repair costs +16.8% of the SEE column.
+static void test_see_created_pins_and_promotions() {
+    // --- Created pins: three of the four Rarog fixtures already pass. -------
+    // `see_pins` is computed on the exchange occupancy with the MOVER already
+    // removed, so a pin opened by the mover's own departure is honoured.
+    check_see_case("created pin: opened by the mover's departure",
+                   "2k5/2n5/2B5/3p4/8/8/8/2R1K3 w - - 0 1", C6, D5, 100);
+    check_see_case("created pin: mover's departure, mirror",
+                   "2r1k3/8/8/8/3P4/2b5/2N5/2K5 b - - 0 1", C3, D4, 100);
+    // Pinned knight skipped, unpinned rook recaptures instead.
+    check_see_case("created pin: skip the pinned attacker, choose the rook",
+                   "2kr4/2n5/2B5/3p4/8/8/8/2R1K3 w - - 0 1", C6, D5, -200);
+
+    // The one that genuinely fails: the pin is opened mid-exchange by a LATER
+    // capturer (the c6 bishop's own recapture), not by the initial mover, so
+    // the once-computed pin set never sees it and Nc7 is allowed to recapture.
+    // Truth -300; see() reaches -300 only because its X-ray truncation happens
+    // to stop first, while the exact see_ge carries the illegal knight
+    // recapture and lands at -400. ACCEPTED APPROXIMATION -- see 15.0.c.
+    check_see_approx("created pin: opened mid-exchange (accepted approximation)",
+                     "2k5/2n5/2B1p3/3p4/8/8/3R4/2R4K w - - 0 1", D2, D5,
+                     /*truth*/ -300, /*see()*/ -300, /*see_ge boundary*/ -400);
+
+    // --- Promotion recaptures ----------------------------------------------
+    // A promotion made by the INITIAL move is handled exactly by both kernels.
+    check_see_case("promotion as the initial capture: queen",
+                   "1r2k3/P7/8/8/8/8/8/4K3 w - - 0 1", A7, B8, 1300);
+
+    // A promotion made by a RECAPTURE is scored as a plain pawn: the kernel
+    // adds no promotion gain and leaves a pawn, not a queen, on the square.
+    // Those two errors are each worth (queen - pawn) = 800 and cancel EXACTLY
+    // when the promoted piece is immediately recaptured -- so this one is
+    // correct by cancellation, not by handling:
+    check_see_case("promotion recapture: errors cancel when it is recaptured",
+                   "7k/8/8/8/8/8/pR6/1rR1K3 w - - 0 1", B2, B1, 100);
+
+    // ...and only survives when the promoted piece stands. Truth -800, kernel
+    // 0: the full 800. ACCEPTED APPROXIMATION -- see 15.0.c.
+    check_see_approx("promotion recapture: promoted piece survives (accepted)",
+                     "7k/8/8/8/8/7K/pR6/1r6 w - - 0 1", B2, B1,
+                     /*truth*/ -800, /*see()*/ 0, /*see_ge boundary*/ 0);
+    check_see_approx("promotion recapture: promoted piece survives, mirror",
+                     "1R6/Pr6/7k/8/8/8/8/7K b - - 0 1", B7, B8,
+                     /*truth*/ -800, /*see()*/ 0, /*see_ge boundary*/ 0);
+}
+
 int main() {
     init_bitboards();
     init_attacks();
@@ -1268,6 +1360,7 @@ int main() {
     test_history_growth_and_exact_unwind();
     test_see_pin_legality();
     test_see_king_legality();
+    test_see_created_pins_and_promotions();
 
     std::printf("\nFEN round-trip\n");
     test_fen_roundtrip();

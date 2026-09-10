@@ -89,7 +89,7 @@ Capability tags are advisory routing, not state, evidence or permission.
 - [ ] **15.0** Board correctness repairs, before the release gate
     - [x] **15.0.a** `[I2]` SEE king legality in `see_ge` and `see`; sentinel read the pin-filtered set, repair reads the unfiltered one; 9 fixtures, oracle 6481-0/301-0 over 1.9M captures; bench 12,568,898 -> 14,978,465 (+19.17%); BAS-E56 KEEP (Elo -0.65 +/- 5.25, 5,874 games); +19.17% nodes = 0.165 ply at EBF 2.9; forfeit gate passes (3/6,053, explained by 15.0.b host stalls)
     - [x] **15.0.b** Time-forfeit residual: clock origin already at `go` receipt; BAS-E57 reserve sweep rejected at −64.81, 0 forfeits/10k — CLOSED 2026-09-10
-    - [ ] **15.0.c** `[R2]` Created pins and recapture promotions: fixtures, reachability from production callers, cost; repair or documented approximation
+    - [x] **15.0.c** `[R2]` Created pins and recapture promotions: CLOSED as documented approximation (BAS-C09) — 0 verdict changes in 339,607 production `see_ge` calls; repair costs +16.8% of the SEE column vs a 10% ceiling; 9 fixtures pin truth and approximation
     - [ ] **15.0.d** `[I1]` Malformed input and counter boundaries: non-ASCII moves, long move lists, absurd `go`, unknown options
     - [ ] **15.0.e** `[V]` Deterministic qualification: CTest debug/release, sanitizers, invariants, perft, bench, SEE cost report, ISA check
 - [ ] **15.1** Release 1.9.4 and freeze
