@@ -164,31 +164,7 @@ Basilisk.
       accept the pre-repair behaviour as documented incorrectness. BAS-E55's
       "does not license reverting the repairs" clause was explicitly amended
       for 15.0.a before any exposure.
-    - [ ] **15.0.b** `[R2]` **Created pins and recapture promotions.** Port the
-      remaining Rarog fixtures for pins created during the exchange and for
-      promotion recaptures. Decide with evidence, not by analogy: (1) if the
-      failing fixtures are reachable from a production SEE caller (capture
-      pruning, qsearch floor, ordering) and the king rule alone does not fix
-      them, implement the current-occupancy king-safety recapturer as Rarog
-      did (RAR-M28) and accept the measured SEE kernel cost; (2) if they are
-      not reachable, or the cost measured by `tests/board_performance.cpp`
-      exceeds 10% of the SEE column, record the approximation with its
-      fixtures marked expected-fail and a written reason. Either outcome
-      closes the leaf. Promotion recaptures add the promotion gain and the
-      promoted piece's value; queen suffices for a material-only exchange.
-    - [ ] **15.0.c** `[I1]` **Malformed input and counter boundaries.** Add
-      tests that fail first for: a non-ASCII move token in `position ...
-      moves` (Rarog panicked slicing UTF-8, RAR-M26), a `moves` list longer
-      than any history reservation, `go` with absurd or missing values,
-      `setoption` with an unknown name, and the FEN fullmove bound already
-      enforced at 100000. Malformed input must produce a diagnostic and a
-      legal engine state, never a crash. Deterministic; no gate.
-    - [ ] **15.0.d** `[V]` **Deterministic qualification.** Debug and release
-      CTest, the sanitizer preset, random-walk board invariants
-      (`test_invariants`), perft, `bench` recorded on the fixed head, the
-      `board_performance_test` SEE column against the 1.9.3 binary (a cost
-      report, not a gate), and the ISA check on the PGO asset.
-    - [x] **15.0.e** **Time-forfeit residual: harness reserve sweep,
+    - [x] **15.0.b** **Time-forfeit residual: harness reserve sweep,
       BAS-E56 - CLOSED 2026-09-10, rejected at -64.81 Elo, 0 forfeits in
       10,000 games either arm; `Move Overhead` stays 10.** Checked 2026-09-09 against Rarog's A.3.3 diagnosis: Basilisk
       already starts its clock at `go` receipt (`go_recv_time`, Step 5.4) and
@@ -202,6 +178,30 @@ Basilisk.
       profiles only if the 40 arm forfeits at most a quarter of the 10 arm and
       the paired interval excludes -3 Elo; either way the verdict is recorded
       and no engine source changes.
+    - [ ] **15.0.c** `[R2]` **Created pins and recapture promotions.** Port the
+      remaining Rarog fixtures for pins created during the exchange and for
+      promotion recaptures. Decide with evidence, not by analogy: (1) if the
+      failing fixtures are reachable from a production SEE caller (capture
+      pruning, qsearch floor, ordering) and the king rule alone does not fix
+      them, implement the current-occupancy king-safety recapturer as Rarog
+      did (RAR-M28) and accept the measured SEE kernel cost; (2) if they are
+      not reachable, or the cost measured by `tests/board_performance.cpp`
+      exceeds 10% of the SEE column, record the approximation with its
+      fixtures marked expected-fail and a written reason. Either outcome
+      closes the leaf. Promotion recaptures add the promotion gain and the
+      promoted piece's value; queen suffices for a material-only exchange.
+    - [ ] **15.0.d** `[I1]` **Malformed input and counter boundaries.** Add
+      tests that fail first for: a non-ASCII move token in `position ...
+      moves` (Rarog panicked slicing UTF-8, RAR-M26), a `moves` list longer
+      than any history reservation, `go` with absurd or missing values,
+      `setoption` with an unknown name, and the FEN fullmove bound already
+      enforced at 100000. Malformed input must produce a diagnostic and a
+      legal engine state, never a crash. Deterministic; no gate.
+    - [ ] **15.0.e** `[V]` **Deterministic qualification.** Debug and release
+      CTest, the sanitizer preset, random-walk board invariants
+      (`test_invariants`), perft, `bench` recorded on the fixed head, the
+      `board_performance_test` SEE column against the 1.9.3 binary (a cost
+      report, not a gate), and the ISA check on the PGO asset.
 - [ ] **15.1** Release 1.9.4 and freeze
     - [ ] **15.1.a** `[V]` **Registered release gate — BAS-E55.** The 15.0 head
       as a fresh PGO pext build against the 1.9.3 release binary, `3+0.03`,

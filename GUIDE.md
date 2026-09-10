@@ -88,10 +88,10 @@ Capability tags are advisory routing, not state, evidence or permission.
 
 - [ ] **15.0** Board correctness repairs, before the release gate
     - [x] **15.0.a** `[I2]` SEE king legality in `see_ge` and `see`; sentinel read the pin-filtered set, repair reads the unfiltered one; 9 fixtures, oracle 6481-0/301-0 over 1.9M captures; bench 12,568,898 -> 14,978,465 (+19.17%); acceptance provisional pending isolated cost gate BAS-E56
-    - [ ] **15.0.b** `[R2]` Created pins and recapture promotions: fixtures, reachability from production callers, cost; repair or documented approximation
-    - [ ] **15.0.c** `[I1]` Malformed input and counter boundaries: non-ASCII moves, long move lists, absurd `go`, unknown options
-    - [ ] **15.0.d** `[V]` Deterministic qualification: CTest debug/release, sanitizers, invariants, perft, bench, SEE cost report, ISA check
-    - [x] **15.0.e** Time-forfeit residual: clock origin already at `go` receipt; BAS-E56 reserve sweep rejected at −64.81, 0 forfeits/10k — CLOSED 2026-09-10
+    - [x] **15.0.b** Time-forfeit residual: clock origin already at `go` receipt; BAS-E56 reserve sweep rejected at −64.81, 0 forfeits/10k — CLOSED 2026-09-10
+    - [ ] **15.0.c** `[R2]` Created pins and recapture promotions: fixtures, reachability from production callers, cost; repair or documented approximation
+    - [ ] **15.0.d** `[I1]` Malformed input and counter boundaries: non-ASCII moves, long move lists, absurd `go`, unknown options
+    - [ ] **15.0.e** `[V]` Deterministic qualification: CTest debug/release, sanitizers, invariants, perft, bench, SEE cost report, ISA check
 - [ ] **15.1** Release 1.9.4 and freeze
     - [ ] **15.1.a** `[V]` Registered release gate BAS-E55: fixed head vs 1.9.3, STC `[0,3]`, plus 4T `10+0.1` direction check
     - [ ] **15.1.b** `[M]` Release 1.9.4: changelog, versions, README, PGO assets, tag on instruction
