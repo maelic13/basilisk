@@ -301,10 +301,13 @@ Basilisk.
       11,941,440, dev `16eff20`, comment-only diff from the `v1.9.3` tag);
       candidate `basilisk-15.0-head-pext-pgo.exe` (revision `4aafddb`, bench
       14,978,465); both `release-pext` PGO, clang 22.1.8, clean trees. Three
-      constraints on the 4T leg are recorded in BAS-E55: its registered
-      400-game size is below the harness's own stated 4T resolution floor of
-      ~10k, no 4T `-Mode calibrate` null exists yet, and `3+0.03` raises the
-      forfeit exposure that voids a `Threads>1` run. Do NOT source either arm
+      constraints on the 4T leg are recorded in BAS-E55. Two are now settled
+      by maintainer decision: the 4T leg is **2,000 games** (not ~10k), so it
+      is registered as a **smoke gate** -- crash, forfeit cluster or a
+      catastrophic SMP regression worse than about -10 Elo -- and NOT as a
+      direction verdict, the 1T leg deciding strength; and the 4T calibrate
+      null is attested as already run elsewhere. The third stands: `3+0.03`
+      raises the forfeit exposure that voids a `Threads>1` run. Do NOT source either arm
       from `build/dist/`: the 1.9.3-named PGO asset there now holds the 15.0
       head, overwritten by 15.0.e's rebuild.
     - [ ] **15.1.b** `[M]` **Release 1.9.4.** User-facing CHANGELOG entry

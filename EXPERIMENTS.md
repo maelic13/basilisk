@@ -2675,6 +2675,31 @@ PRE-REGISTERED PREDICTION, frozen before exposure:
   head. The registration originally named that filename as the baseline; it
   now names the `tools/test_engines/` copy above, whose bench was verified
   against the registered value.
+- **AMENDED 2026-09-10 (second), BEFORE ANY 4T EXPOSURE** (maintainer
+  decisions; the 1T leg was already running, the 4T leg had not started):
+  - **4T size fixed at 2,000 games, not the ~10k the harness advises.**
+    Maintainer decision on wall-clock grounds. Recorded honestly: at 2,000
+    games the interval is roughly **+/-9 to +/-10 Elo** (scaling the +/-4.2 at
+    10,000 by sqrt(5), before the extra variance that unpinned placement adds
+    above 1T), so this leg **cannot support a direction claim** and is not
+    reported as one. What it CAN do, and what it is registered as, is a
+    **4T smoke gate**: it detects a catastrophic SMP-specific regression
+    (worse than about -10 Elo), a crash, or a time-forfeit cluster. That is a
+    real and sufficient purpose for the release decision -- the 1T leg is what
+    decides strength -- but the word "direction check" in the original
+    registration overstates what 2,000 games at 4T can measure, and the
+    verdict must be written as pass/no-pass on the smoke criteria only.
+  - **The 4T `-Mode calibrate` null is attested by the maintainer as already
+    run elsewhere, and the harness is accepted as sound at this thread count.**
+    Recorded as a maintainer attestation, not as an artifact in
+    `tools/results/`; the earlier BAS-C05 objection that no 4T null existed is
+    resolved by that attestation for the purposes of this gate.
+  - Registered 4T command shape: `-Mode fixed -Games 2000 -Threads 4`, TC
+    `3+0.03`, Hash derived per side (256 MB at 4T), same paired UHO book, no
+    adjudication. Zero time forfeits are still required: `sprt.ps1:581` voids
+    a `Threads>1` run on any nonzero count, and the shorter clock raises that
+    exposure, so a forfeit-voided 4T leg is a foreseeable outcome rather than
+    a surprise.
 - **AMENDED 2026-09-09, BEFORE ANY EXPOSURE** (maintainer decision, no
   result of any kind observed): the clause above is superseded for 15.0.a
   only. 15.0.a now carries its own isolated gate, BAS-E56, whose verdict

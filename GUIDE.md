@@ -93,6 +93,6 @@ Capability tags are advisory routing, not state, evidence or permission.
     - [x] **15.0.d** `[I1]` Malformed input and counter boundaries: 17 test sections; 4 of 5 categories already correct (UTF-8 slicing is a Rust-only hazard), one real defect — silent unknown `setoption` now diagnosed; bench unchanged
     - [x] **15.0.e** `[V]` Deterministic qualification: CTest 12/12 release and 12/12 sanitizer (811.7 s, clean); invariants 18/18 x4 seeds; 6/6 perft exact (594M nodes); bench 14,978,465; SEE column +3.6% FASTER than 1.9.3; PGO asset ISA verified (246 pextq, 152 popcntq)
 - [ ] **15.1** Release 1.9.4 and freeze
-    - [ ] **15.1.a** `[V]` Registered release gate BAS-E55: fixed head vs 1.9.3, STC `[0,3]`, plus 4T direction check at `3+0.03` (amended 2026-09-10); arms built and validated, awaiting the maintainer run
+    - [ ] **15.1.a** `[V]` Registered release gate BAS-E55: fixed head vs 1.9.3, STC `[0,3]`, plus a 4T `3+0.03` 2,000-game smoke gate (amended 2026-09-10); arms validated by sha256/bench, 1T leg running
     - [ ] **15.1.b** `[M]` Release 1.9.4: changelog, versions, README, PGO assets, tag on instruction
     - [ ] **15.1.c** `[M]` Freeze: HISTORY record, merge to `master`, reopening rule (branches already tagged and deleted 2026-09-09)
