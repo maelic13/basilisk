@@ -2633,6 +2633,48 @@ PRE-REGISTERED PREDICTION, frozen before exposure:
   cap 20,000 games; plus a 4T `10+0.1` 400-game direction check, zero
   forfeits required. H0 returns 15.0 to research; it does not license
   reverting the repairs.
+- **AMENDED 2026-09-10, BEFORE ANY EXPOSURE** (maintainer decision; no game of
+  this gate has been played). **The 4T direction check moves from `10+0.1` to
+  `3+0.03`.** Rationale: `3+0.03` is the deciding time control, and holding TC
+  constant across the two legs makes THREAD COUNT the only variable, removing
+  the TC/threads confound the original pairing carried. The 1T leg is
+  unchanged. Three consequences are recorded here rather than discovered later:
+  - **Cost of the change, stated up front:** shorter clocks raise time-forfeit
+    exposure, and at `Threads>1` `tools/sprt.ps1` treats ANY nonzero forfeit
+    count as invalidating (`sprt.ps1:581`). The forfeits characterised by
+    15.0.b/BAS-C09 are 50-500 ms host stalls, which a 3-second clock absorbs
+    far worse than a 10-second one; the script's own header records Rarog
+    measuring 10 forfeits in 240 games at `Threads=4` in this configuration.
+    The 4T leg is therefore at material risk of being voided by forfeits, and
+    that risk is the price of removing the TC confound.
+  - **The registered 400-game size cannot support a direction claim.** This is
+    a defect in the original registration, not in the amendment.
+    `tools/sprt.ps1:473` warns for every `Threads>1` run: "budget ~10k games
+    (at 4T nothing under that separates 0 from +3 -- the same run read +1.78
+    @1.5k and -0.81 @28.4k elsewhere)". A 400-game 4T sample is a crash and
+    forfeit smoke test, and must be reported as one unless it is resized.
+  - **No 4T `-Mode calibrate` null exists.** `tools/results/` still contains
+    none, as BAS-C05 recorded on 2026-09-07. Affinity is dropped at
+    `Threads>1`, so placement bias is unpinned and, per both BAS-C05 and the
+    harness warning, no 4T verdict is trustworthy until that thread count has
+    its own null. This is unchanged by the TC amendment and applies equally at
+    `10+0.1`.
+- **Runnable state validated 2026-09-10.** Baseline
+  `tools/test_engines/basilisk-1.9.3-baseline-pext-pgo.exe`, bench
+  **11,941,440** (matches the registered figure), built from dev `16eff20`;
+  that commit differs from the `v1.9.3` tag `61e6f23` only in COMMENT text in
+  `src/search_params.h`, so it is functionally the 1.9.3 release. Candidate
+  `tools/test_engines/basilisk-15.0-head-pext-pgo.exe`, revision `4aafddb`
+  (the closed 15.0 head), bench **14,978,465**, clean tree. Both arms
+  `release-pext (USE_PEXT=ON, TUNE=ON, PGO=USE)` and compiler-identical
+  (clang 22.1.8), which is what `sprt.ps1:419` refuses to run without.
+- **Hazard, do NOT use for either arm:**
+  `build/dist/basilisk-v1.9.3-windows-x86_64-pext-pgo.exe` no longer contains
+  1.9.3. The local `release-pext` PGO target republishes into that
+  version-named path, so 15.0.e's asset rebuild overwrote it with the 15.0
+  head. The registration originally named that filename as the baseline; it
+  now names the `tools/test_engines/` copy above, whose bench was verified
+  against the registered value.
 - **AMENDED 2026-09-09, BEFORE ANY EXPOSURE** (maintainer decision, no
   result of any kind observed): the clause above is superseded for 15.0.a
   only. 15.0.a now carries its own isolated gate, BAS-E56, whose verdict

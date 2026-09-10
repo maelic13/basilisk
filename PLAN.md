@@ -290,10 +290,23 @@ Basilisk.
     - [ ] **15.1.a** `[V]` **Registered release gate — BAS-E55.** The 15.0 head
       as a fresh PGO pext build against the 1.9.3 release binary, `3+0.03`,
       1T, Hash 64, paired UHO, no adjudication, `[0,3]` nElo, cap 20,000
-      games, plus a 4T `10+0.1` 400-game direction check with zero forfeits.
+      games, plus a 4T direction check with zero forfeits.
       Prediction frozen in the ledger row before any game. H0 does not
       license reverting the repairs: it returns 15.0 to research with the
       diagnostics and delays the release.
+      **4T leg amended 2026-09-10, before any exposure: `3+0.03`, not
+      `10+0.1`** — the deciding TC, so thread count becomes the only variable.
+      **Prepared 2026-09-10.** Baseline
+      `tools/test_engines/basilisk-1.9.3-baseline-pext-pgo.exe` (bench
+      11,941,440, dev `16eff20`, comment-only diff from the `v1.9.3` tag);
+      candidate `basilisk-15.0-head-pext-pgo.exe` (revision `4aafddb`, bench
+      14,978,465); both `release-pext` PGO, clang 22.1.8, clean trees. Three
+      constraints on the 4T leg are recorded in BAS-E55: its registered
+      400-game size is below the harness's own stated 4T resolution floor of
+      ~10k, no 4T `-Mode calibrate` null exists yet, and `3+0.03` raises the
+      forfeit exposure that voids a `Threads>1` run. Do NOT source either arm
+      from `build/dist/`: the 1.9.3-named PGO asset there now holds the 15.0
+      head, overwritten by 15.0.e's rebuild.
     - [ ] **15.1.b** `[M]` **Release 1.9.4.** User-facing CHANGELOG entry
       covering everything since 1.9.3 (the accepted endgame and HCE line,
       the SEE repairs, tooling), version strings, README download table,
