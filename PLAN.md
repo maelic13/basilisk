@@ -310,6 +310,13 @@ Basilisk.
       raises the forfeit exposure that voids a `Threads>1` run. Do NOT source either arm
       from `build/dist/`: the 1.9.3-named PGO asset there now holds the 15.0
       head, overwritten by 15.0.e's rebuild.
+      **1T leg PASSED 2026-09-10: `Elo +19.18 +/- 6.76`, `nElo +29.80 +/-
+      10.48`, LOS 100%, LLR 2.95, H1 accepted at 4,224 games.** Prediction was
+      +10 to +20 with P(positive) 0.85 -- inside the interval, near its top,
+      sign correct. Forfeits 2 in 4,226 (0.047%), one per engine and **16
+      seconds apart**, i.e. one transient host event, which corroborates
+      15.0.b's diagnosis and supersedes BAS-E56's never-significant 3-0 skew.
+      4T smoke gate running. 15.1.b may proceed once it reports.
     - [ ] **15.1.b** `[M]` **Release 1.9.4.** User-facing CHANGELOG entry
       covering everything since 1.9.3 (the accepted endgame and HCE line,
       the SEE repairs, tooling), version strings, README download table,

@@ -2601,7 +2601,7 @@ Retry only if the evaluator/search
 surface or rook-ending occurrence materially changes.
 
 **BAS-E55 - 15.1.a freeze-release gate: the SEE-repaired dev head against
-the 1.9.3 release binary - REGISTERED, NOT YET RUN** (2026-09-09).
+the 1.9.3 release binary - 1T LEG PASSED, 4T SMOKE GATE PENDING** (2026-09-09).
 
 - Date / owner / calibration category: 2026-09-09 / maintainer-run / release gate.
 - Baseline: `basilisk-v1.9.3-windows-x86_64-pext-pgo.exe` (bench 11,941,440).
@@ -2700,6 +2700,59 @@ PRE-REGISTERED PREDICTION, frozen before exposure:
     a `Threads>1` run on any nonzero count, and the shorter clock raises that
     exposure, so a forfeit-voided 4T leg is a foreseeable outcome rather than
     a surprise.
+
+RESULT, 1T LEG (2026-09-10). Run
+`sprt_15.0-head_vs_1.9.3_20260910_103009`, 51:37 wall.
+
+**Elo +19.18 +/- 6.76, nElo +29.80 +/- 10.48, LOS 100.00%, LLR 2.95 ->
+H1 ACCEPTED at 4,224 games.** W 1,237 / L 1,004 / D 1,983, 52.76%.
+DrawRatio 44.60%, PairsRatio 1.35, Ptnml(0-2) [72, 425, 942, 544, 129],
+WL/DD 0.86.
+
+- **VERDICT on the deciding leg: PASS.** The 15.0 head beats the 1.9.3
+  release by a clear margin at STC. The 1.9.4 line is justified; 15.1.b may
+  proceed once the 4T smoke gate reports.
+- **Time forfeits: 2 in 4,226 games = 0.047%, exactly one per engine.**
+  Admissible under BAS-E56's amended rule (ceiling 0.5%; a 1-1 split is
+  maximally symmetric). They are ALSO a single transient host event rather
+  than two independent ones: the games ended at 11:11:52 and 11:12:08 local,
+  **16 seconds apart** in a 3,097-second run -- rounds 1717 and 1729. Two
+  independent draws landing that close have probability about 1%. One engine
+  lost each. This is direct positive evidence for 15.0.b's diagnosis (50-500
+  ms stalls of a saturated host, invisible to a mid-search engine) and
+  against any engine-side clock defect, and it supersedes the 3-0
+  candidate-side skew seen in BAS-E56, which was never significant at n=3.
+- **Harness defect found while reading this, reported not fixed:**
+  `tools/sprt.ps1`'s forfeit counter greps
+  `loses on time|timeouts:\s*[1-9]`, which also matches fastchess's own
+  per-player `Timeouts: N` SUMMARY lines. It reported "4 log line(s)" for 2
+  real forfeits -- 2 events plus 2 summary lines. The comment at that site
+  shows the author anticipated the summary-line hazard and excluded
+  `Timeouts: 0`, but `Timeouts: 1..9` still double-counts. The inflation is
+  +1 per player with a nonzero count, so it never turns a clean run dirty,
+  but it overstates magnitude on any run that has forfeits at all -- and at
+  `Threads>1`, where any nonzero count voids the run, a reader chasing a
+  phantom extra pair wastes the investigation.
+
+PREDICTION CALIBRATION (against the record frozen 2026-09-09):
+
+- Predicted **+10 to +20 Elo**, P(positive) **0.85**. Observed **+19.18 +/-
+  6.76**, inside the interval and near its top, sign called correctly, LOS
+  100%. The interval, the sign and the confidence were all sound.
+- The registered "most likely failure mode" -- the SEE repair's node
+  increase costing more at `3+0.03` than its accuracy returns, reading as a
+  null -- **did not occur**, and BAS-C08 explains why it was never likely:
+  +19.17% bench nodes is only **0.165 ply** at the measured EBF of 2.900, so
+  the cost was roughly a sixth of what its headline percentage suggested.
+  BAS-E56 had already measured that leg in isolation at -0.65 +/- 5.25, i.e.
+  free; this gate measures the whole 1.9.3->15.0 line, whose gain comes from
+  the accepted Group A endgame and 6.5.a rook work rather than from 15.0.a.
+- Nothing in the causal model needs revising. The one correction already
+  recorded stands: convert a node delta into plies via the EBF before calling
+  it expensive.
+
+4T LEG: pending. Registered as a 2,000-game smoke gate at `3+0.03`,
+`-Mode fixed -Threads 4`, concurrency 3 (12 of 16 physical cores).
 - **AMENDED 2026-09-09, BEFORE ANY EXPOSURE** (maintainer decision, no
   result of any kind observed): the clause above is superseded for 15.0.a
   only. 15.0.a now carries its own isolated gate, BAS-E56, whose verdict
