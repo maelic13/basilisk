@@ -165,14 +165,14 @@ Basilisk.
       "does not license reverting the repairs" clause was explicitly amended
       for 15.0.a before any exposure.
     - [x] **15.0.b** **Time-forfeit residual: harness reserve sweep,
-      BAS-E56 - CLOSED 2026-09-10, rejected at -64.81 Elo, 0 forfeits in
+      BAS-E57 - CLOSED 2026-09-10, rejected at -64.81 Elo, 0 forfeits in
       10,000 games either arm; `Move Overhead` stays 10.** Checked 2026-09-09 against Rarog's A.3.3 diagnosis: Basilisk
       already starts its clock at `go` receipt (`go_recv_time`, Step 5.4) and
       polls it every 2,048 nodes, so the clock-origin repair Rarog needed does
       not apply here, yet the 15.0.a gate forfeited 4 games in 2,927 and
       earlier runs 3 in 24,989 and 1 in 21,994. Those are 50-500 ms stalls
       of a saturated host that no engine can see mid-search; the only lever
-      is the reserve. BAS-E56 plays the 15.0.a candidate against itself with
+      is the reserve. BAS-E57 plays the 15.0.a candidate against itself with
       `Move Overhead` 40 on one side and 10 on the other, 10,000 games fixed,
       in the maintainer's 2026-09-09 night run. Adopt 40 in the harness
       profiles only if the 40 arm forfeits at most a quarter of the 10 arm and
