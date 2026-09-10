@@ -2763,7 +2763,7 @@ frozen in that form:
 RESULT and PREDICTION CALIBRATION: append after exposure, per the section 11
 template.
 
-**BAS-E56 - 15.0.b harness reserve sweep: `Move Overhead` 40 against 10 on
+**BAS-E57 - 15.0.b harness reserve sweep: `Move Overhead` 40 against 10 on
 the same binary - RUN 2026-09-10, REJECTED at -64.81 Elo** (registered 2026-09-09).
 
 - Binary: `basilisk-15.0a-cand-pext-pgo.exe` (bench 14,978,465, SHA-256
