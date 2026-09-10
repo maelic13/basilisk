@@ -1,6 +1,6 @@
 # Basilisk development guide
 
-**Basilisk is being frozen after release 1.9.4.** Development effort has moved
+**Basilisk is being frozen after release 1.10.0.** Development effort has moved
 to Rarog (`D:/code/rarog`), whose roadmap is the joint battle plan. This
 guide covers the one remaining phase; the archived board with Phases 1–14 is
 at [docs/archive/GUIDE-2026-09-09.md](docs/archive/GUIDE-2026-09-09.md).
@@ -80,11 +80,11 @@ Capability tags are advisory routing, not state, evidence or permission.
 | Released baseline | 1.9.3 at `d737123`; bench 11,941,440 |
 | Accepted engine head | `dev` at `4aafddb` (15.0 closed); bench 14,978,465; CTest 12/12 release + 12/12 sanitizer |
 | Pool position, `3+0.03` 1T | Houdini 1.5a −197, Critter −187, Fritz 16 −178, Rybka 4 −84; Rarog 2.4.0-dev +26 |
-| Current step | **15.1.b** Release 1.9.4, `[M]` |
+| Current step | **15.1.b** Release 1.10.0, `[M]` |
 | Long job | None |
-| Release target | 1.9.4, then freeze |
+| Release target | 1.10.0, then freeze |
 
-## Phase 15 — Board correctness, release 1.9.4, freeze
+## Phase 15 — Board correctness, release 1.10.0, freeze
 
 - [x] **15.0** Board correctness repairs, before the release gate
     - [x] **15.0.a** `[I2]` SEE king legality in `see_ge` and `see`; sentinel read the pin-filtered set, repair reads the unfiltered one; 9 fixtures, oracle 6481-0/301-0 over 1.9M captures; bench 12,568,898 -> 14,978,465 (+19.17%); BAS-E56 KEEP (Elo -0.65 +/- 5.25, 5,874 games); +19.17% nodes = 0.165 ply at EBF 2.9; forfeit gate passes (3/6,053, explained by 15.0.b host stalls)
@@ -92,7 +92,7 @@ Capability tags are advisory routing, not state, evidence or permission.
     - [x] **15.0.c** `[R2]` Created pins and recapture promotions: CLOSED as documented approximation (BAS-C09) — 0 verdict changes in 339,607 production `see_ge` calls; repair costs +16.8% of the SEE column vs a 10% ceiling; 9 fixtures pin truth and approximation
     - [x] **15.0.d** `[I1]` Malformed input and counter boundaries: 17 test sections; 4 of 5 categories already correct (UTF-8 slicing is a Rust-only hazard), one real defect — silent unknown `setoption` now diagnosed; bench unchanged
     - [x] **15.0.e** `[V]` Deterministic qualification: CTest 12/12 release and 12/12 sanitizer (811.7 s, clean); invariants 18/18 x4 seeds; 6/6 perft exact (594M nodes); bench 14,978,465; SEE column +3.6% FASTER than 1.9.3; PGO asset ISA verified (246 pextq, 152 popcntq)
-- [ ] **15.1** Release 1.9.4 and freeze
+- [ ] **15.1** Release 1.10.0 and freeze
     - [x] **15.1.a** `[V]` Registered release gate BAS-E55 **CLOSED, both legs pass**: 1T `Elo +19.18 +/- 6.76`, H1 at 4,224 games; 4T smoke gate clean (zero crashes, zero forfeits, 95% lower bound -1.17 Elo)
-    - [ ] **15.1.b** `[M]` Release 1.9.4: changelog, versions, README, PGO assets, tag on instruction
+    - [ ] **15.1.b** `[M]` Release 1.10.0: changelog, versions, README, PGO assets, tag on instruction
     - [ ] **15.1.c** `[M]` Freeze: HISTORY record, merge to `master`, reopening rule (branches already tagged and deleted 2026-09-09)

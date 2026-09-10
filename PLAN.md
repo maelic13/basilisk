@@ -7,7 +7,7 @@ the maintainer's tournament pool as a reference engine and as the C++ donor
 for Rarog's classical work.
 
 This roadmap therefore has one phase: fix the board correctness defects that
-a peer audit demonstrated, release **1.9.4** from the current `dev` line, and
+a peer audit demonstrated, release **1.10.0** from the current `dev` line, and
 freeze. The previous roadmap (Phases 5–14, endgame maturity through NNUE) is
 archived verbatim at
 [docs/archive/PLAN-2026-09-09.md](docs/archive/PLAN-2026-09-09.md) with its
@@ -26,7 +26,7 @@ it froze in. `EXPERIMENTS.md`, `DESIGN.md` and `AGENTS.md` are unchanged.
 | Pool position, `3+0.03` 1T (2026-09-04) | Houdini 1.5a −197, Critter 1.6a −187, Fritz 16 −178, Rybka 4 −84; Rarog 2.4.0-dev +26 |
 | Current phase | Phase 15, step 15.0.a |
 | Long job | None |
-| Release target | **1.9.4**, then freeze |
+| Release target | **1.10.0**, then freeze |
 
 ## 2. Operating contract
 
@@ -90,7 +90,7 @@ GUIDE owns the editable mapping from classes to current models.
 | Release | Reproducible PGO assets, correctness matrix, prior-release games at STC and a 4T direction check |
 | Behavior-neutral hot path | Exact immediate fingerprint, targeted parity, pooled/interleaved NPS on an idle-enough host |
 
-## Phase 15 — Board correctness, release 1.9.4, freeze
+## Phase 15 — Board correctness, release 1.10.0, freeze
 
 **Why this phase and only this phase.** The peer audit of the shared board
 lineage found three real SEE defects in Rarog (BAS-X22; Rarog RAR-M27/M28):
@@ -286,7 +286,7 @@ Basilisk.
         report; the first measurement reproduced the experiment's numbers, not
         the head's. The 15.0.c cost figure itself is unaffected -- both arms
         there were built immediately before being timed.
-- [ ] **15.1** Release 1.9.4 and freeze
+- [ ] **15.1** Release 1.10.0 and freeze
     - [x] **15.1.a** `[V]` **Registered release gate — BAS-E55.** The 15.0 head
       as a fresh PGO pext build against the 1.9.3 release binary, `3+0.03`,
       1T, Hash 64, paired UHO, no adjudication, `[0,3]` nElo, cap 20,000
@@ -324,12 +324,20 @@ Basilisk.
       concern was falsified: the 4T run used 12 of 16 cores and forfeited
       nothing, while the 1T run used 14 and forfeited twice, so incidence
       tracks host headroom rather than thread count or clock length.
-      **BAS-E55 CLOSED, both legs pass; the 1.9.4 line is justified.**
-    - [ ] **15.1.b** `[M]` **Release 1.9.4.** User-facing CHANGELOG entry
+      **BAS-E55 CLOSED, both legs pass; the 1.10.0 line is justified.**
+    - [ ] **15.1.b** `[M]` **Release 1.10.0** (renamed from 1.9.4 on
+      2026-09-10, maintainer decision). The project's own rule is bench-
+      fingerprint identity, stated at CHANGELOG 1.9.1 ("a PATCH by choice:
+      the search algorithm is bit-identical to 1.9.0") and settled by 1.9.2,
+      which shipped **+30.42 Elo** as a PATCH because 1T search was
+      bench-identical. Every 1.9.x release shares bench 11,941,440; this one
+      is **14,978,465** with **+19.18 +/- 6.76 Elo** at 1T, so both conditions
+      that held 1.9.x at patch level are broken and the release is a MINOR.
+      2.0.0 stays reserved for NNUE. **Release 1.10.0.** User-facing CHANGELOG entry
       covering everything since 1.9.3 (the accepted endgame and HCE line,
       the SEE repairs, tooling), version strings, README download table,
       `release.yml` PGO assets smoke-tested per `docs/release_tiers.md`, tag
-      `v1.9.4` and publish on maintainer instruction only.
+      `v1.10.0` and publish on maintainer instruction only.
     - [ ] **15.1.c** `[M]` **Freeze.** Record the frozen state in HISTORY
       (revision, bench, asset hashes, pool position), merge `dev` into
       `master`, and note the reopening rule. Branch disposition was done early
