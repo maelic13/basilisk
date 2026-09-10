@@ -188,8 +188,9 @@ Basilisk.
       (`test_invariants`), perft, `bench` recorded on the fixed head, the
       `board_performance_test` SEE column against the 1.9.3 binary (a cost
       report, not a gate), and the ISA check on the PGO asset.
-    - [ ] **15.0.e** `[V]` **Time-forfeit residual: harness reserve sweep,
-      BAS-E56.** Checked 2026-09-09 against Rarog's A.3.3 diagnosis: Basilisk
+    - [x] **15.0.e** **Time-forfeit residual: harness reserve sweep,
+      BAS-E56 - CLOSED 2026-09-10, rejected at -64.81 Elo, 0 forfeits in
+      10,000 games either arm; `Move Overhead` stays 10.** Checked 2026-09-09 against Rarog's A.3.3 diagnosis: Basilisk
       already starts its clock at `go` receipt (`go_recv_time`, Step 5.4) and
       polls it every 2,048 nodes, so the clock-origin repair Rarog needed does
       not apply here, yet the 15.0.a gate forfeited 4 games in 2,927 and

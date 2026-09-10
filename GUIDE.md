@@ -91,7 +91,7 @@ Capability tags are advisory routing, not state, evidence or permission.
     - [ ] **15.0.b** `[R2]` Created pins and recapture promotions: fixtures, reachability from production callers, cost; repair or documented approximation
     - [ ] **15.0.c** `[I1]` Malformed input and counter boundaries: non-ASCII moves, long move lists, absurd `go`, unknown options
     - [ ] **15.0.d** `[V]` Deterministic qualification: CTest debug/release, sanitizers, invariants, perft, bench, SEE cost report, ISA check
-    - [ ] **15.0.e** `[V]` Time-forfeit residual: clock origin already at `go` receipt; BAS-E56 harness reserve sweep 40 vs 10 in the night run
+    - [x] **15.0.e** Time-forfeit residual: clock origin already at `go` receipt; BAS-E56 reserve sweep rejected at −64.81, 0 forfeits/10k — CLOSED 2026-09-10
 - [ ] **15.1** Release 1.9.4 and freeze
     - [ ] **15.1.a** `[V]` Registered release gate BAS-E55: fixed head vs 1.9.3, STC `[0,3]`, plus 4T `10+0.1` direction check
     - [ ] **15.1.b** `[M]` Release 1.9.4: changelog, versions, README, PGO assets, tag on instruction

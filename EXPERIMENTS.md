@@ -2764,7 +2764,7 @@ RESULT and PREDICTION CALIBRATION: append after exposure, per the section 11
 template.
 
 **BAS-E56 - 15.0.e harness reserve sweep: `Move Overhead` 40 against 10 on
-the same binary - REGISTERED, NOT YET RUN** (2026-09-09).
+the same binary - RUN 2026-09-10, REJECTED at -64.81 Elo** (registered 2026-09-09).
 
 - Binary: `basilisk-15.0a-cand-pext-pgo.exe` (bench 14,978,465, SHA-256
   `1F7877B2...`) on both sides; arm A `option.Move Overhead=40`, arm B the
@@ -2789,7 +2789,18 @@ PRE-REGISTERED PREDICTION, frozen before exposure:
   10 and record the rate as the harness floor. Symmetric in every gate, so no
   verdict changes either way. No engine source changes.
 
-RESULT and PREDICTION CALIBRATION: append after exposure.
+RESULT (2026-09-10): `sprt_e56overhead40_vs_e56overhead10_20260910_021630`,
+10,000 games, **0 forfeits in either arm**, arm A (40 ms) **-64.81 +/- 4.45
+Elo**, nElo -101.50, Ptnml [450, 1811, 1965, 681, 93].
+
+PREDICTION CALIBRATION: sign wrong by an order of magnitude, and the miss is
+in mechanism. `Move Overhead` is not a low-clock reserve: the SF-shaped
+budget subtracts `overhead * (2 + movestogo)` from the planning clock, so 40 ms
+over a 50-move horizon discards about 2.1 s of a 3 s clock. Rarog's RAR-R12
+measured -80.85 for the same change. The forfeit rate was undecidable: the
+idle night host produced no forfeit in either arm, so the daytime rate is
+host interference. Disposition: `Move Overhead` stays 10 in every profile; no
+engine change; 15.0.e closes.
 
 **BAS-X11 - current standing, 12,000-game Colosseum round robin** (2026-09-04,
 maintainer-run). Conditions: 3s+30ms, two games per pair, parallel 10, no draw
