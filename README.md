@@ -1,7 +1,7 @@
 # Basilisk
 
 <p align="center">
-  <img src="logo/detailed.png" alt="Basilisk logo" width="260">
+  <img src="logo/basilisk_detailed.png" alt="Basilisk logo" width="260">
 </p>
 
 Basilisk is a strong UCI chess engine written in C++23. It is meant to be used
