@@ -87,11 +87,11 @@
         valid harness test.
 
 .PARAMETER EngineA
-    Path to the new/candidate engine (usually in D:\chess\engines\test_engines).
+    Path to the new/candidate engine (usually in tools\test_engines).
 
 .PARAMETER EngineB
     Path to the baseline engine (the current integration head, or a released
-    reference in D:\chess\engines).
+    reference build).
 
 .PARAMETER NameA / NameB
     Display names. Defaults: "New" / "Base".
@@ -183,16 +183,20 @@
     fastchess timeout margin in milliseconds. Default 20. This absorbs small
     Windows scheduler / process IO jitter without changing the engine budget.
 
+.PARAMETER Adjudicate
+    Opt in to legacy score-based draw 40/8/10 and two-sided resign 600/3.
+    Omitted by default: games end only by chess rules.
+
 .PARAMETER Book
     Opening book. Default tools\books\UHO_Lichess_4852_v1.epd (repo-local,
-    gitignored; a backup copy lives in D:\chess\books). The Stockfish/
+    gitignored; keep a backup copy outside the repo). The Stockfish/
     OpenBench standard Unbalanced Human Openings set: ~2.6M positions curated to
     a built-in ~+0.5..+1.0 imbalance, so games are decisive and each carries far
     more SPRT signal than a balanced book). Format (.epd/.pgn) is auto-detected
     from the extension. Pass a .pgn (e.g. the old SuperGM/IM books) to override.
 
 .PARAMETER FastchessPath
-    Path to fastchess.exe. Default D:\chess\fastchess\fastchess.exe (or found on PATH).
+    Path to fastchess.exe. Default tools\bin\fastchess.exe (or found on PATH).
 
 .EXAMPLE
     ./tools/sprt.ps1 `
@@ -238,7 +242,8 @@ param(
     [double]$MoveTime = 0,
     [int]$TimeMargin = 20,
     [string]$Book = "$PSScriptRoot\books\UHO_Lichess_4852_v1.epd",
-    [string]$FastchessPath = "$PSScriptRoot\bin\fastchess.exe"
+    [string]$FastchessPath = "$PSScriptRoot\bin\fastchess.exe",
+    [switch]$Adjudicate
 )
 
 $ErrorActionPreference = "Stop"
@@ -365,6 +370,21 @@ $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
 $pgnOut    = Join-Path $resultsDir "sprt_${NameA}_vs_${NameB}_${timestamp}.pgn"
 $logOut    = Join-Path $resultsDir "sprt_${NameA}_vs_${NameB}_${timestamp}.log"
 
+# Score-based adjudication is a legacy compatibility condition, never an
+# implicit part of an experiment.
+$adjudicationLabel = if ($Adjudicate) {
+    "draw(mn=40,mc=8,score=10) resign(mc=3,score=600,twosided)"
+} else {
+    "NONE - natural terminations only (default)"
+}
+$adjudicationArgs = @()
+if ($Adjudicate) {
+    $adjudicationArgs = @(
+        "-draw", "movenumber=40", "movecount=8", "score=10",
+        "-resign", "movecount=3", "score=600", "twosided=true"
+    )
+}
+
 # Reproducibility manifest (PLAN §1 gate 8): a PGN without this manifest is not
 # a reproducible test. Emitted next to the PGN before the match starts.
 $manifestPath = [IO.Path]::ChangeExtension($pgnOut, ".manifest.txt")
@@ -426,7 +446,7 @@ $repoSha   = (git rev-parse HEAD 2>$null); if (-not $repoSha) { $repoSha = "n/a"
     "book_sha256:   $(Get-Sha256 $Book)"
     "opening_order: random"
     "opening_seed:  $Seed"
-    "adjudication:  draw(mn=40,mc=8,score=10) resign(mc=3,score=600,twosided)"
+    "adjudication:  $adjudicationLabel"
     "fastchess:     $fcVersion"
     "fastchess_sha256: $(Get-Sha256 $fastchess)"
     "pgn:           $pgnOut"
@@ -473,6 +493,19 @@ Write-Host ""
 
 # calibrate and fixed run a fixed number of rounds with NO SPRT stopping rule.
 $fixedSize = ($Mode -eq "calibrate" -or $Mode -eq "fixed")
+
+# -Games only means anything for the fixed-size modes; a gainer/simplify run is
+# bounded by its LLR boundaries and a hard 50,000-round stop. Accepting the
+# parameter and discarding it cost ~10 hours on 2026-08-27: a run launched with
+# -Games 16000 was believed capped at 3 hours per arm and instead ground toward
+# 100,000 games. Refuse it explicitly rather than ignore it.
+if ($PSBoundParameters.ContainsKey('Games') -and -not $fixedSize) {
+    throw ("-Games is only honoured by -Mode calibrate or fixed. In '$Mode' the " +
+           "run stops on the SPRT boundaries or at the 50,000-round hard stop, " +
+           "so a cap here would be silently ignored. Drop -Games, or use " +
+           "-Mode fixed if you want a fixed-N probe.")
+}
+
 $rounds = if ($fixedSize) { [int]($Games / 2) } else { 50000 }
 $sprtArgs = if ($fixedSize) {
     @()
@@ -517,8 +550,7 @@ $dropNoise = {
     -srand $Seed `
     -ratinginterval 20 `
     @sprtArgs `
-    -draw movenumber=40 movecount=8 score=10 `
-    -resign movecount=3 score=600 twosided=true `
+    @adjudicationArgs `
     -pgnout "file=$pgnOut" `
     -output format=fastchess 2>&1 |    # console ticker format (not the PGN path)
     Tee-Object -FilePath $logOut |

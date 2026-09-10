@@ -3,8 +3,8 @@
     Run the registered Phase 9.11 Texel extraction or sequential joint fit.
 
 .DESCRIPTION
-    Phase 9.11 is deliberately ONE dataset and ONE fit. The datagen itself is
-    run by tools\datagen.ps1, which writes <pgn>.manifest.txt. This script then:
+    Phase 9.11 is deliberately ONE dataset and ONE fit. Generate `games.pgn`
+    with the Colosseum CLI recipe in tools\colosseum\README.md. This script then:
 
       extract: PGN -> deterministic, game-split train/holdout CSVs
       fit:     verify -> tune all -> bake -> rebuild -> tune KS -> bake ->

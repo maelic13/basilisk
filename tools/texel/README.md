@@ -1,7 +1,7 @@
 # Texel tuning data pipeline
 
 ```
-Beast FEN pool ──sample_fens.py──▶ <book>.epd ──datagen.ps1──▶ selfplay.pgn ──extract[_parallel].py──▶ train.csv + holdout.csv ──tuner──▶ baked weights
+Beast FEN pool ──sample_fens.py──▶ <book>.epd ──Colosseum match──▶ games.pgn ──extract[_parallel].py──▶ train.csv + holdout.csv ──tuner──▶ baked weights
 ```
 
 The labels are **Basilisk self-play game results** (WDL, white-perspective
@@ -17,13 +17,13 @@ exact and pawn-structure-family concentration without pretending otherwise.
 Self-play between two **identical** engines at a fixed node limit is
 **deterministic** — a given start position always produces the same game. So
 the number of *distinct* games is capped by the number of *distinct openings in
-the book*, **not** by `-Rounds`. Running many rounds over a small book just
-replays the same games. `datagen.ps1` deliberately plays **one game per
+the book*, **not** by the game count. Running many games over a small book just
+replays the same games. The Colosseum recipe deliberately plays **one game per
 opening**: swapping the A/B identities of identical engines would reproduce
 the same moves and label exactly, so the extractor would discard the repeat.
 
 - ❌ `SuperGM_4mvs.pgn` (~2.7k openings): 300k rounds → **1.5k distinct games**,
-  ~31k unique positions. Useless for tuning. (`datagen.ps1` now warns on this.)
+  ~31k unique positions. Useless for tuning. Colosseum refuses silent wrap.
 - ✅ `beast_seed.epd` (100k+ sampled FENs): each opening → a distinct game →
   millions of diverse positions.
 
@@ -50,18 +50,19 @@ python tools/texel/sample_fens.py tools/texel/data/beast_seed_2m.epd `
     --out tools/texel/data/<extension>.epd --count 400000 --seed 43 `
     --no-validate --exclude-pgn tools/texel/data/<existing>.pgn
 
-# 2. Self-play from the book. datagen refuses an existing output by default,
-#    records the random seed, and writes <set>.pgn.manifest.txt.
-./tools/datagen.ps1 -Suffix <head> -Rounds 600000 -Nodes 8000 `
-    -Book tools/texel/data/<book>.epd -BookFormat epd `
-    -OutputPgn tools/texel/data/<set>.pgn -Seed 42
+# 2. Self-play from the book. The run directory records the resolved policy,
+#    executable/book hashes, random seed, durable state and games.pgn.
+colosseum-cli --run-file tools/colosseum/profiles/datagen.toml `
+    match <engine> <engine> --book tools/texel/data/<book>.epd `
+    --book-order random --games 600000 --seed 42 --concurrency 14 `
+    --dir tools/texel/data/<set>
 
 # 3. Extract. Beast starts use --skip-start 0: the supplied FEN itself is a
 #    valid labelled position, not a conventional played book line. Sampling is
 #    capped inside each of five phases per game, then fed to five equal bounded
 #    reservoirs. Quiet filtering, global FEN dedup, exact balanced holdout and
 #    atomic output are on by default. 3.5M means exactly 700k per phase.
-python tools/texel/extract_parallel.py tools/texel/data/<set>.pgn `
+python tools/texel/extract_parallel.py tools/texel/data/<set>/games.pgn `
     --train train_<set>.csv --holdout holdout_<set>.csv --jobs 16 `
     --skip-start 0 --max-per-phase-per-game 8 --target-train 3500000
 
@@ -74,7 +75,7 @@ python tools/texel/audit_starts.py tools/texel/data/<set>.pgn
 | Tool | Role |
 |------|------|
 | `sample_fens.py` | Streams the Beast pool into five equal phase reservoirs, validates and dedups the selected EPDs; `--exclude-pgn` makes extension books disjoint from prior starts. |
-| `datagen.ps1` (in `tools/`) | Fixed-node, seeded self-play from the book → fresh PGN + provenance manifest. Refuses accidental append and warns if `-Rounds` exceeds the book's opening count. |
+| `tools/colosseum/profiles/datagen.toml` | Basilisk's fixed-node self-play policy for `colosseum-cli match`; Colosseum owns PGN generation, provenance, non-reuse and resume. |
 | `extract.py` | Reference/sequential extractor plus `--preflight-games`: five exact reservoirs, per-phase-per-game sampling, quiet filtering, global dedup, deterministic game split, and atomic output. |
 | `extract_parallel.py` | Production multi-process implementation of the same contract for large PGNs; `--audit-only` measures exact capacity without publishing CSVs. |
 | `audit_starts.py` | Header-only audit of exact start duplication, five-phase coverage and pawn-family concentration; explicitly cannot reconstruct missing Beast source-game provenance. |

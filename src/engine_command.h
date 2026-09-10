@@ -5,8 +5,10 @@
 #include <cstdint>
 #include <deque>
 #include <future>
+#include <memory>
 #include <mutex>
 #include <string>
+#include <utility>
 
 enum class EngineCommandType {
     SetOption,

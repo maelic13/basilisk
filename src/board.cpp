@@ -4,9 +4,13 @@
 #include <algorithm>
 #include <cassert>
 #include <cctype>
+#include <cstdio>
+#include <expected>
 #include <limits>
 #include <sstream>
 #include <stdexcept>
+#include <string>
+#include <utility>
 
 // ---- Internal helpers -------------------------------------------------------
 
@@ -197,7 +201,7 @@ bool Board::assert_ok() const {
 }
 
 static bool has_piece_on(const Board& b, Square sq, Color color, PieceType pt) {
-    const Piece p = b.board_sq[sq];
+    const Piece p = b.piece_on(sq);
     return p != NO_PIECE && color_of(p) == color && type_of(p) == pt;
 }
 
@@ -206,7 +210,7 @@ static bool can_castle_kingside(const Board& b, Color us) {
     const Square king_from = make_square(FILE_E, back);
     const Square rook_from = make_square(FILE_H, back);
     const int right = us == WHITE ? WK_CASTLE : BK_CASTLE;
-    return (b.castling_rights & right)
+    return (b.castling() & right)
         && has_piece_on(b, king_from, us, KING)
         && has_piece_on(b, rook_from, us, ROOK);
 }
@@ -216,7 +220,7 @@ static bool can_castle_queenside(const Board& b, Color us) {
     const Square king_from = make_square(FILE_E, back);
     const Square rook_from = make_square(FILE_A, back);
     const int right = us == WHITE ? WQ_CASTLE : BQ_CASTLE;
-    return (b.castling_rights & right)
+    return (b.castling() & right)
         && has_piece_on(b, king_from, us, KING)
         && has_piece_on(b, rook_from, us, ROOK);
 }
@@ -1008,10 +1012,10 @@ static void gen_legal_impl(const Board& b, MoveList& ml, bool caps_only, bool qu
     constexpr int   CapEOff = (Us == WHITE) ?  9 : -7;
     constexpr int   CapWOff = (Us == WHITE) ?  7 : -9;
 
-    const Square   ksq    = b.king_sq[Us];
-    const Bitboard us_bb  = b.occupancy[Us];
-    const Bitboard them_bb= b.occupancy[Them];
-    const Bitboard occ    = b.all_occ;
+    const Square   ksq    = b.king_square(Us);
+    const Bitboard us_bb  = b.occupancy_bb(Us);
+    const Bitboard them_bb= b.occupancy_bb(Them);
+    const Bitboard occ    = b.all_pieces();
     const Bitboard empty  = ~occ;
 
     // Rank constants (can't be constexpr since BB_RANKS is a runtime array)
@@ -1046,7 +1050,7 @@ static void gen_legal_impl(const Board& b, MoveList& ml, bool caps_only, bool qu
     }
 
     // Double check → only king can move
-    Bitboard checkers = b.checkers;
+    Bitboard checkers = b.checking_pieces();
     if (popcount(checkers) > 1) return;
 
     // ---- Check mask (all squares if no check; block/capture ray if single check) ----
@@ -1060,7 +1064,7 @@ static void gen_legal_impl(const Board& b, MoveList& ml, bool caps_only, bool qu
         // Diagonal pinners (bishops & queens)
         Bitboard bv  = bishop_attacks(ksq, occ);
         Bitboard xrb = bishop_attacks(ksq, occ ^ (bv & us_bb));
-        Bitboard dp  = (b.pieces[Them][BISHOP] | b.pieces[Them][QUEEN]) & xrb;
+        Bitboard dp  = (b.piece_bb(Them, BISHOP) | b.piece_bb(Them, QUEEN)) & xrb;
         while (dp) {
             Square   pinner  = Square(pop_lsb(dp));
             Bitboard blocker = BB_BETWEEN[ksq][pinner] & us_bb;
@@ -1069,7 +1073,7 @@ static void gen_legal_impl(const Board& b, MoveList& ml, bool caps_only, bool qu
         // Orthogonal pinners (rooks & queens)
         Bitboard rv  = rook_attacks(ksq, occ);
         Bitboard xrr = rook_attacks(ksq, occ ^ (rv & us_bb));
-        Bitboard op  = (b.pieces[Them][ROOK] | b.pieces[Them][QUEEN]) & xrr;
+        Bitboard op  = (b.piece_bb(Them, ROOK) | b.piece_bb(Them, QUEEN)) & xrr;
         while (op) {
             Square   pinner  = Square(pop_lsb(op));
             Bitboard blocker = BB_BETWEEN[ksq][pinner] & us_bb;
@@ -1079,7 +1083,7 @@ static void gen_legal_impl(const Board& b, MoveList& ml, bool caps_only, bool qu
 
     // ---- Knights (absolutely pinned knights can never move) ----
     {
-        Bitboard knights = b.pieces[Us][KNIGHT] & ~pinned;
+        Bitboard knights = b.piece_bb(Us, KNIGHT) & ~pinned;
         while (knights) {
             Square   from  = Square(pop_lsb(knights));
             Bitboard dests = KnightAttacks[from] & ~us_bb & check_mask;
@@ -1091,7 +1095,7 @@ static void gen_legal_impl(const Board& b, MoveList& ml, bool caps_only, bool qu
 
     // ---- Bishops ----
     {
-        Bitboard bishops = b.pieces[Us][BISHOP];
+        Bitboard bishops = b.piece_bb(Us, BISHOP);
         while (bishops) {
             Square   from  = Square(pop_lsb(bishops));
             Bitboard dests = bishop_attacks(from, occ) & ~us_bb & check_mask;
@@ -1104,7 +1108,7 @@ static void gen_legal_impl(const Board& b, MoveList& ml, bool caps_only, bool qu
 
     // ---- Rooks ----
     {
-        Bitboard rooks = b.pieces[Us][ROOK];
+        Bitboard rooks = b.piece_bb(Us, ROOK);
         while (rooks) {
             Square   from  = Square(pop_lsb(rooks));
             Bitboard dests = rook_attacks(from, occ) & ~us_bb & check_mask;
@@ -1117,7 +1121,7 @@ static void gen_legal_impl(const Board& b, MoveList& ml, bool caps_only, bool qu
 
     // ---- Queens ----
     {
-        Bitboard queens = b.pieces[Us][QUEEN];
+        Bitboard queens = b.piece_bb(Us, QUEEN);
         while (queens) {
             Square   from  = Square(pop_lsb(queens));
             Bitboard dests = queen_attacks(from, occ) & ~us_bb & check_mask;
@@ -1130,7 +1134,7 @@ static void gen_legal_impl(const Board& b, MoveList& ml, bool caps_only, bool qu
 
     // ---- Pawns ----
     {
-        Bitboard pawns        = b.pieces[Us][PAWN];
+        Bitboard pawns        = b.piece_bb(Us, PAWN);
         Bitboard free_pawns   = pawns & ~pinned;
         Bitboard pinned_pawns = pawns & pinned;
 
@@ -1272,8 +1276,8 @@ static void gen_legal_impl(const Board& b, MoveList& ml, bool caps_only, bool qu
         }
 
         // --- En passant ---
-        if (!quiets_only && b.ep_sq != SQ_NONE) {
-            Square ep       = b.ep_sq;
+        if (!quiets_only && b.ep_square() != SQ_NONE) {
+            Square ep       = b.ep_square();
             Square ep_pawn  = ep - PushOff;  // captured pawn square
             // Filter: EP must either land on check_mask or capture the checking pawn
             if ((sq_bb(ep) | sq_bb(ep_pawn)) & check_mask) {
@@ -1284,13 +1288,13 @@ static void gen_legal_impl(const Board& b, MoveList& ml, bool caps_only, bool qu
                     // The captured pawn must also be excluded from pawn attacks; this
                     // matters when en passant is the only way to answer a pawn check.
                     Bitboard occ_after = (occ ^ sq_bb(from) ^ sq_bb(ep_pawn)) | sq_bb(ep);
-                    Bitboard them_pawns_after = b.pieces[Them][PAWN] & ~sq_bb(ep_pawn);
+                    Bitboard them_pawns_after = b.piece_bb(Them, PAWN) & ~sq_bb(ep_pawn);
                     bool king_attacked =
                         (PawnAttacks[Us][ksq] & them_pawns_after)
-                     || (KnightAttacks[ksq] & b.pieces[Them][KNIGHT])
-                     || (bishop_attacks(ksq, occ_after) & (b.pieces[Them][BISHOP] | b.pieces[Them][QUEEN]))
-                     || (rook_attacks(ksq, occ_after) & (b.pieces[Them][ROOK] | b.pieces[Them][QUEEN]))
-                     || (KingAttacks[ksq] & b.pieces[Them][KING]);
+                     || (KnightAttacks[ksq] & b.piece_bb(Them, KNIGHT))
+                     || (bishop_attacks(ksq, occ_after) & (b.piece_bb(Them, BISHOP) | b.piece_bb(Them, QUEEN)))
+                     || (rook_attacks(ksq, occ_after) & (b.piece_bb(Them, ROOK) | b.piece_bb(Them, QUEEN)))
+                     || (KingAttacks[ksq] & b.piece_bb(Them, KING));
                     if (!king_attacked)
                         ml.push(make_ep(from, ep));
                 }
@@ -1670,6 +1674,24 @@ int Board::see(Move m) const {
         }
         if (attacker_type == NO_PIECE_TYPE) break;
 
+        // 15.0.a: king legality. The LVA loop tries KING last, so the king is
+        // only ever selected when it is the side's sole remaining attacker. It
+        // may capture only if the opponent has no attacker left on the target
+        // under the current exchange occupancy; otherwise the exchange ends
+        // BEFORE the king move.
+        //
+        // The opponent set here is deliberately NOT pin-filtered. A piece
+        // pinned against its own king still controls squares against the enemy
+        // king, so it forbids the king recapture even though it could not
+        // legally recapture itself. That distinction is exactly what the
+        // KING=20000 sentinel got wrong: the sentinel relied on the opponent
+        // producing a recapture on the next ply, and the 8.2 pin filter had
+        // already removed the pinned defender from that set. Do NOT "tidy"
+        // this by reusing pin_filtered() -- see tests/test_board.cpp,
+        // "king legality: pinned defender still forbids Kxf6".
+        if (attacker_type == KING && (attackers & occupancy[~side] & occ))
+            break;
+
         depth++;
         gain[depth] = SEE_VALUES[piece_on_sq] - gain[depth-1];
 
@@ -1784,6 +1806,12 @@ bool Board::see_ge(Move m, int threshold) const {
             }
         }
         if (next_attacker == NO_PIECE_TYPE)
+            break;
+
+        // 15.0.a: king legality. Identical rule to see(), including the
+        // deliberately unfiltered opponent set -- see the comment there for
+        // why the pin filter must not be applied to it.
+        if (next_attacker == KING && (attackers & occupancy[~stm] & occ))
             break;
 
         result ^= 1;

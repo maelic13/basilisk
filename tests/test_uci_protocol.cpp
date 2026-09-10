@@ -5,11 +5,16 @@
 /// engine-side acknowledgement.
 
 #include "engine_command.h"
+#include "parameters.h"
+#include "attacks.h"
+#include "bitboard.h"
+#include "zobrist.h"
 #include "uci_protocol.h"
 #include "test_harness.h"
 
 #include <atomic>
 #include <cstdint>
+#include <cstdio>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -167,7 +172,196 @@ static void test_uci_output() {
     end_section();
 }
 
+
+// ---------------------------------------------------------------------------
+// 15.0.d: malformed input and counter boundaries.
+//
+// Contract: malformed input produces a DIAGNOSTIC and leaves the engine in a
+// LEGAL state -- never a crash, never a silently corrupted board. These drive
+// Parameters directly: UciProtocol only enqueues the raw argument string, so
+// the parsing that can actually be malformed lives one layer down.
+// ---------------------------------------------------------------------------
+
+template <class Fn>
+static std::string capture(Fn&& fn) {
+    std::ostringstream out;
+    std::streambuf* old = std::cout.rdbuf(out.rdbuf());
+    fn();
+    std::cout.rdbuf(old);
+    return out.str();
+}
+
+static bool contains(const std::string& hay, const std::string& needle) {
+    return hay.find(needle) != std::string::npos;
+}
+
+static const char* START_FEN =
+    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
+static void test_malformed_position_moves() {
+    // (a) Non-ASCII move token. Rarog panicked here slicing UTF-8 (RAR-M26).
+    // Basilisk compares whole tokens against generated legal moves, so the
+    // token matches nothing -- but the contract still demands the diagnostic
+    // and an unchanged, legal board.
+    {
+        Parameters p;
+        const std::string out = capture([&] {
+            p.set_position("startpos moves e2e4 \xE2\x99\x9A" "e7e5");
+        });
+        begin_section("15.0.d: non-ASCII move token is rejected, not sliced");
+        EXPECT(contains(out, "Illegal move:"));
+        // A rejected move list leaves the PREVIOUS position standing, not a
+        // half-applied one.
+        EXPECT_STR(p.board.get_fen(), std::string(START_FEN));
+        end_section();
+    }
+
+    // (b) Stray UTF-8 continuation bytes are just bytes to a whole-token
+    // comparison, and must stay that way.
+    {
+        Parameters p;
+        const std::string out = capture([&] {
+            p.set_position("startpos moves \x80\x80\x80\x80");
+        });
+        begin_section("15.0.d: stray UTF-8 continuation bytes are rejected");
+        EXPECT(contains(out, "Illegal move:"));
+        EXPECT_STR(p.board.get_fen(), std::string(START_FEN));
+        end_section();
+    }
+
+    // (c) A move list longer than HISTORY_RESERVE (2048). The undo history is
+    // a growable vector (8.6.10a), so this must simply work: no clamp, no
+    // truncation, no crash. 3,000 plies of knight shuffling returns to the
+    // start position with the halfmove clock advanced.
+    {
+        std::string cmd = "startpos moves";
+        for (int i = 0; i < 750; ++i)
+            cmd += " g1f3 g8f6 f3g1 f6g8";
+        Parameters p;
+        const std::string out = capture([&] { p.set_position(cmd); });
+        begin_section("15.0.d: move list far beyond the history reservation");
+        EXPECT(!contains(out, "Illegal move:"));
+        EXPECT(contains(p.board.get_fen(),
+                        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -"));
+        end_section();
+    }
+
+    // (d) Truncated and nonsense position headers.
+    {
+        Parameters p;
+        const std::string a = capture([&] { p.set_position(""); });
+        const std::string b = capture([&] { p.set_position("fen"); });
+        const std::string c = capture([&] { p.set_position("banana"); });
+        const std::string d = capture([&] { p.set_position("startpos junk"); });
+        begin_section("15.0.d: malformed position headers each diagnose");
+        EXPECT(contains(a, "Incorrect position format."));
+        EXPECT(contains(b, "Missing FEN fields."));
+        EXPECT(contains(c, "Incorrect position format."));
+        EXPECT(contains(d, "Incorrect position format."));
+        EXPECT_STR(p.board.get_fen(), std::string(START_FEN));
+        end_section();
+    }
+}
+
+static void test_fen_counter_boundaries() {
+    Parameters p;
+    const std::string over = capture([&] {
+        p.set_position("fen 4k3/8/8/8/8/8/8/4K3 w - - 0 100001");
+    });
+    begin_section("15.0.d: fullmove above the 100000 bound is refused");
+    EXPECT(contains(over, "Invalid fullmove number."));
+    EXPECT_STR(p.board.get_fen(), std::string(START_FEN));
+    end_section();
+
+    const std::string at = capture([&] {
+        p.set_position("fen 4k3/8/8/8/8/8/8/4K3 w - - 0 100000");
+    });
+    begin_section("15.0.d: fullmove at the bound is accepted");
+    EXPECT(at.empty());
+    EXPECT_STR(p.board.get_fen(), std::string("4k3/8/8/8/8/8/8/4K3 w - - 0 100000"));
+    end_section();
+
+    Parameters q;
+    const std::string neg = capture([&] {
+        q.set_position("fen 4k3/8/8/8/8/8/8/4K3 w - - -1 1");
+    });
+    begin_section("15.0.d: negative halfmove clock is refused");
+    EXPECT(!neg.empty());
+    EXPECT_STR(q.board.get_fen(), std::string(START_FEN));
+    end_section();
+}
+
+static void test_malformed_go() {
+    Parameters p;
+
+    capture([&] { p.set_search_parameters("depth"); });
+    begin_section("15.0.d: go with a missing value still leaves a usable depth");
+    EXPECT(p.depth >= 1);
+    end_section();
+
+    capture([&] { p.set_search_parameters("depth banana"); });
+    begin_section("15.0.d: go with a non-numeric value does not corrupt depth");
+    EXPECT(p.depth >= 1);
+    end_section();
+
+    capture([&] { p.set_search_parameters("depth 99999999999999999999"); });
+    begin_section("15.0.d: go depth overflowing int64 is ignored, not wrapped");
+    EXPECT(p.depth >= 1);
+    end_section();
+
+    capture([&] { p.set_search_parameters("nodes -5 movetime -1000 movestogo -3"); });
+    begin_section("15.0.d: negative go values clamp to zero, never negative");
+    EXPECT(p.nodes >= 0);
+    EXPECT(p.move_time >= 0);
+    EXPECT(p.movestogo >= 0);
+    end_section();
+
+    capture([&] { p.set_search_parameters(""); });
+    begin_section("15.0.d: bare go sets the default depth");
+    EXPECT(p.depth >= 1);
+    end_section();
+
+    const std::string sm = capture([&] {
+        p.set_search_parameters("searchmoves \xE2\x99\x9A");
+    });
+    begin_section("15.0.d: non-ASCII searchmoves token diagnoses, no move stored");
+    EXPECT(contains(sm, "Invalid searchmoves move:"));
+    EXPECT(p.search_moves.empty());
+    end_section();
+}
+
+static void test_unknown_setoption() {
+    Parameters p;
+    const std::string a = capture([&] { p.set_option("name NoSuchOption value 5"); });
+    begin_section("15.0.d: unknown setoption name is diagnosed");
+    EXPECT(contains(a, "NoSuchOption"));
+    end_section();
+
+    const std::string b = capture([&] { p.set_option("garbage"); });
+    begin_section("15.0.d: setoption without a name is diagnosed");
+    EXPECT(contains(b, "Incorrect setoption format."));
+    end_section();
+
+    const int before = p.hash_mb;
+    const std::string c = capture([&] { p.set_option("name Hash"); });
+    begin_section("15.0.d: known option missing its value is diagnosed, value kept");
+    EXPECT(contains(c, "requires a value"));
+    EXPECT_EQ(p.hash_mb, before);
+    end_section();
+
+    const std::string d = capture([&] { p.set_option("name Hash value banana"); });
+    begin_section("15.0.d: known option with a non-numeric value is diagnosed");
+    EXPECT(contains(d, "Invalid value for option"));
+    EXPECT_EQ(p.hash_mb, before);
+    end_section();
+}
+
 int main() {
+    // 15.0.d drives Parameters, which builds real Boards and generates legal
+    // moves; the protocol-only tests above never needed the attack tables.
+    init_bitboards();
+    init_attacks();
+    Zobrist::init();
     std::printf("UCI protocol tests\n");
     std::printf("%s\n", std::string(62, '=').c_str());
 
@@ -186,6 +380,10 @@ int main() {
 
     std::printf("\nUCI output\n");
     test_uci_output();
+    test_malformed_position_moves();
+    test_fen_counter_boundaries();
+    test_malformed_go();
+    test_unknown_setoption();
 
     return harness_summary();
 }

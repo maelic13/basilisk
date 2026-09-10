@@ -1,5 +1,7 @@
 #include "zobrist.h"
 
+#include <cstdint>
+
 namespace Zobrist {
 
 Key PieceKeys[NCOLORS][PIECE_TYPE_NB][SQUARE_NB];

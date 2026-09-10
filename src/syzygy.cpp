@@ -5,10 +5,14 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cstdint>
 #include <filesystem>
 #include <mutex>
+#include <optional>
+#include <string>
 #include <system_error>
 #include <utility>
+#include <vector>
 
 extern "C" {
 #include "tbprobe.h"
@@ -38,16 +42,16 @@ struct TbPosition {
 
 TbPosition to_tb_position(const Board& board) {
     TbPosition pos;
-    pos.white = board.occupancy[WHITE];
-    pos.black = board.occupancy[BLACK];
-    pos.kings = board.pieces[WHITE][KING] | board.pieces[BLACK][KING];
-    pos.queens = board.pieces[WHITE][QUEEN] | board.pieces[BLACK][QUEEN];
-    pos.rooks = board.pieces[WHITE][ROOK] | board.pieces[BLACK][ROOK];
-    pos.bishops = board.pieces[WHITE][BISHOP] | board.pieces[BLACK][BISHOP];
-    pos.knights = board.pieces[WHITE][KNIGHT] | board.pieces[BLACK][KNIGHT];
-    pos.pawns = board.pieces[WHITE][PAWN] | board.pieces[BLACK][PAWN];
-    pos.ep = board.ep_sq == SQ_NONE ? 0u : static_cast<unsigned>(board.ep_sq);
-    pos.turn = board.side_to_move == WHITE;
+    pos.white = board.occupancy_bb(WHITE);
+    pos.black = board.occupancy_bb(BLACK);
+    pos.kings = board.piece_bb(WHITE, KING) | board.piece_bb(BLACK, KING);
+    pos.queens = board.piece_bb(WHITE, QUEEN) | board.piece_bb(BLACK, QUEEN);
+    pos.rooks = board.piece_bb(WHITE, ROOK) | board.piece_bb(BLACK, ROOK);
+    pos.bishops = board.piece_bb(WHITE, BISHOP) | board.piece_bb(BLACK, BISHOP);
+    pos.knights = board.piece_bb(WHITE, KNIGHT) | board.piece_bb(BLACK, KNIGHT);
+    pos.pawns = board.piece_bb(WHITE, PAWN) | board.piece_bb(BLACK, PAWN);
+    pos.ep = board.ep_square() == SQ_NONE ? 0u : static_cast<unsigned>(board.ep_square());
+    pos.turn = board.turn() == WHITE;
     return pos;
 }
 
@@ -75,7 +79,7 @@ PieceType promoted_piece_from_tb(unsigned promotes) {
 Move move_from_tb(const Board& board, TbMove tb_move) {
     const Square from = Square(TB_MOVE_FROM(tb_move));
     const Square to = Square(TB_MOVE_TO(tb_move));
-    const Piece moving = board.board_sq[from];
+    const Piece moving = board.piece_on(from);
     const unsigned promotes = TB_MOVE_PROMOTES(tb_move);
 
     if (moving == NO_PIECE)
@@ -86,8 +90,8 @@ Move move_from_tb(const Board& board, TbMove tb_move) {
         return pt == NO_PIECE_TYPE ? MOVE_NONE : make_promotion(from, to, pt);
     }
 
-    if (type_of(moving) == PAWN && board.ep_sq == to
-        && board.board_sq[to] == NO_PIECE && file_of(from) != file_of(to)) {
+    if (type_of(moving) == PAWN && board.ep_square() == to
+        && board.piece_on(to) == NO_PIECE && file_of(from) != file_of(to)) {
         return make_ep(from, to);
     }
 
@@ -290,14 +294,14 @@ bool can_probe_root(const Board& board, int probe_limit) {
     const int limit = effective_probe_limit(probe_limit);
     return enabled()
         && limit > 0
-        && board.castling_rights == NO_CASTLING
-        && popcount(board.all_occ) <= limit;
+        && board.castling() == NO_CASTLING
+        && popcount(board.all_pieces()) <= limit;
 }
 
 bool can_probe_wdl(const Board& board, int probe_limit, bool use_rule50) {
     if (!can_probe_root(board, probe_limit))
         return false;
-    return !use_rule50 || board.halfmove_clock == 0;
+    return !use_rule50 || board.rule50_count() == 0;
 }
 
 std::optional<Wdl> probe_wdl(const Board& board, int probe_limit, bool use_rule50) {
@@ -319,7 +323,7 @@ std::vector<RootMoveInfo> probe_root_moves(const Board& board, bool use_rule50,
         return {};
 
     const TbPosition pos = to_tb_position(board);
-    const unsigned rule50 = use_rule50 ? static_cast<unsigned>(board.halfmove_clock) : 0u;
+    const unsigned rule50 = use_rule50 ? static_cast<unsigned>(board.rule50_count()) : 0u;
     const unsigned dtz_best = tb_probe_root(pos.white, pos.black, pos.kings, pos.queens,
                                             pos.rooks, pos.bishops, pos.knights,
                                             pos.pawns, rule50, 0, pos.ep, pos.turn,

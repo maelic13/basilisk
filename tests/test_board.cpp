@@ -22,9 +22,31 @@
 
 #include <algorithm>
 #include <climits>
+#include <cstdint>
+#include <cstdio>
 #include <cstring>
 #include <string>
 #include <vector>
+
+template<typename T> concept PublicPieces = requires { &T::pieces; };
+template<typename T> concept PublicOccupancy = requires { &T::occupancy; };
+template<typename T> concept PublicAllOccupancy = requires { &T::all_occ; };
+template<typename T> concept PublicMailbox = requires { &T::board_sq; };
+template<typename T> concept PublicPositionKey = requires { &T::hash; };
+template<typename T> concept PublicPawnKey = requires { &T::pawn_key; };
+template<typename T> concept PublicKingSquares = requires { &T::king_sq; };
+template<typename T> concept PublicCheckers = requires { &T::checkers; };
+template<typename T> concept PublicHistory = requires { &T::history; };
+
+static_assert(!PublicPieces<Board>);
+static_assert(!PublicOccupancy<Board>);
+static_assert(!PublicAllOccupancy<Board>);
+static_assert(!PublicMailbox<Board>);
+static_assert(!PublicPositionKey<Board>);
+static_assert(!PublicPawnKey<Board>);
+static_assert(!PublicKingSquares<Board>);
+static_assert(!PublicCheckers<Board>);
+static_assert(!PublicHistory<Board>);
 
 // ---------------------------------------------------------------------------
 // Board helpers
@@ -68,33 +90,33 @@ static uint64_t perft(Board& b, int depth) {
 static bool boards_equal(const Board& a, const Board& b) {
     for (int c = 0; c < NCOLORS; c++)
         for (int pt = 0; pt < PIECE_TYPE_NB; pt++)
-            if (a.pieces[c][pt] != b.pieces[c][pt]) return false;
+            if (a.piece_bb(c, pt) != b.piece_bb(c, pt)) return false;
     for (int c = 0; c < NCOLORS; c++)
-        if (a.occupancy[c] != b.occupancy[c]) return false;
-    if (a.all_occ != b.all_occ) return false;
+        if (a.occupancy_bb(c) != b.occupancy_bb(c)) return false;
+    if (a.all_pieces() != b.all_pieces()) return false;
     for (int s = 0; s < SQUARE_NB; s++)
-        if (a.board_sq[s] != b.board_sq[s]) return false;
-    return a.side_to_move    == b.side_to_move
-        && a.ep_sq           == b.ep_sq
-        && a.castling_rights == b.castling_rights
-        && a.halfmove_clock  == b.halfmove_clock
-        && a.plies_from_null == b.plies_from_null
-        && a.fullmove_number == b.fullmove_number
-        && a.ply             == b.ply
-        && a.hash            == b.hash
-        && a.pawn_key        == b.pawn_key
-        && a.minor_key       == b.minor_key
-        && a.nonpawn_key[WHITE] == b.nonpawn_key[WHITE]
-        && a.nonpawn_key[BLACK] == b.nonpawn_key[BLACK]
-        && a.king_sq[WHITE]  == b.king_sq[WHITE]
-        && a.king_sq[BLACK]  == b.king_sq[BLACK];
+        if (a.piece_on(s) != b.piece_on(s)) return false;
+    return a.turn()    == b.turn()
+        && a.ep_square()           == b.ep_square()
+        && a.castling() == b.castling()
+        && a.rule50_count()  == b.rule50_count()
+        && a.plies_since_null() == b.plies_since_null()
+        && a.fullmove() == b.fullmove()
+        && a.root_ply()             == b.root_ply()
+        && a.position_key()            == b.position_key()
+        && a.pawn_key_value()        == b.pawn_key_value()
+        && a.minor_key_value()       == b.minor_key_value()
+        && a.nonpawn_key_value(WHITE) == b.nonpawn_key_value(WHITE)
+        && a.nonpawn_key_value(BLACK) == b.nonpawn_key_value(BLACK)
+        && a.king_square(WHITE)  == b.king_square(WHITE)
+        && a.king_square(BLACK)  == b.king_square(BLACK);
 }
 
 static Key recompute_minor_key(const Board& b) {
     Key key = 0;
     for (Color c : {WHITE, BLACK}) {
         for (PieceType pt : {KNIGHT, BISHOP}) {
-            Bitboard bb = b.pieces[c][pt];
+            Bitboard bb = b.piece_bb(c, pt);
             while (bb) {
                 Square sq = Square(pop_lsb(bb));
                 key ^= Zobrist::PieceKeys[c][pt][sq];
@@ -107,7 +129,7 @@ static Key recompute_minor_key(const Board& b) {
 static Key recompute_nonpawn_key(const Board& b, Color c) {
     Key key = 0;
     for (PieceType pt : {KNIGHT, BISHOP, ROOK, QUEEN}) {
-        Bitboard bb = b.pieces[c][pt];
+        Bitboard bb = b.piece_bb(c, pt);
         while (bb) {
             Square sq = Square(pop_lsb(bb));
             key ^= Zobrist::PieceKeys[c][pt][sq];
@@ -117,9 +139,9 @@ static Key recompute_nonpawn_key(const Board& b, Color c) {
 }
 
 static bool piece_keys_match_mailbox(const Board& b) {
-    return b.minor_key == recompute_minor_key(b)
-        && b.nonpawn_key[WHITE] == recompute_nonpawn_key(b, WHITE)
-        && b.nonpawn_key[BLACK] == recompute_nonpawn_key(b, BLACK);
+    return b.minor_key_value() == recompute_minor_key(b)
+        && b.nonpawn_key_value(WHITE) == recompute_nonpawn_key(b, WHITE)
+        && b.nonpawn_key_value(BLACK) == recompute_nonpawn_key(b, BLACK);
 }
 
 // ---------------------------------------------------------------------------
@@ -220,7 +242,7 @@ static void test_fen_validation() {
 
     begin_section("castling rights sanitized for missing rooks");
     EXPECT(b.try_set_fen("4k3/8/8/8/8/8/8/R3K3 w KQkq - 0 1").has_value());
-    EXPECT_EQ(b.castling_rights, WQ_CASTLE);
+    EXPECT_EQ(b.castling(), WQ_CASTLE);
     EXPECT_STR(b.get_fen(), "4k3/8/8/8/8/8/8/R3K3 w Q - 0 1");
     end_section();
 }
@@ -233,35 +255,35 @@ static void test_starting_position() {
     Board b;
 
     begin_section("piece counts");
-    EXPECT_EQ(popcount(b.pieces[WHITE][PAWN]),   8);
-    EXPECT_EQ(popcount(b.pieces[WHITE][KNIGHT]), 2);
-    EXPECT_EQ(popcount(b.pieces[WHITE][BISHOP]), 2);
-    EXPECT_EQ(popcount(b.pieces[WHITE][ROOK]),   2);
-    EXPECT_EQ(popcount(b.pieces[WHITE][QUEEN]),  1);
-    EXPECT_EQ(popcount(b.pieces[WHITE][KING]),   1);
-    EXPECT_EQ(popcount(b.pieces[BLACK][PAWN]),   8);
-    EXPECT_EQ(popcount(b.pieces[BLACK][KNIGHT]), 2);
-    EXPECT_EQ(popcount(b.pieces[BLACK][BISHOP]), 2);
-    EXPECT_EQ(popcount(b.pieces[BLACK][ROOK]),   2);
-    EXPECT_EQ(popcount(b.pieces[BLACK][QUEEN]),  1);
-    EXPECT_EQ(popcount(b.pieces[BLACK][KING]),   1);
+    EXPECT_EQ(popcount(b.piece_bb(WHITE, PAWN)),   8);
+    EXPECT_EQ(popcount(b.piece_bb(WHITE, KNIGHT)), 2);
+    EXPECT_EQ(popcount(b.piece_bb(WHITE, BISHOP)), 2);
+    EXPECT_EQ(popcount(b.piece_bb(WHITE, ROOK)),   2);
+    EXPECT_EQ(popcount(b.piece_bb(WHITE, QUEEN)),  1);
+    EXPECT_EQ(popcount(b.piece_bb(WHITE, KING)),   1);
+    EXPECT_EQ(popcount(b.piece_bb(BLACK, PAWN)),   8);
+    EXPECT_EQ(popcount(b.piece_bb(BLACK, KNIGHT)), 2);
+    EXPECT_EQ(popcount(b.piece_bb(BLACK, BISHOP)), 2);
+    EXPECT_EQ(popcount(b.piece_bb(BLACK, ROOK)),   2);
+    EXPECT_EQ(popcount(b.piece_bb(BLACK, QUEEN)),  1);
+    EXPECT_EQ(popcount(b.piece_bb(BLACK, KING)),   1);
     end_section();
 
     begin_section("side, castling, ep, clocks");
-    EXPECT_EQ(b.side_to_move,    WHITE);
-    EXPECT_EQ(b.castling_rights, ALL_CASTLING);
-    EXPECT_EQ(b.ep_sq,           SQ_NONE);
-    EXPECT_EQ(b.halfmove_clock,  0);
-    EXPECT_EQ(b.fullmove_number, 1);
+    EXPECT_EQ(b.turn(),    WHITE);
+    EXPECT_EQ(b.castling(), ALL_CASTLING);
+    EXPECT_EQ(b.ep_square(),           SQ_NONE);
+    EXPECT_EQ(b.rule50_count(),  0);
+    EXPECT_EQ(b.fullmove(), 1);
     end_section();
 
     begin_section("king squares and mailbox");
-    EXPECT_EQ(b.king_sq[WHITE], E1);
-    EXPECT_EQ(b.king_sq[BLACK], E8);
-    EXPECT_EQ(b.board_sq[E1],   W_KING);
-    EXPECT_EQ(b.board_sq[E8],   B_KING);
-    EXPECT_EQ(b.board_sq[A1],   W_ROOK);
-    EXPECT_EQ(b.board_sq[H8],   B_ROOK);
+    EXPECT_EQ(b.king_square(WHITE), E1);
+    EXPECT_EQ(b.king_square(BLACK), E8);
+    EXPECT_EQ(b.piece_on(E1),   W_KING);
+    EXPECT_EQ(b.piece_on(E8),   B_KING);
+    EXPECT_EQ(b.piece_on(A1),   W_ROOK);
+    EXPECT_EQ(b.piece_on(H8),   B_ROOK);
     end_section();
 
     begin_section("not in check, 20 legal moves");
@@ -332,14 +354,14 @@ static void test_quiet_generation() {
 
         int expected_quiets = 0;
         for (Move m : legal) {
-            bool is_cap = (b.board_sq[to_sq(m)] != NO_PIECE) || (move_type(m) == EN_PASSANT);
+            bool is_cap = (b.piece_on(to_sq(m)) != NO_PIECE) || (move_type(m) == EN_PASSANT);
             bool is_promo = move_type(m) == PROMOTION;
             if (!is_cap && !is_promo) expected_quiets++;
         }
 
         EXPECT_EQ(quiets.size(), expected_quiets);
         for (Move m : quiets) {
-            bool is_cap = (b.board_sq[to_sq(m)] != NO_PIECE) || (move_type(m) == EN_PASSANT);
+            bool is_cap = (b.piece_on(to_sq(m)) != NO_PIECE) || (move_type(m) == EN_PASSANT);
             bool is_promo = move_type(m) == PROMOTION;
             EXPECT(!is_cap && !is_promo);
         }
@@ -392,18 +414,18 @@ static void test_make_unmake() {
 static void test_zobrist() {
     begin_section("hash changes after move");
     Board b;
-    Key h0 = b.hash;
+    Key h0 = b.position_key();
     b.make_move(make_move(E2, E4));
-    EXPECT(b.hash != h0);
+    EXPECT(b.position_key() != h0);
     end_section();
 
     begin_section("hash restored after unmake");
     b.set_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-    h0 = b.hash;
+    h0 = b.position_key();
     Move m = make_move(G1, F3);
     b.make_move(m);
     b.unmake_move(m);
-    EXPECT_EQ(b.hash, h0);
+    EXPECT_EQ(b.position_key(), h0);
     end_section();
 
     begin_section("transposition: same position same hash");
@@ -414,14 +436,14 @@ static void test_zobrist() {
     a.make_move(make_move(F3, G1));
     a.make_move(make_move(F6, G8));
     Board bref;   // fresh default-constructed startpos
-    EXPECT_EQ(a.hash, bref.hash);
+    EXPECT_EQ(a.position_key(), bref.position_key());
     end_section();
 
     begin_section("distinct positions have distinct hashes");
     Board b1, b2;
     b1.make_move(make_move(E2, E4));
     b2.make_move(make_move(D2, D4));
-    EXPECT(b1.hash != b2.hash);
+    EXPECT(b1.position_key() != b2.position_key());
     end_section();
 }
 
@@ -430,24 +452,24 @@ static void test_pawn_key() {
     Board a, b;
     a.set_fen("4k3/8/8/3p4/4P3/8/8/4K3 w - - 0 1");
     b.set_fen("4k3/8/8/3P4/4p3/8/8/4K3 w - - 0 1");
-    EXPECT(a.pawn_key != b.pawn_key);
+    EXPECT(a.pawn_key_value() != b.pawn_key_value());
     end_section();
 
     begin_section("pawn key restored after make/unmake");
     Board c;
     c.set_fen("4k3/8/8/3p4/4P3/8/8/4K3 w - - 0 1");
-    Key pk = c.pawn_key;
+    Key pk = c.pawn_key_value();
     Move m = make_move(E4, D5);
     c.make_move(m);
     c.unmake_move(m);
-    EXPECT_EQ(c.pawn_key, pk);
+    EXPECT_EQ(c.pawn_key_value(), pk);
     end_section();
 
     begin_section("pawn key restored after null move");
-    Key pk2 = c.pawn_key;
+    Key pk2 = c.pawn_key_value();
     c.make_null_move();
     c.unmake_null_move();
-    EXPECT_EQ(c.pawn_key, pk2);
+    EXPECT_EQ(c.pawn_key_value(), pk2);
     end_section();
 }
 
@@ -475,27 +497,27 @@ static void test_incremental_piece_keys() {
 
     begin_section("piece keys update after promotion and unmake");
     b.set_fen("4k3/P7/8/8/8/8/8/4K3 w - - 0 1");
-    Key minor_before = b.minor_key;
-    Key white_nonpawn_before = b.nonpawn_key[WHITE];
+    Key minor_before = b.minor_key_value();
+    Key white_nonpawn_before = b.nonpawn_key_value(WHITE);
     Move promo = make_promotion(A7, A8, QUEEN);
     b.make_move(promo);
     EXPECT(piece_keys_match_mailbox(b));
-    EXPECT(b.nonpawn_key[WHITE] != white_nonpawn_before);
+    EXPECT(b.nonpawn_key_value(WHITE) != white_nonpawn_before);
     b.unmake_move(promo);
-    EXPECT_EQ(b.minor_key, minor_before);
-    EXPECT_EQ(b.nonpawn_key[WHITE], white_nonpawn_before);
+    EXPECT_EQ(b.minor_key_value(), minor_before);
+    EXPECT_EQ(b.nonpawn_key_value(WHITE), white_nonpawn_before);
     EXPECT(piece_keys_match_mailbox(b));
     end_section();
 
     begin_section("piece keys survive null move");
     b.set_fen("4k3/8/8/8/8/8/8/R3K2R w KQ - 0 1");
-    Key minor = b.minor_key;
-    Key white_nonpawn = b.nonpawn_key[WHITE];
-    Key black_nonpawn = b.nonpawn_key[BLACK];
+    Key minor = b.minor_key_value();
+    Key white_nonpawn = b.nonpawn_key_value(WHITE);
+    Key black_nonpawn = b.nonpawn_key_value(BLACK);
     b.make_null_move();
-    EXPECT_EQ(b.minor_key, minor);
-    EXPECT_EQ(b.nonpawn_key[WHITE], white_nonpawn);
-    EXPECT_EQ(b.nonpawn_key[BLACK], black_nonpawn);
+    EXPECT_EQ(b.minor_key_value(), minor);
+    EXPECT_EQ(b.nonpawn_key_value(WHITE), white_nonpawn);
+    EXPECT_EQ(b.nonpawn_key_value(BLACK), black_nonpawn);
     b.unmake_null_move();
     EXPECT(piece_keys_match_mailbox(b));
     end_section();
@@ -610,31 +632,31 @@ static void test_castling_rights() {
 
     begin_section("initial: ALL_CASTLING");
     b.set_fen(fen);
-    EXPECT_EQ(b.castling_rights, ALL_CASTLING);
+    EXPECT_EQ(b.castling(), ALL_CASTLING);
     end_section();
 
     begin_section("white king move: WK+WQ removed");
     b.set_fen(fen);
     b.make_move(make_move(E1, E2));
-    EXPECT_EQ(b.castling_rights, BK_CASTLE | BQ_CASTLE);
+    EXPECT_EQ(b.castling(), BK_CASTLE | BQ_CASTLE);
     end_section();
 
     begin_section("Ra1 move: WQ removed only");
     b.set_fen(fen);
     b.make_move(make_move(A1, A2));
-    EXPECT_EQ(b.castling_rights, WK_CASTLE | BK_CASTLE | BQ_CASTLE);
+    EXPECT_EQ(b.castling(), WK_CASTLE | BK_CASTLE | BQ_CASTLE);
     end_section();
 
     begin_section("Rh1 move: WK removed only");
     b.set_fen(fen);
     b.make_move(make_move(H1, H2));
-    EXPECT_EQ(b.castling_rights, WQ_CASTLE | BK_CASTLE | BQ_CASTLE);
+    EXPECT_EQ(b.castling(), WQ_CASTLE | BK_CASTLE | BQ_CASTLE);
     end_section();
 
     begin_section("Ra1xa8: WQ and BQ removed");
     b.set_fen(fen);
     b.make_move(make_move(A1, A8)); // white rook captures black rook on a8
-    EXPECT_EQ(b.castling_rights, WK_CASTLE | BK_CASTLE);
+    EXPECT_EQ(b.castling(), WK_CASTLE | BK_CASTLE);
     end_section();
 
     begin_section("rights restored after unmake");
@@ -643,7 +665,7 @@ static void test_castling_rights() {
     Move km = make_move(E1, E2);
     b.make_move(km);
     b.unmake_move(km);
-    EXPECT_EQ(b.castling_rights, orig.castling_rights);
+    EXPECT_EQ(b.castling(), orig.castling());
     end_section();
 
     begin_section("rights without rooks do not allow castling");
@@ -669,14 +691,14 @@ static void test_en_passant() {
     begin_section("lazy EP: e2-e4 from startpos, no ep set");
     // No black pawn on d4 or f4, so ep_sq stays SQ_NONE
     b.make_move(make_move(E2, E4));
-    EXPECT_EQ(b.ep_sq, SQ_NONE);
+    EXPECT_EQ(b.ep_square(), SQ_NONE);
     end_section();
 
     begin_section("lazy EP: d7-d5, white pawn on e5 → ep=d6");
     // After d7-d5, the white e5-pawn attacks d6, so ep_sq IS set
     b.set_fen("4k3/3p4/8/4P3/8/8/8/4K3 b - - 0 1");
     b.make_move(make_move(D7, D5));
-    EXPECT_EQ(b.ep_sq, D6);
+    EXPECT_EQ(b.ep_square(), D6);
     end_section();
 
     begin_section("EP capture is legal");
@@ -689,9 +711,9 @@ static void test_en_passant() {
     b.set_fen("4k3/3p4/8/4P3/8/8/8/4K3 b - - 0 1");
     b.make_move(make_move(D7, D5));
     b.make_move(make_ep(E5, D6));
-    EXPECT_EQ(b.board_sq[D6], W_PAWN);   // white pawn landed
-    EXPECT_EQ(b.board_sq[E5], NO_PIECE); // origin empty
-    EXPECT_EQ(b.board_sq[D5], NO_PIECE); // captured black pawn removed
+    EXPECT_EQ(b.piece_on(D6), W_PAWN);   // white pawn landed
+    EXPECT_EQ(b.piece_on(E5), NO_PIECE); // origin empty
+    EXPECT_EQ(b.piece_on(D5), NO_PIECE); // captured black pawn removed
     end_section();
 
     begin_section("EP capture unmake restores board");
@@ -705,7 +727,7 @@ static void test_en_passant() {
 
     begin_section("FEN with ep square parsed and output correctly");
     b.set_fen("rnbqkbnr/ppp1pppp/8/8/3pP3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1");  // legal capture exists -> ep kept (8.1c)
-    EXPECT_EQ(b.ep_sq, E3);
+    EXPECT_EQ(b.ep_square(), E3);
     end_section();
 
     begin_section("EP capture can evade pawn check");
@@ -720,7 +742,7 @@ static void test_en_passant() {
         saw_ep = saw_ep || move == ep;
     EXPECT(saw_ep);
     b.make_move(ep);
-    EXPECT(!b.is_square_attacked(b.king_sq[BLACK], WHITE));
+    EXPECT(!b.is_square_attacked(b.king_square(BLACK), WHITE));
     end_section();
 }
 
@@ -805,40 +827,40 @@ static void test_null_move() {
 
     begin_section("null move flips side to move");
     b.make_null_move();
-    EXPECT_EQ(b.side_to_move, BLACK);
+    EXPECT_EQ(b.turn(), BLACK);
     b.unmake_null_move();
-    EXPECT_EQ(b.side_to_move, WHITE);
+    EXPECT_EQ(b.turn(), WHITE);
     end_section();
 
     begin_section("null move clears ep square");
     // FEN with a legally capturable ep square (8.1c keeps only those)
     b.set_fen("rnbqkbnr/ppp1pppp/8/8/3pP3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1");
-    EXPECT_EQ(b.ep_sq, E3);
+    EXPECT_EQ(b.ep_square(), E3);
     b.make_null_move();
-    EXPECT_EQ(b.ep_sq, SQ_NONE);
+    EXPECT_EQ(b.ep_square(), SQ_NONE);
     b.unmake_null_move();
-    EXPECT_EQ(b.ep_sq, E3); // restored
+    EXPECT_EQ(b.ep_square(), E3); // restored
     end_section();
 
     begin_section("null move changes hash; unmake restores it");
     b.set_fen("rnbqkbnr/ppp1pppp/8/8/3pP3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1");
-    Key h0 = b.hash;
-    int pfn0 = b.plies_from_null;
+    Key h0 = b.position_key();
+    int pfn0 = b.plies_since_null();
     b.make_null_move();
-    EXPECT(b.hash != h0);
-    EXPECT_EQ(b.plies_from_null, 0);
+    EXPECT(b.position_key() != h0);
+    EXPECT_EQ(b.plies_since_null(), 0);
     b.unmake_null_move();
-    EXPECT_EQ(b.hash, h0);
-    EXPECT_EQ(b.plies_from_null, pfn0);
+    EXPECT_EQ(b.position_key(), h0);
+    EXPECT_EQ(b.plies_since_null(), pfn0);
     end_section();
 
     begin_section("null move preserves castling rights");
     b.set_fen("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1");
-    int cr = b.castling_rights;
+    int cr = b.castling();
     b.make_null_move();
-    EXPECT_EQ(b.castling_rights, cr);
+    EXPECT_EQ(b.castling(), cr);
     b.unmake_null_move();
-    EXPECT_EQ(b.castling_rights, cr);
+    EXPECT_EQ(b.castling(), cr);
     end_section();
 }
 
@@ -898,7 +920,7 @@ static void test_see() {
         for (Move m : legal) {
             const bool tactical = move_type(m) == PROMOTION
                                || move_type(m) == EN_PASSANT
-                               || b.board_sq[to_sq(m)] != NO_PIECE;
+                               || b.piece_on(to_sq(m)) != NO_PIECE;
             if (!tactical)
                 continue;
             const int see = b.see(m);
@@ -931,7 +953,7 @@ static void test_rule50_mate_precedence() {
         b.set_fen("7k/5Q2/5K2/8/8/8/8/8 w - - 99 1");
         b.make_move(make_move(F7, G7));  // Qg7#
         begin_section("clock 99->100 quiet mate: not a draw");
-        EXPECT(b.halfmove_clock == 100);
+        EXPECT(b.rule50_count() == 100);
         EXPECT(!b.is_draw(0));
         EXPECT(!b.is_draw());
         MoveList ml;
@@ -978,9 +1000,9 @@ static void test_null_move_clock() {
     b.set_fen("4k3/8/8/8/8/8/4P3/4K3 w - - 57 1");
     begin_section("make_null_move keeps halfmove_clock");
     b.make_null_move();
-    EXPECT(b.halfmove_clock == 57);
+    EXPECT(b.rule50_count() == 57);
     b.unmake_null_move();
-    EXPECT(b.halfmove_clock == 57);
+    EXPECT(b.rule50_count() == 57);
     end_section();
 
     // Boundary regression: at clock 99 a null move must not create a
@@ -989,7 +1011,7 @@ static void test_null_move_clock() {
     c.set_fen("4k3/8/8/8/8/8/4P3/4K3 w - - 99 1");
     begin_section("null move at clock 99 does not manufacture a draw");
     c.make_null_move();
-    EXPECT(c.halfmove_clock == 99);
+    EXPECT(c.rule50_count() == 99);
     EXPECT(!c.is_draw(1));
     c.unmake_null_move();
     end_section();
@@ -1008,14 +1030,14 @@ static void test_legal_ep_hashing() {
         b.set_fen("4k3/8/8/8/4p3/8/3P4/K3R3 w - - 0 1");
         b.make_move(make_move(D2, D4));
         begin_section("pinned EP capturer: ep square not set");
-        EXPECT_EQ(b.ep_sq, SQ_NONE);
+        EXPECT_EQ(b.ep_square(), SQ_NONE);
         end_section();
 
         // Hash identity: the position must equal its FEN twin without EP.
         Board twin;
         twin.set_fen("4k3/8/8/8/3Pp3/8/8/K3R3 b - - 0 1");
         begin_section("pinned EP: hash equals the no-EP twin");
-        EXPECT_EQ(b.hash, twin.hash);
+        EXPECT_EQ(b.position_key(), twin.position_key());
         end_section();
     }
     // Same shape without the pin: the capture is legal, EP must be set.
@@ -1024,7 +1046,7 @@ static void test_legal_ep_hashing() {
         b.set_fen("4k3/8/8/8/4p3/8/3P4/K7 w - - 0 1");
         b.make_move(make_move(D2, D4));
         begin_section("legal EP capturer: ep square set");
-        EXPECT_EQ(b.ep_sq, D3);
+        EXPECT_EQ(b.ep_square(), D3);
         end_section();
     }
     // set_fen applies the same predicate: pinned-EP token is dropped.
@@ -1032,7 +1054,7 @@ static void test_legal_ep_hashing() {
         Board b;
         b.set_fen("4k3/8/8/8/3Pp3/8/8/K3R3 b - d3 0 1");
         begin_section("set_fen drops a pinned EP token");
-        EXPECT_EQ(b.ep_sq, SQ_NONE);
+        EXPECT_EQ(b.ep_square(), SQ_NONE);
         end_section();
     }
 }
@@ -1050,19 +1072,19 @@ static void test_history_growth_and_exact_unwind() {
     // is nothing to damage.
     Board b;
     b.set_fen("4k3/8/8/8/8/8/4P3/4K3 w - - 0 1");
-    const Key start_hash = b.hash;
+    const Key start_hash = b.position_key();
 
     begin_section("history grows past the reserve and unwinds exactly");
     const int plies = static_cast<int>(Board::HISTORY_RESERVE) + 200;
     for (int i = 0; i < plies; i++)
         b.make_null_move();
-    EXPECT(b.history.size() == static_cast<size_t>(plies));
+    EXPECT(b.history_size() == static_cast<size_t>(plies));
     for (int i = 0; i < plies; i++)
         b.unmake_null_move();
-    EXPECT(b.history.empty());
-    EXPECT(b.hash == start_hash);
+    EXPECT(b.history_empty());
+    EXPECT(b.position_key() == start_hash);
     b.set_fen("4k3/8/8/8/8/8/4P3/4K3 w - - 0 1");  // clean reset
-    EXPECT(b.history.empty());
+    EXPECT(b.history_empty());
     end_section();
 }
 
@@ -1083,16 +1105,25 @@ static int oracle_exchange(Board& b, Square to) {
     b.gen_legal(legal);
     Move best = MOVE_NONE;
     int  best_attacker = INT_MAX;
+    int  best_promo    = -1;
     for (Move m : legal) {
         if (to_sq(m) != to) continue;
         if (move_type(m) == CASTLING || move_type(m) == EN_PASSANT) continue;
-        if (b.board_sq[to] == NO_PIECE) continue;          // captures only
-        if (move_type(m) == PROMOTION) continue;           // keep the model simple
-        const int v = ORACLE_VALUES[type_of(b.board_sq[from_sq(m)])];
-        if (v < best_attacker) { best_attacker = v; best = m; }
+        if (b.piece_on(to) == NO_PIECE) continue;          // captures only
+        // 15.0.c: promotion recaptures are modelled. Among equal-value
+        // attackers prefer the largest promotion -- queen dominates for a
+        // material-only exchange.
+        const int v  = ORACLE_VALUES[type_of(b.piece_on(from_sq(m)))];
+        const int pg = move_type(m) == PROMOTION
+                     ? ORACLE_VALUES[promo_type(m)] - ORACLE_VALUES[PAWN] : 0;
+        if (v < best_attacker || (v == best_attacker && pg > best_promo)) {
+            best_attacker = v; best_promo = pg; best = m;
+        }
     }
     if (best == MOVE_NONE) return 0;
-    const int gain = ORACLE_VALUES[type_of(b.board_sq[to])];
+    const int gain = ORACLE_VALUES[type_of(b.piece_on(to))]
+                   + (move_type(best) == PROMOTION
+                      ? ORACLE_VALUES[promo_type(best)] - ORACLE_VALUES[PAWN] : 0);
     b.make_move(best);
     const int reply = oracle_exchange(b, to);
     b.unmake_move(best);
@@ -1102,7 +1133,9 @@ static int oracle_exchange(Board& b, Square to) {
 static int oracle_see(Board& b, Move m) {
     int gain = 0;
     if (move_type(m) == EN_PASSANT) gain = ORACLE_VALUES[PAWN];
-    else if (b.board_sq[to_sq(m)] != NO_PIECE) gain = ORACLE_VALUES[type_of(b.board_sq[to_sq(m)])];
+    else if (b.piece_on(to_sq(m)) != NO_PIECE) gain = ORACLE_VALUES[type_of(b.piece_on(to_sq(m)))];
+    if (move_type(m) == PROMOTION)
+        gain += ORACLE_VALUES[promo_type(m)] - ORACLE_VALUES[PAWN];
     b.make_move(m);
     const int reply = oracle_exchange(b, to_sq(m));
     b.unmake_move(m);
@@ -1178,6 +1211,134 @@ static void test_see_pin_legality() {
                    "4k3/4p3/8/8/7B/8/8/4QK2 w - - 0 1", E1, E7, 100);
 }
 
+// King legality in the SEE kernels (15.0.a). Cases ported from an independent
+// peer fixture set (`see-contract-v1.tsv`, `see-repair-v1.tsv`), retargeted
+// to Basilisk's 100/300/300/500/900 value vector. Every case is cross-checked
+// against `oracle_see`, which uses real make/unmake and therefore knows true
+// king legality.
+static void test_see_king_legality() {
+    // contract-v1 `king-after-pawn`: Rxd5 cxd5 Kxd5 -- d5 is undefended after
+    // the pawn recapture, so the king recapture is legal.
+    check_see_case("king legality: legal king recapture after pawn",
+                   "7k/8/2p5/3pK3/8/8/3R4/8 w - - 0 1", D2, D5, -300);
+
+    // contract-v1 `legal-king-recapture`: Qxd8 Kxd8, d8 undefended -> 0.
+    check_see_case("king legality: legal king recapture of a queen",
+                   "3qk3/8/8/8/8/8/3Q4/3K4 w - - 0 1", D2, D8, 0);
+
+    // contract-v1 `defended-king-destination`: same, but Bg5 guards d8, so
+    // Kxd8 is illegal and the exchange ends before it -> +900.
+    check_see_case("king legality: defended destination refuses king recapture",
+                   "3qk3/8/8/6B1/8/8/3Q4/3K4 w - - 0 1", D2, D8, 900);
+
+    // contract-v1 `initial-king-capture`: the king is the initial mover; the
+    // mover's own legality is movegen's job, not SEE's -> +300 (knight).
+    check_see_case("king legality: king as the initial capturer",
+                   "k7/7p/8/3n4/4K3/8/7P/8 w - - 0 1", E4, D5, 300);
+
+    // repair-v1 mirrors, black to move: the rule must be colour-symmetric.
+    check_see_case("king legality: mirror legal king recapture after pawn",
+                   "8/3r4/8/8/3Pk3/2P5/8/7K b - - 0 1", D7, D4, -300);
+    check_see_case("king legality: mirror legal king recapture of a queen",
+                   "3k4/3q4/8/8/8/8/8/3QK3 b - - 0 1", D7, D1, 0);
+    check_see_case("king legality: mirror defended destination",
+                   "3k4/3q4/8/8/6b1/8/8/3QK3 b - - 0 1", D7, D1, 900);
+
+    // The case the Rarog fixtures do not cover, and the one the pre-15.0.a
+    // kernel actually got wrong: the defender of the king's destination is
+    // itself absolutely pinned. Bxf6+ is met by Kxf6 only if f6 is undefended;
+    // white's Qf2 defends f6 but is pinned by Be1 against Kh4. A pinned piece
+    // still controls squares against the enemy king, so Kxf6 is illegal and
+    // the exchange ends before it (+100). The 8.2 pin filter removes Qf2 from
+    // white's *recapture* set, which is right for recaptures and wrong for
+    // king legality -- hence the rule reads the unfiltered attacker set.
+    check_see_case("king legality: pinned defender still forbids Kxf6",
+                   "8/6k1/5p2/8/3B3K/8/5Q2/4b3 w - - 0 1", D4, F6, 100);
+    check_see_case("king legality: pinned defender, mirror",
+                   "4B3/5q2/8/3b3k/8/5P2/6K1/8 b - - 0 1", D5, F3, 100);
+}
+
+
+// 15.0.c: the two SEE approximations Basilisk deliberately keeps. These
+// fixtures pin BOTH the truth (the promotion-aware legality oracle) and the
+// kernel's approximate answer, so the divergence cannot drift unnoticed and
+// cannot be "fixed" by accident without this test going red.
+static int see_ge_boundary(const Board& b, Move m) {
+    // see_ge(m, t) is monotone non-increasing in t; return the largest true t.
+    int lo = -30000, hi = 30000;
+    while (lo < hi) {
+        const int mid = lo + (hi - lo + 1) / 2;
+        if (b.see_ge(m, mid)) lo = mid; else hi = mid - 1;
+    }
+    return lo;
+}
+
+static void check_see_approx(const char* label, const char* fen,
+                             Square from, Square to,
+                             int truth, int kernel_see, int kernel_ge_boundary) {
+    Board b;
+    b.set_fen(fen);
+    Move m = find_capture(b, from, to);
+    begin_section(label);
+    EXPECT(m != MOVE_NONE);
+    if (m != MOVE_NONE) {
+        EXPECT_EQ(oracle_see(b, m), truth);              // what is actually true
+        EXPECT_EQ(b.see(m), kernel_see);                 // what the kernel says
+        EXPECT_EQ(see_ge_boundary(b, m), kernel_ge_boundary);
+    }
+    end_section();
+}
+
+// Created pins and promotion recaptures (15.0.c). Fixtures ported from Rarog's
+// `see-contract-v1.tsv` / `see-repair-v1.tsv`, retargeted to Basilisk's
+// 100/300/300/500/900 vector. CLOSED as a documented approximation, not a
+// repair: neither defect changed a single verdict in 339,607 production
+// `see_ge` calls, and the created-pin repair costs +16.8% of the SEE column.
+static void test_see_created_pins_and_promotions() {
+    // --- Created pins: three of the four Rarog fixtures already pass. -------
+    // `see_pins` is computed on the exchange occupancy with the MOVER already
+    // removed, so a pin opened by the mover's own departure is honoured.
+    check_see_case("created pin: opened by the mover's departure",
+                   "2k5/2n5/2B5/3p4/8/8/8/2R1K3 w - - 0 1", C6, D5, 100);
+    check_see_case("created pin: mover's departure, mirror",
+                   "2r1k3/8/8/8/3P4/2b5/2N5/2K5 b - - 0 1", C3, D4, 100);
+    // Pinned knight skipped, unpinned rook recaptures instead.
+    check_see_case("created pin: skip the pinned attacker, choose the rook",
+                   "2kr4/2n5/2B5/3p4/8/8/8/2R1K3 w - - 0 1", C6, D5, -200);
+
+    // The one that genuinely fails: the pin is opened mid-exchange by a LATER
+    // capturer (the c6 bishop's own recapture), not by the initial mover, so
+    // the once-computed pin set never sees it and Nc7 is allowed to recapture.
+    // Truth -300; see() reaches -300 only because its X-ray truncation happens
+    // to stop first, while the exact see_ge carries the illegal knight
+    // recapture and lands at -400. ACCEPTED APPROXIMATION -- see 15.0.c.
+    check_see_approx("created pin: opened mid-exchange (accepted approximation)",
+                     "2k5/2n5/2B1p3/3p4/8/8/3R4/2R4K w - - 0 1", D2, D5,
+                     /*truth*/ -300, /*see()*/ -300, /*see_ge boundary*/ -400);
+
+    // --- Promotion recaptures ----------------------------------------------
+    // A promotion made by the INITIAL move is handled exactly by both kernels.
+    check_see_case("promotion as the initial capture: queen",
+                   "1r2k3/P7/8/8/8/8/8/4K3 w - - 0 1", A7, B8, 1300);
+
+    // A promotion made by a RECAPTURE is scored as a plain pawn: the kernel
+    // adds no promotion gain and leaves a pawn, not a queen, on the square.
+    // Those two errors are each worth (queen - pawn) = 800 and cancel EXACTLY
+    // when the promoted piece is immediately recaptured -- so this one is
+    // correct by cancellation, not by handling:
+    check_see_case("promotion recapture: errors cancel when it is recaptured",
+                   "7k/8/8/8/8/8/pR6/1rR1K3 w - - 0 1", B2, B1, 100);
+
+    // ...and only survives when the promoted piece stands. Truth -800, kernel
+    // 0: the full 800. ACCEPTED APPROXIMATION -- see 15.0.c.
+    check_see_approx("promotion recapture: promoted piece survives (accepted)",
+                     "7k/8/8/8/8/7K/pR6/1r6 w - - 0 1", B2, B1,
+                     /*truth*/ -800, /*see()*/ 0, /*see_ge boundary*/ 0);
+    check_see_approx("promotion recapture: promoted piece survives, mirror",
+                     "1R6/Pr6/7k/8/8/8/8/7K b - - 0 1", B7, B8,
+                     /*truth*/ -800, /*see()*/ 0, /*see_ge boundary*/ 0);
+}
+
 int main() {
     init_bitboards();
     init_attacks();
@@ -1198,6 +1359,8 @@ int main() {
     std::printf("\nHistory-capacity release guard\n");
     test_history_growth_and_exact_unwind();
     test_see_pin_legality();
+    test_see_king_legality();
+    test_see_created_pins_and_promotions();
 
     std::printf("\nFEN round-trip\n");
     test_fen_roundtrip();

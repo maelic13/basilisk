@@ -4,6 +4,10 @@
 #include <sstream>
 #include <string>
 #include <thread>
+#include <atomic>
+#include <chrono>
+#include <cstdint>
+#include <vector>
 
 #include "constants.h"
 #include "engine.h"
@@ -257,7 +261,7 @@ void Engine::run_wac_command(const EngineCommand& command) {
 
     stop_requested_.store(false, std::memory_order_release);
     searching_.store(true, std::memory_order_release);
-    run_wac(depth);
+    run_wac(depth, parameters_.search_params);
     if (command.epoch == 0
         || control_epoch_.load(std::memory_order_acquire) == command.epoch)
         searching_.store(false, std::memory_order_release);

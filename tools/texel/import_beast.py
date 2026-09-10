@@ -1,5 +1,18 @@
 #!/usr/bin/env python3
 """
+OBSOLETE -- DO NOT USE. Kept only so the history of the 5.9.6 failure is legible.
+
+This importer emits ENGINE EVALUATIONS as Texel targets. Basilisk's Texel fits
+use self-play GAME RESULTS and always have. Fitting an evaluation to reproduce
+another engine's scores teaches it to imitate rather than to win: a 348-param
+fit on this data lost 77.92 Elo (BAS-E11), and a later arm labelled with
+Stockfish's game OUTCOMES -- a much milder version of the same import -- still
+lost 7.30 Elo (BAS-E18).
+
+`parse_target` in tuner.cpp now aborts on any target that is not 0, 0.5 or 1, so
+output from this script cannot be fitted at all. To build a corpus, generate
+self-play with tools/datagen.ps1 and extract with tools/texel/extract_parallel.py.
+
 Import Beast/Stockfish-evaluated positions into Basilisk Texel CSV format.
 
 Input lines are expected as:

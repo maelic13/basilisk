@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #if defined(_MSC_VER)
@@ -30,12 +31,27 @@ struct TTEntry {
 // 3 entries and equal hash fits ~2x the clusters (and entries).
 //
 // Lock-free model (SF-style): the payload words stay 8-byte aligned so each is
-// an atomic load/store; the key16 fragment is a separate 2-byte atomic. A read
-// can only "tear" across the key16/payload pair, and a mismatched pair is
-// harmless — the 1/65536 partial-key collision (or a stale pair under SMP) is
-// caught downstream (illegal tt_move rejected by is_legal; bounds validated).
-// Single-thread search is race-free. Old scheme detected torn writes; this one
-// tolerates the rare harmless race instead, the price of the density.
+// an atomic load/store; the key16 fragment is a separate 2-byte atomic. Single-
+// thread search is race-free.
+//
+// ACCEPTED RISK, not a harmless race (BAS-C05, decided 2026-09-07). The key and
+// the payload are two publications, so under SMP a reader can match its key
+// against one store and consume the score/depth/bound of another position's
+// store. That is NOT caught downstream: `search.cpp:1589` returns tt_score as
+// the node value on a depth-and-bound match with no verification, and
+// `search.cpp:1967` multicuts on a singular beta derived from it. The worst
+// case is a foreign mate score reaching the root. An earlier comment here
+// claimed the mismatch was "harmless ... bounds validated"; that claim was
+// false and is what BAS-C05 corrected.
+//
+// It is kept anyway because both repairs cost more than the defect. Binding the
+// pair with a `key16 ^ fold16(payload)` tag measured -3.91% NPS at identical
+// nodes; packing the whole validated record into one atomic word measured
+// -1.22% (~-2.4 Elo at BAS-P01's ratio). Coherence cannot be free at this
+// density: key+score+eval+depth+flag+move needs 80 bits and the word holds 64.
+// Stockfish ships this same tolerance in this same structure. Revisit only on
+// the EXPERIMENTS BAS-C05 retry trigger — a measured 4T-only strength anomaly,
+// or a TT redesign that widens the slot for another reason.
 struct alignas(32) TTCluster {
     std::atomic<uint64_t> data[3];    // payload words, 8-byte aligned (offsets 0/8/16)
     std::atomic<uint16_t> key16[3];   // partial keys (offsets 24/26/28)

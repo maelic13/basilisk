@@ -1,7 +1,7 @@
 # Basilisk
 
 <p align="center">
-  <img src="logo/basilisk_detailed.png" alt="Basilisk logo" width="260">
+  <img src="logo/detailed.png" alt="Basilisk logo" width="260">
 </p>
 
 Basilisk is a strong UCI chess engine written in C++23. It is meant to be used
@@ -127,7 +127,8 @@ cmake --build --preset release
 Add `-DPORTABLE_BUILD=ON` when configuring if the binary has to run on other
 machines: it keeps the optimization level but drops `-march=native`.
 
-Pick the compiler with `-DCOMP=clang`, `-DCOMP=gcc` or `-DCOMP=llvm` (default
+Pick the compiler with `-DCOMP=clang`, `-DCOMP=gcc`, `-DCOMP=llvm` or
+`-DCOMP=msvc` (default
 `auto`: Clang on Linux and Windows, AppleClang on macOS). Remove the build
 directory before switching compilers. Which one is faster varies by CPU — use
 `bench` to compare.
@@ -136,6 +137,12 @@ directory before switching compilers. Which one is faster varies by CPU — use
 your `PATH` and build from any terminal. Release builds link the C++ runtime
 statically, so the resulting `basilisk.exe` needs no MSYS2 DLLs
 (`-DSTATIC_RUNTIME=OFF` disables that).
+
+For MSVC on an Intel x64 host, open an x64 Native Tools command prompt and run
+`cmake --preset msvc-release-pext`, followed by
+`cmake --build --preset msvc-release-pext --target pgo`. The preset enables
+PEXT, whole-program optimization, Intel tuning and MSVC PGO; the final binary
+is copied to `build/dist`. MSVC builds use the dynamic Visual C++ runtime.
 
 **macOS:** `brew install cmake ninja` is enough; add `brew install llvm` if you
 want to compare against Homebrew LLVM with `-DCOMP=llvm`. Apple Silicon only —
@@ -155,7 +162,10 @@ cmake --build --preset release-pext --target pgo
 This builds an instrumented engine, trains it on the `bench` suite, and rebuilds
 using the collected profile. For Clang builds, CMake selects the
 `llvm-profdata` shipped with the configured compiler, so multiple installed LLVM
-versions do not get mixed. The finished binary lands in `build/dist`.
+versions do not get mixed. GCC builds retain their generated `.gcda` files and
+rebuild in the same object tree so GCC can resolve every profile by its original
+object path. Select GCC at configure time with `-DCOMP=gcc`; no
+`llvm-profdata` is involved. The finished binary lands in `build/dist`.
 
 ### Tests
 

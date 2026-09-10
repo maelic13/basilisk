@@ -78,10 +78,15 @@
 
 .PARAMETER LaunchOnly
     Skip setup and just launch (tuner must already be populated). Ignores
-    -Iterations / -EngineSuffix / -Resume.
+    -Iterations / -EngineSuffix / -Resume / -Adjudicate; the existing
+    cutechess.json remains authoritative.
 
 .PARAMETER LogFile
     Override the full-log path. Default tools\results\spsa_<ConfigGroup>.log.
+
+.PARAMETER Adjudicate
+    Opt in to legacy score-based draw 40/8/10 and resign 400/3. Omitted by
+    default: weather-factory mini-matches end only by chess rules.
 
 .EXAMPLE
     # Fresh setup + run, one command:
@@ -108,6 +113,7 @@ param(
     [switch]$Resume,
     [switch]$SetupOnly,
     [switch]$LaunchOnly,
+    [switch]$Adjudicate,
     [string]$LogFile = ""
 )
 
@@ -174,8 +180,9 @@ if (-not $LaunchOnly) {
     $expectedAffinityCpus = (Get-HarnessPhysicalCpus).Cpu -join ','
     if (-not (Test-Path $wfCute) -or
         (Get-Content $wfCute -Raw) -notmatch 'BASILISK_AFFINITY_PATCH_V2' -or
+        (Get-Content $wfCute -Raw) -notmatch 'BASILISK_NO_ADJUDICATION_DEFAULT_V1' -or
         (Get-Content $wfCute -Raw) -notmatch [regex]::Escape("-use-affinity $expectedAffinityCpus ")) {
-        throw "weather-factory is not carrying the verified affinity patch; run tools/setup_tools.ps1."
+        throw "weather-factory is not carrying the verified affinity/no-adjudication patches; run tools/setup_tools.ps1."
     }
     python -m py_compile $wfCute
     if ($LASTEXITCODE -ne 0) { throw "weather-factory Python syntax validation failed: $wfCute" }
@@ -257,6 +264,7 @@ if (-not $LaunchOnly) {
         save_rate     = 10
         pgnout        = "file=tuner/games.pgn"
         use_fastchess = $true
+        adjudicate    = [bool]$Adjudicate
     } | ConvertTo-Json
     $cutechessJson | Out-File (Join-Path $wfRoot "cutechess.json") -Encoding utf8 -NoNewline
     Write-Host "Wrote cutechess.json"
@@ -305,8 +313,9 @@ $launchCute = Join-Path $wfRoot "cutechess.py"
 $expectedAffinityCpus = (Get-HarnessPhysicalCpus).Cpu -join ','
 $launchCuteContent = Get-Content $launchCute -Raw
 if ($launchCuteContent -notmatch 'BASILISK_AFFINITY_PATCH_V2' -or
+    $launchCuteContent -notmatch 'BASILISK_NO_ADJUDICATION_DEFAULT_V1' -or
     $launchCuteContent -notmatch [regex]::Escape("-use-affinity $expectedAffinityCpus ")) {
-    throw "weather-factory is not carrying the verified affinity patch; run tools/setup_tools.ps1."
+    throw "weather-factory is not carrying the verified affinity/no-adjudication patches; run tools/setup_tools.ps1."
 }
 python -m py_compile $launchCute
 if ($LASTEXITCODE -ne 0) { throw "weather-factory Python syntax validation failed: $launchCute" }

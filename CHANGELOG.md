@@ -12,6 +12,94 @@ and next step).
 
 ---
 
+## [1.10.0] - 2026-09-10
+
+A strength release bundling the 2026 endgame and hand-crafted-evaluation line
+with a board-correctness pass. Head-to-head against 1.9.3 it scores
+**+19.18 ± 6.76 Elo** at `tc=3+0.03`, 1 thread — H1 accepted at 4,224 games
+with LOS 100.00%, paired UHO openings, no adjudication. A four-thread smoke
+check at the same time control was clean: zero crashes, zero time forfeits,
+and a 95% lower bound of −1.17 Elo. Its point estimate is **not** evidence
+that the gain is larger at four threads; that sample is far too small to
+separate the two.
+
+The `bench` fingerprint moves from 11,941,440 to **14,978,465**. This is why
+the release is a minor rather than a patch: every 1.9.x release shared
+11,941,440 and shipped as a patch on that basis — 1.9.2 did so even while
+gaining +30 Elo at four threads, because single-thread search was
+bit-identical. Here it is not.
+
+### Improved
+
+- **Endgame knowledge (the "Group A" line).** Scaling and recognition for the
+  endgame families that dominate this engine's conversion losses, gated
+  individually and accepted at roughly **+12 Elo** over 1.9.3 before the rook
+  work below.
+- **Rook-ending draw scaling.** KRPKR and KRPPKRP now carry a floored draw
+  discount, accepted at **+3.29 ± 4.61 Elo** over the frozen Group A head.
+- **KBNK mate drive rebuilt.** Bishop-and-knight conversion rises from
+  **13.0% to 54.5%** on fixed-seed cohorts, with deterministic conversion
+  floors in the test suite so it cannot silently regress. The drive is
+  applied only where search cannot already force mate.
+- **Search selectivity.** `singularQuietLMR` at 401, tuned for this engine's
+  selectivity stack rather than carried over from a reference value.
+
+### Fixed
+
+- **Static exchange evaluation: king legality.** When a king is the last
+  remaining attacker on a square, it may now capture only if the opponent has
+  no attacker left there. The previous kernel derived that answer from a
+  pin-filtered attacker set, which silently dropped a defender that was
+  pinned against its own king — a piece that still controls squares against
+  the enemy king. Adjudicated against an independent make/unmake legality
+  oracle over 1,896,743 captures, the repair is correct in 6,481 of 6,481
+  changed `see()` values and 301 of 301 changed threshold verdicts, with no
+  regressions. Measured in isolation the change is strength-neutral
+  (−0.65 ± 5.25 Elo over 5,874 games); it is shipped as a correctness repair.
+- **UCI `setoption` with an unknown name** now reports
+  `info string Unknown option: '<name>'`. It previously fell through in
+  silence, so a misspelled option looked as though it had been applied.
+- **Transposition table publication.** The validated record is published in a
+  single atomic word, so a reader can no longer combine one entry's key with
+  another's payload for the fields that decide a cutoff.
+
+### Development tooling
+
+- MSVC PEXT PGO build support.
+- Board state is encapsulated: the bitboards, occupancies, mailbox and
+  incremental keys are one representation with a single mutation authority,
+  so no caller can update one view and leave the others stale. Behaviour and
+  `bench` are unchanged by this work.
+- Header hygiene: translation units include what they use rather than relying
+  on transitive includes.
+
+### Known limitations
+
+These are measured, deliberate and recorded rather than unknown:
+
+- **Transposition-table coherence.** Two repairs were implemented and both
+  were rejected on measured throughput (−3.91% and −1.22% NPS). A mismatched
+  key/payload pair remains representable for the non-deciding fields. The
+  defect has never been observed to cost a game, and the same tolerance ships
+  in comparable engines.
+- **SEE approximations.** A pin created *mid-exchange* by a later capturer,
+  and a recapture that promotes, are both approximated. Neither changed a
+  single verdict across 339,607 production SEE calls, and repairing the
+  first costs +16.8% of the SEE column, so both are kept and pinned by tests
+  that assert the true value *and* the approximate one.
+
+### Evaluated but not shipped
+
+Several substantial lines were measured and refused rather than merged: a
+whole-evaluation refit whose fit gains did not survive holdout, six absent
+evaluation terms, history pruning, aspiration-window changes, and reduction
+magnitude as a lever. Their evidence and retry conditions are in
+`EXPERIMENTS.md`.
+
+**Why 1.10.0:** the single-thread search tree changed and the release gains
+measured Elo, which is the line this project has drawn between minor and
+patch since 1.9.1. `2.0.0` remains reserved for NNUE.
+
 ## [1.9.3] - 2026-08-01
 
 A build-tooling maintenance release. Engine search behavior and playing

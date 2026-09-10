@@ -3,15 +3,25 @@
 #include "syzygy.h"
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cassert>
+#include <chrono>
 #include <cmath>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <exception>
+#include <functional>
+#include <memory>
+#include <mutex>
+#include <ratio>
 #include <sstream>
 #include <string>
 #include <system_error>
 #include <thread>
 #include <utility>
+#include <vector>
 
 // ---- LMR table -------------------------------------------------------------
 
@@ -159,8 +169,8 @@ static bool is_legal_move_on_board(const Board& board, Move move) {
         return false;
 
     const Square from = from_sq(move);
-    const Piece piece = board.board_sq[from];
-    if (piece == NO_PIECE || color_of(piece) != board.side_to_move)
+    const Piece piece = board.piece_on(from);
+    if (piece == NO_PIECE || color_of(piece) != board.turn())
         return false;
 
     MoveList legal;
@@ -424,7 +434,7 @@ bool Searcher::check_stop() {
         SearchLimits normal_limits = active_limits_;
         normal_limits.ponder = false;
         const int game_ply = board_ptr_
-            ? 2 * (board_ptr_->fullmove_number - 1) + (board_ptr_->side_to_move == BLACK ? 1 : 0)
+            ? 2 * (board_ptr_->fullmove() - 1) + (board_ptr_->turn() == BLACK ? 1 : 0)
             : 0;
         compute_time_limit(normal_limits, root_side_, game_ply);
         if (soft_limit_ > 0.0 && elapsed_seconds() >= soft_limit_) {
@@ -535,18 +545,18 @@ void Searcher::update_all_histories(Move best, bool best_is_tt,
               + (best_is_tt ? active_limits_.params.hist_ttmove_bonus : 0);
     int malus = history_malus_value(depth);
 
-    bool best_is_cap   = (board_ptr_->board_sq[to_sq(best)] != NO_PIECE)
+    bool best_is_cap   = (board_ptr_->piece_on(to_sq(best)) != NO_PIECE)
                       || (move_type(best) == EN_PASSANT);
     bool best_is_promo = (move_type(best) == PROMOTION);
 
     if (!best_is_cap && !best_is_promo) {
         Square from  = Square(from_sq(best));
         Square to    = Square(to_sq(best));
-        PieceType pt = type_of(board_ptr_->board_sq[from]);
+        PieceType pt = type_of(board_ptr_->piece_on(from));
 
         // Quiet history
         update_quiet(stm, from, to, bonus);
-        update_pawn_hist(board_ptr_->pawn_key, pt, to, bonus);
+        update_pawn_hist(board_ptr_->pawn_key_value(), pt, to, bonus);
         update_low_ply(static_cast<int>(ss - (ss_arr_ + 4)), from, to, bonus);
 
         // Killers / countermove are cutoff semantics ("this move refuted the
@@ -575,17 +585,17 @@ void Searcher::update_all_histories(Move best, bool best_is_tt,
             Move m = quiets[i];
             if (m == best) continue;
             Square mf = Square(from_sq(m)), mt = Square(to_sq(m));
-            PieceType mpt = type_of(board_ptr_->board_sq[mf]);
+            PieceType mpt = type_of(board_ptr_->piece_on(mf));
             update_quiet(stm, mf, mt, malus);
-            update_pawn_hist(board_ptr_->pawn_key, mpt, mt, malus);
+            update_pawn_hist(board_ptr_->pawn_key_value(), mpt, mt, malus);
             update_low_ply(static_cast<int>(ss - (ss_arr_ + 4)), mf, mt, malus);
             update_cont_for_move(ss, mpt, mt, malus);
         }
     } else if (best_is_cap) {
         // Best was a capture (not a quiet promotion)
-        PieceType atk = type_of(board_ptr_->board_sq[from_sq(best)]);
+        PieceType atk = type_of(board_ptr_->piece_on(from_sq(best)));
         PieceType cap = (move_type(best) == EN_PASSANT)
-                      ? PAWN : type_of(board_ptr_->board_sq[to_sq(best)]);
+                      ? PAWN : type_of(board_ptr_->piece_on(to_sq(best)));
         update_cap(atk, Square(to_sq(best)), cap, bonus);
     }
     // Quiet promotions: no history update (too rare to matter)
@@ -595,9 +605,9 @@ void Searcher::update_all_histories(Move best, bool best_is_tt,
     for (int i = 0; i < bad_cap_count; ++i) {
         Move m = bad_caps[i];
         if (m == best) continue;
-        PieceType atk = type_of(board_ptr_->board_sq[from_sq(m)]);
+        PieceType atk = type_of(board_ptr_->piece_on(from_sq(m)));
         PieceType cap = (move_type(m) == EN_PASSANT)
-                      ? PAWN : type_of(board_ptr_->board_sq[to_sq(m)]);
+                      ? PAWN : type_of(board_ptr_->piece_on(to_sq(m)));
         update_cap(atk, Square(to_sq(m)), cap, malus);
     }
 }
@@ -610,11 +620,11 @@ static void update_correction_slot(int16_t& slot, int diff, int depth) {
 }
 
 void Searcher::update_correction(Color stm, const Board& board, SearchStack* ss, int diff, int depth) {
-    update_correction_slot(hist_.pawn_corr[stm][board.pawn_key & (HistoryTables::CORR_SIZE - 1)], diff, depth);
-    update_correction_slot(hist_.minor_corr[stm][board.minor_key & (HistoryTables::CORR_SIZE - 1)], diff, depth);
-    update_correction_slot(hist_.nonpawn_corr[stm][WHITE][board.nonpawn_key[WHITE] & (HistoryTables::CORR_SIZE - 1)],
+    update_correction_slot(hist_.pawn_corr[stm][board.pawn_key_value() & (HistoryTables::CORR_SIZE - 1)], diff, depth);
+    update_correction_slot(hist_.minor_corr[stm][board.minor_key_value() & (HistoryTables::CORR_SIZE - 1)], diff, depth);
+    update_correction_slot(hist_.nonpawn_corr[stm][WHITE][board.nonpawn_key_value(WHITE) & (HistoryTables::CORR_SIZE - 1)],
                            diff, depth);
-    update_correction_slot(hist_.nonpawn_corr[stm][BLACK][board.nonpawn_key[BLACK] & (HistoryTables::CORR_SIZE - 1)],
+    update_correction_slot(hist_.nonpawn_corr[stm][BLACK][board.nonpawn_key_value(BLACK) & (HistoryTables::CORR_SIZE - 1)],
                            diff, depth);
 
     if ((ss-1)->move != MOVE_NONE && (ss-1)->move != MOVE_NULL
@@ -625,10 +635,10 @@ void Searcher::update_correction(Color stm, const Board& board, SearchStack* ss,
 }
 
 int Searcher::correction_value(Color stm, const Board& board, const SearchStack* ss) const {
-    const int pawn = hist_.pawn_corr[stm][board.pawn_key & (HistoryTables::CORR_SIZE - 1)];
-    const int minor = hist_.minor_corr[stm][board.minor_key & (HistoryTables::CORR_SIZE - 1)];
-    const int own = hist_.nonpawn_corr[stm][stm][board.nonpawn_key[stm] & (HistoryTables::CORR_SIZE - 1)];
-    const int opp = hist_.nonpawn_corr[stm][~stm][board.nonpawn_key[~stm] & (HistoryTables::CORR_SIZE - 1)];
+    const int pawn = hist_.pawn_corr[stm][board.pawn_key_value() & (HistoryTables::CORR_SIZE - 1)];
+    const int minor = hist_.minor_corr[stm][board.minor_key_value() & (HistoryTables::CORR_SIZE - 1)];
+    const int own = hist_.nonpawn_corr[stm][stm][board.nonpawn_key_value(stm) & (HistoryTables::CORR_SIZE - 1)];
+    const int opp = hist_.nonpawn_corr[stm][~stm][board.nonpawn_key_value(~stm) & (HistoryTables::CORR_SIZE - 1)];
 
     int cont = 0;
     if ((ss-1)->move != MOVE_NONE && (ss-1)->move != MOVE_NULL
@@ -657,9 +667,9 @@ void Searcher::score_moves(ScoredMove* moves, int n, SearchStack* ss,
     // this node. Hoist them beside the continuation rows so the move loop only
     // indexes its varying piece/from/to dimensions. Keeping the additions in
     // the same order preserves the fixed-depth bench exactly.
-    const auto& main_hist = hist_.main[b.side_to_move];
+    const auto& main_hist = hist_.main[b.turn()];
     const auto& pawn_hist = hist_.pawn->data[
-        b.pawn_key & (HistoryTables::PAWN_HIST_SIZE - 1)];
+        b.pawn_key_value() & (HistoryTables::PAWN_HIST_SIZE - 1)];
     const auto* low_ply_hist = ply < HistoryTables::LOW_PLY_HISTORY_SIZE
                              ? &hist_.low_ply[ply] : nullptr;
 
@@ -673,7 +683,7 @@ void Searcher::score_moves(ScoredMove* moves, int n, SearchStack* ss,
     auto checks_for = [&](PieceType pt) {
         const auto idx = static_cast<size_t>(pt);
         if (!check_squares_ready[idx]) {
-            check_squares[idx] = b.check_squares(pt, b.side_to_move);
+            check_squares[idx] = b.check_squares(pt, b.turn());
             check_squares_ready[idx] = true;
         }
         return check_squares[idx];
@@ -702,12 +712,12 @@ void Searcher::score_moves(ScoredMove* moves, int n, SearchStack* ss,
     for (int i = 0; i < n; i++) {
         Move m = moves[i].move;
 
-        bool is_cap   = (b.board_sq[to_sq(m)] != NO_PIECE) || (move_type(m) == EN_PASSANT);
+        bool is_cap   = (b.piece_on(to_sq(m)) != NO_PIECE) || (move_type(m) == EN_PASSANT);
         bool is_promo = (move_type(m) == PROMOTION);
 
         if (is_cap) {
-            PieceType atk = type_of(b.board_sq[from_sq(m)]);
-            PieceType cap = (move_type(m) == EN_PASSANT) ? PAWN : type_of(b.board_sq[to_sq(m)]);
+            PieceType atk = type_of(b.piece_on(from_sq(m)));
+            PieceType cap = (move_type(m) == EN_PASSANT) ? PAWN : type_of(b.piece_on(to_sq(m)));
             moves[i].score = 6'000'000 + PIECE_VALUE[cap] * 16 - PIECE_VALUE[atk]
                                        + hist_.capture[atk][to_sq(m)][cap];
         } else if (is_promo) {
@@ -716,7 +726,7 @@ void Searcher::score_moves(ScoredMove* moves, int n, SearchStack* ss,
             // Quiet
             const Square from = Square(from_sq(m));
             const Square to = Square(to_sq(m));
-            const PieceType pt = type_of(b.board_sq[from]);
+            const PieceType pt = type_of(b.piece_on(from));
             int hist = main_hist[from][to];
             if (ch1) hist += ch1[pt][to];
             if (ch2) hist += ch2[pt][to];
@@ -774,16 +784,18 @@ public:
 
     Move next() {
         last_see_ = VALUE_NONE;   // 8.7.5(a): reset the per-move SEE verdict
+        last_src_ = Src::None;    // 5.2: reset the per-move picker source
         while (true) {
             switch (stage_) {
                 case Stage::TT:
                     stage_ = Stage::TacticalsInit;
                     if (tt_move_ != MOVE_NONE && tt_move_ != excluded_) {
-                        Piece p = searcher_.board_ptr_->board_sq[from_sq(tt_move_)];
+                        Piece p = searcher_.board_ptr_->piece_on(from_sq(tt_move_));
                         if (p != NO_PIECE
-                            && color_of(p) == searcher_.board_ptr_->side_to_move
+                            && color_of(p) == searcher_.board_ptr_->turn()
                             && searcher_.board_ptr_->is_legal(tt_move_)) {
                             tt_searched_ = true;
+                            last_src_ = Src::TT;
                             return tt_move_;
                         }
                     }
@@ -807,6 +819,7 @@ public:
                         // recompute the identical see_ge. Promotions carry no
                         // SEE verdict (search skips SEE for them).
                         last_see_ = is_nonpromo_capture(move) ? 0 : VALUE_NONE;
+                        last_src_ = Src::GoodTactical;
                         return move;
                     }
                     stage_ = Stage::QuietsInit;
@@ -818,8 +831,10 @@ public:
                     break;
 
                 case Stage::Quiets:
-                    if (idx_ < n_)
+                    if (idx_ < n_) {
+                        last_src_ = Src::Quiet;
                         return Searcher::pick_next(scored_, idx_++, n_);
+                    }
                     stage_ = Stage::BadTacticals;
                     bad_idx_ = 0;
                     break;
@@ -829,6 +844,7 @@ public:
                         // 8.7.5(a): the bad-tactical buffer holds only non-promo
                         // captures with see_ge(m,0) == FALSE → see_score = -1.
                         last_see_ = -1;
+                        last_src_ = Src::BadTactical;
                         return Searcher::pick_next(bad_, bad_idx_++, bad_count_);
                     }
                     stage_ = Stage::Done;
@@ -878,7 +894,7 @@ private:
         if (move_type(move) == PROMOTION)
             return false;
         const Board& board = *searcher_.board_ptr_;
-        const bool is_cap = board.board_sq[to_sq(move)] != NO_PIECE || move_type(move) == EN_PASSANT;
+        const bool is_cap = board.piece_on(to_sq(move)) != NO_PIECE || move_type(move) == EN_PASSANT;
         return is_cap && !board.see_ge(move, 0);
     }
 
@@ -888,7 +904,7 @@ private:
         if (move_type(move) == PROMOTION)
             return false;
         const Board& board = *searcher_.board_ptr_;
-        return board.board_sq[to_sq(move)] != NO_PIECE || move_type(move) == EN_PASSANT;
+        return board.piece_on(to_sq(move)) != NO_PIECE || move_type(move) == EN_PASSANT;
     }
 
 public:
@@ -896,6 +912,11 @@ public:
     // -1 (bad capture), or VALUE_NONE (TT move / promo / quiet / not a capture)
     // — lets search_one skip recomputing the identical see_ge(m,0).
     int last_see_score() const { return last_see_; }
+    // 5.2: which stage produced the move just returned. Recorded at each
+    // return rather than read from stage_, because the TT and tactical
+    // stages advance stage_ before returning.
+    enum class Src { None, TT, GoodTactical, Quiet, BadTactical };
+    Src last_source() const { return last_src_; }
 private:
 
     Searcher& searcher_;
@@ -913,6 +934,7 @@ private:
     int bad_count_ = 0;
     int bad_idx_ = 0;
     int last_see_ = VALUE_NONE;   // 8.7.5(a): SEE verdict of the last move returned
+    Src last_src_ = Src::None;    // 5.2: picker stage of the last move returned
 };
 
 // ---- UCI info ---------------------------------------------------------------
@@ -926,7 +948,12 @@ void Searcher::print_diag() const {
     auto pct = [](int64_t a, int64_t b) {
         return b > 0 ? 100.0 * double(a) / double(b) : 0.0;
     };
-    char buf[256];
+    // 5.6: 256 was too small once the kv mirror grew. snprintf truncates
+    // silently and always loses the TAIL field, so the corruption scales
+    // with the counter magnitudes - it produced a non-monotonic threshold
+    // series that is arithmetically impossible. Sized with headroom, and
+    // the history probe moved to its own line below.
+    char buf[512];
     auto emit = [&](const char* text) { info_cb_(std::string("info string diag ") + text); };
     std::snprintf(buf, sizeof(buf),
         "nodes interior %lld qsearch %lld | in_check %lld (%.2f%%) check_ext %lld tt_pv %lld (%.2f%%)",
@@ -955,6 +982,81 @@ void Searcher::print_diag() const {
         (long long)d.hist_cutoff_updates, (long long)d.hist_reward_updates,
         (long long)d.qs_evasion_nodes);
     emit(buf);
+    // ---- 5.2 differential harness (BAS-O03) --------------------------------
+    // Read these against the oracle's tree shape, not in isolation.
+    std::snprintf(buf, sizeof(buf),
+        "order fail_highs %lld first %lld (%.2f%%) mean_idx %.3f | src tt %lld goodcap %lld quiet %lld badcap %lld",
+        (long long)d.fail_highs, (long long)d.fail_high_first,
+        pct(d.fail_high_first, d.fail_highs),
+        d.fail_highs > 0 ? double(d.fail_high_index_sum) / double(d.fail_highs) : 0.0,
+        (long long)d.cutoff_src_tt, (long long)d.cutoff_src_good_tactical,
+        (long long)d.cutoff_src_quiet, (long long)d.cutoff_src_bad_tactical);
+    emit(buf);
+    std::snprintf(buf, sizeof(buf),
+        "lmrgate eligible %lld applied %lld (%.2f%%) mean_r %.3f clamp0 %lld",
+        (long long)d.lmr_eligible, (long long)d.lmr_applied,
+        pct(d.lmr_applied, d.lmr_eligible),
+        d.lmr_applied > 0 ? double(d.lmr_reduction_plies) / double(d.lmr_applied) : 0.0,
+        (long long)d.lmr_clamped_zero);
+    emit(buf);
+    std::snprintf(buf, sizeof(buf),
+        "lmrblock depth %lld searched %lld in_check %lld movetype %lld gives_check %lld",
+        (long long)d.lmr_blocked_depth, (long long)d.lmr_blocked_searched,
+        (long long)d.lmr_blocked_in_check, (long long)d.lmr_blocked_movetype,
+        (long long)d.lmr_blocked_gives_check);
+    emit(buf);
+    // Machine-readable mirror. The lines above are shaped for a human reading
+    // one search; the harness aggregates over a 107-position suite and must not
+    // have to reverse-engineer prose, percentages or floats to do it. Integers
+    // only, canonical names, one token per counter — derived ratios are the
+    // consumer's job, since summing a percentage across positions is wrong.
+    {
+        std::snprintf(buf, sizeof(buf),
+            "kv fail_highs=%lld fail_high_first=%lld fail_high_index_sum=%lld "
+            "cutoff_src_tt=%lld cutoff_src_goodcap=%lld cutoff_src_quiet=%lld "
+            "cutoff_src_badcap=%lld",
+            (long long)d.fail_highs, (long long)d.fail_high_first,
+            (long long)d.fail_high_index_sum,
+            (long long)d.cutoff_src_tt, (long long)d.cutoff_src_good_tactical,
+            (long long)d.cutoff_src_quiet, (long long)d.cutoff_src_bad_tactical);
+        emit(buf);
+        std::snprintf(buf, sizeof(buf),
+            "kv lmr_eligible=%lld lmr_applied=%lld lmr_researched=%lld "
+            "lmr_reduction_plies=%lld lmr_clamped_zero=%lld "
+            "lmr_blocked_depth=%lld lmr_blocked_searched=%lld "
+            "lmr_blocked_in_check=%lld lmr_blocked_movetype=%lld "
+            "lmr_blocked_gives_check=%lld lmr_clamped_high=%lld",
+            (long long)d.lmr_eligible, (long long)d.lmr_applied,
+            (long long)d.lmr_researched, (long long)d.lmr_reduction_plies,
+            (long long)d.lmr_clamped_zero,
+            (long long)d.lmr_blocked_depth, (long long)d.lmr_blocked_searched,
+            (long long)d.lmr_blocked_in_check, (long long)d.lmr_blocked_movetype,
+            (long long)d.lmr_blocked_gives_check, (long long)d.lmr_clamped_high);
+        emit(buf);
+        std::snprintf(buf, sizeof(buf),
+            "kv interior_nodes=%lld qs_nodes=%lld tt_probes=%lld tt_hits=%lld "
+            "tt_cutoffs=%lld in_check_nodes=%lld check_exts=%lld",
+            (long long)d.interior_nodes, (long long)d.qs_nodes,
+            (long long)d.tt_probes, (long long)d.tt_hits, (long long)d.tt_cutoffs,
+            (long long)d.in_check_nodes, (long long)d.check_exts);
+        emit(buf);
+        std::snprintf(buf, sizeof(buf),
+            "kv rfp_cuts=%lld razor_cuts=%lld null_tries=%lld null_cuts=%lld "
+            "probcut_tries=%lld probcut_cuts=%lld fut_prunes=%lld lmp_prunes=%lld "
+            "hist_prunes=%lld see_prunes=%lld",
+            (long long)d.rfp_cuts, (long long)d.razor_cuts,
+            (long long)d.null_tries, (long long)d.null_cuts,
+            (long long)d.probcut_tries, (long long)d.probcut_cuts,
+            (long long)d.fut_prunes, (long long)d.lmp_prunes,
+            (long long)d.hist_prunes, (long long)d.see_prunes);
+        emit(buf);
+        std::snprintf(buf, sizeof(buf),
+            "kv hist_prune_tested=%lld hist_below_half=%lld "
+            "hist_below_quarter=%lld hist_below_eighth=%lld",
+            (long long)d.hist_prune_tested, (long long)d.hist_below_half,
+            (long long)d.hist_below_quarter, (long long)d.hist_below_eighth);
+        emit(buf);
+    }
     // 8.7.1(c) speed telemetry — the numbers Phase 8.7 steps read before
     // touching anything: eval rate (8.7.7), pawn-cache hit rate (8.7.8),
     // full-gives_check rate (8.7.3), SEE calls per node (8.7.5).
@@ -970,7 +1072,65 @@ void Searcher::print_diag() const {
             (long long)d.see_ge_calls,
             total_nodes > 0 ? double(d.see_ge_calls) / double(total_nodes) : 0.0);
         emit(buf);
+        std::snprintf(buf, sizeof(buf),
+            "kv eval_calls=%lld pawn_probes=%lld pawn_hits=%lld "
+            "gives_check_calls=%lld see_ge_calls=%lld",
+            (long long)evaluator_.eval_calls,
+            (long long)evaluator_.pawn_probes, (long long)evaluator_.pawn_hits,
+            (long long)d.gives_check_calls, (long long)d.see_ge_calls);
+        emit(buf);
     }
+#ifdef BASILISK_TUNE
+    {
+        const auto& e = evaluator_.endgame_occurrence;
+        std::snprintf(buf, sizeof(buf),
+            "endgames <=7men %lld (%.3f%% eval, %.3f%% node)",
+            (long long)e.classified,
+            pct(e.classified, evaluator_.eval_calls),
+            pct(e.classified, d.interior_nodes + d.qs_nodes));
+        emit(buf);
+        std::snprintf(buf, sizeof(buf),
+            "kv eg_classified=%lld eg_krpkr=%lld eg_krpkb=%lld eg_kpsk=%lld "
+            "eg_kpk=%lld eg_krkp=%lld eg_kbpsk=%lld eg_kpkp=%lld",
+            (long long)e.classified, (long long)e.krpkr, (long long)e.krpkb,
+            (long long)e.kpsk, (long long)e.kpk, (long long)e.krkp,
+            (long long)e.kbpsk, (long long)e.kpkp);
+        emit(buf);
+        std::snprintf(buf, sizeof(buf),
+            "kv eg_kqkp=%lld eg_kbpkb=%lld eg_kbppkb=%lld eg_krkn=%lld "
+            "eg_krkb=%lld eg_kbpkn=%lld eg_knnkp=%lld eg_knnk=%lld",
+            (long long)e.kqkp, (long long)e.kbpkb, (long long)e.kbppkb,
+            (long long)e.krkn, (long long)e.krkb, (long long)e.kbpkn,
+            (long long)e.knnkp, (long long)e.knnk);
+        emit(buf);
+        std::snprintf(buf, sizeof(buf),
+            "kv eg_kqkr=%lld eg_kqkrps=%lld eg_krppkrp=%lld eg_kxk=%lld eg_kbnk=%lld",
+            (long long)e.kqkr, (long long)e.kqkrps, (long long)e.krppkrp,
+            (long long)e.kxk, (long long)e.kbnk);
+        emit(buf);
+    }
+#endif
+    {
+        char b[256];
+        std::snprintf(b, sizeof(b),
+            "aspiration windows %lld fail_low %lld fail_high %lld researches %lld giveup %lld",
+            (long long)diag_.asp_windows, (long long)diag_.asp_fail_low,
+            (long long)diag_.asp_fail_high, (long long)diag_.asp_researches,
+            (long long)diag_.asp_giveup);
+        emit(b);
+    }
+
+    {
+        char b[256];
+        std::snprintf(b, sizeof(b),
+            "singular fired %lld double %lld in_check %lld triple %lld ttbeta %lld (%.2f%% of fired)",
+            (long long)diag_.sing_fired, (long long)diag_.sing_double,
+            (long long)diag_.sing_in_check, (long long)diag_.sing_triple,
+            (long long)diag_.sing_ttbeta,
+            diag_.sing_fired ? 100.0 * double(diag_.sing_in_check) / double(diag_.sing_fired) : 0.0);
+        emit(b);
+    }
+
     if (evaluator_.lazy_fires > 0) {
         std::snprintf(buf, sizeof(buf),
             "lazy fires %lld sign_flips %lld crossings %lld absdelta mean %.1f max %lld",
@@ -1134,7 +1294,7 @@ Move Searcher::ponder_from_tt(const Board& root, Move bestmove) const {
     child.make_move(bestmove);
 
     TTEntry entry{};
-    if (!tt_.probe_copy(child.hash, entry))
+    if (!tt_.probe_copy(child.position_key(), entry))
         return MOVE_NONE;
 
     const Move ponder = move_from_tt(entry.move16);
@@ -1154,7 +1314,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     diag_.qs_nodes++;
 
     // TT probe
-    Key hash = board_ptr_->hash;
+    Key hash = board_ptr_->position_key();
     TTEntry tte{};
     bool tt_found = tt_.probe_copy(hash, tte);
     diag_.tt_probes++;
@@ -1164,7 +1324,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     TTFlag tt_flag = TT_NONE;
     if (tt_found) {
         tt_move = move_from_tt(tte.move16);
-        tt_score = TranspositionTable::score_from_tt(tte.score, ply, board_ptr_->halfmove_clock);
+        tt_score = TranspositionTable::score_from_tt(tte.score, ply, board_ptr_->rule50_count());
         tt_flag = TTFlag(tte.flag_age & 3);
         if (tt_flag == TT_EXACT) return tt_score;
         if (tt_flag == TT_ALPHA && tt_score <= alpha) return tt_score;
@@ -1203,7 +1363,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         raw_eval = evaluator_.evaluate(*board_ptr_);
 
     int stand_pat = raw_eval;
-    stand_pat += correction_value(board_ptr_->side_to_move, *board_ptr_, ss);
+    stand_pat += correction_value(board_ptr_->turn(), *board_ptr_, ss);
     stand_pat = std::clamp(stand_pat, -(MATE_SCORE - 1), MATE_SCORE - 1);
 
     // Step 6.1 mirror: tighten the stand-pat with the TT bound when it proves a
@@ -1242,8 +1402,8 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     ScoredMove* sm = move_buffers_[ply][0];
     int nm = 0;
     for (Move m : captures) {
-        PieceType atk = type_of(board_ptr_->board_sq[from_sq(m)]);
-        PieceType cap = (move_type(m) == EN_PASSANT) ? PAWN : type_of(board_ptr_->board_sq[to_sq(m)]);
+        PieceType atk = type_of(board_ptr_->piece_on(from_sq(m)));
+        PieceType cap = (move_type(m) == EN_PASSANT) ? PAWN : type_of(board_ptr_->piece_on(to_sq(m)));
         int score = (m == tt_move) ? 10'000'000
                   : PIECE_VALUE[cap] * 16 - PIECE_VALUE[atk] + hist_.capture[atk][to_sq(m)][cap];
         sm[nm++] = {m, score};
@@ -1257,7 +1417,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
 
         const MoveType mt = move_type(m);
         const bool is_promo = mt == PROMOTION;
-        const Piece target = board_ptr_->board_sq[to_sq(m)];
+        const Piece target = board_ptr_->piece_on(to_sq(m));
         const int captured_value = (mt == EN_PASSANT) ? PIECE_VALUE[PAWN]
                                  : (target != NO_PIECE) ? PIECE_VALUE[type_of(target)]
                                  : 0;
@@ -1369,7 +1529,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                                          active_limits_.syzygy_50_move_rule)) {
             record_tbhit();
             const int tb_score = score_from_syzygy_wdl(*wdl);
-            tt_store(board_ptr_->hash, depth, tb_score, TT_EXACT, MOVE_NONE, ply,
+            tt_store(board_ptr_->position_key(), depth, tb_score, TT_EXACT, MOVE_NONE, ply,
                       TranspositionTable::INF_EVAL);
             return tb_score;
         }
@@ -1381,8 +1541,17 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     // Guard with ss->excluded to prevent stacking with singular extensions.
     diag_.interior_nodes++;
     if (in_check) diag_.in_check_nodes++;
+    // The extension is unconditional: every in-check node gets a ply.
+    //
+    // 5.7.6 removed check_ext_path_cap, which bounded the accumulation per path
+    // and defaulted to 0 (disabled). It was added inert for 5.4.4, and that
+    // cluster closed with BAS-S16 REJECTED at -3.48 +/- 3.32 -- so it was the
+    // residue of a failed trial, not an avenue still open. 5.7.3 separately
+    // measured that reducing extension at checking nodes fails our WAC floor.
+    bool did_check_ext = false;
     if (in_check && ss->excluded == MOVE_NONE && ply < MAX_PLY - 2) {
         depth++;
+        did_check_ext = true;
         diag_.check_exts++;
     }
 
@@ -1397,7 +1566,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     }
 
     // ---- Transposition table lookup ----------------------------------------
-    Key hash     = board_ptr_->hash;
+    Key hash     = board_ptr_->position_key();
     TTEntry tte{};
     bool tt_found = tt_.probe_copy(hash, tte);
     diag_.tt_probes++;
@@ -1410,7 +1579,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
     if (tt_found) {
         tt_move  = move_from_tt(tte.move16);
-        tt_score = TranspositionTable::score_from_tt(tte.score, ply, board_ptr_->halfmove_clock);
+        tt_score = TranspositionTable::score_from_tt(tte.score, ply, board_ptr_->rule50_count());
         // depth is int8_t with a deliberate -1 sentinel; tidy's suggested
         // unsigned cast would corrupt it.
         // NOLINTNEXTLINE(bugprone-signed-char-misuse)
@@ -1432,7 +1601,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
     // Phase 6.7: is the TT move a capture? (LMR input, lmr_tt_capture)
     const bool tt_capture = tt_move != MOVE_NONE
-        && (board_ptr_->board_sq[to_sq(tt_move)] != NO_PIECE
+        && (board_ptr_->piece_on(to_sq(tt_move)) != NO_PIECE
             || move_type(tt_move) == EN_PASSANT);
 
     // ---- Static evaluation -------------------------------------------------
@@ -1451,7 +1620,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
         // TT stores the raw static eval; correction is applied at probe time.
         static_eval = raw_static_eval;
-        static_eval += correction_value(board_ptr_->side_to_move, *board_ptr_, ss);
+        static_eval += correction_value(board_ptr_->turn(), *board_ptr_, ss);
         static_eval  = std::clamp(static_eval, -(MATE_SCORE - 1), MATE_SCORE - 1);
         ss->eval = static_eval;
     }
@@ -1503,14 +1672,14 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         // Null-move pruning
         if (allow_null && depth >= 3
             && eval >= beta
-            && board_ptr_->has_non_pawn_material(board_ptr_->side_to_move)
+            && board_ptr_->has_non_pawn_material(board_ptr_->turn())
             && (ss-1)->move != MOVE_NULL) {
 
             int r = active_limits_.params.null_base + depth / 4
                   + std::min((eval - beta) / active_limits_.params.null_eval_div, 3);
             diag_.null_tries++;
             do_null_move(ss);
-            tt_.prefetch(board_ptr_->hash);   // 8.7.6(c)
+            tt_.prefetch(board_ptr_->position_key());   // 8.7.6(c)
             int null_score = -negamax(std::max(0, depth - r), -beta, -(beta - 1),
                                       ply + 1, ss + 1, false, false, true);
             undo_null_move(ss);
@@ -1544,7 +1713,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
                 diag_.probcut_tries++;
                 do_move(ss, m);
-                tt_.prefetch(board_ptr_->hash);   // 8.7.6(c)
+                tt_.prefetch(board_ptr_->position_key());   // 8.7.6(c)
                 // Quick check via QSearch first
                 int val = -quiescence(-pc_beta, -pc_beta + 1, ply + 1, 0, ss + 1);
                 if (val >= pc_beta)
@@ -1585,13 +1754,28 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     // 9.6: score_moves() has already hoisted these bases for ordering. The
     // history-pruning and LMR-stat paths below revisit the same quiet move, so
     // hoist their node-invariant dimensions here as well.
-    const auto& main_hist = hist_.main[board_ptr_->side_to_move];
+    const auto& main_hist = hist_.main[board_ptr_->turn()];
     const auto& pawn_hist = hist_.pawn->data[
-        board_ptr_->pawn_key & (HistoryTables::PAWN_HIST_SIZE - 1)];
+        board_ptr_->pawn_key_value() & (HistoryTables::PAWN_HIST_SIZE - 1)];
     const auto* low_ply_hist = ply < HistoryTables::LOW_PLY_HISTORY_SIZE
                              ? &hist_.low_ply[ply] : nullptr;
 
-    auto search_one = [&](Move m, int picker_see) {
+    // 5.7.2: set when the TT move proves singular at this node, and then read
+    // by LMR for every LATER move here.
+    //
+    // The scope is the subtle part and is the whole mechanism: the reference
+    // resets this once per NODE, not per move, so a singular TT move relaxes
+    // the reduction on all its siblings. A singular TT move means one move is
+    // materially better than every alternative, which is exactly a position
+    // where the alternatives deserve a closer look before being reduced away.
+    //
+    // It deliberately does NOT reduce the singular move itself: that move is
+    // the TT move, ordered first, so `searched < 2` blocks LMR from ever
+    // reaching it. Reading the flag as "reduce the extended move less" produces
+    // dead code.
+    bool singular_quiet_lmr = false;
+
+    auto search_one = [&](Move m, int picker_see, MovePicker::Src picker_src) {
         if (is_root && !move_in_root_moves(m, active_limits_.root_moves))
             return false;
         if (is_root && root_filter_index_ >= 0) {
@@ -1602,7 +1786,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         if (is_root && !root_tablebase_allows(m))
             return false;
 
-        bool is_cap   = (board_ptr_->board_sq[to_sq(m)] != NO_PIECE)
+        bool is_cap   = (board_ptr_->piece_on(to_sq(m)) != NO_PIECE)
                      || (move_type(m) == EN_PASSANT);
         bool is_promo = (move_type(m) == PROMOTION);
         bool is_quiet = !is_cap && !is_promo;
@@ -1657,11 +1841,23 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
                 // History pruning: skip moves with very bad combined history
                 if (!is_pv && depth <= 6) {
-                    PieceType pt = type_of(board_ptr_->board_sq[from_sq(m)]);
+                    PieceType pt = type_of(board_ptr_->piece_on(from_sq(m)));
                     int hist = main_hist[from_sq(m)][to_sq(m)]
                              + cont_hist_score(ss, pt, Square(to_sq(m)))
                              + pawn_hist[pt][to_sq(m)]
                              + (low_ply_hist ? (*low_ply_hist)[from_sq(m)][to_sq(m)] : 0);
+                    // 5.6 reachability probe. The live condition below is
+                    // byte-identical; these only observe how far the actual
+                    // history distribution sits from the threshold, and add no
+                    // move_gives_check() calls.
+                    {
+                        const int64_t thr =
+                            int64_t(active_limits_.params.hist_prune_coeff) * depth;
+                        ++diag_.hist_prune_tested;
+                        if (hist < -(thr / 2)) ++diag_.hist_below_half;
+                        if (hist < -(thr / 4)) ++diag_.hist_below_quarter;
+                        if (hist < -(thr / 8)) ++diag_.hist_below_eighth;
+                    }
                     if (hist < -active_limits_.params.hist_prune_coeff * depth && !move_gives_check()) {
                         diag_.hist_prunes++;
                         return false;
@@ -1687,9 +1883,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 // (SPRT'd active at -2.78 Elo, reverted; re-enable in 6.9).
                 if (!is_pv && eval != VALUE_NONE && lmr_depth < active_limits_.params.cap_fut_depth
                     && !move_gives_check()) {
-                    PieceType atk = type_of(board_ptr_->board_sq[from_sq(m)]);
+                    PieceType atk = type_of(board_ptr_->piece_on(from_sq(m)));
                     PieceType captured = (move_type(m) == EN_PASSANT)
-                                       ? PAWN : type_of(board_ptr_->board_sq[to_sq(m)]);
+                                       ? PAWN : type_of(board_ptr_->piece_on(to_sq(m)));
                     int fut = eval + active_limits_.params.cap_fut_base
                             + active_limits_.params.cap_fut_coeff * lmr_depth
                             + PIECE_VALUE[captured]
@@ -1716,7 +1912,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
         // ---- Singular extension (only for TT move) -------------------------
         if (!is_root && m == tt_move && ss->excluded == MOVE_NONE
-            && depth >= 5 && tt_found && tt_depth >= depth - 3
+            && depth >= active_limits_.params.singular_min_depth
+            && tt_found && tt_depth >= depth - 3
             && (tt_flag == TT_BETA || tt_flag == TT_EXACT)
             && std::abs(tt_score) < MATE_SCORE - MAX_PLY) {
 
@@ -1740,18 +1937,50 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 bool allow_double = !is_pv
                     && s_val < s_beta - active_limits_.params.singular_double_margin
                     && ss->double_exts < active_limits_.params.double_ext_max;
+                // 5.7.3 REFUTED: our per-node check extension composes with
+                // this per-move one, so a checking node with a singular TT move
+                // can take 3 plies where the reference allows 1. Making them
+                // exclusive was measured and is WORSE -- WAC 137 -> 124 against
+                // a floor of 130, failing outright; the intermediate "no double
+                // when in check" still cost 5 solved for +0.009 ply. Our check
+                // extension is unconditional where the reference gates on
+                // discovery-or-SEE, so removing the composition removes strictly
+                // more than it would there. Composition stays. (BAS-D11)
                 extension += allow_double ? 2 : 1;
+
+                // 5.7.3 probe: count the stack, do not change it yet.
+                ++diag_.sing_fired;
+                if (allow_double)   ++diag_.sing_double;
+                if (did_check_ext)  ++diag_.sing_in_check;
+                if (allow_double && did_check_ext) ++diag_.sing_triple;
+
+                // 5.7.2: relax LMR for this node's remaining moves. Suppressed
+                // when the TT move is a capture -- a singular capture says the
+                // tactics are forced, not that the quiet alternatives are
+                // delicate, and `lmr_tt_capture` already raises r for exactly
+                // that case. Letting both fire would have them cancel.
+                singular_quiet_lmr = !tt_capture;
             } else if (s_beta >= beta) {
                 // Multicut: likely to fail high without this move too
                 immediate_return = true;
                 immediate_score = s_beta;
                 return true;
             } else if (tt_score >= beta) {
+                ++diag_.sing_ttbeta;
+
+                // 5.7.4 REFUTED: the reference replaces this negative
+                // extension with a SECOND verification search that can cut the
+                // whole subtree. Implemented behind a knob and measured: depth
+                // at equal nodes was mean +0.383 ply but **median +0.0**, with
+                // 27 better against 25 worse -- the mean carried entirely by
+                // three trivial pawn/king endgames (+11, +11, +9) where depth is
+                // cheap. WAC 138 vs 137, noise. No broad gain by either
+                // instrument, and it costs an extra search. Ours stays. (BAS-D13)
                 extension--; // Negative extension: not clearly best
             }
         }
 
-        PieceType moved_pt = type_of(board_ptr_->board_sq[from_sq(m)]);
+        PieceType moved_pt = type_of(board_ptr_->piece_on(from_sq(m)));
         int move_stat_score = 0;
         if (is_quiet) {
             move_stat_score = main_hist[from_sq(m)][to_sq(m)];
@@ -1765,7 +1994,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         ss->reduction   = 0;
         const int64_t nodes_before_move = nodes_;
         do_move(ss, m);
-        tt_.prefetch(board_ptr_->hash);
+        tt_.prefetch(board_ptr_->position_key());
         sel_depth_ = std::max(sel_depth_, ply + 1);
 
         int new_depth = depth - 1 + extension;
@@ -1779,10 +2008,29 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         } else {
             // Late Move Reductions
             int reduction = 0;
+            // 5.2 (BAS-O03): the gate below is unchanged, but it is now
+            // evaluated as an if/else-if chain so each rejection is
+            // attributable. The predicate order and short-circuiting are
+            // identical to the original single condition — in particular
+            // move_gives_check() is still reached only when the first four
+            // pass, so its call count and cost do not move.
+            //
+            // This matters because lmr_applied alone cannot tell "rarely
+            // eligible" from "eligible but never reduced", and those have
+            // opposite repairs. Our EBF is 2.20 against the reference's 1.61.
+            ++diag_.lmr_eligible;
+            const bool lmr_type_ok = is_quiet || (is_cap && !is_promo && see_score < 0);
+            if (depth < 2)          ++diag_.lmr_blocked_depth;
+            else if (searched < 2)  ++diag_.lmr_blocked_searched;
+            else if (in_check)      ++diag_.lmr_blocked_in_check;
+            else if (!lmr_type_ok)  ++diag_.lmr_blocked_movetype;
+            // Checking moves are never reduced. 5.7.6 removed the
+            // lmr_allow_check switch that could have relaxed this: it was added
+            // inert for 5.4.4, which closed rejected (BAS-S16).
+            else if (move_gives_check())
+                ++diag_.lmr_blocked_gives_check;
             // LMR applies to: quiets, and bad captures — but NOT promotions
-            if (depth >= 2 && searched >= 2 && !in_check
-                && (is_quiet || (is_cap && !is_promo && see_score < 0))
-                && !move_gives_check()) {
+            else {
                 // Phase 6.7: accumulate the reduction in 1024ths of a ply, then
                 // shift back at the end. Behaviour-identical at default knobs
                 // (adjustments are the old integer values ×1024; history stays
@@ -1796,10 +2044,24 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                     if (ss->tt_pv)  r -= p.lmr_tt_pv_adj;
                     if (!improving) r += p.lmr_not_improving_adj;
                     if (tt_capture) r += p.lmr_tt_capture;
+                    // 5.7.2: see the declaration of singular_quiet_lmr.
+                    if (singular_quiet_lmr) r -= p.lmr_singular_quiet;
                     // History-based adjustment: good moves get reduced less, bad
                     // more. Kept integer-quantised (÷div then ×1024) so 6.7 is
                     // behaviour-identical; the fractional form (×1024 ÷ div) is a
                     // 6.9 experiment.
+                    //
+                    // 5.4.3 tested that fractional form and MEASURED IT WORSE
+                    // (BAS-S13): applied 36.1%→32.5%, clamp-to-zero 16.2%→19.8%,
+                    // depth at equal nodes 20.80→20.70. The quantisation is not
+                    // only a resolution defect — it also acts as a threshold.
+                    // Most moves carry positive history and history SUBTRACTS
+                    // from r, so a continuous response shaves a little off nearly
+                    // every reduction, while the integer form shaved a whole ply
+                    // off only the |stat| ≥ div minority. Retry trigger: base and
+                    // context reductions are materially larger, so there is
+                    // enough r for a continuous response to modulate rather than
+                    // erase.
                     r -= (move_stat_score / p.lmr_hist_div) * 1024;
                 } else {
                     // Bad captures get less reduction than quiets. Computed in
@@ -1807,10 +2069,28 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                     r = (((r >> 10) - 1) / 2) << 10;
                 }
 
+                // 5.4.3: record whether the ceiling bound before clamping, so
+                // "modulation too small" and "modulation cannot matter here" are
+                // separable. Most LMR-eligible nodes sit near the leaves, where
+                // new_depth-1 is 1 or 2 and no policy change can move the
+                // reduction actually taken.
+                if ((r >> 10) > new_depth - 1) ++diag_.lmr_clamped_high;
                 reduction = std::clamp(r >> 10, 0, new_depth - 1);
+                // 5.2: the gate passed but the computed reduction was zero —
+                // distinct from being blocked, and a different repair. Counted
+                // here so that
+                //   eligible = applied + clamped_zero + sum(blocked_*)
+                // holds exactly, which is what makes the breakdown auditable.
+                if (reduction == 0) ++diag_.lmr_clamped_zero;
             }
             ss->reduction = reduction;
-            if (reduction > 0) diag_.lmr_applied++;
+            if (reduction > 0) {
+                diag_.lmr_applied++;
+                // Mean reduction over applied = reduction_plies / applied. A
+                // timid-LMR hypothesis is decided by this number, not by how
+                // often LMR fired.
+                diag_.lmr_reduction_plies += reduction;
+            }
 
             score = -negamax(new_depth - reduction, -alpha - 1, -alpha,
                              ply + 1, ss + 1, false, true, true);
@@ -1890,13 +2170,30 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         }
 
         if (alpha >= beta) {
+            // 5.2 (BAS-O03): ordering quality at the point it costs something.
+            // `searched` was incremented above, so the cutting move's index is
+            // searched - 1. A cutoff on index 0 costs one move's search; on
+            // index n it costs n+1, so the mean index is a direct multiplier on
+            // tree width — the quantity separating our 2.20 EBF from ~1.61.
+            // cutoff_src says which picker stage to fix rather than merely that
+            // ordering is imperfect.
+            ++diag_.fail_highs;
+            diag_.fail_high_index_sum += searched - 1;
+            if (searched == 1) ++diag_.fail_high_first;
+            switch (picker_src) {
+                case MovePicker::Src::TT:           ++diag_.cutoff_src_tt; break;
+                case MovePicker::Src::GoodTactical: ++diag_.cutoff_src_good_tactical; break;
+                case MovePicker::Src::Quiet:        ++diag_.cutoff_src_quiet; break;
+                case MovePicker::Src::BadTactical:  ++diag_.cutoff_src_bad_tactical; break;
+                case MovePicker::Src::None:         break;
+            }
             // 8.5.10(e): boost the bonus when the cutoff was "surprising" -- the
             // node's static eval was below beta, so the search found a good move
             // the eval did not credit.
             const int es = (static_eval != VALUE_NONE && static_eval < beta) ? 125 : 100;
             update_all_histories(m, m == tt_move, quiets_searched, quiets_count,
                                  bad_caps_searched, bad_caps_count,
-                                 board_ptr_->side_to_move, depth, ss,
+                                 board_ptr_->turn(), depth, ss,
                                  /*reward_only=*/false, /*bonus_scale=*/es);
             return true;
         }
@@ -1913,7 +2210,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         Move move = picker.next();
         if (move == MOVE_NONE)
             break;
-        if (search_one(move, picker.last_see_score()))
+        if (search_one(move, picker.last_see_score(), picker.last_source()))
             break;
     }
 
@@ -1940,7 +2237,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         update_all_histories(best_move, best_move == tt_move,
                              quiets_searched, quiets_count,
                              bad_caps_searched, bad_caps_count,
-                             board_ptr_->side_to_move, depth, ss,
+                             board_ptr_->turn(), depth, ss,
                              /*reward_only=*/true);
     }
 
@@ -1948,7 +2245,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     if (!in_check && ss->excluded == MOVE_NONE && static_eval != VALUE_NONE
         && std::abs(best_score) < MATE_SCORE - MAX_PLY
         && (best_score >= beta || best_score > orig_alpha)) {
-        update_correction(board_ptr_->side_to_move, *board_ptr_, ss,
+        update_correction(board_ptr_->turn(), *board_ptr_, ss,
                           best_score - static_eval, depth);
     }
 
@@ -1983,7 +2280,7 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
     root_table_   = limits.root_table;
     pondering_    = limits.ponder;
     active_limits_ = limits;
-    root_side_    = board.side_to_move;
+    root_side_    = board.turn();
 
     init_lmr(static_cast<float>(active_limits_.params.lmr_base)    / 100.0f,
              static_cast<float>(active_limits_.params.lmr_divisor) / 100.0f);
@@ -1998,8 +2295,8 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
     start_time_ = (limits.go_recv_time.time_since_epoch().count() != 0)
                 ? limits.go_recv_time
                 : std::chrono::steady_clock::now();
-    const int game_ply = 2 * (board.fullmove_number - 1) + (board.side_to_move == BLACK ? 1 : 0);
-    compute_time_limit(limits, board.side_to_move, game_ply);
+    const int game_ply = 2 * (board.fullmove() - 1) + (board.turn() == BLACK ? 1 : 0);
+    compute_time_limit(limits, board.turn(), game_ply);
 
     if (limits.update_tt_age)
         tt_.new_search();
@@ -2041,10 +2338,12 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
     // whose own counters may be stale.
     evaluator_.eval_calls = 0;
     evaluator_.pawn_probes = evaluator_.pawn_hits = 0;
-    if (board_ptr_) {
-        board_ptr_->diag_see_ge_calls = 0;
-        board_ptr_->diag_gives_check_calls = 0;
-    }
+#ifdef BASILISK_TUNE
+    evaluator_.diag_endgames = active_limits_.diag;
+    evaluator_.endgame_occurrence.reset();
+#endif
+    if (board_ptr_)
+        board_ptr_->reset_diag_counters();
 
     if (thread_id_ > 0 && max_depth > 2)
         start_depth = 1 + (thread_id_ % 2);
@@ -2062,19 +2361,41 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
             int delta = active_limits_.params.aspiration_delta;
             int asp_a = prev_score - delta;
             int asp_b = prev_score + delta;
+            ++diag_.asp_windows;
             while (true) {
+                // 5.8.5 REFUTED: the reference re-searches SHALLOWER after each
+                // fail-high (failedHighCnt). Measured: WAC 137 -> 119 against a
+                // floor of 130, and re-searches ROSE 1305 -> 1450. A root
+                // failing high is often a tactical shot, and searching it
+                // shallower misses it. Full depth every time. (BAS-D17)
                 score = negamax(depth, asp_a, asp_b, 0, ss, true, true, false);
                 if (stopped_) break;
                 if (score <= asp_a) {
+                    ++diag_.asp_fail_low;
+                    ++diag_.asp_researches;
+                    // 5.8.3 REFUTED: the reference also pulls beta to the
+                    // window midpoint here, reasoning that a fail-low proves the
+                    // standing beta far too generous. Measured, it makes things
+                    // WORSE in the way that matters: re-searches ROSE 1305 ->
+                    // 1342, because a tighter window simply fails again, and the
+                    // depth split was 18 better / 19 worse -- no direction.
+                    // 5.8.4 REFUTED with it: the reference's slower delta growth
+                    // (delta/4 + 5 against our delta/2) measured -0.243 ply,
+                    // 20 better / 33 worse. Ours escalates faster and that is
+                    // the better trade here. (BAS-D16)
                     asp_a  = std::max(score - delta, -INF_SCORE);
                     delta += delta / 2;
                 } else if (score >= asp_b) {
+                    ++diag_.asp_fail_high;
+                    ++diag_.asp_researches;
                     asp_b  = std::min(score + delta, INF_SCORE);
                     delta += delta / 2;
                 } else {
                     break;
                 }
                 if (delta >= 900) {
+                    ++diag_.asp_giveup;
+                    ++diag_.asp_researches;
                     asp_a = -INF_SCORE;
                     asp_b =  INF_SCORE;
                     score = negamax(depth, asp_a, asp_b, 0, ss, true, true, false);
@@ -2127,6 +2448,12 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
         result.score = reported_score;
         result.depth = depth;
 
+        // 5.8.6: the table is given the RAW `score`, not the tablebase-
+        // corrected `reported_score` that goes out over UCI. That is deliberate
+        // and not a bug: the table's scores exist to ORDER root moves for the
+        // next iteration and for helper threads, and a TB-corrected value is a
+        // fixed mate/draw verdict that carries no ordering information. Stating
+        // it here because the asymmetry two lines apart reads as an oversight.
         if (root_table_ && result.bestmove != MOVE_NONE)
             root_table_->update(result.bestmove, result.pondermove, depth, score);
 
@@ -2181,8 +2508,8 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
     flush_shared_nodes();
     // 8.7.1(c): harvest the Board-side speed counters BEFORE board_ptr_ is
     // dropped — print_diag() runs after this point.
-    diag_.see_ge_calls      = board.diag_see_ge_calls;
-    diag_.gives_check_calls = board.diag_gives_check_calls;
+    diag_.see_ge_calls      = board.see_ge_call_count();
+    diag_.gives_check_calls = board.gives_check_call_count();
     board_ptr_ = nullptr;
     root_table_ = nullptr;
     pondering_ = false;

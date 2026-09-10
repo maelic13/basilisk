@@ -1,6 +1,7 @@
 #include "bitboard.h"
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 
 Bitboard BB_SQUARES[SQUARE_NB];
 Bitboard BB_FILES[FILE_NB];

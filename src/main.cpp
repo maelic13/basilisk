@@ -1,6 +1,8 @@
 #include <atomic>
 #include <csignal>
+#include <exception>
 #include <iostream>
+#include <string>
 #include <thread>
 
 #if defined(USE_PEXT) || defined(USE_AVX2)

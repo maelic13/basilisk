@@ -1,12 +1,11 @@
-# CI — correctness, sanitizers and cross-platform bench agreement (8.6.4).
+# CI — correctness, sanitizers, compiler/ISA coverage and cross-platform bench
+# agreement (8.6.4).
 #
-# Rarog-9.2 shape, adopted deliberately: triggers on push to MASTER plus
-# workflow_dispatch ONLY, running the IDENTICAL job set on both — a manual
-# pre-merge check is only useful if it faithfully previews the master gate.
-# NOT on push to development: the local loop already verifies build, bench
-# fingerprint and CTest on every commit there; push/PR triggers are also why
-# the original 8.8 ci.yml was removed at the 1.9.0 release (they don't fit
-# the squash-to-master workflow).
+# This is a mandatory development gate, not only a release-after-the-fact
+# signal. Run it for the active development branch, pull requests, master, and
+# manual diagnostics. Pull requests and development pushes can duplicate a run
+# when both apply; that is preferable to leaving either integration path
+# unprotected.
 #
 # The bench job hardcodes NO expected node count. All platforms run bench and
 # a final job asserts they AGREE with each other. A frozen constant would need
@@ -21,13 +20,14 @@ name: CI
 
 on:
   push:
-    branches: [master]
+    branches: [master, development]
+  pull_request:
   workflow_dispatch:
 
 jobs:
-  # ---- Release-mode build + full CTest + bench fingerprint ------------------
+  # ---- Release-mode OS/architecture/ISA matrix -------------------------------
   test:
-    name: test (${{ matrix.os_name }})
+    name: test (${{ matrix.os_name }} ${{ matrix.arch }} ${{ matrix.tier }})
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -35,10 +35,66 @@ jobs:
         include:
           - runner: ubuntu-latest
             os_name: linux
+            arch: x86_64
+            tier: portable
+            preset: release
+            bench_id: linux-x86_64
+          - runner: ubuntu-latest
+            os_name: linux
+            arch: x86_64
+            tier: avx2
+            preset: release-avx2
+            bench_id: linux-x86_64-avx2
+          - runner: ubuntu-latest
+            os_name: linux
+            arch: x86_64
+            tier: pext
+            preset: release-pext
+            bench_id: linux-x86_64-pext
+          - runner: ubuntu-24.04-arm
+            os_name: linux
+            arch: aarch64
+            tier: portable
+            preset: release
+            bench_id: linux-aarch64
           - runner: windows-latest
             os_name: windows
+            arch: x86_64
+            tier: portable
+            preset: release
+            bench_id: windows-x86_64
+            msystem: CLANG64
+            mingw_pkg_prefix: mingw-w64-clang-x86_64
+          - runner: windows-latest
+            os_name: windows
+            arch: x86_64
+            tier: avx2
+            preset: release-avx2
+            bench_id: windows-x86_64-avx2
+            msystem: CLANG64
+            mingw_pkg_prefix: mingw-w64-clang-x86_64
+          - runner: windows-latest
+            os_name: windows
+            arch: x86_64
+            tier: pext
+            preset: release-pext
+            bench_id: windows-x86_64-pext
+            msystem: CLANG64
+            mingw_pkg_prefix: mingw-w64-clang-x86_64
+          - runner: windows-11-arm
+            os_name: windows
+            arch: aarch64
+            tier: portable
+            preset: release
+            bench_id: windows-aarch64
+            msystem: CLANGARM64
+            mingw_pkg_prefix: mingw-w64-clang-aarch64
           - runner: macos-latest
             os_name: macos
+            arch: aarch64
+            tier: portable
+            preset: release
+            bench_id: macos-aarch64
     defaults:
       run:
         shell: ${{ matrix.os_name == 'windows' && 'msys2 {0}' || 'bash' }}
@@ -68,12 +124,12 @@ jobs:
         if: runner.os == 'Windows'
         uses: msys2/setup-msys2@v2
         with:
-          msystem: CLANG64
+          msystem: ${{ matrix.msystem }}
           update: false
           install: >-
-            mingw-w64-clang-x86_64-clang
-            mingw-w64-clang-x86_64-cmake
-            mingw-w64-clang-x86_64-ninja
+            ${{ matrix.mingw_pkg_prefix }}-clang
+            ${{ matrix.mingw_pkg_prefix }}-cmake
+            ${{ matrix.mingw_pkg_prefix }}-ninja
 
       # macOS uses the preinstalled AppleClang + libc++ (libc++'s <expected> is
       # not gated on __cpp_concepts, so no version bump is needed here); cmake is
@@ -84,38 +140,38 @@ jobs:
           command -v ninja >/dev/null 2>&1 || brew install ninja
           ninja --version
 
-      # Portable release on every platform: the bench-agreement comparison
-      # must compare identical feature builds, and portable runs everywhere.
+      # PORTABLE_BUILD disables host-native tuning; the explicit AVX2/PEXT
+      # presets remain active and therefore exercise their committed tier.
       - name: Configure and build (Release, TUNE off)
         run: |
-          cmake --preset release -DPORTABLE_BUILD=ON -DCOMP=clang
-          cmake --build --preset release
+          cmake --preset ${{ matrix.preset }} -DPORTABLE_BUILD=ON -DCOMP=clang
+          cmake --build --preset ${{ matrix.preset }}
 
       - name: CTest
-        run: ctest --test-dir build/release --output-on-failure
+        run: ctest --test-dir build/${{ matrix.preset }} --output-on-failure
 
       # TUNE build must also stay compilable — it is what every SPRT/SPSA
       # binary is built from (release-pext locally; feature parity is what
       # matters here, not the ISA tier).
       - name: Configure and build (Release, TUNE on)
         run: |
-          cmake --preset release -DPORTABLE_BUILD=ON -DCOMP=clang -DTUNE=ON
-          cmake --build --preset release --target basilisk
+          cmake --preset ${{ matrix.preset }} -DPORTABLE_BUILD=ON -DCOMP=clang -DTUNE=ON
+          cmake --build --preset ${{ matrix.preset }} --target basilisk
 
       - name: Bench fingerprint
         id: bench
         run: |
-          out=$(printf "bench 10\nquit\n" | ./build/release/basilisk*)
+          out=$(printf "bench 10\nquit\n" | ./build/${{ matrix.preset }}/basilisk*)
           echo "$out" | tail -8
           nodes=$(echo "$out" | grep -oE "Nodes searched *: *[0-9]+" | grep -oE "[0-9]+$")
           [ -n "$nodes" ] || { echo "FAIL: no node count"; exit 1; }
-          echo "$nodes" > bench-${{ matrix.os_name }}.txt
+          echo "$nodes" > bench-${{ matrix.bench_id }}.txt
 
       - name: Upload bench fingerprint
         uses: actions/upload-artifact@v7
         with:
-          name: bench-${{ matrix.os_name }}
-          path: bench-${{ matrix.os_name }}.txt
+          name: bench-${{ matrix.bench_id }}
+          path: bench-${{ matrix.bench_id }}.txt
 
   # ---- Debug + ASan/UBSan (the gate 8.6.2b P0 repaired — keep it real) ------
   sanitize:
@@ -146,7 +202,41 @@ jobs:
       - name: CTest under sanitizers
         run: ctest --test-dir build/debug --output-on-failure --timeout 1200
 
-  # ---- Cross-platform bench agreement (no hardcoded value) ------------------
+  # ---- Real GCC PGO generation/consumption smoke ----------------------------
+  # A plain GCC compile does not prove that its path-keyed .gcda files were
+  # generated and consumed. Exercise the complete orchestrator on every CI run.
+  gcc-pgo:
+    name: GCC PGO (linux x86_64)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Install GCC and Ninja
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y gcc-14 g++-14 ninja-build cmake
+          sudo ln -sf /usr/bin/gcc-14 /usr/local/bin/gcc
+          sudo ln -sf /usr/bin/g++-14 /usr/local/bin/g++
+          g++ --version
+
+      - name: Build and train portable GCC PGO
+        run: |
+          cmake --preset release -DPORTABLE_BUILD=ON -DCOMP=gcc
+          cmake --build --preset release --target pgo
+
+      - name: Search with the optimized binary
+        run: |
+          binary=build/release-pgo-generate/basilisk
+          test -x "$binary" || { echo "FAIL: PGO binary missing: $binary"; exit 1; }
+          out=$(printf "bench 10\nquit\n" | "$binary")
+          echo "$out" | tail -8
+          nodes=$(echo "$out" | grep -oE "Nodes searched *: *[0-9]+" | grep -oE "[0-9]+$")
+          [ -n "$nodes" ] || { echo "FAIL: GCC PGO bench produced no node count"; exit 1; }
+
+  # ---- Cross-platform/ISA bench agreement (no hardcoded value) --------------
   bench-agreement:
     name: bench agreement
     needs: test

@@ -16,6 +16,8 @@
 #include "test_harness.h"
 
 #include <cmath>
+#include <cstdio>
+#include <cstdlib>
 #include <string>
 
 // ---------------------------------------------------------------------------
@@ -44,7 +46,7 @@ static std::string mirror_fen(const char* fen) {
         int empty = 0;
         for (int f = 0; f < 8; f++) {
             Square sq = make_square(File(f), Rank(orig_rank));
-            Piece  p  = orig.board_sq[sq];
+            Piece  p  = orig.piece_on(sq);
             if (p == NO_PIECE) { empty++; continue; }
             if (empty) { placement += static_cast<char>('0' + empty); empty = 0; }
             // Swap color: white piece becomes black and vice-versa
@@ -60,28 +62,28 @@ static std::string mirror_fen(const char* fen) {
     }
 
     // Flip side to move
-    char stm = (orig.side_to_move == WHITE) ? 'b' : 'w';
+    char stm = (orig.turn() == WHITE) ? 'b' : 'w';
 
     // Mirror castling rights: WK↔BK, WQ↔BQ
     std::string castling;
-    if (orig.castling_rights & BK_CASTLE) castling += 'K';
-    if (orig.castling_rights & BQ_CASTLE) castling += 'Q';
-    if (orig.castling_rights & WK_CASTLE) castling += 'k';
-    if (orig.castling_rights & WQ_CASTLE) castling += 'q';
+    if (orig.castling() & BK_CASTLE) castling += 'K';
+    if (orig.castling() & BQ_CASTLE) castling += 'Q';
+    if (orig.castling() & WK_CASTLE) castling += 'k';
+    if (orig.castling() & WQ_CASTLE) castling += 'q';
     if (castling.empty()) castling = "-";
 
     // Mirror EP square (flip rank)
     std::string ep = "-";
-    if (orig.ep_sq != SQ_NONE) {
-        Square mep = flip_rank(orig.ep_sq);
+    if (orig.ep_square() != SQ_NONE) {
+        Square mep = flip_rank(orig.ep_square());
         static const char files[] = "abcdefgh";
         static const char ranks[] = "12345678";
         ep  = std::string() + files[file_of(mep)] + ranks[rank_of(mep)];
     }
 
     return placement + " " + stm + " " + castling + " " + ep
-         + " " + std::to_string(orig.halfmove_clock)
-         + " " + std::to_string(orig.fullmove_number);
+         + " " + std::to_string(orig.rule50_count())
+         + " " + std::to_string(orig.fullmove());
 }
 
 // ---------------------------------------------------------------------------
@@ -245,7 +247,7 @@ static int eval_white_pov(const char* fen) {
     b.set_fen(fen);
     Evaluator ev;
     int v = ev.evaluate(b);
-    return (b.side_to_move == WHITE) ? v : -v;
+    return (b.turn() == WHITE) ? v : -v;
 }
 
 // Net signed activation count of the enemy-rook-behind-passer term, measured
@@ -475,9 +477,169 @@ static void test_tempo_bonus() {
     end_section();
 }
 
+#ifdef BASILISK_TUNE
+static EndgameOccurrenceCounters classify_endgame(const char* fen) {
+    Board b;
+    b.set_fen(fen);
+    Evaluator ev;
+    ev.diag_endgames = true;
+    (void)ev.evaluate(b);
+    return ev.endgame_occurrence;
+}
+
+static void test_endgame_occurrence_classifier() {
+    begin_section("endgame occurrence: >7 men excluded");
+    const auto opening = classify_endgame(
+        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+    EXPECT_EQ(opening.classified, 0);
+    end_section();
+
+    begin_section("endgame occurrence: KPK also counts KPsK");
+    const auto kpk = classify_endgame("7k/8/8/8/8/8/P7/K7 w - - 0 1");
+    EXPECT_EQ(kpk.classified, 1);
+    EXPECT_EQ(kpk.kpk, 1);
+    EXPECT_EQ(kpk.kpsk, 1);
+    end_section();
+
+    begin_section("endgame occurrence: symmetric KPKP counted once");
+    const auto kpkp = classify_endgame("7k/7p/8/8/8/8/P7/K7 w - - 0 1");
+    EXPECT_EQ(kpkp.kpkp, 1);
+    end_section();
+
+    begin_section("endgame occurrence: reversed KRPKB orientation");
+    const auto krpkb = classify_endgame("4k3/8/8/8/8/p7/r7/B3K3 w - - 0 1");
+    EXPECT_EQ(krpkb.krpkb, 1);
+    end_section();
+
+    begin_section("endgame occurrence: KQKRPs accepts multiple pawns");
+    const auto kqkrps = classify_endgame("4k3/pp6/r7/8/8/8/Q7/4K3 w - - 0 1");
+    EXPECT_EQ(kqkrps.kqkrps, 1);
+    end_section();
+
+    begin_section("endgame occurrence: KBNK overlaps valid KXK");
+    const auto kbnk = classify_endgame("7k/8/8/8/8/8/BN6/K7 w - - 0 1");
+    EXPECT_EQ(kbnk.kbnk, 1);
+    EXPECT_EQ(kbnk.kxk, 1);
+    end_section();
+
+    begin_section("endgame occurrence: dead KBK/KNK excluded from KXK");
+    const auto kbk = classify_endgame("7k/8/8/8/8/8/B7/K7 w - - 0 1");
+    const auto knk = classify_endgame("7k/8/8/8/8/8/N7/K7 w - - 0 1");
+    EXPECT_EQ(kbk.kxk, 0);
+    EXPECT_EQ(knk.kxk, 0);
+    end_section();
+
+    begin_section("endgame occurrence: KBBK included in KXK");
+    // a2 is light and b2 is dark: a genuine, mating bishop pair.
+    const auto kbbk = classify_endgame("7k/8/8/8/8/8/BB6/K7 w - - 0 1");
+    EXPECT_EQ(kbbk.kxk, 1);
+    end_section();
+
+    begin_section("endgame occurrence: same-coloured KBBK excluded from KXK");
+    // b2 and d2 are both dark, so this promotion-reachable pair cannot mate.
+    // apply_endgame's KXK gate tests colour, not count; the census must agree.
+    const auto kbbk_same = classify_endgame("7k/8/8/8/8/8/1B1B4/K7 w - - 0 1");
+    EXPECT_EQ(kbbk_same.classified, 1);
+    EXPECT_EQ(kbbk_same.kxk, 0);
+    end_section();
+
+    begin_section("endgame occurrence: KQK and KRK remain in the KXK family");
+    const auto kqk = classify_endgame("7k/8/8/8/8/8/Q7/K7 w - - 0 1");
+    const auto krk = classify_endgame("7k/8/8/8/8/8/R7/K7 w - - 0 1");
+    EXPECT_EQ(kqk.kxk, 1);
+    EXPECT_EQ(krk.kxk, 1);
+    end_section();
+}
+
+static void test_kbnk_drive_option() {
+    // Black king e5 is one diagonal step away from the dark bishop's neutral
+    // f+r=7 line, so changing the diagonal slope must change this score.
+    constexpr const char* KBNK = "8/8/8/4k3/8/8/8/KNB5 w - - 0 1";
+    std::string error;
+
+    begin_section("KBNK drive: valid vector changes score atomically");
+    EXPECT(set_kbnk_drive_weights("17000,1000,0,220,0", error));
+    const int baseline = eval_fen(KBNK);
+    EXPECT(set_kbnk_drive_weights("17000,1100,0,220,0", error));
+    const int changed = eval_fen(KBNK);
+    EXPECT(changed != baseline);
+    end_section();
+
+    begin_section("KBNK drive: malformed vector is rejected and retained");
+    EXPECT(!set_kbnk_drive_weights("17000,1100,-1,220,0", error));
+    EXPECT_EQ(eval_fen(KBNK), changed);
+    EXPECT(!set_kbnk_drive_weights("17000,1100", error));
+    EXPECT_EQ(eval_fen(KBNK), changed);
+    end_section();
+
+    begin_section("KBNK drive: mate-band vector is rejected and retained");
+    EXPECT(!set_kbnk_drive_weights("25000,1500,900,220,220", error));
+    EXPECT_EQ(eval_fen(KBNK), changed);
+    EXPECT(!set_kbnk_drive_weights("9999,1000,0,220,0", error));
+    EXPECT_EQ(eval_fen(KBNK), changed);
+    EXPECT(set_kbnk_drive_weights("17000,1000,0,220,0", error));
+    end_section();
+
+    begin_section("KBNK drive: 6.1.f mate-band boundary is exact and the "
+                  "shipped default clears it");
+    // Every mate-band comparison in the search uses MATE_SCORE - MAX_PLY,
+    // i.e. 32000 - 128 = 31872; a static evaluation at or above that would be
+    // ply-adjusted as a mate score on its way into the TT. The validator's
+    // largest legal KBNK score is base + 7*diagonal + 3*edge + 6*king +
+    // 7*knight, so with base 15600 and diagonal 1900 the king weight decides
+    // the boundary: 495 gives 31870 and must be accepted, 496 gives 31876 and
+    // must not. If MATE_SCORE or MAX_PLY ever moves, this pins the mismatch.
+    EXPECT(set_kbnk_drive_weights("15600,1900,0,495,0", error));
+    EXPECT(!set_kbnk_drive_weights("15600,1900,0,496,0", error));
+    // The 6.1.e accepted default tops out at 31660, 212 below the floor.
+    EXPECT(set_kbnk_drive_weights("15600,1900,0,460,0", error));
+    end_section();
+
+    begin_section("KBNK drive: legacy four-field form preserves exact score");
+    EXPECT(set_kbnk_drive_weights("800,900,220,220", error));
+    const int legacy = eval_fen(KBNK);
+    EXPECT(set_kbnk_drive_weights("15600,800,900,220,220", error));
+    EXPECT_EQ(eval_fen(KBNK), legacy);
+    EXPECT(set_kbnk_drive_weights("17000,1000,0,220,0", error));
+    end_section();
+}
+#endif
+
 // ---------------------------------------------------------------------------
 // main
 // ---------------------------------------------------------------------------
+
+static void test_rook_ending_scaling() {
+    // PLAN 6.5.a. These are draw-SCALING rules, not verdicts, and the property
+    // that makes them safe is the floor: no rule here may assert a dead draw,
+    // because none of them is backed by a tablebase. Checked against Syzygy on
+    // 3,000 random KRPKR positions the unfloored rules called 18 genuinely WON
+    // positions dead draws; with the floor, none (BAS-E54).
+
+    // Philidor third-rank defence: white pawn on the fifth, black king on the
+    // queening square, black rook cutting on the sixth. The control moves ONLY
+    // the defending rook off the sixth, which is what the rule keys on.
+    begin_section("Philidor KRPKR scores below the same position without the cut");
+    int held = eval_fen("8/3k4/r7/3PK3/8/8/8/1R6 w - - 0 1");
+    int uncut = eval_fen("r7/3k4/8/3PK3/8/8/8/1R6 w - - 0 1");
+    EXPECT(held < uncut);
+    end_section();
+
+    // The floor, stated as a test: a scaled rook ending keeps a signal. Zero
+    // here would mean a rule had asserted a draw it cannot prove.
+    begin_section("scaled Philidor is discounted, never zeroed");
+    EXPECT(held != 0);
+    end_section();
+
+    // KRPPKRP: neither white pawn is passed and the black king blockades in
+    // front of both, so the extra pawn is heavily discounted.
+    begin_section("blockaded KRPP-KRP keeps far less than a clean extra pawn");
+    int blocked = eval_fen("7r/8/5k2/4p3/4PP2/8/8/R5K1 w - - 0 1");
+    // Calibrated to discriminate, not decorate: 19 with the rule, 53 without.
+    EXPECT(blocked < 35);
+    EXPECT(blocked != 0);
+    end_section();
+}
 
 int main() {
     init_bitboards();
@@ -503,6 +665,9 @@ int main() {
     std::printf("\nOCB draw scaling\n");
     test_ocb_scaling();
 
+    std::printf("\nRook-ending draw scaling (6.5.a)\n");
+    test_rook_ending_scaling();
+
     std::printf("\nRook/passer decoupling\n");
     test_rook_passer_decoupling();
 
@@ -517,6 +682,14 @@ int main() {
 
     std::printf("\nTempo bonus\n");
     test_tempo_bonus();
+
+#ifdef BASILISK_TUNE
+    std::printf("\nEndgame occurrence classifier\n");
+    test_endgame_occurrence_classifier();
+
+    std::printf("\nKBNK drive tuning option\n");
+    test_kbnk_drive_option();
+#endif
 
     return harness_summary();
 }

@@ -1,0 +1,641 @@
+{
+  "schema": "basilisk-endgame-ceilings-v1",
+  "definition": {
+    "attained_single_engine_ceiling": "best count attained by one complete engine run per family",
+    "demonstrated_solvable_union": "positions converted by either engine; stretch evidence only",
+    "not_a_hard_maximum": true,
+    "not_a_statistical_gate": true,
+    "confidence_owner": "PLAN 6.0.d"
+  },
+  "contract": {
+    "nodes_per_move": 60000,
+    "max_plies": 100,
+    "hash_mb": 16,
+    "persistent_tt_per_game": true,
+    "score_adjudication": false
+  },
+  "cohort": {
+    "manifest_sha256": "77D2F84EAA824272BA5566CE3038169527C126C07E146CC57CB28C4A54EC85BE",
+    "book_sha256": "3CCF28EA3C8BC6C7E995BDA0BDD4833496B4C46758FF55C0B812E30E8AC6BF1B",
+    "position_count": 770
+  },
+  "inputs": {
+    "accepted": {
+      "path": "D:\\code\\basilisk\\tools\\results\\endgame-truth-6.0.b-refixed\\basilisk.json",
+      "report_sha256": "F99CE655F70267FA60D5C2395B8C019303F7ADCB2D69B2D8B4A0E83AD53B04FB",
+      "engine": "Basilisk 1.9.3",
+      "engine_sha256": "D0E558F8A113CD9D17905B6EF701040CF5B0FB450FC058EFB9C49DF2329F8430"
+    },
+    "reference": {
+      "path": "D:\\code\\basilisk\\tools\\results\\endgame-truth-6.0.b-refixed\\reference.json",
+      "report_sha256": "34737422ECFC919FEFA4295892734BCCF9218E5398F2F1A38791A9A537223E6E",
+      "engine": "Stockfish dev-20260716-ebcea3ef",
+      "engine_sha256": "91AE61DFCAEF1A5FDFEE9722EDE0591DA1FCB124D1DE7FBD44DD8786BD6531E3"
+    }
+  },
+  "aggregate": {
+    "clean_wins": 480,
+    "accepted_converted": 361,
+    "reference_converted": 466,
+    "attained_single_engine_ceiling": 466,
+    "demonstrated_solvable_union": 467,
+    "both": 360,
+    "accepted_only": 1,
+    "reference_only": 106,
+    "neither": 13,
+    "accepted_rate": 0.752083,
+    "reference_rate": 0.970833,
+    "attained_single_engine_ceiling_rate": 0.970833,
+    "demonstrated_solvable_union_rate": 0.972917
+  },
+  "families": {
+    "KQ-K": {
+      "clean_wins": 24,
+      "accepted": {
+        "converted": 24,
+        "rate": 1.0
+      },
+      "reference": {
+        "converted": 24,
+        "rate": 1.0
+      },
+      "attained_single_engine_ceiling": {
+        "converted": 24,
+        "rate": 1.0,
+        "source": "tie"
+      },
+      "demonstrated_solvable_union": {
+        "converted": 24,
+        "rate": 1.0
+      },
+      "accepted_gap_to_ceiling": 0,
+      "paired": {
+        "both": 24,
+        "accepted_only": 0,
+        "reference_only": 0,
+        "neither": 0
+      },
+      "conversion_applicable": true
+    },
+    "KR-K": {
+      "clean_wins": 24,
+      "accepted": {
+        "converted": 24,
+        "rate": 1.0
+      },
+      "reference": {
+        "converted": 24,
+        "rate": 1.0
+      },
+      "attained_single_engine_ceiling": {
+        "converted": 24,
+        "rate": 1.0,
+        "source": "tie"
+      },
+      "demonstrated_solvable_union": {
+        "converted": 24,
+        "rate": 1.0
+      },
+      "accepted_gap_to_ceiling": 0,
+      "paired": {
+        "both": 24,
+        "accepted_only": 0,
+        "reference_only": 0,
+        "neither": 0
+      },
+      "conversion_applicable": true
+    },
+    "KBB-K": {
+      "clean_wins": 24,
+      "accepted": {
+        "converted": 24,
+        "rate": 1.0
+      },
+      "reference": {
+        "converted": 24,
+        "rate": 1.0
+      },
+      "attained_single_engine_ceiling": {
+        "converted": 24,
+        "rate": 1.0,
+        "source": "tie"
+      },
+      "demonstrated_solvable_union": {
+        "converted": 24,
+        "rate": 1.0
+      },
+      "accepted_gap_to_ceiling": 0,
+      "paired": {
+        "both": 24,
+        "accepted_only": 0,
+        "reference_only": 0,
+        "neither": 0
+      },
+      "conversion_applicable": true
+    },
+    "KBN-K": {
+      "clean_wins": 24,
+      "accepted": {
+        "converted": 12,
+        "rate": 0.5
+      },
+      "reference": {
+        "converted": 24,
+        "rate": 1.0
+      },
+      "attained_single_engine_ceiling": {
+        "converted": 24,
+        "rate": 1.0,
+        "source": "reference"
+      },
+      "demonstrated_solvable_union": {
+        "converted": 24,
+        "rate": 1.0
+      },
+      "accepted_gap_to_ceiling": 12,
+      "paired": {
+        "both": 12,
+        "accepted_only": 0,
+        "reference_only": 12,
+        "neither": 0
+      },
+      "conversion_applicable": true
+    },
+    "KNN-K": {
+      "clean_wins": 0,
+      "accepted": {
+        "converted": 0,
+        "rate": null
+      },
+      "reference": {
+        "converted": 0,
+        "rate": null
+      },
+      "attained_single_engine_ceiling": {
+        "converted": null,
+        "rate": null,
+        "source": null
+      },
+      "demonstrated_solvable_union": {
+        "converted": null,
+        "rate": null
+      },
+      "accepted_gap_to_ceiling": null,
+      "paired": {
+        "both": 0,
+        "accepted_only": 0,
+        "reference_only": 0,
+        "neither": 0
+      },
+      "conversion_applicable": false
+    },
+    "KP-K": {
+      "clean_wins": 24,
+      "accepted": {
+        "converted": 24,
+        "rate": 1.0
+      },
+      "reference": {
+        "converted": 24,
+        "rate": 1.0
+      },
+      "attained_single_engine_ceiling": {
+        "converted": 24,
+        "rate": 1.0,
+        "source": "tie"
+      },
+      "demonstrated_solvable_union": {
+        "converted": 24,
+        "rate": 1.0
+      },
+      "accepted_gap_to_ceiling": 0,
+      "paired": {
+        "both": 24,
+        "accepted_only": 0,
+        "reference_only": 0,
+        "neither": 0
+      },
+      "conversion_applicable": true
+    },
+    "KPP-K": {
+      "clean_wins": 24,
+      "accepted": {
+        "converted": 24,
+        "rate": 1.0
+      },
+      "reference": {
+        "converted": 24,
+        "rate": 1.0
+      },
+      "attained_single_engine_ceiling": {
+        "converted": 24,
+        "rate": 1.0,
+        "source": "tie"
+      },
+      "demonstrated_solvable_union": {
+        "converted": 24,
+        "rate": 1.0
+      },
+      "accepted_gap_to_ceiling": 0,
+      "paired": {
+        "both": 24,
+        "accepted_only": 0,
+        "reference_only": 0,
+        "neither": 0
+      },
+      "conversion_applicable": true
+    },
+    "KBP-K": {
+      "clean_wins": 24,
+      "accepted": {
+        "converted": 9,
+        "rate": 0.375
+      },
+      "reference": {
+        "converted": 24,
+        "rate": 1.0
+      },
+      "attained_single_engine_ceiling": {
+        "converted": 24,
+        "rate": 1.0,
+        "source": "reference"
+      },
+      "demonstrated_solvable_union": {
+        "converted": 24,
+        "rate": 1.0
+      },
+      "accepted_gap_to_ceiling": 15,
+      "paired": {
+        "both": 9,
+        "accepted_only": 0,
+        "reference_only": 15,
+        "neither": 0
+      },
+      "conversion_applicable": true
+    },
+    "KR-KP": {
+      "clean_wins": 24,
+      "accepted": {
+        "converted": 23,
+        "rate": 0.958333
+      },
+      "reference": {
+        "converted": 24,
+        "rate": 1.0
+      },
+      "attained_single_engine_ceiling": {
+        "converted": 24,
+        "rate": 1.0,
+        "source": "reference"
+      },
+      "demonstrated_solvable_union": {
+        "converted": 24,
+        "rate": 1.0
+      },
+      "accepted_gap_to_ceiling": 1,
+      "paired": {
+        "both": 23,
+        "accepted_only": 0,
+        "reference_only": 1,
+        "neither": 0
+      },
+      "conversion_applicable": true
+    },
+    "KR-KB": {
+      "clean_wins": 24,
+      "accepted": {
+        "converted": 21,
+        "rate": 0.875
+      },
+      "reference": {
+        "converted": 24,
+        "rate": 1.0
+      },
+      "attained_single_engine_ceiling": {
+        "converted": 24,
+        "rate": 1.0,
+        "source": "reference"
+      },
+      "demonstrated_solvable_union": {
+        "converted": 24,
+        "rate": 1.0
+      },
+      "accepted_gap_to_ceiling": 3,
+      "paired": {
+        "both": 21,
+        "accepted_only": 0,
+        "reference_only": 3,
+        "neither": 0
+      },
+      "conversion_applicable": true
+    },
+    "KR-KN": {
+      "clean_wins": 24,
+      "accepted": {
+        "converted": 19,
+        "rate": 0.791667
+      },
+      "reference": {
+        "converted": 23,
+        "rate": 0.958333
+      },
+      "attained_single_engine_ceiling": {
+        "converted": 23,
+        "rate": 0.958333,
+        "source": "reference"
+      },
+      "demonstrated_solvable_union": {
+        "converted": 23,
+        "rate": 0.958333
+      },
+      "accepted_gap_to_ceiling": 4,
+      "paired": {
+        "both": 19,
+        "accepted_only": 0,
+        "reference_only": 4,
+        "neither": 1
+      },
+      "conversion_applicable": true
+    },
+    "KQ-KP": {
+      "clean_wins": 24,
+      "accepted": {
+        "converted": 24,
+        "rate": 1.0
+      },
+      "reference": {
+        "converted": 24,
+        "rate": 1.0
+      },
+      "attained_single_engine_ceiling": {
+        "converted": 24,
+        "rate": 1.0,
+        "source": "tie"
+      },
+      "demonstrated_solvable_union": {
+        "converted": 24,
+        "rate": 1.0
+      },
+      "accepted_gap_to_ceiling": 0,
+      "paired": {
+        "both": 24,
+        "accepted_only": 0,
+        "reference_only": 0,
+        "neither": 0
+      },
+      "conversion_applicable": true
+    },
+    "KQ-KR": {
+      "clean_wins": 24,
+      "accepted": {
+        "converted": 11,
+        "rate": 0.458333
+      },
+      "reference": {
+        "converted": 24,
+        "rate": 1.0
+      },
+      "attained_single_engine_ceiling": {
+        "converted": 24,
+        "rate": 1.0,
+        "source": "reference"
+      },
+      "demonstrated_solvable_union": {
+        "converted": 24,
+        "rate": 1.0
+      },
+      "accepted_gap_to_ceiling": 13,
+      "paired": {
+        "both": 11,
+        "accepted_only": 0,
+        "reference_only": 13,
+        "neither": 0
+      },
+      "conversion_applicable": true
+    },
+    "KNN-KP": {
+      "clean_wins": 24,
+      "accepted": {
+        "converted": 1,
+        "rate": 0.041667
+      },
+      "reference": {
+        "converted": 14,
+        "rate": 0.583333
+      },
+      "attained_single_engine_ceiling": {
+        "converted": 14,
+        "rate": 0.583333,
+        "source": "reference"
+      },
+      "demonstrated_solvable_union": {
+        "converted": 15,
+        "rate": 0.625
+      },
+      "accepted_gap_to_ceiling": 13,
+      "paired": {
+        "both": 0,
+        "accepted_only": 1,
+        "reference_only": 14,
+        "neither": 9
+      },
+      "conversion_applicable": true
+    },
+    "KRP-KR": {
+      "clean_wins": 24,
+      "accepted": {
+        "converted": 17,
+        "rate": 0.708333
+      },
+      "reference": {
+        "converted": 24,
+        "rate": 1.0
+      },
+      "attained_single_engine_ceiling": {
+        "converted": 24,
+        "rate": 1.0,
+        "source": "reference"
+      },
+      "demonstrated_solvable_union": {
+        "converted": 24,
+        "rate": 1.0
+      },
+      "accepted_gap_to_ceiling": 7,
+      "paired": {
+        "both": 17,
+        "accepted_only": 0,
+        "reference_only": 7,
+        "neither": 0
+      },
+      "conversion_applicable": true
+    },
+    "KRP-KB": {
+      "clean_wins": 24,
+      "accepted": {
+        "converted": 20,
+        "rate": 0.833333
+      },
+      "reference": {
+        "converted": 24,
+        "rate": 1.0
+      },
+      "attained_single_engine_ceiling": {
+        "converted": 24,
+        "rate": 1.0,
+        "source": "reference"
+      },
+      "demonstrated_solvable_union": {
+        "converted": 24,
+        "rate": 1.0
+      },
+      "accepted_gap_to_ceiling": 4,
+      "paired": {
+        "both": 20,
+        "accepted_only": 0,
+        "reference_only": 4,
+        "neither": 0
+      },
+      "conversion_applicable": true
+    },
+    "KBP-KB": {
+      "clean_wins": 24,
+      "accepted": {
+        "converted": 16,
+        "rate": 0.666667
+      },
+      "reference": {
+        "converted": 23,
+        "rate": 0.958333
+      },
+      "attained_single_engine_ceiling": {
+        "converted": 23,
+        "rate": 0.958333,
+        "source": "reference"
+      },
+      "demonstrated_solvable_union": {
+        "converted": 23,
+        "rate": 0.958333
+      },
+      "accepted_gap_to_ceiling": 7,
+      "paired": {
+        "both": 16,
+        "accepted_only": 0,
+        "reference_only": 7,
+        "neither": 1
+      },
+      "conversion_applicable": true
+    },
+    "KBP-KN": {
+      "clean_wins": 24,
+      "accepted": {
+        "converted": 17,
+        "rate": 0.708333
+      },
+      "reference": {
+        "converted": 24,
+        "rate": 1.0
+      },
+      "attained_single_engine_ceiling": {
+        "converted": 24,
+        "rate": 1.0,
+        "source": "reference"
+      },
+      "demonstrated_solvable_union": {
+        "converted": 24,
+        "rate": 1.0
+      },
+      "accepted_gap_to_ceiling": 7,
+      "paired": {
+        "both": 17,
+        "accepted_only": 0,
+        "reference_only": 7,
+        "neither": 0
+      },
+      "conversion_applicable": true
+    },
+    "KP-KP": {
+      "clean_wins": 24,
+      "accepted": {
+        "converted": 24,
+        "rate": 1.0
+      },
+      "reference": {
+        "converted": 24,
+        "rate": 1.0
+      },
+      "attained_single_engine_ceiling": {
+        "converted": 24,
+        "rate": 1.0,
+        "source": "tie"
+      },
+      "demonstrated_solvable_union": {
+        "converted": 24,
+        "rate": 1.0
+      },
+      "accepted_gap_to_ceiling": 0,
+      "paired": {
+        "both": 24,
+        "accepted_only": 0,
+        "reference_only": 0,
+        "neither": 0
+      },
+      "conversion_applicable": true
+    },
+    "KQ-KRP": {
+      "clean_wins": 24,
+      "accepted": {
+        "converted": 13,
+        "rate": 0.541667
+      },
+      "reference": {
+        "converted": 23,
+        "rate": 0.958333
+      },
+      "attained_single_engine_ceiling": {
+        "converted": 23,
+        "rate": 0.958333,
+        "source": "reference"
+      },
+      "demonstrated_solvable_union": {
+        "converted": 23,
+        "rate": 0.958333
+      },
+      "accepted_gap_to_ceiling": 10,
+      "paired": {
+        "both": 13,
+        "accepted_only": 0,
+        "reference_only": 10,
+        "neither": 1
+      },
+      "conversion_applicable": true
+    },
+    "KBPP-KB": {
+      "clean_wins": 24,
+      "accepted": {
+        "converted": 14,
+        "rate": 0.583333
+      },
+      "reference": {
+        "converted": 23,
+        "rate": 0.958333
+      },
+      "attained_single_engine_ceiling": {
+        "converted": 23,
+        "rate": 0.958333,
+        "source": "reference"
+      },
+      "demonstrated_solvable_union": {
+        "converted": 23,
+        "rate": 0.958333
+      },
+      "accepted_gap_to_ceiling": 9,
+      "paired": {
+        "both": 14,
+        "accepted_only": 0,
+        "reference_only": 9,
+        "neither": 1
+      },
+      "conversion_applicable": true
+    }
+  }
+}

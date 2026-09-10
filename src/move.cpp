@@ -1,5 +1,7 @@
 #include "move.h"
 
+#include <string>
+
 std::string move_to_uci(Move m) {
     if (m == MOVE_NONE) return "0000";
 

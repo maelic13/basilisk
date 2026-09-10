@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cstdint>
+#include <string>
+
 #include "board.h"
 #include "eval_params.h"
 
@@ -12,11 +15,36 @@ struct PawnEntry {
 
 static constexpr int PAWN_TABLE_SIZE = 16384;
 
+// The search treats any score at or above MATE_SCORE - MAX_PLY as a mate and
+// ply-adjusts it on its way into the TT, so a STATIC evaluation must stay
+// strictly below it. The value lives here rather than in search.h so that eval
+// does not acquire a dependency on search; tests/test_endgames.cpp
+// static_asserts that the two definitions agree, which is what catches a future
+// change to MATE_SCORE or MAX_PLY.
+inline constexpr int KBNK_STATIC_MATE_FLOOR = 31872;
+
 // 8.6.2a: the pawn cache is indexed `pkey & (PAWN_TABLE_SIZE - 1)`, which is a
 // modulo only for powers of two — a non-pow2 size would silently alias entries
 // (returning another position's pawn eval) rather than fail.
 static_assert((PAWN_TABLE_SIZE & (PAWN_TABLE_SIZE - 1)) == 0,
               "PAWN_TABLE_SIZE must be a power of two: indexed with & (SIZE - 1)");
+
+#ifdef BASILISK_TUNE
+// Exact search-tree occurrence of the 20 pre-NNUE reference endgame families.
+// This is tune-build-only diagnostic state: release binaries contain neither
+// the counters nor the classifier. `classified` is the denominator (every
+// evaluated position with at most seven men), not a sum of the family fields;
+// KPK also belongs to KPsK, and KBNK also belongs to KXK.
+struct EndgameOccurrenceCounters {
+    int64_t krpkr = 0, krpkb = 0, kpsk = 0, kpk = 0, krkp = 0;
+    int64_t kbpsk = 0, kpkp = 0, kqkp = 0, kbpkb = 0, kbppkb = 0;
+    int64_t krkn = 0, krkb = 0, kbpkn = 0, knnkp = 0, knnk = 0;
+    int64_t kqkr = 0, kqkrps = 0, krppkrp = 0, kxk = 0, kbnk = 0;
+    int64_t classified = 0;
+
+    void reset() noexcept { *this = EndgameOccurrenceCounters{}; }
+};
+#endif
 
 class Evaluator {
 public:
@@ -44,6 +72,14 @@ public:
     // from. Reset per `go` alongside the lazy-audit block.
     int64_t eval_calls = 0;
     int64_t pawn_probes = 0, pawn_hits = 0;
+
+#ifdef BASILISK_TUNE
+    // Enabled only by the hidden tune-build UCI `Diag` option. Counted at the
+    // top of evaluate(), before any endgame or lazy-eval early return, because
+    // every invocation represents a family reached by the search tree.
+    bool diag_endgames = false;
+    EndgameOccurrenceCounters endgame_occurrence;
+#endif
 
 private:
     PawnEntry pawn_table_[PAWN_TABLE_SIZE];
@@ -97,23 +133,23 @@ inline constexpr int DAMP_RULE50_DEN = 199;
 // the material — the scaler deliberately fires with other pieces present, which
 // is the scope refinement deferred to PLAN 13.8.
 [[nodiscard]] inline bool is_opposite_coloured_bishops(const Board& b) {
-    const bool wb1 = !more_than_one(b.pieces[WHITE][BISHOP]) && b.pieces[WHITE][BISHOP];
-    const bool bb1 = !more_than_one(b.pieces[BLACK][BISHOP]) && b.pieces[BLACK][BISHOP];
+    const bool wb1 = !more_than_one(b.piece_bb(WHITE, BISHOP)) && b.piece_bb(WHITE, BISHOP);
+    const bool bb1 = !more_than_one(b.piece_bb(BLACK, BISHOP)) && b.piece_bb(BLACK, BISHOP);
     if (!wb1 || !bb1)
         return false;
-    const bool wb_dark = (b.pieces[WHITE][BISHOP] & EVAL_DARK_SQUARES) != 0;
-    const bool bb_dark = (b.pieces[BLACK][BISHOP] & EVAL_DARK_SQUARES) != 0;
+    const bool wb_dark = (b.piece_bb(WHITE, BISHOP) & EVAL_DARK_SQUARES) != 0;
+    const bool bb_dark = (b.piece_bb(BLACK, BISHOP) & EVAL_DARK_SQUARES) != 0;
     return wb_dark != bb_dark;
 }
 
 [[nodiscard]] inline bool is_lone_king(const Board& b, Color c) {
-    return b.occupancy[c] == sq_bb(b.king_sq[c]);
+    return b.occupancy_bb(c) == sq_bb(b.king_square(c));
 }
 
 // King and exactly n knights, nothing else.
 [[nodiscard]] inline bool is_king_and_n_knights(const Board& b, Color c, int n) {
-    return !b.pieces[c][PAWN] && !b.pieces[c][BISHOP] && !b.pieces[c][ROOK]
-        && !b.pieces[c][QUEEN] && popcount(b.pieces[c][KNIGHT]) == n;
+    return !b.piece_bb(c, PAWN) && !b.piece_bb(c, BISHOP) && !b.piece_bb(c, ROOK)
+        && !b.piece_bb(c, QUEEN) && popcount(b.piece_bb(c, KNIGHT)) == n;
 }
 
 // KNNK is a dead draw: two knights cannot force mate against a bare king.
@@ -132,4 +168,9 @@ void init_eval_tables(const EvalParams& p = g_eval_params);
 void load_eval_file_if_set();
 // Dump g_eval_params to stdout in "name index value" format (one line per element).
 void run_dumpeval();
+
+// Tune-build-only atomic control for base, diagonal, edge, strong-king and
+// knight KBNK terms. Four-field values remain accepted as the legacy
+// diagonal,edge,king,knight form for reproducibility of the 6.1.c first pass.
+bool set_kbnk_drive_weights(const std::string& value, std::string& error);
 #endif

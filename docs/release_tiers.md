@@ -56,7 +56,29 @@ disassembly of the built binaries:
   hardware `POPCNT` would fault on a CPU that lacks it. Slower, universal, safe.
 - **`-avx2`** (`-mavx2 -msse4.1 -mpopcnt`) and **`-pext`** (`-mbmi2`, which on
   this clang pulls in `POPCNT`): **hardware `POPCNT`** — the built `-pext`
-  binary contains 97 `popcnt` instructions. These are the fast path.
+  binary contains 152 `popcnt` instructions. These are the fast path.
+
+Verified again at the 1.10.0 release (2026-09-10, clang 22.1.8, disassembly
+counts):
+
+| Tier | `popcnt` | `pext` | `blsr` | `lzcnt` | `tzcnt` |
+|---|---:|---:|---:|---:|---:|
+| portable (`PORTABLE_BUILD=ON`) | 0 | 0 | 0 | 0 | 225 |
+| `-avx2` | 104 | 0 | 0 | 0 | 233 |
+| `-pext` (PGO) | 152 | 246 | 393 | 9 | 513 |
+
+`tzcnt` in the portable binary is **not** a tier violation: it is encoded as
+`REP BSF` and decodes as plain `BSF` on a CPU without BMI1, so it is
+backward-compatible. `popcnt` and `lzcnt` are not — `lzcnt` decodes as `BSR`
+and returns a different value — and both are correctly absent.
+
+> **Build the portable tier with `-DPORTABLE_BUILD=ON`.** Without it the
+> `release` preset compiles `-march=native` (CMakeLists `-march=native` is
+> gated only on `PORTABLE_BUILD`), and the resulting host-tuned binary is
+> still published into `build/dist/` under the **portable** asset name, where
+> nothing in the filename reveals it. A local native build measured 103
+> `popcnt` and 130 `blsr` under that name on 2026-09-10. CI is unaffected:
+> `release.yml` passes `-DPORTABLE_BUILD=ON` for every matrix row.
 
 A future `x86-64-v2` tier would give `POPCNT` (and SSE4.2) to portable-class
 CPUs that have it; it is not currently built (see the no-`v2`-tier note above).

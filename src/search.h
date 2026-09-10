@@ -9,9 +9,12 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <cstdint>
+#include <cstdlib>
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <string>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -204,6 +207,66 @@ private:
         // entries it (or another thread) already owns rather than competing
         // for capacity — the quantity 9.5's TT-coordination work moves.
         int64_t tt_stores = 0, tt_stores_same_key = 0;
+
+        // ---- 5.2 differential harness (selected by BAS-O03) ----------------
+        // BAS-O01/O03 measured our effective branching factor at ~2.20 against
+        // the reference's ~1.61: at equal time we finish 15.6 plies where it
+        // finishes 25.2, on MORE nodes per move. The tree is too wide, not too
+        // small. These counters localize where that width is created; the
+        // pre-existing ones above could not, because they report how often a
+        // mechanism fired without reporting how often it could have.
+
+        // Ordering quality. A fail-high on the first move costs one move's
+        // search; on the n-th it costs n. Mean cutoff index is therefore a
+        // direct multiplier on tree width, and `cutoff_src` says which stage
+        // to fix. Counted at the cutoff, so the denominator is fail_highs.
+        int64_t fail_highs = 0, fail_high_first = 0, fail_high_index_sum = 0;
+        int64_t cutoff_src_tt = 0, cutoff_src_good_tactical = 0;
+        int64_t cutoff_src_quiet = 0, cutoff_src_bad_tactical = 0;
+
+        // LMR width. `lmr_applied` alone cannot distinguish "rarely eligible"
+        // from "eligible but almost never reduced" — the two have opposite
+        // repairs. The blocked reasons are mutually exclusive and evaluated in
+        // the live gate's own short-circuit order, so
+        //   eligible = applied + clamped_zero + sum(blocked_*).
+        // `reduction_plies / applied` is the mean reduction actually taken,
+        // which is the number a timid-LMR hypothesis lives or dies on.
+        int64_t lmr_eligible = 0, lmr_reduction_plies = 0, lmr_clamped_zero = 0;
+        // 5.4.3: the formula's raw output exceeded the new_depth-1 ceiling,
+        // so the reduction actually taken was set by remaining depth rather
+        // than by the policy. Distinguishes "our modulation is too small"
+        // from "our modulation cannot matter here" — opposite repairs.
+        int64_t lmr_clamped_high = 0;
+        // 5.7.3 probe: how often does an extension actually stack?
+        //   sing_fired      -- singular extension applied (+1 or +2)
+        //   sing_double     -- of those, the +2 double-extension path
+        //   sing_in_check   -- of those, at a node that ALSO took the check
+        //                      extension, i.e. the 3-ply case the audit flagged
+        int64_t sing_fired = 0;
+        int64_t sing_double = 0;
+        int64_t sing_in_check = 0;
+        int64_t sing_triple = 0;   // double AND in check: the full 3-ply stack
+        int64_t sing_ttbeta = 0;   // 5.7.4: the tt_score >= beta branch
+        // 5.8.2: the aspiration path. Nothing counted these, so none of the
+        // cluster's candidates could be sized before implementing them.
+        int64_t asp_windows = 0;    // root iterations that used a window at all
+        int64_t asp_fail_low = 0;
+        int64_t asp_fail_high = 0;
+        int64_t asp_researches = 0; // total re-searches across all iterations
+        int64_t asp_giveup = 0;     // the delta >= 900 full-width bail
+        // 5.6: history-pruning reachability. The live threshold is
+        // hist_prune_coeff * depth against a SUM of six bounded history
+        // channels whose maximum magnitude is 81,920 — so at depth 6 the
+        // condition is provably unsatisfiable and at depth 5 it needs 85% of
+        // theoretical maximum negative on every channel at once. These count
+        // how many quiet moves would fall below a looser threshold, sizing a
+        // candidate before one is built.
+        int64_t hist_prune_tested = 0, hist_below_half = 0;
+        int64_t hist_below_quarter = 0, hist_below_eighth = 0;
+        int64_t lmr_blocked_depth = 0, lmr_blocked_searched = 0;
+        int64_t lmr_blocked_in_check = 0, lmr_blocked_movetype = 0;
+        int64_t lmr_blocked_gives_check = 0;
+
         void reset() noexcept { *this = DiagCounters{}; }
         // Pool aggregation (9.3c): sum a helper's counters into this one.
         // Written out rather than punned through an int64_t* — the
@@ -237,11 +300,41 @@ private:
             gives_check_calls += o.gives_check_calls;
             tt_stores += o.tt_stores;
             tt_stores_same_key += o.tt_stores_same_key;
+            fail_highs += o.fail_highs;
+            fail_high_first += o.fail_high_first;
+            fail_high_index_sum += o.fail_high_index_sum;
+            cutoff_src_tt += o.cutoff_src_tt;
+            cutoff_src_good_tactical += o.cutoff_src_good_tactical;
+            cutoff_src_quiet += o.cutoff_src_quiet;
+            cutoff_src_bad_tactical += o.cutoff_src_bad_tactical;
+            lmr_eligible += o.lmr_eligible;
+            lmr_reduction_plies += o.lmr_reduction_plies;
+            lmr_clamped_zero += o.lmr_clamped_zero;
+            lmr_clamped_high += o.lmr_clamped_high;
+            sing_fired += o.sing_fired;
+            sing_double += o.sing_double;
+            sing_in_check += o.sing_in_check;
+            sing_triple += o.sing_triple;
+            sing_ttbeta += o.sing_ttbeta;
+            asp_windows += o.asp_windows;
+            asp_fail_low += o.asp_fail_low;
+            asp_fail_high += o.asp_fail_high;
+            asp_researches += o.asp_researches;
+            asp_giveup += o.asp_giveup;
+            hist_prune_tested += o.hist_prune_tested;
+            hist_below_half += o.hist_below_half;
+            hist_below_quarter += o.hist_below_quarter;
+            hist_below_eighth += o.hist_below_eighth;
+            lmr_blocked_depth += o.lmr_blocked_depth;
+            lmr_blocked_searched += o.lmr_blocked_searched;
+            lmr_blocked_in_check += o.lmr_blocked_in_check;
+            lmr_blocked_movetype += o.lmr_blocked_movetype;
+            lmr_blocked_gives_check += o.lmr_blocked_gives_check;
         }
     };
-    // 27 counters, all int64_t. If this fails you added a counter: add it to
+    // 47 counters, all int64_t. If this fails you added a counter: add it to
     // add() above and update the count, or the pool aggregate silently drops it.
-    static_assert(sizeof(DiagCounters) == 27 * sizeof(int64_t),
+    static_assert(sizeof(DiagCounters) == 57 * sizeof(int64_t),
                   "DiagCounters changed shape — update DiagCounters::add()");
     DiagCounters diag_;
     void print_diag() const;
@@ -338,7 +431,7 @@ private:
     // board.make_move directly from search code.
     void do_move(SearchStack* ss, Move m) {
         ss->move        = m;
-        ss->moved_piece = type_of(board_ptr_->board_sq[from_sq(m)]);
+        ss->moved_piece = type_of(board_ptr_->piece_on(from_sq(m)));
         board_ptr_->make_move(m);
         // Phase 9: accumulator.push(dirty piece delta) attaches here.
     }

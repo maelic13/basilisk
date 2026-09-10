@@ -1,0 +1,169 @@
+#!/usr/bin/env python3
+"""Validate and summarize the paired PLAN 6.1.c KBNK coefficient screen."""
+
+from __future__ import annotations
+
+import argparse
+import json
+from pathlib import Path
+
+VARIANTS = {
+    "baseline": "800,900,220,220",
+    "diagonal-600": "600,900,220,220",
+    "diagonal-1000": "1000,900,220,220",
+    "no-edge": "800,0,220,220",
+    "no-king": "800,900,0,220",
+    "no-knight": "800,900,220,0",
+    "no-edge-knight": "800,0,220,0",
+    "dominant-diagonal": "1000,0,220,0",
+    "rarog-shape": "1000,0,100,0",
+    "diagonal-only": "1000,0,0,0",
+}
+HARD_OUTCOMES = {"engine_crash", "illegal_move", "no_move"}
+
+
+def summarize_reports(
+    result_dir: Path,
+    output: Path,
+    variants: dict[str, str],
+    baseline_name: str,
+    schema: str,
+    purpose: str,
+) -> None:
+    """Shared paired validator; experiment wrappers own their frozen registry."""
+    reports = {}
+    for name, weights in variants.items():
+        path = result_dir / f"{name}.json"
+        if not path.is_file():
+            raise ValueError(f"missing variant report: {path}")
+        report = json.loads(path.read_text(encoding="utf-8"))
+        if report.get("engine_options", {}).get("KBNK Drive") != weights:
+            raise ValueError(f"{name}: KBNK Drive provenance does not match registry")
+        reports[name] = report
+
+    baseline = reports[baseline_name]
+    invariant_keys = ("engine_sha256", "nodes_per_move", "max_plies", "hash_mb")
+    baseline_ids = [p["id"] for p in baseline["families"]["KBN-K"]["positions"]]
+    for name, report in reports.items():
+        for key in invariant_keys:
+            if report.get(key) != baseline.get(key):
+                raise ValueError(f"{name}: mismatched {key}")
+        if report.get("cohort", {}).get("book_sha256") != baseline["cohort"]["book_sha256"]:
+            raise ValueError(f"{name}: mismatched frozen cohort")
+        ids = [p["id"] for p in report["families"]["KBN-K"]["positions"]]
+        if ids != baseline_ids:
+            raise ValueError(f"{name}: position pairing/order differs")
+
+    base_positions = {
+        p["id"]: p for p in baseline["families"]["KBN-K"]["positions"]
+    }
+    rows = []
+    for name, weights in variants.items():
+        family = reports[name]["families"]["KBN-K"]
+        positions = {p["id"]: p for p in family["positions"]}
+        gained = sum(
+            base_positions[key]["outcome"] != "mated" and p["outcome"] == "mated"
+            for key, p in positions.items()
+        )
+        lost = sum(
+            base_positions[key]["outcome"] == "mated" and p["outcome"] != "mated"
+            for key, p in positions.items()
+        )
+        hard = sum(
+            p["outcome"] in HARD_OUTCOMES or p.get("anomaly") is not None
+            for p in positions.values()
+        )
+        discarded = sum(p.get("first_discard_ply") is not None for p in positions.values())
+        # BAS-E35 established that the historical discards occur only at
+        # plies 94-98, after the win is already dying at the rule-50 boundary.
+        # A discard before ply 80 is therefore a new live truth failure, not
+        # ordinary late cleanup noise, and is ranked as a correctness veto.
+        live_discards = sum(
+            p.get("first_discard_ply") is not None
+            and p["first_discard_ply"] < 80
+            for p in positions.values()
+        )
+        rows.append({
+            "variant": name,
+            "uci_kbnk_drive": weights,
+            "converted": family["converted"],
+            "conversion_rate": family["conversion_rate"],
+            "conversion_delta_vs_baseline": family["converted"] - baseline["families"]["KBN-K"]["converted"],
+            "paired_conversions_gained": gained,
+            "paired_conversions_lost": lost,
+            "win_preserving_rate": family["win_preserving_rate"],
+            "dtz_progress_rate": family["dtz_progress_rate"],
+            "median_mate_plies": family["median_mate_plies"],
+            "mate_efficiency": family["mate_efficiency"],
+            "discarded_clean_wins": discarded,
+            "live_truth_discards": live_discards,
+            "hard_anomalies": hard,
+            "outcomes": family["outcomes"],
+        })
+
+    ranked = sorted(
+        rows,
+        key=lambda row: (
+            row["hard_anomalies"],
+            row["live_truth_discards"],
+            -row["converted"],
+            row["discarded_clean_wins"],
+            row["median_mate_plies"] if row["median_mate_plies"] is not None else 10**9,
+        ),
+    )
+    summary = {
+        "schema": schema,
+        "purpose": purpose,
+        "engine_sha256": baseline["engine_sha256"],
+        "cohort_book_sha256": baseline["cohort"]["book_sha256"],
+        "position_ids": baseline_ids,
+        "nodes_per_move": baseline["nodes_per_move"],
+        "max_plies": baseline["max_plies"],
+        "workers": baseline["workers"],
+        "ranking_policy": [
+            "reject engine/protocol anomalies",
+            "reject new live truth discards before ply 80",
+            "prefer conversion count on identical positions",
+            "use clean-win preservation, DTZ progress and mate efficiency diagnostically",
+            "prefer the simpler coefficient vector when practical results are tied",
+            "confirm the selected vector on all 198 frozen positions in step 6.1.e",
+        ],
+        "variants": rows,
+        "ranked_variants": [row["variant"] for row in ranked],
+    }
+    rendered = json.dumps(summary, indent=2) + "\n"
+    output.write_text(rendered, encoding="utf-8", newline="\n")
+
+    print("variant              weights                   conv  delta  gain/loss  discard  live  hard")
+    for row in ranked:
+        print(
+            f'{row["variant"]:<20} {row["uci_kbnk_drive"]:<25} '
+            f'{row["converted"]:>3}/{len(baseline_ids):<3} {row["conversion_delta_vs_baseline"]:>+5} '
+            f'{row["paired_conversions_gained"]:>3}/{row["paired_conversions_lost"]:<3} '
+            f'{row["discarded_clean_wins"]:>7} {row["live_truth_discards"]:>5} '
+            f'{row["hard_anomalies"]:>5}'
+        )
+    print(f"Summary: {output.resolve()}")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("result_dir", type=Path)
+    parser.add_argument("--output", type=Path)
+    args = parser.parse_args()
+    try:
+        summarize_reports(
+            args.result_dir,
+            args.output or args.result_dir / "summary.json",
+            VARIANTS,
+            "baseline",
+            "basilisk-kbnk-coefficient-sweep-v2",
+            "6.1.c paired 60-position screen; selection requires review, not automatic adoption",
+        )
+    except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
+        parser.error(str(exc))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

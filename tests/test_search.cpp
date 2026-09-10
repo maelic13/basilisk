@@ -26,10 +26,17 @@
 
 #include <atomic>
 #include <chrono>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 #include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <memory>
+#include <stdexcept>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <vector>
 
@@ -158,7 +165,7 @@ static std::vector<std::string> collect_info_lines_with_tt_move(const char* fen,
 
     Board board;
     board.set_fen(fen);
-    tt.store(board.hash, depth + 4, 500, TT_EXACT, tt_move, 0, 0);
+    tt.store(board.position_key(), depth + 4, 500, TT_EXACT, tt_move, 0, 0);
 
     SearchLimits limits;
     limits.depth = depth;
@@ -170,11 +177,98 @@ static std::vector<std::string> collect_info_lines_with_tt_move(const char* fen,
     return lines;
 }
 
-static bool init_local_syzygy() {
-    static constexpr const char* TB_PATH = "D:\\chess\\Syzygy345";
-    if (!std::filesystem::exists(TB_PATH))
-        return false;
-    return Syzygy::init(TB_PATH) && Syzygy::enabled();
+static int base64_value(char c) {
+    if (c >= 'A' && c <= 'Z') return c - 'A';
+    if (c >= 'a' && c <= 'z') return c - 'a' + 26;
+    if (c >= '0' && c <= '9') return c - '0' + 52;
+    if (c == '+') return 62;
+    if (c == '/') return 63;
+    return -1;
+}
+
+static std::vector<unsigned char> decode_base64(std::string_view encoded) {
+    std::vector<unsigned char> decoded;
+    decoded.reserve(encoded.size() * 3 / 4);
+    unsigned accumulator = 0;
+    int bits = 0;
+
+    for (char c : encoded) {
+        if (c == '=')
+            break;
+        const int value = base64_value(c);
+        if (value < 0)
+            continue;
+        accumulator = (accumulator << 6) | static_cast<unsigned>(value);
+        bits += 6;
+        if (bits >= 8) {
+            bits -= 8;
+            decoded.push_back(static_cast<unsigned char>(accumulator >> bits));
+            accumulator &= (1u << bits) - 1u;
+        }
+    }
+    return decoded;
+}
+
+static void materialize_syzygy_file(const std::filesystem::path& source,
+                                    const std::filesystem::path& destination,
+                                    size_t expected_size) {
+    std::ifstream input(source, std::ios::binary);
+    if (!input)
+        throw std::runtime_error("missing Syzygy test fixture: " + source.string());
+    const std::string encoded((std::istreambuf_iterator<char>(input)),
+                              std::istreambuf_iterator<char>());
+    const auto decoded = decode_base64(encoded);
+    if (decoded.size() != expected_size)
+        throw std::runtime_error("invalid Syzygy fixture size: " + source.string());
+
+    std::ofstream output(destination, std::ios::binary);
+    output.write(reinterpret_cast<const char*>(decoded.data()),
+                 static_cast<std::streamsize>(decoded.size()));
+    if (!output)
+        throw std::runtime_error("could not materialize Syzygy fixture: "
+                                 + destination.string());
+}
+
+struct SyzygyFixtureDirectory {
+    std::filesystem::path path;
+
+    SyzygyFixtureDirectory() {
+        const auto nonce = std::chrono::high_resolution_clock::now()
+                               .time_since_epoch().count();
+        const auto temp = std::filesystem::temp_directory_path();
+        bool created = false;
+        for (int attempt = 0; attempt < 100; ++attempt) {
+            path = temp / ("basilisk-syzygy-test-" + std::to_string(nonce)
+                           + "-" + std::to_string(attempt));
+            if (std::filesystem::create_directory(path)) {
+                created = true;
+                break;
+            }
+        }
+        if (!created)
+            throw std::runtime_error("could not create temporary Syzygy fixture directory");
+
+        const std::filesystem::path source(BASILISK_TEST_SYZYGY_FIXTURE_DIR);
+        materialize_syzygy_file(source / "KQvK.rtbw.b64", path / "KQvK.rtbw", 272);
+        materialize_syzygy_file(source / "KQvK.rtbz.b64", path / "KQvK.rtbz", 5392);
+    }
+
+    ~SyzygyFixtureDirectory() {
+        Syzygy::clear();
+        std::error_code error;
+        std::filesystem::remove_all(path, error);
+    }
+};
+
+static const std::filesystem::path& syzygy_fixture_path() {
+    static SyzygyFixtureDirectory fixture;
+    return fixture.path;
+}
+
+static void init_test_syzygy() {
+    const std::string path = syzygy_fixture_path().string();
+    if (!Syzygy::init(path) || !Syzygy::enabled())
+        throw std::runtime_error("bundled KQvK Syzygy fixture failed to initialize");
 }
 
 // ---------------------------------------------------------------------------
@@ -795,12 +889,7 @@ static void test_syzygy_disabled_without_path() {
 
 static void test_syzygy_probe_limit_and_counts() {
     Syzygy::clear();
-    if (!init_local_syzygy()) {
-        begin_section("syzygy: local tablebases unavailable");
-        EXPECT(true);
-        end_section();
-        return;
-    }
+    init_test_syzygy();
 
     Board board;
     board.set_fen("6k1/8/8/8/8/8/8/6KQ w - - 0 1");
@@ -833,19 +922,27 @@ static void test_syzygy_probe_limit_and_counts() {
     Syzygy::clear();
 }
 
+// These test rule-50 CLAMPING at the root: a clean tablebase win whose halfmove
+// clock has already run out is scored as a draw, and is scored as a win again
+// when Rule50 is off. That is a different mechanism from a CURSED WIN, and the
+// distinction is load-bearing in this project -- `endgame_truth.py` grades WDL 2
+// against WDL 1 precisely because downgrading one to the other is a real
+// failure mode.
+//
+// A cursed win is WDL == 1: the table itself reports "won, but the fifty-move
+// rule has already drawn it" because DTZ exceeds 100, independent of the
+// position's current clock. The KQvK fixture contains no WDL == +/-1 entries at
+// all -- every KQvK win is clean at small DTZ -- so the WDL +/-1 decode path is
+// NOT covered here. See tests/fixtures/syzygy/README.md; covering it needs a
+// five-man table such as KNNvKP, which is far too large to embed.
 static void test_syzygy_rule50_root_scores() {
     Syzygy::clear();
-    if (!init_local_syzygy()) {
-        begin_section("syzygy: rule50 local tablebases unavailable");
-        EXPECT(true);
-        end_section();
-        return;
-    }
+    init_test_syzygy();
 
     Board board;
     board.set_fen("6k1/8/8/8/8/8/8/6KQ w - - 99 50");
 
-    begin_section("syzygy: rule50 cursed win is reported as draw");
+    begin_section("syzygy: rule50 clamps an exhausted-clock win to a draw");
     auto rule50_moves = Syzygy::probe_root_moves(board, true, 7, true);
     EXPECT(!rule50_moves.empty());
     EXPECT(rule50_moves.front().score == 0);
@@ -862,12 +959,7 @@ static void test_syzygy_rule50_root_scores() {
 
 static void test_search_uses_root_tablebase_metadata() {
     Syzygy::clear();
-    if (!init_local_syzygy()) {
-        begin_section("search syzygy: local tablebases unavailable");
-        EXPECT(true);
-        end_section();
-        return;
-    }
+    init_test_syzygy();
 
     static constexpr const char* FEN =
         "6k1/8/8/8/8/8/8/6KQ w - - 0 1";
@@ -924,7 +1016,7 @@ static void test_ponder_move_can_be_recovered_from_tt_child() {
     EXPECT(ponder != MOVE_NONE);
 
     TranspositionTable tt(4);
-    tt.store(child.hash, 4, 0, TT_EXACT, ponder, 1, 0);
+    tt.store(child.position_key(), 4, 0, TT_EXACT, ponder, 1, 0);
 
     std::atomic_bool stop{false};
     SearchLimits limits;

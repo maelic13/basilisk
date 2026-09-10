@@ -11,6 +11,7 @@
 #include "types.h"
 #include "test_harness.h"
 
+#include <cstdio>
 #include <string>
 
 // ---------------------------------------------------------------------------

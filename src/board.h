@@ -9,6 +9,7 @@
 #include <vector>
 #include <expected>
 #include <string>
+#include <cstdint>
 
 // Per-move undo information
 struct UndoInfo {
@@ -41,8 +42,11 @@ struct MoveList {
 };
 
 class Board {
-public:
-    // ---- Core state (public for eval/search access) ----
+private:
+    // Canonical and derived state are mutated only by Board. The bitboards,
+    // occupancies, mailbox, king/check caches and incremental keys form one
+    // redundant representation; exposing any writable component lets callers
+    // silently desynchronize the rest.
     Bitboard pieces[NCOLORS][PIECE_TYPE_NB]; // [color][piece_type]
     Bitboard occupancy[NCOLORS];
     Bitboard all_occ;
@@ -64,21 +68,52 @@ public:
     Square king_sq[NCOLORS];
     Bitboard checkers;  // pieces giving check to side_to_move (updated by make_move/set_fen)
 
+public:
+    static constexpr size_t HISTORY_RESERVE = 2048;
+
+private:
     // Growable undo history (8.6.10a, replacing the fixed 2048-entry array +
     // release clamp): a `position ... moves` list of any length is now simply
     // correct — no clamp, no bounded-state-damage compromise, no assert/clamp
     // contradiction. HISTORY_RESERVE keeps the common case allocation-free;
     // push_back beyond it amortizes. Capacity is preserved across copies and
     // set_fen, so per-search Board copies never reallocate mid-search.
-    static constexpr size_t HISTORY_RESERVE = 2048;
     std::vector<UndoInfo> history;
 
+public:
     // ---- Interface ----
     Board();
     Board(const Board& other);
     Board& operator=(const Board& other);
     Board(Board&& other) noexcept = default;
     Board& operator=(Board&& other) noexcept = default;
+
+    // Read-only state view. These accessors are intentionally trivial so hot
+    // eval/search consumers retain direct-load codegen without write access.
+    [[nodiscard]] Bitboard piece_bb(int c, int pt) const noexcept { return pieces[c][pt]; }
+    [[nodiscard]] const Bitboard (&piece_bitboards() const noexcept)[NCOLORS][PIECE_TYPE_NB] {
+        return pieces;
+    }
+    [[nodiscard]] Bitboard occupancy_bb(int c) const noexcept { return occupancy[c]; }
+    [[nodiscard]] const Bitboard (&occupancies() const noexcept)[NCOLORS] { return occupancy; }
+    [[nodiscard]] Bitboard all_pieces() const noexcept { return all_occ; }
+    [[nodiscard]] Piece piece_on(int sq) const noexcept { return board_sq[sq]; }
+    [[nodiscard]] Color turn() const noexcept { return side_to_move; }
+    [[nodiscard]] int fullmove() const noexcept { return fullmove_number; }
+    [[nodiscard]] int root_ply() const noexcept { return ply; }
+    [[nodiscard]] Key position_key() const noexcept { return hash; }
+    [[nodiscard]] Key pawn_key_value() const noexcept { return pawn_key; }
+    [[nodiscard]] Key minor_key_value() const noexcept { return minor_key; }
+    [[nodiscard]] Key nonpawn_key_value(Color c) const noexcept { return nonpawn_key[c]; }
+    [[nodiscard]] Square ep_square() const noexcept { return ep_sq; }
+    [[nodiscard]] int castling() const noexcept { return castling_rights; }
+    [[nodiscard]] int rule50_count() const noexcept { return halfmove_clock; }
+    [[nodiscard]] int plies_since_null() const noexcept { return plies_from_null; }
+    [[nodiscard]] Square king_square(int c) const noexcept { return king_sq[c]; }
+    [[nodiscard]] const Square (&king_squares() const noexcept)[NCOLORS] { return king_sq; }
+    [[nodiscard]] Bitboard checking_pieces() const noexcept { return checkers; }
+    [[nodiscard]] size_t history_size() const noexcept { return history.size(); }
+    [[nodiscard]] bool history_empty() const noexcept { return history.empty(); }
 
     void set_fen(const std::string& fen);
     // C++23 std::expected error channel (8.6.10 / 8.6.2c): on failure the
@@ -117,8 +152,17 @@ public:
     // What they answer: 8.7.5 needs SEE calls-per-node (how much SEE work is
     // recomputed), 8.7.3 needs the full-gives_check rate (the check-hint
     // candidate). Both are currently unmeasurable.
+private:
     mutable int64_t diag_see_ge_calls = 0;
     mutable int64_t diag_gives_check_calls = 0;
+
+public:
+    void reset_diag_counters() const noexcept {
+        diag_see_ge_calls = 0;
+        diag_gives_check_calls = 0;
+    }
+    [[nodiscard]] int64_t see_ge_call_count() const noexcept { return diag_see_ge_calls; }
+    [[nodiscard]] int64_t gives_check_call_count() const noexcept { return diag_gives_check_calls; }
 
     bool is_in_check() const;
     [[nodiscard]] bool gives_check(Move m) const;

@@ -21,7 +21,11 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <map>
+#include <memory>
+#include <ratio>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "../../src/eval.h"
@@ -87,6 +91,28 @@ static bool parse_target(const std::string& text, float& out) {
     if (end == text.c_str() || *end != '\0' || parsed < 0.0f || parsed > 1.0f)
         return false;
 
+    // Targets must be GAME RESULTS. Basilisk's Texel fits have always used
+    // self-play WDL, so the only legal values are 0, 0.5 and 1.
+    //
+    // This is a hard abort rather than a skipped row because the failure it
+    // prevents is silent and expensive. On 2026-08-26 a 348-parameter fit was
+    // run against an old discarded corpus carrying Stockfish expected-score
+    // targets; nothing objected, because a continuous target in [0,1] is
+    // perfectly well-formed input to a least-squares fit -- it is simply the
+    // wrong question. The candidate lost 77.92 Elo and the cause took a day and
+    // three SPRTs to isolate. A corpus that is the wrong KIND of data must fail
+    // loudly on contact, not quietly produce a worse engine.
+    if (parsed != 0.0f && parsed != 0.5f && parsed != 1.0f) {
+        std::cerr << "\nFATAL: target '" << text << "' is not a game result.\n"
+                  << "  Texel targets must be self-play WDL: exactly 0, 0.5 or 1.\n"
+                  << "  A continuous target means this corpus holds ENGINE EVALUATIONS,\n"
+                  << "  which fits the evaluation to imitate another engine instead of\n"
+                  << "  to win. beast_sf_*.csv is an old discarded distillation set;\n"
+                  << "  the project corpora (train_beast_seed, train_phase911, ...) are\n"
+                  << "  game-result labelled.\n";
+        std::exit(2);
+    }
+
     out = parsed;
     return true;
 }
@@ -137,6 +163,7 @@ static void usage(const char* exe) {
         << "  winnable    complexity/winnable coupling (3.6; finite-diff)\n"
         << "  kingsafety  king attack, shelter, and storm terms\n"
         << "  pst         PSTs plus material refit\n"
+        << "  texel       PSTs + scalars, material PINNED (1116; the 5.9.12 set)\n"
         << "  all         all meaningful eval params\n"
         << "\n"
         << "Options:\n"
@@ -193,8 +220,8 @@ static TuneOptions parse_tune_options(int argc, char* argv[]) {
 static void read_weights(const EvalParams& p, double* w) {
     int idx = 0;
 #define X(name, member, len) \
-    { const int* ptr = eval_param_cptr(p.member); \
-      for (int i = 0; i < (len); i++) w[idx++] = static_cast<double>(ptr[i]); }
+    { const auto values = eval_param_cspan(p.member, (len)); \
+      for (int v : values) w[idx++] = static_cast<double>(v); }
     EVAL_PARAM_LIST(X)
 #undef X
 }
@@ -202,8 +229,8 @@ static void read_weights(const EvalParams& p, double* w) {
 static void write_weights(EvalParams& p, const double* w) {
     int idx = 0;
 #define X(name, member, len) \
-    { int* ptr = eval_param_ptr(p.member); \
-      for (int i = 0; i < (len); i++) ptr[i] = static_cast<int>(std::round(w[idx++])); }
+    { auto values = eval_param_span(p.member, (len)); \
+      for (int& v : values) v = static_cast<int>(std::round(w[idx++])); }
     EVAL_PARAM_LIST(X)
 #undef X
 }
@@ -315,6 +342,35 @@ static std::vector<int> active_indices_for_group(const std::string& group) {
     } else if (group == "kingsafety" || group == "king") {
         for (int g = EPG_KsUnit; g <= EPG_StormWeightAdj; ++g)
             append_group(active, g);
+    } else if (group == "texel") {
+        // 5.9.12: everything a GRADIENT fit should touch, and nothing it should
+        // not. 1,116 params = 768 PST + 348 scalars.
+        //
+        // Material is deliberately ABSENT. eval.cpp builds
+        // MG_TABLE = mg_val[pt] + pst_mg[pt-1][sq], so material and PST are
+        // exactly collinear: adding a constant across a piece's 64 PST squares
+        // IS a material change. Fitting both is a perfect null direction and
+        // rank-deficient by construction. Pinning material costs ZERO
+        // expressiveness because the PST can already express any material
+        // change; it only removes the degeneracy.
+        //
+        // King safety (57) and winnable (7) are absent because they are capped
+        // and non-linear -- BAS-X14. They belong to --tune-kingsafety and the
+        // finite-difference winnable group. BAS-E21 is the evidence that this
+        // split matters: the king-safety funnel produced +2.64 Elo through the
+        // coordinate-descent fitter after a linear fit had nothing to say about
+        // it.
+        //
+        // Do NOT use "all" for this. It reaches 1,183 -- sweeping king safety
+        // into the gradient fit -- while silently omitting the 7 winnable
+        // params, which sit after EPG_Tempo and fall outside its range.
+        for (int g = EPG_PstMgPawn; g <= EPG_PstEgKing; ++g)
+            append_group(active, g);
+        for (int g = EPG_PassedMg; g <= EPG_Tempo; ++g) {
+            if (g >= EPG_KsUnit && g <= EPG_StormWeightAdj)
+                continue;
+            append_group(active, g);
+        }
     } else if (group == "pst") {
         append_material(active);
         for (int g = EPG_PstMgPawn; g <= EPG_PstEgKing; ++g)
@@ -634,6 +690,21 @@ static TuneSet load_tune_dataset(const std::string& path,
 // ---------------------------------------------------------------------------
 // Reconstruction check
 // ---------------------------------------------------------------------------
+static void cmd_dump_eval(const std::string& path, int limit) {
+    auto positions = load_verify_dataset(path, limit);
+    if (positions.empty()) {
+        std::cerr << "No positions loaded from " << path << "\n";
+        std::exit(1);
+    }
+    // load_verify_dataset already evaluated every position, so nothing is
+    // recomputed here. One line per position, IN INPUT ORDER, so the caller
+    // can join it against the same CSV's FEN column.
+    for (const auto& tp : positions) {
+        const int white_pov = (tp.board.side_to_move == WHITE) ? tp.score : -tp.score;
+        std::cout << white_pov << ' ' << tp.result << '\n';
+    }
+}
+
 static void cmd_verify(const std::string& path) {
     constexpr int VERIFY_COUNT = 10000;
     std::cout << "Loading up to " << VERIFY_COUNT
@@ -1212,6 +1283,69 @@ static double ks_fit_K(const std::vector<KsSnap>& pos, Board& scratch, Evaluator
     return (lo + hi) / 2.0;
 }
 
+// ---------------------------------------------------------------------------
+// Coverage audit: prove every fittable parameter has an instrument.
+//
+// 5.9.4 fitted 348 of 1,190 parameters and reported that number without
+// checking what the group actually covered; the 768 PSTs were silently frozen
+// and it went unnoticed until BAS-E16. This enumerates EVERY slot in the
+// registry and reports which instrument reaches it, so that an exclusion has to
+// be a decision someone made rather than an oversight nobody saw.
+// ---------------------------------------------------------------------------
+static const char* const EVAL_GROUP_NAMES[] = {
+#define X(name, member, len) #name,
+    EVAL_PARAM_LIST(X)
+#undef X
+};
+
+static void cmd_audit_coverage() {
+    const int total = EVAL_PARAM_FLAT_SIZE;
+    std::vector<std::string> owner(total);
+
+    auto claim = [&](const std::vector<int>& idx, const char* who) {
+        for (int i : idx) {
+            if (i < 0 || i >= total) continue;
+            const size_t slot = static_cast<size_t>(i);
+            if (!owner[slot].empty()) owner[slot] += "+";
+            owner[slot] += who;
+        }
+    };
+
+    claim(active_indices_for_group("texel"),      "texel");
+    claim(active_indices_for_group("kingsafety"), "kingsafety");
+    claim(active_indices_for_group("winnable"),   "winnable");
+    std::vector<int> mat; append_material(mat);
+    claim(mat, "material");
+
+    std::printf("Registry: %d fittable parameter slots across %d groups\n\n",
+                total, int(EPG_COUNT));
+
+    std::map<std::string, int> tally;
+    int uncovered = 0;
+    for (size_t i = 0; i < owner.size(); ++i) {
+        if (owner[i].empty()) { ++uncovered; tally["** UNCOVERED **"]++; }
+        else tally[owner[i]]++;
+    }
+
+    std::printf("By instrument:\n");
+    for (const auto& [instrument, count] : tally)
+        std::printf("  %-22s %5d\n", instrument.c_str(), count);
+
+    if (uncovered == 0) {
+        std::printf("\nEVERY parameter is claimed by an instrument.\n");
+        return;
+    }
+
+    std::printf("\n%d UNCOVERED slots, by registry group:\n", uncovered);
+    for (int g = 0; g < int(EPG_COUNT); ++g) {
+        const int base = eval_param_offset(g), len = EVAL_PARAM_LENS[g];
+        int n = 0;
+        for (int i = base; i < base + len; ++i)
+            if (owner[static_cast<size_t>(i)].empty()) ++n;
+        if (n) std::printf("  %-28s %4d of %4d\n", EVAL_GROUP_NAMES[g], n, len);
+    }
+}
+
 static void cmd_tune_kingsafety(int argc, char* argv[]) {
     if (argc < 4) { usage(argv[0]); std::exit(1); }
     std::string train_path = argv[2], holdout_path = argv[3];
@@ -1363,6 +1497,11 @@ int main(int argc, char* argv[]) {
     } else if (mode == "--tune") {
         TuneOptions opts = parse_tune_options(argc, argv);
         cmd_tune(opts);
+    } else if (mode == "--dump-eval") {
+        if (argc < 3) { usage(argv[0]); std::exit(1); }
+        cmd_dump_eval(argv[2], argc > 3 ? std::atoi(argv[3]) : 0);
+    } else if (mode == "--audit-coverage") {
+        cmd_audit_coverage();
     } else if (mode == "--tune-kingsafety") {
         cmd_tune_kingsafety(argc, argv);
     } else {

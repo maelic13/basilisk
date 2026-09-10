@@ -11,8 +11,12 @@
 
 #include <atomic>
 #include <chrono>
+#include <cstdint>
+#include <cstdio>
 #include <future>
 #include <iostream>
+#include <memory>
+#include <mutex>
 #include <sstream>
 #include <string>
 #include <thread>

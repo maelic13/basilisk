@@ -627,7 +627,10 @@ Up to 12 or 24 positions from a game share one result. Sampling reduces correlat
 
 ### Self-referential adjudication
 
-The self-play generator uses draw adjudication after a window of evaluations below 10 cp and resignation after repeated 600-cp evaluations at [`tools/datagen.ps1:151`](../tools/datagen.ps1#L151).
+At the time of this analysis, the self-play generator used draw adjudication
+after a window of evaluations below 10 cp and resignation after repeated
+600-cp evaluations. The current tool defaults to natural termination; the old
+policy is now explicit opt-in only.
 
 This produces a closed feedback loop:
 

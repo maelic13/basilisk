@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.24)
 
-set(COMP "auto" CACHE STRING "Compiler selection: auto, clang, gcc, or llvm")
-set_property(CACHE COMP PROPERTY STRINGS auto clang gcc llvm)
+set(COMP "auto" CACHE STRING "Compiler selection: auto, clang, gcc, llvm, or msvc")
+set_property(CACHE COMP PROPERTY STRINGS auto clang gcc llvm msvc)
 
 string(TOLOWER "${COMP}" _basilisk_compiler)
 string(REPLACE "_" "-" _basilisk_compiler "${_basilisk_compiler}")
@@ -50,13 +50,20 @@ elseif(_basilisk_compiler STREQUAL "clang")
 elseif(_basilisk_compiler STREQUAL "gcc")
     set(CMAKE_C_COMPILER "gcc" CACHE FILEPATH "C compiler" FORCE)
     set(CMAKE_CXX_COMPILER "g++" CACHE FILEPATH "C++ compiler" FORCE)
+elseif(_basilisk_compiler STREQUAL "msvc")
+    # Leave compiler discovery to CMake. Configure from an MSVC developer
+    # environment so cl.exe, link.exe and the Windows SDK are all available.
 else()
-    message(FATAL_ERROR "Unsupported COMP='${COMP}'. Use auto, clang, gcc, or llvm.")
+    message(FATAL_ERROR "Unsupported COMP='${COMP}'. Use auto, clang, gcc, llvm, or msvc.")
 endif()
 
-set(COMP "${_basilisk_compiler}" CACHE STRING "Compiler selection: auto, clang, gcc, or llvm" FORCE)
+set(COMP "${_basilisk_compiler}" CACHE STRING "Compiler selection: auto, clang, gcc, llvm, or msvc" FORCE)
 
-project(basilisk VERSION 1.9.3 LANGUAGES CXX)
+project(basilisk VERSION 1.10.0 LANGUAGES CXX)
+
+if(_basilisk_compiler STREQUAL "msvc" AND NOT MSVC)
+    message(FATAL_ERROR "COMP=msvc requires the Microsoft Visual C++ compiler")
+endif()
 
 _basilisk_detect_darwin_processor(_basilisk_system_processor "${CMAKE_SYSTEM_NAME}" "${CMAKE_SYSTEM_PROCESSOR}")
 if(APPLE AND NOT _basilisk_system_processor MATCHES "^(arm64|aarch64)$")
@@ -217,6 +224,9 @@ target_link_libraries(test_invariants PRIVATE basilisk_board)
 # ---------------------------------------------------------------------------
 add_executable(test_search tests/test_search.cpp src/parameters.cpp src/bench.cpp src/wac.cpp)
 target_link_libraries(test_search PRIVATE basilisk_engine)
+target_compile_definitions(test_search PRIVATE
+    BASILISK_TEST_SYZYGY_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/syzygy"
+)
 
 # ---------------------------------------------------------------------------
 # Engine-level ponder protocol tests
@@ -281,7 +291,15 @@ add_test(NAME test_endgames     COMMAND test_endgames
 # Compiler flags (applied to all targets)
 # ---------------------------------------------------------------------------
 option(PORTABLE_BUILD "Build without host-specific CPU flags for distributable binaries" OFF)
+option(BASILISK_MSVC_FAVOR_INTEL "Tune MSVC code generation for Intel 64 processors" OFF)
 option(TUNE "Expose search constants as UCI spin options for SPSA tuning (sets BASILISK_TUNE)" OFF)
+# Warnings are only a signal if something enforces them. The tree builds clean
+# under -Wall -Wextra -Wpedantic -Wshadow -Wconversion, and -Wconversion in
+# particular catches real defects, so the default is to fail on any warning.
+# It stays an OPTION because a newer compiler can invent a warning this tree has
+# not seen: -DWARNINGS_AS_ERRORS=OFF unblocks a build without editing this file
+# or weakening the flag set.
+option(WARNINGS_AS_ERRORS "Treat compiler warnings as errors" ON)
 option(TEXEL "Build Texel trace+tuner target basilisk-texel (sets TEXEL_TRACE; implies BASILISK_TUNE)" OFF)
 set(BASILISK_PGO "OFF" CACHE STRING "Profile-guided optimization phase: OFF, GENERATE, or USE")
 set_property(CACHE BASILISK_PGO PROPERTY STRINGS OFF GENERATE USE)
@@ -306,6 +324,7 @@ if(TEXEL)
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         target_compile_options(basilisk-texel PRIVATE
             -Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wno-unused-parameter
+            $<$<BOOL:${WARNINGS_AS_ERRORS}>:-Werror>
             $<$<CONFIG:Release>:-O3>
             $<$<AND:$<CONFIG:Release>,$<NOT:$<BOOL:${PORTABLE_BUILD}>>>:-march=native>
             $<$<CONFIG:Debug>:-O0 -g3>
@@ -362,6 +381,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
             -Wshadow
             -Wconversion
             -Wno-unused-parameter
+            $<$<BOOL:${WARNINGS_AS_ERRORS}>:-Werror>
             $<$<CONFIG:Release>:-O3>
             $<$<AND:$<CONFIG:Release>,$<NOT:$<BOOL:${PORTABLE_BUILD}>>>:-march=native>
             $<$<CONFIG:RelWithDebInfo>:-O2 -g>
@@ -389,6 +409,7 @@ elseif(MSVC)
             /WX-
             /utf-8
             $<$<CONFIG:Release>:/O2 /GL>
+            $<$<AND:$<CONFIG:Release>,$<BOOL:${BASILISK_MSVC_FAVOR_INTEL}>>:/favor:INTEL64>
             $<$<CONFIG:Debug>:/Od /Zi>
         )
         target_link_options(${_tgt} PRIVATE
@@ -423,8 +444,12 @@ function(_basilisk_apply_pgo _target)
         elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
             target_compile_options(${_target} PRIVATE $<$<CONFIG:Release>:-fprofile-generate=${BASILISK_PGO_PROFILE_DIR}>)
             target_link_options(${_target} PRIVATE $<$<CONFIG:Release>:-fprofile-generate=${BASILISK_PGO_PROFILE_DIR}>)
+        elseif(MSVC)
+            target_link_options(${_target} PRIVATE
+                $<$<CONFIG:Release>:/GENPROFILE:PGD=${BASILISK_PGO_PROFILE_DIR}/basilisk.pgd>
+            )
         else()
-            message(FATAL_ERROR "BASILISK_PGO=GENERATE is supported for Clang and GCC builds only")
+            message(FATAL_ERROR "BASILISK_PGO=GENERATE is supported for Clang, GCC, and MSVC builds only")
         endif()
 
         # Instrumented LTO builds are slower and less portable across toolchains;
@@ -449,8 +474,15 @@ function(_basilisk_apply_pgo _target)
                 $<$<CONFIG:Release>:-Wno-missing-profile>
             )
             target_link_options(${_target} PRIVATE $<$<CONFIG:Release>:-fprofile-use=${BASILISK_PGO_PROFILE_DIR}>)
+        elseif(MSVC)
+            if(NOT EXISTS "${BASILISK_PGO_PROFILE_DIR}/basilisk.pgd")
+                message(FATAL_ERROR "MSVC PGO database does not exist: ${BASILISK_PGO_PROFILE_DIR}/basilisk.pgd")
+            endif()
+            target_link_options(${_target} PRIVATE
+                $<$<CONFIG:Release>:/USEPROFILE:PGD=${BASILISK_PGO_PROFILE_DIR}/basilisk.pgd>
+            )
         else()
-            message(FATAL_ERROR "BASILISK_PGO=USE is supported for Clang and GCC builds only")
+            message(FATAL_ERROR "BASILISK_PGO=USE is supported for Clang, GCC, and MSVC builds only")
         endif()
     endif()
 endfunction()
@@ -559,6 +591,7 @@ add_custom_target(pgo
         -DPGO_SOURCE_DIR=${CMAKE_SOURCE_DIR}
         -DPGO_PRESET=${_basilisk_pgo_preset}
         -DPGO_COMP=${COMP}
+        -DPGO_COMPILER_ID=${CMAKE_CXX_COMPILER_ID}
         -DPGO_TUNE=${TUNE}
         -DPGO_PORTABLE_BUILD=${_basilisk_pgo_portable}
         -DPGO_EXECUTABLE_SUFFIX=${CMAKE_EXECUTABLE_SUFFIX}

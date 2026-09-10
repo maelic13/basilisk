@@ -54,11 +54,13 @@ static bool parse_epd_line(const std::string& raw, WacPosition& out) {
 std::vector<WacPosition> wac_positions() {
     std::vector<WacPosition> positions;
     positions.reserve(300);
-    std::istringstream epd(WAC_EPD);
-    std::string line;
-    while (std::getline(epd, line)) {
-        WacPosition pos;
-        if (parse_epd_line(line, pos)) positions.push_back(std::move(pos));
+    for (const char* chunk : WAC_EPD) {
+        std::istringstream epd(chunk);
+        std::string line;
+        while (std::getline(epd, line)) {
+            WacPosition pos;
+            if (parse_epd_line(line, pos)) positions.push_back(std::move(pos));
+        }
     }
     return positions;
 }
@@ -112,7 +114,7 @@ bool wac_san_matches(const Board& board, Move mv, const std::string& raw_san) {
     san.erase(std::remove(san.begin(), san.end(), 'x'), san.end());
     if (san.size() < 2) return false;
 
-    if (type_of(board.board_sq[from_sq(mv)]) != piece) return false;
+    if (type_of(board.piece_on(from_sq(mv))) != piece) return false;
 
     // Destination square.
     const Square to = to_sq(mv);
@@ -145,7 +147,7 @@ bool wac_move_matches_any(const Board& board, Move mv,
 // line-compatible so the two engines' reports diff cleanly)
 // ---------------------------------------------------------------------------
 
-void run_wac(int depth) {
+void run_wac(int depth, const SearchParams& params) {
     std::atomic_bool stop{false};
     TranspositionTable tt(16);
     SearchThreadPool search_pool(tt, stop);
@@ -172,6 +174,7 @@ void run_wac(int depth) {
 
         SearchLimits limits;
         limits.depth = depth;
+        limits.params = params;   // 5.4.4: honour UCI-set search parameters
         stop.store(false, std::memory_order_release);
         SearchResult r = search_pool.search(board, limits, 1);
 

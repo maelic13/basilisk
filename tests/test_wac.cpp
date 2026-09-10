@@ -28,6 +28,7 @@
 #include <cstdio>
 #include <memory>
 #include <string>
+#include <vector>
 
 static const int TEST_DEPTH = 6;
 // Calibrated 2026-07-15 (8.3 head after the 8.4 revert, bench 11,555,879):
@@ -93,7 +94,7 @@ static void test_san_matcher_rejects_wrong_piece_and_destination() {
     }
     EXPECT_EQ(matches, 1);
     EXPECT(matched != MOVE_NONE
-           && type_of(b.board_sq[from_sq(matched)]) == QUEEN
+           && type_of(b.piece_on(from_sq(matched))) == QUEEN
            && to_sq(matched) == G6);
     end_section();
 }
