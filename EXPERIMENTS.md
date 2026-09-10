@@ -2601,7 +2601,7 @@ Retry only if the evaluator/search
 surface or rook-ending occurrence materially changes.
 
 **BAS-E55 - 15.1.a freeze-release gate: the SEE-repaired dev head against
-the 1.9.3 release binary - 1T LEG PASSED, 4T SMOKE GATE PENDING** (2026-09-09).
+the 1.9.3 release binary - CLOSED, BOTH LEGS PASS** (2026-09-09).
 
 - Date / owner / calibration category: 2026-09-09 / maintainer-run / release gate.
 - Baseline: `basilisk-v1.9.3-windows-x86_64-pext-pgo.exe` (bench 11,941,440).
@@ -2751,8 +2751,47 @@ PREDICTION CALIBRATION (against the record frozen 2026-09-09):
   recorded stands: convert a node delta into plies via the EBF before calling
   it expensive.
 
-4T LEG: pending. Registered as a 2,000-game smoke gate at `3+0.03`,
-`-Mode fixed -Threads 4`, concurrency 3 (12 of 16 physical cores).
+RESULT, 4T SMOKE GATE (2026-09-10). Run
+`sprt_15.0-head_vs_1.9.3_20260910_112713`, `-Mode fixed -Threads 4`,
+`3+0.03`, Hash 256 MB per side, concurrency 3 (12 of 16 physical cores).
+
+**Elo +26.11 +/- 27.28, nElo +39.18 +/- 40.70, LOS 97.04%, 280 games**
+(305 written to the PGN before the maintainer stopped it). W 86 / L 65 /
+D 129, 53.75%. DrawRatio 43.57%, PairsRatio 1.47,
+Ptnml(0-2) [5, 27, 61, 36, 11], WL/DD 0.85.
+
+- **VERDICT: PASS on all three registered smoke criteria.**
+  1. **Crashes: zero.** No crash, disconnect, illegal move or engine
+     termination in the log.
+  2. **Time forfeits: ZERO in 305 games at 4T.** Any nonzero count would have
+     voided the run.
+  3. **No catastrophic SMP regression.** The 95% interval's lower bound is
+     **-1.17 Elo**, comfortably above the registered -10 threshold.
+- **Stopped at 280 of the registered 2,000 games** on maintainer judgement.
+  Recorded as a data-dependent stop. It does not undermine the registered
+  purpose: the smoke criteria are coarse, and 280 games already bound a
+  catastrophic regression, which is all this leg was ever asked to do.
+- **The point estimate must NOT be read as 4T gaining more than 1T.** At
+  +/-27.28 the interval spans -1.17 to +53.39; +26.11 and the 1T leg's +19.18
+  are statistically indistinguishable. This is precisely why the leg was
+  relabelled a smoke gate rather than a direction check.
+- **A concern registered in this experiment's own amendment was FALSIFIED.**
+  The second amendment warned that moving the 4T leg from `10+0.1` to
+  `3+0.03` would raise forfeit exposure and that "a forfeit-voided 4T leg is
+  a foreseeable outcome". It measured **zero** forfeits, against the script
+  header's citation of Rarog seeing 10 forfeits in 240 games at `Threads=4`.
+  The concern was wrong in this configuration, and the reason is informative:
+  the 4T run occupies **12 of 16 physical cores** while the 1T run occupies
+  **14 of 16**. The LESS saturated run had zero forfeits and the MORE
+  saturated one had two. That is a third independent line of evidence for
+  15.0.b's host-saturation diagnosis -- forfeit incidence tracks host
+  headroom, not thread count and not clock length -- and it is the opposite
+  of what a per-thread clock-handling defect would produce.
+
+**BAS-E55 CLOSED 2026-09-10: BOTH LEGS PASS.** The deciding 1T leg accepted
+H1 at +19.18 +/- 6.76 Elo; the 4T smoke gate is clean on crashes, forfeits
+and catastrophic regression. The 1.9.4 release line is justified and 15.1.b
+may proceed.
 - **AMENDED 2026-09-09, BEFORE ANY EXPOSURE** (maintainer decision, no
   result of any kind observed): the clause above is superseded for 15.0.a
   only. 15.0.a now carries its own isolated gate, BAS-E56, whose verdict

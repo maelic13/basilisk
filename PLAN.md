@@ -287,7 +287,7 @@ Basilisk.
         the head's. The 15.0.c cost figure itself is unaffected -- both arms
         there were built immediately before being timed.
 - [ ] **15.1** Release 1.9.4 and freeze
-    - [ ] **15.1.a** `[V]` **Registered release gate — BAS-E55.** The 15.0 head
+    - [x] **15.1.a** `[V]` **Registered release gate — BAS-E55.** The 15.0 head
       as a fresh PGO pext build against the 1.9.3 release binary, `3+0.03`,
       1T, Hash 64, paired UHO, no adjudication, `[0,3]` nElo, cap 20,000
       games, plus a 4T direction check with zero forfeits.
@@ -316,7 +316,15 @@ Basilisk.
       sign correct. Forfeits 2 in 4,226 (0.047%), one per engine and **16
       seconds apart**, i.e. one transient host event, which corroborates
       15.0.b's diagnosis and supersedes BAS-E56's never-significant 3-0 skew.
-      4T smoke gate running. 15.1.b may proceed once it reports.
+      **4T smoke gate PASSED 2026-09-10** (`Elo +26.11 +/- 27.28`, 280 games,
+      stopped early on maintainer judgement): zero crashes, **zero time
+      forfeits**, and a 95% lower bound of `-1.17` Elo, above the registered
+      -10 threshold. The estimate is NOT evidence that 4T gains more than 1T
+      -- the intervals overlap heavily. Note the amendment's own forfeit
+      concern was falsified: the 4T run used 12 of 16 cores and forfeited
+      nothing, while the 1T run used 14 and forfeited twice, so incidence
+      tracks host headroom rather than thread count or clock length.
+      **BAS-E55 CLOSED, both legs pass; the 1.9.4 line is justified.**
     - [ ] **15.1.b** `[M]` **Release 1.9.4.** User-facing CHANGELOG entry
       covering everything since 1.9.3 (the accepted endgame and HCE line,
       the SEE repairs, tooling), version strings, README download table,

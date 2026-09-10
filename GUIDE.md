@@ -78,9 +78,9 @@ Capability tags are advisory routing, not state, evidence or permission.
 | Item | State |
 |---|---|
 | Released baseline | 1.9.3 at `d737123`; bench 11,941,440 |
-| Accepted engine head | `dev` at `d0f2627`; bench 12,568,898; CTest 12/12 |
+| Accepted engine head | `dev` at `4aafddb` (15.0 closed); bench 14,978,465; CTest 12/12 release + 12/12 sanitizer |
 | Pool position, `3+0.03` 1T | Houdini 1.5a −197, Critter −187, Fritz 16 −178, Rybka 4 −84; Rarog 2.4.0-dev +26 |
-| Current step | **15.0.a** SEE king legality, `[I2]` |
+| Current step | **15.1.b** Release 1.9.4, `[M]` |
 | Long job | None |
 | Release target | 1.9.4, then freeze |
 
@@ -93,6 +93,6 @@ Capability tags are advisory routing, not state, evidence or permission.
     - [x] **15.0.d** `[I1]` Malformed input and counter boundaries: 17 test sections; 4 of 5 categories already correct (UTF-8 slicing is a Rust-only hazard), one real defect — silent unknown `setoption` now diagnosed; bench unchanged
     - [x] **15.0.e** `[V]` Deterministic qualification: CTest 12/12 release and 12/12 sanitizer (811.7 s, clean); invariants 18/18 x4 seeds; 6/6 perft exact (594M nodes); bench 14,978,465; SEE column +3.6% FASTER than 1.9.3; PGO asset ISA verified (246 pextq, 152 popcntq)
 - [ ] **15.1** Release 1.9.4 and freeze
-    - [ ] **15.1.a** `[V]` Registered release gate BAS-E55: fixed head vs 1.9.3, STC `[0,3]`, plus a 4T `3+0.03` 2,000-game smoke gate (amended 2026-09-10); **1T leg PASSED: Elo +19.18 +/- 6.76, H1 at 4,224 games**; 4T smoke gate running
+    - [x] **15.1.a** `[V]` Registered release gate BAS-E55 **CLOSED, both legs pass**: 1T `Elo +19.18 +/- 6.76`, H1 at 4,224 games; 4T smoke gate clean (zero crashes, zero forfeits, 95% lower bound -1.17 Elo)
     - [ ] **15.1.b** `[M]` Release 1.9.4: changelog, versions, README, PGO assets, tag on instruction
     - [ ] **15.1.c** `[M]` Freeze: HISTORY record, merge to `master`, reopening rule (branches already tagged and deleted 2026-09-09)
