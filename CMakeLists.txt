@@ -59,7 +59,7 @@ endif()
 
 set(COMP "${_basilisk_compiler}" CACHE STRING "Compiler selection: auto, clang, gcc, llvm, or msvc" FORCE)
 
-project(basilisk VERSION 1.9.3 LANGUAGES CXX)
+project(basilisk VERSION 1.10.0 LANGUAGES CXX)
 
 if(_basilisk_compiler STREQUAL "msvc" AND NOT MSVC)
     message(FATAL_ERROR "COMP=msvc requires the Microsoft Visual C++ compiler")

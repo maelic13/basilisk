@@ -325,7 +325,7 @@ Basilisk.
       nothing, while the 1T run used 14 and forfeited twice, so incidence
       tracks host headroom rather than thread count or clock length.
       **BAS-E55 CLOSED, both legs pass; the 1.10.0 line is justified.**
-    - [ ] **15.1.b** `[M]` **Release 1.10.0** (renamed from 1.9.4 on
+    - [x] **15.1.b** `[M]` **Release 1.10.0** (renamed from 1.9.4 on
       2026-09-10, maintainer decision). The project's own rule is bench-
       fingerprint identity, stated at CHANGELOG 1.9.1 ("a PATCH by choice:
       the search algorithm is bit-identical to 1.9.0") and settled by 1.9.2,
@@ -338,6 +338,31 @@ Basilisk.
       the SEE repairs, tooling), version strings, README download table,
       `release.yml` PGO assets smoke-tested per `docs/release_tiers.md`, tag
       `v1.10.0` and publish on maintainer instruction only.
+      **Done 2026-09-10, except the tag, which is the maintainer's.** CHANGELOG
+      entry written covering everything since 1.9.3 (endgame Group A, rook
+      draw scaling, the KBNK drive rebuild, SEE king legality, the atomic TT
+      record, the UCI diagnostic, tooling) plus a **Known limitations**
+      section naming the two accepted risks, BAS-C05 TT coherence and
+      BAS-C09's SEE approximations. Version bumped in **both** sources of
+      truth: `src/constants.h` `engineVersion` and `CMakeLists.txt`
+      `project(... VERSION)`. Behaviour-neutral: bench stays **14,978,465**,
+      CTest 12/12, `id name Basilisk 1.10.0`. README download table checked
+      against `release.yml`'s nine-row matrix and is accurate as written --
+      no edit needed. Assets smoke-tested per `docs/release_tiers.md` for the
+      three tiers buildable here, and the doc corrected: its `-pext` popcnt
+      figure was stale (97 recorded, **152** measured), and it now carries a
+      measured per-tier ISA table plus a warning that a local `release` build
+      without `-DPORTABLE_BUILD=ON` publishes a `-march=native` binary under
+      the portable asset name.
+      **Not verifiable here:** six of the nine matrix assets (linux x86_64
+      and aarch64, windows aarch64, macOS aarch64) are CI-built and can only
+      be smoke-tested after the tag triggers `release.yml`.
+      **Finding, reported not fixed:** the version lives in two independent
+      places with no guard that they agree. The stale
+      `basilisk-v1.10.0-dev-...exe` found in `build/dist` reported
+      `Basilisk 1.9.3`, and the first PGO rebuild after bumping only
+      `constants.h` produced a `v1.9.3`-named asset containing 1.10.0 code.
+      Both stale assets were removed.
     - [ ] **15.1.c** `[M]` **Freeze.** Record the frozen state in HISTORY
       (revision, bench, asset hashes, pool position), merge `dev` into
       `master`, and note the reopening rule. Branch disposition was done early

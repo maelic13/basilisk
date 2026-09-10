@@ -80,7 +80,7 @@ Capability tags are advisory routing, not state, evidence or permission.
 | Released baseline | 1.9.3 at `d737123`; bench 11,941,440 |
 | Accepted engine head | `dev` at `4aafddb` (15.0 closed); bench 14,978,465; CTest 12/12 release + 12/12 sanitizer |
 | Pool position, `3+0.03` 1T | Houdini 1.5a −197, Critter −187, Fritz 16 −178, Rybka 4 −84; Rarog 2.4.0-dev +26 |
-| Current step | **15.1.b** Release 1.10.0, `[M]` |
+| Current step | **15.1.c** Freeze, `[M]` |
 | Long job | None |
 | Release target | 1.10.0, then freeze |
 
@@ -94,5 +94,5 @@ Capability tags are advisory routing, not state, evidence or permission.
     - [x] **15.0.e** `[V]` Deterministic qualification: CTest 12/12 release and 12/12 sanitizer (811.7 s, clean); invariants 18/18 x4 seeds; 6/6 perft exact (594M nodes); bench 14,978,465; SEE column +3.6% FASTER than 1.9.3; PGO asset ISA verified (246 pextq, 152 popcntq)
 - [ ] **15.1** Release 1.10.0 and freeze
     - [x] **15.1.a** `[V]` Registered release gate BAS-E55 **CLOSED, both legs pass**: 1T `Elo +19.18 +/- 6.76`, H1 at 4,224 games; 4T smoke gate clean (zero crashes, zero forfeits, 95% lower bound -1.17 Elo)
-    - [ ] **15.1.b** `[M]` Release 1.10.0: changelog, versions, README, PGO assets, tag on instruction
+    - [x] **15.1.b** `[M]` Release 1.10.0: CHANGELOG written, version bumped in both sources (constants.h + CMakeLists), bench unchanged 14,978,465, CTest 12/12; README table verified accurate; tiers smoke-tested and `release_tiers.md` corrected (97 -> 152 popcnt). **Tag not created — maintainer instruction only.**
     - [ ] **15.1.c** `[M]` Freeze: HISTORY record, merge to `master`, reopening rule (branches already tagged and deleted 2026-09-09)
