@@ -2760,8 +2760,68 @@ frozen in that form:
   - Forfeits are counted from the PGN `Termination "time forfeit"` tag and
     attributed to the side that lost on time.
 
-RESULT and PREDICTION CALIBRATION: append after exposure, per the section 11
-template.
+RESULT (2026-09-10). Run `sprt_15.0a-king_vs_parent_20260910_081718`
+(a first attempt, `..._20260909_182833`, was aborted by the maintainer at
+2,927 games; the reported run is a clean restart, identical configuration,
+seed 1621021540).
+
+**Elo -0.65 +/- 5.25, nElo -1.10 +/- 8.88, LOS 40.40%, 5,874 games**
+(W 1,496 / L 1,507 / D 2,871; 49.91%). DrawRatio 49.57%, PairsRatio 1.00,
+Ptnml(0-2) [101, 639, 1456, 652, 89], WL/DD 0.84.
+
+- **VERDICT: KEEP.** The 95% Elo CI [-5.90, +4.60] straddles zero, which the
+  frozen rule maps to keep -- correctness is the default when the games
+  cannot separate the arms. **15.0.a stands.**
+- Stopped early at maintainer request, at 5,874 of the registered 10,000
+  games. Recorded as a data-dependent stop, NOT a clean fixed-N stop. It
+  cannot have changed the verdict: flipping to revert would have required the
+  remaining ~4,126 games to average **-8.8 Elo**, a 2.6 SD excursion against
+  the observed standard error of 2.68, **p ~ 0.005**. The cost of the early
+  stop is a wider interval -- +/-5.25 instead of the +/-4.02 that 10,000 games
+  would have given -- so the upper bound on possible harm is about -5.9 rather
+  than -4.9 Elo.
+- **Time-forfeit gate: PASSES.** 3 forfeits in 6,053 games written = 0.050%
+  (ceiling 0.5%), all three lost by the candidate and none by the parent.
+  One-sided exact binomial p = 0.125, above the 0.05 void threshold, so the
+  amended clause does not void the run. The 3/0 split is directionally the
+  failure mode a +19.17% tree would cause and was first recorded here as an
+  open finding, but **15.0.b/BAS-E57, closed the same day, supersedes that
+  reading**: the clock already starts at `go` receipt and is polled every
+  2,048 nodes, the forfeits are 50-500 ms stalls of a saturated host that no
+  engine can observe mid-search, and BAS-E57 played **this same candidate
+  against itself for 10,000 games with zero forfeits in either arm** -- about
+  20,000 candidate-sides with no time loss, which is strong evidence against
+  a candidate-specific time-management defect. 3 events at p = 0.125 is
+  consistent with chance under the host-jitter explanation. Not an open
+  defect; worth re-checking only if a later run shows a significant
+  candidate-side skew.
+
+PREDICTION CALIBRATION (against the record frozen 2026-09-09):
+
+- Predicted -8 to +2 Elo, central **-3**, P(positive) 0.30. Observed **-0.65
+  +/- 5.25**. The outcome is inside the predicted range and the sign was not
+  called (LOS 40.4% -- the result is statistically indistinguishable from
+  zero), so the interval was right and the central estimate was pessimistic.
+- **Which part of the causal model was wrong: the cost currency.** The whole
+  registration, and the 15.0.a report before it, treated "+19.17% bench nodes"
+  as self-evidently expensive. It was never converted into plies. At the
+  measured geomean EBF of **2.900**, +19.17% nodes is
+  log(1.1917)/log(2.900) = **0.165 ply** -- one sixth of a ply. That
+  conversion was available as soon as both numbers existed and would have
+  predicted a near-null outcome directly, instead of the "large enough to be a
+  real risk to BAS-E55" framing carried in PLAN 15.0.a. The predicted failure
+  mode ("node cost dominates at 3+0.03") did not occur because the cost was
+  roughly a sixth of what its headline percentage suggested.
+- Competing hypothesis (c) is supported: the accuracy gain is real enough to
+  offset even that small cost, so the random-walk corpus's 0.018% verdict-
+  change rate did understate the benefit's frequency in real search.
+- Hypothesis (b), threshold miscalibration, is neither confirmed nor refuted
+  and was deliberately not a verdict branch. Retuning the SEE consumer
+  thresholds against the repaired kernel remains available as its own leaf.
+- **Standing lesson: convert a node-count delta into plies via the EBF before
+  calling it expensive.** A percentage of nodes is not a cost until it is
+  divided by log(EBF); at EBF ~2.9 a 20% tree increase is a rounding error in
+  depth, while at EBF ~1.5 it would be nearly half a ply.
 
 **BAS-E57 - 15.0.b harness reserve sweep: `Move Overhead` 40 against 10 on
 the same binary - RUN 2026-09-10, REJECTED at -64.81 Elo** (registered 2026-09-09).

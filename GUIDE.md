@@ -87,7 +87,7 @@ Capability tags are advisory routing, not state, evidence or permission.
 ## Phase 15 — Board correctness, release 1.9.4, freeze
 
 - [ ] **15.0** Board correctness repairs, before the release gate
-    - [x] **15.0.a** `[I2]` SEE king legality in `see_ge` and `see`; sentinel read the pin-filtered set, repair reads the unfiltered one; 9 fixtures, oracle 6481-0/301-0 over 1.9M captures; bench 12,568,898 -> 14,978,465 (+19.17%); acceptance provisional pending isolated cost gate BAS-E56
+    - [x] **15.0.a** `[I2]` SEE king legality in `see_ge` and `see`; sentinel read the pin-filtered set, repair reads the unfiltered one; 9 fixtures, oracle 6481-0/301-0 over 1.9M captures; bench 12,568,898 -> 14,978,465 (+19.17%); BAS-E56 KEEP (Elo -0.65 +/- 5.25, 5,874 games); +19.17% nodes = 0.165 ply at EBF 2.9; forfeit gate passes (3/6,053, explained by 15.0.b host stalls)
     - [x] **15.0.b** Time-forfeit residual: clock origin already at `go` receipt; BAS-E57 reserve sweep rejected at −64.81, 0 forfeits/10k — CLOSED 2026-09-10
     - [ ] **15.0.c** `[R2]` Created pins and recapture promotions: fixtures, reachability from production callers, cost; repair or documented approximation
     - [ ] **15.0.d** `[I1]` Malformed input and counter boundaries: non-ASCII moves, long move lists, absurd `go`, unknown options

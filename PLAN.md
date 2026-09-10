@@ -158,12 +158,16 @@ Basilisk.
       uniform: per-position median +3.6%, 15 of 40 positions shrank, p75
       +36.9%, max +207.8%. +19.17% is large enough to be a real risk to
       BAS-E55; it is carried into 15.1.a as a correctness repair, not as a
-      strength claim. **Acceptance is provisional pending BAS-E56**, an
-      isolated fixed-N cost gate registered 2026-09-09 against this leaf's own
-      parent (`ed8db0fc94`); its frozen verdict rule may revert the repair and
-      accept the pre-repair behaviour as documented incorrectness. BAS-E55's
-      "does not license reverting the repairs" clause was explicitly amended
-      for 15.0.a before any exposure.
+      strength claim. **BAS-E56 settled it: KEEP** (2026-09-10, `Elo -0.65
+      +/- 5.25`, 5,874 games against this leaf's own parent `ed8db0fc94`).
+      The CI straddles zero, which the frozen rule maps to keep. The alarm in
+      the cost sentence above was overstated: at the measured EBF of 2.900,
+      +19.17% nodes is **0.165 ply**, and converting nodes to plies before
+      calling a delta expensive is the standing lesson recorded in BAS-E56.
+      Time-forfeit gate passes: 3 forfeits in 6,053 games (0.050%), all
+      candidate-side, binomial p = 0.125. 15.0.b/BAS-E57 explains it -- host
+      stalls, not an engine defect -- and BAS-E57 ran this candidate against
+      itself for 10,000 games with zero forfeits either arm.
     - [x] **15.0.b** **Time-forfeit residual: harness reserve sweep,
       BAS-E57 - CLOSED 2026-09-10, rejected at -64.81 Elo, 0 forfeits in
       10,000 games either arm; `Move Overhead` stays 10.** Checked 2026-09-09 against Rarog's A.3.3 diagnosis: Basilisk
