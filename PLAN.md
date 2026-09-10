@@ -1,7 +1,8 @@
 # Basilisk development plan
 
-Phase 15 is complete: the board-correctness defects a peer audit demonstrated
-are repaired or documented, and **1.10.0** is released from the `dev` line.
+Phase 15 is complete and **1.10.0 is released**: the board-correctness defects
+a peer audit demonstrated are repaired or documented, the release gate passed,
+and `master` carries the `Version 1.10.0` commit tagged `v1.10.0`.
 **The next phase is not yet planned** — see section 4.
 
 The previous roadmap (Phases 5–14, endgame maturity through NNUE) is archived
@@ -16,8 +17,9 @@ and `AGENTS.md` are unchanged.
 
 | Item | State |
 |---|---|
-| Branch | `dev` |
-| Released head | Basilisk **1.10.0**; bench-13 fingerprint **14,978,465**; CTest 12/12 release and sanitizer |
+| Latest release | Basilisk **1.10.0**, tagged `v1.10.0` on `master` |
+| Development branch | `dev`, level with the release |
+| Bench-13 fingerprint | **14,978,465**; CTest 12/12 release and sanitizer |
 | Previous release | Basilisk 1.9.3; bench 11,941,440 |
 | Strength | **+19.18 ± 6.76 Elo** over 1.9.3 at `3+0.03` 1T, H1 accepted at 4,224 games (BAS-E55) |
 | Pool position, `3+0.03` 1T (2026-09-04) | Houdini 1.5a −197, Critter 1.6a −187, Fritz 16 −178, Rybka 4 −84 |
@@ -103,6 +105,7 @@ measured detail lives in `EXPERIMENTS.md`; this is the summary.
 | **15.0.e** Deterministic qualification | **Clean.** CTest 12/12 release and 12/12 under ASan/UBSan; `test_invariants` 18/18 across four seeds; all six standard perft positions exact (~594M nodes); SEE column measured *faster* than 1.9.3; PGO asset ISA verified. |
 | **15.1.a** Release gate (BAS-E55) | **Passed.** 1T `3+0.03` vs 1.9.3: **+19.18 ± 6.76 Elo**, H1 accepted at 4,224 games, LOS 100%. A 4T smoke gate was clean — zero crashes, zero forfeits, 95% lower bound −1.17 Elo. |
 | **15.1.b** Release 1.10.0 | **Done.** CHANGELOG, version bumped in both sources of truth, README download table verified, per-tier ISA smoke tests recorded in `docs/release_tiers.md`. |
+| **15.1.c** Publish | **Done.** `dev` merged into `master` as the single `Version 1.10.0` commit, tagged `v1.10.0`, and the release published — which is what triggers `release.yml` (it fires on `release: published`, not on a tag push) to build and upload the nine matrix assets. |
 
 Two standing lessons came out of this phase and are recorded in
 `EXPERIMENTS.md`:
@@ -114,17 +117,6 @@ Two standing lessons came out of this phase and are recorded in
 - **Pin filtering and king-move legality are different questions.** One asks
   "may this piece recapture?", the other "is this square controlled?". A single
   attacker set cannot serve both.
-
-### Outstanding release actions
-
-Maintainer-owned, and the only Phase 15 work not finished:
-
-- [ ] **15.1.c** `[M]` Merge `dev` into `master` as a single `Version 1.10.0`
-  commit and check CI; create and publish the `v1.10.0` release, which is what
-  triggers `release.yml` (it fires on `release: published`, **not** on a tag
-  push); check the release workflow uploads all nine assets; then fill the
-  release revision and published asset hashes into the release record in
-  [HISTORY.md](HISTORY.md).
 
 ## 4. The next phase is not planned
 

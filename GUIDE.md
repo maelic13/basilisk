@@ -1,7 +1,8 @@
 # Basilisk development guide
 
-**Phase 15 is complete and 1.10.0 is released. The next phase is not planned
-yet** — `PLAN.md` section 4 says how to plan it. The archived board with
+**Phase 15 is complete and 1.10.0 is released** — `master` carries the
+`Version 1.10.0` commit tagged `v1.10.0`. **The next phase is not planned
+yet**; `PLAN.md` section 4 says how to plan it. The archived board with
 Phases 1–14 is at
 [docs/archive/GUIDE-2026-09-09.md](docs/archive/GUIDE-2026-09-09.md).
 
@@ -77,8 +78,9 @@ Capability tags are advisory routing, not state, evidence or permission.
 
 | Item | State |
 |---|---|
-| Branch | `dev` |
-| Released head | Basilisk **1.10.0**; bench 14,978,465; CTest 12/12 release and sanitizer |
+| Latest release | Basilisk **1.10.0**, tagged `v1.10.0` on `master` |
+| Development branch | `dev`, level with the release |
+| Bench fingerprint | **14,978,465**; CTest 12/12 release and sanitizer |
 | Previous release | Basilisk 1.9.3; bench 11,941,440 |
 | Strength | **+19.18 ± 6.76 Elo** over 1.9.3 at `3+0.03` 1T (BAS-E55) |
 | Current step | **None — Phase 16 needs planning** (`PLAN.md` section 4) |
@@ -91,12 +93,6 @@ recaptures as documented approximations on measured reachability and cost
 (BAS-C09); closed the time-forfeit residual as host stalls (BAS-E57); hardened
 malformed UCI input and fixed a silent unknown-`setoption`; qualified
 deterministically (CTest release + sanitizer, perft, invariants, ISA); and
-passed the release gate at **+19.18 ± 6.76 Elo** over 1.9.3 (BAS-E55). Full
-summary in `PLAN.md`, measured detail in `EXPERIMENTS.md`.
-
-- [ ] **15.1.c** `[M]` Merge `dev` into `master` as a single `Version 1.10.0`
-  commit and check CI; create and publish the `v1.10.0` release, which is what
-  triggers `release.yml` (it fires on `release: published`, **not** on a tag
-  push); check the release workflow uploads all nine assets; then fill the
-  release revision and published asset hashes into the release record in
-  [HISTORY.md](HISTORY.md).
+passed the release gate at **+19.18 ± 6.76 Elo** over 1.9.3 (BAS-E55).
+Released as 1.10.0. Full summary in `PLAN.md`, measured detail in
+`EXPERIMENTS.md`.

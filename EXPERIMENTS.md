@@ -2600,7 +2600,7 @@ The mode used was `simplify` with the upper bound widened to +3.
 Retry only if the evaluator/search
 surface or rook-ending occurrence materially changes.
 
-**BAS-E55 - 15.1.a freeze-release gate: the SEE-repaired dev head against
+**BAS-E55 - 15.1.a release gate: the SEE-repaired dev head against
 the 1.9.3 release binary - CLOSED, BOTH LEGS PASS** (2026-09-09).
 
 - Date / owner / calibration category: 2026-09-09 / maintainer-run / release gate.
@@ -2806,7 +2806,7 @@ may proceed.
   Recorded as an explicit clerical amendment to a frozen registration.
 
 **BAS-E56 - 15.0.a isolated cost gate: the SEE king-legality repair against
-its own parent - REGISTERED, NOT YET RUN** (2026-09-09).
+its own parent - CLOSED, REPAIR KEPT** (2026-09-09).
 
 - Date / owner / calibration category: 2026-09-09 / maintainer-run / isolated
   A/B cost probe (not a release gate).

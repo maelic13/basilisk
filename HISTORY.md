@@ -74,9 +74,13 @@ and platforms. Their evidence, retry triggers and dispositions remain in
 | Pool position, `3+0.03` 1T (2026-09-04) | Houdini 1.5a −197, Critter 1.6a −187, Fritz 16 −178, Rybka 4 −84 |
 | Accepted risks carried | TT publication coherence (BAS-C05); SEE created-pin and promotion-recapture approximations (BAS-C09) |
 
-Release revision and published asset hashes: fill in after `dev` is merged to
-`master` as the `Version 1.10.0` commit and the release workflow has uploaded
-its nine assets. The locally built reference asset was
+The release revision is the `Version 1.10.0` commit on `master`, tagged
+**`v1.10.0`** — the durable identifier, since the squash SHA is not stable
+across a re-merge. Published binaries are the nine assets built by
+`release.yml` and attached to that release; per-asset hashes are not recorded
+here, following the 8.6.5 local-only-manifest decision that keeps per-asset
+data out of the repository (see `docs/release_tiers.md`). The locally built
+reference asset used for the tier smoke tests was
 `basilisk-v1.10.0-windows-x86_64-pext-pgo.exe`, sha256
 `542247ca44a90d74abc793eb6cb121171e2b1224a78310c0cbb4e9915b522913`; the
-published assets are built by CI and will differ.
+published assets are CI-built and will differ.
