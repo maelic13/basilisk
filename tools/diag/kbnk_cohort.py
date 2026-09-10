@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import os
 import json
 from pathlib import Path
 
@@ -125,7 +126,11 @@ def render(syzygy: Path, epd_name: str) -> tuple[bytes, bytes]:
 def main() -> int:
     here = Path(__file__).resolve().parent
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--syzygy", type=Path, default=Path("D:/chess/tablebases/syzygy3456"))
+    parser.add_argument("--syzygy", type=Path,
+                        default=Path(os.environ["BASILISK_SYZYGY"])
+                        if os.environ.get("BASILISK_SYZYGY") else None,
+                        required="BASILISK_SYZYGY" not in os.environ,
+                        help="Syzygy 3-4-5-6 directory (or set BASILISK_SYZYGY)")
     parser.add_argument("--epd", type=Path, default=here / "kbnk_cohort_v1.epd")
     parser.add_argument("--manifest", type=Path, default=here / "kbnk_cohort_v1.manifest.json")
     parser.add_argument("--write", action="store_true", help="create missing frozen artifacts")

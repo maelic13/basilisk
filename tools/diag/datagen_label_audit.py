@@ -22,7 +22,7 @@ Two distinctions the count depends on, both easy to get wrong:
 
 Usage:
   python tools/diag/datagen_label_audit.py --pgn tools/texel/data/armA_basilisk8k.pgn \\
-      --syzygy D:/chess/tablebases/syzygy3456 --max-games 20000
+      --syzygy "$BASILISK_SYZYGY" --max-games 20000
 """
 
 from __future__ import annotations

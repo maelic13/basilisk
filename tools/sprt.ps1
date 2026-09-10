@@ -87,11 +87,11 @@
         valid harness test.
 
 .PARAMETER EngineA
-    Path to the new/candidate engine (usually in D:\chess\engines\test_engines).
+    Path to the new/candidate engine (usually in tools\test_engines).
 
 .PARAMETER EngineB
     Path to the baseline engine (the current integration head, or a released
-    reference in D:\chess\engines).
+    reference build).
 
 .PARAMETER NameA / NameB
     Display names. Defaults: "New" / "Base".
@@ -189,14 +189,14 @@
 
 .PARAMETER Book
     Opening book. Default tools\books\UHO_Lichess_4852_v1.epd (repo-local,
-    gitignored; a backup copy lives in D:\chess\books). The Stockfish/
+    gitignored; keep a backup copy outside the repo). The Stockfish/
     OpenBench standard Unbalanced Human Openings set: ~2.6M positions curated to
     a built-in ~+0.5..+1.0 imbalance, so games are decisive and each carries far
     more SPRT signal than a balanced book). Format (.epd/.pgn) is auto-detected
     from the extension. Pass a .pgn (e.g. the old SuperGM/IM books) to override.
 
 .PARAMETER FastchessPath
-    Path to fastchess.exe. Default D:\chess\fastchess\fastchess.exe (or found on PATH).
+    Path to fastchess.exe. Default tools\bin\fastchess.exe (or found on PATH).
 
 .EXAMPLE
     ./tools/sprt.ps1 `

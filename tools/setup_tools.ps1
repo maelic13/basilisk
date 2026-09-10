@@ -21,7 +21,7 @@
     SPRT / SPSA / gauntlet default to the UHO opening book at
     tools\books\UHO_Lichess_4852_v1.epd (repo-local, gitignored like all books
     under tools/books/). Get it from github.com/official-stockfish/books; a
-    backup copy is also kept in D:\chess\books so an accidental delete of one
+    backup copy should be kept outside the repo so an accidental delete of one
     location does not break dev. Pass -Book to override with any .pgn/.epd.
     Datagen is deliberately NOT switched to UHO -- training-data generation wants
     a diverse/representative book (e.g. beast_seed.epd), not a deliberately

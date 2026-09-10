@@ -1211,11 +1211,11 @@ static void test_see_pin_legality() {
                    "4k3/4p3/8/8/7B/8/8/4QK2 w - - 0 1", E1, E7, 100);
 }
 
-// King legality in the SEE kernels (15.0.a). Cases ported from Rarog's
-// independent fixtures `see-contract-v1.tsv` and `see-repair-v1.tsv`
-// (D:/code/rarog/tests/data), retargeted to Basilisk's 100/300/300/500/900
-// value vector. Every case is cross-checked against `oracle_see`, which uses
-// real make/unmake and therefore knows true king legality.
+// King legality in the SEE kernels (15.0.a). Cases ported from an independent
+// peer fixture set (`see-contract-v1.tsv`, `see-repair-v1.tsv`), retargeted
+// to Basilisk's 100/300/300/500/900 value vector. Every case is cross-checked
+// against `oracle_see`, which uses real make/unmake and therefore knows true
+// king legality.
 static void test_see_king_legality() {
     // contract-v1 `king-after-pawn`: Rxd5 cxd5 Kxd5 -- d5 is undefended after
     // the pawn recapture, so the king recapture is legal.

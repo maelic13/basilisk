@@ -46,7 +46,7 @@
 
 .PARAMETER Book
     Opening book. Default: tools\books\UHO_Lichess_4852_v1.epd (repo-local,
-    gitignored; backup in D:\chess\books). Stockfish/OpenBench unbalanced set;
+    gitignored; keep a backup outside the repo). Unbalanced openings set;
     .epd/.pgn auto-detected from extension.
 
 .PARAMETER FastchessPath

@@ -34,7 +34,7 @@ Example:
 
   python tools/diag/endgame_truth.py \
       --engine tools/test_engines/basilisk-hce-refit-candidate-pext-pgo.exe \
-      --syzygy D:/chess/tablebases/syzygy3456 \
+      --syzygy "$BASILISK_SYZYGY" \
       --cohort tools/diag/endgame_cohort_v1.manifest.json \
       --nodes 60000 --max-plies 100 \
       --output tools/results/hce-accepted/endgame-truth-accepted.json

@@ -21,11 +21,11 @@ the only new numbering.
 | 1.9.1 | Centralized parameters, invariants, fuzzing, CI, telemetry; behaviour-identical PGO speed pass at +4.34% NPS |
 | 1.9.2 / 1.9.3 | SPSA/MT harness and helper clock/node/thread safety repaired; four-thread bundle accepted; PGO tool matching fixed |
 
-## The 2026 development line (Phases 5–6), frozen at `d0f2627`
+## The 2026 development line (Phases 5–6)
 
-Between 1.9.3 (2026-08-01) and the freeze decision (2026-09-09) the `dev`
-branch accumulated 170 commits, none released. What they established, each
-with its ledger evidence:
+Between 1.9.3 (2026-08-01) and 1.10.0 the `dev` branch accumulated the endgame
+and hand-crafted-evaluation work below. What it established, each with its
+ledger evidence:
 
 | Result | Evidence |
 |---|---|
@@ -35,26 +35,33 @@ with its ledger evidence:
 | Passed-pawn king approach studied and dispositioned | 6.3 record |
 | Magnitude and coverage audit of the endgame evaluator; reopened work recorded with its reasons | 6.4 record, "Reopened work, 2026-09-03" |
 | The TT publication redesign: atomic whole-record word accepted for correctness, the coherence repair reverted on measured throughput with the risk recorded | BAS-X2x rows, commits `2bf43fb`, `c378706` |
-| A peer audit of the shared board lineage found three real SEE defects in Rarog; the same kernel shape is in Basilisk and had no fixtures | BAS-X22 |
-| Pool position on 2026-09-04 at `3+0.03` 1T: Houdini 1.5a −197, Critter 1.6a −187, Fritz 16 −178, Rybka 4 −84, Rarog 2.4.0-dev +26 | BAS-X11 |
+| A peer audit of the shared board lineage found three SEE defects of the same kernel shape; Basilisk had no fixtures for them | BAS-X22 |
+| Pool position on 2026-09-04 at `3+0.03` 1T: Houdini 1.5a −197, Critter 1.6a −187, Fritz 16 −178, Rybka 4 −84 | BAS-X11 |
 
-Open at the freeze and **not continued**: 6.6 instrument and gate integrity,
-6.7–6.11 remaining endgame families and closure, Phase 7 board correctness
-(replaced by Phase 15's bounded repairs), Phase 8 corpus and complete HCE
-refit, Phase 9 classical search consolidation, Phases 10–14 NNUE and
-platforms. Their evidence, retry triggers and dispositions remain in
+## Phase 15 (2026-09-09 → 2026-09-10)
+
+Board correctness, then the 1.10.0 release. Summarised in `PLAN.md`; the
+measured detail is in `EXPERIMENTS.md` (BAS-C08, BAS-C09, BAS-E55, BAS-E56,
+BAS-E57).
+
+| Result | Evidence |
+|---|---|
+| SEE king legality repaired: the exchange now ends before an illegal king recapture, reading the unfiltered attacker set | BAS-C08, 6,481–0 and 301–0 against an independent legality oracle |
+| Created pins and promotion recaptures kept as documented approximations | BAS-C09, 0 verdict changes in 339,607 production calls; repair costs +16.8% of the SEE column |
+| Malformed UCI input hardened; unknown `setoption` names now diagnosed | 15.0.d, 17 test sections |
+| Deterministic qualification clean | 15.0.e: CTest 12/12 release and sanitizer, 6/6 perft exact, invariants across four seeds |
+| 1.10.0 accepted against 1.9.3 at +19.18 ± 6.76 Elo, 1T `3+0.03` | BAS-E55 |
+
+## Open work
+
+Not continued during Phase 15, and the natural place to resume: 6.6 instrument
+and gate integrity, 6.7–6.11 remaining endgame families and closure, Phase 7
+board correctness beyond Phase 15's bounded repairs, Phase 8 corpus and
+complete HCE refit, Phase 9 classical search consolidation, Phases 10–14 NNUE
+and platforms. Their evidence, retry triggers and dispositions remain in
 `EXPERIMENTS.md` (section 9 is the retry map) and in the archived roadmap.
 
-## Why the freeze
+## Release record
 
-The maintainer decided on 2026-09-09 to concentrate development on Rarog,
-which shares Basilisk's evaluation lineage, sits at the same strength in the
-pool, and carries the joint roadmap toward the strongest HCE-era engines and
-then NNUE. Basilisk remains a pool member, the C++ reference for Rarog's
-classical evaluation work, and a source of measured priors (its accepted and
-rejected experiments transfer as hypotheses, never as verdicts).
-
-## Freeze record
-
-Filled in at 15.1.c: release revision, bench fingerprint, asset hashes, pool
-position, and the reopening rule.
+Filled in at 15.1.c: release revision, bench fingerprint, asset hashes and
+pool position.

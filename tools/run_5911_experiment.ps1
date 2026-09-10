@@ -35,7 +35,7 @@
 param(
     [int]$Rounds     = 125000,
     [int]$TargetTrain = 1000000,
-    [string]$Stockfish = "D:\chess\engines\stockfish.exe",
+    [string]$Stockfish = $(if ($env:STOCKFISH_PATH) { $env:STOCKFISH_PATH } else { "stockfish" }),
     [switch]$SkipExtract
 )
 

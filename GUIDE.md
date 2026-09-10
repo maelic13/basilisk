@@ -1,9 +1,9 @@
 # Basilisk development guide
 
-**Basilisk is being frozen after release 1.10.0.** Development effort has moved
-to Rarog (`D:/code/rarog`), whose roadmap is the joint battle plan. This
-guide covers the one remaining phase; the archived board with Phases 1–14 is
-at [docs/archive/GUIDE-2026-09-09.md](docs/archive/GUIDE-2026-09-09.md).
+**Phase 15 is complete and 1.10.0 is released. The next phase is not planned
+yet** — `PLAN.md` section 4 says how to plan it. The archived board with
+Phases 1–14 is at
+[docs/archive/GUIDE-2026-09-09.md](docs/archive/GUIDE-2026-09-09.md).
 
 ## How to work with the engine agent
 
@@ -77,22 +77,24 @@ Capability tags are advisory routing, not state, evidence or permission.
 
 | Item | State |
 |---|---|
-| Released baseline | 1.9.3 at `d737123`; bench 11,941,440 |
-| Accepted engine head | `dev` at `4aafddb` (15.0 closed); bench 14,978,465; CTest 12/12 release + 12/12 sanitizer |
-| Pool position, `3+0.03` 1T | Houdini 1.5a −197, Critter −187, Fritz 16 −178, Rybka 4 −84; Rarog 2.4.0-dev +26 |
-| Current step | **15.1.c** Freeze, `[M]` |
+| Branch | `dev` |
+| Released head | Basilisk **1.10.0**; bench 14,978,465; CTest 12/12 release and sanitizer |
+| Previous release | Basilisk 1.9.3; bench 11,941,440 |
+| Strength | **+19.18 ± 6.76 Elo** over 1.9.3 at `3+0.03` 1T (BAS-E55) |
+| Current step | **None — Phase 16 needs planning** (`PLAN.md` section 4) |
 | Long job | None |
-| Release target | 1.10.0, then freeze |
 
-## Phase 15 — Board correctness, release 1.10.0, freeze
+## Phase 15 — board correctness and release 1.10.0 (complete)
 
-- [x] **15.0** Board correctness repairs, before the release gate
-    - [x] **15.0.a** `[I2]` SEE king legality in `see_ge` and `see`; sentinel read the pin-filtered set, repair reads the unfiltered one; 9 fixtures, oracle 6481-0/301-0 over 1.9M captures; bench 12,568,898 -> 14,978,465 (+19.17%); BAS-E56 KEEP (Elo -0.65 +/- 5.25, 5,874 games); +19.17% nodes = 0.165 ply at EBF 2.9; forfeit gate passes (3/6,053, explained by 15.0.b host stalls)
-    - [x] **15.0.b** Time-forfeit residual: clock origin already at `go` receipt; BAS-E57 reserve sweep rejected at −64.81, 0 forfeits/10k — CLOSED 2026-09-10
-    - [x] **15.0.c** `[R2]` Created pins and recapture promotions: CLOSED as documented approximation (BAS-C09) — 0 verdict changes in 339,607 production `see_ge` calls; repair costs +16.8% of the SEE column vs a 10% ceiling; 9 fixtures pin truth and approximation
-    - [x] **15.0.d** `[I1]` Malformed input and counter boundaries: 17 test sections; 4 of 5 categories already correct (UTF-8 slicing is a Rust-only hazard), one real defect — silent unknown `setoption` now diagnosed; bench unchanged
-    - [x] **15.0.e** `[V]` Deterministic qualification: CTest 12/12 release and 12/12 sanitizer (811.7 s, clean); invariants 18/18 x4 seeds; 6/6 perft exact (594M nodes); bench 14,978,465; SEE column +3.6% FASTER than 1.9.3; PGO asset ISA verified (246 pextq, 152 popcntq)
-- [ ] **15.1** Release 1.10.0 and freeze
-    - [x] **15.1.a** `[V]` Registered release gate BAS-E55 **CLOSED, both legs pass**: 1T `Elo +19.18 +/- 6.76`, H1 at 4,224 games; 4T smoke gate clean (zero crashes, zero forfeits, 95% lower bound -1.17 Elo)
-    - [x] **15.1.b** `[M]` Release 1.10.0: CHANGELOG written, version bumped in both sources (constants.h + CMakeLists), bench unchanged 14,978,465, CTest 12/12; README table verified accurate; tiers smoke-tested and `release_tiers.md` corrected (97 -> 152 popcnt). **Tag not created — maintainer instruction only.**
-    - [ ] **15.1.c** `[M]` Freeze: HISTORY record, merge to `master`, reopening rule (branches already tagged and deleted 2026-09-09)
+Repaired SEE king legality (BAS-C08); kept created pins and promotion
+recaptures as documented approximations on measured reachability and cost
+(BAS-C09); closed the time-forfeit residual as host stalls (BAS-E57); hardened
+malformed UCI input and fixed a silent unknown-`setoption`; qualified
+deterministically (CTest release + sanitizer, perft, invariants, ISA); and
+passed the release gate at **+19.18 ± 6.76 Elo** over 1.9.3 (BAS-E55). Full
+summary in `PLAN.md`, measured detail in `EXPERIMENTS.md`.
+
+- [ ] **15.1.c** `[M]` Tag `v1.10.0` and push it; merge `dev` into `master` as a
+  squashed Version commit; then fill the release record in
+  [HISTORY.md](HISTORY.md) with the revision, bench fingerprint, asset hashes
+  and pool position once CI has published the assets.

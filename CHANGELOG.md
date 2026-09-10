@@ -14,10 +14,6 @@ and next step).
 
 ## [1.10.0] - 2026-09-10
 
-The final Basilisk release. Development moves to Rarog, which shares this
-engine's evaluation lineage; Basilisk is frozen here as a pool member and as
-the C++ reference for that work.
-
 A strength release bundling the 2026 endgame and hand-crafted-evaluation line
 with a board-correctness pass. Head-to-head against 1.9.3 it scores
 **+19.18 ± 6.76 Elo** at `tc=3+0.03`, 1 thread — H1 accepted at 4,224 games
