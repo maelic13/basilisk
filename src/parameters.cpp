@@ -383,6 +383,14 @@ void Parameters::set_option(const std::string& args) {
     BASILISK_SEARCH_PARAMS(BASILISK_SEARCH_PARAM_SET)
 #undef BASILISK_SEARCH_PARAM_SET
 #endif
+    // 15.0.d: an unrecognised option name used to fall off the end of this
+    // chain in silence, so a misspelled knob or an SPSA vector aimed at a
+    // non-TUNE build looked like it had been applied. Diagnose it. `info
+    // string` is the display-only channel, so a GUI offering options we do
+    // not implement is unaffected beyond one log line.
+    else {
+        uci_write_line("info string Unknown option: '" + name + "'");
+    }
 }
 
 void Parameters::set_position(const std::string& args) {

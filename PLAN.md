@@ -216,13 +216,33 @@ Basilisk.
       production calls. Nine fixtures added to `tests/test_board.cpp` with a
       promotion-aware oracle; the three diverging cases pin both the truth and
       the kernel's approximate answer.
-    - [ ] **15.0.d** `[I1]` **Malformed input and counter boundaries.** Add
+    - [x] **15.0.d** `[I1]` **Malformed input and counter boundaries.** Add
       tests that fail first for: a non-ASCII move token in `position ...
       moves` (Rarog panicked slicing UTF-8, RAR-M26), a `moves` list longer
       than any history reservation, `go` with absurd or missing values,
       `setoption` with an unknown name, and the FEN fullmove bound already
       enforced at 100000. Malformed input must produce a diagnostic and a
       legal engine state, never a crash. Deterministic; no gate.
+      **Done 2026-09-10.** 17 sections added to `tests/test_uci_protocol.cpp`
+      (which also had to gain `init_bitboards/init_attacks/Zobrist::init` --
+      it had never built a real `Board` before, only exercised the protocol
+      layer that enqueues raw strings). **Exactly one of the five categories
+      was actually broken.** Already correct, contrary to the leaf's
+      expectation that all five would fail first: the non-ASCII move token
+      (Basilisk compares whole tokens against generated legal moves in
+      `apply_uci_move`, so the RAR-M26 UTF-8 slicing panic is structurally
+      unreachable here -- it is a Rust hazard, not a shared one; the token is
+      refused and the previous position stands intact), a 3,000-ply `moves`
+      list past the 2,048 `HISTORY_RESERVE` (growable vector since 8.6.10a),
+      malformed `position` headers, the FEN fullmove bound at exactly 100000
+      and 100001, negative halfmove clocks, and `go` with missing,
+      non-numeric, int64-overflowing or negative values. **The real defect:
+      `setoption` with an unknown name fell off the end of the if/else chain
+      in `Parameters::set_option` in complete silence**, so a misspelled knob
+      or an SPSA vector aimed at a non-TUNE build looked applied when it was
+      not. Fixed with a terminating `else` that emits
+      `info string Unknown option: '<name>'`. Output-only: bench unchanged at
+      14,978,465, CTest 12/12.
     - [ ] **15.0.e** `[V]` **Deterministic qualification.** Debug and release
       CTest, the sanitizer preset, random-walk board invariants
       (`test_invariants`), perft, `bench` recorded on the fixed head, the
