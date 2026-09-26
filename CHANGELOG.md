@@ -12,6 +12,18 @@ and next step).
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- Fixed a time forfeit with pondering enabled. If the opponent replied almost
+  instantly, `ponderhit` could arrive while Basilisk was still setting up the
+  ponder search, and the setup then cleared it. The search kept pondering with
+  no clock (or, after reaching its depth cap, waited for a `ponderhit` it had
+  already discarded) until the GUI flagged it. Seen twice in a 120+1, 4-thread
+  Colosseum tournament, once in a won position. `ponderhit` is now reset only
+  when a new `go` is received, in protocol order, and a `stop` received during
+  search setup is likewise preserved. Bench unchanged (14,978,465).
+
 ## [1.10.0] - 2026-09-10
 
 A strength release bundling the 2026 endgame and hand-crafted-evaluation line

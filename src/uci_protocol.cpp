@@ -67,7 +67,7 @@ void UciProtocol::UciLoop() {
 }
 
 uint64_t UciProtocol::next_control_epoch() {
-    return control_epoch_.fetch_add(1, std::memory_order_acq_rel) + 1;
+    return control_epoch_.fetch_add(1, std::memory_order_seq_cst) + 1;
 }
 
 void UciProtocol::enqueue(EngineCommandType type, const std::string& args, uint64_t epoch,
@@ -120,13 +120,21 @@ void UciProtocol::cmdGo(const std::string &args) {
     const auto recv_time = std::chrono::steady_clock::now();
     uint64_t epoch = next_control_epoch();
     if (searching_.exchange(true, std::memory_order_acq_rel))
-        stop_requested_.store(true, std::memory_order_release);
+        stop_requested_.store(true, std::memory_order_seq_cst);
+    // A `ponderhit` always follows the `go ponder` it answers, and both arrive
+    // on this thread, so this is the one place the flag can be reset without
+    // racing a legitimate ponderhit. The engine thread must never clear it: a
+    // GUI whose opponent replies instantly sends `ponderhit` while the engine
+    // thread is still in start_search's setup, and clearing there lost it —
+    // the search then pondered on with no clock and forfeited on time.
+    ponderhit_requested_.store(false, std::memory_order_release);
     enqueue(EngineCommandType::Go, args, epoch, recv_time);
 }
 
 void UciProtocol::cmdStop() {
     uint64_t epoch = next_control_epoch();
-    stop_requested_.store(true, std::memory_order_release);
+    // seq_cst pairs with start_search's clear-then-recheck of the epoch.
+    stop_requested_.store(true, std::memory_order_seq_cst);
     enqueue(EngineCommandType::Stop, {}, epoch);
 }
 

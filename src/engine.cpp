@@ -223,14 +223,23 @@ void Engine::start_search(uint64_t command_epoch,
     }
 
     if (stop_was_requested && (limits.infinite || limits.ponder)) {
-        ponderhit_requested_.store(false, std::memory_order_release);
         searching_.store(false, std::memory_order_release);
         send_bestmove(SearchResult{}, board_copy);
         return;
     }
 
-    ponderhit_requested_.store(false, std::memory_order_release);
-    stop_requested_.store(false, std::memory_order_release);
+    // ponderhit_requested_ is deliberately NOT cleared here: UciProtocol::cmdGo
+    // resets it in protocol order, and a ponderhit may already have arrived
+    // during the setup above (see cmdGo).
+    //
+    // A stale stop from the previous search is cleared, but a stop (or any
+    // other control command) received since this `go` must survive: it bumps
+    // the epoch before raising the flag, so re-checking the epoch after the
+    // clear restores it. seq_cst pairs with the UCI-thread side.
+    stop_requested_.store(false, std::memory_order_seq_cst);
+    if (command_epoch != 0
+        && control_epoch_.load(std::memory_order_seq_cst) != command_epoch)
+        stop_requested_.store(true, std::memory_order_seq_cst);
 
     searching_.store(true, std::memory_order_release);
 
@@ -241,7 +250,6 @@ void Engine::start_search(uint64_t command_epoch,
         || control_epoch_.load(std::memory_order_acquire) == command_epoch)
         searching_.store(false, std::memory_order_release);
     send_bestmove(result, board_copy);
-    ponderhit_requested_.store(false, std::memory_order_release);
     stop_requested_.store(false, std::memory_order_release);
 }
 
@@ -356,10 +364,12 @@ void Engine::handle_command(const EngineCommand& command, bool& quit) {
                 || control_epoch_.load(std::memory_order_acquire) == command.epoch)
                 searching_.store(false, std::memory_order_release);
             stop_requested_.store(false, std::memory_order_release);
-            ponderhit_requested_.store(false, std::memory_order_release);
             break;
         case EngineCommandType::PonderHit:
-            ponderhit_requested_.store(true, std::memory_order_release);
+            // The flag itself is owned by the UCI thread (set on receipt,
+            // reset by the next `go`). This queued copy runs only after the
+            // search it answered has ended, so touching the flag here could
+            // only erase or resurrect it for a later search.
             parameters_.ponder = false;
             break;
         case EngineCommandType::Bench:
