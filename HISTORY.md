@@ -61,6 +61,19 @@ complete HCE refit, Phase 9 classical search consolidation, Phases 10–14 NNUE
 and platforms. Their evidence, retry triggers and dispositions remain in
 `EXPERIMENTS.md` (section 9 is the retry map) and in the archived roadmap.
 
+## Release record — 1.10.1
+
+| Item | Value |
+|---|---|
+| Version | **1.10.1** (prepared 2026-09-26) |
+| Scope | Ponder-protocol bug fix only: a `ponderhit` sent within ~1 ms of `go ponder` was discarded during search setup, causing time forfeits (BAS-C10) |
+| Bench-13 fingerprint | **14,978,465**, unchanged from 1.10.0 — search and evaluation bit-identical |
+| Strength gate | None: play without pondering is identical, and the repair changes only when a ponder search sees `ponderhit` |
+| Qualification | Regression tests fail on 1.10.0 and pass; release CTest 12/12; ASan/UBSan CTest; TSan on the ponder/threading/protocol tests |
+
+The release revision will be the `Version 1.10.1` squash commit on `master`,
+tagged **`v1.10.1`**.
+
 ## Release record — 1.10.0
 
 | Item | Value |

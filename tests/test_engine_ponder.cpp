@@ -186,7 +186,9 @@ void test_stale_stop_does_not_poison_next_ponder() {
 // Queuing one ahead of `go` keeps the engine thread in that setup long enough
 // that a back-to-back `ponderhit` reliably lands there -- the window in which
 // 1.10.0 cleared the flag and forfeited on time (Grand Blitz 4T, rounds 1-2,
-// opponent replying in ~1 ms).
+// opponent replying in ~1 ms). The old code never answers, so the generous
+// timeouts only absorb slow Debug/sanitizer builds, where the pending hash
+// resize alone can take longer than a second.
 void configure_two_threads_pending_hash(EngineSession& session) {
     configure_two_threads(session);
     session.set_option("name Hash value 256");
@@ -200,7 +202,7 @@ void test_immediate_ponderhit_with_clock() {
     session.ponderhit();
 
     begin_section("engine ponder: ponderhit during search setup is kept (clock)");
-    EXPECT(session.wait_for_bestmoves(1, 3000));
+    EXPECT(session.wait_for_bestmoves(1, 10000));
     EXPECT_EQ(count_bestmove_lines(session.output()), 1);
     end_section();
 }
@@ -213,7 +215,7 @@ void test_immediate_ponderhit_after_depth_cap() {
     session.ponderhit();
 
     begin_section("engine ponder: ponderhit during search setup is kept (depth cap)");
-    EXPECT(session.wait_for_bestmoves(1, 1000));
+    EXPECT(session.wait_for_bestmoves(1, 10000));
     EXPECT_EQ(count_bestmove_lines(session.output()), 1);
     end_section();
 }

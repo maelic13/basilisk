@@ -1,8 +1,10 @@
 # Basilisk development guide
 
 **Phase 15 is complete and 1.10.0 is released** — `master` carries the
-`Version 1.10.0` commit tagged `v1.10.0`. **The next phase is not planned
-yet**; `PLAN.md` section 4 says how to plan it. The archived board with
+`Version 1.10.0` commit tagged `v1.10.0`. **1.10.1 is release-ready on `dev`**:
+a ponder-protocol bug fix with bench unchanged; the maintainer's PR,
+squash-merge and publish remain. **The next phase is not planned yet**;
+`PLAN.md` section 4 says how to plan it. The archived board with
 Phases 1–14 is at
 [docs/archive/GUIDE-2026-09-09.md](docs/archive/GUIDE-2026-09-09.md).
 
@@ -79,11 +81,12 @@ Capability tags are advisory routing, not state, evidence or permission.
 | Item | State |
 |---|---|
 | Latest release | Basilisk **1.10.0**, tagged `v1.10.0` on `master` |
-| Development branch | `dev`, level with the release |
-| Bench fingerprint | **14,978,465**; CTest 12/12 release and sanitizer |
+| Release ready | Basilisk **1.10.1** on `dev` — lost-`ponderhit` fix (BAS-C10) |
+| Development branch | `dev`, one release commit ahead of `master` |
+| Bench fingerprint | **14,978,465** (unchanged by 1.10.1); CTest 12/12 release and sanitizer |
 | Previous release | Basilisk 1.9.3; bench 11,941,440 |
 | Strength | **+19.18 ± 6.76 Elo** over 1.9.3 at `3+0.03` 1T (BAS-E55) |
-| Current step | **None — Phase 16 needs planning** (`PLAN.md` section 4) |
+| Current step | **Publish 1.10.1** (maintainer), then Phase 16 needs planning (`PLAN.md` section 4) |
 | Long job | None |
 
 ## Phase 15 — board correctness and release 1.10.0 (complete)
@@ -96,3 +99,15 @@ deterministically (CTest release + sanitizer, perft, invariants, ISA); and
 passed the release gate at **+19.18 ± 6.76 Elo** over 1.9.3 (BAS-E55).
 Released as 1.10.0. Full summary in `PLAN.md`, measured detail in
 `EXPERIMENTS.md`.
+
+## Patch 1.10.1 — lost `ponderhit` (release ready)
+
+- [x] Diagnose the two ponder-on forfeits: `ponderhit` reset by the engine
+      thread during search setup after an instant opponent reply (BAS-C10).
+- [x] Repair: UCI thread owns the flag (set on `ponderhit`, reset on `go`);
+      stale-`stop` reset re-checks the control epoch. Bench 14,978,465.
+- [x] Qualify: new tests fail on 1.10.0 and pass; release CTest 12/12,
+      ASan/UBSan CTest, TSan on ponder/threading/protocol tests.
+- [x] Release prep: version 1.10.1, CHANGELOG, PLAN, GUIDE, HISTORY.
+- [ ] Publish (maintainer): PR, squash-merge `dev` into `master` as
+      `Version 1.10.1` on clean CI, tag `v1.10.1`, publish the release.

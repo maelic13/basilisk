@@ -12,17 +12,37 @@ and next step).
 
 ---
 
-## [Unreleased]
+## [1.10.1] - 2026-09-26
+
+A bug-fix release for games played with pondering enabled. Search and
+evaluation are unchanged from 1.10.0: the `bench` fingerprint stays
+**14,978,465**, and games without pondering play exactly as before.
 
 ### Fixed
-- Fixed a time forfeit with pondering enabled. If the opponent replied almost
-  instantly, `ponderhit` could arrive while Basilisk was still setting up the
-  ponder search, and the setup then cleared it. The search kept pondering with
-  no clock (or, after reaching its depth cap, waited for a `ponderhit` it had
-  already discarded) until the GUI flagged it. Seen twice in a 120+1, 4-thread
-  Colosseum tournament, once in a won position. `ponderhit` is now reset only
-  when a new `go` is received, in protocol order, and a `stop` received during
-  search setup is likewise preserved. Bench unchanged (14,978,465).
+
+- **Time forfeit after an instant opponent reply while pondering.** If the
+  opponent answered within a few milliseconds of Basilisk's `go ponder`, the
+  GUI's `ponderhit` could arrive while Basilisk was still setting up the
+  ponder search, and that setup then discarded it. The search went on
+  pondering with no clock — or, once it reached its depth limit, waited for a
+  `ponderhit` it had already thrown away — until the GUI flagged it. This cost
+  two games in a 120+1, four-thread tournament, one of them from a position
+  with a forced mate in three. It is not specific to any position type: it
+  depends only on how quickly the opponent replies. `ponderhit` now always
+  takes effect, however soon it follows `go ponder`.
+- A `stop` that arrives while a search is still being set up is now always
+  honoured. Previously a narrow window (only reachable when the hash size had
+  just changed or after `ucinewgame`) could discard it.
+
+### Tests
+
+- Added engine-level regression tests that send `ponderhit` immediately after
+  `go ponder`, with a clock and with a depth-limited ponder search; both fail
+  on 1.10.0. Added coverage that a `ponderhit` from a previous search cannot
+  end the next ponder search, and protocol tests that `go` resets a previous
+  `ponderhit` while a `ponderhit` after `go ponder` is kept.
+
+---
 
 ## [1.10.0] - 2026-09-10
 
@@ -1203,6 +1223,8 @@ First public release.
 - `bench [depth]` command — 16-position built-in benchmark, prints per-position NPS and total node-count fingerprint
 - GitHub Actions release workflow — builds for Linux x86_64, Linux aarch64, Windows x86_64, Windows aarch64, macOS aarch64; all built with Clang; PEXT variant produced for x86_64 platforms
 
+[1.10.1]: https://github.com/maelic13/basilisk/compare/v1.10.0...v1.10.1
+[1.10.0]: https://github.com/maelic13/basilisk/compare/v1.9.3...v1.10.0
 [1.9.3]: https://github.com/maelic13/basilisk/compare/v1.9.2...v1.9.3
 [1.9.2]: https://github.com/maelic13/basilisk/compare/v1.9.1...v1.9.2
 [1.9.1]: https://github.com/maelic13/basilisk/compare/v1.9.0...v1.9.1
