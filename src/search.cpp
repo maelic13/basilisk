@@ -192,14 +192,19 @@ SearchResult sanitize_search_result(const Board& root_board, SearchResult result
     if (!is_legal_move_on_board(root_board, result.bestmove)) {
         result.bestmove = first_legal_move(root_board);
         result.pondermove = MOVE_NONE;
+        result.pv.clear();
         return result;
     }
+    if (!result.pv.empty() && result.pv.front() != result.bestmove)
+        result.pv.clear();
 
     if (result.pondermove != MOVE_NONE) {
         Board ponder_board = root_board;
         ponder_board.make_move(result.bestmove);
         if (!is_legal_move_on_board(ponder_board, result.pondermove))
             result.pondermove = MOVE_NONE;
+        if (result.pondermove == MOVE_NONE && result.pv.size() > 1)
+            result.pv.resize(1);
     }
 
     return result;
@@ -1200,6 +1205,35 @@ void Searcher::print_pool_diag(const std::vector<std::unique_ptr<Searcher>>& poo
 }
 
 void Searcher::send_info(int depth, int score, int64_t total_nodes, double elapsed) const {
+    std::vector<Move> pv_moves;
+    if (pv_len_[0] > 0) {
+        Board pv_board = *board_ptr_;
+        int pv_count = std::clamp(pv_len_[0], 0, MAX_PLY);
+        for (int i = 0; i < pv_count; i++) {
+            Move pv_move = pv_table_[0][i];
+            if (!is_legal_move_on_board(pv_board, pv_move))
+                break;
+            pv_moves.push_back(pv_move);
+            pv_board.make_move(pv_move);
+        }
+    }
+
+    // Stockfish-style tablebase PV extension. With no clock or movetime it
+    // runs on every line, unbounded, as in Stockfish's analysis mode. Under
+    // time control only the final line is extended (Engine), once per move and
+    // within half the Move Overhead, because Basilisk prints a line at every
+    // depth. A line that ends in a fifty-move draw shows the draw.
+    if (!pv_moves.empty() && is_tablebase_decisive(score) && Syzygy::enabled()
+        && active_limits_.movetime <= 0 && active_limits_.wtime <= 0
+        && active_limits_.btime <= 0) {
+        Syzygy::PvExtension ext = Syzygy::extend_pv(
+            *board_ptr_, pv_moves, active_limits_.syzygy_50_move_rule,
+            active_limits_.syzygy_probe_limit, [] { return false; });
+        pv_moves = std::move(ext.pv);
+        if (ext.ends_in_draw)
+            score = 0;
+    }
+
     std::string line = "info depth " + std::to_string(depth)
         + " seldepth " + std::to_string(sel_depth_)
         + " score ";
@@ -1218,23 +1252,10 @@ void Searcher::send_info(int depth, int score, int64_t total_nodes, double elaps
          + " tbhits " + std::to_string(current_tbhits())
          + " hashfull " + std::to_string(tt_.hashfull());
 
-    if (pv_len_[0] > 0) {
-        Board pv_board = *board_ptr_;
-        std::vector<Move> pv_moves;
-        int pv_count = std::clamp(pv_len_[0], 0, MAX_PLY);
-        for (int i = 0; i < pv_count; i++) {
-            Move pv_move = pv_table_[0][i];
-            if (!is_legal_move_on_board(pv_board, pv_move))
-                break;
-            pv_moves.push_back(pv_move);
-            pv_board.make_move(pv_move);
-        }
-
-        if (!pv_moves.empty()) {
-            line += " pv";
-            for (Move pv_move : pv_moves)
-                line += ' ' + move_to_uci(pv_move);
-        }
+    if (!pv_moves.empty()) {
+        line += " pv";
+        for (Move pv_move : pv_moves)
+            line += ' ' + move_to_uci(pv_move);
     }
 
     if (info_cb_) info_cb_(line);
@@ -2425,6 +2446,7 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
         if (pv_len_[0] > 0) {
             result.bestmove   = pv_table_[0][0];
             result.pondermove = (pv_len_[0] > 1) ? pv_table_[0][1] : MOVE_NONE;
+            result.pv.assign(pv_table_[0], pv_table_[0] + std::clamp(pv_len_[0], 0, MAX_PLY));
             if (result.pondermove == MOVE_NONE)
                 result.pondermove = ponder_from_tt(board, result.bestmove);
         }

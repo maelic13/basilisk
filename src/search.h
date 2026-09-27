@@ -1,6 +1,7 @@
 #pragma once
 
 #include "board.h"
+#include "constants.h"
 #include "search_params.h"
 #include "tt.h"
 #include "eval.h"
@@ -106,7 +107,17 @@ struct SearchResult {
     int64_t nodes      = 0;
     int64_t tbhits     = 0;
     int64_t elapsed_ms = 0;
+    // The searched PV, pv[0] == bestmove when non-empty. Carried so the final
+    // tablebase PV extension (Engine) can validate the searched line itself.
+    std::vector<Move> pv;
 };
+
+// A decisive tablebase score (a TB win or loss, possibly ply-adjusted), as
+// opposed to a mate score or an ordinary evaluation.
+inline bool is_tablebase_decisive(int score) {
+    const int a = score < 0 ? -score : score;
+    return a >= tablebaseWinScore - MAX_PLY && a < MATE_SCORE - MAX_PLY;
+}
 
 SearchResult sanitize_search_result(const Board& root_board, SearchResult result);
 

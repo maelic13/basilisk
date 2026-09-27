@@ -9,6 +9,7 @@
 #include "bitboard.h"
 #include "eval.h"
 #include "test_harness.h"
+#include "syzygy_fixture.h"
 #include "zobrist.h"
 
 #include <algorithm>
@@ -398,6 +399,73 @@ void test_malformed_input_survival() {
     }
 }
 
+// 1.10.1: under a clock the final line is extended once (Engine), within
+// half the Move Overhead, re-sent as its own info line (no seldepth) and the
+// ponder move taken from it. With Move Overhead 0 the box is already spent.
+void test_final_tablebase_pv() {
+    const std::string path = syzygy_fixture_path().string();
+    const std::string fen = "6k1/8/8/8/8/8/8/6KQ w - - 0 1";
+
+    auto run = [&](int overhead, std::string& final_line, std::string& bestmove) {
+        EngineSession session;
+        session.set_option("name SyzygyPath value " + path);
+        session.set_option("name Move Overhead value " + std::to_string(overhead));
+        session.position("fen " + fen);
+        session.sync();
+        session.go("depth 2 wtime 60000 btime 60000");
+        EXPECT(session.wait_for_bestmoves(1, 10000));
+        std::istringstream input(session.output());
+        std::string line;
+        while (std::getline(input, line)) {
+            if (line.rfind("info depth", 0) == 0 && line.find(" seldepth ") == std::string::npos)
+                final_line = line;
+            if (line.rfind("bestmove", 0) == 0)
+                bestmove = line;
+        }
+    };
+
+    begin_section("engine tb pv: final line extended to mate, ponder from it");
+    {
+        std::string final_line, bestmove;
+        run(1000, final_line, bestmove);
+        EXPECT(!final_line.empty());
+        std::istringstream pv(final_line.substr(final_line.find(" pv ") + 4));
+        Board b;
+        b.set_fen(fen);
+        std::string tok;
+        std::vector<std::string> moves;
+        bool legal = true;
+        while (pv >> tok) {
+            MoveList list;
+            b.gen_legal(list);
+            Move found = MOVE_NONE;
+            for (Move m : list)
+                if (move_to_uci(m) == tok) found = m;
+            legal = legal && found != MOVE_NONE;
+            if (found == MOVE_NONE) break;
+            b.make_move(found);
+            moves.push_back(tok);
+        }
+        MoveList replies;
+        b.gen_legal(replies);
+        EXPECT(legal);
+        EXPECT(replies.size() == 0 && b.is_in_check());
+        EXPECT(moves.size() > 1);
+        EXPECT(moves.size() > 1 && bestmove == "bestmove " + moves[0] + " ponder " + moves[1]);
+    }
+    end_section();
+
+    begin_section("engine tb pv: Move Overhead 0 leaves no time to extend");
+    {
+        std::string final_line, bestmove;
+        run(0, final_line, bestmove);
+        EXPECT(final_line.empty());
+        EXPECT(!bestmove.empty());
+    }
+    end_section();
+    Syzygy::clear();
+}
+
 int main() {
     init_bitboards();
     init_attacks();
@@ -421,6 +489,7 @@ int main() {
 
     std::printf("\nMalformed-input survival (8.6.3a)\n");
     test_malformed_input_survival();
+    test_final_tablebase_pv();
 
     return harness_summary();
 }

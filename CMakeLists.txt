@@ -250,6 +250,9 @@ add_executable(test_engine_threading
     src/bench.cpp
     src/wac.cpp
 )
+target_compile_definitions(test_engine_threading PRIVATE
+    BASILISK_TEST_SYZYGY_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/syzygy"
+)
 target_link_libraries(test_engine_threading PRIVATE basilisk_engine)
 
 # ---------------------------------------------------------------------------

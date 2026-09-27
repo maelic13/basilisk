@@ -136,6 +136,61 @@ void Engine::send_bestmove(const SearchResult& result, const Board& root_board) 
     }
 }
 
+// Stockfish-style final tablebase PV (Syzygy::extend_pv): extend the chosen
+// line once, re-send it, and take the ponder move from it. Under a clock or
+// movetime this runs on the engine's clock, so like Stockfish it stops once
+// 2 x elapsed >= Move Overhead: never more than half the overhead the GUI
+// latency reserve already allows. Without a time limit it is unbounded, as in
+// Stockfish's analysis mode.
+void Engine::publish_tablebase_pv(SearchResult& result, const Board& root_board,
+                                  const SearchLimits& limits) const {
+    if (!Syzygy::enabled() || result.bestmove == MOVE_NONE
+        || !is_tablebase_decisive(result.score))
+        return;
+
+    std::vector<Move> line = result.pv;
+    if (line.empty() || line.front() != result.bestmove) {
+        line.assign(1, result.bestmove);
+        if (result.pondermove != MOVE_NONE)
+            line.push_back(result.pondermove);
+    }
+
+    const auto start = std::chrono::steady_clock::now();
+    const bool timed = limits.movetime > 0 || limits.wtime > 0 || limits.btime > 0;
+    const int overhead_ms = limits.overhead;
+    auto time_abort = [&] {
+        if (!timed)
+            return false;
+        const double elapsed_ms = std::chrono::duration<double, std::milli>(
+            std::chrono::steady_clock::now() - start).count();
+        return 2.0 * elapsed_ms >= overhead_ms;
+    };
+
+    Syzygy::PvExtension ext = Syzygy::extend_pv(root_board, line,
+                                                 limits.syzygy_50_move_rule,
+                                                 limits.syzygy_probe_limit, time_abort);
+    if (ext.timed_out)
+        uci_write_line("info string Syzygy based PV extension requires more time, "
+                       "increase Move Overhead as needed.");
+    if (ext.pv == line && !ext.ends_in_draw)
+        return;
+
+    const int score = ext.ends_in_draw ? 0 : result.score;
+    std::string info = "info depth " + std::to_string(result.depth)
+        + " score cp " + std::to_string(score)
+        + " nodes " + std::to_string(result.nodes)
+        + " time " + std::to_string(result.elapsed_ms)
+        + " tbhits " + std::to_string(result.tbhits)
+        + " pv";
+    for (Move m : ext.pv)
+        info += ' ' + move_to_uci(m);
+    uci_write_line(info);
+
+    if (ext.pv.size() > 1)
+        result.pondermove = ext.pv[1];
+    result.pv = std::move(ext.pv);
+}
+
 void Engine::wait_until_bestmove_allowed(const SearchLimits& limits,
                                          uint64_t command_epoch) const {
     if (!limits.ponder && !limits.infinite)
@@ -231,6 +286,7 @@ void Engine::start_search(uint64_t command_epoch,
 
     SearchResult result = search_pool_.search(board_copy, limits, active_threads);
     wait_until_bestmove_allowed(limits, command_epoch);
+    publish_tablebase_pv(result, board_copy, limits);
 
     if (command_epoch == 0
         || control_epoch_.load(std::memory_order_acquire) == command_epoch)

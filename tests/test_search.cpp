@@ -23,6 +23,7 @@
 #include "bench.h"
 #include "wac.h"
 #include "test_harness.h"
+#include "syzygy_fixture.h"
 
 #include <atomic>
 #include <chrono>
@@ -175,94 +176,6 @@ static std::vector<std::string> collect_info_lines_with_tt_move(const char* fen,
     });
     (void)searcher->search(board, limits);
     return lines;
-}
-
-static int base64_value(char c) {
-    if (c >= 'A' && c <= 'Z') return c - 'A';
-    if (c >= 'a' && c <= 'z') return c - 'a' + 26;
-    if (c >= '0' && c <= '9') return c - '0' + 52;
-    if (c == '+') return 62;
-    if (c == '/') return 63;
-    return -1;
-}
-
-static std::vector<unsigned char> decode_base64(std::string_view encoded) {
-    std::vector<unsigned char> decoded;
-    decoded.reserve(encoded.size() * 3 / 4);
-    unsigned accumulator = 0;
-    int bits = 0;
-
-    for (char c : encoded) {
-        if (c == '=')
-            break;
-        const int value = base64_value(c);
-        if (value < 0)
-            continue;
-        accumulator = (accumulator << 6) | static_cast<unsigned>(value);
-        bits += 6;
-        if (bits >= 8) {
-            bits -= 8;
-            decoded.push_back(static_cast<unsigned char>(accumulator >> bits));
-            accumulator &= (1u << bits) - 1u;
-        }
-    }
-    return decoded;
-}
-
-static void materialize_syzygy_file(const std::filesystem::path& source,
-                                    const std::filesystem::path& destination,
-                                    size_t expected_size) {
-    std::ifstream input(source, std::ios::binary);
-    if (!input)
-        throw std::runtime_error("missing Syzygy test fixture: " + source.string());
-    const std::string encoded((std::istreambuf_iterator<char>(input)),
-                              std::istreambuf_iterator<char>());
-    const auto decoded = decode_base64(encoded);
-    if (decoded.size() != expected_size)
-        throw std::runtime_error("invalid Syzygy fixture size: " + source.string());
-
-    std::ofstream output(destination, std::ios::binary);
-    output.write(reinterpret_cast<const char*>(decoded.data()),
-                 static_cast<std::streamsize>(decoded.size()));
-    if (!output)
-        throw std::runtime_error("could not materialize Syzygy fixture: "
-                                 + destination.string());
-}
-
-struct SyzygyFixtureDirectory {
-    std::filesystem::path path;
-
-    SyzygyFixtureDirectory() {
-        const auto nonce = std::chrono::high_resolution_clock::now()
-                               .time_since_epoch().count();
-        const auto temp = std::filesystem::temp_directory_path();
-        bool created = false;
-        for (int attempt = 0; attempt < 100; ++attempt) {
-            path = temp / ("basilisk-syzygy-test-" + std::to_string(nonce)
-                           + "-" + std::to_string(attempt));
-            if (std::filesystem::create_directory(path)) {
-                created = true;
-                break;
-            }
-        }
-        if (!created)
-            throw std::runtime_error("could not create temporary Syzygy fixture directory");
-
-        const std::filesystem::path source(BASILISK_TEST_SYZYGY_FIXTURE_DIR);
-        materialize_syzygy_file(source / "KQvK.rtbw.b64", path / "KQvK.rtbw", 272);
-        materialize_syzygy_file(source / "KQvK.rtbz.b64", path / "KQvK.rtbz", 5392);
-    }
-
-    ~SyzygyFixtureDirectory() {
-        Syzygy::clear();
-        std::error_code error;
-        std::filesystem::remove_all(path, error);
-    }
-};
-
-static const std::filesystem::path& syzygy_fixture_path() {
-    static SyzygyFixtureDirectory fixture;
-    return fixture.path;
 }
 
 static void init_test_syzygy() {
@@ -956,6 +869,94 @@ static void test_syzygy_rule50_root_scores() {
     Syzygy::clear();
 }
 
+// Plays `moves` from `fen`; returns false on the first illegal move.
+static bool play_line(const std::string& fen, const std::vector<Move>& moves, Board& out) {
+    out.set_fen(fen);
+    for (Move m : moves) {
+        MoveList legal;
+        out.gen_legal(legal);
+        bool found = false;
+        for (Move l : legal)
+            found = found || l == m;
+        if (!found)
+            return false;
+        out.make_move(m);
+    }
+    return true;
+}
+
+static bool is_checkmate(const Board& b) {
+    MoveList legal;
+    b.gen_legal(legal);
+    return legal.size() == 0 && b.is_in_check();
+}
+
+static Move uci_move(const Board& b, const char* uci) {
+    MoveList legal;
+    b.gen_legal(legal);
+    for (Move m : legal)
+        if (move_to_uci(m) == uci)
+            return m;
+    return MOVE_NONE;
+}
+
+// 1.10.1: Stockfish-style tablebase PV extension (Syzygy::extend_pv).
+static void test_tablebase_pv_extension() {
+    Syzygy::clear();
+    init_test_syzygy();
+    static const std::string FEN = "6k1/8/8/8/8/8/8/6KQ w - - 0 1";
+    Board root;
+    root.set_fen(FEN);
+    const auto never = [] { return false; };
+
+    begin_section("syzygy pv: extends a one-move line to a legal mate");
+    {
+        auto ranked = Syzygy::probe_root_moves(root, true, 7, true);
+        EXPECT(!ranked.empty());
+        auto ext = Syzygy::extend_pv(root, {ranked.front().bestmove}, true, 7, never);
+        Board end;
+        EXPECT(play_line(FEN, ext.pv, end));
+        EXPECT(is_checkmate(end));
+        // DTZ ranking drives the line: KQvK mates well inside 25 plies, while
+        // equally-ranked "any winning move" play wanders into a repetition.
+        EXPECT(ext.pv.size() <= 25);
+        EXPECT(!ext.timed_out);
+        EXPECT(!ext.ends_in_draw);
+    }
+    end_section();
+
+    begin_section("syzygy pv: an expired time box returns the line unchanged");
+    {
+        const std::vector<Move> line{uci_move(root, "h1h2")};
+        auto ext = Syzygy::extend_pv(root, line, true, 7, [] { return true; });
+        EXPECT(ext.pv == line);
+    }
+    end_section();
+
+    // A searched PV that throws the win away (the queen goes to h7, where the
+    // king takes it) is cut at that move and continued from the position
+    // before it.
+    begin_section("syzygy pv: a line-losing PV move is cut and replaced");
+    {
+        Board b = root;
+        const Move m1 = uci_move(b, "h1h2");
+        b.make_move(m1);
+        const Move m2 = uci_move(b, "g8g7");
+        b.make_move(m2);
+        const Move blunder = uci_move(b, "h2h7");
+        EXPECT(m1 != MOVE_NONE && m2 != MOVE_NONE && blunder != MOVE_NONE);
+        auto ext = Syzygy::extend_pv(root, {m1, m2, blunder}, true, 7, never);
+        EXPECT(ext.pv.size() > 3);
+        EXPECT(ext.pv[0] == m1 && ext.pv[1] == m2 && ext.pv[2] != blunder);
+        Board end;
+        EXPECT(play_line(FEN, ext.pv, end));
+        EXPECT(is_checkmate(end));
+    }
+    end_section();
+
+    Syzygy::clear();
+}
+
 static void test_search_uses_root_tablebase_metadata() {
     Syzygy::clear();
     init_test_syzygy();
@@ -1000,6 +1001,25 @@ static void test_search_uses_root_tablebase_metadata() {
         EXPECT(info_pv_is_legal(FEN, line));
     }
     EXPECT(saw_tb_pv);
+    end_section();
+
+    // No clock: every line is extended, as in Stockfish's analysis mode, so
+    // the last one runs to mate.
+    begin_section("search syzygy: analysis PV is extended to mate");
+    {
+        std::string last;
+        for (const std::string& line : lines)
+            if (line.find(" pv ") != std::string::npos)
+                last = line;
+        std::istringstream in(last.substr(last.find(" pv ") + 4));
+        Board end;
+        end.set_fen(FEN);
+        std::string tok;
+        std::vector<Move> pv;
+        while (in >> tok)
+            pv.push_back(uci_move(end, tok.c_str())), end.make_move(pv.back());
+        EXPECT(is_checkmate(end));
+    }
     end_section();
 
     Syzygy::clear();
@@ -1159,6 +1179,7 @@ int main() {
     test_syzygy_disabled_without_path();
     test_syzygy_probe_limit_and_counts();
     test_syzygy_rule50_root_scores();
+    test_tablebase_pv_extension();
     test_search_uses_root_tablebase_metadata();
 
     std::printf("\nPackaged-FEN legality sweep\n");
