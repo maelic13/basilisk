@@ -27,7 +27,7 @@ and `AGENTS.md` are unchanged.
 | Strength | **+19.18 ± 6.76 Elo** over 1.9.3 at `3+0.03` 1T, H1 accepted at 4,224 games (BAS-E55) |
 | Pool position, `3+0.03` 1T (2026-09-04) | Houdini 1.5a −197, Critter 1.6a −187, Fritz 16 −178, Rybka 4 −84 |
 | Current phase | **1.10.1 ponder-on game gate** (maintainer run), then publish 1.10.1, then **Phase 16 needs planning** |
-| Long job | 1.10.1 ponder-on gate prepared, not started (~1 h) |
+| Long job | 1.10.1 ponder-on gate prepared, not started (~1.5 h) |
 
 ## 2. Operating contract
 
