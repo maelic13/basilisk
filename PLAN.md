@@ -20,14 +20,14 @@ and `AGENTS.md` are unchanged.
 | Item | State |
 |---|---|
 | Latest release | Basilisk **1.10.0**, tagged `v1.10.0` on `master` |
-| Release ready | Basilisk **1.10.1** on `dev` — lost-`ponderhit` fix (BAS-C10); maintainer PR, squash-merge and publish remain |
+| Release ready | Basilisk **1.10.1** on `dev` — lost-`ponderhit` fix (BAS-C10); ponder-on game gate, then maintainer PR, squash-merge and publish |
 | Development branch | `dev`, one release commit ahead of `master` |
 | Bench-13 fingerprint | **14,978,465** (unchanged by 1.10.1); CTest 12/12 release and sanitizer |
 | Previous release | Basilisk 1.9.3; bench 11,941,440 |
 | Strength | **+19.18 ± 6.76 Elo** over 1.9.3 at `3+0.03` 1T, H1 accepted at 4,224 games (BAS-E55) |
 | Pool position, `3+0.03` 1T (2026-09-04) | Houdini 1.5a −197, Critter 1.6a −187, Fritz 16 −178, Rybka 4 −84 |
-| Current phase | **Publish 1.10.1** (maintainer), then **Phase 16 needs planning** |
-| Long job | None |
+| Current phase | **1.10.1 ponder-on game gate** (maintainer run), then publish 1.10.1, then **Phase 16 needs planning** |
+| Long job | 1.10.1 ponder-on gate prepared, not started (~1 h) |
 
 ## 2. Operating contract
 
@@ -135,12 +135,40 @@ its depth cap. Measured and repaired as **BAS-C10** in `EXPERIMENTS.md`.
 | Diagnosis | Reproduced with the 1.10.0 binary on both incident positions (5/5 hangs each) and an ordinary middlegame (4/4); a 100 ms delay before `ponderhit` never hangs. Not position-specific. Unrelated to BAS-E57, whose forfeits were ponder-off. |
 | Repair | `ponderhit` flag owned by the UCI thread: set on `ponderhit`, reset on `go`, never written by the engine thread. The pre-search stale-`stop` reset now re-checks the control epoch so a `stop` received during setup survives. |
 | Qualification | Two new engine tests fail on 1.10.0 and pass on the fix; stale-ponderhit and protocol-ownership tests added. Both incident positions 0/5 hangs after the fix. Release CTest 12/12, ASan/UBSan CTest, ThreadSanitizer on the ponder/threading/protocol tests. Bench **14,978,465** unchanged. |
+| Independent re-verification (2026-09-27) | Fresh PGO build of `d194888` (`basilisk-1.10.1-rc`) and the 1.10.0 release binary both bench **14,978,465**. Release CTest 12/12; ponder/threading/protocol tests 30/30 repeats. Black-box UCI stress, zero delay between commands, 20 trials per scenario: `go ponder` + `ponderhit` (pending hash resize, `ucinewgame`, 6-man Syzygy root, depth cap, plain 4T, plain 1T) **1.10.0 hangs 20/20 in every scenario, 1.10.1 0/20**; `go ponder`/`go infinite` + immediate `stop` and plain `go` 0/20 on both; an 80-move simulated ponder game with random 0–40 ms hit/miss timing 0/80 on 1.10.1. |
 | Release 1.10.1 | Version bumped in both sources of truth; CHANGELOG, HISTORY and this record updated. The maintainer opens the PR, squash-merges `dev` into `master` as `Version 1.10.1` on clean CI, tags `v1.10.1` and publishes (which triggers `release.yml`). |
 
-No strength gate: search and evaluation are bit-identical, and the repair
-changes only when a ponder search learns that `ponderhit` has arrived. An
-optional ponder-on game check on the release assets remains the maintainer's
-call.
+**No Elo SPRT.** Search and evaluation are bit-identical, and every harness
+game Basilisk has played is ponder-off: fastchess has no ponder support. In
+ponder-off play the only changed path, the stop re-check, needs a control
+command to arrive during search setup, which fastchess never sends. A
+ponder-off SPRT between these binaries is therefore a null match that cannot
+fail for any reason connected to this fix.
+
+**Ponder-on game gate (registered 2026-09-27, before any gate games).** The
+deciding gate plays with Ponder on, which the fixed defect lives in.
+`tools/ponder_match.py` is a clocked referee that drives the GUI ponder
+protocol: `go ponder` after each move, then `ponderhit` the instant the
+opponent plays the predicted move, or `stop` followed by a fresh `go`. Setup:
+`basilisk-1.10.1-rc` vs `basilisk-1.10.0-release` (the positive control),
+1,000 games (500 UHO openings, both colours), `10+0.1`, Threads 1, Hash 64,
+Syzygy 3-4-5-6, concurrency 7 (both engines search at once, so 2 cores per
+game), time margin 100 ms, seed 20260927, no adjudication.
+
+- **Pass:** 1.10.1 records zero failures of every kind (forfeit, hang,
+  stop stall, bestmove while pondering, illegal move, crash), **and** 1.10.0
+  records at least one, which proves the run actually offered the race.
+- **Fail:** any 1.10.1 failure blocks the release until it is diagnosed from
+  `failures.txt` and the PGN.
+- **Inconclusive:** both engines are clean. The race was not exercised, so the
+  run is repeated at `--threads 4`; it is not counted as a pass.
+- Elo is reported but does not decide anything, because 1.10.0's forfeits
+  inflate it.
+- **Prediction (frozen):** 1.10.1 records 0 failures (confidence 95%). 1.10.0
+  records tens of forfeits, most after a ponderhit sent within about 1 ms of
+  its `go ponder`: smoke runs gave 1 forfeit in 10 games at `5+0.05`. A
+  1.10.1 failure after a plain `go` would point to host noise or a different
+  defect, not BAS-C10.
 
 ## 4. The next phase is not planned
 
