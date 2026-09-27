@@ -48,7 +48,7 @@ public:
 
     void set_option(const std::string &args);
 
-    void set_position(const std::string &args);
+    bool set_position(const std::string &args);
 
     void set_search_parameters(const std::string &args);
 

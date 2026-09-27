@@ -376,24 +376,24 @@ static void test_default_go_depth_and_syzygy_options() {
     begin_section("parameters: invalid FEN preserves board");
     params.set_position("startpos moves e2e4");
     const std::string after_e4 = params.board.get_fen();
-    params.set_position("fen 8/8/8/8/8/8/8/8 w - - 0 1");
+    EXPECT(!params.set_position("fen 8/8/8/8/8/8/8/8 w - - 0 1"));
     EXPECT_STR(params.board.get_fen(), after_e4);
     end_section();
 
     begin_section("parameters: strict illegal FEN preserves board");
-    params.set_position("fen 4k3/8/8/8/8/8/4R3/4K3 w - - 0 1");
+    EXPECT(!params.set_position("fen 4k3/8/8/8/8/8/4R3/4K3 w - - 0 1"));
     EXPECT_STR(params.board.get_fen(), after_e4);
     end_section();
 
     begin_section("parameters: illegal move list preserves board");
-    params.set_position("startpos");
+    EXPECT(params.set_position("startpos"));
     const std::string start = params.board.get_fen();
-    params.set_position("startpos moves e2e5");
+    EXPECT(!params.set_position("startpos moves e2e5"));
     EXPECT_STR(params.board.get_fen(), start);
     end_section();
 
     begin_section("parameters: partial illegal move list is atomic");
-    params.set_position("startpos moves e2e4 e2e5");
+    EXPECT(!params.set_position("startpos moves e2e4 e2e5"));
     EXPECT_STR(params.board.get_fen(), start);
     end_section();
 

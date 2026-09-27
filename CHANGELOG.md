@@ -49,6 +49,19 @@ search, so games are not move-for-move identical to 1.10.0.
   before the GUI's `readyok`.
 - The KPK endgame table is built at start-up instead of inside the first
   search that reaches a king-and-pawn-versus-king ending (about 10 ms, once).
+
+### Changed
+
+- **A rejected `position` command now ends Basilisk**, as it does Stockfish
+  and Rarog: Basilisk prints the reason and an `info string CRITICAL ERROR`
+  line, then exits with status 1. Previously it kept the previous position
+  and kept running. The next `go` then answered with a move for that previous
+  position, with the same side to move, so a GUI could play it silently in
+  the wrong position. Rejected: malformed commands and FENs, illegal moves in
+  the move list, and illegal positions (wrong number of kings, pawns on the
+  first or last rank, impossible piece counts, the side not to move in check,
+  and, new in 1.10.1, the side to move in check from more than two pieces).
+  Malformed `setoption` input still only produces a warning.
 - A `stop` that arrives while a search is still being set up is now always
   honoured. Previously a narrow window (only reachable when the hash size had
   just changed or after `ucinewgame`) could discard it.

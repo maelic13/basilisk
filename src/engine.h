@@ -3,6 +3,7 @@
 #include <atomic>
 #include <chrono>
 #include <cstdint>
+#include <functional>
 #include <string>
 
 #include "engine_command.h"
@@ -19,6 +20,13 @@ public:
                     std::atomic_uint64_t& control_epoch);
 
     void start();
+
+    // Called when a `position` command is rejected, with the diagnostic line
+    // already written. The default flushes and ends the process with exit
+    // status 1 (Stockfish/Rarog practice). Tests install their own handler;
+    // if it returns, the engine loop ends as if the process had.
+    using FatalHandler = std::function<void(const std::string& message)>;
+    void set_fatal_handler(FatalHandler handler) { fatal_handler_ = std::move(handler); }
 
 private:
     void handle_command(const EngineCommand& command, bool& quit);
@@ -46,5 +54,6 @@ private:
 
     void apply_table_state();
     std::string current_syzygy_path_;
+    FatalHandler fatal_handler_;
 };
 

@@ -20,7 +20,7 @@ and `AGENTS.md` are unchanged.
 | Item | State |
 |---|---|
 | Latest release | Basilisk **1.10.0**, tagged `v1.10.0` on `master` |
-| Release ready | Basilisk **1.10.1** on `dev` — lost-`ponderhit` fix (BAS-C10) and setup-on-the-clock fixes (BAS-C11); ponder-on game gate run 2, then maintainer PR, squash-merge and publish |
+| Release ready | Basilisk **1.10.1** on `dev` — lost-`ponderhit` fix (BAS-C10) and setup-on-the-clock fixes (BAS-C11), fatal rejected `position` (BAS-C12); ponder-on game gate run 2, then maintainer PR, squash-merge and publish |
 | Development branch | `dev`, one release commit ahead of `master` |
 | Bench-13 fingerprint | **14,978,465** (unchanged by 1.10.1); CTest 12/12 release and sanitizer |
 | Previous release | Basilisk 1.9.3; bench 11,941,440 |
@@ -187,16 +187,20 @@ far beyond ~1 ms (1.10.0 hung on ponderhits up to 132 ms late).
 |---|---|
 | Repair (BAS-C11) | Tablebase line extension removed: the searched PV and ponder move are used, and the move played is unchanged. KPK is built at start-up. Hash resize and clear run when `setoption` / `ucinewgame` / `Clear Hash` are processed, before `readyok`, not after `go`. These follow Rarog `9a7b663`. Bench **14,978,465** unchanged. The six losing positions take 3–8 ms of setup (from 95–297 ms); the first KPK search 0.2 ms (from 9.8); Hash 1024 + `ucinewgame` on the first move 0.4 ms (from ~540). |
 | Qualification | Release CTest 12/12 and ASan/UBSan CTest 12/12. Ponder/threading/protocol/search tests pass 20/20 repeats. A new hash-setup test fails on the old code. Zero-delay ponder stress, including a legal 6-man tablebase root: 0 failures on `basilisk-1.10.1-rc2`. |
+| Position policy (BAS-C12) | Maintainer decision 2026-09-27: a rejected `position` exits with status 1 after an `info string CRITICAL ERROR` line. This replaces 8.6.3a's reject-and-retain, under which `go` searched the previous board. Triple check is now rejected. Bench **14,978,465**; release CTest 12/12; ASan/UBSan on the six affected test binaries. Built as `basilisk-1.10.1-rc3`. |
 
 **Ponder-on game gate, run 2 (registered 2026-09-27, before any run-2
 games).** Same instrument, conditions, seed and verdict rules as run 1.
-Candidate `basilisk-1.10.1-rc2` (source revision in its manifest), control
-`basilisk-1.10.0-release`, 1,000 games. Pass requires zero 1.10.1-rc2
+Candidate `basilisk-1.10.1-rc3` (source revision in its manifest), control
+`basilisk-1.10.0-release`, 1,000 games. *Clerical amendment, 2026-09-27,
+before any run-2 game:* the candidate changed from rc2 to rc3 to include
+BAS-C12. rc3 plays identically to rc2 on every position the referee sends,
+because it only ever sends legal positions. Pass requires zero 1.10.1-rc3
 failures of every kind and at least one 1.10.0 failure.
-**Prediction (frozen):** 1.10.1-rc2 records 0 failures (confidence 85%,
+**Prediction (frozen):** 1.10.1-rc3 records 0 failures (confidence 85%,
 lowered after run 1). 1.10.0 records well over 100 failures, almost all in
 5–6-man positions (confidence 90%; run 1 gave ~35 in ~130 games). If
-1.10.1-rc2 fails, the per-failure context in `failures.txt` separates host
+1.10.1-rc3 fails, the per-failure context in `failures.txt` separates host
 noise (overrun after a plain `go` with an ample clock) from a defect.
 
 ## 4. The next phase is not planned

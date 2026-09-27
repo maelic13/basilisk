@@ -393,14 +393,17 @@ void Parameters::set_option(const std::string& args) {
     }
 }
 
-void Parameters::set_position(const std::string& args) {
+// Reject-and-retain: a rejected command reports why and leaves the previous
+// board untouched (never half-applied). Returns false on rejection; what the
+// process does about it is the Engine's policy.
+bool Parameters::set_position(const std::string& args) {
     Board new_board;
     std::istringstream iss(args);
     std::string token;
 
     if (!(iss >> token)) {
         uci_write_line("info string Incorrect position format.");
-        return;
+        return false;
     }
 
     bool moves_section = false;
@@ -408,7 +411,7 @@ void Parameters::set_position(const std::string& args) {
         if (iss >> token) {
             if (token != "moves") {
                 uci_write_line("info string Incorrect position format.");
-                return;
+                return false;
             }
             moves_section = true;
         }
@@ -425,26 +428,27 @@ void Parameters::set_position(const std::string& args) {
 
         if (fen.empty()) {
             uci_write_line("info string Invalid FEN. Missing FEN fields.");
-            return;
+            return false;
         }
 
         if (auto r = new_board.try_set_fen(fen, /*validate_legal_position=*/true); !r) {
             uci_write_line("info string " + r.error());
-            return;
+            return false;
         }
     } else {
         uci_write_line("info string Incorrect position format.");
-        return;
+        return false;
     }
 
     if (moves_section) {
         while (iss >> token) {
             if (!apply_uci_move(new_board, token)) {
                 uci_write_line("info string Illegal move: " + token);
-                return;
+                return false;
             }
         }
     }
 
     board = std::move(new_board);
+    return true;
 }

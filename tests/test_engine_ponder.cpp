@@ -39,6 +39,12 @@ public:
     EngineSession()
         : engine_(queue_, stop_requested_, ponderhit_requested_,
                   searching_, control_epoch_) {
+        // A rejected `position` ends the process in production; here it is
+        // recorded and ends only the engine loop. Installed before the engine
+        // thread starts.
+        engine_.set_fatal_handler([this](const std::string&) {
+            fatal_count_.fetch_add(1, std::memory_order_acq_rel);
+        });
         old_out_ = std::cout.rdbuf(output_.rdbuf());
         thread_ = std::thread(&Engine::start, &engine_);
     }
@@ -128,6 +134,7 @@ private:
     std::streambuf* old_out_ = nullptr;
     std::thread thread_;
     bool joined_ = false;
+    std::atomic_int fatal_count_{0};
 };
 
 void configure_two_threads(EngineSession& session) {

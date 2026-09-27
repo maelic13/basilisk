@@ -81,7 +81,7 @@ Capability tags are advisory routing, not state, evidence or permission.
 | Item | State |
 |---|---|
 | Latest release | Basilisk **1.10.0**, tagged `v1.10.0` on `master` |
-| Release ready | Basilisk **1.10.1** on `dev` — lost-`ponderhit` fix (BAS-C10), setup-on-the-clock fixes (BAS-C11) |
+| Release ready | Basilisk **1.10.1** on `dev` — lost-`ponderhit` fix (BAS-C10), setup-on-the-clock fixes (BAS-C11), fatal rejected `position` (BAS-C12) |
 | Development branch | `dev`, one release commit ahead of `master` |
 | Bench fingerprint | **14,978,465** (unchanged by 1.10.1); CTest 12/12 release and sanitizer |
 | Previous release | Basilisk 1.9.3; bench 11,941,440 |
@@ -115,8 +115,10 @@ Released as 1.10.0. Full summary in `PLAN.md`, measured detail in
 - [x] Repair BAS-C11: no tablebase line extension; KPK built at start-up;
       hash resize and clear done at `setoption`/`ucinewgame`. Bench 14,978,465;
       release and ASan/UBSan CTest 12/12.
-- [ ] Ponder-on game gate, run 2 (`V`, maintainer run, ~1.5 h): 1.10.1-rc2
-      vs 1.10.0, 1,000 games `10+0.1` 1T. Passes only if 1.10.1-rc2 has zero
+- [x] BAS-C12: a rejected `position` exits with status 1 (maintainer
+      decision, replacing 8.6.3a's reject-and-retain); triple check rejected.
+- [ ] Ponder-on game gate, run 2 (`V`, maintainer run, ~1.5 h): 1.10.1-rc3
+      vs 1.10.0, 1,000 games `10+0.1` 1T. Passes only if 1.10.1-rc3 has zero
       failures and 1.10.0 at least one (PLAN "Patch 1.10.1").
 - [ ] Publish (maintainer): PR, squash-merge `dev` into `master` as
       `Version 1.10.1` on clean CI, tag `v1.10.1`, publish the release.

@@ -352,7 +352,25 @@ void Engine::handle_command(const EngineCommand& command, bool& quit) {
             break;
         }
         case EngineCommandType::Position:
-            parameters_.set_position(command.args);
+            // A rejected position is fatal (decided 2026-09-27, replacing the
+            // 8.6.3a reject-and-retain contract). Retaining the old board let
+            // the next `go` answer with a move for the PREVIOUS position --
+            // same side to move, so often legal and silently played wrong.
+            // Stockfish and Rarog exit here; so does Basilisk.
+            if (!parameters_.set_position(command.args)) {
+                const std::string message = "info string CRITICAL ERROR: command `position "
+                                          + command.args + "` was rejected; exiting.";
+                uci_write_line(message);
+                if (fatal_handler_) {
+                    fatal_handler_(message);
+                } else {
+                    std::cout.flush();
+                    // _Exit, not exit: the UCI thread is still blocked reading
+                    // stdin, and exit() would run static destructors under it.
+                    std::_Exit(1);
+                }
+                quit = true;
+            }
             break;
         case EngineCommandType::NewGame:
             parameters_.reset();
