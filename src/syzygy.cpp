@@ -187,7 +187,6 @@ std::vector<Syzygy::RootMoveInfo> collect_root_moves(const Board& board,
         info.score = normalize_root_score(static_cast<int>(tb_move.tbScore),
                                           info.rank, use_rule50);
         info.used_dtz = used_dtz;
-        info.pv.push_back(move);
         out.push_back(std::move(info));
     }
 
@@ -223,10 +222,53 @@ Move root_result_move(const Board& board, unsigned result) {
     return is_legal_root_move(board, move) ? move : MOVE_NONE;
 }
 
+// Stockfish's rank_root_moves with rankDTZ = true: every legal move ranked by
+// DTZ, the side that wins minimising it and the side that loses maximising
+// it, within the same fifty-move bands (Stockfish tbprobe.cpp root_probe).
+// Fathom's root_probe_dtz ranks every clean win equally, so it cannot drive a
+// line towards mate; tb_probe_root's per-move results carry the DTZ that can.
+// Best first; empty when the position cannot be probed or DTZ is missing.
+std::vector<std::pair<Move, int>> rank_moves_by_dtz(const Board& board, int probe_limit);
+
 int effective_probe_limit(int probe_limit) {
     if (probe_limit <= 0)
         return 0;
     return std::min(probe_limit, g_largest.load(std::memory_order_acquire));
+}
+
+std::vector<std::pair<Move, int>> rank_moves_by_dtz(const Board& board, int probe_limit) {
+    if (!Syzygy::can_probe_root(board, probe_limit))
+        return {};
+
+    const TbPosition pos = to_tb_position(board);
+    const int cnt50 = board.rule50_count();
+    unsigned results[TB_MAX_MOVES];
+    const unsigned root = tb_probe_root(pos.white, pos.black, pos.kings, pos.queens,
+                                        pos.rooks, pos.bishops, pos.knights, pos.pawns,
+                                        static_cast<unsigned>(cnt50), 0, pos.ep, pos.turn,
+                                        results);
+    if (root == TB_RESULT_FAILED || root == TB_RESULT_CHECKMATE
+        || root == TB_RESULT_STALEMATE)
+        return {};
+
+    constexpr int MAX_DTZ = 1 << 18;
+    std::vector<std::pair<Move, int>> ranked;
+    for (unsigned i = 0; i < TB_MAX_MOVES && results[i] != TB_RESULT_FAILED; ++i) {
+        const Move move = root_result_move(board, results[i]);
+        if (move == MOVE_NONE)
+            continue;
+        const unsigned wdl = TB_GET_WDL(results[i]);
+        const int dtz = static_cast<int>(TB_GET_DTZ(results[i]));
+        const int v = wdl > TB_DRAW ? dtz : wdl < TB_DRAW ? -dtz : 0;
+        const int rank = v > 0 ? (v + cnt50 <= 99 ? MAX_DTZ - v : MAX_DTZ / 2 - (v + cnt50))
+                       : v < 0 ? (-v * 2 + cnt50 < 100 ? -MAX_DTZ - v
+                                                       : -MAX_DTZ / 2 + (-v + cnt50))
+                       : 0;
+        ranked.emplace_back(move, rank);
+    }
+    std::stable_sort(ranked.begin(), ranked.end(),
+                     [](const auto& a, const auto& b) { return a.second > b.second; });
+    return ranked;
 }
 
 } // namespace
@@ -318,17 +360,19 @@ std::optional<Wdl> probe_wdl(const Board& board, int probe_limit, bool use_rule5
 }
 
 std::vector<RootMoveInfo> probe_root_moves(const Board& board, bool use_rule50,
-                                           int probe_limit, bool rank_dtz) {
+                                           int probe_limit, bool rank_dtz,
+                                           bool find_preferred) {
     if (!can_probe_root(board, probe_limit))
         return {};
 
     const TbPosition pos = to_tb_position(board);
     const unsigned rule50 = use_rule50 ? static_cast<unsigned>(board.rule50_count()) : 0u;
-    const unsigned dtz_best = tb_probe_root(pos.white, pos.black, pos.kings, pos.queens,
-                                            pos.rooks, pos.bishops, pos.knights,
-                                            pos.pawns, rule50, 0, pos.ep, pos.turn,
-                                            nullptr);
-    const Move preferred_move = root_result_move(board, dtz_best);
+    const Move preferred_move = find_preferred
+        ? root_result_move(board, tb_probe_root(pos.white, pos.black, pos.kings, pos.queens,
+                                                pos.rooks, pos.bishops, pos.knights,
+                                                pos.pawns, rule50, 0, pos.ep, pos.turn,
+                                                nullptr))
+        : MOVE_NONE;
 
     TbRootMoves moves{};
     if (rank_dtz) {
@@ -368,35 +412,92 @@ std::optional<RootProbeResult> probe_root(const Board& board, bool use_rule50,
     return result;
 }
 
-std::vector<Move> extend_pv(const Board& root, const std::vector<Move>& initial_pv,
-                            bool use_rule50, int probe_limit, int max_plies) {
+PvExtension extend_pv(const Board& root, const std::vector<Move>& pv, bool use_rule50,
+                      int probe_limit, const std::function<bool()>& time_abort) {
+    PvExtension out;
+    out.pv = pv;
+    if (pv.empty() || time_abort() || !is_legal_root_move(root, pv.front()))
+        return out;
+
+    // Step 0: the root move itself is not corrected.
     Board board = root;
-    std::vector<Move> pv;
-    pv.reserve(static_cast<size_t>(std::max(0, max_plies)));
+    board.make_move(pv.front());
+    out.pv.assign(1, pv.front());
 
-    for (Move move : initial_pv) {
-        if (std::cmp_greater_equal(pv.size(), max_plies) || !is_legal_root_move(board, move))
-            return pv;
-        pv.push_back(move);
-        board.make_move(move);
-        if (board.is_draw())
-            return pv;
+    // Step 1: keep the searched PV while it holds the best tablebase rank.
+    for (size_t i = 1; i < pv.size(); ++i) {
+        const Move move = pv[i];
+        const auto ranked = probe_root_moves(board, use_rule50, probe_limit, true, false);
+        const bool in_tb = !ranked.empty();
+        if (in_tb) {
+            auto it = std::find_if(ranked.begin(), ranked.end(),
+                                   [move](const RootMoveInfo& m) { return m.bestmove == move; });
+            if (it == ranked.end() || it->rank != ranked.front().rank)
+                break;
+        } else if (!is_legal_root_move(board, move)) {
+            break;
+        }
+
+        Board next = board;
+        next.make_move(move);
+        // No repetitions or drawing moves along a PV in tablebase territory.
+        if (in_tb && next.is_draw())
+            break;
+        board = std::move(next);
+        out.pv.push_back(move);
+
+        // Show only a PV validated to the end; stop rather than go unverified.
+        if (in_tb && time_abort())
+            break;
     }
 
-    while (std::cmp_less(pv.size(), max_plies) && can_probe_root(board, probe_limit)) {
-        auto moves = probe_root_moves(board, use_rule50, probe_limit, true);
-        if (moves.empty())
+    // Step 2: extend to mate with minimal-DTZ moves.
+    while (!board.is_draw()) {
+        if (time_abort())
             break;
-        Move move = moves.front().bestmove;
-        if (!is_legal_root_move(board, move))
+
+        MoveList legal;
+        board.gen_legal(legal);
+        if (legal.size() == 0)
+            break;  // mate
+
+        // DTZ is needed to make progress; with WDL only we might never mate.
+        const auto ranked = rank_moves_by_dtz(board, probe_limit);
+        if (ranked.empty())
             break;
-        pv.push_back(move);
-        board.make_move(move);
-        if (board.is_draw())
+
+        Move best = MOVE_NONE;
+        int best_mobility = 0;
+        for (const auto& [move, rank] : ranked) {
+            if (rank != ranked.front().second)
+                break;  // ranked is sorted by rank, best first
+            Board child = board;
+            child.make_move(move);
+            MoveList replies;
+            child.gen_legal(replies);
+            int mobility = 0;
+            for (Move reply : replies) {
+                const bool capture = child.piece_on(to_sq(reply)) != NO_PIECE
+                                  || move_type(reply) == EN_PASSANT;
+                mobility -= capture ? 100 : 1;
+            }
+            if (best == MOVE_NONE || mobility > best_mobility) {
+                best = move;
+                best_mobility = mobility;
+            }
+        }
+        if (best == MOVE_NONE)
             break;
+        board.make_move(best);
+        out.pv.push_back(best);
     }
 
-    return pv;
+    // A decisive score can still end in a fifty-move draw when the position
+    // was reached with a non-optimal counter that DTZ rounding cannot rank
+    // (Stockfish issue 5175); the caller then shows the draw.
+    out.ends_in_draw = use_rule50 && board.rule50_draw();
+    out.timed_out = time_abort();
+    return out;
 }
 
 } // namespace Syzygy

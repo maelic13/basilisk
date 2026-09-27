@@ -231,6 +231,20 @@ static void test_fen_validation() {
                              "4k3/8/8/8/8/8/4R3/4K3 w - - 0 1",
                              true);
 
+    // No legal move gives three checks at once (a discovered double check is
+    // the maximum), so a triple check is an unreachable position.
+    expect_invalid_preserves("triple check rejected",
+                             "4k3/8/3N4/8/B7/8/8/K3R3 b - - 0 1",
+                             true);
+
+    begin_section("double check accepted");
+    {
+        Board dbl;
+        EXPECT(dbl.try_set_fen("4k3/8/3N4/8/8/8/8/K3R3 b - - 0 1", true).has_value());
+        EXPECT(dbl.is_in_check());
+    }
+    end_section();
+
     begin_section("fullmove zero tolerated");
     // (the e6 EP token has no legal capturer, so it normalizes to "-" -- 8.1c)
     const char* fen =

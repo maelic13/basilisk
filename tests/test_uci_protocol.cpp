@@ -154,6 +154,34 @@ static void test_ponderhit_signal() {
     end_section();
 }
 
+static void test_go_resets_ponderhit() {
+    ProtocolRun run = run_protocol(
+        "ponderhit\n"
+        "go ponder depth 1\n"
+        "quit\n",
+        3);
+
+    begin_section("uci protocol: go resets a previous ponderhit");
+    EXPECT(!run.ponderhit_requested);
+    EXPECT(run.commands[0].type == EngineCommandType::PonderHit);
+    EXPECT(run.commands[1].type == EngineCommandType::Go);
+    end_section();
+}
+
+static void test_ponderhit_after_go_ponder_survives() {
+    ProtocolRun run = run_protocol(
+        "go ponder depth 1\n"
+        "ponderhit\n"
+        "quit\n",
+        3);
+
+    begin_section("uci protocol: ponderhit after go ponder is kept");
+    EXPECT(run.ponderhit_requested);
+    EXPECT(run.commands[0].type == EngineCommandType::Go);
+    EXPECT(run.commands[1].type == EngineCommandType::PonderHit);
+    end_section();
+}
+
 static void test_uci_output() {
     ProtocolRun run = run_protocol(
         "uci\n"
@@ -377,6 +405,8 @@ int main() {
 
     std::printf("\nPonderhit\n");
     test_ponderhit_signal();
+    test_go_resets_ponderhit();
+    test_ponderhit_after_go_ponder_survives();
 
     std::printf("\nUCI output\n");
     test_uci_output();

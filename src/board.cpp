@@ -488,6 +488,9 @@ Board::try_set_fen(const std::string& fen, bool validate_legal_position) {
     if (validate_legal_position
         && attackers_to_local(new_king_sq[~new_side_to_move], new_side_to_move))
         return fail("Unsupported position. King can be captured.");
+    if (validate_legal_position
+        && popcount(attackers_to_local(new_king_sq[new_side_to_move], ~new_side_to_move)) > 2)
+        return fail("Unsupported position. Side to move is in check from more than two pieces.");
 
     Key new_hash = 0;
     for (int c = 0; c < NCOLORS; ++c) {

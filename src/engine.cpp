@@ -136,6 +136,61 @@ void Engine::send_bestmove(const SearchResult& result, const Board& root_board) 
     }
 }
 
+// Stockfish-style final tablebase PV (Syzygy::extend_pv): extend the chosen
+// line once, re-send it, and take the ponder move from it. Under a clock or
+// movetime this runs on the engine's clock, so like Stockfish it stops once
+// 2 x elapsed >= Move Overhead: never more than half the overhead the GUI
+// latency reserve already allows. Without a time limit it is unbounded, as in
+// Stockfish's analysis mode.
+void Engine::publish_tablebase_pv(SearchResult& result, const Board& root_board,
+                                  const SearchLimits& limits) const {
+    if (!Syzygy::enabled() || result.bestmove == MOVE_NONE
+        || !is_tablebase_decisive(result.score))
+        return;
+
+    std::vector<Move> line = result.pv;
+    if (line.empty() || line.front() != result.bestmove) {
+        line.assign(1, result.bestmove);
+        if (result.pondermove != MOVE_NONE)
+            line.push_back(result.pondermove);
+    }
+
+    const auto start = std::chrono::steady_clock::now();
+    const bool timed = limits.movetime > 0 || limits.wtime > 0 || limits.btime > 0;
+    const int overhead_ms = limits.overhead;
+    auto time_abort = [&] {
+        if (!timed)
+            return false;
+        const double elapsed_ms = std::chrono::duration<double, std::milli>(
+            std::chrono::steady_clock::now() - start).count();
+        return 2.0 * elapsed_ms >= overhead_ms;
+    };
+
+    Syzygy::PvExtension ext = Syzygy::extend_pv(root_board, line,
+                                                 limits.syzygy_50_move_rule,
+                                                 limits.syzygy_probe_limit, time_abort);
+    if (ext.timed_out)
+        uci_write_line("info string Syzygy based PV extension requires more time, "
+                       "increase Move Overhead as needed.");
+    if (ext.pv == line && !ext.ends_in_draw)
+        return;
+
+    const int score = ext.ends_in_draw ? 0 : result.score;
+    std::string info = "info depth " + std::to_string(result.depth)
+        + " score cp " + std::to_string(score)
+        + " nodes " + std::to_string(result.nodes)
+        + " time " + std::to_string(result.elapsed_ms)
+        + " tbhits " + std::to_string(result.tbhits)
+        + " pv";
+    for (Move m : ext.pv)
+        info += ' ' + move_to_uci(m);
+    uci_write_line(info);
+
+    if (ext.pv.size() > 1)
+        result.pondermove = ext.pv[1];
+    result.pv = std::move(ext.pv);
+}
+
 void Engine::wait_until_bestmove_allowed(const SearchLimits& limits,
                                          uint64_t command_epoch) const {
     if (!limits.ponder && !limits.infinite)
@@ -159,10 +214,7 @@ void Engine::start_search(uint64_t command_epoch,
 
     SearchLimits limits = build_limits();
     limits.go_recv_time = recv_time;
-    const int desired_hash_mb = parameters_.hash_mb;
     const int desired_threads = parameters_.threads;
-    const bool do_clear_hash = parameters_.clear_hash;
-    const bool is_new_game = parameters_.new_game;
     Board board_copy = parameters_.board;
     const bool stop_was_requested = stop_requested_.load(std::memory_order_acquire);
 
@@ -191,16 +243,13 @@ void Engine::start_search(uint64_t command_epoch,
                                }),
                 limits.syzygy_root_moves.end());
         }
-        for (auto& move : limits.syzygy_root_moves) {
-            move.pv = Syzygy::extend_pv(board_copy, {move.bestmove},
-                                        parameters_.syzygy_50_move_rule,
-                                        parameters_.syzygy_probe_limit,
-                                        MAX_PLY / 2);
-        }
+        // No tablebase line is built here. Everything in start_search runs
+        // after `go` (or an early `ponderhit`) and is charged to the clock,
+        // and extending a line for every best-rank move cost 95-285 ms per
+        // move in 5-6-man positions (two full root probes per ply): 1.10.0
+        // and 1.10.1-rc lost on time with 27-630 ms left. The info PV and the
+        // ponder move come from the search.
     }
-
-    parameters_.new_game = false;
-    parameters_.clear_hash = false;
 
     if (command_epoch != 0
         && control_epoch_.load(std::memory_order_acquire) != command_epoch) {
@@ -208,40 +257,41 @@ void Engine::start_search(uint64_t command_epoch,
         return;
     }
 
-    if (desired_hash_mb != current_hash_mb_) {
-        tt_.resize(static_cast<size_t>(desired_hash_mb));
-        current_hash_mb_ = desired_hash_mb;
-    }
-
+    // The hash is sized and cleared when `setoption` / `ucinewgame` is
+    // processed (apply_table_state), before the GUI's `readyok`, never here.
     const int active_threads = search_pool_.resize_threads(desired_threads);
     if (active_threads != desired_threads)
         parameters_.threads = active_threads;
 
-    if (is_new_game || do_clear_hash) {
-        tt_.clear();
-        search_pool_.clear();
-    }
-
     if (stop_was_requested && (limits.infinite || limits.ponder)) {
-        ponderhit_requested_.store(false, std::memory_order_release);
         searching_.store(false, std::memory_order_release);
         send_bestmove(SearchResult{}, board_copy);
         return;
     }
 
-    ponderhit_requested_.store(false, std::memory_order_release);
-    stop_requested_.store(false, std::memory_order_release);
+    // ponderhit_requested_ is deliberately NOT cleared here: UciProtocol::cmdGo
+    // resets it in protocol order, and a ponderhit may already have arrived
+    // during the setup above (see cmdGo).
+    //
+    // A stale stop from the previous search is cleared, but a stop (or any
+    // other control command) received since this `go` must survive: it bumps
+    // the epoch before raising the flag, so re-checking the epoch after the
+    // clear restores it. seq_cst pairs with the UCI-thread side.
+    stop_requested_.store(false, std::memory_order_seq_cst);
+    if (command_epoch != 0
+        && control_epoch_.load(std::memory_order_seq_cst) != command_epoch)
+        stop_requested_.store(true, std::memory_order_seq_cst);
 
     searching_.store(true, std::memory_order_release);
 
     SearchResult result = search_pool_.search(board_copy, limits, active_threads);
     wait_until_bestmove_allowed(limits, command_epoch);
+    publish_tablebase_pv(result, board_copy, limits);
 
     if (command_epoch == 0
         || control_epoch_.load(std::memory_order_acquire) == command_epoch)
         searching_.store(false, std::memory_order_release);
     send_bestmove(result, board_copy);
-    ponderhit_requested_.store(false, std::memory_order_release);
     stop_requested_.store(false, std::memory_order_release);
 }
 
@@ -322,6 +372,24 @@ void Engine::run_perft_command(uint64_t command_epoch) {
     stop_requested_.store(false, std::memory_order_release);
 }
 
+// Put the hash table and search state in the form the next search needs NOW,
+// while no clock is running: a GUI sends `isready` after `setoption` and
+// `ucinewgame`, and readyok waits for this. Done inside start_search, the
+// resize and clear ran after `go` on the engine's clock -- 138 ms at 256 MB,
+// ~550 ms at 1 GB on the first move of every game.
+void Engine::apply_table_state() {
+    if (parameters_.hash_mb != current_hash_mb_) {
+        tt_.resize(static_cast<size_t>(parameters_.hash_mb));
+        current_hash_mb_ = parameters_.hash_mb;
+    }
+    if (parameters_.new_game || parameters_.clear_hash) {
+        tt_.clear();
+        search_pool_.clear();
+        parameters_.new_game = false;
+        parameters_.clear_hash = false;
+    }
+}
+
 void Engine::handle_command(const EngineCommand& command, bool& quit) {
     switch (command.type) {
         case EngineCommandType::SetOption:
@@ -336,13 +404,33 @@ void Engine::handle_command(const EngineCommand& command, bool& quit) {
                                + std::to_string(active_threads)
                                + (active_threads == 1 ? " thread" : " threads"));
             }
+            apply_table_state();
             break;
         }
         case EngineCommandType::Position:
-            parameters_.set_position(command.args);
+            // A rejected position is fatal (decided 2026-09-27, replacing the
+            // 8.6.3a reject-and-retain contract). Retaining the old board let
+            // the next `go` answer with a move for the PREVIOUS position --
+            // same side to move, so often legal and silently played wrong.
+            // Stockfish and Rarog exit here; so does Basilisk.
+            if (!parameters_.set_position(command.args)) {
+                const std::string message = "info string CRITICAL ERROR: command `position "
+                                          + command.args + "` was rejected; exiting.";
+                uci_write_line(message);
+                if (fatal_handler_) {
+                    fatal_handler_(message);
+                } else {
+                    std::cout.flush();
+                    // _Exit, not exit: the UCI thread is still blocked reading
+                    // stdin, and exit() would run static destructors under it.
+                    std::_Exit(1);
+                }
+                quit = true;
+            }
             break;
         case EngineCommandType::NewGame:
             parameters_.reset();
+            apply_table_state();
             break;
         case EngineCommandType::Go:
             parameters_.set_search_parameters(command.args);
@@ -356,10 +444,12 @@ void Engine::handle_command(const EngineCommand& command, bool& quit) {
                 || control_epoch_.load(std::memory_order_acquire) == command.epoch)
                 searching_.store(false, std::memory_order_release);
             stop_requested_.store(false, std::memory_order_release);
-            ponderhit_requested_.store(false, std::memory_order_release);
             break;
         case EngineCommandType::PonderHit:
-            ponderhit_requested_.store(true, std::memory_order_release);
+            // The flag itself is owned by the UCI thread (set on receipt,
+            // reset by the next `go`). This queued copy runs only after the
+            // search it answered has ended, so touching the flag here could
+            // only erase or resurrect it for a later search.
             parameters_.ponder = false;
             break;
         case EngineCommandType::Bench:

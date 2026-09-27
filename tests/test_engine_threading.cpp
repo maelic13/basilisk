@@ -9,6 +9,7 @@
 #include "bitboard.h"
 #include "eval.h"
 #include "test_harness.h"
+#include "syzygy_fixture.h"
 #include "zobrist.h"
 
 #include <algorithm>
@@ -52,6 +53,12 @@ public:
     EngineSession()
         : engine_(queue_, stop_requested_, ponderhit_requested_,
                   searching_, control_epoch_) {
+        // A rejected `position` ends the process in production; here it is
+        // recorded and ends only the engine loop. Installed before the engine
+        // thread starts.
+        engine_.set_fatal_handler([this](const std::string&) {
+            fatal_count_.fetch_add(1, std::memory_order_acq_rel);
+        });
         old_out_ = std::cout.rdbuf(output_.rdbuf());
         thread_ = std::thread(&Engine::start, &engine_);
     }
@@ -116,6 +123,16 @@ public:
         return count_bestmove_lines(output()) >= expected;
     }
 
+    int fatal_count() const { return fatal_count_.load(std::memory_order_acquire); }
+
+    bool wait_for_fatal(int timeout_ms) const {
+        const auto deadline = std::chrono::steady_clock::now()
+                            + std::chrono::milliseconds(timeout_ms);
+        while (fatal_count() == 0 && std::chrono::steady_clock::now() < deadline)
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        return fatal_count() > 0;
+    }
+
     bool wait_for_fragment(const std::string& fragment, int timeout_ms) const {
         const auto deadline = std::chrono::steady_clock::now()
                             + std::chrono::milliseconds(timeout_ms);
@@ -138,6 +155,7 @@ private:
     std::streambuf* old_out_ = nullptr;
     std::thread thread_;
     bool joined_ = false;
+    std::atomic_int fatal_count_{0};
 };
 
 void test_threads_setoption_resizes_before_ready() {
@@ -309,39 +327,32 @@ void test_go_searchmoves_restricts_root_move() {
 } // namespace
 
 // ---------------------------------------------------------------------------
-// 8.6.3a: malformed-input survival contract at the ENGINE level.
+// 8.6.3a: malformed-input contract at the ENGINE level.
 //
-// Contract decision recorded 2026-07-20 (Rarog 9.5-A style; its 11-engine
-// survey): current Stockfish dev exits(1)+diagnostic on both a bad FEN and an
-// illegal move in `moves` — the reference implementation is tightening — but
-// we deliberately stay with REJECT-AND-RETAIN (majority practice: Critter,
-// SaberTooth, Hydra, us): print an info string, keep the previous valid
-// board, keep answering. Residual risk, on record: a GUI that ignores the
-// info string gets a legal move for the PREVIOUS board. Any flip to
-// SF-style hard-exit must be a deliberate decision that changes this test,
-// never a silent change.
+// Recorded 2026-07-20 as reject-and-retain for every command: print an info
+// string, keep the previous valid board, keep answering. REVISED 2026-09-27
+// (1.10.1, maintainer decision) for `position` only: a rejected position is
+// FATAL -- CRITICAL ERROR line, exit status 1 -- as in Stockfish and Rarog.
+// The retained board made the next `go` answer with a move for the PREVIOUS
+// position; the side to move is the same, so that move was often legal and
+// silently played wrong. Malformed `setoption` input still survives.
 // ---------------------------------------------------------------------------
 
 void test_malformed_input_survival() {
-    begin_section("engine: survives garbage input, answers, retains board");
+    begin_section("engine: survives malformed setoption, answers, keeps board");
     {
         EngineSession session;
         session.position("startpos");
-        session.position("fen not-a-fen at all");           // garbage FEN
-        session.position("fen");                             // bare `position fen`
-        session.position("");                                // no args at all
-        session.position("kentucky");                        // unknown sub-token
-        session.position("startpos moves e2e5");             // illegal move
         session.set_option("name NoSuchOption value 42");    // unknown option
         session.set_option("garbage without name token");    // malformed setoption
         session.set_option("name Hash");                     // missing value
-        session.sync();                                      // isready → must return
+        session.sync();                                      // isready -> must return
 
         session.go("depth 1");
         EXPECT(session.wait_for_bestmoves(1, 5000));
 
-        // The retained board must be the STARTING position: the bestmove has
-        // to be one of the 20 legal startpos moves.
+        // The board is the STARTING position: the bestmove has to be one of
+        // the 20 legal startpos moves.
         Board b;
         MoveList legal;
         b.gen_legal(legal);
@@ -357,10 +368,102 @@ void test_malformed_input_survival() {
             if (move_to_uci(m).rfind(bm, 0) == 0) { found = true; break; }
         EXPECT(!bm.empty());
         EXPECT(found);
-        // And the rejections were reported, not swallowed silently.
         EXPECT(contains_line_fragment(out, "info string"));
+        EXPECT_EQ(session.fatal_count(), 0);
     }
     end_section();
+
+    const char* rejected[] = {
+        "fen not-a-fen at all",                          // garbage FEN
+        "fen",                                           // bare `position fen`
+        "",                                              // no args at all
+        "kentucky",                                      // unknown sub-token
+        "startpos moves e2e5",                           // illegal move
+        "startpos moves e2e4 e2e5",                      // legal prefix, then illegal
+        "fen 8/8/8/4k3/8/2BB4/4P3/4K3 w - - 0 1",        // side not to move in check
+        "fen 4k3/8/3N4/8/B7/8/8/K3R3 b - - 0 1",         // triple check
+    };
+    for (const char* args : rejected) {
+        const std::string label = std::string("engine: rejected position is fatal: `") + args + "`";
+        begin_section(label.c_str());
+        EngineSession session;
+        session.position("startpos");
+        session.position(args);
+        session.go("depth 1");                           // must never be answered
+        EXPECT(session.wait_for_fatal(5000));
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        const std::string out = session.output();
+        EXPECT(contains_line_fragment(out, "CRITICAL ERROR"));
+        EXPECT_EQ(count_bestmove_lines(out), 0);
+        end_section();
+    }
+}
+
+// 1.10.1: under a clock the final line is extended once (Engine), within
+// half the Move Overhead, re-sent as its own info line (no seldepth) and the
+// ponder move taken from it. With Move Overhead 0 the box is already spent.
+void test_final_tablebase_pv() {
+    const std::string path = syzygy_fixture_path().string();
+    const std::string fen = "6k1/8/8/8/8/8/8/6KQ w - - 0 1";
+
+    auto run = [&](int overhead, std::string& final_line, std::string& bestmove) {
+        EngineSession session;
+        session.set_option("name SyzygyPath value " + path);
+        session.set_option("name Move Overhead value " + std::to_string(overhead));
+        session.position("fen " + fen);
+        session.sync();
+        session.go("depth 2 wtime 60000 btime 60000");
+        EXPECT(session.wait_for_bestmoves(1, 10000));
+        std::istringstream input(session.output());
+        std::string line;
+        while (std::getline(input, line)) {
+            if (line.rfind("info depth", 0) == 0 && line.find(" seldepth ") == std::string::npos)
+                final_line = line;
+            if (line.rfind("bestmove", 0) == 0)
+                bestmove = line;
+        }
+    };
+
+    begin_section("engine tb pv: final line extended to mate, ponder from it");
+    {
+        std::string final_line, bestmove;
+        run(1000, final_line, bestmove);
+        EXPECT(!final_line.empty());
+        std::istringstream pv(final_line.substr(final_line.find(" pv ") + 4));
+        Board b;
+        b.set_fen(fen);
+        std::string tok;
+        std::vector<std::string> moves;
+        bool legal = true;
+        while (pv >> tok) {
+            MoveList list;
+            b.gen_legal(list);
+            Move found = MOVE_NONE;
+            for (Move m : list)
+                if (move_to_uci(m) == tok) found = m;
+            legal = legal && found != MOVE_NONE;
+            if (found == MOVE_NONE) break;
+            b.make_move(found);
+            moves.push_back(tok);
+        }
+        MoveList replies;
+        b.gen_legal(replies);
+        EXPECT(legal);
+        EXPECT(replies.size() == 0 && b.is_in_check());
+        EXPECT(moves.size() > 1);
+        EXPECT(moves.size() > 1 && bestmove == "bestmove " + moves[0] + " ponder " + moves[1]);
+    }
+    end_section();
+
+    begin_section("engine tb pv: Move Overhead 0 leaves no time to extend");
+    {
+        std::string final_line, bestmove;
+        run(0, final_line, bestmove);
+        EXPECT(final_line.empty());
+        EXPECT(!bestmove.empty());
+    }
+    end_section();
+    Syzygy::clear();
 }
 
 int main() {
@@ -386,6 +489,7 @@ int main() {
 
     std::printf("\nMalformed-input survival (8.6.3a)\n");
     test_malformed_input_survival();
+    test_final_tablebase_pv();
 
     return harness_summary();
 }

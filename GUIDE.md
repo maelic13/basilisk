@@ -1,9 +1,9 @@
 # Basilisk development guide
 
-**Phase 15 is complete and 1.10.0 is released** — `master` carries the
-`Version 1.10.0` commit tagged `v1.10.0`. **The next phase is not planned
-yet**; `PLAN.md` section 4 says how to plan it. The archived board with
-Phases 1–14 is at
+**Phase 15 is complete and 1.10.1 is released** — `master` carries the
+`Version 1.10.1` commit tagged `v1.10.1`, a correctness patch on 1.10.0
+(bench unchanged). **The next phase is not planned yet**; `PLAN.md` section 4
+says how to plan it. The archived board with Phases 1–14 is at
 [docs/archive/GUIDE-2026-09-09.md](docs/archive/GUIDE-2026-09-09.md).
 
 ## How to work with the engine agent
@@ -78,11 +78,11 @@ Capability tags are advisory routing, not state, evidence or permission.
 
 | Item | State |
 |---|---|
-| Latest release | Basilisk **1.10.0**, tagged `v1.10.0` on `master` |
+| Latest release | Basilisk **1.10.1**, tagged `v1.10.1` on `master` — BAS-C10 to BAS-C13 |
 | Development branch | `dev`, level with the release |
-| Bench fingerprint | **14,978,465**; CTest 12/12 release and sanitizer |
-| Previous release | Basilisk 1.9.3; bench 11,941,440 |
-| Strength | **+19.18 ± 6.76 Elo** over 1.9.3 at `3+0.03` 1T (BAS-E55) |
+| Bench fingerprint | **14,978,465** (unchanged since 1.10.0); CTest 12/12 release and sanitizer |
+| Previous release | Basilisk 1.10.0; same bench |
+| Strength | **+19.18 ± 6.76 Elo** for 1.10.0 over 1.9.3 at `3+0.03` 1T (BAS-E55); 1.10.1 bench-identical |
 | Current step | **None — Phase 16 needs planning** (`PLAN.md` section 4) |
 | Long job | None |
 
@@ -96,3 +96,30 @@ deterministically (CTest release + sanitizer, perft, invariants, ISA); and
 passed the release gate at **+19.18 ± 6.76 Elo** over 1.9.3 (BAS-E55).
 Released as 1.10.0. Full summary in `PLAN.md`, measured detail in
 `EXPERIMENTS.md`.
+
+## Patch 1.10.1 — time forfeits and position handling (released)
+
+- [x] Diagnose the two ponder-on forfeits: `ponderhit` reset by the engine
+      thread during search setup after an instant opponent reply (BAS-C10).
+- [x] Repair: UCI thread owns the flag (set on `ponderhit`, reset on `go`);
+      stale-`stop` reset re-checks the control epoch. Bench 14,978,465.
+- [x] Qualify: new tests fail on 1.10.0 and pass; release CTest 12/12,
+      ASan/UBSan CTest, TSan on ponder/threading/protocol tests.
+- [x] Release prep: version 1.10.1, CHANGELOG, PLAN, GUIDE, HISTORY.
+- [x] Ponder-on game gate, run 1: FAIL at ~130 games. The control fired
+      (1.10.0 hung ~35 times), but 1.10.1-rc lost 4 games on time in 5-6-man
+      positions. Diagnosed as a separate, older defect (BAS-C11).
+- [x] Repair BAS-C11: no tablebase line extension; KPK built at start-up;
+      hash resize and clear done at `setoption`/`ucinewgame`. Bench 14,978,465;
+      release and ASan/UBSan CTest 12/12.
+- [x] BAS-C13: tablebase PV lines restored the Stockfish way. Final line
+      time-boxed at half of Move Overhead, analysis lines unbounded, DTZ-ranked
+      Step 2. Bench 14,978,465; 200-game ponder smoke run 0 failures.
+- [x] BAS-C12: a rejected `position` exits with status 1 (maintainer
+      decision, replacing 8.6.3a's reject-and-retain); triple check rejected.
+- [x] Ponder-on game gate, run 2: PASS. 1,005 games at `3+0.03` 1T
+      (maintainer's time control, stopped at the registered 1,000): 1.10.1-rc3
+      had 0 failures, 1.10.0 had 263 time losses, all in positions of 6 men
+      or fewer.
+- [x] Publish: `dev` squash-merged into `master` as `Version 1.10.1`,
+      tagged `v1.10.1`, released 2026-09-27.

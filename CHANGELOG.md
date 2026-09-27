@@ -12,6 +12,93 @@ and next step).
 
 ---
 
+## [1.10.1] - 2026-09-27
+
+A correctness release. It fixes time losses with pondering enabled, and in
+tablebase endgames or on the first move of a game even without it. It also
+makes a rejected `position` command fatal instead of silently playing on from
+the wrong position. Search and evaluation are unchanged from 1.10.0 and the
+`bench` fingerprint stays **14,978,465**. Basilisk now spends less of its
+clock on work before each search, so games are not move-for-move identical
+to 1.10.0.
+
+### Fixed
+
+- **Time forfeit after an instant opponent reply while pondering.** If the
+  opponent answered within a few milliseconds of Basilisk's `go ponder`, the
+  GUI's `ponderhit` could arrive while Basilisk was still setting up the
+  ponder search, and that setup then discarded it. The search went on
+  pondering with no clock — or, once it reached its depth limit, waited for a
+  `ponderhit` it had already thrown away — until the GUI flagged it. This cost
+  two games in a 120+1, four-thread tournament, one of them from a position
+  with a forced mate in three. It can happen in any position, but was far
+  likelier in tablebase endgames, where the setup took up to ~300 ms (see
+  below). `ponderhit` now always takes effect, however soon it follows
+  `go ponder`.
+- **Time forfeit in tablebase endgames at low clock.** With `SyzygyPath` set,
+  Basilisk built a full tablebase line for every winning root move before
+  starting each search, costing 95-300 ms per move in 5-6-man positions and
+  charged to Basilisk's clock. With under ~0.6 s left this lost on time
+  outright, with or without pondering (4 losses in 130 ponder-on test games at
+  `10+0.1`). That setup now takes 3-8 ms, the same as without tablebases, and
+  the move played is chosen exactly as before.
+
+  Tablebase lines are still shown, now built the way Stockfish builds them.
+  The searched line is kept for as long as it holds the tablebase result, then
+  continued to mate with minimal-DTZ moves, and the ponder move comes from it.
+  In games only the final line is extended, once per move and within half of
+  `Move Overhead`: 1-6 ms per tablebase move at the default of 10 ms. If that
+  is not enough, an `info string` suggests raising `Move Overhead`. In
+  analysis, with no clock, every line is extended.
+- **Hash allocation and clearing are no longer charged to the first move.**
+  A new `Hash` size and `ucinewgame` / `Clear Hash` were applied inside the
+  next search, after `go`: about 140 ms of the first move at 256 MB and 550 ms
+  at 1 GB. They are now applied when the command is received, so they finish
+  before the GUI's `readyok`.
+- The KPK endgame table is built at start-up instead of inside the first
+  search that reaches a king-and-pawn-versus-king ending (about 10 ms, once).
+
+### Changed
+
+- **A rejected `position` command now ends Basilisk**, as it does Stockfish
+  and Rarog: Basilisk prints the reason and an `info string CRITICAL ERROR`
+  line, then exits with status 1. Previously it kept the previous position
+  and kept running. The next `go` then answered with a move for that previous
+  position, with the same side to move, so a GUI could play it silently in
+  the wrong position. Rejected: malformed commands and FENs, illegal moves in
+  the move list, and illegal positions (wrong number of kings, pawns on the
+  first or last rank, impossible piece counts, the side not to move in check,
+  and, new in 1.10.1, the side to move in check from more than two pieces).
+  Malformed `setoption` input still only produces a warning.
+- A `stop` that arrives while a search is still being set up is now always
+  honoured. Previously a narrow window (only reachable when the hash size had
+  just changed or after `ucinewgame`) could discard it.
+
+### Tests
+
+- Added engine-level regression tests that send `ponderhit` immediately after
+  `go ponder`, with a clock and with a depth-limited ponder search; both fail
+  on 1.10.0. Added coverage that a `ponderhit` from a previous search cannot
+  end the next ponder search, and protocol tests that `go` resets a previous
+  `ponderhit` while a `ponderhit` after `go ponder` is kept.
+- Added a test that the first search after `setoption name Hash` and
+  `ucinewgame` does not pay for the table (fails on 1.10.0), and updated the
+  tablebase search test to the searched PV.
+- Added tests that a tablebase PV is extended to a legal mate, that a
+  searched PV move throwing the win away is cut and replaced, that the time
+  box returns the line unchanged when it has expired, and, at engine level,
+  that the final line and ponder move are extended in a timed search but not
+  with `Move Overhead` 0.
+- Added tests that every form of rejected `position` ends the engine without
+  a `bestmove`, that malformed `setoption` input is still survived, and that a
+  triple check is rejected while a legal double check is accepted.
+- Added `tools/ponder_match.py`, a clocked match runner that plays with
+  pondering on (fastchess cannot). 1.10.1 passed its release gate with it:
+  1,005 games against 1.10.0 at `3+0.03`, with no failures for 1.10.1 and
+  263 time losses for 1.10.0.
+
+---
+
 ## [1.10.0] - 2026-09-10
 
 A strength release bundling the 2026 endgame and hand-crafted-evaluation line
@@ -1191,6 +1278,8 @@ First public release.
 - `bench [depth]` command — 16-position built-in benchmark, prints per-position NPS and total node-count fingerprint
 - GitHub Actions release workflow — builds for Linux x86_64, Linux aarch64, Windows x86_64, Windows aarch64, macOS aarch64; all built with Clang; PEXT variant produced for x86_64 platforms
 
+[1.10.1]: https://github.com/maelic13/basilisk/compare/v1.10.0...v1.10.1
+[1.10.0]: https://github.com/maelic13/basilisk/compare/v1.9.3...v1.10.0
 [1.9.3]: https://github.com/maelic13/basilisk/compare/v1.9.2...v1.9.3
 [1.9.2]: https://github.com/maelic13/basilisk/compare/v1.9.1...v1.9.2
 [1.9.1]: https://github.com/maelic13/basilisk/compare/v1.9.0...v1.9.1
