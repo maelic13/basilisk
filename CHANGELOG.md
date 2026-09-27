@@ -14,11 +14,13 @@ and next step).
 
 ## [1.10.1] - 2026-09-27
 
-A bug-fix release for time losses: with pondering enabled, and in
-tablebase endgames or on the first move of a game even without it. Search
-and evaluation are unchanged from 1.10.0 and the `bench` fingerprint stays
-**14,978,465**. Basilisk now spends less of its clock on work before each
-search, so games are not move-for-move identical to 1.10.0.
+A correctness release. It fixes time losses with pondering enabled, and in
+tablebase endgames or on the first move of a game even without it. It also
+makes a rejected `position` command fatal instead of silently playing on from
+the wrong position. Search and evaluation are unchanged from 1.10.0 and the
+`bench` fingerprint stays **14,978,465**. Basilisk now spends less of its
+clock on work before each search, so games are not move-for-move identical
+to 1.10.0.
 
 ### Fixed
 
@@ -76,8 +78,13 @@ search, so games are not move-for-move identical to 1.10.0.
 - Added a test that the first search after `setoption name Hash` and
   `ucinewgame` does not pay for the table (fails on 1.10.0), and updated the
   tablebase search test to the searched PV.
+- Added tests that every form of rejected `position` ends the engine without
+  a `bestmove`, that malformed `setoption` input is still survived, and that a
+  triple check is rejected while a legal double check is accepted.
 - Added `tools/ponder_match.py`, a clocked match runner that plays with
-  pondering on (fastchess cannot), for the release gate.
+  pondering on (fastchess cannot). 1.10.1 passed its release gate with it:
+  1,005 games against 1.10.0 at `3+0.03`, with no failures for 1.10.1 and
+  263 time losses for 1.10.0.
 
 ---
 

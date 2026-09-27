@@ -23,7 +23,7 @@ from a chess GUI or an engine-testing tool.
   material imbalance, and endgame knowledge including an exact KPK bitbase and
   KBNK mating technique.
 - **Syzygy tablebases** — optional endgame tablebase probing, both in-search and
-  at the root, with tablebase moves ranked and tablebase lines shown in the PV.
+  at the root, where the tablebase filters and ranks the root moves.
 - **Careful time management** — handles increments, `movestogo` and GUI latency,
   and spends longer on unstable positions than on obvious moves.
 - **Pondering** — thinks on the opponent's clock when the GUI enables it.
@@ -87,9 +87,8 @@ Cutechess, ChessBase/Fritz, Banksia and others.
 
 `SyzygyPath` accepts several folders separated by `;` on Windows or `:`
 elsewhere. With tablebases enabled, Basilisk ranks the root moves from the
-tablebase, reports bounded tablebase scores, extends `info … pv` lines with the
-tablebase continuation, and counts resolved positions in `tbhits`. Playing
-strength with an empty path is unchanged.
+tablebase, reports bounded tablebase scores, and counts resolved positions in
+`tbhits`. Playing strength with an empty path is unchanged.
 
 ### Supported commands
 
@@ -99,6 +98,12 @@ strength with an empty path is unchanged.
 `go` supports `depth`, `nodes`, `movetime`, `wtime`, `btime`, `winc`, `binc`,
 `movestogo`, `mate`, `searchmoves`, `ponder`, `perft` and `infinite`. A bare
 `go` searches to depth 7.
+
+A `position` command that Basilisk cannot accept is fatal. That covers a
+malformed command or FEN, an illegal position, and an illegal move in the move
+list. Basilisk prints the reason and an `info string CRITICAL ERROR` line, then
+exits with status 1, rather than play on from a position the GUI did not
+mean.
 
 ---
 

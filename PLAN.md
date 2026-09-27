@@ -1,11 +1,10 @@
 # Basilisk development plan
 
-Phase 15 is complete and **1.10.0 is released**: the board-correctness defects
-a peer audit demonstrated are repaired or documented, the release gate passed,
-and `master` carries the `Version 1.10.0` commit tagged `v1.10.0`.
-**1.10.1 is release-ready on `dev`** — a ponder-protocol bug fix, bench
-unchanged (see "Patch 1.10.1" below). **The next phase is not yet planned** —
-see section 4.
+Phase 15 is complete and **1.10.1 is released**: `master` carries the
+`Version 1.10.1` commit tagged `v1.10.1`. It is a correctness patch on the
+Phase 15 strength release 1.10.0, with time-forfeit and position-handling
+fixes and bench unchanged (see "Patch 1.10.1" below). **The next phase is not
+yet planned** — see section 4.
 
 The previous roadmap (Phases 5–14, endgame maturity through NNUE) is archived
 verbatim at
@@ -19,14 +18,13 @@ and `AGENTS.md` are unchanged.
 
 | Item | State |
 |---|---|
-| Latest release | Basilisk **1.10.0**, tagged `v1.10.0` on `master` |
-| Release ready | Basilisk **1.10.1** on `dev` — lost-`ponderhit` fix (BAS-C10) and setup-on-the-clock fixes (BAS-C11), fatal rejected `position` (BAS-C12); ponder-on gate PASSED; maintainer PR, squash-merge and publish remain |
-| Development branch | `dev`, one release commit ahead of `master` |
-| Bench-13 fingerprint | **14,978,465** (unchanged by 1.10.1); CTest 12/12 release and sanitizer |
-| Previous release | Basilisk 1.9.3; bench 11,941,440 |
-| Strength | **+19.18 ± 6.76 Elo** over 1.9.3 at `3+0.03` 1T, H1 accepted at 4,224 games (BAS-E55) |
+| Latest release | Basilisk **1.10.1**, tagged `v1.10.1` on `master` — time-forfeit and position-handling fixes (BAS-C10, BAS-C11, BAS-C12) |
+| Development branch | `dev`, level with the release |
+| Bench-13 fingerprint | **14,978,465** (unchanged since 1.10.0); CTest 12/12 release and sanitizer |
+| Previous release | Basilisk 1.10.0; same bench |
+| Strength | **+19.18 ± 6.76 Elo** for 1.10.0 over 1.9.3 at `3+0.03` 1T, H1 accepted at 4,224 games (BAS-E55); 1.10.1 is bench-identical to 1.10.0 |
 | Pool position, `3+0.03` 1T (2026-09-04) | Houdini 1.5a −197, Critter 1.6a −187, Fritz 16 −178, Rybka 4 −84 |
-| Current phase | **Publish 1.10.1** (maintainer), then **Phase 16 needs planning** |
+| Current phase | **None — Phase 16 needs planning** |
 | Long job | None |
 
 ## 2. Operating contract
@@ -121,7 +119,7 @@ Two standing lessons came out of this phase and are recorded in
   "may this piece recapture?", the other "is this square controlled?". A single
   attacker set cannot serve both.
 
-## Patch 1.10.1 — lost `ponderhit` (release ready)
+## Patch 1.10.1 — time forfeits and position handling (released)
 
 Two time forfeits by 1.10.0 in a `120+1` four-thread Colosseum tournament with
 ponder on — one from a position with mate in 3 — had one cause: when the
@@ -136,7 +134,7 @@ its depth cap. Measured and repaired as **BAS-C10** in `EXPERIMENTS.md`.
 | Repair | `ponderhit` flag owned by the UCI thread: set on `ponderhit`, reset on `go`, never written by the engine thread. The pre-search stale-`stop` reset now re-checks the control epoch so a `stop` received during setup survives. |
 | Qualification | Two new engine tests fail on 1.10.0 and pass on the fix; stale-ponderhit and protocol-ownership tests added. Both incident positions 0/5 hangs after the fix. Release CTest 12/12, ASan/UBSan CTest, ThreadSanitizer on the ponder/threading/protocol tests. Bench **14,978,465** unchanged. |
 | Independent re-verification (2026-09-27) | Fresh PGO build of `d194888` (`basilisk-1.10.1-rc`) and the 1.10.0 release binary both bench **14,978,465**. Release CTest 12/12; ponder/threading/protocol tests 30/30 repeats. Black-box UCI stress, zero delay between commands, 20 trials per scenario: `go ponder` + `ponderhit` (pending hash resize, `ucinewgame`, 6-man Syzygy root, depth cap, plain 4T, plain 1T) **1.10.0 hangs 20/20 in every scenario, 1.10.1 0/20**; `go ponder`/`go infinite` + immediate `stop` and plain `go` 0/20 on both; an 80-move simulated ponder game with random 0–40 ms hit/miss timing 0/80 on 1.10.1. **Clerical correction (2026-09-27):** the "6-man Syzygy root" position used was illegal (the side not to move was in check), so it never exercised tablebases. Rerun on the legal `k7/8/8/8/8/2BB4/4P3/4K3 w`: 1.10.0 hangs 10/10 with a clock and 10/10 at a depth cap; rc2 0/10. |
-| Release 1.10.1 | Version bumped in both sources of truth; CHANGELOG, HISTORY and this record updated. The maintainer opens the PR, squash-merges `dev` into `master` as `Version 1.10.1` on clean CI, tags `v1.10.1` and publishes (which triggers `release.yml`). |
+| Release 1.10.1 | Released 2026-09-27. The version is bumped in both sources of truth, and CHANGELOG, README, HISTORY and this record are updated. `dev` is squash-merged into `master` as `Version 1.10.1`, tagged `v1.10.1`, and published by `release.yml`. |
 
 **No Elo SPRT.** Search and evaluation are bit-identical, and every harness
 game Basilisk has played is ponder-off: fastchess has no ponder support. In
