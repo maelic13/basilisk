@@ -916,7 +916,6 @@ static void test_syzygy_probe_limit_and_counts() {
     EXPECT(!moves.empty());
     EXPECT(moves.front().bestmove != MOVE_NONE);
     EXPECT(moves.front().score == tablebaseWinScore);
-    EXPECT(!moves.front().pv.empty());
     end_section();
 
     Syzygy::clear();
@@ -967,8 +966,6 @@ static void test_search_uses_root_tablebase_metadata() {
     Board board;
     board.set_fen(FEN);
     auto root_moves = Syzygy::probe_root_moves(board, true, 7, true);
-    for (auto& move : root_moves)
-        move.pv = Syzygy::extend_pv(board, {move.bestmove}, true, 7, 32);
 
     TranspositionTable tt(4);
     std::atomic_bool stop{false};
@@ -989,11 +986,15 @@ static void test_search_uses_root_tablebase_metadata() {
     EXPECT(result.tbhits > 0);
     end_section();
 
-    begin_section("search syzygy: emits legal expanded TB PV");
+    // The PV at a tablebase root is the searched line (no per-move tablebase
+    // line is built during setup any more), so it runs past the root move.
+    begin_section("search syzygy: emits the legal searched PV at a TB root");
     bool saw_tb_pv = false;
     for (const std::string& line : lines) {
+        const size_t pv = line.find(" pv ");
         if (line.find("score cp 20000") != std::string::npos
-            && line.find(" pv ") != std::string::npos) {
+            && pv != std::string::npos
+            && line.find(' ', pv + 4) != std::string::npos) {
             saw_tb_pv = true;
         }
         EXPECT(info_pv_is_legal(FEN, line));

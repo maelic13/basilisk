@@ -187,7 +187,6 @@ std::vector<Syzygy::RootMoveInfo> collect_root_moves(const Board& board,
         info.score = normalize_root_score(static_cast<int>(tb_move.tbScore),
                                           info.rank, use_rule50);
         info.used_dtz = used_dtz;
-        info.pv.push_back(move);
         out.push_back(std::move(info));
     }
 
@@ -366,37 +365,6 @@ std::optional<RootProbeResult> probe_root(const Board& board, bool use_rule50,
     result.rank = moves.front().rank;
     result.used_dtz = moves.front().used_dtz;
     return result;
-}
-
-std::vector<Move> extend_pv(const Board& root, const std::vector<Move>& initial_pv,
-                            bool use_rule50, int probe_limit, int max_plies) {
-    Board board = root;
-    std::vector<Move> pv;
-    pv.reserve(static_cast<size_t>(std::max(0, max_plies)));
-
-    for (Move move : initial_pv) {
-        if (std::cmp_greater_equal(pv.size(), max_plies) || !is_legal_root_move(board, move))
-            return pv;
-        pv.push_back(move);
-        board.make_move(move);
-        if (board.is_draw())
-            return pv;
-    }
-
-    while (std::cmp_less(pv.size(), max_plies) && can_probe_root(board, probe_limit)) {
-        auto moves = probe_root_moves(board, use_rule50, probe_limit, true);
-        if (moves.empty())
-            break;
-        Move move = moves.front().bestmove;
-        if (!is_legal_root_move(board, move))
-            break;
-        pv.push_back(move);
-        board.make_move(move);
-        if (board.is_draw())
-            break;
-    }
-
-    return pv;
 }
 
 } // namespace Syzygy

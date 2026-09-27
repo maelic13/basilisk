@@ -1231,12 +1231,6 @@ void Searcher::send_info(int depth, int score, int64_t total_nodes, double elaps
         }
 
         if (!pv_moves.empty()) {
-            std::vector<Move> tb_pv = root_tablebase_pv(pv_moves.front());
-            if (!tb_pv.empty())
-                pv_moves = std::move(tb_pv);
-        }
-
-        if (!pv_moves.empty()) {
             line += " pv";
             for (Move pv_move : pv_moves)
                 line += ' ' + move_to_uci(pv_move);
@@ -1270,14 +1264,6 @@ int Searcher::root_tablebase_ordering_score(Move move) const {
         }
     }
     return 0;
-}
-
-std::vector<Move> Searcher::root_tablebase_pv(Move move) const {
-    for (const auto& entry : root_tb_moves_) {
-        if (entry.bestmove == move)
-            return entry.pv;
-    }
-    return {};
 }
 
 bool Searcher::root_tablebase_allows(Move move) const {
@@ -2439,9 +2425,6 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
         if (pv_len_[0] > 0) {
             result.bestmove   = pv_table_[0][0];
             result.pondermove = (pv_len_[0] > 1) ? pv_table_[0][1] : MOVE_NONE;
-            std::vector<Move> tb_pv = root_tablebase_pv(result.bestmove);
-            if (tb_pv.size() > 1)
-                result.pondermove = tb_pv[1];
             if (result.pondermove == MOVE_NONE)
                 result.pondermove = ponder_from_tt(board, result.bestmove);
         }

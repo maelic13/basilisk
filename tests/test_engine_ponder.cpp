@@ -52,6 +52,10 @@ public:
         queue_.push(EngineCommand{EngineCommandType::SetOption, args, nullptr, 0});
     }
 
+    void new_game() {
+        queue_.push(EngineCommand{EngineCommandType::NewGame, {}, nullptr, 0});
+    }
+
     void position(const std::string& args) {
         queue_.push(EngineCommand{EngineCommandType::Position, args, nullptr, 0});
     }
@@ -182,11 +186,11 @@ void test_stale_stop_does_not_poison_next_ponder() {
     end_section();
 }
 
-// A new Hash size is applied inside start_search, before the search begins.
-// Queuing one ahead of `go` keeps the engine thread in that setup long enough
-// that a back-to-back `ponderhit` reliably lands there -- the window in which
-// 1.10.0 cleared the flag and forfeited on time (Grand Blitz 4T, rounds 1-2,
-// opponent replying in ~1 ms). The old code never answers, so the generous
+// A new Hash size is applied when the queued `setoption` is processed. Queuing
+// one ahead of `go` keeps the engine thread busy long enough that a
+// back-to-back `ponderhit` reliably arrives before start_search clears
+// anything -- the ordering in which 1.10.0 cleared the flag and forfeited on
+// time (Grand Blitz 4T, rounds 1-2, opponent replying in ~1 ms). The old code never answers, so the generous
 // timeouts only absorb slow Debug/sanitizer builds, where the pending hash
 // resize alone can take longer than a second.
 void configure_two_threads_pending_hash(EngineSession& session) {
@@ -241,6 +245,31 @@ void test_stale_ponderhit_does_not_poison_next_ponder() {
     end_section();
 }
 
+// Hash sizing and clearing belong to `setoption` / `ucinewgame`, finished
+// before the GUI's readyok, not to the first search after `go`, whose clock
+// is already running: 1.10.1-rc spent ~270 ms of the first move allocating
+// and clearing a 512 MB table (the test fails on that code). With the work
+// done at configure time the first search costs what any other shallow
+// search does.
+void test_hash_setup_is_off_the_clock() {
+    EngineSession session;
+    session.set_option("name Hash value 512");
+    session.new_game();
+    session.position("startpos");
+    session.sync();
+
+    const auto start = std::chrono::steady_clock::now();
+    session.go("depth 1");
+    const bool answered = session.wait_for_bestmoves(1, 10000);
+    const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - start).count();
+
+    begin_section("engine setup: hash resize and clear happen before go");
+    EXPECT(answered);
+    EXPECT(elapsed < 100);
+    end_section();
+}
+
 } // namespace
 
 int main() {
@@ -259,6 +288,7 @@ int main() {
     test_immediate_ponderhit_with_clock();
     test_immediate_ponderhit_after_depth_cap();
     test_stale_ponderhit_does_not_poison_next_ponder();
+    test_hash_setup_is_off_the_clock();
 
     return harness_summary();
 }

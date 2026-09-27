@@ -20,14 +20,14 @@ and `AGENTS.md` are unchanged.
 | Item | State |
 |---|---|
 | Latest release | Basilisk **1.10.0**, tagged `v1.10.0` on `master` |
-| Release ready | Basilisk **1.10.1** on `dev` — lost-`ponderhit` fix (BAS-C10); ponder-on game gate, then maintainer PR, squash-merge and publish |
+| Release ready | Basilisk **1.10.1** on `dev` — lost-`ponderhit` fix (BAS-C10) and setup-on-the-clock fixes (BAS-C11); ponder-on game gate run 2, then maintainer PR, squash-merge and publish |
 | Development branch | `dev`, one release commit ahead of `master` |
 | Bench-13 fingerprint | **14,978,465** (unchanged by 1.10.1); CTest 12/12 release and sanitizer |
 | Previous release | Basilisk 1.9.3; bench 11,941,440 |
 | Strength | **+19.18 ± 6.76 Elo** over 1.9.3 at `3+0.03` 1T, H1 accepted at 4,224 games (BAS-E55) |
 | Pool position, `3+0.03` 1T (2026-09-04) | Houdini 1.5a −197, Critter 1.6a −187, Fritz 16 −178, Rybka 4 −84 |
-| Current phase | **1.10.1 ponder-on game gate** (maintainer run), then publish 1.10.1, then **Phase 16 needs planning** |
-| Long job | 1.10.1 ponder-on gate prepared, not started (~1.5 h) |
+| Current phase | **1.10.1 ponder-on game gate, run 2** (maintainer run), then publish 1.10.1, then **Phase 16 needs planning** |
+| Long job | 1.10.1 ponder-on gate run 2 prepared, not started (~1.5 h) |
 
 ## 2. Operating contract
 
@@ -135,7 +135,7 @@ its depth cap. Measured and repaired as **BAS-C10** in `EXPERIMENTS.md`.
 | Diagnosis | Reproduced with the 1.10.0 binary on both incident positions (5/5 hangs each) and an ordinary middlegame (4/4); a 100 ms delay before `ponderhit` never hangs. Not position-specific. Unrelated to BAS-E57, whose forfeits were ponder-off. |
 | Repair | `ponderhit` flag owned by the UCI thread: set on `ponderhit`, reset on `go`, never written by the engine thread. The pre-search stale-`stop` reset now re-checks the control epoch so a `stop` received during setup survives. |
 | Qualification | Two new engine tests fail on 1.10.0 and pass on the fix; stale-ponderhit and protocol-ownership tests added. Both incident positions 0/5 hangs after the fix. Release CTest 12/12, ASan/UBSan CTest, ThreadSanitizer on the ponder/threading/protocol tests. Bench **14,978,465** unchanged. |
-| Independent re-verification (2026-09-27) | Fresh PGO build of `d194888` (`basilisk-1.10.1-rc`) and the 1.10.0 release binary both bench **14,978,465**. Release CTest 12/12; ponder/threading/protocol tests 30/30 repeats. Black-box UCI stress, zero delay between commands, 20 trials per scenario: `go ponder` + `ponderhit` (pending hash resize, `ucinewgame`, 6-man Syzygy root, depth cap, plain 4T, plain 1T) **1.10.0 hangs 20/20 in every scenario, 1.10.1 0/20**; `go ponder`/`go infinite` + immediate `stop` and plain `go` 0/20 on both; an 80-move simulated ponder game with random 0–40 ms hit/miss timing 0/80 on 1.10.1. |
+| Independent re-verification (2026-09-27) | Fresh PGO build of `d194888` (`basilisk-1.10.1-rc`) and the 1.10.0 release binary both bench **14,978,465**. Release CTest 12/12; ponder/threading/protocol tests 30/30 repeats. Black-box UCI stress, zero delay between commands, 20 trials per scenario: `go ponder` + `ponderhit` (pending hash resize, `ucinewgame`, 6-man Syzygy root, depth cap, plain 4T, plain 1T) **1.10.0 hangs 20/20 in every scenario, 1.10.1 0/20**; `go ponder`/`go infinite` + immediate `stop` and plain `go` 0/20 on both; an 80-move simulated ponder game with random 0–40 ms hit/miss timing 0/80 on 1.10.1. **Clerical correction (2026-09-27):** the "6-man Syzygy root" position used was illegal (the side not to move was in check), so it never exercised tablebases. Rerun on the legal `k7/8/8/8/8/2BB4/4P3/4K3 w`: 1.10.0 hangs 10/10 with a clock and 10/10 at a depth cap; rc2 0/10. |
 | Release 1.10.1 | Version bumped in both sources of truth; CHANGELOG, HISTORY and this record updated. The maintainer opens the PR, squash-merges `dev` into `master` as `Version 1.10.1` on clean CI, tags `v1.10.1` and publishes (which triggers `release.yml`). |
 
 **No Elo SPRT.** Search and evaluation are bit-identical, and every harness
@@ -145,7 +145,7 @@ command to arrive during search setup, which fastchess never sends. A
 ponder-off SPRT between these binaries is therefore a null match that cannot
 fail for any reason connected to this fix.
 
-**Ponder-on game gate (registered 2026-09-27, before any gate games).** The
+**Ponder-on game gate, run 1 (registered 2026-09-27, before any gate games).** The
 deciding gate plays with Ponder on, which the fixed defect lives in.
 `tools/ponder_match.py` is a clocked referee that drives the GUI ponder
 protocol: `go ponder` after each move, then `ponderhit` the instant the
@@ -169,6 +169,35 @@ game), time margin 100 ms, seed 20260927, no adjudication.
   its `go ponder`: smoke runs gave 1 forfeit in 10 games at `5+0.05`. A
   1.10.1 failure after a plain `go` would point to host noise or a different
   defect, not BAS-C10.
+
+**Run 1 result (2026-09-27): FAIL, diagnosed as a separate defect (BAS-C11).**
+The run was interrupted at about 130 games (`tools/results/ponder_20260927_171421`).
+1.10.0 hung about 35 times, so the positive control fired. 1.10.1-rc had no
+hang, stop stall, early bestmove, illegal move or crash, but lost **4 games
+on time** with 27–630 ms left. Every time loss by either engine was in a
+5–6-man position. The cause is not BAS-C10: `start_search` built a tablebase
+line for every winning root move before searching, costing 95–297 ms per move
+on the engine's clock, and 1.10.0 pays the same cost. Calibration against the
+frozen prediction: "1.10.1 records 0 failures (95%)" was wrong. The causal
+model assumed search setup was negligible outside the `ponderhit` race; in
+tablebase positions it was up to 0.3 s, which also widened BAS-C10's own window
+far beyond ~1 ms (1.10.0 hung on ponderhits up to 132 ms late).
+
+| Step | Outcome |
+|---|---|
+| Repair (BAS-C11) | Tablebase line extension removed: the searched PV and ponder move are used, and the move played is unchanged. KPK is built at start-up. Hash resize and clear run when `setoption` / `ucinewgame` / `Clear Hash` are processed, before `readyok`, not after `go`. These follow Rarog `9a7b663`. Bench **14,978,465** unchanged. The six losing positions take 3–8 ms of setup (from 95–297 ms); the first KPK search 0.2 ms (from 9.8); Hash 1024 + `ucinewgame` on the first move 0.4 ms (from ~540). |
+| Qualification | Release CTest 12/12 and ASan/UBSan CTest 12/12. Ponder/threading/protocol/search tests pass 20/20 repeats. A new hash-setup test fails on the old code. Zero-delay ponder stress, including a legal 6-man tablebase root: 0 failures on `basilisk-1.10.1-rc2`. |
+
+**Ponder-on game gate, run 2 (registered 2026-09-27, before any run-2
+games).** Same instrument, conditions, seed and verdict rules as run 1.
+Candidate `basilisk-1.10.1-rc2` (source revision in its manifest), control
+`basilisk-1.10.0-release`, 1,000 games. Pass requires zero 1.10.1-rc2
+failures of every kind and at least one 1.10.0 failure.
+**Prediction (frozen):** 1.10.1-rc2 records 0 failures (confidence 85%,
+lowered after run 1). 1.10.0 records well over 100 failures, almost all in
+5–6-man positions (confidence 90%; run 1 gave ~35 in ~130 games). If
+1.10.1-rc2 fails, the per-failure context in `failures.txt` separates host
+noise (overrun after a plain `go` with an ample clock) from a defect.
 
 ## 4. The next phase is not planned
 

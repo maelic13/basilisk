@@ -28,7 +28,6 @@ struct RootMoveInfo {
     int score = 0;
     int rank = 0;
     bool used_dtz = false;
-    std::vector<Move> pv;
 };
 
 bool init(const std::string& path);
@@ -47,7 +46,5 @@ std::optional<RootProbeResult> probe_root(const Board& board, bool use_rule50,
                                           int probe_limit = 7);
 std::vector<RootMoveInfo> probe_root_moves(const Board& board, bool use_rule50,
                                            int probe_limit = 7, bool rank_dtz = false);
-std::vector<Move> extend_pv(const Board& root, const std::vector<Move>& initial_pv,
-                            bool use_rule50, int probe_limit = 7, int max_plies = 64);
 
 } // namespace Syzygy

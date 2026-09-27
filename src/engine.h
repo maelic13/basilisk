@@ -43,6 +43,8 @@ private:
     TranspositionTable tt_;
     SearchThreadPool   search_pool_;
     int current_hash_mb_ = 64;
+
+    void apply_table_state();
     std::string current_syzygy_path_;
 };
 

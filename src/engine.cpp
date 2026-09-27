@@ -159,10 +159,7 @@ void Engine::start_search(uint64_t command_epoch,
 
     SearchLimits limits = build_limits();
     limits.go_recv_time = recv_time;
-    const int desired_hash_mb = parameters_.hash_mb;
     const int desired_threads = parameters_.threads;
-    const bool do_clear_hash = parameters_.clear_hash;
-    const bool is_new_game = parameters_.new_game;
     Board board_copy = parameters_.board;
     const bool stop_was_requested = stop_requested_.load(std::memory_order_acquire);
 
@@ -191,16 +188,13 @@ void Engine::start_search(uint64_t command_epoch,
                                }),
                 limits.syzygy_root_moves.end());
         }
-        for (auto& move : limits.syzygy_root_moves) {
-            move.pv = Syzygy::extend_pv(board_copy, {move.bestmove},
-                                        parameters_.syzygy_50_move_rule,
-                                        parameters_.syzygy_probe_limit,
-                                        MAX_PLY / 2);
-        }
+        // No tablebase line is built here. Everything in start_search runs
+        // after `go` (or an early `ponderhit`) and is charged to the clock,
+        // and extending a line for every best-rank move cost 95-285 ms per
+        // move in 5-6-man positions (two full root probes per ply): 1.10.0
+        // and 1.10.1-rc lost on time with 27-630 ms left. The info PV and the
+        // ponder move come from the search.
     }
-
-    parameters_.new_game = false;
-    parameters_.clear_hash = false;
 
     if (command_epoch != 0
         && control_epoch_.load(std::memory_order_acquire) != command_epoch) {
@@ -208,19 +202,11 @@ void Engine::start_search(uint64_t command_epoch,
         return;
     }
 
-    if (desired_hash_mb != current_hash_mb_) {
-        tt_.resize(static_cast<size_t>(desired_hash_mb));
-        current_hash_mb_ = desired_hash_mb;
-    }
-
+    // The hash is sized and cleared when `setoption` / `ucinewgame` is
+    // processed (apply_table_state), before the GUI's `readyok`, never here.
     const int active_threads = search_pool_.resize_threads(desired_threads);
     if (active_threads != desired_threads)
         parameters_.threads = active_threads;
-
-    if (is_new_game || do_clear_hash) {
-        tt_.clear();
-        search_pool_.clear();
-    }
 
     if (stop_was_requested && (limits.infinite || limits.ponder)) {
         searching_.store(false, std::memory_order_release);
@@ -330,6 +316,24 @@ void Engine::run_perft_command(uint64_t command_epoch) {
     stop_requested_.store(false, std::memory_order_release);
 }
 
+// Put the hash table and search state in the form the next search needs NOW,
+// while no clock is running: a GUI sends `isready` after `setoption` and
+// `ucinewgame`, and readyok waits for this. Done inside start_search, the
+// resize and clear ran after `go` on the engine's clock -- 138 ms at 256 MB,
+// ~550 ms at 1 GB on the first move of every game.
+void Engine::apply_table_state() {
+    if (parameters_.hash_mb != current_hash_mb_) {
+        tt_.resize(static_cast<size_t>(parameters_.hash_mb));
+        current_hash_mb_ = parameters_.hash_mb;
+    }
+    if (parameters_.new_game || parameters_.clear_hash) {
+        tt_.clear();
+        search_pool_.clear();
+        parameters_.new_game = false;
+        parameters_.clear_hash = false;
+    }
+}
+
 void Engine::handle_command(const EngineCommand& command, bool& quit) {
     switch (command.type) {
         case EngineCommandType::SetOption:
@@ -344,6 +348,7 @@ void Engine::handle_command(const EngineCommand& command, bool& quit) {
                                + std::to_string(active_threads)
                                + (active_threads == 1 ? " thread" : " threads"));
             }
+            apply_table_state();
             break;
         }
         case EngineCommandType::Position:
@@ -351,6 +356,7 @@ void Engine::handle_command(const EngineCommand& command, bool& quit) {
             break;
         case EngineCommandType::NewGame:
             parameters_.reset();
+            apply_table_state();
             break;
         case EngineCommandType::Go:
             parameters_.set_search_parameters(command.args);

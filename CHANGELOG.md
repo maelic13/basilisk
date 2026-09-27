@@ -14,9 +14,11 @@ and next step).
 
 ## [1.10.1] - 2026-09-26
 
-A bug-fix release for games played with pondering enabled. Search and
-evaluation are unchanged from 1.10.0: the `bench` fingerprint stays
-**14,978,465**, and games without pondering play exactly as before.
+A bug-fix release for time losses: with pondering enabled, and in
+tablebase endgames or on the first move of a game even without it. Search
+and evaluation are unchanged from 1.10.0 and the `bench` fingerprint stays
+**14,978,465**. Basilisk now spends less of its clock on work before each
+search, so games are not move-for-move identical to 1.10.0.
 
 ### Fixed
 
@@ -27,9 +29,26 @@ evaluation are unchanged from 1.10.0: the `bench` fingerprint stays
   pondering with no clock — or, once it reached its depth limit, waited for a
   `ponderhit` it had already thrown away — until the GUI flagged it. This cost
   two games in a 120+1, four-thread tournament, one of them from a position
-  with a forced mate in three. It is not specific to any position type: it
-  depends only on how quickly the opponent replies. `ponderhit` now always
-  takes effect, however soon it follows `go ponder`.
+  with a forced mate in three. It can happen in any position, but was far
+  likelier in tablebase endgames, where the setup took up to ~300 ms (see
+  below). `ponderhit` now always takes effect, however soon it follows
+  `go ponder`.
+- **Time forfeit in tablebase endgames at low clock.** With `SyzygyPath` set,
+  Basilisk built a full tablebase line for every winning root move before
+  starting each search, costing 95-300 ms per move in 5-6-man positions and
+  charged to Basilisk's clock. With under ~0.6 s left this lost on time
+  outright, with or without pondering (4 losses in 130 ponder-on test games at
+  `10+0.1`). The lines are no longer built; that setup now takes 3-8 ms, the
+  same as without tablebases. At a tablebase root the `info ... pv` now shows
+  the searched line and the ponder move comes from the search; the move
+  played is chosen exactly as before.
+- **Hash allocation and clearing are no longer charged to the first move.**
+  A new `Hash` size and `ucinewgame` / `Clear Hash` were applied inside the
+  next search, after `go`: about 140 ms of the first move at 256 MB and 550 ms
+  at 1 GB. They are now applied when the command is received, so they finish
+  before the GUI's `readyok`.
+- The KPK endgame table is built at start-up instead of inside the first
+  search that reaches a king-and-pawn-versus-king ending (about 10 ms, once).
 - A `stop` that arrives while a search is still being set up is now always
   honoured. Previously a narrow window (only reachable when the hash size had
   just changed or after `ucinewgame`) could discard it.
@@ -41,6 +60,11 @@ evaluation are unchanged from 1.10.0: the `bench` fingerprint stays
   on 1.10.0. Added coverage that a `ponderhit` from a previous search cannot
   end the next ponder search, and protocol tests that `go` resets a previous
   `ponderhit` while a `ponderhit` after `go ponder` is kept.
+- Added a test that the first search after `setoption name Hash` and
+  `ucinewgame` does not pay for the table (fails on 1.10.0), and updated the
+  tablebase search test to the searched PV.
+- Added `tools/ponder_match.py`, a clocked match runner that plays with
+  pondering on (fastchess cannot), for the release gate.
 
 ---
 

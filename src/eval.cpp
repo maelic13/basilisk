@@ -917,6 +917,11 @@ static int apply_endgame(const Board& b, int score) {
 }
 
 void init_eval_tables(const EvalParams& p) {
+    // Build the KPK bitbase at start-up, not on its first probe: that probe
+    // runs inside whichever search first reaches KPK, late in a game, and the
+    // ~10 ms build was charged to that move's clock. call_once keeps the probe
+    // path safe for callers that never ran this.
+    std::call_once(g_kpk_once, kpk_init);
 
     for (int pt = PAWN; pt <= KING; pt++) {
         for (int sq = 0; sq < 64; sq++) {
