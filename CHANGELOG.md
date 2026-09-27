@@ -40,10 +40,16 @@ to 1.10.0.
   starting each search, costing 95-300 ms per move in 5-6-man positions and
   charged to Basilisk's clock. With under ~0.6 s left this lost on time
   outright, with or without pondering (4 losses in 130 ponder-on test games at
-  `10+0.1`). The lines are no longer built; that setup now takes 3-8 ms, the
-  same as without tablebases. At a tablebase root the `info ... pv` now shows
-  the searched line and the ponder move comes from the search; the move
-  played is chosen exactly as before.
+  `10+0.1`). That setup now takes 3-8 ms, the same as without tablebases, and
+  the move played is chosen exactly as before.
+
+  Tablebase lines are still shown, now built the way Stockfish builds them.
+  The searched line is kept for as long as it holds the tablebase result, then
+  continued to mate with minimal-DTZ moves, and the ponder move comes from it.
+  In games only the final line is extended, once per move and within half of
+  `Move Overhead`: 1-6 ms per tablebase move at the default of 10 ms. If that
+  is not enough, an `info string` suggests raising `Move Overhead`. In
+  analysis, with no clock, every line is extended.
 - **Hash allocation and clearing are no longer charged to the first move.**
   A new `Hash` size and `ucinewgame` / `Clear Hash` were applied inside the
   next search, after `go`: about 140 ms of the first move at 256 MB and 550 ms
@@ -78,6 +84,11 @@ to 1.10.0.
 - Added a test that the first search after `setoption name Hash` and
   `ucinewgame` does not pay for the table (fails on 1.10.0), and updated the
   tablebase search test to the searched PV.
+- Added tests that a tablebase PV is extended to a legal mate, that a
+  searched PV move throwing the win away is cut and replaced, that the time
+  box returns the line unchanged when it has expired, and, at engine level,
+  that the final line and ponder move are extended in a timed search but not
+  with `Move Overhead` 0.
 - Added tests that every form of rejected `position` ends the engine without
   a `bestmove`, that malformed `setoption` input is still survived, and that a
   triple check is rejected while a legal double check is accepted.

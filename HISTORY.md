@@ -66,9 +66,9 @@ and platforms. Their evidence, retry triggers and dispositions remain in
 | Item | Value |
 |---|---|
 | Version | **1.10.1** (2026-09-27) |
-| Scope | Time-forfeit fixes only: a `ponderhit` arriving during search setup was discarded (BAS-C10); setup work charged to the clock -- tablebase root lines (95-300 ms per move in 5-6-man positions), hash allocation/clearing on the first move, KPK table build (BAS-C11); a rejected `position` now exits with status 1 instead of searching the previous position, and triple check is rejected (BAS-C12) |
+| Scope | Time-forfeit fixes only: a `ponderhit` arriving during search setup was discarded (BAS-C10); setup work charged to the clock -- tablebase root lines (95-300 ms per move in 5-6-man positions), hash allocation/clearing on the first move, KPK table build (BAS-C11); a rejected `position` now exits with status 1 instead of searching the previous position, and triple check is rejected (BAS-C12); tablebase PV lines restored the Stockfish way, time-boxed at half of Move Overhead (BAS-C13) |
 | Bench-13 fingerprint | **14,978,465**, unchanged from 1.10.0 — search and evaluation bit-identical |
-| Strength gate | No Elo SPRT (bench-identical; fastchess cannot ponder). Ponder-on game gate with `tools/ponder_match.py` against 1.10.0 as positive control: **PASS**. 1,005 games at `3+0.03` 1T: 0 failures for 1.10.1-rc3, 263 time losses for 1.10.0 (PLAN "Patch 1.10.1") |
+| Strength gate | No Elo SPRT (bench-identical; fastchess cannot ponder). Ponder-on game gate with `tools/ponder_match.py` against 1.10.0 as positive control: **PASS**. 1,005 games at `3+0.03` 1T: 0 failures for 1.10.1-rc3, 263 time losses for 1.10.0 (PLAN "Patch 1.10.1"). BAS-C13, added after the gate: 200-game ponder-on smoke run, 0 failures |
 | Qualification | Regression tests fail on 1.10.0 and pass; release CTest 12/12; ASan/UBSan CTest 12/12 at BAS-C11, and on the six affected test binaries after BAS-C12; black-box zero-delay UCI stress; TSan on the ponder/threading/protocol tests (BAS-C10 repair) |
 
 The release revision is the `Version 1.10.1` commit on `master`, tagged

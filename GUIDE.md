@@ -78,7 +78,7 @@ Capability tags are advisory routing, not state, evidence or permission.
 
 | Item | State |
 |---|---|
-| Latest release | Basilisk **1.10.1**, tagged `v1.10.1` on `master` — BAS-C10, BAS-C11, BAS-C12 |
+| Latest release | Basilisk **1.10.1**, tagged `v1.10.1` on `master` — BAS-C10 to BAS-C13 |
 | Development branch | `dev`, level with the release |
 | Bench fingerprint | **14,978,465** (unchanged since 1.10.0); CTest 12/12 release and sanitizer |
 | Previous release | Basilisk 1.10.0; same bench |
@@ -112,6 +112,9 @@ Released as 1.10.0. Full summary in `PLAN.md`, measured detail in
 - [x] Repair BAS-C11: no tablebase line extension; KPK built at start-up;
       hash resize and clear done at `setoption`/`ucinewgame`. Bench 14,978,465;
       release and ASan/UBSan CTest 12/12.
+- [x] BAS-C13: tablebase PV lines restored the Stockfish way. Final line
+      time-boxed at half of Move Overhead, analysis lines unbounded, DTZ-ranked
+      Step 2. Bench 14,978,465; 200-game ponder smoke run 0 failures.
 - [x] BAS-C12: a rejected `position` exits with status 1 (maintainer
       decision, replacing 8.6.3a's reject-and-retain); triple check rejected.
 - [x] Ponder-on game gate, run 2: PASS. 1,005 games at `3+0.03` 1T

@@ -23,7 +23,7 @@ from a chess GUI or an engine-testing tool.
   material imbalance, and endgame knowledge including an exact KPK bitbase and
   KBNK mating technique.
 - **Syzygy tablebases** — optional endgame tablebase probing, both in-search and
-  at the root, where the tablebase filters and ranks the root moves.
+  at the root, with tablebase moves ranked and the PV continued to mate.
 - **Careful time management** — handles increments, `movestogo` and GUI latency,
   and spends longer on unstable positions than on obvious moves.
 - **Pondering** — thinks on the opponent's clock when the GUI enables it.
@@ -88,7 +88,13 @@ Cutechess, ChessBase/Fritz, Banksia and others.
 `SyzygyPath` accepts several folders separated by `;` on Windows or `:`
 elsewhere. With tablebases enabled, Basilisk ranks the root moves from the
 tablebase, reports bounded tablebase scores, and counts resolved positions in
-`tbhits`. Playing strength with an empty path is unchanged.
+`tbhits`. When the score is a tablebase win or loss, the `info … pv` line is
+continued to mate the way Stockfish does it. The searched line is kept for as
+long as it holds the tablebase result, then extended with minimal-DTZ moves,
+and the ponder move comes from it. In analysis (no clock) every line is
+extended. In games only the final line is, within half of `Move Overhead`. If
+that is not enough time, an `info string` suggests raising `Move Overhead`.
+Playing strength with an empty path is unchanged.
 
 ### Supported commands
 
