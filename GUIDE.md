@@ -86,8 +86,8 @@ Capability tags are advisory routing, not state, evidence or permission.
 | Bench fingerprint | **14,978,465** (unchanged by 1.10.1); CTest 12/12 release and sanitizer |
 | Previous release | Basilisk 1.9.3; bench 11,941,440 |
 | Strength | **+19.18 ± 6.76 Elo** over 1.9.3 at `3+0.03` 1T (BAS-E55) |
-| Current step | **1.10.1 ponder-on game gate, run 2** (maintainer run), then publish 1.10.1; Phase 16 needs planning (`PLAN.md` section 4) |
-| Long job | 1.10.1 ponder-on gate run 2 prepared, not started (~1.5 h) |
+| Current step | **Publish 1.10.1** (maintainer), then Phase 16 needs planning (`PLAN.md` section 4) |
+| Long job | None |
 
 ## Phase 15 — board correctness and release 1.10.0 (complete)
 
@@ -117,8 +117,9 @@ Released as 1.10.0. Full summary in `PLAN.md`, measured detail in
       release and ASan/UBSan CTest 12/12.
 - [x] BAS-C12: a rejected `position` exits with status 1 (maintainer
       decision, replacing 8.6.3a's reject-and-retain); triple check rejected.
-- [ ] Ponder-on game gate, run 2 (`V`, maintainer run, ~1.5 h): 1.10.1-rc3
-      vs 1.10.0, 1,000 games `10+0.1` 1T. Passes only if 1.10.1-rc3 has zero
-      failures and 1.10.0 at least one (PLAN "Patch 1.10.1").
+- [x] Ponder-on game gate, run 2: PASS. 1,005 games at `3+0.03` 1T
+      (maintainer's time control, stopped at the registered 1,000): 1.10.1-rc3
+      had 0 failures, 1.10.0 had 263 time losses, all in positions of 6 men
+      or fewer.
 - [ ] Publish (maintainer): PR, squash-merge `dev` into `master` as
       `Version 1.10.1` on clean CI, tag `v1.10.1`, publish the release.

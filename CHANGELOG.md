@@ -12,7 +12,7 @@ and next step).
 
 ---
 
-## [1.10.1] - 2026-09-26
+## [1.10.1] - 2026-09-27
 
 A bug-fix release for time losses: with pondering enabled, and in
 tablebase endgames or on the first move of a game even without it. Search

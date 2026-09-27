@@ -20,14 +20,14 @@ and `AGENTS.md` are unchanged.
 | Item | State |
 |---|---|
 | Latest release | Basilisk **1.10.0**, tagged `v1.10.0` on `master` |
-| Release ready | Basilisk **1.10.1** on `dev` — lost-`ponderhit` fix (BAS-C10) and setup-on-the-clock fixes (BAS-C11), fatal rejected `position` (BAS-C12); ponder-on game gate run 2, then maintainer PR, squash-merge and publish |
+| Release ready | Basilisk **1.10.1** on `dev` — lost-`ponderhit` fix (BAS-C10) and setup-on-the-clock fixes (BAS-C11), fatal rejected `position` (BAS-C12); ponder-on gate PASSED; maintainer PR, squash-merge and publish remain |
 | Development branch | `dev`, one release commit ahead of `master` |
 | Bench-13 fingerprint | **14,978,465** (unchanged by 1.10.1); CTest 12/12 release and sanitizer |
 | Previous release | Basilisk 1.9.3; bench 11,941,440 |
 | Strength | **+19.18 ± 6.76 Elo** over 1.9.3 at `3+0.03` 1T, H1 accepted at 4,224 games (BAS-E55) |
 | Pool position, `3+0.03` 1T (2026-09-04) | Houdini 1.5a −197, Critter 1.6a −187, Fritz 16 −178, Rybka 4 −84 |
-| Current phase | **1.10.1 ponder-on game gate, run 2** (maintainer run), then publish 1.10.1, then **Phase 16 needs planning** |
-| Long job | 1.10.1 ponder-on gate run 2 prepared, not started (~1.5 h) |
+| Current phase | **Publish 1.10.1** (maintainer), then **Phase 16 needs planning** |
+| Long job | None |
 
 ## 2. Operating contract
 
@@ -202,6 +202,31 @@ lowered after run 1). 1.10.0 records well over 100 failures, almost all in
 5–6-man positions (confidence 90%; run 1 gave ~35 in ~130 games). If
 1.10.1-rc3 fails, the per-failure context in `failures.txt` separates host
 noise (overrun after a plain `go` with an ample clock) from a defect.
+
+**Run 2 result (2026-09-27): PASS.** Deviations from the registration, all
+set by the maintainer and all disclosed:
+- **Time control and size, set before the run started:** `3+0.03` and a
+  2,000-game schedule. This followed a 100-game `3+0.03` pilot of rc3 vs
+  1.10.0 (0 rc3 failures, 22 control failures), which showed the referee's
+  100 ms margin holds at that time control. The pilot is not pooled.
+- **Stopping:** the run was stopped at the originally registered size, 1,000
+  games, while rc3 had no failures (`tools/results/ponder_20260927_191821`).
+
+Results:
+- **1,005 completed games.** The seven games in flight at the stop (1002–1008)
+  died together, both engines included. rc3 accepts all seven final
+  positions, so those deaths were the interruption, not BAS-C12's fatal
+  `position` path.
+- **1.10.1-rc3: zero failures of every kind.** The 95% upper bound is 0.3% of
+  games.
+- **1.10.0: 263 time losses** (231 hangs, 32 overruns), every one of them in a
+  position with 6 or fewer men.
+
+The score, +466 =438 −108 for rc3, is inflated by those losses and decides
+nothing. Calibration: both frozen predictions held. rc3 had 0 failures
+(stated at 85%); 1.10.0 had "well over 100, almost all in 5–6-man
+positions" (stated at 90%), and in fact all 263 were in positions of 6 men or
+fewer.
 
 ## 4. The next phase is not planned
 
