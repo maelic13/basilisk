@@ -68,3 +68,31 @@ If implementation exposes a material false premise, keep useful
 instrumentation, record the contradiction and return the PLAN leaf to
 `RESEARCH`. Do not rewrite the handoff into a different mechanism after seeing
 results.
+
+A packet that carries a cluster through implementation grows three kinds of
+section after the handoff, appended in order and never rewritten
+([PROCESS.md](../PROCESS.md) owns the procedure):
+
+```markdown
+## Return N — <date>
+
+- Premise that failed (quote the handoff clause):
+- Evidence (counters, traces, failing tests, commits):
+- What was built and is kept:
+- Options the implementer sees:
+
+## Amendment N — <date>
+
+- Option chosen and why:
+- Predictions affected (re-registered before any game, marked clerical or substantive):
+- Handoff clauses replaced (quote old and new):
+
+## Implementation record
+
+- Commits per ticket:
+- Fingerprints of both arms (`bench 13`, per ISA named):
+- Tests added:
+- Deviations from the handoff, each with its reason:
+- What the reviewer must check:
+- Review: <accept / accept with follow-ups / return>, reviewer session, date, fingerprints reproduced:
+```

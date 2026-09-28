@@ -6,9 +6,11 @@ This document is deliberately small and it does not duplicate the others:
 
 | File | Holds |
 |---|---|
-| `AGENTS.md` | how to work: unit of work, gates, refusal obligations |
-| `PLAN.md` / `GUIDE.md` | what to work on, in order |
+| `AGENTS.md` | how to work: unit of work, ownership, gates, refusal obligations |
+| `PLAN.md` / `GUIDE.md` | what to work on, in order, and its status |
+| `PROCESS.md` | how recurring work is done: packets, clusters, harness, fits, tunes |
 | `EXPERIMENTS.md` | what has been tried, what it measured, retry triggers |
+| `HISTORY.md` | what is finished, and the map from retired step numbers |
 | **`DESIGN.md`** | **what is true about this engine and must stay true** |
 
 If a fact here and a fact in the source disagree, **the source wins and this
@@ -37,8 +39,10 @@ gate, not a failure to deliver. See `AGENTS.md`, "Refutation and refusal".
 
 ## 2. Evaluation philosophy
 
-- **Hand-crafted, and unfrozen for structural work** until PLAN's freeze leaf.
-  NNUE is a later phase and does not license HCE shortcuts now.
+- **Hand-crafted.** Frozen at the 1.10.1 evaluation while the search
+  programme runs (PLAN Phase B), unfrozen for structural work and refits in
+  the evaluation programme (Phase C), and frozen again at C.11. NNUE is
+  Phase F and does not license HCE shortcuts now.
 - **Game-result labels only.** No engine-evaluation labels in any corpus.
 - **Categorical knowledge earns its place by measurement, not by taxonomy.**
   A family term is justified by a measured local defect plus occurrence, not by
@@ -47,7 +51,7 @@ gate, not a failure to deliver. See `AGENTS.md`, "Refutation and refusal".
   an only-move failure class and refuted the blanket claim that an evaluator
   cannot resolve it: Stockfish resolved the paired nodes at the same nominal
   budget. That result does not identify a transferable HCE mechanism or make a
-  recogniser equivalent to a gradient; current 6.8.a remains `RESEARCH`.
+  recogniser equivalent to a gradient; PLAN C.5.4 owns the question.
 - **Draw scaling never asserts a draw it cannot prove.** Heuristic scaling is
   floored (`SCALE_FLOOR`) so a misfire discounts rather than throwing a win.
 
@@ -93,10 +97,10 @@ line names where it lives.
   is an ACCEPTED RISK, not a harmless race** (BAS-C05, decided 2026-09-07).
   Under SMP a reader can match its key against one store and consume the
   score/depth/bound of another position's store. Nothing downstream catches it:
-  `src/search.cpp:1589` returns `tt_score` as the node value on a
-  depth-and-bound match with no verification, and `src/search.cpp:1967`
-  multicuts on a singular beta derived from it. Worst case is a foreign mate
-  score reaching the root. Do not repeat the pre-2026-09-07 claim that a
+  `negamax` (`src/search.cpp`) returns `tt_score` as the node value on a
+  depth-and-bound match with no verification, and its singular multi-cut
+  (`s_beta >= beta`) returns a score derived from it. Worst case is a foreign
+  mate score reaching the root. Do not repeat the pre-2026-09-07 claim that a
   mismatched pair is "harmless" because bounds are validated — they are not.
 - **Why it is accepted.** Both repairs cost more than the defect, measured at
   identical bench nodes with `tools/nps_ab.ps1`: the `key16 ^ fold16(payload)`
@@ -106,10 +110,10 @@ line names where it lives.
   and the word holds 64 — and Stockfish ships this same tolerance in this same
   structure. Reopen only on the BAS-C05 retry trigger.
 - `move16` likewise has no publication guarantee, and **every consumer must
-  validate it** — `MovePicker` checks piece/colour/`is_legal`
-  (`src/search.cpp:792`), `ponder_from_tt` checks legality, qsearch only
-  compares it against generated legal moves. All `Move` accessors mask
-  (`src/move.h:41`), so any 16-bit value decodes in-bounds.
+  validate it** — `MovePicker`'s TT stage checks piece/colour/`is_legal`,
+  `ponder_from_tt` checks legality, qsearch only compares it against generated
+  legal moves (all in `src/search.cpp`). All `Move` accessors mask
+  (`src/move.h`), so any 16-bit value decodes in-bounds.
 - Detection strength against a genuinely different position is the plain 16-bit
   partial-key collision, 1/65536.
 - An empty slot is `(data 0, key16 0)`. The `flag_age` check is what rejects it
@@ -124,10 +128,12 @@ line names where it lives.
   must record the policy and never mix with natural-termination evidence.
 - Strength is measured at **3+0.03**, paired UHO openings, normalized Elo,
   **tablebases off** — the harness and the games are blind the same way.
-- **Bench signature** of the accepted head: `bench 13` = **12,568,898** nodes
-  (12,709,666 before 6.5.a). Exact bench identity is a provenance fingerprint,
-  **not** proof of behavioural identity: evaluation activation, terminal logic
-  and time handling can change play while bench stays equal.
+- **Bench signature** of the accepted head: `bench 13` = **14,978,465** nodes
+  (1.10.0 and 1.10.1; 12,568,898 before the 15.0.a SEE repair, 12,709,666
+  before 6.5.a). GUIDE's checkpoint declares it; `check_roadmap.py` holds this
+  line to it. Exact bench identity is a provenance fingerprint, **not** proof
+  of behavioural identity: evaluation activation, terminal logic and time
+  handling can change play while bench stays equal.
 
 ## 4. Measurement doctrine
 
@@ -153,8 +159,9 @@ The four layers, kept separate (`analysis/endgame_measurement_layers_v1.md`):
 
 - **The board is not the bottleneck, and "make it faster" is not a motivation.**
   BAS-X16 measured this source ahead of a peer engine by 22-46% on every board
-  microbenchmark. Phase 7 is a **defect hunt**; optimization leaves default to
-  no-change.
+  microbenchmark. Board work is a **defect hunt** (PLAN D.3.1); the
+  board-speed leaves inside B.7.2 open only when a profile makes them hot and
+  default to no-change.
 - **Nodes-to-depth, not raw NPS, is where the peer gap lives.**
 - Bench node counts are **chaotic** under small evaluation perturbations: in
   the 6.5.a floor sweep, floor 32 cost +28.5% while 24 and 40 sat near

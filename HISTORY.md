@@ -3,14 +3,21 @@
 ⚠ **THIS FILE IS HISTORY. It does not tell you what to do next.** Read
 `GUIDE.md` for the current step and `PLAN.md` for what it involves.
 
-## Numbering
+## Numbering, and how to resolve an old reference
 
-Phases 1–14 belong to the archived roadmap
-([docs/archive/PLAN-2026-09-09.md](docs/archive/PLAN-2026-09-09.md),
-[docs/archive/GUIDE-2026-09-09.md](docs/archive/GUIDE-2026-09-09.md)). Every
-`6.x`–`14.x` identifier in `EXPERIMENTS.md`, `analysis/` and commit messages
-resolves there. Phase 15 in the current `PLAN.md` is the only active phase and
-the only new numbering.
+The current roadmap uses lettered phases (`A.2.1`, `B.3`); no retired number
+is reused. Retired identifiers stay valid in `EXPERIMENTS.md`, `analysis/`,
+source comments and commit messages, and resolve here:
+
+| Scheme | Where it appears | Resolve it in |
+|---|---|---|
+| Phases 1–4 (releases 1.0.0–1.9.3) | changelog, the oldest ledger rows | *Releases* below |
+| Phases 5–14 (`5.9.22`, `6.6.a`, `8.4.b`, …) | ledger rows, analyses and commits up to 2026-09-09 | [docs/archive/PLAN-2026-09-09.md](docs/archive/PLAN-2026-09-09.md) and [docs/archive/GUIDE-2026-09-09.md](docs/archive/GUIDE-2026-09-09.md); that PLAN's §15 maps the numbers used before 2026-09-07 |
+| Phase 15 and the 1.10.1 patch (`15.0.a`, `15.1.c`) | BAS-C08–C13, BAS-E55–E57, commits to 2026-09-27 | [docs/archive/PLAN-2026-09-28.md](docs/archive/PLAN-2026-09-28.md) and [docs/archive/GUIDE-2026-09-28.md](docs/archive/GUIDE-2026-09-28.md) |
+| Current roadmap (`A`–`G`) | `PLAN.md`, `GUIDE.md`, ledger rows from BAS-X30 on | `PLAN.md` |
+
+Where a retired open leaf continues in the current roadmap, the *Number map*
+below says where.
 
 ## Releases (Phases 1–4)
 
@@ -36,7 +43,7 @@ ledger evidence:
 | Magnitude and coverage audit of the endgame evaluator; reopened work recorded with its reasons | 6.4 record, "Reopened work, 2026-09-03" |
 | The TT publication redesign: atomic whole-record word accepted for correctness, the coherence repair reverted on measured throughput with the risk recorded | BAS-X2x rows, commits `2bf43fb`, `c378706` |
 | A peer audit of the shared board lineage found three SEE defects of the same kernel shape; Basilisk had no fixtures for them | BAS-X22 |
-| Pool position on 2026-09-04 at `3+0.03` 1T: Houdini 1.5a −197, Critter 1.6a −187, Fritz 16 −178, Rybka 4 −84 | BAS-X11 |
+| Pool position on 2026-09-04 at `3+0.03` 1T: Houdini 1.5a −197, Critter 1.6a −187, Fritz 16 −178, Rybka 4 −84 | **Unsourced in this ledger**: BAS-X11's 2026-09-04 record is a four-engine Basilisk–Rarog pool without these opponents. The figures most likely come from the fourteen-engine 2026-09-04 pool that Rarog's RAR-M45 extended; that run fitted Basilisk 1.10.0 at 3012 against Houdini 3 3277, Critter 1.6a 3197, Fritz 16 3165, Rybka 4 3102. PLAN A.7.1 re-reads the head-to-heads |
 
 ## Phase 15 (2026-09-09 → 2026-09-10)
 
@@ -52,14 +59,111 @@ BAS-E57).
 | Deterministic qualification clean | 15.0.e: CTest 12/12 release and sanitizer, 6/6 perft exact, invariants across four seeds |
 | 1.10.0 accepted against 1.9.3 at +19.18 ± 6.76 Elo, 1T `3+0.03` | BAS-E55 |
 
-## Open work
+## Patch 1.10.1 (2026-09-27)
 
-Not continued during Phase 15, and the natural place to resume: 6.6 instrument
-and gate integrity, 6.7–6.11 remaining endgame families and closure, Phase 7
-board correctness beyond Phase 15's bounded repairs, Phase 8 corpus and
-complete HCE refit, Phase 9 classical search consolidation, Phases 10–14 NNUE
-and platforms. Their evidence, retry triggers and dispositions remain in
-`EXPERIMENTS.md` (section 9 is the retry map) and in the archived roadmap.
+Two ponder-on time forfeits in a Colosseum `120+1` 4T tournament had one
+cause: a `ponderhit` that arrived during search setup was reset by that setup
+(BAS-C10). The first ponder-on gate then failed on a second, older defect:
+setup work charged to the clock, up to 0.3 s per move from tablebase line
+extension in 5–6-man positions (BAS-C11). A rejected `position` became fatal
+instead of searching the previous board (BAS-C12), and tablebase PV lines were
+restored the Stockfish way, time-boxed at half of Move Overhead (BAS-C13).
+The second ponder-on gate passed: 1,005 games, 0 failures for 1.10.1-rc3
+against 263 time losses for 1.10.0, all in positions of six men or fewer. No
+Elo SPRT: search and evaluation are bit-identical, and fastchess cannot
+ponder. The full record, with both gate registrations and calibrations, is in
+the archived PLAN of 2026-09-28.
+
+## What the Phase 5–15 line established, and why the roadmap was rewritten
+
+Phase 5 measured where the strength was. Stockfish `9587eeeb`'s search
+driving Basilisk's own HCE beat Basilisk by +322.7, and its HCE beat Basilisk's
+under the identical search by +232.8 (BAS-O01, BAS-O02): the search was the
+larger deficit, and at fixed nodes 98.4% of the width gap followed the search
+(BAS-O04). The search track then attacked it one mechanism at a time.
+Reduction magnitude was refuted on the harness before any game (BAS-S13–S15),
+and the check-move depth bundle lost −3.48 ± 3.32 (BAS-S16). Cluster 5.4
+closed on the hypothesis that width is a symptom of the weaker evaluator, and
+the roadmap turned to endgame maturity (Phase 6: Group A and the 6.5.a rook
+scaling, +3.29 ± 4.61) and then board correctness and the 1.10.0 release
+(Phase 15, +19.18 ± 6.76 over 1.9.3).
+
+Over the same weeks Rarog, starting from the same oracle finding and a weaker
+HCE, rebuilt its search as a donor-shaped architecture adopted as a unit,
+fitted it by SPSA in blocks and gated it in clusters. It gained about 230 pool
+Elo in fifteen days (3001 → 3233, RAR-M57, RAR-M63) and passed Basilisk by
++200. The 2026-09-28 rewrite adopts that method and its order of steps, with
+modern Stockfish as the architecture donor and classical Stockfish `9587eeeb`
+as the evaluation donor and oracle. Every open leaf of the archived roadmaps
+continues under a new identifier except archived Phase 14 (an optional HCE
+fallback), which is redundant because the HCE stays in the tree as the NNUE's
+datagen baseline and fallback.
+
+## Number map: retired open leaves that continue in the current roadmap
+
+Every identifier below is retired. Completed retired leaves stay history; this
+map covers only open work.
+
+| Retired (archive 2026-09-09) | Continues as | Note |
+|---|---|---|
+| 6.6.a–6.6.e, 6.6.h | C.5.1 | endgame instruments and gate integrity |
+| 6.6.f | A.3.1 | harness provenance refusals, shared guards |
+| 6.6.g | A.4.2 | build option and ISA combination matrix |
+| 6.7.a–6.7.d | C.5.2 | occurrence, classification, closure, ranking |
+| 6.8.a | C.5.4 | the BAS-E53 only-move defect |
+| 6.8.b–6.8.e | C.5.5 | Group B families by measured kind |
+| 6.9.a–6.9.b | C.5.7 | occurrence-tiered endgame gates |
+| 6.10.a–6.10.d | C.5.6 | lower-yield remainder |
+| 6.10.e, 6.11.a–6.11.d | C.5.7 | gate and closure |
+| 7.0 | A.4.1 | toolchain refresh and freeze |
+| 7.1, 7.7, 7.9–7.12 | D.3.1 | board contract audit, a defect hunt |
+| 7.2–7.8 | B.7.2 | board speed, only if a profile makes it hot |
+| 8.0.a–8.0.d | C.0 | HCE surface audit |
+| 8.0.e | C.1 and each C cluster | categorical tests and the architecture freeze |
+| 8.1.a–8.1.h | C.2.1 | fit-tooling contract, Texel handbook |
+| 8.2.a–8.2.e | C.2.2 | corpus design |
+| 8.3.a–8.3.c | C.2.3 | corpus A |
+| 8.4.a–8.4.f, 8.5.a–8.5.d | C.2.4 | matched label arms; whole-game tablebase adjudication |
+| 8.6.a–8.6.c | C.2.5 | initialization control |
+| 8.7.a–8.7.e, 8.8.a–8.8.d | C.2.6 | matched fits and the label-contract gate |
+| 8.9.a–8.9.e | C.8 | refit cycles |
+| 8.10.a–8.10.e | C.9 | nonlinear HCE SPSA |
+| 8.11.a–8.11.d | C.11 | checkpoint and freeze |
+| 8.12.a–8.12.d | C.12 | evaluation throughput, bit-exact |
+| 9.0.a–9.0.c | B.0 | search audit, interactions, oracle profile |
+| 9.1.a–9.1.b | B.3 | extension authority |
+| 9.2.a–9.2.c | B.4 (research card), C.10 | SEE and move-ordering value scale |
+| 9.3 | B.0, B.2 | TT and caches, inside cluster 1 |
+| 9.4 | D.3.2, D.4 | lifecycle, protocol, tablebases |
+| 9.5 | A.3, A.5, B.8 | harness and diagnostics audit |
+| 9.6.a–9.6.e | B.2.3, B.6 and each cluster's SPSA | search SPSA |
+| 9.7.a–9.7.d | D.1 | time management |
+| 9.8.a–9.8.c | B.8, B.9 | cleanup and checkpoint |
+| 9.9 | E.1 | attribution checkpoint |
+| 9.10.a, 9.10.c, 9.10.d | E.3.2 | classical release |
+| 9.10.b | D.2 | SMP quality |
+| 9.11.a–9.11.d | G.2 | optional universal binary |
+| 10.0–10.4 | F.0, F.1 | NNUE runway |
+| 11.0–11.5 | F.2–F.6, F.9 | baseline NNUE and its release |
+| 12.0.a–12.0.c | F.7, F.8 | architecture ladder, data frontier |
+| 12.1.a–12.1.b | G.3 | selective search after NNUE |
+| 13.0 | G.1 | high-thread and NUMA |
+| 13.1 | G.2 | platforms and delivery |
+| 14.0 | dropped | the HCE stays in the tree as datagen baseline and fallback |
+| "Phase 16" (named by the archived Phase-15 PLAN) | never opened | superseded by the lettered roadmap |
+
+## Completed current-roadmap work (dated records; PLAN owns IDs)
+
+- **2026-09-28 — PLAN A.1 CLOSED: document reset.** The roadmap was rewritten
+  on Rarog's model with Stockfish as the donor: new PLAN, GUIDE and PROCESS;
+  AGENTS merged with Rarog's rules; DESIGN, HISTORY and the ledger's live
+  sections brought up to date. The Phase-15 roadmap was archived verbatim
+  (`6543ccf`). `check_roadmap.py` learned lettered IDs, the `(ANY TIME)`
+  ordering exemption, the register check and the fingerprint check
+  (`01cc84a`). `dev` was recreated from `master` at `38c42e6`. Maintainer
+  decisions taken with it: the donor roles, Rarog's four target engines at 1T
+  and 4T, one release at E.3 (2.0.0 if the target gate is met, else 1.11.0),
+  and Colosseum CLI as the main harness from Phase A.
 
 ## Release record — 1.10.1
 

@@ -6,8 +6,12 @@ will be done and in what order. [`CHANGELOG.md`](CHANGELOG.md) remains the
 user-facing release record.
 
 Numbered references in this ledger are historical identifiers. The current
-forward numbering and old-to-new map live in PLAN.md section 15; do not rewrite
-measured records merely because the roadmap was reordered.
+roadmap uses lettered phases (`A.2.1`, `B.3`); [`HISTORY.md`](HISTORY.md)
+resolves every retired number to its archived roadmap and maps retired open
+leaves to their current identifiers. Rows from BAS-X30 on cite the lettered
+roadmap. Do not rewrite measured records merely because the roadmap was
+reordered; the retry map in section 9 is live routing and carries current
+destinations.
 
 Two identifier collisions predate this contract and are preserved rather than
 silently renumbered: `BAS-X08` names both the Windows include-ownership check
@@ -3538,6 +3542,21 @@ knowledge after the original cross-review. BAS-X16–X27 record that delta. Each
 is an imported prior or method unless it explicitly measured Basilisk; none is
 an acceptance verdict for a future Basilisk change.
 
+**2026-09-28 import: Rarog's search programme** (Rarog `dev` at `08c3a23`;
+PLAN, GUIDE, AGENTS, PROCESS, the B-phase ledger rows and
+`analysis/search_programme_2026-09-13.md`). The rewritten Basilisk roadmap
+adopts Rarog's method and order; these rows are the evidence it cites. They
+are priors and methods, never acceptance: Rarog's donor was Reckless, its
+evaluator is weaker than Basilisk's, and its verdicts do not transfer
+(BAS-X01).
+
+| ID | Rarog evidence | Basilisk implication | PLAN coverage |
+|---|---|---|---|
+| BAS-X30 | **Donor-shaped search clusters, fitted, then gated.** Rarog replaced increments to its co-adapted search (which had measured zero, and an unfitted rewrite that lost) with a Reckless-shaped selectivity core adopted as a unit behind a build switch. Unfitted, it passed its gate at **+65.09 ± 23.26** over the old search (RAR-S73, B.2.4a; the 2,000-game paired run had read +52.16 ± 10.73 while four zero-game floors failed). Fitted by an 82-coordinate SPSA, it passed at **+138.60 ± 30.66** over the unfitted arm (B.2.4b), and a restarted tune added **+13.1 ± 5.4** (RAR-S78). Cluster 2 (NMP, ProbCut, singular, multi-cut, negative extension) passed at **+50.5 ± 10.9** after five returns to research, reaching its gate through research amendment 7 (RAR-S79, RAR-S84). Pool rating 3001 → 3233 between RAR-M54 and RAR-M63, +200 against Basilisk 1.10.1. | The failure mode of Basilisk's cluster 5.4 (BAS-S13–S16) and Rarog's pre-programme search was the same: one-mechanism edits against a tuned optimum. The method that escaped it is architecture-as-a-unit plus a local fit, with the paired run governing over zero-game floors. Rarog's magnitudes are a prior for B's Elo budget only; Basilisk's deficit and evaluator differ. | A, B; PLAN §1 budget, §2 rules 3, 7b, 8 |
+| BAS-X31 | **Tunes in blocks.** RAR-S75 ran 5,000 iterations; its last 1,100 were worth **+4.43 ± 2.90** (RAR-S77). Restarting all 82 coordinates from its endpoint with a fresh gain schedule gained **+13.1 ± 5.4**, carried by coordinates the first run had barely moved (RAR-S78): the limit was the decayed gain, not the games. Rule 7c followed (blocks of 2,000 × 30, a movement stop rule, at most three blocks), amended so the count saves only unattended compute (RAR-S82). Categorical switches were settled by 2,000-game paired runs on one tune build and never tuned: refusing mate-range residuals to the correction histories cost **−15.1** (RAR-S74 b). A converted seed clamp read −7.64 ± 9.72 and was reverted to donor seeds as SPSA coordinates (RAR-S74 g). | Basilisk's earlier SPSA doctrine (a 5,000-iteration floor, `spsa.ps1`'s "PLAN gate 11") predates this evidence and is superseded by rule 7c on the main path. Keep categorical choices out of the SPSA surface. | PLAN rule 7c; A.3.2; B.2.2–B.2.3 |
+| BAS-X32 | **Harness for the programme.** Colosseum CLI and fastchess agree within their intervals on the same arms (RAR-M60, RAR-M61; Colosseum's own spread over three same-seed runs was as wide as the gap between instruments). A tune of 15 slots × 30 games per iteration runs about **1.65×** the games per hour of 14 × 32, mostly from wave packing (RAR-M62). The drift model **≈ 8.3e-6 × (Elo1 − Elo0) × (true nElo − midpoint) per game** fits three completed `[0,3]` gates within 1% (RAR-M10); it sizes caps prospectively and is extrapolation outside about ±6 nElo. | Adopt Colosseum as the main path with the shared guards, the 15 × 30 tune shape and the drift model as the sizing prior until Basilisk's own gates calibrate one. Never run the two engines' pinned harnesses at once. | A.3; PLAN §4 |
+| BAS-X33 | **What Rarog's B.0 found by measuring before designing** (RAR-M50). The tree-shape target was wrong as written: its branching factor was already *below* the oracle's, and its excess was a shallow-depth constant factor. The deficit was decision quality at a fixed budget (WAC at 100k nodes 200 against the oracle's 242). Donor seeds could not be converted by one scalar: the eval-scale ratio was 0.457, but Rarog's HCE residual averaged 128 cp, so NNUE-sized margins converted by the ratio alone would fire at nearly every node, which is why seeds came from three columns. 46.7% of its LMR reductions landed in qsearch and only 1.3% of reduced moves were re-searched: shape defects invisible to the counters read before. | Basilisk's B.0 measures the same things on its own head rather than inheriting these numbers: branching window, fixed-node quality, the scale ratio against both modern Stockfish and the classical oracle, its own eval residual, and the LMR landing and re-search rates. BAS-O03's EBF 2.20 against 1.61 says Basilisk's shape problem may differ from Rarog's. | B.0; PLAN "Scale conversion" |
+
 ## 8b. Cross-engine evidence imported from Manta
 
 Manta is a Zig engine by the same maintainer, developed against the same
@@ -3558,18 +3577,20 @@ there rather than here because it is our own measurement.
 
 | Prior IDs | Retry condition | PLAN destination |
 |---|---|---|
-| BAS-S08, BAS-S09, BAS-S11 | Unified pre-move evidence and prospective-depth model implemented; consumers included in a single justified joint fit; post-fit ablations registered. | 9.0/9.6, then 11.4 if NNUE fires the trigger |
-| BAS-S07, BAS-S10, BAS-S12 | Diagnostics show a distinct source/consumer gap that existing histories cannot represent. | 9.0/9.6 |
-| BAS-R02, BAS-R03 | Root-confidence inputs or evaluator score scale materially change. | 9.7; re-audit at 11.4 |
-| BAS-P04, BAS-P05, BAS-P06 | A new profile demonstrates changed reuse, cache pressure or PGO coverage. | Phase 7, 8.12 or 9.3 by owner |
-| BAS-C05 (both encodings) | A measured 4T-only strength anomaly traced to TT publication, OR a TT redesign that widens the slot for an independent reason (e.g. the multiply-hi indexing deferred in PLAN section 6), OR a pooled `nps_ab.ps1` run showing a coherent layout inside +/-0.5% of plain-key. Reasoning alone does not reopen it: both prior repairs were correct and both lost Elo. | 9.3 |
-| BAS-P07, BAS-X07 | Production ARM64 artifacts show missing prefetch or measured hot-state contention; isolate one valid variant per target-native A/B. | 7.0, 9.10, 13.1 |
-| BAS-E03, BAS-E04, BAS-E06 | NNUE data/teacher experiment, not another unchanged-surface HCE constant fit; frozen teacher and holdout are available. | 11.0–11.1 |
-| BAS-E36 Arm B (bishop proximity) | A current instrument run shows bishop shuffling remains the dominant residual failure mode and the candidate clears promotion closure and all mate floors. | 6.7/6.10 only if re-ranked |
-| BAS-E36 Arm C (escape-square count) | The stalemate-adjacency hypothesis is tested directly, shown to reinforce rather than compete with the corner drive, and clears deterministic KBN-K/promotion-closure floors. | 6.7/6.10 only if re-ranked |
+| BAS-S08, BAS-S09, BAS-S11 | Unified pre-move evidence and prospective-depth model implemented; consumers included in a single justified joint fit; post-fit ablations registered. | B.0 records whether the search programme's clusters and fits fire it (B.2, B.3); otherwise F.6 |
+| BAS-S07, BAS-S10, BAS-S12 | Diagnostics show a distinct source/consumer gap that existing histories cannot represent. | B.0 and B.2: cluster 1 changes history ownership and indexing |
+| BAS-R02, BAS-R03 | Root-confidence inputs or evaluator score scale materially change. | D.1; re-audit at F.6 |
+| BAS-P04, BAS-P05, BAS-P06 | A new profile demonstrates changed reuse, cache pressure or PGO coverage. | B.7.2, C.12 or B.2 (TT and caches) by owner |
+| BAS-C05 (both encodings) | A measured 4T-only strength anomaly traced to TT publication, OR a TT redesign that widens the slot for an independent reason (e.g. the multiply-hi indexing deferred in PLAN section 6), OR a pooled `nps_ab.ps1` run showing a coherent layout inside +/-0.5% of plain-key. Reasoning alone does not reopen it: both prior repairs were correct and both lost Elo. | B.0 and B.2 (the TT is part of cluster 1) |
+| BAS-P07, BAS-X07 | Production ARM64 artifacts show missing prefetch or measured hot-state contention; isolate one valid variant per target-native A/B. | A.4.1, E.3.2, G.2 |
+| BAS-E03, BAS-E04, BAS-E06 | NNUE data/teacher experiment, not another unchanged-surface HCE constant fit; frozen teacher and holdout are available. | C.2.6 and C.8 only on a changed search and surface; F.2–F.3 for teacher data |
+| BAS-E36 Arm B (bishop proximity) | A current instrument run shows bishop shuffling remains the dominant residual failure mode and the candidate clears promotion closure and all mate floors. | C.5.2/C.5.6 only if re-ranked |
+| BAS-E36 Arm C (escape-square count) | The stalemate-adjacency hypothesis is tested directly, shown to reinforce rather than compete with the corner drive, and clears deterministic KBN-K/promotion-closure floors. | C.5.2/C.5.6 only if re-ranked |
 
 Anything not meeting its trigger stays closed. A retry is a new experiment with
-a new ID and manifest; it does not overwrite the historical row.
+a new ID and manifest; it does not overwrite the historical row. Destinations
+were remapped to the lettered roadmap on 2026-09-28; the retired destinations
+resolve through HISTORY's number map.
 
 ## 10. Prediction calibration review
 
