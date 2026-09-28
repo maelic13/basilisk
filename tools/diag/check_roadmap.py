@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
 import sys
 import tempfile
@@ -287,6 +288,38 @@ def validate_fingerprint(root: Path) -> str:
     return declared
 
 
+def validate_reference_manifests(root: Path) -> int:
+    """Each docs/reference/<name>.sha256 lists exactly the files of <name>/, unchanged."""
+    reference = root / "docs" / "reference"
+    count = 0
+    for manifest in sorted(reference.glob("*.sha256")):
+        snapshot = manifest.with_suffix("")
+        listed: dict[str, str] = {}
+        for number, line in enumerate(manifest.read_text(encoding="utf-8").splitlines(), 1):
+            if not line.strip():
+                continue
+            digest, _, rel = line.partition("  ")
+            if len(digest) != 64 or not rel:
+                raise ValueError(f"{manifest}:{number}: malformed manifest line")
+            listed[rel] = digest
+        present = {
+            path.relative_to(snapshot).as_posix()
+            for path in snapshot.rglob("*") if path.is_file()
+        }
+        if present != set(listed):
+            unlisted = sorted(present - set(listed))[:5]
+            absent = sorted(set(listed) - present)[:5]
+            raise ValueError(
+                f"{snapshot}: files differ from {manifest.name}: "
+                f"unlisted {unlisted}, absent {absent}"
+            )
+        for rel, digest in listed.items():
+            if hashlib.sha256((snapshot / rel).read_bytes()).hexdigest() != digest:
+                raise ValueError(f"{snapshot / rel}: changed since its snapshot manifest")
+        count += len(listed)
+    return count
+
+
 def expect_failure(label: str, action) -> None:
     try:
         action()
@@ -371,6 +404,20 @@ def self_test() -> None:
         validate_fingerprint(root)
         (root / "DESIGN.md").write_text("- **Bench signature**: **7,654,321**\n", encoding="utf-8")
         expect_failure("a stale restated fingerprint", lambda: validate_fingerprint(root))
+
+        # A reference snapshot verifies against its manifest, and nothing else does.
+        snapshot = root / "docs" / "reference" / "donor"
+        snapshot.mkdir(parents=True)
+        (snapshot / "a.md").write_bytes(b"verbatim\n")
+        digest = hashlib.sha256(b"verbatim\n").hexdigest()
+        (root / "docs" / "reference" / "donor.sha256").write_text(f"{digest}  a.md\n", encoding="utf-8")
+        if validate_reference_manifests(root) != 1:
+            raise AssertionError("reference manifest was not read")
+        (snapshot / "a.md").write_bytes(b"edited\n")
+        expect_failure("an edited reference snapshot", lambda: validate_reference_manifests(root))
+        (snapshot / "a.md").write_bytes(b"verbatim\n")
+        (snapshot / "extra.md").write_bytes(b"x\n")
+        expect_failure("an unlisted file in a reference snapshot", lambda: validate_reference_manifests(root))
     print("roadmap checker self-test: known-bad inputs rejected")
 
 
@@ -394,6 +441,7 @@ def main() -> int:
             root / "DESIGN.md",
             root / "HISTORY.md",
             root / "analysis" / "README.md",
+            root / "docs" / "reference" / "README.md",
         ]
         process_docs = [path for path in process_docs if path.exists()]
         validate_state_fields(process_docs)
@@ -434,6 +482,7 @@ def main() -> int:
         validate_order(plan)
         validate_register(plan, register_rows(root / "PLAN.md"))
         fingerprint = validate_fingerprint(root)
+        reference_files = validate_reference_manifests(root)
     except ValueError as error:
         print(error, file=sys.stderr)
         return 1
@@ -448,7 +497,7 @@ def main() -> int:
         f"roadmap synchronized: {sum(plan.items.values())} complete, "
         f"{len(plan.items) - sum(plan.items.values())} open; "
         f"next {ordered_open[0] if ordered_open else 'none'}; "
-        f"fingerprint {fingerprint}"
+        f"fingerprint {fingerprint}; {reference_files} reference files verified"
     )
     return 0
 
