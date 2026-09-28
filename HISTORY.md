@@ -30,11 +30,13 @@ locally and on `origin`. Disposition recorded 2026-09-28 (A.2.2).
 | `oracle/hybrid` | `01df815` | The deficit oracle under `hybrid/`: classical Stockfish `9587eeeb`'s search with a UCI switch selecting Basilisk 1.9.3's HCE or Stockfish's own | PLAN rule 1, A.5.4, A.7.3; PROCESS *Independence boundary* | no open PLAN leaf or PROCESS rule names it | keep |
 | `oracle/hybrid-diag` | `324ace4` | `oracle/hybrid` plus a behaviour-neutral qsearch counter in `hybrid/stockfish/src/search.cpp` | BAS-D03; `analysis/cluster55_audit_v1.md` §3 | A.5.3 commits the oracle's counter set including the qsearch share, so BAS-D03 reproduces from `dev` | keep |
 | `archive/nnue-local` | `1431a89` | The 2026-07 NNUE bring-up: scalar `.mnn` loader (`src/nnue.*`), `UseNNUE`/`EvalFile`, `test_nnue` with `tests/data/test_h16.mnn` vectors | PLAN F.4 | F.4 closes, or F.0 chooses a network format other than `.mnn` | keep |
-| `archive/nnue-origin` | `4fa11bf` | An ancestor of `archive/nnue-local`; nothing it reaches is lost without it | none | fired: redundant | remove |
-| `archive/backup` | `ae4af1a` | The pre-squash line of 2026-08-05 → 08-11, including the withdrawn Colosseum adoption (`3cbf90b`); an ancestor of `oracle/hybrid` | none | fired: redundant | remove |
-| `archive/arm_fix` | `67a987b` | One commit aligning the TT to 64-byte lines for Apple (`src/tt.h`) | BAS-P07, which states the mechanism and why it was rejected | fired: hypothesis rejected, the row carries the recipe | remove |
+| `archive/nnue-origin` | `4fa11bf` | An ancestor of `archive/nnue-local`; nothing it reaches is lost without it | none | fired: redundant | removed 2026-09-28 |
+| `archive/backup` | `ae4af1a` | The pre-squash line of 2026-08-05 → 08-11, including the withdrawn Colosseum adoption (`3cbf90b`); an ancestor of `oracle/hybrid` | none | fired: redundant | removed 2026-09-28 |
+| `archive/arm_fix` | `67a987b` | One commit aligning the TT to 64-byte lines for Apple (`src/tt.h`) | BAS-P07, which states the mechanism and why it was rejected | fired: hypothesis rejected, the row carries the recipe | removed 2026-09-28 |
 
-All six are lightweight tags; a kept tag becomes annotated with its reason.
+The kept tags are annotated with their reason and retirement condition. The
+removed ones were deleted locally and on `origin`; their commits stay
+resolvable only while unpruned, and the rows above carry what they held.
 Removing a tag and pushing a tag are the maintainer's commands.
 
 ## Releases (Phases 1–4)

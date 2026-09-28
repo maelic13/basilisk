@@ -163,7 +163,7 @@ before its deadline; held items stay unticked in place.
     - [ ] **A.2.3** `[R2]` Feature, option and parameter inventory, inert knobs with owners
 - [ ] **A.3** Harness: Colosseum CLI as the main path
     - [ ] **A.3.1** `[I1]` Run files, `colosseum.ps1` and the shared guards; parity, guard suite, live smoke
-    - [ ] **A.3.2** `[I1]` Tune path: surface generated from the X-macro, 15 × 30 shape, block chaining
+    - [ ] **A.3.2** `[I1]` Tune path: surface generated from the X-macro, 15 × 30 shape, block chaining; hand-written configs retired
     - [ ] **A.3.3** `[M]` PROCESS *Harness* section finalised; backup path and cross-check triggers
 - [ ] **A.4** Build and toolchain
     - [ ] **A.4.1** `[I1]` Toolchain refresh and freeze, one axis at a time

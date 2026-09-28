@@ -418,7 +418,10 @@ was cut the day before this plan, so Phase A has no release step.
       `spsa.ps1`'s fixed config-group list gains the generated path, and its
       5,000-iteration floor, which cites the archived "PLAN gate 11", is
       reconciled with rule 7c's 2,000-iteration blocks. A one-iteration tune
-      on a temporary surface is the smoke.
+      on a temporary surface is the smoke. The hand-written
+      `tools/spsa_configs/config_*.json` and the README's warnings about them
+      (which name `.STALE` files no longer in the tree) retire in the same
+      change.
     - [ ] **A.3.3** `[M]` PROCESS *Harness* section finalised: Colosseum main, fastchess and weather-factory maintained as backup and second opinion until at least the classical release, with the cross-check triggers.
 - [ ] **A.4** Build and toolchain.
     - [ ] **A.4.1** `[I1]` Toolchain refresh and freeze (archived 7.0): inventory the compiler, C++ library, CMake, Ninja and profile tools on Windows, Linux CI and macOS.
@@ -800,7 +803,9 @@ has lost games in both engines (BAS-X02).
       - Every input and output is hashed, and source and binary are restored.
       - Labels must be exactly 0, ½ or 1, with rejection accounting.
       - Contracts are versioned, and the snapshot's fit tools
-        (`tools/texel/`) are ported where useful.
+        (`tools/texel/`) are ported where useful; Basilisk's own
+        `tools/texel/phase911.ps1` driver is adopted into the contract or
+        retired.
       - A Basilisk Texel handbook is written. Rarog's, the snapshot's
         `analysis/texel_fitting_handbook.md`, is a template, not a source of
         constants.
