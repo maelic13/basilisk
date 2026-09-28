@@ -383,9 +383,16 @@ was cut the day before this plan, so Phase A has no release step.
       `phase911.ps1`'s header point to `datagen.ps1` again (the script
       always required its manifest), and `build_test.ps1`'s TUNE comment
       names weather-factory.
-    - [ ] **A.2.2** `[M]` Branch and tag disposition: each `archive/*` and `oracle/*` tag gets its citing document, reason and retirement condition.
+    - [x] **A.2.2** `[M]` Branch and tag disposition: each `archive/*` and `oracle/*` tag gets its citing document, reason and retirement condition. — CLOSED 2026-09-28.
       Tags whose condition has fired are proposed for removal; deleting a
-      remote tag stays the maintainer's command.
+      remote tag stays the maintainer's command. The register is HISTORY's
+      *Preserved commits*: `oracle/hybrid`, `oracle/hybrid-diag` and
+      `archive/nnue-local` are kept with their retirement conditions (F.4
+      now cites the last); `archive/backup` and `archive/nnue-origin` are
+      ancestors of kept tags and `archive/arm_fix` is BAS-P07's rejected
+      diff, so all three are proposed for removal. Only `master` and `dev`
+      exist as branches. The ledger's stale branch pointers (BAS-D03,
+      BAS-P07) now name the tags.
     - [ ] **A.2.3** `[R2]` Feature, option and parameter inventory: every `search_params.h` coordinate, evaluation parameter, TUNE-only option and `Diag` counter classified live, inert-with-owner or dead.
       The "exposed but inert" knobs in `search_params.h` are listed with
       their owners: capture futility, SEE-quiet pruning, qsearch quiet
@@ -720,8 +727,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.2.2 | READY_FOR_IMPLEMENTATION | M | Next leaf: tag citations and retirement conditions |
-| A.2.3 | RESEARCH | R2 | Inventory feeds B.0's survivors and B.1's removals |
+| A.2.3 | RESEARCH | R2 | Next leaf: inventory feeds B.0's survivors and B.1's removals |
 | A.3.1 | READY_FOR_IMPLEMENTATION | I1 | Port of the snapshot's wrapper and guards; contract in the leaf |
 | A.3.2 | READY_FOR_IMPLEMENTATION | I1 | Surface generator from the X-macro; 15 × 30 shape |
 | A.3.3 | READY_FOR_IMPLEMENTATION | M | Documentation after A.3.1–A.3.2 |
@@ -946,6 +952,8 @@ fallback, which is why the archived "optional HCE fallback" phase is dropped.
 - [ ] **F.2** `[V]` Data generation at scale: unique positions sized by learning curve, by-game splits, manifests and hashes, maintainer-run (archived 11.0.b).
 - [ ] **F.3** `[I2]` Trainer hardening and baseline nets: deterministic pipeline, two seeds per configuration, validation selects, test opened once (archived 11.0.a, 11.1).
 - [ ] **F.4** `[I2]` Scalar integration: the network file contract and integer-exact trainer/engine conformance; clean HCE fallback (archived 11.2).
+  Prior: tag `archive/nnue-local` holds the 2026-07 scalar `.mnn` loader
+  and its conformance test; F.4 decides whether any of it is reused.
 - [ ] **F.5** `[I2]` Incremental and SIMD inference: same-net parity on every move type, SIMD tiers with the scalar reference retained, cost attribution (archived 11.3).
 - [ ] **F.6** `[V]` Search re-fit for the network: score scale, correction, margins, qsearch and SEE thresholds, using C.10's protocol (archived 11.4.a–b); BAS-R02, R03, S08 and S09's retry triggers are reviewed here.
 - [ ] **F.7** `[R3]` Architecture ladder: output buckets, king buckets with mirroring, then relation and threat inputs, one axis at a time with multiple seeds; each net gated against the previous (archived 12.0.b).
