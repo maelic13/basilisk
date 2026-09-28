@@ -21,6 +21,14 @@ lettered (A–G) so that no new identifier collides with a retired number, and
 a step that is the same step as Rarog's carries the same identifier: Basilisk
 B.3 is the analogue of Rarog B.3.
 
+**The plan does not depend on the Rarog repository.** Everything it uses from
+Rarog is in a pinned, verbatim snapshot at `docs/reference/rarog/` (Rarog
+`015bccae`; [docs/reference/README.md](docs/reference/README.md) says how to
+use it): the documents, the evidence cited as `RAR-*`, the tools to port and
+the worked examples. The evidence the plan relies on is also imported into
+Basilisk's own ledger (BAS-X30–BAS-X34). "The snapshot" below means that
+directory.
+
 ## 1. Objective and gates
 
 **Objective.** Make Basilisk the strongest engine we can build, in two
@@ -48,14 +56,14 @@ top 100, established by CCRL's own testing after a public release.
 | Fact | Value | Source |
 |---|---|---|
 | Release | **1.10.1** (2026-09-27), bench-identical to 1.10.0: `bench 13` **14,978,465**, CTest 12/12 release and sanitizer. 1.10.0 was accepted at **+19.18 ± 6.76 Elo** over 1.9.3 at `3+0.03` 1T | BAS-E55; HISTORY |
-| Pool, `3+0.03` 1T | In Rarog's twelve-engine reference pool (600 games per pair, no adjudication, 2026-09-11) 1.10.0 rates **3012** against Houdini 3 3277, Critter 1.6a 3197, Fritz 16 3165 and Rybka 4 3102 (fitted, Rybka 4 anchored): gaps of −265, −185, −153 and −90. Rybka 4.1, the current target, was not in that pool. In the 42-engine Super Rating Tournament 1.10.0 rates 2994, and Rarog 2.4.0, level with it head-to-head, scores −131 against Rybka 4.1. Basilisk's own head-to-heads are read at A.7.1 | Rarog RAR-M45, RAR-M54 |
+| Pool, `3+0.03` 1T | On the Super Rating Tournament's scale (42 engines, 200 games per pair, no adjudication, 2026-09-15), 1.10.0 rates **2994**, which 1.10.1 carries, against Houdini 3 3287, Critter 1.6a 3192, Fritz 16 3173 and Rybka 4.1 3111: rating gaps of **−293, −198, −179 and −117**. Rarog's twelve-engine pool of 2026-09-11 (600 games per pair) read the same order: 1.10.0 at 3012 against Houdini 3 3277, Critter 1.6a 3197, Fritz 16 3165 and Rybka 4 3102. Basilisk's own head-to-heads are read from the tournament PGN at A.7.1 | BAS-X34 |
 | Pool, 4T | Not measured for any 1.10.x (A.7.2) | — |
-| Sibling | Rarog 2.5.0-dev, after its search clusters 1 and 2, rates **3233** and scores **+200** against Basilisk 1.10.1 | Rarog RAR-M63 |
+| Sibling | Rarog 2.5.0-dev, after its search clusters 1 and 2, rates **3233** and scores **+200** against Basilisk 1.10.1 | BAS-X34 |
 | Search deficit | Classical Stockfish `9587eeeb`'s search driving Basilisk's own 1.9.3 HCE beat native 1.9.3 by **+322.7 ± 36**, while searching fewer nodes per move at lower NPS (round robin, 400 games per pair, logistic estimate, no adjudication). At equal time the oracle completes 25.2 plies at EBF 1.61 against Basilisk's 15.6 at 2.20; at 300k nodes 32.88 plies against 21.47, **98.4%** of that width attributable to search | BAS-O01, BAS-O03, BAS-O04 |
 | Evaluation deficit | Classical Stockfish's HCE beats Basilisk's by **+232.8 ± 32** under the identical search; full classical Stockfish beat 1.9.3 by +516 | BAS-O02 |
 | How the search was attacked before | One mechanism at a time against a tuned optimum: reduction magnitude (BAS-S13–S15, all refuted before games), check-move depth (BAS-S16, −3.48 ± 3.32), check-extension removal (BAS-S08, −10.17 ± 6.52) | EXPERIMENTS §3 |
-| Speed | Board microbenchmarks 22–46% ahead of Rarog's (BAS-X16); **3.71 MNPS** against Rarog's 3.19 in Rarog's pooled-PGO measurement | BAS-X16; Rarog RAR-M48 |
-| Conversion | After a persistent piece-up advantage, **17.5 draws and 5.0 losses per 1,000 games** against six HCE-era anchors (1.9.3, Super Rating Tournament); Rarog 2.4.0 24.2 / 3.3 | Rarog RAR-M54 |
+| Speed | Board microbenchmarks 22–46% ahead of Rarog's (BAS-X16); **3.71 MNPS** against Rarog's 3.19 in Rarog's pooled-PGO measurement | BAS-X16; BAS-X34 |
+| Conversion | After a persistent piece-up advantage, **17.5 draws and 5.0 losses per 1,000 games** against six HCE-era anchors (1.9.3, Super Rating Tournament); Rarog 2.4.0 24.2 / 3.3 | BAS-X34 |
 | Endgame truth | **361/480** clean tablebase wins converted at 60k nodes, against the Stockfish reference's 466/480 | BAS-E47 |
 
 Both deficit figures are older than 1.10.x and come from a coarser estimator
@@ -95,8 +103,9 @@ donor-shaped fitted search gained about 230 pool Elo.
 | D clock, SMP, robustness | unmeasured | 15–40 | Stockfish-shaped time management; 4T quality |
 | Speed inside B and C | — | 10–30 | Per-node cost of the new search and evaluation modules |
 
-If those bands are right, the classical head reaches Rybka 4.1, Critter 1.6a
-and Fritz 16 at 1T after B, and Houdini 3 falls, if at all, only with C. Each
+If those bands are right, the classical head closes the rating gaps to
+Rybka 4.1 (117), Fritz 16 (179) and Critter 1.6a (198) at 1T after B, and
+Houdini 3 (293) falls, if at all, only with C. Each
 programme's checkpoint re-measures its deficit meter, so a miss is seen as a
 miss and this table is corrected rather than defended.
 
@@ -345,7 +354,10 @@ was cut the day before this plan, so Phase A has no release step.
   HISTORY and the ledger's live sections brought up to date; the Phase-15
   roadmap archived verbatim (`6543ccf`); `check_roadmap.py` adapted to
   lettered IDs, the `(ANY TIME)` exemption, the register and the fingerprint
-  check (`01cc84a`); `dev` recreated from `master`.
+  check (`01cc84a`); `dev` recreated from `master`. Amended the same day:
+  everything the plan takes from Rarog pinned as a verbatim snapshot in
+  `docs/reference/rarog/` (`e5ad70b`), with the checker verifying its
+  manifest (`e948979`), so the plan needs no live Rarog repository.
 - [ ] **A.2** Repository and inventory.
     - [ ] **A.2.1** `[M]` Tracked-file cleanup: every one-off or superseded tracked file named with its last commit and removed when nothing consumes it.
       `tools/run_5911_experiment.ps1` is the first candidate. Evidence and
@@ -360,7 +372,7 @@ was cut the day before this plan, so Phase A has no release step.
       checks, the double-extension cap and `PostLmrHistScale`. The inventory
       is the input to B.0's survivor list and B.1's removals.
 - [ ] **A.3** Harness: Colosseum CLI as the main path (maintainer decision 2026-09-28).
-    - [ ] **A.3.1** `[I1]` Run files and wrapper: port Rarog's `tools/colosseum.ps1`, its run files and guard suite, adapted to Basilisk's CMake manifests.
+    - [ ] **A.3.1** `[I1]` Run files and wrapper: port the snapshot's `tools/colosseum.ps1`, run files and guard suite, adapted to Basilisk's CMake manifests; the snapshot's `tools/colosseum/colosseum.pin.json` (`cli-v0.2.0`) is the starting pin.
       Every guard is shared with `sprt.ps1` and `spsa.ps1` through
       `harness_common.ps1`, so the two paths cannot drift. Guards: refuse a
       dirty or wrong-revision candidate; require the binary, hash, compiler,
@@ -373,7 +385,9 @@ was cut the day before this plan, so Phase A has no release step.
       faults and an independent recount from the PGN.
     - [ ] **A.3.2** `[I1]` Tune path: the X-macro table in `src/search_params.h` generates the SPSA surface and the Colosseum tune file.
       The tune shape is 15 slots × 30 games per iteration (RAR-M62, 1.65×
-      the old throughput). `-SeedFrom` chains the blocks of PLAN rule 7c.
+      the old throughput). `-SeedFrom` chains the blocks of PLAN rule 7c; the snapshot's
+      `tools/spsa_config_to_colosseum.py` and `tools/spsa_block_rule.py` are
+      the models.
       `spsa.ps1`'s fixed config-group list gains the generated path, and its
       5,000-iteration floor, which cites the archived "PLAN gate 11", is
       reconciled with rule 7c's 2,000-iteration blocks. A one-iteration tune
@@ -392,27 +406,33 @@ was cut the day before this plan, so Phase A has no release step.
       (archived 6.6.g).
 - [ ] **A.5** Instruments for the search programme.
     - [ ] **A.5.1** `[I1]` Fixed-budget probe: WAC solved at 100k and 400k nodes and at a fixed PV depth, plus oracle best-move agreement on `suite_v1.epd` at 300k nodes, with per-position records.
-      Ported from Rarog's `fixed_budget_probe.py` onto Basilisk's `wac`
+      Ported from the snapshot's `tools/diag/fixed_budget_probe.py` onto
+      Basilisk's `wac`
       command and `tools/diag/run_suite.py`.
     - [ ] **A.5.2** `[I1]` Branching profile: the reference-anchored geometric branching factor over depths 4–14, one fresh process per depth.
       Basilisk against the classical oracle and modern Stockfish, with
       per-position ratios and the median beside the aggregate: one position
       of forty once decided an endpoint measure (BAS-X13).
-      `tools/diag/branching.py` is the starting point.
+      `tools/diag/branching.py` is the starting point, and the snapshot's
+      `tools/branching_profile.ps1` the model.
     - [ ] **A.5.3** `[I1]` Counters and decision trace: `Diag` counters summed per position at sampling stride 1 with their units named, and a diag-only decision trace.
       The trace is bounded to plies 1–2 under `searchmoves` and prints every
       prune, reduction and extension with its inputs. Rarog's trace found
       two seed defects that no counter could see: a static margin overriding
       a mate in one, and a count-based skip dropping a mating quiet move.
-    - [ ] **A.5.4** `[I1]` Matched ablation mask: one bit order on Basilisk and on the `oracle/hybrid` build, compiled away in production, every bit proven live by a moved node count.
-    - [ ] **A.5.5** `[I1]` Conversion instrument over PGN: port Rarog's `conversion_audit.py` and `export_tournament_pgn.py`.
+      The snapshot holds the counter tools (`tools/diag/bench_counters.py`,
+      `tools/diag/phase4_differential.py`, `analysis/phase4_counter_spec.md`)
+      and the oracle's counters (`refs/oracle-hybrid-diag.patch`).
+    - [ ] **A.5.4** `[I1]` Matched ablation mask: one bit order on Basilisk and on the `oracle/hybrid` build, compiled away in production, every bit proven live by a moved node count; the oracle side exists as the snapshot's `refs/oracle-hybrid-ablate.patch`, written for the same classical-Stockfish search.
+    - [ ] **A.5.5** `[I1]` Conversion instrument over PGN: port the snapshot's `tools/diag/conversion_audit.py` and `tools/diag/export_tournament_pgn.py`.
       Before trusting either, reproduce Rarog's reading of Basilisk 1.9.3
-      (17.5 draws and 5.0 losses per 1,000 against the six anchors).
+      (17.5 draws and 5.0 losses per 1,000 against the six anchors; the
+      snapshot's `tools/diag/conversion_release_basilisk_1.9.3_v1.json`).
     - [ ] **A.5.6** `[R2]` Reference-anchored canaries: WAC positions, including quiet key moves and quiet mate threats, anchored at the depth classical Stockfish solves them.
       A changed canary is recorded with its cause and never re-blessed.
 - [ ] **A.6** `[R2]` Codebase consolidation analysis: `src/search.cpp` (2,848 lines) and `src/eval.cpp` (2,148 lines) mapped into target modules; the B.1 and C.1 move tables; dead code; the seams a cluster needs. Refactors nothing.
 - [ ] **A.7** Baselines on the 1.10.1 binary.
-    - [ ] **A.7.1** `[V]` 1T pool baseline, zero games: census of Basilisk 1.10.0's head-to-heads in the Super Rating Tournament PGN (sha256 in RAR-M54), and its conversion rate with A.5.5 on the same file.
+    - [ ] **A.7.1** `[V]` 1T pool baseline, zero games: census of Basilisk 1.10.0's head-to-heads in the Super Rating Tournament PGN (`D:/chess/results/super_rating_tournament.pgn`, SHA-256 in BAS-X34), and its conversion rate with A.5.5 on the same file.
       Replaces HISTORY's unsourced 2026-09-04 pool figures.
     - [ ] **A.7.2** `[V]` 4T gauntlet against the four targets and Rarog 2.4.0, 400 games per pair, no adjudication, maintainer-run; a null pair first if the 4T setup changed since BAS-M02.
     - [ ] **A.7.3** `[V]` Oracle deficit meter G(0): rebuild `oracle/hybrid` with the 1.10.1 evaluation, then 3,000 paired games at equal time, no adjudication, maintainer-run.
@@ -657,7 +677,7 @@ rejections stop B.
       It asserts that allocations grow per iteration, never per node, while
       the node count grows by at least an order of magnitude. A planted
       per-node allocation must fail it, checked once and reverted. No engine
-      change.
+      change. The snapshot's `tests/allocation_guard.rs` is the model.
     - [ ] **B.7.2** `[I1]` Speed pass: behaviour-neutral throughput work on the new modules, with a pooled-PGO floor of +0.5% per change and B.7.1's guard as the other floor.
       The archived board-speed leaves (7.2–7.8: generation and list
       delivery, fused relocation, pin/check sharing, the SEE kernel,
@@ -683,7 +703,7 @@ leaf's tag. Later phases carry only a class until they open.
 | A.2.1 | READY_FOR_IMPLEMENTATION | M | Next leaf: tracked-file cleanup |
 | A.2.2 | READY_FOR_IMPLEMENTATION | M | Tag citations and retirement conditions |
 | A.2.3 | RESEARCH | R2 | Inventory feeds B.0's survivors and B.1's removals |
-| A.3.1 | READY_FOR_IMPLEMENTATION | I1 | Port of Rarog's wrapper and guards; contract in the leaf |
+| A.3.1 | READY_FOR_IMPLEMENTATION | I1 | Port of the snapshot's wrapper and guards; contract in the leaf |
 | A.3.2 | READY_FOR_IMPLEMENTATION | I1 | Surface generator from the X-macro; 15 × 30 shape |
 | A.3.3 | READY_FOR_IMPLEMENTATION | M | Documentation after A.3.1–A.3.2 |
 | A.4.1 | RESEARCH | I1 | Toolchain comparison, one axis at a time |
@@ -754,10 +774,11 @@ has lost games in both engines (BAS-X02).
         anchors and reconstruction (Manta's catalogue, BAS-X14).
       - Every input and output is hashed, and source and binary are restored.
       - Labels must be exactly 0, ½ or 1, with rejection accounting.
-      - Contracts are versioned, and Rarog's fit tools are ported where
-        useful.
-      - A Basilisk Texel handbook is written. Rarog's is a template, not a
-        source of constants.
+      - Contracts are versioned, and the snapshot's fit tools
+        (`tools/texel/`) are ported where useful.
+      - A Basilisk Texel handbook is written. Rarog's, the snapshot's
+        `analysis/texel_fitting_handbook.md`, is a template, not a source of
+        constants.
     - [ ] **C.2.2** `[R2]` Corpus design (archived 8.2.a–e).
       - The source store is located and hashed.
       - Buckets use evaluator phase, not ply; only opening starts feed the
@@ -782,7 +803,8 @@ has lost games in both engines (BAS-X02).
 - [ ] **C.4** `[I2]` Threats and mobility cluster: the mobility area, weak enemies, hanging pieces, restricted squares, pawn-push threats and queen threats (including BAS-E07's absent `KnightOnQueen` and `SliderOnQueen`); shared attack maps from C.1; refit; gate.
 - [ ] **C.5** Endgame handling and winnability. The goal is measured conversion and correct draw recognition where games actually go, not coverage of a function list.
     - [ ] **C.5.1** `[R2]` Instruments and gate integrity (archived 6.6.a–e and 6.6.h).
-      - Audit the tools against Rarog's endgame instruments, and classify
+      - Audit the tools against the snapshot's endgame instruments
+        (`tools/diag/endgame_*.py`), and classify
         every delta as portable, adapter-specific, covered or inapplicable
         before changing any instrument.
       - Add versioned report schemas, cohort digests and serial-identical
@@ -861,7 +883,7 @@ has lost games in both engines (BAS-X02).
   soft-stop voting. The gate is a 4T SPRT `[0,5]` with a null pair first,
   and only against a measured defect (archived 9.10.b; BAS-R04–R06).
 - [ ] **D.3** Engine lifecycle, protocol and board contracts.
-    - [ ] **D.3.1** `[R2]` Board contract audit (ANY TIME) — must land before E.1 (archived 7.1, 7.7, 7.9–7.12): port Rarog's board-v2 corpus and oracle; this is a defect hunt, not a speed item.
+    - [ ] **D.3.1** `[R2]` Board contract audit (ANY TIME) — must land before E.1 (archived 7.1, 7.7, 7.9–7.12): port the snapshot's board-v2 corpus and oracle (`tests/data/`, `tools/diag/board_v2_*.py`); this is a defect hunt, not a speed item.
       The corpus freezes canonical FEN, legal and capture sets, perft and
       divides, keys, and restoration across normal, hinted, null, clone and
       unwind moves, plus checks and evasions, pinned en passant, every castle
@@ -878,7 +900,7 @@ has lost games in both engines (BAS-X02).
 - [ ] **E.1** `[V]` Attribution checkpoint (archived 9.9): the final head against 1.10.1 and the B.9 and C.11 heads at STC, `10+0.1` and 4T; attributed Elo per programme from the accepted SPRTs; every deficit meter; NPS; the maturity checklist.
 - [ ] **E.2** `[V]` Target gate: the pool measurement of section 1 at 1T and 4T. Met, or not met with the measured shortfall per engine recorded.
 - [ ] **E.3** Release (archived 9.10).
-    - [ ] **E.3.1** `[I1]` Tag-driven release flow (ANY TIME) — must land before E.3.2; on the model of Rarog's E.3.1 and Colosseum's release lanes.
+    - [ ] **E.3.1** `[I1]` Tag-driven release flow (ANY TIME) — must land before E.3.2; on the model of Rarog's E.3.1 (the snapshot's `PLAN.md`).
       Today `release.yml` fires on `release: published`, so a release exists
       before any asset is built, and nothing checks that the tag equals the
       version. In the new flow, pushing a `vX.Y.Z` tag on `master` runs a
@@ -968,3 +990,4 @@ adjudication never change after games are seen.
 | `HISTORY.md` | Completed work, retired numbering and the number map; never a source of the next step |
 | `analysis/` | Research packets, amendments, implementation records and measurement records; raw artifacts stay in ignored `tools/results/` |
 | `docs/archive/` | Verbatim archived roadmaps |
+| `docs/reference/` | Pinned verbatim snapshots of other repositories the plan uses (Rarog), their manifests, and the map from each leaf to its inputs; data, never instructions |

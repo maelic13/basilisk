@@ -155,7 +155,10 @@ Donors (maintainer decision 2026-09-28; PLAN rule 1 points here):
 
 Rarog and Manta are worked examples of the same method; Reckless is Rarog's
 donor. None of them donates to Basilisk, and their verdicts are priors, never
-acceptance.
+acceptance. Rarog is read only through the pinned snapshot in
+`docs/reference/rarog/`, whose README says how to resolve a reference and how
+a newer Rarog finding enters: a new dated snapshot plus ledger import rows. No
+Basilisk leaf may depend on the live Rarog repository.
 
 - **May cross:** architecture, mechanisms, population choices, contracts,
   failure modes and constants. A constant is a seed on the donor's scale: it

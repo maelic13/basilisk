@@ -163,7 +163,14 @@ map covers only open work.
   (`01cc84a`). `dev` was recreated from `master` at `38c42e6`. Maintainer
   decisions taken with it: the donor roles, Rarog's four target engines at 1T
   and 4T, one release at E.3 (2.0.0 if the target gate is met, else 1.11.0),
-  and Colosseum CLI as the main harness from Phase A.
+  and Colosseum CLI as the main harness from Phase A. Amended the same day at
+  the maintainer's request, so the plan would survive Rarog's deletion:
+  everything it takes from Rarog was pinned as a verbatim snapshot in
+  `docs/reference/rarog/` (Rarog `015bccae`, 274 files byte-identical to
+  their blobs, plus the two oracle tags as patches; `e5ad70b`). The checker
+  verifies its manifest (`e948979`), Rarog's measurements of Basilisk were
+  imported as BAS-X34, and two bundles of Rarog's full history were kept in
+  ignored storage with a tested restore recipe.
 
 ## Release record — 1.10.1
 

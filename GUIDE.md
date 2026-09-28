@@ -72,8 +72,9 @@ goes back to the implementer for a fix: it goes to research.
 > roadmap assumptions. Read the donor (modern Stockfish at the pinned
 > revision for search, TT, histories, time and threads; classical Stockfish
 > `9587eeeb` for the evaluation and as the oracle) for mechanism, population
-> and interaction, never for transcription; read Rarog as a worked example of
-> the same method, not as a donor. State the precise question, the leading
+> and interaction, never for transcription; read the Rarog snapshot in
+> `docs/reference/rarog/` as a worked example of the same method, never the
+> live Rarog repository and never as a donor. State the precise question, the leading
 > and competing hypotheses, the shared signals and interactions, and whether
 > search, evaluation, tooling or instrument effects could explain it. Design
 > the cheapest discriminating test first; freeze its prediction, confidence,
@@ -126,11 +127,11 @@ together, and `python tools/diag/check_roadmap.py` must pass.
 | Released baseline | **1.10.1** on `master`, tagged `v1.10.1` (2026-09-27); a correctness patch on 1.10.0 (BAS-C10–C13), which was accepted at +19.18 ± 6.76 Elo over 1.9.3 (BAS-E55) |
 | Development head | `dev`, recreated from `master` at `38c42e6` on 2026-09-28; engine source identical to 1.10.1 |
 | Bench fingerprint | **14,978,465** (`bench 13`, 1.10.0 and 1.10.1); CTest 12/12 release and ASan/UBSan |
-| Pool position, `3+0.03` 1T | 1.10.0 rates 3012 in Rarog's reference pool against Houdini 3 3277, Critter 1.6a 3197, Fritz 16 3165, Rybka 4 3102 (RAR-M45), and 2994 in the Super Rating Tournament (RAR-M54); head-to-heads against the four targets are read at A.7.1. Rarog 2.5.0-dev rates 3233 and scores +200 against 1.10.1 (RAR-M63) |
+| Pool position, `3+0.03` 1T | 1.10.0 (and 1.10.1) rate 2994 on the Super Rating Tournament's scale against Houdini 3 3287, Critter 1.6a 3192, Fritz 16 3173, Rybka 4.1 3111 (BAS-X34); head-to-heads are read at A.7.1. Rarog 2.5.0-dev rates 3233 and scores +200 against 1.10.1 (BAS-X34) |
 | Pool position, 4T | Not measured for 1.10.x (A.7.2) |
 | Search deficit | +322.7 ± 36 Elo equal time against the classical-Stockfish search oracle on 1.9.3 (BAS-O01, round robin); EBF 2.20 against 1.61. Re-measured as a paired G(0) at A.7.3 |
 | Evaluation deficit | +232.8 ± 32 Elo against classical Stockfish's HCE under the same search (BAS-O02) |
-| Speed | 3.71 MNPS in Rarog's pooled-PGO measurement (RAR-M48); Basilisk's own pooled baseline at A.7.4 |
+| Speed | 3.71 MNPS in Rarog's pooled-PGO measurement (BAS-X34); Basilisk's own pooled baseline at A.7.4 |
 | Conversion | 17.5 draws and 5.0 losses per 1,000 after a persistent piece-up, against six anchors (1.9.3; RAR-M54); re-read for 1.10.0 at A.7.1 |
 | Active experiment | None |
 | Current step | **A.2.1** tracked-file cleanup (`M`) |
