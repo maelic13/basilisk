@@ -47,7 +47,7 @@ try {
     Write-Host ""
 
     # Configure release-pext preset with TUNE=ON (always required for test binaries —
-    # Colosseum SPSA needs the UCI tuning options exposed).
+    # weather-factory needs the UCI options exposed).
     cmake --preset release-pext -DCOMP=clang -DTUNE=ON
     if ($LASTEXITCODE -ne 0) { throw "cmake configure failed (exit $LASTEXITCODE)" }
 

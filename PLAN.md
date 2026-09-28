@@ -377,7 +377,12 @@ was cut the day before this plan, so Phase A has no release step.
       `narrow_node_probe.py` (C.5.4), `tools/texel/phase911.ps1` (C.2.1),
       `tools/spsa_configs/config_*.json` (retired by A.3.2's generated
       surface), `docs/release_tiers.md` (A.4.2, E.3); `analysis/` records,
-      logos and the UCI specification are not one-off files.
+      logos and the UCI specification are not one-off files. The remnants of
+      the withdrawn August Colosseum adoption (`3cbf90b`) were removed so A.3
+      starts clean: the Texel README's datagen recipe and
+      `phase911.ps1`'s header point to `datagen.ps1` again (the script
+      always required its manifest), and `build_test.ps1`'s TUNE comment
+      names weather-factory.
     - [ ] **A.2.2** `[M]` Branch and tag disposition: each `archive/*` and `oracle/*` tag gets its citing document, reason and retirement condition.
       Tags whose condition has fired are proposed for removal; deleting a
       remote tag stays the maintainer's command.
