@@ -358,7 +358,7 @@ was cut the day before this plan, so Phase A has no release step.
   everything the plan takes from Rarog pinned as a verbatim snapshot in
   `docs/reference/rarog/` (`e5ad70b`), with the checker verifying its
   manifest (`e948979`), so the plan needs no live Rarog repository.
-- [ ] **A.2** Repository and inventory.
+- [x] **A.2** Repository and inventory. — CLOSED 2026-09-28.
     - [x] **A.2.1** `[M]` Tracked-file cleanup: every one-off or superseded tracked file named with its last commit and removed when nothing consumes it. — CLOSED 2026-09-28.
       A consumer is a build, CI, test or tool that reads the file, or a live
       document or open leaf that directs its use; a closed record's citation
@@ -393,11 +393,15 @@ was cut the day before this plan, so Phase A has no release step.
       diff, so all three are proposed for removal. Only `master` and `dev`
       exist as branches. The ledger's stale branch pointers (BAS-D03,
       BAS-P07) now name the tags.
-    - [ ] **A.2.3** `[R2]` Feature, option and parameter inventory: every `search_params.h` coordinate, evaluation parameter, TUNE-only option and `Diag` counter classified live, inert-with-owner or dead.
+    - [x] **A.2.3** `[R2]` Feature, option and parameter inventory: every `search_params.h` coordinate, evaluation parameter, TUNE-only option and `Diag` counter classified live, inert-with-owner or dead.
       The "exposed but inert" knobs in `search_params.h` are listed with
       their owners: capture futility, SEE-quiet pruning, qsearch quiet
       checks, the double-extension cap and `PostLmrHistScale`. The inventory
-      is the input to B.0's survivor list and B.1's removals.
+      is the input to B.0's survivor list and B.1's removals. — CLOSED
+      2026-09-28: `analysis/parameter_inventory_v1.md`, BAS-D19. Four of the
+      five were inert; the double-extension cap is a live bound (16). Capture
+      futility is dead at the default LMR table but wakes at `LmrBase` >= 100.
+      B.1 removes 7 coordinates and the drifted `KBNK Drive` option.
 - [ ] **A.3** Harness: Colosseum CLI as the main path (maintainer decision 2026-09-28).
     - [ ] **A.3.1** `[I1]` Run files and wrapper: port the snapshot's `tools/colosseum.ps1`, run files and guard suite, adapted to Basilisk's CMake manifests; the snapshot's `tools/colosseum/colosseum.pin.json` (`cli-v0.2.0`) is the starting pin.
       Every guard is shared with `sprt.ps1` and `spsa.ps1` through
@@ -433,7 +437,8 @@ was cut the day before this plan, so Phase A has no release step.
       Each manifest carries the hash, source revision, compiler, flavor and
       bench. CI covers the CMake option and ISA combinations rather than
       single options, and distinguishes production from diagnostic builds
-      (archived 6.6.g).
+      (archived 6.6.g). The matrix includes the `TEXEL` target, repaired first:
+      `tools/texel/tuner.cpp` does not compile at `aecbd93` (A.2.3).
 - [ ] **A.5** Instruments for the search programme.
     - [ ] **A.5.1** `[I1]` Fixed-budget probe: WAC solved at 100k and 400k nodes and at a fixed PV depth, plus oracle best-move agreement on `suite_v1.epd` at 300k nodes, with per-position records.
       Ported from the snapshot's `tools/diag/fixed_budget_probe.py` onto
@@ -453,6 +458,10 @@ was cut the day before this plan, so Phase A has no release step.
       The snapshot holds the counter tools (`tools/diag/bench_counters.py`,
       `tools/diag/phase4_differential.py`, `analysis/phase4_counter_spec.md`)
       and the oracle's counters (`refs/oracle-hybrid-diag.patch`).
+      Every counter becomes machine-readable: 16 of the 57 are printed only
+      as prose today (A.2.3). The leaf also decides the 73 `diag_`
+      increments that run in release builds with `Diag` off, priced by
+      PROCESS's NPS method.
     - [ ] **A.5.4** `[I1]` Matched ablation mask: one bit order on Basilisk and on the `oracle/hybrid` build, compiled away in production, every bit proven live by a moved node count; the oracle side exists as the snapshot's `refs/oracle-hybrid-ablate.patch`, written for the same classical-Stockfish search.
     - [ ] **A.5.5** `[I1]` Conversion instrument over PGN: port the snapshot's `tools/diag/conversion_audit.py` and `tools/diag/export_tournament_pgn.py`.
       Before trusting either, reproduce Rarog's reading of Basilisk 1.9.3
@@ -629,6 +638,8 @@ rejections stop B.
   11. Frozen predictions for B.2.
   12. Handoffs for B.1, B.2 and, contingent on B.2's head, B.3.
 
+  A.2.3's `analysis/parameter_inventory_v1.md` is an input: the live list,
+  and no SPSA surface moves `LmrBase` while capture futility is in the tree.
   It also answers the four `DESIGN.md` questions for the programme. It
   tests Phase 5's "width is a symptom" premise, and it records which retry
   triggers the programme fires: BAS-S07, BAS-S10 and BAS-S12 name a history
@@ -730,8 +741,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.2.3 | RESEARCH | R2 | Next leaf: inventory feeds B.0's survivors and B.1's removals |
-| A.3.1 | READY_FOR_IMPLEMENTATION | I1 | Port of the snapshot's wrapper and guards; contract in the leaf |
+| A.3.1 | READY_FOR_IMPLEMENTATION | I1 | Next leaf: port of the snapshot's wrapper and guards; contract in the leaf |
 | A.3.2 | READY_FOR_IMPLEMENTATION | I1 | Surface generator from the X-macro; 15 × 30 shape |
 | A.3.3 | READY_FOR_IMPLEMENTATION | M | Documentation after A.3.1–A.3.2 |
 | A.4.1 | RESEARCH | I1 | Toolchain comparison, one axis at a time |
@@ -791,6 +801,8 @@ Fit loss is a screen and a falsifier, never acceptance: better holdout loss
 has lost games in both engines (BAS-X02).
 
 - [ ] **C.0** `[R3]` Investigation: the family map refreshed on the B.9 head, residuals and activation by cohort, the donor comparison, BAS-E07's values-versus-structure question, the shared-input plan, the cluster order by expected value, the corpus and refit protocol and the label policy; frozen handoffs for C.1 and the first family. No engine implementation.
+  Inputs from A.2.3 (`analysis/parameter_inventory_v1.md`): the 23 all-zero
+  groups by kind, and space, which no C cluster names yet.
 - [ ] **C.1** `[I1]` Evaluation restructure, behaviour-neutral: `src/eval.cpp` split into family modules, one attack-map and mobility-area producer, `EvalTrace` unchanged in meaning, lazy-path semantics preserved; exact fingerprint; pooled NPS within noise.
 - [ ] **C.2** Fit pipeline, corpus and label contract (archived 8.1–8.8).
     - [ ] **C.2.1** `[I1]` Fit-tooling contract (archived 8.1.a–h).
