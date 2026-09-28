@@ -359,10 +359,25 @@ was cut the day before this plan, so Phase A has no release step.
   `docs/reference/rarog/` (`e5ad70b`), with the checker verifying its
   manifest (`e948979`), so the plan needs no live Rarog repository.
 - [ ] **A.2** Repository and inventory.
-    - [ ] **A.2.1** `[M]` Tracked-file cleanup: every one-off or superseded tracked file named with its last commit and removed when nothing consumes it.
-      `tools/run_5911_experiment.ps1` is the first candidate. Evidence and
-      raw artifacts stay in ignored `tools/results/`; nothing is deleted from
-      history.
+    - [x] **A.2.1** `[M]` Tracked-file cleanup: every one-off or superseded tracked file named with its last commit and removed when nothing consumes it. — CLOSED 2026-09-28.
+      A consumer is a build, CI, test or tool that reads the file, or a live
+      document or open leaf that directs its use; a closed record's citation
+      is provenance and resolves through the commit named here. Removed, each
+      recoverable as `git show 23f5557:<path>`:
+      `tools/run_5911_experiment.ps1` (BAS-E17 launcher);
+      `tools/diag/kbnk_{sweep,upper,refinement,holdout}_summary.py`
+      (archived 6.1.c/6.1.e KBNK screens);
+      `tools/diag/damping_resolution_summary.py` (archived 6.4.a probe);
+      `tools/diag/freeze_group_a_head.py` and `group_a_head_v1.json`
+      (the retired Group A head; GUIDE's checkpoint now defines the head);
+      `tools/diag/eval_term_firing.cpp` (archived 5.9.1 firing check; C.1's
+      `EvalTrace` coverage owns activation). Kept because an open leaf owns
+      them: the endgame instruments, cohorts and label tools (C.2.4, C.5),
+      `passer_king_geometry.py` (C.6), `rook_ending_failure_profile.py` and
+      `narrow_node_probe.py` (C.5.4), `tools/texel/phase911.ps1` (C.2.1),
+      `tools/spsa_configs/config_*.json` (retired by A.3.2's generated
+      surface), `docs/release_tiers.md` (A.4.2, E.3); `analysis/` records,
+      logos and the UCI specification are not one-off files.
     - [ ] **A.2.2** `[M]` Branch and tag disposition: each `archive/*` and `oracle/*` tag gets its citing document, reason and retirement condition.
       Tags whose condition has fired are proposed for removal; deleting a
       remote tag stays the maintainer's command.
@@ -700,8 +715,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.2.1 | READY_FOR_IMPLEMENTATION | M | Next leaf: tracked-file cleanup |
-| A.2.2 | READY_FOR_IMPLEMENTATION | M | Tag citations and retirement conditions |
+| A.2.2 | READY_FOR_IMPLEMENTATION | M | Next leaf: tag citations and retirement conditions |
 | A.2.3 | RESEARCH | R2 | Inventory feeds B.0's survivors and B.1's removals |
 | A.3.1 | READY_FOR_IMPLEMENTATION | I1 | Port of the snapshot's wrapper and guards; contract in the leaf |
 | A.3.2 | READY_FOR_IMPLEMENTATION | I1 | Surface generator from the X-macro; 15 × 30 shape |
