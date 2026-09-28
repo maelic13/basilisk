@@ -19,7 +19,7 @@ Binary: `tools/results/a23/basilisk-a23-tune.exe`, SHA-256
 `setoption` (it builds default `SearchLimits`), which is why the probe runs
 through `go`.
 
-**Arms.** Two baselines; then each of the 46 `search_params.h` coordinates
+**Arms.** Two baselines; then each of the 48 `search_params.h` coordinates
 alone at its range minimum and at its range maximum, skipping an endpoint
 equal to the default.
 
@@ -58,3 +58,7 @@ option path is not proven connected and every null is void.
 that moves the tree means a fixed-depth search reads TM state, which would be
 a defect. A predicted-null coordinate that moves the tree is live and cannot
 be removed as inert.
+
+*Clerical correction, before any arm ran:* the registration first said 46
+coordinates; the table has 48 (the runner's count assertion caught it). The
+"30 others" in prediction 7 was already computed from 48.
