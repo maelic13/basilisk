@@ -9,10 +9,10 @@ Two things, because 5.2 has two jobs.
    comparable across runs and machines.
 
 2. DIFFERENTIAL vs THE ORACLE. Run both Basilisk and the 5.1 oracle at a fixed
-   NODE budget and record the depth each reaches. Depth-at-equal-nodes is the
-   direct expression of the BAS-O03 finding (EBF 2.20 against 1.61) and needs
-   no instrumentation on the Stockfish side at all, which is what makes the
-   comparison possible in the first place.
+   NODE budget and record the last completed depth and best move from each.
+   Depth-at-equal-nodes is the direct expression of the BAS-O03 finding (EBF
+   2.20 against 1.61); best-move agreement adds a per-position search-quality
+   signal without requiring instrumentation on the Stockfish side.
 
 Counters explain a candidate; they never accept one. Only a registered SPRT
 accepts (PLAN cluster discipline).
@@ -82,6 +82,9 @@ def uci_run(engine, commands, timeout=600):
         deadline = time.monotonic() + timeout
         for line in proc.stdout:
             out.append(line)
+            lowered = line.lower()
+            if "no such option" in lowered or "unknown option" in lowered:
+                raise RuntimeError(f"{engine} rejected an option: {line.strip()}")
             if line.startswith("bestmove"):
                 break
             if time.monotonic() > deadline:
@@ -122,15 +125,27 @@ def parse_diag(text):
 
 
 DEPTH_LINE = re.compile(r"^info depth (\d+).*?\bnodes (\d+)")
+BESTMOVE_LINE = re.compile(r"^bestmove\s+(\S+)")
 
 
 def last_depth_nodes(text):
+    """Return the last completed iteration, excluding aspiration bounds."""
     depth = nodes = 0
     for line in text.splitlines():
+        if " lowerbound " in f" {line} " or " upperbound " in f" {line} ":
+            continue
         m = DEPTH_LINE.match(line.strip())
         if m:
             depth, nodes = int(m.group(1)), int(m.group(2))
     return depth, nodes
+
+
+def bestmove(text):
+    for line in text.splitlines():
+        match = BESTMOVE_LINE.match(line.strip())
+        if match:
+            return match.group(1)
+    return None
 
 
 def run_internal(engine, fens, depth, options=()):
@@ -161,8 +176,17 @@ def run_differential(engine, oracle, fens, nodes, oracle_opts, engine_opts=()):
                                            f"go nodes {nodes}"])
         da, na = last_depth_nodes(a)
         db, nb = last_depth_nodes(b)
-        rows.append({"fen": fen, "basilisk_depth": da, "basilisk_nodes": na,
-                     "oracle_depth": db, "oracle_nodes": nb})
+        move_a, move_b = bestmove(a), bestmove(b)
+        if move_a is None or move_b is None:
+            raise RuntimeError(f"position {i} produced no bestmove from one arm")
+        comparable = move_a != "0000" and move_b != "0000"
+        rows.append({"position": i, "fen": fen,
+                     "basilisk_depth": da, "basilisk_nodes": na,
+                     "basilisk_bestmove": move_a,
+                     "oracle_depth": db, "oracle_nodes": nb,
+                     "oracle_bestmove": move_b,
+                     "bestmove_comparable": comparable,
+                     "bestmove_agreement": comparable and move_a == move_b})
         if i % 25 == 0:
             print(f"  {i}/{len(fens)}")
     return rows
@@ -197,7 +221,7 @@ def main():
         sys.exit("suite is empty")
 
     report = {"suite": pathlib.Path(args.suite).name, "positions": len(fens),
-              "depth": args.depth}
+              "depth": args.depth, "nodes": args.nodes, "hash_mb": args.hash}
 
     # A fresh engine process is started per position, so options are re-applied
     # every time rather than once at startup.
@@ -246,6 +270,15 @@ def main():
             print("\n--- differential at equal nodes ---")
             print(f"  mean depth  basilisk {mb:6.2f}   oracle {mo:6.2f}   delta {mo - mb:+.2f}")
             print("  (positive delta = the reference converts the same nodes into more depth)")
+        comparable = [r for r in rows if r["bestmove_comparable"]]
+        if not comparable:
+            sys.exit("differential produced no comparable best moves")
+        agreements = sum(r["bestmove_agreement"] for r in comparable)
+        report["bestmove_comparable"] = len(comparable)
+        report["bestmove_agreements"] = agreements
+        report["bestmove_agreement_pct"] = 100.0 * agreements / len(comparable)
+        print(f"  best-move agreement {agreements}/{len(comparable)} "
+              f"({report['bestmove_agreement_pct']:.2f}%)")
 
     if args.out:
         pathlib.Path(args.out).write_text(json.dumps(report, indent=2), encoding="utf-8")
