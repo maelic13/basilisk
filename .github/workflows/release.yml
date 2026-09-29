@@ -192,6 +192,24 @@ jobs:
           echo "asset=$asset" >> "$GITHUB_OUTPUT"
           echo "path=build/dist/${asset}" >> "$GITHUB_OUTPUT"
 
+      - name: Verify x86 ISA contract on the release binary
+        if: matrix.arch == 'x86_64'
+        shell: ${{ runner.os == 'Windows' && 'msys2 {0}' || 'bash' }}
+        run: |
+          objdump=$(command -v llvm-objdump || command -v llvm-objdump-19)
+          python=$(command -v python3 || command -v python)
+          launcher=$(find "build/${{ matrix.preset }}-pgo/CMakeFiles/basilisk_launcher.dir" \
+            -type f \( -name 'main.cpp.o' -o -name 'main.cpp.obj' \) -print -quit)
+          [ -n "$launcher" ] || { echo "FAIL: baseline launcher object not found"; exit 1; }
+          case "${{ matrix.asset_suffix }}" in
+            -pext) tier=pext ;;
+            -avx2) tier=avx2 ;;
+            *) tier=portable ;;
+          esac
+          "$python" tools/diag/verify_isa.py \
+            --tier "$tier" --binary "${{ steps.asset.outputs.path }}" \
+            --launcher-object "$launcher" --objdump "$objdump"
+
       - name: Smoke test the exact binary being published
         shell: bash
         run: |

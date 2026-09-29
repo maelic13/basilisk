@@ -115,7 +115,7 @@ jobs:
         # (Pre-8.6 releases had no C++23 library dep, so this is the first hit.)
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y clang-19 ninja-build cmake
+          sudo apt-get install -y clang-19 llvm-19 ninja-build cmake
           sudo ln -sf /usr/bin/clang-19   /usr/local/bin/clang
           sudo ln -sf /usr/bin/clang++-19 /usr/local/bin/clang++
           clang++ --version
@@ -149,6 +149,20 @@ jobs:
 
       - name: CTest
         run: ctest --test-dir build/${{ matrix.preset }} --output-on-failure
+
+      - name: Verify x86 ISA contract
+        if: matrix.arch == 'x86_64'
+        run: |
+          objdump=$(command -v llvm-objdump || command -v llvm-objdump-19)
+          python=$(command -v python3 || command -v python)
+          binary="build/${{ matrix.preset }}/basilisk"
+          [ -f "${binary}.exe" ] && binary="${binary}.exe"
+          launcher=$(find "build/${{ matrix.preset }}/CMakeFiles/basilisk_launcher.dir" \
+            -type f \( -name 'main.cpp.o' -o -name 'main.cpp.obj' \) -print -quit)
+          [ -n "$launcher" ] || { echo "FAIL: baseline launcher object not found"; exit 1; }
+          "$python" tools/diag/verify_isa.py \
+            --tier "${{ matrix.tier }}" --binary "$binary" \
+            --launcher-object "$launcher" --objdump "$objdump"
 
       # TUNE build must also stay compilable — it is what every SPRT/SPSA
       # binary is built from (release-pext locally; feature parity is what
