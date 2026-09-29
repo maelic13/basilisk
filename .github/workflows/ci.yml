@@ -33,19 +33,19 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: ubuntu-latest
+          - runner: ubuntu-24.04
             os_name: linux
             arch: x86_64
             tier: portable
             preset: release
             bench_id: linux-x86_64
-          - runner: ubuntu-latest
+          - runner: ubuntu-24.04
             os_name: linux
             arch: x86_64
             tier: avx2
             preset: release-avx2
             bench_id: linux-x86_64-avx2
-          - runner: ubuntu-latest
+          - runner: ubuntu-24.04
             os_name: linux
             arch: x86_64
             tier: pext
@@ -57,7 +57,7 @@ jobs:
             tier: portable
             preset: release
             bench_id: linux-aarch64
-          - runner: windows-latest
+          - runner: windows-2025
             os_name: windows
             arch: x86_64
             tier: portable
@@ -65,7 +65,7 @@ jobs:
             bench_id: windows-x86_64
             msystem: CLANG64
             mingw_pkg_prefix: mingw-w64-clang-x86_64
-          - runner: windows-latest
+          - runner: windows-2025
             os_name: windows
             arch: x86_64
             tier: avx2
@@ -73,7 +73,7 @@ jobs:
             bench_id: windows-x86_64-avx2
             msystem: CLANG64
             mingw_pkg_prefix: mingw-w64-clang-x86_64
-          - runner: windows-latest
+          - runner: windows-2025
             os_name: windows
             arch: x86_64
             tier: pext
@@ -89,7 +89,7 @@ jobs:
             bench_id: windows-aarch64
             msystem: CLANGARM64
             mingw_pkg_prefix: mingw-w64-clang-aarch64
-          - runner: macos-latest
+          - runner: macos-15
             os_name: macos
             arch: aarch64
             tier: portable
@@ -190,7 +190,7 @@ jobs:
   # ---- Debug + ASan/UBSan (the gate 8.6.2b P0 repaired — keep it real) ------
   sanitize:
     name: sanitize (linux ASan+UBSan)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Check out
         uses: actions/checkout@v7
@@ -221,7 +221,7 @@ jobs:
   # generated and consumed. Exercise the complete orchestrator on every CI run.
   gcc-pgo:
     name: GCC PGO (linux x86_64)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Check out
         uses: actions/checkout@v7
@@ -254,7 +254,7 @@ jobs:
   bench-agreement:
     name: bench agreement
     needs: test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Download fingerprints
         # v7, not v8: download-artifact v8 stopped auto-unzipping (Content-Type

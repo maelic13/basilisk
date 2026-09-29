@@ -456,11 +456,19 @@ was cut the day before this plan, so Phase A has no release step.
       `tools/results/colosseum_spsa_a32-smoke_20260929_100945.*`.
     - [x] **A.3.3** `[M]` PROCESS *Harness* section finalised: Colosseum main, fastchess and weather-factory maintained as backup and second opinion until at least the classical release, with the cross-check triggers. — CLOSED 2026-09-29. The procedure names both guarded Colosseum entry points, ownership of run conditions, pre/post-run proof, resume and tune-chain semantics, the three backup triggers, topology rules and main/backup commands.
 - [ ] **A.4** Build and toolchain.
-    - [ ] **A.4.1** `[I1]` Toolchain refresh and freeze (archived 7.0): inventory the compiler, C++ library, CMake, Ninja and profile tools on Windows, Linux CI and macOS.
+    - [x] **A.4.1** `[I1]` Toolchain refresh and freeze (archived 7.0): inventory the compiler, C++ library, CMake, Ninja and profile tools on Windows, Linux CI and macOS.
       Compare the current and newest stable versions one axis at a time.
       Require CTest, sanitizers, exact search agreement, ISA checks and
       pooled release/PGO throughput before selecting the faster
-      non-regressing line.
+      non-regressing line. — CLOSED 2026-09-29. Retained the deployed
+      compiler/library lines because forward Linux variants had no native
+      pooled result and Windows already used current LLVM 22. The audit found
+      and repaired a false PEXT-tier contract, added an ISA verifier with a
+      known-bad control, kept the startup launcher at baseline ISA, and pinned
+      CI runner generations. Release and sanitizer CTest passed 13/13 with
+      the exact **14,978,465** fingerprint; repaired final-PGO PEXT measured
+      **+7.45%** [**+7.22%, +7.75%**] over the pre-repair tier. Evidence:
+      `analysis/toolchain_refresh_v1.md`.
     - [ ] **A.4.2** `[I1]` Build flavors for arms: `build_test.ps1` builds and manifests release, tune, diag and umbrella-switch arms.
       Each manifest carries the hash, source revision, compiler, flavor and
       bench. CI covers the CMake option and ISA combinations rather than
@@ -769,7 +777,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.4.1 | RESEARCH | I1 | Toolchain comparison, one axis at a time |
 | A.4.2 | READY_FOR_IMPLEMENTATION | I1 | Arm flavors and manifests; CI combination matrix |
 | A.5.1 | READY_FOR_IMPLEMENTATION | I1 | Port of the fixed-budget probe |
 | A.5.2 | READY_FOR_IMPLEMENTATION | I1 | Branching profile with per-position medians |

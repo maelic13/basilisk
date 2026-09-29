@@ -126,7 +126,7 @@ together, and `python tools/diag/check_roadmap.py` must pass.
 |---|---|
 | Released baseline | **1.10.1** on `master`, tagged `v1.10.1` (2026-09-27); a correctness patch on 1.10.0 (BAS-C10–C13), which was accepted at +19.18 ± 6.76 Elo over 1.9.3 (BAS-E55) |
 | Development head | `dev`, recreated from `master` at `38c42e6` on 2026-09-28; engine source identical to 1.10.1 |
-| Bench fingerprint | **14,978,465** (`bench 13`, 1.10.0 and 1.10.1); CTest 12/12 release and ASan/UBSan |
+| Bench fingerprint | **14,978,465** (`bench 13`, 1.10.0 and 1.10.1); CTest 13/13 release and ASan/UBSan |
 | Pool position, `3+0.03` 1T | 1.10.0 (and 1.10.1) rate 2994 on the Super Rating Tournament's scale against Houdini 3 3287, Critter 1.6a 3192, Fritz 16 3173, Rybka 4.1 3111 (BAS-X34); head-to-heads are read at A.7.1. Rarog 2.5.0-dev rates 3233 and scores +200 against 1.10.1 (BAS-X34) |
 | Pool position, 4T | Not measured for 1.10.x (A.7.2) |
 | Search deficit | +322.7 ± 36 Elo equal time against the classical-Stockfish search oracle on 1.9.3 (BAS-O01, round robin); EBF 2.20 against 1.61. Re-measured as a paired G(0) at A.7.3 |
@@ -134,7 +134,7 @@ together, and `python tools/diag/check_roadmap.py` must pass.
 | Speed | 3.71 MNPS in Rarog's pooled-PGO measurement (BAS-X34); Basilisk's own pooled baseline at A.7.4 |
 | Conversion | 17.5 draws and 5.0 losses per 1,000 after a persistent piece-up, against six anchors (1.9.3; RAR-M54); re-read for 1.10.0 at A.7.1 |
 | Active experiment | None |
-| Current step | **A.4.1** toolchain refresh and freeze, one axis at a time (`I1`) |
+| Current step | **A.4.2** build flavors and manifests; CI option/ISA combination matrix (`I1`) |
 | Long job | None |
 | Next release | **2.0.0** if the E.2 target gate is met, otherwise **1.11.0**, cut at E.3.2; nothing is released before it unless a correctness repair forces a 1.10.x patch |
 
@@ -166,7 +166,7 @@ before its deadline; held items stay unticked in place.
     - [x] **A.3.2** `[I1]` Tune path: surface generated from the X-macro, 15 × 30 shape, block chaining; hand-written configs retired — CLOSED 2026-09-29
     - [x] **A.3.3** `[M]` PROCESS *Harness* section finalised; backup path and cross-check triggers — CLOSED 2026-09-29
 - [ ] **A.4** Build and toolchain
-    - [ ] **A.4.1** `[I1]` Toolchain refresh and freeze, one axis at a time
+    - [x] **A.4.1** `[I1]` Toolchain refresh and freeze, one axis at a time — CLOSED 2026-09-29
     - [ ] **A.4.2** `[I1]` Build flavors and manifests for arms; CI option/ISA combination matrix, TEXEL repaired
 - [ ] **A.5** Instruments for the search programme
     - [ ] **A.5.1** `[I1]` Fixed-budget probe: WAC at fixed nodes, oracle agreement

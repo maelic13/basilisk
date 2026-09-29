@@ -23,7 +23,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: ubuntu-latest
+          - runner: ubuntu-24.04
             os_name: linux
             arch: x86_64
             ext: ""
@@ -31,7 +31,7 @@ jobs:
             compiler: clang
             asset_suffix: ""
 
-          - runner: ubuntu-latest
+          - runner: ubuntu-24.04
             os_name: linux
             arch: x86_64
             ext: ""
@@ -39,7 +39,7 @@ jobs:
             compiler: clang
             asset_suffix: "-avx2"
 
-          - runner: ubuntu-latest
+          - runner: ubuntu-24.04
             os_name: linux
             arch: x86_64
             ext: ""
@@ -55,7 +55,7 @@ jobs:
             compiler: clang
             asset_suffix: ""
 
-          - runner: windows-latest
+          - runner: windows-2025
             os_name: windows
             arch: x86_64
             ext: ".exe"
@@ -66,7 +66,7 @@ jobs:
             mingw_pkg_prefix: mingw-w64-clang-x86_64
             compiler_pkg: clang
 
-          - runner: windows-latest
+          - runner: windows-2025
             os_name: windows
             arch: x86_64
             ext: ".exe"
@@ -77,7 +77,7 @@ jobs:
             mingw_pkg_prefix: mingw-w64-clang-x86_64
             compiler_pkg: clang
 
-          - runner: windows-latest
+          - runner: windows-2025
             os_name: windows
             arch: x86_64
             ext: ".exe"
@@ -99,7 +99,7 @@ jobs:
             mingw_pkg_prefix: mingw-w64-clang-aarch64
             compiler_pkg: clang
 
-          - runner: macos-latest
+          - runner: macos-15
             os_name: macos
             arch: aarch64
             ext: ""
@@ -122,7 +122,7 @@ jobs:
         run: |
           sudo apt-get update -q
           # clang-19, NOT the distro-default clang-18. All Linux runners here are
-          # 24.04 (ubuntu-latest + ubuntu-24.04-arm). The engine returns
+          # 24.04 (ubuntu-24.04 + ubuntu-24.04-arm). The engine returns
           # std::expected (C++23, added in 8.6); on Linux clang uses libstdc++,
           # whose <expected> body is guarded behind __cpp_concepts >= 202002L.
           # clang-18 only defines 201907L, so the header is empty and the build
@@ -256,7 +256,7 @@ jobs:
   bench-agreement:
     name: release bench agreement
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Download fingerprints
         # v7, not v8 — same reasoning as ci.yml (v8 no longer auto-unzips).
