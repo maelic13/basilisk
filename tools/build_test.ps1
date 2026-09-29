@@ -170,8 +170,8 @@ try {
     }
 
     $compilerMatch = Get-Content 'build/release-pext/CMakeCache.txt' |
-        Select-String '^CMAKE_CXX_COMPILER:FILEPATH=(.+)$'
-    $compilerPath = $compilerMatch.Matches.Groups[1].Value
+        Select-String '^CMAKE_CXX_COMPILER:(?:FILEPATH|STRING)=(.+)$'
+    $compilerPath = if ($compilerMatch) { $compilerMatch.Matches[0].Groups[1].Value } else { '' }
     if (-not $compilerPath) { throw 'Configured C++ compiler is missing from CMakeCache.txt.' }
     $compiler = (& $compilerPath --version 2>&1 | Select-Object -First 1).Trim()
     $binary = Get-Item -LiteralPath $dest
