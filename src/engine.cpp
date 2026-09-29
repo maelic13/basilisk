@@ -296,13 +296,11 @@ void Engine::start_search(uint64_t command_epoch,
 }
 
 void Engine::run_wac_command(const EngineCommand& command) {
-    // wac [depth] -- WAC tactical suite at fixed depth, single-threaded,
-    // deterministic (mirrors sibling engine Rarog's wac command).
-    int depth = DEFAULT_WAC_DEPTH;
-    {
-        std::istringstream iss(command.args);
-        int value;
-        if (iss >> value) depth = value;
+    WacRequest request;
+    std::string error;
+    if (!parse_wac_request(command.args, request, error)) {
+        uci_write_line("info string " + error);
+        return;
     }
 
     if (command.epoch != 0
@@ -311,7 +309,7 @@ void Engine::run_wac_command(const EngineCommand& command) {
 
     stop_requested_.store(false, std::memory_order_release);
     searching_.store(true, std::memory_order_release);
-    run_wac(depth, parameters_.search_params);
+    run_wac(request, parameters_.search_params);
     if (command.epoch == 0
         || control_epoch_.load(std::memory_order_acquire) == command.epoch)
         searching_.store(false, std::memory_order_release);

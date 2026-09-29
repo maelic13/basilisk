@@ -142,15 +142,130 @@ bool wac_move_matches_any(const Board& board, Move mv,
     return false;
 }
 
+bool parse_wac_request(const std::string& args, WacRequest& request,
+                       std::string& error) {
+    request = WacRequest{};
+    error.clear();
+
+    std::istringstream input(args);
+    std::string first;
+    if (!(input >> first))
+        return true;
+
+    auto parse_positive = [&](const std::string& token, int64_t& value) {
+        try {
+            size_t used = 0;
+            value = std::stoll(token, &used);
+            return used == token.size() && value > 0;
+        } catch (const std::exception&) {
+            return false;
+        }
+    };
+
+    std::string budget_token;
+    if (first == "nodes" || first == "depthpv") {
+        request.mode = first == "nodes" ? WacMode::Nodes : WacMode::DepthPv;
+        if (!(input >> budget_token)) {
+            error = "wac " + first + " requires a positive budget";
+            return false;
+        }
+    } else {
+        request.mode = WacMode::Depth;
+        budget_token = first;
+    }
+
+    if (!parse_positive(budget_token, request.budget)) {
+        error = "invalid wac budget: " + budget_token;
+        return false;
+    }
+    std::string extra;
+    if (input >> extra) {
+        error = "unexpected wac argument: " + extra;
+        return false;
+    }
+    if (request.mode != WacMode::Nodes && request.budget > MAX_SEARCH_DEPTH) {
+        error = "wac depth exceeds " + std::to_string(MAX_SEARCH_DEPTH);
+        return false;
+    }
+    return true;
+}
+
+namespace {
+
+struct WacIteration {
+    int depth = 0;
+    int seldepth = 0;
+    int64_t nodes = 0;
+    int64_t time_ms = 0;
+    std::string pv1;
+};
+
+bool parse_iteration(const std::string& line, WacIteration& out) {
+    if (!line.starts_with("info depth ")
+        || line.find(" lowerbound ") != std::string::npos
+        || line.find(" upperbound ") != std::string::npos)
+        return false;
+
+    std::istringstream input(line);
+    std::string token;
+    input >> token; // info
+    while (input >> token) {
+        if (token == "depth") input >> out.depth;
+        else if (token == "seldepth") input >> out.seldepth;
+        else if (token == "nodes") input >> out.nodes;
+        else if (token == "time") input >> out.time_ms;
+        else if (token == "pv") {
+            std::string move;
+            if (input >> move)
+                out.pv1 = move;
+            break;
+        }
+    }
+    return out.depth > 0 && !out.pv1.empty();
+}
+
+Move legal_uci_move(const Board& board, const std::string& uci) {
+    MoveList legal;
+    board.gen_legal(legal);
+    for (int i = 0; i < legal.size(); ++i)
+        if (move_to_uci(legal[i]) == uci)
+            return legal[i];
+    return MOVE_NONE;
+}
+
+const char* mode_name(WacMode mode) {
+    switch (mode) {
+        case WacMode::Depth: return "depth";
+        case WacMode::Nodes: return "nodes";
+        case WacMode::DepthPv: return "depthpv";
+    }
+    return "unknown";
+}
+
+std::string joined_best_moves(const std::vector<std::string>& moves) {
+    std::string joined;
+    for (const std::string& move : moves) {
+        if (!joined.empty()) joined += ',';
+        joined += move;
+    }
+    return joined;
+}
+
+} // namespace
+
 // ---------------------------------------------------------------------------
-// wac [depth] — engine command (mirrors Rarog's run_wac; output format kept
-// line-compatible so the two engines' reports diff cleanly)
+// wac [depth] | wac nodes N | wac depthpv N
 // ---------------------------------------------------------------------------
 
-void run_wac(int depth, const SearchParams& params) {
+void run_wac(const WacRequest& request, const SearchParams& params) {
     std::atomic_bool stop{false};
     TranspositionTable tt(16);
-    SearchThreadPool search_pool(tt, stop);
+    std::vector<WacIteration>* active_iterations = nullptr;
+    SearchThreadPool search_pool(tt, stop, [&](const std::string& line) {
+        WacIteration iteration;
+        if (active_iterations && parse_iteration(line, iteration))
+            active_iterations->push_back(iteration);
+    });
     search_pool.ensure_threads(1);
 
     const std::vector<WacPosition> positions = wac_positions();
@@ -173,15 +288,23 @@ void run_wac(int depth, const SearchParams& params) {
         search_pool.clear();
 
         SearchLimits limits;
-        limits.depth = depth;
+        if (request.mode == WacMode::Nodes)
+            limits.nodes = request.budget;
+        else
+            limits.depth = static_cast<int>(request.budget);
         limits.params = params;   // 5.4.4: honour UCI-set search parameters
+        std::vector<WacIteration> iterations;
+        active_iterations = &iterations;
         stop.store(false, std::memory_order_release);
         SearchResult r = search_pool.search(board, limits, 1);
+        active_iterations = nullptr;
 
         total_nodes += r.nodes;
         total_ms    += r.elapsed_ms;
 
-        if (wac_move_matches_any(board, r.bestmove, pos.best_moves)) {
+        const bool position_solved =
+            wac_move_matches_any(board, r.bestmove, pos.best_moves);
+        if (position_solved) {
             ++solved;
         } else {
             failed.push_back(pos.id + " (" + move_to_uci(r.bestmove)
@@ -195,19 +318,59 @@ void run_wac(int depth, const SearchParams& params) {
                                }() + ")");
         }
 
+        int first = 0;
+        int stable = 0;
+        if (request.mode == WacMode::DepthPv) {
+            for (const WacIteration& iteration : iterations) {
+                const Move iteration_move = legal_uci_move(board, iteration.pv1);
+                const bool iteration_solved =
+                    wac_move_matches_any(board, iteration_move, pos.best_moves);
+                if (iteration_solved && first == 0)
+                    first = iteration.depth;
+
+                std::ostringstream pv_line;
+                pv_line << "wac pv id " << pos.id
+                        << " depth " << iteration.depth
+                        << " bestmove " << iteration.pv1
+                        << " solved " << (iteration_solved ? 1 : 0);
+                uci_write_line(pv_line.str());
+            }
+            for (size_t j = 0; j < iterations.size(); ++j) {
+                bool remains_solved = true;
+                for (size_t k = j; k < iterations.size(); ++k)
+                    remains_solved &= wac_move_matches_any(
+                        board, legal_uci_move(board, iterations[k].pv1),
+                        pos.best_moves);
+                if (remains_solved) {
+                    stable = iterations[j].depth;
+                    break;
+                }
+            }
+        }
+
+        const WacIteration last = iterations.empty() ? WacIteration{} : iterations.back();
         std::ostringstream line;
-        line << "wac " << (i + 1) << "/" << positions.size()
-             << "  " << pos.id
-             << "  nodes " << r.nodes
-             << "  time " << r.elapsed_ms << "ms"
-             << "  (solved " << solved << ")";
+        line << "wac record id " << pos.id
+             << " mode " << mode_name(request.mode)
+             << " budget " << request.budget
+             << " depth " << last.depth
+             << " seldepth " << last.seldepth
+             << " nodes " << last.nodes
+             << " time_ms " << last.time_ms
+             << " search_nodes " << r.nodes
+             << " search_time_ms " << r.elapsed_ms
+             << " bestmove " << move_to_uci(r.bestmove)
+             << " bm " << joined_best_moves(pos.best_moves)
+             << " solved " << (position_solved ? 1 : 0);
+        if (request.mode == WacMode::DepthPv)
+            line << " first " << first << " stable " << stable;
         uci_write_line(line.str());
     }
 
     std::ostringstream summary;
     summary << "\n=========================\n"
             << "WAC solved      : " << solved << "/" << positions.size()
-            << " at depth " << depth << "\n"
+            << " in " << mode_name(request.mode) << " " << request.budget << "\n"
             << "Nodes searched  : " << total_nodes << "\n"
             << "Total time (ms) : " << total_ms;
     uci_write_line(summary.str());

@@ -25,6 +25,17 @@
 
 inline constexpr int DEFAULT_WAC_DEPTH = 10;
 
+enum class WacMode {
+    Depth,
+    Nodes,
+    DepthPv,
+};
+
+struct WacRequest {
+    WacMode mode = WacMode::Depth;
+    int64_t budget = DEFAULT_WAC_DEPTH;
+};
+
 // One suite entry: a position, its accepted best moves (SAN), and its id.
 struct WacPosition {
     std::string fen;
@@ -48,11 +59,18 @@ bool wac_san_matches(const Board& board, Move mv, const std::string& san);
 bool wac_move_matches_any(const Board& board, Move mv,
                           const std::vector<std::string>& best_moves);
 
-// wac [depth] — run the full suite at a fixed depth, print per-position
-// progress and the solved-count summary (single-threaded, deterministic).
+// Parse `wac [depth]`, `wac nodes N`, or `wac depthpv N`. The legacy numeric
+// form remains the fixed-depth diagnostic; the named forms are the fixed-work
+// and completed-PV-iteration probes.
+bool parse_wac_request(const std::string& args, WacRequest& request,
+                       std::string& error);
+
+// Run the full suite and print machine-readable per-position records plus a
+// solved-count summary (single-threaded, deterministic).
 // 5.4.4: takes the engine's live SearchParams. It previously constructed a
 // default SearchLimits, so every UCI-set search parameter was silently
 // ignored — a diagnostic whose stated purpose is comparing candidates was
 // unable to see a candidate at all, and reported byte-identical node counts
 // for genuinely different settings.
-void run_wac(int depth = DEFAULT_WAC_DEPTH, const SearchParams& params = SearchParams{});
+void run_wac(const WacRequest& request = WacRequest{},
+             const SearchParams& params = SearchParams{});
