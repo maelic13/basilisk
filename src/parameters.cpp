@@ -169,14 +169,17 @@ std::string Parameters::uci_options() {
            "option name SyzygyProbeDepth type spin default 1 min 1 max 100\n"
            "option name Syzygy50MoveRule type check default true\n"
            "option name SyzygyProbeLimit type spin default 7 min 0 max 7\n";
-#ifdef BASILISK_TUNE
+#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
     opts +=
         // TM diagnostic (Step 5.3): advertised only in tune/dev builds so a
         // harness/GUI will actually send the setoption (fastchess/LB skip
         // unadvertised options); release builds keep a clean 9-option list.
         "option name TM_Debug type check default false\n"
         // Diagnostic counters + lazy dual-eval audit (8.6.6).
-        "option name Diag type check default false\n"
+        "option name Diag type check default false\n";
+#endif
+#ifdef BASILISK_TUNE
+    opts +=
         // Atomic string keeps an SPSA/sweep harness from briefly installing
         // an unsafe partial KBNK vector while separate options arrive.
         "option name KBNK Drive type string default 17000,1000,0,220,0\n";

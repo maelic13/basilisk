@@ -307,6 +307,9 @@ add_test(NAME test_endgames     COMMAND test_endgames
 option(PORTABLE_BUILD "Build without host-specific CPU flags for distributable binaries" OFF)
 option(BASILISK_MSVC_FAVOR_INTEL "Tune MSVC code generation for Intel 64 processors" OFF)
 option(TUNE "Expose search constants as UCI spin options for SPSA tuning (sets BASILISK_TUNE)" OFF)
+option(DIAGNOSTIC "Expose diagnostics without the tunable parameter surface (sets BASILISK_DIAGNOSTIC)" OFF)
+set(BASILISK_PGO_ARM_OPTION "" CACHE STRING "Boolean CMake option identifying an umbrella arm in PGO child builds")
+set(BASILISK_PGO_ARM_STATE "OFF" CACHE STRING "Value for BASILISK_PGO_ARM_OPTION in PGO child builds")
 # Warnings are only a signal if something enforces them. The tree builds clean
 # under -Wall -Wextra -Wpedantic -Wshadow -Wconversion, and -Wconversion in
 # particular catches real defects, so the default is to fail on any warning.
@@ -390,6 +393,17 @@ if(TUNE)
         target_compile_definitions(${_tgt} PRIVATE BASILISK_TUNE)
     endforeach()
     message(STATUS "TUNE build: search constants exposed as UCI options (BASILISK_TUNE defined)")
+endif()
+
+if(DIAGNOSTIC)
+    foreach(_tgt IN LISTS _ALL_TARGETS)
+        target_compile_definitions(${_tgt} PRIVATE BASILISK_DIAGNOSTIC)
+    endforeach()
+    message(STATUS "DIAGNOSTIC build: diagnostic UCI options exposed (BASILISK_DIAGNOSTIC defined)")
+endif()
+
+if(TUNE AND DIAGNOSTIC)
+    message(FATAL_ERROR "TUNE and DIAGNOSTIC are distinct build flavors; select exactly one")
 endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
@@ -613,7 +627,10 @@ add_custom_target(pgo
         -DPGO_COMP=${COMP}
         -DPGO_COMPILER_ID=${CMAKE_CXX_COMPILER_ID}
         -DPGO_TUNE=${TUNE}
+        -DPGO_DIAGNOSTIC=${DIAGNOSTIC}
         -DPGO_PORTABLE_BUILD=${_basilisk_pgo_portable}
+        -DPGO_ARM_OPTION=${BASILISK_PGO_ARM_OPTION}
+        -DPGO_ARM_STATE=${BASILISK_PGO_ARM_STATE}
         -DPGO_EXECUTABLE_SUFFIX=${CMAKE_EXECUTABLE_SUFFIX}
         -DPGO_DIST_DIR=${_basilisk_dist_dir}
         -DPGO_DIST_ASSET_NAME=${_basilisk_dist_pgo_asset_name}
@@ -629,6 +646,24 @@ add_custom_target(pgo
 # ---------------------------------------------------------------------------
 option(USE_PEXT "Use BMI2 PEXT instruction for magic bitboards (requires Haswell+)" OFF)
 option(USE_AVX2 "Build for x86-64 CPUs with AVX2" OFF)
+
+if(USE_PEXT AND USE_AVX2)
+    message(FATAL_ERROR "USE_PEXT and USE_AVX2 are mutually exclusive ISA tiers")
+endif()
+
+if(BASILISK_PGO_ARM_OPTION)
+    if(NOT BASILISK_PGO_ARM_OPTION MATCHES "^[A-Za-z_][A-Za-z0-9_]*$")
+        message(FATAL_ERROR "BASILISK_PGO_ARM_OPTION must be a CMake identifier")
+    endif()
+    get_property(_basilisk_arm_type CACHE "${BASILISK_PGO_ARM_OPTION}" PROPERTY TYPE)
+    if(NOT _basilisk_arm_type STREQUAL "BOOL")
+        message(FATAL_ERROR
+            "Umbrella arm '${BASILISK_PGO_ARM_OPTION}' is not a declared BOOL option")
+    endif()
+    if(NOT BASILISK_PGO_ARM_STATE MATCHES "^(ON|OFF)$")
+        message(FATAL_ERROR "BASILISK_PGO_ARM_STATE must be ON or OFF")
+    endif()
+endif()
 
 # 8.6.2a: 64-bit x86 only. The `i.86` (32-bit) alternative was dropped with the
 # rest of the 32-bit vestiges — Basilisk is 64-bit-only by contract (see the

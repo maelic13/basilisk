@@ -322,6 +322,8 @@ function Read-BasiliskBuildManifest {
         DirtyDiff = $fields.dirty_diff
         Preset = $fields.preset
         Flavor = $fields.flavor
+        ArmOption = $fields.arm_option
+        ArmState = $fields.arm_state
         Compiler = $fields.compiler
         Verification = $fields.verification
         Bench = $fields.bench
@@ -378,6 +380,9 @@ function Assert-EngineArmEquality {
     )
     if ($ManifestA.Flavor -ne $ManifestB.Flavor) {
         throw "BUILD FLAVOR MISMATCH - ${LabelA}: $($ManifestA.Flavor); ${LabelB}: $($ManifestB.Flavor)."
+    }
+    if ($ManifestA.ArmOption -ne $ManifestB.ArmOption) {
+        throw "UMBRELLA OPTION MISMATCH - ${LabelA}: $($ManifestA.ArmOption); ${LabelB}: $($ManifestB.ArmOption)."
     }
     if ($ManifestA.Compiler -ne $ManifestB.Compiler) {
         throw "COMPILER MISMATCH - ${LabelA}: $($ManifestA.Compiler); ${LabelB}: $($ManifestB.Compiler)."

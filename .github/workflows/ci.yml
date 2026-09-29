@@ -144,7 +144,8 @@ jobs:
       # presets remain active and therefore exercise their committed tier.
       - name: Configure and build (Release, TUNE off)
         run: |
-          cmake --preset ${{ matrix.preset }} -DPORTABLE_BUILD=ON -DCOMP=clang
+          cmake --preset ${{ matrix.preset }} -DPORTABLE_BUILD=ON -DCOMP=clang \
+            -DTUNE=OFF -DDIAGNOSTIC=OFF -DTEXEL=OFF
           cmake --build --preset ${{ matrix.preset }}
 
       - name: CTest
@@ -169,8 +170,34 @@ jobs:
       # matters here, not the ISA tier).
       - name: Configure and build (Release, TUNE on)
         run: |
-          cmake --preset ${{ matrix.preset }} -DPORTABLE_BUILD=ON -DCOMP=clang -DTUNE=ON
-          cmake --build --preset ${{ matrix.preset }} --target basilisk
+          cmake --preset ${{ matrix.preset }} -DPORTABLE_BUILD=ON -DCOMP=clang \
+            -DTUNE=ON -DDIAGNOSTIC=OFF -DTEXEL=OFF
+          cmake --build --preset ${{ matrix.preset }} --target basilisk test_uci_protocol
+          ctest --test-dir build/${{ matrix.preset }} -R test_uci_protocol --output-on-failure
+
+      - name: Build and test diagnostic-only flavor
+        if: matrix.os_name == 'linux' && matrix.arch == 'x86_64' && matrix.tier == 'pext'
+        run: |
+          cmake --preset release-pext -B build/diag-pext -DPORTABLE_BUILD=ON -DCOMP=clang \
+            -DTUNE=OFF -DDIAGNOSTIC=ON -DTEXEL=OFF
+          cmake --build build/diag-pext --target basilisk test_uci_protocol
+          ctest --test-dir build/diag-pext -R test_uci_protocol --output-on-failure
+
+      - name: Build and verify TEXEL flavor
+        if: matrix.os_name == 'linux' && matrix.arch == 'x86_64' && matrix.tier == 'pext'
+        run: |
+          cmake --preset release-pext -B build/texel-pext -DPORTABLE_BUILD=ON -DCOMP=clang \
+            -DTUNE=OFF -DDIAGNOSTIC=OFF -DTEXEL=ON
+          cmake --build build/texel-pext --target basilisk-texel
+          ./build/texel-pext/basilisk-texel --verify tools/texel/test_positions.csv
+
+      - name: Reject overlapping ISA tiers
+        if: matrix.os_name == 'linux' && matrix.arch == 'x86_64' && matrix.tier == 'pext'
+        run: |
+          if cmake --preset release-pext -B build/invalid-isa -DUSE_AVX2=ON; then
+            echo "FAIL: USE_PEXT+USE_AVX2 was accepted"
+            exit 1
+          fi
 
       - name: Bench fingerprint
         id: bench

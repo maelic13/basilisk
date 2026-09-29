@@ -196,6 +196,20 @@ static void test_uci_output() {
     begin_section("uci protocol: uci command emits options and uciok");
     EXPECT(run.output.find("option name Threads") != std::string::npos);
     EXPECT(run.output.find("option name Ponder type check default false") != std::string::npos);
+#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
+    EXPECT(run.output.find("option name Diag type check default false") != std::string::npos);
+    EXPECT(run.output.find("option name TM_Debug type check default false") != std::string::npos);
+#else
+    EXPECT(run.output.find("option name Diag") == std::string::npos);
+    EXPECT(run.output.find("option name TM_Debug") == std::string::npos);
+#endif
+#ifdef BASILISK_TUNE
+    EXPECT(run.output.find("option name RfpCoeff") != std::string::npos);
+    EXPECT(run.output.find("option name KBNK Drive") != std::string::npos);
+#else
+    EXPECT(run.output.find("option name RfpCoeff") == std::string::npos);
+    EXPECT(run.output.find("option name KBNK Drive") == std::string::npos);
+#endif
     EXPECT(run.output.find("uciok") != std::string::npos);
     end_section();
 }

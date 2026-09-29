@@ -94,6 +94,12 @@ try {
         Assert-EngineArmEquality (Assert-EngineProvenance $armA 'a' -ExpectBench $benchA) `
             (Assert-EngineProvenance $flavor 'b' -ExpectBench $benchB) 'a' 'b'
     }
+    $umbrella = Copy-Arm $EngineB 'umbrella'
+    Set-ManifestField $umbrella 'arm_option' 'DIFFERENT_CLUSTER'
+    Invoke-Case 'umbrella option mismatch' 'UMBRELLA OPTION MISMATCH' {
+        Assert-EngineArmEquality (Assert-EngineProvenance $armA 'a' -ExpectBench $benchA) `
+            (Assert-EngineProvenance $umbrella 'b' -ExpectBench $benchB) 'a' 'b'
+    }
     $options = @(Get-EngineUciOptions $armA -Detailed)
     Invoke-Case 'unknown UCI option' 'does not advertise' {
         Assert-AdvertisedOptions $options @('NoSuchOption=1') 'armA'
