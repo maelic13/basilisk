@@ -494,12 +494,18 @@ was cut the day before this plan, so Phase A has no release step.
       records comparable best-move agreement per position. Parser falsifiers,
       three live WAC command forms, a live 300k same-binary agreement control,
       release CTest 13/13 and bench **14,978,465** passed.
-    - [ ] **A.5.2** `[I1]` Branching profile: the reference-anchored geometric branching factor over depths 4–14, one fresh process per depth.
+    - [x] **A.5.2** `[I1]` Branching profile: the reference-anchored geometric branching factor over depths 4–14, one fresh process per depth. — CLOSED 2026-09-29.
       Basilisk against the classical oracle and modern Stockfish, with
       per-position ratios and the median beside the aggregate: one position
       of forty once decided an endpoint measure (BAS-X13).
       `tools/diag/branching.py` is the starting point, and the snapshot's
-      `tools/branching_profile.ps1` the model.
+      `tools/branching_profile.ps1` the model. The v2 JSON binds both reference
+      binaries and the corpus by SHA-256, fixes Hash 64 and Threads 1, records
+      cumulative and iteration growth plus every position, and compares all
+      arms on one common completed-position set with explicit exclusions. Six
+      parser, outlier, common-denominator and lifecycle tests plus a real
+      Basilisk UCI option handshake passed. No profile was measured on the
+      busy host; B.0 performs the first three-arm run on an idle host.
     - [ ] **A.5.3** `[I1]` Counters and decision trace: `Diag` counters summed per position at sampling stride 1 with their units named, and a diag-only decision trace.
       The trace is bounded to plies 1–2 under `searchmoves` and prints every
       prune, reduction and extension with its inputs. Rarog's trace found
@@ -791,7 +797,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.5.2 | READY_FOR_IMPLEMENTATION | I1 | Branching profile with per-position medians |
 | A.5.3 | READY_FOR_IMPLEMENTATION | I1 | Counter summation and the decision trace |
 | A.5.4 | RESEARCH | I1 | Bit order must match the oracle build |
 | A.5.5 | READY_FOR_IMPLEMENTATION | I1 | Port and seed-reproduce before use |

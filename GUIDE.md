@@ -134,7 +134,7 @@ together, and `python tools/diag/check_roadmap.py` must pass.
 | Speed | 3.71 MNPS in Rarog's pooled-PGO measurement (BAS-X34); Basilisk's own pooled baseline at A.7.4 |
 | Conversion | 17.5 draws and 5.0 losses per 1,000 after a persistent piece-up, against six anchors (1.9.3; RAR-M54); re-read for 1.10.0 at A.7.1 |
 | Active experiment | None |
-| Current step | **A.5.2** reference-anchored branching profile (`I1`) |
+| Current step | **A.5.3** counter summation and decision trace (`I1`) |
 | Long job | None |
 | Next release | **2.0.0** if the E.2 target gate is met, otherwise **1.11.0**, cut at E.3.2; nothing is released before it unless a correctness repair forces a 1.10.x patch |
 
@@ -170,7 +170,7 @@ before its deadline; held items stay unticked in place.
     - [x] **A.4.2** `[I1]` Build flavors and manifests for arms; CI option/ISA combination matrix, TEXEL repaired — CLOSED 2026-09-29
 - [ ] **A.5** Instruments for the search programme
     - [x] **A.5.1** `[I1]` Fixed-budget probe: WAC at fixed nodes, oracle agreement — CLOSED 2026-09-29
-    - [ ] **A.5.2** `[I1]` Reference-anchored branching profile with per-position medians
+    - [x] **A.5.2** `[I1]` Reference-anchored branching profile with per-position medians — CLOSED 2026-09-29
     - [ ] **A.5.3** `[I1]` Counter summation at stride 1 and the decision trace
     - [ ] **A.5.4** `[I1]` Matched ablation mask on Basilisk and the oracle
     - [ ] **A.5.5** `[I1]` PGN conversion instrument, seed-reproduced

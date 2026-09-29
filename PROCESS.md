@@ -320,6 +320,29 @@ where either arm returns `0000`; the comparable count is always reported with
 the agreement count. Keep the per-position rows: aggregates cannot reveal a
 single position dominating or a terminal/non-comparable record.
 
+The reference-anchored branching profile uses one fresh process per arm and
+depth over depths 4–14, with every position separated by `ucinewgame` and
+readiness. Hash 64 and Threads 1 are global fixed inputs and cannot be
+overridden per arm:
+
+```powershell
+python tools/diag/branching.py `
+  --engine <basilisk.exe> --label basilisk `
+  --reference "oracle=<oracle.exe>|Use Basilisk HCE=true" `
+  --reference "stockfish=<stockfish.exe>" `
+  --min-depth 4 --max-depth 14 --hash 64 `
+  --out tools/results/<run>/branching.json
+```
+
+The report retains cumulative nodes, consecutive-depth and iteration growth,
+every position's depth sequence, the aggregate endpoint factor and the median,
+minimum and maximum per-position endpoint factors. Comparisons use only the
+common set of positions that completed every requested depth on every arm;
+terminal or early-mate exclusions and their missing arm/depths remain in the
+report. Read the per-position median beside the aggregate, and compare both
+the shallow node ratio and growth: a small branching factor can coexist with
+an already oversized shallow tree.
+
 ## Matched ablation (deficit decomposition)
 
 One shared bit mask on Basilisk and on the oracle build, so the same number
