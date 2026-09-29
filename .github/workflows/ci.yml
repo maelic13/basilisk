@@ -191,11 +191,15 @@ jobs:
           cmake --build build/texel-pext --target basilisk-texel
           ./build/texel-pext/basilisk-texel --verify tools/texel/test_positions.csv
 
-      - name: Reject overlapping ISA tiers
+      - name: Reject invalid build combinations
         if: matrix.os_name == 'linux' && matrix.arch == 'x86_64' && matrix.tier == 'pext'
         run: |
           if cmake --preset release-pext -B build/invalid-isa -DUSE_AVX2=ON; then
             echo "FAIL: USE_PEXT+USE_AVX2 was accepted"
+            exit 1
+          fi
+          if cmake --preset release-pext -B build/invalid-flavor -DTUNE=ON -DDIAGNOSTIC=ON; then
+            echo "FAIL: TUNE+DIAGNOSTIC was accepted"
             exit 1
           fi
 

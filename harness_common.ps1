@@ -317,6 +317,7 @@ function Read-BasiliskBuildManifest {
     }
     [pscustomobject]@{
         Path = $Path
+        SchemaVersion = $fields.schema_version
         Engine = $fields.engine
         GitSha = $fields.revision
         DirtyDiff = $fields.dirty_diff
@@ -348,6 +349,11 @@ function Assert-EngineProvenance {
     $manifest = Read-BasiliskBuildManifest -Path $manifestPath
     foreach ($field in @('GitSha', 'DirtyDiff', 'Flavor', 'Compiler', 'Verification', 'Bench', 'BinarySha256')) {
         if (-not $manifest.$field) { throw "Manifest for $Label has no required '$field' field; rebuild with tools/build_test.ps1." }
+    }
+    if ($manifest.SchemaVersion -eq '2') {
+        foreach ($field in @('ArmOption', 'ArmState')) {
+            if (-not $manifest.$field) { throw "Schema-2 manifest for $Label has no required '$field' field; rebuild with tools/build_test.ps1." }
+        }
     }
     $actual = Get-HarnessSha256 $Path
     if ($actual -ne $manifest.BinarySha256) {

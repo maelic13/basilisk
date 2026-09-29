@@ -134,7 +134,7 @@ together, and `python tools/diag/check_roadmap.py` must pass.
 | Speed | 3.71 MNPS in Rarog's pooled-PGO measurement (BAS-X34); Basilisk's own pooled baseline at A.7.4 |
 | Conversion | 17.5 draws and 5.0 losses per 1,000 after a persistent piece-up, against six anchors (1.9.3; RAR-M54); re-read for 1.10.0 at A.7.1 |
 | Active experiment | None |
-| Current step | **A.4.2** build flavors and manifests; CI option/ISA combination matrix (`I1`) |
+| Current step | **A.5.1** fixed-budget WAC and oracle-agreement probe (`I1`) |
 | Long job | None |
 | Next release | **2.0.0** if the E.2 target gate is met, otherwise **1.11.0**, cut at E.3.2; nothing is released before it unless a correctness repair forces a 1.10.x patch |
 
@@ -165,9 +165,9 @@ before its deadline; held items stay unticked in place.
     - [x] **A.3.1** `[I1]` Run files, `colosseum.ps1` and the shared guards; parity, guard suite, live smoke — CLOSED 2026-09-29
     - [x] **A.3.2** `[I1]` Tune path: surface generated from the X-macro, 15 × 30 shape, block chaining; hand-written configs retired — CLOSED 2026-09-29
     - [x] **A.3.3** `[M]` PROCESS *Harness* section finalised; backup path and cross-check triggers — CLOSED 2026-09-29
-- [ ] **A.4** Build and toolchain
+- [x] **A.4** Build and toolchain — CLOSED 2026-09-29
     - [x] **A.4.1** `[I1]` Toolchain refresh and freeze, one axis at a time — CLOSED 2026-09-29
-    - [ ] **A.4.2** `[I1]` Build flavors and manifests for arms; CI option/ISA combination matrix, TEXEL repaired
+    - [x] **A.4.2** `[I1]` Build flavors and manifests for arms; CI option/ISA combination matrix, TEXEL repaired — CLOSED 2026-09-29
 - [ ] **A.5** Instruments for the search programme
     - [ ] **A.5.1** `[I1]` Fixed-budget probe: WAC at fixed nodes, oracle agreement
     - [ ] **A.5.2** `[I1]` Reference-anchored branching profile with per-position medians

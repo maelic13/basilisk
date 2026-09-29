@@ -222,6 +222,7 @@ for ($i = 0; $i -lt $engines.Count; $i++) {
     $lines.Add("  sha256:         $(Get-HarnessSha256 $arm.Path)")
     $lines.Add("  revision:       $($manifest.GitSha)")
     $lines.Add("  flavor:         $($manifest.Flavor)")
+    $lines.Add("  umbrella:       $($manifest.ArmOption)=$($manifest.ArmState)")
     $lines.Add("  compiler:       $($manifest.Compiler)")
     $lines.Add("  bench:          $($manifest.Bench)")
 }

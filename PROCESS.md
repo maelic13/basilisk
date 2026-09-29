@@ -260,12 +260,19 @@ so a registered `[0,3]` gate passes `-Elo1 3`**. `-Mode simplify` is `[-5,0]`.
 - Presets: `release`, `release-pext`, `release-avx2`, `debug`,
   `relwithdebinfo`, `msvc-release-pext`. PGO: `cmake --build --preset
   release-pext --target pgo`, which trains on the bench suite and writes to
-  `build/dist/`. `TUNE=ON` exposes the search constants as UCI options;
-  `TEXEL=ON` builds the Texel target and is never measured for strength.
+  `build/dist/`. `TUNE=ON` exposes diagnostics and search constants as UCI
+  options; `DIAGNOSTIC=ON` exposes diagnostics without tunable constants;
+  the two flavors are mutually exclusive. `TEXEL=ON` builds the Texel target
+  and is never measured for strength.
 - `bench 13` is the fingerprint: 40 positions, single-threaded, identical on
   every platform. `bench 13 1 N` is for multi-thread speed only.
-- `tools/build_test.ps1 -Suffix <s>` builds a PEXT+PGO tune binary into
-  `tools/test_engines/`; A.4.2 extends it to arm flavors with manifests.
+- `tools/build_test.ps1 -Suffix <s> -Flavor <Release|Tune|Diag>` builds a
+  release-equivalent PEXT+PGO artifact into `tools/test_engines/`. Use
+  `-ArmOption <BOOL_OPTION> -Arm <Off|On>` for a cluster umbrella; both PGO
+  phases receive the option and the manifest records it separately from the
+  flavor. The wrapper starts from a fresh cache, forces portable tier codegen,
+  verifies bench and the flavor's UCI surface, and writes a schema-2 sidecar
+  with source tree, binary hash, compiler, flavor, arm and fingerprint.
 - **NPS:** `tools/nps_ab.ps1` validates on a self pair first (it must read
   about 0.00%), pools at least two PGO builds per arm (two PGO builds of
   identical source differ by about a third of a percent), interleaves arms,
@@ -418,6 +425,6 @@ python tools/spsa_block_rule.py tools/results/<block>
 ./tools/nps_ab.ps1 -EnginesA <a1.exe>,<a2.exe> -SelfPair
 
 # Tune binary for SPSA and categorical runs
-./tools/build_test.ps1 -Suffix <s>
+./tools/build_test.ps1 -Suffix <s> -Flavor Tune
 ./tools/spsa.ps1 -ConfigGroup search -EngineSuffix <s>
 ```

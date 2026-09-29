@@ -455,7 +455,7 @@ was cut the day before this plan, so Phase A has no release step.
       `tools/results/a32-smoke/` and
       `tools/results/colosseum_spsa_a32-smoke_20260929_100945.*`.
     - [x] **A.3.3** `[M]` PROCESS *Harness* section finalised: Colosseum main, fastchess and weather-factory maintained as backup and second opinion until at least the classical release, with the cross-check triggers. — CLOSED 2026-09-29. The procedure names both guarded Colosseum entry points, ownership of run conditions, pre/post-run proof, resume and tune-chain semantics, the three backup triggers, topology rules and main/backup commands.
-- [ ] **A.4** Build and toolchain.
+- [x] **A.4** Build and toolchain. — CLOSED 2026-09-29
     - [x] **A.4.1** `[I1]` Toolchain refresh and freeze (archived 7.0): inventory the compiler, C++ library, CMake, Ninja and profile tools on Windows, Linux CI and macOS.
       Compare the current and newest stable versions one axis at a time.
       Require CTest, sanitizers, exact search agreement, ISA checks and
@@ -469,12 +469,21 @@ was cut the day before this plan, so Phase A has no release step.
       the exact **14,978,465** fingerprint; repaired final-PGO PEXT measured
       **+7.45%** [**+7.22%, +7.75%**] over the pre-repair tier. Evidence:
       `analysis/toolchain_refresh_v1.md`.
-    - [ ] **A.4.2** `[I1]` Build flavors for arms: `build_test.ps1` builds and manifests release, tune, diag and umbrella-switch arms.
+    - [x] **A.4.2** `[I1]` Build flavors for arms: `build_test.ps1` builds and manifests release, tune, diag and umbrella-switch arms.
       Each manifest carries the hash, source revision, compiler, flavor and
       bench. CI covers the CMake option and ISA combinations rather than
       single options, and distinguishes production from diagnostic builds
       (archived 6.6.g). The matrix includes the `TEXEL` target, repaired first:
-      `tools/texel/tuner.cpp` does not compile at `aecbd93` (A.2.3).
+      `tools/texel/tuner.cpp` does not compile at `aecbd93` (A.2.3). — CLOSED
+      2026-09-29. TEXEL now uses public board reads plus an opaque coherent
+      position snapshot and reconstructs the seven-position fixture exactly.
+      Final-PGO release, tune, diagnostic and umbrella-probe builds each
+      reproduced **14,978,465** with clean schema-2 manifests; their UCI
+      surfaces carried 9, 60 and 11 options respectively, and both PGO phases
+      retained the umbrella value. CI exercises TUNE across every existing
+      ISA/platform row, diagnostic and TEXEL PEXT combinations, and known-bad
+      overlapping flavor/ISA controls. Release CTest passed 13/13 and the
+      final PGO PEXT ISA contract passed.
 - [ ] **A.5** Instruments for the search programme.
     - [ ] **A.5.1** `[I1]` Fixed-budget probe: WAC solved at 100k and 400k nodes and at a fixed PV depth, plus oracle best-move agreement on `suite_v1.epd` at 300k nodes, with per-position records.
       Ported from the snapshot's `tools/diag/fixed_budget_probe.py` onto
@@ -777,7 +786,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.4.2 | READY_FOR_IMPLEMENTATION | I1 | Arm flavors and manifests; CI combination matrix |
 | A.5.1 | READY_FOR_IMPLEMENTATION | I1 | Port of the fixed-budget probe |
 | A.5.2 | READY_FOR_IMPLEMENTATION | I1 | Branching profile with per-position medians |
 | A.5.3 | READY_FOR_IMPLEMENTATION | I1 | Counter summation and the decision trace |
