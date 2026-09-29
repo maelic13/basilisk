@@ -243,7 +243,12 @@ param(
     [int]$TimeMargin = 20,
     [string]$Book = "$PSScriptRoot\books\UHO_Lichess_4852_v1.epd",
     [string]$FastchessPath = "$PSScriptRoot\bin\fastchess.exe",
-    [switch]$Adjudicate
+    [switch]$Adjudicate,
+    [switch]$AllowDirtyTree,
+    [string]$ExpectRevision = "",
+    [long[]]$ExpectBench = @(),
+    [switch]$AllowBusyHost,
+    [double]$MaxHostBusyPercent = 15
 )
 
 $ErrorActionPreference = "Stop"
@@ -280,7 +285,7 @@ $Concurrency = $concurrencyInfo.Concurrency
 # At Threads=1 one-core-per-game is exactly right and the pin removes the
 # Zen-3 placement bias (PLAN lesson 10), so it stays.
 $useAffinity = ($maxThreads -eq 1)
-$AffinityCpus = if ($useAffinity) { Get-HarnessAffinityCpuList -Concurrency $Concurrency } else { "" }
+$AffinityCpus = if ($useAffinity) { Get-HarnessAffinityCpuList -Concurrency $Concurrency -ThreadsPerGame $maxThreads } else { "" }
 $affinityArgs = if ($useAffinity) { @("-use-affinity", $AffinityCpus) } else { @() }
 $affinityNote = if ($useAffinity) {
     "$AffinityCpus (one logical CPU per physical core)"
@@ -332,6 +337,18 @@ foreach ($p in @($EngineA, $EngineB, $Book)) {
 $EngineA = (Resolve-Path $EngineA).Path
 $EngineB = (Resolve-Path $EngineB).Path
 $Book    = (Resolve-Path $Book).Path
+
+Assert-HarnessHostIdle -MaxBusyPercent $MaxHostBusyPercent -Allow:$AllowBusyHost | Out-Null
+if ($ExpectBench.Count -ne 2) { throw "-ExpectBench is required for both arms; pass two fingerprints." }
+$manifestA = Assert-EngineProvenance -Path $EngineA -Label $NameA -AllowDirtyTree:$AllowDirtyTree `
+    -ExpectRevision $ExpectRevision -ExpectBench $ExpectBench[0]
+$manifestB = Assert-EngineProvenance -Path $EngineB -Label $NameB -AllowDirtyTree:$AllowDirtyTree `
+    -ExpectRevision $ExpectRevision -ExpectBench $ExpectBench[1]
+Assert-EngineArmEquality -ManifestA $manifestA -ManifestB $manifestB -LabelA $NameA -LabelB $NameB
+$optionDetailsA = @(Get-EngineUciOptions -Path $EngineA -Detailed)
+$optionDetailsB = @(Get-EngineUciOptions -Path $EngineB -Detailed)
+Assert-AdvertisedOptions -Advertised $optionDetailsA -Wanted (@("Hash=$HashA", "Threads=$ThreadsA") + $OptionsA) -Label $NameA
+Assert-AdvertisedOptions -Advertised $optionDetailsB -Wanted (@("Hash=$HashB", "Threads=$ThreadsB") + $OptionsB) -Label $NameB
 
 $shaA = Get-Sha256 $EngineA
 $shaB = Get-Sha256 $EngineB
@@ -388,38 +405,8 @@ if ($Adjudicate) {
 # Reproducibility manifest (PLAN §1 gate 8): a PGN without this manifest is not
 # a reproducible test. Emitted next to the PGN before the match starts.
 $manifestPath = [IO.Path]::ChangeExtension($pgnOut, ".manifest.txt")
-function Get-EngineBench($exe) {
-    $out = ("bench`nquit" | & $exe 2>&1)
-    ($out | Select-String -Pattern 'Nodes searched\s*:\s*(\d+)').Matches.Groups[1].Value
-}
-# 8.6.5a: A/B compiler equality -- the C++ analog of a toolchain pin. A silent
-# compiler upgrade between building engine A and engine B folds compiler delta
-# into a +/-3 Elo measurement, and the bench fingerprint cannot see it (node
-# counts are compiler-independent; only NPS shifts). Each build_test.ps1 binary
-# carries its compiler line in a sidecar manifest: copy both beside the result
-# so every run is self-describing (Rarog 9.7), and HARD-FAIL on a mismatch.
-# Warn-not-fail when a manifest is missing (pre-8.6 binaries).
-function Get-BuildManifest($enginePath) {
-    $m = $enginePath -replace '\.exe$', '.manifest.txt'
-    if (Test-Path $m) { $m } else { $null }
-}
-$manA = Get-BuildManifest $EngineA
-$manB = Get-BuildManifest $EngineB
-foreach ($pair in @(@($manA, $NameA), @($manB, $NameB))) {
-    if ($pair[0]) {
-        Copy-Item $pair[0] (Join-Path $resultsDir ("sprt_${NameA}_vs_${NameB}_${timestamp}." + $pair[1] + ".manifest.txt")) -Force
-    } else {
-        Write-Warning "No build manifest for $($pair[1]) (pre-8.6 binary?) -- compiler equality not checkable."
-    }
-}
-if ($manA -and $manB) {
-    $compA = (Select-String -Path $manA -Pattern '^compiler:\s*(.+)$').Matches.Groups[1].Value.Trim()
-    $compB = (Select-String -Path $manB -Pattern '^compiler:\s*(.+)$').Matches.Groups[1].Value.Trim()
-    if ($compA -and $compB -and ($compA -ne $compB)) {
-        throw "COMPILER MISMATCH between A and B:`n  $NameA -> $compA`n  $NameB -> $compB`nRebuild one side so the pair is compiler-identical (8.6.5a)."
-    }
-    Write-Host "Compiler equality OK: $compA"
-}
+Copy-Item $manifestA.Path (Join-Path $resultsDir ("sprt_${NameA}_vs_${NameB}_${timestamp}.${NameA}.manifest.txt")) -Force
+Copy-Item $manifestB.Path (Join-Path $resultsDir ("sprt_${NameA}_vs_${NameB}_${timestamp}.${NameB}.manifest.txt")) -Force
 
 $fcInfo    = Assert-AffinityFastchess -Path $fastchess
 $fcVersion = $fcInfo.Text
@@ -428,25 +415,27 @@ $repoSha   = (git rev-parse HEAD 2>$null); if (-not $repoSha) { $repoSha = "n/a"
     "sprt_mode:     $Mode"
     "engineA:       $NameA = $EngineA"
     "engineA_sha256: $shaA"
-    "engineA_bench: $(Get-EngineBench $EngineA)"
+    "engineA_bench: $($manifestA.Bench)"
     "engineB:       $NameB = $EngineB"
     "engineB_sha256: $shaB"
-    "engineB_bench: $(Get-EngineBench $EngineB)"
+    "engineB_bench: $($manifestB.Bench)"
     "repo_revision: $repoSha"
     "test_design:   $(switch ($Mode) { 'calibrate' { "fixed ${Games}-game null; tolerance +/-${CalibrationTolerance} nElo" } 'fixed' { "fixed ${Games}-game probe; estimate-judged, no SPRT (8.6.8A)" } default { "SPRT elo0=$Elo0 elo1=$Elo1 alpha=$Alpha beta=$Beta model=normalized" } })"
-    "optionsA:      $(if ($optArgsA.Count) { $optArgsA -join ' ' } else { '(none)' })"
-    "optionsB:      $(if ($optArgsB.Count) { $optArgsB -join ' ' } else { '(none)' })"
+    "game_budget:   $(if ($Mode -in @('calibrate','fixed')) { $Games } else { 100000 })"
+    "optionsA:      $(if ($OptionsA.Count) { $OptionsA -join ' ' } else { '(none)' })"
+    "optionsB:      $(if ($OptionsB.Count) { $OptionsB -join ' ' } else { '(none)' })"
     "time_control:  $tcLabel  timemargin=${TimeMargin}ms"
-    "hash_mb:       A=$HashA B=$HashB$(if ($HashA -eq $HashB) { '' } else { '  (per-side, scaled with that side''s threads)' })"
-    "threads:       A=$ThreadsA B=$ThreadsB"
-    "concurrency:   $Concurrency  (x $maxThreads threads/game = $($concurrencyInfo.CoresUsed) of $($concurrencyInfo.PhysicalCores) physical cores)"
+    "hash_mb:       $(if ($HashA -eq $HashB) { $HashA } else { "A=$HashA B=$HashB" })"
+    "threads:       $(if ($ThreadsA -eq $ThreadsB) { $ThreadsA } else { "A=$ThreadsA B=$ThreadsB" })"
+    "concurrency:   $Concurrency"
+    "core_use:      $($concurrencyInfo.CoresUsed) of $($concurrencyInfo.PhysicalCores) physical cores"
     "physical_cores: $($concurrencyInfo.PhysicalCores)"
-    "affinity_cpus: $affinityNote"
+    "affinity_cpus: $AffinityCpus"
     "book:          $Book"
     "book_sha256:   $(Get-Sha256 $Book)"
     "opening_order: random"
     "opening_seed:  $Seed"
-    "adjudication:  $adjudicationLabel"
+    "adjudication:  $(if ($Adjudicate) { $adjudicationLabel } else { 'none (natural termination)' })"
     "fastchess:     $fcVersion"
     "fastchess_sha256: $(Get-Sha256 $fastchess)"
     "pgn:           $pgnOut"

@@ -403,7 +403,7 @@ was cut the day before this plan, so Phase A has no release step.
       futility is dead at the default LMR table but wakes at `LmrBase` >= 100.
       B.1 removes 7 coordinates and the drifted `KBNK Drive` option.
 - [ ] **A.3** Harness: Colosseum CLI as the main path (maintainer decision 2026-09-28).
-    - [ ] **A.3.1** `[I1]` Run files and wrapper: port the snapshot's `tools/colosseum.ps1`, run files and guard suite, adapted to Basilisk's CMake manifests; the snapshot's `tools/colosseum/colosseum.pin.json` (`cli-v0.2.0`) is the starting pin.
+    - [x] **A.3.1** `[I1]` Run files and wrapper: port the snapshot's `tools/colosseum.ps1`, run files and guard suite, adapted to Basilisk's CMake manifests; the snapshot's `tools/colosseum/colosseum.pin.json` (`cli-v0.2.0`) is the starting pin.
       Every guard is shared with `sprt.ps1` and `spsa.ps1` through
       `harness_common.ps1`, so the two paths cannot drift. Guards: refuse a
       dirty or wrong-revision candidate; require the binary, hash, compiler,
@@ -413,7 +413,18 @@ was cut the day before this plan, so Phase A has no release step.
       Checks: the resolved configuration matches a recorded `sprt.ps1`
       manifest field by field; a guard suite breaks one input per case and
       gets the refusal that names it; a short live match completes with zero
-      faults and an independent recount from the PGN.
+      faults and an independent recount from the PGN. — CLOSED 2026-09-29:
+      the pinned `cli-v0.2.0` wrapper and committed run files share strict
+      CMake-sidecar, option, host-idle and fault guards with the backup paths;
+      15/15 negative/control guard cases behaved, fastchess and Colosseum
+      agreed on 26/26 comparable resolved fields, and the two-game live smoke
+      had zero faults with its `[0,0,1,0,0]` pentanomial reproduced from PGN.
+      Ignored evidence: `tools/results/sprt_A31A_vs_A31B_20260929_095323.*`,
+      `tools/results/colosseum_match_a31-parity_20260929_095349.*`, and
+      `tools/results/a31-live-smoke-process/` with
+      `tools/results/colosseum_match_a31-live-smoke-process_20260929_095951.*`;
+      their manifests carry the runner, engine, book, configuration and
+      artifact hashes.
     - [ ] **A.3.2** `[I1]` Tune path: the X-macro table in `src/search_params.h` generates the SPSA surface and the Colosseum tune file.
       The tune shape is 15 slots × 30 games per iteration (RAR-M62, 1.65×
       the old throughput). `-SeedFrom` chains the blocks of PLAN rule 7c; the snapshot's
@@ -741,7 +752,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.3.1 | READY_FOR_IMPLEMENTATION | I1 | Next leaf: port of the snapshot's wrapper and guards; contract in the leaf |
 | A.3.2 | READY_FOR_IMPLEMENTATION | I1 | Surface generator from the X-macro; 15 × 30 shape |
 | A.3.3 | READY_FOR_IMPLEMENTATION | M | Documentation after A.3.1–A.3.2 |
 | A.4.1 | RESEARCH | I1 | Toolchain comparison, one axis at a time |

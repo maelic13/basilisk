@@ -1,0 +1,9 @@
+# Direction-check control: 10+0.1, otherwise the fixed-match policy.
+extend = "match-fixed.toml"
+
+[options]
+games = 1000
+a-base-ms = 10000
+a-increment-ms = 100
+b-base-ms = 10000
+b-increment-ms = 100

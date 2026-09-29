@@ -114,7 +114,12 @@ param(
     [switch]$SetupOnly,
     [switch]$LaunchOnly,
     [switch]$Adjudicate,
-    [string]$LogFile = ""
+    [string]$LogFile = "",
+    [switch]$AllowDirtyTree,
+    [string]$ExpectRevision = "",
+    [long]$ExpectBench = 0,
+    [switch]$AllowBusyHost,
+    [double]$MaxHostBusyPercent = 15
 )
 
 $ErrorActionPreference = "Stop"
@@ -174,6 +179,9 @@ if (-not $LaunchOnly) {
     foreach ($f in @($fastchess, $engine, $book)) {
         if (-not (Test-Path $f)) { throw "Required file not found: $f" }
     }
+    if ($ExpectBench -le 0) { throw "-ExpectBench is required for the tune binary." }
+    $engineManifest = Assert-EngineProvenance -Path $engine -Label $engineFile `
+        -AllowDirtyTree:$AllowDirtyTree -ExpectRevision $ExpectRevision -ExpectBench $ExpectBench
     $fcInfo = Assert-AffinityFastchess -Path $fastchess
 
     $wfCute = Join-Path $wfRoot "cutechess.py"
@@ -242,6 +250,7 @@ if (-not $LaunchOnly) {
     $engineName = Split-Path $engine -Leaf
     Write-Host "Copying engine    -> $tuner\$engineName"
     Copy-Item $engine (Join-Path $tuner $engineName) -Force
+    Copy-Item $engineManifest.Path ([IO.Path]::ChangeExtension((Join-Path $tuner $engineName), '.manifest.txt')) -Force
     Write-Host "Copying book      -> $tuner\$(Split-Path $book -Leaf)"
     Copy-Item $book (Join-Path $tuner (Split-Path $book -Leaf)) -Force
 
@@ -331,6 +340,14 @@ if ([int]$launchConfig.threads -ne $Concurrency) {
     throw "cutechess.json concurrency is $($launchConfig.threads), but this launch resolved to $Concurrency. " +
           "Run setup again, or pass -Concurrency $($launchConfig.threads) explicitly to resume that run."
 }
+if ($ExpectBench -le 0) { throw "-ExpectBench is required for the tune binary." }
+Assert-HarnessHostIdle -MaxBusyPercent $MaxHostBusyPercent -Allow:$AllowBusyHost | Out-Null
+$launchEngine = Join-Path $wfRoot ("tuner\" + $launchConfig.engine)
+Assert-EngineProvenance -Path $launchEngine -Label $launchConfig.engine `
+    -AllowDirtyTree:$AllowDirtyTree -ExpectRevision $ExpectRevision -ExpectBench $ExpectBench | Out-Null
+$advertised = @(Get-EngineUciOptions -Path $launchEngine -Detailed)
+$surface = Get-Content -LiteralPath (Join-Path $wfRoot 'config.json') -Raw | ConvertFrom-Json
+Assert-AdvertisedOptions -Advertised $advertised -Wanted @($surface.PSObject.Properties.Name) -Label $launchConfig.engine
 
 # The horizon the run stops itself at. A resumed run's schedule comes from
 # state.json (frozen at first launch), so the target comes from there too when
