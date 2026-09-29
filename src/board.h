@@ -71,6 +71,39 @@ private:
 public:
     static constexpr size_t HISTORY_RESERVE = 2048;
 
+    // Compact, opaque image of one coherent position. It deliberately omits
+    // undo history and diagnostic counters: restoring it produces the same
+    // board position at a fresh root. The Texel tuner uses this instead of
+    // either retaining millions of Board history buffers or mutating one
+    // field of the redundant representation behind Board's back.
+    class PositionSnapshot {
+        friend class Board;
+
+        PositionSnapshot() = default;
+
+        Bitboard pieces[NCOLORS][PIECE_TYPE_NB]{};
+        Bitboard occupancy[NCOLORS]{};
+        Bitboard all_occ{};
+        Piece    board_sq[SQUARE_NB]{};
+        Color    side_to_move{};
+        int      fullmove_number{};
+        int      ply{};
+        Key      hash{};
+        Key      pawn_key{};
+        Key      minor_key{};
+        Key      nonpawn_key[NCOLORS]{};
+        Square   ep_sq{};
+        int      castling_rights{};
+        int      halfmove_clock{};
+        int      plies_from_null{};
+        Square   king_sq[NCOLORS]{};
+        Bitboard checkers{};
+
+    public:
+        PositionSnapshot(const PositionSnapshot&) = default;
+        PositionSnapshot& operator=(const PositionSnapshot&) = default;
+    };
+
 private:
     // Growable undo history (8.6.10a, replacing the fixed 2048-entry array +
     // release clamp): a `position ... moves` list of any length is now simply
@@ -114,6 +147,8 @@ public:
     [[nodiscard]] Bitboard checking_pieces() const noexcept { return checkers; }
     [[nodiscard]] size_t history_size() const noexcept { return history.size(); }
     [[nodiscard]] bool history_empty() const noexcept { return history.empty(); }
+    [[nodiscard]] PositionSnapshot snapshot_position() const noexcept;
+    void restore_position(const PositionSnapshot& snapshot) noexcept;
 
     void set_fen(const std::string& fen);
     // C++23 std::expected error channel (8.6.10 / 8.6.2c): on failure the

@@ -424,15 +424,15 @@ static float linear_delta_scale(const Board& b) {
     float scale = 1.0f;
 
     if (is_opposite_coloured_bishops(b)) {
-        const int total_pawns = popcount(b.pieces[WHITE][PAWN] | b.pieces[BLACK][PAWN]);
+        const int total_pawns = popcount(b.piece_bb(WHITE, PAWN) | b.piece_bb(BLACK, PAWN));
         scale *= static_cast<float>(ocb_draw_scale(total_pawns)) / 48.0f;
     }
 
     if (is_knnk_draw(b))
         return 0.0f;
 
-    if (b.halfmove_clock > 0)
-        scale *= static_cast<float>(damp_rule50_scale_num(b.halfmove_clock))
+    if (b.rule50_count() > 0)
+        scale *= static_cast<float>(damp_rule50_scale_num(b.rule50_count()))
                / static_cast<float>(DAMP_RULE50_DEN);
 
     return scale;
@@ -589,7 +589,7 @@ static std::vector<TexelPos> load_verify_dataset(const std::string& path,
         tp.score = evaluator.evaluate(tp.board);
         tp.trace = g_trace;
 
-        int score_white = (tp.board.side_to_move == WHITE) ? tp.score : -tp.score;
+        int score_white = (tp.board.turn() == WHITE) ? tp.score : -tp.score;
         tp.trace.rest = score_white - reconstruct(tp.trace, g_eval_params);
 
         out.push_back(std::move(tp));
@@ -661,7 +661,7 @@ static TuneSet load_tune_dataset(const std::string& path,
 
         g_trace = {};
         int score = evaluator.evaluate(board);
-        int score_white = (board.side_to_move == WHITE) ? score : -score;
+        int score_white = (board.turn() == WHITE) ? score : -score;
         g_trace.rest = score_white - reconstruct(g_trace, g_eval_params);
 
         out.result.push_back(result);
@@ -700,7 +700,7 @@ static void cmd_dump_eval(const std::string& path, int limit) {
     // recomputed here. One line per position, IN INPUT ORDER, so the caller
     // can join it against the same CSV's FEN column.
     for (const auto& tp : positions) {
-        const int white_pov = (tp.board.side_to_move == WHITE) ? tp.score : -tp.score;
+        const int white_pov = (tp.board.turn() == WHITE) ? tp.score : -tp.score;
         std::cout << white_pov << ' ' << tp.result << '\n';
     }
 }
@@ -725,7 +725,7 @@ static void cmd_verify(const std::string& path) {
 
     for (auto& tp : positions) {
         int fresh = evaluator.evaluate(tp.board);
-        int fresh_white = (tp.board.side_to_move == WHITE) ? fresh : -fresh;
+        int fresh_white = (tp.board.turn() == WHITE) ? fresh : -fresh;
         int recon = reconstruct(tp.trace, g_eval_params) + tp.trace.rest;
 
         int err = std::abs(fresh_white - recon);
@@ -1203,28 +1203,13 @@ static void cmd_tune(const TuneOptions& opts) {
 // it into one reused Board rather than keeping millions of heavy Board objects.
 // ---------------------------------------------------------------------------
 struct KsSnap {
-    Bitboard pieces[NCOLORS][PIECE_TYPE_NB];
-    Bitboard occ[NCOLORS];
-    Bitboard all_occ;
-    Square   king_sq[NCOLORS];
-    Piece    board_sq[SQUARE_NB];
+    Board::PositionSnapshot position;
     Color    stm;
-    int      castling;
-    int      halfmove;
     float    result;
 };
 
 static void ks_board_from_snap(Board& b, const KsSnap& s) {
-    for (int c = 0; c < NCOLORS; ++c) {
-        for (int pt = 0; pt < PIECE_TYPE_NB; ++pt) b.pieces[c][pt] = s.pieces[c][pt];
-        b.occupancy[c] = s.occ[c];
-        b.king_sq[c]   = s.king_sq[c];
-    }
-    b.all_occ = s.all_occ;
-    for (int q = 0; q < SQUARE_NB; ++q) b.board_sq[q] = s.board_sq[q];
-    b.side_to_move    = s.stm;
-    b.castling_rights = s.castling;
-    b.halfmove_clock  = s.halfmove;
+    b.restore_position(s.position);
 }
 
 static std::vector<KsSnap> ks_load(const std::string& path, int max_positions) {
@@ -1241,18 +1226,7 @@ static std::vector<KsSnap> ks_load(const std::string& path, int max_positions) {
         float result;
         if (!parse_target(line.substr(sep + 1), result)) { ++skipped; continue; }
         if (!tmp.try_set_fen(line.substr(0, sep))) { ++skipped; continue; }
-        KsSnap s;
-        for (int c = 0; c < NCOLORS; ++c) {
-            for (int pt = 0; pt < PIECE_TYPE_NB; ++pt) s.pieces[c][pt] = tmp.pieces[c][pt];
-            s.occ[c] = tmp.occupancy[c];
-            s.king_sq[c] = tmp.king_sq[c];
-        }
-        s.all_occ = tmp.all_occ;
-        for (int q = 0; q < SQUARE_NB; ++q) s.board_sq[q] = tmp.board_sq[q];
-        s.stm = tmp.side_to_move;
-        s.castling = tmp.castling_rights;
-        s.halfmove = tmp.halfmove_clock;
-        s.result = result;
+        KsSnap s{tmp.snapshot_position(), tmp.turn(), result};
         out.push_back(s);
         if (max_positions > 0 && static_cast<int>(out.size()) >= max_positions) break;
     }
