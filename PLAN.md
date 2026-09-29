@@ -485,10 +485,15 @@ was cut the day before this plan, so Phase A has no release step.
       overlapping flavor/ISA controls. Release CTest passed 13/13 and the
       final PGO PEXT ISA contract passed.
 - [ ] **A.5** Instruments for the search programme.
-    - [ ] **A.5.1** `[I1]` Fixed-budget probe: WAC solved at 100k and 400k nodes and at a fixed PV depth, plus oracle best-move agreement on `suite_v1.epd` at 300k nodes, with per-position records.
+    - [x] **A.5.1** `[I1]` Fixed-budget probe: WAC solved at 100k and 400k nodes and at a fixed PV depth, plus oracle best-move agreement on `suite_v1.epd` at 300k nodes, with per-position records. — CLOSED 2026-09-29.
       Ported from the snapshot's `tools/diag/fixed_budget_probe.py` onto
-      Basilisk's `wac`
-      command and `tools/diag/run_suite.py`.
+      Basilisk's `wac` command and `tools/diag/run_suite.py`. `wac nodes N`
+      records completed and total work separately; `wac depthpv N` records
+      every completed PV head plus first/stable solution depths. The oracle
+      path rejects missing options, ignores incomplete aspiration bounds and
+      records comparable best-move agreement per position. Parser falsifiers,
+      three live WAC command forms, a live 300k same-binary agreement control,
+      release CTest 13/13 and bench **14,978,465** passed.
     - [ ] **A.5.2** `[I1]` Branching profile: the reference-anchored geometric branching factor over depths 4–14, one fresh process per depth.
       Basilisk against the classical oracle and modern Stockfish, with
       per-position ratios and the median beside the aggregate: one position
@@ -786,7 +791,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.5.1 | READY_FOR_IMPLEMENTATION | I1 | Port of the fixed-budget probe |
 | A.5.2 | READY_FOR_IMPLEMENTATION | I1 | Branching profile with per-position medians |
 | A.5.3 | READY_FOR_IMPLEMENTATION | I1 | Counter summation and the decision trace |
 | A.5.4 | RESEARCH | I1 | Bit order must match the oracle build |

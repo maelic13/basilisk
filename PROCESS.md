@@ -284,6 +284,42 @@ so a registered `[0,3]` gate passes `-Elo1 3`**. `-Mode simplify` is `[-5,0]`.
   (divide by log EBF) before it is called expensive. +19% bench nodes was
   0.165 ply, and strength-neutral.
 
+## Fixed-budget search probes
+
+Run WAC from an interactive engine process; do not pipe a trailing `quit`
+behind the search command, because engines consume it while searching and
+abort the measurement. The canonical search-programme screens are:
+
+```text
+wac nodes 100000
+wac nodes 400000
+wac depthpv 10
+```
+
+Each command uses one thread, clears TT and histories before every position,
+and prints one `wac record` per position. Node records distinguish the last
+completed iteration's `nodes` from total `search_nodes`; only the former is a
+completed-depth measure. `depthpv` also prints one `wac pv` row per completed
+iteration and records the first correct depth and the depth from which the
+answer remains stable. Zero means the condition was never met. Solved counts
+and PV stability are diagnostic layers, never strength acceptance.
+
+For the search-oracle comparison, use the same node and hash budget on both
+arms and preserve the JSON output:
+
+```powershell
+python tools/diag/run_suite.py `
+  --engine <basilisk.exe> --oracle <oracle.exe> `
+  --nodes 300000 --hash 64 --out tools/results/<run>/fixed-budget.json
+```
+
+`run_suite.py` starts a fresh process per position, rejects unknown options,
+and records each arm's last completed depth, nodes and best move. Aspiration
+bound lines are not completed iterations. Best-move agreement excludes rows
+where either arm returns `0000`; the comparable count is always reported with
+the agreement count. Keep the per-position rows: aggregates cannot reveal a
+single position dominating or a terminal/non-comparable record.
+
 ## Matched ablation (deficit decomposition)
 
 One shared bit mask on Basilisk and on the oracle build, so the same number
