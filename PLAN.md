@@ -425,7 +425,7 @@ was cut the day before this plan, so Phase A has no release step.
       `tools/results/colosseum_match_a31-live-smoke-process_20260929_095951.*`;
       their manifests carry the runner, engine, book, configuration and
       artifact hashes.
-    - [ ] **A.3.2** `[I1]` Tune path: the X-macro table in `src/search_params.h` generates the SPSA surface and the Colosseum tune file.
+    - [x] **A.3.2** `[I1]` Tune path: the X-macro table in `src/search_params.h` generates the SPSA surface and the Colosseum tune file. — CLOSED 2026-09-29.
       The tune shape is 15 slots × 30 games per iteration (RAR-M62, 1.65×
       the old throughput). `-SeedFrom` chains the blocks of PLAN rule 7c; the snapshot's
       `tools/spsa_config_to_colosseum.py` and `tools/spsa_block_rule.py` are
@@ -437,6 +437,23 @@ was cut the day before this plan, so Phase A has no release step.
       `tools/spsa_configs/config_*.json` and the README's warnings about them
       (which name `.STALE` files no longer in the tree) retire in the same
       change.
+      `generate_spsa_surface.py` now emits the ordered 48-coordinate
+      weather-factory JSON and the 2,000-iteration Colosseum tune/run files;
+      perturbations are `max(2, round(range / 16))`, and `--check` rejects
+      drift. `spsa_colosseum.ps1` fixes production blocks at 15 × 30 and
+      accepts `-SeedFrom`; `spsa_block_rule.py` applies the registered
+      three-mover rule against each block's own seeds. The backup
+      `spsa.ps1` consumes the generated surface at 30 games/iteration and
+      uses the rule-7c 2,000-iteration floor. Five hand-written historical
+      vectors retired. A fresh TUNE build reproduced **14,978,465**; the
+      one-iteration/30-game temporary-surface smoke completed with 30 normal
+      terminations and zero engine, time or infrastructure faults, and a
+      second dry run proved `-SeedFrom` bound the completed result. The
+      registered 15-slot shape targets the maintainer's Ryzen 9 5950X; this
+      hybrid host exposes five eligible P-cores, so its smoke deliberately
+      used one slot. Ignored evidence:
+      `tools/results/a32-smoke/` and
+      `tools/results/colosseum_spsa_a32-smoke_20260929_100945.*`.
     - [ ] **A.3.3** `[M]` PROCESS *Harness* section finalised: Colosseum main, fastchess and weather-factory maintained as backup and second opinion until at least the classical release, with the cross-check triggers.
 - [ ] **A.4** Build and toolchain.
     - [ ] **A.4.1** `[I1]` Toolchain refresh and freeze (archived 7.0): inventory the compiler, C++ library, CMake, Ninja and profile tools on Windows, Linux CI and macOS.
@@ -752,7 +769,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.3.2 | READY_FOR_IMPLEMENTATION | I1 | Surface generator from the X-macro; 15 × 30 shape |
 | A.3.3 | READY_FOR_IMPLEMENTATION | M | Documentation after A.3.1–A.3.2 |
 | A.4.1 | RESEARCH | I1 | Toolchain comparison, one axis at a time |
 | A.4.2 | READY_FOR_IMPLEMENTATION | I1 | Arm flavors and manifests; CI combination matrix |

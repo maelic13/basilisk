@@ -20,6 +20,7 @@ all preflight checks without playing.
 | `match-fixed-ltc.toml` | Fixed measurement at `10+0.1` |
 | `calibrate-null.toml` | Triggered null pair |
 | `gauntlet.toml` | Rating gauntlet |
+| `spsa-tune.toml` | SPSA block policy: 15 slots × 30 games/iteration |
 
 Example:
 
@@ -32,6 +33,6 @@ Example:
   -Dir tools/results/<experiment>
 ```
 
-`tools/sprt.ps1` and `tools/spsa.ps1` remain the backup and second-opinion
-paths. A.3.2 adds the generated Colosseum tune path; A.3.3 finalizes the
+`tools/spsa_colosseum.ps1` runs the generated primary tune path and
+`tools/spsa.ps1` remains the weather-factory backup. A.3.3 finalizes the
 operator procedure and cross-check triggers.
