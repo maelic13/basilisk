@@ -2,13 +2,13 @@
 #include "attacks.h"
 #include <algorithm>
 #include <array>
+#include <climits>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <mutex>
 #include <utility>
 #ifdef BASILISK_TUNE
-#include <climits>
 #include <fstream>
 #include <iostream>
 #include <sstream>
