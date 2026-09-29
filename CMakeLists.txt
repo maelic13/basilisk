@@ -163,8 +163,12 @@ target_link_libraries(basilisk_engine PUBLIC basilisk_board PRIVATE fathom)
 # ---------------------------------------------------------------------------
 # Executables
 # ---------------------------------------------------------------------------
+add_library(basilisk_launcher OBJECT src/main.cpp)
+target_include_directories(basilisk_launcher PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
 add_executable(basilisk
-    src/main.cpp
+    $<TARGET_OBJECTS:basilisk_launcher>
+    src/engine_entry.cpp
     src/bench.cpp
     src/wac.cpp
     src/engine.cpp
@@ -218,6 +222,12 @@ target_link_libraries(test_wac PRIVATE basilisk_engine)
 # ---------------------------------------------------------------------------
 add_executable(test_invariants tests/test_invariants.cpp)
 target_link_libraries(test_invariants PRIVATE basilisk_board)
+
+add_executable(test_cpu_features tests/test_cpu_features.cpp)
+target_include_directories(test_cpu_features PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests
+)
 
 # ---------------------------------------------------------------------------
 # Search tests
@@ -275,6 +285,7 @@ include(CTest)
 add_test(NAME test_board        COMMAND test_board)
 add_test(NAME test_wac          COMMAND test_wac)
 add_test(NAME test_invariants   COMMAND test_invariants)
+add_test(NAME test_cpu_features COMMAND test_cpu_features)
 add_test(NAME test_move         COMMAND test_move)
 add_test(NAME test_magics       COMMAND test_magics)
 add_test(NAME test_tt           COMMAND test_tt)
@@ -343,7 +354,8 @@ if(TEXEL)
     if(USE_PEXT)
         target_compile_definitions(basilisk-texel PRIVATE USE_PEXT)
         if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
-            target_compile_options(basilisk-texel PRIVATE -mbmi2)
+            target_compile_options(basilisk-texel PRIVATE
+                -mavx2 -msse4.1 -mpopcnt -mbmi -mbmi2 -mlzcnt)
         elseif(MSVC)
             target_compile_options(basilisk-texel PRIVATE /arch:AVX2)
         endif()
@@ -362,11 +374,16 @@ endif()
 # since those targets were added. Anything omitted here is silently exempt from
 # every project-wide guarantee, so keep this list exhaustive.
 set(_ALL_TARGETS
-    basilisk_board basilisk_engine
+    basilisk_board basilisk_engine basilisk_launcher
     basilisk board_performance_test
-    test_board test_move test_tt test_eval test_search test_engine_ponder test_engine_threading test_uci_protocol
+    test_board test_move test_tt test_eval test_search test_engine_ponder test_engine_threading test_uci_protocol test_cpu_features
     test_endgames test_wac test_invariants test_magics
 )
+
+# Fathom is part of the shipped executable and must obey its ISA contract, but
+# remains outside _ALL_TARGETS because third-party warning/sanitizer policy is
+# intentionally configured separately above.
+set(_ISA_TARGETS ${_ALL_TARGETS} fathom)
 
 if(TUNE)
     foreach(_tgt IN LISTS _ALL_TARGETS)
@@ -623,10 +640,15 @@ endif()
 if(USE_PEXT)
     foreach(_tgt IN LISTS _ALL_TARGETS)
         target_compile_definitions(${_tgt} PRIVATE USE_PEXT)
-        if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
-            target_compile_options(${_tgt} PRIVATE -mbmi2)
-        elseif(MSVC)
-            target_compile_options(${_tgt} PRIVATE /arch:AVX2)
+    endforeach()
+    foreach(_tgt IN LISTS _ISA_TARGETS)
+        if(NOT _tgt STREQUAL "basilisk_launcher")
+            if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+                target_compile_options(${_tgt} PRIVATE
+                    -mavx2 -msse4.1 -mpopcnt -mbmi -mbmi2 -mlzcnt)
+            elseif(MSVC)
+                target_compile_options(${_tgt} PRIVATE /arch:AVX2)
+            endif()
         endif()
     endforeach()
 endif()
@@ -634,13 +656,26 @@ endif()
 if(USE_AVX2)
     foreach(_tgt IN LISTS _ALL_TARGETS)
         target_compile_definitions(${_tgt} PRIVATE USE_AVX2)
-        if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
-            target_compile_options(${_tgt} PRIVATE -mavx2 -msse4.1 -mpopcnt)
-        elseif(MSVC)
-            target_compile_options(${_tgt} PRIVATE /arch:AVX2)
+    endforeach()
+    foreach(_tgt IN LISTS _ISA_TARGETS)
+        if(NOT _tgt STREQUAL "basilisk_launcher")
+            if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+                target_compile_options(${_tgt} PRIVATE -mavx2 -msse4.1 -mpopcnt)
+            elseif(MSVC)
+                target_compile_options(${_tgt} PRIVATE /arch:AVX2)
+            endif()
         endif()
     endforeach()
 endif()
+
+# The launcher performs the runtime feature check before entering specialized
+# engine code. Keep it out of LTO so the linker cannot inline that code ahead
+# of the guard or fold the check using the tier's static feature assumptions.
+set_target_properties(basilisk_launcher PROPERTIES
+    INTERPROCEDURAL_OPTIMIZATION FALSE
+    INTERPROCEDURAL_OPTIMIZATION_RELEASE FALSE
+    INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO FALSE
+)
 
 # ---------------------------------------------------------------------------
 # Static runtime (default ON on MinGW to avoid libc++.dll / libgcc_s.dll
