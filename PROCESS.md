@@ -195,16 +195,30 @@ deterministic diagnostics.
 
 ## Harness
 
-**Until A.3 closes, `tools/sprt.ps1` (fastchess) and `tools/spsa.ps1`
-(weather-factory) are the gate and tune path.** After A.3, Colosseum CLI is
-the main path for gates, fixed matches, tunes, null pairs and gauntlets. It is
-driven by `tools/colosseum.ps1` from committed run files, with the runner
-pinned by revision and SHA-256. It is qualified in its own repository, with
-Rarog as the validation engine, and Basilisk repeats none of that
-qualification. fastchess and weather-factory stay installed, working and
-documented as the backup and the second opinion until at least the classical
-release. Every guard has one implementation in `harness_common.ps1`, shared
-by both paths.
+**Colosseum CLI is the main path** for gates, fixed matches, tunes, null pairs
+and gauntlets. `tools/colosseum.ps1` drives matches from the committed run
+files in `tools/colosseum/`; `tools/spsa_colosseum.ps1` drives generated tune
+blocks from `tools/spsa_configs/colosseum/`. The experiment registration owns
+the engines, cap or horizon, seed and evidence directory. The runner is pinned
+by revision and SHA-256 in `colosseum.pin.json`; a different binary is refused,
+not substituted. Colosseum is qualified in its own repository, with Rarog as
+the validation engine, and Basilisk repeats none of that qualification.
+
+The wrappers prove an idle host, runner and engine hashes, build manifests,
+the expected revision and bench fingerprint, advertised UCI options, natural
+termination, placement and the fully resolved policy before play. Match exits
+are interpreted as outcomes rather than shell success/failure, faults are read
+from durable state and the PGN is independently recounted. Tune blocks require
+zero engine, time and infrastructure faults. An existing match directory
+resumes only at its recorded seed; a later tune block uses `-SeedFrom`, a fresh
+seed and a fresh schedule.
+
+**fastchess and weather-factory stay installed, working and documented** as
+the backup and second opinion until at least the classical release. Their
+entry points are `tools/sprt.ps1` and `tools/spsa.ps1`; their binaries, books,
+weather-factory overlay and setup path remain qualified rather than merely
+retained. Every common provenance, topology, idle-host and option guard has
+one implementation in `harness_common.ps1`, shared by both paths.
 
 Run the backup path as a cross-check when:
 - the runner, the scheduler or the CPU topology on this host changes (the
@@ -212,7 +226,7 @@ Run the backup path as a cross-check when:
 - a result is surprising: a sign nobody predicted, a magnitude well outside
   the registered band, or a gate resolving far faster or slower than the
   drift model predicts;
-- the Colosseum pin changes.
+- the Colosseum pin changes, after its source/release review.
 
 A cross-check is a fixed match or a replayed gate on the same arms, read as
 "do the two instruments agree inside their intervals", never as a second
@@ -220,11 +234,15 @@ chance at acceptance. A registered experiment names its runner and never
 changes it mid-way.
 
 Shared conditions: `3+0.03`, Hash 64, one thread, the UHO book in random order
-and paired, no adjudication, a 20 ms time margin, and fourteen concurrent games
-on pinned physical cores (Windows services most interrupts on CPU 0; the
-harness leaves two physical cores free). A tune runs fifteen slots, because
-both perturbation arms share a slot. fastchess pins one core per game and
-starves `Threads > 1`, so multi-thread runs on that path drop affinity.
+and paired, no adjudication, a 20 ms time margin, and automatic placement on
+one physical core per game with headroom. Windows CPU 0 is never a timed game
+core; on hybrid CPUs only the highest efficiency class is eligible. The Ryzen
+9 5950X production host therefore runs fourteen concurrent match games with
+two physical cores free. A tune runs the registered fifteen slots × thirty
+games per iteration there, because its two perturbation arms share a slot; a
+different host may reduce concurrency only for an explicitly labelled
+instrument smoke, never for a registered tune. fastchess pins one core per
+game and starves `Threads > 1`, so multi-thread runs on that path drop affinity.
 fastchess ≥ 1.7 pins through Windows CPU sets, which are invisible to process
 affinity masks: verify pinning by per-CPU load, not by querying masks
 (BAS-M01). **Never run two pinned harnesses at once, from Basilisk and Rarog
@@ -371,8 +389,21 @@ python tools/diag/check_roadmap.py --self-test
 ```
 
 ```powershell
-# Gate on the backup path until A.3 closes. Pass the registered bounds: the
-# gainer default upper bound is 5, not the registered 3.
+# MAIN PATH — registered [0,3] gate.
+./tools/colosseum.ps1 -Mode sprt `
+  -EngineA <candidate.exe> -EngineB <baseline.exe> `
+  -MaxPairs <registered-cap> -Seed <seed> `
+  -ExpectRevision <sha> -ExpectBench <candidate-bench>,<baseline-bench> `
+  -Dir tools/results/<experiment>
+
+# MAIN PATH — one registered SPSA block; later blocks add
+# -SeedFrom tools/results/<previous-block> and use a fresh seed.
+./tools/spsa_colosseum.ps1 -Engine <tune.exe> -ExpectBench <bench> `
+  -Seed <seed> -Dir tools/results/<block>
+python tools/spsa_block_rule.py tools/results/<block>
+
+# BACKUP / SECOND OPINION. Pass the registered bounds: this wrapper's gainer
+# default upper bound is 5, not the registered 3.
 ./tools/sprt.ps1 -EngineA <candidate.exe> -EngineB <baseline.exe> `
   -NameA candidate -NameB baseline -Mode gainer -Elo0 0 -Elo1 3
 
@@ -388,4 +419,5 @@ python tools/diag/check_roadmap.py --self-test
 
 # Tune binary for SPSA and categorical runs
 ./tools/build_test.ps1 -Suffix <s>
+./tools/spsa.ps1 -ConfigGroup search -EngineSuffix <s>
 ```

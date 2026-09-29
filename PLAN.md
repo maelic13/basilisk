@@ -402,7 +402,7 @@ was cut the day before this plan, so Phase A has no release step.
       five were inert; the double-extension cap is a live bound (16). Capture
       futility is dead at the default LMR table but wakes at `LmrBase` >= 100.
       B.1 removes 7 coordinates and the drifted `KBNK Drive` option.
-- [ ] **A.3** Harness: Colosseum CLI as the main path (maintainer decision 2026-09-28).
+- [x] **A.3** Harness: Colosseum CLI as the main path (maintainer decision 2026-09-28). — CLOSED 2026-09-29.
     - [x] **A.3.1** `[I1]` Run files and wrapper: port the snapshot's `tools/colosseum.ps1`, run files and guard suite, adapted to Basilisk's CMake manifests; the snapshot's `tools/colosseum/colosseum.pin.json` (`cli-v0.2.0`) is the starting pin.
       Every guard is shared with `sprt.ps1` and `spsa.ps1` through
       `harness_common.ps1`, so the two paths cannot drift. Guards: refuse a
@@ -454,7 +454,7 @@ was cut the day before this plan, so Phase A has no release step.
       used one slot. Ignored evidence:
       `tools/results/a32-smoke/` and
       `tools/results/colosseum_spsa_a32-smoke_20260929_100945.*`.
-    - [ ] **A.3.3** `[M]` PROCESS *Harness* section finalised: Colosseum main, fastchess and weather-factory maintained as backup and second opinion until at least the classical release, with the cross-check triggers.
+    - [x] **A.3.3** `[M]` PROCESS *Harness* section finalised: Colosseum main, fastchess and weather-factory maintained as backup and second opinion until at least the classical release, with the cross-check triggers. — CLOSED 2026-09-29. The procedure names both guarded Colosseum entry points, ownership of run conditions, pre/post-run proof, resume and tune-chain semantics, the three backup triggers, topology rules and main/backup commands.
 - [ ] **A.4** Build and toolchain.
     - [ ] **A.4.1** `[I1]` Toolchain refresh and freeze (archived 7.0): inventory the compiler, C++ library, CMake, Ninja and profile tools on Windows, Linux CI and macOS.
       Compare the current and newest stable versions one axis at a time.
@@ -769,7 +769,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.3.3 | READY_FOR_IMPLEMENTATION | M | Documentation after A.3.1–A.3.2 |
 | A.4.1 | RESEARCH | I1 | Toolchain comparison, one axis at a time |
 | A.4.2 | READY_FOR_IMPLEMENTATION | I1 | Arm flavors and manifests; CI combination matrix |
 | A.5.1 | READY_FOR_IMPLEMENTATION | I1 | Port of the fixed-budget probe |
