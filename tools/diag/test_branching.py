@@ -96,6 +96,20 @@ class BranchingProfileTests(unittest.TestCase):
         self.assertEqual(included, {1})
         self.assertEqual(excluded[0]["missing_depths"], {"ref": [4, 5]})
 
+    def test_search_waits_for_ready_and_requested_completed_depth(self):
+        session = object.__new__(branching.EngineSession)
+        sent = []
+        session.send = sent.append
+        session.ready = lambda: sent.append("<ready>")
+        session.until = lambda predicate: [
+            "info depth 5 score cp 1 nodes 90 pv a2a4",
+            "info depth 6 score cp 2 nodes 120 pv a2a4",
+            "bestmove a2a4",
+        ]
+        nodes = session.search("fen", 6)
+        self.assertEqual(nodes, 120)
+        self.assertEqual(sent, ["ucinewgame", "<ready>", "position fen fen", "go depth 6"])
+
 
 if __name__ == "__main__":
     unittest.main()
