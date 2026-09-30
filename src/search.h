@@ -7,6 +7,7 @@
 #include "eval.h"
 #include "history.h"
 #include "syzygy.h"
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
@@ -90,6 +91,9 @@ struct SearchLimits {
     bool syzygy_50_move_rule = true;
     bool tm_debug = false;      // emit per-move time-accounting info string (Step 5.3)
     bool diag = false;          // emit end-of-search diagnostic counters (8.6.6)
+#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
+    bool decision_trace = false; // bounded plies 1-2 decision trace (A.5.3)
+#endif
     // Instant the `go` command was parsed off UCI input (default = unset). Used
     // only to report dispatch latency in tm_debug; does not affect timing yet.
     std::chrono::steady_clock::time_point go_recv_time{};
@@ -349,6 +353,46 @@ private:
                   "DiagCounters changed shape — update DiagCounters::add()");
     DiagCounters diag_;
     void print_diag() const;
+#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
+    enum class TraceEvent : uint8_t {
+        CheckExtension, TtCutoff, RfpPrune, RazorPrune,
+        NullCutoff, ProbcutCutoff, IirReduction,
+        FutilityPrune, LmpPrune, HistoryPrune, QuietSeePrune,
+        CaptureFutilityPrune, CaptureSeePrune,
+        SingularExtension, SingularMulticut, SingularNegative,
+        LmrReduction, LmrResearch, BetaCutoff,
+        QsTtCutoff, QsStandPatCutoff, QsDeltaPrune,
+        QsFutilityPrune, QsSeePrune, QsLatePrune, QsBetaCutoff
+    };
+    struct TraceRecord {
+        TraceEvent event{};
+        Move move = MOVE_NONE;
+        int sequence = 0;
+        int ply = 0;
+        int depth = 0;
+        int alpha = 0;
+        int beta = 0;
+        int estimated_score = VALUE_NONE;
+        int improving = -1;
+        int correction = VALUE_NONE;
+        int history = VALUE_NONE;
+        int move_count = 0;
+        int reduction = 0;
+        int cutoff_count = -1; // no producer exists in the current architecture
+        int margin = VALUE_NONE;
+        int result = VALUE_NONE;
+    };
+    static constexpr size_t TRACE_CAPACITY = 32768;
+    std::unique_ptr<std::array<TraceRecord, TRACE_CAPACITY>> trace_records_;
+    size_t trace_count_ = 0;
+    bool trace_enabled_ = false;
+    bool trace_overflow_ = false;
+    void trace_decision(TraceEvent event, int ply, int depth, Move move,
+                        int alpha, int beta, int estimated_score,
+                        int improving, int correction, int history,
+                        int move_count, int reduction, int margin, int result);
+    void print_decision_trace() const;
+#endif
     // Publish this thread's unpublished node count to the shared counter
     // (9.3b). Called on every batch boundary and once at search teardown so no
     // node is left unpublished when the pool reads the total.

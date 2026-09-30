@@ -199,9 +199,11 @@ static void test_uci_output() {
 #if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
     EXPECT(run.output.find("option name Diag type check default false") != std::string::npos);
     EXPECT(run.output.find("option name TM_Debug type check default false") != std::string::npos);
+    EXPECT(run.output.find("option name DecisionTrace type check default false") != std::string::npos);
 #else
     EXPECT(run.output.find("option name Diag") == std::string::npos);
     EXPECT(run.output.find("option name TM_Debug") == std::string::npos);
+    EXPECT(run.output.find("option name DecisionTrace") == std::string::npos);
 #endif
 #ifdef BASILISK_TUNE
     EXPECT(run.output.find("option name RfpCoeff") != std::string::npos);

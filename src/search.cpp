@@ -27,6 +27,12 @@
 
 static constexpr int TB_WIN_SCORE = tablebaseWinScore;
 
+#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
+#define TRACE_DECISION(...) trace_decision(__VA_ARGS__)
+#else
+#define TRACE_DECISION(...) ((void)0)
+#endif
+
 static int score_from_syzygy_wdl(Syzygy::Wdl wdl) {
     switch (wdl) {
         case Syzygy::Wdl::Win:
@@ -944,6 +950,103 @@ private:
 
 // ---- UCI info ---------------------------------------------------------------
 
+#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
+void Searcher::trace_decision(TraceEvent event, int ply, int depth, Move move,
+                              int alpha, int beta, int estimated_score,
+                              int improving, int correction, int history,
+                              int move_count, int reduction, int margin, int result) {
+    if (!trace_enabled_ || ply < 1 || ply > 2)
+        return;
+    if (trace_count_ >= TRACE_CAPACITY) {
+        trace_overflow_ = true;
+        return;
+    }
+    TraceRecord& r = (*trace_records_)[trace_count_];
+    r.event = event;
+    r.move = move;
+    r.sequence = static_cast<int>(trace_count_);
+    r.ply = ply;
+    r.depth = depth;
+    r.alpha = alpha;
+    r.beta = beta;
+    r.estimated_score = estimated_score;
+    r.improving = improving;
+    r.correction = correction;
+    r.history = history;
+    r.move_count = move_count;
+    r.reduction = reduction;
+    r.cutoff_count = -1;
+    r.margin = margin;
+    r.result = result;
+    ++trace_count_;
+}
+
+void Searcher::print_decision_trace() const {
+    if (!info_cb_ || !active_limits_.decision_trace || !trace_enabled_)
+        return;
+    auto event_name = [](TraceEvent event) {
+        switch (event) {
+            case TraceEvent::CheckExtension:       return "check_extension";
+            case TraceEvent::TtCutoff:             return "tt_cutoff";
+            case TraceEvent::RfpPrune:             return "rfp_prune";
+            case TraceEvent::RazorPrune:           return "razor_prune";
+            case TraceEvent::NullCutoff:           return "null_cutoff";
+            case TraceEvent::ProbcutCutoff:        return "probcut_cutoff";
+            case TraceEvent::IirReduction:         return "iir_reduction";
+            case TraceEvent::FutilityPrune:        return "futility_prune";
+            case TraceEvent::LmpPrune:             return "lmp_prune";
+            case TraceEvent::HistoryPrune:         return "history_prune";
+            case TraceEvent::QuietSeePrune:        return "quiet_see_prune";
+            case TraceEvent::CaptureFutilityPrune: return "capture_futility_prune";
+            case TraceEvent::CaptureSeePrune:      return "capture_see_prune";
+            case TraceEvent::SingularExtension:    return "singular_extension";
+            case TraceEvent::SingularMulticut:     return "singular_multicut";
+            case TraceEvent::SingularNegative:     return "singular_negative";
+            case TraceEvent::LmrReduction:         return "lmr_reduction";
+            case TraceEvent::LmrResearch:          return "lmr_research";
+            case TraceEvent::BetaCutoff:           return "beta_cutoff";
+            case TraceEvent::QsTtCutoff:           return "qs_tt_cutoff";
+            case TraceEvent::QsStandPatCutoff:     return "qs_stand_pat_cutoff";
+            case TraceEvent::QsDeltaPrune:         return "qs_delta_prune";
+            case TraceEvent::QsFutilityPrune:      return "qs_futility_prune";
+            case TraceEvent::QsSeePrune:           return "qs_see_prune";
+            case TraceEvent::QsLatePrune:          return "qs_late_prune";
+            case TraceEvent::QsBetaCutoff:         return "qs_beta_cutoff";
+        }
+        return "unknown";
+    };
+
+    info_cb_("info string trace begin version=1 plies=1-2 root="
+             + move_to_uci(active_limits_.root_moves.front())
+             + " cutoff_count=unavailable value_none=" + std::to_string(VALUE_NONE)
+             + " bool_unknown=-1 capacity=" + std::to_string(TRACE_CAPACITY));
+    for (size_t i = 0; i < trace_count_; ++i) {
+        const TraceRecord& r = (*trace_records_)[i];
+        info_cb_("info string trace record seq=" + std::to_string(r.sequence)
+               + " event=" + event_name(r.event)
+               + " ply=" + std::to_string(r.ply)
+               + " depth=" + std::to_string(r.depth)
+               + " move=" + (r.move == MOVE_NONE ? std::string("none") : move_to_uci(r.move))
+               + " alpha=" + std::to_string(r.alpha)
+               + " beta=" + std::to_string(r.beta)
+               + " estimated_score=" + std::to_string(r.estimated_score)
+               + " improving=" + std::to_string(r.improving)
+               + " correction=" + std::to_string(r.correction)
+               + " history=" + std::to_string(r.history)
+               + " move_count=" + std::to_string(r.move_count)
+               + " reduction=" + std::to_string(r.reduction)
+               + " cutoff_count=" + std::to_string(r.cutoff_count)
+               + " window_alpha=" + std::to_string(r.alpha)
+               + " window_beta=" + std::to_string(r.beta)
+               + " margin=" + std::to_string(r.margin)
+               + " result=" + std::to_string(r.result));
+    }
+    info_cb_("info string trace end status="
+             + std::string(trace_overflow_ ? "overflow" : "ok")
+             + " records=" + std::to_string(trace_count_));
+}
+#endif
+
 // 8.6.6: end-of-search diagnostic dump (UCI `Diag`, TUNE builds). One line per
 // family; shares are of interior (negamax) nodes. Never a gate — these size
 // candidates and verify mechanisms (check_exts must be 0 once 8.6.7 lands).
@@ -1353,9 +1456,14 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         tt_move = move_from_tt(tte.move16);
         tt_score = TranspositionTable::score_from_tt(tte.score, ply, board_ptr_->rule50_count());
         tt_flag = TTFlag(tte.flag_age & 3);
-        if (tt_flag == TT_EXACT) return tt_score;
-        if (tt_flag == TT_ALPHA && tt_score <= alpha) return tt_score;
-        if (tt_flag == TT_BETA  && tt_score >= beta)  return tt_score;
+        if (tt_flag == TT_EXACT
+            || (tt_flag == TT_ALPHA && tt_score <= alpha)
+            || (tt_flag == TT_BETA && tt_score >= beta)) {
+            TRACE_DECISION(TraceEvent::QsTtCutoff, ply, 0, tt_move,
+                           alpha, beta, tt_score, -1, VALUE_NONE, VALUE_NONE,
+                           0, 0, VALUE_NONE, tt_score);
+            return tt_score;
+        }
     }
 
     if (in_check) {
@@ -1377,7 +1485,13 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
             if (stopped_) return 0;
             if (s > best) best = s;
             if (s > alpha) alpha = s;
-            if (alpha >= beta) { best = s; break; }
+            if (alpha >= beta) {
+                TRACE_DECISION(TraceEvent::QsBetaCutoff, ply, 0, m,
+                               alpha, beta, VALUE_NONE, -1, VALUE_NONE, VALUE_NONE,
+                               0, 0, VALUE_NONE, s);
+                best = s;
+                break;
+            }
         }
         return has_legal ? best : -(MATE_SCORE - ply);
     }
@@ -1392,6 +1506,9 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     int stand_pat = raw_eval;
     stand_pat += correction_value(board_ptr_->turn(), *board_ptr_, ss);
     stand_pat = std::clamp(stand_pat, -(MATE_SCORE - 1), MATE_SCORE - 1);
+#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
+    const int correction = stand_pat - raw_eval;
+#endif
 
     // Step 6.1 mirror: tighten the stand-pat with the TT bound when it proves a
     // better estimate (a fail-high above it / fail-low below it). The raw eval
@@ -1402,6 +1519,9 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         stand_pat = tt_score;
 
     if (stand_pat >= beta) {
+        TRACE_DECISION(TraceEvent::QsStandPatCutoff, ply, 0, MOVE_NONE,
+                       alpha, beta, stand_pat, -1, correction, VALUE_NONE,
+                       0, 0, 0, stand_pat);
         tt_store(hash, 0, stand_pat, TT_BETA, MOVE_NONE, ply, raw_eval);
         return stand_pat;
     }
@@ -1415,8 +1535,12 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     // scrambled KQK mate distances: a TT_BETA-tightened value is not a
     // provable upper bound.) Consistent fail-soft is the Phase 10.4
     // bound-shaping job; do not change this return in isolation.
-    if (stand_pat < alpha - PIECE_VALUE[QUEEN] - 200)
+    if (stand_pat < alpha - PIECE_VALUE[QUEEN] - 200) {
+        TRACE_DECISION(TraceEvent::QsDeltaPrune, ply, 0, MOVE_NONE,
+                       alpha, beta, stand_pat, -1, correction, VALUE_NONE,
+                       0, 0, PIECE_VALUE[QUEEN] + 200, alpha);
         return alpha;
+    }
 
     if (stand_pat > alpha) alpha = stand_pat;
 
@@ -1460,18 +1584,29 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
             }
             return gives_check;
         };
-
         if (!is_promo
             && stand_pat + tactical_gain + 150 <= alpha
-            && !move_gives_check())
+            && !move_gives_check()) {
+            TRACE_DECISION(TraceEvent::QsFutilityPrune, ply, 0, m,
+                           alpha, beta, stand_pat, -1, correction, VALUE_NONE,
+                           i, 0, tactical_gain + 150, alpha);
             continue;
+        }
 
         const int see_threshold = std::clamp(alpha - stand_pat - 200, -800, 200);
-        if (!board_ptr_->see_ge(m, see_threshold))
+        if (!board_ptr_->see_ge(m, see_threshold)) {
+            TRACE_DECISION(TraceEvent::QsSeePrune, ply, 0, m,
+                           alpha, beta, stand_pat, -1, correction, VALUE_NONE,
+                           i, 0, see_threshold, alpha);
             continue;
+        }
 
-        if (!is_promo && i >= 6 && !board_ptr_->see_ge(m, -50) && !move_gives_check())
+        if (!is_promo && i >= 6 && !board_ptr_->see_ge(m, -50) && !move_gives_check()) {
+            TRACE_DECISION(TraceEvent::QsLatePrune, ply, 0, m,
+                           alpha, beta, stand_pat, -1, correction, VALUE_NONE,
+                           i, 0, -50, alpha);
             continue;
+        }
 
         do_move(ss, m);
         int s = -quiescence(-beta, -alpha, ply + 1, qply + 1, ss + 1);
@@ -1483,6 +1618,9 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
             best_move = m;
         }
         if (s >= beta) {
+            TRACE_DECISION(TraceEvent::QsBetaCutoff, ply, 0, m,
+                           alpha, beta, stand_pat, -1, correction, VALUE_NONE,
+                           i, 0, VALUE_NONE, s);
             tt_store(hash, 0, s, TT_BETA, m, ply, raw_eval);
             return s;
         }
@@ -1512,6 +1650,9 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
                 best_move = m;
             }
             if (s >= beta) {
+                TRACE_DECISION(TraceEvent::QsBetaCutoff, ply, 0, m,
+                               alpha, beta, stand_pat, -1, correction, VALUE_NONE,
+                               tried, 0, VALUE_NONE, s);
                 tt_store(hash, 0, s, TT_BETA, m, ply, raw_eval);
                 return s;
             }
@@ -1580,6 +1721,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         depth++;
         did_check_ext = true;
         diag_.check_exts++;
+        TRACE_DECISION(TraceEvent::CheckExtension, ply, depth, MOVE_NONE,
+                       alpha, beta, VALUE_NONE, -1, VALUE_NONE, VALUE_NONE,
+                       0, 0, 1, depth);
     }
 
     if (depth <= 0)
@@ -1618,6 +1762,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 || (tt_flag == TT_ALPHA && tt_score <= alpha)
                 || (tt_flag == TT_BETA  && tt_score >= beta)) {
                 diag_.tt_cutoffs++;
+                TRACE_DECISION(TraceEvent::TtCutoff, ply, depth, tt_move,
+                               alpha, beta, tt_score, -1, VALUE_NONE, VALUE_NONE,
+                               0, 0, tt_depth, tt_score);
                 return tt_score;
             }
         }
@@ -1668,6 +1815,11 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             || (tt_flag == TT_ALPHA && tt_score < static_eval)))
         eval = tt_score;
 
+#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
+    const int correction = raw_static_eval == VALUE_NONE
+                         ? VALUE_NONE : static_eval - raw_static_eval;
+#endif
+
     // Improving: eval is better than 2 plies ago
     bool improving = !in_check && ply >= 2
                    && (ss-2)->eval != VALUE_NONE
@@ -1683,6 +1835,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             int margin = p.rfp_coeff * depth - (improving ? p.rfp_improving : 0);
             if (eval - margin >= beta) {
                 diag_.rfp_cuts++;
+                TRACE_DECISION(TraceEvent::RfpPrune, ply, depth, MOVE_NONE,
+                               alpha, beta, eval, improving, correction, VALUE_NONE,
+                               0, 0, margin, eval);
                 return eval;
             }
         }
@@ -1692,6 +1847,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             int q = quiescence(alpha, beta, ply, 0, ss);
             if (q <= alpha) {
                 diag_.razor_cuts++;
+                TRACE_DECISION(TraceEvent::RazorPrune, ply, depth, MOVE_NONE,
+                               alpha, beta, eval, improving, correction, VALUE_NONE,
+                               0, 0, active_limits_.params.razor_coeff * depth, q);
                 return q;
             }
         }
@@ -1723,6 +1881,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 }
                 if (verified) {
                     diag_.null_cuts++;
+                    TRACE_DECISION(TraceEvent::NullCutoff, ply, depth, MOVE_NULL,
+                                   alpha, beta, eval, improving, correction, VALUE_NONE,
+                                   0, r, VALUE_NONE, null_score);
                     return null_score;
                 }
             }
@@ -1753,6 +1914,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                               raw_static_eval == VALUE_NONE
                                   ? TranspositionTable::INF_EVAL : raw_static_eval);
                     diag_.probcut_cuts++;
+                    TRACE_DECISION(TraceEvent::ProbcutCutoff, ply, depth, m,
+                                   alpha, beta, eval, improving, correction, VALUE_NONE,
+                                   0, depth - 4, pc_beta - static_eval, pc_beta);
                     return pc_beta;
                 }
             }
@@ -1760,8 +1924,12 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     }
 
     // IIR: reduce non-PV nodes when no TT move (or a stale TT entry) guides the search.
-    if (!is_pv && depth >= 4 && (tt_move == MOVE_NONE || (tt_found && tt_depth < depth - 3)))
+    if (!is_pv && depth >= 4 && (tt_move == MOVE_NONE || (tt_found && tt_depth < depth - 3))) {
+        TRACE_DECISION(TraceEvent::IirReduction, ply, depth, tt_move,
+                       alpha, beta, eval, improving, correction, VALUE_NONE,
+                       0, 1, depth - 3, depth - 1);
         depth--;
+    }
 
     int  orig_alpha  = alpha;
     Move best_move   = MOVE_NONE;
@@ -1836,6 +2004,16 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             }
             return gives_check;
         };
+#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
+        int trace_history = VALUE_NONE;
+        if (trace_enabled_ && is_quiet) {
+            const PieceType pt = type_of(board_ptr_->piece_on(from_sq(m)));
+            trace_history = main_hist[from_sq(m)][to_sq(m)]
+                          + cont_hist_score(ss, pt, Square(to_sq(m)))
+                          + pawn_hist[pt][to_sq(m)]
+                          + (low_ply_hist ? (*low_ply_hist)[from_sq(m)][to_sq(m)] : 0);
+        }
+#endif
 
         // ---- Late-move pruning / futility ----------------------------------
         if (!is_root && searched > 0 && best_score > -(MATE_SCORE - MAX_PLY)) {
@@ -1856,6 +2034,12 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                             + active_limits_.params.futility_coeff * depth <= alpha
                     && !move_gives_check()) {
                     diag_.fut_prunes++;
+                    TRACE_DECISION(TraceEvent::FutilityPrune, ply, depth, m,
+                                   alpha, beta, eval, improving, correction, trace_history,
+                                   searched, 0,
+                                   active_limits_.params.futility_base
+                                       + active_limits_.params.futility_coeff * depth,
+                                   alpha);
                     return false;
                 }
 
@@ -1863,6 +2047,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 if (!is_pv && !in_check && depth <= 6 && searched >= lmp_thresh
                     && !move_gives_check()) {
                     diag_.lmp_prunes++;
+                    TRACE_DECISION(TraceEvent::LmpPrune, ply, depth, m,
+                                   alpha, beta, eval, improving, correction, trace_history,
+                                   searched, 0, lmp_thresh, alpha);
                     return false;
                 }
 
@@ -1887,6 +2074,11 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                     }
                     if (hist < -active_limits_.params.hist_prune_coeff * depth && !move_gives_check()) {
                         diag_.hist_prunes++;
+                        TRACE_DECISION(TraceEvent::HistoryPrune, ply, depth, m,
+                                       alpha, beta, eval, improving, correction, hist,
+                                       searched, 0,
+                                       active_limits_.params.hist_prune_coeff * depth,
+                                       alpha);
                         return false;
                     }
                 }
@@ -1899,8 +2091,14 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 if (!is_pv && depth <= active_limits_.params.quiet_see_depth
                     && !move_gives_check()
                     && !board_ptr_->see_ge(
-                           m, -active_limits_.params.quiet_see_coeff * lmr_depth * lmr_depth))
+                           m, -active_limits_.params.quiet_see_coeff * lmr_depth * lmr_depth)) {
+                    TRACE_DECISION(TraceEvent::QuietSeePrune, ply, depth, m,
+                                   alpha, beta, eval, improving, correction, trace_history,
+                                   searched, 0,
+                                   -active_limits_.params.quiet_see_coeff * lmr_depth * lmr_depth,
+                                   alpha);
                     return false;
+                }
             } else if (is_cap) {
                 // Capture futility pruning (Step 6.5): if even winning the
                 // captured piece cannot lift the static eval to alpha, skip the
@@ -1917,14 +2115,23 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                             + active_limits_.params.cap_fut_coeff * lmr_depth
                             + PIECE_VALUE[captured]
                             + hist_.capture[atk][to_sq(m)][captured] / 32;
-                    if (fut <= alpha)
+                    if (fut <= alpha) {
+                        TRACE_DECISION(TraceEvent::CaptureFutilityPrune, ply, depth, m,
+                                       alpha, beta, eval, improving, correction, VALUE_NONE,
+                                       searched, 0, fut - eval, alpha);
                         return false;
+                    }
                 }
 
                 // SEE pruning for bad captures
                 if (!is_pv && depth <= 8 && !is_promo) {
                     if (!board_ptr_->see_ge(m, -depth * active_limits_.params.see_prune_coeff) && !move_gives_check()) {
                         diag_.see_prunes++;
+                        TRACE_DECISION(TraceEvent::CaptureSeePrune, ply, depth, m,
+                                       alpha, beta, eval, improving, correction, VALUE_NONE,
+                                       searched, 0,
+                                       -depth * active_limits_.params.see_prune_coeff,
+                                       alpha);
                         return false;
                     }
                 }
@@ -1974,6 +2181,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 // discovery-or-SEE, so removing the composition removes strictly
                 // more than it would there. Composition stays. (BAS-D11)
                 extension += allow_double ? 2 : 1;
+                TRACE_DECISION(TraceEvent::SingularExtension, ply, depth, m,
+                               alpha, beta, eval, improving, correction, trace_history,
+                               searched, extension, s_beta, s_val);
 
                 // 5.7.3 probe: count the stack, do not change it yet.
                 ++diag_.sing_fired;
@@ -1989,11 +2199,17 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 singular_quiet_lmr = !tt_capture;
             } else if (s_beta >= beta) {
                 // Multicut: likely to fail high without this move too
+                TRACE_DECISION(TraceEvent::SingularMulticut, ply, depth, m,
+                               alpha, beta, eval, improving, correction, trace_history,
+                               searched, 0, s_beta, s_val);
                 immediate_return = true;
                 immediate_score = s_beta;
                 return true;
             } else if (tt_score >= beta) {
                 ++diag_.sing_ttbeta;
+                TRACE_DECISION(TraceEvent::SingularNegative, ply, depth, m,
+                               alpha, beta, eval, improving, correction, trace_history,
+                               searched, -1, s_beta, s_val);
 
                 // 5.7.4 REFUTED: the reference replaces this negative
                 // extension with a SECOND verification search that can cut the
@@ -2111,6 +2327,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 if (reduction == 0) ++diag_.lmr_clamped_zero;
             }
             ss->reduction = reduction;
+            TRACE_DECISION(TraceEvent::LmrReduction, ply, depth, m,
+                           alpha, beta, eval, improving, correction, move_stat_score,
+                           searched, reduction, new_depth - 1, VALUE_NONE);
             if (reduction > 0) {
                 diag_.lmr_applied++;
                 // Mean reduction over applied = reduction_plies / applied. A
@@ -2124,6 +2343,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             // Re-search at full depth if LMR didn't fail low
             if (reduction > 0 && score > alpha && !stopped_) {
                 diag_.lmr_researched++;
+                TRACE_DECISION(TraceEvent::LmrResearch, ply, depth, m,
+                               alpha, beta, eval, improving, correction, move_stat_score,
+                               searched, reduction, VALUE_NONE, score);
                 score = -negamax(new_depth, -alpha - 1, -alpha,
                                  ply + 1, ss + 1, false, true, !cut_node);
 
@@ -2197,6 +2419,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         }
 
         if (alpha >= beta) {
+            TRACE_DECISION(TraceEvent::BetaCutoff, ply, depth, m,
+                           orig_alpha, beta, eval, improving, correction, move_stat_score,
+                           searched, ss->reduction, VALUE_NONE, score);
             // 5.2 (BAS-O03): ordering quality at the point it costs something.
             // `searched` was incremented above, so the cutting move's index is
             // searched - 1. A cutoff on index 0 costs one move's search; on
@@ -2308,6 +2533,19 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
     pondering_    = limits.ponder;
     active_limits_ = limits;
     root_side_    = board.turn();
+#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
+    trace_count_ = 0;
+    trace_overflow_ = false;
+    trace_enabled_ = limits.decision_trace && limits.diag && info_cb_
+                  && limits.thread_count == 1 && limits.thread_id == 0
+                  && limits.root_moves.size() == 1;
+    if (trace_enabled_)
+        trace_records_ = std::make_unique<std::array<TraceRecord, TRACE_CAPACITY>>();
+    else
+        trace_records_.reset();
+    if (limits.decision_trace && info_cb_ && !trace_enabled_)
+        info_cb_("info string trace error requires Diag=true Threads=1 and exactly one searchmoves root");
+#endif
 
     init_lmr(static_cast<float>(active_limits_.params.lmr_base)    / 100.0f,
              static_cast<float>(active_limits_.params.lmr_divisor) / 100.0f);
@@ -2550,6 +2788,9 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
     // the hidden TM_Debug option on, so play/bench are unaffected when off.
     if (info_cb_ && active_limits_.diag)
         print_diag();
+#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
+    print_decision_trace();
+#endif
 
     if (info_cb_ && active_limits_.tm_debug) {
         long long dispatch_ms = -1;

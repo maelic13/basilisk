@@ -34,6 +34,9 @@ public:
     bool    syzygy_50_move_rule;
     bool    tm_debug;        // hidden TM_Debug check: log per-move time accounting
     bool    diag;            // hidden Diag check: end-of-search diagnostic counters (8.6.6)
+#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
+    bool    decision_trace;  // bounded plies 1-2 search-decision trace
+#endif
 
     bool new_game    = false;  // set by "ucinewgame", cleared after engine processes it
     bool clear_hash  = false;  // set by "setoption name Clear Hash", cleared after engine clears TT

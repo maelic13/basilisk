@@ -129,6 +129,9 @@ Parameters::Parameters() {
     syzygy_50_move_rule = true;
     tm_debug          = false;
     diag              = false;
+#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
+    decision_trace    = false;
+#endif
 }
 
 void Parameters::reset() {
@@ -176,7 +179,9 @@ std::string Parameters::uci_options() {
         // unadvertised options); release builds keep a clean 9-option list.
         "option name TM_Debug type check default false\n"
         // Diagnostic counters + lazy dual-eval audit (8.6.6).
-        "option name Diag type check default false\n";
+        "option name Diag type check default false\n"
+        // Bounded machine-readable decision trace (A.5.3).
+        "option name DecisionTrace type check default false\n";
 #endif
 #ifdef BASILISK_TUNE
     opts +=
@@ -353,6 +358,10 @@ void Parameters::set_option(const std::string& args) {
         // parseable. Enables the end-of-search `info string diag` dump and
         // the lazy dual-eval audit (served scores unchanged either way).
         diag = parse_bool_option(value);
+#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
+    } else if (name_lower == "decisiontrace") {
+        decision_trace = parse_bool_option(value);
+#endif
     } else if (name_lower == "tm_debug") {
         // Diagnostic (Step 5.3): advertised only in tune/dev builds (see
         // uci_options) but always parseable. When on, the search emits one
