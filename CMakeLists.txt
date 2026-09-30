@@ -308,6 +308,7 @@ option(PORTABLE_BUILD "Build without host-specific CPU flags for distributable b
 option(BASILISK_MSVC_FAVOR_INTEL "Tune MSVC code generation for Intel 64 processors" OFF)
 option(TUNE "Expose search constants as UCI spin options for SPSA tuning (sets BASILISK_TUNE)" OFF)
 option(DIAGNOSTIC "Expose diagnostics without the tunable parameter surface (sets BASILISK_DIAGNOSTIC)" OFF)
+option(ABLATION "Expose the matched search-ablation instrument (sets BASILISK_ABLATION)" OFF)
 option(RELEASE_DIAG_COUNTERS "Count diagnostic search events in production builds (measurement arm)" OFF)
 set(BASILISK_PGO_ARM_OPTION "" CACHE STRING "Boolean CMake option identifying an umbrella arm in PGO child builds")
 set(BASILISK_PGO_ARM_STATE "OFF" CACHE STRING "Value for BASILISK_PGO_ARM_OPTION in PGO child builds")
@@ -403,12 +404,29 @@ if(DIAGNOSTIC)
     message(STATUS "DIAGNOSTIC build: diagnostic UCI options exposed (BASILISK_DIAGNOSTIC defined)")
 endif()
 
+if(ABLATION)
+    foreach(_tgt IN LISTS _ALL_TARGETS)
+        target_compile_definitions(${_tgt} PRIVATE BASILISK_ABLATION)
+    endforeach()
+    message(STATUS "ABLATION build: matched AblationMask UCI option exposed (BASILISK_ABLATION defined)")
+endif()
+
 if(RELEASE_DIAG_COUNTERS)
     target_compile_definitions(basilisk_engine PRIVATE BASILISK_RELEASE_DIAG_COUNTERS)
 endif()
 
-if(TUNE AND DIAGNOSTIC)
-    message(FATAL_ERROR "TUNE and DIAGNOSTIC are distinct build flavors; select exactly one")
+if(TUNE)
+    if(DIAGNOSTIC)
+        message(FATAL_ERROR "TUNE, DIAGNOSTIC and ABLATION are distinct build flavors; select at most one")
+    endif()
+    if(ABLATION)
+        message(FATAL_ERROR "TUNE, DIAGNOSTIC and ABLATION are distinct build flavors; select at most one")
+    endif()
+endif()
+if(DIAGNOSTIC)
+    if(ABLATION)
+        message(FATAL_ERROR "TUNE, DIAGNOSTIC and ABLATION are distinct build flavors; select at most one")
+    endif()
 endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
@@ -633,6 +651,7 @@ add_custom_target(pgo
         -DPGO_COMPILER_ID=${CMAKE_CXX_COMPILER_ID}
         -DPGO_TUNE=${TUNE}
         -DPGO_DIAGNOSTIC=${DIAGNOSTIC}
+        -DPGO_ABLATION=${ABLATION}
         -DPGO_PORTABLE_BUILD=${_basilisk_pgo_portable}
         -DPGO_ARM_OPTION=${BASILISK_PGO_ARM_OPTION}
         -DPGO_ARM_STATE=${BASILISK_PGO_ARM_STATE}

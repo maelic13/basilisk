@@ -8,6 +8,7 @@
       Release  production UCI surface, for strength and release-equivalent arms
       Tune     tunable search/eval options, for SPSA and parameter probes
       Diag     diagnostics only, without the tunable parameter surface
+      Ablate  matched search-family removal mask, without other instruments
 
     An optional Boolean CMake umbrella option is forwarded through both PGO
     phases and recorded separately from the flavor. This lets an off/on pair
@@ -24,7 +25,7 @@
 #>
 param(
     [Parameter(Mandatory)][string]$Suffix,
-    [Parameter(Mandatory)][ValidateSet('Release', 'Tune', 'Diag')][string]$Flavor,
+    [Parameter(Mandatory)][ValidateSet('Release', 'Tune', 'Diag', 'Ablate')][string]$Flavor,
     [string]$ArmOption = '',
     [ValidateSet('', 'On', 'Off')][string]$Arm = '',
     [ValidateRange(1, 128)][int]$BenchDepth = 13,
@@ -76,20 +77,26 @@ function Assert-UciSurface {
     $hasDiag = $Output -match '(?m)^option name Diag '
     $hasTune = $Output -match '(?m)^option name RfpCoeff '
     $hasKbnk = $Output -match '(?m)^option name KBNK Drive '
+    $hasAblate = $Output -match '(?m)^option name AblationMask '
     switch ($ExpectedFlavor) {
         'Release' {
-            if ($hasDiag -or $hasTune -or $hasKbnk) {
-                throw 'Release flavor exposes diagnostic or tuning options.'
+            if ($hasDiag -or $hasTune -or $hasKbnk -or $hasAblate) {
+                throw 'Release flavor exposes diagnostic, tuning or ablation options.'
             }
         }
         'Tune' {
-            if (-not ($hasDiag -and $hasTune -and $hasKbnk)) {
+            if (-not ($hasDiag -and $hasTune -and $hasKbnk) -or $hasAblate) {
                 throw 'Tune flavor does not expose its complete UCI surface.'
             }
         }
         'Diag' {
-            if (-not $hasDiag -or $hasTune -or $hasKbnk) {
+            if (-not $hasDiag -or $hasTune -or $hasKbnk -or $hasAblate) {
                 throw 'Diag flavor must expose diagnostics but not tuning options.'
+            }
+        }
+        'Ablate' {
+            if ($hasDiag -or $hasTune -or $hasKbnk -or -not $hasAblate) {
+                throw 'Ablate flavor must expose only the ablation instrument.'
             }
         }
     }
@@ -100,6 +107,7 @@ $TestEnginesDir = [IO.Path]::GetFullPath($TestEnginesDir)
 $flavorLower = $Flavor.ToLowerInvariant()
 $tune = if ($Flavor -eq 'Tune') { 'ON' } else { 'OFF' }
 $diagnostic = if ($Flavor -eq 'Diag') { 'ON' } else { 'OFF' }
+$ablation = if ($Flavor -eq 'Ablate') { 'ON' } else { 'OFF' }
 $armState = if ($Arm) { $Arm.ToUpperInvariant() } else { 'OFF' }
 $armLabel = if ($ArmOption) { "$ArmOption=$armState" } else { 'none' }
 $isWindowsHost = [Runtime.InteropServices.RuntimeInformation]::IsOSPlatform(
@@ -113,7 +121,7 @@ try {
     $configureArgs = @(
         '--fresh', '--preset', 'release-pext',
         '-DCOMP=clang', '-DPORTABLE_BUILD=ON', '-DTEXEL=OFF',
-        "-DTUNE=$tune", "-DDIAGNOSTIC=$diagnostic",
+        "-DTUNE=$tune", "-DDIAGNOSTIC=$diagnostic", "-DABLATION=$ablation",
         "-DBASILISK_PGO_ARM_OPTION=$ArmOption", "-DBASILISK_PGO_ARM_STATE=$armState"
     )
     if ($ArmOption) { $configureArgs += "-D$ArmOption=$armState" }
@@ -177,7 +185,7 @@ try {
     $binary = Get-Item -LiteralPath $dest
     $binarySha = (Get-FileHash -LiteralPath $dest -Algorithm SHA256).Hash
     $manifest = [IO.Path]::ChangeExtension($dest, '.manifest.txt')
-    $buildCommand = "cmake --preset release-pext -DPORTABLE_BUILD=ON -DTUNE=$tune -DDIAGNOSTIC=$diagnostic" +
+    $buildCommand = "cmake --preset release-pext -DPORTABLE_BUILD=ON -DTUNE=$tune -DDIAGNOSTIC=$diagnostic -DABLATION=$ablation" +
         $(if ($ArmOption) { " -D$ArmOption=$armState" } else { '' }) +
         '; cmake --build --preset release-pext --target pgo'
 
@@ -194,7 +202,7 @@ try {
         "arm_state: $(if ($Arm) { $armState } else { 'none' })"
         'isa: pext'
         'portable_codegen: true'
-        "preset: release-pext (USE_PEXT=ON, PORTABLE_BUILD=ON, TUNE=$tune, DIAGNOSTIC=$diagnostic, PGO=USE)"
+        "preset: release-pext (USE_PEXT=ON, PORTABLE_BUILD=ON, TUNE=$tune, DIAGNOSTIC=$diagnostic, ABLATION=$ablation, PGO=USE)"
         "build_command: $buildCommand"
         "compiler: $compiler"
         'verification: bench'

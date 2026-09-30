@@ -84,6 +84,9 @@ SearchLimits Engine::build_limits() const {
 #if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
     limits.decision_trace = parameters_.decision_trace;
 #endif
+#ifdef BASILISK_ABLATION
+    limits.ablation_mask = parameters_.ablation_mask;
+#endif
     limits.params    = parameters_.search_params;
     limits.infinite  = (parameters_.depth == infiniteDepth && parameters_.move_time == 0
                         && parameters_.white_time == 0 && parameters_.black_time == 0

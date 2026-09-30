@@ -132,6 +132,9 @@ Parameters::Parameters() {
 #if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
     decision_trace    = false;
 #endif
+#ifdef BASILISK_ABLATION
+    ablation_mask     = 0;
+#endif
 }
 
 void Parameters::reset() {
@@ -182,6 +185,9 @@ std::string Parameters::uci_options() {
         "option name Diag type check default false\n"
         // Bounded machine-readable decision trace (A.5.3).
         "option name DecisionTrace type check default false\n";
+#endif
+#ifdef BASILISK_ABLATION
+    opts += "option name AblationMask type spin default 0 min 0 max 255\n";
 #endif
 #ifdef BASILISK_TUNE
     opts +=
@@ -386,6 +392,10 @@ void Parameters::set_option(const std::string& args) {
         syzygy_probe_depth = std::clamp(parsed, 1, 100);
     } else if (name_lower == "syzygyprobelimit") {
         syzygy_probe_limit = std::clamp(parsed, 0, 7);
+#ifdef BASILISK_ABLATION
+    } else if (name_lower == "ablationmask") {
+        ablation_mask = std::clamp(parsed, 0, 255);
+#endif
     }
 #ifdef BASILISK_TUNE
     // 8.6.1: generated from the SearchParams X-macro table — same single

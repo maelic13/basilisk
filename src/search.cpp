@@ -40,6 +40,12 @@ static constexpr int TB_WIN_SCORE = tablebaseWinScore;
 #define DIAG_COUNT(expression) ((void)0)
 #endif
 
+#ifdef BASILISK_ABLATION
+#define ABLATED(bit) (((active_limits_.ablation_mask >> (bit)) & 1) != 0)
+#else
+#define ABLATED(bit) false
+#endif
+
 static int score_from_syzygy_wdl(Syzygy::Wdl wdl) {
     switch (wdl) {
         case Syzygy::Wdl::Win:
@@ -1724,7 +1730,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     // residue of a failed trial, not an avenue still open. 5.7.3 separately
     // measured that reducing extension at checking nodes fails our WAC floor.
     bool did_check_ext = false;
-    if (in_check && ss->excluded == MOVE_NONE && ply < MAX_PLY - 2) {
+    if (!ABLATED(6) && in_check && ss->excluded == MOVE_NONE && ply < MAX_PLY - 2) {
         depth++;
         did_check_ext = true;
         DIAG_COUNT(diag_.check_exts++);
@@ -1837,7 +1843,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         && static_eval != VALUE_NONE) {
 
         // Reverse futility pruning
-        if (depth <= 9) {
+        if (!ABLATED(1) && depth <= 9) {
             const auto& p = active_limits_.params;
             int margin = p.rfp_coeff * depth - (improving ? p.rfp_improving : 0);
             if (eval - margin >= beta) {
@@ -1850,7 +1856,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         }
 
         // Razoring
-        if (depth <= 3 && eval + active_limits_.params.razor_coeff * depth <= alpha) {
+        if (!ABLATED(0) && depth <= 3
+            && eval + active_limits_.params.razor_coeff * depth <= alpha) {
             int q = quiescence(alpha, beta, ply, 0, ss);
             if (q <= alpha) {
                 DIAG_COUNT(diag_.razor_cuts++);
@@ -1862,7 +1869,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         }
 
         // Null-move pruning
-        if (allow_null && depth >= 3
+        if (!ABLATED(2) && allow_null && depth >= 3
             && eval >= beta
             && board_ptr_->has_non_pawn_material(board_ptr_->turn())
             && (ss-1)->move != MOVE_NULL) {
@@ -1897,7 +1904,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         }
 
         // ProbCut: if a capture is likely to fail high at reduced depth
-        if (depth >= 5 && std::abs(beta) < MATE_SCORE - MAX_PLY) {
+        if (!ABLATED(3) && depth >= 5 && std::abs(beta) < MATE_SCORE - MAX_PLY) {
             int pc_beta = std::min(beta + active_limits_.params.probcut_margin,
                                    MATE_SCORE - MAX_PLY - 1);
             MoveList pcaps;
@@ -1931,7 +1938,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     }
 
     // IIR: reduce non-PV nodes when no TT move (or a stale TT entry) guides the search.
-    if (!is_pv && depth >= 4 && (tt_move == MOVE_NONE || (tt_found && tt_depth < depth - 3))) {
+    if (!ABLATED(4) && !is_pv && depth >= 4
+        && (tt_move == MOVE_NONE || (tt_found && tt_depth < depth - 3))) {
         TRACE_DECISION(TraceEvent::IirReduction, ply, depth, tt_move,
                        alpha, beta, eval, improving, correction, VALUE_NONE,
                        0, 1, depth - 3, depth - 1);
@@ -2023,7 +2031,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 #endif
 
         // ---- Late-move pruning / futility ----------------------------------
-        if (!is_root && searched > 0 && best_score > -(MATE_SCORE - MAX_PLY)) {
+        if (!ABLATED(5) && !is_root && searched > 0
+            && best_score > -(MATE_SCORE - MAX_PLY)) {
 
             // Reduction-aware depth for the shallow-pruning heuristics (Step
             // 6.5): the base LMR-table reduction, matching SF/Ethereal's use of
@@ -2152,7 +2161,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         int extension = 0;
 
         // ---- Singular extension (only for TT move) -------------------------
-        if (!is_root && m == tt_move && ss->excluded == MOVE_NONE
+        if (!ABLATED(6) && !is_root && m == tt_move && ss->excluded == MOVE_NONE
             && depth >= active_limits_.params.singular_min_depth
             && tt_found && tt_depth >= depth - 3
             && (tt_flag == TT_BETA || tt_flag == TT_EXACT)
@@ -2268,19 +2277,19 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             // This matters because lmr_applied alone cannot tell "rarely
             // eligible" from "eligible but never reduced", and those have
             // opposite repairs. Our EBF is 2.20 against the reference's 1.61.
-            DIAG_COUNT(++diag_.lmr_eligible);
+            if (!ABLATED(7)) DIAG_COUNT(++diag_.lmr_eligible);
             const bool lmr_type_ok = is_quiet || (is_cap && !is_promo && see_score < 0);
-            if (depth < 2)          DIAG_COUNT(++diag_.lmr_blocked_depth);
-            else if (searched < 2)  DIAG_COUNT(++diag_.lmr_blocked_searched);
-            else if (in_check)      DIAG_COUNT(++diag_.lmr_blocked_in_check);
-            else if (!lmr_type_ok)  DIAG_COUNT(++diag_.lmr_blocked_movetype);
+            if (!ABLATED(7) && depth < 2)          DIAG_COUNT(++diag_.lmr_blocked_depth);
+            else if (!ABLATED(7) && searched < 2) DIAG_COUNT(++diag_.lmr_blocked_searched);
+            else if (!ABLATED(7) && in_check)     DIAG_COUNT(++diag_.lmr_blocked_in_check);
+            else if (!ABLATED(7) && !lmr_type_ok) DIAG_COUNT(++diag_.lmr_blocked_movetype);
             // Checking moves are never reduced. 5.7.6 removed the
             // lmr_allow_check switch that could have relaxed this: it was added
             // inert for 5.4.4, which closed rejected (BAS-S16).
-            else if (move_gives_check())
+            else if (!ABLATED(7) && move_gives_check())
                 DIAG_COUNT(++diag_.lmr_blocked_gives_check);
             // LMR applies to: quiets, and bad captures — but NOT promotions
-            else {
+            else if (!ABLATED(7)) {
                 // Phase 6.7: accumulate the reduction in 1024ths of a ply, then
                 // shift back at the end. Behaviour-identical at default knobs
                 // (adjustments are the old integer values ×1024; history stays

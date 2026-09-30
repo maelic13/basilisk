@@ -21,6 +21,9 @@ endif()
 if(NOT DEFINED PGO_DIAGNOSTIC)
     set(PGO_DIAGNOSTIC "OFF")
 endif()
+if(NOT DEFINED PGO_ABLATION)
+    set(PGO_ABLATION "OFF")
+endif()
 if(NOT DEFINED PGO_ARM_OPTION)
     set(PGO_ARM_OPTION "")
 endif()
@@ -57,6 +60,7 @@ set(_pgo_configure_args
     -DPORTABLE_BUILD=${PGO_PORTABLE_BUILD}
     -DTUNE=${PGO_TUNE}
     -DDIAGNOSTIC=${PGO_DIAGNOSTIC}
+    -DABLATION=${PGO_ABLATION}
 )
 if(PGO_ARM_OPTION)
     if(NOT PGO_ARM_OPTION MATCHES "^[A-Za-z_][A-Za-z0-9_]*$")

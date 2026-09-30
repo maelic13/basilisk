@@ -530,7 +530,19 @@ was cut the day before this plan, so Phase A has no release step.
       Production therefore compiles the increments out; diagnostic and tune
       builds retain them, and `RELEASE_DIAG_COUNTERS` remains only as the
       reproducibility arm.
-    - [ ] **A.5.4** `[I1]` Matched ablation mask: one bit order on Basilisk and on the `oracle/hybrid` build, compiled away in production, every bit proven live by a moved node count; the oracle side exists as the snapshot's `refs/oracle-hybrid-ablate.patch`, written for the same classical-Stockfish search.
+    - [x] **A.5.4** `[I1]` Matched ablation mask: one bit order on Basilisk and on the `oracle/hybrid` build, compiled away in production, every bit proven live by a moved node count; the oracle side exists as the snapshot's `refs/oracle-hybrid-ablate.patch`, written for the same classical-Stockfish search. — CLOSED 2026-09-30
+      `AblationMask` uses bits 0–7 for razoring, reverse futility, null move,
+      ProbCut, IIR, shallow move pruning, extensions and LMR. It exists only
+      in the `Ablate` flavor; the final-PGO builder propagates that flavor
+      through both child builds, while production advertises no option.
+      Mask 0 and production both reproduce **14,978,465** at `bench 13`.
+      `tools/diag/ablation_liveness.py` ran eight suite-v1 positions at depth
+      9 and proved every single bit live in both engines. Against mask 0,
+      Basilisk's aggregate node deltas were **+78,530, +123,314, +5,496,
+      −19,430, +40,431, +363,230, −112,186, +771,104**; the patched pinned
+      oracle's were **+24,158, +26,339, −10,116, −24,741, +2,875, +557,562,
+      −44,400, +115,520**. The hash-bound record is
+      `tools/results/a54-ablation-liveness.json`.
     - [ ] **A.5.5** `[I1]` Conversion instrument over PGN: port the snapshot's `tools/diag/conversion_audit.py` and `tools/diag/export_tournament_pgn.py`.
       Before trusting either, reproduce Rarog's reading of Basilisk 1.9.3
       (17.5 draws and 5.0 losses per 1,000 against the six anchors; the
@@ -809,7 +821,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.5.4 | RESEARCH | I1 | Bit order must match the oracle build |
 | A.5.5 | READY_FOR_IMPLEMENTATION | I1 | Port and seed-reproduce before use |
 | A.5.6 | RESEARCH | R2 | Canary selection and anchoring |
 | A.6 | RESEARCH | R2 | Consolidation analysis; refactors nothing |

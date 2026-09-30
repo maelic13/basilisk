@@ -205,6 +205,11 @@ static void test_uci_output() {
     EXPECT(run.output.find("option name TM_Debug") == std::string::npos);
     EXPECT(run.output.find("option name DecisionTrace") == std::string::npos);
 #endif
+#ifdef BASILISK_ABLATION
+    EXPECT(run.output.find("option name AblationMask type spin default 0 min 0 max 255") != std::string::npos);
+#else
+    EXPECT(run.output.find("option name AblationMask") == std::string::npos);
+#endif
 #ifdef BASILISK_TUNE
     EXPECT(run.output.find("option name RfpCoeff") != std::string::npos);
     EXPECT(run.output.find("option name KBNK Drive") != std::string::npos);
@@ -376,6 +381,15 @@ static void test_malformed_go() {
 
 static void test_unknown_setoption() {
     Parameters p;
+#ifdef BASILISK_ABLATION
+    p.set_option("name AblationMask value 511");
+    begin_section("ablation mask clamps to its UCI range");
+    EXPECT_EQ(p.ablation_mask, 255);
+    p.set_option("name AblationMask value -1");
+    EXPECT_EQ(p.ablation_mask, 0);
+    end_section();
+#endif
+
     const std::string a = capture([&] { p.set_option("name NoSuchOption value 5"); });
     begin_section("15.0.d: unknown setoption name is diagnosed");
     EXPECT(contains(a, "NoSuchOption"));

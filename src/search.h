@@ -94,6 +94,9 @@ struct SearchLimits {
 #if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
     bool decision_trace = false; // bounded plies 1-2 decision trace (A.5.3)
 #endif
+#ifdef BASILISK_ABLATION
+    int ablation_mask = 0;
+#endif
     // Instant the `go` command was parsed off UCI input (default = unset). Used
     // only to report dispatch latency in tm_debug; does not affect timing yet.
     std::chrono::steady_clock::time_point go_recv_time{};
