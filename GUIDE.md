@@ -134,7 +134,7 @@ together, and `python tools/diag/check_roadmap.py` must pass.
 | Speed | 3.71 MNPS in Rarog's pooled-PGO measurement (BAS-X34); Basilisk's own pooled baseline at A.7.4 |
 | Conversion | 17.5 draws and 5.0 losses per 1,000 after a persistent piece-up, against six anchors (1.9.3; RAR-M54); re-read for 1.10.0 at A.7.1 |
 | Active experiment | None |
-| Current step | **A.5.5** PGN conversion instrument, seed-reproduced (`I1`) |
+| Current step | **A.5.6** reference-anchored canaries (`R2`) |
 | Long job | None |
 | Next release | **2.0.0** if the E.2 target gate is met, otherwise **1.11.0**, cut at E.3.2; nothing is released before it unless a correctness repair forces a 1.10.x patch |
 
@@ -173,7 +173,7 @@ before its deadline; held items stay unticked in place.
     - [x] **A.5.2** `[I1]` Reference-anchored branching profile with per-position medians — CLOSED 2026-09-29
     - [x] **A.5.3** `[I1]` Counter summation at stride 1 and the decision trace — CLOSED 2026-09-30
     - [x] **A.5.4** `[I1]` Matched ablation mask on Basilisk and the oracle — CLOSED 2026-09-30
-    - [ ] **A.5.5** `[I1]` PGN conversion instrument, seed-reproduced
+    - [x] **A.5.5** `[I1]` PGN conversion instrument, seed-reproduced — CLOSED 2026-09-30
     - [ ] **A.5.6** `[R2]` Reference-anchored canaries
 - [ ] **A.6** `[R2]` Codebase consolidation analysis: B.1 and C.1 move tables; refactors nothing
 - [ ] **A.7** Baselines on the 1.10.1 binary

@@ -543,10 +543,19 @@ was cut the day before this plan, so Phase A has no release step.
       oracle's were **+24,158, +26,339, −10,116, −24,741, +2,875, +557,562,
       −44,400, +115,520**. The hash-bound record is
       `tools/results/a54-ablation-liveness.json`.
-    - [ ] **A.5.5** `[I1]` Conversion instrument over PGN: port the snapshot's `tools/diag/conversion_audit.py` and `tools/diag/export_tournament_pgn.py`.
-      Before trusting either, reproduce Rarog's reading of Basilisk 1.9.3
-      (17.5 draws and 5.0 losses per 1,000 against the six anchors; the
-      snapshot's `tools/diag/conversion_release_basilisk_1.9.3_v1.json`).
+    - [x] **A.5.5** `[I1]` Conversion instrument over PGN: port the snapshot's `tools/diag/conversion_audit.py` and `tools/diag/export_tournament_pgn.py`. — CLOSED 2026-09-30
+      The hash-bound `5e539523` export contains 39,600 games, skips none and
+      reproduces the snapshot's `conversion_release_basilisk_1.9.3_v1.json`
+      exactly apart from path and generation time: against the six anchors,
+      **94 draws and 12 losses after a persistent piece-up in 3,600 games**
+      (**26.1 / 3.3 per 1,000**), with all counts, parameters and termination
+      classes identical. PGN SHA-256 is
+      `fe0cf072acaeba95427a9fa549ca50a9662350380c664f9071dfa0ffe0b863d5`.
+      Seven synthetic tests cover perspective, persistence, material
+      signatures, aggregation, filtering, PGN round-trip and read-only SQLite
+      export/header rewriting. The earlier **17.5 / 5.0** text belonged to the
+      separate Super Rating Tournament rather than the named frozen JSON; it
+      remains an A.7.1 result to reproduce from that tournament's PGN.
     - [ ] **A.5.6** `[R2]` Reference-anchored canaries: WAC positions, including quiet key moves and quiet mate threats, anchored at the depth classical Stockfish solves them.
       A changed canary is recorded with its cause and never re-blessed.
 - [ ] **A.6** `[R2]` Codebase consolidation analysis: `src/search.cpp` (2,848 lines) and `src/eval.cpp` (2,148 lines) mapped into target modules; the B.1 and C.1 move tables; dead code; the seams a cluster needs. Refactors nothing.
@@ -821,7 +830,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.5.5 | READY_FOR_IMPLEMENTATION | I1 | Port and seed-reproduce before use |
 | A.5.6 | RESEARCH | R2 | Canary selection and anchoring |
 | A.6 | RESEARCH | R2 | Consolidation analysis; refactors nothing |
 | A.7.1 | READY_FOR_IMPLEMENTATION | V | Zero-game census of the Super Rating Tournament PGN |
