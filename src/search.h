@@ -198,9 +198,9 @@ private:
     }
 
     // ---- 8.6.6 diagnostic counters (Rarog 7.6 pattern) ----
-    // Always counted — plain per-Searcher int64 increments on lines that are
-    // already hot, measured to cost nothing (interleaved best-of-5 NPS) — and
-    // printed only when SearchLimits.diag is set (UCI `Diag`, TUNE builds).
+    // Counted in diagnostic/tune builds and printed only when SearchLimits.diag
+    // is set. Production compiles the hot-path increments away; the retained
+    // RELEASE_DIAG_COUNTERS arm exists only to reproduce the cost measurement.
     // These size candidates BEFORE they spend SPRT slots and are the substrate
     // Phase 10's acceptance criteria assume; check_exts must read 0 once
     // 8.6.7 lands.

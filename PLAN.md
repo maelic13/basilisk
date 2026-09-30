@@ -506,7 +506,7 @@ was cut the day before this plan, so Phase A has no release step.
       parser, outlier, common-denominator and lifecycle tests plus a real
       Basilisk UCI option handshake passed. No profile was measured on the
       busy host; B.0 performs the first three-arm run on an idle host.
-    - [ ] **A.5.3** `[I1]` Counters and decision trace: `Diag` counters summed per position at sampling stride 1 with their units named, and a diag-only decision trace.
+    - [x] **A.5.3** `[I1]` Counters and decision trace: `Diag` counters summed per position at sampling stride 1 with their units named, and a diag-only decision trace. — CLOSED 2026-09-30.
       The trace is bounded to plies 1–2 under `searchmoves` and prints every
       prune, reduction and extension with its inputs. Rarog's trace found
       two seed defects that no counter could see: a static margin overriding
@@ -518,6 +518,18 @@ was cut the day before this plan, so Phase A has no release step.
       as prose today (A.2.3). The leaf also decides the 73 `diag_`
       increments that run in release builds with `Diag` off, priced by
       PROCESS's NPS method.
+      All 57 core counters now have named units, strict per-position records
+      and checked sum identities at stride 1. `DecisionTrace` is compiled only
+      into diagnostic/tune builds, requires `Diag=true`, one thread and one
+      `searchmoves` root, records plies 1–2 into fixed-capacity storage, and
+      rejects overflow. The release-counter arm was bench-identical at
+      **14,978,465**. Its pooled two-build PGO comparison found compiling the
+      increments out worth **+0.90% median NPS**, 95% CI **[+0.54%, +1.02%]**,
+      best-of **+0.75%**, faster in **16/16** alternating rounds; the preceding
+      two-build self-pair passed at **−0.17%**, 95% CI **[−0.36%, +0.20%]**.
+      Production therefore compiles the increments out; diagnostic and tune
+      builds retain them, and `RELEASE_DIAG_COUNTERS` remains only as the
+      reproducibility arm.
     - [ ] **A.5.4** `[I1]` Matched ablation mask: one bit order on Basilisk and on the `oracle/hybrid` build, compiled away in production, every bit proven live by a moved node count; the oracle side exists as the snapshot's `refs/oracle-hybrid-ablate.patch`, written for the same classical-Stockfish search.
     - [ ] **A.5.5** `[I1]` Conversion instrument over PGN: port the snapshot's `tools/diag/conversion_audit.py` and `tools/diag/export_tournament_pgn.py`.
       Before trusting either, reproduce Rarog's reading of Basilisk 1.9.3
@@ -797,7 +809,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.5.3 | READY_FOR_IMPLEMENTATION | I1 | Counter summation and the decision trace |
 | A.5.4 | RESEARCH | I1 | Bit order must match the oracle build |
 | A.5.5 | READY_FOR_IMPLEMENTATION | I1 | Port and seed-reproduce before use |
 | A.5.6 | RESEARCH | R2 | Canary selection and anchoring |
