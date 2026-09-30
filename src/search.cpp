@@ -33,6 +33,13 @@ static constexpr int TB_WIN_SCORE = tablebaseWinScore;
 #define TRACE_DECISION(...) ((void)0)
 #endif
 
+#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC) \
+    || defined(BASILISK_RELEASE_DIAG_COUNTERS)
+#define DIAG_COUNT(expression) (expression)
+#else
+#define DIAG_COUNT(expression) ((void)0)
+#endif
+
 static int score_from_syzygy_wdl(Syzygy::Wdl wdl) {
     switch (wdl) {
         case Syzygy::Wdl::Win:
@@ -373,9 +380,9 @@ static_assert((sharedNodeBatch & (sharedNodeBatch - 1)) == 0,
 
 void Searcher::tt_store(Key key, int depth, int score, TTFlag flag, Move m,
                         int ply, int static_eval) {
-    ++diag_.tt_stores;
+    DIAG_COUNT(++diag_.tt_stores);
     if (tt_.store(key, depth, score, flag, m, ply, static_eval))
-        ++diag_.tt_stores_same_key;
+        DIAG_COUNT(++diag_.tt_stores_same_key);
 }
 
 void Searcher::flush_shared_nodes() {
@@ -548,7 +555,7 @@ void Searcher::update_all_histories(Move best, bool best_is_tt,
                                     const Move* bad_caps, int bad_cap_count,
                                     Color stm, int depth, SearchStack* ss,
                                     bool reward_only, int bonus_scale) {
-    (reward_only ? diag_.hist_reward_updates : diag_.hist_cutoff_updates)++;
+    DIAG_COUNT((reward_only ? diag_.hist_reward_updates : diag_.hist_cutoff_updates)++);
     // 8.5.10(e): bonus_scale (percent) lets the caller boost the reward when the
     // cutoff was "surprising" (static eval below beta -- the search saw a good
     // move the eval did not). Default 100 = unchanged.
@@ -1441,14 +1448,14 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     if (board_ptr_->is_draw(ply)) return 0;
 
     bool in_check = board_ptr_->is_in_check();
-    diag_.qs_nodes++;
+    DIAG_COUNT(diag_.qs_nodes++);
 
     // TT probe
     Key hash = board_ptr_->position_key();
     TTEntry tte{};
     bool tt_found = tt_.probe_copy(hash, tte);
-    diag_.tt_probes++;
-    if (tt_found) diag_.tt_hits++;
+    DIAG_COUNT(diag_.tt_probes++);
+    if (tt_found) DIAG_COUNT(diag_.tt_hits++);
     Move tt_move = MOVE_NONE;
     int  tt_score = VALUE_NONE;       // hoisted (Step 6.1) for the stand-pat tighten
     TTFlag tt_flag = TT_NONE;
@@ -1475,7 +1482,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         MoveList legal;
         board_ptr_->gen_legal(legal);
         int best = -INF_SCORE;
-        diag_.qs_evasion_nodes++;
+        DIAG_COUNT(diag_.qs_evasion_nodes++);
         bool has_legal = false;
         for (Move m : legal) {
             has_legal = true;
@@ -1707,8 +1714,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
     // Check extension: when the side to move is in check, extend by 1 ply.
     // Guard with ss->excluded to prevent stacking with singular extensions.
-    diag_.interior_nodes++;
-    if (in_check) diag_.in_check_nodes++;
+    DIAG_COUNT(diag_.interior_nodes++);
+    if (in_check) DIAG_COUNT(diag_.in_check_nodes++);
     // The extension is unconditional: every in-check node gets a ply.
     //
     // 5.7.6 removed check_ext_path_cap, which bounded the accumulation per path
@@ -1720,7 +1727,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     if (in_check && ss->excluded == MOVE_NONE && ply < MAX_PLY - 2) {
         depth++;
         did_check_ext = true;
-        diag_.check_exts++;
+        DIAG_COUNT(diag_.check_exts++);
         TRACE_DECISION(TraceEvent::CheckExtension, ply, depth, MOVE_NONE,
                        alpha, beta, VALUE_NONE, -1, VALUE_NONE, VALUE_NONE,
                        0, 0, 1, depth);
@@ -1740,8 +1747,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     Key hash     = board_ptr_->position_key();
     TTEntry tte{};
     bool tt_found = tt_.probe_copy(hash, tte);
-    diag_.tt_probes++;
-    if (tt_found) diag_.tt_hits++;
+    DIAG_COUNT(diag_.tt_probes++);
+    if (tt_found) DIAG_COUNT(diag_.tt_hits++);
 
     Move  tt_move  = MOVE_NONE;
     int   tt_score = VALUE_NONE;
@@ -1761,7 +1768,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             if (tt_flag == TT_EXACT
                 || (tt_flag == TT_ALPHA && tt_score <= alpha)
                 || (tt_flag == TT_BETA  && tt_score >= beta)) {
-                diag_.tt_cutoffs++;
+                DIAG_COUNT(diag_.tt_cutoffs++);
                 TRACE_DECISION(TraceEvent::TtCutoff, ply, depth, tt_move,
                                alpha, beta, tt_score, -1, VALUE_NONE, VALUE_NONE,
                                0, 0, tt_depth, tt_score);
@@ -1771,7 +1778,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     }
 
     ss->tt_pv = is_pv || (tt_found && tt_flag == TT_EXACT && tt_depth >= depth - 1);
-    if (ss->tt_pv) diag_.tt_pv_nodes++;
+    if (ss->tt_pv) DIAG_COUNT(diag_.tt_pv_nodes++);
 
     // Phase 6.7: is the TT move a capture? (LMR input, lmr_tt_capture)
     const bool tt_capture = tt_move != MOVE_NONE
@@ -1834,7 +1841,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             const auto& p = active_limits_.params;
             int margin = p.rfp_coeff * depth - (improving ? p.rfp_improving : 0);
             if (eval - margin >= beta) {
-                diag_.rfp_cuts++;
+                DIAG_COUNT(diag_.rfp_cuts++);
                 TRACE_DECISION(TraceEvent::RfpPrune, ply, depth, MOVE_NONE,
                                alpha, beta, eval, improving, correction, VALUE_NONE,
                                0, 0, margin, eval);
@@ -1846,7 +1853,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         if (depth <= 3 && eval + active_limits_.params.razor_coeff * depth <= alpha) {
             int q = quiescence(alpha, beta, ply, 0, ss);
             if (q <= alpha) {
-                diag_.razor_cuts++;
+                DIAG_COUNT(diag_.razor_cuts++);
                 TRACE_DECISION(TraceEvent::RazorPrune, ply, depth, MOVE_NONE,
                                alpha, beta, eval, improving, correction, VALUE_NONE,
                                0, 0, active_limits_.params.razor_coeff * depth, q);
@@ -1862,7 +1869,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
             int r = active_limits_.params.null_base + depth / 4
                   + std::min((eval - beta) / active_limits_.params.null_eval_div, 3);
-            diag_.null_tries++;
+            DIAG_COUNT(diag_.null_tries++);
             do_null_move(ss);
             tt_.prefetch(board_ptr_->position_key());   // 8.7.6(c)
             int null_score = -negamax(std::max(0, depth - r), -beta, -(beta - 1),
@@ -1880,7 +1887,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                     verified = verify_score >= beta;
                 }
                 if (verified) {
-                    diag_.null_cuts++;
+                    DIAG_COUNT(diag_.null_cuts++);
                     TRACE_DECISION(TraceEvent::NullCutoff, ply, depth, MOVE_NULL,
                                    alpha, beta, eval, improving, correction, VALUE_NONE,
                                    0, r, VALUE_NONE, null_score);
@@ -1899,7 +1906,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 if (m == ss->excluded) continue;
                 if (!board_ptr_->see_ge(m, pc_beta - static_eval)) continue;
 
-                diag_.probcut_tries++;
+                DIAG_COUNT(diag_.probcut_tries++);
                 do_move(ss, m);
                 tt_.prefetch(board_ptr_->position_key());   // 8.7.6(c)
                 // Quick check via QSearch first
@@ -1913,7 +1920,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                     tt_store(hash, depth - 3, pc_beta, TT_BETA, m, ply,
                               raw_static_eval == VALUE_NONE
                                   ? TranspositionTable::INF_EVAL : raw_static_eval);
-                    diag_.probcut_cuts++;
+                    DIAG_COUNT(diag_.probcut_cuts++);
                     TRACE_DECISION(TraceEvent::ProbcutCutoff, ply, depth, m,
                                    alpha, beta, eval, improving, correction, VALUE_NONE,
                                    0, depth - 4, pc_beta - static_eval, pc_beta);
@@ -2033,7 +2040,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                     && eval + active_limits_.params.futility_base
                             + active_limits_.params.futility_coeff * depth <= alpha
                     && !move_gives_check()) {
-                    diag_.fut_prunes++;
+                    DIAG_COUNT(diag_.fut_prunes++);
                     TRACE_DECISION(TraceEvent::FutilityPrune, ply, depth, m,
                                    alpha, beta, eval, improving, correction, trace_history,
                                    searched, 0,
@@ -2046,7 +2053,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 // Late move pruning (LMP) — never in PV
                 if (!is_pv && !in_check && depth <= 6 && searched >= lmp_thresh
                     && !move_gives_check()) {
-                    diag_.lmp_prunes++;
+                    DIAG_COUNT(diag_.lmp_prunes++);
                     TRACE_DECISION(TraceEvent::LmpPrune, ply, depth, m,
                                    alpha, beta, eval, improving, correction, trace_history,
                                    searched, 0, lmp_thresh, alpha);
@@ -2067,13 +2074,13 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                     {
                         const int64_t thr =
                             int64_t(active_limits_.params.hist_prune_coeff) * depth;
-                        ++diag_.hist_prune_tested;
-                        if (hist < -(thr / 2)) ++diag_.hist_below_half;
-                        if (hist < -(thr / 4)) ++diag_.hist_below_quarter;
-                        if (hist < -(thr / 8)) ++diag_.hist_below_eighth;
+                        DIAG_COUNT(++diag_.hist_prune_tested);
+                        if (hist < -(thr / 2)) DIAG_COUNT(++diag_.hist_below_half);
+                        if (hist < -(thr / 4)) DIAG_COUNT(++diag_.hist_below_quarter);
+                        if (hist < -(thr / 8)) DIAG_COUNT(++diag_.hist_below_eighth);
                     }
                     if (hist < -active_limits_.params.hist_prune_coeff * depth && !move_gives_check()) {
-                        diag_.hist_prunes++;
+                        DIAG_COUNT(diag_.hist_prunes++);
                         TRACE_DECISION(TraceEvent::HistoryPrune, ply, depth, m,
                                        alpha, beta, eval, improving, correction, hist,
                                        searched, 0,
@@ -2126,7 +2133,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 // SEE pruning for bad captures
                 if (!is_pv && depth <= 8 && !is_promo) {
                     if (!board_ptr_->see_ge(m, -depth * active_limits_.params.see_prune_coeff) && !move_gives_check()) {
-                        diag_.see_prunes++;
+                        DIAG_COUNT(diag_.see_prunes++);
                         TRACE_DECISION(TraceEvent::CaptureSeePrune, ply, depth, m,
                                        alpha, beta, eval, improving, correction, VALUE_NONE,
                                        searched, 0,
@@ -2186,10 +2193,10 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                                searched, extension, s_beta, s_val);
 
                 // 5.7.3 probe: count the stack, do not change it yet.
-                ++diag_.sing_fired;
-                if (allow_double)   ++diag_.sing_double;
-                if (did_check_ext)  ++diag_.sing_in_check;
-                if (allow_double && did_check_ext) ++diag_.sing_triple;
+                DIAG_COUNT(++diag_.sing_fired);
+                if (allow_double)   DIAG_COUNT(++diag_.sing_double);
+                if (did_check_ext)  DIAG_COUNT(++diag_.sing_in_check);
+                if (allow_double && did_check_ext) DIAG_COUNT(++diag_.sing_triple);
 
                 // 5.7.2: relax LMR for this node's remaining moves. Suppressed
                 // when the TT move is a capture -- a singular capture says the
@@ -2206,7 +2213,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 immediate_score = s_beta;
                 return true;
             } else if (tt_score >= beta) {
-                ++diag_.sing_ttbeta;
+                DIAG_COUNT(++diag_.sing_ttbeta);
                 TRACE_DECISION(TraceEvent::SingularNegative, ply, depth, m,
                                alpha, beta, eval, improving, correction, trace_history,
                                searched, -1, s_beta, s_val);
@@ -2261,17 +2268,17 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             // This matters because lmr_applied alone cannot tell "rarely
             // eligible" from "eligible but never reduced", and those have
             // opposite repairs. Our EBF is 2.20 against the reference's 1.61.
-            ++diag_.lmr_eligible;
+            DIAG_COUNT(++diag_.lmr_eligible);
             const bool lmr_type_ok = is_quiet || (is_cap && !is_promo && see_score < 0);
-            if (depth < 2)          ++diag_.lmr_blocked_depth;
-            else if (searched < 2)  ++diag_.lmr_blocked_searched;
-            else if (in_check)      ++diag_.lmr_blocked_in_check;
-            else if (!lmr_type_ok)  ++diag_.lmr_blocked_movetype;
+            if (depth < 2)          DIAG_COUNT(++diag_.lmr_blocked_depth);
+            else if (searched < 2)  DIAG_COUNT(++diag_.lmr_blocked_searched);
+            else if (in_check)      DIAG_COUNT(++diag_.lmr_blocked_in_check);
+            else if (!lmr_type_ok)  DIAG_COUNT(++diag_.lmr_blocked_movetype);
             // Checking moves are never reduced. 5.7.6 removed the
             // lmr_allow_check switch that could have relaxed this: it was added
             // inert for 5.4.4, which closed rejected (BAS-S16).
             else if (move_gives_check())
-                ++diag_.lmr_blocked_gives_check;
+                DIAG_COUNT(++diag_.lmr_blocked_gives_check);
             // LMR applies to: quiets, and bad captures — but NOT promotions
             else {
                 // Phase 6.7: accumulate the reduction in 1024ths of a ply, then
@@ -2317,32 +2324,32 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 // separable. Most LMR-eligible nodes sit near the leaves, where
                 // new_depth-1 is 1 or 2 and no policy change can move the
                 // reduction actually taken.
-                if ((r >> 10) > new_depth - 1) ++diag_.lmr_clamped_high;
+                if ((r >> 10) > new_depth - 1) DIAG_COUNT(++diag_.lmr_clamped_high);
                 reduction = std::clamp(r >> 10, 0, new_depth - 1);
                 // 5.2: the gate passed but the computed reduction was zero —
                 // distinct from being blocked, and a different repair. Counted
                 // here so that
                 //   eligible = applied + clamped_zero + sum(blocked_*)
                 // holds exactly, which is what makes the breakdown auditable.
-                if (reduction == 0) ++diag_.lmr_clamped_zero;
+                if (reduction == 0) DIAG_COUNT(++diag_.lmr_clamped_zero);
             }
             ss->reduction = reduction;
             TRACE_DECISION(TraceEvent::LmrReduction, ply, depth, m,
                            alpha, beta, eval, improving, correction, move_stat_score,
                            searched, reduction, new_depth - 1, VALUE_NONE);
             if (reduction > 0) {
-                diag_.lmr_applied++;
+                DIAG_COUNT(diag_.lmr_applied++);
                 // Mean reduction over applied = reduction_plies / applied. A
                 // timid-LMR hypothesis is decided by this number, not by how
                 // often LMR fired.
-                diag_.lmr_reduction_plies += reduction;
+                DIAG_COUNT(diag_.lmr_reduction_plies += reduction);
             }
 
             score = -negamax(new_depth - reduction, -alpha - 1, -alpha,
                              ply + 1, ss + 1, false, true, true);
             // Re-search at full depth if LMR didn't fail low
             if (reduction > 0 && score > alpha && !stopped_) {
-                diag_.lmr_researched++;
+                DIAG_COUNT(diag_.lmr_researched++);
                 TRACE_DECISION(TraceEvent::LmrResearch, ply, depth, m,
                                alpha, beta, eval, improving, correction, move_stat_score,
                                searched, reduction, VALUE_NONE, score);
@@ -2429,14 +2436,14 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             // tree width — the quantity separating our 2.20 EBF from ~1.61.
             // cutoff_src says which picker stage to fix rather than merely that
             // ordering is imperfect.
-            ++diag_.fail_highs;
-            diag_.fail_high_index_sum += searched - 1;
-            if (searched == 1) ++diag_.fail_high_first;
+            DIAG_COUNT(++diag_.fail_highs);
+            DIAG_COUNT(diag_.fail_high_index_sum += searched - 1);
+            if (searched == 1) DIAG_COUNT(++diag_.fail_high_first);
             switch (picker_src) {
-                case MovePicker::Src::TT:           ++diag_.cutoff_src_tt; break;
-                case MovePicker::Src::GoodTactical: ++diag_.cutoff_src_good_tactical; break;
-                case MovePicker::Src::Quiet:        ++diag_.cutoff_src_quiet; break;
-                case MovePicker::Src::BadTactical:  ++diag_.cutoff_src_bad_tactical; break;
+                case MovePicker::Src::TT:           DIAG_COUNT(++diag_.cutoff_src_tt); break;
+                case MovePicker::Src::GoodTactical: DIAG_COUNT(++diag_.cutoff_src_good_tactical); break;
+                case MovePicker::Src::Quiet:        DIAG_COUNT(++diag_.cutoff_src_quiet); break;
+                case MovePicker::Src::BadTactical:  DIAG_COUNT(++diag_.cutoff_src_bad_tactical); break;
                 case MovePicker::Src::None:         break;
             }
             // 8.5.10(e): boost the bonus when the cutoff was "surprising" -- the
@@ -2626,7 +2633,7 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
             int delta = active_limits_.params.aspiration_delta;
             int asp_a = prev_score - delta;
             int asp_b = prev_score + delta;
-            ++diag_.asp_windows;
+            DIAG_COUNT(++diag_.asp_windows);
             while (true) {
                 // 5.8.5 REFUTED: the reference re-searches SHALLOWER after each
                 // fail-high (failedHighCnt). Measured: WAC 137 -> 119 against a
@@ -2636,8 +2643,8 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
                 score = negamax(depth, asp_a, asp_b, 0, ss, true, true, false);
                 if (stopped_) break;
                 if (score <= asp_a) {
-                    ++diag_.asp_fail_low;
-                    ++diag_.asp_researches;
+                    DIAG_COUNT(++diag_.asp_fail_low);
+                    DIAG_COUNT(++diag_.asp_researches);
                     // 5.8.3 REFUTED: the reference also pulls beta to the
                     // window midpoint here, reasoning that a fail-low proves the
                     // standing beta far too generous. Measured, it makes things
@@ -2651,16 +2658,16 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
                     asp_a  = std::max(score - delta, -INF_SCORE);
                     delta += delta / 2;
                 } else if (score >= asp_b) {
-                    ++diag_.asp_fail_high;
-                    ++diag_.asp_researches;
+                    DIAG_COUNT(++diag_.asp_fail_high);
+                    DIAG_COUNT(++diag_.asp_researches);
                     asp_b  = std::min(score + delta, INF_SCORE);
                     delta += delta / 2;
                 } else {
                     break;
                 }
                 if (delta >= 900) {
-                    ++diag_.asp_giveup;
-                    ++diag_.asp_researches;
+                    DIAG_COUNT(++diag_.asp_giveup);
+                    DIAG_COUNT(++diag_.asp_researches);
                     asp_a = -INF_SCORE;
                     asp_b =  INF_SCORE;
                     score = negamax(depth, asp_a, asp_b, 0, ss, true, true, false);
