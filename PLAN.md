@@ -484,7 +484,7 @@ was cut the day before this plan, so Phase A has no release step.
       ISA/platform row, diagnostic and TEXEL PEXT combinations, and known-bad
       overlapping flavor/ISA controls. Release CTest passed 13/13 and the
       final PGO PEXT ISA contract passed.
-- [ ] **A.5** Instruments for the search programme.
+- [x] **A.5** Instruments for the search programme. — CLOSED 2026-09-30.
     - [x] **A.5.1** `[I1]` Fixed-budget probe: WAC solved at 100k and 400k nodes and at a fixed PV depth, plus oracle best-move agreement on `suite_v1.epd` at 300k nodes, with per-position records. — CLOSED 2026-09-29.
       Ported from the snapshot's `tools/diag/fixed_budget_probe.py` onto
       Basilisk's `wac` command and `tools/diag/run_suite.py`. `wac nodes N`
@@ -556,8 +556,22 @@ was cut the day before this plan, so Phase A has no release step.
       export/header rewriting. The earlier **17.5 / 5.0** text belonged to the
       separate Super Rating Tournament rather than the named frozen JSON; it
       remains an A.7.1 result to reproduce from that tournament's PGN.
-    - [ ] **A.5.6** `[R2]` Reference-anchored canaries: WAC positions, including quiet key moves and quiet mate threats, anchored at the depth classical Stockfish solves them.
+    - [x] **A.5.6** `[R2]` Reference-anchored canaries: WAC positions, including quiet key moves and quiet mate threats, anchored at the depth classical Stockfish solves them. — CLOSED 2026-09-30.
       A changed canary is recorded with its cause and never re-blessed.
+      The hash-bound `canary_v1.json` freezes **126** local classical-oracle
+      anchors: oracle stable depth at most 6 plus WAC.001, with an independent
+      oracle solve at 100k nodes. Of these, **77** are required because the
+      1.10.1 baseline also stays correct by oracle depth + 2 and solves at
+      100k; **24** have quiet key moves. The other **49** remain named gaps:
+      a later pass is reported but never silently added to the gate. WAC.001
+      is the quiet mate-threat gap, anchored locally at oracle depth 10 with a
+      depth-12 allowance; the baseline fails both depth and node conditions.
+      The imported Rarog counts (116/242 and WAC.001 at depth 9) were not
+      reused because they were produced under Rarog's evaluation. Two complete
+      runs matched in every non-time field, the baseline check passed 77/77,
+      eight unit tests passed, a missing UCI option was rejected live, and a
+      known regression fails while a new pass is diagnostic only. A frozen
+      manifest refuses overwrite; changing the cohort requires a new version.
 - [ ] **A.6** `[R2]` Codebase consolidation analysis: `src/search.cpp` (2,848 lines) and `src/eval.cpp` (2,148 lines) mapped into target modules; the B.1 and C.1 move tables; dead code; the seams a cluster needs. Refactors nothing.
 - [ ] **A.7** Baselines on the 1.10.1 binary.
     - [ ] **A.7.1** `[V]` 1T pool baseline, zero games: census of Basilisk 1.10.0's head-to-heads in the Super Rating Tournament PGN (`D:/chess/results/super_rating_tournament.pgn`, SHA-256 in BAS-X34), and its conversion rate with A.5.5 on the same file.
@@ -830,7 +844,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.5.6 | RESEARCH | R2 | Canary selection and anchoring |
 | A.6 | RESEARCH | R2 | Consolidation analysis; refactors nothing |
 | A.7.1 | READY_FOR_IMPLEMENTATION | V | Zero-game census of the Super Rating Tournament PGN |
 | A.7.2 | READY_FOR_IMPLEMENTATION | V | Maintainer-run 4T gauntlet |
