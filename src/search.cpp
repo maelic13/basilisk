@@ -1040,10 +1040,11 @@ void Searcher::print_diag() const {
         emit(buf);
         std::snprintf(buf, sizeof(buf),
             "kv interior_nodes=%lld qs_nodes=%lld tt_probes=%lld tt_hits=%lld "
-            "tt_cutoffs=%lld in_check_nodes=%lld check_exts=%lld",
+            "tt_cutoffs=%lld in_check_nodes=%lld check_exts=%lld tt_pv_nodes=%lld",
             (long long)d.interior_nodes, (long long)d.qs_nodes,
             (long long)d.tt_probes, (long long)d.tt_hits, (long long)d.tt_cutoffs,
-            (long long)d.in_check_nodes, (long long)d.check_exts);
+            (long long)d.in_check_nodes, (long long)d.check_exts,
+            (long long)d.tt_pv_nodes);
         emit(buf);
         std::snprintf(buf, sizeof(buf),
             "kv rfp_cuts=%lld razor_cuts=%lld null_tries=%lld null_cuts=%lld "
@@ -1057,9 +1058,28 @@ void Searcher::print_diag() const {
         emit(buf);
         std::snprintf(buf, sizeof(buf),
             "kv hist_prune_tested=%lld hist_below_half=%lld "
-            "hist_below_quarter=%lld hist_below_eighth=%lld",
+            "hist_below_quarter=%lld hist_below_eighth=%lld "
+            "qs_evasion_nodes=%lld hist_cutoff_updates=%lld hist_reward_updates=%lld",
             (long long)d.hist_prune_tested, (long long)d.hist_below_half,
-            (long long)d.hist_below_quarter, (long long)d.hist_below_eighth);
+            (long long)d.hist_below_quarter, (long long)d.hist_below_eighth,
+            (long long)d.qs_evasion_nodes, (long long)d.hist_cutoff_updates,
+            (long long)d.hist_reward_updates);
+        emit(buf);
+        std::snprintf(buf, sizeof(buf),
+            "kv tt_stores=%lld tt_stores_same_key=%lld "
+            "asp_windows=%lld asp_fail_low=%lld asp_fail_high=%lld "
+            "asp_researches=%lld asp_giveup=%lld",
+            (long long)d.tt_stores, (long long)d.tt_stores_same_key,
+            (long long)d.asp_windows, (long long)d.asp_fail_low,
+            (long long)d.asp_fail_high, (long long)d.asp_researches,
+            (long long)d.asp_giveup);
+        emit(buf);
+        std::snprintf(buf, sizeof(buf),
+            "kv sing_fired=%lld sing_double=%lld sing_in_check=%lld "
+            "sing_triple=%lld sing_ttbeta=%lld",
+            (long long)d.sing_fired, (long long)d.sing_double,
+            (long long)d.sing_in_check, (long long)d.sing_triple,
+            (long long)d.sing_ttbeta);
         emit(buf);
     }
     // 8.7.1(c) speed telemetry — the numbers Phase 8.7 steps read before

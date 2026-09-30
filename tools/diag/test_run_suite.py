@@ -15,6 +15,24 @@ SPEC.loader.exec_module(run_suite)
 
 
 class FixedBudgetRecordTests(unittest.TestCase):
+    def test_counter_schema_is_complete_and_units_are_named(self):
+        self.assertEqual(len(run_suite.CORE_COUNTER_UNITS), 57)
+        self.assertNotIn(None, run_suite.CORE_COUNTER_UNITS.values())
+        counters = {name: 0 for name in run_suite.CORE_COUNTER_UNITS}
+        checks = run_suite.validate_diag(counters)
+        self.assertTrue(all(checks.values()))
+
+    def test_counter_parser_rejects_duplicates_and_broken_identity(self):
+        with self.assertRaisesRegex(ValueError, "duplicate"):
+            run_suite.parse_diag(
+                "info string diag kv tt_hits=1\n"
+                "info string diag kv tt_hits=2\n"
+            )
+        counters = {name: 0 for name in run_suite.CORE_COUNTER_UNITS}
+        counters["lmr_eligible"] = 1
+        with self.assertRaisesRegex(ValueError, "eligibility"):
+            run_suite.validate_diag(counters)
+
     def test_last_completed_iteration_ignores_later_bound(self):
         output = "\n".join([
             "info depth 7 seldepth 10 score cp 1 nodes 700 pv a2a4",

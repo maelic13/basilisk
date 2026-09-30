@@ -343,7 +343,7 @@ private:
             lmr_blocked_gives_check += o.lmr_blocked_gives_check;
         }
     };
-    // 47 counters, all int64_t. If this fails you added a counter: add it to
+    // 57 counters, all int64_t. If this fails you added a counter: add it to
     // add() above and update the count, or the pool aggregate silently drops it.
     static_assert(sizeof(DiagCounters) == 57 * sizeof(int64_t),
                   "DiagCounters changed shape — update DiagCounters::add()");
