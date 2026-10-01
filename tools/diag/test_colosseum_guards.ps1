@@ -171,6 +171,25 @@ try {
     $badPolicy.RunFile = Join-Path $repo 'tools\colosseum\match-fixed-ltc.toml'
     $badPolicy.Dir = Join-Path $scratch 'bad-policy'
     Invoke-Case 'resolved policy mismatch' 'not Basilisk policy' { & $wrapper @badPolicy | Out-Null }
+
+    $gauntletExtra = @(
+        '--format', 'gauntlet', '--seeds', '1', '--cycles', '1', '--games-per-pair', '2', '--max-engine-faults', '0',
+        '--engine', $armA, '--engine', $armB,
+        '--label', 'Seed', '--label', 'External',
+        '--rating', '1500', '--rating', '1500', '--fixed', '2:1500'
+    )
+    $gauntlet = @{
+        Mode = 'gauntlet'; Seed = 8; Hash = 64; Threads = 1
+        ExpectBench = @($benchA, -1)
+        ExpectSha256 = @((Get-FileHash $armA -Algorithm SHA256).Hash, (Get-FileHash $armB -Algorithm SHA256).Hash)
+        ThreadOptionNames = @('Threads', 'Threads'); ExtraArgs = $gauntletExtra
+        Dir = (Join-Path $scratch 'gauntlet'); DryRun = $true; AllowBusyHost = $true
+    }
+    Invoke-Case 'control: external gauntlet provenance' '' { & $wrapper @gauntlet | Out-Null }
+    $wrongGauntletHash = $gauntlet.Clone()
+    $wrongGauntletHash.ExpectSha256 = @($gauntlet.ExpectSha256[0], ('0' * 64))
+    $wrongGauntletHash.Dir = Join-Path $scratch 'gauntlet-bad-hash'
+    Invoke-Case 'external gauntlet hash mismatch' 'PROVENANCE MISMATCH' { & $wrapper @wrongGauntletHash | Out-Null }
 } finally {
     if (-not $KeepScratch -and (Test-Path -LiteralPath $scratch)) {
         Remove-Item -LiteralPath $scratch -Recurse -Force

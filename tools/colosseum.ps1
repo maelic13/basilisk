@@ -29,6 +29,8 @@ param(
     [int]$Concurrency = 0,
     [string]$ExpectRevision = '',
     [long[]]$ExpectBench = @(),
+    [string[]]$ExpectSha256 = @(),
+    [string[]]$ThreadOptionNames = @(),
     [switch]$AllowDirtyTree,
     [switch]$AllowBusyHost,
     [switch]$DryRun,
@@ -95,6 +97,22 @@ if ($twoArm) {
         $engines += [pscustomobject]@{ Path = $ExtraArgs[$index]; Label = "participant$($engines.Count + 1)"; Options = @() }
     }
     if ($engines.Count -lt 2) { throw 'A gauntlet requires at least two --engine entries.' }
+    $labels = @(for ($i = 0; $i -lt $ExtraArgs.Count; $i++) {
+        if ($ExtraArgs[$i] -eq '--label' -and $i + 1 -lt $ExtraArgs.Count) { $ExtraArgs[$i + 1] }
+    })
+    if ($labels.Count -ne $engines.Count) {
+        throw "A gauntlet requires one --label per engine; got $($labels.Count), expected $($engines.Count)."
+    }
+    for ($i = 0; $i -lt $engines.Count; $i++) { $engines[$i].Label = $labels[$i] }
+    for ($i = 0; $i -lt $ExtraArgs.Count; $i++) {
+        if ($ExtraArgs[$i] -ne '--engine-option') { continue }
+        if ($i + 1 -ge $ExtraArgs.Count -or $ExtraArgs[$i + 1] -notmatch '^(?<index>[1-9][0-9]*):(?<option>.+)$') {
+            throw '--engine-option must be followed by INDEX:NAME=VALUE.'
+        }
+        $participant = [int]$Matches.index
+        if ($participant -gt $engines.Count) { throw "--engine-option index $participant exceeds the $($engines.Count)-engine field." }
+        $engines[$participant - 1].Options = @($engines[$participant - 1].Options) + $Matches.option
+    }
 }
 foreach ($arm in $engines) {
     if (-not (Test-Path -LiteralPath $arm.Path -PathType Leaf)) { throw "Engine not found: $($arm.Path)" }
@@ -103,14 +121,37 @@ foreach ($arm in $engines) {
 if ($ExpectBench.Count -ne $engines.Count) {
     throw "-ExpectBench is required once per engine; got $($ExpectBench.Count), expected $($engines.Count)."
 }
+if ($Mode -eq 'gauntlet') {
+    if ($ExpectSha256.Count -ne $engines.Count) {
+        throw "-ExpectSha256 is required once per gauntlet engine; got $($ExpectSha256.Count), expected $($engines.Count)."
+    }
+    if ($ThreadOptionNames.Count -ne $engines.Count) {
+        throw "-ThreadOptionNames is required once per gauntlet engine; got $($ThreadOptionNames.Count), expected $($engines.Count)."
+    }
+}
 
 $manifests = @{}
 for ($i = 0; $i -lt $engines.Count; $i++) {
     $arm = $engines[$i]
-    $manifests[$arm.Label] = Assert-EngineProvenance -Path $arm.Path -Label $arm.Label `
-        -AllowDirtyTree:$AllowDirtyTree -ExpectRevision $ExpectRevision -ExpectBench $ExpectBench[$i]
+    if ($Mode -eq 'gauntlet') {
+        if ($ExpectSha256[$i] -notmatch '^[0-9a-fA-F]{64}$') { throw "Malformed registered SHA-256 for $($arm.Label)." }
+        $actualSha = Get-HarnessSha256 $arm.Path
+        if ($actualSha -ne $ExpectSha256[$i]) {
+            throw "PROVENANCE MISMATCH - $($arm.Label) SHA-256 is $actualSha, not registered $($ExpectSha256[$i])."
+        }
+        if ($ExpectBench[$i] -ge 0) {
+            $manifests[$arm.Label] = Assert-EngineProvenance -Path $arm.Path -Label $arm.Label `
+                -AllowDirtyTree:$AllowDirtyTree -ExpectRevision $ExpectRevision -ExpectBench $ExpectBench[$i]
+        } else {
+            $manifests[$arm.Label] = $null
+        }
+    } else {
+        $manifests[$arm.Label] = Assert-EngineProvenance -Path $arm.Path -Label $arm.Label `
+            -AllowDirtyTree:$AllowDirtyTree -ExpectRevision $ExpectRevision -ExpectBench $ExpectBench[$i]
+    }
     $details = @(Get-EngineUciOptions -Path $arm.Path -Detailed)
-    Assert-AdvertisedOptions -Advertised $details -Wanted @("Hash=$Hash", "Threads=$Threads") -Label $arm.Label
+    $threadOption = if ($Mode -eq 'gauntlet') { $ThreadOptionNames[$i] } else { 'Threads' }
+    Assert-AdvertisedOptions -Advertised $details -Wanted @("Hash=$Hash", "${threadOption}=$Threads") -Label $arm.Label
     Assert-AdvertisedOptions -Advertised $details -Wanted $arm.Options -Label $arm.Label
 }
 if ($twoArm) {
@@ -153,6 +194,10 @@ if ($twoArm) {
     foreach ($option in (Get-SideOptions $OptionsA)) { $commandArgs += @('--a-option', $option) }
     foreach ($option in (Get-SideOptions $OptionsB)) { $commandArgs += @('--b-option', $option) }
 } else {
+    $commandArgs += @('--option', "Hash=$Hash")
+    for ($i = 0; $i -lt $engines.Count; $i++) {
+        $commandArgs += @('--engine-option', "$($i + 1):$($ThreadOptionNames[$i])=$Threads")
+    }
     $commandArgs += $ExtraArgs
 }
 $commandArgs += @('--concurrency', "$expectedConcurrency")
@@ -196,6 +241,51 @@ foreach ($field in @('engine_a', 'engine_b')) {
         if ([int]$resolved.$field.options.Threads.value -ne $Threads) { Add-Violation "$field Threads is not $Threads" }
     }
 }
+if ($Mode -eq 'gauntlet') {
+    $participants = @($resolved.plan.participants)
+    if ($participants.Count -ne $engines.Count) { Add-Violation "gauntlet resolved $($participants.Count) participants, expected $($engines.Count)" }
+    $design = $resolved.plan.design
+    $gauntletDesign = $design.format.Gauntlet
+    if (-not $gauntletDesign) { Add-Violation 'tournament format is not gauntlet' }
+    $seeds = [int]$gauntletDesign.seeds
+    $cycles = [int]$gauntletDesign.cycles
+    $gamesPerPair = [int]$design.games_per_pair
+    if ($seeds -ne 1) { Add-Violation "gauntlet has $seeds seeds, expected 1" }
+    if ($gamesPerPair -ne 2) { Add-Violation "gauntlet games_per_pair is $gamesPerPair, expected 2 for paired openings" }
+    $expectedGames = $seeds * ($participants.Count - $seeds) * $cycles * $gamesPerPair
+    if (@($resolved.plan.schedule).Count -ne $expectedGames) {
+        Add-Violation "gauntlet schedule has $(@($resolved.plan.schedule).Count) games, expected $expectedGames"
+    }
+    $expectedOpenings = $seeds * ($participants.Count - $seeds) * $cycles
+    if ([int]$resolved.openings.scheduled_openings -ne $expectedOpenings) {
+        Add-Violation "gauntlet schedules $($resolved.openings.scheduled_openings) openings, expected $expectedOpenings paired openings"
+    }
+    if ([int]$resolved.max_engine_faults -ne 0) { Add-Violation "gauntlet permits $($resolved.max_engine_faults) engine faults, expected 0" }
+    $fixed = @($resolved.fixed_ratings)
+    if ($fixed.Count -ne $participants.Count - $seeds) {
+        Add-Violation "gauntlet fixes $($fixed.Count) opponent ratings, expected $($participants.Count - $seeds)"
+    }
+    for ($i = $seeds; $i -lt $participants.Count; $i++) {
+        $id = "$($participants[$i].participant.id)"
+        $rating = [double]$participants[$i].initial_rating
+        $frozen = @($fixed | Where-Object { "$($_.participant)" -eq $id })
+        if ($frozen.Count -ne 1 -or [double]$frozen[0].rating -ne $rating) {
+            Add-Violation "participant '$($engines[$i].Label)' is not fixed at its initial rating $rating"
+        }
+    }
+    for ($i = 0; $i -lt [Math]::Min($participants.Count, $engines.Count); $i++) {
+        $launch = $participants[$i].participant.launch
+        $hashProperty = $launch.options.PSObject.Properties | Where-Object Name -EQ 'Hash' | Select-Object -First 1
+        if (-not $hashProperty -or [int]$hashProperty.Value.value -ne $Hash) {
+            Add-Violation "participant '$($engines[$i].Label)' Hash is not $Hash"
+        }
+        $threadName = $ThreadOptionNames[$i]
+        $threadProperty = $launch.options.PSObject.Properties | Where-Object Name -EQ $threadName | Select-Object -First 1
+        if (-not $threadProperty -or [int]$threadProperty.Value.value -ne $Threads) {
+            Add-Violation "participant '$($engines[$i].Label)' $threadName is not $Threads"
+        }
+    }
+}
 if ($resolved.openings.path -ne $Book) { Add-Violation "book is '$($resolved.openings.path)', expected '$Book'" }
 if ("$($resolved.openings.order)" -ne 'Random') { Add-Violation "opening order is '$($resolved.openings.order)', expected Random" }
 if ($resolved.openings.wrap) { Add-Violation 'openings wrap; a run must not replay its book' }
@@ -227,11 +317,12 @@ for ($i = 0; $i -lt $engines.Count; $i++) {
     $arm = $engines[$i]; $manifest = $manifests[$arm.Label]
     $lines.Add("engine_$($arm.Label): $($arm.Path)")
     $lines.Add("  sha256:         $(Get-HarnessSha256 $arm.Path)")
-    $lines.Add("  revision:       $($manifest.GitSha)")
-    $lines.Add("  flavor:         $($manifest.Flavor)")
-    $lines.Add("  umbrella:       $($manifest.ArmOption)=$($manifest.ArmState)")
-    $lines.Add("  compiler:       $($manifest.Compiler)")
-    $lines.Add("  bench:          $($manifest.Bench)")
+    $lines.Add("  revision:       $(if ($manifest) { $manifest.GitSha } else { 'external binary; SHA-256 frozen' })")
+    $lines.Add("  flavor:         $(if ($manifest) { $manifest.Flavor } else { 'external' })")
+    $lines.Add("  umbrella:       $(if ($manifest) { "$($manifest.ArmOption)=$($manifest.ArmState)" } else { 'n/a' })")
+    $lines.Add("  compiler:       $(if ($manifest) { $manifest.Compiler } else { 'unknown' })")
+    $lines.Add("  bench:          $(if ($manifest) { $manifest.Bench } else { 'not applicable' })")
+    if ($Mode -eq 'gauntlet') { $lines.Add("  thread_option:  $($ThreadOptionNames[$i])=$Threads") }
 }
 $lines.Add("expect_revision:  $(if ($ExpectRevision) { $ExpectRevision } else { '(manifest only)' })")
 $lines.Add("expect_bench:     $($ExpectBench -join ', ')")
@@ -296,9 +387,57 @@ if ($exit.Kind -ne 'outcome') { throw "colosseum-cli exited $runExit ($($exit.Ki
 $recordPath = Join-Path $Dir 'run-record.json'
 if (-not (Test-Path -LiteralPath $recordPath)) { throw "No run-record.json in $Dir." }
 $record = Get-Content -LiteralPath $recordPath -Raw | ConvertFrom-Json
+$scored = [int]$record.official_sample.scored_games
+if ($Mode -eq 'gauntlet') {
+    $resultPath = Join-Path $Dir 'result.json'
+    if (-not (Test-Path -LiteralPath $resultPath)) { throw "No result.json in $Dir." }
+    $result = Get-Content -LiteralPath $resultPath -Raw | ConvertFrom-Json
+    if ("$($result.status)" -ne 'completed') { throw "Tournament status is '$($result.status)', not completed; see $Dir." }
+    if ([int]$result.engine_faults -ne 0 -or [int]$result.infrastructure_faults -ne 0) {
+        throw "Tournament has $($result.engine_faults) engine and $($result.infrastructure_faults) infrastructure faults; see $Dir."
+    }
+    if ([int]$result.results.games_scheduled -ne $expectedGames -or
+        [int]$result.results.games_scored -ne $expectedGames -or
+        @($result.games).Count -ne $expectedGames -or $scored -ne $expectedGames) {
+        throw "Tournament did not produce the registered $expectedGames-game sample; see $Dir."
+    }
+    $censusPath = Join-Path $Dir 'pgn-census.json'
+    $censusArgs = @(
+        (Join-Path $PSScriptRoot 'diag\pgn_census.py'), '--pgn', (Join-Path $Dir 'games.pgn'),
+        '--engine', $engines[0].Label, '--opponents'
+    ) + @($engines | Select-Object -Skip 1 | ForEach-Object { $_.Label }) + @('--json', $censusPath)
+    $censusOutput = & python @censusArgs 2>&1
+    $censusExit = $LASTEXITCODE
+    if ($censusExit -ne 0) { throw "Independent tournament PGN census failed: $($censusOutput -join ' ')" }
+    $census = Get-Content -LiteralPath $censusPath -Raw | ConvertFrom-Json
+    if ([int]$census.games_in_pgn -ne $expectedGames -or [int]$census.engine_games -ne $expectedGames) {
+        throw "Tournament PGN census found $($census.engine_games) of $($census.games_in_pgn) registered games, expected $expectedGames."
+    }
+    $expectedPairGames = $cycles * $gamesPerPair
+    foreach ($opponent in @($engines | Select-Object -Skip 1)) {
+        $row = $census.records.PSObject.Properties | Where-Object Name -EQ $opponent.Label | Select-Object -First 1
+        if (-not $row -or [int]$row.Value.games -ne $expectedPairGames -or
+            [int]$row.Value.white_games -ne $expectedPairGames / 2 -or
+            [int]$row.Value.black_games -ne $expectedPairGames / 2 -or
+            [int]$row.Value.unfinished -ne 0) {
+            throw "Tournament PGN census does not contain a balanced, finished $expectedPairGames-game row for $($opponent.Label)."
+        }
+    }
+    Add-Content -LiteralPath $manifestPath -Encoding utf8 -Value @(
+        "completed_utc:    $((Get-Date).ToUniversalTime().ToString('u'))"
+        "exit_code:        $runExit ($($exit.Verdict))"
+        "scored_games:     $scored (independent PGN census agrees)"
+        "run_record_sha256: $(Get-HarnessSha256 $recordPath)"
+        "result_sha256:    $(Get-HarnessSha256 $resultPath)"
+        "pgn_sha256:       $(Get-HarnessSha256 (Join-Path $Dir 'games.pgn'))"
+        "pgn_census_sha256: $(Get-HarnessSha256 $censusPath)"
+    )
+    Write-Host "Tournament finished: $scored games, zero faults; PGN census agrees."
+    Write-Host "Manifest: $manifestPath"
+    return
+}
 $status = Get-ColosseumRunStatus -CliPath $cli.Path -Dir $Dir
 if ($status.durable.journal.refused) { throw "Runner journal/checkpoint mismatch: $($status.durable.journal.refused)." }
-$scored = [int]$record.official_sample.scored_games
 Assert-ColosseumRunFaults -Status $status -ScoredGames $scored -TimeLossRateCeiling $TimeLossRateCeiling -Dir $Dir | Out-Null
 
 $recountJson = & python (Join-Path $PSScriptRoot 'diag\colosseum_recount.py') --json $Dir 2>&1
