@@ -235,8 +235,11 @@ changes it mid-way.
 
 Shared conditions: `3+0.03`, Hash 64, one thread, the UHO book in random order
 and paired, no adjudication, a 20 ms time margin, and automatic placement on
-one physical core per game with headroom. Windows CPU 0 is never a timed game
-core; on hybrid CPUs only the highest efficiency class is eligible. The Ryzen
+one shared physical core per non-ponder game with headroom. A registered
+multi-thread run passes `--cores-per-game Threads`; because pondering is off,
+both arms share the slot's core set, and the wrapper requires one physical
+core per engine thread. Windows CPU 0 is never a timed game core; on hybrid
+CPUs only the highest efficiency class is eligible. The Ryzen
 9 5950X production host therefore runs fourteen concurrent match games with
 two physical cores free. A tune runs the registered fifteen slots × thirty
 games per iteration there, because its two perturbation arms share a slot; a
