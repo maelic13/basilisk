@@ -592,12 +592,13 @@ was cut the day before this plan, so Phase A has no release step.
       **16.67 / 6.67 per 1,000**. BAS-M08 replaces HISTORY's unsourced
       2026-09-04 figures; raw PGN and JSON outputs remain ignored.
     - [ ] **A.7.2** `[V]` 4T gauntlet against the four targets and Rarog 2.4.0, 400 games per pair, no adjudication, maintainer-run; a null pair first if the 4T setup changed since BAS-M02.
-      Colosseum replaced the calibrated runner/scheduler, so BAS-M09 freezes
-      the required 10,000-game identical-binary null first. Its accepted dry
-      run resolves one game at a time on this host, four physical cores per
-      arm on the same non-ponder CPU set, one headroom core and no placement
-      asymmetry. The gauntlet remains blocked until the null's full 95% nElo
-      interval lies inside +/-5 with zero disallowed faults.
+      BAS-M09's duplicate null was withdrawn before exposure by maintainer
+      decision 2026-10-01: Basilisk uses the same pinned Colosseum 0.2.0 binary
+      qualified in the Rarog snapshot, and no Rarog engine verdict transfers.
+      BAS-M10 freezes the remaining 2,000-game gauntlet as 200 cycles of two
+      colour-reversed games against each opponent. Its clean dry run resolves
+      1,000 distinct openings, all five fixed ratings, heterogeneous 4T option
+      names, zero permitted faults and symmetric four-core placement.
     - [ ] **A.7.3** `[V]` Oracle deficit meter G(0): rebuild `oracle/hybrid` with the 1.10.1 evaluation, then 3,000 paired games at equal time, no adjudication, maintainer-run.
       A prediction is frozen first; BAS-O01's +322.7 is the prior, on a
       coarser estimator.
@@ -865,7 +866,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.7.2 | LOCAL_QUALIFIED | V | BAS-M09 10k 4T null prepared; gauntlet blocked pending its pass |
+| A.7.2 | LOCAL_QUALIFIED | V | BAS-M09 null waived; BAS-M10 2,000-game 4T gauntlet prepared for maintainer run |
 | A.7.3 | RESEARCH | V | Oracle rebuild with the 1.10.1 evaluation, then a maintainer-run meter |
 | A.7.4 | READY_FOR_IMPLEMENTATION | V | NPS baseline pool |
 

@@ -133,9 +133,9 @@ together, and `python tools/diag/check_roadmap.py` must pass.
 | Evaluation deficit | +232.8 ± 32 Elo against classical Stockfish's HCE under the same search (BAS-O02) |
 | Speed | 3.71 MNPS in Rarog's pooled-PGO measurement (BAS-X34); Basilisk's own pooled baseline at A.7.4 |
 | Conversion | 16.67 draws and 6.67 losses per 1,000 after a persistent piece-up against six anchors (1.10.0; 20 and 8 in 1,200, BAS-M08) |
-| Active experiment | **BAS-M09**: frozen 10,000-game 4T identical-binary Colosseum null, awaiting maintainer start |
-| Current step | **A.7.2** validate the 4T harness null before the maintainer-run gauntlet (`V`) |
-| Long job | A.7.2 null prepared and dry-run qualified; maintainer run owed |
+| Active experiment | **BAS-M10**: frozen 2,000-game 4T baseline gauntlet, awaiting maintainer start |
+| Current step | **A.7.2** maintainer-run 4T gauntlet (`V`); duplicate null waived by maintainer 2026-10-01 |
+| Long job | A.7.2 gauntlet prepared and dry-run qualified; maintainer run owed |
 | Next release | **2.0.0** if the E.2 target gate is met, otherwise **1.11.0**, cut at E.3.2; nothing is released before it unless a correctness repair forces a 1.10.x patch |
 
 ## Next and held work
