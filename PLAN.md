@@ -572,7 +572,16 @@ was cut the day before this plan, so Phase A has no release step.
       eight unit tests passed, a missing UCI option was rejected live, and a
       known regression fails while a new pass is diagnostic only. A frozen
       manifest refuses overwrite; changing the cohort requires a new version.
-- [ ] **A.6** `[R2]` Codebase consolidation analysis: `src/search.cpp` (2,848 lines) and `src/eval.cpp` (2,148 lines) mapped into target modules; the B.1 and C.1 move tables; dead code; the seams a cluster needs. Refactors nothing.
+- [x] **A.6** `[R2]` Codebase consolidation analysis: `src/search.cpp` (3,125 lines) and `src/eval.cpp` (2,148 lines) mapped into target modules; the B.1 and C.1 move tables; dead code; the seams a cluster needs. Refactors nothing. — CLOSED 2026-10-01.
+  `analysis/codebase_consolidation_v1.md` separates engine-shared,
+  per-thread, per-search configuration and mutable search state; fixes the
+  target modules and ordered move tables; and preserves the hot recursive
+  worker and accumulator boundaries behind pooled-PGO floors. The earlier
+  2,848-line search count predated A.5. `time_limit_` and the unconsumed
+  `RootMoveStat` collection are dead; the latter also allocates from the root
+  recursive path. B.1 removes those, A.2.3's seven inert coordinates and the
+  drifted `KBNK Drive` option. C.1 retains the 23 zero evaluation groups for
+  C.0 rather than mistaking traced, consumed zero weights for dead code.
 - [ ] **A.7** Baselines on the 1.10.1 binary.
     - [ ] **A.7.1** `[V]` 1T pool baseline, zero games: census of Basilisk 1.10.0's head-to-heads in the Super Rating Tournament PGN (`D:/chess/results/super_rating_tournament.pgn`, SHA-256 in BAS-X34), and its conversion rate with A.5.5 on the same file.
       Replaces HISTORY's unsourced 2026-09-04 pool figures.
@@ -844,7 +853,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.6 | RESEARCH | R2 | Consolidation analysis; refactors nothing |
 | A.7.1 | READY_FOR_IMPLEMENTATION | V | Zero-game census of the Super Rating Tournament PGN |
 | A.7.2 | READY_FOR_IMPLEMENTATION | V | Maintainer-run 4T gauntlet |
 | A.7.3 | RESEARCH | V | Oracle rebuild with the 1.10.1 evaluation, then a maintainer-run meter |
