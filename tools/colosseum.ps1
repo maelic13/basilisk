@@ -124,7 +124,10 @@ if ($twoArm) {
 }
 Write-Host "  Engine manifests, fingerprints, compilers, flavors and UCI options verified."
 
-$Dir = [System.IO.Path]::GetFullPath($Dir, (Get-Location).Path)
+if (-not [System.IO.Path]::IsPathRooted($Dir)) {
+    $Dir = Join-Path (Get-Location).Path $Dir
+}
+$Dir = [System.IO.Path]::GetFullPath($Dir)
 $storedConfig = Join-Path $Dir 'resolved-config.json'
 if (Test-Path -LiteralPath $storedConfig) {
     $storedSeed = [int](Get-Content -LiteralPath $storedConfig -Raw | ConvertFrom-Json).master_seed
@@ -153,6 +156,7 @@ if ($twoArm) {
     $commandArgs += $ExtraArgs
 }
 $commandArgs += @('--concurrency', "$expectedConcurrency")
+$commandArgs += @('--cores-per-game', "$Threads")
 $commandArgs += @('--seed', "$Seed", '--dir', $Dir)
 
 $resultsDir = Join-Path $PSScriptRoot 'results'
@@ -195,9 +199,12 @@ foreach ($field in @('engine_a', 'engine_b')) {
 if ($resolved.openings.path -ne $Book) { Add-Violation "book is '$($resolved.openings.path)', expected '$Book'" }
 if ("$($resolved.openings.order)" -ne 'Random') { Add-Violation "opening order is '$($resolved.openings.order)', expected Random" }
 if ($resolved.openings.wrap) { Add-Violation 'openings wrap; a run must not replay its book' }
-if ([int]$resolved.execution.concurrency -ne $expectedConcurrency) { Add-Violation "concurrency is $($resolved.execution.concurrency), expected $expectedConcurrency" }
-if ("$($resolved.execution.placement_policy.mode)" -ne 'auto') { Add-Violation 'placement is not auto' }
-if ([int]$resolved.execution.placement_policy.headroom_physical_cores -lt 1) { Add-Violation 'placement leaves no physical-core headroom' }
+try {
+    Assert-HarnessResolvedPlacement -Resolved $resolved `
+        -ExpectedConcurrency $expectedConcurrency -ThreadsPerGame $Threads
+} catch {
+    Add-Violation $_.Exception.Message
+}
 if ([int]$resolved.master_seed -ne $Seed) { Add-Violation "seed is $($resolved.master_seed), expected $Seed" }
 if ($Mode -eq 'sprt') {
     if ("$($resolved.design.parameters.model)" -ne 'normalized') { Add-Violation 'SPRT model is not normalized' }
@@ -240,6 +247,7 @@ $lines.Add("opening_seed:     $Seed")
 $lines.Add("adjudication:     none (natural termination)")
 $lines.Add("hash_mb:          $Hash")
 $lines.Add("threads:          $Threads")
+$lines.Add("cores_per_game:   $($resolved.execution.allocation.cores_per_game)")
 $lines.Add("concurrency:      $($resolved.execution.concurrency)")
 $lines.Add("host_busy_percent: $($hostState.BusyPercent)")
 $lines.Add("host_idle_waived: $($hostState.Waived)")

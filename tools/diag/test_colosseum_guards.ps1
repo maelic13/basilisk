@@ -108,6 +108,42 @@ try {
         Assert-HarnessHostIdle -MaxBusyPercent -1 | Out-Null
     }
 
+    $goodPlacement = [pscustomobject]@{
+        execution = [pscustomobject]@{
+            concurrency = 1
+            placement_policy = [pscustomobject]@{ mode = 'auto'; headroom_physical_cores = 1 }
+            allocation = [pscustomobject]@{ mode = 'shared'; cores_per_game = 4 }
+            slots = @([pscustomobject]@{
+                slot_index = 0
+                asymmetries = @()
+                engine_a = [pscustomobject]@{
+                    physical_core_count = 4
+                    allocation = [pscustomobject]@{
+                        mode = 'enforced'
+                        cpus = @(0..7 | ForEach-Object { [pscustomobject]@{ group = 0; number = $_ } })
+                    }
+                }
+                engine_b = [pscustomobject]@{
+                    physical_core_count = 4
+                    allocation = [pscustomobject]@{
+                        mode = 'enforced'
+                        cpus = @(0..7 | ForEach-Object { [pscustomobject]@{ group = 0; number = $_ } })
+                    }
+                }
+            })
+        }
+    }
+    Invoke-Case 'control: resolved 4T placement' '' {
+        Assert-HarnessResolvedPlacement $goodPlacement 1 4
+    }
+    $badPlacement = $goodPlacement | ConvertTo-Json -Depth 8 | ConvertFrom-Json
+    $badPlacement.execution.allocation.cores_per_game = 1
+    $badPlacement.execution.slots[0].engine_a.physical_core_count = 1
+    $badPlacement.execution.slots[0].engine_b.physical_core_count = 1
+    Invoke-Case 'underallocated 4T placement' 'cores per game is 1, expected 4' {
+        Assert-HarnessResolvedPlacement $badPlacement 1 4
+    }
+
     $wrongPin = Join-Path $scratch 'wrong-pin.json'
     $pin = Get-Content (Join-Path $repo 'tools\colosseum\colosseum.pin.json') -Raw | ConvertFrom-Json
     $pin.sha256 = 'A' * 64

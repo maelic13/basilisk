@@ -222,6 +222,61 @@ function Get-HarnessAffinityCpuList {
     (($cores | Select-Object -First $needed).Cpu -join ',')
 }
 
+function Assert-HarnessResolvedPlacement {
+    <# Verify that a non-ponder match received one physical core per engine thread. #>
+    param(
+        [Parameter(Mandatory)][object]$Resolved,
+        [Parameter(Mandatory)][int]$ExpectedConcurrency,
+        [Parameter(Mandatory)][int]$ThreadsPerGame
+    )
+
+    if ([int]$Resolved.execution.concurrency -ne $ExpectedConcurrency) {
+        throw "concurrency is $($Resolved.execution.concurrency), expected $ExpectedConcurrency"
+    }
+    if ("$($Resolved.execution.placement_policy.mode)" -ne 'auto') {
+        throw 'placement is not auto'
+    }
+    if ([int]$Resolved.execution.placement_policy.headroom_physical_cores -lt 1) {
+        throw 'placement leaves no physical-core headroom'
+    }
+    if ("$($Resolved.execution.allocation.mode)" -ne 'shared') {
+        throw "allocation mode is '$($Resolved.execution.allocation.mode)', expected shared"
+    }
+    if ([int]$Resolved.execution.allocation.cores_per_game -ne $ThreadsPerGame) {
+        throw "cores per game is $($Resolved.execution.allocation.cores_per_game), expected $ThreadsPerGame for Threads=$ThreadsPerGame"
+    }
+
+    $slots = @($Resolved.execution.slots)
+    if ($slots.Count -ne $ExpectedConcurrency) {
+        throw "resolved $($slots.Count) placement slots, expected $ExpectedConcurrency"
+    }
+    $used = [System.Collections.Generic.HashSet[string]]::new()
+    foreach ($slot in $slots) {
+        if (@($slot.asymmetries).Count) {
+            throw "slot $($slot.slot_index) reports placement asymmetry: $($slot.asymmetries -join ', ')"
+        }
+        foreach ($side in @('engine_a', 'engine_b')) {
+            $allocation = $slot.$side
+            if ("$($allocation.allocation.mode)" -ne 'enforced') {
+                throw "slot $($slot.slot_index) $side placement is not enforced"
+            }
+            if ([int]$allocation.physical_core_count -ne $ThreadsPerGame) {
+                throw "slot $($slot.slot_index) $side has $($allocation.physical_core_count) physical cores, expected $ThreadsPerGame"
+            }
+        }
+        $aCpus = @($slot.engine_a.allocation.cpus | ForEach-Object { "$($_.group):$($_.number)" })
+        $bCpus = @($slot.engine_b.allocation.cpus | ForEach-Object { "$($_.group):$($_.number)" })
+        if (($aCpus -join ',') -ne ($bCpus -join ',')) {
+            throw "slot $($slot.slot_index) sides do not share the same non-ponder CPU set"
+        }
+        foreach ($cpu in $aCpus) {
+            if (-not $used.Add($cpu)) {
+                throw "logical CPU $cpu is reused across game slots"
+            }
+        }
+    }
+}
+
 function New-HarnessSeed {
     param([int]$Requested)
 
