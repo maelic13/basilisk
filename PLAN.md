@@ -56,14 +56,14 @@ top 100, established by CCRL's own testing after a public release.
 | Fact | Value | Source |
 |---|---|---|
 | Release | **1.10.1** (2026-09-27), bench-identical to 1.10.0: `bench 13` **14,978,465**, CTest 12/12 release and sanitizer. 1.10.0 was accepted at **+19.18 ± 6.76 Elo** over 1.9.3 at `3+0.03` 1T | BAS-E55; HISTORY |
-| Pool, `3+0.03` 1T | On the Super Rating Tournament's scale (42 engines, 200 games per pair, no adjudication, 2026-09-15), 1.10.0 rates **2994**, which 1.10.1 carries, against Houdini 3 3287, Critter 1.6a 3192, Fritz 16 3173 and Rybka 4.1 3111: rating gaps of **−293, −198, −179 and −117**. Rarog's twelve-engine pool of 2026-09-11 (600 games per pair) read the same order: 1.10.0 at 3012 against Houdini 3 3277, Critter 1.6a 3197, Fritz 16 3165 and Rybka 4 3102. Basilisk's own head-to-heads are read from the tournament PGN at A.7.1 | BAS-X34 |
+| Pool, `3+0.03` 1T | On the Super Rating Tournament's scale (42 engines, 200 games per pair, no adjudication, 2026-09-15), 1.10.0 rates **2994**, which 1.10.1 carries, against Houdini 3 3287, Critter 1.6a 3192, Fritz 16 3173 and Rybka 4.1 3111: rating gaps of **−293, −198, −179 and −117**. Direct 1.10.0 records are **15-26-159, 25-35-140, 25-45-130 and 44-38-118** respectively, 200 games per pair. Rarog's twelve-engine pool of 2026-09-11 (600 games per pair) read the same order: 1.10.0 at 3012 against Houdini 3 3277, Critter 1.6a 3197, Fritz 16 3165 and Rybka 4 3102 | BAS-X34; BAS-M08 |
 | Pool, 4T | Not measured for any 1.10.x (A.7.2) | — |
 | Sibling | Rarog 2.5.0-dev, after its search clusters 1 and 2, rates **3233** and scores **+200** against Basilisk 1.10.1 | BAS-X34 |
 | Search deficit | Classical Stockfish `9587eeeb`'s search driving Basilisk's own 1.9.3 HCE beat native 1.9.3 by **+322.7 ± 36**, while searching fewer nodes per move at lower NPS (round robin, 400 games per pair, logistic estimate, no adjudication). At equal time the oracle completes 25.2 plies at EBF 1.61 against Basilisk's 15.6 at 2.20; at 300k nodes 32.88 plies against 21.47, **98.4%** of that width attributable to search | BAS-O01, BAS-O03, BAS-O04 |
 | Evaluation deficit | Classical Stockfish's HCE beats Basilisk's by **+232.8 ± 32** under the identical search; full classical Stockfish beat 1.9.3 by +516 | BAS-O02 |
 | How the search was attacked before | One mechanism at a time against a tuned optimum: reduction magnitude (BAS-S13–S15, all refuted before games), check-move depth (BAS-S16, −3.48 ± 3.32), check-extension removal (BAS-S08, −10.17 ± 6.52) | EXPERIMENTS §3 |
 | Speed | Board microbenchmarks 22–46% ahead of Rarog's (BAS-X16); **3.71 MNPS** against Rarog's 3.19 in Rarog's pooled-PGO measurement | BAS-X16; BAS-X34 |
-| Conversion | After a persistent piece-up advantage, **17.5 draws and 5.0 losses per 1,000 games** against six HCE-era anchors (1.9.3, Super Rating Tournament); Rarog 2.4.0 24.2 / 3.3 | BAS-X34 |
+| Conversion | After a persistent piece-up advantage against six HCE-era anchors, 1.10.0 records **16.67 draws and 6.67 losses per 1,000 games** (20 and 8 in 1,200); the imported 1.9.3 result was 17.5 / 5.0 and Rarog 2.4.0 24.2 / 3.3 | BAS-M08; BAS-X34 |
 | Endgame truth | **361/480** clean tablebase wins converted at 60k nodes, against the Stockfish reference's 466/480 | BAS-E47 |
 
 Both deficit figures are older than 1.10.x and come from a coarser estimator
@@ -583,8 +583,14 @@ was cut the day before this plan, so Phase A has no release step.
   drifted `KBNK Drive` option. C.1 retains the 23 zero evaluation groups for
   C.0 rather than mistaking traced, consumed zero weights for dead code.
 - [ ] **A.7** Baselines on the 1.10.1 binary.
-    - [ ] **A.7.1** `[V]` 1T pool baseline, zero games: census of Basilisk 1.10.0's head-to-heads in the Super Rating Tournament PGN (`D:/chess/results/super_rating_tournament.pgn`, SHA-256 in BAS-X34), and its conversion rate with A.5.5 on the same file.
-      Replaces HISTORY's unsourced 2026-09-04 pool figures.
+    - [x] **A.7.1** `[V]` 1T pool baseline, zero games: census of Basilisk 1.10.0's head-to-heads in the Super Rating Tournament PGN (`D:/chess/results/super_rating_tournament.pgn`, SHA-256 in BAS-X34), and its conversion rate with A.5.5 on the same file. — CLOSED 2026-10-01.
+      The exact 172,200-game PGN reproduced BAS-X34's hash. Direct records
+      were Houdini 3 15-26-159, Critter 1.6a 25-35-140, Fritz 16 25-45-130
+      and Rybka 4.1 44-38-118, 200 games per pair, balanced colours and zero
+      unfinished. Against the six conversion anchors, 1.10.0 recorded 20
+      draws and 8 losses after a persistent piece-up advantage in 1,200 games:
+      **16.67 / 6.67 per 1,000**. BAS-M08 replaces HISTORY's unsourced
+      2026-09-04 figures; raw PGN and JSON outputs remain ignored.
     - [ ] **A.7.2** `[V]` 4T gauntlet against the four targets and Rarog 2.4.0, 400 games per pair, no adjudication, maintainer-run; a null pair first if the 4T setup changed since BAS-M02.
     - [ ] **A.7.3** `[V]` Oracle deficit meter G(0): rebuild `oracle/hybrid` with the 1.10.1 evaluation, then 3,000 paired games at equal time, no adjudication, maintainer-run.
       A prediction is frozen first; BAS-O01's +322.7 is the prior, on a
@@ -853,7 +859,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.7.1 | READY_FOR_IMPLEMENTATION | V | Zero-game census of the Super Rating Tournament PGN |
 | A.7.2 | READY_FOR_IMPLEMENTATION | V | Maintainer-run 4T gauntlet |
 | A.7.3 | RESEARCH | V | Oracle rebuild with the 1.10.1 evaluation, then a maintainer-run meter |
 | A.7.4 | READY_FOR_IMPLEMENTATION | V | NPS baseline pool |

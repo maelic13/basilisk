@@ -127,14 +127,14 @@ together, and `python tools/diag/check_roadmap.py` must pass.
 | Released baseline | **1.10.1** on `master`, tagged `v1.10.1` (2026-09-27); a correctness patch on 1.10.0 (BAS-C10–C13), which was accepted at +19.18 ± 6.76 Elo over 1.9.3 (BAS-E55) |
 | Development head | `dev`, recreated from `master` at `38c42e6` on 2026-09-28; engine source identical to 1.10.1 |
 | Bench fingerprint | **14,978,465** (`bench 13`, 1.10.0 and 1.10.1); CTest 13/13 release and ASan/UBSan |
-| Pool position, `3+0.03` 1T | 1.10.0 (and 1.10.1) rate 2994 on the Super Rating Tournament's scale against Houdini 3 3287, Critter 1.6a 3192, Fritz 16 3173, Rybka 4.1 3111 (BAS-X34); head-to-heads are read at A.7.1. Rarog 2.5.0-dev rates 3233 and scores +200 against 1.10.1 (BAS-X34) |
+| Pool position, `3+0.03` 1T | 1.10.0 (and 1.10.1) rate 2994 on the Super Rating Tournament's scale. Direct 1.10.0 records: Houdini 3 15-26-159, Critter 1.6a 25-35-140, Fritz 16 25-45-130, Rybka 4.1 44-38-118, 200 games each (BAS-M08). Rarog 2.5.0-dev rates 3233 and scores +200 against 1.10.1 (BAS-X34) |
 | Pool position, 4T | Not measured for 1.10.x (A.7.2) |
 | Search deficit | +322.7 ± 36 Elo equal time against the classical-Stockfish search oracle on 1.9.3 (BAS-O01, round robin); EBF 2.20 against 1.61. Re-measured as a paired G(0) at A.7.3 |
 | Evaluation deficit | +232.8 ± 32 Elo against classical Stockfish's HCE under the same search (BAS-O02) |
 | Speed | 3.71 MNPS in Rarog's pooled-PGO measurement (BAS-X34); Basilisk's own pooled baseline at A.7.4 |
-| Conversion | 17.5 draws and 5.0 losses per 1,000 after a persistent piece-up, against six anchors (1.9.3; RAR-M54); re-read for 1.10.0 at A.7.1 |
+| Conversion | 16.67 draws and 6.67 losses per 1,000 after a persistent piece-up against six anchors (1.10.0; 20 and 8 in 1,200, BAS-M08) |
 | Active experiment | None |
-| Current step | **A.7.1** 1T pool census and conversion, zero games (`V`) |
+| Current step | **A.7.2** maintainer-run 4T gauntlet (`V`) |
 | Long job | None |
 | Next release | **2.0.0** if the E.2 target gate is met, otherwise **1.11.0**, cut at E.3.2; nothing is released before it unless a correctness repair forces a 1.10.x patch |
 
@@ -151,7 +151,6 @@ before its deadline; held items stay unticked in place.
 | E.3.1 tag-driven release flow | Any time between leaves, never inside a registered experiment's window | E.3.2 |
 | Retry triggers the search programme may fire (BAS-S07–S12) | B.0 records which fire and why | B.2.1 |
 | KRPPKRP seven-man truth gap | Independent truth becomes available, or C.5.7 records an explicit exclusion | C.5.7 |
-| Unsourced 2026-09-04 pool figures in HISTORY | A.7.1 replaces them with a sourced census | A.7.1 |
 | Shared host with Rarog | One pinned harness at a time; Basilisk jobs queue with Rarog's | Always |
 
 ## Phase A — Reset: documents, harness, instruments, baselines
@@ -177,7 +176,7 @@ before its deadline; held items stay unticked in place.
     - [x] **A.5.6** `[R2]` Reference-anchored canaries — CLOSED 2026-09-30
 - [x] **A.6** `[R2]` Codebase consolidation analysis: B.1 and C.1 move tables; refactors nothing — CLOSED 2026-10-01
 - [ ] **A.7** Baselines on the 1.10.1 binary
-    - [ ] **A.7.1** `[V]` 1T pool baseline and conversion from the Super Rating Tournament PGN, zero games
+    - [x] **A.7.1** `[V]` 1T pool baseline and conversion from the Super Rating Tournament PGN, zero games — CLOSED 2026-10-01
     - [ ] **A.7.2** `[V]` 4T gauntlet against the four targets and Rarog 2.4.0 (maintainer-run)
     - [ ] **A.7.3** `[V]` Oracle rebuilt with the 1.10.1 evaluation; paired G(0), 3,000 games (maintainer-run)
     - [ ] **A.7.4** `[V]` Pooled-PGO NPS baseline

@@ -63,7 +63,7 @@ ledger evidence:
 | Magnitude and coverage audit of the endgame evaluator; reopened work recorded with its reasons | 6.4 record, "Reopened work, 2026-09-03" |
 | The TT publication redesign: atomic whole-record word accepted for correctness, the coherence repair reverted on measured throughput with the risk recorded | BAS-X2x rows, commits `2bf43fb`, `c378706` |
 | A peer audit of the shared board lineage found three SEE defects of the same kernel shape; Basilisk had no fixtures for them | BAS-X22 |
-| Pool position on 2026-09-04 at `3+0.03` 1T: Houdini 1.5a −197, Critter 1.6a −187, Fritz 16 −178, Rybka 4 −84 | **Unsourced in this ledger**: BAS-X11's 2026-09-04 record is a four-engine Basilisk–Rarog pool without these opponents. The figures most likely come from the fourteen-engine 2026-09-04 pool that Rarog's RAR-M45 extended; that run fitted Basilisk 1.10.0 at 3012 against Houdini 3 3277, Critter 1.6a 3197, Fritz 16 3165, Rybka 4 3102. PLAN A.7.1 re-reads the head-to-heads |
+| Pool position at `3+0.03` 1T | **Sourced 2026-10-01 from the 2026-09-15 Super Rating Tournament PGN**: Basilisk 1.10.0 scored 15-26-159 against Houdini 3, 25-35-140 against Critter 1.6a, 25-45-130 against Fritz 16 and 44-38-118 against Rybka 4.1, 200 games per pair with 100 per colour and zero unfinished. The old 2026-09-04 gaps were unsourced and are retired. BAS-M08; PGN SHA-256 `4e87a36a030dfc696c9328f9f34f60b94784a5303af4c8be92d2db6b2c05103c` |
 
 ## Phase 15 (2026-09-09 → 2026-09-10)
 
@@ -216,7 +216,7 @@ The release revision is the `Version 1.10.1` commit on `master`, tagged
 | Strength | **+19.18 ± 6.76 Elo** over 1.9.3, `3+0.03` 1T, H1 accepted at 4,224 games, LOS 100% (BAS-E55) |
 | 4T smoke gate | Clean: zero crashes, zero time forfeits, 95% lower bound −1.17 Elo |
 | Qualification | CTest 12/12 release and 12/12 under ASan/UBSan; perft exact on all six standard positions; `test_invariants` 18/18 across four seeds |
-| Pool position, `3+0.03` 1T (2026-09-04) | Houdini 1.5a −197, Critter 1.6a −187, Fritz 16 −178, Rybka 4 −84 |
+| Pool position, `3+0.03` 1T (2026-09-15 tournament, recounted 2026-10-01) | Houdini 3 15-26-159, Critter 1.6a 25-35-140, Fritz 16 25-45-130, Rybka 4.1 44-38-118; 200 games per pair, 100 per colour, zero unfinished (BAS-M08) |
 | Accepted risks carried | TT publication coherence (BAS-C05); SEE created-pin and promotion-recapture approximations (BAS-C09) |
 
 The release revision is the `Version 1.10.0` commit on `master`, tagged
