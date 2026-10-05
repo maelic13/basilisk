@@ -3,3 +3,5 @@
 # snapshot verifies in every checkout, and kept out of this repository's
 # language statistics.
 docs/reference/** -text -whitespace linguist-vendored
+# The oracle bridge patch is applied byte-exact.
+tools/oracle/*.patch -text
