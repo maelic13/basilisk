@@ -665,7 +665,9 @@ was cut the day before this plan, so Phase A has no release step.
       BAS-M10 was voided at 659 games by two Houdini 3 crashes against its
       zero-fault rule. BAS-M11 re-runs it in the Colosseum desktop app with
       Hash 512 MB per engine and crashes left to maintainer judgement, read from
-      Basilisk's performance column against the fixed ratings.
+      Basilisk's performance against the five fixed ratings. Rarog 2.5.0 joins
+      as an unrated sixth opponent for comparison (2,400 games), outside the
+      verdict.
     - [ ] **A.7.3** `[V]` Oracle deficit meter G(0)
       Rebuild `oracle/hybrid` with the 1.10.1 evaluation, then 3,000 paired
       games at equal time, no adjudication, maintainer-run.
