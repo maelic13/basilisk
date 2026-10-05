@@ -12,8 +12,8 @@ in `PROCESS.md`; where the engine stands is PLAN §1.
 |---|---|
 | Released baseline | **1.10.1** on `master`, tagged `v1.10.1` (2026-09-27) |
 | Bench fingerprint | **14,978,465** (`bench 13`, 1.10.0 and 1.10.1) |
-| Active experiment | **BAS-M10**: frozen 2,000-game 4T baseline gauntlet |
-| Long job | A.7.2 gauntlet running on the production 5950X since 2026-10-05 12:22 (BAS-M10 amendment 1) |
+| Active experiment | **BAS-M11**: 2,000-game 4T baseline gauntlet, re-run of the void BAS-M10 |
+| Long job | A.7.2 gauntlet registered as BAS-M11; maintainer runs it in the Colosseum app |
 | Next release | **2.0.0** if the E.2 target gate is met, otherwise **1.11.0**, cut at E.3.2 |
 
 ## Model by class
