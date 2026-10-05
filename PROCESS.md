@@ -2,7 +2,7 @@
 
 The recurring procedures: how a leaf is researched, registered, implemented,
 reviewed, gated and closed, and how the build, fit, tune and gate instruments
-are run. `AGENTS.md` holds the rules that stop wrong results, `PLAN.md` the
+are run. `AGENTS.md` and `agents/` hold the rules that stop wrong results, `PLAN.md` the
 roadmap and `DESIGN.md` the engine invariants. This file also owns the
 independence boundary with the donor engines.
 

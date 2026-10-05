@@ -6,7 +6,7 @@ This document is deliberately small and it does not duplicate the others:
 
 | File | Holds |
 |---|---|
-| `AGENTS.md` | how to work: unit of work, ownership, gates, refusal obligations |
+| `AGENTS.md`, `agents/` | how to work: the shared contract, and the rules each kind of task loads (research, implementation, measurement, records) |
 | `PLAN.md` / `GUIDE.md` | what to work on, in order, and its status |
 | `PROCESS.md` | how recurring work is done: packets, clusters, harness, fits, tunes |
 | `EXPERIMENTS.md` | what has been tried, what it measured, retry triggers |
@@ -35,7 +35,7 @@ the whole selectivity stack differs.
 
 A good answer to (1)-(4) is frequently *"this does not fit the current
 architecture; do not implement it yet."* That is a successful outcome of the
-gate, not a failure to deliver. See `AGENTS.md`, "Refutation and refusal".
+gate, not a failure to deliver. See `agents/research.md`, "Refutation and refusal".
 
 ## 2. Evaluation philosophy
 

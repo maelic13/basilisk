@@ -111,7 +111,7 @@ miss and this table is corrected rather than defended.
 
 ## 2. Operating rules
 
-`AGENTS.md` is authoritative for how agents work and `DESIGN.md` for what must
+`AGENTS.md` and its `agents/` task files are authoritative for how agents work and `DESIGN.md` for what must
 stay true of the engine. The rules below decide order and acceptance in this
 roadmap.
 
@@ -1145,7 +1145,8 @@ adjudication never change after games are seen.
 | `PLAN.md` | This roadmap: objective, rules, phases, protocols |
 | `PROCESS.md` | Research, handoff, registration, cluster delivery and the recurring build, fit, tune, gate and release procedures; the independence boundary |
 | `DESIGN.md` | Engine invariants and the four questions every mechanism answers first |
-| `AGENTS.md` | How agents work: unit of work, ownership, refusal duty, verification, evidence, reporting |
+| `AGENTS.md` | How agents work: unit of work, ownership, verification, reporting, and which `agents/` file each task loads |
+| `agents/` | Task rules loaded on demand: research and refusal, implementation, measurement and gates, records and evidence |
 | `EXPERIMENTS.md` | Frozen predictions, results, calibration, imported priors, retry triggers |
 | `HISTORY.md` | Completed work, retired numbering and the number map; never a source of the next step |
 | `analysis/` | Research packets, amendments, implementation records and measurement records; raw artifacts stay in ignored `tools/results/` |
