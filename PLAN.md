@@ -684,6 +684,9 @@ was cut the day before this plan, so Phase A has no release step.
     - [ ] **A.7.4** `[V]` Pooled-PGO NPS baseline
       Pooled-PGO NPS baseline with `nps_ab.ps1`: a self-pair validated first,
       at least two PGO builds per arm, interleaved, idle host.
+      Prepared 2026-10-05 as BAS-P12: `tools/run_a74_nps_baseline.ps1`
+      builds four final-PGO 1.10.1 binaries at `3e5294be`, runs a self pair
+      over all four and builds 1–2 against 3–4; wiring smoke-tested.
 
 ## Phase B — Search programme (evaluation frozen)
 
@@ -990,7 +993,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.7.4 | READY_FOR_IMPLEMENTATION | V | Next leaf: NPS baseline pool |
+| A.7.4 | LOCAL_QUALIFIED | V | Next leaf: BAS-P12 registered and smoke-tested; maintainer run owed |
 
 ## Phase C — Evaluation programme (search frozen)
 

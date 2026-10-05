@@ -12,8 +12,8 @@ in `PROCESS.md`; where the engine stands is PLAN §1.
 |---|---|
 | Released baseline | **1.10.1** on `master`, tagged `v1.10.1` (2026-09-27) |
 | Bench fingerprint | **14,978,465** (`bench 13`, 1.10.0 and 1.10.1) |
-| Active experiment | None |
-| Long job | None |
+| Active experiment | **BAS-P12** (A.7.4): pooled-PGO NPS baseline, registered |
+| Long job | A.7.4 NPS baseline (`tools/run_a74_nps_baseline.ps1`, ~40 min, idle host), maintainer's overnight batch |
 | Next release | **2.0.0** if the E.2 target gate is met, otherwise **1.11.0**, cut at E.3.2 |
 
 ## Model by class
