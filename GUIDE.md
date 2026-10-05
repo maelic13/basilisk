@@ -12,7 +12,7 @@ in `PROCESS.md`; where the engine stands is PLAN §1.
 |---|---|
 | Released baseline | **1.10.1** on `master`, tagged `v1.10.1` (2026-09-27) |
 | Bench fingerprint | **14,978,465** (`bench 13`, 1.10.0 and 1.10.1) |
-| Active experiment | **BAS-O05** (A.7.3): 3,000-game G(0) meter, played; reading pending |
+| Active experiment | None |
 | Long job | None |
 | Next release | **2.0.0** if the E.2 target gate is met, otherwise **1.11.0**, cut at E.3.2 |
 
@@ -34,7 +34,7 @@ generations change. These are maintainer judgments, not measured rankings.
 
 <!-- BEGIN GENERATED FROM PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **A.7.3** `[V]` Oracle deficit meter G(0) — Claude Sonnet 5 — High
+**Next step:** **A.7.4** `[V]` Pooled-PGO NPS baseline — Claude Sonnet 5 — High
 
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
@@ -67,7 +67,7 @@ generations change. These are maintainer judgments, not measured rankings.
 - [ ] **A.7** Baselines on the 1.10.1 binary
     - [x] **A.7.1** `[V]` 1T pool baseline from the Super Rating Tournament
     - [x] **A.7.2** `[V]` 4T gauntlet against the targets and Rarog 2.4.0
-    - [ ] **A.7.3** `[V]` Oracle deficit meter G(0)
+    - [x] **A.7.3** `[V]` Oracle deficit meter G(0)
     - [ ] **A.7.4** `[V]` Pooled-PGO NPS baseline
 
 ### Phase B — Search programme (evaluation frozen)

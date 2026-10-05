@@ -59,17 +59,15 @@ top 100, established by CCRL's own testing after a public release.
 | Pool, `3+0.03` 1T | On the Super Rating Tournament's scale (42 engines, 200 games per pair, no adjudication, 2026-09-15), 1.10.0 rates **2994**, which 1.10.1 carries, against Houdini 3 3287, Critter 1.6a 3192, Fritz 16 3173 and Rybka 4.1 3111: rating gaps of **−293, −198, −179 and −117**. Direct 1.10.0 records are **15-26-159, 25-35-140, 25-45-130 and 44-38-118** respectively, 200 games per pair. Rarog's twelve-engine pool of 2026-09-11 (600 games per pair) read the same order: 1.10.0 at 3012 against Houdini 3 3277, Critter 1.6a 3197, Fritz 16 3165 and Rybka 4 3102 | BAS-X34; BAS-M08 |
 | Pool, 4T | 1.10.1 performs at **3040** [3026, 3054] at 4T against the same four targets and Rarog 2.4.0, priced at their 1T ratings (400 games each, no adjudication): Houdini 3 **−203**, Critter 1.6a **−129**, Fritz 16 **−177**, Rybka 4.1 **−56**, Rarog 2.4.0 **+14**. Rarog 2.5.0 scores **+312** against it | BAS-M11; BAS-M12 |
 | Sibling | Rarog 2.5.0-dev, after its search clusters 1 and 2, rates **3233** and scores **+200** against Basilisk 1.10.1 | BAS-X34 |
-| Search deficit | Classical Stockfish `9587eeeb`'s search driving Basilisk's own 1.9.3 HCE beat native 1.9.3 by **+322.7 ± 36**, while searching fewer nodes per move at lower NPS (round robin, 400 games per pair, logistic estimate, no adjudication). At equal time the oracle completes 25.2 plies at EBF 1.61 against Basilisk's 15.6 at 2.20; at 300k nodes 32.88 plies against 21.47, **98.4%** of that width attributable to search | BAS-O01, BAS-O03, BAS-O04 |
+| Search deficit | On 1.10.1, the same search driving Basilisk's 1.10.1 HCE beats native 1.10.1 by **+312.6 ± 17.8** (paired, 3,000 games, equal time, no adjudication; BAS-O05). Earlier, classical Stockfish `9587eeeb`'s search driving Basilisk's own 1.9.3 HCE beat native 1.9.3 by **+322.7 ± 36**, while searching fewer nodes per move at lower NPS (round robin, 400 games per pair, logistic estimate, no adjudication). At equal time the oracle completes 25.2 plies at EBF 1.61 against Basilisk's 15.6 at 2.20; at 300k nodes 32.88 plies against 21.47, **98.4%** of that width attributable to search | BAS-O05, BAS-O01, BAS-O03, BAS-O04 |
 | Evaluation deficit | Classical Stockfish's HCE beats Basilisk's by **+232.8 ± 32** under the identical search; full classical Stockfish beat 1.9.3 by +516 | BAS-O02 |
 | How the search was attacked before | One mechanism at a time against a tuned optimum: reduction magnitude (BAS-S13–S15, all refuted before games), check-move depth (BAS-S16, −3.48 ± 3.32), check-extension removal (BAS-S08, −10.17 ± 6.52) | EXPERIMENTS §3 |
 | Speed | Board microbenchmarks 22–46% ahead of Rarog's (BAS-X16); **3.71 MNPS** against Rarog's 3.19 in Rarog's pooled-PGO measurement | BAS-X16; BAS-X34 |
 | Conversion | After a persistent piece-up advantage against six HCE-era anchors, 1.10.0 records **16.67 draws and 6.67 losses per 1,000 games** (20 and 8 in 1,200); the imported 1.9.3 result was 17.5 / 5.0 and Rarog 2.4.0 24.2 / 3.3 | BAS-M08; BAS-X34 |
 | Endgame truth | **361/480** clean tablebase wins converted at 60k nodes, against the Stockfish reference's 466/480 | BAS-E47 |
 
-Both deficit figures are older than 1.10.x and come from a coarser estimator
-than a paired run. A.7.3 re-measures the search deficit on 1.10.1 as a paired,
-no-adjudication G(0) against a rebuilt oracle before anything depends on its
-size.
+The evaluation deficit is older than 1.10.x and comes from a coarser estimator
+than a paired run; the search deficit was re-measured on 1.10.1 at A.7.3.
 
 Both halves of the engine have room of the same order. **The search is
 attacked first**, for four reasons:
@@ -671,7 +669,7 @@ was cut the day before this plan, so Phase A has no release step.
       against the five fixed 1T ratings (1T: 2994); Houdini −203, Critter
       −129, Fritz −177, Rybka −56, Rarog 2.4.0 +14; Rarog 2.5.0 −312. Five
       Houdini setup crashes excluded (BAS-M12); deviations in BAS-M11.
-    - [ ] **A.7.3** `[V]` Oracle deficit meter G(0)
+    - [x] **A.7.3** `[V]` Oracle deficit meter G(0)
       Rebuild `oracle/hybrid` with the 1.10.1 evaluation, then 3,000 paired
       games at equal time, no adjudication, maintainer-run.
       A prediction is frozen first; BAS-O01's +322.7 is the prior, on a
@@ -680,7 +678,9 @@ was cut the day before this plan, so Phase A has no release step.
       maintainer: the oracle rebuilt from tag `oracle/hybrid` with `v1.10.1`'s
       `src/` by `tools/oracle/build_oracle.ps1` (conformance 0 mismatches,
       known-bad control fails), 3,000 paired games by
-      `tools/run_a73_oracle_g0.ps1`; clean dry run at `a7bc05b`.
+      `tools/run_a73_oracle_g0.ps1`; clean dry run at `a7bc05b`. — CLOSED
+      2026-10-05: **G(0) = +312.6 ± 17.8** over 3,000 paired games, 0 faults,
+      inside the frozen +250 to +350; the deficit is unchanged from 1.9.3.
     - [ ] **A.7.4** `[V]` Pooled-PGO NPS baseline
       Pooled-PGO NPS baseline with `nps_ab.ps1`: a self-pair validated first,
       at least two PGO builds per arm, interleaved, idle host.
@@ -990,8 +990,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.7.3 | GAME_GATE | V | BAS-O05 registered and dry-run qualified; maintainer run owed |
-| A.7.4 | READY_FOR_IMPLEMENTATION | V | NPS baseline pool |
+| A.7.4 | READY_FOR_IMPLEMENTATION | V | Next leaf: NPS baseline pool |
 
 ## Phase C — Evaluation programme (search frozen)
 
