@@ -135,7 +135,7 @@ together, and `python tools/diag/check_roadmap.py` must pass.
 | Conversion | 16.67 draws and 6.67 losses per 1,000 after a persistent piece-up against six anchors (1.10.0; 20 and 8 in 1,200, BAS-M08) |
 | Active experiment | **BAS-M10**: frozen 2,000-game 4T baseline gauntlet, awaiting maintainer start |
 | Current step | **A.7.2** maintainer-run 4T gauntlet (`V`); duplicate null waived by maintainer 2026-10-01 |
-| Long job | A.7.2 gauntlet prepared and dry-run qualified; maintainer run owed |
+| Long job | A.7.2 gauntlet prepared and dry-run qualified on the production 5950X (BAS-M10 amendment 1); maintainer run owed |
 | Next release | **2.0.0** if the E.2 target gate is met, otherwise **1.11.0**, cut at E.3.2; nothing is released before it unless a correctness repair forces a 1.10.x patch |
 
 ## Next and held work

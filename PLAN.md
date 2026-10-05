@@ -599,6 +599,10 @@ was cut the day before this plan, so Phase A has no release step.
       colour-reversed games against each opponent. Its clean dry run resolves
       1,000 distinct openings, all five fixed ratings, heterogeneous 4T option
       names, zero permitted faults and symmetric four-core placement.
+      Amendment 1 (2026-10-05, before any game) moves the run to the
+      production 5950X: concurrency 3, the Basilisk and Rarog pins rebuilt
+      for that host, everything else unchanged; its clean dry run is at
+      `943f3f8`.
     - [ ] **A.7.3** `[V]` Oracle deficit meter G(0): rebuild `oracle/hybrid` with the 1.10.1 evaluation, then 3,000 paired games at equal time, no adjudication, maintainer-run.
       A prediction is frozen first; BAS-O01's +322.7 is the prior, on a
       coarser estimator.
