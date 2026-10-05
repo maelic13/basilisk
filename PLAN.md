@@ -673,6 +673,11 @@ was cut the day before this plan, so Phase A has no release step.
       games at equal time, no adjudication, maintainer-run.
       A prediction is frozen first; BAS-O01's +322.7 is the prior, on a
       coarser estimator.
+      Prepared 2026-10-05 as BAS-O05 while A.7.2's re-run was paused by the
+      maintainer: the oracle rebuilt from tag `oracle/hybrid` with `v1.10.1`'s
+      `src/` by `tools/oracle/build_oracle.ps1` (conformance 0 mismatches,
+      known-bad control fails), 3,000 paired games by
+      `tools/run_a73_oracle_g0.ps1`; clean dry run at `a7bc05b`.
     - [ ] **A.7.4** `[V]` Pooled-PGO NPS baseline
       Pooled-PGO NPS baseline with `nps_ab.ps1`: a self-pair validated first,
       at least two PGO builds per arm, interleaved, idle host.
@@ -983,7 +988,7 @@ leaf's tag. Later phases carry only a class until they open.
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
 | A.7.2 | LOCAL_QUALIFIED | V | BAS-M09 null waived; BAS-M10 2,000-game 4T gauntlet prepared for maintainer run |
-| A.7.3 | RESEARCH | V | Oracle rebuild with the 1.10.1 evaluation, then a maintainer-run meter |
+| A.7.3 | GAME_GATE | V | BAS-O05 registered and dry-run qualified; maintainer run owed |
 | A.7.4 | READY_FOR_IMPLEMENTATION | V | NPS baseline pool |
 
 ## Phase C — Evaluation programme (search frozen)
