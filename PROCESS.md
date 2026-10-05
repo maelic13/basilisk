@@ -6,6 +6,102 @@ are run. `AGENTS.md` and `agents/` hold the rules that stop wrong results, `PLAN
 roadmap and `DESIGN.md` the engine invariants. This file also owns the
 independence boundary with the donor engines.
 
+## Working with the engine agent
+
+1. Ask **"what measured defect are we fixing?"** before asking which feature
+   to add. Keep unresolved chess or architecture reasoning in `RESEARCH`.
+2. Use the cheapest useful falsifier before expensive coding or games. Search
+   prior negative results and do not retry one unless its recorded trigger
+   fired (`EXPERIMENTS.md` §9).
+3. Promote to `READY_FOR_IMPLEMENTATION` only when the mechanism, semantics,
+   local evidence, interactions, invariants, falsifier and accept/reject rule
+   are frozen.
+4. Let the implementation agent act like a colleague on ordinary code
+   structure, builds, tests and cheap qualification. It does not redesign or
+   broaden the experiment; a false premise returns the leaf to `RESEARCH`,
+   and the researcher answers with a numbered amendment.
+5. The agent prepares and verifies long tournaments, SPRTs, SPSA, datagen,
+   PGO and profiling jobs; the maintainer starts them. One pinned harness at
+   a time on the shared host (Rarog's jobs included), about three SPRT-sized
+   runs per day, SPSA overnight.
+6. Freeze the prediction before exposure; judge the postmortem against it.
+7. A clean negative result is progress. Clusters, not features; compatibility
+   over completeness; donor architecture, own implementation.
+
+| State | Boundary / control |
+|---|---|
+| `RESEARCH` | Evidence, alternatives, interactions, prediction, falsifier and stop rule are being established. |
+| `READY_FOR_IMPLEMENTATION` | Research decision frozen; implementation may make ordinary local engineering choices. |
+| `IMPLEMENTED` | Intended semantics exist; no qualification claim. |
+| `LOCAL_QUALIFIED` | Cheap correctness/performance checks passed; expensive gate prepared. |
+| `GAME_GATE` | Registered playing gate running or resolved under maintainer control. |
+| `CLOSED` | Accepted, rejected, no-change or deferred disposition and calibration recorded. |
+
+### The loop in practice
+
+PLAN §2's *research–implementation loop* is the method; this is who runs each
+turn of it.
+
+| Turn | Class | Prompt | Output |
+|---|---|---|---|
+| Programme or cluster investigation; research amendment after a returned premise | `R3` | research | `analysis/` packet ending in handoffs or `NO_CHANGE`; the next sub-steps |
+| Registration, architecture review, implementation review, audits | `R2` | review, or research for an audit | EXPERIMENTS row; review record with fingerprints reproduced |
+| Cluster implementation | `I2` | implementation | Ordered tickets behind the umbrella switch; implementation record in the packet |
+| Tooling, instruments, behaviour-neutral restructure | `I1` | implementation | Code with its tests and a negative check |
+| Documents, inventories, provenance | `M` | implementation | Documents in their owners |
+| Gate preparation, sweeps, reading returned artifacts | `V` | implementation | One runnable command; the registered verdict applied |
+
+The reviewer is never the implementer's session. A returned premise never
+goes back to the implementer for a fix: it goes to research.
+
+### Reusable research prompt
+
+> Investigate `<PLAN leaf>` as research, not implementation. Read PLAN,
+> EXPERIMENTS (including the retry map), HISTORY's number map, DESIGN, the
+> linked analysis and the relevant source; measured evidence outranks
+> roadmap assumptions. Read the donor (modern Stockfish at the pinned
+> revision for search, TT, histories, time and threads; classical Stockfish
+> `9587eeeb` for the evaluation and as the oracle) for mechanism, population
+> and interaction, never for transcription; read the Rarog snapshot in
+> `docs/reference/rarog/` as a worked example of the same method, never the
+> live Rarog repository and never as a donor. State the precise question, the leading
+> and competing hypotheses, the shared signals and interactions, and whether
+> search, evaluation, tooling or instrument effects could explain it. Design
+> the cheapest discriminating test first; freeze its prediction, confidence,
+> falsifiers and stop rule before exposure. Spawn the implementation and
+> measurement sub-steps the handoff needs under the investigation's step,
+> with a class each. Finish `READY_FOR_IMPLEMENTATION`, `MORE_RESEARCH` or
+> `NO_CHANGE`, with the evidence for that verdict. When answering a returned
+> premise, write a numbered research amendment in the same packet.
+
+### Reusable implementation prompt
+
+> Implement `<PLAN leaf>` from its registered handoff. Treat the research
+> decision, semantics, invariants and experiment design as fixed. Write the
+> donor's mechanism in Basilisk's own structure; do not transcribe. Keep the
+> umbrella-off arm at the exact accepted fingerprint at every commit. Use
+> normal engineering judgment for code, focused builds, debugging, tests and
+> cheap qualification. Do not broaden the mechanism, tune unrelated
+> behaviour, relax a correctness test or continue other roadmap work. If a
+> research premise is false, stop the mechanism, preserve useful
+> instrumentation, document the contradiction with its evidence and options
+> in the packet and return the leaf to `RESEARCH`. Prepare but do not start
+> maintainer-owned expensive jobs. Report changes, interactions, validation,
+> the remaining gate and false assumptions; update PLAN, GUIDE and
+> EXPERIMENTS under their ownership rules.
+
+### Reusable review prompt
+
+> Review `<PLAN leaf>` as an independent reviewer; you did not implement it.
+> Rebuild both arms from clean sources and reproduce every fingerprint the
+> implementation record claims, on each ISA the record names. Run the test
+> suites on both arms. Check the code against the handoff clause by clause:
+> list every deviation, whether it is an ordinary engineering choice or a
+> change of mechanism, and whether the packet records it. Check the
+> invariants in `DESIGN.md` §3 and the interactions the handoff names. Do not
+> fix anything: record accept, accept with named follow-ups, or return to
+> research with the evidence.
+
 ## Research packet and implementation handoff
 
 Use a packet under `analysis/` when the decision would make PLAN unwieldy;
@@ -56,8 +152,8 @@ rewriting the prediction.
 
 ## Step lifecycle
 
-Before selecting a leaf, review GUIDE's checkpoint and holds and PLAN's
-register. Select the earliest unblocked leaf; keep skipped work visible and
+Before selecting a leaf, review GUIDE's *Now* table, next step and held
+steps, and PLAN's register. Select the earliest unblocked leaf; keep skipped work visible and
 return when its unblock condition holds. After one leaf, record its result
 and status, commit the verified work, report the next executable leaf and
 the relevant holds, then stop.

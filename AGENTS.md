@@ -23,7 +23,9 @@ task needs; most leaves need more than one, and closing any leaf needs
 
 ## Unit of work
 
-- Treat PLAN.md as the roadmap and GUIDE.md as its status board.
+- Treat PLAN.md as the roadmap: every step's title, class, status and detail
+  live there. GUIDE.md is the maintainer's overview; its step list is
+  generated from PLAN.
 - First classify the requested work as research/diagnosis, experiment design,
   implementation, deterministic qualification, performance qualification,
   playing-strength gate, or documentation/provenance. A roadmap leaf is not
@@ -36,11 +38,12 @@ task needs; most leaves need more than one, and closing any leaf needs
   when the maintainer asks for it, and always before its stated deadline.
 - Do not start later steps, combine adjacent steps, or pull forward useful
   side work. Mark a parent complete only after all its sub-steps are complete.
-- Finish the requested leaf, verify it proportionately, update PLAN.md and
-  GUIDE.md together, commit it, report briefly, name the next unchecked leaf,
-  and stop for the maintainer's next command.
-- Run `python tools/diag/check_roadmap.py` whenever either roadmap file
-  changes.
+- Finish the requested leaf, verify it proportionately, record it in PLAN.md,
+  regenerate GUIDE.md, commit both, report briefly, name the next unchecked
+  leaf, and stop for the maintainer's next command.
+- After any PLAN change run `python tools/diag/check_roadmap.py --write-guide`;
+  run `python tools/diag/check_roadmap.py` whenever PLAN or GUIDE changes. It
+  fails when GUIDE's generated block is stale.
 
 ## Workflow states and ownership
 
@@ -84,7 +87,7 @@ enough that implementation does not need to invent the chess research.
 
 ## Capability classes
 
-Open PLAN and GUIDE leaves carry a capability tag:
+Open PLAN leaves carry a capability tag, which GUIDE shows:
 
 | Class | Use |
 |---|---|
@@ -98,7 +101,7 @@ Open PLAN and GUIDE leaves carry a capability tag:
 Classes are routing hints, not permission, state or evidence. The editable
 mapping from classes to currently available models belongs only in GUIDE.md.
 Do not silently downgrade a class; if scope or uncertainty calls for
-escalation, say why and update PLAN and GUIDE together. Completed historical
+escalation, say why, change the PLAN tag and regenerate GUIDE. Completed historical
 model tags may remain unchanged.
 
 ## Scope and discoveries
@@ -161,7 +164,7 @@ name says.**
 ## Token-efficient execution
 
 - Orient once per session: these rules, the `agents/` files the task needs,
-  GUIDE's checkpoint and holds, the selected PLAN section. Follow up with
+  GUIDE's *Now* table and next step, the selected PLAN section. Follow up with
   targeted searches and bounded excerpts; re-read only changed regions or to
   answer a concrete question.
 - Batch independent reads and checks; send verbose output to logs and return

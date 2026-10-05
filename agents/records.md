@@ -6,16 +6,19 @@ touches tags.
 
 ## Documents
 
-- `GUIDE.md` and `PLAN.md` change in the same commit when roadmap status or
-  requirements change; an edit only to `AGENTS.md` or `agents/` needs no PLAN
-  or GUIDE churn.
-- GUIDE carries status. Tick a step only when finished and verified, in the
+- A roadmap status or requirement change is made in `PLAN.md` and committed
+  with the regenerated `GUIDE.md`; an edit only to `AGENTS.md` or `agents/`
+  needs no PLAN or GUIDE churn.
+- PLAN carries status. Tick a step only when finished and verified, in the
   commit that finishes it; tick the parent when its last sub-step is ticked.
+- A leaf's first line is its identifier, capability tag and a short title, at
+  most 64 characters: the name GUIDE shows. Everything else goes on the
+  indented lines below it. Never edit GUIDE's generated block by hand.
 - Sub-steps indent by 4 spaces; nothing goes deeper than three levels
   (`C.5.1`). Let `check_roadmap.py` check the structure rather than reading
   the file.
-- Keep GUIDE short: its operator contract, model mapping, prompts, board and
-  checkpoint. What a step involves goes in PLAN, a completed record in
+- Keep GUIDE a one-page overview: its *Now* table, the model mapping and the
+  generated step list. What a step involves goes in PLAN, a completed record in
   HISTORY, a procedure in PROCESS, evidence in EXPERIMENTS, a derivation in
   `analysis/`.
 - `HISTORY.md` is history and resolves every retired numbering scheme; never

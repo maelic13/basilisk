@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""Fail on roadmap synchronization and obvious documentation-process drift."""
+"""Fail on roadmap drift; regenerate GUIDE's step list from PLAN.
+
+PLAN.md is the only place a step is written. Each leaf's first line is its
+identifier, capability tag and a short title; the detail follows on indented
+lines. GUIDE.md's step list, next step and held steps are rendered from PLAN
+between two markers: `--write-guide` rewrites them, and the plain check fails
+when they are stale.
+"""
 
 from __future__ import annotations
 
@@ -56,6 +63,15 @@ GUIDE_FINGERPRINT_ROW = "| Bench fingerprint |"
 # Each document that restates the current fingerprint does it on one line
 # containing this anchor, so a stale copy cannot hide behind a line wrap.
 FINGERPRINT_ANCHORS = (("DESIGN.md", "Bench signature"), ("AGENTS.md", "currently **"))
+# A title is the step's name in GUIDE's overview, not its description.
+TITLE_MAX = 64
+PHASE_HEADING = re.compile(r"^## (Phase [A-Z]\b.*)$")
+MAPPING_ROW = re.compile(r"^\|\s*`(R3|R2|I2|I1|M|V)`\s*\|[^|]*\|\s*(?P<model>[^|]+?)\s*\|\s*$")
+GENERATED_BEGIN = (
+    "<!-- BEGIN GENERATED FROM PLAN.md by `python tools/diag/check_roadmap.py "
+    "--write-guide`; edit PLAN, not this block -->"
+)
+GENERATED_END = "<!-- END GENERATED -->"
 
 
 class Checklist:
@@ -118,16 +134,102 @@ def validate_state_fields(paths: list[Path]) -> None:
                 )
 
 
-def validate_capability_match(
-    plan_capabilities: dict[str, str], guide_capabilities: dict[str, str]
-) -> None:
-    if plan_capabilities == guide_capabilities:
-        return
-    changed = sorted(
-        key for key in set(plan_capabilities) | set(guide_capabilities)
-        if plan_capabilities.get(key) != guide_capabilities.get(key)
+def validate_titles(path: Path) -> None:
+    """A leaf's first line carries only its tag, title and ordering markers."""
+    for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        match = ITEM.match(line)
+        if not match:
+            continue
+        title = CAPABILITY.sub("", match.group("rest"))
+        for marker in (REOPENED, ANY_TIME):
+            title = title.replace(marker, "")
+        title = title.strip()
+        if not title:
+            raise ValueError(f"{path}:{number}: {match.group('id')} has no title")
+        if len(title) > TITLE_MAX:
+            raise ValueError(
+                f"{path}:{number}: {match.group('id')} title is {len(title)} characters "
+                f"(max {TITLE_MAX}); move the detail to the indented lines below it"
+            )
+
+
+def model_mapping(guide_text: str) -> dict[str, str]:
+    mapping = {}
+    for line in guide_text.splitlines():
+        match = MAPPING_ROW.match(line)
+        if match:
+            mapping[match.group(1)] = match.group("model")
+    return mapping
+
+
+def render_guide_block(plan_path: Path, plan: Checklist, mapping: dict[str, str]) -> str:
+    """GUIDE's generated block: the next step, held steps and every step by phase."""
+    titles: dict[str, str] = {}
+    board: list[str] = []
+    phase = None
+    for number, line in enumerate(plan_path.read_text(encoding="utf-8").splitlines(), 1):
+        heading = PHASE_HEADING.match(line)
+        if heading:
+            phase = heading.group(1)
+            board += ["", f"### {phase}", ""]
+            continue
+        match = ITEM.match(line)
+        if not match:
+            continue
+        if phase is None:
+            raise ValueError(f"{plan_path}:{number}: step {match.group('id')} outside a phase")
+        titles[match.group("id")] = match.group("rest")
+        board.append(line.rstrip())
+
+    def describe(key: str) -> str:
+        model = mapping.get(plan.capabilities.get(key, ""))
+        return f"**{key}** {titles[key]}" + (f" — {model}" if model else "")
+
+    ordered_open = ordered_open_leaves(plan)
+    parents = plan.parents
+    out = [GENERATED_BEGIN, ""]
+    out.append("**Next step:** " + (describe(ordered_open[0]) if ordered_open else "none"))
+    held = sorted(
+        (key for key in plan.any_time if not plan.items[key] and key not in parents),
+        key=sort_key,
     )
-    raise ValueError("capability mismatch: " + ", ".join(changed))
+    reopened = sorted(plan.reopened, key=sort_key)
+    if reopened:
+        out += ["", "**Reopened, needing rework:**", ""]
+        out += [f"- {describe(key)}" for key in reopened]
+    if held:
+        out += ["", "**Held `(ANY TIME)` steps**, done between steps when asked:", ""]
+        out += [f"- {describe(key)}" for key in held]
+    out += board
+    out += ["", GENERATED_END]
+    return "\n".join(out)
+
+
+def split_guide(guide_text: str) -> tuple[str, str, str]:
+    begin = guide_text.find(GENERATED_BEGIN)
+    end = guide_text.find(GENERATED_END)
+    if begin < 0 or end < begin or guide_text.count(GENERATED_BEGIN) != 1:
+        raise ValueError("GUIDE.md lacks exactly one generated block between its markers")
+    end += len(GENERATED_END)
+    return guide_text[:begin], guide_text[begin:end], guide_text[end:]
+
+
+def validate_guide(guide_path: Path, rendered: str) -> None:
+    text = guide_path.read_text(encoding="utf-8")
+    _, block, _ = split_guide(text)
+    if block.replace("\r\n", "\n") != rendered:
+        raise ValueError(
+            "GUIDE.md's generated block is stale; run "
+            "`python tools/diag/check_roadmap.py --write-guide`"
+        )
+
+
+def write_guide(guide_path: Path, rendered: str) -> None:
+    raw = guide_path.read_bytes().decode("utf-8")
+    newline = "\r\n" if "\r\n" in raw else "\n"
+    head, _, tail = split_guide(raw.replace("\r\n", "\n"))
+    text = head + rendered + tail
+    guide_path.write_bytes(text.replace("\n", newline).encode("utf-8"))
 
 
 def validate_experiment_ids(path: Path) -> None:
@@ -338,10 +440,42 @@ def self_test() -> None:
         (root / "PLAN.md").write_text(valid.replace("[R2]", "[R4]"), encoding="utf-8")
         expect_failure("malformed capability tag", lambda: checklist(root / "PLAN.md"))
 
-        expect_failure(
-            "PLAN/GUIDE capability mismatch",
-            lambda: validate_capability_match({"1.0.a": "R2"}, {"1.0.a": "I1"}),
+        # GUIDE's step list is rendered from PLAN: a hand edit or a PLAN change
+        # without regeneration is stale, and a description is not a title.
+        phased = (
+            "## Phase A — Reset\n\n"
+            "- [x] **A.1** `[M]` Done\n"
+            "- [ ] **A.2** Parent\n"
+            "    - [ ] **A.2.1** `[I1]` Open\n"
+            "      The detail lives here, never in GUIDE.\n"
         )
+        (root / "PLAN.md").write_text(phased, encoding="utf-8")
+        plan = checklist(root / "PLAN.md")
+        validate_titles(root / "PLAN.md")
+        guide_text = (
+            "| `I1` | Implementation | Model X — High |\n\n"
+            f"{GENERATED_BEGIN}\n{GENERATED_END}\n"
+        )
+        (root / "GUIDE.md").write_text(guide_text, encoding="utf-8")
+        rendered = render_guide_block(root / "PLAN.md", plan, model_mapping(guide_text))
+        if "**Next step:** **A.2.1** `[I1]` Open — Model X — High" not in rendered:
+            raise AssertionError(f"next step misrendered:\n{rendered}")
+        if "The detail lives here" in rendered:
+            raise AssertionError("PLAN detail leaked into GUIDE")
+        expect_failure("a stale GUIDE block", lambda: validate_guide(root / "GUIDE.md", rendered))
+        write_guide(root / "GUIDE.md", rendered)
+        validate_guide(root / "GUIDE.md", rendered)
+        (root / "PLAN.md").write_text(phased.replace("[ ] **A.2.1**", "[x] **A.2.1**"), encoding="utf-8")
+        regenerated = render_guide_block(root / "PLAN.md", checklist(root / "PLAN.md"), {})
+        expect_failure("a PLAN tick not regenerated into GUIDE",
+                       lambda: validate_guide(root / "GUIDE.md", regenerated))
+        (root / "PLAN.md").write_text(
+            phased.replace("`[I1]` Open", "`[I1]` " + "x" * (TITLE_MAX + 1)), encoding="utf-8"
+        )
+        expect_failure("an over-long title", lambda: validate_titles(root / "PLAN.md"))
+        (root / "GUIDE.md").write_text("no markers\n", encoding="utf-8")
+        expect_failure("a GUIDE without its generated block",
+                       lambda: validate_guide(root / "GUIDE.md", rendered))
 
         (root / "state.md").write_text("**State:** INVENTED\n", encoding="utf-8")
         expect_failure("invalid workflow state", lambda: validate_state_fields([root / "state.md"]))
@@ -429,11 +563,18 @@ def main() -> int:
     root = Path(__file__).resolve().parents[2]
     try:
         plan = checklist(root / "PLAN.md")
-        guide = checklist(root / "GUIDE.md")
-        validate_capability_match(plan.capabilities, guide.capabilities)
+        validate_titles(root / "PLAN.md")
+        guide_path = root / "GUIDE.md"
+        rendered = render_guide_block(
+            root / "PLAN.md", plan, model_mapping(guide_path.read_text(encoding="utf-8"))
+        )
+        if "--write-guide" in sys.argv[1:]:
+            write_guide(guide_path, rendered)
+        validate_guide(guide_path, rendered)
 
         process_docs = [
             root / "AGENTS.md",
+            *sorted((root / "agents").glob("*.md")),
             root / "GUIDE.md",
             root / "PLAN.md",
             root / "PROCESS.md",
@@ -447,36 +588,6 @@ def main() -> int:
         validate_state_fields(process_docs)
         validate_experiment_ids(root / "EXPERIMENTS.md")
         validate_local_links(process_docs)
-
-        # Both files must agree on WHICH items carry an ordering exemption, for
-        # the same reason they must agree on which are ticked.
-        for label, plan_set, guide_set in (
-            (REOPENED, plan.reopened, guide.reopened),
-            (ANY_TIME, plan.any_time, guide.any_time),
-        ):
-            if plan_set != guide_set:
-                only_plan = sorted(plan_set - guide_set, key=sort_key)
-                only_guide = sorted(guide_set - plan_set, key=sort_key)
-                raise ValueError(
-                    f"{label} markers differ: PLAN-only {only_plan}, GUIDE-only {only_guide}"
-                )
-
-        if plan.items != guide.items:
-            missing = sorted(set(plan.items) - set(guide.items), key=sort_key)
-            extra = sorted(set(guide.items) - set(plan.items), key=sort_key)
-            changed = sorted(
-                (key for key in set(plan.items) & set(guide.items)
-                 if plan.items[key] != guide.items[key]),
-                key=sort_key,
-            )
-            problems = []
-            if missing:
-                problems.append("GUIDE missing: " + ", ".join(missing))
-            if extra:
-                problems.append("GUIDE extra: " + ", ".join(extra))
-            if changed:
-                problems.append("state mismatch: " + ", ".join(changed))
-            raise ValueError("; ".join(problems))
 
         validate_parents(plan)
         validate_order(plan)

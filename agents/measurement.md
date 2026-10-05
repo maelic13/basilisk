@@ -29,7 +29,7 @@ experiment by `agents/research.md`, *Experiment design*, before it runs.
 - A binary entered in a rated pool is a tagged release or carries its bench
   fingerprint or build flag in its version string, and its ledger row names
   the fingerprint. The harness runner is pinned the same way.
-- The current fingerprint is declared once, in GUIDE's checkpoint;
+- The current fingerprint is declared once, in GUIDE's *Now* table;
   `check_roadmap.py` fails when the restatement in `AGENTS.md` or DESIGN
   disagrees.
 
