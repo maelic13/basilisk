@@ -15,6 +15,10 @@
          mismatches between the bridge and a board parsed by try_set_fen();
       5. the oracle's own bench as its node fingerprint.
 
+    -ExtraPatch applies further patches after the bridge patch, for the
+    Stockfish-side instruments in docs/reference/rarog/refs/ (A.5.4, B.0).
+    They must not touch src/: the identity check runs again after each.
+
     The binary and a manifest with every input's identity are copied to
     tools/test_engines/oracle-<Label>.exe. The worktree is removed afterwards.
     The package's own manifest calls the build "dirty" because it does not know
@@ -27,6 +31,7 @@ param(
     [Parameter(Mandatory)][string]$BasiliskRevision,
     [Parameter(Mandatory)][ValidatePattern('^[A-Za-z0-9._-]+$')][string]$Label,
     [string]$OracleTag = 'oracle/hybrid',
+    [string[]]$ExtraPatch = @(),
     [string]$TestEnginesDir = "$PSScriptRoot\..\test_engines"
 )
 
@@ -50,6 +55,16 @@ try {
     Invoke-Checked 'checkout of src/' { git -C $work checkout $srcCommit -- src }
     Invoke-Checked 'bridge patch' { git -C $work apply --ignore-whitespace $patch }
     Invoke-Checked 'src/ identity check' { git -C $work diff --quiet $srcCommit -- src }
+    # Stockfish-side instrument patches (B.0): the snapshot's
+    # oracle-hybrid-ablate.patch adds the matched AblationMask option. They
+    # never touch src/, so the identity check binds again after each one.
+    $extraPatchRecords = @()
+    foreach ($extra in $ExtraPatch) {
+        $extraPath = (Resolve-Path -LiteralPath $extra).Path
+        Invoke-Checked "extra patch $extraPath" { git -C $work apply --ignore-whitespace $extraPath }
+        Invoke-Checked 'src/ identity after extra patch' { git -C $work diff --quiet $srcCommit -- src }
+        $extraPatchRecords += "$extraPath sha256 $((Get-FileHash -LiteralPath $extraPath -Algorithm SHA256).Hash)"
+    }
 
     Invoke-Checked 'hybrid/build.ps1' { pwsh -NoProfile -File (Join-Path $work 'hybrid\build.ps1') | Out-Host }
     $exe = Join-Path $work 'hybrid\dist\basilisk-stockfish-hce-oracle.exe'
@@ -83,6 +98,7 @@ try {
         "oracle_tag:          $OracleTag ($oracleCommit)"
         "basilisk_src:        $BasiliskRevision ($srcCommit), byte-identical"
         "bridge_patch_sha256: $((Get-FileHash -LiteralPath $patch -Algorithm SHA256).Hash)"
+        "extra_patches:       $(if ($extraPatchRecords.Count) { $extraPatchRecords -join '; ' } else { 'none' })"
         "stockfish:           9587eeeb"
         "compiler:            $compiler"
         "conformance:         $compared positions, $mismatches mismatches"
