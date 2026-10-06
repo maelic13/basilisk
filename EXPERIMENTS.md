@@ -35,6 +35,7 @@ for Basilisk and never bypasses Basilisk's own gates.
   - [Recording contract](#recording-contract)
 - [2. Measurement, harness and tuning](#2-measurement-harness-and-tuning)
 - [3. Search and selectivity](#3-search-and-selectivity)
+  - [Search programme investigation (B.0)](#search-programme-investigation-b0)
   - [Accepted or retained](#accepted-or-retained)
   - [Rejected, neutral or deferred](#rejected-neutral-or-deferred)
 - [4. Root search, time management and SMP](#4-root-search-time-management-and-smp)
@@ -3400,6 +3401,82 @@ margins must stay wide to be safe. If that is right, width is a *symptom* and
 cluster 5.5 (static eval / TT / qsearch separation) and the 5.9 HCE track carry
 the value that 5.4 did not.
 
+### Search programme investigation (B.0)
+
+Zero-game measurements on the 1.10.1 head and two registered game tests,
+2026-10-06. The packet is `analysis/search_programme_2026-10-06.md`; every
+artifact is under `tools/results/b0-20261006/` with hashes in its §15. The
+positions suite is `tools/diag/suite_v2.epd` (suite_v1 minus one illegal
+position the 1.10.1 board rejects; 106 positions). Binaries: the A.7.4
+release `basilisk-a74-nps-pgo1-pext-pgo.exe` (`3e5294be`, bench 14,978,465),
+Tune and Ablate builds of `6c5ee63` (same bench), `oracle-1.10.1.exe`,
+`oracle-1.10.1-ablate.exe` (the A.7.3 recipe plus the snapshot's
+`oracle-hybrid-ablate.patch`; conformance 471,519 positions, 0 mismatches;
+bench 967,078 as the unpatched oracle) and the official Stockfish 19
+`x86-64-universal` binary (tag `sf_19`, `edb0d9db`, the pinned donor).
+
+**BAS-D20 — the deficit is a constant ×4 node multiplier, not per-ply
+growth** (observation). Branching 4→14 on the 103 positions common to all
+arms: Basilisk **1.767** (per-position median 1.697), oracle **1.757**
+(1.773), Stockfish 19 1.549. Nodes Basilisk/oracle **3.50× at depth 4, 3.98×
+at 8, 3.70× at 14**; against Stockfish 19 2.67× rising to 9.95×. At 300,000
+nodes the median completed depth is 14 against the oracle's 18 (gap 4, as
+BAS-D07; mean 5.5 without mate runaways), best-move agreement 66/105. WAC at
+100,000 nodes **204 / 241 / 261** (Basilisk / oracle / Stockfish 19; median
+completed depth 10 / 16 / 17; 50 oracle-only, 13 Basilisk-only), at 400,000
+**242 / 272 / 278**, at fixed depth 10 Basilisk solves 224 first against the
+oracle's 212. Canaries 77/77, 0 regressions. Scale (10,039 positions):
+mean |static| Basilisk **167.9 cp**, classical oracle HCE 301.3 internal
+units, Stockfish 19 search-facing 595.8: ratios **0.282** (per-position
+median 0.293) and **0.557** (unit conversion 0.485). Residual at 50,000 nodes
+(1,997 positions): Basilisk mean |search − static| **92.3 cp** (median 55),
+the oracle's search on the same evaluation 124.9 (median 71), against a mean
+|static| of 164.6. Depth-14 counters on suite_v2: quiescence share 35.5%,
+check extensions 15.6% of interior nodes, RFP cuts 14.2%, null conversion
+49.6%, history pruning 590 of 11.3M tested, LMR applied 36.4% with mean 2.47
+plies and re-search 1.67%, 56.5% of applied reductions at the ceiling,
+`tt_pv` nodes 0.57%, first-move cutoff 89.1%. *Lesson.* BAS-D05–D08's 1.9×
+was a 16-position reading; the whole-suite multiplier is about 4 from depth 4
+on, with equal growth. Stockfish-sized margins cannot be converted by one
+scalar here: the HCE's error is over half its own magnitude. Disposition:
+observation; the numbers are the B.2.2 baselines (packet §10).
+
+**BAS-D21 — matched per-family ablation screens: the ×4 is the move-loop
+pruning family; razoring and LMR cost tactics at a fixed budget**
+(observation; predictions S1–S6 frozen in
+`tools/results/b0-20261006/frozen_predictions_screens.md` before exposure).
+Each `AblationMask` bit alone on both engines, suite_v2 depths 4–12 and WAC
+at 100,000 nodes. Per-position median node factor at depth 12 with the
+family off (Basilisk / oracle): razoring 1.00 / 1.00; RFP 1.34 / 1.28; NMP
+1.22 / 1.08; ProbCut 1.00 / 1.01; IIR (oracle IID) 1.18 / 1.00; **shallow
+move-loop pruning 2.20 / 4.55**; extensions 0.58 / 0.52; LMR 4.54 / 3.41.
+With that family off on both sides the trees are **0.98× at depth 4 and
+1.64× at depth 12** (median 1.23) against 3.49× and 3.97× with everything on.
+WAC at 100,000 nodes with the family off (Basilisk / oracle, baseline 204 /
+241): **razoring 255 / 236**, RFP 197 / 243, NMP 202 / 233, ProbCut 217 /
+247, IIR 202 / 238, shallow pruning 179 / 245, extensions 206 / 248, LMR 219
+/ 236. Single knobs on the Tune build: `QsearchCheckCap=6` 214 (24 gained,
+14 lost, 18 of the 50 oracle-only flipped, +32 positions solved first by
+depth 3, +33% nodes to depth 12); `RazorCoeff=500` 228 (32 of razoring-off's
+59 recovered, +5% nodes), `=400` 223. Calibration: S1 held except ProbCut
+(1.21 against ≤ 1.15) and IIR's aggregate (two positions); S2 and S3 held
+(the oracle's RFP 1.41 against ≥ 1.5 was the one miss); S4 missed in the
+instructive direction (razoring +51, LMR +15, ProbCut +13 against a
+predicted band of ±8); S5 held on three of four counts (+10 against ≥ 11);
+S6 missed on magnitude (32 recovered against ≥ 35). *Lesson.* The oracle
+prunes on better information, not harder: its move-loop family is tactically
+free and carries 4.5× of selectivity; Basilisk's razoring at depth 2–3 and
+its reductions remove tactically live lines, and its extension family costs
+1.9× nodes for no fixed-node tactical return, the same as the oracle's. H2
+(the check policy as the differential) is weakened; H1 is specific. BAS-D02's
+"far too conservative" reading of LMR is withdrawn. Disposition: observation;
+fixed-node screens explain and never accept (PLAN rule 8).
+
+| ID | Experiment and conditions | Result / disposition | Conditional lesson and retry trigger | Source |
+|---|---|---|---|---|
+| BAS-S17 | **Registered, not yet run (B.0.1, maintainer).** Razoring depth reach in Elo: `RazorCoeff=500` against the default 243 on one Tune binary `basilisk-b0-tune-pext-tune-pgo.exe` (`6c5ee63`, bench 14,978,465, SHA-256 `D99C8425…7563`), 2,000 paired games, `3+0.03`, 1T, Hash 64, UHO paired, no adjudication, 14 pinned slots, Colosseum run file; a Tune-build diagnostic, never acceptance. **Prediction (frozen 2026-10-06):** +8 Elo, 80% interval [−4, +20]; probability the point estimate is positive 70%; confidence moderate. Basis: BAS-D21 (razoring off +51 WAC at 100k for +13% nodes; 500 recovers 32 of 59 for +5%). Counter-argument: the `hcefinal` SPSA fitted 243 with 500 as its range maximum. | **Reading rule:** a 95% interval wholly above 0 confirms the reach as a defect and B.2 seeds razoring from the oracle column (depth 1, 256 cp) without a categorical re-test; wholly below 0 keeps 243 as a seed column and B.2.2 settles the depth cap by its own paired run; otherwise the cluster decides. | Fixed-node tactical gain is not Elo; this is the cheapest Elo-layer reading of the single largest fixed-node defect B.0 found. Retry: none; one run, one read. | PLAN B.0.1; packet §11 |
+| BAS-S18 | **Registered, not yet run (B.0.2, maintainer).** The oracle's move-loop pruning family in Elo: `oracle-1.10.1-ablate.exe` (SHA-256 `0E5155CC…8644`) with `AblationMask=32` and `Use Basilisk HCE=true` against Basilisk 1.10.1 (the BAS-O05 arm), the BAS-O05 recipe at 1,000 cycles (2,000 games), equal time `3+0.03`, Hash 64 both, no adjudication; the oracle fixed at 1500, G(32) = 1500 − Basilisk's rating. **Prediction (frozen 2026-10-06):** G(32) = +110, 80% interval [+40, +180], so the family explains about 200 of BAS-O05's 312.6; confidence moderate. | **Reading rule:** G(0) − G(32) is the Elo the oracle's move-loop pruning explains against Basilisk. G(32) ≥ +250 says the family explains under 60 Elo and BAS-D21's node attribution does not carry Elo, which lowers the B.2 prediction P2 below +20 and re-opens the cluster order before B.2.1; G(32) ≤ 0 contradicts the node ratio and points at the instrument first. | PROCESS's matched-ablation instrument, used once for the family B.0 names; NPS cancels in the difference, not in the absolute figure. Retry: none. | PLAN B.0.2; packet §11 |
+
 ### Accepted or retained
 
 | ID | Experiment and conditions | Result / disposition | Conditional lesson | Source |
@@ -3610,8 +3687,8 @@ there rather than here because it is our own measurement.
 
 | Prior IDs | Retry condition | PLAN destination |
 |---|---|---|
-| BAS-S08, BAS-S09, BAS-S11 | Unified pre-move evidence and prospective-depth model implemented; consumers included in a single justified joint fit; post-fit ablations registered. | B.0 records whether the search programme's clusters and fits fire it (B.2, B.3); otherwise F.6 |
-| BAS-S07, BAS-S10, BAS-S12 | Diagnostics show a distinct source/consumer gap that existing histories cannot represent. | B.0 and B.2: cluster 1 changes history ownership and indexing |
+| BAS-S08, BAS-S09, BAS-S11 | Unified pre-move evidence and prospective-depth model implemented; consumers included in a single justified joint fit; post-fit ablations registered. | B.0 (2026-10-06) records: the trigger fires at B.3 on the accepted B.2 head, where pruning is history-informed (BAS-D21) and the check policy, `gives_check` evidence and `cutoffCnt` are fitted jointly; not before |
+| BAS-S07, BAS-S10, BAS-S12 | Diagnostics show a distinct source/consumer gap that existing histories cannot represent. | B.0 (2026-10-06) records: fires for BAS-S07 and BAS-S10 at B.2, which re-indexes the continuation histories by in-check and capture context at plies 1–6 and adopts the donor's exact-node update policy as a unit; BAS-S12's cuckoo repetition is not fired (no missing consumer named) and stays with D.3/D.4 |
 | BAS-R02, BAS-R03 | Root-confidence inputs or evaluator score scale materially change. | D.1; re-audit at F.6 |
 | BAS-P04, BAS-P05, BAS-P06 | A new profile demonstrates changed reuse, cache pressure or PGO coverage. | B.7.2, C.12 or B.2 (TT and caches) by owner |
 | BAS-C05 (both encodings) | A measured 4T-only strength anomaly traced to TT publication, OR a TT redesign that widens the slot for an independent reason (e.g. the multiply-hi indexing deferred in PLAN section 6), OR a pooled `nps_ab.ps1` run showing a coherent layout inside +/-0.5% of plain-key. Reasoning alone does not reopen it: both prior repairs were correct and both lost Elo. | B.0 and B.2 (the TT is part of cluster 1) |

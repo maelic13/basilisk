@@ -34,7 +34,7 @@ generations change. These are maintainer judgments, not measured rankings.
 
 <!-- BEGIN GENERATED FROM PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **B.0** `[R3]` Search programme investigation — Claude Fable 5.1 — High
+**Next step:** **B.0.1** `[V]` Razoring depth reach in Elo (maintainer) — Claude Sonnet 5 — High
 
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
@@ -72,7 +72,9 @@ generations change. These are maintainer judgments, not measured rankings.
 
 ### Phase B — Search programme (evaluation frozen)
 
-- [ ] **B.0** `[R3]` Search programme investigation
+- [ ] **B.0** Search programme investigation
+    - [ ] **B.0.1** `[V]` Razoring depth reach in Elo (maintainer)
+    - [ ] **B.0.2** `[V]` Oracle move-loop pruning family in Elo (maintainer)
 - [ ] **B.1** `[I1]` Search restructure, behaviour-neutral
 - [ ] **B.2** Cluster 1 — the selectivity core
     - [ ] **B.2.0** `[R2]` Architecture review and neutral upgrades

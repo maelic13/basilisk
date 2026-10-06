@@ -712,11 +712,12 @@ What differs is the population each mechanism admits and how the signals that
 gate them are produced and combined. Rarog's donor-shaped clusters succeeded
 exactly where its own increments had failed.
 
-**What "Stockfish-shaped" means, concretely.** The source of record is pinned
-by B.0; the default is official master `0a215d6c` (2026-09-22), the revision
-BAS-C13 already follows. The files are `src/search.cpp`, `movepick.cpp`,
-`history.h`, `tt.cpp`, `timeman.cpp` and `thread.cpp`. Read them; do not copy
-them.
+**What "Stockfish-shaped" means, concretely.** The source of record was
+pinned by B.0 (2026-10-06) at the `sf_19` release tag `edb0d9db`
+(2026-09-05); the `0a215d6c` default is superseded because the release tag
+is reproducible and the reference binary B.0 measured against is built from
+it. The files are `src/search.cpp`, `movepick.cpp`, `history.h`, `tt.cpp`,
+`timeman.cpp` and `thread.cpp`. Read them; do not copy them.
 
 - **Node and stack.** Node types are template parameters (Root, PV, NonPV).
   The per-ply stack holds the static eval, move count, in-check, tt-pv,
@@ -820,12 +821,30 @@ only a meter.
 A rejection returns the cluster to `RESEARCH` with its diagnostics; two
 rejections stop B.
 
-- [ ] **B.0** `[R3]` Search programme investigation
-  Investigation: the Basilisk-versus-Stockfish mechanism map, cluster
+- [ ] **B.0** Search programme investigation
+  Investigation (`R3`): the Basilisk-versus-Stockfish mechanism map, cluster
   contents, scale ratio and seed rule, survivors, SPSA surfaces, B.2.2's
   registered screen numbers, frozen B.2 predictions and handoffs for B.1–B.3.
   No engine source changes.
-  The deliverable is `analysis/search_programme_<date>.md`. It covers:
+  **Research delivered 2026-10-06:** `analysis/search_programme_2026-10-06.md`
+  ends `READY_FOR_IMPLEMENTATION` for B.1 and B.2, B.3 contingent on the
+  accepted B.2 head, with the donor pinned at Stockfish `sf_19` (`edb0d9db`).
+  Measured on the 1.10.1 head (BAS-D20, BAS-D21): per-ply growth equals the
+  oracle's (1.767 against 1.757) but the tree is a constant ×4 from depth 4
+  on; with the shallow move-loop pruning family removed on both matched
+  ablation builds the trees are equal at depth 4, so that family carries the
+  multiplier (oracle 4.5× of selectivity against Basilisk's 2.2×); Basilisk's
+  razoring costs 51 WAC positions at 100k nodes and its LMR 15, where the
+  oracle's cost none; the evaluation scale is 0.282 of Stockfish 19's and
+  0.557 of the oracle's with a residual over half its own magnitude, so the
+  oracle column seeds every evaluation-unit constant. Phase 5's "width is a
+  symptom" premise stays refuted; the check policy is not the differential
+  (both extension families cost 1.9× nodes for no fixed-node tactics) and
+  stays B.3's. Retry triggers recorded: BAS-S07/S10 fire at B.2, BAS-S08/S09/
+  S11 at B.3, BAS-S12 not fired. Two cheap maintainer-run game tests were
+  registered and spawned below; neither blocks B.1, and B.0 closes when both
+  have been read into the packet's calibration.
+  The deliverable covers:
   1. The donor revisions pinned.
   2. Zero-game measurements on the 1.10.1 head, with the A.5 instruments:
      - the branching profile and the depth reached at 300k nodes;
@@ -860,6 +879,24 @@ rejections stop B.
   tests Phase 5's "width is a symptom" premise, and it records which retry
   triggers the programme fires: BAS-S07, BAS-S10 and BAS-S12 name a history
   ownership change; BAS-S08 and BAS-S09 name a joint architecture and fit.
+    - [ ] **B.0.1** `[V]` Razoring depth reach in Elo (maintainer)
+      BAS-S17, registered 2026-10-06: `RazorCoeff=500` against 243 on the
+      B.0 Tune binary, 2,000 paired games at `3+0.03`, no adjudication,
+      through the A.3.1 run-file path; a Tune-build diagnostic, never
+      acceptance. Frozen: +8 Elo, 80% interval [−4, +20]. The reading rule
+      in BAS-S17 decides whether B.2 seeds razoring from the oracle column
+      (depth 1, 256 cp) without a categorical re-test. Prepare the run file
+      and the one runnable command; append the calibration to BAS-S17 and
+      to the packet's §11.
+    - [ ] **B.0.2** `[V]` Oracle move-loop pruning family in Elo (maintainer)
+      BAS-S18, registered 2026-10-06: `oracle-1.10.1-ablate.exe` with
+      `AblationMask=32` (its shallow move-loop pruning off) against Basilisk
+      1.10.1 at equal time, the BAS-O05 recipe at 1,000 cycles (2,000
+      games); G(32) = 1500 − Basilisk's rating. Frozen: G(32) = +110, 80%
+      interval [+40, +180], so the family explains about 200 of the 312.6.
+      G(32) ≥ +250 lowers B.2's prediction P2 and re-opens the cluster order
+      before B.2.1. Prepare from `tools/run_a73_oracle_g0.ps1` with the
+      ablate binary and option; append the calibration to BAS-S18 and §11.
 - [ ] **B.1** `[I1]` Search restructure, behaviour-neutral
   `src/search.cpp` split into modules, node types as template parameters, a
   per-thread worker and stack separated from per-search configuration and
@@ -867,6 +904,11 @@ rejections stop B.
   fingerprint and pooled-PGO NPS within noise.
   The move table comes from A.6 and B.0. Release and sanitizer CTest, and
   exact `bench 13` at every commit.
+  Handoff frozen by B.0 (packet §12.1, 2026-10-06): A.6's tickets 1–8 with
+  `NodeType`, the A.2.3 removals and the two comment corrections; killers,
+  countermove, low-ply history and every live mechanism stay byte-identical
+  in behaviour; the B.0 zero-game baselines (packet §10) are reproduced on
+  the B.1 binary exactly except NPS. Does not wait on B.0.1 or B.0.2.
 - [ ] **B.2** Cluster 1 — the selectivity core
   Cluster 1 — the selectivity core; final contents fixed by B.0.
   Expected contents:
@@ -886,6 +928,17 @@ rejections stop B.
   NMP, ProbCut, singular and extensions keep Basilisk's forms in this
   cluster so that B.3 can measure them separately. Gated at `[0,10]`,
   because the prior is large.
+  Contents fixed by B.0 (packet §5, §12.2, 2026-10-06), changing the list
+  above in five places: razoring in the donor's return shape seeded from
+  the oracle column (depth 1, 256 cp; the cap categorical); RFP in
+  Stockfish 19's shape with the TT-move condition and the blended return;
+  a persisted `tt_pv` bit taken from the age field; killers and countermove
+  dropped, low-ply history kept; and the move-loop family (count pruning
+  as a picker skip, history-adjusted `lmrDepth`, continuation-history
+  pruning, quiet SEE pruning, capture futility, fail-soft futility) named
+  as the primary target, since it carries the ×4 node multiplier
+  (BAS-D21). Seeds, surfaces, screens and the frozen predictions P1–P6 are
+  the packet's §7, §8, §10 and §11.
     - [ ] **B.2.0** `[R2]` Architecture review and neutral upgrades
       Architecture review of the B.1 head: the seams the cluster needs, and
       behaviour-neutral upgrades landed at the exact fingerprint before the
@@ -947,7 +1000,10 @@ rejections stop B.
      false (Rarog, from Manta's MAN-S36). B.2's canaries include quiet mate
      threats, and B.4 may not remove any check generation B.2 turns out to
      rely on. Basilisk's qsearch quiet-check loop, inert at cap 0, is the
-     existing switch.
+     existing switch. B.0 measured it (BAS-D21): at cap 6, WAC at 100k
+     nodes 204 → 214 (24 gained, 14 lost), 32 more positions solved by
+     depth 3, +33% nodes to depth 12; and half of razoring's tactical cost
+     is razoring at depth 1 into the checkless quiescence.
 - [ ] **B.5** `[I2]` Cluster 4 — root and aspiration
   Cluster 4 — root, aspiration and iterative deepening: aspiration centred on
   the root move's average score with width from its mean squared score,
@@ -996,11 +1052,12 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.0 | RESEARCH | R3 | Next leaf: the search programme investigation and its handoffs |
-| B.1 | RESEARCH | I1 | Waits on B.0's move table and A.2.3's removal list |
+| B.0.1 | READY_FOR_IMPLEMENTATION | V | BAS-S17 registered; maintainer-run on the B.0 Tune binary |
+| B.0.2 | READY_FOR_IMPLEMENTATION | V | BAS-S18 registered; maintainer-run on the oracle ablate binary |
+| B.1 | READY_FOR_IMPLEMENTATION | I1 | Handoff frozen in the B.0 packet §12.1; A.6's move table |
 | B.2.0 | RESEARCH | R2 | Waits on B.1's head |
-| B.2.1 | RESEARCH | I2 | Waits on B.0's cluster 1 handoff |
-| B.2.2 | RESEARCH | V | Screen numbers come from B.0 |
+| B.2.1 | READY_FOR_IMPLEMENTATION | I2 | Contract frozen in the B.0 packet §12.2; waits on B.1 and B.2.0 |
+| B.2.2 | RESEARCH | V | Screen numbers registered in the B.0 packet §10 |
 | B.2.3 | RESEARCH | V | Curvature sweep after B.2.2 |
 | B.2.4 | RESEARCH | V | Gates after B.2.3 |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |

@@ -242,9 +242,10 @@ Taken from Rarog's B.2 and B.3, which took it from Manta's 6.5.10.
 ## The independence boundary
 
 Donors (maintainer decision 2026-09-28; PLAN rule 1 points here):
-- **Modern Stockfish** (pinned by B.0; default official master `0a215d6c`)
-  for search, TT, histories, move ordering, time management, threads and the
-  later NNUE runtime.
+- **Modern Stockfish**, pinned by B.0 (2026-10-06) at the `sf_19` release tag
+  `edb0d9db` (2026-09-05), for search, TT, histories, move ordering, time
+  management, threads and the later NNUE runtime. A later revision enters
+  only through a new dated pin recorded in the search programme packet.
 - **Classical Stockfish `9587eeeb`** for the evaluation families, as the
   deficit oracle (`oracle/hybrid`), and as a seed column for eval-coupled
   margins.
