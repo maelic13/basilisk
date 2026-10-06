@@ -172,6 +172,14 @@ map covers only open work.
 | 14.0 | dropped | the HCE stays in the tree as datagen baseline and fallback |
 | "Phase 16" (named by the archived Phase-15 PLAN) | never opened | superseded by the lettered roadmap |
 
+Moved within the current roadmap on 2026-10-06 (maintainer decision; A.8):
+
+| Was | Now | Note |
+|---|---|---|
+| E.3.1 | A.8.6 | tag-driven release flow, done now rather than before E.3 |
+| D.3.3 | A.8.19 | displayed-score normalisation |
+| E.3.2 | E.3 | the release, a leaf once E.3.1 left |
+
 ## Completed current-roadmap work (dated records; PLAN owns IDs)
 
 - **2026-09-28 — PLAN A.1 CLOSED: document reset.** The roadmap was rewritten

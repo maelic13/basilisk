@@ -345,7 +345,8 @@ derivations are in the linked records.
 
 **Goal:** put the documents, harness and instruments of the method in place
 on the released 1.10.1 head, and measure the starting point with them. No
-engine behaviour changes in Phase A. Rarog's Phase A also cut a release; 1.10.1
+engine behaviour changes in A.1–A.7; A.8, added 2026-10-06, carries repairs
+that do. Rarog's Phase A also cut a release; 1.10.1
 was cut the day before this plan, so Phase A has no release step.
 
 - [x] **A.1** Document reset
@@ -632,7 +633,7 @@ was cut the day before this plan, so Phase A has no release step.
   drifted `KBNK Drive` option. C.1 retains the 23 zero evaluation groups for
   C.0 rather than mistaking traced, consumed zero weights for dead code.
 - [x] **A.7** Baselines on the 1.10.1 binary
-  CLOSED 2026-10-06; Phase A is complete.
+  CLOSED 2026-10-06. Phase A reopened the same day with A.8.
     - [x] **A.7.1** `[V]` 1T pool baseline from the Super Rating Tournament
       1T pool baseline, zero games: census of Basilisk 1.10.0's head-to-heads
       in the Super Rating Tournament PGN
@@ -690,6 +691,200 @@ was cut the day before this plan, so Phase A has no release step.
       over all four and builds 1–2 against 3–4; wiring smoke-tested. — CLOSED
       2026-10-06: **4.127M NPS** pooled; self pair +0.11%, build pools +0.04%;
       all three BAS-P12 predictions held.
+
+- [ ] **A.8** Rarog-parity repairs, repository and C++23
+  Added 2026-10-06 by maintainer decision, before B.0's remaining leaves:
+  everything the 2026-10-06 review of Rarog 2.4.0→2.5.0 and of
+  `maelic13/manta#2` and `#4` found applicable to Basilisk
+  (`analysis/rarog_parity_review_2026-10-06.md`, probes by
+  `tools/diag/uci_probe.py`). Unlike A.1–A.7, some leaves change behaviour;
+  each of those has its own research leaf and game gate. SEE recapture
+  promotions are excluded: BAS-C09 closed them and its retry trigger has not
+  fired. After A.8.1, Basilisk reads no more of Rarog.
+    - [ ] **A.8.1** `[M]` Final Rarog import
+      Snapshot Rarog `dev` at `dcf15c51` (2026-10-06) as
+      `docs/reference/rarog-2026-10-06/` with its own manifest, which the
+      checker verifies. Include only what A.8's leaves cite:
+      `CHANGELOG.md`; `docs/PLAN.md`; `docs/PROCESS.md`; `AGENTS.md`;
+      `.github/workflows/`; `xtask/` (`release-check`); `tools/diag/
+      check_guide.py` and `guide_board.py`; `analysis/
+      uci_info_review_2026-09-16.md`, `tb_root_pv_2026-09-27.md` and
+      `b52_research_2026-10-01.md`; and `tests/multipv.rs` and
+      `multipv_syzygy.rs`. Back up a full-history bundle beside the existing
+      ones in ignored storage. `docs/reference/README.md` and
+      `agents/research.md` record that this is the last import (maintainer
+      decision 2026-10-06): Rarog's later findings no longer enter.
+    - [ ] **A.8.2** `[I1]` CI on pull requests to master only
+      `ci.yml` today runs on pushes to `master` and to `development` (no such
+      branch; ours is `dev`) and on every pull request. It runs on pull
+      requests into `master` and on `workflow_dispatch` only, and a newer
+      commit cancels a superseded run. The local loop covers `dev` commits.
+      Verified by one PR run and one manual dispatch.
+    - [ ] **A.8.3** `[M]` Merge commits from dev to master
+      `dev` reaches `master` by a merge commit, never a squash: AGENTS
+      *Commits and reporting*, PROCESS's release procedure and PLAN §5.
+      `master` is already an ancestor of `dev` (checked 2026-10-06), so no
+      joining merge is needed. Review the non-release tags (`archive/
+      nnue-local`, `oracle/hybrid`, `oracle/hybrid-diag`): keep each one a
+      document cites, with its retirement condition. The maintainer changes
+      the repository settings (merge commits allowed; squash off for
+      `master`).
+    - [ ] **A.8.4** `[M]` Documents into docs/, closed Phase A archived
+      `PLAN.md`, `PROCESS.md`, `HISTORY.md`, `EXPERIMENTS.md` and `DESIGN.md`
+      move to `docs/`. The root keeps `GUIDE.md`, `AGENTS.md`, `CLAUDE.md`,
+      `README.md`, `CHANGELOG.md` and `LICENSE`. `check_roadmap.py`, every
+      tool and link that names a moved file, and AGENTS' task table follow;
+      historical records keep their wording. A.1–A.7's records move verbatim
+      to `docs/archive/PLAN-closed-<date>.md` (checked byte for byte before
+      writing), and PLAN keeps a one-paragraph summary and a pointer. A.8
+      stays in PLAN until it closes. Checker passes; no new broken link.
+    - [ ] **A.8.5** `[I1]` Experiment ledger split into entries
+      `docs/EXPERIMENTS.md` (306 KB) keeps its prose, structure and retry
+      map, with an index table of ID (linked), short title and disposition;
+      each entry moves to `docs/experiments/<ID>.md`. Before writing, every
+      entry is rebuilt byte for byte from its file. `check_roadmap.py` fails
+      when the index and the files disagree (a row without a file, a file
+      without a row, a duplicate, a wrong heading); its self-test plants each
+      disagreement. AGENTS', PROCESS's and `agents/records.md`'s registration
+      rules describe entry-plus-index registration.
+    - [ ] **A.8.6** `[I1]` Tag-driven release flow
+      Moved from E.3.1. Today `release.yml` fires on `release: published`, so
+      a release exists before any asset is built, and nothing checks that the
+      tag equals the version. In the new flow, pushing a `vX.Y.Z` tag on
+      `master` runs a workflow that validates first: the tag equals both
+      version sources (`CMakeLists.txt` and `src/constants.h`), the commit
+      is on `master`, and CHANGELOG has a dated section. It then builds every
+      asset read-only, asserts one `bench 13` fingerprint across the matrix
+      equal to the one GUIDE declares, and only then publishes, with notes
+      taken from CHANGELOG. Taken from Rarog's first release through its
+      flow (A.8.1's snapshot):
+      - a pull request into `master` runs the same build as a candidate,
+        so a green PR is a releasable one; a plain `X.Y.Z` version also runs
+        the release check there, a `-dev` version skips it;
+      - the declared fingerprint is read by one parser from one named GUIDE
+        row (Rarog's first tag run read the wrong row and failed every
+        cell);
+      - after a release, the first commit on `dev` bumps to the next `-dev`
+        version, and CHANGELOG's `[Unreleased]` grows as work lands.
+      A `workflow_dispatch` rehearsal runs without a tag. Tag, push and
+      publish stay the maintainer's. Verified by a rehearsal and a PR
+      candidate run.
+    - [ ] **A.8.7** `[I1]` SMP: the chosen thread's line before bestmove
+      Measured 20 of 120 searches at Threads 8 (review item 1). A result
+      carries its thread's PV, depth, score and seldepth. When the merged
+      result is not what thread 0 last printed, the pool prints that
+      result's line before `bestmove`, as Stockfish's
+      `output_pv(*bestThread)` does. The move chosen is unchanged. Tests: the
+      decision as a unit test, and a Threads 8 end-to-end test that fails
+      with the print disabled; `uci_probe.py smp` reads 0 of 120. Exact
+      bench; no SPRT.
+    - [ ] **A.8.8** `[I1]` UCI info conformance
+      Output only (review item 6), each with a protocol test:
+      - Stockfish's field order: `depth seldepth multipv score [bound]
+        nodes nps hashfull tbhits time pv`, with `multipv 1` on every line;
+      - `seldepth` resets each iteration;
+      - a single-PV aspiration fail prints a `lowerbound`/`upperbound` line,
+        on Stockfish's condition (more than 3 s elapsed), so fast games print
+        the same lines as now;
+      - a mated or stalemated root prints one `info depth 0 score mate 0` or
+        `cp 0` line, then `bestmove 0000` (after `stop` under `infinite` or
+        `ponder`);
+      - the final extended tablebase line carries the full field set;
+      - a tablebase root's cursed win or blessed loss shows ±1–49 cp by its
+        distance to the rule-50 border, as Stockfish, not `cp 0`, if the
+        value feeds nothing but the display; otherwise the leaf returns;
+      - `bench` floors elapsed time at 1 ms for `nps`.
+      Exact bench.
+    - [ ] **A.8.9** `[I2]` MultiPV
+      `MultiPV` (default 1, up to 256; capped by the legal or `searchmoves`
+      count): each depth reports the best N lines, each tagged `multipv k`.
+      Lines cut short by a stop carry `lowerbound`/`upperbound`, and
+      `bestmove` is always line 1. At a tablebase root the lines stay within
+      the best-ranked group, as Stockfish. Helper threads keep their present
+      role. At `MultiPV 1` the search and its output are byte-identical:
+      exact bench, the A.8.7 and A.8.8 tests unchanged, and pooled-PGO NPS
+      within noise of the A.7.4 method. Tests on Rarog's `multipv.rs` and
+      `multipv_syzygy.rs` shapes (A.8.1); stop sessions; Threads 4.
+    - [ ] **A.8.10** `[I1]` Command-line commands, fatal errors on stdout
+      Arguments run as engine commands in order, then the process exits:
+      `basilisk bench 13` benches. An unknown argument prints a message and
+      exits 2; with no arguments the UCI loop starts as now. `help` prints
+      what the engine is, how to drive it and where its source is. A fatal
+      exception is reported on stdout as `info string` (and stderr), where
+      harnesses record it. Process-level CTest cases; exact bench.
+    - [ ] **A.8.11** `[I1]` Tablebase PV extension start rule
+      Under a clock, `publish_tablebase_pv` starts only when at least ten
+      move overheads remain before the hard ceiling once the search has
+      ended (Rarog's rule, after a 54 ms cold DTZ read lost a game at 58 ms;
+      review item 5). Without a clock it is unchanged. A unit test holds
+      the rule at those numbers. Exact bench; ponder and tablebase engine
+      tests unchanged.
+    - [ ] **A.8.12** `[I2]` C++23 idiom pass, behaviour-neutral
+      Modern idiom across `src/` without moving code between files (B.1 and
+      C.1 own the moves): `std::format`/`std::print` for UCI and bench
+      output in place of concatenation and the printf family;
+      `std::expected` for FEN, `position` and `setoption` parsing;
+      `std::span`, ranges, `constexpr` tables, `std::to_underlying`,
+      `std::unreachable` and `[[nodiscard]]` where they make code clearer.
+      Per-node code keeps `agents/implementation.md`'s rules. Each commit
+      reproduces the fingerprint; release and sanitizer CTest; pooled-PGO
+      NPS within noise, by A.7.4's method, against the head before the pass.
+    - [ ] **A.8.13** `[R2]` Score bands and in-search tablebase probes
+      Two defects (review items 3 and 4). (a) Known-win evaluations up to
+      27,420 (KBNK prints `cp 22048`) share the band `is_tablebase_decisive`
+      reads as tablebase results. (b) The in-search probe returns a flat
+      ±20,000 as an exact score, at every node from the probe depth and at
+      ply 1, with no zeroing-move condition, no distance and no bound
+      handling. Research the Stockfish shape: a tablebase band of its own
+      between evaluations and mates, holding `win - ply`; evaluations clamped
+      below it; probes only after a zeroing move within the probe limits; a
+      win as a lower bound and a loss as an upper bound, returning on a
+      cutoff and storing at depth + 6; display `cp ±(20000 - plies)`.
+      Required content:
+      - which consumers read the band (pruning and mate guards, the hash
+        table's ply adjustment, the root display, the PV extension);
+      - Rarog's refuted part, moving band values by ply in the table, which
+        changed its bench without tablebases;
+      - the KBNK drive's range under the clamp (BAS-E28/E29);
+      - a prediction and falsifier;
+      - the gate for A.8.15. No current run file sets `SyzygyPath`, so the
+        gate is designed here: an endgame-start cohort with tables on both
+        sides, conversion plus an SPRT, and a faults rule.
+    - [ ] **A.8.14** `[I2]` Score bands and probes, implementation
+      Implements A.8.13's handoff. Qualification by that handoff: a
+      fingerprint change if the clamp reaches the bench, the tablebase tests
+      on the committed fixture, and protocol tests for the display.
+    - [ ] **A.8.15** `[V]` Tablebase-enabled gate
+      A.8.13's registered gate, maintainer-run.
+    - [ ] **A.8.16** `[R2]` Won-endgame time sink
+      A won ending without tablebases spent the whole hard maximum on one move
+      (review item 2: 32,305 ms of a 60 s clock, last `info` at 1,020 ms;
+      Stockfish about 6 s). Establish why the iteration never completes
+      (Rarog's diagnosis: an aspiration cascade of fail-highs on a rising
+      score). Also check whether the maximum itself, more than half the clock
+      at move 86, is a defect. Design a bounded repair, its interaction with
+      the aspiration loop (B.5's cluster) and the stability terms, a frozen
+      prediction and a falsifier. D.1 keeps the general clock audit.
+    - [ ] **A.8.17** `[I1]` Won-endgame time sink, implementation
+      Implements A.8.16's handoff. `uci_probe.py clock` on the review's
+      positions shows the repair. Exact bench unless the handoff says
+      otherwise.
+    - [ ] **A.8.18** `[V]` Won-endgame time sink gate
+      SPRT `[0,3]` at `3+0.03` 1T and a `10+0.1` direction check, as A.8.16
+      registers them; zero time forfeits. Maintainer-run.
+    - [ ] **A.8.19** `[R2]` Displayed-score normalisation
+      Moved from D.3.3. Displayed-score research card: fit a win-rate model
+      on Basilisk's own games, decide the `cp` mapping as Stockfish
+      normalises, then implement. It works on A.8.14's tablebase band, and
+      decides how known-win evaluations display (KBNK `cp 22048` beside KRvK
+      `cp 715`). Display only, gated by identity: exact bench, no SPRT.
+    - [ ] **A.8.20** `[M]` B-programme anchors on the A.8 head
+      Record A.8's fingerprint changes. Re-anchor the B.0 packet's §12
+      handoffs and A.6's move table, which cite line ranges at `2e7914e`, on
+      the A.8 head. State which A.7 baselines stand: G(0) and the gauntlets
+      are 1.10.1's release baselines. The pooled-PGO NPS baseline is re-read
+      if any A.8 leaf moved NPS (maintainer-run). Confirm B.0.1 and B.0.2's
+      registered binaries are pinned and unaffected.
 
 ## Phase B — Search programme (evaluation frozen)
 
@@ -1052,6 +1247,26 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
+| A.8.1 | READY_FOR_IMPLEMENTATION | M | The snapshot's file list is in the leaf |
+| A.8.2 | READY_FOR_IMPLEMENTATION | I1 | Triggers specified in the leaf |
+| A.8.3 | READY_FOR_IMPLEMENTATION | M | Repository settings are the maintainer's |
+| A.8.4 | READY_FOR_IMPLEMENTATION | M | Layout follows the leaf |
+| A.8.5 | READY_FOR_IMPLEMENTATION | I1 | After A.8.4 |
+| A.8.6 | READY_FOR_IMPLEMENTATION | I1 | Moved from E.3.1; Rarog's lessons in the leaf |
+| A.8.7 | READY_FOR_IMPLEMENTATION | I1 | Review item 1; output only |
+| A.8.8 | READY_FOR_IMPLEMENTATION | I1 | Review item 6; output only |
+| A.8.9 | READY_FOR_IMPLEMENTATION | I2 | Identity at MultiPV 1 is the gate |
+| A.8.10 | READY_FOR_IMPLEMENTATION | I1 | Review item 7 |
+| A.8.11 | READY_FOR_IMPLEMENTATION | I1 | Review item 5; Rarog's start rule |
+| A.8.12 | READY_FOR_IMPLEMENTATION | I2 | Behaviour-neutral; NPS within noise |
+| A.8.13 | RESEARCH | R2 | Review items 3 and 4; designs A.8.15's gate |
+| A.8.14 | RESEARCH | I2 | Waits on A.8.13's handoff |
+| A.8.15 | RESEARCH | V | Registered by A.8.13 |
+| A.8.16 | RESEARCH | R2 | Review item 2 |
+| A.8.17 | RESEARCH | I1 | Waits on A.8.16's handoff |
+| A.8.18 | RESEARCH | V | Registered by A.8.16 |
+| A.8.19 | RESEARCH | R2 | Moved from D.3.3; after A.8.14 |
+| A.8.20 | READY_FOR_IMPLEMENTATION | M | After A.8.19 |
 | B.0.1 | READY_FOR_IMPLEMENTATION | V | BAS-S17 registered; maintainer-run on the B.0 Tune binary |
 | B.0.2 | READY_FOR_IMPLEMENTATION | V | BAS-S18 registered; maintainer-run on the oracle ablate binary |
 | B.1 | READY_FOR_IMPLEMENTATION | I1 | Handoff frozen in the B.0 packet §12.1; A.6's move table |
@@ -1299,7 +1514,7 @@ has lost games in both engines (BAS-X02).
 
   Each item is ticked present, absent or different before the donor shape
   is chosen. The forfeit margin is sized on a null pair: BAS-E57's reserve
-  sweep lost −64.81.
+  sweep lost −64.81. The won-endgame time sink is A.8.16's, not this leaf's.
 - [ ] **D.2** `[R2]` Lazy SMP quality
   Self-relative scaling (each engine against itself at 4T and 8T versus 1T:
   Basilisk, Stockfish, Rarog) before any design.
@@ -1325,14 +1540,10 @@ has lost games in both engines (BAS-X02).
       cancellation, result authority, new-game and option resets, command
       ordering, Syzygy thread and halfmove contracts; deterministic
       interleavings plus stress; zero crashes over the pool tournaments.
-    - [ ] **D.3.3** `[R2]` Displayed-score normalisation
-      Displayed-score research card: fit a win-rate model on Basilisk's own
-      games, decide the `cp` mapping and a distinct tablebase-win band as
-      Stockfish normalises, then implement; display-only, gated by identity.
 - [ ] **D.4** `[R2]` Tablebase policy
   Probe depth and limits, WDL and DTZ in conversion, interaction with C.5's
   recognizers; the root and PV lines already follow Stockfish (BAS-C13), and
-  in-search probing is checked for bound-correctness against it.
+  in-search probing does from A.8.14.
 
 ## Phase E — Classical checkpoint and release
 
@@ -1343,27 +1554,11 @@ has lost games in both engines (BAS-X02).
 - [ ] **E.2** `[V]` Classical target gate
   Target gate: the pool measurement of section 1 at 1T and 4T. Met, or not met
   with the measured shortfall per engine recorded.
-- [ ] **E.3** Classical release
-  Release (archived 9.10).
-    - [ ] **E.3.1** `[I1]` Tag-driven release flow (ANY TIME) — before E.3.2
-      Tag-driven release flow (ANY TIME) — must land before E.3.2; on the
-      model of Rarog's E.3.1 (the snapshot's `PLAN.md`). It lands between
-      leaves, never inside a registered experiment's window.
-      Today `release.yml` fires on `release: published`, so a release exists
-      before any asset is built, and nothing checks that the tag equals the
-      version. In the new flow, pushing a `vX.Y.Z` tag on `master` runs a
-      workflow that validates first: the tag equals both version sources
-      (`CMakeLists.txt` and `src/constants.h`), the commit is on `master`,
-      and CHANGELOG has the section. It then builds every asset read-only,
-      asserts one `bench 13` fingerprint across the matrix, and only then
-      publishes with notes from CHANGELOG. A `workflow_dispatch` candidate
-      mode rehearses without a tag. Tag, push and publish stay the
-      maintainer's.
-    - [ ] **E.3.2** `[M]` Release 2.0.0 if E.2 is met, else 1.11.0
-      Release **2.0.0** if E.2 is met, otherwise **1.11.0**: changelog, CTest
-      and sanitizers, target-native ISA checks, reproducible PGO assets,
-      prior-release STC, LTC and 4T gates, cut through E.3.1's flow on
-      maintainer instruction.
+- [ ] **E.3** `[M]` Release 2.0.0 if E.2 is met, else 1.11.0
+  Release (archived 9.10): **2.0.0** if E.2 is met, otherwise **1.11.0**:
+  changelog, CTest and sanitizers, target-native ISA checks, reproducible PGO
+  assets, prior-release STC, LTC and 4T gates, cut through A.8.6's flow on
+  maintainer instruction. (E.3.1 moved to A.8.6 on 2026-10-06.)
 
 ## Phase F — NNUE (own data only)
 
@@ -1453,7 +1648,7 @@ adjudication never change after games are seen.
 
 - A release ships only from a head whose every accepted cluster has a ledger
   row and whose deficit meters were recorded at the checkpoint before it.
-- Nothing is released between now and E.3.2 unless a correctness repair
+- Nothing is released between now and E.3 unless a correctness repair
   forces a patch (1.10.x); there is no interim release after B
   (maintainer decision 2026-09-28).
 - 2.0.0 requires the E.2 gate met. Otherwise the classical release is 1.11.0.
@@ -1461,7 +1656,7 @@ adjudication never change after games are seen.
   4T direction checks whose 95% intervals exclude a loss.
 - An NNUE release requires a win over the last classical release at STC, LTC
   and 4T and a clean platform matrix; it takes the next major version.
-- Tag, push and publish only on maintainer instruction. From E.3.1 on, a
+- Tag, push and publish only on maintainer instruction. From A.8.6 on, a
   release is cut by pushing a `vX.Y.Z` tag on `master`. The workflow
   validates the tag, version sources, branch and changelog section, then
   builds and fingerprint-checks every asset, and publishes only after all of

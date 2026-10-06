@@ -14,7 +14,7 @@ in `PROCESS.md`; where the engine stands is PLAN §1.
 | Bench fingerprint | **14,978,465** (`bench 13`, 1.10.0 and 1.10.1) |
 | Active experiment | None |
 | Long job | None |
-| Next release | **2.0.0** if the E.2 target gate is met, otherwise **1.11.0**, cut at E.3.2 |
+| Next release | **2.0.0** if the E.2 target gate is met, otherwise **1.11.0**, cut at E.3 |
 
 ## Model by class
 
@@ -34,13 +34,12 @@ generations change. These are maintainer judgments, not measured rankings.
 
 <!-- BEGIN GENERATED FROM PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **B.0.1** `[V]` Razoring depth reach in Elo (maintainer) — Claude Sonnet 5 — High
+**Next step:** **A.8.1** `[M]` Final Rarog import — Claude Sonnet 5 — Medium
 
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
 - **B.7.1** `[I1]` Allocation guard (ANY TIME) — before B.7.2 — Claude Sonnet 5 — Medium
 - **D.3.1** `[R2]` Board contract audit (ANY TIME) — before E.1 — Claude Opus 5 — High
-- **E.3.1** `[I1]` Tag-driven release flow (ANY TIME) — before E.3.2 — Claude Sonnet 5 — Medium
 
 ### Phase A — Reset: documents, harness, instruments, baselines
 
@@ -69,6 +68,27 @@ generations change. These are maintainer judgments, not measured rankings.
     - [x] **A.7.2** `[V]` 4T gauntlet against the targets and Rarog 2.4.0
     - [x] **A.7.3** `[V]` Oracle deficit meter G(0)
     - [x] **A.7.4** `[V]` Pooled-PGO NPS baseline
+- [ ] **A.8** Rarog-parity repairs, repository and C++23
+    - [ ] **A.8.1** `[M]` Final Rarog import
+    - [ ] **A.8.2** `[I1]` CI on pull requests to master only
+    - [ ] **A.8.3** `[M]` Merge commits from dev to master
+    - [ ] **A.8.4** `[M]` Documents into docs/, closed Phase A archived
+    - [ ] **A.8.5** `[I1]` Experiment ledger split into entries
+    - [ ] **A.8.6** `[I1]` Tag-driven release flow
+    - [ ] **A.8.7** `[I1]` SMP: the chosen thread's line before bestmove
+    - [ ] **A.8.8** `[I1]` UCI info conformance
+    - [ ] **A.8.9** `[I2]` MultiPV
+    - [ ] **A.8.10** `[I1]` Command-line commands, fatal errors on stdout
+    - [ ] **A.8.11** `[I1]` Tablebase PV extension start rule
+    - [ ] **A.8.12** `[I2]` C++23 idiom pass, behaviour-neutral
+    - [ ] **A.8.13** `[R2]` Score bands and in-search tablebase probes
+    - [ ] **A.8.14** `[I2]` Score bands and probes, implementation
+    - [ ] **A.8.15** `[V]` Tablebase-enabled gate
+    - [ ] **A.8.16** `[R2]` Won-endgame time sink
+    - [ ] **A.8.17** `[I1]` Won-endgame time sink, implementation
+    - [ ] **A.8.18** `[V]` Won-endgame time sink gate
+    - [ ] **A.8.19** `[R2]` Displayed-score normalisation
+    - [ ] **A.8.20** `[M]` B-programme anchors on the A.8 head
 
 ### Phase B — Search programme (evaluation frozen)
 
@@ -128,16 +148,13 @@ generations change. These are maintainer judgments, not measured rankings.
 - [ ] **D.3** Engine lifecycle, protocol and board contracts
     - [ ] **D.3.1** `[R2]` Board contract audit (ANY TIME) — before E.1
     - [ ] **D.3.2** `[R2]` Lifecycle and protocol robustness
-    - [ ] **D.3.3** `[R2]` Displayed-score normalisation
 - [ ] **D.4** `[R2]` Tablebase policy
 
 ### Phase E — Classical checkpoint and release
 
 - [ ] **E.1** `[V]` Attribution checkpoint
 - [ ] **E.2** `[V]` Classical target gate
-- [ ] **E.3** Classical release
-    - [ ] **E.3.1** `[I1]` Tag-driven release flow (ANY TIME) — before E.3.2
-    - [ ] **E.3.2** `[M]` Release 2.0.0 if E.2 is met, else 1.11.0
+- [ ] **E.3** `[M]` Release 2.0.0 if E.2 is met, else 1.11.0
 
 ### Phase F — NNUE (own data only)
 
