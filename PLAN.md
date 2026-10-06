@@ -62,7 +62,7 @@ top 100, established by CCRL's own testing after a public release.
 | Search deficit | On 1.10.1, the same search driving Basilisk's 1.10.1 HCE beats native 1.10.1 by **+312.6 ± 17.8** (paired, 3,000 games, equal time, no adjudication; BAS-O05). Earlier, classical Stockfish `9587eeeb`'s search driving Basilisk's own 1.9.3 HCE beat native 1.9.3 by **+322.7 ± 36**, while searching fewer nodes per move at lower NPS (round robin, 400 games per pair, logistic estimate, no adjudication). At equal time the oracle completes 25.2 plies at EBF 1.61 against Basilisk's 15.6 at 2.20; at 300k nodes 32.88 plies against 21.47, **98.4%** of that width attributable to search | BAS-O05, BAS-O01, BAS-O03, BAS-O04 |
 | Evaluation deficit | Classical Stockfish's HCE beats Basilisk's by **+232.8 ± 32** under the identical search; full classical Stockfish beat 1.9.3 by +516 | BAS-O02 |
 | How the search was attacked before | One mechanism at a time against a tuned optimum: reduction magnitude (BAS-S13–S15, all refuted before games), check-move depth (BAS-S16, −3.48 ± 3.32), check-extension removal (BAS-S08, −10.17 ± 6.52) | EXPERIMENTS §3 |
-| Speed | Board microbenchmarks 22–46% ahead of Rarog's (BAS-X16); **3.71 MNPS** against Rarog's 3.19 in Rarog's pooled-PGO measurement | BAS-X16; BAS-X34 |
+| Speed | Basilisk's own pooled-PGO baseline for 1.10.1 is **4.127M NPS** at `bench 13` on one pinned 5950X core (four builds; self pair +0.11%). Board microbenchmarks 22–46% ahead of Rarog's (BAS-X16); **3.71 MNPS** against Rarog's 3.19 in Rarog's own pooled-PGO measurement | BAS-P12; BAS-X16; BAS-X34 |
 | Conversion | After a persistent piece-up advantage against six HCE-era anchors, 1.10.0 records **16.67 draws and 6.67 losses per 1,000 games** (20 and 8 in 1,200); the imported 1.9.3 result was 17.5 / 5.0 and Rarog 2.4.0 24.2 / 3.3 | BAS-M08; BAS-X34 |
 | Endgame truth | **361/480** clean tablebase wins converted at 60k nodes, against the Stockfish reference's 466/480 | BAS-E47 |
 
@@ -631,7 +631,8 @@ was cut the day before this plan, so Phase A has no release step.
   recursive path. B.1 removes those, A.2.3's seven inert coordinates and the
   drifted `KBNK Drive` option. C.1 retains the 23 zero evaluation groups for
   C.0 rather than mistaking traced, consumed zero weights for dead code.
-- [ ] **A.7** Baselines on the 1.10.1 binary
+- [x] **A.7** Baselines on the 1.10.1 binary
+  CLOSED 2026-10-06; Phase A is complete.
     - [x] **A.7.1** `[V]` 1T pool baseline from the Super Rating Tournament
       1T pool baseline, zero games: census of Basilisk 1.10.0's head-to-heads
       in the Super Rating Tournament PGN
@@ -681,12 +682,14 @@ was cut the day before this plan, so Phase A has no release step.
       `tools/run_a73_oracle_g0.ps1`; clean dry run at `a7bc05b`. — CLOSED
       2026-10-05: **G(0) = +312.6 ± 17.8** over 3,000 paired games, 0 faults,
       inside the frozen +250 to +350; the deficit is unchanged from 1.9.3.
-    - [ ] **A.7.4** `[V]` Pooled-PGO NPS baseline
+    - [x] **A.7.4** `[V]` Pooled-PGO NPS baseline
       Pooled-PGO NPS baseline with `nps_ab.ps1`: a self-pair validated first,
       at least two PGO builds per arm, interleaved, idle host.
       Prepared 2026-10-05 as BAS-P12: `tools/run_a74_nps_baseline.ps1`
       builds four final-PGO 1.10.1 binaries at `3e5294be`, runs a self pair
-      over all four and builds 1–2 against 3–4; wiring smoke-tested.
+      over all four and builds 1–2 against 3–4; wiring smoke-tested. — CLOSED
+      2026-10-06: **4.127M NPS** pooled; self pair +0.11%, build pools +0.04%;
+      all three BAS-P12 predictions held.
 
 ## Phase B — Search programme (evaluation frozen)
 
@@ -993,7 +996,21 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.7.4 | LOCAL_QUALIFIED | V | Next leaf: BAS-P12 registered and smoke-tested; maintainer run owed |
+| B.0 | RESEARCH | R3 | Next leaf: the search programme investigation and its handoffs |
+| B.1 | RESEARCH | I1 | Waits on B.0's move table and A.2.3's removal list |
+| B.2.0 | RESEARCH | R2 | Waits on B.1's head |
+| B.2.1 | RESEARCH | I2 | Waits on B.0's cluster 1 handoff |
+| B.2.2 | RESEARCH | V | Screen numbers come from B.0 |
+| B.2.3 | RESEARCH | V | Curvature sweep after B.2.2 |
+| B.2.4 | RESEARCH | V | Gates after B.2.3 |
+| B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |
+| B.4 | RESEARCH | I2 | Contents fixed by B.0 |
+| B.5 | RESEARCH | I2 | Contents fixed by B.0 |
+| B.6 | RESEARCH | V | Only if the clusters' curvature justifies it |
+| B.7.1 | READY_FOR_IMPLEMENTATION | I1 | Any time between leaves; must land before B.7.2 |
+| B.7.2 | RESEARCH | I1 | After B.7.1, on the new modules |
+| B.8 | RESEARCH | I1 | After the clusters |
+| B.9 | RESEARCH | V | Programme checkpoint |
 
 ## Phase C — Evaluation programme (search frozen)
 

@@ -12,8 +12,8 @@ in `PROCESS.md`; where the engine stands is PLAN §1.
 |---|---|
 | Released baseline | **1.10.1** on `master`, tagged `v1.10.1` (2026-09-27) |
 | Bench fingerprint | **14,978,465** (`bench 13`, 1.10.0 and 1.10.1) |
-| Active experiment | **BAS-P12** (A.7.4): pooled-PGO NPS baseline, registered |
-| Long job | A.7.4 NPS baseline (`tools/run_a74_nps_baseline.ps1`, ~40 min, idle host), maintainer's overnight batch |
+| Active experiment | None |
+| Long job | None |
 | Next release | **2.0.0** if the E.2 target gate is met, otherwise **1.11.0**, cut at E.3.2 |
 
 ## Model by class
@@ -34,7 +34,7 @@ generations change. These are maintainer judgments, not measured rankings.
 
 <!-- BEGIN GENERATED FROM PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **A.7.4** `[V]` Pooled-PGO NPS baseline — Claude Sonnet 5 — High
+**Next step:** **B.0** `[R3]` Search programme investigation — Claude Fable 5.1 — High
 
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
@@ -64,11 +64,11 @@ generations change. These are maintainer judgments, not measured rankings.
     - [x] **A.5.5** `[I1]` PGN conversion instrument
     - [x] **A.5.6** `[R2]` Reference-anchored canaries
 - [x] **A.6** `[R2]` Codebase consolidation analysis
-- [ ] **A.7** Baselines on the 1.10.1 binary
+- [x] **A.7** Baselines on the 1.10.1 binary
     - [x] **A.7.1** `[V]` 1T pool baseline from the Super Rating Tournament
     - [x] **A.7.2** `[V]` 4T gauntlet against the targets and Rarog 2.4.0
     - [x] **A.7.3** `[V]` Oracle deficit meter G(0)
-    - [ ] **A.7.4** `[V]` Pooled-PGO NPS baseline
+    - [x] **A.7.4** `[V]` Pooled-PGO NPS baseline
 
 ### Phase B — Search programme (evaluation frozen)
 
