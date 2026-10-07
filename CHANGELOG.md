@@ -31,6 +31,12 @@ and next step).
   win the fifty-move rule will spoil shows 1–49 cp instead of 0, and `nps` is
   no longer reported a thousand times too low in the first millisecond.
 
+### Added
+
+- **`MultiPV`** (default `1`, up to `256`) reports the best several lines at
+  each depth, best first, for analysis; `bestmove` is always the first line.
+  At `MultiPV 1` the search and its output are unchanged.
+
 ---
 
 ## [1.10.1] - 2026-09-27

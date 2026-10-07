@@ -535,7 +535,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       a running maximum cannot fall, and on the bench positions at depth 10
       it does. Live: a 12 s search printed an `upperbound` line at 8.3 s, and
       KQvK at rule-50 clock 92 shows `cp 49` with the 3-6-man tables.
-    - [ ] **A.8.9** `[I2]` MultiPV
+    - [x] **A.8.9** `[I2]` MultiPV
       `MultiPV` (default 1, up to 256; capped by the legal or `searchmoves`
       count): each depth reports the best N lines, each tagged `multipv k`.
       Lines cut short by a stop carry `lowerbound`/`upperbound`, and
@@ -545,6 +545,20 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       exact bench, the A.8.7 and A.8.8 tests unchanged, and pooled-PGO NPS
       within noise of the A.7.4 method. Tests on Rarog's `multipv.rs` and
       `multipv_syzygy.rs` shapes (A.8.1); stop sessions; Threads 4.
+      — CLOSED 2026-10-07 (`d1ad178`). Lines 2..N search the root at full
+      width, without the moves already reported, and store no root
+      hash-table entry. Deviations, each with its reason:
+      - the lines are sorted by score, so `bestmove` is the top line and may
+        differ from the first line's move (line 2 scored above line 1 in
+        testing; Stockfish sorts the same way);
+      - a line a stop cuts short is not reported, and its previous depth
+        stands, rather than a bound-marked partial line;
+      - with MultiPV > 1 the main thread answers and the helpers do not
+        vote, as in Stockfish.
+      Identity at MultiPV 1: bench 14,978,465, and info lines identical
+      line for line (a test). NPS by BAS-P13: +1.13% [+0.91, +1.91] against
+      1.10.1, the condition met; the gain is unexplained and not claimed.
+      Release CTest 13/13.
     - [ ] **A.8.10** `[I1]` Command-line commands, fatal errors on stdout
       Arguments run as engine commands in order, then the process exits:
       `basilisk bench 13` benches. An unknown argument prints a message and
@@ -999,7 +1013,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.8.9 | READY_FOR_IMPLEMENTATION | I2 | Identity at MultiPV 1 is the gate |
 | A.8.10 | READY_FOR_IMPLEMENTATION | I1 | Review item 7 |
 | A.8.11 | READY_FOR_IMPLEMENTATION | I1 | Review item 5; Rarog's start rule |
 | A.8.12 | READY_FOR_IMPLEMENTATION | I2 | Behaviour-neutral; NPS within noise |
