@@ -111,6 +111,7 @@ struct SearchResult {
     Move    pondermove = MOVE_NONE;
     int     score      = 0;
     int     depth      = 0;
+    int     seldepth   = 0;
     int64_t nodes      = 0;
     int64_t tbhits     = 0;
     int64_t elapsed_ms = 0;
@@ -127,6 +128,20 @@ inline bool is_tablebase_decisive(int score) {
 }
 
 SearchResult sanitize_search_result(const Board& root_board, SearchResult result);
+
+// One UCI `info` line for a completed iteration. `pv` must already be legal
+// from the root; the caller owns any tablebase extension.
+std::string format_info_line(int depth, int seldepth, int score, int64_t nodes,
+                             double elapsed, int64_t tbhits, int hashfull,
+                             const std::vector<Move>& pv);
+
+// The longest legal prefix of `line` played from `root`.
+std::vector<Move> legal_line(const Board& root, const std::vector<Move>& line);
+
+// Whether a multi-thread search must print the merged result's line before
+// `bestmove`: the last line a GUI saw is the main thread's, and it describes
+// the merged result only when move and depth agree.
+bool needs_pool_line(const SearchResult& merged, const SearchResult& main_thread);
 
 class Searcher {
 public:

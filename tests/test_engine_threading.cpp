@@ -11,6 +11,7 @@
 #include "test_harness.h"
 #include "syzygy_fixture.h"
 #include "zobrist.h"
+#include "bench.h"
 
 #include <algorithm>
 #include <atomic>
@@ -299,6 +300,59 @@ void test_smp_machinery_is_inert_on_a_single_thread() {
     }
 }
 
+// The last `info ... pv` line before each `bestmove` names the move played.
+// At Threads 8 the merged result is often a helper's: before the pool printed
+// it, 20 of 120 short searches over the bench positions ended on a line naming
+// another move. Forty searches at 40 ms leave a defect like that nowhere to hide.
+void test_threaded_last_line_names_bestmove() {
+    EngineSession session;
+    session.set_option("name Threads value 8");
+    session.sync();
+
+    int searches = 0;
+    for (std::string_view fen : bench_fens()) {
+        session.position("fen " + std::string(fen));
+        session.go("movetime 40");
+        ++searches;
+        if (!session.wait_for_bestmoves(searches, 5000))
+            break;
+    }
+
+    std::istringstream input(session.output());
+    std::string line;
+    std::string last_pv_move;
+    int checked = 0;
+    int mismatches = 0;
+    while (std::getline(input, line)) {
+        if (line.rfind("info ", 0) == 0) {
+            const size_t pv = line.find(" pv ");
+            if (pv != std::string::npos) {
+                const size_t start = pv + 4;
+                last_pv_move = line.substr(start, line.find(' ', start) - start);
+            }
+        } else if (line.rfind("bestmove ", 0) == 0) {
+            const size_t start = 9;
+            const std::string played = line.substr(start, line.find(' ', start) - start);
+            ++checked;
+            if (played != last_pv_move) {
+                ++mismatches;
+                std::fprintf(stderr, "  bestmove %s after a last line naming %s\n",
+                             played.c_str(), last_pv_move.c_str());
+            }
+            last_pv_move.clear();
+        }
+    }
+
+    begin_section("engine threads: every search at Threads 8 answers");
+    EXPECT_EQ(checked, searches);
+    EXPECT_EQ(searches, 40);
+    end_section();
+
+    begin_section("engine threads: the last info line names bestmove at Threads 8");
+    EXPECT_EQ(mismatches, 0);
+    end_section();
+}
+
 void test_go_perft_returns_nodes_without_bestmove() {
     EngineSession session;
     session.position("startpos");
@@ -482,6 +536,7 @@ int main() {
     std::printf("\nThreaded search\n");
     test_threaded_go_nodes_returns_one_bestmove();
     test_smp_machinery_is_inert_on_a_single_thread();
+    test_threaded_last_line_names_bestmove();
 
     std::printf("\nRoot commands\n");
     test_go_perft_returns_nodes_without_bestmove();

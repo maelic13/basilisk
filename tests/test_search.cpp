@@ -628,6 +628,45 @@ static void test_search_result_sanitizer() {
     end_section();
 }
 
+// A multi-thread search prints the merged result's line before `bestmove`
+// exactly when the main thread's last line does not describe it.
+static void test_pool_line_decision() {
+    SearchResult main_thread;
+    main_thread.bestmove = make_move(E2, E4);
+    main_thread.depth = 12;
+
+    SearchResult same = main_thread;
+    same.pv = {make_move(E2, E4), make_move(E7, E5)};
+    SearchResult other_move = main_thread;
+    other_move.bestmove = make_move(D2, D4);
+    SearchResult deeper = main_thread;
+    deeper.depth = 13;
+
+    begin_section("pool line: not printed when the main thread's line describes the result");
+    EXPECT(!needs_pool_line(same, main_thread));
+    end_section();
+
+    begin_section("pool line: printed for a helper's move or a deeper result");
+    EXPECT(needs_pool_line(other_move, main_thread));
+    EXPECT(needs_pool_line(deeper, main_thread));
+    end_section();
+
+    begin_section("pool line: never printed without a move");
+    EXPECT(!needs_pool_line(SearchResult{}, main_thread));
+    end_section();
+
+    begin_section("pool line: the printed line is the legal prefix from the root");
+    Board board;
+    board.set_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+    const std::vector<Move> line = {make_move(E2, E4), make_move(E7, E5), make_move(E4, E5)};
+    EXPECT_EQ(legal_line(board, line).size(), size_t(2));
+    const std::string text = format_info_line(9, 14, 31, 1000, 0.5, 0, 7, legal_line(board, line));
+    EXPECT(text.find("info depth 9 seldepth 14 score cp 31 nodes 1000 nps 2000") == 0);
+    EXPECT(text.find(" pv e2e4 e7e5") != std::string::npos);
+    EXPECT(text.find("e4e5") == std::string::npos);
+    end_section();
+}
+
 static void test_tournament_infraction_positions() {
     {
         static constexpr const char* FEN =
@@ -1138,6 +1177,7 @@ int main() {
 
     std::printf("\nIllegal move hardening\n");
     test_search_result_sanitizer();
+    test_pool_line_decision();
     test_tournament_infraction_positions();
     test_info_pv_lines_are_legal();
     test_corrupt_tt_move_is_not_searched();

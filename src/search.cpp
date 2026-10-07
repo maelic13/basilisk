@@ -1370,8 +1370,16 @@ void Searcher::send_info(int depth, int score, int64_t total_nodes, double elaps
             score = 0;
     }
 
+    if (info_cb_)
+        info_cb_(format_info_line(depth, sel_depth_, score, total_nodes, elapsed,
+                                  current_tbhits(), tt_.hashfull(), pv_moves));
+}
+
+std::string format_info_line(int depth, int seldepth, int score, int64_t nodes,
+                             double elapsed, int64_t tbhits, int hashfull,
+                             const std::vector<Move>& pv) {
     std::string line = "info depth " + std::to_string(depth)
-        + " seldepth " + std::to_string(sel_depth_)
+        + " seldepth " + std::to_string(seldepth)
         + " score ";
 
     if (std::abs(score) >= MATE_SCORE - MAX_PLY) {
@@ -1381,20 +1389,36 @@ void Searcher::send_info(int depth, int score, int64_t total_nodes, double elaps
         line += "cp " + std::to_string(score);
     }
 
-    int64_t nps = elapsed > 0.0 ? int64_t(double(total_nodes) / elapsed) : 0;
-    line += " nodes " + std::to_string(total_nodes)
+    int64_t nps = elapsed > 0.0 ? int64_t(double(nodes) / elapsed) : 0;
+    line += " nodes " + std::to_string(nodes)
          + " nps "   + std::to_string(nps)
          + " time "  + std::to_string(int64_t(elapsed * 1000))
-         + " tbhits " + std::to_string(current_tbhits())
-         + " hashfull " + std::to_string(tt_.hashfull());
+         + " tbhits " + std::to_string(tbhits)
+         + " hashfull " + std::to_string(hashfull);
 
-    if (!pv_moves.empty()) {
+    if (!pv.empty()) {
         line += " pv";
-        for (Move pv_move : pv_moves)
+        for (Move pv_move : pv)
             line += ' ' + move_to_uci(pv_move);
     }
+    return line;
+}
 
-    if (info_cb_) info_cb_(line);
+std::vector<Move> legal_line(const Board& root, const std::vector<Move>& line) {
+    std::vector<Move> legal;
+    Board board = root;
+    for (Move move : line) {
+        if (!is_legal_move_on_board(board, move))
+            break;
+        legal.push_back(move);
+        board.make_move(move);
+    }
+    return legal;
+}
+
+bool needs_pool_line(const SearchResult& merged, const SearchResult& main_thread) {
+    return merged.bestmove != MOVE_NONE
+        && (merged.bestmove != main_thread.bestmove || merged.depth != main_thread.depth);
 }
 
 void Searcher::init_root_tablebase_scores(const Board& board) {
@@ -2726,6 +2750,7 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
         }
         result.score = reported_score;
         result.depth = depth;
+        result.seldepth = sel_depth_;
 
         // 5.8.6: the table is given the RAW `score`, not the tablebase-
         // corrected `reported_score` that goes out over UCI. That is deliberate
@@ -3078,7 +3103,37 @@ SearchResult SearchThreadPool::search(Board board, const SearchLimits& limits, i
     const int64_t elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::steady_clock::now() - wall_start).count();
 
-    return sanitize_search_result(root_board, merge_results(results, thread_count, root_table, elapsed_ms));
+    SearchResult merged = merge_results(results, thread_count, root_table, elapsed_ms);
+
+    // The merged result may come from a helper, or from the shared root table,
+    // which keeps no line. Take the line of the thread that reached it, so the
+    // last `info` before `bestmove` names the move played (Stockfish prints its
+    // best thread's PV the same way). Its score is the reported one, which at
+    // a tablebase root differs from the table's raw value.
+    int line_score = merged.score;
+    for (int i = 0; i < thread_count; ++i) {
+        const SearchResult& result = results[static_cast<size_t>(i)];
+        if (result.bestmove == merged.bestmove && result.depth == merged.depth) {
+            if (merged.pv.empty() || merged.pv.front() != merged.bestmove) {
+                merged.pv = result.pv;
+                merged.seldepth = result.seldepth;
+            }
+            line_score = result.score;
+            break;
+        }
+    }
+    if (merged.pv.empty() || merged.pv.front() != merged.bestmove) {
+        merged.pv.assign(1, merged.bestmove);
+        if (merged.pondermove != MOVE_NONE)
+            merged.pv.push_back(merged.pondermove);
+    }
+    if (info_cb_ && needs_pool_line(merged, results[0])) {
+        info_cb_(format_info_line(merged.depth, merged.seldepth, line_score, merged.nodes,
+                                  static_cast<double>(elapsed_ms) / 1000.0, merged.tbhits,
+                                  tt_.hashfull(), legal_line(root_board, merged.pv)));
+    }
+
+    return sanitize_search_result(root_board, merged);
 }
 
 void SearchThreadPool::worker_loop(int helper_slot) {
