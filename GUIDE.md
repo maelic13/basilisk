@@ -14,7 +14,7 @@ in `docs/PROCESS.md`; where the engine stands is PLAN §1.
 | Bench fingerprint | **14,978,465** (`bench 13`, 1.10.0 and 1.10.1) |
 | Active experiment | None |
 | Long job | None |
-| Next release | **1.10.2**, a correctness patch (A.8.21, after A.8.11); then **2.0.0** if the E.2 target gate is met, otherwise **1.11.0**, cut at E.3 |
+| Next release | **1.10.2**, a correctness patch (A.8.21, once Phase A is finished); then **2.0.0** if the E.2 target gate is met, otherwise **1.11.0**, cut at E.3 |
 
 ## Model by class
 
