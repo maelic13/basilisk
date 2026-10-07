@@ -690,10 +690,20 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       (BAS-D17). Repair: past the optimum, a root fail-high on the last
       iteration's move ends the search; no move can change. The gate is
       amended to a `[-5,5]` repair bracket at `3+0.03`.
-    - [ ] **A.8.17** `[I1]` Won-endgame time sink, implementation
+    - [x] **A.8.17** `[I1]` Won-endgame time sink, implementation
       Implements A.8.16's handoff. `uci_probe.py clock` on the review's
       positions shows the repair. Exact bench unless the handoff says
       otherwise.
+      — CLOSED 2026-10-07: the handoff as written. At `60000+600`:
+      - rec1: 32,313 → 4,750 ms (predicted about 4.7 s);
+      - rec2: 3,817 → 3,875 ms;
+      - rec3: 6,943 → 5,156 ms;
+      - KQvK: 1,056 → 891 ms;
+      - every move unchanged.
+      KRvK reads about 1.7 s, the same on the pre-fix A.8.14 build, so that
+      change predates this leaf. Engine test: 2.36 s at `30000+300`, 15.72 s
+      with the stop disabled. Bench 14,978,465; release and ASan/UBSan CTest
+      17/17.
     - [ ] **A.8.18** `[V]` Won-endgame time sink gate
       SPRT `[0,3]` at `3+0.03` 1T and a `10+0.1` direction check, as A.8.16
       registers them; zero time forfeits. Maintainer-run.
@@ -1085,7 +1095,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.8.17 | READY_FOR_IMPLEMENTATION | I1 | Handoff in `analysis/a816_time_sink_2026-10-07.md` |
 | A.8.18 | READY_FOR_IMPLEMENTATION | V | `[-5,5]` repair bracket at 3+0.03 per the A.8.16 packet; maintainer-run |
 | A.8.19 | RESEARCH | R2 | Moved from D.3.3; after A.8.14 |
 | A.8.20 | READY_FOR_IMPLEMENTATION | M | After A.8.19 |

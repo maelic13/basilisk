@@ -34,7 +34,7 @@ generations change. These are maintainer judgments, not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **A.8.17** `[I1]` Won-endgame time sink, implementation — Claude Sonnet 5 — Medium
+**Next step:** **A.8.18** `[V]` Won-endgame time sink gate — Claude Sonnet 5 — High
 
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
@@ -61,7 +61,7 @@ generations change. These are maintainer judgments, not measured rankings.
     - [x] **A.8.14** `[I2]` Score bands and probes, implementation
     - [x] **A.8.15** `[V]` Tablebase-enabled gate
     - [x] **A.8.16** `[R2]` Won-endgame time sink
-    - [ ] **A.8.17** `[I1]` Won-endgame time sink, implementation
+    - [x] **A.8.17** `[I1]` Won-endgame time sink, implementation
     - [ ] **A.8.18** `[V]` Won-endgame time sink gate
     - [ ] **A.8.19** `[R2]` Displayed-score normalisation
     - [ ] **A.8.20** `[M]` B-programme anchors on the A.8 head

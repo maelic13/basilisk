@@ -35,6 +35,11 @@ and next step).
   single slow read of a tablebase file could run a fast game's clock out.
 - A fatal error is now also reported on standard output, where GUIs and
   tournament harnesses record it.
+- **Clock wasted in won endings:** when a won position's score kept rising,
+  Basilisk could spend over half its remaining time proving that the move it
+  had already chosen was even better. It now plays that move once its normal
+  time for the move has passed (one test position: 32 s down to under 5 s,
+  same move).
 
 ### Changed
 
