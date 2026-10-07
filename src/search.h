@@ -123,18 +123,18 @@ struct SearchResult {
 
 // A decisive tablebase score (a TB win or loss, possibly ply-adjusted), as
 // opposed to a mate score or an ordinary evaluation.
-inline bool is_tablebase_decisive(int score) {
+[[nodiscard]] inline bool is_tablebase_decisive(int score) {
     const int a = score < 0 ? -score : score;
     return a >= tablebaseWinScore - MAX_PLY && a < MATE_SCORE - MAX_PLY;
 }
 
-SearchResult sanitize_search_result(const Board& root_board, SearchResult result);
+[[nodiscard]] SearchResult sanitize_search_result(const Board& root_board, SearchResult result);
 
 // One UCI `info` line in Stockfish's field order: depth seldepth multipv
 // score [bound] nodes nps hashfull tbhits time pv. `bound` is empty,
 // "lowerbound" or "upperbound". `pv` must already be legal from the root; the
 // caller owns any tablebase extension. `nps` floors the elapsed time at 1 ms.
-std::string format_info_line(int depth, int seldepth, int multipv, int score,
+[[nodiscard]] std::string format_info_line(int depth, int seldepth, int multipv, int score,
                              std::string_view bound, int64_t nodes, double elapsed,
                              int64_t tbhits, int hashfull, const std::vector<Move>& pv);
 
@@ -143,12 +143,12 @@ std::string format_info_line(int depth, int seldepth, int multipv, int score,
 inline constexpr double kBoundLineAfterSeconds = 3.0;
 
 // The longest legal prefix of `line` played from `root`.
-std::vector<Move> legal_line(const Board& root, const std::vector<Move>& line);
+[[nodiscard]] std::vector<Move> legal_line(const Board& root, const std::vector<Move>& line);
 
 // Whether a multi-thread search must print the merged result's line before
 // `bestmove`: the last line a GUI saw is the main thread's, and it describes
 // the merged result only when move and depth agree.
-bool needs_pool_line(const SearchResult& merged, const SearchResult& main_thread);
+[[nodiscard]] bool needs_pool_line(const SearchResult& merged, const SearchResult& main_thread);
 
 class Searcher {
 public:

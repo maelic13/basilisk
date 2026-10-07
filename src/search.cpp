@@ -2,6 +2,7 @@
 #include "constants.h"
 #include "syzygy.h"
 #include <algorithm>
+#include <format>
 #include <array>
 #include <atomic>
 #include <cassert>
@@ -59,7 +60,7 @@ static int score_from_syzygy_wdl(Syzygy::Wdl wdl) {
         case Syzygy::Wdl::Loss:
             return -TB_WIN_SCORE;
     }
-    return 0;
+    std::unreachable();
 }
 
 void Searcher::init_lmr(float base, float divisor) {
@@ -1069,62 +1070,52 @@ void Searcher::print_diag() const {
     auto pct = [](int64_t a, int64_t b) {
         return b > 0 ? 100.0 * double(a) / double(b) : 0.0;
     };
-    // 5.6: 256 was too small once the kv mirror grew. snprintf truncates
-    // silently and always loses the TAIL field, so the corruption scales
-    // with the counter magnitudes - it produced a non-monotonic threshold
-    // series that is arithmetically impossible. Sized with headroom, and
-    // the history probe moved to its own line below.
-    char buf[512];
-    auto emit = [&](const char* text) { info_cb_(std::string("info string diag ") + text); };
-    std::snprintf(buf, sizeof(buf),
-        "nodes interior %lld qsearch %lld | in_check %lld (%.2f%%) check_ext %lld tt_pv %lld (%.2f%%)",
-        (long long)d.interior_nodes, (long long)d.qs_nodes,
-        (long long)d.in_check_nodes, pct(d.in_check_nodes, d.interior_nodes),
-        (long long)d.check_exts,
-        (long long)d.tt_pv_nodes, pct(d.tt_pv_nodes, d.interior_nodes));
+    // Each line is built whole by std::format: a fixed buffer once truncated
+    // the tail field silently (5.6), corrupting the kv mirror.
+    std::string buf;
+    auto emit = [&](const std::string& text) { info_cb_(std::string("info string diag ") + text); };
+    buf = std::format("nodes interior {} qsearch {} | in_check {} ({:.2f}%) check_ext {} tt_pv {} ({:.2f}%)",
+        d.interior_nodes, d.qs_nodes,
+        d.in_check_nodes, pct(d.in_check_nodes, d.interior_nodes),
+        d.check_exts,
+        d.tt_pv_nodes, pct(d.tt_pv_nodes, d.interior_nodes));
     emit(buf);
-    std::snprintf(buf, sizeof(buf),
-        "tt probes %lld hits %lld (%.2f%%) cutoffs %lld",
-        (long long)d.tt_probes, (long long)d.tt_hits, pct(d.tt_hits, d.tt_probes),
-        (long long)d.tt_cutoffs);
+    buf = std::format("tt probes {} hits {} ({:.2f}%) cutoffs {}",
+        d.tt_probes, d.tt_hits, pct(d.tt_hits, d.tt_probes),
+        d.tt_cutoffs);
     emit(buf);
-    std::snprintf(buf, sizeof(buf),
-        "prune rfp %lld razor %lld null %lld/%lld probcut %lld/%lld fut %lld lmp %lld hist %lld see %lld",
-        (long long)d.rfp_cuts, (long long)d.razor_cuts,
-        (long long)d.null_cuts, (long long)d.null_tries,
-        (long long)d.probcut_cuts, (long long)d.probcut_tries,
-        (long long)d.fut_prunes, (long long)d.lmp_prunes,
-        (long long)d.hist_prunes, (long long)d.see_prunes);
+    buf = std::format("prune rfp {} razor {} null {}/{} probcut {}/{} fut {} lmp {} hist {} see {}",
+        d.rfp_cuts, d.razor_cuts,
+        d.null_cuts, d.null_tries,
+        d.probcut_cuts, d.probcut_tries,
+        d.fut_prunes, d.lmp_prunes,
+        d.hist_prunes, d.see_prunes);
     emit(buf);
-    std::snprintf(buf, sizeof(buf),
-        "lmr applied %lld researched %lld (%.2f%%) | hist updates cutoff %lld reward %lld | qs evasion %lld",
-        (long long)d.lmr_applied, (long long)d.lmr_researched,
+    buf = std::format("lmr applied {} researched {} ({:.2f}%) | hist updates cutoff {} reward {} | qs evasion {}",
+        d.lmr_applied, d.lmr_researched,
         pct(d.lmr_researched, d.lmr_applied),
-        (long long)d.hist_cutoff_updates, (long long)d.hist_reward_updates,
-        (long long)d.qs_evasion_nodes);
+        d.hist_cutoff_updates, d.hist_reward_updates,
+        d.qs_evasion_nodes);
     emit(buf);
     // ---- 5.2 differential harness (BAS-O03) --------------------------------
     // Read these against the oracle's tree shape, not in isolation.
-    std::snprintf(buf, sizeof(buf),
-        "order fail_highs %lld first %lld (%.2f%%) mean_idx %.3f | src tt %lld goodcap %lld quiet %lld badcap %lld",
-        (long long)d.fail_highs, (long long)d.fail_high_first,
+    buf = std::format("order fail_highs {} first {} ({:.2f}%) mean_idx {:.3f} | src tt {} goodcap {} quiet {} badcap {}",
+        d.fail_highs, d.fail_high_first,
         pct(d.fail_high_first, d.fail_highs),
         d.fail_highs > 0 ? double(d.fail_high_index_sum) / double(d.fail_highs) : 0.0,
-        (long long)d.cutoff_src_tt, (long long)d.cutoff_src_good_tactical,
-        (long long)d.cutoff_src_quiet, (long long)d.cutoff_src_bad_tactical);
+        d.cutoff_src_tt, d.cutoff_src_good_tactical,
+        d.cutoff_src_quiet, d.cutoff_src_bad_tactical);
     emit(buf);
-    std::snprintf(buf, sizeof(buf),
-        "lmrgate eligible %lld applied %lld (%.2f%%) mean_r %.3f clamp0 %lld",
-        (long long)d.lmr_eligible, (long long)d.lmr_applied,
+    buf = std::format("lmrgate eligible {} applied {} ({:.2f}%) mean_r {:.3f} clamp0 {}",
+        d.lmr_eligible, d.lmr_applied,
         pct(d.lmr_applied, d.lmr_eligible),
         d.lmr_applied > 0 ? double(d.lmr_reduction_plies) / double(d.lmr_applied) : 0.0,
-        (long long)d.lmr_clamped_zero);
+        d.lmr_clamped_zero);
     emit(buf);
-    std::snprintf(buf, sizeof(buf),
-        "lmrblock depth %lld searched %lld in_check %lld movetype %lld gives_check %lld",
-        (long long)d.lmr_blocked_depth, (long long)d.lmr_blocked_searched,
-        (long long)d.lmr_blocked_in_check, (long long)d.lmr_blocked_movetype,
-        (long long)d.lmr_blocked_gives_check);
+    buf = std::format("lmrblock depth {} searched {} in_check {} movetype {} gives_check {}",
+        d.lmr_blocked_depth, d.lmr_blocked_searched,
+        d.lmr_blocked_in_check, d.lmr_blocked_movetype,
+        d.lmr_blocked_gives_check);
     emit(buf);
     // Machine-readable mirror. The lines above are shaped for a human reading
     // one search; the harness aggregates over a 107-position suite and must not
@@ -1132,70 +1123,63 @@ void Searcher::print_diag() const {
     // only, canonical names, one token per counter — derived ratios are the
     // consumer's job, since summing a percentage across positions is wrong.
     {
-        std::snprintf(buf, sizeof(buf),
-            "kv fail_highs=%lld fail_high_first=%lld fail_high_index_sum=%lld "
-            "cutoff_src_tt=%lld cutoff_src_goodcap=%lld cutoff_src_quiet=%lld "
-            "cutoff_src_badcap=%lld",
-            (long long)d.fail_highs, (long long)d.fail_high_first,
-            (long long)d.fail_high_index_sum,
-            (long long)d.cutoff_src_tt, (long long)d.cutoff_src_good_tactical,
-            (long long)d.cutoff_src_quiet, (long long)d.cutoff_src_bad_tactical);
+        buf = std::format("kv fail_highs={} fail_high_first={} fail_high_index_sum={} "
+            "cutoff_src_tt={} cutoff_src_goodcap={} cutoff_src_quiet={} "
+            "cutoff_src_badcap={}",
+            d.fail_highs, d.fail_high_first,
+            d.fail_high_index_sum,
+            d.cutoff_src_tt, d.cutoff_src_good_tactical,
+            d.cutoff_src_quiet, d.cutoff_src_bad_tactical);
         emit(buf);
-        std::snprintf(buf, sizeof(buf),
-            "kv lmr_eligible=%lld lmr_applied=%lld lmr_researched=%lld "
-            "lmr_reduction_plies=%lld lmr_clamped_zero=%lld "
-            "lmr_blocked_depth=%lld lmr_blocked_searched=%lld "
-            "lmr_blocked_in_check=%lld lmr_blocked_movetype=%lld "
-            "lmr_blocked_gives_check=%lld lmr_clamped_high=%lld",
-            (long long)d.lmr_eligible, (long long)d.lmr_applied,
-            (long long)d.lmr_researched, (long long)d.lmr_reduction_plies,
-            (long long)d.lmr_clamped_zero,
-            (long long)d.lmr_blocked_depth, (long long)d.lmr_blocked_searched,
-            (long long)d.lmr_blocked_in_check, (long long)d.lmr_blocked_movetype,
-            (long long)d.lmr_blocked_gives_check, (long long)d.lmr_clamped_high);
+        buf = std::format("kv lmr_eligible={} lmr_applied={} lmr_researched={} "
+            "lmr_reduction_plies={} lmr_clamped_zero={} "
+            "lmr_blocked_depth={} lmr_blocked_searched={} "
+            "lmr_blocked_in_check={} lmr_blocked_movetype={} "
+            "lmr_blocked_gives_check={} lmr_clamped_high={}",
+            d.lmr_eligible, d.lmr_applied,
+            d.lmr_researched, d.lmr_reduction_plies,
+            d.lmr_clamped_zero,
+            d.lmr_blocked_depth, d.lmr_blocked_searched,
+            d.lmr_blocked_in_check, d.lmr_blocked_movetype,
+            d.lmr_blocked_gives_check, d.lmr_clamped_high);
         emit(buf);
-        std::snprintf(buf, sizeof(buf),
-            "kv interior_nodes=%lld qs_nodes=%lld tt_probes=%lld tt_hits=%lld "
-            "tt_cutoffs=%lld in_check_nodes=%lld check_exts=%lld tt_pv_nodes=%lld",
-            (long long)d.interior_nodes, (long long)d.qs_nodes,
-            (long long)d.tt_probes, (long long)d.tt_hits, (long long)d.tt_cutoffs,
-            (long long)d.in_check_nodes, (long long)d.check_exts,
-            (long long)d.tt_pv_nodes);
+        buf = std::format("kv interior_nodes={} qs_nodes={} tt_probes={} tt_hits={} "
+            "tt_cutoffs={} in_check_nodes={} check_exts={} tt_pv_nodes={}",
+            d.interior_nodes, d.qs_nodes,
+            d.tt_probes, d.tt_hits, d.tt_cutoffs,
+            d.in_check_nodes, d.check_exts,
+            d.tt_pv_nodes);
         emit(buf);
-        std::snprintf(buf, sizeof(buf),
-            "kv rfp_cuts=%lld razor_cuts=%lld null_tries=%lld null_cuts=%lld "
-            "probcut_tries=%lld probcut_cuts=%lld fut_prunes=%lld lmp_prunes=%lld "
-            "hist_prunes=%lld see_prunes=%lld",
-            (long long)d.rfp_cuts, (long long)d.razor_cuts,
-            (long long)d.null_tries, (long long)d.null_cuts,
-            (long long)d.probcut_tries, (long long)d.probcut_cuts,
-            (long long)d.fut_prunes, (long long)d.lmp_prunes,
-            (long long)d.hist_prunes, (long long)d.see_prunes);
+        buf = std::format("kv rfp_cuts={} razor_cuts={} null_tries={} null_cuts={} "
+            "probcut_tries={} probcut_cuts={} fut_prunes={} lmp_prunes={} "
+            "hist_prunes={} see_prunes={}",
+            d.rfp_cuts, d.razor_cuts,
+            d.null_tries, d.null_cuts,
+            d.probcut_tries, d.probcut_cuts,
+            d.fut_prunes, d.lmp_prunes,
+            d.hist_prunes, d.see_prunes);
         emit(buf);
-        std::snprintf(buf, sizeof(buf),
-            "kv hist_prune_tested=%lld hist_below_half=%lld "
-            "hist_below_quarter=%lld hist_below_eighth=%lld "
-            "qs_evasion_nodes=%lld hist_cutoff_updates=%lld hist_reward_updates=%lld",
-            (long long)d.hist_prune_tested, (long long)d.hist_below_half,
-            (long long)d.hist_below_quarter, (long long)d.hist_below_eighth,
-            (long long)d.qs_evasion_nodes, (long long)d.hist_cutoff_updates,
-            (long long)d.hist_reward_updates);
+        buf = std::format("kv hist_prune_tested={} hist_below_half={} "
+            "hist_below_quarter={} hist_below_eighth={} "
+            "qs_evasion_nodes={} hist_cutoff_updates={} hist_reward_updates={}",
+            d.hist_prune_tested, d.hist_below_half,
+            d.hist_below_quarter, d.hist_below_eighth,
+            d.qs_evasion_nodes, d.hist_cutoff_updates,
+            d.hist_reward_updates);
         emit(buf);
-        std::snprintf(buf, sizeof(buf),
-            "kv tt_stores=%lld tt_stores_same_key=%lld "
-            "asp_windows=%lld asp_fail_low=%lld asp_fail_high=%lld "
-            "asp_researches=%lld asp_giveup=%lld",
-            (long long)d.tt_stores, (long long)d.tt_stores_same_key,
-            (long long)d.asp_windows, (long long)d.asp_fail_low,
-            (long long)d.asp_fail_high, (long long)d.asp_researches,
-            (long long)d.asp_giveup);
+        buf = std::format("kv tt_stores={} tt_stores_same_key={} "
+            "asp_windows={} asp_fail_low={} asp_fail_high={} "
+            "asp_researches={} asp_giveup={}",
+            d.tt_stores, d.tt_stores_same_key,
+            d.asp_windows, d.asp_fail_low,
+            d.asp_fail_high, d.asp_researches,
+            d.asp_giveup);
         emit(buf);
-        std::snprintf(buf, sizeof(buf),
-            "kv sing_fired=%lld sing_double=%lld sing_in_check=%lld "
-            "sing_triple=%lld sing_ttbeta=%lld",
-            (long long)d.sing_fired, (long long)d.sing_double,
-            (long long)d.sing_in_check, (long long)d.sing_triple,
-            (long long)d.sing_ttbeta);
+        buf = std::format("kv sing_fired={} sing_double={} sing_in_check={} "
+            "sing_triple={} sing_ttbeta={}",
+            d.sing_fired, d.sing_double,
+            d.sing_in_check, d.sing_triple,
+            d.sing_ttbeta);
         emit(buf);
     }
     // 8.7.1(c) speed telemetry — the numbers Phase 8.7 steps read before
@@ -1203,82 +1187,73 @@ void Searcher::print_diag() const {
     // full-gives_check rate (8.7.3), SEE calls per node (8.7.5).
     {
         const int64_t total_nodes = d.interior_nodes + d.qs_nodes;
-        std::snprintf(buf, sizeof(buf),
-            "speed eval %lld (%.2f%%/node) pawncache %lld/%lld (%.2f%% hit) "
-            "gives_check %lld (%.2f%%/node) see_ge %lld (%.3f/node)",
-            (long long)evaluator_.eval_calls, pct(evaluator_.eval_calls, total_nodes),
-            (long long)evaluator_.pawn_hits, (long long)evaluator_.pawn_probes,
+        buf = std::format("speed eval {} ({:.2f}%/node) pawncache {}/{} ({:.2f}% hit) "
+            "gives_check {} ({:.2f}%/node) see_ge {} ({:.3f}/node)",
+            evaluator_.eval_calls, pct(evaluator_.eval_calls, total_nodes),
+            evaluator_.pawn_hits, evaluator_.pawn_probes,
             pct(evaluator_.pawn_hits, evaluator_.pawn_probes),
-            (long long)d.gives_check_calls, pct(d.gives_check_calls, total_nodes),
-            (long long)d.see_ge_calls,
+            d.gives_check_calls, pct(d.gives_check_calls, total_nodes),
+            d.see_ge_calls,
             total_nodes > 0 ? double(d.see_ge_calls) / double(total_nodes) : 0.0);
         emit(buf);
-        std::snprintf(buf, sizeof(buf),
-            "kv eval_calls=%lld pawn_probes=%lld pawn_hits=%lld "
-            "gives_check_calls=%lld see_ge_calls=%lld",
-            (long long)evaluator_.eval_calls,
-            (long long)evaluator_.pawn_probes, (long long)evaluator_.pawn_hits,
-            (long long)d.gives_check_calls, (long long)d.see_ge_calls);
+        buf = std::format("kv eval_calls={} pawn_probes={} pawn_hits={} "
+            "gives_check_calls={} see_ge_calls={}",
+            evaluator_.eval_calls,
+            evaluator_.pawn_probes, evaluator_.pawn_hits,
+            d.gives_check_calls, d.see_ge_calls);
         emit(buf);
     }
 #ifdef BASILISK_TUNE
     {
         const auto& e = evaluator_.endgame_occurrence;
-        std::snprintf(buf, sizeof(buf),
-            "endgames <=7men %lld (%.3f%% eval, %.3f%% node)",
-            (long long)e.classified,
+        buf = std::format("endgames <=7men {} ({:.3f}% eval, {:.3f}% node)",
+            e.classified,
             pct(e.classified, evaluator_.eval_calls),
             pct(e.classified, d.interior_nodes + d.qs_nodes));
         emit(buf);
-        std::snprintf(buf, sizeof(buf),
-            "kv eg_classified=%lld eg_krpkr=%lld eg_krpkb=%lld eg_kpsk=%lld "
-            "eg_kpk=%lld eg_krkp=%lld eg_kbpsk=%lld eg_kpkp=%lld",
-            (long long)e.classified, (long long)e.krpkr, (long long)e.krpkb,
-            (long long)e.kpsk, (long long)e.kpk, (long long)e.krkp,
-            (long long)e.kbpsk, (long long)e.kpkp);
+        buf = std::format("kv eg_classified={} eg_krpkr={} eg_krpkb={} eg_kpsk={} "
+            "eg_kpk={} eg_krkp={} eg_kbpsk={} eg_kpkp={}",
+            e.classified, e.krpkr, e.krpkb,
+            e.kpsk, e.kpk, e.krkp,
+            e.kbpsk, e.kpkp);
         emit(buf);
-        std::snprintf(buf, sizeof(buf),
-            "kv eg_kqkp=%lld eg_kbpkb=%lld eg_kbppkb=%lld eg_krkn=%lld "
-            "eg_krkb=%lld eg_kbpkn=%lld eg_knnkp=%lld eg_knnk=%lld",
-            (long long)e.kqkp, (long long)e.kbpkb, (long long)e.kbppkb,
-            (long long)e.krkn, (long long)e.krkb, (long long)e.kbpkn,
-            (long long)e.knnkp, (long long)e.knnk);
+        buf = std::format("kv eg_kqkp={} eg_kbpkb={} eg_kbppkb={} eg_krkn={} "
+            "eg_krkb={} eg_kbpkn={} eg_knnkp={} eg_knnk={}",
+            e.kqkp, e.kbpkb, e.kbppkb,
+            e.krkn, e.krkb, e.kbpkn,
+            e.knnkp, e.knnk);
         emit(buf);
-        std::snprintf(buf, sizeof(buf),
-            "kv eg_kqkr=%lld eg_kqkrps=%lld eg_krppkrp=%lld eg_kxk=%lld eg_kbnk=%lld",
-            (long long)e.kqkr, (long long)e.kqkrps, (long long)e.krppkrp,
-            (long long)e.kxk, (long long)e.kbnk);
+        buf = std::format("kv eg_kqkr={} eg_kqkrps={} eg_krppkrp={} eg_kxk={} eg_kbnk={}",
+            e.kqkr, e.kqkrps, e.krppkrp,
+            e.kxk, e.kbnk);
         emit(buf);
     }
 #endif
     {
-        char b[256];
-        std::snprintf(b, sizeof(b),
-            "aspiration windows %lld fail_low %lld fail_high %lld researches %lld giveup %lld",
-            (long long)diag_.asp_windows, (long long)diag_.asp_fail_low,
-            (long long)diag_.asp_fail_high, (long long)diag_.asp_researches,
-            (long long)diag_.asp_giveup);
+        std::string b;
+        b = std::format("aspiration windows {} fail_low {} fail_high {} researches {} giveup {}",
+            diag_.asp_windows, diag_.asp_fail_low,
+            diag_.asp_fail_high, diag_.asp_researches,
+            diag_.asp_giveup);
         emit(b);
     }
 
     {
-        char b[256];
-        std::snprintf(b, sizeof(b),
-            "singular fired %lld double %lld in_check %lld triple %lld ttbeta %lld (%.2f%% of fired)",
-            (long long)diag_.sing_fired, (long long)diag_.sing_double,
-            (long long)diag_.sing_in_check, (long long)diag_.sing_triple,
-            (long long)diag_.sing_ttbeta,
+        std::string b;
+        b = std::format("singular fired {} double {} in_check {} triple {} ttbeta {} ({:.2f}% of fired)",
+            diag_.sing_fired, diag_.sing_double,
+            diag_.sing_in_check, diag_.sing_triple,
+            diag_.sing_ttbeta,
             diag_.sing_fired ? 100.0 * double(diag_.sing_in_check) / double(diag_.sing_fired) : 0.0);
         emit(b);
     }
 
     if (evaluator_.lazy_fires > 0) {
-        std::snprintf(buf, sizeof(buf),
-            "lazy fires %lld sign_flips %lld crossings %lld absdelta mean %.1f max %lld",
-            (long long)evaluator_.lazy_fires, (long long)evaluator_.lazy_sign_flips,
-            (long long)evaluator_.lazy_margin_crossings,
+        buf = std::format("lazy fires {} sign_flips {} crossings {} absdelta mean {:.1f} max {}",
+            evaluator_.lazy_fires, evaluator_.lazy_sign_flips,
+            evaluator_.lazy_margin_crossings,
             double(evaluator_.lazy_absdelta_sum) / double(evaluator_.lazy_fires),
-            (long long)evaluator_.lazy_absdelta_max);
+            evaluator_.lazy_absdelta_max);
         emit(buf);
     }
 }
@@ -1299,19 +1274,18 @@ void Searcher::print_pool_diag(const std::vector<std::unique_ptr<Searcher>>& poo
     auto pct = [](int64_t a, int64_t b) {
         return b > 0 ? 100.0 * double(a) / double(b) : 0.0;
     };
-    char buf[256];
-    auto emit = [&](const char* text) { info_cb_(std::string("info string diag ") + text); };
+    std::string buf;
+    auto emit = [&](const std::string& text) { info_cb_(std::string("info string diag ") + text); };
 
     const int64_t pool_nodes = total.interior_nodes + total.qs_nodes;
     const int64_t main_nodes = diag_.interior_nodes + diag_.qs_nodes;
-    std::snprintf(buf, sizeof(buf),
-        "pool threads %d nodes %lld (main %lld = %.1f%%) | main tt %lld/%lld (%.2f%% hit) "
-        "pool tt %lld/%lld (%.2f%% hit)",
-        thread_count, (long long)pool_nodes, (long long)main_nodes,
+    buf = std::format("pool threads {} nodes {} (main {} = {:.1f}%) | main tt {}/{} ({:.2f}% hit) "
+        "pool tt {}/{} ({:.2f}% hit)",
+        thread_count, pool_nodes, main_nodes,
         pct(main_nodes, pool_nodes),
-        (long long)diag_.tt_hits, (long long)diag_.tt_probes,
+        diag_.tt_hits, diag_.tt_probes,
         pct(diag_.tt_hits, diag_.tt_probes),
-        (long long)total.tt_hits, (long long)total.tt_probes,
+        total.tt_hits, total.tt_probes,
         pct(total.tt_hits, total.tt_probes));
     emit(buf);
 
@@ -1319,11 +1293,10 @@ void Searcher::print_pool_diag(const std::vector<std::unique_ptr<Searcher>>& poo
     // position the table already holds, versus evicting a different one. This
     // is the quantity 9.5's coordination work moves; read it as a share, never
     // as an absolute.
-    std::snprintf(buf, sizeof(buf),
-        "pool tt_stores %lld same_key %lld (%.2f%%) | main stores %lld same_key %lld (%.2f%%)",
-        (long long)total.tt_stores, (long long)total.tt_stores_same_key,
+    buf = std::format("pool tt_stores {} same_key {} ({:.2f}%) | main stores {} same_key {} ({:.2f}%)",
+        total.tt_stores, total.tt_stores_same_key,
         pct(total.tt_stores_same_key, total.tt_stores),
-        (long long)diag_.tt_stores, (long long)diag_.tt_stores_same_key,
+        diag_.tt_stores, diag_.tt_stores_same_key,
         pct(diag_.tt_stores_same_key, diag_.tt_stores));
     emit(buf);
 
@@ -1368,26 +1341,16 @@ void Searcher::send_info(int depth, int multipv, int score, const std::vector<Mo
 std::string format_info_line(int depth, int seldepth, int multipv, int score,
                              std::string_view bound, int64_t nodes, double elapsed,
                              int64_t tbhits, int hashfull, const std::vector<Move>& pv) {
-    std::string line = "info depth " + std::to_string(depth)
-        + " seldepth " + std::to_string(seldepth)
-        + " multipv " + std::to_string(multipv)
-        + " score ";
-
-    if (std::abs(score) >= MATE_SCORE - MAX_PLY) {
-        int mtm = (MATE_SCORE - std::abs(score) + 1) / 2;
-        line += "mate " + std::to_string(score > 0 ? mtm : -mtm);
-    } else {
-        line += "cp " + std::to_string(score);
-    }
-    if (!bound.empty())
-        line += " " + std::string(bound);
-
+    const bool mate = std::abs(score) >= MATE_SCORE - MAX_PLY;
+    const int mate_in = (MATE_SCORE - std::abs(score) + 1) / 2;
     const int64_t nps = int64_t(double(nodes) / std::max(elapsed, 0.001));
-    line += " nodes " + std::to_string(nodes)
-         + " nps "   + std::to_string(nps)
-         + " hashfull " + std::to_string(hashfull)
-         + " tbhits " + std::to_string(tbhits)
-         + " time "  + std::to_string(int64_t(elapsed * 1000));
+    std::string line = std::format(
+        "info depth {} seldepth {} multipv {} score {} {}{}{} nodes {} nps {} hashfull {} "
+        "tbhits {} time {}",
+        depth, seldepth, multipv, mate ? "mate" : "cp",
+        mate ? (score > 0 ? mate_in : -mate_in) : score,
+        bound.empty() ? "" : " ", bound, nodes, nps, hashfull, tbhits,
+        int64_t(elapsed * 1000));
 
     if (!pv.empty()) {
         line += " pv";

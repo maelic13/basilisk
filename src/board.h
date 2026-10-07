@@ -199,11 +199,11 @@ public:
     [[nodiscard]] int64_t see_ge_call_count() const noexcept { return diag_see_ge_calls; }
     [[nodiscard]] int64_t gives_check_call_count() const noexcept { return diag_gives_check_calls; }
 
-    bool is_in_check() const;
+    [[nodiscard]] bool is_in_check() const;
     [[nodiscard]] bool gives_check(Move m) const;
-    Bitboard check_squares(PieceType pt, Color us) const;
-    bool is_square_attacked(Square sq, Color by) const;
-    bool is_attacked_by(Square sq, Bitboard occ, Color by) const;
+    [[nodiscard]] Bitboard check_squares(PieceType pt, Color us) const;
+    [[nodiscard]] bool is_square_attacked(Square sq, Color by) const;
+    [[nodiscard]] bool is_attacked_by(Square sq, Bitboard occ, Color by) const;
     [[nodiscard]] Bitboard attackers_to(Square sq, Bitboard occ) const;
     [[nodiscard]] Bitboard attackers_to(Square sq, Bitboard occ, Color by) const;
 
@@ -229,16 +229,16 @@ public:
     // exists for `capturer` (full king-safety simulation per candidate).
     // Position identity for repetition depends on legal moves, so ep_sq is
     // set/hashed only when this holds (infra audit 4.5; SF semantics).
-    bool ep_capture_legal(Square ep, Color capturer) const;
+    [[nodiscard]] bool ep_capture_legal(Square ep, Color capturer) const;
     [[nodiscard]] bool ep_capture_legal_from(Square from, Square ep, Color capturer) const;
     // SEE pin support (8.2): absolute pins for both colors against the given
     // occupancy. pinner_of[sq] is valid only where pinned[] has the bit.
     void see_pins(Bitboard occ, Bitboard pinned[NCOLORS], Square pinner_of[SQUARE_NB]) const;
     [[nodiscard]] bool is_repetition(int search_ply) const;
-    bool is_insufficient_material() const;
+    [[nodiscard]] bool is_insufficient_material() const;
 
     [[nodiscard]] bool has_non_pawn_material(Color c) const;
-    int  see(Move m) const;
+    [[nodiscard]] int see(Move m) const;
     [[nodiscard]] bool see_ge(Move m, int threshold) const;
 
     // Castling permission mask per square (AND onto castling_rights when piece moves from/to sq)
@@ -257,5 +257,5 @@ private:
     void put_piece(Color c, PieceType pt, Square sq);
     void remove_piece(Square sq);
     void move_piece(Square from, Square to);
-    Key  compute_hash() const;
+    [[nodiscard]] Key compute_hash() const;
 };

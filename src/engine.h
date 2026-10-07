@@ -16,7 +16,7 @@
 // (the clock less twice the overhead, and 30 ms more with helper threads).
 // One table read the page cache misses has taken 54 ms, and the extension's
 // own half-overhead box is checked only between reads.
-bool tablebase_extension_may_start(int clock_ms, int overhead_ms, int threads,
+[[nodiscard]] bool tablebase_extension_may_start(int clock_ms, int overhead_ms, int threads,
                                    double elapsed_ms);
 
 class Engine {

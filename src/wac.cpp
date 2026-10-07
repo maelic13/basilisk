@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cctype>
+#include <format>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -328,12 +329,9 @@ void run_wac(const WacRequest& request, const SearchParams& params) {
                 if (iteration_solved && first == 0)
                     first = iteration.depth;
 
-                std::ostringstream pv_line;
-                pv_line << "wac pv id " << pos.id
-                        << " depth " << iteration.depth
-                        << " bestmove " << iteration.pv1
-                        << " solved " << (iteration_solved ? 1 : 0);
-                uci_write_line(pv_line.str());
+                uci_write_line(std::format("wac pv id {} depth {} bestmove {} solved {}",
+                                           pos.id, iteration.depth, iteration.pv1,
+                                           iteration_solved ? 1 : 0));
             }
             for (size_t j = 0; j < iterations.size(); ++j) {
                 bool remains_solved = true;
@@ -349,31 +347,24 @@ void run_wac(const WacRequest& request, const SearchParams& params) {
         }
 
         const WacIteration last = iterations.empty() ? WacIteration{} : iterations.back();
-        std::ostringstream line;
-        line << "wac record id " << pos.id
-             << " mode " << mode_name(request.mode)
-             << " budget " << request.budget
-             << " depth " << last.depth
-             << " seldepth " << last.seldepth
-             << " nodes " << last.nodes
-             << " time_ms " << last.time_ms
-             << " search_nodes " << r.nodes
-             << " search_time_ms " << r.elapsed_ms
-             << " bestmove " << move_to_uci(r.bestmove)
-             << " bm " << joined_best_moves(pos.best_moves)
-             << " solved " << (position_solved ? 1 : 0);
+        std::string line = std::format(
+            "wac record id {} mode {} budget {} depth {} seldepth {} nodes {} time_ms {} "
+            "search_nodes {} search_time_ms {} bestmove {} bm {} solved {}",
+            pos.id, mode_name(request.mode), request.budget, last.depth, last.seldepth,
+            last.nodes, last.time_ms, r.nodes, r.elapsed_ms, move_to_uci(r.bestmove),
+            joined_best_moves(pos.best_moves), position_solved ? 1 : 0);
         if (request.mode == WacMode::DepthPv)
-            line << " first " << first << " stable " << stable;
-        uci_write_line(line.str());
+            line += std::format(" first {} stable {}", first, stable);
+        uci_write_line(line);
     }
 
-    std::ostringstream summary;
-    summary << "\n=========================\n"
-            << "WAC solved      : " << solved << "/" << positions.size()
-            << " in " << mode_name(request.mode) << " " << request.budget << "\n"
-            << "Nodes searched  : " << total_nodes << "\n"
-            << "Total time (ms) : " << total_ms;
-    uci_write_line(summary.str());
+    uci_write_line(std::format(
+        "\n=========================\n"
+        "WAC solved      : {}/{} in {} {}\n"
+        "Nodes searched  : {}\n"
+        "Total time (ms) : {}",
+        solved, positions.size(), mode_name(request.mode), request.budget,
+        total_nodes, total_ms));
     if (!failed.empty()) {
         std::string joined;
         for (const std::string& f : failed) {
