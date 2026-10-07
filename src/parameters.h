@@ -19,6 +19,7 @@ public:
     int depth;
 
     int     move_overhead;   // [ms]
+    int     multipv;         // lines reported per depth (MultiPV option)
     int     hash_mb;        // TT size in MB
     int     threads;        // search worker count
     int64_t nodes;          // node limit (0 = unlimited)

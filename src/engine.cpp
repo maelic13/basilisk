@@ -74,6 +74,7 @@ SearchLimits Engine::build_limits() const {
     limits.nodes     = parameters_.nodes;
     limits.mate      = parameters_.mate;
     limits.overhead  = parameters_.move_overhead;
+    limits.multipv   = parameters_.multipv;
     limits.ponder    = parameters_.ponder;
     limits.root_moves = parameters_.search_moves;
     limits.syzygy_probe_depth = Syzygy::enabled() ? parameters_.syzygy_probe_depth : 0;

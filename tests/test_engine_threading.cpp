@@ -411,6 +411,201 @@ void test_terminal_root_reports_once() {
     end_section();
 }
 
+// MultiPV, on the shapes of Rarog's multipv tests: identity at 1, N ordered
+// lines of distinct moves per depth, the caps, threads, stop and tablebases.
+struct PvLine {
+    int depth = 0;
+    int multipv = 0;
+    int score = 0;          // cp, or +/-(100000 - n) for a mate in n
+    std::string move;
+};
+
+std::vector<PvLine> pv_lines(const std::string& text) {
+    std::vector<PvLine> out;
+    std::istringstream input(text);
+    std::string line;
+    while (std::getline(input, line)) {
+        if (line.rfind("info depth ", 0) != 0 || line.find(" pv ") == std::string::npos)
+            continue;
+        std::istringstream tokens(line);
+        std::string tok;
+        PvLine pv;
+        while (tokens >> tok) {
+            if (tok == "depth") tokens >> pv.depth;
+            else if (tok == "multipv") tokens >> pv.multipv;
+            else if (tok == "cp") tokens >> pv.score;
+            else if (tok == "mate") { int n = 0; tokens >> n; pv.score = n > 0 ? 100000 - n : -100000 - n; }
+            else if (tok == "pv") { tokens >> pv.move; break; }
+        }
+        out.push_back(pv);
+    }
+    return out;
+}
+
+std::string strip_speed(const std::string& text) {
+    std::istringstream input(text);
+    std::string line, out;
+    while (std::getline(input, line)) {
+        if (line.rfind("info depth ", 0) != 0)
+            continue;
+        std::istringstream tokens(line);
+        std::string tok, kept;
+        while (tokens >> tok) {
+            if (tok == "nps" || tok == "time") { tokens >> tok; continue; }
+            kept += tok + " ";
+        }
+        out += kept + "\n";
+    }
+    return out;
+}
+
+std::string bestmove_of(const std::string& text) {
+    std::istringstream input(text);
+    std::string line, move;
+    while (std::getline(input, line))
+        if (line.rfind("bestmove ", 0) == 0)
+            move = line.substr(9, line.find(' ', 9) - 9);
+    return move;
+}
+
+void test_multipv() {
+    const std::string fen = "fen r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3";
+
+    begin_section("multipv: MultiPV 1 reproduces the single-PV search line for line");
+    {
+        // Sessions redirect std::cout, so they run one after the other.
+        auto run = [&](bool set_one) {
+            EngineSession s;
+            if (set_one)
+                s.set_option("name MultiPV value 1");
+            s.position(fen);
+            s.go("depth 9");
+            EXPECT(s.wait_for_bestmoves(1, 10000));
+            return s.output();
+        };
+        const std::string plain = run(false);
+        const std::string one = run(true);
+        EXPECT(!strip_speed(plain).empty());
+        EXPECT_STR(strip_speed(plain), strip_speed(one));
+        EXPECT_STR(bestmove_of(plain), bestmove_of(one));
+    }
+    end_section();
+
+    begin_section("multipv: three ordered lines of distinct moves per depth; bestmove is line 1");
+    {
+        EngineSession session;
+        session.set_option("name MultiPV value 3");
+        session.position(fen);
+        session.go("depth 8");
+        EXPECT(session.wait_for_bestmoves(1, 10000));
+        const auto lines = pv_lines(session.output());
+        const size_t remainder = lines.size() - (lines.size() / 3) * 3;
+        EXPECT_EQ(remainder, size_t(0));
+        bool shaped = lines.size() >= 3;
+        for (size_t i = 0; shaped && i + 2 < lines.size(); i += 3) {
+            shaped = lines[i].multipv == 1 && lines[i + 1].multipv == 2 && lines[i + 2].multipv == 3
+                  && lines[i].depth == lines[i + 2].depth
+                  && lines[i].move != lines[i + 1].move && lines[i].move != lines[i + 2].move
+                  && lines[i + 1].move != lines[i + 2].move
+                  && lines[i].score >= lines[i + 1].score && lines[i + 1].score >= lines[i + 2].score;
+        }
+        EXPECT(shaped);
+        EXPECT(!lines.empty() && bestmove_of(session.output()) == lines[lines.size() - 3].move);
+    }
+    end_section();
+
+    begin_section("multipv: lines are capped by the legal moves and by searchmoves");
+    {
+        EngineSession legal;   // the king has exactly two moves, Ka7 and Kb8
+        legal.set_option("name MultiPV value 5");
+        legal.position("fen k7/8/2K5/8/8/8/8/7R b - - 0 1");
+        legal.go("depth 4");
+        EXPECT(legal.wait_for_bestmoves(1, 5000));
+        int max_multipv = 0;
+        for (const PvLine& l : pv_lines(legal.output()))
+            max_multipv = std::max(max_multipv, l.multipv);
+        EXPECT_EQ(max_multipv, 2);
+    }
+    {
+        EngineSession restricted;
+        restricted.set_option("name MultiPV value 3");
+        restricted.position("startpos");
+        restricted.go("depth 5 searchmoves a2a3 h2h3");
+        EXPECT(restricted.wait_for_bestmoves(1, 5000));
+        bool only_listed = true;
+        int top = 0;
+        for (const PvLine& l : pv_lines(restricted.output())) {
+            only_listed = only_listed && (l.move == "a2a3" || l.move == "h2h3");
+            top = std::max(top, l.multipv);
+        }
+        EXPECT(only_listed);
+        EXPECT_EQ(top, 2);
+    }
+    end_section();
+
+    begin_section("multipv: at Threads 4 the main thread's first line is bestmove");
+    {
+        EngineSession session;
+        session.set_option("name Threads value 4");
+        session.set_option("name MultiPV value 3");
+        session.sync();
+        for (int i = 0; i < 6; ++i) {
+            session.position(std::string("fen ") + std::string(bench_fens()[static_cast<size_t>(i)]));
+            session.go("movetime 60");
+            EXPECT(session.wait_for_bestmoves(i + 1, 5000));
+        }
+        std::istringstream input(session.output());
+        std::string line, last_first_line_move;
+        int mismatches = 0;
+        while (std::getline(input, line)) {
+            if (line.rfind("info depth ", 0) == 0 && line.find(" multipv 1 ") != std::string::npos
+                && line.find(" pv ") != std::string::npos) {
+                const size_t start = line.find(" pv ") + 4;
+                last_first_line_move = line.substr(start, line.find(' ', start) - start);
+            } else if (line.rfind("bestmove ", 0) == 0) {
+                mismatches += line.substr(9, line.find(' ', 9) - 9) != last_first_line_move;
+            }
+        }
+        EXPECT_EQ(mismatches, 0);
+    }
+    end_section();
+
+    begin_section("multipv: stop under go infinite answers once, with line 1's move");
+    {
+        EngineSession session;
+        session.set_option("name MultiPV value 4");
+        session.position(fen);
+        session.go("infinite");
+        std::this_thread::sleep_for(std::chrono::milliseconds(300));
+        session.stop();
+        EXPECT(session.wait_for_bestmoves(1, 5000));
+        EXPECT_EQ(count_bestmove_lines(session.output()), 1);
+        const auto lines = pv_lines(session.output());
+        std::string last_first;
+        for (const PvLine& l : lines)
+            if (l.multipv == 1) last_first = l.move;
+        EXPECT(!last_first.empty() && bestmove_of(session.output()) == last_first);
+    }
+    end_section();
+
+    begin_section("multipv: a tablebase root reports only moves of the best rank");
+    {
+        EngineSession session;
+        session.set_option("name SyzygyPath value " + syzygy_fixture_path().string());
+        session.set_option("name MultiPV value 8");
+        session.position("fen 6k1/8/8/8/8/8/8/6KQ w - - 0 1");
+        session.go("depth 4");
+        EXPECT(session.wait_for_bestmoves(1, 10000));
+        const auto lines = pv_lines(session.output());
+        bool decisive = !lines.empty();
+        for (const PvLine& l : lines)
+            decisive = decisive && l.score >= tablebaseWinScore - 128;
+        EXPECT(decisive);
+        Syzygy::clear();
+    }
+    end_section();
+}
+
 void test_go_perft_returns_nodes_without_bestmove() {
     EngineSession session;
     session.position("startpos");
@@ -611,6 +806,7 @@ int main() {
     test_smp_machinery_is_inert_on_a_single_thread();
     test_threaded_last_line_names_bestmove();
     test_terminal_root_reports_once();
+    test_multipv();
 
     std::printf("\nRoot commands\n");
     test_go_perft_returns_nodes_without_bestmove();

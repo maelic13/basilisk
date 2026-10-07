@@ -76,6 +76,7 @@ struct SearchLimits {
     int movestogo  = 0;
     int64_t nodes  = 0;
     int mate        = 0;
+    int multipv     = 1;   // lines reported per depth; only the main thread searches more than one
     std::atomic<int64_t>* shared_nodes = nullptr;
     std::atomic<int64_t>* shared_tbhits = nullptr;
     int overhead   = 0;   // move overhead to subtract [ms]
@@ -448,6 +449,11 @@ private:
     SearchLimits active_limits_;
     Color    root_side_;
     std::vector<Syzygy::RootMoveInfo> root_tb_moves_;
+    // MultiPV: root moves already reported at this depth, which the search of
+    // the next line skips. Empty at every other time, so a single-PV search
+    // never consults it.
+    std::vector<Move> root_excluded_;
+    int multipv_lines_ = 1;
     int64_t  root_depth_nodes_;
     int64_t  root_best_nodes_;
     int      root_best_effort_;
@@ -567,7 +573,8 @@ private:
     bool   check_stop();
     double elapsed_seconds() const;
     void   compute_time_limit(const SearchLimits& limits, Color side, int game_ply);
-    void   send_info(int depth, int score, int64_t nodes, double elapsed) const;
+    void   send_info(int depth, int multipv, int score, const std::vector<Move>& line,
+                     int64_t nodes, double elapsed) const;
     int64_t record_node();
     void   record_tbhit(int64_t count = 1);
     int64_t current_nodes() const;

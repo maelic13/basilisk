@@ -1340,19 +1340,9 @@ void Searcher::print_pool_diag(const std::vector<std::unique_ptr<Searcher>>& poo
     emit(depths.c_str());
 }
 
-void Searcher::send_info(int depth, int score, int64_t total_nodes, double elapsed) const {
-    std::vector<Move> pv_moves;
-    if (pv_len_[0] > 0) {
-        Board pv_board = *board_ptr_;
-        int pv_count = std::clamp(pv_len_[0], 0, MAX_PLY);
-        for (int i = 0; i < pv_count; i++) {
-            Move pv_move = pv_table_[0][i];
-            if (!is_legal_move_on_board(pv_board, pv_move))
-                break;
-            pv_moves.push_back(pv_move);
-            pv_board.make_move(pv_move);
-        }
-    }
+void Searcher::send_info(int depth, int multipv, int score, const std::vector<Move>& line,
+                         int64_t total_nodes, double elapsed) const {
+    std::vector<Move> pv_moves = legal_line(*board_ptr_, line);
 
     // Stockfish-style tablebase PV extension. With no clock or movetime it
     // runs on every line, unbounded, as in Stockfish's analysis mode. Under
@@ -1371,7 +1361,7 @@ void Searcher::send_info(int depth, int score, int64_t total_nodes, double elaps
     }
 
     if (info_cb_)
-        info_cb_(format_info_line(depth, sel_depth_, 1, score, {}, total_nodes, elapsed,
+        info_cb_(format_info_line(depth, sel_depth_, multipv, score, {}, total_nodes, elapsed,
                                   current_tbhits(), tt_.hashfull(), pv_moves));
 }
 
@@ -2030,6 +2020,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         }
         if (is_root && !root_tablebase_allows(m))
             return false;
+        if (is_root && !root_excluded_.empty()
+            && std::find(root_excluded_.begin(), root_excluded_.end(), m) != root_excluded_.end())
+            return false;
 
         bool is_cap   = (board_ptr_->piece_on(to_sq(m)) != NO_PIECE)
                      || (move_type(m) == EN_PASSANT);
@@ -2556,7 +2549,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     TTFlag flag = (best_score >= beta)    ? TT_BETA
                 : (best_score > orig_alpha) ? TT_EXACT
                 :                             TT_ALPHA;
-    if (ss->excluded == MOVE_NONE)
+    // A later MultiPV line searched the root without its best moves; its
+    // result is not the root's, so it is not stored (Stockfish skips it too).
+    if (ss->excluded == MOVE_NONE && !(is_root && !root_excluded_.empty()))
         tt_store(hash, depth, best_score, flag, best_move, ply,
                   raw_static_eval == VALUE_NONE ? TranspositionTable::INF_EVAL : raw_static_eval);
 
@@ -2655,6 +2650,20 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
                 info_cb_(mated ? "info depth 0 score mate 0" : "info depth 0 score cp 0");
             max_depth = 0;
         }
+    }
+
+    // MultiPV: the main thread reports up to `multipv` lines, never more than
+    // the root moves the search may play; helpers search one.
+    multipv_lines_ = 1;
+    root_excluded_.clear();
+    if (limits.multipv > 1 && thread_id_ == 0) {
+        MoveList root_legal;
+        board.gen_legal(root_legal);
+        int allowed = 0;
+        for (Move m : root_legal)
+            if (move_in_root_moves(m, limits.root_moves) && root_tablebase_allows(m))
+                ++allowed;
+        multipv_lines_ = std::clamp(allowed, 1, limits.multipv);
     }
 
     int start_depth = 1;
@@ -2803,8 +2812,55 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
         if (root_table_ && result.bestmove != MOVE_NONE)
             root_table_->update(result.bestmove, result.pondermove, depth, score);
 
+        // The first line's own PV, before any later line overwrites the table.
+        const std::vector<Move> first_line(pv_table_[0], pv_table_[0] + std::clamp(pv_len_[0], 0, MAX_PLY));
+
+        // MultiPV lines 2..N: each is the best of the root moves the earlier
+        // lines did not play, searched at full width. A line a stop cuts short
+        // is not reported; its previous depth stands.
+        struct ExtraLine { int score; std::vector<Move> pv; };
+        std::vector<ExtraLine> extra_lines;
+        if (multipv_lines_ > 1 && cur_best != MOVE_NONE && !stopped_) {
+            root_excluded_.assign(1, cur_best);
+            for (int k = 2; k <= multipv_lines_; ++k) {
+                pv_len_[0] = 0;
+                const int line_score = negamax(depth, -INF_SCORE, INF_SCORE, 0, ss, true, true, false);
+                if (stopped_ || pv_len_[0] == 0)
+                    break;
+                extra_lines.push_back({line_score, std::vector<Move>(
+                    pv_table_[0], pv_table_[0] + std::clamp(pv_len_[0], 0, MAX_PLY))});
+                root_excluded_.push_back(pv_table_[0][0]);
+            }
+            root_excluded_.clear();
+        }
+
         double elapsed = elapsed_seconds();
-        send_info(depth, reported_score, current_nodes(), elapsed);
+        if (extra_lines.empty()) {
+            send_info(depth, 1, reported_score, first_line, current_nodes(), elapsed);
+        } else {
+            // Report the lines best first, as Stockfish sorts its root moves, so
+            // `bestmove` is always line 1: a later line searched without the
+            // first can score above it.
+            std::vector<ExtraLine> lines;
+            lines.push_back({reported_score, first_line});
+            for (ExtraLine& line : extra_lines) {
+                const int tb_display = root_tablebase_display(line.pv.front());
+                lines.push_back({tb_display != VALUE_NONE ? tb_display : line.score,
+                                 std::move(line.pv)});
+            }
+            std::stable_sort(lines.begin(), lines.end(),
+                             [](const ExtraLine& a, const ExtraLine& b) { return a.score > b.score; });
+            if (lines.front().pv.front() != result.bestmove) {
+                result.bestmove   = lines.front().pv.front();
+                result.pv         = lines.front().pv;
+                result.pondermove = result.pv.size() > 1 ? result.pv[1]
+                                  : ponder_from_tt(board, result.bestmove);
+                result.score      = lines.front().score;
+            }
+            for (size_t k = 0; k < lines.size(); ++k)
+                send_info(depth, static_cast<int>(k) + 1, lines[k].score, lines[k].pv,
+                          current_nodes(), elapsed);
+        }
 
         // Adaptive soft time limit:
         // The more stable the best move, the less time we need to confirm it.
@@ -3146,6 +3202,17 @@ SearchResult SearchThreadPool::search(Board board, const SearchLimits& limits, i
         std::chrono::steady_clock::now() - wall_start).count();
 
     SearchResult merged = merge_results(results, thread_count, root_table, elapsed_ms);
+    // With several lines the main thread's first line is the answer, as in
+    // Stockfish: helpers search one line and do not vote.
+    if (limits.multipv > 1 && results[0].bestmove != MOVE_NONE) {
+        const SearchResult& main_result = results[0];
+        merged.bestmove   = main_result.bestmove;
+        merged.pondermove = main_result.pondermove;
+        merged.score      = main_result.score;
+        merged.depth      = main_result.depth;
+        merged.seldepth   = main_result.seldepth;
+        merged.pv         = main_result.pv;
+    }
 
     // The merged result may come from a helper, or from the shared root table,
     // which keeps no line. Take the line of the thread that reached it, so the

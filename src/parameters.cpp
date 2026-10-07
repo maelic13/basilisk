@@ -120,6 +120,7 @@ Parameters::Parameters() {
     search_moves.clear();
 
     move_overhead = defaultMoveOverhead;
+    multipv      = 1;
     hash_mb      = 64;
     threads      = 1;
     ponder_enabled = false;
@@ -171,6 +172,7 @@ std::string Parameters::uci_options() {
            "option name Clear Hash type button\n"
            "option name Ponder type check default false\n"
            "option name Move Overhead type spin default 10 min 0 max 5000\n"
+           "option name MultiPV type spin default 1 min 1 max 256\n"
            "option name SyzygyPath type string default <empty>\n"
            "option name SyzygyProbeDepth type spin default 1 min 1 max 100\n"
            "option name Syzygy50MoveRule type check default true\n"
@@ -384,6 +386,8 @@ void Parameters::set_option(const std::string& args) {
         uci_write_line("info string Invalid value for option '" + name + "': " + value);
     } else if (name_lower == "move overhead") {
         move_overhead = std::clamp(parsed, 0, 5000);
+    } else if (name_lower == "multipv") {
+        multipv = std::clamp(parsed, 1, 256);
     } else if (name_lower == "hash") {
         hash_mb = std::clamp(parsed, 1, 33554432);
     } else if (name_lower == "threads") {
