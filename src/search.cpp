@@ -2739,6 +2739,19 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
                 } else if (score >= asp_b) {
                     bound_line(score, true);
                     DIAG_COUNT(++diag_.asp_fail_high);
+                    // Past the optimum, a fail-high on the move the last
+                    // iteration chose only proves that move better than the
+                    // window expected: play it rather than spend the rest of
+                    // the budget measuring by how much. A rising score in a won
+                    // ending otherwise re-searches at full depth until the hard
+                    // maximum. The iteration is discarded as on any stop, so
+                    // the move played is that iteration's, and it is this one.
+                    if (soft_limit_ > 0.0 && !pondering_ && thread_id_ == 0
+                        && pv_len_[0] > 0 && pv_table_[0][0] == result.bestmove
+                        && elapsed_seconds() >= soft_limit_) {
+                        stopped_ = true;
+                        break;
+                    }
                     DIAG_COUNT(++diag_.asp_researches);
                     asp_b  = std::min(score + delta, INF_SCORE);
                     delta += delta / 2;

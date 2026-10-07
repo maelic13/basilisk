@@ -825,6 +825,29 @@ void test_tablebase_extension_start_rule() {
     end_section();
 }
 
+// A won ending whose score keeps rising: past the optimum, a fail-high on the
+// move the last iteration chose ends the search instead of re-searching to the
+// hard maximum (15.7 s here; the optimum is 2.3 s). Only an optimised build
+// searches fast enough for the clock this test sets.
+void test_won_ending_does_not_sink_the_clock() {
+    begin_section("engine clock: a rising won ending is played well before the maximum");
+#ifdef NDEBUG
+    EngineSession session;
+    session.position("fen 7r/5R2/8/2k1PB2/8/4K3/8/8 w - - 0 86");
+    session.sync();
+    const auto start = std::chrono::steady_clock::now();
+    session.go("wtime 30000 btime 30000 winc 300 binc 300");
+    EXPECT(session.wait_for_bestmoves(1, 20000));
+    const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+    std::fprintf(stderr, "  rec1 at 30000+300 took %.2f s\n", seconds);
+    EXPECT(seconds < 8.0);
+    EXPECT(contains_line_fragment(session.output(), "bestmove f7d7"));
+#else
+    EXPECT(true);   // unoptimised builds are too slow for a clock test
+#endif
+    end_section();
+}
+
 int main() {
     init_bitboards();
     init_attacks();
@@ -853,6 +876,7 @@ int main() {
     test_malformed_input_survival();
     test_final_tablebase_pv();
     test_tablebase_extension_start_rule();
+    test_won_ending_does_not_sink_the_clock();
 
     return harness_summary();
 }
