@@ -143,8 +143,7 @@ void run_bench(int depth, int repeats, int threads) {
             }
 
             if (detailed) {
-                int64_t nps = r.elapsed_ms > 0
-                    ? r.nodes * 1000 / r.elapsed_ms : r.nodes;
+                const int64_t nps = r.nodes * 1000 / std::max<int64_t>(1, r.elapsed_ms);
                 std::ostringstream line;
                 line << "bench " << (i + 1) << "/" << BENCH_FENS.size()
                      << "  depth " << r.depth
@@ -157,8 +156,7 @@ void run_bench(int depth, int repeats, int threads) {
             }
         }
 
-        int64_t run_nps = total_ms > 0
-            ? total_nodes * 1000 / total_ms : total_nodes;
+        const int64_t run_nps = total_nodes * 1000 / std::max<int64_t>(1, total_ms);
         nps_samples.push_back(run_nps);
 
         if (repeat == 0) {

@@ -1371,15 +1371,16 @@ void Searcher::send_info(int depth, int score, int64_t total_nodes, double elaps
     }
 
     if (info_cb_)
-        info_cb_(format_info_line(depth, sel_depth_, score, total_nodes, elapsed,
+        info_cb_(format_info_line(depth, sel_depth_, 1, score, {}, total_nodes, elapsed,
                                   current_tbhits(), tt_.hashfull(), pv_moves));
 }
 
-std::string format_info_line(int depth, int seldepth, int score, int64_t nodes,
-                             double elapsed, int64_t tbhits, int hashfull,
-                             const std::vector<Move>& pv) {
+std::string format_info_line(int depth, int seldepth, int multipv, int score,
+                             std::string_view bound, int64_t nodes, double elapsed,
+                             int64_t tbhits, int hashfull, const std::vector<Move>& pv) {
     std::string line = "info depth " + std::to_string(depth)
         + " seldepth " + std::to_string(seldepth)
+        + " multipv " + std::to_string(multipv)
         + " score ";
 
     if (std::abs(score) >= MATE_SCORE - MAX_PLY) {
@@ -1388,13 +1389,15 @@ std::string format_info_line(int depth, int seldepth, int score, int64_t nodes,
     } else {
         line += "cp " + std::to_string(score);
     }
+    if (!bound.empty())
+        line += " " + std::string(bound);
 
-    int64_t nps = elapsed > 0.0 ? int64_t(double(nodes) / elapsed) : 0;
+    const int64_t nps = int64_t(double(nodes) / std::max(elapsed, 0.001));
     line += " nodes " + std::to_string(nodes)
          + " nps "   + std::to_string(nps)
-         + " time "  + std::to_string(int64_t(elapsed * 1000))
+         + " hashfull " + std::to_string(hashfull)
          + " tbhits " + std::to_string(tbhits)
-         + " hashfull " + std::to_string(hashfull);
+         + " time "  + std::to_string(int64_t(elapsed * 1000));
 
     if (!pv.empty()) {
         line += " pv";
@@ -1432,6 +1435,14 @@ int Searcher::root_tablebase_score(Move move) const {
     for (const auto& entry : root_tb_moves_) {
         if (entry.bestmove == move)
             return entry.score;
+    }
+    return VALUE_NONE;
+}
+
+int Searcher::root_tablebase_display(Move move) const {
+    for (const auto& entry : root_tb_moves_) {
+        if (entry.bestmove == move)
+            return entry.display;
     }
     return VALUE_NONE;
 }
@@ -2631,6 +2642,21 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
     int max_depth = limits.infinite ? MAX_SEARCH_DEPTH
                   : std::min(limits.depth, MAX_SEARCH_DEPTH);
 
+    // A root with no legal move is decided: report it once, as Stockfish does,
+    // and search nothing. `bestmove` (0000) still waits for `stop` under
+    // `infinite` or `ponder`; that is the caller's.
+    {
+        MoveList root_legal;
+        board.gen_legal(root_legal);
+        if (root_legal.size() == 0) {
+            const bool mated = board.is_in_check();
+            result.score = mated ? -MATE_SCORE : 0;
+            if (info_cb_)
+                info_cb_(mated ? "info depth 0 score mate 0" : "info depth 0 score cp 0");
+            max_depth = 0;
+        }
+    }
+
     int start_depth = 1;
     root_stats_.clear();   // fresh records per `go` (8.6.10e)
     diag_.reset();         // fresh diagnostic counters per `go` (8.6.6)
@@ -2655,6 +2681,7 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
 
     for (int depth = start_depth; depth <= max_depth && !stopped_; depth++) {
         pv_len_[0] = 0;
+        sel_depth_ = 0;
         root_depth_nodes_ = 0;
         root_best_nodes_ = 0;
         root_best_effort_ = 0;
@@ -2666,6 +2693,19 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
             int delta = active_limits_.params.aspiration_delta;
             int asp_a = prev_score - delta;
             int asp_b = prev_score + delta;
+            // A long iteration whose window fails reports the bound it proved,
+            // with the line that failed high, or the previous line on a fail low.
+            auto bound_line = [&](int bound_score, bool lower) {
+                if (!info_cb_ || elapsed_seconds() <= kBoundLineAfterSeconds)
+                    return;
+                std::vector<Move> line = result.pv;
+                if (lower && pv_len_[0] > 0)
+                    line.assign(pv_table_[0], pv_table_[0] + std::clamp(pv_len_[0], 0, MAX_PLY));
+                info_cb_(format_info_line(depth, sel_depth_, 1, bound_score,
+                                          lower ? "lowerbound" : "upperbound", current_nodes(),
+                                          elapsed_seconds(), current_tbhits(), tt_.hashfull(),
+                                          legal_line(*board_ptr_, line)));
+            };
             DIAG_COUNT(++diag_.asp_windows);
             while (true) {
                 // 5.8.5 REFUTED: the reference re-searches SHALLOWER after each
@@ -2676,6 +2716,7 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
                 score = negamax(depth, asp_a, asp_b, 0, ss, true, true, false);
                 if (stopped_) break;
                 if (score <= asp_a) {
+                    bound_line(score, false);
                     DIAG_COUNT(++diag_.asp_fail_low);
                     DIAG_COUNT(++diag_.asp_researches);
                     // 5.8.3 REFUTED: the reference also pulls beta to the
@@ -2691,6 +2732,7 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
                     asp_a  = std::max(score - delta, -INF_SCORE);
                     delta += delta / 2;
                 } else if (score >= asp_b) {
+                    bound_line(score, true);
                     DIAG_COUNT(++diag_.asp_fail_high);
                     DIAG_COUNT(++diag_.asp_researches);
                     asp_b  = std::min(score + delta, INF_SCORE);
@@ -2720,7 +2762,7 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
 
         int reported_score = score;
         if (cur_best != MOVE_NONE) {
-            const int tb_score = root_tablebase_score(cur_best);
+            const int tb_score = root_tablebase_display(cur_best);
             if (tb_score != VALUE_NONE)
                 reported_score = tb_score;
         }
@@ -3128,7 +3170,7 @@ SearchResult SearchThreadPool::search(Board board, const SearchLimits& limits, i
             merged.pv.push_back(merged.pondermove);
     }
     if (info_cb_ && needs_pool_line(merged, results[0])) {
-        info_cb_(format_info_line(merged.depth, merged.seldepth, line_score, merged.nodes,
+        info_cb_(format_info_line(merged.depth, merged.seldepth, 1, line_score, {}, merged.nodes,
                                   static_cast<double>(elapsed_ms) / 1000.0, merged.tbhits,
                                   tt_.hashfull(), legal_line(root_board, merged.pv)));
     }

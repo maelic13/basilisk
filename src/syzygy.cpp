@@ -186,6 +186,9 @@ std::vector<Syzygy::RootMoveInfo> collect_root_moves(const Board& board,
         info.rank = static_cast<int>(tb_move.tbRank);
         info.score = normalize_root_score(static_cast<int>(tb_move.tbScore),
                                           info.rank, use_rule50);
+        info.display = (use_rule50 && info.rank > -900 && info.rank < 900)
+                     ? std::clamp(static_cast<int>(tb_move.tbScore), -49, 49)
+                     : info.score;
         info.used_dtz = used_dtz;
         out.push_back(std::move(info));
     }

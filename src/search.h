@@ -129,11 +129,17 @@ inline bool is_tablebase_decisive(int score) {
 
 SearchResult sanitize_search_result(const Board& root_board, SearchResult result);
 
-// One UCI `info` line for a completed iteration. `pv` must already be legal
-// from the root; the caller owns any tablebase extension.
-std::string format_info_line(int depth, int seldepth, int score, int64_t nodes,
-                             double elapsed, int64_t tbhits, int hashfull,
-                             const std::vector<Move>& pv);
+// One UCI `info` line in Stockfish's field order: depth seldepth multipv
+// score [bound] nodes nps hashfull tbhits time pv. `bound` is empty,
+// "lowerbound" or "upperbound". `pv` must already be legal from the root; the
+// caller owns any tablebase extension. `nps` floors the elapsed time at 1 ms.
+std::string format_info_line(int depth, int seldepth, int multipv, int score,
+                             std::string_view bound, int64_t nodes, double elapsed,
+                             int64_t tbhits, int hashfull, const std::vector<Move>& pv);
+
+// A single-PV aspiration failure prints its bound only once a search has run
+// this long, as Stockfish does, so fast games print the same lines as before.
+inline constexpr double kBoundLineAfterSeconds = 3.0;
 
 // The longest legal prefix of `line` played from `root`.
 std::vector<Move> legal_line(const Board& root, const std::vector<Move>& line);
@@ -568,6 +574,7 @@ private:
     int64_t current_tbhits() const;
     void   init_root_tablebase_scores(const Board& board);
     int    root_tablebase_score(Move move) const;
+    int    root_tablebase_display(Move move) const;
     int    root_tablebase_ordering_score(Move move) const;
     bool   root_tablebase_allows(Move move) const;
     Move   ponder_from_tt(const Board& root, Move bestmove) const;

@@ -89,6 +89,13 @@ public:
         queue_.push(EngineCommand{EngineCommandType::Go, args, nullptr, epoch});
     }
 
+    void stop() {
+        const uint64_t epoch =
+            control_epoch_.fetch_add(1, std::memory_order_acq_rel) + 1;
+        stop_requested_.store(true, std::memory_order_release);
+        queue_.push(EngineCommand{EngineCommandType::Stop, {}, nullptr, epoch});
+    }
+
     void sync() {
         auto ack = std::make_shared<std::promise<void>>();
         auto done = ack->get_future();
@@ -353,6 +360,57 @@ void test_threaded_last_line_names_bestmove() {
     end_section();
 }
 
+// A root with no legal move prints one depth-0 line, Stockfish's, and
+// `bestmove 0000`; under `go infinite` the bestmove still waits for `stop`.
+void test_terminal_root_reports_once() {
+    auto info_lines = [](const std::string& text) {
+        std::istringstream input(text);
+        std::string line;
+        std::vector<std::string> lines;
+        while (std::getline(input, line))
+            if (line.rfind("info ", 0) == 0 && line.rfind("info string", 0) != 0)
+                lines.push_back(line);
+        return lines;
+    };
+
+    begin_section("engine terminal root: a mated root prints one mate 0 line");
+    {
+        EngineSession session;
+        session.position("fen 7k/6Q1/6K1/8/8/8/8/8 b - - 0 1");
+        session.go("depth 5");
+        EXPECT(session.wait_for_bestmoves(1, 2000));
+        const auto lines = info_lines(session.output());
+        EXPECT_EQ(lines.size(), size_t(1));
+        EXPECT(!lines.empty() && lines[0] == "info depth 0 score mate 0");
+        EXPECT(contains_line_fragment(session.output(), "bestmove 0000"));
+    }
+    end_section();
+
+    begin_section("engine terminal root: a stalemated root prints one cp 0 line");
+    {
+        EngineSession session;
+        session.position("fen 7k/5Q2/6K1/8/8/8/8/8 b - - 0 1");
+        session.go("depth 5");
+        EXPECT(session.wait_for_bestmoves(1, 2000));
+        const auto lines = info_lines(session.output());
+        EXPECT_EQ(lines.size(), size_t(1));
+        EXPECT(!lines.empty() && lines[0] == "info depth 0 score cp 0");
+    }
+    end_section();
+
+    begin_section("engine terminal root: go infinite waits for stop");
+    {
+        EngineSession session;
+        session.position("fen 7k/6Q1/6K1/8/8/8/8/8 b - - 0 1");
+        session.go("infinite");
+        EXPECT(!session.wait_for_bestmoves(1, 200));
+        session.stop();
+        EXPECT(session.wait_for_bestmoves(1, 2000));
+        EXPECT_EQ(info_lines(session.output()).size(), size_t(1));
+    }
+    end_section();
+}
+
 void test_go_perft_returns_nodes_without_bestmove() {
     EngineSession session;
     session.position("startpos");
@@ -468,14 +526,20 @@ void test_final_tablebase_pv() {
         session.sync();
         session.go("depth 2 wtime 60000 btime 60000");
         EXPECT(session.wait_for_bestmoves(1, 10000));
+        // The extended line repeats the final depth after the searched one.
         std::istringstream input(session.output());
         std::string line;
+        std::vector<std::string> depth_lines;
         while (std::getline(input, line)) {
-            if (line.rfind("info depth", 0) == 0 && line.find(" seldepth ") == std::string::npos)
-                final_line = line;
+            if (line.rfind("info depth", 0) == 0)
+                depth_lines.push_back(line);
             if (line.rfind("bestmove", 0) == 0)
                 bestmove = line;
         }
+        auto depth_of = [](const std::string& text) { return std::stoi(text.substr(11)); };
+        const size_t n = depth_lines.size();
+        if (n >= 2 && depth_of(depth_lines[n - 1]) == depth_of(depth_lines[n - 2]))
+            final_line = depth_lines[n - 1];
     };
 
     begin_section("engine tb pv: final line extended to mate, ponder from it");
@@ -509,6 +573,15 @@ void test_final_tablebase_pv() {
     }
     end_section();
 
+    begin_section("engine tb pv: the extended line carries the full field set");
+    {
+        std::string final_line, bestmove;
+        run(1000, final_line, bestmove);
+        for (const char* field : {" seldepth ", " multipv 1 ", " nps ", " hashfull ", " tbhits ", " time "})
+            EXPECT(final_line.find(field) != std::string::npos);
+    }
+    end_section();
+
     begin_section("engine tb pv: Move Overhead 0 leaves no time to extend");
     {
         std::string final_line, bestmove;
@@ -537,6 +610,7 @@ int main() {
     test_threaded_go_nodes_returns_one_bestmove();
     test_smp_machinery_is_inert_on_a_single_thread();
     test_threaded_last_line_names_bestmove();
+    test_terminal_root_reports_once();
 
     std::printf("\nRoot commands\n");
     test_go_perft_returns_nodes_without_bestmove();

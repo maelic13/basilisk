@@ -182,15 +182,9 @@ void Engine::publish_tablebase_pv(SearchResult& result, const Board& root_board,
         return;
 
     const int score = ext.ends_in_draw ? 0 : result.score;
-    std::string info = "info depth " + std::to_string(result.depth)
-        + " score cp " + std::to_string(score)
-        + " nodes " + std::to_string(result.nodes)
-        + " time " + std::to_string(result.elapsed_ms)
-        + " tbhits " + std::to_string(result.tbhits)
-        + " pv";
-    for (Move m : ext.pv)
-        info += ' ' + move_to_uci(m);
-    uci_write_line(info);
+    uci_write_line(format_info_line(result.depth, result.seldepth, 1, score, {}, result.nodes,
+                                    static_cast<double>(result.elapsed_ms) / 1000.0,
+                                    result.tbhits, tt_.hashfull(), ext.pv));
 
     if (ext.pv.size() > 1)
         result.pondermove = ext.pv[1];
