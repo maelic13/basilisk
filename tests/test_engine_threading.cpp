@@ -788,6 +788,43 @@ void test_final_tablebase_pv() {
     Syzygy::clear();
 }
 
+// Under a clock the final tablebase extension starts only with ten move
+// overheads left before the hard ceiling: at Rarog's forfeit, 58 ms of clock
+// at the default 10 ms overhead, it does not start.
+void test_tablebase_extension_start_rule() {
+    begin_section("engine tb pv: the start rule at the forfeit's numbers");
+    EXPECT(!tablebase_extension_may_start(1000, 10, 1, 922.0));   // 58 ms left
+    EXPECT(tablebase_extension_may_start(1000, 10, 1, 880.0));    // 100 ms left
+    EXPECT(!tablebase_extension_may_start(1000, 10, 1, 881.0));
+    EXPECT(tablebase_extension_may_start(1000, 10, 4, 850.0));    // helpers reserve 30 ms more
+    EXPECT(!tablebase_extension_may_start(1000, 10, 4, 851.0));
+    EXPECT(tablebase_extension_may_start(60000, 10, 1, 5000.0));
+    end_section();
+
+    begin_section("engine tb pv: a short clock plays the searched line unextended");
+    {
+        const std::string fen = "6k1/8/8/8/8/8/8/6KQ w - - 0 1";
+        EngineSession session;
+        session.set_option("name SyzygyPath value " + syzygy_fixture_path().string());
+        session.set_option("name Move Overhead value 10");
+        session.position("fen " + fen);
+        session.sync();
+        session.go("depth 2 wtime 100 btime 100");
+        EXPECT(session.wait_for_bestmoves(1, 10000));
+        std::istringstream input(session.output());
+        std::string line;
+        std::vector<int> depths;
+        while (std::getline(input, line))
+            if (line.rfind("info depth ", 0) == 0)
+                depths.push_back(std::stoi(line.substr(11)));
+        const size_t n = depths.size();
+        EXPECT(n >= 1);
+        EXPECT(n < 2 || depths[n - 1] != depths[n - 2]);   // no repeated final line
+        Syzygy::clear();
+    }
+    end_section();
+}
+
 int main() {
     init_bitboards();
     init_attacks();
@@ -815,6 +852,7 @@ int main() {
     std::printf("\nMalformed-input survival (8.6.3a)\n");
     test_malformed_input_survival();
     test_final_tablebase_pv();
+    test_tablebase_extension_start_rule();
 
     return harness_summary();
 }

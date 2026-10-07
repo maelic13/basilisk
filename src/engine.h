@@ -11,6 +11,14 @@
 #include "tt.h"
 #include "search.h"
 
+// Under a clock, the final tablebase PV extension may start only while at
+// least ten move overheads remain before the hard ceiling the search kept
+// (the clock less twice the overhead, and 30 ms more with helper threads).
+// One table read the page cache misses has taken 54 ms, and the extension's
+// own half-overhead box is checked only between reads.
+bool tablebase_extension_may_start(int clock_ms, int overhead_ms, int threads,
+                                   double elapsed_ms);
+
 class Engine {
 public:
     explicit Engine(EngineCommandQueue& commands,

@@ -149,11 +149,28 @@ void Engine::send_bestmove(const SearchResult& result, const Board& root_board) 
 // 2 x elapsed >= Move Overhead: never more than half the overhead the GUI
 // latency reserve already allows. Without a time limit it is unbounded, as in
 // Stockfish's analysis mode.
+bool tablebase_extension_may_start(int clock_ms, int overhead_ms, int threads,
+                                   double elapsed_ms) {
+    const double hard_ceiling = clock_ms - 2.0 * overhead_ms - (threads > 1 ? 30.0 : 0.0);
+    return hard_ceiling - elapsed_ms >= 10.0 * overhead_ms;
+}
+
 void Engine::publish_tablebase_pv(SearchResult& result, const Board& root_board,
                                   const SearchLimits& limits) const {
     if (!Syzygy::enabled() || result.bestmove == MOVE_NONE
         || !is_tablebase_decisive(result.score))
         return;
+
+    const int clock_ms = root_board.turn() == WHITE ? limits.wtime : limits.btime;
+    if (clock_ms > 0) {
+        const double elapsed_ms = limits.go_recv_time.time_since_epoch().count() != 0
+            ? std::chrono::duration<double, std::milli>(
+                  std::chrono::steady_clock::now() - limits.go_recv_time).count()
+            : static_cast<double>(result.elapsed_ms);
+        if (!tablebase_extension_may_start(clock_ms, limits.overhead,
+                                           search_pool_.active_thread_count(), elapsed_ms))
+            return;
+    }
 
     std::vector<Move> line = result.pv;
     if (line.empty() || line.front() != result.bestmove) {
