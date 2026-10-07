@@ -710,6 +710,10 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       Amended by A.8.16 to a `[-5,5]` repair bracket at `3+0.03`. Prepared
       2026-10-07 as BAS-S20: candidate PGO build of `9c93d15` against the
       BAS-S19 candidate, cap 4,000 pairs, seed 818; dry run accepted.
+      Played 2026-10-07: cap reached, **−0.7 ± 4.5 Elo** (nElo [−8.71, +6.51]),
+      zero time losses. The registered acceptance (interval above −5) is not
+      met, and neither is the return condition (H0). Awaiting the
+      maintainer's disposition.
     - [ ] **A.8.19** `[R2]` Displayed-score normalisation
       Moved from D.3.3. Displayed-score research card: fit a win-rate model
       on Basilisk's own games, decide the `cp` mapping as Stockfish
