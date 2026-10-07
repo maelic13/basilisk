@@ -14,7 +14,7 @@ in `docs/PROCESS.md`; where the engine stands is PLAN §1.
 | Bench fingerprint | **14,978,465** (`bench 13`, 1.10.0 and 1.10.1) |
 | Active experiment | None |
 | Long job | None |
-| Next release | **2.0.0** if the E.2 target gate is met, otherwise **1.11.0**, cut at E.3 |
+| Next release | **1.10.2**, a correctness patch (A.8.21, after A.8.11); then **2.0.0** if the E.2 target gate is met, otherwise **1.11.0**, cut at E.3 |
 
 ## Model by class
 
@@ -34,7 +34,7 @@ generations change. These are maintainer judgments, not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **A.8.6** `[I1]` Tag-driven release flow — Claude Sonnet 5 — Medium
+**Next step:** **A.8.7** `[I1]` SMP: the chosen thread's line before bestmove — Claude Sonnet 5 — Medium
 
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
@@ -50,7 +50,7 @@ generations change. These are maintainer judgments, not measured rankings.
     - [x] **A.8.3** `[M]` Merge commits from dev to master
     - [x] **A.8.4** `[M]` Documents into docs/, closed Phase A archived
     - [x] **A.8.5** `[I1]` Experiment ledger split into entries
-    - [ ] **A.8.6** `[I1]` Tag-driven release flow
+    - [x] **A.8.6** `[I1]` Tag-driven release flow
     - [ ] **A.8.7** `[I1]` SMP: the chosen thread's line before bestmove
     - [ ] **A.8.8** `[I1]` UCI info conformance
     - [ ] **A.8.9** `[I2]` MultiPV

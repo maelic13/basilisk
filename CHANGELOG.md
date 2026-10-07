@@ -12,6 +12,10 @@ and next step).
 
 ---
 
+## [Unreleased]
+
+---
+
 ## [1.10.1] - 2026-09-27
 
 A correctness release. It fixes time losses with pondering enabled, and in

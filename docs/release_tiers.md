@@ -7,11 +7,13 @@
 Basilisk ships one binary per (OS, architecture, CPU-feature tier). Every
 release asset is built **PGO** (profile-guided: instrument → train on the bench
 suite → merge → optimised link) from the exact tagged revision with production
-flags (`TUNE` off, `PORTABLE_BUILD=ON`), and CI **smoke-tests the exact uploaded
-file** before publishing it: the binary must answer `uci`/`uciok`, carry the
-release version string, and return a real `bench` node count — proving the move
-generator, evaluator and search survived PGO on that runner
-(`.github/workflows/release.yml`). Only the binaries are published as release
+flags (`TUNE` off, `PORTABLE_BUILD=ON`), and CI **smoke-tests the exact file it
+publishes** before any release exists: the binary must answer `uci`/`uciok`,
+name the release version, and reproduce the `bench 13` node count GUIDE
+declares, identical across all nine assets — proving the move generator,
+evaluator and search survived PGO on that runner
+(`.github/workflows/release.yml`; the procedure is `docs/PROCESS.md`
+*Release*). Only the binaries are published as release
 assets; the per-build manifest (revision, compiler, bench fingerprint, NPS) is a
 **local** artifact by the 8.6.5 decision and is not uploaded, and no per-asset
 `*.sha256` is published — downloads are served over GitHub's HTTPS release

@@ -456,7 +456,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       `validate_ledger` replaces the heading-collision check, and its
       self-test plants each disagreement. Removing `BAS-X35.md` from the
       real tree fails the check (exit 1). The 13 broken links are unchanged.
-    - [ ] **A.8.6** `[I1]` Tag-driven release flow
+    - [x] **A.8.6** `[I1]` Tag-driven release flow
       Moved from E.3.1. Today `release.yml` fires on `release: published`, so
       a release exists before any asset is built, and nothing checks that the
       tag equals the version. In the new flow, pushing a `vX.Y.Z` tag on
@@ -478,6 +478,22 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       A `workflow_dispatch` rehearsal runs without a tag. Tag, push and
       publish stay the maintainer's. Verified by a rehearsal and a PR
       candidate run.
+      — CLOSED 2026-10-07 on local qualification. `release.yml` is rewritten:
+      prepare, nine build cells, collect (nine assets, one fingerprint
+      equal to GUIDE's, SHA256SUMS) and publish (tag push only, write
+      permission there alone). The build cells and toolchain steps are
+      unchanged, except that each smoke test now asserts the exact `id name`
+      and the declared `bench 13` count instead of any count. The checks are
+      `tools/diag/release_check.py`, which reads the fingerprint with the
+      roadmap checker's own parser; `test_release_check.py` refuses each
+      defect (4 tests, 11 cases). Locally the prepare step passes as a
+      candidate on `dev` at 1.10.1 and refuses a tag run, `dev` not being
+      on `master`. Both workflows parse, and all 31 `run:` blocks pass
+      `bash -n`. PROCESS *Release* holds the procedure, and CHANGELOG has
+      an `[Unreleased]` section. `dev` stays at 1.10.1 until A.8.21: a
+      version-string change is engine source and waits for a build. The
+      rehearsal, PR candidate and tag runs need GitHub and are owed at
+      A.8.21; a failure there reopens this leaf.
     - [ ] **A.8.7** `[I1]` SMP: the chosen thread's line before bestmove
       Measured 20 of 120 searches at Threads 8 (review item 1). A result
       carries its thread's PV, depth, score and seldepth. When the merged
@@ -968,7 +984,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.8.6 | READY_FOR_IMPLEMENTATION | I1 | Moved from E.3.1; Rarog's lessons in the leaf |
 | A.8.7 | READY_FOR_IMPLEMENTATION | I1 | Review item 1; output only |
 | A.8.8 | READY_FOR_IMPLEMENTATION | I1 | Review item 6; output only |
 | A.8.9 | READY_FOR_IMPLEMENTATION | I2 | Identity at MultiPV 1 is the gate |

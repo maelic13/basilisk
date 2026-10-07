@@ -545,6 +545,45 @@ small book collapsed 200,000 games into 31,880 unique positions.
 - A correctness exception names the invariant, the tests and the incomplete
   strength evidence.
 
+## Release
+
+A release is cut only on maintainer instruction (PLAN §5), through
+`.github/workflows/release.yml`; nothing else creates one.
+
+1. **The release commit, on `dev`.** Both version sources read `X.Y.Z`:
+   `project(basilisk VERSION X.Y.Z` in `CMakeLists.txt` and `engineVersion`
+   in `src/constants.h`. CHANGELOG's `[Unreleased]` becomes
+   `## [X.Y.Z] - YYYY-MM-DD`, with a fresh empty `[Unreleased]` above it.
+   GUIDE's *Released baseline* row names **X.Y.Z**, and its *Bench
+   fingerprint* row holds the release's `bench 13` count, restated where the
+   roadmap checker requires. `python tools/diag/release_check.py check vX.Y.Z
+   --base HEAD` passes.
+2. **The rehearsal is the pull request.** Open a PR from `dev` into `master`.
+   Its `CI` run and its `Release` candidate run must both be green: the
+   candidate builds, benches and fingerprints all nine assets, and runs the
+   release check for a plain version. The maintainer merges it with a merge
+   commit, never a squash.
+3. **The tag.** On the merged `master`, the maintainer tags and pushes. The
+   tag run checks again, rebuilds the nine assets, asserts one fingerprint
+   equal to GUIDE's, and only then publishes, with the CHANGELOG section as
+   the notes.
+4. **Repair.** A failed tag run publishes nothing. Delete the tag locally and
+   on `origin`, fix `master` through a PR, and tag again.
+5. **Reopen `dev`.** The first commit on `dev` after publication bumps both
+   sources to the next version, with `engineVersion` carrying `-dev` (CMake
+   takes only the numbers). A `-dev` version's PR candidate run skips the
+   release check. CHANGELOG's `[Unreleased]` grows as user-facing changes
+   land, so step 1 only dates it.
+
+```bash
+git fetch origin
+git tag -a vX.Y.Z -m "Basilisk X.Y.Z" origin/master
+git push origin vX.Y.Z
+```
+
+A rehearsal without a PR is a manual dispatch of `Release` on any ref; it
+builds the bundle as a workflow artifact and creates no tag or release.
+
 ## Common commands
 
 ```powershell
