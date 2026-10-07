@@ -34,7 +34,7 @@ generations change. These are maintainer judgments, not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **A.8.8** `[I1]` UCI info conformance — Claude Sonnet 5 — Medium
+**Next step:** **A.8.9** `[I2]` MultiPV — Claude Opus 5 — High
 
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
@@ -52,7 +52,7 @@ generations change. These are maintainer judgments, not measured rankings.
     - [x] **A.8.5** `[I1]` Experiment ledger split into entries
     - [x] **A.8.6** `[I1]` Tag-driven release flow
     - [x] **A.8.7** `[I1]` SMP: the chosen thread's line before bestmove
-    - [ ] **A.8.8** `[I1]` UCI info conformance
+    - [x] **A.8.8** `[I1]` UCI info conformance
     - [ ] **A.8.9** `[I2]` MultiPV
     - [ ] **A.8.10** `[I1]` Command-line commands, fatal errors on stdout
     - [ ] **A.8.11** `[I1]` Tablebase PV extension start rule

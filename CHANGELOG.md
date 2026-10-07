@@ -21,6 +21,15 @@ and next step).
   thread's lines were printed, so in about one search in six at eight threads
   the last line before `bestmove` showed a different move. The chosen line is
   now printed before `bestmove`. The moves played are unchanged.
+- **`info` lines follow Stockfish's layout:** `depth seldepth multipv score
+  nodes nps hashfull tbhits time pv`, with `multipv 1` on every line, so a
+  parser meets one line shape. `seldepth` is now each iteration's own. In a
+  search longer than 3 s, a score outside the expected window is reported as
+  it is found, marked `lowerbound` or `upperbound`. A position with no legal
+  move reports `info depth 0 score mate 0` (or `cp 0`) once, before
+  `bestmove 0000`. The final tablebase line carries every field. A tablebase
+  win the fifty-move rule will spoil shows 1–49 cp instead of 0, and `nps` is
+  no longer reported a thousand times too low in the first millisecond.
 
 ---
 

@@ -511,7 +511,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       formatter. `uci_probe.py smp` reads 0 of 120 (20 of 120 before). The
       engine test fails 5 of 40 with the print disabled and passes with it.
       Release CTest 13/13; bench 14,978,465.
-    - [ ] **A.8.8** `[I1]` UCI info conformance
+    - [x] **A.8.8** `[I1]` UCI info conformance
       Output only (review item 6), each with a protocol test:
       - Stockfish's field order: `depth seldepth multipv score [bound]
         nodes nps hashfull tbhits time pv`, with `multipv 1` on every line;
@@ -528,6 +528,13 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         value feeds nothing but the display; otherwise the leaf returns;
       - `bench` floors elapsed time at 1 ms for `nps`.
       Exact bench.
+      — CLOSED 2026-10-07: every item done, each with a test (release CTest
+      13/13; bench 14,978,465). The cursed-win value feeds root ordering, so
+      it is shown through a separate display field carrying Fathom's own
+      1–49 cp, and ordering is untouched. The seldepth test relies on a fact:
+      a running maximum cannot fall, and on the bench positions at depth 10
+      it does. Live: a 12 s search printed an `upperbound` line at 8.3 s, and
+      KQvK at rule-50 clock 92 shows `cp 49` with the 3-6-man tables.
     - [ ] **A.8.9** `[I2]` MultiPV
       `MultiPV` (default 1, up to 256; capped by the legal or `searchmoves`
       count): each depth reports the best N lines, each tagged `multipv k`.
@@ -992,7 +999,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.8.8 | READY_FOR_IMPLEMENTATION | I1 | Review item 6; output only |
 | A.8.9 | READY_FOR_IMPLEMENTATION | I2 | Identity at MultiPV 1 is the gate |
 | A.8.10 | READY_FOR_IMPLEMENTATION | I1 | Review item 7 |
 | A.8.11 | READY_FOR_IMPLEMENTATION | I1 | Review item 5; Rarog's start rule |
