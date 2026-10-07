@@ -644,10 +644,22 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       roots are all in the tables, where in-search probes are off. It is a
       `[-5,5]` repair bracket at `10+0.1` on the standard book with tables
       configured, plus conversion counts and an activation read.
-    - [ ] **A.8.14** `[I2]` Score bands and probes, implementation
+    - [x] **A.8.14** `[I2]` Score bands and probes, implementation
       Implements A.8.13's handoff. Qualification by that handoff: a
       fingerprint change if the clamp reaches the bench, the tablebase tests
       on the committed fixture, and protocol tests for the display.
+      — CLOSED 2026-10-07: the handoff implemented in full, with the hash
+      table ply-adjusting the band. H2 is refuted: bench 14,978,465 exact
+      without tables, so Rarog's unadjusted fallback was not needed.
+      `test_tt`'s boundary moves with the contract. New tests:
+      - the band constants;
+      - the display mapping;
+      - KBNK without tables below the band;
+      - a fixture search capturing into KQvK, scoring `tablebaseValue − 1`
+        (`cp 19999`), where the old flat value gave 20,000.
+      Release and ASan/UBSan CTest 17/17. With the 3–6-man tables, a 7-man
+      root probes in search (365k hits) and reaches depth 29 in 2.3 s, where
+      the head before reached depth 21 in 3.8 s.
     - [ ] **A.8.15** `[V]` Tablebase-enabled gate
       A.8.13's registered gate, maintainer-run.
     - [ ] **A.8.16** `[R2]` Won-endgame time sink
@@ -1053,7 +1065,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.8.14 | READY_FOR_IMPLEMENTATION | I2 | Handoff in `analysis/a813_tb_bands_2026-10-07.md` |
 | A.8.15 | READY_FOR_IMPLEMENTATION | V | Gate designed in the A.8.13 packet; registered before any game; maintainer-run |
 | A.8.16 | RESEARCH | R2 | Review item 2 |
 | A.8.17 | RESEARCH | I1 | Waits on A.8.16's handoff |

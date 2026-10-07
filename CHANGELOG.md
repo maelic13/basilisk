@@ -36,6 +36,16 @@ and next step).
 - A fatal error is now also reported on standard output, where GUIs and
   tournament harnesses record it.
 
+### Changed
+
+- **Tablebase results have their own score band**, directly below mates. A
+  tablebase win now shows as `cp 20000` less the plies to reach it, so
+  quicker wins score higher, and evaluations such as the bishop-and-knight
+  mate drive can no longer be mistaken for tablebase results. Probes during
+  the search now treat a tablebase win as a lower bound and a loss as an
+  upper bound, as Stockfish does, and search on inside them in principal
+  lines.
+
 ### Added
 
 - **`MultiPV`** (default `1`, up to `256`) reports the best several lines at
