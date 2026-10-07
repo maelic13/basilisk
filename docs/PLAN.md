@@ -559,20 +559,33 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       line for line (a test). NPS by BAS-P13: +1.13% [+0.91, +1.91] against
       1.10.1, the condition met; the gain is unexplained and not claimed.
       Release CTest 13/13.
-    - [ ] **A.8.10** `[I1]` Command-line commands, fatal errors on stdout
+    - [x] **A.8.10** `[I1]` Command-line commands, fatal errors on stdout
       Arguments run as engine commands in order, then the process exits:
       `basilisk bench 13` benches. An unknown argument prints a message and
       exits 2; with no arguments the UCI loop starts as now. `help` prints
       what the engine is, how to drive it and where its source is. A fatal
       exception is reported on stdout as `info string` (and stderr), where
       harnesses record it. Process-level CTest cases; exact bench.
-    - [ ] **A.8.11** `[I1]` Tablebase PV extension start rule
+      — CLOSED 2026-10-07 (`db6b845`). The arguments form one command; the
+      quit that follows does not raise stop, so `go depth N` runs to its end.
+      The interactive loop still ignores unknown commands, as UCI asks. Four
+      CLI CTest cases (bench, `go depth 4`, help, unknown exits 2); the check
+      script fails on a wrong status or text. `basilisk bench 13` reads
+      14,978,465. Release CTest 17/17. The fatal path has no test: nothing in
+      a release build throws on demand.
+    - [x] **A.8.11** `[I1]` Tablebase PV extension start rule
       Under a clock, `publish_tablebase_pv` starts only when at least ten
       move overheads remain before the hard ceiling once the search has
       ended (Rarog's rule, after a 54 ms cold DTZ read lost a game at 58 ms;
       review item 5). Without a clock it is unchanged. A unit test holds
       the rule at those numbers. Exact bench; ponder and tablebase engine
       tests unchanged.
+      — CLOSED 2026-10-07 (`14dd3c3`). The hard ceiling is the clock less
+      twice the overhead (30 ms more with helpers), as the search computes
+      it; elapsed runs from `go` receipt. Unit test at the forfeit's numbers
+      (58 ms left at 10 ms overhead refuses; exactly 100 ms allows). Engine
+      test: at `wtime 100` the line is not extended, and it fails with the
+      rule disabled. Bench 14,978,465; release CTest 17/17.
     - [ ] **A.8.12** `[I2]` C++23 idiom pass, behaviour-neutral
       Modern idiom across `src/` without moving code between files (B.1 and
       C.1 own the moves): `std::format`/`std::print` for UCI and bench
@@ -1013,8 +1026,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.8.10 | READY_FOR_IMPLEMENTATION | I1 | Review item 7 |
-| A.8.11 | READY_FOR_IMPLEMENTATION | I1 | Review item 5; Rarog's start rule |
 | A.8.12 | READY_FOR_IMPLEMENTATION | I2 | Behaviour-neutral; NPS within noise |
 | A.8.13 | RESEARCH | R2 | Review items 3 and 4; designs A.8.15's gate |
 | A.8.14 | RESEARCH | I2 | Waits on A.8.13's handoff |

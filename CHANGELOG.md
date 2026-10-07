@@ -30,12 +30,21 @@ and next step).
   `bestmove 0000`. The final tablebase line carries every field. A tablebase
   win the fifty-move rule will spoil shows 1–49 cp instead of 0, and `nps` is
   no longer reported a thousand times too low in the first millisecond.
+- **A possible time loss with tablebases:** the final tablebase line is now
+  extended only when enough time is left (ten times `Move Overhead`), since a
+  single slow read of a tablebase file could run a fast game's clock out.
+- A fatal error is now also reported on standard output, where GUIs and
+  tournament harnesses record it.
 
 ### Added
 
 - **`MultiPV`** (default `1`, up to `256`) reports the best several lines at
   each depth, best first, for analysis; `bestmove` is always the first line.
   At `MultiPV 1` the search and its output are unchanged.
+- **Command-line commands:** `basilisk bench 13` runs the bench and exits,
+  and any other command given as arguments runs to its end the same way; an
+  unknown one exits with status 2. `help` prints what Basilisk is, its
+  commands and where its source lives.
 
 ---
 
