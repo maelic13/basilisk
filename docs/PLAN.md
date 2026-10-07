@@ -662,6 +662,11 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       the head before reached depth 21 in 3.8 s.
     - [ ] **A.8.15** `[V]` Tablebase-enabled gate
       A.8.13's registered gate, maintainer-run.
+      Prepared 2026-10-07 as BAS-S19: candidate PGO build of `b0a078a`
+      against the pre-A.8.14 PGO build. `sprt-repair-ltc.toml` (`[-5,5]`,
+      `10+0.1`), concurrency 7, tables on both sides, cap 4,000 pairs, seed
+      815; dry run accepted. Deviation from the packet: the existing wrapper
+      flags carry `SyzygyPath`, so only the clock needed a new run file.
     - [ ] **A.8.16** `[R2]` Won-endgame time sink
       A won ending without tablebases spent the whole hard maximum on one move
       (review item 2: 32,305 ms of a 60 s clock, last `info` at 1,020 ms;

@@ -1,0 +1,9 @@
+# BAS-S19
+
+| Field | Value |
+|---|---|
+| ID | BAS-S19 |
+| Experiment and conditions | **Frozen before any game, PLAN A.8.15: the tablebase band and bound-correct in-search probes, with tables configured (maintainer-run).** Candidate `tools/test_engines/basilisk-a815-tb-new-pext-pgo.exe` (`b0a078a`, SHA-256 `C502B6DA…`); baseline `basilisk-a812-nps-pgo1-pext-pgo.exe` (`5d151a0`, the head before A.8.13–A.8.14, SHA-256 `86A495CB…`); both clean PGO builds at bench 14,978,465. Colosseum CLI 0.2.0 through `tools/colosseum.ps1` with `tools/colosseum/sprt-repair-ltc.toml`: repair bracket `[-5, 5]` nElo, `10+0.1`, Hash 64, Threads 1, concurrency 7, the standard UHO book, no adjudication, seed 815, cap 4,000 pairs, `SyzygyPath=D:/chess/tablebases/syzygy3456` (1,020 files) on both engines with default probe options. Dry run accepted 2026-10-07 (`tools/results/colosseum_sprt_a815-tb-gate-dry_20261007_155647.*`); the resolved configuration carries the path on both engines, `10+0.1`, concurrency 7, the bounds and the cap. Correctness counts from the same games: tablebase-won roots with a clean win under rule 50 are won; zero time losses; the runner's own fault and PV checks. Activation read after the run: 200 positions of 7–9 men taken from the games, searched to 100,000 nodes by each binary with tables; the share of searches with an in-search table hit per binary. |
+| Result / disposition | registered |
+| Conditional lesson and retry trigger | **Prediction (frozen, from the A.8.13 packet):** +3 Elo, 80% interval [−4, +10]. Every clean tablebase win is converted; zero time losses. **Reading:** H0 or an interval below 0 returns A.8.14 to research; a time loss or an unconverted clean win is an implementation defect, whatever the Elo. |
+| Source | PLAN A.8.15; `analysis/a813_tb_bands_2026-10-07.md` |
