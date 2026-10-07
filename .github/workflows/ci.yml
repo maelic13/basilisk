@@ -1,11 +1,12 @@
 # CI — correctness, sanitizers, compiler/ISA coverage and cross-platform bench
 # agreement (8.6.4).
 #
-# This is a mandatory development gate, not only a release-after-the-fact
-# signal. Run it for the active development branch, pull requests, master, and
-# manual diagnostics. Pull requests and development pushes can duplicate a run
-# when both apply; that is preferable to leaving either integration path
-# unprotected.
+# This is the mandatory gate into master. It runs on a pull request into
+# master, where GitHub builds the merge commit, so the run tests exactly what
+# master would become, and on manual dispatch for any branch. It does not run
+# on pushes: a push to master only ever lands a pull request that already
+# passed, and dev commits are qualified locally (exact bench, CTest) at each
+# commit. A newer commit to the same pull request cancels the superseded run.
 #
 # The bench job hardcodes NO expected node count. All platforms run bench and
 # a final job asserts they AGREE with each other. A frozen constant would need
@@ -19,10 +20,13 @@
 name: CI
 
 on:
-  push:
-    branches: [master, development]
   pull_request:
+    branches: [master]
   workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   # ---- Release-mode OS/architecture/ISA matrix -------------------------------
