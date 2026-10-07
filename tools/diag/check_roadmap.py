@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Fail on roadmap drift; regenerate GUIDE's step list from PLAN.
 
-PLAN.md is the only place a step is written. Each leaf's first line is its
+docs/PLAN.md is the only place a step is written. Each leaf's first line is its
 identifier, capability tag and a short title; the detail follows on indented
 lines. GUIDE.md's step list, next step and held steps are rendered from PLAN
 between two markers: `--write-guide` rewrites them, and the plain check fails
@@ -62,13 +62,13 @@ FINGERPRINT = re.compile(r"\*\*(\d{1,3}(?:,\d{3})+)\*\*")
 GUIDE_FINGERPRINT_ROW = "| Bench fingerprint |"
 # Each document that restates the current fingerprint does it on one line
 # containing this anchor, so a stale copy cannot hide behind a line wrap.
-FINGERPRINT_ANCHORS = (("DESIGN.md", "Bench signature"), ("AGENTS.md", "currently **"))
+FINGERPRINT_ANCHORS = (("docs/DESIGN.md", "Bench signature"), ("AGENTS.md", "currently **"))
 # A title is the step's name in GUIDE's overview, not its description.
 TITLE_MAX = 64
 PHASE_HEADING = re.compile(r"^## (Phase [A-Z]\b.*)$")
 MAPPING_ROW = re.compile(r"^\|\s*`(R3|R2|I2|I1|M|V)`\s*\|[^|]*\|\s*(?P<model>[^|]+?)\s*\|\s*$")
 GENERATED_BEGIN = (
-    "<!-- BEGIN GENERATED FROM PLAN.md by `python tools/diag/check_roadmap.py "
+    "<!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py "
     "--write-guide`; edit PLAN, not this block -->"
 )
 GENERATED_END = "<!-- END GENERATED -->"
@@ -331,7 +331,7 @@ def validate_register(plan: Checklist, rows: dict[str, tuple[str, str, int]]) ->
     """Register rows name open leaves; the current phase's open leaves all have one."""
     parents = plan.parents
     for key, (state, cls, number) in rows.items():
-        where = f"PLAN.md:{number}"
+        where = f"docs/PLAN.md:{number}"
         if state not in VALID_STATES:
             raise ValueError(f"{where}: invalid workflow state {state} for {key}")
         if key not in plan.items:
@@ -533,10 +533,11 @@ def self_test() -> None:
 
         # One declared fingerprint, restated identically where it is restated.
         (root / "GUIDE.md").write_text("| Bench fingerprint | **1,234,567** |\n", encoding="utf-8")
-        (root / "DESIGN.md").write_text("- **Bench signature**: **1,234,567**\n", encoding="utf-8")
+        (root / "docs").mkdir(exist_ok=True)
+        (root / "docs" / "DESIGN.md").write_text("- **Bench signature**: **1,234,567**\n", encoding="utf-8")
         (root / "AGENTS.md").write_text("(currently **1,234,567**)\n", encoding="utf-8")
         validate_fingerprint(root)
-        (root / "DESIGN.md").write_text("- **Bench signature**: **7,654,321**\n", encoding="utf-8")
+        (root / "docs" / "DESIGN.md").write_text("- **Bench signature**: **7,654,321**\n", encoding="utf-8")
         expect_failure("a stale restated fingerprint", lambda: validate_fingerprint(root))
 
         # A reference snapshot verifies against its manifest, and nothing else does.
@@ -561,12 +562,13 @@ def main() -> int:
         return 0
 
     root = Path(__file__).resolve().parents[2]
+    docs = root / "docs"
     try:
-        plan = checklist(root / "PLAN.md")
-        validate_titles(root / "PLAN.md")
+        plan = checklist(docs / "PLAN.md")
+        validate_titles(docs / "PLAN.md")
         guide_path = root / "GUIDE.md"
         rendered = render_guide_block(
-            root / "PLAN.md", plan, model_mapping(guide_path.read_text(encoding="utf-8"))
+            docs / "PLAN.md", plan, model_mapping(guide_path.read_text(encoding="utf-8"))
         )
         if "--write-guide" in sys.argv[1:]:
             write_guide(guide_path, rendered)
@@ -576,22 +578,24 @@ def main() -> int:
             root / "AGENTS.md",
             *sorted((root / "agents").glob("*.md")),
             root / "GUIDE.md",
-            root / "PLAN.md",
-            root / "PROCESS.md",
-            root / "EXPERIMENTS.md",
-            root / "DESIGN.md",
-            root / "HISTORY.md",
+            docs / "PLAN.md",
+            docs / "PROCESS.md",
+            docs / "EXPERIMENTS.md",
+            docs / "DESIGN.md",
+            docs / "HISTORY.md",
             root / "analysis" / "README.md",
             root / "docs" / "reference" / "README.md",
         ]
-        process_docs = [path for path in process_docs if path.exists()]
+        missing = [str(path.relative_to(root)) for path in process_docs if not path.exists()]
+        if missing:
+            raise ValueError("documents the checker reads are missing: " + ", ".join(missing))
         validate_state_fields(process_docs)
-        validate_experiment_ids(root / "EXPERIMENTS.md")
+        validate_experiment_ids(docs / "EXPERIMENTS.md")
         validate_local_links(process_docs)
 
         validate_parents(plan)
         validate_order(plan)
-        validate_register(plan, register_rows(root / "PLAN.md"))
+        validate_register(plan, register_rows(docs / "PLAN.md"))
         fingerprint = validate_fingerprint(root)
         reference_files = validate_reference_manifests(root)
     except ValueError as error:

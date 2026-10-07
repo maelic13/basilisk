@@ -53,7 +53,7 @@ experiment by `agents/research.md`, *Experiment design*, before it runs.
 
 - The strength unit is one dependency-complete, locally fitted cluster;
   internal sub-steps get no gates of their own. Register it in
-  `EXPERIMENTS.md` before any games, and never change bounds, cap, book or
+  `docs/EXPERIMENTS.md` before any games, and never change bounds, cap, book or
   adjudication after seeing games.
 - `[0,3]` nElo is the default bracket; `sprt.ps1`'s own default upper bound is
   5, so pass the registered bounds explicitly. Widen only for a genuinely large

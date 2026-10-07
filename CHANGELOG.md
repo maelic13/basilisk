@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 This changelog is **user-facing**: it records what changed between released
 versions, and the GitHub release notes are written from it. The developer-facing
-documents are `PLAN.md` (scope, gates, evidence) and `GUIDE.md` (current state
+documents are `docs/PLAN.md` (scope, gates, evidence) and `GUIDE.md` (current state
 and next step).
 
 ---

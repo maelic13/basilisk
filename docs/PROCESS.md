@@ -106,7 +106,7 @@ goes back to the implementer for a fix: it goes to research.
 
 Use a packet under `analysis/` when the decision would make PLAN unwieldy;
 trivial work stays in PLAN. The packet format is defined in
-[analysis/README.md](analysis/README.md). A packet is a live decision record,
+[analysis/README.md](../analysis/README.md). A packet is a live decision record,
 not a second roadmap; PLAN owns its state and links it.
 
 The handoff fixes the following. If any central field is still a design

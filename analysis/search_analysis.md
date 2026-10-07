@@ -418,7 +418,7 @@ This should be audited after adding persistent TT-PV status and stronger cut-nod
 
 ## 14. Search regression gates are blocking structural progress
 
-[`PLAN.md:73`](../PLAN.md#L73) treats fixed-depth KBNK/KQK outcomes as non-negotiable canaries before a candidate can reach SPRT. The corresponding tests use fixed search depth and mating-ply expectations. Search parameters contain multiple comments indicating that modern mechanisms were left inert because these trajectories changed.
+[`PLAN.md:73`](../docs/PLAN.md#L73) treats fixed-depth KBNK/KQK outcomes as non-negotiable canaries before a candidate can reach SPRT. The corresponding tests use fixed search depth and mating-ply expectations. Search parameters contain multiple comments indicating that modern mechanisms were left inert because these trajectories changed.
 
 Those tests mix two different purposes:
 

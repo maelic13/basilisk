@@ -7,7 +7,7 @@ Comparison baseline: Stockfish 18/current SFNNv13-era development, PlentyChess 7
 
 ## Executive summary
 
-Basilisk's HCE has reached a local optimum under its current representation, data distribution, and tuning objective. It has not reached feature completeness in the stronger sense of representing all important positional relationships. The cycle-6 self-play wash documented in [`PLAN.md:118`](../PLAN.md#L118) proves that another iteration of the same on-policy result-label tuning pipeline did not help. It does not prove that the evaluator contains sufficient information or that the existing feature activations have correct chess semantics.
+Basilisk's HCE has reached a local optimum under its current representation, data distribution, and tuning objective. It has not reached feature completeness in the stronger sense of representing all important positional relationships. The cycle-6 self-play wash documented in [`PLAN.md:118`](../docs/PLAN.md#L118) proves that another iteration of the same on-policy result-label tuning pipeline did not help. It does not prove that the evaluator contains sufficient information or that the existing feature activations have correct chess semantics.
 
 The evaluation gap has three qualitatively different parts:
 
@@ -59,7 +59,7 @@ The audit covers:
 - Stockfish-distillation import in [`tools/texel/import_beast.py`](../tools/texel/import_beast.py);
 - self-play adjudication in [`tools/datagen.ps1`](../tools/datagen.ps1);
 - evaluator tests in [`tests/test_eval.cpp`](../tests/test_eval.cpp); and
-- the planned NNUE direction in [`PLAN.md`](../PLAN.md) and [`GUIDE.md`](../GUIDE.md).
+- the planned NNUE direction in [`PLAN.md`](../docs/PLAN.md) and [`GUIDE.md`](../GUIDE.md).
 
 At a high level, the current HCE computes:
 
@@ -776,7 +776,7 @@ Correction history turns the evaluator into a prior that search can locally corr
 
 ## 16. Assessment of the planned Basilisk NNUE
 
-The current plan specifies a `768 -> (256x2) -> 1` perspective SCReLU network at [`PLAN.md:190`](../PLAN.md#L190). This is a good implementation baseline because:
+The current plan specifies a `768 -> (256x2) -> 1` perspective SCReLU network at [`PLAN.md:190`](../docs/PLAN.md#L190). This is a good implementation baseline because:
 
 - the input is sparse;
 - accumulator updates are simple;

@@ -12,8 +12,8 @@ source comments and commit messages, and resolve here:
 | Scheme | Where it appears | Resolve it in |
 |---|---|---|
 | Phases 1–4 (releases 1.0.0–1.9.3) | changelog, the oldest ledger rows | *Releases* below |
-| Phases 5–14 (`5.9.22`, `6.6.a`, `8.4.b`, …) | ledger rows, analyses and commits up to 2026-09-09 | [docs/archive/PLAN-2026-09-09.md](docs/archive/PLAN-2026-09-09.md) and [docs/archive/GUIDE-2026-09-09.md](docs/archive/GUIDE-2026-09-09.md); that PLAN's §15 maps the numbers used before 2026-09-07 |
-| Phase 15 and the 1.10.1 patch (`15.0.a`, `15.1.c`) | BAS-C08–C13, BAS-E55–E57, commits to 2026-09-27 | [docs/archive/PLAN-2026-09-28.md](docs/archive/PLAN-2026-09-28.md) and [docs/archive/GUIDE-2026-09-28.md](docs/archive/GUIDE-2026-09-28.md) |
+| Phases 5–14 (`5.9.22`, `6.6.a`, `8.4.b`, …) | ledger rows, analyses and commits up to 2026-09-09 | [docs/archive/PLAN-2026-09-09.md](archive/PLAN-2026-09-09.md) and [docs/archive/GUIDE-2026-09-09.md](archive/GUIDE-2026-09-09.md); that PLAN's §15 maps the numbers used before 2026-09-07 |
+| Phase 15 and the 1.10.1 patch (`15.0.a`, `15.1.c`) | BAS-C08–C13, BAS-E55–E57, commits to 2026-09-27 | [docs/archive/PLAN-2026-09-28.md](archive/PLAN-2026-09-28.md) and [docs/archive/GUIDE-2026-09-28.md](archive/GUIDE-2026-09-28.md) |
 | Current roadmap (`A`–`G`) | `PLAN.md`, `GUIDE.md`, ledger rows from BAS-X30 on | `PLAN.md` |
 
 Where a retired open leaf continues in the current roadmap, the *Number map*

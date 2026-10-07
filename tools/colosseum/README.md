@@ -34,5 +34,5 @@ Example:
 ```
 
 `tools/spsa_colosseum.ps1` runs the generated primary tune path and
-`tools/spsa.ps1` remains the weather-factory backup. `PROCESS.md`'s *Harness*
+`tools/spsa.ps1` remains the weather-factory backup. `docs/PROCESS.md`'s *Harness*
 section owns the operator procedure and cross-check triggers.

@@ -71,7 +71,7 @@ results.
 
 A packet that carries a cluster through implementation grows three kinds of
 section after the handoff, appended in order and never rewritten
-([PROCESS.md](../PROCESS.md) owns the procedure):
+([PROCESS.md](../docs/PROCESS.md) owns the procedure):
 
 ```markdown
 ## Return N — <date>

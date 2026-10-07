@@ -140,7 +140,7 @@ _basilisk_check_training_log("${_train_log}")
 # straight from `bench`. The older per-position EPD loop (cmake/pgo-train.epd,
 # depth 7) was dropped when bench grew from 16 to 40 positions: with a
 # well-spread bench it was redundant (it mostly re-sampled the same hot search
-# loop). See PLAN.md / GUIDE.md.
+# loop). See docs/PLAN.md / GUIDE.md.
 
 if(PGO_COMPILER_ID STREQUAL "MSVC")
     set(_msvc_pgd "${_prof_dir}/basilisk.pgd")

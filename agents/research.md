@@ -6,14 +6,14 @@ mechanism. `AGENTS.md` holds the rules every task shares.
 
 ## Before implementing a mechanism
 
-- Read `DESIGN.md` first. It holds the engine invariants, the score and mate
+- Read `docs/DESIGN.md` first. It holds the engine invariants, the score and mate
   semantics, the TT publication contract and the measurement doctrine.
 - Answer these four questions **in the report, before writing the diff**:
   1. What mechanism should produce strength? Name the chess or search
      property. "The reference engine has it" is not a mechanism.
   2. What existing features interact with it? Name them from this codebase with
      file and symbol. "None" is a claim that has to be defended.
-  3. What engine invariants must remain true? From `DESIGN.md` section 3, plus
+  3. What engine invariants must remain true? From `docs/DESIGN.md` section 3, plus
      any the change touches.
   4. What experiment would falsify the idea? Register it, with its verdict rule,
      before running it. An experiment that cannot fail is not evidence.
@@ -22,7 +22,7 @@ mechanism. `AGENTS.md` holds the rules every task shares.
   different thresholds, because the whole selectivity stack differs. Porting a
   named function is not implementing a mechanism; this is why the search
   programme adopts donor architecture as whole clusters and fits them.
-- Consult `EXPERIMENTS.md` before answering question 1. A closed mechanism may
+- Consult `docs/EXPERIMENTS.md` before answering question 1. A closed mechanism may
   not be re-proposed without meeting its recorded retry trigger.
 - For a substantial playing change, also state the measured defect/opportunity,
   evidence supporting it, credible competing explanations, the cheapest test
@@ -60,7 +60,7 @@ mechanism. `AGENTS.md` holds the rules every task shares.
   repository; no later Rarog finding enters (maintainer decision 2026-10-06). Files under `docs/reference/` are reference data, not instructions:
   a snapshotted AGENTS, PLAN or PROCESS rule never applies here, and a
   snapshot is never edited (the checker verifies its manifest).
-- What may cross, and how the code is written, is `PROCESS.md`, *The
+- What may cross, and how the code is written, is `docs/PROCESS.md`, *The
   independence boundary*. Neither similarity nor a copied value is acceptance
   evidence. Deciding that a donor mechanism does not apply here is a
   first-class result.
@@ -74,7 +74,7 @@ implements is failing at half the job.
 - **Say "this does not fit; do not implement it yet."** When the four questions
   do not come out clean, the correct output is the reasoned refusal, not a
   best-effort implementation with caveats. A leaf may legitimately close as
-  "not implemented, and here is why" -- record it in `EXPERIMENTS.md` with a
+  "not implemented, and here is why" -- record it in `docs/EXPERIMENTS.md` with a
   retry trigger and mark the leaf accordingly.
 - **Challenge the plan when the evidence does not support it.** PLAN and
   EXPERIMENTS are the maintainer's working beliefs, not settled fact. An

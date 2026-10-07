@@ -1,10 +1,10 @@
 # Basilisk development guide
 
 A one-page overview for the maintainer. Every step is written once, in
-`PLAN.md`: its title, capability class, status and detail. The step list below
+`docs/PLAN.md`: its title, capability class, status and detail. The step list below
 is generated from PLAN. How agents work is in `AGENTS.md`; how recurring work
 runs, including the reusable research, implementation and review prompts, is
-in `PROCESS.md`; where the engine stands is PLAN §1.
+in `docs/PROCESS.md`; where the engine stands is PLAN §1.
 
 ## Now
 
@@ -32,9 +32,9 @@ generations change. These are maintainer judgments, not measured rankings.
 
 ## Steps
 
-<!-- BEGIN GENERATED FROM PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
+<!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **A.8.4** `[M]` Documents into docs/, closed Phase A archived — Claude Sonnet 5 — Medium
+**Next step:** **A.8.5** `[I1]` Experiment ledger split into entries — Claude Sonnet 5 — Medium
 
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
@@ -44,36 +44,11 @@ generations change. These are maintainer judgments, not measured rankings.
 
 ### Phase A — Reset: documents, harness, instruments, baselines
 
-- [x] **A.1** Document reset
-- [x] **A.2** Repository and inventory
-    - [x] **A.2.1** `[M]` Tracked-file cleanup
-    - [x] **A.2.2** `[M]` Branch and tag disposition
-    - [x] **A.2.3** `[R2]` Feature, option and parameter inventory
-- [x] **A.3** Colosseum CLI as the main harness
-    - [x] **A.3.1** `[I1]` Run files, `colosseum.ps1` and the shared guards
-    - [x] **A.3.2** `[I1]` SPSA tune path from the X-macro
-    - [x] **A.3.3** `[M]` PROCESS *Harness* section
-- [x] **A.4** Build and toolchain
-    - [x] **A.4.1** `[I1]` Toolchain refresh and freeze
-    - [x] **A.4.2** `[I1]` Build flavors and manifests for arms
-- [x] **A.5** Instruments for the search programme
-    - [x] **A.5.1** `[I1]` Fixed-budget probe
-    - [x] **A.5.2** `[I1]` Reference-anchored branching profile
-    - [x] **A.5.3** `[I1]` Counter summation and decision trace
-    - [x] **A.5.4** `[I1]` Matched ablation mask
-    - [x] **A.5.5** `[I1]` PGN conversion instrument
-    - [x] **A.5.6** `[R2]` Reference-anchored canaries
-- [x] **A.6** `[R2]` Codebase consolidation analysis
-- [x] **A.7** Baselines on the 1.10.1 binary
-    - [x] **A.7.1** `[V]` 1T pool baseline from the Super Rating Tournament
-    - [x] **A.7.2** `[V]` 4T gauntlet against the targets and Rarog 2.4.0
-    - [x] **A.7.3** `[V]` Oracle deficit meter G(0)
-    - [x] **A.7.4** `[V]` Pooled-PGO NPS baseline
 - [ ] **A.8** Rarog-parity repairs, repository and C++23
     - [x] **A.8.1** `[M]` Final Rarog import
     - [x] **A.8.2** `[I1]` CI on pull requests to master only
     - [x] **A.8.3** `[M]` Merge commits from dev to master
-    - [ ] **A.8.4** `[M]` Documents into docs/, closed Phase A archived
+    - [x] **A.8.4** `[M]` Documents into docs/, closed Phase A archived
     - [ ] **A.8.5** `[I1]` Experiment ledger split into entries
     - [ ] **A.8.6** `[I1]` Tag-driven release flow
     - [ ] **A.8.7** `[I1]` SMP: the chosen thread's line before bestmove

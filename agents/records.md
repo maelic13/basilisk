@@ -6,7 +6,7 @@ touches tags.
 
 ## Documents
 
-- A roadmap status or requirement change is made in `PLAN.md` and committed
+- A roadmap status or requirement change is made in `docs/PLAN.md` and committed
   with the regenerated `GUIDE.md`; an edit only to `AGENTS.md` or `agents/`
   needs no PLAN or GUIDE churn.
 - PLAN carries status. Tick a step only when finished and verified, in the
@@ -21,7 +21,7 @@ touches tags.
   generated step list. What a step involves goes in PLAN, a completed record in
   HISTORY, a procedure in PROCESS, evidence in EXPERIMENTS, a derivation in
   `analysis/`.
-- `HISTORY.md` is history and resolves every retired numbering scheme; never
+- `docs/HISTORY.md` is history and resolves every retired numbering scheme; never
   take a next step from it or from `docs/archive/`. When documents disagree,
   source, defaults and reproducible artifacts outrank prose; fix the prose in
   the same change.

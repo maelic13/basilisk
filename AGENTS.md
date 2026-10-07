@@ -3,8 +3,9 @@
 These instructions apply to every agent working in this repository. The goal
 is the strongest possible correct chess engine, developed through reproducible
 evidence rather than intuition alone. `GUIDE.md` says what to work on; the
-relevant section of `PLAN.md` says why; `PROCESS.md` holds the procedures
-these rules assume; `DESIGN.md` holds what must stay true of the engine. Each
+relevant section of `docs/PLAN.md` says why; `docs/PROCESS.md` holds the
+procedures these rules assume; `docs/DESIGN.md` holds what must stay true of
+the engine. Each
 rule is stated once: here if every task needs it, otherwise in the one
 `agents/` file that owns it.
 
@@ -23,7 +24,7 @@ task needs; most leaves need more than one, and closing any leaf needs
 
 ## Unit of work
 
-- Treat PLAN.md as the roadmap: every step's title, class, status and detail
+- Treat `docs/PLAN.md` as the roadmap: every step's title, class, status and detail
   live there. GUIDE.md is the maintainer's overview; its step list is
   generated from PLAN.
 - First classify the requested work as research/diagnosis, experiment design,
@@ -38,7 +39,7 @@ task needs; most leaves need more than one, and closing any leaf needs
   when the maintainer asks for it, and always before its stated deadline.
 - Do not start later steps, combine adjacent steps, or pull forward useful
   side work. Mark a parent complete only after all its sub-steps are complete.
-- Finish the requested leaf, verify it proportionately, record it in PLAN.md,
+- Finish the requested leaf, verify it proportionately, record it in `docs/PLAN.md`,
   regenerate GUIDE.md, commit both, report briefly, name the next unchecked
   leaf, and stop for the maintainer's next command.
 - After any PLAN change run `python tools/diag/check_roadmap.py --write-guide`;
