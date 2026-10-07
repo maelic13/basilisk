@@ -297,6 +297,18 @@ add_test(NAME test_uci_protocol COMMAND test_uci_protocol)
 add_test(NAME test_endgames     COMMAND test_endgames
          ${CMAKE_CURRENT_SOURCE_DIR}/tests/endgames.epd)
 
+# The engine as a process: command-line arguments run one command and exit.
+function(basilisk_cli_test name code regex)
+    add_test(NAME ${name}
+             COMMAND ${CMAKE_COMMAND} "-DEXE=$<TARGET_FILE:basilisk>" "-DARGS=${ARGN}"
+                     "-DEXPECT_CODE=${code}" "-DREGEX=${regex}"
+                     -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/cli_check.cmake)
+endfunction()
+basilisk_cli_test(cli_bench 0 "Nodes searched *: *[0-9]+" bench 3)
+basilisk_cli_test(cli_go_runs_to_its_depth 0 "info depth 4 .*bestmove [a-h][1-8][a-h][1-8]" go depth 4)
+basilisk_cli_test(cli_help 0 "UCI chess engine.*bench .depth. .repeats." help)
+basilisk_cli_test(cli_unknown_exits_2 2 "Unknown command: 'frobnicate'" frobnicate)
+
 # board_performance_test is a standalone benchmark — build it but do not
 # register it with CTest so that a plain `ctest` run stays fast and clean.
 # Run it manually:  ./build/release/board_performance_test

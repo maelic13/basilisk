@@ -81,17 +81,20 @@ bool cpu_is_compatible() {
 
 } // namespace
 
-int main() {
+int main(int argc, char* argv[]) {
     if (!cpu_is_compatible()) return 1;
 
     // Last-resort diagnostic: anything reaching here is a bug or resource
     // exhaustion, so report it instead of terminating silently under a GUI.
     try {
-        return run_engine();
+        return run_engine(argc, argv);
     } catch (const std::exception& e) {
+        // stdout too: a GUI or harness records the engine's stdout, not stderr.
+        std::cout << "info string FATAL: unhandled exception: " << e.what() << std::endl;
         std::cerr << "FATAL: unhandled exception: " << e.what() << '\n';
         return 1;
     } catch (...) {
+        std::cout << "info string FATAL: unhandled non-standard exception" << std::endl;
         std::cerr << "FATAL: unhandled non-standard exception\n";
         return 1;
     }

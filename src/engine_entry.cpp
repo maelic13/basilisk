@@ -15,7 +15,7 @@
 #include "uci_protocol.h"
 #include "zobrist.h"
 
-int run_engine() {
+int run_engine(int argc, char* argv[]) {
     std::ios_base::sync_with_stdio(false);
     std::cin.tie(nullptr);
 
@@ -47,8 +47,16 @@ int run_engine() {
     UciProtocol uciProtocol(command_queue, stop_requested, ponderhit_requested, searching, control_epoch);
 
     std::thread engineThread(&Engine::start, &engine);
-    uciProtocol.UciLoop();
+    int status = 0;
+    if (argc > 1) {
+        std::string command_line = argv[1];
+        for (int i = 2; i < argc; ++i)
+            command_line += std::string(" ") + argv[i];
+        status = uciProtocol.RunArguments(command_line);
+    } else {
+        uciProtocol.UciLoop();
+    }
     engineThread.join();
 
-    return 0;
+    return status;
 }
