@@ -38,6 +38,7 @@ is the information and the bundles are its backup:
 |---|---|---|
 | `rarog-015bccae-all-refs.bundle` | `25c6dedc64d6a0f3ea1789c78dbd1440655b1c97f6663d5668c66ca307dbd616` | every ref at `015bccae` |
 | `rarog-full-history-2026-09-27.bundle` | `21688cb958d3e9e4452b933437c4f3d2bbd1ef95e3d217ff3e8920f24531365e` | Rarog's own full-history bundle, with the unreachable ledger commits under `refs/archive-tmp/*` |
+| `rarog-all-refs-2026-10-07.bundle` | `1d358c052491bfe896b5a51525a4bff71d16d943a17597fdff4ec00a4c266d38` | every ref on 2026-10-07 (39; `dev` `1647dd28`, `master` `855a0921`), containing `dcf15c51`, the final import's commit |
 
 Restore, checked on 2026-09-28: a bare repository avoids the checked-out-branch
 refusal, and fetching heads, tags and `refs/archive-tmp/*` only avoids Windows
@@ -51,15 +52,22 @@ git -C rarog.git symbolic-ref HEAD refs/heads/dev
 git clone rarog.git rarog
 ```
 
-**Refreshing.** Basilisk never reads the live Rarog repository for its plan.
-A later Rarog finding enters as a new dated import:
-1. Replace `rarog/` from a new pinned commit and regenerate `rarog.sha256`.
-2. Review the diff of the manifest and of the cited rows.
-3. Record the new commit here.
-4. Add ledger import rows for what changed.
+**No further imports.** Basilisk never reads the live Rarog repository for
+its plan. `rarog-2026-10-06/` below is the last Rarog import (maintainer
+decision 2026-10-06): Basilisk and Rarog have diverged, and no later Rarog
+finding enters a Basilisk document. Both snapshots stay, unedited, so every
+citation keeps resolving.
 
-A snapshot is never updated silently, and a claim read from a newer Rarog
-enters no Basilisk document without its import row.
+## Rarog, final import (`rarog-2026-10-06/`)
+
+| Item | Value |
+|---|---|
+| Source | Rarog `dev`, commit `dcf15c512f7c871bb11faaa70ccbb479953ddea9` (2026-10-06), after Rarog 2.5.0 |
+| Why | PLAN A.8: the Rarog 2.4.0→2.5.0 repairs and repository changes checked on Basilisk (`analysis/rarog_parity_review_2026-10-06.md`); ledger import BAS-X35 |
+| Included | 19 files, each byte-identical to its git blob at the commit (checked against git's blob id when written): `AGENTS.md`, `CHANGELOG.md`, `GUIDE.md` (the declared-fingerprint rows the release check reads), `LICENSE`, `docs/PLAN.md`, `docs/PROCESS.md`, `docs/EXPERIMENTS.md` (the ledger index after the split), `.github/workflows/ci.yml` and `release.yml`, `xtask/` (`Cargo.toml`, `src/main.rs`, `src/release.rs`: `release-check` and `declared-fingerprint`), `tools/diag/check_guide.py` and `guide_board.py`, `analysis/uci_info_review_2026-09-16.md`, `tb_root_pv_2026-09-27.md` (the answered version) and `b52_research_2026-10-01.md`, `tests/multipv.rs` and `multipv_syzygy.rs` |
+| Excluded | Everything else; A.8's leaves cite nothing more. `src/` survives in the bundle above |
+| Manifest | `rarog-2026-10-06.sha256`, verified by `check_roadmap.py` like the first |
+| Resolving | A path cited by an A.8 leaf or the A.8 packet resolves under `rarog-2026-10-06/`. Rarog's later ledger entries (`docs/experiments/<ID>.md`) are not imported; `docs/EXPERIMENTS.md` gives their titles and dispositions |
 
 ### Where each leaf's inputs are
 
@@ -101,8 +109,16 @@ Paths are relative to `rarog/`.
 | D.2 | `tools/diag_smp_sweep.ps1`, `tools/nps_scaling.ps1`; `PLAN.md` D.2 | port |
 | D.3.1 | `tools/diag/board_v2_oracle.py`, `board_v2_run.py`, `see_contract_oracle.py`, `normalized_see_compare.py`, `verify_normalized_see.py`, with their tests; `tests/data/board-v2.tsv`, `board-v2-oracle.tsv`, `see-contract-v1.tsv`, `see-repair-v1.tsv`; `tests/board_v2.rs`, `board_v2_allocations.rs`, `see_contract.rs`, `see_pins.rs`, `draw_semantics.rs`, `board_correctness.rs`, `board_differential.rs`; `analysis/board_v2_instrument_2026-09-06.md`, `analysis/see_contract_2026-09-06.md`, `analysis/see_repair_2026-09-06.md`, `analysis/draw_policy_2026-09-08.md`, `analysis/history_contracts_2026-09-08.md` | port |
 | D.3.2 | `tests/uci_process.rs`, `analysis/ponder_race_report_2026-09-26.md` | model |
-| D.3.3 | `analysis/uci_info_review_2026-09-16.md`, item 6 | reference |
 | D.4 | `analysis/tb_root_pv_2026-09-27.md` | reference |
-| E.3.1 | `PLAN.md` E.3.1 | model |
+| A.8.2 | `rarog-2026-10-06/.github/workflows/ci.yml` | model |
+| A.8.4 | `rarog-2026-10-06/docs/PLAN.md` (the archived-phase pointers, §5) | model |
+| A.8.5 | `rarog-2026-10-06/docs/EXPERIMENTS.md`, `rarog-2026-10-06/tools/diag/check_guide.py` (index and entry agreement) | port |
+| A.8.6 | `rarog-2026-10-06/.github/workflows/release.yml`, `rarog-2026-10-06/xtask/src/release.rs`, `rarog-2026-10-06/docs/PROCESS.md` *Release*, `rarog-2026-10-06/GUIDE.md` | port |
+| A.8.7, A.8.8 | `rarog-2026-10-06/analysis/uci_info_review_2026-09-16.md` items 1–5 and 7; `rarog-2026-10-06/docs/PLAN.md` D.3 (the 2026-10-01 out-of-band fixes) | reference |
+| A.8.9 | `rarog-2026-10-06/tests/multipv.rs`, `rarog-2026-10-06/tests/multipv_syzygy.rs` | model |
+| A.8.11 | `rarog-2026-10-06/docs/PLAN.md` D.3 (`b2c98c8`, the start rule) | reference |
+| A.8.13 | `rarog-2026-10-06/analysis/tb_root_pv_2026-09-27.md`, `rarog-2026-10-06/analysis/b52_research_2026-10-01.md` | reference |
+| A.8.16 | `rarog-2026-10-06/analysis/b52_research_2026-10-01.md` (the won-endgame time sink), `rarog-2026-10-06/docs/PLAN.md` D.1 | reference |
+| A.8.19 | `analysis/uci_info_review_2026-09-16.md`, item 6 | reference |
 | F.0 | `analysis/gyatso_read_2026-09-26.md` | reference |
 | G.2 | `analysis/universal_binary_2026-09.md` | reference |

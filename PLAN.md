@@ -701,7 +701,7 @@ was cut the day before this plan, so Phase A has no release step.
   each of those has its own research leaf and game gate. SEE recapture
   promotions are excluded: BAS-C09 closed them and its retry trigger has not
   fired. After A.8.1, Basilisk reads no more of Rarog.
-    - [ ] **A.8.1** `[M]` Final Rarog import
+    - [x] **A.8.1** `[M]` Final Rarog import
       Snapshot Rarog `dev` at `dcf15c51` (2026-10-06) as
       `docs/reference/rarog-2026-10-06/` with its own manifest, which the
       checker verifies. Include only what A.8's leaves cite:
@@ -714,6 +714,12 @@ was cut the day before this plan, so Phase A has no release step.
       ones in ignored storage. `docs/reference/README.md` and
       `agents/research.md` record that this is the last import (maintainer
       decision 2026-10-06): Rarog's later findings no longer enter.
+      — CLOSED 2026-10-07: 19 files, each checked against its git blob id;
+      manifest `rarog-2026-10-06.sha256`, 295 reference files verified.
+      `LICENSE`, `GUIDE.md` and `docs/EXPERIMENTS.md` were added to the list
+      for the licence, A.8.6's fingerprint rows and A.8.5's index. Bundle
+      `rarog-all-refs-2026-10-07.bundle` (`dev` had moved to `1647dd28`,
+      which contains `dcf15c51`). Import row BAS-X35.
     - [ ] **A.8.2** `[I1]` CI on pull requests to master only
       `ci.yml` today runs on pushes to `master` and to `development` (no such
       branch; ours is `dev`) and on every pull request. It runs on pull
@@ -1247,7 +1253,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.8.1 | READY_FOR_IMPLEMENTATION | M | The snapshot's file list is in the leaf |
 | A.8.2 | READY_FOR_IMPLEMENTATION | I1 | Triggers specified in the leaf |
 | A.8.3 | READY_FOR_IMPLEMENTATION | M | Repository settings are the maintainer's |
 | A.8.4 | READY_FOR_IMPLEMENTATION | M | Layout follows the leaf |

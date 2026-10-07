@@ -1,0 +1,622 @@
+#!/usr/bin/env python3
+"""Check GUIDE.md's status board mechanically.
+
+GUIDE is the file that says what to do next, so a wrong checkbox sends the next
+session at finished work or hides unfinished work. The guarded failures below
+are not reliably visible by reading:
+
+1. **Sub-item indentation.** A sub-item under a `- ` parent must be indented
+   **4** spaces. The parent's content column is 2, and an indented code block
+   starts 4 columns past that -- so **6 spaces renders as a code block**, not as
+   a nested list. That is exactly what happened when the checkboxes were first
+   added, and it looks fine in a diff.
+
+2. **A hanging parent.** If every sub-step of a step is ticked, the parent must
+   be ticked too. Leaving it open makes finished work look outstanding.
+
+3. **A missing phase.** GUIDE is the maintainer's week-to-week status board and
+   must list EVERY phase, not only the one being worked on. Phases 6-9 were
+   dropped during a shortening pass on 2026-08-30 and nobody caught it by
+   reading; the maintainer did, weeks later. A finished phase keeps its
+   heading, marked `— CLOSED <date>`, over a one- or two-sentence summary
+   instead of its board (maintainer decision 2026-10-05): it may carry no
+   checkbox, and PLAN's sub-steps under its letter are not required on the
+   board, since PLAN and HISTORY hold them.
+
+4. **A SUPERSEDED marker with nobody holding the debt.** A completed step whose
+   RESULT was invalidated stays TICKED and carries `SUPERSEDED -> <leaf>`
+   naming the open leaf that repairs it. That convention replaced leaving the
+   box open, which made the board unrunnable: its first open item was 4.9a.1,
+   whose repair simply IS 4.10.1 plus 4.11.1, so nobody could pick it up. The
+   marker only works if the owner is real and still open, so all three are
+   checked -- the marker may sit only on a ticked leaf, must name a leaf that
+   exists, and that leaf must be unticked.
+
+5. **PLAN and GUIDE listing different sub-steps.** The old check was one-way:
+   every GUIDE step had to appear in PLAN. So a PLAN item with seven sub-steps
+   listed as five in GUIDE passed, and did -- 4.10 was found that way, with
+   GUIDE's titles also off by one against PLAN's. Both directions are compared
+   now.
+
+6. **Invalid or drifting active workflow metadata.** Open leaves in the active phase (C since 2026-10-05)
+   must have one PLAN row using a canonical state/capability class, and GUIDE's
+   compact suffix must agree. Vendor/model tags do not belong on those active
+   checklist lines; GUIDE's model mapping owns them.
+
+7. **A third level.** A leaf may carry addenda numbered one level deeper
+   (`B.2.0.1` under `B.2.0`), indented 8 spaces. An addendum is work of its
+   own with its own state and class; it does not turn its leaf into a heading,
+   so the leaf stays actionable and the hanging-parent rule does not apply
+   between them. Deeper than three levels is not accepted.
+
+8. **A stale board.** Since 2026-10-05 the board is generated from
+   `docs/PLAN.md` by `tools/diag/guide_board.py`; a board that differs from
+   what PLAN generates fails here. The checks above still run over the
+   generated board, so a generator defect cannot pass silently.
+
+9. **A ledger index out of step with its entries.** Since 2026-10-05 each
+   experiment is `docs/experiments/<ID>.md` and `docs/EXPERIMENTS.md` is
+   its index. Every index row must link an entry file that exists, every
+   entry file must have exactly one index row, and each file's heading must
+   name its own ID.
+
+The child pattern is checked against the format GUIDE actually uses --
+`- [ ] **A.2.1** ...`, bold, lettered phase, dotted step. The first version
+of this checker required a bare `4.9.1`, matched no line in the file, and so
+passed vacuously for every edit it existed to guard. The step count in the
+success line is there to make that failure mode visible.
+
+There is also an output that is not a failure but is just as invisible: WHICH
+LEAF IS NEXT. The board is 146 lines with 42 ticked, so reading the next few
+open items off it by eye is exactly the sort of manual step this file exists to
+replace. `--next N` prints them, generated from the board rather than copied
+into it, so the queue cannot drift from the checkboxes the way a hand-written
+list would.
+
+An ACTIONABLE leaf is an unticked item that nobody else discharges: a sub-step,
+or a step that has no sub-steps. A parent with children is a heading, not work.
+
+Usage:
+  python tools/diag/check_guide.py
+  python tools/diag/check_guide.py --next 8
+  python tools/diag/check_guide.py --self-test
+
+Exit status is 0 when clean, 1 otherwise, so it can gate a commit. `--next`
+does not change it.
+"""
+
+import argparse
+import pathlib
+import re
+import sys
+
+import guide_board
+
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+GUIDE = ROOT / "GUIDE.md"
+
+# The step number must be the WHOLE bold run. Writing `**4.9 NEXT**` puts the
+# marker inside the bold, the number then fails to match, and the step drops
+# out of the count silently -- which is how the count went 100 -> 101 when one
+# such marker was moved out. Markers go after the bold: `**4.9** NEXT - ...`.
+PARENT = re.compile(r"^- \[([ x])\] \*\*([A-Z]\.\d+)\*\*")
+CHILD = re.compile(r"^( *)- \[([ x])\] \*\*([A-Z]\.\d+\.\d+(?:\.\d+)?)\*\*")
+STRAY = re.compile(r"^ *- \[[ x]\] \*\*[A-Z]\.\d+(\.\d+){0,2} [^*]")
+PHASE = re.compile(r"^## Phase ([A-Z])")
+CLOSED_PHASE = re.compile(r"^## Phase ([A-Z])\b.*\bCLOSED\b")
+REQUIRED_PHASES = set("ABCDEFG")
+PLAN = ROOT / "docs" / "PLAN.md"
+# Every GUIDE step number must appear somewhere in PLAN. GUIDE and PLAN are
+# required to change in the same commit, and three times in one session a
+# scripted PLAN edit matched no anchor, reported success, and was committed with
+# a GUIDE that had changed -- leaving the two disagreeing with nothing to catch
+# it. This is the cheap half of that check: not that the prose agrees, but that
+# PLAN has heard of every step GUIDE lists.
+STEP_IN_PLAN = re.compile(r"(?<![\d.])%s(?![\d])")
+# `SUPERSEDED -> 4.11.1`, after the closing bold. See failure 4 above.
+SUPERSEDED = re.compile(
+    r"\*\*([A-Z]\.\d+(?:\.\d+){0,2})\*\*.*?SUPERSEDED\s*->\s*"
+    r"([A-Z]\.\d+(?:\.\d+){0,2})"
+)
+# A PLAN sub-step DEFINITION, not a reference to one. PLAN writes a definition
+# as `**4.10.1 Some title...**` -- bold, number, space, then the title -- while
+# a cross-reference is either bare (`re-derived at 4.11.2`) or bold with
+# nothing after the number (`**4.12.22**`). The trailing `\s+\S` is what
+# separates them, and without it every owner pointer in the prose would be
+# read as a step this file does not define.
+PLAN_DEFINITION = re.compile(r"\*\*([A-Z]\.\d+\.\d+(?:\.\d+)?)\s+\S")
+WORKFLOW_ROW = re.compile(
+    r"^\|\s*([A-Z]\.\d+(?:\.\d+){0,2})\s*\|\s*([A-Z_]+)\s*\|\s*([A-Z]\d?)\s*\|"
+)
+GUIDE_WORKFLOW = re.compile(
+    r"\*\*([A-Z]\.\d+(?:\.\d+){0,2})\*\*.*?\*\*"
+    r"([A-Z_]+)\s*/\s*([A-Z]\d?)\*\*"
+)
+MODEL_TAG = re.compile(r"\b(?:Astra|Terra|Sol|Opus|Sonnet|Fable)\b")
+VALID_STATES = {
+    "RESEARCH",
+    "READY_FOR_IMPLEMENTATION",
+    "IMPLEMENTED",
+    "LOCAL_QUALIFIED",
+    "GAME_GATE",
+    "CLOSED",
+}
+VALID_CLASSES = {"R3", "R2", "I2", "I1", "M", "V"}
+ACTIVE_PREFIXES = ("C.",)
+
+
+def parse_workflow_rows(lines):
+    """Return active PLAN metadata and structural problems."""
+    rows = {}
+    problems = []
+    for n, line in enumerate(lines, 1):
+        match = WORKFLOW_ROW.match(line)
+        if not match:
+            continue
+        leaf, state, capability = match.groups()
+        if not leaf.startswith(ACTIVE_PREFIXES):
+            continue
+        if leaf in rows:
+            problems.append(
+                "PLAN.md:%d: duplicate workflow metadata for %s" % (n, leaf)
+            )
+        rows[leaf] = (state, capability)
+        if state not in VALID_STATES:
+            problems.append(
+                "PLAN.md:%d: %s has invalid workflow state %s"
+                % (n, leaf, state)
+            )
+        if capability not in VALID_CLASSES:
+            problems.append(
+                "PLAN.md:%d: %s has invalid capability class %s"
+                % (n, leaf, capability)
+            )
+    return rows, problems
+
+
+AGENTS = ROOT / "AGENTS.md"
+# A bench fingerprint as the documents write it: "7,601,220 / EBF 2.474".
+FINGERPRINT = re.compile(r"(\d{1,3}(?:,\d{3})+) / EBF (\d\.\d{3})")
+
+
+def fingerprint_problems(guide_text, agents_text, plan_text):
+    """The fingerprint GUIDE's checkpoint declares must be the one AGENTS and
+    PLAN's checkpoint row quote. Manta's GUIDE carried two different
+    production fingerprints on the day it froze; nothing checked."""
+    problems = []
+    head = [l for l in guide_text.splitlines() if l.startswith("| Development head")]
+    if not head:
+        return ["GUIDE.md: no '| Development head' checkpoint row to read the fingerprint from"]
+    m = FINGERPRINT.search(head[0])
+    if not m:
+        return ["GUIDE.md: the Development head row carries no 'N / EBF x.xxx' fingerprint"]
+    canonical = m.group(0)
+    for n, line in enumerate(agents_text.splitlines(), 1):
+        if "currently" in line:
+            for found in FINGERPRINT.finditer(line):
+                if found.group(0) != canonical:
+                    problems.append(
+                        "AGENTS.md:%d: fingerprint %s disagrees with GUIDE's %s"
+                        % (n, found.group(0), canonical))
+    rows = [l for l in plan_text.splitlines() if l.startswith("| Fingerprint |")]
+    for row in rows:
+        found = FINGERPRINT.search(row)
+        if found and found.group(0) != canonical:
+            problems.append(
+                "PLAN.md checkpoint row: fingerprint %s disagrees with GUIDE's %s"
+                % (found.group(0), canonical))
+    return problems
+
+
+# The current documents a reader acts on. The ledger, HISTORY and analysis/
+# are exempt: their historical paths are evidence of what existed.
+CURRENT_DOCS = ("GUIDE.md", "docs/PLAN.md", "docs/PROCESS.md", "AGENTS.md")
+# A backticked repository path: a known top-level directory, then segments.
+# Placeholders (`<name>`, globs, ellipses) are templates, not paths.
+REPO_PATH = re.compile(
+    r"`((?:src|tests|tools|analysis|docs|benches|xtask|vendor|logo|\.github|\.cargo)"
+    r"/[^`\s]*)`")
+TEMPLATE = re.compile(r"[<>*{}…]|\.\.\.")
+
+
+def dead_path_problems(texts, exists):
+    """Every backticked repository path in a current document must exist,
+    unless it is marked `path` (planned).
+
+    `texts` maps a document name to its text; `exists(path)` says whether the
+    path is tracked or on disk. A path that exists nowhere sends the reader to
+    nothing, and 44 of them accumulated before anything checked.
+    """
+    problems = []
+    for name, text in texts.items():
+        for n, line in enumerate(text.splitlines(), 1):
+            for m in REPO_PATH.finditer(line):
+                path = m.group(1).rstrip(".,;:")
+                path = re.sub(r":\d+(?:-\d+)?$", "", path).split("#")[0]
+                if TEMPLATE.search(path) or line[m.end():].startswith(" (planned"):
+                    continue
+                if not exists(path):
+                    problems.append("%s:%d: `%s` exists neither in the index nor on disk"
+                                    % (name, n, path))
+    return problems
+
+
+def closed_phase_problems(lines):
+    """Return the letters of phases marked CLOSED and any checkbox found
+    under one: a closed phase is a summary, its steps live in PLAN."""
+    closed = set()
+    problems = []
+    current = None
+    for n, line in enumerate(lines, 1):
+        ph = PHASE.match(line)
+        if ph:
+            current = ph.group(1)
+            if CLOSED_PHASE.match(line):
+                closed.add(current)
+            continue
+        if line.startswith("## "):
+            current = None
+            continue
+        if current in closed and (PARENT.match(line) or CHILD.match(line)):
+            problems.append(
+                "GUIDE.md:%d: Phase %s is marked CLOSED but carries a checkbox; "
+                "a closed phase is a summary" % (n, current)
+            )
+    return closed, problems
+
+
+LEDGER = ROOT / "docs" / "EXPERIMENTS.md"
+ENTRIES = ROOT / "docs" / "experiments"
+INDEX_ROW = re.compile(r"^\| \[(RAR-[A-Z]+\d+)\]\(experiments/(RAR-[A-Z]+\d+)\.md\) \|")
+
+
+def ledger_problems(ledger_text, headings):
+    """`headings` maps each entry file's ID (its name without .md) to its
+    first line. Returns the disagreements between index and entries."""
+    problems = []
+    indexed = []
+    for n, line in enumerate(ledger_text.splitlines(), 1):
+        m = INDEX_ROW.match(line)
+        if m:
+            if m.group(1) != m.group(2):
+                problems.append("docs/EXPERIMENTS.md:%d: %s links %s.md"
+                                % (n, m.group(1), m.group(2)))
+            indexed.append(m.group(1))
+    for rid in sorted({r for r in indexed if indexed.count(r) > 1}):
+        problems.append("docs/EXPERIMENTS.md: %s is indexed more than once" % rid)
+    for rid in sorted(set(indexed) - set(headings)):
+        problems.append("docs/EXPERIMENTS.md: %s has no docs/experiments/%s.md" % (rid, rid))
+    for rid in sorted(set(headings) - set(indexed)):
+        problems.append("docs/experiments/%s.md has no index row in docs/EXPERIMENTS.md" % rid)
+    for rid, first in sorted(headings.items()):
+        if not first.startswith("# %s — " % rid):
+            problems.append("docs/experiments/%s.md: heading does not read '# %s — <title>'"
+                            % (rid, rid))
+    return problems
+
+
+def repository_path_exists(path):
+    return (ROOT / path.rstrip("/")).exists()
+
+
+def self_test():
+    """Prove the workflow guard rejects intentionally malformed input."""
+    # The samples sit in the active phase: rows of any other phase are skipped
+    # before they are checked, and the test would then prove nothing.
+    lead = ACTIVE_PREFIXES[0]
+    deep = lead + "2.0.1"
+    sample = [
+        "| %s2.1 | WRONG_STATE | R3 | synthetic |" % lead,
+        "| %s2.1 | RESEARCH | Z9 | duplicate and invalid |" % lead,
+        "| %s | RESEARCH | I2 | three levels are accepted |" % deep,
+        "| %s.1 | RESEARCH | I2 | four levels are not |" % deep,
+    ]
+    rows, problems = parse_workflow_rows(sample)
+    if deep not in rows or deep + ".1" in rows:
+        sys.stdout.write("FAIL: workflow self-test: three-level IDs parse, four-level do not\n")
+        return 1
+    expected = ("invalid workflow state", "duplicate workflow", "invalid capability")
+    missing = [term for term in expected if not any(term in p for p in problems)]
+    if missing:
+        sys.stdout.write("FAIL: workflow self-test missed: %s\n" % ", ".join(missing))
+        return 1
+    sys.stdout.write("workflow metadata negative self-test: PASS (3 failures detected)\n")
+    fp = fingerprint_problems(
+        "| Development head | fingerprint **7,601,220 / EBF 2.474** |",
+        "baseline (currently 7,000,000 / EBF 2.400) and\n  (currently **7,601,220 / EBF 2.474**)",
+        "| Fingerprint | `bench 13` **7,601,221 / EBF 2.474** |",
+    )
+    if len(fp) != 2:
+        sys.stdout.write("FAIL: fingerprint self-test expected 2 disagreements, got %d\n" % len(fp))
+        return 1
+    sys.stdout.write("fingerprint negative self-test: PASS (2 disagreements detected)\n")
+    dead = dead_path_problems(
+        {"PLAN.md": "see `src/search/mod.rs`, `src/search.rs` and `tools/<name>.ps1`"},
+        lambda p: p == "src/search/mod.rs",
+    )
+    if len(dead) != 1 or "src/search.rs" not in dead[0]:
+        sys.stdout.write("FAIL: dead-path self-test expected only src/search.rs, got %r\n" % dead)
+        return 1
+    sys.stdout.write("dead-path negative self-test: PASS (1 dangling path detected)\n")
+    closed, closed_problems = closed_phase_problems([
+        "## Phase A — Reset — CLOSED 2026-09-11",
+        "Summary sentence.",
+        "- [x] **A.1** a step left behind",
+        "## Phase C — Evaluation programme (closed-form fits)",
+        "- [ ] **C.0** open work",
+        "## Current checkpoint",
+        "- [ ] **A.9** not under a phase heading",
+    ])
+    if closed != {"A"} or len(closed_problems) != 1 or "Phase A" not in closed_problems[0]:
+        sys.stdout.write("FAIL: closed-phase self-test got %r, %r\n" % (closed, closed_problems))
+        return 1
+    sys.stdout.write("closed-phase negative self-test: PASS (1 checkbox under a closed phase)\n")
+    ledger = ("| ID | Experiment | Disposition |\n|---|---|---|\n"
+              "| [RAR-S1](experiments/RAR-S1.md) | a | b |\n"
+              "| [RAR-S2](experiments/RAR-S3.md) | a | b |\n"
+              "| [RAR-S4](experiments/RAR-S4.md) | a | b |\n")
+    found = ledger_problems(ledger, {"RAR-S1": "# RAR-S1 — a", "RAR-S3": "# RAR-S3 — c",
+                                     "RAR-S5": "# RAR-S5 — e", "RAR-S6": "RAR-S6 untitled"})
+    # S2 links S3's file; S2 and S4 lack files; S3, S5 and S6 lack rows; S6's heading.
+    if len(found) != 7:
+        sys.stdout.write("FAIL: ledger self-test expected 7 problems, got %r\n" % found)
+        return 1
+    sys.stdout.write("ledger negative self-test: PASS (7 disagreements detected)\n")
+    return guide_board.self_test()
+
+
+def actionable(lines):
+    """The unticked leaves, in board order, with their trailing text.
+
+    Returns (number, text) pairs. A step with sub-steps is a heading and is
+    skipped: ticking it is 4.10.10's hanging-parent rule, not work.
+    """
+    items = []
+    for line in lines:
+        m = PARENT.match(line)
+        if m:
+            items.append((0, m.group(2), m.group(1) == "x",
+                          line[m.end():].strip(" -—")))
+            continue
+        k = CHILD.match(line)
+        if k:
+            items.append((len(k.group(1)), k.group(3), k.group(2) == "x",
+                          line[k.end():].strip(" -—")))
+    out = []
+    for i, (indent, number, ticked, text) in enumerate(items):
+        if indent == 0:
+            has_children = i + 1 < len(items) and items[i + 1][0] > 0
+            if has_children:
+                continue
+        if not ticked:
+            out.append((number, text))
+    return out
+
+
+def main():
+    ap = argparse.ArgumentParser(description="Check GUIDE.md's status board.")
+    ap.add_argument("--next", type=int, default=0, metavar="N",
+                    help="also print the next N actionable leaves, in board "
+                         "order, generated from the checkboxes")
+    ap.add_argument("--self-test", action="store_true",
+                    help="run an intentionally bad workflow-metadata input")
+    args = ap.parse_args()
+
+    if args.self_test:
+        return self_test()
+
+    sys.stdout.reconfigure(encoding="utf-8")
+    lines = GUIDE.read_text(encoding="utf-8").splitlines()
+    problems = []
+    parent = None
+    kids = []
+    phases = set()
+    steps = 0
+    step_numbers = []
+
+    def close():
+        if parent is not None and kids and all(kids) and not parent[1]:
+            problems.append(
+                "hanging parent: %s has every sub-step ticked but is not ticked"
+                % parent[0]
+            )
+
+    for n, line in enumerate(lines, 1):
+        ph = PHASE.match(line)
+        if ph:
+            phases.add(ph.group(1))
+        m = PARENT.match(line)
+        if m:
+            close()
+            parent = (m.group(2), m.group(1) == "x")
+            kids = []
+            steps += 1
+            step_numbers.append(m.group(2))
+            continue
+        if STRAY.match(line):
+            problems.append(
+                "GUIDE.md:%d: text inside the step number's bold run; the "
+                "number must be the whole bold (write `**A.4** NEXT - ...`), "
+                "or the step drops out of the count silently" % n
+            )
+        k = CHILD.match(line)
+        if k:
+            steps += 1
+            step_numbers.append(k.group(3))
+            indent = len(k.group(1))
+            expected = 4 if k.group(3).count(".") == 2 else 8
+            if indent != expected:
+                problems.append(
+                    "GUIDE.md:%d: sub-item %s indented %d spaces, must be %d "
+                    "(6 renders as an indented code block)"
+                    % (n, k.group(3), indent, expected)
+                )
+            if parent is not None and expected == 4:
+                kids.append(k.group(2) == "x")
+    close()
+
+    # Failure 4: a SUPERSEDED marker whose owner is missing or already closed.
+    ticked = {}
+    headings = set()
+    last_parent = None
+    for line in lines:
+        m = PARENT.match(line)
+        if m:
+            last_parent = m.group(2)
+            ticked[last_parent] = m.group(1) == "x"
+            continue
+        k = CHILD.match(line)
+        if k:
+            ticked[k.group(3)] = k.group(2) == "x"
+            if last_parent is not None:
+                headings.add(last_parent)
+    for n, line in enumerate(lines, 1):
+        marker = SUPERSEDED.search(line)
+        if not marker:
+            continue
+        step, owner = marker.group(1), marker.group(2)
+        if not ticked.get(step, False):
+            problems.append(
+                "GUIDE.md:%d: %s carries SUPERSEDED but is not ticked. The step "
+                "was done; it is its RESULT that is superseded" % (n, step)
+            )
+        if owner not in ticked:
+            problems.append(
+                "GUIDE.md:%d: %s is SUPERSEDED -> %s, which is not a step on "
+                "this board" % (n, step, owner)
+            )
+        elif ticked[owner]:
+            problems.append(
+                "GUIDE.md:%d: %s is SUPERSEDED -> %s, but %s is already ticked. "
+                "The debt has no owner left" % (n, step, owner, owner)
+            )
+
+    closed, closed_problems = closed_phase_problems(lines)
+    problems.extend(closed_problems)
+
+    plan_text = PLAN.read_text(encoding="utf-8") if PLAN.is_file() else ""
+    if not plan_text:
+        problems.append("PLAN.md missing; GUIDE and PLAN must change together")
+    else:
+        problems.extend(guide_board.board_problems("\n".join(lines), plan_text))
+        # Not `headings`: that name is the set of parent steps, read again
+        # below to tell a parent from a leaf.
+        entry_headings = {p.stem: (p.read_text(encoding="utf-8").splitlines() or [""])[0]
+                          for p in ENTRIES.glob("*.md")} if ENTRIES.is_dir() else {}
+        ledger_text = LEDGER.read_text(encoding="utf-8") if LEDGER.is_file() else ""
+        problems.extend(ledger_problems(ledger_text, entry_headings))
+        agents_text = AGENTS.read_text(encoding="utf-8") if AGENTS.is_file() else ""
+        problems.extend(fingerprint_problems("\n".join(lines), agents_text, plan_text))
+        texts = {name: (ROOT / name).read_text(encoding="utf-8")
+                 for name in CURRENT_DOCS if (ROOT / name).is_file()}
+        problems.extend(dead_path_problems(texts, repository_path_exists))
+        absent = [s for s in step_numbers
+                  if not re.search(STEP_IN_PLAN.pattern % re.escape(s), plan_text)]
+        if absent:
+            problems.append(
+                "step(s) in GUIDE that PLAN never mentions: %s -- GUIDE and "
+                "PLAN change in the same commit" % ", ".join(absent)
+            )
+        # Failure 5: the other direction. A sub-step PLAN defines and GUIDE
+        # does not list is invisible work.
+        defined = {s for s in PLAN_DEFINITION.findall(plan_text)
+                   if s[0] not in closed}
+        unlisted = sorted(defined - set(step_numbers))
+        if unlisted:
+            problems.append(
+                "sub-step(s) PLAN defines that GUIDE does not list: %s -- the "
+                "board is the file that says what to do next, so work missing "
+                "from it does not get done" % ", ".join(unlisted)
+            )
+
+        metadata, metadata_problems = parse_workflow_rows(plan_text.splitlines())
+        problems.extend(metadata_problems)
+        active_open = {
+            step for step, is_ticked in ticked.items()
+            if not is_ticked and step.startswith(ACTIVE_PREFIXES)
+            and step not in headings
+        }
+        missing_metadata = sorted(active_open - set(metadata))
+        if missing_metadata:
+            problems.append(
+                "open active leaf/leaves missing PLAN workflow metadata: %s"
+                % ", ".join(missing_metadata)
+            )
+        extra_metadata = sorted(set(metadata) - active_open)
+        if extra_metadata:
+            problems.append(
+                "PLAN workflow row(s) are not open active GUIDE leaves: %s"
+                % ", ".join(extra_metadata)
+            )
+
+        guide_metadata = {}
+        for n, line in enumerate(lines, 1):
+            item = CHILD.match(line)
+            if item:
+                if item.group(2) == "x":
+                    continue
+                leaf = item.group(3)
+            else:
+                item = PARENT.match(line)
+                if not item or item.group(1) == "x" or item.group(2) in headings:
+                    continue
+                leaf = item.group(2)
+            if not leaf.startswith(ACTIVE_PREFIXES):
+                continue
+            match = GUIDE_WORKFLOW.search(line)
+            if not match:
+                problems.append(
+                    "GUIDE.md:%d: open active leaf %s lacks state/class suffix"
+                    % (n, leaf)
+                )
+                continue
+            guide_metadata[leaf] = (match.group(2), match.group(3))
+            if MODEL_TAG.search(line):
+                problems.append(
+                    "GUIDE.md:%d: active leaf %s carries a model tag; use its "
+                    "capability class and GUIDE's mapping" % (n, leaf)
+                )
+        drift = sorted(
+            leaf for leaf in active_open
+            if leaf in metadata and guide_metadata.get(leaf) != metadata[leaf]
+        )
+        if drift:
+            problems.append(
+                "GUIDE/PLAN workflow metadata differs for: %s"
+                % ", ".join(drift)
+            )
+
+    missing = sorted(REQUIRED_PHASES - phases)
+    if missing:
+        problems.append(
+            "missing phase heading(s): %s -- GUIDE lists every phase, not only "
+            "the active one" % ", ".join("Phase %s" % p for p in missing)
+        )
+    if steps == 0:
+        problems.append(
+            "no step bullets matched: the GUIDE format changed and this "
+            "checker is now passing vacuously"
+        )
+
+    if problems:
+        for p in problems:
+            sys.stdout.write("  %s\n" % p)
+        sys.stdout.write("FAIL: %d problem(s) in GUIDE.md\n" % len(problems))
+        return 1
+    sys.stdout.write(
+        "GUIDE.md consistent: %d steps, phases %s\n"
+        % (steps, ", ".join(str(p) for p in sorted(phases)))
+    )
+    if args.next:
+        queue = actionable(lines)
+        sys.stdout.write(
+            "\n%d actionable leaves open. Next %d, in board order:\n"
+            % (len(queue), min(args.next, len(queue)))
+        )
+        for number, text in queue[:args.next]:
+            sys.stdout.write("  %-9s %s\n" % (number, text[:78]))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

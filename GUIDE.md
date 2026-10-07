@@ -34,7 +34,7 @@ generations change. These are maintainer judgments, not measured rankings.
 
 <!-- BEGIN GENERATED FROM PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **A.8.1** `[M]` Final Rarog import — Claude Sonnet 5 — Medium
+**Next step:** **A.8.2** `[I1]` CI on pull requests to master only — Claude Sonnet 5 — Medium
 
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
@@ -69,7 +69,7 @@ generations change. These are maintainer judgments, not measured rankings.
     - [x] **A.7.3** `[V]` Oracle deficit meter G(0)
     - [x] **A.7.4** `[V]` Pooled-PGO NPS baseline
 - [ ] **A.8** Rarog-parity repairs, repository and C++23
-    - [ ] **A.8.1** `[M]` Final Rarog import
+    - [x] **A.8.1** `[M]` Final Rarog import
     - [ ] **A.8.2** `[I1]` CI on pull requests to master only
     - [ ] **A.8.3** `[M]` Merge commits from dev to master
     - [ ] **A.8.4** `[M]` Documents into docs/, closed Phase A archived

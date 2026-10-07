@@ -62,8 +62,8 @@ goes back to the implementer for a fix: it goes to research.
 > roadmap assumptions. Read the donor (modern Stockfish at the pinned
 > revision for search, TT, histories, time and threads; classical Stockfish
 > `9587eeeb` for the evaluation and as the oracle) for mechanism, population
-> and interaction, never for transcription; read the Rarog snapshot in
-> `docs/reference/rarog/` as a worked example of the same method, never the
+> and interaction, never for transcription; read the Rarog snapshots in
+> `docs/reference/` as a worked example of the same method, never the
 > live Rarog repository and never as a donor. State the precise question, the leading
 > and competing hypotheses, the shared signals and interactions, and whether
 > search, evaluation, tooling or instrument effects could explain it. Design
@@ -252,10 +252,11 @@ Donors (maintainer decision 2026-09-28; PLAN rule 1 points here):
 
 Rarog and Manta are worked examples of the same method; Reckless is Rarog's
 donor. None of them donates to Basilisk, and their verdicts are priors, never
-acceptance. Rarog is read only through the pinned snapshot in
-`docs/reference/rarog/`, whose README says how to resolve a reference and how
-a newer Rarog finding enters: a new dated snapshot plus ledger import rows. No
-Basilisk leaf may depend on the live Rarog repository.
+acceptance. Rarog is read only through the pinned snapshots in
+`docs/reference/` (`rarog/` and the last import, `rarog-2026-10-06/`), whose
+README says how to resolve a reference; no later Rarog finding enters
+(maintainer decision 2026-10-06). No Basilisk leaf may depend on the live
+Rarog repository.
 
 - **May cross:** architecture, mechanisms, population choices, contracts,
   failure modes and constants. A constant is a seed on the donor's scale: it
