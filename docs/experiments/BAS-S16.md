@@ -1,0 +1,15 @@
+# BAS-S16
+
+<!-- part 1 of 1: from docs/EXPERIMENTS.md, Cluster 5.4.4 — check-move depth policy, REJECTED -->
+
+| ID | BAS-S16 |
+|---|---|
+| **Verdict** | **Rejected.** SPRT `[0,3]` nElo accepted H0 at the bound: LLR **−2.95** against −2.94, at **17,058 games** in 3h09. Reverted — the switches were never committed active, so the accepted head is untouched at bench 11,941,440. |
+| **Result** | Elo **−3.48 ±3.32**, nElo **−5.47 ±5.21**, LOS **2.00%**. W 4,351 / L 4,522 / D 8,185, 49.50%. Ptnml(0-2) [377, 2074, 3767, 1965, 346], pairs ratio 0.94, WL/DD 0.82, draw ratio 44.17%. |
+| **Candidate** | `CheckExtPathCap=2` + `LmrAllowCheck=1`, adjudicated jointly per PLAN 5.4.4. Two binaries from revision `ce572a7` differing only in those defaults; candidate bench 8,611,045 against baseline 11,941,440. |
+| **Methodology note — CORRECTED 2026-08-13** | The two-binary design was chosen because `sprt.ps1` was believed to lack per-arm UCI options, and one PGO profile's worth of variance between arms was recorded as its unavoidable cost. **That was wrong.** `sprt.ps1` has had `-OptionsA`/`-OptionsB` since before this phase (lines 221–222), documented as letting "a single binary be A/B-tested on a UCI knob without a rebuild"; a grep for `[string]` did not match `[string[]]`. The two binaries and their variance were unnecessary. The verdict is unaffected. Future single-binary gates use `-OptionsA`/`-OptionsB`. |
+| **Conditions** | `tools/sprt.ps1` on fastchess 1.8.0, `3+0.03`, 1T, Hash 64, paired `UHO_Lichess_4852_v1.epd`, concurrency 14 pinned one core per game, standard `strength-v1` adjudication (valid — both arms share Basilisk's evaluator). |
+| **Triage** | PLAN's ordered check: (1) preconditions were healthy — BAS-D01 ordering, five live history channels; (2) the change was dependency-complete, both halves of the check-depth question moved together as 5.4.4 requires; (3) no reference constant was imported — `cap=2` came from our own sweep. So **reason 4**: for Basilisk, this mechanism does not transfer. |
+| **Conditional lesson** | Trading tree width for depth **loses** here, and durable lesson 5 lands on its other side: our width is buying something real. Note the magnitude — a **28% smaller tree** cost only **−3.48 Elo**, so the depth-for-tactics trade is nearly balanced but sits on the wrong side of zero. The pre-registered rule forbids re-running with a softer cap as though it were the same experiment; a milder setting is a new hypothesis needing a new ID and a new reason to believe it. |
+| **Retry trigger** | Only if a later cluster changes the *information* pruning decisions are made on — static-eval separation, TT provenance or qsearch quality. Not on a different cap value. |
+| **Not ablated** | The stop rule allowed isolating either switch ("if either"). Declined: the components' own priors were smaller than the bundle's (cap alone +0.411 ply, `LmrAllowCheck` alone +0.140), so each would cost ~3h to measure a likely smaller loss. Recorded rather than silently skipped. |

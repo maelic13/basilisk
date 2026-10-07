@@ -34,7 +34,7 @@ generations change. These are maintainer judgments, not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **A.8.5** `[I1]` Experiment ledger split into entries — Claude Sonnet 5 — Medium
+**Next step:** **A.8.6** `[I1]` Tag-driven release flow — Claude Sonnet 5 — Medium
 
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
@@ -49,7 +49,7 @@ generations change. These are maintainer judgments, not measured rankings.
     - [x] **A.8.2** `[I1]` CI on pull requests to master only
     - [x] **A.8.3** `[M]` Merge commits from dev to master
     - [x] **A.8.4** `[M]` Documents into docs/, closed Phase A archived
-    - [ ] **A.8.5** `[I1]` Experiment ledger split into entries
+    - [x] **A.8.5** `[I1]` Experiment ledger split into entries
     - [ ] **A.8.6** `[I1]` Tag-driven release flow
     - [ ] **A.8.7** `[I1]` SMP: the chosen thread's line before bestmove
     - [ ] **A.8.8** `[I1]` UCI info conformance

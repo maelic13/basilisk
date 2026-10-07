@@ -21,6 +21,9 @@ touches tags.
   generated step list. What a step involves goes in PLAN, a completed record in
   HISTORY, a procedure in PROCESS, evidence in EXPERIMENTS, a derivation in
   `analysis/`.
+- The experiment ledger is an index, `docs/EXPERIMENTS.md`, and one file per
+  entry, `docs/experiments/<ID>.md`. Register, update and cite an experiment
+  in its file; the index line carries only its link, title and disposition.
 - `docs/HISTORY.md` is history and resolves every retired numbering scheme; never
   take a next step from it or from `docs/archive/`. When documents disagree,
   source, defaults and reproducible artifacts outrank prose; fix the prose in

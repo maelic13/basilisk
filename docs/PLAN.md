@@ -435,7 +435,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       repointed by target only. The 13 broken links in tracked Markdown are
       the same 13 before and after, all in historical records. Sibling
       names inside `docs/` stay as written.
-    - [ ] **A.8.5** `[I1]` Experiment ledger split into entries
+    - [x] **A.8.5** `[I1]` Experiment ledger split into entries
       `docs/EXPERIMENTS.md` (306 KB) keeps its prose, structure and retry
       map, with an index table of ID (linked), short title and disposition;
       each entry moves to `docs/experiments/<ID>.md`. Before writing, every
@@ -444,6 +444,18 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       without a row, a duplicate, a wrong heading); its self-test plants each
       disagreement. AGENTS', PROCESS's and `agents/records.md`'s registration
       rules describe entry-plus-index registration.
+      — CLOSED 2026-10-07: 179 entry files (185 parts) and a 51 KB index,
+      down from 304 KB. Before writing, the former file was rebuilt byte for
+      byte from the generated index and the entry files parsed back from
+      their own text. Basilisk's ledger was not table-only like Rarog's:
+      ID-table rows become field/value tables under their column names;
+      bold-paragraph entries, and the BAS-S16 field table, move verbatim;
+      two rows a blank line had cut off from their table (BAS-O04, O05)
+      became entries. Six IDs hold two parts each: the collisions BAS-E08,
+      X08 and X11, and the continuations D03, E39 and E55. `check_roadmap.py`'s
+      `validate_ledger` replaces the heading-collision check, and its
+      self-test plants each disagreement. Removing `BAS-X35.md` from the
+      real tree fails the check (exit 1). The 13 broken links are unchanged.
     - [ ] **A.8.6** `[I1]` Tag-driven release flow
       Moved from E.3.1. Today `release.yml` fires on `release: published`, so
       a release exists before any asset is built, and nothing checks that the
@@ -956,7 +968,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.8.5 | READY_FOR_IMPLEMENTATION | I1 | After A.8.4 |
 | A.8.6 | READY_FOR_IMPLEMENTATION | I1 | Moved from E.3.1; Rarog's lessons in the leaf |
 | A.8.7 | READY_FOR_IMPLEMENTATION | I1 | Review item 1; output only |
 | A.8.8 | READY_FOR_IMPLEMENTATION | I1 | Review item 6; output only |

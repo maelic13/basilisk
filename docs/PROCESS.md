@@ -144,8 +144,9 @@ the reviewer must check. The reviewer's acceptance is appended below it.
 
 ## Experiment registration
 
-Register an experiment as one entry in the `EXPERIMENTS.md` section that owns
-it, before any games. The template is EXPERIMENTS §11. When the registration
+Register an experiment before any games as one entry file,
+`docs/experiments/<ID>.md`, plus one index line in the `EXPERIMENTS.md` section
+that owns it. The template and the index line's form are EXPERIMENTS §11. When the registration
 is longer than an entry, write it in an `analysis/` packet with the template's
 fields and cite the packet; append the result and calibration there without
 rewriting the prediction.

@@ -51,7 +51,10 @@ VALID_STATES = {
 EXPERIMENT_DEFINITION = re.compile(
     r"^(?:###\s+|\*\*|\|\s*)(BAS-[A-Z]\d+)(?:\s|\||\*)"
 )
-NEW_EXPERIMENT = re.compile(r"^###\s+(BAS-[A-Z]\d+)\b")
+EXPERIMENT_ID = re.compile(r"BAS-[A-Z]\d+")
+LEDGER_LINK = re.compile(r"\]\(experiments/(BAS-[A-Z]\d+)\.md\)")
+LEDGER_PART = re.compile(r"^<!-- part \d+ of \d+")
+RETRY_MAP_HEADING = "## 9. "
 MARKDOWN_LINK = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 REGISTER_HEADING = "active workflow register"
 REGISTER_ROW = re.compile(
@@ -232,25 +235,40 @@ def write_guide(guide_path: Path, rendered: str) -> None:
     guide_path.write_bytes(text.replace("\n", newline).encode("utf-8"))
 
 
-def validate_experiment_ids(path: Path) -> None:
-    definitions: dict[str, list[int]] = {}
-    new_ids: set[str] = set()
-    for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-        match = EXPERIMENT_DEFINITION.match(line)
-        if match:
-            definitions.setdefault(match.group(1), []).append(number)
-        new_match = NEW_EXPERIMENT.match(line)
-        if new_match:
-            key = new_match.group(1)
-            if key in new_ids:
-                raise ValueError(f"{path}:{number}: duplicate new experiment id {key}")
-            new_ids.add(key)
-    for key in new_ids:
-        if len(definitions.get(key, [])) != 1:
-            raise ValueError(
-                f"{path}: new experiment id {key} collides at lines "
-                f"{definitions.get(key, [])}"
-            )
+def validate_ledger(index: Path, entries: Path) -> int:
+    """The ledger index and its entry files agree; returns the number of entries.
+
+    Each `entries/<ID>.md` is headed `# <ID>` and is linked from the index once
+    per part it holds (`<!-- part n of m ... -->`, one part when unmarked). No
+    entry is written inline above the retry map (section 9).
+    """
+    links: dict[str, int] = {}
+    retry_map = False
+    for number, line in enumerate(index.read_text(encoding="utf-8").splitlines(), 1):
+        retry_map = retry_map or line.startswith(RETRY_MAP_HEADING)
+        if not retry_map and EXPERIMENT_DEFINITION.match(line):
+            raise ValueError(f"{index}:{number}: an entry written inline; it belongs in "
+                             f"{entries.name}/<ID>.md with an index line")
+        for key in LEDGER_LINK.findall(line):
+            links[key] = links.get(key, 0) + 1
+    files = sorted(entries.glob("*.md"))
+    for path in files:
+        key = path.stem
+        if not EXPERIMENT_ID.fullmatch(key):
+            raise ValueError(f"{path}: an entry file must be named by its experiment ID")
+        lines = path.read_text(encoding="utf-8").splitlines()
+        if not lines or not (lines[0] == f"# {key}" or lines[0].startswith(f"# {key} ")):
+            raise ValueError(f"{path}: the heading does not name {key}")
+        parts = max(1, sum(1 for line in lines if LEDGER_PART.match(line)))
+        if links.get(key, 0) == 0:
+            raise ValueError(f"{path}: no index line in {index.name} links it")
+        if links[key] != parts:
+            raise ValueError(f"{index.name} links {key} {links[key]} times; its file "
+                             f"holds {parts} part(s)")
+    missing = sorted(set(links) - {path.stem for path in files})
+    if missing:
+        raise ValueError(f"{index.name} links entries with no file: {', '.join(missing)}")
+    return len(files)
 
 
 def validate_local_links(paths: list[Path]) -> None:
@@ -480,10 +498,42 @@ def self_test() -> None:
         (root / "state.md").write_text("**State:** INVENTED\n", encoding="utf-8")
         expect_failure("invalid workflow state", lambda: validate_state_fields([root / "state.md"]))
 
-        (root / "EXPERIMENTS.md").write_text(
-            "### BAS-E99 — first\n### BAS-E99 — duplicate\n", encoding="utf-8"
+        # The ledger: an index plus one file per entry, and every disagreement fails.
+        index = root / "EXPERIMENTS.md"
+        entries = root / "experiments"
+        entries.mkdir()
+        good_index = (
+            "# Ledger\n\n## 3. Search\n\n"
+            "- [BAS-E98](experiments/BAS-E98.md) — one part — REJECTED\n"
+            "| [BAS-E99](experiments/BAS-E99.md) | first part | ACCEPTED |\n"
+            "- [BAS-E99](experiments/BAS-E99.md) — second part — see entry\n"
+            "\n## 9. Open retry map\n\n| BAS-E98 | a retry trigger |\n"
         )
-        expect_failure("duplicate experiment id", lambda: validate_experiment_ids(root / "EXPERIMENTS.md"))
+        index.write_text(good_index, encoding="utf-8")
+        (entries / "BAS-E98.md").write_text("# BAS-E98\n\n**BAS-E98 — one**\n", encoding="utf-8")
+        (entries / "BAS-E99.md").write_text(
+            "# BAS-E99\n\n<!-- part 1 of 2: a row -->\n\nx\n\n<!-- part 2 of 2: a block -->\n\ny\n",
+            encoding="utf-8",
+        )
+        if validate_ledger(index, entries) != 2:
+            raise AssertionError("ledger entries were not counted")
+        index.write_text(good_index + "- [BAS-E97](experiments/BAS-E97.md) — x — y\n",
+                         encoding="utf-8")
+        expect_failure("an index line without its file", lambda: validate_ledger(index, entries))
+        index.write_text(good_index.replace("- [BAS-E98](experiments/BAS-E98.md) — one part — REJECTED\n", ""),
+                         encoding="utf-8")
+        expect_failure("an entry file without its index line", lambda: validate_ledger(index, entries))
+        index.write_text(good_index + "- [BAS-E98](experiments/BAS-E98.md) — again — x\n",
+                         encoding="utf-8")
+        expect_failure("a duplicate index line", lambda: validate_ledger(index, entries))
+        index.write_text(good_index.replace("## 3. Search\n", "## 3. Search\n\n**BAS-E96 — inline**\n"),
+                         encoding="utf-8")
+        expect_failure("an entry written inline", lambda: validate_ledger(index, entries))
+        index.write_text(good_index, encoding="utf-8")
+        (entries / "BAS-E98.md").write_text("# BAS-E95\n", encoding="utf-8")
+        expect_failure("a heading naming another ID", lambda: validate_ledger(index, entries))
+        (entries / "BAS-E98.md").write_text("# BAS-E98\n", encoding="utf-8")
+        validate_ledger(index, entries)
 
         (root / "doc.md").write_text("[missing](nope.md)\n", encoding="utf-8")
         expect_failure("broken local link", lambda: validate_local_links([root / "doc.md"]))
@@ -589,8 +639,9 @@ def main() -> int:
         missing = [str(path.relative_to(root)) for path in process_docs if not path.exists()]
         if missing:
             raise ValueError("documents the checker reads are missing: " + ", ".join(missing))
+        ledger_entries = validate_ledger(docs / "EXPERIMENTS.md", docs / "experiments")
+        process_docs += sorted((docs / "experiments").glob("*.md"))
         validate_state_fields(process_docs)
-        validate_experiment_ids(docs / "EXPERIMENTS.md")
         validate_local_links(process_docs)
 
         validate_parents(plan)
@@ -612,7 +663,8 @@ def main() -> int:
         f"roadmap synchronized: {sum(plan.items.values())} complete, "
         f"{len(plan.items) - sum(plan.items.values())} open; "
         f"next {ordered_open[0] if ordered_open else 'none'}; "
-        f"fingerprint {fingerprint}; {reference_files} reference files verified"
+        f"fingerprint {fingerprint}; {ledger_entries} ledger entries; "
+        f"{reference_files} reference files verified"
     )
     return 0
 

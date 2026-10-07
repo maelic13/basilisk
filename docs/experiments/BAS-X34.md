@@ -1,0 +1,10 @@
+# BAS-X34
+
+<!-- part 1 of 1: from docs/EXPERIMENTS.md, 8. Cross-engine evidence imported from Rarog -->
+
+| Field | Value |
+|---|---|
+| ID | BAS-X34 |
+| Rarog evidence | **Rarog's measurements of Basilisk and of the target pool**, the starting point of PLAN §1. **Super Rating Tournament** (RAR-M54, 2026-09-15): Colosseum round robin, 42 engines, 172,200 games, 200 per pair, `3+0.03`, 1T, UHO_Lichess_4852_v1, no adjudication; PGN `D:/chess/results/super_rating_tournament.pgn`, 175,960,452 bytes, SHA-256 `4e87a36a030dfc696c9328f9f34f60b94784a5303af4c8be92d2db6b2c05103c` (re-verified 2026-09-28). Ratings on its scale as RAR-M63 lists them: Houdini 4 3310, Houdini 3 3287, Critter 1.6a 3192, Fritz 16 3173, Rybka 4.1 3111, Rarog 2.4.0 3001, **Basilisk 1.10.0 2994**; the maintainer judged 1.10.1 equal in strength, so 2994 applies to it (Rarog `015bccae`). Conversion after a persistent piece-up advantage, against the six anchors Critter 1.6a, Fritz 16, HIARCS 14, Houdini 1.5a, Rybka 4 and Shredder 12: Basilisk 1.9.3 **17.5 draws and 5.0 losses per 1,000** (Rarog 2.4.0 24.2 / 3.3); over the whole field 18.3 / 2.8. **Reference pool** (RAR-M45, 2026-09-11): twelve engines, 600 games per pair, 39,600 games, same conditions, Rybka 4 anchored at 3102: Houdini 3 3277, Critter 1.6a 3197, Houdini 1.5a 3189, Fritz 16 3165, Basilisk 1.10.0 3012, Rarog 2.4.0 3003, Basilisk 1.9.3 2997. **Rarog after its search clusters 1 and 2** (RAR-M63, 2026-09-27/28): a 40,000-game gauntlet with the pool held at its tournament ratings rates Rarog 2.5.0-dev at 3233, scoring **+200 ± 10** against Basilisk 1.10.1 (76.0%). **Speed:** Rarog's pooled-PGO measurement put Rarog 2.4.0 at 3.19 MNPS against Basilisk's 3.71 (Rarog PLAN §1, RAR-M48). |
+| Basilisk implication | These are measurements of Basilisk binaries by Rarog's instruments, valid as observations and never as acceptance. Pool ratings are relative to the field: the tournament's scale holds all four E.2 targets, so it is the starting distance to the gate. Basilisk's own head-to-heads and conversion are in the same PGN and are read at A.7.1. |
+| PLAN coverage | PLAN §1; A.7 |
