@@ -586,7 +586,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       (58 ms left at 10 ms overhead refuses; exactly 100 ms allows). Engine
       test: at `wtime 100` the line is not extended, and it fails with the
       rule disabled. Bench 14,978,465; release CTest 17/17.
-    - [ ] **A.8.12** `[I2]` C++23 idiom pass, behaviour-neutral
+    - [x] **A.8.12** `[I2]` C++23 idiom pass, behaviour-neutral
       Modern idiom across `src/` without moving code between files (B.1 and
       C.1 own the moves): `std::format`/`std::print` for UCI and bench
       output in place of concatenation and the printf family;
@@ -596,6 +596,20 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       Per-node code keeps `agents/implementation.md`'s rules. Each commit
       reproduces the fingerprint; release and sanitizer CTest; pooled-PGO
       NPS within noise, by A.7.4's method, against the head before the pass.
+      — CLOSED 2026-10-07 (`0e80d1a`). `std::format` replaces the 25
+      `snprintf` Diag printers (whose fixed buffers once truncated fields), the
+      info formatter, and the bench and WAC reports. The remaining board
+      queries and new helpers are `[[nodiscard]]`; the exhaustive WDL switch
+      ends in `std::unreachable()`. Not used, with reasons:
+      - `std::print`: the Ubuntu runners' libstdc++ 13 lacks it;
+      - `std::expected` for FEN: already there;
+      - ranges and constexpr rewrites of hot code: no clarity gain worth an
+        NPS risk.
+      Byte-identical output with times masked: the TUNE build's Diag at
+      depth 11 on three positions (75 lines), the bench report, and WAC in
+      both modes. Bench 14,978,465; release and ASan/UBSan CTest 17/17 (ASan
+      shown live on a planted overflow). NPS by BAS-P14: −0.11% [−0.20,
+      +0.15].
     - [ ] **A.8.13** `[R2]` Score bands and in-search tablebase probes
       Two defects (review items 3 and 4). (a) Known-win evaluations up to
       27,420 (KBNK prints `cp 22048`) share the band `is_tablebase_decisive`
@@ -1026,7 +1040,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.8.12 | READY_FOR_IMPLEMENTATION | I2 | Behaviour-neutral; NPS within noise |
 | A.8.13 | RESEARCH | R2 | Review items 3 and 4; designs A.8.15's gate |
 | A.8.14 | RESEARCH | I2 | Waits on A.8.13's handoff |
 | A.8.15 | RESEARCH | V | Registered by A.8.13 |

@@ -34,7 +34,7 @@ generations change. These are maintainer judgments, not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **A.8.12** `[I2]` C++23 idiom pass, behaviour-neutral — Claude Opus 5 — High
+**Next step:** **A.8.13** `[R2]` Score bands and in-search tablebase probes — Claude Opus 5 — High
 
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
@@ -56,7 +56,7 @@ generations change. These are maintainer judgments, not measured rankings.
     - [x] **A.8.9** `[I2]` MultiPV
     - [x] **A.8.10** `[I1]` Command-line commands, fatal errors on stdout
     - [x] **A.8.11** `[I1]` Tablebase PV extension start rule
-    - [ ] **A.8.12** `[I2]` C++23 idiom pass, behaviour-neutral
+    - [x] **A.8.12** `[I2]` C++23 idiom pass, behaviour-neutral
     - [ ] **A.8.13** `[R2]` Score bands and in-search tablebase probes
     - [ ] **A.8.14** `[I2]` Score bands and probes, implementation
     - [ ] **A.8.15** `[V]` Tablebase-enabled gate
