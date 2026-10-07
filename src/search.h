@@ -121,11 +121,19 @@ struct SearchResult {
     std::vector<Move> pv;
 };
 
-// A decisive tablebase score (a TB win or loss, possibly ply-adjusted), as
-// opposed to a mate score or an ordinary evaluation.
+static_assert(tablebaseValue == MATE_SCORE - MAX_PLY - 1,
+              "the tablebase band sits directly below the mate band");
+
+// A decisive tablebase score (a TB win or loss, ply-adjusted), as opposed to a
+// mate score or an ordinary evaluation.
 [[nodiscard]] inline bool is_tablebase_decisive(int score) {
     const int a = score < 0 ? -score : score;
-    return a >= tablebaseWinScore - MAX_PLY && a < MATE_SCORE - MAX_PLY;
+    return a >= tablebaseWinInMaxPly && a < MATE_SCORE - MAX_PLY;
+}
+
+// A mate or a tablebase result: never an evaluation.
+[[nodiscard]] inline bool is_decisive(int score) {
+    return (score < 0 ? -score : score) >= tablebaseWinInMaxPly;
 }
 
 [[nodiscard]] SearchResult sanitize_search_result(const Board& root_board, SearchResult result);
@@ -453,6 +461,9 @@ private:
     // the next line skips. Empty at every other time, so a single-PV search
     // never consults it.
     std::vector<Move> root_excluded_;
+    // In-search tablebase probes: off when the root was ranked by DTZ, or by
+    // WDL and not winning (Stockfish's rule); on otherwise.
+    bool tb_probe_in_search_ = true;
     int multipv_lines_ = 1;
     int64_t  root_depth_nodes_;
     int64_t  root_best_nodes_;

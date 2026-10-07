@@ -599,7 +599,7 @@ void test_multipv() {
         const auto lines = pv_lines(session.output());
         bool decisive = !lines.empty();
         for (const PvLine& l : lines)
-            decisive = decisive && l.score >= tablebaseWinScore - 128;
+            decisive = decisive && l.score >= tablebaseWinScore - 128;   // displayed cp
         EXPECT(decisive);
         Syzygy::clear();
     }

@@ -915,7 +915,7 @@ static void test_syzygy_probe_limit_and_counts() {
     auto moves = Syzygy::probe_root_moves(board, true, 7, true);
     EXPECT(!moves.empty());
     EXPECT(moves.front().bestmove != MOVE_NONE);
-    EXPECT(moves.front().score == tablebaseWinScore);
+    EXPECT(moves.front().score == tablebaseValue);
     end_section();
 
     Syzygy::clear();
@@ -955,8 +955,8 @@ static void test_syzygy_rule50_root_scores() {
     begin_section("syzygy: disabling rule50 reports tablebase win");
     auto no_rule50_moves = Syzygy::probe_root_moves(board, false, 7, true);
     EXPECT(!no_rule50_moves.empty());
-    EXPECT(no_rule50_moves.front().score == tablebaseWinScore);
-    EXPECT(!no_rule50_moves.empty() && no_rule50_moves.front().display == tablebaseWinScore);
+    EXPECT(no_rule50_moves.front().score == tablebaseValue);
+    EXPECT(!no_rule50_moves.empty() && no_rule50_moves.front().display == tablebaseValue);
     end_section();
 
     Syzygy::clear();
@@ -1050,6 +1050,65 @@ static void test_tablebase_pv_extension() {
     Syzygy::clear();
 }
 
+// The score bands: evaluations below the tablebase band, tablebase results a
+// distance from the root, displayed as cp 20000 less that distance.
+static void test_tablebase_band() {
+    begin_section("tb band: tablebase results sit directly below mates");
+    EXPECT_EQ(tablebaseValue, MATE_SCORE - MAX_PLY - 1);
+    EXPECT(is_tablebase_decisive(tablebaseValue - 7) && is_decisive(tablebaseValue - 7));
+    EXPECT(is_decisive(-(MATE_SCORE - 3)) && !is_tablebase_decisive(MATE_SCORE - 3));
+    EXPECT(!is_decisive(tablebaseWinInMaxPly - 1) && !is_tablebase_decisive(20000));
+    end_section();
+
+    begin_section("tb band: a tablebase result displays as cp 20000 less its distance");
+    EXPECT(format_info_line(5, 5, 1, tablebaseValue - 5, {}, 1, 1.0, 0, 0, {})
+               .find(" score cp 19995 nodes ") != std::string::npos);
+    EXPECT(format_info_line(5, 5, 1, -(tablebaseValue - 2), {}, 1, 1.0, 0, 0, {})
+               .find(" score cp -19998 nodes ") != std::string::npos);
+    end_section();
+
+    begin_section("tb band: KBNK without tables stays an evaluation");
+    {
+        Syzygy::clear();
+        Board board;
+        board.set_fen("8/8/8/2K5/8/3k4/8/N1B5 w - - 0 1");
+        TranspositionTable tt(4);
+        std::atomic_bool stop{false};
+        SearchLimits limits;
+        limits.depth = 6;
+        auto searcher = std::make_unique<Searcher>(tt, stop);
+        const SearchResult result = searcher->search(board, limits);
+        EXPECT(result.score > 10000);
+        EXPECT(!is_decisive(result.score));
+    }
+    end_section();
+
+    // A capture into KQvK is probed in search: the root (four men) is above the
+    // fixture, the child is in it, and the win is a distance from the root.
+    begin_section("tb band: an in-search probe returns a win one ply from the root");
+    {
+        init_test_syzygy();
+        Board board;
+        board.set_fen("4k3/8/8/8/8/8/3n4/3QK3 w - - 0 1");
+        TranspositionTable tt(4);
+        std::atomic_bool stop{false};
+        std::vector<std::string> lines;
+        SearchLimits limits;
+        limits.depth = 3;
+        limits.syzygy_probe_depth = 1;
+        limits.syzygy_probe_limit = 7;
+        auto searcher = std::make_unique<Searcher>(tt, stop, [&](const std::string& info) {
+            lines.push_back(info);
+        });
+        const SearchResult result = searcher->search(board, limits);
+        EXPECT_EQ(result.score, tablebaseValue - 1);
+        EXPECT(result.tbhits > 0);
+        EXPECT(!lines.empty() && lines.back().find(" score cp 19999 ") != std::string::npos);
+        Syzygy::clear();
+    }
+    end_section();
+}
+
 static void test_search_uses_root_tablebase_metadata() {
     Syzygy::clear();
     init_test_syzygy();
@@ -1076,7 +1135,7 @@ static void test_search_uses_root_tablebase_metadata() {
     SearchResult result = searcher->search(board, limits);
 
     begin_section("search syzygy: reports TB win score and hits");
-    EXPECT_EQ(result.score, tablebaseWinScore);
+    EXPECT_EQ(result.score, tablebaseValue);
     EXPECT(result.tbhits > 0);
     end_section();
 
@@ -1276,6 +1335,7 @@ int main() {
     test_syzygy_rule50_root_scores();
     test_tablebase_pv_extension();
     test_search_uses_root_tablebase_metadata();
+    test_tablebase_band();
 
     std::printf("\nPackaged-FEN legality sweep\n");
     test_packaged_fens_strictly_legal();

@@ -2,6 +2,7 @@
 #include "constants.h"
 #include "syzygy.h"
 #include <algorithm>
+#include <bit>
 #include <format>
 #include <array>
 #include <atomic>
@@ -26,7 +27,6 @@
 
 // ---- LMR table -------------------------------------------------------------
 
-static constexpr int TB_WIN_SCORE = tablebaseWinScore;
 
 #if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
 #define TRACE_DECISION(...) trace_decision(__VA_ARGS__)
@@ -47,18 +47,25 @@ static constexpr int TB_WIN_SCORE = tablebaseWinScore;
 #define ABLATED(bit) false
 #endif
 
-static int score_from_syzygy_wdl(Syzygy::Wdl wdl) {
+// A probed WDL as a search value and the bound it proves (Stockfish's form):
+// a win is at least `tablebaseValue - ply`, a loss at most its negation, and a
+// result the rule-50 counter spoils is an exact +/-2. With the rule off a
+// spoiled result counts in full.
+struct TablebaseProbe { int value; TTFlag bound; };
+
+static TablebaseProbe tablebase_probe(Syzygy::Wdl wdl, int ply, bool rule50) {
+    const int win = tablebaseValue - ply;
     switch (wdl) {
         case Syzygy::Wdl::Win:
-            return TB_WIN_SCORE;
+            return {win, TT_BETA};
         case Syzygy::Wdl::CursedWin:
-            return 2;
+            return rule50 ? TablebaseProbe{2, TT_EXACT} : TablebaseProbe{win, TT_BETA};
         case Syzygy::Wdl::Draw:
-            return 0;
+            return {0, TT_EXACT};
         case Syzygy::Wdl::BlessedLoss:
-            return -2;
+            return rule50 ? TablebaseProbe{-2, TT_EXACT} : TablebaseProbe{-win, TT_ALPHA};
         case Syzygy::Wdl::Loss:
-            return -TB_WIN_SCORE;
+            return {-win, TT_ALPHA};
     }
     std::unreachable();
 }
@@ -1343,6 +1350,9 @@ std::string format_info_line(int depth, int seldepth, int multipv, int score,
                              int64_t tbhits, int hashfull, const std::vector<Move>& pv) {
     const bool mate = std::abs(score) >= MATE_SCORE - MAX_PLY;
     const int mate_in = (MATE_SCORE - std::abs(score) + 1) / 2;
+    // A tablebase result n plies of tablebase play away shows as cp 20000 - n.
+    if (is_tablebase_decisive(score))
+        score = (score > 0 ? 1 : -1) * (tablebaseWinScore - (tablebaseValue - std::abs(score)));
     const int64_t nps = int64_t(double(nodes) / std::max(elapsed, 0.001));
     std::string line = std::format(
         "info depth {} seldepth {} multipv {} score {} {}{}{} nodes {} nps {} hashfull {} "
@@ -1380,6 +1390,8 @@ bool needs_pool_line(const SearchResult& merged, const SearchResult& main_thread
 void Searcher::init_root_tablebase_scores(const Board& board) {
     (void) board;
     root_tb_moves_ = active_limits_.syzygy_root_moves;
+    tb_probe_in_search_ = root_tb_moves_.empty()
+        || (!root_tb_moves_.front().used_dtz && root_tb_moves_.front().score > 0);
     if (!root_tb_moves_.empty() && thread_id_ == 0)
         record_tbhit(static_cast<int64_t>(root_tb_moves_.size()));
 }
@@ -1405,7 +1417,7 @@ int Searcher::root_tablebase_ordering_score(Move move) const {
         if (entry.bestmove == move) {
             return 8'000'000
                  + std::clamp(entry.rank, -2000, 2000) * 1000
-                 + std::clamp(entry.score, -tablebaseWinScore, tablebaseWinScore);
+                 + std::clamp(entry.score, -tablebaseValue, tablebaseValue);
         }
     }
     return 0;
@@ -1506,7 +1518,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
 
     int stand_pat = raw_eval;
     stand_pat += correction_value(board_ptr_->turn(), *board_ptr_, ss);
-    stand_pat = std::clamp(stand_pat, -(MATE_SCORE - 1), MATE_SCORE - 1);
+    stand_pat = std::clamp(stand_pat, -(tablebaseWinInMaxPly - 1), tablebaseWinInMaxPly - 1);
 #if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
     const int correction = stand_pat - raw_eval;
 #endif
@@ -1689,18 +1701,37 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
     if (!is_root && board_ptr_->is_draw(ply)) return 0;
 
-    if (!is_root && ss->excluded == MOVE_NONE
-        && root_tb_moves_.empty()
-        && active_limits_.syzygy_probe_depth > 0
-        && (ply == 1 || depth >= active_limits_.syzygy_probe_depth)) {
-        if (auto wdl = Syzygy::probe_wdl(*board_ptr_,
-                                         active_limits_.syzygy_probe_limit,
-                                         active_limits_.syzygy_50_move_rule)) {
-            record_tbhit();
-            const int tb_score = score_from_syzygy_wdl(*wdl);
-            tt_store(board_ptr_->position_key(), depth, tb_score, TT_EXACT, MOVE_NONE, ply,
-                      TranspositionTable::INF_EVAL);
-            return tb_score;
+    // In-search tablebase probe. A result that decides the node returns and
+    // is stored as the bound it proves; otherwise a PV node keeps searching
+    // inside it: a win raises the floor, a loss caps the result.
+    int tb_floor = -INF_SCORE;
+    int tb_cap   = INF_SCORE;
+    if (!is_root && depth > 0 && ss->excluded == MOVE_NONE && tb_probe_in_search_
+        && active_limits_.syzygy_probe_depth > 0) {
+        const int limit = std::min(active_limits_.syzygy_probe_limit, Syzygy::largest());
+        const int pieces = std::popcount(board_ptr_->all_pieces());
+        if (pieces < limit || depth >= active_limits_.syzygy_probe_depth) {
+            if (auto wdl = Syzygy::probe_wdl(*board_ptr_,
+                                             active_limits_.syzygy_probe_limit,
+                                             active_limits_.syzygy_50_move_rule)) {
+                record_tbhit();
+                const TablebaseProbe tb = tablebase_probe(*wdl, ply,
+                                                          active_limits_.syzygy_50_move_rule);
+                if (tb.bound == TT_EXACT
+                    || (tb.bound == TT_BETA ? tb.value >= beta : tb.value <= alpha)) {
+                    tt_store(board_ptr_->position_key(), std::min(MAX_PLY - 1, depth + 6),
+                             tb.value, tb.bound, MOVE_NONE, ply, TranspositionTable::INF_EVAL);
+                    return tb.value;
+                }
+                if (is_pv) {
+                    if (tb.bound == TT_BETA) {
+                        tb_floor = tb.value;
+                        alpha = std::max(alpha, tb.value);
+                    } else {
+                        tb_cap = tb.value;
+                    }
+                }
+            }
         }
     }
 
@@ -1796,7 +1827,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         // TT stores the raw static eval; correction is applied at probe time.
         static_eval = raw_static_eval;
         static_eval += correction_value(board_ptr_->turn(), *board_ptr_, ss);
-        static_eval  = std::clamp(static_eval, -(MATE_SCORE - 1), MATE_SCORE - 1);
+        static_eval  = std::clamp(static_eval, -(tablebaseWinInMaxPly - 1), tablebaseWinInMaxPly - 1);
         ss->eval = static_eval;
     }
 
@@ -1810,7 +1841,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     // out as an unverified mate cutoff — clamp the refinement to normal scores.
     int eval = static_eval;
     if (tt_found && static_eval != VALUE_NONE && tt_score != VALUE_NONE
-        && std::abs(tt_score) < MATE_SCORE - MAX_PLY
+        && !is_decisive(tt_score)
         && (tt_flag == TT_EXACT
             || (tt_flag == TT_BETA  && tt_score > static_eval)
             || (tt_flag == TT_ALPHA && tt_score < static_eval)))
@@ -1872,7 +1903,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             undo_null_move(ss);
             if (stopped_) return 0;
             if (null_score >= beta) {
-                if (null_score >= MATE_SCORE - MAX_PLY) null_score = beta;
+                if (is_decisive(null_score)) null_score = beta;
                 bool verified = true;
                 if (depth >= 10) {
                     const int verify_depth = std::max(1, depth - r);
@@ -1892,7 +1923,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         }
 
         // ProbCut: if a capture is likely to fail high at reduced depth
-        if (!ABLATED(3) && depth >= 5 && std::abs(beta) < MATE_SCORE - MAX_PLY) {
+        if (!ABLATED(3) && depth >= 5 && !is_decisive(beta)) {
             int pc_beta = std::min(beta + active_limits_.params.probcut_margin,
                                    MATE_SCORE - MAX_PLY - 1);
             MoveList pcaps;
@@ -1936,7 +1967,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
     int  orig_alpha  = alpha;
     Move best_move   = MOVE_NONE;
-    int  best_score  = -INF_SCORE;
+    int  best_score  = tb_floor;
     int  searched    = 0;
 
     Move quiets_searched[MAX_TRACKED_QUIETS];
@@ -2023,7 +2054,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
         // ---- Late-move pruning / futility ----------------------------------
         if (!ABLATED(5) && !is_root && searched > 0
-            && best_score > -(MATE_SCORE - MAX_PLY)) {
+            && best_score > -tablebaseWinInMaxPly) {
 
             // Reduction-aware depth for the shallow-pruning heuristics (Step
             // 6.5): the base LMR-table reduction, matching SF/Ethereal's use of
@@ -2156,7 +2187,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             && depth >= active_limits_.params.singular_min_depth
             && tt_found && tt_depth >= depth - 3
             && (tt_flag == TT_BETA || tt_flag == TT_EXACT)
-            && std::abs(tt_score) < MATE_SCORE - MAX_PLY) {
+            && !is_decisive(tt_score)) {
 
             int s_beta  = tt_score - active_limits_.params.singular_beta_mult * depth;
             int s_depth = (depth - 1) / 2;
@@ -2483,6 +2514,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     if (searched == 0)
         return in_check ? -(MATE_SCORE - ply) : 0;
 
+    best_score = std::min(best_score, tb_cap);
+
     // 8.5.10(b') exact/PV best-move history training, REWARD-ONLY.
     // A beta cutoff trains history inside search_one. An EXACT node -- best_move
     // improved alpha but did not cut off -- was left untrained. The full updater
@@ -2502,7 +2535,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
     // Update correction history with search result
     if (!in_check && ss->excluded == MOVE_NONE && static_eval != VALUE_NONE
-        && std::abs(best_score) < MATE_SCORE - MAX_PLY
+        && !is_decisive(best_score)
         && (best_score >= beta || best_score > orig_alpha)) {
         update_correction(board_ptr_->turn(), *board_ptr_, ss,
                           best_score - static_eval, depth);

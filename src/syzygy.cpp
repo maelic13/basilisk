@@ -114,10 +114,10 @@ int normalize_root_score(int score, int rank, bool use_rule50) {
     if (use_rule50 && rank > -900 && rank < 900)
         return 0;
     if (score > 1000)
-        return tablebaseWinScore;
+        return tablebaseValue;
     if (score < -1000)
-        return -tablebaseWinScore;
-    return std::clamp(score, -tablebaseWinScore, tablebaseWinScore);
+        return -tablebaseValue;
+    return std::clamp(score, -tablebaseValue, tablebaseValue);
 }
 
 std::vector<std::string> split_paths(const std::string& paths) {

@@ -237,16 +237,18 @@ public:
         return slots == 0 ? 0 : count * 1000 / slots;
     }
 
-    // Score adjustments for mate scores stored relative to ply
+    // Decisive scores (mates and tablebase results) are stored relative to
+    // the node, not the root, so their distance survives a transposition.
+    static constexpr int DECISIVE = MATE_SCORE - 2 * MAX_PLY - 1;
     static int score_to_tt(int score, int ply) {
-        if (score >=  MATE_SCORE - MAX_PLY) return score + ply;
-        if (score <= -MATE_SCORE + MAX_PLY) return score - ply;
+        if (score >=  DECISIVE) return score + ply;
+        if (score <= -DECISIVE) return score - ply;
         return score;
     }
 
     static int score_from_tt(int score, int ply, int halfmove_clock = 0) {
-        if (score >=  MATE_SCORE - MAX_PLY) return score - ply;
-        if (score <= -MATE_SCORE + MAX_PLY) return score + ply;
+        if (score >=  DECISIVE) return score - ply;
+        if (score <= -DECISIVE) return score + ply;
         if (halfmove_clock >= 100)
             return 0;
         return score;
