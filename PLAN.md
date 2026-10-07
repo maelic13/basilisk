@@ -733,7 +733,7 @@ was cut the day before this plan, so Phase A has no release step.
       triggers. The PR run and the dispatch need a push, which is the
       maintainer's, so they are owed at A.8.21's release PR; a failure
       there reopens this leaf.
-    - [ ] **A.8.3** `[M]` Merge commits from dev to master
+    - [x] **A.8.3** `[M]` Merge commits from dev to master
       `dev` reaches `master` by a merge commit, never a squash: AGENTS
       *Commits and reporting*, PROCESS's release procedure and PLAN §5.
       `master` is already an ancestor of `dev` (checked 2026-10-06), so no
@@ -742,6 +742,12 @@ was cut the day before this plan, so Phase A has no release step.
       document cites, with its retirement condition. The maintainer changes
       the repository settings (merge commits allowed; squash off for
       `master`).
+      — CLOSED 2026-10-07: the rule is in AGENTS *Commits and reporting*
+      and §5. PROCESS has no release procedure yet; A.8.6 writes one with
+      the merge commit in it. Tag review: `oracle/hybrid`,
+      `oracle/hybrid-diag` and `archive/nnue-local` each hold commits `dev`
+      does not reach, so merge commits retire none; all three keep
+      HISTORY's conditions. Repository settings remain the maintainer's.
     - [ ] **A.8.4** `[M]` Documents into docs/, closed Phase A archived
       `PLAN.md`, `PROCESS.md`, `HISTORY.md`, `EXPERIMENTS.md` and `DESIGN.md`
       move to `docs/`. The root keeps `GUIDE.md`, `AGENTS.md`, `CLAUDE.md`,
@@ -1272,7 +1278,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.8.3 | READY_FOR_IMPLEMENTATION | M | Repository settings are the maintainer's |
 | A.8.4 | READY_FOR_IMPLEMENTATION | M | Layout follows the leaf |
 | A.8.5 | READY_FOR_IMPLEMENTATION | I1 | After A.8.4 |
 | A.8.6 | READY_FOR_IMPLEMENTATION | I1 | Moved from E.3.1; Rarog's lessons in the leaf |
@@ -1680,6 +1685,9 @@ adjudication never change after games are seen.
   4T direction checks whose 95% intervals exclude a loss.
 - An NNUE release requires a win over the last classical release at STC, LTC
   and 4T and a clean platform matrix; it takes the next major version.
+- `dev` reaches `master` through a pull request merged with a merge commit,
+  never a squash, so `master` holds every development commit (maintainer
+  decision 2026-10-06); the releases up to 1.10.1 are squash commits.
 - Tag, push and publish only on maintainer instruction. From A.8.6 on, a
   release is cut by pushing a `vX.Y.Z` tag on `master`. The workflow
   validates the tag, version sources, branch and changelog section, then

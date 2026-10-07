@@ -183,8 +183,9 @@ name says.**
   subject that names the result or numbered leaf where useful. Engine changes
   and tooling or documentation changes go in separate commits.
 - Never add co-author trailers. Do not amend, squash, push or rewrite history
-  unless the maintainer explicitly asks. `master` receives only squashed
-  `Version X.Y.Z` commits, by the maintainer; development commits go on `dev`.
+  unless the maintainer explicitly asks. `dev` reaches `master` only through a
+  pull request the maintainer merges with a merge commit, never a squash;
+  development commits go on `dev`.
 - Preserve unrelated maintainer changes and keep generated result artifacts out
   of source commits unless the roadmap explicitly requires them.
 - **Every report opens with a one-line recommendation** -- what to do next and

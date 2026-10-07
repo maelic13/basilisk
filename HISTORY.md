@@ -34,6 +34,10 @@ locally and on `origin`. Disposition recorded 2026-09-28 (A.2.2).
 | `archive/backup` | `ae4af1a` | The pre-squash line of 2026-08-05 → 08-11, including the withdrawn Colosseum adoption (`3cbf90b`); an ancestor of `oracle/hybrid` | none | fired: redundant | removed 2026-09-28 |
 | `archive/arm_fix` | `67a987b` | One commit aligning the TT to 64-byte lines for Apple (`src/tt.h`) | BAS-P07, which states the mechanism and why it was rejected | fired: hypothesis rejected, the row carries the recipe | removed 2026-09-28 |
 
+Reviewed again 2026-10-07 (A.8.3), when `dev` began reaching `master` by
+merge commits: none of the three kept tags is reachable from `dev`, so the
+change retires none.
+
 The kept tags are annotated with their reason and retirement condition. The
 removed ones were deleted locally and on `origin`; their commits stay
 resolvable only while unpruned, and the rows above carry what they held.
