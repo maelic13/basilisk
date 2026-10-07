@@ -38,7 +38,7 @@ generations change. These are maintainer judgments, not measured rankings.
 
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
-- **A.8.21** `[M]` Patch release 1.10.2 (ANY TIME) — after A.8.11 — Claude Sonnet 5 — Medium
+- **A.8.21** `[M]` Patch release 1.10.2 (ANY TIME) — after A.8.20 — Claude Sonnet 5 — Medium
 - **B.7.1** `[I1]` Allocation guard (ANY TIME) — before B.7.2 — Claude Sonnet 5 — Medium
 - **D.3.1** `[R2]` Board contract audit (ANY TIME) — before E.1 — Claude Opus 5 — High
 
@@ -65,7 +65,7 @@ generations change. These are maintainer judgments, not measured rankings.
     - [ ] **A.8.18** `[V]` Won-endgame time sink gate
     - [ ] **A.8.19** `[R2]` Displayed-score normalisation
     - [ ] **A.8.20** `[M]` B-programme anchors on the A.8 head
-    - [ ] **A.8.21** `[M]` Patch release 1.10.2 (ANY TIME) — after A.8.11
+    - [ ] **A.8.21** `[M]` Patch release 1.10.2 (ANY TIME) — after A.8.20
 
 ### Phase B — Search programme (evaluation frozen)
 

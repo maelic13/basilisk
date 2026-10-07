@@ -696,13 +696,14 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       are 1.10.1's release baselines. The pooled-PGO NPS baseline is re-read
       if any A.8 leaf moved NPS (maintainer-run). Confirm B.0.1 and B.0.2's
       registered binaries are pinned and unaffected.
-    - [ ] **A.8.21** `[M]` Patch release 1.10.2 (ANY TIME) — after A.8.11
-      Maintainer decision 2026-10-07: once A.8.7–A.8.11 have landed, cut
-      **1.10.2** through A.8.6's flow. Version sources, CHANGELOG's
+    - [ ] **A.8.21** `[M]` Patch release 1.10.2 (ANY TIME) — after A.8.20
+      Maintainer decisions 2026-10-07: cut **1.10.2** through A.8.6's flow
+      once the rest of Phase A is finished (amended the same day from "after
+      A.8.11"), so it ships the gated A.8.14 and A.8.17 changes. Version sources, CHANGELOG's
       `[Unreleased]` dated as `[1.10.2]`, release and sanitizer CTest,
-      exact bench (A.8.7–A.8.11 are output-only, so 14,978,465 unless a
-      leaf recorded otherwise), and a maintainer-run smoke run with ponder
-      on and at Threads 4 against 1.10.1 with zero faults. The PR into
+      the bench A.8.20 records, and a maintainer-run smoke run with ponder
+      on and at Threads 4 against 1.10.1 with zero faults. A.8.15 and A.8.18
+      are maintainer-run gates (decision 2026-10-07). The PR into
       `master` merges with a merge commit (A.8.3). The GitHub checks the
       earlier leaves could not run locally are owed here: A.8.2's PR run
       and manual dispatch, and A.8.6's candidate run on this PR and its
@@ -1076,7 +1077,7 @@ leaf's tag. Later phases carry only a class until they open.
 | A.8.18 | RESEARCH | V | Registered by A.8.16 |
 | A.8.19 | RESEARCH | R2 | Moved from D.3.3; after A.8.14 |
 | A.8.20 | READY_FOR_IMPLEMENTATION | M | After A.8.19 |
-| A.8.21 | READY_FOR_IMPLEMENTATION | M | Held until A.8.11; owes A.8.2's and A.8.6's GitHub runs |
+| A.8.21 | READY_FOR_IMPLEMENTATION | M | Held until A.8.20; owes A.8.2's and A.8.6's GitHub runs |
 | B.0.1 | READY_FOR_IMPLEMENTATION | V | BAS-S17 registered; maintainer-run on the B.0 Tune binary |
 | B.0.2 | READY_FOR_IMPLEMENTATION | V | BAS-S18 registered; maintainer-run on the oracle ablate binary |
 | B.1 | READY_FOR_IMPLEMENTATION | I1 | Handoff frozen in the B.0 packet §12.1; A.6's move table |
