@@ -707,6 +707,9 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
     - [ ] **A.8.18** `[V]` Won-endgame time sink gate
       SPRT `[0,3]` at `3+0.03` 1T and a `10+0.1` direction check, as A.8.16
       registers them; zero time forfeits. Maintainer-run.
+      Amended by A.8.16 to a `[-5,5]` repair bracket at `3+0.03`. Prepared
+      2026-10-07 as BAS-S20: candidate PGO build of `9c93d15` against the
+      BAS-S19 candidate, cap 4,000 pairs, seed 818; dry run accepted.
     - [ ] **A.8.19** `[R2]` Displayed-score normalisation
       Moved from D.3.3. Displayed-score research card: fit a win-rate model
       on Basilisk's own games, decide the `cp` mapping as Stockfish
