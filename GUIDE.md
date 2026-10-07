@@ -34,7 +34,7 @@ generations change. These are maintainer judgments, not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **A.8.15** `[V]` Tablebase-enabled gate — Claude Sonnet 5 — High
+**Next step:** **A.8.16** `[R2]` Won-endgame time sink — Claude Opus 5 — High
 
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
@@ -59,7 +59,7 @@ generations change. These are maintainer judgments, not measured rankings.
     - [x] **A.8.12** `[I2]` C++23 idiom pass, behaviour-neutral
     - [x] **A.8.13** `[R2]` Score bands and in-search tablebase probes
     - [x] **A.8.14** `[I2]` Score bands and probes, implementation
-    - [ ] **A.8.15** `[V]` Tablebase-enabled gate
+    - [x] **A.8.15** `[V]` Tablebase-enabled gate
     - [ ] **A.8.16** `[R2]` Won-endgame time sink
     - [ ] **A.8.17** `[I1]` Won-endgame time sink, implementation
     - [ ] **A.8.18** `[V]` Won-endgame time sink gate

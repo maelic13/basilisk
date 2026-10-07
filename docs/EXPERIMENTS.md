@@ -476,7 +476,7 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 |---|---|---|
 | [BAS-S17](experiments/BAS-S17.md) | Registered, not yet run (B.0.1, maintainer). | Reading rule: |
 | [BAS-S18](experiments/BAS-S18.md) | Registered, not yet run (B.0.2, maintainer). | Reading rule: |
-| [BAS-S19](experiments/BAS-S19.md) | Frozen before any game, PLAN A.8.15: the tablebase band and probes with tables configured. | registered |
+| [BAS-S19](experiments/BAS-S19.md) | Frozen before any game, PLAN A.8.15: the tablebase band and probes with tables configured. | ACCEPTED: +31.7 ± 13.4 with tables |
 
 ### Accepted or retained
 

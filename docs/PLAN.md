@@ -660,13 +660,19 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       Release and ASan/UBSan CTest 17/17. With the 3–6-man tables, a 7-man
       root probes in search (365k hits) and reaches depth 29 in 2.3 s, where
       the head before reached depth 21 in 3.8 s.
-    - [ ] **A.8.15** `[V]` Tablebase-enabled gate
+    - [x] **A.8.15** `[V]` Tablebase-enabled gate
       A.8.13's registered gate, maintainer-run.
       Prepared 2026-10-07 as BAS-S19: candidate PGO build of `b0a078a`
       against the pre-A.8.14 PGO build. `sprt-repair-ltc.toml` (`[-5,5]`,
       `10+0.1`), concurrency 7, tables on both sides, cap 4,000 pairs, seed
       815; dry run accepted. Deviation from the packet: the existing wrapper
       flags carry `SyzygyPath`, so only the clock needed a new run file.
+      — CLOSED 2026-10-07 (BAS-S19, maintainer-run): H1 at 280 pairs, **+31.7
+      ± 13.4 Elo**, zero faults or time losses. All 181 clean tablebase wins
+      reached were converted (candidate 115, baseline 66). Both binaries
+      probe in search in 200/200 sampled 7–9-man positions. The prediction
+      (+3) missed: the old flat value acted at every probe in half the games.
+      The three parts are not separated; no ablation was run.
     - [ ] **A.8.16** `[R2]` Won-endgame time sink
       A won ending without tablebases spent the whole hard maximum on one move
       (review item 2: 32,305 ms of a 60 s clock, last `info` at 1,020 ms;
@@ -1071,7 +1077,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.8.15 | READY_FOR_IMPLEMENTATION | V | Gate designed in the A.8.13 packet; registered before any game; maintainer-run |
 | A.8.16 | RESEARCH | R2 | Review item 2 |
 | A.8.17 | RESEARCH | I1 | Waits on A.8.16's handoff |
 | A.8.18 | RESEARCH | V | Registered by A.8.16 |
