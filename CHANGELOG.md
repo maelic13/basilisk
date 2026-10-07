@@ -14,6 +14,14 @@ and next step).
 
 ## [Unreleased]
 
+### Fixed
+
+- **With more than one thread, the last `info` line now names the move
+  played.** The move was chosen across all threads, but only the main
+  thread's lines were printed, so in about one search in six at eight threads
+  the last line before `bestmove` showed a different move. The chosen line is
+  now printed before `bestmove`. The moves played are unchanged.
+
 ---
 
 ## [1.10.1] - 2026-09-27

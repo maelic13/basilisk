@@ -494,7 +494,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       version-string change is engine source and waits for a build. The
       rehearsal, PR candidate and tag runs need GitHub and are owed at
       A.8.21; a failure there reopens this leaf.
-    - [ ] **A.8.7** `[I1]` SMP: the chosen thread's line before bestmove
+    - [x] **A.8.7** `[I1]` SMP: the chosen thread's line before bestmove
       Measured 20 of 120 searches at Threads 8 (review item 1). A result
       carries its thread's PV, depth, score and seldepth. When the merged
       result is not what thread 0 last printed, the pool prints that
@@ -503,6 +503,14 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       decision as a unit test, and a Threads 8 end-to-end test that fails
       with the print disabled; `uci_probe.py smp` reads 0 of 120. Exact
       bench; no SPRT.
+      — CLOSED 2026-10-07 (`56918ed`): the merged result carries its
+      thread's line and seldepth. The shared root table keeps no line, so
+      the line comes from the thread whose result matches move and depth,
+      with that thread's reported score. The pool prints it when
+      `needs_pool_line` holds. `format_info_line` is now the single
+      formatter. `uci_probe.py smp` reads 0 of 120 (20 of 120 before). The
+      engine test fails 5 of 40 with the print disabled and passes with it.
+      Release CTest 13/13; bench 14,978,465.
     - [ ] **A.8.8** `[I1]` UCI info conformance
       Output only (review item 6), each with a protocol test:
       - Stockfish's field order: `depth seldepth multipv score [bound]
@@ -984,7 +992,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.8.7 | READY_FOR_IMPLEMENTATION | I1 | Review item 1; output only |
 | A.8.8 | READY_FOR_IMPLEMENTATION | I1 | Review item 6; output only |
 | A.8.9 | READY_FOR_IMPLEMENTATION | I2 | Identity at MultiPV 1 is the gate |
 | A.8.10 | READY_FOR_IMPLEMENTATION | I1 | Review item 7 |
