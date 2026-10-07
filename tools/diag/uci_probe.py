@@ -26,6 +26,7 @@ import subprocess
 import sys
 import threading
 import time
+from pathlib import Path
 
 
 def session(engine: str, options: list[str], commands: list[str],
@@ -101,6 +102,7 @@ def main() -> int:
     parser.add_argument("--wtime", type=int, default=60000)
     parser.add_argument("--winc", type=int, default=600)
     a = parser.parse_intermixed_args()
+    a.engine = str(Path(a.engine).resolve())
 
     if a.mode == "info":
         for fen in a.args:
