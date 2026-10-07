@@ -720,12 +720,19 @@ was cut the day before this plan, so Phase A has no release step.
       for the licence, A.8.6's fingerprint rows and A.8.5's index. Bundle
       `rarog-all-refs-2026-10-07.bundle` (`dev` had moved to `1647dd28`,
       which contains `dcf15c51`). Import row BAS-X35.
-    - [ ] **A.8.2** `[I1]` CI on pull requests to master only
+    - [x] **A.8.2** `[I1]` CI on pull requests to master only
       `ci.yml` today runs on pushes to `master` and to `development` (no such
       branch; ours is `dev`) and on every pull request. It runs on pull
       requests into `master` and on `workflow_dispatch` only, and a newer
       commit cancels a superseded run. The local loop covers `dev` commits.
       Verified by one PR run and one manual dispatch.
+      — CLOSED 2026-10-07 on local qualification: `ci.yml` parses with
+      triggers `pull_request` (branches `master`) and `workflow_dispatch`,
+      `concurrency` `ci-${{ github.ref }}` with cancel-in-progress, and its
+      four jobs unchanged; no job or document referred to the push
+      triggers. The PR run and the dispatch need a push, which is the
+      maintainer's, so they are owed at A.8.21's release PR; a failure
+      there reopens this leaf.
     - [ ] **A.8.3** `[M]` Merge commits from dev to master
       `dev` reaches `master` by a merge commit, never a squash: AGENTS
       *Commits and reporting*, PROCESS's release procedure and PLAN §5.
@@ -891,6 +898,18 @@ was cut the day before this plan, so Phase A has no release step.
       are 1.10.1's release baselines. The pooled-PGO NPS baseline is re-read
       if any A.8 leaf moved NPS (maintainer-run). Confirm B.0.1 and B.0.2's
       registered binaries are pinned and unaffected.
+    - [ ] **A.8.21** `[M]` Patch release 1.10.2 (ANY TIME) — after A.8.11
+      Maintainer decision 2026-10-07: once A.8.7–A.8.11 have landed, cut
+      **1.10.2** through A.8.6's flow. Version sources, CHANGELOG's
+      `[Unreleased]` dated as `[1.10.2]`, release and sanitizer CTest,
+      exact bench (A.8.7–A.8.11 are output-only, so 14,978,465 unless a
+      leaf recorded otherwise), and a maintainer-run smoke run with ponder
+      on and at Threads 4 against 1.10.1 with zero faults. The PR into
+      `master` merges with a merge commit (A.8.3). The GitHub checks the
+      earlier leaves could not run locally are owed here: A.8.2's PR run
+      and manual dispatch, and A.8.6's candidate run on this PR and its
+      tag run. A failure reopens the leaf it proves. Tag, push and
+      publish stay the maintainer's.
 
 ## Phase B — Search programme (evaluation frozen)
 
@@ -1253,7 +1272,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.8.2 | READY_FOR_IMPLEMENTATION | I1 | Triggers specified in the leaf |
 | A.8.3 | READY_FOR_IMPLEMENTATION | M | Repository settings are the maintainer's |
 | A.8.4 | READY_FOR_IMPLEMENTATION | M | Layout follows the leaf |
 | A.8.5 | READY_FOR_IMPLEMENTATION | I1 | After A.8.4 |
@@ -1272,6 +1290,7 @@ leaf's tag. Later phases carry only a class until they open.
 | A.8.18 | RESEARCH | V | Registered by A.8.16 |
 | A.8.19 | RESEARCH | R2 | Moved from D.3.3; after A.8.14 |
 | A.8.20 | READY_FOR_IMPLEMENTATION | M | After A.8.19 |
+| A.8.21 | READY_FOR_IMPLEMENTATION | M | Held until A.8.11; owes A.8.2's and A.8.6's GitHub runs |
 | B.0.1 | READY_FOR_IMPLEMENTATION | V | BAS-S17 registered; maintainer-run on the B.0 Tune binary |
 | B.0.2 | READY_FOR_IMPLEMENTATION | V | BAS-S18 registered; maintainer-run on the oracle ablate binary |
 | B.1 | READY_FOR_IMPLEMENTATION | I1 | Handoff frozen in the B.0 packet §12.1; A.6's move table |

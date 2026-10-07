@@ -34,10 +34,11 @@ generations change. These are maintainer judgments, not measured rankings.
 
 <!-- BEGIN GENERATED FROM PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **A.8.2** `[I1]` CI on pull requests to master only — Claude Sonnet 5 — Medium
+**Next step:** **A.8.3** `[M]` Merge commits from dev to master — Claude Sonnet 5 — Medium
 
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
+- **A.8.21** `[M]` Patch release 1.10.2 (ANY TIME) — after A.8.11 — Claude Sonnet 5 — Medium
 - **B.7.1** `[I1]` Allocation guard (ANY TIME) — before B.7.2 — Claude Sonnet 5 — Medium
 - **D.3.1** `[R2]` Board contract audit (ANY TIME) — before E.1 — Claude Opus 5 — High
 
@@ -70,7 +71,7 @@ generations change. These are maintainer judgments, not measured rankings.
     - [x] **A.7.4** `[V]` Pooled-PGO NPS baseline
 - [ ] **A.8** Rarog-parity repairs, repository and C++23
     - [x] **A.8.1** `[M]` Final Rarog import
-    - [ ] **A.8.2** `[I1]` CI on pull requests to master only
+    - [x] **A.8.2** `[I1]` CI on pull requests to master only
     - [ ] **A.8.3** `[M]` Merge commits from dev to master
     - [ ] **A.8.4** `[M]` Documents into docs/, closed Phase A archived
     - [ ] **A.8.5** `[I1]` Experiment ledger split into entries
@@ -89,6 +90,7 @@ generations change. These are maintainer judgments, not measured rankings.
     - [ ] **A.8.18** `[V]` Won-endgame time sink gate
     - [ ] **A.8.19** `[R2]` Displayed-score normalisation
     - [ ] **A.8.20** `[M]` B-programme anchors on the A.8 head
+    - [ ] **A.8.21** `[M]` Patch release 1.10.2 (ANY TIME) — after A.8.11
 
 ### Phase B — Search programme (evaluation frozen)
 
