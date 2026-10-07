@@ -610,7 +610,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       both modes. Bench 14,978,465; release and ASan/UBSan CTest 17/17 (ASan
       shown live on a planted overflow). NPS by BAS-P14: −0.11% [−0.20,
       +0.15].
-    - [ ] **A.8.13** `[R2]` Score bands and in-search tablebase probes
+    - [x] **A.8.13** `[R2]` Score bands and in-search tablebase probes
       Two defects (review items 3 and 4). (a) Known-win evaluations up to
       27,420 (KBNK prints `cp 22048`) share the band `is_tablebase_decisive`
       reads as tablebase results. (b) The in-search probe returns a flat
@@ -631,6 +631,19 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       - the gate for A.8.15. No current run file sets `SyzygyPath`, so the
         gate is designed here: an endgame-start cohort with tables on both
         sides, conversion plus an SPRT, and a faults rule.
+      — CLOSED 2026-10-07: `READY_FOR_IMPLEMENTATION`, packet
+      `analysis/a813_tb_bands_2026-10-07.md`. Clerical correction: the probe
+      has the zeroing-move condition under `Syzygy50MoveRule`; (b) above
+      overstated it. New finding: with tables, the flat 20,000 passes every
+      "not a mate" guard, so correction history trains on it and the
+      reverse-futility refinement uses it. The handoff moves the band
+      directly below mates, clamps evaluations under it, and widens six
+      guards to `is_decisive`. Bench exactness is the deciding check for
+      ply-adjusting the band in the hash table, with Rarog's unadjusted form
+      as the fallback. The gate is changed from the endgame cohort: its
+      roots are all in the tables, where in-search probes are off. It is a
+      `[-5,5]` repair bracket at `10+0.1` on the standard book with tables
+      configured, plus conversion counts and an activation read.
     - [ ] **A.8.14** `[I2]` Score bands and probes, implementation
       Implements A.8.13's handoff. Qualification by that handoff: a
       fingerprint change if the clamp reaches the bench, the tablebase tests
@@ -1040,9 +1053,8 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.8.13 | RESEARCH | R2 | Review items 3 and 4; designs A.8.15's gate |
-| A.8.14 | RESEARCH | I2 | Waits on A.8.13's handoff |
-| A.8.15 | RESEARCH | V | Registered by A.8.13 |
+| A.8.14 | READY_FOR_IMPLEMENTATION | I2 | Handoff in `analysis/a813_tb_bands_2026-10-07.md` |
+| A.8.15 | READY_FOR_IMPLEMENTATION | V | Gate designed in the A.8.13 packet; registered before any game; maintainer-run |
 | A.8.16 | RESEARCH | R2 | Review item 2 |
 | A.8.17 | RESEARCH | I1 | Waits on A.8.16's handoff |
 | A.8.18 | RESEARCH | V | Registered by A.8.16 |

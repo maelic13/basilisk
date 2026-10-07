@@ -51,6 +51,11 @@ Probes use `tools/diag/uci_probe.py` (one fresh process per search).
    ±20,000 at once, stored as an exact score, with no distance from the root
    and no bound handling. Rarog's adoption of Stockfish's form measured
    +11.4 ± 8.5 with tables (Rarog RAR-S94).
+   **Clerical correction (2026-10-07, A.8.13):** the zeroing-move condition is
+   there, in `Syzygy::can_probe_wdl` under `Syzygy50MoveRule`; at the default
+   probe depth 1 the depth condition is Stockfish's. The flat value, the
+   always-exact store, the stored depth and the root switch are the
+   differences.
 5. **The tablebase PV extension has no start rule.** `Engine::
    publish_tablebase_pv` checks `2 x elapsed >= Move Overhead` only between
    probes. Rarog lost a game on time when one DTZ root probe that missed the
