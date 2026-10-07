@@ -673,7 +673,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       probe in search in 200/200 sampled 7–9-man positions. The prediction
       (+3) missed: the old flat value acted at every probe in half the games.
       The three parts are not separated; no ablation was run.
-    - [ ] **A.8.16** `[R2]` Won-endgame time sink
+    - [x] **A.8.16** `[R2]` Won-endgame time sink
       A won ending without tablebases spent the whole hard maximum on one move
       (review item 2: 32,305 ms of a 60 s clock, last `info` at 1,020 ms;
       Stockfish about 6 s). Establish why the iteration never completes
@@ -682,6 +682,14 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       at move 86, is a defect. Design a bounded repair, its interaction with
       the aspiration loop (B.5's cluster) and the stability terms, a frozen
       prediction and a falsifier. D.1 keeps the general clock audit.
+      — CLOSED 2026-10-07: `READY_FOR_IMPLEMENTATION`, packet
+      `analysis/a816_time_sink_2026-10-07.md`. Confirmed: depth 28 fails high
+      six times on the move depth 27 chose (`f7d7`), with no iteration
+      completing before the maximum. The maximum is Stockfish's formula
+      exactly, and stays. The donor's shallower re-search is refused
+      (BAS-D17). Repair: past the optimum, a root fail-high on the last
+      iteration's move ends the search; no move can change. The gate is
+      amended to a `[-5,5]` repair bracket at `3+0.03`.
     - [ ] **A.8.17** `[I1]` Won-endgame time sink, implementation
       Implements A.8.16's handoff. `uci_probe.py clock` on the review's
       positions shows the repair. Exact bench unless the handoff says
@@ -1077,9 +1085,8 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.8.16 | RESEARCH | R2 | Review item 2 |
-| A.8.17 | RESEARCH | I1 | Waits on A.8.16's handoff |
-| A.8.18 | RESEARCH | V | Registered by A.8.16 |
+| A.8.17 | READY_FOR_IMPLEMENTATION | I1 | Handoff in `analysis/a816_time_sink_2026-10-07.md` |
+| A.8.18 | READY_FOR_IMPLEMENTATION | V | `[-5,5]` repair bracket at 3+0.03 per the A.8.16 packet; maintainer-run |
 | A.8.19 | RESEARCH | R2 | Moved from D.3.3; after A.8.14 |
 | A.8.20 | READY_FOR_IMPLEMENTATION | M | After A.8.19 |
 | A.8.21 | READY_FOR_IMPLEMENTATION | M | Held until A.8.20; owes A.8.2's and A.8.6's GitHub runs |
