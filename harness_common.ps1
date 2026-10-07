@@ -531,6 +531,47 @@ function Assert-ColosseumCli {
     [pscustomobject]@{ Path = $full; Sha256 = $sha; Version = $version; Pin = $pin }
 }
 
+function Invoke-ColosseumStreamed {
+    # Runs colosseum-cli and passes its output through as it arrives: the live
+    # progress blocks come on stderr, the final summary on stdout. Both are also
+    # returned whole, so the caller writes the same log as before. Returns
+    # @{ Process; ExitCode; Stdout; Stderr }; the caller owns the process's
+    # interruption handling through the Process handle.
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][string[]]$Arguments,
+        [Parameter(Mandatory)][hashtable]$State
+    )
+    $start = [Diagnostics.ProcessStartInfo]::new()
+    $start.FileName = $Path
+    $start.UseShellExecute = $false
+    $start.RedirectStandardOutput = $true
+    $start.RedirectStandardError = $true
+    foreach ($argument in $Arguments) { $start.ArgumentList.Add($argument) }
+    $process = [Diagnostics.Process]::Start($start)
+    $State.Process = $process
+    $out = [System.Text.StringBuilder]::new()
+    $err = [System.Text.StringBuilder]::new()
+    $outTask = $process.StandardOutput.ReadLineAsync()
+    $errTask = $process.StandardError.ReadLineAsync()
+    while ($outTask -or $errTask) {
+        $pending = [System.Threading.Tasks.Task[]]@(@($outTask, $errTask) | Where-Object { $_ })
+        [void][System.Threading.Tasks.Task]::WaitAny($pending)
+        if ($outTask -and $outTask.IsCompleted) {
+            $line = $outTask.GetAwaiter().GetResult()
+            if ($null -eq $line) { $outTask = $null }
+            else { Write-Host $line; [void]$out.AppendLine($line); $outTask = $process.StandardOutput.ReadLineAsync() }
+        }
+        if ($errTask -and $errTask.IsCompleted) {
+            $line = $errTask.GetAwaiter().GetResult()
+            if ($null -eq $line) { $errTask = $null }
+            else { Write-Host $line; [void]$err.AppendLine($line); $errTask = $process.StandardError.ReadLineAsync() }
+        }
+    }
+    $process.WaitForExit()
+    @{ Process = $process; ExitCode = $process.ExitCode; Stdout = $out.ToString(); Stderr = $err.ToString() }
+}
+
 function Get-ColosseumRunStatus {
     param([Parameter(Mandatory)][string]$CliPath, [Parameter(Mandatory)][string]$Dir)
     $text = & $CliPath status $Dir --json 2>$null

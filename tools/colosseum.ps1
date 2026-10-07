@@ -356,25 +356,16 @@ if ($DryRun) {
 
 $returned = $false
 $process = $null
+$run = @{}
 try {
-    $start = [Diagnostics.ProcessStartInfo]::new()
-    $start.FileName = $cli.Path
-    $start.UseShellExecute = $false
-    $start.RedirectStandardOutput = $true
-    $start.RedirectStandardError = $true
-    foreach ($argument in $commandArgs) { $start.ArgumentList.Add($argument) }
-    $process = [Diagnostics.Process]::Start($start)
-    $stdout = $process.StandardOutput.ReadToEndAsync()
-    $stderr = $process.StandardError.ReadToEndAsync()
-    $process.WaitForExit()
-    $runExit = $process.ExitCode
-    $stdoutText = $stdout.GetAwaiter().GetResult()
-    $stderrText = $stderr.GetAwaiter().GetResult()
-    @($stdoutText, $stderrText) | Where-Object { $_ } | Set-Content -LiteralPath $logPath -Encoding utf8
-    if ($stdoutText) { Write-Host $stdoutText.TrimEnd() }
-    if ($stderrText) { Write-Host $stderrText.TrimEnd() -ForegroundColor Yellow }
+    # The runner's progress is passed through live; the log keeps both streams.
+    $streamed = Invoke-ColosseumStreamed -Path $cli.Path -Arguments $commandArgs -State $run
+    $process = $streamed.Process
+    $runExit = $streamed.ExitCode
+    @($streamed.Stdout, $streamed.Stderr) | Where-Object { $_ } | Set-Content -LiteralPath $logPath -Encoding utf8
     $returned = $true
 } finally {
+    if (-not $process) { $process = $run.Process }
     if (-not $returned) {
         if ($process -and -not $process.HasExited) { $process.Kill($true) }
         Add-Content -LiteralPath $manifestPath -Value 'interrupted:      wrapper stopped before a runner verdict'

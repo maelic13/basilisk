@@ -126,24 +126,17 @@ if ($violations.Count) { throw "Resolved tune violates policy: $($violations -jo
     "started_utc:      $((Get-Date).ToUniversalTime().ToString('u'))"
 ) | Set-Content -LiteralPath $manifestPath -Encoding utf8
 
-$start = [Diagnostics.ProcessStartInfo]::new()
-$start.FileName = $cli.Path
-$start.UseShellExecute = $false
-$start.RedirectStandardOutput = $true
-$start.RedirectStandardError = $true
-foreach ($argument in $args) { $start.ArgumentList.Add($argument) }
-$process = [Diagnostics.Process]::Start($start)
+$run = @{}
 try {
-    $stdout = $process.StandardOutput.ReadToEndAsync()
-    $stderr = $process.StandardError.ReadToEndAsync()
-    $process.WaitForExit()
-    $exit = $process.ExitCode
-    $stdoutText = $stdout.GetAwaiter().GetResult()
-    $stderrText = $stderr.GetAwaiter().GetResult()
-    @($stdoutText, $stderrText) | Where-Object { $_ } | Set-Content -LiteralPath $logPath -Encoding utf8
+    # The runner's progress is passed through live; the log keeps both streams.
+    $streamed = Invoke-ColosseumStreamed -Path $cli.Path -Arguments $args -State $run
+    $exit = $streamed.ExitCode
+    @($streamed.Stdout, $streamed.Stderr) | Where-Object { $_ } | Set-Content -LiteralPath $logPath -Encoding utf8
 } finally {
-    if (-not $process.HasExited) { $process.Kill($true) }
-    $process.Dispose()
+    if ($run.Process) {
+        if (-not $run.Process.HasExited) { $run.Process.Kill($true) }
+        $run.Process.Dispose()
+    }
 }
 if ($exit -ne 0) { throw "Colosseum SPSA exited $exit; see $logPath." }
 $resultPath = Join-Path $Dir 'result.json'
