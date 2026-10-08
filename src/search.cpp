@@ -29,16 +29,9 @@
 
 
 #if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
-#define TRACE_DECISION(...) trace_decision(__VA_ARGS__)
+#define TRACE_DECISION(...) trace_.record(__VA_ARGS__)
 #else
 #define TRACE_DECISION(...) ((void)0)
-#endif
-
-#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC) \
-    || defined(BASILISK_RELEASE_DIAG_COUNTERS)
-#define DIAG_COUNT(expression) (expression)
-#else
-#define DIAG_COUNT(expression) ((void)0)
 #endif
 
 #ifdef BASILISK_ABLATION
@@ -810,300 +803,6 @@ private:
 
 // ---- UCI info ---------------------------------------------------------------
 
-#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
-void Searcher::trace_decision(TraceEvent event, int ply, int depth, Move move,
-                              int alpha, int beta, int estimated_score,
-                              int improving, int correction, int history,
-                              int move_count, int reduction, int margin, int result) {
-    if (!trace_enabled_ || ply < 1 || ply > 2)
-        return;
-    if (trace_count_ >= TRACE_CAPACITY) {
-        trace_overflow_ = true;
-        return;
-    }
-    TraceRecord& r = (*trace_records_)[trace_count_];
-    r.event = event;
-    r.move = move;
-    r.sequence = static_cast<int>(trace_count_);
-    r.ply = ply;
-    r.depth = depth;
-    r.alpha = alpha;
-    r.beta = beta;
-    r.estimated_score = estimated_score;
-    r.improving = improving;
-    r.correction = correction;
-    r.history = history;
-    r.move_count = move_count;
-    r.reduction = reduction;
-    r.cutoff_count = -1;
-    r.margin = margin;
-    r.result = result;
-    ++trace_count_;
-}
-
-void Searcher::print_decision_trace() const {
-    if (!info_cb_ || !active_limits_.decision_trace || !trace_enabled_)
-        return;
-    auto event_name = [](TraceEvent event) {
-        switch (event) {
-            case TraceEvent::CheckExtension:       return "check_extension";
-            case TraceEvent::TtCutoff:             return "tt_cutoff";
-            case TraceEvent::RfpPrune:             return "rfp_prune";
-            case TraceEvent::RazorPrune:           return "razor_prune";
-            case TraceEvent::NullCutoff:           return "null_cutoff";
-            case TraceEvent::ProbcutCutoff:        return "probcut_cutoff";
-            case TraceEvent::IirReduction:         return "iir_reduction";
-            case TraceEvent::FutilityPrune:        return "futility_prune";
-            case TraceEvent::LmpPrune:             return "lmp_prune";
-            case TraceEvent::HistoryPrune:         return "history_prune";
-            case TraceEvent::QuietSeePrune:        return "quiet_see_prune";
-            case TraceEvent::CaptureFutilityPrune: return "capture_futility_prune";
-            case TraceEvent::CaptureSeePrune:      return "capture_see_prune";
-            case TraceEvent::SingularExtension:    return "singular_extension";
-            case TraceEvent::SingularMulticut:     return "singular_multicut";
-            case TraceEvent::SingularNegative:     return "singular_negative";
-            case TraceEvent::LmrReduction:         return "lmr_reduction";
-            case TraceEvent::LmrResearch:          return "lmr_research";
-            case TraceEvent::BetaCutoff:           return "beta_cutoff";
-            case TraceEvent::QsTtCutoff:           return "qs_tt_cutoff";
-            case TraceEvent::QsStandPatCutoff:     return "qs_stand_pat_cutoff";
-            case TraceEvent::QsDeltaPrune:         return "qs_delta_prune";
-            case TraceEvent::QsFutilityPrune:      return "qs_futility_prune";
-            case TraceEvent::QsSeePrune:           return "qs_see_prune";
-            case TraceEvent::QsLatePrune:          return "qs_late_prune";
-            case TraceEvent::QsBetaCutoff:         return "qs_beta_cutoff";
-        }
-        return "unknown";
-    };
-
-    info_cb_("info string trace begin version=1 plies=1-2 root="
-             + move_to_uci(active_limits_.root_moves.front())
-             + " cutoff_count=unavailable value_none=" + std::to_string(VALUE_NONE)
-             + " bool_unknown=-1 capacity=" + std::to_string(TRACE_CAPACITY));
-    for (size_t i = 0; i < trace_count_; ++i) {
-        const TraceRecord& r = (*trace_records_)[i];
-        info_cb_("info string trace record seq=" + std::to_string(r.sequence)
-               + " event=" + event_name(r.event)
-               + " ply=" + std::to_string(r.ply)
-               + " depth=" + std::to_string(r.depth)
-               + " move=" + (r.move == MOVE_NONE ? std::string("none") : move_to_uci(r.move))
-               + " alpha=" + std::to_string(r.alpha)
-               + " beta=" + std::to_string(r.beta)
-               + " estimated_score=" + std::to_string(r.estimated_score)
-               + " improving=" + std::to_string(r.improving)
-               + " correction=" + std::to_string(r.correction)
-               + " history=" + std::to_string(r.history)
-               + " move_count=" + std::to_string(r.move_count)
-               + " reduction=" + std::to_string(r.reduction)
-               + " cutoff_count=" + std::to_string(r.cutoff_count)
-               + " window_alpha=" + std::to_string(r.alpha)
-               + " window_beta=" + std::to_string(r.beta)
-               + " margin=" + std::to_string(r.margin)
-               + " result=" + std::to_string(r.result));
-    }
-    info_cb_("info string trace end status="
-             + std::string(trace_overflow_ ? "overflow" : "ok")
-             + " records=" + std::to_string(trace_count_));
-}
-#endif
-
-// 8.6.6: end-of-search diagnostic dump (UCI `Diag`, TUNE builds). One line per
-// family; shares are of interior (negamax) nodes. Never a gate — these size
-// candidates and verify mechanisms (check_exts must be 0 once 8.6.7 lands).
-void Searcher::print_diag() const {
-    if (!info_cb_) return;
-    const auto& d = diag_;
-    auto pct = [](int64_t a, int64_t b) {
-        return b > 0 ? 100.0 * double(a) / double(b) : 0.0;
-    };
-    // Each line is built whole by std::format: a fixed buffer once truncated
-    // the tail field silently (5.6), corrupting the kv mirror.
-    std::string buf;
-    auto emit = [&](const std::string& text) { info_cb_(std::string("info string diag ") + text); };
-    buf = std::format("nodes interior {} qsearch {} | in_check {} ({:.2f}%) check_ext {} tt_pv {} ({:.2f}%)",
-        d.interior_nodes, d.qs_nodes,
-        d.in_check_nodes, pct(d.in_check_nodes, d.interior_nodes),
-        d.check_exts,
-        d.tt_pv_nodes, pct(d.tt_pv_nodes, d.interior_nodes));
-    emit(buf);
-    buf = std::format("tt probes {} hits {} ({:.2f}%) cutoffs {}",
-        d.tt_probes, d.tt_hits, pct(d.tt_hits, d.tt_probes),
-        d.tt_cutoffs);
-    emit(buf);
-    buf = std::format("prune rfp {} razor {} null {}/{} probcut {}/{} fut {} lmp {} hist {} see {}",
-        d.rfp_cuts, d.razor_cuts,
-        d.null_cuts, d.null_tries,
-        d.probcut_cuts, d.probcut_tries,
-        d.fut_prunes, d.lmp_prunes,
-        d.hist_prunes, d.see_prunes);
-    emit(buf);
-    buf = std::format("lmr applied {} researched {} ({:.2f}%) | hist updates cutoff {} reward {} | qs evasion {}",
-        d.lmr_applied, d.lmr_researched,
-        pct(d.lmr_researched, d.lmr_applied),
-        d.hist_cutoff_updates, d.hist_reward_updates,
-        d.qs_evasion_nodes);
-    emit(buf);
-    // ---- 5.2 differential harness (BAS-O03) --------------------------------
-    // Read these against the oracle's tree shape, not in isolation.
-    buf = std::format("order fail_highs {} first {} ({:.2f}%) mean_idx {:.3f} | src tt {} goodcap {} quiet {} badcap {}",
-        d.fail_highs, d.fail_high_first,
-        pct(d.fail_high_first, d.fail_highs),
-        d.fail_highs > 0 ? double(d.fail_high_index_sum) / double(d.fail_highs) : 0.0,
-        d.cutoff_src_tt, d.cutoff_src_good_tactical,
-        d.cutoff_src_quiet, d.cutoff_src_bad_tactical);
-    emit(buf);
-    buf = std::format("lmrgate eligible {} applied {} ({:.2f}%) mean_r {:.3f} clamp0 {}",
-        d.lmr_eligible, d.lmr_applied,
-        pct(d.lmr_applied, d.lmr_eligible),
-        d.lmr_applied > 0 ? double(d.lmr_reduction_plies) / double(d.lmr_applied) : 0.0,
-        d.lmr_clamped_zero);
-    emit(buf);
-    buf = std::format("lmrblock depth {} searched {} in_check {} movetype {} gives_check {}",
-        d.lmr_blocked_depth, d.lmr_blocked_searched,
-        d.lmr_blocked_in_check, d.lmr_blocked_movetype,
-        d.lmr_blocked_gives_check);
-    emit(buf);
-    // Machine-readable mirror. The lines above are shaped for a human reading
-    // one search; the harness aggregates over a 107-position suite and must not
-    // have to reverse-engineer prose, percentages or floats to do it. Integers
-    // only, canonical names, one token per counter — derived ratios are the
-    // consumer's job, since summing a percentage across positions is wrong.
-    {
-        buf = std::format("kv fail_highs={} fail_high_first={} fail_high_index_sum={} "
-            "cutoff_src_tt={} cutoff_src_goodcap={} cutoff_src_quiet={} "
-            "cutoff_src_badcap={}",
-            d.fail_highs, d.fail_high_first,
-            d.fail_high_index_sum,
-            d.cutoff_src_tt, d.cutoff_src_good_tactical,
-            d.cutoff_src_quiet, d.cutoff_src_bad_tactical);
-        emit(buf);
-        buf = std::format("kv lmr_eligible={} lmr_applied={} lmr_researched={} "
-            "lmr_reduction_plies={} lmr_clamped_zero={} "
-            "lmr_blocked_depth={} lmr_blocked_searched={} "
-            "lmr_blocked_in_check={} lmr_blocked_movetype={} "
-            "lmr_blocked_gives_check={} lmr_clamped_high={}",
-            d.lmr_eligible, d.lmr_applied,
-            d.lmr_researched, d.lmr_reduction_plies,
-            d.lmr_clamped_zero,
-            d.lmr_blocked_depth, d.lmr_blocked_searched,
-            d.lmr_blocked_in_check, d.lmr_blocked_movetype,
-            d.lmr_blocked_gives_check, d.lmr_clamped_high);
-        emit(buf);
-        buf = std::format("kv interior_nodes={} qs_nodes={} tt_probes={} tt_hits={} "
-            "tt_cutoffs={} in_check_nodes={} check_exts={} tt_pv_nodes={}",
-            d.interior_nodes, d.qs_nodes,
-            d.tt_probes, d.tt_hits, d.tt_cutoffs,
-            d.in_check_nodes, d.check_exts,
-            d.tt_pv_nodes);
-        emit(buf);
-        buf = std::format("kv rfp_cuts={} razor_cuts={} null_tries={} null_cuts={} "
-            "probcut_tries={} probcut_cuts={} fut_prunes={} lmp_prunes={} "
-            "hist_prunes={} see_prunes={}",
-            d.rfp_cuts, d.razor_cuts,
-            d.null_tries, d.null_cuts,
-            d.probcut_tries, d.probcut_cuts,
-            d.fut_prunes, d.lmp_prunes,
-            d.hist_prunes, d.see_prunes);
-        emit(buf);
-        buf = std::format("kv hist_prune_tested={} hist_below_half={} "
-            "hist_below_quarter={} hist_below_eighth={} "
-            "qs_evasion_nodes={} hist_cutoff_updates={} hist_reward_updates={}",
-            d.hist_prune_tested, d.hist_below_half,
-            d.hist_below_quarter, d.hist_below_eighth,
-            d.qs_evasion_nodes, d.hist_cutoff_updates,
-            d.hist_reward_updates);
-        emit(buf);
-        buf = std::format("kv tt_stores={} tt_stores_same_key={} "
-            "asp_windows={} asp_fail_low={} asp_fail_high={} "
-            "asp_researches={} asp_giveup={}",
-            d.tt_stores, d.tt_stores_same_key,
-            d.asp_windows, d.asp_fail_low,
-            d.asp_fail_high, d.asp_researches,
-            d.asp_giveup);
-        emit(buf);
-        buf = std::format("kv sing_fired={} sing_double={} sing_in_check={} "
-            "sing_triple={} sing_ttbeta={}",
-            d.sing_fired, d.sing_double,
-            d.sing_in_check, d.sing_triple,
-            d.sing_ttbeta);
-        emit(buf);
-    }
-    // 8.7.1(c) speed telemetry — the numbers Phase 8.7 steps read before
-    // touching anything: eval rate (8.7.7), pawn-cache hit rate (8.7.8),
-    // full-gives_check rate (8.7.3), SEE calls per node (8.7.5).
-    {
-        const int64_t total_nodes = d.interior_nodes + d.qs_nodes;
-        buf = std::format("speed eval {} ({:.2f}%/node) pawncache {}/{} ({:.2f}% hit) "
-            "gives_check {} ({:.2f}%/node) see_ge {} ({:.3f}/node)",
-            evaluator_.eval_calls, pct(evaluator_.eval_calls, total_nodes),
-            evaluator_.pawn_hits, evaluator_.pawn_probes,
-            pct(evaluator_.pawn_hits, evaluator_.pawn_probes),
-            d.gives_check_calls, pct(d.gives_check_calls, total_nodes),
-            d.see_ge_calls,
-            total_nodes > 0 ? double(d.see_ge_calls) / double(total_nodes) : 0.0);
-        emit(buf);
-        buf = std::format("kv eval_calls={} pawn_probes={} pawn_hits={} "
-            "gives_check_calls={} see_ge_calls={}",
-            evaluator_.eval_calls,
-            evaluator_.pawn_probes, evaluator_.pawn_hits,
-            d.gives_check_calls, d.see_ge_calls);
-        emit(buf);
-    }
-#ifdef BASILISK_TUNE
-    {
-        const auto& e = evaluator_.endgame_occurrence;
-        buf = std::format("endgames <=7men {} ({:.3f}% eval, {:.3f}% node)",
-            e.classified,
-            pct(e.classified, evaluator_.eval_calls),
-            pct(e.classified, d.interior_nodes + d.qs_nodes));
-        emit(buf);
-        buf = std::format("kv eg_classified={} eg_krpkr={} eg_krpkb={} eg_kpsk={} "
-            "eg_kpk={} eg_krkp={} eg_kbpsk={} eg_kpkp={}",
-            e.classified, e.krpkr, e.krpkb,
-            e.kpsk, e.kpk, e.krkp,
-            e.kbpsk, e.kpkp);
-        emit(buf);
-        buf = std::format("kv eg_kqkp={} eg_kbpkb={} eg_kbppkb={} eg_krkn={} "
-            "eg_krkb={} eg_kbpkn={} eg_knnkp={} eg_knnk={}",
-            e.kqkp, e.kbpkb, e.kbppkb,
-            e.krkn, e.krkb, e.kbpkn,
-            e.knnkp, e.knnk);
-        emit(buf);
-        buf = std::format("kv eg_kqkr={} eg_kqkrps={} eg_krppkrp={} eg_kxk={} eg_kbnk={}",
-            e.kqkr, e.kqkrps, e.krppkrp,
-            e.kxk, e.kbnk);
-        emit(buf);
-    }
-#endif
-    {
-        std::string b;
-        b = std::format("aspiration windows {} fail_low {} fail_high {} researches {} giveup {}",
-            diag_.asp_windows, diag_.asp_fail_low,
-            diag_.asp_fail_high, diag_.asp_researches,
-            diag_.asp_giveup);
-        emit(b);
-    }
-
-    {
-        std::string b;
-        b = std::format("singular fired {} double {} in_check {} triple {} ttbeta {} ({:.2f}% of fired)",
-            diag_.sing_fired, diag_.sing_double,
-            diag_.sing_in_check, diag_.sing_triple,
-            diag_.sing_ttbeta,
-            diag_.sing_fired ? 100.0 * double(diag_.sing_in_check) / double(diag_.sing_fired) : 0.0);
-        emit(b);
-    }
-
-    if (evaluator_.lazy_fires > 0) {
-        buf = std::format("lazy fires {} sign_flips {} crossings {} absdelta mean {:.1f} max {}",
-            evaluator_.lazy_fires, evaluator_.lazy_sign_flips,
-            evaluator_.lazy_margin_crossings,
-            double(evaluator_.lazy_absdelta_sum) / double(evaluator_.lazy_fires),
-            evaluator_.lazy_absdelta_max);
-        emit(buf);
-    }
-}
-
 // 9.3(c): the pool section. Printed by thread 0 AFTER the join (main's own
 // search — and its per-thread diag lines — finish before the helpers do), so
 // this appends rather than replacing anything. Emitted only at Threads>1.
@@ -1116,47 +815,7 @@ void Searcher::print_pool_diag(const std::vector<std::unique_ptr<Searcher>>& poo
     const int counted = std::min<int>(thread_count, static_cast<int>(pool.size()));
     for (int i = 0; i < counted; ++i)
         total.add(pool[static_cast<size_t>(i)]->diag_);
-
-    auto pct = [](int64_t a, int64_t b) {
-        return b > 0 ? 100.0 * double(a) / double(b) : 0.0;
-    };
-    std::string buf;
-    auto emit = [&](const std::string& text) { info_cb_(std::string("info string diag ") + text); };
-
-    const int64_t pool_nodes = total.interior_nodes + total.qs_nodes;
-    const int64_t main_nodes = diag_.interior_nodes + diag_.qs_nodes;
-    buf = std::format("pool threads {} nodes {} (main {} = {:.1f}%) | main tt {}/{} ({:.2f}% hit) "
-        "pool tt {}/{} ({:.2f}% hit)",
-        thread_count, pool_nodes, main_nodes,
-        pct(main_nodes, pool_nodes),
-        diag_.tt_hits, diag_.tt_probes,
-        pct(diag_.tt_hits, diag_.tt_probes),
-        total.tt_hits, total.tt_probes,
-        pct(total.tt_hits, total.tt_probes));
-    emit(buf);
-
-    // Same-key share: how much of the pool's TT traffic updates an entry for a
-    // position the table already holds, versus evicting a different one. This
-    // is the quantity 9.5's coordination work moves; read it as a share, never
-    // as an absolute.
-    buf = std::format("pool tt_stores {} same_key {} ({:.2f}%) | main stores {} same_key {} ({:.2f}%)",
-        total.tt_stores, total.tt_stores_same_key,
-        pct(total.tt_stores_same_key, total.tt_stores),
-        diag_.tt_stores, diag_.tt_stores_same_key,
-        pct(diag_.tt_stores_same_key, diag_.tt_stores));
-    emit(buf);
-
-    // Per-thread completed depth. ⚠ A DIAGNOSTIC, never a verdict: its
-    // rep-to-rep spread at fixed time is ~±2 iterations, the same size as any
-    // effect worth measuring. Likewise divide aspiration/re-search counts by
-    // the thread count before comparing across thread counts.
-    std::string depths = "pool depths";
-    for (size_t i = 0; i < completed_depths.size(); ++i) {
-        depths += (i == 0 ? " main=" : " t" + std::to_string(i) + "=");
-        depths += std::to_string(completed_depths[i]);
-    }
-    depths += "  (diagnostic only: +/-2 iterations rep-to-rep at fixed time)";
-    emit(depths.c_str());
+    ::print_pool_diag(diag_, total, thread_count, completed_depths, info_cb_);
 }
 
 void Searcher::send_info(int depth, int multipv, int score, const std::vector<Move>& line,
@@ -1807,7 +1466,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         };
 #if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
         int trace_history = VALUE_NONE;
-        if (trace_enabled_ && is_quiet) {
+        if (trace_.enabled() && is_quiet) {
             const PieceType pt = type_of(board_ptr_->piece_on(from_sq(m)));
             trace_history = main_hist[from_sq(m)][to_sq(m)]
                           + cont_hist_score(ss, pt, Square(to_sq(m)))
@@ -2266,16 +1925,10 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
     active_limits_ = limits;
     root_side_    = board.turn();
 #if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
-    trace_count_ = 0;
-    trace_overflow_ = false;
-    trace_enabled_ = limits.decision_trace && limits.diag && info_cb_
-                  && limits.thread_count == 1 && limits.thread_id == 0
-                  && limits.root_moves.size() == 1;
-    if (trace_enabled_)
-        trace_records_ = std::make_unique<std::array<TraceRecord, TRACE_CAPACITY>>();
-    else
-        trace_records_.reset();
-    if (limits.decision_trace && info_cb_ && !trace_enabled_)
+    trace_.start(limits.decision_trace && limits.diag && info_cb_
+                 && limits.thread_count == 1 && limits.thread_id == 0
+                 && limits.root_moves.size() == 1);
+    if (limits.decision_trace && info_cb_ && !trace_.enabled())
         info_cb_("info string trace error requires Diag=true Threads=1 and exactly one searchmoves root");
 #endif
 
@@ -2607,7 +2260,7 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
     // boundary, so the shared total is exact once the pool joins.
     flush_shared_nodes();
     // 8.7.1(c): harvest the Board-side speed counters BEFORE board_ptr_ is
-    // dropped — print_diag() runs after this point.
+    // dropped — print_search_diag() runs after this point.
     diag_.see_ge_calls      = board.see_ge_call_count();
     diag_.gives_check_calls = board.gives_check_call_count();
     board_ptr_ = nullptr;
@@ -2624,9 +2277,10 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
     // count. Emitted only on the reporting thread (info_cb_ set) and only with
     // the hidden TM_Debug option on, so play/bench are unaffected when off.
     if (info_cb_ && active_limits_.diag)
-        print_diag();
+        print_search_diag(diag_, evaluator_, info_cb_);
 #if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
-    print_decision_trace();
+    if (active_limits_.decision_trace)
+        trace_.print(info_cb_, active_limits_.root_moves);
 #endif
 
     if (info_cb_ && active_limits_.tm_debug) {
