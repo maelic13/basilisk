@@ -399,12 +399,31 @@ def main():
     wdl = [0, 0, 0]
     lock = threading.Lock()
     done = 0
+    discarded = 0
+    # Ctrl+C reaches the engines as well as this script, so the games in play
+    # end with dead engines. Once the operator stops the run those games are
+    # discarded, never counted as engine failures, and no new game starts.
+    stopping = threading.Event()
+    started = time.monotonic()
+
+    def clock(seconds):
+        seconds = int(seconds)
+        return f"{seconds // 3600}:{seconds // 60 % 60:02d}:{seconds % 60:02d}"
     pgn = open(os.path.join(out, "games.pgn"), "w")
     events = open(os.path.join(out, "failures.txt"), "w")
 
     def run(job):
-        nonlocal done
+        nonlocal done, discarded
+        if stopping.is_set():
+            return
         g = play_game(cfg, *job)
+        if any(g["stats"][k]["crash"] for k in ("A", "B")):
+            time.sleep(0.5)   # the interrupt may land a moment after the engines die
+        if stopping.is_set():
+            with lock:
+                discarded += 1
+                print(f"  - game {g['id']} discarded: the run was stopped", flush=True)
+            return
         with lock:
             done += 1
             for k in ("A", "B"):
@@ -422,24 +441,39 @@ def main():
                 events.write(f"game {g['id']} ply {len(g['moves'])}: {g['reason']}\n")
                 events.flush()
                 print(f"  ! game {g['id']}: {g['reason']}", flush=True)
-            if done % 10 == 0 or done == len(jobs):
-                fa = sum(totals["A"][f] for f in FAIL_KINDS if f != "hang")
-                fb = sum(totals["B"][f] for f in FAIL_KINDS if f != "hang")
-                print(f"[{done}/{len(jobs)}] {names['A']} W{wdl[0]} D{wdl[1]} L{wdl[2]} | "
-                      f"failures {names['A']}={fa} {names['B']}={fb} | fast hits "
-                      f"{totals['A']['fast_hits']}/{totals['B']['fast_hits']}", flush=True)
+            fa = sum(totals["A"][f] for f in FAIL_KINDS if f != "hang")
+            fb = sum(totals["B"][f] for f in FAIL_KINDS if f != "hang")
+            elapsed = time.monotonic() - started
+            left = elapsed / done * (len(jobs) - done)
+            print(f"[{done}/{len(jobs)}] {names['A']} W{wdl[0]} D{wdl[1]} L{wdl[2]} | "
+                  f"failures {names['A']}={fa} {names['B']}={fb} | fast hits "
+                  f"{totals['A']['fast_hits']}/{totals['B']['fast_hits']} | "
+                  f"{clock(elapsed)} elapsed, about {clock(left)} left", flush=True)
 
-    with ThreadPoolExecutor(max_workers=conc) as pool:
-        list(pool.map(run, jobs))
+    pool = ThreadPoolExecutor(max_workers=conc)
+    futures = [pool.submit(run, job) for job in jobs]
+    try:
+        while not all(f.done() for f in futures):
+            time.sleep(0.5)
+    except KeyboardInterrupt:
+        stopping.set()
+        print(f"\nStopped by the operator after {done} games; games in play are discarded.", flush=True)
+        for f in futures:
+            f.cancel()
+    pool.shutdown(wait=True)
+    for f in futures:
+        if f.done() and not f.cancelled() and f.exception():
+            raise f.exception()
     pgn.close()
     events.close()
 
     e, ci = elo(*wdl)
-    summary = {"games": done, "wdl_a": wdl, "elo_a": e, "elo_ci95": ci,
+    summary = {"games": done, "stopped_by_operator": stopping.is_set(), "discarded_games": discarded,
+               "wdl_a": wdl, "elo_a": e, "elo_ci95": ci,
                "per_engine": {names[k]: totals[k] for k in ("A", "B")}}
     with open(os.path.join(out, "summary.json"), "w") as f:
         json.dump(summary, f, indent=2)
-    print("\n=== Summary ===")
+    print("\n=== Summary ===" + (f" (stopped after {done} of {len(jobs)} games)" if stopping.is_set() else ""))
     print(f"{names['A']} vs {names['B']}: +{wdl[0]} ={wdl[1]} -{wdl[2]}  Elo {e:+.1f} +/- {ci:.1f} (not the gate)")
     for k in ("A", "B"):
         t = totals[k]
