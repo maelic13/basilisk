@@ -834,7 +834,7 @@ static void cmd_feature_support(const std::string& path, int max_positions) {
     std::cout << "Processed " << N << " positions"
               << (skipped ? " (" + std::to_string(skipped) + " skipped)" : "") << ".\n";
 
-    const long thresh = std::max(200L, static_cast<long>(0.0005 * N));
+    const long thresh = std::max(200L, static_cast<long>(0.0005 * static_cast<double>(N)));
     std::cout << "Sparse threshold: < " << thresh << " activations ("
               << "max(200, 0.05% of N)).\n\n";
 
@@ -962,9 +962,9 @@ static void report_phase_buckets(const TuneSet& set,
     for (int b = 0; b < 5; ++b)
         std::printf("  %s  %.8f -> %.8f  delta=%+.8f  (n=%ld)\n",
                     names[b],
-                    cnt[b] ? initial_loss[b] / cnt[b] : 0.0,
-                    cnt[b] ? tuned_loss[b] / cnt[b] : 0.0,
-                    cnt[b] ? (tuned_loss[b] - initial_loss[b]) / cnt[b] : 0.0,
+                    cnt[b] ? initial_loss[b] / static_cast<double>(cnt[b]) : 0.0,
+                    cnt[b] ? tuned_loss[b] / static_cast<double>(cnt[b]) : 0.0,
+                    cnt[b] ? (tuned_loss[b] - initial_loss[b]) / static_cast<double>(cnt[b]) : 0.0,
                     cnt[b]);
 }
 
