@@ -157,6 +157,21 @@ jobs:
       - name: CTest
         run: ctest --test-dir build/${{ matrix.preset }} --output-on-failure
 
+      - name: Bench fingerprint
+        id: bench
+        run: |
+          out=$(printf "bench 10\nquit\n" | ./build/${{ matrix.preset }}/basilisk*)
+          echo "$out" | tail -8
+          nodes=$(echo "$out" | grep -oE "Nodes searched *: *[0-9]+" | grep -oE "[0-9]+$")
+          [ -n "$nodes" ] || { echo "FAIL: no node count"; exit 1; }
+          echo "$nodes" > bench-${{ matrix.bench_id }}.txt
+
+      - name: Upload bench fingerprint
+        uses: actions/upload-artifact@v7
+        with:
+          name: bench-${{ matrix.bench_id }}
+          path: bench-${{ matrix.bench_id }}.txt
+
       - name: Verify x86 ISA contract
         if: matrix.arch == 'x86_64'
         run: |
@@ -183,8 +198,28 @@ jobs:
           cmake --build --preset ${{ matrix.preset }} --target basilisk test_uci_protocol
           ctest --test-dir build/${{ matrix.preset }} -R test_uci_protocol --output-on-failure
 
+  # ---- Build flavors (Linux x86_64 PEXT): diagnostic, ablation, TEXEL -----
+  # Kept out of the test matrix, as Rarog keeps its feature builds, so a flavor
+  # failure fails this job and never hides the bench agreement.
+  flavors:
+    name: build flavors (linux x86_64 pext)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Install Clang and Ninja
+        # clang-19 for libstdc++'s C++23 std::expected; see the test job.
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y clang-19 llvm-19 ninja-build cmake
+          sudo ln -sf /usr/bin/clang-19   /usr/local/bin/clang
+          sudo ln -sf /usr/bin/clang++-19 /usr/local/bin/clang++
+          clang++ --version
+
       - name: Build and test diagnostic-only flavor
-        if: matrix.os_name == 'linux' && matrix.arch == 'x86_64' && matrix.tier == 'pext'
         run: |
           cmake --preset release-pext -B build/diag-pext -DPORTABLE_BUILD=ON -DCOMP=clang \
             -DTUNE=OFF -DDIAGNOSTIC=ON -DABLATION=OFF -DTEXEL=OFF
@@ -192,7 +227,6 @@ jobs:
           ctest --test-dir build/diag-pext -R test_uci_protocol --output-on-failure
 
       - name: Build and test ablation flavor
-        if: matrix.os_name == 'linux' && matrix.arch == 'x86_64' && matrix.tier == 'pext'
         run: |
           cmake --preset release-pext -B build/ablate-pext -DPORTABLE_BUILD=ON -DCOMP=clang \
             -DTUNE=OFF -DDIAGNOSTIC=OFF -DABLATION=ON -DTEXEL=OFF
@@ -200,7 +234,6 @@ jobs:
           ctest --test-dir build/ablate-pext -R test_uci_protocol --output-on-failure
 
       - name: Build and verify TEXEL flavor
-        if: matrix.os_name == 'linux' && matrix.arch == 'x86_64' && matrix.tier == 'pext'
         run: |
           cmake --preset release-pext -B build/texel-pext -DPORTABLE_BUILD=ON -DCOMP=clang \
             -DTUNE=OFF -DDIAGNOSTIC=OFF -DABLATION=OFF -DTEXEL=ON
@@ -208,7 +241,6 @@ jobs:
           ./build/texel-pext/basilisk-texel --verify tools/texel/test_positions.csv
 
       - name: Reject invalid build combinations
-        if: matrix.os_name == 'linux' && matrix.arch == 'x86_64' && matrix.tier == 'pext'
         run: |
           if cmake --preset release-pext -B build/invalid-isa -DUSE_AVX2=ON; then
             echo "FAIL: USE_PEXT+USE_AVX2 was accepted"
@@ -218,21 +250,6 @@ jobs:
             echo "FAIL: TUNE+DIAGNOSTIC was accepted"
             exit 1
           fi
-
-      - name: Bench fingerprint
-        id: bench
-        run: |
-          out=$(printf "bench 10\nquit\n" | ./build/${{ matrix.preset }}/basilisk*)
-          echo "$out" | tail -8
-          nodes=$(echo "$out" | grep -oE "Nodes searched *: *[0-9]+" | grep -oE "[0-9]+$")
-          [ -n "$nodes" ] || { echo "FAIL: no node count"; exit 1; }
-          echo "$nodes" > bench-${{ matrix.bench_id }}.txt
-
-      - name: Upload bench fingerprint
-        uses: actions/upload-artifact@v7
-        with:
-          name: bench-${{ matrix.bench_id }}
-          path: bench-${{ matrix.bench_id }}.txt
 
   # ---- Debug + ASan/UBSan (the gate 8.6.2b P0 repaired — keep it real) ------
   sanitize:
@@ -301,6 +318,9 @@ jobs:
   bench-agreement:
     name: bench agreement
     needs: test
+    # Not skipped when one cell fails: every cell fingerprints before its later
+    # checks, and a cell that never fingerprinted is reported missing below.
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     steps:
       - name: Download fingerprints
@@ -317,6 +337,11 @@ jobs:
         run: |
           echo "Collected fingerprints:"
           for f in bench-*.txt; do echo "  $f: $(cat "$f")"; done
+          cells=$(ls bench-*.txt | wc -l)
+          if [ "$cells" -ne 9 ]; then
+            echo "FAIL: $cells of 9 matrix cells reported a fingerprint."
+            exit 1
+          fi
           count=$(cat bench-*.txt | sort -u | wc -l)
           if [ "$count" -ne 1 ]; then
             echo "FAIL: platforms disagree on the bench node count."
