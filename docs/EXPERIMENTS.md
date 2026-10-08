@@ -569,6 +569,7 @@ not accept any new feature, vector or label policy by themselves.
 | [BAS-C11](experiments/BAS-C11.md) | Setup work charged to the clock (1.10.1). | Repaired 2026-09-27; bench unchanged at 14,978,465. |
 | [BAS-C12](experiments/BAS-C12.md) | Rejected `position` searched the previous board (1.10.1). | Policy flipped by maintainer decision 2026-09-27; bench unc… |
 | [BAS-C13](experiments/BAS-C13.md) | Tablebase PV lines restored the Stockfish way (1.10.1). | Implemented 2026-09-27; bench unchanged at 14,978,465. |
+| [BAS-C14](experiments/BAS-C14.md) | Displayed-score normalisation (A.8.19). | NO_CHANGE by maintainer decision; WDL deferred |
 
 ## 8. Cross-engine evidence imported from Rarog
 
