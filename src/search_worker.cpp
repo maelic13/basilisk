@@ -600,8 +600,15 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
 
 // ---- Negamax search --------------------------------------------------------
 
+template<NodeType NT>
 int Searcher::negamax(int depth, int alpha, int beta, int ply,
-                      SearchStack* ss, bool is_pv, bool allow_null, bool cut_node) {
+                      SearchStack* ss, bool allow_null, bool cut_node) {
+    constexpr bool is_root = NT == NodeType::Root;
+    constexpr bool is_pv   = NT != NodeType::NonPV;
+    // A child of a PV node searched with the full window is PV; the root is
+    // never a child.
+    constexpr NodeType PvChild = is_pv ? NodeType::PV : NodeType::NonPV;
+    assert(is_root == (ply == 0));
     record_node();
     if ((state_.nodes & 2047) == 0) {
         check_stop();
@@ -611,7 +618,6 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     if (ply >= MAX_PLY) return evaluator_.evaluate(*state_.board);
     state_.pv_len[ply] = ply;
 
-    bool is_root = (ply == 0);
 
     if (!is_root && state_.board->is_draw(ply)) return 0;
 
@@ -812,8 +818,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             DIAG_COUNT(state_.diag.null_tries++);
             do_null_move(ss);
             shared_.tt.prefetch(state_.board->position_key());   // 8.7.6(c)
-            int null_score = -negamax(std::max(0, depth - r), -beta, -(beta - 1),
-                                      ply + 1, ss + 1, false, false, true);
+            int null_score = -negamax<NodeType::NonPV>(std::max(0, depth - r), -beta, -(beta - 1),
+                                      ply + 1, ss + 1, false, true);
             undo_null_move(ss);
             if (state_.stopped) return 0;
             if (null_score >= beta) {
@@ -821,8 +827,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 bool verified = true;
                 if (depth >= 10) {
                     const int verify_depth = std::max(1, depth - r);
-                    const int verify_score = negamax(verify_depth, beta - 1, beta,
-                                                     ply, ss, false, false, false);
+                    const int verify_score = negamax<NodeType::NonPV>(verify_depth, beta - 1, beta,
+                                                     ply, ss, false, false);
                     if (state_.stopped) return 0;
                     verified = verify_score >= beta;
                 }
@@ -852,8 +858,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 // Quick check via QSearch first
                 int val = -quiescence(-pc_beta, -pc_beta + 1, ply + 1, 0, ss + 1);
                 if (val >= pc_beta)
-                    val = -negamax(depth - 4, -pc_beta, -pc_beta + 1,
-                                   ply + 1, ss + 1, false, true, true);
+                    val = -negamax<NodeType::NonPV>(depth - 4, -pc_beta, -pc_beta + 1,
+                                   ply + 1, ss + 1, true, true);
                 undo_move(ss, m);
                 if (state_.stopped) return 0;
                 if (val >= pc_beta) {
@@ -1059,7 +1065,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             int s_depth = (depth - 1) / 2;
 
             ss->excluded = m;
-            int s_val = negamax(s_depth, s_beta - 1, s_beta, ply, ss, false, false, true);
+            int s_val = negamax<NodeType::NonPV>(s_depth, s_beta - 1, s_beta, ply, ss, false, true);
             ss->excluded = MOVE_NONE;
 
             if (state_.stopped) {
@@ -1151,7 +1157,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
         int score;
         if (searched == 0) {
-            score = -negamax(new_depth, -beta, -alpha, ply + 1, ss + 1, is_pv, true, false);
+            score = -negamax<PvChild>(new_depth, -beta, -alpha, ply + 1, ss + 1, true, false);
         } else {
             // Late Move Reductions
             int reduction = 0;
@@ -1242,21 +1248,21 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 DIAG_COUNT(state_.diag.lmr_reduction_plies += reduction);
             }
 
-            score = -negamax(new_depth - reduction, -alpha - 1, -alpha,
-                             ply + 1, ss + 1, false, true, true);
+            score = -negamax<NodeType::NonPV>(new_depth - reduction, -alpha - 1, -alpha,
+                             ply + 1, ss + 1, true, true);
             // Re-search at full depth if LMR didn't fail low
             if (reduction > 0 && score > alpha && !state_.stopped) {
                 DIAG_COUNT(state_.diag.lmr_researched++);
                 TRACE_DECISION(TraceEvent::LmrResearch, ply, depth, m,
                                alpha, beta, eval, improving, correction, move_stat_score,
                                searched, reduction, VALUE_NONE, score);
-                score = -negamax(new_depth, -alpha - 1, -alpha,
-                                 ply + 1, ss + 1, false, true, !cut_node);
+                score = -negamax<NodeType::NonPV>(new_depth, -alpha - 1, -alpha,
+                                 ply + 1, ss + 1, true, !cut_node);
             }
             // Re-search as PV if score is within window
             if (is_pv && score > alpha && score < beta && !state_.stopped)
-                score = -negamax(new_depth, -beta, -alpha,
-                                 ply + 1, ss + 1, true, true, false);
+                score = -negamax<NodeType::PV>(new_depth, -beta, -alpha,
+                                 ply + 1, ss + 1, true, false);
         }
 
         undo_move(ss, m);
@@ -1534,7 +1540,7 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
         int score;
 
         if (depth <= 3 || std::abs(prev_score) >= MATE_SCORE - MAX_PLY) {
-            score = negamax(depth, -INF_SCORE, INF_SCORE, 0, ss, true, true, false);
+            score = negamax<NodeType::Root>(depth, -INF_SCORE, INF_SCORE, 0, ss, true, false);
         } else {
             int delta = config_.limits.params.aspiration_delta;
             int asp_a = prev_score - delta;
@@ -1559,7 +1565,7 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
                 // floor of 130, and re-searches ROSE 1305 -> 1450. A root
                 // failing high is often a tactical shot, and searching it
                 // shallower misses it. Full depth every time. (BAS-D17)
-                score = negamax(depth, asp_a, asp_b, 0, ss, true, true, false);
+                score = negamax<NodeType::Root>(depth, asp_a, asp_b, 0, ss, true, false);
                 if (state_.stopped) break;
                 if (score <= asp_a) {
                     bound_line(score, false);
@@ -1604,7 +1610,7 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
                     DIAG_COUNT(++state_.diag.asp_researches);
                     asp_a = -INF_SCORE;
                     asp_b =  INF_SCORE;
-                    score = negamax(depth, asp_a, asp_b, 0, ss, true, true, false);
+                    score = negamax<NodeType::Root>(depth, asp_a, asp_b, 0, ss, true, false);
                     break;
                 }
             }
@@ -1674,7 +1680,7 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
             state_.root_excluded.assign(1, cur_best);
             for (int k = 2; k <= state_.multipv_lines; ++k) {
                 state_.pv_len[0] = 0;
-                const int line_score = negamax(depth, -INF_SCORE, INF_SCORE, 0, ss, true, true, false);
+                const int line_score = negamax<NodeType::Root>(depth, -INF_SCORE, INF_SCORE, 0, ss, true, false);
                 if (state_.stopped || state_.pv_len[0] == 0)
                     break;
                 extra_lines.push_back({line_score, std::vector<Move>(

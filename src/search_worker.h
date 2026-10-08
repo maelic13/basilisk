@@ -31,6 +31,10 @@
 #include <memory>
 #include <vector>
 
+// The kind of negamax node, fixed at compile time: the root (ply 0, always
+// PV), a PV node searched with an open window, or a null-window node.
+enum class NodeType { Root, PV, NonPV };
+
 struct SearchConfig {
     SearchLimits limits;
     int  thread_id     = 0;
@@ -164,8 +168,9 @@ private:
 
     // ---- Search ----
     static constexpr int MAX_QSEARCH_PLY = 10; // max extra plies of captures in qsearch
+    template<NodeType NT>
     int negamax(int depth, int alpha, int beta, int ply,
-                SearchStack* ss, bool is_pv, bool allow_null, bool cut_node);
+                SearchStack* ss, bool allow_null, bool cut_node);
     int quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss);
 
     // ---- History helpers ----
