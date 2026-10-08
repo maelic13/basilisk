@@ -1015,6 +1015,29 @@ rejections stop B.
   countermove, low-ply history and every live mechanism stay byte-identical
   in behaviour; the B.0 zero-game baselines (packet §10) are reproduced on
   the B.1 binary exactly except NPS. Does not wait on B.0.1 or B.0.2.
+  Implemented 2026-10-08, `456cf6a`..`bf44834`, one commit per ticket:
+  - the A.2.3 removals: `time_limit_`, `RootMoveStat`, capture futility,
+    quiet SEE pruning, qsearch quiet checks and the post-LMR nudge with
+    their 7 coordinates, `KBNK Drive`; the `DoubleExtMax` note corrected
+    (the capture-futility comment went with its code);
+  - `search_types.h`, `search_root`, `search_diagnostics`,
+    `search_history.cpp`, `move_picker`, `search_worker` with
+    `SearchConfig` / `SearchShared` / `SearchState`, `NodeType`,
+    `search_thread_pool`, and `search.h` as the facade.
+  Bench 14,978,465 at every commit on PEXT, non-PEXT, Tune, Diag and
+  Ablate; release and Tune CTest 19/19, sanitizer CTest 17/17 (`-LE
+  strength`), the Texel build reconstructs exactly; Diag, decision trace,
+  MultiPV, tablebase, pool and time-budget output match the pre-B.1 Tune
+  build line for line. Packet §10 reproduced on the B.1 PGO builds
+  (`tools/results/b1-qual/`): branching 1.767 and every position at every
+  depth; WAC at 100k / 400k nodes 204 / 242, identical to the A.8 head in
+  every field; LMR-off WAC 219 (+15); the mask 0 / 32 profiles cell for
+  cell; counters and the oracle differential (66/105, median depth 14
+  against 18) identical except the mated root `Fool's mate`, which the B.0
+  binaries searched once per iteration and A.8.8 reports without
+  searching; canaries 77/77. Open on the NPS gate, BAS-P16
+  (`tools/run_b1_nps_gate.ps1`), prepared and maintainer-run: the host was
+  busy with another engine's SPRT.
 - [ ] **B.2** Cluster 1 — the selectivity core
   Cluster 1 — the selectivity core; final contents fixed by B.0.
   Expected contents:
@@ -1158,7 +1181,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.1 | READY_FOR_IMPLEMENTATION | I1 | Handoff frozen in the B.0 packet §12.1; A.6's move table |
+| B.1 | LOCAL_QUALIFIED | I1 | Implemented and qualified at `bf44834`; BAS-P16 NPS gate prepared, maintainer-run |
 | B.2.0 | RESEARCH | R2 | Waits on B.1's head |
 | B.2.1 | READY_FOR_IMPLEMENTATION | I2 | Contract frozen in the B.0 packet §12.2; waits on B.1 and B.2.0 |
 | B.2.2 | RESEARCH | V | Screen numbers registered in the B.0 packet §10 |

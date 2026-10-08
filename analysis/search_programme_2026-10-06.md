@@ -803,6 +803,22 @@ Phase A's step A.8 landed between this packet and B.1.
   `oracle-1.10.1-ablate.exe` `0E5155CC…8644`, both re-hashed), so neither
   registration moves.
 
+### 12.5 B.1's reproduction of §10 (2026-10-08)
+
+On the B.1 PGO builds of `bf44834` (`tools/results/b1-qual/`) every §10
+zero-game baseline reproduced, position by position, with one exception that
+is A.8's: `suite_v2`'s mated root (Fool's mate) was searched once per
+iteration by the B.0 binaries (1 node per depth) and since A.8.8 is reported
+without a search. It accounts exactly for the differences in the counters
+(12 nodes at depth 12, 14 at depth 14), the oracle differential and the
+ablate profiles. Seven WAC positions whose final iteration is a found mate
+report slightly different node totals than B.0's binaries (WAC.298 86,914
+against 86,875); the A.8 head reports exactly B.1's on all 300 positions, so
+that change is also A.8's. Solved counts, depths and best moves are
+unchanged: WAC 204 / 242, branching 1.767, agreement 66/105, canaries
+77/77. A.8.20's expectation that A.8 left these instruments untouched held
+for every position but those two classes. NPS is BAS-P16.
+
 ## 13. The four questions, answered for the programme
 
 **Mechanism.** Basilisk's tree is a constant ×4 the oracle's from depth 4 on

@@ -1,0 +1,9 @@
+# BAS-P16
+
+| Field | Value |
+|---|---|
+| ID | BAS-P16 |
+| Experiment and conditions | **Frozen before the run, PLAN B.1's pooled-PGO NPS gate.** Candidate: two final-PGO Release builds of the B.1 head `bf44834c` by `build_test.ps1` (`basilisk-b1-pgo1-pext-pgo.exe`, `basilisk-b1-pgo2-pext-pgo.exe`), each verified at bench 14,978,465. Reference: BAS-P15's builds 1–2 of the A.8 head (`basilisk-a820-nps-pgo1/2-pext-pgo.exe`). `nps_ab.ps1` at `bench 13`, 16 alternating rounds × 3 repeats, one pinned physical core at High priority, behind the idle-host guard: (1) a self pair over the two B.1 builds; (2) the B.1 pair against the A.8 pair. BAS-P15's recipe. Results in `tools/results/b1-nps/`. |
+| Result / disposition | **Prepared 2026-10-08, not yet run.** `tools/run_b1_nps_gate.ps1` pins the four binaries by SHA-256 (B.1 `FC797381…0C96`, `6A7BB438…B56D`; A.8 head `19326347…C546`, `3169742D…1F9D`) and writes `tools/results/b1-nps/`. Not run by the agent: the host was busy with another engine's SPRT. |
+| Conditional lesson and retry trigger | **Prediction (frozen):** the B.1 pair reads **0.0%** against the A.8 pair, 80% interval [−0.6%, +0.6%]; confidence moderate. B.1 changes no per-node work, but it splits the search across translation units (inlined back by LTO), lays the worker's state out in three aggregates and instantiates negamax once per node type, each of which can move code layout by a few tenths of a percent. **Reading:** a failed self pair voids the run as an instrument fault. The gate passes when the pooled delta is above −0.5%; a slowdown of 0.5% or more returns the boundary that caused it (A.6's falsifier), which is located by building the intermediate B.1 commits. A gain above +0.5% passes and is recorded unexplained. Retry: none. |
+| Source | PLAN B.1; `analysis/codebase_consolidation_v1.md`; `analysis/search_programme_2026-10-06.md` §12.1, §12.4 |

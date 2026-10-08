@@ -553,6 +553,7 @@ not accept any new feature, vector or label policy by themselves.
 | [BAS-P13](experiments/BAS-P13.md) | Frozen before the run, PLAN A.8.9's pooled-PGO NPS read against 1.10.1. | ACCEPTED: +1.13%, unexplained |
 | [BAS-P14](experiments/BAS-P14.md) | Frozen before the run, PLAN A.8.12's pooled-PGO NPS read against the head before it. | ACCEPTED: −0.11%, neutral |
 | [BAS-P15](experiments/BAS-P15.md) | Frozen before the run, PLAN A.8.20's pooled-PGO NPS baseline of the A.8 head. | COMPLETE: 4.189M NPS |
+| [BAS-P16](experiments/BAS-P16.md) | Frozen before the run, PLAN B.1's pooled-PGO NPS gate against the A.8 head. | Prepared, not yet run |
 
 ## 7. Correctness and protocol lessons
 
