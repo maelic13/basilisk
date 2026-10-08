@@ -204,6 +204,20 @@ Moved within the current roadmap on 2026-10-06 (maintainer decision; A.8):
   imported as BAS-X34, and two bundles of Rarog's full history were kept in
   ignored storage with a tested restore recipe.
 
+## Release record — 1.10.2
+
+| Item | Value |
+|---|---|
+| Version | **1.10.2** (2026-10-08) |
+| Scope | PLAN A.8: the Rarog 2.4.0→2.5.0 parity work. Tablebase band and bound-correct in-search probes (A.8.14, BAS-S19); the won-endgame time sink (A.8.17, BAS-S20); MultiPV (A.8.9); command-line commands and `help` (A.8.10); the tablebase extension's start rule (A.8.11); UCI `info` conformance and the threaded `bestmove` line (A.8.7–A.8.8); the C++23 output pass (A.8.12) |
+| Bench-13 fingerprint | **14,978,465**, unchanged from 1.10.1 |
+| Strength | With tables, BAS-S19 +31.7 ± 13.4 against the pre-A.8.14 head (an early-stopped SPRT); the release figure is the verification match against 1.10.1, BAS-M13. Without tables, BAS-S20 −0.7 ± 4.5 (the only change to play without tables) |
+| Qualification | Release and ASan/UBSan CTest 17/17; `release_check.py check v1.10.2`; NPS 4.189M pooled (BAS-P15, +1.5% over 1.10.1); the ponder-on, Threads 4 smoke run against 1.10.1, BAS-C15 |
+
+The release revision is the merge commit of the 1.10.2 pull request on
+`master`, tagged **`v1.10.2`**, the first release through the tag-driven flow
+(PROCESS *Release*); its assets are the nine `release.yml` builds.
+
 ## Release record — 1.10.1
 
 | Item | Value |

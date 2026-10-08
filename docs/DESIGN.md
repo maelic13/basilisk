@@ -129,7 +129,7 @@ line names where it lives.
 - Strength is measured at **3+0.03**, paired UHO openings, normalized Elo,
   **tablebases off** — the harness and the games are blind the same way.
 - **Bench signature** of the accepted head: `bench 13` = **14,978,465** nodes
-  (1.10.0 and 1.10.1; 12,568,898 before the 15.0.a SEE repair, 12,709,666
+  (1.10.0 to 1.10.2; 12,568,898 before the 15.0.a SEE repair, 12,709,666
   before 6.5.a). GUIDE's *Now* table declares it; `check_roadmap.py` holds this
   line to it. Exact bench identity is a provenance fingerprint, **not** proof
   of behavioural identity: evaluation activation, terminal logic and time

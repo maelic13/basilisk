@@ -362,7 +362,7 @@ measured the 1.10.1 baselines (A.7): the 1T pool census (BAS-M08), 4T
 performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
 (BAS-O05) and pooled-PGO NPS **4.127M** (BAS-P12).
 
-- [ ] **A.8** Rarog-parity repairs, repository and C++23
+- [x] **A.8** Rarog-parity repairs, repository and C++23
   Added 2026-10-06 by maintainer decision, before B.0's remaining leaves:
   everything the 2026-10-06 review of Rarog 2.4.0→2.5.0 and of
   `maelic13/manta#2` and `#4` found applicable to Basilisk
@@ -746,7 +746,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       — CLOSED 2026-10-08: BAS-P15 (maintainer-run) puts the A.8 head at
       **4.189M NPS** pooled, +1.5% over BAS-P12, with every prediction met.
       It is B.1's NPS reference.
-    - [ ] **A.8.21** `[M]` Patch release 1.10.2 (ANY TIME) — after A.8.20
+    - [x] **A.8.21** `[M]` Patch release 1.10.2 (ANY TIME) — after A.8.20
       Maintainer decisions 2026-10-07: cut **1.10.2** through A.8.6's flow
       once the rest of Phase A is finished (amended the same day from "after
       A.8.11"), so it ships the gated A.8.14 and A.8.17 changes. Version sources, CHANGELOG's
@@ -759,6 +759,15 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       and manual dispatch, and A.8.6's candidate run on this PR and its
       tag run. A failure reopens the leaf it proves. Tag, push and
       publish stay the maintainer's.
+      — CLOSED 2026-10-08 with the release commit:
+      - version 1.10.2 in both sources;
+      - CHANGELOG's user-facing `[1.10.2]` section;
+      - README, GUIDE, DESIGN and HISTORY marked released.
+      The verification match against 1.10.1 with tables (BAS-M13) and the
+      ponder-on Threads 4 smoke run (BAS-C15) are maintainer-run; their
+      results enter the CHANGELOG and HISTORY before the merge. The PR's CI
+      and Release runs and the tag run complete A.8.2's and A.8.6's owed
+      checks.
 
 ## Phase B — Search programme (evaluation frozen)
 
@@ -1121,7 +1130,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.8.21 | READY_FOR_IMPLEMENTATION | M | Held until A.8.20; owes A.8.2's and A.8.6's GitHub runs |
 | B.0.1 | READY_FOR_IMPLEMENTATION | V | BAS-S17 registered; maintainer-run on the B.0 Tune binary |
 | B.0.2 | READY_FOR_IMPLEMENTATION | V | BAS-S18 registered; maintainer-run on the oracle ablate binary |
 | B.1 | READY_FOR_IMPLEMENTATION | I1 | Handoff frozen in the B.0 packet §12.1; A.6's move table |

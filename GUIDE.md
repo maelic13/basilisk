@@ -10,11 +10,11 @@ in `docs/PROCESS.md`; where the engine stands is PLAN §1.
 
 | Item | Value |
 |---|---|
-| Released baseline | **1.10.1** on `master`, tagged `v1.10.1` (2026-09-27) |
-| Bench fingerprint | **14,978,465** (`bench 13`, 1.10.0 and 1.10.1) |
+| Released baseline | **1.10.2** on `master`, tagged `v1.10.2` (2026-10-08) |
+| Bench fingerprint | **14,978,465** (`bench 13`, 1.10.0 to 1.10.2) |
 | Active experiment | None |
 | Long job | None |
-| Next release | **1.10.2**, a correctness patch (A.8.21, once Phase A is finished); then **2.0.0** if the E.2 target gate is met, otherwise **1.11.0**, cut at E.3 |
+| Next release | **2.0.0** if the E.2 target gate is met, otherwise **1.11.0**, cut at E.3 |
 
 ## Model by class
 
@@ -38,13 +38,12 @@ generations change. These are maintainer judgments, not measured rankings.
 
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
-- **A.8.21** `[M]` Patch release 1.10.2 (ANY TIME) — after A.8.20 — Claude Sonnet 5 — Medium
 - **B.7.1** `[I1]` Allocation guard (ANY TIME) — before B.7.2 — Claude Sonnet 5 — Medium
 - **D.3.1** `[R2]` Board contract audit (ANY TIME) — before E.1 — Claude Opus 5 — High
 
 ### Phase A — Reset: documents, harness, instruments, baselines
 
-- [ ] **A.8** Rarog-parity repairs, repository and C++23
+- [x] **A.8** Rarog-parity repairs, repository and C++23
     - [x] **A.8.1** `[M]` Final Rarog import
     - [x] **A.8.2** `[I1]` CI on pull requests to master only
     - [x] **A.8.3** `[M]` Merge commits from dev to master
@@ -65,7 +64,7 @@ generations change. These are maintainer judgments, not measured rankings.
     - [x] **A.8.18** `[V]` Won-endgame time sink gate
     - [x] **A.8.19** `[R2]` Displayed-score normalisation
     - [x] **A.8.20** `[M]` B-programme anchors on the A.8 head
-    - [ ] **A.8.21** `[M]` Patch release 1.10.2 (ANY TIME) — after A.8.20
+    - [x] **A.8.21** `[M]` Patch release 1.10.2 (ANY TIME) — after A.8.20
 
 ### Phase B — Search programme (evaluation frozen)
 
