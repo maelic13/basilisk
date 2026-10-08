@@ -764,6 +764,30 @@ last row at B.3.0, re-based on B.2.2's `null_*`, `probcut_*` and `sing_*`
 readings; bracket `[0,3]` as PLAN registers; the check policy is decided
 there with BAS-S16's trigger met.
 
+### 12.4 Re-anchoring on the A.8 head (A.8.20, 2026-10-08)
+
+Phase A's step A.8 landed between this packet and B.1.
+- **Fingerprint:** unchanged, 14,978,465 at every A.8 commit.
+- **Line ranges:** A.6's packet carries the re-anchored map.
+- **§10's fixed-node baselines** (branching, WAC at fixed nodes, counters)
+  are expected to reproduce: A.8's search changes act only with tablebases
+  configured (A.8.14), under a clock (A.8.17), or at MultiPV > 1 (A.8.9), and
+  none of those is in the fixed-node instruments. They were not re-run here,
+  because the host was busy; B.1's done criteria re-run them.
+- **Parsers:** the instruments' `info`-line parsers (`branching`,
+  `ablation_liveness`, `run_suite`, `scale_ratio`, `fixed_budget_probe`) read
+  fields by name. Checked on A.8.8's new line shape, including a bound line,
+  which `fixed_budget_probe` excludes. Bound lines appear only after 3 s of
+  search, beyond the instruments' budgets.
+- **`cp`:** stays in internal units (BAS-C14), so `scale_ratio`'s 0.282 stands.
+- **NPS:** BAS-P13 read the A.8.9 head +1.13% against BAS-P12, unexplained,
+  so B.1's NPS criterion ("within ±0.5% of BAS-P12") is re-based on
+  **BAS-P15**, the pooled baseline of the A.8 head.
+- **B.0.1 and B.0.2:** their registered binaries are unchanged files
+  (`basilisk-b0-tune-pext-tune-pgo.exe` `D99C8425…7563`,
+  `oracle-1.10.1-ablate.exe` `0E5155CC…8644`, both re-hashed), so neither
+  registration moves.
+
 ## 13. The four questions, answered for the programme
 
 **Mechanism.** Basilisk's tree is a constant ×4 the oracle's from depth 4 on

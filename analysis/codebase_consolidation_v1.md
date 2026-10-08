@@ -193,3 +193,33 @@ the live default is 16. Comment correction does not change either mechanism.
 `A.6 CLOSED`: the move tables and dead-code dispositions are concrete, and no
 engine source was refactored. B.1 remains dependent on B.0's final search
 handoff; C.1 remains dependent on C.0's refreshed family/shared-input plan.
+
+## Re-anchored on the A.8 head (A.8.20, 2026-10-08)
+
+The ranges above are at `2e7914e`. Phase A's step A.8 changed `src/search.cpp`
+(3,125 → 3,298 lines) and nothing in `src/eval.cpp` (2,148 lines, no diff),
+so the evaluation ranges stand. Each section's opening line was located at
+`2e7914e` and found again at `c71381b`'s source (unchanged since `b53358a`):
+
+| Section | At `2e7914e` | On the A.8 head | What A.8 added there |
+|---|---|---|---|
+| Root table and result sanitation | 75–231 | 83–239 | — |
+| Construction, time and node control | 232–480 | 240–488 | — |
+| History policy | 481–680 | 489–687 | — |
+| Move ordering | 681–963 | 688–971 | the MultiPV root exclusion (`root_excluded_`) in the root filter |
+| Diagnostics | 964–1342 | 972–1322 | the 25 printers on `std::format` (A.8.12) |
+| Root output and tablebases | 1343–1446 | 1323–1446 | `format_info_line`, `legal_line`, `needs_pool_line` (A.8.7–A.8.8), `root_tablebase_display` |
+| Quiescence | 1447–1686 | 1447–1686 | the stand-pat clamp below the tablebase band (A.8.14) |
+| Negamax | 1687–2530 | 1687–2556 | the bound-correct tablebase probe, `tablebase_probe`, `is_decisive` guards (A.8.14), no root hash-table store for later MultiPV lines (A.8.9) |
+| Iterative deepening | 2531–2823 | 2557–2955 | bound lines, terminal roots, per-iteration seldepth (A.8.8), MultiPV lines (A.8.9), the past-optimum fail-high stop (A.8.17) |
+| Thread pool | 2824–3125 | 2956–3298 | the merged result's line before `bestmove`, no vote with MultiPV (A.8.7, A.8.9) |
+
+The move table's tickets read on the new ranges:
+- ticket 4: 489–687;
+- ticket 5: 688–971;
+- ticket 7: 2956–3298.
+
+Ticket 1's `search_types.h` also takes `is_decisive`, `format_info_line`,
+`legal_line` and `needs_pool_line` from `search.h`. Ticket 6's worker takes
+the MultiPV state (`root_excluded_`, `multipv_lines_`) and
+`tb_probe_in_search_` as per-search state. No ticket's contract changes.

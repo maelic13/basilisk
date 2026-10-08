@@ -734,6 +734,17 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       are 1.10.1's release baselines. The pooled-PGO NPS baseline is re-read
       if any A.8 leaf moved NPS (maintainer-run). Confirm B.0.1 and B.0.2's
       registered binaries are pinned and unaffected.
+      Records done 2026-10-08:
+      - fingerprint unchanged through A.8 (14,978,465);
+      - A.6's map re-anchored in its packet (`search.cpp` 3,125 → 3,298
+        lines; `eval.cpp` unchanged), with what A.8 added to each section;
+      - B.0 packet §12.4: §10's fixed-node baselines unaffected, the
+        instruments' parsers checked on A.8.8's line shape, `cp` unchanged
+        (BAS-C14), and B.1's NPS reference re-based on BAS-P15;
+      - B.0.1 and B.0.2's binaries re-hashed and unchanged;
+      - G(0) and the gauntlets stand as 1.10.1's release baselines.
+      **Open: BAS-P15**, the maintainer-run NPS baseline
+      (`tools/run_a820_nps_baseline.ps1`), needs an idle host.
     - [ ] **A.8.21** `[M]` Patch release 1.10.2 (ANY TIME) — after A.8.20
       Maintainer decisions 2026-10-07: cut **1.10.2** through A.8.6's flow
       once the rest of Phase A is finished (amended the same day from "after
@@ -1109,7 +1120,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.8.20 | READY_FOR_IMPLEMENTATION | M | After A.8.19 |
+| A.8.20 | IMPLEMENTED | M | Records done; BAS-P15 NPS baseline maintainer-run on an idle host |
 | A.8.21 | READY_FOR_IMPLEMENTATION | M | Held until A.8.20; owes A.8.2's and A.8.6's GitHub runs |
 | B.0.1 | READY_FOR_IMPLEMENTATION | V | BAS-S17 registered; maintainer-run on the B.0 Tune binary |
 | B.0.2 | READY_FOR_IMPLEMENTATION | V | BAS-S18 registered; maintainer-run on the oracle ablate binary |
