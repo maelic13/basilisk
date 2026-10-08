@@ -727,7 +727,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       instrument among them, read it as internal units. `UCI_ShowWDL` was
       deferred by the maintainer. Known-win evaluations display as they are;
       since A.8.14 they sit below the tablebase band.
-    - [ ] **A.8.20** `[M]` B-programme anchors on the A.8 head
+    - [x] **A.8.20** `[M]` B-programme anchors on the A.8 head
       Record A.8's fingerprint changes. Re-anchor the B.0 packet's §12
       handoffs and A.6's move table, which cite line ranges at `2e7914e`, on
       the A.8 head. State which A.7 baselines stand: G(0) and the gauntlets
@@ -743,8 +743,9 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         (BAS-C14), and B.1's NPS reference re-based on BAS-P15;
       - B.0.1 and B.0.2's binaries re-hashed and unchanged;
       - G(0) and the gauntlets stand as 1.10.1's release baselines.
-      **Open: BAS-P15**, the maintainer-run NPS baseline
-      (`tools/run_a820_nps_baseline.ps1`), needs an idle host.
+      — CLOSED 2026-10-08: BAS-P15 (maintainer-run) puts the A.8 head at
+      **4.189M NPS** pooled, +1.5% over BAS-P12, with every prediction met.
+      It is B.1's NPS reference.
     - [ ] **A.8.21** `[M]` Patch release 1.10.2 (ANY TIME) — after A.8.20
       Maintainer decisions 2026-10-07: cut **1.10.2** through A.8.6's flow
       once the rest of Phase A is finished (amended the same day from "after
@@ -1120,7 +1121,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.8.20 | IMPLEMENTED | M | Records done; BAS-P15 NPS baseline maintainer-run on an idle host |
 | A.8.21 | READY_FOR_IMPLEMENTATION | M | Held until A.8.20; owes A.8.2's and A.8.6's GitHub runs |
 | B.0.1 | READY_FOR_IMPLEMENTATION | V | BAS-S17 registered; maintainer-run on the B.0 Tune binary |
 | B.0.2 | READY_FOR_IMPLEMENTATION | V | BAS-S18 registered; maintainer-run on the oracle ablate binary |
