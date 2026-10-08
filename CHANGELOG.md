@@ -20,8 +20,9 @@ and next step).
 
 Stronger play with Syzygy tablebases, no more clock wasted in won endings,
 `MultiPV` for analysis, and cleaner engine output. With tablebases configured,
-1.10.2 scores **[MATCH RESULT PENDING]** against 1.10.1 at `10+0.1`; without
-them it plays as 1.10.1 did. The `bench` fingerprint stays **14,978,465**.
+the new tablebase handling measured **+32 ± 13 Elo** against the previous
+version at `10+0.1` (560 games); without tablebases, 1.10.2 plays as 1.10.1
+did. The `bench` fingerprint stays **14,978,465**.
 
 ### Changed
 

@@ -763,11 +763,14 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       - version 1.10.2 in both sources;
       - CHANGELOG's user-facing `[1.10.2]` section;
       - README, GUIDE, DESIGN and HISTORY marked released.
-      The verification match against 1.10.1 with tables (BAS-M13) and the
-      ponder-on Threads 4 smoke run (BAS-C15) are maintainer-run; their
-      results enter the CHANGELOG and HISTORY before the merge. The PR's CI
-      and Release runs and the tag run complete A.8.2's and A.8.6's owed
-      checks.
+      Maintainer decisions 2026-10-08:
+      - the verification match against 1.10.1 (BAS-M13) is withdrawn
+        unplayed, and the CHANGELOG quotes BAS-S19;
+      - the ponder-on Threads 4 smoke run (BAS-C15) was stopped at 121 of 200
+        games and accepted on judgement, with 1.10.2 at zero failures, as a
+        check that 1.10.1's ponder fixes still hold.
+      The PR's CI and Release runs and the tag run complete A.8.2's and
+      A.8.6's owed checks.
 
 ## Phase B — Search programme (evaluation frozen)
 
