@@ -1,4 +1,5 @@
-#include "search.h"
+#include "search_thread_pool.h"
+#include "constants.h"
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -15,7 +16,7 @@
 
 SearchThreadPool::SearchThreadPool(TranspositionTable& tt,
                                    std::atomic_bool& stop_flag,
-                                   std::function<void(const std::string&)> info_cb,
+                                   InfoCallback info_cb,
                                    std::atomic_bool* ponderhit_flag)
     : tt_(tt)
     , stop_(stop_flag)
@@ -101,7 +102,7 @@ int SearchThreadPool::resize_threads(int count) {
 
     while (std::cmp_less(searchers_.size(), count)) {
         const bool emit_info = searchers_.empty();
-        auto cb = emit_info ? info_cb_ : std::function<void(const std::string&)>();
+        auto cb = emit_info ? info_cb_ : InfoCallback();
         searchers_.push_back(std::make_unique<Searcher>(tt_, stop_, std::move(cb), ponderhit_));
     }
 
