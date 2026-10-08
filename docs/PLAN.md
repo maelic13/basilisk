@@ -704,7 +704,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       change predates this leaf. Engine test: 2.36 s at `30000+300`, 15.72 s
       with the stop disabled. Bench 14,978,465; release and ASan/UBSan CTest
       17/17.
-    - [ ] **A.8.18** `[V]` Won-endgame time sink gate
+    - [x] **A.8.18** `[V]` Won-endgame time sink gate
       SPRT `[0,3]` at `3+0.03` 1T and a `10+0.1` direction check, as A.8.16
       registers them; zero time forfeits. Maintainer-run.
       Amended by A.8.16 to a `[-5,5]` repair bracket at `3+0.03`. Prepared
@@ -712,8 +712,9 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       BAS-S19 candidate, cap 4,000 pairs, seed 818; dry run accepted.
       Played 2026-10-07: cap reached, **−0.7 ± 4.5 Elo** (nElo [−8.71, +6.51]),
       zero time losses. The registered acceptance (interval above −5) is not
-      met, and neither is the return condition (H0). Awaiting the
-      maintainer's disposition.
+      met, and neither is the return condition (H0). — CLOSED 2026-10-08:
+      A.8.17 kept by maintainer decision, with the registered acceptance
+      not met (BAS-S20).
     - [ ] **A.8.19** `[R2]` Displayed-score normalisation
       Moved from D.3.3. Displayed-score research card: fit a win-rate model
       on Basilisk's own games, decide the `cp` mapping as Stockfish
@@ -1102,7 +1103,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.8.18 | READY_FOR_IMPLEMENTATION | V | `[-5,5]` repair bracket at 3+0.03 per the A.8.16 packet; maintainer-run |
 | A.8.19 | RESEARCH | R2 | Moved from D.3.3; after A.8.14 |
 | A.8.20 | READY_FOR_IMPLEMENTATION | M | After A.8.19 |
 | A.8.21 | READY_FOR_IMPLEMENTATION | M | Held until A.8.20; owes A.8.2's and A.8.6's GitHub runs |
