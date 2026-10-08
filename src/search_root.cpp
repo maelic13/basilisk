@@ -137,6 +137,18 @@ Move first_legal_move(const Board& board) {
     return legal.size() == 0 ? MOVE_NONE : legal[0];
 }
 
+int root_tablebase_ordering_score(const std::vector<Syzygy::RootMoveInfo>& root_moves, Move move) {
+    for (const auto& entry : root_moves) {
+        if (entry.bestmove == move) {
+            return 8'000'000
+                 + std::clamp(entry.rank, -2000, 2000) * 1000
+                 + std::clamp(entry.score, -tablebaseValue, tablebaseValue);
+        }
+    }
+    return 0;
+}
+
+
 SearchResult sanitize_search_result(const Board& root_board, SearchResult result) {
     if (!is_legal_move_on_board(root_board, result.bestmove)) {
         result.bestmove = first_legal_move(root_board);

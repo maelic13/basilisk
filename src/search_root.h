@@ -15,6 +15,10 @@
 [[nodiscard]] bool move_in_root_moves(Move move, const std::vector<Move>& root_moves);
 [[nodiscard]] bool is_legal_move_on_board(const Board& board, Move move);
 [[nodiscard]] Move first_legal_move(const Board& board);
+// Root ordering bonus from the tablebase ranking: every ranked move sorts
+// above any unranked one, best rank first.
+[[nodiscard]] int root_tablebase_ordering_score(const std::vector<Syzygy::RootMoveInfo>& root_moves,
+                                                Move move);
 
 class RootMoveTable {
 public:

@@ -6,6 +6,7 @@
 #include "search_types.h"
 #include "search_root.h"
 #include "search_diagnostics.h"
+#include "move_picker.h"
 #include "tt.h"
 #include "eval.h"
 #include "history.h"
@@ -90,6 +91,8 @@ private:
     SearchLimits active_limits_;
     Color    root_side_;
     std::vector<Syzygy::RootMoveInfo> root_tb_moves_;
+    // The root's move-ordering inputs, set at the start of each search.
+    RootOrdering root_ordering_;
     // MultiPV: root moves already reported at this depth, which the search of
     // the next line skips. Empty at every other time, so a single-PV search
     // never consults it.
@@ -116,7 +119,6 @@ private:
     Move pv_table_[MAX_PLY][MAX_PLY];
     int  pv_len_[MAX_PLY];
 
-    struct ScoredMove { Move move; int score; };
     ScoredMove move_buffers_[MAX_PLY][2][MoveList::CAPACITY];
 
     std::chrono::steady_clock::time_point start_time_;
@@ -138,11 +140,6 @@ private:
                 SearchStack* ss, bool is_pv, bool allow_null, bool cut_node);
     int quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss);
 
-    // ---- Move ordering ----
-    class MovePicker;
-    void  score_moves(ScoredMove* moves, int n, SearchStack* ss,
-                       bool is_root, int ply) const;
-    static Move pick_next(ScoredMove* moves, int idx, int n);
 
     // ---- History helpers ----
     template<int MAX_VAL>
@@ -224,7 +221,6 @@ private:
     void   init_root_tablebase_scores(const Board& board);
     int    root_tablebase_score(Move move) const;
     int    root_tablebase_display(Move move) const;
-    int    root_tablebase_ordering_score(Move move) const;
     bool   root_tablebase_allows(Move move) const;
     Move   ponder_from_tt(const Board& root, Move bestmove) const;
 };

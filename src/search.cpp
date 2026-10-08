@@ -318,289 +318,10 @@ bool Searcher::check_stop() {
     return false;
 }
 
-// ---- Move ordering ---------------------------------------------------------
+// ---- Move loop bookkeeping ----------------------------------------------
 
-static constexpr int PIECE_VALUE[PIECE_TYPE_NB] = {0, 100, 300, 300, 500, 900, 20000};
 static constexpr int MAX_TRACKED_QUIETS = 64;
 static constexpr int MAX_TRACKED_BAD_CAPS = 32;
-
-void Searcher::score_moves(ScoredMove* moves, int n, SearchStack* ss,
-                           bool is_root, int ply) const {
-    const Board& b = *board_ptr_;
-
-    // 9.6: these history-table dimensions are constant for every quiet move at
-    // this node. Hoist them beside the continuation rows so the move loop only
-    // indexes its varying piece/from/to dimensions. Keeping the additions in
-    // the same order preserves the fixed-depth bench exactly.
-    const auto& main_hist = hist_.main[b.turn()];
-    const auto& pawn_hist = hist_.pawn->data[
-        b.pawn_key_value() & (HistoryTables::PAWN_HIST_SIZE - 1)];
-    const auto* low_ply_hist = ply < HistoryTables::LOW_PLY_HISTORY_SIZE
-                             ? &hist_.low_ply[ply] : nullptr;
-
-    Move cm = MOVE_NONE;
-    Move prev = (ss-1)->move;
-    if (prev != MOVE_NONE && prev != MOVE_NULL)
-        cm = hist_.countermove[from_sq(prev)][to_sq(prev)];
-
-    std::array<Bitboard, PIECE_TYPE_NB> check_squares{};
-    std::array<bool, PIECE_TYPE_NB> check_squares_ready{};
-    auto checks_for = [&](PieceType pt) {
-        const auto idx = static_cast<size_t>(pt);
-        if (!check_squares_ready[idx]) {
-            check_squares[idx] = b.check_squares(pt, b.turn());
-            check_squares_ready[idx] = true;
-        }
-        return check_squares[idx];
-    };
-
-    // 8.7.6(b): hoist the continuation-history row bases ONCE per node. The
-    // (ss-1/2/4) piece/square indices are constant across every scored move,
-    // so recomputing the guards and the first two array dimensions (two index
-    // multiplies each) per quiet — cont_hist_score(ss, ...) — is pure waste.
-    // With the rows hoisted, the per-move cost is three [pt][to] loads. The
-    // computed sum is identical (same terms, same order, same cont4/2 integer
-    // divide), so bench stays 11,941,440. Standard SF conthist pattern.
-    const int16_t (*ch1)[SQUARE_NB] = nullptr;
-    const int16_t (*ch2)[SQUARE_NB] = nullptr;
-    const int16_t (*ch4)[SQUARE_NB] = nullptr;
-    if ((ss-1)->move != MOVE_NONE && (ss-1)->move != MOVE_NULL
-        && (ss-1)->moved_piece != NO_PIECE_TYPE)
-        ch1 = hist_.cont1->data[(ss-1)->moved_piece][to_sq((ss-1)->move)];
-    if ((ss-2)->move != MOVE_NONE && (ss-2)->move != MOVE_NULL
-        && (ss-2)->moved_piece != NO_PIECE_TYPE)
-        ch2 = hist_.cont2->data[(ss-2)->moved_piece][to_sq((ss-2)->move)];
-    if ((ss-4)->move != MOVE_NONE && (ss-4)->move != MOVE_NULL
-        && (ss-4)->moved_piece != NO_PIECE_TYPE)
-        ch4 = hist_.cont4->data[(ss-4)->moved_piece][to_sq((ss-4)->move)];
-
-    for (int i = 0; i < n; i++) {
-        Move m = moves[i].move;
-
-        bool is_cap   = (b.piece_on(to_sq(m)) != NO_PIECE) || (move_type(m) == EN_PASSANT);
-        bool is_promo = (move_type(m) == PROMOTION);
-
-        if (is_cap) {
-            PieceType atk = type_of(b.piece_on(from_sq(m)));
-            PieceType cap = (move_type(m) == EN_PASSANT) ? PAWN : type_of(b.piece_on(to_sq(m)));
-            moves[i].score = 6'000'000 + PIECE_VALUE[cap] * 16 - PIECE_VALUE[atk]
-                                       + hist_.capture[atk][to_sq(m)][cap];
-        } else if (is_promo) {
-            moves[i].score = (promo_type(m) == QUEEN) ? 5'500'000 : -100;
-        } else {
-            // Quiet
-            const Square from = Square(from_sq(m));
-            const Square to = Square(to_sq(m));
-            const PieceType pt = type_of(b.piece_on(from));
-            int hist = main_hist[from][to];
-            if (ch1) hist += ch1[pt][to];
-            if (ch2) hist += ch2[pt][to];
-            if (ch4) hist += ch4[pt][to] / 2;
-            hist += pawn_hist[pt][to];
-            if (low_ply_hist) hist += (*low_ply_hist)[from][to];
-
-            if (checks_for(pt) & sq_bb(to))
-                hist += 32'000;
-
-            if      (m == ss->killers[0]) moves[i].score = 4'000'000;
-            else if (m == ss->killers[1]) moves[i].score = 3'900'000;
-            else if (m == cm)             moves[i].score = 3'800'000;
-            else                          moves[i].score = hist;
-        }
-
-        if (is_root && !root_tb_moves_.empty())
-            moves[i].score += root_tablebase_ordering_score(m);
-
-        if (is_root && root_table_)
-            moves[i].score += root_table_->ordering_score(m);
-    }
-}
-
-Move Searcher::pick_next(ScoredMove* moves, int idx, int n) {
-    ScoredMove* const first = moves + idx;
-    ScoredMove* best = first;
-    // 8.7.6(d): keep the running best SCORE in a register instead of reloading
-    // best->score on every comparison. Selection order is unchanged (strict >,
-    // first-wins on ties), so bench stays identical.
-    int best_score = first->score;
-    for (ScoredMove* it = first + 1, *end = moves + n; it != end; ++it)
-        if (it->score > best_score) {
-            best = it;
-            best_score = it->score;
-        }
-
-    if (best != first)
-        std::swap(*first, *best);
-    return first->move;
-}
-
-class Searcher::MovePicker {
-public:
-    MovePicker(Searcher& searcher, Move tt_move, Move excluded, SearchStack* ss,
-               bool is_root, int ply, ScoredMove* tactical_buffer, ScoredMove* bad_buffer)
-        : searcher_(searcher)
-        , tt_move_(tt_move)
-        , excluded_(excluded)
-        , ss_(ss)
-        , is_root_(is_root)
-        , ply_(ply)
-        , scored_(tactical_buffer)
-        , bad_(bad_buffer) {}
-
-    Move next() {
-        last_see_ = VALUE_NONE;   // 8.7.5(a): reset the per-move SEE verdict
-        last_src_ = Src::None;    // 5.2: reset the per-move picker source
-        while (true) {
-            switch (stage_) {
-                case Stage::TT:
-                    stage_ = Stage::TacticalsInit;
-                    if (tt_move_ != MOVE_NONE && tt_move_ != excluded_) {
-                        Piece p = searcher_.board_ptr_->piece_on(from_sq(tt_move_));
-                        if (p != NO_PIECE
-                            && color_of(p) == searcher_.board_ptr_->turn()
-                            && searcher_.board_ptr_->is_legal(tt_move_)) {
-                            tt_searched_ = true;
-                            last_src_ = Src::TT;
-                            return tt_move_;
-                        }
-                    }
-                    break;
-
-                case Stage::TacticalsInit:
-                    fill_tacticals();
-                    stage_ = Stage::GoodTacticals;
-                    break;
-
-                case Stage::GoodTacticals:
-                    while (idx_ < n_) {
-                        Move move = Searcher::pick_next(scored_, idx_++, n_);
-                        if (is_bad_tactical(move)) {
-                            bad_[bad_count_++] = {move, scored_[idx_ - 1].score};
-                            continue;
-                        }
-                        // 8.7.5(a): a good tactical that is a non-promo capture
-                        // passed is_bad_tactical == false, i.e. see_ge(m,0) was
-                        // TRUE — memoize see_score = 0 so search_one need not
-                        // recompute the identical see_ge. Promotions carry no
-                        // SEE verdict (search skips SEE for them).
-                        last_see_ = is_nonpromo_capture(move) ? 0 : VALUE_NONE;
-                        last_src_ = Src::GoodTactical;
-                        return move;
-                    }
-                    stage_ = Stage::QuietsInit;
-                    break;
-
-                case Stage::QuietsInit:
-                    fill_quiets();
-                    stage_ = Stage::Quiets;
-                    break;
-
-                case Stage::Quiets:
-                    if (idx_ < n_) {
-                        last_src_ = Src::Quiet;
-                        return Searcher::pick_next(scored_, idx_++, n_);
-                    }
-                    stage_ = Stage::BadTacticals;
-                    bad_idx_ = 0;
-                    break;
-
-                case Stage::BadTacticals:
-                    if (bad_idx_ < bad_count_) {
-                        // 8.7.5(a): the bad-tactical buffer holds only non-promo
-                        // captures with see_ge(m,0) == FALSE → see_score = -1.
-                        last_see_ = -1;
-                        last_src_ = Src::BadTactical;
-                        return Searcher::pick_next(bad_, bad_idx_++, bad_count_);
-                    }
-                    stage_ = Stage::Done;
-                    break;
-
-                case Stage::Done:
-                    return MOVE_NONE;
-            }
-        }
-    }
-
-private:
-    enum class Stage {
-        TT,
-        TacticalsInit,
-        GoodTacticals,
-        QuietsInit,
-        Quiets,
-        BadTacticals,
-        Done
-    };
-
-    void fill_tacticals() {
-        MoveList moves;
-        searcher_.board_ptr_->gen_legal_captures(moves);
-        fill_from(moves);
-    }
-
-    void fill_quiets() {
-        MoveList moves;
-        searcher_.board_ptr_->gen_legal_quiets(moves);
-        fill_from(moves);
-    }
-
-    void fill_from(const MoveList& moves) {
-        n_ = 0;
-        idx_ = 0;
-        for (Move move : moves) {
-            if (move == excluded_ || (tt_searched_ && move == tt_move_))
-                continue;
-            scored_[n_++] = {move, 0};
-        }
-        searcher_.score_moves(scored_, n_, ss_, is_root_, ply_);
-    }
-
-    bool is_bad_tactical(Move move) const {
-        if (move_type(move) == PROMOTION)
-            return false;
-        const Board& board = *searcher_.board_ptr_;
-        const bool is_cap = board.piece_on(to_sq(move)) != NO_PIECE || move_type(move) == EN_PASSANT;
-        return is_cap && !board.see_ge(move, 0);
-    }
-
-    // 8.7.5(a): matches search_one's `is_cap && !is_promo` — the exact class
-    // for which see_score = see_ge(m,0)?0:-1 is computed downstream.
-    bool is_nonpromo_capture(Move move) const {
-        if (move_type(move) == PROMOTION)
-            return false;
-        const Board& board = *searcher_.board_ptr_;
-        return board.piece_on(to_sq(move)) != NO_PIECE || move_type(move) == EN_PASSANT;
-    }
-
-public:
-    // The SEE verdict for the move next() just returned: 0 (good capture),
-    // -1 (bad capture), or VALUE_NONE (TT move / promo / quiet / not a capture)
-    // — lets search_one skip recomputing the identical see_ge(m,0).
-    int last_see_score() const { return last_see_; }
-    // 5.2: which stage produced the move just returned. Recorded at each
-    // return rather than read from stage_, because the TT and tactical
-    // stages advance stage_ before returning.
-    enum class Src { None, TT, GoodTactical, Quiet, BadTactical };
-    Src last_source() const { return last_src_; }
-private:
-
-    Searcher& searcher_;
-    Move tt_move_;
-    Move excluded_;
-    SearchStack* ss_;
-    bool is_root_;
-    int ply_;
-    bool tt_searched_ = false;
-    Stage stage_ = Stage::TT;
-    ScoredMove* scored_;
-    ScoredMove* bad_;
-    int n_ = 0;
-    int idx_ = 0;
-    int bad_count_ = 0;
-    int bad_idx_ = 0;
-    int last_see_ = VALUE_NONE;   // 8.7.5(a): SEE verdict of the last move returned
-    Src last_src_ = Src::None;    // 5.2: picker stage of the last move returned
-};
 
 // ---- UCI info ---------------------------------------------------------------
 
@@ -667,17 +388,6 @@ int Searcher::root_tablebase_display(Move move) const {
             return entry.display;
     }
     return VALUE_NONE;
-}
-
-int Searcher::root_tablebase_ordering_score(Move move) const {
-    for (const auto& entry : root_tb_moves_) {
-        if (entry.bestmove == move) {
-            return 8'000'000
-                 + std::clamp(entry.rank, -2000, 2000) * 1000
-                 + std::clamp(entry.score, -tablebaseValue, tablebaseValue);
-        }
-    }
-    return 0;
 }
 
 bool Searcher::root_tablebase_allows(Move move) const {
@@ -1644,7 +1354,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     // ---- Staged move picking -----------------------------------------------
     // TT move first, then tactical moves, then quiet moves. Quiet generation and
     // scoring are delayed until captures/promotions fail to produce a cutoff.
-    MovePicker picker(*this, tt_move, ss->excluded, ss, is_root, ply,
+    MovePicker picker(*board_ptr_, hist_, tt_move, ss->excluded, ss, ply,
+                      is_root ? &root_ordering_ : nullptr,
                       move_buffers_[ply][0], move_buffers_[ply][1]);
     while (true) {
         Move move = picker.next();
@@ -1767,6 +1478,7 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
 
     std::memset(pv_len_, 0, sizeof(pv_len_));
     init_root_tablebase_scores(board);
+    root_ordering_ = RootOrdering{&root_tb_moves_, root_table_};
 
     SearchResult result;
     int prev_score      = 0;
@@ -2066,6 +1778,7 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
     diag_.gives_check_calls = board.gives_check_call_count();
     board_ptr_ = nullptr;
     root_table_ = nullptr;
+    root_ordering_ = RootOrdering{};
     pondering_ = false;
     root_tb_moves_.clear();
     result.nodes      = nodes_;
