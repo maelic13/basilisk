@@ -628,6 +628,93 @@ static void test_search_result_sanitizer() {
     end_section();
 }
 
+// A multi-thread search prints the merged result's line before `bestmove`
+// exactly when the main thread's last line does not describe it.
+static void test_pool_line_decision() {
+    SearchResult main_thread;
+    main_thread.bestmove = make_move(E2, E4);
+    main_thread.depth = 12;
+
+    SearchResult same = main_thread;
+    same.pv = {make_move(E2, E4), make_move(E7, E5)};
+    SearchResult other_move = main_thread;
+    other_move.bestmove = make_move(D2, D4);
+    SearchResult deeper = main_thread;
+    deeper.depth = 13;
+
+    begin_section("pool line: not printed when the main thread's line describes the result");
+    EXPECT(!needs_pool_line(same, main_thread));
+    end_section();
+
+    begin_section("pool line: printed for a helper's move or a deeper result");
+    EXPECT(needs_pool_line(other_move, main_thread));
+    EXPECT(needs_pool_line(deeper, main_thread));
+    end_section();
+
+    begin_section("pool line: never printed without a move");
+    EXPECT(!needs_pool_line(SearchResult{}, main_thread));
+    end_section();
+
+    begin_section("pool line: the printed line is the legal prefix from the root");
+    Board board;
+    board.set_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+    const std::vector<Move> line = {make_move(E2, E4), make_move(E7, E5), make_move(E4, E5)};
+    EXPECT_EQ(legal_line(board, line).size(), size_t(2));
+    const std::string text = format_info_line(9, 14, 1, 31, {}, 1000, 0.5, 0, 7,
+                                              legal_line(board, line));
+    EXPECT_STR(text, "info depth 9 seldepth 14 multipv 1 score cp 31 nodes 1000 nps 2000 "
+                     "hashfull 7 tbhits 0 time 500 pv e2e4 e7e5");
+    end_section();
+}
+
+// Every info line has Stockfish's field order and one shape; a bound follows
+// the score; nps floors the elapsed time at 1 ms instead of falling back.
+static void test_info_line_conformance() {
+    begin_section("uci info: a bound follows the score");
+    const std::string lower = format_info_line(20, 31, 1, -45, "upperbound", 5, 4.0, 2, 900, {});
+    EXPECT_STR(lower, "info depth 20 seldepth 31 multipv 1 score cp -45 upperbound nodes 5 nps 1 "
+                      "hashfull 900 tbhits 2 time 4000");
+    const std::string mate = format_info_line(7, 9, 1, MATE_SCORE - 3, "lowerbound", 1, 1.0, 0, 0, {});
+    EXPECT(mate.find(" score mate 2 lowerbound nodes ") != std::string::npos);
+    end_section();
+
+    begin_section("uci info: nps inside the first millisecond is not the node count");
+    const std::string fast = format_info_line(1, 1, 1, 20, {}, 49, 0.0, 0, 0, {});
+    EXPECT(fast.find(" nps 49000 ") != std::string::npos);
+    EXPECT(fast.find(" time 0") != std::string::npos);
+    end_section();
+
+    begin_section("uci info: every search line carries multipv 1");
+    for (const std::string& line : collect_info_lines(
+             "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3", 8))
+        EXPECT(line.rfind("info depth ", 0) != 0 || line.find(" multipv 1 score ") != std::string::npos);
+    end_section();
+
+    // seldepth is the iteration's own: a running maximum over the search can
+    // never fall, and on the bench positions it does at depth 10.
+    begin_section("uci info: seldepth resets each iteration");
+    bool fell = false;
+    for (std::string_view fen : bench_fens()) {
+        int previous = -1;
+        for (const std::string& line : collect_info_lines(std::string(fen).c_str(), 10)) {
+            const size_t at = line.find(" seldepth ");
+            if (line.rfind("info depth ", 0) != 0 || at == std::string::npos)
+                continue;
+            const int seldepth = std::stoi(line.substr(at + 10));
+            fell = fell || (previous >= 0 && seldepth < previous);
+            previous = seldepth;
+        }
+        if (fell)
+            break;
+    }
+    EXPECT(fell);
+    end_section();
+
+    begin_section("uci info: aspiration bounds print only in a long search");
+    EXPECT(kBoundLineAfterSeconds == 3.0);
+    end_section();
+}
+
 static void test_tournament_infraction_positions() {
     {
         static constexpr const char* FEN =
@@ -828,7 +915,7 @@ static void test_syzygy_probe_limit_and_counts() {
     auto moves = Syzygy::probe_root_moves(board, true, 7, true);
     EXPECT(!moves.empty());
     EXPECT(moves.front().bestmove != MOVE_NONE);
-    EXPECT(moves.front().score == tablebaseWinScore);
+    EXPECT(moves.front().score == tablebaseValue);
     end_section();
 
     Syzygy::clear();
@@ -860,10 +947,16 @@ static void test_syzygy_rule50_root_scores() {
     EXPECT(rule50_moves.front().score == 0);
     end_section();
 
+    begin_section("syzygy: a spoiled win displays 1-49 cp, as Stockfish shows it");
+    EXPECT(!rule50_moves.empty() && rule50_moves.front().display >= 1
+           && rule50_moves.front().display <= 49);
+    end_section();
+
     begin_section("syzygy: disabling rule50 reports tablebase win");
     auto no_rule50_moves = Syzygy::probe_root_moves(board, false, 7, true);
     EXPECT(!no_rule50_moves.empty());
-    EXPECT(no_rule50_moves.front().score == tablebaseWinScore);
+    EXPECT(no_rule50_moves.front().score == tablebaseValue);
+    EXPECT(!no_rule50_moves.empty() && no_rule50_moves.front().display == tablebaseValue);
     end_section();
 
     Syzygy::clear();
@@ -957,6 +1050,65 @@ static void test_tablebase_pv_extension() {
     Syzygy::clear();
 }
 
+// The score bands: evaluations below the tablebase band, tablebase results a
+// distance from the root, displayed as cp 20000 less that distance.
+static void test_tablebase_band() {
+    begin_section("tb band: tablebase results sit directly below mates");
+    EXPECT_EQ(tablebaseValue, MATE_SCORE - MAX_PLY - 1);
+    EXPECT(is_tablebase_decisive(tablebaseValue - 7) && is_decisive(tablebaseValue - 7));
+    EXPECT(is_decisive(-(MATE_SCORE - 3)) && !is_tablebase_decisive(MATE_SCORE - 3));
+    EXPECT(!is_decisive(tablebaseWinInMaxPly - 1) && !is_tablebase_decisive(20000));
+    end_section();
+
+    begin_section("tb band: a tablebase result displays as cp 20000 less its distance");
+    EXPECT(format_info_line(5, 5, 1, tablebaseValue - 5, {}, 1, 1.0, 0, 0, {})
+               .find(" score cp 19995 nodes ") != std::string::npos);
+    EXPECT(format_info_line(5, 5, 1, -(tablebaseValue - 2), {}, 1, 1.0, 0, 0, {})
+               .find(" score cp -19998 nodes ") != std::string::npos);
+    end_section();
+
+    begin_section("tb band: KBNK without tables stays an evaluation");
+    {
+        Syzygy::clear();
+        Board board;
+        board.set_fen("8/8/8/2K5/8/3k4/8/N1B5 w - - 0 1");
+        TranspositionTable tt(4);
+        std::atomic_bool stop{false};
+        SearchLimits limits;
+        limits.depth = 6;
+        auto searcher = std::make_unique<Searcher>(tt, stop);
+        const SearchResult result = searcher->search(board, limits);
+        EXPECT(result.score > 10000);
+        EXPECT(!is_decisive(result.score));
+    }
+    end_section();
+
+    // A capture into KQvK is probed in search: the root (four men) is above the
+    // fixture, the child is in it, and the win is a distance from the root.
+    begin_section("tb band: an in-search probe returns a win one ply from the root");
+    {
+        init_test_syzygy();
+        Board board;
+        board.set_fen("4k3/8/8/8/8/8/3n4/3QK3 w - - 0 1");
+        TranspositionTable tt(4);
+        std::atomic_bool stop{false};
+        std::vector<std::string> lines;
+        SearchLimits limits;
+        limits.depth = 3;
+        limits.syzygy_probe_depth = 1;
+        limits.syzygy_probe_limit = 7;
+        auto searcher = std::make_unique<Searcher>(tt, stop, [&](const std::string& info) {
+            lines.push_back(info);
+        });
+        const SearchResult result = searcher->search(board, limits);
+        EXPECT_EQ(result.score, tablebaseValue - 1);
+        EXPECT(result.tbhits > 0);
+        EXPECT(!lines.empty() && lines.back().find(" score cp 19999 ") != std::string::npos);
+        Syzygy::clear();
+    }
+    end_section();
+}
+
 static void test_search_uses_root_tablebase_metadata() {
     Syzygy::clear();
     init_test_syzygy();
@@ -983,7 +1135,7 @@ static void test_search_uses_root_tablebase_metadata() {
     SearchResult result = searcher->search(board, limits);
 
     begin_section("search syzygy: reports TB win score and hits");
-    EXPECT_EQ(result.score, tablebaseWinScore);
+    EXPECT_EQ(result.score, tablebaseValue);
     EXPECT(result.tbhits > 0);
     end_section();
 
@@ -1138,6 +1290,8 @@ int main() {
 
     std::printf("\nIllegal move hardening\n");
     test_search_result_sanitizer();
+    test_pool_line_decision();
+    test_info_line_conformance();
     test_tournament_infraction_positions();
     test_info_pv_lines_are_legal();
     test_corrupt_tt_move_is_not_searched();
@@ -1181,6 +1335,7 @@ int main() {
     test_syzygy_rule50_root_scores();
     test_tablebase_pv_extension();
     test_search_uses_root_tablebase_metadata();
+    test_tablebase_band();
 
     std::printf("\nPackaged-FEN legality sweep\n");
     test_packaged_fens_strictly_legal();

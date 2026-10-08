@@ -1,0 +1,10 @@
+extend = "common.toml"
+
+[options]
+concurrency = 15
+games-per-iteration = 30
+r-end = 0.0031
+base-ms = 3000
+increment-ms = 30
+margin-ms = 20
+engine-processes = "per-slot"

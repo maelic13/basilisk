@@ -37,6 +37,28 @@ static const int TEST_DEPTH = 6;
 // fails it.
 static const int FLOOR = 130;
 
+static void test_request_parser() {
+    begin_section("fixed-budget command forms parse exactly");
+    WacRequest request;
+    std::string error;
+    EXPECT(parse_wac_request("", request, error));
+    EXPECT(request.mode == WacMode::Depth);
+    EXPECT_EQ(request.budget, DEFAULT_WAC_DEPTH);
+    EXPECT(parse_wac_request("7", request, error));
+    EXPECT(request.mode == WacMode::Depth);
+    EXPECT_EQ(request.budget, 7);
+    EXPECT(parse_wac_request("nodes 100000", request, error));
+    EXPECT(request.mode == WacMode::Nodes);
+    EXPECT_EQ(request.budget, 100000);
+    EXPECT(parse_wac_request("depthpv 14", request, error));
+    EXPECT(request.mode == WacMode::DepthPv);
+    EXPECT_EQ(request.budget, 14);
+    EXPECT(!parse_wac_request("nodes 0", request, error));
+    EXPECT(!parse_wac_request("depthpv 101", request, error));
+    EXPECT(!parse_wac_request("nodes 100 extra", request, error));
+    end_section();
+}
+
 static void test_suite_parses_and_matcher_is_exact() {
     const std::vector<WacPosition> positions = wac_positions();
 
@@ -134,6 +156,7 @@ int main() {
     std::printf("========================\n");
 
     std::printf("\nSuite parsing and SAN matcher\n");
+    test_request_parser();
     test_suite_parses_and_matcher_is_exact();
     test_san_matcher_rejects_wrong_piece_and_destination();
 

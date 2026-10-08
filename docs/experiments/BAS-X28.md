@@ -1,0 +1,10 @@
+# BAS-X28
+
+<!-- part 1 of 1: from docs/EXPERIMENTS.md, 8. Cross-engine evidence imported from Rarog -->
+
+| Field | Value |
+|---|---|
+| ID | BAS-X28 |
+| Rarog evidence | Independent review of the 2026-09-07 fix stack (`bdb828a`..`6dd9ada`) from a session that could not build, because the 4T TT gate was running. **BAS-C05's XOR tag is sound and its dropped release/acquire pair is safe:** detection is order-independent, since any payload/tag pair from different publications reconstructs `key16 ^ fold16(p_new) ^ fold16(p_old)` and fails except on a 1/65536 fold collision, the same strength the plain partial key had. Single-thread identity is structural, not lucky -- the tag reconstructs the stored key exactly, and the empty slot still yields `0 ^ fold16(0) == 0`, preserving the `want == 0` rejection that the `flag_age` check performs. **BAS-C06 was more serious than its row implies:** the removed placeholders were three literal `EXPECT(true)` calls, and the hard-coded `D:\chess\Syzygy345` never matched this machine's `D:/chess/tablebases/syzygy3456`, so positive Syzygy coverage was zero everywhere, not merely on machines lacking the directory. **BAS-P09 carried an unrecorded risk:** MSVC's 64 KB string-literal limit forced `WAC_EPD` into a chunk array, and a chunk boundary falling inside an EPD line would silently drop a position. Verified safe -- the split is between `WAC.150` and `WAC.151`, all 300 ids are present, and `tests/test_wac.cpp` already asserts `positions.size() == 300`, so a future re-chunk cannot regress it unnoticed. |
+| Possible Basilisk implication | Reviewing a diff can settle order-independence and structural identity that a build cannot, and a build cannot settle them alone either; the two are complements. Unverified in this review because no binary could be produced: the recorded bench, sanitizer and stress results of BAS-C05/C06/P10, which stand on their own runs. |
+| Existing PLAN coverage | `src/tt.h`; `tests/test_search.cpp`; `src/wac_epd.h`; 7.1, 9.5 |

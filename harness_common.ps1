@@ -149,6 +149,19 @@ function Get-PhysicalCoreCount {
     [int]$count
 }
 
+function Get-HarnessGameCpus {
+    # Timed games never use CPU 0. Windows services most device interrupts on
+    # it, so including it creates a placement-dependent clock offset. On a
+    # hybrid CPU, use the highest efficiency class only: Colosseum's automatic
+    # placement does the same, and mixing P- and E-cores is not a matched clock.
+    $cores = @(Get-HarnessPhysicalCpus)
+    if ($cores.Count -le 1) { return $cores }
+    $highest = ($cores | Measure-Object EfficiencyClass -Maximum).Maximum
+    $preferred = if ($highest -gt 0) { @($cores | Where-Object EfficiencyClass -eq $highest) } else { $cores }
+    if ($preferred.Count -le 1) { return $preferred }
+    @($preferred | Sort-Object Cpu | Select-Object -Skip 1)
+}
+
 function Resolve-HarnessConcurrency {
     <#
         Games in flight, sized so the box is not oversubscribed.
@@ -163,20 +176,30 @@ function Resolve-HarnessConcurrency {
     param(
         [int]$Requested,
         [int]$ReservePhysicalCores = 2,
-        [int]$ThreadsPerGame = 1
+        [int]$ThreadsPerGame = 1,
+        [switch]$AllowOversubscribe
     )
 
     if ($ThreadsPerGame -lt 1) { throw "ThreadsPerGame must be >= 1." }
 
     $physical = Get-PhysicalCoreCount
-    $recommended = [Math]::Max(1, [Math]::Floor(($physical - $ReservePhysicalCores) / $ThreadsPerGame))
+    $ceiling = if ($AllowOversubscribe) {
+        [Environment]::ProcessorCount
+    } else {
+        @(Get-HarnessGameCpus).Count
+    }
+    $budgetBase = if ($AllowOversubscribe) { $ceiling } else { $ceiling }
+    # CPU 0 is already absent from the timed ceiling, so a reserve of two means
+    # one additional free game core; a reserve of one means only CPU 0.
+    $reserveFromCeiling = if ($AllowOversubscribe) { $ReservePhysicalCores } else { [Math]::Max(0, $ReservePhysicalCores - 1) }
+    $budget = [Math]::Max(1, $budgetBase - $reserveFromCeiling)
+    $recommended = [Math]::Max(1, [Math]::Floor($budget / $ThreadsPerGame))
     $resolved = if ($Requested -gt 0) { $Requested } else { $recommended }
 
     $coresNeeded = $resolved * $ThreadsPerGame
-    if ($coresNeeded -gt $physical) {
-        throw "Concurrency $resolved x Threads $ThreadsPerGame = $coresNeeded engine threads " +
-              "exceeds the detected $physical physical cores. Oversubscription halves NPS and " +
-              "changes the depth reached, which invalidates the match."
+    if ($coresNeeded -gt $ceiling) {
+        $kind = if ($AllowOversubscribe) { "logical processors" } else { "game cores (physical cores except CPU 0)" }
+        throw "Concurrency $resolved x Threads $ThreadsPerGame = $coresNeeded exceeds the detected $ceiling $kind."
     }
 
     [pscustomobject]@{
@@ -189,13 +212,69 @@ function Resolve-HarnessConcurrency {
 }
 
 function Get-HarnessAffinityCpuList {
-    param([Parameter(Mandatory)][int]$Concurrency)
+    param([Parameter(Mandatory)][int]$Concurrency, [int]$ThreadsPerGame = 1)
 
-    $cores = @(Get-HarnessPhysicalCpus)
-    if ($Concurrency -gt $cores.Count) {
-        throw "Concurrency $Concurrency exceeds the detected $($cores.Count) physical cores."
+    $cores = @(Get-HarnessGameCpus)
+    $needed = $Concurrency * $ThreadsPerGame
+    if ($needed -gt $cores.Count) {
+        throw "Concurrency $Concurrency x Threads $ThreadsPerGame = $needed exceeds $($cores.Count) game cores (physical cores except CPU 0)."
     }
-    (($cores | Select-Object -First $Concurrency).Cpu -join ',')
+    (($cores | Select-Object -First $needed).Cpu -join ',')
+}
+
+function Assert-HarnessResolvedPlacement {
+    <# Verify that a non-ponder match received one physical core per engine thread. #>
+    param(
+        [Parameter(Mandatory)][object]$Resolved,
+        [Parameter(Mandatory)][int]$ExpectedConcurrency,
+        [Parameter(Mandatory)][int]$ThreadsPerGame
+    )
+
+    if ([int]$Resolved.execution.concurrency -ne $ExpectedConcurrency) {
+        throw "concurrency is $($Resolved.execution.concurrency), expected $ExpectedConcurrency"
+    }
+    if ("$($Resolved.execution.placement_policy.mode)" -ne 'auto') {
+        throw 'placement is not auto'
+    }
+    if ([int]$Resolved.execution.placement_policy.headroom_physical_cores -lt 1) {
+        throw 'placement leaves no physical-core headroom'
+    }
+    if ("$($Resolved.execution.allocation.mode)" -ne 'shared') {
+        throw "allocation mode is '$($Resolved.execution.allocation.mode)', expected shared"
+    }
+    if ([int]$Resolved.execution.allocation.cores_per_game -ne $ThreadsPerGame) {
+        throw "cores per game is $($Resolved.execution.allocation.cores_per_game), expected $ThreadsPerGame for Threads=$ThreadsPerGame"
+    }
+
+    $slots = @($Resolved.execution.slots)
+    if ($slots.Count -ne $ExpectedConcurrency) {
+        throw "resolved $($slots.Count) placement slots, expected $ExpectedConcurrency"
+    }
+    $used = [System.Collections.Generic.HashSet[string]]::new()
+    foreach ($slot in $slots) {
+        if (@($slot.asymmetries).Count) {
+            throw "slot $($slot.slot_index) reports placement asymmetry: $($slot.asymmetries -join ', ')"
+        }
+        foreach ($side in @('engine_a', 'engine_b')) {
+            $allocation = $slot.$side
+            if ("$($allocation.allocation.mode)" -ne 'enforced') {
+                throw "slot $($slot.slot_index) $side placement is not enforced"
+            }
+            if ([int]$allocation.physical_core_count -ne $ThreadsPerGame) {
+                throw "slot $($slot.slot_index) $side has $($allocation.physical_core_count) physical cores, expected $ThreadsPerGame"
+            }
+        }
+        $aCpus = @($slot.engine_a.allocation.cpus | ForEach-Object { "$($_.group):$($_.number)" })
+        $bCpus = @($slot.engine_b.allocation.cpus | ForEach-Object { "$($_.group):$($_.number)" })
+        if (($aCpus -join ',') -ne ($bCpus -join ',')) {
+            throw "slot $($slot.slot_index) sides do not share the same non-ponder CPU set"
+        }
+        foreach ($cpu in $aCpus) {
+            if (-not $used.Add($cpu)) {
+                throw "logical CPU $cpu is reused across game slots"
+            }
+        }
+    }
 }
 
 function New-HarnessSeed {
@@ -203,6 +282,357 @@ function New-HarnessSeed {
 
     if ($Requested -ne 0) { return $Requested }
     Get-Random -Minimum 1 -Maximum ([int]::MaxValue)
+}
+
+function Get-HarnessSha256 {
+    param([Parameter(Mandatory)][string]$Path)
+    (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash
+}
+
+function Get-EngineUciOptions {
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [int]$TimeoutMs = 15000,
+        [switch]$Detailed
+    )
+
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { throw "Engine not found: $Path" }
+    $full = (Resolve-Path -LiteralPath $Path).Path
+    $psi = [System.Diagnostics.ProcessStartInfo]::new()
+    $psi.FileName = $full
+    $psi.WorkingDirectory = Split-Path -Parent $full
+    $psi.RedirectStandardInput = $true
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+    $psi.UseShellExecute = $false
+    $proc = [System.Diagnostics.Process]::Start($psi)
+    try {
+        $stdout = $proc.StandardOutput.ReadToEndAsync()
+        $stderr = $proc.StandardError.ReadToEndAsync()
+        $proc.StandardInput.WriteLine("uci")
+        $proc.StandardInput.WriteLine("quit")
+        $proc.StandardInput.Close()
+        if (-not $proc.WaitForExit($TimeoutMs)) {
+            throw "Engine '$Path' did not answer 'uci' within ${TimeoutMs} ms."
+        }
+        $text = $stdout.Result
+        $errorText = $stderr.Result
+        if ($proc.ExitCode -ne 0) {
+            throw "Engine '$Path' exited $($proc.ExitCode) during UCI discovery: $errorText"
+        }
+    } finally {
+        if (-not $proc.HasExited) { $proc.Kill($true) }
+        $proc.Dispose()
+    }
+    if ($text -notmatch '(?m)^\s*uciok\s*$') {
+        throw "Engine '$Path' did not emit 'uciok'; it is not a working UCI engine."
+    }
+
+    $options = [System.Collections.Generic.List[object]]::new()
+    foreach ($line in ($text -split "`r?`n")) {
+        $match = [regex]::Match($line, '^\s*option\s+name\s+(?<name>.+?)\s+type\s+(?<type>\S+)(?<tail>.*)$')
+        if (-not $match.Success) { continue }
+        $tail = $match.Groups['tail'].Value
+        $defaultMatch = [regex]::Match($tail, '(?:^|\s)default\s+(?<value>\S+)')
+        $minMatch = [regex]::Match($tail, '(?:^|\s)min\s+(?<value>-?\d+)')
+        $maxMatch = [regex]::Match($tail, '(?:^|\s)max\s+(?<value>-?\d+)')
+        $options.Add([pscustomobject]@{
+            Name = $match.Groups['name'].Value.Trim()
+            Type = $match.Groups['type'].Value
+            Default = if ($defaultMatch.Success) { $defaultMatch.Groups['value'].Value } else { $null }
+            Min = if ($minMatch.Success) { [int64]$minMatch.Groups['value'].Value } else { $null }
+            Max = if ($maxMatch.Success) { [int64]$maxMatch.Groups['value'].Value } else { $null }
+            Raw = $line.Trim()
+        })
+    }
+    if ($Detailed) { $options.ToArray(); return }
+    $options.Name
+}
+
+function Assert-AdvertisedOptions {
+    param([object[]]$Advertised, [string[]]$Wanted, [string]$Label)
+    if (-not $Wanted -or @($Wanted).Count -eq 0) { return }
+    $normalize = { param($value) ($value -replace '\s+', ' ').Trim().ToLowerInvariant() }
+    $have = @($Advertised | ForEach-Object { & $normalize $_.Name })
+    $missing = @($Wanted | Where-Object { $_ } |
+        ForEach-Object { ($_ -split '=', 2)[0] } |
+        Where-Object { $have -notcontains (& $normalize $_) })
+    if ($missing.Count -gt 0) {
+        throw "$Label does not advertise: $($missing -join ', '). Rebuild it before measuring; the runner would otherwise use defaults."
+    }
+}
+
+function Read-BasiliskBuildManifest {
+    param([Parameter(Mandatory)][string]$Path)
+    $fields = @{}
+    foreach ($line in Get-Content -LiteralPath $Path) {
+        if ($line -match '^\s*(?<key>[A-Za-z0-9_]+):\s*(?<value>.*)$') {
+            $fields[$Matches.key] = $Matches.value.Trim()
+        }
+    }
+    [pscustomobject]@{
+        Path = $Path
+        SchemaVersion = $fields.schema_version
+        Engine = $fields.engine
+        GitSha = $fields.revision
+        DirtyDiff = $fields.dirty_diff
+        Preset = $fields.preset
+        Flavor = $fields.flavor
+        ArmOption = $fields.arm_option
+        ArmState = $fields.arm_state
+        Compiler = $fields.compiler
+        Verification = $fields.verification
+        Bench = $fields.bench
+        BinarySha256 = $fields.binary_sha256
+    }
+}
+
+function Assert-EngineProvenance {
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][string]$Label,
+        [switch]$AllowDirtyTree,
+        [string]$ExpectRevision = "",
+        [long]$ExpectBench = -1
+    )
+
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { throw "Engine not found: $Path" }
+    $manifestPath = [System.IO.Path]::ChangeExtension($Path, ".manifest.txt")
+    if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
+        throw "Missing engine manifest: $manifestPath. Rebuild with tools/build_test.ps1."
+    }
+    $manifest = Read-BasiliskBuildManifest -Path $manifestPath
+    foreach ($field in @('GitSha', 'DirtyDiff', 'Flavor', 'Compiler', 'Verification', 'Bench', 'BinarySha256')) {
+        if (-not $manifest.$field) { throw "Manifest for $Label has no required '$field' field; rebuild with tools/build_test.ps1." }
+    }
+    if ($manifest.SchemaVersion -eq '2') {
+        foreach ($field in @('ArmOption', 'ArmState')) {
+            if (-not $manifest.$field) { throw "Schema-2 manifest for $Label has no required '$field' field; rebuild with tools/build_test.ps1." }
+        }
+    }
+    $actual = Get-HarnessSha256 $Path
+    if ($actual -ne $manifest.BinarySha256) {
+        throw "PROVENANCE MISMATCH - $Label sidecar SHA-256 is $($manifest.BinarySha256), selected binary is $actual."
+    }
+    if ($manifest.Verification -ne 'bench') {
+        throw "Manifest for $Label records '$($manifest.Verification)', not bench verification."
+    }
+    if ($manifest.DirtyDiff -ne 'clean' -and -not $AllowDirtyTree) {
+        throw "DIRTY TREE - $Label was built from uncommitted changes ($($manifest.DirtyDiff)); commit and rebuild."
+    }
+    if ($manifest.DirtyDiff -ne 'clean') {
+        Write-Warning "$Label was built from a dirty tree and -AllowDirtyTree was passed."
+    }
+    if ($ExpectRevision -and $manifest.GitSha -notlike "$ExpectRevision*") {
+        throw "WRONG REVISION - $Label was built at $($manifest.GitSha), not $ExpectRevision."
+    }
+    if ($ExpectBench -ge 0 -and [long]$manifest.Bench -ne $ExpectBench) {
+        throw "WRONG FINGERPRINT - $Label benched $($manifest.Bench), not $ExpectBench."
+    }
+    $manifest
+}
+
+function Assert-EngineArmEquality {
+    param(
+        [Parameter(Mandatory)][object]$ManifestA,
+        [Parameter(Mandatory)][object]$ManifestB,
+        [Parameter(Mandatory)][string]$LabelA,
+        [Parameter(Mandatory)][string]$LabelB
+    )
+    if ($ManifestA.Flavor -ne $ManifestB.Flavor) {
+        throw "BUILD FLAVOR MISMATCH - ${LabelA}: $($ManifestA.Flavor); ${LabelB}: $($ManifestB.Flavor)."
+    }
+    if ($ManifestA.ArmOption -ne $ManifestB.ArmOption) {
+        throw "UMBRELLA OPTION MISMATCH - ${LabelA}: $($ManifestA.ArmOption); ${LabelB}: $($ManifestB.ArmOption)."
+    }
+    if ($ManifestA.Compiler -ne $ManifestB.Compiler) {
+        throw "COMPILER MISMATCH - ${LabelA}: $($ManifestA.Compiler); ${LabelB}: $($ManifestB.Compiler)."
+    }
+}
+
+function Get-HarnessBusyProcess {
+    $patterns = @('basilisk*', 'rarog*', 'stockfish*', 'fastchess*', 'colosseum-cli*', 'cutechess*', 'clang*', 'cmake*', 'ninja*')
+    $self = $PID
+    @(Get-Process -ErrorAction SilentlyContinue | Where-Object {
+        if ($_.Id -eq $self) { return $false }
+        $name = $_.ProcessName.ToLowerInvariant()
+        foreach ($pattern in $patterns) { if ($name -like $pattern) { return $true } }
+        $false
+    })
+}
+
+function Get-HarnessHostBusyPercent {
+    param([double]$WindowSeconds = 2.0, [double]$SettleSeconds = 1.0)
+    if (-not $script:HarnessIsWindows) { return $null }
+    $cpus = [Environment]::ProcessorCount
+    $read = {
+        $raw = Get-CimInstance Win32_PerfRawData_PerfOS_Processor -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -eq '_Total' } | Select-Object -First 1
+        if (-not $raw) { return $null }
+        [pscustomobject]@{
+            Idle = [double]$raw.PercentProcessorTime
+            Time = [double]$raw.Timestamp_Sys100NS
+            Self = (Get-Process -Id $PID).TotalProcessorTime.TotalSeconds
+        }
+    }
+    Start-Sleep -Milliseconds ([int](1000 * $SettleSeconds))
+    $first = & $read
+    Start-Sleep -Milliseconds ([int](1000 * $WindowSeconds))
+    $second = & $read
+    if (-not $first -or -not $second) { return $null }
+    $elapsed = $second.Time - $first.Time
+    if ($elapsed -le 0) { return $null }
+    $busy = 100.0 * (1.0 - ($second.Idle - $first.Idle) / $elapsed)
+    $self = 100.0 * ($second.Self - $first.Self) / ($elapsed / 1e7) / $cpus
+    [Math]::Max(0.0, $busy - $self)
+}
+
+function Assert-HarnessHostIdle {
+    param([double]$MaxBusyPercent = 15, [switch]$Allow, [switch]$Quiet)
+    $busy = @(Get-HarnessBusyProcess)
+    $percent = Get-HarnessHostBusyPercent
+    $reasons = @()
+    if ($busy.Count -gt 0) {
+        $reasons += "engine, harness or build processes are running: " + (($busy | ForEach-Object { "$($_.ProcessName) ($($_.Id))" }) -join ', ')
+    }
+    if ($null -ne $percent -and $percent -gt $MaxBusyPercent) {
+        $reasons += ("host CPU is {0:N0}%, over the {1:N0}% ceiling" -f $percent, $MaxBusyPercent)
+    }
+    $state = [pscustomobject]@{ BusyPercent = $percent; Reasons = $reasons; Waived = ([bool]$Allow -and $reasons.Count -gt 0) }
+    if ($reasons.Count -eq 0) {
+        if (-not $Quiet) { Write-Host "  Host idle; no engine, harness or build process." }
+        return $state
+    }
+    if ($Allow) { Write-Warning ("HOST NOT IDLE and waived: " + ($reasons -join '; ')); return $state }
+    throw "HOST NOT IDLE - $($reasons -join '; '). Stop the other work before measuring."
+}
+
+function Get-ColosseumPin {
+    param([Parameter(Mandatory)][string]$PinPath)
+    if (-not (Test-Path -LiteralPath $PinPath -PathType Leaf)) { throw "Colosseum pin not found: $PinPath" }
+    $pin = Get-Content -LiteralPath $PinPath -Raw | ConvertFrom-Json
+    if (-not $pin.revision -or $pin.sha256 -notmatch '^[0-9a-fA-F]{64}$') { throw "Malformed Colosseum pin: $PinPath" }
+    $pin
+}
+
+function Assert-ColosseumCli {
+    param([Parameter(Mandatory)][string]$Path, [Parameter(Mandatory)][string]$PinPath)
+    $pin = Get-ColosseumPin -PinPath $PinPath
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        throw "Colosseum CLI not found at '$Path'; run tools/setup_tools.ps1."
+    }
+    $full = (Resolve-Path -LiteralPath $Path).Path
+    $sha = Get-HarnessSha256 $full
+    if ($sha -ne $pin.sha256) {
+        throw "COLOSSEUM PIN MISMATCH - staged $sha; pinned $($pin.sha256) at $($pin.revision)."
+    }
+    $version = "$(& $full --version 2>&1 | Select-Object -First 1)".Trim()
+    if ($pin.version -and $version -ne $pin.version) { throw "Colosseum CLI reports '$version', pin requires '$($pin.version)'." }
+    [pscustomobject]@{ Path = $full; Sha256 = $sha; Version = $version; Pin = $pin }
+}
+
+function Invoke-ColosseumStreamed {
+    # Runs colosseum-cli and passes its output through as it arrives: the live
+    # progress blocks come on stderr, the final summary on stdout. Both are also
+    # returned whole, so the caller writes the same log as before. Returns
+    # @{ Process; ExitCode; Stdout; Stderr }; the caller owns the process's
+    # interruption handling through the Process handle.
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][string[]]$Arguments,
+        [Parameter(Mandatory)][hashtable]$State
+    )
+    $start = [Diagnostics.ProcessStartInfo]::new()
+    $start.FileName = $Path
+    $start.UseShellExecute = $false
+    $start.RedirectStandardOutput = $true
+    $start.RedirectStandardError = $true
+    foreach ($argument in $Arguments) { $start.ArgumentList.Add($argument) }
+    $process = [Diagnostics.Process]::Start($start)
+    $State.Process = $process
+    $out = [System.Text.StringBuilder]::new()
+    $err = [System.Text.StringBuilder]::new()
+    $outTask = $process.StandardOutput.ReadLineAsync()
+    $errTask = $process.StandardError.ReadLineAsync()
+    while ($outTask -or $errTask) {
+        $pending = [System.Threading.Tasks.Task[]]@(@($outTask, $errTask) | Where-Object { $_ })
+        [void][System.Threading.Tasks.Task]::WaitAny($pending)
+        if ($outTask -and $outTask.IsCompleted) {
+            $line = $outTask.GetAwaiter().GetResult()
+            if ($null -eq $line) { $outTask = $null }
+            else { Write-Host $line; [void]$out.AppendLine($line); $outTask = $process.StandardOutput.ReadLineAsync() }
+        }
+        if ($errTask -and $errTask.IsCompleted) {
+            $line = $errTask.GetAwaiter().GetResult()
+            if ($null -eq $line) { $errTask = $null }
+            else { Write-Host $line; [void]$err.AppendLine($line); $errTask = $process.StandardError.ReadLineAsync() }
+        }
+    }
+    $process.WaitForExit()
+    @{ Process = $process; ExitCode = $process.ExitCode; Stdout = $out.ToString(); Stderr = $err.ToString() }
+}
+
+function Get-ColosseumRunStatus {
+    param([Parameter(Mandatory)][string]$CliPath, [Parameter(Mandatory)][string]$Dir)
+    $text = & $CliPath status $Dir --json 2>$null
+    if ($LASTEXITCODE -ne 0) { throw "colosseum-cli status failed on $Dir." }
+    try { ($text -join "`n") | ConvertFrom-Json } catch { throw "colosseum-cli status did not return JSON for $Dir." }
+}
+
+function Resolve-ColosseumExit {
+    param([Parameter(Mandatory)][string]$Mode, [Parameter(Mandatory)][int]$ExitCode)
+    $outcomes = switch ($Mode) {
+        'sprt' { @{ 0 = 'H1 accepted'; 1 = 'H0 accepted'; 4 = 'cap reached, inconclusive' } }
+        'calibrate' { @{ 0 = 'pass'; 1 = 'fail'; 4 = 'inconclusive' } }
+        default { @{ 0 = 'completed' } }
+    }
+    $invalid = if ($Mode -in @('sprt', 'calibrate')) { 5 } else { 1 }
+    if ($outcomes.ContainsKey($ExitCode)) { return [pscustomobject]@{ Kind = 'outcome'; Verdict = $outcomes[$ExitCode] } }
+    $kind = switch ($ExitCode) { $invalid { 'invalid' }; 6 { 'cancelled' }; 2 { 'refused' }; default { 'error' } }
+    [pscustomobject]@{ Kind = $kind; Verdict = $null }
+}
+
+function Get-ColosseumRunFaults {
+    param([Parameter(Mandatory)][object]$Status)
+    $checkpoint = $Status.durable.checkpoint
+    if ($null -eq $checkpoint) { throw 'FAULT COUNTERS UNREADABLE - run status has no checkpoint.' }
+    $faults = $checkpoint.faults
+    if ($null -ne $faults) {
+        foreach ($field in @('engine_a', 'engine_b', 'time_losses_a', 'time_losses_b', 'infrastructure')) {
+            if ($null -eq $faults.$field) { throw "FAULT COUNTERS UNREADABLE - missing '$field'." }
+        }
+        $time = [int]$faults.time_losses_a + [int]$faults.time_losses_b
+        $other = ([int]$faults.engine_a - [int]$faults.time_losses_a) +
+                 ([int]$faults.engine_b - [int]$faults.time_losses_b) + [int]$faults.infrastructure
+        return [pscustomobject]@{ Split = $true; TimeLosses = $time; Other = $other }
+    }
+    if ($null -ne $checkpoint.engine_faults) {
+        return [pscustomobject]@{ Split = $false; TimeLosses = $null; Other = [int]$checkpoint.engine_faults }
+    }
+    throw 'FAULT COUNTERS UNREADABLE - no supported fault count is present.'
+}
+
+function Assert-ColosseumRunFaults {
+    param(
+        [Parameter(Mandatory)][object]$Status,
+        [Parameter(Mandatory)][int]$ScoredGames,
+        [Parameter(Mandatory)][double]$TimeLossRateCeiling,
+        [string]$Dir = ''
+    )
+    $faults = Get-ColosseumRunFaults -Status $Status
+    if (-not $faults.Split) {
+        if ($faults.Other -gt 0) { throw "Run has $($faults.Other) engine fault(s); see $Dir." }
+        return $faults
+    }
+    if ($faults.Other -gt 0) { throw "Run has $($faults.Other) non-time engine fault(s); see $Dir." }
+    if ($faults.TimeLosses -gt 0) {
+        if ($ScoredGames -le 0) { throw "Run has time losses but no scored game; see $Dir." }
+        $rate = 100.0 * $faults.TimeLosses / $ScoredGames
+        if ($rate -gt $TimeLossRateCeiling) {
+            throw ("Time-loss rate {0:N3}% exceeds the {1}% ceiling; see {2}." -f $rate, $TimeLossRateCeiling, $Dir)
+        }
+    }
+    $faults
 }
 
 # ── weather-factory overlay (Phase 9.1) ──────────────────────────────────────

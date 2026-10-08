@@ -2,25 +2,49 @@
 
 These instructions apply to every agent working in this repository. The goal
 is the strongest possible correct chess engine, developed through reproducible
-evidence rather than intuition alone.
+evidence rather than intuition alone. `GUIDE.md` says what to work on; the
+relevant section of `docs/PLAN.md` says why; `docs/PROCESS.md` holds the
+procedures these rules assume; `docs/DESIGN.md` holds what must stay true of
+the engine. Each
+rule is stated once: here if every task needs it, otherwise in the one
+`agents/` file that owns it.
+
+## Rules by task
+
+This file is always in force. Before starting, read the `agents/` files the
+task needs; most leaves need more than one, and closing any leaf needs
+`agents/records.md`.
+
+| Task | Read |
+|---|---|
+| Research, diagnosis, experiment design, reviews; `R2`/`R3` leaves; proposing or changing a mechanism | `agents/research.md` |
+| Engine or tool code; `I1`/`I2` leaves | `agents/implementation.md` (plus `agents/research.md` *Before implementing a mechanism* for any playing change) |
+| Builds to measure, bench/NPS/counters, games, SPRT, SPSA, gauntlets, datagen, fits, long runs, returned artifacts; `V` leaves | `agents/measurement.md` |
+| PLAN, GUIDE, HISTORY, EXPERIMENTS or `analysis/` edits, evidence placement, tags; `M` leaves; closing any leaf | `agents/records.md` |
 
 ## Unit of work
 
-- Treat PLAN.md as the detailed roadmap and GUIDE.md as its checklist mirror.
+- Treat `docs/PLAN.md` as the roadmap: every step's title, class, status and detail
+  live there. GUIDE.md is the maintainer's overview; its step list is
+  generated from PLAN.
 - First classify the requested work as research/diagnosis, experiment design,
   implementation, deterministic qualification, performance qualification,
-  playing-strength gate, or documentation/provenance. Not every roadmap leaf
-  asks for code.
-- "Do the next step" means handle only the earliest unchecked leaf item in
-  roadmap order. If a numbered step has lettered substeps, the next unit is the
-  earliest unchecked substep, not the whole parent step. For example, when
-  6.0.a is first, "next step" means 6.0.a only.
-- Do not start later substeps, combine adjacent steps, or pull forward useful
-  side work. Mark a parent complete only after all its substeps are complete.
-- Finish the requested leaf, verify it proportionately, update PLAN.md and
-  GUIDE.md together, commit it, report briefly, name the next unchecked leaf,
-  and stop for the maintainer's next command.
-- Run python tools/diag/check_roadmap.py whenever either roadmap file changes.
+  playing-strength gate, or documentation/provenance. A roadmap leaf is not
+  automatically an instruction to write code. PLAN owns each leaf's workflow
+  state and capability class; GUIDE maps classes to models.
+- "Do the next step" means handle only the earliest unchecked leaf in
+  roadmap order. If a step has sub-steps, the next unit is the earliest
+  unchecked sub-step, not the whole parent step: when A.2 is first, "next
+  step" means A.2.1 only. A leaf marked `(ANY TIME)` is done between leaves
+  when the maintainer asks for it, and always before its stated deadline.
+- Do not start later steps, combine adjacent steps, or pull forward useful
+  side work. Mark a parent complete only after all its sub-steps are complete.
+- Finish the requested leaf, verify it proportionately, record it in `docs/PLAN.md`,
+  regenerate GUIDE.md, commit both, report briefly, name the next unchecked
+  leaf, and stop for the maintainer's next command.
+- After any PLAN change run `python tools/diag/check_roadmap.py --write-guide`;
+  run `python tools/diag/check_roadmap.py` whenever PLAN or GUIDE changes. It
+  fails when GUIDE's generated block is stale.
 
 ## Workflow states and ownership
 
@@ -28,120 +52,48 @@ The normal playing-change path is:
 
 `RESEARCH -> READY_FOR_IMPLEMENTATION -> IMPLEMENTED -> LOCAL_QUALIFIED -> GAME_GATE -> CLOSED`
 
-Not every task uses every state. Documentation may close after implementation;
-correctness and behavior-neutral performance work use their relevant proof or
-performance gate; research may close with `NO_CHANGE` or
+Not every task uses every state. Documentation may close after
+implementation; correctness and behavior-neutral performance work use their
+relevant proof or performance gate; research may close with `NO_CHANGE` or
 `NOT_WORTH_PURSUING`. A playing-strength change normally may not bypass
 `GAME_GATE`.
 
 `READY_FOR_IMPLEMENTATION` is the hard boundary. It means the measured defect,
 intended mechanism, local interactions, exact semantics, invariants,
 instrumentation, falsifier, cheap qualification and deciding gate are concrete
-enough that implementation does not need to invent the chess research. If a
-material premise fails during implementation, preserve useful instrumentation,
-record the contradiction and return the leaf to `RESEARCH`; do not silently
-redesign or rescue it with adjacent heuristics.
+enough that implementation does not need to invent the chess research.
 
-The implementation owner may make ordinary local engineering choices: use
-idiomatic structure, perform necessary local refactoring, compile and debug,
-write focused tests/instrumentation and run cheap deterministic qualification.
-That autonomy does not permit changing the hypothesis, broadening the
-mechanism, tuning unrelated constants, importing adjacent donor behavior or
-changing experimental meaning after exposure.
-
-## Long-running work
-
-- Agents may run short builds, benches, focused tests and targeted diagnostics
-  when they are the appropriate verification for the current leaf.
-- Do not start long SPRTs, SPSAs, tournaments, large datagen jobs, long fits or
-  comparable machine-saturating work unless the maintainer explicitly asks the
-  agent to run it.
-- For a required long run, prepare and validate the runnable state, commit that
-  state with a clear Prepare <step> subject, provide exactly one copy-pasteable
-  single-line command, and stop. Keep the checklist item open.
-- After the maintainer returns the artifacts, analyze them, apply the
-  pre-registered verdict, finish the checklist/docs, commit with a clear
-  Complete <step> subject, report the outcome and next leaf, then stop.
-- Respect temporary resource reservations stated in the conversation. Do not
-  compete with an active engine job merely because a command is normally short.
-
-## Before implementing a mechanism
-
-- Read `DESIGN.md` first. It holds the engine invariants, the score and mate
-  semantics, the TT publication contract and the measurement doctrine.
-- Answer these four questions **in the report, before writing the diff**:
-  1. What mechanism should produce strength? Name the chess or search property.
-     "The reference engine has it" is not a mechanism.
-  2. What existing features interact with it? Name them from this codebase with
-     file and line. "None" is a claim that has to be defended.
-  3. What engine invariants must remain true? From `DESIGN.md` section 3, plus
-     any the change touches.
-  4. What experiment would falsify the idea? Register it, with its verdict rule,
-     before running it. An experiment that cannot fail is not evidence.
-- Chess-engine techniques are not independent parts. Two engines can both carry
-  LMR, correction history, SEE pruning and singular extensions and still need
-  different thresholds, because the whole selectivity stack differs. Porting a
-  named function is not implementing a mechanism.
-- Consult `EXPERIMENTS.md` before answering question 1. A closed mechanism may
-  not be re-proposed without meeting its recorded retry trigger.
-- For a substantial playing change, also state the measured defect/opportunity,
-  evidence supporting it, credible competing explanations, the cheapest test
-  capable of killing the leading hypothesis, and the exact condition for
-  `READY_FOR_IMPLEMENTATION`. A plausible idea is not sufficient evidence.
-- Prefer interaction-first analysis. Check for duplicate signals, calibration
-  around another feature, evaluation/search population shifts, ordering-to-
-  pruning feedback, TT amplification/masking, rule-50/repetition/mate effects,
-  promotion/material-shed closure, and diagnostic/deployment budget mismatch.
-  When an important interaction is cheaply separable, prefer a bounded
-  baseline/A/B/A+B screen; this is not a demand to factorial-test every change.
-- **Recommend before you document.** When research reaches a decision the
-  maintainer is present to make, the first output is a short recommendation
-  with its evidence and its main counter-argument -- not a packet. Write the
-  full `analysis/` packet once the direction is chosen, or when the maintainer
-  asks for it, or when the leaf will be handed off and returned to later. A
-  packet written to answer a question that is about to be settled in one
-  sentence spends the maintainer's clock on an artifact nobody needed yet.
-- Price the experiment before substantial work: maintainer time, agent effort,
-  CPU/game budget, implementation complexity and future maintenance burden.
-  Prefer cheap discriminating evidence to elaborate implementation of an
-  uncertain idea.
-
-## Refutation and refusal
-
-Refusing to build something, and refuting a claim the roadmap already believes,
-are **deliverables of equal standing to a diff**. An agent that only ever
-implements is failing at half the job.
-
-- **Say "this does not fit; do not implement it yet."** When the four questions
-  do not come out clean, the correct output is the reasoned refusal, not a
-  best-effort implementation with caveats. A leaf may legitimately close as
-  "not implemented, and here is why" -- record it in `EXPERIMENTS.md` with a
-  retry trigger and mark the leaf accordingly.
-- **Challenge the plan when the evidence does not support it.** PLAN and
-  EXPERIMENTS are the maintainer's working beliefs, not settled fact. An
-  unmeasured claim carried in the roadmap is a target, not an authority. When a
-  step's stated premise is wrong, say so, measure it, and correct the file --
-  BAS-E53 exists because a load-bearing claim in 6.5.a had never been measured
-  and turned out to be false.
-- **Report the cost even when the change works.** A candidate that does what it
-  claims and costs +79% bench nodes is a rejection, not a trade-off to bury in
-  a report's tail.
-- **A refusal must be falsifiable too.** State what evidence would change it,
-  and what the cheapest experiment producing that evidence would be. "It feels
-  risky" is not a refusal; "this violates the mate-band invariant at
-  `eval.cpp:131`, and the check that would settle it is X" is.
-- **Do not soften a negative result to match what was hoped for**, and do not
-  manufacture a disagreement to look rigorous. Both are failures of the same
-  duty.
+- **Research owns** the causal question, competing hypotheses, interaction
+  map, prospective prediction, falsifiers, the meaning of each experiment and
+  the readiness decision. Prefer cheap discriminating evidence to a
+  sophisticated implementation of an uncertain idea.
+- **Implementation owns** ordinary engineering: idiomatic C++ structure,
+  necessary local refactoring, focused instrumentation and tests,
+  compilation, debugging and cheap deterministic qualification. The
+  maintainer need not prescribe it.
+- **Implementation does not** replace the hypothesis, broaden the mechanism,
+  add adjacent heuristics, tune unrelated constants, port extra donor
+  behaviour, relax a correctness test, change the experiment after exposure,
+  or rescue a weak candidate by changing its neighbours.
+- **A false premise returns the leaf.** Keep useful instrumentation, record
+  the contradiction with its evidence and options in the leaf's packet, and
+  return the leaf to `RESEARCH`. The researcher answers with a numbered
+  research amendment in the same packet; implementation resumes only on the
+  amended contract. This is PLAN §2's research–implementation loop, and a
+  return is the method working, not failing.
+- **Review is independent.** A cluster implementation is accepted by a
+  reviewer in a separate session who reproduces the fingerprints and tests
+  and checks the code against the handoff; the acceptance is recorded before
+  diagnostics start.
 
 ## Capability classes
 
-Open PLAN and GUIDE leaves may carry an advisory capability tag:
+Open PLAN leaves carry a capability tag, which GUIDE shows:
 
 | Class | Use |
 |---|---|
 | `R3` | frontier research; unresolved causal or architecture work |
-| `R2` | bounded but correctness-sensitive architecture/reasoning |
+| `R2` | bounded but correctness-sensitive architecture/reasoning, reviews |
 | `I2` | difficult implementation requiring strong reasoning |
 | `I1` | well-specified implementation |
 | `M` | mechanical documentation, manifests or provenance |
@@ -149,7 +101,9 @@ Open PLAN and GUIDE leaves may carry an advisory capability tag:
 
 Classes are routing hints, not permission, state or evidence. The editable
 mapping from classes to currently available models belongs only in GUIDE.md.
-Completed historical model tags may remain unchanged.
+Do not silently downgrade a class; if scope or uncertainty calls for
+escalation, say why, change the PLAN tag and regenerate GUIDE. Completed historical
+model tags may remain unchanged.
 
 ## Scope and discoveries
 
@@ -168,49 +122,29 @@ Completed historical model tags may remain unchanged.
 - Call out suspicious or incorrect chess behavior even when it is outside the
   current leaf, but do not silently expand scope to repair it.
 
-## Verification and acceptance
+## Verification
 
-- Before closing an experimental leaf, audit whether the intervention isolates
-  the claimed variable. Check especially for offset-versus-slope coupling,
-  multiple parameters changing together, corpus/label policy changing
-  together, search-policy changes that alter the sampled distribution, and
-  candidate selection being evaluated again on the same data without a
-  clearly reported held-out verdict.
-- Report an experimental-design confound or unresolved alternative explanation
-  immediately. Do not bury it in a later report, call the step complete, or
-  advance to confirmation while it can materially change the conclusion. If
-  discovered after closure, reopen the affected leaf and correct it first.
+Almost every agent mistake in these projects has been a check that did not
+check what it was thought to check: a stale binary measured, one record parsed
+instead of forty, an exit code read from the wrong end of a pipe, a
+fixed-depth test chosen because it provably could not be affected. **Verify
+mechanically, never by eyeballing, and never by assuming a tool did what its
+name says.**
+
 - Match verification cost to risk. Do not run the entire suite reflexively
   when a syntax check or focused test proves the current change; do not skip a
   bench, game gate or chess-specific test when that is what acceptance needs.
-- A behavior-neutral engine change normally needs focused tests and exact bench
-  identity. Memory, state or concurrency work also needs the relevant
-  sanitizer/stress coverage.
-- Exact bench identity is a necessary deterministic fingerprint, not proof of
-  behavioral identity. Evaluation activation, terminal logic, time handling
-  and other path-dependent changes can alter play while leaving bench equal;
-  apply their domain-specific tests and registered game gates regardless.
-- A playing change needs deterministic regression evidence, the relevant
-  tactical/endgame tests, bench accounting and an appropriately registered
-  strength gate. Reasoning, node counts and static fit loss do not prove Elo.
-- Build the actual candidate configuration that will be tested. Keep compiler,
-  PGO, binary, book, seed, time control, hash, threads, affinity, adjudication
-  and data provenance comparable and recorded.
-- Score-based game adjudication is off by default. Use it only for an explicitly
-  registered compatibility experiment.
-- Never accept a candidate that fails a hard correctness, mate, rule-50,
-  tablebase or time-forfeit gate even if its strength estimate is positive.
-- Consult EXPERIMENTS.md before retrying a mechanism and record completed
-  experimental evidence there without rewriting historical identifiers.
-- Freeze the prospective prediction, confidence, falsifiers and stopping rule
-  before result exposure. Afterward append calibration against that frozen
-  record. A persuasive retrospective explanation does not prove the result was
-  predicted; ask which part of the original causal model was wrong. Clerical
-  corrections to a frozen prediction must be explicit.
-- Keep evidence layers separate. Better fit loss, tree size, depth, NPS,
-  conversion, tactics or donor resemblance is not automatically Elo. Name the
-  layer and the gate that actually decides acceptance; do not invent exchange
-  rates between unlike measurements.
+  Run each required check once on the final relevant state, and reuse the pass
+  while its inputs are unchanged.
+- A behavior-neutral engine change reproduces the immediate development fingerprint (currently **14,978,465** at `bench 13`) plus focused tests for behaviour the bench does not reach.
+  Memory, state or concurrency work also needs the relevant sanitizer/stress
+  coverage. The comparison fingerprint is revision-specific: a deliberately
+  integrated behaviour change updates the fingerprint record; never preserve
+  a known defect to keep an obsolete count. Investigate a cross-platform
+  mismatch.
+- Check exit status directly, never through a pipe. Every scripted edit
+  asserts its anchor matched once and preserves the file's line endings.
+- Test constructs and behaviour, not words in a comment.
 
 ## Interruptions, delegation and communication
 
@@ -228,12 +162,32 @@ Completed historical model tags may remain unchanged.
   interactions/invariants, qualification and result, remaining expensive gate,
   false assumptions and unresolved concerns.
 
+## Token-efficient execution
+
+- Orient once per session: these rules, the `agents/` files the task needs,
+  GUIDE's *Now* table and next step, the selected PLAN section. Follow up with
+  targeted searches and bounded excerpts; re-read only changed regions or to
+  answer a concrete question.
+- Batch independent reads and checks; send verbose output to logs and return
+  exit status plus a short result. Back off unchanged polls: waiting on the
+  CPU is not reasoning.
+- Keep a compact working record: leaf, source and binary identity, evidence
+  paths, completed checks, live process IDs, blocker, next action. After an
+  interruption, inspect it and existing outputs before restarting anything.
+- Before repeating any read, check or run, name what changed or what it
+  answers; if nothing, skip it. Never shrink a registered run after seeing
+  results.
+
 ## Commits and reporting
 
 - Commit after every completed step or substep. Use a concise imperative
-  subject that names the result or numbered leaf where useful.
+  subject that names the result or numbered leaf where useful. Engine changes
+  and tooling or documentation changes go in separate commits.
 - Never add co-author trailers. Do not amend, squash, push or rewrite history
-  unless the maintainer explicitly asks.
+  unless the maintainer explicitly asks. `dev` reaches `master` only through a
+  pull request the maintainer squash-merges as one `Version X.Y.Z` commit;
+  development commits go on `dev`, and an `archive/dev-X.Y.Z` tag keeps them
+  reachable once `dev` is deleted (PROCESS *Release*).
 - Preserve unrelated maintainer changes and keep generated result artifacts out
   of source commits unless the roadmap explicitly requires them.
 - **Every report opens with a one-line recommendation** -- what to do next and
@@ -243,5 +197,10 @@ Completed historical model tags may remain unchanged.
   command handed over with a caveat explaining why it will not work. Evidence
   and options come after the line, and a genuine judgement call still ends with
   the agent's own position stated plainly.
+- When maintainer action is needed, give runnable commands in their own fenced
+  block and restate them rather than referring back.
 - End-step reports are short: outcome, essential verification, commit, any
-  separate findings/ideas, and the exact next unchecked leaf.
+  separate findings/ideas, and the exact next unchecked leaf with a model
+  recommendation from its class and GUIDE's mapping (`Claude: <model> —
+  <mode>`) and a one-line reason. Prefer the least costly model judged
+  sufficient; never substitute a model the mapping does not name.

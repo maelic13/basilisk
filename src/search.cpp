@@ -2,6 +2,8 @@
 #include "constants.h"
 #include "syzygy.h"
 #include <algorithm>
+#include <bit>
+#include <format>
 #include <array>
 #include <atomic>
 #include <cassert>
@@ -25,22 +27,47 @@
 
 // ---- LMR table -------------------------------------------------------------
 
-static constexpr int TB_WIN_SCORE = tablebaseWinScore;
 
-static int score_from_syzygy_wdl(Syzygy::Wdl wdl) {
+#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
+#define TRACE_DECISION(...) trace_decision(__VA_ARGS__)
+#else
+#define TRACE_DECISION(...) ((void)0)
+#endif
+
+#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC) \
+    || defined(BASILISK_RELEASE_DIAG_COUNTERS)
+#define DIAG_COUNT(expression) (expression)
+#else
+#define DIAG_COUNT(expression) ((void)0)
+#endif
+
+#ifdef BASILISK_ABLATION
+#define ABLATED(bit) (((active_limits_.ablation_mask >> (bit)) & 1) != 0)
+#else
+#define ABLATED(bit) false
+#endif
+
+// A probed WDL as a search value and the bound it proves (Stockfish's form):
+// a win is at least `tablebaseValue - ply`, a loss at most its negation, and a
+// result the rule-50 counter spoils is an exact +/-2. With the rule off a
+// spoiled result counts in full.
+struct TablebaseProbe { int value; TTFlag bound; };
+
+static TablebaseProbe tablebase_probe(Syzygy::Wdl wdl, int ply, bool rule50) {
+    const int win = tablebaseValue - ply;
     switch (wdl) {
         case Syzygy::Wdl::Win:
-            return TB_WIN_SCORE;
+            return {win, TT_BETA};
         case Syzygy::Wdl::CursedWin:
-            return 2;
+            return rule50 ? TablebaseProbe{2, TT_EXACT} : TablebaseProbe{win, TT_BETA};
         case Syzygy::Wdl::Draw:
-            return 0;
+            return {0, TT_EXACT};
         case Syzygy::Wdl::BlessedLoss:
-            return -2;
+            return rule50 ? TablebaseProbe{-2, TT_EXACT} : TablebaseProbe{-win, TT_ALPHA};
         case Syzygy::Wdl::Loss:
-            return -TB_WIN_SCORE;
+            return {-win, TT_ALPHA};
     }
-    return 0;
+    std::unreachable();
 }
 
 void Searcher::init_lmr(float base, float divisor) {
@@ -367,9 +394,9 @@ static_assert((sharedNodeBatch & (sharedNodeBatch - 1)) == 0,
 
 void Searcher::tt_store(Key key, int depth, int score, TTFlag flag, Move m,
                         int ply, int static_eval) {
-    ++diag_.tt_stores;
+    DIAG_COUNT(++diag_.tt_stores);
     if (tt_.store(key, depth, score, flag, m, ply, static_eval))
-        ++diag_.tt_stores_same_key;
+        DIAG_COUNT(++diag_.tt_stores_same_key);
 }
 
 void Searcher::flush_shared_nodes() {
@@ -542,7 +569,7 @@ void Searcher::update_all_histories(Move best, bool best_is_tt,
                                     const Move* bad_caps, int bad_cap_count,
                                     Color stm, int depth, SearchStack* ss,
                                     bool reward_only, int bonus_scale) {
-    (reward_only ? diag_.hist_reward_updates : diag_.hist_cutoff_updates)++;
+    DIAG_COUNT((reward_only ? diag_.hist_reward_updates : diag_.hist_cutoff_updates)++);
     // 8.5.10(e): bonus_scale (percent) lets the caller boost the reward when the
     // cutoff was "surprising" (static eval below beta -- the search saw a good
     // move the eval did not). Default 100 = unchanged.
@@ -944,6 +971,103 @@ private:
 
 // ---- UCI info ---------------------------------------------------------------
 
+#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
+void Searcher::trace_decision(TraceEvent event, int ply, int depth, Move move,
+                              int alpha, int beta, int estimated_score,
+                              int improving, int correction, int history,
+                              int move_count, int reduction, int margin, int result) {
+    if (!trace_enabled_ || ply < 1 || ply > 2)
+        return;
+    if (trace_count_ >= TRACE_CAPACITY) {
+        trace_overflow_ = true;
+        return;
+    }
+    TraceRecord& r = (*trace_records_)[trace_count_];
+    r.event = event;
+    r.move = move;
+    r.sequence = static_cast<int>(trace_count_);
+    r.ply = ply;
+    r.depth = depth;
+    r.alpha = alpha;
+    r.beta = beta;
+    r.estimated_score = estimated_score;
+    r.improving = improving;
+    r.correction = correction;
+    r.history = history;
+    r.move_count = move_count;
+    r.reduction = reduction;
+    r.cutoff_count = -1;
+    r.margin = margin;
+    r.result = result;
+    ++trace_count_;
+}
+
+void Searcher::print_decision_trace() const {
+    if (!info_cb_ || !active_limits_.decision_trace || !trace_enabled_)
+        return;
+    auto event_name = [](TraceEvent event) {
+        switch (event) {
+            case TraceEvent::CheckExtension:       return "check_extension";
+            case TraceEvent::TtCutoff:             return "tt_cutoff";
+            case TraceEvent::RfpPrune:             return "rfp_prune";
+            case TraceEvent::RazorPrune:           return "razor_prune";
+            case TraceEvent::NullCutoff:           return "null_cutoff";
+            case TraceEvent::ProbcutCutoff:        return "probcut_cutoff";
+            case TraceEvent::IirReduction:         return "iir_reduction";
+            case TraceEvent::FutilityPrune:        return "futility_prune";
+            case TraceEvent::LmpPrune:             return "lmp_prune";
+            case TraceEvent::HistoryPrune:         return "history_prune";
+            case TraceEvent::QuietSeePrune:        return "quiet_see_prune";
+            case TraceEvent::CaptureFutilityPrune: return "capture_futility_prune";
+            case TraceEvent::CaptureSeePrune:      return "capture_see_prune";
+            case TraceEvent::SingularExtension:    return "singular_extension";
+            case TraceEvent::SingularMulticut:     return "singular_multicut";
+            case TraceEvent::SingularNegative:     return "singular_negative";
+            case TraceEvent::LmrReduction:         return "lmr_reduction";
+            case TraceEvent::LmrResearch:          return "lmr_research";
+            case TraceEvent::BetaCutoff:           return "beta_cutoff";
+            case TraceEvent::QsTtCutoff:           return "qs_tt_cutoff";
+            case TraceEvent::QsStandPatCutoff:     return "qs_stand_pat_cutoff";
+            case TraceEvent::QsDeltaPrune:         return "qs_delta_prune";
+            case TraceEvent::QsFutilityPrune:      return "qs_futility_prune";
+            case TraceEvent::QsSeePrune:           return "qs_see_prune";
+            case TraceEvent::QsLatePrune:          return "qs_late_prune";
+            case TraceEvent::QsBetaCutoff:         return "qs_beta_cutoff";
+        }
+        return "unknown";
+    };
+
+    info_cb_("info string trace begin version=1 plies=1-2 root="
+             + move_to_uci(active_limits_.root_moves.front())
+             + " cutoff_count=unavailable value_none=" + std::to_string(VALUE_NONE)
+             + " bool_unknown=-1 capacity=" + std::to_string(TRACE_CAPACITY));
+    for (size_t i = 0; i < trace_count_; ++i) {
+        const TraceRecord& r = (*trace_records_)[i];
+        info_cb_("info string trace record seq=" + std::to_string(r.sequence)
+               + " event=" + event_name(r.event)
+               + " ply=" + std::to_string(r.ply)
+               + " depth=" + std::to_string(r.depth)
+               + " move=" + (r.move == MOVE_NONE ? std::string("none") : move_to_uci(r.move))
+               + " alpha=" + std::to_string(r.alpha)
+               + " beta=" + std::to_string(r.beta)
+               + " estimated_score=" + std::to_string(r.estimated_score)
+               + " improving=" + std::to_string(r.improving)
+               + " correction=" + std::to_string(r.correction)
+               + " history=" + std::to_string(r.history)
+               + " move_count=" + std::to_string(r.move_count)
+               + " reduction=" + std::to_string(r.reduction)
+               + " cutoff_count=" + std::to_string(r.cutoff_count)
+               + " window_alpha=" + std::to_string(r.alpha)
+               + " window_beta=" + std::to_string(r.beta)
+               + " margin=" + std::to_string(r.margin)
+               + " result=" + std::to_string(r.result));
+    }
+    info_cb_("info string trace end status="
+             + std::string(trace_overflow_ ? "overflow" : "ok")
+             + " records=" + std::to_string(trace_count_));
+}
+#endif
+
 // 8.6.6: end-of-search diagnostic dump (UCI `Diag`, TUNE builds). One line per
 // family; shares are of interior (negamax) nodes. Never a gate — these size
 // candidates and verify mechanisms (check_exts must be 0 once 8.6.7 lands).
@@ -953,62 +1077,52 @@ void Searcher::print_diag() const {
     auto pct = [](int64_t a, int64_t b) {
         return b > 0 ? 100.0 * double(a) / double(b) : 0.0;
     };
-    // 5.6: 256 was too small once the kv mirror grew. snprintf truncates
-    // silently and always loses the TAIL field, so the corruption scales
-    // with the counter magnitudes - it produced a non-monotonic threshold
-    // series that is arithmetically impossible. Sized with headroom, and
-    // the history probe moved to its own line below.
-    char buf[512];
-    auto emit = [&](const char* text) { info_cb_(std::string("info string diag ") + text); };
-    std::snprintf(buf, sizeof(buf),
-        "nodes interior %lld qsearch %lld | in_check %lld (%.2f%%) check_ext %lld tt_pv %lld (%.2f%%)",
-        (long long)d.interior_nodes, (long long)d.qs_nodes,
-        (long long)d.in_check_nodes, pct(d.in_check_nodes, d.interior_nodes),
-        (long long)d.check_exts,
-        (long long)d.tt_pv_nodes, pct(d.tt_pv_nodes, d.interior_nodes));
+    // Each line is built whole by std::format: a fixed buffer once truncated
+    // the tail field silently (5.6), corrupting the kv mirror.
+    std::string buf;
+    auto emit = [&](const std::string& text) { info_cb_(std::string("info string diag ") + text); };
+    buf = std::format("nodes interior {} qsearch {} | in_check {} ({:.2f}%) check_ext {} tt_pv {} ({:.2f}%)",
+        d.interior_nodes, d.qs_nodes,
+        d.in_check_nodes, pct(d.in_check_nodes, d.interior_nodes),
+        d.check_exts,
+        d.tt_pv_nodes, pct(d.tt_pv_nodes, d.interior_nodes));
     emit(buf);
-    std::snprintf(buf, sizeof(buf),
-        "tt probes %lld hits %lld (%.2f%%) cutoffs %lld",
-        (long long)d.tt_probes, (long long)d.tt_hits, pct(d.tt_hits, d.tt_probes),
-        (long long)d.tt_cutoffs);
+    buf = std::format("tt probes {} hits {} ({:.2f}%) cutoffs {}",
+        d.tt_probes, d.tt_hits, pct(d.tt_hits, d.tt_probes),
+        d.tt_cutoffs);
     emit(buf);
-    std::snprintf(buf, sizeof(buf),
-        "prune rfp %lld razor %lld null %lld/%lld probcut %lld/%lld fut %lld lmp %lld hist %lld see %lld",
-        (long long)d.rfp_cuts, (long long)d.razor_cuts,
-        (long long)d.null_cuts, (long long)d.null_tries,
-        (long long)d.probcut_cuts, (long long)d.probcut_tries,
-        (long long)d.fut_prunes, (long long)d.lmp_prunes,
-        (long long)d.hist_prunes, (long long)d.see_prunes);
+    buf = std::format("prune rfp {} razor {} null {}/{} probcut {}/{} fut {} lmp {} hist {} see {}",
+        d.rfp_cuts, d.razor_cuts,
+        d.null_cuts, d.null_tries,
+        d.probcut_cuts, d.probcut_tries,
+        d.fut_prunes, d.lmp_prunes,
+        d.hist_prunes, d.see_prunes);
     emit(buf);
-    std::snprintf(buf, sizeof(buf),
-        "lmr applied %lld researched %lld (%.2f%%) | hist updates cutoff %lld reward %lld | qs evasion %lld",
-        (long long)d.lmr_applied, (long long)d.lmr_researched,
+    buf = std::format("lmr applied {} researched {} ({:.2f}%) | hist updates cutoff {} reward {} | qs evasion {}",
+        d.lmr_applied, d.lmr_researched,
         pct(d.lmr_researched, d.lmr_applied),
-        (long long)d.hist_cutoff_updates, (long long)d.hist_reward_updates,
-        (long long)d.qs_evasion_nodes);
+        d.hist_cutoff_updates, d.hist_reward_updates,
+        d.qs_evasion_nodes);
     emit(buf);
     // ---- 5.2 differential harness (BAS-O03) --------------------------------
     // Read these against the oracle's tree shape, not in isolation.
-    std::snprintf(buf, sizeof(buf),
-        "order fail_highs %lld first %lld (%.2f%%) mean_idx %.3f | src tt %lld goodcap %lld quiet %lld badcap %lld",
-        (long long)d.fail_highs, (long long)d.fail_high_first,
+    buf = std::format("order fail_highs {} first {} ({:.2f}%) mean_idx {:.3f} | src tt {} goodcap {} quiet {} badcap {}",
+        d.fail_highs, d.fail_high_first,
         pct(d.fail_high_first, d.fail_highs),
         d.fail_highs > 0 ? double(d.fail_high_index_sum) / double(d.fail_highs) : 0.0,
-        (long long)d.cutoff_src_tt, (long long)d.cutoff_src_good_tactical,
-        (long long)d.cutoff_src_quiet, (long long)d.cutoff_src_bad_tactical);
+        d.cutoff_src_tt, d.cutoff_src_good_tactical,
+        d.cutoff_src_quiet, d.cutoff_src_bad_tactical);
     emit(buf);
-    std::snprintf(buf, sizeof(buf),
-        "lmrgate eligible %lld applied %lld (%.2f%%) mean_r %.3f clamp0 %lld",
-        (long long)d.lmr_eligible, (long long)d.lmr_applied,
+    buf = std::format("lmrgate eligible {} applied {} ({:.2f}%) mean_r {:.3f} clamp0 {}",
+        d.lmr_eligible, d.lmr_applied,
         pct(d.lmr_applied, d.lmr_eligible),
         d.lmr_applied > 0 ? double(d.lmr_reduction_plies) / double(d.lmr_applied) : 0.0,
-        (long long)d.lmr_clamped_zero);
+        d.lmr_clamped_zero);
     emit(buf);
-    std::snprintf(buf, sizeof(buf),
-        "lmrblock depth %lld searched %lld in_check %lld movetype %lld gives_check %lld",
-        (long long)d.lmr_blocked_depth, (long long)d.lmr_blocked_searched,
-        (long long)d.lmr_blocked_in_check, (long long)d.lmr_blocked_movetype,
-        (long long)d.lmr_blocked_gives_check);
+    buf = std::format("lmrblock depth {} searched {} in_check {} movetype {} gives_check {}",
+        d.lmr_blocked_depth, d.lmr_blocked_searched,
+        d.lmr_blocked_in_check, d.lmr_blocked_movetype,
+        d.lmr_blocked_gives_check);
     emit(buf);
     // Machine-readable mirror. The lines above are shaped for a human reading
     // one search; the harness aggregates over a 107-position suite and must not
@@ -1016,50 +1130,63 @@ void Searcher::print_diag() const {
     // only, canonical names, one token per counter — derived ratios are the
     // consumer's job, since summing a percentage across positions is wrong.
     {
-        std::snprintf(buf, sizeof(buf),
-            "kv fail_highs=%lld fail_high_first=%lld fail_high_index_sum=%lld "
-            "cutoff_src_tt=%lld cutoff_src_goodcap=%lld cutoff_src_quiet=%lld "
-            "cutoff_src_badcap=%lld",
-            (long long)d.fail_highs, (long long)d.fail_high_first,
-            (long long)d.fail_high_index_sum,
-            (long long)d.cutoff_src_tt, (long long)d.cutoff_src_good_tactical,
-            (long long)d.cutoff_src_quiet, (long long)d.cutoff_src_bad_tactical);
+        buf = std::format("kv fail_highs={} fail_high_first={} fail_high_index_sum={} "
+            "cutoff_src_tt={} cutoff_src_goodcap={} cutoff_src_quiet={} "
+            "cutoff_src_badcap={}",
+            d.fail_highs, d.fail_high_first,
+            d.fail_high_index_sum,
+            d.cutoff_src_tt, d.cutoff_src_good_tactical,
+            d.cutoff_src_quiet, d.cutoff_src_bad_tactical);
         emit(buf);
-        std::snprintf(buf, sizeof(buf),
-            "kv lmr_eligible=%lld lmr_applied=%lld lmr_researched=%lld "
-            "lmr_reduction_plies=%lld lmr_clamped_zero=%lld "
-            "lmr_blocked_depth=%lld lmr_blocked_searched=%lld "
-            "lmr_blocked_in_check=%lld lmr_blocked_movetype=%lld "
-            "lmr_blocked_gives_check=%lld lmr_clamped_high=%lld",
-            (long long)d.lmr_eligible, (long long)d.lmr_applied,
-            (long long)d.lmr_researched, (long long)d.lmr_reduction_plies,
-            (long long)d.lmr_clamped_zero,
-            (long long)d.lmr_blocked_depth, (long long)d.lmr_blocked_searched,
-            (long long)d.lmr_blocked_in_check, (long long)d.lmr_blocked_movetype,
-            (long long)d.lmr_blocked_gives_check, (long long)d.lmr_clamped_high);
+        buf = std::format("kv lmr_eligible={} lmr_applied={} lmr_researched={} "
+            "lmr_reduction_plies={} lmr_clamped_zero={} "
+            "lmr_blocked_depth={} lmr_blocked_searched={} "
+            "lmr_blocked_in_check={} lmr_blocked_movetype={} "
+            "lmr_blocked_gives_check={} lmr_clamped_high={}",
+            d.lmr_eligible, d.lmr_applied,
+            d.lmr_researched, d.lmr_reduction_plies,
+            d.lmr_clamped_zero,
+            d.lmr_blocked_depth, d.lmr_blocked_searched,
+            d.lmr_blocked_in_check, d.lmr_blocked_movetype,
+            d.lmr_blocked_gives_check, d.lmr_clamped_high);
         emit(buf);
-        std::snprintf(buf, sizeof(buf),
-            "kv interior_nodes=%lld qs_nodes=%lld tt_probes=%lld tt_hits=%lld "
-            "tt_cutoffs=%lld in_check_nodes=%lld check_exts=%lld",
-            (long long)d.interior_nodes, (long long)d.qs_nodes,
-            (long long)d.tt_probes, (long long)d.tt_hits, (long long)d.tt_cutoffs,
-            (long long)d.in_check_nodes, (long long)d.check_exts);
+        buf = std::format("kv interior_nodes={} qs_nodes={} tt_probes={} tt_hits={} "
+            "tt_cutoffs={} in_check_nodes={} check_exts={} tt_pv_nodes={}",
+            d.interior_nodes, d.qs_nodes,
+            d.tt_probes, d.tt_hits, d.tt_cutoffs,
+            d.in_check_nodes, d.check_exts,
+            d.tt_pv_nodes);
         emit(buf);
-        std::snprintf(buf, sizeof(buf),
-            "kv rfp_cuts=%lld razor_cuts=%lld null_tries=%lld null_cuts=%lld "
-            "probcut_tries=%lld probcut_cuts=%lld fut_prunes=%lld lmp_prunes=%lld "
-            "hist_prunes=%lld see_prunes=%lld",
-            (long long)d.rfp_cuts, (long long)d.razor_cuts,
-            (long long)d.null_tries, (long long)d.null_cuts,
-            (long long)d.probcut_tries, (long long)d.probcut_cuts,
-            (long long)d.fut_prunes, (long long)d.lmp_prunes,
-            (long long)d.hist_prunes, (long long)d.see_prunes);
+        buf = std::format("kv rfp_cuts={} razor_cuts={} null_tries={} null_cuts={} "
+            "probcut_tries={} probcut_cuts={} fut_prunes={} lmp_prunes={} "
+            "hist_prunes={} see_prunes={}",
+            d.rfp_cuts, d.razor_cuts,
+            d.null_tries, d.null_cuts,
+            d.probcut_tries, d.probcut_cuts,
+            d.fut_prunes, d.lmp_prunes,
+            d.hist_prunes, d.see_prunes);
         emit(buf);
-        std::snprintf(buf, sizeof(buf),
-            "kv hist_prune_tested=%lld hist_below_half=%lld "
-            "hist_below_quarter=%lld hist_below_eighth=%lld",
-            (long long)d.hist_prune_tested, (long long)d.hist_below_half,
-            (long long)d.hist_below_quarter, (long long)d.hist_below_eighth);
+        buf = std::format("kv hist_prune_tested={} hist_below_half={} "
+            "hist_below_quarter={} hist_below_eighth={} "
+            "qs_evasion_nodes={} hist_cutoff_updates={} hist_reward_updates={}",
+            d.hist_prune_tested, d.hist_below_half,
+            d.hist_below_quarter, d.hist_below_eighth,
+            d.qs_evasion_nodes, d.hist_cutoff_updates,
+            d.hist_reward_updates);
+        emit(buf);
+        buf = std::format("kv tt_stores={} tt_stores_same_key={} "
+            "asp_windows={} asp_fail_low={} asp_fail_high={} "
+            "asp_researches={} asp_giveup={}",
+            d.tt_stores, d.tt_stores_same_key,
+            d.asp_windows, d.asp_fail_low,
+            d.asp_fail_high, d.asp_researches,
+            d.asp_giveup);
+        emit(buf);
+        buf = std::format("kv sing_fired={} sing_double={} sing_in_check={} "
+            "sing_triple={} sing_ttbeta={}",
+            d.sing_fired, d.sing_double,
+            d.sing_in_check, d.sing_triple,
+            d.sing_ttbeta);
         emit(buf);
     }
     // 8.7.1(c) speed telemetry — the numbers Phase 8.7 steps read before
@@ -1067,82 +1194,73 @@ void Searcher::print_diag() const {
     // full-gives_check rate (8.7.3), SEE calls per node (8.7.5).
     {
         const int64_t total_nodes = d.interior_nodes + d.qs_nodes;
-        std::snprintf(buf, sizeof(buf),
-            "speed eval %lld (%.2f%%/node) pawncache %lld/%lld (%.2f%% hit) "
-            "gives_check %lld (%.2f%%/node) see_ge %lld (%.3f/node)",
-            (long long)evaluator_.eval_calls, pct(evaluator_.eval_calls, total_nodes),
-            (long long)evaluator_.pawn_hits, (long long)evaluator_.pawn_probes,
+        buf = std::format("speed eval {} ({:.2f}%/node) pawncache {}/{} ({:.2f}% hit) "
+            "gives_check {} ({:.2f}%/node) see_ge {} ({:.3f}/node)",
+            evaluator_.eval_calls, pct(evaluator_.eval_calls, total_nodes),
+            evaluator_.pawn_hits, evaluator_.pawn_probes,
             pct(evaluator_.pawn_hits, evaluator_.pawn_probes),
-            (long long)d.gives_check_calls, pct(d.gives_check_calls, total_nodes),
-            (long long)d.see_ge_calls,
+            d.gives_check_calls, pct(d.gives_check_calls, total_nodes),
+            d.see_ge_calls,
             total_nodes > 0 ? double(d.see_ge_calls) / double(total_nodes) : 0.0);
         emit(buf);
-        std::snprintf(buf, sizeof(buf),
-            "kv eval_calls=%lld pawn_probes=%lld pawn_hits=%lld "
-            "gives_check_calls=%lld see_ge_calls=%lld",
-            (long long)evaluator_.eval_calls,
-            (long long)evaluator_.pawn_probes, (long long)evaluator_.pawn_hits,
-            (long long)d.gives_check_calls, (long long)d.see_ge_calls);
+        buf = std::format("kv eval_calls={} pawn_probes={} pawn_hits={} "
+            "gives_check_calls={} see_ge_calls={}",
+            evaluator_.eval_calls,
+            evaluator_.pawn_probes, evaluator_.pawn_hits,
+            d.gives_check_calls, d.see_ge_calls);
         emit(buf);
     }
 #ifdef BASILISK_TUNE
     {
         const auto& e = evaluator_.endgame_occurrence;
-        std::snprintf(buf, sizeof(buf),
-            "endgames <=7men %lld (%.3f%% eval, %.3f%% node)",
-            (long long)e.classified,
+        buf = std::format("endgames <=7men {} ({:.3f}% eval, {:.3f}% node)",
+            e.classified,
             pct(e.classified, evaluator_.eval_calls),
             pct(e.classified, d.interior_nodes + d.qs_nodes));
         emit(buf);
-        std::snprintf(buf, sizeof(buf),
-            "kv eg_classified=%lld eg_krpkr=%lld eg_krpkb=%lld eg_kpsk=%lld "
-            "eg_kpk=%lld eg_krkp=%lld eg_kbpsk=%lld eg_kpkp=%lld",
-            (long long)e.classified, (long long)e.krpkr, (long long)e.krpkb,
-            (long long)e.kpsk, (long long)e.kpk, (long long)e.krkp,
-            (long long)e.kbpsk, (long long)e.kpkp);
+        buf = std::format("kv eg_classified={} eg_krpkr={} eg_krpkb={} eg_kpsk={} "
+            "eg_kpk={} eg_krkp={} eg_kbpsk={} eg_kpkp={}",
+            e.classified, e.krpkr, e.krpkb,
+            e.kpsk, e.kpk, e.krkp,
+            e.kbpsk, e.kpkp);
         emit(buf);
-        std::snprintf(buf, sizeof(buf),
-            "kv eg_kqkp=%lld eg_kbpkb=%lld eg_kbppkb=%lld eg_krkn=%lld "
-            "eg_krkb=%lld eg_kbpkn=%lld eg_knnkp=%lld eg_knnk=%lld",
-            (long long)e.kqkp, (long long)e.kbpkb, (long long)e.kbppkb,
-            (long long)e.krkn, (long long)e.krkb, (long long)e.kbpkn,
-            (long long)e.knnkp, (long long)e.knnk);
+        buf = std::format("kv eg_kqkp={} eg_kbpkb={} eg_kbppkb={} eg_krkn={} "
+            "eg_krkb={} eg_kbpkn={} eg_knnkp={} eg_knnk={}",
+            e.kqkp, e.kbpkb, e.kbppkb,
+            e.krkn, e.krkb, e.kbpkn,
+            e.knnkp, e.knnk);
         emit(buf);
-        std::snprintf(buf, sizeof(buf),
-            "kv eg_kqkr=%lld eg_kqkrps=%lld eg_krppkrp=%lld eg_kxk=%lld eg_kbnk=%lld",
-            (long long)e.kqkr, (long long)e.kqkrps, (long long)e.krppkrp,
-            (long long)e.kxk, (long long)e.kbnk);
+        buf = std::format("kv eg_kqkr={} eg_kqkrps={} eg_krppkrp={} eg_kxk={} eg_kbnk={}",
+            e.kqkr, e.kqkrps, e.krppkrp,
+            e.kxk, e.kbnk);
         emit(buf);
     }
 #endif
     {
-        char b[256];
-        std::snprintf(b, sizeof(b),
-            "aspiration windows %lld fail_low %lld fail_high %lld researches %lld giveup %lld",
-            (long long)diag_.asp_windows, (long long)diag_.asp_fail_low,
-            (long long)diag_.asp_fail_high, (long long)diag_.asp_researches,
-            (long long)diag_.asp_giveup);
+        std::string b;
+        b = std::format("aspiration windows {} fail_low {} fail_high {} researches {} giveup {}",
+            diag_.asp_windows, diag_.asp_fail_low,
+            diag_.asp_fail_high, diag_.asp_researches,
+            diag_.asp_giveup);
         emit(b);
     }
 
     {
-        char b[256];
-        std::snprintf(b, sizeof(b),
-            "singular fired %lld double %lld in_check %lld triple %lld ttbeta %lld (%.2f%% of fired)",
-            (long long)diag_.sing_fired, (long long)diag_.sing_double,
-            (long long)diag_.sing_in_check, (long long)diag_.sing_triple,
-            (long long)diag_.sing_ttbeta,
+        std::string b;
+        b = std::format("singular fired {} double {} in_check {} triple {} ttbeta {} ({:.2f}% of fired)",
+            diag_.sing_fired, diag_.sing_double,
+            diag_.sing_in_check, diag_.sing_triple,
+            diag_.sing_ttbeta,
             diag_.sing_fired ? 100.0 * double(diag_.sing_in_check) / double(diag_.sing_fired) : 0.0);
         emit(b);
     }
 
     if (evaluator_.lazy_fires > 0) {
-        std::snprintf(buf, sizeof(buf),
-            "lazy fires %lld sign_flips %lld crossings %lld absdelta mean %.1f max %lld",
-            (long long)evaluator_.lazy_fires, (long long)evaluator_.lazy_sign_flips,
-            (long long)evaluator_.lazy_margin_crossings,
+        buf = std::format("lazy fires {} sign_flips {} crossings {} absdelta mean {:.1f} max {}",
+            evaluator_.lazy_fires, evaluator_.lazy_sign_flips,
+            evaluator_.lazy_margin_crossings,
             double(evaluator_.lazy_absdelta_sum) / double(evaluator_.lazy_fires),
-            (long long)evaluator_.lazy_absdelta_max);
+            evaluator_.lazy_absdelta_max);
         emit(buf);
     }
 }
@@ -1163,19 +1281,18 @@ void Searcher::print_pool_diag(const std::vector<std::unique_ptr<Searcher>>& poo
     auto pct = [](int64_t a, int64_t b) {
         return b > 0 ? 100.0 * double(a) / double(b) : 0.0;
     };
-    char buf[256];
-    auto emit = [&](const char* text) { info_cb_(std::string("info string diag ") + text); };
+    std::string buf;
+    auto emit = [&](const std::string& text) { info_cb_(std::string("info string diag ") + text); };
 
     const int64_t pool_nodes = total.interior_nodes + total.qs_nodes;
     const int64_t main_nodes = diag_.interior_nodes + diag_.qs_nodes;
-    std::snprintf(buf, sizeof(buf),
-        "pool threads %d nodes %lld (main %lld = %.1f%%) | main tt %lld/%lld (%.2f%% hit) "
-        "pool tt %lld/%lld (%.2f%% hit)",
-        thread_count, (long long)pool_nodes, (long long)main_nodes,
+    buf = std::format("pool threads {} nodes {} (main {} = {:.1f}%) | main tt {}/{} ({:.2f}% hit) "
+        "pool tt {}/{} ({:.2f}% hit)",
+        thread_count, pool_nodes, main_nodes,
         pct(main_nodes, pool_nodes),
-        (long long)diag_.tt_hits, (long long)diag_.tt_probes,
+        diag_.tt_hits, diag_.tt_probes,
         pct(diag_.tt_hits, diag_.tt_probes),
-        (long long)total.tt_hits, (long long)total.tt_probes,
+        total.tt_hits, total.tt_probes,
         pct(total.tt_hits, total.tt_probes));
     emit(buf);
 
@@ -1183,11 +1300,10 @@ void Searcher::print_pool_diag(const std::vector<std::unique_ptr<Searcher>>& poo
     // position the table already holds, versus evicting a different one. This
     // is the quantity 9.5's coordination work moves; read it as a share, never
     // as an absolute.
-    std::snprintf(buf, sizeof(buf),
-        "pool tt_stores %lld same_key %lld (%.2f%%) | main stores %lld same_key %lld (%.2f%%)",
-        (long long)total.tt_stores, (long long)total.tt_stores_same_key,
+    buf = std::format("pool tt_stores {} same_key {} ({:.2f}%) | main stores {} same_key {} ({:.2f}%)",
+        total.tt_stores, total.tt_stores_same_key,
         pct(total.tt_stores_same_key, total.tt_stores),
-        (long long)diag_.tt_stores, (long long)diag_.tt_stores_same_key,
+        diag_.tt_stores, diag_.tt_stores_same_key,
         pct(diag_.tt_stores_same_key, diag_.tt_stores));
     emit(buf);
 
@@ -1204,19 +1320,9 @@ void Searcher::print_pool_diag(const std::vector<std::unique_ptr<Searcher>>& poo
     emit(depths.c_str());
 }
 
-void Searcher::send_info(int depth, int score, int64_t total_nodes, double elapsed) const {
-    std::vector<Move> pv_moves;
-    if (pv_len_[0] > 0) {
-        Board pv_board = *board_ptr_;
-        int pv_count = std::clamp(pv_len_[0], 0, MAX_PLY);
-        for (int i = 0; i < pv_count; i++) {
-            Move pv_move = pv_table_[0][i];
-            if (!is_legal_move_on_board(pv_board, pv_move))
-                break;
-            pv_moves.push_back(pv_move);
-            pv_board.make_move(pv_move);
-        }
-    }
+void Searcher::send_info(int depth, int multipv, int score, const std::vector<Move>& line,
+                         int64_t total_nodes, double elapsed) const {
+    std::vector<Move> pv_moves = legal_line(*board_ptr_, line);
 
     // Stockfish-style tablebase PV extension. With no clock or movetime it
     // runs on every line, unbounded, as in Stockfish's analysis mode. Under
@@ -1234,36 +1340,58 @@ void Searcher::send_info(int depth, int score, int64_t total_nodes, double elaps
             score = 0;
     }
 
-    std::string line = "info depth " + std::to_string(depth)
-        + " seldepth " + std::to_string(sel_depth_)
-        + " score ";
+    if (info_cb_)
+        info_cb_(format_info_line(depth, sel_depth_, multipv, score, {}, total_nodes, elapsed,
+                                  current_tbhits(), tt_.hashfull(), pv_moves));
+}
 
-    if (std::abs(score) >= MATE_SCORE - MAX_PLY) {
-        int mtm = (MATE_SCORE - std::abs(score) + 1) / 2;
-        line += "mate " + std::to_string(score > 0 ? mtm : -mtm);
-    } else {
-        line += "cp " + std::to_string(score);
-    }
+std::string format_info_line(int depth, int seldepth, int multipv, int score,
+                             std::string_view bound, int64_t nodes, double elapsed,
+                             int64_t tbhits, int hashfull, const std::vector<Move>& pv) {
+    const bool mate = std::abs(score) >= MATE_SCORE - MAX_PLY;
+    const int mate_in = (MATE_SCORE - std::abs(score) + 1) / 2;
+    // A tablebase result n plies of tablebase play away shows as cp 20000 - n.
+    if (is_tablebase_decisive(score))
+        score = (score > 0 ? 1 : -1) * (tablebaseWinScore - (tablebaseValue - std::abs(score)));
+    const int64_t nps = int64_t(double(nodes) / std::max(elapsed, 0.001));
+    std::string line = std::format(
+        "info depth {} seldepth {} multipv {} score {} {}{}{} nodes {} nps {} hashfull {} "
+        "tbhits {} time {}",
+        depth, seldepth, multipv, mate ? "mate" : "cp",
+        mate ? (score > 0 ? mate_in : -mate_in) : score,
+        bound.empty() ? "" : " ", bound, nodes, nps, hashfull, tbhits,
+        int64_t(elapsed * 1000));
 
-    int64_t nps = elapsed > 0.0 ? int64_t(double(total_nodes) / elapsed) : 0;
-    line += " nodes " + std::to_string(total_nodes)
-         + " nps "   + std::to_string(nps)
-         + " time "  + std::to_string(int64_t(elapsed * 1000))
-         + " tbhits " + std::to_string(current_tbhits())
-         + " hashfull " + std::to_string(tt_.hashfull());
-
-    if (!pv_moves.empty()) {
+    if (!pv.empty()) {
         line += " pv";
-        for (Move pv_move : pv_moves)
+        for (Move pv_move : pv)
             line += ' ' + move_to_uci(pv_move);
     }
+    return line;
+}
 
-    if (info_cb_) info_cb_(line);
+std::vector<Move> legal_line(const Board& root, const std::vector<Move>& line) {
+    std::vector<Move> legal;
+    Board board = root;
+    for (Move move : line) {
+        if (!is_legal_move_on_board(board, move))
+            break;
+        legal.push_back(move);
+        board.make_move(move);
+    }
+    return legal;
+}
+
+bool needs_pool_line(const SearchResult& merged, const SearchResult& main_thread) {
+    return merged.bestmove != MOVE_NONE
+        && (merged.bestmove != main_thread.bestmove || merged.depth != main_thread.depth);
 }
 
 void Searcher::init_root_tablebase_scores(const Board& board) {
     (void) board;
     root_tb_moves_ = active_limits_.syzygy_root_moves;
+    tb_probe_in_search_ = root_tb_moves_.empty()
+        || (!root_tb_moves_.front().used_dtz && root_tb_moves_.front().score > 0);
     if (!root_tb_moves_.empty() && thread_id_ == 0)
         record_tbhit(static_cast<int64_t>(root_tb_moves_.size()));
 }
@@ -1276,12 +1404,20 @@ int Searcher::root_tablebase_score(Move move) const {
     return VALUE_NONE;
 }
 
+int Searcher::root_tablebase_display(Move move) const {
+    for (const auto& entry : root_tb_moves_) {
+        if (entry.bestmove == move)
+            return entry.display;
+    }
+    return VALUE_NONE;
+}
+
 int Searcher::root_tablebase_ordering_score(Move move) const {
     for (const auto& entry : root_tb_moves_) {
         if (entry.bestmove == move) {
             return 8'000'000
                  + std::clamp(entry.rank, -2000, 2000) * 1000
-                 + std::clamp(entry.score, -tablebaseWinScore, tablebaseWinScore);
+                 + std::clamp(entry.score, -tablebaseValue, tablebaseValue);
         }
     }
     return 0;
@@ -1318,14 +1454,14 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     if (board_ptr_->is_draw(ply)) return 0;
 
     bool in_check = board_ptr_->is_in_check();
-    diag_.qs_nodes++;
+    DIAG_COUNT(diag_.qs_nodes++);
 
     // TT probe
     Key hash = board_ptr_->position_key();
     TTEntry tte{};
     bool tt_found = tt_.probe_copy(hash, tte);
-    diag_.tt_probes++;
-    if (tt_found) diag_.tt_hits++;
+    DIAG_COUNT(diag_.tt_probes++);
+    if (tt_found) DIAG_COUNT(diag_.tt_hits++);
     Move tt_move = MOVE_NONE;
     int  tt_score = VALUE_NONE;       // hoisted (Step 6.1) for the stand-pat tighten
     TTFlag tt_flag = TT_NONE;
@@ -1333,9 +1469,14 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         tt_move = move_from_tt(tte.move16);
         tt_score = TranspositionTable::score_from_tt(tte.score, ply, board_ptr_->rule50_count());
         tt_flag = TTFlag(tte.flag_age & 3);
-        if (tt_flag == TT_EXACT) return tt_score;
-        if (tt_flag == TT_ALPHA && tt_score <= alpha) return tt_score;
-        if (tt_flag == TT_BETA  && tt_score >= beta)  return tt_score;
+        if (tt_flag == TT_EXACT
+            || (tt_flag == TT_ALPHA && tt_score <= alpha)
+            || (tt_flag == TT_BETA && tt_score >= beta)) {
+            TRACE_DECISION(TraceEvent::QsTtCutoff, ply, 0, tt_move,
+                           alpha, beta, tt_score, -1, VALUE_NONE, VALUE_NONE,
+                           0, 0, VALUE_NONE, tt_score);
+            return tt_score;
+        }
     }
 
     if (in_check) {
@@ -1347,7 +1488,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         MoveList legal;
         board_ptr_->gen_legal(legal);
         int best = -INF_SCORE;
-        diag_.qs_evasion_nodes++;
+        DIAG_COUNT(diag_.qs_evasion_nodes++);
         bool has_legal = false;
         for (Move m : legal) {
             has_legal = true;
@@ -1357,7 +1498,13 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
             if (stopped_) return 0;
             if (s > best) best = s;
             if (s > alpha) alpha = s;
-            if (alpha >= beta) { best = s; break; }
+            if (alpha >= beta) {
+                TRACE_DECISION(TraceEvent::QsBetaCutoff, ply, 0, m,
+                               alpha, beta, VALUE_NONE, -1, VALUE_NONE, VALUE_NONE,
+                               0, 0, VALUE_NONE, s);
+                best = s;
+                break;
+            }
         }
         return has_legal ? best : -(MATE_SCORE - ply);
     }
@@ -1371,7 +1518,10 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
 
     int stand_pat = raw_eval;
     stand_pat += correction_value(board_ptr_->turn(), *board_ptr_, ss);
-    stand_pat = std::clamp(stand_pat, -(MATE_SCORE - 1), MATE_SCORE - 1);
+    stand_pat = std::clamp(stand_pat, -(tablebaseWinInMaxPly - 1), tablebaseWinInMaxPly - 1);
+#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
+    const int correction = stand_pat - raw_eval;
+#endif
 
     // Step 6.1 mirror: tighten the stand-pat with the TT bound when it proves a
     // better estimate (a fail-high above it / fail-low below it). The raw eval
@@ -1382,6 +1532,9 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         stand_pat = tt_score;
 
     if (stand_pat >= beta) {
+        TRACE_DECISION(TraceEvent::QsStandPatCutoff, ply, 0, MOVE_NONE,
+                       alpha, beta, stand_pat, -1, correction, VALUE_NONE,
+                       0, 0, 0, stand_pat);
         tt_store(hash, 0, stand_pat, TT_BETA, MOVE_NONE, ply, raw_eval);
         return stand_pat;
     }
@@ -1395,8 +1548,12 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     // scrambled KQK mate distances: a TT_BETA-tightened value is not a
     // provable upper bound.) Consistent fail-soft is the Phase 10.4
     // bound-shaping job; do not change this return in isolation.
-    if (stand_pat < alpha - PIECE_VALUE[QUEEN] - 200)
+    if (stand_pat < alpha - PIECE_VALUE[QUEEN] - 200) {
+        TRACE_DECISION(TraceEvent::QsDeltaPrune, ply, 0, MOVE_NONE,
+                       alpha, beta, stand_pat, -1, correction, VALUE_NONE,
+                       0, 0, PIECE_VALUE[QUEEN] + 200, alpha);
         return alpha;
+    }
 
     if (stand_pat > alpha) alpha = stand_pat;
 
@@ -1440,18 +1597,29 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
             }
             return gives_check;
         };
-
         if (!is_promo
             && stand_pat + tactical_gain + 150 <= alpha
-            && !move_gives_check())
+            && !move_gives_check()) {
+            TRACE_DECISION(TraceEvent::QsFutilityPrune, ply, 0, m,
+                           alpha, beta, stand_pat, -1, correction, VALUE_NONE,
+                           i, 0, tactical_gain + 150, alpha);
             continue;
+        }
 
         const int see_threshold = std::clamp(alpha - stand_pat - 200, -800, 200);
-        if (!board_ptr_->see_ge(m, see_threshold))
+        if (!board_ptr_->see_ge(m, see_threshold)) {
+            TRACE_DECISION(TraceEvent::QsSeePrune, ply, 0, m,
+                           alpha, beta, stand_pat, -1, correction, VALUE_NONE,
+                           i, 0, see_threshold, alpha);
             continue;
+        }
 
-        if (!is_promo && i >= 6 && !board_ptr_->see_ge(m, -50) && !move_gives_check())
+        if (!is_promo && i >= 6 && !board_ptr_->see_ge(m, -50) && !move_gives_check()) {
+            TRACE_DECISION(TraceEvent::QsLatePrune, ply, 0, m,
+                           alpha, beta, stand_pat, -1, correction, VALUE_NONE,
+                           i, 0, -50, alpha);
             continue;
+        }
 
         do_move(ss, m);
         int s = -quiescence(-beta, -alpha, ply + 1, qply + 1, ss + 1);
@@ -1463,6 +1631,9 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
             best_move = m;
         }
         if (s >= beta) {
+            TRACE_DECISION(TraceEvent::QsBetaCutoff, ply, 0, m,
+                           alpha, beta, stand_pat, -1, correction, VALUE_NONE,
+                           i, 0, VALUE_NONE, s);
             tt_store(hash, 0, s, TT_BETA, m, ply, raw_eval);
             return s;
         }
@@ -1492,6 +1663,9 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
                 best_move = m;
             }
             if (s >= beta) {
+                TRACE_DECISION(TraceEvent::QsBetaCutoff, ply, 0, m,
+                               alpha, beta, stand_pat, -1, correction, VALUE_NONE,
+                               tried, 0, VALUE_NONE, s);
                 tt_store(hash, 0, s, TT_BETA, m, ply, raw_eval);
                 return s;
             }
@@ -1527,18 +1701,37 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
     if (!is_root && board_ptr_->is_draw(ply)) return 0;
 
-    if (!is_root && ss->excluded == MOVE_NONE
-        && root_tb_moves_.empty()
-        && active_limits_.syzygy_probe_depth > 0
-        && (ply == 1 || depth >= active_limits_.syzygy_probe_depth)) {
-        if (auto wdl = Syzygy::probe_wdl(*board_ptr_,
-                                         active_limits_.syzygy_probe_limit,
-                                         active_limits_.syzygy_50_move_rule)) {
-            record_tbhit();
-            const int tb_score = score_from_syzygy_wdl(*wdl);
-            tt_store(board_ptr_->position_key(), depth, tb_score, TT_EXACT, MOVE_NONE, ply,
-                      TranspositionTable::INF_EVAL);
-            return tb_score;
+    // In-search tablebase probe. A result that decides the node returns and
+    // is stored as the bound it proves; otherwise a PV node keeps searching
+    // inside it: a win raises the floor, a loss caps the result.
+    int tb_floor = -INF_SCORE;
+    int tb_cap   = INF_SCORE;
+    if (!is_root && depth > 0 && ss->excluded == MOVE_NONE && tb_probe_in_search_
+        && active_limits_.syzygy_probe_depth > 0) {
+        const int limit = std::min(active_limits_.syzygy_probe_limit, Syzygy::largest());
+        const int pieces = std::popcount(board_ptr_->all_pieces());
+        if (pieces < limit || depth >= active_limits_.syzygy_probe_depth) {
+            if (auto wdl = Syzygy::probe_wdl(*board_ptr_,
+                                             active_limits_.syzygy_probe_limit,
+                                             active_limits_.syzygy_50_move_rule)) {
+                record_tbhit();
+                const TablebaseProbe tb = tablebase_probe(*wdl, ply,
+                                                          active_limits_.syzygy_50_move_rule);
+                if (tb.bound == TT_EXACT
+                    || (tb.bound == TT_BETA ? tb.value >= beta : tb.value <= alpha)) {
+                    tt_store(board_ptr_->position_key(), std::min(MAX_PLY - 1, depth + 6),
+                             tb.value, tb.bound, MOVE_NONE, ply, TranspositionTable::INF_EVAL);
+                    return tb.value;
+                }
+                if (is_pv) {
+                    if (tb.bound == TT_BETA) {
+                        tb_floor = tb.value;
+                        alpha = std::max(alpha, tb.value);
+                    } else {
+                        tb_cap = tb.value;
+                    }
+                }
+            }
         }
     }
 
@@ -1546,8 +1739,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
     // Check extension: when the side to move is in check, extend by 1 ply.
     // Guard with ss->excluded to prevent stacking with singular extensions.
-    diag_.interior_nodes++;
-    if (in_check) diag_.in_check_nodes++;
+    DIAG_COUNT(diag_.interior_nodes++);
+    if (in_check) DIAG_COUNT(diag_.in_check_nodes++);
     // The extension is unconditional: every in-check node gets a ply.
     //
     // 5.7.6 removed check_ext_path_cap, which bounded the accumulation per path
@@ -1556,10 +1749,13 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     // residue of a failed trial, not an avenue still open. 5.7.3 separately
     // measured that reducing extension at checking nodes fails our WAC floor.
     bool did_check_ext = false;
-    if (in_check && ss->excluded == MOVE_NONE && ply < MAX_PLY - 2) {
+    if (!ABLATED(6) && in_check && ss->excluded == MOVE_NONE && ply < MAX_PLY - 2) {
         depth++;
         did_check_ext = true;
-        diag_.check_exts++;
+        DIAG_COUNT(diag_.check_exts++);
+        TRACE_DECISION(TraceEvent::CheckExtension, ply, depth, MOVE_NONE,
+                       alpha, beta, VALUE_NONE, -1, VALUE_NONE, VALUE_NONE,
+                       0, 0, 1, depth);
     }
 
     if (depth <= 0)
@@ -1576,8 +1772,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     Key hash     = board_ptr_->position_key();
     TTEntry tte{};
     bool tt_found = tt_.probe_copy(hash, tte);
-    diag_.tt_probes++;
-    if (tt_found) diag_.tt_hits++;
+    DIAG_COUNT(diag_.tt_probes++);
+    if (tt_found) DIAG_COUNT(diag_.tt_hits++);
 
     Move  tt_move  = MOVE_NONE;
     int   tt_score = VALUE_NONE;
@@ -1597,14 +1793,17 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             if (tt_flag == TT_EXACT
                 || (tt_flag == TT_ALPHA && tt_score <= alpha)
                 || (tt_flag == TT_BETA  && tt_score >= beta)) {
-                diag_.tt_cutoffs++;
+                DIAG_COUNT(diag_.tt_cutoffs++);
+                TRACE_DECISION(TraceEvent::TtCutoff, ply, depth, tt_move,
+                               alpha, beta, tt_score, -1, VALUE_NONE, VALUE_NONE,
+                               0, 0, tt_depth, tt_score);
                 return tt_score;
             }
         }
     }
 
     ss->tt_pv = is_pv || (tt_found && tt_flag == TT_EXACT && tt_depth >= depth - 1);
-    if (ss->tt_pv) diag_.tt_pv_nodes++;
+    if (ss->tt_pv) DIAG_COUNT(diag_.tt_pv_nodes++);
 
     // Phase 6.7: is the TT move a capture? (LMR input, lmr_tt_capture)
     const bool tt_capture = tt_move != MOVE_NONE
@@ -1628,7 +1827,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         // TT stores the raw static eval; correction is applied at probe time.
         static_eval = raw_static_eval;
         static_eval += correction_value(board_ptr_->turn(), *board_ptr_, ss);
-        static_eval  = std::clamp(static_eval, -(MATE_SCORE - 1), MATE_SCORE - 1);
+        static_eval  = std::clamp(static_eval, -(tablebaseWinInMaxPly - 1), tablebaseWinInMaxPly - 1);
         ss->eval = static_eval;
     }
 
@@ -1642,11 +1841,16 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     // out as an unverified mate cutoff — clamp the refinement to normal scores.
     int eval = static_eval;
     if (tt_found && static_eval != VALUE_NONE && tt_score != VALUE_NONE
-        && std::abs(tt_score) < MATE_SCORE - MAX_PLY
+        && !is_decisive(tt_score)
         && (tt_flag == TT_EXACT
             || (tt_flag == TT_BETA  && tt_score > static_eval)
             || (tt_flag == TT_ALPHA && tt_score < static_eval)))
         eval = tt_score;
+
+#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
+    const int correction = raw_static_eval == VALUE_NONE
+                         ? VALUE_NONE : static_eval - raw_static_eval;
+#endif
 
     // Improving: eval is better than 2 plies ago
     bool improving = !in_check && ply >= 2
@@ -1658,33 +1862,40 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         && static_eval != VALUE_NONE) {
 
         // Reverse futility pruning
-        if (depth <= 9) {
+        if (!ABLATED(1) && depth <= 9) {
             const auto& p = active_limits_.params;
             int margin = p.rfp_coeff * depth - (improving ? p.rfp_improving : 0);
             if (eval - margin >= beta) {
-                diag_.rfp_cuts++;
+                DIAG_COUNT(diag_.rfp_cuts++);
+                TRACE_DECISION(TraceEvent::RfpPrune, ply, depth, MOVE_NONE,
+                               alpha, beta, eval, improving, correction, VALUE_NONE,
+                               0, 0, margin, eval);
                 return eval;
             }
         }
 
         // Razoring
-        if (depth <= 3 && eval + active_limits_.params.razor_coeff * depth <= alpha) {
+        if (!ABLATED(0) && depth <= 3
+            && eval + active_limits_.params.razor_coeff * depth <= alpha) {
             int q = quiescence(alpha, beta, ply, 0, ss);
             if (q <= alpha) {
-                diag_.razor_cuts++;
+                DIAG_COUNT(diag_.razor_cuts++);
+                TRACE_DECISION(TraceEvent::RazorPrune, ply, depth, MOVE_NONE,
+                               alpha, beta, eval, improving, correction, VALUE_NONE,
+                               0, 0, active_limits_.params.razor_coeff * depth, q);
                 return q;
             }
         }
 
         // Null-move pruning
-        if (allow_null && depth >= 3
+        if (!ABLATED(2) && allow_null && depth >= 3
             && eval >= beta
             && board_ptr_->has_non_pawn_material(board_ptr_->turn())
             && (ss-1)->move != MOVE_NULL) {
 
             int r = active_limits_.params.null_base + depth / 4
                   + std::min((eval - beta) / active_limits_.params.null_eval_div, 3);
-            diag_.null_tries++;
+            DIAG_COUNT(diag_.null_tries++);
             do_null_move(ss);
             tt_.prefetch(board_ptr_->position_key());   // 8.7.6(c)
             int null_score = -negamax(std::max(0, depth - r), -beta, -(beta - 1),
@@ -1692,7 +1903,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             undo_null_move(ss);
             if (stopped_) return 0;
             if (null_score >= beta) {
-                if (null_score >= MATE_SCORE - MAX_PLY) null_score = beta;
+                if (is_decisive(null_score)) null_score = beta;
                 bool verified = true;
                 if (depth >= 10) {
                     const int verify_depth = std::max(1, depth - r);
@@ -1702,14 +1913,17 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                     verified = verify_score >= beta;
                 }
                 if (verified) {
-                    diag_.null_cuts++;
+                    DIAG_COUNT(diag_.null_cuts++);
+                    TRACE_DECISION(TraceEvent::NullCutoff, ply, depth, MOVE_NULL,
+                                   alpha, beta, eval, improving, correction, VALUE_NONE,
+                                   0, r, VALUE_NONE, null_score);
                     return null_score;
                 }
             }
         }
 
         // ProbCut: if a capture is likely to fail high at reduced depth
-        if (depth >= 5 && std::abs(beta) < MATE_SCORE - MAX_PLY) {
+        if (!ABLATED(3) && depth >= 5 && !is_decisive(beta)) {
             int pc_beta = std::min(beta + active_limits_.params.probcut_margin,
                                    MATE_SCORE - MAX_PLY - 1);
             MoveList pcaps;
@@ -1718,7 +1932,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 if (m == ss->excluded) continue;
                 if (!board_ptr_->see_ge(m, pc_beta - static_eval)) continue;
 
-                diag_.probcut_tries++;
+                DIAG_COUNT(diag_.probcut_tries++);
                 do_move(ss, m);
                 tt_.prefetch(board_ptr_->position_key());   // 8.7.6(c)
                 // Quick check via QSearch first
@@ -1732,7 +1946,10 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                     tt_store(hash, depth - 3, pc_beta, TT_BETA, m, ply,
                               raw_static_eval == VALUE_NONE
                                   ? TranspositionTable::INF_EVAL : raw_static_eval);
-                    diag_.probcut_cuts++;
+                    DIAG_COUNT(diag_.probcut_cuts++);
+                    TRACE_DECISION(TraceEvent::ProbcutCutoff, ply, depth, m,
+                                   alpha, beta, eval, improving, correction, VALUE_NONE,
+                                   0, depth - 4, pc_beta - static_eval, pc_beta);
                     return pc_beta;
                 }
             }
@@ -1740,12 +1957,17 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     }
 
     // IIR: reduce non-PV nodes when no TT move (or a stale TT entry) guides the search.
-    if (!is_pv && depth >= 4 && (tt_move == MOVE_NONE || (tt_found && tt_depth < depth - 3)))
+    if (!ABLATED(4) && !is_pv && depth >= 4
+        && (tt_move == MOVE_NONE || (tt_found && tt_depth < depth - 3))) {
+        TRACE_DECISION(TraceEvent::IirReduction, ply, depth, tt_move,
+                       alpha, beta, eval, improving, correction, VALUE_NONE,
+                       0, 1, depth - 3, depth - 1);
         depth--;
+    }
 
     int  orig_alpha  = alpha;
     Move best_move   = MOVE_NONE;
-    int  best_score  = -INF_SCORE;
+    int  best_score  = tb_floor;
     int  searched    = 0;
 
     Move quiets_searched[MAX_TRACKED_QUIETS];
@@ -1792,6 +2014,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         }
         if (is_root && !root_tablebase_allows(m))
             return false;
+        if (is_root && !root_excluded_.empty()
+            && std::find(root_excluded_.begin(), root_excluded_.end(), m) != root_excluded_.end())
+            return false;
 
         bool is_cap   = (board_ptr_->piece_on(to_sq(m)) != NO_PIECE)
                      || (move_type(m) == EN_PASSANT);
@@ -1816,9 +2041,20 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             }
             return gives_check;
         };
+#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
+        int trace_history = VALUE_NONE;
+        if (trace_enabled_ && is_quiet) {
+            const PieceType pt = type_of(board_ptr_->piece_on(from_sq(m)));
+            trace_history = main_hist[from_sq(m)][to_sq(m)]
+                          + cont_hist_score(ss, pt, Square(to_sq(m)))
+                          + pawn_hist[pt][to_sq(m)]
+                          + (low_ply_hist ? (*low_ply_hist)[from_sq(m)][to_sq(m)] : 0);
+        }
+#endif
 
         // ---- Late-move pruning / futility ----------------------------------
-        if (!is_root && searched > 0 && best_score > -(MATE_SCORE - MAX_PLY)) {
+        if (!ABLATED(5) && !is_root && searched > 0
+            && best_score > -tablebaseWinInMaxPly) {
 
             // Reduction-aware depth for the shallow-pruning heuristics (Step
             // 6.5): the base LMR-table reduction, matching SF/Ethereal's use of
@@ -1835,14 +2071,23 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                     && eval + active_limits_.params.futility_base
                             + active_limits_.params.futility_coeff * depth <= alpha
                     && !move_gives_check()) {
-                    diag_.fut_prunes++;
+                    DIAG_COUNT(diag_.fut_prunes++);
+                    TRACE_DECISION(TraceEvent::FutilityPrune, ply, depth, m,
+                                   alpha, beta, eval, improving, correction, trace_history,
+                                   searched, 0,
+                                   active_limits_.params.futility_base
+                                       + active_limits_.params.futility_coeff * depth,
+                                   alpha);
                     return false;
                 }
 
                 // Late move pruning (LMP) — never in PV
                 if (!is_pv && !in_check && depth <= 6 && searched >= lmp_thresh
                     && !move_gives_check()) {
-                    diag_.lmp_prunes++;
+                    DIAG_COUNT(diag_.lmp_prunes++);
+                    TRACE_DECISION(TraceEvent::LmpPrune, ply, depth, m,
+                                   alpha, beta, eval, improving, correction, trace_history,
+                                   searched, 0, lmp_thresh, alpha);
                     return false;
                 }
 
@@ -1860,13 +2105,18 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                     {
                         const int64_t thr =
                             int64_t(active_limits_.params.hist_prune_coeff) * depth;
-                        ++diag_.hist_prune_tested;
-                        if (hist < -(thr / 2)) ++diag_.hist_below_half;
-                        if (hist < -(thr / 4)) ++diag_.hist_below_quarter;
-                        if (hist < -(thr / 8)) ++diag_.hist_below_eighth;
+                        DIAG_COUNT(++diag_.hist_prune_tested);
+                        if (hist < -(thr / 2)) DIAG_COUNT(++diag_.hist_below_half);
+                        if (hist < -(thr / 4)) DIAG_COUNT(++diag_.hist_below_quarter);
+                        if (hist < -(thr / 8)) DIAG_COUNT(++diag_.hist_below_eighth);
                     }
                     if (hist < -active_limits_.params.hist_prune_coeff * depth && !move_gives_check()) {
-                        diag_.hist_prunes++;
+                        DIAG_COUNT(diag_.hist_prunes++);
+                        TRACE_DECISION(TraceEvent::HistoryPrune, ply, depth, m,
+                                       alpha, beta, eval, improving, correction, hist,
+                                       searched, 0,
+                                       active_limits_.params.hist_prune_coeff * depth,
+                                       alpha);
                         return false;
                     }
                 }
@@ -1879,8 +2129,14 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 if (!is_pv && depth <= active_limits_.params.quiet_see_depth
                     && !move_gives_check()
                     && !board_ptr_->see_ge(
-                           m, -active_limits_.params.quiet_see_coeff * lmr_depth * lmr_depth))
+                           m, -active_limits_.params.quiet_see_coeff * lmr_depth * lmr_depth)) {
+                    TRACE_DECISION(TraceEvent::QuietSeePrune, ply, depth, m,
+                                   alpha, beta, eval, improving, correction, trace_history,
+                                   searched, 0,
+                                   -active_limits_.params.quiet_see_coeff * lmr_depth * lmr_depth,
+                                   alpha);
                     return false;
+                }
             } else if (is_cap) {
                 // Capture futility pruning (Step 6.5): if even winning the
                 // captured piece cannot lift the static eval to alpha, skip the
@@ -1897,14 +2153,23 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                             + active_limits_.params.cap_fut_coeff * lmr_depth
                             + PIECE_VALUE[captured]
                             + hist_.capture[atk][to_sq(m)][captured] / 32;
-                    if (fut <= alpha)
+                    if (fut <= alpha) {
+                        TRACE_DECISION(TraceEvent::CaptureFutilityPrune, ply, depth, m,
+                                       alpha, beta, eval, improving, correction, VALUE_NONE,
+                                       searched, 0, fut - eval, alpha);
                         return false;
+                    }
                 }
 
                 // SEE pruning for bad captures
                 if (!is_pv && depth <= 8 && !is_promo) {
                     if (!board_ptr_->see_ge(m, -depth * active_limits_.params.see_prune_coeff) && !move_gives_check()) {
-                        diag_.see_prunes++;
+                        DIAG_COUNT(diag_.see_prunes++);
+                        TRACE_DECISION(TraceEvent::CaptureSeePrune, ply, depth, m,
+                                       alpha, beta, eval, improving, correction, VALUE_NONE,
+                                       searched, 0,
+                                       -depth * active_limits_.params.see_prune_coeff,
+                                       alpha);
                         return false;
                     }
                 }
@@ -1918,11 +2183,11 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         int extension = 0;
 
         // ---- Singular extension (only for TT move) -------------------------
-        if (!is_root && m == tt_move && ss->excluded == MOVE_NONE
+        if (!ABLATED(6) && !is_root && m == tt_move && ss->excluded == MOVE_NONE
             && depth >= active_limits_.params.singular_min_depth
             && tt_found && tt_depth >= depth - 3
             && (tt_flag == TT_BETA || tt_flag == TT_EXACT)
-            && std::abs(tt_score) < MATE_SCORE - MAX_PLY) {
+            && !is_decisive(tt_score)) {
 
             int s_beta  = tt_score - active_limits_.params.singular_beta_mult * depth;
             int s_depth = (depth - 1) / 2;
@@ -1954,12 +2219,15 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 // discovery-or-SEE, so removing the composition removes strictly
                 // more than it would there. Composition stays. (BAS-D11)
                 extension += allow_double ? 2 : 1;
+                TRACE_DECISION(TraceEvent::SingularExtension, ply, depth, m,
+                               alpha, beta, eval, improving, correction, trace_history,
+                               searched, extension, s_beta, s_val);
 
                 // 5.7.3 probe: count the stack, do not change it yet.
-                ++diag_.sing_fired;
-                if (allow_double)   ++diag_.sing_double;
-                if (did_check_ext)  ++diag_.sing_in_check;
-                if (allow_double && did_check_ext) ++diag_.sing_triple;
+                DIAG_COUNT(++diag_.sing_fired);
+                if (allow_double)   DIAG_COUNT(++diag_.sing_double);
+                if (did_check_ext)  DIAG_COUNT(++diag_.sing_in_check);
+                if (allow_double && did_check_ext) DIAG_COUNT(++diag_.sing_triple);
 
                 // 5.7.2: relax LMR for this node's remaining moves. Suppressed
                 // when the TT move is a capture -- a singular capture says the
@@ -1969,11 +2237,17 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 singular_quiet_lmr = !tt_capture;
             } else if (s_beta >= beta) {
                 // Multicut: likely to fail high without this move too
+                TRACE_DECISION(TraceEvent::SingularMulticut, ply, depth, m,
+                               alpha, beta, eval, improving, correction, trace_history,
+                               searched, 0, s_beta, s_val);
                 immediate_return = true;
                 immediate_score = s_beta;
                 return true;
             } else if (tt_score >= beta) {
-                ++diag_.sing_ttbeta;
+                DIAG_COUNT(++diag_.sing_ttbeta);
+                TRACE_DECISION(TraceEvent::SingularNegative, ply, depth, m,
+                               alpha, beta, eval, improving, correction, trace_history,
+                               searched, -1, s_beta, s_val);
 
                 // 5.7.4 REFUTED: the reference replaces this negative
                 // extension with a SECOND verification search that can cut the
@@ -2025,19 +2299,19 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             // This matters because lmr_applied alone cannot tell "rarely
             // eligible" from "eligible but never reduced", and those have
             // opposite repairs. Our EBF is 2.20 against the reference's 1.61.
-            ++diag_.lmr_eligible;
+            if (!ABLATED(7)) DIAG_COUNT(++diag_.lmr_eligible);
             const bool lmr_type_ok = is_quiet || (is_cap && !is_promo && see_score < 0);
-            if (depth < 2)          ++diag_.lmr_blocked_depth;
-            else if (searched < 2)  ++diag_.lmr_blocked_searched;
-            else if (in_check)      ++diag_.lmr_blocked_in_check;
-            else if (!lmr_type_ok)  ++diag_.lmr_blocked_movetype;
+            if (!ABLATED(7) && depth < 2)          DIAG_COUNT(++diag_.lmr_blocked_depth);
+            else if (!ABLATED(7) && searched < 2) DIAG_COUNT(++diag_.lmr_blocked_searched);
+            else if (!ABLATED(7) && in_check)     DIAG_COUNT(++diag_.lmr_blocked_in_check);
+            else if (!ABLATED(7) && !lmr_type_ok) DIAG_COUNT(++diag_.lmr_blocked_movetype);
             // Checking moves are never reduced. 5.7.6 removed the
             // lmr_allow_check switch that could have relaxed this: it was added
             // inert for 5.4.4, which closed rejected (BAS-S16).
-            else if (move_gives_check())
-                ++diag_.lmr_blocked_gives_check;
+            else if (!ABLATED(7) && move_gives_check())
+                DIAG_COUNT(++diag_.lmr_blocked_gives_check);
             // LMR applies to: quiets, and bad captures — but NOT promotions
-            else {
+            else if (!ABLATED(7)) {
                 // Phase 6.7: accumulate the reduction in 1024ths of a ply, then
                 // shift back at the end. Behaviour-identical at default knobs
                 // (adjustments are the old integer values ×1024; history stays
@@ -2081,29 +2355,35 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 // separable. Most LMR-eligible nodes sit near the leaves, where
                 // new_depth-1 is 1 or 2 and no policy change can move the
                 // reduction actually taken.
-                if ((r >> 10) > new_depth - 1) ++diag_.lmr_clamped_high;
+                if ((r >> 10) > new_depth - 1) DIAG_COUNT(++diag_.lmr_clamped_high);
                 reduction = std::clamp(r >> 10, 0, new_depth - 1);
                 // 5.2: the gate passed but the computed reduction was zero —
                 // distinct from being blocked, and a different repair. Counted
                 // here so that
                 //   eligible = applied + clamped_zero + sum(blocked_*)
                 // holds exactly, which is what makes the breakdown auditable.
-                if (reduction == 0) ++diag_.lmr_clamped_zero;
+                if (reduction == 0) DIAG_COUNT(++diag_.lmr_clamped_zero);
             }
             ss->reduction = reduction;
+            TRACE_DECISION(TraceEvent::LmrReduction, ply, depth, m,
+                           alpha, beta, eval, improving, correction, move_stat_score,
+                           searched, reduction, new_depth - 1, VALUE_NONE);
             if (reduction > 0) {
-                diag_.lmr_applied++;
+                DIAG_COUNT(diag_.lmr_applied++);
                 // Mean reduction over applied = reduction_plies / applied. A
                 // timid-LMR hypothesis is decided by this number, not by how
                 // often LMR fired.
-                diag_.lmr_reduction_plies += reduction;
+                DIAG_COUNT(diag_.lmr_reduction_plies += reduction);
             }
 
             score = -negamax(new_depth - reduction, -alpha - 1, -alpha,
                              ply + 1, ss + 1, false, true, true);
             // Re-search at full depth if LMR didn't fail low
             if (reduction > 0 && score > alpha && !stopped_) {
-                diag_.lmr_researched++;
+                DIAG_COUNT(diag_.lmr_researched++);
+                TRACE_DECISION(TraceEvent::LmrResearch, ply, depth, m,
+                               alpha, beta, eval, improving, correction, move_stat_score,
+                               searched, reduction, VALUE_NONE, score);
                 score = -negamax(new_depth, -alpha - 1, -alpha,
                                  ply + 1, ss + 1, false, true, !cut_node);
 
@@ -2177,6 +2457,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         }
 
         if (alpha >= beta) {
+            TRACE_DECISION(TraceEvent::BetaCutoff, ply, depth, m,
+                           orig_alpha, beta, eval, improving, correction, move_stat_score,
+                           searched, ss->reduction, VALUE_NONE, score);
             // 5.2 (BAS-O03): ordering quality at the point it costs something.
             // `searched` was incremented above, so the cutting move's index is
             // searched - 1. A cutoff on index 0 costs one move's search; on
@@ -2184,14 +2467,14 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             // tree width — the quantity separating our 2.20 EBF from ~1.61.
             // cutoff_src says which picker stage to fix rather than merely that
             // ordering is imperfect.
-            ++diag_.fail_highs;
-            diag_.fail_high_index_sum += searched - 1;
-            if (searched == 1) ++diag_.fail_high_first;
+            DIAG_COUNT(++diag_.fail_highs);
+            DIAG_COUNT(diag_.fail_high_index_sum += searched - 1);
+            if (searched == 1) DIAG_COUNT(++diag_.fail_high_first);
             switch (picker_src) {
-                case MovePicker::Src::TT:           ++diag_.cutoff_src_tt; break;
-                case MovePicker::Src::GoodTactical: ++diag_.cutoff_src_good_tactical; break;
-                case MovePicker::Src::Quiet:        ++diag_.cutoff_src_quiet; break;
-                case MovePicker::Src::BadTactical:  ++diag_.cutoff_src_bad_tactical; break;
+                case MovePicker::Src::TT:           DIAG_COUNT(++diag_.cutoff_src_tt); break;
+                case MovePicker::Src::GoodTactical: DIAG_COUNT(++diag_.cutoff_src_good_tactical); break;
+                case MovePicker::Src::Quiet:        DIAG_COUNT(++diag_.cutoff_src_quiet); break;
+                case MovePicker::Src::BadTactical:  DIAG_COUNT(++diag_.cutoff_src_bad_tactical); break;
                 case MovePicker::Src::None:         break;
             }
             // 8.5.10(e): boost the bonus when the cutoff was "surprising" -- the
@@ -2231,6 +2514,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     if (searched == 0)
         return in_check ? -(MATE_SCORE - ply) : 0;
 
+    best_score = std::min(best_score, tb_cap);
+
     // 8.5.10(b') exact/PV best-move history training, REWARD-ONLY.
     // A beta cutoff trains history inside search_one. An EXACT node -- best_move
     // improved alpha but did not cut off -- was left untrained. The full updater
@@ -2250,7 +2535,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
     // Update correction history with search result
     if (!in_check && ss->excluded == MOVE_NONE && static_eval != VALUE_NONE
-        && std::abs(best_score) < MATE_SCORE - MAX_PLY
+        && !is_decisive(best_score)
         && (best_score >= beta || best_score > orig_alpha)) {
         update_correction(board_ptr_->turn(), *board_ptr_, ss,
                           best_score - static_eval, depth);
@@ -2260,7 +2545,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     TTFlag flag = (best_score >= beta)    ? TT_BETA
                 : (best_score > orig_alpha) ? TT_EXACT
                 :                             TT_ALPHA;
-    if (ss->excluded == MOVE_NONE)
+    // A later MultiPV line searched the root without its best moves; its
+    // result is not the root's, so it is not stored (Stockfish skips it too).
+    if (ss->excluded == MOVE_NONE && !(is_root && !root_excluded_.empty()))
         tt_store(hash, depth, best_score, flag, best_move, ply,
                   raw_static_eval == VALUE_NONE ? TranspositionTable::INF_EVAL : raw_static_eval);
 
@@ -2288,6 +2575,19 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
     pondering_    = limits.ponder;
     active_limits_ = limits;
     root_side_    = board.turn();
+#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
+    trace_count_ = 0;
+    trace_overflow_ = false;
+    trace_enabled_ = limits.decision_trace && limits.diag && info_cb_
+                  && limits.thread_count == 1 && limits.thread_id == 0
+                  && limits.root_moves.size() == 1;
+    if (trace_enabled_)
+        trace_records_ = std::make_unique<std::array<TraceRecord, TRACE_CAPACITY>>();
+    else
+        trace_records_.reset();
+    if (limits.decision_trace && info_cb_ && !trace_enabled_)
+        info_cb_("info string trace error requires Diag=true Threads=1 and exactly one searchmoves root");
+#endif
 
     init_lmr(static_cast<float>(active_limits_.params.lmr_base)    / 100.0f,
              static_cast<float>(active_limits_.params.lmr_divisor) / 100.0f);
@@ -2333,6 +2633,35 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
     int max_depth = limits.infinite ? MAX_SEARCH_DEPTH
                   : std::min(limits.depth, MAX_SEARCH_DEPTH);
 
+    // A root with no legal move is decided: report it once, as Stockfish does,
+    // and search nothing. `bestmove` (0000) still waits for `stop` under
+    // `infinite` or `ponder`; that is the caller's.
+    {
+        MoveList root_legal;
+        board.gen_legal(root_legal);
+        if (root_legal.size() == 0) {
+            const bool mated = board.is_in_check();
+            result.score = mated ? -MATE_SCORE : 0;
+            if (info_cb_)
+                info_cb_(mated ? "info depth 0 score mate 0" : "info depth 0 score cp 0");
+            max_depth = 0;
+        }
+    }
+
+    // MultiPV: the main thread reports up to `multipv` lines, never more than
+    // the root moves the search may play; helpers search one.
+    multipv_lines_ = 1;
+    root_excluded_.clear();
+    if (limits.multipv > 1 && thread_id_ == 0) {
+        MoveList root_legal;
+        board.gen_legal(root_legal);
+        int allowed = 0;
+        for (Move m : root_legal)
+            if (move_in_root_moves(m, limits.root_moves) && root_tablebase_allows(m))
+                ++allowed;
+        multipv_lines_ = std::clamp(allowed, 1, limits.multipv);
+    }
+
     int start_depth = 1;
     root_stats_.clear();   // fresh records per `go` (8.6.10e)
     diag_.reset();         // fresh diagnostic counters per `go` (8.6.6)
@@ -2357,6 +2686,7 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
 
     for (int depth = start_depth; depth <= max_depth && !stopped_; depth++) {
         pv_len_[0] = 0;
+        sel_depth_ = 0;
         root_depth_nodes_ = 0;
         root_best_nodes_ = 0;
         root_best_effort_ = 0;
@@ -2368,7 +2698,20 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
             int delta = active_limits_.params.aspiration_delta;
             int asp_a = prev_score - delta;
             int asp_b = prev_score + delta;
-            ++diag_.asp_windows;
+            // A long iteration whose window fails reports the bound it proved,
+            // with the line that failed high, or the previous line on a fail low.
+            auto bound_line = [&](int bound_score, bool lower) {
+                if (!info_cb_ || elapsed_seconds() <= kBoundLineAfterSeconds)
+                    return;
+                std::vector<Move> line = result.pv;
+                if (lower && pv_len_[0] > 0)
+                    line.assign(pv_table_[0], pv_table_[0] + std::clamp(pv_len_[0], 0, MAX_PLY));
+                info_cb_(format_info_line(depth, sel_depth_, 1, bound_score,
+                                          lower ? "lowerbound" : "upperbound", current_nodes(),
+                                          elapsed_seconds(), current_tbhits(), tt_.hashfull(),
+                                          legal_line(*board_ptr_, line)));
+            };
+            DIAG_COUNT(++diag_.asp_windows);
             while (true) {
                 // 5.8.5 REFUTED: the reference re-searches SHALLOWER after each
                 // fail-high (failedHighCnt). Measured: WAC 137 -> 119 against a
@@ -2378,8 +2721,9 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
                 score = negamax(depth, asp_a, asp_b, 0, ss, true, true, false);
                 if (stopped_) break;
                 if (score <= asp_a) {
-                    ++diag_.asp_fail_low;
-                    ++diag_.asp_researches;
+                    bound_line(score, false);
+                    DIAG_COUNT(++diag_.asp_fail_low);
+                    DIAG_COUNT(++diag_.asp_researches);
                     // 5.8.3 REFUTED: the reference also pulls beta to the
                     // window midpoint here, reasoning that a fail-low proves the
                     // standing beta far too generous. Measured, it makes things
@@ -2393,16 +2737,30 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
                     asp_a  = std::max(score - delta, -INF_SCORE);
                     delta += delta / 2;
                 } else if (score >= asp_b) {
-                    ++diag_.asp_fail_high;
-                    ++diag_.asp_researches;
+                    bound_line(score, true);
+                    DIAG_COUNT(++diag_.asp_fail_high);
+                    // Past the optimum, a fail-high on the move the last
+                    // iteration chose only proves that move better than the
+                    // window expected: play it rather than spend the rest of
+                    // the budget measuring by how much. A rising score in a won
+                    // ending otherwise re-searches at full depth until the hard
+                    // maximum. The iteration is discarded as on any stop, so
+                    // the move played is that iteration's, and it is this one.
+                    if (soft_limit_ > 0.0 && !pondering_ && thread_id_ == 0
+                        && pv_len_[0] > 0 && pv_table_[0][0] == result.bestmove
+                        && elapsed_seconds() >= soft_limit_) {
+                        stopped_ = true;
+                        break;
+                    }
+                    DIAG_COUNT(++diag_.asp_researches);
                     asp_b  = std::min(score + delta, INF_SCORE);
                     delta += delta / 2;
                 } else {
                     break;
                 }
                 if (delta >= 900) {
-                    ++diag_.asp_giveup;
-                    ++diag_.asp_researches;
+                    DIAG_COUNT(++diag_.asp_giveup);
+                    DIAG_COUNT(++diag_.asp_researches);
                     asp_a = -INF_SCORE;
                     asp_b =  INF_SCORE;
                     score = negamax(depth, asp_a, asp_b, 0, ss, true, true, false);
@@ -2422,7 +2780,7 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
 
         int reported_score = score;
         if (cur_best != MOVE_NONE) {
-            const int tb_score = root_tablebase_score(cur_best);
+            const int tb_score = root_tablebase_display(cur_best);
             if (tb_score != VALUE_NONE)
                 reported_score = tb_score;
         }
@@ -2452,6 +2810,7 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
         }
         result.score = reported_score;
         result.depth = depth;
+        result.seldepth = sel_depth_;
 
         // 5.8.6: the table is given the RAW `score`, not the tablebase-
         // corrected `reported_score` that goes out over UCI. That is deliberate
@@ -2462,8 +2821,55 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
         if (root_table_ && result.bestmove != MOVE_NONE)
             root_table_->update(result.bestmove, result.pondermove, depth, score);
 
+        // The first line's own PV, before any later line overwrites the table.
+        const std::vector<Move> first_line(pv_table_[0], pv_table_[0] + std::clamp(pv_len_[0], 0, MAX_PLY));
+
+        // MultiPV lines 2..N: each is the best of the root moves the earlier
+        // lines did not play, searched at full width. A line a stop cuts short
+        // is not reported; its previous depth stands.
+        struct ExtraLine { int score; std::vector<Move> pv; };
+        std::vector<ExtraLine> extra_lines;
+        if (multipv_lines_ > 1 && cur_best != MOVE_NONE && !stopped_) {
+            root_excluded_.assign(1, cur_best);
+            for (int k = 2; k <= multipv_lines_; ++k) {
+                pv_len_[0] = 0;
+                const int line_score = negamax(depth, -INF_SCORE, INF_SCORE, 0, ss, true, true, false);
+                if (stopped_ || pv_len_[0] == 0)
+                    break;
+                extra_lines.push_back({line_score, std::vector<Move>(
+                    pv_table_[0], pv_table_[0] + std::clamp(pv_len_[0], 0, MAX_PLY))});
+                root_excluded_.push_back(pv_table_[0][0]);
+            }
+            root_excluded_.clear();
+        }
+
         double elapsed = elapsed_seconds();
-        send_info(depth, reported_score, current_nodes(), elapsed);
+        if (extra_lines.empty()) {
+            send_info(depth, 1, reported_score, first_line, current_nodes(), elapsed);
+        } else {
+            // Report the lines best first, as Stockfish sorts its root moves, so
+            // `bestmove` is always line 1: a later line searched without the
+            // first can score above it.
+            std::vector<ExtraLine> lines;
+            lines.push_back({reported_score, first_line});
+            for (ExtraLine& line : extra_lines) {
+                const int tb_display = root_tablebase_display(line.pv.front());
+                lines.push_back({tb_display != VALUE_NONE ? tb_display : line.score,
+                                 std::move(line.pv)});
+            }
+            std::stable_sort(lines.begin(), lines.end(),
+                             [](const ExtraLine& a, const ExtraLine& b) { return a.score > b.score; });
+            if (lines.front().pv.front() != result.bestmove) {
+                result.bestmove   = lines.front().pv.front();
+                result.pv         = lines.front().pv;
+                result.pondermove = result.pv.size() > 1 ? result.pv[1]
+                                  : ponder_from_tt(board, result.bestmove);
+                result.score      = lines.front().score;
+            }
+            for (size_t k = 0; k < lines.size(); ++k)
+                send_info(depth, static_cast<int>(k) + 1, lines[k].score, lines[k].pv,
+                          current_nodes(), elapsed);
+        }
 
         // Adaptive soft time limit:
         // The more stable the best move, the less time we need to confirm it.
@@ -2530,6 +2936,9 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
     // the hidden TM_Debug option on, so play/bench are unaffected when off.
     if (info_cb_ && active_limits_.diag)
         print_diag();
+#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
+    print_decision_trace();
+#endif
 
     if (info_cb_ && active_limits_.tm_debug) {
         long long dispatch_ms = -1;
@@ -2801,7 +3210,48 @@ SearchResult SearchThreadPool::search(Board board, const SearchLimits& limits, i
     const int64_t elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::steady_clock::now() - wall_start).count();
 
-    return sanitize_search_result(root_board, merge_results(results, thread_count, root_table, elapsed_ms));
+    SearchResult merged = merge_results(results, thread_count, root_table, elapsed_ms);
+    // With several lines the main thread's first line is the answer, as in
+    // Stockfish: helpers search one line and do not vote.
+    if (limits.multipv > 1 && results[0].bestmove != MOVE_NONE) {
+        const SearchResult& main_result = results[0];
+        merged.bestmove   = main_result.bestmove;
+        merged.pondermove = main_result.pondermove;
+        merged.score      = main_result.score;
+        merged.depth      = main_result.depth;
+        merged.seldepth   = main_result.seldepth;
+        merged.pv         = main_result.pv;
+    }
+
+    // The merged result may come from a helper, or from the shared root table,
+    // which keeps no line. Take the line of the thread that reached it, so the
+    // last `info` before `bestmove` names the move played (Stockfish prints its
+    // best thread's PV the same way). Its score is the reported one, which at
+    // a tablebase root differs from the table's raw value.
+    int line_score = merged.score;
+    for (int i = 0; i < thread_count; ++i) {
+        const SearchResult& result = results[static_cast<size_t>(i)];
+        if (result.bestmove == merged.bestmove && result.depth == merged.depth) {
+            if (merged.pv.empty() || merged.pv.front() != merged.bestmove) {
+                merged.pv = result.pv;
+                merged.seldepth = result.seldepth;
+            }
+            line_score = result.score;
+            break;
+        }
+    }
+    if (merged.pv.empty() || merged.pv.front() != merged.bestmove) {
+        merged.pv.assign(1, merged.bestmove);
+        if (merged.pondermove != MOVE_NONE)
+            merged.pv.push_back(merged.pondermove);
+    }
+    if (info_cb_ && needs_pool_line(merged, results[0])) {
+        info_cb_(format_info_line(merged.depth, merged.seldepth, 1, line_score, {}, merged.nodes,
+                                  static_cast<double>(elapsed_ms) / 1000.0, merged.tbhits,
+                                  tt_.hashfull(), legal_line(root_board, merged.pv)));
+    }
+
+    return sanitize_search_result(root_board, merged);
 }
 
 void SearchThreadPool::worker_loop(int helper_slot) {

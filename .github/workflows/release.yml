@@ -1,29 +1,107 @@
-name: Build and Release
+name: Release
+run-name: ${{ github.ref_type == 'tag' && github.ref_name || format('release candidate {0}', github.sha) }}
+
+# A release is cut by pushing a `vX.Y.Z` tag on master; nothing else creates
+# one. The workflow validates first (tools/diag/release_check.py: the tag names
+# the version both CMakeLists.txt and src/constants.h declare, the tagged
+# commit is on master, CHANGELOG.md has a dated section for it, and GUIDE marks
+# it released), builds the nine PGO assets read-only, benches every one and
+# asserts a single `bench 13` fingerprint across the matrix equal to the one
+# GUIDE declares, and only then one job with write permission publishes the
+# release with every asset and the notes taken from that CHANGELOG section.
+# Nothing exists on GitHub until every cell has passed, so a failed run is
+# repaired by deleting the tag, fixing master and tagging again.
+#
+# A pull request into master runs the same build, bench and fingerprint checks
+# as a candidate, so a green PR is a releasable one; when the version is a
+# plain X.Y.Z it also runs the release check (all but the tag's name and the
+# commit on master). A manual dispatch does the same on a chosen ref, the
+# rehearsal. Neither creates a tag or a release.
+#
+# Only `v<major>.<minor>.<patch>` tags trigger this, never `oracle/...` or
+# `archive/...` markers.
 
 on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  pull_request:
+    branches: [master]
   workflow_dispatch:
-    inputs:
-      tag_name:
-        description: Existing release tag to upload assets to (for example v1.3.0)
-        required: true
-        type: string
-  release:
-    types: [published]
+
+# A newer commit on the same pull request supersedes its candidate build; tag
+# and dispatch runs are never cancelled.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
+  prepare:
+    name: Validate the version, the changelog and the declared fingerprint
+    runs-on: ubuntu-24.04
+    outputs:
+      mode: ${{ steps.meta.outputs.mode }}
+      version: ${{ steps.meta.outputs.version }}
+      expected_nodes: ${{ steps.meta.outputs.expected_nodes }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            python3 tools/diag/release_check.py check "$GITHUB_REF_NAME" --base origin/master --notes release-notes.md
+            mode=release
+            version="${GITHUB_REF_NAME#v}"
+          else
+            mode=candidate
+            version="$(python3 tools/diag/release_check.py version)"
+            if [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              # A plain version declares this commit a release: it passes every
+              # check the tag run makes except the tag's name and the commit on
+              # master (`--base HEAD` waives it), so a green PR is releasable.
+              python3 tools/diag/release_check.py check "v$version" --base HEAD --notes release-notes.md
+            else
+              echo "Candidate build of $GITHUB_SHA at version $version; nothing is published." > release-notes.md
+            fi
+          fi
+          # GUIDE declares the fingerprint once; release_check.py reads it with
+          # the roadmap checker's parser. Every asset must reproduce it, and a
+          # cross-platform mismatch is investigated, never waived.
+          expected="$(python3 tools/diag/release_check.py fingerprint)"
+          test -n "$expected"
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "expected_nodes=$expected" >> "$GITHUB_OUTPUT"
+          echo "mode $mode, version $version, expected bench 13 nodes $expected"
+
+      - name: Upload the release notes
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-notes
+          path: release-notes.md
+          if-no-files-found: error
+
   build:
     name: Build ${{ matrix.os_name }} ${{ matrix.arch }}${{ matrix.asset_suffix }}
+    needs: prepare
     runs-on: ${{ matrix.runner }}
     env:
-      RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.tag_name }}
+      RELEASE_TAG: v${{ needs.prepare.outputs.version }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - runner: ubuntu-latest
+          - runner: ubuntu-24.04
             os_name: linux
             arch: x86_64
             ext: ""
@@ -31,7 +109,7 @@ jobs:
             compiler: clang
             asset_suffix: ""
 
-          - runner: ubuntu-latest
+          - runner: ubuntu-24.04
             os_name: linux
             arch: x86_64
             ext: ""
@@ -39,7 +117,7 @@ jobs:
             compiler: clang
             asset_suffix: "-avx2"
 
-          - runner: ubuntu-latest
+          - runner: ubuntu-24.04
             os_name: linux
             arch: x86_64
             ext: ""
@@ -55,7 +133,7 @@ jobs:
             compiler: clang
             asset_suffix: ""
 
-          - runner: windows-latest
+          - runner: windows-2025
             os_name: windows
             arch: x86_64
             ext: ".exe"
@@ -66,7 +144,7 @@ jobs:
             mingw_pkg_prefix: mingw-w64-clang-x86_64
             compiler_pkg: clang
 
-          - runner: windows-latest
+          - runner: windows-2025
             os_name: windows
             arch: x86_64
             ext: ".exe"
@@ -77,7 +155,7 @@ jobs:
             mingw_pkg_prefix: mingw-w64-clang-x86_64
             compiler_pkg: clang
 
-          - runner: windows-latest
+          - runner: windows-2025
             os_name: windows
             arch: x86_64
             ext: ".exe"
@@ -99,7 +177,7 @@ jobs:
             mingw_pkg_prefix: mingw-w64-clang-aarch64
             compiler_pkg: clang
 
-          - runner: macos-latest
+          - runner: macos-15
             os_name: macos
             arch: aarch64
             ext: ""
@@ -122,7 +200,7 @@ jobs:
         run: |
           sudo apt-get update -q
           # clang-19, NOT the distro-default clang-18. All Linux runners here are
-          # 24.04 (ubuntu-latest + ubuntu-24.04-arm). The engine returns
+          # 24.04 (ubuntu-24.04 + ubuntu-24.04-arm). The engine returns
           # std::expected (C++23, added in 8.6); on Linux clang uses libstdc++,
           # whose <expected> body is guarded behind __cpp_concepts >= 202002L.
           # clang-18 only defines 201907L, so the header is empty and the build
@@ -156,6 +234,7 @@ jobs:
           install: >-
             ${{ matrix.mingw_pkg_prefix }}-${{ matrix.compiler_pkg }}
             ${{ matrix.mingw_pkg_prefix }}-llvm
+            ${{ matrix.mingw_pkg_prefix }}-python
             ${{ matrix.mingw_pkg_prefix }}-cmake
             ${{ matrix.mingw_pkg_prefix }}-ninja
 
@@ -192,69 +271,161 @@ jobs:
           echo "asset=$asset" >> "$GITHUB_OUTPUT"
           echo "path=build/dist/${asset}" >> "$GITHUB_OUTPUT"
 
-      - name: Smoke test the exact binary being published
+      - name: Verify x86 ISA contract on the release binary (Linux)
+        if: matrix.arch == 'x86_64' && matrix.os_name != 'windows'
         shell: bash
         run: |
-          binary="${{ steps.asset.outputs.path }}"
-          if command -v timeout >/dev/null 2>&1; then TIMEOUT="timeout 60";
-          elif command -v gtimeout >/dev/null 2>&1; then TIMEOUT="gtimeout 60";
-          else TIMEOUT=""; fi
-          output=$(printf "uci\nquit\n" | $TIMEOUT "./$binary" 2>&1 || true)
-          echo "$output"
-          echo "$output" | grep -q "uciok" || { echo "FAIL: uciok not found"; exit 1; }
-          version="${RELEASE_TAG#v}"
-          echo "$output" | grep -qF "$version" || { echo "FAIL: version $version not found"; exit 1; }
-          # 8.6.5b (Rarog 9.3 pattern): the uploaded artifact must SEARCH, not
-          # just answer the handshake -- a real bench node count proves the
-          # move generator, evaluator and search survived PGO on this runner.
-          bench_out=$(printf "bench 6\nquit\n" | $TIMEOUT "./$binary" 2>&1 || true)
-          nodes=$(echo "$bench_out" | grep -oE "Nodes searched *: *[0-9]+" | grep -oE "[0-9]+$" || true)
-          [ -n "$nodes" ] && [ "$nodes" -gt 0 ] || { echo "FAIL: bench produced no node count"; echo "$bench_out" | tail -20; exit 1; }
-          echo "Smoke test passed (bench 6: $nodes nodes)"
-          # Record the exact count for the cross-binary agreement job below.
-          echo "$nodes" > "relbench-${{ matrix.os_name }}-${{ matrix.arch }}${{ matrix.asset_suffix }}.txt"
+          objdump=$(command -v llvm-objdump || command -v llvm-objdump-19 || true)
+          python=$(command -v python3 || command -v python || true)
+          [ -n "$objdump" ] || { echo "FAIL: llvm-objdump not found"; exit 1; }
+          [ -n "$python" ] || { echo "FAIL: python not found"; exit 1; }
+          launcher=$(find "build/${{ matrix.preset }}-pgo/CMakeFiles/basilisk_launcher.dir" \
+            -type f \( -name 'main.cpp.o' -o -name 'main.cpp.obj' \) -print -quit)
+          [ -n "$launcher" ] || { echo "FAIL: baseline launcher object not found"; exit 1; }
+          case "${{ matrix.asset_suffix }}" in
+            -pext) tier=pext ;;
+            -avx2) tier=avx2 ;;
+            *) tier=portable ;;
+          esac
+          "$python" tools/diag/verify_isa.py \
+            --tier "$tier" --binary "${{ steps.asset.outputs.path }}" \
+            --launcher-object "$launcher" --objdump "$objdump"
 
-      - name: Upload bench fingerprint
+      - name: Verify x86 ISA contract on the release binary (Windows)
+        if: matrix.arch == 'x86_64' && matrix.os_name == 'windows'
+        shell: msys2 {0}
+        run: |
+          objdump=$(command -v llvm-objdump || command -v llvm-objdump-19 || true)
+          python=$(command -v python3 || command -v python || true)
+          [ -n "$objdump" ] || { echo "FAIL: llvm-objdump not found"; exit 1; }
+          [ -n "$python" ] || { echo "FAIL: python not found"; exit 1; }
+          launcher=$(find "build/${{ matrix.preset }}-pgo/CMakeFiles/basilisk_launcher.dir" \
+            -type f \( -name 'main.cpp.o' -o -name 'main.cpp.obj' \) -print -quit)
+          [ -n "$launcher" ] || { echo "FAIL: baseline launcher object not found"; exit 1; }
+          case "${{ matrix.asset_suffix }}" in
+            -pext) tier=pext ;;
+            -avx2) tier=avx2 ;;
+            *) tier=portable ;;
+          esac
+          "$python" tools/diag/verify_isa.py \
+            --tier "$tier" --binary "${{ steps.asset.outputs.path }}" \
+            --launcher-object "$launcher" --objdump "$objdump"
+
+      - name: Smoke-test and fingerprint the asset
+        shell: bash
+        run: |
+          set -euo pipefail
+          binary="${{ steps.asset.outputs.path }}"
+          if command -v timeout >/dev/null 2>&1; then TIMEOUT="timeout 120";
+          elif command -v gtimeout >/dev/null 2>&1; then TIMEOUT="gtimeout 120";
+          else TIMEOUT=""; fi
+          version='${{ needs.prepare.outputs.version }}'
+          output=$(printf "uci\nquit\n" | $TIMEOUT "./$binary" 2>&1 || true)
+          echo "$output" | grep -q "^uciok" || { echo "::error::no uciok in the UCI handshake"; echo "$output"; exit 1; }
+          echo "$output" | tr -d '\r' | grep -qx "id name Basilisk $version" \
+            || { echo "::error::id name does not read 'Basilisk $version'"; echo "$output" | grep '^id name'; exit 1; }
+          # The asset must reproduce the declared fingerprint exactly: the move
+          # generator, evaluator and search survived PGO on this runner.
+          bench_out=$(printf "bench 13\nquit\n" | $TIMEOUT "./$binary" 2>&1 || true)
+          nodes=$(echo "$bench_out" | grep -oE "Nodes searched *: *[0-9]+" | grep -oE "[0-9]+$" || true)
+          expected='${{ needs.prepare.outputs.expected_nodes }}'
+          echo "bench 13: ${nodes:-none} nodes (declared $expected)"
+          [ "$nodes" = "$expected" ] || { echo "::error::fingerprint ${nodes:-none} differs from the declared $expected"; echo "$bench_out" | tail -20; exit 1; }
+          mkdir -p asset
+          cp "$binary" "asset/${{ steps.asset.outputs.asset }}"
+          echo "$nodes" > "asset/${{ steps.asset.outputs.asset }}.nodes"
+
+      - name: Upload the asset
         uses: actions/upload-artifact@v7
         with:
-          name: relbench-${{ matrix.os_name }}-${{ matrix.arch }}${{ matrix.asset_suffix }}
-          path: relbench-${{ matrix.os_name }}-${{ matrix.arch }}${{ matrix.asset_suffix }}.txt
+          name: asset-${{ matrix.os_name }}-${{ matrix.arch }}${{ matrix.asset_suffix }}
+          path: asset/*
+          if-no-files-found: error
 
-      - name: Upload binary to release
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          asset="${{ steps.asset.outputs.asset }}"
-          gh release upload "$RELEASE_TAG" "build/dist/${asset}" --clobber
-
-  # ---- Cross-binary bench agreement (no hardcoded value) ---------------------
-  # Every published binary already smoke-tested bench-6 > 0 in its own job; this
-  # asserts all nine PGO production binaries (including the ARM tiers that full
-  # CI never runs) produced the IDENTICAL node count. Search is deterministic
-  # integer logic, so any disagreement means a PGO/codegen miscompile or UB on
-  # that platform. Detect-after by design: assets are already attached when this
-  # runs — a red X here means fix and re-run, not silent shipping.
-  bench-agreement:
-    name: release bench agreement
-    needs: build
-    runs-on: ubuntu-latest
+  # ---- The complete matrix: nine assets, one fingerprint ---------------------
+  collect:
+    name: Verify the complete matrix
+    needs: [prepare, build]
+    runs-on: ubuntu-24.04
     steps:
-      - name: Download fingerprints
+      - name: Download the assets
         # v7, not v8 — same reasoning as ci.yml (v8 no longer auto-unzips).
         uses: actions/download-artifact@v7
         with:
-          pattern: relbench-*
+          pattern: asset-*
           merge-multiple: true
+          path: bundle
 
-      - name: Compare
+      - name: Nine assets, one fingerprint
+        shell: bash
         run: |
-          echo "Collected fingerprints:"
-          for f in relbench-*.txt; do echo "  $f: $(cat "$f")"; done
-          count=$(cat relbench-*.txt | sort -u | wc -l)
-          if [ "$count" -ne 1 ]; then
-            echo "FAIL: published binaries disagree on the bench node count."
-            echo "This is a PGO/codegen miscompile or UB on the outlier platform."
-            exit 1
-          fi
-          echo "All published binaries agree: $(cat relbench-*.txt | sort -u)"
+          set -euo pipefail
+          cd bundle
+          tag='v${{ needs.prepare.outputs.version }}'
+          expected=(
+            "basilisk-${tag}-linux-x86_64" "basilisk-${tag}-linux-x86_64-avx2" "basilisk-${tag}-linux-x86_64-pext"
+            "basilisk-${tag}-linux-aarch64"
+            "basilisk-${tag}-windows-x86_64.exe" "basilisk-${tag}-windows-x86_64-avx2.exe"
+            "basilisk-${tag}-windows-x86_64-pext.exe" "basilisk-${tag}-windows-aarch64.exe"
+            "basilisk-${tag}-macos-aarch64"
+          )
+          for f in "${expected[@]}"; do test -f "$f" || { echo "::error::missing asset $f"; ls -la; exit 1; }; done
+          test "$(ls | grep -vc '\.nodes$')" -eq 9 || { echo "::error::the bundle does not hold exactly nine assets"; ls -la; exit 1; }
+          nodes="$(cat ./*.nodes | sort -u)"
+          test "$(wc -l <<<"$nodes")" -eq 1 || { echo "::error::the assets disagree on bench 13: $nodes"; exit 1; }
+          test "$nodes" = '${{ needs.prepare.outputs.expected_nodes }}'
+          rm -f ./*.nodes
+          sha256sum "${expected[@]}" | tee SHA256SUMS
+          echo "nine assets at bench 13 = $nodes"
+
+      - name: Keep the bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: basilisk-${{ needs.prepare.outputs.mode }}-${{ github.sha }}
+          path: bundle/*
+          if-no-files-found: error
+          retention-days: ${{ needs.prepare.outputs.mode == 'candidate' && 30 || 90 }}
+
+  # ---- Publish: a tag push only, after every check has passed ----------------
+  publish:
+    name: Publish the release
+    if: needs.prepare.outputs.mode == 'release' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: [prepare, collect]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: The tagged commit is on master
+        run: |
+          git fetch origin master
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/master
+
+      - name: Download the bundle
+        uses: actions/download-artifact@v7
+        with:
+          name: basilisk-release-${{ github.sha }}
+          path: bundle
+
+      - name: Download the release notes
+        uses: actions/download-artifact@v7
+        with:
+          name: release-notes
+          path: notes
+
+      - name: Recheck the bundle
+        run: cd bundle && sha256sum --check SHA256SUMS
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" bundle/basilisk-v* \
+            --repo "$GITHUB_REPOSITORY" --verify-tag --latest \
+            --title "Basilisk ${{ needs.prepare.outputs.version }}" \
+            --notes-file notes/release-notes.md

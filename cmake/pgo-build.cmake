@@ -18,6 +18,18 @@ endif()
 if(NOT DEFINED PGO_TUNE)
     set(PGO_TUNE "OFF")
 endif()
+if(NOT DEFINED PGO_DIAGNOSTIC)
+    set(PGO_DIAGNOSTIC "OFF")
+endif()
+if(NOT DEFINED PGO_ABLATION)
+    set(PGO_ABLATION "OFF")
+endif()
+if(NOT DEFINED PGO_ARM_OPTION)
+    set(PGO_ARM_OPTION "")
+endif()
+if(NOT DEFINED PGO_ARM_STATE)
+    set(PGO_ARM_STATE "OFF")
+endif()
 if(NOT DEFINED PGO_EXECUTABLE_SUFFIX)
     set(PGO_EXECUTABLE_SUFFIX "")
 endif()
@@ -43,6 +55,27 @@ file(REMOVE_RECURSE "${_gen_dir}" "${_use_dir}" "${_prof_dir}")
 file(MAKE_DIRECTORY "${_prof_dir}")
 file(WRITE "${_train_input}" "bench ${PGO_TRAIN_DEPTH}\nquit\n")
 
+set(_pgo_configure_args
+    -DCOMP=${PGO_COMP}
+    -DPORTABLE_BUILD=${PGO_PORTABLE_BUILD}
+    -DTUNE=${PGO_TUNE}
+    -DDIAGNOSTIC=${PGO_DIAGNOSTIC}
+    -DABLATION=${PGO_ABLATION}
+)
+if(PGO_ARM_OPTION)
+    if(NOT PGO_ARM_OPTION MATCHES "^[A-Za-z_][A-Za-z0-9_]*$")
+        message(FATAL_ERROR "PGO_ARM_OPTION must be a CMake identifier")
+    endif()
+    if(NOT PGO_ARM_STATE MATCHES "^(ON|OFF)$")
+        message(FATAL_ERROR "PGO_ARM_STATE must be ON or OFF")
+    endif()
+    list(APPEND _pgo_configure_args
+        -DBASILISK_PGO_ARM_OPTION=${PGO_ARM_OPTION}
+        -DBASILISK_PGO_ARM_STATE=${PGO_ARM_STATE}
+        -D${PGO_ARM_OPTION}=${PGO_ARM_STATE}
+    )
+endif()
+
 function(_basilisk_check_training_log _log)
     if(NOT EXISTS "${_log}")
         return()
@@ -58,9 +91,7 @@ message(STATUS "PGO preset: ${PGO_PRESET}")
 message(STATUS "PGO generate build: ${_gen_dir}")
 execute_process(
     COMMAND "${CMAKE_COMMAND}" --preset "${PGO_PRESET}" -B "${_gen_dir}"
-            -DCOMP=${PGO_COMP}
-            -DPORTABLE_BUILD=${PGO_PORTABLE_BUILD}
-            -DTUNE=${PGO_TUNE}
+            ${_pgo_configure_args}
             -DBASILISK_PGO=GENERATE
             -DBASILISK_PGO_PROFILE_DIR=${_prof_dir}
     WORKING_DIRECTORY "${PGO_SOURCE_DIR}"
@@ -109,7 +140,7 @@ _basilisk_check_training_log("${_train_log}")
 # straight from `bench`. The older per-position EPD loop (cmake/pgo-train.epd,
 # depth 7) was dropped when bench grew from 16 to 40 positions: with a
 # well-spread bench it was redundant (it mostly re-sampled the same hot search
-# loop). See PLAN.md / GUIDE.md.
+# loop). See docs/PLAN.md / GUIDE.md.
 
 if(PGO_COMPILER_ID STREQUAL "MSVC")
     set(_msvc_pgd "${_prof_dir}/basilisk.pgd")
@@ -130,9 +161,7 @@ if(PGO_COMPILER_ID STREQUAL "MSVC")
     message(STATUS "PGO final MSVC relink: ${_gen_dir}")
     execute_process(
         COMMAND "${CMAKE_COMMAND}" --preset "${PGO_PRESET}" -B "${_gen_dir}"
-                -DCOMP=${PGO_COMP}
-                -DPORTABLE_BUILD=${PGO_PORTABLE_BUILD}
-                -DTUNE=${PGO_TUNE}
+                ${_pgo_configure_args}
                 -DBASILISK_PGO=USE
                 -DBASILISK_PGO_PROFILE_DIR=${_prof_dir}
         WORKING_DIRECTORY "${PGO_SOURCE_DIR}"
@@ -158,9 +187,7 @@ elseif(PGO_COMPILER_ID STREQUAL "GNU")
     message(STATUS "PGO final GCC rebuild: ${_gen_dir} (${_gcda_count} .gcda files)")
     execute_process(
         COMMAND "${CMAKE_COMMAND}" --preset "${PGO_PRESET}" -B "${_gen_dir}"
-                -DCOMP=${PGO_COMP}
-                -DPORTABLE_BUILD=${PGO_PORTABLE_BUILD}
-                -DTUNE=${PGO_TUNE}
+                ${_pgo_configure_args}
                 -DBASILISK_PGO=USE
                 -DBASILISK_PGO_PROFILE_DIR=${_prof_dir}
         WORKING_DIRECTORY "${PGO_SOURCE_DIR}"
@@ -200,9 +227,7 @@ elseif(PGO_COMPILER_ID MATCHES "Clang")
     message(STATUS "PGO final build: ${_use_dir}")
     execute_process(
         COMMAND "${CMAKE_COMMAND}" --preset "${PGO_PRESET}" -B "${_use_dir}"
-                -DCOMP=${PGO_COMP}
-                -DPORTABLE_BUILD=${PGO_PORTABLE_BUILD}
-                -DTUNE=${PGO_TUNE}
+                ${_pgo_configure_args}
                 -DBASILISK_PGO=USE
                 -DBASILISK_PGO_PROFILE_FILE=${_profdata}
         WORKING_DIRECTORY "${PGO_SOURCE_DIR}"

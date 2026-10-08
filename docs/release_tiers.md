@@ -7,11 +7,13 @@
 Basilisk ships one binary per (OS, architecture, CPU-feature tier). Every
 release asset is built **PGO** (profile-guided: instrument → train on the bench
 suite → merge → optimised link) from the exact tagged revision with production
-flags (`TUNE` off, `PORTABLE_BUILD=ON`), and CI **smoke-tests the exact uploaded
-file** before publishing it: the binary must answer `uci`/`uciok`, carry the
-release version string, and return a real `bench` node count — proving the move
-generator, evaluator and search survived PGO on that runner
-(`.github/workflows/release.yml`). Only the binaries are published as release
+flags (`TUNE` off, `PORTABLE_BUILD=ON`), and CI **smoke-tests the exact file it
+publishes** before any release exists: the binary must answer `uci`/`uciok`,
+name the release version, and reproduce the `bench 13` node count GUIDE
+declares, identical across all nine assets — proving the move generator,
+evaluator and search survived PGO on that runner
+(`.github/workflows/release.yml`; the procedure is `docs/PROCESS.md`
+*Release*). Only the binaries are published as release
 assets; the per-build manifest (revision, compiler, bench fingerprint, NPS) is a
 **local** artifact by the 8.6.5 decision and is not uploaded, and no per-asset
 `*.sha256` is published — downloads are served over GitHub's HTTPS release
@@ -29,15 +31,15 @@ now stated as a contract rather than left implicit.
 |---|---|---|---|
 | *(none)* | Portable x86-64 baseline (SSE2) | Any 64-bit x86 CPU | Safe default; runs everywhere. Uses a **software `popcount`** — baseline x86-64 has no `POPCNT`, so no `-mpopcnt` is passed (see below). |
 | `-avx2` | x86-64 with AVX2 | Haswell (2013+) / Zen (2017+) | AVX2 codegen (`-mavx2 -msse4.1 -mpopcnt`). |
-| `-pext` | x86-64 with AVX2 **and** fast BMI2 `PEXT` | Haswell+ / **Zen 3+** (2020+) | Uses `PEXT` for magic bitboards. On Zen 1/2 `PEXT` is microcoded and slow — use `-avx2` there instead. |
+| `-pext` | x86-64 with SSE4.1, POPCNT, AVX2, BMI1, BMI2/`PEXT` and LZCNT | Haswell+ / **Zen 3+** (2020+) | Uses `PEXT` for magic bitboards. On Zen 1/2 `PEXT` is microcoded and slow — use `-avx2` there instead. |
 | aarch64 *(none)* | ARMv8-A / NEON | Apple Silicon, ARM64 servers/Windows | NEON is baseline on ARMv8; no separate SIMD tier. |
 
 Pick the **most specific tier your CPU satisfies**: `-pext` on Zen 3+/Haswell+,
 `-avx2` on Zen 1–2 and older AVX2 x86, portable on anything else. The `-avx2`
-and `-pext` binaries check their required CPU features at startup
-(`src/main.cpp`, before the UCI loop) and exit with a message naming the tier to
-use instead, rather than faulting on an illegal instruction — when unsure, the
-portable binary always works.
+and `-pext` binaries check their required CPU features in a baseline-ISA
+launcher (`src/main.cpp`) before entering the optimized engine body. They exit
+with a message naming the tier to use instead of faulting on an illegal
+instruction — when unsure, the portable binary always works.
 
 There is intentionally **no `x86-64-v2`/POPCNT tier** yet: it would sit between
 portable and `-avx2` and has not been shown to be worth a fourth x86 asset.
@@ -54,23 +56,28 @@ disassembly of the built binaries:
   instructions in the binary. This is deliberate and correct: baseline x86-64
   does not guarantee `POPCNT` (it arrived with SSE4.2 / `x86-64-v2`), and a
   hardware `POPCNT` would fault on a CPU that lacks it. Slower, universal, safe.
-- **`-avx2`** (`-mavx2 -msse4.1 -mpopcnt`) and **`-pext`** (`-mbmi2`, which on
-  this clang pulls in `POPCNT`): **hardware `POPCNT`** — the built `-pext`
-  binary contains 152 `popcnt` instructions. These are the fast path.
+- **`-avx2`** (`-mavx2 -msse4.1 -mpopcnt`) and **`-pext`** (the AVX2 flags plus
+  explicit `-mbmi -mbmi2 -mlzcnt`): **hardware `POPCNT`**. No flag is assumed
+  to imply another tier feature.
 
-Verified again at the 1.10.0 release (2026-09-10, clang 22.1.8, disassembly
-counts):
+Verified after the A.4.1 contract repair (2026-09-29, clang 22.1.8,
+disassembly counts):
 
 | Tier | `popcnt` | `pext` | `blsr` | `lzcnt` | `tzcnt` |
 |---|---:|---:|---:|---:|---:|
 | portable (`PORTABLE_BUILD=ON`) | 0 | 0 | 0 | 0 | 225 |
-| `-avx2` | 104 | 0 | 0 | 0 | 233 |
-| `-pext` (PGO) | 152 | 246 | 393 | 9 | 513 |
+| `-avx2` | 125 | 0 | 0 | 0 | 233 |
+| `-pext` (PGO) | 168 | 246 | 411 | 8 | 512 |
 
 `tzcnt` in the portable binary is **not** a tier violation: it is encoded as
 `REP BSF` and decodes as plain `BSF` on a CPU without BMI1, so it is
 backward-compatible. `popcnt` and `lzcnt` are not — `lzcnt` decodes as `BSR`
 and returns a different value — and both are correctly absent.
+
+`tools/diag/verify_isa.py` enforces the positive and negative contracts from
+the exact binaries in CI and the release workflow. It also verifies that the
+launcher remains baseline-only and that CPU detection and the transfer to the
+optimized engine body are live.
 
 > **Build the portable tier with `-DPORTABLE_BUILD=ON`.** Without it the
 > `release` preset compiles `-march=native` (CMakeLists `-march=native` is

@@ -114,10 +114,10 @@ int normalize_root_score(int score, int rank, bool use_rule50) {
     if (use_rule50 && rank > -900 && rank < 900)
         return 0;
     if (score > 1000)
-        return tablebaseWinScore;
+        return tablebaseValue;
     if (score < -1000)
-        return -tablebaseWinScore;
-    return std::clamp(score, -tablebaseWinScore, tablebaseWinScore);
+        return -tablebaseValue;
+    return std::clamp(score, -tablebaseValue, tablebaseValue);
 }
 
 std::vector<std::string> split_paths(const std::string& paths) {
@@ -186,6 +186,9 @@ std::vector<Syzygy::RootMoveInfo> collect_root_moves(const Board& board,
         info.rank = static_cast<int>(tb_move.tbRank);
         info.score = normalize_root_score(static_cast<int>(tb_move.tbScore),
                                           info.rank, use_rule50);
+        info.display = (use_rule50 && info.rank > -900 && info.rank < 900)
+                     ? std::clamp(static_cast<int>(tb_move.tbScore), -49, 49)
+                     : info.score;
         info.used_dtz = used_dtz;
         out.push_back(std::move(info));
     }

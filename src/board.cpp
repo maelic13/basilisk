@@ -270,6 +270,58 @@ Board& Board::operator=(const Board& other) {
     return *this;
 }
 
+Board::PositionSnapshot Board::snapshot_position() const noexcept {
+    PositionSnapshot snapshot;
+    for (int c = 0; c < NCOLORS; ++c) {
+        for (int pt = 0; pt < PIECE_TYPE_NB; ++pt)
+            snapshot.pieces[c][pt] = pieces[c][pt];
+        snapshot.occupancy[c] = occupancy[c];
+        snapshot.nonpawn_key[c] = nonpawn_key[c];
+        snapshot.king_sq[c] = king_sq[c];
+    }
+    snapshot.all_occ = all_occ;
+    for (int sq = 0; sq < SQUARE_NB; ++sq)
+        snapshot.board_sq[sq] = board_sq[sq];
+    snapshot.side_to_move = side_to_move;
+    snapshot.fullmove_number = fullmove_number;
+    snapshot.ply = ply;
+    snapshot.hash = hash;
+    snapshot.pawn_key = pawn_key;
+    snapshot.minor_key = minor_key;
+    snapshot.ep_sq = ep_sq;
+    snapshot.castling_rights = castling_rights;
+    snapshot.halfmove_clock = halfmove_clock;
+    snapshot.plies_from_null = plies_from_null;
+    snapshot.checkers = checkers;
+    return snapshot;
+}
+
+void Board::restore_position(const PositionSnapshot& snapshot) noexcept {
+    for (int c = 0; c < NCOLORS; ++c) {
+        for (int pt = 0; pt < PIECE_TYPE_NB; ++pt)
+            pieces[c][pt] = snapshot.pieces[c][pt];
+        occupancy[c] = snapshot.occupancy[c];
+        nonpawn_key[c] = snapshot.nonpawn_key[c];
+        king_sq[c] = snapshot.king_sq[c];
+    }
+    all_occ = snapshot.all_occ;
+    for (int sq = 0; sq < SQUARE_NB; ++sq)
+        board_sq[sq] = snapshot.board_sq[sq];
+    side_to_move = snapshot.side_to_move;
+    fullmove_number = snapshot.fullmove_number;
+    ply = snapshot.ply;
+    hash = snapshot.hash;
+    pawn_key = snapshot.pawn_key;
+    minor_key = snapshot.minor_key;
+    ep_sq = snapshot.ep_sq;
+    castling_rights = snapshot.castling_rights;
+    halfmove_clock = snapshot.halfmove_clock;
+    plies_from_null = snapshot.plies_from_null;
+    checkers = snapshot.checkers;
+    history.clear();
+    reset_diag_counters();
+}
+
 void Board::set_fen(const std::string& fen) {
     if (auto r = try_set_fen(fen); !r)
         throw std::invalid_argument(r.error());

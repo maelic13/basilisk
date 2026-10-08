@@ -80,6 +80,7 @@ Cutechess, ChessBase/Fritz, Banksia and others.
 | `Threads` | `1` | Search threads. Set to the number of cores you want to use. Applied immediately. |
 | `Ponder` | `false` | Think while the opponent moves. Enabled by the GUI. |
 | `Move Overhead` | `10` | Milliseconds reserved for GUI and network delay. Raise it if you lose on time. |
+| `MultiPV` | `1` | Number of best lines shown per depth, best first, for analysis. `bestmove` is always the first line. |
 | `SyzygyPath` | empty | Folders holding Syzygy tablebases. Empty disables probing. |
 | `SyzygyProbeDepth` | `1` | Minimum depth at which tablebases are probed. |
 | `SyzygyProbeLimit` | `7` | Largest tablebase to probe. `0` disables probing. |
@@ -87,19 +88,25 @@ Cutechess, ChessBase/Fritz, Banksia and others.
 
 `SyzygyPath` accepts several folders separated by `;` on Windows or `:`
 elsewhere. With tablebases enabled, Basilisk ranks the root moves from the
-tablebase, reports bounded tablebase scores, and counts resolved positions in
-`tbhits`. When the score is a tablebase win or loss, the `info … pv` line is
+tablebase, probes the tables during the search, and counts resolved positions
+in `tbhits`. A tablebase win is reported as `cp 20000` less the plies needed to
+reach it, so a quicker win scores higher; a win the fifty-move rule will spoil
+shows a small score. When the score is a tablebase win or loss, the `info … pv` line is
 continued to mate the way Stockfish does it. The searched line is kept for as
 long as it holds the tablebase result, then extended with minimal-DTZ moves,
 and the ponder move comes from it. In analysis (no clock) every line is
-extended. In games only the final line is, within half of `Move Overhead`. If
-that is not enough time, an `info string` suggests raising `Move Overhead`.
+extended. In games only the final line is, within half of `Move Overhead`,
+and only when at least ten times `Move Overhead` is left on the clock. If the
+time runs out, an `info string` suggests raising `Move Overhead`.
 Playing strength with an empty path is unchanged.
 
 ### Supported commands
 
 `uci`, `debug`, `isready`, `setoption`, `ucinewgame`, `position`, `go`, `stop`,
-`ponderhit`, `bench` and `quit`.
+`ponderhit`, `bench`, `help` and `quit`.
+
+Any command can also be given on the command line: `basilisk bench 13` runs the
+bench and exits. An unknown command there exits with status 2.
 
 `go` supports `depth`, `nodes`, `movetime`, `wtime`, `btime`, `winc`, `binc`,
 `movestogo`, `mate`, `searchmoves`, `ponder`, `perft` and `infinite`. A bare

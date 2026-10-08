@@ -1,0 +1,290 @@
+{
+    "RfpCoeff": {
+        "value": 160,
+        "min_value": 60,
+        "max_value": 240,
+        "step": 11
+    },
+    "RfpImproving": {
+        "value": 72,
+        "min_value": 0,
+        "max_value": 140,
+        "step": 9
+    },
+    "RazorCoeff": {
+        "value": 243,
+        "min_value": 120,
+        "max_value": 500,
+        "step": 24
+    },
+    "NullBase": {
+        "value": 3,
+        "min_value": 2,
+        "max_value": 6,
+        "step": 2
+    },
+    "NullEvalDiv": {
+        "value": 192,
+        "min_value": 80,
+        "max_value": 400,
+        "step": 20
+    },
+    "ProbCutMargin": {
+        "value": 189,
+        "min_value": 80,
+        "max_value": 360,
+        "step": 18
+    },
+    "FutilityBase": {
+        "value": 180,
+        "min_value": 40,
+        "max_value": 280,
+        "step": 15
+    },
+    "FutilityCoeff": {
+        "value": 128,
+        "min_value": 40,
+        "max_value": 200,
+        "step": 10
+    },
+    "HistPruneCoeff": {
+        "value": 14004,
+        "min_value": 1000,
+        "max_value": 28000,
+        "step": 1688
+    },
+    "SeePruneCoeff": {
+        "value": 73,
+        "min_value": 30,
+        "max_value": 160,
+        "step": 8
+    },
+    "CapFutDepth": {
+        "value": 1,
+        "min_value": 0,
+        "max_value": 10,
+        "step": 2
+    },
+    "CapFutBase": {
+        "value": 198,
+        "min_value": 0,
+        "max_value": 500,
+        "step": 31
+    },
+    "CapFutCoeff": {
+        "value": 283,
+        "min_value": 0,
+        "max_value": 500,
+        "step": 31
+    },
+    "QuietSeeDepth": {
+        "value": 0,
+        "min_value": 0,
+        "max_value": 10,
+        "step": 2
+    },
+    "QuietSeeCoeff": {
+        "value": 25,
+        "min_value": 0,
+        "max_value": 120,
+        "step": 8
+    },
+    "QsearchCheckCap": {
+        "value": 0,
+        "min_value": 0,
+        "max_value": 10,
+        "step": 2
+    },
+    "SingularMinDepth": {
+        "value": 5,
+        "min_value": 4,
+        "max_value": 8,
+        "step": 2
+    },
+    "SingularBetaMult": {
+        "value": 4,
+        "min_value": 1,
+        "max_value": 6,
+        "step": 2
+    },
+    "SingularDoubleMargin": {
+        "value": 4,
+        "min_value": 0,
+        "max_value": 60,
+        "step": 4
+    },
+    "DoubleExtMax": {
+        "value": 16,
+        "min_value": 1,
+        "max_value": 200,
+        "step": 12
+    },
+    "AspirationDelta": {
+        "value": 19,
+        "min_value": 10,
+        "max_value": 60,
+        "step": 3
+    },
+    "LmrBase": {
+        "value": 60,
+        "min_value": 0,
+        "max_value": 150,
+        "step": 9
+    },
+    "LmrDivisor": {
+        "value": 209,
+        "min_value": 150,
+        "max_value": 350,
+        "step": 13
+    },
+    "LmrHistDiv": {
+        "value": 5683,
+        "min_value": 4096,
+        "max_value": 16384,
+        "step": 768
+    },
+    "LmrNonPvAdj": {
+        "value": 1024,
+        "min_value": 0,
+        "max_value": 3072,
+        "step": 192
+    },
+    "LmrCutNodeAdj": {
+        "value": 401,
+        "min_value": 0,
+        "max_value": 3072,
+        "step": 192
+    },
+    "LmrTtPvAdj": {
+        "value": 23,
+        "min_value": 0,
+        "max_value": 3072,
+        "step": 192
+    },
+    "LmrNotImprovingAdj": {
+        "value": 89,
+        "min_value": 0,
+        "max_value": 3072,
+        "step": 192
+    },
+    "LmrTtCapture": {
+        "value": 301,
+        "min_value": 0,
+        "max_value": 3072,
+        "step": 192
+    },
+    "LmrSingularQuiet": {
+        "value": 401,
+        "min_value": 0,
+        "max_value": 3072,
+        "step": 192
+    },
+    "PostLmrHistScale": {
+        "value": 0,
+        "min_value": 0,
+        "max_value": 300,
+        "step": 19
+    },
+    "HistBonusQuad": {
+        "value": 62,
+        "min_value": 0,
+        "max_value": 128,
+        "step": 8
+    },
+    "HistBonusLin": {
+        "value": 120,
+        "min_value": 0,
+        "max_value": 400,
+        "step": 25
+    },
+    "HistBonusMax": {
+        "value": 1863,
+        "min_value": 512,
+        "max_value": 4096,
+        "step": 224
+    },
+    "HistMalusQuad": {
+        "value": 62,
+        "min_value": 0,
+        "max_value": 128,
+        "step": 8
+    },
+    "HistMalusLin": {
+        "value": 143,
+        "min_value": 0,
+        "max_value": 400,
+        "step": 25
+    },
+    "HistMalusMax": {
+        "value": 1304,
+        "min_value": 512,
+        "max_value": 4096,
+        "step": 224
+    },
+    "HistTtMoveBonus": {
+        "value": 29,
+        "min_value": 0,
+        "max_value": 1024,
+        "step": 64
+    },
+    "TmOptMult": {
+        "value": 100,
+        "min_value": 50,
+        "max_value": 200,
+        "step": 9
+    },
+    "TmMaxMult": {
+        "value": 100,
+        "min_value": 50,
+        "max_value": 200,
+        "step": 9
+    },
+    "TmStability": {
+        "value": 60,
+        "min_value": 0,
+        "max_value": 150,
+        "step": 9
+    },
+    "TmScoreDropThr": {
+        "value": 30,
+        "min_value": 5,
+        "max_value": 120,
+        "step": 7
+    },
+    "TmScoreDropDiv": {
+        "value": 100,
+        "min_value": 30,
+        "max_value": 400,
+        "step": 23
+    },
+    "TmEffortHi": {
+        "value": 80,
+        "min_value": 50,
+        "max_value": 99,
+        "step": 3
+    },
+    "TmEffortLo": {
+        "value": 25,
+        "min_value": 1,
+        "max_value": 50,
+        "step": 3
+    },
+    "TmEffortHiMult": {
+        "value": 80,
+        "min_value": 50,
+        "max_value": 100,
+        "step": 3
+    },
+    "TmEffortLoMult": {
+        "value": 120,
+        "min_value": 100,
+        "max_value": 200,
+        "step": 6
+    },
+    "TmInstability": {
+        "value": 35,
+        "min_value": 0,
+        "max_value": 100,
+        "step": 6
+    }
+}

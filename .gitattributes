@@ -1,0 +1,7 @@
+# Verbatim reference snapshots of other repositories: stored and checked out
+# byte-exact (never end-of-line normalized), so the SHA-256 manifest beside each
+# snapshot verifies in every checkout, and kept out of this repository's
+# language statistics.
+docs/reference/** -text -whitespace linguist-vendored
+# The oracle bridge patch is applied byte-exact.
+tools/oracle/*.patch -text

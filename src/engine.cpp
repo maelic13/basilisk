@@ -74,6 +74,7 @@ SearchLimits Engine::build_limits() const {
     limits.nodes     = parameters_.nodes;
     limits.mate      = parameters_.mate;
     limits.overhead  = parameters_.move_overhead;
+    limits.multipv   = parameters_.multipv;
     limits.ponder    = parameters_.ponder;
     limits.root_moves = parameters_.search_moves;
     limits.syzygy_probe_depth = Syzygy::enabled() ? parameters_.syzygy_probe_depth : 0;
@@ -81,6 +82,12 @@ SearchLimits Engine::build_limits() const {
     limits.syzygy_50_move_rule = parameters_.syzygy_50_move_rule;
     limits.tm_debug  = parameters_.tm_debug;
     limits.diag      = parameters_.diag;
+#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
+    limits.decision_trace = parameters_.decision_trace;
+#endif
+#ifdef BASILISK_ABLATION
+    limits.ablation_mask = parameters_.ablation_mask;
+#endif
     limits.params    = parameters_.search_params;
     limits.infinite  = (parameters_.depth == infiniteDepth && parameters_.move_time == 0
                         && parameters_.white_time == 0 && parameters_.black_time == 0
@@ -142,11 +149,28 @@ void Engine::send_bestmove(const SearchResult& result, const Board& root_board) 
 // 2 x elapsed >= Move Overhead: never more than half the overhead the GUI
 // latency reserve already allows. Without a time limit it is unbounded, as in
 // Stockfish's analysis mode.
+bool tablebase_extension_may_start(int clock_ms, int overhead_ms, int threads,
+                                   double elapsed_ms) {
+    const double hard_ceiling = clock_ms - 2.0 * overhead_ms - (threads > 1 ? 30.0 : 0.0);
+    return hard_ceiling - elapsed_ms >= 10.0 * overhead_ms;
+}
+
 void Engine::publish_tablebase_pv(SearchResult& result, const Board& root_board,
                                   const SearchLimits& limits) const {
     if (!Syzygy::enabled() || result.bestmove == MOVE_NONE
         || !is_tablebase_decisive(result.score))
         return;
+
+    const int clock_ms = root_board.turn() == WHITE ? limits.wtime : limits.btime;
+    if (clock_ms > 0) {
+        const double elapsed_ms = limits.go_recv_time.time_since_epoch().count() != 0
+            ? std::chrono::duration<double, std::milli>(
+                  std::chrono::steady_clock::now() - limits.go_recv_time).count()
+            : static_cast<double>(result.elapsed_ms);
+        if (!tablebase_extension_may_start(clock_ms, limits.overhead,
+                                           search_pool_.active_thread_count(), elapsed_ms))
+            return;
+    }
 
     std::vector<Move> line = result.pv;
     if (line.empty() || line.front() != result.bestmove) {
@@ -176,15 +200,9 @@ void Engine::publish_tablebase_pv(SearchResult& result, const Board& root_board,
         return;
 
     const int score = ext.ends_in_draw ? 0 : result.score;
-    std::string info = "info depth " + std::to_string(result.depth)
-        + " score cp " + std::to_string(score)
-        + " nodes " + std::to_string(result.nodes)
-        + " time " + std::to_string(result.elapsed_ms)
-        + " tbhits " + std::to_string(result.tbhits)
-        + " pv";
-    for (Move m : ext.pv)
-        info += ' ' + move_to_uci(m);
-    uci_write_line(info);
+    uci_write_line(format_info_line(result.depth, result.seldepth, 1, score, {}, result.nodes,
+                                    static_cast<double>(result.elapsed_ms) / 1000.0,
+                                    result.tbhits, tt_.hashfull(), ext.pv));
 
     if (ext.pv.size() > 1)
         result.pondermove = ext.pv[1];
@@ -296,13 +314,11 @@ void Engine::start_search(uint64_t command_epoch,
 }
 
 void Engine::run_wac_command(const EngineCommand& command) {
-    // wac [depth] -- WAC tactical suite at fixed depth, single-threaded,
-    // deterministic (mirrors sibling engine Rarog's wac command).
-    int depth = DEFAULT_WAC_DEPTH;
-    {
-        std::istringstream iss(command.args);
-        int value;
-        if (iss >> value) depth = value;
+    WacRequest request;
+    std::string error;
+    if (!parse_wac_request(command.args, request, error)) {
+        uci_write_line("info string " + error);
+        return;
     }
 
     if (command.epoch != 0
@@ -311,7 +327,7 @@ void Engine::run_wac_command(const EngineCommand& command) {
 
     stop_requested_.store(false, std::memory_order_release);
     searching_.store(true, std::memory_order_release);
-    run_wac(depth, parameters_.search_params);
+    run_wac(request, parameters_.search_params);
     if (command.epoch == 0
         || control_epoch_.load(std::memory_order_acquire) == command.epoch)
         searching_.store(false, std::memory_order_release);

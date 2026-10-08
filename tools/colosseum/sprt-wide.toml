@@ -1,0 +1,6 @@
+# Large-prior gate only: [0,10]. The registration must justify this bracket.
+extend = "sprt-default.toml"
+
+[options]
+elo0 = 0
+elo1 = 10

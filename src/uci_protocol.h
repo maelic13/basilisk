@@ -18,7 +18,15 @@ public:
 
     void UciLoop();
 
+    // Runs one command given on the command line, lets the engine finish it,
+    // then quits. Returns the process exit status: 0, or 2 for an unknown
+    // command.
+    int RunArguments(const std::string& command_line);
+
 private:
+    enum class Dispatch { Handled, Quit, Unknown };
+    Dispatch dispatch(const std::string& input);
+    static void cmdHelp();
     EngineCommandQueue& commands_;
     std::atomic_bool& stop_requested_;
     std::atomic_bool& ponderhit_requested_;

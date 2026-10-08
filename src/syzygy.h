@@ -27,6 +27,11 @@ struct RootProbeResult {
 struct RootMoveInfo {
     Move bestmove = MOVE_NONE;
     int score = 0;
+    // What the root reports for this move: `score`, except that a win or loss
+    // the rule-50 counter spoils shows Fathom's 1-49 cp by its distance to the
+    // border, as Stockfish shows it, instead of 0. Display only: ordering and
+    // search read `score` and `rank`.
+    int display = 0;
     int rank = 0;
     bool used_dtz = false;
 };

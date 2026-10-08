@@ -59,7 +59,7 @@ endif()
 
 set(COMP "${_basilisk_compiler}" CACHE STRING "Compiler selection: auto, clang, gcc, llvm, or msvc" FORCE)
 
-project(basilisk VERSION 1.10.1 LANGUAGES CXX)
+project(basilisk VERSION 1.10.2 LANGUAGES CXX)
 
 if(_basilisk_compiler STREQUAL "msvc" AND NOT MSVC)
     message(FATAL_ERROR "COMP=msvc requires the Microsoft Visual C++ compiler")
@@ -163,8 +163,12 @@ target_link_libraries(basilisk_engine PUBLIC basilisk_board PRIVATE fathom)
 # ---------------------------------------------------------------------------
 # Executables
 # ---------------------------------------------------------------------------
+add_library(basilisk_launcher OBJECT src/main.cpp)
+target_include_directories(basilisk_launcher PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
 add_executable(basilisk
-    src/main.cpp
+    $<TARGET_OBJECTS:basilisk_launcher>
+    src/engine_entry.cpp
     src/bench.cpp
     src/wac.cpp
     src/engine.cpp
@@ -218,6 +222,12 @@ target_link_libraries(test_wac PRIVATE basilisk_engine)
 # ---------------------------------------------------------------------------
 add_executable(test_invariants tests/test_invariants.cpp)
 target_link_libraries(test_invariants PRIVATE basilisk_board)
+
+add_executable(test_cpu_features tests/test_cpu_features.cpp)
+target_include_directories(test_cpu_features PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests
+)
 
 # ---------------------------------------------------------------------------
 # Search tests
@@ -275,6 +285,7 @@ include(CTest)
 add_test(NAME test_board        COMMAND test_board)
 add_test(NAME test_wac          COMMAND test_wac)
 add_test(NAME test_invariants   COMMAND test_invariants)
+add_test(NAME test_cpu_features COMMAND test_cpu_features)
 add_test(NAME test_move         COMMAND test_move)
 add_test(NAME test_magics       COMMAND test_magics)
 add_test(NAME test_tt           COMMAND test_tt)
@@ -286,6 +297,18 @@ add_test(NAME test_uci_protocol COMMAND test_uci_protocol)
 add_test(NAME test_endgames     COMMAND test_endgames
          ${CMAKE_CURRENT_SOURCE_DIR}/tests/endgames.epd)
 
+# The engine as a process: command-line arguments run one command and exit.
+function(basilisk_cli_test name code regex)
+    add_test(NAME ${name}
+             COMMAND ${CMAKE_COMMAND} "-DEXE=$<TARGET_FILE:basilisk>" "-DARGS=${ARGN}"
+                     "-DEXPECT_CODE=${code}" "-DREGEX=${regex}"
+                     -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/cli_check.cmake)
+endfunction()
+basilisk_cli_test(cli_bench 0 "Nodes searched *: *[0-9]+" bench 3)
+basilisk_cli_test(cli_go_runs_to_its_depth 0 "info depth 4 .*bestmove [a-h][1-8][a-h][1-8]" go depth 4)
+basilisk_cli_test(cli_help 0 "UCI chess engine.*bench .depth. .repeats." help)
+basilisk_cli_test(cli_unknown_exits_2 2 "Unknown command: 'frobnicate'" frobnicate)
+
 # board_performance_test is a standalone benchmark — build it but do not
 # register it with CTest so that a plain `ctest` run stays fast and clean.
 # Run it manually:  ./build/release/board_performance_test
@@ -296,6 +319,11 @@ add_test(NAME test_endgames     COMMAND test_endgames
 option(PORTABLE_BUILD "Build without host-specific CPU flags for distributable binaries" OFF)
 option(BASILISK_MSVC_FAVOR_INTEL "Tune MSVC code generation for Intel 64 processors" OFF)
 option(TUNE "Expose search constants as UCI spin options for SPSA tuning (sets BASILISK_TUNE)" OFF)
+option(DIAGNOSTIC "Expose diagnostics without the tunable parameter surface (sets BASILISK_DIAGNOSTIC)" OFF)
+option(ABLATION "Expose the matched search-ablation instrument (sets BASILISK_ABLATION)" OFF)
+option(RELEASE_DIAG_COUNTERS "Count diagnostic search events in production builds (measurement arm)" OFF)
+set(BASILISK_PGO_ARM_OPTION "" CACHE STRING "Boolean CMake option identifying an umbrella arm in PGO child builds")
+set(BASILISK_PGO_ARM_STATE "OFF" CACHE STRING "Value for BASILISK_PGO_ARM_OPTION in PGO child builds")
 # Warnings are only a signal if something enforces them. The tree builds clean
 # under -Wall -Wextra -Wpedantic -Wshadow -Wconversion, and -Wconversion in
 # particular catches real defects, so the default is to fail on any warning.
@@ -343,7 +371,8 @@ if(TEXEL)
     if(USE_PEXT)
         target_compile_definitions(basilisk-texel PRIVATE USE_PEXT)
         if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
-            target_compile_options(basilisk-texel PRIVATE -mbmi2)
+            target_compile_options(basilisk-texel PRIVATE
+                -mavx2 -msse4.1 -mpopcnt -mbmi -mbmi2 -mlzcnt)
         elseif(MSVC)
             target_compile_options(basilisk-texel PRIVATE /arch:AVX2)
         endif()
@@ -362,17 +391,54 @@ endif()
 # since those targets were added. Anything omitted here is silently exempt from
 # every project-wide guarantee, so keep this list exhaustive.
 set(_ALL_TARGETS
-    basilisk_board basilisk_engine
+    basilisk_board basilisk_engine basilisk_launcher
     basilisk board_performance_test
-    test_board test_move test_tt test_eval test_search test_engine_ponder test_engine_threading test_uci_protocol
+    test_board test_move test_tt test_eval test_search test_engine_ponder test_engine_threading test_uci_protocol test_cpu_features
     test_endgames test_wac test_invariants test_magics
 )
+
+# Fathom is part of the shipped executable and must obey its ISA contract, but
+# remains outside _ALL_TARGETS because third-party warning/sanitizer policy is
+# intentionally configured separately above.
+set(_ISA_TARGETS ${_ALL_TARGETS} fathom)
 
 if(TUNE)
     foreach(_tgt IN LISTS _ALL_TARGETS)
         target_compile_definitions(${_tgt} PRIVATE BASILISK_TUNE)
     endforeach()
     message(STATUS "TUNE build: search constants exposed as UCI options (BASILISK_TUNE defined)")
+endif()
+
+if(DIAGNOSTIC)
+    foreach(_tgt IN LISTS _ALL_TARGETS)
+        target_compile_definitions(${_tgt} PRIVATE BASILISK_DIAGNOSTIC)
+    endforeach()
+    message(STATUS "DIAGNOSTIC build: diagnostic UCI options exposed (BASILISK_DIAGNOSTIC defined)")
+endif()
+
+if(ABLATION)
+    foreach(_tgt IN LISTS _ALL_TARGETS)
+        target_compile_definitions(${_tgt} PRIVATE BASILISK_ABLATION)
+    endforeach()
+    message(STATUS "ABLATION build: matched AblationMask UCI option exposed (BASILISK_ABLATION defined)")
+endif()
+
+if(RELEASE_DIAG_COUNTERS)
+    target_compile_definitions(basilisk_engine PRIVATE BASILISK_RELEASE_DIAG_COUNTERS)
+endif()
+
+if(TUNE)
+    if(DIAGNOSTIC)
+        message(FATAL_ERROR "TUNE, DIAGNOSTIC and ABLATION are distinct build flavors; select at most one")
+    endif()
+    if(ABLATION)
+        message(FATAL_ERROR "TUNE, DIAGNOSTIC and ABLATION are distinct build flavors; select at most one")
+    endif()
+endif()
+if(DIAGNOSTIC)
+    if(ABLATION)
+        message(FATAL_ERROR "TUNE, DIAGNOSTIC and ABLATION are distinct build flavors; select at most one")
+    endif()
 endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
@@ -431,6 +497,11 @@ if(NOT MSVC)
         foreach(_tgt IN LISTS _ALL_TARGETS)
             set_property(TARGET ${_tgt} PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
         endforeach()
+        # basilisk-texel links basilisk_board, whose objects are LTO bitcode
+        # here, so it must link with LTO as well.
+        if(TEXEL)
+            set_property(TARGET basilisk-texel PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
+        endif()
     else()
         message(STATUS "LTO not supported: ${_lto_msg}")
     endif()
@@ -596,7 +667,11 @@ add_custom_target(pgo
         -DPGO_COMP=${COMP}
         -DPGO_COMPILER_ID=${CMAKE_CXX_COMPILER_ID}
         -DPGO_TUNE=${TUNE}
+        -DPGO_DIAGNOSTIC=${DIAGNOSTIC}
+        -DPGO_ABLATION=${ABLATION}
         -DPGO_PORTABLE_BUILD=${_basilisk_pgo_portable}
+        -DPGO_ARM_OPTION=${BASILISK_PGO_ARM_OPTION}
+        -DPGO_ARM_STATE=${BASILISK_PGO_ARM_STATE}
         -DPGO_EXECUTABLE_SUFFIX=${CMAKE_EXECUTABLE_SUFFIX}
         -DPGO_DIST_DIR=${_basilisk_dist_dir}
         -DPGO_DIST_ASSET_NAME=${_basilisk_dist_pgo_asset_name}
@@ -613,6 +688,24 @@ add_custom_target(pgo
 option(USE_PEXT "Use BMI2 PEXT instruction for magic bitboards (requires Haswell+)" OFF)
 option(USE_AVX2 "Build for x86-64 CPUs with AVX2" OFF)
 
+if(USE_PEXT AND USE_AVX2)
+    message(FATAL_ERROR "USE_PEXT and USE_AVX2 are mutually exclusive ISA tiers")
+endif()
+
+if(BASILISK_PGO_ARM_OPTION)
+    if(NOT BASILISK_PGO_ARM_OPTION MATCHES "^[A-Za-z_][A-Za-z0-9_]*$")
+        message(FATAL_ERROR "BASILISK_PGO_ARM_OPTION must be a CMake identifier")
+    endif()
+    get_property(_basilisk_arm_type CACHE "${BASILISK_PGO_ARM_OPTION}" PROPERTY TYPE)
+    if(NOT _basilisk_arm_type STREQUAL "BOOL")
+        message(FATAL_ERROR
+            "Umbrella arm '${BASILISK_PGO_ARM_OPTION}' is not a declared BOOL option")
+    endif()
+    if(NOT BASILISK_PGO_ARM_STATE MATCHES "^(ON|OFF)$")
+        message(FATAL_ERROR "BASILISK_PGO_ARM_STATE must be ON or OFF")
+    endif()
+endif()
+
 # 8.6.2a: 64-bit x86 only. The `i.86` (32-bit) alternative was dropped with the
 # rest of the 32-bit vestiges — Basilisk is 64-bit-only by contract (see the
 # static_assert in src/types.h), and no 32-bit asset has ever been shipped.
@@ -623,10 +716,15 @@ endif()
 if(USE_PEXT)
     foreach(_tgt IN LISTS _ALL_TARGETS)
         target_compile_definitions(${_tgt} PRIVATE USE_PEXT)
-        if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
-            target_compile_options(${_tgt} PRIVATE -mbmi2)
-        elseif(MSVC)
-            target_compile_options(${_tgt} PRIVATE /arch:AVX2)
+    endforeach()
+    foreach(_tgt IN LISTS _ISA_TARGETS)
+        if(NOT _tgt STREQUAL "basilisk_launcher")
+            if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+                target_compile_options(${_tgt} PRIVATE
+                    -mavx2 -msse4.1 -mpopcnt -mbmi -mbmi2 -mlzcnt)
+            elseif(MSVC)
+                target_compile_options(${_tgt} PRIVATE /arch:AVX2)
+            endif()
         endif()
     endforeach()
 endif()
@@ -634,13 +732,26 @@ endif()
 if(USE_AVX2)
     foreach(_tgt IN LISTS _ALL_TARGETS)
         target_compile_definitions(${_tgt} PRIVATE USE_AVX2)
-        if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
-            target_compile_options(${_tgt} PRIVATE -mavx2 -msse4.1 -mpopcnt)
-        elseif(MSVC)
-            target_compile_options(${_tgt} PRIVATE /arch:AVX2)
+    endforeach()
+    foreach(_tgt IN LISTS _ISA_TARGETS)
+        if(NOT _tgt STREQUAL "basilisk_launcher")
+            if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+                target_compile_options(${_tgt} PRIVATE -mavx2 -msse4.1 -mpopcnt)
+            elseif(MSVC)
+                target_compile_options(${_tgt} PRIVATE /arch:AVX2)
+            endif()
         endif()
     endforeach()
 endif()
+
+# The launcher performs the runtime feature check before entering specialized
+# engine code. Keep it out of LTO so the linker cannot inline that code ahead
+# of the guard or fold the check using the tier's static feature assumptions.
+set_target_properties(basilisk_launcher PROPERTIES
+    INTERPROCEDURAL_OPTIMIZATION FALSE
+    INTERPROCEDURAL_OPTIMIZATION_RELEASE FALSE
+    INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO FALSE
+)
 
 # ---------------------------------------------------------------------------
 # Static runtime (default ON on MinGW to avoid libc++.dll / libgcc_s.dll

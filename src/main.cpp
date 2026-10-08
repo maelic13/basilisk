@@ -1,9 +1,5 @@
-#include <atomic>
-#include <csignal>
 #include <exception>
 #include <iostream>
-#include <string>
-#include <thread>
 
 #if defined(USE_PEXT) || defined(USE_AVX2)
 #  if defined(_MSC_VER) && defined(_M_X64)
@@ -13,153 +9,92 @@
 #  endif
 #endif
 
-#include "constants.h"
-#include "engine.h"
-#include "engine_command.h"
-#include "uci_output.h"
-#include "uci_protocol.h"
-#include "bitboard.h"
-#include "attacks.h"
-#include "zobrist.h"
-#include "eval.h"
+#include "cpu_features.h"
+#include "engine_entry.h"
 
 namespace {
 
 #if defined(USE_PEXT) || defined(USE_AVX2)
-#if defined(USE_AVX2)
-bool cpu_supports_sse41_popcnt() {
+CpuFeatures detect_cpu_features() {
+    CpuFeatures features;
+
 #  if defined(_MSC_VER) && defined(_M_X64)
     int regs[4] = {};
     __cpuid(regs, 0);
-    if (regs[0] < 1) return false;
-    __cpuid(regs, 1);
-    return (regs[2] & (1 << 19)) != 0 && (regs[2] & (1 << 23)) != 0;
+    const int max_basic_leaf = regs[0];
+
+    if (max_basic_leaf >= 1) {
+        __cpuid(regs, 1);
+        features.sse41  = (regs[2] & (1 << 19)) != 0;
+        features.popcnt = (regs[2] & (1 << 23)) != 0;
+
+        const bool osxsave = (regs[2] & (1 << 27)) != 0;
+        const bool avx     = (regs[2] & (1 << 28)) != 0;
+        if (osxsave && avx && (_xgetbv(0) & 0x6) == 0x6 && max_basic_leaf >= 7) {
+            __cpuidex(regs, 7, 0);
+            features.avx2 = (regs[1] & (1 << 5)) != 0;
+        }
+    }
+
+    if (max_basic_leaf >= 7) {
+        __cpuidex(regs, 7, 0);
+        features.bmi1 = (regs[1] & (1 << 3)) != 0;
+        features.bmi2 = (regs[1] & (1 << 8)) != 0;
+    }
+
+    __cpuid(regs, static_cast<int>(0x80000000U));
+    if (static_cast<unsigned int>(regs[0]) >= 0x80000001U) {
+        __cpuid(regs, static_cast<int>(0x80000001U));
+        features.lzcnt = (regs[2] & (1 << 5)) != 0;
+    }
 #  elif defined(__GNUC__) && defined(__x86_64__)
     __builtin_cpu_init();
-    return __builtin_cpu_supports("sse4.1") && __builtin_cpu_supports("popcnt");
-#  else
-    return false;
+    features.sse41  = __builtin_cpu_supports("sse4.1");
+    features.popcnt = __builtin_cpu_supports("popcnt");
+    features.avx2   = __builtin_cpu_supports("avx2");
+    features.bmi1   = __builtin_cpu_supports("bmi");
+    features.bmi2   = __builtin_cpu_supports("bmi2");
+    features.lzcnt  = __builtin_cpu_supports("lzcnt");
 #  endif
+
+    return features;
 }
 #endif
 
-#if defined(USE_AVX2)
-bool cpu_supports_avx2() {
-#  if defined(_MSC_VER) && defined(_M_X64)
-    int regs[4] = {};
-    __cpuid(regs, 0);
-    if (regs[0] < 7) return false;
-    __cpuid(regs, 1);
-    const bool osxsave = (regs[2] & (1 << 27)) != 0;
-    const bool avx     = (regs[2] & (1 << 28)) != 0;
-    if (!osxsave || !avx) return false;
-    const unsigned long long xcr0 = _xgetbv(0);
-    if ((xcr0 & 0x6) != 0x6) return false;
-    __cpuidex(regs, 7, 0);
-    return (regs[1] & (1 << 5)) != 0;
-#  elif defined(__GNUC__) && defined(__x86_64__)
-    __builtin_cpu_init();
-    return __builtin_cpu_supports("avx2");
-#  else
-    return false;
-#  endif
-}
-#endif
-
+bool cpu_is_compatible() {
 #if defined(USE_PEXT)
-bool cpu_supports_bmi2() {
-#  if defined(_MSC_VER) && defined(_M_X64)
-    int regs[4] = {};
-    __cpuid(regs, 0);
-    if (regs[0] < 7) return false;
-    __cpuidex(regs, 7, 0);
-    return (regs[1] & (1 << 8)) != 0;
-#  elif defined(__GNUC__) && defined(__x86_64__)
-    __builtin_cpu_init();
-    return __builtin_cpu_supports("bmi2");
-#  else
-    return false;
-#  endif
+    if (!supports_pext_tier(detect_cpu_features())) {
+        std::cerr << "Basilisk PEXT build requires AVX2, SSE4.1, POPCNT, BMI1, "
+                     "BMI2/PEXT, and LZCNT support.\n"
+                  << "Use the AVX2 or portable x86_64 build on this machine.\n";
+        return false;
+    }
+#elif defined(USE_AVX2)
+    if (!supports_avx2_tier(detect_cpu_features())) {
+        std::cerr << "Basilisk AVX2 build requires AVX2, SSE4.1, and POPCNT support.\n"
+                  << "Use the portable x86_64 build on this machine.\n";
+        return false;
+    }
+#endif
+    return true;
 }
-#endif
-#endif
 
 } // namespace
 
-// The whole engine body lives in run(); main() is only the try/catch shell,
-// so EVERYTHING that can throw (Engine's TT allocation included) is covered —
-// bugprone-exception-escape flagged the earlier narrower try for exactly the
-// Engine-construction gap.
-static int run() {
-    std::ios_base::sync_with_stdio(false);
-    std::cin.tie(nullptr);
+int main(int argc, char* argv[]) {
+    if (!cpu_is_compatible()) return 1;
 
-#if defined(USE_PEXT)
-    if (!cpu_supports_bmi2()) {
-        std::cerr << "Basilisk PEXT build requires a CPU with BMI2/PEXT support.\n"
-                  << "Use the non-PEXT x86_64 build on this machine.\n";
-        return 1;
-    }
-#endif
-
-#if defined(USE_AVX2)
-    if (!cpu_supports_avx2() || !cpu_supports_sse41_popcnt()) {
-        std::cerr << "Basilisk AVX2 build requires a CPU with AVX2, SSE4.1, and POPCNT support.\n"
-                  << "Use the generic x86_64 build on this machine.\n";
-        return 1;
-    }
-#endif
-
-#ifndef _WIN32
-    // 8.6.3: a GUI closing our stdout pipe must not signal-kill the engine.
-    // Windows has no SIGPIPE; on POSIX the default action terminates. Writes
-    // to a closed pipe then simply fail (unchecked, by design — see
-    // UciOutput.h), and the reader loop exits cleanly at the cin EOF.
-    std::signal(SIGPIPE, SIG_IGN);
-#endif
-
-    // Initialize all precomputed tables
-    init_bitboards();
-    init_attacks();
-    Zobrist::init();
-    init_eval_tables(g_eval_params);
-#ifdef BASILISK_TUNE
-    load_eval_file_if_set();
-#endif
-
-    uci_write_line(std::string(engineName) + " " + std::string(engineVersion)
-                   + " by " + std::string(engineAuthor));
-
-    EngineCommandQueue command_queue;
-    std::atomic_bool stop_requested{false};
-    std::atomic_bool ponderhit_requested{false};
-    std::atomic_bool searching{false};
-    std::atomic_uint64_t control_epoch{0};
-
-    Engine      engine(command_queue, stop_requested, ponderhit_requested, searching, control_epoch);
-    UciProtocol uciProtocol(command_queue, stop_requested, ponderhit_requested, searching, control_epoch);
-
-    std::thread engineThread(&Engine::start, &engine);
-    uciProtocol.UciLoop();
-    engineThread.join();
-
-    return 0;
-}
-
-int main() {
-    // Last-resort diagnostic (8.6.2b, clang-tidy bugprone-exception-escape):
-    // an exception escaping main() would std::terminate with no message —
-    // e.g. std::bad_alloc from a huge Hash at Engine construction, or a
-    // std::regex_error. Cold paths throw deliberately (set_fen, option
-    // parsing guards them), so anything reaching here is a bug or resource
-    // exhaustion; say so on the way down instead of dying silently under a
-    // GUI.
+    // Last-resort diagnostic: anything reaching here is a bug or resource
+    // exhaustion, so report it instead of terminating silently under a GUI.
     try {
-        return run();
+        return run_engine(argc, argv);
     } catch (const std::exception& e) {
+        // stdout too: a GUI or harness records the engine's stdout, not stderr.
+        std::cout << "info string FATAL: unhandled exception: " << e.what() << std::endl;
         std::cerr << "FATAL: unhandled exception: " << e.what() << '\n';
         return 1;
     } catch (...) {
+        std::cout << "info string FATAL: unhandled non-standard exception" << std::endl;
         std::cerr << "FATAL: unhandled non-standard exception\n";
         return 1;
     }

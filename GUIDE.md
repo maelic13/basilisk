@@ -1,125 +1,155 @@
 # Basilisk development guide
 
-**Phase 15 is complete and 1.10.1 is released** — `master` carries the
-`Version 1.10.1` commit tagged `v1.10.1`, a correctness patch on 1.10.0
-(bench unchanged). **The next phase is not planned yet**; `PLAN.md` section 4
-says how to plan it. The archived board with Phases 1–14 is at
-[docs/archive/GUIDE-2026-09-09.md](docs/archive/GUIDE-2026-09-09.md).
+A one-page overview for the maintainer. Every step is written once, in
+`docs/PLAN.md`: its title, capability class, status and detail. The step list below
+is generated from PLAN. How agents work is in `AGENTS.md`; how recurring work
+runs, including the reusable research, implementation and review prompts, is
+in `docs/PROCESS.md`; where the engine stands is PLAN §1.
 
-## How to work with the engine agent
+## Now
 
-PLAN owns current work; EXPERIMENTS owns measured history and frozen
-predictions; HISTORY owns what the archived roadmap established; `DESIGN.md`
-owns the engine invariants. Run the checklist in order.
-
-1. Ask **"what measured defect are we fixing?"** before asking what feature to
-   add. Keep unresolved chess or architecture reasoning in `RESEARCH`.
-2. Promote to `READY_FOR_IMPLEMENTATION` only when the mechanism and exact
-   semantics are explicit, local evidence supports it, interactions and
-   invariants are mapped, the cheapest falsifier is known, and an acceptance/
-   rejection rule exists.
-3. Let the implementation agent act like a colleague on ordinary structure,
-   builds, tests, debugging and cheap qualification. Do not let it silently
-   redesign the hypothesis or broaden the mechanism.
-4. Run the cheapest discriminating falsifier before expensive coding or games.
-   The agent prepares expensive jobs; the maintainer starts them.
-5. Freeze the prediction and confidence **before** seeing results.
-6. A negative result is useful when it removes a hypothesis. Do not retry a
-   rejection until its objective trigger fires.
-7. If implementation finds a false premise, return to `RESEARCH` rather than
-   rescuing the idea with neighbouring changes.
-
-State legend:
-
-`RESEARCH -> READY_FOR_IMPLEMENTATION -> IMPLEMENTED -> LOCAL_QUALIFIED -> GAME_GATE -> CLOSED`
-
-### Current model mapping
-
-Edit this table when model generations change; PLAN's class tags stay stable.
-
-| Class | Capability | GPT | Claude |
-|---|---|---|---|
-| `R3` | Frontier causal/architecture research | GPT-6 Astra — Extra High | Claude Fable 5.1 — High |
-| `R2` | Bounded correctness-sensitive reasoning | GPT-5.6 Sol — High | Claude Opus 5 — High |
-| `I2` | Difficult implementation | GPT-5.6 Sol — High | Claude Opus 5 — High |
-| `I1` | Well-specified implementation | GPT-5.6 Terra — Medium | Claude Sonnet 5 — Medium |
-| `M` | Mechanical/docs/provenance | GPT-5.6 Terra — Medium | Claude Sonnet 5 — Medium |
-| `V` | Verification/measurement | GPT-5.6 Sol — High | Claude Sonnet 5 — High |
-
-Capability tags are advisory routing, not state, evidence or permission.
-
-### Reusable research prompt
-
-> Research `<PLAN leaf>` without substantial engine implementation. Read PLAN,
-> EXPERIMENTS, its linked analysis and relevant source first; measured evidence
-> outranks roadmap assumptions. Search prior negative results and retry triggers.
-> State the precise question, leading and competing hypotheses, interactions and
-> duplicated signals; distinguish search, evaluation, tool and instrument
-> explanations. Design the cheapest discriminating experiment first. Before
-> exposure, freeze the expected diagnostic movement, defensible Elo sign/range,
-> probability of usefulness, confidence, most likely failure mode, falsifiers
-> and stopping rule. End with exactly one decision:
-> `READY_FOR_IMPLEMENTATION`, `MORE_RESEARCH`, or `NO_CHANGE`.
-
-### Reusable implementation prompt
-
-> Implement `<PLAN leaf>` according to its registered implementation handoff.
-> Treat the research decision, intended semantics, invariants and experiment
-> design as fixed. Use normal engineering judgment for structure, focused
-> builds, debugging and cheap qualification. Do not broaden the mechanism, tune
-> unrelated behavior or continue unrelated roadmap work. If a research premise
-> proves false, stop the mechanism, document the contradiction, preserve useful
-> instrumentation and return the leaf to `RESEARCH`. Prepare but do not start
-> maintainer-owned expensive jobs. When locally qualified, update PLAN/GUIDE and
-> EXPERIMENTS according to their ownership, then report changes, interactions,
-> validation, remaining gate and false assumptions.
-
-## Current checkpoint
-
-| Item | State |
+| Item | Value |
 |---|---|
-| Latest release | Basilisk **1.10.1**, tagged `v1.10.1` on `master` — BAS-C10 to BAS-C13 |
-| Development branch | `dev`, level with the release |
-| Bench fingerprint | **14,978,465** (unchanged since 1.10.0); CTest 12/12 release and sanitizer |
-| Previous release | Basilisk 1.10.0; same bench |
-| Strength | **+19.18 ± 6.76 Elo** for 1.10.0 over 1.9.3 at `3+0.03` 1T (BAS-E55); 1.10.1 bench-identical |
-| Current step | **None — Phase 16 needs planning** (`PLAN.md` section 4) |
+| Released baseline | **1.10.2** on `master`, tagged `v1.10.2` (2026-10-08) |
+| Bench fingerprint | **14,978,465** (`bench 13`, 1.10.0 to 1.10.2) |
+| Active experiment | None |
 | Long job | None |
+| Next release | **2.0.0** if the E.2 target gate is met, otherwise **1.11.0**, cut at E.3 |
 
-## Phase 15 — board correctness and release 1.10.0 (complete)
+## Model by class
 
-Repaired SEE king legality (BAS-C08); kept created pins and promotion
-recaptures as documented approximations on measured reachability and cost
-(BAS-C09); closed the time-forfeit residual as host stalls (BAS-E57); hardened
-malformed UCI input and fixed a silent unknown-`setoption`; qualified
-deterministically (CTest release + sanitizer, perft, invariants, ISA); and
-passed the release gate at **+19.18 ± 6.76 Elo** over 1.9.3 (BAS-E55).
-Released as 1.10.0. Full summary in `PLAN.md`, measured detail in
-`EXPERIMENTS.md`.
+PLAN records only stable capability classes; edit this table when model
+generations change. These are maintainer judgments, not measured rankings.
 
-## Patch 1.10.1 — time forfeits and position handling (released)
+| Class | Capability | Model — thinking mode |
+|---|---|---|
+| `R3` | Frontier causal/architecture research | Claude Fable 5.1 — High |
+| `R2` | Bounded correctness-sensitive reasoning | Claude Opus 5 — High |
+| `I2` | Difficult implementation | Claude Opus 5 — High |
+| `I1` | Well-specified implementation | Claude Sonnet 5 — Medium |
+| `M` | Mechanical/docs/provenance | Claude Sonnet 5 — Medium |
+| `V` | Verification/measurement | Claude Sonnet 5 — High |
 
-- [x] Diagnose the two ponder-on forfeits: `ponderhit` reset by the engine
-      thread during search setup after an instant opponent reply (BAS-C10).
-- [x] Repair: UCI thread owns the flag (set on `ponderhit`, reset on `go`);
-      stale-`stop` reset re-checks the control epoch. Bench 14,978,465.
-- [x] Qualify: new tests fail on 1.10.0 and pass; release CTest 12/12,
-      ASan/UBSan CTest, TSan on ponder/threading/protocol tests.
-- [x] Release prep: version 1.10.1, CHANGELOG, PLAN, GUIDE, HISTORY.
-- [x] Ponder-on game gate, run 1: FAIL at ~130 games. The control fired
-      (1.10.0 hung ~35 times), but 1.10.1-rc lost 4 games on time in 5-6-man
-      positions. Diagnosed as a separate, older defect (BAS-C11).
-- [x] Repair BAS-C11: no tablebase line extension; KPK built at start-up;
-      hash resize and clear done at `setoption`/`ucinewgame`. Bench 14,978,465;
-      release and ASan/UBSan CTest 12/12.
-- [x] BAS-C13: tablebase PV lines restored the Stockfish way. Final line
-      time-boxed at half of Move Overhead, analysis lines unbounded, DTZ-ranked
-      Step 2. Bench 14,978,465; 200-game ponder smoke run 0 failures.
-- [x] BAS-C12: a rejected `position` exits with status 1 (maintainer
-      decision, replacing 8.6.3a's reject-and-retain); triple check rejected.
-- [x] Ponder-on game gate, run 2: PASS. 1,005 games at `3+0.03` 1T
-      (maintainer's time control, stopped at the registered 1,000): 1.10.1-rc3
-      had 0 failures, 1.10.0 had 263 time losses, all in positions of 6 men
-      or fewer.
-- [x] Publish: `dev` squash-merged into `master` as `Version 1.10.1`,
-      tagged `v1.10.1`, released 2026-09-27.
+## Steps
+
+<!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
+
+**Next step:** **B.0.1** `[V]` Razoring depth reach in Elo (maintainer) — Claude Sonnet 5 — High
+
+**Held `(ANY TIME)` steps**, done between steps when asked:
+
+- **B.7.1** `[I1]` Allocation guard (ANY TIME) — before B.7.2 — Claude Sonnet 5 — Medium
+- **D.3.1** `[R2]` Board contract audit (ANY TIME) — before E.1 — Claude Opus 5 — High
+
+### Phase A — Reset: documents, harness, instruments, baselines
+
+- [x] **A.8** Rarog-parity repairs, repository and C++23
+    - [x] **A.8.1** `[M]` Final Rarog import
+    - [x] **A.8.2** `[I1]` CI on pull requests to master only
+    - [x] **A.8.3** `[M]` Merge commits from dev to master
+    - [x] **A.8.4** `[M]` Documents into docs/, closed Phase A archived
+    - [x] **A.8.5** `[I1]` Experiment ledger split into entries
+    - [x] **A.8.6** `[I1]` Tag-driven release flow
+    - [x] **A.8.7** `[I1]` SMP: the chosen thread's line before bestmove
+    - [x] **A.8.8** `[I1]` UCI info conformance
+    - [x] **A.8.9** `[I2]` MultiPV
+    - [x] **A.8.10** `[I1]` Command-line commands, fatal errors on stdout
+    - [x] **A.8.11** `[I1]` Tablebase PV extension start rule
+    - [x] **A.8.12** `[I2]` C++23 idiom pass, behaviour-neutral
+    - [x] **A.8.13** `[R2]` Score bands and in-search tablebase probes
+    - [x] **A.8.14** `[I2]` Score bands and probes, implementation
+    - [x] **A.8.15** `[V]` Tablebase-enabled gate
+    - [x] **A.8.16** `[R2]` Won-endgame time sink
+    - [x] **A.8.17** `[I1]` Won-endgame time sink, implementation
+    - [x] **A.8.18** `[V]` Won-endgame time sink gate
+    - [x] **A.8.19** `[R2]` Displayed-score normalisation
+    - [x] **A.8.20** `[M]` B-programme anchors on the A.8 head
+    - [x] **A.8.21** `[M]` Patch release 1.10.2 (ANY TIME) — after A.8.20
+
+### Phase B — Search programme (evaluation frozen)
+
+- [ ] **B.0** Search programme investigation
+    - [ ] **B.0.1** `[V]` Razoring depth reach in Elo (maintainer)
+    - [ ] **B.0.2** `[V]` Oracle move-loop pruning family in Elo (maintainer)
+- [ ] **B.1** `[I1]` Search restructure, behaviour-neutral
+- [ ] **B.2** Cluster 1 — the selectivity core
+    - [ ] **B.2.0** `[R2]` Architecture review and neutral upgrades
+    - [ ] **B.2.1** `[I2]` Implement behind the umbrella switch
+    - [ ] **B.2.2** `[V]` Diagnostics and the unfitted paired run
+    - [ ] **B.2.3** `[V]` Curvature sweep, then SPSA in blocks
+    - [ ] **B.2.4** `[V]` Cluster 1 gates
+- [ ] **B.3** `[I2]` Cluster 2 — pruning and extensions
+- [ ] **B.4** `[I2]` Cluster 3 — quiescence
+- [ ] **B.5** `[I2]` Cluster 4 — root and aspiration
+- [ ] **B.6** `[V]` Joint search SPSA, if justified
+- [ ] **B.7** Search speed pass
+    - [ ] **B.7.1** `[I1]` Allocation guard (ANY TIME) — before B.7.2
+    - [ ] **B.7.2** `[I1]` Speed pass
+- [ ] **B.8** `[I1]` Cleanup of legacy search and dead parameters
+- [ ] **B.9** `[V]` Search programme checkpoint
+
+### Phase C — Evaluation programme (search frozen)
+
+- [ ] **C.0** `[R3]` Evaluation programme investigation
+- [ ] **C.1** `[I1]` Evaluation restructure, behaviour-neutral
+- [ ] **C.2** Fit pipeline, corpus and label contract
+    - [ ] **C.2.1** `[I1]` Fit-tooling contract and Texel handbook
+    - [ ] **C.2.2** `[R2]` Corpus design
+    - [ ] **C.2.3** `[V]` Generate and publish corpus A
+    - [ ] **C.2.4** `[R2]` Matched label arms
+    - [ ] **C.2.5** `[R2]` Initialization control
+    - [ ] **C.2.6** `[V]` Matched fits and the label-contract gate
+- [ ] **C.3** `[I2]` King safety cluster
+- [ ] **C.4** `[I2]` Threats and mobility cluster
+- [ ] **C.5** Endgame handling and winnability
+    - [ ] **C.5.1** `[R2]` Instruments and gate integrity
+    - [ ] **C.5.2** `[R3]` Occurrence, classification and ranking
+    - [ ] **C.5.3** `[I2]` Generic winnability and scaling
+    - [ ] **C.5.4** `[R3]` Won-rook-ending only-move precision (BAS-E53)
+    - [ ] **C.5.5** `[I2]` Group B families by measured kind
+    - [ ] **C.5.6** `[R2]` Lower-yield remainder
+    - [ ] **C.5.7** `[V]` Endgame gate and closure
+- [ ] **C.6** `[I2]` Pawns and passers cluster
+- [ ] **C.7** `[I2]` Material, imbalance, phase and pieces cluster
+- [ ] **C.8** `[V]` Refit cycles
+- [ ] **C.9** `[V]` Nonlinear HCE SPSA or a written skip
+- [ ] **C.10** `[V]` Search re-fit after the new evaluation
+- [ ] **C.11** `[V]` Freeze the classical evaluation
+- [ ] **C.12** `[I2]` Evaluation throughput, bit-exact
+
+### Phase D — Clock, threads, robustness
+
+- [ ] **D.1** `[R2]` Time management
+- [ ] **D.2** `[R2]` Lazy SMP quality
+- [ ] **D.3** Engine lifecycle, protocol and board contracts
+    - [ ] **D.3.1** `[R2]` Board contract audit (ANY TIME) — before E.1
+    - [ ] **D.3.2** `[R2]` Lifecycle and protocol robustness
+- [ ] **D.4** `[R2]` Tablebase policy
+
+### Phase E — Classical checkpoint and release
+
+- [ ] **E.1** `[V]` Attribution checkpoint
+- [ ] **E.2** `[V]` Classical target gate
+- [ ] **E.3** `[M]` Release 2.0.0 if E.2 is met, else 1.11.0
+
+### Phase F — NNUE (own data only)
+
+- [ ] **F.0** `[R3]` NNUE investigation
+- [ ] **F.1** `[I2]` Board events and accumulator scaffolding
+- [ ] **F.2** `[V]` Data generation at scale
+- [ ] **F.3** `[I2]` Trainer hardening and baseline nets
+- [ ] **F.4** `[I2]` Scalar integration, integer-exact conformance
+- [ ] **F.5** `[I2]` Incremental and SIMD inference
+- [ ] **F.6** `[V]` Search re-fit for the network
+- [ ] **F.7** `[R3]` Architecture ladder, one axis at a time
+- [ ] **F.8** `[V]` Data frontier
+- [ ] **F.9** `[M]` NNUE release
+- [ ] **F.10** `[V]` CCRL top-100 gate
+
+### Phase G — Scaling, platforms and the top 50
+
+- [ ] **G.1** `[R2]` High-thread and NUMA
+- [ ] **G.2** `[I1]` Platform and product
+- [ ] **G.3** `[R3]` Frontier
+
+<!-- END GENERATED -->

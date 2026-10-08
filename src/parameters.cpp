@@ -120,6 +120,7 @@ Parameters::Parameters() {
     search_moves.clear();
 
     move_overhead = defaultMoveOverhead;
+    multipv      = 1;
     hash_mb      = 64;
     threads      = 1;
     ponder_enabled = false;
@@ -129,6 +130,12 @@ Parameters::Parameters() {
     syzygy_50_move_rule = true;
     tm_debug          = false;
     diag              = false;
+#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
+    decision_trace    = false;
+#endif
+#ifdef BASILISK_ABLATION
+    ablation_mask     = 0;
+#endif
 }
 
 void Parameters::reset() {
@@ -165,11 +172,12 @@ std::string Parameters::uci_options() {
            "option name Clear Hash type button\n"
            "option name Ponder type check default false\n"
            "option name Move Overhead type spin default 10 min 0 max 5000\n"
+           "option name MultiPV type spin default 1 min 1 max 256\n"
            "option name SyzygyPath type string default <empty>\n"
            "option name SyzygyProbeDepth type spin default 1 min 1 max 100\n"
            "option name Syzygy50MoveRule type check default true\n"
            "option name SyzygyProbeLimit type spin default 7 min 0 max 7\n";
-#ifdef BASILISK_TUNE
+#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
     opts +=
         // TM diagnostic (Step 5.3): advertised only in tune/dev builds so a
         // harness/GUI will actually send the setoption (fastchess/LB skip
@@ -177,6 +185,14 @@ std::string Parameters::uci_options() {
         "option name TM_Debug type check default false\n"
         // Diagnostic counters + lazy dual-eval audit (8.6.6).
         "option name Diag type check default false\n"
+        // Bounded machine-readable decision trace (A.5.3).
+        "option name DecisionTrace type check default false\n";
+#endif
+#ifdef BASILISK_ABLATION
+    opts += "option name AblationMask type spin default 0 min 0 max 255\n";
+#endif
+#ifdef BASILISK_TUNE
+    opts +=
         // Atomic string keeps an SPSA/sweep harness from briefly installing
         // an unsafe partial KBNK vector while separate options arrive.
         "option name KBNK Drive type string default 17000,1000,0,220,0\n";
@@ -350,6 +366,10 @@ void Parameters::set_option(const std::string& args) {
         // parseable. Enables the end-of-search `info string diag` dump and
         // the lazy dual-eval audit (served scores unchanged either way).
         diag = parse_bool_option(value);
+#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
+    } else if (name_lower == "decisiontrace") {
+        decision_trace = parse_bool_option(value);
+#endif
     } else if (name_lower == "tm_debug") {
         // Diagnostic (Step 5.3): advertised only in tune/dev builds (see
         // uci_options) but always parseable. When on, the search emits one
@@ -366,6 +386,8 @@ void Parameters::set_option(const std::string& args) {
         uci_write_line("info string Invalid value for option '" + name + "': " + value);
     } else if (name_lower == "move overhead") {
         move_overhead = std::clamp(parsed, 0, 5000);
+    } else if (name_lower == "multipv") {
+        multipv = std::clamp(parsed, 1, 256);
     } else if (name_lower == "hash") {
         hash_mb = std::clamp(parsed, 1, 33554432);
     } else if (name_lower == "threads") {
@@ -374,6 +396,10 @@ void Parameters::set_option(const std::string& args) {
         syzygy_probe_depth = std::clamp(parsed, 1, 100);
     } else if (name_lower == "syzygyprobelimit") {
         syzygy_probe_limit = std::clamp(parsed, 0, 7);
+#ifdef BASILISK_ABLATION
+    } else if (name_lower == "ablationmask") {
+        ablation_mask = std::clamp(parsed, 0, 255);
+#endif
     }
 #ifdef BASILISK_TUNE
     // 8.6.1: generated from the SearchParams X-macro table — same single

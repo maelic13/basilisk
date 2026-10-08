@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    One-shot setup: download fastchess and clone weather-factory into tools/.
+    Stage Colosseum CLI, fastchess, the UHO book and weather-factory.
 
 .DESCRIPTION
     Makes the Basilisk tuning toolchain fully self-contained inside the repo.
@@ -8,6 +8,7 @@
     books under tools/ are gitignored.
 
     After this script:
+      - tools/bin/colosseum-cli.exe     (exact pinned release and SHA-256)
       - tools/bin/fastchess.exe         (downloaded from GitHub)
       - tools/weather-factory/          (cloned from GitHub, then patched:
                                          the -use-affinity insert into
@@ -39,7 +40,8 @@
     ./tools/setup_tools.ps1
 #>
 param(
-    [string]$FastchessTag = "v1.8.0-alpha"
+    [string]$FastchessTag = "v1.8.0-alpha",
+    [string]$BookSource = "D:\chess\books"
 )
 
 $ErrorActionPreference = "Stop"
@@ -49,7 +51,63 @@ $binDir   = Join-Path $PSScriptRoot "bin"
 $wfDir    = Join-Path $PSScriptRoot "weather-factory"
 New-Item -ItemType Directory -Force -Path $binDir | Out-Null
 
-# ---- 1. fastchess -----------------------------------------------------------
+# ---- 1. Colosseum CLI, exact release pin -----------------------------------
+$colosseumPinPath = Join-Path $PSScriptRoot "colosseum\colosseum.pin.json"
+$colosseumExe = Join-Path $binDir "colosseum-cli.exe"
+$pin = Get-ColosseumPin -PinPath $colosseumPinPath
+$stageColosseum = -not (Test-Path -LiteralPath $colosseumExe)
+if (-not $stageColosseum) {
+    try {
+        Assert-ColosseumCli -Path $colosseumExe -PinPath $colosseumPinPath | Out-Null
+        Write-Host "Colosseum CLI already present at the pinned hash."
+    } catch {
+        Write-Warning $_.Exception.Message
+        $stageColosseum = $true
+    }
+}
+if ($stageColosseum) {
+    if (-not $pin.archive.url -or -not $pin.archive.sha256) {
+        throw "$colosseumPinPath has no downloadable archive and digest."
+    }
+    $stageDir = Join-Path ([IO.Path]::GetTempPath()) ("basilisk-colosseum-" + [guid]::NewGuid())
+    New-Item -ItemType Directory -Path $stageDir | Out-Null
+    try {
+        $archive = Join-Path $stageDir $pin.archive.asset
+        Invoke-WebRequest -Uri $pin.archive.url -OutFile $archive
+        $archiveSha = Get-HarnessSha256 $archive
+        if ($archiveSha -ne $pin.archive.sha256) {
+            throw "Colosseum archive SHA-256 mismatch: expected $($pin.archive.sha256), got $archiveSha."
+        }
+        $extract = Join-Path $stageDir "extract"
+        Expand-Archive -LiteralPath $archive -DestinationPath $extract
+        $found = @(Get-ChildItem -LiteralPath $extract -Recurse -Filter colosseum-cli.exe -File)
+        if ($found.Count -ne 1) { throw "Expected one colosseum-cli.exe in the pinned archive, found $($found.Count)." }
+        if ((Get-HarnessSha256 $found[0].FullName) -ne $pin.sha256) {
+            throw "Extracted Colosseum CLI does not match the executable pin."
+        }
+        Copy-Item -LiteralPath $found[0].FullName -Destination $colosseumExe -Force
+    } finally {
+        if (Test-Path -LiteralPath $stageDir) { Remove-Item -LiteralPath $stageDir -Recurse -Force }
+    }
+    Assert-ColosseumCli -Path $colosseumExe -PinPath $colosseumPinPath | Out-Null
+    Write-Host "Colosseum CLI staged at the pinned hash."
+}
+
+# ---- 2. Opening book --------------------------------------------------------
+$booksDir = Join-Path $PSScriptRoot "books"
+New-Item -ItemType Directory -Force -Path $booksDir | Out-Null
+$bookName = "UHO_Lichess_4852_v1.epd"
+$bookTarget = Join-Path $booksDir $bookName
+if (-not (Test-Path -LiteralPath $bookTarget)) {
+    $bookSourcePath = Join-Path $BookSource $bookName
+    if (-not (Test-Path -LiteralPath $bookSourcePath)) {
+        throw "Opening book not found at $bookSourcePath; pass -BookSource."
+    }
+    Copy-Item -LiteralPath $bookSourcePath -Destination $bookTarget
+    Write-Host "Opening book staged: $bookTarget"
+}
+
+# ---- 3. fastchess -----------------------------------------------------------
 $fastchessExe = Join-Path $binDir "fastchess.exe"
 $downloadFastchess = -not (Test-Path $fastchessExe)
 if (Test-Path $fastchessExe) {
@@ -119,7 +177,7 @@ if ($downloadFastchess) {
     Assert-AffinityFastchess -Path $fastchessExe | Out-Null
 }
 
-# ---- 2. weather-factory -----------------------------------------------------
+# ---- 4. weather-factory -----------------------------------------------------
 if (Test-Path (Join-Path $wfDir "main.py")) {
     Write-Host "weather-factory already present at tools/weather-factory/ -- skipping clone."
 } else {
@@ -191,7 +249,7 @@ if (Test-Path (Join-Path $wfDir "main.py")) {
     Install-WfOverlay -WeatherFactoryDir $wfDir
 }
 
-# ---- 3. Python dependency ---------------------------------------------------
+# ---- 5. Python dependency ---------------------------------------------------
 Write-Host "Installing matplotlib (weather-factory dependency)..."
 pip install matplotlib --quiet
 if ($LASTEXITCODE -ne 0) { Write-Warning "pip install matplotlib failed -- run manually if needed." }
@@ -204,6 +262,8 @@ Write-Host ""
 Write-Host "  Next steps:"
 Write-Host "    1. Build a test binary:"
 Write-Host "         ./tools/build_test.ps1 -Suffix <s>"
-Write-Host "    2. Set up AND run SPSA (one command):"
+Write-Host "    2. Run a guarded match through Colosseum:"
+Write-Host "         ./tools/colosseum.ps1 -Mode match -EngineA <a> -EngineB <b> -ExpectBench <a>,<b> -Dir <dir>"
+Write-Host "    3. Set up AND run SPSA (backup path):"
 Write-Host "         ./tools/spsa.ps1 -ConfigGroup <g> -EngineSuffix <s>"
 Write-Host "============================================================"

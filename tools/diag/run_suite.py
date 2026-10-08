@@ -9,10 +9,10 @@ Two things, because 5.2 has two jobs.
    comparable across runs and machines.
 
 2. DIFFERENTIAL vs THE ORACLE. Run both Basilisk and the 5.1 oracle at a fixed
-   NODE budget and record the depth each reaches. Depth-at-equal-nodes is the
-   direct expression of the BAS-O03 finding (EBF 2.20 against 1.61) and needs
-   no instrumentation on the Stockfish side at all, which is what makes the
-   comparison possible in the first place.
+   NODE budget and record the last completed depth and best move from each.
+   Depth-at-equal-nodes is the direct expression of the BAS-O03 finding (EBF
+   2.20 against 1.61); best-move agreement adds a per-position search-quality
+   signal without requiring instrumentation on the Stockfish side.
 
 Counters explain a candidate; they never accept one. Only a registered SPRT
 accepts (PLAN cluster discipline).
@@ -43,6 +43,41 @@ DERIVED = [
     ("lmr_clamp0_pct",        lambda c: pct(c.get("lmr_clamped_zero"), c.get("lmr_eligible"))),
     ("cutoff_src_quiet_pct",  lambda c: pct(c.get("cutoff_src_quiet"), c.get("fail_highs"))),
 ]
+
+
+def _counter_units():
+    units = {}
+    groups = {
+        "nodes": "interior_nodes in_check_nodes tt_pv_nodes qs_nodes qs_evasion_nodes",
+        "plies": "lmr_reduction_plies",
+        "move_index_sum": "fail_high_index_sum",
+        "calls": "see_ge_calls gives_check_calls",
+        "updates": "hist_cutoff_updates hist_reward_updates",
+        "events": """
+            check_exts tt_probes tt_hits tt_cutoffs rfp_cuts razor_cuts
+            null_tries null_cuts probcut_tries probcut_cuts fut_prunes
+            lmp_prunes hist_prunes see_prunes lmr_applied lmr_researched
+            tt_stores tt_stores_same_key fail_highs fail_high_first
+            cutoff_src_tt cutoff_src_goodcap cutoff_src_quiet cutoff_src_badcap
+            lmr_eligible lmr_clamped_zero lmr_clamped_high sing_fired
+            sing_double sing_in_check sing_triple sing_ttbeta asp_windows
+            asp_fail_low asp_fail_high asp_researches asp_giveup
+            hist_prune_tested hist_below_half hist_below_quarter
+            hist_below_eighth lmr_blocked_depth lmr_blocked_searched
+            lmr_blocked_in_check lmr_blocked_movetype lmr_blocked_gives_check
+        """,
+    }
+    for unit, names in groups.items():
+        for name in names.split():
+            if name in units:
+                raise AssertionError(f"duplicate counter schema entry: {name}")
+            units[name] = unit
+    if len(units) != 57:
+        raise AssertionError(f"counter schema has {len(units)} entries, expected 57")
+    return units
+
+
+CORE_COUNTER_UNITS = _counter_units()
 
 
 def pct(a, b):
@@ -82,6 +117,9 @@ def uci_run(engine, commands, timeout=600):
         deadline = time.monotonic() + timeout
         for line in proc.stdout:
             out.append(line)
+            lowered = line.lower()
+            if "no such option" in lowered or "unknown option" in lowered:
+                raise RuntimeError(f"{engine} rejected an option: {line.strip()}")
             if line.startswith("bestmove"):
                 break
             if time.monotonic() > deadline:
@@ -117,24 +155,95 @@ def parse_diag(text):
         if not m:
             continue
         for key, val in KV_TOKEN.findall(m.group(1)):
-            counters[key] = counters.get(key, 0) + int(val)
+            if key in counters:
+                raise ValueError(f"duplicate diagnostic counter: {key}")
+            counters[key] = int(val)
     return counters
 
 
+def validate_diag(counters):
+    missing = sorted(set(CORE_COUNTER_UNITS) - set(counters))
+    if missing:
+        raise ValueError("missing diagnostic counters: " + ", ".join(missing))
+
+    checks = {
+        "tt_hits <= tt_probes": counters["tt_hits"] <= counters["tt_probes"],
+        "tt_cutoffs <= tt_hits": counters["tt_cutoffs"] <= counters["tt_hits"],
+        "tt_stores_same_key <= tt_stores": (
+            counters["tt_stores_same_key"] <= counters["tt_stores"]
+        ),
+        "check_exts <= in_check_nodes": (
+            counters["check_exts"] <= counters["in_check_nodes"]
+        ),
+        "qs_evasion_nodes <= qs_nodes": (
+            counters["qs_evasion_nodes"] <= counters["qs_nodes"]
+        ),
+        "null_cuts <= null_tries": counters["null_cuts"] <= counters["null_tries"],
+        "probcut_cuts <= probcut_tries": (
+            counters["probcut_cuts"] <= counters["probcut_tries"]
+        ),
+        "lmr_researched <= lmr_applied": (
+            counters["lmr_researched"] <= counters["lmr_applied"]
+        ),
+        "cutoff sources == fail highs": (
+            counters["cutoff_src_tt"] + counters["cutoff_src_goodcap"]
+            + counters["cutoff_src_quiet"] + counters["cutoff_src_badcap"]
+            == counters["fail_highs"]
+        ),
+        "lmr eligibility partitions exactly": (
+            counters["lmr_applied"] + counters["lmr_clamped_zero"]
+            + counters["lmr_blocked_depth"] + counters["lmr_blocked_searched"]
+            + counters["lmr_blocked_in_check"] + counters["lmr_blocked_movetype"]
+            + counters["lmr_blocked_gives_check"] == counters["lmr_eligible"]
+        ),
+        "history thresholds are nested": (
+            counters["hist_below_half"] <= counters["hist_below_quarter"]
+            <= counters["hist_below_eighth"] <= counters["hist_prune_tested"]
+        ),
+        "singular subsets are bounded": (
+            counters["sing_double"] <= counters["sing_fired"]
+            and counters["sing_in_check"] <= counters["sing_fired"]
+            and counters["sing_triple"] <= counters["sing_double"]
+            and counters["sing_triple"] <= counters["sing_in_check"]
+        ),
+        "aspiration researches are accounted": (
+            counters["asp_researches"] == counters["asp_fail_low"]
+            + counters["asp_fail_high"] + counters["asp_giveup"]
+        ),
+    }
+    failed = [name for name, passed in checks.items() if not passed]
+    if failed:
+        raise ValueError("diagnostic invariant failed: " + "; ".join(failed))
+    return checks
+
+
 DEPTH_LINE = re.compile(r"^info depth (\d+).*?\bnodes (\d+)")
+BESTMOVE_LINE = re.compile(r"^bestmove\s+(\S+)")
 
 
 def last_depth_nodes(text):
+    """Return the last completed iteration, excluding aspiration bounds."""
     depth = nodes = 0
     for line in text.splitlines():
+        if " lowerbound " in f" {line} " or " upperbound " in f" {line} ":
+            continue
         m = DEPTH_LINE.match(line.strip())
         if m:
             depth, nodes = int(m.group(1)), int(m.group(2))
     return depth, nodes
 
 
+def bestmove(text):
+    for line in text.splitlines():
+        match = BESTMOVE_LINE.match(line.strip())
+        if match:
+            return match.group(1)
+    return None
+
+
 def run_internal(engine, fens, depth, options=()):
     total = {}
+    records = []
     print(f"internal breakdown: {len(fens)} positions at depth {depth}")
     for i, fen in enumerate(fens, 1):
         out = uci_run(engine, [
@@ -144,11 +253,15 @@ def run_internal(engine, fens, depth, options=()):
             f"position fen {fen}",
             f"go depth {depth}",
         ])
-        for k, v in parse_diag(out).items():
+        counters = parse_diag(out)
+        validate_diag(counters)
+        records.append({"position": i, "fen": fen, "counters": counters})
+        for k, v in counters.items():
             total[k] = total.get(k, 0) + v
         if i % 25 == 0:
             print(f"  {i}/{len(fens)}")
-    return total
+    validate_diag(total)
+    return total, records
 
 
 def run_differential(engine, oracle, fens, nodes, oracle_opts, engine_opts=()):
@@ -161,8 +274,17 @@ def run_differential(engine, oracle, fens, nodes, oracle_opts, engine_opts=()):
                                            f"go nodes {nodes}"])
         da, na = last_depth_nodes(a)
         db, nb = last_depth_nodes(b)
-        rows.append({"fen": fen, "basilisk_depth": da, "basilisk_nodes": na,
-                     "oracle_depth": db, "oracle_nodes": nb})
+        move_a, move_b = bestmove(a), bestmove(b)
+        if move_a is None or move_b is None:
+            raise RuntimeError(f"position {i} produced no bestmove from one arm")
+        comparable = move_a != "0000" and move_b != "0000"
+        rows.append({"position": i, "fen": fen,
+                     "basilisk_depth": da, "basilisk_nodes": na,
+                     "basilisk_bestmove": move_a,
+                     "oracle_depth": db, "oracle_nodes": nb,
+                     "oracle_bestmove": move_b,
+                     "bestmove_comparable": comparable,
+                     "bestmove_agreement": comparable and move_a == move_b})
         if i % 25 == 0:
             print(f"  {i}/{len(fens)}")
     return rows
@@ -178,6 +300,8 @@ def main():
     ap.add_argument("--suite", default=str(REPO / "tools" / "diag" / "suite_v1.epd"))
     ap.add_argument("--depth", type=int, default=14)
     ap.add_argument("--nodes", type=int, default=300000)
+    ap.add_argument("--stride", type=int, default=1,
+                    help="diagnostic sampling stride; only exact stride 1 is valid")
     # HASH IS PART OF THE MEASUREMENT. Imported from Manta MAN-S23, which found
     # its own branching baseline had spliced 16 MiB and 64 MiB runs: the same
     # engine scored 171,653,746 nodes at depth 12 with 16 MiB against
@@ -192,12 +316,16 @@ def main():
                          "(repeatable). Search knobs need a TUNE build.")
     args = ap.parse_args()
 
+    if args.stride != 1:
+        ap.error("counter ratios require exact sampling stride 1")
+
     fens = load_suite(pathlib.Path(args.suite))
     if not fens:
         sys.exit("suite is empty")
 
     report = {"suite": pathlib.Path(args.suite).name, "positions": len(fens),
-              "depth": args.depth}
+              "depth": args.depth, "nodes": args.nodes, "hash_mb": args.hash,
+              "sampling_stride": 1, "counter_units": CORE_COUNTER_UNITS}
 
     # A fresh engine process is started per position, so options are re-applied
     # every time rather than once at startup.
@@ -207,8 +335,11 @@ def main():
     if engine_opts:
         report["engine_options"] = args.option
         print("engine options: " + ", ".join(args.option))
-    counters = run_internal(pathlib.Path(args.engine), fens, args.depth, engine_opts)
+    counters, per_position = run_internal(
+        pathlib.Path(args.engine), fens, args.depth, engine_opts
+    )
     report["counters"] = counters
+    report["counter_records"] = per_position
     report["derived"] = {name: fn(counters) for name, fn in DERIVED}
 
     print("\n--- internal breakdown ---")
@@ -246,6 +377,15 @@ def main():
             print("\n--- differential at equal nodes ---")
             print(f"  mean depth  basilisk {mb:6.2f}   oracle {mo:6.2f}   delta {mo - mb:+.2f}")
             print("  (positive delta = the reference converts the same nodes into more depth)")
+        comparable = [r for r in rows if r["bestmove_comparable"]]
+        if not comparable:
+            sys.exit("differential produced no comparable best moves")
+        agreements = sum(r["bestmove_agreement"] for r in comparable)
+        report["bestmove_comparable"] = len(comparable)
+        report["bestmove_agreements"] = agreements
+        report["bestmove_agreement_pct"] = 100.0 * agreements / len(comparable)
+        print(f"  best-move agreement {agreements}/{len(comparable)} "
+              f"({report['bestmove_agreement_pct']:.2f}%)")
 
     if args.out:
         pathlib.Path(args.out).write_text(json.dumps(report, indent=2), encoding="utf-8")

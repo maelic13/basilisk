@@ -24,39 +24,47 @@ UciProtocol::UciProtocol(EngineCommandQueue& commands,
     , searching_(searching)
     , control_epoch_(control_epoch) {}
 
+UciProtocol::Dispatch UciProtocol::dispatch(const std::string& input) {
+    const auto sep = input.find(' ');
+    const std::string command = input.substr(0, sep);
+    const std::string args    = (sep != std::string::npos) ? input.substr(sep + 1) : "";
+
+    if (debug_mode)
+        uci_write_line("info string received: " + input);
+
+    if      (command == "uci")        cmdUci();
+    else if (command == "debug")      cmdDebug(args);
+    else if (command == "isready")    cmdIsReady();
+    else if (command == "register")   cmdRegister();
+    else if (command == "setoption")  cmdSetOption(args);
+    else if (command == "ucinewgame") cmdNewGame();
+    else if (command == "position")   cmdPosition(args);
+    else if (command == "go")         cmdGo(args);
+    else if (command == "stop")       cmdStop();
+    else if (command == "ponderhit")  cmdPonderHit();
+    else if (command == "bench")      cmdBench(args);
+    else if (command == "wac")        cmdWac(args);
+    else if (command == "help")       cmdHelp();
+#ifdef BASILISK_TUNE
+    else if (command == "dumpeval")   run_dumpeval();
+#endif
+    else if (command == "quit") {
+        cmdQuit();
+        return Dispatch::Quit;
+    }
+    else return Dispatch::Unknown;
+    return Dispatch::Handled;
+}
+
 void UciProtocol::UciLoop() {
     std::string input;
     bool sent_quit = false;
 
     while (std::getline(std::cin, input)) {
-        if (input.empty()) continue;
         if (!input.empty() && input.back() == '\r') input.pop_back();
         if (input.empty()) continue;
-
-        const auto sep = input.find(' ');
-        const std::string command = input.substr(0, sep);
-        const std::string args    = (sep != std::string::npos) ? input.substr(sep + 1) : "";
-
-        if (debug_mode)
-            uci_write_line("info string received: " + input);
-
-        if      (command == "uci")        cmdUci();
-        else if (command == "debug")      cmdDebug(args);
-        else if (command == "isready")    cmdIsReady();
-        else if (command == "register")   cmdRegister();
-        else if (command == "setoption")  cmdSetOption(args);
-        else if (command == "ucinewgame") cmdNewGame();
-        else if (command == "position")   cmdPosition(args);
-        else if (command == "go")         cmdGo(args);
-        else if (command == "stop")       cmdStop();
-        else if (command == "ponderhit")  cmdPonderHit();
-        else if (command == "bench")      cmdBench(args);
-        else if (command == "wac")        cmdWac(args);
-#ifdef BASILISK_TUNE
-        else if (command == "dumpeval")   run_dumpeval();
-#endif
-        else if (command == "quit") {
-            cmdQuit();
+        // An unknown command is ignored, as the UCI protocol asks of an engine.
+        if (dispatch(input) == Dispatch::Quit) {
             sent_quit = true;
             break;
         }
@@ -64,6 +72,33 @@ void UciProtocol::UciLoop() {
 
     if (!sent_quit)
         cmdQuit();
+}
+
+int UciProtocol::RunArguments(const std::string& command_line) {
+    const Dispatch result = dispatch(command_line);
+    if (result == Dispatch::Quit)
+        return 0;
+    if (result == Dispatch::Unknown)
+        uci_write_line("Unknown command: '" + command_line
+                       + "'. Run `basilisk help` for the commands.");
+    // Quit after the command, without raising stop: a `go depth N` or a bench
+    // given on the command line runs to its end, as Stockfish runs it.
+    commands_.push(EngineCommand{EngineCommandType::Quit, {}, nullptr,
+                                 control_epoch_.load(std::memory_order_acquire)});
+    return result == Dispatch::Unknown ? 2 : 0;
+}
+
+void UciProtocol::cmdHelp() {
+    uci_write(std::string(engineName) + " " + std::string(engineVersion)
+        + " is a UCI chess engine by " + std::string(engineAuthor) + ".\n"
+        "Use it from a chess GUI or harness that speaks UCI, or type its commands:\n"
+        "  uci, isready, setoption name <name> value <value>, ucinewgame,\n"
+        "  position [startpos | fen <fen>] [moves <move>...],\n"
+        "  go [depth | nodes | movetime | wtime btime winc binc movestogo | mate\n"
+        "      | infinite | ponder | searchmoves <move>...], stop, ponderhit, quit.\n"
+        "Also: bench [depth] [repeats] [threads], wac [depth], help.\n"
+        "Arguments run one command and exit: `basilisk bench 13`.\n"
+        "Source and releases: https://github.com/maelic13/basilisk\n");
 }
 
 uint64_t UciProtocol::next_control_epoch() {

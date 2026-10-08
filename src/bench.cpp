@@ -3,8 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
-#include <iomanip>
-#include <sstream>
+#include <format>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -143,22 +142,15 @@ void run_bench(int depth, int repeats, int threads) {
             }
 
             if (detailed) {
-                int64_t nps = r.elapsed_ms > 0
-                    ? r.nodes * 1000 / r.elapsed_ms : r.nodes;
-                std::ostringstream line;
-                line << "bench " << (i + 1) << "/" << BENCH_FENS.size()
-                     << "  depth " << r.depth
-                     << "  score " << r.score
-                     << "  nodes " << r.nodes
-                     << "  ebf "   << std::fixed << std::setprecision(2) << ebf
-                     << "  time "  << r.elapsed_ms << "ms"
-                     << "  nps "   << nps;
-                uci_write_line(line.str());
+                const int64_t nps = r.nodes * 1000 / std::max<int64_t>(1, r.elapsed_ms);
+                uci_write_line(std::format(
+                    "bench {}/{}  depth {}  score {}  nodes {}  ebf {:.2f}  time {}ms  nps {}",
+                    i + 1, BENCH_FENS.size(), r.depth, r.score, r.nodes, ebf,
+                    r.elapsed_ms, nps));
             }
         }
 
-        int64_t run_nps = total_ms > 0
-            ? total_nodes * 1000 / total_ms : total_nodes;
+        const int64_t run_nps = total_nodes * 1000 / std::max<int64_t>(1, total_ms);
         nps_samples.push_back(run_nps);
 
         if (repeat == 0) {
@@ -173,12 +165,8 @@ void run_bench(int depth, int repeats, int threads) {
                 ? 0 : *std::max_element(per_position_nodes.begin(), per_position_nodes.end());
         }
         if (!detailed) {
-            std::ostringstream line;
-            line << "run " << (repeat + 1) << "/" << repeats
-                 << "  nodes " << total_nodes
-                 << "  time "  << total_ms << "ms"
-                 << "  nps "   << run_nps;
-            uci_write_line(line.str());
+            uci_write_line(std::format("run {}/{}  nodes {}  time {}ms  nps {}",
+                                       repeat + 1, repeats, total_nodes, total_ms, run_nps));
         }
     }
 
@@ -193,22 +181,20 @@ void run_bench(int depth, int repeats, int threads) {
     int64_t min_nps    = nps_samples.empty() ? 0 : nps_samples.front();
     int64_t median_nps = nps_samples.empty() ? 0 : nps_samples[nps_samples.size() / 2];
 
-    std::ostringstream summary;
-    summary << "\n=========================\n"
-            << "Nodes searched  : " << fingerprint_nodes << '\n'
-            << "Geomean EBF     : " << std::fixed << std::setprecision(3) << geomean_ebf << '\n'
-            << "Median nodes    : " << median_nodes << '\n'
-            << "Top-pos share   : " << std::fixed << std::setprecision(1) << top_share
-            << "%  (" << max_nodes << " nodes)\n";
+    std::string summary = std::format(
+        "\n=========================\n"
+        "Nodes searched  : {}\n"
+        "Geomean EBF     : {:.3f}\n"
+        "Median nodes    : {}\n"
+        "Top-pos share   : {:.1f}%  ({} nodes)\n",
+        fingerprint_nodes, geomean_ebf, median_nodes, top_share, max_nodes);
     // Keep a line beginning "Nodes/second" for the single-run case — the PGO
     // training harness waits for it as the completion marker.
-    if (repeats == 1) {
-        summary << "Total time (ms) : " << total_ms_first << '\n'
-                << "Nodes/second    : " << best_nps << '\n';
-    } else {
-        summary << "Nodes/second    : " << best_nps
-                << "   (best of " << repeats
-                << "; median " << median_nps << ", min " << min_nps << ")\n";
-    }
-    uci_write(summary.str());
+    if (repeats == 1)
+        summary += std::format("Total time (ms) : {}\nNodes/second    : {}\n",
+                               total_ms_first, best_nps);
+    else
+        summary += std::format("Nodes/second    : {}   (best of {}; median {}, min {})\n",
+                               best_nps, repeats, median_nps, min_nps);
+    uci_write(summary);
 }

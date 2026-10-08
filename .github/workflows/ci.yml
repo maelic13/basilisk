@@ -1,11 +1,12 @@
 # CI — correctness, sanitizers, compiler/ISA coverage and cross-platform bench
 # agreement (8.6.4).
 #
-# This is a mandatory development gate, not only a release-after-the-fact
-# signal. Run it for the active development branch, pull requests, master, and
-# manual diagnostics. Pull requests and development pushes can duplicate a run
-# when both apply; that is preferable to leaving either integration path
-# unprotected.
+# This is the mandatory gate into master. It runs on a pull request into
+# master, where GitHub builds the merge commit, so the run tests exactly what
+# master would become, and on manual dispatch for any branch. It does not run
+# on pushes: a push to master only ever lands a pull request that already
+# passed, and dev commits are qualified locally (exact bench, CTest) at each
+# commit. A newer commit to the same pull request cancels the superseded run.
 #
 # The bench job hardcodes NO expected node count. All platforms run bench and
 # a final job asserts they AGREE with each other. A frozen constant would need
@@ -19,10 +20,13 @@
 name: CI
 
 on:
-  push:
-    branches: [master, development]
   pull_request:
+    branches: [master]
   workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   # ---- Release-mode OS/architecture/ISA matrix -------------------------------
@@ -33,19 +37,19 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: ubuntu-latest
+          - runner: ubuntu-24.04
             os_name: linux
             arch: x86_64
             tier: portable
             preset: release
             bench_id: linux-x86_64
-          - runner: ubuntu-latest
+          - runner: ubuntu-24.04
             os_name: linux
             arch: x86_64
             tier: avx2
             preset: release-avx2
             bench_id: linux-x86_64-avx2
-          - runner: ubuntu-latest
+          - runner: ubuntu-24.04
             os_name: linux
             arch: x86_64
             tier: pext
@@ -57,7 +61,7 @@ jobs:
             tier: portable
             preset: release
             bench_id: linux-aarch64
-          - runner: windows-latest
+          - runner: windows-2025
             os_name: windows
             arch: x86_64
             tier: portable
@@ -65,7 +69,7 @@ jobs:
             bench_id: windows-x86_64
             msystem: CLANG64
             mingw_pkg_prefix: mingw-w64-clang-x86_64
-          - runner: windows-latest
+          - runner: windows-2025
             os_name: windows
             arch: x86_64
             tier: avx2
@@ -73,7 +77,7 @@ jobs:
             bench_id: windows-x86_64-avx2
             msystem: CLANG64
             mingw_pkg_prefix: mingw-w64-clang-x86_64
-          - runner: windows-latest
+          - runner: windows-2025
             os_name: windows
             arch: x86_64
             tier: pext
@@ -89,7 +93,7 @@ jobs:
             bench_id: windows-aarch64
             msystem: CLANGARM64
             mingw_pkg_prefix: mingw-w64-clang-aarch64
-          - runner: macos-latest
+          - runner: macos-15
             os_name: macos
             arch: aarch64
             tier: portable
@@ -115,7 +119,7 @@ jobs:
         # (Pre-8.6 releases had no C++23 library dep, so this is the first hit.)
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y clang-19 ninja-build cmake
+          sudo apt-get install -y clang-19 llvm-19 ninja-build cmake
           sudo ln -sf /usr/bin/clang-19   /usr/local/bin/clang
           sudo ln -sf /usr/bin/clang++-19 /usr/local/bin/clang++
           clang++ --version
@@ -128,6 +132,8 @@ jobs:
           update: false
           install: >-
             ${{ matrix.mingw_pkg_prefix }}-clang
+            ${{ matrix.mingw_pkg_prefix }}-llvm
+            ${{ matrix.mingw_pkg_prefix }}-python
             ${{ matrix.mingw_pkg_prefix }}-cmake
             ${{ matrix.mingw_pkg_prefix }}-ninja
 
@@ -144,19 +150,12 @@ jobs:
       # presets remain active and therefore exercise their committed tier.
       - name: Configure and build (Release, TUNE off)
         run: |
-          cmake --preset ${{ matrix.preset }} -DPORTABLE_BUILD=ON -DCOMP=clang
+          cmake --preset ${{ matrix.preset }} -DPORTABLE_BUILD=ON -DCOMP=clang \
+            -DTUNE=OFF -DDIAGNOSTIC=OFF -DABLATION=OFF -DTEXEL=OFF
           cmake --build --preset ${{ matrix.preset }}
 
       - name: CTest
         run: ctest --test-dir build/${{ matrix.preset }} --output-on-failure
-
-      # TUNE build must also stay compilable — it is what every SPRT/SPSA
-      # binary is built from (release-pext locally; feature parity is what
-      # matters here, not the ISA tier).
-      - name: Configure and build (Release, TUNE on)
-        run: |
-          cmake --preset ${{ matrix.preset }} -DPORTABLE_BUILD=ON -DCOMP=clang -DTUNE=ON
-          cmake --build --preset ${{ matrix.preset }} --target basilisk
 
       - name: Bench fingerprint
         id: bench
@@ -173,10 +172,89 @@ jobs:
           name: bench-${{ matrix.bench_id }}
           path: bench-${{ matrix.bench_id }}.txt
 
+      - name: Verify x86 ISA contract
+        if: matrix.arch == 'x86_64'
+        run: |
+          objdump=$(command -v llvm-objdump || command -v llvm-objdump-19 || true)
+          python=$(command -v python3 || command -v python || true)
+          [ -n "$objdump" ] || { echo "FAIL: llvm-objdump not found"; exit 1; }
+          [ -n "$python" ] || { echo "FAIL: python not found"; exit 1; }
+          binary="build/${{ matrix.preset }}/basilisk"
+          [ -f "${binary}.exe" ] && binary="${binary}.exe"
+          launcher=$(find "build/${{ matrix.preset }}/CMakeFiles/basilisk_launcher.dir" \
+            -type f \( -name 'main.cpp.o' -o -name 'main.cpp.obj' \) -print -quit)
+          [ -n "$launcher" ] || { echo "FAIL: baseline launcher object not found"; exit 1; }
+          "$python" tools/diag/verify_isa.py \
+            --tier "${{ matrix.tier }}" --binary "$binary" \
+            --launcher-object "$launcher" --objdump "$objdump"
+
+      # TUNE build must also stay compilable — it is what every SPRT/SPSA
+      # binary is built from (release-pext locally; feature parity is what
+      # matters here, not the ISA tier).
+      - name: Configure and build (Release, TUNE on)
+        run: |
+          cmake --preset ${{ matrix.preset }} -DPORTABLE_BUILD=ON -DCOMP=clang \
+            -DTUNE=ON -DDIAGNOSTIC=OFF -DABLATION=OFF -DTEXEL=OFF
+          cmake --build --preset ${{ matrix.preset }} --target basilisk test_uci_protocol
+          ctest --test-dir build/${{ matrix.preset }} -R test_uci_protocol --output-on-failure
+
+  # ---- Build flavors (Linux x86_64 PEXT): diagnostic, ablation, TEXEL -----
+  # Kept out of the test matrix, as Rarog keeps its feature builds, so a flavor
+  # failure fails this job and never hides the bench agreement.
+  flavors:
+    name: build flavors (linux x86_64 pext)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Install Clang and Ninja
+        # clang-19 for libstdc++'s C++23 std::expected; see the test job.
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y clang-19 llvm-19 ninja-build cmake
+          sudo ln -sf /usr/bin/clang-19   /usr/local/bin/clang
+          sudo ln -sf /usr/bin/clang++-19 /usr/local/bin/clang++
+          clang++ --version
+
+      - name: Build and test diagnostic-only flavor
+        run: |
+          cmake --preset release-pext -B build/diag-pext -DPORTABLE_BUILD=ON -DCOMP=clang \
+            -DTUNE=OFF -DDIAGNOSTIC=ON -DABLATION=OFF -DTEXEL=OFF
+          cmake --build build/diag-pext --target basilisk test_uci_protocol
+          ctest --test-dir build/diag-pext -R test_uci_protocol --output-on-failure
+
+      - name: Build and test ablation flavor
+        run: |
+          cmake --preset release-pext -B build/ablate-pext -DPORTABLE_BUILD=ON -DCOMP=clang \
+            -DTUNE=OFF -DDIAGNOSTIC=OFF -DABLATION=ON -DTEXEL=OFF
+          cmake --build build/ablate-pext --target basilisk test_uci_protocol
+          ctest --test-dir build/ablate-pext -R test_uci_protocol --output-on-failure
+
+      - name: Build and verify TEXEL flavor
+        run: |
+          cmake --preset release-pext -B build/texel-pext -DPORTABLE_BUILD=ON -DCOMP=clang \
+            -DTUNE=OFF -DDIAGNOSTIC=OFF -DABLATION=OFF -DTEXEL=ON
+          cmake --build build/texel-pext --target basilisk-texel
+          ./build/texel-pext/basilisk-texel --verify tools/texel/test_positions.csv
+
+      - name: Reject invalid build combinations
+        run: |
+          if cmake --preset release-pext -B build/invalid-isa -DUSE_AVX2=ON; then
+            echo "FAIL: USE_PEXT+USE_AVX2 was accepted"
+            exit 1
+          fi
+          if cmake --preset release-pext -B build/invalid-flavor -DTUNE=ON -DDIAGNOSTIC=ON; then
+            echo "FAIL: TUNE+DIAGNOSTIC was accepted"
+            exit 1
+          fi
+
   # ---- Debug + ASan/UBSan (the gate 8.6.2b P0 repaired — keep it real) ------
   sanitize:
     name: sanitize (linux ASan+UBSan)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Check out
         uses: actions/checkout@v7
@@ -207,7 +285,7 @@ jobs:
   # generated and consumed. Exercise the complete orchestrator on every CI run.
   gcc-pgo:
     name: GCC PGO (linux x86_64)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Check out
         uses: actions/checkout@v7
@@ -240,7 +318,10 @@ jobs:
   bench-agreement:
     name: bench agreement
     needs: test
-    runs-on: ubuntu-latest
+    # Not skipped when one cell fails: every cell fingerprints before its later
+    # checks, and a cell that never fingerprinted is reported missing below.
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
     steps:
       - name: Download fingerprints
         # v7, not v8: download-artifact v8 stopped auto-unzipping (Content-Type
@@ -256,6 +337,11 @@ jobs:
         run: |
           echo "Collected fingerprints:"
           for f in bench-*.txt; do echo "  $f: $(cat "$f")"; done
+          cells=$(ls bench-*.txt | wc -l)
+          if [ "$cells" -ne 9 ]; then
+            echo "FAIL: $cells of 9 matrix cells reported a fingerprint."
+            exit 1
+          fi
           count=$(cat bench-*.txt | sort -u | wc -l)
           if [ "$count" -ne 1 ]; then
             echo "FAIL: platforms disagree on the bench node count."

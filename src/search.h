@@ -7,6 +7,7 @@
 #include "eval.h"
 #include "history.h"
 #include "syzygy.h"
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
@@ -75,6 +76,7 @@ struct SearchLimits {
     int movestogo  = 0;
     int64_t nodes  = 0;
     int mate        = 0;
+    int multipv     = 1;   // lines reported per depth; only the main thread searches more than one
     std::atomic<int64_t>* shared_nodes = nullptr;
     std::atomic<int64_t>* shared_tbhits = nullptr;
     int overhead   = 0;   // move overhead to subtract [ms]
@@ -90,6 +92,12 @@ struct SearchLimits {
     bool syzygy_50_move_rule = true;
     bool tm_debug = false;      // emit per-move time-accounting info string (Step 5.3)
     bool diag = false;          // emit end-of-search diagnostic counters (8.6.6)
+#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
+    bool decision_trace = false; // bounded plies 1-2 decision trace (A.5.3)
+#endif
+#ifdef BASILISK_ABLATION
+    int ablation_mask = 0;
+#endif
     // Instant the `go` command was parsed off UCI input (default = unset). Used
     // only to report dispatch latency in tm_debug; does not affect timing yet.
     std::chrono::steady_clock::time_point go_recv_time{};
@@ -104,6 +112,7 @@ struct SearchResult {
     Move    pondermove = MOVE_NONE;
     int     score      = 0;
     int     depth      = 0;
+    int     seldepth   = 0;
     int64_t nodes      = 0;
     int64_t tbhits     = 0;
     int64_t elapsed_ms = 0;
@@ -112,14 +121,42 @@ struct SearchResult {
     std::vector<Move> pv;
 };
 
-// A decisive tablebase score (a TB win or loss, possibly ply-adjusted), as
-// opposed to a mate score or an ordinary evaluation.
-inline bool is_tablebase_decisive(int score) {
+static_assert(tablebaseValue == MATE_SCORE - MAX_PLY - 1,
+              "the tablebase band sits directly below the mate band");
+
+// A decisive tablebase score (a TB win or loss, ply-adjusted), as opposed to a
+// mate score or an ordinary evaluation.
+[[nodiscard]] inline bool is_tablebase_decisive(int score) {
     const int a = score < 0 ? -score : score;
-    return a >= tablebaseWinScore - MAX_PLY && a < MATE_SCORE - MAX_PLY;
+    return a >= tablebaseWinInMaxPly && a < MATE_SCORE - MAX_PLY;
 }
 
-SearchResult sanitize_search_result(const Board& root_board, SearchResult result);
+// A mate or a tablebase result: never an evaluation.
+[[nodiscard]] inline bool is_decisive(int score) {
+    return (score < 0 ? -score : score) >= tablebaseWinInMaxPly;
+}
+
+[[nodiscard]] SearchResult sanitize_search_result(const Board& root_board, SearchResult result);
+
+// One UCI `info` line in Stockfish's field order: depth seldepth multipv
+// score [bound] nodes nps hashfull tbhits time pv. `bound` is empty,
+// "lowerbound" or "upperbound". `pv` must already be legal from the root; the
+// caller owns any tablebase extension. `nps` floors the elapsed time at 1 ms.
+[[nodiscard]] std::string format_info_line(int depth, int seldepth, int multipv, int score,
+                             std::string_view bound, int64_t nodes, double elapsed,
+                             int64_t tbhits, int hashfull, const std::vector<Move>& pv);
+
+// A single-PV aspiration failure prints its bound only once a search has run
+// this long, as Stockfish does, so fast games print the same lines as before.
+inline constexpr double kBoundLineAfterSeconds = 3.0;
+
+// The longest legal prefix of `line` played from `root`.
+[[nodiscard]] std::vector<Move> legal_line(const Board& root, const std::vector<Move>& line);
+
+// Whether a multi-thread search must print the merged result's line before
+// `bestmove`: the last line a GUI saw is the main thread's, and it describes
+// the merged result only when move and depth agree.
+[[nodiscard]] bool needs_pool_line(const SearchResult& merged, const SearchResult& main_thread);
 
 class Searcher {
 public:
@@ -194,9 +231,9 @@ private:
     }
 
     // ---- 8.6.6 diagnostic counters (Rarog 7.6 pattern) ----
-    // Always counted — plain per-Searcher int64 increments on lines that are
-    // already hot, measured to cost nothing (interleaved best-of-5 NPS) — and
-    // printed only when SearchLimits.diag is set (UCI `Diag`, TUNE builds).
+    // Counted in diagnostic/tune builds and printed only when SearchLimits.diag
+    // is set. Production compiles the hot-path increments away; the retained
+    // RELEASE_DIAG_COUNTERS arm exists only to reproduce the cost measurement.
     // These size candidates BEFORE they spend SPRT slots and are the substrate
     // Phase 10's acceptance criteria assume; check_exts must read 0 once
     // 8.6.7 lands.
@@ -343,12 +380,52 @@ private:
             lmr_blocked_gives_check += o.lmr_blocked_gives_check;
         }
     };
-    // 47 counters, all int64_t. If this fails you added a counter: add it to
+    // 57 counters, all int64_t. If this fails you added a counter: add it to
     // add() above and update the count, or the pool aggregate silently drops it.
     static_assert(sizeof(DiagCounters) == 57 * sizeof(int64_t),
                   "DiagCounters changed shape — update DiagCounters::add()");
     DiagCounters diag_;
     void print_diag() const;
+#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
+    enum class TraceEvent : uint8_t {
+        CheckExtension, TtCutoff, RfpPrune, RazorPrune,
+        NullCutoff, ProbcutCutoff, IirReduction,
+        FutilityPrune, LmpPrune, HistoryPrune, QuietSeePrune,
+        CaptureFutilityPrune, CaptureSeePrune,
+        SingularExtension, SingularMulticut, SingularNegative,
+        LmrReduction, LmrResearch, BetaCutoff,
+        QsTtCutoff, QsStandPatCutoff, QsDeltaPrune,
+        QsFutilityPrune, QsSeePrune, QsLatePrune, QsBetaCutoff
+    };
+    struct TraceRecord {
+        TraceEvent event{};
+        Move move = MOVE_NONE;
+        int sequence = 0;
+        int ply = 0;
+        int depth = 0;
+        int alpha = 0;
+        int beta = 0;
+        int estimated_score = VALUE_NONE;
+        int improving = -1;
+        int correction = VALUE_NONE;
+        int history = VALUE_NONE;
+        int move_count = 0;
+        int reduction = 0;
+        int cutoff_count = -1; // no producer exists in the current architecture
+        int margin = VALUE_NONE;
+        int result = VALUE_NONE;
+    };
+    static constexpr size_t TRACE_CAPACITY = 32768;
+    std::unique_ptr<std::array<TraceRecord, TRACE_CAPACITY>> trace_records_;
+    size_t trace_count_ = 0;
+    bool trace_enabled_ = false;
+    bool trace_overflow_ = false;
+    void trace_decision(TraceEvent event, int ply, int depth, Move move,
+                        int alpha, int beta, int estimated_score,
+                        int improving, int correction, int history,
+                        int move_count, int reduction, int margin, int result);
+    void print_decision_trace() const;
+#endif
     // Publish this thread's unpublished node count to the shared counter
     // (9.3b). Called on every batch boundary and once at search teardown so no
     // node is left unpublished when the pool reads the total.
@@ -380,6 +457,14 @@ private:
     SearchLimits active_limits_;
     Color    root_side_;
     std::vector<Syzygy::RootMoveInfo> root_tb_moves_;
+    // MultiPV: root moves already reported at this depth, which the search of
+    // the next line skips. Empty at every other time, so a single-PV search
+    // never consults it.
+    std::vector<Move> root_excluded_;
+    // In-search tablebase probes: off when the root was ranked by DTZ, or by
+    // WDL and not winning (Stockfish's rule); on otherwise.
+    bool tb_probe_in_search_ = true;
+    int multipv_lines_ = 1;
     int64_t  root_depth_nodes_;
     int64_t  root_best_nodes_;
     int      root_best_effort_;
@@ -499,13 +584,15 @@ private:
     bool   check_stop();
     double elapsed_seconds() const;
     void   compute_time_limit(const SearchLimits& limits, Color side, int game_ply);
-    void   send_info(int depth, int score, int64_t nodes, double elapsed) const;
+    void   send_info(int depth, int multipv, int score, const std::vector<Move>& line,
+                     int64_t nodes, double elapsed) const;
     int64_t record_node();
     void   record_tbhit(int64_t count = 1);
     int64_t current_nodes() const;
     int64_t current_tbhits() const;
     void   init_root_tablebase_scores(const Board& board);
     int    root_tablebase_score(Move move) const;
+    int    root_tablebase_display(Move move) const;
     int    root_tablebase_ordering_score(Move move) const;
     bool   root_tablebase_allows(Move move) const;
     Move   ponder_from_tt(const Board& root, Move bestmove) const;

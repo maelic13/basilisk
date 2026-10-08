@@ -1,0 +1,6 @@
+# Removal or simplification: [-5,0] normalized Elo (AGENTS.md).
+extend = "sprt-default.toml"
+
+[options]
+elo0 = -5
+elo1 = 0

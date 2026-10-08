@@ -1,0 +1,144 @@
+diff --git a/hybrid/basilisk_bridge.cpp b/hybrid/basilisk_bridge.cpp
+index 468c8bf..32e6e51 100644
+--- a/hybrid/basilisk_bridge.cpp
++++ b/hybrid/basilisk_bridge.cpp
+@@ -21,6 +21,35 @@
+ #include "types.h"
+ #include "zobrist.h"
+ 
++// Basilisk 1.10 made Board's state private (one writer keeps its redundant
++// representations coherent). The oracle must still not edit src/, and a FEN
++// round trip per evaluation would tax the oracle's speed in an equal-time
++// measurement. Explicit template instantiation may name private members
++// ([temp.spec.general]), so these tags yield member pointers to exactly the
++// fields below, at zero runtime cost. conformance_test.cpp checks every result
++// against a board built by Basilisk's own try_set_fen().
++namespace board_access {
++template <typename Tag, typename Tag::type Member>
++struct Grant {
++    friend typename Tag::type get(Tag) { return Member; }
++};
++template <typename T>
++using MemberPtr = T Board::*;
++#define BASILISK_BRIDGE_FIELD(tag, type_, member)                              \
++    struct tag { using type = MemberPtr<type_>; friend type get(tag); };       \
++    template struct Grant<tag, &Board::member>;
++BASILISK_BRIDGE_FIELD(Pieces,     Bitboard[NCOLORS][PIECE_TYPE_NB], pieces)
++BASILISK_BRIDGE_FIELD(Occupancy,  Bitboard[NCOLORS],                occupancy)
++BASILISK_BRIDGE_FIELD(AllOcc,     Bitboard,                         all_occ)
++BASILISK_BRIDGE_FIELD(BoardSq,    Piece[SQUARE_NB],                 board_sq)
++BASILISK_BRIDGE_FIELD(KingSq,     Square[NCOLORS],                  king_sq)
++BASILISK_BRIDGE_FIELD(SideToMove, Color,                            side_to_move)
++BASILISK_BRIDGE_FIELD(Castling,   int,                              castling_rights)
++BASILISK_BRIDGE_FIELD(Rule50,     int,                              halfmove_clock)
++BASILISK_BRIDGE_FIELD(PawnKey,    Key,                              pawn_key)
++#undef BASILISK_BRIDGE_FIELD
++} // namespace board_access
++
+ namespace BasiliskBridge {
+ namespace {
+ 
+@@ -78,46 +107,52 @@ std::int32_t evaluate(const std::uint64_t* pieces,
+     // plausible-looking values that could mask a mistake. evaluate_fen() below
+     // is the reference that holds this claim to account.
+ 
++    using namespace board_access;
++    auto& b_pieces    = b.*get(Pieces{});
++    auto& b_occupancy = b.*get(Occupancy{});
++    auto& b_board_sq  = b.*get(BoardSq{});
++    auto& b_king_sq   = b.*get(KingSq{});
++
+     for (int sq = 0; sq < SQUARE_NB; ++sq)
+-        b.board_sq[sq] = NO_PIECE;
++        b_board_sq[sq] = NO_PIECE;
+ 
+     Key pawn_key = 0ULL;
+ 
+     for (int c = 0; c < NCOLORS; ++c) {
+         Bitboard side_occ = 0ULL;
+ 
+-        b.pieces[c][NO_PIECE_TYPE] = 0ULL;
++        b_pieces[c][NO_PIECE_TYPE] = 0ULL;
+ 
+         for (int pt = PAWN; pt <= KING; ++pt) {
+             const Bitboard bb = pieces[c * 6 + pt - 1];
+-            b.pieces[c][pt] = bb;
++            b_pieces[c][pt] = bb;
+             side_occ |= bb;
+ 
+             for (Bitboard scan = bb; scan;) {
+                 const int sq = pop_lsb(scan);
+-                b.board_sq[sq] = make_piece(static_cast<Color>(c),
++                b_board_sq[sq] = make_piece(static_cast<Color>(c),
+                                             static_cast<PieceType>(pt));
+                 if (pt == PAWN)
+                     pawn_key ^= Zobrist::PieceKeys[c][PAWN][sq];
+             }
+         }
+ 
+-        b.occupancy[c] = side_occ;
++        b_occupancy[c] = side_occ;
+ 
+         // Exactly one king per side is required: several evaluation terms
+         // index king_sq unconditionally, and the pawn-cache key would collide
+         // across genuinely different positions if the board were malformed.
+-        const Bitboard kings = b.pieces[c][KING];
++        const Bitboard kings = b_pieces[c][KING];
+         if (!kings || more_than_one(kings))
+             return EvalError;
+-        b.king_sq[c] = static_cast<Square>(lsb(kings));
++        b_king_sq[c] = static_cast<Square>(lsb(kings));
+     }
+ 
+-    b.all_occ         = b.occupancy[WHITE] | b.occupancy[BLACK];
+-    b.pawn_key        = pawn_key;
+-    b.side_to_move    = static_cast<Color>(stm);
+-    b.castling_rights = static_cast<int>(castling);
+-    b.halfmove_clock  = static_cast<int>(rule50);
++    b.*get(AllOcc{})     = b_occupancy[WHITE] | b_occupancy[BLACK];
++    b.*get(PawnKey{})    = pawn_key;
++    b.*get(SideToMove{}) = static_cast<Color>(stm);
++    b.*get(Castling{})   = static_cast<int>(castling);
++    b.*get(Rule50{})     = static_cast<int>(rule50);
+ 
+     return tls_evaluator.evaluate(b);
+ }
+diff --git a/hybrid/conformance_test.cpp b/hybrid/conformance_test.cpp
+index cd7e9fb..609ab86 100644
+--- a/hybrid/conformance_test.cpp
++++ b/hybrid/conformance_test.cpp
+@@ -56,10 +56,10 @@ struct Mismatch {
+ void pack(const Board& b, std::uint64_t pieces[12]) {
+     for (int c = 0; c < NCOLORS; ++c)
+         for (int pt = PAWN; pt <= KING; ++pt)
+-            pieces[c * 6 + pt - 1] = b.pieces[c][pt];
++            pieces[c * 6 + pt - 1] = b.piece_bb(c, pt);
+ }
+ 
+-bool has_ep(const Board& b) { return b.ep_sq != SQ_NONE; }
++bool has_ep(const Board& b) { return b.ep_square() != SQ_NONE; }
+ 
+ } // namespace
+ 
+@@ -94,7 +94,7 @@ int main(int argc, char** argv) {
+ 
+             // Kings can never leave the board, but a malformed walk would be
+             // a test bug rather than an adapter bug — skip rather than report.
+-            if (!b.pieces[WHITE][KING] || !b.pieces[BLACK][KING])
++            if (!b.piece_bb(WHITE, KING) || !b.piece_bb(BLACK, KING))
+                 break;
+ 
+             const std::string fen = b.get_fen();
+@@ -104,9 +104,9 @@ int main(int argc, char** argv) {
+ 
+             const auto fast = BasiliskBridge::evaluate(
+                 pieces,
+-                static_cast<std::uint8_t>(b.side_to_move),
+-                static_cast<std::uint8_t>(b.castling_rights),
+-                static_cast<std::uint8_t>(b.halfmove_clock > 100 ? 100 : b.halfmove_clock));
++                static_cast<std::uint8_t>(b.turn()),
++                static_cast<std::uint8_t>(b.castling()),
++                static_cast<std::uint8_t>(b.rule50_count() > 100 ? 100 : b.rule50_count()));
+ 
+             const auto reference = BasiliskBridge::evaluate_fen(fen);
+ 

@@ -1,0 +1,9 @@
+# Conditions shared by Basilisk Colosseum workflows. Inherited, never run by
+# itself. Paths resolve relative to this file.
+
+[options]
+book = "../books/UHO_Lichess_4852_v1.epd"
+book-order = "random"
+placement = "auto"
+headroom-cores = 1
+engine-processes = "per-slot"

@@ -4,13 +4,20 @@
 #include <string_view>
 
 inline constexpr std::string_view engineName    = "Basilisk";
-inline constexpr std::string_view engineVersion = "1.10.1";
+inline constexpr std::string_view engineVersion = "1.10.2";
 inline constexpr std::string_view engineAuthor  = "Miloslav Macurek";
 
 // Default search limit when "go" is sent without explicit limits.
 inline constexpr int defaultMoveOverhead = 10;
 inline constexpr int defaultSearchDepth  = 7;
-inline constexpr int tablebaseWinScore   = 20000;
+inline constexpr int tablebaseWinScore   = 20000;   // display scale: `cp 20000 - plies`
+
+// Score bands, from the top: mates in [32000 - 128, 32000], then tablebase
+// results in [tablebaseValue - 128, tablebaseValue] (a win `n` plies from the
+// root is tablebaseValue - n), then evaluations, which stay below
+// tablebaseWinInMaxPly. A score in either upper band is decisive.
+inline constexpr int tablebaseValue       = 32000 - 128 - 1;
+inline constexpr int tablebaseWinInMaxPly = tablebaseValue - 128;
 
 inline constexpr int infiniteDepth = std::numeric_limits<int>::max();
 

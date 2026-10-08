@@ -109,10 +109,20 @@ static void test_mate_score_adjustment() {
     EXPECT_EQ(TranspositionTable::score_from_tt(-200, 5, 120), 0);
     end_section();
 
-    // Boundary: just below mate threshold is unchanged
-    const int just_below = TranspositionTable::MATE_SCORE - TranspositionTable::MAX_PLY - 1;
+    // Boundary: decisive scores (tablebase results and mates) are stored
+    // relative to the node; the highest evaluation just below them is not.
+    const int just_below = TranspositionTable::DECISIVE - 1;
     begin_section("score_to_tt: below-threshold score unchanged");
     EXPECT_EQ(TranspositionTable::score_to_tt(just_below, 5), just_below);
+    EXPECT_EQ(TranspositionTable::score_to_tt(-just_below, 5), -just_below);
+    end_section();
+
+    // A tablebase win 4 plies from the root (tablebaseValue - 4) at ply 5.
+    const int tb_win = TranspositionTable::MATE_SCORE - TranspositionTable::MAX_PLY - 1 - 4;
+    begin_section("tablebase score: stored relative to the node, read back exactly");
+    EXPECT_EQ(TranspositionTable::score_to_tt(tb_win, 5), tb_win + 5);
+    EXPECT_EQ(TranspositionTable::score_from_tt(TranspositionTable::score_to_tt(tb_win, 5), 5), tb_win);
+    EXPECT_EQ(TranspositionTable::score_from_tt(TranspositionTable::score_to_tt(-tb_win, 5), 5), -tb_win);
     end_section();
 
     // Mate in 3 (MATE_SCORE - 3 = 31997).  At ply 5:

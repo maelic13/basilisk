@@ -19,6 +19,7 @@ public:
     int depth;
 
     int     move_overhead;   // [ms]
+    int     multipv;         // lines reported per depth (MultiPV option)
     int     hash_mb;        // TT size in MB
     int     threads;        // search worker count
     int64_t nodes;          // node limit (0 = unlimited)
@@ -34,6 +35,12 @@ public:
     bool    syzygy_50_move_rule;
     bool    tm_debug;        // hidden TM_Debug check: log per-move time accounting
     bool    diag;            // hidden Diag check: end-of-search diagnostic counters (8.6.6)
+#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
+    bool    decision_trace;  // bounded plies 1-2 search-decision trace
+#endif
+#ifdef BASILISK_ABLATION
+    int     ablation_mask;   // matched search-family removal mask, 0..255
+#endif
 
     bool new_game    = false;  // set by "ucinewgame", cleared after engine processes it
     bool clear_hash  = false;  // set by "setoption name Clear Hash", cleared after engine clears TT

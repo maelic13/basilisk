@@ -112,6 +112,23 @@ static bool boards_equal(const Board& a, const Board& b) {
         && a.king_square(BLACK)  == b.king_square(BLACK);
 }
 
+static void test_position_snapshot() {
+    Board original;
+    EXPECT(original.try_set_fen(
+        "r3k2r/ppp2ppp/2n1bn2/3qp3/3P4/2N1BN2/PPP1QPPP/R3K2R b KQkq - 37 19").has_value());
+    const auto snapshot = original.snapshot_position();
+
+    Board restored;
+    restored.make_move(::make_move(G1, F3));
+    EXPECT(!restored.history_empty());
+    restored.restore_position(snapshot);
+
+    EXPECT(restored.history_empty());
+    EXPECT(restored.assert_ok());
+    EXPECT(boards_equal(restored, original));
+    EXPECT_STR(restored.get_fen(), original.get_fen());
+}
+
 static Key recompute_minor_key(const Board& b) {
     Key key = 0;
     for (Color c : {WHITE, BLACK}) {
@@ -1378,6 +1395,9 @@ int main() {
 
     std::printf("\nFEN round-trip\n");
     test_fen_roundtrip();
+
+    std::printf("\nPosition snapshot\n");
+    test_position_snapshot();
 
     std::printf("\nFEN validation\n");
     test_fen_validation();

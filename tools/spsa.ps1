@@ -24,7 +24,8 @@
 
 .PARAMETER ConfigGroup
     Which parameter group to tune (selects tools\spsa_configs\config_<g>.json):
-    pruning · lmr · combined · tm · wave2 · histshape · hcefinal.
+    search is generated from src/search_params.h. Hand-maintained parameter
+    vectors are retired because their defaults and ranges drifted.
 
 .PARAMETER EngineSuffix
     Suffix of the tune binary in tools\test_engines. Required (no per-group
@@ -33,9 +34,8 @@
     a full "*.exe".
 
 .PARAMETER Iterations
-    Planned horizon N, in iterations. Default 5000, which is also the doctrine
-    floor (PLAN gate 11: "5,000 iterations or don't start" — below ~2,500 a tune
-    barely beats its own seed). Pass -AllowShortRun to go lower deliberately.
+    Planned horizon N, in iterations. Default and production floor 2000: one
+    PLAN rule 7c block. Pass -AllowShortRun only for instrument tests.
 
     The whole schedule is back-solved from N (see -REnd), and the run STOPS
     ITSELF there. State is saved every 10 iterations to tuner\state.json.
@@ -61,8 +61,8 @@
     has ever defaulted to. Verify any change with tools/verify_spsa_schedule.py.
 
 .PARAMETER AllowShortRun
-    Permit -Iterations below the 5,000 doctrine floor. Prints what is being
-    given up. For instrument tests, not for tunes you intend to bake.
+    Permit -Iterations below one 2,000-iteration rule-7c block. For instrument
+    tests only, never for a tune whose result may be baked.
 
 .PARAMETER Concurrency
     Parallel games per SPSA mini-match. Default 0 auto-detects physical cores
@@ -91,22 +91,22 @@
 .EXAMPLE
     # Fresh setup + run, one command:
     ./tools/build_test.ps1 -Suffix phase8512-instabtm
-    ./tools/spsa.ps1 -ConfigGroup tm -EngineSuffix phase8512-instabtm -Iterations 2500
+    ./tools/spsa.ps1 -ConfigGroup search -EngineSuffix b23core
 
 .EXAMPLE
     # Continue an interrupted run:
-    ./tools/spsa.ps1 -ConfigGroup tm -Resume
+    ./tools/spsa.ps1 -ConfigGroup search -Resume
 
 .EXAMPLE
     # Set up now, launch later:
-    ./tools/spsa.ps1 -ConfigGroup tm -EngineSuffix phase8512-instabtm -SetupOnly
-    ./tools/spsa.ps1 -ConfigGroup tm -LaunchOnly
+    ./tools/spsa.ps1 -ConfigGroup search -EngineSuffix b23core -SetupOnly
+    ./tools/spsa.ps1 -ConfigGroup search -LaunchOnly
 #>
 param(
-    [ValidateSet("pruning","lmr","combined","tm","wave2","histshape","hcefinal")]
-    [string]$ConfigGroup = "lmr",
+    [ValidateSet("search")]
+    [string]$ConfigGroup = "search",
     [string]$EngineSuffix = "",
-    [int]$Iterations = 5000,
+    [int]$Iterations = 2000,
     [double]$REnd = 0.0031,
     [int]$Concurrency = 0,
     [switch]$AllowShortRun,
@@ -114,7 +114,12 @@ param(
     [switch]$SetupOnly,
     [switch]$LaunchOnly,
     [switch]$Adjudicate,
-    [string]$LogFile = ""
+    [string]$LogFile = "",
+    [switch]$AllowDirtyTree,
+    [string]$ExpectRevision = "",
+    [long]$ExpectBench = 0,
+    [switch]$AllowBusyHost,
+    [double]$MaxHostBusyPercent = 15
 )
 
 $ErrorActionPreference = "Stop"
@@ -125,18 +130,14 @@ $Concurrency = $concurrencyInfo.Concurrency
 
 if ($SetupOnly -and $LaunchOnly) { throw "-SetupOnly and -LaunchOnly are mutually exclusive." }
 
-# PLAN gate 11: "5,000 iterations or don't start". Below ~2,500 a tune barely
-# beats its own seed — every Basilisk tune to date sat in that range, which is
-# how a 1,000-iteration run could look like a result and be a null with a bake
-# attached. Overridable, but never silently.
-if (-not $LaunchOnly -and $Iterations -lt 5000) {
+# PLAN rule 7c registers tunes as 2,000-iteration blocks. A later block starts
+# from the previous block's rounded centres on a fresh schedule.
+if (-not $LaunchOnly -and $Iterations -lt 2000) {
     if (-not $AllowShortRun) {
-        throw "-Iterations $Iterations is below the 5,000-iteration doctrine floor " +
-              "(PLAN gate 11). A tune this short cannot resolve its own noise. " +
+        throw "-Iterations $Iterations is below PLAN rule 7c's 2,000-iteration block. " +
               "Pass -AllowShortRun if you are testing the instrument rather than tuning."
     }
-    Write-Warning "SHORT RUN: $Iterations iterations is below the 5,000 doctrine floor. " +
-                  "Expect a tail mean near the seed and do not bake this without an SPRT."
+    Write-Warning "SHORT RUN: $Iterations iterations is below a rule-7c block; instrument test only."
 }
 if ($REnd -le 0) { throw "-REnd must be > 0 (default 0.0031; fishtest's own default is ~0.002)." }
 
@@ -174,6 +175,9 @@ if (-not $LaunchOnly) {
     foreach ($f in @($fastchess, $engine, $book)) {
         if (-not (Test-Path $f)) { throw "Required file not found: $f" }
     }
+    if ($ExpectBench -le 0) { throw "-ExpectBench is required for the tune binary." }
+    $engineManifest = Assert-EngineProvenance -Path $engine -Label $engineFile `
+        -AllowDirtyTree:$AllowDirtyTree -ExpectRevision $ExpectRevision -ExpectBench $ExpectBench
     $fcInfo = Assert-AffinityFastchess -Path $fastchess
 
     $wfCute = Join-Path $wfRoot "cutechess.py"
@@ -242,6 +246,7 @@ if (-not $LaunchOnly) {
     $engineName = Split-Path $engine -Leaf
     Write-Host "Copying engine    -> $tuner\$engineName"
     Copy-Item $engine (Join-Path $tuner $engineName) -Force
+    Copy-Item $engineManifest.Path ([IO.Path]::ChangeExtension((Join-Path $tuner $engineName), '.manifest.txt')) -Force
     Write-Host "Copying book      -> $tuner\$(Split-Path $book -Leaf)"
     Copy-Item $book (Join-Path $tuner (Split-Path $book -Leaf)) -Force
 
@@ -255,7 +260,7 @@ if (-not $LaunchOnly) {
     $cutechessJson = @{
         engine        = $engineName
         book          = (Split-Path $book -Leaf)  # weather-factory derives format from the extension
-        games         = 32
+        games         = 30
         tc            = 3      # 3+0.03 (weather-factory auto inc = tc/100); UNIFIED
                                # with sprt.ps1's default so SPSA optima transfer to
                                # the confirming SPRT (PLAN.md guiding principle #7).
@@ -331,6 +336,14 @@ if ([int]$launchConfig.threads -ne $Concurrency) {
     throw "cutechess.json concurrency is $($launchConfig.threads), but this launch resolved to $Concurrency. " +
           "Run setup again, or pass -Concurrency $($launchConfig.threads) explicitly to resume that run."
 }
+if ($ExpectBench -le 0) { throw "-ExpectBench is required for the tune binary." }
+Assert-HarnessHostIdle -MaxBusyPercent $MaxHostBusyPercent -Allow:$AllowBusyHost | Out-Null
+$launchEngine = Join-Path $wfRoot ("tuner\" + $launchConfig.engine)
+Assert-EngineProvenance -Path $launchEngine -Label $launchConfig.engine `
+    -AllowDirtyTree:$AllowDirtyTree -ExpectRevision $ExpectRevision -ExpectBench $ExpectBench | Out-Null
+$advertised = @(Get-EngineUciOptions -Path $launchEngine -Detailed)
+$surface = Get-Content -LiteralPath (Join-Path $wfRoot 'config.json') -Raw | ConvertFrom-Json
+Assert-AdvertisedOptions -Advertised $advertised -Wanted @($surface.PSObject.Properties.Name) -Label $launchConfig.engine
 
 # The horizon the run stops itself at. A resumed run's schedule comes from
 # state.json (frozen at first launch), so the target comes from there too when

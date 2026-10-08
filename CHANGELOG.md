@@ -7,8 +7,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 This changelog is **user-facing**: it records what changed between released
 versions, and the GitHub release notes are written from it. The developer-facing
-documents are `PLAN.md` (scope, gates, evidence) and `GUIDE.md` (current state
+documents are `docs/PLAN.md` (scope, gates, evidence) and `GUIDE.md` (current state
 and next step).
+
+---
+
+## [Unreleased]
+
+---
+
+## [1.10.2] - 2026-10-08
+
+Stronger play with Syzygy tablebases, no more clock wasted in won endings,
+`MultiPV` for analysis, and cleaner engine output. With tablebases configured,
+the new tablebase handling measured **+32 ± 13 Elo** against the previous
+version at `10+0.1` (560 games); without tablebases, 1.10.2 plays as 1.10.1
+did. The `bench` fingerprint stays **14,978,465**.
+
+### Changed
+
+- **Better use of tablebases during the search.** Tablebase results now have
+  their own score range, just below mates, and a win reached sooner scores
+  higher than one reached later. The search treats a probed tablebase win or
+  loss as a bound instead of a final verdict, as Stockfish does. Evaluations
+  such as the bishop-and-knight mating drive can no longer be mistaken for
+  tablebase results. A tablebase win is shown as `cp 20000` less the number
+  of plies to reach it.
+
+### Added
+
+- **`MultiPV`** (default `1`, up to `256`) shows the best several lines at each
+  depth, best first. `bestmove` is always the first line. At `MultiPV 1`
+  nothing changes.
+- **Commands on the command line:** `basilisk bench 13` runs the bench and
+  exits; any other command works the same way. `help` lists the commands.
+
+### Fixed
+
+- **Clock wasted in won endings.** When the score of a won position kept
+  rising, Basilisk could spend more than half its remaining time confirming a
+  move it had already chosen. It now plays that move once its usual time for
+  the move is used up (a test position went from 32 s to under 5 s, same
+  move).
+- **A possible time loss with tablebases.** The final tablebase line is only
+  extended when there is enough time left for it.
+- **With several threads, the last `info` line now always shows the move
+  played.** Before, about one search in six at eight threads ended on a line
+  showing a different move.
+- **Clearer `info` output.** Lines follow Stockfish's layout, with
+  `multipv 1` on every line. `seldepth` is now given per depth. A long search
+  reports scores outside its search window as `lowerbound` or `upperbound`. A
+  position with no legal move reports `mate 0` or `cp 0` once. A tablebase
+  win the fifty-move rule will spoil shows a small score instead of `0`, and
+  `nps` is no longer far too low at the very start of a search.
+- A fatal error is now also reported on standard output, where GUIs and
+  tournament programs record it.
 
 ---
 

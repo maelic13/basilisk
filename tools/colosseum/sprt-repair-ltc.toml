@@ -1,0 +1,10 @@
+# Correctness repair of unknown sign at the longer clock: [-5,5] at 10+0.1.
+# Used where short-clock noise would swamp the change, e.g. tablebase-bound
+# play, whose cold reads a 3+0.03 clock cannot absorb.
+extend = "sprt-repair.toml"
+
+[options]
+a-base-ms = 10000
+a-increment-ms = 100
+b-base-ms = 10000
+b-increment-ms = 100
