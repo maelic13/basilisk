@@ -112,6 +112,25 @@ public:
         return output_.str();
     }
 
+    // `info depth` lines printed so far; a ponder search that has finished its
+    // depth limit has printed them and must then wait.
+    int info_depth_lines() const {
+        std::istringstream input(output());
+        std::string line;
+        int count = 0;
+        while (std::getline(input, line))
+            count += line.rfind("info depth", 0) == 0;
+        return count;
+    }
+
+    bool wait_for_info_depth_lines(int expected, int timeout_ms) const {
+        const auto deadline = std::chrono::steady_clock::now()
+                            + std::chrono::milliseconds(timeout_ms);
+        while (info_depth_lines() < expected && std::chrono::steady_clock::now() < deadline)
+            std::this_thread::sleep_for(std::chrono::milliseconds(2));
+        return info_depth_lines() >= expected;
+    }
+
     bool wait_for_bestmoves(int expected, int timeout_ms) const {
         const auto deadline = std::chrono::steady_clock::now()
                             + std::chrono::milliseconds(timeout_ms);
@@ -137,21 +156,23 @@ private:
     std::atomic_int fatal_count_{0};
 };
 
+// A search that wrongly answered after its depth limit would print bestmove
+// immediately after the depth's info line; this grace leaves room for that.
+constexpr int kPrematureGraceMs = 25;
+
 void configure_two_threads(EngineSession& session) {
     session.set_option("name Threads value 2");
     session.sync();
 }
 
 void test_ponder_depth_waits_for_stop() {
+    begin_section("engine ponder: completed depth waits for stop");
     EngineSession session;
     configure_two_threads(session);
     session.position("startpos");
     session.go("ponder depth 1");
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(150));
-
-    begin_section("engine ponder: completed depth waits for stop");
-    EXPECT_EQ(count_bestmove_lines(session.output()), 0);
+    EXPECT(session.wait_for_info_depth_lines(1, 2000));
+    EXPECT(!session.wait_for_bestmoves(1, kPrematureGraceMs));
     session.stop();
     EXPECT(session.wait_for_bestmoves(1, 1000));
     EXPECT_EQ(count_bestmove_lines(session.output()), 1);
@@ -159,15 +180,13 @@ void test_ponder_depth_waits_for_stop() {
 }
 
 void test_ponder_depth_waits_for_ponderhit() {
+    begin_section("engine ponder: completed depth waits for ponderhit");
     EngineSession session;
     configure_two_threads(session);
     session.position("startpos");
     session.go("ponder depth 1");
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(150));
-
-    begin_section("engine ponder: completed depth waits for ponderhit");
-    EXPECT_EQ(count_bestmove_lines(session.output()), 0);
+    EXPECT(session.wait_for_info_depth_lines(1, 2000));
+    EXPECT(!session.wait_for_bestmoves(1, kPrematureGraceMs));
     session.ponderhit();
     EXPECT(session.wait_for_bestmoves(1, 1000));
     EXPECT_EQ(count_bestmove_lines(session.output()), 1);
@@ -175,18 +194,18 @@ void test_ponder_depth_waits_for_ponderhit() {
 }
 
 void test_stale_stop_does_not_poison_next_ponder() {
+    begin_section("engine ponder: previous stop state is cleared");
     EngineSession session;
     configure_two_threads(session);
     session.position("startpos");
     session.go("depth 1");
     EXPECT(session.wait_for_bestmoves(1, 1000));
 
+    const int before = session.info_depth_lines();
     session.position("startpos moves e2e4 e7e5");
     session.go("ponder depth 1");
-    std::this_thread::sleep_for(std::chrono::milliseconds(150));
-
-    begin_section("engine ponder: previous stop state is cleared");
-    EXPECT_EQ(count_bestmove_lines(session.output()), 1);
+    EXPECT(session.wait_for_info_depth_lines(before + 1, 2000));
+    EXPECT(!session.wait_for_bestmoves(2, kPrematureGraceMs));
     session.stop();
     EXPECT(session.wait_for_bestmoves(2, 1000));
     EXPECT_EQ(count_bestmove_lines(session.output()), 2);
@@ -206,46 +225,44 @@ void configure_two_threads_pending_hash(EngineSession& session) {
 }
 
 void test_immediate_ponderhit_with_clock() {
+    begin_section("engine ponder: ponderhit during search setup is kept (clock)");
     EngineSession session;
     configure_two_threads_pending_hash(session);
     session.position("startpos moves e2e4 e7e5");
     session.go("ponder wtime 1000 btime 1000 winc 0 binc 0");
     session.ponderhit();
-
-    begin_section("engine ponder: ponderhit during search setup is kept (clock)");
     EXPECT(session.wait_for_bestmoves(1, 10000));
     EXPECT_EQ(count_bestmove_lines(session.output()), 1);
     end_section();
 }
 
 void test_immediate_ponderhit_after_depth_cap() {
+    begin_section("engine ponder: ponderhit during search setup is kept (depth cap)");
     EngineSession session;
     configure_two_threads_pending_hash(session);
     session.position("startpos moves e2e4 e7e5");
     session.go("ponder depth 1");
     session.ponderhit();
-
-    begin_section("engine ponder: ponderhit during search setup is kept (depth cap)");
     EXPECT(session.wait_for_bestmoves(1, 10000));
     EXPECT_EQ(count_bestmove_lines(session.output()), 1);
     end_section();
 }
 
 void test_stale_ponderhit_does_not_poison_next_ponder() {
+    begin_section("engine ponder: previous ponderhit does not end the next ponder");
     EngineSession session;
     configure_two_threads(session);
     session.position("startpos");
     session.go("ponder depth 1");
-    std::this_thread::sleep_for(std::chrono::milliseconds(150));
+    EXPECT(session.wait_for_info_depth_lines(1, 2000));
     session.ponderhit();
     EXPECT(session.wait_for_bestmoves(1, 1000));
 
+    const int before = session.info_depth_lines();
     session.position("startpos moves e2e4 e7e5");
     session.go("ponder depth 1");
-    std::this_thread::sleep_for(std::chrono::milliseconds(150));
-
-    begin_section("engine ponder: previous ponderhit does not end the next ponder");
-    EXPECT_EQ(count_bestmove_lines(session.output()), 1);
+    EXPECT(session.wait_for_info_depth_lines(before + 1, 2000));
+    EXPECT(!session.wait_for_bestmoves(2, kPrematureGraceMs));
     session.stop();
     EXPECT(session.wait_for_bestmoves(2, 1000));
     EXPECT_EQ(count_bestmove_lines(session.output()), 2);

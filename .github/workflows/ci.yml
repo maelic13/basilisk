@@ -277,8 +277,11 @@ jobs:
           cmake --preset debug -DCOMP=clang
           cmake --build --preset debug
 
+      # The strength floors reproduce the release job's deterministic numbers
+      # many times more slowly here and add no memory-safety coverage of their
+      # own, so the sanitizer run is the correctness suite alone.
       - name: CTest under sanitizers
-        run: ctest --test-dir build/debug --output-on-failure --timeout 1200
+        run: ctest --test-dir build/debug --output-on-failure --timeout 600 -LE strength
 
   # ---- Real GCC PGO generation/consumption smoke ----------------------------
   # A plain GCC compile does not prove that its path-keyed .gcda files were

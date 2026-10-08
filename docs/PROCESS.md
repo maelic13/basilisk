@@ -366,6 +366,13 @@ so a registered `[0,3]` gate passes `-Elo1 3`**. `-Mode simplify` is `[-5,0]`.
   options; `DIAGNOSTIC=ON` exposes diagnostics without tunable constants;
   the two flavors are mutually exclusive. `TEXEL=ON` builds the Texel target
   and is never measured for strength.
+- CTest runs two kinds of test. The correctness suite (`ctest -LE
+  strength`) checks rules, invariants, protocol and endgame knowledge in a few
+  seconds and is what an edit-compile loop and the sanitizer run use. The
+  `strength` label marks the search-strength floors (the WAC solved count and
+  the endgame conversion floors), which run in release CTest and at every
+  qualification. Every test section prints its wall time; a section that
+  grows past a second should earn it.
 - `bench 13` is the fingerprint: 40 positions, single-threaded, identical on
   every platform. `bench 13 1 N` is for multi-thread speed only.
 - `tools/build_test.ps1 -Suffix <s> -Flavor <Release|Tune|Diag>` builds a

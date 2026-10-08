@@ -3,15 +3,16 @@
 /// 1. Parse/matcher correctness: all 300 suite positions parse and every
 ///    accepted SAN matches exactly one legal move — guards both the matcher
 ///    and the suite against typos/ambiguity.
-/// 2. Solved-count floor: runs the full suite at a shallow fixed depth and
-///    asserts a conservative pass-count floor (a floor, not all-pass, so
-///    normal search evolution doesn't flap the suite — only a collapse, i.e.
-///    a real tactical regression, fails it). `wac [depth]` (the engine
-///    command) is the fine-grained per-step diagnostic; this is the tripwire.
+/// 2. `--floor`: runs the full suite at a shallow fixed depth and asserts a
+///    conservative pass-count floor (a floor, not all-pass, so normal search
+///    evolution doesn't flap the suite — only a collapse, i.e. a real
+///    tactical regression, fails it). It measures search strength and carries
+///    the CTest label `strength`. `wac [depth]` (the engine command) is the
+///    fine-grained per-step diagnostic; this is the tripwire.
 ///
 /// Build:
 ///   cmake --build --preset release --target test_wac
-///   ./build/release/test_wac
+///   ./build/release/test_wac [--floor]
 
 #include "board.h"
 #include "wac.h"
@@ -26,15 +27,16 @@
 
 #include <atomic>
 #include <cstdio>
+#include <cstring>
 #include <memory>
 #include <string>
 #include <vector>
 
 static const int TEST_DEPTH = 6;
 // Calibrated 2026-07-15 (8.3 head after the 8.4 revert, bench 11,555,879):
-// solved 145/300 at depth 6 in ~4s. The floor leaves ~10% headroom for
-// benign search-shape drift; only a collapse (a real tactical regression)
-// fails it.
+// solved 145/300 at depth 6 in ~4s; 138/300 in 3 s on 2026-10-08 (bench
+// 14,978,465). The floor leaves headroom for benign search-shape drift; only
+// a collapse (a real tactical regression) fails it.
 static const int FLOOR = 130;
 
 static void test_request_parser() {
@@ -146,7 +148,7 @@ static void test_wac_floor() {
     end_section();
 }
 
-int main() {
+int main(int argc, char** argv) {
     init_bitboards();
     init_attacks();
     Zobrist::init();
@@ -155,13 +157,16 @@ int main() {
     std::printf("WAC tactical-suite tests\n");
     std::printf("========================\n");
 
+    if (argc > 1 && std::strcmp(argv[1], "--floor") == 0) {
+        std::printf("\nSolved-count floor (depth %d)\n", TEST_DEPTH);
+        test_wac_floor();
+        return harness_summary();
+    }
+
     std::printf("\nSuite parsing and SAN matcher\n");
     test_request_parser();
     test_suite_parses_and_matcher_is_exact();
     test_san_matcher_rejects_wrong_piece_and_destination();
-
-    std::printf("\nSolved-count floor (depth %d)\n", TEST_DEPTH);
-    test_wac_floor();
 
     return harness_summary();
 }

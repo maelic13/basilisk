@@ -269,6 +269,7 @@ void test_smp_machinery_is_inert_on_a_single_thread() {
                                        : last.substr(at + 7, last.find(' ', at + 7) - at - 7);
     };
 
+    begin_section("smp: single-thread fixed-depth search is deterministic");
     std::string first, again, after_mt;
     {
         EngineSession session;
@@ -283,7 +284,6 @@ void test_smp_machinery_is_inert_on_a_single_thread() {
         again = fixed_depth_nodes(session);
     }
 
-    begin_section("smp: single-thread fixed-depth search is deterministic");
     EXPECT(!first.empty());
     EXPECT(first == again);
     end_section();
@@ -291,6 +291,7 @@ void test_smp_machinery_is_inert_on_a_single_thread() {
     // Same engine instance: 4 threads, then back to 1. The 1T result must be
     // the SAME node count as a process that never ran a multi-thread search.
     if (Parameters::max_threads() >= 4) {
+        begin_section("smp: 1T is unaffected by a preceding multi-thread search");
         EngineSession session;
         session.set_option("name Threads value 4");
         session.sync();
@@ -300,8 +301,6 @@ void test_smp_machinery_is_inert_on_a_single_thread() {
         session.set_option("name Threads value 1");
         session.sync();
         after_mt = fixed_depth_nodes(session);
-
-        begin_section("smp: 1T is unaffected by a preceding multi-thread search");
         EXPECT(after_mt == first);
         end_section();
     }
@@ -310,8 +309,9 @@ void test_smp_machinery_is_inert_on_a_single_thread() {
 // The last `info ... pv` line before each `bestmove` names the move played.
 // At Threads 8 the merged result is often a helper's: before the pool printed
 // it, 20 of 120 short searches over the bench positions ended on a line naming
-// another move. Forty searches at 40 ms leave a defect like that nowhere to hide.
+// another move. Forty searches at 25 ms leave a defect like that nowhere to hide.
 void test_threaded_last_line_names_bestmove() {
+    begin_section("engine threads: every search at Threads 8 answers");
     EngineSession session;
     session.set_option("name Threads value 8");
     session.sync();
@@ -319,7 +319,7 @@ void test_threaded_last_line_names_bestmove() {
     int searches = 0;
     for (std::string_view fen : bench_fens()) {
         session.position("fen " + std::string(fen));
-        session.go("movetime 40");
+        session.go("movetime 25");
         ++searches;
         if (!session.wait_for_bestmoves(searches, 5000))
             break;
@@ -350,7 +350,6 @@ void test_threaded_last_line_names_bestmove() {
         }
     }
 
-    begin_section("engine threads: every search at Threads 8 answers");
     EXPECT_EQ(checked, searches);
     EXPECT_EQ(searches, 40);
     end_section();
@@ -403,7 +402,8 @@ void test_terminal_root_reports_once() {
         EngineSession session;
         session.position("fen 7k/6Q1/6K1/8/8/8/8/8 b - - 0 1");
         session.go("infinite");
-        EXPECT(!session.wait_for_bestmoves(1, 200));
+        EXPECT(session.wait_for_fragment("info depth 0 score mate 0", 2000));
+        EXPECT(!session.wait_for_bestmoves(1, 25));
         session.stop();
         EXPECT(session.wait_for_bestmoves(1, 2000));
         EXPECT_EQ(info_lines(session.output()).size(), size_t(1));
@@ -576,7 +576,7 @@ void test_multipv() {
         session.set_option("name MultiPV value 4");
         session.position(fen);
         session.go("infinite");
-        std::this_thread::sleep_for(std::chrono::milliseconds(300));
+        EXPECT(session.wait_for_fragment(" multipv 4 ", 5000));
         session.stop();
         EXPECT(session.wait_for_bestmoves(1, 5000));
         EXPECT_EQ(count_bestmove_lines(session.output()), 1);
@@ -698,7 +698,7 @@ void test_malformed_input_survival() {
         session.position(args);
         session.go("depth 1");                           // must never be answered
         EXPECT(session.wait_for_fatal(5000));
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        session.quit();
         const std::string out = session.output();
         EXPECT(contains_line_fragment(out, "CRITICAL ERROR"));
         EXPECT_EQ(count_bestmove_lines(out), 0);

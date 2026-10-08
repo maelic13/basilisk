@@ -302,6 +302,13 @@ add_test(NAME test_uci_protocol COMMAND test_uci_protocol)
 add_test(NAME test_endgames     COMMAND test_endgames
          ${CMAKE_CURRENT_SOURCE_DIR}/tests/endgames.epd)
 
+# Search-strength floors: deterministic, but they measure strength rather than
+# correctness, and an unoptimised build only reproduces the same numbers far
+# more slowly. `ctest -LE strength` runs the correctness tests alone.
+add_test(NAME test_wac_floor    COMMAND test_wac --floor)
+add_test(NAME test_endgame_conversion COMMAND test_endgames --conversion)
+set_tests_properties(test_wac_floor test_endgame_conversion PROPERTIES LABELS strength)
+
 # The engine as a process: command-line arguments run one command and exit.
 function(basilisk_cli_test name code regex)
     add_test(NAME ${name}
