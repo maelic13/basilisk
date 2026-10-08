@@ -212,10 +212,8 @@ static void test_uci_output() {
 #endif
 #ifdef BASILISK_TUNE
     EXPECT(run.output.find("option name RfpCoeff") != std::string::npos);
-    EXPECT(run.output.find("option name KBNK Drive") != std::string::npos);
 #else
     EXPECT(run.output.find("option name RfpCoeff") == std::string::npos);
-    EXPECT(run.output.find("option name KBNK Drive") == std::string::npos);
 #endif
     EXPECT(run.output.find("uciok") != std::string::npos);
     end_section();

@@ -168,9 +168,4 @@ void init_eval_tables(const EvalParams& p = g_eval_params);
 void load_eval_file_if_set();
 // Dump g_eval_params to stdout in "name index value" format (one line per element).
 void run_dumpeval();
-
-// Tune-build-only atomic control for base, diagonal, edge, strong-king and
-// knight KBNK terms. Four-field values remain accepted as the legacy
-// diagonal,edge,king,knight form for reproducibility of the 6.1.c first pass.
-bool set_kbnk_drive_weights(const std::string& value, std::string& error);
 #endif

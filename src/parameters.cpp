@@ -192,10 +192,6 @@ std::string Parameters::uci_options() {
     opts += "option name AblationMask type spin default 0 min 0 max 255\n";
 #endif
 #ifdef BASILISK_TUNE
-    opts +=
-        // Atomic string keeps an SPSA/sweep harness from briefly installing
-        // an unsafe partial KBNK vector while separate options arrive.
-        "option name KBNK Drive type string default 17000,1000,0,220,0\n";
     // 8.6.1: generated from the SearchParams X-macro table — the advertised
     // default IS the compiled default by construction (the hand-written list
     // this replaces had drifted: PostLmrHistScale said 104, engine ran 0;
@@ -376,12 +372,6 @@ void Parameters::set_option(const std::string& args) {
         // `info string tm ...` per move with the time budget, actual elapsed,
         // and the go-receipt->search-start dispatch delta.
         tm_debug = parse_bool_option(value);
-#ifdef BASILISK_TUNE
-    } else if (name_lower == "kbnk drive") {
-        std::string error;
-        if (!set_kbnk_drive_weights(value, error))
-            uci_write_line("info string Invalid KBNK Drive: " + error);
-#endif
     } else if (!parse_int(value, parsed)) {
         uci_write_line("info string Invalid value for option '" + name + "': " + value);
     } else if (name_lower == "move overhead") {
