@@ -126,6 +126,7 @@ X is good/bad”. If conditions or artifacts are unknown, say so.
 | [BAS-M10](experiments/BAS-M10.md) | Frozen before exposure, A.7.2 4T baseline gauntlet. | Prepared, not yet run. |
 | [BAS-M11](experiments/BAS-M11.md) | Frozen before its first game, A.7.2 4T baseline re-run after BAS-M10's void. | Registered, not yet run. |
 | [BAS-M12](experiments/BAS-M12.md) | Houdini 3 crashes at 4T: diagnosis (observation, 2026-10-05). | A race in Houdini 3's multi-thread start-up, triggered |
+| [BAS-M13](experiments/BAS-M13.md) | Frozen before any game, the 1.10.2 verification match against 1.10.1 with tablebases. | registered |
 
 ## 3. Search and selectivity
 
@@ -571,6 +572,7 @@ not accept any new feature, vector or label policy by themselves.
 | [BAS-C12](experiments/BAS-C12.md) | Rejected `position` searched the previous board (1.10.1). | Policy flipped by maintainer decision 2026-09-27; bench unc… |
 | [BAS-C13](experiments/BAS-C13.md) | Tablebase PV lines restored the Stockfish way (1.10.1). | Implemented 2026-09-27; bench unchanged at 14,978,465. |
 | [BAS-C14](experiments/BAS-C14.md) | Displayed-score normalisation (A.8.19). | NO_CHANGE by maintainer decision; WDL deferred |
+| [BAS-C15](experiments/BAS-C15.md) | Frozen before any game, the 1.10.2 ponder-on, Threads 4 smoke run against 1.10.1. | registered |
 
 ## 8. Cross-engine evidence imported from Rarog
 
