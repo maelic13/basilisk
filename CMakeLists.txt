@@ -158,6 +158,7 @@ add_library(basilisk_engine STATIC
     src/search.cpp
     src/search_root.cpp
     src/search_diagnostics.cpp
+    src/search_history.cpp
     src/syzygy.cpp
 )
 target_link_libraries(basilisk_engine PUBLIC basilisk_board PRIVATE fathom)
