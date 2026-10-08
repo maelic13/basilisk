@@ -2,7 +2,7 @@
 // trains, and the correction applied to the static evaluation. HistoryTables
 // owns the storage and its lifecycle.
 
-#include "search.h"
+#include "search_worker.h"
 #include <algorithm>
 #include <cstdlib>
 
@@ -32,13 +32,13 @@ void Searcher::update_low_ply(int ply, Square from, Square to, int bonus) {
 // Phase 6.3 bonus/malus shape: bonus = min(quad*d^2/64 + lin*d, max), malus
 // mirrored with its own knobs. Defaults reproduce the legacy min(d*d, 2048).
 int Searcher::history_bonus_value(int depth) const {
-    const auto& p = active_limits_.params;
+    const auto& p = config_.limits.params;
     return std::min(p.hist_bonus_quad * depth * depth / 64 + p.hist_bonus_lin * depth,
                     p.hist_bonus_max);
 }
 
 int Searcher::history_malus_value(int depth) const {
-    const auto& p = active_limits_.params;
+    const auto& p = config_.limits.params;
     return -std::min(p.hist_malus_quad * depth * depth / 64 + p.hist_malus_lin * depth,
                      p.hist_malus_max);
 }
@@ -87,27 +87,27 @@ void Searcher::update_all_histories(Move best, bool best_is_tt,
                                     const Move* bad_caps, int bad_cap_count,
                                     Color stm, int depth, SearchStack* ss,
                                     bool reward_only, int bonus_scale) {
-    DIAG_COUNT((reward_only ? diag_.hist_reward_updates : diag_.hist_cutoff_updates)++);
+    DIAG_COUNT((reward_only ? state_.diag.hist_reward_updates : state_.diag.hist_cutoff_updates)++);
     // 8.5.10(e): bonus_scale (percent) lets the caller boost the reward when the
     // cutoff was "surprising" (static eval below beta -- the search saw a good
     // move the eval did not). Default 100 = unchanged.
     int bonus = history_bonus_value(depth) * bonus_scale / 100
-              + (best_is_tt ? active_limits_.params.hist_ttmove_bonus : 0);
+              + (best_is_tt ? config_.limits.params.hist_ttmove_bonus : 0);
     int malus = history_malus_value(depth);
 
-    bool best_is_cap   = (board_ptr_->piece_on(to_sq(best)) != NO_PIECE)
+    bool best_is_cap   = (state_.board->piece_on(to_sq(best)) != NO_PIECE)
                       || (move_type(best) == EN_PASSANT);
     bool best_is_promo = (move_type(best) == PROMOTION);
 
     if (!best_is_cap && !best_is_promo) {
         Square from  = Square(from_sq(best));
         Square to    = Square(to_sq(best));
-        PieceType pt = type_of(board_ptr_->piece_on(from));
+        PieceType pt = type_of(state_.board->piece_on(from));
 
         // Quiet history
         update_quiet(stm, from, to, bonus);
-        update_pawn_hist(board_ptr_->pawn_key_value(), pt, to, bonus);
-        update_low_ply(static_cast<int>(ss - (ss_arr_ + 4)), from, to, bonus);
+        update_pawn_hist(state_.board->pawn_key_value(), pt, to, bonus);
+        update_low_ply(static_cast<int>(ss - (state_.stack + 4)), from, to, bonus);
 
         // Killers / countermove are cutoff semantics ("this move refuted the
         // node"). In reward_only mode (exact/PV nodes) the best move improved
@@ -135,17 +135,17 @@ void Searcher::update_all_histories(Move best, bool best_is_tt,
             Move m = quiets[i];
             if (m == best) continue;
             Square mf = Square(from_sq(m)), mt = Square(to_sq(m));
-            PieceType mpt = type_of(board_ptr_->piece_on(mf));
+            PieceType mpt = type_of(state_.board->piece_on(mf));
             update_quiet(stm, mf, mt, malus);
-            update_pawn_hist(board_ptr_->pawn_key_value(), mpt, mt, malus);
-            update_low_ply(static_cast<int>(ss - (ss_arr_ + 4)), mf, mt, malus);
+            update_pawn_hist(state_.board->pawn_key_value(), mpt, mt, malus);
+            update_low_ply(static_cast<int>(ss - (state_.stack + 4)), mf, mt, malus);
             update_cont_for_move(ss, mpt, mt, malus);
         }
     } else if (best_is_cap) {
         // Best was a capture (not a quiet promotion)
-        PieceType atk = type_of(board_ptr_->piece_on(from_sq(best)));
+        PieceType atk = type_of(state_.board->piece_on(from_sq(best)));
         PieceType cap = (move_type(best) == EN_PASSANT)
-                      ? PAWN : type_of(board_ptr_->piece_on(to_sq(best)));
+                      ? PAWN : type_of(state_.board->piece_on(to_sq(best)));
         update_cap(atk, Square(to_sq(best)), cap, bonus);
     }
     // Quiet promotions: no history update (too rare to matter)
@@ -155,9 +155,9 @@ void Searcher::update_all_histories(Move best, bool best_is_tt,
     for (int i = 0; i < bad_cap_count; ++i) {
         Move m = bad_caps[i];
         if (m == best) continue;
-        PieceType atk = type_of(board_ptr_->piece_on(from_sq(m)));
+        PieceType atk = type_of(state_.board->piece_on(from_sq(m)));
         PieceType cap = (move_type(m) == EN_PASSANT)
-                      ? PAWN : type_of(board_ptr_->piece_on(to_sq(m)));
+                      ? PAWN : type_of(state_.board->piece_on(to_sq(m)));
         update_cap(atk, Square(to_sq(m)), cap, malus);
     }
 }

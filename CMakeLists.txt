@@ -156,6 +156,7 @@ add_library(basilisk_engine STATIC
     src/eval.cpp
     src/history.cpp
     src/search.cpp
+    src/search_worker.cpp
     src/search_root.cpp
     src/search_diagnostics.cpp
     src/search_history.cpp

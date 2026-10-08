@@ -8,7 +8,6 @@
 #include "move.h"
 #include "search_params.h"
 #include "syzygy.h"
-#include <atomic>
 #include <chrono>
 #include <cstdint>
 #include <string>
@@ -35,8 +34,6 @@ struct SearchStack {
     int       double_exts = 0;               // stacked 2-ply singular extensions on this path
 };
 
-class RootMoveTable;
-
 struct SearchLimits {
     int depth      = MAX_SEARCH_DEPTH;
     int movetime   = 0;
@@ -46,16 +43,9 @@ struct SearchLimits {
     int64_t nodes  = 0;
     int mate        = 0;
     int multipv     = 1;   // lines reported per depth; only the main thread searches more than one
-    std::atomic<int64_t>* shared_nodes = nullptr;
-    std::atomic<int64_t>* shared_tbhits = nullptr;
     int overhead   = 0;   // move overhead to subtract [ms]
     bool infinite  = false;
     bool ponder    = false;
-    bool update_tt_age = true;
-    int root_filter_index = -1; // -1 = search all root moves
-    int root_filter_count = 1;
-    int thread_id = 0;
-    int thread_count = 1;
     int syzygy_probe_depth = 0; // 0 = disabled
     int syzygy_probe_limit = 0;
     bool syzygy_50_move_rule = true;
@@ -72,7 +62,6 @@ struct SearchLimits {
     std::chrono::steady_clock::time_point go_recv_time{};
     std::vector<Move> root_moves;
     std::vector<Syzygy::RootMoveInfo> syzygy_root_moves;
-    RootMoveTable* root_table = nullptr;
     SearchParams params;
 };
 
