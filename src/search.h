@@ -4,6 +4,7 @@
 #include "constants.h"
 #include "search_params.h"
 #include "search_types.h"
+#include "search_root.h"
 #include "tt.h"
 #include "eval.h"
 #include "history.h"
@@ -21,33 +22,6 @@
 #include <thread>
 #include <utility>
 #include <vector>
-
-class RootMoveTable {
-public:
-    void reset(const Board& board,
-               const std::vector<Move>& root_moves = {},
-               const std::vector<Syzygy::RootMoveInfo>& syzygy_root_moves = {});
-    void update(Move bestmove, Move pondermove, int depth, int score);
-    bool contains(Move move) const;
-    Move fallback_move() const;
-    int  ordering_score(Move move) const;
-    SearchResult best_result() const;
-
-private:
-    struct Entry {
-        Move bestmove   = MOVE_NONE;
-        Move pondermove = MOVE_NONE;
-        int  depth      = 0;
-        int  score      = -INF_SCORE;
-        int  sequence   = 0;
-    };
-
-    mutable std::mutex mutex_;
-    std::vector<Entry> entries_;
-    int sequence_ = 0;
-};
-
-[[nodiscard]] SearchResult sanitize_search_result(const Board& root_board, SearchResult result);
 
 class Searcher {
 public:
