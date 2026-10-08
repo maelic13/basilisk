@@ -76,26 +76,25 @@ function Assert-UciSurface {
 
     $hasDiag = $Output -match '(?m)^option name Diag '
     $hasTune = $Output -match '(?m)^option name RfpCoeff '
-    $hasKbnk = $Output -match '(?m)^option name KBNK Drive '
     $hasAblate = $Output -match '(?m)^option name AblationMask '
     switch ($ExpectedFlavor) {
         'Release' {
-            if ($hasDiag -or $hasTune -or $hasKbnk -or $hasAblate) {
+            if ($hasDiag -or $hasTune -or $hasAblate) {
                 throw 'Release flavor exposes diagnostic, tuning or ablation options.'
             }
         }
         'Tune' {
-            if (-not ($hasDiag -and $hasTune -and $hasKbnk) -or $hasAblate) {
+            if (-not ($hasDiag -and $hasTune) -or $hasAblate) {
                 throw 'Tune flavor does not expose its complete UCI surface.'
             }
         }
         'Diag' {
-            if (-not $hasDiag -or $hasTune -or $hasKbnk -or $hasAblate) {
+            if (-not $hasDiag -or $hasTune -or $hasAblate) {
                 throw 'Diag flavor must expose diagnostics but not tuning options.'
             }
         }
         'Ablate' {
-            if ($hasDiag -or $hasTune -or $hasKbnk -or -not $hasAblate) {
+            if ($hasDiag -or $hasTune -or -not $hasAblate) {
                 throw 'Ablate flavor must expose only the ablation instrument.'
             }
         }

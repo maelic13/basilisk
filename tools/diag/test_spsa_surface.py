@@ -26,7 +26,7 @@ class SurfaceTests(unittest.TestCase):
         parameters = surface.parse_parameters(surface.HEADER.read_text(encoding="utf-8"))
         generated = json.loads(surface.CONFIG.read_text(encoding="utf-8"))
         self.assertEqual([item[0] for item in parameters], list(generated))
-        self.assertEqual(len(parameters), 48)
+        self.assertEqual(len(parameters), 41)
 
     def test_steps_are_half_up_range_sixteenths_with_floor(self):
         self.assertEqual(surface.perturbation(0, 40), 3)

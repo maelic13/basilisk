@@ -73,48 +73,6 @@ max = 160
 c_end = 3.6846
 
 [[parameters]]
-name = "CapFutDepth"
-initial = 1
-min = 0
-max = 10
-c_end = 0.9211
-
-[[parameters]]
-name = "CapFutBase"
-initial = 198
-min = 0
-max = 500
-c_end = 14.2776
-
-[[parameters]]
-name = "CapFutCoeff"
-initial = 283
-min = 0
-max = 500
-c_end = 14.2776
-
-[[parameters]]
-name = "QuietSeeDepth"
-initial = 0
-min = 0
-max = 10
-c_end = 0.9211
-
-[[parameters]]
-name = "QuietSeeCoeff"
-initial = 25
-min = 0
-max = 120
-c_end = 3.6846
-
-[[parameters]]
-name = "QsearchCheckCap"
-initial = 0
-min = 0
-max = 10
-c_end = 0.9211
-
-[[parameters]]
 name = "SingularMinDepth"
 initial = 5
 min = 4
@@ -211,13 +169,6 @@ initial = 401
 min = 0
 max = 3072
 c_end = 88.4293
-
-[[parameters]]
-name = "PostLmrHistScale"
-initial = 0
-min = 0
-max = 300
-c_end = 8.7508
 
 [[parameters]]
 name = "HistBonusQuad"
