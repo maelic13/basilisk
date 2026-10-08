@@ -272,7 +272,7 @@ jobs:
 
       - name: Verify x86 ISA contract on the release binary
         if: matrix.arch == 'x86_64'
-        shell: ${{ runner.os == 'Windows' && 'msys2 {0}' || 'bash' }}
+        shell: ${{ matrix.os_name == 'windows' && 'msys2 {0}' || 'bash' }}
         run: |
           objdump=$(command -v llvm-objdump || command -v llvm-objdump-19)
           python=$(command -v python3 || command -v python)
