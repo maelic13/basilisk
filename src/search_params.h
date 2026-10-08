@@ -21,42 +21,19 @@
 // Rationale & history per group; the table itself stays scannable. Do not
 // delete these when editing values — they are the record of what was tried.
 //
-// Capture futility pruning (Phase 6.5, EXPOSED BUT NEAR-INERT):
-//   Skip a capture at shallow lmr_depth when even winning the captured piece
-//   cannot lift the static eval to alpha (SF + Ethereal). Was shipped ACTIVE
-//   (cap_fut_depth 7) and SPRT'd vs the 6.4 head: -2.78 +/- 7.50 Elo, LOS
-//   23%, LLR drifting to H0 over 3.6k games -- a wash-to-tiny-loss, so
-//   REVERTED per the pre-registered rule. cap_fut_depth 1 (hcefinal SPSA)
-//   only grazes lmr_depth < 1. Real re-enable is 10.7 SPSA material.
+// Removed mechanisms: capture futility, SEE pruning of quiets, qsearch quiet
+//   checks and the post-LMR continuation-history nudge were dead or inert at
+//   their defaults (capture futility's `lmr_depth < 1` cannot hold under the
+//   default LMR table) and were deleted with their coordinates. A donor form
+//   of any of them is a new mechanism, not a re-enabled knob.
 //
-// SEE-quiet pruning (Phase 6.5, EXPOSED BUT INERT):
-//   Skip quiets losing material by SEE (margin -coeff * lmr_depth^2;
-//   SF+Ethereal). quiet_see_depth 0 == OFF: search nodes always have
-//   depth >= 1, so `depth <= 0` never fires -> provably inert. A naive port
-//   (base-table lmr_depth) broke KBNK COMPLETELY (no mate in 250 plies) --
-//   SF's lmr_depth here includes the history term that protects
-//   good-history quiets, which the base-table estimate lacks. Enable
-//   (~8) only once the history-aware lmr_depth is wired (10.1/10.7).
-//
-// Qsearch quiet checks (Phase 6.8, EXPOSED BUT INERT):
-//   At qply==0 only, after captures fail to raise alpha: try quiet checking
-//   moves (Board::gen_quiet_checks) filtered by SEE>=0, capped at
-//   qsearch_check_cap. The "SF does this" claim tracked an OLDER Stockfish
-//   -- current SF restricts qsearch to captures/evasions (8.1f rider), and
-//   the hcefinal SPSA independently pinned the cap at 0. The seeded default
-//   (6) broke the KBNK mate CTest -- the sixth mechanism in a row (6.2-6.5)
-//   to trip that canary at its literature seed. 0 is PROVABLY inert
-//   (`qsearch_check_cap > 0` gates the whole loop). Kept for post-NNUE.
-//
-// Singular extension / double-extension cap (Phase 6.4 rider):
+// Singular extension / double-extension cap:
 //   double_ext_max caps stacked 2-ply singular extensions (Weiss-style) so a
-//   pathological line can't chain unbounded double-extensions. Weiss's own
-//   seed (5) chaotically broke the KBNK/KQK mate-resolution CTests -- the
-//   same canary fragility diagnosed in 6.3 -- so the shipped default is
-//   PROVABLY inert (200 > MAX_PLY=128, double_exts can never reach it).
-//   2026-07-17 re-exam vs the robust canary: capping HURTS (cap 6 -> bench
-//   +18.5%, cap 12 -> +30%) -- our double-extensions are productive; stays
-//   inert deliberately.
+//   pathological line can't chain unbounded double-extensions. The default
+//   16 is a live bound that the bench suite never reaches; at 1 it shrinks
+//   the tree by about 9%, so it is not inert. Weiss's seed (5) broke the
+//   KBNK/KQK mate-resolution CTests, and caps of 6 and 12 grew the bench by
+//   18.5% and 30%: the double extensions are productive.
 //
 // LMR base table: lmr_base/lmr_divisor are stored x100 (60 == 0.60,
 //   209 == 2.09) and divided by 100.0 in init_lmr.
@@ -71,18 +48,6 @@
 //   until the TT-PV bit lands; re-check at 10.7 -- the 8.5.7 re-test showed
 //   the persisted bit has NO good operating point through the LMR route).
 //   lmr_hist_div: history still integer-quantised; see search.cpp.
-//
-// Post-LMR continuation-history nudge (Phase 6.4, EXPOSED BUT INERT):
-//   After an LMR-reduced move's confirmation re-search, reward/punish its
-//   continuation history by whether the score held up (SF/Weiss). At full
-//   Weiss weight it broke the KQK mate-in-5 CTest; 0 is PROVABLY inert
-//   (hist_update's bonus term is exactly 0). The hcefinal SPSA
-//   joint-optimum was 104, excluded at bake on the KBNK correctness-core
-//   failure; re-tested vs rule50-retry after the canary fix -> WASH
-//   (+0.87 +/- 4.92, LLR ~0 @ 8k) -> reverted to 0. A marginal SPSA dim
-//   contributes ~0 re-added to the baked head; re-decided at 10.7.
-//   (8.6.1: the UCI advertisement wrongly said 104 until the X-macro made
-//   the drift impossible.)
 //
 // History updates (Phase 6.3):
 //   bonus = min((quad*d*d)/64 + lin*d, max); malus mirrored with its own
@@ -129,15 +94,6 @@
     X(hist_prune_coeff,      HistPruneCoeff,     14004, 1000, 28000)     \
     /* SEE pruning (bad captures) */                                     \
     X(see_prune_coeff,       SeePruneCoeff,         73,   30,   160)     \
-    /* Capture futility (near-inert; see FIELD NOTES) */                 \
-    X(cap_fut_depth,         CapFutDepth,            1,    0,    10)     \
-    X(cap_fut_base,          CapFutBase,           198,    0,   500)     \
-    X(cap_fut_coeff,         CapFutCoeff,          283,    0,   500)     \
-    /* SEE-quiet pruning (inert at 0; see FIELD NOTES) */                \
-    X(quiet_see_depth,       QuietSeeDepth,          0,    0,    10)     \
-    X(quiet_see_coeff,       QuietSeeCoeff,         25,    0,   120)     \
-    /* Qsearch quiet checks (inert at 0; see FIELD NOTES) */             \
-    X(qsearch_check_cap,     QsearchCheckCap,        0,    0,    10)     \
     /* Singular extension */                                             \
     X(singular_min_depth,    SingularMinDepth,       5,    4,     8)     \
     X(singular_beta_mult,    SingularBetaMult,       4,    1,     6)     \
@@ -156,8 +112,6 @@
     X(lmr_not_improving_adj, LmrNotImprovingAdj,    89,    0,  3072)     \
     X(lmr_tt_capture,        LmrTtCapture,         301,    0,  3072)     \
     X(lmr_singular_quiet,    LmrSingularQuiet,     401,    0,  3072)     \
-    /* Post-LMR cont-hist nudge (inert at 0; see FIELD NOTES) */         \
-    X(post_lmr_hist_scale,   PostLmrHistScale,       0,    0,   300)     \
     /* 5.7.6 removed check_ext_path_cap and lmr_allow_check. Both were    \
        added inert for 5.4.4, which closed REJECTED (BAS-S16, −3.48       \
        ±3.32), so they were the residue of a failed trial rather than an  \

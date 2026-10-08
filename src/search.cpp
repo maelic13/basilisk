@@ -266,7 +266,6 @@ Searcher::Searcher(TranspositionTable& tt,
     , root_best_nodes_(0)
     , root_best_effort_(0)
     , history_age_counter_(0)
-    , time_limit_(0.0)
     , soft_limit_(0.0)
     , hard_limit_(0.0)
 {
@@ -373,9 +372,6 @@ void Searcher::compute_time_limit(const SearchLimits& limits, Color side, int ga
 
     soft_limit_ = optimum_ms / 1000.0;
     hard_limit_ = maximum_ms / 1000.0;
-
-    // Legacy: keep time_limit_ pointing at hard for check_stop()
-    time_limit_ = hard_limit_;
 }
 
 double Searcher::elapsed_seconds() const {
@@ -1639,39 +1635,6 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         }
     }
 
-    // Qsearch quiet checks (Step 6.8): captures didn't cut off. At qply==0
-    // only, try quiet checking moves filtered by SEE>=0, capped at
-    // qsearch_check_cap (0 = off; the hcefinal SPSA kept it there, and
-    // current SF restricts qsearch to captures/evasions -- kept as inert
-    // infrastructure only).
-    if (qply == 0 && active_limits_.params.qsearch_check_cap > 0) {
-        MoveList checks;
-        board_ptr_->gen_quiet_checks(checks);
-        int tried = 0;
-        for (Move m : checks) {
-            if (tried >= active_limits_.params.qsearch_check_cap) break;
-            if (!board_ptr_->see_ge(m, 0)) continue;
-            tried++;
-
-            do_move(ss, m);
-            int s = -quiescence(-beta, -alpha, ply + 1, qply + 1, ss + 1);
-            undo_move(ss, m);
-
-            if (stopped_) return 0;
-            if (s > alpha) {
-                alpha = s;
-                best_move = m;
-            }
-            if (s >= beta) {
-                TRACE_DECISION(TraceEvent::QsBetaCutoff, ply, 0, m,
-                               alpha, beta, stand_pat, -1, correction, VALUE_NONE,
-                               tried, 0, VALUE_NONE, s);
-                tt_store(hash, 0, s, TT_BETA, m, ply, raw_eval);
-                return s;
-            }
-        }
-    }
-
     // Deliberately fail-hard here (store/return alpha, NOT a seeded best):
     // stand_pat may have been tightened UPWARD by a TT_BETA (lower) bound via
     // the 6.1 mirror above, so a best seeded from it is not a provable UPPER
@@ -2056,14 +2019,6 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         if (!ABLATED(5) && !is_root && searched > 0
             && best_score > -tablebaseWinInMaxPly) {
 
-            // Reduction-aware depth for the shallow-pruning heuristics (Step
-            // 6.5): the base LMR-table reduction, matching SF/Ethereal's use of
-            // lmrDepth here. The history/pv refinements of the real reduction
-            // are a second-order effect on the pruning decision, so the cheap
-            // base estimate is enough (and avoids hoisting the full reduction).
-            int base_r = lmr_table_[std::min(depth, 63)][std::min(searched, 63)] >> 10;  // 1024ths -> plies (6.7)
-            int lmr_depth = std::clamp(depth - base_r, 0, depth);
-
             if (is_quiet) {
                 // Futility pruning
                 if (!is_pv && !in_check && depth <= 6
@@ -2120,47 +2075,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                         return false;
                     }
                 }
-
-                // SEE pruning of quiet moves (Step 6.5): skip quiets that lose
-                // material by SEE, margin scaling with lmr_depth². EXPOSED BUT
-                // INERT — quiet_see_depth defaults to 0 so `depth <= 0` never
-                // fires (a naive base-table lmr_depth broke KBNK; needs SF's
-                // history-aware lmr_depth, deferred to 6.9). See SearchParams.h.
-                if (!is_pv && depth <= active_limits_.params.quiet_see_depth
-                    && !move_gives_check()
-                    && !board_ptr_->see_ge(
-                           m, -active_limits_.params.quiet_see_coeff * lmr_depth * lmr_depth)) {
-                    TRACE_DECISION(TraceEvent::QuietSeePrune, ply, depth, m,
-                                   alpha, beta, eval, improving, correction, trace_history,
-                                   searched, 0,
-                                   -active_limits_.params.quiet_see_coeff * lmr_depth * lmr_depth,
-                                   alpha);
-                    return false;
-                }
             } else if (is_cap) {
-                // Capture futility pruning (Step 6.5): if even winning the
-                // captured piece cannot lift the static eval to alpha, skip the
-                // capture at shallow lmr_depth. Good captures (high cap_hist)
-                // are spared via the capture-history term. EXPOSED BUT INERT —
-                // cap_fut_depth defaults to 0 so `lmr_depth < 0` never fires
-                // (SPRT'd active at -2.78 Elo, reverted; re-enable in 6.9).
-                if (!is_pv && eval != VALUE_NONE && lmr_depth < active_limits_.params.cap_fut_depth
-                    && !move_gives_check()) {
-                    PieceType atk = type_of(board_ptr_->piece_on(from_sq(m)));
-                    PieceType captured = (move_type(m) == EN_PASSANT)
-                                       ? PAWN : type_of(board_ptr_->piece_on(to_sq(m)));
-                    int fut = eval + active_limits_.params.cap_fut_base
-                            + active_limits_.params.cap_fut_coeff * lmr_depth
-                            + PIECE_VALUE[captured]
-                            + hist_.capture[atk][to_sq(m)][captured] / 32;
-                    if (fut <= alpha) {
-                        TRACE_DECISION(TraceEvent::CaptureFutilityPrune, ply, depth, m,
-                                       alpha, beta, eval, improving, correction, VALUE_NONE,
-                                       searched, 0, fut - eval, alpha);
-                        return false;
-                    }
-                }
-
                 // SEE pruning for bad captures
                 if (!is_pv && depth <= 8 && !is_promo) {
                     if (!board_ptr_->see_ge(m, -depth * active_limits_.params.see_prune_coeff) && !move_gives_check()) {
@@ -2386,23 +2301,6 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                                searched, reduction, VALUE_NONE, score);
                 score = -negamax(new_depth, -alpha - 1, -alpha,
                                  ply + 1, ss + 1, false, true, !cut_node);
-
-                // Post-LMR continuation-history nudge (Step 6.4, Weiss form,
-                // reusing the 6.3 bonus/malus formulas, scaled by
-                // post_lmr_hist_scale -- see SearchParams.h for why it
-                // defaults to 0/provably inert). Reward or punish this quiet
-                // move's continuation history based on whether the
-                // confirmation score actually held up against the original
-                // window.
-                if (is_quiet && !stopped_ && active_limits_.params.post_lmr_hist_scale > 0) {
-                    int scale = active_limits_.params.post_lmr_hist_scale;
-                    if (score >= beta)
-                        update_cont_for_move(ss, moved_pt, Square(to_sq(m)),
-                                             history_bonus_value(depth) * scale / 100);
-                    else if (score <= alpha)
-                        update_cont_for_move(ss, moved_pt, Square(to_sq(m)),
-                                             history_malus_value(depth) * scale / 100);
-                }
             }
             // Re-search as PV if score is within window
             if (is_pv && score > alpha && score < beta && !stopped_)
@@ -2419,12 +2317,6 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         const int64_t move_nodes = nodes_ - nodes_before_move;
         if (is_root) {
             root_depth_nodes_ += std::max<int64_t>(0, move_nodes);
-            // 8.6.10e bookkeeping (no consumer yet — see RootMoveStat).
-            RootMoveStat& rs = root_stat(m);
-            rs.nodes   += std::max<int64_t>(0, move_nodes);
-            rs.seldepth = std::max(rs.seldepth, sel_depth_);
-            rs.exact    = score > alpha && score < beta;
-            rs.add_sample(score);
         }
 
         // Track for history updates
@@ -2450,9 +2342,6 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 for (int k = ply + 1; k < child_pv_len; k++)
                     pv_table_[ply][k] = pv_table_[ply + 1][k];
                 pv_len_[ply] = child_pv_len;
-                if (is_root)
-                    root_stat(m).pv.assign(&pv_table_[0][0],
-                                           &pv_table_[0][0] + pv_len_[0]);
             }
         }
 
@@ -2663,7 +2552,6 @@ SearchResult Searcher::search(Board board, const SearchLimits& limits) {
     }
 
     int start_depth = 1;
-    root_stats_.clear();   // fresh records per `go` (8.6.10e)
     diag_.reset();         // fresh diagnostic counters per `go` (8.6.6)
     evaluator_.diag_lazy = active_limits_.diag;
     evaluator_.lazy_fires = evaluator_.lazy_sign_flips = 0;

@@ -189,47 +189,6 @@ private:
     std::atomic_bool*   ponderhit_;
     std::function<void(const std::string&)> info_cb_;
 
-    // ---- Persistent per-root-move records (8.6.10e; Rarog 10.1 pattern) ----
-    // Pure bookkeeping this phase: written by the root loop, consumed by
-    // nothing yet. This is the substrate the 8.5.12 remainder
-    // (uncertainty-aware aspiration, root-effort TM), Phase-10 consumers and
-    // Phase-11 voting plug into — they become readers of existing data
-    // instead of each re-plumbing the root loop. Mean/variance are Welford
-    // over completed per-iteration scores; `nodes` is the cumulative subtree
-    // effort; `pv` is captured whenever this move was best at its ply.
-    struct RootMoveStat {
-        Move    move           = MOVE_NONE;
-        int     score          = -INF_SCORE;  // last search result for this move
-        int     previous_score = -INF_SCORE;  // result from the prior visit
-        double  mean           = 0.0;
-        double  m2             = 0.0;         // Welford accumulator
-        int     samples        = 0;
-        int64_t nodes          = 0;
-        int     seldepth       = 0;
-        bool    exact          = false;       // last result inside the window?
-        std::vector<Move> pv;                 // last PV when this move led
-
-        void add_sample(int s) noexcept {
-            previous_score = score;
-            score = s;
-            ++samples;
-            const double d = double(s) - mean;
-            mean += d / samples;
-            m2   += d * (double(s) - mean);
-        }
-        [[nodiscard]] double variance() const noexcept {
-            return samples > 1 ? m2 / (samples - 1) : 0.0;
-        }
-    };
-    std::vector<RootMoveStat> root_stats_;
-    RootMoveStat& root_stat(Move m) {
-        for (auto& r : root_stats_)
-            if (r.move == m) return r;
-        root_stats_.push_back(RootMoveStat{});
-        root_stats_.back().move = m;
-        return root_stats_.back();
-    }
-
     // ---- 8.6.6 diagnostic counters (Rarog 7.6 pattern) ----
     // Counted in diagnostic/tune builds and printed only when SearchLimits.diag
     // is set. Production compiles the hot-path increments away; the retained
@@ -487,7 +446,6 @@ private:
     ScoredMove move_buffers_[MAX_PLY][2][MoveList::CAPACITY];
 
     std::chrono::steady_clock::time_point start_time_;
-    double time_limit_;   // hard limit (legacy, = hard_limit_)
     double soft_limit_;   // target time — stop early if best move is stable
     double hard_limit_;   // absolute maximum
 
@@ -555,13 +513,12 @@ private:
     void update_pawn_hist(Key pawn_key, PieceType pt, Square to, int bonus);
     void update_low_ply(int ply, Square from, Square to, int bonus);
 
-    // Phase 6.3 bonus/malus shape (single source of truth for both
-    // update_all_histories and the Step 6.4 post-LMR conthist nudge).
+    // Phase 6.3 bonus/malus shape.
     int  history_bonus_value(int depth) const;
     int  history_malus_value(int depth) const;
     // Applies a single (piece, to) continuation-history update at the 1/2/4-ply
     // back-references from `ss` -- the per-move half of update_all_histories'
-    // continuation-history block, reused by the post-LMR update (Step 6.4).
+    // continuation-history block.
     void update_cont_for_move(SearchStack* ss, PieceType pt, Square to, int bonus);
 
     // Combined continuation history score for a (piece, to) pair
