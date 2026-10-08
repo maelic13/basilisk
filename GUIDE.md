@@ -12,7 +12,7 @@ in `docs/PROCESS.md`; where the engine stands is PLAN §1.
 |---|---|
 | Released baseline | **1.10.2** on `master`, tagged `v1.10.2` (2026-10-08) |
 | Bench fingerprint | **14,978,465** (`bench 13`, 1.10.0 to 1.10.2) |
-| Active experiment | None |
+| Active experiment | BAS-S17 and BAS-S18 prepared (B.0.1, B.0.2), awaiting maintainer runs |
 | Long job | None |
 | Next release | **2.0.0** if the E.2 target gate is met, otherwise **1.11.0**, cut at E.3 |
 
