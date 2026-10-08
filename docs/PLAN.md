@@ -904,7 +904,7 @@ only a meter.
 A rejection returns the cluster to `RESEARCH` with its diagnostics; two
 rejections stop B.
 
-- [ ] **B.0** Search programme investigation
+- [x] **B.0** Search programme investigation
   Investigation (`R3`): the Basilisk-versus-Stockfish mechanism map, cluster
   contents, scale ratio and seed rule, survivors, SPSA surfaces, B.2.2's
   registered screen numbers, frozen B.2 predictions and handoffs for B.1–B.3.
@@ -927,6 +927,8 @@ rejections stop B.
   S11 at B.3, BAS-S12 not fired. Two cheap maintainer-run game tests were
   registered and spawned below; neither blocks B.1, and B.0 closes when both
   have been read into the packet's calibration.
+  — CLOSED 2026-10-08: both read into packet §11, inside their 80%
+  intervals; no falsifier fired, the cluster order and P2 stand.
   The deliverable covers:
   1. The donor revisions pinned.
   2. Zero-game measurements on the 1.10.1 head, with the A.5 instruments:
@@ -962,7 +964,7 @@ rejections stop B.
   tests Phase 5's "width is a symptom" premise, and it records which retry
   triggers the programme fires: BAS-S07, BAS-S10 and BAS-S12 name a history
   ownership change; BAS-S08 and BAS-S09 name a joint architecture and fit.
-    - [ ] **B.0.1** `[V]` Razoring depth reach in Elo (maintainer)
+    - [x] **B.0.1** `[V]` Razoring depth reach in Elo (maintainer)
       BAS-S17, registered 2026-10-06: `RazorCoeff=500` against 243 on the
       B.0 Tune binary, 2,000 paired games at `3+0.03`, no adjudication,
       through the A.3.1 run-file path; a Tune-build diagnostic, never
@@ -974,8 +976,13 @@ rejections stop B.
       Prepared 2026-10-08: `tools/colosseum.ps1 -Mode match`
       (`match-fixed.toml`), one binary two option sets, 1,000 paired
       openings, seed 20101, 14 slots, revision and bench pinned; dry run
-      accepted. Waiting on the maintainer's run.
-    - [ ] **B.0.2** `[V]` Oracle move-loop pruning family in Elo (maintainer)
+      accepted.
+      — CLOSED 2026-10-08: **+2.4 Elo**, 95% interval [−7.5, +12.3]
+      (pentanomial [50, 224, 431, 252, 43], 0 faults, every game ended
+      naturally). The interval holds 0, so neither branch of the reading rule
+      fires and B.2 decides razoring's depth cap with the cluster.
+      Calibration: inside the 80% interval [−4, +20], 5.6 below centre.
+    - [x] **B.0.2** `[V]` Oracle move-loop pruning family in Elo (maintainer)
       BAS-S18, registered 2026-10-06: `oracle-1.10.1-ablate.exe` with
       `AblationMask=32` (its shallow move-loop pruning off) against Basilisk
       1.10.1 at equal time, the BAS-O05 recipe at 1,000 cycles (2,000
@@ -987,8 +994,15 @@ rejections stop B.
       Prepared 2026-10-08: `tools/run_b02_oracle_g32.ps1`, BAS-O05's
       launcher with the ablate binary, `AblationMask=32`, 1,000 cycles and
       seed 20102; dry run accepted, and the mask is live (startpos depth 14:
-      445,620 nodes against 131,089 at mask 0). Waiting on the maintainer's
-      run, never beside B.0.1's.
+      445,620 nodes against 131,089 at mask 0).
+      — CLOSED 2026-10-08: **G(32) = +102.3 ± 15.9** (Basilisk 1397.7;
+      oracle 868-838-294, 64.35%; 0 faults, every game ended naturally).
+      G(0) − G(32) = **210.3 ± 23.9** of 312.6: the oracle's move-loop
+      pruning family is worth about two thirds of its lead. At mask 0 the
+      ablate oracle searches the same tree as G(0)'s oracle (967,078
+      nodes) at the same NPS within 1%. No falsifier fired, so P2 and the
+      cluster order stand. Calibration: inside [+40, +180], 7.7 below
+      centre.
 - [ ] **B.1** `[I1]` Search restructure, behaviour-neutral
   `src/search.cpp` split into modules, node types as template parameters, a
   per-thread worker and stack separated from per-search configuration and
@@ -1144,8 +1158,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.0.1 | READY_FOR_IMPLEMENTATION | V | BAS-S17 prepared, dry run accepted 2026-10-08; maintainer-run on the B.0 Tune binary |
-| B.0.2 | READY_FOR_IMPLEMENTATION | V | BAS-S18 prepared, dry run accepted 2026-10-08 (`tools/run_b02_oracle_g32.ps1`); maintainer-run |
 | B.1 | READY_FOR_IMPLEMENTATION | I1 | Handoff frozen in the B.0 packet §12.1; A.6's move table |
 | B.2.0 | RESEARCH | R2 | Waits on B.1's head |
 | B.2.1 | READY_FOR_IMPLEMENTATION | I2 | Contract frozen in the B.0 packet §12.2; waits on B.1 and B.2.0 |

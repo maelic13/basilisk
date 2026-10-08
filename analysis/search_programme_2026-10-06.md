@@ -691,6 +691,21 @@ the node attribution does not carry Elo, which lowers P2 below +20 and
 re-opens the cluster order; G(32) ≤ 0 is inconsistent with 2.6's node ratio
 and points at the instrument.
 
+**Calibration of the two game tests (2026-10-08, maintainer-run).**
+B.0.1 (BAS-S17) read **+2.4 ± 9.9 Elo** (95% [−7.5, +12.3], 1,000 pairs, 0
+faults): inside the 80% interval, 5.6 below centre. The interval holds 0, so
+neither branch of the reading rule fires. Razoring's depth cap stays
+categorical for B.2.2's own paired run, with the oracle column (depth 1,
+256 cp) and 243·d at depth ≤ 3 both in range. The 32 WAC positions that
+`RazorCoeff=500` recovers at 100k nodes read near zero in Elo at STC.
+B.0.2 (BAS-S18) read **G(32) = +102.3 ± 15.9** (2,000 games, 0 faults):
+inside [+40, +180], 7.7 below centre. G(0) − G(32) = **+210.3 ± 23.9**: the
+oracle's shallow move-loop pruning family is worth about two thirds of
+its 312.6 lead over Basilisk, which matches §2.6's node attribution. The
+ablate oracle at mask 0 searches G(0)'s tree exactly (967,078 nodes) at the
+same NPS within 1%, so the difference compares like with like. Neither
+falsifier fires; P2 and the cluster order stand.
+
 **B.2 (frozen before B.1 exists; calibration appended at B.2.4):**
 
 | # | Prediction | Confidence | Falsifier |

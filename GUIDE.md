@@ -12,7 +12,7 @@ in `docs/PROCESS.md`; where the engine stands is PLAN §1.
 |---|---|
 | Released baseline | **1.10.2** on `master`, tagged `v1.10.2` (2026-10-08) |
 | Bench fingerprint | **14,978,465** (`bench 13`, 1.10.0 to 1.10.2) |
-| Active experiment | BAS-S17 and BAS-S18 prepared (B.0.1, B.0.2), awaiting maintainer runs |
+| Active experiment | None |
 | Long job | None |
 | Next release | **2.0.0** if the E.2 target gate is met, otherwise **1.11.0**, cut at E.3 |
 
@@ -34,7 +34,7 @@ generations change. These are maintainer judgments, not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **B.0.1** `[V]` Razoring depth reach in Elo (maintainer) — Claude Sonnet 5 — High
+**Next step:** **B.1** `[I1]` Search restructure, behaviour-neutral — Claude Sonnet 5 — Medium
 
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
@@ -68,9 +68,9 @@ generations change. These are maintainer judgments, not measured rankings.
 
 ### Phase B — Search programme (evaluation frozen)
 
-- [ ] **B.0** Search programme investigation
-    - [ ] **B.0.1** `[V]` Razoring depth reach in Elo (maintainer)
-    - [ ] **B.0.2** `[V]` Oracle move-loop pruning family in Elo (maintainer)
+- [x] **B.0** Search programme investigation
+    - [x] **B.0.1** `[V]` Razoring depth reach in Elo (maintainer)
+    - [x] **B.0.2** `[V]` Oracle move-loop pruning family in Elo (maintainer)
 - [ ] **B.1** `[I1]` Search restructure, behaviour-neutral
 - [ ] **B.2** Cluster 1 — the selectivity core
     - [ ] **B.2.0** `[R2]` Architecture review and neutral upgrades

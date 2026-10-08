@@ -475,8 +475,8 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 | ID | Title | Disposition |
 |---|---|---|
-| [BAS-S17](experiments/BAS-S17.md) | Registered and prepared, not yet run (B.0.1, maintainer). | Reading rule: |
-| [BAS-S18](experiments/BAS-S18.md) | Registered and prepared, not yet run (B.0.2, maintainer). | Reading rule: |
+| [BAS-S17](experiments/BAS-S17.md) | Razoring depth reach in Elo (B.0.1, maintainer). | +2.4 ± 9.9; interval holds 0, the cluster decides the cap |
+| [BAS-S18](experiments/BAS-S18.md) | Oracle move-loop pruning family in Elo (B.0.2, maintainer). | G(32) = +102.3 ± 15.9; family explains 210 of 312.6 |
 | [BAS-S19](experiments/BAS-S19.md) | Frozen before any game, PLAN A.8.15: the tablebase band and probes with tables configured. | ACCEPTED: +31.7 ± 13.4 with tables |
 | [BAS-S20](experiments/BAS-S20.md) | Frozen before any game, PLAN A.8.18: the won-endgame time-sink repair. | KEPT by maintainer decision: −0.7 ± 4.5 at the cap |
 
