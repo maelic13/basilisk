@@ -234,6 +234,7 @@ jobs:
           install: >-
             ${{ matrix.mingw_pkg_prefix }}-${{ matrix.compiler_pkg }}
             ${{ matrix.mingw_pkg_prefix }}-llvm
+            ${{ matrix.mingw_pkg_prefix }}-python
             ${{ matrix.mingw_pkg_prefix }}-cmake
             ${{ matrix.mingw_pkg_prefix }}-ninja
 
@@ -274,8 +275,10 @@ jobs:
         if: matrix.arch == 'x86_64' && matrix.os_name != 'windows'
         shell: bash
         run: |
-          objdump=$(command -v llvm-objdump || command -v llvm-objdump-19)
-          python=$(command -v python3 || command -v python)
+          objdump=$(command -v llvm-objdump || command -v llvm-objdump-19 || true)
+          python=$(command -v python3 || command -v python || true)
+          [ -n "$objdump" ] || { echo "FAIL: llvm-objdump not found"; exit 1; }
+          [ -n "$python" ] || { echo "FAIL: python not found"; exit 1; }
           launcher=$(find "build/${{ matrix.preset }}-pgo/CMakeFiles/basilisk_launcher.dir" \
             -type f \( -name 'main.cpp.o' -o -name 'main.cpp.obj' \) -print -quit)
           [ -n "$launcher" ] || { echo "FAIL: baseline launcher object not found"; exit 1; }
@@ -292,8 +295,10 @@ jobs:
         if: matrix.arch == 'x86_64' && matrix.os_name == 'windows'
         shell: msys2 {0}
         run: |
-          objdump=$(command -v llvm-objdump || command -v llvm-objdump-19)
-          python=$(command -v python3 || command -v python)
+          objdump=$(command -v llvm-objdump || command -v llvm-objdump-19 || true)
+          python=$(command -v python3 || command -v python || true)
+          [ -n "$objdump" ] || { echo "FAIL: llvm-objdump not found"; exit 1; }
+          [ -n "$python" ] || { echo "FAIL: python not found"; exit 1; }
           launcher=$(find "build/${{ matrix.preset }}-pgo/CMakeFiles/basilisk_launcher.dir" \
             -type f \( -name 'main.cpp.o' -o -name 'main.cpp.obj' \) -print -quit)
           [ -n "$launcher" ] || { echo "FAIL: baseline launcher object not found"; exit 1; }
