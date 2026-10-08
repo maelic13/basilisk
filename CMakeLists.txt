@@ -497,6 +497,11 @@ if(NOT MSVC)
         foreach(_tgt IN LISTS _ALL_TARGETS)
             set_property(TARGET ${_tgt} PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
         endforeach()
+        # basilisk-texel links basilisk_board, whose objects are LTO bitcode
+        # here, so it must link with LTO as well.
+        if(TEXEL)
+            set_property(TARGET basilisk-texel PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
+        endif()
     else()
         message(STATUS "LTO not supported: ${_lto_msg}")
     endif()
