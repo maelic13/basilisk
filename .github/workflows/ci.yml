@@ -5,8 +5,8 @@
 # master, where GitHub builds the merge commit, so the run tests exactly what
 # master would become, and on manual dispatch for any branch. It does not run
 # on pushes: a push to master only ever lands a pull request that already
-# passed, and dev commits are qualified locally (exact bench, CTest) at each
-# commit. A newer commit to the same pull request cancels the superseded run.
+# passed, and a branch's commits are qualified locally (exact bench, CTest)
+# as they are made. A newer commit to the same pull request cancels the superseded run.
 #
 # The bench job hardcodes NO expected node count. All platforms run bench and
 # a final job asserts they AGREE with each other. A frozen constant would need
@@ -252,6 +252,31 @@ jobs:
           fi
 
   # ---- Debug + ASan/UBSan (the gate 8.6.2b P0 repaired — keep it real) ------
+  # ---- Documents -------------------------------------------------------------
+  # The roadmap and GUIDE agree, every commit a document cites stays reachable
+  # (on master, under a pull request or on a kept tag), and the release check
+  # passes its own tests.
+  docs:
+    name: documents
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Roadmap and GUIDE agree
+        run: python3 tools/diag/check_roadmap.py
+
+      - name: Cited commits stay reachable
+        run: |
+          git fetch -q origin "+refs/pull/*/head:refs/remotes/origin/pr/*"
+          python3 tools/diag/check_citations.py
+
+      - name: Release check tests
+        run: python3 tools/diag/test_release_check.py
+
   sanitize:
     name: sanitize (linux ASan+UBSan)
     runs-on: ubuntu-24.04

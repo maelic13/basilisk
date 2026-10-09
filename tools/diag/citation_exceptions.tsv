@@ -1,0 +1,45 @@
+# Cited hashes that are not Basilisk commits reachable here (check_citations.py).
+# hash<TAB>kind<TAB>reason. Kinds: external (another repository's commit),
+# content (a file or patch hash), lost (a Basilisk commit lost before citations
+# had to stay reachable; the citing record carries its recipe instead).
+9587eeeb	external	Stockfish: the classical (HCE-era) donor and oracle search
+edb0d9db	external	Stockfish: the sf_19 release tag, the modern donor
+0a215d6c	external	Stockfish: the superseded default donor pin
+59aae690	external	Stockfish: a local checkout compared with sf_19
+9a8dd81dd7f98cbf02f16c59b4377d174d6eb4b5	external	Stockfish: source of record in the 2026-07 search analysis
+dd0e676007f2e53e1bc59054b24b6ca9003d9ca2	external	Reckless: source of record in the 2026-07 search analysis
+31d9cd6	external	Reckless: source of record in the B.0 packet
+91b56c2	external	Reckless: benchmarked by Rarog's RAR-M20 (BAS-X16)
+04e07a98ee6ac104c30e7374450c94b96d94ef4d	external	PlentyChess: source of record in the 2026-07 search analysis
+d9d8b26337bc46e0782243cb13dd6781b873c4f1	external	Rarog: engine-choice audit
+59d190e22162c53efe630938d1609c5baa57d18d	external	net_trainer: engine-choice audit
+cebc78a093d92cbc87e56cfef049184c225270b0	external	Bullet, pinned by net_trainer: engine-choice audit
+015bccae	external	Rarog: the commit snapshotted in docs/reference/rarog/
+08c3a23	external	Rarog dev at the 2026-09-28 import
+1647dd28	external	Rarog dev in the 2026-10-07 all-refs bundle
+881c821	external	Rarog dev audited on 2026-09-07
+ca03a46	external	Rarog: benchmarked in RAR-M20 (BAS-X16)
+4aea0c7	external	Rarog: the KBNK diagonal port
+4aea0c7407c05eb6417f52b61e5928404306595e	external	Rarog: the KBNK diagonal port
+9a7b663	external	Rarog: setup work moved off the clock (BAS-C11)
+19a02f44	external	Rarog: the tablebase PV extension's last change (BAS-C13)
+4a738d2	external	Rarog: the merge base of the 2.4.0 to 2.5.0 import
+dcf15c51	external	Rarog dev after 2.5.0, snapshotted in docs/reference/rarog-2026-10-06/
+dcf15c512f7c871bb11faaa70ccbb479953ddea9	external	Rarog dev after 2.5.0, snapshotted in docs/reference/rarog-2026-10-06/
+da6d8f9	external	Rarog: a 2.4.0 to 2.5.0 commit (BAS-X35)
+97ea52d	external	Rarog: a 2.4.0 to 2.5.0 commit (BAS-X35)
+b2c98c8	external	Rarog: a 2.4.0 to 2.5.0 commit (BAS-X35)
+8a76826	external	Rarog: a 2.4.0 to 2.5.0 commit (BAS-X35)
+5a8d58b	external	Rarog: a 2.4.0 to 2.5.0 commit (BAS-X35)
+45779ee	external	Rarog: a 2.4.0 to 2.5.0 commit (BAS-X35)
+5cba881	external	Rarog: a 2.4.0 to 2.5.0 commit (BAS-X35)
+84b1f74	external	Rarog: a 2.4.0 to 2.5.0 commit (BAS-X35)
+5dc9f0e	external	Rarog: a 2.4.0 to 2.5.0 commit (BAS-X35)
+1f8d0fb	external	Rarog: a 2.4.0 to 2.5.0 commit (BAS-X35)
+15e78fd	external	Rarog: a 2.4.0 to 2.5.0 commit (BAS-X35)
+ec014d2	external	Rarog: a 2.4.0 to 2.5.0 commit (BAS-X35)
+ded841f	external	Rarog: a 2.4.0 to 2.5.0 commit (BAS-X35)
+33b60cc9	content	the dirty build-support patch of BAS-P09, a diff hash
+5e539523	content	the hash binding the conversion-audit PGN export
+d4dd504	lost	the 2026-07-13 `development` head of the HCE and search analyses
+aba3941	lost	the 9.3 head of the multi-thread baseline

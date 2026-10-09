@@ -71,6 +71,48 @@ class ReleaseCheckTests(unittest.TestCase):
             with self.assertRaises(CheckError):
                 release_check.check(root, "v1.10.2", "base", None)
 
+    def test_a_patch_line_from_the_minor_release_is_accepted(self):
+        # The release commit is tagged v1.10.0 and is on `base` (master); the
+        # patch commit sits on a branch from that tag, off `base`.
+        def commit(root, name):
+            (root / name).write_text("x\n", encoding="utf-8")
+            subprocess.run(["git", "add", "-A"], cwd=root, check=True)
+            subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q",
+                            "-m", name], cwd=root, check=True)
+
+        with tempfile.TemporaryDirectory() as temp:
+            root = write_tree(temp)
+            subprocess.run(["git", "tag", "v1.10.0"], cwd=root, check=True)
+            subprocess.run(["git", "branch", "base"], cwd=root, check=True)
+            subprocess.run(["git", "checkout", "-q", "base"], cwd=root, check=True)
+            commit(root, "later-work.txt")                     # master moves on
+            subprocess.run(["git", "checkout", "-q", "-b", "patch", "v1.10.0"], cwd=root, check=True)
+            commit(root, "fix.txt")                            # the cherry-picked fix
+            self.assertIn("patch line from v1.10.0",
+                          release_check.check(root, "v1.10.2", "base", None))
+            self.assertIn("patch line", release_check.ensure_on_line(root, "1.10.2", "base"))
+            # A minor release must itself be on the base.
+            with self.assertRaises(CheckError):
+                release_check.ensure_on_line(root, "1.11.0", "base")
+
+    def test_a_patch_line_off_the_base_is_refused(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = write_tree(temp)
+            subprocess.run(["git", "tag", "v1.10.0"], cwd=root, check=True)
+            subprocess.run(["git", "checkout", "-q", "--orphan", "base"], cwd=root, check=True)
+            subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q",
+                            "-m", "unrelated"], cwd=root, check=True)
+            subprocess.run(["git", "checkout", "-q", "v1.10.0"], cwd=root, check=True)
+            with self.assertRaises(CheckError):               # v1.10.0 is not on base
+                release_check.ensure_on_line(root, "1.10.2", "base")
+        with tempfile.TemporaryDirectory() as temp:
+            root = write_tree(temp)
+            subprocess.run(["git", "branch", "base"], cwd=root, check=True)
+            subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q",
+                            "--allow-empty", "-m", "off"], cwd=root, check=True)
+            with self.assertRaises(CheckError):               # no v1.10.0 tag
+                release_check.ensure_on_line(root, "1.10.2", "base")
+
     def test_version_reads_dev_and_refuses_a_mismatch(self):
         with tempfile.TemporaryDirectory() as temp:
             self.assertEqual(release_check.engine_version(write_tree(temp, engine='"1.10.3-dev"',
