@@ -1568,16 +1568,18 @@ adjudication never change after games are seen.
   4T direction checks whose 95% intervals exclude a loss.
 - An NNUE release requires a win over the last classical release at STC, LTC
   and 4T and a clean platform matrix; it takes the next major version.
-- `dev` reaches `master` through a pull request squash-merged as one
-  `Version X.Y.Z` commit, and an `archive/dev-X.Y.Z` tag keeps the
-  development commits the records cite (maintainer decision 2026-10-08,
-  replacing the merge commits of 2026-10-06; 1.10.2 was merged that way and
-  then squashed on `master`).
-- Tag, push and publish only on maintainer instruction. From A.8.6 on, a
-  release is cut by pushing a `vX.Y.Z` tag on `master`. The workflow
-  validates the tag, version sources, branch and changelog section, then
-  builds and fingerprint-checks every asset, and publishes only after all of
-  them pass.
+- `master` is the trunk: every coherent piece of work lands from its own
+  short-lived branch as one squash commit through a PR, and the branch's
+  commits stay cited under the PR (maintainer decision 2026-10-09, adopting
+  Rarog's process; it replaces the long-lived `dev` branch and its
+  `archive/dev-X.Y.Z` tags of 2026-10-08). PROCESS *Delivery* and *Release*
+  hold the procedure.
+- Tag, push and publish only on maintainer instruction. A release is a
+  `vX.Y.Z` tag on `master`; a patch while `master` holds unreleased work is
+  tagged on a branch from the release tag, which the tag keeps. The workflow
+  validates the tag, version sources, release line and changelog section,
+  then builds and fingerprint-checks every asset, and publishes only after
+  all of them pass.
 
 ## 6. Documentation ownership
 

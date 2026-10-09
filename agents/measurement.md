@@ -80,12 +80,13 @@ experiment by `agents/research.md`, *Experiment design*, before it runs.
 - Do not start long SPRTs, SPSAs, tournaments, large datagen jobs, long fits or
   comparable machine-saturating work unless the maintainer explicitly asks the
   agent to run it.
-- For a required long run, prepare and validate the runnable state, commit that
-  state with a clear Prepare <step> subject, provide exactly one copy-pasteable
-  single-line command, and stop. Keep the checklist item open.
+- For a required long run, prepare and validate the runnable state, commit it
+  on the work's branch with a subject saying what is prepared ("Prepare the
+  razoring reach match"), provide exactly one copy-pasteable single-line
+  command, and stop. Keep the checklist item open.
 - After the maintainer returns the artifacts, analyze them, apply the
-  pre-registered verdict, finish the checklist/docs, commit with a clear
-  Complete <step> subject, report the outcome and next leaf, then stop.
+  pre-registered verdict, finish the checklist/docs, commit with a subject
+  saying what was recorded, report the outcome and next leaf, then stop.
 - Respect temporary resource reservations stated in the conversation. Do not
   compete with an active engine job merely because a command is normally short.
 - The host is shared with Rarog. Never start a pinned harness while another

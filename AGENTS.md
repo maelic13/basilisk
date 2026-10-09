@@ -180,14 +180,25 @@ name says.**
 
 ## Commits and reporting
 
-- Commit after every completed step or substep. Use a concise imperative
-  subject that names the result or numbered leaf where useful. Engine changes
-  and tooling or documentation changes go in separate commits.
-- Never add co-author trailers. Do not amend, squash, push or rewrite history
-  unless the maintainer explicitly asks. `dev` reaches `master` only through a
-  pull request the maintainer squash-merges as one `Version X.Y.Z` commit;
-  development commits go on `dev`, and an `archive/dev-X.Y.Z` tag keeps them
-  reachable once `dev` is deleted (PROCESS *Release*).
+- `master` is the trunk. Every coherent piece of work -- one feature or
+  experiment, or one tooling or documentation change -- lives on its own
+  short-lived branch from `master` and lands as ONE squash commit through a
+  pull request: no merge commits, no rebase merges. On the branch, commit in
+  small verified steps after every completed step or substep; GitHub keeps
+  those commits under the PR (`refs/pull/<n>/head`) after the squash. Before
+  opening the PR, merge `master` into the branch if `master` moved, so the PR
+  shows only the branch's own change. After the merge the branch is deleted
+  (PROCESS *Delivery*).
+- A commit message, and the squash message (the PR title and description):
+  the title is short and imperative and says what changed ("Rebuild king
+  safety"), with no results and no phase, plan or ledger references. The body
+  is a few plain lines on what and why, wrapped at 72 columns; then the test
+  results, one per line ("STC 3+0.03: +32.7 ± 8.9 Elo (2,450 games)"); then
+  `Bench: <nodes>`. Engine changes and tooling or documentation changes go in
+  separate commits on a branch.
+- No AI attribution anywhere: no `Co-Authored-By`, no "Generated with" line,
+  in commits, PRs or files. Do not amend, push, open or merge a PR, or rewrite
+  history unless the maintainer explicitly asks.
 - Preserve unrelated maintainer changes and keep generated result artifacts out
   of source commits unless the roadmap explicitly requires them.
 - **Every report opens with a one-line recommendation** -- what to do next and

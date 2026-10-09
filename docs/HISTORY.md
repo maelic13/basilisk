@@ -22,9 +22,11 @@ below says where.
 ## Preserved commits
 
 Commits kept only because no tracked recipe can replace them. None is
-reachable from `master` or `dev`. Branches: only `master` and `dev` exist,
-locally and on `origin`. Disposition recorded 2026-09-28 (A.2.2); the
-`archive/dev-*` rows 2026-10-08.
+reachable from `master`. Disposition recorded 2026-09-28 (A.2.2); the
+`archive/dev-*` rows 2026-10-08. Since 2026-10-09 no tag or branch is added
+here without the maintainer's agreement: a branch's commits stay reachable
+under its pull request (`refs/pull/<n>/head`) after the squash, and a
+throwaway branch is cited by its recipe (PROCESS *Delivery*).
 
 | Tag | Commit | What it holds | Cited by | Retires when | Disposition |
 |---|---|---|---|---|---|
@@ -40,8 +42,11 @@ locally and on `origin`. Disposition recorded 2026-09-28 (A.2.2); the
 Reviewed again 2026-10-07 (A.8.3), when `dev` began reaching `master` by
 merge commits: none of the three kept tags is reachable from `dev`, so the
 change retires none. On 2026-10-08 releases returned to squash merges, and
-every release's development line gets an `archive/dev-X.Y.Z` tag (PROCESS
-*Release*).
+every release's development line got an `archive/dev-X.Y.Z` tag. On
+2026-10-09 the long-lived `dev` branch was retired: it lands once as a final
+squash PR, and from then on each piece of work has its own branch and PR, so
+no further `archive/dev-*` tag is made; the two above stay, since the
+records cite them.
 
 The kept tags are annotated with their reason and retirement condition. The
 removed ones were deleted locally and on `origin`; their commits stay
