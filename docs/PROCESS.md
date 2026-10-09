@@ -564,13 +564,15 @@ follows the steps below from `master`.
 1. **One branch per coherent piece of work.** A feature or experiment, or
    one tooling or documentation change, gets its own short-lived branch from
    `master`. On it, commit in small verified steps: each commit is
-   qualified (exact bench, CTest) as it is made.
+   qualified (exact bench, CTest) as it is made. These are working records;
+   their subjects may name the plan leaf or phase.
 2. **One squash commit per branch.** The branch lands on `master` through a
    pull request the maintainer squash-merges. No merge commits and no rebase
    merges; the repository allows only squash merges. GitHub keeps the
    branch's commits under the PR (`refs/pull/<n>/head`) after the squash, so
    a document may cite them.
-3. **The squash message is the PR's title and description.** The title is
+3. **The squash message is the PR's title and description**, and it alone
+   reaches `master`, so it alone has a fixed shape. The title is
    short and imperative and says what changed ("Rebuild king safety"), with
    no results and no phase, plan or ledger references. The description is a
    few plain lines on what and why, wrapped at 72 columns; then the test

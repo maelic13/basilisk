@@ -189,13 +189,15 @@ name says.**
   opening the PR, merge `master` into the branch if `master` moved, so the PR
   shows only the branch's own change. After the merge the branch is deleted
   (PROCESS *Delivery*).
-- A commit message, and the squash message (the PR title and description):
-  the title is short and imperative and says what changed ("Rebuild king
-  safety"), with no results and no phase, plan or ledger references. The body
-  is a few plain lines on what and why, wrapped at 72 columns; then the test
-  results, one per line ("STC 3+0.03: +32.7 ± 8.9 Elo (2,450 games)"); then
-  `Bench: <nodes>`. Engine changes and tooling or documentation changes go in
-  separate commits on a branch.
+- The squash message -- the PR title and description, which is all that
+  reaches `master` -- has a fixed shape: the title is short and imperative
+  and says what changed ("Rebuild king safety"), with no results and no
+  phase, plan or ledger references; the body is a few plain lines on what and
+  why, wrapped at 72 columns; then the test results, one per line ("STC
+  3+0.03: +32.7 ± 8.9 Elo (2,450 games)"); then `Bench: <nodes>`.
+- Commits on a branch are working records, kept under the PR: a concise
+  imperative subject that may name the plan leaf or phase ("Prepare B.0.1").
+  Engine changes and tooling or documentation changes go in separate commits.
 - No AI attribution anywhere: no `Co-Authored-By`, no "Generated with" line,
   in commits, PRs or files. Do not amend, push, open or merge a PR, or rewrite
   history unless the maintainer explicitly asks.
