@@ -556,6 +556,11 @@ small book collapsed 200,000 games into 31,880 unique positions.
 
 `master` is the trunk; nothing else lives long.
 
+**Transition (maintainer decision 2026-10-09).** The `dev` line already open
+is the one exception: work continues on it until B.2 is done, then it lands
+once as a final squash PR and is deleted, and every later piece of work
+follows the steps below from `master`.
+
 1. **One branch per coherent piece of work.** A feature or experiment, or
    one tooling or documentation change, gets its own short-lived branch from
    `master`. On it, commit in small verified steps: each commit is
