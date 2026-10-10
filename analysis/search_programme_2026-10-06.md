@@ -817,7 +817,9 @@ against 86,875); the A.8 head reports exactly B.1's on all 300 positions, so
 that change is also A.8's. Solved counts, depths and best moves are
 unchanged: WAC 204 / 242, branching 1.767, agreement 66/105, canaries
 77/77. A.8.20's expectation that A.8 left these instruments untouched held
-for every position but those two classes. NPS is BAS-P16.
+for every position but those two classes. NPS (BAS-P16): B.1 reads +1.21%
+against the A.8 head, so B.2's prediction P5 is read against B.1's 4.216M
+pooled median.
 
 ## 13. The four questions, answered for the programme
 

@@ -1003,7 +1003,7 @@ rejections stop B.
       nodes) at the same NPS within 1%. No falsifier fired, so P2 and the
       cluster order stand. Calibration: inside [+40, +180], 7.7 below
       centre.
-- [ ] **B.1** `[I1]` Search restructure, behaviour-neutral
+- [x] **B.1** `[I1]` Search restructure, behaviour-neutral
   `src/search.cpp` split into modules, node types as template parameters, a
   per-thread worker and stack separated from per-search configuration and
   engine-owned shared resources, inert parameters removed per A.2.3; exact
@@ -1035,9 +1035,11 @@ rejections stop B.
   cell; counters and the oracle differential (66/105, median depth 14
   against 18) identical except the mated root `Fool's mate`, which the B.0
   binaries searched once per iteration and A.8.8 reports without
-  searching; canaries 77/77. Open on the NPS gate, BAS-P16
-  (`tools/run_b1_nps_gate.ps1`), prepared and maintainer-run: the host was
-  busy with another engine's SPRT.
+  searching; canaries 77/77.
+  — CLOSED 2026-10-09: the NPS gate BAS-P16 (maintainer-run) reads B.1
+  **+1.21%** against the A.8 head, 95% CI [+0.57%, +1.44%], with the self
+  pair at −0.04%. It passes, and the gain is recorded unexplained. B.1's
+  pooled median, 4.216M NPS, is B.2's NPS reference.
 - [ ] **B.2** Cluster 1 — the selectivity core
   Cluster 1 — the selectivity core; final contents fixed by B.0.
   Expected contents:
@@ -1181,7 +1183,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.1 | LOCAL_QUALIFIED | I1 | Implemented and qualified at `bf44834`; BAS-P16 NPS gate prepared, maintainer-run |
 | B.2.0 | RESEARCH | R2 | Waits on B.1's head |
 | B.2.1 | READY_FOR_IMPLEMENTATION | I2 | Contract frozen in the B.0 packet §12.2; waits on B.1 and B.2.0 |
 | B.2.2 | RESEARCH | V | Screen numbers registered in the B.0 packet §10 |
