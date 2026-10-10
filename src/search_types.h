@@ -56,10 +56,10 @@ struct SearchLimits {
     int syzygy_probe_depth = 0; // 0 = disabled
     int syzygy_probe_limit = 0;
     bool syzygy_50_move_rule = true;
-    bool tm_debug = false;      // emit per-move time-accounting info string (Step 5.3)
-    bool diag = false;          // emit end-of-search diagnostic counters (8.6.6)
+    bool tm_debug = false;      // emit the per-move time-accounting info string
+    bool diag = false;          // emit end-of-search diagnostic counters
 #if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
-    bool decision_trace = false; // bounded plies 1-2 decision trace (A.5.3)
+    bool decision_trace = false; // the bounded plies 1-2 decision trace
 #endif
 #ifdef BASILISK_ABLATION
     int ablation_mask = 0;

@@ -43,12 +43,10 @@ int SearchThreadPool::ensure_threads(int count) {
     return resize_threads(count);
 }
 
-// The ONE definition of the Threads cap (declared in constants.h). Flat 1024,
-// as Stockfish does it — see constants.h for why the machine is not consulted.
-// What 9.3(a) actually repaired is that this existed TWICE, computed
-// independently in two files as `max(1024, 4*hw)` where `min` was meant, so
-// the advertisement and the pool's real limit could drift apart. That is the
-// part worth keeping; the value itself is a policy choice.
+// The one definition of the Threads cap (declared in constants.h): flat 1024,
+// as Stockfish does it; constants.h says why the machine is not consulted. It
+// is defined once because the option advertisement and the pool's real limit
+// once computed it independently and could drift apart.
 int max_search_threads() {
     return maxSearchThreads;
 }
@@ -142,13 +140,11 @@ SearchConfig SearchThreadPool::config_for_thread(const SearchLimits& limits,
     config.root_filter_count = 1;
     config.root_filter_index = -1;
 
-    // 9.4(b): helpers must not inherit the DEPTH limit. `limits` was copied
-    // wholesale, so under `go depth N` every helper stopped at N and then idled
-    // instead of continuing to widen the shared TT for the main thread. The
-    // main thread keeps the depth contract — it is the one whose result is
-    // reported — so the answer to `go depth N` is unchanged; only the helpers'
-    // idle time becomes useful work. Clock-limited games are unaffected (they
-    // carry no depth limit), and 1T never reaches this function.
+    // Helpers do not inherit the depth limit: under `go depth N` they would
+    // stop at N and idle instead of widening the shared table for the main
+    // thread, which keeps the depth contract because its result is the one
+    // reported. Clock-limited games carry no depth limit, and one thread never
+    // reaches this function.
     if (thread_id > 0)
         config.limits.depth = infiniteDepth;
 
@@ -203,10 +199,10 @@ SearchResult SearchThreadPool::search(Board board, const SearchLimits& limits, i
     root_table.reset(board, limits.root_moves, limits.syzygy_root_moves);
 
     std::vector<SearchResult> results(static_cast<size_t>(thread_count));
-    // 9.3(b): these were adjacent stack atomics, i.e. the same cache line, so
-    // every tbhit publish invalidated the node counter's line for every thread
-    // and vice versa. One cache line each. (Batching in record_node() is what
-    // makes the traffic rare; this makes what remains non-interfering.)
+    // One cache line each: as adjacent atomics every tablebase-hit publish
+    // invalidated the node counter's line for every thread and vice versa.
+    // Batching in record_node() makes the traffic rare; this makes what
+    // remains non-interfering.
     alignas(64) std::atomic<int64_t> shared_nodes{0};
     alignas(64) std::atomic<int64_t> shared_tbhits{0};
     const PoolResources resources{&shared_nodes, &shared_tbhits, &root_table};
@@ -243,10 +239,10 @@ SearchResult SearchThreadPool::search(Board board, const SearchLimits& limits, i
         requested_helpers_ = 0;
     }
 
-    // 9.3(c): the pool aggregate, printed after the join because that is the
-    // first moment the helpers' counters are complete. Thread 0 owns info_cb_,
-    // so it does the printing. Gated here as well as inside, so normal play
-    // does not build the depth vector on every multi-thread search.
+    // The pool aggregate, printed after the join because that is the first
+    // moment the helpers' counters are complete. Thread 0 owns info_cb_, so it
+    // does the printing. Gated here as well as inside, so normal play does not
+    // build the depth vector on every multi-thread search.
     if (limits.diag) {
         std::vector<int> completed_depths;
         completed_depths.reserve(static_cast<size_t>(thread_count));

@@ -64,9 +64,9 @@ void Searcher::compute_time_limit(const SearchLimits& limits, bool ponder, Color
         return;
     }
 
-    // Phase 5 Step 5.1: logarithmic-time-left, increment-and-ply-aware clock
-    // budget, ported from Rarog's Phase 2.2 rewrite (src/time_manager.rs) so both
-    // engines share the same proven formula and time-safety reserve.
+    // Logarithmic-time-left, increment- and ply-aware clock budget in
+    // Stockfish's shape, shared with Rarog so both engines carry the same
+    // proven formula and time-safety reserve.
     const double time     = std::max(0, (side == WHITE) ? limits.wtime : limits.btime);
     const double inc      = (side == WHITE) ? limits.winc : limits.binc;
     const double overhead = limits.overhead;
@@ -103,37 +103,21 @@ void Searcher::compute_time_limit(const SearchLimits& limits, bool ponder, Color
         std::min(0.8097 * time - overhead, max_scale * optimum_ms),
         optimum_ms);
 
-    // Step 5.8: overall SPSA-tunable budget multipliers (default ×1.00 -> no-op).
+    // Overall budget multipliers, tunable; the defaults are a no-op.
     optimum_ms *= limits.params.tm_opt_mult / 100.0;
     maximum_ms *= limits.params.tm_max_mult / 100.0;
 
-    // Time-safety reserve (Step 2.9.1, matched here to Rarog's 2.9.1 fix). The
-    // SF maximum above leaves only ~19% of the clock plus one move overhead
-    // unused; at low remaining time that slack is just a few ms. check_stop()
-    // polls every 2048 nodes, but the wall time the GUI actually charges also
-    // includes the latency before our clock starts (command-queue dispatch,
-    // Syzygy root probing, thread-pool setup) and the latency for bestmove to
-    // reach the GUI — none of which `overhead` alone covers. Reserve an
-    // absolute 2x move-overhead margin on top of the raw clock value; this
-    // only binds in a genuine low-time scramble and leaves normal allocation
-    // (the Elo from the SF-style formula above) untouched.
-    // 9.4(c): the reserve above assumes the clock poll lands promptly. It does
-    // at Threads=1, where our two poll sites fire every 2048 nodes — under a
-    // millisecond. Under multi-thread scheduler contention that same interval
-    // stretches to tens of milliseconds, and 2 x overhead is only ~20 ms at the
-    // default Move Overhead of 10, so the hard cap can be overrun by the
-    // difference. This is the exact configuration in which Rarog measured 10
-    // time forfeits in 240 games at Threads=4; their fix — an extra flat 30 ms
-    // once Threads > 1 — took it to 0 in 103. `timeBeginPeriod(1)` was measured
-    // NOT to be the fix, so this is not a timer-resolution problem.
-    //
-    // Checked against our own numbers rather than transcribed: 2 x 10 ms = 20 ms
-    // of reserve against a poll that can stretch to 50-100 ms leaves 30-80 ms of
-    // exposure; +30 ms covers the common case and cuts the tail. It binds only
-    // in a genuine low-time scramble.
-    //
-    // Threads=1 is BYTE-IDENTICAL: the term is gated on thread_count > 1, so no
-    // single-thread game's budget moves by a microsecond.
+    // Time-safety reserve. The maximum above leaves only about 19% of the
+    // clock plus one move overhead unused, a few milliseconds when time is
+    // short, while the wall time the GUI charges also includes the dispatch
+    // latency before our clock starts and the latency of bestmove reaching
+    // it. Two move overheads cover that at one thread, where the stop poll
+    // (every 2048 nodes) lands within a millisecond. Under multi-thread
+    // scheduler contention the poll stretches to tens of milliseconds and the
+    // hard cap can be overrun by the difference: Rarog measured 10 forfeits in
+    // 240 games at four threads, and a flat extra 30 ms took it to 0 in 103
+    // (a finer timer was measured not to be the fix). The reserve binds only
+    // in a low-time scramble; at one thread the budget is unchanged.
     const double smp_reserve  = (config_.thread_count > 1) ? 30.0 : 0.0;
     const double reserve      = 2.0 * overhead + smp_reserve;
     const double hard_ceiling = std::max(time - reserve, 1.0);
@@ -149,11 +133,11 @@ double Searcher::elapsed_seconds() const {
     return duration<double>(steady_clock::now() - state_.start_time).count();
 }
 
-// 9.3(b): publish the shared node count in batches instead of one atomic
-// fetch_add per node per thread on a single cache line. The batch is a power of
-// two so the test is a mask, and the node LIMIT is now granular to the batch —
-// accepted, documented, and what every engine that does this accepts.
-// Single-thread searches leave `shared_nodes` null and never enter this path.
+// The shared node count is published in batches instead of one atomic add
+// per node per thread on a single cache line. The batch is a power of two so
+// the test is a mask; the node limit's granularity across threads is the
+// batch, which every engine that batches accepts. A single-thread search has
+// no pool counter and never enters this path.
 static constexpr int64_t sharedNodeBatch = 1024;
 static_assert((sharedNodeBatch & (sharedNodeBatch - 1)) == 0,
               "sharedNodeBatch must be a power of two (the flush test is a mask)");
@@ -247,9 +231,9 @@ bool Searcher::check_stop() {
 
 // ---- UCI info ---------------------------------------------------------------
 
-// 9.3(c): the pool section. Printed by thread 0 AFTER the join (main's own
-// search — and its per-thread diag lines — finish before the helpers do), so
-// this appends rather than replacing anything. Emitted only at Threads>1.
+// The pool section, printed by thread 0 after the join (its own search and
+// per-thread lines finish before the helpers do), so it appends rather than
+// replacing anything. Emitted only at Threads > 1.
 void Searcher::print_pool_diag(const std::vector<std::unique_ptr<Searcher>>& pool,
                                int thread_count,
                                const std::vector<int>& completed_depths) const {
@@ -355,7 +339,7 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
     state_.nodes        = 0;
     state_.tb_hits      = 0;
     state_.nodes_limit  = limits.nodes;
-    state_.shared_nodes_flushed = 0;   // 9.3(b): per-search batching state
+    state_.shared_nodes_flushed = 0;
     state_.shared_nodes_total   = 0;
     state_.sel_depth    = 0;
     state_.stopped      = false;
@@ -369,13 +353,11 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
         shared_.info("info string trace error requires Diag=true Threads=1 and exactly one searchmoves root");
 #endif
 
-    // Step 5.4: start the clock at the `go`-receipt instant (captured in
-    // UciProtocol::cmdGo and threaded via SearchLimits.go_recv_time), not here at
-    // the worker's search entry. This makes elapsed_seconds() account for the
-    // command-dispatch + thread-handoff latency the GUI already charges (5.3
-    // measured up to ~20 ms at bullet under load) instead of giving it away,
-    // tightening the engine against the GUI clock. Falls back to now() for
-    // internal/bench calls where go_recv_time is unset (so bench is unaffected).
+    // The clock starts at the `go`-receipt instant the protocol captured, not
+    // at the worker's entry, so elapsed_seconds() counts the dispatch and
+    // thread-handoff latency the GUI already charges (measured up to about
+    // 20 ms at bullet under load). Internal callers leave go_recv_time unset
+    // and the clock starts now, so bench is unaffected.
     state_.start_time = (limits.go_recv_time.time_since_epoch().count() != 0)
                 ? limits.go_recv_time
                 : std::chrono::steady_clock::now();
@@ -394,7 +376,7 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
     int prev_score      = 0;
     Move prev_best      = MOVE_NONE;
     int  best_stability = 0;   // how many consecutive depths best move hasn't changed
-    double best_move_changes = 0.0;  // 8.5.12: decaying count of root best-move flips
+    double best_move_changes = 0.0;  // decaying count of root best-move flips
 
     int max_depth = limits.infinite ? MAX_SEARCH_DEPTH
                   : std::min(limits.depth, MAX_SEARCH_DEPTH);
@@ -429,14 +411,14 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
     }
 
     int start_depth = 1;
-    state_.diag.reset();         // fresh diagnostic counters per `go` (8.6.6)
+    state_.diag.reset();         // fresh diagnostic counters per `go`
     evaluator_.diag_lazy = config_.limits.diag;
     evaluator_.lazy_fires = evaluator_.lazy_sign_flips = 0;
     evaluator_.lazy_margin_crossings = 0;
     evaluator_.lazy_absdelta_sum = evaluator_.lazy_absdelta_max = 0;
-    // 8.7.1(c) speed telemetry: fresh per `go`. The Board counters are reset
-    // through state_.board because the Board arrived by value from a caller
-    // whose own counters may be stale.
+    // Speed telemetry, fresh per `go`. The Board counters are reset through
+    // state_.board because the Board arrived by value from a caller whose own
+    // counters may be stale.
     evaluator_.eval_calls = 0;
     evaluator_.pawn_probes = evaluator_.pawn_hits = 0;
 #ifdef BASILISK_TUNE
@@ -478,27 +460,23 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
             };
             DIAG_COUNT(++state_.diag.asp_windows);
             while (true) {
-                // 5.8.5 REFUTED: the reference re-searches SHALLOWER after each
-                // fail-high (failedHighCnt). Measured: WAC 137 -> 119 against a
-                // floor of 130, and re-searches ROSE 1305 -> 1450. A root
-                // failing high is often a tactical shot, and searching it
-                // shallower misses it. Full depth every time. (BAS-D17)
+                // Full depth on every re-search. Stockfish re-searches
+                // shallower after each fail high; here that read WAC 137 -> 119
+                // against a floor of 130 and raised re-searches 1305 -> 1450,
+                // because a root failing high is often a tactical shot that a
+                // shallower search misses (BAS-D17).
                 score = root_search(depth, asp_a, asp_b);
                 if (state_.stopped) break;
                 if (score <= asp_a) {
                     bound_line(score, false);
                     DIAG_COUNT(++state_.diag.asp_fail_low);
                     DIAG_COUNT(++state_.diag.asp_researches);
-                    // 5.8.3 REFUTED: the reference also pulls beta to the
-                    // window midpoint here, reasoning that a fail-low proves the
-                    // standing beta far too generous. Measured, it makes things
-                    // WORSE in the way that matters: re-searches ROSE 1305 ->
-                    // 1342, because a tighter window simply fails again, and the
-                    // depth split was 18 better / 19 worse -- no direction.
-                    // 5.8.4 REFUTED with it: the reference's slower delta growth
-                    // (delta/4 + 5 against our delta/2) measured -0.243 ply,
-                    // 20 better / 33 worse. Ours escalates faster and that is
-                    // the better trade here. (BAS-D16)
+                    // Only alpha moves, and delta grows by half. Pulling beta
+                    // to the window's midpoint on a fail low, as Stockfish does,
+                    // raised re-searches 1305 -> 1342 here because the tighter
+                    // window fails again (18 positions deeper, 19 shallower);
+                    // its slower growth, delta/4 + 5, measured -0.243 ply
+                    // (BAS-D16).
                     asp_a  = std::max(score - delta, -INF_SCORE);
                     delta += delta / 2;
                 } else if (score >= asp_b) {
@@ -552,9 +530,9 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
 
         int prev_score_saved = prev_score;
         prev_score = score;
-        // 8.5.12: decaying best-move-change signal (SF's totBestMoveChanges).
-        // Decays each iteration; a flip adds 1. Used to EXTEND time when the root
-        // best move is thrashing -- complementary to stability_scale, which only
+        // Decaying best-move-change signal (Stockfish's totBestMoveChanges):
+        // halved each iteration, a flip adds one. It extends time when the root
+        // best move is thrashing, complementing stability_scale, which only
         // shrinks time when the move is stable.
         best_move_changes *= 0.5;
         if (cur_best == prev_best)
@@ -577,12 +555,10 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
         result.depth = depth;
         result.seldepth = state_.sel_depth;
 
-        // 5.8.6: the table is given the RAW `score`, not the tablebase-
-        // corrected `reported_score` that goes out over UCI. That is deliberate
-        // and not a bug: the table's scores exist to ORDER root moves for the
-        // next iteration and for helper threads, and a TB-corrected value is a
-        // fixed mate/draw verdict that carries no ordering information. Stating
-        // it here because the asymmetry two lines apart reads as an oversight.
+        // The table is given the raw `score`, not the tablebase-corrected
+        // `reported_score` that goes out over UCI: its scores order root moves
+        // for the next iteration and the helper threads, and a tablebase
+        // verdict carries no ordering information. The asymmetry is deliberate.
         if (shared_.pool.root_table && result.bestmove != MOVE_NONE)
             shared_.pool.root_table->update(result.bestmove, result.pondermove, depth, score);
 
@@ -640,13 +616,9 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
         // The more stable the best move, the less time we need to confirm it.
         // stability=0 → 100% of soft, stability=6+ → ~64% of soft
         // A significant score drop signals instability — extend time budget.
-        // 9.4(a): ONLY the main thread owns a clock. Helpers run until `shared_.stop`,
-        // which the pool sets when main returns. Keep this gate outside the
-        // whole time-management calculation so the restored 9.4 baseline is
-        // source- and code-shape-identical in this path.
+        // Only the main thread owns a clock. Helpers run until `shared_.stop`,
+        // which the pool sets when main returns.
         if (state_.soft_limit > 0.0 && !state_.pondering && config_.thread_id == 0) {
-            // Step 5.8: the scaling constants below are SPSA-tunable
-            // (config_.limits.params, defaults == the baked values).
             const SearchParams& tp = config_.limits.params;
             double stability_scale = 1.0 - (tp.tm_stability / 1000.0) * std::min(best_stability, 6);
             // Score-based time extension: if score dropped enough, take more time
@@ -658,8 +630,8 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
             double effort_scale = (depth > 5 && state_.root_best_effort >= tp.tm_effort_hi) ? tp.tm_effort_hi_mult / 100.0
                                 : (depth > 5 && state_.root_best_effort <= tp.tm_effort_lo) ? tp.tm_effort_lo_mult / 100.0
                                 : 1.0;
-            // 8.5.12: instability extension — a thrashing root best move raises
-            // the threshold (buys more time), complementing stability_scale.
+            // Instability extension: a thrashing root best move raises the
+            // threshold and buys more time, complementing stability_scale.
             double instability_scale = 1.0 + std::min(best_move_changes, 2.0) * (tp.tm_instability / 100.0);
             if (elapsed >= state_.soft_limit * stability_scale * score_scale
                          * effort_scale * instability_scale)
@@ -679,11 +651,11 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
     }
 
     result = sanitize_search_result(board, result);
-    // 9.3(b): publish whatever this thread accumulated since the last batch
-    // boundary, so the shared total is exact once the pool joins.
+    // Publish whatever this thread accumulated since the last batch boundary,
+    // so the shared total is exact once the pool joins.
     flush_shared_nodes();
-    // 8.7.1(c): harvest the Board-side speed counters BEFORE state_.board is
-    // dropped — print_search_diag() runs after this point.
+    // Harvest the Board-side speed counters before state_.board is dropped;
+    // print_search_diag() runs after this point.
     state_.diag.see_ge_calls      = board.see_ge_call_count();
     state_.diag.gives_check_calls = board.gives_check_call_count();
     state_.board = nullptr;
@@ -695,11 +667,6 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
     result.tbhits     = state_.tb_hits;
     result.elapsed_ms = int64_t(elapsed_seconds() * 1000.0);
 
-    // Step 5.3 diagnostic: one line per move with the time budget, the actual
-    // elapsed, and the go-receipt -> search-start dispatch latency the GUI
-    // charges but elapsed_seconds() (clock starts at state_.start_time) does not yet
-    // count. Emitted only on the reporting thread (shared_.info set) and only with
-    // the hidden TM_Debug option on, so play/bench are unaffected when off.
     if (shared_.info && config_.limits.diag)
         print_search_diag(state_.diag, evaluator_, shared_.info);
 #if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
@@ -707,6 +674,9 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
         state_.trace.print(shared_.info, config_.limits.root_moves);
 #endif
 
+    // TM_Debug: one line per move with the time budget, the elapsed time and
+    // the go-receipt to search-start dispatch latency, on the reporting
+    // thread only.
     if (shared_.info && config_.limits.tm_debug) {
         long long dispatch_ms = -1;
         if (config_.limits.go_recv_time.time_since_epoch().count() != 0)
