@@ -841,7 +841,12 @@ void test_won_ending_does_not_sink_the_clock() {
     const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
     std::fprintf(stderr, "  rec1 at 30000+300 took %.2f s\n", seconds);
     EXPECT(seconds < 8.0);
-    EXPECT(contains_line_fragment(session.output(), "bestmove f7d7"));
+    // The move must keep the win: of the 28 legal moves only f7f8 and f5h3
+    // throw it away (6-man Syzygy WDL; f7d7 and e5e6 are both wins). Which
+    // winning move a search prefers is not this test's contract.
+    EXPECT(contains_line_fragment(session.output(), "bestmove "));
+    EXPECT(!contains_line_fragment(session.output(), "bestmove f7f8"));
+    EXPECT(!contains_line_fragment(session.output(), "bestmove f5h3"));
 #else
     EXPECT(true);   // unoptimised builds are too slow for a clock test
 #endif
