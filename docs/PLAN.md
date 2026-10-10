@@ -1122,6 +1122,15 @@ rejections stop B.
       donor's quiet-move semantics (option a); decisions 2–13 confirmed except
       razoring above depth 1, now linear `margin·d`; P5's sources re-registered.
       Implementation resumes at ticket 3.
+      Ticket 3's first commit landed 2026-10-10 (`ea5c49f`, `60a610e`):
+      `see_ge` evaluates quiet moves, tested against the legality oracle;
+      neither arm's fingerprint moved.
+      — RETURNED 2026-10-10 (Return 2, packet §18): the rest of ticket 3 (the
+      core tables, the picker, the update routing; held as a patch) fails
+      the ON arm's WAC floor, 119/300 at depth 6 against 130. The picker's
+      SEE-gated check bonus costs 13 of the 19 positions under the legacy
+      pruning and LMR still in place. Research amendment 2 decides; the
+      implementation recommends a categorical switch for the gate.
     - [ ] **B.2.2** `[V]` Diagnostics and the unfitted paired run
       Screens at B.0's registered numbers; the ablation sweep if a floor
       fails; the unfitted 2,000-game paired run against the accepted head,
@@ -1221,7 +1230,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.2.1 | READY_FOR_IMPLEMENTATION | I2 | Amendment 1 (packet §17): `see_ge` quiet-move semantics, option (a); tickets 0–2 landed, resume at ticket 3 |
+| B.2.1 | RESEARCH | I2 | Return 2 (packet §18): research amendment 2 (`R3`) on the picker's check gate against the ON arm's WAC floor; ticket 3's `see_ge` commit landed, the rest held as a patch |
 | B.2.2 | RESEARCH | V | Screen numbers registered in the B.0 packet §10 |
 | B.2.3 | RESEARCH | V | Curvature sweep after B.2.2 |
 | B.2.4 | RESEARCH | V | Gates after B.2.3 |

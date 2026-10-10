@@ -1185,3 +1185,129 @@ Ticket 3 opens with one board commit on both arms: the `see_ge` change of
 Ticket 5 implements razoring above depth 1 as 17.2 item 6. Ticket 6
 implements the quiet branch at non-PV nodes and the capture/check branch's
 SEE test on quiet checks. §12.2's ticket order is otherwise unchanged.
+
+## 18. B.2.1 Return 2 (2026-10-10): ticket 3's `see_ge` commit landed; the picker fails the ON arm's WAC floor; leaf returned to `RESEARCH`
+
+- State / class: B.2.1 (`I2`) stopped after ticket 3's first commit and
+  returned to `RESEARCH`. Research amendment 2 decides before the rest of
+  ticket 3 lands. No game, NPS or time-to-depth measurement was run.
+- Head: `60a610e` on `dev`, from `ae28411`.
+
+### 18.1 What landed: the quiet-move `see_ge` (17.1, 17.5)
+
+- `ea5c49f` (engine): castling-only early return; a quiet move goes through
+  the exchange loop with the mover first at risk. The 17.1 fast path is
+  taken: when no piece of the other side attacks `to`, return true before
+  `see_pins`.
+- `60a610e` (tests): every legal quiet on the SEE FEN list (97 quiets) and on
+  a fixed-seed random-walk corpus (400 walks, 10,872 quiets) is checked:
+  - the `see_ge` boundary against `oracle_see`;
+  - `see_ge(m, −value(mover))` is true and `see_ge(m, 1)` is false.
+
+  Corpus divergences are pinned by geometry, with no unexplained case
+  allowed: 22 promotion recaptures, 8 discovered checks, 11 exchanges in
+  which legality removes an attacker.
+
+Neither arm's fingerprint moved, as 17.5 predicts. The off arm's `bench 13`
+is 14,978,465 on release PEXT and plain, Tune, Diag and Ablate, with
+sanitizer `bench 10` 3,190,673. The ON arm's is 13,488,940, with sanitizer
+3,445,675. CTest passes on both arms: release 20/20, sanitizer 18/18.
+
+Probe re-run (`tools/results/b21-20261010/see_quiet_probe_v2.cpp` and `.txt`,
+SHA-256 `4d90f00e…2ead` and `6fba27b9…827f`):
+- `see_ge(−75)` is false for exactly 1,633 of the 2,351 quiet checks, matching
+  `see() < −75`.
+- `see_ge` agrees with `see() ≥ t` at every threshold from 0 to −160. It
+  disagrees on 1,575 quiets at −250 and 156 at −360, almost all of them
+  `see()`'s deliberate truncation.
+
+A classifier over 4,000 walks (`see_classify.cpp` and `.txt`, SHA-256
+`88dbd16a…806d` and `b501819e…ddbade`) compares the `see_ge` boundary with the
+legality oracle for every legal move. Quiet moves diverge on 482 of 119,732
+(0.40%): 308 promotion recaptures, 45 discovered checks, 129
+legality-filtered exchanges, 0 unexplained. Captures, whose verdicts are
+unchanged, diverge on 41 of 21,971 (0.19%) in the same three geometries.
+
+One point for review. BAS-C09 names created pins and promotion recaptures.
+Discovered checks are a third geometry of the same kind (the kernel computes
+pins once and does not model check). They already occur for captures at the
+head, so quiet calls reach the existing approximation rather than add a new
+one. The implementation read 17.1's falsifier ("outside the BAS-C09
+geometries") as met in intent; the amendment should confirm that reading.
+
+### 18.2 The conflict: ticket 3's picker against the ON arm's WAC floor
+
+The rest of ticket 3 was built and is held as a patch, not committed:
+`tools/results/b21-20261010/ticket3-wip/`, base `60a610e`, SHA-256
+`f533f42f…25eb` for the tracked diff and `6d64c059…12db` for the new files;
+restoring it was verified byte for byte. It contains:
+- the core table types (`history_core.h/.cpp`): the donor's bounds and
+  gravity, `clear()` to zero, legacy halving in the interim;
+- the staged picker (`move_picker_core.h/.cpp`) of review §5.7 with the
+  threat and SEE-gated check terms;
+- the continuation row on the stack and in the move seam;
+- the quiet- and continuation-update routing with the legacy shapes
+  (decision 9);
+- killers and countermove removed;
+- `CorePawnHistBucketsLog2`;
+- `test_history_core` (97/97) and `test_move_picker_core` (5/5). The picker
+  test is proven live: a planted defect, bad quiets delivered after
+  `skip_quiets()`, fails 4 of its 5 checks.
+
+The ON arm with it reads `bench 13` = 12,815,895 (PEXT and plain) and
+sanitizer `bench 10` = 3,063,719. Sanitizer CTest passes 20/20. Release CTest
+fails 1 of 22: `test_wac_floor` solves **119/300 at depth 6, against a floor
+of 130**. The off arm, and the ON arm at ticket 2, both solve 138.
+
+Attribution: one change each to the held ticket-3 tree, ON arm, WAC at depth
+6 (`test_wac --floor`):
+
+| ON-arm tree | Solved | `bench 13` |
+|---|---:|---:|
+| Ticket 2 (`60a610e`) | 138 | 13,488,940 |
+| Ticket 3 as contracted | **119** | 12,815,895 |
+| … check bonus without the SEE gate (`16384·check`) | **132** | 13,425,573 |
+| … legacy history pruning off | 119 | 12,517,289 |
+| … legacy LMR history term off | 114 | 14,114,802 |
+| … legacy MVV capture ordering | 121 | 13,251,220 |
+
+The SEE gate on the picker's check bonus, which Amendment 1 made live, costs
+13 of the 19 positions. A sacrificial quiet check now ranks by history
+alone; the legacy picker boosted every quiet check (+32,000, above every
+graded history). The remaining 6 come from the rest of the ticket: killers
+and countermove gone, the new quiet formula and routing. Legacy history
+pruning, which the new scales could have woken, changes no position. The
+gate is the donor's term and is what §3.6 and 17.1 contract. The picker runs
+here against the legacy kernel's pruning and LMR (tickets 5–7 not landed),
+whose checks are never reduced or pruned, so this hybrid is not the
+population the donor's term was fitted in.
+
+Stopped: B.2.1 requires CTest, the WAC and endgame floors included, to pass
+on both arms at every ticket. Implementation may not relax a floor or
+rescue the picker by changing a neighbouring term.
+
+### 18.3 Options
+
+- (a) A categorical switch, `CoreCheckBonusSeeGate` (0/1), with the
+  per-ticket floors read at the ungated form (132/300) and B.2.2's paired run
+  deciding the default, as it settles the other switches. The quiet and
+  check-branch SEE pruning of ticket 6 keep the gated `see_ge` either way.
+- (b) Qualify the ON arm's strength floors at the coherent cluster rather
+  than per ticket: tickets 3–7 together (picker, node pruning, move-loop
+  pruning, LMR), the per-ticket gate being the off arm's fingerprint and the
+  correctness tests. This amends §12.2's per-ticket clause for the WAC floor
+  only; the mate-drive floors keep binding every ticket.
+- (c) Keep the gate and land ticket 3 failing the WAC floor on the ON arm.
+  This is not open to implementation: it relaxes a test.
+
+Recommendation: (a). It keeps the per-ticket discipline, costs one switch
+that B.2.2's categorical machinery already handles, and leaves both forms
+measurable on one binary. The counter-arguments:
+- a fixed-depth-6 WAC count is not Elo (B.0.1's 32 WAC positions read
+  +2.4 ± 9.9);
+- the ungated default departs from the donor until B.2.2 decides;
+- 132 clears the floor by only 2, so the later tickets' drift could still
+  cross it, which would bring (b) back.
+
+Resume: on research amendment 2, at ticket 3's remainder (the held patch),
+on the amended contract.
