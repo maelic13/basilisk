@@ -17,7 +17,9 @@ void DecisionTrace::start(bool enabled) {
 void DecisionTrace::record(TraceEvent event, int ply, int depth, Move move,
                            int alpha, int beta, int estimated_score,
                            int improving, int correction, int history,
-                           int move_count, int reduction, int margin, int result) {
+                           int move_count, int reduction, int margin, int result,
+                           int cutoff_count, int lmr_depth, int skip_quiets,
+                           TraceFamily family) {
     if (!enabled_ || ply < 1 || ply > 2)
         return;
     if (count_ >= CAPACITY) {
@@ -38,9 +40,12 @@ void DecisionTrace::record(TraceEvent event, int ply, int depth, Move move,
     r.history = history;
     r.move_count = move_count;
     r.reduction = reduction;
-    r.cutoff_count = -1;
+    r.cutoff_count = cutoff_count;
     r.margin = margin;
     r.result = result;
+    r.lmr_depth = lmr_depth;
+    r.skip_quiets = skip_quiets;
+    r.family = family;
     ++count_;
 }
 
@@ -75,13 +80,29 @@ void DecisionTrace::print(const InfoCallback& info, const std::vector<Move>& roo
             case TraceEvent::QsSeePrune:           return "qs_see_prune";
             case TraceEvent::QsLatePrune:          return "qs_late_prune";
             case TraceEvent::QsBetaCutoff:         return "qs_beta_cutoff";
+            case TraceEvent::SkipQuiets:           return "skip_quiets";
+        }
+        return "unknown";
+    };
+    auto family_name = [](TraceFamily family) {
+        switch (family) {
+            case TraceFamily::None:            return "none";
+            case TraceFamily::Razor:           return "razor";
+            case TraceFamily::Rfp:             return "rfp";
+            case TraceFamily::SkipQuiets:      return "skip_quiets";
+            case TraceFamily::ContHist:        return "cont_hist";
+            case TraceFamily::QuietFutility:   return "quiet_futility";
+            case TraceFamily::QuietSee:        return "quiet_see";
+            case TraceFamily::CaptureFutility: return "capture_futility";
+            case TraceFamily::CaptureSee:      return "capture_see";
         }
         return "unknown";
     };
 
-    info("info string trace begin version=1 plies=1-2 root="
+    info("info string trace begin version=2 plies=1-2 root="
              + move_to_uci(root_moves.front())
-             + " cutoff_count=unavailable value_none=" + std::to_string(VALUE_NONE)
+             + " cutoff_count=" + (kTraceCutoffCountAvailable ? "available" : "unavailable")
+             + " value_none=" + std::to_string(VALUE_NONE)
              + " bool_unknown=-1 capacity=" + std::to_string(CAPACITY));
     for (size_t i = 0; i < count_; ++i) {
         const TraceRecord& r = (*records_)[i];
@@ -102,7 +123,10 @@ void DecisionTrace::print(const InfoCallback& info, const std::vector<Move>& roo
                + " window_alpha=" + std::to_string(r.alpha)
                + " window_beta=" + std::to_string(r.beta)
                + " margin=" + std::to_string(r.margin)
-               + " result=" + std::to_string(r.result));
+               + " result=" + std::to_string(r.result)
+               + " lmr_depth=" + std::to_string(r.lmr_depth)
+               + " skip_quiets=" + std::to_string(r.skip_quiets)
+               + " family=" + family_name(r.family));
     }
     info("info string trace end status="
              + std::string(overflow_ ? "overflow" : "ok")
@@ -165,6 +189,15 @@ void print_search_diag(const DiagCounters& d, const Evaluator& evaluator,
         d.lmr_blocked_depth, d.lmr_blocked_searched,
         d.lmr_blocked_in_check, d.lmr_blocked_movetype,
         d.lmr_blocked_gives_check);
+    emit(buf);
+    buf = std::format("moveloop tested {} conthist {} capfut {} quietsee {} capsee {} quietfut {} "
+        "| skip_quiets nodes {} | lmr floor {} extended {} deeper {} shallower {} "
+        "| hindsight up {} down {}",
+        d.moveloop_tested, d.cont_hist_pruned, d.capture_futility_pruned,
+        d.quiet_see_pruned, d.capture_see_pruned, d.fut_prunes,
+        d.skip_quiets_nodes, d.lmr_floor_hits, d.lmr_extended,
+        d.lmr_research_deeper, d.lmr_research_shallower,
+        d.hindsight_up, d.hindsight_down);
     emit(buf);
     // Machine-readable mirror. The lines above are shaped for a human reading
     // one search; the harness aggregates over a 107-position suite and must not
@@ -229,6 +262,27 @@ void print_search_diag(const DiagCounters& d, const Evaluator& evaluator,
             d.sing_fired, d.sing_double,
             d.sing_in_check, d.sing_triple,
             d.sing_ttbeta);
+        emit(buf);
+        // The selectivity core's counters (zero under the legacy kernel).
+        buf = std::format("kv rfp_cuts_d1_3={} rfp_cuts_d4_7={} rfp_cuts_d8p={} "
+            "razor_cuts_d1_3={} razor_cuts_d4_7={} razor_cuts_d8p={} "
+            "hindsight_up={} hindsight_down={} skip_quiets_nodes={} "
+            "corr_cont2_updates={} corr_cont4_updates={} "
+            "tt_cutoff_quiet_bonus={} tt_cutoff_graph_refused={}",
+            d.rfp_cuts_d1_3, d.rfp_cuts_d4_7, d.rfp_cuts_d8p,
+            d.razor_cuts_d1_3, d.razor_cuts_d4_7, d.razor_cuts_d8p,
+            d.hindsight_up, d.hindsight_down, d.skip_quiets_nodes,
+            d.corr_cont2_updates, d.corr_cont4_updates,
+            d.tt_cutoff_quiet_bonus, d.tt_cutoff_graph_refused);
+        emit(buf);
+        buf = std::format("kv lmr_floor_hits={} lmr_extended={} "
+            "lmr_research_deeper={} lmr_research_shallower={} "
+            "moveloop_tested={} cont_hist_pruned={} capture_futility_pruned={} "
+            "quiet_see_pruned={} capture_see_pruned={}",
+            d.lmr_floor_hits, d.lmr_extended,
+            d.lmr_research_deeper, d.lmr_research_shallower,
+            d.moveloop_tested, d.cont_hist_pruned, d.capture_futility_pruned,
+            d.quiet_see_pruned, d.capture_see_pruned);
         emit(buf);
     }
     // Speed telemetry: the evaluation rate, the pawn-cache hit rate, the

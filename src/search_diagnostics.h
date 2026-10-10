@@ -80,7 +80,32 @@ using InfoCallback = std::function<void(const std::string&)>;
     X(hist_below_quarter) X(hist_below_eighth)                               \
     X(lmr_blocked_depth) X(lmr_blocked_searched)                             \
     X(lmr_blocked_in_check) X(lmr_blocked_movetype)                          \
-    X(lmr_blocked_gives_check)
+    X(lmr_blocked_gives_check)                                               \
+    /* The selectivity core's mechanisms; the legacy kernel leaves them 0.  \
+       Node pruning by remaining depth: each bucket set sums to rfp_cuts or  \
+       razor_cuts. */                                                        \
+    X(rfp_cuts_d1_3) X(rfp_cuts_d4_7) X(rfp_cuts_d8p)                        \
+    X(razor_cuts_d1_3) X(razor_cuts_d4_7) X(razor_cuts_d8p)                  \
+    /* LMR: the reduced depth clamped up to one ply, a negative reduction    \
+       taken as an extension, and the full-depth re-search after a reduced   \
+       fail high moved one ply deeper or shallower. Denominator: lmr_eligible \
+       for the first two, lmr_researched for the last two. */                \
+    X(lmr_floor_hits) X(lmr_extended)                                        \
+    X(lmr_research_deeper) X(lmr_research_shallower)                         \
+    /* Hindsight depth adjustment at node entry. Denominator: interior_nodes. */ \
+    X(hindsight_up) X(hindsight_down)                                        \
+    /* Nodes whose quiet delivery the move-count rule ended. */              \
+    X(skip_quiets_nodes)                                                     \
+    /* Continuation-correction updates at plies 2 and 4. */                  \
+    X(corr_cont2_updates) X(corr_cont4_updates)                              \
+    /* TT cutoffs: the quiet TT-move bonus, and cutoffs the graph-history    \
+       check refused. Denominator: tt_hits. */                               \
+    X(tt_cutoff_quiet_bonus) X(tt_cutoff_graph_refused)                      \
+    /* The move-loop family, split: moves tested, and those pruned by        \
+       continuation history, capture futility and SEE on either branch.      \
+       Quiet futility counts in fut_prunes. */                               \
+    X(cont_hist_pruned) X(capture_futility_pruned)                           \
+    X(quiet_see_pruned) X(capture_see_pruned) X(moveloop_tested)
 
 struct DiagCounters {
 #define BASILISK_DIAG_COUNTER_FIELD(name) int64_t name = 0;
@@ -103,7 +128,7 @@ struct DiagCounters {
 // aggregate and the field count stay in step with the table.
 static_assert(sizeof(DiagCounters) == DiagCounters::COUNT * sizeof(int64_t),
               "DiagCounters holds something that is not a counter from the table");
-static_assert(DiagCounters::COUNT == 57, "the counter contract has 57 entries; extend, never rename");
+static_assert(DiagCounters::COUNT == 79, "the counter contract has 79 entries; extend, never rename");
 
 // One search's counters as `info string diag` lines, followed by the
 // evaluator's speed telemetry.
@@ -124,8 +149,17 @@ enum class TraceEvent : uint8_t {
     SingularExtension, SingularMulticut, SingularNegative,
     LmrReduction, LmrResearch, BetaCutoff,
     QsTtCutoff, QsStandPatCutoff, QsDeltaPrune,
-    QsFutilityPrune, QsSeePrune, QsLatePrune, QsBetaCutoff
+    QsFutilityPrune, QsSeePrune, QsLatePrune, QsBetaCutoff,
+    SkipQuiets
 };
+// The pruning family a record belongs to, so the move-loop family's members
+// can be told apart where one event name covers several rules.
+enum class TraceFamily : uint8_t {
+    None, Razor, Rfp, SkipQuiets, ContHist, QuietFutility, QuietSee,
+    CaptureFutility, CaptureSee
+};
+// Whether this kernel produces cutoff_count; the trace header states it.
+inline constexpr bool kTraceCutoffCountAvailable = false;
 struct TraceRecord {
     TraceEvent event{};
     Move move = MOVE_NONE;
@@ -140,9 +174,12 @@ struct TraceRecord {
     int history = VALUE_NONE;
     int move_count = 0;
     int reduction = 0;
-    int cutoff_count = -1; // no producer exists in the legacy kernel
+    int cutoff_count = -1; // -1 where the kernel has no producer
     int margin = VALUE_NONE;
     int result = VALUE_NONE;
+    int lmr_depth = VALUE_NONE;  // the reduced depth move-loop pruning read
+    int skip_quiets = -1;        // 0/1 once the move-count rule was evaluated
+    TraceFamily family = TraceFamily::None;
 };
 
 // Decision records at plies 1-2 of a single-root search, bounded so a trace
@@ -157,7 +194,9 @@ public:
     void record(TraceEvent event, int ply, int depth, Move move,
                 int alpha, int beta, int estimated_score,
                 int improving, int correction, int history,
-                int move_count, int reduction, int margin, int result);
+                int move_count, int reduction, int margin, int result,
+                int cutoff_count = -1, int lmr_depth = VALUE_NONE,
+                int skip_quiets = -1, TraceFamily family = TraceFamily::None);
     // Prints the records; `root_moves` holds the one searched root move.
     void print(const InfoCallback& info, const std::vector<Move>& root_moves) const;
 
