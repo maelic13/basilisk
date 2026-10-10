@@ -771,6 +771,8 @@ B.0.1 and B.0.2 use existing binaries and neither waits on B.1.
   outside §7.3 moved by hand after B.2.2's screen without a recorded reason.
 - Register B.2.2–B.2.4 in `EXPERIMENTS.md` with P1–P6 copied verbatim before
   the first game.
+- Amended by §17 (Amendment 1, 2026-10-10): ticket 3 opens with the `see_ge`
+  quiet-move commit; razoring above depth 1 is linear; P5 re-registered.
 
 ### 12.3 B.3 — handoff frozen, contingent on the accepted B.2 head (`I2`)
 
@@ -1001,3 +1003,185 @@ already budgets 0.92–0.98× for the threat producer and the larger tables.
 
 Resume: on research amendment 1, at ticket 3 (histories and the picker), on
 the amended contract.
+
+## 17. B.2.1 Amendment 1 (2026-10-10): `see_ge` takes the donor's quiet-move semantics; decisions 2–13 confirmed, 6 amended, P5 re-registered
+
+Answers §16. Research (`R3`) at head `3ee6128`; implementation resumes at
+ticket 3 on this contract. Every call-site claim below was re-read at that
+head.
+
+### 17.1 Decision 1: option (a)
+
+**Decision.** `Board::see_ge(m, t)` evaluates a quiet move as the donor's
+does: the moved piece is the first piece at risk on `to`, through the
+existing exact, pin-aware exchange loop. Castling alone keeps `0 ≥ t` (the
+donor answers that for every non-`NORMAL` move; a legal castling
+destination is unattacked and the king never enters an exchange). Captures,
+en passant and promotions are untouched: their verdicts at every threshold,
+the BAS-C09 fixtures and `see()` stay byte-identical.
+
+Mechanically it is the one early return. `if (!is_capture && mt !=
+PROMOTION) return swap >= threshold;` becomes a castling-only return, and
+what follows already is the donor's quiet semantics: `swap = 0 − t` is
+negative when `t > 0` (a quiet move never gains), `swap = value(mover) −
+swap` is non-positive when `t ≤ −value(mover)` (a quiet move never loses
+more than the mover), and the loop then runs with the opponent to move
+first on an occupancy without the mover, so a slider behind the mover's
+origin sees through it.
+
+The four questions:
+
+1. Mechanism. The check gate and the SEE tests need to know whether the
+   moved piece hangs, and a quiet SEE measures exactly that: the net of the
+   best capture sequence the opponent can start on the destination,
+   declining allowed, so always ≤ 0. Without it three ON-arm consumers are
+   inert, not the two §16.2 names: the picker's `16384·(check && SEE ≥
+   −75)`, the quiet branch's `−CoreQuietSeeCoeff·lmrDepth²`, and the
+   capture/check branch's `−74·d − captHist/80` (§3.7), which the donor
+   applies to quiet checking moves as well. One primitive repairs all three.
+2. Interactions. The off arm is untouched by construction: its `see_ge`
+   callers are quiescence and ProbCut over `gen_legal_captures`, the
+   capture SEE pruning under `is_cap`, the picker's bad-capture split under
+   `is_cap`, and the memoised `see_score` under `is_cap && !is_promo`
+   (`src/search_kernel.cpp`, `src/move_picker.h`). The ON arm's consumers
+   are the three above, none of which exists before ticket 3, so the
+   `see_ge` commit itself changes no fingerprint on either arm. The BAS-C09
+   approximations (a pin created mid-exchange; a recapturing pawn that
+   promotes) become reachable from quiet calls with the same geometry;
+   their retry trigger is re-read once in B.2.2 (17.4).
+3. Invariants. `see_ge(m, t)` is monotone non-increasing in `t`; for a
+   quiet it is true at every `t ≤ −PIECE_VALUE[mover]` and false at every
+   `t > 0`; a capture or promotion verdict equals the head's at every
+   threshold; `see()` is unchanged; the king never enters the exchange as
+   the mover, because only legal moves reach SEE (generation is legal and
+   the picker validates the TT move); the off arm's `bench 13` stays
+   14,978,465.
+4. Falsifier. The oracle test and the probe re-run of 17.5: a quiet whose
+   `see_ge` boundary differs from `oracle_see` outside the BAS-C09
+   geometries, or an off-arm fingerprint that moves, refutes the commit.
+
+(b) is rejected because `see()` truncates by design and the kernel would
+carry two SEE semantics for one question; (c) because P3's family
+population is the donor's with these gates in it.
+
+**Cost, priced.** Quiet SEE calls arise on the ON arm at the picker, for
+checking quiets only (the `&&` short-circuits: 2,351 of 120,534 quiets,
+2.0%, in the probe corpus), and in the move loop for quiets that reach the
+SEE test at non-PV nodes after the count skip, continuation-history and
+futility pruning. Implementation may add a behaviour-identical fast path:
+after the two early exits and before `see_pins`, `if (!(attackers_to(to,
+occ) & occ & occupancy[~side_to_move])) return true;`. The pin filter only
+removes attackers, so the loop would break at its first iteration with
+`result = 1`; the path applies to captures too, and the off arm's
+fingerprint is the proof it is identical. A quiet move to an unattacked
+square then costs one `attackers_to`. Do not pre-gate with the threat
+producer's `all` bitboard: it is computed on the pre-move occupancy and
+misses a slider attack opened along the mover's own line. P5 is amended in
+17.4.
+
+### 17.2 Decisions 2–8 (§16.4)
+
+2. Confirmed: `131·depth`, uncapped, `CoreTtCutoffBonusSlope` 131 in 0–300.
+   The two donor forms differ only from depth 6 (786 against 695); a cap
+   would be a coordinate B.2.3 does not need.
+3. Confirmed: §7.3's RFP form with no `ttHit` term. The review's stack row
+   maps a donor read, not a contract clause. The term is a donor-fitted
+   offset (−20 on a 45–85 multiplier) whose absence P6's `rfp_cuts` will
+   show; if `rfp_cuts` miss P6 it is the first candidate coordinate for
+   B.2.3 (`CoreRfpNoTtHit`, eval per ply, seed 0).
+4. Confirmed: the quiet branch (continuation-history, futility, SEE) at
+   non-PV nodes only. The donor's population is a superset (PV nodes off
+   the previous iteration's PV); the stack carries no per-ply previous PV,
+   and the legacy quiet pruning is non-PV already, so this is the legacy
+   population with the donor's tests. A `followPV` bit on the stack is a
+   B.3 candidate; no switch now.
+5. Confirmed: hindsight 166 → 47; fail-low bonus thresholds 106 → 30 and
+   68 → 19 (rule 3, ×0.282); the eval-difference training constants at the
+   donor's values.
+6. **Amended:** above depth 1 razoring's margin is linear,
+   `CoreRazorMargin·d` (256, 512, 768), not `margin·d²`. The switch exists
+   to price the legacy reach (243·d: 486 and 729 at depths 2–3, which
+   §11's calibration keeps in range) against the oracle's depth-1 form.
+   `256·d²` gives 1,024 and 2,304 cp, which no razoring population reaches,
+   so `CoreRazorDepthCap = 3` would be the depth-1 arm again and the
+   2,000-game run would compare an arm with itself. The donor's `482·d²` is
+   a different fit whose depth-1 value converts to 136; pairing the
+   oracle's 256 with the donor's square double-counts the depth.
+7. Confirmed: the tables clear to 0; the donor's fills are not adopted in
+   B.2. What that changes: a never-updated quiet reads 0 rather than about
+   −5,600 in the picker sum and about −1,280 in the LMR `statScore`, so the
+   donor reduces fresh quiets by about 0.13 ply more and prunes them a
+   little earlier through `lmrDepth += history/divisor`; the −14000 and
+   −4136·d thresholds are not crossed by the fills alone. One categorical
+   candidate (`CoreHistoryFills` 0/1) for B.2.3's residual list if P3 or
+   P6 miss; no switch now.
+8. Confirmed: search `PIECE_VALUE` {100, 300, 300, 500, 900} wherever the
+   donor reads `PieceValue`; −75 and −v/18 kept as written. On this vector
+   every SEE value is a multiple of 100, so `see_ge(−75)` on a quiet and
+   `see_ge(−v/18)` on a capture (−5 … −50) are both exactly `SEE ≥ 0`: the
+   donor's fractional thresholds buy nothing here, which is why neither is
+   a coordinate. Likewise the capture/check SEE at depth 1 (−74) is
+   `SEE ≥ 0`, and `CoreQuietSeeCoeff` 10 prunes any loss at `lmrDepth ≤ 3`,
+   a loss ≥ 200 at 4, ≥ 300 at 5 and ≥ 400 at 6; the probe's 28.75, 24.43,
+   19.30 and 9.98% are that reach on its corpus.
+
+### 17.3 Decisions 9–13
+
+9. Confirmed. Ticket 3's ON-arm fingerprint is transient (legacy shapes
+   and ageing on the donor's tables until ticket 8); record it like the
+   others.
+10. Confirmed: `tt_capture` is capture-stage membership, captures and every
+    promotion. Departure recorded: the donor's `capture_stage` is captures
+    plus queen promotions; Basilisk's SEE scores every promotion through the
+    exchange, so all promotions stay in the capture stage and the
+    `singular_quiet_lmr` gate follows.
+11. Confirmed: `CorePawnHistBucketsLog2` 11–13, default 13.
+12. Confirmed: RFP and razoring inside the legacy block gate (`!PV`,
+    `!in_check`, no excluded move). The donor's RFP in excluded searches is
+    coupled to its singular form, which is B.3's; revisit there.
+13. Confirmed: in-check nodes through the main picker; nothing pruned or
+    skipped in check (§12.2's invariant).
+
+### 17.4 Predictions re-registered (before any game)
+
+- P5, substantive: the band 0.92–0.98× of the B.1 head stands; its stated
+  sources are now the threat producer, the larger histories **and quiet
+  SEE calls**. Reading rule added: B.2.2 reports `see_ge_calls` per node on
+  both arms beside the pooled NPS; if P5 reads below 0.90 and the ON arm's
+  `see_ge_calls/node` is more than twice the off arm's, quiet SEE is the
+  suspect, the 17.1 fast path (if not taken) is the first repair, and only
+  then does the cost go to B.7 with the threat producer.
+- P1–P4 and P6: unchanged. Clerical amendments: none.
+- BAS-C09's retry trigger (production `see_ge` verdict changes under
+  per-ply pins above 0.1% of calls on the bench corpus) is re-read once on
+  the ON arm in B.2.2 with BAS-C09's recipe; quiet calls were outside the
+  population it measured.
+
+### 17.5 Cheap qualification of the `see_ge` commit
+
+- Neither arm's fingerprint moves: off `bench 13` = 14,978,465 (release
+  PEXT and plain) and sanitizer `bench 10` = 3,190,673; ON `bench 13` =
+  13,488,940 and sanitizer `bench 10` = 3,445,675. No consumer of a quiet
+  SEE exists yet, so an unchanged count on both arms is the proof.
+- `test_board`: the BAS-C09 fixtures and the capture consistency check
+  unchanged and passing. New, on the `test_see` FEN list and a fixed-seed
+  random-walk corpus, for every legal quiet move: `see_ge_boundary(m) ==
+  oracle_see(m)` (`oracle_see` already scores a quiet: gain 0, then the
+  exchange on `to` after `make_move`), with any divergence pinned by count
+  as BAS-C09 pins its approximations; and `see_ge(m, −PIECE_VALUE[mover])`
+  true and `see_ge(m, 1)` false for every quiet.
+- The probe rebuilt against the new board sources, its output beside the
+  first: the `see_ge false` column agrees with the `see < t` column except
+  where `see()`'s truncation differs (report the count), and the check
+  row's `see_ge(−75) false` count is near 1,633.
+- Once ticket 6 lands, `quiet_see_pruned` and `capture_see_pruned` are
+  non-zero on the ON arm at `bench 13`.
+
+### 17.6 Handoff, amended
+
+Ticket 3 opens with one board commit on both arms: the `see_ge` change of
+17.1 with its `test_board` additions and the probe re-run, qualified as
+17.5. Then the tables, the picker and the update routing as §16.4 item 9.
+Ticket 5 implements razoring above depth 1 as 17.2 item 6. Ticket 6
+implements the quiet branch at non-PV nodes and the capture/check branch's
+SEE test on quiet checks. §12.2's ticket order is otherwise unchanged.

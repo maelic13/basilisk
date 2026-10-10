@@ -1118,6 +1118,10 @@ rejections stop B.
       `see_ge(−75)` check gate and quiet SEE pruning are inert as written.
       Research amendment 1 decides before ticket 3; the implementation
       recommends the donor's quiet-move semantics for `see_ge`.
+      — AMENDED 2026-10-10 (Amendment 1, packet §17): `see_ge` takes the
+      donor's quiet-move semantics (option a); decisions 2–13 confirmed except
+      razoring above depth 1, now linear `margin·d`; P5's sources re-registered.
+      Implementation resumes at ticket 3.
     - [ ] **B.2.2** `[V]` Diagnostics and the unfitted paired run
       Screens at B.0's registered numbers; the ablation sweep if a floor
       fails; the unfitted 2,000-game paired run against the accepted head,
@@ -1217,7 +1221,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.2.1 | RESEARCH | I2 | Return 1 (packet §16): research amendment 1 (`R3`) on the quiet-move SEE before ticket 3; tickets 0–2 landed |
+| B.2.1 | READY_FOR_IMPLEMENTATION | I2 | Amendment 1 (packet §17): `see_ge` quiet-move semantics, option (a); tickets 0–2 landed, resume at ticket 3 |
 | B.2.2 | RESEARCH | V | Screen numbers registered in the B.0 packet §10 |
 | B.2.3 | RESEARCH | V | Curvature sweep after B.2.2 |
 | B.2.4 | RESEARCH | V | Gates after B.2.3 |
