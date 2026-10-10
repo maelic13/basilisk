@@ -1442,6 +1442,7 @@ at every commit listed.
 | 3a quiet-move `see_ge` | `ea5c49f` engine, `60a610e` tests | 13,488,940 | 3,445,675 | 20/20, 18/18 | — | — |
 | 3b WAC count mode | `9a632e6` tests | 13,488,940 | — | 20/20 both arms | 138 (count) | — |
 | 3c tables, picker, routing | `bcf63e8` engine | **12,815,895** (transient, decision 9) | 3,063,719 | ON 22/22, 20/20; off 20/20, 18/18 | **119** (count; §18.2 attribution) | **200** |
+| 4 correction, improving, worsening, hindsight, eval-difference training | `221afdf` engine and test | **13,061,601** | 4,006,140 | ON 22/22, 20/20; off 20/20, 18/18 | **127** (count; +8, under the attribution trigger) | **193** |
 
 Ticket 3's instruments (`tools/results/b21-20261010/ticket3/`):
 - `test_wac --count` → `wac_depth6_on.txt`, SHA-256 `e1854e6e…73b5`.
@@ -1453,6 +1454,17 @@ Ticket 3's instruments (`tools/results/b21-20261010/ticket3/`):
   (`wac_nodes100k_off.json`, `b19e43cc…9b19`).
 - Both counts are instruments until ticket 7 (§19.1); no action is taken
   on them.
+
+Ticket 4's instruments (`tools/results/b21-20261010/ticket4/`):
+- `wac_depth6_on.txt`, SHA-256 `f1e89eaf…30a7`: 127.
+- `wac_nodes100k_on.json`, `6798fc0f…db48`: 193, on
+  `basilisk-b21-t4-on-pext.exe` (`5dfa75cf…565b`).
+- The depth-6 count moved +8, under the 10-position trigger, so no
+  attribution is owed.
+- Liveness, on an ON Tune build (Italian position, depth 13): the hindsight
+  and continuation-correction counters fire (3,857 up, 10,055 down, 7,148
+  updates); `CoreCorrAdmission` = 0 changes the search (453,734 against
+  463,065 nodes).
 
 Tests added so far: the 22 counters and trace v2 in the parsers' tests;
 `test_threats` (both arms); the ON arm's TT tests (pv bit, age cycle,
@@ -1493,6 +1505,30 @@ Deviations and implementation choices, with reasons:
 5. Ticket 3b: the ON arm registers `test_wac --count` as `test_wac_floor`
    until ticket 7 (Amendment 2); `FLOOR` stays 130. The off arm still
    asserts: a planted `FLOOR = 139` fails it.
+6. Ticket 4, choices inside the contract:
+   - The static evaluation, `improving`, worsening and hindsight now run
+     before the TT cutoff, so the cutoff reads the hindsight-adjusted depth
+     (the donor's order). The eval-difference training follows the cutoff.
+   - The donor's `bool(bestMove)` is read as "a move raised alpha": the
+     legacy loop sets `best_move` at fail-low nodes too.
+   - Correction training keeps the legacy guards the review restates (no
+     exclusion, no decisive score) beside the donor's admission. The
+     multi-cut training is B.3's, with singular.
+   - In check, the record inherits the eval from two plies up while the
+     local static eval stays unset, so the legacy consumers still see none.
+     Where that inherited eval is `VALUE_NONE`, hindsight's sum is large, as
+     the donor's arithmetic is; this is kept literally.
+   - The continuation-correction sentinel row is trained like the donor's;
+     the continuation-history sentinel is never trained.
+   - The correction tables are halved between searches with the rest,
+     until ticket 8's decay.
+   - `improving` also holds at or above beta, set after the node-pruning
+     block, which is equivalent for every consumer, since none inside that
+     block reads it after the null move.
+   - `corr_cont2_updates` and `corr_cont4_updates` count the same events,
+     because both rows train together.
+   - `test_history_core` changed in the engine commit, since it names the
+     new correction rows and neither commit would build alone.
 
 What the reviewer must check (so far):
 - Both arms' fingerprints per ticket, on PEXT and plain.

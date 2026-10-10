@@ -1141,6 +1141,11 @@ rejections stop B.
       picker and routing; record in packet §20): ON arm 12,815,895
       (transient), off arm 14,978,465; CTest passes on both arms; the ON
       arm's WAC reads 119 at depth 6 and 200 at 100,000 nodes.
+      Ticket 4 landed 2026-10-10 (`221afdf`; packet §20): the cluster's
+      correction form and admission, `improving`, opponent worsening,
+      hindsight and eval-difference training. ON arm 13,061,601, off arm
+      14,978,465; CTest passes on both arms; WAC 127 at depth 6 and 193 at
+      100,000 nodes.
     - [ ] **B.2.2** `[V]` Diagnostics and the unfitted paired run
       Screens at B.0's registered numbers; the ablation sweep if a floor
       fails; the unfitted 2,000-game paired run against the accepted head,
@@ -1240,7 +1245,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.2.1 | READY_FOR_IMPLEMENTATION | I2 | Tickets 0–3 landed (record: packet §20); next ticket 4, correction form and admission, improving, worsening, hindsight, eval-difference training |
+| B.2.1 | READY_FOR_IMPLEMENTATION | I2 | Tickets 0–4 landed (record: packet §20); next ticket 5, razoring and RFP |
 | B.2.2 | RESEARCH | V | Screen numbers registered in the B.0 packet §10 |
 | B.2.3 | RESEARCH | V | Curvature sweep after B.2.2 |
 | B.2.4 | RESEARCH | V | Gates after B.2.3 |
