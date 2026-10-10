@@ -43,3 +43,4 @@ ded841f	external	Rarog: a 2.4.0 to 2.5.0 commit (BAS-X35)
 5e539523	content	the hash binding the conversion-audit PGN export
 d4dd504	lost	the 2026-07-13 `development` head of the HCE and search analyses
 aba3941	lost	the 9.3 head of the multi-thread baseline
+e52ea9ac	external	Stockfish: a commit after sf_19 that the B.0 packet read as sf_19 (TT-cutoff bonus)

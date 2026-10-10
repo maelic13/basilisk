@@ -880,3 +880,124 @@ Binaries (`tools/test_engines/`, SHA-256): `basilisk-a74-nps-pgo1-pext-pgo.exe`
 `oracle-1.10.1.exe` `5f77850a…0725`; `oracle-1.10.1-ablate.exe`
 `0e5155cc…8644`; Stockfish 19 universal `45bc8e49…bcbd0`. Texel tool
 `build/b0-texel/basilisk-texel.exe` from `6c5ee63`.
+
+## 16. B.2.1 Return 1 (2026-10-10): tickets 0–2 built, the quiet-SEE premise false, leaf returned to `RESEARCH`
+
+- State / class: B.2.1 (`I2`) stopped at the committed ticket-2 boundary and
+  returned to `RESEARCH`. Research amendment 1 decides before ticket 3. No
+  game, NPS or time-to-depth measurement was run.
+- Head: `f179404` on `dev`, from `bef0e33`.
+
+### 16.1 What landed (the working record)
+
+| Ticket | Commits | Content |
+|---|---|---|
+| 0 | `1dbf0d9` tools, `61c15cb` engine | 22 counters after `lmr_blocked_gives_check` (79 in all) on two new `kv` lines and one prose line; trace version 2 (`lmr_depth`, `skip_quiets`, `family`, a `skip_quiets` event; the header states `cutoff_count` availability by arm); `decision_trace.py` reads versions 1 and 2; `run_suite.py` keeps the 57 as the cross-engine core and validates the 22 as a Basilisk-only group when present |
+| 1 | `32e56ad` engine, `34a6d33` CI | `threats.h/.cpp` in the board library on both arms, with `test_threats` (10,000 random-walk positions against `attackers_to` and `is_square_attacked`, both sides, 0 mismatches); `STACK_SENTINELS` 7 on both arms; the ON arm's `SearchStack` with `move_count`, `cutoff_cnt` (produced as the donor's), `tt_hit` and `in_check`; `search_kernel_core.cpp` forked from the legacy kernel; the ON `id name` suffix `+b2core`; a CI step that builds and tests the ON arm |
+| 2 | `54ff32d` tools, `e97a3cd` test, `f179404` engine | the ON TT encoding of review §5.6 (pv bit 2, five age bits, depth offset 2 with occupancy as a non-zero depth byte, evaluation-only entries with `NO_SCORE`, the rule-50 downgrade); the miss-store; the persisted `tt_pv` and its fail-low propagation; the node-typed cutoff (`CoreTtCutoffNodeTyped`), the graph-history check at depth ≥ 7, no cutoff at rule-50 ≥ 96; the quiet TT-move bonus (`CoreTtCutoffBonusSlope` 131) and the parent's early-quiet malus (−2210), on the legacy tables until ticket 3; the categorical-switch table (`S` lines: tune options, never on the SPSA surface); the SPSA generator skips the core table, so the registered surface is still 41 |
+
+Fingerprints at every commit: the off arm's `bench 13` = 14,978,465 on
+release PEXT and plain, Tune, Diag and Ablate, and its sanitizer `bench 10`
+= 3,190,673. The ON arm's `bench 13` = 14,978,465 at ticket 1, which proves
+the fork reproduces the legacy kernel exactly, and 13,488,940 at ticket 2 on
+PEXT and plain; its release and sanitizer builds agree at `bench 10` =
+3,445,675. Release CTest 20/20 on both arms, the WAC and endgame-conversion
+floors included; sanitizer CTest 18/18 on both. Ticket 0 had no ON arm to
+test (16.4, item 8).
+
+`e97a3cd` fixed a test precondition in its own commit. The won-ending clock
+test in `test_engine_threading` asserted the legacy search's move `f7d7`.
+6-man Syzygy WDL scores 26 of the 28 legal moves as wins; only `f7f8` and
+`f5h3` draw. The test now rejects those two. The ON arm plays `e5e6`, a win,
+in 1.2 s.
+
+### 16.2 The failed premise
+
+The clauses are §3.6's quiet scoring term `16384·(check && SEE ≥ −75)`
+(review §5.7, §5.8) and §3.7's quiet SEE pruning `−23·lmrDepth²`, seeded at
+`−10·lmrDepth²` (§7.3; review §5.10, `CoreQuietSeeCoeff`). Both assume that
+the SEE of a quiet move measures what the opponent wins by capturing the
+moved piece, as the donor's `see_ge` does.
+
+Basilisk's `Board::see_ge` returns `0 ≥ threshold` for a move that is
+neither a capture nor a promotion (`src/board.cpp`: `if (!is_capture && mt
+!= PROMOTION) return swap >= threshold;`). It never looks at the
+destination. Every threshold the two clauses use is ≤ 0, so both always pass:
+the quiet SEE pruning would be dead code and the check bonus ungated.
+`Board::see()` does evaluate quiets (gain 0, then the exchange), but it is
+the ordering-only approximation that truncates deliberately, and its own
+comment forbids using it for pruning.
+
+Probe: `tools/results/b21-20261010/see_quiet_probe.cpp`, with its output
+beside it (SHA-256 `77a05d16…0730` and `14387fce…ba0e`). It ran 4,000
+random walks of 0–29 plies from five seed positions, built with
+`clang++ -O2` against the head's board sources.
+
+- 120,534 quiet moves; `see_ge` is false for none of them at any threshold.
+- The exchange `see()` falls below the threshold for 28.75% of them at
+  `−10·l²` for l = 0–3, 24.43% at l = 4, 19.30% at l = 5 and 9.98% at l = 6.
+- Of 2,351 quiet checks, 1,633 (69.5%) lose more than 75 by `see()`.
+
+The legacy kernel calls `see_ge` only on captures and promotions (qsearch,
+ProbCut, capture SEE pruning, the LMR bad-capture test, the picker's
+bad-capture split), so the shortcut has never mattered. The legacy quiet SEE
+pruning that B.1 removed called the same `see_ge` and could not have fired
+either.
+
+Stopped: the picker (ticket 3) is not written, since its check term is one
+of the two clauses. Kept: everything in 16.1, and the probe.
+
+### 16.3 Options
+
+- (a) Give `see_ge` the donor's semantics for quiet moves: the moved piece
+  becomes the first piece at risk on the destination, through the same exact,
+  pin-aware exchange loop. The off arm never calls it on a quiet move, so it
+  should keep 14,978,465 (to be verified), and `test_board`'s independent SEE
+  oracle extends to quiets. The cost is SEE work on checking quiets in the
+  picker and on quiets that reach SEE pruning; B.2.2's NPS screen prices it
+  inside P5.
+- (b) A core-only primitive (a `see_ge` for quiets, or `see()` despite its
+  truncation) that leaves `see_ge` as it is.
+- (c) Drop both uses on the ON arm: the check bonus ungated and no quiet SEE
+  pruning. This departs from the donor's family population, on which §2.6
+  and P3 rest.
+
+Recommendation: (a). It is the donor's primitive and a change to one board
+function that has an exact oracle; the off arm is untouched by
+construction; and both clauses then mean what the contract wrote. The
+counter-argument is cost: SEE on quiet moves is new per-node work, and P5
+already budgets 0.92–0.98× for the threat producer and the larger tables.
+
+### 16.4 For the same amendment (the implementation's reading, applied unless amended)
+
+1. The TT-cutoff bonus `131·depth` (§3.2, seed 131) is the later Stockfish
+   commit `e52ea9ac` ("Simplify quiet history bonus"); `sf_19` trains
+   `min(112·depth, 695)`. Ticket 2 implements the contract: 131·depth,
+   uncapped.
+2. The review's stack table names RFP's `!ttHit` multiplier as a `tt_hit`
+   consumer, but §3.4's adopted shape and §7.3's seed have no `ttHit` term
+   and no coordinate. Ticket 5 implements §7.3's form without it.
+3. The donor's quiet branch runs when `!followPV || !PvNode`, and `followPV`
+   needs the previous iteration's PV per ply, which the record does not
+   carry. Ticket 6 prunes quiets at non-PV nodes only.
+4. Evaluation-unit constants that §7.3 does not list convert by rule 3 at
+   ×0.282: hindsight's 166 becomes 47, and the fail-low bonus thresholds 106
+   and 68 become 30 and 19. The eval-difference training constants stay at
+   the donor's values, as the review fixes them.
+5. Above depth 1 (`CoreRazorDepthCap` 2–3), razoring's margin takes
+   `sf_19`'s `margin·d²`.
+6. The donor's initial history fills (main −5, capture −742, pawn −1338,
+   continuation −586, correction −5 and +5) are not adopted: the tables
+   clear to 0, as review §5.11 tests.
+7. Where the donor reads `PieceValue` (capture scoring, capture futility,
+   the capture `statScore`, the threat term), the core reads Basilisk's
+   search `PIECE_VALUE`.
+8. A finding, not a decision: the ON arm did not compile at the B.2.0 head
+   `bef0e33`. B.2.0 split the parameter tables, the ON arm selected the empty
+   core table, and the legacy kernel it still compiled reads legacy
+   coordinates. Review §2.1's ON-arm row was measured before the split.
+   Ticket 1 aliases the legacy table into the core table until each
+   mechanism is replaced.
+
+Resume: on research amendment 1, at ticket 3 (histories and the picker), on
+the amended contract.

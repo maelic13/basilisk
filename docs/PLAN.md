@@ -1108,6 +1108,16 @@ rejections stop B.
       mate-drive floors bind the on arm too, and a failure there returns the
       premise to research. Reviewer acceptance (a separate `R2` session) is
       recorded before B.2.2.
+      Tickets 0–2 landed 2026-10-10 (`1dbf0d9`..`f179404`): the counters and
+      trace version 2, the threat producer and the core's stack record, the
+      TT encoding with the miss-store and the cutoff rules. The off arm stays
+      at 14,978,465 at every commit; the ON arm reads 13,488,940; CTest
+      passes on both arms.
+      — RETURNED 2026-10-10 (Return 1, packet §16): Basilisk's `see_ge`
+      answers `0 ≥ threshold` for every quiet move, so the picker's
+      `see_ge(−75)` check gate and quiet SEE pruning are inert as written.
+      Research amendment 1 decides before ticket 3; the implementation
+      recommends the donor's quiet-move semantics for `see_ge`.
     - [ ] **B.2.2** `[V]` Diagnostics and the unfitted paired run
       Screens at B.0's registered numbers; the ablation sweep if a floor
       fails; the unfitted 2,000-game paired run against the accepted head,
@@ -1207,7 +1217,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.2.1 | READY_FOR_IMPLEMENTATION | I2 | Contract: the B.0 packet §12.2 refined by the B.2.0 review §5; next |
+| B.2.1 | RESEARCH | I2 | Return 1 (packet §16): research amendment 1 (`R3`) on the quiet-move SEE before ticket 3; tickets 0–2 landed |
 | B.2.2 | RESEARCH | V | Screen numbers registered in the B.0 packet §10 |
 | B.2.3 | RESEARCH | V | Curvature sweep after B.2.2 |
 | B.2.4 | RESEARCH | V | Gates after B.2.3 |
