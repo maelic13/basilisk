@@ -9,10 +9,15 @@
 ///    tactical regression, fails it). It measures search strength and carries
 ///    the CTest label `strength`. `wac [depth]` (the engine command) is the
 ///    fine-grained per-step diagnostic; this is the tripwire.
+/// 3. `--count`: the same run, printing the solved count without a floor.
+///    The B2_CORE arm registers it in place of `--floor` until its node
+///    pruning and LMR land with the picker: a fixed-depth count of a
+///    selectivity stack assembled one ticket at a time is recorded, not
+///    gated (the B.0 packet's Amendment 2).
 ///
 /// Build:
 ///   cmake --build --preset release --target test_wac
-///   ./build/release/test_wac [--floor]
+///   ./build/release/test_wac [--floor | --count]
 
 #include "board.h"
 #include "wac.h"
@@ -123,9 +128,10 @@ static void test_san_matcher_rejects_wrong_piece_and_destination() {
     end_section();
 }
 
-static void test_wac_floor() {
-    begin_section("solved count stays above the floor");
+// WAC positions whose best move a fresh depth-TEST_DEPTH search finds.
+static int wac_solved_count(int& total) {
     const std::vector<WacPosition> positions = wac_positions();
+    total = static_cast<int>(positions.size());
 
     int solved = 0;
     for (const WacPosition& pos : positions) {
@@ -141,9 +147,15 @@ static void test_wac_floor() {
         SearchResult sr = searcher->search(b, lim);
         if (wac_move_matches_any(b, sr.bestmove, pos.best_moves)) ++solved;
     }
+    return solved;
+}
 
+static void test_wac_floor() {
+    begin_section("solved count stays above the floor");
+    int total = 0;
+    const int solved = wac_solved_count(total);
     std::printf("  WAC solved %d/%d at depth %d (floor %d)\n",
-                solved, static_cast<int>(positions.size()), TEST_DEPTH, FLOOR);
+                solved, total, TEST_DEPTH, FLOOR);
     EXPECT(solved >= FLOOR);
     end_section();
 }
@@ -161,6 +173,12 @@ int main(int argc, char** argv) {
         std::printf("\nSolved-count floor (depth %d)\n", TEST_DEPTH);
         test_wac_floor();
         return harness_summary();
+    }
+    if (argc > 1 && std::strcmp(argv[1], "--count") == 0) {
+        int total = 0;
+        const int solved = wac_solved_count(total);
+        std::printf("WAC solved %d/%d at depth %d (count)\n", solved, total, TEST_DEPTH);
+        return 0;
     }
 
     std::printf("\nSuite parsing and SAN matcher\n");

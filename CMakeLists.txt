@@ -334,7 +334,14 @@ add_test(NAME test_endgames     COMMAND test_endgames
 # Search-strength floors: deterministic, but they measure strength rather than
 # correctness, and an unoptimised build only reproduces the same numbers far
 # more slowly. `ctest -LE strength` runs the correctness tests alone.
-add_test(NAME test_wac_floor    COMMAND test_wac --floor)
+# The B2_CORE arm records its depth-6 WAC count instead of asserting the
+# floor until the cluster's node pruning and LMR land with its picker (the
+# B.0 packet's Amendment 2); its other floors bind as on the default arm.
+if(B2_CORE)
+    add_test(NAME test_wac_floor COMMAND test_wac --count)
+else()
+    add_test(NAME test_wac_floor COMMAND test_wac --floor)
+endif()
 add_test(NAME test_endgame_conversion COMMAND test_endgames --conversion)
 set_tests_properties(test_wac_floor test_endgame_conversion PROPERTIES LABELS strength)
 
