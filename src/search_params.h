@@ -142,10 +142,16 @@
 //
 // The TT-cutoff bonus trains the quiet histories by slope * depth (history
 //   units per ply) when a quiet TT move's entry cuts.
+// Correction training: the bonus is clamp(error * depth * scale / 128, +/-256)
+//   in 128ths, with scale * 3/2 when no move raised alpha; the continuation
+//   correction's weight is in 131072ths of the summed rows.
 #define BASILISK_CORE_KERNEL_PARAMS(X)                                   \
     BASILISK_LEGACY_KERNEL_PARAMS(X)                                     \
     /* TT cutoff training */                                             \
-    X(tt_cutoff_bonus_slope, CoreTtCutoffBonusSlope, 131,    0,   300)
+    X(tt_cutoff_bonus_slope, CoreTtCutoffBonusSlope, 131,    0,   300)   \
+    /* Correction */                                                     \
+    X(corr_update_scale,     CoreCorrUpdateScale,    12,    4,    30)     \
+    X(corr_cont_weight,      CoreCorrContWeight,   8761, 2000, 16000)
 
 // Categorical switches of Cluster 1's kernel: S(field, UciName, default, min,
 // max). Tune builds advertise them as options so a paired run can settle each
@@ -157,9 +163,13 @@
 //   and fail low); 0 admits it on bound and depth alone.
 // pawn_hist_buckets_log2: the pawn history's bucket count as a power of two
 //   (11 = 2,048, 13 = 8,192); a size, settled by speed, not by games.
+// corr_admission: 1 trains the correction where the error's sign agrees with
+//   the bound (above the static eval exactly when a move raised alpha); 0
+//   where the node failed high or raised alpha.
 #define BASILISK_CORE_KERNEL_SWITCHES(S)                                 \
     S(tt_cutoff_node_typed,  CoreTtCutoffNodeTyped,  1,    0,     1)     \
-    S(pawn_hist_buckets_log2, CorePawnHistBucketsLog2, 13,  11,    13)
+    S(pawn_hist_buckets_log2, CorePawnHistBucketsLog2, 13,  11,    13)   \
+    S(corr_admission,        CoreCorrAdmission,      1,    0,     1)
 
 #if defined(BASILISK_B2_CORE)
 #define BASILISK_KERNEL_PARAMS(X) BASILISK_CORE_KERNEL_PARAMS(X)

@@ -164,7 +164,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         raw_eval = evaluator_.evaluate(*state_.board);
 
     int stand_pat = raw_eval;
-    stand_pat += correction_value(state_.board->turn(), *state_.board, ss);
+    stand_pat += correction_value(ss) / 131072;
     stand_pat = std::clamp(stand_pat, -(tablebaseWinInMaxPly - 1), tablebaseWinInMaxPly - 1);
 #if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
     const int correction = stand_pat - raw_eval;
@@ -393,6 +393,12 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         if (alpha >= beta) return alpha;
     }
 
+    // The reduction the parent applied to reach this node, read once: a
+    // re-search of the same move must not see it again.
+    const auto& kp = config_.limits.params;
+    const int prior_reduction = (ss - 1)->reduction;
+    (ss - 1)->reduction = 0;
+
     // ---- Transposition table lookup ----------------------------------------
     Key hash     = state_.board->position_key();
     TTEntry tte{};
@@ -428,12 +434,83 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         && (state_.board->piece_on(to_sq(tt_move)) != NO_PIECE
             || move_type(tt_move) == EN_PASSANT || move_type(tt_move) == PROMOTION);
 
+    // ---- Static evaluation -------------------------------------------------
+    // The corrected static eval: the raw eval plus the correction histories'
+    // weighted value over 131072, inside the tablebase band.
+    const int correction_raw = correction_value(ss);
+    int static_eval;
+    int raw_static_eval = VALUE_NONE;
+    if (in_check) {
+        // The record carries the eval from two plies up, so `improving` reads
+        // across the check; nothing at this node prunes on it.
+        ss->eval = (ss - 2)->eval;
+        static_eval = VALUE_NONE;
+    } else if (ss->excluded != MOVE_NONE) {
+        // Inherit eval from parent to avoid calling evaluate twice
+        static_eval = ss->eval;
+    } else {
+        if (tt_found && tte.static_eval != TranspositionTable::INF_EVAL)
+            raw_static_eval = tte.static_eval;
+        else {
+            raw_static_eval = evaluator_.evaluate(*state_.board);
+            // A miss stores the evaluation alone, so a transposition reuses it.
+            if (!tt_found)
+                tt_store(hash, TT_DEPTH_UNSEARCHED, VALUE_NONE, TT_NONE, MOVE_NONE, ply,
+                         raw_static_eval, ss->tt_pv);
+        }
+
+        // TT stores the raw static eval; correction is applied at probe time.
+        static_eval = corrected_eval(raw_static_eval, correction_raw);
+        ss->eval = static_eval;
+    }
+
+    // Step 6.1: value used for PRUNING decisions only. When a TT entry's bound
+    // proves its score a tighter estimate than the (corrected) static eval —
+    // exact, or a fail-high above it, or a fail-low below it — prune on that
+    // instead. ss->eval / static_eval stay the raw corrected value, so
+    // `improving` and correction-history are unaffected.
+    // A TT mate/TB-range score must NOT drive this: RFP returns `eval` directly
+    // (unlike SF, which dampens + guards it), so a shallow mate bound would leak
+    // out as an unverified mate cutoff — clamp the refinement to normal scores.
+    int eval = static_eval;
+    if (tt_found && static_eval != VALUE_NONE && tt_score != VALUE_NONE
+        && !is_decisive(tt_score)
+        && (tt_flag == TT_EXACT
+            || (tt_flag == TT_BETA  && tt_score > static_eval)
+            || (tt_flag == TT_ALPHA && tt_score < static_eval)))
+        eval = tt_score;
+
+#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
+    const int correction = raw_static_eval == VALUE_NONE
+                         ? VALUE_NONE : static_eval - raw_static_eval;
+#endif
+
+    // Improving: the static eval rose since this side's previous move (a
+    // record without an eval reads VALUE_NONE, which nothing exceeds).
+    // Opponent worsening: it rose since the opponent's, seen from this side.
+    bool improving = ss->eval > (ss - 2)->eval;
+    const bool opponent_worsening = ss->eval > -(ss - 1)->eval;
+
+    // ---- Hindsight depth adjustment ------------------------------------------
+    // A child searched at a reduced depth gets a ply back when the reduction
+    // was large and the opponent's position did not worsen, and loses one
+    // when the reduction was moderate and the two static evals sum high (a
+    // quiet node both sides rate well for themselves).
+    if (prior_reduction >= 3 && !opponent_worsening) {
+        ++depth;
+        DIAG_COUNT(++state_.diag.hindsight_up);
+    }
+    if (prior_reduction >= 2 && depth >= 2 && ss->eval + (ss - 1)->eval > 47) {
+        --depth;
+        DIAG_COUNT(++state_.diag.hindsight_down);
+    }
+
+
     // ---- Early TT cutoff -----------------------------------------------------
     // A non-PV node takes the TT score when the entry is deep enough and its
     // bound proves the side of the window the score lies on; a fail-low entry
     // may be one ply shallower. Unless the node-typed rule is off, a shallow
     // node only cuts where the score agrees with its expected type.
-    const auto& kp = config_.limits.params;
     if (!is_pv && ss->excluded == MOVE_NONE && tt_score != VALUE_NONE
         && tt_depth > depth - (tt_score <= beta)
         && (tt_score >= beta ? proves_lower(tt_flag) : proves_upper(tt_flag))
@@ -479,57 +556,14 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         }
     }
 
-    // ---- Static evaluation -------------------------------------------------
-    int static_eval;
-    int raw_static_eval = VALUE_NONE;
-    if (in_check) {
-        ss->eval = static_eval = VALUE_NONE;
-    } else if (ss->excluded != MOVE_NONE) {
-        // Inherit eval from parent to avoid calling evaluate twice
-        static_eval = ss->eval;
-    } else {
-        if (tt_found && tte.static_eval != TranspositionTable::INF_EVAL)
-            raw_static_eval = tte.static_eval;
-        else {
-            raw_static_eval = evaluator_.evaluate(*state_.board);
-            // A miss stores the evaluation alone, so a transposition reuses it.
-            if (!tt_found)
-                tt_store(hash, TT_DEPTH_UNSEARCHED, VALUE_NONE, TT_NONE, MOVE_NONE, ply,
-                         raw_static_eval, ss->tt_pv);
-        }
-
-        // TT stores the raw static eval; correction is applied at probe time.
-        static_eval = raw_static_eval;
-        static_eval += correction_value(state_.board->turn(), *state_.board, ss);
-        static_eval  = std::clamp(static_eval, -(tablebaseWinInMaxPly - 1), tablebaseWinInMaxPly - 1);
-        ss->eval = static_eval;
+    // ---- Eval-difference training ------------------------------------------
+    // The parent's quiet move is trained by how much it lowered the static
+    // eval of the side that answers it (both evals from their mover's view).
+    if (!in_check && (ss - 1)->move != MOVE_NONE && (ss - 1)->move != MOVE_NULL
+        && !(ss - 1)->in_check && state_.board->captured_piece() == NO_PIECE) {
+        const int eval_diff = std::clamp(-((ss - 1)->eval + ss->eval), -189, 194) + 60;
+        update_parent_by_eval_difference(ss, eval_diff, tt_found);
     }
-
-    // Step 6.1: value used for PRUNING decisions only. When a TT entry's bound
-    // proves its score a tighter estimate than the (corrected) static eval —
-    // exact, or a fail-high above it, or a fail-low below it — prune on that
-    // instead. ss->eval / static_eval stay the raw corrected value, so
-    // `improving` and correction-history are unaffected.
-    // A TT mate/TB-range score must NOT drive this: RFP returns `eval` directly
-    // (unlike SF, which dampens + guards it), so a shallow mate bound would leak
-    // out as an unverified mate cutoff — clamp the refinement to normal scores.
-    int eval = static_eval;
-    if (tt_found && static_eval != VALUE_NONE && tt_score != VALUE_NONE
-        && !is_decisive(tt_score)
-        && (tt_flag == TT_EXACT
-            || (tt_flag == TT_BETA  && tt_score > static_eval)
-            || (tt_flag == TT_ALPHA && tt_score < static_eval)))
-        eval = tt_score;
-
-#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
-    const int correction = raw_static_eval == VALUE_NONE
-                         ? VALUE_NONE : static_eval - raw_static_eval;
-#endif
-
-    // Improving: eval is better than 2 plies ago
-    bool improving = !in_check && ply >= 2
-                   && (ss-2)->eval != VALUE_NONE
-                   && static_eval > (ss-2)->eval;
 
     // ---- Non-PV pruning (skip if in check, in PV, or singular search) ------
     if (!is_pv && !in_check && ss->excluded == MOVE_NONE
@@ -630,6 +664,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             }
         }
     }
+
+    if (!in_check)
+        improving = improving || ss->eval >= beta;
 
     // IIR: reduce non-PV nodes when no TT move (or a stale TT entry) guides the search.
     if (!ABLATED(4) && !is_pv && depth >= 4
@@ -1133,12 +1170,20 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                              /*reward_only=*/true);
     }
 
-    // Update correction history with search result
+    // Correction training: never in check, under exclusion, from a decisive
+    // score or from a node whose best move is a capture. The default
+    // admission takes the error only where its sign agrees with the bound:
+    // above the static eval exactly when a move raised alpha.
+    const bool raised_alpha = best_score > orig_alpha;
     if (!in_check && ss->excluded == MOVE_NONE && static_eval != VALUE_NONE
         && !is_decisive(best_score)
-        && (best_score >= beta || best_score > orig_alpha)) {
-        update_correction(state_.board->turn(), *state_.board, ss,
-                          best_score - static_eval, depth);
+        && !(raised_alpha && (state_.board->piece_on(to_sq(best_move)) != NO_PIECE
+                              || move_type(best_move) == EN_PASSANT))
+        && (kp.corr_admission ? (best_score > static_eval) == raised_alpha
+                              : (best_score >= beta || raised_alpha))) {
+        const int scale = raised_alpha ? kp.corr_update_scale : kp.corr_update_scale * 3 / 2;
+        const int bonus = std::clamp((best_score - static_eval) * depth * scale / 128, -256, 256);
+        update_correction_history(ss, 1061 * bonus / 1024);
     }
 
     // A node that did not fail high under a PV-near parent is kept near the
@@ -1183,6 +1228,7 @@ void Searcher::kernel_begin_search() {
     for (auto& s : state_.stack) {
         s = SearchStack{};
         s.cont_hist = hist_.sentinel_row();
+        s.cont_corr = hist_.sentinel_corr_row();
     }
 }
 

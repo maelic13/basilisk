@@ -57,6 +57,8 @@ static void test_bounds() {
     check_bound_and_gravity<PawnHistoryBucket>("pawn");
     check_bound_and_gravity<LowPlyHistory>("low-ply");
     check_bound_and_gravity<TTMoveHistory>("tt-move");
+    check_bound_and_gravity<CorrectionBound>("correction");
+    check_bound_and_gravity<PieceToCorrection>("continuation correction");
 
     begin_section("bounds are the cluster's");
     EXPECT_EQ(MainHistory::LIMIT, 7183);
@@ -65,6 +67,8 @@ static void test_bounds() {
     EXPECT_EQ(PawnHistoryBucket::LIMIT, 8192);
     EXPECT_EQ(LowPlyHistory::LIMIT, 7183);
     EXPECT_EQ(TTMoveHistory::LIMIT, 8192);
+    EXPECT_EQ(CorrectionBound::LIMIT, 1024);
+    EXPECT_EQ(PieceToCorrection::LIMIT, 1024);
     EXPECT_EQ(LowPlyHistory::PLIES, 5);
     EXPECT_EQ(PawnHistory::MAX_BUCKETS, 8192);
     end_section();
@@ -80,7 +84,7 @@ static void fill_some(CoreHistoryTables& h, int v) {
     h.pawn_corr[WHITE][7] = static_cast<int16_t>(v);
     h.minor_corr[BLACK][9] = static_cast<int16_t>(v);
     h.nonpawn_corr[WHITE][BLACK][11] = static_cast<int16_t>(v);
-    h.cont_corr[BLACK][PAWN][A2] = static_cast<int16_t>(v);
+    h.cont_corr->row[PAWN][A2].entry[KNIGHT][C3] = static_cast<int16_t>(v);
 }
 
 static void test_clear_and_halve() {
@@ -99,6 +103,7 @@ static void test_clear_and_halve() {
             for (int16_t x : r) zero = zero && x == 0;
     EXPECT(zero);
     EXPECT(h->sentinel_row() == &h->continuation->row[0][0][NO_PIECE_TYPE][0]);
+    EXPECT(h->sentinel_corr_row() == &h->cont_corr->row[NO_PIECE_TYPE][0]);
     end_section();
 
     begin_section("halve: every table but the TT-move history, toward zero");
@@ -112,7 +117,7 @@ static void test_clear_and_halve() {
     EXPECT_EQ(h->pawn_corr[WHITE][7], 50);
     EXPECT_EQ(h->minor_corr[BLACK][9], 50);
     EXPECT_EQ(h->nonpawn_corr[WHITE][BLACK][11], 50);
-    EXPECT_EQ(h->cont_corr[BLACK][PAWN][A2], 50);
+    EXPECT_EQ(h->cont_corr->row[PAWN][A2].entry[KNIGHT][C3], 50);
     EXPECT_EQ(h->tt_move.value, 101);
     fill_some(*h, -101);
     h->halve();
@@ -131,7 +136,7 @@ static void test_clear_and_halve() {
     EXPECT_EQ(h->pawn_corr[WHITE][7], 0);
     EXPECT_EQ(h->minor_corr[BLACK][9], 0);
     EXPECT_EQ(h->nonpawn_corr[WHITE][BLACK][11], 0);
-    EXPECT_EQ(h->cont_corr[BLACK][PAWN][A2], 0);
+    EXPECT_EQ(h->cont_corr->row[PAWN][A2].entry[KNIGHT][C3], 0);
     end_section();
 }
 
@@ -143,6 +148,12 @@ static void test_row_addressing() {
     row->entry[BISHOP][C4] = 1234;
     EXPECT_EQ(h->continuation->row[1][1][KNIGHT][F3].entry[BISHOP][C4], 1234);
     EXPECT(&row->entry[BISHOP][C4] == &h->continuation->row[1][1][KNIGHT][F3].entry[BISHOP][C4]);
+    end_section();
+
+    begin_section("a continuation-correction row pointer addresses the full index");
+    PieceToCorrection* corr_row = &h->cont_corr->row[QUEEN][D8];
+    corr_row->entry[ROOK][A1] = -321;
+    EXPECT_EQ(h->cont_corr->row[QUEEN][D8].entry[ROOK][A1], -321);
     end_section();
 
     begin_section("a pawn bucket is the key under the mask, at every size");
@@ -161,6 +172,7 @@ static void test_row_addressing() {
     EXPECT_EQ(sizeof(PawnHistory), size_t(7'340'032));           // 7,168 KiB at 8,192 buckets
     EXPECT_EQ(sizeof(MainHistory), size_t(16'384));
     EXPECT_EQ(sizeof(LowPlyHistory), size_t(40'960));
+    EXPECT_EQ(sizeof(ContinuationCorrection), size_t(401'408));   // 392 KiB
     end_section();
 }
 

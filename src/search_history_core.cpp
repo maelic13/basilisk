@@ -6,8 +6,8 @@
 // continuation and pawn histories in fixed proportion, and a continuation
 // update reaches the rows of the six previous moves with per-ply weights and
 // a multiplier that grows with the number of rows already agreeing. The
-// bonus and malus shapes, the moves a cutoff trains and the correction form
-// are still the legacy kernel's.
+// correction is the cluster's weighted form. The bonus and malus shapes and
+// the moves a cutoff trains are still the legacy kernel's.
 
 #include "search_worker.h"
 #include <algorithm>
@@ -113,34 +113,56 @@ void Searcher::update_all_histories(Move best, bool best_is_tt,
                 update_capture_history(bad_caps[i], malus);
 }
 
-static void update_correction_slot(int16_t& slot, int diff, int depth) {
-    static constexpr int MAX_CORR = 1024;
-    const int w = std::min(depth + 1, 16);
-    const int updated = std::clamp((int(slot) * (256 - w) + diff * w) / 256, -MAX_CORR, MAX_CORR);
-    slot = static_cast<int16_t>(updated);
+void Searcher::update_parent_by_eval_difference(SearchStack* ss, int eval_diff, bool tt_hit) {
+    const Move prev = (ss - 1)->move;
+    const Square from = Square(from_sq(prev));
+    const Square to   = Square(to_sq(prev));
+    MainHistory::update(hist_.main.entry[~state_.board->turn()][from][to], eval_diff * 11);
+    const PieceType pt = type_of(state_.board->piece_on(to));
+    if (!tt_hit && pt != PAWN && move_type(prev) != PROMOTION)
+        PawnHistoryBucket::update(pawn_bucket().entry[pt][to], eval_diff * 13);
 }
 
-void Searcher::update_correction(Color stm, const Board& board, SearchStack* ss, int diff, int depth) {
+// The correction of the node at `ss`, in 131072ths of an evaluation unit: the
+// pawn, minor-piece and both non-pawn structures' entries for the side to
+// move, and the continuation corrections the moves two and four plies up
+// select for the previous move (a fixed offset when there is none).
+int Searcher::correction_value(const SearchStack* ss) const {
     constexpr Key mask = CoreHistoryTables::CORR_SIZE - 1;
-    update_correction_slot(hist_.pawn_corr[stm][board.pawn_key_value() & mask], diff, depth);
-    update_correction_slot(hist_.minor_corr[stm][board.minor_key_value() & mask], diff, depth);
-    update_correction_slot(hist_.nonpawn_corr[stm][WHITE][board.nonpawn_key_value(WHITE) & mask],
-                           diff, depth);
-    update_correction_slot(hist_.nonpawn_corr[stm][BLACK][board.nonpawn_key_value(BLACK) & mask],
-                           diff, depth);
-    if (move_made((ss - 1)->move) && (ss - 1)->moved_piece != NO_PIECE_TYPE)
-        update_correction_slot(hist_.cont_corr[stm][(ss - 1)->moved_piece][to_sq((ss - 1)->move)],
-                               diff, depth);
+    const Board& b = *state_.board;
+    const Color us = b.turn();
+    const int pawn  = hist_.pawn_corr[us][b.pawn_key_value() & mask];
+    const int minor = hist_.minor_corr[us][b.minor_key_value() & mask];
+    const int white = hist_.nonpawn_corr[us][WHITE][b.nonpawn_key_value(WHITE) & mask];
+    const int black = hist_.nonpawn_corr[us][BLACK][b.nonpawn_key_value(BLACK) & mask];
+    const Move m = (ss - 1)->move;
+    int cont = 64049;
+    if (move_made(m)) {
+        const Square to = Square(to_sq(m));
+        const PieceType pt = type_of(b.piece_on(to));
+        cont = config_.limits.params.corr_cont_weight
+             * ((ss - 2)->cont_corr->entry[pt][to] + (ss - 4)->cont_corr->entry[pt][to]);
+    }
+    return 15341 * pawn + 10569 * minor + 12906 * (white + black) + cont;
 }
 
-int Searcher::correction_value(Color stm, const Board& board, const SearchStack* ss) const {
+void Searcher::update_correction_history(SearchStack* ss, int bonus) {
     constexpr Key mask = CoreHistoryTables::CORR_SIZE - 1;
-    const int pawn  = hist_.pawn_corr[stm][board.pawn_key_value() & mask];
-    const int minor = hist_.minor_corr[stm][board.minor_key_value() & mask];
-    const int own   = hist_.nonpawn_corr[stm][stm][board.nonpawn_key_value(stm) & mask];
-    const int opp   = hist_.nonpawn_corr[stm][~stm][board.nonpawn_key_value(~stm) & mask];
-    int cont = 0;
-    if (move_made((ss - 1)->move) && (ss - 1)->moved_piece != NO_PIECE_TYPE)
-        cont = hist_.cont_corr[stm][(ss - 1)->moved_piece][to_sq((ss - 1)->move)];
-    return (pawn + minor + own + opp + cont) / 5;
+    const Board& b = *state_.board;
+    const Color us = b.turn();
+    CorrectionBound::update(hist_.pawn_corr[us][b.pawn_key_value() & mask], bonus);
+    CorrectionBound::update(hist_.minor_corr[us][b.minor_key_value() & mask], bonus * 150 / 128);
+    CorrectionBound::update(hist_.nonpawn_corr[us][WHITE][b.nonpawn_key_value(WHITE) & mask],
+                            bonus * 186 / 128);
+    CorrectionBound::update(hist_.nonpawn_corr[us][BLACK][b.nonpawn_key_value(BLACK) & mask],
+                            bonus * 186 / 128);
+    const Move m = (ss - 1)->move;
+    if (move_made(m)) {
+        const Square to = Square(to_sq(m));
+        const PieceType pt = type_of(b.piece_on(to));
+        PieceToCorrection::update((ss - 2)->cont_corr->entry[pt][to], bonus * 130 / 128);
+        PieceToCorrection::update((ss - 4)->cont_corr->entry[pt][to], bonus * 70 / 128);
+        DIAG_COUNT(++state_.diag.corr_cont2_updates);
+        DIAG_COUNT(++state_.diag.corr_cont4_updates);
+    }
 }

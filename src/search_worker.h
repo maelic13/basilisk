@@ -34,6 +34,7 @@
 #include "search_types.h"
 #include "syzygy.h"
 #include "tt.h"
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cstdint>
@@ -242,6 +243,7 @@ private:
         ss->move        = m;
         ss->moved_piece = type_of(state_.board->piece_on(from_sq(m)));
         ss->cont_hist   = &hist_.continuation->row[ss->in_check][capture_stage][ss->moved_piece][to];
+        ss->cont_corr   = &hist_.cont_corr->row[ss->moved_piece][to];
         state_.board->make_move(m);
     }
     void undo_move(SearchStack* ss, Move m) {
@@ -252,6 +254,7 @@ private:
         ss->move        = MOVE_NULL;
         ss->moved_piece = NO_PIECE_TYPE;
         ss->cont_hist   = hist_.sentinel_row();
+        ss->cont_corr   = hist_.sentinel_corr_row();
         state_.board->make_null_move();
     }
     void undo_null_move(SearchStack* ss) {
@@ -270,6 +273,10 @@ private:
     void update_quiet_histories(SearchStack* ss, Move m, int bonus);
     void update_continuation_histories(SearchStack* ss, PieceType pt, Square to, int bonus);
     void update_capture_history(Move m, int bonus);
+    // The parent's quiet move, by how far it moved the static eval in the
+    // mover's favour (`eval_diff`), in the main and, without a TT hit, the
+    // pawn history.
+    void update_parent_by_eval_difference(SearchStack* ss, int eval_diff, bool tt_hit);
 
     int  history_bonus_value(int depth) const;
     int  history_malus_value(int depth) const;
@@ -286,9 +293,14 @@ private:
                               Color stm, int depth, SearchStack* ss,
                               bool reward_only = false, int bonus_scale = 100);
 
-    // Correction history
-    void update_correction(Color stm, const Board& board, SearchStack* ss, int diff, int depth);
-    int  correction_value(Color stm, const Board& board, const SearchStack* ss) const;
+    // Correction history: the weighted correction of the node at `ss` in
+    // 131072ths of an evaluation unit, and its training by `bonus`.
+    int  correction_value(const SearchStack* ss) const;
+    void update_correction_history(SearchStack* ss, int bonus);
+    static int corrected_eval(int raw_eval, int correction) {
+        return std::clamp(raw_eval + correction / 131072,
+                          -(tablebaseWinInMaxPly - 1), tablebaseWinInMaxPly - 1);
+    }
 #else
     // ---- Node kernel -------------------------------------------------------
     // Everything from here to the end of the class belongs to the node kernel

@@ -87,12 +87,29 @@ struct TTMoveHistory : HistoryBound<8192> {
     int16_t value;
 };
 
+// Correction histories: the error of the static evaluation against the
+// search, by structure and by move pair, in evaluation units.
+using CorrectionBound = HistoryBound<1024>;
+
+// A [piece type][to] correction row, selected by an earlier move.
+struct PieceToCorrection : HistoryBound<1024> {
+    int16_t entry[PIECE_TYPE_NB][SQUARE_NB];
+};
+
+// Continuation correction: the row a move selects, by its piece type and
+// destination. Row [NO_PIECE_TYPE][A1] is the one records without a move
+// point to.
+struct ContinuationCorrection {
+    PieceToCorrection row[PIECE_TYPE_NB][SQUARE_NB];
+};
+
 // The storage owner: every table one search thread trains, and their
 // lifecycle. The two large tables are on the heap so a Searcher stays cheap
 // to construct.
 struct CoreHistoryTables {
-    // Correction histories, keyed by pawn, minor-piece and per-colour
-    // non-pawn structure and by the previous move.
+    // Correction histories keyed by pawn, minor-piece and per-colour
+    // non-pawn structure, by side to move; the continuation correction is
+    // keyed by move pairs.
     static constexpr int CORR_SIZE = 16384;
     static_assert((CORR_SIZE & (CORR_SIZE - 1)) == 0, "indexed with & (CORR_SIZE - 1)");
 
@@ -100,13 +117,13 @@ struct CoreHistoryTables {
     CaptureHistory capture;
     LowPlyHistory  low_ply;
     TTMoveHistory  tt_move;
-    std::unique_ptr<ContinuationHistory> continuation;
-    std::unique_ptr<PawnHistory>         pawn;
+    std::unique_ptr<ContinuationHistory>    continuation;
+    std::unique_ptr<PawnHistory>            pawn;
+    std::unique_ptr<ContinuationCorrection> cont_corr;
 
     int16_t pawn_corr[NCOLORS][CORR_SIZE];
     int16_t minor_corr[NCOLORS][CORR_SIZE];
     int16_t nonpawn_corr[NCOLORS][NCOLORS][CORR_SIZE];
-    int16_t cont_corr[NCOLORS][PIECE_TYPE_NB][SQUARE_NB];
 
     CoreHistoryTables();
 
@@ -117,5 +134,8 @@ struct CoreHistoryTables {
 
     [[nodiscard]] PieceToHistory* sentinel_row() {
         return &continuation->row[0][0][NO_PIECE_TYPE][0];
+    }
+    [[nodiscard]] PieceToCorrection* sentinel_corr_row() {
+        return &cont_corr->row[NO_PIECE_TYPE][0];
     }
 };

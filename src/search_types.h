@@ -29,6 +29,7 @@ struct ScoredMove { Move move; int score; };
 
 #if defined(BASILISK_B2_CORE)
 struct PieceToHistory;
+struct PieceToCorrection;
 
 // The selectivity core's per-ply record. The root is the record at
 // STACK_SENTINELS; the records below it are default records, which read as
@@ -42,6 +43,9 @@ struct SearchStack {
     // every record at the sentinel row before a search, so a record without a
     // move reads zeros.
     PieceToHistory* cont_hist = nullptr;
+    // The continuation-correction row the move made from here selects (the
+    // sentinel row likewise).
+    PieceToCorrection* cont_corr = nullptr;
     int       eval        = VALUE_NONE;      // corrected static eval at this ply
     int       stat_score  = 0;               // history score of the move searched from here
     int       reduction   = 0;               // reduction applied to the move searched from here
