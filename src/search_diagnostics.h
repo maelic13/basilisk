@@ -24,160 +24,86 @@
 
 using InfoCallback = std::function<void(const std::string&)>;
 
-// ---- 8.6.6 diagnostic counters (Rarog 7.6 pattern) ----
-// Counted in diagnostic/tune builds and printed only when SearchLimits.diag
-// is set. Production compiles the hot-path increments away; the retained
-// RELEASE_DIAG_COUNTERS arm exists only to reproduce the cost measurement.
-// These size candidates BEFORE they spend SPRT slots and are the substrate
-// Phase 10's acceptance criteria assume; check_exts must read 0 once
-// 8.6.7 lands.
+// The diagnostic counters, one X line each. The table generates the fields,
+// reset() and the pool aggregate add(), so a counter cannot be added without
+// being aggregated. Counted in diagnostic and tune builds and printed only
+// when SearchLimits.diag is set; production compiles the increments away (the
+// RELEASE_DIAG_COUNTERS arm exists to reproduce the cost measurement). Names
+// and units are the cross-engine contract of tools/diag/run_suite.py and the
+// oracle's matching build: a renamed counter breaks the differential harness.
+// New counters go at the end of the table, each with the denominator it is
+// read against, and are printed on new `kv` lines, never spliced into old ones.
+#define BASILISK_DIAG_COUNTERS(X)                                            \
+    /* Node population. Shares are of interior (negamax) nodes. */           \
+    X(interior_nodes) X(in_check_nodes) X(check_exts) X(tt_pv_nodes)         \
+    X(tt_probes) X(tt_hits) X(tt_cutoffs)                                    \
+    /* Node and move-loop pruning, each with its tries where it has them. */ \
+    X(rfp_cuts) X(razor_cuts) X(null_tries) X(null_cuts)                     \
+    X(probcut_tries) X(probcut_cuts)                                         \
+    X(fut_prunes) X(lmp_prunes) X(hist_prunes) X(see_prunes)                 \
+    X(lmr_applied) X(lmr_researched)                                         \
+    X(qs_nodes) X(qs_evasion_nodes)                                          \
+    X(hist_cutoff_updates) X(hist_reward_updates)                            \
+    /* Board work, snapshotted from the Board at search teardown. */         \
+    X(see_ge_calls) X(gives_check_calls)                                     \
+    /* TT stores that landed on a slot already holding this position's key  \
+       against stores that claimed a different slot: how much of a pool's   \
+       traffic rewrites entries it already owns rather than competing. */    \
+    X(tt_stores) X(tt_stores_same_key)                                       \
+    /* Ordering quality at the cutoff. A fail-high on the first move costs  \
+       one move's search, on the n-th it costs n, so the mean cutoff index  \
+       multiplies the tree's width; the source says which picker stage to   \
+       look at. Denominator: fail_highs. */                                  \
+    X(fail_highs) X(fail_high_first) X(fail_high_index_sum)                  \
+    X(cutoff_src_tt) X(cutoff_src_good_tactical)                             \
+    X(cutoff_src_quiet) X(cutoff_src_bad_tactical)                           \
+    /* LMR width. lmr_applied alone cannot separate "rarely eligible" from  \
+       "eligible but almost never reduced", which have opposite repairs. The \
+       blocked reasons are exclusive and follow the gate's own short-circuit \
+       order, so eligible = applied + clamped_zero + sum(blocked_*).         \
+       reduction_plies / applied is the mean reduction taken; clamped_high  \
+       counts a formula output above the new_depth - 1 ceiling, where the   \
+       policy could not have mattered. */                                    \
+    X(lmr_eligible) X(lmr_reduction_plies) X(lmr_clamped_zero)               \
+    X(lmr_clamped_high)                                                      \
+    /* Singular extensions: fired, the double (+2) path, fired at a node    \
+       that also took the check extension, both (the 3-ply stack), and the  \
+       negative-extension branch (TT score at or above beta). */             \
+    X(sing_fired) X(sing_double) X(sing_in_check) X(sing_triple) X(sing_ttbeta) \
+    /* Aspiration at the root: iterations with a window, the two failure    \
+       directions, re-searches in total, and the full-width bail. */         \
+    X(asp_windows) X(asp_fail_low) X(asp_fail_high) X(asp_researches) X(asp_giveup) \
+    /* History-pruning reachability: quiets tested, and how many fell below \
+       a half, quarter or eighth of the live threshold, which sizes a looser \
+       candidate before one is built. */                                     \
+    X(hist_prune_tested) X(hist_below_half)                                  \
+    X(hist_below_quarter) X(hist_below_eighth)                               \
+    X(lmr_blocked_depth) X(lmr_blocked_searched)                             \
+    X(lmr_blocked_in_check) X(lmr_blocked_movetype)                          \
+    X(lmr_blocked_gives_check)
+
 struct DiagCounters {
-    int64_t interior_nodes = 0, in_check_nodes = 0, check_exts = 0, tt_pv_nodes = 0;
-    int64_t tt_probes = 0, tt_hits = 0, tt_cutoffs = 0;
-    int64_t rfp_cuts = 0, razor_cuts = 0, null_tries = 0, null_cuts = 0;
-    int64_t probcut_tries = 0, probcut_cuts = 0;
-    int64_t fut_prunes = 0, lmp_prunes = 0, hist_prunes = 0, see_prunes = 0;
-    int64_t lmr_applied = 0, lmr_researched = 0;
-    int64_t qs_nodes = 0, qs_evasion_nodes = 0;
-    int64_t hist_cutoff_updates = 0, hist_reward_updates = 0;
-    // 8.7.1(c): snapshotted from the Board at search teardown (see
-    // board.h) — board_ptr_ is nulled before print_diag() runs.
-    int64_t see_ge_calls = 0, gives_check_calls = 0;
-    // 9.3(c): TT stores that landed on a slot already holding this
-    // position's key, versus stores that claimed a different slot. At
-    // Threads>1 the same-key share is how much the pool is re-writing
-    // entries it (or another thread) already owns rather than competing
-    // for capacity — the quantity 9.5's TT-coordination work moves.
-    int64_t tt_stores = 0, tt_stores_same_key = 0;
-
-    // ---- 5.2 differential harness (selected by BAS-O03) ----------------
-    // BAS-O01/O03 measured our effective branching factor at ~2.20 against
-    // the reference's ~1.61: at equal time we finish 15.6 plies where it
-    // finishes 25.2, on MORE nodes per move. The tree is too wide, not too
-    // small. These counters localize where that width is created; the
-    // pre-existing ones above could not, because they report how often a
-    // mechanism fired without reporting how often it could have.
-
-    // Ordering quality. A fail-high on the first move costs one move's
-    // search; on the n-th it costs n. Mean cutoff index is therefore a
-    // direct multiplier on tree width, and `cutoff_src` says which stage
-    // to fix. Counted at the cutoff, so the denominator is fail_highs.
-    int64_t fail_highs = 0, fail_high_first = 0, fail_high_index_sum = 0;
-    int64_t cutoff_src_tt = 0, cutoff_src_good_tactical = 0;
-    int64_t cutoff_src_quiet = 0, cutoff_src_bad_tactical = 0;
-
-    // LMR width. `lmr_applied` alone cannot distinguish "rarely eligible"
-    // from "eligible but almost never reduced" — the two have opposite
-    // repairs. The blocked reasons are mutually exclusive and evaluated in
-    // the live gate's own short-circuit order, so
-    //   eligible = applied + clamped_zero + sum(blocked_*).
-    // `reduction_plies / applied` is the mean reduction actually taken,
-    // which is the number a timid-LMR hypothesis lives or dies on.
-    int64_t lmr_eligible = 0, lmr_reduction_plies = 0, lmr_clamped_zero = 0;
-    // 5.4.3: the formula's raw output exceeded the new_depth-1 ceiling,
-    // so the reduction actually taken was set by remaining depth rather
-    // than by the policy. Distinguishes "our modulation is too small"
-    // from "our modulation cannot matter here" — opposite repairs.
-    int64_t lmr_clamped_high = 0;
-    // 5.7.3 probe: how often does an extension actually stack?
-    //   sing_fired      -- singular extension applied (+1 or +2)
-    //   sing_double     -- of those, the +2 double-extension path
-    //   sing_in_check   -- of those, at a node that ALSO took the check
-    //                      extension, i.e. the 3-ply case the audit flagged
-    int64_t sing_fired = 0;
-    int64_t sing_double = 0;
-    int64_t sing_in_check = 0;
-    int64_t sing_triple = 0;   // double AND in check: the full 3-ply stack
-    int64_t sing_ttbeta = 0;   // 5.7.4: the tt_score >= beta branch
-    // 5.8.2: the aspiration path. Nothing counted these, so none of the
-    // cluster's candidates could be sized before implementing them.
-    int64_t asp_windows = 0;    // root iterations that used a window at all
-    int64_t asp_fail_low = 0;
-    int64_t asp_fail_high = 0;
-    int64_t asp_researches = 0; // total re-searches across all iterations
-    int64_t asp_giveup = 0;     // the delta >= 900 full-width bail
-    // 5.6: history-pruning reachability. The live threshold is
-    // hist_prune_coeff * depth against a SUM of six bounded history
-    // channels whose maximum magnitude is 81,920 — so at depth 6 the
-    // condition is provably unsatisfiable and at depth 5 it needs 85% of
-    // theoretical maximum negative on every channel at once. These count
-    // how many quiet moves would fall below a looser threshold, sizing a
-    // candidate before one is built.
-    int64_t hist_prune_tested = 0, hist_below_half = 0;
-    int64_t hist_below_quarter = 0, hist_below_eighth = 0;
-    int64_t lmr_blocked_depth = 0, lmr_blocked_searched = 0;
-    int64_t lmr_blocked_in_check = 0, lmr_blocked_movetype = 0;
-    int64_t lmr_blocked_gives_check = 0;
+#define BASILISK_DIAG_COUNTER_FIELD(name) int64_t name = 0;
+    BASILISK_DIAG_COUNTERS(BASILISK_DIAG_COUNTER_FIELD)
+#undef BASILISK_DIAG_COUNTER_FIELD
 
     void reset() noexcept { *this = DiagCounters{}; }
-    // Pool aggregation (9.3c): sum a helper's counters into this one.
-    // Written out rather than punned through an int64_t* — the
-    // static_assert below is what catches a counter added without a
-    // matching line here (it fires the moment the field count changes).
+    // Pool aggregation: sum a helper's counters into this one.
     void add(const DiagCounters& o) noexcept {
-        interior_nodes += o.interior_nodes;
-        in_check_nodes += o.in_check_nodes;
-        check_exts += o.check_exts;
-        tt_pv_nodes += o.tt_pv_nodes;
-        tt_probes += o.tt_probes;
-        tt_hits += o.tt_hits;
-        tt_cutoffs += o.tt_cutoffs;
-        rfp_cuts += o.rfp_cuts;
-        razor_cuts += o.razor_cuts;
-        null_tries += o.null_tries;
-        null_cuts += o.null_cuts;
-        probcut_tries += o.probcut_tries;
-        probcut_cuts += o.probcut_cuts;
-        fut_prunes += o.fut_prunes;
-        lmp_prunes += o.lmp_prunes;
-        hist_prunes += o.hist_prunes;
-        see_prunes += o.see_prunes;
-        lmr_applied += o.lmr_applied;
-        lmr_researched += o.lmr_researched;
-        qs_nodes += o.qs_nodes;
-        qs_evasion_nodes += o.qs_evasion_nodes;
-        hist_cutoff_updates += o.hist_cutoff_updates;
-        hist_reward_updates += o.hist_reward_updates;
-        see_ge_calls += o.see_ge_calls;
-        gives_check_calls += o.gives_check_calls;
-        tt_stores += o.tt_stores;
-        tt_stores_same_key += o.tt_stores_same_key;
-        fail_highs += o.fail_highs;
-        fail_high_first += o.fail_high_first;
-        fail_high_index_sum += o.fail_high_index_sum;
-        cutoff_src_tt += o.cutoff_src_tt;
-        cutoff_src_good_tactical += o.cutoff_src_good_tactical;
-        cutoff_src_quiet += o.cutoff_src_quiet;
-        cutoff_src_bad_tactical += o.cutoff_src_bad_tactical;
-        lmr_eligible += o.lmr_eligible;
-        lmr_reduction_plies += o.lmr_reduction_plies;
-        lmr_clamped_zero += o.lmr_clamped_zero;
-        lmr_clamped_high += o.lmr_clamped_high;
-        sing_fired += o.sing_fired;
-        sing_double += o.sing_double;
-        sing_in_check += o.sing_in_check;
-        sing_triple += o.sing_triple;
-        sing_ttbeta += o.sing_ttbeta;
-        asp_windows += o.asp_windows;
-        asp_fail_low += o.asp_fail_low;
-        asp_fail_high += o.asp_fail_high;
-        asp_researches += o.asp_researches;
-        asp_giveup += o.asp_giveup;
-        hist_prune_tested += o.hist_prune_tested;
-        hist_below_half += o.hist_below_half;
-        hist_below_quarter += o.hist_below_quarter;
-        hist_below_eighth += o.hist_below_eighth;
-        lmr_blocked_depth += o.lmr_blocked_depth;
-        lmr_blocked_searched += o.lmr_blocked_searched;
-        lmr_blocked_in_check += o.lmr_blocked_in_check;
-        lmr_blocked_movetype += o.lmr_blocked_movetype;
-        lmr_blocked_gives_check += o.lmr_blocked_gives_check;
+#define BASILISK_DIAG_COUNTER_ADD(name) name += o.name;
+        BASILISK_DIAG_COUNTERS(BASILISK_DIAG_COUNTER_ADD)
+#undef BASILISK_DIAG_COUNTER_ADD
     }
+
+#define BASILISK_DIAG_COUNTER_ONE(name) + 1
+    static constexpr int COUNT = 0 BASILISK_DIAG_COUNTERS(BASILISK_DIAG_COUNTER_ONE);
+#undef BASILISK_DIAG_COUNTER_ONE
 };
-// 57 counters, all int64_t. If this fails you added a counter: add it to
-// add() above and update the count, or the pool aggregate silently drops it.
-static_assert(sizeof(DiagCounters) == 57 * sizeof(int64_t),
-              "DiagCounters changed shape — update DiagCounters::add()");
+// Every counter is one int64_t and nothing else lives in the struct, so the
+// aggregate and the field count stay in step with the table.
+static_assert(sizeof(DiagCounters) == DiagCounters::COUNT * sizeof(int64_t),
+              "DiagCounters holds something that is not a counter from the table");
+static_assert(DiagCounters::COUNT == 57, "the counter contract has 57 entries; extend, never rename");
 
 // One search's counters as `info string diag` lines, followed by the
 // evaluator's speed telemetry.
@@ -214,7 +140,7 @@ struct TraceRecord {
     int history = VALUE_NONE;
     int move_count = 0;
     int reduction = 0;
-    int cutoff_count = -1; // no producer exists in the current architecture
+    int cutoff_count = -1; // no producer exists in the legacy kernel
     int margin = VALUE_NONE;
     int result = VALUE_NONE;
 };

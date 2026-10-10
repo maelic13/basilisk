@@ -14,6 +14,15 @@
 
 enum TTFlag : uint8_t { TT_NONE=0, TT_EXACT=1, TT_ALPHA=2, TT_BETA=3 };
 
+// The flag_age byte: bits 0-1 hold the bound, bits 2-7 the age (generation).
+// new_search() advances the age by TT_AGE_STEP, so the bound bits are never
+// touched and the age wraps after 64 searches. A kernel that persists more in
+// this byte takes its bits from the age field and changes these three values
+// together.
+inline constexpr uint8_t TT_BOUND_MASK = 0x03;
+inline constexpr uint8_t TT_AGE_MASK   = 0xFC;
+inline constexpr uint8_t TT_AGE_STEP   = 0x04;
+
 // Decoded TT entry. The table stores entries in a compact atomic format; this
 // type is the stable interface used by search and tests.
 struct TTEntry {
@@ -22,36 +31,39 @@ struct TTEntry {
     int16_t  static_eval;
     uint16_t move16;
     int8_t   depth;      // signed: allows sentinels at depth=-1
-    uint8_t  flag_age;   // bits 0-1: TTFlag, bits 2-7: age (generation)
+    uint8_t  flag_age;   // bound in the low bits, age above (TT_BOUND_MASK, TT_AGE_MASK)
+
+    [[nodiscard]] TTFlag  bound() const noexcept { return TTFlag(flag_age & TT_BOUND_MASK); }
+    [[nodiscard]] uint8_t age() const noexcept { return uint8_t(flag_age & TT_AGE_MASK); }
 };
 
-// Dense partial-key cluster (8.5.D1). Each entry is a 16-bit key fragment plus
-// an 8-byte payload word (score16|eval16|move16|depth8|flag_age8) — 10 bytes,
-// half the old 16-byte full-key/XOR slot, so a 32-byte cluster holds the same
-// 3 entries and equal hash fits ~2x the clusters (and entries).
+// Dense partial-key cluster. Each entry is a 16-bit key fragment plus an
+// 8-byte payload word (score16|eval16|move16|depth8|flag_age8), 10 bytes, so a
+// 32-byte cluster holds 3 entries and a given Hash buys twice the entries of
+// a full-key slot.
 //
-// Lock-free model (SF-style): the payload words stay 8-byte aligned so each is
-// an atomic load/store; the key16 fragment is a separate 2-byte atomic. Single-
-// thread search is race-free.
+// Lock-free model (Stockfish's): the payload words stay 8-byte aligned so each
+// is an atomic load/store; the key16 fragment is a separate 2-byte atomic.
+// Single-thread search is race-free.
 //
 // ACCEPTED RISK, not a harmless race (BAS-C05, decided 2026-09-07). The key and
 // the payload are two publications, so under SMP a reader can match its key
 // against one store and consume the score/depth/bound of another position's
-// store. That is NOT caught downstream: `search.cpp:1589` returns tt_score as
-// the node value on a depth-and-bound match with no verification, and
-// `search.cpp:1967` multicuts on a singular beta derived from it. The worst
-// case is a foreign mate score reaching the root. An earlier comment here
-// claimed the mismatch was "harmless ... bounds validated"; that claim was
-// false and is what BAS-C05 corrected.
+// store. Nothing downstream catches it: negamax's TT cutoff returns the stored
+// score as the node value on a depth-and-bound match with no verification, and
+// its singular multi-cut returns a bound derived from it. The worst case is a
+// foreign mate score reaching the root. An earlier claim here that the
+// mismatch was "harmless, bounds validated" was false and is what BAS-C05
+// corrected.
 //
-// It is kept anyway because both repairs cost more than the defect. Binding the
-// pair with a `key16 ^ fold16(payload)` tag measured -3.91% NPS at identical
-// nodes; packing the whole validated record into one atomic word measured
-// -1.22% (~-2.4 Elo at BAS-P01's ratio). Coherence cannot be free at this
+// It is kept because both repairs cost more than the defect. Binding the pair
+// with a `key16 ^ fold16(payload)` tag measured -3.91% NPS at identical nodes;
+// packing the whole validated record into one atomic word measured -1.22%
+// (about -2.4 Elo at BAS-P01's ratio). Coherence cannot be free at this
 // density: key+score+eval+depth+flag+move needs 80 bits and the word holds 64.
 // Stockfish ships this same tolerance in this same structure. Revisit only on
-// the EXPERIMENTS BAS-C05 retry trigger — a measured 4T-only strength anomaly,
-// or a TT redesign that widens the slot for another reason.
+// the BAS-C05 retry trigger: a measured 4T-only strength anomaly, or a TT
+// redesign that widens the slot for another reason.
 struct alignas(32) TTCluster {
     std::atomic<uint64_t> data[3];    // payload words, 8-byte aligned (offsets 0/8/16)
     std::atomic<uint16_t> key16[3];   // partial keys (offsets 24/26/28)
@@ -63,12 +75,11 @@ struct alignas(32) TTCluster {
     TTCluster& operator=(const TTCluster&) = delete;
 };
 
-// 8.6.2a: pin the density contract that the comment above AND resize()'s
-// `bytes / sizeof(TTCluster)` math both depend on. Widening any field (say
-// key16 -> uint32_t) would silently push the cluster to 64 bytes, halving the
-// entries the user's Hash buys while every comment still claimed otherwise —
-// the latent form of the sibling-engine bug where a table was sized in another
-// structure's unit. Make it a build failure instead of a silent regression.
+// The density contract the comment above and resize()'s
+// `bytes / sizeof(TTCluster)` both depend on. Widening any field (say key16 to
+// uint32_t) would silently push the cluster to 64 bytes and halve the entries
+// the user's Hash buys while every comment still claimed otherwise; make it a
+// build failure instead.
 static_assert(sizeof(TTCluster) == 32,
               "TTCluster must stay 32 bytes (3 entries/cluster; resize() divides Hash by it)");
 static_assert(alignof(TTCluster) == 32, "TTCluster must stay 32-byte aligned");
@@ -84,18 +95,18 @@ public:
     // Size the table from the byte budget the user asked for. The cluster
     // count floors to a power of two (the index is a mask), so the allocation
     // is always <= the budget and never less than half of it. Closing that gap
-    // needs full-budget (multiply-hi) indexing — deferred, PLAN section 6.
+    // needs full-budget (multiply-hi) indexing, which is deferred.
     void resize(size_t mb) {
         size_t bytes = mb * 1024 * 1024;
         size_t count = bytes / sizeof(TTCluster);
         size_t power = 1;
         while (power * 2 <= count) power *= 2;
 
-        // Free the old table BEFORE allocating the new one (8.6.2a). Plain
-        // assignment keeps both alive across make_unique, so growing 8 -> 16 GB
-        // transiently needed ~24 GB — at `setoption Hash` time, i.e. mid-game.
-        // No entries are ever carried across a resize, so dropping first costs
-        // nothing. (make_unique value-initializes, so the new table is clear.)
+        // Free the old table before allocating the new one: plain assignment
+        // keeps both alive across make_unique, so growing 8 -> 16 GB
+        // transiently needed about 24 GB at `setoption Hash` time, mid-game.
+        // No entries are carried across a resize, so dropping first costs
+        // nothing, and make_unique value-initializes the new table clear.
         clusters_.reset();
         clusters_ = std::make_unique<TTCluster[]>(power);
         cluster_count_ = power;
@@ -103,8 +114,8 @@ public:
         age_.store(0, std::memory_order_relaxed);
     }
 
-    // Allocated size in bytes — the `Hash` contract under test (8.6.2a):
-    // allocated <= requested budget, and > budget/2 given the pow2 floor.
+    // Allocated size in bytes, the `Hash` contract under test: allocated <=
+    // requested budget, and > budget/2 given the power-of-two floor.
     [[nodiscard]] size_t allocated_bytes() const noexcept {
         return cluster_count_ * sizeof(TTCluster);
     }
@@ -121,7 +132,7 @@ public:
 
     void new_search() {
         const uint8_t age = age_.load(std::memory_order_relaxed);
-        age_.store((age + 4) & 0xFC, std::memory_order_relaxed);
+        age_.store(uint8_t((age + TT_AGE_STEP) & TT_AGE_MASK), std::memory_order_relaxed);
     }
 
     [[nodiscard]] bool probe_copy(Key key, TTEntry& out) const {
@@ -133,7 +144,7 @@ public:
                 continue;
             const uint64_t data = cluster.data[i].load(std::memory_order_relaxed);
             TTEntry e = unpack_entry(data);
-            if ((e.flag_age & 3) != TT_NONE) {   // reject an empty slot that hashes to want==0
+            if (e.bound() != TT_NONE) {   // reject an empty slot that hashes to want==0
                 e.key16 = want;
                 out = e;
                 return true;
@@ -159,9 +170,9 @@ public:
 
     // Returns true when the store landed on a slot that ALREADY held this
     // position's key (an update of our own or another thread's entry) rather
-    // than evicting a different position (9.3c telemetry — the caller
-    // accumulates it into DiagCounters; the return is free to ignore and the
-    // stored data is identical either way).
+    // than evicting a different position. The caller accumulates it into its
+    // telemetry; the return is free to ignore and the stored data is
+    // identical either way.
     bool store(Key key, int depth, int score, TTFlag flag, Move m, int ply, int static_eval) {
         TTCluster& cluster = clusters_[key & mask_];
         const uint16_t want = static_cast<uint16_t>(key >> 48);
@@ -177,9 +188,9 @@ public:
             TTEntry old_entry = unpack_entry(cluster.data[i].load(std::memory_order_relaxed));
             old_entry.key16 = old_key16;
 
-            if (old_key16 == want && (old_entry.flag_age & 3) != TT_NONE) {
+            if (old_key16 == want && old_entry.bound() != TT_NONE) {
                 if (flag != TT_EXACT && depth < old_entry.depth - 3
-                    && (old_entry.flag_age & 0xFC) == age)
+                    && old_entry.age() == age)
                     return true;   // declined, but it WAS our own key
 
                 same_key = true;
@@ -198,7 +209,7 @@ public:
 
         // Preserve the existing best move on a MOVE_NONE store into the same key.
         if (m == MOVE_NONE && replace_entry.key16 == want
-            && (replace_entry.flag_age & 3) != TT_NONE)
+            && replace_entry.bound() != TT_NONE)
             m = move_from_tt(replace_entry.move16);
 
         const uint64_t data = pack_entry(score_to_tt(score, ply),
@@ -206,18 +217,14 @@ public:
                                          m, depth, static_cast<uint8_t>(age | uint8_t(flag)));
 
         // Publish the payload before the key fragment so a concurrent reader
-        // that matches key16 sees at least this store's payload (relaxed is
-        // enough for single-thread; the SMP race is harmless as noted above).
+        // that matches key16 sees at least this store's payload. The release
+        // here pairs with the acquire on the key16 load in probe_copy and is
+        // what enforces "payload before key" on the ARM targets we ship, where
+        // store-store reordering could otherwise publish a key ahead of its
+        // payload; x86 stores are already ordered, so it costs nothing there.
+        // Defence in depth, not a fix for an observed bug: a mismatched pair is
+        // the accepted risk above.
         cluster.data[replace_idx].store(data, std::memory_order_relaxed);
-        // Release, paired with the acquire on the key16 load in probe_copy
-        // (8.6.2b / C9): this is what actually enforces "payload published
-        // before key". Under the previous all-relaxed scheme that ordering was
-        // only a comment - free on x86, where stores are already ordered, but on
-        // the ARM targets we ship (Apple Silicon, ARM64 Windows) store-store
-        // reordering could publish a key ahead of its payload, making a
-        // mismatched pair more reachable than the 1/65536 collision figure
-        // suggests. Still self-correcting downstream, so this is defence in
-        // depth rather than a fix for an observed bug; it costs nothing on x86.
         cluster.key16[replace_idx].store(want, std::memory_order_release);
         return same_key;
     }
@@ -229,7 +236,7 @@ public:
         for (size_t i = 0; i < sample; i++) {
             for (int j = 0; j < 3; ++j) {
                 TTEntry e = unpack_entry(clusters_[i].data[j].load(std::memory_order_relaxed));
-                if ((e.flag_age & 3) != TT_NONE && (e.flag_age & 0xFC) == age)
+                if (e.bound() != TT_NONE && e.age() == age)
                     count++;
             }
         }
@@ -285,11 +292,13 @@ private:
         return e;
     }
 
+    // Replacement quality: depth, less two per generation of age, plus two
+    // for an exact bound. An empty slot loses to anything.
     static int entry_quality(const TTEntry& e, uint8_t age) {
-        if ((e.flag_age & 3) == TT_NONE)
+        if (e.bound() == TT_NONE)
             return -100000;
 
-        int age_delta = int(age - (e.flag_age & 0xFC)) & 0xFC; // 0, 4, 8, ...
-        return int(e.depth) - age_delta / 2 + (((e.flag_age & 3) == TT_EXACT) ? 2 : 0);
+        const int age_delta = int(uint8_t(age - e.age()) & TT_AGE_MASK); // generations * TT_AGE_STEP
+        return int(e.depth) - (age_delta / TT_AGE_STEP) * 2 + (e.bound() == TT_EXACT ? 2 : 0);
     }
 };

@@ -110,9 +110,9 @@ void DecisionTrace::print(const InfoCallback& info, const std::vector<Move>& roo
 }
 #endif
 
-// 8.6.6: end-of-search diagnostic dump (UCI `Diag`, TUNE builds). One line per
-// family; shares are of interior (negamax) nodes. Never a gate — these size
-// candidates and verify mechanisms (check_exts must be 0 once 8.6.7 lands).
+// End-of-search diagnostic dump (UCI `Diag`). One line per family; shares are
+// of interior (negamax) nodes. Never a gate: these size candidates and verify
+// that a mechanism fires where it should.
 void print_search_diag(const DiagCounters& d, const Evaluator& evaluator,
                        const InfoCallback& info) {
     if (!info) return;
@@ -120,7 +120,7 @@ void print_search_diag(const DiagCounters& d, const Evaluator& evaluator,
         return b > 0 ? 100.0 * double(a) / double(b) : 0.0;
     };
     // Each line is built whole by std::format: a fixed buffer once truncated
-    // the tail field silently (5.6), corrupting the kv mirror.
+    // the tail field silently, corrupting the kv mirror.
     std::string buf;
     auto emit = [&](const std::string& text) { info(std::string("info string diag ") + text); };
     buf = std::format("nodes interior {} qsearch {} | in_check {} ({:.2f}%) check_ext {} tt_pv {} ({:.2f}%)",
@@ -146,8 +146,8 @@ void print_search_diag(const DiagCounters& d, const Evaluator& evaluator,
         d.hist_cutoff_updates, d.hist_reward_updates,
         d.qs_evasion_nodes);
     emit(buf);
-    // ---- 5.2 differential harness (BAS-O03) --------------------------------
-    // Read these against the oracle's tree shape, not in isolation.
+    // The differential harness's lines: read against the oracle's tree
+    // shape, not in isolation.
     buf = std::format("order fail_highs {} first {} ({:.2f}%) mean_idx {:.3f} | src tt {} goodcap {} quiet {} badcap {}",
         d.fail_highs, d.fail_high_first,
         pct(d.fail_high_first, d.fail_highs),
@@ -231,9 +231,8 @@ void print_search_diag(const DiagCounters& d, const Evaluator& evaluator,
             d.sing_ttbeta);
         emit(buf);
     }
-    // 8.7.1(c) speed telemetry — the numbers Phase 8.7 steps read before
-    // touching anything: eval rate (8.7.7), pawn-cache hit rate (8.7.8),
-    // full-gives_check rate (8.7.3), SEE calls per node (8.7.5).
+    // Speed telemetry: the evaluation rate, the pawn-cache hit rate, the
+    // gives_check rate and SEE calls per node.
     {
         const int64_t total_nodes = d.interior_nodes + d.qs_nodes;
         buf = std::format("speed eval {} ({:.2f}%/node) pawncache {}/{} ({:.2f}% hit) "
@@ -307,10 +306,6 @@ void print_search_diag(const DiagCounters& d, const Evaluator& evaluator,
     }
 }
 
-// 9.3(c): the pool section. Printed by thread 0 AFTER the join (main's own
-// search — and its per-thread diag lines — finish before the helpers do), so
-// this appends rather than replacing anything. Emitted only at Threads>1.
-
 // The pool section. Printed by the main thread after the join (the helpers
 // finish after its own search and per-thread lines), so it appends rather
 // than replacing anything.
@@ -335,9 +330,8 @@ void print_pool_diag(const DiagCounters& main, const DiagCounters& pool, int thr
     emit(buf);
 
     // Same-key share: how much of the pool's TT traffic updates an entry for a
-    // position the table already holds, versus evicting a different one. This
-    // is the quantity 9.5's coordination work moves; read it as a share, never
-    // as an absolute.
+    // position the table already holds, versus evicting a different one. Read
+    // it as a share, never as an absolute.
     buf = std::format("pool tt_stores {} same_key {} ({:.2f}%) | main stores {} same_key {} ({:.2f}%)",
         pool.tt_stores, pool.tt_stores_same_key,
         pct(pool.tt_stores_same_key, pool.tt_stores),
