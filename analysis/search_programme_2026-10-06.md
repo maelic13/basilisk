@@ -1423,3 +1423,88 @@ the WAC floors there were always the cluster's.
   `test_move_picker_core` 5/5, off arm at 14,978,465.
 - Tickets 4–6: the same record per ticket. Ticket 7: re-register
   `test_wac --floor` on the ON arm.
+
+## 20. B.2.1 Implementation record (running; extended per ticket)
+
+The record PROCESS asks for: commits per ticket, both arms' fingerprints,
+tests added, deviations with their reasons, and what the reviewer must
+check. Tickets 4–8 append rows here. Every fingerprint is `bench 13`
+release, the same on PEXT and plain unless stated; the sanitizer column is
+`bench 10` and equals the release `bench 10` of the same arm. The off arm
+holds 14,978,465 (sanitizer 3,190,673) on PEXT, plain, Tune, Diag and Ablate
+at every commit listed.
+
+| Ticket | Commits | ON `bench 13` | ON sanitizer | CTest release / sanitizer (both arms) | ON WAC depth 6 | ON WAC 100k nodes |
+|---|---|---:|---:|---|---:|---:|
+| 0 counters, trace v2, parsers | `1dbf0d9` tools, `61c15cb` engine | — (§16.4 item 8) | — | off 19/19, 17/17 | — | — |
+| 1 threats, stack record, fork, CI | `32e56ad` engine, `34a6d33` CI | 14,978,465 | 3,190,673 | 20/20, 18/18 | — | — |
+| 2 TT encoding and cutoff rules | `54ff32d` tools, `e97a3cd` test, `f179404` engine | 13,488,940 | 3,445,675 | 20/20, 18/18 | 138 (§18.2) | — |
+| 3a quiet-move `see_ge` | `ea5c49f` engine, `60a610e` tests | 13,488,940 | 3,445,675 | 20/20, 18/18 | — | — |
+| 3b WAC count mode | `9a632e6` tests | 13,488,940 | — | 20/20 both arms | 138 (count) | — |
+| 3c tables, picker, routing | `bcf63e8` engine | **12,815,895** (transient, decision 9) | 3,063,719 | ON 22/22, 20/20; off 20/20, 18/18 | **119** (count; §18.2 attribution) | **200** |
+
+Ticket 3's instruments (`tools/results/b21-20261010/ticket3/`):
+- `test_wac --count` → `wac_depth6_on.txt`, SHA-256 `e1854e6e…73b5`.
+- `fixed_budget_probe.py nodes 100000 src/wac.epd` on the ON release
+  binary (`basilisk-b21-t3-on-pext.exe`, `60a19710…55f2`) →
+  `wac_nodes100k_on.json`, `fe67970f…de15`: **200/300**.
+- The same recipe on the off binary (`5705e8f3…dd2a`) reads **204**, §10's
+  legacy baseline, which proves the instrument on this tree
+  (`wac_nodes100k_off.json`, `b19e43cc…9b19`).
+- Both counts are instruments until ticket 7 (§19.1); no action is taken
+  on them.
+
+Tests added so far: the 22 counters and trace v2 in the parsers' tests;
+`test_threats` (both arms); the ON arm's TT tests (pv bit, age cycle,
+evaluation-only entries, rule-50 downgrade) and the key-0 empty slot (both
+arms); `test_board`'s quiet SEE against the legality oracle (both arms);
+`test_history_core` (97 checks) and `test_move_picker_core` (5 sections:
+exhaustive delivery, TT first and once, foreign TT move, excluded move,
+skip-quiets at the start and after the first quiet, the partial sort),
+both ON-only under `_ALL_TARGETS`. The picker test was proven live with a
+planted defect (§18.2).
+
+Deviations and implementation choices, with reasons:
+1. Ticket 1: the ON parameter table aliases the legacy one, so the forked
+   kernel reads every legacy coordinate until its mechanism is replaced
+   (§16.4 item 8).
+2. Ticket 2: the TT-cutoff bonus is `131·depth` uncapped (decision 2);
+   `tt_capture` is capture-stage membership (decision 10); the clock test's
+   move check was restated as keeping the win, in its own commit
+   (`e97a3cd`, §16.1).
+3. Ticket 3a: `see_ge` takes 17.1's optional fast path; captures'
+   verdicts are byte-identical (both fingerprints unchanged).
+4. Ticket 3c, placement choices inside the contract:
+   - The main history is `[colour][from][to]`, as review §5.5 places it.
+     Promotions share their from-to, which differs from the donor's
+     whole-move key only for under-promotions.
+   - The correction tables stay in their legacy form inside
+     `CoreHistoryTables` until ticket 4.
+   - Interim ageing halves every table but the TT-move history every
+     second search, as the legacy kernel did, until ticket 8.
+   - The legacy consumers still in place (history pruning, the LMR history
+     term, the trace) read the new tables as cont1 + cont2 + cont4/2.
+   - The legacy quiescence body (B.4's) keeps its capture order, reading
+     the new capture table, and a copy of the legacy `pick_next`.
+   - The picker no longer memoises `see_ge(m, 0)`: the legacy LMR's
+     bad-capture test computes it where it reads it, until ticket 7.
+   - In-check nodes use the main picker (decision 13).
+   - `CorePawnHistBucketsLog2` is clamped to the table at use.
+5. Ticket 3b: the ON arm registers `test_wac --count` as `test_wac_floor`
+   until ticket 7 (Amendment 2); `FLOOR` stays 130. The off arm still
+   asserts: a planted `FLOOR = 139` fails it.
+
+What the reviewer must check (so far):
+- Both arms' fingerprints per ticket, on PEXT and plain.
+- The ON arm's TT encoding against review §5.6.
+- The quiet `see_ge` against 17.1 (castling-only early return; the fast
+  path is exact).
+- The picker against review §5.7: stage order, the −v/18 and −14000
+  splits, the sort limit −3560·depth, skip-quiets semantics, the threat and
+  check terms.
+- The continuation and quiet update routing against §3.6: weights,
+  consistency multipliers, the in-check two-ply limit, +73 at one ply, the
+  712/750/1104/459 factors.
+- The sentinel row is never updated.
+- No killers or countermove remain on the ON arm.
+- The count-mode registration is under the umbrella only.
