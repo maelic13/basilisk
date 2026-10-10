@@ -14,14 +14,30 @@
 
 enum TTFlag : uint8_t { TT_NONE=0, TT_EXACT=1, TT_ALPHA=2, TT_BETA=3 };
 
-// The flag_age byte: bits 0-1 hold the bound, bits 2-7 the age (generation).
+// The flag_age byte: bits 0-1 hold the bound, the rest the age (generation).
 // new_search() advances the age by TT_AGE_STEP, so the bound bits are never
-// touched and the age wraps after 64 searches. A kernel that persists more in
-// this byte takes its bits from the age field and changes these three values
-// together.
+// touched. A kernel that persists more in this byte takes its bits from the
+// age field and changes these values together.
+#if defined(BASILISK_B2_CORE)
+// The selectivity core persists the tt_pv flag in bit 2, leaving five age bits
+// (a cycle of 32 searches).
 inline constexpr uint8_t TT_BOUND_MASK = 0x03;
+inline constexpr uint8_t TT_PV_MASK    = 0x04;
+inline constexpr uint8_t TT_AGE_MASK   = 0xF8;
+inline constexpr uint8_t TT_AGE_STEP   = 0x08;
+// Stored depths carry this offset, so a payload of zero (an empty slot) decodes
+// below every real depth and occupancy is a non-zero depth byte. An entry that
+// holds only a static evaluation is stored at TT_DEPTH_UNSEARCHED with no bound.
+inline constexpr int TT_DEPTH_OFFSET = 2;
+#else
+// Bits 2-7 hold the age, which wraps after 64 searches.
+inline constexpr uint8_t TT_BOUND_MASK = 0x03;
+inline constexpr uint8_t TT_PV_MASK    = 0x00;
 inline constexpr uint8_t TT_AGE_MASK   = 0xFC;
 inline constexpr uint8_t TT_AGE_STEP   = 0x04;
+inline constexpr int TT_DEPTH_OFFSET = 0;
+#endif
+inline constexpr int TT_DEPTH_UNSEARCHED = -1;
 
 // Decoded TT entry. The table stores entries in a compact atomic format; this
 // type is the stable interface used by search and tests.
@@ -35,6 +51,7 @@ struct TTEntry {
 
     [[nodiscard]] TTFlag  bound() const noexcept { return TTFlag(flag_age & TT_BOUND_MASK); }
     [[nodiscard]] uint8_t age() const noexcept { return uint8_t(flag_age & TT_AGE_MASK); }
+    [[nodiscard]] bool    is_pv() const noexcept { return (flag_age & TT_PV_MASK) != 0; }
 };
 
 // Dense partial-key cluster. Each entry is a 16-bit key fragment plus an
@@ -89,6 +106,9 @@ public:
     static constexpr int MATE_SCORE = 32000;
     static constexpr int MAX_PLY    = 128;
     static constexpr int INF_EVAL   = 32001;
+    // A score slot that holds no score (an evaluation-only entry); equal to
+    // the search's VALUE_NONE.
+    static constexpr int NO_SCORE   = 32002;
 
     explicit TranspositionTable(size_t mb = 64) { resize(mb); }
 
@@ -144,7 +164,7 @@ public:
                 continue;
             const uint64_t data = cluster.data[i].load(std::memory_order_relaxed);
             TTEntry e = unpack_entry(data);
-            if (e.bound() != TT_NONE) {   // reject an empty slot that hashes to want==0
+            if (occupied(data)) {   // reject an empty slot that hashes to want==0
                 e.key16 = want;
                 out = e;
                 return true;
@@ -173,22 +193,25 @@ public:
     // than evicting a different position. The caller accumulates it into its
     // telemetry; the return is free to ignore and the stored data is
     // identical either way.
-    bool store(Key key, int depth, int score, TTFlag flag, Move m, int ply, int static_eval) {
+    bool store(Key key, int depth, int score, TTFlag flag, Move m, int ply, int static_eval,
+               bool pv = false) {
         TTCluster& cluster = clusters_[key & mask_];
         const uint16_t want = static_cast<uint16_t>(key >> 48);
         const uint8_t age = age_.load(std::memory_order_relaxed);
 
         int replace_idx = 0;
         TTEntry replace_entry{};
+        uint64_t replace_data = 0;
         bool have_replace = false;
         bool same_key = false;
 
         for (int i = 0; i < 3; i++) {
             const uint16_t old_key16 = cluster.key16[i].load(std::memory_order_relaxed);
-            TTEntry old_entry = unpack_entry(cluster.data[i].load(std::memory_order_relaxed));
+            const uint64_t old_data = cluster.data[i].load(std::memory_order_relaxed);
+            TTEntry old_entry = unpack_entry(old_data);
             old_entry.key16 = old_key16;
 
-            if (old_key16 == want && old_entry.bound() != TT_NONE) {
+            if (old_key16 == want && occupied(old_data)) {
                 if (flag != TT_EXACT && depth < old_entry.depth - 3
                     && old_entry.age() == age)
                     return true;   // declined, but it WAS our own key
@@ -196,25 +219,31 @@ public:
                 same_key = true;
                 replace_idx = i;
                 replace_entry = old_entry;
+                replace_data = old_data;
                 have_replace = true;
                 break;
             }
 
-            if (!have_replace || entry_quality(old_entry, age) < entry_quality(replace_entry, age)) {
+            if (!have_replace
+                || entry_quality(old_entry, old_data, age)
+                       < entry_quality(replace_entry, replace_data, age)) {
                 replace_idx = i;
                 replace_entry = old_entry;
+                replace_data = old_data;
                 have_replace = true;
             }
         }
 
         // Preserve the existing best move on a MOVE_NONE store into the same key.
-        if (m == MOVE_NONE && replace_entry.key16 == want
-            && replace_entry.bound() != TT_NONE)
+        if (m == MOVE_NONE && same_key)
             m = move_from_tt(replace_entry.move16);
 
-        const uint64_t data = pack_entry(score_to_tt(score, ply),
+        const uint8_t pv_bit = pv ? TT_PV_MASK : uint8_t(0);
+        const int stored_score = score == NO_SCORE ? NO_SCORE : score_to_tt(score, ply);
+        const uint64_t data = pack_entry(stored_score,
                                          static_eval == INF_EVAL ? INF_EVAL : static_eval,
-                                         m, depth, static_cast<uint8_t>(age | uint8_t(flag)));
+                                         m, depth,
+                                         static_cast<uint8_t>(age | pv_bit | uint8_t(flag)));
 
         // Publish the payload before the key fragment so a concurrent reader
         // that matches key16 sees at least this store's payload. The release
@@ -235,8 +264,8 @@ public:
         const uint8_t age = age_.load(std::memory_order_relaxed);
         for (size_t i = 0; i < sample; i++) {
             for (int j = 0; j < 3; ++j) {
-                TTEntry e = unpack_entry(clusters_[i].data[j].load(std::memory_order_relaxed));
-                if (e.bound() != TT_NONE && e.age() == age)
+                const uint64_t data = clusters_[i].data[j].load(std::memory_order_relaxed);
+                if (occupied(data) && unpack_entry(data).age() == age)
                     count++;
             }
         }
@@ -253,6 +282,33 @@ public:
         return score;
     }
 
+#if defined(BASILISK_B2_CORE)
+    // A decisive score the rule-50 clock may spoil before it is realised (a
+    // mate, or a tablebase result, further from this node than the plies left
+    // on the clock) is downgraded to the strongest non-decisive score; an
+    // evaluation is never changed by the clock. An entry without a score
+    // reads back as NO_SCORE.
+    static int score_from_tt(int score, int ply, int halfmove_clock = 0) {
+        static constexpr int TB_VALUE = MATE_SCORE - MAX_PLY - 1;
+        if (score == NO_SCORE)
+            return NO_SCORE;
+        if (score >= DECISIVE) {
+            const int left = 100 - halfmove_clock;
+            if (score >= MATE_SCORE - MAX_PLY ? MATE_SCORE - score > left
+                                              : TB_VALUE - score > left)
+                return DECISIVE - 1;
+            return score - ply;
+        }
+        if (score <= -DECISIVE) {
+            const int left = 100 - halfmove_clock;
+            if (score <= -(MATE_SCORE - MAX_PLY) ? MATE_SCORE + score > left
+                                                 : TB_VALUE + score > left)
+                return -(DECISIVE - 1);
+            return score + ply;
+        }
+        return score;
+    }
+#else
     static int score_from_tt(int score, int ply, int halfmove_clock = 0) {
         if (score >=  DECISIVE) return score - ply;
         if (score <= -DECISIVE) return score + ply;
@@ -260,6 +316,7 @@ public:
             return 0;
         return score;
     }
+#endif
 
 private:
     std::unique_ptr<TTCluster[]> clusters_;
@@ -271,8 +328,8 @@ private:
         const auto score16 = static_cast<uint16_t>(static_cast<int16_t>(score));
         const auto eval16  = static_cast<uint16_t>(static_cast<int16_t>(static_eval));
         const auto move16  = static_cast<uint16_t>(move_to_tt(move));
-        const auto depth8  = static_cast<uint8_t>(
-            static_cast<int8_t>(std::clamp(depth, -1, 127)));
+        const auto depth8  = static_cast<uint8_t>(static_cast<int8_t>(
+            std::clamp(depth, TT_DEPTH_UNSEARCHED, 127 - TT_DEPTH_OFFSET) + TT_DEPTH_OFFSET));
 
         return uint64_t(score16)
              | (uint64_t(eval16) << 16)
@@ -287,15 +344,26 @@ private:
         e.score       = static_cast<int16_t>(data & 0xFFFFu);
         e.static_eval = static_cast<int16_t>((data >> 16) & 0xFFFFu);
         e.move16      = static_cast<uint16_t>((data >> 32) & 0xFFFFu);
-        e.depth       = static_cast<int8_t>((data >> 48) & 0xFFu);
+        e.depth       = static_cast<int8_t>(static_cast<int8_t>((data >> 48) & 0xFFu)
+                                            - TT_DEPTH_OFFSET);
         e.flag_age    = static_cast<uint8_t>((data >> 56) & 0xFFu);
         return e;
     }
 
+    // Whether a payload word holds an entry. Without the depth offset an entry
+    // is told from an empty slot by its bound; with it, by its depth byte,
+    // which also admits an evaluation-only entry that has no bound.
+    static bool occupied(uint64_t data) {
+        if constexpr (TT_DEPTH_OFFSET > 0)
+            return ((data >> 48) & 0xFFu) != 0;
+        else
+            return ((data >> 56) & TT_BOUND_MASK) != 0;
+    }
+
     // Replacement quality: depth, less two per generation of age, plus two
     // for an exact bound. An empty slot loses to anything.
-    static int entry_quality(const TTEntry& e, uint8_t age) {
-        if (e.bound() == TT_NONE)
+    static int entry_quality(const TTEntry& e, uint64_t data, uint8_t age) {
+        if (!occupied(data))
             return -100000;
 
         const int age_delta = int(uint8_t(age - e.age()) & TT_AGE_MASK); // generations * TT_AGE_STEP

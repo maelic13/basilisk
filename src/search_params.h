@@ -137,13 +137,33 @@
 // ---- Cluster 1's kernel (the B2_CORE arm) -------------------------------------
 //
 // The core kernel reads the legacy coordinates of every mechanism it has not
-// yet replaced, at their legacy values.
-#define BASILISK_CORE_KERNEL_PARAMS(X) BASILISK_LEGACY_KERNEL_PARAMS(X)
+// yet replaced, at their legacy values, and its own coordinates at the
+// cluster's seeds. Units are evaluation units unless a line says otherwise.
+//
+// The TT-cutoff bonus trains the quiet histories by slope * depth (history
+//   units per ply) when a quiet TT move's entry cuts.
+#define BASILISK_CORE_KERNEL_PARAMS(X)                                   \
+    BASILISK_LEGACY_KERNEL_PARAMS(X)                                     \
+    /* TT cutoff training */                                             \
+    X(tt_cutoff_bonus_slope, CoreTtCutoffBonusSlope, 131,    0,   300)
+
+// Categorical switches of Cluster 1's kernel: S(field, UciName, default, min,
+// max). Tune builds advertise them as options so a paired run can settle each
+// on one binary; they are never SPSA coordinates, which is why they use S and
+// not X (tools/generate_spsa_surface.py reads X lines only).
+//
+// tt_cutoff_node_typed: 1 admits a shallow TT cutoff only where the score
+//   agrees with the node's expected type (cut node and fail high, or all node
+//   and fail low); 0 admits it on bound and depth alone.
+#define BASILISK_CORE_KERNEL_SWITCHES(S)                                 \
+    S(tt_cutoff_node_typed,  CoreTtCutoffNodeTyped,  1,    0,     1)
 
 #if defined(BASILISK_B2_CORE)
 #define BASILISK_KERNEL_PARAMS(X) BASILISK_CORE_KERNEL_PARAMS(X)
+#define BASILISK_KERNEL_SWITCHES(S) BASILISK_CORE_KERNEL_SWITCHES(S)
 #else
 #define BASILISK_KERNEL_PARAMS(X) BASILISK_LEGACY_KERNEL_PARAMS(X)
+#define BASILISK_KERNEL_SWITCHES(S)
 #endif
 
 #define BASILISK_SEARCH_PARAMS(X) \
@@ -153,5 +173,6 @@
 struct SearchParams {
 #define BASILISK_SEARCH_PARAM_FIELD(field, uci, def, lo, hi) int field = def;
     BASILISK_SEARCH_PARAMS(BASILISK_SEARCH_PARAM_FIELD)
+    BASILISK_KERNEL_SWITCHES(BASILISK_SEARCH_PARAM_FIELD)
 #undef BASILISK_SEARCH_PARAM_FIELD
 };

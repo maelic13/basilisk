@@ -185,6 +185,107 @@ private:
     bool   root_tablebase_allows(Move move) const;
     Move   ponder_from_tt(const Board& root, Move bestmove) const;
 
+#if defined(BASILISK_B2_CORE)
+    // ---- Node kernel -------------------------------------------------------
+    // Everything from here to the end of the class belongs to the node kernel
+    // and is defined in search_kernel_core.cpp and search_history.cpp. The driver
+    // never names any of it: a kernel may change its tables, its stack record
+    // and its recursive signatures without touching the driver, and a cluster
+    // built behind an umbrella option replaces this section and those files
+    // while the driver stays shared.
+
+    // History tables persist across searches and age between them; storage
+    // and whole-table lifecycle live in HistoryTables, the update policy
+    // (bonus shapes, what a cutoff trains) in search_history.cpp.
+    HistoryTables hist_;
+    int history_age_counter_ = 0;
+
+    // LMR table, recomputed from the parameters at the start of each search.
+    // init_lmr() fills [1..63][1..63]; row and column 0 are defined (zero)
+    // rather than merely unread, so a consumer that forgets the depth >= 1,
+    // searched > 0 guard reads a zero reduction instead of garbage.
+    int  lmr_table_[64][64]{};
+    void init_lmr(float base, float divisor);
+
+    // Every TT store in the search goes through this wrapper, so the same-key
+    // telemetry cannot drift out of sync with the store sites.
+    void tt_store(Key key, int depth, int score, TTFlag flag, Move m, int ply,
+                  int static_eval, bool pv);
+    // A TT move as this node may play it: a piece of the side to move on its
+    // from-square and a legal move. TT moves have no publication guarantee.
+    [[nodiscard]] bool tt_move_playable(Move m) const;
+
+    // Training of the quiet histories by a move made from `ss`, and of the
+    // continuation histories alone (the parent's move, from `ss - 1`).
+    void update_quiet_histories(SearchStack* ss, Move m, int bonus);
+    void update_continuation_histories(SearchStack* ss, PieceType pt, Square to, int bonus);
+
+    static constexpr int MAX_QSEARCH_PLY = 10; // max extra plies of captures in qsearch
+    template<NodeType NT>
+    int negamax(int depth, int alpha, int beta, int ply,
+                SearchStack* ss, bool allow_null, bool cut_node);
+    int quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss);
+
+    // History gravity: a bonus pulls the entry toward its bound, so repeated
+    // bonuses saturate at MAX_VAL instead of overflowing.
+    template<int MAX_VAL>
+    static void hist_update(int16_t& e, int bonus) {
+        e += static_cast<int16_t>(bonus - static_cast<int>(e) * std::abs(bonus) / MAX_VAL);
+    }
+
+    // The single make/unmake seam. Every search-side move execution goes
+    // through this pair (negamax, quiescence, evasions, ProbCut, null move),
+    // so per-ply bookkeeping, and later an NNUE accumulator push/pop, attaches
+    // in exactly one place. Do not call board.make_move directly from search.
+    void do_move(SearchStack* ss, Move m) {
+        ss->move        = m;
+        ss->moved_piece = type_of(state_.board->piece_on(from_sq(m)));
+        state_.board->make_move(m);
+    }
+    void undo_move(SearchStack* ss, Move m) {
+        state_.board->unmake_move(m);
+        ss->move = MOVE_NONE;
+    }
+    void do_null_move(SearchStack* ss) {
+        ss->move        = MOVE_NULL;
+        ss->moved_piece = NO_PIECE_TYPE;
+        state_.board->make_null_move();
+    }
+    void undo_null_move(SearchStack* ss) {
+        state_.board->unmake_null_move();
+        ss->move = MOVE_NONE;
+    }
+
+    void update_quiet(Color stm, Square from, Square to, int bonus);
+    void update_cap(PieceType pt, Square to, PieceType cap, int bonus);
+    void update_cont(HistoryTables::ContHistTable& tbl,
+                     PieceType ppt, Square pto,
+                     PieceType cpt, Square cto, int bonus);
+    void update_pawn_hist(Key pawn_key, PieceType pt, Square to, int bonus);
+    void update_low_ply(int ply, Square from, Square to, int bonus);
+
+    int  history_bonus_value(int depth) const;
+    int  history_malus_value(int depth) const;
+    // One (piece, to) continuation-history update at the 1/2/4-ply
+    // back-references from `ss`.
+    void update_cont_for_move(SearchStack* ss, PieceType pt, Square to, int bonus);
+
+    // Combined continuation history score for a (piece, to) pair
+    int  cont_hist_score(const SearchStack* ss, PieceType pt, Square to) const;
+
+    // Bulk history update after a beta cutoff
+    void update_all_histories(Move best, bool best_is_tt,
+                              const Move* quiets, int quiet_count,
+                              const Move* bad_caps, int bad_cap_count,
+                              Color stm, int depth, SearchStack* ss,
+                              bool reward_only = false, int bonus_scale = 100);
+
+    // Correction history
+    void update_correction(Color stm, const Board& board, SearchStack* ss, int diff, int depth);
+    int  correction_value(Color stm, const Board& board, const SearchStack* ss) const;
+
+    void age_history();
+#else
     // ---- Node kernel -------------------------------------------------------
     // Everything from here to the end of the class belongs to the node kernel
     // and is defined in search_kernel.cpp and search_history.cpp. The driver
@@ -276,4 +377,5 @@ private:
     int  correction_value(Color stm, const Board& board, const SearchStack* ss) const;
 
     void age_history();
+#endif
 };

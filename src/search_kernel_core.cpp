@@ -62,12 +62,44 @@ void Searcher::init_lmr(float base, float divisor) {
             lmr_table_[d][m] = int(1024.0f * (base + std::log(d) * std::log(m) / divisor));
 }
 
+static_assert(TranspositionTable::NO_SCORE == VALUE_NONE,
+              "an evaluation-only TT entry reads back as the search's VALUE_NONE");
+
 void Searcher::tt_store(Key key, int depth, int score, TTFlag flag, Move m,
-                        int ply, int static_eval) {
+                        int ply, int static_eval, bool pv) {
     DIAG_COUNT(++state_.diag.tt_stores);
-    if (shared_.tt.store(key, depth, score, flag, m, ply, static_eval))
+    if (shared_.tt.store(key, depth, score, flag, m, ply, static_eval, pv))
         DIAG_COUNT(++state_.diag.tt_stores_same_key);
 }
+
+bool Searcher::tt_move_playable(Move m) const {
+    if (m == MOVE_NONE)
+        return false;
+    const Piece p = state_.board->piece_on(from_sq(m));
+    return p != NO_PIECE && color_of(p) == state_.board->turn() && state_.board->is_legal(m);
+}
+
+// The quiet histories a quiet move trains: main, pawn-structure, low-ply and
+// the continuations of the moves before it.
+void Searcher::update_quiet_histories(SearchStack* ss, Move m, int bonus) {
+    const Square from = Square(from_sq(m));
+    const Square to   = Square(to_sq(m));
+    const PieceType pt = type_of(state_.board->piece_on(from));
+    update_quiet(state_.board->turn(), from, to, bonus);
+    update_pawn_hist(state_.board->pawn_key_value(), pt, to, bonus);
+    update_low_ply(static_cast<int>(ss - (state_.stack + STACK_SENTINELS)), from, to, bonus);
+    update_cont_for_move(ss, pt, to, bonus);
+}
+
+// The continuation histories of the move made from `ss` (piece `pt` to `to`).
+void Searcher::update_continuation_histories(SearchStack* ss, PieceType pt, Square to,
+                                             int bonus) {
+    update_cont_for_move(ss, pt, to, bonus);
+}
+
+// The bound a TT entry proves on its score.
+static bool proves_lower(TTFlag f) { return f == TT_BETA || f == TT_EXACT; }
+static bool proves_upper(TTFlag f) { return f == TT_ALPHA || f == TT_EXACT; }
 
 // ---- Move loop bookkeeping ----------------------------------------------
 
@@ -92,13 +124,15 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     bool tt_found = shared_.tt.probe_copy(hash, tte);
     DIAG_COUNT(state_.diag.tt_probes++);
     if (tt_found) DIAG_COUNT(state_.diag.tt_hits++);
+    // A store here keeps the pv bit an entry for this position already has.
+    const bool pv_hit = tt_found && tte.is_pv();
     Move tt_move = MOVE_NONE;
     int  tt_score = VALUE_NONE;       // hoisted (Step 6.1) for the stand-pat tighten
     TTFlag tt_flag = TT_NONE;
     if (tt_found) {
         tt_move = move_from_tt(tte.move16);
         tt_score = TranspositionTable::score_from_tt(tte.score, ply, state_.board->rule50_count());
-        tt_flag = TTFlag(tte.flag_age & 3);
+        tt_flag = tte.bound();
         if (tt_flag == TT_EXACT
             || (tt_flag == TT_ALPHA && tt_score <= alpha)
             || (tt_flag == TT_BETA && tt_score >= beta)) {
@@ -165,7 +199,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         TRACE_DECISION(TraceEvent::QsStandPatCutoff, ply, 0, MOVE_NONE,
                        alpha, beta, stand_pat, -1, correction, VALUE_NONE,
                        0, 0, 0, stand_pat);
-        tt_store(hash, 0, stand_pat, TT_BETA, MOVE_NONE, ply, raw_eval);
+        tt_store(hash, 0, stand_pat, TT_BETA, MOVE_NONE, ply, raw_eval, pv_hit);
         return stand_pat;
     }
 
@@ -264,7 +298,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
             TRACE_DECISION(TraceEvent::QsBetaCutoff, ply, 0, m,
                            alpha, beta, stand_pat, -1, correction, VALUE_NONE,
                            i, 0, VALUE_NONE, s);
-            tt_store(hash, 0, s, TT_BETA, m, ply, raw_eval);
+            tt_store(hash, 0, s, TT_BETA, m, ply, raw_eval, pv_hit);
             return s;
         }
     }
@@ -277,7 +311,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     // fail-soft fixes live in the delta-pruning and qsearch-cap returns
     // above; bound shaping proper is Phase 10.4.
     TTFlag flag = (alpha > orig_alpha) ? TT_EXACT : TT_ALPHA;
-    tt_store(hash, 0, alpha, flag, best_move, ply, raw_eval);
+    tt_store(hash, 0, alpha, flag, best_move, ply, raw_eval, pv_hit);
     return alpha;
 }
 
@@ -322,7 +356,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 if (tb.bound == TT_EXACT
                     || (tb.bound == TT_BETA ? tb.value >= beta : tb.value <= alpha)) {
                     tt_store(state_.board->position_key(), std::min(MAX_PLY - 1, depth + 6),
-                             tb.value, tb.bound, MOVE_NONE, ply, TranspositionTable::INF_EVAL);
+                             tb.value, tb.bound, MOVE_NONE, ply, TranspositionTable::INF_EVAL,
+                             ss->tt_pv);
                     return tb.value;
                 }
                 if (is_pv) {
@@ -390,33 +425,76 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
     if (tt_found) {
         tt_move  = move_from_tt(tte.move16);
+        // An evaluation-only entry has no bound and reads back as VALUE_NONE.
         tt_score = TranspositionTable::score_from_tt(tte.score, ply, state_.board->rule50_count());
         // depth is int8_t with a deliberate -1 sentinel; tidy's suggested
         // unsigned cast would corrupt it.
         // NOLINTNEXTLINE(bugprone-signed-char-misuse)
         tt_depth = tte.depth;
-        tt_flag  = TTFlag(tte.flag_age & 3);
-
-        if (!is_pv && ss->excluded == MOVE_NONE && tt_depth >= depth) {
-            if (tt_flag == TT_EXACT
-                || (tt_flag == TT_ALPHA && tt_score <= alpha)
-                || (tt_flag == TT_BETA  && tt_score >= beta)) {
-                DIAG_COUNT(state_.diag.tt_cutoffs++);
-                TRACE_DECISION(TraceEvent::TtCutoff, ply, depth, tt_move,
-                               alpha, beta, tt_score, -1, VALUE_NONE, VALUE_NONE,
-                               0, 0, tt_depth, tt_score);
-                return tt_score;
-            }
-        }
+        tt_flag  = tte.bound();
     }
 
-    ss->tt_pv = is_pv || (tt_found && tt_flag == TT_EXACT && tt_depth >= depth - 1);
+    // The node lies on or near a principal variation: a PV node, or a
+    // position the table marked so. An excluded search keeps its node's flag.
+    if (ss->excluded == MOVE_NONE)
+        ss->tt_pv = is_pv || (tt_found && tte.is_pv());
     if (ss->tt_pv) DIAG_COUNT(state_.diag.tt_pv_nodes++);
 
-    // Phase 6.7: is the TT move a capture? (LMR input, lmr_tt_capture)
+    // Is the TT move from the capture stage (a capture or a promotion)?
     const bool tt_capture = tt_move != MOVE_NONE
         && (state_.board->piece_on(to_sq(tt_move)) != NO_PIECE
-            || move_type(tt_move) == EN_PASSANT);
+            || move_type(tt_move) == EN_PASSANT || move_type(tt_move) == PROMOTION);
+
+    // ---- Early TT cutoff -----------------------------------------------------
+    // A non-PV node takes the TT score when the entry is deep enough and its
+    // bound proves the side of the window the score lies on; a fail-low entry
+    // may be one ply shallower. Unless the node-typed rule is off, a shallow
+    // node only cuts where the score agrees with its expected type.
+    const auto& kp = config_.limits.params;
+    if (!is_pv && ss->excluded == MOVE_NONE && tt_score != VALUE_NONE
+        && tt_depth > depth - (tt_score <= beta)
+        && (tt_score >= beta ? proves_lower(tt_flag) : proves_upper(tt_flag))
+        && (!kp.tt_cutoff_node_typed || cut_node == (tt_score >= beta) || depth > 4)) {
+
+        // A quiet TT move that fails high trains the quiet histories, and the
+        // parent's early quiet move it refutes is penalised.
+        if (tt_score >= beta && tt_move_playable(tt_move)) {
+            if (!tt_capture) {
+                update_quiet_histories(ss, tt_move, kp.tt_cutoff_bonus_slope * depth);
+                DIAG_COUNT(++state_.diag.tt_cutoff_quiet_bonus);
+            }
+            const Move prev = (ss - 1)->move;
+            if (prev != MOVE_NONE && prev != MOVE_NULL && (ss - 1)->move_count < 5
+                && state_.board->captured_piece() == NO_PIECE)
+                update_continuation_histories(
+                    ss - 1, type_of(state_.board->piece_on(to_sq(prev))), Square(to_sq(prev)),
+                    -2210);
+        }
+
+        // Near the rule-50 limit the stored score may not hold, so no cutoff.
+        // Deep enough, a cutoff is checked one ply down: the TT move's child
+        // entry must agree that the move fails high (or low), against
+        // graph-history errors.
+        bool cut = state_.board->rule50_count() < 96;
+        if (cut && depth >= 7 && !is_decisive(tt_score) && tt_move_playable(tt_move)) {
+            do_move(ss, tt_move);
+            TTEntry next{};
+            const bool next_found = shared_.tt.probe_copy(state_.board->position_key(), next);
+            undo_move(ss, tt_move);
+            if (next_found && next.score != TranspositionTable::NO_SCORE
+                && (tt_score >= beta) != (-int(next.score) >= beta)) {
+                cut = false;
+                DIAG_COUNT(++state_.diag.tt_cutoff_graph_refused);
+            }
+        }
+        if (cut) {
+            DIAG_COUNT(state_.diag.tt_cutoffs++);
+            TRACE_DECISION(TraceEvent::TtCutoff, ply, depth, tt_move,
+                           alpha, beta, tt_score, -1, VALUE_NONE, VALUE_NONE,
+                           0, 0, tt_depth, tt_score);
+            return tt_score;
+        }
+    }
 
     // ---- Static evaluation -------------------------------------------------
     int static_eval;
@@ -429,8 +507,13 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     } else {
         if (tt_found && tte.static_eval != TranspositionTable::INF_EVAL)
             raw_static_eval = tte.static_eval;
-        else
+        else {
             raw_static_eval = evaluator_.evaluate(*state_.board);
+            // A miss stores the evaluation alone, so a transposition reuses it.
+            if (!tt_found)
+                tt_store(hash, TT_DEPTH_UNSEARCHED, VALUE_NONE, TT_NONE, MOVE_NONE, ply,
+                         raw_static_eval, ss->tt_pv);
+        }
 
         // TT stores the raw static eval; correction is applied at probe time.
         static_eval = raw_static_eval;
@@ -553,7 +636,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 if (val >= pc_beta) {
                     tt_store(hash, depth - 3, pc_beta, TT_BETA, m, ply,
                               raw_static_eval == VALUE_NONE
-                                  ? TranspositionTable::INF_EVAL : raw_static_eval);
+                                  ? TranspositionTable::INF_EVAL : raw_static_eval,
+                              ss->tt_pv);
                     DIAG_COUNT(state_.diag.probcut_cuts++);
                     TRACE_DECISION(TraceEvent::ProbcutCutoff, ply, depth, m,
                                    alpha, beta, eval, improving, correction, VALUE_NONE,
@@ -1081,6 +1165,12 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                           best_score - static_eval, depth);
     }
 
+    // A node that did not fail high under a PV-near parent is kept near the
+    // PV: the parent's move is probably good, and this position joins its
+    // line.
+    if (best_score < beta)
+        ss->tt_pv = ss->tt_pv || (ss - 1)->tt_pv;
+
     // Store to TT
     TTFlag flag = (best_score >= beta)    ? TT_BETA
                 : (best_score > orig_alpha) ? TT_EXACT
@@ -1089,7 +1179,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     // result is not the root's, so it is not stored (Stockfish skips it too).
     if (ss->excluded == MOVE_NONE && !(is_root && !state_.root_excluded.empty()))
         tt_store(hash, depth, best_score, flag, best_move, ply,
-                  raw_static_eval == VALUE_NONE ? TranspositionTable::INF_EVAL : raw_static_eval);
+                  raw_static_eval == VALUE_NONE ? TranspositionTable::INF_EVAL : raw_static_eval,
+                  ss->tt_pv);
 
     return best_score;
 }

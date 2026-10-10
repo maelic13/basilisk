@@ -147,6 +147,11 @@ public:
     [[nodiscard]] Bitboard checking_pieces() const noexcept { return checkers; }
     [[nodiscard]] size_t history_size() const noexcept { return history.size(); }
     [[nodiscard]] bool history_empty() const noexcept { return history.empty(); }
+    // The piece the last move captured (NO_PIECE after a quiet or null move,
+    // or at a position with no move history).
+    [[nodiscard]] Piece captured_piece() const noexcept {
+        return history.empty() ? NO_PIECE : history.back().captured;
+    }
     [[nodiscard]] PositionSnapshot snapshot_position() const noexcept;
     void restore_position(const PositionSnapshot& snapshot) noexcept;
 

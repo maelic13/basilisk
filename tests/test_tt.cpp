@@ -104,10 +104,17 @@ static void test_mate_score_adjustment() {
     EXPECT_EQ(TranspositionTable::score_from_tt(200, 5), 200);
     end_section();
 
+#if defined(BASILISK_B2_CORE)
+    begin_section("score_from_tt: the rule-50 clock never changes an evaluation");
+    EXPECT_EQ(TranspositionTable::score_from_tt(200, 5, 100), 200);
+    EXPECT_EQ(TranspositionTable::score_from_tt(-200, 5, 120), -200);
+    end_section();
+#else
     begin_section("score_from_tt: non-mate scores draw at 50-move limit");
     EXPECT_EQ(TranspositionTable::score_from_tt(200, 5, 100), 0);
     EXPECT_EQ(TranspositionTable::score_from_tt(-200, 5, 120), 0);
     end_section();
+#endif
 
     // Boundary: decisive scores (tablebase results and mates) are stored
     // relative to the node; the highest evaluation just below them is not.
@@ -118,7 +125,15 @@ static void test_mate_score_adjustment() {
     end_section();
 
     // A tablebase win 4 plies from the root (tablebaseValue - 4) at ply 5.
+#if defined(BASILISK_B2_CORE)
+    // A tablebase win 9 plies from the root, found 4 plies below the node at
+    // ply 5. (One 4 plies from the root cannot lie below a node at ply 5, and
+    // stored at that node it would encode into the mate band, which this arm
+    // reads as a mate the rule-50 clock may spoil.)
+    const int tb_win = TranspositionTable::MATE_SCORE - TranspositionTable::MAX_PLY - 1 - 9;
+#else
     const int tb_win = TranspositionTable::MATE_SCORE - TranspositionTable::MAX_PLY - 1 - 4;
+#endif
     begin_section("tablebase score: stored relative to the node, read back exactly");
     EXPECT_EQ(TranspositionTable::score_to_tt(tb_win, 5), tb_win + 5);
     EXPECT_EQ(TranspositionTable::score_from_tt(TranspositionTable::score_to_tt(tb_win, 5), 5), tb_win);
@@ -128,7 +143,15 @@ static void test_mate_score_adjustment() {
     // Mate in 3 (MATE_SCORE - 3 = 31997).  At ply 5:
     //   to_tt:   31997 + 5 = 32002
     //   from_tt: 32002 - 5 = 31997
+#if defined(BASILISK_B2_CORE)
+    // On this arm 32002 is NO_SCORE, the evaluation-only slot, which a real
+    // store never produces: a mate below a node at ply p is at least p plies
+    // from the root. The round trip uses a mate a store can hold (7 plies from
+    // the root, 2 from the node at ply 5).
+    const int mate3 = TranspositionTable::MATE_SCORE - 7;
+#else
     const int mate3 = TranspositionTable::MATE_SCORE - 3;
+#endif
     int stored = TranspositionTable::score_to_tt(mate3, 5);
 
     begin_section("mate score: to_tt adds ply");
@@ -139,9 +162,31 @@ static void test_mate_score_adjustment() {
     EXPECT_EQ(TranspositionTable::score_from_tt(stored, 5), mate3);
     end_section();
 
+#if defined(BASILISK_B2_CORE)
+    // The stored mate is 2 plies from its node (32000 - 31998): it holds with
+    // 2 plies left on the clock and is downgraded with 1.
+    begin_section("score_from_tt: a mate the rule-50 clock can spoil is downgraded");
+    EXPECT_EQ(TranspositionTable::score_from_tt(stored, 5, 98), mate3);
+    EXPECT_EQ(TranspositionTable::score_from_tt(stored, 5, 99), TranspositionTable::DECISIVE - 1);
+    EXPECT_EQ(TranspositionTable::score_from_tt(-stored, 5, 99), -(TranspositionTable::DECISIVE - 1));
+    end_section();
+
+    begin_section("score_from_tt: a tablebase result the clock can spoil is downgraded");
+    const int tb_value = TranspositionTable::MATE_SCORE - TranspositionTable::MAX_PLY - 1;
+    const int tb_stored = TranspositionTable::score_to_tt(tb_value - 10, 4);   // 6 plies from its node
+    EXPECT_EQ(TranspositionTable::score_from_tt(tb_stored, 4, 94), tb_value - 10);
+    EXPECT_EQ(TranspositionTable::score_from_tt(tb_stored, 4, 95), TranspositionTable::DECISIVE - 1);
+    end_section();
+
+    begin_section("score_from_tt: an evaluation-only slot reads back as no score");
+    EXPECT_EQ(TranspositionTable::score_from_tt(TranspositionTable::NO_SCORE, 7, 50),
+              TranspositionTable::NO_SCORE);
+    end_section();
+#else
     begin_section("score_from_tt: mate scores ignore 50-move clamp");
     EXPECT_EQ(TranspositionTable::score_from_tt(stored, 5, 100), mate3);
     end_section();
+#endif
 
     // Mated in 5 (−MATE_SCORE + 5 = −31995).  At ply 3:
     //   to_tt:   −31995 − 3 = −31998
@@ -158,8 +203,13 @@ static void test_mate_score_adjustment() {
     end_section();
 
     // Different plies must be undone correctly
-    const int mate1 = TranspositionTable::MATE_SCORE - 1;
     for (int ply = 0; ply <= 5; ply++) {
+#if defined(BASILISK_B2_CORE)
+        // A mate one ply below the node (see NO_SCORE above).
+        const int mate1 = TranspositionTable::MATE_SCORE - 1 - ply;
+#else
+        const int mate1 = TranspositionTable::MATE_SCORE - 1;
+#endif
         char label[64];
         std::snprintf(label, sizeof(label), "mate round-trip ply %d", ply);
         begin_section(label);
@@ -315,6 +365,99 @@ static void test_move_preserved() {
     end_section();
 }
 
+static void test_empty_slot_with_key_zero_is_a_miss() {
+    // A key whose 16-bit fragment is 0 matches every empty slot's key16; the
+    // empty payload must still reject it.
+    TranspositionTable tt(1);
+    TTEntry e{};
+    begin_section("empty slot: a key with fragment 0 is a miss");
+    EXPECT(!tt.probe_copy(0x0000123456789ABCULL, e));
+    end_section();
+}
+
+#if defined(BASILISK_B2_CORE)
+static void test_pv_bit() {
+    TranspositionTable tt(1);
+    const Key key = 0x5A5A5A5A5A5A5A5AULL;
+
+    begin_section("pv bit: stored and read back with the bound and age intact");
+    tt.store(key, 6, 40, TT_EXACT, make_move(E2, E4), 0, 30, /*pv=*/true);
+    TTEntry e{};
+    EXPECT(tt.probe_copy(key, e));
+    EXPECT(e.is_pv());
+    EXPECT(e.bound() == TT_EXACT);
+    EXPECT_EQ(int(e.age()), 0);
+    EXPECT_EQ(int(e.depth), 6);
+    end_section();
+
+    begin_section("pv bit: survives a same-key store the table refuses");
+    // A shallower inexact store of the same position in the same search is
+    // refused; the deeper pv entry stays as it was.
+    tt.store(key, 1, -5, TT_ALPHA, MOVE_NONE, 0, 30, /*pv=*/false);
+    EXPECT(tt.probe_copy(key, e));
+    EXPECT(e.is_pv());
+    EXPECT_EQ(int(e.depth), 6);
+    end_section();
+
+    begin_section("pv bit: a store without it clears it");
+    tt.store(key, 7, 45, TT_EXACT, MOVE_NONE, 0, 30, /*pv=*/false);
+    EXPECT(tt.probe_copy(key, e));
+    EXPECT(!e.is_pv());
+    end_section();
+}
+
+static void test_age_cycle() {
+    TranspositionTable tt(1);
+    const Key key = 0x6B6B6B6B6B6B6B6BULL;
+    begin_section("age: steps of 8 over 5 bits, a cycle of 32 searches");
+    tt.new_search();
+    tt.store(key, 3, 10, TT_BETA, MOVE_NONE, 0, 10, /*pv=*/true);
+    TTEntry e{};
+    EXPECT(tt.probe_copy(key, e));
+    EXPECT_EQ(int(e.age()), int(TT_AGE_STEP));
+    EXPECT(e.bound() == TT_BETA);
+    EXPECT(e.is_pv());
+    for (int i = 0; i < 31; ++i) tt.new_search();
+    tt.store(0x7C7C7C7C7C7C7C7CULL, 3, 10, TT_BETA, MOVE_NONE, 0, 10);
+    EXPECT(tt.probe_copy(0x7C7C7C7C7C7C7C7CULL, e));
+    EXPECT_EQ(int(e.age()), 0);   // 32 steps of 8 wrap to 0
+    end_section();
+}
+
+static void test_evaluation_only_entry() {
+    TranspositionTable tt(1);
+    const Key key = 0x8D8D8D8D8D8D8D8DULL;
+
+    begin_section("miss-store: a hit with no bound, no move, no score, its eval kept");
+    tt.store(key, TT_DEPTH_UNSEARCHED, TranspositionTable::NO_SCORE, TT_NONE, MOVE_NONE,
+             9, -77, /*pv=*/false);
+    TTEntry e{};
+    EXPECT(tt.probe_copy(key, e));
+    EXPECT(e.bound() == TT_NONE);
+    EXPECT_EQ(int(e.depth), TT_DEPTH_UNSEARCHED);
+    EXPECT_EQ(int(e.static_eval), -77);
+    EXPECT_EQ(int(e.score), TranspositionTable::NO_SCORE);
+    EXPECT(move_from_tt(e.move16) == MOVE_NONE);
+    end_section();
+
+
+    begin_section("miss-store: a later searched store replaces it");
+    tt.store(key, 0, 12, TT_ALPHA, make_move(G1, F3), 2, -77);
+    EXPECT(tt.probe_copy(key, e));
+    EXPECT(e.bound() == TT_ALPHA);
+    EXPECT_EQ(int(e.depth), 0);
+    EXPECT_EQ(TranspositionTable::score_from_tt(e.score, 2), 12);
+    EXPECT(move_from_tt(e.move16) == make_move(G1, F3));
+    end_section();
+
+    begin_section("depth range: the deepest storable depth round-trips");
+    tt.store(0x9E9E9E9E9E9E9E9EULL, 200, 5, TT_EXACT, MOVE_NONE, 0, 5);
+    EXPECT(tt.probe_copy(0x9E9E9E9E9E9E9E9EULL, e));
+    EXPECT_EQ(int(e.depth), 127 - TT_DEPTH_OFFSET);
+    end_section();
+}
+#endif
+
 /// The `Hash` byte contract (8.6.2a). Two bounds, both load-bearing:
 ///   upper — allocating MORE than the user asked for is the bug class that bit
 ///           the sibling engine (it sized a table in another structure's unit
@@ -410,6 +553,16 @@ int main() {
 
     std::printf("\nMove preservation\n");
     test_move_preserved();
+
+    std::printf("\nEmpty slots\n");
+    test_empty_slot_with_key_zero_is_a_miss();
+
+#if defined(BASILISK_B2_CORE)
+    std::printf("\nThe core's encoding: pv bit, age cycle, evaluation-only entries\n");
+    test_pv_bit();
+    test_age_cycle();
+    test_evaluation_only_entry();
+#endif
 
     std::printf("\nHash byte contract\n");
     test_allocation_within_budget();

@@ -200,6 +200,7 @@ std::string Parameters::uci_options() {
     opts += "option name " #uci " type spin default " + std::to_string(def) + \
             " min " + std::to_string(lo) + " max " + std::to_string(hi) + "\n";
     BASILISK_SEARCH_PARAMS(BASILISK_SEARCH_PARAM_OPT)
+    BASILISK_KERNEL_SWITCHES(BASILISK_SEARCH_PARAM_OPT)
 #undef BASILISK_SEARCH_PARAM_OPT
 #endif
     return opts;
@@ -397,6 +398,7 @@ void Parameters::set_option(const std::string& args) {
 #define BASILISK_SEARCH_PARAM_SET(field, uci, def, lo, hi) \
     else if (uci_option_name_is(name_lower, #uci)) { search_params.field = std::clamp(parsed, lo, hi); }
     BASILISK_SEARCH_PARAMS(BASILISK_SEARCH_PARAM_SET)
+    BASILISK_KERNEL_SWITCHES(BASILISK_SEARCH_PARAM_SET)
 #undef BASILISK_SEARCH_PARAM_SET
 #endif
     // 15.0.d: an unrecognised option name used to fall off the end of this
