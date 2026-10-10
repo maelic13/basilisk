@@ -28,6 +28,20 @@ class SurfaceTests(unittest.TestCase):
         self.assertEqual([item[0] for item in parameters], list(generated))
         self.assertEqual(len(parameters), 41)
 
+    def test_core_arm_table_is_not_on_the_registered_surface(self):
+        text = (
+            "#define BASILISK_LEGACY_KERNEL_PARAMS(X) \\\n"
+            "    X(a_field, Alpha, 5, 0, 10)\n"
+            "#define BASILISK_CORE_KERNEL_PARAMS(X) \\\n"
+            "    BASILISK_LEGACY_KERNEL_PARAMS(X) \\\n"
+            "    X(b_field, Beta, 5, 0, 10)\n"
+            "#define BASILISK_ROOT_PARAMS(X) \\\n"
+            "    X(c_field, Gamma, 5, 0, 10)\n"
+            "    S(d_field, Delta, 1, 0, 1)\n"
+        )
+        names = [item[0] for item in surface.parse_parameters(text)]
+        self.assertEqual(names, ["Alpha", "Gamma"])
+
     def test_steps_are_half_up_range_sixteenths_with_floor(self):
         self.assertEqual(surface.perturbation(0, 40), 3)
         self.assertEqual(surface.perturbation(0, 24), 2)

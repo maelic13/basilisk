@@ -27,12 +27,29 @@ PARAM_RE = re.compile(
     r"^\s*X\(\s*[a-z][a-z0-9_]*\s*,\s*([A-Za-z][A-Za-z0-9]*)\s*,"
     r"\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(-?\d+)\s*\)"
 )
+# The B2_CORE arm's kernel table. The registered surface is the default
+# arm's (the root and legacy kernel tables), so its lines are skipped; the
+# core arm's surface is generated when its tune is registered.
+CORE_TABLE = "#define BASILISK_CORE_KERNEL_PARAMS(X)"
+
+
+def default_arm_lines(text: str) -> list[str]:
+    lines = []
+    in_core = False
+    for line in text.splitlines():
+        if line.startswith(CORE_TABLE):
+            in_core = True
+        if not in_core:
+            lines.append(line)
+        elif not line.rstrip().endswith("\\"):
+            in_core = False
+    return lines
 
 
 def parse_parameters(text: str) -> list[tuple[str, int, int, int]]:
     parameters = []
     seen = set()
-    for line in text.splitlines():
+    for line in default_arm_lines(text):
         match = PARAM_RE.match(line)
         if not match:
             continue
