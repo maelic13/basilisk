@@ -14,7 +14,9 @@
 #include "attacks.h"
 #include "bitboard.h"
 #include "eval.h"
+#if !defined(BASILISK_B2_CORE)
 #include "history.h"
+#endif
 #include "move.h"
 #include "search.h"
 #include "syzygy.h"
@@ -188,6 +190,9 @@ static void init_test_syzygy() {
 // Tests
 // ---------------------------------------------------------------------------
 
+// The legacy kernel's tables; the B2_CORE arm's are tested in
+// test_history_core.
+#if !defined(BASILISK_B2_CORE)
 static void test_history_row_base_decomposition() {
     HistoryTables hist;
     constexpr Color side = BLACK;
@@ -224,6 +229,7 @@ static void test_history_row_base_decomposition() {
     EXPECT(out_of_range_row == nullptr);
     end_section();
 }
+#endif
 
 static void test_default_go_depth_and_syzygy_options() {
     Parameters params;
@@ -1276,7 +1282,9 @@ int main() {
     test_default_go_depth_and_syzygy_options();
 
     std::printf("\nHistory row decomposition (9.6)\n");
+#if !defined(BASILISK_B2_CORE)
     test_history_row_base_decomposition();
+#endif
 
     std::printf("\nLegal move\n");
     test_returns_legal_move();

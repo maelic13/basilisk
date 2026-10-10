@@ -164,9 +164,9 @@ option(B2_CORE "Compile Cluster 1's selectivity-core node kernel in place of the
 if(B2_CORE)
     set(BASILISK_SEARCH_KERNEL_SOURCES
         src/search_kernel_core.cpp
-        src/search_history.cpp
-        src/move_picker.cpp
-        src/history.cpp
+        src/search_history_core.cpp
+        src/move_picker_core.cpp
+        src/history_core.cpp
     )
 else()
     set(BASILISK_SEARCH_KERNEL_SOURCES
@@ -256,6 +256,14 @@ target_link_libraries(test_invariants PRIVATE basilisk_board)
 add_executable(test_threats tests/test_threats.cpp)
 target_link_libraries(test_threats PRIVATE basilisk_board)
 
+# The selectivity core's tables and picker exist on the B2_CORE arm only.
+if(B2_CORE)
+    add_executable(test_history_core tests/test_history_core.cpp)
+    target_link_libraries(test_history_core PRIVATE basilisk_engine)
+    add_executable(test_move_picker_core tests/test_move_picker_core.cpp)
+    target_link_libraries(test_move_picker_core PRIVATE basilisk_engine)
+endif()
+
 add_executable(test_cpu_features tests/test_cpu_features.cpp)
 target_include_directories(test_cpu_features PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
@@ -319,6 +327,10 @@ add_test(NAME test_board        COMMAND test_board)
 add_test(NAME test_wac          COMMAND test_wac)
 add_test(NAME test_invariants   COMMAND test_invariants)
 add_test(NAME test_threats      COMMAND test_threats)
+if(B2_CORE)
+    add_test(NAME test_history_core     COMMAND test_history_core)
+    add_test(NAME test_move_picker_core COMMAND test_move_picker_core)
+endif()
 add_test(NAME test_cpu_features COMMAND test_cpu_features)
 add_test(NAME test_move         COMMAND test_move)
 add_test(NAME test_magics       COMMAND test_magics)
@@ -445,6 +457,9 @@ set(_ALL_TARGETS
     test_board test_move test_tt test_eval test_search test_engine_ponder test_engine_threading test_uci_protocol test_cpu_features
     test_endgames test_wac test_invariants test_magics test_threats
 )
+if(B2_CORE)
+    list(APPEND _ALL_TARGETS test_history_core test_move_picker_core)
+endif()
 
 # Fathom is part of the shipped executable and must obey its ISA contract, but
 # remains outside _ALL_TARGETS because third-party warning/sanitizer policy is

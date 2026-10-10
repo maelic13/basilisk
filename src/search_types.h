@@ -28,6 +28,8 @@ inline constexpr int PIECE_VALUE[PIECE_TYPE_NB] = {0, 100, 300, 300, 500, 900, 2
 struct ScoredMove { Move move; int score; };
 
 #if defined(BASILISK_B2_CORE)
+struct PieceToHistory;
+
 // The selectivity core's per-ply record. The root is the record at
 // STACK_SENTINELS; the records below it are default records, which read as
 // "no move, no piece, no evaluation" to every (ss - n) consumer. The records
@@ -36,7 +38,10 @@ struct ScoredMove { Move move; int score; };
 struct SearchStack {
     Move      move        = MOVE_NONE;       // move being searched at this ply
     Move      excluded    = MOVE_NONE;       // excluded move (singular extensions)
-    Move      killers[2]  = {};              // killer moves
+    // The continuation row the move made from here selects; the kernel points
+    // every record at the sentinel row before a search, so a record without a
+    // move reads zeros.
+    PieceToHistory* cont_hist = nullptr;
     int       eval        = VALUE_NONE;      // corrected static eval at this ply
     int       stat_score  = 0;               // history score of the move searched from here
     int       reduction   = 0;               // reduction applied to the move searched from here

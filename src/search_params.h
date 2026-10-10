@@ -155,8 +155,11 @@
 // tt_cutoff_node_typed: 1 admits a shallow TT cutoff only where the score
 //   agrees with the node's expected type (cut node and fail high, or all node
 //   and fail low); 0 admits it on bound and depth alone.
+// pawn_hist_buckets_log2: the pawn history's bucket count as a power of two
+//   (11 = 2,048, 13 = 8,192); a size, settled by speed, not by games.
 #define BASILISK_CORE_KERNEL_SWITCHES(S)                                 \
-    S(tt_cutoff_node_typed,  CoreTtCutoffNodeTyped,  1,    0,     1)
+    S(tt_cutoff_node_typed,  CoreTtCutoffNodeTyped,  1,    0,     1)     \
+    S(pawn_hist_buckets_log2, CorePawnHistBucketsLog2, 13,  11,    13)
 
 #if defined(BASILISK_B2_CORE)
 #define BASILISK_KERNEL_PARAMS(X) BASILISK_CORE_KERNEL_PARAMS(X)

@@ -79,24 +79,6 @@ bool Searcher::tt_move_playable(Move m) const {
     return p != NO_PIECE && color_of(p) == state_.board->turn() && state_.board->is_legal(m);
 }
 
-// The quiet histories a quiet move trains: main, pawn-structure, low-ply and
-// the continuations of the moves before it.
-void Searcher::update_quiet_histories(SearchStack* ss, Move m, int bonus) {
-    const Square from = Square(from_sq(m));
-    const Square to   = Square(to_sq(m));
-    const PieceType pt = type_of(state_.board->piece_on(from));
-    update_quiet(state_.board->turn(), from, to, bonus);
-    update_pawn_hist(state_.board->pawn_key_value(), pt, to, bonus);
-    update_low_ply(static_cast<int>(ss - (state_.stack + STACK_SENTINELS)), from, to, bonus);
-    update_cont_for_move(ss, pt, to, bonus);
-}
-
-// The continuation histories of the move made from `ss` (piece `pt` to `to`).
-void Searcher::update_continuation_histories(SearchStack* ss, PieceType pt, Square to,
-                                             int bonus) {
-    update_cont_for_move(ss, pt, to, bonus);
-}
-
 // The bound a TT entry proves on its score.
 static bool proves_lower(TTFlag f) { return f == TT_BETA || f == TT_EXACT; }
 static bool proves_upper(TTFlag f) { return f == TT_ALPHA || f == TT_EXACT; }
@@ -116,6 +98,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     if (state_.board->is_draw(ply)) return 0;
 
     bool in_check = state_.board->is_in_check();
+    ss->in_check = in_check;
     DIAG_COUNT(state_.diag.qs_nodes++);
 
     // TT probe
@@ -233,7 +216,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         PieceType atk = type_of(state_.board->piece_on(from_sq(m)));
         PieceType cap = (move_type(m) == EN_PASSANT) ? PAWN : type_of(state_.board->piece_on(to_sq(m)));
         int score = (m == tt_move) ? 10'000'000
-                  : PIECE_VALUE[cap] * 16 - PIECE_VALUE[atk] + hist_.capture[atk][to_sq(m)][cap];
+                  : PIECE_VALUE[cap] * 16 - PIECE_VALUE[atk] + hist_.capture.entry[atk][to_sq(m)][cap];
         sm[nm++] = {m, score};
     }
 
@@ -672,14 +655,11 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     bool immediate_return = false;
     int immediate_score = 0;
 
-    // 9.6: score_moves() has already hoisted these bases for ordering. The
-    // history-pruning and LMR-stat paths below revisit the same quiet move, so
-    // hoist their node-invariant dimensions here as well.
-    const auto& main_hist = hist_.main[state_.board->turn()];
-    const auto& pawn_hist = hist_.pawn->data[
-        state_.board->pawn_key_value() & (HistoryTables::PAWN_HIST_SIZE - 1)];
-    const auto* low_ply_hist = ply < HistoryTables::LOW_PLY_HISTORY_SIZE
-                             ? &hist_.low_ply[ply] : nullptr;
+    // The history-pruning and LMR-stat paths below read these node-invariant
+    // rows for every quiet move.
+    const auto& main_hist = hist_.main.entry[state_.board->turn()];
+    const auto& pawn_hist = pawn_bucket().entry;
+    const auto* low_ply_hist = ply < LowPlyHistory::PLIES ? &hist_.low_ply.entry[ply] : nullptr;
 
     // 5.7.2: set when the TT move proves singular at this node, and then read
     // by LMR for every LATER move here.
@@ -696,7 +676,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     // dead code.
     bool singular_quiet_lmr = false;
 
-    auto search_one = [&](Move m, int picker_see, MovePicker::Src picker_src) {
+    auto search_one = [&](Move m, CoreMovePicker::Src picker_src) {
         if (is_root && !move_in_root_moves(m, config_.limits.root_moves))
             return false;
         if (is_root && config_.root_filter_index >= 0) {
@@ -715,16 +695,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                      || (move_type(m) == EN_PASSANT);
         bool is_promo = (move_type(m) == PROMOTION);
         bool is_quiet = !is_cap && !is_promo;
-        // 8.7.5(a): seed see_score with the picker's already-computed verdict
-        // (0 good / -1 bad capture; VALUE_NONE otherwise) so the two lazy
-        // see_ge(m,0) recompute sites below are skipped for classified
-        // captures. Identical value => bench-identical.
-        int see_score = picker_see;
-#ifndef NDEBUG
-        if (is_cap && !is_promo && see_score != VALUE_NONE)
-            assert(see_score == (state_.board->see_ge(m, 0) ? 0 : -1)
-                   && "8.7.5(a) memoized see_score disagrees with a fresh see_ge");
-#endif
+        // Whether a capture wins material (0) or loses it (-1), computed only
+        // where it is read.
+        int see_score = VALUE_NONE;
         bool gives_check_known = false;
         bool gives_check = false;
         auto move_gives_check = [&]() {
@@ -1094,11 +1067,11 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             DIAG_COUNT(state_.diag.fail_high_index_sum += searched - 1);
             if (searched == 1) DIAG_COUNT(++state_.diag.fail_high_first);
             switch (picker_src) {
-                case MovePicker::Src::TT:           DIAG_COUNT(++state_.diag.cutoff_src_tt); break;
-                case MovePicker::Src::GoodTactical: DIAG_COUNT(++state_.diag.cutoff_src_good_tactical); break;
-                case MovePicker::Src::Quiet:        DIAG_COUNT(++state_.diag.cutoff_src_quiet); break;
-                case MovePicker::Src::BadTactical:  DIAG_COUNT(++state_.diag.cutoff_src_bad_tactical); break;
-                case MovePicker::Src::None:         break;
+                case CoreMovePicker::Src::TT:           DIAG_COUNT(++state_.diag.cutoff_src_tt); break;
+                case CoreMovePicker::Src::GoodTactical: DIAG_COUNT(++state_.diag.cutoff_src_good_tactical); break;
+                case CoreMovePicker::Src::Quiet:        DIAG_COUNT(++state_.diag.cutoff_src_quiet); break;
+                case CoreMovePicker::Src::BadTactical:  DIAG_COUNT(++state_.diag.cutoff_src_bad_tactical); break;
+                case CoreMovePicker::Src::None:         break;
             }
             // 8.5.10(e): boost the bonus when the cutoff was "surprising" -- the
             // node's static eval was below beta, so the search found a good move
@@ -1115,16 +1088,19 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     };
 
     // ---- Staged move picking -----------------------------------------------
-    // TT move first, then tactical moves, then quiet moves. Quiet generation and
-    // scoring are delayed until captures/promotions fail to produce a cutoff.
-    MovePicker picker(*state_.board, hist_, tt_move, ss->excluded, ss, ply,
-                      is_root ? &state_.root_ordering : nullptr,
-                      state_.move_buffers[ply][0], state_.move_buffers[ply][1]);
+    // TT move, good captures, good quiets, bad captures, bad quiets; quiet
+    // generation and scoring wait until the good captures are spent.
+    const PieceToHistory* const conts[6] = {
+        (ss - 1)->cont_hist, (ss - 2)->cont_hist, (ss - 3)->cont_hist,
+        (ss - 4)->cont_hist, (ss - 5)->cont_hist, (ss - 6)->cont_hist};
+    CoreMovePicker picker(*state_.board, hist_, pawn_bucket(), conts, tt_move, ss->excluded,
+                          depth, ply, is_root ? &state_.root_ordering : nullptr,
+                          state_.move_buffers[ply][0]);
     while (true) {
         Move move = picker.next();
         if (move == MOVE_NONE)
             break;
-        if (search_one(move, picker.last_see_score(), picker.last_source()))
+        if (search_one(move, picker.last_source()))
             break;
     }
 
@@ -1196,12 +1172,18 @@ void Searcher::kernel_begin_search() {
     init_lmr(static_cast<float>(config_.limits.params.lmr_base)    / 100.0f,
              static_cast<float>(config_.limits.params.lmr_divisor) / 100.0f);
     if (++history_age_counter_ >= 2) {
-        age_history();
+        hist_.halve();
         history_age_counter_ = 0;
     }
-    // A default record is the sentinel: no move, no piece, no evaluation. The
-    // plies below the root read as such, and every ply starts clean.
-    for (auto& s : state_.stack) s = SearchStack{};
+    pawn_hist_mask_ = (Key(1) << std::clamp(config_.limits.params.pawn_hist_buckets_log2,
+                                            0, PawnHistory::MAX_BUCKETS_LOG2)) - 1;
+    // A default record is the sentinel: no move, no piece, no evaluation, and
+    // the sentinel continuation row. The plies below the root read as such,
+    // and every ply starts clean.
+    for (auto& s : state_.stack) {
+        s = SearchStack{};
+        s.cont_hist = hist_.sentinel_row();
+    }
 }
 
 int Searcher::root_search(int depth, int alpha, int beta) {
