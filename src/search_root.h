@@ -45,4 +45,11 @@ private:
     int sequence_ = 0;
 };
 
+// The root's ordering inputs: the tablebase ranking (empty without one) and
+// the pool's shared root table (null at one thread).
+struct RootOrdering {
+    const std::vector<Syzygy::RootMoveInfo>* tablebase = nullptr;
+    const RootMoveTable* table = nullptr;
+};
+
 [[nodiscard]] SearchResult sanitize_search_result(const Board& root_board, SearchResult result);

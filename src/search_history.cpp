@@ -107,7 +107,7 @@ void Searcher::update_all_histories(Move best, bool best_is_tt,
         // Quiet history
         update_quiet(stm, from, to, bonus);
         update_pawn_hist(state_.board->pawn_key_value(), pt, to, bonus);
-        update_low_ply(static_cast<int>(ss - (state_.stack + 4)), from, to, bonus);
+        update_low_ply(static_cast<int>(ss - (state_.stack + STACK_SENTINELS)), from, to, bonus);
 
         // Killers / countermove are cutoff semantics ("this move refuted the
         // node"). In reward_only mode (exact/PV nodes) the best move improved
@@ -138,7 +138,7 @@ void Searcher::update_all_histories(Move best, bool best_is_tt,
             PieceType mpt = type_of(state_.board->piece_on(mf));
             update_quiet(stm, mf, mt, malus);
             update_pawn_hist(state_.board->pawn_key_value(), mpt, mt, malus);
-            update_low_ply(static_cast<int>(ss - (state_.stack + 4)), mf, mt, malus);
+            update_low_ply(static_cast<int>(ss - (state_.stack + STACK_SENTINELS)), mf, mt, malus);
             update_cont_for_move(ss, mpt, mt, malus);
         }
     } else if (best_is_cap) {

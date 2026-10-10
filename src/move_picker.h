@@ -3,26 +3,14 @@
 // Move ordering: the staged picker (TT move, good tacticals, quiets, bad
 // tacticals) and the scores it orders by. Its inputs are explicit and
 // read-only; the move buffers belong to the caller, so picking allocates
-// nothing.
+// nothing. ScoredMove, PIECE_VALUE and RootOrdering are shared with the
+// driver's state and live in search_types.h and search_root.h.
 
 #include "board.h"
 #include "history.h"
 #include "search_root.h"
 #include "search_types.h"
-#include "syzygy.h"
 #include <utility>
-#include <vector>
-
-inline constexpr int PIECE_VALUE[PIECE_TYPE_NB] = {0, 100, 300, 300, 500, 900, 20000};
-
-struct ScoredMove { Move move; int score; };
-
-// The root's ordering inputs: the tablebase ranking (empty without one) and
-// the pool's shared root table (null at one thread).
-struct RootOrdering {
-    const std::vector<Syzygy::RootMoveInfo>* tablebase = nullptr;
-    const RootMoveTable* table = nullptr;
-};
 
 // Scores `n` moves of the node at `ss`. `root` is null below the root.
 void score_moves(ScoredMove* moves, int n, const Board& b, const HistoryTables& history,
@@ -32,9 +20,8 @@ void score_moves(ScoredMove* moves, int n, const Board& b, const HistoryTables& 
 inline Move pick_next(ScoredMove* moves, int idx, int n) {
     ScoredMove* const first = moves + idx;
     ScoredMove* best = first;
-    // 8.7.6(d): keep the running best SCORE in a register instead of reloading
-    // best->score on every comparison. Selection order is unchanged (strict >,
-    // first-wins on ties), so bench stays identical.
+    // The running best score stays in a register instead of being reloaded
+    // from best->score on every comparison; strict > with first-wins ties.
     int best_score = first->score;
     for (ScoredMove* it = first + 1, *end = moves + n; it != end; ++it)
         if (it->score > best_score) {

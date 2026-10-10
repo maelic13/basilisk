@@ -151,17 +151,26 @@ target_include_directories(basilisk_board PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
+# The node kernel: quiescence, negamax, the move picker and the history and
+# correction tables with their policy. The driver in search_worker.cpp reaches
+# it only through Searcher's kernel entry points, so a cluster built behind an
+# umbrella option supplies its own list here while the driver stays shared.
+set(BASILISK_SEARCH_KERNEL_SOURCES
+    src/search_kernel.cpp
+    src/search_history.cpp
+    src/move_picker.cpp
+    src/history.cpp
+)
+
 # Engine library — evaluation and search (depends on board)
 add_library(basilisk_engine STATIC
     src/eval.cpp
-    src/history.cpp
     src/search_thread_pool.cpp
     src/search_worker.cpp
     src/search_root.cpp
     src/search_diagnostics.cpp
-    src/search_history.cpp
-    src/move_picker.cpp
     src/syzygy.cpp
+    ${BASILISK_SEARCH_KERNEL_SOURCES}
 )
 target_link_libraries(basilisk_engine PUBLIC basilisk_board PRIVATE fathom)
 
