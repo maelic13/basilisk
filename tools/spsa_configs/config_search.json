@@ -1,4 +1,70 @@
 {
+    "AspirationDelta": {
+        "value": 19,
+        "min_value": 10,
+        "max_value": 60,
+        "step": 3
+    },
+    "TmOptMult": {
+        "value": 100,
+        "min_value": 50,
+        "max_value": 200,
+        "step": 9
+    },
+    "TmMaxMult": {
+        "value": 100,
+        "min_value": 50,
+        "max_value": 200,
+        "step": 9
+    },
+    "TmStability": {
+        "value": 60,
+        "min_value": 0,
+        "max_value": 150,
+        "step": 9
+    },
+    "TmScoreDropThr": {
+        "value": 30,
+        "min_value": 5,
+        "max_value": 120,
+        "step": 7
+    },
+    "TmScoreDropDiv": {
+        "value": 100,
+        "min_value": 30,
+        "max_value": 400,
+        "step": 23
+    },
+    "TmEffortHi": {
+        "value": 80,
+        "min_value": 50,
+        "max_value": 99,
+        "step": 3
+    },
+    "TmEffortLo": {
+        "value": 25,
+        "min_value": 1,
+        "max_value": 50,
+        "step": 3
+    },
+    "TmEffortHiMult": {
+        "value": 80,
+        "min_value": 50,
+        "max_value": 100,
+        "step": 3
+    },
+    "TmEffortLoMult": {
+        "value": 120,
+        "min_value": 100,
+        "max_value": 200,
+        "step": 6
+    },
+    "TmInstability": {
+        "value": 35,
+        "min_value": 0,
+        "max_value": 100,
+        "step": 6
+    },
     "RfpCoeff": {
         "value": 160,
         "min_value": 60,
@@ -82,12 +148,6 @@
         "min_value": 1,
         "max_value": 200,
         "step": 12
-    },
-    "AspirationDelta": {
-        "value": 19,
-        "min_value": 10,
-        "max_value": 60,
-        "step": 3
     },
     "LmrBase": {
         "value": 60,
@@ -184,65 +244,5 @@
         "min_value": 0,
         "max_value": 1024,
         "step": 64
-    },
-    "TmOptMult": {
-        "value": 100,
-        "min_value": 50,
-        "max_value": 200,
-        "step": 9
-    },
-    "TmMaxMult": {
-        "value": 100,
-        "min_value": 50,
-        "max_value": 200,
-        "step": 9
-    },
-    "TmStability": {
-        "value": 60,
-        "min_value": 0,
-        "max_value": 150,
-        "step": 9
-    },
-    "TmScoreDropThr": {
-        "value": 30,
-        "min_value": 5,
-        "max_value": 120,
-        "step": 7
-    },
-    "TmScoreDropDiv": {
-        "value": 100,
-        "min_value": 30,
-        "max_value": 400,
-        "step": 23
-    },
-    "TmEffortHi": {
-        "value": 80,
-        "min_value": 50,
-        "max_value": 99,
-        "step": 3
-    },
-    "TmEffortLo": {
-        "value": 25,
-        "min_value": 1,
-        "max_value": 50,
-        "step": 3
-    },
-    "TmEffortHiMult": {
-        "value": 80,
-        "min_value": 50,
-        "max_value": 100,
-        "step": 3
-    },
-    "TmEffortLoMult": {
-        "value": 120,
-        "min_value": 100,
-        "max_value": 200,
-        "step": 6
-    },
-    "TmInstability": {
-        "value": 35,
-        "min_value": 0,
-        "max_value": 100,
-        "step": 6
     }
 }

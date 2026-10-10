@@ -3,6 +3,83 @@
 # Regenerate rather than edit; --check rejects drift.
 
 [[parameters]]
+name = "AspirationDelta"
+initial = 19
+min = 10
+max = 60
+c_end = 1.3817
+
+[[parameters]]
+name = "TmOptMult"
+initial = 100
+min = 50
+max = 200
+c_end = 4.1451
+
+[[parameters]]
+name = "TmMaxMult"
+initial = 100
+min = 50
+max = 200
+c_end = 4.1451
+
+[[parameters]]
+name = "TmStability"
+initial = 60
+min = 0
+max = 150
+c_end = 4.1451
+
+[[parameters]]
+name = "TmScoreDropThr"
+initial = 30
+min = 5
+max = 120
+c_end = 3.2240
+
+[[parameters]]
+name = "TmScoreDropDiv"
+initial = 100
+min = 30
+max = 400
+c_end = 10.5931
+
+[[parameters]]
+name = "TmEffortHi"
+initial = 80
+min = 50
+max = 99
+c_end = 1.3817
+
+[[parameters]]
+name = "TmEffortLo"
+initial = 25
+min = 1
+max = 50
+c_end = 1.3817
+
+[[parameters]]
+name = "TmEffortHiMult"
+initial = 80
+min = 50
+max = 100
+c_end = 1.3817
+
+[[parameters]]
+name = "TmEffortLoMult"
+initial = 120
+min = 100
+max = 200
+c_end = 2.7634
+
+[[parameters]]
+name = "TmInstability"
+initial = 35
+min = 0
+max = 100
+c_end = 2.7634
+
+[[parameters]]
 name = "RfpCoeff"
 initial = 160
 min = 60
@@ -99,13 +176,6 @@ initial = 16
 min = 1
 max = 200
 c_end = 5.5268
-
-[[parameters]]
-name = "AspirationDelta"
-initial = 19
-min = 10
-max = 60
-c_end = 1.3817
 
 [[parameters]]
 name = "LmrBase"
@@ -218,73 +288,3 @@ initial = 29
 min = 0
 max = 1024
 c_end = 29.4764
-
-[[parameters]]
-name = "TmOptMult"
-initial = 100
-min = 50
-max = 200
-c_end = 4.1451
-
-[[parameters]]
-name = "TmMaxMult"
-initial = 100
-min = 50
-max = 200
-c_end = 4.1451
-
-[[parameters]]
-name = "TmStability"
-initial = 60
-min = 0
-max = 150
-c_end = 4.1451
-
-[[parameters]]
-name = "TmScoreDropThr"
-initial = 30
-min = 5
-max = 120
-c_end = 3.2240
-
-[[parameters]]
-name = "TmScoreDropDiv"
-initial = 100
-min = 30
-max = 400
-c_end = 10.5931
-
-[[parameters]]
-name = "TmEffortHi"
-initial = 80
-min = 50
-max = 99
-c_end = 1.3817
-
-[[parameters]]
-name = "TmEffortLo"
-initial = 25
-min = 1
-max = 50
-c_end = 1.3817
-
-[[parameters]]
-name = "TmEffortHiMult"
-initial = 80
-min = 50
-max = 100
-c_end = 1.3817
-
-[[parameters]]
-name = "TmEffortLoMult"
-initial = 120
-min = 100
-max = 200
-c_end = 2.7634
-
-[[parameters]]
-name = "TmInstability"
-initial = 35
-min = 0
-max = 100
-c_end = 2.7634
