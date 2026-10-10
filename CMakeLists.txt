@@ -155,6 +155,7 @@ target_include_directories(basilisk_board PUBLIC
 # correction tables with their policy. The driver in search_worker.cpp reaches
 # it only through Searcher's kernel entry points, so a cluster built behind an
 # umbrella option supplies its own list here while the driver stays shared.
+# Until Cluster 1's kernel exists both arms of B2_CORE compile this list.
 set(BASILISK_SEARCH_KERNEL_SOURCES
     src/search_kernel.cpp
     src/search_history.cpp
@@ -343,6 +344,11 @@ option(TUNE "Expose search constants as UCI spin options for SPSA tuning (sets B
 option(DIAGNOSTIC "Expose diagnostics without the tunable parameter surface (sets BASILISK_DIAGNOSTIC)" OFF)
 option(ABLATION "Expose the matched search-ablation instrument (sets BASILISK_ABLATION)" OFF)
 option(RELEASE_DIAG_COUNTERS "Count diagnostic search events in production builds (measurement arm)" OFF)
+# Cluster umbrellas (PROCESS, Cluster delivery shape): a Boolean option that
+# compiles one search cluster in; OFF reproduces the accepted fingerprint.
+# B2_CORE is Cluster 1, the selectivity core, which replaces the node kernel
+# (BASILISK_SEARCH_KERNEL_SOURCES and the kernel section of Searcher).
+option(B2_CORE "Compile Cluster 1's selectivity-core node kernel in place of the legacy kernel (sets BASILISK_B2_CORE)" OFF)
 set(BASILISK_PGO_ARM_OPTION "" CACHE STRING "Boolean CMake option identifying an umbrella arm in PGO child builds")
 set(BASILISK_PGO_ARM_STATE "OFF" CACHE STRING "Value for BASILISK_PGO_ARM_OPTION in PGO child builds")
 # Warnings are only a signal if something enforces them. The tree builds clean
@@ -446,6 +452,13 @@ endif()
 
 if(RELEASE_DIAG_COUNTERS)
     target_compile_definitions(basilisk_engine PRIVATE BASILISK_RELEASE_DIAG_COUNTERS)
+endif()
+
+if(B2_CORE)
+    foreach(_tgt IN LISTS _ALL_TARGETS)
+        target_compile_definitions(${_tgt} PRIVATE BASILISK_B2_CORE)
+    endforeach()
+    message(STATUS "B2_CORE arm: the selectivity-core kernel is compiled in (BASILISK_B2_CORE defined)")
 endif()
 
 if(TUNE)
