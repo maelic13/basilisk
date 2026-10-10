@@ -80,6 +80,26 @@ def _counter_units():
 CORE_COUNTER_UNITS = _counter_units()
 
 
+# Basilisk's selectivity-core counters. They follow the 57 in the engine's
+# table but are not part of the cross-engine contract: the oracle never prints
+# them, and the legacy kernel prints them as 0. Validated when present.
+B2_COUNTER_UNITS = {
+    **{name: "events" for name in """
+        rfp_cuts_d1_3 rfp_cuts_d4_7 rfp_cuts_d8p
+        razor_cuts_d1_3 razor_cuts_d4_7 razor_cuts_d8p
+        lmr_floor_hits lmr_extended lmr_research_deeper lmr_research_shallower
+        hindsight_up hindsight_down corr_cont2_updates corr_cont4_updates
+        tt_cutoff_quiet_bonus tt_cutoff_graph_refused
+        cont_hist_pruned capture_futility_pruned quiet_see_pruned
+        capture_see_pruned
+    """.split()},
+    "skip_quiets_nodes": "nodes",
+    "moveloop_tested": "moves",
+}
+assert len(B2_COUNTER_UNITS) == 22
+assert not set(B2_COUNTER_UNITS) & set(CORE_COUNTER_UNITS)
+
+
 def pct(a, b):
     return 100.0 * a / b if a is not None and b else 0.0
 
@@ -211,6 +231,41 @@ def validate_diag(counters):
             + counters["asp_fail_high"] + counters["asp_giveup"]
         ),
     }
+    present = set(B2_COUNTER_UNITS) & set(counters)
+    if present and present != set(B2_COUNTER_UNITS):
+        raise ValueError("partial selectivity-core counters: missing "
+                         + ", ".join(sorted(set(B2_COUNTER_UNITS) - present)))
+    if present:
+        c = counters
+        rfp = c["rfp_cuts_d1_3"] + c["rfp_cuts_d4_7"] + c["rfp_cuts_d8p"]
+        razor = c["razor_cuts_d1_3"] + c["razor_cuts_d4_7"] + c["razor_cuts_d8p"]
+        checks.update({
+            # The legacy kernel fills no bucket; the core fills every cut.
+            "rfp depth buckets partition rfp_cuts": rfp in (0, c["rfp_cuts"]),
+            "razor depth buckets partition razor_cuts": razor in (0, c["razor_cuts"]),
+            "move-loop family within moves tested": (
+                c["cont_hist_pruned"] + c["capture_futility_pruned"]
+                + c["quiet_see_pruned"] + c["capture_see_pruned"]
+                <= c["moveloop_tested"]
+            ),
+            "lmr floor and extension within eligibility": (
+                c["lmr_floor_hits"] <= c["lmr_eligible"]
+                and c["lmr_extended"] <= c["lmr_clamped_zero"]
+            ),
+            "re-search depth moves within eligibility": (
+                c["lmr_research_deeper"] + c["lmr_research_shallower"]
+                <= c["lmr_eligible"]
+            ),
+            "node adjustments within interior nodes": (
+                c["hindsight_up"] <= c["interior_nodes"]
+                and c["hindsight_down"] <= c["interior_nodes"]
+                and c["skip_quiets_nodes"] <= c["interior_nodes"]
+            ),
+            "tt cutoff training within hits": (
+                c["tt_cutoff_quiet_bonus"] <= c["tt_hits"]
+                and c["tt_cutoff_graph_refused"] <= c["tt_hits"]
+            ),
+        })
     failed = [name for name, passed in checks.items() if not passed]
     if failed:
         raise ValueError("diagnostic invariant failed: " + "; ".join(failed))
@@ -325,7 +380,8 @@ def main():
 
     report = {"suite": pathlib.Path(args.suite).name, "positions": len(fens),
               "depth": args.depth, "nodes": args.nodes, "hash_mb": args.hash,
-              "sampling_stride": 1, "counter_units": CORE_COUNTER_UNITS}
+              "sampling_stride": 1, "counter_units": CORE_COUNTER_UNITS,
+              "b2_counter_units": B2_COUNTER_UNITS}
 
     # A fresh engine process is started per position, so options are re-applied
     # every time rather than once at startup.

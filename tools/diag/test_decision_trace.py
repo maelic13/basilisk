@@ -13,19 +13,22 @@ assert SPEC.loader
 SPEC.loader.exec_module(decision_trace)
 
 
-def valid_lines() -> list[str]:
+def valid_lines(version: int = 1, availability: str = "unavailable",
+                cutoff_count: int = -1) -> list[str]:
     fields = {
         "seq": 0, "event": "rfp_prune", "ply": 1, "depth": 4,
         "move": "none", "alpha": -10, "beta": 5,
         "estimated_score": 20, "improving": 1, "correction": 3,
         "history": 32002, "move_count": 0, "reduction": 0,
-        "cutoff_count": -1, "window_alpha": -10, "window_beta": 5,
+        "cutoff_count": cutoff_count, "window_alpha": -10, "window_beta": 5,
         "margin": 12, "result": 20,
     }
+    if version == 2:
+        fields.update({"lmr_depth": 32002, "skip_quiets": -1, "family": "rfp"})
     record = " ".join(f"{key}={value}" for key, value in fields.items())
     return [
-        "info string trace begin version=1 plies=1-2 root=e2e4 "
-        "cutoff_count=unavailable value_none=32002 bool_unknown=-1 capacity=32768",
+        f"info string trace begin version={version} plies=1-2 root=e2e4 "
+        f"cutoff_count={availability} value_none=32002 bool_unknown=-1 capacity=32768",
         "info string trace record " + record,
         "info string trace end status=ok records=1",
     ]
@@ -45,6 +48,31 @@ class DecisionTraceTests(unittest.TestCase):
 
     def test_missing_field_is_rejected(self):
         lines = [line.replace(" history=32002", "") for line in valid_lines()]
+        with self.assertRaisesRegex(ValueError, "schema mismatch"):
+            decision_trace.parse_trace(lines)
+
+    def test_version_two_carries_family_and_cutoff_count(self):
+        parsed = decision_trace.parse_trace(valid_lines(2, "available", 3))
+        record = parsed["records"][0]
+        self.assertEqual(record["family"], "rfp")
+        self.assertEqual(record["cutoff_count"], 3)
+        self.assertEqual(record["skip_quiets"], -1)
+
+    def test_version_two_without_producer_keeps_the_sentinel(self):
+        with self.assertRaisesRegex(ValueError, "sentinel"):
+            decision_trace.parse_trace(valid_lines(2, "unavailable", 3))
+
+    def test_version_one_cannot_claim_a_producer(self):
+        with self.assertRaisesRegex(ValueError, "availability"):
+            decision_trace.parse_trace(valid_lines(1, "available", 0))
+
+    def test_version_two_rejects_unknown_family_and_missing_fields(self):
+        lines = [line.replace("family=rfp", "family=nmp")
+                 for line in valid_lines(2, "available", 0)]
+        with self.assertRaisesRegex(ValueError, "family"):
+            decision_trace.parse_trace(lines)
+        lines = [line.replace(" skip_quiets=-1", "")
+                 for line in valid_lines(2, "available", 0)]
         with self.assertRaisesRegex(ValueError, "schema mismatch"):
             decision_trace.parse_trace(lines)
 

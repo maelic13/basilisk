@@ -15,13 +15,23 @@ import threading
 import time
 
 PREFIX = "info string trace "
-REQUIRED_FIELDS = {
+# Version 1 is the legacy kernel's record; version 2 appends the reduced depth
+# move-loop pruning read, whether the move-count rule had ended quiet delivery,
+# and the pruning family, and says in its header whether cutoff_count has a
+# producer.
+V1_FIELDS = {
     "seq", "event", "ply", "depth", "move", "alpha", "beta",
     "estimated_score", "improving", "correction", "history",
     "move_count", "reduction", "cutoff_count", "window_alpha",
     "window_beta", "margin", "result",
 }
-INTEGER_FIELDS = REQUIRED_FIELDS - {"event", "move"}
+V2_FIELDS = V1_FIELDS | {"lmr_depth", "skip_quiets", "family"}
+REQUIRED_FIELDS = {"1": V1_FIELDS, "2": V2_FIELDS}
+TEXT_FIELDS = {"event", "move", "family"}
+FAMILIES = {
+    "none", "razor", "rfp", "skip_quiets", "cont_hist", "quiet_futility",
+    "quiet_see", "capture_futility", "capture_see",
+}
 
 
 def sha256(path: pathlib.Path) -> str:
@@ -53,10 +63,15 @@ def parse_trace(lines: list[str]) -> dict:
 
     header = key_values(trace[0][len("begin "):])
     footer = key_values(trace[-1][len("end "):])
-    if header.get("version") != "1" or header.get("plies") != "1-2":
+    version = header.get("version")
+    if version not in REQUIRED_FIELDS or header.get("plies") != "1-2":
         raise ValueError("unsupported trace contract")
-    if header.get("cutoff_count") != "unavailable":
+    availability = header.get("cutoff_count")
+    if availability not in ("unavailable", "available") or (
+        version == "1" and availability != "unavailable"
+    ):
         raise ValueError("cutoff_count availability changed; update the consumer")
+    required = REQUIRED_FIELDS[version]
     if header.get("value_none") != "32002" or header.get("bool_unknown") != "-1":
         raise ValueError("trace sentinel contract changed")
     if footer.get("status") != "ok":
@@ -67,22 +82,29 @@ def parse_trace(lines: list[str]) -> dict:
         if not text.startswith("record "):
             raise ValueError(f"unexpected trace line: {text!r}")
         fields = key_values(text[len("record "):])
-        missing = REQUIRED_FIELDS - fields.keys()
-        extra = fields.keys() - REQUIRED_FIELDS
+        missing = required - fields.keys()
+        extra = fields.keys() - required
         if missing or extra:
             raise ValueError(
                 f"trace schema mismatch: missing={sorted(missing)} extra={sorted(extra)}"
             )
         record = {
-            key: int(value) if key in INTEGER_FIELDS else value
+            key: value if key in TEXT_FIELDS else int(value)
             for key, value in fields.items()
         }
         if record["seq"] != expected_seq:
             raise ValueError(f"non-consecutive trace sequence at {expected_seq}")
         if record["ply"] not in (1, 2):
             raise ValueError(f"out-of-contract trace ply: {record['ply']}")
-        if record["cutoff_count"] != -1:
+        if availability == "unavailable" and record["cutoff_count"] != -1:
             raise ValueError("cutoff_count must use the documented -1 sentinel")
+        if record["cutoff_count"] < -1:
+            raise ValueError("cutoff_count below the -1 sentinel")
+        if version == "2":
+            if record["skip_quiets"] not in (-1, 0, 1):
+                raise ValueError("skip_quiets must be -1, 0 or 1")
+            if record["family"] not in FAMILIES:
+                raise ValueError(f"unknown pruning family: {record['family']}")
         if (record["alpha"], record["beta"]) != (
             record["window_alpha"], record["window_beta"]
         ):
@@ -187,7 +209,7 @@ def main() -> int:
     trace, _ = capture(engine, args.position, args.root_move,
                        args.depth, args.timeout)
     report = {
-        "schema": "basilisk-decision-trace-v1",
+        "schema": f"basilisk-decision-trace-v{trace['header']['version']}",
         "created_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "engine": {"path": str(engine), "sha256": sha256(engine)},
         "request": {
