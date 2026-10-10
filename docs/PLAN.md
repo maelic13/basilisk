@@ -1075,6 +1075,26 @@ rejections stop B.
       behaviour-neutral upgrades landed at the exact fingerprint before the
       first mechanism ticket.
       Rarog's review landed twelve such upgrades.
+      Reviewed 2026-10-10 on the B.1 head `8c706a8`:
+      `analysis/b20_architecture_review_2026-10-10.md`. The head needs no
+      structural rewrite; the weight sat where the cluster presses. Landed at
+      the exact fingerprint (`c434ee4`..`9b51b46`): the node kernel split out
+      of the driver behind three entry points (`root_search`,
+      `kernel_begin_search`, `kernel_new_game`) with Searcher's kernel members
+      in one fenced section; the `B2_CORE` umbrella option, inert, both arms
+      at 14,978,465; the counter, parameter (root, legacy kernel, core kernel)
+      and TT-layout tables made one-source; the driver's comments without
+      retired numbers (391 → 288 references in `src/`); the SPSA surface
+      regenerated; a source census tool. Release PEXT and plain, Tune, Diag,
+      Ablate and the sanitizer build at the fingerprint; release CTest 19/19,
+      sanitizer 17/17; the Tune option set, `Diag` and trace output
+      byte-identical to the B.1 Tune build. The review's §5 refines B.2.1's
+      contract to the code: the fence, the per-ply record, the tables and
+      their 9.2 MiB footprint, the TT encoding with the miss-store's
+      occupancy rule, the picker and threat-producer contracts, 51 seeded
+      coordinates and 6 categorical switches, the tests. Remaining gate:
+      BAS-P17, the pooled-PGO NPS pool against the B.1 builds (maintainer-run
+      on an idle host, `tools/run_b20_nps_gate.ps1`), passing above −0.5%.
     - [ ] **B.2.1** `[I2]` Implement behind the umbrella switch
       Implement to the B.0 handoff behind one umbrella CMake option, OFF by
       default, as ordered tickets; ticket 0 is the decision trace hook.
@@ -1183,8 +1203,8 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.2.0 | RESEARCH | R2 | Waits on B.1's head |
-| B.2.1 | READY_FOR_IMPLEMENTATION | I2 | Contract frozen in the B.0 packet §12.2; waits on B.1 and B.2.0 |
+| B.2.0 | LOCAL_QUALIFIED | R2 | Upgrades landed at the fingerprint; BAS-P17's NPS pool pending (maintainer-run) |
+| B.2.1 | READY_FOR_IMPLEMENTATION | I2 | Contract: the B.0 packet §12.2 refined by the B.2.0 review §5; waits on BAS-P17 |
 | B.2.2 | RESEARCH | V | Screen numbers registered in the B.0 packet §10 |
 | B.2.3 | RESEARCH | V | Curvature sweep after B.2.2 |
 | B.2.4 | RESEARCH | V | Gates after B.2.3 |

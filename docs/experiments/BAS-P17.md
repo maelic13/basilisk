@@ -1,0 +1,9 @@
+# BAS-P17
+
+| Field | Value |
+|---|---|
+| ID | BAS-P17 |
+| Experiment and conditions | **Frozen before the run, PLAN B.2.0's pooled-PGO NPS pool (maintainer-run).** Candidate: two final-PGO Release builds of the B.2.0 head `9b51b46` by `build_test.ps1` (`basilisk-b20-pgo1-pext-pgo.exe` SHA-256 `FD7384FC…A134`, `basilisk-b20-pgo2-pext-pgo.exe` `18AED349…7811`), each verified at bench 14,978,465 from a clean tree. Reference: BAS-P16's two builds of the B.1 head (`basilisk-b1-pgo1/2-pext-pgo.exe`, `FC797381…0C96`, `6A7BB438…B56D`). `tools/run_b20_nps_gate.ps1` pins the four by SHA-256 and runs `nps_ab.ps1` at `bench 13`, 16 alternating rounds × 3 repeats, one pinned physical core at High priority, behind the idle-host guard: (1) a self pair over the two B.2.0 builds; (2) the B.2.0 pair against the B.1 pair. BAS-P16's recipe. Results in `tools/results/b20-nps/`. |
+| Result / disposition | *Pending.* |
+| Conditional lesson and retry trigger | **Prediction (frozen):** the B.2.0 pair reads **0.0%** against the B.1 pair, 80% interval [−0.6%, +0.6%]; confidence moderate-high. B.2.0 changed no per-node code: the node kernel moved to its own translation unit, which LTO inlines across as before, and the driver calls it once per iteration; the counter and parameter tables generate the same fields; the TT constants compile to the same instructions. The only route to a measurable delta is code layout, which moved BAS-P16 by +1.21%. **Reading:** a failed self pair voids the run as an instrument fault. Above −0.5% the leaf closes and B.1's 4.216M stays B.2's NPS reference. At or below −0.5% the kernel split (`c434ee4`) is the suspect, located by building it alone against its parent `8c706a8`. Above +0.5% passes and is recorded unexplained. Retry: none. |
+| Source | PLAN B.2.0; `analysis/b20_architecture_review_2026-10-10.md` §6 |
