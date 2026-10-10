@@ -233,6 +233,19 @@ jobs:
           cmake --build build/ablate-pext --target basilisk test_uci_protocol
           ctest --test-dir build/ablate-pext -R test_uci_protocol --output-on-failure
 
+      # The Cluster 1 umbrella's ON arm: built and tested in full, its bench
+      # printed. Its fingerprint moves with every ticket, so it stays out of
+      # the bench agreement, which compares the OFF arm.
+      - name: Build and test the B2_CORE arm
+        run: |
+          cmake --preset release-pext -B build/b2core-pext -DPORTABLE_BUILD=ON -DCOMP=clang \
+            -DTUNE=OFF -DDIAGNOSTIC=OFF -DABLATION=OFF -DTEXEL=OFF -DB2_CORE=ON
+          cmake --build build/b2core-pext
+          ctest --test-dir build/b2core-pext --output-on-failure
+          out=$(printf "bench 10\nquit\n" | ./build/b2core-pext/basilisk)
+          echo "$out" | tail -8
+          echo "$out" | grep -qE "Nodes searched *: *[0-9]+" || { echo "FAIL: no node count"; exit 1; }
+
       - name: Build and verify TEXEL flavor
         run: |
           cmake --preset release-pext -B build/texel-pext -DPORTABLE_BUILD=ON -DCOMP=clang \
