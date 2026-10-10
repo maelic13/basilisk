@@ -1311,3 +1311,115 @@ measurable on one binary. The counter-arguments:
 
 Resume: on research amendment 2, at ticket 3's remainder (the held patch),
 on the amended contract.
+
+## 19. B.2.1 Amendment 2 (2026-10-10): the WAC floor binds the ON arm at the coherent cluster; the check gate stays as contracted; no switch
+
+Answers §18. Research (`R3`) at head `fe68f34`; implementation resumes at
+ticket 3's remainder from the held patch, on this contract.
+
+### 19.1 Decision 1: option (b), with the instrument named
+
+**Decision.** The picker keeps the donor's gated term,
+`16384·(check && see_ge(m, −75))`, as §3.6 and 17.1 contract, with no
+switch. The per-ticket gate on the ON arm is the off arm's fingerprint,
+every correctness test, the unit tests, and the mate-drive and mate-band
+floors (KBNK, KQK, KRK, KBBK, the band): those bind every ticket as §12.2
+wrote them. The depth-6 WAC floor binds the ON arm from the commit that
+lands ticket 7, when the picker, node pruning, move-loop pruning and LMR
+are one population, and at every commit after it. Between ticket 3 and
+ticket 7 the ON arm's WAC count is an instrument, recorded per ticket, not
+a floor.
+
+Why the floor does not bind a mid-cluster hybrid:
+
+- It is the wrong instrument for the ON arm. A fixed-depth tactical count
+  changes by construction when the selectivity stack changes, and the
+  cluster is adopted as a whole precisely because its terms are fitted to
+  each other (`agents/research.md`, *Before implementing a mechanism*). The
+  programme registered the ON arm's tactical screens at a fixed node
+  budget for that reason: §10's WAC at 100,000 nodes, floor ≥ 200 and
+  target ≥ 225, and P4. Depth 6 under the legacy kernel's never-pruned,
+  never-reduced, always-extended checks is a different population from
+  depth 6 under the donor's, and 130 was calibrated on the former (138
+  with headroom 8).
+- The gate is more right for Basilisk's B.2 population than for the
+  donor's, not less. Ticket 6 prunes a quiet check by SEE at `−74·d −
+  captHist/80` and ticket 7 reduces every move class, so a losing check is
+  pruned or reduced wherever the picker puts it; what an ungated bonus
+  would buy in the coherent cluster is an early, extended subtree (B.2
+  keeps the in-check extension) for a check that then loses material. The
+  13 positions the gate costs at depth 6 are what the hybrid shows while
+  the legacy kernel still searches every check at full depth plus one,
+  and ordering is the only lever left.
+- A switch whose default is chosen to clear a legacy-calibrated floor by
+  two positions is a rescue by a neighbour, and its categorical run would
+  decide a question about the hybrid in the population of the cluster.
+  Nothing is lost by not having it now: both forms stay one line apart.
+
+The remaining six positions (killers and countermove gone, the donor's
+quiet formula and routing) are the cluster's population shift, not a
+defect: the picker's exhaustiveness test is proven live, and legacy
+history pruning, which the new scales could have woken, moves nothing.
+
+**What binds instead, per ticket from ticket 3 to ticket 6.** The ON arm's
+CTest keeps running the WAC suite each ticket, but as a count: a `--count`
+mode of `test_wac` (depth 6, prints the solved count, exit 0), registered
+on the ON arm in place of `--floor` until ticket 7 re-registers `--floor`
+there; the off arm's `test_wac_floor` and its 130 are untouched. The
+implementation record carries, per ticket, the ON arm's depth-6 count and
+its 100,000-node count from `fixed_budget_probe.py` (§10's instrument). A
+ticket that moves the depth-6 count by 10 or more positions attributes the
+move one change at a time, as §18.2 did; an unexplained share above 5
+positions returns the leaf. Ticket 3 records 119 at depth 6 with §18.2's
+table as its attribution, and reads the 100,000-node count on the same
+tree.
+
+**At ticket 7 and after.** The ON arm's `--floor` at 130 is re-registered
+in ticket 7's commit. If it fails there while §10's 100,000-node floor
+(≥ 200) holds, that is a floor failure and returns the leaf as PLAN says;
+research then decides the ON arm's depth-6 floor with both numbers in
+hand. Implementation does not re-calibrate it.
+
+**Falsifier and retry trigger for the switch.** If at the coherent cluster
+the 100,000-node WAC reads below 200, or P4 (≥ 225 with razoring
+re-seeded) misses, and a one-change attribution names the check gate, then
+`CoreCheckBonusSeeGate` (0/1) becomes a categorical switch, decided by a
+2,000-game paired run in the population it belongs to. Until then the
+§18.2 table is the recorded evidence and nothing else is built for it.
+
+### 19.2 Decision 2: discovered checks
+
+Confirmed. Discovered checks are a third legality geometry of the kind
+BAS-C09 names: the kernel computes pins once on the exchange occupancy and
+does not model check, so a capture that is illegal because it discovers
+check on its own king, or that is forced by one, is scored as if legal.
+They already occur for captures at the head (the classifier's 41 of 21,971,
+0.19%, in the same three geometries as the quiets' 482 of 119,732,
+0.40%), so quiet calls reach an existing approximation and add none. 17.1's
+falsifier reads "outside the three legality geometries the classifier
+names: promotion recapture, discovered check, legality-filtered
+exchange"; it is met, with 0 unexplained. BAS-C09's entry gains one line
+naming the third geometry; its retry trigger (verdict changes under per-ply
+pins on the bench corpus) is a different measure from the classifier's
+random-walk divergence and is still re-read once in B.2.2 as 17.4 says.
+
+### 19.3 Predictions
+
+P1–P6 unchanged; clerical amendments none. §10's screens are unchanged:
+the WAC floors there were always the cluster's.
+
+### 19.4 Handoff, amended
+
+- §12.2's "the KBNK/KQK/KRK/KBBK and mate-band CTest floors bind the on
+  arm" stands as written; review §5.11 item 6's "strength floors (WAC …)"
+  on both arms is read as: WAC binds the off arm every ticket and the ON
+  arm from ticket 7.
+- Ticket 3 resumes from the held patch (`tools/results/b21-20261010/
+  ticket3-wip/`, base `60a610e`) unchanged in mechanism, plus the
+  `test_wac --count` mode and its ON-arm CTest registration, in a test
+  commit separate from the engine commit. Its record: ON `bench 13` =
+  12,815,895, sanitizer `bench 10` = 3,063,719, depth-6 WAC 119 with the
+  §18.2 attribution, the 100,000-node count, `test_history_core` 97/97,
+  `test_move_picker_core` 5/5, off arm at 14,978,465.
+- Tickets 4–6: the same record per ticket. Ticket 7: re-register
+  `test_wac --floor` on the ON arm.

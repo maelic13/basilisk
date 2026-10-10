@@ -1105,8 +1105,9 @@ rejections stop B.
       Each ticket keeps the umbrella-off arm at the exact fingerprint. Unit
       tests cover every table's bounds and gravity, picker exhaustiveness, TT
       store and probe, and stack unwind. CTest passes on both arms: the
-      mate-drive floors bind the on arm too, and a failure there returns the
-      premise to research. Reviewer acceptance (a separate `R2` session) is
+      mate-drive floors bind the on arm too (the WAC floor from ticket 7,
+      Amendment 2), and a failure there returns the premise to research.
+      Reviewer acceptance (a separate `R2` session) is
       recorded before B.2.2.
       Tickets 0–2 landed 2026-10-10 (`1dbf0d9`..`f179404`): the counters and
       trace version 2, the threat producer and the core's stack record, the
@@ -1131,6 +1132,11 @@ rejections stop B.
       SEE-gated check bonus costs 13 of the 19 positions under the legacy
       pruning and LMR still in place. Research amendment 2 decides; the
       implementation recommends a categorical switch for the gate.
+      — AMENDED 2026-10-10 (Amendment 2, packet §19): the check gate stays
+      as contracted, no switch; the depth-6 WAC floor binds the ON arm from
+      ticket 7, recorded as a count per ticket before that with §10's
+      100k-node reading beside it. Implementation resumes at ticket 3's
+      remainder from the held patch.
     - [ ] **B.2.2** `[V]` Diagnostics and the unfitted paired run
       Screens at B.0's registered numbers; the ablation sweep if a floor
       fails; the unfitted 2,000-game paired run against the accepted head,
@@ -1230,7 +1236,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.2.1 | RESEARCH | I2 | Return 2 (packet §18): research amendment 2 (`R3`) on the picker's check gate against the ON arm's WAC floor; ticket 3's `see_ge` commit landed, the rest held as a patch |
+| B.2.1 | READY_FOR_IMPLEMENTATION | I2 | Amendment 2 (packet §19): check gate as contracted, WAC floor binds the ON arm from ticket 7; resume ticket 3 from the held patch |
 | B.2.2 | RESEARCH | V | Screen numbers registered in the B.0 packet §10 |
 | B.2.3 | RESEARCH | V | Curvature sweep after B.2.2 |
 | B.2.4 | RESEARCH | V | Gates after B.2.3 |
