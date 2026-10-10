@@ -1,7 +1,7 @@
 # B.2.0 — Architecture review of the B.1 head, and the seams Cluster 1 needs
 
-- State / class: `R2`; `LOCAL_QUALIFIED`, waiting on the pooled-PGO NPS pool
-  (BAS-P17, maintainer-run on an idle host). Nothing in play changes.
+- State / class: `R2`; **CLOSED 2026-10-10**, BAS-P17 read 0.00% (§6).
+  Nothing in play changes.
 - Owner / date: 2026-10-10. Reviewed revision `8c706a8` (the B.1 head);
   upgrades landed as `c434ee4`, `79a0f2d`, `c55d06c`, `76eab94`, `0482615`,
   `9b51b46`, every engine commit at `bench 13` = **14,978,465**.
@@ -723,6 +723,13 @@ to a measurable delta is code layout, as BAS-P16's +1.21% was.
 and B.1's 4.216M stays B.2's reference; at or below −0.5% the split is the
 suspect and is located by building `c434ee4` alone against its parent; above
 +0.5% passes and is recorded unexplained.
+
+**Result (2026-10-10, maintainer-run):** 0.00%, 95% CI [−0.22%, +0.28%],
+self pair −0.03% [−0.26%, +0.15%] OK, host idle, fingerprints identical;
+pooled medians 4.190M against 4.190M in this session (BAS-P16's 4.216M for
+the same B.1 builds is session drift, which the interleaving cancels). The
+leaf closes; B.1's 4.216M stays B.2's NPS reference. Calibration: inside the
+80% interval at its centre.
 
 ## 7. Handed to owners
 

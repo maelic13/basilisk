@@ -1070,7 +1070,7 @@ rejections stop B.
   as the primary target, since it carries the ×4 node multiplier
   (BAS-D21). Seeds, surfaces, screens and the frozen predictions P1–P6 are
   the packet's §7, §8, §10 and §11.
-    - [ ] **B.2.0** `[R2]` Architecture review and neutral upgrades
+    - [x] **B.2.0** `[R2]` Architecture review and neutral upgrades
       Architecture review of the B.1 head: the seams the cluster needs, and
       behaviour-neutral upgrades landed at the exact fingerprint before the
       first mechanism ticket.
@@ -1095,6 +1095,10 @@ rejections stop B.
       coordinates and 6 categorical switches, the tests. Remaining gate:
       BAS-P17, the pooled-PGO NPS pool against the B.1 builds (maintainer-run
       on an idle host, `tools/run_b20_nps_gate.ps1`), passing above −0.5%.
+      — CLOSED 2026-10-10: BAS-P17 (maintainer-run) reads the B.2.0 pair
+      **0.00%** against the B.1 pair, 95% CI [−0.22%, +0.28%], self pair
+      −0.03% OK, fingerprints identical; the frozen 0.0% held at its centre.
+      B.1's 4.216M pooled median stays B.2's NPS reference.
     - [ ] **B.2.1** `[I2]` Implement behind the umbrella switch
       Implement to the B.0 handoff behind one umbrella CMake option, OFF by
       default, as ordered tickets; ticket 0 is the decision trace hook.
@@ -1203,8 +1207,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.2.0 | LOCAL_QUALIFIED | R2 | Upgrades landed at the fingerprint; BAS-P17's NPS pool pending (maintainer-run) |
-| B.2.1 | READY_FOR_IMPLEMENTATION | I2 | Contract: the B.0 packet §12.2 refined by the B.2.0 review §5; waits on BAS-P17 |
+| B.2.1 | READY_FOR_IMPLEMENTATION | I2 | Contract: the B.0 packet §12.2 refined by the B.2.0 review §5; next |
 | B.2.2 | RESEARCH | V | Screen numbers registered in the B.0 packet §10 |
 | B.2.3 | RESEARCH | V | Curvature sweep after B.2.2 |
 | B.2.4 | RESEARCH | V | Gates after B.2.3 |
