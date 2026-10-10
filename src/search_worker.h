@@ -75,7 +75,9 @@ struct SearchShared {
 
 // Stack records below the root. The kernel reads (ss - n) for n up to this
 // many plies; those records are sentinels, and the root is stack[STACK_SENTINELS].
-inline constexpr int STACK_SENTINELS = 4;
+// Seven covers the deepest continuation read (six plies back from a child's
+// update) on either kernel.
+inline constexpr int STACK_SENTINELS = 7;
 
 struct SearchState {
     Board*   board = nullptr;

@@ -27,8 +27,30 @@ inline constexpr int PIECE_VALUE[PIECE_TYPE_NB] = {0, 100, 300, 300, 500, 900, 2
 // A move with its ordering score; the kernel's move buffers hold these.
 struct ScoredMove { Move move; int score; };
 
+#if defined(BASILISK_B2_CORE)
+// The selectivity core's per-ply record. The root is the record at
+// STACK_SENTINELS; the records below it are default records, which read as
+// "no move, no piece, no evaluation" to every (ss - n) consumer. The records
+// are shared by all children of one node, so a field written by a child (the
+// cutoff count) accumulates over that node's searched moves.
+struct SearchStack {
+    Move      move        = MOVE_NONE;       // move being searched at this ply
+    Move      excluded    = MOVE_NONE;       // excluded move (singular extensions)
+    Move      killers[2]  = {};              // killer moves
+    int       eval        = VALUE_NONE;      // corrected static eval at this ply
+    int       stat_score  = 0;               // history score of the move searched from here
+    int       reduction   = 0;               // reduction applied to the move searched from here
+    int       move_count  = 0;               // moves picked at this node, pruned ones included
+    int       cutoff_cnt  = 0;               // fail highs at this ply among one parent's children
+    PieceType moved_piece = NO_PIECE_TYPE;   // piece type that made 'move'
+    bool      tt_pv       = false;           // node lies near a TT/PV line
+    bool      tt_hit      = false;           // the TT probe found this position
+    bool      in_check    = false;           // side to move is in check
+    int       double_exts = 0;               // stacked 2-ply singular extensions on this path
+};
+#else
 // Per-ply search stack used by alpha-beta/PVS search.
-// Root is at ss[0]; ss[-1]..ss[-4] are sentinel slots pre-filled with MOVE_NONE.
+// Root is at ss[0]; the records below it are sentinel slots pre-filled with MOVE_NONE.
 struct SearchStack {
     Move      move        = MOVE_NONE;       // move being searched at this ply
     Move      excluded    = MOVE_NONE;       // excluded move (singular extensions)
@@ -40,6 +62,7 @@ struct SearchStack {
     bool      tt_pv       = false;           // node lies near a TT/PV line
     int       double_exts = 0;               // stacked 2-ply singular extensions on this path
 };
+#endif
 
 struct SearchLimits {
     int depth      = MAX_SEARCH_DEPTH;

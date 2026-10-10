@@ -145,6 +145,7 @@ set(BOARD_SOURCES
     src/move.cpp
     src/attacks.cpp
     src/zobrist.cpp
+    src/threats.cpp
 )
 add_library(basilisk_board STATIC ${BOARD_SOURCES})
 target_include_directories(basilisk_board PUBLIC
@@ -155,13 +156,26 @@ target_include_directories(basilisk_board PUBLIC
 # correction tables with their policy. The driver in search_worker.cpp reaches
 # it only through Searcher's kernel entry points, so a cluster built behind an
 # umbrella option supplies its own list here while the driver stays shared.
-# Until Cluster 1's kernel exists both arms of B2_CORE compile this list.
-set(BASILISK_SEARCH_KERNEL_SOURCES
-    src/search_kernel.cpp
-    src/search_history.cpp
-    src/move_picker.cpp
-    src/history.cpp
-)
+# Cluster umbrellas (PROCESS, Cluster delivery shape): a Boolean option that
+# compiles one search cluster in; OFF reproduces the accepted fingerprint.
+# B2_CORE is Cluster 1, the selectivity core, which replaces the node kernel
+# (BASILISK_SEARCH_KERNEL_SOURCES and the kernel section of Searcher).
+option(B2_CORE "Compile Cluster 1's selectivity-core node kernel in place of the legacy kernel (sets BASILISK_B2_CORE)" OFF)
+if(B2_CORE)
+    set(BASILISK_SEARCH_KERNEL_SOURCES
+        src/search_kernel_core.cpp
+        src/search_history.cpp
+        src/move_picker.cpp
+        src/history.cpp
+    )
+else()
+    set(BASILISK_SEARCH_KERNEL_SOURCES
+        src/search_kernel.cpp
+        src/search_history.cpp
+        src/move_picker.cpp
+        src/history.cpp
+    )
+endif()
 
 # Engine library — evaluation and search (depends on board)
 add_library(basilisk_engine STATIC
@@ -238,6 +252,10 @@ target_link_libraries(test_wac PRIVATE basilisk_engine)
 add_executable(test_invariants tests/test_invariants.cpp)
 target_link_libraries(test_invariants PRIVATE basilisk_board)
 
+# The per-node threat producer against a brute-force attacker set
+add_executable(test_threats tests/test_threats.cpp)
+target_link_libraries(test_threats PRIVATE basilisk_board)
+
 add_executable(test_cpu_features tests/test_cpu_features.cpp)
 target_include_directories(test_cpu_features PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
@@ -300,6 +318,7 @@ include(CTest)
 add_test(NAME test_board        COMMAND test_board)
 add_test(NAME test_wac          COMMAND test_wac)
 add_test(NAME test_invariants   COMMAND test_invariants)
+add_test(NAME test_threats      COMMAND test_threats)
 add_test(NAME test_cpu_features COMMAND test_cpu_features)
 add_test(NAME test_move         COMMAND test_move)
 add_test(NAME test_magics       COMMAND test_magics)
@@ -344,11 +363,7 @@ option(TUNE "Expose search constants as UCI spin options for SPSA tuning (sets B
 option(DIAGNOSTIC "Expose diagnostics without the tunable parameter surface (sets BASILISK_DIAGNOSTIC)" OFF)
 option(ABLATION "Expose the matched search-ablation instrument (sets BASILISK_ABLATION)" OFF)
 option(RELEASE_DIAG_COUNTERS "Count diagnostic search events in production builds (measurement arm)" OFF)
-# Cluster umbrellas (PROCESS, Cluster delivery shape): a Boolean option that
-# compiles one search cluster in; OFF reproduces the accepted fingerprint.
-# B2_CORE is Cluster 1, the selectivity core, which replaces the node kernel
-# (BASILISK_SEARCH_KERNEL_SOURCES and the kernel section of Searcher).
-option(B2_CORE "Compile Cluster 1's selectivity-core node kernel in place of the legacy kernel (sets BASILISK_B2_CORE)" OFF)
+# B2_CORE, the Cluster 1 umbrella, is declared with the kernel source list.
 set(BASILISK_PGO_ARM_OPTION "" CACHE STRING "Boolean CMake option identifying an umbrella arm in PGO child builds")
 set(BASILISK_PGO_ARM_STATE "OFF" CACHE STRING "Value for BASILISK_PGO_ARM_OPTION in PGO child builds")
 # Warnings are only a signal if something enforces them. The tree builds clean
@@ -421,7 +436,7 @@ set(_ALL_TARGETS
     basilisk_board basilisk_engine basilisk_launcher
     basilisk board_performance_test
     test_board test_move test_tt test_eval test_search test_engine_ponder test_engine_threading test_uci_protocol test_cpu_features
-    test_endgames test_wac test_invariants test_magics
+    test_endgames test_wac test_invariants test_magics test_threats
 )
 
 # Fathom is part of the shipped executable and must obey its ISA contract, but

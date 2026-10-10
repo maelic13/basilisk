@@ -136,9 +136,9 @@
 
 // ---- Cluster 1's kernel (the B2_CORE arm) -------------------------------------
 //
-// Filled by the cluster's implementation; empty until then, so the ON arm
-// compiles with the root table alone.
-#define BASILISK_CORE_KERNEL_PARAMS(X)
+// The core kernel reads the legacy coordinates of every mechanism it has not
+// yet replaced, at their legacy values.
+#define BASILISK_CORE_KERNEL_PARAMS(X) BASILISK_LEGACY_KERNEL_PARAMS(X)
 
 #if defined(BASILISK_B2_CORE)
 #define BASILISK_KERNEL_PARAMS(X) BASILISK_CORE_KERNEL_PARAMS(X)

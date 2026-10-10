@@ -159,7 +159,11 @@ enum class TraceFamily : uint8_t {
     CaptureFutility, CaptureSee
 };
 // Whether this kernel produces cutoff_count; the trace header states it.
+#if defined(BASILISK_B2_CORE)
+inline constexpr bool kTraceCutoffCountAvailable = true;
+#else
 inline constexpr bool kTraceCutoffCountAvailable = false;
+#endif
 struct TraceRecord {
     TraceEvent event{};
     Move move = MOVE_NONE;

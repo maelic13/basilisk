@@ -115,7 +115,14 @@ void UciProtocol::enqueue(EngineCommandType type, const std::string& args, uint6
 // ---------------------------------------------------------------------------
 
 void UciProtocol::cmdUci() {
-    std::string out = "id name " + std::string(engineName) + " " + std::string(engineVersion) + "\n"
+    // A binary built with a cluster umbrella on says so in its name.
+#if defined(BASILISK_B2_CORE)
+    constexpr std::string_view arm = "+b2core";
+#else
+    constexpr std::string_view arm = "";
+#endif
+    std::string out = "id name " + std::string(engineName) + " " + std::string(engineVersion)
+                    + std::string(arm) + "\n"
                     + "id author " + std::string(engineAuthor) + "\n"
                     + Parameters::uci_options()
                     + "uciok\n";
