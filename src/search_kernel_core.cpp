@@ -1066,9 +1066,17 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
         int score;
         if (searched == 0) {
+            // At a non-PV node a first move whose reduction would be large is
+            // searched one or two plies shallower (never at the root or in
+            // check), as later moves without LMR are.
+            int step = 0;
+            if (!is_pv && !ABLATED(7) && !is_root && !in_check) {
+                const int rr = r + (tt_move == MOVE_NONE ? 1127 : 0);
+                step = (rr > 5234) + (rr > 5487 && new_depth > 2);
+            }
             // At a non-PV node the first move's child is the opposite type:
             // the expected refutation of an all node's move is a cut node.
-            score = -negamax<PvChild>(new_depth, -beta, -alpha, ply + 1, ss + 1, true,
+            score = -negamax<PvChild>(new_depth - step, -beta, -alpha, ply + 1, ss + 1, true,
                                       !is_pv && !cut_node);
         } else {
             // Nothing is reduced at the root or in check.
