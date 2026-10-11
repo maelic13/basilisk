@@ -1443,6 +1443,7 @@ at every commit listed.
 | 3b WAC count mode | `9a632e6` tests | 13,488,940 | — | 20/20 both arms | 138 (count) | — |
 | 3c tables, picker, routing | `bcf63e8` engine | **12,815,895** (transient, decision 9) | 3,063,719 | ON 22/22, 20/20; off 20/20, 18/18 | **119** (count; §18.2 attribution) | **200** |
 | 4 correction, improving, worsening, hindsight, eval-difference training | `221afdf` engine and test | **13,061,601** | 4,006,140 | ON 22/22, 20/20; off 20/20, 18/18 | **127** (count; +8, under the attribution trigger) | **193** |
+| 5 razoring and RFP | `bb73fb5` engine | **25,182,694** (one position, below) | 3,093,931 | ON 22/22, 20/20; off 20/20, 18/18 | **167** (count; +40, attributed below) | **237** |
 
 Ticket 3's instruments (`tools/results/b21-20261010/ticket3/`):
 - `test_wac --count` → `wac_depth6_on.txt`, SHA-256 `e1854e6e…73b5`.
@@ -1465,6 +1466,52 @@ Ticket 4's instruments (`tools/results/b21-20261010/ticket4/`):
   and continuation-correction counters fire (3,857 up, 10,055 down, 7,148
   updates); `CoreCorrAdmission` = 0 changes the search (453,734 against
   463,065 nodes).
+
+Ticket 5's instruments (`tools/results/b21-20261010/ticket5/`):
+- `wac_depth6_on.txt`, SHA-256 `ee16d14f…729e`: 167.
+- `wac_nodes100k_on.json`, `3fddc775…0b65`: 237, on
+  `basilisk-b21-t5-on-pext.exe` (`e52183fa…729e`). That is above §10's
+  legacy baseline of 204 and its target of 225; at ticket 5 it is still an
+  instrument (§19.1).
+
+The depth-6 move of +40 is attributed one change at a time, in scratch
+trees that restore a block to its ticket-4 code at the legacy constants:
+
+| Ticket-5 tree with… | Depth 6 | 100k nodes | `bench 13` |
+|---|---:|---:|---:|
+| nothing restored | 167 | 237 | 25,182,694 |
+| legacy razoring (depth ≤ 3, `243·d`, `q ≤ alpha`) | 124 | 202 | 12,551,164 |
+| legacy RFP (`160·d − 72·improving`, returns eval) | 162 | 236 | 13,980,101 |
+| both restored | 127 | — | 13,061,601 |
+
+- Restoring both blocks reproduces ticket 4 exactly (127 and 13,061,601).
+  So the parameter-table split is neutral, and the whole move belongs to
+  the two blocks.
+- Razoring accounts for +43 and RFP for +5. They interact for −8, the only
+  other change being their joint presence, so 0 positions are unexplained.
+- Razoring at depth 1 only is the B.0 finding at work: §2.6 measured the
+  legacy razoring's reach to depth 3 costing 51 WAC positions at 100k nodes.
+
+The `bench 13` total doubled because of one position. Bench position 39
+(`1Q4R1/5k2/4rpp1/3K4/8/7p/8/8 b - - 2 9`) took 14,473,319 nodes (57.5% of
+the total) against 756,321 at ticket 4, and reports a mated score (−31904)
+where ticket 4's bench reported −1312. The position is a forced mate: from a
+fresh search at depth 13, ticket 4 finds mate −36 in 2,310,540 nodes and
+ticket 5 mate −30 in 3,508,950. Ticket 5 finds the mate inside the bench
+sequence and expands its lines; ticket 4 did not. Over the 40 positions the
+median node ratio to ticket 4 is 0.96 (`bench_t4.txt`, `bench_t5.txt`
+beside the instruments). This is recorded, not acted on: the tree-size
+screens are B.2.2's.
+
+Liveness, on ON Tune and Ablate builds (Italian position):
+- The razoring and RFP counters fill their depth buckets.
+- `CoreRazorDepthCap` = 3 and `CoreRfpPerPly` = 60 change the search
+  (293,683 against 393,875 and 199,505 nodes at depth 13).
+- Ablation bits 0 and 1 change the tree (184,905 against 392,553 and
+  369,019 nodes at depth 12).
+- The off arm's Tune option list is byte-identical to ticket 4's. The ON
+  arm's drops `RfpCoeff`, `RfpImproving` and `RazorCoeff` and gains the seven
+  node-margin coordinates and `CoreRazorDepthCap`.
 
 Tests added so far: the 22 counters and trace v2 in the parsers' tests;
 `test_threats` (both arms); the ON arm's TT tests (pv bit, age cycle,
@@ -1529,6 +1576,22 @@ Deviations and implementation choices, with reasons:
      because both rows train together.
    - `test_history_core` changed in the engine commit, since it names the
      new correction rows and neither commit would build alone.
+7. Ticket 5, choices inside the contract:
+   - The donor's order: razoring before RFP. Both sit inside the legacy
+     block gate (decision 12); they cannot both fire at one node.
+   - Razoring's guards are §3.4's two: no quiet TT move (an unvalidated TT
+     move classified by capture-stage membership, like the legacy LMR's TT
+     capture) and no lower-bound entry. Above depth 1 the margin is linear
+     (Amendment 1, decision 6). The value is always returned.
+   - RFP's decisive guards are the donor's: beta not a loss, the estimate
+     not a win.
+   - RFP's correction term divides the correction in evaluation units
+     (`|raw| / 131072`) by `CoreRfpCorrDiv`; at its seed of 0 the term is
+     off, so the unit only matters once B.2.3 moves it.
+   - The legacy parameter table is split into six group macros spliced in
+     their original order. The default arm's table, its Tune option list
+     and the registered SPSA surface (41) are unchanged. The core table
+     takes every group except the node margins.
 
 What the reviewer must check (so far):
 - Both arms' fingerprints per ticket, on PEXT and plain.

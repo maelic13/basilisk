@@ -1146,6 +1146,11 @@ rejections stop B.
       hindsight and eval-difference training. ON arm 13,061,601, off arm
       14,978,465; CTest passes on both arms; WAC 127 at depth 6 and 193 at
       100,000 nodes.
+      Ticket 5 landed 2026-10-11 (`bb73fb5`; packet §20): razoring at
+      depth 1 with the quiescence value returned, and RFP in the cluster's
+      shape. ON arm 25,182,694 (one bench position found a forced mate),
+      off arm 14,978,465; CTest passes on both arms; WAC 167 at depth 6
+      (+40: razoring +43, RFP +5, −8 interaction) and 237 at 100,000 nodes.
     - [ ] **B.2.2** `[V]` Diagnostics and the unfitted paired run
       Screens at B.0's registered numbers; the ablation sweep if a floor
       fails; the unfitted 2,000-game paired run against the accepted head,
@@ -1245,7 +1250,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.2.1 | READY_FOR_IMPLEMENTATION | I2 | Tickets 0–4 landed (record: packet §20); next ticket 5, razoring and RFP |
+| B.2.1 | READY_FOR_IMPLEMENTATION | I2 | Tickets 0–5 landed (record: packet §20); next ticket 6, move-loop pruning |
 | B.2.2 | RESEARCH | V | Screen numbers registered in the B.0 packet §10 |
 | B.2.3 | RESEARCH | V | Curvature sweep after B.2.2 |
 | B.2.4 | RESEARCH | V | Gates after B.2.3 |
