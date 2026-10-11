@@ -52,14 +52,11 @@ static TablebaseProbe tablebase_probe(Syzygy::Wdl wdl, int ply, bool rule50) {
     std::unreachable();
 }
 
-void Searcher::init_lmr(float base, float divisor) {
-    // Phase 6.7: table stored in 1024ths of a ply (fractional LMR). The floor
-    // identity int(1024*x) >> 10 == int(x) keeps the base reduction identical to
-    // the old integer table at default knobs; the finer resolution only matters
-    // once 6.9 SPSA sets sub-ply adjustments. Consumers shift back with `>> 10`.
-    for (int d = 1; d < 64; d++)
-        for (int m = 1; m < 64; m++)
-            lmr_table_[d][m] = int(1024.0f * (base + std::log(d) * std::log(m) / divisor));
+int Searcher::lmr_reduction(bool improving, int depth, int move_count, int delta) const {
+    const auto& p = config_.limits.params;
+    const int scale = reductions_[std::min(depth, 255)] * reductions_[std::min(move_count, 255)];
+    return scale - delta * 577 / root_delta_
+         + (improving ? 0 : scale * p.lmr_not_improving / 512) + p.lmr_offset;
 }
 
 static_assert(TranspositionTable::NO_SCORE == VALUE_NONE,
@@ -707,6 +704,12 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     Move best_move   = MOVE_NONE;
     int  best_score  = tb_floor;
     int  searched    = 0;
+    // The alpha the move that failed high had to beat (the fail-high blend
+    // reads it).
+    int  cut_alpha   = alpha;
+    const bool all_node = !is_pv && !cut_node;
+    // The estimate the reduction's alpha term reads; in check, the record's.
+    const int lmr_eval = in_check ? ss->eval : eval;
 
     Move quiets_searched[MAX_TRACKED_QUIETS];
     Move bad_caps_searched[MAX_TRACKED_BAD_CAPS];
@@ -721,7 +724,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     // rows for every quiet move.
     const auto& main_hist = hist_.main.entry[state_.board->turn()];
     const auto& pawn_hist = pawn_bucket().entry;
-    const auto* low_ply_hist = ply < LowPlyHistory::PLIES ? &hist_.low_ply.entry[ply] : nullptr;
+    // The decision trace also reads the low-ply history.
+    [[maybe_unused]] const auto* low_ply_hist =
+        ply < LowPlyHistory::PLIES ? &hist_.low_ply.entry[ply] : nullptr;
 
     // 5.7.2: set when the TT move proves singular at this node, and then read
     // by LMR for every LATER move here.
@@ -761,6 +766,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             && std::find(state_.root_excluded.begin(), state_.root_excluded.end(), m) != state_.root_excluded.end())
             return false;
         ++ss->move_count;
+        int r = lmr_reduction(improving, depth, ss->move_count, beta - alpha);
+        if (ss->tt_pv)
+            r += kp.lmr_tt_pv;
 
         bool is_cap   = (state_.board->piece_on(to_sq(m)) != NO_PIECE)
                      || (move_type(m) == EN_PASSANT);
@@ -816,8 +824,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                                -1, VALUE_NONE, 1, TraceFamily::SkipQuiets);
             }
 
-            int lmr_depth = depth - 1
-                          - lmr_table_[std::min(depth, 63)][std::min(move_count, 63)] / 1024;
+            int lmr_depth = depth - 1 - r / 1024;
 
             if (is_cap || is_promo || move_gives_check()) {
                 const PieceType captured = move_type(m) == EN_PASSANT ? PAWN
@@ -911,9 +918,6 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             }
         }
 
-        if (is_cap && !is_promo && depth >= 2 && searched >= 2 && see_score == VALUE_NONE)
-            see_score = state_.board->see_ge(m, 0) ? 0 : -1;
-
         // ---- Extensions -------------------------------------------------------
         int extension = 0;
 
@@ -996,18 +1000,24 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             }
         }
 
-        PieceType moved_pt = type_of(state_.board->piece_on(from_sq(m)));
-        int move_stat_score = 0;
-        if (is_quiet) {
-            move_stat_score = main_hist[from_sq(m)][to_sq(m)];
-            move_stat_score += cont_hist_score(ss, moved_pt, Square(to_sq(m)));
-            move_stat_score += pawn_hist[moved_pt][to_sq(m)];
-            if (low_ply_hist)
-                move_stat_score += (*low_ply_hist)[from_sq(m)][to_sq(m)];
+        // The move's history score: a capture's captured value and capture
+        // history, a quiet's main and nearest continuation histories.
+        const PieceType moved_pt = type_of(state_.board->piece_on(from_sq(m)));
+        const Square move_to = Square(to_sq(m));
+        const bool capture_stage = is_cap || is_promo;
+        int stat_score;
+        if (capture_stage) {
+            const PieceType captured = move_type(m) == EN_PASSANT ? PAWN
+                                     : type_of(state_.board->piece_on(move_to));
+            stat_score = 873 * PIECE_VALUE[captured] / 128
+                       + hist_.capture.entry[moved_pt][move_to][captured];
+        } else {
+            stat_score = (2252 * main_hist[from_sq(m)][move_to]
+                          + 1126 * (ss - 1)->cont_hist->entry[moved_pt][move_to]
+                          + 1093 * (ss - 2)->cont_hist->entry[moved_pt][move_to]) / 1024;
         }
+        ss->stat_score = stat_score;
 
-        ss->stat_score  = move_stat_score;
-        ss->reduction   = 0;
         const int64_t nodes_before_move = state_.nodes;
         do_move(ss, m);
         shared_.tt.prefetch(state_.board->position_key());
@@ -1018,116 +1028,116 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         // child so a chain of singular double-extensions is eventually capped.
         (ss + 1)->double_exts = ss->double_exts + (extension >= 2 ? 1 : 0);
 
+        // ---- The move's reduction (1024ths of a ply) ------------------------
+        // Less near a PV the table knows, more at expected cut and all nodes,
+        // after a capture TT move and when the children keep failing high;
+        // less for the TT move, with a good history and the later the move
+        // comes, and when the estimate is below alpha only by a little.
+        if (ss->tt_pv)
+            r -= kp.lmr_tt_pv_base + kp.lmr_tt_pv_pv_node * is_pv
+               + kp.lmr_tt_pv_above_alpha * (tt_score > alpha)
+               + (tt_depth >= depth) * (kp.lmr_tt_pv_depth_ok + 940 * cut_node);
+        r += 697;
+        r -= ss->move_count * 65;
+        r -= std::abs(correction_raw) / 26310;
+        if (cut_node)
+            r += kp.lmr_cut_node + kp.lmr_cut_node_no_tt * (tt_move == MOVE_NONE);
+        if (tt_capture)
+            r += kp.lmr_tt_capture;
+        if ((ss + 1)->cutoff_cnt > 1)
+            r += kp.lmr_cutoff_cnt + kp.lmr_cutoff_cnt2 * ((ss + 1)->cutoff_cnt > 2)
+               + kp.lmr_cutoff_cnt_all * all_node;
+        else if (m == tt_move)
+            r -= 2179;
+        r -= stat_score * kp.lmr_stat_scale / 4096;
+        if (!capture_stage && !is_decisive(alpha))
+            r += kp.lmr_alpha_eval_scale * std::clamp(alpha - lmr_eval, -18, 27);
+        // A singular TT move relaxes its quiet siblings' reductions (the
+        // singular search keeps its own form until B.3).
+        if (!capture_stage && singular_quiet_lmr)
+            r -= kp.lmr_singular_quiet;
+        if (all_node)
+            r += r * kp.lmr_all_node_scale / (256 * depth + 268);
+
         int score;
         if (searched == 0) {
             score = -negamax<PvChild>(new_depth, -beta, -alpha, ply + 1, ss + 1, true, false);
         } else {
-            // Late Move Reductions
-            int reduction = 0;
-            // 5.2 (BAS-O03): the gate below is unchanged, but it is now
-            // evaluated as an if/else-if chain so each rejection is
-            // attributable. The predicate order and short-circuiting are
-            // identical to the original single condition — in particular
-            // move_gives_check() is still reached only when the first four
-            // pass, so its call count and cost do not move.
-            //
-            // This matters because lmr_applied alone cannot tell "rarely
-            // eligible" from "eligible but never reduced", and those have
-            // opposite repairs. Our EBF is 2.20 against the reference's 1.61.
-            if (!ABLATED(7)) DIAG_COUNT(++state_.diag.lmr_eligible);
-            const bool lmr_type_ok = is_quiet || (is_cap && !is_promo && see_score < 0);
-            if (!ABLATED(7) && depth < 2)          DIAG_COUNT(++state_.diag.lmr_blocked_depth);
-            else if (!ABLATED(7) && searched < 2) DIAG_COUNT(++state_.diag.lmr_blocked_searched);
-            else if (!ABLATED(7) && in_check)     DIAG_COUNT(++state_.diag.lmr_blocked_in_check);
-            else if (!ABLATED(7) && !lmr_type_ok) DIAG_COUNT(++state_.diag.lmr_blocked_movetype);
-            // Checking moves are never reduced. 5.7.6 removed the
-            // lmr_allow_check switch that could have relaxed this: it was added
-            // inert for 5.4.4, which closed rejected (BAS-S16).
-            else if (!ABLATED(7) && move_gives_check())
-                DIAG_COUNT(++state_.diag.lmr_blocked_gives_check);
-            // LMR applies to: quiets, and bad captures — but NOT promotions
-            else if (!ABLATED(7)) {
-                // Phase 6.7: accumulate the reduction in 1024ths of a ply, then
-                // shift back at the end. Behaviour-identical at default knobs
-                // (adjustments are the old integer values ×1024; history stays
-                // integer-quantised via the ×1024-after-divide form).
-                int r = lmr_table_[std::min(depth, 63)][std::min(searched, 63)];
-
-                if (is_quiet) {
-                    const auto& p = config_.limits.params;
-                    if (!is_pv)     r += p.lmr_non_pv_adj;
-                    if (cut_node)   r += p.lmr_cut_node_adj;
-                    if (ss->tt_pv)  r -= p.lmr_tt_pv_adj;
-                    if (!improving) r += p.lmr_not_improving_adj;
-                    if (tt_capture) r += p.lmr_tt_capture;
-                    // 5.7.2: see the declaration of singular_quiet_lmr.
-                    if (singular_quiet_lmr) r -= p.lmr_singular_quiet;
-                    // History-based adjustment: good moves get reduced less, bad
-                    // more. Kept integer-quantised (÷div then ×1024) so 6.7 is
-                    // behaviour-identical; the fractional form (×1024 ÷ div) is a
-                    // 6.9 experiment.
-                    //
-                    // 5.4.3 tested that fractional form and MEASURED IT WORSE
-                    // (BAS-S13): applied 36.1%→32.5%, clamp-to-zero 16.2%→19.8%,
-                    // depth at equal nodes 20.80→20.70. The quantisation is not
-                    // only a resolution defect — it also acts as a threshold.
-                    // Most moves carry positive history and history SUBTRACTS
-                    // from r, so a continuous response shaves a little off nearly
-                    // every reduction, while the integer form shaved a whole ply
-                    // off only the |stat| ≥ div minority. Retry trigger: base and
-                    // context reductions are materially larger, so there is
-                    // enough r for a continuous response to modulate rather than
-                    // erase.
-                    r -= (move_stat_score / p.lmr_hist_div) * 1024;
-                } else {
-                    // Bad captures get less reduction than quiets. Computed in
-                    // integer plies then rescaled, so no rounding drift.
-                    r = (((r >> 10) - 1) / 2) << 10;
+            // Nothing is reduced at the root or in check.
+            const bool reducible = !ABLATED(7) && !is_root && !in_check;
+            if (!ABLATED(7) && !is_root) {
+                DIAG_COUNT(++state_.diag.lmr_eligible);
+                if (depth < 2)     DIAG_COUNT(++state_.diag.lmr_blocked_depth);
+                else if (in_check) DIAG_COUNT(++state_.diag.lmr_blocked_in_check);
+            }
+            if (reducible && depth >= 2) {
+                // The reduced depth: at least one ply, at most two beyond the
+                // full depth (a negative reduction) unless that is switched
+                // off, plus one at PV nodes.
+                const int reduced = new_depth - r / 1024;
+                const int ceiling = kp.lmr_negative_allowed ? new_depth + 2 : new_depth;
+                const int d = std::max(1, std::min(reduced, ceiling)) + is_pv;
+                if (reduced < 1) {
+                    DIAG_COUNT(++state_.diag.lmr_floor_hits);
+                    DIAG_COUNT(++state_.diag.lmr_clamped_high);
                 }
-
-                // 5.4.3: record whether the ceiling bound before clamping, so
-                // "modulation too small" and "modulation cannot matter here" are
-                // separable. Most LMR-eligible nodes sit near the leaves, where
-                // new_depth-1 is 1 or 2 and no policy change can move the
-                // reduction actually taken.
-                if ((r >> 10) > new_depth - 1) DIAG_COUNT(++state_.diag.lmr_clamped_high);
-                reduction = std::clamp(r >> 10, 0, new_depth - 1);
-                // 5.2: the gate passed but the computed reduction was zero —
-                // distinct from being blocked, and a different repair. Counted
-                // here so that
-                //   eligible = applied + clamped_zero + sum(blocked_*)
-                // holds exactly, which is what makes the breakdown auditable.
-                if (reduction == 0) DIAG_COUNT(++state_.diag.lmr_clamped_zero);
-            }
-            ss->reduction = reduction;
-            TRACE_DECISION(TraceEvent::LmrReduction, ply, depth, m,
-                           alpha, beta, eval, improving, correction, move_stat_score,
-                           searched, reduction, new_depth - 1, VALUE_NONE,
-                           (ss + 1)->cutoff_cnt);
-            if (reduction > 0) {
-                DIAG_COUNT(state_.diag.lmr_applied++);
-                // Mean reduction over applied = reduction_plies / applied. A
-                // timid-LMR hypothesis is decided by this number, not by how
-                // often LMR fired.
-                DIAG_COUNT(state_.diag.lmr_reduction_plies += reduction);
-            }
-
-            score = -negamax<NodeType::NonPV>(new_depth - reduction, -alpha - 1, -alpha,
-                             ply + 1, ss + 1, true, true);
-            // Re-search at full depth if LMR didn't fail low
-            if (reduction > 0 && score > alpha && !state_.stopped) {
-                DIAG_COUNT(state_.diag.lmr_researched++);
-                TRACE_DECISION(TraceEvent::LmrResearch, ply, depth, m,
-                               alpha, beta, eval, improving, correction, move_stat_score,
-                               searched, reduction, VALUE_NONE, score,
+                if (d < new_depth) {
+                    DIAG_COUNT(state_.diag.lmr_applied++);
+                    DIAG_COUNT(state_.diag.lmr_reduction_plies += new_depth - d);
+                } else {
+                    DIAG_COUNT(++state_.diag.lmr_clamped_zero);
+                    if (d > new_depth) DIAG_COUNT(++state_.diag.lmr_extended);
+                }
+                ss->reduction = new_depth - d;
+                TRACE_DECISION(TraceEvent::LmrReduction, ply, depth, m,
+                               alpha, beta, eval, improving, correction, stat_score,
+                               ss->move_count, new_depth - d, r, VALUE_NONE,
                                (ss + 1)->cutoff_cnt);
-                score = -negamax<NodeType::NonPV>(new_depth, -alpha - 1, -alpha,
-                                 ply + 1, ss + 1, true, !cut_node);
+                score = -negamax<NodeType::NonPV>(d, -alpha - 1, -alpha,
+                                                  ply + 1, ss + 1, true, true);
+                ss->reduction = 0;
+
+                // A reduced search that fails high is searched again at full
+                // depth, a ply deeper when it beat the best by a margin and a
+                // ply shallower when it barely reached it.
+                if (score > alpha && !state_.stopped) {
+                    const bool deeper    = d < new_depth && score > best_score + kp.research_deeper;
+                    const bool shallower = score < best_score + kp.research_shallower;
+                    if (deeper)    DIAG_COUNT(++state_.diag.lmr_research_deeper);
+                    if (shallower) DIAG_COUNT(++state_.diag.lmr_research_shallower);
+                    new_depth += int(deeper) - int(shallower);
+                    if (new_depth > d) {
+                        DIAG_COUNT(state_.diag.lmr_researched++);
+                        TRACE_DECISION(TraceEvent::LmrResearch, ply, depth, m,
+                                       alpha, beta, eval, improving, correction, stat_score,
+                                       ss->move_count, new_depth - d, VALUE_NONE, score,
+                                       (ss + 1)->cutoff_cnt);
+                        score = -negamax<NodeType::NonPV>(new_depth, -alpha - 1, -alpha,
+                                                          ply + 1, ss + 1, true, !cut_node);
+                    }
+                }
+            } else {
+                // Without LMR the move is searched at full depth, one or two
+                // plies less when its reduction would have been large.
+                int step = 0;
+                if (reducible) {
+                    const int rr = r + (tt_move == MOVE_NONE ? 1127 : 0);
+                    step = (rr > 5234) + (rr > 5487 && new_depth > 2);
+                }
+                score = -negamax<NodeType::NonPV>(new_depth - step, -alpha - 1, -alpha,
+                                                  ply + 1, ss + 1, true, !cut_node);
             }
-            // Re-search as PV if score is within window
-            if (is_pv && score > alpha && score < beta && !state_.stopped)
+            // At PV nodes a move that raised alpha is searched again with the
+            // full window; the TT move at least one ply deep when its entry
+            // is deep or decisive.
+            if (is_pv && score > alpha && !state_.stopped) {
+                if (m == tt_move
+                    && ((tt_score != VALUE_NONE && is_decisive(tt_score) && tt_depth > 0)
+                        || tt_depth > 1))
+                    new_depth = std::max(new_depth, 1);
                 score = -negamax<NodeType::PV>(new_depth, -beta, -alpha,
-                                 ply + 1, ss + 1, true, false);
+                                               ply + 1, ss + 1, true, false);
+            }
         }
 
         undo_move(ss, m);
@@ -1151,13 +1161,24 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             quiets_searched[quiets_count++] = m;
         }
 
-        if (score > best_score) {
+        // A move equal to the best, deep in the tree, sometimes replaces it
+        // as though it had just exceeded alpha.
+        const int inc = score == best_score && ply + 2 >= root_depth_
+                     && (int(state_.nodes) & 14) == 0
+                     && std::abs(score) + 1 < tablebaseWinInMaxPly;
+        if (score + inc > best_score) {
             if (is_root)
                 state_.root_best_nodes = std::max<int64_t>(0, move_nodes);
             best_score = score;
             best_move  = m;
-            if (score > alpha) {
+            if (score + inc > alpha) {
+                cut_alpha = alpha;
                 alpha = score;
+                // Once a move raised alpha the rest are searched shallower
+                // (never at the root or in check).
+                if (score < beta && depth > 3 && depth < 12 && !is_decisive(score)
+                    && !is_root && !in_check)
+                    depth -= 3;
                 // Update PV
                 state_.pv_table[ply][ply] = m;
                 int child_pv_len = std::clamp(state_.pv_len[ply + 1], ply + 1, MAX_PLY);
@@ -1170,7 +1191,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         if (alpha >= beta) {
             ss->cutoff_cnt += (extension < 2) || is_pv;
             TRACE_DECISION(TraceEvent::BetaCutoff, ply, depth, m,
-                           orig_alpha, beta, eval, improving, correction, move_stat_score,
+                           orig_alpha, beta, eval, improving, correction, stat_score,
                            searched, ss->reduction, VALUE_NONE, score,
                            ss->cutoff_cnt);
             // 5.2 (BAS-O03): ordering quality at the point it costs something.
@@ -1222,6 +1243,10 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     // No legal moves
     if (searched == 0)
         return in_check ? -(MATE_SCORE - ply) : 0;
+
+    // A fail high's value is pulled toward beta, the more the shallower.
+    if (best_score >= beta && !is_decisive(best_score) && !is_decisive(cut_alpha))
+        best_score = (best_score * depth + beta) / (depth + 1);
 
     best_score = std::min(best_score, tb_cap);
 
@@ -1286,8 +1311,9 @@ void Searcher::kernel_new_game() {
 }
 
 void Searcher::kernel_begin_search() {
-    init_lmr(static_cast<float>(config_.limits.params.lmr_base)    / 100.0f,
-             static_cast<float>(config_.limits.params.lmr_divisor) / 100.0f);
+    reductions_[0] = 0;
+    for (int i = 1; i < 256; ++i)
+        reductions_[i] = int(config_.limits.params.lmr_table_scale / 128.0 * std::log(i));
     if (++history_age_counter_ >= 2) {
         hist_.halve();
         history_age_counter_ = 0;
@@ -1305,6 +1331,8 @@ void Searcher::kernel_begin_search() {
 }
 
 int Searcher::root_search(int depth, int alpha, int beta) {
+    root_delta_ = std::max(1, beta - alpha);
+    root_depth_ = depth;
     return negamax<NodeType::Root>(depth, alpha, beta, 0, state_.stack + STACK_SENTINELS,
                                    true, false);
 }

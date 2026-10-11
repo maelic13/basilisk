@@ -208,12 +208,17 @@ private:
     // Pawn-history buckets in use, as an index mask (set per search).
     Key pawn_hist_mask_ = PawnHistory::MAX_BUCKETS - 1;
 
-    // LMR table, recomputed from the parameters at the start of each search.
-    // init_lmr() fills [1..63][1..63]; row and column 0 are defined (zero)
-    // rather than merely unread, so a consumer that forgets the depth >= 1,
-    // searched > 0 guard reads a zero reduction instead of garbage.
-    int  lmr_table_[64][64]{};
-    void init_lmr(float base, float divisor);
+    // The reduction table: scale/128 * ln(i) for a depth or a move count i
+    // (entry 0 is 0), rebuilt from the parameters at the start of each search.
+    int reductions_[256]{};
+    // The root window's width and the iteration's depth, recorded by
+    // root_search() for the reduction's window term and the equal-score rule.
+    int root_delta_ = 1;
+    int root_depth_ = 1;
+    // The base reduction of a move, in 1024ths of a ply: the product of the
+    // depth's and the move count's entries, less a share of the node's window
+    // against the root's, more when not improving, plus an offset.
+    [[nodiscard]] int lmr_reduction(bool improving, int depth, int move_count, int delta) const;
 
     // Every TT store in the search goes through this wrapper, so the same-key
     // telemetry cannot drift out of sync with the store sites.

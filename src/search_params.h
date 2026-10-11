@@ -135,7 +135,9 @@
     X(lmr_cut_node_adj,      LmrCutNodeAdj,        401,    0,  3072)     \
     X(lmr_tt_pv_adj,         LmrTtPvAdj,            23,    0,  3072)     \
     X(lmr_not_improving_adj, LmrNotImprovingAdj,    89,    0,  3072)     \
-    X(lmr_tt_capture,        LmrTtCapture,         301,    0,  3072)     \
+    X(lmr_tt_capture,        LmrTtCapture,         301,    0,  3072)
+
+#define BASILISK_LEGACY_LMR_SINGULAR(X)                                  \
     X(lmr_singular_quiet,    LmrSingularQuiet,     401,    0,  3072)
 
 #define BASILISK_LEGACY_HISTORY(X)                                       \
@@ -154,6 +156,7 @@
     BASILISK_LEGACY_MOVE_LOOP(X)         \
     BASILISK_LEGACY_SINGULAR(X)          \
     BASILISK_LEGACY_LMR(X)               \
+    BASILISK_LEGACY_LMR_SINGULAR(X)      \
     BASILISK_LEGACY_HISTORY(X)
 
 // ---- Cluster 1's kernel (the B2_CORE arm) -------------------------------------
@@ -175,6 +178,14 @@
 //   continuation history below -slope * depth, by futility (base + slope *
 //   lmrDepth + alpha_term when the eval is above alpha, below lmrDepth cap)
 //   and by SEE below -coeff * lmrDepth^2.
+// LMR: the base reduction is R[d] * R[moves] with R[i] = table_scale/128 *
+//   ln(i), less 577/1024 of the window's share of the root window, more by
+//   not_improving/512 of the product when not improving, plus the offset;
+//   per-move terms add or subtract in 1024ths (tt_pv, cut node, TT capture,
+//   the children's cutoff count, the history score over 4096/stat_scale,
+//   alpha above the estimate, all nodes). A reduced search that fails high
+//   is re-searched a ply deeper above the best by `research_deeper`, a ply
+//   shallower below it plus `research_shallower`.
 // The TT-cutoff bonus trains the quiet histories by slope * depth (history
 //   units per ply) when a quiet TT move's entry cuts.
 // Correction training: the bonus is clamp(error * depth * scale / 128, +/-256)
@@ -183,7 +194,7 @@
 #define BASILISK_CORE_KERNEL_PARAMS(X)                                   \
     BASILISK_LEGACY_NULL_PROBCUT(X)                                      \
     BASILISK_LEGACY_SINGULAR(X)                                          \
-    BASILISK_LEGACY_LMR(X)                                               \
+    BASILISK_LEGACY_LMR_SINGULAR(X)                                      \
     BASILISK_LEGACY_HISTORY(X)                                           \
     /* Node margins */                                                   \
     X(razor_margin,          CoreRazorMargin,       256,  128,   527)    \
@@ -208,6 +219,26 @@
     X(quiet_see_coeff,       CoreQuietSeeCoeff,      10,    4,    30)    \
     X(capt_see_coeff,        CoreCaptSeeCoeff,       74,   30,   200)    \
     X(capt_see_hist_div,     CoreCaptSeeHistDiv,     80,   20,   200)    \
+    /* Late-move reductions (1024ths of a ply) and re-search */          \
+    X(lmr_table_scale,       CoreLmrTableScale,    2872, 1500,  4500)    \
+    X(lmr_offset,            CoreLmrOffset,         982,    0,  2000)    \
+    X(lmr_not_improving,     CoreLmrNotImproving,   197,    0,   500)    \
+    X(lmr_tt_pv,             CoreLmrTtPv,           929,    0,  2000)    \
+    X(lmr_tt_pv_base,        CoreLmrTtPvBase,      3023,    0,  6000)    \
+    X(lmr_tt_pv_pv_node,     CoreLmrTtPvPvNode,    1004,    0,  2500)    \
+    X(lmr_tt_pv_above_alpha, CoreLmrTtPvAboveAlpha, 885,    0,  2000)    \
+    X(lmr_tt_pv_depth_ok,    CoreLmrTtPvDepthOk,    816,    0,  2000)    \
+    X(lmr_cut_node,          CoreLmrCutNode,       4026, 1500,  7000)    \
+    X(lmr_cut_node_no_tt,    CoreLmrCutNodeNoTt,    933,    0,  2500)    \
+    X(lmr_tt_capture,        CoreLmrTtCapture,     1079,    0,  2500)    \
+    X(lmr_cutoff_cnt,        CoreLmrCutoffCnt,      264,    0,  1000)    \
+    X(lmr_cutoff_cnt2,       CoreLmrCutoffCnt2,    1095,    0,  2500)    \
+    X(lmr_cutoff_cnt_all,    CoreLmrCutoffCntAll,  1138,    0,  2500)    \
+    X(lmr_stat_scale,        CoreLmrStatScale,      439,  100,  1200)    \
+    X(lmr_alpha_eval_scale,  CoreLmrAlphaEvalScale,   3,    0,    10)    \
+    X(lmr_all_node_scale,    CoreLmrAllNodeScale,   276,    0,   800)    \
+    X(research_deeper,       CoreResearchDeeper,     15,    4,    40)    \
+    X(research_shallower,    CoreResearchShallower,   2,    0,    12)    \
     /* TT cutoff training */                                             \
     X(tt_cutoff_bonus_slope, CoreTtCutoffBonusSlope, 131,    0,   300)   \
     /* Correction */                                                     \
@@ -228,6 +259,8 @@
 //   3 = the legacy reach).
 // lmp_exempt_checks: 1 keeps delivering quiet moves that give check from
 //   their destination after the move-count rule ends quiet delivery.
+// lmr_negative_allowed: 1 lets a negative reduction extend a reduced search
+//   up to two plies beyond the full depth; 0 caps it at the full depth.
 // corr_admission: 1 trains the correction where the error's sign agrees with
 //   the bound (above the static eval exactly when a move raised alpha); 0
 //   where the node failed high or raised alpha.
@@ -236,7 +269,8 @@
     S(pawn_hist_buckets_log2, CorePawnHistBucketsLog2, 13,  11,    13)   \
     S(corr_admission,        CoreCorrAdmission,      1,    0,     1)     \
     S(razor_depth_cap,       CoreRazorDepthCap,      1,    1,     3)     \
-    S(lmp_exempt_checks,     CoreLmpExemptChecks,    1,    0,     1)
+    S(lmp_exempt_checks,     CoreLmpExemptChecks,    1,    0,     1)     \
+    S(lmr_negative_allowed,  CoreLmrNegativeAllowed, 1,    0,     1)
 
 #if defined(BASILISK_B2_CORE)
 #define BASILISK_KERNEL_PARAMS(X) BASILISK_CORE_KERNEL_PARAMS(X)
