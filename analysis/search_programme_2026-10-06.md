@@ -1444,6 +1444,7 @@ at every commit listed.
 | 3c tables, picker, routing | `bcf63e8` engine | **12,815,895** (transient, decision 9) | 3,063,719 | ON 22/22, 20/20; off 20/20, 18/18 | **119** (count; §18.2 attribution) | **200** |
 | 4 correction, improving, worsening, hindsight, eval-difference training | `221afdf` engine and test | **13,061,601** | 4,006,140 | ON 22/22, 20/20; off 20/20, 18/18 | **127** (count; +8, under the attribution trigger) | **193** |
 | 5 razoring and RFP | `bb73fb5` engine | **25,182,694** (one position, below) | 3,093,931 | ON 22/22, 20/20; off 20/20, 18/18 | **167** (count; +40, attributed below) | **237** |
+| 6 move-loop pruning | `573add0` engine, `8337944` test | **11,922,648** | 2,968,759 | ON 22/22, 20/20; off 20/20, 18/18 | **153** (count; −14, attributed below) | **235** |
 
 Ticket 3's instruments (`tools/results/b21-20261010/ticket3/`):
 - `test_wac --count` → `wac_depth6_on.txt`, SHA-256 `e1854e6e…73b5`.
@@ -1512,6 +1513,58 @@ Liveness, on ON Tune and Ablate builds (Italian position):
 - The off arm's Tune option list is byte-identical to ticket 4's. The ON
   arm's drops `RfpCoeff`, `RfpImproving` and `RazorCoeff` and gains the seven
   node-margin coordinates and `CoreRazorDepthCap`.
+
+Ticket 6's instruments (`tools/results/b21-20261010/ticket6/`):
+- `wac_depth6_on.txt`, SHA-256 `a9e6b4ee…702c`: 153.
+- `wac_nodes100k_on.json`, `ef1f84ea…3ade`: 235, on
+  `basilisk-b21-t6-on-pext.exe` (`f367fa33…b7cd`).
+- `bench13_counters_on.json`, `23c968f2…702c`: the Diag counters summed
+  over the 40 bench positions at depth 13. Every member of the family fires:
+  - quiet SEE 273,545 and capture/check SEE 1,390,651 (17.5 asked for both
+    non-zero);
+  - continuation history 91,892;
+  - quiet futility 635,049 and capture futility 176,689;
+  - the quiet skip at 759,788 nodes;
+  - 5,953,069 moves tested.
+
+  All 20 counter identities hold per position and summed.
+
+The depth-6 move of −14 is attributed in scratch trees
+(`attribution_depth6.txt`, `fb46b8f1…b8c3`; recipe `t6_variants.py`,
+`c4809b77…23df`):
+
+| Ticket-6 tree with… | Depth 6 | `bench 13` |
+|---|---:|---:|
+| nothing changed | 153 | 11,922,648 |
+| the count skip off | 154 | 16,403,443 |
+| capture futility off | 157 | 14,232,173 |
+| capture/check SEE off | **176** | 17,142,433 |
+| continuation-history pruning off | 153 | 11,158,009 |
+| quiet futility off | 154 | 14,992,719 |
+| quiet SEE off | 150 | 11,664,310 |
+| every member off (no move-loop pruning) | 181 | 40,063,031 |
+| the legacy family restored | 167 | 25,182,694 (= ticket 5) |
+
+- Restoring the legacy block reproduces ticket 5 exactly. So the rest of
+  the ticket (the picker's skip mode, the parameters) is neutral.
+- The legacy family cost 14 positions (181 → 167) and the new family costs
+  28 (181 → 153), which accounts for the −14 move exactly.
+- The one-at-a-time effects sum to −26 against the joint −28: 2 positions
+  of interaction, none unexplained.
+- The capture/check SEE test carries the move (−23). It prunes sacrificial
+  checks and captures that lose material by SEE, the population §19.1
+  reasons about.
+- At 100,000 nodes the count barely moves (237 → 235) while the tree
+  halves, so the loss is a fixed-depth reading of the stronger pruning.
+
+Liveness, on ON Tune and Ablate builds (Italian position):
+- `CoreLmpExemptChecks` = 0 changes the search (352,187 against 250,539
+  nodes at depth 13).
+- Ablation bit 5 removes the family (277,289 against 752,158 nodes at
+  depth 12).
+- The picker test's new skip-keeping-checks section was proven live: a
+  planted defect, delivering every quiet under the exemption, fails 5 of 6
+  sections.
 
 Tests added so far: the 22 counters and trace v2 in the parsers' tests;
 `test_threats` (both arms); the ON arm's TT tests (pv bit, age cycle,
@@ -1592,6 +1645,30 @@ Deviations and implementation choices, with reasons:
      their original order. The default arm's table, its Tune option list
      and the registered SPSA surface (41) are unchanged. The core table
      takes every group except the node margins.
+8. Ticket 6, choices inside the contract:
+   - The family is gated by §12.2's invariant: off at the root, in check and
+     before a move was searched. The donor's own gates are kept as well: the
+     best score not a proven loss, and non-pawn material for the side to
+     move.
+   - Count pruning reads `ss->move_count`, every picked move. The skip is
+     called once per node; with `CoreLmpExemptChecks` on, the picker keeps
+     delivering quiets whose moved piece checks from its destination
+     (castling excluded).
+   - `lmrDepth` reads the legacy base reduction table, in 1024ths, indexed by
+     move count, until ticket 7 brings the cluster's reduction. The history
+     adjustment uses the donor's 16 per-depth divisors, fixed constants in
+     history units.
+   - The capture/check branch covers captures, every promotion and quiet
+     checks (Amendment 1). Its last-piece stalemate guard counts the side's
+     knights, bishops, rooks and queens.
+   - Quiet futility raises the best score to the futility value unless the
+     best is decisive or the value a win. Since a move has always been
+     searched first, the no-legal-move path is never reached through
+     pruning.
+   - The quiet branch is non-PV only (decision 4); the capture/check branch
+     also runs at PV nodes, as the donor's does.
+   - The core arm drops the legacy move-loop coordinates; the legacy
+     reachability counters (`hist_below_*`) read 0 on this arm.
 
 What the reviewer must check (so far):
 - Both arms' fingerprints per ticket, on PEXT and plain.

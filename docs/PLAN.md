@@ -1151,6 +1151,12 @@ rejections stop B.
       shape. ON arm 25,182,694 (one bench position found a forced mate),
       off arm 14,978,465; CTest passes on both arms; WAC 167 at depth 6
       (+40: razoring +43, RFP +5, −8 interaction) and 237 at 100,000 nodes.
+      Ticket 6 landed 2026-10-11 (`573add0`, `8337944`; packet §20): the
+      move-loop pruning family on the history-adjusted reduced depth. ON
+      arm 11,922,648, off arm 14,978,465; CTest passes on both arms; every
+      member fires at `bench 13`; WAC 153 at depth 6 (−14: the legacy family
+      removed +14, the new family −28, capture/check SEE −23 of it) and 235
+      at 100,000 nodes.
     - [ ] **B.2.2** `[V]` Diagnostics and the unfitted paired run
       Screens at B.0's registered numbers; the ablation sweep if a floor
       fails; the unfitted 2,000-game paired run against the accepted head,
@@ -1250,7 +1256,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.2.1 | READY_FOR_IMPLEMENTATION | I2 | Tickets 0–5 landed (record: packet §20); next ticket 6, move-loop pruning |
+| B.2.1 | READY_FOR_IMPLEMENTATION | I2 | Tickets 0–6 landed (record: packet §20); next ticket 7, LMR, floor, re-search rules and the ON arm's WAC floor |
 | B.2.2 | RESEARCH | V | Screen numbers registered in the B.0 packet §10 |
 | B.2.3 | RESEARCH | V | Curvature sweep after B.2.2 |
 | B.2.4 | RESEARCH | V | Gates after B.2.3 |
