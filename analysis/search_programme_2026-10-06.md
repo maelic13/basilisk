@@ -1568,9 +1568,9 @@ Liveness, on ON Tune and Ablate builds (Italian position):
   sections.
 
 Ticket 7's instruments (`tools/results/b21-20261010/ticket7/`):
-- `wac_depth6_on.txt`, SHA-256 `7894a6ce…a99e`: 176. Ticket 7's commit
+- `wac_depth6_on.txt`, SHA-256 `7894a6ce…099e`: 176. Ticket 7's commit
   re-registers `test_wac --floor` on the ON arm, and the 130 floor holds.
-- `wac_nodes100k_on.json`, `fc18fd9f…afaa`: 241, on
+- `wac_nodes100k_on.json`, `fc18fd9f…aafa`: 241, on
   `basilisk-b21-t7-on-pext.exe` (`36ff79a2…c088`). That is above §10's
   100k floor of 200 and its target of 225.
 - `bench13_counters_on.json`, `58cfa3e4…39d0`, summed over the 40 bench
@@ -1586,7 +1586,7 @@ Ticket 7's instruments (`tools/results/b21-20261010/ticket7/`):
 
 The depth-6 move of +23 is attributed in scratch trees
 (`attribution_depth6.txt`, `3e061336…0f79`; recipe `t7_variants.py`,
-`d9c70e5f…39f`). Reverting every part reproduces ticket 6 exactly (153,
+`d9c70e5f…4e9f`). Reverting every part reproduces ticket 6 exactly (153,
 11,922,648), so the five parts below are the whole change. Adding them to
 ticket 6 one at a time:
 
