@@ -28,6 +28,20 @@ int CoreMovePicker::root_ordering(Move m) const {
     return s;
 }
 
+Bitboard CoreMovePicker::checks_for(PieceType pt) {
+    if (pt == KING || pt == NO_PIECE_TYPE)
+        return 0;
+    if (!check_squares_ready_[pt]) {
+        check_squares_[pt] = board_.check_squares(pt, board_.turn());
+        check_squares_ready_[pt] = true;
+    }
+    return check_squares_[pt];
+}
+
+bool CoreMovePicker::direct_check(Move m) {
+    return (checks_for(type_of(board_.piece_on(from_sq(m)))) & sq_bb(to_sq(m))) != 0;
+}
+
 int CoreMovePicker::fill(const MoveList& list, int at) {
     for (Move m : list) {
         if (m == excluded_ || (tt_delivered_ && m == tt_move_))
@@ -59,17 +73,6 @@ void CoreMovePicker::score_quiets(int begin, int end) {
     const Bitboard threat_by_lesser[PIECE_TYPE_NB] = {
         0, 0, threats.by_pawn, threats.by_pawn, threats.by_minor, threats.by_rook, 0};
 
-    Bitboard check_squares[PIECE_TYPE_NB] = {};
-    bool check_squares_ready[PIECE_TYPE_NB] = {};
-    auto checks_for = [&](PieceType pt) {
-        if (pt == KING)
-            return Bitboard(0);
-        if (!check_squares_ready[pt]) {
-            check_squares[pt] = board_.check_squares(pt, us);
-            check_squares_ready[pt] = true;
-        }
-        return check_squares[pt];
-    };
 
     const auto& main = history_.main.entry[us];
     const auto* low_ply = ply_ < LowPlyHistory::PLIES ? &history_.low_ply.entry[ply_] : nullptr;
@@ -141,7 +144,7 @@ Move CoreMovePicker::next() {
 
             case Stage::QuietInit:
                 end_quiets_ = end_captures_;
-                if (!skip_quiets_) {
+                if (!skip_quiets_ || keep_direct_checks_) {
                     MoveList list;
                     board_.gen_legal_quiets(list);
                     end_quiets_ = fill(list, end_captures_);
@@ -154,9 +157,9 @@ Move CoreMovePicker::next() {
                 break;
 
             case Stage::GoodQuiet:
-                while (!skip_quiets_ && cur_ < end_quiets_) {
+                while ((!skip_quiets_ || keep_direct_checks_) && cur_ < end_quiets_) {
                     const ScoredMove sm = moves_[cur_++];
-                    if (sm.score > GOOD_QUIET_THRESHOLD) {
+                    if (sm.score > GOOD_QUIET_THRESHOLD && deliverable_quiet(sm.move)) {
                         last_src_ = Src::Quiet;
                         return sm.move;
                     }
@@ -175,9 +178,9 @@ Move CoreMovePicker::next() {
                 break;
 
             case Stage::BadQuiet:
-                while (!skip_quiets_ && cur_ < end_quiets_) {
+                while ((!skip_quiets_ || keep_direct_checks_) && cur_ < end_quiets_) {
                     const ScoredMove sm = moves_[cur_++];
-                    if (sm.score <= GOOD_QUIET_THRESHOLD) {
+                    if (sm.score <= GOOD_QUIET_THRESHOLD && deliverable_quiet(sm.move)) {
                         last_src_ = Src::Quiet;
                         return sm.move;
                     }

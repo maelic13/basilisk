@@ -86,6 +86,12 @@ static bool proves_upper(TTFlag f) { return f == TT_ALPHA || f == TT_EXACT; }
 // ---- Move loop bookkeeping ----------------------------------------------
 
 static constexpr int MAX_TRACKED_QUIETS = 64;
+
+// Per depth (1..16, deeper reads the last), the history that adds one ply to
+// a quiet move's reduced depth for move-loop pruning.
+static constexpr int LMR_HISTORY_DIVISOR[16] = {
+    3637, 2787, 2761, 2939, 3171, 3347, 3147, 2762,
+    2772, 3106, 3107, 3060, 3112, 2991, 3090, 3542};
 static constexpr int MAX_TRACKED_BAD_CAPS = 32;
 
 // ---- Quiescence search -----------------------------------------------------
@@ -707,7 +713,6 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     int quiets_count = 0;
     int bad_caps_count = 0;
 
-    int lmp_thresh = improving ? (3 + depth * depth) : (2 + depth * depth / 2);
     int root_ordinal = 0;
     bool immediate_return = false;
     int immediate_score = 0;
@@ -732,6 +737,15 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     // reaching it. Reading the flag as "reduce the extended move less" produces
     // dead code.
     bool singular_quiet_lmr = false;
+
+    // TT move, good captures, good quiets, bad captures, bad quiets; quiet
+    // generation and scoring wait until the good captures are spent.
+    const PieceToHistory* const conts[6] = {
+        (ss - 1)->cont_hist, (ss - 2)->cont_hist, (ss - 3)->cont_hist,
+        (ss - 4)->cont_hist, (ss - 5)->cont_hist, (ss - 6)->cont_hist};
+    CoreMovePicker picker(*state_.board, hist_, pawn_bucket(), conts, tt_move, ss->excluded,
+                          depth, ply, is_root ? &state_.root_ordering : nullptr,
+                          state_.move_buffers[ply][0]);
 
     auto search_one = [&](Move m, CoreMovePicker::Src picker_src) {
         if (is_root && !move_in_root_moves(m, config_.limits.root_moves))
@@ -775,78 +789,124 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         }
 #endif
 
-        // ---- Late-move pruning / futility ----------------------------------
-        if (!ABLATED(5) && !is_root && searched > 0
-            && best_score > -tablebaseWinInMaxPly) {
+        // ---- Move-loop pruning ---------------------------------------------
+        // Not at the root, in check or before a move was searched, not while
+        // the best score is a proven loss, and not for a side left with king
+        // and pawns. Each test reads the depth the move's reduced search
+        // would have, adjusted by the quiet move's history (`lmr_depth`).
+        if (!ABLATED(5) && !is_root && !in_check && searched > 0
+            && best_score > -tablebaseWinInMaxPly
+            && state_.board->has_non_pawn_material(state_.board->turn())) {
+            DIAG_COUNT(++state_.diag.moveloop_tested);
+            const int move_count = ss->move_count;
+            const Square from = Square(from_sq(m));
+            const Square to   = Square(to_sq(m));
+            const PieceType moved = type_of(state_.board->piece_on(from));
 
-            if (is_quiet) {
-                // Futility pruning
-                if (!is_pv && !in_check && depth <= 6
-                    && eval != VALUE_NONE
-                    && eval + config_.limits.params.futility_base
-                            + config_.limits.params.futility_coeff * depth <= alpha
-                    && !move_gives_check()) {
+            // Count pruning: past this many moves the picker delivers no
+            // more quiets (direct checks excepted while the switch is on).
+            if (!picker.quiets_skipped()
+                && move_count >= (kp.lmp_base + depth * depth * kp.lmp_square_scale / 16)
+                                 / (2 - improving)) {
+                picker.skip_quiets(kp.lmp_exempt_checks != 0);
+                DIAG_COUNT(++state_.diag.skip_quiets_nodes);
+                TRACE_DECISION(TraceEvent::SkipQuiets, ply, depth, m,
+                               alpha, beta, eval, improving, correction, VALUE_NONE,
+                               move_count, 0, VALUE_NONE, alpha,
+                               -1, VALUE_NONE, 1, TraceFamily::SkipQuiets);
+            }
+
+            int lmr_depth = depth - 1
+                          - lmr_table_[std::min(depth, 63)][std::min(move_count, 63)] / 1024;
+
+            if (is_cap || is_promo || move_gives_check()) {
+                const PieceType captured = move_type(m) == EN_PASSANT ? PAWN
+                                         : type_of(state_.board->piece_on(to));
+                const int capt_hist = hist_.capture.entry[moved][to][captured];
+
+                // Capture futility: even the captured piece and a margin
+                // that grows with the reduced depth leave the static eval
+                // below alpha.
+                if (!move_gives_check() && lmr_depth < kp.capt_fut_depth_cap
+                    && ss->eval + kp.capt_fut_base + kp.capt_fut_slope * lmr_depth
+                           + PIECE_VALUE[captured] + capt_hist / kp.capt_fut_hist_div <= alpha) {
+                    DIAG_COUNT(++state_.diag.capture_futility_pruned);
+                    TRACE_DECISION(TraceEvent::CaptureFutilityPrune, ply, depth, m,
+                                   alpha, beta, eval, improving, correction, capt_hist,
+                                   move_count, 0,
+                                   kp.capt_fut_base + kp.capt_fut_slope * lmr_depth, alpha,
+                                   -1, lmr_depth, picker.quiets_skipped(),
+                                   TraceFamily::CaptureFutility);
+                    return false;
+                }
+
+                // SEE pruning of captures and checks: the exchange loses more
+                // than a depth-scaled margin. A side giving up its last piece
+                // may be playing for stalemate, so that is spared below 0.
+                const int margin = kp.capt_see_coeff * depth + capt_hist / kp.capt_see_hist_div;
+                const Bitboard pieces = state_.board->piece_bb(state_.board->turn(), KNIGHT)
+                                      | state_.board->piece_bb(state_.board->turn(), BISHOP)
+                                      | state_.board->piece_bb(state_.board->turn(), ROOK)
+                                      | state_.board->piece_bb(state_.board->turn(), QUEEN);
+                const bool last_piece = moved >= KNIGHT && moved <= QUEEN && popcount(pieces) == 1;
+                if ((alpha >= 0 || !last_piece) && !state_.board->see_ge(m, -margin)) {
+                    DIAG_COUNT(++state_.diag.capture_see_pruned);
+                    TRACE_DECISION(TraceEvent::CaptureSeePrune, ply, depth, m,
+                                   alpha, beta, eval, improving, correction, capt_hist,
+                                   move_count, 0, -margin, alpha,
+                                   -1, lmr_depth, picker.quiets_skipped(),
+                                   TraceFamily::CaptureSee);
+                    return false;
+                }
+            } else if (!is_pv) {
+                // Continuation-history pruning: the two nearest continuations
+                // and the pawn history rate the move this far below zero.
+                int history = (ss - 1)->cont_hist->entry[moved][to]
+                            + (ss - 2)->cont_hist->entry[moved][to]
+                            + pawn_hist[moved][to];
+                if (history < -kp.cont_hist_prune_slope * depth) {
+                    DIAG_COUNT(++state_.diag.cont_hist_pruned);
+                    TRACE_DECISION(TraceEvent::HistoryPrune, ply, depth, m,
+                                   alpha, beta, eval, improving, correction, history,
+                                   move_count, 0, -kp.cont_hist_prune_slope * depth, alpha,
+                                   -1, lmr_depth, picker.quiets_skipped(),
+                                   TraceFamily::ContHist);
+                    return false;
+                }
+
+                history += 69 * main_hist[from][to] / 32;
+                lmr_depth += history / LMR_HISTORY_DIVISOR[std::min(depth, 16) - 1];
+
+                // Quiet futility: the static eval and a margin that grows
+                // with the reduced depth stay below alpha. The best score
+                // rises to that bound, so a node whose quiets are all pruned
+                // fails low softly.
+                const int futility = ss->eval + kp.quiet_fut_base + kp.quiet_fut_slope * lmr_depth
+                                   + kp.quiet_fut_alpha_term * (ss->eval > alpha);
+                if (lmr_depth < kp.quiet_fut_depth_cap && futility <= alpha) {
+                    if (best_score <= futility && !is_decisive(best_score)
+                        && futility < tablebaseWinInMaxPly)
+                        best_score = futility;
                     DIAG_COUNT(state_.diag.fut_prunes++);
                     TRACE_DECISION(TraceEvent::FutilityPrune, ply, depth, m,
-                                   alpha, beta, eval, improving, correction, trace_history,
-                                   searched, 0,
-                                   config_.limits.params.futility_base
-                                       + config_.limits.params.futility_coeff * depth,
-                                   alpha);
+                                   alpha, beta, eval, improving, correction, history,
+                                   move_count, 0, futility - ss->eval, alpha,
+                                   -1, lmr_depth, picker.quiets_skipped(),
+                                   TraceFamily::QuietFutility);
                     return false;
                 }
 
-                // Late move pruning (LMP) — never in PV
-                if (!is_pv && !in_check && depth <= 6 && searched >= lmp_thresh
-                    && !move_gives_check()) {
-                    DIAG_COUNT(state_.diag.lmp_prunes++);
-                    TRACE_DECISION(TraceEvent::LmpPrune, ply, depth, m,
-                                   alpha, beta, eval, improving, correction, trace_history,
-                                   searched, 0, lmp_thresh, alpha);
+                // SEE pruning of quiets: the moved piece is lost for more
+                // than the square of the reduced depth.
+                lmr_depth = std::max(lmr_depth, 0);
+                if (!state_.board->see_ge(m, -kp.quiet_see_coeff * lmr_depth * lmr_depth)) {
+                    DIAG_COUNT(++state_.diag.quiet_see_pruned);
+                    TRACE_DECISION(TraceEvent::QuietSeePrune, ply, depth, m,
+                                   alpha, beta, eval, improving, correction, history,
+                                   move_count, 0, -kp.quiet_see_coeff * lmr_depth * lmr_depth,
+                                   alpha, -1, lmr_depth, picker.quiets_skipped(),
+                                   TraceFamily::QuietSee);
                     return false;
-                }
-
-                // History pruning: skip moves with very bad combined history
-                if (!is_pv && depth <= 6) {
-                    PieceType pt = type_of(state_.board->piece_on(from_sq(m)));
-                    int hist = main_hist[from_sq(m)][to_sq(m)]
-                             + cont_hist_score(ss, pt, Square(to_sq(m)))
-                             + pawn_hist[pt][to_sq(m)]
-                             + (low_ply_hist ? (*low_ply_hist)[from_sq(m)][to_sq(m)] : 0);
-                    // 5.6 reachability probe. The live condition below is
-                    // byte-identical; these only observe how far the actual
-                    // history distribution sits from the threshold, and add no
-                    // move_gives_check() calls.
-                    {
-                        const int64_t thr =
-                            int64_t(config_.limits.params.hist_prune_coeff) * depth;
-                        DIAG_COUNT(++state_.diag.hist_prune_tested);
-                        if (hist < -(thr / 2)) DIAG_COUNT(++state_.diag.hist_below_half);
-                        if (hist < -(thr / 4)) DIAG_COUNT(++state_.diag.hist_below_quarter);
-                        if (hist < -(thr / 8)) DIAG_COUNT(++state_.diag.hist_below_eighth);
-                    }
-                    if (hist < -config_.limits.params.hist_prune_coeff * depth && !move_gives_check()) {
-                        DIAG_COUNT(state_.diag.hist_prunes++);
-                        TRACE_DECISION(TraceEvent::HistoryPrune, ply, depth, m,
-                                       alpha, beta, eval, improving, correction, hist,
-                                       searched, 0,
-                                       config_.limits.params.hist_prune_coeff * depth,
-                                       alpha);
-                        return false;
-                    }
-                }
-            } else if (is_cap) {
-                // SEE pruning for bad captures
-                if (!is_pv && depth <= 8 && !is_promo) {
-                    if (!state_.board->see_ge(m, -depth * config_.limits.params.see_prune_coeff) && !move_gives_check()) {
-                        DIAG_COUNT(state_.diag.see_prunes++);
-                        TRACE_DECISION(TraceEvent::CaptureSeePrune, ply, depth, m,
-                                       alpha, beta, eval, improving, correction, VALUE_NONE,
-                                       searched, 0,
-                                       -depth * config_.limits.params.see_prune_coeff,
-                                       alpha);
-                        return false;
-                    }
                 }
             }
         }
@@ -1145,14 +1205,6 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     };
 
     // ---- Staged move picking -----------------------------------------------
-    // TT move, good captures, good quiets, bad captures, bad quiets; quiet
-    // generation and scoring wait until the good captures are spent.
-    const PieceToHistory* const conts[6] = {
-        (ss - 1)->cont_hist, (ss - 2)->cont_hist, (ss - 3)->cont_hist,
-        (ss - 4)->cont_hist, (ss - 5)->cont_hist, (ss - 6)->cont_hist};
-    CoreMovePicker picker(*state_.board, hist_, pawn_bucket(), conts, tt_move, ss->excluded,
-                          depth, ply, is_root ? &state_.root_ordering : nullptr,
-                          state_.move_buffers[ply][0]);
     while (true) {
         Move move = picker.next();
         if (move == MOVE_NONE)

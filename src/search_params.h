@@ -167,6 +167,14 @@
 //   depth <= its cap returns (w * beta + (1024 - w) * eval) / 1024 when the
 //   estimate clears beta by per_ply * depth - improving - worsening (+ the
 //   correction in evaluation units over corr_div; 0 turns that term off).
+// Move-loop pruning reads a move's reduced depth, lmrDepth: quiets stop
+//   after (base + d^2 * square_scale/16) / (2 - improving) moves; captures and
+//   checks are pruned by futility (base + slope * lmrDepth + captured value +
+//   capture history / div, below lmrDepth cap) and by SEE below
+//   -(coeff * depth + capture history / div); quiets at non-PV nodes by
+//   continuation history below -slope * depth, by futility (base + slope *
+//   lmrDepth + alpha_term when the eval is above alpha, below lmrDepth cap)
+//   and by SEE below -coeff * lmrDepth^2.
 // The TT-cutoff bonus trains the quiet histories by slope * depth (history
 //   units per ply) when a quiet TT move's entry cuts.
 // Correction training: the bonus is clamp(error * depth * scale / 128, +/-256)
@@ -174,7 +182,6 @@
 //   correction's weight is in 131072ths of the summed rows.
 #define BASILISK_CORE_KERNEL_PARAMS(X)                                   \
     BASILISK_LEGACY_NULL_PROBCUT(X)                                      \
-    BASILISK_LEGACY_MOVE_LOOP(X)                                         \
     BASILISK_LEGACY_SINGULAR(X)                                          \
     BASILISK_LEGACY_LMR(X)                                               \
     BASILISK_LEGACY_HISTORY(X)                                           \
@@ -186,6 +193,21 @@
     X(rfp_corr_div,          CoreRfpCorrDiv,          0,    0,    64)    \
     X(rfp_depth_cap,         CoreRfpDepthCap,         9,    6,    19)    \
     X(rfp_beta_weight,       CoreRfpBetaWeight,     661,  512,  1024)    \
+    /* Move-loop pruning */                                              \
+    X(lmp_base,              CoreLmpBase,             3,    1,     8)    \
+    X(lmp_square_scale,      CoreLmpSquareScale,     16,    8,    32)    \
+    X(quiet_fut_base,        CoreQuietFutBase,      158,   80,   300)    \
+    X(quiet_fut_slope,       CoreQuietFutSlope,     108,   34,   190)    \
+    X(quiet_fut_alpha_term,  CoreQuietFutAlphaTerm,  25,    0,    90)    \
+    X(quiet_fut_depth_cap,   CoreQuietFutDepthCap,    8,    5,    12)    \
+    X(capt_fut_base,         CoreCaptFutBase,        92,   40,   270)    \
+    X(capt_fut_slope,        CoreCaptFutSlope,      115,   60,   390)    \
+    X(capt_fut_hist_div,     CoreCaptFutHistDiv,     27,    8,   128)    \
+    X(capt_fut_depth_cap,    CoreCaptFutDepthCap,     7,    4,     8)    \
+    X(cont_hist_prune_slope, CoreContHistPruneSlope, 4136, 1500, 8000)   \
+    X(quiet_see_coeff,       CoreQuietSeeCoeff,      10,    4,    30)    \
+    X(capt_see_coeff,        CoreCaptSeeCoeff,       74,   30,   200)    \
+    X(capt_see_hist_div,     CoreCaptSeeHistDiv,     80,   20,   200)    \
     /* TT cutoff training */                                             \
     X(tt_cutoff_bonus_slope, CoreTtCutoffBonusSlope, 131,    0,   300)   \
     /* Correction */                                                     \
@@ -204,6 +226,8 @@
 //   (11 = 2,048, 13 = 8,192); a size, settled by speed, not by games.
 // razor_depth_cap: the deepest node razoring runs at (1 = the oracle's form,
 //   3 = the legacy reach).
+// lmp_exempt_checks: 1 keeps delivering quiet moves that give check from
+//   their destination after the move-count rule ends quiet delivery.
 // corr_admission: 1 trains the correction where the error's sign agrees with
 //   the bound (above the static eval exactly when a move raised alpha); 0
 //   where the node failed high or raised alpha.
@@ -211,7 +235,8 @@
     S(tt_cutoff_node_typed,  CoreTtCutoffNodeTyped,  1,    0,     1)     \
     S(pawn_hist_buckets_log2, CorePawnHistBucketsLog2, 13,  11,    13)   \
     S(corr_admission,        CoreCorrAdmission,      1,    0,     1)     \
-    S(razor_depth_cap,       CoreRazorDepthCap,      1,    1,     3)
+    S(razor_depth_cap,       CoreRazorDepthCap,      1,    1,     3)     \
+    S(lmp_exempt_checks,     CoreLmpExemptChecks,    1,    0,     1)
 
 #if defined(BASILISK_B2_CORE)
 #define BASILISK_KERNEL_PARAMS(X) BASILISK_CORE_KERNEL_PARAMS(X)

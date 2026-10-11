@@ -12,7 +12,9 @@
 //   5. the remaining quiets.
 //
 // skip_quiets() ends quiet delivery: no quiet is delivered after it, while the
-// captures set aside still are. In check the same stages deliver the legal
+// captures set aside still are; with `keep_direct_checks`, a quiet whose
+// moved piece gives check from its destination still is. In check the same
+// stages deliver the legal
 // evasions. All moves of one node live in the caller's 256-slot buffer,
 // partitioned by index: [0, end_bad_captures) the captures set aside,
 // [end_bad_captures, end_captures) the captures being scanned, and
@@ -42,7 +44,10 @@ public:
           root_(root), moves_(buffer) {}
 
     Move next();
-    void skip_quiets() { skip_quiets_ = true; }
+    void skip_quiets(bool keep_direct_checks = false) {
+        skip_quiets_ = true;
+        keep_direct_checks_ = keep_direct_checks;
+    }
     [[nodiscard]] bool quiets_skipped() const { return skip_quiets_; }
     [[nodiscard]] Src last_source() const { return last_src_; }
 
@@ -57,6 +62,12 @@ private:
     void score_captures(int begin, int end);
     void score_quiets(int begin, int end);
     int  root_ordering(Move m) const;
+    // The squares from which a piece of this type gives check (none for the
+    // king), computed once per type per node.
+    Bitboard checks_for(PieceType pt);
+    bool direct_check(Move m);
+    // Whether a quiet is delivered at all in the current skip state.
+    bool deliverable_quiet(Move m) { return !skip_quiets_ || (keep_direct_checks_ && direct_check(m)); }
 
     const Board& board_;
     const CoreHistoryTables& history_;
@@ -72,6 +83,9 @@ private:
     Stage stage_ = Stage::TT;
     bool tt_delivered_ = false;
     bool skip_quiets_ = false;
+    bool keep_direct_checks_ = false;
+    Bitboard check_squares_[PIECE_TYPE_NB] = {};
+    bool check_squares_ready_[PIECE_TYPE_NB] = {};
     int cur_ = 0;
     int end_bad_captures_ = 0;
     int end_captures_ = 0;
