@@ -1173,6 +1173,15 @@ rejections stop B.
       — IMPLEMENTED 2026-10-11: implementation record in packet §20, with
       the reviewer's checklist. Reviewer acceptance (a separate `R2`
       session) comes before B.2.2.
+      — RETURNED 2026-10-11 (Return 3, review, packet §21): every
+      fingerprint reproduced from clean sources (149 of 149), CTest on both
+      arms, WAC 185 at depth 6 and 249 at 100k nodes; not accepted. Two
+      defects: `stat_score` never reset at node entry, and the PV
+      TT-move depth rule inert on the first move. One gap: the
+      stack-unwind test. Two contract questions: the first child's
+      node type, and two donor constants on evaluation units left
+      unconverted. Research amendment 3 rules on the questions; then
+      implementation lands all five and a delta review accepts them.
     - [ ] **B.2.2** `[V]` Diagnostics and the unfitted paired run
       Screens at B.0's registered numbers; the ablation sweep if a floor
       fails; the unfitted 2,000-game paired run against the accepted head,
@@ -1272,7 +1281,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.2.1 | IMPLEMENTED | I2 | Tickets 0–8 landed (record and reviewer checklist: packet §20); awaits the `R2` reviewer's acceptance before B.2.2 |
+| B.2.1 | RESEARCH | I2 | Review Return 3 (packet §21): amendment 3 rules on the first child's node type and two unconverted constants; then implementation fixes the stale `stat_score`, the inert PV TT-move rule and the missing stack-unwind test; a delta review accepts before B.2.2 |
 | B.2.2 | RESEARCH | V | Screen numbers registered in the B.0 packet §10 |
 | B.2.3 | RESEARCH | V | Curvature sweep after B.2.2 |
 | B.2.4 | RESEARCH | V | Gates after B.2.3 |

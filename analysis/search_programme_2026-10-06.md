@@ -1892,3 +1892,192 @@ What the reviewer must check (the complete list, at `4fd8600`):
   - the switches as tune options, never on the SPSA surface;
   - the count-mode registration (Amendment 2), withdrawn at ticket 7;
   - the Windows sanitizer stack (`b02fcb7`), with its measurement.
+
+## 21. B.2.1 Review (2026-10-11): every fingerprint reproduced; not accepted; Return 3
+
+- Reviewer: a separate `R2` session that did not implement the leaf, at head
+  `c133876` (engine at `4fd8600`), against §12.2, Amendments 1 and 2, review
+  §5.4–5.12 and the donor at `edb0d9db`.
+- Verdict: **not accepted.** The leaf returns to `RESEARCH`. Two engine
+  defects and one gap go back to implementation, and two contract questions
+  need a research ruling first (21.4). B.2.2 does not start.
+
+### 21.1 Reproduction
+
+Recipe: one clean `git archive` per engine commit (`61c15cb`, `32e56ad`,
+`f179404`, `ea5c49f`, `bcf63e8`, `221afdf`, `bb73fb5`, `573add0`, `b02fcb7`,
+`802ed5c`, `4112db0`, `4fd8600`), configured with Ninja and the PATH's
+`clang++` 22.1.8 (MSYS2 clang64; `MSYSTEM` unset so CMake resolves it), then
+`basilisk bench 13` (sanitizer: `bench 10`). Scripts and output:
+`tools/results/b21-review-20261011/` (`fp.sh` `db2245b3…ae2c`, `run_all.sh`
+`6f869413…1a38`, `fingerprints.txt` `64a5f875…1749`).
+
+- **All 149 readings equal the record.** The off arm reads 14,978,465 at
+  every engine commit on release PEXT and plain, Tune, Diag and Ablate, and
+  its sanitizer `bench 10` reads 3,190,673. The ON arm reads each ticket's
+  row of §20 on PEXT and plain. Its release `bench 10` equals its sanitizer
+  `bench 10` at every ticket. At the head its Tune, Diag and Ablate builds
+  read 6,337,226.
+- CTest at the head, built from the same sources:
+  - release: off 20/20, ON 22/22;
+  - sanitizer (`-LE strength`): off 18/18, ON 20/20;
+  - `test_wac_floor` runs `--floor` on both arms: off 138, ON 185, against
+    130.
+- WAC at 100,000 nodes (`fixed_budget_probe.py`): off **204**, ON **249**,
+  as recorded (`wac100k_off.json` `d5a027e5…455a`, `wac100k_final.json`
+  `889aecb8…7fb2`; ON binary `28f957cf…c43c`).
+- Ablation liveness on the ON Ablate build (`06791eab…c02d`): all 8 bits
+  live (`ablation_liveness_on.json` `a9ed6c8e…1b4d`).
+- The ON Tune build exposes 56 `Core*` options, the 50 coordinates and the
+  6 switches. The switches stay off the SPSA surface: `test_spsa_surface`,
+  `test_decision_trace` and `test_run_suite` pass (20/20).
+
+### 21.2 What matches the handoff
+
+Read against the donor line by line, all of the following match:
+
+- **TT (§5.6):** the encoding, the occupancy byte and the miss-store, the
+  rule-50 downgrade (equivalent to `value_from_tt`), the node-typed cutoff,
+  the graph-history check, the cutoff bonus (decision 2) and the parent
+  penalty.
+- **SEE (17.1):** the quiet `see_ge` and its fast path.
+- **Picker (§5.7):** the stage order, −v/18, −14000, the −3560·depth sort
+  limit, the skip semantics with the direct-check exemption, and the
+  threat-by-lesser array and quiet formula term for term.
+- **Update routing:** continuation weights and consistency multipliers, the
+  in-check two-ply limit, +73 at one ply, 712/750/1104/459, every constant
+  of `update_all_stats`, the fail-low scale, eval-difference training and
+  the post-LMR 1334.
+- **Correction:** weights, sentinel, admission and bonus.
+- **Node entry:** the order, hindsight (in check too, as the donor) and
+  `improving` with in-check inheritance and the `≥ beta` rise.
+- **Pruning:** razoring and RFP; the move-loop family on the
+  history-adjusted `lmrDepth`, its gates and the stalemate guard.
+- **LMR:** the formula and its terms, floor and ceiling, the
+  deeper/shallower rule, `depth −= 3`, the fail-high blend and the
+  equal-score promotion.
+- **Ageing:** 729 and 102.
+
+Deviations 1–10 of §20 are ordinary engineering choices inside the
+contract, or decisions research already took, except where 21.3 says
+otherwise. The invariants of §12.2 and review §5.12 hold as written:
+- nothing is pruned or reduced at the root, in check or before a move was
+  searched;
+- the reduced depth is at least one ply;
+- TT moves are validated at every consumer;
+- correction training keeps its guards;
+- the TT stores the raw static eval;
+- the sentinel continuation row is never updated;
+- no killers or countermove;
+- counters and trace compile out of release;
+- nothing allocates per node.
+
+### 21.3 Findings
+
+Each finding carries its evidence. A scratch tree changes only the line
+named, from the head's sources (`variant_v1/v2/v3.patch`, `f6f5eb1a…3bb7`,
+`3ea38dbb…e0e1`, `a71e4317…7ac1`), and reads `bench 13` on release PEXT.
+The head reads 6,337,226 nodes, median 111,648 per position, and 249 WAC
+solved at 100,000 nodes.
+
+1. **Defect: `stat_score` is never reset at node entry.**
+   - The donor zeroes `ss->statScore` in Step 1 (`search.cpp` line 809).
+     Review §5.4 gives a default record zero counts. The core kernel writes
+     `ss->stat_score` only in its move loop (`search_kernel_core.cpp`
+     line 1020).
+   - So a null-move child and a ProbCut child read, through `(ss - 1)->stat_score / 28` in `update_all_stats`, whatever move was last
+     searched at that ply anywhere in the tree. The term can be about
+     ±2,900 against a bonus cap of 1,487.
+   - Scratch tree with `ss->stat_score = 0` after `ss->move_count = 0`
+     (v1): 9,107,642 nodes. The total rises because one position takes
+     55.9% of the nodes, but the median falls 20% to 88,871. WAC at 100k
+     reads 246.
+   - Not recorded. The contract is clear, so this goes back to
+     implementation.
+2. **Defect: the PV re-search's TT-move depth rule is inert.**
+   - §3.7 adopts the donor's Step 20: at a PV node the TT move is searched
+     at least one ply deep when its entry is deep or decisive, and the
+     donor applies this to the first move (`moveCount == 1`, lines
+     1409–1420).
+   - The core kernel applies the rule only after a later move fails high
+     (line 1137). The TT move is always the picker's first move, and the
+     first-move branch (line 1064) never applies the rule. So at a PV node
+     of depth 1 the TT move still drops into quiescence.
+   - Scratch tree with the rule on the first-move branch (v3): 6,697,306
+     nodes, median +11% (123,979); WAC 243.
+   - The rule deepens and reduces nothing, so §12.2's "first move never
+     reduced" does not forbid it. Not recorded; back to implementation.
+3. **Contract gap: node typing of a non-PV node's first child.**
+   - The core kernel searches every first move with `cut_node = false`
+     (line 1065), kept from the legacy kernel. The donor passes `!cutNode`
+     at non-PV nodes (Step 19, lines 1395–1404).
+   - So the first child of an all node, the expected refutation and the
+     donor's commonest cut node, is typed as an all node here. A chain of
+     first moves below an all node never alternates.
+   - The adopted consumers read the donor's population at the donor's
+     values: the node-typed TT cutoff (`cut_node == (tt ≥ beta)` at
+     depth ≤ 4), LMR's cut-node +4026 and +933, the all-node scaling
+     ×276/(256d + 268), `cutoffCnt`'s all-node +1138 and the +940·cutNode
+     TT-depth term.
+   - Scratch tree with `!is_pv && !cut_node` there (v2): 6,260,593 nodes,
+     median −4% (107,315); WAC 248.
+   - The handoff never fixed this producer. §3.1 keeps `cut_node` runtime
+     and leaves the null-move, ProbCut and singular children's typing to
+     B.3, but the move loop is B.2's. Research rules (21.4).
+4. **Contract question: two donor constants act on evaluation units
+   unconverted.**
+   - LMR's `r −= |corr|/26310` reads the correction in Basilisk's
+     evaluation units, about 0.28× the donor's for the same error, so the
+     term is about 0.28× the donor's. The divisor that keeps the donor's
+     1024ths is about 7,420.
+   - LMR's `alpha − eval` term converts its clamp to −18..27 (§3.7, §7.3)
+     but keeps the slope 3 per unit. Its largest effect is 81/1024 against
+     the donor's 288/1024. The converted slope, about 10.6, lies outside
+     `CoreLmrAlphaEvalScale`'s 0–10.
+   - §20 deviation 9 calls the fixed constants "all in 1024ths of a ply or
+     history units"; `|corr|/26310` is not. The slope is a contract value
+     (§7.3, review §5.10) that implementation followed, and the divisor is
+     a fixed constant SPSA cannot reach. Research rules (21.4).
+5. **Gap: the stack-unwind test.**
+   - The leaf and review §5.11 item 5 ask for 20 positions at depth 8: the
+     caller's board unchanged, legal best and ponder moves, a repeat search
+     identical, and the same at `Threads 4`.
+   - No such test was added, and §20's test list does not name one.
+     Existing coverage is partial (`test_engine_threading`'s depth-10
+     determinism and its 4T-then-1T check).
+   - A determinism test would not have caught finding 1, whose stale read
+     is deterministic, which is why the default-record clause needs a
+     direct check. Back to implementation.
+6. **Notes, no action required:**
+   - At the root the picker adds the root-ordering score into the capture
+     score that sets the `−score/18` SEE split, and into the quiet score
+     the −14000 and −3560·depth limits read. Root only; ordering only.
+   - The handoff's "register B.2.2–B.2.4 in `EXPERIMENTS.md` with P1–P6
+     verbatim before the first game" is not done. No game has run; it is
+     B.2.2's precondition, not a B.2.1 defect.
+
+### 21.4 Return 3: what resumes, and on what
+
+- **Research (Amendment 3) rules on 21.3 items 3 and 4.** The options for
+  item 3:
+  - (a) the donor's typing of the move loop's first child, with NMP,
+    ProbCut and singular left to B.3;
+  - (b) the legacy typing, with the consumers' constants re-seeded for its
+    population;
+  - (c) a categorical switch for B.2.2.
+
+  For item 4, it decides whether the two constants convert as evaluation
+  units: divisor about 7,420; slope about 10.6, with the range widened.
+  - The reviewer's reading: (a) for item 3, because the consumers were
+    adopted at the donor's values and the donor's population is what they
+    assume. Convert both constants in item 4, by §7.2 rule 2's logic.
+- **Implementation then lands, on the amended contract:** item 1 (zero the
+  record's `stat_score` at node entry), item 2 (the TT-move rule on the
+  first-move branch), item 5 (the stack-unwind test, with a direct check
+  that the record's per-node fields start at their defaults), and what
+  Amendment 3 decides. One commit per item, with the ON arm's `bench 13`
+  and the 100,000-node WAC count recorded per commit, the off arm at
+  14,978,465, and CTest on both arms.
+- **A delta review then accepts those commits:** both arms' fingerprints
+  reproduced, CTest, and the changed lines against the amended clauses.
+  21.1 and 21.2 stand for everything else.
