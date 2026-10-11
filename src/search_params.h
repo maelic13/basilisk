@@ -208,6 +208,7 @@
     X(rfp_corr_div,          CoreRfpCorrDiv,          0,    0,    64)    \
     X(rfp_depth_cap,         CoreRfpDepthCap,         9,    6,    19)    \
     X(rfp_beta_weight,       CoreRfpBetaWeight,     661,  512,  1024)    \
+    X(iir_min_depth,         CoreIirMinDepth,         4,    3,     8)    \
     /* Move-loop pruning */                                              \
     X(lmp_base,              CoreLmpBase,             3,    1,     8)    \
     X(lmp_square_scale,      CoreLmpSquareScale,     16,    8,    32)    \

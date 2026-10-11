@@ -693,7 +693,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         improving = improving || ss->eval >= beta;
 
     // IIR: reduce non-PV nodes when no TT move (or a stale TT entry) guides the search.
-    if (!ABLATED(4) && !is_pv && depth >= 4
+    if (!ABLATED(4) && !is_pv && depth >= kp.iir_min_depth
         && (tt_move == MOVE_NONE || (tt_found && tt_depth < depth - 3))) {
         TRACE_DECISION(TraceEvent::IirReduction, ply, depth, tt_move,
                        alpha, beta, eval, improving, correction, VALUE_NONE,
