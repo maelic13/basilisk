@@ -473,6 +473,12 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-D21](experiments/BAS-D21.md) — matched per-family ablation screens: the ×4 is the move-loop pruning family; razoring and LMR cost… — see entry
 
+- [BAS-S21](experiments/BAS-S21.md) — B.2.2: Cluster 1 diagnostics and the unfitted paired run, P1–P6 frozen — registered
+
+- [BAS-S22](experiments/BAS-S22.md) — B.2.3: Cluster 1 curvature sweep, then SPSA in blocks — registered
+
+- [BAS-S23](experiments/BAS-S23.md) — B.2.4: Cluster 1 gates — registered
+
 | ID | Title | Disposition |
 |---|---|---|
 | [BAS-S17](experiments/BAS-S17.md) | Razoring depth reach in Elo (B.0.1, maintainer). | +2.4 ± 9.9; interval holds 0, the cluster decides the cap |
