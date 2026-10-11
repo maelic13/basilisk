@@ -539,6 +539,15 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         foreach(_tgt IN LISTS _ALL_TARGETS)
             target_compile_options(${_tgt} PRIVATE -fsanitize=address,undefined)
             target_link_options(${_tgt} PRIVATE -fsanitize=address,undefined)
+            # An unoptimised, instrumented search frame is about ten times a
+            # release one (some 15 KB a ply against 1.4 KB), and the tests
+            # search on the main thread. Windows reserves 1 MB for it where
+            # Linux, which runs the CI sanitizer job, gives 8 MB: reserve
+            # the same 8 MB here so a deep line does not overflow only on
+            # this platform.
+            if(WIN32)
+                target_link_options(${_tgt} PRIVATE -Wl,--stack,8388608)
+            endif()
         endforeach()
     endif()
 
