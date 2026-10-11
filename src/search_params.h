@@ -91,29 +91,41 @@
 // Checking moves are extended and never reduced, deliberately: a path cap on
 //   the check extension was rejected in play (BAS-S16, -3.48 +/- 3.32), and
 //   reducing at checking nodes failed the WAC floor (137 -> 124, floor 130).
-#define BASILISK_LEGACY_KERNEL_PARAMS(X)                                 \
+//
+// The table is split into groups so that the B2_CORE arm's table can take
+// the groups whose mechanisms it still runs at their legacy values; the
+// legacy table is the groups in their original order.
+#define BASILISK_LEGACY_NODE_MARGINS(X)                                  \
     /* Reverse futility pruning */                                       \
     X(rfp_coeff,             RfpCoeff,             160,   60,   240)     \
     X(rfp_improving,         RfpImproving,          72,    0,   140)     \
     /* Razoring */                                                       \
-    X(razor_coeff,           RazorCoeff,           243,  120,   500)     \
+    X(razor_coeff,           RazorCoeff,           243,  120,   500)
+
+#define BASILISK_LEGACY_NULL_PROBCUT(X)                                  \
     /* Null-move pruning */                                              \
     X(null_base,             NullBase,               3,    2,     6)     \
     X(null_eval_div,         NullEvalDiv,          192,   80,   400)     \
     /* ProbCut */                                                        \
-    X(probcut_margin,        ProbCutMargin,        189,   80,   360)     \
+    X(probcut_margin,        ProbCutMargin,        189,   80,   360)
+
+#define BASILISK_LEGACY_MOVE_LOOP(X)                                     \
     /* Move-loop futility */                                             \
     X(futility_base,         FutilityBase,         180,   40,   280)     \
     X(futility_coeff,        FutilityCoeff,        128,   40,   200)     \
     /* History pruning */                                                \
     X(hist_prune_coeff,      HistPruneCoeff,     14004, 1000, 28000)     \
     /* SEE pruning (bad captures) */                                     \
-    X(see_prune_coeff,       SeePruneCoeff,         73,   30,   160)     \
+    X(see_prune_coeff,       SeePruneCoeff,         73,   30,   160)
+
+#define BASILISK_LEGACY_SINGULAR(X)                                      \
     /* Singular extension */                                             \
     X(singular_min_depth,    SingularMinDepth,       5,    4,     8)     \
     X(singular_beta_mult,    SingularBetaMult,       4,    1,     6)     \
     X(singular_double_margin, SingularDoubleMargin,  4,    0,    60)     \
-    X(double_ext_max,        DoubleExtMax,          16,    1,   200)     \
+    X(double_ext_max,        DoubleExtMax,          16,    1,   200)
+
+#define BASILISK_LEGACY_LMR(X)                                           \
     /* LMR base table (x100) */                                          \
     X(lmr_base,              LmrBase,               60,    0,   150)     \
     X(lmr_divisor,           LmrDivisor,           209,  150,   350)     \
@@ -124,7 +136,9 @@
     X(lmr_tt_pv_adj,         LmrTtPvAdj,            23,    0,  3072)     \
     X(lmr_not_improving_adj, LmrNotImprovingAdj,    89,    0,  3072)     \
     X(lmr_tt_capture,        LmrTtCapture,         301,    0,  3072)     \
-    X(lmr_singular_quiet,    LmrSingularQuiet,     401,    0,  3072)     \
+    X(lmr_singular_quiet,    LmrSingularQuiet,     401,    0,  3072)
+
+#define BASILISK_LEGACY_HISTORY(X)                                       \
     /* History updates */                                                \
     X(hist_bonus_quad,       HistBonusQuad,         62,    0,   128)     \
     X(hist_bonus_lin,        HistBonusLin,         120,    0,   400)     \
@@ -134,19 +148,44 @@
     X(hist_malus_max,        HistMalusMax,        1304,  512,  4096)     \
     X(hist_ttmove_bonus,     HistTtMoveBonus,       29,    0,  1024)
 
+#define BASILISK_LEGACY_KERNEL_PARAMS(X) \
+    BASILISK_LEGACY_NODE_MARGINS(X)      \
+    BASILISK_LEGACY_NULL_PROBCUT(X)      \
+    BASILISK_LEGACY_MOVE_LOOP(X)         \
+    BASILISK_LEGACY_SINGULAR(X)          \
+    BASILISK_LEGACY_LMR(X)               \
+    BASILISK_LEGACY_HISTORY(X)
+
 // ---- Cluster 1's kernel (the B2_CORE arm) -------------------------------------
 //
 // The core kernel reads the legacy coordinates of every mechanism it has not
 // yet replaced, at their legacy values, and its own coordinates at the
 // cluster's seeds. Units are evaluation units unless a line says otherwise.
 //
+// Node margins: razoring at depth <= CoreRazorDepthCap returns quiescence
+//   when the estimate is below alpha - margin * depth. Reverse futility at
+//   depth <= its cap returns (w * beta + (1024 - w) * eval) / 1024 when the
+//   estimate clears beta by per_ply * depth - improving - worsening (+ the
+//   correction in evaluation units over corr_div; 0 turns that term off).
 // The TT-cutoff bonus trains the quiet histories by slope * depth (history
 //   units per ply) when a quiet TT move's entry cuts.
 // Correction training: the bonus is clamp(error * depth * scale / 128, +/-256)
 //   in 128ths, with scale * 3/2 when no move raised alpha; the continuation
 //   correction's weight is in 131072ths of the summed rows.
 #define BASILISK_CORE_KERNEL_PARAMS(X)                                   \
-    BASILISK_LEGACY_KERNEL_PARAMS(X)                                     \
+    BASILISK_LEGACY_NULL_PROBCUT(X)                                      \
+    BASILISK_LEGACY_MOVE_LOOP(X)                                         \
+    BASILISK_LEGACY_SINGULAR(X)                                          \
+    BASILISK_LEGACY_LMR(X)                                               \
+    BASILISK_LEGACY_HISTORY(X)                                           \
+    /* Node margins */                                                   \
+    X(razor_margin,          CoreRazorMargin,       256,  128,   527)    \
+    X(rfp_per_ply,           CoreRfpPerPly,         133,   40,   227)    \
+    X(rfp_improving,         CoreRfpImproving,       89,   35,   160)    \
+    X(rfp_worsening,         CoreRfpWorsening,       11,    0,    60)    \
+    X(rfp_corr_div,          CoreRfpCorrDiv,          0,    0,    64)    \
+    X(rfp_depth_cap,         CoreRfpDepthCap,         9,    6,    19)    \
+    X(rfp_beta_weight,       CoreRfpBetaWeight,     661,  512,  1024)    \
     /* TT cutoff training */                                             \
     X(tt_cutoff_bonus_slope, CoreTtCutoffBonusSlope, 131,    0,   300)   \
     /* Correction */                                                     \
@@ -163,13 +202,16 @@
 //   and fail low); 0 admits it on bound and depth alone.
 // pawn_hist_buckets_log2: the pawn history's bucket count as a power of two
 //   (11 = 2,048, 13 = 8,192); a size, settled by speed, not by games.
+// razor_depth_cap: the deepest node razoring runs at (1 = the oracle's form,
+//   3 = the legacy reach).
 // corr_admission: 1 trains the correction where the error's sign agrees with
 //   the bound (above the static eval exactly when a move raised alpha); 0
 //   where the node failed high or raised alpha.
 #define BASILISK_CORE_KERNEL_SWITCHES(S)                                 \
     S(tt_cutoff_node_typed,  CoreTtCutoffNodeTyped,  1,    0,     1)     \
     S(pawn_hist_buckets_log2, CorePawnHistBucketsLog2, 13,  11,    13)   \
-    S(corr_admission,        CoreCorrAdmission,      1,    0,     1)
+    S(corr_admission,        CoreCorrAdmission,      1,    0,     1)     \
+    S(razor_depth_cap,       CoreRazorDepthCap,      1,    1,     3)
 
 #if defined(BASILISK_B2_CORE)
 #define BASILISK_KERNEL_PARAMS(X) BASILISK_CORE_KERNEL_PARAMS(X)

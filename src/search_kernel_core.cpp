@@ -569,29 +569,49 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     if (!is_pv && !in_check && ss->excluded == MOVE_NONE
         && static_eval != VALUE_NONE) {
 
-        // Reverse futility pruning
-        if (!ABLATED(1) && depth <= 9) {
-            const auto& p = config_.limits.params;
-            int margin = p.rfp_coeff * depth - (improving ? p.rfp_improving : 0);
-            if (eval - margin >= beta) {
-                DIAG_COUNT(state_.diag.rfp_cuts++);
-                TRACE_DECISION(TraceEvent::RfpPrune, ply, depth, MOVE_NONE,
-                               alpha, beta, eval, improving, correction, VALUE_NONE,
-                               0, 0, margin, eval);
-                return eval;
-            }
+        // Razoring: an estimate this far below alpha at a shallow node is
+        // left to quiescence, whose value is returned. Not when the table
+        // suggests a quiet move, or proves the node fails high.
+        if (!ABLATED(0) && depth <= kp.razor_depth_cap
+            && eval < alpha - kp.razor_margin * depth
+            && (tt_move == MOVE_NONE || tt_capture) && tt_flag != TT_BETA) {
+            const int q = quiescence(alpha, beta, ply, 0, ss);
+            DIAG_COUNT(state_.diag.razor_cuts++);
+            DIAG_COUNT(++(depth <= 3 ? state_.diag.razor_cuts_d1_3
+                          : depth <= 7 ? state_.diag.razor_cuts_d4_7
+                                       : state_.diag.razor_cuts_d8p));
+            TRACE_DECISION(TraceEvent::RazorPrune, ply, depth, MOVE_NONE,
+                           alpha, beta, eval, improving, correction, VALUE_NONE,
+                           0, 0, kp.razor_margin * depth, q,
+                           -1, VALUE_NONE, -1, TraceFamily::Razor);
+            return q;
         }
 
-        // Razoring
-        if (!ABLATED(0) && depth <= 3
-            && eval + config_.limits.params.razor_coeff * depth <= alpha) {
-            int q = quiescence(alpha, beta, ply, 0, ss);
-            if (q <= alpha) {
-                DIAG_COUNT(state_.diag.razor_cuts++);
-                TRACE_DECISION(TraceEvent::RazorPrune, ply, depth, MOVE_NONE,
+        // Reverse futility pruning: an estimate this far above beta returns a
+        // value between the two. The margin shrinks when this side improves
+        // or the opponent's position worsens, and grows with the size of the
+        // correction (off at a divisor of 0). Not near a PV, not when the
+        // table suggests a quiet move, and never on a decisive bound.
+        if (!ABLATED(1) && !ss->tt_pv && depth <= kp.rfp_depth_cap && eval >= beta
+            && (tt_move == MOVE_NONE || tt_capture)
+            && beta > -tablebaseWinInMaxPly && eval < tablebaseWinInMaxPly) {
+            int margin = kp.rfp_per_ply * depth
+                       - kp.rfp_improving * improving
+                       - kp.rfp_worsening * opponent_worsening;
+            if (kp.rfp_corr_div > 0)
+                margin += std::abs(correction_raw) / (131072 * kp.rfp_corr_div);
+            if (eval - margin >= beta) {
+                const int value = (kp.rfp_beta_weight * beta
+                                   + (1024 - kp.rfp_beta_weight) * eval) / 1024;
+                DIAG_COUNT(state_.diag.rfp_cuts++);
+                DIAG_COUNT(++(depth <= 3 ? state_.diag.rfp_cuts_d1_3
+                              : depth <= 7 ? state_.diag.rfp_cuts_d4_7
+                                           : state_.diag.rfp_cuts_d8p));
+                TRACE_DECISION(TraceEvent::RfpPrune, ply, depth, MOVE_NONE,
                                alpha, beta, eval, improving, correction, VALUE_NONE,
-                               0, 0, config_.limits.params.razor_coeff * depth, q);
-                return q;
+                               0, 0, margin, value,
+                               -1, VALUE_NONE, -1, TraceFamily::Rfp);
+                return value;
             }
         }
 
