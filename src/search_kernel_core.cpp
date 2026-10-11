@@ -1074,6 +1074,12 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 const int rr = r + (tt_move == MOVE_NONE ? 1127 : 0);
                 step = (rr > 5234) + (rr > 5487 && new_depth > 2);
             }
+            // At a PV node the TT move is searched at least one ply deep when
+            // its entry is deep or decisive, as on the re-search below.
+            if (is_pv && m == tt_move
+                && ((tt_score != VALUE_NONE && is_decisive(tt_score) && tt_depth > 0)
+                    || tt_depth > 1))
+                new_depth = std::max(new_depth, 1);
             // At a non-PV node the first move's child is the opposite type:
             // the expected refutation of an all node's move is a cut node.
             score = -negamax<PvChild>(new_depth - step, -beta, -alpha, ply + 1, ss + 1, true,
