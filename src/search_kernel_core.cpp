@@ -362,6 +362,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     bool in_check = state_.board->is_in_check();
     ss->in_check   = in_check;
     ss->move_count = 0;
+    ss->stat_score = 0;
     // The grandchildren's record starts this node's children clean: the
     // children share (ss + 1), and each that fails high counts in it.
     (ss + 2)->cutoff_cnt = 0;
