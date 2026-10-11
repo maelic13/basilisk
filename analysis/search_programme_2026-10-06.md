@@ -2295,3 +2295,116 @@ B.2.2–B.2.4 registration the handoff requires (§12.2) is made in this
 change: BAS-S21 (B.2.2 screens and the unfitted paired run, P1–P6 verbatim
 with Amendment 1's P5), BAS-S22 (B.2.3) and BAS-S23 (B.2.4), all
 registered, no result.
+
+## 23. B.2.1 Return 4 (2026-10-11): items 1–5 of 22.6 landed; item 6's converted divisor explodes the search in saturated positions; stopped
+
+- State: implementation (`I2`) stopped before committing item 6, as 22.6's
+  rules require when a fingerprint behaves in a way §22 did not anticipate.
+  The leaf returns to `RESEARCH`. Items 1–5 are committed on `dev`
+  (`31c80db`..`90d7db7`). Items 6–11 are not landed.
+- Recipe: `tools/results/b21-r3-20261011/`.
+  - `qual.sh` (`6813d6fc…d0b8`) builds both arms in every flavour from the
+    working tree, reads every bench, and runs CTest on both arms (release,
+    and sanitizer `-LE strength`) and the 100,000-node WAC probe on the ON
+    release binary.
+  - `check.py` asserts the off arm at 14,978,465 / 3,190,673, every ON
+    flavour equal, every exit code 0 and every suite at 100%.
+  - `edit.py` applies each edit with its anchor asserted once, keeping CRLF.
+  - The unchanged head reproduces 6,337,226 and 249 through the same recipe
+    (`base/`).
+
+### 23.1 Items 1–5
+
+Every row: the off arm reads 14,978,465 on release PEXT and plain, Tune,
+Diag and Ablate, with `bench 10` 3,190,673 on PEXT, plain and sanitizer. The
+ON arm's `bench 13` is equal on PEXT, plain, Tune, Diag and Ablate, and its
+`bench 10` is equal on PEXT, plain and sanitizer. CTest passes on both arms:
+release ON 22/22 and off 20/20, sanitizer ON 20/20 and off 18/18.
+
+| Item | Commit | ON `bench 13` | ON `bench 10` (release = sanitizer) | ON WAC depth 6 (floor 130) | ON WAC 100k |
+|---|---|---:|---:|---:|---:|
+| head (`4fd8600` engine) | — | 6,337,226 | 1,490,974 | 185 | 249 |
+| 1 F1, `stat_score` zeroed at entry | `31c80db` | 9,107,642 | 1,847,085 | 186 | 246 |
+| 2 N1, local move counter | `008f8fc` | 7,618,212 | 1,779,010 | 185 | 244 |
+| 3 Q1, first child `!cut_node` | `dc989af` | 6,842,239 | 1,525,428 | 186 | 247 |
+| 4 N2, first-move step-down | `2c86329` | 6,276,484 | 1,369,386 | 172 | 245 |
+| 5 F2, PV TT-move rule on the first move | `90d7db7` | 5,941,186 | 1,277,228 | 172 | 250 |
+
+The 100k-node files are `i1`–`i5/wac100k_on.json` (`a2ff3aaa…87b5`,
+`0e8bcecf…4792`, `8a1d0d39…9faa`, `8fc693ae…fef9`, `253bb89c…8f93`).
+Item 1 reproduces the review's scratch reading exactly (9,107,642, 246).
+
+**One deviation, item 2.** The named edit (vA) replaces only the increment.
+The kernel's move loop also reads `ss->move_count` after the singular
+search, in the same call: `r −= 65·moveCount` and the 32-slot searched-list
+cap. There the singular search has overwritten the record, so those reads
+would still see the inner loop's count. The donor reads its local
+`moveCount` at both (lines 1323 and 1545), and 22.5 names both consumers.
+The commit therefore reads the local at those two lines as well. At
+`bench 13` it is identical to vA alone (7,618,212 nodes, median 110,733),
+because no consumer of the first move's `r` existed until item 4. The trace
+lines keep reading the record.
+
+### 23.2 The failure: item 6, `|corr| / 7419`
+
+- With item 6 applied to item 5, the ON arm's `bench 13` did not finish:
+  1,205 CPU seconds against about 2 seconds, killed.
+- `bench 8`: 511,700 → 1,361,570 nodes (`bench8_i5.txt` `160c5e4e…a43f`,
+  `bench8_i6.txt` `a679961c…93b3`), median +9% (10,907 → 11,865).
+- One position carries the blow-up: bench 39,
+  `1Q4R1/5k2/4rpp1/3K4/8/7p/8/8 b - - 2 9`, a lost ending for the side to
+  move. It takes 34,165 → 747,335 nodes at depth 8 (×21.9), and from
+  depth 9 it does not finish within 120 s.
+- Diag counters on that position, `go nodes 3000000` (ON Diag builds of
+  items 5 and 6):
+
+| | Item 5 | Item 6 |
+|---|---:|---:|
+| depth reached | 13 | 8 |
+| `lmr_extended` (negative reductions) | 8,652 | 160,463 |
+| `lmr_eligible` | 887,146 | 1,024,150 |
+| extended / eligible | 1.0% | 15.7% |
+| `lmr_applied` | 129,522 | 58,928 |
+
+Cause:
+- 22.2 converted the divisor on the premise that Basilisk's correction is
+  about 0.282× the donor's for the same error. That holds below saturation.
+- The correction tables keep the donor's limit, 1024, in Basilisk's units,
+  so at saturation `|correction_raw|` reaches the donor's maximum:
+  (15341 + 10569 + 2·12906)·1024 + 8761·2·1024 ≈ 70.9M.
+- At that maximum, 7,419 subtracts up to 9,557/1024 ≈ 9.3 plies, against the
+  donor's 2,695 (2.6 plies). 22.2 notes this 3.5× saturation difference for
+  the update clamp but did not carry it into this conversion.
+- In a lopsided ending where the correction saturates, most reductions turn
+  negative. With `CoreLmrNegativeAllowed` the moves are searched up to two
+  plies deeper, and the extensions compound.
+- Item 7's alpha term and item 8's eval-difference term are clamped after
+  scaling, so they stay inside the donor's bounds.
+
+Kept: items 1–5 committed, the item-6 patch (`i6/item6.patch`
+`44d4521d…1ce1`) and its two binaries. The working tree is at `90d7db7`.
+
+### 23.3 Options
+
+- (a) Keep the donor's 26310. The term then is 0.28× the donor's below
+  saturation and equals the donor's cap at saturation.
+- (b) Convert to 7,419 and cap the term at the donor's largest value
+  (`min(|corr|/7419, 2695)`). That is the converted slope with the donor's
+  bound: one more constant, but no new mechanism.
+- (c) Rescale the correction tables' limit (or weights) so that saturation
+  sits where the donor's does. This changes every consumer of the
+  correction and the update clamp, beyond this item.
+- (d) As (a), and make the divisor a B.2.3 coordinate spanning 7,419–26,310,
+  with the run-away recorded as the reason its low end is bounded.
+
+The implementation's reading is (b). It applies rule 4 where the correction
+is unsaturated, which is where 22.2's premise holds, and keeps the donor's
+bound where the premise fails. Scratch evidence (`scratch-i6b/`, item 5
+plus the capped term, ON release PEXT `19102a39…`): `bench 13` terminates
+at 7,644,681 (item 5: 5,941,186). The median is +8% (102,158 → 110,508)
+and the top position carries 34.0% (item 5: 25.4%). WAC at 100k reads 248.
+The main counter-argument is that it adds a fixed constant the donor does
+not have.
+
+Not affected: items 7–10 do not depend on this decision except through the
+fingerprints, and they resume in 22.6's order once Amendment 4 fixes item 6.

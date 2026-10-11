@@ -1190,6 +1190,12 @@ rejections stop B.
       same-slot re-entries; the absent step-down). Implementation lands
       eleven items in order, then the delta review. B.2.2–B.2.4 registered
       as BAS-S21–S23.
+      — RETURNED 2026-10-11 (Return 4, packet §23): items 1–5 landed
+      (`31c80db`..`90d7db7`); ON arm 5,941,186, WAC 172 at depth 6 and 250
+      at 100k nodes; the off arm stays at 14,978,465. Item 6's `|corr|/7419`
+      never finishes `bench 13`: where the correction saturates it removes
+      up to 9.3 plies of reduction, against the donor's 2.6. Research
+      amendment 4 decides the divisor; items 6–11 resume after it.
     - [ ] **B.2.2** `[V]` Diagnostics and the unfitted paired run
       Screens at B.0's registered numbers; the ablation sweep if a floor
       fails; the unfitted 2,000-game paired run against the accepted head,
@@ -1289,7 +1295,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.2.1 | READY_FOR_IMPLEMENTATION | I2 | Amendment 3 (packet §22): eleven ordered items (two defects from the review, two from research, the first-child typing, three unit conversions, a re-parametrisation, the stack test), then the delta review |
+| B.2.1 | RESEARCH | I2 | Return 4 (packet §23): Amendment 3's items 1–5 landed; item 6's converted correction divisor explodes the search where the correction saturates; amendment 4 decides it, then items 6–11 and the delta review |
 | B.2.2 | RESEARCH | V | Screen numbers registered in the B.0 packet §10 |
 | B.2.3 | RESEARCH | V | Curvature sweep after B.2.2 |
 | B.2.4 | RESEARCH | V | Gates after B.2.3 |
