@@ -1066,7 +1066,10 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
         int score;
         if (searched == 0) {
-            score = -negamax<PvChild>(new_depth, -beta, -alpha, ply + 1, ss + 1, true, false);
+            // At a non-PV node the first move's child is the opposite type:
+            // the expected refutation of an all node's move is a cut node.
+            score = -negamax<PvChild>(new_depth, -beta, -alpha, ply + 1, ss + 1, true,
+                                      !is_pv && !cut_node);
         } else {
             // Nothing is reduced at the root or in check.
             const bool reducible = !ABLATED(7) && !is_root && !in_check;
