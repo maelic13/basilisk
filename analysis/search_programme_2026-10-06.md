@@ -931,7 +931,7 @@ the ordering-only approximation that truncates deliberately, and its own
 comment forbids using it for pruning.
 
 Probe: `tools/results/b21-20261010/see_quiet_probe.cpp`, with its output
-beside it (SHA-256 `77a05d16…0730` and `14387fce…ba0e`). It ran 4,000
+beside it (SHA-256 `77a05d16…6730` and `14387fce…ba0e`). It ran 4,000
 random walks of 0–29 plies from five seed positions, built with
 `clang++ -O2` against the head's board sources.
 
@@ -1450,7 +1450,7 @@ at every commit listed.
 Ticket 3's instruments (`tools/results/b21-20261010/ticket3/`):
 - `test_wac --count` → `wac_depth6_on.txt`, SHA-256 `e1854e6e…73b5`.
 - `fixed_budget_probe.py nodes 100000 src/wac.epd` on the ON release
-  binary (`basilisk-b21-t3-on-pext.exe`, `60a19710…55f2`) →
+  binary (`basilisk-b21-t3-on-pext.exe`, `60a1971c…55f2`) →
   `wac_nodes100k_on.json`, `fe67970f…de15`: **200/300**.
 - The same recipe on the off binary (`5705e8f3…dd2a`) reads **204**, §10's
   legacy baseline, which proves the instrument on this tree
@@ -1470,7 +1470,7 @@ Ticket 4's instruments (`tools/results/b21-20261010/ticket4/`):
   463,065 nodes).
 
 Ticket 5's instruments (`tools/results/b21-20261010/ticket5/`):
-- `wac_depth6_on.txt`, SHA-256 `ee16d14f…729e`: 167.
+- `wac_depth6_on.txt`, SHA-256 `ee16d14f…3560`: 167.
 - `wac_nodes100k_on.json`, `3fddc775…0b65`: 237, on
   `basilisk-b21-t5-on-pext.exe` (`e52183fa…729e`). That is above §10's
   legacy baseline of 204 and its target of 225; at ticket 5 it is still an
@@ -1516,7 +1516,7 @@ Liveness, on ON Tune and Ablate builds (Italian position):
   node-margin coordinates and `CoreRazorDepthCap`.
 
 Ticket 6's instruments (`tools/results/b21-20261010/ticket6/`):
-- `wac_depth6_on.txt`, SHA-256 `a9e6b4ee…702c`: 153.
+- `wac_depth6_on.txt`, SHA-256 `a9e6b4ee…d67c`: 153.
 - `wac_nodes100k_on.json`, `ef1f84ea…3ade`: 235, on
   `basilisk-b21-t6-on-pext.exe` (`f367fa33…b7cd`).
 - `bench13_counters_on.json`, `23c968f2…702c`: the Diag counters summed
@@ -1531,7 +1531,7 @@ Ticket 6's instruments (`tools/results/b21-20261010/ticket6/`):
   All 20 counter identities hold per position and summed.
 
 The depth-6 move of −14 is attributed in scratch trees
-(`attribution_depth6.txt`, `fb46b8f1…b8c3`; recipe `t6_variants.py`,
+(`attribution_depth6.txt`, `fb46b8f1…140b`; recipe `t6_variants.py`,
 `c4809b77…23df`):
 
 | Ticket-6 tree with… | Depth 6 | `bench 13` |
