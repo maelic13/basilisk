@@ -1182,6 +1182,14 @@ rejections stop B.
       node type, and two donor constants on evaluation units left
       unconverted. Research amendment 3 rules on the questions; then
       implementation lands all five and a delta review accepts them.
+      — AMENDED 2026-10-11 (Amendment 3, packet §22): the first child at a
+      non-PV node typed `!cut_node` with the donor's first-move step-down;
+      three evaluation-unit conversions (`|corr|/7419`, the LMR alpha term
+      and the eval-difference training on scaled differences); F1, F2 and
+      F5 confirmed; two more defects (the per-ply move count surviving
+      same-slot re-entries; the absent step-down). Implementation lands
+      eleven items in order, then the delta review. B.2.2–B.2.4 registered
+      as BAS-S21–S23.
     - [ ] **B.2.2** `[V]` Diagnostics and the unfitted paired run
       Screens at B.0's registered numbers; the ablation sweep if a floor
       fails; the unfitted 2,000-game paired run against the accepted head,
@@ -1281,7 +1289,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.2.1 | RESEARCH | I2 | Review Return 3 (packet §21): amendment 3 rules on the first child's node type and two unconverted constants; then implementation fixes the stale `stat_score`, the inert PV TT-move rule and the missing stack-unwind test; a delta review accepts before B.2.2 |
+| B.2.1 | READY_FOR_IMPLEMENTATION | I2 | Amendment 3 (packet §22): eleven ordered items (two defects from the review, two from research, the first-child typing, three unit conversions, a re-parametrisation, the stack test), then the delta review |
 | B.2.2 | RESEARCH | V | Screen numbers registered in the B.0 packet §10 |
 | B.2.3 | RESEARCH | V | Curvature sweep after B.2.2 |
 | B.2.4 | RESEARCH | V | Gates after B.2.3 |

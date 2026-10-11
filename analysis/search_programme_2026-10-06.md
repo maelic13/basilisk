@@ -565,6 +565,9 @@ into `make_move` is a B.7 option. This is Rarog's §6.5 decision, re-derived.
    where Basilisk has no fitted coordinate; this is Rarog's rule 2 with the
    oracle column first because of §2.4's residual.
 3. Otherwise the Stockfish-converted value.
+4. (Amendment 3, §22.2) An evaluation difference multiplied into another
+   unit is scaled into the donor's units, × 1000 / 282, before the donor's
+   constants; a compared constant converts by rule 3.
 
 ### 7.3 Principal seeds
 
@@ -747,7 +750,9 @@ B.0.1 and B.0.2 use existing binaries and neither waits on B.1.
 - Invariants: DESIGN §3 (mate band, TT ply adjustment and rule-50 semantics,
   TT-move validation at every consumer, one mutation seam); legal PV and
   best move; nothing pruned or reduced at the root, in check, or before one
-  move is searched; the reduced depth at least one ply; direct quiet checks
+  move is searched (Amendment 3 §22.1: except the donor's Step 19
+  step-down of the first move at a non-PV node); the reduced depth at least
+  one ply; direct quiet checks
   survive the count skip unless the categorical run says otherwise;
   correction never trains from in-check, capture-best or bound-disagreeing
   nodes; the TT stores the raw static eval only; the KBNK/KQK/KRK/KBBK and
@@ -1097,7 +1102,8 @@ misses a slider attack opened along the mover's own line. P5 is amended in
    B.3 candidate; no switch now.
 5. Confirmed: hindsight 166 → 47; fail-low bonus thresholds 106 → 30 and
    68 → 19 (rule 3, ×0.282); the eval-difference training constants at the
-   donor's values.
+   donor's values. Amended by §22.2: the clamp bounds and the offset are
+   evaluation units, so the sum is scaled into the donor's units first.
 6. **Amended:** above depth 1 razoring's margin is linear,
    `CoreRazorMargin·d` (256, 512, 768), not `margin·d²`. The switch exists
    to price the legacy reach (243·d: 486 and 729 at depths 2–3, which
@@ -1796,7 +1802,9 @@ Deviations and implementation choices, with reasons:
      window term divides by the root window `root_search` records; the
      equal-score rule reads the iteration depth it records.
    - The fixed donor constants are kept as written, all in 1024ths of a
-     ply or history units: +697, −65 per move, `|corr|/26310`, 940 for a
+     ply or history units: +697, −65 per move, `|corr|/26310` (corrected by
+     Amendment 3 §22.2: that one acts on evaluation units and becomes
+     `|corr|/7419`), 940 for a
      cut node's deep TT entry, −2179 for the TT move, +1127 without a TT
      move, the step-down at 5234 and 5487, 577/1024 for the window, and
      the capture `statScore` 873/128.
@@ -2081,3 +2089,209 @@ solved at 100,000 nodes.
 - **A delta review then accepts those commits:** both arms' fingerprints
   reproduced, CTest, and the changed lines against the amended clauses.
   21.1 and 21.2 stand for everything else.
+
+## 22. B.2.1 Amendment 3 (2026-10-11): the first child typed as the donor's, three evaluation-unit conversions, two more defects found; the review's findings confirmed
+
+Answers §21. Research (`R3`) at head `b3d6e64`, against the donor
+`edb0d9db` (`src/search.cpp` line numbers below are that file's).
+Implementation lands the items of 22.6 in order; a delta review accepts
+them.
+
+### 22.1 Q1: the node type of a non-PV node's first child — (a)
+
+**Decision.** The move loop's first child at a non-PV node is typed as the
+donor's Step 19 types it: `!cut_node` (lines 1395–1404). At a PV node the
+first child stays a PV child, untyped. Null-move, ProbCut and singular
+children keep their legacy typing until B.3, as §3.1 and the review say.
+
+Why. The adopted consumers read the donor's population at the donor's
+values: the node-typed TT cutoff, LMR's +4026 and +933, the +940 TT-depth
+term, the all-node scaling and `cutoffCnt`'s +1138 (§3.2, §3.7). Under the
+legacy typing the first child of an all node is typed all, and so is the
+first child of that child, so every leftmost chain below an all node is
+all-typed when the donor expects it to alternate; the all-node scaling
+and `cutoffCnt`'s all-node term then fire where the donor fires its
+cut-node terms. (b) would re-seed the constants for a population whose
+labels are wrong, which no fit repairs, and (c) would spend a 2,000-game
+run on a question alpha-beta answers: the expected refutation of a move at
+an all node is a cut node. The reviewer's evidence is the cheap
+confirmation: −4% median nodes and one WAC position at 100,000 nodes
+(249 → 248), a tree that got slightly narrower without losing tactics.
+Counter-argument: Basilisk's legacy consumers (cut +401) were fitted to the
+legacy typing; they are gone, so nothing is kept for them.
+
+**With it, the donor's step-down on the first move (22.5, N2).** Step 19
+also reduces the first move at a non-PV node by `(r > 5234) + (r > 5487 &&
+newDepth > 2)`; the core kernel applies that step-down only to later moves
+at depth 1, because §12.2's invariant "nothing reduced before one move is
+searched" was read as forbidding it (deviation 9). The invariant meant the
+donor's own gates (no LMR at `moveCount == 1`, no pruning before a move is
+searched), not a mechanism the cluster adopted. Amended: at a non-PV node
+that is not the root and not in check, the first move is searched as the
+donor's Step 19, with the step-down and the `!cut_node` child. Evidence in
+22.5.
+
+### 22.2 Q2: constants that act on evaluation units — convert, by a stated rule
+
+**Rule 4, added to §7.2.** An evaluation difference that is multiplied
+into another unit (history, 1024ths of a ply) is scaled into the donor's
+evaluation units, `× 1000 / 282` (§7.1), before the donor's constants,
+which stay as written; a constant compared against an evaluation
+difference converts by rule 3 (hindsight 47, the fail-low thresholds 30
+and 19, the re-search thresholds 15 and 2, all already so). Where the
+scaled product could overflow `int`, the constant converts instead.
+
+Three terms fall under it, not two:
+
+1. LMR `r −= |corr| / 26310` (line 1324). `corr` is Basilisk's correction
+   in evaluation units × 131072, about 0.282× the donor's for the same
+   error, so the term is 0.28× the donor's. Scaling `|corr|` would
+   overflow, so the constant converts: **`|corr| / 7419`** (26310 × 0.282),
+   fixed, as the donor's is. §20 deviation 9's "all in 1024ths of a ply or
+   history units" is corrected in place.
+2. LMR `3 · clamp(alpha − eval, −64, 96)` (lines 1354–1355). §7.3
+   converted the clamp to −18..27 and left the slope at 3, so the term's
+   largest effect is 81/1024 against the donor's 288/1024. Amended to
+   **`CoreLmrAlphaEvalScale · clamp((alpha − eval) × 1000 / 282, −64, 96)`**:
+   the donor's clamp on the scaled difference, the coordinate still the
+   donor's slope 3 with its registered range 0–10 (review §5.10's label
+   changes; its seed and range do not). The product is bounded by
+   32,000 × 1000 and cannot overflow.
+3. The eval-difference training (lines 981–985): `evalDiff =
+   clamp(−(prev + cur), −189, 194) + 60`, then `× 11` into the main history
+   and `× 13` into the pawn history. The clamp bounds and the offset are
+   evaluation units, so Amendment 1's decision 5 was wrong to fix them at
+   the donor's values on Basilisk's sum: the bonus is 0.28× the donor's and
+   the clamp almost never binds. Amended to
+   **`clamp(−(prev + cur) × 1000 / 282, −189, 194) + 60`**, slopes 11 and 13
+   unchanged. The product is bounded by 64,000 × 1000.
+
+Not under it: RFP's correction term is evaluation units on both sides
+(`|raw| / 131072` against a margin), so it is unit-free; but its integer
+divisor `CoreRfpCorrDiv` cannot express the donor's 131072/198435 = 0.66,
+only 1.0 or 0.5. Before B.2.3 moves it, it is re-parametrised as
+**`CoreRfpCorrMult`, 1024ths, seed 0, range 0–2048** (the donor 676), which
+is behaviour-neutral at the seed (the ON fingerprint must not move).
+The correction update's clamp and limit are correction units
+(evaluation × depth) on both sides and stay; Basilisk saturates them at a
+3.5× larger relative error than the donor, which is noted for B.2.3, not
+changed.
+
+Counter-argument: the three conversions were never measured, and the
+donor's values may be no better here than the unconverted ones. True, and
+it is why the seeds are seeds: B.2.3's curvature sweep spans all three
+columns. What rule 4 fixes is a unit error, not a value.
+
+### 22.3 F1, F2 and F5 — confirmed
+
+- **F1, confirmed.** The donor zeroes `ss->statScore` at Step 1 (line 809)
+  and the stack contract (review §5.4) gives a default record zero counts.
+  The core kernel writes `ss->stat_score` only in the move loop, so a
+  null-move or ProbCut child reads, through `(ss − 1)->stat_score / 28` in
+  `update_all_stats` and `/ 98` in the fail-low scale, the last move
+  searched at that ply anywhere in the tree. Fix: `ss->stat_score = 0` at
+  node entry beside `ss->move_count = 0`. The same-slot re-entries (the
+  singular search, the null-move verification) zero it again as the donor's
+  do.
+- **F2, confirmed.** §3.7 adopts Step 20 whole: at a PV node, when
+  `moveCount == 1 || value > alpha`, the TT move's `newDepth` is raised to
+  1 if its entry is deep (`ttData.depth > 1`) or decisive with depth > 0
+  (lines 1409–1420). The core kernel applies the rule only on the
+  re-search branch, and the TT move is first, so it never fires; at a
+  depth-1 PV node the TT move drops into quiescence. Fix: apply the rule on
+  the first-move branch at PV nodes. It deepens; §12.2's invariant is not
+  touched. The reviewer's 243 at 100,000 nodes (from 249) is recorded as an
+  instrument reading for B.2.2, not a decision input: the rule exists for
+  mate finding and decisive scores, which the 100k count under-weights.
+- **F5, confirmed.** The stack-unwind test of review §5.11 item 5 is owed:
+  20 fixed positions at depth 8 on a `Board` passed by value, the caller's
+  board unchanged, legal best and ponder moves, a repeat search identical
+  in nodes and line, the same at `Threads 4`. Its direct check of the
+  per-node defaults covers, at every node entry on the ON arm: `in_check`
+  set, `move_count` 0, `stat_score` 0, `reduction` 0, `excluded` none
+  unless the singular search set it, `(ss + 2)->cutoff_cnt` 0, and
+  `tt_pv` false until the TT or the node type sets it. The cheapest form is
+  a debug-only assertion block at node entry, compiled under
+  `BASILISK_DIAGNOSTIC`, run by the test at depth 8 over the 20 positions;
+  a planted stale field must fail it.
+
+### 22.4 Discovered checks (Amendment 2 §19.2) and the review's notes
+
+Nothing further: the root-ordering mix into the picker's split thresholds
+is root-only and ordering-only, as the reviewer says; it is recorded here
+as a B.5 (root) note. The B.2.2–B.2.4 registration is done in this change
+(22.7).
+
+### 22.5 Two defects the review did not name
+
+Evidence: scratch trees from the head's sources, ON arm, release PEXT,
+`bench 13` and the 100,000-node WAC count on `src/wac.epd` (recipe and
+logs in `tools/results/b21-20261011-am3/`; the head reproduces 6,337,226
+and 249 from the same recipe).
+
+- **N1 (defect): the per-ply move count survives same-slot re-entries.**
+  The donor counts moves in a local (`int moveCount = 0`, line 1116) and
+  publishes it, `ss->moveCount = ++moveCount` (line 1137), so a search
+  re-entered at the same stack slot (the singular search, the null-move
+  verification) leaves the outer loop's count intact. The core kernel
+  increments the record itself (`++ss->move_count`), and both re-entries
+  run `ss->move_count = 0` and their own loop at the same slot. After a
+  singular search the outer node's later moves count from the inner
+  loop's final count, so count pruning (`move_count ≥ (3 + d²)/(2 −
+  improving)`, then `skip_quiets`), the reduction table's index,
+  `−65·moveCount`, the 32-slot searched lists and the children's reads of
+  `(ss − 1)->move_count` all see an inflated count at exactly the nodes
+  where a singular TT move exists. The null-move verification does the same
+  for every node whose verification fails. Fix: the donor's local counter,
+  `ss->move_count = ++move_count`. Evidence (vA): `bench 13` 5,960,990 (−5.9%),
+  100k WAC 240 (−9).
+- **N2 (gap): the donor's step-down on the first move at non-PV nodes is
+  absent** (22.1). Evidence (vB, the step-down alone, typing unchanged):
+  `bench 13` 5,499,163 (−13.2%), 100k WAC 244 (−5). The reviewer's typing-only tree
+  (vC) reads 6,260,593 and 248.
+
+Both are ordinary engineering against a clear donor clause; the leaf does
+not return for them.
+
+### 22.6 Handoff, amended: what implementation lands
+
+One engine commit per item, in this order, each recording the ON arm's
+`bench 13` (release PEXT = plain), its sanitizer `bench 10`, the
+100,000-node WAC count, CTest on both arms (release and sanitizer) and the
+off arm at 14,978,465 on every flavour; then the test commit; then the
+records. The order is for attribution only.
+
+1. F1: `ss->stat_score = 0` at node entry.
+2. N1: the local move counter, `ss->move_count = ++move_count`.
+3. Q1: the first child at a non-PV node typed `!cut_node`.
+4. N2: the step-down on the first move at non-PV nodes (not root, not in
+   check), `(r > 5234) + (r > 5487 && new_depth > 2)` with the no-TT-move
+   +1127, as the later-move branch already computes it.
+5. F2: Step 20's TT-move depth rule on the first-move branch at PV nodes.
+6. Q2.1: `|corr| / 7419` in LMR.
+7. Q2.2: the alpha term on the scaled difference with the donor's clamp.
+8. Q2.3: the eval-difference training on the scaled sum.
+9. `CoreRfpCorrMult` in place of `CoreRfpCorrDiv` (behaviour-neutral:
+   the ON fingerprint of item 8 must hold; the SPSA generator and the
+   parsers' tests follow the rename).
+10. F5: the stack-unwind test and the per-node default assertions (test
+    commit; the diagnostic block in the engine commit it needs, if any,
+    fingerprint-neutral on both arms).
+11. Records: §20's table gains one row per item and a new final-state
+    table; deviation 9 corrected; PLAN's B.2.1 line; GUIDE. Then the delta
+    review (§21.4).
+
+Invariants amended: §12.2's "nothing pruned or reduced … before one move
+is searched" now reads "… except the donor's Step 19 step-down of the
+first move at a non-PV node (Amendment 3)". Everything else in §12.2 and
+review §5.12 stands.
+
+### 22.7 Predictions and screens
+
+P1–P6 and §10's screens need no re-registration: none names a quantity
+these items redefine, and all are read at B.2.2 on the accepted head. The
+instrument readings per item (22.6) are recorded, not acted on. The
+B.2.2–B.2.4 registration the handoff requires (§12.2) is made in this
+change: BAS-S21 (B.2.2 screens and the unfitted paired run, P1–P6 verbatim
+with Amendment 1's P5), BAS-S22 (B.2.3) and BAS-S23 (B.2.4), all
+registered, no result.
