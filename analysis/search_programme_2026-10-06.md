@@ -1445,6 +1445,7 @@ at every commit listed.
 | 4 correction, improving, worsening, hindsight, eval-difference training | `221afdf` engine and test | **13,061,601** | 4,006,140 | ON 22/22, 20/20; off 20/20, 18/18 | **127** (count; +8, under the attribution trigger) | **193** |
 | 5 razoring and RFP | `bb73fb5` engine | **25,182,694** (one position, below) | 3,093,931 | ON 22/22, 20/20; off 20/20, 18/18 | **167** (count; +40, attributed below) | **237** |
 | 6 move-loop pruning | `573add0` engine, `8337944` test | **11,922,648** | 2,968,759 | ON 22/22, 20/20; off 20/20, 18/18 | **153** (count; −14, attributed below) | **235** |
+| 7 LMR, floor, re-search rules, `depth −= 3`, fail-high blend | `b02fcb7` build, `802ed5c` engine | **10,739,013** | 2,176,534 | ON 22/22 (floor binds again), 20/20; off 20/20, 18/18 | **176** (floor 130 holds; +23, attributed below) | **241** |
 
 Ticket 3's instruments (`tools/results/b21-20261010/ticket3/`):
 - `test_wac --count` → `wac_depth6_on.txt`, SHA-256 `e1854e6e…73b5`.
@@ -1566,6 +1567,63 @@ Liveness, on ON Tune and Ablate builds (Italian position):
   planted defect, delivering every quiet under the exemption, fails 5 of 6
   sections.
 
+Ticket 7's instruments (`tools/results/b21-20261010/ticket7/`):
+- `wac_depth6_on.txt`, SHA-256 `7894a6ce…a99e`: 176. Ticket 7's commit
+  re-registers `test_wac --floor` on the ON arm, and the 130 floor holds.
+- `wac_nodes100k_on.json`, `fc18fd9f…afaa`: 241, on
+  `basilisk-b21-t7-on-pext.exe` (`36ff79a2…c088`). That is above §10's
+  100k floor of 200 and its target of 225.
+- `bench13_counters_on.json`, `58cfa3e4…39d0`, summed over the 40 bench
+  positions at depth 13:
+  - `lmr_researched / lmr_applied` = 40,165 / 1,316,120 = **3.05%** (P6
+    predicts 3–5%);
+  - `rfp_cuts / interior_nodes` = **13.67%** (P6 predicts below 12%);
+  - 211,290 negative reductions and 1,482,929 floor hits;
+  - 22,475 re-searches made deeper and 57,107 shallower;
+  - all 20 identities hold.
+
+  These are P6's inputs, read here as instruments; B.2.2 reads P6.
+
+The depth-6 move of +23 is attributed in scratch trees
+(`attribution_depth6.txt`, `3e061336…0f79`; recipe `t7_variants.py`,
+`d9c70e5f…39f`). Reverting every part reproduces ticket 6 exactly (153,
+11,922,648), so the five parts below are the whole change. Adding them to
+ticket 6 one at a time:
+
+| Added to ticket 6 | Depth 6 | `bench 13` |
+|---|---:|---:|
+| (ticket 6) | 153 | 11,922,648 |
+| the LMR section: formula, floor, negative reduction, deeper/shallower re-search, the step-down, the PV re-search rule | 182 (+29) | 15,890,487 |
+| move-loop pruning reads the new reduction | 183 (+1) | 15,210,957 |
+| `depth −= 3` after alpha rises | 175 (−8) | 10,843,169 |
+| the fail-high blend | 177 (+2) | 8,981,867 |
+| the equal-score promotion (= ticket 7) | 176 (−1) | 10,739,013 |
+
+The steps sum to +23 exactly, so nothing is unexplained. Removing one part
+at a time from ticket 7 reads differently, because the parts interact:
+- `depth −= 3` off: 182; the blend off: 182; the promotion off: 177.
+- The deeper/shallower adjustment off: 179; the step-down off: 179.
+- The legacy `lmrDepth` for pruning: 179; ticket 6's whole LMR section:
+  147.
+
+The new LMR is the gain and `depth −= 3` the main cost. Depth 6 is a fixed
+depth, and `depth −= 3` makes the later moves' searches shallower.
+
+Liveness, on ON Tune and Ablate builds (Italian position):
+- `CoreLmrNegativeAllowed` = 0 changes the search (136,721 against 146,072
+  nodes at depth 13).
+- Ablation bit 7 removes LMR (78,048 against 751,653 nodes at depth 12).
+
+The sanitizer stack (`b02fcb7`):
+- With ticket 7, the Windows sanitizer `test_endgames` overflowed the 1 MB
+  main-thread stack in `KBNK0061`, whose game reaches selective depth 37
+  (31 at ticket 6; `kbnk_replay.py`).
+- `-fstack-usage` sizes a non-PV `negamax` at 5,336 bytes plus 9,464 for
+  its move loop in the sanitizer build, against 1,224 plus 184 in release.
+- Windows sanitizer builds now reserve 8 MB, as Linux (the CI sanitizer
+  job) does. This is a precondition fixed in its own commit; the test is
+  unchanged. A full 128-ply line in release needs about 0.3 MB.
+
 Tests added so far: the 22 counters and trace v2 in the parsers' tests;
 `test_threats` (both arms); the ON arm's TT tests (pv bit, age cycle,
 evaluation-only entries, rule-50 downgrade) and the key-0 empty slot (both
@@ -1669,6 +1727,35 @@ Deviations and implementation choices, with reasons:
      also runs at PV nodes, as the donor's does.
    - The core arm drops the legacy move-loop coordinates; the legacy
      reachability counters (`hist_below_*`) read 0 on this arm.
+9. Ticket 7, choices inside the contract:
+   - Nothing is reduced at the root or in check: neither LMR, nor the
+     step-down when LMR is skipped, nor `depth −= 3` (§12.2's invariant;
+     the donor does all three there). The first searched move is never
+     reduced.
+   - The reduction table has 256 entries, `int(scale/128 · ln i)`. The
+     window term divides by the root window `root_search` records; the
+     equal-score rule reads the iteration depth it records.
+   - The fixed donor constants are kept as written, all in 1024ths of a
+     ply or history units: +697, −65 per move, `|corr|/26310`, 940 for a
+     cut node's deep TT entry, −2179 for the TT move, +1127 without a TT
+     move, the step-down at 5234 and 5487, 577/1024 for the window, and
+     the capture `statScore` 873/128.
+   - A miss's TT score reads `VALUE_NONE`, so the tt_pv "above alpha"
+     term counts it, as the donor's does.
+   - The alpha term reads the TT-refined estimate, or in check the record's
+     inherited eval. The kept B.3 term `LmrSingularQuiet` (401) still
+     relaxes quiets after a singular TT move.
+   - `best_move` keeps the legacy meaning (the best move so far, even below
+     alpha); the equal-score promotion and the alpha raise follow the
+     donor. The fail-high blend reads the alpha the cutting move had to
+     beat.
+   - The counters partition as before: eligible = applied + clamped_zero +
+     blocked_depth + blocked_in_check, over non-root moves after the
+     first. `lmr_clamped_high` counts the same floor hits as
+     `lmr_floor_hits`.
+   - The core arm drops the legacy LMR coordinates except
+     `LmrSingularQuiet` (a split group, in the same order on the default
+     arm).
 
 What the reviewer must check (so far):
 - Both arms' fingerprints per ticket, on PEXT and plain.

@@ -1157,6 +1157,12 @@ rejections stop B.
       member fires at `bench 13`; WAC 153 at depth 6 (−14: the legacy family
       removed +14, the new family −28, capture/check SEE −23 of it) and 235
       at 100,000 nodes.
+      Ticket 7 landed 2026-10-11 (`b02fcb7`, `802ed5c`; packet §20): the
+      cluster's LMR, its floor and re-search rules, `depth −= 3`, the
+      fail-high blend. ON arm 10,739,013, off arm 14,978,465; CTest passes
+      on both arms with the ON arm's depth-6 WAC floor binding again (176
+      against 130; +23: LMR +29, `depth −= 3` −8); 241 at 100,000 nodes.
+      Windows sanitizer builds now reserve an 8 MB stack, as Linux does.
     - [ ] **B.2.2** `[V]` Diagnostics and the unfitted paired run
       Screens at B.0's registered numbers; the ablation sweep if a floor
       fails; the unfitted 2,000-game paired run against the accepted head,
@@ -1256,7 +1262,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.2.1 | READY_FOR_IMPLEMENTATION | I2 | Tickets 0–6 landed (record: packet §20); next ticket 7, LMR, floor, re-search rules and the ON arm's WAC floor |
+| B.2.1 | READY_FOR_IMPLEMENTATION | I2 | Tickets 0–7 landed (record: packet §20); next ticket 8, update policy and decay, then the implementation record and IMPLEMENTED |
 | B.2.2 | RESEARCH | V | Screen numbers registered in the B.0 packet §10 |
 | B.2.3 | RESEARCH | V | Curvature sweep after B.2.2 |
 | B.2.4 | RESEARCH | V | Gates after B.2.3 |
