@@ -129,8 +129,10 @@ struct CoreHistoryTables {
 
     // Every entry to zero (ucinewgame).
     void clear();
-    // Halves every table except the TT-move history, between searches.
-    void halve();
+    // Between searches: the main history keeps main_num/1024 of each entry and
+    // the low-ply history restarts at LOW_PLY_REFILL; nothing else ages.
+    void age(int main_num);
+    static constexpr int LOW_PLY_REFILL = 102;
 
     [[nodiscard]] PieceToHistory* sentinel_row() {
         return &continuation->row[0][0][NO_PIECE_TYPE][0];

@@ -27,21 +27,7 @@ void CoreHistoryTables::clear() {
             fill_entries(row.entry, 0);
 }
 
-void CoreHistoryTables::halve() {
-    scale_entries(main.entry, 1, 2);
-    scale_entries(capture.entry, 1, 2);
-    scale_entries(low_ply.entry, 1, 2);
-    for (auto& a : continuation->row)
-        for (auto& b : a)
-            for (auto& c : b)
-                for (auto& row : c)
-                    scale_entries(row.entry, 1, 2);
-    for (auto& bucket : pawn->bucket)
-        scale_entries(bucket.entry, 1, 2);
-    scale_entries(pawn_corr, 1, 2);
-    scale_entries(minor_corr, 1, 2);
-    scale_entries(nonpawn_corr, 1, 2);
-    for (auto& a : cont_corr->row)
-        for (auto& row : a)
-            scale_entries(row.entry, 1, 2);
+void CoreHistoryTables::age(int main_num) {
+    scale_entries(main.entry, main_num, 1024);
+    fill_entries(low_ply.entry, LOW_PLY_REFILL);
 }

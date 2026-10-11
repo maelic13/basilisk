@@ -2,31 +2,19 @@
 // where a training signal goes and how large it is. CoreHistoryTables owns the
 // storage and its lifecycle.
 //
-// The routing is the cluster's: a quiet move trains the main, low-ply,
-// continuation and pawn histories in fixed proportion, and a continuation
-// update reaches the rows of the six previous moves with per-ply weights and
-// a multiplier that grows with the number of rows already agreeing. The
-// correction is the cluster's weighted form. The bonus and malus shapes and
-// the moves a cutoff trains are still the legacy kernel's.
+// A quiet move trains the main, low-ply, continuation and pawn histories in
+// fixed proportion, and a continuation update reaches the rows of the six
+// previous moves with per-ply weights and a multiplier that grows with the
+// number of rows already agreeing. A node whose best move raised alpha
+// rewards it and punishes the moves searched before it; a node that failed
+// low rewards the parent's move that caused it. The correction is the
+// cluster's weighted form.
 
 #include "search_worker.h"
 #include <algorithm>
 #include <cstdlib>
 
 static bool move_made(Move m) { return m != MOVE_NONE && m != MOVE_NULL; }
-
-// Bonus = min(quad*d^2/64 + lin*d, max), malus mirrored with its own knobs.
-int Searcher::history_bonus_value(int depth) const {
-    const auto& p = config_.limits.params;
-    return std::min(p.hist_bonus_quad * depth * depth / 64 + p.hist_bonus_lin * depth,
-                    p.hist_bonus_max);
-}
-
-int Searcher::history_malus_value(int depth) const {
-    const auto& p = config_.limits.params;
-    return -std::min(p.hist_malus_quad * depth * depth / 64 + p.hist_malus_lin * depth,
-                     p.hist_malus_max);
-}
 
 void Searcher::update_continuation_histories(SearchStack* ss, PieceType pt, Square to,
                                              int bonus) {
@@ -79,38 +67,78 @@ int Searcher::cont_hist_score(const SearchStack* ss, PieceType pt, Square to) co
          + (ss - 4)->cont_hist->entry[pt][to] / 2;
 }
 
-void Searcher::update_all_histories(Move best, bool best_is_tt,
-                                    const Move* quiets, int quiet_count,
-                                    const Move* bad_caps, int bad_cap_count,
-                                    Color stm, int depth, SearchStack* ss,
-                                    bool reward_only, int bonus_scale) {
-    (void)stm;
-    DIAG_COUNT((reward_only ? state_.diag.hist_reward_updates : state_.diag.hist_cutoff_updates)++);
-    // bonus_scale (percent) boosts the reward when the cutoff was surprising:
-    // the static eval was below beta.
-    const int bonus = history_bonus_value(depth) * bonus_scale / 100
-                    + (best_is_tt ? config_.limits.params.hist_ttmove_bonus : 0);
-    const int malus = history_malus_value(depth);
+// After a move raised alpha: the bonus grows with depth, with the TT move as
+// best and with the parent's move's history score, and at non-PV nodes with
+// the number of moves searched; the malus grows with depth. A quiet best
+// move trains the quiet histories and every earlier quiet loses a malus
+// that decays with each one; a capture-stage best move trains the capture
+// history, and every earlier capture loses. The parent's early quiet move
+// that this node refutes loses too.
+void Searcher::update_all_stats(SearchStack* ss, Move best, Move tt_move,
+                                const Move* quiets, int quiet_count,
+                                const Move* captures, int capture_count,
+                                int depth, bool pv_node) {
+    const auto& p = config_.limits.params;
+    const Board& b = *state_.board;
+    int bonus = std::min(p.quiet_bonus_slope * depth - 81, p.quiet_bonus_cap)
+              + 364 * (best == tt_move) + (ss - 1)->stat_score / 28;
+    const int malus = std::min(p.malus_slope * depth - 235, p.malus_cap);
+    if (!pv_node)
+        bonus += int(int64_t(bonus) * (quiet_count + capture_count) / 256);
 
-    const bool best_is_cap   = state_.board->piece_on(to_sq(best)) != NO_PIECE
-                            || move_type(best) == EN_PASSANT;
-    const bool best_is_promo = move_type(best) == PROMOTION;
-
-    if (!best_is_cap && !best_is_promo) {
-        update_quiet_histories(ss, best, bonus);
-        if (!reward_only)
-            for (int i = 0; i < quiet_count; ++i)
-                if (quiets[i] != best)
-                    update_quiet_histories(ss, quiets[i], malus);
-    } else if (best_is_cap) {
-        update_capture_history(best, bonus);
+    const bool best_capture_stage = b.piece_on(to_sq(best)) != NO_PIECE
+                                 || move_type(best) == EN_PASSANT || move_type(best) == PROMOTION;
+    if (!best_capture_stage) {
+        update_quiet_histories(ss, best, bonus * 899 / 1024);
+        int actual_malus = malus * 1159 / 1024;
+        for (int i = 0; i < quiet_count; ++i) {
+            actual_malus = actual_malus * p.malus_decay / 1024;
+            update_quiet_histories(ss, quiets[i], -actual_malus);
+        }
+    } else {
+        update_capture_history(best, bonus * 1427 / 1024);
     }
-    // Quiet promotions train nothing.
 
-    if (!reward_only)
-        for (int i = 0; i < bad_cap_count; ++i)
-            if (bad_caps[i] != best)
-                update_capture_history(bad_caps[i], malus);
+    const Move prev = (ss - 1)->move;
+    if (move_made(prev) && (ss - 1)->move_count == 1 + int((ss - 1)->tt_hit)
+        && b.captured_piece() == NO_PIECE) {
+        const Square prev_to = Square(to_sq(prev));
+        update_continuation_histories(ss - 1, type_of(b.piece_on(prev_to)), prev_to,
+                                      -malus * 713 / 1024);
+    }
+
+    for (int i = 0; i < capture_count; ++i)
+        update_capture_history(captures[i], -malus * 1489 / 1024);
+}
+
+// After a fail low: the parent's move caused it. A quiet one is rewarded by
+// a scale that grows with depth and with how late and how badly rated it
+// was, and with how far this node fell below its own and the parent's
+// static evals; a capture is rewarded by a fixed bonus.
+void Searcher::update_fail_low_parent(SearchStack* ss, int depth, int best_score) {
+    const Board& b = *state_.board;
+    const Move prev = (ss - 1)->move;
+    const Square prev_to = Square(to_sq(prev));
+    const Piece captured = b.captured_piece();
+    if (captured != NO_PIECE) {
+        CaptureHistory::update(
+            hist_.capture.entry[type_of(b.piece_on(prev_to))][prev_to][type_of(captured)], 892);
+        return;
+    }
+    int scale = -241;
+    scale -= (ss - 1)->stat_score / 98;
+    scale += std::min(59 * depth, 420);
+    scale += 186 * ((ss - 1)->move_count > 9);
+    scale += 142 * (!ss->in_check && best_score <= ss->eval - 30);
+    scale += 159 * (!(ss - 1)->in_check && best_score <= -(ss - 1)->eval - 19);
+    scale = std::max(scale, 0);
+    const int scaled = std::min(150 * depth - 85, 1337) * scale;
+
+    const PieceType pt = type_of(b.piece_on(prev_to));
+    update_continuation_histories(ss - 1, pt, prev_to, scaled * 263 / 16384);
+    MainHistory::update(hist_.main.entry[~b.turn()][from_sq(prev)][prev_to], scaled * 215 / 32768);
+    if (pt != PAWN && move_type(prev) != PROMOTION)
+        PawnHistoryBucket::update(pawn_bucket().entry[pt][prev_to], scaled * 324 / 8192);
 }
 
 void Searcher::update_parent_by_eval_difference(SearchStack* ss, int eval_diff, bool tt_hit) {

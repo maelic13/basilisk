@@ -106,22 +106,25 @@ static void test_clear_and_halve() {
     EXPECT(h->sentinel_corr_row() == &h->cont_corr->row[NO_PIECE_TYPE][0]);
     end_section();
 
-    begin_section("halve: every table but the TT-move history, toward zero");
-    fill_some(*h, 101);
-    h->halve();
-    EXPECT_EQ(h->main.entry[BLACK][C3][F6], 50);
-    EXPECT_EQ(h->capture.entry[KNIGHT][E5][QUEEN], 50);
-    EXPECT_EQ(h->low_ply.entry[4][G1][F3], 50);
-    EXPECT_EQ(h->continuation->row[1][0][BISHOP][B5].entry[ROOK][D1], 50);
-    EXPECT_EQ(h->pawn->bucket[PawnHistory::MAX_BUCKETS - 1].entry[QUEEN][H8], 50);
-    EXPECT_EQ(h->pawn_corr[WHITE][7], 50);
-    EXPECT_EQ(h->minor_corr[BLACK][9], 50);
-    EXPECT_EQ(h->nonpawn_corr[WHITE][BLACK][11], 50);
-    EXPECT_EQ(h->cont_corr->row[PAWN][A2].entry[KNIGHT][C3], 50);
-    EXPECT_EQ(h->tt_move.value, 101);
-    fill_some(*h, -101);
-    h->halve();
-    EXPECT_EQ(h->main.entry[BLACK][C3][F6], -50);
+    begin_section("age: the main history keeps 729/1024, the low-ply history restarts at 102");
+    fill_some(*h, 1000);
+    h->age(729);
+    EXPECT_EQ(h->main.entry[BLACK][C3][F6], 711);             // 1000 * 729 / 1024
+    EXPECT_EQ(h->low_ply.entry[4][G1][F3], CoreHistoryTables::LOW_PLY_REFILL);
+    EXPECT_EQ(h->low_ply.entry[0][A1][A1], 102);
+    EXPECT_EQ(h->capture.entry[KNIGHT][E5][QUEEN], 1000);
+    EXPECT_EQ(h->continuation->row[1][0][BISHOP][B5].entry[ROOK][D1], 1000);
+    EXPECT_EQ(h->pawn->bucket[PawnHistory::MAX_BUCKETS - 1].entry[QUEEN][H8], 1000);
+    EXPECT_EQ(h->pawn_corr[WHITE][7], 1000);
+    EXPECT_EQ(h->minor_corr[BLACK][9], 1000);
+    EXPECT_EQ(h->nonpawn_corr[WHITE][BLACK][11], 1000);
+    EXPECT_EQ(h->cont_corr->row[PAWN][A2].entry[KNIGHT][C3], 1000);
+    EXPECT_EQ(h->tt_move.value, 1000);
+    fill_some(*h, -1000);
+    h->age(729);
+    EXPECT_EQ(h->main.entry[BLACK][C3][F6], -711);
+    h->age(1024);
+    EXPECT_EQ(h->main.entry[BLACK][C3][F6], -711);            // 1024 is no decay
     end_section();
 
     begin_section("clear: every entry back to zero");

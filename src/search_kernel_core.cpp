@@ -82,14 +82,15 @@ static bool proves_upper(TTFlag f) { return f == TT_ALPHA || f == TT_EXACT; }
 
 // ---- Move loop bookkeeping ----------------------------------------------
 
-static constexpr int MAX_TRACKED_QUIETS = 64;
+// The quiets and captures searched before a node's best move, which its
+// update punishes: at most this many of each, from its first this-many moves.
+static constexpr int SEARCHED_LIST_CAPACITY = 32;
 
 // Per depth (1..16, deeper reads the last), the history that adds one ply to
 // a quiet move's reduced depth for move-loop pruning.
 static constexpr int LMR_HISTORY_DIVISOR[16] = {
     3637, 2787, 2761, 2939, 3171, 3347, 3147, 2762,
     2772, 3106, 3107, 3060, 3112, 2991, 3090, 3542};
-static constexpr int MAX_TRACKED_BAD_CAPS = 32;
 
 // ---- Quiescence search -----------------------------------------------------
 
@@ -711,10 +712,13 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     // The estimate the reduction's alpha term reads; in check, the record's.
     const int lmr_eval = in_check ? ss->eval : eval;
 
-    Move quiets_searched[MAX_TRACKED_QUIETS];
-    Move bad_caps_searched[MAX_TRACKED_BAD_CAPS];
+    // The move that last raised alpha (none after a fail low), and the moves
+    // searched before it that did not.
+    Move alpha_move = MOVE_NONE;
+    Move quiets_searched[SEARCHED_LIST_CAPACITY];
+    Move captures_searched[SEARCHED_LIST_CAPACITY];
     int quiets_count = 0;
-    int bad_caps_count = 0;
+    int captures_count = 0;
 
     int root_ordinal = 0;
     bool immediate_return = false;
@@ -773,10 +777,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         bool is_cap   = (state_.board->piece_on(to_sq(m)) != NO_PIECE)
                      || (move_type(m) == EN_PASSANT);
         bool is_promo = (move_type(m) == PROMOTION);
-        bool is_quiet = !is_cap && !is_promo;
-        // Whether a capture wins material (0) or loses it (-1), computed only
-        // where it is read.
-        int see_score = VALUE_NONE;
+        [[maybe_unused]] const bool is_quiet = !is_cap && !is_promo;   // read by the trace
         bool gives_check_known = false;
         bool gives_check = false;
         auto move_gives_check = [&]() {
@@ -1115,6 +1116,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                         score = -negamax<NodeType::NonPV>(new_depth, -alpha - 1, -alpha,
                                                           ply + 1, ss + 1, true, !cut_node);
                     }
+                    // A reduced move that failed high trains its continuations.
+                    update_continuation_histories(ss, moved_pt, move_to, 1334);
                 }
             } else {
                 // Without LMR the move is searched at full depth, one or two
@@ -1151,16 +1154,6 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             state_.root_depth_nodes += std::max<int64_t>(0, move_nodes);
         }
 
-        // Track for history updates
-        if (is_cap && !is_promo) {
-            if (see_score == VALUE_NONE)
-                see_score = state_.board->see_ge(m, 0) ? 0 : -1;
-            if (see_score < 0 && bad_caps_count < MAX_TRACKED_BAD_CAPS)
-                bad_caps_searched[bad_caps_count++] = m;
-        } else if (is_quiet && quiets_count < MAX_TRACKED_QUIETS) {
-            quiets_searched[quiets_count++] = m;
-        }
-
         // A move equal to the best, deep in the tree, sometimes replaces it
         // as though it had just exceeded alpha.
         const int inc = score == best_score && ply + 2 >= root_depth_
@@ -1172,6 +1165,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             best_score = score;
             best_move  = m;
             if (score + inc > alpha) {
+                alpha_move = m;
                 cut_alpha = alpha;
                 alpha = score;
                 // Once a move raised alpha the rest are searched shallower
@@ -1185,6 +1179,16 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 for (int k = ply + 1; k < child_pv_len; k++)
                     state_.pv_table[ply][k] = state_.pv_table[ply + 1][k];
                 state_.pv_len[ply] = child_pv_len;
+            }
+        }
+
+        // A move that did not raise alpha is remembered for the update.
+        if (m != alpha_move && ss->move_count <= SEARCHED_LIST_CAPACITY) {
+            if (is_cap || is_promo) {
+                if (captures_count < SEARCHED_LIST_CAPACITY)
+                    captures_searched[captures_count++] = m;
+            } else if (quiets_count < SEARCHED_LIST_CAPACITY) {
+                quiets_searched[quiets_count++] = m;
             }
         }
 
@@ -1211,14 +1215,6 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 case CoreMovePicker::Src::BadTactical:  DIAG_COUNT(++state_.diag.cutoff_src_bad_tactical); break;
                 case CoreMovePicker::Src::None:         break;
             }
-            // 8.5.10(e): boost the bonus when the cutoff was "surprising" -- the
-            // node's static eval was below beta, so the search found a good move
-            // the eval did not credit.
-            const int es = (static_eval != VALUE_NONE && static_eval < beta) ? 125 : 100;
-            update_all_histories(m, m == tt_move, quiets_searched, quiets_count,
-                                 bad_caps_searched, bad_caps_count,
-                                 state_.board->turn(), depth, ss,
-                                 /*reward_only=*/false, /*bonus_scale=*/es);
             return true;
         }
 
@@ -1248,24 +1244,22 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     if (best_score >= beta && !is_decisive(best_score) && !is_decisive(cut_alpha))
         best_score = (best_score * depth + beta) / (depth + 1);
 
+    // The histories learn from every node with a move that raised alpha,
+    // fail highs and exact nodes alike; a node that failed low rewards the
+    // parent's move instead.
+    if (alpha_move != MOVE_NONE) {
+        DIAG_COUNT(++(best_score >= beta ? state_.diag.hist_cutoff_updates
+                                         : state_.diag.hist_reward_updates));
+        update_all_stats(ss, alpha_move, tt_move, quiets_searched, quiets_count,
+                         captures_searched, captures_count, depth, is_pv);
+        if (!is_pv)
+            TTMoveHistory::update(hist_.tt_move.value, alpha_move == tt_move ? 918 : -747);
+    } else if ((ss - 1)->move != MOVE_NONE && (ss - 1)->move != MOVE_NULL) {
+        update_fail_low_parent(ss, depth, best_score);
+    }
+
     best_score = std::min(best_score, tb_cap);
 
-    // 8.5.10(b') exact/PV best-move history training, REWARD-ONLY.
-    // A beta cutoff trains history inside search_one. An EXACT node -- best_move
-    // improved alpha but did not cut off -- was left untrained. The full updater
-    // also maluses every non-best sibling, which at an exact node (all moves
-    // searched, best-vs-second often a few cp) poisons ordering: the reward+malus
-    // variant lost -84 Elo. Here we reward the PV move's graded history ONLY (no
-    // sibling malus, no killer/countermove) to isolate whether the reward helps.
-    // best_score < beta excludes the already-trained cutoff case (best_score >=
-    // beta there), so there is no double update.
-    if (best_move != MOVE_NONE && best_score > orig_alpha && best_score < beta) {
-        update_all_histories(best_move, best_move == tt_move,
-                             quiets_searched, quiets_count,
-                             bad_caps_searched, bad_caps_count,
-                             state_.board->turn(), depth, ss,
-                             /*reward_only=*/true);
-    }
 
     // Correction training: never in check, under exclusion, from a decisive
     // score or from a node whose best move is a capture. The default
@@ -1307,17 +1301,13 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
 void Searcher::kernel_new_game() {
     hist_.clear();
-    history_age_counter_ = 0;
 }
 
 void Searcher::kernel_begin_search() {
     reductions_[0] = 0;
     for (int i = 1; i < 256; ++i)
         reductions_[i] = int(config_.limits.params.lmr_table_scale / 128.0 * std::log(i));
-    if (++history_age_counter_ >= 2) {
-        hist_.halve();
-        history_age_counter_ = 0;
-    }
+    hist_.age(config_.limits.params.main_hist_decay);
     pawn_hist_mask_ = (Key(1) << std::clamp(config_.limits.params.pawn_hist_buckets_log2,
                                             0, PawnHistory::MAX_BUCKETS_LOG2)) - 1;
     // A default record is the sentinel: no move, no piece, no evaluation, and

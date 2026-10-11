@@ -204,7 +204,6 @@ private:
     // and whole-table lifecycle live in CoreHistoryTables, the update policy
     // (bonus shapes, what a cutoff trains) in search_history_core.cpp.
     CoreHistoryTables hist_;
-    int history_age_counter_ = 0;
     // Pawn-history buckets in use, as an index mask (set per search).
     Key pawn_hist_mask_ = PawnHistory::MAX_BUCKETS - 1;
 
@@ -283,20 +282,19 @@ private:
     // pawn history.
     void update_parent_by_eval_difference(SearchStack* ss, int eval_diff, bool tt_hit);
 
-    int  history_bonus_value(int depth) const;
-    int  history_malus_value(int depth) const;
-
     // Continuation history of a (piece, to) pair one, two and four plies on
     // from the moves at (ss - 1), (ss - 2) and (ss - 4), the last at half
     // weight.
     int  cont_hist_score(const SearchStack* ss, PieceType pt, Square to) const;
 
-    // Bulk history update after a beta cutoff
-    void update_all_histories(Move best, bool best_is_tt,
-                              const Move* quiets, int quiet_count,
-                              const Move* bad_caps, int bad_cap_count,
-                              Color stm, int depth, SearchStack* ss,
-                              bool reward_only = false, int bonus_scale = 100);
+    // At node exit: the training by a move that raised alpha, against the
+    // quiets and captures searched before it, and the parent's move's reward
+    // when the node failed low.
+    void update_all_stats(SearchStack* ss, Move best, Move tt_move,
+                          const Move* quiets, int quiet_count,
+                          const Move* captures, int capture_count,
+                          int depth, bool pv_node);
+    void update_fail_low_parent(SearchStack* ss, int depth, int best_score);
 
     // Correction history: the weighted correction of the node at `ss` in
     // 131072ths of an evaluation unit, and its training by `bonus`.

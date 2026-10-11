@@ -186,6 +186,11 @@
 //   alpha above the estimate, all nodes). A reduced search that fails high
 //   is re-searched a ply deeper above the best by `research_deeper`, a ply
 //   shallower below it plus `research_shallower`.
+// History updates: a move that raises alpha earns min(slope * depth - 81,
+//   cap) (more for the TT move and the parent's history score); the moves
+//   searched before it lose min(slope * depth - 235, cap), each earlier quiet
+//   decay/1024 less than the next. Between searches the main history keeps
+//   main_hist_decay/1024 of each entry.
 // The TT-cutoff bonus trains the quiet histories by slope * depth (history
 //   units per ply) when a quiet TT move's entry cuts.
 // Correction training: the bonus is clamp(error * depth * scale / 128, +/-256)
@@ -195,7 +200,6 @@
     BASILISK_LEGACY_NULL_PROBCUT(X)                                      \
     BASILISK_LEGACY_SINGULAR(X)                                          \
     BASILISK_LEGACY_LMR_SINGULAR(X)                                      \
-    BASILISK_LEGACY_HISTORY(X)                                           \
     /* Node margins */                                                   \
     X(razor_margin,          CoreRazorMargin,       256,  128,   527)    \
     X(rfp_per_ply,           CoreRfpPerPly,         133,   40,   227)    \
@@ -239,6 +243,13 @@
     X(lmr_all_node_scale,    CoreLmrAllNodeScale,   276,    0,   800)    \
     X(research_deeper,       CoreResearchDeeper,     15,    4,    40)    \
     X(research_shallower,    CoreResearchShallower,   2,    0,    12)    \
+    /* History update policy */                                          \
+    X(quiet_bonus_cap,       CoreQuietBonusCap,    1487,  600,  3000)    \
+    X(quiet_bonus_slope,     CoreQuietBonusSlope,   133,   60,   300)    \
+    X(malus_cap,             CoreMalusCap,         2244,  900,  4500)    \
+    X(malus_slope,           CoreMalusSlope,        968,  400,  2000)    \
+    X(malus_decay,           CoreMalusDecay,        921,  700,  1024)    \
+    X(main_hist_decay,       CoreMainHistDecay,     729,  400,  1024)    \
     /* TT cutoff training */                                             \
     X(tt_cutoff_bonus_slope, CoreTtCutoffBonusSlope, 131,    0,   300)   \
     /* Correction */                                                     \
