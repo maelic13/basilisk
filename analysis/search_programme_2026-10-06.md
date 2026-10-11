@@ -1446,6 +1446,7 @@ at every commit listed.
 | 5 razoring and RFP | `bb73fb5` engine | **25,182,694** (one position, below) | 3,093,931 | ON 22/22, 20/20; off 20/20, 18/18 | **167** (count; +40, attributed below) | **237** |
 | 6 move-loop pruning | `573add0` engine, `8337944` test | **11,922,648** | 2,968,759 | ON 22/22, 20/20; off 20/20, 18/18 | **153** (count; −14, attributed below) | **235** |
 | 7 LMR, floor, re-search rules, `depth −= 3`, fail-high blend | `b02fcb7` build, `802ed5c` engine | **10,739,013** | 2,176,534 | ON 22/22 (floor binds again), 20/20; off 20/20, 18/18 | **176** (floor 130 holds; +23, attributed below) | **241** |
+| 8 update policy and decay | `4112db0` engine and test | **6,337,226** | 1,490,974 | ON 22/22, 20/20; off 20/20, 18/18 | **185** (floor holds; +9, under the attribution trigger) | **249** |
 
 Ticket 3's instruments (`tools/results/b21-20261010/ticket3/`):
 - `test_wac --count` → `wac_depth6_on.txt`, SHA-256 `e1854e6e…73b5`.
@@ -1624,6 +1625,65 @@ The sanitizer stack (`b02fcb7`):
   job) does. This is a precondition fixed in its own commit; the test is
   unchanged. A full 128-ply line in release needs about 0.3 MB.
 
+Ticket 8's instruments (`tools/results/b21-20261010/ticket8/`):
+- `wac_depth6_on.txt`, SHA-256 `f5080051…2ebf`: 185.
+- `wac_nodes100k_on.json`, `b91514ae…22ee`: 249, on
+  `basilisk-b21-t8-on-pext.exe` (`b3db77f7…42a3`).
+- `bench13_counters_on.json`, `a649fe7f…b870`:
+  - `lmr_researched / lmr_applied` = 24,431 / 834,061 = 2.93%;
+  - `rfp_cuts / interior_nodes` = 717,147 / 4,589,805 = 15.62%;
+  - 1,231,231 history updates at fail-high nodes and 39,584 at exact nodes;
+  - all 20 identities hold.
+
+Liveness, on an ON Tune build: `CoreMalusDecay` = 1024 and
+`CoreQuietBonusSlope` = 60 change the search (104,200 against 94,043 and
+95,086 nodes at depth 13). `CoreMainHistDecay` acts between searches. In
+one session of three successive depth-12 searches the first is identical
+(64,062 nodes, fresh tables) and the later ones differ: 30,832 / 120,209
+at 1024, 48,268 / 47,998 at 729, 49,938 / 48,126 at 400.
+
+§12.2's cheap qualification on the final ON arm:
+- The ablation liveness proof (`ablation_liveness.py`, Ablate build
+  `c9cd4a8f…be06`; `ablation_liveness_on.json`, `2749d8e5…1f4c`): all 8
+  bits live, the re-declared 0, 1, 5 and 7 included.
+- The decision trace on WAC.001, 085, 203 and 253 (`decision_trace.py`,
+  depth 8, the WAC best move as root, Diag build `1a50951b…878c`;
+  `trace_WAC.*.json`). Each is version 2 with `cutoff_count` available:
+  - 466, 815, 1,132 and 138 records;
+  - the move-loop families recorded at plies 1–2 (skip-quiets,
+    capture futility and SEE, quiet futility and SEE, RFP);
+  - `cutoff_count` produced on 331, 471, 939 and 109 records.
+- §10's zero-game rows (branching, nodes at depth 12 against the oracle,
+  the WAC screens at 100k and 400k nodes, the LMR-off delta, agreement,
+  time to depth, canaries) are B.2.2's screens and were not run. Only the
+  100k-node WAC count was read, as an instrument at each ticket.
+
+#### Final state, both arms (head `4fd8600`)
+
+| Build | Off arm | ON arm |
+|---|---:|---:|
+| `bench 13`, release PEXT | 14,978,465 | 6,337,226 |
+| `bench 13`, release plain | 14,978,465 | 6,337,226 |
+| `bench 13`, Tune / Diag / Ablate | 14,978,465 each | 6,337,226 each |
+| `bench 10`, release and sanitizer | 3,190,673 | 1,490,974 |
+| Release CTest | 20/20 | 22/22 |
+| Sanitizer CTest (`-LE strength`) | 18/18 | 20/20 |
+| WAC depth 6 (`test_wac --floor`, 130) | 138 | 185 |
+| WAC 100,000 nodes (§10's instrument) | 204 | 249 |
+
+PEXT and plain agree on both arms at every ticket, and the sanitizer
+build's `bench 10` agrees with release on both arms at every ticket. The
+off arm's Tune option list and the registered SPSA surface (41
+parameters) are byte-identical to the B.2.0 head's. The ON arm's core
+table carries the review's 50 cluster coordinates and 8 legacy ones still
+read (null move, ProbCut, singular, `LmrSingularQuiet`). (Review §5.10
+says 51, but its own table sums to 50.) `CoreIirMinDepth` (4) was exposed
+last, in its own commit (`4fd8600`), behaviour-neutral: the ON arm's
+`bench 13` is unchanged at 6,337,226. The ON arm also has 6 tune-build
+switches: `CoreTtCutoffNodeTyped`, `CorePawnHistBucketsLog2` (the review's
+pawn-history size, as a power of two), `CoreCorrAdmission`,
+`CoreRazorDepthCap`, `CoreLmpExemptChecks` and `CoreLmrNegativeAllowed`.
+
 Tests added so far: the 22 counters and trace v2 in the parsers' tests;
 `test_threats` (both arms); the ON arm's TT tests (pv bit, age cycle,
 evaluation-only entries, rule-50 downgrade) and the key-0 empty slot (both
@@ -1756,18 +1816,79 @@ Deviations and implementation choices, with reasons:
    - The core arm drops the legacy LMR coordinates except
      `LmrSingularQuiet` (a split group, in the same order on the default
      arm).
+10. Ticket 8, choices inside the contract:
+    - Training happens at node exit for every node where a move raised
+      alpha (fail highs and exact nodes), replacing both legacy update
+      sites (the in-loop cutoff update with its surprise scale, and the
+      reward-only exact update).
+    - The donor's `bestMove` is tracked as `alpha_move`: the move that last
+      raised alpha. The legacy `best_move` keeps its meaning for the TT
+      store and the PV. The searched lists hold moves that did not raise
+      alpha, from the node's first 32 picked moves, at most 32 each, split
+      by capture stage.
+    - The fail-low rule rewards the parent's move: a quiet one by the
+      donor's scale, with this ticket's converted thresholds of 30 and 19
+      (decision 5); a capture by +892 in the capture history.
+    - The post-LMR continuation update (1334) runs whenever a reduced
+      search fails high, re-searched or not, as the donor's does.
+    - The TT-move history trains at non-PV nodes (+918 / −747). Its only
+      donor consumer is the singular margin, which is B.3's.
+    - Between searches the main history keeps `CoreMainHistDecay`/1024 and
+      the low-ply history restarts at 102; the capture, continuation, pawn,
+      TT-move and correction histories no longer age. A new game clears all
+      of them to 0 (decision 7).
+    - `hist_cutoff_updates` and `hist_reward_updates` now count updates at
+      fail-high and at exact nodes.
+    - The table test changed in the engine commit, since it calls the new
+      `age()`.
 
-What the reviewer must check (so far):
-- Both arms' fingerprints per ticket, on PEXT and plain.
-- The ON arm's TT encoding against review §5.6.
-- The quiet `see_ge` against 17.1 (castling-only early return; the fast
-  path is exact).
-- The picker against review §5.7: stage order, the −v/18 and −14000
-  splits, the sort limit −3560·depth, skip-quiets semantics, the threat and
-  check terms.
-- The continuation and quiet update routing against §3.6: weights,
-  consistency multipliers, the in-check two-ply limit, +73 at one ply, the
-  712/750/1104/459 factors.
-- The sentinel row is never updated.
-- No killers or countermove remain on the ON arm.
-- The count-mode registration is under the umbrella only.
+What the reviewer must check (the complete list, at `4fd8600`):
+- **Fingerprints.**
+  - The off arm at 14,978,465 on release PEXT and plain, Tune, Diag and
+    Ablate at every engine commit, with sanitizer `bench 10` = 3,190,673.
+  - The ON arm at each ticket's row above, PEXT = plain, and sanitizer =
+    release at `bench 10`.
+  - CTest on both arms, release and sanitizer, the WAC and endgame floors
+    included (the ON arm's WAC floor from ticket 7).
+- **The handoff, clause by clause:** §12.2, Amendments 1 and 2, and review
+  §5.4–5.11, against the deviations and choices listed above (items 1–10).
+  Particular attention to:
+  - **TT (§5.6):** the encoding, the miss-store's occupancy, the rule-50
+    downgrade, the node-typed cutoff, the graph-history check;
+  - **SEE (17.1):** the quiet `see_ge`, whose castling-only early return
+    and fast path are exact; the oracle tests pin its divergences by
+    geometry;
+  - **Picker (§5.7):** stage order, the −v/18 and −14000 splits, the sort
+    limit −3560·depth, the skip-quiets semantics and the direct-check
+    exemption, the threat and check terms;
+  - **Update routing (§3.6):** continuation weights, consistency
+    multipliers, the in-check two-ply limit, +73 at one ply; the
+    712/750/1104/459 factors; and `update_all_stats`, the fail-low rule
+    and the post-LMR update against the donor's constants;
+  - **Correction (§3.3):** the form and the admission;
+  - **Node-entry order:** static eval, `improving` and worsening,
+    hindsight, then the TT cutoff on the adjusted depth;
+  - **Node pruning:** razoring and RFP (§3.4, Amendment 1 decision 6);
+  - **Move-loop pruning (§3.7):** the family on the history-adjusted
+    `lmrDepth`, its gates and the stalemate guard;
+  - **LMR (§3.7):** the formula and terms, the floor and ceiling, the
+    re-search rules, `depth −= 3`, the fail-high blend, the equal-score
+    promotion.
+- **The invariants (§12.2, review §5.12):**
+  - nothing pruned or reduced at the root, in check or before a move was
+    searched;
+  - the reduced depth at least one ply;
+  - TT moves validated at every consumer;
+  - correction never trained in check, under exclusion, from a decisive
+    score or after a capture best move;
+  - the TT stores the raw static eval only;
+  - the sentinel continuation row never updated;
+  - no killers or countermove on the ON arm;
+  - the trace and counters compiled out of release;
+  - per-node code allocating nothing.
+- **Instruments and registrations:**
+  - the counter identities;
+  - the ablation bits 0, 1, 5 and 7 re-declared;
+  - the switches as tune options, never on the SPSA surface;
+  - the count-mode registration (Amendment 2), withdrawn at ticket 7;
+  - the Windows sanitizer stack (`b02fcb7`), with its measurement.

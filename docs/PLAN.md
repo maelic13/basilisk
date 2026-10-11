@@ -1163,6 +1163,16 @@ rejections stop B.
       on both arms with the ON arm's depth-6 WAC floor binding again (176
       against 130; +23: LMR +29, `depth −= 3` −8); 241 at 100,000 nodes.
       Windows sanitizer builds now reserve an 8 MB stack, as Linux does.
+      Ticket 8 landed 2026-10-11 (`4112db0`; packet §20): the cluster's
+      update policy (exit-time training of every alpha-raising node, the
+      fail-low parent bonus, the post-LMR update, the TT-move history) and
+      the per-search decay. ON arm 6,337,226, off arm 14,978,465; CTest
+      passes on both arms; WAC 185 at depth 6 and 249 at 100,000 nodes.
+      The ablation bits are live (8 of 8), and the four decision traces are
+      recorded.
+      — IMPLEMENTED 2026-10-11: implementation record in packet §20, with
+      the reviewer's checklist. Reviewer acceptance (a separate `R2`
+      session) comes before B.2.2.
     - [ ] **B.2.2** `[V]` Diagnostics and the unfitted paired run
       Screens at B.0's registered numbers; the ablation sweep if a floor
       fails; the unfitted 2,000-game paired run against the accepted head,
@@ -1262,7 +1272,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.2.1 | READY_FOR_IMPLEMENTATION | I2 | Tickets 0–7 landed (record: packet §20); next ticket 8, update policy and decay, then the implementation record and IMPLEMENTED |
+| B.2.1 | IMPLEMENTED | I2 | Tickets 0–8 landed (record and reviewer checklist: packet §20); awaits the `R2` reviewer's acceptance before B.2.2 |
 | B.2.2 | RESEARCH | V | Screen numbers registered in the B.0 packet §10 |
 | B.2.3 | RESEARCH | V | Curvature sweep after B.2.2 |
 | B.2.4 | RESEARCH | V | Gates after B.2.3 |
