@@ -706,6 +706,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     Move best_move   = MOVE_NONE;
     int  best_score  = tb_floor;
     int  searched    = 0;
+    // Moves picked here; the record publishes it, so a search re-entering
+    // this record (singular, null-move verification) leaves it intact.
+    int  move_count  = 0;
     // The alpha the move that failed high had to beat (the fail-high blend
     // reads it).
     int  cut_alpha   = alpha;
@@ -770,7 +773,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         if (is_root && !state_.root_excluded.empty()
             && std::find(state_.root_excluded.begin(), state_.root_excluded.end(), m) != state_.root_excluded.end())
             return false;
-        ++ss->move_count;
+        ss->move_count = ++move_count;
         int r = lmr_reduction(improving, depth, ss->move_count, beta - alpha);
         if (ss->tt_pv)
             r += kp.lmr_tt_pv;
@@ -1040,7 +1043,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                + kp.lmr_tt_pv_above_alpha * (tt_score > alpha)
                + (tt_depth >= depth) * (kp.lmr_tt_pv_depth_ok + 940 * cut_node);
         r += 697;
-        r -= ss->move_count * 65;
+        r -= move_count * 65;
         r -= std::abs(correction_raw) / 26310;
         if (cut_node)
             r += kp.lmr_cut_node + kp.lmr_cut_node_no_tt * (tt_move == MOVE_NONE);
@@ -1184,7 +1187,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         }
 
         // A move that did not raise alpha is remembered for the update.
-        if (m != alpha_move && ss->move_count <= SEARCHED_LIST_CAPACITY) {
+        if (m != alpha_move && move_count <= SEARCHED_LIST_CAPACITY) {
             if (is_cap || is_promo) {
                 if (captures_count < SEARCHED_LIST_CAPACITY)
                     captures_searched[captures_count++] = m;
