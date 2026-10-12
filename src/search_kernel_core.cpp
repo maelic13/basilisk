@@ -13,6 +13,8 @@
 #include <cassert>
 #include <cmath>
 #include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 #include <utility>
 
 // ---- LMR table -------------------------------------------------------------
@@ -21,6 +23,23 @@
 #define TRACE_DECISION(...) state_.trace.record(__VA_ARGS__)
 #else
 #define TRACE_DECISION(...) ((void)0)
+#endif
+
+// Node checks: invariants of the per-ply record verified at every node entry.
+// Live in the Diag flavour and in builds without NDEBUG (the sanitizer
+// suite runs them); compiled out of release. A failure aborts with the
+// condition, so a field a search forgets to reset cannot go unnoticed.
+#if defined(BASILISK_DIAGNOSTIC) || !defined(NDEBUG)
+#define CORE_NODE_CHECK(cond)                                                   \
+    do {                                                                        \
+        if (!(cond)) {                                                          \
+            std::fprintf(stderr, "node check failed: %s (%s:%d)\n", #cond,      \
+                         __FILE__, __LINE__);                                   \
+            std::abort();                                                       \
+        }                                                                       \
+    } while (0)
+#else
+#define CORE_NODE_CHECK(cond) ((void)0)
 #endif
 
 #ifdef BASILISK_ABLATION
@@ -433,6 +452,18 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     if (ss->excluded == MOVE_NONE)
         ss->tt_pv = is_pv || (tt_found && tte.is_pv());
     if (ss->tt_pv) DIAG_COUNT(state_.diag.tt_pv_nodes++);
+
+    // The record starts this node at its defaults: the counts this node
+    // reset, the reduction and the children's exclusion the parent cleared
+    // after using them, and the pv flag the node type and the table set.
+    CORE_NODE_CHECK(ss->in_check == in_check);
+    CORE_NODE_CHECK(ss->move_count == 0);
+    CORE_NODE_CHECK(ss->stat_score == 0);
+    CORE_NODE_CHECK(ss->reduction == 0);
+    CORE_NODE_CHECK((ss + 2)->cutoff_cnt == 0);
+    CORE_NODE_CHECK((ss + 1)->excluded == MOVE_NONE);
+    CORE_NODE_CHECK(ss->excluded != MOVE_NONE
+                    || ss->tt_pv == (is_pv || (tt_found && tte.is_pv())));
 
     // Is the TT move from the capture stage (a capture or a promotion)?
     const bool tt_capture = tt_move != MOVE_NONE
