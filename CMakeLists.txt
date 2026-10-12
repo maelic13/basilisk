@@ -262,6 +262,9 @@ if(B2_CORE)
     target_link_libraries(test_history_core PRIVATE basilisk_engine)
     add_executable(test_move_picker_core tests/test_move_picker_core.cpp)
     target_link_libraries(test_move_picker_core PRIVATE basilisk_engine)
+    add_executable(test_stack_unwind tests/test_stack_unwind.cpp
+                   src/parameters.cpp src/bench.cpp src/wac.cpp)
+    target_link_libraries(test_stack_unwind PRIVATE basilisk_engine)
 endif()
 
 add_executable(test_cpu_features tests/test_cpu_features.cpp)
@@ -330,6 +333,7 @@ add_test(NAME test_threats      COMMAND test_threats)
 if(B2_CORE)
     add_test(NAME test_history_core     COMMAND test_history_core)
     add_test(NAME test_move_picker_core COMMAND test_move_picker_core)
+    add_test(NAME test_stack_unwind     COMMAND test_stack_unwind)
 endif()
 add_test(NAME test_cpu_features COMMAND test_cpu_features)
 add_test(NAME test_move         COMMAND test_move)
@@ -451,7 +455,7 @@ set(_ALL_TARGETS
     test_endgames test_wac test_invariants test_magics test_threats
 )
 if(B2_CORE)
-    list(APPEND _ALL_TARGETS test_history_core test_move_picker_core)
+    list(APPEND _ALL_TARGETS test_history_core test_move_picker_core test_stack_unwind)
 endif()
 
 # Fathom is part of the shipped executable and must obey its ISA contract, but
