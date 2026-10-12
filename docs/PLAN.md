@@ -1221,6 +1221,19 @@ rejections stop B.
       maintainer-run, which governs. Categorical switches the review asks for
       are settled by 2,000-game paired runs on one tune build and never
       become SPSA coordinates.
+      Screens read 2026-10-12 on the accepted head (packet §26, BAS-S21):
+      two floors flagged. The canaries read 68/77; eight of the nine
+      regressions come back with the move-loop pruning family removed, and
+      there are 30 new passes, WAC.001 among them. Branching 4–14 reads
+      1.6465 against the window's 1.65, carried by the LMR at depths 12–14.
+      Nodes at depth 12 relative to the oracle read 1.86 (median 1.04); WAC
+      249 at 100k and 276 at 400k nodes; the LMR-off delta +8; the
+      shallow-pruning factor 3.46; agreement 66/105; time to depth 0.59×;
+      pooled NPS 1.038× the B.1 head. P6 held; BAS-C09's trigger was not
+      met. Prepared, not started: the paired run and the six categorical
+      runs (`tools/run_b22_games.ps1`, `526a68d`; dry runs accepted). The
+      paired run governs, and the review decides on the flagged floors
+      with its result.
     - [ ] **B.2.3** `[V]` Curvature sweep, then SPSA in blocks
       Curvature sweep, then SPSA in blocks (rule 7c) over the cluster's live
       coordinates, maintainer-run; theta baked in one engine commit.
@@ -1314,7 +1327,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.2.2 | RESEARCH | V | Screen numbers registered in the B.0 packet §10 |
+| B.2.2 | GAME_GATE | V | Screens read (packet §26): canary and branching floors flagged and attributed; the paired run and six categorical runs prepared, maintainer-run |
 | B.2.3 | RESEARCH | V | Curvature sweep after B.2.2 |
 | B.2.4 | RESEARCH | V | Gates after B.2.3 |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |

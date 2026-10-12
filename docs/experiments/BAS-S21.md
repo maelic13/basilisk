@@ -66,9 +66,33 @@ it:
 
 #### RESULT — append after exposure
 
-- Diagnostics (not the verdict):
+- Diagnostics (not the verdict), 2026-10-12, on the accepted head (ON
+  9,132,715 / OFF 14,978,465; final-PGO binaries; packet §26):
+  - **Two floors flagged.**
+    - The canaries read 68/77: nine regressions, eight of them recovered
+      when the move-loop pruning family is removed, and 30 new passes,
+      WAC.001 among them.
+    - Branching 4–14 reads 1.6465, under the window's 1.65; the depths
+      12–14 carry it, and LMR is the bit that raises it.
+  - **P3.** Nodes at depth 12 relative to the oracle read 1.86, median
+    1.04; held, except branching by 0.0035.
+  - **P4.** WAC at 100k reads 249, held. The LMR-off delta reads +8 against
+    ≤ +5, missed. WAC at 400k reads 276.
+  - **P5.** Pooled NPS reads 1.038× the B.1 head, 95% CI [+3.42%, +4.49%]:
+    missed above the band. `see_ge_calls`/node is 0.839 ON against 0.534
+    off.
+  - **P6 held.** LMR re-searches 4.24%; RFP cuts 10.37% of interior
+    nodes.
+  - **Other screens.**
+    - The shallow-pruning marginal factor reads 3.46: floor met, target
+      3.5 missed.
+    - Agreement reads 66/105 and median depth 16.
+    - Time to depth reads 0.59×.
+  - BAS-C09's retry trigger is not met (0.0004% verdict changes).
+  - The paired run and the six categorical runs are prepared
+    (`tools/run_b22_games.ps1`) and not started.
 - Deciding result:
-- Disposition: registered, not run.
+- Disposition: screens read; the paired run (the deciding result) and the six categorical runs are prepared, maintainer-run, not started.
 
 #### PREDICTION CALIBRATION — preserve the original prediction above
 

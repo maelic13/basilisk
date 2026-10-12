@@ -2743,3 +2743,179 @@ sanitizer builds of `7f1b5bb`'s sources with one line removed each):
   `clean-stack-unwind.txt`, `SHA256SUMS.txt`, `logs/`.
 - PLAN: B.2.1 ticked and its register row removed (the checker refuses a
   row for a completed leaf). The next leaf is B.2.2 (`V`).
+
+## 26. B.2.2 screens (2026-10-12): two floors flagged, P3, P4 and P5 partly missed, P6 held; the games prepared
+
+- Leaf: B.2.2 (`V`), on the accepted head (engine `c5ad7bb`, tests
+  `7f1b5bb`).
+- Binaries: final-PGO builds via `build_test.ps1`, each read at `bench 13`
+  before use, hashed and archived in
+  `tools/results/b22-20261012/bin/` (`fingerprints.txt`).
+  - Release ON ×2 and OFF ×2 at `84da91f`: ON pgo1 `9fed724f…`, pgo2
+    `aba848c2…`; OFF pgo1 `ef503fc7…`, pgo2 `0e27f52d…`.
+  - Tune, Diag and Ablate at `84fda58`, a tooling-only commit on the same
+    engine: ON Tune `eb3ea560…`, ON Diag `ab65a50a…`, OFF Diag `19703e14…`,
+    ON Ablate `634838e4…`.
+  - Every manifest is clean: ON 9,132,715 and OFF 14,978,465 on every
+    flavour.
+- `84fda58` is a precondition fixed in its own commit: `build_test.ps1`
+  recognised a tune build only by the legacy `RfpCoeff`, which the ON arm
+  replaces, so an ON Tune PGO build could not be made.
+- Recipes: `screens.sh`, `sweep.sh`, `nps_pool.ps1`; readers `analyze.py`
+  and `analyze_sweep.py`; all in the same directory.
+- Strength and NPS were measured only on Release builds, with counters from
+  Diag builds.
+
+### 26.1 The screens against §10
+
+Each screen is read by its registered rule only.
+
+| Screen | Instrument (artifact, SHA-256) | ON | off | Floor | Target | Verdict |
+|---|---|---:|---:|---|---|---|
+| Geometric branching 4–14, suite_v2 (103 positions) | `branching.py`, ON, off and oracle arms (`screens/branching.json` `4aa829ed…d706`) | **1.6465** | 1.767 | window [1.65, 1.90] | inside | **outside the lower edge by 0.0035: a defect flag** |
+| Nodes at depth 12 relative to the oracle | same run | **1.86** (median **1.04**) | 3.97 (2.77) | ≤ 3.5 (≤ 2.6) | ≤ 2.5 (≤ 1.8) | target met |
+| Shallow-pruning marginal factor at depth 12 | ON Ablate, mask 32 against 0 (`ablate_branching_mask32.json` `6381862b…f358`, `mask0` `8700bd10…2c29`) | **3.46** median (2.67 aggregate) | 2.20 | ≥ 2.0 | ≥ 3.5 | floor met, target missed by 0.04 |
+| WAC at 100,000 nodes | `fixed_budget_probe.py` (`wac_nodes100k.json` `7d3a60c0…cdd7`) | **249** | 204 | ≥ 200 | ≥ 225 | target met |
+| WAC at 400,000 nodes | same (`wac_nodes400k.json` `2e40a903…1ab8`) | **276** | 242 | ≥ 240 | ≥ 258 | target met |
+| LMR-off WAC delta at 100k | ON Ablate, mask 128 against 0 (`ablate_wac100k.json` `94df0f16…8f34`) | **+8** (257 − 249) | +15 | ≤ +12 | ≤ +5 | floor met, target missed |
+| Median depth at 300k | `run_suite.py --nodes 300000`, suite_v2 (`suite_d14_diff300k_on.json` `5728bc04…61ad`, `_off` `2d065b85…ec0e`) | **16** | 14 | monitored | must not rise while WAC falls | rises while WAC rises: as wanted |
+| Oracle best-move agreement at 300k | same run | **66 / 105** | 66 / 105 | ≥ 60 | ≥ 75 | floor met, target missed |
+| Time to depth, `bench 13` | bench nodes / pooled-PGO median NPS, interleaved (`nps/on-vs-off.txt` `b268688b…0f52`) | **2.13 s** (9,132,715 / 4.285M) | 3.59 s (14,978,465 / 4.171M) | ≤ 1.10× (4.0 s) | ≤ 0.85× (3.1 s) | **0.59×**, target met |
+| Canaries | `canary.py check` with `canary_v1.json` (`canary_check.json` `446e52e3…b98e`) | **68 / 77**, 30 new passes | 77 / 77 | all 77 pass | all pass | **floor failed** |
+
+Notes on the instruments:
+- **Canary suite.** `canary_v1.json` pins its suite by SHA-256 `663d9da6…`.
+  That is `src/wac.epd` with CRLF line endings: B.0's
+  `wac_canary_suite.epd`, the same 300 positions byte for byte once
+  normalised. The check therefore takes that copy as `--suite`, as B.0's
+  did; the probes ran on `src/wac.epd`.
+- **Self pair.** The NPS pool's self pair read **+0.28%**, 95% CI
+  [−0.51%, +0.79%], SELF-PAIR OK (`nps/selfpair.txt` `b7e2e0e6…2c6a`).
+
+### 26.2 The predictions read
+
+- **P3 (nodes at depth 12 ≤ 2.5, median ≤ 1.8, with branching inside
+  [1.65, 1.90]).**
+  - The node ratio holds well inside the target: 1.86, median 1.04.
+  - Branching misses the window's lower edge by 0.0035.
+  - The falsifier (a ratio above 3.2) does not fire.
+- **P4 (WAC at 100k ≥ 225 and the LMR-off delta ≤ +5).**
+  - The WAC half holds: 249.
+  - The LMR-off half misses: +8.
+  - The falsifier (WAC under 210) does not fire.
+- **P5 (pooled NPS 0.92–0.98× of the B.1 head).**
+  - The ON pair against the B.1 pair, interleaved, reads **+3.81%**
+    (1.038×), 95% CI [+3.42%, +4.49%]: median 4,284,644 against 4,127,440
+    (`nps/on-vs-b1.txt` `dc676afe…c0b4`).
+  - So the cluster is faster per node, not slower: P5 misses above its
+    band, and its falsifier (below 0.90) does not fire.
+  - The B.1 pair reads 2.1% below BAS-P16's 4.216M on today's host, which
+    is why only the interleaved ratio is read.
+  - The reading rule's inputs, from Diag `bench 13` summed by `run_suite.py`:
+    `see_ge_calls` per node is 0.839 ON against 0.534 off (1.57×, under the
+    2× trigger).
+  - Against the off arm of the same revision the ON pair reads +2.69%, 95%
+    CI [+2.40%, +3.18%]; the arms search different trees.
+- **P6 (`lmr_researched / lmr_applied` 3–5%, `rfp_cuts` below 12% of
+  interior nodes, while the tree shrinks): held.**
+  - LMR re-searches 4.24% (31,264 / 737,738); off arm 1.91%.
+  - RFP cuts 10.37% (572,537 / 5,522,985); off arm 12.86%.
+  - Bench nodes 0.61× (`counters_bench13_on.json` `a3959b43…6935`,
+    `_off.json` `96d5fbe8…d571`).
+  - The LMR identity holds on both arms.
+- **BAS-C09's retry trigger: not met.** BAS-C09's recipe was rebuilt in a
+  scratch tree, recomputing pins on the current occupancy after every
+  capture and comparing verdicts (`c09/c09_instrumentation.patch`
+  `43a993d9…643e`, not committed).
+  - The instrumented ON build still reads `bench 13` = 9,132,715.
+  - Over 7,665,821 `see_ge` calls, 34 verdicts change (0.0004%), and 3,821
+    calls (0.050%) reach a pawn recapture on a promotion rank, an upper
+    bound on the promotion approximation (`c09/c09_counts.txt`
+    `5c61befa…98e8`).
+  - Both are well under the 0.1% trigger. The ON arm makes 22× BAS-C09's
+    339,607 calls: quiet SEE and the picker's split.
+- **§24.1's cheapest reading.** Bench 39 holds 36.4% of the ON arm's
+  `bench 13` (3,326,702 of 9,132,715). Recorded, not acted on.
+
+### 26.3 The floor failures, attributed (§2.6's sweep)
+
+Each `AblationMask` bit alone on the ON Ablate build: suite_v2 depths
+4–12, WAC at 100,000 nodes, and the depth-12 PV probe for a canary check per
+mask (`sweep/summary.txt` `a0a76dab…854c`).
+
+| Bit off | nodes ×, d4 | d8 | d12 | median d12 | branching 4–12 | WAC 100k | Δ | canaries |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| none (mask 0) | 1 | 1 | 1 | 1 | 1.692 | 249 | — | 68 |
+| razoring | 0.990 | 1.019 | 0.959 | 1.00 | 1.685 | 256 | +7 | 68 |
+| RFP | 1.346 | 1.247 | 1.193 | 1.25 | 1.666 | 234 | −15 | 67 |
+| NMP | 1.001 | 1.200 | 1.480 | 1.00 | 1.776 | 247 | −2 | 68 |
+| ProbCut | 0.994 | 1.095 | 0.784 | 1.00 | 1.642 | 253 | +4 | 66 |
+| IIR | 1.074 | 1.170 | 1.169 | 1.17 | 1.710 | 244 | −5 | 69 |
+| move-loop pruning | 4.807 | 3.703 | 2.673 | 3.46 | 1.572 | 216 | −33 | **73** |
+| extensions | 0.839 | 0.546 | 0.362 | 0.71 | 1.523 | 231 | −18 | 64 |
+| LMR | 0.859 | 1.092 | 1.595 | 1.66 | 1.828 | 257 | +8 | 69 |
+
+**The canaries.**
+- The nine required canaries that fail are WAC.031, 059, 067, 083, 151,
+  201, 255, 273 and 279.
+- Eight of the nine still solve within 100,000 nodes. They fail the depth
+  half of the contract: the best move becomes stable some plies later than
+  the oracle's anchor plus two (WAC.151 at depth 8 against a limit of 3,
+  WAC.083 at 7 against 3). WAC.273 alone also misses at 100k.
+- Removing the move-loop pruning family recovers eight of the nine (all but
+  WAC.059), though it costs 33 WAC positions and loses three others
+  (WAC.029, 124, 294).
+- WAC.059 regresses under every mask, so no single family carries it.
+- So the move-loop pruning family, the cluster's primary target (§5), is
+  where the regressions live. It prunes the canaries' key moves at shallow
+  depths and finds them later.
+- The 30 new passes include WAC.001 (`Qg6`, the quiet mate threat B.0
+  recorded as unsolved), now stable at depth 11 and solved at 100k.
+- PROCESS says a changed canary is recorded with its cause and never
+  re-blessed. This is that record.
+
+**The branching flag.**
+- ON's growth is 1.692 over depths 4–12, inside the window. It falls to
+  1.478 over 12–14, against the oracle's 1.583 and the off arm's 1.530.
+  Per depth, from 4→5 to 13→14: 1.86, 1.92, 1.70, 1.69, 1.61, 1.65, 1.56,
+  1.57, 1.53, 1.43.
+- Its node ratio to the oracle falls steadily from 3.12 at depth 4 to 1.63
+  at depth 14.
+- In the sweep, removing LMR raises branching to 1.828; every other bit
+  stays inside or below 1.78.
+- So the cluster's LMR, whose reduction grows with depth, carries the low
+  edge.
+- The window's lower edge is registered as a defect flag for over-pruning.
+  The fixed-node screens read the other way: WAC +45 at 100k and +34 at
+  400k, agreement unchanged, and depth at 300k up two plies.
+
+### 26.4 The games, prepared (not started)
+
+`tools/run_b22_games.ps1` (`526a68d`, SHA-256 `dee2afa4…`) wraps
+`colosseum.ps1 -Mode match` on `match-fixed.toml`:
+- 2,000 games, 1,000 paired UHO openings, `3+0.03`, one thread, Hash 64;
+- no adjudication, tablebases off;
+- concurrency 15, resolved by the wrapper on this host;
+- every binary pinned by SHA-256 in the launcher (the wrapper checks
+  manifest, revision and bench).
+
+The runs, all seven dry runs accepted
+(`tools/results/colosseum_match_b22-*_20261012_1507*.manifest.txt`):
+- **`paired`, seed 22200.** ON release `9fed724f…` against OFF release
+  `ef503fc7…`, revision `84da91f`. BAS-S21's rule: > −40 Elo proceeds,
+  below is a defect; ≥ +10 proceeds to B.2.3; −40..+10 the review decides.
+- **The six categorical runs, seeds 22201–22206.** One ON Tune build
+  (`eb3ea560…`, `84fda58`); arm A plays the other value, arm B the
+  default:
+  - `CoreTtCutoffNodeTyped` 0 against 1;
+  - `CorePawnHistBucketsLog2` 11 against 13;
+  - `CoreCorrAdmission` 0 against 1;
+  - `CoreRazorDepthCap` 3 against 1;
+  - `CoreLmpExemptChecks` 0 against 1;
+  - `CoreLmrNegativeAllowed` 0 against 1.
+- Adopted at ≥ +5 Elo, rejected at ≤ −5, default kept between.
+- Each switch is live on that binary (depth 13, bench position 1:
+  71,514 nodes at the defaults; 104,672, 71,090, 96,616, 107,525, 62,766
+  and 74,490 at the other values; `switch_liveness.txt` `006517d6…3314`).
+- `CoreLmpExemptChecks` is the run §3.7 ties to a quiet-mate canary. Of
+  the nine canary regressions, none is a quiet mate threat.
