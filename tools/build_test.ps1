@@ -75,7 +75,9 @@ function Assert-UciSurface {
     param([string]$Output, [string]$ExpectedFlavor)
 
     $hasDiag = $Output -match '(?m)^option name Diag '
-    $hasTune = $Output -match '(?m)^option name RfpCoeff '
+    # A tune build exposes the search coordinates: the legacy kernel's
+    # RfpCoeff, or the B2_CORE kernel's CoreRfpPerPly in its place.
+    $hasTune = $Output -match '(?m)^option name (RfpCoeff|CoreRfpPerPly) '
     $hasAblate = $Output -match '(?m)^option name AblationMask '
     switch ($ExpectedFlavor) {
         'Release' {
