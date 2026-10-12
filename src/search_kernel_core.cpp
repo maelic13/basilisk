@@ -1044,7 +1044,11 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                + (tt_depth >= depth) * (kp.lmr_tt_pv_depth_ok + 940 * cut_node);
         r += 697;
         r -= move_count * 65;
-        r -= std::abs(correction_raw) / 26310;
+        // The donor's slope in this engine's evaluation units (26310 x 0.282),
+        // capped at the donor's largest value of the term: its correction
+        // tables saturate at (15341 + 10569 + 2*12906 + 2*8761) * 1024, and
+        // ours, keeping that limit, would otherwise reach 3.5 times further.
+        r -= std::min(std::abs(correction_raw) / 7419, 2695);
         if (cut_node)
             r += kp.lmr_cut_node + kp.lmr_cut_node_no_tt * (tt_move == MOVE_NONE);
         if (tt_capture)
