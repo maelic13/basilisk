@@ -566,7 +566,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     // eval of the side that answers it (both evals from their mover's view).
     if (!in_check && (ss - 1)->move != MOVE_NONE && (ss - 1)->move != MOVE_NULL
         && !(ss - 1)->in_check && state_.board->captured_piece() == NO_PIECE) {
-        const int eval_diff = std::clamp(-((ss - 1)->eval + ss->eval), -189, 194) + 60;
+        // The sum in the donor's evaluation units, under its clamp and offset.
+        const int eval_diff = std::clamp(-((ss - 1)->eval + ss->eval) * 1000 / 282, -189, 194) + 60;
         update_parent_by_eval_difference(ss, eval_diff, tt_found);
     }
 
