@@ -169,7 +169,8 @@
 //   when the estimate is below alpha - margin * depth. Reverse futility at
 //   depth <= its cap returns (w * beta + (1024 - w) * eval) / 1024 when the
 //   estimate clears beta by per_ply * depth - improving - worsening (+ the
-//   correction in evaluation units over corr_div; 0 turns that term off).
+//   correction in evaluation units times corr_mult/1024; 0 turns that term
+//   off).
 // Move-loop pruning reads a move's reduced depth, lmrDepth: quiets stop
 //   after (base + d^2 * square_scale/16) / (2 - improving) moves; captures and
 //   checks are pruned by futility (base + slope * lmrDepth + captured value +
@@ -207,7 +208,7 @@
     X(rfp_per_ply,           CoreRfpPerPly,         133,   40,   227)    \
     X(rfp_improving,         CoreRfpImproving,       89,   35,   160)    \
     X(rfp_worsening,         CoreRfpWorsening,       11,    0,    60)    \
-    X(rfp_corr_div,          CoreRfpCorrDiv,          0,    0,    64)    \
+    X(rfp_corr_mult,         CoreRfpCorrMult,         0,    0,  2048)    \
     X(rfp_depth_cap,         CoreRfpDepthCap,         9,    6,    19)    \
     X(rfp_beta_weight,       CoreRfpBetaWeight,     661,  512,  1024)    \
     X(iir_min_depth,         CoreIirMinDepth,         4,    3,     8)    \

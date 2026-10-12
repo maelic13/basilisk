@@ -596,7 +596,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         // Reverse futility pruning: an estimate this far above beta returns a
         // value between the two. The margin shrinks when this side improves
         // or the opponent's position worsens, and grows with the size of the
-        // correction (off at a divisor of 0). Not near a PV, not when the
+        // correction (off at a multiplier of 0). Not near a PV, not when the
         // table suggests a quiet move, and never on a decisive bound.
         if (!ABLATED(1) && !ss->tt_pv && depth <= kp.rfp_depth_cap && eval >= beta
             && (tt_move == MOVE_NONE || tt_capture)
@@ -604,8 +604,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             int margin = kp.rfp_per_ply * depth
                        - kp.rfp_improving * improving
                        - kp.rfp_worsening * opponent_worsening;
-            if (kp.rfp_corr_div > 0)
-                margin += std::abs(correction_raw) / (131072 * kp.rfp_corr_div);
+            margin += std::abs(correction_raw) / 131072 * kp.rfp_corr_mult / 1024;
             if (eval - margin >= beta) {
                 const int value = (kp.rfp_beta_weight * beta
                                    + (1024 - kp.rfp_beta_weight) * eval) / 1024;
