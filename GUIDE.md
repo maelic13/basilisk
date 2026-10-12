@@ -34,7 +34,7 @@ generations change. These are maintainer judgments, not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **B.2.1** `[I2]` Implement behind the umbrella switch — Claude Opus 5 — High
+**Next step:** **B.2.2** `[V]` Diagnostics and the unfitted paired run — Claude Sonnet 5 — High
 
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
@@ -74,7 +74,7 @@ generations change. These are maintainer judgments, not measured rankings.
 - [x] **B.1** `[I1]` Search restructure, behaviour-neutral
 - [ ] **B.2** Cluster 1 — the selectivity core
     - [x] **B.2.0** `[R2]` Architecture review and neutral upgrades
-    - [ ] **B.2.1** `[I2]` Implement behind the umbrella switch
+    - [x] **B.2.1** `[I2]` Implement behind the umbrella switch
     - [ ] **B.2.2** `[V]` Diagnostics and the unfitted paired run
     - [ ] **B.2.3** `[V]` Curvature sweep, then SPSA in blocks
     - [ ] **B.2.4** `[V]` Cluster 1 gates

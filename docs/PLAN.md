@@ -1099,7 +1099,7 @@ rejections stop B.
       **0.00%** against the B.1 pair, 95% CI [−0.22%, +0.28%], self pair
       −0.03% OK, fingerprints identical; the frozen 0.0% held at its centre.
       B.1's 4.216M pooled median stays B.2's NPS reference.
-    - [ ] **B.2.1** `[I2]` Implement behind the umbrella switch
+    - [x] **B.2.1** `[I2]` Implement behind the umbrella switch
       Implement to the B.0 handoff behind one umbrella CMake option, OFF by
       default, as ordered tickets; ticket 0 is the decision trace hook.
       Each ticket keeps the umbrella-off arm at the exact fingerprint. Unit
@@ -1210,6 +1210,11 @@ rejections stop B.
       `test_stack_unwind` and the node-entry checks were proven live with
       two planted stale fields. The R2 delta review (§21.4) accepts before
       B.2.2.
+      — ACCEPTED 2026-10-12 (delta review, packet §25): every fingerprint of
+      items 1–10 reproduced from clean sources on both arms, CTest on both
+      arms, WAC 249 / 204 at 100k nodes, the changed lines exact against
+      §22.6 and §24.1, the planted proofs re-run; two follow-ups bind
+      nothing here. CLOSED.
     - [ ] **B.2.2** `[V]` Diagnostics and the unfitted paired run
       Screens at B.0's registered numbers; the ablation sweep if a floor
       fails; the unfitted 2,000-game paired run against the accepted head,
@@ -1309,7 +1314,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.2.1 | IMPLEMENTED | I2 | Return 3 and 4 fixes landed (packet §20 addendum; ON arm 9,132,715): awaits the `R2` delta review (§21.4) before B.2.2 |
 | B.2.2 | RESEARCH | V | Screen numbers registered in the B.0 packet §10 |
 | B.2.3 | RESEARCH | V | Curvature sweep after B.2.2 |
 | B.2.4 | RESEARCH | V | Gates after B.2.3 |

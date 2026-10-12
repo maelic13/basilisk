@@ -2628,3 +2628,118 @@ release and sanitizer, the off arm at 14,978,465 on every flavour).
 
 A fingerprint that behaves in a way §22 or this amendment did not
 anticipate still stops the work with a Return, as 22.6 says.
+
+## 25. B.2.1 Delta review (2026-10-12): items 1–10 reproduced and checked; accepted with two named follow-ups
+
+- Reviewer: a separate `R2` session that neither implemented nor researched
+  items 1–10, at head `25d709a` (engine `c5ad7bb`, tests `7f1b5bb`),
+  against §22.6, §24.1–24.3, §12.2 as amended, review §5.12 and the donor
+  at `edb0d9db`. §21.1 and §21.2 stand for everything these commits do not
+  touch.
+- Verdict: **accepted**, with two follow-ups named in 25.4 that bind
+  nothing in this leaf. B.2.1 closes; B.2.2 starts on engine `c5ad7bb`
+  (tests `7f1b5bb`).
+
+### 25.1 Reproduction
+
+Recipe: `tools/results/b21-delta-review-20261012/repro.sh` (SHA-256
+`f300b681…`), the reviewer's own: one clean `git archive` per commit into
+`src/<label>`, configured with Ninja and the PATH's `clang++` with
+`MSYSTEM` unset, built per flavour into `build/<label>-<arm>-<flavour>`,
+`basilisk bench 13` (sanitizer `bench 10`) read from the binary, every
+line appended to `fingerprints.txt` (`06260842…`). Logs under `logs/`.
+
+- **Every fingerprint equals the record** (`fingerprints.txt`, 86
+  readings). Per commit `31c80db`..`c5ad7bb`: the ON arm on release PEXT
+  and plain reads §23.1's and the §20 addendum's `bench 13` and `bench 10`,
+  its sanitizer `bench 10` equals its release `bench 10`, and the off arm on
+  PEXT reads 14,978,465 / 3,190,673. At `7f1b5bb` all six flavours of both
+  arms: ON 9,132,715 on PEXT, plain, Tune, Diag and Ablate with sanitizer
+  1,678,409; off 14,978,465 on all five with sanitizer 3,190,673.
+- CTest at `7f1b5bb`, built from the same sources: ON release 23/23 and sanitizer (`-LE strength`) 21/21; off release 20/20 and sanitizer 18/18, every exit code 0.
+- WAC at 100,000 nodes at `7f1b5bb` (`fixed_budget_probe.py`,
+  `wac100k-ON.json` `8b607e0a…`, `wac100k-OFF.json` `fd8e7b6f…`): ON
+  **249/300**, off **204/300**, as recorded.
+- The implementer's artifacts are where §20 says, with the prefixes it
+  cites (`i6`–`i10b/wac100k_on.json`, `i10/plant_*.txt`).
+
+### 25.2 Items 1–10 against their clauses
+
+Each commit changes only the lines its clause names; no deviation beyond
+the one §24.3 accepted.
+
+| Item | Commit | Clause | Donor line | Finding |
+|---|---|---|---|---|
+| 1 | `31c80db` | §22.6 item 1 | 809 | `ss->stat_score = 0` beside `ss->move_count = 0` at entry. Exact. |
+| 2 | `008f8fc` | §22.6 item 2, §24.3 | 1116, 1137, 1323, 1545 | Local `move_count`, published by `ss->move_count = ++move_count`; the local read at `−65·moveCount` and the searched-list cap (the accepted deviation). Complete: the only other parent-loop reads are `lmr_reduction(…, ss->move_count, …)` on the line after the publish, the pruning block's `const int move_count = ss->move_count` (before the singular search, so equal to the local) and the trace, which reports the record as §24.3 allows. The children's `(ss − 1)->move_count` after a singular search read the inner loop's count, as the donor's do. |
+| 3 | `dc989af` | §22.1, §22.6 item 3 | 1395–1404 | The first-move branch passes `!is_pv && !cut_node`; PV children untyped; NMP, ProbCut and singular untouched (B.3). Exact. |
+| 4 | `2c86329` | §22.1, §22.6 item 4 | 1395–1404 | `step = (rr > 5234) + (rr > 5487 && new_depth > 2)` with `rr = r + 1127·(no TT move)`, under `!is_pv && !ABLATED(7) && !is_root && !in_check`, the same gate and arithmetic as the later-move branch. The first move's `r` carries the TT-move −2179 and the −65, as the donor's. At `new_depth` 1 the step can reach quiescence, as the donor's `newDepth − 1` does; the "reduced depth at least one ply" invariant is LMR's floor, untouched. Exact. |
+| 5 | `90d7db7` | §22.3 F2, §22.6 item 5 | 1409–1420 | On the first-move branch at PV nodes: `m == tt_move && ((tt_score valid && decisive && tt_depth > 0) || tt_depth > 1)` raises `new_depth` to 1. `tt_depth` is 0 on a miss and `tt_move` none, so the rule cannot fire on a foreign move; the move is the picker's validated TT move. The re-search copy stays. Exact. |
+| 6 | `45f4827` | §24.1 | 1324 | `r −= std::min(std::abs(correction_raw) / 7419, 2695)` with the comment naming both derivations. Exact. The ON fingerprint is §23.3's scratch reading. |
+| 7 | `caee6ed` | §22.2 item 2, §22.6 item 7 | 1354–1355 | `kp.lmr_alpha_eval_scale · clamp((alpha − lmr_eval) · 1000 / 282, −64, 96)`; seed 3, range 0–10 unchanged; the core-table comment updated. In check `lmr_eval` can be `VALUE_NONE`, giving the clamp's floor, which is the donor's own arithmetic. The product is bounded by about 64,000 × 1000. Exact, and bounded by the donor's clamp (rule 4's clause). |
+| 8 | `e0f7cc8` | §22.2 item 3, §22.6 item 8 | 981–985 | `clamp(−((ss − 1)->eval + ss->eval) · 1000 / 282, −189, 194) + 60`, slopes 11 and 13 unchanged, the existing guards kept (not in check, parent not in check, no capture, a real previous move). Bounded as item 7. Exact. |
+| 9 | `e13ad68` | §22.2, §22.6 item 9 | — | `CoreRfpCorrMult`, 1024ths, seed 0, range 0–2048; `margin += |corr| / 131072 · mult / 1024`, divided first. No `CoreRfpCorrDiv` remains in `src`, `tools` or `tests`; the three parser tests pass (20 passed); the core table stays off the SPSA surface. Neutral at the seed (the fingerprint of item 8 holds through `c5ad7bb`). Live: on the reviewer's `final-ON-tune` build (Italian position, depth 12) 63,391 nodes at 0, 49,793 at 676 and 52,949 at 2048 (`liveness.txt` `b1b9ddb4…`). |
+| 10 | `c5ad7bb` | §22.3 F5, §22.6 item 10 | — | `CORE_NODE_CHECK` after the TT probe, under `BASILISK_DIAGNOSTIC || !NDEBUG`: live in the Diag flavour and every build without `NDEBUG` (the sanitizer suite), compiled out of release, Tune and Ablate, whose equal fingerprints agree. The placement is the right call: §22.3 named `BASILISK_DIAGNOSTIC` as the cheapest form, and a check that no CTest build runs would never run. |
+| 10 | `7f1b5bb` | review §5.11 item 5 | — | `test_stack_unwind`: 20 bench positions at depth 8, the board image (keys, occupancy, side, clock, history) unchanged, best move, line and ponder legal where played, a fresh repeat identical in nodes, score, best move and line, and at `Threads 4` through the pool the board unchanged and the answer legal. ON-only, under `_ALL_TARGETS`. Covers the clause. |
+
+**The seven node checks, judged.** Two state invariants of the whole
+search: `ss->reduction == 0` (every reduced search at this slot restored
+the field, including through early returns of the child) and
+`(ss + 1)->excluded == MOVE_NONE` (every singular search below restored
+its exclusion). The other five (`in_check`, `move_count`, `stat_score`,
+`(ss + 2)->cutoff_cnt`, `tt_pv`) are evaluated a few lines after the
+assignments that make them true, with no write between, so they can fail
+only if one of those assignments is removed. They are regression guards on
+the entry code, which is what §22.3 asked for ("a planted stale field must
+fail it") and what the planted proof exercises; they are not tautologies in
+the sense of being unfalsifiable, but they do not detect a stale field that
+arrives from elsewhere. Recorded, not a defect (25.4).
+
+**Planted-defect proof, re-run by the reviewer** (`plant.sh` `db488a22…`,
+sanitizer builds of `7f1b5bb`'s sources with one line removed each):
+- without `ss->stat_score = 0;` at entry: aborts with `node check failed: ss->stat_score == 0` (`plant-stat_score.txt` `8b1e5ad2…`);
+- without the parent's `ss->reduction = 0;` after the reduced search:
+  aborts with `node check failed: ss->reduction == 0` (`plant-reduction.txt` `775dd320…`);
+- the clean `7f1b5bb` sanitizer `test_stack_unwind`: 5 / 5 sections pass (`clean-stack-unwind.txt` `7ee2f28b…`). The reviewer's first plant script failed to apply its edits and ran the test unplanted; it was corrected and both plants re-run, which is the record above.
+
+### 25.3 Invariants on the changed code
+
+§12.2 as amended by §22.6, and review §5.12:
+- Nothing pruned or reduced at the root or in check: items 3–5 are gated
+  by `!is_root && !in_check` where they reduce, and the typing does not
+  reduce. The first-move step-down is the amended exception, as written.
+- The reduced depth at least one ply: LMR's floor is untouched; the
+  step-down reaches quiescence only where the donor's does.
+- TT moves validated at every consumer: item 5 reads the picker's validated
+  TT move; nothing else reads a TT move.
+- Nothing allocated per node: the items add integers and a compiled-out
+  macro; the test allocates in its own frames.
+- Counters and trace out of release: `CORE_NODE_CHECK` is `((void)0)`
+  under `NDEBUG` without `BASILISK_DIAGNOSTIC`; the release, Tune and
+  Ablate fingerprints equal the Diag one.
+- The off arm is untouched by every commit: 14,978,465 reproduced on all
+  five flavours at `7f1b5bb` and on PEXT at every commit.
+
+### 25.4 Information for B.2.2, and follow-ups that bind nothing here
+
+- Item 7's growth (median +18%, bench 39 at 36.4% of `bench 13`) is the
+  term reaching the donor's 288/1024 and is read by B.2.2's tree-size
+  screens, not here. No cause outside the contract was found: the clamp
+  bounds and slope are the donor's on the scaled difference.
+- Follow-up 1 (B.2.3, already registered by §24.1): the correction bound's
+  own conversion (`CoreCorrLimit` 1024 against 289); bench 39's share of the
+  nodes is its cheapest reading.
+- Follow-up 2 (any time, `I1`): if a later return ever needs the node
+  checks to catch a stale field arriving from a sibling subtree, the five
+  reset-guard checks should move before the resets and assert the parent's
+  restores rather than this node's own writes; today's form satisfies
+  §22.3 and is proven live.
+
+### 25.5 Record
+
+- Artifacts: `tools/results/b21-delta-review-20261012/` (ignored storage):
+  `repro.sh`, `plant.sh`, `fingerprints.txt`, `wac100k-ON.json`,
+  `wac100k-OFF.json`, `plant-stat_score.txt`, `plant-reduction.txt`,
+  `clean-stack-unwind.txt`, `SHA256SUMS.txt`, `logs/`.
+- PLAN: B.2.1 ticked and its register row removed (the checker refuses a
+  row for a completed leaf). The next leaf is B.2.2 (`V`).
