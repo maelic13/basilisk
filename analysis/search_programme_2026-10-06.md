@@ -1903,6 +1903,104 @@ What the reviewer must check (the complete list, at `4fd8600`):
   - the count-mode registration (Amendment 2), withdrawn at ticket 7;
   - the Windows sanitizer stack (`b02fcb7`), with its measurement.
 
+#### Return 3 and 4 fixes (Amendments 3 and 4), 2026-10-12
+
+Items 1–5 are in §23.1 (`31c80db`..`90d7db7`); items 6–10 follow, in
+§22.6's order with §24.1's item 6.
+- Recipe: `tools/results/b21-r3-20261011/` (`qual.sh` `6813d6fc…d0b8`,
+  `check.py` `b0555759…86ad`, `edit.py` `46faab4a…5e31`), on persistent
+  build directories of the working tree, both arms, every flavour.
+- Every row: the off arm reads 14,978,465 on release PEXT and plain, Tune,
+  Diag and Ablate, and `bench 10` 3,190,673 on PEXT, plain and sanitizer.
+- The ON arm's `bench 13` is equal on PEXT, plain, Tune, Diag and Ablate,
+  and its `bench 10` is equal on release and sanitizer.
+
+| Item | Commit | ON `bench 13` | ON `bench 10` | CTest release / sanitizer (ON; off) | ON WAC depth 6 | ON WAC 100k |
+|---|---|---:|---:|---|---:|---:|
+| 6 Q2.1, `min(abs(corr)/7419, 2695)` | `45f4827` | 7,644,681 | 2,337,269 | 22/22, 20/20; 20/20, 18/18 | 180 | 248 |
+| 7 Q2.2, the alpha term on the scaled difference | `caee6ed` | 9,683,768 | 1,517,011 | 22/22, 20/20; 20/20, 18/18 | 177 | 250 |
+| 8 Q2.3, eval-difference training on the scaled sum | `e0f7cc8` | 9,132,715 | 1,678,409 | 22/22, 20/20; 20/20, 18/18 | 185 | 249 |
+| 9 `CoreRfpCorrMult` (neutral) | `e13ad68` | 9,132,715 | 1,678,409 | 22/22, 20/20; 20/20, 18/18 | 185 | 249 |
+| 10 node checks (engine, neutral) | `c5ad7bb` | 9,132,715 | 1,678,409 | 22/22, 20/20; 20/20, 18/18 | 185 | 249 |
+| 10 `test_stack_unwind` (test) | `7f1b5bb` | 9,132,715 | 1,678,409 | 23/23, 21/21; 20/20, 18/18 | 185 | 249 |
+
+The 100k-node files are `i6`–`i10b/wac100k_on.json`: `a2092656…8463`,
+`3d499a74…f6a0`, `53602c58…c9e9`, `edce84c7…f56c`, `c3b3fc9c…29e3`,
+`21c25e33…cad0`.
+
+- **Item 6** lands exactly on §23.3's scratch reading (7,644,681; 248).
+- **Item 7** raises the median node count by 18% (110,508 → 130,462). Bench
+  39 goes from 34.0% to 36.7% of the nodes, so the rise is broad, not one
+  position running away. It is what the term is meant to do: its reach is
+  now the donor's 288/1024, against 81 before. Recorded; the tree-size
+  screens are B.2.2's.
+- **Item 8** median: 120,520.
+- **Item 9** is neutral at its seed. It is live on an ON Tune build (Italian
+  position, depth 12): 61,746, 62,359 and 38,773 nodes at 0, 676 and 2048.
+
+Item 10, choices inside the contract:
+- **Where the checks live.** The checks (`CORE_NODE_CHECK`, after the TT
+  probe) are live in the Diag flavour and in every build without `NDEBUG`,
+  and compiled out of release.
+  - §22.3 suggested `BASILISK_DIAGNOSTIC` alone, but CTest runs only release
+    and sanitizer builds, so a Diag-only check would never run in either
+    suite.
+  - The sanitizer build is Debug without `NDEBUG`, so the sanitizer suite
+    runs the checks in every core search it makes, the new test included.
+    A failed check prints the condition and aborts (an `assert` would be
+    compiled out of the Release-type Diag build).
+- **What the checks verify:**
+  - `in_check` is set;
+  - `move_count`, `stat_score` and `reduction` are 0;
+  - `(ss + 2)->cutoff_cnt` is 0;
+  - the children's `excluded` is none, which reads "excluded none unless the
+    singular search set it" at the slot where it can be checked;
+  - `tt_pv` equals the node type or the table's flag outside an excluded
+    search.
+- **`test_stack_unwind`** is ON-only, like the other core tests, and under
+  `_ALL_TARGETS`. It searches the first 20 bench positions at depth 8 with a
+  fresh searcher and checks, at one thread:
+  - the caller's board is unchanged (keys, occupancy, side, clock, history);
+  - the best move, the line move by move and the ponder move are legal;
+  - a fresh repeat is identical in nodes, score, best move and line.
+
+  At `Threads 4` through `SearchThreadPool` it checks that the board is
+  unchanged and the pool's answer is legal. It takes 1 s in release and 10 s
+  in the sanitizer build.
+- **Planted defects** (sanitizer build, `test_stack_unwind`, not
+  committed):
+  - Without the entry reset of `stat_score`, the test aborts with
+    `node check failed: ss->stat_score == 0` (`i10/plant_stat_score.txt`
+    `013a149d…0bbc`).
+  - Without the parent's reset of `ss->reduction` after a reduced search,
+    it aborts with `node check failed: ss->reduction == 0`
+    (`plant_reduction.txt` `957bdb12…5aae`).
+  - The restored tree passes.
+
+#### Final state, both arms (engine `c5ad7bb`, tests `7f1b5bb`)
+
+| Build | Off arm | ON arm |
+|---|---:|---:|
+| `bench 13`, release PEXT | 14,978,465 | 9,132,715 |
+| `bench 13`, release plain | 14,978,465 | 9,132,715 |
+| `bench 13`, Tune / Diag / Ablate | 14,978,465 each | 9,132,715 each |
+| `bench 10`, release and sanitizer | 3,190,673 | 1,678,409 |
+| Release CTest | 20/20 | 23/23 |
+| Sanitizer CTest (`-LE strength`) | 18/18 | 21/21 |
+| WAC depth 6 (`test_wac --floor`, 130) | 138 | 185 |
+| WAC 100,000 nodes | 204 | 249 |
+
+The ON arm's `bench 13` median is 120,520 per position; bench 39 holds
+36.4% of the nodes (3,326,702).
+
+What the delta review checks (§21.4):
+- every fingerprint above and in §23.1, per commit, both arms;
+- CTest on both arms;
+- the changed lines of `31c80db`..`7f1b5bb` against §22.6 and §24.1;
+- item 2's deviation, accepted in §24.3;
+- item 10's placement of the checks;
+- the planted-defect proof.
+
 ## 21. B.2.1 Review (2026-10-11): every fingerprint reproduced; not accepted; Return 3
 
 - Reviewer: a separate `R2` session that did not implement the leaf, at head
