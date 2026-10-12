@@ -1060,7 +1060,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             r -= 2179;
         r -= stat_score * kp.lmr_stat_scale / 4096;
         if (!capture_stage && !is_decisive(alpha))
-            r += kp.lmr_alpha_eval_scale * std::clamp(alpha - lmr_eval, -18, 27);
+            // The difference in the donor's evaluation units, under its clamp.
+            r += kp.lmr_alpha_eval_scale * std::clamp((alpha - lmr_eval) * 1000 / 282, -64, 96);
         // A singular TT move relaxes its quiet siblings' reductions (the
         // singular search keeps its own form until B.3).
         if (!capture_stage && singular_quiet_lmr)

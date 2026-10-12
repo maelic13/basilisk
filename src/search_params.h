@@ -183,9 +183,11 @@
 //   not_improving/512 of the product when not improving, plus the offset;
 //   per-move terms add or subtract in 1024ths (tt_pv, cut node, TT capture,
 //   the children's cutoff count, the history score over 4096/stat_scale,
-//   alpha above the estimate, all nodes). A reduced search that fails high
-//   is re-searched a ply deeper above the best by `research_deeper`, a ply
-//   shallower below it plus `research_shallower`.
+//   alpha above the estimate, all nodes). The alpha term is alpha_eval_scale
+//   per unit of (alpha - estimate) scaled to the donor's evaluation units
+//   (x 1000/282), clamped to -64..96 after scaling. A reduced search that
+//   fails high is re-searched a ply deeper above the best by
+//   `research_deeper`, a ply shallower below it plus `research_shallower`.
 // History updates: a move that raises alpha earns min(slope * depth - 81,
 //   cap) (more for the TT move and the parent's history score); the moves
 //   searched before it lose min(slope * depth - 235, cap), each earlier quiet
