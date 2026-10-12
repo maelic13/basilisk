@@ -567,7 +567,9 @@ into `make_move` is a B.7 option. This is Rarog's §6.5 decision, re-derived.
 3. Otherwise the Stockfish-converted value.
 4. (Amendment 3, §22.2) An evaluation difference multiplied into another
    unit is scaled into the donor's units, × 1000 / 282, before the donor's
-   constants; a compared constant converts by rule 3.
+   constants; a compared constant converts by rule 3. (Amendment 4, §24.2) A
+   scaled term fed by a bounded table keeps the donor's bound on the scaled
+   product: scale, then clamp at the value the donor's own limit allows.
 
 ### 7.3 Principal seeds
 
@@ -2408,3 +2410,123 @@ not have.
 
 Not affected: items 7–10 do not depend on this decision except through the
 fingerprints, and they resume in 22.6's order once Amendment 4 fixes item 6.
+
+## 24. B.2.1 Amendment 4 (2026-10-12): item 6 lands as the converted slope under the donor's bound; rule 4 gains a saturation clause
+
+Answers §23. Research (`R3`) at head `17767a9`. One decision; nothing
+else is reopened.
+
+### 24.1 Decision: option (b)
+
+**Item 6 lands as**
+
+```
+r -= std::min(std::abs(correction_raw) / 7419, 2695);
+```
+
+both constants fixed, as the donor's 26310 is. 7,419 is rule 4's
+conversion of the slope (26310 × 0.282); 2,695 is the donor's own largest
+value of the term, `(15341 + 10569 + 2·12906 + 2·8761) · 1024 / 26310`
+(70,905,856 / 26310), not a new number. No coordinate: the slope is a
+fixed donor constant (review §5.10) and the bound is derived from the
+donor's table limit, so neither is B.2.3's to move.
+
+Why (b). The failure is not the slope: below saturation 7,419 maps a
+Basilisk correction of 100 cp to the same 1.7 plies the donor gives its
+equivalent 355 units, which is what 22.2 asked for and what the item-5
+tree shows elsewhere (median +8%). The failure is the domain: Basilisk's
+correction tables keep the donor's limit 1024 and clamp ±256 in Basilisk's
+units (`history_core.h` `HistoryBound<1024>`; the update at
+`search_kernel_core.cpp` line 1297), so they saturate at a relative error
+3.5× the donor's and `|correction_raw|` reaches the donor's maximum of
+70.9M, which the converted slope turns into 9.3 plies of negative
+reduction. Capping the term at the donor's largest value restores the
+donor's range exactly where the premise of 22.2 fails, and leaves the
+converted slope where it holds. The evidence is §23.3's scratch tree:
+`bench 13` terminates at 7,644,681 on item 5's 5,941,186, median +8%,
+WAC 248 at 100,000 nodes, one position at 34.0% of the nodes.
+
+Why not the others.
+- (a) keeps a term that is 0.28× the donor's wherever the correction is
+  unsaturated, which is almost everywhere; it fixes the blow-up by
+  keeping the unit error.
+- (d) makes a coordinate of a fixed donor constant and asks SPSA to find
+  the point where the search stops exploding; the bound is the right
+  tool for a bound.
+- (c) is the right long-term correction and the wrong change for this
+  item. The root cause is an unconverted evaluation-unit constant of the
+  Q2 kind: §7.1 lists "correction bounds" under evaluation units (0.282)
+  and §7.3's row keeps the clamp and limit at the donor's values with the
+  reasoning that the output scales with the raw eval, which is true only
+  below saturation. Converting them (limit 1024 → 289, clamp ±256 → ±72)
+  would make every consumer of the correction donor-equivalent, the
+  static-eval correction included, whose reach is today 5.4 Basilisk
+  pawns against the donor's 2.6 of its own. That changes the evaluation's
+  behaviour in exactly the saturated positions (lost endings, large
+  persistent eval errors) where B.0 never measured it, and nothing in this
+  leaf's evidence says which bound is better for a classical evaluation
+  whose errors are larger than the donor's. It is registered below as a
+  B.2.3 question with its cheapest reading, not landed here.
+
+Counter-argument to (b): a fixed constant the donor does not write. It is
+the donor's constant made explicit, and the saturation clause of 24.2 is
+what makes it a rule rather than a patch. If (c) is ever landed, 2,695
+becomes unreachable and the `min` is dead but harmless.
+
+Registered for B.2.3 (not a coordinate on the SPSA surface): a
+categorical `CoreCorrLimit` of 1024 against 289, with the update clamp at
+limit/4, decided by the 2,000-game paired run like the other switches,
+only if B.2.2's per-position bench and time-to-depth screens show
+saturated positions carrying the tree (bench 39 holds 25% of the nodes at
+item 5 and 34% with item 6). Its cheapest prior reading is the Diag
+counter of saturated correction reads per position, which B.2.2 may add.
+
+### 24.2 Side question 1: rule 4 gains a saturation clause
+
+Yes. §7.2 rule 4 now ends: "A scaled term whose source is a bounded table
+(a history or correction entry) keeps the donor's bound on the scaled
+product: scale, then clamp at the value the donor's own limit allows."
+Items 7 and 8 already satisfy it, because their clamps are applied after
+scaling and the clamp bounds are the donor's. Item 6 did not, because the
+donor's bound there is implicit in its table limit; 24.1 makes it
+explicit. Terms B.2.3 or B.3 may convert later: the singular margin's
+`|corr| / 198368` converts to 55,940 with the cap 70,905,856 / 198368 =
+357, and the RFP term is unit-free (22.2). History-fed terms are bounded
+by the history limits, which are unconverted by rule 1, so the clause
+binds nothing there.
+
+### 24.3 Side question 2: the item-2 deviation is accepted
+
+Reading the local counter at `r −= 65·moveCount` and the searched-list
+cap, as well as at the increment, is the donor's reading (lines 1323 and
+1545) and what 22.5 named; the vA edit was the minimum, not the contract.
+The trace lines reading the record is fine: the trace reports the record.
+
+### 24.4 Predictions and screens
+
+None re-registered: P1–P6 (BAS-S21), BAS-S22, BAS-S23 and §10's screens are
+read on the accepted head. The per-item instrument readings continue in
+§20.
+
+### 24.5 Handoff, resumed: items 6–11 of 22.6 as amended
+
+Same per-commit qualification as 22.6 (ON `bench 13` PEXT = plain, ON
+sanitizer `bench 10` = release, 100,000-node WAC, CTest on both arms
+release and sanitizer, the off arm at 14,978,465 on every flavour).
+
+6. Q2.1 as 24.1: `r -= std::min(std::abs(correction_raw) / 7419, 2695);`
+   with a comment naming both derivations. Expected near §23.3's scratch
+   reading on item 5 (7,644,681; 248).
+7. Q2.2: the alpha term on the scaled difference with the donor's clamp
+   (22.6 item 7), unchanged.
+8. Q2.3: the eval-difference training on the scaled sum (22.6 item 8),
+   unchanged.
+9. `CoreRfpCorrMult` (22.6 item 9), behaviour-neutral at the seed,
+   unchanged.
+10. F5: the stack-unwind test and the per-node default assertions (22.6
+    item 10), unchanged.
+11. Records: §20's rows for items 6–10 and the final-state table; PLAN's
+    B.2.1 line; GUIDE; the checkers. Then the delta review (§21.4).
+
+A fingerprint that behaves in a way §22 or this amendment did not
+anticipate still stops the work with a Return, as 22.6 says.

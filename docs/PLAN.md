@@ -1196,6 +1196,11 @@ rejections stop B.
       never finishes `bench 13`: where the correction saturates it removes
       up to 9.3 plies of reduction, against the donor's 2.6. Research
       amendment 4 decides the divisor; items 6–11 resume after it.
+      — AMENDED 2026-10-12 (Amendment 4, packet §24): item 6 is the converted
+      slope under the donor's bound, `min(|corr|/7419, 2695)`; rule 4 gains a
+      saturation clause; the item-2 deviation is accepted; the correction
+      bound's own conversion is a registered B.2.3 question. Items 6–11
+      resume in order, then the delta review.
     - [ ] **B.2.2** `[V]` Diagnostics and the unfitted paired run
       Screens at B.0's registered numbers; the ablation sweep if a floor
       fails; the unfitted 2,000-game paired run against the accepted head,
@@ -1295,7 +1300,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.2.1 | RESEARCH | I2 | Return 4 (packet §23): Amendment 3's items 1–5 landed; item 6's converted correction divisor explodes the search where the correction saturates; amendment 4 decides it, then items 6–11 and the delta review |
+| B.2.1 | READY_FOR_IMPLEMENTATION | I2 | Amendment 4 (packet §24): item 6 lands as `min(|corr|/7419, 2695)`; items 6–11 of §22.6 resume in order, then the delta review |
 | B.2.2 | RESEARCH | V | Screen numbers registered in the B.0 packet §10 |
 | B.2.3 | RESEARCH | V | Curvature sweep after B.2.2 |
 | B.2.4 | RESEARCH | V | Gates after B.2.3 |
