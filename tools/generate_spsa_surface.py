@@ -2,7 +2,8 @@
 
 The C++ table owns option names, defaults, and bounds.  This generator derives
 the registered integer perturbation as max(2, round((max - min) / 16)) and
-writes both weather-factory JSON and Colosseum TOML.  Generated files are
+writes both weather-factory JSON and Colosseum TOML, for the default arm and,
+separately, for the B2_CORE arm's own kernel coordinates.  Generated files are
 checked into the tree so experiment registrations can name an exact surface;
 edit the X-macro and regenerate rather than editing them.
 """
@@ -23,33 +24,48 @@ CONFIG = ROOT / "tools" / "spsa_configs" / "config_search.json"
 COLOSSEUM = ROOT / "tools" / "spsa_configs" / "colosseum"
 TUNE = COLOSSEUM / "search.tune.toml"
 RUN = COLOSSEUM / "search.run.toml"
+# The B2_CORE arm's own surface: the coordinates written in its kernel table,
+# without the legacy groups it splices in (those mechanisms are a later
+# cluster's). Its tune runs on the shared run file with --tune pointing here.
+CORE_CONFIG = ROOT / "tools" / "spsa_configs" / "config_core.json"
+CORE_TUNE = COLOSSEUM / "core.tune.toml"
 PARAM_RE = re.compile(
     r"^\s*X\(\s*[a-z][a-z0-9_]*\s*,\s*([A-Za-z][A-Za-z0-9]*)\s*,"
     r"\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(-?\d+)\s*\)"
 )
-# The B2_CORE arm's kernel table. The registered surface is the default
-# arm's (the root and legacy kernel tables), so its lines are skipped; the
-# core arm's surface is generated when its tune is registered.
+# The B2_CORE arm's kernel table. The default arm's surface (the root and
+# legacy kernel tables) skips its lines; the core surface is its lines alone.
 CORE_TABLE = "#define BASILISK_CORE_KERNEL_PARAMS(X)"
 
 
-def default_arm_lines(text: str) -> list[str]:
-    lines = []
+def split_arm_lines(text: str) -> tuple[list[str], list[str]]:
+    """The header's lines outside the core table, and the core table's own."""
+    default, core = [], []
     in_core = False
     for line in text.splitlines():
         if line.startswith(CORE_TABLE):
             in_core = True
         if not in_core:
-            lines.append(line)
-        elif not line.rstrip().endswith("\\"):
-            in_core = False
-    return lines
+            default.append(line)
+        else:
+            core.append(line)
+            if not line.rstrip().endswith("\\"):
+                in_core = False
+    return default, core
 
 
-def parse_parameters(text: str) -> list[tuple[str, int, int, int]]:
+def default_arm_lines(text: str) -> list[str]:
+    return split_arm_lines(text)[0]
+
+
+def core_arm_lines(text: str) -> list[str]:
+    return split_arm_lines(text)[1]
+
+
+def parse_parameters(text: str, core: bool = False) -> list[tuple[str, int, int, int]]:
     parameters = []
     seen = set()
-    for line in default_arm_lines(text):
+    for line in (core_arm_lines(text) if core else default_arm_lines(text)):
         match = PARAM_RE.match(line)
         if not match:
             continue
@@ -74,7 +90,9 @@ def perturbation(minimum: int, maximum: int) -> int:
     return max(2, (maximum - minimum + 8) // 16)
 
 
-def render(parameters: list[tuple[str, int, int, int]], iterations: int) -> dict[pathlib.Path, str]:
+def render(parameters: list[tuple[str, int, int, int]], iterations: int,
+           config: pathlib.Path = CONFIG, tune: pathlib.Path = TUNE,
+           run: pathlib.Path | None = RUN) -> dict[pathlib.Path, str]:
     surface = {
         name: {
             "value": default,
@@ -111,11 +129,21 @@ extend = "../../colosseum/spsa-tune.toml"
 tune = "search.tune.toml"
 option = ["Hash=64", "Threads=1"]
 """
-    return {
-        CONFIG: json.dumps(surface, indent=4) + "\n",
-        TUNE: "\n".join(tune_lines) + "\n",
-        RUN: run_text,
+    outputs = {
+        config: json.dumps(surface, indent=4) + "\n",
+        tune: "\n".join(tune_lines) + "\n",
     }
+    if run is not None:
+        outputs[run] = run_text
+    return outputs
+
+
+def render_all(text: str, iterations: int) -> dict[pathlib.Path, str]:
+    """The default arm's surface and run file, and the core arm's surface."""
+    outputs = render(parse_parameters(text), iterations)
+    outputs.update(render(parse_parameters(text, core=True), iterations,
+                          config=CORE_CONFIG, tune=CORE_TUNE, run=None))
+    return outputs
 
 
 def main() -> int:
@@ -126,7 +154,8 @@ def main() -> int:
     if args.iterations < 1:
         parser.error("--iterations must be positive")
     try:
-        outputs = render(parse_parameters(HEADER.read_text(encoding="utf-8")), args.iterations)
+        text = HEADER.read_text(encoding="utf-8")
+        outputs = render_all(text, args.iterations)
     except ValueError as error:
         print(error, file=sys.stderr)
         return 2
@@ -141,7 +170,8 @@ def main() -> int:
             print(f"stale or missing: {path}", file=sys.stderr)
         if stale:
             return 1
-        print(f"{len(outputs)} generated files current ({len(parse_parameters(HEADER.read_text(encoding='utf-8')))} parameters)")
+        print(f"{len(outputs)} generated files current ({len(parse_parameters(text))} default-arm "
+              f"and {len(parse_parameters(text, core=True))} core-arm parameters)")
         return 0
     COLOSSEUM.mkdir(parents=True, exist_ok=True)
     for path, content in outputs.items():

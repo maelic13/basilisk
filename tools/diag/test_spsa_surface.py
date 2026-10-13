@@ -41,6 +41,19 @@ class SurfaceTests(unittest.TestCase):
         )
         names = [item[0] for item in surface.parse_parameters(text)]
         self.assertEqual(names, ["Alpha", "Gamma"])
+        # The core surface is the core table's own lines: neither the legacy
+        # group it splices in, nor the tables around it, nor a switch.
+        core = [item[0] for item in surface.parse_parameters(text, core=True)]
+        self.assertEqual(core, ["Beta"])
+
+    def test_core_surface_is_the_clusters_coordinates(self):
+        text = surface.HEADER.read_text(encoding="utf-8")
+        parameters = surface.parse_parameters(text, core=True)
+        generated = json.loads(surface.CORE_CONFIG.read_text(encoding="utf-8"))
+        self.assertEqual([item[0] for item in parameters], list(generated))
+        self.assertEqual(len(parameters), 50)
+        self.assertTrue(all(name.startswith("Core") for name in generated))
+        self.assertFalse(set(generated) & {"NullBase", "ProbCutMargin", "LmrSingularQuiet"})
 
     def test_steps_are_half_up_range_sixteenths_with_floor(self):
         self.assertEqual(surface.perturbation(0, 40), 3)

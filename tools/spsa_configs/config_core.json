@@ -1,0 +1,302 @@
+{
+    "CoreRazorMargin": {
+        "value": 256,
+        "min_value": 128,
+        "max_value": 527,
+        "step": 25
+    },
+    "CoreRfpPerPly": {
+        "value": 133,
+        "min_value": 40,
+        "max_value": 227,
+        "step": 12
+    },
+    "CoreRfpImproving": {
+        "value": 89,
+        "min_value": 35,
+        "max_value": 160,
+        "step": 8
+    },
+    "CoreRfpWorsening": {
+        "value": 11,
+        "min_value": 0,
+        "max_value": 60,
+        "step": 4
+    },
+    "CoreRfpCorrMult": {
+        "value": 0,
+        "min_value": 0,
+        "max_value": 2048,
+        "step": 128
+    },
+    "CoreRfpDepthCap": {
+        "value": 9,
+        "min_value": 6,
+        "max_value": 19,
+        "step": 2
+    },
+    "CoreRfpBetaWeight": {
+        "value": 661,
+        "min_value": 512,
+        "max_value": 1024,
+        "step": 32
+    },
+    "CoreIirMinDepth": {
+        "value": 4,
+        "min_value": 3,
+        "max_value": 8,
+        "step": 2
+    },
+    "CoreLmpBase": {
+        "value": 3,
+        "min_value": 1,
+        "max_value": 8,
+        "step": 2
+    },
+    "CoreLmpSquareScale": {
+        "value": 16,
+        "min_value": 8,
+        "max_value": 32,
+        "step": 2
+    },
+    "CoreQuietFutBase": {
+        "value": 158,
+        "min_value": 80,
+        "max_value": 300,
+        "step": 14
+    },
+    "CoreQuietFutSlope": {
+        "value": 108,
+        "min_value": 34,
+        "max_value": 190,
+        "step": 10
+    },
+    "CoreQuietFutAlphaTerm": {
+        "value": 25,
+        "min_value": 0,
+        "max_value": 90,
+        "step": 6
+    },
+    "CoreQuietFutDepthCap": {
+        "value": 8,
+        "min_value": 5,
+        "max_value": 12,
+        "step": 2
+    },
+    "CoreCaptFutBase": {
+        "value": 92,
+        "min_value": 40,
+        "max_value": 270,
+        "step": 14
+    },
+    "CoreCaptFutSlope": {
+        "value": 115,
+        "min_value": 60,
+        "max_value": 390,
+        "step": 21
+    },
+    "CoreCaptFutHistDiv": {
+        "value": 27,
+        "min_value": 8,
+        "max_value": 128,
+        "step": 8
+    },
+    "CoreCaptFutDepthCap": {
+        "value": 7,
+        "min_value": 4,
+        "max_value": 8,
+        "step": 2
+    },
+    "CoreContHistPruneSlope": {
+        "value": 4136,
+        "min_value": 1500,
+        "max_value": 8000,
+        "step": 406
+    },
+    "CoreQuietSeeCoeff": {
+        "value": 10,
+        "min_value": 4,
+        "max_value": 30,
+        "step": 2
+    },
+    "CoreCaptSeeCoeff": {
+        "value": 74,
+        "min_value": 30,
+        "max_value": 200,
+        "step": 11
+    },
+    "CoreCaptSeeHistDiv": {
+        "value": 80,
+        "min_value": 20,
+        "max_value": 200,
+        "step": 11
+    },
+    "CoreLmrTableScale": {
+        "value": 2872,
+        "min_value": 1500,
+        "max_value": 4500,
+        "step": 188
+    },
+    "CoreLmrOffset": {
+        "value": 982,
+        "min_value": 0,
+        "max_value": 2000,
+        "step": 125
+    },
+    "CoreLmrNotImproving": {
+        "value": 197,
+        "min_value": 0,
+        "max_value": 500,
+        "step": 31
+    },
+    "CoreLmrTtPv": {
+        "value": 929,
+        "min_value": 0,
+        "max_value": 2000,
+        "step": 125
+    },
+    "CoreLmrTtPvBase": {
+        "value": 3023,
+        "min_value": 0,
+        "max_value": 6000,
+        "step": 375
+    },
+    "CoreLmrTtPvPvNode": {
+        "value": 1004,
+        "min_value": 0,
+        "max_value": 2500,
+        "step": 156
+    },
+    "CoreLmrTtPvAboveAlpha": {
+        "value": 885,
+        "min_value": 0,
+        "max_value": 2000,
+        "step": 125
+    },
+    "CoreLmrTtPvDepthOk": {
+        "value": 816,
+        "min_value": 0,
+        "max_value": 2000,
+        "step": 125
+    },
+    "CoreLmrCutNode": {
+        "value": 4026,
+        "min_value": 1500,
+        "max_value": 7000,
+        "step": 344
+    },
+    "CoreLmrCutNodeNoTt": {
+        "value": 933,
+        "min_value": 0,
+        "max_value": 2500,
+        "step": 156
+    },
+    "CoreLmrTtCapture": {
+        "value": 1079,
+        "min_value": 0,
+        "max_value": 2500,
+        "step": 156
+    },
+    "CoreLmrCutoffCnt": {
+        "value": 264,
+        "min_value": 0,
+        "max_value": 1000,
+        "step": 63
+    },
+    "CoreLmrCutoffCnt2": {
+        "value": 1095,
+        "min_value": 0,
+        "max_value": 2500,
+        "step": 156
+    },
+    "CoreLmrCutoffCntAll": {
+        "value": 1138,
+        "min_value": 0,
+        "max_value": 2500,
+        "step": 156
+    },
+    "CoreLmrStatScale": {
+        "value": 439,
+        "min_value": 100,
+        "max_value": 1200,
+        "step": 69
+    },
+    "CoreLmrAlphaEvalScale": {
+        "value": 3,
+        "min_value": 0,
+        "max_value": 10,
+        "step": 2
+    },
+    "CoreLmrAllNodeScale": {
+        "value": 276,
+        "min_value": 0,
+        "max_value": 800,
+        "step": 50
+    },
+    "CoreResearchDeeper": {
+        "value": 15,
+        "min_value": 4,
+        "max_value": 40,
+        "step": 2
+    },
+    "CoreResearchShallower": {
+        "value": 2,
+        "min_value": 0,
+        "max_value": 12,
+        "step": 2
+    },
+    "CoreQuietBonusCap": {
+        "value": 1487,
+        "min_value": 600,
+        "max_value": 3000,
+        "step": 150
+    },
+    "CoreQuietBonusSlope": {
+        "value": 133,
+        "min_value": 60,
+        "max_value": 300,
+        "step": 15
+    },
+    "CoreMalusCap": {
+        "value": 2244,
+        "min_value": 900,
+        "max_value": 4500,
+        "step": 225
+    },
+    "CoreMalusSlope": {
+        "value": 968,
+        "min_value": 400,
+        "max_value": 2000,
+        "step": 100
+    },
+    "CoreMalusDecay": {
+        "value": 921,
+        "min_value": 700,
+        "max_value": 1024,
+        "step": 20
+    },
+    "CoreMainHistDecay": {
+        "value": 729,
+        "min_value": 400,
+        "max_value": 1024,
+        "step": 39
+    },
+    "CoreTtCutoffBonusSlope": {
+        "value": 131,
+        "min_value": 0,
+        "max_value": 300,
+        "step": 19
+    },
+    "CoreCorrUpdateScale": {
+        "value": 12,
+        "min_value": 4,
+        "max_value": 30,
+        "step": 2
+    },
+    "CoreCorrContWeight": {
+        "value": 8761,
+        "min_value": 2000,
+        "max_value": 16000,
+        "step": 875
+    }
+}
