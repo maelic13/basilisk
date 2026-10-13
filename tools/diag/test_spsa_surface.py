@@ -64,7 +64,9 @@ class SurfaceTests(unittest.TestCase):
         parameters = surface.parse_parameters(text, core=True)
         generated = json.loads(surface.CORE_CONFIG.read_text(encoding="utf-8"))
         self.assertEqual([item[0] for item in parameters], list(generated))
-        self.assertEqual(len(parameters), 50)
+        # The core table's X lines; its F line (CoreQuietSeeCoeff) stays off.
+        self.assertEqual(len(parameters), 49)
+        self.assertNotIn("CoreQuietSeeCoeff", generated)
         self.assertTrue(all(name.startswith("Core") for name in generated))
         self.assertFalse(set(generated) & {"NullBase", "ProbCutMargin", "LmrSingularQuiet"})
 
