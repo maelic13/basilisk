@@ -103,6 +103,14 @@ it:
     band, so PROCESS *Harness* owes a backup-path cross-check (fastchess,
     same arms) before the result is acted on; it is read as agreement
     inside the intervals, never as a second gate.
+  - **Cross-check (maintainer-run 2026-10-13):** fastchess 1.8.0 alpha
+    (`tools/sprt.ps1 -Mode fixed`), the same two binaries, 2,000 games,
+    seed 22210. It reads **+136.2 ± 11.0 Elo** (nElo +207.9 ± 15.2), W/D/L
+    1013/720/267, pentanomial [4, 63, 335, 379, 219]: 0 faults, all 2,000
+    terminations normal, and an independent PGN recount agrees
+    (`sprt_B2Core_vs_Legacy_20261013_122925.*`, PGN `1ecf385d…d927`,
+    log `8844f777…fdd3`). The two instruments agree inside their
+    intervals (+130.9 ± 11.4 against +136.2 ± 11.0).
 - Categorical runs (one ON Tune build; A the other value, B the default;
   2,000 games each, 0 faults; adopted at ≥ +5, rejected at ≤ −5):
   - `CoreTtCutoffNodeTyped` 0: +4.9 ± 9.5 (537/954/509). Default 1 kept.
@@ -119,7 +127,7 @@ it:
     default 1 kept.
   - Run records: `8EE6857A…FABA`, `25F99A87…FB2D`, `B176AC16…9BFF`,
     `68AC792D…6C7D`, `CA2DC528…151E`, `B3FAB154…DC85`.
-- Disposition: **paired run +130.9 ± 11.4, proceeds to B.2.3**, pending the backup-path cross-check its magnitude triggers; `CoreLmpExemptChecks` adopted at 0, the other five switches at their defaults.
+- Disposition: **paired run +130.9 ± 11.4, proceeds to B.2.3**; the fastchess cross-check agrees (+136.2 ± 11.0); `CoreLmpExemptChecks` adopted at 0, the other five switches at their defaults.
 
 #### PREDICTION CALIBRATION — preserve the original prediction above
 

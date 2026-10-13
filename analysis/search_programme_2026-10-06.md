@@ -2966,3 +2966,7 @@ What it means:
 - **The flip is an engine change.** `CoreLmpExemptChecks`'s default 1 → 0
   moves the ON fingerprint. It lands in its own commit, with the new
   `bench 13`, before B.2.3's sweep starts from the settled cluster.
+- **Cross-check, 2026-10-13: the result stands.** The same two binaries on
+  fastchess read **+136.2 ± 11.0** (1013/720/267, 0 faults, the PGN
+  recount agrees; BAS-S21). The two instruments agree inside their
+  intervals.

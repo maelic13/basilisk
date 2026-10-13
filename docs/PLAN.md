@@ -1238,9 +1238,8 @@ rejections stop B.
       run reads **+130.9 ± 11.4 Elo** (ON against OFF), which proceeds to
       B.2.3; P1's −15 ± 30 missed high. `CoreLmpExemptChecks` is adopted at
       0 (+13.6 ± 9.7); the other five switches keep their defaults
-      (`CoreCorrAdmission` = 0 costs −96.9). Still owed before the box: the
-      backup-path cross-check of the paired run (PROCESS *Harness*, a
-      magnitude far outside the registered band), and the
+      (`CoreCorrAdmission` = 0 costs −96.9). The fastchess cross-check
+      agrees (+136.2 ± 11.0, 2026-10-13). Still owed before the box: the
       `CoreLmpExemptChecks` default flip with its new fingerprint.
     - [ ] **B.2.3** `[V]` Curvature sweep, then SPSA in blocks
       Curvature sweep, then SPSA in blocks (rule 7c) over the cluster's live
@@ -1335,7 +1334,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.2.2 | GAME_GATE | V | Paired run +130.9 ± 11.4 (proceeds); owed: the fastchess cross-check of that magnitude and the `CoreLmpExemptChecks` flip to 0 (adopted +13.6) |
+| B.2.2 | GAME_GATE | V | Paired run +130.9 ± 11.4 (proceeds), fastchess cross-check +136.2 ± 11.0 agrees; owed: the `CoreLmpExemptChecks` flip to 0 (adopted +13.6) |
 | B.2.3 | RESEARCH | V | Curvature sweep after B.2.2 |
 | B.2.4 | RESEARCH | V | Gates after B.2.3 |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |
