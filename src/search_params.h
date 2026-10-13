@@ -273,7 +273,8 @@
 // razor_depth_cap: the deepest node razoring runs at (1 = the oracle's form,
 //   3 = the legacy reach).
 // lmp_exempt_checks: 1 keeps delivering quiet moves that give check from
-//   their destination after the move-count rule ends quiet delivery.
+//   their destination after the move-count rule ends quiet delivery; 0,
+//   the default and the donor's form, delivers no quiet after it.
 // lmr_negative_allowed: 1 lets a negative reduction extend a reduced search
 //   up to two plies beyond the full depth; 0 caps it at the full depth.
 // corr_admission: 1 trains the correction where the error's sign agrees with
@@ -284,7 +285,7 @@
     S(pawn_hist_buckets_log2, CorePawnHistBucketsLog2, 13,  11,    13)   \
     S(corr_admission,        CoreCorrAdmission,      1,    0,     1)     \
     S(razor_depth_cap,       CoreRazorDepthCap,      1,    1,     3)     \
-    S(lmp_exempt_checks,     CoreLmpExemptChecks,    1,    0,     1)     \
+    S(lmp_exempt_checks,     CoreLmpExemptChecks,    0,    0,     1)     \
     S(lmr_negative_allowed,  CoreLmrNegativeAllowed, 1,    0,     1)
 
 #if defined(BASILISK_B2_CORE)
