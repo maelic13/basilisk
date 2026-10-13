@@ -2970,3 +2970,15 @@ What it means:
   fastchess read **+136.2 ± 11.0** (1013/720/267, 0 faults, the PGN
   recount agrees; BAS-S21). The two instruments agree inside their
   intervals.
+- **The flip, 2026-10-13 (`cd2e397`).** `CoreLmpExemptChecks` defaults
+  to 0.
+  - The ON arm's `bench 13` moves 9,132,715 → **6,199,439** on PEXT, plain,
+    Tune, Diag and Ablate. `bench 10` reads 1,598,399 in release and
+    sanitizer. The off arm stays at 14,978,465 (3,190,673).
+  - CTest passes: ON 23/23 and 21/21, off 20/20 and 18/18.
+  - ON WAC reads 173 at depth 6 (floor 130) and 249 at 100k nodes
+    (`tools/results/b21-r3-20261011/lmp0/wac100k_on.json` `899be215…b5f9`).
+  - The new default reproduces the categorical run's arm A exactly:
+    62,766 nodes at depth 13 on bench position 1, as the old Tune binary
+    gives with the option set to 0.
+  - B.2.2 closes; B.2.3 starts from this head.

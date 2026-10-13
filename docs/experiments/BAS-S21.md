@@ -127,7 +127,7 @@ it:
     default 1 kept.
   - Run records: `8EE6857A…FABA`, `25F99A87…FB2D`, `B176AC16…9BFF`,
     `68AC792D…6C7D`, `CA2DC528…151E`, `B3FAB154…DC85`.
-- Disposition: **paired run +130.9 ± 11.4, proceeds to B.2.3**; the fastchess cross-check agrees (+136.2 ± 11.0); `CoreLmpExemptChecks` adopted at 0, the other five switches at their defaults.
+- Disposition: **paired run +130.9 ± 11.4, proceeds to B.2.3**; the fastchess cross-check agrees (+136.2 ± 11.0); `CoreLmpExemptChecks` adopted at 0 (`cd2e397`, ON `bench 13` 9,132,715 → 6,199,439), the other five switches at their defaults. **CLOSED 2026-10-13.**
 
 #### PREDICTION CALIBRATION — preserve the original prediction above
 

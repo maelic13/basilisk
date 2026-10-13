@@ -1215,7 +1215,7 @@ rejections stop B.
       arms, WAC 249 / 204 at 100k nodes, the changed lines exact against
       §22.6 and §24.1, the planted proofs re-run; two follow-ups bind
       nothing here. CLOSED.
-    - [ ] **B.2.2** `[V]` Diagnostics and the unfitted paired run
+    - [x] **B.2.2** `[V]` Diagnostics and the unfitted paired run
       Screens at B.0's registered numbers; the ablation sweep if a floor
       fails; the unfitted 2,000-game paired run against the accepted head,
       maintainer-run, which governs. Categorical switches the review asks for
@@ -1239,8 +1239,13 @@ rejections stop B.
       B.2.3; P1's −15 ± 30 missed high. `CoreLmpExemptChecks` is adopted at
       0 (+13.6 ± 9.7); the other five switches keep their defaults
       (`CoreCorrAdmission` = 0 costs −96.9). The fastchess cross-check
-      agrees (+136.2 ± 11.0, 2026-10-13). Still owed before the box: the
-      `CoreLmpExemptChecks` default flip with its new fingerprint.
+      agrees (+136.2 ± 11.0, 2026-10-13).
+      — CLOSED 2026-10-13: `CoreLmpExemptChecks` defaults to 0 (`cd2e397`).
+      The ON arm's `bench 13` is now 6,199,439 (`bench 10` 1,598,399
+      release and sanitizer) and the off arm 14,978,465 on every flavour.
+      CTest passes on both arms (ON 23/23 and 21/21, off 20/20 and 18/18);
+      ON WAC reads 173 at depth 6 and 249 at 100k nodes. B.2.3 starts from
+      this head.
     - [ ] **B.2.3** `[V]` Curvature sweep, then SPSA in blocks
       Curvature sweep, then SPSA in blocks (rule 7c) over the cluster's live
       coordinates, maintainer-run; theta baked in one engine commit.
@@ -1334,7 +1339,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.2.2 | GAME_GATE | V | Paired run +130.9 ± 11.4 (proceeds), fastchess cross-check +136.2 ± 11.0 agrees; owed: the `CoreLmpExemptChecks` flip to 0 (adopted +13.6) |
 | B.2.3 | RESEARCH | V | Curvature sweep after B.2.2 |
 | B.2.4 | RESEARCH | V | Gates after B.2.3 |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |
