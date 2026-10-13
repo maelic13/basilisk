@@ -91,8 +91,35 @@ it:
   - BAS-C09's retry trigger is not met (0.0004% verdict changes).
   - The paired run and the six categorical runs are prepared
     (`tools/run_b22_games.ps1`) and not started.
-- Deciding result:
-- Disposition: screens read; the paired run (the deciding result) and the six categorical runs are prepared, maintainer-run, not started.
+- Deciding result (maintainer-run 2026-10-13, Colosseum, 2,000 games, 1,000
+  pairs, 0 faults, natural termination, PGN recount agrees):
+  - **B2_CORE ON against OFF: +130.9 ± 11.4 Elo**, nElo +192.6 ± 15.2.
+    W/D/L 1014/692/294, pentanomial [10, 76, 313, 386, 215]
+    (`colosseum_match_b22-paired_20261013_080804.*`, run record
+    `917D5DC3…28FE`, PGN `F6096181…5CF3`).
+  - **Reading rule:** ≥ +10 proceeds to B.2.3.
+  - **P1 (−15 ± 30) missed high by about 146 Elo.** Its only falsifier
+    sits on the low side. The magnitude is far outside the registered
+    band, so PROCESS *Harness* owes a backup-path cross-check (fastchess,
+    same arms) before the result is acted on; it is read as agreement
+    inside the intervals, never as a second gate.
+- Categorical runs (one ON Tune build; A the other value, B the default;
+  2,000 games each, 0 faults; adopted at ≥ +5, rejected at ≤ −5):
+  - `CoreTtCutoffNodeTyped` 0: +4.9 ± 9.5 (537/954/509). Default 1 kept.
+  - `CorePawnHistBucketsLog2` 11: −4.5 ± 9.8 (516/942/542). Default 13
+    kept.
+  - `CoreCorrAdmission` 0: **−96.9 ± 10.7** (320/816/864). Rejected;
+    default 1 kept.
+  - `CoreRazorDepthCap` 3: −7.1 ± 9.4 (521/917/562). Rejected; default 1
+    kept.
+  - `CoreLmpExemptChecks` 0: **+13.6 ± 9.7** (574/930/496). **Adopted:**
+    the default moves to 0, the donor's form, with no direct-check
+    exemption from the count skip.
+  - `CoreLmrNegativeAllowed` 0: −5.6 ± 9.8 (518/932/550). Rejected;
+    default 1 kept.
+  - Run records: `8EE6857A…FABA`, `25F99A87…FB2D`, `B176AC16…9BFF`,
+    `68AC792D…6C7D`, `CA2DC528…151E`, `B3FAB154…DC85`.
+- Disposition: **paired run +130.9 ± 11.4, proceeds to B.2.3**, pending the backup-path cross-check its magnitude triggers; `CoreLmpExemptChecks` adopted at 0, the other five switches at their defaults.
 
 #### PREDICTION CALIBRATION — preserve the original prediction above
 

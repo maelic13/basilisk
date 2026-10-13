@@ -1234,6 +1234,14 @@ rejections stop B.
       runs (`tools/run_b22_games.ps1`, `526a68d`; dry runs accepted). The
       paired run governs, and the review decides on the flagged floors
       with its result.
+      Games 2026-10-13 (maintainer-run, packet §26.5, BAS-S21): the paired
+      run reads **+130.9 ± 11.4 Elo** (ON against OFF), which proceeds to
+      B.2.3; P1's −15 ± 30 missed high. `CoreLmpExemptChecks` is adopted at
+      0 (+13.6 ± 9.7); the other five switches keep their defaults
+      (`CoreCorrAdmission` = 0 costs −96.9). Still owed before the box: the
+      backup-path cross-check of the paired run (PROCESS *Harness*, a
+      magnitude far outside the registered band), and the
+      `CoreLmpExemptChecks` default flip with its new fingerprint.
     - [ ] **B.2.3** `[V]` Curvature sweep, then SPSA in blocks
       Curvature sweep, then SPSA in blocks (rule 7c) over the cluster's live
       coordinates, maintainer-run; theta baked in one engine commit.
@@ -1327,7 +1335,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.2.2 | GAME_GATE | V | Screens read (packet §26): canary and branching floors flagged and attributed; the paired run and six categorical runs prepared, maintainer-run |
+| B.2.2 | GAME_GATE | V | Paired run +130.9 ± 11.4 (proceeds); owed: the fastchess cross-check of that magnitude and the `CoreLmpExemptChecks` flip to 0 (adopted +13.6) |
 | B.2.3 | RESEARCH | V | Curvature sweep after B.2.2 |
 | B.2.4 | RESEARCH | V | Gates after B.2.3 |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |

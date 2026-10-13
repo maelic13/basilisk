@@ -2919,3 +2919,50 @@ The runs, all seven dry runs accepted
   and 74,490 at the other values; `switch_liveness.txt` `006517d6…3314`).
 - `CoreLmpExemptChecks` is the run §3.7 ties to a quiet-mate canary. Of
   the nine canary regressions, none is a quiet mate threat.
+
+### 26.5 The games (maintainer-run 2026-10-13)
+
+All seven runs: 2,000 games each, 0 time or other faults, natural
+termination, the independent PGN recount agrees. Run records:
+`tools/results/colosseum_match_b22-*_20261013_*`, hashes in BAS-S21.
+
+| Run | A against B | Elo (95%) | W/D/L | Rule | Reading |
+|---|---|---:|---|---|---|
+| paired | ON against OFF, same revision | **+130.9 ± 11.4** | 1014/692/294 | ≥ +10 proceeds | **proceeds to B.2.3** |
+| `CoreTtCutoffNodeTyped` | 0 against 1 | +4.9 ± 9.5 | 537/954/509 | ±5 | default 1 kept |
+| `CorePawnHistBucketsLog2` | 11 against 13 | −4.5 ± 9.8 | 516/942/542 | ±5 | default 13 kept |
+| `CoreCorrAdmission` | 0 against 1 | **−96.9 ± 10.7** | 320/816/864 | ±5 | rejected; default 1 kept |
+| `CoreRazorDepthCap` | 3 against 1 | −7.1 ± 9.4 | 521/917/562 | ±5 | rejected; default 1 kept |
+| `CoreLmpExemptChecks` | 0 against 1 | **+13.6 ± 9.7** | 574/930/496 | ±5 | **adopted: default becomes 0** |
+| `CoreLmrNegativeAllowed` | 0 against 1 | −5.6 ± 9.8 | 518/932/550 | ±5 | rejected; default 1 kept |
+
+What it means:
+- **The cluster is a large gain.** The unfitted core already beats the
+  legacy kernel by 131 Elo.
+  - P1 (−15 ± 30) was wrong in size, not in kind. It priced the unfitted
+    seeds as a cost; the oracle gap it was cut from (BAS-O05's +312.6, of
+    which the move-loop family is about +210 by BAS-S18) says the
+    architecture carries most of the value before fitting.
+  - The two flagged floors (canaries 68/77, branching 1.6465) did not
+    stop the game layer from reading strongly positive. They stay
+    recorded with their attribution (26.3), as B.2.3's watch items.
+- **Before it is acted on.** The magnitude is far outside the registered
+  band, which is PROCESS *Harness*'s trigger for a backup-path
+  cross-check: the same two binaries on fastchess. It is read as "the
+  two instruments agree inside their intervals", never as a second gate.
+- **Switches.**
+  - `CoreLmpExemptChecks` moves to 0. The donor's count skip stops
+    delivering quiet direct checks too, worth +13.6 ± 9.7 over the
+    exemption, and the interval lies wholly above 0.
+  - The other five stay at their defaults. Two of them sit just past the
+    ±5 rule: `CoreRazorDepthCap` at −7.1 and `CoreLmrNegativeAllowed` at
+    −5.6.
+  - `CoreCorrAdmission` = 0 (the legacy `best ≥ beta || raised alpha`
+    admission) costs 97 Elo inside this cluster. That is far larger than
+    an admission rule's prior: training correction from nodes whose bound
+    and error disagree corrupts the estimated score every node-level
+    margin reads. It is information for B.2.3, not an action; the shipped
+    default is the donor's rule.
+- **The flip is an engine change.** `CoreLmpExemptChecks`'s default 1 → 0
+  moves the ON fingerprint. It lands in its own commit, with the new
+  `bench 13`, before B.2.3's sweep starts from the settled cluster.

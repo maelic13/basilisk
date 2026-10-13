@@ -473,7 +473,7 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-D21](experiments/BAS-D21.md) — matched per-family ablation screens: the ×4 is the move-loop pruning family; razoring and LMR cost… — see entry
 
-- [BAS-S21](experiments/BAS-S21.md) — B.2.2: Cluster 1 diagnostics and the unfitted paired run, P1–P6 frozen — screens read, games prepared
+- [BAS-S21](experiments/BAS-S21.md) — B.2.2: Cluster 1 diagnostics and the unfitted paired run, P1–P6 frozen — +130.9 ± 11.4, proceeds; cross-check owed
 
 - [BAS-S22](experiments/BAS-S22.md) — B.2.3: Cluster 1 curvature sweep, then SPSA in blocks — registered
 
