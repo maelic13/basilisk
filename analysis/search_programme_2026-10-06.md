@@ -570,6 +570,9 @@ into `make_move` is a B.7 option. This is Rarog's §6.5 decision, re-derived.
    constants; a compared constant converts by rule 3. (Amendment 4, §24.2) A
    scaled term fed by a bounded table keeps the donor's bound on the scaled
    product: scale, then clamp at the value the donor's own limit allows.
+5. (Amendment 5, §27.1) A material value added into a history-unit sum is
+   the donor's `PieceValue` (rule 1); a history-unit score turned into a SEE
+   threshold converts to Basilisk's material units (× 0.38).
 
 ### 7.3 Principal seeds
 
@@ -1132,6 +1135,9 @@ misses a slider attack opened along the mover's own line. P5 is amended in
    `SEE ≥ 0`, and `CoreQuietSeeCoeff` 10 prunes any loss at `lmrDepth ≤ 3`,
    a loss ≥ 200 at 4, ≥ 300 at 5 and ≥ 400 at 6; the probe's 28.75, 24.43,
    19.30 and 9.98% are that reach on its corpus.
+   Amended by §27.1: the three history-unit sums that add material take the
+   donor's `PieceValue`, and the split's `−score/18` is not `SEE ≥ 0`; it
+   converts to `−score/47`.
 
 ### 17.3 Decisions 9–13
 
@@ -2982,3 +2988,214 @@ What it means:
     62,766 nodes at depth 13 on bench position 1, as the old Tune binary
     gives with the option set to 0.
   - B.2.2 closes; B.2.3 starts from this head.
+
+## 27. B.2.3 Amendment 5 (2026-10-13): piece values in history-unit sums take the donor's vector; the SPSA surface reviewed before block 1
+
+Research (`R3`) at head `7322676`, before any game under BAS-S22. Two
+deliverables: the unit ruling the maintainer held block 1 for (27.1), and
+the review of the prepared tune (27.2). The donor is `edb0d9db`
+(`src/movepick.cpp` lines 226, 240, 245, 307, 324; `src/search.cpp` line
+1343; `src/types.h` lines 199–203).
+
+### 27.1 Decision: the three sums use the donor's `PieceValue`, and the split's threshold converts back to SEE units
+
+**Recommendation.** Land, before block 1, one `I1` engine commit that (i)
+adds a history-unit material vector `HIST_PIECE_VALUE = {0, 208, 781, 825,
+1276, 2538, 0}` (the donor's `PieceValue`, by rule 1) and reads it at the
+three sites that add material into a history-unit sum; (ii) converts the
+picker's good-capture split from the donor's material units to Basilisk's:
+`see_ge(m, −score / 47)`; (iii) seeds `CoreRfpCorrMult` at the donor's
+676. Then rebuild the ON Tune PGO binary, re-run the five-coordinate sweep
+on it under the frozen rule, re-register block 1, and launch.
+
+**The unit error.** The three sites are:
+
+| Site | Donor | Basilisk today | Units of the sum |
+|---|---|---|---|
+| picker capture score (`move_picker_core.cpp` 62) | `captureHistory + 7·PieceValue[captured]` | `7·PIECE_VALUE[captured]` | capture history, limit 10,692 |
+| picker quiet threat term (93) | `20·PieceValue[pt]·(escape − threatened)` | `20·PIECE_VALUE[pt]` | quiet score (main 7,183, pawn 8,192, continuations 30,000) |
+| LMR capture `statScore` (`search_kernel_core.cpp` 1048) | `873·PieceValue[captured]/128 + captureHistory` | `873·PIECE_VALUE/128` | history, then 1024ths through `/4096·439` and the child's bonus `/28` |
+
+The histories keep the donor's limits (rule 1), so their share of each sum
+is the donor's; the material share is Basilisk's {100, 300, 300, 500, 900}
+against the donor's {208, 781, 825, 1276, 2538}, about 0.38× (§7.1). The
+effect is what the maintainer's note says: a pawn capture with good
+history outranks a queen capture with bad history more often than in the
+donor (7·900 = 6,300 against a history range of ±10,692; the donor's
+17,766 against the same ±10,692), threatened-piece escapes are promoted
+about a third as strongly, and LMR's capture `statScore` leans on history
+by 2.6× the donor's proportion. Amendment 1 decision 8 chose Basilisk's
+vector by reasoning about SEE thresholds, which are material units; these
+three sums are not. The same class of error as rule 4 (§22.2): a quantity
+in one unit added into another.
+
+**Why the donor's vector rather than a scaled Basilisk one.** The sum is a
+history-unit quantity and the donor's material term inside it is a donor
+constant in those units; rule 1 says such constants are taken unchanged.
+Scaling Basilisk's vector by 1000/380 gives {263, 789, 789, 1316, 2368},
+the same thing within the measurement of 0.38 except that it loses the
+donor's knight–bishop difference and lifts the pawn (§7.1 measured pawns
+at 0.48). The donor's vector is the constant that the donor's histories
+were fitted against. Nothing else in the engine reads `HIST_PIECE_VALUE`:
+SEE, capture futility (`PIECE_VALUE[captured]` added to an evaluation,
+unit-consistent) and the evaluation keep Basilisk's material.
+
+**The split, corrected.** Decision 8 said the good-capture split
+`see_ge(m, −score/18)` is "exactly SEE ≥ 0" on Basilisk's vector. That
+holds only if `score` were the piece value; it is `7·material + capture
+history`, so the threshold ranges over roughly a queen either way. In the
+donor the threshold `−score/18` is in the donor's material units (a
+zero-history queen capture: 7·2538/18 = 987, 0.39 queens). Once `score` is
+in donor units, the threshold must come back to Basilisk's SEE units,
+×0.38: **`see_ge(m, −score / 47)`** (18/0.38 = 47.4; a zero-history queen
+capture then reads 378, 0.42 queens). The picker's check gate `see_ge(m,
+−75)` is a material threshold the donor writes in its own units; its
+Basilisk value is −28, and both are exactly `SEE ≥ 0` on a vector whose
+values are multiples of 100, so it stays as written (fingerprint-neutral
+either way).
+
+**`CoreRfpCorrMult` seeded at 676.** §7.3 seeded the RFP correction
+coefficient at 0 as a coordinate with no stated reason beyond caution,
+and Amendment 3 fixed its unit (1024ths, unit-free). A tune cannot start a
+coordinate at its range edge: half of every perturbation is clipped at 0
+and the gradient estimate is biased toward staying there. The donor's
+value is 131072/198435 = 0.66 → 676; liveness is shown (§25.2 item 9:
+63,391 / 49,793 / 52,949 nodes at 0 / 676 / 2048). Seed it at 676 in the
+same commit; B.2.4(a) gates it with the rest of the unfitted arm.
+
+**Not changed.** Quiescence's capture order (`search_kernel_core.cpp`
+242, `16·PIECE_VALUE[cap] − PIECE_VALUE[atk] + captureHistory`) mixes the
+same units and is B.4's; recorded for B.4's handoff. The qsearch stand-pat
+guard (221) is evaluation units. Capture SEE's `captHist/80` and capture
+futility's `captHist/27` already convert history into their target units
+(§7.3).
+
+**Rule 5, added to §7.2.** A material value added into a history-unit sum
+is the donor's `PieceValue` (rule 1); a history-unit score turned into a
+SEE threshold converts to Basilisk's material units (×0.38).
+
+**Counter-argument.** The cluster measured +130.9 Elo with the error in
+place, and the three sums' material share is a fit question SPSA could in
+principle absorb if `7`, `20` and `873/128` were coordinates. They are
+fixed donor constants by rule 1, so the tune cannot repair the unit; and a
+50-coordinate fit on top of a 0.38× material share would be partly stale
+the moment the unit is corrected, which is why the correction precedes the
+tune rather than follows it. The Elo of the correction itself is not
+predicted here; it is inside B.2.4(a). Its cheap instruments are the
+100k-node WAC count and the Diag ordering counters (`fail_high_first`,
+`cutoff_src_good_tactical`) before and after, recorded, not gated.
+
+**Qualification of the commit (the usual per-commit record).** ON `bench
+13` on every flavour (it moves), sanitizer `bench 10` = release; the off
+arm at 14,978,465 on every flavour and 3,190,673; CTest on both arms
+(release and sanitizer), `test_move_picker_core` included; the 100k-node
+WAC count and the depth-6 count; the two ordering counters at `bench 13`
+on the Diag build. Then the ON Tune PGO binary is rebuilt with a clean
+manifest and its `bench 13` recorded.
+
+### 27.2 The prepared SPSA, reviewed
+
+Read: BAS-S22's block registration, `core.tune.toml` and
+`config_core.json` (generated, `--check` current: 41 default-arm and 50
+core-arm parameters), `generate_spsa_surface.py`, `spsa_block_rule.py`,
+`spsa-tune.toml`, the dry run, `coord_liveness.txt`, the sweep note, and
+the ON kernel's reads of the parameter tables.
+
+**What is right and stays.** The surface is generated from the X-macro
+table, so defaults and ranges cannot drift. Every one of the 50
+coordinates moves the tree at its range edge. The six categorical switches
+are off the surface at their settled values, as the rule requires. Block
+shape, gain, seeds, the movement rule, the three-block ceiling, the
+estimator and the bake-time floor check are PROCESS's go/no-go procedure
+as written, and the runner's dry run accepted the exact arguments. The
+sweep was frozen before its first point and read by its rule.
+
+**Changes before launch (through the engine commit of 27.1 and a
+regeneration; the toml is never edited by hand):**
+
+1. `CoreRfpCorrMult` starts at 676 (27.1). A coordinate at a range edge is
+   one the tune cannot fit.
+2. `CoreQuietSeeCoeff` leaves the surface, fixed at 10. Its response is a
+   staircase the step cannot resolve: SEE values on Basilisk's vector are
+   multiples of 100, so at `lmrDepth` 4–6 the thresholds for 9, 10 and 11
+   (−144/−160/−176, −225/−250/−275, −324/−360/−396) prune the same set,
+   and the ±1 perturbation (`c_end` 0.92, about 2 at the start) sees a
+   gradient only from `lmrDepth ≥ 7`, a small population. The range-edge
+   liveness (30) is real; the local gradient is not. Mechanically: the X
+   line becomes an F line that the engine table still reads and the
+   generator skips (an `F(...)` macro beside `S(...)`), so the surface
+   regenerates to 49 coordinates with `--check` current. `CoreCaptSeeCoeff`
+   (×depth, step 5) crosses a 100-unit boundary from depth 4 on captures
+   and checks, a large population, and stays; `CoreCaptSeeHistDiv` moves
+   the threshold by about 8 units per step and is weak but not stepped,
+   and stays.
+3. The surface, the config, the dry run and the binary hash in BAS-S22's
+   block registration are re-recorded after the commit; the sweep is
+   re-run on the new binary under the frozen rule (five coordinates, the
+   same points, the same classification), because the registration's
+   go/no-go input must be the binary the tune runs on. The rule's outcome
+   is not expected to change; if all five read flat or monotone, the rule
+   says no tune, and that is the record.
+
+**Checked and kept as is.**
+- Integer coordinates with small ranges (`CoreRfpDepthCap`,
+  `CoreIirMinDepth`, `CoreLmpBase`, `CoreLmpSquareScale`,
+  `CoreQuietFutDepthCap`, `CoreCaptFutDepthCap`, `CoreLmrAlphaEvalScale`,
+  `CoreResearchDeeper`, `CoreResearchShallower`, `CoreCorrUpdateScale`):
+  the registered step is 2 and `c_end` 0.92, so the late-schedule
+  perturbation is ±1 after the runner's rounding, which is the smallest
+  change these can take; each is live at ±1 (a depth cap of 8 against 9
+  changes the node population it gates). The movement rule reads a full
+  step of 2. The same shape fitted the A-phase surfaces.
+- Small integer seeds near 0 (`CoreResearchShallower` 2, `CoreRfpWorsening`
+  11, `CoreLmrAlphaEvalScale` 3): early perturbations clip at 0 on one
+  side for a few hundred iterations; tolerable, and a start elsewhere would
+  be a seed change without evidence.
+- The eight legacy coordinates the core table splices in (`NullBase`,
+  `NullEvalDiv`, `ProbCutMargin`, `SingularMinDepth`, `SingularBetaMult`,
+  `SingularDoubleMargin`, `DoubleExtMax`, `LmrSingularQuiet`) stay off the
+  surface. They run at values fitted to the legacy search inside the new
+  cluster, which is a real misfit, but B.3 replaces their forms (§3.4–3.5,
+  §12.3) and seeds the new forms from the oracle column; a fit of the
+  legacy forms now would be discarded there, and eight more dimensions
+  dilute a 50-coordinate gradient whose curvature the sweep already reads
+  as shallow. The cost of leaving them is bookkeeping, not strength: B.3's
+  attributed Elo will include repairing their fit. Counter-argument: Elo
+  now rather than at B.3; if the maintainer prefers it, they enter only
+  with the same range-edge liveness proof and a recorded reason, as a
+  registration change before the first game.
+- The fixed donor constants in history units and 1024ths stay fixed by
+  rule 1 (§5.10): the 7, 20, 16384, −14000 and −3560·depth of the picker;
+  LMR's 697, 65, 2179, 1127, 5234/5487, 940; the continuation weights and
+  consistency multipliers, 899/1159/921, 1427/1489, 713, 1334, 918/−747,
+  the fail-low scale's terms, 11/13 and 60/−189/194, the correction
+  weights; 7419/2695 and 47 hindsight. A tune over them would be the
+  undirected broad tune PROCESS forbids; B.6 exists for the case where the
+  clusters' curvature justifies widening.
+- Not on the surface and not the cluster's: root and time (B.5, D),
+  quiescence (B.4), `CorePawnHistBucketsLog2` (a size).
+- Nothing on the surface is inert at its seed except the two items above:
+  every other coordinate's seed sits inside its range and its mechanism
+  fires at `bench 13` (§20's counters).
+
+**Prediction (BAS-S22, unchanged in substance):** curvature shallow, the
+tune's gain mostly from interactions among the unswept coordinates; the
+gate is B.2.4(b) at `[0,10]`. The unit correction is not part of the tune's
+prediction; it is gated by B.2.4(a).
+
+### 27.3 Handoff
+
+1. `I1` engine commit on the ON arm (27.1): `HIST_PIECE_VALUE` at the
+   three sites; `−score / 47`; `CoreRfpCorrMult` seed 676;
+   `CoreQuietSeeCoeff` moved to an `F` line that the generator skips.
+   The generator gains the `F` macro (skipped like `S`), in the same
+   commit or a tooling commit before it. Qualification as 27.1.
+2. Regenerate the surface (`generate_spsa_surface.py`; `--check`
+   current; the parser tests pass); rebuild the ON Tune PGO binary;
+   re-run the sweep (`sweep.sh` recipe, the frozen classification);
+   re-validate block 1 (preflight and dry run); re-record BAS-S22's block
+   registration (surface 49, hashes, bench) and the sweep note's result
+   section; PLAN B.2.3 one line; GUIDE; the checkers. Commit docs
+   separately. Stop: block 1 is maintainer-run.
+3. B.4's handoff (§12.4 when written) gains the quiescence capture-order
+   unit note.

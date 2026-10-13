@@ -106,3 +106,4 @@
   - Against the prediction: the node-margin and move-loop groups held,
     except `CoreQuietFutBase`; the LMR offset curved against "little".
 - Disposition: sweep read, the tune runs; block 1 prepared, maintainer-run, not started.
+- 2026-10-13, before any game (Amendment 5, packet §27): the block-1 registration above is superseded. An `I1` commit corrects three history-unit sums (the donor's `PieceValue`), the good-capture split (`−score/47`) and the `CoreRfpCorrMult` seed (676), and fixes `CoreQuietSeeCoeff` off the surface; the surface (49), binary hash, bench, dry run and the sweep are re-recorded here before block 1 launches. Shape, gain, seeds, blocks, stop rule and estimator are unchanged.

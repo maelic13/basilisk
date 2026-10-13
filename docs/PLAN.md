@@ -1257,6 +1257,13 @@ rejections stop B.
       and prepared, not started: the core surface's 50 coordinates (now
       generated, `e24914f`) on the ON Tune build at `526dd49`; runner
       preflight and dry run accepted.
+      — AMENDED 2026-10-13 (Amendment 5, packet §27): before block 1, one `I1`
+      commit gives the picker's capture score, its threat term and LMR's
+      capture `statScore` the donor's `PieceValue` (history-unit sums),
+      converts the good-capture split to `−score/47`, seeds
+      `CoreRfpCorrMult` at 676 and fixes `CoreQuietSeeCoeff` off the surface
+      (49 coordinates); then the sweep re-runs on the new binary and block 1
+      is re-registered. The eight legacy coordinates stay B.3's.
     - [ ] **B.2.4** `[V]` Cluster 1 gates
       Gate: (a) the unfitted arm against the umbrella-off arm at the same
       revision, `[0,10]`, once its PGO binaries exist; (b) the fitted arm
@@ -1347,7 +1354,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.2.3 | GAME_GATE | V | Sweep curved (4 of 5); SPSA block 1 registered and prepared (BAS-S22), maintainer-run; the movement rule decides blocks 2–3 |
+| B.2.3 | READY_FOR_IMPLEMENTATION | V | Amendment 5 (packet §27): the `I1` unit commit, the sweep re-run and block 1's re-registration precede the maintainer-run tune |
 | B.2.4 | RESEARCH | V | Gates after B.2.3 |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |
 | B.4 | RESEARCH | I2 | Contents fixed by B.0 |
