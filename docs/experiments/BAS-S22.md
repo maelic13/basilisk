@@ -41,6 +41,68 @@
   schedule; blocks and iteration counts recorded here when registered in
   detail (PLAN rule 7c).
 
+#### Block registration (2026-10-13, before the first game)
+
+- **Sweep:** `analysis/b23_sweep_2026-10-13.md`, classification frozen
+  before its first point (`67ff4b8`). Four of the five coordinates are
+  curved, so the tune runs.
+- **Surface:** the core kernel table's 50 coordinates (review §5.10 with
+  Amendments 3–4), generated from `src/search_params.h` by
+  `tools/generate_spsa_surface.py` (`e24914f`):
+  - `tools/spsa_configs/colosseum/core.tune.toml` (git blob `175eec7c…`);
+  - `tools/spsa_configs/config_core.json` (git blob `15fac8c8…`);
+  - steps `max(2, round(range/16))`; `c_end` set for 2,000 iterations.
+- **Fixed, not tuned:**
+  - the six categorical switches at their settled values
+    (`CoreLmpExemptChecks` 0, the other five at their defaults);
+  - the eight legacy coordinates the core table splices in (null move,
+    ProbCut, singular, `LmrSingularQuiet`: B.3's mechanisms);
+  - the root and time table.
+- **Binary:** `basilisk-b23-on-tune-pext-tune-pgo.exe`, ON Tune, final
+  PGO, source `526dd49`. SHA-256
+  `CBCB9EBE67343B6055D891723D5E697C76B382C06E6B77988506D99ED50D1AC6`;
+  `bench 13` 6,199,439.
+- **Runner and shape:** Colosseum `tools/spsa_colosseum.ps1` on
+  `tools/spsa_configs/colosseum/search.run.toml` with
+  `-Tune …/core.tune.toml`:
+  - 15 slots × 30 games per iteration, 2,000 iterations per block (60,000
+    games), `r_end` 0.0031;
+  - `3+0.03`, 1T, Hash 64, UHO paired, no adjudication, tablebases off.
+- **Seeds and blocks:**
+  - block 1 seed 23001;
+  - block 2 seed 23002 with `-SeedFrom` block 1;
+  - block 3 seed 23003 with `-SeedFrom` block 2;
+  - results in `tools/results/b23-spsa-block{1,2,3}`.
+- **Stop rule (PLAN rule 7c), fixed before the first game:** after each
+  block, `python tools/spsa_block_rule.py <block dir> --config
+  tools/spsa_configs/config_core.json`.
+  - At least three coordinates moved a full step: the next block runs.
+  - Fewer: the tune stops, and theta is that block's rounded centres.
+  - Never more than three blocks. A block cut short never counts.
+- **Estimator:** the last completed block's rounded centres, without
+  checkpoint selection (PROCESS, go/no-go step 6).
+- **Afterwards:**
+  - Theta is baked in one engine commit into the core table's defaults.
+  - The correctness floors are verified under generous limits (step 7).
+  - B.2.4(b) gates the fitted arm against the unfitted one at `[0,10]`.
+- **Budget:** at most 180,000 games, about 10.5 hours per block at the
+  5,700 games/hour B.2.2's runs read. Maintainer-run overnight, one
+  pinned harness at a time.
+- **Validation:** the wrapper's preflight and the runner's own `--dry-run`
+  on the exact block-1 arguments (`tools/results/b23-20261013/
+  validate_tune.ps1`, `dryrun-block1.json` `adfc6f80…5018`). They read:
+  - 50 parameters, all advertised by the binary;
+  - 2,000 iterations × 30 games, concurrency 15, automatic placement;
+  - no adjudication, `r_end` 0.0031, seed 23001, manifest bench 6,199,439.
+
 #### RESULT — append after exposure
 
-- Disposition: registered, not run.
+- Curvature sweep (2026-10-13; `analysis/b23_sweep_2026-10-13.md`):
+  - **curved:** `CoreRfpPerPly`, `CoreLmpSquareScale`, `CoreLmrOffset`,
+    `CoreCorrUpdateScale`;
+  - **monotone:** `CoreQuietFutBase`.
+  - Every curve peaks at the seed (WAC 249 at 100k against 237–247), so
+    the curvature is shallow.
+  - Against the prediction: the node-margin and move-loop groups held,
+    except `CoreQuietFutBase`; the LMR offset curved against "little".
+- Disposition: sweep read, the tune runs; block 1 prepared, maintainer-run, not started.

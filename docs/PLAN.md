@@ -1249,6 +1249,14 @@ rejections stop B.
     - [ ] **B.2.3** `[V]` Curvature sweep, then SPSA in blocks
       Curvature sweep, then SPSA in blocks (rule 7c) over the cluster's live
       coordinates, maintainer-run; theta baked in one engine commit.
+      Sweep read 2026-10-13 (`analysis/b23_sweep_2026-10-13.md`, classification
+      frozen before the first point): `CoreRfpPerPly`, `CoreLmpSquareScale`,
+      `CoreLmrOffset` and `CoreCorrUpdateScale` curved, `CoreQuietFutBase`
+      monotone, so the tune runs. Every curve peaks at the seed (WAC 249 at
+      100k), so the curvature is shallow. Block 1 is registered in BAS-S22
+      and prepared, not started: the core surface's 50 coordinates (now
+      generated, `e24914f`) on the ON Tune build at `526dd49`; runner
+      preflight and dry run accepted.
     - [ ] **B.2.4** `[V]` Cluster 1 gates
       Gate: (a) the unfitted arm against the umbrella-off arm at the same
       revision, `[0,10]`, once its PGO binaries exist; (b) the fitted arm
@@ -1339,7 +1347,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.2.3 | RESEARCH | V | Curvature sweep after B.2.2 |
+| B.2.3 | GAME_GATE | V | Sweep curved (4 of 5); SPSA block 1 registered and prepared (BAS-S22), maintainer-run; the movement rule decides blocks 2–3 |
 | B.2.4 | RESEARCH | V | Gates after B.2.3 |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |
 | B.4 | RESEARCH | I2 | Contents fixed by B.0 |
