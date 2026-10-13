@@ -475,7 +475,7 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S21](experiments/BAS-S21.md) — B.2.2: Cluster 1 diagnostics and the unfitted paired run, P1–P6 frozen — +130.9 ± 11.4 (cross-check +136.2 ± 11.0), proceeds; closed
 
-- [BAS-S22](experiments/BAS-S22.md) — B.2.3: Cluster 1 curvature sweep, then SPSA in blocks — sweep curved (4 of 5), block 1 prepared
+- [BAS-S22](experiments/BAS-S22.md) — B.2.3: Cluster 1 curvature sweep, then SPSA in blocks — Amendment 5 landed, sweep re-run curved (3 of 5), block 1 re-registered
 
 - [BAS-S23](experiments/BAS-S23.md) — B.2.4: Cluster 1 gates — registered
 

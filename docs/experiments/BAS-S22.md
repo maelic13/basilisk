@@ -107,3 +107,42 @@
     except `CoreQuietFutBase`; the LMR offset curved against "little".
 - Disposition: sweep read, the tune runs; block 1 prepared, maintainer-run, not started.
 - 2026-10-13, before any game (Amendment 5, packet §27): the block-1 registration above is superseded. An `I1` commit corrects three history-unit sums (the donor's `PieceValue`), the good-capture split (`−score/47`) and the `CoreRfpCorrMult` seed (676), and fixes `CoreQuietSeeCoeff` off the surface; the surface (49), binary hash, bench, dry run and the sweep are re-recorded here before block 1 launches. Shape, gain, seeds, blocks, stop rule and estimator are unchanged.
+- **Block 1 re-registered 2026-10-13, before any game (Amendment 5; packet
+  §28).** Shape, gain, seeds, blocks, stop rule and estimator are
+  unchanged.
+  - **Engine:** `3eea3c5`.
+  - **Surface:** 49 coordinates, `CoreRfpCorrMult` initial 676,
+    `CoreQuietSeeCoeff` off (an `F` line), regenerated at `b5983c6`.
+    Git blobs: `core.tune.toml` `f461bb38…`, `config_core.json`
+    `12b234af…`.
+  - **Binary:** `basilisk-b23b-on-tune-pext-tune-pgo.exe` (ON Tune, final
+    PGO, clean manifest at `b5983c6`). SHA-256
+    `A900EFD2AC77CD3F4178A1161A4FA5091A313DA5F4CCCE4EA799043C99CA2AEB`;
+    `bench 13` 6,096,792.
+  - **Sweep re-run** on that binary under the frozen rule
+    (`analysis/b23_sweep_2026-10-13.md`, *Re-run on `3eea3c5`*):
+    - curved: `CoreLmpSquareScale`, `CoreLmrOffset`, `CoreCorrUpdateScale`;
+    - monotone: `CoreRfpPerPly`, `CoreQuietFutBase`;
+    - so the tune runs. The seed is now the lowest or tied-lowest WAC
+      point on four of five lines.
+  - **Validation:** the wrapper's preflight and the runner's own
+    `--dry-run` on the exact block-1 arguments
+    (`tools/results/b23-20261013b/validate_tune.ps1` `9706b9b9…ad21`,
+    `dryrun-block1.json` `55684045…2c2b`). They read:
+    - 49 parameters, all advertised;
+    - 2,000 iterations × 30 games, concurrency 15, automatic placement;
+    - no adjudication, `r_end` 0.0031, seed 23001;
+    - `CoreRfpCorrMult` initial 676, manifest bench 6,096,792.
+  - **Lost evidence:** the superseded registration's dry run
+    (`adfc6f80…5018`) was overwritten in
+    `tools/results/b23-20261013/` by a mis-pathed first validation run of
+    this registration (kept there as
+    `dryrun-block1.overwritten-by-b23b.json`). The superseded file is not
+    recoverable; its hash above is the record.
+  - **Launch:** `pwsh -NoProfile -File tools/spsa_colosseum.ps1 -Engine
+    tools/test_engines/basilisk-b23b-on-tune-pext-tune-pgo.exe
+    -ExpectBench 6096792 -ExpectRevision
+    b5983c6dfa08c136231d636d9bcbd5eb7cecfc5f -Tune
+    tools/spsa_configs/colosseum/core.tune.toml -Seed 23001 -Dir
+    tools/results/b23-spsa-block1`.
+- Disposition: block 1 re-registered and prepared, maintainer-run, not started.

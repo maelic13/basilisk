@@ -1264,6 +1264,14 @@ rejections stop B.
       `CoreRfpCorrMult` at 676 and fixes `CoreQuietSeeCoeff` off the surface
       (49 coordinates); then the sweep re-runs on the new binary and block 1
       is re-registered. The eight legacy coordinates stay B.3's.
+      Amendment 5 landed 2026-10-13 (packet §28: `3eea3c5` engine; `e24114a`,
+      `b5983c6` tooling). The ON `bench 13` is now 6,096,792 and the off arm
+      14,978,465; CTest passes on both arms. ON WAC reads 177 at depth 6 and
+      237 at 100k (from 249); first-move cutoffs rise 88.5% → 89.1% and
+      good-capture cutoffs 21.0% → 24.9%. The sweep re-run on the new Tune
+      binary finds three coordinates curved and the seed now at or near the
+      lowest WAC point; block 1 is re-registered (49 coordinates) and
+      prepared, not started.
     - [ ] **B.2.4** `[V]` Cluster 1 gates
       Gate: (a) the unfitted arm against the umbrella-off arm at the same
       revision, `[0,10]`, once its PGO binaries exist; (b) the fitted arm
@@ -1354,7 +1362,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.2.3 | READY_FOR_IMPLEMENTATION | V | Amendment 5 (packet §27): the `I1` unit commit, the sweep re-run and block 1's re-registration precede the maintainer-run tune |
+| B.2.3 | GAME_GATE | V | Unit commit landed (§28); sweep re-run curved (3 of 5); SPSA block 1 re-registered (49 coordinates, BAS-S22) and prepared, maintainer-run; the movement rule decides blocks 2–3 |
 | B.2.4 | RESEARCH | V | Gates after B.2.3 |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |
 | B.4 | RESEARCH | I2 | Contents fixed by B.0 |

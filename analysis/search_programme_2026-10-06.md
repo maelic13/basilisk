@@ -3199,3 +3199,47 @@ prediction; it is gated by B.2.4(a).
    separately. Stop: block 1 is maintainer-run.
 3. B.4's handoff (§12.4 when written) gains the quiescence capture-order
    unit note.
+
+## 28. B.2.3 unit commit (2026-10-13): Amendment 5 landed
+
+- **Commits:**
+  - `e24114a`, tooling: the generator finds the core table by its macro
+    name and keeps `F` lines off the surface, with a test;
+  - `3eea3c5`, engine, ON arm only: `HIST_PIECE_VALUE` at the three sums,
+    `see_ge(m, −score / 47)`, `CoreRfpCorrMult` seed 676,
+    `CoreQuietSeeCoeff` an `F` line, the table macro taking `(X, F)`;
+  - `b5983c6`, tooling: the surface regenerated to 49 coordinates.
+- **Recipe:** `tools/results/b21-r3-20261011/qual.sh` (label `b23unit`),
+  the per-commit record of §20.
+
+| Reading | Before (`cd2e397`) | After (`3eea3c5`) |
+|---|---:|---:|
+| ON `bench 13`, release PEXT = plain = Tune = Diag = Ablate | 6,199,439 | **6,096,792** |
+| ON `bench 10`, release = sanitizer | 1,598,399 | 1,386,667 |
+| Off arm `bench 13` (five flavours) / sanitizer `bench 10` | 14,978,465 / 3,190,673 | 14,978,465 / 3,190,673 |
+| CTest ON release / sanitizer (`test_move_picker_core` included) | 23/23, 21/21 | 23/23, 21/21 |
+| CTest off release / sanitizer | 20/20, 18/18 | 20/20, 18/18 |
+| ON WAC depth 6 (floor 130) | 173 | 177 |
+| ON WAC 100k nodes | 249 | **237** |
+| Diag `bench 13`: first-move cutoffs / fail highs | 88.48% (941,970 / 1,064,606) | **89.09%** (1,009,571 / 1,133,236) |
+| Diag `bench 13`: good-capture cutoffs / fail highs | 21.01% | **24.92%** |
+| Diag `bench 13`: mean cutoff index | 0.196 | 0.182 |
+
+Notes:
+- **Item 2 is live.** The commit's tree with `/ 18` in place of `/ 47`
+  (`scratch-div18`) reads `bench 13` 5,068,184, against 6,096,792.
+- **WAC at 100k fell 12 positions; attribution, instruments only (27.1
+  registers no prediction for them):**
+  - without the split change (`/ 18`): 244;
+  - with `CoreRfpCorrMult` at 0: 240;
+  - so the split carries about 7, the 676 seed about 3, and the rest,
+    about 2, the material vector (not isolated by its own run).
+- **Ordering improved by both counters:** more first-move and
+  good-capture cutoffs, a lower mean cutoff index.
+- **The Elo of the correction is B.2.4(a)'s,** as 27.1 says.
+- **Artifacts** (`tools/results/b23-20261013b/`):
+  - `counters_bench13_before.json` `2fc4361d…7a45`,
+    `counters_bench13_after.json` `1e8faf10…e44c`;
+  - `wac100k_div18.json` `11fe721c…dcb6`, `wac100k_corrmult0.json`
+    `a53518e0…c5f1`;
+  - the commit's 100k probe `b23unit/wac100k_on.json` `4c1889e1…f62e`.
