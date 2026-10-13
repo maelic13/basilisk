@@ -59,7 +59,7 @@ void CoreMovePicker::score_captures(int begin, int end) {
         const PieceType captured = move_type(m) == EN_PASSANT ? PAWN
                                  : type_of(board_.piece_on(to));
         moves_[i].score = history_.capture.entry[attacker][to][captured]
-                        + 7 * PIECE_VALUE[captured] + root_ordering(m);
+                        + 7 * HIST_PIECE_VALUE[captured] + root_ordering(m);
     }
 }
 
@@ -90,7 +90,7 @@ void CoreMovePicker::score_quiets(int begin, int end) {
         if ((checks_for(pt) & sq_bb(to)) && board_.see_ge(m, -75))
             v += 16384;
 
-        v += PIECE_VALUE[pt] * 20
+        v += HIST_PIECE_VALUE[pt] * 20
            * (int((threat_by_lesser[pt] & sq_bb(from)) != 0)
               - int((threat_by_lesser[pt] & sq_bb(to)) != 0));
 
@@ -131,7 +131,9 @@ Move CoreMovePicker::next() {
             case Stage::GoodCapture:
                 while (cur_ < end_captures_) {
                     const ScoredMove sm = moves_[cur_];
-                    if (board_.see_ge(sm.move, -sm.score / 18)) {
+                    // The donor's threshold, score / 18 in its material units,
+                    // in this engine's SEE units (x 0.38): score / 47.
+                    if (board_.see_ge(sm.move, -sm.score / 47)) {
                         ++cur_;
                         last_src_ = Src::GoodTactical;
                         return sm.move;

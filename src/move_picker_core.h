@@ -28,6 +28,12 @@
 
 #include <utility>
 
+// Material in history units: the value a sum of histories adds for a piece
+// (a capture's victim, a threatened piece). The histories keep the donor's
+// limits, so the material added into them is the donor's piece value too;
+// SEE, futility and the evaluation keep the search's own PIECE_VALUE.
+inline constexpr int HIST_PIECE_VALUE[PIECE_TYPE_NB] = {0, 208, 781, 825, 1276, 2538, 0};
+
 class CoreMovePicker {
 public:
     // The stage that produced the move next() just returned.

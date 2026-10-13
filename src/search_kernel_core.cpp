@@ -1045,7 +1045,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         if (capture_stage) {
             const PieceType captured = move_type(m) == EN_PASSANT ? PAWN
                                      : type_of(state_.board->piece_on(move_to));
-            stat_score = 873 * PIECE_VALUE[captured] / 128
+            stat_score = 873 * HIST_PIECE_VALUE[captured] / 128
                        + hist_.capture.entry[moved_pt][move_to][captured];
         } else {
             stat_score = (2252 * main_hist[from_sq(m)][move_to]

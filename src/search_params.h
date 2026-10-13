@@ -199,7 +199,14 @@
 // Correction training: the bonus is clamp(error * depth * scale / 128, +/-256)
 //   in 128ths, with scale * 3/2 when no move raised alpha; the continuation
 //   correction's weight is in 131072ths of the summed rows.
-#define BASILISK_CORE_KERNEL_PARAMS(X)                                   \
+//
+// F lines are coordinates the kernel reads and a tune build advertises but no
+// tune fits: their response is a staircase a tune's step cannot resolve.
+// Every consumer expands them as X (BASILISK_KERNEL_PARAMS passes X twice);
+// tools/generate_spsa_surface.py reads X lines only, so they stay off the
+// SPSA surface. quiet_see_coeff: SEE values here are multiples of 100, so
+// neighbouring coefficients prune the same quiets at every common lmrDepth.
+#define BASILISK_CORE_KERNEL_PARAMS(X, F)                                \
     BASILISK_LEGACY_NULL_PROBCUT(X)                                      \
     BASILISK_LEGACY_SINGULAR(X)                                          \
     BASILISK_LEGACY_LMR_SINGULAR(X)                                      \
@@ -208,7 +215,7 @@
     X(rfp_per_ply,           CoreRfpPerPly,         133,   40,   227)    \
     X(rfp_improving,         CoreRfpImproving,       89,   35,   160)    \
     X(rfp_worsening,         CoreRfpWorsening,       11,    0,    60)    \
-    X(rfp_corr_mult,         CoreRfpCorrMult,         0,    0,  2048)    \
+    X(rfp_corr_mult,         CoreRfpCorrMult,       676,    0,  2048)    \
     X(rfp_depth_cap,         CoreRfpDepthCap,         9,    6,    19)    \
     X(rfp_beta_weight,       CoreRfpBetaWeight,     661,  512,  1024)    \
     X(iir_min_depth,         CoreIirMinDepth,         4,    3,     8)    \
@@ -224,7 +231,7 @@
     X(capt_fut_hist_div,     CoreCaptFutHistDiv,     27,    8,   128)    \
     X(capt_fut_depth_cap,    CoreCaptFutDepthCap,     7,    4,     8)    \
     X(cont_hist_prune_slope, CoreContHistPruneSlope, 4136, 1500, 8000)   \
-    X(quiet_see_coeff,       CoreQuietSeeCoeff,      10,    4,    30)    \
+    F(quiet_see_coeff,       CoreQuietSeeCoeff,      10,    4,    30)    \
     X(capt_see_coeff,        CoreCaptSeeCoeff,       74,   30,   200)    \
     X(capt_see_hist_div,     CoreCaptSeeHistDiv,     80,   20,   200)    \
     /* Late-move reductions (1024ths of a ply) and re-search */          \
@@ -289,7 +296,7 @@
     S(lmr_negative_allowed,  CoreLmrNegativeAllowed, 1,    0,     1)
 
 #if defined(BASILISK_B2_CORE)
-#define BASILISK_KERNEL_PARAMS(X) BASILISK_CORE_KERNEL_PARAMS(X)
+#define BASILISK_KERNEL_PARAMS(X) BASILISK_CORE_KERNEL_PARAMS(X, X)
 #define BASILISK_KERNEL_SWITCHES(S) BASILISK_CORE_KERNEL_SWITCHES(S)
 #else
 #define BASILISK_KERNEL_PARAMS(X) BASILISK_LEGACY_KERNEL_PARAMS(X)
