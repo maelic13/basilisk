@@ -34,8 +34,11 @@ PARAM_RE = re.compile(
     r"\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(-?\d+)\s*\)"
 )
 # The B2_CORE arm's kernel table. The default arm's surface (the root and
-# legacy kernel tables) skips its lines; the core surface is its lines alone.
-CORE_TABLE = "#define BASILISK_CORE_KERNEL_PARAMS(X)"
+# legacy kernel tables) skips its lines; the core surface is its X lines
+# alone. Its F lines are coordinates the engine reads and a tune build
+# advertises but no tune fits, so, like S lines, they are never on a surface
+# (only X lines match PARAM_RE).
+CORE_TABLE = "#define BASILISK_CORE_KERNEL_PARAMS("
 
 
 def split_arm_lines(text: str) -> tuple[list[str], list[str]]:

@@ -46,6 +46,19 @@ class SurfaceTests(unittest.TestCase):
         core = [item[0] for item in surface.parse_parameters(text, core=True)]
         self.assertEqual(core, ["Beta"])
 
+    def test_fixed_lines_stay_off_the_core_surface(self):
+        text = (
+            "#define BASILISK_CORE_KERNEL_PARAMS(X, F) \\\n"
+            "    X(b_field, Beta, 5, 0, 10) \\\n"
+            "    F(e_field, Epsilon, 5, 0, 10) \\\n"
+            "    X(g_field, Eta, 5, 0, 10)\n"
+            "#define BASILISK_ROOT_PARAMS(X) \\\n"
+            "    X(c_field, Gamma, 5, 0, 10)\n"
+        )
+        core = [item[0] for item in surface.parse_parameters(text, core=True)]
+        self.assertEqual(core, ["Beta", "Eta"])
+        self.assertEqual([item[0] for item in surface.parse_parameters(text)], ["Gamma"])
+
     def test_core_surface_is_the_clusters_coordinates(self):
         text = surface.HEADER.read_text(encoding="utf-8")
         parameters = surface.parse_parameters(text, core=True)
