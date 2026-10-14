@@ -313,24 +313,17 @@ resumes only at its recorded seed; a later tune block uses `-SeedFrom`, a fresh
 seed and a fresh schedule.
 
 **fastchess and weather-factory stay installed, working and documented** as
-the backup and second opinion until at least the classical release. Their
+the backup path, for when Colosseum cannot run, until at least the classical
+release. Their
 entry points are `tools/sprt.ps1` and `tools/spsa.ps1`; their binaries, books,
 weather-factory overlay and setup path remain qualified rather than merely
 retained. Every common provenance, topology, idle-host and option guard has
 one implementation in `harness_common.ps1`, shared by both paths.
 
-Run the backup path as a cross-check when:
-- the runner, the scheduler or the CPU topology on this host changes (the
-  same trigger that owes a null pair, BAS-M02);
-- a result is surprising: a sign nobody predicted, a magnitude well outside
-  the registered band, or a gate resolving far faster or slower than the
-  drift model predicts;
-- the Colosseum pin changes, after its source/release review.
-
-A cross-check is a fixed match or a replayed gate on the same arms, read as
-"do the two instruments agree inside their intervals", never as a second
-chance at acceptance. A registered experiment names its runner and never
-changes it mid-way.
+Colosseum's results are not re-run on the backup path, a surprising one
+included (maintainer decision 2026-10-14). Colosseum is qualified here and in
+Rarog, and B.2.2's fastchess replay agreed with it (+136.2 against +130.9).
+A registered experiment names its runner and never changes it mid-way.
 
 Shared conditions: `3+0.03`, Hash 64, one thread, the UHO book in random order
 and paired, no adjudication, a 20 ms time margin, and automatic placement on

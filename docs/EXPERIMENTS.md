@@ -479,7 +479,7 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S23](experiments/BAS-S23.md) — B.2.4: Cluster 1 gates — registered
 
-- [BAS-S24](experiments/BAS-S24.md) — B.2.3 diagnostic: SPSA block 1's centres against the seeds, 2,000 games — +57.0 ± 9.8; cross-check owed
+- [BAS-S24](experiments/BAS-S24.md) — B.2.3 diagnostic: SPSA block 1's centres against the seeds, 2,000 games — +57.0 ± 9.8
 
 | ID | Title | Disposition |
 |---|---|---|

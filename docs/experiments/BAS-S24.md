@@ -81,4 +81,7 @@
   point on four of five lines after Amendment 5 (packet §28).
   - Part of the +57 may be the fit recovering what the unit commit cost.
     Amendment 5's own Elo is unmeasured until B.2.4(a).
-- Disposition: run, +57.0 ± 9.8; cross-check owed.
+- **Cross-check withdrawn (2026-10-14).** The maintainer removed the
+  backup-path cross-check rule: Colosseum is qualified here and in Rarog.
+  The prepared launcher was deleted unrun. The result stands as read.
+- Disposition: run, +57.0 ± 9.8.
