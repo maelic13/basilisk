@@ -1282,6 +1282,15 @@ rejections stop B.
       Each finding gets a proposed fix and an owner leaf. Block 1 already
       shows two rails at iteration 1,530: `CoreIirMinDepth` 4 → 8 (the
       kept IIR barely wanted) and `CoreResearchShallower` 2 → 0.
+      Block 1 complete 2026-10-14 (60,000 games, 0 faults): six coordinates
+      moved a full step, so the movement rule says CONTINUE. The interim
+      analysis is `analysis/b23_constants_2026-10-14.md`: IIR tuned off
+      (B.3), the shallower re-search firing only on fail-hard bound echoes
+      (B.4, B.8), RFP's seed column conservative (C, B.9), the `cutoffCnt`
+      terms (B.3), and the correction rate (the registered `CoreCorrLimit`
+      question). Block 2 is prepared (seed 23002, from block 1's centres),
+      maintainer-run. After the last block: the final analysis, the bake,
+      then B.2.4's gates whatever the analysis finds.
     - [ ] **B.2.4** `[V]` Cluster 1 gates
       Gate: (a) the unfitted arm against the umbrella-off arm at the same
       revision, `[0,10]`, once its PGO binaries exist; (b) the fitted arm
@@ -1372,7 +1381,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.2.3 | GAME_GATE | V | Unit commit landed (§28); sweep re-run curved (3 of 5); SPSA block 1 re-registered (49 coordinates, BAS-S22) and prepared, maintainer-run; the movement rule decides blocks 2–3 |
+| B.2.3 | GAME_GATE | V | Block 1 done, rule CONTINUE (6 full-step movers); interim constant analysis written; block 2 prepared, maintainer-run; then the final analysis, the bake and B.2.4's gates |
 | B.2.4 | RESEARCH | V | Gates after B.2.3 |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |
 | B.4 | RESEARCH | I2 | Contents fixed by B.0 |

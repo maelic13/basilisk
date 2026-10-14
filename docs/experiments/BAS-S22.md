@@ -146,3 +146,33 @@
     tools/spsa_configs/colosseum/core.tune.toml -Seed 23001 -Dir
     tools/results/b23-spsa-block1`.
 - Disposition: block 1 re-registered and prepared, maintainer-run, not started.
+- **Block 1 (maintainer-run, 2026-10-13 21:16 to 2026-10-14 09:37 UTC):**
+  - 2,000 iterations, 60,000 games, 0 engine, time or infrastructure
+    faults (`tools/results/b23-spsa-block1/`, `result.json`
+    `40c63cdb…8c3c`, manifest
+    `colosseum_spsa_b23-spsa-block1_20261013_231631.manifest.txt`).
+  - **Movement rule: CONTINUE**, six of 49 coordinates moved at least one
+    full step:
+    - `CoreIirMinDepth` 4 → 8 (at the top of its range);
+    - `CoreRfpPerPly` 133 → 113;
+    - `CoreRfpImproving` 89 → 99;
+    - `CoreLmrCutoffCntAll` 1138 → 982;
+    - `CoreResearchShallower` 2 → 0 (at the bottom of its range);
+    - `CoreCorrUpdateScale` 12 → 14.
+  - The interim analysis of the constants:
+    `analysis/b23_constants_2026-10-14.md`.
+- **Block 2 prepared:** seed 23002, `-SeedFrom` block 1, the same surface
+  and steps.
+  - The runner's dry run (`tools/results/b23-20261013b/
+    dryrun-block2.json` `85c2a64e…a1cb`) accepts: 49 parameters, 2,000
+    × 30, concurrency 15, `r_end` 0.0031, no adjudication.
+  - It starts from block 1's rounded centres (`CoreIirMinDepth` 8,
+    `CoreResearchShallower` 0, `CoreRfpPerPly` 113, `CoreRfpCorrMult`
+    581).
+  - Launch: `pwsh -NoProfile -File tools/spsa_colosseum.ps1 -Engine
+    tools/test_engines/basilisk-b23b-on-tune-pext-tune-pgo.exe
+    -ExpectBench 6096792 -ExpectRevision
+    b5983c6dfa08c136231d636d9bcbd5eb7cecfc5f -Tune
+    tools/spsa_configs/colosseum/core.tune.toml -Seed 23002 -SeedFrom
+    tools/results/b23-spsa-block1 -Dir tools/results/b23-spsa-block2`.
+- Disposition: block 1 complete (CONTINUE); block 2 prepared, maintainer-run, not started.
