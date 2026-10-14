@@ -59,4 +59,22 @@
 
 #### RESULT — append after exposure
 
-- Disposition: registered, not run.
+- **Result (maintainer-run 2026-10-14):** **the current state +188.3 ± 17.5
+  Elo over 1.10.2** (rating 1688.3 against the fixed 1500).
+  - 1,496 of 2,000 points (74.8%); W/D/L 1185/622/193;
+  - 0 engine faults, natural termination, the independent PGN census
+    agrees;
+  - `colosseum_gauntlet_b23-vs-1102_20261014_122508.*`, run record
+    `0E95EFC7…506F`, PGN `68D339BF…2A15`.
+- **Calibration:** inside the 80% interval [+140, +210], 13 above the
+  centre of +175; neither falsifier fires.
+- **Against the chain:** the direct reading sits 13 below the measured
+  links' sum of about +201.
+  - That is well inside the chain's own ±18 and this run's ±17.5, so it
+    does not show that Amendment 5 cost Elo, nor that the links are
+    non-additive. Amendment 5's own effect stays B.2.4(a)'s to measure.
+- **What it shows:** with SPSA block 1 of up to three done, the search
+  programme stands about +188 Elo above the released 1.10.2 at `3+0.03`.
+  It is self-play against the engine's own release, so a pool reading
+  will compress it.
+- Disposition: run, +188.3 ± 17.5.

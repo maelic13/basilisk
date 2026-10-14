@@ -481,7 +481,7 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S24](experiments/BAS-S24.md) — B.2.3 diagnostic: SPSA block 1's centres against the seeds, 2,000 games — +57.0 ± 9.8
 
-- [BAS-S25](experiments/BAS-S25.md) — programme checkpoint: the current state (block 1's centres) against 1.10.2, 2,000 games — registered
+- [BAS-S25](experiments/BAS-S25.md) — programme checkpoint: the current state (block 1's centres) against 1.10.2, 2,000 games — +188.3 ± 17.5
 
 | ID | Title | Disposition |
 |---|---|---|
