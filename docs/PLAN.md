@@ -1272,6 +1272,16 @@ rejections stop B.
       binary finds three coordinates curved and the seed now at or near the
       lowest WAC point; block 1 is re-registered (49 coordinates) and
       prepared, not started.
+      Owed before the bake (maintainer, 2026-10-14): a written analysis of
+      the fitted constants, not only their gate. Every coordinate that
+      moved a full step, ended at a range edge or moved against its seed
+      column (§7.3) is read for what it says about implementation,
+      design, unit or feature cohesion. Examples: a mechanism tuned toward
+      off, two terms moving to cancel, a margin compensating for a
+      mis-scaled input, a rail that hides a wanted value outside the range.
+      Each finding gets a proposed fix and an owner leaf. Block 1 already
+      shows two rails at iteration 1,530: `CoreIirMinDepth` 4 → 8 (the
+      kept IIR barely wanted) and `CoreResearchShallower` 2 → 0.
     - [ ] **B.2.4** `[V]` Cluster 1 gates
       Gate: (a) the unfitted arm against the umbrella-off arm at the same
       revision, `[0,10]`, once its PGO binaries exist; (b) the fitted arm
