@@ -62,4 +62,23 @@
 
 #### RESULT — append after exposure
 
-- Disposition: registered, not run.
+- **Result (maintainer-run 2026-10-14):** **block 1's centres +57.0 ± 9.8
+  Elo over the seeds** (nElo +90.0 ± 15.2).
+  - W/D/L 706/913/381 for `Block1`, pentanomial [21, 146, 395, 363, 75],
+    2,000 games over 1,000 pairs;
+  - 0 faults, natural termination, the independent PGN recount agrees;
+  - `colosseum_match_b23-block1-match_20261014_114850.*`, run record
+    `0105B11B…9768`, PGN `0824360F…252D`.
+- **Against the prediction:** +57.0 lies far above the 80% interval
+  [−4, +20] and above the registered +30 line. It is a miss on magnitude,
+  and the falsifier owes the backup-path cross-check:
+  `tools/run_b23_block1_crosscheck.ps1` (fastchess, the same arms, seed
+  24002), prepared, maintainer-run.
+- **What it does not change:** block 2 runs as BAS-S22 registers, and
+  B.2.4(b) remains the fitted arm's gate.
+- **Reading, not a verdict.** The seed point was a poor operating point
+  for this binary. The sweep re-run already showed it as the lowest WAC
+  point on four of five lines after Amendment 5 (packet §28).
+  - Part of the +57 may be the fit recovering what the unit commit cost.
+    Amendment 5's own Elo is unmeasured until B.2.4(a).
+- Disposition: run, +57.0 ± 9.8; cross-check owed.
