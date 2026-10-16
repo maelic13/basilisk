@@ -120,9 +120,60 @@
 
 #### RESULT — append after exposure
 
-- Disposition: registered; run details and dry runs accepted 2026-10-16;
-  maintainer-run, gate (a) first.
+- **Gate (a), the cluster: H1 accepted.** Unfitted ON against OFF at
+  `399c7ce`: **+136.2 ± 33.6 Elo** (nElo +192.8 ± 42.9), LLR +2.96 after
+  126 pairs (252 games); W/D/L 131/84/37, pentanomial [1, 15, 26, 57, 27].
+  - Run 2026-10-16 15:09–15:12 local by the agent, under the maintainer's
+    one-time exception for this gate.
+  - 0 faults; 16 post-terminal pairs kept outside the sample; the
+    independent PGN recount agrees.
+  - `colosseum_sprt_b24-gate-a_20261016_150939.*`, manifest
+    `0e7ae11e…8778`, run record `1262eb3e…4079`, PGN `7b6b3351…e76e`.
+  - It agrees with B.2.2's paired run (+130.9 ± 11.4 at `84da91f`), which
+    preceded `CoreLmpExemptChecks` 0 and Amendment 5.
+- **Gate (b), the fit: H1 accepted.** Fitted ON against unfitted ON:
+  **+58.7 ± 20.9 Elo** (nElo +94.2 ± 32.8), LLR +3.00 after 215 pairs
+  (430 games); W/D/L 152/198/80, pentanomial [2, 33, 90, 71, 19].
+  - Maintainer-run 2026-10-16 08:54–08:59 local.
+  - 0 faults; 16 post-terminal pairs kept outside the sample; the
+    independent PGN recount agrees.
+  - `colosseum_sprt_b24-gate-b_20261016_085419.*`, manifest
+    `0065b6e8…b9c8`, run record `64ef6acb…a8ed`, PGN `91f00b29…d244`.
+  - It agrees with BAS-S24's +57.0 ± 9.8 for block 1's centres: block 2
+    added little, as its STOP said.
+- **Order.** Gate (b) ran before gate (a), against the registered order.
+  The two use different binary pairs and seeds and never ran together,
+  so neither reading depends on the order.
+- **Each gate accepted its own thing:** the cluster on its own evidence,
+  and the fit on its own evidence. Chained, B.2 reads about +195 Elo over
+  the B.1 head; BAS-S25's direct reading of the block-1 state against
+  1.10.2 was +188.3 ± 17.5.
+- **Default flipped:** `B2_CORE` defaults ON (`8a10d14`); the
+  development fingerprint is now `bench 13` 11,099,210. The legacy
+  kernel stays compilable with `-DB2_CORE=OFF` (14,978,465) until B.8,
+  and CI builds and tests it (`2853699`).
+- Disposition: **both gates H1; Cluster 1 accepted and the default
+  flipped. CLOSED 2026-10-16.**
 
 #### PREDICTION CALIBRATION — preserve the original prediction above
 
-- (P1–P6 of BAS-S21 are calibrated here after both gates)
+- **This entry's prediction (P2):** +40 Elo at STC, 90% interval [+5, +90],
+  H1 probability 65%.
+  - H1 came, on both gates.
+  - The size missed high by about +105: the chained +195 sits far
+    outside the interval. The falsifier (H0, or a stop under +10) did
+    not fire.
+- **P1–P6 of BAS-S21, read together:**
+  - P1 (unfitted −15 ± 30): missed high by about 146 (B.2.2's +130.9;
+    gate (a) +136.2).
+  - P2: missed high, above.
+  - P3 (nodes at depth 12 ≤ 2.5× the oracle): held at 1.86, with
+    branching under its window by 0.0035.
+  - P4 (WAC at 100k ≥ 225, LMR-off delta ≤ +5): WAC held (249, now 241
+    fitted); the delta missed (+8).
+  - P5 (NPS 0.92–0.98× B.1): missed above the band, at 1.038×.
+  - P6 (LMR re-searches 3–5%, RFP cuts under 12%): held.
+- **What it teaches:** the mechanism screens (P3, P6) held, and the misses
+  all fell on the favourable side. The Elo predictions were anchored far
+  too low: the packet priced the coherent core at +40, and it was
+  nearer +195. The research for B.3–B.5 should not reuse that prior.

@@ -11,7 +11,7 @@ in `docs/PROCESS.md`; where the engine stands is PLAN §1.
 | Item | Value |
 |---|---|
 | Released baseline | **1.10.2** on `master`, tagged `v1.10.2` (2026-10-08) |
-| Bench fingerprint | **14,978,465** (`bench 13`, 1.10.0 to 1.10.2) |
+| Bench fingerprint | **11,099,210** (`bench 13`, Cluster 1 default since B.2.4; 14,978,465 for 1.10.0 to 1.10.2 and the legacy arm) |
 | Active experiment | None |
 | Long job | None |
 | Next release | **2.0.0** if the E.2 target gate is met, otherwise **1.11.0**, cut at E.3 |
@@ -34,7 +34,7 @@ generations change. These are maintainer judgments, not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **B.2.4** `[V]` Cluster 1 gates — Claude Sonnet 5 — High
+**Next step:** **B.3** `[I2]` Cluster 2 — pruning and extensions — Claude Opus 5 — High
 
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
@@ -72,12 +72,12 @@ generations change. These are maintainer judgments, not measured rankings.
     - [x] **B.0.1** `[V]` Razoring depth reach in Elo (maintainer)
     - [x] **B.0.2** `[V]` Oracle move-loop pruning family in Elo (maintainer)
 - [x] **B.1** `[I1]` Search restructure, behaviour-neutral
-- [ ] **B.2** Cluster 1 — the selectivity core
+- [x] **B.2** Cluster 1 — the selectivity core
     - [x] **B.2.0** `[R2]` Architecture review and neutral upgrades
     - [x] **B.2.1** `[I2]` Implement behind the umbrella switch
     - [x] **B.2.2** `[V]` Diagnostics and the unfitted paired run
     - [x] **B.2.3** `[V]` Curvature sweep, then SPSA in blocks
-    - [ ] **B.2.4** `[V]` Cluster 1 gates
+    - [x] **B.2.4** `[V]` Cluster 1 gates
 - [ ] **B.3** `[I2]` Cluster 2 — pruning and extensions
 - [ ] **B.4** `[I2]` Cluster 3 — quiescence
 - [ ] **B.5** `[I2]` Cluster 4 — root and aspiration

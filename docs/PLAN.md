@@ -1040,7 +1040,7 @@ rejections stop B.
   **+1.21%** against the A.8 head, 95% CI [+0.57%, +1.44%], with the self
   pair at −0.04%. It passes, and the gain is recorded unexplained. B.1's
   pooled median, 4.216M NPS, is B.2's NPS reference.
-- [ ] **B.2** Cluster 1 — the selectivity core
+- [x] **B.2** Cluster 1 — the selectivity core
   Cluster 1 — the selectivity core; final contents fixed by B.0.
   Expected contents:
   - TT use: the TT-adjusted eval, raw eval stored on a miss, and the
@@ -1307,13 +1307,20 @@ rejections stop B.
       100k. The endgame cohort at 600k nodes holds every floor (KBN-K 23/24
       inside its slack; BAS-S23). B.2.4's gates are registered and
       dry-run.
-    - [ ] **B.2.4** `[V]` Cluster 1 gates
+    - [x] **B.2.4** `[V]` Cluster 1 gates
       Gate: (a) the unfitted arm against the umbrella-off arm at the same
       revision, `[0,10]`, once its PGO binaries exist; (b) the fitted arm
       against the unfitted one, `[0,10]`, after the bake.
       Each gate accepts one thing on its own evidence, so a weak tune cannot
       ride on the cluster's margin. The default flips to the accepted arm;
       the legacy search stays compilable until B.8.
+      — CLOSED 2026-10-16 (BAS-S23): both gates accept H1. (a) the unfitted
+      arm against the off arm, **+136.2 ± 33.6 Elo** (252 games); (b) the
+      fitted arm against the unfitted, **+58.7 ± 20.9 Elo** (430 games).
+      Chained, B.2 reads about +195 Elo over the B.1 head; P2's +40 missed
+      high. `B2_CORE` now defaults ON (`8a10d14`): the development
+      fingerprint is `bench 13` 11,099,210, and the legacy kernel builds
+      with `-DB2_CORE=OFF` (14,978,465), tested in CI (`2853699`), until B.8.
 - [ ] **B.3** `[I2]` Cluster 2 — pruning and extensions
   Cluster 2 — proof searches and extensions: NMP (cut-node population,
   improving and prior-fail-high margin, dynamic reduction, verification
@@ -1397,7 +1404,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.2.4 | GAME_GATE | V | Gates (a) and (b) registered in BAS-S23 and dry-run; maintainer-run, (a) first; P1–P6 calibrated after both |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |
 | B.4 | RESEARCH | I2 | Contents fixed by B.0 |
 | B.5 | RESEARCH | I2 | Contents fixed by B.0 |
