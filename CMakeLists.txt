@@ -157,10 +157,12 @@ target_include_directories(basilisk_board PUBLIC
 # it only through Searcher's kernel entry points, so a cluster built behind an
 # umbrella option supplies its own list here while the driver stays shared.
 # Cluster umbrellas (PROCESS, Cluster delivery shape): a Boolean option that
-# compiles one search cluster in; OFF reproduces the accepted fingerprint.
+# compiles one search cluster in; it defaults OFF until the cluster's gate
+# passes, then ON, and the old path stays compilable until its cleanup leaf.
 # B2_CORE is Cluster 1, the selectivity core, which replaces the node kernel
-# (BASILISK_SEARCH_KERNEL_SOURCES and the kernel section of Searcher).
-option(B2_CORE "Compile Cluster 1's selectivity-core node kernel in place of the legacy kernel (sets BASILISK_B2_CORE)" OFF)
+# (BASILISK_SEARCH_KERNEL_SOURCES and the kernel section of Searcher). It
+# passed B.2.4 and defaults ON; OFF builds the legacy kernel until B.8.
+option(B2_CORE "Compile Cluster 1's selectivity-core node kernel in place of the legacy kernel (sets BASILISK_B2_CORE)" ON)
 if(B2_CORE)
     set(BASILISK_SEARCH_KERNEL_SOURCES
         src/search_kernel_core.cpp
