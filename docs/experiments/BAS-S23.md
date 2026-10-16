@@ -36,9 +36,92 @@
 - Full conditions / provenance: as BAS-S21; the paired-opening SPRT recipe of
   PROCESS; P1–P6 calibration appended here, as packet §11 says.
 
+#### RUN DETAILS — registered 2026-10-16, before either gate's first game
+
+- **Exposure since the prediction froze (2026-10-11).** Three readings of
+  neighbouring questions have been seen; the prediction above stays as
+  written and is calibrated as written:
+  - B.2.2's paired run, unfitted ON against OFF at `84da91f`, +130.9 ±
+    11.4 (BAS-S21);
+  - SPSA block 1's centres against the seeds, +57.0 ± 9.8 (BAS-S24);
+  - the current state against 1.10.2, +188.3 ± 17.5 (BAS-S25).
+- **Bracket `[0,10]`.** The wide bracket is for a large prior, and the
+  three readings above put both gates far above +10. `[0,3]` would spend
+  games resolving a question already answered by size.
+- **Gate (a): the cluster.**
+  - Engine A `basilisk-b24-on-unfit-pext-pgo.exe`: B2_CORE on, revision
+    `399c7ce`, `bench 13` 6,096,792, SHA-256
+    `BF64DE180BDD2ABC169B47F5110E651E26D37807C526C90E9B3FB1F9B9D5C06C`.
+  - Engine B `basilisk-b24-off-pext-pgo.exe`: B2_CORE off, the same
+    revision, `bench 13` 14,978,465, SHA-256
+    `C9FD51631E9A50701B8A7B83400EABC5AFCDFD709B33F41D871784FE57FB0D1C`.
+  - Seed 24001, results in `tools/results/b24-gate-a/`.
+- **Gate (b): the fit.**
+  - Engine A `basilisk-b24-on-fit-pext-pgo.exe`: B2_CORE on, revision
+    `2ab17c7` (the bake, `b777ba8`, plus the regenerated surface),
+    `bench 13` 11,099,210, SHA-256
+    `5D04A916445C41A744633C7026632B8AAD351B734B4AD0F54E38E4FE10EE322A`.
+  - Engine B: gate (a)'s engine A.
+  - The engine sources differ only in `src/search_params.h`'s 46 baked
+    defaults. The two arms come from different commits, so the launcher
+    pins both hashes and the wrapper checks each manifest's clean tree
+    and fingerprint.
+  - Seed 24002, results in `tools/results/b24-gate-b/`.
+- **Both gates:**
+  - Release PEXT final-PGO binaries from `tools/build_test.ps1`, clang,
+    clean manifests;
+  - Colosseum SPRT, `sprt-wide.toml` (normalized, α = β = 0.05);
+  - `3+0.03`, 1T, Hash 64, paired reversed UHO openings, no adjudication,
+    tablebases off; concurrency as the wrapper resolves it;
+  - launcher `tools/run_b24_gates.ps1 -Gate a|b`.
+- **Cap: 2,500 pairs (5,000 games) per gate.** By the drift model the
+  expected LLR reaches the upper bound ln 19 = 2.94 inside the cap for any
+  true value above about +12. At the readings above both gates should end
+  within a few hundred games.
+- **Order and stop rule.**
+  - Gate (a) runs first, then gate (b), never together.
+  - H1 accepts the gate. H0 on either is this entry's falsifier (packet
+    §11's stop rule).
+  - The cap without a decision is inconclusive, not a pass: report the LLR
+    and return to research.
+- **Bake-time floors (PROCESS go/no-go step 7):**
+  - Qualification of the baked tree (`tools/results/b21-r3-20261011/bake/`):
+    - all 12 builds; ON `bench 13` 11,099,210 and `bench 10` 2,034,942 on
+      every flavour; OFF 14,978,465 and 3,190,673, unchanged;
+    - CTest 100% on both arms in Release (23 and 20 tests) and under the
+      sanitizer (21 and 18);
+    - WAC 181 at depth 6 (floor 130) and 241 at 100k nodes (from 237).
+  - The endgame cohort under generous limits:
+    `tools/diag/endgame_cohort_v1` (770 positions; an LF copy whose bytes
+    match the manifest's pin), 600,000 nodes a move, 100 plies, paired
+    position by position, unfitted (`BF64DE18…C06C`) against fitted (the
+    qualification binary `F059C8F6…191E`, the same source as gate (b)'s
+    engine A): `tools/results/b24-20261016/endgame-600k-{unfit,fit}.json`
+    (`642f0477…604e`, `4ec94fd9…81c5`).
+    - The CTest floor families hold: KQ-K, KR-K and KBB-K 24/24 on both;
+      KBN-K 24/24 unfitted and 23/24 fitted, inside the floor's one
+      position of slack. The fitted miss (EG0081) never discards the
+      tablebase win but makes too little progress and draws by the
+      fifty-move rule at ply 99.
+    - Over the 480 clean wins: 458 converted unfitted and 452 fitted;
+      paired, the fit loses 14 and gains 8 (sign test p ≈ 0.29), mostly
+      100-ply limits in KNN-KP, KRP-KR and KQ-KRP. Win-preserving moves
+      99.26% against 98.96%; 19 and 20 positions discard a win.
+    - No floor breaks. The small tilt is consistent with the fitted
+      tree's 82% larger fixed-depth size reaching less depth per node
+      budget; it is recorded, not a gate.
+- **Dry runs:** both accepted 2026-10-16:
+  - gate (a) `tools/results/colosseum_sprt_b24-gate-a_20261016_082245.*`
+    (dry run `0C71040F…4A8B`);
+  - gate (b) `tools/results/colosseum_sprt_b24-gate-b_20261016_082250.*`
+    (dry run `6FADF715…295E`);
+  - each reads normalized `[0,10]`, α = β = 0.05, cap 2,500 pairs,
+    concurrency 15, no adjudication, and the pinned hashes and benches.
+
 #### RESULT — append after exposure
 
-- Disposition: registered, not run.
+- Disposition: registered; run details and dry runs accepted 2026-10-16;
+  maintainer-run, gate (a) first.
 
 #### PREDICTION CALIBRATION — preserve the original prediction above
 

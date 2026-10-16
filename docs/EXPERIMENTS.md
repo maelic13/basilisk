@@ -475,9 +475,9 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S21](experiments/BAS-S21.md) — B.2.2: Cluster 1 diagnostics and the unfitted paired run, P1–P6 frozen — +130.9 ± 11.4 (cross-check +136.2 ± 11.0), proceeds; closed
 
-- [BAS-S22](experiments/BAS-S22.md) — B.2.3: Cluster 1 curvature sweep, then SPSA in blocks — block 1 done (CONTINUE), block 2 prepared
+- [BAS-S22](experiments/BAS-S22.md) — B.2.3: Cluster 1 curvature sweep, then SPSA in blocks — two blocks, STOP after block 2; theta baked
 
-- [BAS-S23](experiments/BAS-S23.md) — B.2.4: Cluster 1 gates — registered
+- [BAS-S23](experiments/BAS-S23.md) — B.2.4: Cluster 1 gates — run details registered, dry-run; maintainer-run
 
 - [BAS-S24](experiments/BAS-S24.md) — B.2.3 diagnostic: SPSA block 1's centres against the seeds, 2,000 games — +57.0 ± 9.8
 

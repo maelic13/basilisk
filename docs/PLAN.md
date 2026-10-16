@@ -1246,7 +1246,7 @@ rejections stop B.
       CTest passes on both arms (ON 23/23 and 21/21, off 20/20 and 18/18);
       ON WAC reads 173 at depth 6 and 249 at 100k nodes. B.2.3 starts from
       this head.
-    - [ ] **B.2.3** `[V]` Curvature sweep, then SPSA in blocks
+    - [x] **B.2.3** `[V]` Curvature sweep, then SPSA in blocks
       Curvature sweep, then SPSA in blocks (rule 7c) over the cluster's live
       coordinates, maintainer-run; theta baked in one engine commit.
       Sweep read 2026-10-13 (`analysis/b23_sweep_2026-10-13.md`, classification
@@ -1291,6 +1291,22 @@ rejections stop B.
       question). Block 2 is prepared (seed 23002, from block 1's centres),
       maintainer-run. After the last block: the final analysis, the bake,
       then B.2.4's gates whatever the analysis finds.
+      Block 2 complete 2026-10-16 (60,000 games, 0 faults): two full-step
+      movers, so the rule says STOP; theta is block 2's rounded centres.
+      The final analysis (`analysis/b23_constants_2026-10-14.md`) carries
+      seven findings with owners (IIR tuned off and the shallower re-search
+      inside its dead zone, B.3 and B.4/B.8; RFP's seed, C and B.9; the
+      correction wanting more weight, which argues against running the
+      `CoreCorrLimit` categorical; histories weighing more, the `CoreHistoryFills`
+      residual); none holds the bake.
+      — CLOSED 2026-10-16: theta baked in one engine commit (`b777ba8`; 46
+      of 49 defaults change), surface regenerated (`2ab17c7`). The ON
+      `bench 13` is now 11,099,210 (`bench 10` 2,034,942) and the off arm
+      14,978,465 on every flavour. CTest passes on both arms (ON 23/23 and
+      21/21, off 20/20 and 18/18); ON WAC reads 181 at depth 6 and 241 at
+      100k. The endgame cohort at 600k nodes holds every floor (KBN-K 23/24
+      inside its slack; BAS-S23). B.2.4's gates are registered and
+      dry-run.
     - [ ] **B.2.4** `[V]` Cluster 1 gates
       Gate: (a) the unfitted arm against the umbrella-off arm at the same
       revision, `[0,10]`, once its PGO binaries exist; (b) the fitted arm
@@ -1381,8 +1397,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.2.3 | GAME_GATE | V | Block 1 done, rule CONTINUE (6 full-step movers); interim constant analysis written; block 2 prepared, maintainer-run; then the final analysis, the bake and B.2.4's gates |
-| B.2.4 | RESEARCH | V | Gates after B.2.3 |
+| B.2.4 | GAME_GATE | V | Gates (a) and (b) registered in BAS-S23 and dry-run; maintainer-run, (a) first; P1–P6 calibrated after both |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |
 | B.4 | RESEARCH | I2 | Contents fixed by B.0 |
 | B.5 | RESEARCH | I2 | Contents fixed by B.0 |

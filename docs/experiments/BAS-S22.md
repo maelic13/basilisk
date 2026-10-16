@@ -176,3 +176,24 @@
     tools/spsa_configs/colosseum/core.tune.toml -Seed 23002 -SeedFrom
     tools/results/b23-spsa-block1 -Dir tools/results/b23-spsa-block2`.
 - Disposition: block 1 complete (CONTINUE); block 2 prepared, maintainer-run, not started.
+- **Block 2 (maintainer-run, 2026-10-15 00:12 to 2026-10-16 03:33 UTC):**
+  - 2,000 iterations, 60,000 games, 0 engine, time or infrastructure
+    faults (`tools/results/b23-spsa-block2/`, `result.json`
+    `69b40b9e…b5cd`, `tuned-options.txt` `8400d1a2…d98d`, manifests
+    `colosseum_spsa_b23-spsa-block2_20261015_021206.manifest.txt` and
+    `…_20261015_234447.manifest.txt`).
+  - It ran in two sessions: the first stopped at iteration 1,053, and the
+    second resumed from the block's own directory at the stored seed and
+    horizon.
+  - **Movement rule: STOP**, two of 49 coordinates moved a full step
+    (`CoreRfpPerPly` 113 → 101, `CoreCorrUpdateScale` 14 → 16); the rule
+    needs three.
+  - **Theta** is block 2's rounded centres, the 49 lines of
+    `tuned-options.txt`. The seed → block 1 → theta table is
+    `tools/results/b24-20261016/final_movement.md` (`f6a9a834…89a6`):
+    13 coordinates moved at least one step from the seed, and one ends at
+    a range edge (`CoreIirMinDepth` 8).
+  - The final analysis of the constants:
+    `analysis/b23_constants_2026-10-14.md`, *Final, after block 2*.
+- Disposition: complete; block 2 stops the tune and theta is baked in one
+  engine commit.
