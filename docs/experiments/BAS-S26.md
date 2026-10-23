@@ -77,10 +77,21 @@
     the old header and passes all twelve on the new one;
   - WAC at depth 6: ON 187 (from 181), OFF 141 (from 138); WAC at 100k
     nodes: ON 248 (from 241).
-- The endgame cohort at 600k nodes is maintainer-run; the B.2.4 head's
-  reading (`tools/results/b24-20261016/endgame-600k-fit.json`) is its
-  baseline.
+- **The endgame cohort at 600k nodes** (maintainer-run 2026-10-23,
+  `tools/results/b10-qual/endgame-600k-flip.json`, `bc0354ee…5e736f`),
+  paired position by position against the B.2.4 head's reading
+  (`tools/results/b24-20261016/endgame-600k-fit.json`):
+  - **The floors hold:** KQ-K, KR-K and KBB-K 24/24 and KBN-K 23/24, the
+    same as the head.
+  - Of the 480 clean wins, the flip converts 460 and the head 452. Paired,
+    the flip gains 12 and loses 4 (sign test p ≈ 0.08), mostly 100-ply
+    limits in KNN-KP, KRP-KR and KQ-KRP.
+  - Win-preserving moves are 99.17% against 98.96%; 17 positions discard a
+    win against 20.
+  - The endgame tables now read in the intended direction, and nothing
+    here argues against the gate.
 
 #### RESULT — append after exposure
 
-- Disposition: registered and dry-run; maintainer-run.
+- Disposition: registered and dry-run; the endgame floors hold; the SPRT is
+  maintainer-run.

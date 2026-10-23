@@ -1363,8 +1363,8 @@ rejections stop B.
   `tests/test_eval.cpp`. ON `bench 13` 11,099,210 → 8,437,148; CTest
   passes on both arms; WAC at 100k 241 → 248. BAS-S26 is registered and
   dry-run; the baseline is rebuilt with clang 23.1.3 at the B.2.4 head's
-  engine (still 11,099,210). The endgame cohort and the SPRT are
-  maintainer-run.
+  engine (still 11,099,210). The endgame cohort at 600k holds every floor
+  (conversions 460/480 against the head's 452); the SPRT is maintainer-run.
 - [ ] **B.3** `[I2]` Cluster 2 — pruning and extensions
   Cluster 2 — proof searches and extensions: NMP (cut-node population,
   improving and prior-fail-high margin, dynamic reduction, verification
@@ -1448,7 +1448,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.10 | GAME_GATE | I1 | Flip and orientation test landed (`75381dc`); BAS-S26 registered and dry-run; endgame cohort and SPRT maintainer-run |
+| B.10 | GAME_GATE | I1 | Flip and orientation test landed (`75381dc`); BAS-S26 registered and dry-run; endgame floors hold; SPRT maintainer-run |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |
 | B.4 | RESEARCH | I2 | Contents fixed by B.0 |
 | B.5 | RESEARCH | I2 | Contents fixed by B.0 |
