@@ -77,6 +77,27 @@ anchor a refit cannot repair a seed error.
   around mirrored tables. They may partly compensate, which is the main reason
   the gate could read neutral.
 
+## Decision and routing (maintainer, 2026-10-23)
+
+- **B.10 flips the seven tables and nothing else**, then gates the flip
+  alone with `sprt-repair.toml`. Phase B does no PST refit.
+- **No refit was chosen instead of the flip.** Rarog repaired the same
+  defect with a re-fit, which for 736 linear coordinates means a Texel fit.
+  For Basilisk:
+  - the flip gives a clean, attributable gate;
+  - a proper refit needs Phase C's fit contract (a corpus from the B.9
+    head, K frozen once, splits by game);
+  - C.8 refits the whole surface again in any case.
+- **Phase C fits onward from the flipped tables.** No neutral start is
+  required, and PeSTO-derived values may stay (C.2.5).
+- **Follow-ups in PLAN:**
+  - C.0: the refit protocol must let a fit correct a seed error despite its
+    anchor;
+  - C.2.1: the orientation test is a precondition of every fit;
+  - C.7: read outposts, `reachable_outpost`, mobility and
+    `queen_infiltration` for compensation;
+  - C.10: refit Cluster 1's eval-valued margins.
+
 ## Recipe and artifacts
 
 Artifacts are in `tools/results/pst-orientation-20261023/` (ignored):
