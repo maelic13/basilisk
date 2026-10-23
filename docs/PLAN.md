@@ -1321,6 +1321,39 @@ rejections stop B.
       high. `B2_CORE` now defaults ON (`8a10d14`): the development
       fingerprint is `bench 13` 11,099,210, and the legacy kernel builds
       with `-DB2_CORE=OFF` (14,978,465), tested in CI (`2853699`), until B.8.
+- [ ] **B.10** `[I1]` PST orientation repair (ANY TIME) — before B.3
+  Correctness repair, admitted into the evaluation freeze by maintainer
+  decision (2026-10-23): fix it before B.3 starts fitting to the eval. Seven
+  piece-square tables have been stored rank-mirrored since v1.0.0: mg and eg
+  knight, bishop and queen, plus eg king. They hold PeSTO's rank-8-first rows
+  on a1-first squares, so, for example, a White knight on f3 gets f6's +110.
+  Pawn, rook and mg king are correct. Evidence is in
+  `analysis/pst_orientation_2026-10-23.md`, all of it static:
+  - the fix moves the eval by 31.7 cp mean;
+  - holdout loss is lower with no refit, on two corpora;
+  - an unanchored refit pulls only the seven mirrored tables toward their flip;
+  - the L2 anchor froze the error in place.
+  Change: rank-flip exactly those seven tables in `src/eval_params.h` and
+  nothing else. The candidate header is recorded by sha256 in the analysis.
+  Add an orientation test that fails on the old tables. Example: the White
+  and Black PST contributions of mirrored piece placements must agree with
+  the declared a1 = 0 orientation for every table, checked against a
+  committed PeSTO-orientation fixture.
+  Qualification:
+  - CTest on both arms;
+  - WAC;
+  - the endgame cohort floors at 600k nodes, with KBN-K and the KXK drives
+    as the fragile ones;
+  - bench accounting for the new fingerprint.
+  Gate: register a BAS-S entry first, then Colosseum `sprt-repair.toml`
+  (`[-5,5]` nElo, 3+0.03, 1 thread, Hash 64, UHO, no adjudication). Clean
+  PGO builds; the candidate plays the B.2.4 head (`bench 13` 11,099,210).
+  Frozen prediction: H1, +3 to +10 Elo, about 70% confidence. The main risk
+  is that terms fitted around the mirrored tables compensate (outposts,
+  mobility, Cluster 1's margins).
+  Verdict:
+  - H1: the flip becomes the default and the fingerprint record updates;
+  - H0: the old tables stay, and C.2.5 fits from the flipped seeds instead.
 - [ ] **B.3** `[I2]` Cluster 2 — pruning and extensions
   Cluster 2 — proof searches and extensions: NMP (cut-node population,
   improving and prior-fail-high margin, dynamic reduction, verification
@@ -1404,6 +1437,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
+| B.10 | READY_FOR_IMPLEMENTATION | I1 | Any time; must land before B.3 (eval-freeze exception, 2026-10-23) |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |
 | B.4 | RESEARCH | I2 | Contents fixed by B.0 |
 | B.5 | RESEARCH | I2 | Contents fixed by B.0 |

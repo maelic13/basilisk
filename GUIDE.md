@@ -39,6 +39,7 @@ generations change. These are maintainer judgments, not measured rankings.
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
 - **B.7.1** `[I1]` Allocation guard (ANY TIME) — before B.7.2 — Claude Sonnet 5 — Medium
+- **B.10** `[I1]` PST orientation repair (ANY TIME) — before B.3 — Claude Sonnet 5 — Medium
 - **D.3.1** `[R2]` Board contract audit (ANY TIME) — before E.1 — Claude Opus 5 — High
 
 ### Phase A — Reset: documents, harness, instruments, baselines
@@ -78,6 +79,7 @@ generations change. These are maintainer judgments, not measured rankings.
     - [x] **B.2.2** `[V]` Diagnostics and the unfitted paired run
     - [x] **B.2.3** `[V]` Curvature sweep, then SPSA in blocks
     - [x] **B.2.4** `[V]` Cluster 1 gates
+- [ ] **B.10** `[I1]` PST orientation repair (ANY TIME) — before B.3
 - [ ] **B.3** `[I2]` Cluster 2 — pruning and extensions
 - [ ] **B.4** `[I2]` Cluster 3 — quiescence
 - [ ] **B.5** `[I2]` Cluster 4 — root and aspiration
