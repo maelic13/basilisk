@@ -313,24 +313,17 @@ resumes only at its recorded seed; a later tune block uses `-SeedFrom`, a fresh
 seed and a fresh schedule.
 
 **fastchess and weather-factory stay installed, working and documented** as
-the backup and second opinion until at least the classical release. Their
+the backup path, for when Colosseum cannot run, until at least the classical
+release. Their
 entry points are `tools/sprt.ps1` and `tools/spsa.ps1`; their binaries, books,
 weather-factory overlay and setup path remain qualified rather than merely
 retained. Every common provenance, topology, idle-host and option guard has
 one implementation in `harness_common.ps1`, shared by both paths.
 
-Run the backup path as a cross-check when:
-- the runner, the scheduler or the CPU topology on this host changes (the
-  same trigger that owes a null pair, BAS-M02);
-- a result is surprising: a sign nobody predicted, a magnitude well outside
-  the registered band, or a gate resolving far faster or slower than the
-  drift model predicts;
-- the Colosseum pin changes, after its source/release review.
-
-A cross-check is a fixed match or a replayed gate on the same arms, read as
-"do the two instruments agree inside their intervals", never as a second
-chance at acceptance. A registered experiment names its runner and never
-changes it mid-way.
+Colosseum's results are not re-run on the backup path, a surprising one
+included (maintainer decision 2026-10-14). Colosseum is qualified here and in
+Rarog, and B.2.2's fastchess replay agreed with it (+136.2 against +130.9).
+A registered experiment names its runner and never changes it mid-way.
 
 Shared conditions: `3+0.03`, Hash 64, one thread, the UHO book in random order
 and paired, no adjudication, a 20 ms time margin, and automatic placement on
@@ -366,6 +359,13 @@ so a registered `[0,3]` gate passes `-Elo1 3`**. `-Mode simplify` is `[-5,0]`.
   options; `DIAGNOSTIC=ON` exposes diagnostics without tunable constants;
   the two flavors are mutually exclusive. `TEXEL=ON` builds the Texel target
   and is never measured for strength.
+- CTest runs two kinds of test. The correctness suite (`ctest -LE
+  strength`) checks rules, invariants, protocol and endgame knowledge in a few
+  seconds and is what an edit-compile loop and the sanitizer run use. The
+  `strength` label marks the search-strength floors (the WAC solved count and
+  the endgame conversion floors), which run in release CTest and at every
+  qualification. Every test section prints its wall time; a section that
+  grows past a second should earn it.
 - `bench 13` is the fingerprint: 40 positions, single-threaded, identical on
   every platform. `bench 13 1 N` is for multi-thread speed only.
 - `tools/build_test.ps1 -Suffix <s> -Flavor <Release|Tune|Diag>` builds a
@@ -545,48 +545,101 @@ small book collapsed 200,000 games into 31,880 unique positions.
 - A correctness exception names the invariant, the tests and the incomplete
   strength evidence.
 
+## Delivery
+
+`master` is the trunk; nothing else lives long.
+
+**Transition (maintainer decision 2026-10-09).** The `dev` line already open
+is the one exception: work continues on it until B.2 is done, then it lands
+once as a final squash PR and is deleted, and every later piece of work
+follows the steps below from `master`.
+
+1. **One branch per coherent piece of work.** A feature or experiment, or
+   one tooling or documentation change, gets its own short-lived branch from
+   `master`. On it, commit in small verified steps: each commit is
+   qualified (exact bench, CTest) as it is made. These are working records;
+   their subjects may name the plan leaf or phase.
+2. **One squash commit per branch.** The branch lands on `master` through a
+   pull request the maintainer squash-merges. No merge commits and no rebase
+   merges; the repository allows only squash merges. GitHub keeps the
+   branch's commits under the PR (`refs/pull/<n>/head`) after the squash, so
+   a document may cite them.
+3. **The squash message is the PR's title and description**, and it alone
+   reaches `master`, so it alone has a fixed shape. The title is
+   short and imperative and says what changed ("Rebuild king safety"), with
+   no results and no phase, plan or ledger references. The description is a
+   few plain lines on what and why, wrapped at 72 columns; then the test
+   results, one per line ("STC 3+0.03: +32.7 ± 8.9 Elo (2,450 games)"); then
+   `Bench: <nodes>`. No AI attribution anywhere: no `Co-Authored-By`, no
+   "Generated with" line; `.claude/settings.json` turns Claude Code's off.
+4. **Before opening the PR**, merge `master` into the branch if `master`
+   moved, so the PR shows only the branch's own change. CI must be green.
+5. **After the merge**, delete the branch locally and on `origin`.
+6. **Citations.** A document cites only commits that stay reachable: on
+   `master`, under a PR, or on a kept tag. A throwaway branch (a test arm) is
+   cited by its recipe or patch file, never by its hash. CI's `documents`
+   job fails on any cited hash that does not resolve and is not declared in
+   `tools/diag/citation_exceptions.tsv`. No preservation tags or kept branches
+   without the maintainer's agreement (HISTORY *Preserved commits*).
+
+```bash
+git switch -c <branch> origin/master
+git fetch origin "+refs/pull/*/head:refs/remotes/origin/pr/*"
+python tools/diag/check_citations.py
+```
+
 ## Release
 
-A release is cut only on maintainer instruction (PLAN §5), through
-`.github/workflows/release.yml`; nothing else creates one.
+A release is a `vX.Y.Z` tag on `master`, cut only on maintainer instruction
+(PLAN §5), through `.github/workflows/release.yml`; nothing else creates
+one. There are no permanent release branches.
 
-1. **The release commit, on `dev`.** Both version sources read `X.Y.Z`:
-   `project(basilisk VERSION X.Y.Z` in `CMakeLists.txt` and `engineVersion`
-   in `src/constants.h`. CHANGELOG's `[Unreleased]` becomes
-   `## [X.Y.Z] - YYYY-MM-DD`, with a fresh empty `[Unreleased]` above it.
-   GUIDE's *Released baseline* row names **X.Y.Z**, and its *Bench
-   fingerprint* row holds the release's `bench 13` count, restated where the
-   roadmap checker requires. `python tools/diag/release_check.py check vX.Y.Z
-   --base HEAD` passes.
-2. **The rehearsal is the pull request.** Open a PR from `dev` into `master`.
-   Its `CI` run and its `Release` candidate run must both be green: the
-   candidate builds, benches and fingerprints all nine assets, and runs the
-   release check for a plain version. The maintainer squash-merges it as one
-   commit titled `Version X.Y.Z`; the squash has the PR head's exact tree, so
+1. **The release commit, by PR.** On a branch from `master`, both version
+   sources read `X.Y.Z`: `project(basilisk VERSION X.Y.Z` in
+   `CMakeLists.txt` and `engineVersion` in `src/constants.h`. CHANGELOG's
+   `[Unreleased]` becomes `## [X.Y.Z] - YYYY-MM-DD`, with a fresh empty
+   `[Unreleased]` above it. GUIDE's *Released baseline* row names **X.Y.Z**,
+   and its *Bench fingerprint* row holds the release's `bench 13` count,
+   restated where the roadmap checker requires. `python
+   tools/diag/release_check.py check vX.Y.Z --base HEAD` passes.
+2. **The rehearsal is that PR.** Its `CI` run and its `Release` candidate
+   run must both be green: the candidate builds, benches and fingerprints all
+   nine assets, and runs the release check for a plain version. The
+   maintainer squash-merges it; the squash has the PR head's exact tree, so
    the candidate run stands for it.
-   Before deleting `dev`, the maintainer tags its tip `archive/dev-X.Y.Z`
-   and pushes the tag: ledgers and analyses cite development commits by
-   hash, and the squash leaves `master` without them (HISTORY *Preserved
-   commits*).
 3. **The tag.** On the merged `master`, the maintainer tags and pushes. The
    tag run checks again, rebuilds the nine assets, asserts one fingerprint
    equal to GUIDE's, and only then publishes, with the CHANGELOG section as
    the notes.
 4. **Repair.** A failed tag run publishes nothing. Delete the tag locally and
    on `origin`, fix `master` through a PR, and tag again.
-5. **Reopen `dev`.** `dev` starts again from the published `master`. The
-   first commit on it bumps both
-   sources to the next version, with `engineVersion` carrying `-dev` (CMake
-   takes only the numbers). A `-dev` version's PR candidate run skips the
-   release check. CHANGELOG's `[Unreleased]` grows as user-facing changes
-   land, so step 1 only dates it.
+5. **Reopen.** The next PR into `master` bumps both sources to the next
+   version, with `engineVersion` carrying `-dev` (CMake takes only the
+   numbers). A `-dev` version's PR candidate run skips the release check.
+   CHANGELOG's `[Unreleased]` grows as user-facing changes land, so step 1
+   only dates it.
 
 ```bash
 git fetch origin
-git tag -a archive/dev-X.Y.Z -m "dev line of X.Y.Z, cited by hash" origin/dev
-git push origin archive/dev-X.Y.Z
 git tag -a vX.Y.Z -m "Basilisk X.Y.Z" origin/master
 git push origin vX.Y.Z
+```
+
+**A patch while `master` holds unreleased work.** Land the fix on `master` by
+its own PR first. Then branch from the last release tag, cherry-pick the fix
+with `-x`, make the release commit of step 1 for `X.Y.Z+1` (version sources,
+CHANGELOG, GUIDE), tag it there, push only the tag, and delete the branch:
+the tag keeps the commit. The tag run accepts a patch tag whose commit
+descends from `vX.Y.0` on `master` (`release_check.py line`). Rehearse it
+first by a manual dispatch of `Release` on the branch.
+
+```bash
+git switch -c patch-X.Y.Z vX.Y.(Z-1)
+git cherry-pick -x <fix-on-master>
+git tag -a vX.Y.Z -m "Basilisk X.Y.Z"
+git push origin vX.Y.Z
+git switch master
+git branch -D patch-X.Y.Z
 ```
 
 A rehearsal without a PR is a manual dispatch of `Release` on any ref; it

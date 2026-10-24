@@ -39,8 +39,16 @@ touches tags.
   record or analysis states what changed, why, the result and the decision,
   and carries the exact recipe plus a fingerprint proving a rebuild matched. A
   hash, branch or tag is at most a pointer beside that information.
-- Only where exactness is needed and a recipe is impractical is a commit
-  preserved, and then by an annotated tag named `<purpose>/<name>` (as
-  `oracle/*`, `archive/*`), never by a kept branch. The citing document names
-  the tag, why it exists and the condition that retires it. Pushing a tag and
-  deleting a remote tag are the maintainer's commands.
+- A document cites only commits that stay reachable: on `master`, under a
+  pull request (`refs/pull/<n>/head`, which GitHub keeps after the squash) or
+  on a kept tag. A throwaway branch -- a test arm -- is cited by its recipe or
+  patch file, never by its hash. Cite a commit as a backticked hash; another
+  repository's commit or a content hash cited the same way is declared in
+  `tools/diag/citation_exceptions.tsv`. `python tools/diag/check_citations.py`
+  checks every citation after the PR refs are fetched once:
+  `git fetch origin "+refs/pull/*/head:refs/remotes/origin/pr/*"`.
+- No preservation tags and no kept branches without the maintainer's
+  agreement. The tags kept so far are listed with their reason and retirement
+  condition in HISTORY *Preserved commits*; a new one, if agreed, is an
+  annotated tag named `<purpose>/<name>`. Pushing a tag and deleting a remote
+  tag are the maintainer's commands.

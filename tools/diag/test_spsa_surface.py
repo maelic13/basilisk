@@ -26,7 +26,49 @@ class SurfaceTests(unittest.TestCase):
         parameters = surface.parse_parameters(surface.HEADER.read_text(encoding="utf-8"))
         generated = json.loads(surface.CONFIG.read_text(encoding="utf-8"))
         self.assertEqual([item[0] for item in parameters], list(generated))
-        self.assertEqual(len(parameters), 48)
+        self.assertEqual(len(parameters), 41)
+
+    def test_core_arm_table_is_not_on_the_registered_surface(self):
+        text = (
+            "#define BASILISK_LEGACY_KERNEL_PARAMS(X) \\\n"
+            "    X(a_field, Alpha, 5, 0, 10)\n"
+            "#define BASILISK_CORE_KERNEL_PARAMS(X) \\\n"
+            "    BASILISK_LEGACY_KERNEL_PARAMS(X) \\\n"
+            "    X(b_field, Beta, 5, 0, 10)\n"
+            "#define BASILISK_ROOT_PARAMS(X) \\\n"
+            "    X(c_field, Gamma, 5, 0, 10)\n"
+            "    S(d_field, Delta, 1, 0, 1)\n"
+        )
+        names = [item[0] for item in surface.parse_parameters(text)]
+        self.assertEqual(names, ["Alpha", "Gamma"])
+        # The core surface is the core table's own lines: neither the legacy
+        # group it splices in, nor the tables around it, nor a switch.
+        core = [item[0] for item in surface.parse_parameters(text, core=True)]
+        self.assertEqual(core, ["Beta"])
+
+    def test_fixed_lines_stay_off_the_core_surface(self):
+        text = (
+            "#define BASILISK_CORE_KERNEL_PARAMS(X, F) \\\n"
+            "    X(b_field, Beta, 5, 0, 10) \\\n"
+            "    F(e_field, Epsilon, 5, 0, 10) \\\n"
+            "    X(g_field, Eta, 5, 0, 10)\n"
+            "#define BASILISK_ROOT_PARAMS(X) \\\n"
+            "    X(c_field, Gamma, 5, 0, 10)\n"
+        )
+        core = [item[0] for item in surface.parse_parameters(text, core=True)]
+        self.assertEqual(core, ["Beta", "Eta"])
+        self.assertEqual([item[0] for item in surface.parse_parameters(text)], ["Gamma"])
+
+    def test_core_surface_is_the_clusters_coordinates(self):
+        text = surface.HEADER.read_text(encoding="utf-8")
+        parameters = surface.parse_parameters(text, core=True)
+        generated = json.loads(surface.CORE_CONFIG.read_text(encoding="utf-8"))
+        self.assertEqual([item[0] for item in parameters], list(generated))
+        # The core table's X lines; its F line (CoreQuietSeeCoeff) stays off.
+        self.assertEqual(len(parameters), 49)
+        self.assertNotIn("CoreQuietSeeCoeff", generated)
+        self.assertTrue(all(name.startswith("Core") for name in generated))
+        self.assertFalse(set(generated) & {"NullBase", "ProbCutMargin", "LmrSingularQuiet"})
 
     def test_steps_are_half_up_range_sixteenths_with_floor(self):
         self.assertEqual(surface.perturbation(0, 40), 3)

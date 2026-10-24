@@ -1789,7 +1789,6 @@ bool Board::see_ge(Move m, int threshold) const {
     const Square to   = to_sq(m);
     const MoveType mt = move_type(m);
     const Piece target = board_sq[to];
-    const bool is_capture = mt == EN_PASSANT || target != NO_PIECE;
 
     int swap = 0;
     if (mt == EN_PASSANT)
@@ -1800,7 +1799,11 @@ bool Board::see_ge(Move m, int threshold) const {
     if (mt == PROMOTION)
         swap += SEE_VALUES[promo_type(m)] - SEE_VALUES[PAWN];
 
-    if (!is_capture && mt != PROMOTION)
+    // A quiet move is an exchange that starts with nothing won: the moved
+    // piece is the first one at risk on `to`, so it goes through the same
+    // loop. Castling alone answers from the gain: its king lands on an
+    // unattacked square and never enters an exchange.
+    if (mt == CASTLING)
         return swap >= threshold;
 
     swap -= threshold;
@@ -1824,6 +1827,12 @@ bool Board::see_ge(Move m, int threshold) const {
     }
 
     Color stm = side_to_move;
+
+    // Nobody of the other side attacks `to`: the loop would stop at its first
+    // step with the move standing. The pin filter only removes attackers, so
+    // answering here is exact and skips the pin computation.
+    if (!(attackers_to(to, occ) & occ & occupancy[~stm]))
+        return true;
 
     // 8.2: same pin exclusion as see() (see the comment there).
     Bitboard pinned[NCOLORS];

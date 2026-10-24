@@ -5,8 +5,8 @@
 # master, where GitHub builds the merge commit, so the run tests exactly what
 # master would become, and on manual dispatch for any branch. It does not run
 # on pushes: a push to master only ever lands a pull request that already
-# passed, and dev commits are qualified locally (exact bench, CTest) at each
-# commit. A newer commit to the same pull request cancels the superseded run.
+# passed, and a branch's commits are qualified locally (exact bench, CTest)
+# as they are made. A newer commit to the same pull request cancels the superseded run.
 #
 # The bench job hardcodes NO expected node count. All platforms run bench and
 # a final job asserts they AGREE with each other. A frozen constant would need
@@ -233,6 +233,19 @@ jobs:
           cmake --build build/ablate-pext --target basilisk test_uci_protocol
           ctest --test-dir build/ablate-pext -R test_uci_protocol --output-on-failure
 
+      # The legacy kernel behind the Cluster 1 umbrella's OFF arm: built and
+      # tested in full, its bench printed, until B.8 deletes it. The default
+      # build, which the bench agreement compares, is the ON arm.
+      - name: Build and test the legacy B2_CORE arm
+        run: |
+          cmake --preset release-pext -B build/legacy-pext -DPORTABLE_BUILD=ON -DCOMP=clang \
+            -DTUNE=OFF -DDIAGNOSTIC=OFF -DABLATION=OFF -DTEXEL=OFF -DB2_CORE=OFF
+          cmake --build build/legacy-pext
+          ctest --test-dir build/legacy-pext --output-on-failure
+          out=$(printf "bench 10\nquit\n" | ./build/legacy-pext/basilisk)
+          echo "$out" | tail -8
+          echo "$out" | grep -qE "Nodes searched *: *[0-9]+" || { echo "FAIL: no node count"; exit 1; }
+
       - name: Build and verify TEXEL flavor
         run: |
           cmake --preset release-pext -B build/texel-pext -DPORTABLE_BUILD=ON -DCOMP=clang \
@@ -252,6 +265,31 @@ jobs:
           fi
 
   # ---- Debug + ASan/UBSan (the gate 8.6.2b P0 repaired — keep it real) ------
+  # ---- Documents -------------------------------------------------------------
+  # The roadmap and GUIDE agree, every commit a document cites stays reachable
+  # (on master, under a pull request or on a kept tag), and the release check
+  # passes its own tests.
+  docs:
+    name: documents
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Roadmap and GUIDE agree
+        run: python3 tools/diag/check_roadmap.py
+
+      - name: Cited commits stay reachable
+        run: |
+          git fetch -q origin "+refs/pull/*/head:refs/remotes/origin/pr/*"
+          python3 tools/diag/check_citations.py
+
+      - name: Release check tests
+        run: python3 tools/diag/test_release_check.py
+
   sanitize:
     name: sanitize (linux ASan+UBSan)
     runs-on: ubuntu-24.04
@@ -277,8 +315,11 @@ jobs:
           cmake --preset debug -DCOMP=clang
           cmake --build --preset debug
 
+      # The strength floors reproduce the release job's deterministic numbers
+      # many times more slowly here and add no memory-safety coverage of their
+      # own, so the sanitizer run is the correctness suite alone.
       - name: CTest under sanitizers
-        run: ctest --test-dir build/debug --output-on-failure --timeout 1200
+        run: ctest --test-dir build/debug --output-on-failure --timeout 600 -LE strength
 
   # ---- Real GCC PGO generation/consumption smoke ----------------------------
   # A plain GCC compile does not prove that its path-keyed .gcda files were

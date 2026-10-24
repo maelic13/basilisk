@@ -1,15 +1,19 @@
-/// Endgame regression suite (Step 3.5).
+/// Endgame regression suite.
 ///
-/// Loads tests/endgames.epd and gates the scale-factor framework and the
-/// known-endgame functions (KPK bitbase, KBNK corner mop-up, KNNK / insufficient
-/// draws, KBP wrong-bishop draw). For static verdicts it checks the sign and
-/// magnitude of the static eval; for `mate_*` verdicts it plays the position out
-/// with a short fixed-depth search and asserts checkmate is delivered from the
-/// board within a move budget.
+/// Default run: fast, deterministic knowledge checks. tests/endgames.epd gates
+/// the scale-factor framework and the known-endgame functions (KPK bitbase,
+/// KBNK and KXK mate drives, KNNK / insufficient draws, KBP wrong-bishop draw)
+/// by the sign and size of the static eval; short searches check that mates
+/// within the horizon are found and that the KBNK drive never hands over a
+/// minor; tests/endgame_draws.epd bounds how many drawn endings look won.
+///
+/// `--conversion`: the randomised conversion floors, one engine playing both
+/// sides from random legal positions of each forced-mate family. They measure
+/// search strength, not correctness, and carry the CTest label `strength`.
 ///
 /// Build:
 ///   cmake --build --preset release --target test_endgames
-///   ./build/release/test_endgames tests/endgames.epd
+///   ./build/release/test_endgames tests/endgames.epd [--conversion]
 
 #include "board.h"
 #include "attacks.h"
@@ -35,6 +39,7 @@ static_assert(KBNK_STATIC_MATE_FLOOR == MATE_SCORE - MAX_PLY,
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <memory>
 #include <sstream>
@@ -42,16 +47,15 @@ static_assert(KBNK_STATIC_MATE_FLOOR == MATE_SCORE - MAX_PLY,
 #include <vector>
 
 // ---------------------------------------------------------------------------
-// Tunables for the static-eval verdicts and the mate playout
+// Tunables for the static-eval verdicts and the searches
 // ---------------------------------------------------------------------------
 
 static constexpr int DRAW_TOL    = 75;    // |cp| <= this counts as a draw
 static constexpr int WIN_MIN     = 150;   // |cp| >= this counts as a clear win
-static constexpr int MATE_DEPTH  = 18;    // fixed search depth per playout move
-// 5.9.18: the randomised floors use a NODE limit, not a depth limit, so they
-// measure the same thing BAS-E28/E29 measured. A fixed depth turned out to
-// conflate knowledge with search effort -- KBB-K scored 2/12 at depth 10 AND at
-// depth 14, while converting 87% at this node count.
+static constexpr int MATE_DEPTH  = 18;    // fixed depth for mate recognition
+// The conversion floors use a NODE limit, not a depth limit: a fixed depth
+// conflated knowledge with search effort -- KBB-K scored 2/12 at depth 10 AND
+// at depth 14, while converting 87% at this node count.
 static constexpr int64_t CONV_NODES = 60000;
 static constexpr int MATE_BUDGET = 100;   // max plies to deliver mate
 
@@ -64,23 +68,21 @@ static int eval_white(const std::string& fen) {
     return (b.turn() == WHITE) ? s : -s;
 }
 
-static Move best_move(Board& b, int depth, int64_t node_cap = 0) {
+// One cold search: a fresh table and searcher, so a position's result does
+// not depend on what was searched before it.
+static Move best_move(Board& b, int64_t node_cap) {
     TranspositionTable tt(8);
     std::atomic_bool stop{false};
     SearchLimits lim;
-    lim.depth = depth;
     lim.nodes = node_cap;
     auto searcher = std::make_unique<Searcher>(tt, stop);
-    SearchResult sr = searcher->search(b, lim);
-    return sr.bestmove;
+    return searcher->search(b, lim).bestmove;
 }
 
-// Plays the position out, searching each move to `MATE_DEPTH`. Returns the ply
-// count at which `winner` delivers checkmate, or -1 if no mate is reached
-// within MATE_BUDGET (a generous budget). Every move played is legal by
-// construction (drawn from gen_legal / the searcher's legal root).
-static int mate_playout_plies(const std::string& fen, Color winner,
-                              int depth = MATE_DEPTH, int64_t node_cap = 0) {
+// Plays the position out, one cold search per move. Returns the ply count at
+// which `winner` delivers checkmate, or -1 if no mate is reached within
+// MATE_BUDGET. Every move played is legal by construction.
+static int mate_playout_plies(const std::string& fen, Color winner, int64_t node_cap) {
     Board b;
     b.set_fen(fen);
     for (int ply = 0; ply < MATE_BUDGET; ply++) {
@@ -92,7 +94,7 @@ static int mate_playout_plies(const std::string& fen, Color winner,
             if (b.is_in_check() && b.turn() == ~winner) return ply;
             return -1;  // stalemate or the wrong side mated — a false result
         }
-        Move m = best_move(b, depth, node_cap);
+        Move m = best_move(b, node_cap);
         if (m == MOVE_NONE)
             return -1;
         b.make_move(m);
@@ -112,14 +114,12 @@ static int search_score(const std::string& fen, int depth) {
     return searcher->search(b, lim).score;
 }
 
-// Robust mate-recognition canary (search doc §14: gate correctness, not
-// trajectory). Legal positions a few moves from mate — including a KQK
+// Mate recognition: legal positions a few moves from mate — including a KQK
 // stalemate trap where the winning move is a mate and a lazy move would
-// stalemate — must return a mate score at a moderate depth. This does NOT
-// depend on a long fixed-depth conversion trajectory, so it is stable across
-// benign search-shape changes while still catching lost mate-finding or a
-// stalemate blunder. (The old per-position full-conversion gate over-fired on
-// pure search-shape changes; that trajectory is now a diagnostic + a floor.)
+// stalemate — must return a mate score at a moderate depth. This gates
+// correctness rather than a long conversion trajectory, so it is stable
+// across benign search-shape changes while still catching lost mate-finding
+// or a stalemate blunder.
 static void test_near_mate_recognition() {
     struct Case { const char* fen; int max_mate_plies; const char* note; };
     static const Case CASES[] = {
@@ -177,24 +177,52 @@ static std::vector<EpdEntry> load_epd(const std::string& path) {
     return out;
 }
 
-// ---------------------------------------------------------------------------
-// Targeted KBNK orientation check: the strong side must prefer driving the
-// bare king toward the bishop-coloured corner.
-// ---------------------------------------------------------------------------
+static void test_epd_verdicts(const std::vector<EpdEntry>& entries) {
+    // Every FEN this suite ships must parse under strict validation: four
+    // illegal positions (side not to move in check) once hid in this file.
+    begin_section("every packaged EPD FEN is strictly legal");
+    for (const auto& e : entries) {
+        Board b;
+        auto r = b.try_set_fen(e.fen, /*validate_legal_position=*/true);
+        EXPECT(r.has_value());
+        if (!r)
+            std::fprintf(stderr, "  illegal packaged FEN: %s (%s)\n",
+                         e.fen.c_str(), r.error().c_str());
+    }
+    end_section();
+
+    for (const auto& e : entries) {
+        std::string label = e.verdict + ": " + e.fen;
+        begin_section(label.c_str());
+        if (e.verdict == "draw") {
+            EXPECT(std::abs(eval_white(e.fen)) <= DRAW_TOL);
+        } else if (e.verdict == "win_w" || e.verdict == "mate_w") {
+            // A forced mate is first of all a win the eval must see; whether
+            // the search converts it is the conversion floors' question.
+            EXPECT(eval_white(e.fen) >= WIN_MIN);
+        } else if (e.verdict == "win_b" || e.verdict == "mate_b") {
+            EXPECT(eval_white(e.fen) <= -WIN_MIN);
+        } else {
+            std::fprintf(stderr, "  FAIL: unknown verdict '%s'\n", e.verdict.c_str());
+            EXPECT(false);
+        }
+        end_section();
+    }
+}
 
 // ---------------------------------------------------------------------------
-// 5.9.18 — randomised conversion floors, one per forced-win family.
+// Randomised conversion floors, one per forced-win family (`--conversion`).
 //
-// The EPD floor above gates a handful of chosen positions. BAS-E28 showed that
-// is not enough: KBNK converted 13% of RANDOM legal positions while every
-// hand-picked case still passed. A class-level floor catches the collapse the
-// per-position gate cannot see.
+// Hand-picked positions are not enough: KBNK once converted 13% of RANDOM
+// legal positions while every hand-picked case still passed. A class-level
+// floor catches that kind of collapse. It is a floor, not a measurement: a
+// small sample with one position of slack in the minor-piece families, where
+// ordinary search churn can tip a single long mate.
 //
-// Measured rates when these floors were set (60k nodes, engine both sides):
-//   KQ-K 100%   KR-K 100%   KBB-K 87%   KBN-K 54%
-// Floors sit far below those so ordinary search churn cannot trip them.
-// RAISE THEM whenever a conversion improvement lands -- a floor left at an old
-// rate silently stops protecting the gain that replaced it.
+// Measured 2026-10-08 over the first 24 positions of this generator, 60k
+// nodes, a cold search per move: KQ-K 24/24, KR-K 24/24, KBB-K 24/24,
+// KBN-K 23/24. Raise a floor when a conversion improvement lands; a floor left
+// at an old rate stops protecting the gain.
 // ---------------------------------------------------------------------------
 namespace {
 
@@ -221,7 +249,6 @@ static bool random_family(Lcg& rng, std::string& out_fen, Color winner,
         }
         if (clash) continue;
 
-        std::string fen_board[8];
         char grid[64];
         for (int i = 0; i < 64; ++i) grid[i] = 0;
         grid[sq[0]] = (winner == WHITE) ? 'K' : 'k';
@@ -266,10 +293,37 @@ struct Family { const char* name; std::vector<PieceType> pieces; int n; int floo
 
 }  // namespace
 
+static void test_conversion_floors() {
+    const std::vector<Family> fams = {
+        { "KQ-K",  { QUEEN },           4, 4 },   // must stay perfect
+        { "KR-K",  { ROOK },            4, 4 },   // must stay perfect
+        { "KBB-K", { BISHOP, BISHOP },  6, 5 },
+        { "KBN-K", { BISHOP, KNIGHT },  6, 5 },
+    };
+
+    for (const Family& f : fams) {
+        char label[96];
+        std::snprintf(label, sizeof(label), "%s conversion floor", f.name);
+        begin_section(label);
+        Lcg rng(0x5E9D18ULL);           // same seed for every family
+        int converted = 0, generated = 0;
+        for (int i = 0; i < f.n; ++i) {
+            std::string fen;
+            if (!random_family(rng, fen, WHITE, f.pieces)) continue;
+            ++generated;
+            if (mate_playout_plies(fen, WHITE, CONV_NODES) >= 0) ++converted;
+        }
+        std::printf("%d/%d (floor %d) ", converted, generated, f.floor_);
+        EXPECT(generated == f.n);
+        EXPECT(converted >= f.floor_);
+        end_section();
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Drawn-ending bias floor (BAS-E32).
 //
-// The conversion floors above ask "can we finish a won ending". This asks the
+// The conversion floors ask "can we finish a won ending". This asks the
 // other half: "do we know a drawn one when we see it". Positions come from
 // tests/endgame_draws.epd -- corpus positions whose GAME finished drawn.
 //
@@ -278,22 +332,25 @@ struct Family { const char* name; std::vector<PieceType> pieces; int n; int floo
 // positions may genuinely be wins that the players missed, which is exactly why
 // there is no per-position assertion here.
 //
-// TIGHTEN THE BUDGET as each scaling function lands (5.9.24 onward). A budget
-// left at the pre-implementation count stops protecting the gain.
+// TIGHTEN THE BUDGET as each scaling function lands. A budget left at the
+// pre-implementation count stops protecting the gain.
 // ---------------------------------------------------------------------------
 static void test_drawn_ending_bias(const std::string& path) {
+    begin_section("drawn endings not scored as clear wins");
     std::ifstream in(path);
+    EXPECT(static_cast<bool>(in));
     if (!in) {
-        std::printf("  [skip] %s not found\n", path.c_str());
+        std::fprintf(stderr, "  FAIL: cannot open %s\n", path.c_str());
+        end_section();
         return;
     }
     // A "clear win" claim on a drawn position. Deliberately generous: we are
     // catching gross misvaluation, not asking for a perfect zero.
     constexpr int CLEAR_WIN = 250;
-    // Measured 2026-08-31, before ANY scaling function exists: 22/60. The budget
-    // sits a little above that so unrelated evaluation churn cannot flap it,
-    // and far below 60 so a regression to "everything looks won" fails loudly.
-    // TIGHTEN with each scaling function (5.9.24 onward).
+    // Measured 2026-08-31, before ANY scaling function existed: 22/60, and
+    // still 22/60 on 2026-10-08. The budget sits a little above that so
+    // unrelated evaluation churn cannot flap it, and far below 60 so a
+    // regression to "everything looks won" fails loudly.
     constexpr int MAX_CLAIMED_WINS = 26;
 
     int total = 0, claimed = 0;
@@ -305,50 +362,15 @@ static void test_drawn_ending_bias(const std::string& path) {
         ++total;
         if (std::abs(eval_white(fen)) >= CLEAR_WIN) ++claimed;
     }
-    begin_section("drawn endings not scored as clear wins");
-    std::printf("  %d/%d drawn positions scored >= %dcp (budget %d)\n",
-                claimed, total, CLEAR_WIN, MAX_CLAIMED_WINS);
+    std::printf("%d/%d >= %dcp (budget %d) ", claimed, total, CLEAR_WIN, MAX_CLAIMED_WINS);
+    EXPECT(total >= 60);
     EXPECT(claimed <= MAX_CLAIMED_WINS);
     end_section();
 }
 
-static void test_conversion_floors() {
-    // Two bishops are generated on random squares, so a same-colour pair (a
-    // genuine draw) can occur; the floor accounts for that rather than
-    // rejecting them, which keeps the position set reproducible.
-    const std::vector<Family> fams = {
-        // Floors calibrated 2026-08-31 against measured rates in THIS harness.
-        // They are NOT comparable to BAS-E28/E29: best_move() builds a fresh TT
-        // for every move, where a real game keeps one across the whole playout,
-        // so this is a harsher instrument by design -- deterministic, and no
-        // history dependence between positions.
-        //   measured: KQ 12/12  KR 12/12  KBB 3/12  KBN 14/16
-        // RAISE EACH FLOOR when the matching conversion work lands. A floor left
-        // at an old rate stops protecting the improvement that replaced it.
-        { "KQ-K",  { QUEEN },           12, 12 },   // deterministic; must stay perfect
-        { "KR-K",  { ROOK },            12, 12 },   // deterministic; must stay perfect
-        { "KBB-K", { BISHOP, BISHOP },  12, 11 },   // 3/12 -> 12/12 at 5.9.19; floor 11 leaves one position of slack
-        { "KBN-K", { BISHOP, KNIGHT },  16, 10 },   // 14/16 after 5.9.17
-    };
-
-    for (const Family& f : fams) {
-        Lcg rng(0x5E9D18ULL);           // same seed for every family
-        int converted = 0, generated = 0;
-        for (int i = 0; i < f.n; ++i) {
-            std::string fen;
-            if (!random_family(rng, fen, WHITE, f.pieces)) continue;
-            ++generated;
-            if (mate_playout_plies(fen, WHITE, MAX_PLY - 1, CONV_NODES) >= 0) ++converted;
-        }
-        char label[96];
-        std::snprintf(label, sizeof(label), "%s conversion floor", f.name);
-        begin_section(label);
-        std::printf("  %s converted %d/%d (floor %d)\n",
-                    f.name, converted, generated, f.floor_);
-        EXPECT(converted >= f.floor_);
-        end_section();
-    }
-}
+// ---------------------------------------------------------------------------
+// Mate-drive gradients: the static knowledge each conversion rests on
+// ---------------------------------------------------------------------------
 
 static void test_kbnk_corner_preference() {
     // Same dark-squared bishop (d2) and knight (f3) in both positions; only the
@@ -367,6 +389,30 @@ static void test_kbnk_corner_preference() {
     right = eval_white("k7/8/8/8/4K3/3B1N2/8/8 b - - 0 1");  // black king a8 (light, right)
     wrong = eval_white("8/8/8/8/4K3/3B1N2/8/k7 b - - 0 1");  // black king a1 (dark, wrong)
     EXPECT(right > wrong);
+    end_section();
+}
+
+// The bishop pair mates in any corner, so its drive must reward, in order of
+// technique, the bare king on the edge, then in the corner, and the attacking
+// king close by. The bishops stay on f5 (light) and f4 (dark), and within each
+// pair the king distance is equal unless it is the quantity under test.
+static void test_kbbk_drive_gradient() {
+    begin_section("KBBK drive: the edge beats the centre");
+    const int centre = eval_white("8/8/8/3k1B2/5B2/4K3/8/8 b - - 0 1");   // bK d5
+    const int edge   = eval_white("8/8/8/5B2/5B2/4K3/8/4k3 b - - 0 1");   // bK e1
+    EXPECT(edge > centre);
+    end_section();
+
+    begin_section("KBBK drive: the corner beats the edge");
+    const int corner = eval_white("8/8/8/5B2/5B2/2K5/8/k7 b - - 0 1");    // bK a1
+    const int side   = eval_white("8/8/8/5B2/5B2/k1K5/8/8 b - - 0 1");    // bK a3
+    EXPECT(corner > side);
+    end_section();
+
+    begin_section("KBBK drive: the attacking king approaches");
+    const int near_king = eval_white("k7/8/2K5/5B2/5B2/8/8/8 b - - 0 1"); // wK c6
+    const int far_king  = eval_white("k7/8/8/5B2/5B2/8/8/6K1 b - - 0 1"); // wK g1
+    EXPECT(near_king > far_king);
     end_section();
 }
 
@@ -424,7 +470,6 @@ static void test_kbnk_keeps_both_minors() {
     end_section();
 }
 
-
 // ---------------------------------------------------------------------------
 
 int main(int argc, char** argv) {
@@ -433,85 +478,34 @@ int main(int argc, char** argv) {
     Zobrist::init();
     init_eval_tables();
 
-    std::string epd_path = (argc > 1) ? argv[1] : "tests/endgames.epd";
+    std::string epd_path = "tests/endgames.epd";
+    bool conversion = false;
+    for (int i = 1; i < argc; ++i) {
+        if (std::strcmp(argv[i], "--conversion") == 0) conversion = true;
+        else epd_path = argv[i];
+    }
+
+    if (conversion) {
+        std::printf("Endgame conversion floors (60k nodes per move)\n");
+        test_conversion_floors();
+        return harness_summary();
+    }
+
     std::vector<EpdEntry> entries = load_epd(epd_path);
     if (entries.empty()) {
         std::fprintf(stderr, "FATAL: no EPD entries loaded from '%s'\n", epd_path.c_str());
         return 1;
     }
+    // The drawn-endings corpus sits beside the verdict file.
+    const size_t slash = epd_path.find_last_of("/\\");
+    const std::string dir = slash == std::string::npos ? std::string() : epd_path.substr(0, slash + 1);
 
     std::printf("Endgame regression suite (%zu positions)\n", entries.size());
-
-    // 8.6.3b packaged-FEN legality sweep (canary_integrity class): every FEN
-    // this suite ships must parse under STRICT validation. Four ILLEGAL
-    // positions (side-not-to-move in check) hid in this very file for weeks in
-    // 2026-07 and were only caught by hand — this gate makes that structural.
-    begin_section("every packaged EPD FEN is strictly legal");
-    for (const auto& e : entries) {
-        Board b;
-        auto r = b.try_set_fen(e.fen, /*validate_legal_position=*/true);
-        EXPECT(r.has_value());
-        if (!r)
-            std::fprintf(stderr, "  illegal packaged FEN: %s (%s)\n",
-                         e.fen.c_str(), r.error().c_str());
-    }
-    end_section();
-
-    int mate_total = 0, mate_converts = 0;
-    for (const auto& e : entries) {
-        std::string label = e.verdict + ": " + e.fen;
-        begin_section(label.c_str());
-        if (e.verdict == "draw") {
-            int cp = eval_white(e.fen);
-            EXPECT(std::abs(cp) <= DRAW_TOL);
-        } else if (e.verdict == "win_w") {
-            EXPECT(eval_white(e.fen) >= WIN_MIN);
-        } else if (e.verdict == "win_b") {
-            EXPECT(eval_white(e.fen) <= -WIN_MIN);
-        } else if (e.verdict == "mate_w" || e.verdict == "mate_b") {
-            // Canary policy (search doc §14; PLAN §1 gate 6), revised 2026-07-15:
-            //   HARD CORE (gating) — the won endgame is not misevaluated as a
-            //   draw (per-position, below), plus robust mate recognition
-            //   (test_near_mate_recognition) and a conversion FLOOR (after the
-            //   loop). DIAGNOSTIC (non-gating) — per-position conversion at the
-            //   fixed depth and its ply count. Rationale: single-position
-            //   full-conversion at a fixed depth is a search-*shape* trajectory,
-            //   not correctness — it over-fired on benign eval/search/TT changes
-            //   (8.4/8.5.5/8.5.6/TT-density) while the eval still saw the win.
-            //   §14: gate correctness, let SPRT arbitrate trajectory/strength.
-            const Color winner = (e.verdict == "mate_w") ? WHITE : BLACK;
-            const int wsign = (winner == WHITE) ? 1 : -1;
-            // Hard core: no false draw — the static eval recognizes the win.
-            EXPECT(wsign * eval_white(e.fen) >= WIN_MIN);
-            // Conversion feeds a floor (below), not a per-position hard gate.
-            const int plies = mate_playout_plies(e.fen, winner);
-            ++mate_total;
-            if (plies >= 0) ++mate_converts;
-            std::printf("    [diag] mate route: %s in %d plies at depth %d\n",
-                        plies >= 0 ? "converts" : "NO CONVERGENCE",
-                        plies, MATE_DEPTH);
-        } else {
-            std::fprintf(stderr, "  FAIL: unknown verdict '%s'\n", e.verdict.c_str());
-            EXPECT(false);
-        }
-        end_section();
-    }
-
-    // Hard core: a conversion FLOOR across all mate positions. Robust to a
-    // single fixed-depth trajectory tipping (a search-shape artifact) while
-    // still catching a real collapse in conversion ability. Calibrated so at
-    // most one position may fail to converge.
-    const int mate_floor = std::max(0, mate_total - 1);
-    begin_section("mate conversion floor (robust to single-position fragility)");
-    std::printf("  converted %d/%d mate positions (floor %d)\n",
-                mate_converts, mate_total, mate_floor);
-    EXPECT(mate_converts >= mate_floor);
-    end_section();
-
+    test_epd_verdicts(entries);
     test_near_mate_recognition();
-    test_conversion_floors();
-    test_drawn_ending_bias("tests/endgame_draws.epd");
+    test_drawn_ending_bias(dir + "endgame_draws.epd");
     test_kbnk_corner_preference();
+    test_kbbk_drive_gradient();
     test_kbnk_keeps_both_minors();
 
     return harness_summary();

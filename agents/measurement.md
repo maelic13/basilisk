@@ -10,9 +10,10 @@ experiment by `agents/research.md`, *Experiment design*, before it runs.
 - After PLAN A.3, Colosseum CLI is the main harness for gates, fixed matches,
   tunes, null pairs and gauntlets, driven by `tools/colosseum.ps1` from the
   committed run files; fastchess and weather-factory (`tools/sprt.ps1`,
-  `tools/spsa.ps1`) stay installed and working as the backup and the second
-  opinion. PROCESS's *Harness* section names the cross-check triggers. A
-  registered experiment names its runner and never changes it mid-way.
+  `tools/spsa.ps1`) stay installed and working as the backup path for when
+  Colosseum cannot run. Colosseum results are not cross-checked on it
+  (PROCESS *Harness*). A registered experiment names its runner and never
+  changes it mid-way.
 - Never measure strength or NPS on a `TEXEL` or diagnostic build. If a number
   you are not changing changes, check the binary.
 - Measure only on an idle host: check CPU use and running engine, harness or
@@ -80,9 +81,10 @@ experiment by `agents/research.md`, *Experiment design*, before it runs.
 - Do not start long SPRTs, SPSAs, tournaments, large datagen jobs, long fits or
   comparable machine-saturating work unless the maintainer explicitly asks the
   agent to run it.
-- For a required long run, prepare and validate the runnable state, commit that
-  state with a clear Prepare <step> subject, provide exactly one copy-pasteable
-  single-line command, and stop. Keep the checklist item open.
+- For a required long run, prepare and validate the runnable state, commit it
+  on the work's branch with a clear Prepare <step> subject, provide exactly
+  one copy-pasteable single-line command, and stop. Keep the checklist item
+  open.
 - After the maintainer returns the artifacts, analyze them, apply the
   pre-registered verdict, finish the checklist/docs, commit with a clear
   Complete <step> subject, report the outcome and next leaf, then stop.

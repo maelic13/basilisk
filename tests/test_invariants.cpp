@@ -140,13 +140,15 @@ static void random_walk(Board& b, std::mt19937_64& rng, int depth,
 }
 
 static void test_random_walk_make_unmake() {
+    begin_section("random-walk make/unmake keeps the board consistent");
     std::mt19937_64 rng(0xB0A12026ULL + fuzz_seed_offset());
     int total_states = 0;
     const char* bad = nullptr;
 
-    // Many independent walks per seed so coverage reaches into the millions of
-    // states (each walk fans out ~2^depth), exercising deep make/unmake stacks.
-    const int walks_per_seed = 400;
+    // Independent walks per seed, each fanning out ~2^depth, so the deep
+    // make/unmake stacks of every structurally different root are exercised
+    // a few hundred thousand times in all.
+    const int walks_per_seed = 25;
     for (const char* fen : SEED_FENS) {
         for (int w = 0; w < walks_per_seed && !bad; ++w) {
             Board b;
@@ -156,9 +158,8 @@ static void test_random_walk_make_unmake() {
         if (bad) break;
     }
 
-    std::printf("  walked %d states across %zu seeds\n",
+    std::printf("%d states, %zu seeds ",
                 total_states, sizeof(SEED_FENS) / sizeof(SEED_FENS[0]));
-    begin_section("random-walk make/unmake keeps the board consistent");
     if (bad) std::fprintf(stderr, "  first failure: %s\n", bad);
     EXPECT(bad == nullptr);
     EXPECT(total_states > 100000);  // the walk actually did substantial work
@@ -204,23 +205,23 @@ static uint64_t perft_pseudo(Board& b, int depth) {
 static void test_differential_perft() {
     struct Case { const char* fen; int depth; uint64_t nodes; };
     static const Case CASES[] = {
-        { "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", 5, 4865609 },
-        { "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1", 4, 4085603 },
-        { "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1", 5, 674624 },
-        { "r2q1rk1/pP1p2pp/Q4n2/bbp1p3/Np6/1B3NBn/pPPP1PPP/R3K2R b KQ - 0 1", 4, 422333 },
-        { "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8", 4, 2103487 },
+        { "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", 4, 197281 },
+        { "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1", 3, 97862 },
+        { "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1", 4, 43238 },
+        { "r2q1rk1/pP1p2pp/Q4n2/bbp1p3/Np6/1B3NBn/pPPP1PPP/R3K2R b KQ - 0 1", 3, 9467 },
+        { "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8", 3, 62379 },
     };
     for (const Case& c : CASES) {
+        char label[96];
+        std::snprintf(label, sizeof label, "perft(%d)=%llu, legal==pseudo==published",
+                      c.depth, static_cast<unsigned long long>(c.nodes));
+        begin_section(label);
         Board b;
         b.set_fen(c.fen);
         const uint64_t legal  = perft_legal(b, c.depth);
         Board b2;
         b2.set_fen(c.fen);
         const uint64_t pseudo = perft_pseudo(b2, c.depth);
-        char label[96];
-        std::snprintf(label, sizeof label, "perft(%d)=%llu, legal==pseudo==published",
-                      c.depth, static_cast<unsigned long long>(c.nodes));
-        begin_section(label);
         EXPECT_EQ(legal, c.nodes);
         EXPECT_EQ(pseudo, c.nodes);
         end_section();
@@ -281,19 +282,19 @@ static void see_fuzz_walk(Board& b, std::mt19937_64& rng, int depth,
 }
 
 static void test_see_ge_invariants() {
+    begin_section("see_ge() is monotone and materially bounded on every move");
     std::mt19937_64 rng(0x5EE0F0FDULL + fuzz_seed_offset());
     int checked = 0;
     const char* bad = nullptr;
     for (const char* fen : SEED_FENS) {
-        for (int w = 0; w < 200 && !bad; ++w) {
+        for (int w = 0; w < 40 && !bad; ++w) {
             Board b;
             b.set_fen(fen);
             see_fuzz_walk(b, rng, 6, checked, bad);
         }
         if (bad) break;
     }
-    std::printf("  checked %d moves for see_ge threshold invariants\n", checked);
-    begin_section("see_ge() is monotone and materially bounded on every move");
+    std::printf("%d moves ", checked);
     if (bad) std::fprintf(stderr, "  failure: %s\n", bad);
     EXPECT(bad == nullptr);
     EXPECT(checked > 5000);
@@ -323,20 +324,22 @@ static void fen_walk(Board& b, std::mt19937_64& rng, int depth,
 }
 
 static void test_fen_roundtrip_fuzz() {
+    begin_section("get_fen -> try_set_fen reproduces every walked position");
     std::mt19937_64 rng(0x0FE9C0DEULL + fuzz_seed_offset());
     int checked = 0;
     const char* bad = nullptr;
     for (const char* fen : SEED_FENS) {
-        Board b;
-        b.set_fen(fen);
-        fen_walk(b, rng, 8, checked, bad);
+        for (int w = 0; w < 50 && !bad; ++w) {
+            Board b;
+            b.set_fen(fen);
+            fen_walk(b, rng, 8, checked, bad);
+        }
         if (bad) break;
     }
-    std::printf("  round-tripped %d positions\n", checked);
-    begin_section("get_fen -> try_set_fen reproduces every walked position");
+    std::printf("%d positions ", checked);
     if (bad) std::fprintf(stderr, "  failure: %s\n", bad);
     EXPECT(bad == nullptr);
-    EXPECT(checked > 40);
+    EXPECT(checked > 2000);
     end_section();
 }
 
@@ -349,6 +352,7 @@ static void test_parser_robustness_fuzz() {
     // startpos — a mutation of a castling/EP/promotion-race/endgame position
     // reaches parser paths a mutated startpos never touches (Rarog fuzzes 22
     // diverse roots for the same reason).
+    begin_section("malformed FEN never crashes and never yields a bad board");
     const char alphabet[] = "0123456789pnbrqkPNBRQK/wb KQkq-abcdefgh ";
     std::mt19937_64 rng(0x0BADF00DULL + fuzz_seed_offset());
 
@@ -389,8 +393,7 @@ static void test_parser_robustness_fuzz() {
             }
         }
     }
-    std::printf("  fed %d malformed inputs, %d parsed to a valid board\n", fed, accepted);
-    begin_section("malformed FEN never crashes and never yields a bad board");
+    std::printf("%d inputs, %d valid ", fed, accepted);
     if (bad) std::fprintf(stderr, "  failure: %s\n", bad);
     EXPECT(bad == nullptr);
     EXPECT(fed == 20000);

@@ -25,6 +25,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <random>
 #include <string>
 #include <vector>
 
@@ -1370,6 +1371,165 @@ static void test_see_created_pins_and_promotions() {
                      /*truth*/ -800, /*see()*/ 0, /*see_ge boundary*/ 0);
 }
 
+// A quiet move's SEE is the exchange the opponent can start on its
+// destination with the moved piece as the first piece at risk (the donor's
+// semantics): never above 0, never below minus the mover's value. Checked for
+// every legal quiet on the SEE FEN list and a fixed-seed random-walk corpus
+// against the legality oracle. The kernel's legality model is the one
+// captures already use (pins computed once on the starting occupancy, checks
+// not modelled), so a quiet diverges from the oracle in the same geometries a
+// capture does: a pawn recapture that promotes, a check the move discovers,
+// or an exchange in which legality removes an attacker (a pin or a check
+// opened mid-exchange). Each geometry is pinned by count on the corpus; a
+// divergence in none of them fails.
+struct QuietSeeTally {
+    int quiets = 0;
+    int boundary_divergences = 0;
+    int bound_failures = 0;
+    int promotion_recaptures = 0;
+    int discovered_checks = 0;
+    int legality_filtered = 0;
+    int unexplained = 0;
+};
+
+// Along the oracle's exchange on `to`, with the side to move about to
+// capture: does legality ever remove one of its pseudo-attackers?
+static bool exchange_legality_filters(Board& b, Square to, int depth) {
+    if (depth > 32 || b.piece_on(to) == NO_PIECE)
+        return false;
+    const Bitboard attackers = b.attackers_to(to, b.all_pieces()) & b.occupancy_bb(b.turn());
+    MoveList legal;
+    b.gen_legal(legal);
+    Bitboard legal_from = 0;
+    Move least = MOVE_NONE;
+    int least_value = INT_MAX;
+    for (Move m : legal) {
+        if (to_sq(m) != to || move_type(m) == CASTLING || move_type(m) == EN_PASSANT)
+            continue;
+        legal_from |= sq_bb(from_sq(m));
+        const int v = ORACLE_VALUES[type_of(b.piece_on(from_sq(m)))];
+        if (v < least_value) { least_value = v; least = m; }
+    }
+    if (attackers & ~legal_from)
+        return true;
+    if (least == MOVE_NONE)
+        return false;
+    b.make_move(least);
+    const bool filtered = exchange_legality_filters(b, to, depth + 1);
+    b.unmake_move(least);
+    return filtered;
+}
+
+static void check_quiet_see(Board& b, QuietSeeTally& tally) {
+    MoveList legal;
+    b.gen_legal(legal);
+    for (Move m : legal) {
+        const bool quiet = move_type(m) != PROMOTION && move_type(m) != EN_PASSANT
+                        && b.piece_on(to_sq(m)) == NO_PIECE;
+        if (!quiet)
+            continue;
+        ++tally.quiets;
+        const int mover = ORACLE_VALUES[type_of(b.piece_on(from_sq(m)))];
+        if (!b.see_ge(m, -mover) || b.see_ge(m, 1))
+            ++tally.bound_failures;
+        const int boundary = see_ge_boundary(b, m);
+        const int truth = oracle_see(b, m);
+        if (boundary == truth)
+            continue;
+        ++tally.boundary_divergences;
+        const Square to = to_sq(m);
+        const bool last_rank = rank_of(to) == RANK_1 || rank_of(to) == RANK_8;
+        const bool pawn_attacked = (PawnAttacks[WHITE][to] & b.piece_bb(BLACK, PAWN))
+                                || (PawnAttacks[BLACK][to] & b.piece_bb(WHITE, PAWN));
+        b.make_move(m);
+        const bool discovered = (b.checking_pieces() & ~sq_bb(to)) != 0;
+        const bool filtered = exchange_legality_filters(b, to, 0);
+        b.unmake_move(m);
+        if (last_rank && pawn_attacked)
+            ++tally.promotion_recaptures;
+        else if (discovered)
+            ++tally.discovered_checks;
+        else if (filtered)
+            ++tally.legality_filtered;
+        else {
+            ++tally.unexplained;
+            std::fprintf(stderr, "  unexplained quiet SEE divergence: %s  %s  see_ge %d  oracle %d\n",
+                         b.get_fen().c_str(), move_to_uci(m).c_str(), boundary, truth);
+        }
+    }
+}
+
+// The corpus's divergences by geometry (seed 0x5EE0F1E7, 400 walks, 10,872
+// quiets, 41 divergences). Captures diverge in the same three geometries.
+static constexpr int PINNED_PROMOTION_RECAPTURES = 22;
+static constexpr int PINNED_DISCOVERED_CHECKS = 8;
+static constexpr int PINNED_LEGALITY_FILTERED = 11;
+
+static void test_see_quiet_moves() {
+    begin_section("quiet SEE: boundary == oracle, within [-mover, 0], on the SEE FENs");
+    {
+        const char* fens[] = {
+            "4k3/8/8/3n4/4P3/8/8/4K3 w - - 0 1",
+            "4k2r/6P1/8/8/8/8/8/4K3 w - - 0 1",
+            "4k3/P7/8/8/8/8/8/4K3 w - - 0 1",
+            "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
+            // A queen stepping next to a pawn, a rook behind its own mover
+            // (the X-ray through the mover's origin) and a pinned defender.
+            "4k3/8/4p3/8/8/8/8/3QK3 w - - 0 1",
+            "4k3/4r3/8/8/8/8/4R3/4K3 w - - 0 1",
+            "4k3/8/2n5/8/2B5/8/8/2R1K3 b - - 0 1",
+        };
+        QuietSeeTally tally;
+        for (const char* fen : fens) {
+            Board b;
+            b.set_fen(fen);
+            check_quiet_see(b, tally);
+        }
+        std::printf("%d quiets ", tally.quiets);
+        EXPECT(tally.quiets > 50);
+        EXPECT_EQ(tally.bound_failures, 0);
+        EXPECT_EQ(tally.boundary_divergences, 0);
+    }
+    end_section();
+
+    begin_section("quiet SEE: boundary == oracle on a fixed-seed random-walk corpus");
+    {
+        const char* seeds[] = {
+            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+            "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
+            "r2q1rk1/pP1p2pp/Q4n2/bbp1p3/Np6/1B3NBn/pPPP1PPP/R3K2R b KQ - 0 1",
+            "2rr3k/pp3pp1/1nnqbN1p/3pN3/2pP4/2P3Q1/PPB4P/R4RK1 w - - 0 1",
+            "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1",
+        };
+        std::mt19937_64 rng(0x5EE0F1E7ULL);
+        QuietSeeTally tally;
+        int positions = 0;
+        for (int w = 0; w < 400; ++w) {
+            Board b;
+            b.set_fen(seeds[w % 5]);
+            const int plies = static_cast<int>(rng() % 30);
+            for (int p = 0; p < plies; ++p) {
+                MoveList legal;
+                b.gen_legal(legal);
+                if (legal.empty())
+                    break;
+                b.make_move(legal[static_cast<int>(rng() % static_cast<uint64_t>(legal.size()))]);
+            }
+            check_quiet_see(b, tally);
+            ++positions;
+        }
+        std::printf("%d positions, %d quiets, %d diverge ", positions, tally.quiets,
+                    tally.boundary_divergences);
+        EXPECT(tally.quiets > 5000);
+        EXPECT_EQ(tally.bound_failures, 0);
+        EXPECT_EQ(tally.unexplained, 0);
+        EXPECT_EQ(tally.promotion_recaptures, PINNED_PROMOTION_RECAPTURES);
+        EXPECT_EQ(tally.discovered_checks, PINNED_DISCOVERED_CHECKS);
+        EXPECT_EQ(tally.legality_filtered, PINNED_LEGALITY_FILTERED);
+    }
+    end_section();
+}
+
 int main() {
     init_bitboards();
     init_attacks();
@@ -1392,6 +1552,7 @@ int main() {
     test_see_pin_legality();
     test_see_king_legality();
     test_see_created_pins_and_promotions();
+    test_see_quiet_moves();
 
     std::printf("\nFEN round-trip\n");
     test_fen_roundtrip();

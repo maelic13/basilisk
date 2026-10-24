@@ -1,13 +1,15 @@
 name: Release
 run-name: ${{ github.ref_type == 'tag' && github.ref_name || format('release candidate {0}', github.sha) }}
 
-# A release is cut by pushing a `vX.Y.Z` tag on master; nothing else creates
-# one. The workflow validates first (tools/diag/release_check.py: the tag names
-# the version both CMakeLists.txt and src/constants.h declare, the tagged
-# commit is on master, CHANGELOG.md has a dated section for it, and GUIDE marks
-# it released), builds the nine PGO assets read-only, benches every one and
-# asserts a single `bench 13` fingerprint across the matrix equal to the one
-# GUIDE declares, and only then one job with write permission publishes the
+# A release is cut by pushing a `vX.Y.Z` tag on master, or, for a patch while
+# master holds unreleased work, on a branch cut from the `vX.Y.0` release; nothing
+# else creates one. The workflow validates first (tools/diag/release_check.py:
+# the tag names the version both CMakeLists.txt and src/constants.h declare, the
+# tagged commit is on master or on that patch line, CHANGELOG.md has a dated
+# section for it, and GUIDE marks it released), builds the nine PGO assets
+# read-only, benches every one and asserts a single `bench 13` fingerprint
+# across the matrix equal to the one GUIDE declares, and only then one job
+# with write permission publishes the
 # release with every asset and the notes taken from that CHANGELOG section.
 # Nothing exists on GitHub until every cell has passed, so a failed run is
 # repaired by deleting the tag, fixing master and tagging again.
@@ -401,10 +403,10 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: The tagged commit is on master
+      - name: The tagged commit is on master or its patch line
         run: |
           git fetch origin master
-          git merge-base --is-ancestor "$GITHUB_SHA" origin/master
+          python3 tools/diag/release_check.py line "$GITHUB_REF_NAME" --base origin/master
 
       - name: Download the bundle
         uses: actions/download-artifact@v7

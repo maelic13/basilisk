@@ -59,7 +59,7 @@ endif()
 
 set(COMP "${_basilisk_compiler}" CACHE STRING "Compiler selection: auto, clang, gcc, llvm, or msvc" FORCE)
 
-project(basilisk VERSION 1.10.2 LANGUAGES CXX)
+project(basilisk VERSION 1.11.0 LANGUAGES CXX)
 
 if(_basilisk_compiler STREQUAL "msvc" AND NOT MSVC)
     message(FATAL_ERROR "COMP=msvc requires the Microsoft Visual C++ compiler")
@@ -79,7 +79,13 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-set(BASILISK_DIST_TAG "v${PROJECT_VERSION}" CACHE STRING "Release asset tag used in dist binary names" FORCE)
+# The dist tag defaults to v<project version>. An explicit -DBASILISK_DIST_TAG
+# (the release workflow passes the full tag, e.g. v1.11.0-dev) is kept; a
+# cached default is refreshed when the project version changes.
+if(NOT BASILISK_DIST_TAG OR BASILISK_DIST_TAG STREQUAL "${_BASILISK_DIST_TAG_DEFAULT}")
+    set(BASILISK_DIST_TAG "v${PROJECT_VERSION}" CACHE STRING "Release asset tag used in dist binary names" FORCE)
+endif()
+set(_BASILISK_DIST_TAG_DEFAULT "v${PROJECT_VERSION}" CACHE INTERNAL "The dist tag's default at the last configure")
 
 function(_basilisk_detect_dist_os out_var)
     if(WIN32)
@@ -145,18 +151,49 @@ set(BOARD_SOURCES
     src/move.cpp
     src/attacks.cpp
     src/zobrist.cpp
+    src/threats.cpp
 )
 add_library(basilisk_board STATIC ${BOARD_SOURCES})
 target_include_directories(basilisk_board PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
+# The node kernel: quiescence, negamax, the move picker and the history and
+# correction tables with their policy. The driver in search_worker.cpp reaches
+# it only through Searcher's kernel entry points, so a cluster built behind an
+# umbrella option supplies its own list here while the driver stays shared.
+# Cluster umbrellas (PROCESS, Cluster delivery shape): a Boolean option that
+# compiles one search cluster in; it defaults OFF until the cluster's gate
+# passes, then ON, and the old path stays compilable until its cleanup leaf.
+# B2_CORE is Cluster 1, the selectivity core, which replaces the node kernel
+# (BASILISK_SEARCH_KERNEL_SOURCES and the kernel section of Searcher). It
+# passed B.2.4 and defaults ON; OFF builds the legacy kernel until B.8.
+option(B2_CORE "Compile Cluster 1's selectivity-core node kernel in place of the legacy kernel (sets BASILISK_B2_CORE)" ON)
+if(B2_CORE)
+    set(BASILISK_SEARCH_KERNEL_SOURCES
+        src/search_kernel_core.cpp
+        src/search_history_core.cpp
+        src/move_picker_core.cpp
+        src/history_core.cpp
+    )
+else()
+    set(BASILISK_SEARCH_KERNEL_SOURCES
+        src/search_kernel.cpp
+        src/search_history.cpp
+        src/move_picker.cpp
+        src/history.cpp
+    )
+endif()
+
 # Engine library — evaluation and search (depends on board)
 add_library(basilisk_engine STATIC
     src/eval.cpp
-    src/history.cpp
-    src/search.cpp
+    src/search_thread_pool.cpp
+    src/search_worker.cpp
+    src/search_root.cpp
+    src/search_diagnostics.cpp
     src/syzygy.cpp
+    ${BASILISK_SEARCH_KERNEL_SOURCES}
 )
 target_link_libraries(basilisk_engine PUBLIC basilisk_board PRIVATE fathom)
 
@@ -223,6 +260,21 @@ target_link_libraries(test_wac PRIVATE basilisk_engine)
 add_executable(test_invariants tests/test_invariants.cpp)
 target_link_libraries(test_invariants PRIVATE basilisk_board)
 
+# The per-node threat producer against a brute-force attacker set
+add_executable(test_threats tests/test_threats.cpp)
+target_link_libraries(test_threats PRIVATE basilisk_board)
+
+# The selectivity core's tables and picker exist on the B2_CORE arm only.
+if(B2_CORE)
+    add_executable(test_history_core tests/test_history_core.cpp)
+    target_link_libraries(test_history_core PRIVATE basilisk_engine)
+    add_executable(test_move_picker_core tests/test_move_picker_core.cpp)
+    target_link_libraries(test_move_picker_core PRIVATE basilisk_engine)
+    add_executable(test_stack_unwind tests/test_stack_unwind.cpp
+                   src/parameters.cpp src/bench.cpp src/wac.cpp)
+    target_link_libraries(test_stack_unwind PRIVATE basilisk_engine)
+endif()
+
 add_executable(test_cpu_features tests/test_cpu_features.cpp)
 target_include_directories(test_cpu_features PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
@@ -285,6 +337,12 @@ include(CTest)
 add_test(NAME test_board        COMMAND test_board)
 add_test(NAME test_wac          COMMAND test_wac)
 add_test(NAME test_invariants   COMMAND test_invariants)
+add_test(NAME test_threats      COMMAND test_threats)
+if(B2_CORE)
+    add_test(NAME test_history_core     COMMAND test_history_core)
+    add_test(NAME test_move_picker_core COMMAND test_move_picker_core)
+    add_test(NAME test_stack_unwind     COMMAND test_stack_unwind)
+endif()
 add_test(NAME test_cpu_features COMMAND test_cpu_features)
 add_test(NAME test_move         COMMAND test_move)
 add_test(NAME test_magics       COMMAND test_magics)
@@ -296,6 +354,13 @@ add_test(NAME test_engine_threading COMMAND test_engine_threading)
 add_test(NAME test_uci_protocol COMMAND test_uci_protocol)
 add_test(NAME test_endgames     COMMAND test_endgames
          ${CMAKE_CURRENT_SOURCE_DIR}/tests/endgames.epd)
+
+# Search-strength floors: deterministic, but they measure strength rather than
+# correctness, and an unoptimised build only reproduces the same numbers far
+# more slowly. `ctest -LE strength` runs the correctness tests alone.
+add_test(NAME test_wac_floor    COMMAND test_wac --floor)
+add_test(NAME test_endgame_conversion COMMAND test_endgames --conversion)
+set_tests_properties(test_wac_floor test_endgame_conversion PROPERTIES LABELS strength)
 
 # The engine as a process: command-line arguments run one command and exit.
 function(basilisk_cli_test name code regex)
@@ -322,6 +387,7 @@ option(TUNE "Expose search constants as UCI spin options for SPSA tuning (sets B
 option(DIAGNOSTIC "Expose diagnostics without the tunable parameter surface (sets BASILISK_DIAGNOSTIC)" OFF)
 option(ABLATION "Expose the matched search-ablation instrument (sets BASILISK_ABLATION)" OFF)
 option(RELEASE_DIAG_COUNTERS "Count diagnostic search events in production builds (measurement arm)" OFF)
+# B2_CORE, the Cluster 1 umbrella, is declared with the kernel source list.
 set(BASILISK_PGO_ARM_OPTION "" CACHE STRING "Boolean CMake option identifying an umbrella arm in PGO child builds")
 set(BASILISK_PGO_ARM_STATE "OFF" CACHE STRING "Value for BASILISK_PGO_ARM_OPTION in PGO child builds")
 # Warnings are only a signal if something enforces them. The tree builds clean
@@ -394,8 +460,11 @@ set(_ALL_TARGETS
     basilisk_board basilisk_engine basilisk_launcher
     basilisk board_performance_test
     test_board test_move test_tt test_eval test_search test_engine_ponder test_engine_threading test_uci_protocol test_cpu_features
-    test_endgames test_wac test_invariants test_magics
+    test_endgames test_wac test_invariants test_magics test_threats
 )
+if(B2_CORE)
+    list(APPEND _ALL_TARGETS test_history_core test_move_picker_core test_stack_unwind)
+endif()
 
 # Fathom is part of the shipped executable and must obey its ISA contract, but
 # remains outside _ALL_TARGETS because third-party warning/sanitizer policy is
@@ -425,6 +494,13 @@ endif()
 
 if(RELEASE_DIAG_COUNTERS)
     target_compile_definitions(basilisk_engine PRIVATE BASILISK_RELEASE_DIAG_COUNTERS)
+endif()
+
+if(B2_CORE)
+    foreach(_tgt IN LISTS _ALL_TARGETS)
+        target_compile_definitions(${_tgt} PRIVATE BASILISK_B2_CORE)
+    endforeach()
+    message(STATUS "B2_CORE arm: the selectivity-core kernel is compiled in (BASILISK_B2_CORE defined)")
 endif()
 
 if(TUNE)
@@ -468,6 +544,15 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         foreach(_tgt IN LISTS _ALL_TARGETS)
             target_compile_options(${_tgt} PRIVATE -fsanitize=address,undefined)
             target_link_options(${_tgt} PRIVATE -fsanitize=address,undefined)
+            # An unoptimised, instrumented search frame is about ten times a
+            # release one (some 15 KB a ply against 1.4 KB), and the tests
+            # search on the main thread. Windows reserves 1 MB for it where
+            # Linux, which runs the CI sanitizer job, gives 8 MB: reserve
+            # the same 8 MB here so a deep line does not overflow only on
+            # this platform.
+            if(WIN32)
+                target_link_options(${_tgt} PRIVATE -Wl,--stack,8388608)
+            endif()
         endforeach()
     endif()
 

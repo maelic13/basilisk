@@ -6,8 +6,12 @@
       `project(... VERSION X.Y.Z)` and `src/constants.h`'s `engineVersion`);
       CHANGELOG.md has a dated, non-empty `## [X.Y.Z] - YYYY-MM-DD` section;
       GUIDE's Released baseline row names X.Y.Z (the release commit marks
-      itself released); HEAD is an ancestor of REF (default `origin/master`).
-      With --notes, the CHANGELOG section is written there as release notes.
+      itself released); HEAD is on the release line (see `line`). With
+      --notes, the CHANGELOG section is written there as release notes.
+  line vX.Y.Z [--base REF]
+      HEAD is an ancestor of REF (default `origin/master`), or the tag is a
+      patch (Z > 0) whose commit descends from the `vX.Y.0` tag on REF: a
+      patch cut on a branch from the release while REF holds later work.
   fingerprint
       Prints the `bench 13` node count GUIDE declares, read by the roadmap
       checker's own parser, so the workflow and the checker cannot disagree.
@@ -99,11 +103,37 @@ def declared_fingerprint(root: Path) -> int:
         raise CheckError(str(error)) from error
 
 
-def ensure_on_base(root: Path, base: str) -> None:
-    result = subprocess.run(["git", "merge-base", "--is-ancestor", "HEAD", base],
+def is_ancestor(root: Path, ancestor: str, descendant: str) -> bool:
+    result = subprocess.run(["git", "merge-base", "--is-ancestor", ancestor, descendant],
                             cwd=root, capture_output=True, text=True)
-    if result.returncode != 0:
-        raise CheckError(f"HEAD is not on {base}" + (f": {result.stderr.strip()}" if result.stderr else ""))
+    if result.returncode in (0, 1):
+        return result.returncode == 0
+    raise CheckError(f"cannot compare {ancestor} with {descendant}: {result.stderr.strip()}")
+
+
+def tag_exists(root: Path, tag: str) -> bool:
+    result = subprocess.run(["git", "rev-parse", "--verify", "--quiet", f"refs/tags/{tag}^{{commit}}"],
+                            cwd=root, capture_output=True, text=True)
+    return result.returncode == 0
+
+
+def ensure_on_line(root: Path, version: str, base: str) -> str:
+    """HEAD is on `base`, or, for a patch X.Y.Z with Z > 0, HEAD descends from
+    the `vX.Y.0` tag and that tag is on `base`: a patch released while `base`
+    already holds later work is built on a branch from the release."""
+    if is_ancestor(root, "HEAD", base):
+        return f"HEAD on {base}"
+    major, minor, patch = version.split(".")
+    if patch == "0":
+        raise CheckError(f"HEAD is not on {base}")
+    line = f"v{major}.{minor}.0"
+    if not tag_exists(root, line):
+        raise CheckError(f"HEAD is not on {base}, and the patch line's {line} tag does not exist")
+    if not is_ancestor(root, line, base):
+        raise CheckError(f"HEAD is not on {base}, and {line} is not on {base} either")
+    if not is_ancestor(root, line, "HEAD"):
+        raise CheckError(f"HEAD is not on {base} and does not descend from {line}")
+    return f"HEAD on the {major}.{minor} patch line from {line} on {base}"
 
 
 def check(root: Path, tag: str, base: str, notes: Path | None) -> str:
@@ -114,11 +144,11 @@ def check(root: Path, tag: str, base: str, notes: Path | None) -> str:
     body = changelog_section((root / "CHANGELOG.md").read_text(encoding="utf-8"), version)
     released_in_guide((root / "GUIDE.md").read_text(encoding="utf-8"), version)
     nodes = declared_fingerprint(root)
-    ensure_on_base(root, base)
+    where = ensure_on_line(root, version, base)
     if notes is not None:
         notes.write_text(body, encoding="utf-8")
     return (f"release check {tag}: both version sources read {version}, CHANGELOG section "
-            f"dated, GUIDE marks it released, bench 13 declared {nodes}, HEAD on {base}")
+            f"dated, GUIDE marks it released, bench 13 declared {nodes}, {where}")
 
 
 def main(argv: list[str]) -> int:
@@ -129,12 +159,18 @@ def main(argv: list[str]) -> int:
     run.add_argument("tag")
     run.add_argument("--base", default="origin/master")
     run.add_argument("--notes", type=Path)
+    line = sub.add_parser("line")
+    line.add_argument("tag")
+    line.add_argument("--base", default="origin/master")
     sub.add_parser("fingerprint")
     sub.add_parser("version")
     args = parser.parse_args(argv)
     try:
         if args.command == "check":
             print(check(ROOT, args.tag, args.base, args.notes))
+        elif args.command == "line":
+            print(f"release line {args.tag}: "
+                  + ensure_on_line(ROOT, version_of_tag(args.tag), args.base))
         elif args.command == "fingerprint":
             print(declared_fingerprint(ROOT))
         else:

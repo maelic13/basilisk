@@ -1,0 +1,134 @@
+# BAS-S21
+
+**BAS-S21 — B.2.2: Cluster 1 diagnostics and the unfitted paired run**
+
+- Date / owner / calibration category: registered 2026-10-11 (Amendment 3,
+  packet §22.7), before any game; maintainer-run; search cluster, Elo layer
+  plus zero-game screens.
+- Baseline source revision / candidate source revision / dirty-diff identity:
+  the accepted B.2.1 head (the delta review's acceptance names it; the B.1
+  head `6c5ee63`-lineage off arm at bench 14,978,465 is the baseline). One
+  revision, two arms: the umbrella-off arm against the umbrella-on arm
+  (`-DB2_CORE=ON`), seeds unfitted (packet §7.3, Amendments 1–3).
+- Binary / compiler / flags / PGO identity and hashes: recorded at run time
+  in this entry; PGO pairs per arm as PROCESS *Cluster delivery shape*.
+- Research question: does the coherent Cluster 1 core (TT, SEE, picker,
+  histories, correction, node and move-loop pruning, LMR, update policy) land
+  in the donor's population without an Elo defect, before fitting?
+- Hypothesis / proposed mechanism: packet §2.6 and §13; the move-loop family
+  is the ×4 node multiplier, and the cluster adopts the donor's architecture
+  as a unit so its terms are fitted to each other.
+- Interacting mechanisms / consumers: the kept legacy NMP, ProbCut, singular,
+  check extension, IIR and quiescence (B.3, B.4); packet §4.
+- Credible competing hypotheses: the oracle column seeds are wrong for this
+  evaluation (P1 below −40); the cluster lands but the residual lies in
+  B.3/B.4 (P2 fails with P3 held).
+
+#### PRE-REGISTERED PREDICTION — freeze before exposure
+
+Packet §11's B.2 table, verbatim, with P5 as Amendment 1 (§17.4) re-registered
+it:
+
+| # | Prediction | Confidence | Falsifier |
+|---|---|---|---|
+| P1 | The unfitted paired run (2,000 games, §7 seeds) reads **−15 ± 30 Elo**; probability of the −40 defect stop 20% | moderate | below −40 is a defect or a wrong seed column |
+| P2 | After B.2.3 and the `[0,10]` gates B.2 reads **+40 Elo at STC**, 90% interval [+5, +90]; H1 probability 65% | moderate | H0 or a stop under +10 refutes the coherent-core share; the residual then lies in B.3/B.4 |
+| P3 | Nodes at depth 12 relative to the oracle fall from 3.97 to **≤ 2.5** (median ≤ 1.8) with branching inside [1.65, 1.90] | moderate-high | a ratio above 3.2 says the move-loop family did not land in the donor's population |
+| P4 | WAC at 100k rises to **≥ 225** with razoring re-seeded and the LMR-off delta falls to **≤ +5** | moderate | WAC under 210 says the picker/LMR terms removed what razoring gave back |
+| P5 | Pooled NPS lands at **0.92–0.98×** of the B.1 head (threat producer, larger histories **and quiet SEE calls**) | moderate | below 0.90 sends the threat producer to B.7 before the gate; reading rule (Amendment 1): B.2.2 reports `see_ge_calls` per node on both arms beside the pooled NPS; if P5 reads below 0.90 and the ON arm's `see_ge_calls/node` is more than twice the off arm's, quiet SEE is the suspect, the §17.1 fast path (if not taken) is the first repair, and only then does the cost go to B.7 with the threat producer |
+| P6 | `lmr_researched / lmr_applied` rises from 1.7% to **3–5%**; `rfp_cuts` fall below 12% of interior nodes while the tree shrinks | high | neither moving means the floor or the estimated-score wiring did not land |
+
+- Expected diagnostic movement: packet §10's screens at their registered
+  floors and targets (branching window [1.65, 1.90]; nodes at depth 12 ≤ 2.5
+  of the oracle; WAC at 100k ≥ 200 floor / ≥ 225 target, at 400k ≥ 240 /
+  ≥ 258; LMR-off delta ≤ +12 / ≤ +5; agreement ≥ 60 / ≥ 75; time to depth
+  ≤ 1.10× / ≤ 0.85×; 77 canaries). Also read, per Amendment 1 §17.4: BAS-C09's
+  retry trigger once on the ON arm.
+- Expected Elo sign/range: P1, −15 ± 30 unfitted.
+- Probability candidate is positive/useful: P2's 65% for the fitted cluster.
+- Confidence and basis: moderate; packet §2.6, BAS-S18 (G(32) = +102.3 ± 15.9).
+- Most likely failure mode: a wrong seed column (P1 below −40) or a defect
+  the fixed-node screens show (P3 above 3.2).
+- Falsification criteria: the falsifier column above.
+- Cheapest prior falsifier: the per-ticket fixed-node WAC readings (packet
+  §20): 249 at 100k on the implemented head, above P4's 225; the ablation
+  liveness proof (8 of 8 bits).
+- Registered gate / stop rule: the 2,000-game paired run governs; > −40 Elo
+  proceeds (below is a defect); ≥ +10 proceeds to B.2.3; −40..+10 the review
+  decides after the family screen (packet §10). Programme stop rule: PLAN
+  rule 6 and packet §11.
+- Full conditions / provenance: Colosseum, `3+0.03`, 1T, Hash 64, UHO paired
+  openings, no adjudication, tablebases off, 2,000 games (1,000 pairs), the
+  A.3.1 run-file path; categorical switches (`CoreTtCutoffNodeTyped`,
+  `CorePawnHistBucketsLog2`, `CoreCorrAdmission`, `CoreRazorDepthCap`,
+  `CoreLmpExemptChecks`, `CoreLmrNegativeAllowed`) settled by 2,000-game
+  paired runs on one tune build, never SPSA coordinates.
+
+#### RESULT — append after exposure
+
+- Diagnostics (not the verdict), 2026-10-12, on the accepted head (ON
+  9,132,715 / OFF 14,978,465; final-PGO binaries; packet §26):
+  - **Two floors flagged.**
+    - The canaries read 68/77: nine regressions, eight of them recovered
+      when the move-loop pruning family is removed, and 30 new passes,
+      WAC.001 among them.
+    - Branching 4–14 reads 1.6465, under the window's 1.65; the depths
+      12–14 carry it, and LMR is the bit that raises it.
+  - **P3.** Nodes at depth 12 relative to the oracle read 1.86, median
+    1.04; held, except branching by 0.0035.
+  - **P4.** WAC at 100k reads 249, held. The LMR-off delta reads +8 against
+    ≤ +5, missed. WAC at 400k reads 276.
+  - **P5.** Pooled NPS reads 1.038× the B.1 head, 95% CI [+3.42%, +4.49%]:
+    missed above the band. `see_ge_calls`/node is 0.839 ON against 0.534
+    off.
+  - **P6 held.** LMR re-searches 4.24%; RFP cuts 10.37% of interior
+    nodes.
+  - **Other screens.**
+    - The shallow-pruning marginal factor reads 3.46: floor met, target
+      3.5 missed.
+    - Agreement reads 66/105 and median depth 16.
+    - Time to depth reads 0.59×.
+  - BAS-C09's retry trigger is not met (0.0004% verdict changes).
+  - The paired run and the six categorical runs are prepared
+    (`tools/run_b22_games.ps1`) and not started.
+- Deciding result (maintainer-run 2026-10-13, Colosseum, 2,000 games, 1,000
+  pairs, 0 faults, natural termination, PGN recount agrees):
+  - **B2_CORE ON against OFF: +130.9 ± 11.4 Elo**, nElo +192.6 ± 15.2.
+    W/D/L 1014/692/294, pentanomial [10, 76, 313, 386, 215]
+    (`colosseum_match_b22-paired_20261013_080804.*`, run record
+    `917D5DC3…28FE`, PGN `F6096181…5CF3`).
+  - **Reading rule:** ≥ +10 proceeds to B.2.3.
+  - **P1 (−15 ± 30) missed high by about 146 Elo.** Its only falsifier
+    sits on the low side. The magnitude is far outside the registered
+    band, so PROCESS *Harness* owes a backup-path cross-check (fastchess,
+    same arms) before the result is acted on; it is read as agreement
+    inside the intervals, never as a second gate.
+  - **Cross-check (maintainer-run 2026-10-13):** fastchess 1.8.0 alpha
+    (`tools/sprt.ps1 -Mode fixed`), the same two binaries, 2,000 games,
+    seed 22210. It reads **+136.2 ± 11.0 Elo** (nElo +207.9 ± 15.2), W/D/L
+    1013/720/267, pentanomial [4, 63, 335, 379, 219]: 0 faults, all 2,000
+    terminations normal, and an independent PGN recount agrees
+    (`sprt_B2Core_vs_Legacy_20261013_122925.*`, PGN `1ecf385d…d927`,
+    log `8844f777…fdd3`). The two instruments agree inside their
+    intervals (+130.9 ± 11.4 against +136.2 ± 11.0).
+- Categorical runs (one ON Tune build; A the other value, B the default;
+  2,000 games each, 0 faults; adopted at ≥ +5, rejected at ≤ −5):
+  - `CoreTtCutoffNodeTyped` 0: +4.9 ± 9.5 (537/954/509). Default 1 kept.
+  - `CorePawnHistBucketsLog2` 11: −4.5 ± 9.8 (516/942/542). Default 13
+    kept.
+  - `CoreCorrAdmission` 0: **−96.9 ± 10.7** (320/816/864). Rejected;
+    default 1 kept.
+  - `CoreRazorDepthCap` 3: −7.1 ± 9.4 (521/917/562). Rejected; default 1
+    kept.
+  - `CoreLmpExemptChecks` 0: **+13.6 ± 9.7** (574/930/496). **Adopted:**
+    the default moves to 0, the donor's form, with no direct-check
+    exemption from the count skip.
+  - `CoreLmrNegativeAllowed` 0: −5.6 ± 9.8 (518/932/550). Rejected;
+    default 1 kept.
+  - Run records: `8EE6857A…FABA`, `25F99A87…FB2D`, `B176AC16…9BFF`,
+    `68AC792D…6C7D`, `CA2DC528…151E`, `B3FAB154…DC85`.
+- Disposition: **paired run +130.9 ± 11.4, proceeds to B.2.3**; the fastchess cross-check agrees (+136.2 ± 11.0); `CoreLmpExemptChecks` adopted at 0 (`cd2e397`, ON `bench 13` 9,132,715 → 6,199,439), the other five switches at their defaults. **CLOSED 2026-10-13.**
+
+#### PREDICTION CALIBRATION — preserve the original prediction above
+
+- (appended at B.2.4, as packet §11 says)

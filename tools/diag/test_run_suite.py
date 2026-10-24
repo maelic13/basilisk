@@ -22,6 +22,18 @@ class FixedBudgetRecordTests(unittest.TestCase):
         checks = run_suite.validate_diag(counters)
         self.assertTrue(all(checks.values()))
 
+    def test_core_counters_are_optional_but_all_or_none(self):
+        counters = {name: 0 for name in run_suite.CORE_COUNTER_UNITS}
+        counters.update({name: 0 for name in run_suite.B2_COUNTER_UNITS})
+        counters.update({"rfp_cuts": 5, "rfp_cuts_d1_3": 2, "rfp_cuts_d4_7": 3})
+        self.assertTrue(all(run_suite.validate_diag(counters).values()))
+        counters["rfp_cuts_d8p"] = 1
+        with self.assertRaisesRegex(ValueError, "rfp depth buckets"):
+            run_suite.validate_diag(counters)
+        del counters["rfp_cuts_d8p"]
+        with self.assertRaisesRegex(ValueError, "partial"):
+            run_suite.validate_diag(counters)
+
     def test_counter_parser_rejects_duplicates_and_broken_identity(self):
         with self.assertRaisesRegex(ValueError, "duplicate"):
             run_suite.parse_diag(

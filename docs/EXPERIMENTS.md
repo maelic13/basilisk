@@ -473,10 +473,20 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-D21](experiments/BAS-D21.md) — matched per-family ablation screens: the ×4 is the move-loop pruning family; razoring and LMR cost… — see entry
 
+- [BAS-S21](experiments/BAS-S21.md) — B.2.2: Cluster 1 diagnostics and the unfitted paired run, P1–P6 frozen — +130.9 ± 11.4 (cross-check +136.2 ± 11.0), proceeds; closed
+
+- [BAS-S22](experiments/BAS-S22.md) — B.2.3: Cluster 1 curvature sweep, then SPSA in blocks — two blocks, STOP after block 2; theta baked
+
+- [BAS-S23](experiments/BAS-S23.md) — B.2.4: Cluster 1 gates — (a) +136.2 ± 33.6, (b) +58.7 ± 20.9, both H1; default flipped
+
+- [BAS-S24](experiments/BAS-S24.md) — B.2.3 diagnostic: SPSA block 1's centres against the seeds, 2,000 games — +57.0 ± 9.8
+
+- [BAS-S25](experiments/BAS-S25.md) — programme checkpoint: the current state (block 1's centres) against 1.10.2, 2,000 games — +188.3 ± 17.5
+
 | ID | Title | Disposition |
 |---|---|---|
-| [BAS-S17](experiments/BAS-S17.md) | Registered, not yet run (B.0.1, maintainer). | Reading rule: |
-| [BAS-S18](experiments/BAS-S18.md) | Registered, not yet run (B.0.2, maintainer). | Reading rule: |
+| [BAS-S17](experiments/BAS-S17.md) | Razoring depth reach in Elo (B.0.1, maintainer). | +2.4 ± 9.9; interval holds 0, the cluster decides the cap |
+| [BAS-S18](experiments/BAS-S18.md) | Oracle move-loop pruning family in Elo (B.0.2, maintainer). | G(32) = +102.3 ± 15.9; family explains 210 of 312.6 |
 | [BAS-S19](experiments/BAS-S19.md) | Frozen before any game, PLAN A.8.15: the tablebase band and probes with tables configured. | ACCEPTED: +31.7 ± 13.4 with tables |
 | [BAS-S20](experiments/BAS-S20.md) | Frozen before any game, PLAN A.8.18: the won-endgame time-sink repair. | KEPT by maintainer decision: −0.7 ± 4.5 at the cap |
 
@@ -553,6 +563,8 @@ not accept any new feature, vector or label policy by themselves.
 | [BAS-P13](experiments/BAS-P13.md) | Frozen before the run, PLAN A.8.9's pooled-PGO NPS read against 1.10.1. | ACCEPTED: +1.13%, unexplained |
 | [BAS-P14](experiments/BAS-P14.md) | Frozen before the run, PLAN A.8.12's pooled-PGO NPS read against the head before it. | ACCEPTED: −0.11%, neutral |
 | [BAS-P15](experiments/BAS-P15.md) | Frozen before the run, PLAN A.8.20's pooled-PGO NPS baseline of the A.8 head. | COMPLETE: 4.189M NPS |
+| [BAS-P16](experiments/BAS-P16.md) | Frozen before the run, PLAN B.1's pooled-PGO NPS gate against the A.8 head. | PASSED: +1.21%, unexplained |
+| [BAS-P17](experiments/BAS-P17.md) | Frozen before the run, PLAN B.2.0's pooled-PGO NPS pool against the B.1 builds. | PASSED: 0.00% |
 
 ## 7. Correctness and protocol lessons
 

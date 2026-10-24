@@ -192,10 +192,6 @@ std::string Parameters::uci_options() {
     opts += "option name AblationMask type spin default 0 min 0 max 255\n";
 #endif
 #ifdef BASILISK_TUNE
-    opts +=
-        // Atomic string keeps an SPSA/sweep harness from briefly installing
-        // an unsafe partial KBNK vector while separate options arrive.
-        "option name KBNK Drive type string default 17000,1000,0,220,0\n";
     // 8.6.1: generated from the SearchParams X-macro table — the advertised
     // default IS the compiled default by construction (the hand-written list
     // this replaces had drifted: PostLmrHistScale said 104, engine ran 0;
@@ -204,6 +200,7 @@ std::string Parameters::uci_options() {
     opts += "option name " #uci " type spin default " + std::to_string(def) + \
             " min " + std::to_string(lo) + " max " + std::to_string(hi) + "\n";
     BASILISK_SEARCH_PARAMS(BASILISK_SEARCH_PARAM_OPT)
+    BASILISK_KERNEL_SWITCHES(BASILISK_SEARCH_PARAM_OPT)
 #undef BASILISK_SEARCH_PARAM_OPT
 #endif
     return opts;
@@ -376,12 +373,6 @@ void Parameters::set_option(const std::string& args) {
         // `info string tm ...` per move with the time budget, actual elapsed,
         // and the go-receipt->search-start dispatch delta.
         tm_debug = parse_bool_option(value);
-#ifdef BASILISK_TUNE
-    } else if (name_lower == "kbnk drive") {
-        std::string error;
-        if (!set_kbnk_drive_weights(value, error))
-            uci_write_line("info string Invalid KBNK Drive: " + error);
-#endif
     } else if (!parse_int(value, parsed)) {
         uci_write_line("info string Invalid value for option '" + name + "': " + value);
     } else if (name_lower == "move overhead") {
@@ -407,6 +398,7 @@ void Parameters::set_option(const std::string& args) {
 #define BASILISK_SEARCH_PARAM_SET(field, uci, def, lo, hi) \
     else if (uci_option_name_is(name_lower, #uci)) { search_params.field = std::clamp(parsed, lo, hi); }
     BASILISK_SEARCH_PARAMS(BASILISK_SEARCH_PARAM_SET)
+    BASILISK_KERNEL_SWITCHES(BASILISK_SEARCH_PARAM_SET)
 #undef BASILISK_SEARCH_PARAM_SET
 #endif
     // 15.0.d: an unrecognised option name used to fall off the end of this

@@ -8,6 +8,7 @@
 #pragma once
 
 #include <cassert>
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <string>
@@ -19,6 +20,7 @@
 static int  g_total   = 0;
 static int  g_passed  = 0;
 static bool g_sect_ok = true;
+static std::chrono::steady_clock::time_point g_sect_start;
 
 // ---------------------------------------------------------------------------
 // Assertion macros
@@ -63,11 +65,17 @@ static bool g_sect_ok = true;
 
 static void begin_section(const char* name) {
     std::printf("  %-52s ", name);
+    std::fflush(stdout);
     g_sect_ok = true;
+    g_sect_start = std::chrono::steady_clock::now();
 }
 
+// Each section reports its wall time, so a slow test shows in every run.
 static void end_section() {
-    std::printf("%s\n", g_sect_ok ? "ok" : "FAILED");
+    const double ms = std::chrono::duration<double, std::milli>(
+        std::chrono::steady_clock::now() - g_sect_start).count();
+    std::printf("%s  [%.0f ms]\n", g_sect_ok ? "ok" : "FAILED", ms);
+    std::fflush(stdout);
 }
 
 // ---------------------------------------------------------------------------
