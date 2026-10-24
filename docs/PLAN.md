@@ -954,6 +954,16 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       compiler bump owes a pooled NPS read and never falls between an SPRT's
       arms (rustc 1.98 to 1.99 cost Rarog 1.6% at the same fingerprint); a
       SQLite database is copied with its `-wal` file.
+    - [ ] **A.11.5** `[V]` Direction reads of the head against 1.10.2 (ANY TIME) — before B.3
+      Added 2026-10-24 by maintainer decision. Every gate since 1.10.2 read
+      `3+0.03` on one thread; the head has never been read at `10+0.1`, at
+      four threads, or with tablebases, and B.2's kernel has its own tablebase
+      probes. Three 1,000-game gauntlets against 1.10.2 rebuilt with the same
+      compiler, registered as BAS-S27 with frozen predictions and a reading
+      rule: each read passes when its 95% interval excludes a loss; a read
+      below its band, or any Basilisk fault, opens a diagnosis before B.3.
+      Maintainer-run, `tools/run_head_reads.ps1 -Read ltc|4t|tb`; B.11's
+      release reads repeat them on the B.9 head.
 - [ ] **A.12** `[M]` Roadmap rules from the audit (ANY TIME) — before B.6
   Added 2026-10-24, for the maintainer to decide one by one: Rarog rule 7c's
   amendment of 2026-10-20 (a near-optimum surface may be tuned as one longer
@@ -1802,6 +1812,7 @@ leaf's tag. Later phases carry only a class until they open.
 | A.11.2 | READY_FOR_IMPLEMENTATION | I1 | NPS read on pooled builds; before B.7.2 |
 | A.11.3 | RESEARCH | I1 | Profiler; before B.7.2 |
 | A.11.4 | READY_FOR_IMPLEMENTATION | M | Measurement rules; before B.3 |
+| A.11.5 | GAME_GATE | V | BAS-S27 registered and dry-run; maintainer-run overnight |
 | A.12 | RESEARCH | M | Roadmap rules for the maintainer to decide; before B.6 |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |
 | B.4 | RESEARCH | I2 | Contents fixed by B.0 |

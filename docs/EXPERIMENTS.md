@@ -485,6 +485,8 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S26](experiments/BAS-S26.md) — B.10: the piece-square table orientation repair, `[-5,5]` — H1, +18.3 ± 12.9; flipped tables default
 
+- [BAS-S27](experiments/BAS-S27.md) — direction reads of the head against 1.10.2 at 10+0.1, 4T and with tablebases — registered, dry-run; maintainer-run
+
 | ID | Title | Disposition |
 |---|---|---|
 | [BAS-S17](experiments/BAS-S17.md) | Razoring depth reach in Elo (B.0.1, maintainer). | +2.4 ± 9.9; interval holds 0, the cluster decides the cap |
