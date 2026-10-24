@@ -14,7 +14,7 @@ in `docs/PROCESS.md`; where the engine stands is PLAN §1.
 | Bench fingerprint | **8,437,148** (`bench 13`, since B.10's PST repair; 11,099,210 at B.2.4; 14,978,465 for 1.10.0 to 1.10.2) |
 | Active experiment | None |
 | Long job | None |
-| Next release | **2.0.0** if the E.2 target gate is met, otherwise **1.11.0**, cut at E.3 |
+| Next release | **1.11.0** after B (B.11), then 1.12.0 after C, 1.13.0 after E; **2.0.0** is the first NNUE release |
 
 ## Model by class
 
@@ -38,6 +38,26 @@ generations change. These are maintainer judgments, not measured rankings.
 
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
+- **A.9.1** `[I1]` Rule-50 damping out of the TT static eval (ANY TIME) — before B.3 — Claude Sonnet 5 — Medium
+- **A.9.2** `[I1]` Singular search: lone excluded move returns alpha (ANY TIME) — before B.3 — Claude Sonnet 5 — Medium
+- **A.9.3** `[I1]` Own clock of zero without increment is bounded (ANY TIME) — before B.3 — Claude Sonnet 5 — Medium
+- **A.9.4** `[I1]` Upper-case UCI move text accepted (ANY TIME) — before B.3 — Claude Sonnet 5 — Medium
+- **A.9.5** `[I1]` Fatal errors from every thread reach stdout (ANY TIME) — before B.3 — Claude Sonnet 5 — Medium
+- **A.9.6** `[I1]` Frontier nodes counted once (ANY TIME) — before B.3 — Claude Sonnet 5 — Medium
+- **A.9.7** `[I1]` Evaluation colour symmetry: tie-break and sweep (ANY TIME) — before B.3 — Claude Sonnet 5 — Medium
+- **A.9.8** `[I1]` Last info line names bestmove after a stop (ANY TIME) — before B.3 — Claude Sonnet 5 — Medium
+- **A.9.9** `[R2]` Override boundaries never reward shedding material (ANY TIME) — before C.0 — Claude Opus 5 — High
+- **A.10.1** `[M]` Land dev and B.10 on master by squash PRs (ANY TIME) — before B.3 — Claude Sonnet 5 — Medium
+- **A.10.2** `[M]` CHANGELOG Unreleased caught up and kept (ANY TIME) — before B.3 — Claude Sonnet 5 — Medium
+- **A.10.3** `[M]` PR refspec and required checks on master (ANY TIME) — before B.3 — Claude Sonnet 5 — Medium
+- **A.10.4** `[I1]` Release and CI checks tightened (ANY TIME) — before B.11 — Claude Sonnet 5 — Medium
+- **A.10.5** `[I1]` Ledger index dispositions kept in step (ANY TIME) — before B.3 — Claude Sonnet 5 — Medium
+- **A.10.6** `[M]` Tools index and retired numbers in comments (ANY TIME) — before B.8 — Claude Sonnet 5 — Medium
+- **A.11.1** `[I1]` Colosseum re-pinned to 0.4.0, cross-checked (ANY TIME) — before B.3 — Claude Sonnet 5 — Medium
+- **A.11.2** `[I1]` NPS read rebuilt on pooled builds (ANY TIME) — before B.7.2 — Claude Sonnet 5 — Medium
+- **A.11.3** `[I1]` Profiler with inline attribution (ANY TIME) — before B.7.2 — Claude Sonnet 5 — Medium
+- **A.11.4** `[M]` Measurement rules from the audit (ANY TIME) — before B.3 — Claude Sonnet 5 — Medium
+- **A.12** `[M]` Roadmap rules from the audit (ANY TIME) — before B.6 — Claude Sonnet 5 — Medium
 - **B.7.1** `[I1]` Allocation guard (ANY TIME) — before B.7.2 — Claude Sonnet 5 — Medium
 - **D.3.1** `[R2]` Board contract audit (ANY TIME) — before E.1 — Claude Opus 5 — High
 
@@ -65,6 +85,29 @@ generations change. These are maintainer judgments, not measured rankings.
     - [x] **A.8.19** `[R2]` Displayed-score normalisation
     - [x] **A.8.20** `[M]` B-programme anchors on the A.8 head
     - [x] **A.8.21** `[M]` Patch release 1.10.2 (ANY TIME) — after A.8.20
+- [ ] **A.9** Correctness repairs from the Rarog audit
+    - [ ] **A.9.1** `[I1]` Rule-50 damping out of the TT static eval (ANY TIME) — before B.3
+    - [ ] **A.9.2** `[I1]` Singular search: lone excluded move returns alpha (ANY TIME) — before B.3
+    - [ ] **A.9.3** `[I1]` Own clock of zero without increment is bounded (ANY TIME) — before B.3
+    - [ ] **A.9.4** `[I1]` Upper-case UCI move text accepted (ANY TIME) — before B.3
+    - [ ] **A.9.5** `[I1]` Fatal errors from every thread reach stdout (ANY TIME) — before B.3
+    - [ ] **A.9.6** `[I1]` Frontier nodes counted once (ANY TIME) — before B.3
+    - [ ] **A.9.7** `[I1]` Evaluation colour symmetry: tie-break and sweep (ANY TIME) — before B.3
+    - [ ] **A.9.8** `[I1]` Last info line names bestmove after a stop (ANY TIME) — before B.3
+    - [ ] **A.9.9** `[R2]` Override boundaries never reward shedding material (ANY TIME) — before C.0
+- [ ] **A.10** Delivery and repository repairs
+    - [ ] **A.10.1** `[M]` Land dev and B.10 on master by squash PRs (ANY TIME) — before B.3
+    - [ ] **A.10.2** `[M]` CHANGELOG Unreleased caught up and kept (ANY TIME) — before B.3
+    - [ ] **A.10.3** `[M]` PR refspec and required checks on master (ANY TIME) — before B.3
+    - [ ] **A.10.4** `[I1]` Release and CI checks tightened (ANY TIME) — before B.11
+    - [ ] **A.10.5** `[I1]` Ledger index dispositions kept in step (ANY TIME) — before B.3
+    - [ ] **A.10.6** `[M]` Tools index and retired numbers in comments (ANY TIME) — before B.8
+- [ ] **A.11** Harness and measurement instruments
+    - [ ] **A.11.1** `[I1]` Colosseum re-pinned to 0.4.0, cross-checked (ANY TIME) — before B.3
+    - [ ] **A.11.2** `[I1]` NPS read rebuilt on pooled builds (ANY TIME) — before B.7.2
+    - [ ] **A.11.3** `[I1]` Profiler with inline attribution (ANY TIME) — before B.7.2
+    - [ ] **A.11.4** `[M]` Measurement rules from the audit (ANY TIME) — before B.3
+- [ ] **A.12** `[M]` Roadmap rules from the audit (ANY TIME) — before B.6
 
 ### Phase B — Search programme (evaluation frozen)
 
@@ -88,6 +131,7 @@ generations change. These are maintainer judgments, not measured rankings.
     - [ ] **B.7.2** `[I1]` Speed pass
 - [ ] **B.8** `[I1]` Cleanup of legacy search and dead parameters
 - [ ] **B.9** `[V]` Search programme checkpoint
+- [ ] **B.11** `[M]` Interim release after the search programme
 
 ### Phase C — Evaluation programme (search frozen)
 
@@ -117,6 +161,7 @@ generations change. These are maintainer judgments, not measured rankings.
 - [ ] **C.10** `[V]` Search re-fit after the new evaluation
 - [ ] **C.11** `[V]` Freeze the classical evaluation
 - [ ] **C.12** `[I2]` Evaluation throughput, bit-exact
+- [ ] **C.13** `[M]` Interim release after the evaluation programme
 
 ### Phase D — Clock, threads, robustness
 
@@ -131,13 +176,15 @@ generations change. These are maintainer judgments, not measured rankings.
 
 - [ ] **E.1** `[V]` Attribution checkpoint
 - [ ] **E.2** `[V]` Classical target gate
-- [ ] **E.3** `[M]` Release 2.0.0 if E.2 is met, else 1.11.0
+- [ ] **E.3** `[M]` Classical release 1.13.0 after Phase E
 
 ### Phase F — NNUE (own data only)
 
 - [ ] **F.0** `[R3]` NNUE investigation
 - [ ] **F.1** `[I2]` Board events and accumulator scaffolding
-- [ ] **F.2** `[V]` Data generation at scale
+- [ ] **F.2** Data generation at scale and the classical refit on it
+    - [ ] **F.2.1** `[V]` Data generation at scale
+    - [ ] **F.2.2** `[V]` Classical refit on search-visited data
 - [ ] **F.3** `[I2]` Trainer hardening and baseline nets
 - [ ] **F.4** `[I2]` Scalar integration, integer-exact conformance
 - [ ] **F.5** `[I2]` Incremental and SIMD inference

@@ -3,7 +3,7 @@
 
 A tracked Markdown file (outside the verbatim snapshots in docs/reference/)
 cites a commit as a backticked hexadecimal hash of 7 to 40 characters. Each
-must resolve to a commit reachable here: on `master`, under a pull request
+must resolve to a commit a ref reaches here: on `master`, under a pull request
 (GitHub keeps `refs/pull/<n>/head` after a squash merge) or on a kept tag. A
 hash that names something else -- another repository's commit, or a content
 hash -- is declared once in tools/diag/citation_exceptions.tsv with its kind
@@ -46,10 +46,21 @@ def cited_hashes(root: Path) -> dict[str, set[str]]:
 
 
 def unresolved(root: Path, hashes: list[str]) -> set[str]:
+    """Hashes that name no commit a ref reaches.
+
+    A commit object can outlive its branch or tag here (a dangling object,
+    kept until garbage collection) while a fresh clone has nothing, so object
+    existence alone passes locally and fails in CI. A hash resolves only when
+    the commit it names is reachable from some ref.
+    """
     query = "".join(f"{h}^{{commit}}\n" for h in hashes)
     lines = subprocess.run(["git", "cat-file", "--batch-check"], cwd=root, input=query,
                            capture_output=True, text=True, check=True).stdout.splitlines()
-    return {h for h, line in zip(hashes, lines) if line.endswith((" missing", " ambiguous"))}
+    missing = {h for h, line in zip(hashes, lines) if line.endswith((" missing", " ambiguous"))}
+    reachable = set(subprocess.run(["git", "rev-list", "--all"], cwd=root, capture_output=True,
+                                   text=True, check=True).stdout.split())
+    found = {h: line.split()[0] for h, line in zip(hashes, lines) if h not in missing}
+    return missing | {h for h, sha in found.items() if sha not in reachable}
 
 
 def declared(path: Path) -> dict[str, tuple[str, str]]:

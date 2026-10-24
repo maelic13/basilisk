@@ -221,7 +221,8 @@ Taken from Rarog's B.2 and B.3, which took it from Manta's 6.5.10.
   fingerprint exactly at every commit, so the baseline is always the same
   tree as the candidate minus the cluster. The switch flips to ON in one
   commit after the gate; the old path stays compilable until the programme's
-  cleanup leaf deletes it.
+  cleanup leaf deletes it, and is neither fixed nor maintained meanwhile:
+  repairs touch the default path alone.
 - **Tickets.** The cluster lands in ordered tickets, one mechanism each, every
   one keeping the off arm exact. Ticket 0 installs the decision trace (a
   diag-only printout, bounded to plies one and two under `searchmoves`, of
@@ -569,8 +570,10 @@ follows the steps below from `master`.
    short and imperative and says what changed ("Rebuild king safety"), with
    no results and no phase, plan or ledger references. The description is a
    few plain lines on what and why, wrapped at 72 columns; then the test
-   results, one per line ("STC 3+0.03: +32.7 ± 8.9 Elo (2,450 games)"); then
-   `Bench: <nodes>`. No AI attribution anywhere: no `Co-Authored-By`, no
+   results, one per line ("STC 3+0.03: +32.7 ± 8.9 Elo (2,450 games)"); then,
+   after an empty line, `Bench: <nodes>`, the `bench 13` count `master` will
+   have. An empty line also separates the title, the description and the
+   results. No AI attribution anywhere: no `Co-Authored-By`, no
    "Generated with" line; `.claude/settings.json` turns Claude Code's off.
 4. **Before opening the PR**, merge `master` into the branch if `master`
    moved, so the PR shows only the branch's own change. CI must be green.

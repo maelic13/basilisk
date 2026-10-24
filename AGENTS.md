@@ -194,7 +194,9 @@ name says.**
   and says what changed ("Rebuild king safety"), with no results and no
   phase, plan or ledger references; the body is a few plain lines on what and
   why, wrapped at 72 columns; then the test results, one per line ("STC
-  3+0.03: +32.7 ± 8.9 Elo (2,450 games)"); then `Bench: <nodes>`.
+  3+0.03: +32.7 ± 8.9 Elo (2,450 games)"); then, after an empty line,
+  `Bench: <nodes>`. Empty lines separate the title, the body, the results
+  and the bench line.
 - Commits on a branch are working records, kept under the PR: a concise
   imperative subject that may name the plan leaf or phase ("Prepare B.0.1").
   Engine changes and tooling or documentation changes go in separate commits.
