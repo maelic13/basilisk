@@ -115,11 +115,12 @@ void UciProtocol::enqueue(EngineCommandType type, const std::string& args, uint6
 // ---------------------------------------------------------------------------
 
 void UciProtocol::cmdUci() {
-    // A binary built with a cluster umbrella on says so in its name.
+    // A binary built on a non-default umbrella arm says so in its name: the
+    // legacy kernel, kept only until its removal, reports `+legacy`.
 #if defined(BASILISK_B2_CORE)
-    constexpr std::string_view arm = "+b2core";
-#else
     constexpr std::string_view arm = "";
+#else
+    constexpr std::string_view arm = "+legacy";
 #endif
     std::string out = "id name " + std::string(engineName) + " " + std::string(engineVersion)
                     + std::string(arm) + "\n"

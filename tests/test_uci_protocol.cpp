@@ -210,10 +210,15 @@ static void test_uci_output() {
 #else
     EXPECT(run.output.find("option name AblationMask") == std::string::npos);
 #endif
-#ifdef BASILISK_TUNE
+    // A Tune build exposes the default kernel's search coordinates: the
+    // selectivity core's with B2_CORE, the legacy kernel's without it.
+#if defined(BASILISK_TUNE) && defined(BASILISK_B2_CORE)
+    EXPECT(run.output.find("option name CoreRfpPerPly") != std::string::npos);
+#elif defined(BASILISK_TUNE)
     EXPECT(run.output.find("option name RfpCoeff") != std::string::npos);
 #else
     EXPECT(run.output.find("option name RfpCoeff") == std::string::npos);
+    EXPECT(run.output.find("option name CoreRfpPerPly") == std::string::npos);
 #endif
     EXPECT(run.output.find("uciok") != std::string::npos);
     end_section();
