@@ -784,7 +784,9 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
   commit with a test that fails on the old code, bench accounting for any
   fingerprint move and CTest on both arms; a repair that changes play is gated
   by a registered `[-5,5]` repair SPRT unless its leaf argues none is owed.
-  Evidence: `analysis/rarog_audit_2026-10-24.md`.
+  Evidence: `analysis/rarog_audit_2026-10-24.md`. The repairs change the
+  default search only: the legacy kernel (`-DB2_CORE=OFF`) is neither fixed
+  nor maintained, and B.8 deletes it (maintainer decision 2026-10-24).
     - [ ] **A.9.1** `[I1]` Rule-50 damping out of the TT static eval (ANY TIME) — before B.3
       (B-1, C-7) `evaluate()` damps the score by the halfmove clock
       (`eval.cpp:1210`, `:1985`); the kernel stores that value as the TT
@@ -1738,7 +1740,10 @@ rejections stop B.
         (most prefetches lose under 4 KB pages), D-15 and D-20.
 - [ ] **B.8** `[I1]` Cleanup of legacy search and dead parameters
   Cleanup: remove the legacy search path, dead parameters, unconsumed switches
-  and diagnostics without an owner; exact fingerprint; no game gate.
+  and diagnostics without an owner; exact fingerprint; no game gate. Until
+  then the legacy kernel (`-DB2_CORE=OFF`) is kept compilable only: it is
+  neither fixed nor maintained, and repairs touch the default search alone
+  (maintainer decision 2026-10-24).
   Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
   are its items):
   - Delete the dead shallower re-search (B-63) and the probably-dead PVS guard
@@ -1766,9 +1771,9 @@ rejections stop B.
   `3+0.03` 1T with `10+0.1` and 4T direction checks whose 95% intervals
   exclude a loss, and a 4T pool read beside them: a head-to-head read cannot
   see a thread-scaling loss both versions share (Rarog RAR-M74, RAR-M76).
-  Proposed version 1.11.0, with E.3 then cutting 2.0.0 if E.2 is met and
-  1.12.0 otherwise (the maintainer confirms the numbers). Cut through A.8.6's
-  tag-driven flow after A.10.4.
+  Version 1.11.0 (maintainer decision 2026-10-24: releases follow B, C and
+  E, and 2.0.0 is the first NNUE release). Cut through A.8.6's tag-driven
+  flow after A.10.4.
 
 ### Active workflow register
 
@@ -2211,6 +2216,12 @@ has lost games in both engines (BAS-X02).
   are its items):
   - Played and full scores dumped (C-89); cache purity (C-105); a runtime lazy
     margin clears the caches (C-42); the profile comes from A.11.3.
+- [ ] **C.13** `[M]` Interim release after the evaluation programme
+  Maintainer decision 2026-10-24: the evaluation programme's head is released
+  as 1.12.0 once C.12 closes, as Rarog cut 2.6.0 from its C head. Licensed as
+  B.11 is: an accepted SPRT over the B.11 release at `3+0.03` 1T, `10+0.1` and
+  4T direction checks whose 95% intervals exclude a loss, and a 4T pool read
+  beside them. Cut through A.8.6's tag-driven flow.
 
 ## Phase D — Clock, threads, robustness
 
@@ -2313,8 +2324,11 @@ has lost games in both engines (BAS-X02).
     contempt as the registered lever, as in Rarog's E.2 (C-121); 1.9.3's clock
     reached -22 ms in one M4 game under a 2,000 ms margin (audit,
     tournaments).
-- [ ] **E.3** `[M]` Release 2.0.0 if E.2 is met, else 1.11.0
-  Release (archived 9.10): **2.0.0** if E.2 is met, otherwise **1.11.0**:
+- [ ] **E.3** `[M]` Classical release 1.13.0 after Phase E
+  Release (archived 9.10): **1.13.0**, whatever E.2 reads; E.2's result is
+  recorded, not encoded in the version (maintainer decision 2026-10-24,
+  replacing "2.0.0 if E.2 is met, else 1.11.0"; 2.0.0 is the first NNUE
+  release, F.9):
   changelog, CTest and sanitizers, target-native ISA checks, reproducible PGO
   assets, prior-release STC, LTC and 4T gates, cut through A.8.6's flow on
   maintainer instruction. (E.3.1 moved to A.8.6 on 2026-10-06.)
@@ -2387,8 +2401,10 @@ fallback, which is why the archived "optional HCE fallback" phase is dropped.
   On-policy refresh with the strongest net, deduplication, hard-position
   mining; repeat while a cycle accepts (archived 12.0.a, 12.0.c).
 - [ ] **F.9** `[M]` NNUE release
-  Beat the classical release at STC, LTC and 4T; platform matrix; the next
-  major version (archived 11.4.c, 11.5).
+  Beat the classical release at STC, LTC and 4T; platform matrix; version
+  **2.0.0** (archived 11.4.c, 11.5; maintainer decision 2026-10-24). Open
+  decision for this leaf: whether releases from 2.0.0 on use integer
+  versions, as Stockfish does (Stockfish 17, 18), instead of X.Y.Z.
 - [ ] **F.10** `[V]` CCRL top-100 gate
   Submit; the list decides; the shortfall is fed back into F.7 and F.8.
 
@@ -2437,16 +2453,18 @@ adjudication never change after games are seen.
 
 - A release ships only from a head whose every accepted cluster has a ledger
   row and whose deficit meters were recorded at the checkpoint before it.
-- An interim release follows B.9 (B.11; maintainer decision 2026-10-24,
-  replacing 2026-09-28's no-interim rule). Otherwise nothing is released
-  before E.3 unless a correctness repair forces a patch (1.10.x).
-- 2.0.0 requires the E.2 gate met. Otherwise the classical release takes
-  the next minor version after B.11's. A release that claims multi-thread
-  strength also reads a 4T pool, not only the head-to-head (RAR-M76).
-  It requires an accepted SPRT over 1.10.1 at `3+0.03` 1T, and `10+0.1` and
-  4T direction checks whose 95% intervals exclude a loss.
+- Releases follow each programme (maintainer decision 2026-10-24,
+  replacing 2026-09-28's single release at E.3): **1.11.0** after B (B.11),
+  **1.12.0** after C (C.13), **1.13.0** after E (E.3), and **2.0.0**, the
+  first NNUE release (F.9). Between them nothing is released unless a
+  correctness repair forces a patch.
+- A classical release requires an accepted SPRT over the previous release at
+  `3+0.03` 1T, `10+0.1` and 4T direction checks whose 95% intervals exclude
+  a loss, and a 4T pool read beside them: a head-to-head read cannot see a
+  thread-scaling loss both versions share (RAR-M76).
 - An NNUE release requires a win over the last classical release at STC, LTC
-  and 4T and a clean platform matrix; it takes the next major version.
+  and 4T and a clean platform matrix. Whether versions from 2.0.0 on are
+  integers, as Stockfish's are, is decided at F.9.
 - `master` is the trunk: every coherent piece of work lands from its own
   short-lived branch as one squash commit through a PR, and the branch's
   commits stay cited under the PR (maintainer decision 2026-10-09, adopting

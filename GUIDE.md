@@ -14,7 +14,7 @@ in `docs/PROCESS.md`; where the engine stands is PLAN §1.
 | Bench fingerprint | **8,437,148** (`bench 13`, since B.10's PST repair; 11,099,210 at B.2.4; 14,978,465 for 1.10.0 to 1.10.2) |
 | Active experiment | None |
 | Long job | None |
-| Next release | **2.0.0** if the E.2 target gate is met, otherwise **1.11.0**, cut at E.3 |
+| Next release | **1.11.0** after B (B.11), then 1.12.0 after C, 1.13.0 after E; **2.0.0** is the first NNUE release |
 
 ## Model by class
 
@@ -161,6 +161,7 @@ generations change. These are maintainer judgments, not measured rankings.
 - [ ] **C.10** `[V]` Search re-fit after the new evaluation
 - [ ] **C.11** `[V]` Freeze the classical evaluation
 - [ ] **C.12** `[I2]` Evaluation throughput, bit-exact
+- [ ] **C.13** `[M]` Interim release after the evaluation programme
 
 ### Phase D — Clock, threads, robustness
 
@@ -175,7 +176,7 @@ generations change. These are maintainer judgments, not measured rankings.
 
 - [ ] **E.1** `[V]` Attribution checkpoint
 - [ ] **E.2** `[V]` Classical target gate
-- [ ] **E.3** `[M]` Release 2.0.0 if E.2 is met, else 1.11.0
+- [ ] **E.3** `[M]` Classical release 1.13.0 after Phase E
 
 ### Phase F — NNUE (own data only)
 
