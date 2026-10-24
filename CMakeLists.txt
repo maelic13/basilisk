@@ -79,7 +79,13 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-set(BASILISK_DIST_TAG "v${PROJECT_VERSION}" CACHE STRING "Release asset tag used in dist binary names" FORCE)
+# The dist tag defaults to v<project version>. An explicit -DBASILISK_DIST_TAG
+# (the release workflow passes the full tag, e.g. v1.11.0-dev) is kept; a
+# cached default is refreshed when the project version changes.
+if(NOT BASILISK_DIST_TAG OR BASILISK_DIST_TAG STREQUAL "${_BASILISK_DIST_TAG_DEFAULT}")
+    set(BASILISK_DIST_TAG "v${PROJECT_VERSION}" CACHE STRING "Release asset tag used in dist binary names" FORCE)
+endif()
+set(_BASILISK_DIST_TAG_DEFAULT "v${PROJECT_VERSION}" CACHE INTERNAL "The dist tag's default at the last configure")
 
 function(_basilisk_detect_dist_os out_var)
     if(WIN32)
