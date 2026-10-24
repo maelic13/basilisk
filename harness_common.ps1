@@ -635,6 +635,67 @@ function Assert-ColosseumRunFaults {
     $faults
 }
 
+function Get-GauntletFaultAllowance {
+    # The runner's fault cap for a gauntlet: zero when every participant is a
+    # Basilisk build, otherwise the opponent rate's share of the games played
+    # against foreign engines, so a rare foreign crash does not void the run.
+    param([Parameter(Mandatory)][int]$ForeignGames, [Parameter(Mandatory)][double]$RatePercent)
+    [int][Math]::Floor($ForeignGames * $RatePercent / 100.0 + 1e-9)
+}
+
+function Assert-ColosseumGauntletFaults {
+    # Reads a finished gauntlet's faults from `colosseum-cli stats --json`
+    # (report.faults). Any fault or time loss by a Basilisk build voids the run,
+    # as does any infrastructure fault; a foreign opponent's faults are read
+    # when they stay within RatePercent of that opponent's games. Returns one
+    # line per accepted opponent fault group.
+    param(
+        [Parameter(Mandatory)][object]$Faults,
+        [Parameter(Mandatory)][AllowEmptyCollection()][string[]]$BasiliskLabels,
+        [Parameter(Mandatory)][hashtable]$ForeignGames,
+        [Parameter(Mandatory)][double]$RatePercent,
+        [Parameter(Mandatory)][int]$ResultEngineFaults,
+        [Parameter(Mandatory)][int]$ResultInfrastructureFaults,
+        [string]$Dir = ''
+    )
+    foreach ($field in @('faults', 'time_losses', 'infrastructure_faults')) {
+        if ($null -eq $Faults.PSObject.Properties[$field]) { throw "FAULT COUNTERS UNREADABLE - stats has no '$field'." }
+    }
+    $groups = @($Faults.faults)
+    $engineGroups = @($groups | Where-Object { "$($_.engine)" -ne 'harness' })
+    $engineFaults = ($engineGroups | Measure-Object -Property games -Sum).Sum
+    if ([int]$engineFaults -ne $ResultEngineFaults -or [int]$Faults.infrastructure_faults -ne $ResultInfrastructureFaults) {
+        throw ("FAULT COUNTERS DISAGREE - stats groups {0} engine and {1} infrastructure faults, result.json {2} and {3}; see {4}." -f
+            [int]$engineFaults, [int]$Faults.infrastructure_faults, $ResultEngineFaults, $ResultInfrastructureFaults, $Dir)
+    }
+    if ([int]$Faults.infrastructure_faults -gt 0) {
+        throw "Gauntlet has $($Faults.infrastructure_faults) infrastructure fault(s); see $Dir."
+    }
+    foreach ($loss in @($Faults.time_losses)) {
+        if ($BasiliskLabels -contains "$($loss.engine)" -and [int]$loss.games -gt 0) {
+            throw "BASILISK FAULT - $($loss.engine) lost $($loss.games) game(s) on time; see $Dir."
+        }
+    }
+    $accepted = [System.Collections.Generic.List[string]]::new()
+    foreach ($group in $engineGroups) {
+        $engine = "$($group.engine)"
+        $line = "$engine $($group.kind) in $($group.phase), $($group.termination), scored $($group.scored_as): $($group.games)"
+        if ($BasiliskLabels -contains $engine) { throw "BASILISK FAULT - $line; see $Dir." }
+        if (-not $ForeignGames.ContainsKey($engine)) { throw "FAULT COUNTERS UNREADABLE - fault by unknown engine '$engine'." }
+        $accepted.Add($line)
+    }
+    foreach ($engine in $ForeignGames.Keys) {
+        $count = (@($engineGroups | Where-Object { "$($_.engine)" -eq $engine }) | Measure-Object -Property games -Sum).Sum
+        if ([int]$count -eq 0) { continue }
+        $rate = 100.0 * [int]$count / [int]$ForeignGames[$engine]
+        if ($rate -gt $RatePercent) {
+            throw ("OPPONENT FAULT RATE - {0} faulted {1} of {2} games ({3:N2}%), over the {4}% rule; see {5}." -f
+                $engine, [int]$count, [int]$ForeignGames[$engine], $rate, $RatePercent, $Dir)
+        }
+    }
+    $accepted.ToArray()
+}
+
 # ── weather-factory overlay (Phase 9.1) ──────────────────────────────────────
 # tools/weather-factory/ is a gitignored clone, so every Basilisk change to it
 # has to live in the repo and be re-applied. cutechess.py is patched in place by
