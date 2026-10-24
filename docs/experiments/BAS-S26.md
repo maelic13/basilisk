@@ -93,5 +93,29 @@
 
 #### RESULT — append after exposure
 
-- Disposition: registered and dry-run; the endgame floors hold; the SPRT is
-  maintainer-run.
+- **H1 accepted (maintainer-run 2026-10-24, 15:59–16:14 local):**
+  **+18.3 ± 12.9 Elo** (nElo +25.9 ± 18.3), LLR +2.96 after 694 pairs
+  (1,388 games); W/D/L 463/535/390, pentanomial [38, 141, 282, 176, 57].
+  - 0 faults; 14 post-terminal pairs kept outside the sample; the
+    independent PGN recount agrees.
+  - `colosseum_sprt_b10-gate_20261024_155918.*`, manifest
+    `b2aedc11…f9c9`, run record `4802b64f…277d`, PGN `b08ea07e…3a64`.
+- **Verdict (registered rule):** H1, so the flip is the default and the
+  fingerprint record updates: `bench 13` 8,437,148, and 15,887,213 on the
+  `-DB2_CORE=OFF` legacy arm.
+- Disposition: **H1, +18.3 ± 12.9; the flipped tables are the default.
+  CLOSED 2026-10-24.**
+
+#### PREDICTION CALIBRATION — preserve the original prediction above
+
+- **Prediction:** H1, +3 to +10 Elo, about 70%.
+- **Reading:** H1 came, but the centre (+18.3) sits above the predicted
+  range; the 95% interval [+5.4, +31.2] reaches into it only at its low
+  end. Missed high.
+- **What it teaches:** the feared compensation (outposts, mobility,
+  `queen_infiltration`, Cluster 1's margins) absorbed less of the error
+  than the prediction allowed for. A rank-mirrored table pays the wrong
+  squares in nearly every position: 31.7 cp mean, a fifth of positions
+  moved by 50 cp or more. That is a large error, not a refinement, and
+  the prediction priced it like one. C.7 still reads the neighbours for
+  what compensation is left.

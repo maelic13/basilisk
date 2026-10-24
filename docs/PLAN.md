@@ -1321,7 +1321,7 @@ rejections stop B.
       high. `B2_CORE` now defaults ON (`8a10d14`): the development
       fingerprint is `bench 13` 11,099,210, and the legacy kernel builds
       with `-DB2_CORE=OFF` (14,978,465), tested in CI (`2853699`), until B.8.
-- [ ] **B.10** `[I1]` PST orientation repair (ANY TIME) — before B.3
+- [x] **B.10** `[I1]` PST orientation repair (ANY TIME) — before B.3
   Correctness repair, admitted into the evaluation freeze by maintainer
   decision (2026-10-23): fix it before B.3 starts fitting to the eval. Seven
   piece-square tables have been stored rank-mirrored since v1.0.0: mg and eg
@@ -1365,6 +1365,10 @@ rejections stop B.
   dry-run; the baseline is rebuilt with clang 23.1.3 at the B.2.4 head's
   engine (still 11,099,210). The endgame cohort at 600k holds every floor
   (conversions 460/480 against the head's 452); the SPRT is maintainer-run.
+  — CLOSED 2026-10-24 (BAS-S26): H1, **+18.3 ± 12.9 Elo** (1,388 games),
+  above the frozen +3 to +10. The flipped tables are the default: the
+  development fingerprint is `bench 13` 8,437,148, and the legacy
+  `-DB2_CORE=OFF` arm reads 15,887,213.
 - [ ] **B.3** `[I2]` Cluster 2 — pruning and extensions
   Cluster 2 — proof searches and extensions: NMP (cut-node population,
   improving and prior-fail-high margin, dynamic reduction, verification
@@ -1448,7 +1452,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.10 | GAME_GATE | I1 | Flip and orientation test landed (`75381dc`); BAS-S26 registered and dry-run; endgame floors hold; SPRT maintainer-run |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |
 | B.4 | RESEARCH | I2 | Contents fixed by B.0 |
 | B.5 | RESEARCH | I2 | Contents fixed by B.0 |
