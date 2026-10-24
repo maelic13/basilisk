@@ -74,6 +74,26 @@
   manifests `cc057116…`, `ac5d22fd…`, `fd4e50df…`).
 - **Estimated time:** `ltc` about 40 min, `4t` about 50 min, `tb` about
   40 min; about 2.5 hours in all.
+- **Runner, per read** (amended 2026-10-24, after `ltc` and before any `4t`
+  or `tb` game):
+  - `ltc` ran complete on `colosseum-cli` 0.2.0 (SHA-256 `5A4ECEDB…`), with
+    fresh engine processes for every game, as 0.2.0's tournament did;
+    manifest `a98ae0b6…`.
+  - `4t` and `tb` run on 0.4.0 (SHA-256 `F3201288…`, PLAN A.11.1), each
+    slot keeping its engine processes between games.
+  - The first `4t` launch on 0.2.0 stopped before its first game; its
+    empty directory is kept as
+    `tools/results/head-vs-1102-4t-interrupted-cli020/`.
+  - Each read is its own fixed gauntlet with its own verdict, so no read
+    changes runner mid-way. Under 0.4.0 the resolved configuration of
+    every read differs from 0.2.0's only in `engine_processes`: schedule,
+    openings, seed, clocks, options and placement are unchanged.
+  - The wrapper's new opponent-fault rule does not apply here: both
+    engines are Basilisk builds, so any fault or time loss by either
+    still voids a read, and the runner's fault cap stays 0.
+  - Dry runs on 0.4.0 accepted at `38c6e6a`, clean tree
+    (`tools/results/colosseum_gauntlet_head-vs-1102-{ltc,4t,tb}_20261024_2124*.*`;
+    manifests `fd558a74…`, `5df62be5…`, `92e65ff4…`).
 
 #### RESULT — append after exposure
 

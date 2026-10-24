@@ -53,12 +53,12 @@ generations change. These are maintainer judgments, not measured rankings.
 - **A.10.4** `[I1]` Release and CI checks tightened (ANY TIME) — before B.11 — Claude Sonnet 5 — Medium
 - **A.10.5** `[I1]` Ledger index dispositions kept in step (ANY TIME) — before B.3 — Claude Sonnet 5 — Medium
 - **A.10.6** `[M]` Tools index and retired numbers in comments (ANY TIME) — before B.8 — Claude Sonnet 5 — Medium
-- **A.11.1** `[I1]` Colosseum re-pinned to 0.4.0, cross-checked (ANY TIME) — before B.3 — Claude Sonnet 5 — Medium
 - **A.11.2** `[I1]` NPS read rebuilt on pooled builds (ANY TIME) — before B.7.2 — Claude Sonnet 5 — Medium
 - **A.11.3** `[I1]` Profiler with inline attribution (ANY TIME) — before B.7.2 — Claude Sonnet 5 — Medium
 - **A.11.4** `[M]` Measurement rules from the audit (ANY TIME) — before B.3 — Claude Sonnet 5 — Medium
 - **A.11.5** `[V]` Direction reads of the head against 1.10.2 (ANY TIME) — before B.3 — Claude Sonnet 5 — High
 - **A.12** `[M]` Roadmap rules from the audit (ANY TIME) — before B.6 — Claude Sonnet 5 — Medium
+- **A.13** `[I1]` Dev builds name their commit (ANY TIME) — before B.11 — Claude Sonnet 5 — Medium
 - **B.7.1** `[I1]` Allocation guard (ANY TIME) — before B.7.2 — Claude Sonnet 5 — Medium
 - **D.3.1** `[R2]` Board contract audit (ANY TIME) — before E.1 — Claude Opus 5 — High
 
@@ -104,12 +104,13 @@ generations change. These are maintainer judgments, not measured rankings.
     - [ ] **A.10.5** `[I1]` Ledger index dispositions kept in step (ANY TIME) — before B.3
     - [ ] **A.10.6** `[M]` Tools index and retired numbers in comments (ANY TIME) — before B.8
 - [ ] **A.11** Harness and measurement instruments
-    - [ ] **A.11.1** `[I1]` Colosseum re-pinned to 0.4.0, cross-checked (ANY TIME) — before B.3
+    - [x] **A.11.1** `[I1]` Colosseum re-pinned to 0.4.0 (ANY TIME) — before B.3
     - [ ] **A.11.2** `[I1]` NPS read rebuilt on pooled builds (ANY TIME) — before B.7.2
     - [ ] **A.11.3** `[I1]` Profiler with inline attribution (ANY TIME) — before B.7.2
     - [ ] **A.11.4** `[M]` Measurement rules from the audit (ANY TIME) — before B.3
     - [ ] **A.11.5** `[V]` Direction reads of the head against 1.10.2 (ANY TIME) — before B.3
 - [ ] **A.12** `[M]` Roadmap rules from the audit (ANY TIME) — before B.6
+- [ ] **A.13** `[I1]` Dev builds name their commit (ANY TIME) — before B.11
 
 ### Phase B — Search programme (evaluation frozen)
 

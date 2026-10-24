@@ -300,16 +300,26 @@ and gauntlets. `tools/colosseum.ps1` drives matches from the committed run
 files in `tools/colosseum/`; `tools/spsa_colosseum.ps1` drives generated tune
 blocks from `tools/spsa_configs/colosseum/`. The experiment registration owns
 the engines, cap or horizon, seed and evidence directory. The runner is pinned
-by revision and SHA-256 in `colosseum.pin.json`; a different binary is refused,
-not substituted. Colosseum is qualified in its own repository, with Rarog as
-the validation engine, and Basilisk repeats none of that qualification.
+by revision and SHA-256 in `colosseum.pin.json` (`colosseum-cli` 0.4.0 since
+2026-10-24); a different binary is refused, not substituted. Colosseum is
+qualified in its own repository, with Rarog as the validation engine, and
+Basilisk repeats none of that qualification. Every run keeps each slot's
+engine processes between games (`engine-processes = "per-slot"` in
+`common.toml`); the wrapper refuses any other resolved value, because a
+command's default has changed between runner versions.
 
 The wrappers prove an idle host, runner and engine hashes, build manifests,
 the expected revision and bench fingerprint, advertised UCI options, natural
 termination, placement and the fully resolved policy before play. Match exits
 are interpreted as outcomes rather than shell success/failure, faults are read
 from durable state and the PGN is independently recounted. Tune blocks require
-zero engine, time and infrastructure faults. An existing match directory
+zero engine, time and infrastructure faults. A gauntlet reads faults per
+engine from `colosseum-cli stats`: any fault or time loss by a Basilisk build
+(a participant with a build manifest) voids it, as does any infrastructure
+fault, while a foreign opponent's faults are read when they stay within 1% of
+that opponent's games (`-OpponentFaultRatePercent`) and are quoted in the
+manifest. The runner's fault cap is that 1% of the foreign games, zero for an
+all-Basilisk field. An existing match directory
 resumes only at its recorded seed; a later tune block uses `-SeedFrom`, a fresh
 seed and a fresh schedule.
 

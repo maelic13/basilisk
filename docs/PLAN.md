@@ -920,7 +920,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
 - [ ] **A.11** Harness and measurement instruments
   Added 2026-10-24. Evidence: `analysis/rarog_audit_2026-10-24.md`, appendix
   D.
-    - [ ] **A.11.1** `[I1]` Colosseum re-pinned to 0.4.0, cross-checked (ANY TIME) — before B.3
+    - [x] **A.11.1** `[I1]` Colosseum re-pinned to 0.4.0 (ANY TIME) — before B.3
       (D-36, D-38, C-31) Basilisk pins `colosseum-cli` 0.2.0. Rarog moved to
       0.3.0 (engine processes kept per slot, the setup position counted for
       threefold, faster datagen; cross-checked against fastchess, +6.9 ± 9.4
@@ -930,6 +930,25 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       The wrapper keeps zero tolerance for Basilisk's own faults and reads
       opponent faults under a rate rule instead of voiding a run (BAS-M10).
       Before B.3's gate, so B.3 is read on the new runner.
+      — CLOSED 2026-10-24. Maintainer decisions: no cross-check and no null
+      pair are owed (2026-10-14, and 2026-10-24: 0.4.0 is proven in Rarog).
+      - The pin is `cli-v0.4.0` (`9c72539`), Rarog's executable and archive
+        digests. Gauntlets no longer unset `engine-processes`, and the
+        wrapper refuses any resolved value but `per-slot`.
+      - The guard test had been failing on 0.2.0 too: its default arms
+        were no longer staged. It now uses BAS-S27's pair.
+      - Gauntlet faults are read per engine from `colosseum-cli stats`
+        (D-38). A Basilisk build's fault or time loss voids the run, and so
+        does an infrastructure fault. A foreign opponent's faults are read
+        up to 1% of its games, and the runner's cap is 1% of the foreign
+        games. BAS-M10's two Houdini 3 crashes would have been read at the
+        registered 400 games a row.
+      - Guard cases 31/31. A strengthened control fails on a return bug
+        the smoke run found.
+      - An 8-game smoke gauntlet streamed live progress to the console,
+        and a dry run on 0.4.0 accepted the SPSA command and its run file.
+      - The three BAS-S27 dry runs resolve as on 0.2.0, except
+        `engine_processes`.
     - [ ] **A.11.2** `[I1]` NPS read rebuilt on pooled builds (ANY TIME) — before B.7.2
       (D-1 to D-4) Rarog's method study (RAR-P32): builds, not cycles, set the
       limit. Best of three per cycle; four builds an arm; a t-interval on
@@ -974,6 +993,12 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
   and whether `agents/research.md`'s snapshot-only rule for reading Rarog gets
   a standing exception for audits the maintainer asks for (waived for the
   2026-10-24 audit).
+- [ ] **A.13** `[I1]` Dev builds name their commit (ANY TIME) — before B.11
+  Added 2026-10-24 by maintainer decision. The exact shape is decided when
+  this leaf opens. The proposal follows Reckless: a dev build's id name
+  appends the short commit, as in `Basilisk 1.11.0-dev-<sha>`. That needs
+  a build change, and `release.yml`'s id-name check must accept the suffix
+  on candidate builds (next to A.10.4's release checks).
 
 ## Phase B — Search programme (evaluation frozen)
 
@@ -1583,6 +1608,16 @@ rejections stop B.
   multi-cut rule failed its KBNK drive test and Rarog kept its own rule.
   Basilisk's mate-drive floors are at least as fragile: literature seeds
   have tripped them eight times.
+  B.2.3 residuals (maintainer decision 2026-10-24; evidence
+  `analysis/b23_constants_2026-10-14.md`, findings 4 and 5):
+  - `CoreHistoryFills` 0/1 categorical: the donor's negative fills for
+    fresh history tables against Basilisk's clear to 0. Five history
+    coordinates moved together in the fit, toward history counting more.
+  - The correction update converted to the donor's units, which replaces
+    the `CoreCorrLimit` 1024/289 categorical. The fit wanted the correction
+    stronger, so a tighter limit would cap a signal it wants larger.
+  - Both are settled before B.6 puts history or correction coordinates on
+    a surface.
   Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
   are its items):
   - Correctness first: A.9.2 lands before any IIR arm. Then the arms only with
@@ -1808,12 +1843,12 @@ leaf's tag. Later phases carry only a class until they open.
 | A.10.4 | READY_FOR_IMPLEMENTATION | I1 | Release and CI checks; before B.11 |
 | A.10.5 | READY_FOR_IMPLEMENTATION | I1 | Ledger index dispositions; before B.3 |
 | A.10.6 | READY_FOR_IMPLEMENTATION | M | Tools index and comment numbers; before B.8 |
-| A.11.1 | READY_FOR_IMPLEMENTATION | I1 | Colosseum 0.4.0 with a cross-check; before B.3 |
 | A.11.2 | READY_FOR_IMPLEMENTATION | I1 | NPS read on pooled builds; before B.7.2 |
 | A.11.3 | RESEARCH | I1 | Profiler; before B.7.2 |
 | A.11.4 | READY_FOR_IMPLEMENTATION | M | Measurement rules; before B.3 |
-| A.11.5 | GAME_GATE | V | BAS-S27 registered and dry-run; maintainer-run overnight |
+| A.11.5 | GAME_GATE | V | BAS-S27: `ltc` played on 0.2.0; `4t` and `tb` maintainer-run on 0.4.0 |
 | A.12 | RESEARCH | M | Roadmap rules for the maintainer to decide; before B.6 |
+| A.13 | RESEARCH | I1 | Dev-build version names; shape decided by the maintainer; before B.11 |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |
 | B.4 | RESEARCH | I2 | Contents fixed by B.0 |
 | B.5 | RESEARCH | I2 | Contents fixed by B.0 |
