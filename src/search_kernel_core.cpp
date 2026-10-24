@@ -842,7 +842,6 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             && best_score > -tablebaseWinInMaxPly
             && state_.board->has_non_pawn_material(state_.board->turn())) {
             DIAG_COUNT(++state_.diag.moveloop_tested);
-            const int move_count = ss->move_count;
             const Square from = Square(from_sq(m));
             const Square to   = Square(to_sq(m));
             const PieceType moved = type_of(state_.board->piece_on(from));
