@@ -1,0 +1,6 @@
+# Rating gauntlet at 10+0.1, otherwise the gauntlet policy.
+extend = "gauntlet.toml"
+
+[options]
+base-ms = 10000
+increment-ms = 100

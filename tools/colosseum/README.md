@@ -20,6 +20,7 @@ all preflight checks without playing.
 | `match-fixed-ltc.toml` | Fixed measurement at `10+0.1` |
 | `calibrate-null.toml` | Triggered null pair |
 | `gauntlet.toml` | Rating gauntlet |
+| `gauntlet-ltc.toml` | Rating gauntlet at `10+0.1` |
 | `spsa-tune.toml` | SPSA block policy: 15 slots × 30 games/iteration |
 
 Example:
