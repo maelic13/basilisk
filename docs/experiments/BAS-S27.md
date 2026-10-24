@@ -3,7 +3,7 @@
 **BAS-S27 — three direction reads of the head against Basilisk 1.10.2, before B.3 builds on it**
 
 - **Registration.** Registered 2026-10-24, before any game; maintainer-run;
-  programme checkpoint, Elo layer, direction reads (PLAN A.11.5). They gate
+  programme checkpoint, Elo layer, direction reads (PLAN A.9.2). They gate
   nothing: they look for a regression at the conditions no gate has read.
 - **Engines** (both Release PEXT final PGO from `tools/build_test.ps1`,
   clang 23.1.3, clean manifests):
@@ -79,7 +79,7 @@
   - `ltc` ran complete on `colosseum-cli` 0.2.0 (SHA-256 `5A4ECEDB…`), with
     fresh engine processes for every game, as 0.2.0's tournament did;
     manifest `a98ae0b6…`.
-  - `4t` and `tb` run on 0.4.0 (SHA-256 `F3201288…`, PLAN A.11.1), each
+  - `4t` and `tb` run on 0.4.0 (SHA-256 `F3201288…`, PLAN A.9.1), each
     slot keeping its engine processes between games.
   - The first `4t` launch on 0.2.0 stopped before its first game; its
     empty directory is kept as

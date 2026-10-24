@@ -6,8 +6,10 @@
 ## Numbering, and how to resolve an old reference
 
 The current roadmap uses lettered phases (`A.2.1`, `B.3`); no retired number
-is reused. Retired identifiers stay valid in `EXPERIMENTS.md`, `analysis/`,
-source comments and commit messages, and resolve here:
+is reused, with one declared exception: Phase A's 2026-10-24 leaves were
+renumbered the same day to run in order, and the *Number map* below resolves
+their first numbering. Retired identifiers stay valid in `EXPERIMENTS.md`,
+`analysis/`, source comments and commit messages, and resolve here:
 
 | Scheme | Where it appears | Resolve it in |
 |---|---|---|
@@ -193,6 +195,24 @@ Moved within the current roadmap on 2026-10-06 (maintainer decision; A.8):
 | E.3.1 | A.8.6 | tag-driven release flow, done now rather than before E.3 |
 | D.3.3 | A.8.19 | displayed-score normalisation |
 | E.3.2 | E.3 | the release, a leaf once E.3.1 left |
+
+Renumbered within Phase A on 2026-10-24 (maintainer decision): the Rarog
+audit's leaves, first numbered in `4fa68b4` (PR #7), now run in order as one
+sequence, and Phase A is marked `(EXTENDED)`. A reference dated before this
+renumbering, commit messages on `head-reads-1102` up to `80865c0` included,
+uses the first numbering. A.10.1–A.10.6 and A.12 kept their numbers.
+
+| Was | Now | Note |
+|---|---|---|
+| A.11 | A.9 | harness and measurement instruments, now first |
+| A.11.1 | A.9.1 | Colosseum re-pinned to 0.4.0 |
+| A.11.5 | A.9.2 | direction reads against 1.10.2 (BAS-S27) |
+| A.11.4 | A.9.3 | measurement rules from the audit |
+| A.11.2 | A.9.4 | NPS read on pooled builds |
+| A.11.3 | A.9.5 | profiler with inline attribution |
+| A.13 | A.10.7 | dev builds name their commit |
+| A.9 | A.11 | correctness repairs, after the instruments and delivery |
+| A.9.1–A.9.9 | A.11.1–A.11.9 | the same repairs in the same order |
 
 ## Completed current-roadmap work (dated records; PLAN owns IDs)
 

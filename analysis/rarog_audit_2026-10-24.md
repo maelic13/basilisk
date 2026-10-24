@@ -80,7 +80,7 @@ Status as checked on Basilisk. Owner is the Basilisk leaf the item feeds.
     reused `:488-489, :184-185`.
   - Rarog: RAR-S73 departure 3 (`db92790`) moved the damping into the
     search after the TT read.
-  - Owner: A.9.1.
+  - Owner: A.11.1.
 - **B-2 HAS (by measured choice)** The quiet skip drops a late direct check
   (Manta's mate-in-one class).
   - Basilisk: `CoreLmpExemptChecks` 0 (+13.6, BAS-S21).
@@ -95,10 +95,10 @@ Status as checked on Basilisk. Owner is the Basilisk leaf the item feeds.
   - Basilisk: `search_kernel_core.cpp:1297-1298`; Stockfish returns `alpha`.
   - Rarog: bench never finished, seldepth 127, one 39-minute spin; fix
     `a1`, counter `singular_lone_move`.
-  - Owner: A.9.2.
+  - Owner: A.11.2.
 - **B-5 PLANNED, risk unflagged** IIR was hiding the extension explosion
   in Rarog; turning IIR off or to Stockfish's form exploded. Basilisk's
-  IIR is at its rail 8 and B.3 plans an IIR-off arm. Owner: B.3 (after A.9.2,
+  IIR is at its rail 8 and B.3 plans an IIR-off arm. Owner: B.3 (after A.11.2,
   under a watchdog).
 - **B-6 PARTIAL** A ply bound on extensions does not bound depth (one
   position at depth 17: 229M nodes). Owner: B.3.
@@ -262,7 +262,7 @@ Status as checked on Basilisk. Owner is the Basilisk leaf the item feeds.
 - **B-82 UNVERIFIED** Correction history drives won-ending tree growth
   (Rarog: 19M → 4M nodes with the term zeroed). Owner: B.5 / D.1 probe.
 - **B-83 PLANNED** Optimism read −5.6 in Rarog; it must live at read time
-  and needs A.9.1 first. Owner: B.5.
+  and needs A.11.1 first. Owner: B.5.
 - **B-84 PLANNED** Draw jitter read −1.2 in Rarog; measure draw blindness
   first. Owner: B.5.
 - **B-85 PARTIAL** MultiPV lines 2+ search the full window. Owner: B.5.
@@ -312,7 +312,7 @@ Status as checked on Basilisk. Owner is the Basilisk leaf the item feeds.
   - Inflates `nodes`, NPS and `go nodes` budgets.
   - `(int(state_.nodes) & 14)` in the move loop reads the count, so search
     behaviour depends on it too.
-  - Owner: A.9.6.
+  - Owner: A.11.6.
 - **B-112 UNVERIFIED** Counter units and levels. Owner: B.3.0.
 - **B-113 HAS** Tool parsing (bound lines, CR).
 - **B-114** CI covers each cluster's switch arm. Owner: B.3 / B.4.
@@ -360,7 +360,7 @@ Status as checked on Basilisk. Owner is the Basilisk leaf the item feeds.
   - Test: delete one `TR_MG`; verify still passes.
   - Owner: C.2.1.
 - **C-3 ✔ PRESENT** The pawnless "ahead by at most a minor" scaler breaks
-  ties toward White (`eval.cpp:800`). Owner: A.9.7.
+  ties toward White (`eval.cpp:800`). Owner: A.11.7.
 - **C-4 PRESENT** OCB scale.
   - `ocb_draw_scale` = 32+4·pawns capped at 48, so neutral from 4 pawns
     (`eval.h:100-103`).
@@ -390,7 +390,7 @@ Status as checked on Basilisk. Owner is the Basilisk leaf the item feeds.
   - BAS-E49 saw KBP-K "via knight promotion".
   - Rarog's rule: a replacement score stays above every one-capture or
     one-promotion neighbour.
-  - Owner: A.9.9.
+  - Owner: A.11.9.
 - **C-10 PRESENT** Knight outposts on ranks 5–8 (donor 4–6) with current pawn
   attacks (`eval.cpp:1181`, `:1739-1742`); Rarog's fix was nil. Owner:
   C.7, low.
@@ -452,7 +452,7 @@ Status as checked on Basilisk. Owner is the Basilisk leaf the item feeds.
   errors are possible (Rarog design effect 1.29–1.65). Owner: C.2.1 /
   C.2.2.
 - **C-31 PRESENT** Colosseum 0.2.0 does not count the setup position for
-  threefold (fixed in 0.3.0). Owner: A.11.1.
+  threefold (fixed in 0.3.0). Owner: A.9.1.
 - **C-32 PARTIAL** The datagen wrapper checks only the exit code, warns on
   book wrap and accepts an unregistered binary. Owner: C.2.3.
 
@@ -587,7 +587,7 @@ Status as checked on Basilisk. Owner is the Basilisk leaf the item feeds.
 - **C-102 PARTIAL** Re-measure the same-search meter on the current head.
   Owner: C.0.
 - **C-103 PARTIAL** Corpus-wide colour-symmetry sweep with promoted material
-  and the lazy gate open. Owner: A.9.7.
+  and the lazy gate open. Owner: A.11.7.
 - **C-104 PARTIAL** Behaviour-neutral restructure: corpus score hash and the
   three running-sum reads (`eval.cpp:1206, 1897, 1975`). Owner: C.1.
 - **C-105 MISSING** Cache purity: a long-lived evaluator equals a cold one.
@@ -656,7 +656,7 @@ Status as checked on Basilisk. Owner is the Basilisk leaf the item feeds.
 - **C-130 MISSING** KNN-KP: additive drive plus a blockade term (+11 at 200k);
   a replacement score bribes. Owner: C.5.6.
 - **C-131 MISSING** One-capture-neighbour unit test with a wire check.
-  Owner: A.9.9.
+  Owner: A.11.9.
 - **C-132 PARTIAL** Missing value functions: KQ-KP fortress, KBP-KN, KRKP,
   KQKR, KNNKP. Owner: C.5.2 / C.5.5 / C.5.6.
 - **C-133 MISSING** Drawn-overclaim instrument from Syzygy draws (Basilisk's
