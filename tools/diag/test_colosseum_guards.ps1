@@ -171,6 +171,16 @@ try {
     $badPolicy.RunFile = Join-Path $repo 'tools\colosseum\match-fixed-ltc.toml'
     $badPolicy.Dir = Join-Path $scratch 'bad-policy'
     Invoke-Case 'resolved policy mismatch' 'not Basilisk policy' { & $wrapper @badPolicy | Out-Null }
+    # Every run keeps its engine processes; a command's default changed between
+    # runner versions (a tournament started fresh ones before 0.3.0).
+    $freshRunFile = Join-Path $scratch 'match-fresh-processes.toml'
+    $fixedRunFile = (Join-Path $repo 'tools\colosseum\match-fixed.toml').Replace('\', '/')
+    @("extend = ""$fixedRunFile""", '', '[options]', 'engine-processes = "per-game"') |
+        Set-Content -LiteralPath $freshRunFile -Encoding utf8
+    $freshMatch = $base.Clone()
+    $freshMatch.RunFile = $freshRunFile
+    $freshMatch.Dir = Join-Path $scratch 'fresh-match'
+    Invoke-Case 'match with fresh engine processes' "engine processes are 'per-game'" { & $wrapper @freshMatch | Out-Null }
 
     $gauntletExtra = @(
         '--format', 'gauntlet', '--seeds', '1', '--cycles', '1', '--games-per-pair', '2', '--max-engine-faults', '0',
@@ -190,6 +200,10 @@ try {
     $wrongGauntletHash.ExpectSha256 = @($gauntlet.ExpectSha256[0], ('0' * 64))
     $wrongGauntletHash.Dir = Join-Path $scratch 'gauntlet-bad-hash'
     Invoke-Case 'external gauntlet hash mismatch' 'PROVENANCE MISMATCH' { & $wrapper @wrongGauntletHash | Out-Null }
+    $freshGauntlet = $gauntlet.Clone()
+    $freshGauntlet.ExtraArgs = @($gauntletExtra + @('--engine-processes', 'per-game'))
+    $freshGauntlet.Dir = Join-Path $scratch 'fresh-gauntlet'
+    Invoke-Case 'gauntlet with fresh engine processes' "engine processes are 'per-game'" { & $wrapper @freshGauntlet | Out-Null }
 } finally {
     if (-not $KeepScratch -and (Test-Path -LiteralPath $scratch)) {
         Remove-Item -LiteralPath $scratch -Recurse -Force

@@ -295,6 +295,12 @@ try {
 } catch {
     Add-Violation $_.Exception.Message
 }
+# Every run keeps each slot's engine processes between games. A command's
+# default has changed between runner versions, so the resolved value is read.
+$processes = $resolved.PSObject.Properties['engine_processes']
+if (-not $processes -or "$($processes.Value)" -ne 'per-slot') {
+    Add-Violation "engine processes are '$(if ($processes) { $processes.Value } else { 'unstated' })', expected per-slot"
+}
 if ([int]$resolved.master_seed -ne $Seed) { Add-Violation "seed is $($resolved.master_seed), expected $Seed" }
 if ($Mode -eq 'sprt') {
     if ("$($resolved.design.parameters.model)" -ne 'normalized') { Add-Violation 'SPRT model is not normalized' }
@@ -302,7 +308,7 @@ if ($Mode -eq 'sprt') {
 }
 if ($violations.Count) {
     foreach ($violation in $violations) { Write-Host "  POLICY: $violation" -ForegroundColor Red }
-    throw "Resolved configuration is not Basilisk policy ($($violations.Count) violation(s)); see $dryPath."
+    throw "Resolved configuration is not Basilisk policy ($($violations.Count) violation(s): $($violations -join '; ')); see $dryPath."
 }
 Write-Host '  Resolved configuration matches Basilisk policy.'
 
