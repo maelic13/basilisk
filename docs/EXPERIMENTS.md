@@ -483,6 +483,8 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S25](experiments/BAS-S25.md) — programme checkpoint: the current state (block 1's centres) against 1.10.2, 2,000 games — +188.3 ± 17.5
 
+- [BAS-S26](experiments/BAS-S26.md) — B.10: the piece-square table orientation repair, `[-5,5]` — H1, +18.3 ± 12.9; flipped tables default
+
 | ID | Title | Disposition |
 |---|---|---|
 | [BAS-S17](experiments/BAS-S17.md) | Razoring depth reach in Elo (B.0.1, maintainer). | +2.4 ± 9.9; interval holds 0, the cluster decides the cap |

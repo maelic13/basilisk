@@ -14,6 +14,14 @@ and next step).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Seven piece-square tables were mirrored.** The knight, bishop and queen
+  tables, and the endgame king table, valued each square as its mirror
+  image across the board's middle: a White knight on f3 was paid as if it
+  stood on f6. Fixed, worth **+18 ± 13 Elo** at `3+0.03` (1,388 games).
+  `bench` now reports 8,437,148 nodes.
+
 ---
 
 ## [1.10.2] - 2026-10-08

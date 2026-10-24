@@ -1321,7 +1321,7 @@ rejections stop B.
       high. `B2_CORE` now defaults ON (`8a10d14`): the development
       fingerprint is `bench 13` 11,099,210, and the legacy kernel builds
       with `-DB2_CORE=OFF` (14,978,465), tested in CI (`2853699`), until B.8.
-- [ ] **B.10** `[I1]` PST orientation repair (ANY TIME) — before B.3
+- [x] **B.10** `[I1]` PST orientation repair (ANY TIME) — before B.3
   Correctness repair, admitted into the evaluation freeze by maintainer
   decision (2026-10-23): fix it before B.3 starts fitting to the eval. Seven
   piece-square tables have been stored rank-mirrored since v1.0.0: mg and eg
@@ -1354,6 +1354,21 @@ rejections stop B.
   Verdict:
   - H1: the flip becomes the default and the fingerprint record updates;
   - H0: the old tables stay, and C.2.5 fits from the flipped seeds instead.
+  Scope (maintainer decision 2026-10-23): the flip alone, gated; no refit
+  inside Phase B. Phase C fits the tables onward from the flipped values:
+  no neutral start is required, and PeSTO-derived values may stay. The
+  follow-ups are routed to C.0, C.2.1, C.2.5, C.7 and C.10.
+  Implemented 2026-10-23 (`75381dc`): the seven tables flipped, reproducing
+  the analysis's candidate header, with the orientation test in
+  `tests/test_eval.cpp`. ON `bench 13` 11,099,210 → 8,437,148; CTest
+  passes on both arms; WAC at 100k 241 → 248. BAS-S26 is registered and
+  dry-run; the baseline is rebuilt with clang 23.1.3 at the B.2.4 head's
+  engine (still 11,099,210). The endgame cohort at 600k holds every floor
+  (conversions 460/480 against the head's 452); the SPRT is maintainer-run.
+  — CLOSED 2026-10-24 (BAS-S26): H1, **+18.3 ± 12.9 Elo** (1,388 games),
+  above the frozen +3 to +10. The flipped tables are the default: the
+  development fingerprint is `bench 13` 8,437,148, and the legacy
+  `-DB2_CORE=OFF` arm reads 15,887,213.
 - [ ] **B.3** `[I2]` Cluster 2 — pruning and extensions
   Cluster 2 — proof searches and extensions: NMP (cut-node population,
   improving and prior-fail-high margin, dynamic reduction, verification
@@ -1437,7 +1452,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.10 | READY_FOR_IMPLEMENTATION | I1 | Any time; must land before B.3 (eval-freeze exception, 2026-10-23) |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |
 | B.4 | RESEARCH | I2 | Contents fixed by B.0 |
 | B.5 | RESEARCH | I2 | Contents fixed by B.0 |
@@ -1497,6 +1511,12 @@ has lost games in both engines (BAS-X02).
   frozen handoffs for C.1 and the first family. No engine implementation.
   Inputs from A.2.3 (`analysis/parameter_inventory_v1.md`): the 23 all-zero
   groups by kind, and space, which no C cluster names yet.
+  Input from B.10 (`analysis/pst_orientation_2026-10-23.md`): an L2 anchor
+  at `1e-6` held seven mirrored tables in place for ten releases, so the
+  refit protocol states how a fit can still correct a seed error. The
+  directional screen that found the defect is the model: project an
+  unanchored fit's movement onto each group and read any group that moves
+  as a whole.
 - [ ] **C.1** `[I1]` Evaluation restructure, behaviour-neutral
   `src/eval.cpp` split into family modules, one attack-map and mobility-area
   producer, `EvalTrace` unchanged in meaning, lazy-path semantics preserved;
@@ -1506,7 +1526,8 @@ has lost games in both engines (BAS-X02).
     - [ ] **C.2.1** `[I1]` Fit-tooling contract and Texel handbook
       Fit-tooling contract (archived 8.1.a–h).
       - K is fitted once and frozen across stages and arms.
-      - Initial vectors are complete and explicit.
+      - Initial vectors are complete and explicit, and B.10's PST
+        orientation test passes on them before any fit reads them.
       - Train, validation and test splits are by game, and the test split is
         claimed atomically, once.
       - Every coordinate is classed free, fixed or excluded, with gauge
@@ -1547,10 +1568,19 @@ has lost games in both engines (BAS-X02).
       Initialization control (archived 8.6): fit from the accepted and from
       neutral starts under identical K, data and schedule; register the
       production rule before the test split opens.
+      The piece-square tables start from B.10's flipped values, whatever
+      B.10's gate reads (maintainer decision 2026-10-23). A neutral PST start
+      is not required, and replacing PeSTO-derived values is not a goal.
     - [ ] **C.2.6** `[V]` Matched fits and the label-contract gate
       Matched whole-surface fits of A and B on the current surface, then the
       registered label-contract gate (archived 8.7–8.8); fit loss explains,
       the SPRT decides.
+      The piece-square tables re-fit here, from B.10's flipped values: they
+      have never been fitted in their correct orientation, and the old
+      `1e-6` anchor moved them about 0.1 cp. The registration sets their
+      anchor loose enough to let them move. The fit reports each table's
+      movement (B.10's directional screen), and the gate tests the refitted
+      tables (maintainer, 2026-10-24).
 - [ ] **C.3** `[I2]` King safety cluster
   King safety cluster in the donor's shape: attacker units and weights, safe
   and unsafe checks by piece, weak ring squares, flank attack and defence,
@@ -1627,6 +1657,9 @@ has lost games in both engines (BAS-X02).
   pair and bishop-pawn colour, outposts (including BAS-E07's absent
   `BadOutpost`), long diagonal, rook files, trapped rook, queen weakness and
   king-protector distance; refit; gate.
+  Outposts, `reachable_outpost`, mobility and `queen_infiltration` were
+  fitted around seven rank-mirrored piece-square tables (B.10). Their trace
+  reads them for compensation the flip left behind.
 - [ ] **C.8** `[V]` Refit cycles
   Refit cycles (archived 8.9): regenerate data with the accepted head, refit
   the whole surface with a new untouched test split, and gate each cycle;
@@ -1638,6 +1671,9 @@ has lost games in both engines (BAS-X02).
 - [ ] **C.10** `[V]` Search re-fit after the new evaluation
   One joint SPSA over the registered cp-valued search coordinates, including
   B.4's value surface if it exists, then PGO and SPRT `[0,3]`.
+  Cluster 1's margins (RFP, futility, razoring) were fitted on the eval
+  before B.10's flip, which moves it by 31.7 cp mean. B.10's gate does not
+  refit them; this leaf does.
 - [ ] **C.11** `[V]` Freeze the classical evaluation
   Checkpoint and freeze (archived 8.11).
   - Re-measure the same-search deficit against a fresh classical-Stockfish
