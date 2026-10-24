@@ -1575,6 +1575,12 @@ has lost games in both engines (BAS-X02).
       Matched whole-surface fits of A and B on the current surface, then the
       registered label-contract gate (archived 8.7–8.8); fit loss explains,
       the SPRT decides.
+      The piece-square tables re-fit here, from B.10's flipped values: they
+      have never been fitted in their correct orientation, and the old
+      `1e-6` anchor moved them about 0.1 cp. The registration sets their
+      anchor loose enough to let them move. The fit reports each table's
+      movement (B.10's directional screen), and the gate tests the refitted
+      tables (maintainer, 2026-10-24).
 - [ ] **C.3** `[I2]` King safety cluster
   King safety cluster in the donor's shape: attacker units and weights, safe
   and unsafe checks by piece, weak ring squares, flank attack and defence,
