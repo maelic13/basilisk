@@ -33,6 +33,12 @@ REOPENED = "(REOPENED)"
 # same reason as a reopened leaf: ordering is the default, and an undeclared
 # out-of-order tick is still an error.
 ANY_TIME = "(ANY TIME)"
+# A phase that gains new leaves after a later phase has closed work is declared
+# extended in its heading. While it has open leaves, ordering is checked within
+# it only, and its first open leaf is the next step; the later phase's closed
+# leaves were finished before the extension, and an undeclared un-tick or
+# out-of-order tick inside the phase still fails.
+EXTENDED = "(EXTENDED)"
 CAPABILITY = re.compile(r"`\[(R3|R2|I2|I1|M|V)\]`")
 LEGACY_CAPABILITY = re.compile(
     r"`\[(?:Astra|Fable|Sol|Terra|Sonnet)/(?:M|H|XH)\]`"
@@ -82,6 +88,7 @@ class Checklist:
         self.items: dict[str, bool] = {}
         self.reopened: set[str] = set()
         self.any_time: set[str] = set()
+        self.extended_phases: set[str] = set()
         self.capabilities: dict[str, str] = {}
 
     @property
@@ -95,6 +102,9 @@ class Checklist:
 def checklist(path: Path) -> Checklist:
     result = Checklist()
     for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        heading = PHASE_HEADING.match(line)
+        if heading and EXTENDED in line:
+            result.extended_phases.add(heading.group(1).split()[1])
         match = ITEM.match(line)
         if not match:
             continue
@@ -319,6 +329,9 @@ def validate_order(plan: Checklist) -> None:
         if done and key not in parents and key not in plan.any_time
     ]
     ordered_open = ordered_open_leaves(plan)
+    if ordered_open and ordered_open[0].split(".")[0] in plan.extended_phases:
+        phase = ordered_open[0].split(".")[0]
+        complete = [key for key in complete if key.split(".")[0] == phase]
     if complete and ordered_open:
         last_done = max(complete, key=sort_key)
         first_open = ordered_open[0]
@@ -556,6 +569,31 @@ def self_test() -> None:
         (root / "PLAN.md").write_text(lettered.format(marker=""), encoding="utf-8")
         expect_failure(
             "an undeclared out-of-order completion",
+            lambda: validate_order(checklist(root / "PLAN.md")),
+        )
+
+        # An extended phase is ordered within itself while it has open leaves.
+        extended = (
+            "## Phase A — Reset{marker}\n"
+            "- [x] **A.1** `[M]` Done\n"
+            "- [ ] **A.2** `[I1]` Added later\n"
+            "- [{tick}] **A.3** `[I1]` After it\n"
+            "## Phase B — Search\n"
+            "- [x] **B.1** `[I1]` Closed before the extension\n"
+            "- [ ] **B.2** `[I1]` Open\n"
+        )
+        (root / "PLAN.md").write_text(extended.format(marker=f" {EXTENDED}", tick=" "), encoding="utf-8")
+        plan = checklist(root / "PLAN.md")
+        validate_order(plan)
+        if ordered_open_leaves(plan)[0] != "A.2":
+            raise AssertionError("an extended phase's first open leaf is not the next step")
+        (root / "PLAN.md").write_text(extended.format(marker="", tick=" "), encoding="utf-8")
+        expect_failure(
+            "an undeclared extension", lambda: validate_order(checklist(root / "PLAN.md"))
+        )
+        (root / "PLAN.md").write_text(extended.format(marker=f" {EXTENDED}", tick="x"), encoding="utf-8")
+        expect_failure(
+            "an out-of-order completion inside an extended phase",
             lambda: validate_order(checklist(root / "PLAN.md")),
         )
 
