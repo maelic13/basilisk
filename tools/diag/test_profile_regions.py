@@ -69,6 +69,10 @@ class AttributionTests(unittest.TestCase):
         with self.assertRaisesRegex(profile_regions.ProfileRefused, "no function name"):
             profile_regions.analyse(samples({0x1000: 90, 0x6000: 10}), chains(), self.map)
 
+    def test_samples_without_engine_files_are_refused(self):
+        with self.assertRaisesRegex(profile_regions.ProfileRefused, "no line tables"):
+            profile_regions.analyse(samples({0x1000: 80, 0x4000: 20}), chains(), self.map)
+
     def test_an_unmapped_engine_file_is_refused(self):
         table = dict(CHAINS)
         table[0x5000] = [("newthing()", SRC + "new_module.cpp"), ("negamax(...)", SRC + "search_kernel_core.cpp")]

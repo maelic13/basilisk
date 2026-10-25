@@ -90,8 +90,6 @@ namespace BasiliskProfile {
         [DllImport("kernel32.dll", SetLastError = true)] static extern bool QueryThreadCycleTime(IntPtr h, out ulong cycles);
         [DllImport("kernel32.dll", SetLastError = true)] static extern bool GetExitCodeThread(IntPtr h, out uint code);
         [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr h);
-        [DllImport("winmm.dll")] static extern uint timeBeginPeriod(uint ms);
-        [DllImport("winmm.dll")] static extern uint timeEndPeriod(uint ms);
 
         readonly int pid, intervalMs;
         readonly long low, high;
@@ -99,8 +97,9 @@ namespace BasiliskProfile {
         Thread worker;
         volatile bool stop;
 
-        public long Outside, Ticks, Failed;
+        public long Outside, Ticks, Failed, Idle;
         public int ThreadsSeen;
+        public readonly Dictionary<int, long> PerThread = new Dictionary<int, long>();
         public Dictionary<long, int> InModule { get { return inModule; } }
 
         public Sampler(int pid, long moduleBase, long moduleSize, int intervalMs) {
@@ -115,7 +114,6 @@ namespace BasiliskProfile {
         public void Stop() { stop = true; worker.Join(); }
 
         void Loop() {
-            timeBeginPeriod(1);
             IntPtr raw = Marshal.AllocHGlobal(ContextSize + 16);
             IntPtr context = new IntPtr((raw.ToInt64() + 15) & ~15L);
             var handles = new Dictionary<int, IntPtr>();
@@ -124,7 +122,14 @@ namespace BasiliskProfile {
                 Process process = Process.GetProcessById(pid);
                 var clock = Stopwatch.StartNew();
                 long refreshAt = 0;
+                long ticksPerInterval = Stopwatch.Frequency * intervalMs / 1000;
+                long nextTick = 0;
+                var deltas = new Dictionary<int, ulong>();
                 while (!stop) {
+                    // A spin, not Sleep: Windows ignores a background process's
+                    // timer-resolution request, so Sleep(1) lasts a 15.6 ms tick.
+                    while (clock.ElapsedTicks < nextTick && !stop) Thread.SpinWait(50);
+                    nextTick = clock.ElapsedTicks + ticksPerInterval;
                     if (clock.ElapsedMilliseconds >= refreshAt) {
                         process.Refresh();
                         if (process.HasExited) break;
@@ -133,9 +138,14 @@ namespace BasiliskProfile {
                             IntPtr h = OpenThread(Access, false, (uint)t.Id);
                             if (h != IntPtr.Zero) { handles[t.Id] = h; ThreadsSeen++; }
                         }
-                        refreshAt = clock.ElapsedMilliseconds + 100;
+                        refreshAt = clock.ElapsedMilliseconds + 500;
                     }
                     Ticks++;
+                    // Only threads that ran for at least half as long as the busiest
+                    // one since the last tick are sampled: a thread that merely woke
+                    // up (a poller, a timer) would otherwise be read in ntdll.
+                    deltas.Clear();
+                    ulong busiest = 0;
                     foreach (var entry in handles) {
                         uint code;
                         if (!GetExitCodeThread(entry.Value, out code) || code != StillActive) continue;
@@ -144,13 +154,24 @@ namespace BasiliskProfile {
                         ulong previous;
                         bool seen = lastCycles.TryGetValue(entry.Key, out previous);
                         lastCycles[entry.Key] = cycles;
-                        if (!seen || cycles == previous) continue;  // a waiting thread is not sampled
-                        if (SuspendThread(entry.Value) == 0xFFFFFFFF) { Failed++; continue; }
+                        if (!seen) continue;
+                        ulong delta = cycles - previous;
+                        deltas[entry.Key] = delta;
+                        if (delta > busiest) busiest = delta;
+                    }
+                    if (busiest == 0) { Idle++; continue; }
+                    foreach (var d in deltas) {
+                        if (d.Value * 2 < busiest) continue;
+                        IntPtr thread = handles[d.Key];
+                        if (SuspendThread(thread) == 0xFFFFFFFF) { Failed++; continue; }
                         Marshal.WriteInt32(context, ContextFlagsOffset, ContextControl);
-                        bool ok = GetThreadContext(entry.Value, context);
+                        bool ok = GetThreadContext(thread, context);
                         long rip = ok ? Marshal.ReadInt64(context, RipOffset) : 0;
-                        ResumeThread(entry.Value);
+                        ResumeThread(thread);
                         if (!ok) { Failed++; continue; }
+                        long threadCount;
+                        PerThread.TryGetValue(d.Key, out threadCount);
+                        PerThread[d.Key] = threadCount + 1;
                         if (rip >= low && rip < high) {
                             int n;
                             inModule.TryGetValue(rip - low, out n);
@@ -159,12 +180,10 @@ namespace BasiliskProfile {
                             Outside++;
                         }
                     }
-                    Thread.Sleep(intervalMs);
                 }
             } finally {
                 foreach (IntPtr h in handles.Values) CloseHandle(h);
                 Marshal.FreeHGlobal(raw);
-                timeEndPeriod(1);
             }
         }
     }
@@ -243,6 +262,8 @@ try {
 
 $inModule = [ordered]@{}
 foreach ($entry in ($sampler.InModule.GetEnumerator() | Sort-Object Key)) { $inModule[('0x{0:x}' -f $entry.Key)] = $entry.Value }
+$perThread = [ordered]@{}
+foreach ($entry in ($sampler.PerThread.GetEnumerator() | Sort-Object Value -Descending)) { $perThread["$($entry.Key)"] = $entry.Value }
 $samplesPath = Join-Path $Out 'samples.json'
 [ordered]@{
     schema = 'basilisk-profile-samples-v1'
@@ -259,13 +280,16 @@ $samplesPath = Join-Path $Out 'samples.json'
     ticks = $sampler.Ticks
     threads_seen = $sampler.ThreadsSeen
     failed = $sampler.Failed
+    idle_ticks = $sampler.Idle
+    per_thread = $perThread
     outside_module = $sampler.Outside
     in_module = $inModule
     repo_revision = (& git -C $repoRoot rev-parse HEAD).Trim()
     created_utc = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
 } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $samplesPath -Encoding utf8
 $total = ($sampler.InModule.Values | Measure-Object -Sum).Sum + $sampler.Outside
-Write-Host ("  {0:N0} samples in {1:N1} s ({2:N0} ticks, {3} threads seen, {4} failed reads)" -f $total, $elapsed, $sampler.Ticks, $sampler.ThreadsSeen, $sampler.Failed)
+Write-Host ("  {0:N0} samples in {1:N1} s ({2:N0} ticks, {3:N0} idle; {4} threads seen, {5} sampled; {6} failed reads)" -f `
+    $total, $elapsed, $sampler.Ticks, $sampler.Idle, $sampler.ThreadsSeen, $perThread.Count, $sampler.Failed)
 
 $pyArgs = @((Join-Path $PSScriptRoot 'diag\profile_regions.py'), '--samples', $samplesPath, '--json', (Join-Path $Out 'report.json'))
 if ($NoInlines) { $pyArgs += '--no-inlines' }

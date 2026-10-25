@@ -7,13 +7,16 @@
     "cannot leave a stale marker; test_profile_regions.py fails when a file in src/",
     "or external/fathom/src/ is not listed here.",
     "min_inline_share: the profile is refused unless at least this share of in-module",
-    "samples carries an inline chain (two or more frames). A symbolizer or binary",
-    "without inline records reports one frame everywhere and would charge inlined",
-    "board work to its caller. max_unresolved_share: the profile is refused when more",
-    "in-module samples than this have no function name."
+    "samples carries an inline chain (two or more frames); a symbolizer or binary",
+    "without inline records reports one frame everywhere, and library frames could",
+    "then not be skipped to their engine caller. max_unresolved_share: refused when more",
+    "in-module samples than this have no function name. min_engine_share: refused when",
+    "fewer in-module samples than this resolve to an engine source file, as in a",
+    "build without line tables, whose every sample would be runtime."
   ],
   "min_inline_share": 0.30,
   "max_unresolved_share": 0.02,
+  "min_engine_share": 0.90,
   "regions": [
     ["board", ["board.cpp", "board.h", "move.cpp", "move.h", "zobrist.cpp", "zobrist.h", "types.h"]],
     ["attacks", ["attacks.cpp", "attacks.h", "magics.h", "bitboard.cpp", "bitboard.h", "threats.cpp", "threats.h"]],

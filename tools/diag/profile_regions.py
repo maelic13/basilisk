@@ -8,11 +8,18 @@ frame whose source file belongs to the engine (src/ or Fathom). Library
 frames inlined from libc++ headers are skipped outward, and a sample with no
 engine frame is `runtime`; a sample outside the engine's image is `system`.
 
+Regions follow source files, never function names. Charging a sample to the
+function that contains it, as xperf `-symbols` did for Rarog, charges inlined
+work to its caller: on the head's bench it would move about half of board
+and all of attacks and TT into search. The inline chain is what lets a
+library frame be skipped to the engine frame it was inlined into, and it
+gives the inline-inclusive shares.
+
 The profile is refused, not reported, when its attribution cannot be trusted:
-too few samples carry an inline chain (a symbolizer or binary without inline
-records charges inlined board work to its caller, the trap xperf `-symbols`
-set for Rarog), too many have no function name, or an engine file is missing
-from the region map. The thresholds and the map are tools/diag/profile_regions.json.
+too few samples carry an inline chain, too many have no function name, too
+few resolve to an engine file (a build without line tables), or an engine
+file is missing from the region map. The thresholds and the map are
+tools/diag/profile_regions.json.
 """
 
 from __future__ import annotations
@@ -140,6 +147,12 @@ def analyse(samples: dict, chains: dict[int, list[tuple[str, str]]], regions: di
         raise ProfileRefused(
             f"{unresolved_share:.1%} of samples have no function name (maximum "
             f"{regions['max_unresolved_share']:.0%}): is this a Profile flavor build?")
+    engine_share = 1.0 - region_counts["runtime"] / in_module
+    if engine_share < regions["min_engine_share"]:
+        raise ProfileRefused(
+            f"only {engine_share:.1%} of samples resolve to an engine source file (minimum "
+            f"{regions['min_engine_share']:.0%}): the binary has no line tables; build it with "
+            "build_test.ps1 -Flavor Profile")
     total = in_module + outside
     if outside:
         region_counts["system"] += outside
