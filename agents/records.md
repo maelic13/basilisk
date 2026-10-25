@@ -11,6 +11,11 @@ touches tags.
   needs no PLAN or GUIDE churn.
 - PLAN carries status. Tick a step only when finished and verified, in the
   commit that finishes it; tick the parent when its last sub-step is ticked.
+- `CHANGELOG.md`'s `[Unreleased]` is kept current. A user-visible change
+  gets its entry in the commit that records it, in plain language with its
+  deciding result. User-visible means playing strength, UCI options or
+  output, defaults, the bench fingerprint, or supported platforms. Tooling
+  and documentation changes get no entry.
 - A leaf's first line is its identifier, capability tag and a short title, at
   most 64 characters: the name GUIDE shows. Everything else goes on the
   indented lines below it. Never edit GUIDE's generated block by hand.

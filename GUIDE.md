@@ -34,7 +34,7 @@ generations change. These are maintainer judgments, not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **A.10.2** `[M]` CHANGELOG Unreleased caught up and kept — Claude Sonnet 5 — Medium
+**Next step:** **A.10.3** `[M]` PR refspec and required checks on master — Claude Sonnet 5 — Medium
 
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
@@ -73,7 +73,7 @@ generations change. These are maintainer judgments, not measured rankings.
     - [x] **A.9.5** `[I1]` Profiler with inline attribution
 - [ ] **A.10** Delivery and repository repairs
     - [x] **A.10.1** `[M]` Land dev and B.10 on master by squash PRs (ANY TIME) — before B.3
-    - [ ] **A.10.2** `[M]` CHANGELOG Unreleased caught up and kept
+    - [x] **A.10.2** `[M]` CHANGELOG Unreleased caught up and kept
     - [ ] **A.10.3** `[M]` PR refspec and required checks on master
     - [ ] **A.10.4** `[I1]` Release and CI checks tightened
     - [ ] **A.10.5** `[I1]` Ledger index dispositions kept in step

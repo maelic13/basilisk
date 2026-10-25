@@ -14,6 +14,25 @@ and next step).
 
 ## [Unreleased]
 
+### Changed
+
+- **A rebuilt search core.** The search now follows modern Stockfish's
+  design in the parts that decide which moves it looks at, and how deeply:
+  - how it reuses the transposition table;
+  - how it corrects its evaluation from what earlier searches found;
+  - how its history tables order the moves;
+  - how it prunes and reduces moves.
+
+  Its constants were then fitted by tuning. Measured at `3+0.03`, the new
+  core gained **+136 ± 34 Elo** (252 games) and the tuning **+59 ± 21 Elo**
+  more (430 games). Together with the fix below, the development version
+  measured against 1.10.2:
+  - **+241 ± 20 Elo** at `10+0.1`;
+  - **+238 ± 21 Elo** at four threads;
+  - **+222 ± 20 Elo** with Syzygy tablebases.
+
+  Each of these reads is 1,000 games.
+
 ### Fixed
 
 - **Seven piece-square tables were mirrored.** The knight, bishop and queen

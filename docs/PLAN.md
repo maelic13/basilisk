@@ -930,11 +930,21 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       (PR #5) and B.10 as `f4ebe79` (PR #6), one squash commit each, and
       branches now start from `master`. It closed out of turn, so it keeps
       its `(ANY TIME)` marker.
-    - [ ] **A.10.2** `[M]` CHANGELOG Unreleased caught up and kept
+    - [x] **A.10.2** `[M]` CHANGELOG Unreleased caught up and kept
       (D-66) `[Unreleased]` is empty although B.2's cluster and B.10's repair
       were accepted. Write their user-facing entries, and add Rarog's rule to
       `agents/records.md`: a user-visible change gets its entry in the commit
       that records it.
+      — CLOSED 2026-10-25.
+      - B.10's entry had already landed with its fix, so only B.2's was owed.
+        It is now written: the rebuilt selectivity core, at +136 ± 34 and
+        +59 ± 21 Elo at `3+0.03`, and the head's BAS-S27 reads against
+        1.10.2.
+      - Nothing else user-visible has landed since 1.10.2. The release
+        binaries' UCI option lists are identical apart from the version
+        string, and PR #7 and PR #8 were roadmap and tooling only.
+      - The rule, with what counts as user-visible, is in
+        `agents/records.md`.
     - [ ] **A.10.3** `[M]` PR refspec and required checks on master
       (D-59, D-58) Configure `remote.origin.fetch` with
       `+refs/pull/*/head:refs/remotes/origin/pr/*`, so a pruning fetch keeps
@@ -1942,7 +1952,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.10.2 | READY_FOR_IMPLEMENTATION | M | CHANGELOG catch-up and rule |
 | A.10.3 | READY_FOR_IMPLEMENTATION | M | PR refspec and required checks |
 | A.10.4 | READY_FOR_IMPLEMENTATION | I1 | Release and CI checks |
 | A.10.5 | READY_FOR_IMPLEMENTATION | I1 | Ledger index dispositions |
