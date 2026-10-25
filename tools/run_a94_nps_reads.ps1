@@ -20,8 +20,10 @@ $results = Join-Path $PSScriptRoot 'results'
 $headSource = '4fa68b4'
 
 function Use-Pool([string]$Name, [hashtable]$Arguments) {
+    # A build writes cmake's output to the pipeline; it goes to the console so
+    # that the pool's path is the only thing this returns.
     $path = Join-Path $engines "$Name.pool.json"
-    if (-not (Test-Path -LiteralPath $path)) { & (Join-Path $PSScriptRoot 'nps_pool.ps1') -Name $Name @Arguments }
+    if (-not (Test-Path -LiteralPath $path)) { & (Join-Path $PSScriptRoot 'nps_pool.ps1') -Name $Name @Arguments | Out-Host }
     $path
 }
 
