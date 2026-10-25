@@ -134,9 +134,10 @@ line names where it lives.
   must record the policy and never mix with natural-termination evidence.
 - Strength is measured at **3+0.03**, paired UHO openings, normalized Elo,
   **tablebases off** — the harness and the games are blind the same way.
-- **Bench signature** of the accepted head: `bench 13` = **8,437,148** nodes
-  (since B.10's PST orientation repair; the `-DB2_CORE=OFF` legacy arm
-  reads 15,887,213. Earlier: 11,099,210 at B.2.4, 14,978,465 for 1.10.0 to
+- **Bench signature** of the accepted head: `bench 13` = **9,260,429** nodes
+  (since A.11.1's rule-50 TT-eval repair; the `-DB2_CORE=OFF` legacy arm
+  reads 15,887,213. Earlier: 8,437,148 at B.10's PST orientation repair,
+  11,099,210 at B.2.4, 14,978,465 for 1.10.0 to
   1.10.2, 12,568,898 before the 15.0.a SEE repair, 12,709,666 before
   6.5.a). GUIDE's *Now* table declares it; `check_roadmap.py` holds this
   line to it. Exact bench identity is a provenance fingerprint, **not** proof

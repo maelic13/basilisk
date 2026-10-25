@@ -1097,7 +1097,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
   Evidence: `analysis/rarog_audit_2026-10-24.md`. The repairs change the
   default search only: the legacy kernel (`-DB2_CORE=OFF`) is neither fixed
   nor maintained, and B.8 deletes it (maintainer decision 2026-10-24).
-    - [ ] **A.11.1** `[I1]` Rule-50 damping out of the TT static eval
+    - [x] **A.11.1** `[I1]` Rule-50 damping out of the TT static eval
       (B-1, C-7) `evaluate()` damps the score by the halfmove clock
       (`eval.cpp:1210`, `:1985`); the kernel stores that value as the TT
       static eval and reuses it at any clock
@@ -1116,10 +1116,14 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         (root -748 against a fresh -443), the repair serves -443.
       - Qualified 2026-10-25 on `2c0cc76`: `bench 13` 9,260,429 (from
         8,437,148, +9.8%); the legacy arm 15,887,213, unchanged; CTest ON
-        23/23 and OFF 20/20 in Release. The fingerprint record moves only
-        on the gate's verdict.
-      - It changes play, so it owes the repair gate: BAS-S28, `[-5,5]`,
+        23/23 and OFF 20/20 in Release.
+      - It changes play, so it owed the repair gate: BAS-S28, `[-5,5]`,
         launcher `tools/run_a111_gate.ps1`, maintainer-run.
+      - Closed 2026-10-25: BAS-S28 reached its 4,000-pair cap at
+        +1.5 ± 4.8 Elo (8,000 games, LLR +1.58, no faults) with equal NPS,
+        and the repair stays by the registered rule on the maintainer's
+        confirmation. The development fingerprint is `bench 13` 9,260,429;
+        the legacy arm stays 15,887,213.
     - [ ] **A.11.2** `[I1]` Singular search: lone excluded move returns alpha
       (B-4) When the singular search excludes a node's only legal move,
       `searched == 0` returns `in_check ? -(MATE_SCORE - ply) : 0`
@@ -2079,7 +2083,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.11.1 | GAME_GATE | I1 | Rule-50 damping out of the TT eval; gate BAS-S28 prepared |
 | A.11.2 | READY_FOR_IMPLEMENTATION | I1 | Lone excluded move returns alpha |
 | A.11.3 | READY_FOR_IMPLEMENTATION | I1 | Zero own clock bounded |
 | A.11.4 | READY_FOR_IMPLEMENTATION | I1 | Upper-case move text |
