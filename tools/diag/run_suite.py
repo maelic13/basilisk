@@ -91,12 +91,12 @@ B2_COUNTER_UNITS = {
         hindsight_up hindsight_down corr_cont2_updates corr_cont4_updates
         tt_cutoff_quiet_bonus tt_cutoff_graph_refused
         cont_hist_pruned capture_futility_pruned quiet_see_pruned
-        capture_see_pruned
+        capture_see_pruned singular_lone_move
     """.split()},
     "skip_quiets_nodes": "nodes",
     "moveloop_tested": "moves",
 }
-assert len(B2_COUNTER_UNITS) == 22
+assert len(B2_COUNTER_UNITS) == 23
 assert not set(B2_COUNTER_UNITS) & set(CORE_COUNTER_UNITS)
 
 
