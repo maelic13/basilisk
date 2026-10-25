@@ -48,13 +48,56 @@ def disassemble(objdump: str, path: Path, relocations: bool = False) -> str:
     return result.stdout
 
 
-def instruction_counts(text: str) -> Counter[str]:
-    counts: Counter[str] = Counter()
+SYMBOL = re.compile(r"^[0-9a-f]+ <(.+)>:\s*$", re.IGNORECASE)
+
+# Library helpers whose extension instructions run only after a runtime check
+# for that extension, so they are allowed on the ARM64 baseline. Each entry
+# names the function, never a pattern: any other occurrence still fails.
+# compiler-rt's SME support routine reads the vector length with SVE's cntd
+# only when the CPU reports SVE; Windows links compiler-rt, Linux libgcc.
+ARM64_RUNTIME_GATED = {"__arm_get_current_vg"}
+
+
+def instructions(text: str) -> list[tuple[str, str, str]]:
+    """(enclosing symbol, mnemonic, line) for every instruction line."""
+    symbol = ""
+    found = []
     for line in text.splitlines():
+        label = SYMBOL.match(line)
+        if label:
+            symbol = label.group(1)
+            continue
         match = INSTRUCTION.match(line)
         if match:
-            counts[match.group(1).lower()] += 1
-    return counts
+            found.append((symbol, match.group(1).lower(), line.strip()))
+    return found
+
+
+def instruction_counts(text: str) -> Counter[str]:
+    return Counter(mnemonic for _, mnemonic, _ in instructions(text))
+
+
+def arm64_forbidden(mnemonic: str) -> str | None:
+    for family, pattern in ARM64_FORBIDDEN.items():
+        if re.fullmatch(pattern, mnemonic):
+            return family
+    return None
+
+
+def arm64_split(text: str) -> tuple[Counter[str], list[str], list[str]]:
+    """Counts with runtime-gated helpers' extension instructions left out,
+    plus the allowed and the offending occurrences, each named by function."""
+    counts: Counter[str] = Counter()
+    allowed, offending = [], []
+    for symbol, mnemonic, line in instructions(text):
+        family = arm64_forbidden(mnemonic)
+        if family and symbol in ARM64_RUNTIME_GATED:
+            allowed.append(f"{family} in <{symbol}>: {line}")
+            continue
+        if family:
+            offending.append(f"{family} in <{symbol or '?'}>: {line}")
+        counts[mnemonic] += 1
+    return counts, allowed, offending
 
 
 def family_count(counts: Counter[str], pattern: str) -> int:
@@ -139,7 +182,15 @@ def main() -> int:
 
     try:
         binary_text = disassemble(objdump, args.binary)
-        observed, errors = verify_binary(args.tier, instruction_counts(binary_text))
+        if args.tier == "arm64":
+            counts, allowed, offending = arm64_split(binary_text)
+            for entry in allowed:
+                print(f"allowed (runtime-gated library helper): {entry}")
+            for entry in offending[:20]:
+                print(f"forbidden: {entry}", file=sys.stderr)
+        else:
+            counts = instruction_counts(binary_text)
+        observed, errors = verify_binary(args.tier, counts)
         print(
             f"{args.tier}: "
             + " ".join(f"{name}={count}" for name, count in observed.items())

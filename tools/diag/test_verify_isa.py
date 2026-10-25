@@ -47,5 +47,32 @@ class Arm64Tests(unittest.TestCase):
             self.assertTrue(any(f"forbidden {family}" in e for e in errors), family)
 
 
+class RuntimeGatedTests(unittest.TestCase):
+    TEXT = """
+0000000140001000 <__arm_get_current_vg>:
+   140001000: 04e0e3e0     	cntd	x0
+   140001004: d65f03c0     	ret
+0000000140001010 <Searcher::negamax>:
+   140001010: f8a86800     	prfm	pldl1keep, [x0, x8]
+"""
+
+    def test_a_gated_helper_is_allowed_and_named(self):
+        counts, allowed, offending = verify_isa.arm64_split(self.TEXT)
+        self.assertEqual(offending, [])
+        self.assertEqual(len(allowed), 1)
+        self.assertIn("<__arm_get_current_vg>", allowed[0])
+        _, errors = verify_isa.verify_binary("arm64", counts)
+        self.assertEqual(errors, [])
+
+    def test_the_same_instruction_elsewhere_fails_and_is_named(self):
+        text = self.TEXT.replace("<Searcher::negamax>:",
+                                 "<Searcher::negamax>:\n   14000100c: 04e0e3e0     \tcntd\tx0")
+        counts, _, offending = verify_isa.arm64_split(text)
+        self.assertEqual(len(offending), 1)
+        self.assertIn("<Searcher::negamax>", offending[0])
+        _, errors = verify_isa.verify_binary("arm64", counts)
+        self.assertTrue(any("forbidden sve" in e for e in errors))
+
+
 if __name__ == "__main__":
     unittest.main()
