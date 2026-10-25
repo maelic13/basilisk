@@ -123,8 +123,8 @@ X is good/bad”. If conditions or artifacts are unknown, say so.
 | [BAS-M07](experiments/BAS-M07.md) | Fast-TC release gains compared with longer gauntlets. | The 1.8.0 cycle measured about +93 fast-TC but |
 | [BAS-M08](experiments/BAS-M08.md) | A.7.1 local replay of the Super Rating Tournament PGN: 42-engine Colosseum round | 15-26-159 (14.00%, -315.35 logistic Elo) |
 | [BAS-M09](experiments/BAS-M09.md) | A.7.2 4T Colosseum null, withdrawn before exposure by maintainer decision 2026-10-01. | No games run; no null result exists. |
-| [BAS-M10](experiments/BAS-M10.md) | Frozen before exposure, A.7.2 4T baseline gauntlet. | Prepared, not yet run. |
-| [BAS-M11](experiments/BAS-M11.md) | Frozen before its first game, A.7.2 4T baseline re-run after BAS-M10's void. | Registered, not yet run. |
+| [BAS-M10](experiments/BAS-M10.md) | Frozen before exposure, A.7.2 4T baseline gauntlet. | VOID: Houdini 3 crashed twice at 659 of 2,000 games; re-run as BAS-M11 |
+| [BAS-M11](experiments/BAS-M11.md) | Frozen before its first game, A.7.2 4T baseline re-run after BAS-M10's void. | COMPLETE: 4T performance 3040.4 [3026.4, 3054.3] |
 | [BAS-M12](experiments/BAS-M12.md) | Houdini 3 crashes at 4T: diagnosis (observation, 2026-10-05). | A race in Houdini 3's multi-thread start-up, triggered |
 | [BAS-M13](experiments/BAS-M13.md) | Frozen before any game, the 1.10.2 verification match against 1.10.1 with tablebases. | WITHDRAWN unplayed |
 

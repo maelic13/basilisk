@@ -1009,11 +1009,24 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
           warned on a `22` pin and stayed silent on `23`.
         - The workflow check, run verbatim on this machine, passes on `23`
           and fails on `22` and `2`.
-    - [ ] **A.10.5** `[I1]` Ledger index dispositions kept in step
+    - [x] **A.10.5** `[I1]` Ledger index dispositions kept in step
       (D-61) `docs/EXPERIMENTS.md` lists BAS-M10 and BAS-M11 as not run while
       their entries read VOID and COMPLETE; the checker compares IDs, not
       dispositions. Fix the rows and make `check_roadmap.py` flag an index
       disposition that disagrees with its entry's.
+      — CLOSED 2026-10-25.
+      - Free-text dispositions are compared by state, open or closed. A
+        verdict word anywhere means closed. A text that opens with
+        registered, prepared, not (yet) run, maintainer-run or pending, and
+        holds no verdict, is open.
+      - The entry's state comes from its last `Disposition:` line, or from
+        its `Disposition`, `Result / disposition` or `Result` field.
+      - Entries with no such field, multi-part entries, and texts that state
+        neither are not compared. 52 entries state a state on both sides
+        and are compared.
+      - On the real ledger the check refused exactly BAS-M10 and BAS-M11.
+        Their rows now read VOID and COMPLETE. The self-test covers both
+        directions, both entry forms, and prose that merely says "running".
     - [ ] **A.10.6** `[M]` Tools index and retired numbers in comments
       (D-62, D-63) A `tools/README.md` with one line per tool and the
       procedure or leaf that uses it; retired step numbers removed from source
@@ -2002,7 +2015,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.10.5 | READY_FOR_IMPLEMENTATION | I1 | Ledger index dispositions |
 | A.10.6 | READY_FOR_IMPLEMENTATION | M | Tools index and comment numbers |
 | A.10.7 | RESEARCH | I1 | Dev-build version names; shape decided by the maintainer |
 | A.11.1 | READY_FOR_IMPLEMENTATION | I1 | Rule-50 damping out of the TT eval |
