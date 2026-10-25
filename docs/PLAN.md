@@ -996,6 +996,12 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         - Freestanding objects for Linux and Windows ARM64 pass.
         - No-prefetch, SVE, dot-product and AES objects fail.
         - The contract runs on every ARM64 cell of CI and Release.
+        - The first live run (PR #9) failed Windows ARM64 on one SVE
+          instruction that Linux and macOS lack. The check now names every
+          forbidden instruction's function, and allows one only inside
+          compiler-rt's `__arm_get_current_vg`, which runs SVE's `cntd` after
+          a runtime check (Windows links compiler-rt, Linux libgcc). The next
+          run's log confirms the function or names the real one.
         - `test_verify_isa.py` runs in the documents job.
       - **Empty filters (D-57).** The three `-R` filters and the
         sanitizer's `-LE strength` run pass `--no-tests=error`. Locally, a
@@ -1074,6 +1080,11 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         `-m`; the override works; a PGO build names its commit at bench
         8,437,148. CTest 21/21, and `test_uci_protocol` 85/85 with four new
         sections.
+      - The first live run (PR #9) found every Windows build reading
+        `dev-<date>-nogit`: the MSYS2 build shell has no git on its PATH, and
+        MSYS2's own git reads this CRLF clone as modified. Configure now looks
+        for Git for Windows first and hands the build that git. Under MSYS2
+        it picks Git for Windows even with MSYS2's git present.
 - [ ] **A.11** Correctness repairs from the Rarog audit
   Added 2026-10-24 by maintainer decision. Each repair is its own engine
   commit with a test that fails on the old code, bench accounting for any
