@@ -9,6 +9,7 @@
 #include "constants.h"
 #include "uci_output.h"
 #include "uci_protocol.h"
+#include "version.h"
 #ifdef BASILISK_TUNE
 #include "eval.h"
 #endif
@@ -89,7 +90,7 @@ int UciProtocol::RunArguments(const std::string& command_line) {
 }
 
 void UciProtocol::cmdHelp() {
-    uci_write(std::string(engineName) + " " + std::string(engineVersion)
+    uci_write(engine_version_info()
         + " is a UCI chess engine by " + std::string(engineAuthor) + ".\n"
         "Use it from a chess GUI or harness that speaks UCI, or type its commands:\n"
         "  uci, isready, setoption name <name> value <value>, ucinewgame,\n"
@@ -122,7 +123,7 @@ void UciProtocol::cmdUci() {
 #else
     constexpr std::string_view arm = "+legacy";
 #endif
-    std::string out = "id name " + std::string(engineName) + " " + std::string(engineVersion)
+    std::string out = "id name " + engine_version_info()
                     + std::string(arm) + "\n"
                     + "id author " + std::string(engineAuthor) + "\n"
                     + Parameters::uci_options()

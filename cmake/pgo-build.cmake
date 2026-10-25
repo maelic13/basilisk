@@ -27,6 +27,9 @@ endif()
 if(NOT DEFINED PGO_PROFILE_SYMBOLS)
     set(PGO_PROFILE_SYMBOLS "OFF")
 endif()
+if(NOT DEFINED PGO_DEV_ID)
+    set(PGO_DEV_ID "")
+endif()
 if(NOT DEFINED PGO_ARM_OPTION)
     set(PGO_ARM_OPTION "")
 endif()
@@ -65,6 +68,7 @@ set(_pgo_configure_args
     -DDIAGNOSTIC=${PGO_DIAGNOSTIC}
     -DABLATION=${PGO_ABLATION}
     -DPROFILE_SYMBOLS=${PGO_PROFILE_SYMBOLS}
+    -DBASILISK_DEV_ID=${PGO_DEV_ID}
 )
 if(PGO_ARM_OPTION)
     if(NOT PGO_ARM_OPTION MATCHES "^[A-Za-z_][A-Za-z0-9_]*$")
