@@ -640,7 +640,14 @@ follows the steps below from `master`.
    results. No AI attribution anywhere: no `Co-Authored-By`, no
    "Generated with" line; `.claude/settings.json` turns Claude Code's off.
 4. **Before opening the PR**, merge `master` into the branch if `master`
-   moved, so the PR shows only the branch's own change. CI must be green.
+   moved, so the PR shows only the branch's own change. `master`'s branch
+   protection requires two checks, which gather the rest:
+   - `CI complete` gathers every CI job;
+   - `Verify the complete matrix` gathers every Release build.
+   Each always runs, and fails unless every job it gathers succeeded:
+   GitHub reports a job skipped after a failed dependency as passing, so a
+   required check must never be skipped. The protection also requires the
+   branch to be up to date with `master`.
 5. **After the merge**, delete the branch locally and on `origin`.
 6. **Citations.** A document cites only commits that stay reachable: on
    `master`, under a PR, or on a kept tag. A throwaway branch (a test arm) is
@@ -650,8 +657,9 @@ follows the steps below from `master`.
    without the maintainer's agreement (HISTORY *Preserved commits*).
 
 ```bash
+git config --add remote.origin.fetch "+refs/pull/*/head:refs/remotes/origin/pr/*"   # once per clone
+git fetch origin
 git switch -c <branch> origin/master
-git fetch origin "+refs/pull/*/head:refs/remotes/origin/pr/*"
 python tools/diag/check_citations.py
 ```
 

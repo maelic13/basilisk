@@ -50,8 +50,11 @@ touches tags.
   patch file, never by its hash. Cite a commit as a backticked hash; another
   repository's commit or a content hash cited the same way is declared in
   `tools/diag/citation_exceptions.tsv`. `python tools/diag/check_citations.py`
-  checks every citation after the PR refs are fetched once:
-  `git fetch origin "+refs/pull/*/head:refs/remotes/origin/pr/*"`.
+  checks every citation, and it needs the PR refs. Every clone maps them
+  once, so that every fetch keeps them, a pruning one included:
+  `git config --add remote.origin.fetch "+refs/pull/*/head:refs/remotes/origin/pr/*"`.
+  A one-off `git fetch` of that refspec is lost at the next pruning fetch,
+  which GitHub Desktop runs on its own.
 - No preservation tags and no kept branches without the maintainer's
   agreement. The tags kept so far are listed with their reason and retirement
   condition in HISTORY *Preserved commits*; a new one, if agreed, is an

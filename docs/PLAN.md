@@ -951,6 +951,18 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       the PR refs citations need (they vanished on 2026-10-23), and record it
       in `agents/records.md`. Make CI and Release required checks on `master`
       (repository settings, the maintainer's).
+      Implemented 2026-10-25; the maintainer's setting is pending.
+      - This clone maps the PR refs. A dry run showed that a pruning fetch
+        without the mapping deletes all 8; with it, a real pruning fetch
+        keeps all 8. The likely pruner is GitHub Desktop.
+      - `agents/records.md`, PROCESS and `check_citations.py`'s hint now
+        give the once-per-clone mapping, not a one-off fetch.
+      - The required checks needed aggregators that cannot pass by being
+        skipped. CI gains `CI complete` over its six jobs; Release's
+        `Verify the complete matrix` now always runs and fails unless
+        every build succeeded.
+      - The step closes once the maintainer requires both checks on
+        `master`, and this branch's PR shows them green.
     - [ ] **A.10.4** `[I1]` Release and CI checks tightened
       (D-65, D-29, D-27, D-57) `release_check.py` also compares the released
       baseline's fingerprint. The Windows release cells pin and print the
@@ -1952,7 +1964,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.10.3 | READY_FOR_IMPLEMENTATION | M | PR refspec and required checks |
+| A.10.3 | IMPLEMENTED | M | Refspec mapped and aggregators added; maintainer to require the two checks |
 | A.10.4 | READY_FOR_IMPLEMENTATION | I1 | Release and CI checks |
 | A.10.5 | READY_FOR_IMPLEMENTATION | I1 | Ledger index dispositions |
 | A.10.6 | READY_FOR_IMPLEMENTATION | M | Tools index and comment numbers |
