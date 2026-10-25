@@ -116,6 +116,12 @@ line names where it lives.
   (`src/move.h`), so any 16-bit value decodes in-bounds.
 - Detection strength against a genuinely different position is the plain 16-bit
   partial-key collision, 1/65536.
+- The stored static eval is the evaluation **without the rule-50 damping**
+  (`Evaluator::evaluate_undamped`, `src/eval.h`), because the key has no
+  halfmove clock. The default kernel (`src/search_kernel_core.cpp`) damps
+  it after the read, at the reading node's clock; `evaluate()` is the
+  damped value for every other caller. The legacy kernel still stores the
+  damped value.
 - An empty slot is `(data 0, key16 0)`. The `flag_age` check is what rejects it
   when `want == 0`. Preserve that.
 - **Coherence must not be bought with throughput.** Any future scheme is

@@ -487,6 +487,8 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S27](experiments/BAS-S27.md) — direction reads of the head against 1.10.2 at 10+0.1, 4T and with tablebases — COMPLETE: ltc +241.4, 4t +237.6, tb +221.9; all pass
 
+- [BAS-S28](experiments/BAS-S28.md) — A.11.1: rule-50 damping out of the TT static eval, `[-5,5]` — REGISTERED
+
 | ID | Title | Disposition |
 |---|---|---|
 | [BAS-S17](experiments/BAS-S17.md) | Razoring depth reach in Elo (B.0.1, maintainer). | +2.4 ± 9.9; interval holds 0, the cluster decides the cap |

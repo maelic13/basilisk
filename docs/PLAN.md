@@ -1107,6 +1107,19 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       once after the TT read. Test: an eval stored at clock 0 and read at
       clock 80 is served as a fresh evaluation would serve it. Moves the
       fingerprint; it precedes any fit and optimism (B.5).
+      - Implemented 2026-10-25: `Evaluator::evaluate_undamped` is the eval
+        without the clock, `evaluate()` damps it for every other caller,
+        and the default kernel stores the undamped value and damps it after
+        the read in negamax and qsearch. The legacy kernel is untouched.
+      - The new `test_search` sections plant a clock-0 entry for a
+        capture-free child at clock 81: the old kernel serves it undamped
+        (root -748 against a fresh -443), the repair serves -443.
+      - Qualified 2026-10-25 on `2c0cc76`: `bench 13` 9,260,429 (from
+        8,437,148, +9.8%); the legacy arm 15,887,213, unchanged; CTest ON
+        23/23 and OFF 20/20 in Release. The fingerprint record moves only
+        on the gate's verdict.
+      - It changes play, so it owes the repair gate: BAS-S28, `[-5,5]`,
+        launcher `tools/run_a111_gate.ps1`, maintainer-run.
     - [ ] **A.11.2** `[I1]` Singular search: lone excluded move returns alpha
       (B-4) When the singular search excludes a node's only legal move,
       `searched == 0` returns `in_check ? -(MATE_SCORE - ply) : 0`
@@ -2066,7 +2079,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.11.1 | READY_FOR_IMPLEMENTATION | I1 | Rule-50 damping out of the TT eval |
+| A.11.1 | GAME_GATE | I1 | Rule-50 damping out of the TT eval; gate BAS-S28 prepared |
 | A.11.2 | READY_FOR_IMPLEMENTATION | I1 | Lone excluded move returns alpha |
 | A.11.3 | READY_FOR_IMPLEMENTATION | I1 | Zero own clock bounded |
 | A.11.4 | READY_FOR_IMPLEMENTATION | I1 | Upper-case move text |
