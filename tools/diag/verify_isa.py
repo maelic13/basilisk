@@ -12,10 +12,19 @@ from collections import Counter
 from pathlib import Path
 
 
+# x86 objdump prints the bytes in pairs; AArch64 prints one 32-bit word.
 INSTRUCTION = re.compile(
-    r"^\s*[0-9a-f]+:\s+(?:[0-9a-f]{2}\s+)+([a-z][a-z0-9.]*)\b",
+    r"^\s*[0-9a-f]+:\s+(?:(?:[0-9a-f]{2}\s+)+|[0-9a-f]{8}\s+)([a-z][a-z0-9.]*)\b",
     re.IGNORECASE,
 )
+# The ARM64 assets target baseline ARMv8 with NEON. These extensions are not
+# guaranteed there, so none of them may appear.
+ARM64_FORBIDDEN = {
+    "sve": r"ptrues?|whilel[eost]|ptest|cnt[bhwd]|inc[bhwd]|dec[bhwd]|ld1[bhwd]|st1[bhwd]|ld1r[bhwd]",
+    "dotprod": r"[su]dot|usdot|sudot",
+    "aes": r"aes(?:e|d|mc|imc)",
+    "sha": r"sha(?:1[chmp]|1su[01]|256h2?|256su[01]|512h2?|512su[01])",
+}
 AVX2_MNEMONICS = {
     "vextracti128",
     "vinserti128",
@@ -54,6 +63,18 @@ def family_count(counts: Counter[str], pattern: str) -> int:
 
 
 def verify_binary(tier: str, counts: Counter[str]) -> tuple[dict[str, int], list[str]]:
+    if tier == "arm64":
+        observed = {"prfm": family_count(counts, r"prfm")}
+        observed.update({name: family_count(counts, pattern) for name, pattern in ARM64_FORBIDDEN.items()})
+        errors = []
+        if not observed["prfm"]:
+            # The transposition table's prefetch compiles to prfm; without it the
+            # hint is silently gone, which cost Rarog three releases of speed.
+            errors.append("ARM64 tier contains no prfm instruction: the TT prefetch is missing")
+        for family in ARM64_FORBIDDEN:
+            if observed[family]:
+                errors.append(f"ARM64 tier contains forbidden {family} instructions")
+        return observed, errors
     observed = {
         "popcnt": family_count(counts, r"popcnt[qlw]?"),
         "pext": family_count(counts, r"pext[qlwd]?"),
@@ -102,7 +123,7 @@ def verify_launcher(tier: str, text: str) -> list[str]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--tier", required=True, choices=("portable", "avx2", "pext"))
+    parser.add_argument("--tier", required=True, choices=("portable", "avx2", "pext", "arm64"))
     parser.add_argument("--binary", required=True, type=Path)
     parser.add_argument("--launcher-object", type=Path)
     parser.add_argument("--objdump", help="llvm-objdump executable")
@@ -127,7 +148,7 @@ def main() -> int:
         if args.launcher_object is not None:
             launcher_text = disassemble(objdump, args.launcher_object, relocations=True)
             errors.extend(verify_launcher(args.tier, launcher_text))
-        elif args.tier != "portable":
+        elif args.tier not in ("portable", "arm64"):
             errors.append("specialized tiers require --launcher-object")
     except RuntimeError as error:
         print(f"ERROR: {error}", file=sys.stderr)
