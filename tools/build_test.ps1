@@ -186,6 +186,17 @@ try {
     $compilerPath = if ($compilerMatch) { $compilerMatch.Matches[0].Groups[1].Value } else { '' }
     if (-not $compilerPath) { throw 'Configured C++ compiler is missing from CMakeCache.txt.' }
     $compiler = (& $compilerPath --version 2>&1 | Select-Object -First 1).Trim()
+    # Releases build with the LLVM major in the pin file; a local build on
+    # another is not a measurement of the compiler that ships.
+    $pinFile = Join-Path $repoRoot '.github\windows-clang-version'
+    if ($isWindowsHost -and (Test-Path -LiteralPath $pinFile)) {
+        $pinnedMajor = (Get-Content -LiteralPath $pinFile -Raw).Trim()
+        if ($compiler -notmatch "clang version $([regex]::Escape($pinnedMajor))\.") {
+            Write-Warning ("LOCAL COMPILER DRIFT - this build used '$compiler', but releases build with LLVM " +
+                "$pinnedMajor (.github/windows-clang-version). Measure on the pinned major, or move the pin " +
+                'with a pooled NPS read (agents/measurement.md).')
+        }
+    }
     $binary = Get-Item -LiteralPath $dest
     $binarySha = (Get-FileHash -LiteralPath $dest -Algorithm SHA256).Hash
     $manifest = [IO.Path]::ChangeExtension($dest, '.manifest.txt')

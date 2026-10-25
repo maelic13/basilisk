@@ -137,9 +137,10 @@ jobs:
             ${{ matrix.mingw_pkg_prefix }}-cmake
             ${{ matrix.mingw_pkg_prefix }}-ninja
 
-      # The Windows compiler is pinned: .github/windows-clang-version names the
-      # clang every measurement uses, and a cell on any other version fails, so
-      # a compiler step is read for speed before it ships (agents/measurement.md).
+      # The Windows compiler's LLVM major is pinned: .github/windows-clang-version
+      # names the major every measurement uses, and a cell on another fails, so a
+      # major step is read for speed before it ships (agents/measurement.md).
+      # Patch releases pass and are printed here.
       - name: Check the pinned Clang (Windows)
         if: runner.os == 'Windows'
         shell: msys2 {0}
@@ -149,8 +150,8 @@ jobs:
           echo "$got"
           llvm-profdata --version | head -n 2
           case "$got" in
-            *"clang version $want "*) ;;
-            *) echo "FAIL: clang is not the pinned $want (.github/windows-clang-version)"; exit 1 ;;
+            *"clang version $want."*) ;;
+            *) echo "FAIL: clang is not LLVM $want, the pinned major (.github/windows-clang-version)"; exit 1 ;;
           esac
 
       # macOS uses the preinstalled AppleClang + libc++ (libc++'s <expected> is
