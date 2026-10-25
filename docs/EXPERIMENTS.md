@@ -489,6 +489,8 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S28](experiments/BAS-S28.md) — A.11.1: rule-50 damping out of the TT static eval, `[-5,5]` — cap, +1.5 ± 4.8; repair kept
 
+- [BAS-S29](experiments/BAS-S29.md) — A.11.2: a lone excluded move fails the singular search by one, `[-5,5]` — REGISTERED
+
 | ID | Title | Disposition |
 |---|---|---|
 | [BAS-S17](experiments/BAS-S17.md) | Razoring depth reach in Elo (B.0.1, maintainer). | +2.4 ± 9.9; interval holds 0, the cluster decides the cap |
