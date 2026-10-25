@@ -281,6 +281,63 @@ def validate_ledger(index: Path, entries: Path) -> int:
     return len(files)
 
 
+# An index line and its entry agree on whether the experiment has a result.
+# Free-text dispositions cannot be compared word for word, but their state can:
+# a verdict word anywhere means closed, and a text that opens with a
+# registration word and has no verdict is open.
+CLOSED_STATE = re.compile(
+    r"\b(VOID|COMPLETED?|ACCEPTED|REJECTED|PASSED|FAILED|NO_CHANGE|NOT_WORTH_PURSUING|"
+    r"STOPPED|WITHDRAWN|CLOSED|SUPERSEDED|H0|H1)\b", re.IGNORECASE)
+OPEN_STATE = re.compile(r"^\W*(registered|prepared|not (?:yet )?run|maintainer-run|pending)\b",
+                        re.IGNORECASE)
+ENTRY_DISPOSITION_LINE = re.compile(r"^\s*-\s+\**Disposition\**:?\**\s*(.+)$", re.MULTILINE)
+ENTRY_DISPOSITION_FIELD = re.compile(
+    r"^\|\s*(?:Disposition|Result / disposition|Result)\s*\|\s*(.+?)\s*\|\s*$", re.MULTILINE)
+
+
+def disposition_state(text: str) -> str | None:
+    if CLOSED_STATE.search(text):
+        return "closed"
+    if OPEN_STATE.search(text):
+        return "open"
+    return None
+
+
+def validate_dispositions(index: Path, entries: Path) -> int:
+    """Each single-part entry and its index line agree on open or closed;
+    returns the number compared. An entry with no disposition field, or a
+    text that states neither, is not compared."""
+    rows: dict[str, list[str]] = {}
+    for line in index.read_text(encoding="utf-8").splitlines():
+        for key in LEDGER_LINK.findall(line):
+            if line.startswith("|"):
+                text = [cell.strip() for cell in line.strip().strip("|").split("|")][-1]
+            else:
+                text = line.rsplit(" — ", 1)[-1].strip()
+            rows.setdefault(key, []).append(text)
+    compared = 0
+    disagreeing = []
+    for path in sorted(entries.glob("*.md")):
+        if len(rows.get(path.stem, [])) != 1:
+            continue
+        body = path.read_text(encoding="utf-8")
+        lines = ENTRY_DISPOSITION_LINE.findall(body)
+        fields = ENTRY_DISPOSITION_FIELD.findall(body)
+        entry_text = lines[-1] if lines else (fields[-1] if fields else None)
+        if entry_text is None:
+            continue
+        entry_state, index_state = disposition_state(entry_text), disposition_state(rows[path.stem][0])
+        if entry_state is None or index_state is None:
+            continue
+        compared += 1
+        if entry_state != index_state:
+            disagreeing.append(f"{path.stem} (index {index_state}, entry {entry_state})")
+    if disagreeing:
+        raise ValueError(f"{index.name} disagrees with its entries on whether these have a result: "
+                         + ", ".join(disagreeing))
+    return compared
+
+
 def validate_local_links(paths: list[Path]) -> None:
     for path in paths:
         for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
@@ -548,6 +605,26 @@ def self_test() -> None:
         (entries / "BAS-E98.md").write_text("# BAS-E98\n", encoding="utf-8")
         validate_ledger(index, entries)
 
+        # Dispositions: an index line still "not yet run" for an entry with a
+        # verdict is stale, in either form of entry; prose that merely uses an
+        # open word is not a state.
+        def disposition_case(row: str, entry: str) -> None:
+            index.write_text(f"- [BAS-E98](experiments/BAS-E98.md) — one part — {row}\n", encoding="utf-8")
+            (entries / "BAS-E98.md").write_text(f"# BAS-E98\n\n{entry}\n", encoding="utf-8")
+
+        disposition_case("REJECTED", "| Disposition | **REJECTED** at the gate. |")
+        if validate_dispositions(index, entries) != 1:
+            raise AssertionError("an agreeing disposition was not compared")
+        disposition_case("Prepared, not yet run.", "| Result / disposition | **Prepared.** Later: **VOID**. |")
+        expect_failure("an open index line for a closed entry", lambda: validate_dispositions(index, entries))
+        disposition_case("COMPLETE: +3", "- Disposition: registered; maintainer-run.")
+        expect_failure("a closed index line for an open entry", lambda: validate_dispositions(index, entries))
+        disposition_case("302-88-10", "| Result | 302-88-10, running fewer nodes. |")
+        if validate_dispositions(index, entries) != 0:
+            raise AssertionError("prose with an open word was read as a state")
+        index.write_text(good_index, encoding="utf-8")
+        (entries / "BAS-E98.md").write_text("# BAS-E98\n", encoding="utf-8")
+
         (root / "doc.md").write_text("[missing](nope.md)\n", encoding="utf-8")
         expect_failure("broken local link", lambda: validate_local_links([root / "doc.md"]))
 
@@ -678,6 +755,7 @@ def main() -> int:
         if missing:
             raise ValueError("documents the checker reads are missing: " + ", ".join(missing))
         ledger_entries = validate_ledger(docs / "EXPERIMENTS.md", docs / "experiments")
+        validate_dispositions(docs / "EXPERIMENTS.md", docs / "experiments")
         process_docs += sorted((docs / "experiments").glob("*.md"))
         validate_state_fields(process_docs)
         validate_local_links(process_docs)
