@@ -945,7 +945,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         string, and PR #7 and PR #8 were roadmap and tooling only.
       - The rule, with what counts as user-visible, is in
         `agents/records.md`.
-    - [ ] **A.10.3** `[M]` PR refspec and required checks on master
+    - [x] **A.10.3** `[M]` PR refspec and required checks on master
       (D-59, D-58) Configure `remote.origin.fetch` with
       `+refs/pull/*/head:refs/remotes/origin/pr/*`, so a pruning fetch keeps
       the PR refs citations need (they vanished on 2026-10-23), and record it
@@ -964,6 +964,10 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       - The step closes once the maintainer requires both checks on
         `master`, verified through the API. This branch's PR is their
         first live run, and A.10's closing check.
+      — CLOSED 2026-10-25. Verified through the API: `master` requires
+        `CI complete` and `Verify the complete matrix`, and branches up to
+        date with it. Administrators included, force pushes and deletions
+        blocked, squash merges only, as before.
     - [ ] **A.10.4** `[I1]` Release and CI checks tightened
       (D-65, D-29, D-27, D-57) `release_check.py` also compares the released
       baseline's fingerprint. The Windows release cells pin and print the
@@ -1965,7 +1969,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.10.3 | IMPLEMENTED | M | Refspec mapped and aggregators added; maintainer to require the two checks |
 | A.10.4 | READY_FOR_IMPLEMENTATION | I1 | Release and CI checks |
 | A.10.5 | READY_FOR_IMPLEMENTATION | I1 | Ledger index dispositions |
 | A.10.6 | READY_FOR_IMPLEMENTATION | M | Tools index and comment numbers |
