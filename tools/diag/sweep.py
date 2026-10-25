@@ -37,7 +37,7 @@ def measure(engine, fens, nodes, options):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--engine", required=True)
-    ap.add_argument("--suite", default=str(REPO / "tools" / "diag" / "suite_v1.epd"))
+    ap.add_argument("--suite", default=str(REPO / "tools" / "diag" / "suite_v2.epd"))
     ap.add_argument("--nodes", type=int, default=300000)
     # HASH IS PART OF THE MEASUREMENT. Imported from Manta MAN-S23, which found
     # its own branching baseline had spliced 16 MiB and 64 MiB runs: the same

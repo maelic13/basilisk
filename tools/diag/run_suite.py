@@ -352,7 +352,7 @@ def main():
                     help="5.1 oracle exe; enables the differential pass")
     ap.add_argument("--oracle-hce", default="true",
                     help="'true' = Basilisk HCE under Stockfish search (isolates search)")
-    ap.add_argument("--suite", default=str(REPO / "tools" / "diag" / "suite_v1.epd"))
+    ap.add_argument("--suite", default=str(REPO / "tools" / "diag" / "suite_v2.epd"))
     ap.add_argument("--depth", type=int, default=14)
     ap.add_argument("--nodes", type=int, default=300000)
     ap.add_argument("--stride", type=int, default=1,

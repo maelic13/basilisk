@@ -208,7 +208,7 @@ def main() -> int:
     parser.add_argument("--engine", action="append", required=True,
                         help="LABEL=PATH[|Name=Value...] (repeatable)")
     parser.add_argument("--positions", type=pathlib.Path,
-                        default=repo / "tools" / "diag" / "suite_v1.epd")
+                        default=repo / "tools" / "diag" / "suite_v2.epd")
     parser.add_argument("--limit", type=int, default=8)
     parser.add_argument("--depth", type=int, default=9)
     parser.add_argument("--hash", type=int, default=64)
