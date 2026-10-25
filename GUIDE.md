@@ -10,7 +10,7 @@ in `docs/PROCESS.md`; where the engine stands is PLAN §1.
 
 | Item | Value |
 |---|---|
-| Released baseline | **1.10.2** on `master`, tagged `v1.10.2` (2026-10-08) |
+| Released baseline | **1.10.2** on `master`, tagged `v1.10.2` (2026-10-08), `bench 13` 14,978,465 |
 | Bench fingerprint | **8,437,148** (`bench 13`, since B.10's PST repair; 11,099,210 at B.2.4; 14,978,465 for 1.10.0 to 1.10.2) |
 | Active experiment | None |
 | Long job | None |
@@ -34,7 +34,7 @@ generations change. These are maintainer judgments, not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **A.10.4** `[I1]` Release and CI checks tightened — Claude Sonnet 5 — Medium
+**Next step:** **A.10.5** `[I1]` Ledger index dispositions kept in step — Claude Sonnet 5 — Medium
 
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
@@ -75,7 +75,7 @@ generations change. These are maintainer judgments, not measured rankings.
     - [x] **A.10.1** `[M]` Land dev and B.10 on master by squash PRs (ANY TIME) — before B.3
     - [x] **A.10.2** `[M]` CHANGELOG Unreleased caught up and kept
     - [x] **A.10.3** `[M]` PR refspec and required checks on master
-    - [ ] **A.10.4** `[I1]` Release and CI checks tightened
+    - [x] **A.10.4** `[I1]` Release and CI checks tightened
     - [ ] **A.10.5** `[I1]` Ledger index dispositions kept in step
     - [ ] **A.10.6** `[M]` Tools index and retired numbers in comments
     - [ ] **A.10.7** `[I1]` Dev builds name their commit

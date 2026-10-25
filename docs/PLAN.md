@@ -968,7 +968,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         `CI complete` and `Verify the complete matrix`, and branches up to
         date with it. Administrators included, force pushes and deletions
         blocked, squash merges only, as before.
-    - [ ] **A.10.4** `[I1]` Release and CI checks tightened
+    - [x] **A.10.4** `[I1]` Release and CI checks tightened
       (D-65, D-29, D-27, D-57) `release_check.py` also compares the released
       baseline's fingerprint. The Windows release cells pin and print the
       MSYS2 clang version: they install whatever MSYS2 ships, which is how
@@ -976,6 +976,32 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       with a required `prfm` class (`verify_isa.py` checks x86 tiers only).
       `ctest -R` filters in CI fail when they match nothing
       (`--no-tests=error`).
+      — CLOSED 2026-10-25. Each check was proven live on known-bad input.
+      - **Fingerprint (D-65).** GUIDE's *Released baseline* row states its
+        `bench 13` count, and `release_check.py check` refuses a release
+        whose row differs from the declared fingerprint. The two new test
+        cases fail on the old checker.
+      - **Compiler pin (D-29).** CI and Release had built Windows assets with
+        clang 22.1.8, from the runner image's frozen MSYS2 database, while
+        every measurement since 2026-10-23 used 23.1.3. By maintainer
+        decision the pin is 23.1.3, in `.github/windows-clang-version`.
+        Every Windows cell refreshes MSYS2, prints its compiler and fails
+        on any other clang. The check passed on 23.1.3 and failed on a 22.1.8
+        pin with this machine's clang.
+      - **ARM64 contract (D-27).** `verify_isa.py --tier arm64` requires
+        `prfm`, the TT prefetch, and forbids SVE, dot-product, AES and SHA.
+        It reads AArch64's one-word objdump format, which the old parser
+        skipped entirely; x86 counts are unchanged on the head's PEXT
+        asset.
+        - Freestanding objects for Linux and Windows ARM64 pass.
+        - No-prefetch, SVE, dot-product and AES objects fail.
+        - The contract runs on every ARM64 cell of CI and Release.
+        - `test_verify_isa.py` runs in the documents job.
+      - **Empty filters (D-57).** The three `-R` filters and the
+        sanitizer's `-LE strength` run pass `--no-tests=error`. Locally, a
+        filter matching nothing exits 8 with the flag and 0 without it.
+      - **Not yet run live.** The workflow steps first run on this branch's
+        PR.
     - [ ] **A.10.5** `[I1]` Ledger index dispositions kept in step
       (D-61) `docs/EXPERIMENTS.md` lists BAS-M10 and BAS-M11 as not run while
       their entries read VOID and COMPLETE; the checker compares IDs, not
@@ -1969,7 +1995,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.10.4 | READY_FOR_IMPLEMENTATION | I1 | Release and CI checks |
 | A.10.5 | READY_FOR_IMPLEMENTATION | I1 | Ledger index dispositions |
 | A.10.6 | READY_FOR_IMPLEMENTATION | M | Tools index and comment numbers |
 | A.10.7 | RESEARCH | I1 | Dev-build version names; shape decided by the maintainer |

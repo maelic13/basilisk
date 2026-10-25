@@ -377,6 +377,15 @@ so a registered `[0,3]` gate passes `-Elo1 3`**. `-Mode simplify` is `[-5,0]`.
   options; `DIAGNOSTIC=ON` exposes diagnostics without tunable constants;
   the two flavors are mutually exclusive. `TEXEL=ON` builds the Texel target
   and is never measured for strength.
+- **The Windows compiler is pinned** in `.github/windows-clang-version`.
+  - Every Windows cell of CI and Release refreshes MSYS2, prints its clang
+    and `llvm-profdata` versions, and fails on any clang but the pinned
+    one. Shipped assets therefore come from the compiler measurements use.
+  - When MSYS2 moves on, CI fails until the pin moves. Moving it is a
+    commit that owes a pooled NPS read under `agents/measurement.md`'s
+    compiler rule, as BAS-P19 read 22.1.8 to 23.1.3.
+  - Linux builds with Ubuntu's `clang-19`, macOS with the runner's
+    AppleClang.
 - CTest runs two kinds of test. The correctness suite (`ctest -LE
   strength`) checks rules, invariants, protocol and endgame knowledge in a few
   seconds and is what an edit-compile loop and the sanitizer run use. The
@@ -673,9 +682,10 @@ one. There are no permanent release branches.
    sources read `X.Y.Z`: `project(basilisk VERSION X.Y.Z` in
    `CMakeLists.txt` and `engineVersion` in `src/constants.h`. CHANGELOG's
    `[Unreleased]` becomes `## [X.Y.Z] - YYYY-MM-DD`, with a fresh empty
-   `[Unreleased]` above it. GUIDE's *Released baseline* row names **X.Y.Z**,
-   and its *Bench fingerprint* row holds the release's `bench 13` count,
-   restated where the roadmap checker requires. `python
+   `[Unreleased]` above it. GUIDE's *Released baseline* row names **X.Y.Z**
+   and states its `bench 13` count, and the *Bench fingerprint* row holds the
+   same count, restated where the roadmap checker requires. The release
+   check refuses a release whose two counts differ. `python
    tools/diag/release_check.py check vX.Y.Z --base HEAD` passes.
 2. **The rehearsal is that PR.** Its `CI` run and its `Release` candidate
    run must both be green: the candidate builds, benches and fingerprints all
