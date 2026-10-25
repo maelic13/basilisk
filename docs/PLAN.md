@@ -782,7 +782,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       The PR's CI and Release runs and the tag run complete A.8.2's and
       A.8.6's owed checks.
 
-- [ ] **A.9** Harness and measurement instruments
+- [x] **A.9** Harness and measurement instruments
   Added 2026-10-24. Evidence: `analysis/rarog_audit_2026-10-24.md`, appendix
   D.
     - [x] **A.9.1** `[I1]` Colosseum re-pinned to 0.4.0
@@ -882,13 +882,38 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       - The launcher's first run stopped before any reading on a pipeline
         bug, fixed in `5b6ea69`. Its pools were reused, and no reading was
         lost.
-    - [ ] **A.9.5** `[I1]` Profiler with inline attribution
+    - [x] **A.9.5** `[I1]` Profiler with inline attribution
       (D-13, D-75) B.7.2 and C.12 both require a profile, and Basilisk has no
       profiler. Rarog's reads per-region shares from ETW or a user-mode
       sampler with full inline chains over frozen cohorts, and validates its
       schema from the data: xperf with `-symbols` once silently charged
       inlined board work to `negamax`. The Clang/MinGW toolchain needs its own
       symbol path.
+      — CLOSED 2026-10-25.
+      - The research question was the symbol path, and it settled on two
+        facts measured here:
+        - `-gline-tables-only` leaves `.text`, `.rdata` and `.data`
+          byte-identical (non-PGO, bench 8,437,148 both ways);
+        - llvm-symbolizer reads full inline chains from MinGW's DWARF.
+      - `PROFILE_SYMBOLS` (off by default; byte-identical when off) and
+        `build_test.ps1 -Flavor Profile` build the binary. Its PGO build
+        benches 8,437,148 and carries 23,871 inline records.
+      - `tools/profile.ps1` is a user-mode sampler that needs no
+        administrator rights. `tools/diag/profile_regions.py` charges the
+        innermost engine frame by source file. Its tests pass 10/10.
+      - On the head's `bench 13` × 5 (about 12,000 samples): board 23.5%,
+        eval 21.4%, ordering 20.8%, search 16.7%, TT 6.8%, attacks 6.7%,
+        system 4.1%. A repeat agrees in every region within its interval.
+      - Charging by function instead (the trap) reads search 38.4%,
+        board 12.8%, attacks 0.0% and TT 0.3%.
+      - Refusals proven on real inputs: a symbolization without inline
+        chains (exit 2), and a Release binary without line tables.
+      - The sampler's first form read at 19 Hz, because Windows ignores a
+        background process's timer request. Pollers' wake-ups also
+        inflated `system` to 67%. A spin clock and a busy-thread filter
+        fixed both before any recorded profile.
+      - Cohorts beyond `bench 13` belong to B.7.2 and C.12, which define
+        them. An EPD cohort run shows the path works.
 - [ ] **A.10** Delivery and repository repairs
   Added 2026-10-24. The delivery machinery matches Rarog's (CI on pull
   requests, tag-driven release, one fingerprint across the assets); these
@@ -1917,7 +1942,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.9.5 | RESEARCH | I1 | Profiler |
 | A.10.2 | READY_FOR_IMPLEMENTATION | M | CHANGELOG catch-up and rule |
 | A.10.3 | READY_FOR_IMPLEMENTATION | M | PR refspec and required checks |
 | A.10.4 | READY_FOR_IMPLEMENTATION | I1 | Release and CI checks |

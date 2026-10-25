@@ -422,6 +422,25 @@ so a registered `[0,3]` gate passes `-Elo1 3`**. `-Mode simplify` is `[-5,0]`.
   - **The null** is two independent pools of one source (BAS-P18).
   - `tools/nps_ab.ps1` is kept only to compare with earlier rows. Its
     bootstrap resamples readings, not builds, so it is not this interval.
+- **Profiling:** `tools/profile.ps1` samples a `build_test.ps1 -Flavor
+  Profile` engine, which is Release plus line tables with inline records
+  and byte-identical code. It needs no administrator rights.
+  - **Cohorts.** `bench 13`, or a frozen EPD file searched to `-Nodes`.
+  - **Sampling.** About once a millisecond, every thread that ran for at
+    least half as long as the busiest one is suspended and its instruction
+    pointer read.
+  - **Attribution.** `tools/diag/profile_regions.py` charges each sample to
+    the source file of its innermost engine frame, through
+    llvm-symbolizer's inline chains. The region map is
+    `tools/diag/profile_regions.json`, and its test fails on any unmapped
+    file in `src/`.
+  - **Refusals.** The profile is refused when under 30% of samples carry an
+    inline chain, when under 90% resolve to an engine file, or when an
+    engine file is unmapped. `profile.ps1` refuses a stale, dirty or
+    non-Profile binary.
+  - **Never charge by function.** On the head's bench, charging each
+    sample to the function that contains it moved about half of board
+    work, and all of attacks and TT, into search (A.9.5).
 - **Converting NPS to Elo:** about 2 Elo per 1% NPS at `3+0.03` (BAS-P01).
   - Rarog measured it holding to +22%: RAR-S98 read +18.4% NPS as +35.5 ±
     9.0, and RAR-S99 read +22.47% as +42.3 ± 9.5. That is about 145 Elo per
