@@ -87,7 +87,7 @@ generations change. These are maintainer judgments, not measured rankings.
     - [ ] **A.11.5** `[I1]` Fatal errors from every thread reach stdout
     - [ ] **A.11.6** `[I1]` Frontier nodes counted once
     - [ ] **A.11.7** `[I1]` Evaluation colour symmetry: tie-break and sweep
-    - [ ] **A.11.8** `[I1]` Last info line names bestmove after a stop
+    - [ ] **A.11.8** `[I1]` Info lines: bestmove after a stop, mate scores as cp
     - [ ] **A.11.9** `[R2]` Override boundaries never reward shedding material
 - [ ] **A.12** `[M]` Roadmap rules from the audit
 

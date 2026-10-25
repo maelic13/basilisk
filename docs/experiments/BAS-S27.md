@@ -155,7 +155,7 @@
   sometimes report a mate-range score as `cp`, for example `cp -31742`
   (more than 128 plies to mate). They also report `cp` values in the
   tablebase band in won endings. 1.10.2 does it too, so
-  it predates B.2. It is display only, and it is reported to the
-  maintainer for an owner.
+  it predates B.2. It is display only so far, and PLAN A.11.8 owns it
+  (maintainer decision 2026-10-25).
 - Disposition: COMPLETE. All three pass: `ltc` +241.4, `4t` +237.6, `tb`
   +221.9; zero faults.

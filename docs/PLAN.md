@@ -982,7 +982,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       found twelve asymmetric evaluations (its C.13.1, among them a
       connected-rooks bug). Add a sweep over a versioned sample with promoted
       and odd material.
-    - [ ] **A.11.8** `[I1]` Last info line names bestmove after a stop
+    - [ ] **A.11.8** `[I1]` Info lines: bestmove after a stop, mate scores as cp
       (A-26, A-31) After 3 s the aspiration loop prints a `lowerbound` line
       for a new move that is failing high (`search_worker.cpp:450-459`); a
       hard-limit or GUI stop then discards the iteration (`:515`), `bestmove`
@@ -992,6 +992,20 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       move its last line named and prints the result's line when they differ.
       At a tablebase root the bound line also prints the raw bound, not the
       tablebase score. Output only; exact bench.
+      Mate scores printed as `cp` (BAS-S27, maintainer decision 2026-10-25):
+      - Without tablebases, both 1.10.2 and the head sometimes print a
+        mate-range score as `cp`, for example `cp -31742`, which is beyond
+        the 128-ply mate window.
+      - Both also print `cp` values in the tablebase band (`cp 20000 -
+        plies`) in won endings: 111 move scores in 64 of the `ltc` read's
+        games, all decisive.
+      - The cause is not located yet. Find which values reach the UCI score
+        unconverted.
+      - Test: a score is `mate n` exactly when it is a mate, and a `cp` value
+        is in the tablebase band only when a tablebase or tablebase-backed
+        entry produced it.
+      - If the cause is in the search rather than the display, the leaf
+        owes bench accounting and A.11's repair SPRT.
     - [ ] **A.11.9** `[R2]` Override boundaries never reward shedding material
       (C-9, C-131) The KBNK and KXK overrides (`kbnk_score` base 15,600;
       `kxk_score = KNOWN_WIN + ...`, `eval.cpp:306`, `:520`) apply only
@@ -1859,7 +1873,7 @@ leaf's tag. Later phases carry only a class until they open.
 | A.11.5 | READY_FOR_IMPLEMENTATION | I1 | Fatal errors on stdout from every thread |
 | A.11.6 | READY_FOR_IMPLEMENTATION | I1 | Frontier nodes counted once |
 | A.11.7 | READY_FOR_IMPLEMENTATION | I1 | Colour symmetry tie-break and sweep |
-| A.11.8 | READY_FOR_IMPLEMENTATION | I1 | Last info line after a stop |
+| A.11.8 | READY_FOR_IMPLEMENTATION | I1 | Last info line after a stop; mate scores printed as cp |
 | A.11.9 | RESEARCH | R2 | Override boundaries; research first |
 | A.12 | RESEARCH | M | Roadmap rules for the maintainer to decide |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |
