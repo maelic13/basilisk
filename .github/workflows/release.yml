@@ -348,8 +348,19 @@ jobs:
   collect:
     name: Verify the complete matrix
     needs: [prepare, build]
+    # The required check for this workflow: it always runs and fails unless
+    # every build succeeded, because a job skipped after a failed dependency
+    # reports as passing.
+    if: ${{ always() }}
     runs-on: ubuntu-24.04
     steps:
+      - name: Every build succeeded
+        env:
+          RESULTS: ${{ toJSON(needs.*.result) }}
+        run: |
+          echo "$RESULTS"
+          echo "$RESULTS"
+          exit ${{ (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped')) && 1 || 0 }}
       - name: Download the assets
         # v7, not v8 — same reasoning as ci.yml (v8 no longer auto-unzips).
         uses: actions/download-artifact@v7

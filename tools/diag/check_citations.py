@@ -10,9 +10,11 @@ hash -- is declared once in tools/diag/citation_exceptions.tsv with its kind
 and reason, and the check fails on an undeclared unresolved hash or on a
 declaration nothing cites any more.
 
-The pull-request refs are not fetched by default. Fetch them once:
+The pull-request refs are not fetched by default. Map them once per clone,
+so every fetch, a pruning one included, keeps them:
 
-    git fetch origin "+refs/pull/*/head:refs/remotes/origin/pr/*"
+    git config --add remote.origin.fetch "+refs/pull/*/head:refs/remotes/origin/pr/*"
+    git fetch origin
 
 Exit status 0 when every citation resolves or is declared; 1 otherwise.
 """
@@ -80,8 +82,9 @@ def main() -> int:
     pr_refs = subprocess.run(["git", "for-each-ref", "--count=1", "refs/remotes/origin/pr/"],
                              cwd=ROOT, capture_output=True, text=True).stdout.strip()
     if not pr_refs:
-        print("check_citations: no pull-request refs; fetch them first:\n"
-              '  git fetch origin "+refs/pull/*/head:refs/remotes/origin/pr/*"', file=sys.stderr)
+        print("check_citations: no pull-request refs; map them once per clone, then fetch:\n"
+              '  git config --add remote.origin.fetch "+refs/pull/*/head:refs/remotes/origin/pr/*"\n'
+              "  git fetch origin", file=sys.stderr)
         return 1
     cites = cited_hashes(ROOT)
     missing = unresolved(ROOT, sorted(cites))
