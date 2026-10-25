@@ -341,18 +341,21 @@ derivations are in the linked records.
 | SPSA | Curvature sweep; registered surface, blocks and estimator; perturbation proof on every coordinate; fresh PGO bake; independent SPRT |
 | Release | Reproducible PGO assets, correctness matrix, prior-release STC, LTC and 4T games |
 
-## Phase A — Reset: documents, harness, instruments, baselines
+## Phase A — Reset: documents, harness, instruments, baselines (EXTENDED)
 
 **Goal:** put the documents, harness and instruments of the method in place
 on the released 1.10.1 head, and measure the starting point with them. No
 engine behaviour changes in A.1–A.7; A.8, added 2026-10-06, carries repairs
 that do. A.9–A.12, added 2026-10-24 from the Rarog audit
-(`analysis/rarog_audit_2026-10-24.md`), carry the repairs, delivery fixes,
-instruments and rules no other phase owns, most important first. Each is an
-`(ANY TIME)` leaf due before the leaf it names, so the correctness repairs
-land before B.3. Each step is reviewed with the maintainer when it is
-reached; its resolution may be a fix, an improvement or a skip. Rarog's Phase A also cut a release; 1.10.1
-was cut the day before this plan, so Phase A has no release step.
+(`analysis/rarog_audit_2026-10-24.md`), carry the instruments, delivery
+fixes, correctness repairs and rules no other phase owns. They were added
+after B.2 and B.10 closed, so the phase is marked `(EXTENDED)`. They run in
+order, and all of Phase A closes before B.3 opens (maintainer decision
+2026-10-24, which also renumbered them; HISTORY's *Number map* resolves the
+first numbering). Each step is reviewed with the maintainer when it is
+reached; its resolution may be a fix, an improvement or a skip. Rarog's
+Phase A also cut a release; 1.10.1 was cut the day before this plan, so
+Phase A has no release step.
 
 A.1–A.7 closed between 2026-09-28 and 2026-10-06; their text is in
 [`docs/archive/PLAN-closed-2026-10-07.md`](archive/PLAN-closed-2026-10-07.md).
@@ -779,7 +782,190 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       The PR's CI and Release runs and the tag run complete A.8.2's and
       A.8.6's owed checks.
 
-- [ ] **A.9** Correctness repairs from the Rarog audit
+- [x] **A.9** Harness and measurement instruments
+  Added 2026-10-24. Evidence: `analysis/rarog_audit_2026-10-24.md`, appendix
+  D.
+    - [x] **A.9.1** `[I1]` Colosseum re-pinned to 0.4.0
+      (D-36, D-38, C-31) Basilisk pins `colosseum-cli` 0.2.0. Rarog moved to
+      0.3.0 (engine processes kept per slot, the setup position counted for
+      threefold, faster datagen; cross-checked against fastchess, +6.9 ± 9.4
+      against +6.78 ± 9.07) and 0.4.0 (per-engine depth, NPS and hold
+      percentiles, pair Elo with the pentanomial, terminations and faults by
+      engine). Re-pin with a registered cross-check, as Rarog's RAR-M70 was.
+      The wrapper keeps zero tolerance for Basilisk's own faults and reads
+      opponent faults under a rate rule instead of voiding a run (BAS-M10).
+      Before B.3's gate, so B.3 is read on the new runner.
+      — CLOSED 2026-10-24. Maintainer decisions: no cross-check and no null
+      pair are owed (2026-10-14, and 2026-10-24: 0.4.0 is proven in Rarog).
+      - The pin is `cli-v0.4.0` (`9c72539`), Rarog's executable and archive
+        digests. Gauntlets no longer unset `engine-processes`, and the
+        wrapper refuses any resolved value but `per-slot`.
+      - The guard test had been failing on 0.2.0 too: its default arms
+        were no longer staged. It now uses BAS-S27's pair.
+      - Gauntlet faults are read per engine from `colosseum-cli stats`
+        (D-38). A Basilisk build's fault or time loss voids the run, and so
+        does an infrastructure fault. A foreign opponent's faults are read
+        up to 1% of its games, and the runner's cap is 1% of the foreign
+        games. BAS-M10's two Houdini 3 crashes would have been read at the
+        registered 400 games a row.
+      - Guard cases 31/31. A strengthened control fails on a return bug
+        the smoke run found.
+      - An 8-game smoke gauntlet streamed live progress to the console,
+        and a dry run on 0.4.0 accepted the SPSA command and its run file.
+      - The three BAS-S27 dry runs resolve as on 0.2.0, except
+        `engine_processes`.
+    - [x] **A.9.2** `[V]` Direction reads of the head against 1.10.2
+      Added 2026-10-24 by maintainer decision. Every gate since 1.10.2 read
+      `3+0.03` on one thread; the head has never been read at `10+0.1`, at
+      four threads, or with tablebases, and B.2's kernel has its own tablebase
+      probes. Three 1,000-game gauntlets against 1.10.2 rebuilt with the same
+      compiler, registered as BAS-S27 with frozen predictions and a reading
+      rule: each read passes when its 95% interval excludes a loss; a read
+      below its band, or any Basilisk fault, opens a diagnosis before B.3.
+      Maintainer-run, `tools/run_head_reads.ps1 -Read ltc|4t|tb`; B.11's
+      release reads repeat them on the B.9 head.
+      — CLOSED 2026-10-25 (BAS-S27, maintainer-run 2026-10-24). All three
+      reads pass, with zero faults or time losses:
+      - `ltc` +241.4 [+221.9, +262.3];
+      - `4t` +237.6 [+217.4, +259.2];
+      - `tb` +221.9 [+202.4, +242.7], with tablebases live.
+      None is below its band, so no diagnosis opens before B.3. All three
+      came in above their predictions: there was no LTC compression, and
+      thread scaling is intact. B.11's release reads predict accordingly.
+    - [x] **A.9.3** `[M]` Measurement rules from the audit
+      (D-39, D-40, D-41, D-28, D-47) Into `agents/measurement.md` and PROCESS:
+      a stopped SPRT's estimate is a first-crossing estimate, never the effect
+      size, and is never extended or re-scored; about 2 Elo per 1% of speed
+      held to +22% at `3+0.03` (RAR-S98, RAR-S99), replacing PROCESS's "small
+      deltas only"; opponents play their smallest safe overhead (10 ms); a
+      compiler bump owes a pooled NPS read and never falls between an SPRT's
+      arms (rustc 1.98 to 1.99 cost Rarog 1.6% at the same fingerprint); a
+      SQLite database is copied with its `-wal` file.
+      — CLOSED 2026-10-25.
+      - `agents/measurement.md` gained three rules: the first-crossing
+        label and its no-extension rule (D-39), the compiler bump as a
+        pooled speed read never between an SPRT's arms (D-28), and the
+        SQLite copy (D-47).
+      - D-47 was unverified in the audit. `export_tournament_pgn.py` opens
+        the database read-only in place, so it already sees the WAL.
+      - PROCESS gained the speed-to-Elo prior to +22% (D-40) and the 10 ms
+        opponent overhead, which is dormant until E.2's field (D-41).
+      - Under D-28, MSYS2's clang 22.1.8 to 23.1.3 step of 2026-10-23 owes
+        a pooled NPS read, which no record yet carries. A.9.4 registers it
+        as BAS-P19.
+    - [x] **A.9.4** `[I1]` NPS read rebuilt on pooled builds
+      (D-1 to D-4) Rarog's method study (RAR-P32): builds, not cycles, set the
+      limit. Best of three per cycle; four builds an arm; a t-interval on
+      per-build medians; a two-step read (two cycles, accept at +0.9% and
+      close at +0.1%; between them six cycles, +0.5% with the lower bound
+      above 0); a disturbance rule; two independent pools as the null; a pause
+      after fresh builds, which antivirus scanning slows. `nps_ab.ps1`
+      bootstraps readings, which Rarog showed is not the uncertainty.
+      Implemented 2026-10-25, LOCAL_QUALIFIED:
+      - `tools/nps_pool.ps1`, `tools/nps_read.ps1` and
+        `tools/diag/nps_read.py`, as PROCESS *Build, bench and NPS* now
+        states.
+      - `test_nps_read.py` passes 18/18, and each of five mutations of the
+        decision rules fails it. `test_nps_pool.ps1` passes 9/9.
+      - A smoke read of two adopted pools ran step 1 and `-Extend` end to
+        end, and a worktree build of `9c93d15` reproduced its fingerprint.
+      - The leaf closes when BAS-P18, the null, reads zero. BAS-P19, the
+        clang 22 to 23 read A.9.3 owed, runs after it. Both are
+        maintainer-run with `tools/run_a94_nps_reads.ps1 -Read null|clang`.
+      — CLOSED 2026-10-25.
+      - BAS-P18, the null, read −0.19% [−0.66%, +0.27%], NO_CHANGE at step 1.
+        That is inside its prediction, so the instrument is validated and
+        the worktree build path costs nothing visible.
+      - BAS-P19 read clang 23.1.3 at +0.89% [+0.23%, +1.54%] against 22.1.8
+        at identical source: no regression. Rarog's −1.6% prior did not
+        transfer, so A.9.3's owed compiler read is done.
+      - The launcher's first run stopped before any reading on a pipeline
+        bug, fixed in `5b6ea69`. Its pools were reused, and no reading was
+        lost.
+    - [x] **A.9.5** `[I1]` Profiler with inline attribution
+      (D-13, D-75) B.7.2 and C.12 both require a profile, and Basilisk has no
+      profiler. Rarog's reads per-region shares from ETW or a user-mode
+      sampler with full inline chains over frozen cohorts, and validates its
+      schema from the data: xperf with `-symbols` once silently charged
+      inlined board work to `negamax`. The Clang/MinGW toolchain needs its own
+      symbol path.
+      — CLOSED 2026-10-25.
+      - The research question was the symbol path, and it settled on two
+        facts measured here:
+        - `-gline-tables-only` leaves `.text`, `.rdata` and `.data`
+          byte-identical (non-PGO, bench 8,437,148 both ways);
+        - llvm-symbolizer reads full inline chains from MinGW's DWARF.
+      - `PROFILE_SYMBOLS` (off by default; byte-identical when off) and
+        `build_test.ps1 -Flavor Profile` build the binary. Its PGO build
+        benches 8,437,148 and carries 23,871 inline records.
+      - `tools/profile.ps1` is a user-mode sampler that needs no
+        administrator rights. `tools/diag/profile_regions.py` charges the
+        innermost engine frame by source file. Its tests pass 10/10.
+      - On the head's `bench 13` × 5 (about 12,000 samples): board 23.5%,
+        eval 21.4%, ordering 20.8%, search 16.7%, TT 6.8%, attacks 6.7%,
+        system 4.1%. A repeat agrees in every region within its interval.
+      - Charging by function instead (the trap) reads search 38.4%,
+        board 12.8%, attacks 0.0% and TT 0.3%.
+      - Refusals proven on real inputs: a symbolization without inline
+        chains (exit 2), and a Release binary without line tables.
+      - The sampler's first form read at 19 Hz, because Windows ignores a
+        background process's timer request. Pollers' wake-ups also
+        inflated `system` to 67%. A spin clock and a busy-thread filter
+        fixed both before any recorded profile.
+      - Cohorts beyond `bench 13` belong to B.7.2 and C.12, which define
+        them. An EPD cohort run shows the path works.
+- [ ] **A.10** Delivery and repository repairs
+  Added 2026-10-24. The delivery machinery matches Rarog's (CI on pull
+  requests, tag-driven release, one fingerprint across the assets); these
+  steps bring the practice and four checks up to it. Evidence:
+  `analysis/rarog_audit_2026-10-24.md`, appendix D Part 2.
+    - [x] **A.10.1** `[M]` Land dev and B.10 on master by squash PRs (ANY TIME) — before B.3
+      (D-55) PROCESS *Delivery*'s transition said `dev` lands as one squash PR
+      once B.2 closed; it has not (`origin/master` is still 1.10.2), and
+      B.10's branch was cut from `dev`. Land B.2 (`dev`), then B.10, as one
+      squash PR each with the fixed message shape and their results;
+      afterwards new branches start from `master`. PRs, pushes and merges are
+      the maintainer's.
+      — CLOSED 2026-10-24 by the maintainer's merges: B.2 landed as `71a612b`
+      (PR #5) and B.10 as `f4ebe79` (PR #6), one squash commit each, and
+      branches now start from `master`. It closed out of turn, so it keeps
+      its `(ANY TIME)` marker.
+    - [ ] **A.10.2** `[M]` CHANGELOG Unreleased caught up and kept
+      (D-66) `[Unreleased]` is empty although B.2's cluster and B.10's repair
+      were accepted. Write their user-facing entries, and add Rarog's rule to
+      `agents/records.md`: a user-visible change gets its entry in the commit
+      that records it.
+    - [ ] **A.10.3** `[M]` PR refspec and required checks on master
+      (D-59, D-58) Configure `remote.origin.fetch` with
+      `+refs/pull/*/head:refs/remotes/origin/pr/*`, so a pruning fetch keeps
+      the PR refs citations need (they vanished on 2026-10-23), and record it
+      in `agents/records.md`. Make CI and Release required checks on `master`
+      (repository settings, the maintainer's).
+    - [ ] **A.10.4** `[I1]` Release and CI checks tightened
+      (D-65, D-29, D-27, D-57) `release_check.py` also compares the released
+      baseline's fingerprint. The Windows release cells pin and print the
+      MSYS2 clang version: they install whatever MSYS2 ships, which is how
+      clang moved from 22.1.8 to 23.1.3 on 2026-10-23. An ARM64 ISA contract
+      with a required `prfm` class (`verify_isa.py` checks x86 tiers only).
+      `ctest -R` filters in CI fail when they match nothing
+      (`--no-tests=error`).
+    - [ ] **A.10.5** `[I1]` Ledger index dispositions kept in step
+      (D-61) `docs/EXPERIMENTS.md` lists BAS-M10 and BAS-M11 as not run while
+      their entries read VOID and COMPLETE; the checker compares IDs, not
+      dispositions. Fix the rows and make `check_roadmap.py` flag an index
+      disposition that disagrees with its entry's.
+    - [ ] **A.10.6** `[M]` Tools index and retired numbers in comments
+      (D-62, D-63) A `tools/README.md` with one line per tool and the
+      procedure or leaf that uses it; retired step numbers removed from source
+      comments (for example `// 8.7.6(c)` in `search_kernel_core.cpp`,
+      "8.7.10" in `attacks.h`), behaviour-neutral.
+    - [ ] **A.10.7** `[I1]` Dev builds name their commit
+      Added 2026-10-24 by maintainer decision. The exact shape is decided when
+      this leaf opens. The proposal follows Reckless: a dev build's id name
+      appends the short commit, as in `Basilisk 1.11.0-dev-<sha>`. That needs
+      a build change, and `release.yml`'s id-name check must accept the suffix
+      on candidate builds (next to A.10.4's release checks).
+- [ ] **A.11** Correctness repairs from the Rarog audit
   Added 2026-10-24 by maintainer decision. Each repair is its own engine
   commit with a test that fails on the old code, bench accounting for any
   fingerprint move and CTest on both arms; a repair that changes play is gated
@@ -787,7 +973,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
   Evidence: `analysis/rarog_audit_2026-10-24.md`. The repairs change the
   default search only: the legacy kernel (`-DB2_CORE=OFF`) is neither fixed
   nor maintained, and B.8 deletes it (maintainer decision 2026-10-24).
-    - [ ] **A.9.1** `[I1]` Rule-50 damping out of the TT static eval (ANY TIME) — before B.3
+    - [ ] **A.11.1** `[I1]` Rule-50 damping out of the TT static eval
       (B-1, C-7) `evaluate()` damps the score by the halfmove clock
       (`eval.cpp:1210`, `:1985`); the kernel stores that value as the TT
       static eval and reuses it at any clock
@@ -797,7 +983,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       once after the TT read. Test: an eval stored at clock 0 and read at
       clock 80 is served as a fresh evaluation would serve it. Moves the
       fingerprint; it precedes any fit and optimism (B.5).
-    - [ ] **A.9.2** `[I1]` Singular search: lone excluded move returns alpha (ANY TIME) — before B.3
+    - [ ] **A.11.2** `[I1]` Singular search: lone excluded move returns alpha
       (B-4) When the singular search excludes a node's only legal move,
       `searched == 0` returns `in_check ? -(MATE_SCORE - ply) : 0`
       (`search_kernel_core.cpp:1297`). That scores far below singular beta, so
@@ -809,7 +995,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       at its rail, plausibly hides it today, and B.3 plans an IIR-off arm.
       Test: a forced position whose only move is the TT move does not extend;
       a counter for the lone-move return.
-    - [ ] **A.9.3** `[I1]` Own clock of zero without increment is bounded (ANY TIME) — before B.3
+    - [ ] **A.11.3** `[I1]` Own clock of zero without increment is bounded
       (A-55) `go wtime 0 btime 5000` with no increments: a negative clock
       clamps to 0 (`parameters.cpp:291-293`), `compute_time_limit` sets no
       soft or hard limit when `time <= 0 && inc <= 0`
@@ -818,14 +1004,14 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       `MAX_SEARCH_DEPTH`. Stockfish budgets from `max(1, ...)`. A zero own
       clock gets a minimal budget. Test: the command answers `bestmove` within
       a bound.
-    - [ ] **A.9.4** `[I1]` Upper-case UCI move text accepted (ANY TIME) — before B.3
+    - [ ] **A.11.4** `[I1]` Upper-case UCI move text accepted
       (A-9) `apply_uci_move` matches `move_to_uci(move) == token` exactly
       (`parameters.cpp:67`), so `E2E4` or `e7e8Q` is rejected, and a rejected
       `position` ends the process by design (BAS-C12). Rarog accepts
       upper-case move text (its tests come from Little Blitzer's output).
       Compare case-insensitively before the legality match; the fatal policy
       for a genuinely illegal move stays.
-    - [ ] **A.9.5** `[I1]` Fatal errors from every thread reach stdout (ANY TIME) — before B.3
+    - [ ] **A.11.5** `[I1]` Fatal errors from every thread reach stdout
       (A-35) Only the UCI thread catches (`main.cpp:86-93`); the engine thread
       (`engine_entry.cpp:49`) and the helper threads have no handler and no
       `std::set_terminate`, so an exception there aborts with nothing on
@@ -833,7 +1019,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       advertised maximum throws `bad_alloc` in `tt.h:130-131` after
       `clusters_.reset()`. Print `info string CRITICAL ERROR ...` on stdout
       from every thread, and keep a usable table when a Hash allocation fails.
-    - [ ] **A.9.6** `[I1]` Frontier nodes counted once (ANY TIME) — before B.3
+    - [ ] **A.11.6** `[I1]` Frontier nodes counted once
       (B-111) `negamax` counts a node at entry (`record_node()`,
       `search_kernel_core.cpp:335`) and at depth 0 or less hands off to
       `quiescence`, which counts it again (`:117`); `interior_nodes` is also
@@ -844,7 +1030,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       invariant. Count each node once and re-declare the fingerprint; whether
       a gate is owed is decided with the maintainer (timed play changes only
       through that rule and the stop poll).
-    - [ ] **A.9.7** `[I1]` Evaluation colour symmetry: tie-break and sweep (ANY TIME) — before B.3
+    - [ ] **A.11.7** `[I1]` Evaluation colour symmetry: tie-break and sweep
       (C-3, A-22, C-103) The pawnless "ahead by at most a minor" scaler picks
       `strong = (w_tot >= b_tot) ? WHITE : BLACK` (`eval.cpp:800`), so at
       equal totals White is always the strong side: a colour asymmetry, rare
@@ -854,7 +1040,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       found twelve asymmetric evaluations (its C.13.1, among them a
       connected-rooks bug). Add a sweep over a versioned sample with promoted
       and odd material.
-    - [ ] **A.9.8** `[I1]` Last info line names bestmove after a stop (ANY TIME) — before B.3
+    - [ ] **A.11.8** `[I1]` Info lines: bestmove after a stop, mate scores as cp
       (A-26, A-31) After 3 s the aspiration loop prints a `lowerbound` line
       for a new move that is failing high (`search_worker.cpp:450-459`); a
       hard-limit or GUI stop then discards the iteration (`:515`), `bestmove`
@@ -864,7 +1050,21 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       move its last line named and prints the result's line when they differ.
       At a tablebase root the bound line also prints the raw bound, not the
       tablebase score. Output only; exact bench.
-    - [ ] **A.9.9** `[R2]` Override boundaries never reward shedding material (ANY TIME) — before C.0
+      Mate scores printed as `cp` (BAS-S27, maintainer decision 2026-10-25):
+      - Without tablebases, both 1.10.2 and the head sometimes print a
+        mate-range score as `cp`, for example `cp -31742`, which is beyond
+        the 128-ply mate window.
+      - Both also print `cp` values in the tablebase band (`cp 20000 -
+        plies`) in won endings: 111 move scores in 64 of the `ltc` read's
+        games, all decisive.
+      - The cause is not located yet. Find which values reach the UCI score
+        unconverted.
+      - Test: a score is `mate n` exactly when it is a mate, and a `cp` value
+        is in the tablebase band only when a tablebase or tablebase-backed
+        entry produced it.
+      - If the cause is in the search rather than the display, the leaf
+        owes bench accounting and A.11's repair SPRT.
+    - [ ] **A.11.9** `[R2]` Override boundaries never reward shedding material
       (C-9, C-131) The KBNK and KXK overrides (`kbnk_score` base 15,600;
       `kxk_score = KNOWN_WIN + ...`, `eval.cpp:306`, `:520`) apply only
       without the winner's pawns, so KBNP-K to KBN-K, and KBP-K promoting to a
@@ -876,85 +1076,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       boundaries, and the cost in games), then a design. It changes the
       evaluation during the freeze, so a repair needs the maintainer's
       B.10-style admission.
-- [ ] **A.10** Delivery and repository repairs
-  Added 2026-10-24. The delivery machinery matches Rarog's (CI on pull
-  requests, tag-driven release, one fingerprint across the assets); these
-  steps bring the practice and four checks up to it. Evidence:
-  `analysis/rarog_audit_2026-10-24.md`, appendix D Part 2.
-    - [ ] **A.10.1** `[M]` Land dev and B.10 on master by squash PRs (ANY TIME) — before B.3
-      (D-55) PROCESS *Delivery*'s transition said `dev` lands as one squash PR
-      once B.2 closed; it has not (`origin/master` is still 1.10.2), and
-      B.10's branch was cut from `dev`. Land B.2 (`dev`), then B.10, as one
-      squash PR each with the fixed message shape and their results;
-      afterwards new branches start from `master`. PRs, pushes and merges are
-      the maintainer's.
-    - [ ] **A.10.2** `[M]` CHANGELOG Unreleased caught up and kept (ANY TIME) — before B.3
-      (D-66) `[Unreleased]` is empty although B.2's cluster and B.10's repair
-      were accepted. Write their user-facing entries, and add Rarog's rule to
-      `agents/records.md`: a user-visible change gets its entry in the commit
-      that records it.
-    - [ ] **A.10.3** `[M]` PR refspec and required checks on master (ANY TIME) — before B.3
-      (D-59, D-58) Configure `remote.origin.fetch` with
-      `+refs/pull/*/head:refs/remotes/origin/pr/*`, so a pruning fetch keeps
-      the PR refs citations need (they vanished on 2026-10-23), and record it
-      in `agents/records.md`. Make CI and Release required checks on `master`
-      (repository settings, the maintainer's).
-    - [ ] **A.10.4** `[I1]` Release and CI checks tightened (ANY TIME) — before B.11
-      (D-65, D-29, D-27, D-57) `release_check.py` also compares the released
-      baseline's fingerprint. The Windows release cells pin and print the
-      MSYS2 clang version: they install whatever MSYS2 ships, which is how
-      clang moved from 22.1.8 to 23.1.3 on 2026-10-23. An ARM64 ISA contract
-      with a required `prfm` class (`verify_isa.py` checks x86 tiers only).
-      `ctest -R` filters in CI fail when they match nothing
-      (`--no-tests=error`).
-    - [ ] **A.10.5** `[I1]` Ledger index dispositions kept in step (ANY TIME) — before B.3
-      (D-61) `docs/EXPERIMENTS.md` lists BAS-M10 and BAS-M11 as not run while
-      their entries read VOID and COMPLETE; the checker compares IDs, not
-      dispositions. Fix the rows and make `check_roadmap.py` flag an index
-      disposition that disagrees with its entry's.
-    - [ ] **A.10.6** `[M]` Tools index and retired numbers in comments (ANY TIME) — before B.8
-      (D-62, D-63) A `tools/README.md` with one line per tool and the
-      procedure or leaf that uses it; retired step numbers removed from source
-      comments (for example `// 8.7.6(c)` in `search_kernel_core.cpp`,
-      "8.7.10" in `attacks.h`), behaviour-neutral.
-- [ ] **A.11** Harness and measurement instruments
-  Added 2026-10-24. Evidence: `analysis/rarog_audit_2026-10-24.md`, appendix
-  D.
-    - [ ] **A.11.1** `[I1]` Colosseum re-pinned to 0.4.0, cross-checked (ANY TIME) — before B.3
-      (D-36, D-38, C-31) Basilisk pins `colosseum-cli` 0.2.0. Rarog moved to
-      0.3.0 (engine processes kept per slot, the setup position counted for
-      threefold, faster datagen; cross-checked against fastchess, +6.9 ± 9.4
-      against +6.78 ± 9.07) and 0.4.0 (per-engine depth, NPS and hold
-      percentiles, pair Elo with the pentanomial, terminations and faults by
-      engine). Re-pin with a registered cross-check, as Rarog's RAR-M70 was.
-      The wrapper keeps zero tolerance for Basilisk's own faults and reads
-      opponent faults under a rate rule instead of voiding a run (BAS-M10).
-      Before B.3's gate, so B.3 is read on the new runner.
-    - [ ] **A.11.2** `[I1]` NPS read rebuilt on pooled builds (ANY TIME) — before B.7.2
-      (D-1 to D-4) Rarog's method study (RAR-P32): builds, not cycles, set the
-      limit. Best of three per cycle; four builds an arm; a t-interval on
-      per-build medians; a two-step read (two cycles, accept at +0.9% and
-      close at +0.1%; between them six cycles, +0.5% with the lower bound
-      above 0); a disturbance rule; two independent pools as the null; a pause
-      after fresh builds, which antivirus scanning slows. `nps_ab.ps1`
-      bootstraps readings, which Rarog showed is not the uncertainty.
-    - [ ] **A.11.3** `[I1]` Profiler with inline attribution (ANY TIME) — before B.7.2
-      (D-13, D-75) B.7.2 and C.12 both require a profile, and Basilisk has no
-      profiler. Rarog's reads per-region shares from ETW or a user-mode
-      sampler with full inline chains over frozen cohorts, and validates its
-      schema from the data: xperf with `-symbols` once silently charged
-      inlined board work to `negamax`. The Clang/MinGW toolchain needs its own
-      symbol path.
-    - [ ] **A.11.4** `[M]` Measurement rules from the audit (ANY TIME) — before B.3
-      (D-39, D-40, D-41, D-28, D-47) Into `agents/measurement.md` and PROCESS:
-      a stopped SPRT's estimate is a first-crossing estimate, never the effect
-      size, and is never extended or re-scored; about 2 Elo per 1% of speed
-      held to +22% at `3+0.03` (RAR-S98, RAR-S99), replacing PROCESS's "small
-      deltas only"; opponents play their smallest safe overhead (10 ms); a
-      compiler bump owes a pooled NPS read and never falls between an SPRT's
-      arms (rustc 1.98 to 1.99 cost Rarog 1.6% at the same fingerprint); a
-      SQLite database is copied with its `-wal` file.
-- [ ] **A.12** `[M]` Roadmap rules from the audit (ANY TIME) — before B.6
+- [ ] **A.12** `[M]` Roadmap rules from the audit
   Added 2026-10-24, for the maintainer to decide one by one: Rarog rule 7c's
   amendment of 2026-10-20 (a near-optimum surface may be tuned as one longer
   run with a larger perturbation and a smaller gain ratio); the standing
@@ -1573,9 +1695,19 @@ rejections stop B.
   multi-cut rule failed its KBNK drive test and Rarog kept its own rule.
   Basilisk's mate-drive floors are at least as fragile: literature seeds
   have tripped them eight times.
+  B.2.3 residuals (maintainer decision 2026-10-24; evidence
+  `analysis/b23_constants_2026-10-14.md`, findings 4 and 5):
+  - `CoreHistoryFills` 0/1 categorical: the donor's negative fills for
+    fresh history tables against Basilisk's clear to 0. Five history
+    coordinates moved together in the fit, toward history counting more.
+  - The correction update converted to the donor's units, which replaces
+    the `CoreCorrLimit` 1024/289 categorical. The fit wanted the correction
+    stronger, so a tighter limit would cap a signal it wants larger.
+  - Both are settled before B.6 puts history or correction coordinates on
+    a surface.
   Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
   are its items):
-  - Correctness first: A.9.2 lands before any IIR arm. Then the arms only with
+  - Correctness first: A.11.2 lands before any IIR arm. Then the arms only with
     a per-line extension budget (B-7: Rarog bench 8.10M to 7.48M, one position
     229M to 1.33M nodes), a deep-iteration cost screen (B-97: geometric mean
     of cumulative node ratios over depths 16-19 at most 2-3x, every depth the
@@ -1668,13 +1800,37 @@ rejections stop B.
   proper is D.1's.
   Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
   are its items):
-  - The fail-high clock stop's firing rate (maintainer item 2026-10-24; B-79,
-    A-48): read on a few hundred openings at `3+0.03` how often A.8.17's stop
-    fires and the time it removes. On Rarog's replay the same-move condition
-    fired on 24% of searches (11% of spend), and Rarog's own stop at the
-    target cost about 15 Elo (RAR-R18); Basilisk's only read is BAS-S20 (-0.7
-    ± 4.5). A high rate makes its threshold a candidate here (Rarog's at twice
-    the target passed the probe).
+  - The fail-high clock stop: keep, move to twice the target, or remove
+    (maintainer items 2026-10-24 and 2026-10-25; B-79, A-47, A-48).
+    Investigation `analysis/b5_failhigh_stop_2026-10-25.md`; probes
+    BAS-R07. Basilisk's probes (rec1 at `60000+600`, stop removed):
+    - The cascade is not gone. The A.8 (`fac5064`) and B.2 (`71a612b`) trees
+      still sink to the maximum. The head finishes only because B.10's PSTs
+      let its give-up window prove `mate 25`, after nine fail-highs.
+    - Tree growth is present at Rarog's scale but does not cause the sink.
+      10.9% of LMR-path searches go deeper than full depth. Removing the
+      correction term or the `+2` ceiling cuts rec1's depth-26 tree 30× and
+      23× and bench by 25% and 21%. Both arms still sink to the maximum
+      without the stop.
+    - The stop has a hole. It is checked only when a window fails high, so a
+      give-up window started just before the optimum runs unchecked: 2.79×
+      and 4.07× the optimum at `180000+2000` on those arms.
+    - From the same timelines, 2× would have missed the B.2 tree.
+
+    M1, registered in the packet with a frozen prediction, comes first: a
+    sequential replay of 300 games at `3+0.03` and 100 at `10+0.1` on a
+    counter build of the B.5 entry head, arms 1×, 2× and no stop. It reads
+    the firing rate by score band, the time removed and the hole's rate.
+    Decision rule, each option gated by a sink battery that must stay under
+    0.5× the maximum:
+    - keep 1× if it fires on under 10% of searches and removes under 3% of
+      spend;
+    - otherwise 2× against 1×, SPRT `[0,3]`;
+    - removal only if the battery passes with no stop, then a `[-5,5]`
+      bracket. On today's evidence removal is refused.
+
+    The hole is a card with D.1. Rarog's leads (24% firing, about −15 Elo at
+    the target) are priors only.
   - A score-scaled first window with B.4's fail-soft quiescence (B-75, B-19);
     Rarog's four-part cascade cluster read H0 (-7.4 ± 7.5) and was re-scoped
     to bare-king trees; a fail-high depth reduction only with its clock half
@@ -1684,8 +1840,11 @@ rejections stop B.
     Rarog); the width is coupled to LMR's `delta / root_delta` term (B-73).
   - Line growth: negative LMR reductions (`new_depth + 2`, `+ is_pv`) and
     re-search extras escape any budget (B-80, B-81); correction history drove
-    Rarog's won-ending trees (B-82).
-  - Optimism needs A.9.1 and read -5.6 in Rarog (B-83); draw jitter read -1.2,
+    Rarog's won-ending trees (B-82). Both are verified in Basilisk (BAS-R07:
+    won-ending trees 5–30× larger, bench −21% and −25% without them). Their
+    Elo is unmeasured beyond BAS-S21's `CoreLmrNegativeAllowed 0` read of
+    −5.6 ± 9.8.
+  - Optimism needs A.11.1 and read -5.6 in Rarog (B-83); draw jitter read -1.2,
     so measure draw blindness first (B-84); MultiPV lines 2+ search a full
     window (B-85). The mate stop is D.1's (B-78).
 - [ ] **B.6** `[V]` Joint search SPSA, if justified
@@ -1724,7 +1883,7 @@ rejections stop B.
       search makes them hot, and default to no-change.
       Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`;
       IDs are its items):
-      - Uses A.11.2's NPS read and A.11.3's profiler.
+      - Uses A.9.4's NPS read and A.9.5's profiler.
       - Candidates from Rarog: the child TT prefetch before the make from a
         predicted key (D-5, +1.69%) and at pick time (D-6, +0.5% and +0.3%
         under PGO); large pages, pulled forward from G.1 (D-8: +2.48% bench,
@@ -1783,26 +1942,22 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.9.1 | READY_FOR_IMPLEMENTATION | I1 | Rule-50 damping out of the TT eval; before B.3 |
-| A.9.2 | READY_FOR_IMPLEMENTATION | I1 | Lone excluded move returns alpha; before B.3 |
-| A.9.3 | READY_FOR_IMPLEMENTATION | I1 | Zero own clock bounded; before B.3 |
-| A.9.4 | READY_FOR_IMPLEMENTATION | I1 | Upper-case move text; before B.3 |
-| A.9.5 | READY_FOR_IMPLEMENTATION | I1 | Fatal errors on stdout from every thread; before B.3 |
-| A.9.6 | READY_FOR_IMPLEMENTATION | I1 | Frontier nodes counted once; before B.3 |
-| A.9.7 | READY_FOR_IMPLEMENTATION | I1 | Colour symmetry tie-break and sweep; before B.3 |
-| A.9.8 | READY_FOR_IMPLEMENTATION | I1 | Last info line after a stop; before B.3 |
-| A.9.9 | RESEARCH | R2 | Override boundaries; research first; before C.0 |
-| A.10.1 | READY_FOR_IMPLEMENTATION | M | Land dev and B.10 by squash PRs; maintainer actions; before B.3 |
-| A.10.2 | READY_FOR_IMPLEMENTATION | M | CHANGELOG catch-up and rule; before B.3 |
-| A.10.3 | READY_FOR_IMPLEMENTATION | M | PR refspec and required checks; before B.3 |
-| A.10.4 | READY_FOR_IMPLEMENTATION | I1 | Release and CI checks; before B.11 |
-| A.10.5 | READY_FOR_IMPLEMENTATION | I1 | Ledger index dispositions; before B.3 |
-| A.10.6 | READY_FOR_IMPLEMENTATION | M | Tools index and comment numbers; before B.8 |
-| A.11.1 | READY_FOR_IMPLEMENTATION | I1 | Colosseum 0.4.0 with a cross-check; before B.3 |
-| A.11.2 | READY_FOR_IMPLEMENTATION | I1 | NPS read on pooled builds; before B.7.2 |
-| A.11.3 | RESEARCH | I1 | Profiler; before B.7.2 |
-| A.11.4 | READY_FOR_IMPLEMENTATION | M | Measurement rules; before B.3 |
-| A.12 | RESEARCH | M | Roadmap rules for the maintainer to decide; before B.6 |
+| A.10.2 | READY_FOR_IMPLEMENTATION | M | CHANGELOG catch-up and rule |
+| A.10.3 | READY_FOR_IMPLEMENTATION | M | PR refspec and required checks |
+| A.10.4 | READY_FOR_IMPLEMENTATION | I1 | Release and CI checks |
+| A.10.5 | READY_FOR_IMPLEMENTATION | I1 | Ledger index dispositions |
+| A.10.6 | READY_FOR_IMPLEMENTATION | M | Tools index and comment numbers |
+| A.10.7 | RESEARCH | I1 | Dev-build version names; shape decided by the maintainer |
+| A.11.1 | READY_FOR_IMPLEMENTATION | I1 | Rule-50 damping out of the TT eval |
+| A.11.2 | READY_FOR_IMPLEMENTATION | I1 | Lone excluded move returns alpha |
+| A.11.3 | READY_FOR_IMPLEMENTATION | I1 | Zero own clock bounded |
+| A.11.4 | READY_FOR_IMPLEMENTATION | I1 | Upper-case move text |
+| A.11.5 | READY_FOR_IMPLEMENTATION | I1 | Fatal errors on stdout from every thread |
+| A.11.6 | READY_FOR_IMPLEMENTATION | I1 | Frontier nodes counted once |
+| A.11.7 | READY_FOR_IMPLEMENTATION | I1 | Colour symmetry tie-break and sweep |
+| A.11.8 | READY_FOR_IMPLEMENTATION | I1 | Last info line after a stop; mate scores printed as cp |
+| A.11.9 | RESEARCH | R2 | Override boundaries; research first |
+| A.12 | RESEARCH | M | Roadmap rules for the maintainer to decide |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |
 | B.4 | RESEARCH | I2 | Contents fixed by B.0 |
 | B.5 | RESEARCH | I2 | Contents fixed by B.0 |
@@ -1977,7 +2132,7 @@ has lost games in both engines (BAS-X02).
         pilot for a harness port (C-76); the label audit re-run on the B.9
         head (C-62); natural termination multiplied mates 57x in Rarog and
         inflated the king table, so register a tree read (C-56); Colosseum
-        datagen only after A.11.1 (C-31).
+        datagen only after A.9.1 (C-31).
     - [ ] **C.2.4** `[R2]` Matched label arms
       Matched label arms (archived 8.4–8.5): corpus B row-identical to A
       except eligible tablebase rows relabelled by Syzygy WDL, with cursed
@@ -2087,7 +2242,7 @@ has lost games in both engines (BAS-X02).
       - A game-level ending audit from gate PGNs (C-134); per-root
         concentration (C-138); promotion-closure accounting (C-140); the
         recogniser rule and kinds (C-135, C-136, C-127); missing value
-        functions (C-132); a material-signature table (C-106); A.9.9's
+        functions (C-132); a material-signature table (C-106); A.11.9's
         boundary research feeds here.
     - [ ] **C.5.3** `[I2]` Generic winnability and scaling
       Generic winnability and scaling in the donor's form: pawn-count scaling,
@@ -2215,7 +2370,7 @@ has lost games in both engines (BAS-X02).
   Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
   are its items):
   - Played and full scores dumped (C-89); cache purity (C-105); a runtime lazy
-    margin clears the caches (C-42); the profile comes from A.11.3.
+    margin clears the caches (C-42); the profile comes from A.9.5.
 - [ ] **C.13** `[M]` Interim release after the evaluation programme
   Maintainer decision 2026-10-24: the evaluation programme's head is released
   as 1.12.0 once C.12 closes, as Rarog cut 2.6.0 from its C head. Licensed as
@@ -2238,7 +2393,9 @@ has lost games in both engines (BAS-X02).
   - Sub-second horizon contraction: assuming fifty moves to go drifts a
     `3+0.03` game to about 155 ms of clock (A-45); hold and reserve (A-46);
     the long-clock stall probe on the PGO build at `180000+2000` (A-47; the
-    2026-10-24 probe in `tools/results/stall-probe-20261024/` passed); a mate
+    2026-10-24 probe in `tools/results/stall-probe-20261024/` passed, but
+    BAS-R07's tree variants run 2.8–4.1× the optimum there through the
+    give-up window, which the fail-high stop cannot reach); a mate
     stop beyond mate in 1 (A-49, B-78); a first-iteration stop guard and
     abort-sweep tests (A-50, A-65); ponder credit (A-42); time changes read by
     the opening's time a move and the clock left (A-54); the fail-high stop's

@@ -34,34 +34,14 @@ generations change. These are maintainer judgments, not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **B.3** `[I2]` Cluster 2 — pruning and extensions — Claude Opus 5 — High
+**Next step:** **A.10.2** `[M]` CHANGELOG Unreleased caught up and kept — Claude Sonnet 5 — Medium
 
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
-- **A.9.1** `[I1]` Rule-50 damping out of the TT static eval (ANY TIME) — before B.3 — Claude Sonnet 5 — Medium
-- **A.9.2** `[I1]` Singular search: lone excluded move returns alpha (ANY TIME) — before B.3 — Claude Sonnet 5 — Medium
-- **A.9.3** `[I1]` Own clock of zero without increment is bounded (ANY TIME) — before B.3 — Claude Sonnet 5 — Medium
-- **A.9.4** `[I1]` Upper-case UCI move text accepted (ANY TIME) — before B.3 — Claude Sonnet 5 — Medium
-- **A.9.5** `[I1]` Fatal errors from every thread reach stdout (ANY TIME) — before B.3 — Claude Sonnet 5 — Medium
-- **A.9.6** `[I1]` Frontier nodes counted once (ANY TIME) — before B.3 — Claude Sonnet 5 — Medium
-- **A.9.7** `[I1]` Evaluation colour symmetry: tie-break and sweep (ANY TIME) — before B.3 — Claude Sonnet 5 — Medium
-- **A.9.8** `[I1]` Last info line names bestmove after a stop (ANY TIME) — before B.3 — Claude Sonnet 5 — Medium
-- **A.9.9** `[R2]` Override boundaries never reward shedding material (ANY TIME) — before C.0 — Claude Opus 5 — High
-- **A.10.1** `[M]` Land dev and B.10 on master by squash PRs (ANY TIME) — before B.3 — Claude Sonnet 5 — Medium
-- **A.10.2** `[M]` CHANGELOG Unreleased caught up and kept (ANY TIME) — before B.3 — Claude Sonnet 5 — Medium
-- **A.10.3** `[M]` PR refspec and required checks on master (ANY TIME) — before B.3 — Claude Sonnet 5 — Medium
-- **A.10.4** `[I1]` Release and CI checks tightened (ANY TIME) — before B.11 — Claude Sonnet 5 — Medium
-- **A.10.5** `[I1]` Ledger index dispositions kept in step (ANY TIME) — before B.3 — Claude Sonnet 5 — Medium
-- **A.10.6** `[M]` Tools index and retired numbers in comments (ANY TIME) — before B.8 — Claude Sonnet 5 — Medium
-- **A.11.1** `[I1]` Colosseum re-pinned to 0.4.0, cross-checked (ANY TIME) — before B.3 — Claude Sonnet 5 — Medium
-- **A.11.2** `[I1]` NPS read rebuilt on pooled builds (ANY TIME) — before B.7.2 — Claude Sonnet 5 — Medium
-- **A.11.3** `[I1]` Profiler with inline attribution (ANY TIME) — before B.7.2 — Claude Sonnet 5 — Medium
-- **A.11.4** `[M]` Measurement rules from the audit (ANY TIME) — before B.3 — Claude Sonnet 5 — Medium
-- **A.12** `[M]` Roadmap rules from the audit (ANY TIME) — before B.6 — Claude Sonnet 5 — Medium
 - **B.7.1** `[I1]` Allocation guard (ANY TIME) — before B.7.2 — Claude Sonnet 5 — Medium
 - **D.3.1** `[R2]` Board contract audit (ANY TIME) — before E.1 — Claude Opus 5 — High
 
-### Phase A — Reset: documents, harness, instruments, baselines
+### Phase A — Reset: documents, harness, instruments, baselines (EXTENDED)
 
 - [x] **A.8** Rarog-parity repairs, repository and C++23
     - [x] **A.8.1** `[M]` Final Rarog import
@@ -85,29 +65,31 @@ generations change. These are maintainer judgments, not measured rankings.
     - [x] **A.8.19** `[R2]` Displayed-score normalisation
     - [x] **A.8.20** `[M]` B-programme anchors on the A.8 head
     - [x] **A.8.21** `[M]` Patch release 1.10.2 (ANY TIME) — after A.8.20
-- [ ] **A.9** Correctness repairs from the Rarog audit
-    - [ ] **A.9.1** `[I1]` Rule-50 damping out of the TT static eval (ANY TIME) — before B.3
-    - [ ] **A.9.2** `[I1]` Singular search: lone excluded move returns alpha (ANY TIME) — before B.3
-    - [ ] **A.9.3** `[I1]` Own clock of zero without increment is bounded (ANY TIME) — before B.3
-    - [ ] **A.9.4** `[I1]` Upper-case UCI move text accepted (ANY TIME) — before B.3
-    - [ ] **A.9.5** `[I1]` Fatal errors from every thread reach stdout (ANY TIME) — before B.3
-    - [ ] **A.9.6** `[I1]` Frontier nodes counted once (ANY TIME) — before B.3
-    - [ ] **A.9.7** `[I1]` Evaluation colour symmetry: tie-break and sweep (ANY TIME) — before B.3
-    - [ ] **A.9.8** `[I1]` Last info line names bestmove after a stop (ANY TIME) — before B.3
-    - [ ] **A.9.9** `[R2]` Override boundaries never reward shedding material (ANY TIME) — before C.0
+- [x] **A.9** Harness and measurement instruments
+    - [x] **A.9.1** `[I1]` Colosseum re-pinned to 0.4.0
+    - [x] **A.9.2** `[V]` Direction reads of the head against 1.10.2
+    - [x] **A.9.3** `[M]` Measurement rules from the audit
+    - [x] **A.9.4** `[I1]` NPS read rebuilt on pooled builds
+    - [x] **A.9.5** `[I1]` Profiler with inline attribution
 - [ ] **A.10** Delivery and repository repairs
-    - [ ] **A.10.1** `[M]` Land dev and B.10 on master by squash PRs (ANY TIME) — before B.3
-    - [ ] **A.10.2** `[M]` CHANGELOG Unreleased caught up and kept (ANY TIME) — before B.3
-    - [ ] **A.10.3** `[M]` PR refspec and required checks on master (ANY TIME) — before B.3
-    - [ ] **A.10.4** `[I1]` Release and CI checks tightened (ANY TIME) — before B.11
-    - [ ] **A.10.5** `[I1]` Ledger index dispositions kept in step (ANY TIME) — before B.3
-    - [ ] **A.10.6** `[M]` Tools index and retired numbers in comments (ANY TIME) — before B.8
-- [ ] **A.11** Harness and measurement instruments
-    - [ ] **A.11.1** `[I1]` Colosseum re-pinned to 0.4.0, cross-checked (ANY TIME) — before B.3
-    - [ ] **A.11.2** `[I1]` NPS read rebuilt on pooled builds (ANY TIME) — before B.7.2
-    - [ ] **A.11.3** `[I1]` Profiler with inline attribution (ANY TIME) — before B.7.2
-    - [ ] **A.11.4** `[M]` Measurement rules from the audit (ANY TIME) — before B.3
-- [ ] **A.12** `[M]` Roadmap rules from the audit (ANY TIME) — before B.6
+    - [x] **A.10.1** `[M]` Land dev and B.10 on master by squash PRs (ANY TIME) — before B.3
+    - [ ] **A.10.2** `[M]` CHANGELOG Unreleased caught up and kept
+    - [ ] **A.10.3** `[M]` PR refspec and required checks on master
+    - [ ] **A.10.4** `[I1]` Release and CI checks tightened
+    - [ ] **A.10.5** `[I1]` Ledger index dispositions kept in step
+    - [ ] **A.10.6** `[M]` Tools index and retired numbers in comments
+    - [ ] **A.10.7** `[I1]` Dev builds name their commit
+- [ ] **A.11** Correctness repairs from the Rarog audit
+    - [ ] **A.11.1** `[I1]` Rule-50 damping out of the TT static eval
+    - [ ] **A.11.2** `[I1]` Singular search: lone excluded move returns alpha
+    - [ ] **A.11.3** `[I1]` Own clock of zero without increment is bounded
+    - [ ] **A.11.4** `[I1]` Upper-case UCI move text accepted
+    - [ ] **A.11.5** `[I1]` Fatal errors from every thread reach stdout
+    - [ ] **A.11.6** `[I1]` Frontier nodes counted once
+    - [ ] **A.11.7** `[I1]` Evaluation colour symmetry: tie-break and sweep
+    - [ ] **A.11.8** `[I1]` Info lines: bestmove after a stop, mate scores as cp
+    - [ ] **A.11.9** `[R2]` Override boundaries never reward shedding material
+- [ ] **A.12** `[M]` Roadmap rules from the audit
 
 ### Phase B — Search programme (evaluation frozen)
 

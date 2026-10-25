@@ -6,8 +6,10 @@
 ## Numbering, and how to resolve an old reference
 
 The current roadmap uses lettered phases (`A.2.1`, `B.3`); no retired number
-is reused. Retired identifiers stay valid in `EXPERIMENTS.md`, `analysis/`,
-source comments and commit messages, and resolve here:
+is reused, with one declared exception: Phase A's 2026-10-24 leaves were
+renumbered the same day to run in order, and the *Number map* below resolves
+their first numbering. Retired identifiers stay valid in `EXPERIMENTS.md`,
+`analysis/`, source comments and commit messages, and resolve here:
 
 | Scheme | Where it appears | Resolve it in |
 |---|---|---|
@@ -33,7 +35,7 @@ throwaway branch is cited by its recipe (PROCESS *Delivery*).
 | `oracle/hybrid` | `01df815` | The deficit oracle under `hybrid/`: classical Stockfish `9587eeeb`'s search with a UCI switch selecting Basilisk 1.9.3's HCE or Stockfish's own | PLAN rule 1, A.5.4, A.7.3; PROCESS *Independence boundary* | no open PLAN leaf or PROCESS rule names it | keep |
 | `oracle/hybrid-diag` | `324ace4` | `oracle/hybrid` plus a behaviour-neutral qsearch counter in `hybrid/stockfish/src/search.cpp` | BAS-D03; `analysis/cluster55_audit_v1.md` §3 | A.5.3 commits the oracle's counter set including the qsearch share, so BAS-D03 reproduces from `dev` | keep |
 | `archive/dev-1.10.0` | `3fe85c2` | The development line from 1.9.3 to the published 1.10.0 (Phases 5–15, 239 commits), deleted with `dev` after the 1.10.0 squash | 32 commit hashes in the ledger and `analysis/`, found unreachable from any ref on 2026-10-08 | never: the records cite it | keep |
-| `archive/dev-1.10.2` | `63ac175` | The development line of 1.10.1 and 1.10.2 (the PR #4 head), squashed on `master` as `Version 1.10.2` | the ledger and analyses from BAS-X30 on; PLAN A.8 | never: the records cite it | keep |
+| `archive/dev-1.10.2` | `63ac175` | The development line of 1.10.1 and 1.10.2 (the PR #4 head), squashed on `master` as `Version 1.10.2` | the ledger and analyses from BAS-X30 on; PLAN A.8 | fired: PR #4's ref (`refs/pull/4/head`, the same `63ac175`) holds the whole line, so the citations resolve without the tag | removed 2026-10-25 |
 | `archive/nnue-local` | `1431a89` | The 2026-07 NNUE bring-up: scalar `.mnn` loader (`src/nnue.*`), `UseNNUE`/`EvalFile`, `test_nnue` with `tests/data/test_h16.mnn` vectors | PLAN F.4 | F.4 closes, or F.0 chooses a network format other than `.mnn` | keep |
 | `archive/nnue-origin` | `4fa11bf` | An ancestor of `archive/nnue-local`; nothing it reaches is lost without it | none | fired: redundant | removed 2026-09-28 |
 | `archive/backup` | `ae4af1a` | The pre-squash line of 2026-08-05 → 08-11, including the withdrawn Colosseum adoption (`3cbf90b`); an ancestor of `oracle/hybrid` | none | fired: redundant | removed 2026-09-28 |
@@ -45,8 +47,14 @@ change retires none. On 2026-10-08 releases returned to squash merges, and
 every release's development line got an `archive/dev-X.Y.Z` tag. On
 2026-10-09 the long-lived `dev` branch was retired: it lands once as a final
 squash PR, and from then on each piece of work has its own branch and PR, so
-no further `archive/dev-*` tag is made; the two above stay, since the
-records cite them.
+no further `archive/dev-*` tag is made. `archive/dev-1.10.0` stays, since
+the records cite it and no other ref holds its line. On 2026-10-25
+`archive/dev-1.10.2` was removed as redundant with PR #4's ref, and `dev`
+itself no longer exists locally or on `origin`. The other kept tags were
+re-checked the same day and stay. `oracle/hybrid` is still the oracle that
+PLAN rule 1 and PROCESS name, and `hybrid/` is not on `master`.
+`oracle/hybrid-diag`'s condition has not fired. `archive/nnue-local` waits
+on F.4.
 
 The kept tags are annotated with their reason and retirement condition. The
 removed ones were deleted locally and on `origin`; their commits stay
@@ -193,6 +201,24 @@ Moved within the current roadmap on 2026-10-06 (maintainer decision; A.8):
 | E.3.1 | A.8.6 | tag-driven release flow, done now rather than before E.3 |
 | D.3.3 | A.8.19 | displayed-score normalisation |
 | E.3.2 | E.3 | the release, a leaf once E.3.1 left |
+
+Renumbered within Phase A on 2026-10-24 (maintainer decision): the Rarog
+audit's leaves, first numbered in `4fa68b4` (PR #7), now run in order as one
+sequence, and Phase A is marked `(EXTENDED)`. A reference dated before this
+renumbering, commit messages on `head-reads-1102` up to `80865c0` included,
+uses the first numbering. A.10.1–A.10.6 and A.12 kept their numbers.
+
+| Was | Now | Note |
+|---|---|---|
+| A.11 | A.9 | harness and measurement instruments, now first |
+| A.11.1 | A.9.1 | Colosseum re-pinned to 0.4.0 |
+| A.11.5 | A.9.2 | direction reads against 1.10.2 (BAS-S27) |
+| A.11.4 | A.9.3 | measurement rules from the audit |
+| A.11.2 | A.9.4 | NPS read on pooled builds |
+| A.11.3 | A.9.5 | profiler with inline attribution |
+| A.13 | A.10.7 | dev builds name their commit |
+| A.9 | A.11 | correctness repairs, after the instruments and delivery |
+| A.9.1–A.9.9 | A.11.1–A.11.9 | the same repairs in the same order |
 
 ## Completed current-roadmap work (dated records; PLAN owns IDs)
 

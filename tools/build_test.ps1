@@ -9,6 +9,8 @@
       Tune     tunable search/eval options, for SPSA and parameter probes
       Diag     diagnostics only, without the tunable parameter surface
       Ablate  matched search-family removal mask, without other instruments
+      Profile  the Release surface plus line tables with inline records, for
+               tools/profile.ps1; code generation is unchanged
 
     An optional Boolean CMake umbrella option is forwarded through both PGO
     phases and recorded separately from the flavor. This lets an off/on pair
@@ -25,7 +27,7 @@
 #>
 param(
     [Parameter(Mandatory)][string]$Suffix,
-    [Parameter(Mandatory)][ValidateSet('Release', 'Tune', 'Diag', 'Ablate')][string]$Flavor,
+    [Parameter(Mandatory)][ValidateSet('Release', 'Tune', 'Diag', 'Ablate', 'Profile')][string]$Flavor,
     [string]$ArmOption = '',
     [ValidateSet('', 'On', 'Off')][string]$Arm = '',
     [ValidateRange(1, 128)][int]$BenchDepth = 13,
@@ -80,9 +82,9 @@ function Assert-UciSurface {
     $hasTune = $Output -match '(?m)^option name (RfpCoeff|CoreRfpPerPly) '
     $hasAblate = $Output -match '(?m)^option name AblationMask '
     switch ($ExpectedFlavor) {
-        'Release' {
+        { $_ -in 'Release', 'Profile' } {
             if ($hasDiag -or $hasTune -or $hasAblate) {
-                throw 'Release flavor exposes diagnostic, tuning or ablation options.'
+                throw "$ExpectedFlavor flavor exposes diagnostic, tuning or ablation options."
             }
         }
         'Tune' {
@@ -109,6 +111,7 @@ $flavorLower = $Flavor.ToLowerInvariant()
 $tune = if ($Flavor -eq 'Tune') { 'ON' } else { 'OFF' }
 $diagnostic = if ($Flavor -eq 'Diag') { 'ON' } else { 'OFF' }
 $ablation = if ($Flavor -eq 'Ablate') { 'ON' } else { 'OFF' }
+$profileSymbols = if ($Flavor -eq 'Profile') { 'ON' } else { 'OFF' }
 $armState = if ($Arm) { $Arm.ToUpperInvariant() } else { 'OFF' }
 $armLabel = if ($ArmOption) { "$ArmOption=$armState" } else { 'none' }
 $isWindowsHost = [Runtime.InteropServices.RuntimeInformation]::IsOSPlatform(
@@ -122,7 +125,7 @@ try {
     $configureArgs = @(
         '--fresh', '--preset', 'release-pext',
         '-DCOMP=clang', '-DPORTABLE_BUILD=ON', '-DTEXEL=OFF',
-        "-DTUNE=$tune", "-DDIAGNOSTIC=$diagnostic", "-DABLATION=$ablation",
+        "-DTUNE=$tune", "-DDIAGNOSTIC=$diagnostic", "-DABLATION=$ablation", "-DPROFILE_SYMBOLS=$profileSymbols",
         "-DBASILISK_PGO_ARM_OPTION=$ArmOption", "-DBASILISK_PGO_ARM_STATE=$armState"
     )
     if ($ArmOption) { $configureArgs += "-D$ArmOption=$armState" }
@@ -186,7 +189,7 @@ try {
     $binary = Get-Item -LiteralPath $dest
     $binarySha = (Get-FileHash -LiteralPath $dest -Algorithm SHA256).Hash
     $manifest = [IO.Path]::ChangeExtension($dest, '.manifest.txt')
-    $buildCommand = "cmake --preset release-pext -DPORTABLE_BUILD=ON -DTUNE=$tune -DDIAGNOSTIC=$diagnostic -DABLATION=$ablation" +
+    $buildCommand = "cmake --preset release-pext -DPORTABLE_BUILD=ON -DTUNE=$tune -DDIAGNOSTIC=$diagnostic -DABLATION=$ablation -DPROFILE_SYMBOLS=$profileSymbols" +
         $(if ($ArmOption) { " -D$ArmOption=$armState" } else { '' }) +
         '; cmake --build --preset release-pext --target pgo'
 
@@ -203,7 +206,7 @@ try {
         "arm_state: $(if ($Arm) { $armState } else { 'none' })"
         'isa: pext'
         'portable_codegen: true'
-        "preset: release-pext (USE_PEXT=ON, PORTABLE_BUILD=ON, TUNE=$tune, DIAGNOSTIC=$diagnostic, ABLATION=$ablation, PGO=USE)"
+        "preset: release-pext (USE_PEXT=ON, PORTABLE_BUILD=ON, TUNE=$tune, DIAGNOSTIC=$diagnostic, ABLATION=$ablation, PROFILE_SYMBOLS=$profileSymbols, PGO=USE)"
         "build_command: $buildCommand"
         "compiler: $compiler"
         'verification: bench'

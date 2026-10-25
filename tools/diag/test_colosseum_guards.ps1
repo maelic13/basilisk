@@ -1,7 +1,7 @@
 <# Prove each A.3.1 guard refuses one deliberately broken input. #>
 param(
-    [string]$EngineA = "tools/test_engines/basilisk-tt-coherence-base-pext-pgo.exe",
-    [string]$EngineB = "tools/test_engines/basilisk-tt-coherence-candidate-pext-pgo.exe",
+    [string]$EngineA = "tools/test_engines/basilisk-head-4fa68b4-pext-pgo.exe",
+    [string]$EngineB = "tools/test_engines/basilisk-v1102-clang23-pext-pgo.exe",
     [switch]$KeepScratch
 )
 
@@ -160,6 +160,42 @@ try {
         $status = [pscustomobject]@{ durable = [pscustomobject]@{ checkpoint = [pscustomobject]@{ faults = $faults } } }
         Assert-ColosseumRunFaults $status 2 0.5 | Out-Null
     }
+    # Gauntlet faults, in the shape 0.4.0's `stats --json` gave for BAS-M10's
+    # void run: two setup crashes by Houdini 3 in its 400 games.
+    function New-FaultReport([object[]]$Groups, [int]$Infrastructure = 0, [int]$BasiliskTimeLosses = 0) {
+        [pscustomobject]@{
+            faults = @($Groups)
+            time_losses = @(
+                [pscustomobject]@{ engine = 'Basilisk'; games = $BasiliskTimeLosses },
+                [pscustomobject]@{ engine = 'Houdini 3'; games = 0 })
+            infrastructure_faults = $Infrastructure
+        }
+    }
+    $crashes = [pscustomobject]@{ engine = 'Houdini 3'; termination = 'EngineCrash'; kind = 'disconnect'; phase = 'setup'; scored_as = 'loss'; games = 2 }
+    $field = @{ 'Houdini 3' = 400 }
+    Invoke-Case 'control: opponent crashes under rule' '' {
+        $lines = @(Assert-ColosseumGauntletFaults (New-FaultReport @($crashes)) @('Basilisk') $field 1.0 2 0)
+        $expected = 'Houdini 3 disconnect in setup, EngineCrash, scored loss: 2'
+        if ($lines.Count -ne 1 -or $lines[0] -isnot [string] -or $lines[0] -ne $expected) { throw "accepted lines are '$lines'" }
+        $none = @(Assert-ColosseumGauntletFaults (New-FaultReport @()) @('Basilisk') $field 1.0 0 0)
+        if ($none.Count -ne 0) { throw "a clean report returned $($none.Count) line(s)" }
+    }
+    Invoke-Case 'Basilisk crash in a gauntlet' 'BASILISK FAULT' {
+        Assert-ColosseumGauntletFaults (New-FaultReport @($crashes)) @('Basilisk', 'Houdini 3') @{} 1.0 2 0 | Out-Null
+    }
+    Invoke-Case 'Basilisk time loss in a gauntlet' 'lost 1 game(s) on time' {
+        Assert-ColosseumGauntletFaults (New-FaultReport @() -BasiliskTimeLosses 1) @('Basilisk') $field 1.0 0 0 | Out-Null
+    }
+    Invoke-Case 'opponent over the fault rate' 'OPPONENT FAULT RATE' {
+        Assert-ColosseumGauntletFaults (New-FaultReport @($crashes)) @('Basilisk') @{ 'Houdini 3' = 100 } 1.0 2 0 | Out-Null
+    }
+    Invoke-Case 'gauntlet infrastructure fault' 'infrastructure fault' {
+        $harness = [pscustomobject]@{ engine = 'harness'; termination = 'Aborted'; kind = 'spawn'; phase = 'setup'; scored_as = 'not scored'; games = 1 }
+        Assert-ColosseumGauntletFaults (New-FaultReport @($harness) -Infrastructure 1) @('Basilisk') $field 1.0 0 1 | Out-Null
+    }
+    Invoke-Case 'fault counters disagree' 'FAULT COUNTERS DISAGREE' {
+        Assert-ColosseumGauntletFaults (New-FaultReport @($crashes)) @('Basilisk') $field 1.0 3 0 | Out-Null
+    }
 
     $base = @{
         Mode = 'match'; EngineA = $armA; EngineB = $armB; NameA = 'A'; NameB = 'B'
@@ -171,6 +207,16 @@ try {
     $badPolicy.RunFile = Join-Path $repo 'tools\colosseum\match-fixed-ltc.toml'
     $badPolicy.Dir = Join-Path $scratch 'bad-policy'
     Invoke-Case 'resolved policy mismatch' 'not Basilisk policy' { & $wrapper @badPolicy | Out-Null }
+    # Every run keeps its engine processes; a command's default changed between
+    # runner versions (a tournament started fresh ones before 0.3.0).
+    $freshRunFile = Join-Path $scratch 'match-fresh-processes.toml'
+    $fixedRunFile = (Join-Path $repo 'tools\colosseum\match-fixed.toml').Replace('\', '/')
+    @("extend = ""$fixedRunFile""", '', '[options]', 'engine-processes = "per-game"') |
+        Set-Content -LiteralPath $freshRunFile -Encoding utf8
+    $freshMatch = $base.Clone()
+    $freshMatch.RunFile = $freshRunFile
+    $freshMatch.Dir = Join-Path $scratch 'fresh-match'
+    Invoke-Case 'match with fresh engine processes' "engine processes are 'per-game'" { & $wrapper @freshMatch | Out-Null }
 
     $gauntletExtra = @(
         '--format', 'gauntlet', '--seeds', '1', '--cycles', '1', '--games-per-pair', '2', '--max-engine-faults', '0',
@@ -190,6 +236,29 @@ try {
     $wrongGauntletHash.ExpectSha256 = @($gauntlet.ExpectSha256[0], ('0' * 64))
     $wrongGauntletHash.Dir = Join-Path $scratch 'gauntlet-bad-hash'
     Invoke-Case 'external gauntlet hash mismatch' 'PROVENANCE MISMATCH' { & $wrapper @wrongGauntletHash | Out-Null }
+    $freshGauntlet = $gauntlet.Clone()
+    $freshGauntlet.ExtraArgs = @($gauntletExtra + @('--engine-processes', 'per-game'))
+    $freshGauntlet.Dir = Join-Path $scratch 'fresh-gauntlet'
+    Invoke-Case 'gauntlet with fresh engine processes' "engine processes are 'per-game'" { & $wrapper @freshGauntlet | Out-Null }
+    # 100 cycles give 200 games against the external engine: a cap of 2 at 1%.
+    function Set-GauntletArgs([string]$Cycles, [string]$MaxFaults) {
+        $copy = @($gauntletExtra)
+        $copy[[array]::IndexOf($copy, '--cycles') + 1] = $Cycles
+        $copy[[array]::IndexOf($copy, '--max-engine-faults') + 1] = $MaxFaults
+        $copy
+    }
+    $capped = $gauntlet.Clone()
+    $capped.ExtraArgs = Set-GauntletArgs '100' '2'
+    $capped.Dir = Join-Path $scratch 'gauntlet-capped'
+    Invoke-Case 'control: foreign fault cap at the rate' '' { & $wrapper @capped | Out-Null }
+    $strict = $gauntlet.Clone()
+    $strict.ExtraArgs = Set-GauntletArgs '100' '0'
+    $strict.Dir = Join-Path $scratch 'gauntlet-strict'
+    Invoke-Case 'foreign field with no fault cap' 'engine faults, expected 2' { & $wrapper @strict | Out-Null }
+    $loose = $gauntlet.Clone()
+    $loose.ExtraArgs = Set-GauntletArgs '1' '1'
+    $loose.Dir = Join-Path $scratch 'gauntlet-loose'
+    Invoke-Case 'fault cap beyond the rate' 'engine faults, expected 0' { & $wrapper @loose | Out-Null }
 } finally {
     if (-not $KeepScratch -and (Test-Path -LiteralPath $scratch)) {
         Remove-Item -LiteralPath $scratch -Recurse -Force

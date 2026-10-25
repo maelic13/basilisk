@@ -1,8 +1,9 @@
 # Rating gauntlet. Participants, labels, ratings and fixed anchors remain on
-# the command line because they belong to the event registration.
+# the command line because they belong to the event registration. Each slot
+# keeps its engine processes from game to game, as every other run does
+# (inherited from common.toml).
 extend = "common.toml"
 command = ["tournament", "run"]
-unset = ["/options/engine-processes"]
 
 [options]
 concurrency = 14

@@ -300,16 +300,26 @@ and gauntlets. `tools/colosseum.ps1` drives matches from the committed run
 files in `tools/colosseum/`; `tools/spsa_colosseum.ps1` drives generated tune
 blocks from `tools/spsa_configs/colosseum/`. The experiment registration owns
 the engines, cap or horizon, seed and evidence directory. The runner is pinned
-by revision and SHA-256 in `colosseum.pin.json`; a different binary is refused,
-not substituted. Colosseum is qualified in its own repository, with Rarog as
-the validation engine, and Basilisk repeats none of that qualification.
+by revision and SHA-256 in `colosseum.pin.json` (`colosseum-cli` 0.4.0 since
+2026-10-24); a different binary is refused, not substituted. Colosseum is
+qualified in its own repository, with Rarog as the validation engine, and
+Basilisk repeats none of that qualification. Every run keeps each slot's
+engine processes between games (`engine-processes = "per-slot"` in
+`common.toml`); the wrapper refuses any other resolved value, because a
+command's default has changed between runner versions.
 
 The wrappers prove an idle host, runner and engine hashes, build manifests,
 the expected revision and bench fingerprint, advertised UCI options, natural
 termination, placement and the fully resolved policy before play. Match exits
 are interpreted as outcomes rather than shell success/failure, faults are read
 from durable state and the PGN is independently recounted. Tune blocks require
-zero engine, time and infrastructure faults. An existing match directory
+zero engine, time and infrastructure faults. A gauntlet reads faults per
+engine from `colosseum-cli stats`: any fault or time loss by a Basilisk build
+(a participant with a build manifest) voids it, as does any infrastructure
+fault, while a foreign opponent's faults are read when they stay within 1% of
+that opponent's games (`-OpponentFaultRatePercent`) and are quoted in the
+manifest. The runner's fault cap is that 1% of the foreign games, zero for an
+all-Basilisk field. An existing match directory
 resumes only at its recorded seed; a later tune block uses `-SeedFrom`, a fresh
 seed and a fresh schedule.
 
@@ -346,6 +356,13 @@ together included.** A null pair (the same executable on both arms, judged on
 the full 95% nElo interval inside ±5, never on LLR) is owed only after a
 runner, scheduler or topology change.
 
+Foreign opponents with a move-overhead option play their smallest safe value,
+10 ms. A default set for long controls costs tens of Elo at `3+0.03`:
+Stockfish 11's `Move Overhead` of 30 removed 23% of its opening horizon in
+Rarog's pool. Ratings measured before and after this rule are not comparable.
+Basilisk's current pool has no such option; the rule applies once an engine
+with one joins (E.2).
+
 `sprt.ps1` defaults: `-Mode gainer` is `[0, Elo1]` with **Elo1 = 5 by default,
 so a registered `[0,3]` gate passes `-Elo1 3`**. `-Mode simplify` is `[-5,0]`.
 `-Mode fixed -Games N` is a measurement that decides nothing. `-OptionsA` and
@@ -376,13 +393,60 @@ so a registered `[0,3]` gate passes `-Elo1 3`**. `-Mode simplify` is `[-5,0]`.
   flavor. The wrapper starts from a fresh cache, forces portable tier codegen,
   verifies bench and the flavor's UCI surface, and writes a schema-2 sidecar
   with source tree, binary hash, compiler, flavor, arm and fingerprint.
-- **NPS:** `tools/nps_ab.ps1` validates on a self pair first (it must read
-  about 0.00%), pools at least two PGO builds per arm (two PGO builds of
-  identical source differ by about a third of a percent), interleaves arms,
-  and runs on an idle host.
-- **Converting NPS to Elo:** about 2 Elo per 1% NPS at `3+0.03` holds for
-  small deltas only (BAS-P01). Above a few percent convert through doublings,
-  and say which conversion was used.
+- **NPS:** two pools from `tools/nps_pool.ps1`, read by `tools/nps_read.ps1`
+  and decided by `tools/diag/nps_read.py` (Rarog's RAR-P32 method). The
+  builds set the limit, not the cycles.
+  - **Pools.** A pool is four independent final-PGO builds of one clean
+    revision. A single binary is not an arm, and identical hashes are
+    refused. Another revision is built from a temporary worktree with its
+    own `build_test.ps1`.
+  - **Cycles.** A cycle reads every build of both arms once, interleaved,
+    with arm order alternating. A reading is the best of one pinned
+    `bench 13 3 1`. There is one warm-up reading per build, and every run
+    is archived.
+  - **Estimate.** The delta of the arms' means of per-build medians, with a
+    Welch t-interval on those medians, never a bootstrap of readings.
+  - **Step 1, two cycles.** At +0.9% or more the change is accepted; at
+    +0.1% or less it is NO_CHANGE.
+  - **Step 2, only in between, six cycles in all.** Accepted at +0.5% or
+    more with the lower bound above 0.
+  - **No-regression form (`-NoRegression`).** Step 1 passes at −0.1% or
+    above and fails at −0.9% or below. Step 2 fails at −0.5% or below with
+    the upper bound under 0.
+  - **Disturbance.** In step 1 an arm's two cycles agree within 1%. Over six
+    cycles, a cycle more than 1% off its arm's median cycle is disturbed;
+    two are absorbed and three repeat the read. A cycle with host load over
+    10%, or with an engine, harness or build process running, is disturbed.
+  - **Fresh executables are scanned by antivirus** (RAR-M48), so the read
+    first waits for sustained quiet: 120 s in a registered read.
+  - **The null** is two independent pools of one source (BAS-P18).
+  - `tools/nps_ab.ps1` is kept only to compare with earlier rows. Its
+    bootstrap resamples readings, not builds, so it is not this interval.
+- **Profiling:** `tools/profile.ps1` samples a `build_test.ps1 -Flavor
+  Profile` engine, which is Release plus line tables with inline records
+  and byte-identical code. It needs no administrator rights.
+  - **Cohorts.** `bench 13`, or a frozen EPD file searched to `-Nodes`.
+  - **Sampling.** About once a millisecond, every thread that ran for at
+    least half as long as the busiest one is suspended and its instruction
+    pointer read.
+  - **Attribution.** `tools/diag/profile_regions.py` charges each sample to
+    the source file of its innermost engine frame, through
+    llvm-symbolizer's inline chains. The region map is
+    `tools/diag/profile_regions.json`, and its test fails on any unmapped
+    file in `src/`.
+  - **Refusals.** The profile is refused when under 30% of samples carry an
+    inline chain, when under 90% resolve to an engine file, or when an
+    engine file is unmapped. `profile.ps1` refuses a stale, dirty or
+    non-Profile binary.
+  - **Never charge by function.** On the head's bench, charging each
+    sample to the function that contains it moved about half of board
+    work, and all of attacks and TT, into search (A.9.5).
+- **Converting NPS to Elo:** about 2 Elo per 1% NPS at `3+0.03` (BAS-P01).
+  - Rarog measured it holding to +22%: RAR-S98 read +18.4% NPS as +35.5 ±
+    9.0, and RAR-S99 read +22.47% as +42.3 ± 9.5. That is about 145 Elo per
+    doubling, where the textbook rule gives 60.
+  - Use it as the prior for this engine class at `3+0.03`. Other controls
+    are not covered, and every conversion says which rule it used.
 - **Converting nodes to depth:** a node-count change is converted to plies
   (divide by log EBF) before it is called expensive. +19% bench nodes was
   0.165 ply, and strength-neutral.

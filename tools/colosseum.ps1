@@ -36,6 +36,7 @@ param(
     [switch]$DryRun,
     [double]$MaxHostBusyPercent = 15,
     [double]$TimeLossRateCeiling = 0.5,
+    [double]$OpponentFaultRatePercent = 1.0,
     [string[]]$ExtraArgs = @(),
     [string]$RunFile = '',
     [string]$Book = "$PSScriptRoot\books\UHO_Lichess_4852_v1.epd",
@@ -260,7 +261,18 @@ if ($Mode -eq 'gauntlet') {
     if ([int]$resolved.openings.scheduled_openings -ne $expectedOpenings) {
         Add-Violation "gauntlet schedules $($resolved.openings.scheduled_openings) openings, expected $expectedOpenings paired openings"
     }
-    if ([int]$resolved.max_engine_faults -ne 0) { Add-Violation "gauntlet permits $($resolved.max_engine_faults) engine faults, expected 0" }
+    # Basilisk builds carry a manifest (ExpectBench >= 0); a foreign opponent is
+    # pinned by hash alone. Only foreign games earn the runner a fault cap.
+    $foreignGames = @{}
+    for ($i = $seeds; $i -lt $engines.Count; $i++) {
+        if ($ExpectBench[$i] -lt 0) { $foreignGames[$engines[$i].Label] = $seeds * $cycles * $gamesPerPair }
+    }
+    $basiliskLabels = @(for ($i = 0; $i -lt $engines.Count; $i++) { if ($ExpectBench[$i] -ge 0) { $engines[$i].Label } })
+    $faultAllowance = Get-GauntletFaultAllowance -ForeignGames (($foreignGames.Values | Measure-Object -Sum).Sum) `
+        -RatePercent $OpponentFaultRatePercent
+    if ([int]$resolved.max_engine_faults -ne $faultAllowance) {
+        Add-Violation "gauntlet permits $($resolved.max_engine_faults) engine faults, expected $faultAllowance ($OpponentFaultRatePercent% of foreign games)"
+    }
     $fixed = @($resolved.fixed_ratings)
     if ($fixed.Count -ne $participants.Count - $seeds) {
         Add-Violation "gauntlet fixes $($fixed.Count) opponent ratings, expected $($participants.Count - $seeds)"
@@ -295,6 +307,12 @@ try {
 } catch {
     Add-Violation $_.Exception.Message
 }
+# Every run keeps each slot's engine processes between games. A command's
+# default has changed between runner versions, so the resolved value is read.
+$processes = $resolved.PSObject.Properties['engine_processes']
+if (-not $processes -or "$($processes.Value)" -ne 'per-slot') {
+    Add-Violation "engine processes are '$(if ($processes) { $processes.Value } else { 'unstated' })', expected per-slot"
+}
 if ([int]$resolved.master_seed -ne $Seed) { Add-Violation "seed is $($resolved.master_seed), expected $Seed" }
 if ($Mode -eq 'sprt') {
     if ("$($resolved.design.parameters.model)" -ne 'normalized') { Add-Violation 'SPRT model is not normalized' }
@@ -302,7 +320,7 @@ if ($Mode -eq 'sprt') {
 }
 if ($violations.Count) {
     foreach ($violation in $violations) { Write-Host "  POLICY: $violation" -ForegroundColor Red }
-    throw "Resolved configuration is not Basilisk policy ($($violations.Count) violation(s)); see $dryPath."
+    throw "Resolved configuration is not Basilisk policy ($($violations.Count) violation(s): $($violations -join '; ')); see $dryPath."
 }
 Write-Host '  Resolved configuration matches Basilisk policy.'
 
@@ -384,9 +402,12 @@ if ($Mode -eq 'gauntlet') {
     if (-not (Test-Path -LiteralPath $resultPath)) { throw "No result.json in $Dir." }
     $result = Get-Content -LiteralPath $resultPath -Raw | ConvertFrom-Json
     if ("$($result.status)" -ne 'completed') { throw "Tournament status is '$($result.status)', not completed; see $Dir." }
-    if ([int]$result.engine_faults -ne 0 -or [int]$result.infrastructure_faults -ne 0) {
-        throw "Tournament has $($result.engine_faults) engine and $($result.infrastructure_faults) infrastructure faults; see $Dir."
-    }
+    $statsJson = & $cli.Path stats --json $Dir 2> $null
+    if ($LASTEXITCODE -ne 0) { throw "colosseum-cli stats could not read $Dir (exit $LASTEXITCODE)." }
+    $stats = ($statsJson -join "`n") | ConvertFrom-Json
+    $opponentFaults = @(Assert-ColosseumGauntletFaults -Faults $stats.report.faults -BasiliskLabels $basiliskLabels `
+        -ForeignGames $foreignGames -RatePercent $OpponentFaultRatePercent `
+        -ResultEngineFaults ([int]$result.engine_faults) -ResultInfrastructureFaults ([int]$result.infrastructure_faults) -Dir $Dir)
     if ([int]$result.results.games_scheduled -ne $expectedGames -or
         [int]$result.results.games_scored -ne $expectedGames -or
         @($result.games).Count -ne $expectedGames -or $scored -ne $expectedGames) {
@@ -422,8 +443,10 @@ if ($Mode -eq 'gauntlet') {
         "result_sha256:    $(Get-HarnessSha256 $resultPath)"
         "pgn_sha256:       $(Get-HarnessSha256 (Join-Path $Dir 'games.pgn'))"
         "pgn_census_sha256: $(Get-HarnessSha256 $censusPath)"
+        "opponent_faults:  $(if ($opponentFaults.Count) { $opponentFaults -join '; ' } else { 'none' })"
     )
-    Write-Host "Tournament finished: $scored games, zero faults; PGN census agrees."
+    $faultText = if ($opponentFaults.Count) { "no Basilisk fault; opponent faults within the rule: $($opponentFaults -join '; ')" } else { 'zero faults' }
+    Write-Host "Tournament finished: $scored games, $faultText; PGN census agrees."
     Write-Host "Manifest: $manifestPath"
     return
 }

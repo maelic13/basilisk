@@ -485,6 +485,8 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S26](experiments/BAS-S26.md) — B.10: the piece-square table orientation repair, `[-5,5]` — H1, +18.3 ± 12.9; flipped tables default
 
+- [BAS-S27](experiments/BAS-S27.md) — direction reads of the head against 1.10.2 at 10+0.1, 4T and with tablebases — COMPLETE: ltc +241.4, 4t +237.6, tb +221.9; all pass
+
 | ID | Title | Disposition |
 |---|---|---|
 | [BAS-S17](experiments/BAS-S17.md) | Razoring depth reach in Elo (B.0.1, maintainer). | +2.4 ± 9.9; interval holds 0, the cluster decides the cap |
@@ -524,6 +526,7 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 | [BAS-R04](experiments/BAS-R04.md) | Phase-9 helper clock/node/thread safety bundle at 4T. | Accepted, +30.42 ± 8.77 at 4T, zero forfeits in 2,450 games. |
 | [BAS-R05](experiments/BAS-R05.md) | Shared-node batching/scaling change. | Retained: |
 | [BAS-R06](experiments/BAS-R06.md) | Extra helper coordination, aspiration sharing, diversification, TT variants and HCE refit during | Rejected or removed; not shipped. |
+| [BAS-R07](experiments/BAS-R07.md) | Fail-high clock stop sink probes: B.10 ended rec1's sink by a mate proof; cascade and the stop's hole remain. | Observation |
 
 ## 5. Evaluation and data experiments
 
@@ -567,6 +570,8 @@ not accept any new feature, vector or label policy by themselves.
 | [BAS-P15](experiments/BAS-P15.md) | Frozen before the run, PLAN A.8.20's pooled-PGO NPS baseline of the A.8 head. | COMPLETE: 4.189M NPS |
 | [BAS-P16](experiments/BAS-P16.md) | Frozen before the run, PLAN B.1's pooled-PGO NPS gate against the A.8 head. | PASSED: +1.21%, unexplained |
 | [BAS-P17](experiments/BAS-P17.md) | Frozen before the run, PLAN B.2.0's pooled-PGO NPS pool against the B.1 builds. | PASSED: 0.00% |
+| [BAS-P18](experiments/BAS-P18.md) | The pooled-build NPS read's null: two independent pools of the head. | COMPLETE: −0.19% [−0.66, +0.27], NO_CHANGE; instrument validated |
+| [BAS-P19](experiments/BAS-P19.md) | MSYS2 clang 22.1.8 to 23.1.3 at identical source, a no-regression NPS read. | COMPLETE: +0.89% [+0.23, +1.54], no regression |
 
 ## 7. Correctness and protocol lessons
 

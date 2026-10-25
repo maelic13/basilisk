@@ -6,9 +6,13 @@ the experiment's engines, finite budget, seed and evidence directory.
 
 The wrapper refuses a busy host, an unpinned runner, a missing or stale engine
 manifest, dirty or wrong-revision arms, compiler/flavor mismatches, unknown UCI
-options, adjudication, policy drift in the resolved configuration, runner
-faults, and a PGN recount that disagrees with the runner. `-DryRun` exercises
-all preflight checks without playing.
+options, adjudication, policy drift in the resolved configuration (fresh
+engine processes per game included), runner faults, and a PGN recount that
+disagrees with the runner. In a gauntlet a Basilisk build's fault voids the
+run; a foreign opponent's faults are read up to 1% of its games. `-DryRun` exercises all preflight checks without
+playing. The runner is `colosseum-cli` 0.4.0, pinned by revision and SHA-256
+in `colosseum.pin.json`; `tools/setup_tools.ps1` stages it from the release
+asset and checks both digests.
 
 | File | Use |
 |---|---|
@@ -20,6 +24,7 @@ all preflight checks without playing.
 | `match-fixed-ltc.toml` | Fixed measurement at `10+0.1` |
 | `calibrate-null.toml` | Triggered null pair |
 | `gauntlet.toml` | Rating gauntlet |
+| `gauntlet-ltc.toml` | Rating gauntlet at `10+0.1` |
 | `spsa-tune.toml` | SPSA block policy: 15 slots × 30 games/iteration |
 
 Example:
