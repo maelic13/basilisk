@@ -377,6 +377,11 @@ so a registered `[0,3]` gate passes `-Elo1 3`**. `-Mode simplify` is `[-5,0]`.
   options; `DIAGNOSTIC=ON` exposes diagnostics without tunable constants;
   the two flavors are mutually exclusive. `TEXEL=ON` builds the Texel target
   and is never measured for strength.
+- **Build names.** A release reports `Basilisk X.Y.Z`. A development build
+  reports `Basilisk dev-<commit date>-<8 hash characters>`, with `-m` when
+  its tree differed from the commit, from a header regenerated at every
+  build. A byte-identity comparison builds both sides with the same
+  `-DBASILISK_DEV_ID=<date>-<hash>`, since the name is part of `.rdata`.
 - **The Windows compiler's LLVM major is pinned** in
   `.github/windows-clang-version`.
   - Every Windows cell of CI and Release refreshes MSYS2, prints its clang

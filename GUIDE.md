@@ -34,7 +34,7 @@ generations change. These are maintainer judgments, not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **A.10.7** `[I1]` Dev builds name their commit — Claude Sonnet 5 — Medium
+**Next step:** **A.11.1** `[I1]` Rule-50 damping out of the TT static eval — Claude Sonnet 5 — Medium
 
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
@@ -71,14 +71,14 @@ generations change. These are maintainer judgments, not measured rankings.
     - [x] **A.9.3** `[M]` Measurement rules from the audit
     - [x] **A.9.4** `[I1]` NPS read rebuilt on pooled builds
     - [x] **A.9.5** `[I1]` Profiler with inline attribution
-- [ ] **A.10** Delivery and repository repairs
+- [x] **A.10** Delivery and repository repairs
     - [x] **A.10.1** `[M]` Land dev and B.10 on master by squash PRs (ANY TIME) — before B.3
     - [x] **A.10.2** `[M]` CHANGELOG Unreleased caught up and kept
     - [x] **A.10.3** `[M]` PR refspec and required checks on master
     - [x] **A.10.4** `[I1]` Release and CI checks tightened
     - [x] **A.10.5** `[I1]` Ledger index dispositions kept in step
     - [x] **A.10.6** `[M]` Tools index and retired numbers in comments
-    - [ ] **A.10.7** `[I1]` Dev builds name their commit
+    - [x] **A.10.7** `[I1]` Dev builds name their commit
 - [ ] **A.11** Correctness repairs from the Rarog audit
     - [ ] **A.11.1** `[I1]` Rule-50 damping out of the TT static eval
     - [ ] **A.11.2** `[I1]` Singular search: lone excluded move returns alpha

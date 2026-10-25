@@ -914,7 +914,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         fixed both before any recorded profile.
       - Cohorts beyond `bench 13` belong to B.7.2 and C.12, which define
         them. An EPD cohort run shows the path works.
-- [ ] **A.10** Delivery and repository repairs
+- [x] **A.10** Delivery and repository repairs
   Added 2026-10-24. The delivery machinery matches Rarog's (CI on pull
   requests, tag-driven release, one fingerprint across the assets); these
   steps bring the practice and four checks up to it. Evidence:
@@ -1047,12 +1047,33 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       - Left for the maintainer: 32 current-roadmap or ledger IDs in
         comments, and stale bench counts quoted in a few comments (for
         example 11,941,440 in `eval_params.h`).
-    - [ ] **A.10.7** `[I1]` Dev builds name their commit
+    - [x] **A.10.7** `[I1]` Dev builds name their commit
       Added 2026-10-24 by maintainer decision. The exact shape is decided when
       this leaf opens. The proposal follows Reckless: a dev build's id name
       appends the short commit, as in `Basilisk 1.11.0-dev-<sha>`. That needs
       a build change, and `release.yml`'s id-name check must accept the suffix
       on candidate builds (next to A.10.4's release checks).
+      — CLOSED 2026-10-25. Shape by maintainer decision: Stockfish's exact form.
+      - A development build reads `Basilisk dev-<commit date>-<8 hash
+        characters>`, with `-m` after the date when the working tree differs
+        from the commit. Without git it reads `dev-<compile date>-nogit`. A
+        release still reads `Basilisk X.Y.Z`. The release line was dropped:
+        every dev build shares it, so it tells nothing the date and hash
+        don't. `engineVersion` keeps `X.Y.Z-dev` for the release tooling.
+      - One deliberate difference from Stockfish: the modified check uses
+        the clone's own line endings, because Stockfish's
+        `core.autocrlf=false` can read a CRLF working copy as modified.
+      - A header regenerated at every build carries the commit, so a commit
+        made without reconfiguring never leaves a stale name.
+        `BASILISK_DEV_ID` fixes the name for byte-identity comparisons.
+      - Release's smoke test now requires a candidate build to name exactly
+        the commit it was built from, and a release to read `Basilisk X.Y.Z`.
+        Run verbatim here, it passed both and refused a wrong commit, a
+        suffixed name and a dev name on a release.
+      - Verified: a clean tree names its commit; an uncommitted edit adds
+        `-m`; the override works; a PGO build names its commit at bench
+        8,437,148. CTest 21/21, and `test_uci_protocol` 85/85 with four new
+        sections.
 - [ ] **A.11** Correctness repairs from the Rarog audit
   Added 2026-10-24 by maintainer decision. Each repair is its own engine
   commit with a test that fails on the old code, bench accounting for any
@@ -2030,7 +2051,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.10.7 | RESEARCH | I1 | Dev-build version names; shape decided by the maintainer |
 | A.11.1 | READY_FOR_IMPLEMENTATION | I1 | Rule-50 damping out of the TT eval |
 | A.11.2 | READY_FOR_IMPLEMENTATION | I1 | Lone excluded move returns alpha |
 | A.11.3 | READY_FOR_IMPLEMENTATION | I1 | Zero own clock bounded |

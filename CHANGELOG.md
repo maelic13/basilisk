@@ -33,6 +33,12 @@ and next step).
 
   Each of these reads is 1,000 games.
 
+- **Development builds name their commit**, as Stockfish's do. A build
+  between releases reports `Basilisk dev-20261025-8b3f151c`: the commit's
+  date and the first eight characters of its hash, with `-m` after the date
+  when it was built from uncommitted changes. Releases still read
+  `Basilisk 1.11.0`.
+
 ### Fixed
 
 - **Seven piece-square tables were mirrored.** The knight, bishop and queen
