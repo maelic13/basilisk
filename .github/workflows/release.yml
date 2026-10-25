@@ -363,8 +363,15 @@ jobs:
           version='${{ needs.prepare.outputs.version }}'
           output=$(printf "uci\nquit\n" | $TIMEOUT "./$binary" 2>&1 || true)
           echo "$output" | grep -q "^uciok" || { echo "::error::no uciok in the UCI handshake"; echo "$output"; exit 1; }
-          echo "$output" | tr -d '\r' | grep -qx "id name Basilisk $version" \
-            || { echo "::error::id name does not read 'Basilisk $version'"; echo "$output" | grep '^id name'; exit 1; }
+          # A release names its version; a development build names the commit it
+          # was built from in Stockfish's form, and a clean checkout carries no -m.
+          if [[ "$version" == *-dev ]]; then
+            expected="Basilisk dev-$(git show -s --date=format:%Y%m%d --format=%cd HEAD)-$(git rev-parse HEAD | cut -c1-8)"
+          else
+            expected="Basilisk $version"
+          fi
+          echo "$output" | tr -d '\r' | grep -qx "id name $expected" \
+            || { echo "::error::id name does not read '$expected'"; echo "$output" | grep '^id name'; exit 1; }
           # The asset must reproduce the declared fingerprint exactly: the move
           # generator, evaluator and search survived PGO on this runner.
           bench_out=$(printf "bench 13\nquit\n" | $TIMEOUT "./$binary" 2>&1 || true)
