@@ -526,6 +526,7 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 | [BAS-R04](experiments/BAS-R04.md) | Phase-9 helper clock/node/thread safety bundle at 4T. | Accepted, +30.42 ± 8.77 at 4T, zero forfeits in 2,450 games. |
 | [BAS-R05](experiments/BAS-R05.md) | Shared-node batching/scaling change. | Retained: |
 | [BAS-R06](experiments/BAS-R06.md) | Extra helper coordination, aspiration sharing, diversification, TT variants and HCE refit during | Rejected or removed; not shipped. |
+| [BAS-R07](experiments/BAS-R07.md) | Fail-high clock stop sink probes: B.10 ended rec1's sink by a mate proof; cascade and the stop's hole remain. | Observation |
 
 ## 5. Evaluation and data experiments
 

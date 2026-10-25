@@ -1765,13 +1765,37 @@ rejections stop B.
   proper is D.1's.
   Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
   are its items):
-  - The fail-high clock stop's firing rate (maintainer item 2026-10-24; B-79,
-    A-48): read on a few hundred openings at `3+0.03` how often A.8.17's stop
-    fires and the time it removes. On Rarog's replay the same-move condition
-    fired on 24% of searches (11% of spend), and Rarog's own stop at the
-    target cost about 15 Elo (RAR-R18); Basilisk's only read is BAS-S20 (-0.7
-    ± 4.5). A high rate makes its threshold a candidate here (Rarog's at twice
-    the target passed the probe).
+  - The fail-high clock stop: keep, move to twice the target, or remove
+    (maintainer items 2026-10-24 and 2026-10-25; B-79, A-47, A-48).
+    Investigation `analysis/b5_failhigh_stop_2026-10-25.md`; probes
+    BAS-R07. Basilisk's probes (rec1 at `60000+600`, stop removed):
+    - The cascade is not gone. The A.8 (`fac5064`) and B.2 (`71a612b`) trees
+      still sink to the maximum. The head finishes only because B.10's PSTs
+      let its give-up window prove `mate 25`, after nine fail-highs.
+    - Tree growth is present at Rarog's scale but does not cause the sink.
+      10.9% of LMR-path searches go deeper than full depth. Removing the
+      correction term or the `+2` ceiling cuts rec1's depth-26 tree 30× and
+      23× and bench by 25% and 21%. Both arms still sink to the maximum
+      without the stop.
+    - The stop has a hole. It is checked only when a window fails high, so a
+      give-up window started just before the optimum runs unchecked: 2.79×
+      and 4.07× the optimum at `180000+2000` on those arms.
+    - From the same timelines, 2× would have missed the B.2 tree.
+
+    M1, registered in the packet with a frozen prediction, comes first: a
+    sequential replay of 300 games at `3+0.03` and 100 at `10+0.1` on a
+    counter build of the B.5 entry head, arms 1×, 2× and no stop. It reads
+    the firing rate by score band, the time removed and the hole's rate.
+    Decision rule, each option gated by a sink battery that must stay under
+    0.5× the maximum:
+    - keep 1× if it fires on under 10% of searches and removes under 3% of
+      spend;
+    - otherwise 2× against 1×, SPRT `[0,3]`;
+    - removal only if the battery passes with no stop, then a `[-5,5]`
+      bracket. On today's evidence removal is refused.
+
+    The hole is a card with D.1. Rarog's leads (24% firing, about −15 Elo at
+    the target) are priors only.
   - A score-scaled first window with B.4's fail-soft quiescence (B-75, B-19);
     Rarog's four-part cascade cluster read H0 (-7.4 ± 7.5) and was re-scoped
     to bare-king trees; a fail-high depth reduction only with its clock half
@@ -1781,7 +1805,10 @@ rejections stop B.
     Rarog); the width is coupled to LMR's `delta / root_delta` term (B-73).
   - Line growth: negative LMR reductions (`new_depth + 2`, `+ is_pv`) and
     re-search extras escape any budget (B-80, B-81); correction history drove
-    Rarog's won-ending trees (B-82).
+    Rarog's won-ending trees (B-82). Both are verified in Basilisk (BAS-R07:
+    won-ending trees 5–30× larger, bench −21% and −25% without them). Their
+    Elo is unmeasured beyond BAS-S21's `CoreLmrNegativeAllowed 0` read of
+    −5.6 ± 9.8.
   - Optimism needs A.11.1 and read -5.6 in Rarog (B-83); draw jitter read -1.2,
     so measure draw blindness first (B-84); MultiPV lines 2+ search a full
     window (B-85). The mate stop is D.1's (B-78).
@@ -2333,7 +2360,9 @@ has lost games in both engines (BAS-X02).
   - Sub-second horizon contraction: assuming fifty moves to go drifts a
     `3+0.03` game to about 155 ms of clock (A-45); hold and reserve (A-46);
     the long-clock stall probe on the PGO build at `180000+2000` (A-47; the
-    2026-10-24 probe in `tools/results/stall-probe-20261024/` passed); a mate
+    2026-10-24 probe in `tools/results/stall-probe-20261024/` passed, but
+    BAS-R07's tree variants run 2.8–4.1× the optimum there through the
+    give-up window, which the fail-high stop cannot reach); a mate
     stop beyond mate in 1 (A-49, B-78); a first-iteration stop guard and
     abort-sweep tests (A-50, A-65); ponder credit (A-42); time changes read by
     the opening's time a move and the clock left (A-54); the fail-high stop's
