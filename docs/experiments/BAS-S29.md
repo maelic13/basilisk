@@ -105,6 +105,8 @@
   repair stays as a correctness fix with no measured harm, on the
   maintainer's confirmation; the fingerprint record then updates to
   `bench 13` 8,753,339.
+- Disposition: **cap, +1.7 ± 4.8; the repair is kept (maintainer
+  confirmed 2026-10-25). CLOSED 2026-10-25.**
 
 #### PREDICTION CALIBRATION — preserve the original prediction above
 

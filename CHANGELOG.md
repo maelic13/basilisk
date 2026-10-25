@@ -51,7 +51,15 @@ and next step).
   from earlier in the search kept the value from the count at which it was
   first seen. Each position is now judged at its current count. The fix
   measured **+1.5 ± 4.8 Elo** at `3+0.03` (8,000 games), with no loss of
-  speed. `bench` now reports 9,260,429 nodes.
+  speed.
+
+- **Runaway extensions on forced moves.** When a position had only one
+  legal move, the search's test for an unusually strong move scored the
+  position without it as checkmate or stalemate and searched the forced
+  move two or three moves deeper, a gain that could repeat along a forced
+  line. A forced move now gets one extra move of depth, as in Stockfish.
+  The fix measured **+1.7 ± 4.8 Elo** at `3+0.03` (8,000 games), with no
+  loss of speed. `bench` now reports 8,753,339 nodes.
 
 ---
 

@@ -11,7 +11,7 @@ in `docs/PROCESS.md`; where the engine stands is PLAN §1.
 | Item | Value |
 |---|---|
 | Released baseline | **1.10.2** on `master`, tagged `v1.10.2` (2026-10-08), `bench 13` 14,978,465 |
-| Bench fingerprint | **9,260,429** (`bench 13`, since A.11.1's rule-50 TT-eval repair; 8,437,148 at B.10; 11,099,210 at B.2.4; 14,978,465 for 1.10.0 to 1.10.2) |
+| Bench fingerprint | **8,753,339** (`bench 13`, since A.11.2's singular lone-move repair; 9,260,429 at A.11.1; 8,437,148 at B.10; 11,099,210 at B.2.4; 14,978,465 for 1.10.0 to 1.10.2) |
 | Active experiment | None |
 | Long job | None |
 | Next release | **1.11.0** after B (B.11), then 1.12.0 after C, 1.13.0 after E; **2.0.0** is the first NNUE release |
@@ -34,7 +34,7 @@ generations change. These are maintainer judgments, not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **A.11.2** `[I1]` Singular search: lone excluded move returns alpha — Claude Sonnet 5 — Medium
+**Next step:** **A.11.3** `[I1]` Own clock of zero without increment is bounded — Claude Sonnet 5 — Medium
 
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
@@ -81,7 +81,7 @@ generations change. These are maintainer judgments, not measured rankings.
     - [x] **A.10.7** `[I1]` Dev builds name their commit
 - [ ] **A.11** Correctness repairs from the Rarog audit
     - [x] **A.11.1** `[I1]` Rule-50 damping out of the TT static eval
-    - [ ] **A.11.2** `[I1]` Singular search: lone excluded move returns alpha
+    - [x] **A.11.2** `[I1]` Singular search: lone excluded move returns alpha
     - [ ] **A.11.3** `[I1]` Own clock of zero without increment is bounded
     - [ ] **A.11.4** `[I1]` Upper-case UCI move text accepted
     - [ ] **A.11.5** `[I1]` Fatal errors from every thread reach stdout

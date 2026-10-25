@@ -489,7 +489,7 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S28](experiments/BAS-S28.md) — A.11.1: rule-50 damping out of the TT static eval, `[-5,5]` — cap, +1.5 ± 4.8; repair kept
 
-- [BAS-S29](experiments/BAS-S29.md) — A.11.2: a lone excluded move fails the singular search by one, `[-5,5]` — cap, +1.7 ± 4.8; repair kept on confirmation
+- [BAS-S29](experiments/BAS-S29.md) — A.11.2: a lone excluded move fails the singular search by one, `[-5,5]` — cap, +1.7 ± 4.8; repair kept
 
 | ID | Title | Disposition |
 |---|---|---|
