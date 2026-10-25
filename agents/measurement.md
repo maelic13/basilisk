@@ -27,10 +27,13 @@ experiment by `agents/research.md`, *Experiment design*, before it runs.
   tools, never a hand-rolled parser. Before differencing two counters, confirm
   they are in the same unit; a passing invariant does not prove comparability.
   Counter ratios are valid only at sampling stride 1.
-- A compiler bump is a speed change even at an identical fingerprint.
-  - It owes a pooled NPS read, registered with about ±2.5% for an LLVM
-    major.
-  - It never falls between an SPRT's arms.
+- An LLVM major step is a speed change even at an identical fingerprint.
+  - It owes a pooled NPS read, registered with about ±2.5%, before the
+    Windows pin (`.github/windows-clang-version`) moves.
+  - Patch releases owe none. CI prints them, and every build manifest
+    records the exact compiler.
+  - No compiler step, a patch included, falls between an SPRT's arms. The
+    wrapper refuses arms whose compilers differ.
   - Rarog's LLVM 22 to 23 step kept its fingerprint and cost 1.5–1.7% pooled
     with PGO (RAR-P36 to RAR-P38).
 - A SQLite database is copied together with its `-wal` file, or read in place.

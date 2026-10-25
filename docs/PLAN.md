@@ -1002,6 +1002,13 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         filter matching nothing exits 8 with the flag and 0 without it.
       - **Not yet run live.** The workflow steps first run on this branch's
         PR.
+      - **Amended 2026-10-25 (maintainer decision).**
+        - The pin is the LLVM major, `23`. Patch releases pass, because MSYS2
+          ships several a month and an exact pin would stall CI on each.
+        - `build_test.ps1` warns when the local clang is on another major. It
+          warned on a `22` pin and stayed silent on `23`.
+        - The workflow check, run verbatim on this machine, passes on `23`
+          and fails on `22` and `2`.
     - [ ] **A.10.5** `[I1]` Ledger index dispositions kept in step
       (D-61) `docs/EXPERIMENTS.md` lists BAS-M10 and BAS-M11 as not run while
       their entries read VOID and COMPLETE; the checker compares IDs, not
