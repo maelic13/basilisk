@@ -29,10 +29,16 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Timeouts stop a stalled runner, not a slow test: each job's is about
+  # three times its slowest successful run from 2026-09-27 to 2026-10-25;
+  # sanitize's allows the 15-22 minute sanitizer CTest it ran until
+  # 2026-10-08. Each install step's catches a hung package mirror in
+  # minutes.
   # ---- Release-mode OS/architecture/ISA matrix -------------------------------
   test:
     name: test (${{ matrix.os_name }} ${{ matrix.arch }} ${{ matrix.tier }})
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -109,6 +115,7 @@ jobs:
           persist-credentials: false
 
       - name: Install Clang and Ninja (Linux)
+        timeout-minutes: 10
         if: runner.os == 'Linux'
         # clang-19, NOT the distro-default clang-18. try_set_fen returns
         # std::expected (C++23, added in 8.6). On Linux clang uses libstdc++,
@@ -125,6 +132,7 @@ jobs:
           clang++ --version
 
       - name: Set up MSYS2 / Clang (Windows)
+        timeout-minutes: 20
         if: runner.os == 'Windows'
         uses: msys2/setup-msys2@v2
         with:
@@ -158,6 +166,7 @@ jobs:
       # not gated on __cpp_concepts, so no version bump is needed here); cmake is
       # preinstalled on the runner, ninja is not.
       - name: Install Ninja (macOS)
+        timeout-minutes: 10
         if: runner.os == 'macOS'
         run: |
           command -v ninja >/dev/null 2>&1 || brew install ninja
@@ -234,6 +243,7 @@ jobs:
   flavors:
     name: build flavors (linux x86_64 pext)
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - name: Check out
         uses: actions/checkout@v7
@@ -241,6 +251,7 @@ jobs:
           persist-credentials: false
 
       - name: Install Clang and Ninja
+        timeout-minutes: 10
         # clang-19 for libstdc++'s C++23 std::expected; see the test job.
         run: |
           sudo apt-get update -q
@@ -302,6 +313,7 @@ jobs:
   docs:
     name: documents
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - name: Check out
         uses: actions/checkout@v7
@@ -326,6 +338,7 @@ jobs:
   sanitize:
     name: sanitize (linux ASan+UBSan)
     runs-on: ubuntu-24.04
+    timeout-minutes: 45
     steps:
       - name: Check out
         uses: actions/checkout@v7
@@ -333,6 +346,7 @@ jobs:
           persist-credentials: false
 
       - name: Install Clang and Ninja
+        timeout-minutes: 10
         # clang-19 for the C++23 std::expected in libstdc++ (guarded behind
         # __cpp_concepts >= 202002L, which clang-18 does not define); see the
         # test job's install step for the full explanation.
@@ -360,6 +374,7 @@ jobs:
   gcc-pgo:
     name: GCC PGO (linux x86_64)
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - name: Check out
         uses: actions/checkout@v7
@@ -367,6 +382,7 @@ jobs:
           persist-credentials: false
 
       - name: Install GCC and Ninja
+        timeout-minutes: 10
         run: |
           sudo apt-get update -q
           sudo apt-get install -y gcc-14 g++-14 ninja-build cmake
@@ -396,6 +412,7 @@ jobs:
     # checks, and a cell that never fingerprinted is reported missing below.
     if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - name: Download fingerprints
         # v7, not v8: download-artifact v8 stopped auto-unzipping (Content-Type
@@ -434,6 +451,7 @@ jobs:
     needs: [test, flavors, docs, sanitize, gcc-pgo, bench-agreement]
     if: ${{ always() }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - name: Every CI job succeeded
         env:

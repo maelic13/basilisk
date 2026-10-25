@@ -1124,7 +1124,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         and the repair stays by the registered rule on the maintainer's
         confirmation. The development fingerprint is `bench 13` 9,260,429;
         the legacy arm stays 15,887,213.
-    - [ ] **A.11.2** `[I1]` Singular search: lone excluded move returns alpha
+    - [x] **A.11.2** `[I1]` Singular search: lone excluded move returns alpha
       (B-4) When the singular search excludes a node's only legal move,
       `searched == 0` returns `in_check ? -(MATE_SCORE - ply) : 0`
       (`search_kernel_core.cpp:1297`). That scores far below singular beta, so
@@ -1136,6 +1136,25 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       at its rail, plausibly hides it today, and B.3 plans an IIR-off arm.
       Test: a forced position whose only move is the TT move does not extend;
       a counter for the lone-move return.
+      - Implemented 2026-10-25 (`8802a85`): an exclusion search with no
+        move left returns `alpha` (`no_move_score`, `src/search_types.h`),
+        counted as `singular_lone_move` in diagnostic builds.
+      - The leaf's "does not extend" is corrected to its mechanism: `alpha`
+        is one below the singular beta, so a forced move still extends by
+        one ply, as in Stockfish and Rarog, and never doubles at the
+        default `SingularDoubleMargin` 4. The test checks exactly that on
+        Rarog's forced `Kxg2`. `negamax` has no test seam, so the test
+        holds the return's value and the Diag counter shows the kernel
+        takes it: 2,719 returns over `suite_v1.epd` at depth 10.
+      - Qualified: `bench 13` 8,753,339 (from 9,260,429, -5.5%); the legacy
+        arm 15,887,213, unchanged; CTest ON 23/23 and OFF 20/20.
+      - It changes play, so it owed the repair gate: BAS-S29, `[-5,5]`,
+        launcher `tools/run_a112_gate.ps1`, maintainer-run.
+      - Closed 2026-10-25: BAS-S29 reached its 4,000-pair cap at
+        +1.7 ± 4.8 Elo (8,000 games, LLR +1.84, no faults) with equal NPS,
+        and the repair stays by the registered rule on the maintainer's
+        confirmation. The development fingerprint is `bench 13` 8,753,339;
+        the legacy arm stays 15,887,213.
     - [ ] **A.11.3** `[I1]` Own clock of zero without increment is bounded
       (A-55) `go wtime 0 btime 5000` with no increments: a negative clock
       clamps to 0 (`parameters.cpp:291-293`), `compute_time_limit` sets no
@@ -2083,7 +2102,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.11.2 | READY_FOR_IMPLEMENTATION | I1 | Lone excluded move returns alpha |
 | A.11.3 | READY_FOR_IMPLEMENTATION | I1 | Zero own clock bounded |
 | A.11.4 | READY_FOR_IMPLEMENTATION | I1 | Upper-case move text |
 | A.11.5 | READY_FOR_IMPLEMENTATION | I1 | Fatal errors on stdout from every thread |

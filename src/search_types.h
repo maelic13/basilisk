@@ -133,6 +133,18 @@ static_assert(tablebaseValue == MATE_SCORE - MAX_PLY - 1,
     return (score < 0 ? -score : score) >= tablebaseWinInMaxPly;
 }
 
+// The value of a node that searched no move: checkmate or stalemate, unless
+// a move was excluded. Then the excluded move was the only legal one, which
+// proves nothing about the others, so the exclusion search fails low by
+// exactly one and a forced move is singular by one ply. Scoring it as mate or
+// stalemate put it far below the singular beta, and forced lines took double
+// extensions that chained.
+[[nodiscard]] inline int no_move_score(bool excluded, bool in_check, int alpha, int ply) {
+    if (excluded)
+        return alpha;
+    return in_check ? -(MATE_SCORE - ply) : 0;
+}
+
 // One UCI `info` line in Stockfish's field order: depth seldepth multipv
 // score [bound] nodes nps hashfull tbhits time pv. `bound` is empty,
 // "lowerbound" or "upperbound". `pv` must already be legal from the root; the

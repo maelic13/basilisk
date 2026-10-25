@@ -74,7 +74,7 @@ def main():
     ap.add_argument("--engine", required=True, type=pathlib.Path,
                     help="Basilisk TUNE executable")
     ap.add_argument("--suite", type=pathlib.Path,
-                    default=REPO / "tools" / "diag" / "suite_v1.epd")
+                    default=REPO / "tools" / "diag" / "suite_v2.epd")
     ap.add_argument("--depth", type=int, default=13)
     ap.add_argument("--hash", type=int, default=16, dest="hash_mb")
     ap.add_argument("--workers", type=int, default=None,

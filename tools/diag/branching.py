@@ -300,7 +300,7 @@ def main():
     parser.add_argument("--option", action="append", default=[], metavar="Name=Value")
     parser.add_argument("--reference", action="append", default=[],
                         metavar="LABEL=PATH[|Name=Value...]")
-    parser.add_argument("--positions", default=str(REPO / "tools/diag/suite_v1.epd"))
+    parser.add_argument("--positions", default=str(REPO / "tools/diag/suite_v2.epd"))
     parser.add_argument("--limit", type=int, default=0, help="0 uses the full corpus")
     parser.add_argument("--min-depth", type=int, default=4)
     parser.add_argument("--max-depth", type=int, default=14)
