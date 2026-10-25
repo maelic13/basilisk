@@ -35,7 +35,7 @@ throwaway branch is cited by its recipe (PROCESS *Delivery*).
 | `oracle/hybrid` | `01df815` | The deficit oracle under `hybrid/`: classical Stockfish `9587eeeb`'s search with a UCI switch selecting Basilisk 1.9.3's HCE or Stockfish's own | PLAN rule 1, A.5.4, A.7.3; PROCESS *Independence boundary* | no open PLAN leaf or PROCESS rule names it | keep |
 | `oracle/hybrid-diag` | `324ace4` | `oracle/hybrid` plus a behaviour-neutral qsearch counter in `hybrid/stockfish/src/search.cpp` | BAS-D03; `analysis/cluster55_audit_v1.md` §3 | A.5.3 commits the oracle's counter set including the qsearch share, so BAS-D03 reproduces from `dev` | keep |
 | `archive/dev-1.10.0` | `3fe85c2` | The development line from 1.9.3 to the published 1.10.0 (Phases 5–15, 239 commits), deleted with `dev` after the 1.10.0 squash | 32 commit hashes in the ledger and `analysis/`, found unreachable from any ref on 2026-10-08 | never: the records cite it | keep |
-| `archive/dev-1.10.2` | `63ac175` | The development line of 1.10.1 and 1.10.2 (the PR #4 head), squashed on `master` as `Version 1.10.2` | the ledger and analyses from BAS-X30 on; PLAN A.8 | never: the records cite it | keep |
+| `archive/dev-1.10.2` | `63ac175` | The development line of 1.10.1 and 1.10.2 (the PR #4 head), squashed on `master` as `Version 1.10.2` | the ledger and analyses from BAS-X30 on; PLAN A.8 | fired: PR #4's ref (`refs/pull/4/head`, the same `63ac175`) holds the whole line, so the citations resolve without the tag | removed 2026-10-25 |
 | `archive/nnue-local` | `1431a89` | The 2026-07 NNUE bring-up: scalar `.mnn` loader (`src/nnue.*`), `UseNNUE`/`EvalFile`, `test_nnue` with `tests/data/test_h16.mnn` vectors | PLAN F.4 | F.4 closes, or F.0 chooses a network format other than `.mnn` | keep |
 | `archive/nnue-origin` | `4fa11bf` | An ancestor of `archive/nnue-local`; nothing it reaches is lost without it | none | fired: redundant | removed 2026-09-28 |
 | `archive/backup` | `ae4af1a` | The pre-squash line of 2026-08-05 → 08-11, including the withdrawn Colosseum adoption (`3cbf90b`); an ancestor of `oracle/hybrid` | none | fired: redundant | removed 2026-09-28 |
@@ -47,8 +47,14 @@ change retires none. On 2026-10-08 releases returned to squash merges, and
 every release's development line got an `archive/dev-X.Y.Z` tag. On
 2026-10-09 the long-lived `dev` branch was retired: it lands once as a final
 squash PR, and from then on each piece of work has its own branch and PR, so
-no further `archive/dev-*` tag is made; the two above stay, since the
-records cite them.
+no further `archive/dev-*` tag is made. `archive/dev-1.10.0` stays, since
+the records cite it and no other ref holds its line. On 2026-10-25
+`archive/dev-1.10.2` was removed as redundant with PR #4's ref, and `dev`
+itself no longer exists locally or on `origin`. The other kept tags were
+re-checked the same day and stay. `oracle/hybrid` is still the oracle that
+PLAN rule 1 and PROCESS name, and `hybrid/` is not on `master`.
+`oracle/hybrid-diag`'s condition has not fired. `archive/nnue-local` waits
+on F.4.
 
 The kept tags are annotated with their reason and retirement condition. The
 removed ones were deleted locally and on `origin`; their commits stay
