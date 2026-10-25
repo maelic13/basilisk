@@ -53,9 +53,12 @@ SYMBOL = re.compile(r"^[0-9a-f]+ <(.+)>:\s*$", re.IGNORECASE)
 # Library helpers whose extension instructions run only after a runtime check
 # for that extension, so they are allowed on the ARM64 baseline. Each entry
 # names the function, never a pattern: any other occurrence still fails.
-# compiler-rt's SME support routine reads the vector length with SVE's cntd
-# only when the CPU reports SVE; Windows links compiler-rt, Linux libgcc.
-ARM64_RUNTIME_GATED = {"__arm_get_current_vg"}
+# LLVM libunwind's Registers_arm64::getRegister reads the vector-granule
+# register with SVE's cntd only when it unwinds through a frame whose unwind
+# information names that register, which only SVE code produces; the engine has
+# none. Windows links LLVM libunwind, Linux libgcc's unwinder, so only the
+# Windows assets carry it (found by PR #9's first runs).
+ARM64_RUNTIME_GATED = {"_ZNK9libunwind15Registers_arm6411getRegisterEi"}
 
 
 def instructions(text: str) -> list[tuple[str, str, str]]:

@@ -49,7 +49,7 @@ class Arm64Tests(unittest.TestCase):
 
 class RuntimeGatedTests(unittest.TestCase):
     TEXT = """
-0000000140001000 <__arm_get_current_vg>:
+0000000140001000 <_ZNK9libunwind15Registers_arm6411getRegisterEi>:
    140001000: 04e0e3e0     	cntd	x0
    140001004: d65f03c0     	ret
 0000000140001010 <Searcher::negamax>:
@@ -60,7 +60,7 @@ class RuntimeGatedTests(unittest.TestCase):
         counts, allowed, offending = verify_isa.arm64_split(self.TEXT)
         self.assertEqual(offending, [])
         self.assertEqual(len(allowed), 1)
-        self.assertIn("<__arm_get_current_vg>", allowed[0])
+        self.assertIn("<_ZNK9libunwind15Registers_arm6411getRegisterEi>", allowed[0])
         _, errors = verify_isa.verify_binary("arm64", counts)
         self.assertEqual(errors, [])
 
