@@ -86,3 +86,30 @@
   fresh -443); on the repair both read -443.
 
 #### RESULT — append after exposure
+
+- **Cap without a decision (maintainer-run 2026-10-25, 1h19m):**
+  **+1.5 ± 4.8 Elo** (nElo +2.4 ± 7.6), LLR +1.58 in [-2.94, 2.94] at the
+  4,000-pair cap (8,000 games); W/D/L 2152/3731/2117, pentanomial
+  [154, 963, 1751, 958, 174].
+  - 0 faults, 0 time losses, no post-terminal pairs; the independent PGN
+    recount agrees, and the score recomputed from the pentanomial matches.
+  - Both arms played 187k nodes and 69.8 ms per move at the same 2.68M
+    NPS, and mean depth 17.16 against 17.13: the repair costs no speed.
+  - Terminations: checkmate 4,269, threefold 2,864, insufficient material
+    753, fifty-move 80, stalemate 34.
+  - `colosseum_sprt_a111-gate_20261025_171833.*`, manifest
+    `79f5f397…`, run record `cf3e263c…`, PGN `b80ae36f…`.
+- **Verdict (registered rule):** the cap without a decision, so the
+  repair stays as a correctness fix with no measured harm, on the
+  maintainer's confirmation; the fingerprint record then updates to
+  `bench 13` 9,260,429.
+
+#### PREDICTION CALIBRATION — preserve the original prediction above
+
+- **Prediction:** about 0 to +3 Elo, most likely the cap; not H0 at about
+  85%.
+- **Reading:** the cap came, centred at +1.5 inside the predicted range,
+  with the LLR leaning toward H1 (+1.58). Hit.
+- **What it teaches:** a clock-stale TT eval mostly costs nothing in play,
+  as its 0.5%-per-ply size suggested; its value is that B.5's fit and
+  optimism now see a clock-true eval.
