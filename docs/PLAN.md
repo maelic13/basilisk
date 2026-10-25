@@ -962,7 +962,8 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         `Verify the complete matrix` now always runs and fails unless
         every build succeeded.
       - The step closes once the maintainer requires both checks on
-        `master`, and this branch's PR shows them green.
+        `master`, verified through the API. This branch's PR is their
+        first live run, and A.10's closing check.
     - [ ] **A.10.4** `[I1]` Release and CI checks tightened
       (D-65, D-29, D-27, D-57) `release_check.py` also compares the released
       baseline's fingerprint. The Windows release cells pin and print the
