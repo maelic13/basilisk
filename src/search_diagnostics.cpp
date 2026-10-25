@@ -278,11 +278,11 @@ void print_search_diag(const DiagCounters& d, const Evaluator& evaluator,
         buf = std::format("kv lmr_floor_hits={} lmr_extended={} "
             "lmr_research_deeper={} lmr_research_shallower={} "
             "moveloop_tested={} cont_hist_pruned={} capture_futility_pruned={} "
-            "quiet_see_pruned={} capture_see_pruned={}",
+            "quiet_see_pruned={} capture_see_pruned={} singular_lone_move={}",
             d.lmr_floor_hits, d.lmr_extended,
             d.lmr_research_deeper, d.lmr_research_shallower,
             d.moveloop_tested, d.cont_hist_pruned, d.capture_futility_pruned,
-            d.quiet_see_pruned, d.capture_see_pruned);
+            d.quiet_see_pruned, d.capture_see_pruned, d.singular_lone_move);
         emit(buf);
     }
     // Speed telemetry: the evaluation rate, the pawn-cache hit rate, the
@@ -342,10 +342,10 @@ void print_search_diag(const DiagCounters& d, const Evaluator& evaluator,
 
     {
         std::string b;
-        b = std::format("singular fired {} double {} in_check {} triple {} ttbeta {} ({:.2f}% of fired)",
+        b = std::format("singular fired {} double {} in_check {} triple {} ttbeta {} lone_move {} ({:.2f}% of fired)",
             d.sing_fired, d.sing_double,
             d.sing_in_check, d.sing_triple,
-            d.sing_ttbeta,
+            d.sing_ttbeta, d.singular_lone_move,
             d.sing_fired ? 100.0 * double(d.sing_in_check) / double(d.sing_fired) : 0.0);
         emit(b);
     }

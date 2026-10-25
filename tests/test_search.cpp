@@ -1291,6 +1291,41 @@ static void test_tt_static_eval_served_at_reading_clock() {
 }
 #endif
 
+static void test_singular_lone_move_fails_low_by_one() {
+    // Rarog's forced position: White is in check and Kxg2 is the only legal
+    // move. When the singular search excludes it, the node has no move left;
+    // it must fail low by exactly one, not read as checkmate, so the forced
+    // move extends by one ply and never takes the double extension.
+    Board b;
+    b.set_fen("7k/8/8/8/8/8/6q1/7K w - - 0 1");
+    MoveList legal;
+    b.gen_legal(legal);
+    const int s_beta = -100;
+    const int ply = 7;
+    const int s_val = no_move_score(true, b.is_in_check(), s_beta - 1, ply);
+
+    begin_section("singular lone move: the position is a forced evasion");
+    EXPECT_EQ(legal.size(), 1);
+    EXPECT(b.is_in_check());
+    end_section();
+
+    begin_section("singular lone move: the exclusion search returns alpha");
+    EXPECT_EQ(s_val, s_beta - 1);
+    EXPECT_EQ(no_move_score(true, false, s_beta - 1, ply), s_beta - 1);
+    end_section();
+
+    begin_section("singular lone move: one ply of extension, never two");
+    const SearchParams defaults;
+    EXPECT(s_val < s_beta);
+    EXPECT(!(s_val < s_beta - defaults.singular_double_margin));
+    end_section();
+
+    begin_section("no move searched without an exclusion: mate or stalemate");
+    EXPECT_EQ(no_move_score(false, true, s_beta - 1, ply), -(MATE_SCORE - ply));
+    EXPECT_EQ(no_move_score(false, false, s_beta - 1, ply), 0);
+    end_section();
+}
+
 
 // ---------------------------------------------------------------------------
 // 8.6.3b: packaged-FEN legality sweep over the bench suite and WAC-300.
@@ -1380,6 +1415,9 @@ int main() {
 #if defined(BASILISK_B2_CORE)
     test_tt_static_eval_served_at_reading_clock();
 #endif
+
+    std::printf("\nSingular lone move\n");
+    test_singular_lone_move_fails_low_by_one();
 
     std::printf("\nNode counter\n");
     test_node_counter();

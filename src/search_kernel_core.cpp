@@ -1296,9 +1296,12 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     if (state_.stopped)
         return (is_root && best_move != MOVE_NONE) ? best_score : 0;
 
-    // No legal moves
-    if (searched == 0)
-        return in_check ? -(MATE_SCORE - ply) : 0;
+    // No legal moves, or only the excluded one
+    if (searched == 0) {
+        if (ss->excluded != MOVE_NONE)
+            DIAG_COUNT(++state_.diag.singular_lone_move);
+        return no_move_score(ss->excluded != MOVE_NONE, in_check, alpha, ply);
+    }
 
     // A fail high's value is pulled toward beta, the more the shallower.
     if (best_score >= beta && !is_decisive(best_score) && !is_decisive(cut_alpha))
