@@ -56,4 +56,32 @@
 
 #### RESULT — append after exposure
 
-- Disposition: registered; maintainer-run.
+- **Result (maintainer-run 2026-10-25, 09:39–09:45 UTC).** **−0.19%**,
+  95% t-interval [−0.66%, +0.27%] (Welch df 6.0), **NO_CHANGE at step 1**.
+  - Base, `a94-head-a`: mean of build medians 3.6838M. Builds 3.687M,
+    3.696M, 3.671M and 3.682M; SHA-256 `30DC8791…`, `C71B44EE…`,
+    `A9EA5BE8…`, `E2B035D4…`. Built at `689cbc3`, whose engine source is
+    identical to `4fa68b4`.
+  - Cand, `a94-head-b` from the worktree: mean 3.6768M. Builds 3.666M,
+    3.688M, 3.680M and 3.673M; SHA-256 `181F1A0E…`, `AEF0C382…`,
+    `E5292165…`, `7EC4C7C1…`.
+  - Cycle levels: base 3.694M and 3.674M, cand 3.680M and 3.674M. Both arms
+    agree within 1%, and no cycle is disturbed.
+  - Host load was 7.6% and 2.1% in the two cycles, with no engine,
+    harness or build process running. Fingerprints are identical on CPU
+    30. The tool was `5b6ea69`; the archive is
+    `tools/results/a94-nps-null/`.
+  - The first launch stopped before its first reading on a launcher bug
+    (`5b6ea69` fixes it). Its pools were complete and were reused, and no
+    reading was taken before this run.
+- **Calibration.** Inside the 80% interval, 0.19 below the centre. The
+  read stopped at step 1 as the more likely branch predicted, and no
+  falsifier fires.
+- **What it shows.** The read reports no difference between two
+  independent pools of one source, so it may be used.
+  - The worktree build path costs nothing that this read can see. The
+    interval bounds any path effect to at most about 0.7% in either
+    direction, and the point estimate leans slower, not faster. That
+    matters for BAS-P19, whose clang-23 pool was built in a worktree.
+- Disposition: COMPLETE, −0.19% [−0.66%, +0.27%], NO_CHANGE; the instrument
+  is validated.

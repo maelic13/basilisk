@@ -853,7 +853,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       - Under D-28, MSYS2's clang 22.1.8 to 23.1.3 step of 2026-10-23 owes
         a pooled NPS read, which no record yet carries. A.9.4 registers it
         as BAS-P19.
-    - [ ] **A.9.4** `[I1]` NPS read rebuilt on pooled builds
+    - [x] **A.9.4** `[I1]` NPS read rebuilt on pooled builds
       (D-1 to D-4) Rarog's method study (RAR-P32): builds, not cycles, set the
       limit. Best of three per cycle; four builds an arm; a t-interval on
       per-build medians; a two-step read (two cycles, accept at +0.9% and
@@ -872,6 +872,16 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       - The leaf closes when BAS-P18, the null, reads zero. BAS-P19, the
         clang 22 to 23 read A.9.3 owed, runs after it. Both are
         maintainer-run with `tools/run_a94_nps_reads.ps1 -Read null|clang`.
+      — CLOSED 2026-10-25.
+      - BAS-P18, the null, read −0.19% [−0.66%, +0.27%], NO_CHANGE at step 1.
+        That is inside its prediction, so the instrument is validated and
+        the worktree build path costs nothing visible.
+      - BAS-P19 read clang 23.1.3 at +0.89% [+0.23%, +1.54%] against 22.1.8
+        at identical source: no regression. Rarog's −1.6% prior did not
+        transfer, so A.9.3's owed compiler read is done.
+      - The launcher's first run stopped before any reading on a pipeline
+        bug, fixed in `5b6ea69`. Its pools were reused, and no reading was
+        lost.
     - [ ] **A.9.5** `[I1]` Profiler with inline attribution
       (D-13, D-75) B.7.2 and C.12 both require a profile, and Basilisk has no
       profiler. Rarog's reads per-region shares from ETW or a user-mode
@@ -1907,7 +1917,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.9.4 | LOCAL_QUALIFIED | I1 | Pooled NPS read built; BAS-P18 null and BAS-P19 clang read maintainer-run |
 | A.9.5 | RESEARCH | I1 | Profiler |
 | A.10.2 | READY_FOR_IMPLEMENTATION | M | CHANGELOG catch-up and rule |
 | A.10.3 | READY_FOR_IMPLEMENTATION | M | PR refspec and required checks |

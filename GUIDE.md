@@ -34,7 +34,7 @@ generations change. These are maintainer judgments, not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **A.9.4** `[I1]` NPS read rebuilt on pooled builds — Claude Sonnet 5 — Medium
+**Next step:** **A.9.5** `[I1]` Profiler with inline attribution — Claude Sonnet 5 — Medium
 
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
@@ -69,7 +69,7 @@ generations change. These are maintainer judgments, not measured rankings.
     - [x] **A.9.1** `[I1]` Colosseum re-pinned to 0.4.0
     - [x] **A.9.2** `[V]` Direction reads of the head against 1.10.2
     - [x] **A.9.3** `[M]` Measurement rules from the audit
-    - [ ] **A.9.4** `[I1]` NPS read rebuilt on pooled builds
+    - [x] **A.9.4** `[I1]` NPS read rebuilt on pooled builds
     - [ ] **A.9.5** `[I1]` Profiler with inline attribution
 - [ ] **A.10** Delivery and repository repairs
     - [x] **A.10.1** `[M]` Land dev and B.10 on master by squash PRs (ANY TIME) — before B.3

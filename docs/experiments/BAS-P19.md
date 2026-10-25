@@ -50,4 +50,35 @@
 
 #### RESULT — append after exposure
 
-- Disposition: registered; maintainer-run.
+- **Result (maintainer-run 2026-10-25, 09:44–09:51 UTC).** **+0.89%**,
+  95% t-interval [+0.23%, +1.54%] (Welch df 4.3), **PASS at step 1** in
+  no-regression mode. Clang 23.1.3 is no slower.
+  - Base, clang 22.1.8: mean of build medians 4.1863M. Builds 4.179M,
+    4.187M, 4.181M and 4.198M.
+  - Cand, clang 23.1.3: mean 4.2235M. Builds 4.212M, 4.206M, 4.231M and
+    4.246M; SHA-256 `CB656940…`, `4C9484A1…`, `381E412E…`, `D934ED5A…`, all
+    clean `9c93d15` at 14,978,465.
+  - Cycle levels: base 4.176M and 4.196M, cand 4.214M and 4.233M; no cycle
+    is disturbed.
+  - Host load was 3.8% and 5.8%, with no engine, harness or build process.
+    Fingerprints are identical. The archive is
+    `tools/results/a94-nps-clang/`.
+- **Reading.** The registered rule passes. The interval excludes 0, but
+  this read was registered as a no-regression check, so it claims no gain.
+  Under the gain rule the same +0.89% would sit just below step 1's +0.9%
+  and would extend.
+- **Calibration.** It fell outside the 80% interval [−2.5%, +0.5%] on the
+  high side, and the sign was wrong.
+  - The falsifier fires: a PASS with a non-negative estimate refutes the
+    prior that LLVM 23 costs Basilisk speed.
+  - Rarog's Rust step (−1.5% to −1.7%) did not transfer to Basilisk's C++.
+  - BAS-P18 rules out the worktree path as the cause: if anything it read
+    the worktree pool slower.
+  - Confidence was registered as low, and that was right.
+- **Consequence.** The clang 22.1.8 to 23.1.3 step owes nothing in speed.
+  Any pinning of the Windows release compiler in A.10.4 is a
+  reproducibility decision, not a speed one.
+- **Lesson.** A sibling engine's compiler-step result is a weak prior
+  across languages: read the step here, as `agents/measurement.md` now
+  requires.
+- Disposition: COMPLETE, +0.89% [+0.23%, +1.54%], no regression.
