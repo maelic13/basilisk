@@ -27,6 +27,15 @@ experiment by `agents/research.md`, *Experiment design*, before it runs.
   tools, never a hand-rolled parser. Before differencing two counters, confirm
   they are in the same unit; a passing invariant does not prove comparability.
   Counter ratios are valid only at sampling stride 1.
+- A compiler bump is a speed change even at an identical fingerprint.
+  - It owes a pooled NPS read, registered with about ±2.5% for an LLVM
+    major.
+  - It never falls between an SPRT's arms.
+  - Rarog's LLVM 22 to 23 step kept its fingerprint and cost 1.5–1.7% pooled
+    with PGO (RAR-P36 to RAR-P38).
+- A SQLite database is copied together with its `-wal` file, or read in place.
+  Rarog's copy without it returned 39,437 of 39,600 games and a plausible but
+  wrong termination table (RAR-M45).
 - A binary entered in a rated pool is a tagged release or carries its bench
   fingerprint or build flag in its version string, and its ledger row names
   the fingerprint. The harness runner is pinned the same way.
@@ -69,6 +78,14 @@ experiment by `agents/research.md`, *Experiment design*, before it runs.
   not evidence the mechanism works.
 - One gate, one read: an SPRT's verdict and its estimate at the stop are the
   record; no fixed match of the same pair runs beside it.
+- **First-crossing estimates.** The estimate at a stop was selected at the
+  boundary, so it is recorded as a first-crossing estimate, never as the
+  effect size.
+  - The bias is not one-sided: a fixed 600-game run read +70 where Rarog's
+    SPRT had stopped at +54.8 (Rarog PROCESS *Harness*, 2026-10-11).
+  - A stopped SPRT is never extended, and never re-scored on a
+    counterfactual.
+  - A stopped SPRT is the wrong instrument for parity.
 - SPSA is conditional: first show activation, interaction and curvature with a
   zero-game sweep; a flat or monotone surface is evidence against the tune. A
   tune runs in registered blocks with a movement stop rule (PLAN rule 7c),

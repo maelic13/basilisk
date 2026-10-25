@@ -832,7 +832,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       None is below its band, so no diagnosis opens before B.3. All three
       came in above their predictions: there was no LTC compression, and
       thread scaling is intact. B.11's release reads predict accordingly.
-    - [ ] **A.9.3** `[M]` Measurement rules from the audit
+    - [x] **A.9.3** `[M]` Measurement rules from the audit
       (D-39, D-40, D-41, D-28, D-47) Into `agents/measurement.md` and PROCESS:
       a stopped SPRT's estimate is a first-crossing estimate, never the effect
       size, and is never extended or re-scored; about 2 Elo per 1% of speed
@@ -841,6 +841,18 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       compiler bump owes a pooled NPS read and never falls between an SPRT's
       arms (rustc 1.98 to 1.99 cost Rarog 1.6% at the same fingerprint); a
       SQLite database is copied with its `-wal` file.
+      — CLOSED 2026-10-25.
+      - `agents/measurement.md` gained three rules: the first-crossing
+        label and its no-extension rule (D-39), the compiler bump as a
+        pooled speed read never between an SPRT's arms (D-28), and the
+        SQLite copy (D-47).
+      - D-47 was unverified in the audit. `export_tournament_pgn.py` opens
+        the database read-only in place, so it already sees the WAL.
+      - PROCESS gained the speed-to-Elo prior to +22% (D-40) and the 10 ms
+        opponent overhead, which is dormant until E.2's field (D-41).
+      - Under D-28, MSYS2's clang 22.1.8 to 23.1.3 step of 2026-10-23 owes
+        a pooled NPS read, which no record yet carries. Reported to the
+        maintainer for A.9.4.
     - [ ] **A.9.4** `[I1]` NPS read rebuilt on pooled builds
       (D-1 to D-4) Rarog's method study (RAR-P32): builds, not cycles, set the
       limit. Best of three per cycle; four builds an arm; a t-interval on
@@ -1857,7 +1869,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.9.3 | READY_FOR_IMPLEMENTATION | M | Measurement rules |
 | A.9.4 | READY_FOR_IMPLEMENTATION | I1 | NPS read on pooled builds |
 | A.9.5 | RESEARCH | I1 | Profiler |
 | A.10.2 | READY_FOR_IMPLEMENTATION | M | CHANGELOG catch-up and rule |

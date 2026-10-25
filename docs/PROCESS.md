@@ -356,6 +356,13 @@ together included.** A null pair (the same executable on both arms, judged on
 the full 95% nElo interval inside ±5, never on LLR) is owed only after a
 runner, scheduler or topology change.
 
+Foreign opponents with a move-overhead option play their smallest safe value,
+10 ms. A default set for long controls costs tens of Elo at `3+0.03`:
+Stockfish 11's `Move Overhead` of 30 removed 23% of its opening horizon in
+Rarog's pool. Ratings measured before and after this rule are not comparable.
+Basilisk's current pool has no such option; the rule applies once an engine
+with one joins (E.2).
+
 `sprt.ps1` defaults: `-Mode gainer` is `[0, Elo1]` with **Elo1 = 5 by default,
 so a registered `[0,3]` gate passes `-Elo1 3`**. `-Mode simplify` is `[-5,0]`.
 `-Mode fixed -Games N` is a measurement that decides nothing. `-OptionsA` and
@@ -390,9 +397,12 @@ so a registered `[0,3]` gate passes `-Elo1 3`**. `-Mode simplify` is `[-5,0]`.
   about 0.00%), pools at least two PGO builds per arm (two PGO builds of
   identical source differ by about a third of a percent), interleaves arms,
   and runs on an idle host.
-- **Converting NPS to Elo:** about 2 Elo per 1% NPS at `3+0.03` holds for
-  small deltas only (BAS-P01). Above a few percent convert through doublings,
-  and say which conversion was used.
+- **Converting NPS to Elo:** about 2 Elo per 1% NPS at `3+0.03` (BAS-P01).
+  - Rarog measured it holding to +22%: RAR-S98 read +18.4% NPS as +35.5 ±
+    9.0, and RAR-S99 read +22.47% as +42.3 ± 9.5. That is about 145 Elo per
+    doubling, where the textbook rule gives 60.
+  - Use it as the prior for this engine class at `3+0.03`. Other controls
+    are not covered, and every conversion says which rule it used.
 - **Converting nodes to depth:** a node-count change is converted to plies
   (divide by log EBF) before it is called expensive. +19% bench nodes was
   0.165 ply, and strength-neutral.
