@@ -202,10 +202,22 @@ target_link_libraries(basilisk_engine PUBLIC basilisk_board PRIVATE fathom)
 # so a commit made without reconfiguring never leaves a stale name.
 # BASILISK_DEV_ID fixes that part of the name, for byte-identity comparisons.
 set(BASILISK_DEV_ID "" CACHE STRING "Fixed development id (<date>-<hash>) in place of git's; empty reads git")
+# The git that checked the tree out. On Windows that is Git for Windows, looked
+# for first: an MSYS2 shell's own git reads a CRLF working copy over an LF
+# index as modified, and a build shell may have no git on its PATH at all.
+if(CMAKE_HOST_WIN32)
+    find_program(BASILISK_GIT NAMES git
+        PATHS "$ENV{ProgramW6432}/Git/cmd" "$ENV{ProgramFiles}/Git/cmd" "C:/Program Files/Git/cmd"
+        NO_DEFAULT_PATH)
+endif()
+if(NOT BASILISK_GIT)
+    find_package(Git QUIET)
+    set(BASILISK_GIT "${GIT_EXECUTABLE}")
+endif()
 set(_basilisk_version_header "${CMAKE_CURRENT_BINARY_DIR}/generated/basilisk_git_version.h")
 add_custom_target(basilisk_git_version
     COMMAND "${CMAKE_COMMAND}" -DSRC_DIR=${CMAKE_CURRENT_SOURCE_DIR} -DOUT=${_basilisk_version_header}
-            -DDEV_ID=${BASILISK_DEV_ID} -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/git-version.cmake"
+            -DDEV_ID=${BASILISK_DEV_ID} -DGIT=${BASILISK_GIT} -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/git-version.cmake"
     BYPRODUCTS "${_basilisk_version_header}"
     COMMENT "Reading the commit a development build names"
     VERBATIM
