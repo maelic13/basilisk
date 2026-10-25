@@ -1022,8 +1022,8 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       - The entry's state comes from its last `Disposition:` line, or from
         its `Disposition`, `Result / disposition` or `Result` field.
       - Entries with no such field, multi-part entries, and texts that state
-        neither are not compared. 52 entries state a state on both sides
-        and are compared.
+        neither are not compared. The 52 entries with a state on both sides
+        are compared.
       - On the real ledger the check refused exactly BAS-M10 and BAS-M11.
         Their rows now read VOID and COMPLETE. The self-test covers both
         directions, both entry forms, and prose that merely says "running".
