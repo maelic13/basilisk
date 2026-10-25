@@ -1,0 +1,35 @@
+{
+  "schema": "basilisk-profile-regions-v1",
+  "_comment": [
+    "A sample is charged to the source file of its innermost engine frame: inlined",
+    "library frames (libc++ headers) are skipped outward, and a sample with no engine",
+    "frame is runtime. Files, not function names, decide the region, so a rename",
+    "cannot leave a stale marker; test_profile_regions.py fails when a file in src/",
+    "or external/fathom/src/ is not listed here.",
+    "min_inline_share: the profile is refused unless at least this share of in-module",
+    "samples carries an inline chain (two or more frames). A symbolizer or binary",
+    "without inline records reports one frame everywhere and would charge inlined",
+    "board work to its caller. max_unresolved_share: the profile is refused when more",
+    "in-module samples than this have no function name."
+  ],
+  "min_inline_share": 0.30,
+  "max_unresolved_share": 0.02,
+  "regions": [
+    ["board", ["board.cpp", "board.h", "move.cpp", "move.h", "zobrist.cpp", "zobrist.h", "types.h"]],
+    ["attacks", ["attacks.cpp", "attacks.h", "magics.h", "bitboard.cpp", "bitboard.h", "threats.cpp", "threats.h"]],
+    ["eval", ["eval.cpp", "eval.h", "eval_params.h"]],
+    ["ordering", ["move_picker.cpp", "move_picker.h", "move_picker_core.cpp", "move_picker_core.h",
+                  "history.cpp", "history.h", "history_core.cpp", "history_core.h",
+                  "search_history.cpp", "search_history_core.cpp"]],
+    ["tt", ["tt.h"]],
+    ["search", ["search_kernel.cpp", "search_kernel_core.cpp", "search_worker.cpp", "search_worker.h",
+                "search_root.cpp", "search_root.h", "search.h", "search_types.h", "search_params.h",
+                "search_thread_pool.cpp", "search_thread_pool.h", "search_diagnostics.cpp",
+                "search_diagnostics.h"]],
+    ["tablebases", ["syzygy.cpp", "syzygy.h", "tbprobe.c", "tbprobe.h", "tbchess.c", "tbconfig.h", "stdendian.h"]],
+    ["driver", ["main.cpp", "engine.cpp", "engine.h", "engine_entry.cpp", "engine_entry.h", "engine_command.h",
+                "uci_protocol.cpp", "uci_protocol.h", "uci_output.h", "bench.cpp", "bench.h",
+                "parameters.cpp", "parameters.h", "wac.cpp", "wac.h", "wac_epd.h", "constants.h",
+                "cpu_features.h"]]
+  ]
+}
