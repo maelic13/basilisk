@@ -11,10 +11,10 @@ HistoryTables::HistoryTables()
     clear();
 }
 
-// 8.6.2b: the `= {}` / std::ranges::fill modernization was tried here and
-// REVERTED — raw multi-dimensional C arrays are not assignable, and the
-// alternatives (nested std::array, or a flattened span via reinterpret_cast)
-// are respectively a large invasive change and strictly worse. std::memset on
+// Raw multi-dimensional C arrays are not assignable, so `= {}` /
+// std::ranges::fill do not apply, and the alternatives (nested std::array, or
+// a flattened span via reinterpret_cast) are respectively a large invasive
+// change and strictly worse. std::memset on
 // trivially-copyable arrays is the correct tool, not a legacy habit.
 void HistoryTables::clear() {
     std::memset(main,         0, sizeof(main));
@@ -32,8 +32,8 @@ void HistoryTables::clear() {
 }
 
 // Halve all history values: preserves inter-search learning while decaying
-// stale information. Required in its own right — the 8.1b no-aging retry at
-// the sibling engine confirmed that without periodic damping history
+// stale information. Required in its own right — the sibling
+// engine's no-aging retry confirmed that without periodic damping history
 // saturates and move ordering degrades (its finding, our formula family).
 void HistoryTables::age() {
     // Nested ranged-for on purpose: a flattened single-pointer sweep over a

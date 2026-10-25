@@ -293,7 +293,7 @@ void run_wac(const WacRequest& request, const SearchParams& params) {
             limits.nodes = request.budget;
         else
             limits.depth = static_cast<int>(request.budget);
-        limits.params = params;   // 5.4.4: honour UCI-set search parameters
+        limits.params = params;   // honour UCI-set search parameters
         std::vector<WacIteration> iterations;
         active_iterations = &iterations;
         stop.store(false, std::memory_order_release);

@@ -1,7 +1,7 @@
 #pragma once
 #include <cstdint>
 
-// 8.7.10 baked magic bitboard constants for the non-PEXT tiers. These are the
+// Baked magic bitboard constants for the non-PEXT tiers. These are the
 // DETERMINISTIC output of find_magic's seeded (1234567890123) splitmix64
 // search — the baked values ARE what the search computes, so init_attacks uses
 // them directly and skips the ~1e8-attempt-per-square random search at launch.

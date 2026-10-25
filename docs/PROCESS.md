@@ -377,6 +377,23 @@ so a registered `[0,3]` gate passes `-Elo1 3`**. `-Mode simplify` is `[-5,0]`.
   options; `DIAGNOSTIC=ON` exposes diagnostics without tunable constants;
   the two flavors are mutually exclusive. `TEXEL=ON` builds the Texel target
   and is never measured for strength.
+- **Build names.** A release reports `Basilisk X.Y.Z`. A development build
+  reports `Basilisk dev-<commit date>-<8 hash characters>`, with `-m` when
+  its tree differed from the commit, from a header regenerated at every
+  build. A byte-identity comparison builds both sides with the same
+  `-DBASILISK_DEV_ID=<date>-<hash>`, since the name is part of `.rdata`.
+- **The Windows compiler's LLVM major is pinned** in
+  `.github/windows-clang-version`.
+  - Every Windows cell of CI and Release refreshes MSYS2, prints its clang
+    and `llvm-profdata` versions, and fails on another major. Shipped assets
+    therefore come from the compiler measurements use.
+  - `build_test.ps1` warns when this machine's clang is on another major.
+  - Patch releases (MSYS2 ships several a month) pass.
+  - A new major fails CI until the pin moves. Moving it is a commit that
+    owes a pooled NPS read under `agents/measurement.md`'s compiler rule, as
+    BAS-P19 read 22.1.8 to 23.1.3.
+  - Linux builds with Ubuntu's `clang-19`, macOS with the runner's
+    AppleClang.
 - CTest runs two kinds of test. The correctness suite (`ctest -LE
   strength`) checks rules, invariants, protocol and endgame knowledge in a few
   seconds and is what an edit-compile loop and the sanitizer run use. The
@@ -640,7 +657,14 @@ follows the steps below from `master`.
    results. No AI attribution anywhere: no `Co-Authored-By`, no
    "Generated with" line; `.claude/settings.json` turns Claude Code's off.
 4. **Before opening the PR**, merge `master` into the branch if `master`
-   moved, so the PR shows only the branch's own change. CI must be green.
+   moved, so the PR shows only the branch's own change. `master`'s branch
+   protection requires two checks, which gather the rest:
+   - `CI complete` gathers every CI job;
+   - `Verify the complete matrix` gathers every Release build.
+   Each always runs, and fails unless every job it gathers succeeded:
+   GitHub reports a job skipped after a failed dependency as passing, so a
+   required check must never be skipped. The protection also requires the
+   branch to be up to date with `master`.
 5. **After the merge**, delete the branch locally and on `origin`.
 6. **Citations.** A document cites only commits that stay reachable: on
    `master`, under a PR, or on a kept tag. A throwaway branch (a test arm) is
@@ -650,8 +674,9 @@ follows the steps below from `master`.
    without the maintainer's agreement (HISTORY *Preserved commits*).
 
 ```bash
+git config --add remote.origin.fetch "+refs/pull/*/head:refs/remotes/origin/pr/*"   # once per clone
+git fetch origin
 git switch -c <branch> origin/master
-git fetch origin "+refs/pull/*/head:refs/remotes/origin/pr/*"
 python tools/diag/check_citations.py
 ```
 
@@ -665,9 +690,10 @@ one. There are no permanent release branches.
    sources read `X.Y.Z`: `project(basilisk VERSION X.Y.Z` in
    `CMakeLists.txt` and `engineVersion` in `src/constants.h`. CHANGELOG's
    `[Unreleased]` becomes `## [X.Y.Z] - YYYY-MM-DD`, with a fresh empty
-   `[Unreleased]` above it. GUIDE's *Released baseline* row names **X.Y.Z**,
-   and its *Bench fingerprint* row holds the release's `bench 13` count,
-   restated where the roadmap checker requires. `python
+   `[Unreleased]` above it. GUIDE's *Released baseline* row names **X.Y.Z**
+   and states its `bench 13` count, and the *Bench fingerprint* row holds the
+   same count, restated where the roadmap checker requires. The release
+   check refuses a release whose two counts differ. `python
    tools/diag/release_check.py check vX.Y.Z --base HEAD` passes.
 2. **The rehearsal is that PR.** Its `CI` run and its `Release` candidate
    run must both be green: the candidate builds, benches and fingerprints all

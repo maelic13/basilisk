@@ -23,7 +23,7 @@ static constexpr int PAWN_TABLE_SIZE = 16384;
 // change to MATE_SCORE or MAX_PLY.
 inline constexpr int KBNK_STATIC_MATE_FLOOR = 31872;
 
-// 8.6.2a: the pawn cache is indexed `pkey & (PAWN_TABLE_SIZE - 1)`, which is a
+// The pawn cache is indexed `pkey & (PAWN_TABLE_SIZE - 1)`, which is a
 // modulo only for powers of two — a non-pow2 size would silently alias entries
 // (returning another position's pawn eval) rather than fail.
 static_assert((PAWN_TABLE_SIZE & (PAWN_TABLE_SIZE - 1)) == 0,
@@ -52,22 +52,22 @@ public:
     int evaluate(const Board& b);
     void clear_pawn_table();
 
-    // ---- Lazy dual-eval audit (8.6.6b, Rarog 9.6b pattern) -----------------
+    // ---- Lazy dual-eval audit ----------------------------------------------
     // When diag_lazy is set, a lazy-margin skip ALSO runs the full positional
     // tail on the side and records the divergence; the SERVED score is the
     // lazy value either way, so behaviour (and bench) is identical with the
     // audit on. Sign flips are the failure the margin promises cannot happen;
     // crossings are full scores the margin wrongly called decided. Matters
-    // beyond curiosity: Phase-9 datagen labels come from this eval.
+    // beyond curiosity: datagen labels come from this eval.
     bool    diag_lazy = false;
     int64_t lazy_fires = 0, lazy_sign_flips = 0, lazy_margin_crossings = 0;
     int64_t lazy_absdelta_sum = 0, lazy_absdelta_max = 0;
 
-    // ---- 8.7.1(c) speed telemetry (always counted, NIL-cost class) --------
+    // ---- Speed telemetry (always counted, NIL-cost class) ------------------
     // eval_calls / nodes = the eval RATE: evaluate() is gated behind the TT
     // static_eval cache and skipped in check, so the share of nodes actually
     // paying for a full eval is a guess today. pawn_probes/hits size the
-    // 16384-entry direct-mapped pawn cache — the input 8.7.8 needs before
+    // 16384-entry direct-mapped pawn cache — the input needed before
     // resizing it, and the counter Rarog's decisive cache-miss numbers came
     // from. Reset per `go` alongside the lazy-audit block.
     int64_t eval_calls = 0;
@@ -90,11 +90,10 @@ private:
                     Bitboard attacks[NCOLORS]);
 };
 
-// Draw-scale factor for opposite-coloured-bishop positions (8.3). Eases
+// Draw-scale factor for opposite-coloured-bishop positions. Eases
 // toward normal as pawns are added but is capped at the neutral 48/48: a
-// draw scaler must never amplify the evaluation. (Pre-8.3 the uncapped
-// 32 + 4*pawns reached 96/48 = 2x at 16 pawns; the Texel fit ratified the
-// bug, so the dependent weights are re-arbitrated by SPRT run #3.)
+// draw scaler must never amplify the evaluation. (Uncapped, 32 + 4*pawns
+// would reach 96/48 = 2x at 16 pawns.)
 // Shared by the evaluator and the tuner's linear_delta_scale so the
 // --verify trace reconstruction stays exact.
 inline int ocb_draw_scale(int total_pawns) {
@@ -104,21 +103,18 @@ inline int ocb_draw_scale(int total_pawns) {
 
 // ---- Draw-scaling predicates shared with the Texel tuner --------------------
 //
-// 8.6.2b: the tuner's linear_delta_scale() has to reproduce the evaluator's
-// draw scaling, or the linearisation it fits is not the function the engine
-// actually computes. Previously only ocb_draw_scale() was shared and the
-// *predicates* were re-typed by hand on both sides — including two
-// complementary dark-square masks (0xAA55.. here, 0x55AA.. there) that agreed
-// only because the test is an inequality, and a hand-copied rule-50 curve.
-// A silent divergence there does NOT trip --verify (it corrupts the fitted
-// gradients instead, which is worse because nothing fails loudly), so every
-// formula both sides need now lives here and has exactly one definition.
+// The tuner's linear_delta_scale() has to reproduce the evaluator's draw
+// scaling, or the linearisation it fits is not the function the engine
+// actually computes. A silent divergence there does NOT trip --verify (it
+// corrupts the fitted gradients instead, which is worse because nothing fails
+// loudly), so every formula both sides need (the predicates, the dark-square
+// mask, the rule-50 curve) lives here and has exactly one definition.
 
 inline constexpr Bitboard EVAL_DARK_SQUARES = 0xAA55AA55AA55AA55ULL;
 
 // Rule-50 damping: the evaluation decays toward zero as the halfmove clock
-// grows, retaining ~50% at clock 99 (SF-era curve; the pre-8.4 (100-clock)/100
-// line kept only 1%, which told the search almost every long-clock position was
+// grows, retaining ~50% at clock 99 (SF-era curve; a (100-clock)/100 line would
+// keep only 1%, telling the search almost every long-clock position is
 // already drawn).
 inline constexpr int DAMP_RULE50_DEN = 199;
 [[nodiscard]] inline int damp_rule50_scale_num(int halfmove_clock) {
@@ -130,8 +126,8 @@ inline constexpr int DAMP_RULE50_DEN = 199;
 }
 
 // Exactly one bishop each, on opposite colours. Says nothing about the rest of
-// the material — the scaler deliberately fires with other pieces present, which
-// is the scope refinement deferred to PLAN 13.8.
+// the material — the scaler deliberately fires with other pieces present;
+// narrowing that scope is a deferred refinement.
 [[nodiscard]] inline bool is_opposite_coloured_bishops(const Board& b) {
     const bool wb1 = !more_than_one(b.piece_bb(WHITE, BISHOP)) && b.piece_bb(WHITE, BISHOP);
     const bool bb1 = !more_than_one(b.piece_bb(BLACK, BISHOP)) && b.piece_bb(BLACK, BISHOP);

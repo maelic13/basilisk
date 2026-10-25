@@ -54,10 +54,10 @@ static TablebaseProbe tablebase_probe(Syzygy::Wdl wdl, int ply, bool rule50) {
 }
 
 void Searcher::init_lmr(float base, float divisor) {
-    // Phase 6.7: table stored in 1024ths of a ply (fractional LMR). The floor
-    // identity int(1024*x) >> 10 == int(x) keeps the base reduction identical to
-    // the old integer table at default knobs; the finer resolution only matters
-    // once 6.9 SPSA sets sub-ply adjustments. Consumers shift back with `>> 10`.
+    // Table stored in 1024ths of a ply (fractional LMR). The floor identity
+    // int(1024*x) >> 10 == int(x) keeps the base reduction identical to an
+    // integer table at default knobs; the finer resolution only matters once
+    // tuning sets sub-ply adjustments. Consumers shift back with `>> 10`.
     for (int d = 1; d < 64; d++)
         for (int m = 1; m < 64; m++)
             lmr_table_[d][m] = int(1024.0f * (base + std::log(d) * std::log(m) / divisor));
@@ -94,7 +94,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     DIAG_COUNT(state_.diag.tt_probes++);
     if (tt_found) DIAG_COUNT(state_.diag.tt_hits++);
     Move tt_move = MOVE_NONE;
-    int  tt_score = VALUE_NONE;       // hoisted (Step 6.1) for the stand-pat tighten
+    int  tt_score = VALUE_NONE;       // hoisted for the stand-pat tighten
     TTFlag tt_flag = TT_NONE;
     if (tt_found) {
         tt_move = move_from_tt(tte.move16);
@@ -113,7 +113,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     if (in_check) {
         // No qsearch-depth cap for evasion nodes: a static eval of an
         // in-check position is not a valid bound and can mask mates in long
-        // check chains, poisoning parent TT stores (search audit 7 / 8.1e).
+        // check chains, poisoning parent TT stores (search audit 7).
         // The ply >= MAX_PLY guard at the top of quiescence() remains the
         // termination backstop; check chains cannot exceed it.
         MoveList legal;
@@ -154,7 +154,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     const int correction = stand_pat - raw_eval;
 #endif
 
-    // Step 6.1 mirror: tighten the stand-pat with the TT bound when it proves a
+    // Tighten the stand-pat with the TT bound when it proves a
     // better estimate (a fail-high above it / fail-low below it). The raw eval
     // stored as the TT static_eval (raw_eval) is unchanged.
     if (tt_found && tt_score != VALUE_NONE
@@ -171,13 +171,13 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     }
 
     // Delta pruning: even capturing the best possible piece can't raise
-    // alpha. NOTE (8.1f): the audit's fail-soft return (stand_pat + margin)
+    // alpha. NOTE: the audit's fail-soft return (stand_pat + margin)
     // was implemented and MEASURED to break the KBNK fixed-depth conversion
     // canary -- the fail-hard alpha echo is load-bearing for mate-range
-    // bounds under the current fail-hard qsearch + 6.1 stand-pat tightening.
+    // bounds under the current fail-hard qsearch + stand-pat tightening.
     // (Likewise, seeding the final store from the tightened stand-pat
     // scrambled KQK mate distances: a TT_BETA-tightened value is not a
-    // provable upper bound.) Consistent fail-soft is the Phase 10.4
+    // provable upper bound.) Consistent fail-soft is a separate
     // bound-shaping job; do not change this return in isolation.
     if (stand_pat < alpha - PIECE_VALUE[QUEEN] - 200) {
         TRACE_DECISION(TraceEvent::QsDeltaPrune, ply, 0, MOVE_NONE,
@@ -188,7 +188,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
 
     if (stand_pat > alpha) alpha = stand_pat;
 
-    if (qply >= MAX_QSEARCH_PLY) return stand_pat;  // fail-soft (8.1f)
+    if (qply >= MAX_QSEARCH_PLY) return stand_pat;  // fail-soft
 
     MoveList captures;
     state_.board->gen_legal_captures(captures);
@@ -272,11 +272,11 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
 
     // Deliberately fail-hard here (store/return alpha, NOT a seeded best):
     // stand_pat may have been tightened UPWARD by a TT_BETA (lower) bound via
-    // the 6.1 mirror above, so a best seeded from it is not a provable UPPER
-    // bound -- storing it as TT_ALPHA poisons mate-distance resolution
-    // (measured: KQK mate-in-5 degraded to "mate 63"). The audited 8.1f
+    // the stand-pat tightening above, so a best seeded from it is not a
+    // provable UPPER bound -- storing it as TT_ALPHA poisons mate-distance resolution
+    // (measured: KQK mate-in-5 degraded to "mate 63"). The audit's
     // fail-soft fixes live in the delta-pruning and qsearch-cap returns
-    // above; bound shaping proper is Phase 10.4.
+    // above; bound shaping proper is separate work.
     TTFlag flag = (alpha > orig_alpha) ? TT_EXACT : TT_ALPHA;
     tt_store(hash, 0, alpha, flag, best_move, ply, raw_eval);
     return alpha;
@@ -346,11 +346,10 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     if (in_check) DIAG_COUNT(state_.diag.in_check_nodes++);
     // The extension is unconditional: every in-check node gets a ply.
     //
-    // 5.7.6 removed check_ext_path_cap, which bounded the accumulation per path
-    // and defaulted to 0 (disabled). It was added inert for 5.4.4, and that
-    // cluster closed with BAS-S16 REJECTED at -3.48 +/- 3.32 -- so it was the
-    // residue of a failed trial, not an avenue still open. 5.7.3 separately
-    // measured that reducing extension at checking nodes fails our WAC floor.
+    // There is no per-path cap on the accumulation: check_ext_path_cap
+    // defaulted to 0 (disabled) and was the residue of a failed trial
+    // (BAS-S16 REJECTED at -3.48 +/- 3.32), not an avenue still open.
+    // Reducing extension at checking nodes was measured to fail our WAC floor.
     bool did_check_ext = false;
     if (!ABLATED(6) && in_check && ss->excluded == MOVE_NONE && ply < MAX_PLY - 2) {
         depth++;
@@ -408,7 +407,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     ss->tt_pv = is_pv || (tt_found && tt_flag == TT_EXACT && tt_depth >= depth - 1);
     if (ss->tt_pv) DIAG_COUNT(state_.diag.tt_pv_nodes++);
 
-    // Phase 6.7: is the TT move a capture? (LMR input, lmr_tt_capture)
+    // Is the TT move a capture? (LMR input, lmr_tt_capture)
     const bool tt_capture = tt_move != MOVE_NONE
         && (state_.board->piece_on(to_sq(tt_move)) != NO_PIECE
             || move_type(tt_move) == EN_PASSANT);
@@ -434,7 +433,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         ss->eval = static_eval;
     }
 
-    // Step 6.1: value used for PRUNING decisions only. When a TT entry's bound
+    // Value used for PRUNING decisions only. When a TT entry's bound
     // proves its score a tighter estimate than the (corrected) static eval —
     // exact, or a fail-high above it, or a fail-low below it — prune on that
     // instead. ss->eval / static_eval stay the raw corrected value, so
@@ -500,7 +499,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                   + std::min((eval - beta) / config_.limits.params.null_eval_div, 3);
             DIAG_COUNT(state_.diag.null_tries++);
             do_null_move(ss);
-            shared_.tt.prefetch(state_.board->position_key());   // 8.7.6(c)
+            shared_.tt.prefetch(state_.board->position_key());
             int null_score = -negamax<NodeType::NonPV>(std::max(0, depth - r), -beta, -(beta - 1),
                                       ply + 1, ss + 1, false, true);
             undo_null_move(ss);
@@ -537,7 +536,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
                 DIAG_COUNT(state_.diag.probcut_tries++);
                 do_move(ss, m);
-                shared_.tt.prefetch(state_.board->position_key());   // 8.7.6(c)
+                shared_.tt.prefetch(state_.board->position_key());
                 // Quick check via QSearch first
                 int val = -quiescence(-pc_beta, -pc_beta + 1, ply + 1, 0, ss + 1);
                 if (val >= pc_beta)
@@ -583,7 +582,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     bool immediate_return = false;
     int immediate_score = 0;
 
-    // 9.6: score_moves() has already hoisted these bases for ordering. The
+    // score_moves() has already hoisted these bases for ordering. The
     // history-pruning and LMR-stat paths below revisit the same quiet move, so
     // hoist their node-invariant dimensions here as well.
     const auto& main_hist = hist_.main[state_.board->turn()];
@@ -592,7 +591,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     const auto* low_ply_hist = ply < HistoryTables::LOW_PLY_HISTORY_SIZE
                              ? &hist_.low_ply[ply] : nullptr;
 
-    // 5.7.2: set when the TT move proves singular at this node, and then read
+    // Set when the TT move proves singular at this node, and then read
     // by LMR for every LATER move here.
     //
     // The scope is the subtle part and is the whole mechanism: the reference
@@ -625,7 +624,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                      || (move_type(m) == EN_PASSANT);
         bool is_promo = (move_type(m) == PROMOTION);
         bool is_quiet = !is_cap && !is_promo;
-        // 8.7.5(a): seed see_score with the picker's already-computed verdict
+        // Seed see_score with the picker's already-computed verdict
         // (0 good / -1 bad capture; VALUE_NONE otherwise) so the two lazy
         // see_ge(m,0) recompute sites below are skipped for classified
         // captures. Identical value => bench-identical.
@@ -693,7 +692,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                              + cont_hist_score(ss, pt, Square(to_sq(m)))
                              + pawn_hist[pt][to_sq(m)]
                              + (low_ply_hist ? (*low_ply_hist)[from_sq(m)][to_sq(m)] : 0);
-                    // 5.6 reachability probe. The live condition below is
+                    // Reachability probe. The live condition below is
                     // byte-identical; these only observe how far the actual
                     // history distribution sits from the threshold, and add no
                     // move_gives_check() calls.
@@ -758,13 +757,13 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             }
 
             if (s_val < s_beta) {
-                // TT move is singular — extend it. Phase 6.4 rider: cap stacked
+                // TT move is singular — extend it. Cap stacked
                 // 2-ply extensions along this path so a pathological line can't
                 // chain unbounded double-extensions.
                 bool allow_double = !is_pv
                     && s_val < s_beta - config_.limits.params.singular_double_margin
                     && ss->double_exts < config_.limits.params.double_ext_max;
-                // 5.7.3 REFUTED: our per-node check extension composes with
+                // REFUTED: our per-node check extension composes with
                 // this per-move one, so a checking node with a singular TT move
                 // can take 3 plies where the reference allows 1. Making them
                 // exclusive was measured and is WORSE -- WAC 137 -> 124 against
@@ -778,13 +777,13 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                                alpha, beta, eval, improving, correction, trace_history,
                                searched, extension, s_beta, s_val);
 
-                // 5.7.3 probe: count the stack, do not change it yet.
+                // Probe: count the stack, do not change it yet.
                 DIAG_COUNT(++state_.diag.sing_fired);
                 if (allow_double)   DIAG_COUNT(++state_.diag.sing_double);
                 if (did_check_ext)  DIAG_COUNT(++state_.diag.sing_in_check);
                 if (allow_double && did_check_ext) DIAG_COUNT(++state_.diag.sing_triple);
 
-                // 5.7.2: relax LMR for this node's remaining moves. Suppressed
+                // Relax LMR for this node's remaining moves. Suppressed
                 // when the TT move is a capture -- a singular capture says the
                 // tactics are forced, not that the quiet alternatives are
                 // delicate, and `lmr_tt_capture` already raises r for exactly
@@ -804,7 +803,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                                alpha, beta, eval, improving, correction, trace_history,
                                searched, -1, s_beta, s_val);
 
-                // 5.7.4 REFUTED: the reference replaces this negative
+                // REFUTED: the reference replaces this negative
                 // extension with a SECOND verification search that can cut the
                 // whole subtree. Implemented behind a knob and measured: depth
                 // at equal nodes was mean +0.383 ply but **median +0.0**, with
@@ -834,7 +833,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         state_.sel_depth = std::max(state_.sel_depth, ply + 1);
 
         int new_depth = depth - 1 + extension;
-        // Phase 6.4 rider: propagate the stacked double-extension count to the
+        // Propagate the stacked double-extension count to the
         // child so a chain of singular double-extensions is eventually capped.
         (ss + 1)->double_exts = ss->double_exts + (extension >= 2 ? 1 : 0);
 
@@ -844,12 +843,11 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         } else {
             // Late Move Reductions
             int reduction = 0;
-            // 5.2 (BAS-O03): the gate below is unchanged, but it is now
-            // evaluated as an if/else-if chain so each rejection is
-            // attributable. The predicate order and short-circuiting are
-            // identical to the original single condition — in particular
-            // move_gives_check() is still reached only when the first four
-            // pass, so its call count and cost do not move.
+            // (BAS-O03): the gate below is an if/else-if chain so each
+            // rejection is attributable. The predicate order and
+            // short-circuiting are those of a single condition — in particular
+            // move_gives_check() is reached only when the first four pass, so
+            // its call count and cost do not move.
             //
             // This matters because lmr_applied alone cannot tell "rarely
             // eligible" from "eligible but never reduced", and those have
@@ -860,14 +858,14 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             else if (!ABLATED(7) && searched < 2) DIAG_COUNT(++state_.diag.lmr_blocked_searched);
             else if (!ABLATED(7) && in_check)     DIAG_COUNT(++state_.diag.lmr_blocked_in_check);
             else if (!ABLATED(7) && !lmr_type_ok) DIAG_COUNT(++state_.diag.lmr_blocked_movetype);
-            // Checking moves are never reduced. 5.7.6 removed the
-            // lmr_allow_check switch that could have relaxed this: it was added
-            // inert for 5.4.4, which closed rejected (BAS-S16).
+            // Checking moves are never reduced. There is no lmr_allow_check
+            // switch to relax this: the one that was tried belonged to a
+            // rejected trial (BAS-S16).
             else if (!ABLATED(7) && move_gives_check())
                 DIAG_COUNT(++state_.diag.lmr_blocked_gives_check);
             // LMR applies to: quiets, and bad captures — but NOT promotions
             else if (!ABLATED(7)) {
-                // Phase 6.7: accumulate the reduction in 1024ths of a ply, then
+                // Accumulate the reduction in 1024ths of a ply, then
                 // shift back at the end. Behaviour-identical at default knobs
                 // (adjustments are the old integer values ×1024; history stays
                 // integer-quantised via the ×1024-after-divide form).
@@ -880,15 +878,12 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                     if (ss->tt_pv)  r -= p.lmr_tt_pv_adj;
                     if (!improving) r += p.lmr_not_improving_adj;
                     if (tt_capture) r += p.lmr_tt_capture;
-                    // 5.7.2: see the declaration of singular_quiet_lmr.
+                    // See the declaration of singular_quiet_lmr.
                     if (singular_quiet_lmr) r -= p.lmr_singular_quiet;
                     // History-based adjustment: good moves get reduced less, bad
-                    // more. Kept integer-quantised (÷div then ×1024) so 6.7 is
-                    // behaviour-identical; the fractional form (×1024 ÷ div) is a
-                    // 6.9 experiment.
-                    //
-                    // 5.4.3 tested that fractional form and MEASURED IT WORSE
-                    // (BAS-S13): applied 36.1%→32.5%, clamp-to-zero 16.2%→19.8%,
+                    // more. Kept integer-quantised (÷div then ×1024); the
+                    // fractional form (×1024 ÷ div) was tested and MEASURED
+                    // WORSE (BAS-S13): applied 36.1%→32.5%, clamp-to-zero 16.2%→19.8%,
                     // depth at equal nodes 20.80→20.70. The quantisation is not
                     // only a resolution defect — it also acts as a threshold.
                     // Most moves carry positive history and history SUBTRACTS
@@ -905,14 +900,14 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                     r = (((r >> 10) - 1) / 2) << 10;
                 }
 
-                // 5.4.3: record whether the ceiling bound before clamping, so
+                // Record whether the ceiling bound before clamping, so
                 // "modulation too small" and "modulation cannot matter here" are
                 // separable. Most LMR-eligible nodes sit near the leaves, where
                 // new_depth-1 is 1 or 2 and no policy change can move the
                 // reduction actually taken.
                 if ((r >> 10) > new_depth - 1) DIAG_COUNT(++state_.diag.lmr_clamped_high);
                 reduction = std::clamp(r >> 10, 0, new_depth - 1);
-                // 5.2: the gate passed but the computed reduction was zero —
+                // The gate passed but the computed reduction was zero —
                 // distinct from being blocked, and a different repair. Counted
                 // here so that
                 //   eligible = applied + clamped_zero + sum(blocked_*)
@@ -989,7 +984,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             TRACE_DECISION(TraceEvent::BetaCutoff, ply, depth, m,
                            orig_alpha, beta, eval, improving, correction, move_stat_score,
                            searched, ss->reduction, VALUE_NONE, score);
-            // 5.2 (BAS-O03): ordering quality at the point it costs something.
+            // Ordering quality (BAS-O03) at the point it costs something.
             // `searched` was incremented above, so the cutting move's index is
             // searched - 1. A cutoff on index 0 costs one move's search; on
             // index n it costs n+1, so the mean index is a direct multiplier on
@@ -1006,7 +1001,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 case MovePicker::Src::BadTactical:  DIAG_COUNT(++state_.diag.cutoff_src_bad_tactical); break;
                 case MovePicker::Src::None:         break;
             }
-            // 8.5.10(e): boost the bonus when the cutoff was "surprising" -- the
+            // Boost the bonus when the cutoff was "surprising" -- the
             // node's static eval was below beta, so the search found a good move
             // the eval did not credit.
             const int es = (static_eval != VALUE_NONE && static_eval < beta) ? 125 : 100;
@@ -1046,7 +1041,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
     best_score = std::min(best_score, tb_cap);
 
-    // 8.5.10(b') exact/PV best-move history training, REWARD-ONLY.
+    // Exact/PV best-move history training, REWARD-ONLY.
     // A beta cutoff trains history inside search_one. An EXACT node -- best_move
     // improved alpha but did not cut off -- was left untrained. The full updater
     // also maluses every non-best sibling, which at an exact node (all moves

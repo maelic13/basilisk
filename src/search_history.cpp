@@ -29,7 +29,7 @@ void Searcher::update_low_ply(int ply, Square from, Square to, int bonus) {
         hist_update<HistoryTables::MAX_LOW_HIST>(hist_.low_ply[ply][from][to], bonus);
 }
 
-// Phase 6.3 bonus/malus shape: bonus = min(quad*d^2/64 + lin*d, max), malus
+// Bonus/malus shape: bonus = min(quad*d^2/64 + lin*d, max), malus
 // mirrored with its own knobs. Defaults reproduce the legacy min(d*d, 2048).
 int Searcher::history_bonus_value(int depth) const {
     const auto& p = config_.limits.params;
@@ -81,14 +81,14 @@ int Searcher::cont_hist_score(const SearchStack* ss, PieceType pt, Square to) co
     return score;
 }
 
-// (8.6.6: first statement counts the update event by type)
+// (first statement counts the update event by type)
 void Searcher::update_all_histories(Move best, bool best_is_tt,
                                     const Move* quiets, int quiet_count,
                                     const Move* bad_caps, int bad_cap_count,
                                     Color stm, int depth, SearchStack* ss,
                                     bool reward_only, int bonus_scale) {
     DIAG_COUNT((reward_only ? state_.diag.hist_reward_updates : state_.diag.hist_cutoff_updates)++);
-    // 8.5.10(e): bonus_scale (percent) lets the caller boost the reward when the
+    // bonus_scale (percent) lets the caller boost the reward when the
     // cutoff was "surprising" (static eval below beta -- the search saw a good
     // move the eval did not). Default 100 = unchanged.
     int bonus = history_bonus_value(depth) * bonus_scale / 100

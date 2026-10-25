@@ -109,10 +109,10 @@ static Square forward_square(Color c, Square sq) {
 static constexpr int SCALE_NORMAL = 64;   // no endgame scaling
 static constexpr int SCALE_DRAW   = 0;    // dead-drawn scale factor
 // Above normal: a scale that AMPLIFIES, for positions the strong side is known
-// to be converting. 6.5.a's Lucena rules need this -- reading them against
+// to be converting. The Lucena rules need this -- reading them against
 // SCALE_NORMAL instead turns a won rook ending into a near-draw.
 static constexpr int SCALE_MAX    = 128;
-// The floor under 6.5.a's rook-ending rules, and the reason they are usable at
+// The floor under the rook-ending rules, and the reason they are usable at
 // all. Two independent arguments, one of correctness and one of cost.
 //
 // Correctness: these are heuristics with no tablebase behind them. Checked
@@ -135,7 +135,7 @@ static constexpr int KNOWN_WIN    = 10000; // static "won, mate is technique" ma
 // tapered score exceeds this, the expensive positional block is skipped. Tuned
 // under a lazy-on-vs-off SPRT; conservative start.
 [[maybe_unused]] static constexpr int LAZY_MARGIN  = 700;  // unused under TEXEL_TRACE (lazy eval off there)
-// 8.6.6b lazy-audit "did not fire" marker (any value the eval can't produce).
+// Lazy-audit "did not fire" marker (any value the eval can't produce).
 [[maybe_unused]] static constexpr int VALUE_NONE_SENTINEL = INT_MIN;
 
 // Rough eg material values, used only for endgame material classification
@@ -439,18 +439,18 @@ static int kbnk_score(const Board& b, Color strong) {
     // The two same-coloured corners as the bishop are a diagonal pair.
     bool dark_bishop = (sq_bb(bsq) & EG_DARK_SQUARES) != 0;
 
-    // 5.9.17: the drive used Chebyshev distance to the corner, which has large
-    // plateaus -- a whole L-shaped band shares one value -- so over most of the
-    // board there was no gradient to follow. 6.1.b makes the existing
-    // Manhattan-to-nearest-correct-corner potential explicit as its equivalent
-    // bishop-colour diagonal formula. For dark-corner bishops:
+    // The drive uses Manhattan distance to the nearest correct corner, not
+    // Chebyshev, which has large plateaus -- a whole L-shaped band shares one
+    // value -- and leaves no gradient to follow over most of the board. It is
+    // written as the equivalent bishop-colour diagonal formula. For
+    // dark-corner bishops:
     //
     //   14 - min(f+r, 14-f-r) == 7 + abs(7-r-f)
     //
     // and for light-corner bishops the variable part is abs(r-f). The +7 is a
-    // class-wide constant retained for exact score and bench identity. Thus the
-    // shape Rarog found was already present in Basilisk; 6.1.c owns the real
-    // open question, its scale and interaction with the other pulls below.
+    // class-wide constant retained for exact score and bench identity. The
+    // open question is the scale of this drive and its interaction with the
+    // other pulls below.
     const int wf = int(file_of(wksq)), wr = int(rank_of(wksq));
     const int diagonal = dark_bishop ? std::abs(7 - wr - wf) : std::abs(wr - wf);
 
@@ -468,7 +468,7 @@ static int kbnk_score(const Board& b, Color strong) {
 }
 
 // ---- KXK: mate a bare king with Q, R, bishop pair, or B+N ------------------
-// 5.9.19. The generic drive was `5*lk_center + 4*(14 - king_dist)` -- **5 and 4
+// The old generic drive was `5*lk_center + 4*(14 - king_dist)` -- **5 and 4
 // centipawns per step**, an order of magnitude below the 100-500cp futility and
 // razoring margins, so the search pruned the king walk before it could pay off.
 // That is the BAS-E29 defect that held KBNK at 13% conversion.
@@ -498,7 +498,7 @@ static int kxk_score(const Board& b, Color strong) {
 
     // Only minor-piece mates reach here; the caller sends Q and R elsewhere.
     // That is what makes these weights safe: the attacker's material cannot
-    // vary within the class, exactly as in KBNK (5.9.17), so a drive spanning
+    // vary within the class, exactly as in KBNK, so a drive spanning
     // thousands of centipawns can never outrank a piece. Edge first, then
     // corner, then close the kings -- the order the technique is executed in.
     // Every weight clears the razoring margin (243) so the walk survives
@@ -513,7 +513,7 @@ static int kxk_score(const Board& b, Color strong) {
     // target; for a corner set that symmetric, Manhattan distance collapses to
     // this closed form. Manhattan rather than Chebyshev because Chebyshev has
     // wide plateaus -- whole L-shaped bands share a value, leaving no gradient
-    // to follow over most of the board (the 5.9.17 finding).
+    // to follow over most of the board.
     const int corner_md = std::min(wf, 7 - wf) + std::min(wr, 7 - wr);
     const int king_dist = KING_DIST[sk][wksq];
 
@@ -524,7 +524,7 @@ static int kxk_score(const Board& b, Color strong) {
     return (strong == WHITE) ? v : -v;
 }
 
-// ---- Rook-ending draw scaling: KRPKR and KRPPKRP (6.5.a) -------------------
+// ---- Rook-ending draw scaling: KRPKR and KRPPKRP ---------------------------
 //
 // These are SCALING functions, not verdicts. They do not claim a position is
 // drawn; they shrink a material advantage the defender is known to be able to
@@ -691,13 +691,12 @@ static int rook_ending_scale(const Board& b) {
 // Receives the white-perspective tapered score and returns it after applying
 // known-endgame overrides and draw scaling. Reproduces the previous OCB and
 // KNNK behaviour exactly for every position they used to touch.
-// Rule-50 eval damping (8.4 retry): drain the static eval toward zero as the
-// 50-move counter grows. The old (100 - clock)/100 line retained only 1% at
-// clock 99 -- through RFP/null-margin/stand-pat that told the search nearly
-// every long-clock position was already drawn. The SF-era (1 - clock/199)
-// curve retains ~50% at clock 99. Reopened after the 2026-07-15 canary fix
-// (the brittle KBNK conversion gate wrongly reverted this); SPRT gates it.
-// Definition lives in eval.h (8.6.2b) so the Texel tuner uses the identical
+// Rule-50 eval damping: drain the static eval toward zero as the 50-move
+// counter grows. A (100 - clock)/100 line retains only 1% at clock 99 --
+// through RFP/null-margin/stand-pat that tells the search nearly every
+// long-clock position is already drawn. The SF-era (1 - clock/199) curve
+// retains ~50% at clock 99.
+// Definition lives in eval.h so the Texel tuner uses the identical
 // curve; see the shared-predicates block there.
 
 static int apply_endgame(const Board& b, int score) {
@@ -726,7 +725,7 @@ static int apply_endgame(const Board& b, int score) {
         };
 
         // ---- KNNK draw -----------------------------------------------------
-        // Predicate shared with the tuner (8.6.2b). It recomputes its own
+        // Predicate shared with the tuner. It recomputes its own
         // popcounts rather than reading the cnt[] census; that census is still
         // needed by the KPK/KBNK/scaling rules below, and this path is already
         // gated behind the lone-king/pawnless guard.
@@ -748,7 +747,7 @@ static int apply_endgame(const Board& b, int score) {
                 return kbnk_score(b, strong);
         }
 
-        // ---- KXK: any other bare-king mate (5.9.19) -----------------------
+        // ---- KXK: any other bare-king mate ---------------------------------
         // Must follow KBNK, which keeps its own colour-bound corner logic.
         // Two same-coloured bishops cannot mate, so the pair is tested by
         // square colour rather than by count.
@@ -811,7 +810,7 @@ static int apply_endgame(const Board& b, int score) {
         }
     }
 
-    // ---- Rook endings: KRPKR / KRPPKRP draw scaling (6.5.a) ---------------
+    // ---- Rook endings: KRPKR / KRPPKRP draw scaling -----------------------
     // KRPKR reaches here through the census block above (the defender is
     // pawnless); KRPPKRP does NOT, because both sides have pawns, so the test
     // lives out here. The gate is a few bitboard ORs rather than a popcount
@@ -831,8 +830,8 @@ static int apply_endgame(const Board& b, int score) {
     }
 
     // Opposite-coloured bishops: draw-scale toward 32/48, relaxed to at most
-    // neutral by pawn count (8.3: capped -- see ocb_draw_scale in eval.h).
-    if (!scaled && is_opposite_coloured_bishops(b)) {   // predicate shared with the tuner (8.6.2b)
+    // neutral by pawn count (capped -- see ocb_draw_scale in eval.h).
+    if (!scaled && is_opposite_coloured_bishops(b)) {   // predicate shared with the tuner
         score = score * ocb_draw_scale(total_pawns) / 48;
     }
 
@@ -877,9 +876,9 @@ void Evaluator::eval_pawns(const Board& b,
     Key pkey = b.pawn_key_value();
     PawnEntry& pe = pawn_table_[pkey & (PAWN_TABLE_SIZE - 1)];
 
-    ++pawn_probes;   // 8.7.1(c)
+    ++pawn_probes;
     if (pe.key == pkey) {
-        ++pawn_hits;   // 8.7.1(c)
+        ++pawn_hits;
         mg_out = pe.mg;
         eg_out = pe.eg;
         passed[WHITE]  = pe.passed[WHITE];
@@ -1034,7 +1033,7 @@ void Evaluator::eval_pawns(const Board& b,
 // ---- Main evaluation -------------------------------------------------------
 
 int Evaluator::evaluate(const Board& b) {
-    ++eval_calls;   // 8.7.1(c)
+    ++eval_calls;
 #ifdef BASILISK_TUNE
     if (diag_endgames)
         record_endgame_occurrence(b, endgame_occurrence);
@@ -1198,7 +1197,7 @@ int Evaluator::evaluate(const Board& b) {
     // scaling -- which still runs, so KBNK/KPK/draw-scaling survive the skip.
     // Disabled under TEXEL_TRACE so the tuner fits the full eval (--verify exact).
 #ifndef TEXEL_TRACE
-    // 8.6.6b: under the lazy audit the skip does NOT return — the full tail
+    // Under the lazy audit the skip does NOT return — the full tail
     // runs for measurement and the final return serves the remembered lazy
     // value, so the audit is behaviour-identical (bench-identical) when on.
     int lazy_served = VALUE_NONE_SENTINEL;
@@ -1243,7 +1242,7 @@ int Evaluator::evaluate(const Board& b) {
         king_zone[c] = kz;
 
         // Seed pawn and king attacks. The two pawn capture directions are
-        // seeded separately (8.3c): a square attacked by two different pawns
+        // seeded separately: a square attacked by two different pawns
         // belongs in attacked2 -- the threats package (strongly_protected /
         // hanging) and the king-ring/flank code consume it (audit
         // hce_analysis 3; the old "no current consumer" note was stale).
@@ -1282,7 +1281,7 @@ int Evaluator::evaluate(const Board& b) {
         blockers_for_king[c] = blockers;
     }
 
-    // 8.7.7(a): cache each slider's attack set from the sweep so the king-ring
+    // Cache each slider's attack set from the sweep so the king-ring
     // and trapped-bishop tests below reuse it instead of recomputing the same
     // magic lookup. Every reuse site uses bishop/rook_attacks(sq, b.all_pieces()) —
     // the exact value the sweep computes — so this is bench-identical. Only
@@ -1311,7 +1310,7 @@ int Evaluator::evaluate(const Board& b) {
         Bitboard blocked_or_low = own_pawns & (ahead | low_ranks);
         Bitboard mob_area = ~(blocked_or_low | b.piece_bb(c, KING) | b.piece_bb(c, QUEEN)
                               | pawn_atk[them] | blockers_for_king[c]);
-        // 8.7.7(c): hoist the two per-piece switch(pt) out of the mobility
+        // Hoist the two per-piece switch(pt) out of the mobility
         // inner loop. pt is constant across a whole `while (pcs)` run, so both
         // switches are loop-invariant. A template lambda instantiated once per
         // piece type folds them to compile-time constants — the att magic is
@@ -1334,7 +1333,7 @@ int Evaluator::evaluate(const Board& b) {
                 attacked[c]  |= att;
                 attacked_by[c][PT] |= att;
                 if constexpr (PT == BISHOP || PT == ROOK)
-                    slider_att[sq] = att;   // 8.7.7(a)
+                    slider_att[sq] = att;
 
                 // Per-count mobility (Step 3.3): one-hot table indexed by the
                 // mobility-square count over the SF area (Step 4.6b).
@@ -1626,9 +1625,9 @@ int Evaluator::evaluate(const Board& b) {
     }
 
     // ---- Rook behind passed pawn -------------------------------------------
-    // Two independent passes (8.3b): pre-8.3 the enemy-rook penalty was nested
-    // inside the friendly-rook loop, so it only fired when WE also had a rook
-    // on the passer file (and fired once per friendly rook when stacked).
+    // Two independent passes: the enemy-rook penalty must not nest inside the
+    // friendly-rook loop, or it would only fire when WE also have a rook on
+    // the passer file (and fire once per friendly rook when stacked).
     // "Behind" stays purely geometric (blockers between rook and pawn are not
     // examined), matching the friendly-rook term. Audit hce_analysis 2.
     for (int c = 0; c < NCOLORS; c++) {
@@ -1757,7 +1756,7 @@ int Evaluator::evaluate(const Board& b) {
             int bp_on_col = popcount(our_pawns & cmask);
             mg += sign * bp_on_col * p.bad_bishop_mg; TR_MG(BadBishopMg, 0, sign * bp_on_col);
             eg += sign * bp_on_col * p.bad_bishop_eg; TR_EG(BadBishopEg, 0, sign * bp_on_col);
-            if (slider_att[bsq] & ring_them) {   // 8.7.7(a): was bishop_attacks(bsq, b.all_pieces())
+            if (slider_att[bsq] & ring_them) {
                 mg += sign * p.minor_king_ring_mg; TR_MG(MinorKingRingMg, 0, sign);
                 eg += sign * p.minor_king_ring_eg; TR_EG(MinorKingRingEg, 0, sign);
             }
@@ -1810,7 +1809,7 @@ int Evaluator::evaluate(const Board& b) {
         while (rooks) {
             Square rsq = Square(pop_lsb(rooks));
             int f = file_of(rsq);
-            if (slider_att[rsq] & ring_them) {   // 8.7.7(a): was rook_attacks(rsq, b.all_pieces())
+            if (slider_att[rsq] & ring_them) {
                 mg += sign * p.rook_king_ring_mg; TR_MG(RookKingRingMg, 0, sign);
                 eg += sign * p.rook_king_ring_eg; TR_EG(RookKingRingEg, 0, sign);
             }
@@ -1831,7 +1830,7 @@ int Evaluator::evaluate(const Board& b) {
             Bitboard tmp = rks;
             while (tmp) {
                 Square r = Square(pop_lsb(tmp));
-                if (slider_att[r] & rks & ~sq_bb(r)) { connected = true; break; }   // 8.7.7(a)
+                if (slider_att[r] & rks & ~sq_bb(r)) { connected = true; break; }
             }
             if (connected) {
                 mg += sign * p.connected_rooks_mg; TR_MG(ConnectedRooksMg, 0, sign);
@@ -1883,7 +1882,7 @@ int Evaluator::evaluate(const Board& b) {
             Bitboard bbs = b.piece_bb(c, BISHOP);
             while (bbs) {
                 Square bsq = Square(pop_lsb(bbs));
-                Bitboard moves = slider_att[bsq] & ~b.occupancy_bb(c);   // 8.7.7(a): was bishop_attacks(bsq, b.all_pieces())
+                Bitboard moves = slider_att[bsq] & ~b.occupancy_bb(c);
                 if (moves == 0) {
                     mg -= sign * p.trapped_mg; TR_MG(TrappedMg, 0, -sign);
                     eg -= sign * p.trapped_eg; TR_EG(TrappedEg, 0, -sign);
@@ -1898,7 +1897,7 @@ int Evaluator::evaluate(const Board& b) {
         if (std::abs(score_approx) > 200) {
             Color winning = (score_approx > 0) ? WHITE : BLACK;
             Color losing  = ~winning;
-            // 8.6: gate the push-to-edge / close-the-kings geometry to
+            // Gate the push-to-edge / close-the-kings geometry to
             // bare-king mating signatures. It is wrong in pawn races, rook-
             // and-pawn endings, and king-opposition pawn endings (audit
             // hce_analysis 7). Fire only when the defender has no pawns AND
@@ -1920,14 +1919,14 @@ int Evaluator::evaluate(const Board& b) {
                 int king_dist = KING_DIST[wksq][lksq];
                 eg += sign * (5 * lk_center + (14 - king_dist) * 4);
                 // Frozen: not traced; captured in rest by the tuner.
-                // 5.9.19: bare-king positions no longer reach this -- they are
+                // Bare-king positions do not reach this -- they are
                 // overridden by kxk_score in apply_endgame. What is left here
                 // is the case the gate's comment does not describe: the
                 // defender is PAWNLESS but still has material (KQ-KR and
                 // friends). That is a heuristic, not a forced mate, so a
                 // margin-beating weight would make the engine prefer chasing
-                // the king to converting. Those classes have their own steps
-                // (5.9.29, 5.9.35, 5.9.36); the 5 and 4 stay until then.
+                // the king to converting. Those classes need their own drives;
+                // the 5 and 4 stay until then.
             }
         }
     }
@@ -1942,10 +1941,10 @@ int Evaluator::evaluate(const Board& b) {
     // ---- Winnable / complexity coupling (Step 3.6) -------------------------
     // Frozen, not traced (sign-preserving nonlinearity); all weights are 0,
     // so the contribution is exactly 0 today (bench unchanged, --verify exact).
-    // NOTE (8.3 rider): never actually tuned -- the winnability block is not
+    // NOTE: never actually tuned -- the winnability block is not
     // traced and the generic optimizer only consumes linear trace
     // coefficients, so its gradient was always zero (audit hce_analysis 4).
-    // Activating it is PLAN 8.5+/re-tune material. The complexity may never flip the
+    // Activating it is re-tune material. The complexity may never flip the
     // sign of the endgame score.
     {
         Square wk = b.king_square(WHITE), bk = b.king_square(BLACK);

@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <string>
 
-// ---- 16-bit move encoding (8.6.10a) -----------------------------------------
+// ---- 16-bit move encoding ---------------------------------------------------
 // bits  0-5:  from square
 // bits  6-11: to square
 // bits 12-13: move type

@@ -10,6 +10,7 @@
 #include "bitboard.h"
 #include "zobrist.h"
 #include "uci_protocol.h"
+#include "version.h"
 #include "test_harness.h"
 
 #include <atomic>
@@ -250,6 +251,37 @@ static bool contains(const std::string& hay, const std::string& needle) {
 static const char* START_FEN =
     "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
+static void test_engine_version() {
+    begin_section("engine name: a release reads its version");
+    EXPECT_STR(format_engine_version("Basilisk", "1.11.0", "20261025", "f783ebb6", false),
+               "Basilisk 1.11.0");
+    EXPECT_STR(format_engine_version("Basilisk", "1.11.0", "20261025", "f783ebb6", true),
+               "Basilisk 1.11.0");
+    end_section();
+
+    begin_section("engine name: a development build reads Stockfish's form");
+    EXPECT_STR(format_engine_version("Basilisk", "1.11.0-dev", "20261025", "f783ebb6", false),
+               "Basilisk dev-20261025-f783ebb6");
+    EXPECT_STR(format_engine_version("Basilisk", "1.11.0-dev", "20261025", "f783ebb6", true),
+               "Basilisk dev-20261025-m-f783ebb6");
+    EXPECT_STR(format_engine_version("Basilisk", "1.11.0-dev", "20261025", "f783ebb6", true,
+                                     "20250101-0123abcd"),
+               "Basilisk dev-20250101-0123abcd");
+    end_section();
+
+    begin_section("engine name: without git, the compile date and nogit");
+    const std::string nogit = format_engine_version("Basilisk", "1.11.0-dev", "", "", false);
+    EXPECT(nogit.size() == std::string("Basilisk dev-20261025-nogit").size());
+    EXPECT(nogit.rfind("Basilisk dev-", 0) == 0);
+    EXPECT(nogit.substr(nogit.size() - 6) == "-nogit");
+    end_section();
+
+    ProtocolRun run = run_protocol("uci\nquit\n", 1);
+    begin_section("engine name: id name reports it");
+    EXPECT(run.output.find("id name " + engine_version_info()) != std::string::npos);
+    end_section();
+}
+
 static void test_malformed_position_moves() {
     // (a) Non-ASCII move token. Rarog panicked here slicing UTF-8 (RAR-M26).
     // Basilisk compares whole tokens against generated legal moves, so the
@@ -443,6 +475,7 @@ int main() {
 
     std::printf("\nUCI output\n");
     test_uci_output();
+    test_engine_version();
     test_malformed_position_moves();
     test_fen_counter_boundaries();
     test_malformed_go();

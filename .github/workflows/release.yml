@@ -232,13 +232,30 @@ jobs:
         uses: msys2/setup-msys2@v2
         with:
           msystem: ${{ matrix.msystem }}
-          update: false
+          update: true
           install: >-
             ${{ matrix.mingw_pkg_prefix }}-${{ matrix.compiler_pkg }}
             ${{ matrix.mingw_pkg_prefix }}-llvm
             ${{ matrix.mingw_pkg_prefix }}-python
             ${{ matrix.mingw_pkg_prefix }}-cmake
             ${{ matrix.mingw_pkg_prefix }}-ninja
+
+      # The Windows compiler's LLVM major is pinned: .github/windows-clang-version
+      # names the major every measurement uses, and a cell on another fails, so a
+      # major step is read for speed before it ships (agents/measurement.md).
+      # Patch releases pass and are printed here.
+      - name: Check the pinned Clang (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          want="$(tr -d '[:space:]' < .github/windows-clang-version)"
+          got="$(clang --version | head -n 1)"
+          echo "$got"
+          llvm-profdata --version | head -n 2
+          case "$got" in
+            *"clang version $want."*) ;;
+            *) echo "FAIL: clang is not LLVM $want, the pinned major (.github/windows-clang-version)"; exit 1 ;;
+          esac
 
       # Build the PGO ('pgo' custom target) production binary from this exact
       # revision + production flags (TUNE off), portable (no -march=native).
@@ -272,6 +289,28 @@ jobs:
           cp "$built" "build/dist/${asset}"
           echo "asset=$asset" >> "$GITHUB_OUTPUT"
           echo "path=build/dist/${asset}" >> "$GITHUB_OUTPUT"
+
+      # The ARM64 contract: the TT prefetch must compile to prfm, and nothing
+      # beyond baseline ARMv8 with NEON may appear (tools/diag/verify_isa.py).
+      - name: Verify ARM64 ISA contract on the release binary (Linux / macOS)
+        if: matrix.arch == 'aarch64' && matrix.os_name != 'windows'
+        shell: bash
+        run: |
+          objdump=$(command -v llvm-objdump || command -v llvm-objdump-19 || command -v objdump || true)
+          python=$(command -v python3 || command -v python || true)
+          [ -n "$objdump" ] || { echo "FAIL: no objdump found"; exit 1; }
+          [ -n "$python" ] || { echo "FAIL: python not found"; exit 1; }
+          "$python" tools/diag/verify_isa.py --tier arm64 --binary "${{ steps.asset.outputs.path }}" --objdump "$objdump"
+
+      - name: Verify ARM64 ISA contract on the release binary (Windows)
+        if: matrix.arch == 'aarch64' && matrix.os_name == 'windows'
+        shell: msys2 {0}
+        run: |
+          objdump=$(command -v llvm-objdump || true)
+          python=$(command -v python3 || command -v python || true)
+          [ -n "$objdump" ] || { echo "FAIL: llvm-objdump not found"; exit 1; }
+          [ -n "$python" ] || { echo "FAIL: python not found"; exit 1; }
+          "$python" tools/diag/verify_isa.py --tier arm64 --binary "${{ steps.asset.outputs.path }}" --objdump "$objdump"
 
       - name: Verify x86 ISA contract on the release binary (Linux)
         if: matrix.arch == 'x86_64' && matrix.os_name != 'windows'
@@ -324,8 +363,15 @@ jobs:
           version='${{ needs.prepare.outputs.version }}'
           output=$(printf "uci\nquit\n" | $TIMEOUT "./$binary" 2>&1 || true)
           echo "$output" | grep -q "^uciok" || { echo "::error::no uciok in the UCI handshake"; echo "$output"; exit 1; }
-          echo "$output" | tr -d '\r' | grep -qx "id name Basilisk $version" \
-            || { echo "::error::id name does not read 'Basilisk $version'"; echo "$output" | grep '^id name'; exit 1; }
+          # A release names its version; a development build names the commit it
+          # was built from in Stockfish's form, and a clean checkout carries no -m.
+          if [[ "$version" == *-dev ]]; then
+            expected="Basilisk dev-$(git show -s --date=format:%Y%m%d --format=%cd HEAD)-$(git rev-parse HEAD | cut -c1-8)"
+          else
+            expected="Basilisk $version"
+          fi
+          echo "$output" | tr -d '\r' | grep -qx "id name $expected" \
+            || { echo "::error::id name does not read '$expected'"; echo "$output" | grep '^id name'; exit 1; }
           # The asset must reproduce the declared fingerprint exactly: the move
           # generator, evaluator and search survived PGO on this runner.
           bench_out=$(printf "bench 13\nquit\n" | $TIMEOUT "./$binary" 2>&1 || true)
@@ -348,8 +394,19 @@ jobs:
   collect:
     name: Verify the complete matrix
     needs: [prepare, build]
+    # The required check for this workflow: it always runs and fails unless
+    # every build succeeded, because a job skipped after a failed dependency
+    # reports as passing.
+    if: ${{ always() }}
     runs-on: ubuntu-24.04
     steps:
+      - name: Every build succeeded
+        env:
+          RESULTS: ${{ toJSON(needs.*.result) }}
+        run: |
+          echo "$RESULTS"
+          echo "$RESULTS"
+          exit ${{ (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped')) && 1 || 0 }}
       - name: Download the assets
         # v7, not v8 — same reasoning as ci.yml (v8 no longer auto-unzips).
         uses: actions/download-artifact@v7

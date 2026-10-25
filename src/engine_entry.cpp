@@ -13,6 +13,7 @@
 #include "eval.h"
 #include "uci_output.h"
 #include "uci_protocol.h"
+#include "version.h"
 #include "zobrist.h"
 
 int run_engine(int argc, char* argv[]) {
@@ -34,7 +35,7 @@ int run_engine(int argc, char* argv[]) {
     load_eval_file_if_set();
 #endif
 
-    uci_write_line(std::string(engineName) + " " + std::string(engineVersion)
+    uci_write_line(engine_version_info()
                    + " by " + std::string(engineAuthor));
 
     EngineCommandQueue command_queue;

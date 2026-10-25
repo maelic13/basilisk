@@ -23,7 +23,7 @@ bool parse_bool_option(std::string value) {
     return value == "true" || value == "1" || value == "yes" || value == "on";
 }
 
-// 8.6.1: case-insensitive match of an already-lowercased option name against
+// Case-insensitive match of an already-lowercased option name against
 // the mixed-case spelling stringized from the SearchParams X-macro table.
 // Cold path (setoption only) — per-call tolower is fine.
 [[maybe_unused]] bool uci_option_name_is(const std::string& name_lower, const char* spelling) {
@@ -179,11 +179,11 @@ std::string Parameters::uci_options() {
            "option name SyzygyProbeLimit type spin default 7 min 0 max 7\n";
 #if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
     opts +=
-        // TM diagnostic (Step 5.3): advertised only in tune/dev builds so a
+        // TM diagnostic: advertised only in tune/dev builds so a
         // harness/GUI will actually send the setoption (fastchess/LB skip
         // unadvertised options); release builds keep a clean 9-option list.
         "option name TM_Debug type check default false\n"
-        // Diagnostic counters + lazy dual-eval audit (8.6.6).
+        // Diagnostic counters + lazy dual-eval audit.
         "option name Diag type check default false\n"
         // Bounded machine-readable decision trace (A.5.3).
         "option name DecisionTrace type check default false\n";
@@ -192,10 +192,8 @@ std::string Parameters::uci_options() {
     opts += "option name AblationMask type spin default 0 min 0 max 255\n";
 #endif
 #ifdef BASILISK_TUNE
-    // 8.6.1: generated from the SearchParams X-macro table — the advertised
-    // default IS the compiled default by construction (the hand-written list
-    // this replaces had drifted: PostLmrHistScale said 104, engine ran 0;
-    // TmInstability was missing entirely).
+    // Generated from the SearchParams X-macro table — the advertised
+    // default IS the compiled default by construction.
 #define BASILISK_SEARCH_PARAM_OPT(field, uci, def, lo, hi)                    \
     opts += "option name " #uci " type spin default " + std::to_string(def) + \
             " min " + std::to_string(lo) + " max " + std::to_string(hi) + "\n";
@@ -207,7 +205,7 @@ std::string Parameters::uci_options() {
 }
 
 // The advertised maximum must be exactly what the pool will actually accept,
-// so both read the single definition in search.cpp (9.3a). Advertising a
+// so both read the single definition in search.cpp. Advertising a
 // maximum the pool then silently clamps is a protocol lie; advertising one it
 // would honour is a 2 GB allocation waiting for a curious operator.
 int Parameters::max_threads() {
@@ -312,9 +310,9 @@ void Parameters::set_option(const std::string& args) {
 
     // Extract option name (everything between "name " and either " value" or end-of-string)
     std::string name;
-    // Constructed once: std::regex compiles its pattern in the constructor, and
-    // these were rebuilt on every setoption. Cold for a GUI, but an SPSA run
-    // sends thousands (8.6.2b). Function-local statics are thread-safe to
+    // Constructed once: std::regex compiles its pattern in the constructor.
+    // Cold for a GUI, but an SPSA run sends thousands of setoptions.
+    // Function-local statics are thread-safe to
     // initialise, and setoption is single-threaded regardless.
     static const std::regex name_value_re(R"(name (.*?) value)");
     static const std::regex name_only_re(R"(name (.*))");
@@ -359,7 +357,7 @@ void Parameters::set_option(const std::string& args) {
     } else if (name_lower == "syzygy50moverule") {
         syzygy_50_move_rule = parse_bool_option(value);
     } else if (name_lower == "diag") {
-        // Diagnostic counters (8.6.6): advertised in TUNE builds, always
+        // Diagnostic counters: advertised in TUNE builds, always
         // parseable. Enables the end-of-search `info string diag` dump and
         // the lazy dual-eval audit (served scores unchanged either way).
         diag = parse_bool_option(value);
@@ -368,7 +366,7 @@ void Parameters::set_option(const std::string& args) {
         decision_trace = parse_bool_option(value);
 #endif
     } else if (name_lower == "tm_debug") {
-        // Diagnostic (Step 5.3): advertised only in tune/dev builds (see
+        // Diagnostic: advertised only in tune/dev builds (see
         // uci_options) but always parseable. When on, the search emits one
         // `info string tm ...` per move with the time budget, actual elapsed,
         // and the go-receipt->search-start dispatch delta.
@@ -393,7 +391,7 @@ void Parameters::set_option(const std::string& args) {
 #endif
     }
 #ifdef BASILISK_TUNE
-    // 8.6.1: generated from the SearchParams X-macro table — same single
+    // Generated from the SearchParams X-macro table — same single
     // source as the struct defaults and the uci_options() advertisement.
 #define BASILISK_SEARCH_PARAM_SET(field, uci, def, lo, hi) \
     else if (uci_option_name_is(name_lower, #uci)) { search_params.field = std::clamp(parsed, lo, hi); }
@@ -401,9 +399,9 @@ void Parameters::set_option(const std::string& args) {
     BASILISK_KERNEL_SWITCHES(BASILISK_SEARCH_PARAM_SET)
 #undef BASILISK_SEARCH_PARAM_SET
 #endif
-    // 15.0.d: an unrecognised option name used to fall off the end of this
-    // chain in silence, so a misspelled knob or an SPSA vector aimed at a
-    // non-TUNE build looked like it had been applied. Diagnose it. `info
+    // An unrecognised option name must not fall off the end of this chain in
+    // silence, or a misspelled knob or an SPSA vector aimed at a non-TUNE
+    // build would look like it had been applied. Diagnose it. `info
     // string` is the display-only channel, so a GUI offering options we do
     // not implement is unaffected beyond one log line.
     else {

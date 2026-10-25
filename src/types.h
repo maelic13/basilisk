@@ -5,7 +5,7 @@
 #include <cassert>
 #include <string>
 
-// ---- Platform contract (8.6.2a, 2026-07-20) --------------------------------
+// ---- Platform contract ------------------------------------------------------
 // Basilisk is 64-bit-only, and always has been in practice: the bitboard
 // primitives call the unconditional 64-bit builtins (no 32-bit SWAR fallback
 // was ever written), every shipped asset is x86-64 or aarch64, and the TT's
@@ -97,8 +97,8 @@ inline constexpr Direction pawn_push(Color c) {
 }
 
 // ---- Square arithmetic ------------------------------------------------------
-// 8.6.2b: square/direction maths used to be written `Square(int(s) + off)` at 22
-// sites. The enums stay plain `enum : int` deliberately — bitboard and index
+// Square/direction maths is written as arithmetic, not `Square(int(s) + off)`
+// casts at each site. The enums stay plain `enum : int` deliberately — bitboard and index
 // maths wants the implicit int conversion, and enum class would ADD casts rather
 // than remove them — but the offset arithmetic deserves to read as arithmetic.
 // These are the Stockfish-style incremental operators; all constexpr, so codegen

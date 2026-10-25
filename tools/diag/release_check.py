@@ -6,7 +6,8 @@
       `project(... VERSION X.Y.Z)` and `src/constants.h`'s `engineVersion`);
       CHANGELOG.md has a dated, non-empty `## [X.Y.Z] - YYYY-MM-DD` section;
       GUIDE's Released baseline row names X.Y.Z (the release commit marks
-      itself released); HEAD is on the release line (see `line`). With
+      itself released) and states the `bench 13` count GUIDE declares for
+      the head; HEAD is on the release line (see `line`). With
       --notes, the CHANGELOG section is written there as release notes.
   line vX.Y.Z [--base REF]
       HEAD is an ancestor of REF (default `origin/master`), or the tag is a
@@ -38,6 +39,7 @@ ENGINE_VERSION = re.compile(r'engineVersion\s*=\s*"(\d+\.\d+\.\d+)(-dev)?"')
 CMAKE_VERSION = re.compile(r"^project\(basilisk VERSION (\d+\.\d+\.\d+)\b", re.MULTILINE)
 DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 BOLD_VERSION = re.compile(r"\*\*(\d+\.\d+\.\d+)\*\*")
+ROW_BENCH = re.compile(r"`bench 13` (\d{1,3}(?:,\d{3})+)")
 
 
 class CheckError(Exception):
@@ -84,7 +86,9 @@ def changelog_section(changelog: str, version: str) -> str:
     return text + "\n"
 
 
-def released_in_guide(guide: str, version: str) -> None:
+def released_in_guide(guide: str, version: str) -> int:
+    """The Released baseline row's version must be the release's; returns the
+    `bench 13` count the row states for it."""
     rows = [line for line in guide.splitlines() if line.startswith("| Released baseline |")]
     if len(rows) != 1:
         raise CheckError(f"GUIDE.md has {len(rows)} `| Released baseline |` rows; it needs one")
@@ -94,6 +98,10 @@ def released_in_guide(guide: str, version: str) -> None:
     if named.group(1) != version:
         raise CheckError(f"GUIDE's Released baseline row names {named.group(1)}; "
                          f"the release commit must mark {version} released")
+    nodes = ROW_BENCH.findall(rows[0])
+    if len(nodes) != 1:
+        raise CheckError("GUIDE's Released baseline row states no single `bench 13` N,NNN,NNN count")
+    return int(nodes[0].replace(",", ""))
 
 
 def declared_fingerprint(root: Path) -> int:
@@ -142,8 +150,11 @@ def check(root: Path, tag: str, base: str, notes: Path | None) -> str:
     if declared != version:
         raise CheckError(f"tag {tag} names {version}, but the sources declare {declared}")
     body = changelog_section((root / "CHANGELOG.md").read_text(encoding="utf-8"), version)
-    released_in_guide((root / "GUIDE.md").read_text(encoding="utf-8"), version)
+    released_nodes = released_in_guide((root / "GUIDE.md").read_text(encoding="utf-8"), version)
     nodes = declared_fingerprint(root)
+    if released_nodes != nodes:
+        raise CheckError(f"GUIDE's Released baseline row states bench 13 {released_nodes}, but the "
+                         f"head declares {nodes}: the release commit must state its own fingerprint")
     where = ensure_on_line(root, version, base)
     if notes is not None:
         notes.write_text(body, encoding="utf-8")

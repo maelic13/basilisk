@@ -9,7 +9,7 @@ import release_check
 from release_check import CheckError
 
 GUIDE = ("| Item | Value |\n|---|---|\n"
-         "| Released baseline | **1.10.2** on `master`, tagged `v1.10.2` (2026-10-20) |\n"
+         "| Released baseline | **1.10.2** on `master`, tagged `v1.10.2` (2026-10-20), `bench 13` 14,978,465 |\n"
          "| Bench fingerprint | **14,978,465** (`bench 13`) |\n")
 CHANGELOG = ("# Changelog\n\n## [Unreleased]\n\n---\n\n## [1.10.2] - 2026-10-20\n\n"
              "A patch.\n\n### Fixed\n\n- A thing.\n\n---\n\n## [1.10.1] - 2026-09-27\n\nOlder.\n")
@@ -52,7 +52,10 @@ class ReleaseCheckTests(unittest.TestCase):
             "undated section": (dict(changelog=CHANGELOG.replace("] - 2026-10-20", "]")), "v1.10.2"),
             "empty section": (dict(changelog="## [1.10.2] - 2026-10-20\n\n---\n"), "v1.10.2"),
             "GUIDE not marked": (dict(guide=GUIDE.replace("**1.10.2**", "**1.10.1**")), "v1.10.2"),
-            "fingerprint restated stale": (dict(guide=GUIDE.replace("14,978,465", "1,234,567")), "v1.10.2"),
+            "fingerprint restated stale": (dict(guide=GUIDE.replace("**14,978,465**", "**1,234,567**")), "v1.10.2"),
+            "released row states no count": (dict(guide=GUIDE.replace(", `bench 13` 14,978,465", "")), "v1.10.2"),
+            "released row states another count": (
+                dict(guide=GUIDE.replace("`bench 13` 14,978,465", "`bench 13` 11,099,210")), "v1.10.2"),
         }
         for label, (tree, tag) in cases.items():
             with self.subTest(label), tempfile.TemporaryDirectory() as temp:

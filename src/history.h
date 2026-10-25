@@ -1,10 +1,10 @@
 #pragma once
 
-// Search history tables — the engine's move-ordering memory (8.6.10b).
+// Search history tables — the engine's move-ordering memory.
 //
 // Extracted from Searcher, where twelve raw table members and their
-// clear/age/blend rules were interleaved with search state (the Rarog 11.0(i)
-// "history module" shape). Everything that persists ACROSS searches and feeds
+// clear/age/blend rules were interleaved with search state (the sibling
+// engine's "history module" shape). Everything that persists ACROSS searches and feeds
 // move ordering or eval correction lives here; per-search state stays in
 // Searcher. The POLICY layer — bonus formulas, which tables a cutoff trains,
 // SearchParams coupling — deliberately stays in search.cpp: this struct owns
@@ -34,7 +34,7 @@ struct HistoryTables {
     static constexpr int PAWN_HIST_SIZE       = 2048;
     static constexpr int LOW_PLY_HISTORY_SIZE = 8;
 
-    // 8.6.2a: correction and pawn history are indexed `key & (SIZE - 1)`.
+    // Correction and pawn history are indexed `key & (SIZE - 1)`.
     // A non-power-of-two size would alias silently — a wrong-position
     // correction value, not a crash — so pin it at build time.
     static_assert((CORR_SIZE & (CORR_SIZE - 1)) == 0,

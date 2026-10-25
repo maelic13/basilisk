@@ -12,10 +12,19 @@ from collections import Counter
 from pathlib import Path
 
 
+# x86 objdump prints the bytes in pairs; AArch64 prints one 32-bit word.
 INSTRUCTION = re.compile(
-    r"^\s*[0-9a-f]+:\s+(?:[0-9a-f]{2}\s+)+([a-z][a-z0-9.]*)\b",
+    r"^\s*[0-9a-f]+:\s+(?:(?:[0-9a-f]{2}\s+)+|[0-9a-f]{8}\s+)([a-z][a-z0-9.]*)\b",
     re.IGNORECASE,
 )
+# The ARM64 assets target baseline ARMv8 with NEON. These extensions are not
+# guaranteed there, so none of them may appear.
+ARM64_FORBIDDEN = {
+    "sve": r"ptrues?|whilel[eost]|ptest|cnt[bhwd]|inc[bhwd]|dec[bhwd]|ld1[bhwd]|st1[bhwd]|ld1r[bhwd]",
+    "dotprod": r"[su]dot|usdot|sudot",
+    "aes": r"aes(?:e|d|mc|imc)",
+    "sha": r"sha(?:1[chmp]|1su[01]|256h2?|256su[01]|512h2?|512su[01])",
+}
 AVX2_MNEMONICS = {
     "vextracti128",
     "vinserti128",
@@ -39,13 +48,59 @@ def disassemble(objdump: str, path: Path, relocations: bool = False) -> str:
     return result.stdout
 
 
-def instruction_counts(text: str) -> Counter[str]:
-    counts: Counter[str] = Counter()
+SYMBOL = re.compile(r"^[0-9a-f]+ <(.+)>:\s*$", re.IGNORECASE)
+
+# Library helpers whose extension instructions run only after a runtime check
+# for that extension, so they are allowed on the ARM64 baseline. Each entry
+# names the function, never a pattern: any other occurrence still fails.
+# LLVM libunwind's Registers_arm64::getRegister reads the vector-granule
+# register with SVE's cntd only when it unwinds through a frame whose unwind
+# information names that register, which only SVE code produces; the engine has
+# none. Windows links LLVM libunwind, Linux libgcc's unwinder, so only the
+# Windows assets carry it (found by PR #9's first runs).
+ARM64_RUNTIME_GATED = {"_ZNK9libunwind15Registers_arm6411getRegisterEi"}
+
+
+def instructions(text: str) -> list[tuple[str, str, str]]:
+    """(enclosing symbol, mnemonic, line) for every instruction line."""
+    symbol = ""
+    found = []
     for line in text.splitlines():
+        label = SYMBOL.match(line)
+        if label:
+            symbol = label.group(1)
+            continue
         match = INSTRUCTION.match(line)
         if match:
-            counts[match.group(1).lower()] += 1
-    return counts
+            found.append((symbol, match.group(1).lower(), line.strip()))
+    return found
+
+
+def instruction_counts(text: str) -> Counter[str]:
+    return Counter(mnemonic for _, mnemonic, _ in instructions(text))
+
+
+def arm64_forbidden(mnemonic: str) -> str | None:
+    for family, pattern in ARM64_FORBIDDEN.items():
+        if re.fullmatch(pattern, mnemonic):
+            return family
+    return None
+
+
+def arm64_split(text: str) -> tuple[Counter[str], list[str], list[str]]:
+    """Counts with runtime-gated helpers' extension instructions left out,
+    plus the allowed and the offending occurrences, each named by function."""
+    counts: Counter[str] = Counter()
+    allowed, offending = [], []
+    for symbol, mnemonic, line in instructions(text):
+        family = arm64_forbidden(mnemonic)
+        if family and symbol in ARM64_RUNTIME_GATED:
+            allowed.append(f"{family} in <{symbol}>: {line}")
+            continue
+        if family:
+            offending.append(f"{family} in <{symbol or '?'}>: {line}")
+        counts[mnemonic] += 1
+    return counts, allowed, offending
 
 
 def family_count(counts: Counter[str], pattern: str) -> int:
@@ -54,6 +109,18 @@ def family_count(counts: Counter[str], pattern: str) -> int:
 
 
 def verify_binary(tier: str, counts: Counter[str]) -> tuple[dict[str, int], list[str]]:
+    if tier == "arm64":
+        observed = {"prfm": family_count(counts, r"prfm")}
+        observed.update({name: family_count(counts, pattern) for name, pattern in ARM64_FORBIDDEN.items()})
+        errors = []
+        if not observed["prfm"]:
+            # The transposition table's prefetch compiles to prfm; without it the
+            # hint is silently gone, which cost Rarog three releases of speed.
+            errors.append("ARM64 tier contains no prfm instruction: the TT prefetch is missing")
+        for family in ARM64_FORBIDDEN:
+            if observed[family]:
+                errors.append(f"ARM64 tier contains forbidden {family} instructions")
+        return observed, errors
     observed = {
         "popcnt": family_count(counts, r"popcnt[qlw]?"),
         "pext": family_count(counts, r"pext[qlwd]?"),
@@ -102,7 +169,7 @@ def verify_launcher(tier: str, text: str) -> list[str]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--tier", required=True, choices=("portable", "avx2", "pext"))
+    parser.add_argument("--tier", required=True, choices=("portable", "avx2", "pext", "arm64"))
     parser.add_argument("--binary", required=True, type=Path)
     parser.add_argument("--launcher-object", type=Path)
     parser.add_argument("--objdump", help="llvm-objdump executable")
@@ -118,7 +185,15 @@ def main() -> int:
 
     try:
         binary_text = disassemble(objdump, args.binary)
-        observed, errors = verify_binary(args.tier, instruction_counts(binary_text))
+        if args.tier == "arm64":
+            counts, allowed, offending = arm64_split(binary_text)
+            for entry in allowed:
+                print(f"allowed (runtime-gated library helper): {entry}")
+            for entry in offending[:20]:
+                print(f"forbidden: {entry}", file=sys.stderr)
+        else:
+            counts = instruction_counts(binary_text)
+        observed, errors = verify_binary(args.tier, counts)
         print(
             f"{args.tier}: "
             + " ".join(f"{name}={count}" for name, count in observed.items())
@@ -127,7 +202,7 @@ def main() -> int:
         if args.launcher_object is not None:
             launcher_text = disassemble(objdump, args.launcher_object, relocations=True)
             errors.extend(verify_launcher(args.tier, launcher_text))
-        elif args.tier != "portable":
+        elif args.tier not in ("portable", "arm64"):
             errors.append("specialized tiers require --launcher-object")
     except RuntimeError as error:
         print(f"ERROR: {error}", file=sys.stderr)

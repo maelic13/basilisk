@@ -197,6 +197,36 @@ add_library(basilisk_engine STATIC
 )
 target_link_libraries(basilisk_engine PUBLIC basilisk_board PRIVATE fathom)
 
+# The name a build reports. Development builds read Stockfish's form,
+# `Basilisk dev-<commit date>-<hash>`, from a header regenerated at every build,
+# so a commit made without reconfiguring never leaves a stale name.
+# BASILISK_DEV_ID fixes that part of the name, for byte-identity comparisons.
+set(BASILISK_DEV_ID "" CACHE STRING "Fixed development id (<date>-<hash>) in place of git's; empty reads git")
+# The git that checked the tree out. On Windows that is Git for Windows, looked
+# for first: an MSYS2 shell's own git reads a CRLF working copy over an LF
+# index as modified, and a build shell may have no git on its PATH at all.
+if(CMAKE_HOST_WIN32)
+    find_program(BASILISK_GIT NAMES git
+        PATHS "$ENV{ProgramW6432}/Git/cmd" "$ENV{ProgramFiles}/Git/cmd" "C:/Program Files/Git/cmd"
+        NO_DEFAULT_PATH)
+endif()
+if(NOT BASILISK_GIT)
+    find_package(Git QUIET)
+    set(BASILISK_GIT "${GIT_EXECUTABLE}")
+endif()
+set(_basilisk_version_header "${CMAKE_CURRENT_BINARY_DIR}/generated/basilisk_git_version.h")
+add_custom_target(basilisk_git_version
+    COMMAND "${CMAKE_COMMAND}" -DSRC_DIR=${CMAKE_CURRENT_SOURCE_DIR} -DOUT=${_basilisk_version_header}
+            -DDEV_ID=${BASILISK_DEV_ID} -DGIT=${BASILISK_GIT} -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/git-version.cmake"
+    BYPRODUCTS "${_basilisk_version_header}"
+    COMMENT "Reading the commit a development build names"
+    VERBATIM
+)
+add_library(basilisk_version STATIC src/version.cpp)
+add_dependencies(basilisk_version basilisk_git_version)
+target_include_directories(basilisk_version PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
+target_link_libraries(basilisk_version PUBLIC basilisk_board)
+
 # ---------------------------------------------------------------------------
 # Executables
 # ---------------------------------------------------------------------------
@@ -212,7 +242,7 @@ add_executable(basilisk
     src/parameters.cpp
     src/uci_protocol.cpp
 )
-target_link_libraries(basilisk PRIVATE basilisk_engine)
+target_link_libraries(basilisk PRIVATE basilisk_engine basilisk_version)
 
 # ---------------------------------------------------------------------------
 # Board performance benchmark
@@ -325,7 +355,7 @@ add_executable(test_uci_protocol
     src/uci_protocol.cpp
     src/parameters.cpp
 )
-target_link_libraries(test_uci_protocol PRIVATE basilisk_engine)
+target_link_libraries(test_uci_protocol PRIVATE basilisk_engine basilisk_version)
 
 # ---------------------------------------------------------------------------
 # Endgame regression suite (Step 3.5: scale factors + known-endgame knowledge)
@@ -458,7 +488,7 @@ endif()
 # since those targets were added. Anything omitted here is silently exempt from
 # every project-wide guarantee, so keep this list exhaustive.
 set(_ALL_TARGETS
-    basilisk_board basilisk_engine basilisk_launcher
+    basilisk_board basilisk_engine basilisk_launcher basilisk_version
     basilisk board_performance_test
     test_board test_move test_tt test_eval test_search test_engine_ponder test_engine_threading test_uci_protocol test_cpu_features
     test_endgames test_wac test_invariants test_magics test_threats
@@ -759,6 +789,7 @@ add_custom_target(pgo
         -DPGO_DIAGNOSTIC=${DIAGNOSTIC}
         -DPGO_ABLATION=${ABLATION}
         -DPGO_PROFILE_SYMBOLS=${PROFILE_SYMBOLS}
+        -DPGO_DEV_ID=${BASILISK_DEV_ID}
         -DPGO_PORTABLE_BUILD=${_basilisk_pgo_portable}
         -DPGO_ARM_OPTION=${BASILISK_PGO_ARM_OPTION}
         -DPGO_ARM_STATE=${BASILISK_PGO_ARM_STATE}

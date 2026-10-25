@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <cstdint>
 #if !defined(USE_PEXT)
-#  include "magics.h"   // 8.7.10 baked magic constants (non-PEXT tiers)
+#  include "magics.h"   // baked magic constants (non-PEXT tiers)
 #endif
 
 #if defined(USE_PEXT)
@@ -103,7 +103,7 @@ static bool try_magic(Bitboard mask, uint64_t magic, int shift, bool bishop, Squ
     return true;
 }
 
-// 8.7.10: how many squares fell back to the live search because their baked
+// How many squares fell back to the live search because their baked
 // magic failed verification. MUST be 0 in a healthy build (asserted by the
 // baked_magics_cover_every_square test). A nonzero value means the baked
 // constants are stale — startup is slow again, but the fallback keeps play
@@ -133,7 +133,7 @@ static void find_magic(Square sq, bool bishop, MagicEntry& entry, Bitboard* tabl
 
     Bitboard tmp[4096];
 
-    // 8.7.10: try the baked magic first (the deterministic search result). On
+    // Try the baked magic first (the deterministic search result). On
     // success — always, in a healthy build — the ~1e8-attempt random search
     // below is skipped entirely, which is the whole startup saving.
     const uint64_t baked = bishop ? BAKED_BISHOP_MAGICS[sq] : BAKED_ROOK_MAGICS[sq];
@@ -195,7 +195,7 @@ Bitboard rook_attacks(Square sq, Bitboard occ) {
 void init_attacks() {
 #if !defined(USE_PEXT)
     sm64_state = 1234567890123ULL;
-    g_baked_magic_fallbacks = 0;   // 8.7.10: fresh count per (re)init
+    g_baked_magic_fallbacks = 0;   // fresh count per (re)init
 #endif
 
     // Knight attacks

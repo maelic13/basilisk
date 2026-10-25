@@ -210,11 +210,11 @@ struct EvalParams {
     // All seeded 0 so bench is unchanged; traced, tuned in Phase 4.5.
     int minor_behind_pawn_mg = 5;  // minor shielded by a friendly pawn directly ahead
     int minor_behind_pawn_eg  = 0;
-    // ---- 5.9.2 simpler-form repairs (seeded to preserve behaviour) --------
+    // ---- Simpler-form repairs (seeded to preserve behaviour) --------------
     // king_protector was ONE scalar applied to both knights and bishops, so the
     // fit could never learn that the two pieces value king proximity
     // differently. Split per piece type, both seeded at the shared value so
-    // bench is unchanged; 5.9.4 separates them.
+    // bench is unchanged; the fit can then separate them.
     int king_protector_n_mg = 1;   // knight distance-to-own-king
     int king_protector_n_eg = 0;
     int king_protector_b_mg = -2;   // bishop distance-to-own-king
@@ -222,11 +222,11 @@ struct EvalParams {
     // Outposts were priced for knights only. A bishop on a protected advanced
     // square the enemy cannot challenge with a pawn is the same concept and was
     // simply missing. Seeded inert.
-    // ---- 5.9.1 coverage close-out (seeded INERT; fitted at 5.9.4) ----------
+    // ---- Coverage close-out (seeded INERT; to be fitted) -------------------
     // The six concepts BAS-E07 found absent from our evaluator plus the
     // safe-square qualifier our pawn threats lacked. Every weight is 0, so the
     // terms compute and trace but do not change bench 11,941,440. Values come
-    // from the joint fit at 5.9.4, never from hand-reasoning: BAS-X11 records
+    // from a joint fit, never from hand-reasoning: BAS-X11 records
     // Manta losing ~-23 Elo across two gates by hand-scaling exactly this class
     // of reference-family concept.
 
@@ -355,7 +355,7 @@ struct EvalParams {
 
     // ---- Winnable / complexity coupling (Step 3.6) -------------------------
     // Frozen (not linearly traced); all 0, so the eval/bench are unchanged.
-    // NOTE (8.3 rider): never actually tuned -- not traced, and the generic
+    // NOTE: never actually tuned -- not traced, and the generic
     // optimizer only consumes linear traces, so the gradient was always zero
     // (audit hce_analysis 4). Dead until deliberately activated + re-tuned.
     int win_outflanking  = 0;  // king file-distance minus rank-distance

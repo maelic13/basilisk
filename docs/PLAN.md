@@ -914,7 +914,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         fixed both before any recorded profile.
       - Cohorts beyond `bench 13` belong to B.7.2 and C.12, which define
         them. An EPD cohort run shows the path works.
-- [ ] **A.10** Delivery and repository repairs
+- [x] **A.10** Delivery and repository repairs
   Added 2026-10-24. The delivery machinery matches Rarog's (CI on pull
   requests, tag-driven release, one fingerprint across the assets); these
   steps bring the practice and four checks up to it. Evidence:
@@ -930,18 +930,45 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       (PR #5) and B.10 as `f4ebe79` (PR #6), one squash commit each, and
       branches now start from `master`. It closed out of turn, so it keeps
       its `(ANY TIME)` marker.
-    - [ ] **A.10.2** `[M]` CHANGELOG Unreleased caught up and kept
+    - [x] **A.10.2** `[M]` CHANGELOG Unreleased caught up and kept
       (D-66) `[Unreleased]` is empty although B.2's cluster and B.10's repair
       were accepted. Write their user-facing entries, and add Rarog's rule to
       `agents/records.md`: a user-visible change gets its entry in the commit
       that records it.
-    - [ ] **A.10.3** `[M]` PR refspec and required checks on master
+      — CLOSED 2026-10-25.
+      - B.10's entry had already landed with its fix, so only B.2's was owed.
+        It is now written: the rebuilt selectivity core, at +136 ± 34 and
+        +59 ± 21 Elo at `3+0.03`, and the head's BAS-S27 reads against
+        1.10.2.
+      - Nothing else user-visible has landed since 1.10.2. The release
+        binaries' UCI option lists are identical apart from the version
+        string, and PR #7 and PR #8 were roadmap and tooling only.
+      - The rule, with what counts as user-visible, is in
+        `agents/records.md`.
+    - [x] **A.10.3** `[M]` PR refspec and required checks on master
       (D-59, D-58) Configure `remote.origin.fetch` with
       `+refs/pull/*/head:refs/remotes/origin/pr/*`, so a pruning fetch keeps
       the PR refs citations need (they vanished on 2026-10-23), and record it
       in `agents/records.md`. Make CI and Release required checks on `master`
       (repository settings, the maintainer's).
-    - [ ] **A.10.4** `[I1]` Release and CI checks tightened
+      Implemented 2026-10-25; the maintainer's setting is pending.
+      - This clone maps the PR refs. A dry run showed that a pruning fetch
+        without the mapping deletes all 8; with it, a real pruning fetch
+        keeps all 8. The likely pruner is GitHub Desktop.
+      - `agents/records.md`, PROCESS and `check_citations.py`'s hint now
+        give the once-per-clone mapping, not a one-off fetch.
+      - The required checks needed aggregators that cannot pass by being
+        skipped. CI gains `CI complete` over its six jobs; Release's
+        `Verify the complete matrix` now always runs and fails unless
+        every build succeeded.
+      - The step closes once the maintainer requires both checks on
+        `master`, verified through the API. This branch's PR is their
+        first live run, and A.10's closing check.
+      — CLOSED 2026-10-25. Verified through the API: `master` requires
+        `CI complete` and `Verify the complete matrix`, and branches up to
+        date with it. Administrators included, force pushes and deletions
+        blocked, squash merges only, as before.
+    - [x] **A.10.4** `[I1]` Release and CI checks tightened
       (D-65, D-29, D-27, D-57) `release_check.py` also compares the released
       baseline's fingerprint. The Windows release cells pin and print the
       MSYS2 clang version: they install whatever MSYS2 ships, which is how
@@ -949,22 +976,119 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       with a required `prfm` class (`verify_isa.py` checks x86 tiers only).
       `ctest -R` filters in CI fail when they match nothing
       (`--no-tests=error`).
-    - [ ] **A.10.5** `[I1]` Ledger index dispositions kept in step
+      — CLOSED 2026-10-25. Each check was proven live on known-bad input.
+      - **Fingerprint (D-65).** GUIDE's *Released baseline* row states its
+        `bench 13` count, and `release_check.py check` refuses a release
+        whose row differs from the declared fingerprint. The two new test
+        cases fail on the old checker.
+      - **Compiler pin (D-29).** CI and Release had built Windows assets with
+        clang 22.1.8, from the runner image's frozen MSYS2 database, while
+        every measurement since 2026-10-23 used 23.1.3. By maintainer
+        decision the pin is 23.1.3, in `.github/windows-clang-version`.
+        Every Windows cell refreshes MSYS2, prints its compiler and fails
+        on any other clang. The check passed on 23.1.3 and failed on a 22.1.8
+        pin with this machine's clang.
+      - **ARM64 contract (D-27).** `verify_isa.py --tier arm64` requires
+        `prfm`, the TT prefetch, and forbids SVE, dot-product, AES and SHA.
+        It reads AArch64's one-word objdump format, which the old parser
+        skipped entirely; x86 counts are unchanged on the head's PEXT
+        asset.
+        - Freestanding objects for Linux and Windows ARM64 pass.
+        - No-prefetch, SVE, dot-product and AES objects fail.
+        - The contract runs on every ARM64 cell of CI and Release.
+        - PR #9's first runs failed Windows ARM64 on one SVE instruction that
+          Linux and macOS lack. The check now names every forbidden
+          instruction's function.
+          - The second run named it: `cntd x0` in LLVM libunwind's
+            `Registers_arm64::getRegister`, not compiler-rt's
+            `__arm_get_current_vg`, which I had guessed. libunwind reads the
+            vector-granule register only when unwinding an SVE frame, and the
+            engine has none.
+          - The check allows it in that one function alone. Windows links
+            LLVM libunwind, while Linux uses libgcc's unwinder.
+        - `test_verify_isa.py` runs in the documents job.
+      - **Empty filters (D-57).** The three `-R` filters and the
+        sanitizer's `-LE strength` run pass `--no-tests=error`. Locally, a
+        filter matching nothing exits 8 with the flag and 0 without it.
+      - **Not yet run live.** The workflow steps first run on this branch's
+        PR.
+      - **Amended 2026-10-25 (maintainer decision).**
+        - The pin is the LLVM major, `23`. Patch releases pass, because MSYS2
+          ships several a month and an exact pin would stall CI on each.
+        - `build_test.ps1` warns when the local clang is on another major. It
+          warned on a `22` pin and stayed silent on `23`.
+        - The workflow check, run verbatim on this machine, passes on `23`
+          and fails on `22` and `2`.
+    - [x] **A.10.5** `[I1]` Ledger index dispositions kept in step
       (D-61) `docs/EXPERIMENTS.md` lists BAS-M10 and BAS-M11 as not run while
       their entries read VOID and COMPLETE; the checker compares IDs, not
       dispositions. Fix the rows and make `check_roadmap.py` flag an index
       disposition that disagrees with its entry's.
-    - [ ] **A.10.6** `[M]` Tools index and retired numbers in comments
+      — CLOSED 2026-10-25.
+      - Free-text dispositions are compared by state, open or closed. A
+        verdict word anywhere means closed. A text that opens with
+        registered, prepared, not (yet) run, maintainer-run or pending, and
+        holds no verdict, is open.
+      - The entry's state comes from its last `Disposition:` line, or from
+        its `Disposition`, `Result / disposition` or `Result` field.
+      - Entries with no such field, multi-part entries, and texts that state
+        neither are not compared. The 52 entries with a state on both sides
+        are compared.
+      - On the real ledger the check refused exactly BAS-M10 and BAS-M11.
+        Their rows now read VOID and COMPLETE. The self-test covers both
+        directions, both entry forms, and prose that merely says "running".
+    - [x] **A.10.6** `[M]` Tools index and retired numbers in comments
       (D-62, D-63) A `tools/README.md` with one line per tool and the
       procedure or leaf that uses it; retired step numbers removed from source
       comments (for example `// 8.7.6(c)` in `search_kernel_core.cpp`,
       "8.7.10" in `attacks.h`), behaviour-neutral.
-    - [ ] **A.10.7** `[I1]` Dev builds name their commit
+      — CLOSED 2026-10-25.
+      - `tools/README.md` indexes every tracked tool, one line each, with
+        the procedure, step or ledger entry that uses it. A coverage check
+        found none missing.
+      - The retired numbering (Phases 5–15) is gone from engine comments:
+        185 lines in 27 files. Each number became plain words, and
+        history-only fragments were deleted. Two rewordings were corrected
+        against the code: the search's clock does start at `recv_time`, and
+        the bishop-scaler scope is deferred, not settled.
+      - Behaviour-neutral, proven: against a non-PGO build of the code before
+        the edit, `.text`, `.rdata`, `.data`, `.pdata`, `.tls` and `.reloc` are
+        byte-identical; bench 8,437,148.
+      - Left for the maintainer: 32 current-roadmap or ledger IDs in
+        comments, and stale bench counts quoted in a few comments (for
+        example 11,941,440 in `eval_params.h`).
+    - [x] **A.10.7** `[I1]` Dev builds name their commit
       Added 2026-10-24 by maintainer decision. The exact shape is decided when
       this leaf opens. The proposal follows Reckless: a dev build's id name
       appends the short commit, as in `Basilisk 1.11.0-dev-<sha>`. That needs
       a build change, and `release.yml`'s id-name check must accept the suffix
       on candidate builds (next to A.10.4's release checks).
+      — CLOSED 2026-10-25. Shape by maintainer decision: Stockfish's exact form.
+      - A development build reads `Basilisk dev-<commit date>-<8 hash
+        characters>`, with `-m` after the date when the working tree differs
+        from the commit. Without git it reads `dev-<compile date>-nogit`. A
+        release still reads `Basilisk X.Y.Z`. The release line was dropped:
+        every dev build shares it, so it tells nothing the date and hash
+        don't. `engineVersion` keeps `X.Y.Z-dev` for the release tooling.
+      - One deliberate difference from Stockfish: the modified check uses
+        the clone's own line endings, because Stockfish's
+        `core.autocrlf=false` can read a CRLF working copy as modified.
+      - A header regenerated at every build carries the commit, so a commit
+        made without reconfiguring never leaves a stale name.
+        `BASILISK_DEV_ID` fixes the name for byte-identity comparisons.
+      - Release's smoke test now requires a candidate build to name exactly
+        the commit it was built from, and a release to read `Basilisk X.Y.Z`.
+        Run verbatim here, it passed both and refused a wrong commit, a
+        suffixed name and a dev name on a release.
+      - Verified: a clean tree names its commit; an uncommitted edit adds
+        `-m`; the override works; a PGO build names its commit at bench
+        8,437,148. CTest 21/21, and `test_uci_protocol` 85/85 with four new
+        sections.
+      - The first live run (PR #9) found every Windows build reading
+        `dev-<date>-nogit`: the MSYS2 build shell has no git on its PATH, and
+        MSYS2's own git reads this CRLF clone as modified. Configure now looks
+        for Git for Windows first and hands the build that git. Under MSYS2
+        it picks Git for Windows even with MSYS2's git present.
 - [ ] **A.11** Correctness repairs from the Rarog audit
   Added 2026-10-24 by maintainer decision. Each repair is its own engine
   commit with a test that fails on the old code, bench accounting for any
@@ -1942,12 +2066,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.10.2 | READY_FOR_IMPLEMENTATION | M | CHANGELOG catch-up and rule |
-| A.10.3 | READY_FOR_IMPLEMENTATION | M | PR refspec and required checks |
-| A.10.4 | READY_FOR_IMPLEMENTATION | I1 | Release and CI checks |
-| A.10.5 | READY_FOR_IMPLEMENTATION | I1 | Ledger index dispositions |
-| A.10.6 | READY_FOR_IMPLEMENTATION | M | Tools index and comment numbers |
-| A.10.7 | RESEARCH | I1 | Dev-build version names; shape decided by the maintainer |
 | A.11.1 | READY_FOR_IMPLEMENTATION | I1 | Rule-50 damping out of the TT eval |
 | A.11.2 | READY_FOR_IMPLEMENTATION | I1 | Lone excluded move returns alpha |
 | A.11.3 | READY_FOR_IMPLEMENTATION | I1 | Zero own clock bounded |
