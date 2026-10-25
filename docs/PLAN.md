@@ -851,8 +851,8 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       - PROCESS gained the speed-to-Elo prior to +22% (D-40) and the 10 ms
         opponent overhead, which is dormant until E.2's field (D-41).
       - Under D-28, MSYS2's clang 22.1.8 to 23.1.3 step of 2026-10-23 owes
-        a pooled NPS read, which no record yet carries. Reported to the
-        maintainer for A.9.4.
+        a pooled NPS read, which no record yet carries. A.9.4 registers it
+        as BAS-P19.
     - [ ] **A.9.4** `[I1]` NPS read rebuilt on pooled builds
       (D-1 to D-4) Rarog's method study (RAR-P32): builds, not cycles, set the
       limit. Best of three per cycle; four builds an arm; a t-interval on
@@ -861,6 +861,17 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       above 0); a disturbance rule; two independent pools as the null; a pause
       after fresh builds, which antivirus scanning slows. `nps_ab.ps1`
       bootstraps readings, which Rarog showed is not the uncertainty.
+      Implemented 2026-10-25, LOCAL_QUALIFIED:
+      - `tools/nps_pool.ps1`, `tools/nps_read.ps1` and
+        `tools/diag/nps_read.py`, as PROCESS *Build, bench and NPS* now
+        states.
+      - `test_nps_read.py` passes 18/18, and each of five mutations of the
+        decision rules fails it. `test_nps_pool.ps1` passes 9/9.
+      - A smoke read of two adopted pools ran step 1 and `-Extend` end to
+        end, and a worktree build of `9c93d15` reproduced its fingerprint.
+      - The leaf closes when BAS-P18, the null, reads zero. BAS-P19, the
+        clang 22 to 23 read A.9.3 owed, runs after it. Both are
+        maintainer-run with `tools/run_a94_nps_reads.ps1 -Read null|clang`.
     - [ ] **A.9.5** `[I1]` Profiler with inline attribution
       (D-13, D-75) B.7.2 and C.12 both require a profile, and Basilisk has no
       profiler. Rarog's reads per-region shares from ETW or a user-mode
@@ -1869,7 +1880,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.9.4 | READY_FOR_IMPLEMENTATION | I1 | NPS read on pooled builds |
+| A.9.4 | LOCAL_QUALIFIED | I1 | Pooled NPS read built; BAS-P18 null and BAS-P19 clang read maintainer-run |
 | A.9.5 | RESEARCH | I1 | Profiler |
 | A.10.2 | READY_FOR_IMPLEMENTATION | M | CHANGELOG catch-up and rule |
 | A.10.3 | READY_FOR_IMPLEMENTATION | M | PR refspec and required checks |

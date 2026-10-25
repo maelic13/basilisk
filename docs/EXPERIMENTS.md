@@ -569,6 +569,8 @@ not accept any new feature, vector or label policy by themselves.
 | [BAS-P15](experiments/BAS-P15.md) | Frozen before the run, PLAN A.8.20's pooled-PGO NPS baseline of the A.8 head. | COMPLETE: 4.189M NPS |
 | [BAS-P16](experiments/BAS-P16.md) | Frozen before the run, PLAN B.1's pooled-PGO NPS gate against the A.8 head. | PASSED: +1.21%, unexplained |
 | [BAS-P17](experiments/BAS-P17.md) | Frozen before the run, PLAN B.2.0's pooled-PGO NPS pool against the B.1 builds. | PASSED: 0.00% |
+| [BAS-P18](experiments/BAS-P18.md) | The pooled-build NPS read's null: two independent pools of the head. | registered |
+| [BAS-P19](experiments/BAS-P19.md) | MSYS2 clang 22.1.8 to 23.1.3 at identical source, a no-regression NPS read. | registered |
 
 ## 7. Correctness and protocol lessons
 
