@@ -49,7 +49,13 @@ struct EndgameOccurrenceCounters {
 class Evaluator {
 public:
     Evaluator();
+    // The evaluation the search serves: evaluate_undamped() with the rule-50
+    // damping at the board's halfmove clock.
     int evaluate(const Board& b);
+    // Side-to-move evaluation without the halfmove clock, so it is a function
+    // of the position key alone. This is the value the TT may store and reuse;
+    // the damping is applied at the reading node's own clock.
+    int evaluate_undamped(const Board& b);
     void clear_pawn_table();
 
     // ---- Lazy dual-eval audit ----------------------------------------------
@@ -123,6 +129,13 @@ inline constexpr int DAMP_RULE50_DEN = 199;
 
 [[nodiscard]] inline int damp_rule50(int score, int halfmove_clock) {
     return score * damp_rule50_scale_num(halfmove_clock) / DAMP_RULE50_DEN;
+}
+
+// Division truncates toward zero, so the damping is odd and may be applied to
+// a side-to-move score: the result equals damping the white-POV score.
+inline int Evaluator::evaluate(const Board& b) {
+    const int score = evaluate_undamped(b);
+    return b.rule50_count() > 0 ? damp_rule50(score, b.rule50_count()) : score;
 }
 
 // Exactly one bishop each, on opposite colours. Says nothing about the rest of

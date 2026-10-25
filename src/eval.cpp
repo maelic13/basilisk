@@ -1032,7 +1032,7 @@ void Evaluator::eval_pawns(const Board& b,
 
 // ---- Main evaluation -------------------------------------------------------
 
-int Evaluator::evaluate(const Board& b) {
+int Evaluator::evaluate_undamped(const Board& b) {
     ++eval_calls;
 #ifdef BASILISK_TUNE
     if (diag_endgames)
@@ -1205,9 +1205,7 @@ int Evaluator::evaluate(const Board& b) {
         int lazy = (mg * phase + eg * (TOTAL_PHASE - phase)) / TOTAL_PHASE;
         int lazy_abs = lazy < 0 ? -lazy : lazy;
         if (lazy_abs > LAZY_MARGIN) {
-            int score = apply_endgame(b, lazy);
-            if (b.rule50_count() > 0)
-                score = damp_rule50(score, b.rule50_count());
+            const int score = apply_endgame(b, lazy);
             const int served = (b.turn() == WHITE) ? score : -score;
             if (!diag_lazy)
                 return served;
@@ -1980,9 +1978,6 @@ int Evaluator::evaluate(const Board& b) {
 
     // ---- Endgame scaling + knowledge (Step 3.5) ----------------------------
     score = apply_endgame(b, score);
-
-    if (b.rule50_count() > 0)
-        score = damp_rule50(score, b.rule50_count());
 
     const int full_served = (b.turn() == WHITE) ? score : -score;
 #ifndef TEXEL_TRACE

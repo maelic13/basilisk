@@ -45,7 +45,13 @@ and next step).
   tables, and the endgame king table, valued each square as its mirror
   image across the board's middle: a White knight on f3 was paid as if it
   stood on f6. Fixed, worth **+18 ± 13 Elo** at `3+0.03` (1,388 games).
-  `bench` now reports 8,437,148 nodes.
+
+- **Stale evaluations late in the fifty-move count.** The evaluation fades
+  toward a draw as the fifty-move counter rises, but a position remembered
+  from earlier in the search kept the value from the count at which it was
+  first seen. Each position is now judged at its current count. The fix
+  measured **+1.5 ± 4.8 Elo** at `3+0.03` (8,000 games), with no loss of
+  speed. `bench` now reports 9,260,429 nodes.
 
 ---
 
