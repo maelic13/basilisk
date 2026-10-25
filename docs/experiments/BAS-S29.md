@@ -88,3 +88,30 @@
   extensions fired (14,281 doubles) on the 106 legal positions.
 
 #### RESULT — append after exposure
+
+- **Cap without a decision (maintainer-run 2026-10-25, 1h18m):**
+  **+1.7 ± 4.8 Elo** (nElo +2.8 ± 7.6), LLR +1.84 in [-2.94, 2.94] at the
+  4,000-pair cap (8,000 games); W/D/L 2156/3728/2116, pentanomial
+  [149, 945, 1770, 989, 147].
+  - 0 faults, 0 time losses, no post-terminal pairs; the independent PGN
+    recount agrees, and the score recomputed from the pentanomial matches.
+  - Both arms played 188k nodes and 70.0 ms per move at the same 2.69M
+    NPS, mean depth 17.17 on both: the repair costs no speed.
+  - Terminations: checkmate 4,272, threefold 2,879, insufficient material
+    763, fifty-move 65, stalemate 21.
+  - `colosseum_sprt_a112-gate_20261025_190841.*`, manifest
+    `14e6bafa…`, run record `1b43fa2e…`, PGN `fecb3daa…`.
+- **Verdict (registered rule):** the cap without a decision, so the
+  repair stays as a correctness fix with no measured harm, on the
+  maintainer's confirmation; the fingerprint record then updates to
+  `bench 13` 8,753,339.
+
+#### PREDICTION CALIBRATION — preserve the original prediction above
+
+- **Prediction:** about 0 to +3 Elo, most likely the cap; not H0 at about
+  85%.
+- **Reading:** the cap came, centred at +1.7 inside the predicted range,
+  with the LLR leaning toward H1 (+1.84). Hit.
+- **What it teaches:** removing the lone-move doubles costs nothing in
+  play; its value is the bounded extension chain that B.3's IIR-off arm
+  needs.
