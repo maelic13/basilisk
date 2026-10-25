@@ -387,6 +387,7 @@ option(TUNE "Expose search constants as UCI spin options for SPSA tuning (sets B
 option(DIAGNOSTIC "Expose diagnostics without the tunable parameter surface (sets BASILISK_DIAGNOSTIC)" OFF)
 option(ABLATION "Expose the matched search-ablation instrument (sets BASILISK_ABLATION)" OFF)
 option(RELEASE_DIAG_COUNTERS "Count diagnostic search events in production builds (measurement arm)" OFF)
+option(PROFILE_SYMBOLS "Emit line tables with inline records in Release builds for the sampling profiler; code generation is unchanged" OFF)
 # B2_CORE, the Cluster 1 umbrella, is declared with the kernel source list.
 set(BASILISK_PGO_ARM_OPTION "" CACHE STRING "Boolean CMake option identifying an umbrella arm in PGO child builds")
 set(BASILISK_PGO_ARM_STATE "OFF" CACHE STRING "Value for BASILISK_PGO_ARM_OPTION in PGO child builds")
@@ -529,6 +530,9 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
             $<$<BOOL:${WARNINGS_AS_ERRORS}>:-Werror>
             $<$<CONFIG:Release>:-O3>
             $<$<AND:$<CONFIG:Release>,$<NOT:$<BOOL:${PORTABLE_BUILD}>>>:-march=native>
+            # Line tables with inline records only: .text, .rdata and .data
+            # stay byte-identical to a build without them.
+            $<$<AND:$<CONFIG:Release>,$<BOOL:${PROFILE_SYMBOLS}>>:-gline-tables-only>
             $<$<CONFIG:RelWithDebInfo>:-O2 -g>
             $<$<AND:$<CONFIG:RelWithDebInfo>,$<NOT:$<BOOL:${PORTABLE_BUILD}>>>:-march=native>
             $<$<CONFIG:Debug>:-O0 -g3>
@@ -754,6 +758,7 @@ add_custom_target(pgo
         -DPGO_TUNE=${TUNE}
         -DPGO_DIAGNOSTIC=${DIAGNOSTIC}
         -DPGO_ABLATION=${ABLATION}
+        -DPGO_PROFILE_SYMBOLS=${PROFILE_SYMBOLS}
         -DPGO_PORTABLE_BUILD=${_basilisk_pgo_portable}
         -DPGO_ARM_OPTION=${BASILISK_PGO_ARM_OPTION}
         -DPGO_ARM_STATE=${BASILISK_PGO_ARM_STATE}
