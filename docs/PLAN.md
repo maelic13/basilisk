@@ -1027,11 +1027,26 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       - On the real ledger the check refused exactly BAS-M10 and BAS-M11.
         Their rows now read VOID and COMPLETE. The self-test covers both
         directions, both entry forms, and prose that merely says "running".
-    - [ ] **A.10.6** `[M]` Tools index and retired numbers in comments
+    - [x] **A.10.6** `[M]` Tools index and retired numbers in comments
       (D-62, D-63) A `tools/README.md` with one line per tool and the
       procedure or leaf that uses it; retired step numbers removed from source
       comments (for example `// 8.7.6(c)` in `search_kernel_core.cpp`,
       "8.7.10" in `attacks.h`), behaviour-neutral.
+      — CLOSED 2026-10-25.
+      - `tools/README.md` indexes every tracked tool, one line each, with
+        the procedure, step or ledger entry that uses it. A coverage check
+        found none missing.
+      - The retired numbering (Phases 5–15) is gone from engine comments:
+        185 lines in 27 files. Each number became plain words, and
+        history-only fragments were deleted. Two rewordings were corrected
+        against the code: the search's clock does start at `recv_time`, and
+        the bishop-scaler scope is deferred, not settled.
+      - Behaviour-neutral, proven: against a non-PGO build of the code before
+        the edit, `.text`, `.rdata`, `.data`, `.pdata`, `.tls` and `.reloc` are
+        byte-identical; bench 8,437,148.
+      - Left for the maintainer: 32 current-roadmap or ledger IDs in
+        comments, and stale bench counts quoted in a few comments (for
+        example 11,941,440 in `eval_params.h`).
     - [ ] **A.10.7** `[I1]` Dev builds name their commit
       Added 2026-10-24 by maintainer decision. The exact shape is decided when
       this leaf opens. The proposal follows Reckless: a dev build's id name
@@ -2015,7 +2030,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.10.6 | READY_FOR_IMPLEMENTATION | M | Tools index and comment numbers |
 | A.10.7 | RESEARCH | I1 | Dev-build version names; shape decided by the maintainer |
 | A.11.1 | READY_FOR_IMPLEMENTATION | I1 | Rule-50 damping out of the TT eval |
 | A.11.2 | READY_FOR_IMPLEMENTATION | I1 | Lone excluded move returns alpha |
