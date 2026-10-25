@@ -1235,6 +1235,62 @@ static void test_rule50_mate_found() {
     end_section();
 }
 
+#if defined(BASILISK_B2_CORE)
+static void test_tt_static_eval_served_at_reading_clock() {
+    // The TT key has no halfmove clock, so a static eval stored at one clock
+    // must be served as a fresh evaluation at the reading node's clock would
+    // be. The root's only legal move, Kh2, leaves black a capture-free child
+    // at clock 81 that qsearch scores by its stand-pat, so the depth-1 root
+    // score is minus the child's served eval. The planted entry is what a
+    // search of the same child at clock 0 stores.
+    static constexpr const char* ROOT = "6r1/4k3/8/p2p4/P2P4/8/8/7K w - - 80 60";
+    Board child;
+    child.set_fen(ROOT);
+    const Move kh2 = legal_uci(child, "h1h2");
+    child.make_move(kh2);
+    Board child_at_zero;
+    child_at_zero.set_fen("6r1/4k3/8/p2p4/P2P4/8/7K/8 b - - 0 60");
+
+    auto evaluator = std::make_unique<Evaluator>();
+    const int fresh  = evaluator->evaluate(child);
+    const int stored = evaluator->evaluate(child_at_zero);
+
+    begin_section("rule-50 TT eval: the probe separates the two clocks");
+    MoveList root_moves;
+    Board root;
+    root.set_fen(ROOT);
+    root.gen_legal(root_moves);
+    EXPECT_EQ(root_moves.size(), 1);
+    EXPECT(kh2 != MOVE_NONE);
+    EXPECT_EQ(child.rule50_count(), 81);
+    EXPECT_EQ(child.position_key(), child_at_zero.position_key());
+    EXPECT(stored != fresh);
+    end_section();
+
+    auto root_score = [&](bool plant) {
+        TranspositionTable tt(4);
+        if (plant)
+            tt.store(child.position_key(), TT_DEPTH_UNSEARCHED, VALUE_NONE, TT_NONE,
+                     MOVE_NONE, 0, stored);
+        std::atomic_bool stop{false};
+        Board b;
+        b.set_fen(ROOT);
+        SearchLimits limits;
+        limits.depth = 1;
+        auto searcher = std::make_unique<Searcher>(tt, stop);
+        return searcher->search(b, limits).score;
+    };
+
+    begin_section("rule-50 TT eval: a fresh child serves its damped eval");
+    EXPECT_EQ(root_score(false), -fresh);
+    end_section();
+
+    begin_section("rule-50 TT eval: a clock-0 entry is served at clock 81");
+    EXPECT_EQ(root_score(true), -fresh);
+    end_section();
+}
+#endif
+
 
 // ---------------------------------------------------------------------------
 // 8.6.3b: packaged-FEN legality sweep over the bench suite and WAC-300.
@@ -1321,6 +1377,9 @@ int main() {
 
     std::printf("\nRule-50 boundary (8.1a search-level)\n");
     test_rule50_mate_found();
+#if defined(BASILISK_B2_CORE)
+    test_tt_static_eval_served_at_reading_clock();
+#endif
 
     std::printf("\nNode counter\n");
     test_node_counter();

@@ -179,12 +179,14 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         return has_legal ? best : -(MATE_SCORE - ply);
     }
 
-    // Stand-pat evaluation
-    int raw_eval;
+    // Stand-pat evaluation. The TT holds the evaluation without the halfmove
+    // clock, which its key lacks; the damping is applied at this node's clock.
+    int tt_eval;
     if (tt_found && tte.static_eval != TranspositionTable::INF_EVAL)
-        raw_eval = tte.static_eval;
+        tt_eval = tte.static_eval;
     else
-        raw_eval = evaluator_.evaluate(*state_.board);
+        tt_eval = evaluator_.evaluate_undamped(*state_.board);
+    const int raw_eval = damp_rule50(tt_eval, state_.board->rule50_count());
 
     int stand_pat = raw_eval;
     stand_pat += correction_value(ss) / 131072;
@@ -194,8 +196,8 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
 #endif
 
     // Tighten the stand-pat with the TT bound when it proves a
-    // better estimate (a fail-high above it / fail-low below it). The raw eval
-    // stored as the TT static_eval (raw_eval) is unchanged.
+    // better estimate (a fail-high above it / fail-low below it). The eval
+    // stored as the TT static_eval (tt_eval) is unchanged.
     if (tt_found && tt_score != VALUE_NONE
         && ((tt_flag == TT_BETA  && tt_score > stand_pat)
             || (tt_flag == TT_ALPHA && tt_score < stand_pat)))
@@ -205,7 +207,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         TRACE_DECISION(TraceEvent::QsStandPatCutoff, ply, 0, MOVE_NONE,
                        alpha, beta, stand_pat, -1, correction, VALUE_NONE,
                        0, 0, 0, stand_pat);
-        tt_store(hash, 0, stand_pat, TT_BETA, MOVE_NONE, ply, raw_eval, pv_hit);
+        tt_store(hash, 0, stand_pat, TT_BETA, MOVE_NONE, ply, tt_eval, pv_hit);
         return stand_pat;
     }
 
@@ -304,7 +306,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
             TRACE_DECISION(TraceEvent::QsBetaCutoff, ply, 0, m,
                            alpha, beta, stand_pat, -1, correction, VALUE_NONE,
                            i, 0, VALUE_NONE, s);
-            tt_store(hash, 0, s, TT_BETA, m, ply, raw_eval, pv_hit);
+            tt_store(hash, 0, s, TT_BETA, m, ply, tt_eval, pv_hit);
             return s;
         }
     }
@@ -317,7 +319,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     // fail-soft fixes live in the delta-pruning and qsearch-cap returns
     // above; bound shaping proper is separate work.
     TTFlag flag = (alpha > orig_alpha) ? TT_EXACT : TT_ALPHA;
-    tt_store(hash, 0, alpha, flag, best_move, ply, raw_eval, pv_hit);
+    tt_store(hash, 0, alpha, flag, best_move, ply, tt_eval, pv_hit);
     return alpha;
 }
 
@@ -473,8 +475,12 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     // The corrected static eval: the raw eval plus the correction histories'
     // weighted value over 131072, inside the tablebase band.
     const int correction_raw = correction_value(ss);
+    // The TT holds the evaluation without the halfmove clock, which its key
+    // lacks (tt_static_eval); the damping is applied once, at this node's
+    // clock, to give the raw static eval.
     int static_eval;
     int raw_static_eval = VALUE_NONE;
+    int tt_static_eval = TranspositionTable::INF_EVAL;
     if (in_check) {
         // The record carries the eval from two plies up, so `improving` reads
         // across the check; nothing at this node prunes on it.
@@ -485,14 +491,15 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         static_eval = ss->eval;
     } else {
         if (tt_found && tte.static_eval != TranspositionTable::INF_EVAL)
-            raw_static_eval = tte.static_eval;
+            tt_static_eval = tte.static_eval;
         else {
-            raw_static_eval = evaluator_.evaluate(*state_.board);
+            tt_static_eval = evaluator_.evaluate_undamped(*state_.board);
             // A miss stores the evaluation alone, so a transposition reuses it.
             if (!tt_found)
                 tt_store(hash, TT_DEPTH_UNSEARCHED, VALUE_NONE, TT_NONE, MOVE_NONE, ply,
-                         raw_static_eval, ss->tt_pv);
+                         tt_static_eval, ss->tt_pv);
         }
+        raw_static_eval = damp_rule50(tt_static_eval, state_.board->rule50_count());
 
         // TT stores the raw static eval; correction is applied at probe time.
         static_eval = corrected_eval(raw_static_eval, correction_raw);
@@ -707,9 +714,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 if (state_.stopped) return 0;
                 if (val >= pc_beta) {
                     tt_store(hash, depth - 3, pc_beta, TT_BETA, m, ply,
-                              raw_static_eval == VALUE_NONE
-                                  ? TranspositionTable::INF_EVAL : raw_static_eval,
-                              ss->tt_pv);
+                              tt_static_eval, ss->tt_pv);
                     DIAG_COUNT(state_.diag.probcut_cuts++);
                     TRACE_DECISION(TraceEvent::ProbcutCutoff, ply, depth, m,
                                    alpha, beta, eval, improving, correction, VALUE_NONE,
@@ -1345,8 +1350,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     // A later MultiPV line searched the root without its best moves; its
     // result is not the root's, so it is not stored (Stockfish skips it too).
     if (ss->excluded == MOVE_NONE && !(is_root && !state_.root_excluded.empty()))
-        tt_store(hash, depth, best_score, flag, best_move, ply,
-                  raw_static_eval == VALUE_NONE ? TranspositionTable::INF_EVAL : raw_static_eval,
+        tt_store(hash, depth, best_score, flag, best_move, ply, tt_static_eval,
                   ss->tt_pv);
 
     return best_score;
