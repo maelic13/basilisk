@@ -996,12 +996,16 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         - Freestanding objects for Linux and Windows ARM64 pass.
         - No-prefetch, SVE, dot-product and AES objects fail.
         - The contract runs on every ARM64 cell of CI and Release.
-        - The first live run (PR #9) failed Windows ARM64 on one SVE
-          instruction that Linux and macOS lack. The check now names every
-          forbidden instruction's function, and allows one only inside
-          compiler-rt's `__arm_get_current_vg`, which runs SVE's `cntd` after
-          a runtime check (Windows links compiler-rt, Linux libgcc). The next
-          run's log confirms the function or names the real one.
+        - PR #9's first runs failed Windows ARM64 on one SVE instruction that
+          Linux and macOS lack. The check now names every forbidden
+          instruction's function.
+          - The second run named it: `cntd x0` in LLVM libunwind's
+            `Registers_arm64::getRegister`, not compiler-rt's
+            `__arm_get_current_vg`, which I had guessed. libunwind reads the
+            vector-granule register only when unwinding an SVE frame, and the
+            engine has none.
+          - The check allows it in that one function alone. Windows links
+            LLVM libunwind, while Linux uses libgcc's unwinder.
         - `test_verify_isa.py` runs in the documents job.
       - **Empty filters (D-57).** The three `-R` filters and the
         sanitizer's `-LE strength` run pass `--no-tests=error`. Locally, a
