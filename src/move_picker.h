@@ -52,8 +52,8 @@ public:
         , bad_(bad_buffer) {}
 
     Move next() {
-        last_see_ = VALUE_NONE;   // 8.7.5(a): reset the per-move SEE verdict
-        last_src_ = Src::None;    // 5.2: reset the per-move picker source
+        last_see_ = VALUE_NONE;   // reset the per-move SEE verdict
+        last_src_ = Src::None;    // reset the per-move picker source
         while (true) {
             switch (stage_) {
                 case Stage::TT:
@@ -82,7 +82,7 @@ public:
                             bad_[bad_count_++] = {move, scored_[idx_ - 1].score};
                             continue;
                         }
-                        // 8.7.5(a): a good tactical that is a non-promo capture
+                        // A good tactical that is a non-promo capture
                         // passed is_bad_tactical == false, i.e. see_ge(m,0) was
                         // TRUE — memoize see_score = 0 so search_one need not
                         // recompute the identical see_ge. Promotions carry no
@@ -110,7 +110,7 @@ public:
 
                 case Stage::BadTacticals:
                     if (bad_idx_ < bad_count_) {
-                        // 8.7.5(a): the bad-tactical buffer holds only non-promo
+                        // The bad-tactical buffer holds only non-promo
                         // captures with see_ge(m,0) == FALSE → see_score = -1.
                         last_see_ = -1;
                         last_src_ = Src::BadTactical;
@@ -167,7 +167,7 @@ private:
         return is_cap && !board.see_ge(move, 0);
     }
 
-    // 8.7.5(a): matches search_one's `is_cap && !is_promo` — the exact class
+    // Matches search_one's `is_cap && !is_promo` — the exact class
     // for which see_score = see_ge(m,0)?0:-1 is computed downstream.
     bool is_nonpromo_capture(Move move) const {
         if (move_type(move) == PROMOTION)
@@ -181,7 +181,7 @@ public:
     // -1 (bad capture), or VALUE_NONE (TT move / promo / quiet / not a capture)
     // — lets search_one skip recomputing the identical see_ge(m,0).
     int last_see_score() const { return last_see_; }
-    // 5.2: which stage produced the move just returned. Recorded at each
+    // Which stage produced the move just returned. Recorded at each
     // return rather than read from stage_, because the TT and tactical
     // stages advance stage_ before returning.
     enum class Src { None, TT, GoodTactical, Quiet, BadTactical };
@@ -203,6 +203,6 @@ private:
     int idx_ = 0;
     int bad_count_ = 0;
     int bad_idx_ = 0;
-    int last_see_ = VALUE_NONE;   // 8.7.5(a): SEE verdict of the last move returned
-    Src last_src_ = Src::None;    // 5.2: picker stage of the last move returned
+    int last_see_ = VALUE_NONE;   // SEE verdict of the last move returned
+    Src last_src_ = Src::None;    // picker stage of the last move returned
 };

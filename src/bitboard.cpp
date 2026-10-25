@@ -48,11 +48,8 @@ void init_bitboards() {
     }
 
     // Between and line tables via ray stepping
-    // 8.6.2b: this loop used to also walk all 8 rays from each square into a
-    // local `ray`, then discard it with `(void)ray;` — the comment said the
-    // tables would be "fixed up properly below", which the second loop then does
-    // from scratch. Only the zeroing was ever load-bearing, so the dead ray
-    // stepping is gone (startup-only, but it read as if it mattered).
+    // Only the zeroing is needed here; the second loop below fills in the
+    // tables from scratch.
     for (int a = 0; a < 64; a++) {
         for (int b = 0; b < 64; b++) {
             BB_BETWEEN[a][b] = 0;

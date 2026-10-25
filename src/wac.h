@@ -67,10 +67,9 @@ bool parse_wac_request(const std::string& args, WacRequest& request,
 
 // Run the full suite and print machine-readable per-position records plus a
 // solved-count summary (single-threaded, deterministic).
-// 5.4.4: takes the engine's live SearchParams. It previously constructed a
-// default SearchLimits, so every UCI-set search parameter was silently
-// ignored — a diagnostic whose stated purpose is comparing candidates was
-// unable to see a candidate at all, and reported byte-identical node counts
-// for genuinely different settings.
+// Takes the engine's live SearchParams: a default SearchLimits would silently
+// ignore every UCI-set search parameter, leaving a diagnostic whose purpose
+// is comparing candidates unable to see a candidate at all (byte-identical
+// node counts for genuinely different settings).
 void run_wac(const WacRequest& request = WacRequest{},
              const SearchParams& params = SearchParams{});

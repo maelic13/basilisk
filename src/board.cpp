@@ -584,7 +584,7 @@ Board::try_set_fen(const std::string& fen, bool validate_legal_position) {
     history.clear();
 
     // The FEN's EP token is only structural; keep the square (and its hash
-    // key) only if a legal EP capture actually exists (8.1c) -- the same
+    // key) only if a legal EP capture actually exists -- the same
     // predicate make_move applies.
     if (ep_sq != SQ_NONE && !ep_capture_legal(ep_sq, side_to_move)) {
         hash ^= Zobrist::EpKeys[file_of(ep_sq)];
@@ -715,7 +715,7 @@ void Board::make_move(Move m) {
                     Square ep = from + (diff / 2);
                     // Set/hash EP only when a LEGAL capture exists: position
                     // identity for repetition depends on legal moves, and a
-                    // spurious EP key splits equivalent positions (8.1c).
+                    // spurious EP key splits equivalent positions.
                     if (ep_capture_legal(ep, them)) {
                         ep_sq = ep;
                         hash ^= Zobrist::EpKeys[file_of(ep_sq)];
@@ -1026,7 +1026,7 @@ bool Board::is_legal(Move m) const {
     }
 
     // En passant: both pawns leave the rank before the check test, so use the
-    // shared post-capture-occupancy helper (no Board copy — 8.6.10a).
+    // shared post-capture-occupancy helper (no Board copy).
     if (mt == EN_PASSANT)
         return ep_capture_legal_from(from, to, us);
 
@@ -1413,7 +1413,7 @@ Bitboard Board::check_squares(PieceType pt, Color us) const {
 }
 
 bool Board::gives_check(Move m) const {
-    ++diag_gives_check_calls;   // 8.7.1(c)
+    ++diag_gives_check_calls;
     Square from      = from_sq(m);
     Square to        = to_sq(m);
     Color  us        = side_to_move;
@@ -1494,8 +1494,7 @@ void Board::gen_quiet_checks(MoveList& ml) const {
 // legal for `capturer`? Tests the capturer's king against the post-capture
 // occupancy directly — both pawns leave their ranks in one move, which is why
 // EP cannot use the generic pinned-piece shortcut. Shared by ep_capture_legal
-// (any capturer) and is_legal (a specific move) — 8.6.10a; the latter used to
-// deep-copy the entire Board and make the move just to ask this question.
+// (any capturer) and is_legal (a specific move).
 bool Board::ep_capture_legal_from(Square from, Square ep, Color capturer) const {
     const Color pusher = ~capturer;
     // The double-pushed pawn sits one step beyond the skipped square.
@@ -1693,7 +1692,7 @@ int Board::see(Move m) const {
 
     Color side = ~side_to_move; // first recapture is by opponent
 
-    // 8.2: absolutely pinned pieces cannot recapture while their pinner is
+    // Absolutely pinned pieces cannot recapture while their pinner is
     // still on the board, unless the exchange square lies on the pin line.
     // Pins are computed once against the pre-move board; a pinner that is
     // captured or moves during the exchange leaves `occ`, releasing the pin.
@@ -1729,7 +1728,7 @@ int Board::see(Move m) const {
         }
         if (attacker_type == NO_PIECE_TYPE) break;
 
-        // 15.0.a: king legality. The LVA loop tries KING last, so the king is
+        // King legality. The LVA loop tries KING last, so the king is
         // only ever selected when it is the side's sole remaining attacker. It
         // may capture only if the opponent has no attacker left on the target
         // under the current exchange occupancy; otherwise the exchange ends
@@ -1740,7 +1739,7 @@ int Board::see(Move m) const {
         // king, so it forbids the king recapture even though it could not
         // legally recapture itself. That distinction is exactly what the
         // KING=20000 sentinel got wrong: the sentinel relied on the opponent
-        // producing a recapture on the next ply, and the 8.2 pin filter had
+        // producing a recapture on the next ply, and the pin filter had
         // already removed the pinned defender from that set. Do NOT "tidy"
         // this by reusing pin_filtered() -- see tests/test_board.cpp,
         // "king legality: pinned defender still forbids Kxf6".
@@ -1782,7 +1781,7 @@ int Board::see(Move m) const {
 }
 
 bool Board::see_ge(Move m, int threshold) const {
-    ++diag_see_ge_calls;   // 8.7.1(c)
+    ++diag_see_ge_calls;
     static constexpr int SEE_VALUES[PIECE_TYPE_NB] = {0, 100, 300, 300, 500, 900, 20000};
 
     const Square from = from_sq(m);
@@ -1834,7 +1833,7 @@ bool Board::see_ge(Move m, int threshold) const {
     if (!(attackers_to(to, occ) & occ & occupancy[~stm]))
         return true;
 
-    // 8.2: same pin exclusion as see() (see the comment there).
+    // Same pin exclusion as see() (see the comment there).
     Bitboard pinned[NCOLORS];
     Square pinner_of[SQUARE_NB];
     see_pins(occ, pinned, pinner_of);
@@ -1872,7 +1871,7 @@ bool Board::see_ge(Move m, int threshold) const {
         if (next_attacker == NO_PIECE_TYPE)
             break;
 
-        // 15.0.a: king legality. Identical rule to see(), including the
+        // King legality. Identical rule to see(), including the
         // deliberately unfiltered opponent set -- see the comment there for
         // why the pin filter must not be applied to it.
         if (next_attacker == KING && (attackers & occupancy[~stm] & occ))

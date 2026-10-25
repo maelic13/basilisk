@@ -105,10 +105,9 @@ public:
     };
 
 private:
-    // Growable undo history (8.6.10a, replacing the fixed 2048-entry array +
-    // release clamp): a `position ... moves` list of any length is now simply
-    // correct — no clamp, no bounded-state-damage compromise, no assert/clamp
-    // contradiction. HISTORY_RESERVE keeps the common case allocation-free;
+    // Growable undo history: a `position ... moves` list of any length is
+    // simply correct, with no clamp to damage state or contradict an assert.
+    // HISTORY_RESERVE keeps the common case allocation-free;
     // push_back beyond it amortizes. Capacity is preserved across copies and
     // set_fen, so per-search Board copies never reallocate mid-search.
     std::vector<UndoInfo> history;
@@ -156,16 +155,15 @@ public:
     void restore_position(const PositionSnapshot& snapshot) noexcept;
 
     void set_fen(const std::string& fen);
-    // C++23 std::expected error channel (8.6.10 / 8.6.2c): on failure the
-    // board is untouched and the error() explains why. Replaces the previous
-    // bool + out-param pair — the error can no longer be silently ignored,
+    // C++23 std::expected error channel: on failure the board is untouched
+    // and the error() explains why. The error cannot be silently ignored,
     // and there is no half-initialized "success bool true, error set" state
     // to misuse.
     [[nodiscard]] std::expected<void, std::string>
     try_set_fen(const std::string& fen, bool validate_legal_position = false);
     [[nodiscard]] std::string get_fen() const;
 
-    // Full internal-consistency check (Phase 8.8, infra audit 4.5). Verifies
+    // Full internal-consistency check. Verifies
     // mailbox <-> bitboards, occupancy unions, king counts/squares, castling-
     // rights plausibility, EP-square plausibility, incremental Zobrist/pawn/
     // minor/non-pawn keys against a from-scratch recompute, cached `checkers`,
@@ -180,8 +178,8 @@ public:
     void make_null_move();
     void unmake_null_move();
 
-    // ---- 8.7.1(c) speed telemetry -----------------------------------------
-    // Counted unconditionally (8.6.6 DiagCounters class: NIL cost, no Diag
+    // ---- Speed telemetry --------------------------------------------------
+    // Counted unconditionally (DiagCounters class: NIL cost, no Diag
     // branch), one increment at the top of each query. They live HERE rather
     // than at the ~11 search call sites so every caller is captured, including
     // movegen's own gives_check use. `mutable` because both queries are const;
@@ -189,9 +187,8 @@ public:
     // VALUE). Snapshotted into DiagCounters at search teardown, since
     // board_ptr_ is nulled before print_diag() runs.
     //
-    // What they answer: 8.7.5 needs SEE calls-per-node (how much SEE work is
-    // recomputed), 8.7.3 needs the full-gives_check rate (the check-hint
-    // candidate). Both are currently unmeasurable.
+    // What they answer: SEE calls-per-node (how much SEE work is
+    // recomputed) and the full-gives_check rate (the check-hint candidate).
 private:
     mutable int64_t diag_see_ge_calls = 0;
     mutable int64_t diag_gives_check_calls = 0;
@@ -236,7 +233,7 @@ public:
     // set/hashed only when this holds (infra audit 4.5; SF semantics).
     [[nodiscard]] bool ep_capture_legal(Square ep, Color capturer) const;
     [[nodiscard]] bool ep_capture_legal_from(Square from, Square ep, Color capturer) const;
-    // SEE pin support (8.2): absolute pins for both colors against the given
+    // SEE pin support: absolute pins for both colors against the given
     // occupancy. pinner_of[sq] is valid only where pinned[] has the bit.
     void see_pins(Bitboard occ, Bitboard pinned[NCOLORS], Square pinner_of[SQUARE_NB]) const;
     [[nodiscard]] bool is_repetition(int search_ply) const;

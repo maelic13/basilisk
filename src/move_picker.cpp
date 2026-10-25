@@ -5,7 +5,7 @@
 void score_moves(ScoredMove* moves, int n, const Board& b, const HistoryTables& history,
                  const SearchStack* ss, int ply, const RootOrdering* root) {
 
-    // 9.6: these history-table dimensions are constant for every quiet move at
+    // These history-table dimensions are constant for every quiet move at
     // this node. Hoist them beside the continuation rows so the move loop only
     // indexes its varying piece/from/to dimensions. Keeping the additions in
     // the same order preserves the fixed-depth bench exactly.
@@ -31,7 +31,7 @@ void score_moves(ScoredMove* moves, int n, const Board& b, const HistoryTables& 
         return check_squares[idx];
     };
 
-    // 8.7.6(b): hoist the continuation-history row bases ONCE per node. The
+    // Hoist the continuation-history row bases ONCE per node. The
     // (ss-1/2/4) piece/square indices are constant across every scored move,
     // so recomputing the guards and the first two array dimensions (two index
     // multiplies each) per quiet — cont_hist_score(ss, ...) — is pure waste.

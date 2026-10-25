@@ -6,7 +6,7 @@
 #include <cassert>
 
 // ---- Bit intrinsics --------------------------------------------------------
-// C++23 <bit> replaces the hand-rolled compiler builtins (8.6.2b). std::countr_zero
+// C++23 <bit> replaces the hand-rolled compiler builtins. std::countr_zero
 // / std::countl_zero / std::popcount are portable and constexpr, and lower to the
 // same TZCNT/LZCNT/POPCNT on x86-64 and RBIT+CLZ/CNT on aarch64 — so this is a
 // portability and clarity win at identical codegen, not a trade. It also fixes a
@@ -17,10 +17,10 @@
 // is a well-defined 64, but 64 is not a square), and sq_bb shifts by its
 // argument, which is UB at SQ_NONE. Every caller guards today; the debug
 // asserts make that a checked contract rather than a convention — worth adding
-// now that the sanitizer/debug suite actually runs (8.6.2b P0). All of them
+// now that the sanitizer/debug suite actually runs. All of them
 // compile out entirely under NDEBUG, so release codegen is unchanged.
 //
-// 8.6.2c: all constexpr, which the <bit> switch is what made possible — the
+// All constexpr, which the <bit> switch is what made possible — the
 // compiler builtins were not portably usable in constant expressions. Nothing
 // evaluates them at compile time *yet*; this is the prerequisite for the
 // consteval table generation deferred to the post-NNUE cleanup, and it costs

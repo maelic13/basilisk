@@ -28,9 +28,8 @@ inline constexpr int infiniteDepth = std::numeric_limits<int>::max();
 // misfires exactly where it would matter, since hardware_concurrency() is the
 // value that under-reports inside containers and cgroups.
 //
-// 9.3(a) originally made this min(1024, 4*hw). That tracked the machine but
-// bought nothing over the flat bound on real hardware (user decision
-// 2026-07-30 — see PLAN §5 9.3).
+// A bound of min(1024, 4*hw) tracked the machine but bought nothing over the
+// flat bound on real hardware (user decision 2026-07-30).
 //
 // Still defined ONCE, in search.cpp, because two places read it and must not
 // disagree: the option advertisement (Parameters::max_threads) and the pool

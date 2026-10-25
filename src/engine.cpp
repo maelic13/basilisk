@@ -337,13 +337,9 @@ void Engine::run_bench_command(const EngineCommand& command) {
     // bench [depth] [repeats] [threads] — single-threaded BY DEFAULT so the
     // node total is a deterministic fingerprint (matches sibling engine
     // Rarog's bench command).
-    // 9.3: the third argument is now actually parsed. run_bench() has always
-    // taken and documented a thread count, but this parser dropped it and
-    // hardcoded 1, so the documented `bench [depth] [repeats] [threads]` form
-    // was unreachable and there was NO way to measure multi-thread NPS from
-    // the engine at all — which is exactly what this phase's 4T gate needs.
-    // The default is unchanged (1), so the bench fingerprint is untouched;
-    // above 1 the node total is deliberately non-deterministic (Lazy SMP
+    // The third argument is parsed so that multi-thread NPS can be measured
+    // from the engine. The default is 1, so the bench fingerprint is
+    // untouched; above 1 the node total is deliberately non-deterministic (Lazy SMP
     // helpers add work) and is a speed reading, never a fingerprint.
     // NOTE: this is deliberately NOT the `Threads` UCI option. Bench must stay
     // reproducible regardless of how the GUI or a harness left that option.
@@ -424,10 +420,10 @@ void Engine::handle_command(const EngineCommand& command, bool& quit) {
             break;
         }
         case EngineCommandType::Position:
-            // A rejected position is fatal (decided 2026-09-27, replacing the
-            // 8.6.3a reject-and-retain contract). Retaining the old board let
-            // the next `go` answer with a move for the PREVIOUS position --
-            // same side to move, so often legal and silently played wrong.
+            // A rejected position is fatal (decided 2026-09-27).
+            // Retaining the old board let the next `go` answer with a move for
+            // the PREVIOUS position -- same side to move, so often legal and
+            // silently played wrong.
             // Stockfish and Rarog exit here; so does Basilisk.
             if (!parameters_.set_position(command.args)) {
                 const std::string message = "info string CRITICAL ERROR: command `position "
