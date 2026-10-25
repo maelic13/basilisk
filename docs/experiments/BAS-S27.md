@@ -97,4 +97,65 @@
 
 #### RESULT — append after exposure
 
-- Disposition: registered and dry-run; maintainer-run.
+- **Results (maintainer-run 2026-10-24).** The head's Elo over 1.10.2 is
+  the runner's trinomial with its 95% interval; the pentanomial interval
+  is over 500 colour pairs (`colosseum-cli stats` 0.4.0, which also pairs
+  the 0.2.0 `ltc` journal). An independent recount from W/D/L agrees to
+  0.1 Elo.
+
+| Read | Elo [95%] | Pentanomial [95%] | W/D/L | Score | Pentanomial counts |
+|---|---|---|---|---|---|
+| `ltc` | **+241.4** [+221.9, +262.3] | [+223.6, +260.3] | 660/281/59 | 80.1% | 0, 11, 74, 218, 197 |
+| `4t` | **+237.6** [+217.4, +259.2] | [+218.7, +257.7] | 670/254/76 | 79.7% | 1, 14, 85, 190, 210 |
+| `tb` | **+221.9** [+202.4, +242.7] | [+204.0, +240.9] | 643/278/79 | 78.2% | 0, 14, 100, 194, 192 |
+
+- **Faults and terminations.** No engine, time-loss, illegal-move or
+  infrastructure fault in any read, and no adjudication.
+  - Every decisive game ended in checkmate: 719, 746 and 722.
+  - Draws by threefold, insufficient material, the 50-move rule and
+    stalemate: `ltc` 194/60/25/2, `4t` 183/50/17/4, `tb` 169/82/27/0.
+  - Each wrapper run exited 0 (completed), and the independent PGN census
+    agrees in each.
+- **Tablebases were live in `tb`.** Both engines got `SyzygyPath`.
+  - About 7,300 move scores fall in the tablebase band
+    (`cp 20000 - plies`), in 596 of the 1,000 games.
+  - `ltc` has 111 such scores, in 64 games, all of them decisive. They
+    start a median 14 plies before the end (4 to 82).
+- **Runs.**
+  - `ltc` ran on 0.2.0 at `e71aee7`: 34.9 min, manifest `a98ae0b6…`,
+    run record `EB82A620…`, PGN `4ABE7398…`.
+  - `4t` ran on 0.4.0. It was stopped once at `80865c0` and resumed from
+    its journal at `65e34ad`; the runner and wrapper are identical at both
+    revisions. 51.6 min, manifest `c4cc5a91…`, run record `3FC7ADA6…`,
+    PGN `6E991E84…`.
+  - `tb` ran on 0.4.0 at `65e34ad`: 35.1 min, manifest `950b570c…`, run
+    record `8729DE7A…`, PGN `7816385D…`.
+- **Reading rule.**
+  - All three reads pass: every 95% lower bound is above +200.
+  - None is below its 80% band, and there is no Basilisk fault, time loss
+    or illegal move.
+  - No diagnosis is opened before B.3.
+- **Calibration against the frozen predictions.** All three are high:
+  - `ltc` +241 against +170 [+120, +215]: 26 above the band.
+  - `4t` +238 against +190 [+120, +250]: inside, 48 above the centre.
+  - `tb` +222 against +160 [+100, +210]: 12 above the band.
+- **What it shows.**
+  - The prediction's LTC compression did not happen. `ltc` sits about 33
+    above the STC chain's +208, so the fitted search gains held, and
+    perhaps grew, at `10+0.1`.
+  - Thread scaling is intact: `4t` at `3+0.03` reads the same as `ltc`
+    within noise.
+  - Tablebases narrow the gap by about 20 (`tb` against `ltc`). That is
+    the predicted direction, but within the reads' combined noise, so it
+    is no sign of a defect in the new kernel's probes.
+  - It is self-play against the engine's own release, so a pool reading
+    will compress it. B.11's release reads should predict without LTC
+    compression.
+- **Side finding (not owned here).** Without tablebases, both engines
+  sometimes report a mate-range score as `cp`, for example `cp -31742`
+  (more than 128 plies to mate). They also report `cp` values in the
+  tablebase band in won endings. 1.10.2 does it too, so
+  it predates B.2. It is display only, and it is reported to the
+  maintainer for an owner.
+- Disposition: COMPLETE. All three pass: `ltc` +241.4, `4t` +237.6, `tb`
+  +221.9; zero faults.

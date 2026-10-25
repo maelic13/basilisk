@@ -814,7 +814,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         and a dry run on 0.4.0 accepted the SPSA command and its run file.
       - The three BAS-S27 dry runs resolve as on 0.2.0, except
         `engine_processes`.
-    - [ ] **A.9.2** `[V]` Direction reads of the head against 1.10.2
+    - [x] **A.9.2** `[V]` Direction reads of the head against 1.10.2
       Added 2026-10-24 by maintainer decision. Every gate since 1.10.2 read
       `3+0.03` on one thread; the head has never been read at `10+0.1`, at
       four threads, or with tablebases, and B.2's kernel has its own tablebase
@@ -824,6 +824,14 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       below its band, or any Basilisk fault, opens a diagnosis before B.3.
       Maintainer-run, `tools/run_head_reads.ps1 -Read ltc|4t|tb`; B.11's
       release reads repeat them on the B.9 head.
+      — CLOSED 2026-10-25 (BAS-S27, maintainer-run 2026-10-24). All three
+      reads pass, with zero faults or time losses:
+      - `ltc` +241.4 [+221.9, +262.3];
+      - `4t` +237.6 [+217.4, +259.2];
+      - `tb` +221.9 [+202.4, +242.7], with tablebases live.
+      None is below its band, so no diagnosis opens before B.3. All three
+      came in above their predictions: there was no LTC compression, and
+      thread scaling is intact. B.11's release reads predict accordingly.
     - [ ] **A.9.3** `[M]` Measurement rules from the audit
       (D-39, D-40, D-41, D-28, D-47) Into `agents/measurement.md` and PROCESS:
       a stopped SPRT's estimate is a first-crossing estimate, never the effect
@@ -1835,7 +1843,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.9.2 | GAME_GATE | V | BAS-S27: `ltc` played on 0.2.0; `4t` and `tb` maintainer-run on 0.4.0 |
 | A.9.3 | READY_FOR_IMPLEMENTATION | M | Measurement rules |
 | A.9.4 | READY_FOR_IMPLEMENTATION | I1 | NPS read on pooled builds |
 | A.9.5 | RESEARCH | I1 | Profiler |

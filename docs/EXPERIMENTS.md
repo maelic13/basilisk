@@ -485,7 +485,7 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S26](experiments/BAS-S26.md) — B.10: the piece-square table orientation repair, `[-5,5]` — H1, +18.3 ± 12.9; flipped tables default
 
-- [BAS-S27](experiments/BAS-S27.md) — direction reads of the head against 1.10.2 at 10+0.1, 4T and with tablebases — registered, dry-run; maintainer-run
+- [BAS-S27](experiments/BAS-S27.md) — direction reads of the head against 1.10.2 at 10+0.1, 4T and with tablebases — COMPLETE: ltc +241.4, 4t +237.6, tb +221.9; all pass
 
 | ID | Title | Disposition |
 |---|---|---|
