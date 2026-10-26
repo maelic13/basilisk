@@ -1427,6 +1427,16 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       - On the same branch, A.11.8's repeated final line goes through
         `send_info` (`28b7018`), so in analysis it gets the tablebase
         extension other lines get; output only, `bench 13` exact.
+      - Also on the branch (maintainer decision 2026-10-26), root
+        underpromotions are judged against the queen (`1641e64`): a rook or
+        bishop promotion beats the queen promotion on the same squares only
+        by more than 200 of exact score, and the queen is searched first.
+        A transposing rook line had displaced the queen in 59 of 228 gate
+        positions (7 of them errors by Stockfish 18); now 1, with the
+        stalemate escapes and Saavedra's `c8=R` kept. Pruning
+        underpromotions below the root instead lost Saavedra. `bench 13`
+        exact, NPS unchanged. Gate BAS-S33, `[-5,5]`, launcher
+        `tools/run_a119_up_gate.ps1`, maintainer-run; dry run accepted.
     - [ ] **A.11.10** `[R2]` Fail-soft quiescence
       (B-19) Pulled forward from B.4 by maintainer decision 2026-10-26, so
       that B.3 is not fitted around a known defect. Quiescence fails hard:

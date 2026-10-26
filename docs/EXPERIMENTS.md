@@ -497,6 +497,8 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S32](experiments/BAS-S32.md) — A.11.9: bare-king wins in tiers that rise with material, `[-5,5]` — cap, −0.3 ± 4.0; repair kept
 
+- [BAS-S33](experiments/BAS-S33.md) — A.11.9 follow-up: root underpromotions judged against the queen, `[-5,5]` — REGISTERED
+
 | ID | Title | Disposition |
 |---|---|---|
 | [BAS-S17](experiments/BAS-S17.md) | Razoring depth reach in Elo (B.0.1, maintainer). | +2.4 ± 9.9; interval holds 0, the cluster decides the cap |
