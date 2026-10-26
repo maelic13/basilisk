@@ -1215,8 +1215,11 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         }
 
         // A move equal to the best, deep in the tree, sometimes replaces it
-        // as though it had just exceeded alpha.
-        const int inc = score == best_score && ply + 2 >= root_depth_
+        // as though it had just exceeded alpha. Never at the root: there a
+        // later move is searched with a null window at alpha, so an equal
+        // score is usually a fail-low bound, and the move played must have
+        // proved itself, as Stockfish's root moves must exceed alpha.
+        const int inc = !is_root && score == best_score && ply + 2 >= root_depth_
                      && (int(state_.nodes) & 14) == 0
                      && std::abs(score) + 1 < tablebaseWinInMaxPly;
         if (score + inc > best_score) {
