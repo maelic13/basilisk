@@ -108,7 +108,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: ubuntu-26.04
+          - runner: ubuntu-24.04
             os_name: linux
             arch: x86_64
             ext: ""
@@ -116,7 +116,7 @@ jobs:
             compiler: clang
             asset_suffix: ""
 
-          - runner: ubuntu-26.04
+          - runner: ubuntu-24.04
             os_name: linux
             arch: x86_64
             ext: ""
@@ -124,7 +124,7 @@ jobs:
             compiler: clang
             asset_suffix: "-avx2"
 
-          - runner: ubuntu-26.04
+          - runner: ubuntu-24.04
             os_name: linux
             arch: x86_64
             ext: ""
@@ -132,7 +132,7 @@ jobs:
             compiler: clang
             asset_suffix: "-pext"
 
-          - runner: ubuntu-26.04-arm
+          - runner: ubuntu-24.04-arm
             os_name: linux
             arch: aarch64
             ext: ""
@@ -202,45 +202,45 @@ jobs:
         with:
           persist-credentials: false
 
-      # Release builds on the newest images, as CI does, with each image's own
-      # Clang: Linux links statically and macOS targets macOS 13.3, so a newer
-      # build image never raises the system a user needs; the steps after the
-      # build check both. 13.3 rather than 11, the first release for Apple
-      # silicon: libc++'s std::format instantiates its floating-point
-      # formatter in every call, and that needs a to_chars macOS ships only
-      # from 13.3. Every Apple silicon Mac runs 13.3. The images
-      # lack Clang's LLVM tools (llvm-profdata for PGO, llvm-objdump for the
-      # ISA checks), so the one package carrying them is installed, its .deb
-      # files cached by image version: a slow Ubuntu mirror once timed this
-      # step out mid-download.
+      # Release assets do not depend on the build image's system: Linux links
+      # statically and macOS targets macOS 13.3; the steps after the build
+      # check both. 13.3 rather than 11, the first release for Apple silicon:
+      # libc++'s std::format instantiates its floating-point formatter in
+      # every call, and that needs a to_chars macOS ships only from 13.3.
+      # Every Apple silicon Mac runs 13.3.
+      # Linux still builds on ubuntu-24.04: a static binary carries the C++
+      # library, and ubuntu-26.04's libstdc++.a holds AVX2, LZCNT and POPCNT
+      # code outside any runtime dispatch, which the portable ISA check
+      # rejects (PR #14); 24.04's is built for the baseline CPU. Its newest
+      # Clang is 18 and the engine needs 19 or later (libstdc++'s
+      # std::expected), so Clang 19 is downloaded, its .deb files cached by
+      # image version: a slow Ubuntu mirror once timed this step out
+      # mid-download.
       - name: Image version (Linux)
         id: image
         if: runner.os == 'Linux'
         run: echo "version=$ImageVersion" >> "$GITHUB_OUTPUT"
 
-      - name: Cache LLVM packages (Linux)
+      - name: Cache Clang packages (Linux)
         if: runner.os == 'Linux'
         uses: actions/cache@v6
         with:
           path: ~/apt-debs
-          key: llvm-22-${{ matrix.runner }}-${{ steps.image.outputs.version }}
-          restore-keys: llvm-22-${{ matrix.runner }}-
+          key: clang-19-${{ matrix.runner }}-${{ steps.image.outputs.version }}
+          restore-keys: clang-19-${{ matrix.runner }}-
 
-      - name: Select Clang 22 and its LLVM tools (Linux)
+      - name: Install Clang 19 and its LLVM tools (Linux)
         timeout-minutes: 10
         if: runner.os == 'Linux'
         run: |
-          command -v clang++-22 >/dev/null || { echo "FAIL: the image has no clang-22"; exit 1; }
-          if ! command -v llvm-profdata-22 >/dev/null; then
-            mkdir -p ~/apt-debs
-            sudo cp ~/apt-debs/*.deb /var/cache/apt/archives/ 2>/dev/null || true
-            sudo apt-get update -q
-            sudo apt-get install -y --no-install-recommends llvm-22
-            cp /var/cache/apt/archives/*.deb ~/apt-debs/ 2>/dev/null || true
-          fi
-          sudo ln -sf /usr/bin/clang-22        /usr/local/bin/clang
-          sudo ln -sf /usr/bin/clang++-22      /usr/local/bin/clang++
-          sudo ln -sf /usr/bin/llvm-objdump-22 /usr/local/bin/llvm-objdump
+          mkdir -p ~/apt-debs
+          sudo cp ~/apt-debs/*.deb /var/cache/apt/archives/ 2>/dev/null || true
+          sudo apt-get update -q
+          sudo apt-get install -y clang-19 llvm-19
+          cp /var/cache/apt/archives/*.deb ~/apt-debs/ 2>/dev/null || true
+          sudo ln -sf /usr/bin/clang-19        /usr/local/bin/clang
+          sudo ln -sf /usr/bin/clang++-19      /usr/local/bin/clang++
+          sudo ln -sf /usr/bin/llvm-objdump-19 /usr/local/bin/llvm-objdump
           clang++ --version
           # Verify the exact llvm-profdata selected by the clang driver. The
           # PGO target uses this same lookup rather than PATH ordering.

@@ -402,6 +402,10 @@ so a registered `[0,3]` gate passes `-Elo1 3`**. `-Mode simplify` is `[-5,0]`.
     needs it. The release workflow checks both on the built asset; the ISA
     check exempts the static C runtime's own archives, whose CPU-specific
     variants run only where the CPU has them.
+  - Linux releases still build on `ubuntu-24.04` with Ubuntu's `clang-19`:
+    the static binary carries the C++ library, and `ubuntu-26.04`'s
+    `libstdc++.a` holds AVX2 code outside any runtime dispatch, which the
+    portable ISA check rejects. 24.04's is built for the baseline CPU.
 - CTest runs two kinds of test. The correctness suite (`ctest -LE
   strength`) checks rules, invariants, protocol and endgame knowledge in a few
   seconds and is what an edit-compile loop and the sanitizer run use. The
