@@ -318,14 +318,37 @@ derivations are in the linked records.
 | Contract | Where it is written down |
 |---|---|
 | Score perspective, mate band (`MATE_SCORE − MAX_PLY` = 31,872, duplicated in `search.h` and `tt.h`), endgame scale floor, lazy-eval path | `DESIGN.md` §3; `tests/test_endgames.cpp` static assert |
-| TT publication incoherence is an accepted, measured risk; every consumer validates the stored move | `DESIGN.md` §3; BAS-C05 |
-| SEE king legality repaired; created pins and promotion recaptures are documented approximations with fixtures | BAS-C08, BAS-C09; `tests/test_board.cpp` |
+| TT publication incoherence is a known defect, tolerated until D.2 repairs it without an NPS cost; every consumer validates the stored move | `DESIGN.md` §3; BAS-C05 |
+| SEE king legality repaired; created pins and promotion recaptures are known defects with fixtures, repaired in D.3.1 | BAS-C08, BAS-C09; `tests/test_board.cpp` |
 | Draw, rule-50, null-move clock and legal-EP hashing semantics | BAS-C02; `tests/test_invariants.cpp` |
 | One mutation authority for redundant board state | BAS-C07; `src/board.h` |
 | Protocol: `ponderhit` owned by the UCI thread; setup work done before `readyok`, never on the clock; a rejected `position` exits with status 1; tablebase PV lines time-boxed the Stockfish way | BAS-C10–BAS-C13; `tests/test_engine_ponder.cpp`, `tests/test_uci_protocol.cpp` |
 | Search parameters have one source (the X-macro table) | `src/search_params.h` |
 | Endgame measurement layers (truth, move quality, conversion, strength) | `analysis/endgame_measurement_layers_v1.md`; `DESIGN.md` §4 |
 | Behaviour-neutral change = exact fingerprint plus targeted checks plus pooled NPS | `AGENTS.md` |
+
+### Known defects
+
+A defect is a mechanism that computes something other than what it claims:
+a wrong value, a wrong rule, a check that cannot fail. Each is fixed in its
+owner leaf and none is kept: a correct repair that loses Elo is reworked,
+with the neighbours that were tuned around the defect refitted, rather
+than reverted to the wrong form (maintainer decision 2026-10-26). A gap (a
+missing mechanism, a coupling Basilisk shares with Stockfish, an unfitted
+coordinate) is not a defect; its owner decides. IDs are the Rarog audit's
+(`analysis/rarog_audit_2026-10-24.md`) unless named.
+
+| Owner | Defects |
+|---|---|
+| A.11.7–A.11.9 | C-3 colour tie-break; A-26 and A-31 info lines; C-9 override jumps that reward shedding material |
+| B.3 | B-12 a move stored at fail-low nodes; B-14 correction training refuses decisive results; B-45 the singular margin's range excludes the donor's value; B-109 ablation bit 6 also removes the check extension |
+| B.4 | B-19 fail-hard quiescence, which also lets the equal-score tie rule promote refuted moves near the leaves; B-17 the dead SEE clamp |
+| B.5 (with D.1) | the fail-high stop's hole: a window that never returns is never checked (A-47; `analysis/b5_failhigh_stop_2026-10-25.md` §2.3) |
+| C.2.1–C.2.2 | C-1 the tuner's missing scalers; C-2 `--verify` cannot fail; C-8 the extractor's de-dup ignores the clock; C-26 to C-30 the data pipeline (book, sampler, split, labels, row identity); C-49 K refitted per run |
+| C.3–C.7 | C-10 outpost ranks; C-11 a rear doubled passer scored as a passer; C-12 "opposed" read over the whole file; C-13 own-colour king blockers only |
+| D.1, D.4 | A-46 reserve arithmetic; A-57 cold table reads on the clock; A-58 and A-59 tablebase root ranking |
+| D.2 | BAS-C05 the TT key and payload published separately |
+| D.3.1 | A-2 and A-3 SEE's created pins and promotion recaptures (BAS-C09) |
 
 ## 3. Required evidence
 
@@ -2016,6 +2039,16 @@ rejections stop B.
     (B-19; 93% of Rarog's root fail-highs equalled beta). Fail-soft, with the
     KBNK and KQK mate-distance fixtures as obligations; the tablebase band
     reachable without tables (B-87).
+    - A defect, not an option: fail-hard is to be replaced. The earlier
+      fail-soft attempts broke those fixtures; the fixtures bind the fix,
+      they are not a reason to keep the defect.
+    - It also miscalibrates the equal-score tie rule (`inc` in the move
+      loop), which assumes Stockfish's fail-soft search. A fail-hard return
+      echoes alpha exactly two plies up, inside the rule's window
+      (`ply + 2 >= root_depth_`), so "equal" there is usually a bound, and
+      one time in eight a refuted move becomes the node's best move, its
+      history bonus and its TT move. A.11.6 kept the root out of the rule
+      (`0eadf03`); below the root the cause is this fail-hard return.
   - Fail-high interpolation moves the estimate RFP and razoring were fitted on
     (Rarog's depth-14 tree +41%), so RFP, razoring and NMP-base coordinates
     join B.4's surface from the start (B-21).
@@ -2074,7 +2107,7 @@ rejections stop B.
     - removal only if the battery passes with no stop, then a `[-5,5]`
       bracket. On today's evidence removal is refused.
 
-    The hole is a card with D.1. Rarog's leads are priors only: at the
+    The hole is a defect, owned with D.1. Rarog's leads are priors only: at the
     target its stop fired on 24% of searches and cost about −15 Elo.
     - Rarog's D.1.6 results (RAR-R25 to RAR-R27, relayed 2026-10-26) are
       leads to verify, not a solution; the packet's §9 maps each to
@@ -2662,6 +2695,9 @@ has lost games in both engines (BAS-X02).
   pawn and continuation histories (Stockfish shares them per NUMA node) and
   soft-stop voting. The gate is a 4T SPRT `[0,5]` with a null pair first,
   and only against a measured defect (archived 9.10.b; BAS-R04–R06).
+  BAS-C05's TT publication incoherence is a known defect owned here: a
+  coherent layout that costs no measured NPS replaces it (both earlier
+  repairs cost 3.91% and 1.22%).
   Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
   are its items):
   - Self-relative 1/2/4/8T scaling and hash adequacy (D-44, D-45); the first
@@ -2683,8 +2719,8 @@ has lost games in both engines (BAS-X02).
       IDs are its items):
       - Tests: a stored TT win never answers a repeated position (A-13); the
         clock stays out of the position identity (A-14); an external oracle
-        corpus (A-5, A-24); the SEE approximations stay under BAS-C09's
-        trigger (A-2, A-3).
+        corpus (A-5, A-24); the SEE approximations (A-2, A-3, BAS-C09) are
+        known defects, repaired here.
     - [ ] **D.3.2** `[R2]` Lifecycle and protocol robustness
       Lifecycle and protocol (archived 9.4): worker start, stop and join,
       cancellation, result authority, new-game and option resets, command

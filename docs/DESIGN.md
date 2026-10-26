@@ -94,7 +94,8 @@ line names where it lives.
 - 32-byte cluster, 3 entries, 10-byte slots: a plain 16-bit partial key plus an
   8-byte payload (`score16|eval16|move16|depth8|flag_age8`) (`src/tt.h`).
 - **The key and the payload are two separate publications, and that incoherence
-  is an ACCEPTED RISK, not a harmless race** (BAS-C05, decided 2026-09-07).
+  is a known defect, not a harmless race** (BAS-C05, decided 2026-09-07; a
+  defect to repair since 2026-10-26, owned by PLAN D.2).
   Under SMP a reader can match its key against one store and consume the
   score/depth/bound of another position's store. Nothing downstream catches it:
   `negamax` (`src/search.cpp`) returns `tt_score` as the node value on a
