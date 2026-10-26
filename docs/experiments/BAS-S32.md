@@ -105,6 +105,8 @@
   stays as a correctness fix with no measured harm, on the maintainer's
   confirmation; the fingerprint record then updates to `bench 13`
   7,857,713 (the legacy arm 23,696,970).
+- Disposition: **cap, −0.3 ± 4.0; the repair is kept (maintainer
+  confirmed 2026-10-26). CLOSED 2026-10-26.**
 
 #### PREDICTION CALIBRATION — preserve the original prediction above
 

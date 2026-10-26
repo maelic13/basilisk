@@ -495,7 +495,7 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S31](experiments/BAS-S31.md) — A.11.7: the pawnless scaler's winning side taken from the score, `[-5,5]` — H1, +5.9 ± 6.3; repair kept
 
-- [BAS-S32](experiments/BAS-S32.md) — A.11.9: bare-king wins in tiers that rise with material, `[-5,5]` — cap, −0.3 ± 4.0; repair kept on confirmation
+- [BAS-S32](experiments/BAS-S32.md) — A.11.9: bare-king wins in tiers that rise with material, `[-5,5]` — cap, −0.3 ± 4.0; repair kept
 
 | ID | Title | Disposition |
 |---|---|---|

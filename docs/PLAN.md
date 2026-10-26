@@ -340,7 +340,7 @@ coordinate) is not a defect; its owner decides. IDs are the Rarog audit's
 
 | Owner | Defects |
 |---|---|
-| A.11.9–A.11.10 | C-9 override jumps that reward shedding material; B-19 fail-hard quiescence, which also lets the equal-score tie rule promote refuted moves near the leaves |
+| A.11.10 | B-19 fail-hard quiescence, which also lets the equal-score tie rule promote refuted moves near the leaves |
 | B.3 | B-12 a move stored at fail-low nodes; B-14 correction training refuses decisive results; B-45 the singular margin's range excludes the donor's value; B-109 ablation bit 6 also removes the check extension |
 | B.4 | B-17 the dead SEE clamp |
 | B.5 (with D.1) | the fail-high stop's hole: a window that never returns is never checked (A-47; `analysis/b5_failhigh_stop_2026-10-25.md` §2.3) |
@@ -1382,7 +1382,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
           bounded lines); evaluations of 25,000 and the rule-50 value print
           as ±19,871. CTest ON 24/24, OFF 21/21; `bench 13` 7,384,101 and
           the legacy arm 17,606,287, both exact. No gate is owed.
-    - [ ] **A.11.9** `[R2]` Override boundaries never reward shedding material
+    - [x] **A.11.9** `[R2]` Override boundaries never reward shedding material
       (C-9, C-131) The KBNK and KXK overrides (`kbnk_score` base 15,600;
       `kxk_score = KNOWN_WIN + ...`, `eval.cpp:306`, `:520`) apply only
       without the winner's pawns, so KBNP-K to KBN-K, and KBP-K promoting to a
@@ -1418,7 +1418,15 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         section on promotion order and pawn shedding fails on the old
         evaluation.
       - Gate BAS-S32, `[-5,5]`, launcher `tools/run_a119_gate.ps1`,
-        maintainer-run; dry run accepted.
+        maintainer-run.
+      - Closed 2026-10-26: BAS-S32 reached its 4,000-pair cap at
+        −0.3 ± 4.0 Elo (8,000 games, LLR −0.33, no faults); the repair stays
+        by the registered rule on the maintainer's confirmation. The
+        development fingerprint is `bench 13` 7,857,713; the legacy arm
+        23,696,970.
+      - On the same branch, A.11.8's repeated final line goes through
+        `send_info` (`28b7018`), so in analysis it gets the tablebase
+        extension other lines get; output only, `bench 13` exact.
     - [ ] **A.11.10** `[R2]` Fail-soft quiescence
       (B-19) Pulled forward from B.4 by maintainer decision 2026-10-26, so
       that B.3 is not fitted around a known defect. Quiescence fails hard:
@@ -2331,7 +2339,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.11.9 | GAME_GATE | R2 | Bare-king tiers by material; gate BAS-S32 prepared |
 | A.11.10 | RESEARCH | R2 | Fail-soft quiescence, pulled forward from B.4; research first |
 | A.12 | RESEARCH | M | Roadmap rules for the maintainer to decide |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |
