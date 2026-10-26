@@ -1262,9 +1262,10 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         Free-queen now plays Qxd5 at depths 1–3.
       - `bench 13` 7,233,823 with both commits (from 8,753,339); the
         legacy arm 15,887,213, unchanged; CTest ON 24/24, OFF 21/21.
-      - Gate: the maintainer's decision. Recommended: one `[-5,5]` repair
-        SPRT for both commits against `master`, since the root fix changes
-        play and the count reshuffles every remaining tie.
+      - Gate: one `[-5,5]` repair SPRT for both commits against `master`
+        (maintainer decision 2026-10-26), since the root fix changes play
+        and the count reshuffles every remaining tie: BAS-S30, launcher
+        `tools/run_a116_gate.ps1`, maintainer-run.
     - [ ] **A.11.7** `[I1]` Evaluation colour symmetry: tie-break and sweep
       (C-3, A-22, C-103) The pawnless "ahead by at most a minor" scaler picks
       `strong = (w_tot >= b_tot) ? WHITE : BLACK` (`eval.cpp:800`), so at
@@ -2186,7 +2187,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.11.6 | LOCAL_QUALIFIED | I1 | Frontier nodes counted once, with the root tie fix; gate decision pending |
+| A.11.6 | GAME_GATE | I1 | Frontier nodes counted once, with the root tie fix; gate BAS-S30 prepared |
 | A.11.7 | READY_FOR_IMPLEMENTATION | I1 | Colour symmetry tie-break and sweep |
 | A.11.8 | READY_FOR_IMPLEMENTATION | I1 | Last info line after a stop; mate scores printed as cp |
 | A.11.9 | RESEARCH | R2 | Override boundaries; research first |
