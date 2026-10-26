@@ -113,12 +113,15 @@ static constexpr int LMR_HISTORY_DIVISOR[16] = {
 
 // ---- Quiescence search -----------------------------------------------------
 
-int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss) {
-    record_node();
-    if ((state_.nodes & 2047) == 0) check_stop();
-    if (state_.stopped) return 0;
-    if (ply >= MAX_PLY) return evaluator_.evaluate(*state_.board);
-    if (state_.board->is_draw(ply)) return 0;
+int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss,
+                         bool counted) {
+    if (!counted) {
+        record_node();
+        if ((state_.nodes & 2047) == 0) check_stop();
+        if (state_.stopped) return 0;
+        if (ply >= MAX_PLY) return evaluator_.evaluate(*state_.board);
+        if (state_.board->is_draw(ply)) return 0;
+    }
 
     bool in_check = state_.board->is_in_check();
     ss->in_check = in_check;
@@ -390,7 +393,6 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
     // Check extension: when the side to move is in check, extend by 1 ply.
     // Guard with ss->excluded to prevent stacking with singular extensions.
-    DIAG_COUNT(state_.diag.interior_nodes++);
     if (in_check) DIAG_COUNT(state_.diag.in_check_nodes++);
     // The extension is unconditional: every in-check node gets a ply.
     //
@@ -409,7 +411,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     }
 
     if (depth <= 0)
-        return quiescence(alpha, beta, ply, 0, ss);
+        return quiescence(alpha, beta, ply, 0, ss, true);
+    DIAG_COUNT(state_.diag.interior_nodes++);
 
     // Mate distance pruning
     if (!is_root) {
@@ -618,7 +621,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         if (!ABLATED(0) && depth <= kp.razor_depth_cap
             && eval < alpha - kp.razor_margin * depth
             && (tt_move == MOVE_NONE || tt_capture) && tt_flag != TT_BETA) {
-            const int q = quiescence(alpha, beta, ply, 0, ss);
+            const int q = quiescence(alpha, beta, ply, 0, ss, true);
             DIAG_COUNT(state_.diag.razor_cuts++);
             DIAG_COUNT(++(depth <= 3 ? state_.diag.razor_cuts_d1_3
                           : depth <= 7 ? state_.diag.razor_cuts_d4_7

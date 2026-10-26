@@ -1341,6 +1341,27 @@ static void test_tt_static_eval_served_at_reading_clock() {
 }
 #endif
 
+#if defined(BASILISK_B2_CORE)
+static void test_frontier_node_counted_once() {
+    // The root's only move, Kh2, leaves a child with no capture and no check,
+    // which a depth-1 search hands to quiescence for its stand-pat. That is
+    // two nodes, the root and the child; the child used to be counted again
+    // as it entered quiescence, so the search reported three.
+    TranspositionTable tt(4);
+    std::atomic_bool stop{false};
+    Board b;
+    b.set_fen("6r1/4k3/8/p2p4/P2P4/8/8/7K w - - 80 60");
+    SearchLimits limits;
+    limits.depth = 1;
+    auto searcher = std::make_unique<Searcher>(tt, stop);
+    const SearchResult result = searcher->search(b, limits);
+
+    begin_section("node count: a depth-1 search of one quiet move is two nodes");
+    EXPECT_EQ(result.nodes, int64_t{2});
+    end_section();
+}
+#endif
+
 static void test_singular_lone_move_fails_low_by_one() {
     // Rarog's forced position: White is in check and Kxg2 is the only legal
     // move. When the singular search excludes it, the node has no move left;
@@ -1465,6 +1486,7 @@ int main() {
     test_rule50_mate_found();
 #if defined(BASILISK_B2_CORE)
     test_tt_static_eval_served_at_reading_clock();
+    test_frontier_node_counted_once();
 #endif
 
     std::printf("\nSingular lone move\n");

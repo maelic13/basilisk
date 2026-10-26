@@ -231,7 +231,11 @@ private:
     template<NodeType NT>
     int negamax(int depth, int alpha, int beta, int ply,
                 SearchStack* ss, bool allow_null, bool cut_node);
-    int quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss);
+    // `counted` marks negamax's own node handed to quiescence (the depth-0
+    // drop, razoring): negamax already counted it and ran the stop, ply and
+    // draw checks, so each node is counted once.
+    int quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss,
+                   bool counted = false);
 
     // The single make/unmake seam. Every search-side move execution goes
     // through this pair (negamax, quiescence, evasions, ProbCut, null move),
