@@ -392,8 +392,11 @@ so a registered `[0,3]` gate passes `-Elo1 3`**. `-Mode simplify` is `[-5,0]`.
   - A new major fails CI until the pin moves. Moving it is a commit that
     owes a pooled NPS read under `agents/measurement.md`'s compiler rule, as
     BAS-P19 read 22.1.8 to 23.1.3.
-  - Linux builds with Ubuntu's `clang-19`, macOS with the runner's
-    AppleClang.
+  - Linux and macOS use the runner's compiler. CI runs on the newest
+    images (`ubuntu-26.04` with its preinstalled `clang-22`, `macos-26`);
+    Release builds on `ubuntu-24.04` with Ubuntu's `clang-19` and on
+    `macos-15`, so shipped binaries keep running on current systems: a
+    binary needs at least the glibc, libstdc++ or macOS it was built on.
 - CTest runs two kinds of test. The correctness suite (`ctest -LE
   strength`) checks rules, invariants, protocol and endgame knowledge in a few
   seconds and is what an edit-compile loop and the sanitizer run use. The

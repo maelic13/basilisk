@@ -43,25 +43,25 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: ubuntu-24.04
+          - runner: ubuntu-26.04
             os_name: linux
             arch: x86_64
             tier: portable
             preset: release
             bench_id: linux-x86_64
-          - runner: ubuntu-24.04
+          - runner: ubuntu-26.04
             os_name: linux
             arch: x86_64
             tier: avx2
             preset: release-avx2
             bench_id: linux-x86_64-avx2
-          - runner: ubuntu-24.04
+          - runner: ubuntu-26.04
             os_name: linux
             arch: x86_64
             tier: pext
             preset: release-pext
             bench_id: linux-x86_64-pext
-          - runner: ubuntu-24.04-arm
+          - runner: ubuntu-26.04-arm
             os_name: linux
             arch: aarch64
             tier: portable
@@ -99,7 +99,7 @@ jobs:
             bench_id: windows-aarch64
             msystem: CLANGARM64
             mingw_pkg_prefix: mingw-w64-clang-aarch64
-          - runner: macos-15
+          - runner: macos-26
             os_name: macos
             arch: aarch64
             tier: portable
@@ -114,22 +114,43 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install Clang and Ninja (Linux)
+      # The ubuntu-26.04 images preinstall Clang 20-22, CMake and Ninja, so the
+      # build itself downloads nothing; Clang 22 is the newest. The image lacks
+      # Clang's LLVM tools (llvm-objdump for the ISA checks), so the one
+      # package carrying them is installed, its .deb files cached by image
+      # version: a slow Ubuntu mirror once timed this step out mid-download.
+      - name: Image version (Linux)
+        id: image
+        if: runner.os == 'Linux'
+        run: echo "version=$ImageVersion" >> "$GITHUB_OUTPUT"
+
+      - name: Cache LLVM packages (Linux)
+        if: runner.os == 'Linux'
+        uses: actions/cache@v6
+        with:
+          path: ~/apt-debs
+          key: llvm-22-${{ matrix.runner }}-${{ steps.image.outputs.version }}
+          restore-keys: llvm-22-${{ matrix.runner }}-
+
+      - name: Select Clang 22 and its LLVM tools (Linux)
         timeout-minutes: 10
         if: runner.os == 'Linux'
-        # clang-19, NOT the distro-default clang-18. try_set_fen returns
-        # std::expected (C++23, added in 8.6). On Linux clang uses libstdc++,
-        # whose <expected> body is guarded behind __cpp_concepts >= 202002L.
-        # clang-18 only defines 201907L, so the header is included but empty and
-        # the build fails with "no template named 'expected'". clang-19 defines
-        # 202002L and enables it. Keeps clang + libstdc++ (binary unchanged).
-        # (Pre-8.6 releases had no C++23 library dep, so this is the first hit.)
         run: |
-          sudo apt-get update -q
-          sudo apt-get install -y clang-19 llvm-19 ninja-build cmake
-          sudo ln -sf /usr/bin/clang-19   /usr/local/bin/clang
-          sudo ln -sf /usr/bin/clang++-19 /usr/local/bin/clang++
+          command -v clang++-22 >/dev/null || { echo "FAIL: the image has no clang-22"; exit 1; }
+          if ! command -v llvm-objdump-22 >/dev/null; then
+            mkdir -p ~/apt-debs
+            sudo cp ~/apt-debs/*.deb /var/cache/apt/archives/ 2>/dev/null || true
+            sudo apt-get update -q
+            sudo apt-get install -y --no-install-recommends llvm-22
+            cp /var/cache/apt/archives/*.deb ~/apt-debs/ 2>/dev/null || true
+          fi
+          sudo ln -sf /usr/bin/clang-22        /usr/local/bin/clang
+          sudo ln -sf /usr/bin/clang++-22      /usr/local/bin/clang++
+          sudo ln -sf /usr/bin/llvm-objdump-22 /usr/local/bin/llvm-objdump
           clang++ --version
+          llvm-objdump --version | head -n 2
+          cmake --version | head -n 1
+          ninja --version
 
       - name: Set up MSYS2 / Clang (Windows)
         timeout-minutes: 20
@@ -201,7 +222,7 @@ jobs:
       - name: Verify x86 ISA contract
         if: matrix.arch == 'x86_64'
         run: |
-          objdump=$(command -v llvm-objdump || command -v llvm-objdump-19 || true)
+          objdump=$(command -v llvm-objdump || true)
           python=$(command -v python3 || command -v python || true)
           [ -n "$objdump" ] || { echo "FAIL: llvm-objdump not found"; exit 1; }
           [ -n "$python" ] || { echo "FAIL: python not found"; exit 1; }
@@ -222,9 +243,9 @@ jobs:
       - name: Verify ARM64 ISA contract
         if: matrix.arch == 'aarch64'
         run: |
-          objdump=$(command -v llvm-objdump || command -v llvm-objdump-19 || command -v objdump || true)
+          objdump=$(command -v llvm-objdump || true)
           python=$(command -v python3 || command -v python || true)
-          [ -n "$objdump" ] || { echo "FAIL: no objdump found"; exit 1; }
+          [ -n "$objdump" ] || { echo "FAIL: llvm-objdump not found"; exit 1; }
           [ -n "$python" ] || { echo "FAIL: python not found"; exit 1; }
           binary="build/${{ matrix.preset }}/basilisk"
           [ -f "${binary}.exe" ] && binary="${binary}.exe"
@@ -242,7 +263,7 @@ jobs:
   # failure fails this job and never hides the bench agreement.
   flavors:
     name: build flavors (linux x86_64 pext)
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     steps:
       - name: Check out
@@ -250,14 +271,11 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install Clang and Ninja
-        timeout-minutes: 10
-        # clang-19 for libstdc++'s C++23 std::expected; see the test job.
+      - name: Select Clang 22
+        # Preinstalled on the image, with CMake and Ninja; see the test job.
         run: |
-          sudo apt-get update -q
-          sudo apt-get install -y clang-19 llvm-19 ninja-build cmake
-          sudo ln -sf /usr/bin/clang-19   /usr/local/bin/clang
-          sudo ln -sf /usr/bin/clang++-19 /usr/local/bin/clang++
+          sudo ln -sf /usr/bin/clang-22   /usr/local/bin/clang
+          sudo ln -sf /usr/bin/clang++-22 /usr/local/bin/clang++
           clang++ --version
 
       - name: Build and test diagnostic-only flavor
@@ -312,7 +330,7 @@ jobs:
   # passes its own tests.
   docs:
     name: documents
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     steps:
       - name: Check out
@@ -337,7 +355,7 @@ jobs:
 
   sanitize:
     name: sanitize (linux ASan+UBSan)
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 45
     steps:
       - name: Check out
@@ -345,16 +363,11 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install Clang and Ninja
-        timeout-minutes: 10
-        # clang-19 for the C++23 std::expected in libstdc++ (guarded behind
-        # __cpp_concepts >= 202002L, which clang-18 does not define); see the
-        # test job's install step for the full explanation.
+      - name: Select Clang 22
+        # Preinstalled on the image with its sanitizer runtimes; see the test job.
         run: |
-          sudo apt-get update -q
-          sudo apt-get install -y clang-19 ninja-build cmake
-          sudo ln -sf /usr/bin/clang-19   /usr/local/bin/clang
-          sudo ln -sf /usr/bin/clang++-19 /usr/local/bin/clang++
+          sudo ln -sf /usr/bin/clang-22   /usr/local/bin/clang
+          sudo ln -sf /usr/bin/clang++-22 /usr/local/bin/clang++
           clang++ --version
 
       - name: Configure and build (Debug, sanitizers)
@@ -373,7 +386,7 @@ jobs:
   # generated and consumed. Exercise the complete orchestrator on every CI run.
   gcc-pgo:
     name: GCC PGO (linux x86_64)
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     steps:
       - name: Check out
@@ -381,14 +394,9 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install GCC and Ninja
-        timeout-minutes: 10
-        run: |
-          sudo apt-get update -q
-          sudo apt-get install -y gcc-14 g++-14 ninja-build cmake
-          sudo ln -sf /usr/bin/gcc-14 /usr/local/bin/gcc
-          sudo ln -sf /usr/bin/g++-14 /usr/local/bin/g++
-          g++ --version
+      - name: Check GCC
+        # The image's default GCC (15), with CMake and Ninja, is preinstalled.
+        run: g++ --version
 
       - name: Build and train portable GCC PGO
         run: |
@@ -411,7 +419,7 @@ jobs:
     # Not skipped when one cell fails: every cell fingerprints before its later
     # checks, and a cell that never fingerprinted is reported missing below.
     if: ${{ !cancelled() }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     steps:
       - name: Download fingerprints
@@ -450,7 +458,7 @@ jobs:
     name: CI complete
     needs: [test, flavors, docs, sanitize, gcc-pgo, bench-agreement]
     if: ${{ always() }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     steps:
       - name: Every CI job succeeded

@@ -202,20 +202,42 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install Clang, LLVM and Ninja (Linux)
+      # Release binaries build on the older images, ubuntu-24.04 and macos-15,
+      # unlike CI: a dynamically linked Linux binary needs at least the glibc
+      # and libstdc++ it was built against, and a macOS binary at least the
+      # macOS version, so a newer build image would drop users on current
+      # systems. 24.04's newest Clang is 18, so Clang 19 is downloaded, its
+      # .deb files cached by image version: a slow Ubuntu mirror once timed
+      # this step out mid-download.
+      - name: Image version (Linux)
+        id: image
+        if: runner.os == 'Linux'
+        run: echo "version=$ImageVersion" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Clang packages (Linux)
+        if: runner.os == 'Linux'
+        uses: actions/cache@v6
+        with:
+          path: ~/apt-debs
+          key: clang-19-${{ matrix.runner }}-${{ steps.image.outputs.version }}
+          restore-keys: clang-19-${{ matrix.runner }}-
+
+      - name: Install Clang and LLVM (Linux)
         timeout-minutes: 10
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get update -q
-          # clang-19, NOT the distro-default clang-18. All Linux runners here are
-          # 24.04 (ubuntu-24.04 + ubuntu-24.04-arm). The engine returns
+          # clang-19, NOT the distro-default clang-18. The engine returns
           # std::expected (C++23, added in 8.6); on Linux clang uses libstdc++,
           # whose <expected> body is guarded behind __cpp_concepts >= 202002L.
           # clang-18 only defines 201907L, so the header is empty and the build
           # fails ("no template named 'expected'"). clang-19 defines 202002L.
           # Keeps clang + libstdc++, so the shipped binary is dynamically linked
-          # and portable exactly as before (bench 11,941,440 unchanged).
-          sudo apt-get install -y clang-19 llvm-19 ninja-build
+          # and portable exactly as before. The image has CMake and Ninja.
+          mkdir -p ~/apt-debs
+          sudo cp ~/apt-debs/*.deb /var/cache/apt/archives/ 2>/dev/null || true
+          sudo apt-get update -q
+          sudo apt-get install -y clang-19 llvm-19
+          cp /var/cache/apt/archives/*.deb ~/apt-debs/ 2>/dev/null || true
           sudo ln -sf /usr/bin/clang-19   /usr/local/bin/clang
           sudo ln -sf /usr/bin/clang++-19 /usr/local/bin/clang++
           clang++ --version
