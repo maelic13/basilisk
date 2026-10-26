@@ -1394,6 +1394,31 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       boundaries, and the cost in games), then a design. It changes the
       evaluation during the freeze, so a repair needs the maintainer's
       B.10-style admission.
+      - Research 2026-10-26: over 26,574 gate and read games, about 1.3% of
+        `3+0.03` games and 0.3% at `10+0.1` entered an override from a
+        position with a pawn, almost always by underpromotion; the strong
+        side then drew 17 of 352 (4.8%) positions a queen wins. The cause:
+        queen and rook mates scored ordinarily (about 2,400 for KQB-K)
+        under KBNK's 15,600 and KXK's 10,650. RAR-E53/E54 are not in the
+        pinned snapshots, so the design rests on Basilisk's own rule that
+        more material never scores lower against a bare king.
+      - Admitted into the freeze and implemented (`fdf4277`, maintainer
+        decision 2026-10-26): tiers by the winner's strongest piece, queen
+        (28,700 to 31,742) above rook (26,100 to 28,699) above the
+        minor-piece mates. The queen and rook tiers carry the ordinary
+        score; KBNK keeps its weights with its base at `KNOWN_WIN`; pawns
+        add 3 each within a minor tier.
+      - Screens: tiers with only a small drive lost KR-K (2/4) and left a
+        wandering queen in a tablebase analysis line, so the queen and rook
+        tiers carry the ordinary score; then KQ-K 4/4, KR-K 4/4, KBB-K 6/6,
+        KBN-K 6/6 and the WAC floor hold. On the 342 positions where games
+        underpromoted, `master` still underpromotes in 337; the candidate
+        in none (289 queen promotions). `bench 13` 7,857,713 (+6.4%); the
+        legacy arm 23,696,970; CTest ON 24/24, OFF 21/21; a `test_eval`
+        section on promotion order and pawn shedding fails on the old
+        evaluation.
+      - Gate BAS-S32, `[-5,5]`, launcher `tools/run_a119_gate.ps1`,
+        maintainer-run; dry run accepted.
     - [ ] **A.11.10** `[R2]` Fail-soft quiescence
       (B-19) Pulled forward from B.4 by maintainer decision 2026-10-26, so
       that B.3 is not fitted around a known defect. Quiescence fails hard:
@@ -2306,7 +2331,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.11.9 | RESEARCH | R2 | Override boundaries; research first |
+| A.11.9 | GAME_GATE | R2 | Bare-king tiers by material; gate BAS-S32 prepared |
 | A.11.10 | RESEARCH | R2 | Fail-soft quiescence, pulled forward from B.4; research first |
 | A.12 | RESEARCH | M | Roadmap rules for the maintainer to decide |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |
