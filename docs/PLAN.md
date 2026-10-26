@@ -340,9 +340,9 @@ coordinate) is not a defect; its owner decides. IDs are the Rarog audit's
 
 | Owner | Defects |
 |---|---|
-| A.11.7–A.11.9 | C-3 colour tie-break; A-26 and A-31 info lines; C-9 override jumps that reward shedding material |
+| A.11.7–A.11.10 | C-3 colour tie-break; A-26 and A-31 info lines; C-9 override jumps that reward shedding material; B-19 fail-hard quiescence, which also lets the equal-score tie rule promote refuted moves near the leaves |
 | B.3 | B-12 a move stored at fail-low nodes; B-14 correction training refuses decisive results; B-45 the singular margin's range excludes the donor's value; B-109 ablation bit 6 also removes the check extension |
-| B.4 | B-19 fail-hard quiescence, which also lets the equal-score tie rule promote refuted moves near the leaves; B-17 the dead SEE clamp |
+| B.4 | B-17 the dead SEE clamp |
 | B.5 (with D.1) | the fail-high stop's hole: a window that never returns is never checked (A-47; `analysis/b5_failhigh_stop_2026-10-25.md` §2.3) |
 | C.2.1–C.2.2 | C-1 the tuner's missing scalers; C-2 `--verify` cannot fail; C-8 the extractor's de-dup ignores the clock; C-26 to C-30 the data pipeline (book, sampler, split, labels, row identity); C-49 K refitted per run |
 | C.3–C.7 | C-10 outpost ranks; C-11 a rear doubled passer scored as a passer; C-12 "opposed" read over the whole file; C-13 own-colour king blockers only |
@@ -1344,6 +1344,31 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       boundaries, and the cost in games), then a design. It changes the
       evaluation during the freeze, so a repair needs the maintainer's
       B.10-style admission.
+    - [ ] **A.11.10** `[R2]` Fail-soft quiescence
+      (B-19) Pulled forward from B.4 by maintainer decision 2026-10-26, so
+      that B.3 is not fitted around a known defect. Quiescence fails hard:
+      a fail-low returns `alpha` (delta pruning and the final return in
+      `quiescence`, `search_kernel_core.cpp`). The exact `alpha` echoes up
+      the tree. Root fail-highs then equal beta and drive aspiration
+      cascades (93% of Rarog's), and inside the equal-score tie rule's
+      window (`ply + 2 >= root_depth_`) an "equal" score is usually a
+      bound, so below the root a refuted move becomes the node's best move
+      one time in eight (A.11.6 kept the root out). Stockfish's quiescence
+      is fail-soft throughout.
+      - Research first. The only record of the earlier attempts is two
+        comments in `quiescence`: a fail-soft delta-pruning return broke the
+        KBNK fixed-depth conversion canary, and seeding the final store from
+        the TT-tightened stand-pat turned a KQK mate in 5 into `mate 63`,
+        because a stand-pat raised by a lower bound is not an upper bound.
+        Each changed one return alone. Re-measure both, then specify every
+        return, the stand-pat tightening and the stored bounds together,
+        against Stockfish's.
+      - Obligations: the KBNK and KQK fixtures and their mate distances, the
+        conversion floors, WAC, bench accounting, and a diagnostic count of
+        tie-rule promotions of a bound, read before and after.
+      - Gate: a `[-5,5]` repair SPRT. RFP, razoring and aspiration were
+        fitted on fail-hard values; B.3 to B.5 refit them on the repaired
+        search.
 - [ ] **A.12** `[M]` Roadmap rules from the audit
   Added 2026-10-24, for the maintainer to decide one by one: Rarog rule 7c's
   amendment of 2026-10-20 (a near-optimum surface may be tuned as one longer
@@ -2039,6 +2064,8 @@ rejections stop B.
     (B-19; 93% of Rarog's root fail-highs equalled beta). Fail-soft, with the
     KBNK and KQK mate-distance fixtures as obligations; the tablebase band
     reachable without tables (B-87).
+    - Pulled forward to A.11.10 (maintainer decision 2026-10-26); B.4
+      fits on the repaired quiescence.
     - A defect, not an option: fail-hard is to be replaced. The earlier
       fail-soft attempts broke those fixtures; the fixtures bind the fix,
       they are not a reason to keep the defect.
@@ -2232,6 +2259,7 @@ leaf's tag. Later phases carry only a class until they open.
 | A.11.7 | READY_FOR_IMPLEMENTATION | I1 | Colour symmetry tie-break and sweep |
 | A.11.8 | READY_FOR_IMPLEMENTATION | I1 | Last info line after a stop; mate scores printed as cp |
 | A.11.9 | RESEARCH | R2 | Override boundaries; research first |
+| A.11.10 | RESEARCH | R2 | Fail-soft quiescence, pulled forward from B.4; research first |
 | A.12 | RESEARCH | M | Roadmap rules for the maintainer to decide |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |
 | B.4 | RESEARCH | I2 | Contents fixed by B.0 |
