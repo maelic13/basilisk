@@ -345,7 +345,7 @@ coordinate) is not a defect; its owner decides. IDs are the Rarog audit's
 | B.4 | B-17 the dead SEE clamp |
 | B.5 (with D.1) | the fail-high stop's hole: a window that never returns is never checked (A-47; `analysis/b5_failhigh_stop_2026-10-25.md` §2.3) |
 | C.2.1–C.2.2 | C-1 the tuner's missing scalers; C-2 `--verify` cannot fail; C-8 the extractor's de-dup ignores the clock; C-26 to C-30 the data pipeline (book, sampler, split, labels, row identity); C-49 K refitted per run |
-| C.3–C.7 | C-10 outpost ranks; C-11 a rear doubled passer scored as a passer; C-12 "opposed" read over the whole file; C-13 own-colour king blockers only |
+| C.3–C.7 | C-10 outpost ranks; C-11 a rear doubled passer scored as a passer; C-12 "opposed" read over the whole file; C-13 own-colour king blockers only; the pawnless scaler's near-draw factor, 4/64 where the donor gives 14/64 (found with A.11.7) |
 | D.1, D.4 | A-46 reserve arithmetic; A-57 cold table reads on the clock; A-58 and A-59 tablebase root ranking |
 | D.2 | BAS-C05 the TT key and payload published separately |
 | D.3.1 | A-2 and A-3 SEE's created pins and promotion recaptures (BAS-C09) |
@@ -1308,6 +1308,29 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       found twelve asymmetric evaluations (its C.13.1, among them a
       connected-rooks bug). Add a sweep over a versioned sample with promoted
       and odd material.
+      - Implemented 2026-10-26 (`d5442f8`): the scaler takes the winning
+        side from the score's sign (`score > 0`), as Stockfish's
+        `eg > VALUE_DRAW`. Besides the tie, the totals could disagree with
+        the score, and then the richer side's lack of pawns scaled the other
+        side's advantage.
+      - Tests in `test_eval`: an equal-totals position (R+N+B against Q and
+        two pawns) equals its mirror, where the old scaler gave −9 against
+        −150; a sweep over 3,149 positions (the bench and WAC positions, ten
+        odd- and promoted-material positions, each with a seeded eight-ply
+        walk, `std::mt19937_64`) finds none asymmetric, where the old scaler
+        gave nine. No other asymmetry was found.
+      - `bench 13` 7,384,101 (from 7,233,823); the legacy arm 17,606,287
+        (from 15,887,213), since the evaluation is shared; CTest ON 24/24,
+        OFF 21/21.
+      - It changes the evaluation, so it owes the repair gate: BAS-S31,
+        launcher `tools/run_a117_gate.ps1`, maintainer-run; the dry run waits
+        for an idle host.
+      - Found beside it, not changed: the same scaler's near-draw factor
+        reads `npm(weak) > 0 ? 4 : 14` where the donor has
+        `npm(weak) <= BishopValueMg ? 4 : 14`
+        (`sf9587-ks/src/material.cpp`). Ours scales a weaker side holding a
+        rook (KRBKR, KRNKR) to 4/64 where the donor gives 14/64, and our 14
+        is unreachable.
     - [ ] **A.11.8** `[I1]` Info lines: bestmove after a stop, mate scores as cp
       (A-26, A-31) After 3 s the aspiration loop prints a `lowerbound` line
       for a new move that is failing high (`search_worker.cpp:450-459`); a
@@ -2256,7 +2279,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.11.7 | READY_FOR_IMPLEMENTATION | I1 | Colour symmetry tie-break and sweep |
+| A.11.7 | GAME_GATE | I1 | Colour symmetry tie-break and sweep; gate BAS-S31 prepared |
 | A.11.8 | READY_FOR_IMPLEMENTATION | I1 | Last info line after a stop; mate scores printed as cp |
 | A.11.9 | RESEARCH | R2 | Override boundaries; research first |
 | A.11.10 | RESEARCH | R2 | Fail-soft quiescence, pulled forward from B.4; research first |
