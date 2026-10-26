@@ -73,6 +73,21 @@ experiment by `agents/research.md`, *Experiment design*, before it runs.
   prior and say why. A removal or simplification uses `[-5,0]`; a repair of
   unknown sign uses a symmetric bracket. Size the cap from the drift model at
   the expected value first.
+- **Fit the gate to the change; never copy the last launcher's method or
+  cap.** The registration names the question the games must answer, the
+  cheapest method that answers it, and why:
+  - a strength claim: the SPRT bracket above, its cap from the drift model
+    at the expected value;
+  - a repair kept unless it harms (H1 and the cap both keep it): the only
+    question is whether it costs Elo, and its exposure bounds the answer.
+    Measure the exposure first -- how often the changed condition arises
+    in recent gate games -- and cap the `[-5,5]` SPRT where further games
+    could no longer change the decision: about 1,500 pairs (about ±6.5
+    Elo) for a change that touches under 2% of games, more only when the
+    exposure could carry a measurable effect;
+  - a change that cannot alter a move (output, logging): no games.
+  BAS-S32 and BAS-S33 ran 4,000-pair caps, copied from a template, on
+  changes touching about 1% of games.
 - High bounds reject small gains. That is overnight compute: budget the games,
   do not widen the bounds or poll.
 - Bench and counter screens choose candidates and never accept strength. Do

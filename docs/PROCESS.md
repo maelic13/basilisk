@@ -177,8 +177,8 @@ structures hide.
    contradicts the planned order.
 2. **Register** — an EXPERIMENTS entry with hypothesis, baseline revision,
    candidate scope, expected direction, gate, cap and stop rule, before
-   games. Bounds default to `[0,3]` nElo; size the cap from the drift model at
-   the expected value.
+   games. Bounds default to `[0,3]` nElo; the method and cap fit the change
+   (`agents/measurement.md` *Gating*).
 3. **Implement** — the smallest dependency-complete cluster, behind its
    umbrella switch (below).
 4. **Prove correctness** — release and ASan/UBSan CTest on both arms, the
