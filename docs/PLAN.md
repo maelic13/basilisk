@@ -1331,7 +1331,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         (`sf9587-ks/src/material.cpp`). Ours scales a weaker side holding a
         rook (KRBKR, KRNKR) to 4/64 where the donor gives 14/64, and our 14
         is unreachable.
-    - [x] **A.11.8** `[I1]` Info lines: bestmove after a stop, mate scores as cp
+    - [ ] **A.11.8** `[I1]` Info lines: bestmove after a stop, mate scores as cp
       (A-26, A-31) After 3 s the aspiration loop prints a `lowerbound` line
       for a new move that is failing high (`search_worker.cpp:450-459`); a
       hard-limit or GUI stop then discards the iteration (`:515`), `bestmove`
@@ -1355,7 +1355,8 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         entry produced it.
       - If the cause is in the search rather than the display, the leaf
         owes bench accounting and A.11's repair SPRT.
-      - Closed 2026-10-26 (`accaac0`), output only, `bench 13` exact:
+      - Done 2026-10-26 (`accaac0`), output only, `bench 13` exact; ticked
+        when A.11.7 closes, since leaves close in order:
         - The search records the first move of its last line-1 `info` and,
           when `bestmove` names another, repeats the result's line (Rarog's
           rule). At a tablebase root a failed window prints the move's
@@ -2303,6 +2304,7 @@ leaf's tag. Later phases carry only a class until they open.
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
 | A.11.7 | GAME_GATE | I1 | Colour symmetry tie-break and sweep; gate BAS-S31 prepared |
+| A.11.8 | LOCAL_QUALIFIED | I1 | Done, output only; ticks when A.11.7 closes |
 | A.11.9 | RESEARCH | R2 | Override boundaries; research first |
 | A.11.10 | RESEARCH | R2 | Fail-soft quiescence, pulled forward from B.4; research first |
 | A.12 | RESEARCH | M | Roadmap rules for the maintainer to decide |
