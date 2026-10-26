@@ -341,6 +341,7 @@ coordinate) is not a defect; its owner decides. IDs are the Rarog audit's
 | Owner | Defects |
 |---|---|
 | A.11.10 | B-19 fail-hard quiescence, which also lets the equal-score tie rule promote refuted moves near the leaves |
+| A.13.1–A.13.2 | F1 a won KPK scaled to a draw by the pawnless scaler; F3 the PV copy's read past `pv_len` (`analysis/code_audit_2026-10-27.md`) |
 | B.3 | B-12 a move stored at fail-low nodes; B-14 correction training refuses decisive results; B-45 the singular margin's range excludes the donor's value; B-109 ablation bit 6 also removes the check extension |
 | B.4 | B-17 the dead SEE clamp |
 | B.5 (with D.1) | the fail-high stop's hole: a window that never returns is never checked (A-47; `analysis/b5_failhigh_stop_2026-10-25.md` §2.3) |
@@ -375,7 +376,9 @@ fixes, correctness repairs and rules no other phase owns. They were added
 after B.2 and B.10 closed, so the phase is marked `(EXTENDED)`. They run in
 order, and all of Phase A closes before B.3 opens (maintainer decision
 2026-10-24, which also renumbered them; HISTORY's *Number map* resolves the
-first numbering). Each step is reviewed with the maintainer when it is
+first numbering). A.13–A.15, added 2026-10-27 from the code audit of the
+engine's crucial paths (`analysis/code_audit_2026-10-27.md`), follow them
+in the same order and under the same rule. Each step is reviewed with the maintainer when it is
 reached; its resolution may be a fix, an improvement or a skip. Rarog's
 Phase A also cut a release; 1.10.1 was cut the day before this plan, so
 Phase A has no release step.
@@ -1472,6 +1475,21 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       - Gate: a `[-5,5]` repair SPRT. RFP, razoring and aspiration were
         fitted on fail-hard values; B.3 to B.5 refit them on the repaired
         search.
+      - Audit input (2026-10-27, `analysis/code_audit_2026-10-27.md` §2
+        F2): the returns and stores that must change together — the
+        node-type-free TT cutoff, which lets a PV quiescence node take a
+        depth-0 bound (B-27); the stand-pat tightened by decisive TT
+        bounds, which negamax's refinement excludes; the delta-pruning
+        return that stores nothing; the final exact-or-upper store of
+        `alpha`, where the donor stores only lower or upper bounds of the
+        fail-soft best. H1: the KQK `mate 63` came from the PV-node bound
+        cutoff consuming the upper bounds a fail-soft store seeds from a
+        lower-bound-tightened stand-pat, not from fail-soft itself;
+        falsified if the donor's form with the PV exclusion still breaks
+        the KQK and KBNK fixtures. The tie rule's `(nodes & 14) == 0`
+        fires one node in eight against the donor's `& 15`; the leaf
+        decides it with the rule. The counter it needs: tie-rule
+        promotions of a bound echo (`score == alpha`) against exact ties.
 - [ ] **A.12** `[M]` Roadmap rules from the audit
   Added 2026-10-24, for the maintainer to decide one by one: Rarog rule 7c's
   amendment of 2026-10-20 (a near-optimum surface may be tuned as one longer
@@ -1482,6 +1500,141 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
   and whether `agents/research.md`'s snapshot-only rule for reading Rarog gets
   a standing exception for audits the maintainer asks for (waived for the
   2026-10-24 audit).
+- [ ] **A.13** Correctness repairs from the code audit
+  Added 2026-10-27 from the audit of the engine's crucial paths
+  (`analysis/code_audit_2026-10-27.md`; its items are F1–F5). The same
+  rules as A.11: each repair is its own engine commit with a test that
+  fails on the old code, bench accounting for any fingerprint move, CTest
+  on both arms, and a registered `[-5,5]` repair SPRT when play changes
+  unless the leaf argues none is owed. The legacy kernel is not fixed.
+    - [ ] **A.13.1** `[I1]` Won KPK scores as a win
+      (F1) `apply_endgame` keeps the tapered score of a KPK the bitbase
+      calls won (`eval.cpp:753`); when that score favours the bare king,
+      the pawnless scaler takes the bare king as the strong side (`:833`,
+      A.11.7's sign rule) and scales a won ending to 0. Measured against
+      Syzygy on all 662,704 legal KPK positions: the bitbase agrees on
+      every one, the engine serves 0 for 2,022 wins (0.31%, mostly a
+      second-rank pawn with the lone king adjacent;
+      `8/8/8/8/8/8/Pk6/3K4 w - - 0 1`, pre-scaler −28). Repair, in the
+      donor's form: a won KPK returns a definite win from the pawn side's
+      view (`KNOWN_WIN` plus a rank drive, under the bare-king cap) before
+      any scaler, and the scaler's invariant is made explicit: a side
+      with only a king is never the strong side. Test: a `test_endgames`
+      section over every legal KPK position against a bundled
+      `KPvK.rtbw` fixture (7,824 bytes, beside the KQvK one in
+      `tests/fixtures/syzygy/`): the evaluation's sign equals the WDL
+      verdict and no won position scores below `KNOWN_WIN`; on the old
+      code it fails at 2,022 positions. Invariants: white perspective
+      and both evaluation paths in `apply_endgame`; the value stays below
+      `BARE_KING_QUEEN_TIER` (the promotion closure); the KBP
+      wrong-bishop rule is unchanged. It changes the evaluation during
+      the freeze and needs the maintainer's admission as A.11.7 and
+      A.11.9 had; bench accounting (the bench suite's pawn ending can
+      reach KPK), and the repair SPRT if the fingerprint moves.
+    - [ ] **A.13.2** `[I1]` PV copy reads past the per-ply length array
+      (F3) At `ply == MAX_PLY - 1` a move that raises alpha reads
+      `state_.pv_len[ply + 1]` (`search_kernel_core.cpp:1272`), one past
+      `int pv_len[MAX_PLY]` (`search_worker.h:135`); the value is clamped
+      to `MAX_PLY`, so play is unaffected and the read is undefined
+      behaviour only. Size the array `MAX_PLY + 1` or guard the copy;
+      exact fingerprint on both arms; no gate. No fixed-depth test
+      reaches ply 127 without exposing `negamax`, so the leaf records
+      that exemption and the sanitizer CTest job stands for the proof.
+- [ ] **A.14** Simplifications from the code audit
+  Added 2026-10-27 (`analysis/code_audit_2026-10-27.md` §3, from a
+  mechanical census of `00809cc`). Behaviour-neutral: exact fingerprint,
+  CTest, and a pooled NPS read only where a hot path is touched (neither
+  leaf touches one). The audit found engine duplication negligible, the
+  language work done by A.8.12, and the long kernel and evaluator
+  functions best left whole until B.3–B.5 and C.1 rewrite them; the
+  smaller cleanups it found are folded into B.8, D.3.1 and D.3.2.
+    - [ ] **A.14.1** `[I1]` Delete the legacy kernel now
+      Maintainer decision first: the 2026-10-24 decision keeps the
+      `-DB2_CORE=OFF` kernel compilable until B.8; the audit's case for
+      deleting it now is about 1,900 lines and a CI cell — the four legacy
+      `.cpp` files (1,462 lines), `history.h` and `move_picker.h` (290),
+      the eight `#else` arms of `search_worker.h`, `search_types.h`,
+      `tt.h`, `search_params.h`, `search_diagnostics.h` and
+      `uci_protocol.cpp` (123), the legacy branches of `test_search` and
+      `test_tt` (48), the ten `DiagCounters` fields and 20 X-macro lines
+      only it writes, the `B2_CORE` option with its CMake and CI arms,
+      the `+legacy` id suffix, and the second fingerprint every leaf
+      record carries — against a comparison role that ended when B.2.4
+      accepted the core (`git` keeps the code). Exact `bench 13` on the
+      remaining arm; CTest 24/24; the sanitizer and flavour CI jobs
+      unchanged; DESIGN and PROCESS lose their legacy-arm sentences. If
+      the maintainer declines, the leaf closes `NO_CHANGE` and B.8 keeps
+      the clause.
+    - [ ] **A.14.2** `[I1]` One definition of the score bands
+      `MATE_SCORE` and `MAX_PLY` are defined in `tt.h:106-107` and
+      `search_types.h:18-19`, and `KBNK_STATIC_MATE_FLOOR` is a literal in
+      `eval.h`, held equal by static asserts in `search_worker.cpp:28` and
+      `tests/test_endgames.cpp:33`; DESIGN §3 calls the pair a silent
+      corruption waiting for a change to one. `constants.h` already holds
+      the tablebase band for the same reason and depends on nothing.
+      Move `MATE_SCORE`, `MAX_PLY`, `INF_SCORE`/`INF_EVAL` and
+      `VALUE_NONE`/`NO_SCORE` there, derive the KBNK floor from them,
+      delete the duplicates and the asserts that only pinned them, and
+      update DESIGN §3's sentence. Exact fingerprint on both arms; CTest.
+- [ ] **A.15** Universal binaries and the release runners
+  Added 2026-10-27 at the maintainer's request
+  (`analysis/code_audit_2026-10-27.md` §4). Stockfish 19 (2026-09-05)
+  ships one fat binary per OS and architecture — every ISA level a full
+  PGO build in its own namespace, dispatched once at `main` — in place of
+  the 27 per-ISA assets of Stockfish 18. Basilisk ships nine per-ISA
+  assets. Its GitHub runner labels were checked on 2026-10-27 and are all
+  current (`ubuntu-26.04` and `-arm` for CI, `ubuntu-24.04` for the Linux
+  release cells, `windows-2025`, `windows-11-arm`, `macos-26`; none
+  deprecated), so the runners need no label change; the leaves are the
+  design, the measurement that decides it, and the hygiene the check
+  found.
+    - [ ] **A.15.1** `[R2]` Universal x86-64 binary: design packet
+      Write `analysis/universal_binary_2026-10.md` from the audit's §4:
+      the Stockfish 19 mechanism (`src/universal/`, the
+      `universal-object-pgo` target, renamed init sections, the
+      baseline-first link, the SDE selection matrix) and Basilisk's form
+      of it — one `BASILISK_NS` namespace wrap (behaviour-neutral, exact
+      fingerprint), Fathom built once at baseline, constant-initialised
+      globals in `syzygy.cpp`, per-tier clang profiles with one LTO link,
+      `src/main.cpp` as the baseline dispatcher with a `BASILISK_ISA`
+      override, `verify_isa.py`'s contract for shared code, the tier
+      namespaces and the whole image, the SDE test matrix, PGO liveness
+      per tier — with the traps (first-wins symbols, early initialisers,
+      profiles matched by mangled name; D-72) and the costs (three builds
+      per x86 cell, 5–6 MB assets, nine assets to five). It rejects
+      function multiversioning (no IFUNC on COFF; it forfeits the
+      whole-engine codegen the tier flags give), macOS universal2 (Intel
+      macOS ends with macOS 26) and a launcher process, each with its
+      reason. The decision rule for building it is frozen here, before
+      A.15.2 reads (proposed; the maintainer may amend it before the
+      read): pulled into Phase A if the pext-over-portable ladder is at
+      least 3% pooled NPS (about 6 Elo for a user on the wrong asset);
+      otherwise G.2 builds it when Phase F's SIMD tiers arrive. No engine
+      source changes.
+    - [ ] **A.15.2** `[V]` The ISA tier ladder measured
+      (D-24) Pooled-PGO NPS of the portable, avx2 and pext tiers on the
+      5950X: four builds per tier, interleaved cycles, a null pair first,
+      each hop read directly rather than chained (`tools/nps_pool.ps1`,
+      `tools/nps_read.ps1`). Priors: Rarog read avx2 +4.59% over base and
+      pext +2.45% over avx2; Basilisk's avx2 tier has no intrinsics, so
+      its ladder may be smaller. Registered before the read with A.15.1's
+      rule; maintainer-run; the result decides whether G.2's build is
+      pulled forward.
+    - [ ] **A.15.3** `[I1]` Tier advisory, ISA contract and toolchain pins
+      (D-25, A-36, taken over from D.3.2) `src/main.cpp` prints an
+      `info string` on stdout when a lower tier runs on a CPU that could
+      run a higher one, naming the asset, and the refusal of an
+      incompatible tier goes to stdout too (today stderr only), with a
+      unit truth table beside `test_cpu_features`; `tools/diag/
+      verify_isa.py`'s portable set forbids SSE4.1, AVX1 and BMI1
+      mnemonics (`andn`, `tzcnt`) as it forbids `popcnt`, checked once
+      with a planted instruction; `release.yml` and `ci.yml` pin the
+      macOS Xcode major as `.github/windows-clang-version` pins clang,
+      and drop the stale `brew install ninja` step and comment (the
+      `macos-26` image ships Ninja); the Linux release cells record
+      their plan for a baseline `libstdc++.a` after `ubuntu-24.04`
+      retires. Exact fingerprint; a release dispatch run proves the
+      matrix.
 
 ## Phase B — Search programme (evaluation frozen)
 
@@ -2326,6 +2479,15 @@ rejections stop B.
     (B-13, counted first); read NPS after the deletions, which paid +1-6% in
     Rarog (D-18); Rarog's cleanup pitfalls (B-120); retired numbers in
     comments go with A.10.6.
+  Code audit inputs (2026-10-27, `analysis/code_audit_2026-10-27.md` §3):
+  - The unreferenced `Board::compute_hash`; the engine-layer includes of
+    `uci_output.h` from `bench.cpp`, `engine.cpp`, `parameters.cpp` and
+    `wac.cpp` (an output sink that belongs below the protocol, or an
+    injected writer); `DecisionTrace::record`'s fourteen positional
+    arguments (B.2.0's F20); the ten legacy-only counters and twenty
+    X-lines if A.14.1 was declined; named helpers for `negamax`'s move
+    loop (1,084 lines at the audit) only under the exact fingerprint and
+    the NPS floor.
 - [ ] **B.9** `[V]` Search programme checkpoint
   Checkpoint: re-measure every deficit meter.
   The meters are G(0) against the oracle, fixed-node depth and branching,
@@ -2361,6 +2523,13 @@ leaf's tag. Later phases carry only a class until they open.
 |---|---|---|---|
 | A.11.10 | RESEARCH | R2 | Fail-soft quiescence, pulled forward from B.4; research first |
 | A.12 | RESEARCH | M | Roadmap rules for the maintainer to decide |
+| A.13.1 | READY_FOR_IMPLEMENTATION | I1 | Won KPK scores as a win; needs the maintainer's freeze admission |
+| A.13.2 | READY_FOR_IMPLEMENTATION | I1 | PV copy's read past `pv_len`; exact fingerprint |
+| A.14.1 | RESEARCH | I1 | Delete the legacy kernel now; the maintainer decides against the 2026-10-24 decision |
+| A.14.2 | READY_FOR_IMPLEMENTATION | I1 | Score bands defined once in constants.h; exact fingerprint |
+| A.15.1 | RESEARCH | R2 | Universal binary design packet; the decision rule frozen before A.15.2 |
+| A.15.2 | RESEARCH | V | The portable/avx2/pext NPS ladder; maintainer-run after registration |
+| A.15.3 | READY_FOR_IMPLEMENTATION | I1 | Tier advisory, verify_isa portable set, Xcode pin, stale ninja step |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |
 | B.4 | RESEARCH | I2 | Contents fixed by B.0 |
 | B.5 | RESEARCH | I2 | Contents fixed by B.0 |
@@ -2858,9 +3027,18 @@ has lost games in both engines (BAS-X02).
       IDs are its items):
       - A deep-line stack test (A-25); abort-sweep tests (A-65); command
         fuzzing (A-67); MultiPV stopped-search tests (D-73); seldepth excludes
-        qsearch plies (B-122); the CPU-tier message on stdout and a slow-PEXT
-        advisory (A-36, D-25); 1.2.3's two illegal-move games replayed on the
-        current binary (A-69); Fathom thread safety (A-61).
+        qsearch plies (B-122); 1.2.3's two illegal-move games replayed on the
+        current binary (A-69); Fathom thread safety (A-61). The CPU-tier
+        message and the slow-PEXT advisory (A-36, D-25) moved to A.15.3.
+      Code audit inputs (2026-10-27, `analysis/code_audit_2026-10-27.md`
+      F4), each decided against the protocol with a test: a bare `go`
+      searches to depth 7 where Stockfish searches until `stop`; `go mate
+      N` caps the depth at `2N - 1` where Stockfish searches until the mate
+      is found; a `stop` received between two searches makes the next `go
+      infinite` or `go ponder` answer at once with the first legal move
+      (`engine.cpp:277-281`), where Stockfish clears the flag when the
+      search starts; a `SyzygyPath` whose `tb_init` failed cannot be
+      retried with the same text (`engine.cpp:93-100`).
 - [ ] **D.4** `[R2]` Tablebase policy
   Probe depth and limits, WDL and DTZ in conversion, interaction with C.5's
   recognizers; the root and PV lines already follow Stockfish (BAS-C13), and
@@ -2988,6 +3166,9 @@ fallback, which is why the archived "optional HCE fallback" phase is dropped.
   - The ISA tier ladder measured, not chained (D-24); the ARM contract goes
     with A.10.4; the universal-binary design notes and traps (D-72); a
     slow-PEXT advisory (D-25).
+  The universal binary's design is A.15.1's packet and its go/no-go is
+  A.15.2's ladder under A.15.1's frozen rule (2026-10-27); G.2 builds it
+  unless A.15.2 pulled it into Phase A, and the advisory is A.15.3's.
 - [ ] **G.3** `[R3]` Frontier
   Larger nets, data scaling, search fit at LTC, rejected classical mechanisms
   reopened only where the NNUE fires their retry trigger (archived 12.1); the

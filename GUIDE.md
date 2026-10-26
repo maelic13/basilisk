@@ -91,6 +91,16 @@ generations change. These are maintainer judgments, not measured rankings.
     - [x] **A.11.9** `[R2]` Override boundaries never reward shedding material
     - [ ] **A.11.10** `[R2]` Fail-soft quiescence
 - [ ] **A.12** `[M]` Roadmap rules from the audit
+- [ ] **A.13** Correctness repairs from the code audit
+    - [ ] **A.13.1** `[I1]` Won KPK scores as a win
+    - [ ] **A.13.2** `[I1]` PV copy reads past the per-ply length array
+- [ ] **A.14** Simplifications from the code audit
+    - [ ] **A.14.1** `[I1]` Delete the legacy kernel now
+    - [ ] **A.14.2** `[I1]` One definition of the score bands
+- [ ] **A.15** Universal binaries and the release runners
+    - [ ] **A.15.1** `[R2]` Universal x86-64 binary: design packet
+    - [ ] **A.15.2** `[V]` The ISA tier ladder measured
+    - [ ] **A.15.3** `[I1]` Tier advisory, ISA contract and toolchain pins
 
 ### Phase B — Search programme (evaluation frozen)
 
