@@ -243,9 +243,10 @@ jobs:
       - name: Verify ARM64 ISA contract
         if: matrix.arch == 'aarch64'
         run: |
-          objdump=$(command -v llvm-objdump || true)
+          # macOS has no llvm-objdump on PATH; its objdump is Xcode's LLVM one.
+          objdump=$(command -v llvm-objdump || command -v objdump || true)
           python=$(command -v python3 || command -v python || true)
-          [ -n "$objdump" ] || { echo "FAIL: llvm-objdump not found"; exit 1; }
+          [ -n "$objdump" ] || { echo "FAIL: no objdump found"; exit 1; }
           [ -n "$python" ] || { echo "FAIL: python not found"; exit 1; }
           binary="build/${{ matrix.preset }}/basilisk"
           [ -f "${binary}.exe" ] && binary="${binary}.exe"
