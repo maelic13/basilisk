@@ -278,7 +278,7 @@ target_include_directories(test_fatal_report PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
 # ---------------------------------------------------------------------------
 # Evaluator tests
 # ---------------------------------------------------------------------------
-add_executable(test_eval tests/test_eval.cpp)
+add_executable(test_eval tests/test_eval.cpp src/bench.cpp src/wac.cpp)
 target_link_libraries(test_eval PRIVATE basilisk_engine)
 
 # ---------------------------------------------------------------------------

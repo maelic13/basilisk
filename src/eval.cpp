@@ -793,10 +793,10 @@ static int apply_endgame(const Board& b, int score) {
 
         // ---- Winning side has no pawns and at most a minor-piece advantage:
         // it cannot force mate (KmK, KmKm, KRKm, ...). Standard SF heuristic.
+        // The winning side is the one the score favours, as in Stockfish; by
+        // material totals, equal totals always made it White.
         {
-            int w_tot = npm(WHITE) + cnt[WHITE][PAWN] * EG_MAT[PAWN];
-            int b_tot = npm(BLACK) + cnt[BLACK][PAWN] * EG_MAT[PAWN];
-            Color strong = (w_tot >= b_tot) ? WHITE : BLACK;
+            Color strong = (score > 0) ? WHITE : BLACK;
             if (cnt[strong][PAWN] == 0
                 && npm(strong) - npm(~strong) <= EG_MAT[BISHOP]) {
                 int scale;

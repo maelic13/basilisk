@@ -8,17 +8,21 @@
 ///   cmake --build --preset release --target test_eval
 ///   ./build/release/test_eval
 
+#include "bench.h"
 #include "board.h"
 #include "eval.h"
 #include "attacks.h"
 #include "bitboard.h"
+#include "wac.h"
 #include "zobrist.h"
 #include "test_harness.h"
 
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <random>
 #include <string>
+#include <vector>
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -141,6 +145,73 @@ static void test_symmetry() {
         EXPECT_EQ(orig_val, mirror_val);
         end_section();
     }
+}
+
+static void test_pawnless_scaler_tie() {
+    // Equal material totals (R+N+B = 1150 against Q + 2 pawns = 1150) with a
+    // non-pawn gap inside a bishop, where only one side has pawns. Taking the
+    // winning side from the totals made it White at the tie, so the position
+    // and its colour mirror were scaled differently.
+    const char* fen = "3qk3/pp6/8/8/8/8/8/RNB1K3 w - - 0 1";
+    const std::string mirrored = mirror_fen(fen);
+    begin_section("pawnless scaler: an equal-totals position equals its mirror");
+    EXPECT_EQ(eval_fen(fen), eval_fen(mirrored.c_str()));
+    end_section();
+}
+
+static void test_symmetry_sweep() {
+    // Every position equals its colour mirror. The sample is versioned by its
+    // sources and seed: the bench and WAC positions, odd and promoted material
+    // (three rooks, two queens, three knights, same-colour bishops), each
+    // followed by a seeded random walk.
+    std::vector<std::string> sources;
+    for (std::string_view fen : bench_fens())
+        sources.emplace_back(fen);
+    for (const WacPosition& w : wac_positions())
+        sources.push_back(w.fen);
+    static const char* odd[] = {
+        "4k3/8/8/8/8/8/8/RRR1K3 w - - 0 1",
+        "1r2k2r/8/8/8/8/8/8/R2RK2R w - - 0 1",
+        "q3k2q/8/8/8/8/8/8/Q3K2Q w - - 0 1",
+        "4k3/8/8/8/8/8/8/NNN1K3 w - - 0 1",
+        "4k3/8/8/8/8/8/8/1B2KB1B w - - 0 1",
+        "3qk3/pp6/8/8/8/8/8/RNB1K3 w - - 0 1",
+        "r3k3/pppp4/8/8/8/8/4PPPP/QQ2K3 w - - 0 1",
+        "2r1k1r1/8/8/3pp3/3PP3/8/8/RRR1K3 b - - 0 1",
+        "nnn1k3/pp6/8/8/8/8/6PP/4KBBB w - - 0 1",
+        "4k3/1q6/8/8/8/8/6R1/4K1R1 w - - 0 1",
+    };
+    for (const char* fen : odd)
+        sources.emplace_back(fen);
+
+    std::mt19937_64 rng(0xC0105EED11u);
+    int checked = 0, asymmetric = 0;
+    std::string first;
+    for (const std::string& start : sources) {
+        Board b;
+        b.set_fen(start);
+        for (int ply = 0; ply <= 8; ++ply) {
+            const std::string fen = b.get_fen();
+            const std::string mirrored = mirror_fen(fen.c_str());
+            const int a = eval_fen(fen.c_str());
+            const int m = eval_fen(mirrored.c_str());
+            ++checked;
+            if (a != m && asymmetric++ == 0)
+                first = fen + " (" + std::to_string(a) + " vs " + std::to_string(m) + ")";
+            MoveList legal;
+            b.gen_legal(legal);
+            if (legal.size() == 0)
+                break;
+            b.make_move(legal[static_cast<int>(rng() % static_cast<uint64_t>(legal.size()))]);
+        }
+    }
+
+    begin_section("symmetry sweep: every sampled position equals its mirror");
+    if (asymmetric)
+        std::printf("    %d of %d asymmetric; first: %s\n", asymmetric, checked, first.c_str());
+    EXPECT_EQ(asymmetric, 0);
+    EXPECT(checked > 3000);
+    end_section();
 }
 
 static void test_material_advantage() {
@@ -755,6 +826,8 @@ int main() {
 
     std::printf("\nEval symmetry\n");
     test_symmetry();
+    test_pawnless_scaler_tie();
+    test_symmetry_sweep();
 
     std::printf("\nMaterial advantage\n");
     test_material_advantage();
