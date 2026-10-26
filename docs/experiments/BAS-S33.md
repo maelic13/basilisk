@@ -97,3 +97,48 @@
   score, on both arms; `g7f8q` where the rook was searched first, ON arm.
   Removing the exact-score guard fails the first (`c2b3`); removing the
   queen-first order fails the second (`g7f8r`).
+
+#### RESULT — append after exposure
+
+- **H0 (maintainer-run 2026-10-26):** **−2.7 ± 4.1 Elo** (nElo −5.5 ±
+  8.4), LLR −3.00 in [−2.94, 2.94] at 3,285 pairs (6,570 games); W/D/L
+  1773/2973/1824, pentanomial [72, 538, 2103, 513, 59].
+  - 0 faults, 0 time losses; the independent PGN recount agrees.
+  - The run took a fresh dry run with the registered hash
+    (`colosseum_sprt_a119-up-gate_20261026_195900.dry-run.json`,
+    `3980489f…`); manifest `7ac82b27…`, run record `275b3f56…`, PGN
+    `b08af6ca…`.
+- **Verdict (registered rule):** H0, so the engine commits are reverted
+  (`c1791b3`): the engine is A.11.9's again. The stalemate and Saavedra
+  tests stay; the two tests only the rule passed go with it.
+- **Replay of the games (after exposure, not a verdict).**
+  - Games in which no promotion was ever legal, where the two engines play
+    identically: −0.6 ± 4.5 (2,823 games). Games in which one was: −4.3 ±
+    10.4 (3,747 games).
+  - Every promotion played was searched again by the other engine at the
+    mover's node count: in 176 games (2.7%) the two choose differently
+    between a queen and an underpromotion, 177 decisions. Stockfish 18 at
+    1M nodes rates the candidate's choice better in 21, equal in 148, the
+    baseline's in 8, none of which changed a result.
+  - Over 95,637 positions from the A.11.x gate games where an
+    underpromotion is legal, the engines' choices differ at 100,000 nodes
+    in 3,159: 1,404 queen against rook or bishop, as intended, and 1,755
+    other moves, because searching the queen first changes the root
+    search wherever a promotion is legal. The registration did not
+    foresee the second kind.
+  - The H0 is most likely noise around a true effect near 0, but that is
+    a reading after exposure; BAS-S34 is the targeted re-test.
+- Disposition: **H0, −2.7 ± 4.1; reverted. CLOSED 2026-10-26.** Retry
+  trigger: BAS-S34.
+
+#### PREDICTION CALIBRATION — preserve the original prediction above
+
+- **Prediction:** about 0 Elo, most likely the cap; not H0 at about 85%.
+- **Reading:** H0 at 82% of the cap, centred at −2.7. A miss on the
+  outcome; the centre is within the interval of 0.
+- **What it teaches:** a `[-5,5]` SPRT cannot tell 0 from a small loss on
+  a change that touches 3–6% of games, and ends at H0 about as often as
+  at H1 when the truth is 0. Such a change is measured where it acts (now
+  the rule in `agents/measurement.md` *Gating*). The registration also
+  understated the footprint: reordering the root changes more than the
+  promotion choice.

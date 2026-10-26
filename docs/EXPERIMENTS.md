@@ -497,7 +497,9 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S32](experiments/BAS-S32.md) — A.11.9: bare-king wins in tiers that rise with material, `[-5,5]` — cap, −0.3 ± 4.0; repair kept
 
-- [BAS-S33](experiments/BAS-S33.md) — A.11.9 follow-up: root underpromotions judged against the queen, `[-5,5]` — REGISTERED
+- [BAS-S33](experiments/BAS-S33.md) — A.11.9 follow-up: root underpromotions judged against the queen, `[-5,5]` — H0, −2.7 ± 4.1; reverted, retry BAS-S34
+
+- [BAS-S34](experiments/BAS-S34.md) — BAS-S33's rule re-tested from the positions where it acts, `[-5,0]` — REGISTERED
 
 | ID | Title | Disposition |
 |---|---|---|

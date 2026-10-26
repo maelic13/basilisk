@@ -1436,7 +1436,13 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         stalemate escapes and Saavedra's `c8=R` kept. Pruning
         underpromotions below the root instead lost Saavedra. `bench 13`
         exact, NPS unchanged. Gate BAS-S33, `[-5,5]`, launcher
-        `tools/run_a119_up_gate.ps1`, maintainer-run; dry run accepted.
+        `tools/run_a119_up_gate.ps1`, maintainer-run: H0 at 3,285 pairs,
+        −2.7 ± 4.1, so the rule is reverted (`c1791b3`), keeping the
+        stalemate and Saavedra tests. A replay found its choices no worse
+        (Stockfish 18: 21 better, 148 equal, 8 worse), and the rule acts in
+        only about 6% of games, so BAS-S34 re-tests it from the 3,159
+        positions where the arms differ (`[-5,0]`, launcher
+        `tools/run_a119_up_retest.ps1`, maintainer-run; dry run accepted).
     - [ ] **A.11.10** `[R2]` Fail-soft quiescence
       (B-19) Pulled forward from B.4 by maintainer decision 2026-10-26, so
       that B.3 is not fitted around a known defect. Quiescence fails hard:
