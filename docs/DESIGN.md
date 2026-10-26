@@ -135,9 +135,10 @@ line names where it lives.
   must record the policy and never mix with natural-termination evidence.
 - Strength is measured at **3+0.03**, paired UHO openings, normalized Elo,
   **tablebases off** — the harness and the games are blind the same way.
-- **Bench signature** of the accepted head: `bench 13` = **7,384,101** nodes
-  (since A.11.7's pawnless-scaler repair; the `-DB2_CORE=OFF` legacy arm
-  reads 17,606,287, since the evaluation is shared. Earlier: 7,233,823 at
+- **Bench signature** of the accepted head: `bench 13` = **7,857,713** nodes
+  (since A.11.9's bare-king tiers; the `-DB2_CORE=OFF` legacy arm reads
+  23,696,970, since the evaluation is shared. Earlier: 7,384,101 at A.11.7's
+  pawnless-scaler repair, 7,233,823 at
   A.11.6's node count and root tie repair, 8,753,339 at A.11.2's singular
   lone-move repair, 9,260,429 at A.11.1's rule-50 TT-eval
   repair, 8,437,148 at B.10's PST orientation repair,

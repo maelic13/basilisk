@@ -94,8 +94,22 @@ and next step).
   counting material instead of reading the evaluation, so equal material
   always favoured White and a side ahead in the evaluation could have its
   advantage cut. It now takes the side the evaluation favours, as Stockfish
-  does: **+5.9 ± 6.3 Elo** at `3+0.03` (3,204 games). `bench` now reports
-  7,384,101 nodes.
+  does: **+5.9 ± 6.3 Elo** at `3+0.03` (3,204 games).
+
+- **Underpromotion to a slow mate.** Against a bare king the engine valued
+  a knight-and-bishop mate above a queen, so from a bishop-and-pawn ending
+  it promoted to a knight, and could gain by losing a pawn. Material now
+  always ranks: a queen above a rook above the minor pieces. Measured at
+  **−0.3 ± 4.0 Elo** at `3+0.03` (8,000 games): the case is rare, and the
+  engine now takes the short mate. `bench` now reports 7,857,713 nodes.
+
+- **A rook promotion where a queen was as good.** The engine sometimes
+  promoted to a rook where the rook line merely transposed into the queen
+  line, and in a few positions where a reply works only against the rook.
+  A rook or bishop promotion is now chosen only when it is clearly better,
+  as where a queen would stalemate; Saavedra's rook promotion is still
+  found. In the positions where the choice changes, measured at **−0.3 ±
+  1.1 Elo** (6,318 games): no measurable effect on strength.
 
 ---
 

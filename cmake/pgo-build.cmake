@@ -15,6 +15,9 @@ endif()
 if(NOT DEFINED PGO_PORTABLE_BUILD)
     set(PGO_PORTABLE_BUILD "OFF")
 endif()
+if(NOT DEFINED PGO_STATIC_RUNTIME OR PGO_STATIC_RUNTIME STREQUAL "")
+    message(FATAL_ERROR "PGO_STATIC_RUNTIME is required")
+endif()
 if(NOT DEFINED PGO_TUNE)
     set(PGO_TUNE "OFF")
 endif()
@@ -64,6 +67,7 @@ file(WRITE "${_train_input}" "bench ${PGO_TRAIN_DEPTH}\nquit\n")
 set(_pgo_configure_args
     -DCOMP=${PGO_COMP}
     -DPORTABLE_BUILD=${PGO_PORTABLE_BUILD}
+    -DSTATIC_RUNTIME=${PGO_STATIC_RUNTIME}
     -DTUNE=${PGO_TUNE}
     -DDIAGNOSTIC=${PGO_DIAGNOSTIC}
     -DABLATION=${PGO_ABLATION}

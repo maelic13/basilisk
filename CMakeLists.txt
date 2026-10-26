@@ -788,6 +788,10 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     endif()
 endif()
 
+# Declared here so the pgo target below forwards it to its child builds; it
+# is applied with the other link options further down.
+option(STATIC_RUNTIME "Link the C++ runtime and standard library statically" ${MINGW})
+
 add_custom_target(pgo
     COMMAND "${CMAKE_COMMAND}"
         -DPGO_SOURCE_DIR=${CMAKE_SOURCE_DIR}
@@ -800,6 +804,7 @@ add_custom_target(pgo
         -DPGO_PROFILE_SYMBOLS=${PROFILE_SYMBOLS}
         -DPGO_DEV_ID=${BASILISK_DEV_ID}
         -DPGO_PORTABLE_BUILD=${_basilisk_pgo_portable}
+        -DPGO_STATIC_RUNTIME=${STATIC_RUNTIME}
         -DPGO_ARM_OPTION=${BASILISK_PGO_ARM_OPTION}
         -DPGO_ARM_STATE=${BASILISK_PGO_ARM_STATE}
         -DPGO_EXECUTABLE_SUFFIX=${CMAKE_EXECUTABLE_SUFFIX}
@@ -887,7 +892,6 @@ set_target_properties(basilisk_launcher PROPERTIES
 # Static runtime (default ON on MinGW to avoid libc++.dll / libgcc_s.dll
 # dependency failures when the binary is run outside the MSYS2 environment)
 # ---------------------------------------------------------------------------
-option(STATIC_RUNTIME "Link the C++ runtime and standard library statically" ${MINGW})
 if(STATIC_RUNTIME)
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         foreach(_tgt IN LISTS _ALL_TARGETS)

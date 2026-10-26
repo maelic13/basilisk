@@ -60,9 +60,45 @@ SYMBOL = re.compile(r"^[0-9a-f]+ <(.+)>:\s*$", re.IGNORECASE)
 # Windows assets carry it (found by PR #9's first runs).
 ARM64_RUNTIME_GATED = {"_ZNK9libunwind15Registers_arm6411getRegisterEi"}
 
+# A statically linked Linux binary also carries the C runtime that a dynamic
+# one loads from shared libraries: glibc's string and math variants, which its
+# IFUNC resolvers pick by CPU at startup (__memcpy_a64fx, __strlen_evex), and
+# libgcc's unwinder, which reads SVE state only for SVE frames. Functions the
+# runtime archives named by --runtime-archive define are left out, so the
+# contract covers what a dynamic build's binary held. nm's symbol types for
+# code: T/t text, W/w weak, i indirect (IFUNC).
+CODE_SYMBOL_TYPES = set("TtWwi")
 
-def instructions(text: str) -> list[tuple[str, str, str]]:
-    """(enclosing symbol, mnemonic, line) for every instruction line."""
+
+def archive_functions(nm: str, archive: Path) -> set[str]:
+    # glibc's libm.a is a linker script naming the real archives.
+    if not archive.read_bytes()[:8] == b"!<arch>\n":
+        script = re.sub(r"/\*.*?\*/", "", archive.read_text(), flags=re.DOTALL)
+        names = set()
+        for group in re.findall(r"(?:GROUP|INPUT)\s*\(([^)]*)\)", script):
+            for member in group.replace("AS_NEEDED", " ").replace("(", " ").split():
+                path = Path(member) if Path(member).is_absolute() else archive.parent / member
+                names |= archive_functions(nm, path)
+        if not names:
+            raise RuntimeError(f"{archive} is neither an archive nor a linker script naming one")
+        return names
+    result = subprocess.run([nm, "--defined-only", str(archive)],
+                            check=False, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or f"{nm} exited {result.returncode}")
+    names = set()
+    for line in result.stdout.splitlines():
+        fields = line.split()
+        if len(fields) == 3 and fields[1] in CODE_SYMBOL_TYPES:
+            names.add(fields[2])
+    if not names:
+        raise RuntimeError(f"{archive} defines no functions")
+    return names
+
+
+def instructions(text: str, exempt: frozenset[str] = frozenset()) -> list[tuple[str, str, str]]:
+    """(enclosing symbol, mnemonic, line) for every instruction line outside
+    the exempt functions."""
     symbol = ""
     found = []
     for line in text.splitlines():
@@ -70,14 +106,16 @@ def instructions(text: str) -> list[tuple[str, str, str]]:
         if label:
             symbol = label.group(1)
             continue
+        if symbol in exempt:
+            continue
         match = INSTRUCTION.match(line)
         if match:
             found.append((symbol, match.group(1).lower(), line.strip()))
     return found
 
 
-def instruction_counts(text: str) -> Counter[str]:
-    return Counter(mnemonic for _, mnemonic, _ in instructions(text))
+def instruction_counts(text: str, exempt: frozenset[str] = frozenset()) -> Counter[str]:
+    return Counter(mnemonic for _, mnemonic, _ in instructions(text, exempt))
 
 
 def arm64_forbidden(mnemonic: str) -> str | None:
@@ -87,12 +125,12 @@ def arm64_forbidden(mnemonic: str) -> str | None:
     return None
 
 
-def arm64_split(text: str) -> tuple[Counter[str], list[str], list[str]]:
+def arm64_split(text: str, exempt: frozenset[str] = frozenset()) -> tuple[Counter[str], list[str], list[str]]:
     """Counts with runtime-gated helpers' extension instructions left out,
     plus the allowed and the offending occurrences, each named by function."""
     counts: Counter[str] = Counter()
     allowed, offending = [], []
-    for symbol, mnemonic, line in instructions(text):
+    for symbol, mnemonic, line in instructions(text, exempt):
         family = arm64_forbidden(mnemonic)
         if family and symbol in ARM64_RUNTIME_GATED:
             allowed.append(f"{family} in <{symbol}>: {line}")
@@ -101,6 +139,16 @@ def arm64_split(text: str) -> tuple[Counter[str], list[str], list[str]]:
             offending.append(f"{family} in <{symbol or '?'}>: {line}")
         counts[mnemonic] += 1
     return counts, allowed, offending
+
+
+X86_EXTENSIONS = r"popcnt[qlw]?|pext[qlwd]?|blsr[qlwd]?|lzcnt[qlw]?|" + "|".join(AVX2_MNEMONICS)
+
+
+def x86_offenders(text: str, exempt: frozenset[str] = frozenset()) -> Counter[str]:
+    """Functions holding instructions the portable tier forbids, with counts."""
+    regex = re.compile(X86_EXTENSIONS)
+    return Counter(symbol or "?" for symbol, mnemonic, _ in instructions(text, exempt)
+                   if regex.fullmatch(mnemonic))
 
 
 def family_count(counts: Counter[str], pattern: str) -> int:
@@ -173,6 +221,9 @@ def main() -> int:
     parser.add_argument("--binary", required=True, type=Path)
     parser.add_argument("--launcher-object", type=Path)
     parser.add_argument("--objdump", help="llvm-objdump executable")
+    parser.add_argument("--runtime-archive", type=Path, action="append", default=[],
+                        help="a statically linked C runtime archive whose functions are exempt")
+    parser.add_argument("--nm", help="nm executable for --runtime-archive")
     args = parser.parse_args()
 
     objdump = args.objdump or shutil.which("llvm-objdump")
@@ -183,17 +234,32 @@ def main() -> int:
     if args.launcher_object is not None and not args.launcher_object.is_file():
         parser.error(f"launcher object not found: {args.launcher_object}")
 
+    nm = args.nm or shutil.which("llvm-nm") or shutil.which("nm")
+    if args.runtime_archive and not nm:
+        parser.error("nm was not found; pass --nm")
+    for archive in args.runtime_archive:
+        if not archive.is_file():
+            parser.error(f"runtime archive not found: {archive}")
+
     try:
+        exempt: set[str] = set()
+        for archive in args.runtime_archive:
+            names = archive_functions(nm, archive)
+            print(f"exempt: {len(names)} functions of {archive}")
+            exempt |= names
         binary_text = disassemble(objdump, args.binary)
         if args.tier == "arm64":
-            counts, allowed, offending = arm64_split(binary_text)
+            counts, allowed, offending = arm64_split(binary_text, frozenset(exempt))
             for entry in allowed:
                 print(f"allowed (runtime-gated library helper): {entry}")
             for entry in offending[:20]:
                 print(f"forbidden: {entry}", file=sys.stderr)
         else:
-            counts = instruction_counts(binary_text)
+            counts = instruction_counts(binary_text, frozenset(exempt))
         observed, errors = verify_binary(args.tier, counts)
+        if args.tier == "portable" and errors:
+            for symbol, count in x86_offenders(binary_text, frozenset(exempt)).most_common(20):
+                print(f"forbidden: {count} in <{symbol}>", file=sys.stderr)
         print(
             f"{args.tier}: "
             + " ".join(f"{name}={count}" for name, count in observed.items())

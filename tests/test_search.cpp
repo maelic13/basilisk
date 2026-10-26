@@ -1229,6 +1229,47 @@ static void test_stopped_fail_high_line_names_the_move_played() {
     end_section();
 }
 
+static void test_rook_promotions() {
+    // A queen makes every move a rook can, so a rook promotion is played only
+    // where the queen promotion stalemates at once.
+    begin_section("promotion: a rook where the queen would stalemate");
+    auto stalemate = run_search("8/5P1k/5K2/8/8/8/8/8 w - - 0 1", 8);
+    EXPECT_STR(stalemate.uci, "f7f8r");
+    end_section();
+
+    // Here the rook line transposes into the queen line after ...Rxa8 Rxa8,
+    // but Black has a drawing alternative only against the rook. At 100,000
+    // nodes the old search preferred the rook on that shared line.
+    begin_section("promotion: a queen where a rook only transposes");
+    auto transposing = run_search("3r4/P7/2K1p3/R7/5p2/6kP/8/8 w - - 2 66",
+                                  MAX_SEARCH_DEPTH, 100000, 0, 64);
+    EXPECT_STR(transposing.uci, "a7a8q");
+    end_section();
+
+#if defined(BASILISK_B2_CORE)
+    // The rook was the best move of an earlier iteration, so it comes first
+    // at the root; the queen promotion must still be searched before it, or
+    // the rook is never compared with it. At 100,000 nodes the queen is
+    // worth 687 to the rook's 651 here.
+    begin_section("promotion: a queen though the rook was searched first");
+    auto rook_first = run_search("2k2rr1/6P1/2P5/7p/1B2p3/4P3/5K2/8 w - - 0 46",
+                                 MAX_SEARCH_DEPTH, 100000, 0, 64);
+    EXPECT_STR(rook_first.uci, "g7f8q");
+    end_section();
+#endif
+
+    // Saavedra's study, after 1.c7 Rd6+ 2.Kb5 Rd5+ 3.Kb4 Rd4+ 4.Kb3 Rd3+
+    // 5.Kc2 Rd4: 6.c8=Q Rc4+ 7.Qxc4 is stalemate, 6.c8=R wins. The rook's
+    // win is found first as a fail high, a bound that must not be judged
+    // against the queen's draw.
+    begin_section("promotion: a rook that wins where the queen draws (Saavedra)");
+    auto saavedra = run_search("8/2P5/8/8/3r4/8/2K5/k7 w - - 0 6",
+                               MAX_SEARCH_DEPTH, 100000, 0, 64);
+    EXPECT_STR(saavedra.uci, "c7c8r");
+    EXPECT(saavedra.sr.score >= MATE_SCORE - 40);
+    end_section();
+}
+
 static void test_tablebase_root_bound_line_has_no_bound() {
     // At a tablebase root a failed window's line shows the move's tablebase
     // score without a bound, as the depth lines do.
@@ -1611,6 +1652,7 @@ int main() {
     test_search_uses_root_tablebase_metadata();
     test_stopped_fail_high_line_names_the_move_played();
     test_tablebase_root_bound_line_has_no_bound();
+    test_rook_promotions();
     test_tablebase_band();
 
     std::printf("\nPackaged-FEN legality sweep\n");

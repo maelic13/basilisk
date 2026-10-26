@@ -340,7 +340,7 @@ coordinate) is not a defect; its owner decides. IDs are the Rarog audit's
 
 | Owner | Defects |
 |---|---|
-| A.11.9–A.11.10 | C-9 override jumps that reward shedding material; B-19 fail-hard quiescence, which also lets the equal-score tie rule promote refuted moves near the leaves |
+| A.11.10 | B-19 fail-hard quiescence, which also lets the equal-score tie rule promote refuted moves near the leaves |
 | B.3 | B-12 a move stored at fail-low nodes; B-14 correction training refuses decisive results; B-45 the singular margin's range excludes the donor's value; B-109 ablation bit 6 also removes the check extension |
 | B.4 | B-17 the dead SEE clamp |
 | B.5 (with D.1) | the fail-high stop's hole: a window that never returns is never checked (A-47; `analysis/b5_failhigh_stop_2026-10-25.md` §2.3) |
@@ -1382,7 +1382,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
           bounded lines); evaluations of 25,000 and the rule-50 value print
           as ±19,871. CTest ON 24/24, OFF 21/21; `bench 13` 7,384,101 and
           the legacy arm 17,606,287, both exact. No gate is owed.
-    - [ ] **A.11.9** `[R2]` Override boundaries never reward shedding material
+    - [x] **A.11.9** `[R2]` Override boundaries never reward shedding material
       (C-9, C-131) The KBNK and KXK overrides (`kbnk_score` base 15,600;
       `kxk_score = KNOWN_WIN + ...`, `eval.cpp:306`, `:520`) apply only
       without the winner's pawns, so KBNP-K to KBN-K, and KBP-K promoting to a
@@ -1394,6 +1394,59 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       boundaries, and the cost in games), then a design. It changes the
       evaluation during the freeze, so a repair needs the maintainer's
       B.10-style admission.
+      - Research 2026-10-26: over 26,574 gate and read games, about 1.3% of
+        `3+0.03` games and 0.3% at `10+0.1` entered an override from a
+        position with a pawn, almost always by underpromotion; the strong
+        side then drew 17 of 352 (4.8%) positions a queen wins. The cause:
+        queen and rook mates scored ordinarily (about 2,400 for KQB-K)
+        under KBNK's 15,600 and KXK's 10,650. RAR-E53/E54 are not in the
+        pinned snapshots, so the design rests on Basilisk's own rule that
+        more material never scores lower against a bare king.
+      - Admitted into the freeze and implemented (`fdf4277`, maintainer
+        decision 2026-10-26): tiers by the winner's strongest piece, queen
+        (28,700 to 31,742) above rook (26,100 to 28,699) above the
+        minor-piece mates. The queen and rook tiers carry the ordinary
+        score; KBNK keeps its weights with its base at `KNOWN_WIN`; pawns
+        add 3 each within a minor tier.
+      - Screens: tiers with only a small drive lost KR-K (2/4) and left a
+        wandering queen in a tablebase analysis line, so the queen and rook
+        tiers carry the ordinary score; then KQ-K 4/4, KR-K 4/4, KBB-K 6/6,
+        KBN-K 6/6 and the WAC floor hold. On the 342 positions where games
+        underpromoted, `master` still underpromotes in 337; the candidate
+        in none (289 queen promotions). `bench 13` 7,857,713 (+6.4%); the
+        legacy arm 23,696,970; CTest ON 24/24, OFF 21/21; a `test_eval`
+        section on promotion order and pawn shedding fails on the old
+        evaluation.
+      - Gate BAS-S32, `[-5,5]`, launcher `tools/run_a119_gate.ps1`,
+        maintainer-run.
+      - Closed 2026-10-26: BAS-S32 reached its 4,000-pair cap at
+        −0.3 ± 4.0 Elo (8,000 games, LLR −0.33, no faults); the repair stays
+        by the registered rule on the maintainer's confirmation. The
+        development fingerprint is `bench 13` 7,857,713; the legacy arm
+        23,696,970.
+      - On the same branch, A.11.8's repeated final line goes through
+        `send_info` (`28b7018`), so in analysis it gets the tablebase
+        extension other lines get; output only, `bench 13` exact.
+      - Also on the branch (maintainer decision 2026-10-26), root
+        underpromotions are judged against the queen (`1641e64`): a rook or
+        bishop promotion beats the queen promotion on the same squares only
+        by more than 200 of exact score, and the queen is searched first.
+        A transposing rook line had displaced the queen in 59 of 228 gate
+        positions (7 of them errors by Stockfish 18); now 1, with the
+        stalemate escapes and Saavedra's `c8=R` kept. Pruning
+        underpromotions below the root instead lost Saavedra. `bench 13`
+        exact, NPS unchanged. Gate BAS-S33, `[-5,5]`, launcher
+        `tools/run_a119_up_gate.ps1`, maintainer-run: H0 at 3,285 pairs,
+        −2.7 ± 4.1, so the rule is reverted (`c1791b3`), keeping the
+        stalemate and Saavedra tests. A replay found its choices no worse
+        (Stockfish 18: 21 better, 148 equal, 8 worse), and the rule acts in
+        only about 6% of games, so BAS-S34 re-tests it from the 3,159
+        positions where the arms differ (`[-5,0]`, launcher
+        `tools/run_a119_up_retest.ps1`, maintainer-run). It reached its
+        3,159-pair cap at −0.3 ± 1.1 Elo on that book (about 0.02 Elo in
+        ordinary play), so the rule is re-applied (`d7d2c34`) by its cap
+        rule on the maintainer's confirmation; `bench 13` 7,857,713, the
+        legacy arm 23,696,970; CTest ON 24/24, OFF 21/21.
     - [ ] **A.11.10** `[R2]` Fail-soft quiescence
       (B-19) Pulled forward from B.4 by maintainer decision 2026-10-26, so
       that B.3 is not fitted around a known defect. Quiescence fails hard:
@@ -2306,7 +2359,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.11.9 | RESEARCH | R2 | Override boundaries; research first |
 | A.11.10 | RESEARCH | R2 | Fail-soft quiescence, pulled forward from B.4; research first |
 | A.12 | RESEARCH | M | Roadmap rules for the maintainer to decide |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |

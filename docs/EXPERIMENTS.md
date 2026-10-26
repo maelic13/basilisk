@@ -495,6 +495,12 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S31](experiments/BAS-S31.md) — A.11.7: the pawnless scaler's winning side taken from the score, `[-5,5]` — H1, +5.9 ± 6.3; repair kept
 
+- [BAS-S32](experiments/BAS-S32.md) — A.11.9: bare-king wins in tiers that rise with material, `[-5,5]` — cap, −0.3 ± 4.0; repair kept
+
+- [BAS-S33](experiments/BAS-S33.md) — A.11.9 follow-up: root underpromotions judged against the queen, `[-5,5]` — H0, −2.7 ± 4.1; reverted, then re-applied after BAS-S34
+
+- [BAS-S34](experiments/BAS-S34.md) — BAS-S33's rule re-tested from the positions where it acts, `[-5,0]` — cap, −0.3 ± 1.1; rule re-applied
+
 | ID | Title | Disposition |
 |---|---|---|
 | [BAS-S17](experiments/BAS-S17.md) | Razoring depth reach in Elo (B.0.1, maintainer). | +2.4 ± 9.9; interval holds 0, the cluster decides the cap |

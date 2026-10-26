@@ -177,8 +177,8 @@ structures hide.
    contradicts the planned order.
 2. **Register** — an EXPERIMENTS entry with hypothesis, baseline revision,
    candidate scope, expected direction, gate, cap and stop rule, before
-   games. Bounds default to `[0,3]` nElo; size the cap from the drift model at
-   the expected value.
+   games. Bounds default to `[0,3]` nElo; the method and cap fit the change
+   (`agents/measurement.md` *Gating*).
 3. **Implement** — the smallest dependency-complete cluster, behind its
    umbrella switch (below).
 4. **Prove correctness** — release and ASan/UBSan CTest on both arms, the
@@ -392,8 +392,20 @@ so a registered `[0,3]` gate passes `-Elo1 3`**. `-Mode simplify` is `[-5,0]`.
   - A new major fails CI until the pin moves. Moving it is a commit that
     owes a pooled NPS read under `agents/measurement.md`'s compiler rule, as
     BAS-P19 read 22.1.8 to 23.1.3.
-  - Linux builds with Ubuntu's `clang-19`, macOS with the runner's
-    AppleClang.
+  - Linux and macOS use the newest GitHub images (`ubuntu-26.04`,
+    `macos-26`) with their own compiler: Clang 22 and AppleClang. Labels
+    are pinned and move when GitHub ships a newer image.
+  - Release assets do not depend on the build image. The Linux binary is
+    linked statically (no glibc or libstdc++ floor; as fast as the dynamic
+    one or faster, +5% in a WSL read) and the macOS one targets macOS 13.3,
+    arm64 only: every Apple silicon Mac runs it, and libc++'s `std::format`
+    needs it. The release workflow checks both on the built asset; the ISA
+    check exempts the static C runtime's own archives, whose CPU-specific
+    variants run only where the CPU has them.
+  - Linux releases still build on `ubuntu-24.04` with Ubuntu's `clang-19`:
+    the static binary carries the C++ library, and `ubuntu-26.04`'s
+    `libstdc++.a` holds AVX2 code outside any runtime dispatch, which the
+    portable ISA check rejects. 24.04's is built for the baseline CPU.
 - CTest runs two kinds of test. The correctness suite (`ctest -LE
   strength`) checks rules, invariants, protocol and endgame knowledge in a few
   seconds and is what an edit-compile loop and the sanitizer run use. The

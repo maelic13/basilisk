@@ -303,7 +303,21 @@ static constexpr int kbnk_drive_max(const KbnkDriveWeights& w) {
 // pull) converts 98 of 138 held-out KBNK positions; the screen winner with
 // diagonal 1750 and king 340 was rejected because on KBNK0061 it forks its own
 // bishop and knight and draws a DTZ-52 win.
-static constexpr KbnkDriveWeights KBNK_DRIVE_DEFAULT{15600, 1900, 0, 460, 0};
+// Bare-king wins sit in tiers by the winner's strongest piece, so more
+// material never scores lower: a promotion to a queen outranks one to a
+// rook, and either outranks a knight or bishop. Below the rook tier are the
+// minor-piece mates (KBNK and KXK), whose drives span thousands of points.
+// The cap is the highest score that is still an evaluation, not a decisive one.
+static constexpr int BARE_KING_CAP        = 31742;
+static constexpr int BARE_KING_QUEEN_TIER = 28700;
+static constexpr int BARE_KING_ROOK_TIER  = 26100;
+static constexpr int BARE_KING_PAWN_STEP  = 3;
+static constexpr KbnkDriveWeights KBNK_DRIVE_DEFAULT{10000, 1900, 0, 460, 0};
+static_assert(kbnk_drive_max(KBNK_DRIVE_DEFAULT) + 8 * BARE_KING_PAWN_STEP < BARE_KING_ROOK_TIER,
+              "KBNK, a pawn bonus included, must stay below the rook tier");
+// The tablebase band is the 129 scores directly below the mate floor.
+static_assert(BARE_KING_CAP < KBNK_STATIC_MATE_FLOOR - 129,
+              "bare-king scores stay below the tablebase band");
 static_assert(KBNK_DRIVE_DEFAULT.base >= KNOWN_WIN,
               "KBNK base must sit at or above KNOWN_WIN so the class outranks material");
 static_assert(kbnk_drive_max(KBNK_DRIVE_DEFAULT) < KBNK_STATIC_MATE_FLOOR,
@@ -739,12 +753,38 @@ static int apply_endgame(const Board& b, int score) {
             // Won KPK keeps its (already winning) tapered score.
         }
 
+        // ---- Bare king against a queen or rook: the top tiers -------------
+        // A tier holds the winner's ordinary score above its base: that score
+        // already counts material, pawns included, and carries the gradient
+        // the search converts these mates with (BAS-E30: KQ-K and KR-K
+        // 100/100). What the tiers add is the order: a queen outranks a rook,
+        // and both outrank every minor-piece mate, so a promotion to a queen
+        // always beats one to a knight or bishop, and shedding never gains.
+        for (int s = 0; s < NCOLORS; s++) {
+            const Color strong = Color(s), weak = ~strong;
+            if (!lone_king(weak) || (!cnt[strong][QUEEN] && !cnt[strong][ROOK]))
+                continue;
+            const int ordinary = std::max((strong == WHITE) ? score : -score, 0);
+            const int v = cnt[strong][QUEEN]
+                ? BARE_KING_QUEEN_TIER + std::min(ordinary, BARE_KING_CAP - BARE_KING_QUEEN_TIER)
+                : BARE_KING_ROOK_TIER + std::min(ordinary, BARE_KING_QUEEN_TIER - 1 - BARE_KING_ROOK_TIER);
+            return (strong == WHITE) ? v : -v;
+        }
+
+        // The minor-piece mates below keep their drives, take the same pawn
+        // bonus, and stay under the rook tier.
+        auto minor_tier = [&](int drive_score, Color strong) {
+            const int v = std::min(std::abs(drive_score) + cnt[strong][PAWN] * BARE_KING_PAWN_STEP,
+                                   BARE_KING_ROOK_TIER - 1);
+            return (strong == WHITE) ? v : -v;
+        };
+
         // ---- KBNK: bishop + knight vs bare king is a win; drive to corner --
         for (int s = 0; s < NCOLORS; s++) {
             Color strong = Color(s), weak = ~strong;
-            if (lone_king(weak) && !cnt[strong][PAWN] && cnt[strong][KNIGHT] == 1
+            if (lone_king(weak) && cnt[strong][KNIGHT] == 1
                 && cnt[strong][BISHOP] == 1 && !cnt[strong][ROOK] && !cnt[strong][QUEEN])
-                return kbnk_score(b, strong);
+                return minor_tier(kbnk_score(b, strong), strong);
         }
 
         // ---- KXK: any other bare-king mate ---------------------------------
@@ -753,18 +793,12 @@ static int apply_endgame(const Board& b, int score) {
         // square colour rather than by count.
         for (int s = 0; s < NCOLORS; s++) {
             Color strong = Color(s), weak = ~strong;
-            if (!lone_king(weak) || cnt[strong][PAWN])
-                continue;   // pawns are KPK/KPsK territory, not this drive
-            // Queen and rook mates are deliberately NOT overridden. BAS-E30
-            // measured KQ-K and KR-K at 100/100 with the old drive -- they are
-            // solved by search, not by the gradient -- and an override there
-            // cost **+20.5% bench nodes** for no conversion gain (BAS-E34).
-            if (cnt[strong][QUEEN] || cnt[strong][ROOK])
+            if (!lone_king(weak))
                 continue;
             const Bitboard bb = b.piece_bb(strong, BISHOP);
             const bool bishop_pair = (bb & EG_DARK_SQUARES) && (bb & ~EG_DARK_SQUARES);
             if (bishop_pair || (cnt[strong][BISHOP] && cnt[strong][KNIGHT]))
-                return kxk_score(b, strong);
+                return minor_tier(kxk_score(b, strong), strong);
         }
 
         // ---- KBP(s) vs K with the wrong rook-file bishop is a draw ---------
