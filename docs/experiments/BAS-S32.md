@@ -89,3 +89,31 @@
   much as without it. Both fail on the old evaluation.
 
 #### RESULT — append after exposure
+
+- **Cap without a decision (maintainer-run 2026-10-26):** **−0.3 ± 4.0 Elo**
+  (nElo −0.5 ± 7.6), LLR −0.33 in [−2.94, 2.94] at the 4,000-pair cap
+  (8,000 games); W/D/L 2171/3652/2177, pentanomial [97, 754, 2286, 784,
+  79].
+  - 0 faults, 0 time losses; the independent PGN recount agrees, and the
+    score recomputed from the pentanomial matches.
+  - The run took a fresh dry run before starting
+    (`colosseum_sprt_a119-gate_20261026_152646.dry-run.json`,
+    `9f81f044…`); engines, seed and run file are the registered ones.
+  - `colosseum_sprt_a119-gate_20261026_152646.*`, manifest `9c8d22a0…`,
+    run record `3fc5bab3…`, PGN `70279cef…`.
+- **Verdict (registered rule):** the cap without a decision, so the repair
+  stays as a correctness fix with no measured harm, on the maintainer's
+  confirmation; the fingerprint record then updates to `bench 13`
+  7,857,713 (the legacy arm 23,696,970).
+
+#### PREDICTION CALIBRATION — preserve the original prediction above
+
+- **Prediction:** about 0 to +2 Elo, most likely the cap; not H0 at about
+  80%.
+- **Reading:** the cap came, centred at −0.3, at the low edge of the
+  predicted range, with the LLR leaning neither way. Hit on the outcome,
+  slightly low on the centre.
+- **What it teaches:** the boundary is met in about 1% of games, so even a
+  repair that removes nearly every underpromotion (337 of 342 positions)
+  cannot move the score measurably at `3+0.03`; its value is correctness
+  and the shorter mates it chooses.
