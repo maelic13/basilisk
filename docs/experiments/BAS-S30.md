@@ -94,3 +94,31 @@
   single quiet move counts 2 nodes, where the A.11.2 binary counts 3.
 
 #### RESULT — append after exposure
+
+- **H1 accepted (maintainer-run 2026-10-26, 52 min):** **+4.3 ± 5.9 Elo**
+  (nElo +6.7 ± 9.3), LLR +2.95 after 2,656 pairs (5,312 games); W/D/L
+  1475/2427/1410, pentanomial [101, 627, 1138, 686, 104].
+  - 0 faults, 0 time losses; 14 post-terminal pairs kept outside the
+    sample; the independent PGN recount agrees, and the score recomputed
+    from the pentanomial matches.
+  - `colosseum_sprt_a116-gate_20261026_094056.*`, manifest `6cc0207d…`,
+    run record `e1cfab01…`, PGN `1b526aea…`.
+  - Mid-run (523 pairs) the read was −6.3 ± 13.4. Time use and depth were
+    then equal (69.6 ms per move on both arms; mean depth 17.12 against
+    17.09), so the leaf's unlisted channel, the time manager's root-effort
+    ratio, which reads the node count, did not move the clock. Reported
+    nodes per move fell 3.9% because the unit changed; the arms' NPS are
+    not comparable.
+- **Verdict (registered rule):** H1, so both repairs stay and the
+  fingerprint record updates to `bench 13` 7,233,823.
+- Disposition: **H1, +4.3 ± 5.9; both repairs kept. CLOSED 2026-10-26.**
+
+#### PREDICTION CALIBRATION — preserve the original prediction above
+
+- **Prediction:** about 0 to +3 Elo, most likely the cap; not H0 at about
+  80%.
+- **Reading:** H1, centred at +4.3, just above the predicted range, and
+  well before the cap. Missed slightly high.
+- **What it teaches:** a refuted root move at iterations 1 and 2 cost more
+  than "the deeper iterations replace it" allowed for: every later
+  iteration starts from the shallow iterations' ordering and table.

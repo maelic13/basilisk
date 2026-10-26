@@ -491,7 +491,7 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S29](experiments/BAS-S29.md) — A.11.2: a lone excluded move fails the singular search by one, `[-5,5]` — cap, +1.7 ± 4.8; repair kept
 
-- [BAS-S30](experiments/BAS-S30.md) — A.11.6: each node counted once, with the root kept out of the tie rule, `[-5,5]` — REGISTERED
+- [BAS-S30](experiments/BAS-S30.md) — A.11.6: each node counted once, with the root kept out of the tie rule, `[-5,5]` — H1, +4.3 ± 5.9; both kept
 
 | ID | Title | Disposition |
 |---|---|---|

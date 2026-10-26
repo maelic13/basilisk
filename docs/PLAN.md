@@ -1230,7 +1230,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       - `bench 13` 8,753,339 and the legacy arm 15,887,213, unchanged;
         CTest ON 24/24 and OFF 21/21. No gate is owed: nothing changes
         unless a thread fails or a Hash cannot be allocated.
-    - [ ] **A.11.6** `[I1]` Frontier nodes counted once
+    - [x] **A.11.6** `[I1]` Frontier nodes counted once
       (B-111) `negamax` counts a node at entry (`record_node()`,
       `search_kernel_core.cpp:335`) and at depth 0 or less hands off to
       `quiescence`, which counts it again (`:117`); `interior_nodes` is also
@@ -1266,6 +1266,15 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         (maintainer decision 2026-10-26), since the root fix changes play
         and the count reshuffles every remaining tie: BAS-S30, launcher
         `tools/run_a116_gate.ps1`, maintainer-run.
+      - The leaf's "timed play changes only through that rule and the stop
+        poll" missed a third reader: the time manager's root-effort ratio
+        (`search_worker.cpp`, `root_best_nodes / root_depth_nodes`). The
+        gate's games show it did not move the clock (69.6 ms per move on
+        both arms).
+      - Closed 2026-10-26: BAS-S30 accepted H1, +4.3 ± 5.9 Elo (5,312
+        games, LLR +2.95, no faults); both repairs stay by the registered
+        rule. The development fingerprint is `bench 13` 7,233,823; the
+        legacy arm stays 15,887,213.
     - [ ] **A.11.7** `[I1]` Evaluation colour symmetry: tie-break and sweep
       (C-3, A-22, C-103) The pawnless "ahead by at most a minor" scaler picks
       `strong = (w_tot >= b_tot) ? WHITE : BLACK` (`eval.cpp:800`), so at
@@ -2187,7 +2196,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.11.6 | GAME_GATE | I1 | Frontier nodes counted once, with the root tie fix; gate BAS-S30 prepared |
 | A.11.7 | READY_FOR_IMPLEMENTATION | I1 | Colour symmetry tie-break and sweep |
 | A.11.8 | READY_FOR_IMPLEMENTATION | I1 | Last info line after a stop; mate scores printed as cp |
 | A.11.9 | RESEARCH | R2 | Override boundaries; research first |
