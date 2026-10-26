@@ -64,7 +64,7 @@ struct TTEntry {
 // is an atomic load/store; the key16 fragment is a separate 2-byte atomic.
 // Single-thread search is race-free.
 //
-// ACCEPTED RISK, not a harmless race (BAS-C05, decided 2026-09-07). The key and
+// A KNOWN DEFECT, not a harmless race (BAS-C05, decided 2026-09-07). The key and
 // the payload are two publications, so under SMP a reader can match its key
 // against one store and consume the score/depth/bound of another position's
 // store. Nothing downstream catches it: negamax's TT cutoff returns the stored
@@ -74,14 +74,13 @@ struct TTEntry {
 // mismatch was "harmless, bounds validated" was false and is what BAS-C05
 // corrected.
 //
-// It is kept because both repairs cost more than the defect. Binding the pair
-// with a `key16 ^ fold16(payload)` tag measured -3.91% NPS at identical nodes;
-// packing the whole validated record into one atomic word measured -1.22%
-// (about -2.4 Elo at BAS-P01's ratio). Coherence cannot be free at this
-// density: key+score+eval+depth+flag+move needs 80 bits and the word holds 64.
-// Stockfish ships this same tolerance in this same structure. Revisit only on
-// the BAS-C05 retry trigger: a measured 4T-only strength anomaly, or a TT
-// redesign that widens the slot for another reason.
+// It is tolerated until a repair costs no strength; both so far cost more than
+// the defect. Binding the pair with a `key16 ^ fold16(payload)` tag measured
+// -3.91% NPS at identical nodes; packing the whole validated record into one
+// atomic word measured -1.22% (about -2.4 Elo at BAS-P01's ratio). Coherence
+// cannot be free at this density: key+score+eval+depth+flag+move needs 80 bits
+// and the word holds 64, so the repair needs a different layout. Stockfish
+// ships this same tolerance in this same structure.
 struct alignas(32) TTCluster {
     std::atomic<uint64_t> data[3];    // payload words, 8-byte aligned (offsets 0/8/16)
     std::atomic<uint16_t> key16[3];   // partial keys (offsets 24/26/28)
