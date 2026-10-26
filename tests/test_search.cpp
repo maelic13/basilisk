@@ -41,6 +41,7 @@
 #include <string>
 #include <string_view>
 #include <thread>
+#include <utility>
 #include <vector>
 
 // ---------------------------------------------------------------------------
@@ -474,6 +475,55 @@ static void test_stopped_search_returns_legal_fallback() {
 
     begin_section("stopped search: returns legal fallback instead of 0000");
     EXPECT(is_legal_bestmove(FEN, result.bestmove));
+    end_section();
+}
+
+static void test_zero_own_clock_is_bounded() {
+    // `go wtime 0 btime 5000` with no increments: the side to move has no
+    // time left, so it gets the minimal budget and answers at once. Before
+    // the repair it searched to MAX_SEARCH_DEPTH; the watchdog stops such a
+    // search at 10 s so the test fails instead of hanging.
+    static constexpr const char* FEN =
+        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+    auto timed_search = [](const SearchLimits& limits) {
+        TranspositionTable tt(4);
+        std::atomic_bool stop{false};
+        Board board;
+        board.set_fen(FEN);
+        auto searcher = std::make_unique<Searcher>(tt, stop);
+        std::atomic_bool done{false};
+        std::thread watchdog([&] {
+            const auto until = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+            while (!done.load() && std::chrono::steady_clock::now() < until)
+                std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            stop.store(true);
+        });
+        const auto t0 = std::chrono::steady_clock::now();
+        SearchResult result = searcher->search(board, limits);
+        const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - t0).count();
+        done.store(true);
+        watchdog.join();
+        return std::pair{result, ms};
+    };
+
+    SearchLimits clock;
+    clock.wtime = 0;
+    clock.btime = 5000;
+    clock.overhead = 10;
+    const auto [zero, zero_ms] = timed_search(clock);
+    begin_section("zero own clock: bestmove within 2 s, and legal");
+    EXPECT(zero_ms < 2000);
+    EXPECT(is_legal_bestmove(FEN, zero.bestmove));
+    end_section();
+
+    SearchLimits no_clock;
+    no_clock.depth = 6;
+    const auto [depth6, depth6_ms] = timed_search(no_clock);
+    (void)depth6_ms;
+    begin_section("no clock at all: a depth limit still runs to its depth");
+    EXPECT_EQ(depth6.depth, 6);
+    EXPECT(is_legal_bestmove(FEN, depth6.bestmove));
     end_section();
 }
 
@@ -1405,6 +1455,7 @@ int main() {
     std::printf("\nNodes limit\n");
     test_nodes_limit();
     test_stopped_search_returns_legal_fallback();
+    test_zero_own_clock_is_bounded();
     test_ponderhit_preserves_elapsed_time();
 
     std::printf("\nScore near zero\n");
