@@ -1202,7 +1202,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       - `bench 13` 8,753,339 and the legacy arm 15,887,213, unchanged;
         CTest ON 23/23 and OFF 20/20. No gate is owed: the change is
         protocol only, and every harness sends lower-case moves.
-    - [ ] **A.11.5** `[I1]` Fatal errors from every thread reach stdout
+    - [x] **A.11.5** `[I1]` Fatal errors from every thread reach stdout
       (A-35) Only the UCI thread catches (`main.cpp:86-93`); the engine thread
       (`engine_entry.cpp:49`) and the helper threads have no handler and no
       `std::set_terminate`, so an exception there aborts with nothing on
@@ -1210,6 +1210,26 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       advertised maximum throws `bad_alloc` in `tt.h:130-131` after
       `clusters_.reset()`. Print `info string CRITICAL ERROR ...` on stdout
       from every thread, and keep a usable table when a Hash allocation fails.
+      - Closed 2026-10-26 (`8289ceb`). `run_engine` installs a terminate handler
+        (`report_terminate`, `src/uci_output.h`): an exception escaping any
+        thread prints `info string CRITICAL ERROR: unhandled exception: ...;
+        exiting.` on stdout and exits with status 1. It does not wait on
+        the output mutex, which the dying thread may hold.
+      - `TranspositionTable::resize` keeps the previous size, cleared, when
+        the new table cannot be allocated, and returns false; the engine
+        prints `info string Hash N MB could not be allocated; keeping M MB`.
+        It does not halve toward a smaller table: zero-filling the largest
+        one the system would commit could exhaust memory.
+      - Tests: `fatal_report_from_a_thread` (a helper-thread exception
+        yields exit 1 and the line on stdout; without the handler the
+        process aborts with stdout empty) and `test_tt`'s failed-resize
+        sections (the old `resize` threw `bad_alloc` and left no table
+        behind its stale size; skipped under ASan, whose allocator aborts
+        on an oversized request). Through UCI, `setoption name Hash value
+        33554432` now keeps 64 MB and the engine searches.
+      - `bench 13` 8,753,339 and the legacy arm 15,887,213, unchanged;
+        CTest ON 24/24 and OFF 21/21. No gate is owed: nothing changes
+        unless a thread fails or a Hash cannot be allocated.
     - [ ] **A.11.6** `[I1]` Frontier nodes counted once
       (B-111) `negamax` counts a node at entry (`record_node()`,
       `search_kernel_core.cpp:335`) and at depth 0 or less hands off to
@@ -2142,7 +2162,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.11.5 | READY_FOR_IMPLEMENTATION | I1 | Fatal errors on stdout from every thread |
 | A.11.6 | READY_FOR_IMPLEMENTATION | I1 | Frontier nodes counted once |
 | A.11.7 | READY_FOR_IMPLEMENTATION | I1 | Colour symmetry tie-break and sweep |
 | A.11.8 | READY_FOR_IMPLEMENTATION | I1 | Last info line after a stop; mate scores printed as cp |

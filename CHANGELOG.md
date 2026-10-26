@@ -70,6 +70,12 @@ and next step).
   `e7e8Q`) made the engine reject the position and exit. Moves are now
   read without regard to case; an illegal move is still refused.
 
+- **Silent crashes and an oversized Hash.** An error on one of the search
+  threads ended the engine with nothing in its output; it is now reported
+  as an `info string CRITICAL ERROR` line first. A `Hash` too large for the
+  machine also used to end the engine; it now keeps the previous table
+  and says so.
+
 ---
 
 ## [1.10.2] - 2026-10-08

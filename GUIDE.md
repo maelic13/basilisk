@@ -34,7 +34,7 @@ generations change. These are maintainer judgments, not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **A.11.5** `[I1]` Fatal errors from every thread reach stdout — Claude Sonnet 5 — Medium
+**Next step:** **A.11.6** `[I1]` Frontier nodes counted once — Claude Sonnet 5 — Medium
 
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
@@ -84,7 +84,7 @@ generations change. These are maintainer judgments, not measured rankings.
     - [x] **A.11.2** `[I1]` Singular search: lone excluded move returns alpha
     - [x] **A.11.3** `[I1]` Own clock of zero without increment is bounded
     - [x] **A.11.4** `[I1]` Upper-case UCI move text accepted
-    - [ ] **A.11.5** `[I1]` Fatal errors from every thread reach stdout
+    - [x] **A.11.5** `[I1]` Fatal errors from every thread reach stdout
     - [ ] **A.11.6** `[I1]` Frontier nodes counted once
     - [ ] **A.11.7** `[I1]` Evaluation colour symmetry: tie-break and sweep
     - [ ] **A.11.8** `[I1]` Info lines: bestmove after a stop, mate scores as cp
