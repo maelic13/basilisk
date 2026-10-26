@@ -493,6 +493,8 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S30](experiments/BAS-S30.md) — A.11.6: each node counted once, with the root kept out of the tie rule, `[-5,5]` — H1, +4.3 ± 5.9; both kept
 
+- [BAS-S31](experiments/BAS-S31.md) — A.11.7: the pawnless scaler's winning side taken from the score, `[-5,5]` — H1, +5.9 ± 6.3; repair kept
+
 | ID | Title | Disposition |
 |---|---|---|
 | [BAS-S17](experiments/BAS-S17.md) | Razoring depth reach in Elo (B.0.1, maintainer). | +2.4 ± 9.9; interval holds 0, the cluster decides the cap |

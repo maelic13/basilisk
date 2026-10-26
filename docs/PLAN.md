@@ -340,12 +340,12 @@ coordinate) is not a defect; its owner decides. IDs are the Rarog audit's
 
 | Owner | Defects |
 |---|---|
-| A.11.7–A.11.10 | C-3 colour tie-break; A-26 and A-31 info lines; C-9 override jumps that reward shedding material; B-19 fail-hard quiescence, which also lets the equal-score tie rule promote refuted moves near the leaves |
+| A.11.9–A.11.10 | C-9 override jumps that reward shedding material; B-19 fail-hard quiescence, which also lets the equal-score tie rule promote refuted moves near the leaves |
 | B.3 | B-12 a move stored at fail-low nodes; B-14 correction training refuses decisive results; B-45 the singular margin's range excludes the donor's value; B-109 ablation bit 6 also removes the check extension |
 | B.4 | B-17 the dead SEE clamp |
 | B.5 (with D.1) | the fail-high stop's hole: a window that never returns is never checked (A-47; `analysis/b5_failhigh_stop_2026-10-25.md` §2.3) |
 | C.2.1–C.2.2 | C-1 the tuner's missing scalers; C-2 `--verify` cannot fail; C-8 the extractor's de-dup ignores the clock; C-26 to C-30 the data pipeline (book, sampler, split, labels, row identity); C-49 K refitted per run |
-| C.3–C.7 | C-10 outpost ranks; C-11 a rear doubled passer scored as a passer; C-12 "opposed" read over the whole file; C-13 own-colour king blockers only |
+| C.3–C.7 | C-10 outpost ranks; C-11 a rear doubled passer scored as a passer; C-12 "opposed" read over the whole file; C-13 own-colour king blockers only; the pawnless scaler's near-draw factor, 4/64 where the donor gives 14/64 (found with A.11.7) |
 | D.1, D.4 | A-46 reserve arithmetic; A-57 cold table reads on the clock; A-58 and A-59 tablebase root ranking |
 | D.2 | BAS-C05 the TT key and payload published separately |
 | D.3.1 | A-2 and A-3 SEE's created pins and promotion recaptures (BAS-C09) |
@@ -1298,7 +1298,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         games, LLR +2.95, no faults); both repairs stay by the registered
         rule. The development fingerprint is `bench 13` 7,233,823; the
         legacy arm stays 15,887,213.
-    - [ ] **A.11.7** `[I1]` Evaluation colour symmetry: tie-break and sweep
+    - [x] **A.11.7** `[I1]` Evaluation colour symmetry: tie-break and sweep
       (C-3, A-22, C-103) The pawnless "ahead by at most a minor" scaler picks
       `strong = (w_tot >= b_tot) ? WHITE : BLACK` (`eval.cpp:800`), so at
       equal totals White is always the strong side: a colour asymmetry, rare
@@ -1308,7 +1308,33 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       found twelve asymmetric evaluations (its C.13.1, among them a
       connected-rooks bug). Add a sweep over a versioned sample with promoted
       and odd material.
-    - [ ] **A.11.8** `[I1]` Info lines: bestmove after a stop, mate scores as cp
+      - Implemented 2026-10-26 (`d5442f8`): the scaler takes the winning
+        side from the score's sign (`score > 0`), as Stockfish's
+        `eg > VALUE_DRAW`. Besides the tie, the totals could disagree with
+        the score, and then the richer side's lack of pawns scaled the other
+        side's advantage.
+      - Tests in `test_eval`: an equal-totals position (R+N+B against Q and
+        two pawns) equals its mirror, where the old scaler gave −9 against
+        −150; a sweep over 3,149 positions (the bench and WAC positions, ten
+        odd- and promoted-material positions, each with a seeded eight-ply
+        walk, `std::mt19937_64`) finds none asymmetric, where the old scaler
+        gave nine. No other asymmetry was found.
+      - `bench 13` 7,384,101 (from 7,233,823); the legacy arm 17,606,287
+        (from 15,887,213), since the evaluation is shared; CTest ON 24/24,
+        OFF 21/21.
+      - It changes the evaluation, so it owed the repair gate: BAS-S31,
+        launcher `tools/run_a117_gate.ps1`, maintainer-run.
+      - Closed 2026-10-26: BAS-S31 accepted H1, +5.9 ± 6.3 Elo (3,204
+        games, LLR +2.96, no faults); the repair stays by the registered
+        rule. The development fingerprint is `bench 13` 7,384,101; the
+        legacy arm 17,606,287.
+      - Found beside it, not changed: the same scaler's near-draw factor
+        reads `npm(weak) > 0 ? 4 : 14` where the donor has
+        `npm(weak) <= BishopValueMg ? 4 : 14`
+        (`sf9587-ks/src/material.cpp`). Ours scales a weaker side holding a
+        rook (KRBKR, KRNKR) to 4/64 where the donor gives 14/64, and our 14
+        is unreachable.
+    - [x] **A.11.8** `[I1]` Info lines: bestmove after a stop, mate scores as cp
       (A-26, A-31) After 3 s the aspiration loop prints a `lowerbound` line
       for a new move that is failing high (`search_worker.cpp:450-459`); a
       hard-limit or GUI stop then discards the iteration (`:515`), `bestmove`
@@ -1332,6 +1358,30 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         entry produced it.
       - If the cause is in the search rather than the display, the leaf
         owes bench accounting and A.11's repair SPRT.
+      - Closed 2026-10-26 (`accaac0`), after A.11.7, output only, `bench 13`
+        exact:
+        - The search records the first move of its last line-1 `info` and,
+          when `bestmove` names another, repeats the result's line (Rarog's
+          rule). At a tablebase root a failed window prints the move's
+          tablebase score without a bound. The bound lines' 3 s delay is a
+          `SearchLimits` field so a test can open it.
+        - The "mate scores as cp" premise was false. `cp -31742` is the
+          rule-50 downgrade: `score_from_tt` turns a mate or tablebase
+          result the clock may spoil into the strongest non-decisive score,
+          as Stockfish's `value_from_tt` does. The `cp 20000 - plies`
+          values without tablebases were evaluations, not tablebase results:
+          won-ending evaluations print raw and run through the display band
+          (the KBNK drive reaches 31,660). In the `ltc` read's games the
+          first such score came from 1.10.2 in 62 games and from the head in
+          2, both bishop endings at `cp -19873` and `-19883` that fresh
+          searches show as ordinary evaluations. The repair is in the
+          display: an evaluation prints at most ±19,871, below the band.
+        - Tests in `test_search`: a stopped fail-high search ends on the
+          line of the move played (the old code ended on `e2e3` while
+          playing `h2h3`); a tablebase root prints no bound (old: 7
+          bounded lines); evaluations of 25,000 and the rule-50 value print
+          as ±19,871. CTest ON 24/24, OFF 21/21; `bench 13` 7,384,101 and
+          the legacy arm 17,606,287, both exact. No gate is owed.
     - [ ] **A.11.9** `[R2]` Override boundaries never reward shedding material
       (C-9, C-131) The KBNK and KXK overrides (`kbnk_score` base 15,600;
       `kxk_score = KNOWN_WIN + ...`, `eval.cpp:306`, `:520`) apply only
@@ -2256,8 +2306,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.11.7 | READY_FOR_IMPLEMENTATION | I1 | Colour symmetry tie-break and sweep |
-| A.11.8 | READY_FOR_IMPLEMENTATION | I1 | Last info line after a stop; mate scores printed as cp |
 | A.11.9 | RESEARCH | R2 | Override boundaries; research first |
 | A.11.10 | RESEARCH | R2 | Fail-soft quiescence, pulled forward from B.4; research first |
 | A.12 | RESEARCH | M | Roadmap rules for the maintainer to decide |

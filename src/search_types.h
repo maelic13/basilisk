@@ -73,6 +73,10 @@ struct SearchStack {
 };
 #endif
 
+// A single-PV aspiration failure prints its bound only once a search has run
+// this long, as Stockfish does, so fast games print the same lines as before.
+inline constexpr double kBoundLineAfterSeconds = 3.0;
+
 struct SearchLimits {
     int depth      = MAX_SEARCH_DEPTH;
     int movetime   = 0;
@@ -102,6 +106,8 @@ struct SearchLimits {
     std::vector<Move> root_moves;
     std::vector<Syzygy::RootMoveInfo> syzygy_root_moves;
     SearchParams params;
+    // Bound lines print past this elapsed time; a test sets 0 to see them.
+    double bound_line_after = kBoundLineAfterSeconds;
 };
 
 struct SearchResult {
@@ -153,9 +159,6 @@ static_assert(tablebaseValue == MATE_SCORE - MAX_PLY - 1,
                              std::string_view bound, int64_t nodes, double elapsed,
                              int64_t tbhits, int hashfull, const std::vector<Move>& pv);
 
-// A single-PV aspiration failure prints its bound only once a search has run
-// this long, as Stockfish does, so fast games print the same lines as before.
-inline constexpr double kBoundLineAfterSeconds = 3.0;
 
 // The longest legal prefix of `line` played from `root`.
 [[nodiscard]] std::vector<Move> legal_line(const Board& root, const std::vector<Move>& line);

@@ -252,7 +252,7 @@ void Searcher::print_pool_diag(const std::vector<std::unique_ptr<Searcher>>& poo
 }
 
 void Searcher::send_info(int depth, int multipv, int score, const std::vector<Move>& line,
-                         int64_t total_nodes, double elapsed) const {
+                         int64_t total_nodes, double elapsed) {
     std::vector<Move> pv_moves = legal_line(*state_.board, line);
 
     // Stockfish-style tablebase PV extension. With no clock or movetime it
@@ -271,9 +271,12 @@ void Searcher::send_info(int depth, int multipv, int score, const std::vector<Mo
             score = 0;
     }
 
-    if (shared_.info)
+    if (shared_.info) {
         shared_.info(format_info_line(depth, state_.sel_depth, multipv, score, {}, total_nodes, elapsed,
                                   current_tbhits(), shared_.tt.hashfull(), pv_moves));
+        if (multipv == 1 && !pv_moves.empty())
+            state_.last_line_move = pv_moves.front();
+    }
 }
 
 void Searcher::init_root_tablebase_scores(const Board& board) {
@@ -348,6 +351,7 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
     state_.shared_nodes_total   = 0;
     state_.sel_depth    = 0;
     state_.stopped      = false;
+    state_.last_line_move = MOVE_NONE;
     state_.pondering    = limits.ponder;
     state_.root_side    = board.turn();
 #if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
@@ -452,16 +456,24 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
             int asp_b = prev_score + delta;
             // A long iteration whose window fails reports the bound it proved,
             // with the line that failed high, or the previous line on a fail low.
+            // At a tablebase root the line's move shows its tablebase score,
+            // without a bound, as the depth lines do.
             auto bound_line = [&](int bound_score, bool lower) {
-                if (!shared_.info || elapsed_seconds() <= kBoundLineAfterSeconds)
+                if (!shared_.info || elapsed_seconds() <= config_.limits.bound_line_after)
                     return;
                 std::vector<Move> line = result.pv;
                 if (lower && state_.pv_len[0] > 0)
                     line.assign(state_.pv_table[0], state_.pv_table[0] + std::clamp(state_.pv_len[0], 0, MAX_PLY));
-                shared_.info(format_info_line(depth, state_.sel_depth, 1, bound_score,
-                                          lower ? "lowerbound" : "upperbound", current_nodes(),
-                                          elapsed_seconds(), current_tbhits(), shared_.tt.hashfull(),
-                                          legal_line(*state_.board, line)));
+                line = legal_line(*state_.board, line);
+                const int tb_display = line.empty() ? VALUE_NONE : root_tablebase_display(line.front());
+                const bool tb_root = tb_display != VALUE_NONE;
+                shared_.info(format_info_line(depth, state_.sel_depth, 1,
+                                          tb_root ? tb_display : bound_score,
+                                          tb_root ? "" : (lower ? "lowerbound" : "upperbound"),
+                                          current_nodes(), elapsed_seconds(), current_tbhits(),
+                                          shared_.tt.hashfull(), line));
+                if (!line.empty())
+                    state_.last_line_move = line.front();
             };
             DIAG_COUNT(++state_.diag.asp_windows);
             while (true) {
@@ -656,6 +668,16 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
     }
 
     result = sanitize_search_result(board, result);
+    // A stop can discard an iteration whose lines already named another move
+    // (a long fail-high on a new move prints its bound line). The last line
+    // before `bestmove` names the move played, so the result's line repeats.
+    if (shared_.info && config_.thread_id == 0 && result.bestmove != MOVE_NONE
+        && state_.last_line_move != MOVE_NONE && state_.last_line_move != result.bestmove) {
+        shared_.info(format_info_line(result.depth, result.seldepth, 1, result.score, {},
+                                      current_nodes(), elapsed_seconds(), current_tbhits(),
+                                      shared_.tt.hashfull(), legal_line(board, result.pv)));
+        state_.last_line_move = result.bestmove;
+    }
     // Publish whatever this thread accumulated since the last batch boundary,
     // so the shared total is exact once the pool joins.
     flush_shared_nodes();

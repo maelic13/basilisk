@@ -1123,6 +1123,17 @@ static void test_tablebase_band() {
                .find(" score cp -19998 nodes ") != std::string::npos);
     end_section();
 
+    begin_section("tb band: an evaluation never prints inside the tablebase band");
+    auto printed = [](int score) {
+        return format_info_line(5, 5, 1, score, {}, 1, 1.0, 0, 0, {});
+    };
+    EXPECT(printed(25000).find(" score cp 19871 nodes ") != std::string::npos);
+    EXPECT(printed(-(tablebaseWinInMaxPly - 1)).find(" score cp -19871 nodes ") != std::string::npos);
+    EXPECT(printed(19871).find(" score cp 19871 nodes ") != std::string::npos);
+    EXPECT(printed(-500).find(" score cp -500 nodes ") != std::string::npos);
+    EXPECT(printed(MATE_SCORE - 3).find(" score mate 2 nodes ") != std::string::npos);
+    end_section();
+
     begin_section("tb band: KBNK without tables stays an evaluation");
     {
         Syzygy::clear();
@@ -1162,6 +1173,91 @@ static void test_tablebase_band() {
         EXPECT(!lines.empty() && lines.back().find(" score cp 19999 ") != std::string::npos);
         Syzygy::clear();
     }
+    end_section();
+}
+
+// The first move of an info line's pv, or "" when it has none.
+static std::string first_pv_move(const std::string& line) {
+    const size_t pv = line.find(" pv ");
+    if (pv == std::string::npos)
+        return {};
+    const size_t end = line.find(' ', pv + 4);
+    return line.substr(pv + 4, end == std::string::npos ? std::string::npos : end - pv - 4);
+}
+
+static void test_stopped_fail_high_line_names_the_move_played() {
+    // A bound line names a new move failing high; a stop then discards that
+    // iteration, so bestmove is the previous depth's move. The last line
+    // before bestmove names it. Bound lines print at once here, and the
+    // callback stops the search at the first one naming another move.
+    bool found = false;
+    for (std::string_view fen : bench_fens()) {
+        TranspositionTable tt(16);
+        std::atomic_bool stop{false};
+        Board board;
+        board.set_fen(std::string(fen));
+        SearchLimits limits;
+        limits.depth = 14;
+        limits.bound_line_after = 0.0;
+        std::string depth_move, last_move;
+        bool fired = false;
+        auto searcher = std::make_unique<Searcher>(tt, stop, [&](const std::string& info) {
+            const std::string move = first_pv_move(info);
+            if (move.empty())
+                return;
+            last_move = move;
+            if (info.find(" lowerbound ") != std::string::npos) {
+                if (!fired && !depth_move.empty() && move != depth_move) {
+                    fired = true;
+                    stop.store(true);
+                }
+            } else if (info.find(" upperbound ") == std::string::npos) {
+                depth_move = move;
+            }
+        });
+        const SearchResult result = searcher->search(board, limits);
+        if (!fired || result.bestmove == MOVE_NONE)
+            continue;
+        found = true;
+        begin_section("stopped fail-high: the last line names the move played");
+        EXPECT_STR(last_move, move_to_uci(result.bestmove));
+        end_section();
+        break;
+    }
+    begin_section("stopped fail-high: a bench position fails high on a new move");
+    EXPECT(found);
+    end_section();
+}
+
+static void test_tablebase_root_bound_line_has_no_bound() {
+    // At a tablebase root a failed window's line shows the move's tablebase
+    // score without a bound, as the depth lines do.
+    Syzygy::clear();
+    init_test_syzygy();
+    static constexpr const char* FEN = "6k1/8/8/8/8/8/8/6KQ w - - 0 1";
+    Board board;
+    board.set_fen(FEN);
+    TranspositionTable tt(4);
+    std::atomic_bool stop{false};
+    std::vector<std::string> lines;
+    SearchLimits limits;
+    limits.depth = 12;
+    limits.syzygy_probe_depth = 1;
+    limits.syzygy_probe_limit = 7;
+    limits.syzygy_root_moves = Syzygy::probe_root_moves(board, true, 7, true);
+    limits.bound_line_after = 0.0;
+    auto searcher = std::make_unique<Searcher>(tt, stop, [&](const std::string& info) {
+        lines.push_back(info);
+    });
+    (void)searcher->search(board, limits);
+    Syzygy::clear();
+
+    int bounded = 0;
+    for (const std::string& line : lines)
+        if (line.find("bound ") != std::string::npos)
+            ++bounded;
+    begin_section("tablebase root: no line carries a bound");
+    EXPECT_EQ(bounded, 0);
     end_section();
 }
 
@@ -1513,6 +1609,8 @@ int main() {
     test_syzygy_rule50_root_scores();
     test_tablebase_pv_extension();
     test_search_uses_root_tablebase_metadata();
+    test_stopped_fail_high_line_names_the_move_played();
+    test_tablebase_root_bound_line_has_no_bound();
     test_tablebase_band();
 
     std::printf("\nPackaged-FEN legality sweep\n");

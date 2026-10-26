@@ -107,6 +107,9 @@ struct SearchState {
     double hard_limit = 0.0;  // absolute maximum
 
     std::vector<Syzygy::RootMoveInfo> root_tb_moves;
+    // The first move of the last line-1 `info` this thread printed, so the
+    // search can repeat the result's line when `bestmove` names another move.
+    Move last_line_move = MOVE_NONE;
     // In-search tablebase probes: off when the root was ranked by DTZ, or by
     // WDL and not winning (Stockfish's rule); on otherwise.
     bool tb_probe_in_search = true;
@@ -180,7 +183,7 @@ private:
     double elapsed_seconds() const;
     void   compute_time_limit(const SearchLimits& limits, bool ponder, Color side, int game_ply);
     void   send_info(int depth, int multipv, int score, const std::vector<Move>& line,
-                     int64_t nodes, double elapsed) const;
+                     int64_t nodes, double elapsed);
     int64_t record_node();
     void   record_tbhit(int64_t count = 1);
     int64_t current_nodes() const;

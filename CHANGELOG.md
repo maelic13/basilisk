@@ -76,13 +76,26 @@ and next step).
   machine also used to end the engine; it now keeps the previous table
   and says so.
 
+- **Clearer analysis output.** After a stop, the last `info` line could
+  name a different move from the one played; it now always names the move
+  played. Tablebase positions no longer print `lowerbound` or
+  `upperbound` scores, and a `cp` value of 19,872 or more now always
+  means a tablebase result: very large evaluations print as 19,871.
+
 - **A refuted move in the first iterations, and a double node count.** In
   its first two iterations the search sometimes chose a move that had only
   tied a bound, not the best score, and it counted the last ply's positions
   twice. Both are fixed, measured together at **+4.3 ± 5.9 Elo** at
   `3+0.03` (5,312 games). Reported nodes and nodes per second are lower for
-  the same search, and `go nodes` budgets search further. `bench` now
-  reports 7,233,823 nodes.
+  the same search, and `go nodes` budgets search further.
+
+- **Drawish endings without pawns judged from the wrong side.** In a
+  pawnless ending the engine decided which side was trying to win by
+  counting material instead of reading the evaluation, so equal material
+  always favoured White and a side ahead in the evaluation could have its
+  advantage cut. It now takes the side the evaluation favours, as Stockfish
+  does: **+5.9 ± 6.3 Elo** at `3+0.03` (3,204 games). `bench` now reports
+  7,384,101 nodes.
 
 ---
 
