@@ -97,6 +97,10 @@ class RuntimeArchiveTests(unittest.TestCase):
         _, errors = verify_isa.verify_binary("portable", counts)
         self.assertTrue(any("forbidden popcnt" in e for e in errors))
 
+    def test_offending_functions_are_named(self):
+        self.assertEqual(verify_isa.x86_offenders(self.TEXT), {"__strlen_evex": 1})
+        self.assertEqual(verify_isa.x86_offenders(self.TEXT, frozenset({"__strlen_evex"})), {})
+
     def test_nothing_is_left_out_without_an_archive(self):
         _, errors = verify_isa.verify_binary("portable", verify_isa.instruction_counts(self.TEXT))
         self.assertTrue(any("forbidden popcnt" in e for e in errors))

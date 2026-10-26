@@ -141,6 +141,16 @@ def arm64_split(text: str, exempt: frozenset[str] = frozenset()) -> tuple[Counte
     return counts, allowed, offending
 
 
+X86_EXTENSIONS = r"popcnt[qlw]?|pext[qlwd]?|blsr[qlwd]?|lzcnt[qlw]?|" + "|".join(AVX2_MNEMONICS)
+
+
+def x86_offenders(text: str, exempt: frozenset[str] = frozenset()) -> Counter[str]:
+    """Functions holding instructions the portable tier forbids, with counts."""
+    regex = re.compile(X86_EXTENSIONS)
+    return Counter(symbol or "?" for symbol, mnemonic, _ in instructions(text, exempt)
+                   if regex.fullmatch(mnemonic))
+
+
 def family_count(counts: Counter[str], pattern: str) -> int:
     regex = re.compile(pattern)
     return sum(count for mnemonic, count in counts.items() if regex.fullmatch(mnemonic))
@@ -247,6 +257,9 @@ def main() -> int:
         else:
             counts = instruction_counts(binary_text, frozenset(exempt))
         observed, errors = verify_binary(args.tier, counts)
+        if args.tier == "portable" and errors:
+            for symbol, count in x86_offenders(binary_text, frozenset(exempt)).most_common(20):
+                print(f"forbidden: {count} in <{symbol}>", file=sys.stderr)
         print(
             f"{args.tier}: "
             + " ".join(f"{name}={count}" for name, count in observed.items())
