@@ -43,6 +43,12 @@ inline constexpr Square   to_sq(Move m)      { return Square((m >> 6) & 0x3F); }
 inline constexpr MoveType move_type(Move m)  { return MoveType((m >> 12) & 3); }
 inline constexpr PieceType promo_type(Move m){ return PieceType(((m >> 14) & 3) + KNIGHT); }
 
+// A promotion to a rook or a bishop. A queen makes every move either piece
+// can, so one is only ever better for avoiding stalemate.
+inline constexpr bool rook_or_bishop_promotion(Move m) {
+    return move_type(m) == PROMOTION && (promo_type(m) == ROOK || promo_type(m) == BISHOP);
+}
+
 // The TT's move16 and Move are now the same width; these remain as the
 // documented conversion points (and would absorb any future re-widening).
 inline constexpr int  move_to_tt(Move m)   { return m; }

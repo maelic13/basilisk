@@ -798,6 +798,12 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                           depth, ply, is_root ? &state_.root_ordering : nullptr,
                           state_.move_buffers[ply][0]);
 
+    // The root's queen promotions searched so far, for the rule below.
+    static constexpr int ROOT_UNDERPROMOTION_MARGIN = 200;
+    Move root_queen[8];
+    int  root_queen_score[8];
+    int  root_queen_count = 0;
+
     auto search_one = [&](Move m, CoreMovePicker::Src picker_src) {
         if (is_root && !move_in_root_moves(m, config_.limits.root_moves))
             return false;
@@ -1217,6 +1223,28 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             state_.root_depth_nodes += std::max<int64_t>(0, move_nodes);
         }
 
+        // A rook or bishop promotion at the root counts as better than the
+        // queen promotion on the same squares only by a clear margin. A queen
+        // makes every move either piece can, so one wins only by avoiding a
+        // stalemate, a difference of a draw against a win; a few points more
+        // is a shallower subtree that has not yet met the reply that works
+        // only against the weaker piece. Only an exact score is judged: a
+        // fail high is a lower bound, and capping it would keep the window
+        // from widening to the win it hides.
+        if (is_root && move_type(m) == PROMOTION && score < beta) {
+            if (promo_type(m) == QUEEN) {
+                if (root_queen_count < 8) {
+                    root_queen[root_queen_count] = m;
+                    root_queen_score[root_queen_count++] = score;
+                }
+            } else if (rook_or_bishop_promotion(m)) {
+                for (int k = 0; k < root_queen_count; ++k)
+                    if (from_sq(root_queen[k]) == from_sq(m) && to_sq(root_queen[k]) == to_sq(m)
+                        && score <= root_queen_score[k] + ROOT_UNDERPROMOTION_MARGIN)
+                        score = std::min(score, root_queen_score[k]);
+            }
+        }
+
         // A move equal to the best, deep in the tree, sometimes replaces it
         // as though it had just exceeded alpha. Never at the root: there a
         // later move is searched with a null window at alpha, so an equal
@@ -1288,10 +1316,30 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     };
 
     // ---- Staged move picking -----------------------------------------------
+    // At the root a queen promotion is searched before the rook or bishop
+    // promotion on the same squares, so the rule in search_one has its score
+    // whichever the picker would deliver first.
+    Move root_queens_seen[8];
+    int  root_queens_seen_count = 0;
+    auto root_queen_seen = [&](Move q) {
+        return std::find(root_queens_seen, root_queens_seen + root_queens_seen_count, q)
+            != root_queens_seen + root_queens_seen_count;
+    };
     while (true) {
         Move move = picker.next();
         if (move == MOVE_NONE)
             break;
+        if (is_root && move_type(move) == PROMOTION) {
+            const Move queen = make_promotion(Square(from_sq(move)), Square(to_sq(move)), QUEEN);
+            if (root_queen_seen(queen)) {
+                if (move == queen)
+                    continue;
+            } else if (root_queens_seen_count < 8) {
+                root_queens_seen[root_queens_seen_count++] = queen;
+                if (move != queen && search_one(queen, picker.last_source()))
+                    break;
+            }
+        }
         if (search_one(move, picker.last_source()))
             break;
     }
