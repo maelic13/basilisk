@@ -61,6 +61,11 @@ and next step).
   The fix measured **+1.7 ± 4.8 Elo** at `3+0.03` (8,000 games), with no
   loss of speed. `bench` now reports 8,753,339 nodes.
 
+- **No time left and no increment.** Told it had no time left and no
+  increment while the opponent's clock was set (`go wtime 0 btime 5000`),
+  the engine searched without any limit. It now answers at once, as
+  Stockfish does.
+
 ---
 
 ## [1.10.2] - 2026-10-08

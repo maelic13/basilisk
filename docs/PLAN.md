@@ -1155,7 +1155,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         and the repair stays by the registered rule on the maintainer's
         confirmation. The development fingerprint is `bench 13` 8,753,339;
         the legacy arm stays 15,887,213.
-    - [ ] **A.11.3** `[I1]` Own clock of zero without increment is bounded
+    - [x] **A.11.3** `[I1]` Own clock of zero without increment is bounded
       (A-55) `go wtime 0 btime 5000` with no increments: a negative clock
       clamps to 0 (`parameters.cpp:291-293`), `compute_time_limit` sets no
       soft or hard limit when `time <= 0 && inc <= 0`
@@ -1164,6 +1164,24 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       `MAX_SEARCH_DEPTH`. Stockfish budgets from `max(1, ...)`. A zero own
       clock gets a minimal budget. Test: the command answers `bestmove` within
       a bound.
+      - Closed 2026-10-26 (`6de81be`). Time management is on when either
+        side has a clock or an increment, as in Stockfish, so the budget
+        formula runs for an empty own clock and its floors give one
+        millisecond. A search with no clock at all keeps its depth, node or
+        mate limit: the early return could not simply go, since it is also
+        what leaves `go depth N` unbounded in time.
+      - New `test_search` sections: `go wtime 0 btime 5000` answers a legal
+        `bestmove` within 2 s, and a clock-free `go depth 6` still completes
+        depth 6. On the old code the first is stopped only by the test's
+        10 s watchdog. Through UCI, `wtime 0` and `wtime -50` answer at
+        once at depth 4; `go depth 9` and a 2 s clock are unchanged.
+      - `bench 13` 8,753,339 and the legacy arm 15,887,213, both unchanged;
+        CTest ON 23/23 and OFF 20/20. The driver is shared, so the legacy
+        arm carries the fix too.
+      - No gate is owed: the change acts only when the side to move has no
+        time and no increment, which no registered gate can reach (every
+        one has an increment) and which in a game means the flag has
+        already fallen.
     - [ ] **A.11.4** `[I1]` Upper-case UCI move text accepted
       (A-9) `apply_uci_move` matches `move_to_uci(move) == token` exactly
       (`parameters.cpp:67`), so `E2E4` or `e7e8Q` is rejected, and a rejected
@@ -2111,7 +2129,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.11.3 | READY_FOR_IMPLEMENTATION | I1 | Zero own clock bounded |
 | A.11.4 | READY_FOR_IMPLEMENTATION | I1 | Upper-case move text |
 | A.11.5 | READY_FOR_IMPLEMENTATION | I1 | Fatal errors on stdout from every thread |
 | A.11.6 | READY_FOR_IMPLEMENTATION | I1 | Frontier nodes counted once |
