@@ -241,6 +241,8 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     ScoredMove* sm = state_.move_buffers[ply][0];
     int nm = 0;
     for (Move m : captures) {
+        if (rook_or_bishop_promotion(m))
+            continue;   // a queen promotion makes every move it could
         PieceType atk = type_of(state_.board->piece_on(from_sq(m)));
         PieceType cap = (move_type(m) == EN_PASSANT) ? PAWN : type_of(state_.board->piece_on(to_sq(m)));
         int score = (m == tt_move) ? 10'000'000
@@ -702,7 +704,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             MoveList pcaps;
             state_.board->gen_legal_captures(pcaps);
             for (Move m : pcaps) {
-                if (m == ss->excluded) continue;
+                if (m == ss->excluded || rook_or_bishop_promotion(m)) continue;
                 if (!state_.board->see_ge(m, pc_beta - static_eval)) continue;
 
                 DIAG_COUNT(state_.diag.probcut_tries++);
@@ -808,6 +810,19 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         }
         if (is_root && !root_tablebase_allows(m))
             return false;
+        // A rook or bishop promotion is searched only where the queen
+        // promotion would stalemate at once, or when `searchmoves` names it.
+        if (is_root && rook_or_bishop_promotion(m) && config_.limits.root_moves.empty()) {
+            Board& b = *state_.board;
+            const Move queen = make_promotion(Square(from_sq(m)), Square(to_sq(m)), QUEEN);
+            b.make_move(queen);
+            MoveList replies;
+            b.gen_legal(replies);
+            const bool stalemate = replies.empty() && !b.is_in_check();
+            b.unmake_move(queen);
+            if (!stalemate)
+                return false;
+        }
         if (is_root && !state_.root_excluded.empty()
             && std::find(state_.root_excluded.begin(), state_.root_excluded.end(), m) != state_.root_excluded.end())
             return false;

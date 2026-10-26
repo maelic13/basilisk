@@ -1229,6 +1229,24 @@ static void test_stopped_fail_high_line_names_the_move_played() {
     end_section();
 }
 
+static void test_rook_promotions() {
+    // A queen makes every move a rook can, so a rook promotion is played only
+    // where the queen promotion stalemates at once.
+    begin_section("promotion: a rook where the queen would stalemate");
+    auto stalemate = run_search("8/5P1k/5K2/8/8/8/8/8 w - - 0 1", 8);
+    EXPECT_STR(stalemate.uci, "f7f8r");
+    end_section();
+
+    // Here the rook line transposes into the queen line after ...Rxa8 Rxa8,
+    // but Black has a drawing alternative only against the rook. At 100,000
+    // nodes the old search preferred the rook on that shared line.
+    begin_section("promotion: a queen where a rook only transposes");
+    auto transposing = run_search("3r4/P7/2K1p3/R7/5p2/6kP/8/8 w - - 2 66",
+                                  MAX_SEARCH_DEPTH, 100000, 0, 64);
+    EXPECT_STR(transposing.uci, "a7a8q");
+    end_section();
+}
+
 static void test_tablebase_root_bound_line_has_no_bound() {
     // At a tablebase root a failed window's line shows the move's tablebase
     // score without a bound, as the depth lines do.
@@ -1611,6 +1629,7 @@ int main() {
     test_search_uses_root_tablebase_metadata();
     test_stopped_fail_high_line_names_the_move_played();
     test_tablebase_root_bound_line_has_no_bound();
+    test_rook_promotions();
     test_tablebase_band();
 
     std::printf("\nPackaged-FEN legality sweep\n");

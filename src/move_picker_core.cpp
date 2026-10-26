@@ -107,7 +107,8 @@ Move CoreMovePicker::next() {
         switch (stage_) {
             case Stage::TT:
                 stage_ = Stage::CaptureInit;
-                if (tt_move_ != MOVE_NONE && tt_move_ != excluded_) {
+                if (tt_move_ != MOVE_NONE && tt_move_ != excluded_
+                    && !(ply_ > 0 && rook_or_bishop_promotion(tt_move_))) {
                     const Piece p = board_.piece_on(from_sq(tt_move_));
                     if (p != NO_PIECE && color_of(p) == board_.turn() && board_.is_legal(tt_move_)) {
                         tt_delivered_ = true;
@@ -120,6 +121,16 @@ Move CoreMovePicker::next() {
             case Stage::CaptureInit: {
                 MoveList list;
                 board_.gen_legal_captures(list);
+                // Below the root a rook or bishop promotion is not searched:
+                // the queen promotion makes every move it could. The root
+                // decides the stalemate cases.
+                if (ply_ > 0) {
+                    int kept = 0;
+                    for (Move m : list)
+                        if (!rook_or_bishop_promotion(m))
+                            list.moves[kept++] = m;
+                    list.count = kept;
+                }
                 end_captures_ = fill(list, 0);
                 score_captures(0, end_captures_);
                 partial_insertion_sort(moves_, moves_ + end_captures_, INT_MIN);
