@@ -62,10 +62,13 @@ static void test_store_probe() {
     end_section();
 }
 
-// A Hash the system cannot allocate (here the advertised maximum, 32 TiB)
-// keeps the previous table, cleared and usable; it used to throw bad_alloc
-// after freeing the old table, leaving no table behind. Skipped under ASan,
-// whose allocator aborts on an oversized request instead of throwing.
+// A Hash the system cannot allocate keeps the previous table, cleared and
+// usable; it used to throw bad_alloc after freeing the old table, leaving no
+// table behind. The request is 2^43 MB, 2^63 bytes, beyond any address space,
+// so every allocator refuses it at once. The advertised maximum (32 TiB) is
+// not: macOS, and Linux under full overcommit, grant it lazily, and the
+// zero-fill then exhausts memory. Skipped under ASan, whose allocator aborts
+// on an oversized request instead of throwing.
 #if defined(__SANITIZE_ADDRESS__)
 #define BASILISK_TT_ASAN 1
 #elif defined(__has_feature)
@@ -86,7 +89,7 @@ static void test_failed_resize_keeps_a_table() {
     bool threw = false;
     bool allocated = true;
     try {
-        allocated = tt.resize(33'554'432);
+        allocated = tt.resize(size_t{1} << 43);
     } catch (const std::bad_alloc&) {
         threw = true;
     }
