@@ -214,6 +214,31 @@ static void test_symmetry_sweep() {
     end_section();
 }
 
+static void test_bare_king_material_is_monotone() {
+    // Against a bare king more material never scores lower. From KBP-K every
+    // promotion wins, and the order must be queen, rook, then knight or
+    // bishop; the old overrides scored KBN-K at 15,600 or more against about
+    // 2,400 for KQB-K, so the engine promoted to a knight. Each child has
+    // Black to move, so White's score is the negated evaluation.
+    auto white_after = [](const char* fen) { return -eval_fen(fen); };
+    const int q = white_after("1B3Q2/8/8/2k2K2/8/8/8/8 b - - 0 77");
+    const int r = white_after("1B3R2/8/8/2k2K2/8/8/8/8 b - - 0 77");
+    const int n = white_after("1B3N2/8/8/2k2K2/8/8/8/8 b - - 0 77");
+    const int bi = white_after("1B3B2/8/8/2k2K2/8/8/8/8 b - - 0 77");
+    begin_section("bare king: a queen promotion outranks a rook, a rook a minor piece");
+    EXPECT(q > r);
+    EXPECT(r > n);
+    EXPECT(r > bi);
+    end_section();
+
+    begin_section("bare king: shedding a pawn never raises the score");
+    EXPECT(eval_fen("1B6/5P2/8/2k2K2/8/8/N7/8 w - - 0 77")
+           >= eval_fen("1B6/8/8/2k2K2/8/8/N7/8 w - - 0 77"));
+    EXPECT(eval_fen("1B6/5P2/8/2k2K2/8/8/8/R7 w - - 0 77")
+           >= eval_fen("1B6/8/8/2k2K2/8/8/8/R7 w - - 0 77"));
+    end_section();
+}
+
 static void test_material_advantage() {
     // Extra queen (white, white to move): large positive
     begin_section("extra queen (white): large positive eval");
@@ -828,6 +853,7 @@ int main() {
     test_symmetry();
     test_pawnless_scaler_tie();
     test_symmetry_sweep();
+    test_bare_king_material_is_monotone();
 
     std::printf("\nMaterial advantage\n");
     test_material_advantage();
