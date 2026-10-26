@@ -340,7 +340,7 @@ coordinate) is not a defect; its owner decides. IDs are the Rarog audit's
 
 | Owner | Defects |
 |---|---|
-| A.11.7–A.11.10 | C-3 colour tie-break; C-9 override jumps that reward shedding material; B-19 fail-hard quiescence, which also lets the equal-score tie rule promote refuted moves near the leaves |
+| A.11.9–A.11.10 | C-9 override jumps that reward shedding material; B-19 fail-hard quiescence, which also lets the equal-score tie rule promote refuted moves near the leaves |
 | B.3 | B-12 a move stored at fail-low nodes; B-14 correction training refuses decisive results; B-45 the singular margin's range excludes the donor's value; B-109 ablation bit 6 also removes the check extension |
 | B.4 | B-17 the dead SEE clamp |
 | B.5 (with D.1) | the fail-high stop's hole: a window that never returns is never checked (A-47; `analysis/b5_failhigh_stop_2026-10-25.md` §2.3) |
@@ -1298,7 +1298,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         games, LLR +2.95, no faults); both repairs stay by the registered
         rule. The development fingerprint is `bench 13` 7,233,823; the
         legacy arm stays 15,887,213.
-    - [ ] **A.11.7** `[I1]` Evaluation colour symmetry: tie-break and sweep
+    - [x] **A.11.7** `[I1]` Evaluation colour symmetry: tie-break and sweep
       (C-3, A-22, C-103) The pawnless "ahead by at most a minor" scaler picks
       `strong = (w_tot >= b_tot) ? WHITE : BLACK` (`eval.cpp:800`), so at
       equal totals White is always the strong side: a colour asymmetry, rare
@@ -1322,16 +1322,19 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       - `bench 13` 7,384,101 (from 7,233,823); the legacy arm 17,606,287
         (from 15,887,213), since the evaluation is shared; CTest ON 24/24,
         OFF 21/21.
-      - It changes the evaluation, so it owes the repair gate: BAS-S31,
-        launcher `tools/run_a117_gate.ps1`, maintainer-run; the dry run waits
-        for an idle host.
+      - It changes the evaluation, so it owed the repair gate: BAS-S31,
+        launcher `tools/run_a117_gate.ps1`, maintainer-run.
+      - Closed 2026-10-26: BAS-S31 accepted H1, +5.9 ± 6.3 Elo (3,204
+        games, LLR +2.96, no faults); the repair stays by the registered
+        rule. The development fingerprint is `bench 13` 7,384,101; the
+        legacy arm 17,606,287.
       - Found beside it, not changed: the same scaler's near-draw factor
         reads `npm(weak) > 0 ? 4 : 14` where the donor has
         `npm(weak) <= BishopValueMg ? 4 : 14`
         (`sf9587-ks/src/material.cpp`). Ours scales a weaker side holding a
         rook (KRBKR, KRNKR) to 4/64 where the donor gives 14/64, and our 14
         is unreachable.
-    - [ ] **A.11.8** `[I1]` Info lines: bestmove after a stop, mate scores as cp
+    - [x] **A.11.8** `[I1]` Info lines: bestmove after a stop, mate scores as cp
       (A-26, A-31) After 3 s the aspiration loop prints a `lowerbound` line
       for a new move that is failing high (`search_worker.cpp:450-459`); a
       hard-limit or GUI stop then discards the iteration (`:515`), `bestmove`
@@ -1355,8 +1358,8 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         entry produced it.
       - If the cause is in the search rather than the display, the leaf
         owes bench accounting and A.11's repair SPRT.
-      - Done 2026-10-26 (`accaac0`), output only, `bench 13` exact; ticked
-        when A.11.7 closes, since leaves close in order:
+      - Closed 2026-10-26 (`accaac0`), after A.11.7, output only, `bench 13`
+        exact:
         - The search records the first move of its last line-1 `info` and,
           when `bestmove` names another, repeats the result's line (Rarog's
           rule). At a tablebase root a failed window prints the move's
@@ -2303,8 +2306,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.11.7 | GAME_GATE | I1 | Colour symmetry tie-break and sweep; gate BAS-S31 prepared |
-| A.11.8 | LOCAL_QUALIFIED | I1 | Done, output only; ticks when A.11.7 closes |
 | A.11.9 | RESEARCH | R2 | Override boundaries; research first |
 | A.11.10 | RESEARCH | R2 | Fail-soft quiescence, pulled forward from B.4; research first |
 | A.12 | RESEARCH | M | Roadmap rules for the maintainer to decide |

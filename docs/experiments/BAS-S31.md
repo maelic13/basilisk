@@ -54,9 +54,9 @@
   tablebases off; seed 31001; concurrency 15 as the wrapper resolves it.
 - **Cap: 4,000 pairs.**
 - Launcher `tools/run_a117_gate.ps1`; results in `tools/results/a117-gate/`.
-- **Dry run:** not yet run. On 2026-10-26 the wrapper refused it as the host
-  was not idle (another session's census was compiling); run it before the
-  gate.
+- **Dry run:** first refused on 2026-10-26 as the host was not idle
+  (another session's census was compiling); accepted at 14:03 before the
+  run (`colosseum_sprt_a117-gate_20261026_140406.dry-run.json`, `4c68d901…`).
 
 #### QUALIFICATION (before the gate)
 
@@ -70,3 +70,28 @@
   scaler gave nine.
 
 #### RESULT — append after exposure
+
+- **H1 accepted (maintainer-run 2026-10-26):** **+5.9 ± 6.3 Elo** (nElo
+  +11.1 ± 12.0), LLR +2.96 after 1,602 pairs (3,204 games); W/D/L
+  901/1456/847, pentanomial [23, 303, 918, 313, 45].
+  - 0 faults, 0 time losses; 15 post-terminal pairs kept outside the
+    sample; the independent PGN recount agrees, and the score recomputed
+    from the pentanomial matches.
+  - `colosseum_sprt_a117-gate_20261026_140406.*`, manifest `f7cd54e3…`,
+    run record `e9263683…`, PGN `192c30ef…`.
+- **Verdict (registered rule):** H1, so the repair stays and the
+  fingerprint record updates to `bench 13` 7,384,101 (the legacy arm
+  17,606,287).
+- Disposition: **H1, +5.9 ± 6.3; the repair is kept. CLOSED 2026-10-26.**
+
+#### PREDICTION CALIBRATION — preserve the original prediction above
+
+- **Prediction:** about 0 to +2 Elo, most likely the cap; not H0 at about
+  85%.
+- **Reading:** H1 at +5.9, above the predicted range, after 1,602 pairs.
+  Missed high.
+- **What it teaches:** the repair reaches beyond the exact-tie cases the
+  leaf named. Wherever the material totals and the score disagreed, the old
+  scaler cut the leading side's score; that disagreement is common in
+  pawnless endings with an exchange or a piece for pawns, and the
+  prediction priced only the tie.
