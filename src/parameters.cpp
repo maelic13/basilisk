@@ -60,11 +60,21 @@ bool parse_int(const std::string& value, int& out) {
     return true;
 }
 
+// GUIs differ in the case of their move text (`E2E4`, `e7e8Q`). A move is
+// spelled in lower case, so folding the token forgives only its case: it
+// must still match a legal move exactly.
+std::string fold_move_text(std::string token) {
+    std::transform(token.begin(), token.end(), token.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return token;
+}
+
 bool apply_uci_move(Board& board, const std::string& token) {
+    const std::string text = fold_move_text(token);
     MoveList legal;
     board.gen_legal(legal);
     for (Move move : legal) {
-        if (move_to_uci(move) == token) {
+        if (move_to_uci(move) == text) {
             board.make_move(move);
             return true;
         }
@@ -73,10 +83,11 @@ bool apply_uci_move(Board& board, const std::string& token) {
 }
 
 bool parse_legal_move(const Board& board, const std::string& token, Move& out) {
+    const std::string text = fold_move_text(token);
     MoveList legal;
     board.gen_legal(legal);
     for (Move move : legal) {
-        if (move_to_uci(move) == token) {
+        if (move_to_uci(move) == text) {
             out = move;
             return true;
         }
