@@ -203,9 +203,12 @@ jobs:
           persist-credentials: false
 
       # Release builds on the newest images, as CI does, with each image's own
-      # Clang: Linux links statically and macOS targets macOS 11 (the first
-      # release for Apple silicon), so a newer build image never raises the
-      # system a user needs; the steps after the build check both. The images
+      # Clang: Linux links statically and macOS targets macOS 13.3, so a newer
+      # build image never raises the system a user needs; the steps after the
+      # build check both. 13.3 rather than 11, the first release for Apple
+      # silicon: libc++'s std::format instantiates its floating-point
+      # formatter in every call, and that needs a to_chars macOS ships only
+      # from 13.3. Every Apple silicon Mac runs 13.3. The images
       # lack Clang's LLVM tools (llvm-profdata for PGO, llvm-objdump for the
       # ISA checks), so the one package carrying them is installed, its .deb
       # files cached by image version: a slow Ubuntu mirror once timed this
@@ -294,7 +297,7 @@ jobs:
       - name: Configure and build PGO (Linux / macOS)
         if: runner.os != 'Windows'
         env:
-          MACOSX_DEPLOYMENT_TARGET: ${{ runner.os == 'macOS' && '11.0' || '' }}
+          MACOSX_DEPLOYMENT_TARGET: ${{ runner.os == 'macOS' && '13.3' || '' }}
         run: |
           static=OFF
           [ "$RUNNER_OS" = Linux ] && static=ON
@@ -326,7 +329,7 @@ jobs:
           echo "path=build/dist/${asset}" >> "$GITHUB_OUTPUT"
 
       # Linux: no program interpreter, so no shared library is needed at all.
-      # macOS: arm64 only, and runs from macOS 11.
+      # macOS: arm64 only, and runs from macOS 13.3.
       - name: Verify the binary needs nothing newer than its target (Linux / macOS)
         if: runner.os != 'Windows'
         shell: bash
@@ -343,7 +346,7 @@ jobs:
             [ "$archs" = arm64 ] || { echo "FAIL: architectures are '$archs', not arm64"; exit 1; }
             minos=$(vtool -show-build "$binary" | awk '$1 == "minos" {print $2}')
             echo "minos: $minos"
-            [ "$minos" = 11.0 ] || { echo "FAIL: minimum macOS is '$minos', not 11.0"; exit 1; }
+            [ "$minos" = 13.3 ] || { echo "FAIL: minimum macOS is '$minos', not 13.3"; exit 1; }
           fi
 
       # The ARM64 contract: the TT prefetch must compile to prfm, and nothing
@@ -356,7 +359,14 @@ jobs:
           python=$(command -v python3 || command -v python || true)
           [ -n "$objdump" ] || { echo "FAIL: no objdump found"; exit 1; }
           [ -n "$python" ] || { echo "FAIL: python not found"; exit 1; }
-          "$python" tools/diag/verify_isa.py --tier arm64 --binary "${{ steps.asset.outputs.path }}" --objdump "$objdump"
+          # The static Linux binary carries the C runtime; its own archives are
+          # exempt, as a dynamic build would load them (verify_isa.py).
+          runtime=()
+          if [ "$RUNNER_OS" = Linux ]; then
+            for a in libc.a libm.a libgcc.a libgcc_eh.a; do runtime+=(--runtime-archive "$(clang++ -print-file-name=$a)"); done
+          fi
+          "$python" tools/diag/verify_isa.py --tier arm64 --binary "${{ steps.asset.outputs.path }}" \
+            --objdump "$objdump" "${runtime[@]}"
 
       - name: Verify ARM64 ISA contract on the release binary (Windows)
         if: matrix.arch == 'aarch64' && matrix.os_name == 'windows'
@@ -372,6 +382,10 @@ jobs:
         if: matrix.arch == 'x86_64' && matrix.os_name != 'windows'
         shell: bash
         run: |
+          # The static binary carries the C runtime; its own archives are
+          # exempt, as a dynamic build would load them (verify_isa.py).
+          runtime=()
+          for a in libc.a libm.a libgcc.a libgcc_eh.a; do runtime+=(--runtime-archive "$(clang++ -print-file-name=$a)"); done
           objdump=$(command -v llvm-objdump || true)
           python=$(command -v python3 || command -v python || true)
           [ -n "$objdump" ] || { echo "FAIL: llvm-objdump not found"; exit 1; }
@@ -386,7 +400,7 @@ jobs:
           esac
           "$python" tools/diag/verify_isa.py \
             --tier "$tier" --binary "${{ steps.asset.outputs.path }}" \
-            --launcher-object "$launcher" --objdump "$objdump"
+            --launcher-object "$launcher" --objdump "$objdump" "${runtime[@]}"
 
       - name: Verify x86 ISA contract on the release binary (Windows)
         if: matrix.arch == 'x86_64' && matrix.os_name == 'windows'

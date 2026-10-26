@@ -74,5 +74,33 @@ class RuntimeGatedTests(unittest.TestCase):
         self.assertTrue(any("forbidden sve" in e for e in errors))
 
 
+class RuntimeArchiveTests(unittest.TestCase):
+    TEXT = """
+0000000000401000 <__strlen_evex>:
+  401000: f3 48 0f b8 c7               popcntq %rdi, %rax
+  401005: c3                           retq
+0000000000401010 <Searcher::negamax>:
+  401010: c3                           retq
+"""
+
+    def test_a_runtime_archive_function_is_left_out(self):
+        counts = verify_isa.instruction_counts(self.TEXT, frozenset({"__strlen_evex"}))
+        self.assertEqual(counts["popcntq"], 0)
+        _, errors = verify_isa.verify_binary("portable", counts)
+        self.assertEqual(errors, [])
+
+    def test_the_same_instruction_in_engine_code_still_fails(self):
+        text = self.TEXT.replace("  401010: c3",
+                                 "  40100c: f3 48 0f b8 c7               popcntq %rdi, %rax\n  401010: c3")
+        counts = verify_isa.instruction_counts(text, frozenset({"__strlen_evex"}))
+        self.assertEqual(counts["popcntq"], 1)
+        _, errors = verify_isa.verify_binary("portable", counts)
+        self.assertTrue(any("forbidden popcnt" in e for e in errors))
+
+    def test_nothing_is_left_out_without_an_archive(self):
+        _, errors = verify_isa.verify_binary("portable", verify_isa.instruction_counts(self.TEXT))
+        self.assertTrue(any("forbidden popcnt" in e for e in errors))
+
+
 if __name__ == "__main__":
     unittest.main()

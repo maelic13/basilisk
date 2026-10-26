@@ -397,9 +397,11 @@ so a registered `[0,3]` gate passes `-Elo1 3`**. `-Mode simplify` is `[-5,0]`.
     are pinned and move when GitHub ships a newer image.
   - Release assets do not depend on the build image. The Linux binary is
     linked statically (no glibc or libstdc++ floor; as fast as the dynamic
-    one or faster, +5% in a WSL read) and the macOS one targets macOS 11,
-    the first release for Apple silicon, arm64 only. The release workflow
-    checks both on the built asset.
+    one or faster, +5% in a WSL read) and the macOS one targets macOS 13.3,
+    arm64 only: every Apple silicon Mac runs it, and libc++'s `std::format`
+    needs it. The release workflow checks both on the built asset; the ISA
+    check exempts the static C runtime's own archives, whose CPU-specific
+    variants run only where the CPU has them.
 - CTest runs two kinds of test. The correctness suite (`ctest -LE
   strength`) checks rules, invariants, protocol and endgame knowledge in a few
   seconds and is what an edit-compile loop and the sanitizer run use. The
