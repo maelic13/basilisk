@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
-#include <cstdio>
 #include <format>
 #include <string>
 #include <string_view>
@@ -26,15 +25,6 @@
 // position at ~35% of all nodes, which made the fingerprint lurch ~15% on
 // sub-1-Elo parameter changes. Suite kept identical to sibling engine Rarog's
 // (src/bench.rs) so the two bench harnesses match.
-// A number with a fixed count of decimals. std::format's floating-point
-// fields need a libc++ function macOS ships only from 13.3, and releases run
-// on macOS 11.
-static std::string fixed(double value, int decimals) {
-    char buf[32];
-    std::snprintf(buf, sizeof buf, "%.*f", decimals, value);
-    return buf;
-}
-
 static constexpr std::array<std::string_view, 40> BENCH_FENS = {{
     // --- 1-16: original curated suite -----------------------------------------
     "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
@@ -154,8 +144,8 @@ void run_bench(int depth, int repeats, int threads) {
             if (detailed) {
                 const int64_t nps = r.nodes * 1000 / std::max<int64_t>(1, r.elapsed_ms);
                 uci_write_line(std::format(
-                    "bench {}/{}  depth {}  score {}  nodes {}  ebf {}  time {}ms  nps {}",
-                    i + 1, BENCH_FENS.size(), r.depth, r.score, r.nodes, fixed(ebf, 2),
+                    "bench {}/{}  depth {}  score {}  nodes {}  ebf {:.2f}  time {}ms  nps {}",
+                    i + 1, BENCH_FENS.size(), r.depth, r.score, r.nodes, ebf,
                     r.elapsed_ms, nps));
             }
         }
@@ -194,10 +184,10 @@ void run_bench(int depth, int repeats, int threads) {
     std::string summary = std::format(
         "\n=========================\n"
         "Nodes searched  : {}\n"
-        "Geomean EBF     : {}\n"
+        "Geomean EBF     : {:.3f}\n"
         "Median nodes    : {}\n"
-        "Top-pos share   : {}%  ({} nodes)\n",
-        fingerprint_nodes, fixed(geomean_ebf, 3), median_nodes, fixed(top_share, 1), max_nodes);
+        "Top-pos share   : {:.1f}%  ({} nodes)\n",
+        fingerprint_nodes, geomean_ebf, median_nodes, top_share, max_nodes);
     // Keep a line beginning "Nodes/second" for the single-run case — the PGO
     // training harness waits for it as the completion marker.
     if (repeats == 1)
