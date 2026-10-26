@@ -340,7 +340,7 @@ coordinate) is not a defect; its owner decides. IDs are the Rarog audit's
 
 | Owner | Defects |
 |---|---|
-| A.11.7–A.11.10 | C-3 colour tie-break; A-26 and A-31 info lines; C-9 override jumps that reward shedding material; B-19 fail-hard quiescence, which also lets the equal-score tie rule promote refuted moves near the leaves |
+| A.11.7–A.11.10 | C-3 colour tie-break; C-9 override jumps that reward shedding material; B-19 fail-hard quiescence, which also lets the equal-score tie rule promote refuted moves near the leaves |
 | B.3 | B-12 a move stored at fail-low nodes; B-14 correction training refuses decisive results; B-45 the singular margin's range excludes the donor's value; B-109 ablation bit 6 also removes the check extension |
 | B.4 | B-17 the dead SEE clamp |
 | B.5 (with D.1) | the fail-high stop's hole: a window that never returns is never checked (A-47; `analysis/b5_failhigh_stop_2026-10-25.md` §2.3) |
@@ -1331,7 +1331,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         (`sf9587-ks/src/material.cpp`). Ours scales a weaker side holding a
         rook (KRBKR, KRNKR) to 4/64 where the donor gives 14/64, and our 14
         is unreachable.
-    - [ ] **A.11.8** `[I1]` Info lines: bestmove after a stop, mate scores as cp
+    - [x] **A.11.8** `[I1]` Info lines: bestmove after a stop, mate scores as cp
       (A-26, A-31) After 3 s the aspiration loop prints a `lowerbound` line
       for a new move that is failing high (`search_worker.cpp:450-459`); a
       hard-limit or GUI stop then discards the iteration (`:515`), `bestmove`
@@ -1355,6 +1355,29 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         entry produced it.
       - If the cause is in the search rather than the display, the leaf
         owes bench accounting and A.11's repair SPRT.
+      - Closed 2026-10-26 (`accaac0`), output only, `bench 13` exact:
+        - The search records the first move of its last line-1 `info` and,
+          when `bestmove` names another, repeats the result's line (Rarog's
+          rule). At a tablebase root a failed window prints the move's
+          tablebase score without a bound. The bound lines' 3 s delay is a
+          `SearchLimits` field so a test can open it.
+        - The "mate scores as cp" premise was false. `cp -31742` is the
+          rule-50 downgrade: `score_from_tt` turns a mate or tablebase
+          result the clock may spoil into the strongest non-decisive score,
+          as Stockfish's `value_from_tt` does. The `cp 20000 - plies`
+          values without tablebases were evaluations, not tablebase results:
+          won-ending evaluations print raw and run through the display band
+          (the KBNK drive reaches 31,660). In the `ltc` read's games the
+          first such score came from 1.10.2 in 62 games and from the head in
+          2, both bishop endings at `cp -19873` and `-19883` that fresh
+          searches show as ordinary evaluations. The repair is in the
+          display: an evaluation prints at most ±19,871, below the band.
+        - Tests in `test_search`: a stopped fail-high search ends on the
+          line of the move played (the old code ended on `e2e3` while
+          playing `h2h3`); a tablebase root prints no bound (old: 7
+          bounded lines); evaluations of 25,000 and the rule-50 value print
+          as ±19,871. CTest ON 24/24, OFF 21/21; `bench 13` 7,384,101 and
+          the legacy arm 17,606,287, both exact. No gate is owed.
     - [ ] **A.11.9** `[R2]` Override boundaries never reward shedding material
       (C-9, C-131) The KBNK and KXK overrides (`kbnk_score` base 15,600;
       `kxk_score = KNOWN_WIN + ...`, `eval.cpp:306`, `:520`) apply only
@@ -2280,7 +2303,6 @@ leaf's tag. Later phases carry only a class until they open.
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
 | A.11.7 | GAME_GATE | I1 | Colour symmetry tie-break and sweep; gate BAS-S31 prepared |
-| A.11.8 | READY_FOR_IMPLEMENTATION | I1 | Last info line after a stop; mate scores printed as cp |
 | A.11.9 | RESEARCH | R2 | Override boundaries; research first |
 | A.11.10 | RESEARCH | R2 | Fail-soft quiescence, pulled forward from B.4; research first |
 | A.12 | RESEARCH | M | Roadmap rules for the maintainer to decide |

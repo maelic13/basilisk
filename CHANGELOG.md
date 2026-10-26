@@ -76,6 +76,12 @@ and next step).
   machine also used to end the engine; it now keeps the previous table
   and says so.
 
+- **Clearer analysis output.** After a stop, the last `info` line could
+  name a different move from the one played; it now always names the move
+  played. Tablebase positions no longer print `lowerbound` or
+  `upperbound` scores, and a `cp` value of 19,872 or more now always
+  means a tablebase result: very large evaluations print as 19,871.
+
 - **A refuted move in the first iterations, and a double node count.** In
   its first two iterations the search sometimes chose a move that had only
   tied a bound, not the best score, and it counted the last ply's positions
