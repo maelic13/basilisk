@@ -671,13 +671,11 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
     // A stop can discard an iteration whose lines already named another move
     // (a long fail-high on a new move prints its bound line). The last line
     // before `bestmove` names the move played, so the result's line repeats.
+    // It goes through send_info like every line, so in analysis it gets the
+    // same tablebase extension; under a clock send_info extends nothing.
     if (shared_.info && config_.thread_id == 0 && result.bestmove != MOVE_NONE
-        && state_.last_line_move != MOVE_NONE && state_.last_line_move != result.bestmove) {
-        shared_.info(format_info_line(result.depth, result.seldepth, 1, result.score, {},
-                                      current_nodes(), elapsed_seconds(), current_tbhits(),
-                                      shared_.tt.hashfull(), legal_line(board, result.pv)));
-        state_.last_line_move = result.bestmove;
-    }
+        && state_.last_line_move != MOVE_NONE && state_.last_line_move != result.bestmove)
+        send_info(result.depth, 1, result.score, result.pv, current_nodes(), elapsed_seconds());
     // Publish whatever this thread accumulated since the last batch boundary,
     // so the shared total is exact once the pool joins.
     flush_shared_nodes();
