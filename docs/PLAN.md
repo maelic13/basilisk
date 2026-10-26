@@ -1989,8 +1989,17 @@ rejections stop B.
     - removal only if the battery passes with no stop, then a `[-5,5]`
       bracket. On today's evidence removal is refused.
 
-    The hole is a card with D.1. Rarog's leads (24% firing, about −15 Elo at
-    the target) are priors only.
+    The hole is a card with D.1. Rarog's leads are priors only: at the
+    target its stop fired on 24% of searches and cost about −15 Elo.
+    - Rarog's D.1.6 results (RAR-R25 to RAR-R27, relayed 2026-10-26) are
+      leads to verify, not a solution; the packet's §9 maps each to
+      Basilisk's own reads. At twice the scaled target, on any root
+      fail-high, Rarog's stop fired on under 1% of searches and read no
+      harm (+4.3 ± 8.3 at `3+0.03`, +4.9 ± 9.8 at `10+0.1`).
+    - Reads still owed: M1's 2× arm against §2.4's B.2-tree miss; rec3 at
+      `180000+2000` for the hole; how often the 2.63-ply LMR correction cap
+      binds and its share of deeper searches (Rarog's one-ply cap read H0,
+      −1.2 ± 3.0); and rec1 stop-free on the head after A.11.1 and A.11.2.
   - A score-scaled first window with B.4's fail-soft quiescence (B-75, B-19);
     Rarog's four-part cascade cluster read H0 (-7.4 ± 7.5) and was re-scoped
     to bare-king trees; a fail-high depth reduction only with its clock half
