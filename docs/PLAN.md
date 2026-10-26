@@ -1182,13 +1182,26 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         time and no increment, which no registered gate can reach (every
         one has an increment) and which in a game means the flag has
         already fallen.
-    - [ ] **A.11.4** `[I1]` Upper-case UCI move text accepted
+    - [x] **A.11.4** `[I1]` Upper-case UCI move text accepted
       (A-9) `apply_uci_move` matches `move_to_uci(move) == token` exactly
       (`parameters.cpp:67`), so `E2E4` or `e7e8Q` is rejected, and a rejected
       `position` ends the process by design (BAS-C12). Rarog accepts
       upper-case move text (its tests come from Little Blitzer's output).
       Compare case-insensitively before the legality match; the fatal policy
       for a genuinely illegal move stays.
+      - Closed 2026-10-26 (`d81efc7`): `fold_move_text` lower-cases the token
+        before both legality matches, `position` and `searchmoves`
+        (`src/parameters.cpp`); a folded token must still equal a legal
+        move's spelling, and the diagnostics print the token as sent.
+      - New `test_uci_protocol` sections: `E2E4` plays e2e4, `e7e8Q` and
+        `E7E8N` promote to the piece named, `searchmoves E2E4 D2D4` is
+        accepted, and `E2E5` is still rejected with the board unchanged.
+        The first three fail on the old parser. Through UCI,
+        `position startpos moves E2E4 E7E5 G1F3` now searches instead of
+        ending the process.
+      - `bench 13` 8,753,339 and the legacy arm 15,887,213, unchanged;
+        CTest ON 23/23 and OFF 20/20. No gate is owed: the change is
+        protocol only, and every harness sends lower-case moves.
     - [ ] **A.11.5** `[I1]` Fatal errors from every thread reach stdout
       (A-35) Only the UCI thread catches (`main.cpp:86-93`); the engine thread
       (`engine_entry.cpp:49`) and the helper threads have no handler and no
@@ -2129,7 +2142,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.11.4 | READY_FOR_IMPLEMENTATION | I1 | Upper-case move text |
 | A.11.5 | READY_FOR_IMPLEMENTATION | I1 | Fatal errors on stdout from every thread |
 | A.11.6 | READY_FOR_IMPLEMENTATION | I1 | Frontier nodes counted once |
 | A.11.7 | READY_FOR_IMPLEMENTATION | I1 | Colour symmetry tie-break and sweep |

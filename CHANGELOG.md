@@ -66,6 +66,10 @@ and next step).
   the engine searched without any limit. It now answers at once, as
   Stockfish does.
 
+- **Upper-case moves.** A GUI that sent moves in upper case (`E2E4`,
+  `e7e8Q`) made the engine reject the position and exit. Moves are now
+  read without regard to case; an illegal move is still refused.
+
 ---
 
 ## [1.10.2] - 2026-10-08
