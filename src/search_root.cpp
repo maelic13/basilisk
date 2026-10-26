@@ -177,8 +177,14 @@ std::string format_info_line(int depth, int seldepth, int multipv, int score,
     const bool mate = std::abs(score) >= MATE_SCORE - MAX_PLY;
     const int mate_in = (MATE_SCORE - std::abs(score) + 1) / 2;
     // A tablebase result n plies of tablebase play away shows as cp 20000 - n.
+    // An evaluation prints below that band, so a cp value in it always means a
+    // tablebase result: won-ending evaluations reach far above it (the KBNK
+    // drive to 31,660, a mate the rule-50 clock may spoil to 31,742).
+    static constexpr int eval_display_max = tablebaseWinScore - MAX_PLY - 1;
     if (is_tablebase_decisive(score))
         score = (score > 0 ? 1 : -1) * (tablebaseWinScore - (tablebaseValue - std::abs(score)));
+    else if (!mate && std::abs(score) > eval_display_max)
+        score = (score > 0 ? 1 : -1) * eval_display_max;
     const int64_t nps = int64_t(double(nodes) / std::max(elapsed, 0.001));
     std::string line = std::format(
         "info depth {} seldepth {} multipv {} score {} {}{}{} nodes {} nps {} hashfull {} "
