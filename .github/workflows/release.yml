@@ -46,7 +46,7 @@ jobs:
   # and each install step's catches a hung package mirror in minutes.
   prepare:
     name: Validate the version, the changelog and the declared fingerprint
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     outputs:
       mode: ${{ steps.meta.outputs.mode }}
@@ -108,7 +108,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: ubuntu-24.04
+          - runner: ubuntu-26.04
             os_name: linux
             arch: x86_64
             ext: ""
@@ -116,7 +116,7 @@ jobs:
             compiler: clang
             asset_suffix: ""
 
-          - runner: ubuntu-24.04
+          - runner: ubuntu-26.04
             os_name: linux
             arch: x86_64
             ext: ""
@@ -124,7 +124,7 @@ jobs:
             compiler: clang
             asset_suffix: "-avx2"
 
-          - runner: ubuntu-24.04
+          - runner: ubuntu-26.04
             os_name: linux
             arch: x86_64
             ext: ""
@@ -132,7 +132,7 @@ jobs:
             compiler: clang
             asset_suffix: "-pext"
 
-          - runner: ubuntu-24.04-arm
+          - runner: ubuntu-26.04-arm
             os_name: linux
             arch: aarch64
             ext: ""
@@ -184,7 +184,7 @@ jobs:
             mingw_pkg_prefix: mingw-w64-clang-aarch64
             compiler_pkg: clang
 
-          - runner: macos-15
+          - runner: macos-26
             os_name: macos
             arch: aarch64
             ext: ""
@@ -202,44 +202,42 @@ jobs:
         with:
           persist-credentials: false
 
-      # Release binaries build on the older images, ubuntu-24.04 and macos-15,
-      # unlike CI: a dynamically linked Linux binary needs at least the glibc
-      # and libstdc++ it was built against, and a macOS binary at least the
-      # macOS version, so a newer build image would drop users on current
-      # systems. 24.04's newest Clang is 18, so Clang 19 is downloaded, its
-      # .deb files cached by image version: a slow Ubuntu mirror once timed
-      # this step out mid-download.
+      # Release builds on the newest images, as CI does, with each image's own
+      # Clang: Linux links statically and macOS targets macOS 11 (the first
+      # release for Apple silicon), so a newer build image never raises the
+      # system a user needs; the steps after the build check both. The images
+      # lack Clang's LLVM tools (llvm-profdata for PGO, llvm-objdump for the
+      # ISA checks), so the one package carrying them is installed, its .deb
+      # files cached by image version: a slow Ubuntu mirror once timed this
+      # step out mid-download.
       - name: Image version (Linux)
         id: image
         if: runner.os == 'Linux'
         run: echo "version=$ImageVersion" >> "$GITHUB_OUTPUT"
 
-      - name: Cache Clang packages (Linux)
+      - name: Cache LLVM packages (Linux)
         if: runner.os == 'Linux'
         uses: actions/cache@v6
         with:
           path: ~/apt-debs
-          key: clang-19-${{ matrix.runner }}-${{ steps.image.outputs.version }}
-          restore-keys: clang-19-${{ matrix.runner }}-
+          key: llvm-22-${{ matrix.runner }}-${{ steps.image.outputs.version }}
+          restore-keys: llvm-22-${{ matrix.runner }}-
 
-      - name: Install Clang and LLVM (Linux)
+      - name: Select Clang 22 and its LLVM tools (Linux)
         timeout-minutes: 10
         if: runner.os == 'Linux'
         run: |
-          # clang-19, NOT the distro-default clang-18. The engine returns
-          # std::expected (C++23, added in 8.6); on Linux clang uses libstdc++,
-          # whose <expected> body is guarded behind __cpp_concepts >= 202002L.
-          # clang-18 only defines 201907L, so the header is empty and the build
-          # fails ("no template named 'expected'"). clang-19 defines 202002L.
-          # Keeps clang + libstdc++, so the shipped binary is dynamically linked
-          # and portable exactly as before. The image has CMake and Ninja.
-          mkdir -p ~/apt-debs
-          sudo cp ~/apt-debs/*.deb /var/cache/apt/archives/ 2>/dev/null || true
-          sudo apt-get update -q
-          sudo apt-get install -y clang-19 llvm-19
-          cp /var/cache/apt/archives/*.deb ~/apt-debs/ 2>/dev/null || true
-          sudo ln -sf /usr/bin/clang-19   /usr/local/bin/clang
-          sudo ln -sf /usr/bin/clang++-19 /usr/local/bin/clang++
+          command -v clang++-22 >/dev/null || { echo "FAIL: the image has no clang-22"; exit 1; }
+          if ! command -v llvm-profdata-22 >/dev/null; then
+            mkdir -p ~/apt-debs
+            sudo cp ~/apt-debs/*.deb /var/cache/apt/archives/ 2>/dev/null || true
+            sudo apt-get update -q
+            sudo apt-get install -y --no-install-recommends llvm-22
+            cp /var/cache/apt/archives/*.deb ~/apt-debs/ 2>/dev/null || true
+          fi
+          sudo ln -sf /usr/bin/clang-22        /usr/local/bin/clang
+          sudo ln -sf /usr/bin/clang++-22      /usr/local/bin/clang++
+          sudo ln -sf /usr/bin/llvm-objdump-22 /usr/local/bin/llvm-objdump
           clang++ --version
           # Verify the exact llvm-profdata selected by the clang driver. The
           # PGO target uses this same lookup rather than PATH ordering.
@@ -291,10 +289,17 @@ jobs:
       # revision + production flags (TUNE off), portable (no -march=native).
       # It instruments, trains on the bench suite, merges the profile and links
       # the optimised binary into build/dist. The pgo target is self-contained.
+      # MACOSX_DEPLOYMENT_TARGET reaches the PGO target's child builds through
+      # the environment; STATIC_RUNTIME is forwarded by the pgo target itself.
       - name: Configure and build PGO (Linux / macOS)
         if: runner.os != 'Windows'
+        env:
+          MACOSX_DEPLOYMENT_TARGET: ${{ runner.os == 'macOS' && '11.0' || '' }}
         run: |
-          cmake --preset ${{ matrix.preset }} -DPORTABLE_BUILD=ON -DCOMP=${{ matrix.compiler }} -DBASILISK_DIST_TAG="$RELEASE_TAG"
+          static=OFF
+          [ "$RUNNER_OS" = Linux ] && static=ON
+          cmake --preset ${{ matrix.preset }} -DPORTABLE_BUILD=ON -DCOMP=${{ matrix.compiler }} \
+            -DSTATIC_RUNTIME=$static -DBASILISK_DIST_TAG="$RELEASE_TAG"
           cmake --build --preset ${{ matrix.preset }} --target pgo
 
       - name: Configure and build PGO (Windows)
@@ -320,13 +325,34 @@ jobs:
           echo "asset=$asset" >> "$GITHUB_OUTPUT"
           echo "path=build/dist/${asset}" >> "$GITHUB_OUTPUT"
 
+      # Linux: no program interpreter, so no shared library is needed at all.
+      # macOS: arm64 only, and runs from macOS 11.
+      - name: Verify the binary needs nothing newer than its target (Linux / macOS)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          binary="${{ steps.asset.outputs.path }}"
+          if [ "$RUNNER_OS" = Linux ]; then
+            file "$binary"
+            if readelf -l "$binary" | grep -q INTERP; then
+              echo "FAIL: the Linux binary is dynamically linked"; readelf -d "$binary" | grep NEEDED; exit 1
+            fi
+          else
+            file "$binary"
+            archs=$(lipo -archs "$binary")
+            [ "$archs" = arm64 ] || { echo "FAIL: architectures are '$archs', not arm64"; exit 1; }
+            minos=$(vtool -show-build "$binary" | awk '$1 == "minos" {print $2}')
+            echo "minos: $minos"
+            [ "$minos" = 11.0 ] || { echo "FAIL: minimum macOS is '$minos', not 11.0"; exit 1; }
+          fi
+
       # The ARM64 contract: the TT prefetch must compile to prfm, and nothing
       # beyond baseline ARMv8 with NEON may appear (tools/diag/verify_isa.py).
       - name: Verify ARM64 ISA contract on the release binary (Linux / macOS)
         if: matrix.arch == 'aarch64' && matrix.os_name != 'windows'
         shell: bash
         run: |
-          objdump=$(command -v llvm-objdump || command -v llvm-objdump-19 || command -v objdump || true)
+          objdump=$(command -v llvm-objdump || command -v objdump || true)
           python=$(command -v python3 || command -v python || true)
           [ -n "$objdump" ] || { echo "FAIL: no objdump found"; exit 1; }
           [ -n "$python" ] || { echo "FAIL: python not found"; exit 1; }
@@ -346,7 +372,7 @@ jobs:
         if: matrix.arch == 'x86_64' && matrix.os_name != 'windows'
         shell: bash
         run: |
-          objdump=$(command -v llvm-objdump || command -v llvm-objdump-19 || true)
+          objdump=$(command -v llvm-objdump || true)
           python=$(command -v python3 || command -v python || true)
           [ -n "$objdump" ] || { echo "FAIL: llvm-objdump not found"; exit 1; }
           [ -n "$python" ] || { echo "FAIL: python not found"; exit 1; }
@@ -366,7 +392,7 @@ jobs:
         if: matrix.arch == 'x86_64' && matrix.os_name == 'windows'
         shell: msys2 {0}
         run: |
-          objdump=$(command -v llvm-objdump || command -v llvm-objdump-19 || true)
+          objdump=$(command -v llvm-objdump || true)
           python=$(command -v python3 || command -v python || true)
           [ -n "$objdump" ] || { echo "FAIL: llvm-objdump not found"; exit 1; }
           [ -n "$python" ] || { echo "FAIL: python not found"; exit 1; }
@@ -428,7 +454,7 @@ jobs:
     # every build succeeded, because a job skipped after a failed dependency
     # reports as passing.
     if: ${{ always() }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     steps:
       - name: Every build succeeded
@@ -481,7 +507,7 @@ jobs:
     name: Publish the release
     if: needs.prepare.outputs.mode == 'release' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     needs: [prepare, collect]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     permissions:
       contents: write
