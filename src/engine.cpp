@@ -391,7 +391,10 @@ void Engine::run_perft_command(uint64_t command_epoch) {
 // ~550 ms at 1 GB on the first move of every game.
 void Engine::apply_table_state() {
     if (parameters_.hash_mb != current_hash_mb_) {
-        tt_.resize(static_cast<size_t>(parameters_.hash_mb));
+        if (!tt_.resize(static_cast<size_t>(parameters_.hash_mb)))
+            uci_write_line("info string Hash " + std::to_string(parameters_.hash_mb)
+                           + " MB could not be allocated; keeping "
+                           + std::to_string(tt_.allocated_bytes() >> 20) + " MB");
         current_hash_mb_ = parameters_.hash_mb;
     }
     if (parameters_.new_game || parameters_.clear_hash) {

@@ -272,6 +272,9 @@ target_link_libraries(test_magics PRIVATE basilisk_board)
 add_executable(test_tt tests/test_tt.cpp)
 target_include_directories(test_tt PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
+add_executable(test_fatal_report tests/test_fatal_report.cpp)
+target_include_directories(test_fatal_report PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
 # ---------------------------------------------------------------------------
 # Evaluator tests
 # ---------------------------------------------------------------------------
@@ -403,6 +406,12 @@ basilisk_cli_test(cli_bench 0 "Nodes searched *: *[0-9]+" bench 3)
 basilisk_cli_test(cli_go_runs_to_its_depth 0 "info depth 4 .*bestmove [a-h][1-8][a-h][1-8]" go depth 4)
 basilisk_cli_test(cli_help 0 "UCI chess engine.*bench .depth. .repeats." help)
 basilisk_cli_test(cli_unknown_exits_2 2 "Unknown command: 'frobnicate'" frobnicate)
+# An exception escaping a non-UCI thread is reported on stdout, then exit 1.
+add_test(NAME fatal_report_from_a_thread
+         COMMAND ${CMAKE_COMMAND} "-DEXE=$<TARGET_FILE:test_fatal_report>" "-DARGS="
+                 "-DEXPECT_CODE=1"
+                 "-DREGEX=info string CRITICAL ERROR: unhandled exception: probe from a helper thread; exiting."
+                 -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/cli_check.cmake)
 
 # board_performance_test is a standalone benchmark — build it but do not
 # register it with CTest so that a plain `ctest` run stays fast and clean.
@@ -490,7 +499,7 @@ endif()
 set(_ALL_TARGETS
     basilisk_board basilisk_engine basilisk_launcher basilisk_version
     basilisk board_performance_test
-    test_board test_move test_tt test_eval test_search test_engine_ponder test_engine_threading test_uci_protocol test_cpu_features
+    test_board test_move test_tt test_fatal_report test_eval test_search test_engine_ponder test_engine_threading test_uci_protocol test_cpu_features
     test_endgames test_wac test_invariants test_magics test_threats
 )
 if(B2_CORE)

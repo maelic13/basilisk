@@ -17,6 +17,7 @@
 #include "zobrist.h"
 
 int run_engine(int argc, char* argv[]) {
+    install_fatal_error_report();
     std::ios_base::sync_with_stdio(false);
     std::cin.tie(nullptr);
 

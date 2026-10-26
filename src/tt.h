@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <new>
 #if defined(_MSC_VER)
 #include <xmmintrin.h>
 #endif
@@ -115,8 +116,10 @@ public:
     // Size the table from the byte budget the user asked for. The cluster
     // count floors to a power of two (the index is a mask), so the allocation
     // is always <= the budget and never less than half of it. Closing that gap
-    // needs full-budget (multiply-hi) indexing, which is deferred.
-    void resize(size_t mb) {
+    // needs full-budget (multiply-hi) indexing, which is deferred. Returns
+    // false when the requested table cannot be allocated: the table then
+    // keeps its previous size, cleared, so the engine stays usable.
+    bool resize(size_t mb) {
         size_t bytes = mb * 1024 * 1024;
         size_t count = bytes / sizeof(TTCluster);
         size_t power = 1;
@@ -127,11 +130,25 @@ public:
         // transiently needed about 24 GB at `setoption Hash` time, mid-game.
         // No entries are carried across a resize, so dropping first costs
         // nothing, and make_unique value-initializes the new table clear.
+        const size_t previous = cluster_count_;
+        bool allocated = true;
         clusters_.reset();
-        clusters_ = std::make_unique<TTCluster[]>(power);
+        try {
+            clusters_ = std::make_unique<TTCluster[]>(power);
+        } catch (const std::bad_alloc&) {
+            // Not a smaller table: zero-filling the largest one the system
+            // would commit could exhaust memory. The previous size was
+            // allocated a moment ago; a first table has none to return to.
+            if (previous == 0)
+                throw;
+            clusters_ = std::make_unique<TTCluster[]>(previous);
+            power = previous;
+            allocated = false;
+        }
         cluster_count_ = power;
         mask_ = power - 1;
         age_.store(0, std::memory_order_relaxed);
+        return allocated;
     }
 
     // Allocated size in bytes, the `Hash` contract under test: allocated <=
