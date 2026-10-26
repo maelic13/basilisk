@@ -1241,6 +1241,30 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       invariant. Count each node once and re-declare the fingerprint; whether
       a gate is owed is decided with the maintainer (timed play changes only
       through that rule and the stop poll).
+      - A precondition defect, found 2026-10-26: the tie rule also ran at
+        the root. A later root move is searched with a null window at
+        alpha, and the fail-hard quiescence search returns alpha exactly,
+        so an equal score is usually a fail-low bound. With the count
+        fixed, the free-queen test played Qa4 (worth −6) at Qxd5's
+        `cp 1018`. Fixed first in its own commit (`0eadf03`, maintainer
+        decision): the root is kept out of the rule, as Stockfish's root
+        plays only a move that exceeded alpha. `bench 13` 8,753,339 →
+        8,101,423; all 40 positions move, 39 in score. The legacy kernel
+        has no such rule.
+      - Implemented (`07a357f`): the depth-0 hand-off and razoring, which
+        also re-entered quiescence on the same node, pass the node as
+        counted, so quiescence skips the count and the stop, ply and draw
+        checks negamax already ran. `interior_nodes` moved below the
+        hand-off; `in_check_nodes` stays above it, keeping run_suite's
+        `check_exts <= in_check_nodes`.
+      - A new `test_search` section: a depth-1 search of a single quiet
+        move counts 2 nodes (the old count, on the A.11.2 binary, is 3).
+        Free-queen now plays Qxd5 at depths 1–3.
+      - `bench 13` 7,233,823 with both commits (from 8,753,339); the
+        legacy arm 15,887,213, unchanged; CTest ON 24/24, OFF 21/21.
+      - Gate: the maintainer's decision. Recommended: one `[-5,5]` repair
+        SPRT for both commits against `master`, since the root fix changes
+        play and the count reshuffles every remaining tie.
     - [ ] **A.11.7** `[I1]` Evaluation colour symmetry: tie-break and sweep
       (C-3, A-22, C-103) The pawnless "ahead by at most a minor" scaler picks
       `strong = (w_tot >= b_tot) ? WHITE : BLACK` (`eval.cpp:800`), so at
@@ -2162,7 +2186,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.11.6 | READY_FOR_IMPLEMENTATION | I1 | Frontier nodes counted once |
+| A.11.6 | LOCAL_QUALIFIED | I1 | Frontier nodes counted once, with the root tie fix; gate decision pending |
 | A.11.7 | READY_FOR_IMPLEMENTATION | I1 | Colour symmetry tie-break and sweep |
 | A.11.8 | READY_FOR_IMPLEMENTATION | I1 | Last info line after a stop; mate scores printed as cp |
 | A.11.9 | RESEARCH | R2 | Override boundaries; research first |
