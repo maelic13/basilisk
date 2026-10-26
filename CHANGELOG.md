@@ -103,6 +103,14 @@ and next step).
   **−0.3 ± 4.0 Elo** at `3+0.03` (8,000 games): the case is rare, and the
   engine now takes the short mate. `bench` now reports 7,857,713 nodes.
 
+- **A rook promotion where a queen was as good.** The engine sometimes
+  promoted to a rook where the rook line merely transposed into the queen
+  line, and in a few positions where a reply works only against the rook.
+  A rook or bishop promotion is now chosen only when it is clearly better,
+  as where a queen would stalemate; Saavedra's rook promotion is still
+  found. In the positions where the choice changes, measured at **−0.3 ±
+  1.1 Elo** (6,318 games): no measurable effect on strength.
+
 ---
 
 ## [1.10.2] - 2026-10-08

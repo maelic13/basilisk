@@ -129,7 +129,8 @@
   - The H0 is most likely noise around a true effect near 0, but that is
     a reading after exposure; BAS-S34 is the targeted re-test.
 - Disposition: **H0, −2.7 ± 4.1; reverted. CLOSED 2026-10-26.** Retry
-  trigger: BAS-S34.
+  trigger: BAS-S34, which reached its cap at −0.3 ± 1.1 on the positions
+  where the rule acts; the rule is re-applied (`d7d2c34`).
 
 #### PREDICTION CALIBRATION — preserve the original prediction above
 

@@ -1442,7 +1442,11 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         (Stockfish 18: 21 better, 148 equal, 8 worse), and the rule acts in
         only about 6% of games, so BAS-S34 re-tests it from the 3,159
         positions where the arms differ (`[-5,0]`, launcher
-        `tools/run_a119_up_retest.ps1`, maintainer-run; dry run accepted).
+        `tools/run_a119_up_retest.ps1`, maintainer-run). It reached its
+        3,159-pair cap at −0.3 ± 1.1 Elo on that book (about 0.02 Elo in
+        ordinary play), so the rule is re-applied (`d7d2c34`) by its cap
+        rule on the maintainer's confirmation; `bench 13` 7,857,713, the
+        legacy arm 23,696,970; CTest ON 24/24, OFF 21/21.
     - [ ] **A.11.10** `[R2]` Fail-soft quiescence
       (B-19) Pulled forward from B.4 by maintainer decision 2026-10-26, so
       that B.3 is not fitted around a known defect. Quiescence fails hard:

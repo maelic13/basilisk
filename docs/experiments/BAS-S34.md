@@ -64,3 +64,36 @@
   run `2b0fcf2b…dad0`, manifest `7f78201d…8eca`): 3,159 openings
   scheduled, none reused. The book's SHA-256 is `084be1ad…5abe`, and
   `promotion_book.py` rebuilds it byte for byte.
+
+#### RESULT — append after exposure
+
+- **Cap without a decision (maintainer-run 2026-10-26):** **−0.3 ± 1.1
+  Elo** on the book (nElo −2.2 ± 8.6), LLR +0.09 in [−2.94, 2.94] at the
+  3,159-pair cap (6,318 games); W/D/L 2601/1111/2606, pentanomial [0, 53,
+  3059, 46, 1].
+  - 0 faults, 0 time losses; the independent PGN recount agrees. Both
+    arms 3.23M nps, 252,000 nodes and 78 ms a move.
+  - The run took a fresh dry run with the registered hash
+    (`colosseum_sprt_a119-up-retest_20261026_221029.dry-run.json`,
+    `2b0fcf2b…`); manifest `2c0f822e…`, run record `50703c05…`, PGN
+    `2c58754a…`.
+  - 3,059 of the 3,159 pairs went 1–1: the position, not the promotion,
+    decided them. The other 100 split 47 to the rule, 53 against.
+- **Verdict (registered rule):** the cap, so the rule is re-applied as a
+  correctness fix, on the maintainer's confirmation (2026-10-26):
+  `d7d2c34`, which restores `1641e64`'s engine and tests exactly; `bench
+  13` 7,857,713, the legacy arm 23,696,970; CTest ON 24/24, OFF 21/21.
+- Disposition: **cap, −0.3 ± 1.1; the rule is re-applied. CLOSED
+  2026-10-26.**
+
+#### PREDICTION CALIBRATION — preserve the original prediction above
+
+- **Prediction:** about 0 to +10 Elo on this book; H1 or the cap at about
+  80%.
+- **Reading:** the cap, centred at −0.3, just below the predicted range.
+  Hit on the outcome, slightly low on the centre: Stockfish's 21-to-8
+  preference for the rule's choices did not show in results.
+- **What it teaches:** even where the rule changes the move, the result
+  changes in about 3% of pairs, evenly both ways; its value is correct
+  moves, not Elo. Measured where it acts, the harm bound is ±0.07 Elo in
+  ordinary play, which the UHO gate's ±4.1 could never give.
