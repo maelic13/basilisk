@@ -109,22 +109,16 @@ static void test_picker_contract() {
             if (l.empty()) break;
             b.make_move(l[int(rng() % uint64_t(l.size()))]);
         }
-        MoveList all_legal;
-        b.gen_legal(all_legal);
-        if (all_legal.empty())
+        MoveList legal_list;
+        b.gen_legal(legal_list);
+        if (legal_list.empty())
             continue;
         ++positions;
-        const int depth = 1 + int(rng() % 12);
-        const int ply = int(rng() % 8);
-        // Below the root the picker withholds rook and bishop promotions: a
-        // queen promotion makes every move they could.
-        MoveList legal_list;
-        for (Move m : all_legal)
-            if (ply == 0 || !rook_or_bishop_promotion(m))
-                legal_list.push(m);
         const std::vector<Move> legal = sorted({legal_list.begin(), legal_list.end()});
         std::vector<Move> stage;
         for (Move m : legal) if (capture_stage(b, m)) stage.push_back(m);
+        const int depth = 1 + int(rng() % 12);
+        const int ply = int(rng() % 8);
         auto fail = [&](const char* what) {
             if (++failures <= 5)
                 std::fprintf(stderr, "  %s: %s\n", what, b.get_fen().c_str());
@@ -192,25 +186,6 @@ static void test_picker_contract() {
     end_section();
 }
 
-static void test_rook_and_bishop_promotions_below_the_root() {
-    auto h = std::make_unique<CoreHistoryTables>();
-    Board b;
-    b.set_fen("8/P7/8/8/8/8/8/k6K w - - 0 1");
-    const Pick root = run(b, *h, MOVE_NONE, MOVE_NONE, 6, 0, -1);
-    const Pick below = run(b, *h, make_promotion(A7, A8, ROOK), MOVE_NONE, 6, 3, -1);
-    auto has = [](const Pick& p, Move m) {
-        return std::find(p.moves.begin(), p.moves.end(), m) != p.moves.end();
-    };
-    begin_section("promotions: the root keeps all four, a deeper node queen and knight");
-    for (PieceType pt : {QUEEN, ROOK, BISHOP, KNIGHT})
-        EXPECT(has(root, make_promotion(A7, A8, pt)));
-    EXPECT(has(below, make_promotion(A7, A8, QUEEN)));
-    EXPECT(has(below, make_promotion(A7, A8, KNIGHT)));
-    EXPECT(!has(below, make_promotion(A7, A8, ROOK)));
-    EXPECT(!has(below, make_promotion(A7, A8, BISHOP)));
-    end_section();
-}
-
 static void test_partial_sort() {
     begin_section("partial insertion sort: descending above the limit, a permutation");
     std::mt19937_64 rng(42);
@@ -248,6 +223,5 @@ int main() {
     std::printf("================\n");
     test_partial_sort();
     test_picker_contract();
-    test_rook_and_bishop_promotions_below_the_root();
     return harness_summary();
 }
