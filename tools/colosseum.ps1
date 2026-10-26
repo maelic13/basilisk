@@ -204,6 +204,8 @@ if ($twoArm) {
 $commandArgs += @('--concurrency', "$expectedConcurrency")
 $commandArgs += @('--cores-per-game', "$Threads")
 $commandArgs += @('--seed', "$Seed", '--dir', $Dir)
+# The run files name the UHO book; only a launcher that names another passes it.
+if ($PSBoundParameters.ContainsKey('Book')) { $commandArgs += @('--book', $Book) }
 
 $resultsDir = Join-Path $PSScriptRoot 'results'
 New-Item -ItemType Directory -Force -Path $resultsDir | Out-Null
