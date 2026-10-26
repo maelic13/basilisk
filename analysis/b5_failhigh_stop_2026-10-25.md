@@ -11,7 +11,8 @@
   (`analysis/rarog_audit_2026-10-24.md`). Rarog's numbers are leads only:
   RAR-R18 (the stop at the target, about −15 Elo there) and RAR-R25 (at twice
   the target it fired on 2 of 300 searches) reach this packet as the
-  maintainer relayed them, not from a pinned snapshot.
+  maintainer relayed them, not from a pinned snapshot. Rarog's D.1.6 results
+  (RAR-R25 to RAR-R27, relayed 2026-10-26) are leads in §9.
 - Decision needed: none now. M1 runs when B.5 opens; the decision rule below
   is fixed before it runs.
 
@@ -268,5 +269,83 @@ a threshold change cannot repair it.
 - `tools/diag/suite_v1.epd` holds an illegal position,
   `1r6/8/8/8/8/8/1K6/kR6 w - - 0 1` (adjacent kings, the side not to move in
   check). The engine rejects it with exit status 1. `run_suite.py` then
-  failed on the diagnostic build with "missing diagnostic counters"; the
-  cause was not investigated.
+  failed on the diagnostic build with "missing diagnostic counters": the
+  rejected position ends the engine before it prints its counters. Since
+  `2c6c4fc` the suite instruments default to `suite_v2.epd`, v1 without that
+  position.
+
+## 9. Rarog's D.1.6 results (RAR-R25 to RAR-R27): leads to verify
+
+Relayed by the maintainer on 2026-10-26 from Rarog's D.1.6 work of
+2026-10-25 and 2026-10-26. Rarog's stop, windows and LMR differ from
+Basilisk's, so each item below is a lead: what Rarog found, how Basilisk
+differs, what Basilisk's own probes already say, and the read still owed.
+None changes M1's registration (§4) or the decision rule (§5); the reads are
+zero-game probes for when B.5 opens, and any change they motivate is
+registered then.
+
+**9.1 The stop at twice the target.**
+- Rarog: the stop fires past 2× the *scaled* soft target on *any* root
+  fail-high and plays the fail-high move. It fired on under 1% of searches,
+  read no harm against no stop (+4.3 ± 8.3 Elo at `3+0.03`, +4.9 ± 9.8 at
+  `10+0.1`) and ended every probed stall on the PGO build. At the target
+  itself it cost about 15 Elo (RAR-R18).
+- Basilisk's differs twice (§1): it fires at the raw optimum (1×, unscaled),
+  and only when the fail-high move is the last completed iteration's, whose
+  move it plays.
+- Basilisk already shows: on rec1's stop-free timelines 2× would have
+  guarded four of five trees and missed the B.2 tree (§2.4).
+- Read owed: M1's 1× and 2× firing rates (§4) are this comparison. Rarog's
+  "any fail-high, play it" form is a third design, not an M1 arm; it becomes
+  one only by a registered amendment before M1 runs.
+- Falsifier: the lead "2× costs nothing and guards the sinks" fails in
+  Basilisk if the battery fails at 2× (§5; §2.4 predicts the B.2 tree does),
+  or if 2× against 1× reads H0.
+
+**9.2 A long window that never fails high.**
+- Rarog: both its stops are checked only at a fail-high return, and on rec3
+  at `180000+2000` one long window ran to the hard maximum.
+- Basilisk already shows the same hole (§2.3): give-up windows started just
+  before the optimum ran to 2.79× and 4.07× it on the two tree arms, and
+  1.17× on the head.
+- Read owed: rec3 itself on the B.5 entry head at `180000+2000`, stop
+  present, with §2.3's diagnostic timeline. M1 measures the hole's rate.
+- Falsifier: rec3 finishing under 0.5× the maximum on the head means
+  Rarog's rec3 case is absent in Basilisk; the hole stays a card with D.1
+  either way (§5).
+
+**9.3 The LMR correction term and the won-ending tree.**
+- Rarog: its correction term was uncapped. It takes a ply or more off 19%
+  of bench's reductions (73% on rec1) and drives 57% of bench's
+  deeper-than-nominal searches (91% on rec1). Capping it at one ply gained
+  six plies on rec1 but changed 24 of 40 bench positions and gated H0
+  (−1.2 ± 3.0 Elo).
+- Basilisk caps it: `r -= min(|correction_raw| / 7419, 2695)`
+  (`src/search_kernel_core.cpp`), at most 2.63 plies.
+- Basilisk already shows: removing the term cuts rec1's depth-26 tree 30×
+  and bench by 25%, but does not remove the sink (§2.2).
+- Read owed: a diagnostic count of how often the 2.63-ply cap binds, of the
+  reductions the term moves by a ply or more, and of the term's share of
+  `lmr_extended`, on bench and on rec1 at depth 26. It needs two counters
+  that do not exist yet.
+- Falsifier: the lead "a tighter cap shrinks Basilisk's won-ending trees"
+  fails if the term drives under a fifth of rec1's `lmr_extended`. Even
+  where it holds, Rarog's H0 says a tighter cap is a tree-size lever, not
+  an Elo one, and it belongs with B.5's line-growth item, not the stop.
+
+**9.4 Whether the cascade is gone.**
+- Rarog: Basilisk without its stop proves rec1's mate (depth 26, 73 M
+  nodes), helped by its known-win evaluation and fail-soft search; which
+  change removed the cascade?
+- Basilisk already answers this (§2.1): the cascade is not gone. B.10's PST
+  repair (`f4ebe79`, the only commit between the B.2 and B.10 heads) lets
+  the give-up window prove `mate 25`; the A.8 and B.2 trees still sink.
+- Read owed: rec1 stop-free on the current head, since A.11.1 (the TT eval
+  served at the node's clock) and A.11.2 (a forced move extends by one
+  ply) both change its tree.
+- Rarog's known-win offset harmed `10+0.1` (−25 nElo, §7), so the
+  evaluation lever is engine-specific and is not proposed here.
+- Falsifier for §2.1's reading: the current head finishing rec1 stop-free
+  without a mate proof would mean the cascade, not only its rec1 ending,
+  has changed; then H3 is re-read on the battery (§3, §5), never on rec1
+  alone.

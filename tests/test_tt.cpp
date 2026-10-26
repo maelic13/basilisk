@@ -13,6 +13,7 @@
 #include "test_harness.h"
 
 #include <cstdio>
+#include <new>
 #include <string>
 
 // ---------------------------------------------------------------------------
@@ -59,6 +60,55 @@ static void test_store_probe() {
     begin_section("probe: move matches");
     EXPECT(found && move_from_tt(e.move16) == m);
     end_section();
+}
+
+// A Hash the system cannot allocate keeps the previous table, cleared and
+// usable; it used to throw bad_alloc after freeing the old table, leaving no
+// table behind. The request is 2^43 MB, 2^63 bytes, beyond any address space,
+// so every allocator refuses it at once. The advertised maximum (32 TiB) is
+// not: macOS, and Linux under full overcommit, grant it lazily, and the
+// zero-fill then exhausts memory. Skipped under ASan, whose allocator aborts
+// on an oversized request instead of throwing.
+#if defined(__SANITIZE_ADDRESS__)
+#define BASILISK_TT_ASAN 1
+#elif defined(__has_feature)
+#if __has_feature(address_sanitizer)
+#define BASILISK_TT_ASAN 1
+#endif
+#endif
+static void test_failed_resize_keeps_a_table() {
+#ifdef BASILISK_TT_ASAN
+    begin_section("resize: an unallocatable Hash keeps a usable table (skipped under ASan)");
+    end_section();
+#else
+    TranspositionTable tt(4);
+    const size_t before = tt.allocated_bytes();
+    const Key key = 0x0F1E2D3C4B5A6978ULL;
+    tt.store(key, 7, 33, TT_EXACT, make_move(G1, F3), 0, 21);
+
+    bool threw = false;
+    bool allocated = true;
+    try {
+        allocated = tt.resize(size_t{1} << 43);
+    } catch (const std::bad_alloc&) {
+        threw = true;
+    }
+
+    begin_section("resize: an unallocatable Hash keeps a usable table");
+    EXPECT(!threw);
+    EXPECT(!allocated);
+    EXPECT_EQ(tt.allocated_bytes(), before);
+    end_section();
+
+    if (!threw) {
+        TTEntry e{};
+        begin_section("resize: the kept table is cleared and works");
+        EXPECT(!tt.probe_copy(key, e));
+        tt.store(key, 7, 33, TT_EXACT, make_move(G1, F3), 0, 21);
+        EXPECT(tt.probe_copy(key, e));
+        end_section();
+    }
+#endif
 }
 
 static void test_key_miss() {
@@ -532,6 +582,9 @@ int main() {
 
     std::printf("\nClear\n");
     test_clear();
+
+    std::printf("\nFailed resize\n");
+    test_failed_resize_keeps_a_table();
 
     std::printf("\nMate score adjustment\n");
     test_mate_score_adjustment();

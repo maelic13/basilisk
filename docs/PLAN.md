@@ -318,14 +318,37 @@ derivations are in the linked records.
 | Contract | Where it is written down |
 |---|---|
 | Score perspective, mate band (`MATE_SCORE − MAX_PLY` = 31,872, duplicated in `search.h` and `tt.h`), endgame scale floor, lazy-eval path | `DESIGN.md` §3; `tests/test_endgames.cpp` static assert |
-| TT publication incoherence is an accepted, measured risk; every consumer validates the stored move | `DESIGN.md` §3; BAS-C05 |
-| SEE king legality repaired; created pins and promotion recaptures are documented approximations with fixtures | BAS-C08, BAS-C09; `tests/test_board.cpp` |
+| TT publication incoherence is a known defect, tolerated until D.2 repairs it without an NPS cost; every consumer validates the stored move | `DESIGN.md` §3; BAS-C05 |
+| SEE king legality repaired; created pins and promotion recaptures are known defects with fixtures, repaired in D.3.1 | BAS-C08, BAS-C09; `tests/test_board.cpp` |
 | Draw, rule-50, null-move clock and legal-EP hashing semantics | BAS-C02; `tests/test_invariants.cpp` |
 | One mutation authority for redundant board state | BAS-C07; `src/board.h` |
 | Protocol: `ponderhit` owned by the UCI thread; setup work done before `readyok`, never on the clock; a rejected `position` exits with status 1; tablebase PV lines time-boxed the Stockfish way | BAS-C10–BAS-C13; `tests/test_engine_ponder.cpp`, `tests/test_uci_protocol.cpp` |
 | Search parameters have one source (the X-macro table) | `src/search_params.h` |
 | Endgame measurement layers (truth, move quality, conversion, strength) | `analysis/endgame_measurement_layers_v1.md`; `DESIGN.md` §4 |
 | Behaviour-neutral change = exact fingerprint plus targeted checks plus pooled NPS | `AGENTS.md` |
+
+### Known defects
+
+A defect is a mechanism that computes something other than what it claims:
+a wrong value, a wrong rule, a check that cannot fail. Each is fixed in its
+owner leaf and none is kept: a correct repair that loses Elo is reworked,
+with the neighbours that were tuned around the defect refitted, rather
+than reverted to the wrong form (maintainer decision 2026-10-26). A gap (a
+missing mechanism, a coupling Basilisk shares with Stockfish, an unfitted
+coordinate) is not a defect; its owner decides. IDs are the Rarog audit's
+(`analysis/rarog_audit_2026-10-24.md`) unless named.
+
+| Owner | Defects |
+|---|---|
+| A.11.7–A.11.10 | C-3 colour tie-break; A-26 and A-31 info lines; C-9 override jumps that reward shedding material; B-19 fail-hard quiescence, which also lets the equal-score tie rule promote refuted moves near the leaves |
+| B.3 | B-12 a move stored at fail-low nodes; B-14 correction training refuses decisive results; B-45 the singular margin's range excludes the donor's value; B-109 ablation bit 6 also removes the check extension |
+| B.4 | B-17 the dead SEE clamp |
+| B.5 (with D.1) | the fail-high stop's hole: a window that never returns is never checked (A-47; `analysis/b5_failhigh_stop_2026-10-25.md` §2.3) |
+| C.2.1–C.2.2 | C-1 the tuner's missing scalers; C-2 `--verify` cannot fail; C-8 the extractor's de-dup ignores the clock; C-26 to C-30 the data pipeline (book, sampler, split, labels, row identity); C-49 K refitted per run |
+| C.3–C.7 | C-10 outpost ranks; C-11 a rear doubled passer scored as a passer; C-12 "opposed" read over the whole file; C-13 own-colour king blockers only |
+| D.1, D.4 | A-46 reserve arithmetic; A-57 cold table reads on the clock; A-58 and A-59 tablebase root ranking |
+| D.2 | BAS-C05 the TT key and payload published separately |
+| D.3.1 | A-2 and A-3 SEE's created pins and promotion recaptures (BAS-C09) |
 
 ## 3. Required evidence
 
@@ -1155,7 +1178,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         and the repair stays by the registered rule on the maintainer's
         confirmation. The development fingerprint is `bench 13` 8,753,339;
         the legacy arm stays 15,887,213.
-    - [ ] **A.11.3** `[I1]` Own clock of zero without increment is bounded
+    - [x] **A.11.3** `[I1]` Own clock of zero without increment is bounded
       (A-55) `go wtime 0 btime 5000` with no increments: a negative clock
       clamps to 0 (`parameters.cpp:291-293`), `compute_time_limit` sets no
       soft or hard limit when `time <= 0 && inc <= 0`
@@ -1164,14 +1187,45 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       `MAX_SEARCH_DEPTH`. Stockfish budgets from `max(1, ...)`. A zero own
       clock gets a minimal budget. Test: the command answers `bestmove` within
       a bound.
-    - [ ] **A.11.4** `[I1]` Upper-case UCI move text accepted
+      - Closed 2026-10-26 (`6de81be`). Time management is on when either
+        side has a clock or an increment, as in Stockfish, so the budget
+        formula runs for an empty own clock and its floors give one
+        millisecond. A search with no clock at all keeps its depth, node or
+        mate limit: the early return could not simply go, since it is also
+        what leaves `go depth N` unbounded in time.
+      - New `test_search` sections: `go wtime 0 btime 5000` answers a legal
+        `bestmove` within 2 s, and a clock-free `go depth 6` still completes
+        depth 6. On the old code the first is stopped only by the test's
+        10 s watchdog. Through UCI, `wtime 0` and `wtime -50` answer at
+        once at depth 4; `go depth 9` and a 2 s clock are unchanged.
+      - `bench 13` 8,753,339 and the legacy arm 15,887,213, both unchanged;
+        CTest ON 23/23 and OFF 20/20. The driver is shared, so the legacy
+        arm carries the fix too.
+      - No gate is owed: the change acts only when the side to move has no
+        time and no increment, which no registered gate can reach (every
+        one has an increment) and which in a game means the flag has
+        already fallen.
+    - [x] **A.11.4** `[I1]` Upper-case UCI move text accepted
       (A-9) `apply_uci_move` matches `move_to_uci(move) == token` exactly
       (`parameters.cpp:67`), so `E2E4` or `e7e8Q` is rejected, and a rejected
       `position` ends the process by design (BAS-C12). Rarog accepts
       upper-case move text (its tests come from Little Blitzer's output).
       Compare case-insensitively before the legality match; the fatal policy
       for a genuinely illegal move stays.
-    - [ ] **A.11.5** `[I1]` Fatal errors from every thread reach stdout
+      - Closed 2026-10-26 (`d81efc7`): `fold_move_text` lower-cases the token
+        before both legality matches, `position` and `searchmoves`
+        (`src/parameters.cpp`); a folded token must still equal a legal
+        move's spelling, and the diagnostics print the token as sent.
+      - New `test_uci_protocol` sections: `E2E4` plays e2e4, `e7e8Q` and
+        `E7E8N` promote to the piece named, `searchmoves E2E4 D2D4` is
+        accepted, and `E2E5` is still rejected with the board unchanged.
+        The first three fail on the old parser. Through UCI,
+        `position startpos moves E2E4 E7E5 G1F3` now searches instead of
+        ending the process.
+      - `bench 13` 8,753,339 and the legacy arm 15,887,213, unchanged;
+        CTest ON 23/23 and OFF 20/20. No gate is owed: the change is
+        protocol only, and every harness sends lower-case moves.
+    - [x] **A.11.5** `[I1]` Fatal errors from every thread reach stdout
       (A-35) Only the UCI thread catches (`main.cpp:86-93`); the engine thread
       (`engine_entry.cpp:49`) and the helper threads have no handler and no
       `std::set_terminate`, so an exception there aborts with nothing on
@@ -1179,7 +1233,27 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       advertised maximum throws `bad_alloc` in `tt.h:130-131` after
       `clusters_.reset()`. Print `info string CRITICAL ERROR ...` on stdout
       from every thread, and keep a usable table when a Hash allocation fails.
-    - [ ] **A.11.6** `[I1]` Frontier nodes counted once
+      - Closed 2026-10-26 (`8289ceb`). `run_engine` installs a terminate handler
+        (`report_terminate`, `src/uci_output.h`): an exception escaping any
+        thread prints `info string CRITICAL ERROR: unhandled exception: ...;
+        exiting.` on stdout and exits with status 1. It does not wait on
+        the output mutex, which the dying thread may hold.
+      - `TranspositionTable::resize` keeps the previous size, cleared, when
+        the new table cannot be allocated, and returns false; the engine
+        prints `info string Hash N MB could not be allocated; keeping M MB`.
+        It does not halve toward a smaller table: zero-filling the largest
+        one the system would commit could exhaust memory.
+      - Tests: `fatal_report_from_a_thread` (a helper-thread exception
+        yields exit 1 and the line on stdout; without the handler the
+        process aborts with stdout empty) and `test_tt`'s failed-resize
+        sections (the old `resize` threw `bad_alloc` and left no table
+        behind its stale size; skipped under ASan, whose allocator aborts
+        on an oversized request). Through UCI, `setoption name Hash value
+        33554432` now keeps 64 MB and the engine searches.
+      - `bench 13` 8,753,339 and the legacy arm 15,887,213, unchanged;
+        CTest ON 24/24 and OFF 21/21. No gate is owed: nothing changes
+        unless a thread fails or a Hash cannot be allocated.
+    - [x] **A.11.6** `[I1]` Frontier nodes counted once
       (B-111) `negamax` counts a node at entry (`record_node()`,
       `search_kernel_core.cpp:335`) and at depth 0 or less hands off to
       `quiescence`, which counts it again (`:117`); `interior_nodes` is also
@@ -1190,6 +1264,40 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       invariant. Count each node once and re-declare the fingerprint; whether
       a gate is owed is decided with the maintainer (timed play changes only
       through that rule and the stop poll).
+      - A precondition defect, found 2026-10-26: the tie rule also ran at
+        the root. A later root move is searched with a null window at
+        alpha, and the fail-hard quiescence search returns alpha exactly,
+        so an equal score is usually a fail-low bound. With the count
+        fixed, the free-queen test played Qa4 (worth −6) at Qxd5's
+        `cp 1018`. Fixed first in its own commit (`0eadf03`, maintainer
+        decision): the root is kept out of the rule, as Stockfish's root
+        plays only a move that exceeded alpha. `bench 13` 8,753,339 →
+        8,101,423; all 40 positions move, 39 in score. The legacy kernel
+        has no such rule.
+      - Implemented (`07a357f`): the depth-0 hand-off and razoring, which
+        also re-entered quiescence on the same node, pass the node as
+        counted, so quiescence skips the count and the stop, ply and draw
+        checks negamax already ran. `interior_nodes` moved below the
+        hand-off; `in_check_nodes` stays above it, keeping run_suite's
+        `check_exts <= in_check_nodes`.
+      - A new `test_search` section: a depth-1 search of a single quiet
+        move counts 2 nodes (the old count, on the A.11.2 binary, is 3).
+        Free-queen now plays Qxd5 at depths 1–3.
+      - `bench 13` 7,233,823 with both commits (from 8,753,339); the
+        legacy arm 15,887,213, unchanged; CTest ON 24/24, OFF 21/21.
+      - Gate: one `[-5,5]` repair SPRT for both commits against `master`
+        (maintainer decision 2026-10-26), since the root fix changes play
+        and the count reshuffles every remaining tie: BAS-S30, launcher
+        `tools/run_a116_gate.ps1`, maintainer-run.
+      - The leaf's "timed play changes only through that rule and the stop
+        poll" missed a third reader: the time manager's root-effort ratio
+        (`search_worker.cpp`, `root_best_nodes / root_depth_nodes`). The
+        gate's games show it did not move the clock (69.6 ms per move on
+        both arms).
+      - Closed 2026-10-26: BAS-S30 accepted H1, +4.3 ± 5.9 Elo (5,312
+        games, LLR +2.95, no faults); both repairs stay by the registered
+        rule. The development fingerprint is `bench 13` 7,233,823; the
+        legacy arm stays 15,887,213.
     - [ ] **A.11.7** `[I1]` Evaluation colour symmetry: tie-break and sweep
       (C-3, A-22, C-103) The pawnless "ahead by at most a minor" scaler picks
       `strong = (w_tot >= b_tot) ? WHITE : BLACK` (`eval.cpp:800`), so at
@@ -1236,6 +1344,31 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       boundaries, and the cost in games), then a design. It changes the
       evaluation during the freeze, so a repair needs the maintainer's
       B.10-style admission.
+    - [ ] **A.11.10** `[R2]` Fail-soft quiescence
+      (B-19) Pulled forward from B.4 by maintainer decision 2026-10-26, so
+      that B.3 is not fitted around a known defect. Quiescence fails hard:
+      a fail-low returns `alpha` (delta pruning and the final return in
+      `quiescence`, `search_kernel_core.cpp`). The exact `alpha` echoes up
+      the tree. Root fail-highs then equal beta and drive aspiration
+      cascades (93% of Rarog's), and inside the equal-score tie rule's
+      window (`ply + 2 >= root_depth_`) an "equal" score is usually a
+      bound, so below the root a refuted move becomes the node's best move
+      one time in eight (A.11.6 kept the root out). Stockfish's quiescence
+      is fail-soft throughout.
+      - Research first. The only record of the earlier attempts is two
+        comments in `quiescence`: a fail-soft delta-pruning return broke the
+        KBNK fixed-depth conversion canary, and seeding the final store from
+        the TT-tightened stand-pat turned a KQK mate in 5 into `mate 63`,
+        because a stand-pat raised by a lower bound is not an upper bound.
+        Each changed one return alone. Re-measure both, then specify every
+        return, the stand-pat tightening and the stored bounds together,
+        against Stockfish's.
+      - Obligations: the KBNK and KQK fixtures and their mate distances, the
+        conversion floors, WAC, bench accounting, and a diagnostic count of
+        tie-rule promotions of a bound, read before and after.
+      - Gate: a `[-5,5]` repair SPRT. RFP, razoring and aspiration were
+        fitted on fail-hard values; B.3 to B.5 refit them on the repaired
+        search.
 - [ ] **A.12** `[M]` Roadmap rules from the audit
   Added 2026-10-24, for the maintainer to decide one by one: Rarog rule 7c's
   amendment of 2026-10-20 (a near-optimum surface may be tuned as one longer
@@ -1931,6 +2064,18 @@ rejections stop B.
     (B-19; 93% of Rarog's root fail-highs equalled beta). Fail-soft, with the
     KBNK and KQK mate-distance fixtures as obligations; the tablebase band
     reachable without tables (B-87).
+    - Pulled forward to A.11.10 (maintainer decision 2026-10-26); B.4
+      fits on the repaired quiescence.
+    - A defect, not an option: fail-hard is to be replaced. The earlier
+      fail-soft attempts broke those fixtures; the fixtures bind the fix,
+      they are not a reason to keep the defect.
+    - It also miscalibrates the equal-score tie rule (`inc` in the move
+      loop), which assumes Stockfish's fail-soft search. A fail-hard return
+      echoes alpha exactly two plies up, inside the rule's window
+      (`ply + 2 >= root_depth_`), so "equal" there is usually a bound, and
+      one time in eight a refuted move becomes the node's best move, its
+      history bonus and its TT move. A.11.6 kept the root out of the rule
+      (`0eadf03`); below the root the cause is this fail-hard return.
   - Fail-high interpolation moves the estimate RFP and razoring were fitted on
     (Rarog's depth-14 tree +41%), so RFP, razoring and NMP-base coordinates
     join B.4's surface from the start (B-21).
@@ -1989,8 +2134,17 @@ rejections stop B.
     - removal only if the battery passes with no stop, then a `[-5,5]`
       bracket. On today's evidence removal is refused.
 
-    The hole is a card with D.1. Rarog's leads (24% firing, about −15 Elo at
-    the target) are priors only.
+    The hole is a defect, owned with D.1. Rarog's leads are priors only: at the
+    target its stop fired on 24% of searches and cost about −15 Elo.
+    - Rarog's D.1.6 results (RAR-R25 to RAR-R27, relayed 2026-10-26) are
+      leads to verify, not a solution; the packet's §9 maps each to
+      Basilisk's own reads. At twice the scaled target, on any root
+      fail-high, Rarog's stop fired on under 1% of searches and read no
+      harm (+4.3 ± 8.3 at `3+0.03`, +4.9 ± 9.8 at `10+0.1`).
+    - Reads still owed: M1's 2× arm against §2.4's B.2-tree miss; rec3 at
+      `180000+2000` for the hole; how often the 2.63-ply LMR correction cap
+      binds and its share of deeper searches (Rarog's one-ply cap read H0,
+      −1.2 ± 3.0); and rec1 stop-free on the head after A.11.1 and A.11.2.
   - A score-scaled first window with B.4's fail-soft quiescence (B-75, B-19);
     Rarog's four-part cascade cluster read H0 (-7.4 ± 7.5) and was re-scoped
     to bare-king trees; a fail-high depth reduction only with its clock half
@@ -2102,13 +2256,10 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.11.3 | READY_FOR_IMPLEMENTATION | I1 | Zero own clock bounded |
-| A.11.4 | READY_FOR_IMPLEMENTATION | I1 | Upper-case move text |
-| A.11.5 | READY_FOR_IMPLEMENTATION | I1 | Fatal errors on stdout from every thread |
-| A.11.6 | READY_FOR_IMPLEMENTATION | I1 | Frontier nodes counted once |
 | A.11.7 | READY_FOR_IMPLEMENTATION | I1 | Colour symmetry tie-break and sweep |
 | A.11.8 | READY_FOR_IMPLEMENTATION | I1 | Last info line after a stop; mate scores printed as cp |
 | A.11.9 | RESEARCH | R2 | Override boundaries; research first |
+| A.11.10 | RESEARCH | R2 | Fail-soft quiescence, pulled forward from B.4; research first |
 | A.12 | RESEARCH | M | Roadmap rules for the maintainer to decide |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |
 | B.4 | RESEARCH | I2 | Contents fixed by B.0 |
@@ -2572,6 +2723,9 @@ has lost games in both engines (BAS-X02).
   pawn and continuation histories (Stockfish shares them per NUMA node) and
   soft-stop voting. The gate is a 4T SPRT `[0,5]` with a null pair first,
   and only against a measured defect (archived 9.10.b; BAS-R04–R06).
+  BAS-C05's TT publication incoherence is a known defect owned here: a
+  coherent layout that costs no measured NPS replaces it (both earlier
+  repairs cost 3.91% and 1.22%).
   Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
   are its items):
   - Self-relative 1/2/4/8T scaling and hash adequacy (D-44, D-45); the first
@@ -2593,8 +2747,8 @@ has lost games in both engines (BAS-X02).
       IDs are its items):
       - Tests: a stored TT win never answers a repeated position (A-13); the
         clock stays out of the position identity (A-14); an external oracle
-        corpus (A-5, A-24); the SEE approximations stay under BAS-C09's
-        trigger (A-2, A-3).
+        corpus (A-5, A-24); the SEE approximations (A-2, A-3, BAS-C09) are
+        known defects, repaired here.
     - [ ] **D.3.2** `[R2]` Lifecycle and protocol robustness
       Lifecycle and protocol (archived 9.4): worker start, stop and join,
       cancellation, result authority, new-game and option resets, command

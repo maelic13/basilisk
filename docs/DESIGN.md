@@ -94,7 +94,8 @@ line names where it lives.
 - 32-byte cluster, 3 entries, 10-byte slots: a plain 16-bit partial key plus an
   8-byte payload (`score16|eval16|move16|depth8|flag_age8`) (`src/tt.h`).
 - **The key and the payload are two separate publications, and that incoherence
-  is an ACCEPTED RISK, not a harmless race** (BAS-C05, decided 2026-09-07).
+  is a known defect, not a harmless race** (BAS-C05, decided 2026-09-07; a
+  defect to repair since 2026-10-26, owned by PLAN D.2).
   Under SMP a reader can match its key against one store and consume the
   score/depth/bound of another position's store. Nothing downstream catches it:
   `negamax` (`src/search.cpp`) returns `tt_score` as the node value on a
@@ -134,9 +135,10 @@ line names where it lives.
   must record the policy and never mix with natural-termination evidence.
 - Strength is measured at **3+0.03**, paired UHO openings, normalized Elo,
   **tablebases off** — the harness and the games are blind the same way.
-- **Bench signature** of the accepted head: `bench 13` = **8,753,339** nodes
-  (since A.11.2's singular lone-move repair; the `-DB2_CORE=OFF` legacy
-  arm reads 15,887,213. Earlier: 9,260,429 at A.11.1's rule-50 TT-eval
+- **Bench signature** of the accepted head: `bench 13` = **7,233,823** nodes
+  (since A.11.6's node count and root tie repair; the `-DB2_CORE=OFF`
+  legacy arm reads 15,887,213. Earlier: 8,753,339 at A.11.2's singular
+  lone-move repair, 9,260,429 at A.11.1's rule-50 TT-eval
   repair, 8,437,148 at B.10's PST orientation repair,
   11,099,210 at B.2.4, 14,978,465 for 1.10.0 to
   1.10.2, 12,568,898 before the 15.0.a SEE repair, 12,709,666 before

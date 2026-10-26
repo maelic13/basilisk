@@ -347,6 +347,52 @@ static void test_malformed_position_moves() {
     }
 }
 
+static void test_upper_case_move_text() {
+    // Some GUIs send move text in upper case (`E2E4`, `e7e8Q`). Only the case
+    // is forgiven: the token must still name a legal move, and the promotion
+    // letter must still choose its piece.
+    {
+        Parameters p;
+        const std::string out = capture([&] { p.set_position("startpos moves E2E4 e7e5"); });
+        begin_section("upper-case move text: E2E4 is played as e2e4");
+        EXPECT(!contains(out, "Illegal move:"));
+        EXPECT(contains(p.board.get_fen(),
+                        "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq "));
+        end_section();
+    }
+    {
+        Parameters q, n;
+        const std::string out_q = capture([&] {
+            q.set_position("fen 8/4P3/8/8/8/8/k7/4K3 w - - 0 1 moves e7e8Q");
+        });
+        const std::string out_n = capture([&] {
+            n.set_position("fen 8/4P3/8/8/8/8/k7/4K3 w - - 0 1 moves E7E8N");
+        });
+        begin_section("upper-case move text: the promotion letter keeps its piece");
+        EXPECT(!contains(out_q, "Illegal move:"));
+        EXPECT(!contains(out_n, "Illegal move:"));
+        EXPECT(contains(q.board.get_fen(), "4Q3/8/8/8/8/8/k7/4K3 b"));
+        EXPECT(contains(n.board.get_fen(), "4N3/8/8/8/8/8/k7/4K3 b"));
+        end_section();
+    }
+    {
+        Parameters p;
+        const std::string out = capture([&] { p.set_position("startpos moves E2E5"); });
+        begin_section("upper-case move text: an illegal move is still rejected");
+        EXPECT(contains(out, "Illegal move:"));
+        EXPECT_STR(p.board.get_fen(), std::string(START_FEN));
+        end_section();
+    }
+    {
+        Parameters p;
+        const std::string out = capture([&] { p.set_search_parameters("searchmoves E2E4 D2D4"); });
+        begin_section("upper-case move text: searchmoves accepts it too");
+        EXPECT(!contains(out, "Invalid searchmoves move:"));
+        EXPECT_EQ(p.search_moves.size(), size_t{2});
+        end_section();
+    }
+}
+
 static void test_fen_counter_boundaries() {
     Parameters p;
     const std::string over = capture([&] {
@@ -477,6 +523,7 @@ int main() {
     test_uci_output();
     test_engine_version();
     test_malformed_position_moves();
+    test_upper_case_move_text();
     test_fen_counter_boundaries();
     test_malformed_go();
     test_unknown_setoption();

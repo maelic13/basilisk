@@ -136,7 +136,7 @@ name says.**
   bench, game gate or chess-specific test when that is what acceptance needs.
   Run each required check once on the final relevant state, and reuse the pass
   while its inputs are unchanged.
-- A behavior-neutral engine change reproduces the immediate development fingerprint (currently **8,753,339** at `bench 13`) plus focused tests for behaviour the bench does not reach.
+- A behavior-neutral engine change reproduces the immediate development fingerprint (currently **7,233,823** at `bench 13`) plus focused tests for behaviour the bench does not reach.
   Memory, state or concurrency work also needs the relevant sanitizer/stress
   coverage. The comparison fingerprint is revision-specific: a deliberately
   integrated behaviour change updates the fingerprint record; never preserve

@@ -71,7 +71,12 @@ void Searcher::compute_time_limit(const SearchLimits& limits, bool ponder, Color
     const double inc      = (side == WHITE) ? limits.winc : limits.binc;
     const double overhead = limits.overhead;
 
-    if (time <= 0.0 && inc <= 0.0) return;
+    // Clock play is on when either side has a clock or an increment, as in
+    // Stockfish; without one, a depth, node or mate limit bounds the search.
+    // An own clock of zero with no increment still takes the formula below,
+    // whose floors give it a budget of one millisecond, not an unbounded one.
+    if (limits.wtime <= 0 && limits.btime <= 0 && limits.winc <= 0 && limits.binc <= 0)
+        return;
 
     const bool   explicit_mtg = limits.movestogo > 0;
     const double mtg = explicit_mtg ? std::min(limits.movestogo, 50) : 50.0;

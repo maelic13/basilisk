@@ -59,7 +59,30 @@ and next step).
   move two or three moves deeper, a gain that could repeat along a forced
   line. A forced move now gets one extra move of depth, as in Stockfish.
   The fix measured **+1.7 ± 4.8 Elo** at `3+0.03` (8,000 games), with no
-  loss of speed. `bench` now reports 8,753,339 nodes.
+  loss of speed.
+
+- **No time left and no increment.** Told it had no time left and no
+  increment while the opponent's clock was set (`go wtime 0 btime 5000`),
+  the engine searched without any limit. It now answers at once, as
+  Stockfish does.
+
+- **Upper-case moves.** A GUI that sent moves in upper case (`E2E4`,
+  `e7e8Q`) made the engine reject the position and exit. Moves are now
+  read without regard to case; an illegal move is still refused.
+
+- **Silent crashes and an oversized Hash.** An error on one of the search
+  threads ended the engine with nothing in its output; it is now reported
+  as an `info string CRITICAL ERROR` line first. A `Hash` too large for the
+  machine also used to end the engine; it now keeps the previous table
+  and says so.
+
+- **A refuted move in the first iterations, and a double node count.** In
+  its first two iterations the search sometimes chose a move that had only
+  tied a bound, not the best score, and it counted the last ply's positions
+  twice. Both are fixed, measured together at **+4.3 ± 5.9 Elo** at
+  `3+0.03` (5,312 games). Reported nodes and nodes per second are lower for
+  the same search, and `go nodes` budgets search further. `bench` now
+  reports 7,233,823 nodes.
 
 ---
 
