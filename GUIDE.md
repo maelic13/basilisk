@@ -95,8 +95,7 @@ generations change. These are maintainer judgments, not measured rankings.
     - [ ] **A.13.1** `[I1]` Won KPK scores as a win
     - [ ] **A.13.2** `[I1]` PV copy reads past the per-ply length array
 - [ ] **A.14** Simplifications from the code audit
-    - [ ] **A.14.1** `[I1]` Delete the legacy kernel now
-    - [ ] **A.14.2** `[I1]` One definition of the score bands
+    - [ ] **A.14.1** `[I1]` One definition of the score bands
 - [ ] **A.15** Universal binaries and the release runners
     - [ ] **A.15.1** `[R2]` Universal x86-64 binary: design packet
     - [ ] **A.15.2** `[V]` The ISA tier ladder measured

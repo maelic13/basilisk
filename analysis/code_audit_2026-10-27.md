@@ -310,17 +310,17 @@ Decision: no feature pass; the language work is done.
 
 **Recommendations.**
 
-- **R1 (A.14.1, maintainer decision).** Delete the legacy kernel now rather
-  than at B.8: about 1,900 lines and a CI cell go, every leaf record stops
+- **R1 (declined 2026-10-27; the deletion stays at B.8).** Delete the
+  legacy kernel now rather than at B.8: about 1,900 lines and a CI cell go, every leaf record stops
   carrying a second fingerprint, and `search_worker.h`, `search_types.h`,
   `tt.h`, `search_params.h` and CMake lose their arms. Exact fingerprint on
   the only remaining arm; no falsifier because nothing is replaced. The
   counter-argument is the maintainer's decision of 2026-10-24 to keep it
   compilable until B.8; the audit's reading is that the kernel's remaining
   role (a comparison arm) ended when B.2.4 accepted the core, since `git`
-  keeps the code. The maintainer decides; if declined, the leaf closes
-  `NO_CHANGE` and B.8 keeps the clause.
-- **R2 (A.14.2).** Define the score bands once. `MATE_SCORE` and `MAX_PLY`
+  keeps the code. The maintainer declined on 2026-10-27: the kernel is
+  deleted at B.8, whose inputs now carry this inventory.
+- **R2 (A.14.1).** Define the score bands once. `MATE_SCORE` and `MAX_PLY`
   live in `tt.h:106-107` and `search_types.h:18-19`, `KBNK_STATIC_MATE_FLOOR`
   in `eval.h` as a literal, held equal by static asserts in
   `search_worker.cpp:28` and `tests/test_endgames.cpp:33`; `constants.h`
@@ -331,8 +331,9 @@ Decision: no feature pass; the language work is done.
 - **Folded into B.8:** the unreferenced `Board::compute_hash`; the
   engine-layer includes of `uci_output.h` (an output sink that belongs below
   the protocol, or an injected writer); `DecisionTrace::record`'s positional
-  arguments (F20); the ten legacy-only counters and 20 X-lines if A.14.1 is
-  declined; a move-loop split of `negamax` only under fingerprint and NPS.
+  arguments (F20); the ten legacy-only counters and 20 X-lines, which go
+  with the kernel; a move-loop split of `negamax` only under fingerprint
+  and NPS.
 - **Folded into D.3.2:** the engine-test driver shared by
   `test_engine_ponder.cpp` and `test_engine_threading.cpp`.
 - **Folded into D.3.1:** `movegen_oracle.h`'s colour duplication, if the

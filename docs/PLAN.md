@@ -1543,29 +1543,15 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
 - [ ] **A.14** Simplifications from the code audit
   Added 2026-10-27 (`analysis/code_audit_2026-10-27.md` §3, from a
   mechanical census of `00809cc`). Behaviour-neutral: exact fingerprint,
-  CTest, and a pooled NPS read only where a hot path is touched (neither
-  leaf touches one). The audit found engine duplication negligible, the
+  CTest, and a pooled NPS read only where a hot path is touched (the
+  leaf touches none). The audit found engine duplication negligible, the
   language work done by A.8.12, and the long kernel and evaluator
   functions best left whole until B.3–B.5 and C.1 rewrite them; the
-  smaller cleanups it found are folded into B.8, D.3.1 and D.3.2.
-    - [ ] **A.14.1** `[I1]` Delete the legacy kernel now
-      Maintainer decision first: the 2026-10-24 decision keeps the
-      `-DB2_CORE=OFF` kernel compilable until B.8; the audit's case for
-      deleting it now is about 1,900 lines and a CI cell — the four legacy
-      `.cpp` files (1,462 lines), `history.h` and `move_picker.h` (290),
-      the eight `#else` arms of `search_worker.h`, `search_types.h`,
-      `tt.h`, `search_params.h`, `search_diagnostics.h` and
-      `uci_protocol.cpp` (123), the legacy branches of `test_search` and
-      `test_tt` (48), the ten `DiagCounters` fields and 20 X-macro lines
-      only it writes, the `B2_CORE` option with its CMake and CI arms,
-      the `+legacy` id suffix, and the second fingerprint every leaf
-      record carries — against a comparison role that ended when B.2.4
-      accepted the core (`git` keeps the code). Exact `bench 13` on the
-      remaining arm; CTest 24/24; the sanitizer and flavour CI jobs
-      unchanged; DESIGN and PROCESS lose their legacy-arm sentences. If
-      the maintainer declines, the leaf closes `NO_CHANGE` and B.8 keeps
-      the clause.
-    - [ ] **A.14.2** `[I1]` One definition of the score bands
+  smaller cleanups it found are folded into B.8, D.3.1 and D.3.2. Its
+  case for deleting the legacy kernel now was declined (maintainer
+  decision 2026-10-27): the kernel goes at B.8, whose inputs carry the
+  census inventory.
+    - [ ] **A.14.1** `[I1]` One definition of the score bands
       `MATE_SCORE` and `MAX_PLY` are defined in `tt.h:106-107` and
       `search_types.h:18-19`, and `KBNK_STATIC_MATE_FLOOR` is a literal in
       `eval.h`, held equal by static asserts in `search_worker.cpp:28` and
@@ -2484,10 +2470,20 @@ rejections stop B.
     `uci_output.h` from `bench.cpp`, `engine.cpp`, `parameters.cpp` and
     `wac.cpp` (an output sink that belongs below the protocol, or an
     injected writer); `DecisionTrace::record`'s fourteen positional
-    arguments (B.2.0's F20); the ten legacy-only counters and twenty
-    X-lines if A.14.1 was declined; named helpers for `negamax`'s move
-    loop (1,084 lines at the audit) only under the exact fingerprint and
-    the NPS floor.
+    arguments (B.2.0's F20); named helpers for `negamax`'s move loop
+    (1,084 lines at the audit) only under the exact fingerprint and the
+    NPS floor.
+  - The census of `00809cc` sizes the legacy deletion at about 1,900
+    lines and a CI cell: the four legacy `.cpp` files (1,462 lines),
+    `history.h` and `move_picker.h` (290), the eight `#else` arms of
+    `search_worker.h`, `search_types.h`, `tt.h`, `search_params.h`,
+    `search_diagnostics.h` and `uci_protocol.cpp` (123), the legacy
+    branches of `test_search` and `test_tt` (48), the ten `DiagCounters`
+    fields and twenty X-macro lines only it writes, the `B2_CORE` option
+    with its CMake and CI arms, the `+legacy` id suffix and the second
+    fingerprint in leaf records; DESIGN and PROCESS lose their
+    legacy-arm sentences. Deleted here, not before (maintainer decision
+    2026-10-27).
 - [ ] **B.9** `[V]` Search programme checkpoint
   Checkpoint: re-measure every deficit meter.
   The meters are G(0) against the oracle, fixed-node depth and branching,
@@ -2525,8 +2521,7 @@ leaf's tag. Later phases carry only a class until they open.
 | A.12 | RESEARCH | M | Roadmap rules for the maintainer to decide |
 | A.13.1 | READY_FOR_IMPLEMENTATION | I1 | Won KPK scores as a win; needs the maintainer's freeze admission |
 | A.13.2 | READY_FOR_IMPLEMENTATION | I1 | PV copy's read past `pv_len`; exact fingerprint |
-| A.14.1 | RESEARCH | I1 | Delete the legacy kernel now; the maintainer decides against the 2026-10-24 decision |
-| A.14.2 | READY_FOR_IMPLEMENTATION | I1 | Score bands defined once in constants.h; exact fingerprint |
+| A.14.1 | READY_FOR_IMPLEMENTATION | I1 | Score bands defined once in constants.h; exact fingerprint |
 | A.15.1 | RESEARCH | R2 | Universal binary design packet; the decision rule frozen before A.15.2 |
 | A.15.2 | RESEARCH | V | The portable/avx2/pext NPS ladder; maintainer-run after registration |
 | A.15.3 | READY_FOR_IMPLEMENTATION | I1 | Tier advisory, verify_isa portable set, Xcode pin, stale ninja step |
