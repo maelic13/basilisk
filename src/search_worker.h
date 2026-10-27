@@ -237,6 +237,7 @@ private:
     // `counted` marks negamax's own node handed to quiescence (the depth-0
     // drop, razoring): negamax already counted it and ran the stop, ply and
     // draw checks, so each node is counted once.
+    template<NodeType NT>
     int quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss,
                    bool counted = false);
 

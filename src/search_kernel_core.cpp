@@ -113,8 +113,15 @@ static constexpr int LMR_HISTORY_DIVISOR[16] = {
 
 // ---- Quiescence search -----------------------------------------------------
 
+// Fail-soft throughout, in Stockfish's form: every return is the node's best
+// value, which may lie outside the window, and the table stores it as the
+// bound it proves -- a lower bound at a fail high, otherwise an upper bound,
+// never an exact score. A PV node takes no table cutoff, so a depth-0 bound
+// never stands in for its value on the principal variation.
+template<NodeType NT>
 int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss,
                          bool counted) {
+    constexpr bool is_pv = NT != NodeType::NonPV;
     if (!counted) {
         record_node();
         if ((state_.nodes & 2047) == 0) check_stop();
@@ -142,9 +149,8 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         tt_move = move_from_tt(tte.move16);
         tt_score = TranspositionTable::score_from_tt(tte.score, ply, state_.board->rule50_count());
         tt_flag = tte.bound();
-        if (tt_flag == TT_EXACT
-            || (tt_flag == TT_ALPHA && tt_score <= alpha)
-            || (tt_flag == TT_BETA && tt_score >= beta)) {
+        if (!is_pv && tt_score != VALUE_NONE
+            && (tt_score >= beta ? proves_lower(tt_flag) : proves_upper(tt_flag))) {
             TRACE_DECISION(TraceEvent::QsTtCutoff, ply, 0, tt_move,
                            alpha, beta, tt_score, -1, VALUE_NONE, VALUE_NONE,
                            0, 0, VALUE_NONE, tt_score);
@@ -166,7 +172,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         for (Move m : legal) {
             has_legal = true;
             do_move(ss, m);
-            int s = -quiescence(-beta, -alpha, ply + 1, qply + 1, ss + 1);
+            int s = -quiescence<NT>(-beta, -alpha, ply + 1, qply + 1, ss + 1);
             undo_move(ss, m);
             if (state_.stopped) return 0;
             if (s > best) best = s;
@@ -198,12 +204,13 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     const int correction = stand_pat - raw_eval;
 #endif
 
-    // Tighten the stand-pat with the TT bound when it proves a
-    // better estimate (a fail-high above it / fail-low below it). The eval
-    // stored as the TT static_eval (tt_eval) is unchanged.
+    // A TT score whose bound proves it a better estimate than the evaluation
+    // replaces it as the stand-pat; the stored evaluation (tt_eval) is
+    // unchanged. Never a mate or tablebase score: one proven at another
+    // window would leave the evaluation band as a value no capture searched.
     if (tt_found && tt_score != VALUE_NONE
-        && ((tt_flag == TT_BETA  && tt_score > stand_pat)
-            || (tt_flag == TT_ALPHA && tt_score < stand_pat)))
+        && !is_decisive(tt_score)
+        && (tt_score > stand_pat ? proves_lower(tt_flag) : proves_upper(tt_flag)))
         stand_pat = tt_score;
 
     if (stand_pat >= beta) {
@@ -214,25 +221,21 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         return stand_pat;
     }
 
-    // Delta pruning: even capturing the best possible piece can't raise
-    // alpha. NOTE: the audit's fail-soft return (stand_pat + margin)
-    // was implemented and MEASURED to break the KBNK fixed-depth conversion
-    // canary -- the fail-hard alpha echo is load-bearing for mate-range
-    // bounds under the current fail-hard qsearch + stand-pat tightening.
-    // (Likewise, seeding the final store from the tightened stand-pat
-    // scrambled KQK mate distances: a TT_BETA-tightened value is not a
-    // provable upper bound.) Consistent fail-soft is a separate
-    // bound-shaping job; do not change this return in isolation.
-    if (stand_pat < alpha - PIECE_VALUE[QUEEN] - 200) {
+    // Delta pruning: even capturing a queen with a margin to spare cannot
+    // raise alpha, so that optimistic value is the node's upper bound.
+    const int delta_bound = stand_pat + PIECE_VALUE[QUEEN] + 200;
+    if (delta_bound < alpha) {
         TRACE_DECISION(TraceEvent::QsDeltaPrune, ply, 0, MOVE_NONE,
                        alpha, beta, stand_pat, -1, correction, VALUE_NONE,
-                       0, 0, PIECE_VALUE[QUEEN] + 200, alpha);
-        return alpha;
+                       0, 0, PIECE_VALUE[QUEEN] + 200, delta_bound);
+        tt_store(hash, 0, delta_bound, TT_ALPHA, MOVE_NONE, ply, tt_eval, pv_hit);
+        return delta_bound;
     }
 
+    int best = stand_pat;
     if (stand_pat > alpha) alpha = stand_pat;
 
-    if (qply >= MAX_QSEARCH_PLY) return stand_pat;  // fail-soft
+    if (qply >= MAX_QSEARCH_PLY) return stand_pat;
 
     MoveList captures;
     state_.board->gen_legal_captures(captures);
@@ -249,7 +252,6 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     }
 
     Move best_move = MOVE_NONE;
-    int  orig_alpha = alpha;
 
     for (int i = 0; i < nm; i++) {
         Move m = pick_next(sm, i, nm);
@@ -272,12 +274,16 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
             }
             return gives_check;
         };
+        // Futility: the capture's optimistic value cannot raise alpha, and
+        // stands in for the move in the node's upper bound.
+        const int futility_value = stand_pat + tactical_gain + 150;
         if (!is_promo
-            && stand_pat + tactical_gain + 150 <= alpha
+            && futility_value <= alpha
             && !move_gives_check()) {
             TRACE_DECISION(TraceEvent::QsFutilityPrune, ply, 0, m,
                            alpha, beta, stand_pat, -1, correction, VALUE_NONE,
                            i, 0, tactical_gain + 150, alpha);
+            best = std::max(best, futility_value);
             continue;
         }
 
@@ -297,10 +303,11 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         }
 
         do_move(ss, m);
-        int s = -quiescence(-beta, -alpha, ply + 1, qply + 1, ss + 1);
+        int s = -quiescence<NT>(-beta, -alpha, ply + 1, qply + 1, ss + 1);
         undo_move(ss, m);
 
         if (state_.stopped) return 0;
+        if (s > best) best = s;
         if (s > alpha) {
             alpha = s;
             best_move = m;
@@ -314,16 +321,8 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         }
     }
 
-    // Deliberately fail-hard here (store/return alpha, NOT a seeded best):
-    // stand_pat may have been tightened UPWARD by a TT_BETA (lower) bound via
-    // the stand-pat tightening above, so a best seeded from it is not a
-    // provable UPPER bound -- storing it as TT_ALPHA poisons mate-distance resolution
-    // (measured: KQK mate-in-5 degraded to "mate 63"). The audit's
-    // fail-soft fixes live in the delta-pruning and qsearch-cap returns
-    // above; bound shaping proper is separate work.
-    TTFlag flag = (alpha > orig_alpha) ? TT_EXACT : TT_ALPHA;
-    tt_store(hash, 0, alpha, flag, best_move, ply, tt_eval, pv_hit);
-    return alpha;
+    tt_store(hash, 0, best, TT_ALPHA, best_move, ply, tt_eval, pv_hit);
+    return best;
 }
 
 // ---- Negamax search --------------------------------------------------------
@@ -336,6 +335,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     // A child of a PV node searched with the full window is PV; the root is
     // never a child.
     constexpr NodeType PvChild = is_pv ? NodeType::PV : NodeType::NonPV;
+    // The node's own type in quiescence, where the root is a PV node.
+    constexpr NodeType QsType = is_pv ? NodeType::PV : NodeType::NonPV;
     assert(is_root == (ply == 0));
     record_node();
     if ((state_.nodes & 2047) == 0) {
@@ -411,7 +412,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     }
 
     if (depth <= 0)
-        return quiescence(alpha, beta, ply, 0, ss, true);
+        return quiescence<QsType>(alpha, beta, ply, 0, ss, true);
     DIAG_COUNT(state_.diag.interior_nodes++);
 
     // Mate distance pruning
@@ -621,7 +622,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         if (!ABLATED(0) && depth <= kp.razor_depth_cap
             && eval < alpha - kp.razor_margin * depth
             && (tt_move == MOVE_NONE || tt_capture) && tt_flag != TT_BETA) {
-            const int q = quiescence(alpha, beta, ply, 0, ss, true);
+            const int q = quiescence<NodeType::NonPV>(alpha, beta, ply, 0, ss, true);
             DIAG_COUNT(state_.diag.razor_cuts++);
             DIAG_COUNT(++(depth <= 3 ? state_.diag.razor_cuts_d1_3
                           : depth <= 7 ? state_.diag.razor_cuts_d4_7
@@ -709,7 +710,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 do_move(ss, m);
                 shared_.tt.prefetch(state_.board->position_key());
                 // Quick check via QSearch first
-                int val = -quiescence(-pc_beta, -pc_beta + 1, ply + 1, 0, ss + 1);
+                int val = -quiescence<NodeType::NonPV>(-pc_beta, -pc_beta + 1, ply + 1, 0, ss + 1);
                 if (val >= pc_beta)
                     val = -negamax<NodeType::NonPV>(depth - 4, -pc_beta, -pc_beta + 1,
                                    ply + 1, ss + 1, true, true);
