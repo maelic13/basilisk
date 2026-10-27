@@ -1500,6 +1500,51 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         verbatim only through an EXACT entry from a wide window. H1
         describes the fail-soft store that does not exist yet, so the
         attempt tests it, not reading.
+      - Research (2026-10-27; release-pext builds, `bench 13`, CTest,
+        fixed-depth-18 mate probes; Diag counters from `run_suite.py` at
+        depth 12 over `suite_v2`; raw runs in `tools/results/a1110/`).
+        Neither recorded failure reproduces on the current kernel. Each
+        old attempt alone (the fail-soft delta return; the final store
+        seeded from the tightened stand-pat) keeps the KQK shortest mate
+        at mate 4, KBNK at mate 5 and the KBNK canary passing, and so
+        does the donor form with or without the PV exclusion. H1 is
+        therefore moot: its effect is gone, not explained. Bench and WAC
+        (depth 6) by arm: master 7,857,713 and 187/300; delta alone
+        8,175,334 and 182; seeded store alone 10,732,207 and 163; donor
+        form 15,201,413 and 182; without the decisive exclusion
+        12,978,636; without the PV exclusion 18,599,768. Every arm fails
+        the four-position KR-K floor at 3/4.
+      - The candidate (`3d31b50`) is the donor form: no table cutoff at
+        a PV qnode (the node type is a template parameter, set at the
+        depth-0 drop by the caller's type and NonPV for razoring and
+        ProbCut); the stand-pat tightened by any bound that proves a
+        better estimate, exact included, never by a decisive score; the
+        delta prune returns and stores its upper bound `stand_pat +
+        queen + 200`; a futility-pruned capture raises the best to its
+        optimistic value; the final store is the fail-soft best as an
+        upper bound, never exact. The stand-pat cutoff, the in-check
+        branch and the depth-cap return keep their existing fail-soft
+        form; the donor's fail-high averaging toward beta is a separate
+        mechanism and is not taken.
+      - Tie-rule promotions (`48f1d5c`): of an alpha echo 79,408 to
+        6,993, below alpha 3,653 to 14,353. The rule's `& 14` is left
+        unchanged so the gate tests one variable; the counters say it
+        now acts on genuine fail-low ties, not on the clamp.
+      - Cost: the depth-13 tree doubles (+93% nodes, bench time 3.0 s to
+        5.5-6.4 s). The growth is spread over every family, most in the
+        donor rules that compare fail-soft values with margins: LMR
+        deeper re-searches x3.3, singular double extensions x3.0,
+        triple x2.3. Fail-hard leaves had held them near dormant; their
+        margins are B.3-B.5's to refit, not this leaf's.
+      - KR-K conversion, 60k cold nodes over the floor generator: master
+        35/40 (mean 33.5 plies to mate), candidate 33/40 (43.6); KQ-K
+        40/40 in both. Master's 20/24 on the first 24 against the 24/24
+        recorded 2026-10-08 is a regression bisected to `00809cc`
+        (A.11.9's bare-king tiers; its parent `5524bf7` converts 24/24).
+        Suspected mechanism, untested: at the rook tier (26,100 and up)
+        the rule-50 damping removes about 131 cp a ply, more than the
+        king-drive gradient the search converts with. The floor's resize
+        waits on the maintainer's decision about that regression.
 - [ ] **A.12** `[M]` Roadmap rules from the audit
   Added 2026-10-24, for the maintainer to decide one by one: Rarog rule 7c's
   amendment of 2026-10-20 (a near-optimum surface may be tuned as one longer
