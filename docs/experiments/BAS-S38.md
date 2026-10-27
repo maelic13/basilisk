@@ -89,4 +89,30 @@
   against 2,914,598. The arms search different trees, so this reads tree
   shape, not a cost.
 
-- Disposition: registered, maintainer-run.
+#### RESULT — append after exposure
+
+- **Cap without a decision (maintainer-run 2026-10-27):** **+0.3 ± 4.0
+  Elo** (nElo +0.5 ± 7.6), LLR +0.33 in [−2.94, 2.94] at the 4,000-pair cap
+  (8,000 games); W/D/L 2188/3630/2182, pentanomial [94, 728, 2343, 748, 87].
+  - 0 faults, 0 time losses; the independent PGN recount agrees.
+  - The run took a fresh dry run with the registered hash
+    (`colosseum_sprt_a1132-gate_20261027_153018.dry-run.json`,
+    `1fc465ec…`); manifest `10284949…`, run record `08e6cf4a…`, PGN
+    `7e89d333…`.
+- **Verdict (registered rule):** the cap without a decision, so the repair
+  stays as a correctness fix with no measured harm; the maintainer
+  confirmed on 2026-10-27. The fingerprint record updates to `bench 13`
+  19,470,325.
+- Disposition: **cap, +0.3 ± 4.0; repair kept. CLOSED 2026-10-27.**
+
+#### PREDICTION CALIBRATION — preserve the original prediction above
+
+- **Prediction:** about 0 to +3 Elo, most likely the cap; not H0 at about
+  85%.
+- **Reading:** the cap at +0.3, at the bottom of the predicted range. As
+  predicted for the outcome; the estimate sits nearer 0 than the centre.
+- **What it teaches:** the measured exposure (6.8% of games) was an upper
+  bound that counted transient positions; the positions that decide a game
+  are rarer, or a search resolves them, so this repair's evidence is the
+  scaler's truth table and the three queen-against-two-minors positions,
+  which now guard it.

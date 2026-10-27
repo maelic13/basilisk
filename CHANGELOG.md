@@ -133,7 +133,16 @@ and next step).
   defender and was then cut to a draw. A won king-and-pawn ending now scores
   as a clear win, as in Stockfish; every one of the 662,704 such positions
   now agrees with the tablebase. Measured at **+2.3 ± 5.7 Elo** at
-  `3+0.03` (4,000 games). `bench` now reports 19,108,490 nodes.
+  `3+0.03` (4,000 games).
+
+- **A won queen against two minor pieces scored as a draw.** With no pawns
+  left, the engine treated a queen against two minor pieces as at most a
+  minor piece ahead and cut its score to a sixteenth, though the queen wins
+  most of these endings. It now counts material as Stockfish does for this
+  rule, so the queen keeps its winning score, and a rook-or-better ending
+  against more than a bishop is a near draw rather than almost dead.
+  Measured at **+0.3 ± 4.0 Elo** at `3+0.03` (8,000 games). `bench` now
+  reports 19,470,325 nodes.
 
 ---
 

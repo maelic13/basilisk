@@ -1749,7 +1749,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         Elo (4,000 games, LLR +1.42, no faults), and the repair stays by the
         registered rule on the maintainer's confirmation. The development
         fingerprint is `bench 13` 19,108,490.
-    - [ ] **A.13.2** `[I1]` A won queen against two minors is not scaled to a draw
+    - [x] **A.13.2** `[I1]` A won queen against two minors is not scaled to a draw
       (§6 D1) The pawnless scaler's classifier compares non-pawn material
       in `EG_MAT` units (`eval.cpp:833-835`: Q 950, B 330, N 320), so a
       queen against bishop and knight is "ahead by at most a minor"
@@ -1801,6 +1801,10 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         positions included). It changes play, so it owes the repair gate:
         BAS-S38, `[-5,5]`, capped at 4,000 pairs, launcher
         `tools/run_a1132_gate.ps1`, maintainer-run.
+      - Closed 2026-10-27: BAS-S38 reached its 4,000-pair cap at +0.3 ± 4.0
+        Elo (8,000 games, LLR +0.33, no faults), and the repair stays by the
+        registered rule on the maintainer's confirmation. The development
+        fingerprint is `bench 13` 19,470,325.
     - [ ] **A.13.3** `[I1]` PV copy reads past the per-ply length array
       (F3) At `ply == MAX_PLY - 1` a move that raises alpha reads
       `state_.pv_len[ply + 1]` (`search_kernel_core.cpp:1272`), one past
@@ -2913,7 +2917,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.13.2 | GAME_GATE | I1 | Pawnless scaler in the donor's form; BAS-S38 registered, maintainer-run |
 | A.13.3 | READY_FOR_IMPLEMENTATION | I1 | PV copy's read past `pv_len`; exact fingerprint |
 | A.13.4 | READY_FOR_IMPLEMENTATION | I1 | Tablebase probe after the TT cutoff; exact fingerprint, tablebase gate re-read |
 | A.14.1 | READY_FOR_IMPLEMENTATION | I1 | Score bands defined once in constants.h; exact fingerprint |

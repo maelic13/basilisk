@@ -508,7 +508,7 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S37](experiments/BAS-S37.md) — A.13.1: a won KPK scores as a known win, `[-5,5]` — cap, +2.3 ± 5.7; repair kept
 
-- [BAS-S38](experiments/BAS-S38.md) — A.13.2: the pawnless scaler in Stockfish's form, `[-5,5]` — registered, maintainer-run
+- [BAS-S38](experiments/BAS-S38.md) — A.13.2: the pawnless scaler in Stockfish's form, `[-5,5]` — cap, +0.3 ± 4.0; repair kept
 
 | ID | Title | Disposition |
 |---|---|---|

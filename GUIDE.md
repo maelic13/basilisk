@@ -11,7 +11,7 @@ in `docs/PROCESS.md`; where the engine stands is PLAN §1.
 | Item | Value |
 |---|---|
 | Released baseline | **1.10.2** on `master`, tagged `v1.10.2` (2026-10-08), `bench 13` 14,978,465 |
-| Bench fingerprint | **19,108,490** (`bench 13`, since A.13.1's won KPK; 16,092,165 at A.11.11; 8,913,394 at A.11.10; 7,857,713 at A.11.9; 7,384,101 at A.11.7; 7,233,823 at A.11.6; 8,753,339 at A.11.2; 9,260,429 at A.11.1; 8,437,148 at B.10; 11,099,210 at B.2.4; 14,978,465 for 1.10.0 to 1.10.2) |
+| Bench fingerprint | **19,470,325** (`bench 13`, since A.13.2's pawnless scaler; 19,108,490 at A.13.1; 16,092,165 at A.11.11; 8,913,394 at A.11.10; 7,857,713 at A.11.9; 7,384,101 at A.11.7; 7,233,823 at A.11.6; 8,753,339 at A.11.2; 9,260,429 at A.11.1; 8,437,148 at B.10; 11,099,210 at B.2.4; 14,978,465 for 1.10.0 to 1.10.2) |
 | Active experiment | None |
 | Long job | None |
 | Next release | **1.11.0** after B (B.11), then 1.12.0 after C, 1.13.0 after E; **2.0.0** is the first NNUE release |
@@ -34,7 +34,7 @@ generations change. These are maintainer judgments, not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **A.13.2** `[I1]` A won queen against two minors is not scaled to a draw — Claude Sonnet 5 — Medium
+**Next step:** **A.13.3** `[I1]` PV copy reads past the per-ply length array — Claude Sonnet 5 — Medium
 
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
@@ -94,7 +94,7 @@ generations change. These are maintainer judgments, not measured rankings.
 - [x] **A.12** `[M]` Roadmap rules from the audit
 - [ ] **A.13** Correctness repairs from the code audit
     - [x] **A.13.1** `[I1]` Won KPK scores as a win
-    - [ ] **A.13.2** `[I1]` A won queen against two minors is not scaled to a draw
+    - [x] **A.13.2** `[I1]` A won queen against two minors is not scaled to a draw
     - [ ] **A.13.3** `[I1]` PV copy reads past the per-ply length array
     - [ ] **A.13.4** `[I1]` The tablebase store carries a stale PV bit
 - [ ] **A.14** Simplifications from the code audit
