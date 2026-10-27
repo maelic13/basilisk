@@ -508,6 +508,8 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S37](experiments/BAS-S37.md) — A.13.1: a won KPK scores as a known win, `[-5,5]` — cap, +2.3 ± 5.7; repair kept
 
+- [BAS-S38](experiments/BAS-S38.md) — A.13.2: the pawnless scaler in Stockfish's form, `[-5,5]` — registered, maintainer-run
+
 | ID | Title | Disposition |
 |---|---|---|
 | [BAS-S17](experiments/BAS-S17.md) | Razoring depth reach in Elo (B.0.1, maintainer). | +2.4 ± 9.9; interval holds 0, the cluster decides the cap |

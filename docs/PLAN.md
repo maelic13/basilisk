@@ -358,7 +358,7 @@ coordinate) is not a defect; its owner decides. IDs are the Rarog audit's
 | B.4 | B-17 the dead SEE clamp |
 | B.5 (with D.1) | the fail-high stop's hole: a window that never returns is never checked (A-47; `analysis/b5_failhigh_stop_2026-10-25.md` §2.3) |
 | C.2.1–C.2.2 | C-1 the tuner's missing scalers; C-2 `--verify` cannot fail; C-8 the extractor's de-dup ignores the clock; C-26 to C-30 the data pipeline (book, sampler, split, labels, row identity); C-49 K refitted per run |
-| C.3–C.7 | C-10 outpost ranks; C-11 a rear doubled passer scored as a passer; C-12 "opposed" read over the whole file; C-13 own-colour king blockers only; the pawnless scaler's near-draw factor, 4/64 where the donor gives 14/64 (found with A.11.7) |
+| C.3–C.7 | C-10 outpost ranks; C-11 a rear doubled passer scored as a passer; C-12 "opposed" read over the whole file; C-13 own-colour king blockers only |
 | D.1, D.4 | A-46 reserve arithmetic; A-57 cold table reads on the clock; A-58 and A-59 tablebase root ranking |
 | D.2 | BAS-C05 the TT key and payload published separately |
 | D.3.1 | A-2 and A-3 SEE's created pins and promotion recaptures (BAS-C09) |
@@ -1781,6 +1781,26 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       accounting (expect no move unless a bench position reaches a
       pawnless ending), and the repair SPRT if the fingerprint moves;
       the occurrence that matters is search without tablebases (C-147).
+      - The maintainer admitted the near-draw factor with it (2026-10-27),
+        so the Known-defects row C.3–C.7 held for it closes here.
+      - Implemented 2026-10-27 (`1375dff`) in the donor's form: the
+        predicate `pawnless_scale` in `eval.h` (the shape of
+        `is_knnk_draw`, so the tuner can mirror it at C.2.1) counts
+        material in the donor's middlegame values for this rule alone and
+        returns 0, 4 or 14, or 64 where the rule does not apply; the
+        evaluator calls it. The evaluation trace has no scale factor, so
+        the truth table reads the predicate the evaluator calls rather
+        than a new trace field: KQ-KBN, KQ-KBB, KQ-KNN and KQ-KR unscaled,
+        KR-KB 4, KB-KN 0, KRB-KR, KRN-KR and KQ-KRB 14. The three
+        queen-against-two-minors FENs are served above +150 for the queen
+        at depth 1 (+354, +458, +272); the old scaler fails all three
+        (about +20).
+      - Qualified: `bench 13` 19,470,325 (from 19,108,490, +1.9%); CTest
+        24/24; the conversion floors and WAC 182 unchanged.
+      - Exposure: up to 606 of 8,864 recent gate games (6.8%, transient
+        positions included). It changes play, so it owes the repair gate:
+        BAS-S38, `[-5,5]`, capped at 4,000 pairs, launcher
+        `tools/run_a1132_gate.ps1`, maintainer-run.
     - [ ] **A.13.3** `[I1]` PV copy reads past the per-ply length array
       (F3) At `ply == MAX_PLY - 1` a move that raises alpha reads
       `state_.pv_len[ply + 1]` (`search_kernel_core.cpp:1272`), one past
@@ -2893,7 +2913,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.13.2 | READY_FOR_IMPLEMENTATION | I1 | Pawnless classifier in the donor's units; admitted into the freeze 2026-10-27 |
+| A.13.2 | GAME_GATE | I1 | Pawnless scaler in the donor's form; BAS-S38 registered, maintainer-run |
 | A.13.3 | READY_FOR_IMPLEMENTATION | I1 | PV copy's read past `pv_len`; exact fingerprint |
 | A.13.4 | READY_FOR_IMPLEMENTATION | I1 | Tablebase probe after the TT cutoff; exact fingerprint, tablebase gate re-read |
 | A.14.1 | READY_FOR_IMPLEMENTATION | I1 | Score bands defined once in constants.h; exact fingerprint |
