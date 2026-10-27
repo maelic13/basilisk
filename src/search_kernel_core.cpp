@@ -349,41 +349,6 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
     if (!is_root && state_.board->is_draw(ply)) return 0;
 
-    // In-search tablebase probe. A result that decides the node returns and
-    // is stored as the bound it proves; otherwise a PV node keeps searching
-    // inside it: a win raises the floor, a loss caps the result.
-    int tb_floor = -INF_SCORE;
-    int tb_cap   = INF_SCORE;
-    if (!is_root && depth > 0 && ss->excluded == MOVE_NONE && state_.tb_probe_in_search
-        && config_.limits.syzygy_probe_depth > 0) {
-        const int limit = std::min(config_.limits.syzygy_probe_limit, Syzygy::largest());
-        const int pieces = std::popcount(state_.board->all_pieces());
-        if (pieces < limit || depth >= config_.limits.syzygy_probe_depth) {
-            if (auto wdl = Syzygy::probe_wdl(*state_.board,
-                                             config_.limits.syzygy_probe_limit,
-                                             config_.limits.syzygy_50_move_rule)) {
-                record_tbhit();
-                const TablebaseProbe tb = tablebase_probe(*wdl, ply,
-                                                          config_.limits.syzygy_50_move_rule);
-                if (tb.bound == TT_EXACT
-                    || (tb.bound == TT_BETA ? tb.value >= beta : tb.value <= alpha)) {
-                    tt_store(state_.board->position_key(), std::min(MAX_PLY - 1, depth + 6),
-                             tb.value, tb.bound, MOVE_NONE, ply, TranspositionTable::INF_EVAL,
-                             ss->tt_pv);
-                    return tb.value;
-                }
-                if (is_pv) {
-                    if (tb.bound == TT_BETA) {
-                        tb_floor = tb.value;
-                        alpha = std::max(alpha, tb.value);
-                    } else {
-                        tb_cap = tb.value;
-                    }
-                }
-            }
-        }
-    }
-
     bool in_check = state_.board->is_in_check();
     ss->in_check   = in_check;
     ss->move_count = 0;
@@ -599,6 +564,46 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                            alpha, beta, tt_score, -1, VALUE_NONE, VALUE_NONE,
                            0, 0, tt_depth, tt_score);
             return tt_score;
+        }
+    }
+
+    // ---- In-search tablebase probe ------------------------------------------
+    // After the TT cutoff, as in Stockfish, so a TT hit pays no tablebase
+    // read and the store takes this node's PV flag. A result that decides the
+    // node returns and is stored as the bound it proves; otherwise a PV node
+    // keeps searching inside it: a win raises the floor, a loss caps the
+    // result.
+    int tb_floor = -INF_SCORE;
+    int tb_cap   = INF_SCORE;
+    if (!is_root && ss->excluded == MOVE_NONE && state_.tb_probe_in_search
+        && config_.limits.syzygy_probe_depth > 0) {
+        const int limit = std::min(config_.limits.syzygy_probe_limit, Syzygy::largest());
+        const int pieces = std::popcount(state_.board->all_pieces());
+        if (pieces < limit || depth >= config_.limits.syzygy_probe_depth) {
+            if (auto wdl = Syzygy::probe_wdl(*state_.board,
+                                             config_.limits.syzygy_probe_limit,
+                                             config_.limits.syzygy_50_move_rule)) {
+                record_tbhit();
+                const TablebaseProbe tb = tablebase_probe(*wdl, ply,
+                                                          config_.limits.syzygy_50_move_rule);
+                if (tb.bound == TT_EXACT
+                    || (tb.bound == TT_BETA ? tb.value >= beta : tb.value <= alpha)) {
+                    DIAG_COUNT(state_.diag.tb_store_stale_pv
+                               += ss->tt_pv != (is_pv || (tt_found && tte.is_pv())));
+                    tt_store(state_.board->position_key(), std::min(MAX_PLY - 1, depth + 6),
+                             tb.value, tb.bound, MOVE_NONE, ply, TranspositionTable::INF_EVAL,
+                             ss->tt_pv);
+                    return tb.value;
+                }
+                if (is_pv) {
+                    if (tb.bound == TT_BETA) {
+                        tb_floor = tb.value;
+                        alpha = std::max(alpha, tb.value);
+                    } else {
+                        tb_cap = tb.value;
+                    }
+                }
+            }
         }
     }
 

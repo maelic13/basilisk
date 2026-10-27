@@ -284,8 +284,9 @@ void print_search_diag(const DiagCounters& d, const Evaluator& evaluator,
             d.moveloop_tested, d.cont_hist_pruned, d.capture_futility_pruned,
             d.quiet_see_pruned, d.capture_see_pruned, d.singular_lone_move);
         emit(buf);
-        buf = std::format("kv tie_promotions_at_alpha={} tie_promotions_below_alpha={}",
-            d.tie_promotions_at_alpha, d.tie_promotions_below_alpha);
+        buf = std::format("kv tie_promotions_at_alpha={} tie_promotions_below_alpha={} "
+            "tb_store_stale_pv={}",
+            d.tie_promotions_at_alpha, d.tie_promotions_below_alpha, d.tb_store_stale_pv);
         emit(buf);
     }
     // Speed telemetry: the evaluation rate, the pawn-cache hit rate, the

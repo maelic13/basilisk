@@ -114,7 +114,11 @@ using InfoCallback = std::function<void(const std::string&)>;
     /* The equal-score tie rule's promotions of a move to best, by the tied \
        score: equal to alpha (a fail-low echoing the window's edge) or      \
        below it (a fail-low's own value). Either is a bound. */             \
-    X(tie_promotions_at_alpha) X(tie_promotions_below_alpha)
+    X(tie_promotions_at_alpha) X(tie_promotions_below_alpha)                 \
+    /* In-search tablebase stores whose PV flag differs from the node's     \
+       own (a PV node, or a TT entry marked PV). Zero once the probe runs   \
+       after the node sets its flag. Denominator: tbhits. */                 \
+    X(tb_store_stale_pv)
 
 struct DiagCounters {
 #define BASILISK_DIAG_COUNTER_FIELD(name) int64_t name = 0;
@@ -137,7 +141,7 @@ struct DiagCounters {
 // aggregate and the field count stay in step with the table.
 static_assert(sizeof(DiagCounters) == DiagCounters::COUNT * sizeof(int64_t),
               "DiagCounters holds something that is not a counter from the table");
-static_assert(DiagCounters::COUNT == 82, "the counter contract has 82 entries; extend, never rename");
+static_assert(DiagCounters::COUNT == 83, "the counter contract has 83 entries; extend, never rename");
 
 // One search's counters as `info string diag` lines, followed by the
 // evaluator's speed telemetry.
