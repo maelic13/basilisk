@@ -340,7 +340,8 @@ coordinate) is not a defect; its owner decides. IDs are the Rarog audit's
 
 | Owner | Defects |
 |---|---|
-| A.11.10 | B-19 fail-hard quiescence, which also lets the equal-score tie rule promote refuted moves near the leaves |
+| A.11.10 | A.11.9's rook tier damped whole by the rule-50 curve, which drifts KR-K into fifty-move draws |
+| A.11.11 | B-19 fail-hard quiescence, which also lets the equal-score tie rule promote refuted moves near the leaves |
 | A.13.1–A.13.4 | F1 a won KPK scaled to a draw by the pawnless scaler; D1 a won queen against two minors scaled to a near draw by the pawnless classifier's endgame units; F3 the PV copy's read past `pv_len`; S11 the tablebase store's stale PV bit (`analysis/code_audit_2026-10-27.md`) |
 | B.3 | B-12 a move stored at fail-low nodes; B-14 correction training refuses decisive results; B-45 the singular margin's range excludes the donor's value; B-109 ablation bit 6 also removes the check extension |
 | B.4 | B-17 the dead SEE clamp |
@@ -1450,7 +1451,49 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         ordinary play), so the rule is re-applied (`d7d2c34`) by its cap
         rule on the maintainer's confirmation; `bench 13` 7,857,713, the
         legacy arm 23,696,970; CTest ON 24/24, OFF 21/21.
-    - [ ] **A.11.10** `[R2]` Fail-soft quiescence
+    - [ ] **A.11.10** `[R2]` KR-K conversion: the clock keeps a tier's base
+      Added 2026-10-27 by maintainer decision, ahead of fail-soft
+      quiescence, whose gate runs against the repaired head. A.11.9 put
+      bare-king wins against a queen or rook in tiers (rook 26,100 and up,
+      queen 28,700 and up), and the rule-50 damping scales the whole score,
+      so the rook tier loses about 131 points a ply: more than the king
+      drive KR-K is mated with. Found by A.11.11's research: over the first
+      24 positions of the conversion-floor generator (60k cold nodes a
+      move) `5524bf7` converts 24/24 and `00809cc` 20/24, the losses
+      drifting into fifty-move draws; the floor's first four still
+      converted.
+      - Mechanism confirmed 2026-10-27 on master: tier scores left undamped
+        convert 24/24; the tier's cap on the ordinary score lifted converts
+        20/24. The damping, not the cap.
+      - Repair (`3d7559a`): `damp_rule50` keeps a tier's base and damps only
+        the score above it, so the clock's pressure on KR-K and KQ-K is the
+        ordinary score's, as before A.11.9, and the tier order holds at any
+        clock. The tier bases move to `eval.h`, their one definition. Minor
+        tiers and every other score are damped as before (with the base at
+        0 the curve reproduces `bench 13` 7,857,713). The Texel tuner's
+        linear curve does not mirror apply_endgame's overrides and is
+        unchanged.
+      - Tests failing on the old curve: `test_eval`'s tier order at clock
+        99 and the bound on the rook tier's loss to the clock; the KR-K
+        conversion floor over 24 positions with floor 24 (old code 21/24).
+        The legacy kernel keeps the four-position KR-K floor, and its
+        transposing and Saavedra promotion checks are held only on the core
+        (`d0e0991`): master's legacy kernel already plays the rook in the
+        transposing position at 800,000 nodes, and the budget at which it
+        proves Saavedra's mate moves with the evaluation.
+      - Qualified 2026-10-27: `bench 13` 8,913,394 (from 7,857,713,
+        +13.4%; positions 1 and 2 unchanged, tier scores in deep capture
+        lines from position 3 on); the legacy arm 22,652,055 (from
+        23,696,970); CTest ON 24/24, OFF 21/21. KR-K over 40 positions
+        40/40 at a mean 22.1 plies to mate (master 35/40, 33.5); KQ-K 40/40
+        at 10.7 (master 40/40, 13.3).
+      - Exposure: 3,414 of 11,234 A.11.7 and A.11.9 gate games (30.4%)
+        reach a settled bare king against a queen or rook, and one of them
+        was drawn (insufficient material), so the outcome almost never
+        rests on it. It changes play, so it owes the repair gate: BAS-S35,
+        `[-5,5]`, capped at 1,500 pairs, launcher `tools/run_a1110_gate.ps1`,
+        maintainer-run.
+    - [ ] **A.11.11** `[R2]` Fail-soft quiescence
       (B-19) Pulled forward from B.4 by maintainer decision 2026-10-26, so
       that B.3 is not fitted around a known defect. Quiescence fails hard:
       a fail-low returns `alpha` (delta pruning and the final return in
@@ -2466,7 +2509,7 @@ rejections stop B.
     (B-19; 93% of Rarog's root fail-highs equalled beta). Fail-soft, with the
     KBNK and KQK mate-distance fixtures as obligations; the tablebase band
     reachable without tables (B-87).
-    - Pulled forward to A.11.10 (maintainer decision 2026-10-26); B.4
+    - Pulled forward to A.11.11 (maintainer decision 2026-10-26); B.4
       fits on the repaired quiescence.
     - A defect, not an option: fail-hard is to be replaced. The earlier
       fail-soft attempts broke those fixtures; the fixtures bind the fix,
@@ -2703,7 +2746,8 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.11.10 | RESEARCH | R2 | Fail-soft quiescence, pulled forward from B.4; research first |
+| A.11.10 | GAME_GATE | R2 | KR-K conversion repair; BAS-S35 registered, maintainer-run |
+| A.11.11 | RESEARCH | R2 | Fail-soft quiescence, pulled forward from B.4; gate after A.11.10's |
 | A.12 | RESEARCH | M | Roadmap rules for the maintainer to decide |
 | A.13.1 | READY_FOR_IMPLEMENTATION | I1 | Won KPK scores as a win; admitted into the freeze 2026-10-27 |
 | A.13.2 | READY_FOR_IMPLEMENTATION | I1 | Pawnless classifier in the donor's units; admitted into the freeze 2026-10-27 |

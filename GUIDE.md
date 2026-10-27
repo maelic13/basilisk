@@ -34,7 +34,7 @@ generations change. These are maintainer judgments, not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **A.11.10** `[R2]` Fail-soft quiescence — Claude Opus 5 — High
+**Next step:** **A.11.10** `[R2]` KR-K conversion: the clock keeps a tier's base — Claude Opus 5 — High
 
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
@@ -89,7 +89,8 @@ generations change. These are maintainer judgments, not measured rankings.
     - [x] **A.11.7** `[I1]` Evaluation colour symmetry: tie-break and sweep
     - [x] **A.11.8** `[I1]` Info lines: bestmove after a stop, mate scores as cp
     - [x] **A.11.9** `[R2]` Override boundaries never reward shedding material
-    - [ ] **A.11.10** `[R2]` Fail-soft quiescence
+    - [ ] **A.11.10** `[R2]` KR-K conversion: the clock keeps a tier's base
+    - [ ] **A.11.11** `[R2]` Fail-soft quiescence
 - [ ] **A.12** `[M]` Roadmap rules from the audit
 - [ ] **A.13** Correctness repairs from the code audit
     - [ ] **A.13.1** `[I1]` Won KPK scores as a win
