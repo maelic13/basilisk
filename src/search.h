@@ -7,9 +7,9 @@
 //   search_types.h        limits, results, score bands
 //   search_root.h         root move table, legality and info-line helpers
 //   search_diagnostics.h  Diag counters and the decision trace
-//   move_picker.h         staged move ordering
+//   move_picker_core.h    staged move ordering
 //   search_worker.h       the per-thread worker and its state
-//   search_history.cpp    history and correction policy
+//   search_history_core.cpp  history and correction policy
 //   search_thread_pool.h  the persistent thread pool
 
 #include "search_types.h"

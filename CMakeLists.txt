@@ -165,25 +165,14 @@ target_include_directories(basilisk_board PUBLIC
 # Cluster umbrellas (PROCESS, Cluster delivery shape): a Boolean option that
 # compiles one search cluster in; it defaults OFF until the cluster's gate
 # passes, then ON, and the old path stays compilable until its cleanup leaf.
-# B2_CORE is Cluster 1, the selectivity core, which replaces the node kernel
-# (BASILISK_SEARCH_KERNEL_SOURCES and the kernel section of Searcher). It
-# passed B.2.4 and defaults ON; OFF builds the legacy kernel until B.8.
-option(B2_CORE "Compile Cluster 1's selectivity-core node kernel in place of the legacy kernel (sets BASILISK_B2_CORE)" ON)
-if(B2_CORE)
-    set(BASILISK_SEARCH_KERNEL_SOURCES
-        src/search_kernel_core.cpp
-        src/search_history_core.cpp
-        src/move_picker_core.cpp
-        src/history_core.cpp
-    )
-else()
-    set(BASILISK_SEARCH_KERNEL_SOURCES
-        src/search_kernel.cpp
-        src/search_history.cpp
-        src/move_picker.cpp
-        src/history.cpp
-    )
-endif()
+# The kernel is Cluster 1, the selectivity core, which replaced the original
+# kernel after B.2.4; that kernel was deleted on 2026-10-27.
+set(BASILISK_SEARCH_KERNEL_SOURCES
+    src/search_kernel_core.cpp
+    src/search_history_core.cpp
+    src/move_picker_core.cpp
+    src/history_core.cpp
+)
 
 # Engine library — evaluation and search (depends on board)
 add_library(basilisk_engine STATIC
@@ -297,16 +286,14 @@ target_link_libraries(test_invariants PRIVATE basilisk_board)
 add_executable(test_threats tests/test_threats.cpp)
 target_link_libraries(test_threats PRIVATE basilisk_board)
 
-# The selectivity core's tables and picker exist on the B2_CORE arm only.
-if(B2_CORE)
-    add_executable(test_history_core tests/test_history_core.cpp)
-    target_link_libraries(test_history_core PRIVATE basilisk_engine)
-    add_executable(test_move_picker_core tests/test_move_picker_core.cpp)
-    target_link_libraries(test_move_picker_core PRIVATE basilisk_engine)
-    add_executable(test_stack_unwind tests/test_stack_unwind.cpp
-                   src/parameters.cpp src/bench.cpp src/wac.cpp)
-    target_link_libraries(test_stack_unwind PRIVATE basilisk_engine)
-endif()
+# The selectivity core's tables and picker.
+add_executable(test_history_core tests/test_history_core.cpp)
+target_link_libraries(test_history_core PRIVATE basilisk_engine)
+add_executable(test_move_picker_core tests/test_move_picker_core.cpp)
+target_link_libraries(test_move_picker_core PRIVATE basilisk_engine)
+add_executable(test_stack_unwind tests/test_stack_unwind.cpp
+               src/parameters.cpp src/bench.cpp src/wac.cpp)
+target_link_libraries(test_stack_unwind PRIVATE basilisk_engine)
 
 add_executable(test_cpu_features tests/test_cpu_features.cpp)
 target_include_directories(test_cpu_features PRIVATE
@@ -371,11 +358,9 @@ add_test(NAME test_board        COMMAND test_board)
 add_test(NAME test_wac          COMMAND test_wac)
 add_test(NAME test_invariants   COMMAND test_invariants)
 add_test(NAME test_threats      COMMAND test_threats)
-if(B2_CORE)
-    add_test(NAME test_history_core     COMMAND test_history_core)
-    add_test(NAME test_move_picker_core COMMAND test_move_picker_core)
-    add_test(NAME test_stack_unwind     COMMAND test_stack_unwind)
-endif()
+add_test(NAME test_history_core     COMMAND test_history_core)
+add_test(NAME test_move_picker_core COMMAND test_move_picker_core)
+add_test(NAME test_stack_unwind     COMMAND test_stack_unwind)
 add_test(NAME test_cpu_features COMMAND test_cpu_features)
 add_test(NAME test_move         COMMAND test_move)
 add_test(NAME test_magics       COMMAND test_magics)
@@ -427,7 +412,6 @@ option(DIAGNOSTIC "Expose diagnostics without the tunable parameter surface (set
 option(ABLATION "Expose the matched search-ablation instrument (sets BASILISK_ABLATION)" OFF)
 option(RELEASE_DIAG_COUNTERS "Count diagnostic search events in production builds (measurement arm)" OFF)
 option(PROFILE_SYMBOLS "Emit line tables with inline records in Release builds for the sampling profiler; code generation is unchanged" OFF)
-# B2_CORE, the Cluster 1 umbrella, is declared with the kernel source list.
 set(BASILISK_PGO_ARM_OPTION "" CACHE STRING "Boolean CMake option identifying an umbrella arm in PGO child builds")
 set(BASILISK_PGO_ARM_STATE "OFF" CACHE STRING "Value for BASILISK_PGO_ARM_OPTION in PGO child builds")
 # Warnings are only a signal if something enforces them. The tree builds clean
@@ -501,10 +485,8 @@ set(_ALL_TARGETS
     basilisk board_performance_test
     test_board test_move test_tt test_fatal_report test_eval test_search test_engine_ponder test_engine_threading test_uci_protocol test_cpu_features
     test_endgames test_wac test_invariants test_magics test_threats
+    test_history_core test_move_picker_core test_stack_unwind
 )
-if(B2_CORE)
-    list(APPEND _ALL_TARGETS test_history_core test_move_picker_core test_stack_unwind)
-endif()
 
 # Fathom is part of the shipped executable and must obey its ISA contract, but
 # remains outside _ALL_TARGETS because third-party warning/sanitizer policy is
@@ -534,13 +516,6 @@ endif()
 
 if(RELEASE_DIAG_COUNTERS)
     target_compile_definitions(basilisk_engine PRIVATE BASILISK_RELEASE_DIAG_COUNTERS)
-endif()
-
-if(B2_CORE)
-    foreach(_tgt IN LISTS _ALL_TARGETS)
-        target_compile_definitions(${_tgt} PRIVATE BASILISK_B2_CORE)
-    endforeach()
-    message(STATUS "B2_CORE arm: the selectivity-core kernel is compiled in (BASILISK_B2_CORE defined)")
 endif()
 
 if(TUNE)

@@ -19,7 +19,6 @@ enum TTFlag : uint8_t { TT_NONE=0, TT_EXACT=1, TT_ALPHA=2, TT_BETA=3 };
 // new_search() advances the age by TT_AGE_STEP, so the bound bits are never
 // touched. A kernel that persists more in this byte takes its bits from the
 // age field and changes these values together.
-#if defined(BASILISK_B2_CORE)
 // The selectivity core persists the tt_pv flag in bit 2, leaving five age bits
 // (a cycle of 32 searches).
 inline constexpr uint8_t TT_BOUND_MASK = 0x03;
@@ -30,14 +29,6 @@ inline constexpr uint8_t TT_AGE_STEP   = 0x08;
 // below every real depth and occupancy is a non-zero depth byte. An entry that
 // holds only a static evaluation is stored at TT_DEPTH_UNSEARCHED with no bound.
 inline constexpr int TT_DEPTH_OFFSET = 2;
-#else
-// Bits 2-7 hold the age, which wraps after 64 searches.
-inline constexpr uint8_t TT_BOUND_MASK = 0x03;
-inline constexpr uint8_t TT_PV_MASK    = 0x00;
-inline constexpr uint8_t TT_AGE_MASK   = 0xFC;
-inline constexpr uint8_t TT_AGE_STEP   = 0x04;
-inline constexpr int TT_DEPTH_OFFSET = 0;
-#endif
 inline constexpr int TT_DEPTH_UNSEARCHED = -1;
 
 // Decoded TT entry. The table stores entries in a compact atomic format; this
@@ -298,7 +289,6 @@ public:
         return score;
     }
 
-#if defined(BASILISK_B2_CORE)
     // A decisive score the rule-50 clock may spoil before it is realised (a
     // mate, or a tablebase result, further from this node than the plies left
     // on the clock) is downgraded to the strongest non-decisive score; an
@@ -324,15 +314,6 @@ public:
         }
         return score;
     }
-#else
-    static int score_from_tt(int score, int ply, int halfmove_clock = 0) {
-        if (score >=  DECISIVE) return score - ply;
-        if (score <= -DECISIVE) return score + ply;
-        if (halfmove_clock >= 100)
-            return 0;
-        return score;
-    }
-#endif
 
 private:
     std::unique_ptr<TTCluster[]> clusters_;
