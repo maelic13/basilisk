@@ -1,8 +1,9 @@
 <# Frozen launcher for A.11.10 (BAS-S35): the rule-50 damping keeps a
    bare-king tier's base. SPRT on the repair bracket [-5,5]
    (sprt-repair.toml) at 3+0.03, one thread, Hash 64, UHO, no adjudication,
-   tablebases off, capped at 1,500 pairs. Engine A is the repair, engine B
-   the head before it; both are Release PEXT final-PGO builds with B2_CORE
+   tablebases off, capped at 1,500 pairs. This is the second run, from zero:
+   the maintainer stopped the first at 107 pairs. Engine A is the repair,
+   engine B the head before it; both are Release PEXT final-PGO builds with B2_CORE
    on, pinned by SHA-256. They come from different commits, so the wrapper
    checks each manifest's clean tree and fingerprint and this script pins
    both hashes. #>
@@ -27,13 +28,13 @@ $arguments = @{
     EngineA = $fix.Path;  NameA = 'TierBase'
     EngineB = $base.Path; NameB = 'Head'
     ExpectBench = @($fix.Bench, $base.Bench)
-    Seed = 35001
+    Seed = 35002
     Hash = 64
     Threads = 1
     BaseMs = 3000
     IncrementMs = 30
     MarginMs = 20
-    Dir = Join-Path $PSScriptRoot 'results\a1110-gate'
+    Dir = Join-Path $PSScriptRoot 'results\a1110-gate-r2'
     DryRun = $DryRun
 }
 & $wrapper @arguments

@@ -1494,6 +1494,23 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         rests on it. It changes play, so it owes the repair gate: BAS-S35,
         `[-5,5]`, capped at 1,500 pairs, launcher `tools/run_a1110_gate.ps1`,
         maintainer-run.
+      - 2026-10-27, by maintainer decision: one PR carries this repair,
+        A.11.11 and B.8.1, and the first BAS-S35 run was stopped at 107
+        pairs (void) so that both gates run after the legacy kernel's
+        deletion and on hardened tests. B.8.1 made the core-only guards of
+        `d0e0991` unconditional. The hardened tests (`bb38444`): every
+        conversion family plays the same 24 positions in parallel (8.8 s in
+        CTest, from about 53 s serially, identical results), with a floor,
+        a ceiling on the mean plies to mate a quarter above the measured
+        mean, and a staleness bound that fails a floor two below the
+        family's rate or a ceiling a third above its mean; the WAC floor
+        moves from 130 (57 below the count) to 175, with a staleness bound
+        at +20. Read on the repair and with A.11.11: KQ-K 24/24, KR-K
+        24/24, KBB-K 24/24, KBN-K 24/24 and 23/24; WAC 188 and 182. On
+        master the new KR-K bounds fail (21/24, mean 38.0 against the 29.5
+        ceiling) and every other bound holds. The re-run: seed 35002,
+        results `tools/results/a1110-gate-r2/`, the same pinned binaries,
+        since neither engine changes.
     - [ ] **A.11.11** `[R2]` Fail-soft quiescence
       (B-19) Pulled forward from B.4 by maintainer decision 2026-10-26, so
       that B.3 is not fitted around a known defect. Quiescence fails hard:

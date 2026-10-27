@@ -62,19 +62,27 @@
   - H0: revert the engine commit `3d7559a` and return the leaf to
     `RESEARCH`.
 - **Correctness floors, read before the result is acted on:** CTest on the
-  candidate, the 24-position KR-K conversion floor included.
+  candidate, the conversion floors (every family over 24 positions) and the
+  WAC floor included.
 
 #### CONDITIONS
 
 - Colosseum SPRT, `sprt-repair.toml`: normalized `[-5,5]`, α = β = 0.05.
 - `3+0.03`, 1T, Hash 64, paired reversed UHO openings, no adjudication,
-  tablebases off; seed 35001; concurrency 15 as the wrapper resolves it.
+  tablebases off; seed 35002; concurrency 15 as the wrapper resolves it.
 - **Cap: 1,500 pairs.**
 - Launcher `tools/run_a1110_gate.ps1`; results in
-  `tools/results/a1110-gate/`.
+  `tools/results/a1110-gate-r2/`.
+- **First run, stopped (void).** Seed 35001, `tools/results/a1110-gate/`:
+  the maintainer stopped it at 107 pairs (W/D/L 49/115/50 for the repair,
+  no faults), before any decision, to delete the legacy kernel (B.8.1) and
+  harden the floors first. It is not a result and is not continued; the
+  run above starts from zero with a new seed. The engines are unchanged:
+  B.8.1 reproduces `bench 13` 7,857,713 exactly and the floors are tests,
+  so the pinned binaries stand.
 - **Dry run accepted 2026-10-27**
-  (`tools/results/colosseum_sprt_a1110-gate_20261027_122452.*`, dry run
-  `647e994b…`, manifest `644f8b94…`).
+  (`tools/results/colosseum_sprt_a1110-gate-r2_20261027_125406.*`, dry run
+  `ac2de413…`, manifest `23502f6e…`).
 
 #### QUALIFICATION (before the gate)
 
