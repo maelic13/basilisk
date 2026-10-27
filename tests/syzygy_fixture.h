@@ -1,9 +1,9 @@
 #pragma once
 
-// The bundled KQvK Syzygy fixture (tests/fixtures/syzygy, base64), written to
-// a temporary directory on first use. Shared by the tests that need real
-// tablebase probes. The including target must define
-// BASILISK_TEST_SYZYGY_FIXTURE_DIR.
+// The bundled Syzygy fixtures (tests/fixtures/syzygy, base64), each table set
+// written to its own temporary directory on first use: KQvK (WDL and DTZ) for
+// the tests that need real tablebase probes, and KPvK (WDL only) for the KPK
+// truth test. The including target must define BASILISK_TEST_SYZYGY_FIXTURE_DIR.
 
 #include "syzygy.h"
 
@@ -11,6 +11,7 @@
 #include <cstddef>
 #include <filesystem>
 #include <fstream>
+#include <initializer_list>
 #include <iterator>
 #include <stdexcept>
 #include <string>
@@ -70,10 +71,15 @@ static void materialize_syzygy_file(const std::filesystem::path& source,
                                  + destination.string());
 }
 
+struct SyzygyFixtureFile {
+    const char* name;      // the decoded file; its source is name + ".b64"
+    size_t      bytes;
+};
+
 struct SyzygyFixtureDirectory {
     std::filesystem::path path;
 
-    SyzygyFixtureDirectory() {
+    explicit SyzygyFixtureDirectory(std::initializer_list<SyzygyFixtureFile> files) {
         const auto nonce = std::chrono::high_resolution_clock::now()
                                .time_since_epoch().count();
         const auto temp = std::filesystem::temp_directory_path();
@@ -90,8 +96,9 @@ struct SyzygyFixtureDirectory {
             throw std::runtime_error("could not create temporary Syzygy fixture directory");
 
         const std::filesystem::path source(BASILISK_TEST_SYZYGY_FIXTURE_DIR);
-        materialize_syzygy_file(source / "KQvK.rtbw.b64", path / "KQvK.rtbw", 272);
-        materialize_syzygy_file(source / "KQvK.rtbz.b64", path / "KQvK.rtbz", 5392);
+        for (const SyzygyFixtureFile& file : files)
+            materialize_syzygy_file(source / (std::string(file.name) + ".b64"),
+                                    path / file.name, file.bytes);
     }
 
     ~SyzygyFixtureDirectory() {
@@ -101,7 +108,12 @@ struct SyzygyFixtureDirectory {
     }
 };
 
-static const std::filesystem::path& syzygy_fixture_path() {
-    static SyzygyFixtureDirectory fixture;
+inline const std::filesystem::path& syzygy_fixture_path() {
+    static SyzygyFixtureDirectory fixture{{"KQvK.rtbw", 272}, {"KQvK.rtbz", 5392}};
+    return fixture.path;
+}
+
+inline const std::filesystem::path& kpk_fixture_path() {
+    static SyzygyFixtureDirectory fixture{{"KPvK.rtbw", 7824}};
     return fixture.path;
 }

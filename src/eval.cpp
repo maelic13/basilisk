@@ -130,6 +130,7 @@ static constexpr int SCALE_MAX    = 128;
 // 9% of baseline) and picking its minimum would be fitting to noise.
 static constexpr int SCALE_FLOOR  = 24;
 static constexpr int KNOWN_WIN    = 10000; // static "won, mate is technique" magnitude
+static constexpr int KPK_PAWN_EG  = 206;   // the donor's PawnValueEg, in a won KPK
 
 // Lazy-eval margin (Step 3.11): if the cheap (material/PST/imbalance/pawns/minor)
 // tapered score exceeds this, the expensive positional block is skipped. Tuned
@@ -745,11 +746,19 @@ static int apply_endgame(const Board& b, int score) {
         if (is_knnk_draw(b)) return 0;
 
         // ---- KPK: exact bitbase classification -----------------------------
+        // A won KPK scores as a known win plus the donor's endgame pawn value
+        // and the pawn's rank (Stockfish's Endgame<KPK>). Its tapered score
+        // could favour the bare king, and the pawnless scaler then scaled the
+        // win to 0.
         if (total_pawns == 1 && npm(WHITE) == 0 && npm(BLACK) == 0) {
             Color strong = cnt[WHITE][PAWN] ? WHITE : BLACK;
-            if (lone_king(~strong) && !kpk_strong_wins(b, strong))
-                return 0; // drawn KPK
-            // Won KPK keeps its (already winning) tapered score.
+            if (lone_king(~strong)) {
+                if (!kpk_strong_wins(b, strong))
+                    return 0; // drawn KPK
+                const Square pawn = Square(lsb(b.piece_bb(strong, PAWN)));
+                const int v = KNOWN_WIN + KPK_PAWN_EG + int(relative_rank(strong, pawn));
+                return (strong == WHITE) ? v : -v;
+            }
         }
 
         // ---- Bare king against a queen or rook: the top tiers -------------
