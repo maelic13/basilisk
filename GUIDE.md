@@ -123,7 +123,9 @@ generations change. These are maintainer judgments, not measured rankings.
 - [ ] **B.7** Search speed pass
     - [ ] **B.7.1** `[I1]` Allocation guard (ANY TIME) — before B.7.2
     - [ ] **B.7.2** `[I1]` Speed pass
-- [ ] **B.8** `[I1]` Cleanup of legacy search and dead parameters
+- [ ] **B.8** Cleanup of legacy search and dead parameters
+    - [x] **B.8.1** `[I1]` Delete the legacy search kernel (ANY TIME) — before the A.11 gates
+    - [ ] **B.8.2** `[I1]` Dead parameters, switches and diagnostics
 - [ ] **B.9** `[V]` Search programme checkpoint
 - [ ] **B.11** `[M]` Interim release after the search programme
 
