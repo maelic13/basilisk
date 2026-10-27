@@ -1588,6 +1588,15 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         the rule-50 damping removes about 131 cp a ply, more than the
         king-drive gradient the search converts with. The floor's resize
         waits on the maintainer's decision about that regression.
+      - The regression became A.11.10 (maintainer decision 2026-10-27),
+        and the candidate is gated on its repair: `69ecf42` merges it.
+        Qualified there: `bench 13` 16,092,165 (+80.5% on the repair's
+        8,913,394; time to depth 13 +74% at +3.9% nps, PGO, four
+        interleaved runs), the legacy arm 22,652,055; CTest ON 24/24 with
+        the 24-position KR-K floor, OFF 21/21; KR-K 40/40 at a mean 23.1
+        plies. Gate BAS-S36, `[-5,5]`, capped at 4,000 pairs (quiescence is
+        in every game), launcher `tools/run_a1111_gate.ps1`,
+        maintainer-run after BAS-S35 keeps the repair.
 - [ ] **A.12** `[M]` Roadmap rules from the audit
   Added 2026-10-24, for the maintainer to decide one by one: Rarog rule 7c's
   amendment of 2026-10-20 (a near-optimum surface may be tuned as one longer
@@ -2792,7 +2801,7 @@ leaf's tag. Later phases carry only a class until they open.
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
 | A.11.10 | GAME_GATE | R2 | KR-K conversion repair; BAS-S35 registered, maintainer-run |
-| A.11.11 | RESEARCH | R2 | Fail-soft quiescence, pulled forward from B.4; gate after A.11.10's |
+| A.11.11 | GAME_GATE | R2 | Fail-soft quiescence; BAS-S36 registered, runs after BAS-S35 |
 | A.12 | RESEARCH | M | Roadmap rules for the maintainer to decide |
 | A.13.1 | READY_FOR_IMPLEMENTATION | I1 | Won KPK scores as a win; admitted into the freeze 2026-10-27 |
 | A.13.2 | READY_FOR_IMPLEMENTATION | I1 | Pawnless classifier in the donor's units; admitted into the freeze 2026-10-27 |
