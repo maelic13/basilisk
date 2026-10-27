@@ -98,10 +98,29 @@ Ranked: correctness of play first, then undefined behaviour, then protocol.
 - **Repair (A.13.1).** In the KPK branch, when the bitbase says won, return a
   definite win from the pawn side's view: `KNOWN_WIN` plus a drive (the
   donor's `PawnValueEg + rank`), under the bare-king cap, and never reach the
-  scalers; and make the scaler's invariant explicit: a side with only a king
-  is never the strong side (a bare king cannot beat a pawn). Both halves are
-  needed: the first gives the search a gradient, the second guards every
-  other rule that chooses the strong side by sign.
+  scalers. The first draft also proposed an explicit scaler invariant (a
+  side with only a king is never the strong side); the second pass
+  withdrew it — see the verification note below.
+- **Verification (second pass, 2026-10-27).** An independent reading
+  confirmed the control flow (`eval.cpp:749-754` falls through; the tiers
+  at `:763-802` and the wrong-bishop rule at `:805-826` need a piece; the
+  scaler at `:833-843` fires with `SCALE_DRAW`), the White-view sign at
+  that point (`:1239`, `:2011`; the side-to-move flip is after
+  `apply_endgame`), that no cache or lazy path returns first, and the
+  served 0 at a leaf (`8/8/8/8/8/2k5/P7/3K4 b`, `go depth 1 searchmoves
+  c3b2`: cp 0; a won control leaf: cp −261). Corrections it made: the
+  donor also picks the strong side by sign and also scales a bare king to
+  a draw (`evaluate.cpp:829`, `material.cpp:205-207`), so only the KPK
+  return is donor form; the invariant would change KPPK, KNPK and KBPK
+  scores favouring the bare king from 0 to a wrong-signed value, untested
+  and fingerprint-moving, so it is withdrawn; the repair value lands at
+  10,207–10,212, inside no other band; the promotion closure is minimax
+  (only the defender can capture into a won KPK); the donor returns the
+  value before rule-50 damping while Basilisk damps every score; the test
+  must read the undamped evaluation; and the fixture needs its own
+  materialised directory (`test_endgames` lacks the fixture define,
+  `syzygy_fixture.h:92-93` hard-codes the KQvK files, `test_search.cpp:954`
+  counts the shared directory). A.13.1 carries all of it.
 - **Test.** The exhaustive comparison, as a `test_endgames` section against a
   bundled `KPvK.rtbw` fixture (7,824 bytes; `tests/fixtures/syzygy/` already
   bundles KQvK as base64 and `tests/syzygy_fixture.h` materialises it): every
@@ -184,21 +203,31 @@ tie rule, so the leaf's research starts from these facts:
 ### F4. Protocol divergences — low, for D.3.2
 
 All read in `src/parameters.cpp` and `src/engine.cpp`; none changes play.
+Line references corrected and one item refuted by the second pass
+(2026-10-27).
 
-- A bare `go` searches to `defaultSearchDepth` 7
-  (`parameters.cpp:177-180`, `:235-236`; tested so in `test_search`), where
-  Stockfish treats a bare `go` as infinite. A GUI that sends `go` and waits
-  for `stop` gets an unrequested `bestmove` after a fraction of a second.
-- `go mate N` caps the depth at `2N - 1` (`parameters.cpp:260-265`), so a
-  mate the extensions find deeper is not searched for; Stockfish searches
-  until the mate is found or `stop`.
-- A `stop` that arrives after the previous search ended and before the next
-  `go infinite` or `go ponder` answers that `go` at once with the first legal
-  move (`engine.cpp:277-281`, through `sanitize_search_result`'s fallback);
-  Stockfish clears the stop flag when it starts the new search.
-- A `SyzygyPath` whose `tb_init` fails leaves `current_syzygy_path_` set to
-  the failed string (`engine.cpp:93-100`), so re-sending the same path after
-  fixing the files does nothing until the path text changes.
+- A bare `go` searches to `defaultSearchDepth` 7 (`constants.h:12`, applied
+  at `parameters.cpp:229-231` and `:282-283`; `test_search.cpp:240` and
+  `:265` assert it), where Stockfish treats a bare `go` as infinite. A GUI
+  that sends `go` and waits for `stop` gets an unrequested `bestmove` after
+  a fraction of a second.
+- `go mate N` caps the depth at `2N - 1` (`parameters.cpp:305-311`; the
+  search also stops early on a mate within N, `search_worker.cpp:661-663`),
+  so a mate the extensions find deeper is not searched for; Stockfish
+  searches until the mate is found or `stop`.
+- REFUTED: the first draft said a `stop` between two searches answers the
+  next `go infinite` at once. The stray `stop` sets the flag
+  (`uci_protocol.cpp:181`) but also enqueues a Stop command, and the queue
+  is first-in first-out (`engine_command.h:39-45`); the Stop handler clears
+  the flag (`engine.cpp:461`) before the next `go` is handled, and the
+  immediate-bestmove branch (`engine.cpp:284-288`) fires only for a stop
+  sent after that `go`. Run: `go depth 3`, `stop`, `go infinite` searched
+  to depth 22 and answered on the second `stop`.
+- A `SyzygyPath` whose `tb_init` fails, or that initialises and finds no
+  files, is cached as the current path (`engine.cpp:102-114`), so
+  re-sending the same text after fixing the files does nothing until the
+  path text changes. Fathom's `tb_init` rarely fails; the no-files case is
+  the common one.
 
 ### F5. Read and found sound
 
@@ -470,3 +499,267 @@ justify it; pull G.2 forward if the ladder clears the rule.
 - No test reaches the ply ceiling; A.13.2 argues the exemption (F3).
 - `verify_isa.py`'s portable set is incomplete for shared code (§4).
 - The macOS toolchain is unpinned (§4).
+
+## 6. Second pass (2026-10-27, after the usage limits reset)
+
+The first pass's multi-agent verification died on the usage limit. This
+pass re-ran it as four bounded reviews, each a single Opus agent with a
+read-only brief and the relevant PLAN section in hand so that it reported
+only what PLAN did not own: an adversarial verification of F1–F4 and H1
+(§6.1), a search feature-cohesion review against the pinned donor
+`edb0d9db` (§6.2), an evaluation review against `D:/code/sf9587-ks`
+(§6.3), and a correctness audit of `tools/texel/` (§6.4). The main session
+re-verified every item that went into Phase A or a B.3 switch (D1 by
+running the binary; S1, S2 and S11 by reading the cited lines). §6.5 is the
+serious-engine checklist and §6.6 the C++26 decision. PLAN carries each
+item at the leaf named; this section is the evidence and the inventory.
+
+### 6.1 Verification of the first pass
+
+F1, F3 and H1 hold. F4(c), the stale `stop`, was refuted (the Stop command
+clears the flag in queue order before the next `go`); F4(a), (b) and (d)
+hold with corrected line references, and (d) is wider than stated: a
+`SyzygyPath` that initialises and finds no files is cached too. The A.13.1
+text was corrected in five places (§2 F1's verification note): the scaler
+invariant is withdrawn, the repair value is 10,207–10,212, the promotion
+closure is minimax, the test reads the undamped evaluation, and the fixture
+needs its own directory. The 662,704- and 2,022-position counts were not
+re-run (no build in the verifier's brief); the served 0 was reproduced at
+one leaf.
+
+### 6.2 Search: interaction map and cohesion findings
+
+Read at `fe20f09` against the pinned donor `edb0d9db` (`D:/code/stockfish`,
+`src/search.cpp`). B2_CORE kernel; `search_kernel_core.cpp` unless noted.
+
+| Decision | Reads | Writes |
+|---|---|---|
+| TB probe `:353` | depth, excluded, piece count, rule 50; runs before the TT probe | TT at depth+6 with `ss->tt_pv` (stale: S11) |
+| Check extension `:398` | in check, excluded | depth+1 at entry |
+| Hindsight `:544` | prior reduction, opponent worsening, `ss->eval + (ss-1)->eval` | depth, before the TT cutoff (as the donor) |
+| TT cutoff `:555` | TT value/bound/depth, cut node at depth ≤ 4, rule 50 < 96, child entry at depth ≥ 7 | quiet bonus to the TT move; continuation malus to the parent |
+| Static/corrected eval | TT raw eval, rule-50 damping, pawn/minor/non-pawn correction, cont-corr (ss-2, ss-4) | `ss->eval`; eval-only TT entry |
+| Refined `eval` | static eval plus a non-decisive TT bound | razoring, RFP, NMP (S7), the LMR alpha term |
+| improving / opp. worsening | `ss->eval` against ss-2 / ss-1; OR'd with `eval >= beta` after ProbCut | RFP, LMR, LMP |
+| Eval-difference training | ss-1/ss evals, check state, capture | main history; pawn history on a TT miss |
+| Razoring | eval, depth cap, TT move capture-or-none, bound ≠ BETA, non-PV | into qsearch |
+| RFP | eval, depth, improving, worsening, |corr|, `!tt_pv`, TT-move type | blended return |
+| NMP `:655` | refined eval (gate and R), allow_null, non-pawn material; child typed cut (S1) | — |
+| ProbCut `:699` | static eval (SEE), fixed margin, captures in generator order; child typed cut (S1) | TT LOWER at depth−3 |
+| IIR | non-PV and all nodes, TT move, TT depth < d−3 | depth−1 |
+| Picker | TT move; capture history + 7×value with SEE; quiets: 2×main, 2×pawn, cont 1/2/3/4/6, direct check, threat-by-lesser, low-ply, root table | — |
+| Move-loop pruning `:854` | move count, depth, improving, `ss->eval`, LMR depth (r + history), capture history, cont1+cont2+pawn, main; never at the root or in check (S3, S4); quiets non-PV only (S8) | best score raised by futility |
+| Singular `:974` | TT move/depth/bound/score, depth, PV, double_exts; verification typed cut (S1) | extension, multi-cut return |
+| LMR `:1086` | table, delta/root_delta, improving, ttPv terms, move count, |corr|, cut/all node, TT capture, `(ss+1)->cutoff_cnt`, stat score, alpha − LMR eval; never at the root or in check | `ss->reduction`; post-LMR continuation bonus |
+| `depth -= 3` `:1266` | not at the root or in check | later moves' depth, stored depth, bonuses |
+| Qsearch | TT without node type (B-27), stand-pat = raw + correction then TT-tightened; delta/futility/SEE/late pruning on it; MVV×16 − LVA + capture history; evasions in generator order (S9) | TT at depth 0 |
+| History update | alpha move, depth after −3, `(ss-1)->stat_score`, list sizes | main, low-ply, continuation ×6, pawn, capture, TT-move history (never read) |
+| Correction update | not in check, not excluded, not decisive, capture-best guard, admission sign | four structure tables + cont-corr |
+| TT store `:1408` | final depth, bound, best move (also at fail-low, B-12), raw eval, inherited `tt_pv` | — |
+| Root / helpers | root TT move from the shared TT (S6); root table of completed best moves; merge by depth then score; helpers start at depth 1 + id%2 | root table |
+
+Findings, ranked by expected strength impact; each is verified by reading
+both codebases unless marked a donor prior. PLAN placement in brackets.
+
+- **S1** `:675`, `:715`, `:983` — NMP, ProbCut and the singular verification
+  type their child `cut_node = true`; the donor passes `false`, `!cutNode`,
+  `cutNode`. [B.3.0, three categorical bits]
+- **S2** `history_core.h:51`, `:65`, `search_worker.h:256-257` — capture,
+  continuation and pawn histories and the continuation correction are
+  indexed by piece type with no colour; B.2.0's "colour-redundant"
+  rationale is false; the donor indexes by `Piece`. [B.3.0 residual, before
+  B.6]
+- **S3** `:854`, `:1121`, `:1137`, `:1268` — in-check nodes are never
+  reduced or move-loop pruned; the donor gates only quiet futility on
+  check. [B.3 check-extension card]
+- **S4** same lines — the root is never reduced; the donor reduces root
+  moves after the first from depth 2. [B.5]
+- **S5** donor `search.cpp:352`, `:395-396` — `seekMate` (root score ≥ 2000
+  internal from depth 16: RFP capped at depth 6, singular extensions off)
+  is absent; Basilisk's live problems are won-ending trees. [B.3, B.4]
+- **S6** `:444`, `:1411` — the root's first move comes from the shared TT,
+  not the root's own previous PV. [B.5; D.2 for helpers]
+- **S7** `:655-659` — NMP gates and sizes R on the TT-refined eval; the
+  donor uses the static eval. [B.3]
+- **S8** `:916` — no quiet pruning at any PV node; the donor prunes off the
+  previous PV (`followPV`) and gates IIR on it. [B.3]
+- **S9** `:166` — qsearch evasions in generator order, TT move ignored.
+  [B.4]
+- **S10** — the TT bound-mismatch penalty (`penalize(1)`, depth > 5) is in
+  `edb0d9db`; B.0 deferred it as post-SF-19. [B.3.0 note]
+- **S11** `:356-375`, `:371`, `:455-457` — the TB store passes `ss->tt_pv`
+  before this node assigns it; the probe runs before the TT probe, the
+  donor's after. [A.13.4]
+- **S12** `:1077` — `(ss+1)->double_exts` stale under NMP and ProbCut
+  children; off by one or two against a cap of 16. [B.3 bookkeeping]
+- **Upcoming repetition (cuckoo)** — absent; BAS-S12's retry trigger wanted
+  one named missing consumer, now named (the TT probe against a stored
+  decisive bound, A-13). [B.3 card]
+- **B.4 futility card details** — base is the TT-tightened stand-pat (donor:
+  static eval + margin); no recapture exemption; no move-count pruning; the
+  qsearch MVV-LVA formula differs from the picker's capture formula. [B.4]
+
+Already in PLAN and confirmed by this read: A.11.10, B-27, B-12, B-14/15,
+B-49/53, B-80/81, B-31/32/37, B-33, B-39/42/43, B-5/55, the TT-move history
+without a reader, B.4's value scale card, B-22, D.2's shared histories and
+the `& 14` tie rule. Identical to the donor and therefore not findings:
+hindsight in check and before the TT cutoff; the TT-cutoff history bonus
+before the graph-history refusal; the post-LMR bonus; the excluded search
+overwriting `move_count` and `cutoff_cnt`; the stat-score and pruning
+compositions; the `tt_pv` inheritance condition.
+
+### 6.3 Evaluation: term inventory and cohesion
+
+Read at `fe20f09` against `D:/code/sf9587-ks/src` (a classical checkout
+assumed to be `9587eeeb`: it carries extra king-safety and winnable trace
+arrays and no git metadata). Served scores were read with `go depth 1
+searchmoves <quiet move>` into a quiet child; Syzygy truth from
+`syzygy3456` (`scratchpad/hce/kq2m.py`).
+
+| Donor term | Basilisk | Where (`eval.cpp`) |
+|---|---|---|
+| Material + PSQT | different: PeSTO tables; phase counts pieces N=B=1, R=2, Q=4 of 24 (donor: npm between limits) | `:86`, `:882-891`, `:1080-1101` |
+| Imbalance (quadratic) | same form plus a linear slot; dead/collinear slots (C-20) | `:1111-1136` |
+| Bishop pair | four carriers: imbalance slot 0, `bp`, `bishop_pair_pawns` | `:1169`, `:1776` |
+| Isolated | same; no doubled-isolated case | `:971` |
+| Backward | different (C-12) | `:983-993` |
+| Doubled | different: every pawn on a file with two or more, supported or not (donor: rear unsupported pawn only) | `:965` |
+| Connected / phalanx / supported | different: flat supported bonus + one rank table; no opposed factor, no support count (C-16) | `:977`, `:998-1003` |
+| Weak lever | absent (donor eg 56) | — |
+| Weak unopposed, blocked | same | `:1005`, `:1011` |
+| Pawn majority, islands | Basilisk-only | `:1026-1050` |
+| Passer definition | strict passer only; no lever candidates, no blocked-passer rule (C-117) | `:954` |
+| Passer rank bonus | mg/eg tables in the pawn cache | `:957` |
+| Passer king distance | different: to the pawn, ×rank; king-to-block 19 a step, not rank-weighted (donor: to the block square, 19/4 vs 2, ×(5r−13), from rank 4) | `:1734-1755` |
+| Passer path / unsafe | different: free ×5 and unattacked stop ×10 gated on an empty stop; unattacked path ×9 not gated (D2); no adjacent-file span, no x-ray behind | `:1147-1166`, `:1740-1756` |
+| Passed file | absent | — |
+| Outposts | knight only (C-10, BadOutpost owned); bishop outpost absent despite comments at `:1783`, `eval_params.h:222`; reachable outpost counts squares and fires on an outposted knight | `:1207-1224`, `:1806-1812` |
+| Minor behind pawn | own pawn only (donor: either colour) | `:1796`, `:1818` |
+| Bishop pawns | linear count; no ×(unprotected + blocked central) factor | `:1787` |
+| Bishop x-ray pawns | absent | — |
+| Long diagonal | absent (C.7) | — |
+| Minor / rook on king ring | real attacks into the larger zone, knights included, beside the attack units (donor: exclusive `else if`); rook weight fitted −2/−4 | `:1791`, `:1813`, `:1844` |
+| Rook on file | same; Basilisk-only closed file, seventh rank, connected rooks | `:1190-1202`, `:1848`, `:1859` |
+| Rook on queen file | enemy queen only | `:1852` |
+| Trapped rook, weak queen | absent (owned) | — |
+| Queen infiltration | different form (C-48) | `:1832` |
+| King protector | same form; knight weight +1 against the donor's −8 | `:1801`, `:1823` |
+| Trapped bishop | Basilisk-only, phase < 12 | `:1911` |
+| Mobility | area as the donor's (C-13); no x-ray or pin line (C-115); tables near linear seeds, rook mg flat | `:1337-1385`; `eval_params.h:265-272` |
+| King danger | different form (E1) | `:1387-1391`, `:1516-1596` |
+| Shelter / storm | wing kings only, linear, recomputed each eval, no castling alternative; storm sign (C-15) | `:1599-1657` |
+| King-pawn distance | absent (nil in Rarog, C-111) | — |
+| Threats: hanging, by minor/rook/king, restricted, weak-queen protection, pawn push | same form | `:1433-1506` |
+| Threat by safe pawn | flat 58/25 whatever the target; unsafe pawns count | `:1403-1426` |
+| Slider / knight on queen | absent (owned); dead `hang_pen` loop | `:1705` |
+| Space | different (C-119, E8) | `:1876-1908` |
+| Winnable | eg half only, no `almostUnwinnable`, weights 0 (C-47) | `:1981-2008` |
+| Scale factors | pawn-count `36+7p` absent (C.5.3); OCB owned; one-flank rook ending 36 absent; lone queen vs minors 37+3m absent; pawnless (owned, plus D1); KRPKR/KRPPKRP with a floor | `:716-873` |
+| Rule 50 | 199 curve (C-128) | `eval.h:125-139` |
+| Tempo | mg only, so tapered and scaled (donor: constant 28 after scaling) | `:1967` |
+| Lazy evaluation | one stage at 700 on the tapered cheap score, no npm term (donor: 1400 / 1300 + npm/64 on (mg+eg)/2, two stages) | `:1237-1248` |
+| Caches | pawn cache pure (pawns only, shelter outside it); no material/imbalance cache; the TT stores the eval before rule-50 damping | `:909-923`, `:1053` |
+| Contempt | absent (E.2) | — |
+
+Cohesion findings (verified by reading):
+
+- **E1** king danger mg-only and short of the donor's inputs; open-file
+  double counting with shelter; ring bonuses beside attack units. [C.3]
+- **E2** phase: mg share 33/25/33% in RR, R+B v R+N and Q v Q endings
+  against the donor's 10/3/13%; mg-only terms stand in for eg king danger.
+  [C.0, C.7 with C.3]
+- **E3** scalers multiply the whole tapered score, the donor eg only; order
+  of operations differs. [C.5.3]
+- **E4** passers carry rank five times; unweighted king race; lazy split.
+  [C.6, C.2.1 manifest]
+- **E5** tempo tapers away and is scaled; absent from the lazy path. [C.7]
+- **E6** fitted signs opposite the donor's: `space_blocked_mg`,
+  `rook_king_ring`, `king_protector_n_mg`, `restricted_eg`,
+  `threat_by_rook_mg[PAWN]`; islands +6 against isolated −13. [C.0]
+- **E7** correction history overrides exact recogniser scores through
+  shared structure keys. [C.5.2, C.10]
+- **E8** lazy cut: one stage, no npm term, skips king danger, threats,
+  mobility, passer proximity/path, mop-up, tempo. [C.12]
+- **E9** no material or imbalance cache. [C.12]
+
+Defects:
+
+- **D1 (A.13.3)** the pawnless classifier compares in `EG_MAT` units, so
+  KQ against two minors (Q − (B+N) = 300 ≤ 330) is scaled 4/64; the donor
+  compares in mg values (932 > 825) and does not scale. Syzygy over 4,000
+  random positions a class, from the queen's side: KQ-KBN 82.5% won,
+  KQ-KBB 71.0% (6% cursed), KQ-KNN 73.5%. Served at depth 1, White's view,
+  re-run by the main session: KQ-KBN `8/8/3nb3/4k3/8/8/8/K6Q b - - 1 1`
+  +21, KQ-KNN +27, KQ-KB +697 (the agent read +27/+31/+801 into a quiet
+  child; same picture).
+- **D2 (C.6)** `passed_path_safe_eg` is not gated on an empty stop square:
+  `8/3n4/3P4/8/8/8/k7/4K3 w - - 0 1` is paid +45 eg for a blockaded pawn.
+
+Leads for Phase C, ranked by expected Elo: C.3 king-danger form (E1); C.7
+phase with tempo and eg king danger (E2, E5); C.6 passers (D2, E4, weak
+lever, passed file); C.5.3 scalers (E3, the two absent scalers); A.13.3
+(D1); C.0 sign and collinearity inventory (E6); C.5.2/C.10 correction over
+recognisers (E7); C.0 space (E8); C.7 bishop terms; C.4 the flat pawn
+threat; C.12 lazy margin and material cache (E8, E9). None of the Phase C
+leads was measured; each names its first measurement in PLAN.
+
+### 6.4 Texel tuner
+
+`tools/texel/tuner.cpp` and the Python pipeline, read at `fe20f09`; the
+unit tests were run (`test_bake` 2/2; the other two suites need
+python-chess, absent here) and `bake.py` was dry-run on a scratch header.
+Parity of the linear part with `evaluate` is sound (PST mirroring, phase
+buckets, tempo, rule-50 damping, imbalance, perspective) and runs are
+deterministic. Five new items, T1–T5 in C.2.1: the Adam schedule bounds
+coordinate travel to about lr × epochs with no convergence criterion (30 cp
+under `phase911.ps1`, against C-66's 11–57 cp PST movements); `bake.py`
+writes every differing slot with no provenance or completeness check (a
+stale dump reverted 42 members and both PST blocks in a dry run); hidden
+clamps apply to every coordinate whatever group is fitted and sit in no
+manifest; the linear stage can break `safety_table`'s monotonicity, after
+which the king-safety stage's `std::clamp` has `lo > hi`; and winnable has
+no working instrument while `--audit-coverage` credits its slots. Confirmed
+by reading: C-1 (with the KmK rule's sign dependence added), C-2, C-5, C-8,
+C-19, C-20, C-27 to C-29, C-49, C-50, C-71. Hygiene items are listed in
+C.2.1. Nothing needs a Phase A leaf: either PLAN owns the area or the bug
+is latent at today's defaults.
+
+### 6.5 Serious-engine checklist
+
+PLAN was checked for the features a serious engine carries. Owned already:
+MultiPV (A.8.9), ponder (A.8), Syzygy WDL/DTZ (A.8.14, D.4), time
+management (D.1), Lazy SMP and NUMA (D.2, G.1), large pages and prefetch
+(B.7.2), TT coherence (D.2), perft and board oracle (D.3.1), command
+fuzzing and lifecycle (D.3.2), sanitizers and bench agreement (CI), PGO and
+reproducible assets (release), NNUE (Phase F), datagen (F.2.1), contempt
+(E.2), WDL display (A.8.19). Absent and added: Chess960 (D.3.3, maintainer
+decision; castling is a fixed-square mask, `board.h:246-247`) and upcoming
+repetition detection (B.3 card, §6.2). Absent and not added: strength
+limiting (`UCI_LimitStrength`/`UCI_Elo`), a product feature G.2 may take;
+`nodestime`, not needed. The feature-cohesion question the maintainer
+asked is §6.2 and §6.3's content: the first pass audited mechanisms one at
+a time, this pass audited their couplings.
+
+### 6.6 C++26
+
+Finished at the March 2026 London meeting (411 national-body comments
+resolved, no feature changes); ISO publication pending. Compiler support
+on 2026-10-27 (GCC's status page, last modified 2026-10-03; cppreference):
+GCC 16.1 (2026-04-30) has reflection (`-freflection`), contracts, constexpr
+exceptions and erroneous behaviour for uninitialised reads; GCC 15 has
+`#embed`, pack indexing, `= delete("reason")` and structured bindings as a
+condition; Clang 19–22 has those GCC 15 items and none of the GCC 16 set;
+libc++ 22–24 has `optional<T&>`, `function_ref` and `concat_view`; MSVC
+has the least and is not in Basilisk's matrix. Basilisk's release
+compilers are Clang 22 (Linux), MSYS2 Clang 23 (Windows) and AppleClang
+with libc++ (macOS); GCC 15 runs only the PGO smoke job. On that floor
+`-std=c++26` adds nothing the engine needs; the features that would remove
+code (reflection for the hand-kept option, parameter and counter tables)
+are GCC-only. Decision recorded in G.2: stay on C++23; re-decide when the
+macOS and Windows clangs ship reflection. `#embed` is usable now as an
+extension in C++23 mode (GCC 15, Clang 19) and is noted in F.4 for the
+network file.
+
+Sources: https://gcc.gnu.org/projects/cxx-status.html ;
+https://en.cppreference.com/w/cpp/compiler_support/26.html ;
+https://herbsutter.com/2026/03/ (trip report, March 2026).
