@@ -1,4 +1,4 @@
-/// The selectivity core's per-ply stack across whole searches (B2_CORE arm):
+/// The selectivity core's per-ply stack across whole searches:
 /// twenty fixed positions searched to depth 8 leave the caller's board as it
 /// was, answer with a legal best move, ponder move and line, and repeat
 /// exactly in a fresh searcher; at Threads 4 the pool's answer is legal.

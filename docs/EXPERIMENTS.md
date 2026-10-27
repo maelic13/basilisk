@@ -501,6 +501,10 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S34](experiments/BAS-S34.md) — BAS-S33's rule re-tested from the positions where it acts, `[-5,0]` — cap, −0.3 ± 1.1; rule re-applied
 
+- [BAS-S35](experiments/BAS-S35.md) — A.11.10: the rule-50 damping keeps a bare-king tier's base, `[-5,5]` — cap, −1.3 ± 6.7; repair kept
+
+- [BAS-S36](experiments/BAS-S36.md) — A.11.11: fail-soft quiescence in Stockfish's form, `[-5,5]` — H1, +12.1 ± 9.9; repair kept
+
 | ID | Title | Disposition |
 |---|---|---|
 | [BAS-S17](experiments/BAS-S17.md) | Razoring depth reach in Elo (B.0.1, maintainer). | +2.4 ± 9.9; interval holds 0, the cluster decides the cap |

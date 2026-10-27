@@ -119,10 +119,9 @@ line names where it lives.
   partial-key collision, 1/65536.
 - The stored static eval is the evaluation **without the rule-50 damping**
   (`Evaluator::evaluate_undamped`, `src/eval.h`), because the key has no
-  halfmove clock. The default kernel (`src/search_kernel_core.cpp`) damps
-  it after the read, at the reading node's clock; `evaluate()` is the
-  damped value for every other caller. The legacy kernel still stores the
-  damped value.
+  halfmove clock. The kernel (`src/search_kernel_core.cpp`) damps it
+  after the read, at the reading node's clock; `evaluate()` is the damped
+  value for every other caller.
 - An empty slot is `(data 0, key16 0)`. The `flag_age` check is what rejects it
   when `want == 0`. Preserve that.
 - **Coherence must not be bought with throughput.** Any future scheme is
@@ -135,9 +134,10 @@ line names where it lives.
   must record the policy and never mix with natural-termination evidence.
 - Strength is measured at **3+0.03**, paired UHO openings, normalized Elo,
   **tablebases off** — the harness and the games are blind the same way.
-- **Bench signature** of the accepted head: `bench 13` = **7,857,713** nodes
-  (since A.11.9's bare-king tiers; the `-DB2_CORE=OFF` legacy arm reads
-  23,696,970, since the evaluation is shared. Earlier: 7,384,101 at A.11.7's
+- **Bench signature** of the accepted head: `bench 13` = **16,092,165**
+  nodes (since A.11.11's fail-soft quiescence. Earlier: 8,913,394 at
+  A.11.10's tier damping, 7,857,713 at A.11.9's bare-king tiers, where the
+  legacy kernel, deleted at B.8.1, read 23,696,970; 7,384,101 at A.11.7's
   pawnless-scaler repair, 7,233,823 at
   A.11.6's node count and root tie repair, 8,753,339 at A.11.2's singular
   lone-move repair, 9,260,429 at A.11.1's rule-50 TT-eval

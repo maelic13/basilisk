@@ -33,6 +33,9 @@ using InfoCallback = std::function<void(const std::string&)>;
 // oracle's matching build: a renamed counter breaks the differential harness.
 // New counters go at the end of the table, each with the denominator it is
 // read against, and are printed on new `kv` lines, never spliced into old ones.
+// Ten of the contract's counters belonged to the deleted original kernel and
+// read 0: lmp_prunes, hist_prunes, see_prunes, the four hist_* reach counters
+// and lmr_blocked_searched, _movetype and _gives_check.
 #define BASILISK_DIAG_COUNTERS(X)                                            \
     /* Node population. Shares are of interior (negamax) nodes. */           \
     X(interior_nodes) X(in_check_nodes) X(check_exts) X(tt_pv_nodes)         \
@@ -81,7 +84,7 @@ using InfoCallback = std::function<void(const std::string&)>;
     X(lmr_blocked_depth) X(lmr_blocked_searched)                             \
     X(lmr_blocked_in_check) X(lmr_blocked_movetype)                          \
     X(lmr_blocked_gives_check)                                               \
-    /* The selectivity core's mechanisms; the legacy kernel leaves them 0.  \
+    /* The selectivity core's mechanisms.                                   \
        Node pruning by remaining depth: each bucket set sums to rfp_cuts or  \
        razor_cuts. */                                                        \
     X(rfp_cuts_d1_3) X(rfp_cuts_d4_7) X(rfp_cuts_d8p)                        \
@@ -107,7 +110,11 @@ using InfoCallback = std::function<void(const std::string&)>;
     X(cont_hist_pruned) X(capture_futility_pruned)                           \
     X(quiet_see_pruned) X(capture_see_pruned) X(moveloop_tested)             \
     /* Exclusion searches whose only legal move was the excluded one. */     \
-    X(singular_lone_move)
+    X(singular_lone_move)                                                    \
+    /* The equal-score tie rule's promotions of a move to best, by the tied \
+       score: equal to alpha (a fail-low echoing the window's edge) or      \
+       below it (a fail-low's own value). Either is a bound. */             \
+    X(tie_promotions_at_alpha) X(tie_promotions_below_alpha)
 
 struct DiagCounters {
 #define BASILISK_DIAG_COUNTER_FIELD(name) int64_t name = 0;
@@ -130,7 +137,7 @@ struct DiagCounters {
 // aggregate and the field count stay in step with the table.
 static_assert(sizeof(DiagCounters) == DiagCounters::COUNT * sizeof(int64_t),
               "DiagCounters holds something that is not a counter from the table");
-static_assert(DiagCounters::COUNT == 80, "the counter contract has 80 entries; extend, never rename");
+static_assert(DiagCounters::COUNT == 82, "the counter contract has 82 entries; extend, never rename");
 
 // One search's counters as `info string diag` lines, followed by the
 // evaluator's speed telemetry.
@@ -161,11 +168,6 @@ enum class TraceFamily : uint8_t {
     CaptureFutility, CaptureSee
 };
 // Whether this kernel produces cutoff_count; the trace header states it.
-#if defined(BASILISK_B2_CORE)
-inline constexpr bool kTraceCutoffCountAvailable = true;
-#else
-inline constexpr bool kTraceCutoffCountAvailable = false;
-#endif
 struct TraceRecord {
     TraceEvent event{};
     Move move = MOVE_NONE;

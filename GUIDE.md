@@ -11,7 +11,7 @@ in `docs/PROCESS.md`; where the engine stands is PLAN §1.
 | Item | Value |
 |---|---|
 | Released baseline | **1.10.2** on `master`, tagged `v1.10.2` (2026-10-08), `bench 13` 14,978,465 |
-| Bench fingerprint | **7,857,713** (`bench 13`, since A.11.9's bare-king tiers; 7,384,101 at A.11.7; 7,233,823 at A.11.6; 8,753,339 at A.11.2; 9,260,429 at A.11.1; 8,437,148 at B.10; 11,099,210 at B.2.4; 14,978,465 for 1.10.0 to 1.10.2) |
+| Bench fingerprint | **16,092,165** (`bench 13`, since A.11.11's fail-soft quiescence; 8,913,394 at A.11.10; 7,857,713 at A.11.9; 7,384,101 at A.11.7; 7,233,823 at A.11.6; 8,753,339 at A.11.2; 9,260,429 at A.11.1; 8,437,148 at B.10; 11,099,210 at B.2.4; 14,978,465 for 1.10.0 to 1.10.2) |
 | Active experiment | None |
 | Long job | None |
 | Next release | **1.11.0** after B (B.11), then 1.12.0 after C, 1.13.0 after E; **2.0.0** is the first NNUE release |
@@ -34,7 +34,7 @@ generations change. These are maintainer judgments, not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **A.11.10** `[R2]` Fail-soft quiescence — Claude Opus 5 — High
+**Next step:** **A.12** `[M]` Roadmap rules from the audit — Claude Sonnet 5 — Medium
 
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
@@ -79,7 +79,7 @@ generations change. These are maintainer judgments, not measured rankings.
     - [x] **A.10.5** `[I1]` Ledger index dispositions kept in step
     - [x] **A.10.6** `[M]` Tools index and retired numbers in comments
     - [x] **A.10.7** `[I1]` Dev builds name their commit
-- [ ] **A.11** Correctness repairs from the Rarog audit
+- [x] **A.11** Correctness repairs from the Rarog audit
     - [x] **A.11.1** `[I1]` Rule-50 damping out of the TT static eval
     - [x] **A.11.2** `[I1]` Singular search: lone excluded move returns alpha
     - [x] **A.11.3** `[I1]` Own clock of zero without increment is bounded
@@ -89,7 +89,8 @@ generations change. These are maintainer judgments, not measured rankings.
     - [x] **A.11.7** `[I1]` Evaluation colour symmetry: tie-break and sweep
     - [x] **A.11.8** `[I1]` Info lines: bestmove after a stop, mate scores as cp
     - [x] **A.11.9** `[R2]` Override boundaries never reward shedding material
-    - [ ] **A.11.10** `[R2]` Fail-soft quiescence
+    - [x] **A.11.10** `[R2]` KR-K conversion: the clock keeps a tier's base
+    - [x] **A.11.11** `[R2]` Fail-soft quiescence
 - [ ] **A.12** `[M]` Roadmap rules from the audit
 - [ ] **A.13** Correctness repairs from the code audit
     - [ ] **A.13.1** `[I1]` Won KPK scores as a win
@@ -123,7 +124,9 @@ generations change. These are maintainer judgments, not measured rankings.
 - [ ] **B.7** Search speed pass
     - [ ] **B.7.1** `[I1]` Allocation guard (ANY TIME) — before B.7.2
     - [ ] **B.7.2** `[I1]` Speed pass
-- [ ] **B.8** `[I1]` Cleanup of legacy search and dead parameters
+- [ ] **B.8** Cleanup of legacy search and dead parameters
+    - [x] **B.8.1** `[I1]` Delete the legacy search kernel (ANY TIME) — before the A.11 gates
+    - [ ] **B.8.2** `[I1]` Dead parameters, switches and diagnostics
 - [ ] **B.9** `[V]` Search programme checkpoint
 - [ ] **B.11** `[M]` Interim release after the search programme
 

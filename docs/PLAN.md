@@ -340,7 +340,6 @@ coordinate) is not a defect; its owner decides. IDs are the Rarog audit's
 
 | Owner | Defects |
 |---|---|
-| A.11.10 | B-19 fail-hard quiescence, which also lets the equal-score tie rule promote refuted moves near the leaves |
 | A.13.1–A.13.4 | F1 a won KPK scaled to a draw by the pawnless scaler; D1 a won queen against two minors scaled to a near draw by the pawnless classifier's endgame units; F3 the PV copy's read past `pv_len`; S11 the tablebase store's stale PV bit (`analysis/code_audit_2026-10-27.md`) |
 | B.3 | B-12 a move stored at fail-low nodes; B-14 correction training refuses decisive results; B-45 the singular margin's range excludes the donor's value; B-109 ablation bit 6 also removes the check extension |
 | B.4 | B-17 the dead SEE clamp |
@@ -1115,14 +1114,15 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         MSYS2's own git reads this CRLF clone as modified. Configure now looks
         for Git for Windows first and hands the build that git. Under MSYS2
         it picks Git for Windows even with MSYS2's git present.
-- [ ] **A.11** Correctness repairs from the Rarog audit
+- [x] **A.11** Correctness repairs from the Rarog audit
   Added 2026-10-24 by maintainer decision. Each repair is its own engine
   commit with a test that fails on the old code, bench accounting for any
   fingerprint move and CTest on both arms; a repair that changes play is gated
   by a registered `[-5,5]` repair SPRT unless its leaf argues none is owed.
   Evidence: `analysis/rarog_audit_2026-10-24.md`. The repairs change the
-  default search only: the legacy kernel (`-DB2_CORE=OFF`) is neither fixed
-  nor maintained, and B.8 deletes it (maintainer decision 2026-10-24).
+  default search only: the legacy kernel (`-DB2_CORE=OFF`) was neither fixed
+  nor maintained (maintainer decision 2026-10-24), and B.8.1 deleted it on
+  2026-10-27, after which there is one arm.
     - [x] **A.11.1** `[I1]` Rule-50 damping out of the TT static eval
       (B-1, C-7) `evaluate()` damps the score by the halfmove clock
       (`eval.cpp:1210`, `:1985`); the kernel stores that value as the TT
@@ -1450,7 +1450,71 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         ordinary play), so the rule is re-applied (`d7d2c34`) by its cap
         rule on the maintainer's confirmation; `bench 13` 7,857,713, the
         legacy arm 23,696,970; CTest ON 24/24, OFF 21/21.
-    - [ ] **A.11.10** `[R2]` Fail-soft quiescence
+    - [x] **A.11.10** `[R2]` KR-K conversion: the clock keeps a tier's base
+      Added 2026-10-27 by maintainer decision, ahead of fail-soft
+      quiescence, whose gate runs against the repaired head. A.11.9 put
+      bare-king wins against a queen or rook in tiers (rook 26,100 and up,
+      queen 28,700 and up), and the rule-50 damping scales the whole score,
+      so the rook tier loses about 131 points a ply: more than the king
+      drive KR-K is mated with. Found by A.11.11's research: over the first
+      24 positions of the conversion-floor generator (60k cold nodes a
+      move) `5524bf7` converts 24/24 and `00809cc` 20/24, the losses
+      drifting into fifty-move draws; the floor's first four still
+      converted.
+      - Mechanism confirmed 2026-10-27 on master: tier scores left undamped
+        convert 24/24; the tier's cap on the ordinary score lifted converts
+        20/24. The damping, not the cap.
+      - Repair (`3d7559a`): `damp_rule50` keeps a tier's base and damps only
+        the score above it, so the clock's pressure on KR-K and KQ-K is the
+        ordinary score's, as before A.11.9, and the tier order holds at any
+        clock. The tier bases move to `eval.h`, their one definition. Minor
+        tiers and every other score are damped as before (with the base at
+        0 the curve reproduces `bench 13` 7,857,713). The Texel tuner's
+        linear curve does not mirror apply_endgame's overrides and is
+        unchanged.
+      - Tests failing on the old curve: `test_eval`'s tier order at clock
+        99 and the bound on the rook tier's loss to the clock; the KR-K
+        conversion floor over 24 positions with floor 24 (old code 21/24).
+        The legacy kernel keeps the four-position KR-K floor, and its
+        transposing and Saavedra promotion checks are held only on the core
+        (`d0e0991`): master's legacy kernel already plays the rook in the
+        transposing position at 800,000 nodes, and the budget at which it
+        proves Saavedra's mate moves with the evaluation.
+      - Qualified 2026-10-27: `bench 13` 8,913,394 (from 7,857,713,
+        +13.4%; positions 1 and 2 unchanged, tier scores in deep capture
+        lines from position 3 on); the legacy arm 22,652,055 (from
+        23,696,970); CTest ON 24/24, OFF 21/21. KR-K over 40 positions
+        40/40 at a mean 22.1 plies to mate (master 35/40, 33.5); KQ-K 40/40
+        at 10.7 (master 40/40, 13.3).
+      - Exposure: 3,414 of 11,234 A.11.7 and A.11.9 gate games (30.4%)
+        reach a settled bare king against a queen or rook, and one of them
+        was drawn (insufficient material), so the outcome almost never
+        rests on it. It changes play, so it owes the repair gate: BAS-S35,
+        `[-5,5]`, capped at 1,500 pairs, launcher `tools/run_a1110_gate.ps1`,
+        maintainer-run.
+      - 2026-10-27, by maintainer decision: one PR carries this repair,
+        A.11.11 and B.8.1, and the first BAS-S35 run was stopped at 107
+        pairs (void) so that both gates run after the legacy kernel's
+        deletion and on hardened tests. B.8.1 made the core-only guards of
+        `d0e0991` unconditional. The hardened tests (`bb38444`): every
+        conversion family plays the same 24 positions in parallel (8.8 s in
+        CTest, from about 53 s serially, identical results), with a floor,
+        a ceiling on the mean plies to mate a quarter above the measured
+        mean, and a staleness bound that fails a floor two below the
+        family's rate or a ceiling a third above its mean; the WAC floor
+        moves from 130 (57 below the count) to 175, with a staleness bound
+        at +20. Read on the repair and with A.11.11: KQ-K 24/24, KR-K
+        24/24, KBB-K 24/24, KBN-K 24/24 and 23/24; WAC 188 and 182. On
+        master the new KR-K bounds fail (21/24, mean 38.0 against the 29.5
+        ceiling) and every other bound holds. The re-run: seed 35002,
+        results `tools/results/a1110-gate-r2/`, the same pinned binaries,
+        since neither engine changes.
+      - Closed 2026-10-27: BAS-S35 reached its 1,500-pair cap at −1.3 ±
+        6.7 Elo (3,000 games, LLR −0.59, no faults), and the repair stays
+        by the registered rule on the maintainer's confirmation. It is
+        A.11.11's baseline, so the development fingerprint moves past its
+        8,913,394 to A.11.11's.
+    - [x] **A.11.11** `[R2]` Fail-soft quiescence
       (B-19) Pulled forward from B.4 by maintainer decision 2026-10-26, so
       that B.3 is not fitted around a known defect. Quiescence fails hard:
       a fail-low returns `alpha` (delta pruning and the final return in
@@ -1487,8 +1551,8 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         lower-bound-tightened stand-pat, not from fail-soft itself;
         falsified if the donor's form with the PV exclusion still breaks
         the KQK and KBNK fixtures. The tie rule's `(nodes & 14) == 0`
-        fires one node in eight against the donor's `& 15`; the leaf
-        decides it with the rule. The counter it needs: tie-rule
+        fires one node in eight; the audit read the donor's as `& 15`,
+        which is wrong (corrected below). The counter it needs: tie-rule
         promotions of a bound echo (`score == alpha`) against exact ties.
         Verified 2026-10-27: `quiescence` has no node-type parameter, so
         the PV exclusion needs a flag threaded through the call at
@@ -1500,6 +1564,74 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         verbatim only through an EXACT entry from a wide window. H1
         describes the fail-soft store that does not exist yet, so the
         attempt tests it, not reading.
+      - Research (2026-10-27; release-pext builds, `bench 13`, CTest,
+        fixed-depth-18 mate probes; Diag counters from `run_suite.py` at
+        depth 12 over `suite_v2`; raw runs in `tools/results/a1110/`).
+        Neither recorded failure reproduces on the current kernel. Each
+        old attempt alone (the fail-soft delta return; the final store
+        seeded from the tightened stand-pat) keeps the KQK shortest mate
+        at mate 4, KBNK at mate 5 and the KBNK canary passing, and so
+        does the donor form with or without the PV exclusion. H1 is
+        therefore moot: its effect is gone, not explained. Bench and WAC
+        (depth 6) by arm: master 7,857,713 and 187/300; delta alone
+        8,175,334 and 182; seeded store alone 10,732,207 and 163; donor
+        form 15,201,413 and 182; without the decisive exclusion
+        12,978,636; without the PV exclusion 18,599,768. Every arm fails
+        the four-position KR-K floor at 3/4.
+      - The candidate (`3d31b50`) is the donor form: no table cutoff at
+        a PV qnode (the node type is a template parameter, set at the
+        depth-0 drop by the caller's type and NonPV for razoring and
+        ProbCut); the stand-pat tightened by any bound that proves a
+        better estimate, exact included, never by a decisive score; the
+        delta prune returns and stores its upper bound `stand_pat +
+        queen + 200`; a futility-pruned capture raises the best to its
+        optimistic value; the final store is the fail-soft best as an
+        upper bound, never exact. The stand-pat cutoff, the in-check
+        branch and the depth-cap return keep their existing fail-soft
+        form; the donor's fail-high averaging toward beta is a separate
+        mechanism and is not taken.
+      - Tie-rule promotions (`48f1d5c`): of an alpha echo 79,408 to
+        6,993, below alpha 3,653 to 14,353. The rule's `& 14` is left
+        unchanged so the gate tests one variable; the counters say it
+        now acts on genuine fail-low ties, not on the clamp.
+      - Cost: the depth-13 tree doubles (+93% nodes, bench time 3.0 s to
+        5.5-6.4 s). The growth is spread over every family, most in the
+        donor rules that compare fail-soft values with margins: LMR
+        deeper re-searches x3.3, singular double extensions x3.0,
+        triple x2.3. Fail-hard leaves had held them near dormant; their
+        margins are B.3-B.5's to refit, not this leaf's.
+      - KR-K conversion, 60k cold nodes over the floor generator: master
+        35/40 (mean 33.5 plies to mate), candidate 33/40 (43.6); KQ-K
+        40/40 in both. Master's 20/24 on the first 24 against the 24/24
+        recorded 2026-10-08 is a regression bisected to `00809cc`
+        (A.11.9's bare-king tiers; its parent `5524bf7` converts 24/24).
+        Suspected mechanism, untested: at the rook tier (26,100 and up)
+        the rule-50 damping removes about 131 cp a ply, more than the
+        king-drive gradient the search converts with. The floor's resize
+        waits on the maintainer's decision about that regression.
+      - The regression became A.11.10 (maintainer decision 2026-10-27),
+        and the candidate is gated on its repair: `69ecf42` merges it.
+        Qualified there: `bench 13` 16,092,165 (+80.5% on the repair's
+        8,913,394; time to depth 13 +74% at +3.9% nps, PGO, four
+        interleaved runs), the legacy arm 22,652,055; CTest ON 24/24 with
+        the 24-position KR-K floor, OFF 21/21; KR-K 40/40 at a mean 23.1
+        plies. Gate BAS-S36, `[-5,5]`, capped at 4,000 pairs (quiescence is
+        in every game), launcher `tools/run_a1111_gate.ps1`,
+        maintainer-run after BAS-S35 keeps the repair.
+      - Closed 2026-10-27: BAS-S36 accepted H1 after BAS-S35 kept its
+        baseline, +12.1 ± 9.9 Elo (1,834 games, LLR +2.95, no faults; a
+        first-crossing estimate), without a refit. The repair stays by the
+        registered rule. The development fingerprint is `bench 13`
+        16,092,165. B.3 to B.5 refit RFP, razoring, aspiration and the
+        margins fail-soft woke (LMR's deeper re-search, the singular double
+        and triple extensions) on this search.
+      - Correction, 2026-10-27: the tie rule has no divergence. Stockfish's
+        is `(int(nodes) & 14) == 0` as well, one node in eight: at the
+        pinned `sf_19` (`edb0d9db`, `src/search.cpp:1511`) and on master
+        since. The audit's F2.4 misread it, and this leaf repeated it
+        unchecked. A scratch `& 15` build read `bench 13`
+        13,430,303 and WAC 180 against 182; it is not the donor's form and
+        is not gated.
 - [ ] **A.12** `[M]` Roadmap rules from the audit
   Added 2026-10-24, for the maintainer to decide one by one: Rarog rule 7c's
   amendment of 2026-10-20 (a near-optimum surface may be tuned as one longer
@@ -1521,7 +1653,8 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
   own engine commit with a test that fails on the old code, bench
   accounting for any fingerprint move, CTest on both arms, and a
   registered `[-5,5]` repair SPRT when play changes unless the leaf
-  argues none is owed. The legacy kernel is not fixed.
+  argues none is owed. The legacy kernel is deleted (B.8.1), so CTest has
+  one arm.
     - [ ] **A.13.1** `[I1]` Won KPK scores as a win
       (F1) `apply_endgame` keeps the tapered score of a KPK the bitbase
       calls won (`eval.cpp:753`); when that score favours the bare king,
@@ -1636,9 +1769,8 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
   language work done by A.8.12, and the long kernel and evaluator
   functions best left whole until B.3–B.5 and C.1 rewrite them; the
   smaller cleanups it found are folded into B.8, D.3.1 and D.3.2. Its
-  case for deleting the legacy kernel now was declined (maintainer
-  decision 2026-10-27): the kernel goes at B.8, whose inputs carry the
-  census inventory.
+  case for deleting the legacy kernel now was declined the same morning
+  and then taken (maintainer decision 2026-10-27): B.8.1 deleted it.
     - [ ] **A.14.1** `[I1]` One definition of the score bands
       `MATE_SCORE` and `MAX_PLY` are defined in `tt.h:106-107` and
       `search_types.h:18-19`, and `KBNK_STATIC_MATE_FLOOR` is a literal in
@@ -2466,7 +2598,7 @@ rejections stop B.
     (B-19; 93% of Rarog's root fail-highs equalled beta). Fail-soft, with the
     KBNK and KQK mate-distance fixtures as obligations; the tablebase band
     reachable without tables (B-87).
-    - Pulled forward to A.11.10 (maintainer decision 2026-10-26); B.4
+    - Pulled forward to A.11.11 (maintainer decision 2026-10-26); B.4
       fits on the repaired quiescence.
     - A defect, not an option: fail-hard is to be replaced. The earlier
       fail-soft attempts broke those fixtures; the fixtures bind the fix,
@@ -2639,12 +2771,34 @@ rejections stop B.
         head-to-head); read a bundle's members alone (D-16); a maintainer rule
         for real but sub-bar gains (D-17); screen with PGO (D-14); priors D-7
         (most prefetches lose under 4 KB pages), D-15 and D-20.
-- [ ] **B.8** `[I1]` Cleanup of legacy search and dead parameters
+- [ ] **B.8** Cleanup of legacy search and dead parameters
   Cleanup: remove the legacy search path, dead parameters, unconsumed switches
-  and diagnostics without an owner; exact fingerprint; no game gate. Until
-  then the legacy kernel (`-DB2_CORE=OFF`) is kept compilable only: it is
-  neither fixed nor maintained, and repairs touch the default search alone
-  (maintainer decision 2026-10-24).
+  and diagnostics without an owner; exact fingerprint; no game gate.
+    - [x] **B.8.1** `[I1]` Delete the legacy search kernel (ANY TIME) — before the A.11 gates
+      Done 2026-10-27 at the maintainer's request, out of turn, so that
+      A.11.10 and A.11.11 are gated on one arm. Deleted: the four legacy
+      kernel files with `history.h` and `move_picker.h`; every
+      `BASILISK_B2_CORE` arm (resolved as defined) in `search_worker.h`,
+      `search_types.h`, `tt.h`, `search_params.h`, `search_diagnostics.h`,
+      `uci_protocol.cpp` and the tests; the `B2_CORE` option and its CMake
+      branches; CI's legacy build-and-test step; the `+legacy` id suffix;
+      the legacy-only parameter groups (node margins, move loop, LMR,
+      history), so the default SPSA surface is regenerated (41 to 19
+      coordinates: the root table and the three groups the kernel
+      inherited). DESIGN loses its legacy-arm sentences.
+      - Kept, for B.8.2: the ten Diag counters only the legacy kernel wrote
+        (`lmp_prunes`, `hist_prunes`, `see_prunes`, the four `hist_*` reach
+        counters, three `lmr_blocked_*`). They are in the 57-counter
+        contract the oracle prints and `run_suite.py`'s LMR accounting
+        identity reads, so they now read 0 and are documented so.
+      - Exact fingerprint: `bench 13` 7,857,713; CTest 24/24; the Tune,
+        Diag, Ablate and TEXEL flavours build, their `test_uci_protocol`
+        passes, and `--verify` reconstructs all seven positions; the
+        `tools/diag` tests pass but `test_profile_regions`, which fails on
+        master already (`version.cpp` and `version.h` are unmapped).
+    - [ ] **B.8.2** `[I1]` Dead parameters, switches and diagnostics
+      What B.8 keeps after the kernel's deletion. The ten zero counters
+      leave the counter contract only with the oracle's side of it.
   Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
   are its items):
   - Delete the dead shallower re-search (B-63) and the probably-dead PVS guard
@@ -2659,17 +2813,8 @@ rejections stop B.
     arguments (B.2.0's F20); named helpers for `negamax`'s move loop
     (1,084 lines at the audit) only under the exact fingerprint and the
     NPS floor.
-  - The census of `00809cc` sizes the legacy deletion at about 1,900
-    lines and a CI cell: the four legacy `.cpp` files (1,462 lines),
-    `history.h` and `move_picker.h` (290), the eight `#else` arms of
-    `search_worker.h`, `search_types.h`, `tt.h`, `search_params.h`,
-    `search_diagnostics.h` and `uci_protocol.cpp` (123), the legacy
-    branches of `test_search` and `test_tt` (48), the ten `DiagCounters`
-    fields and twenty X-macro lines only it writes, the `B2_CORE` option
-    with its CMake and CI arms, the `+legacy` id suffix and the second
-    fingerprint in leaf records; DESIGN and PROCESS lose their
-    legacy-arm sentences. Deleted here, not before (maintainer decision
-    2026-10-27).
+  - The census of `00809cc` sized the legacy deletion at about 1,900
+    lines and a CI cell; B.8.1 did it, except the ten counters above.
 - [ ] **B.9** `[V]` Search programme checkpoint
   Checkpoint: re-measure every deficit meter.
   The meters are G(0) against the oracle, fixed-node depth and branching,
@@ -2703,7 +2848,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.11.10 | RESEARCH | R2 | Fail-soft quiescence, pulled forward from B.4; research first |
 | A.12 | RESEARCH | M | Roadmap rules for the maintainer to decide |
 | A.13.1 | READY_FOR_IMPLEMENTATION | I1 | Won KPK scores as a win; admitted into the freeze 2026-10-27 |
 | A.13.2 | READY_FOR_IMPLEMENTATION | I1 | Pawnless classifier in the donor's units; admitted into the freeze 2026-10-27 |
@@ -2719,7 +2863,7 @@ leaf's tag. Later phases carry only a class until they open.
 | B.6 | RESEARCH | V | Only if the clusters' curvature justifies it |
 | B.7.1 | READY_FOR_IMPLEMENTATION | I1 | Any time between leaves; must land before B.7.2 |
 | B.7.2 | RESEARCH | I1 | After B.7.1, on the new modules |
-| B.8 | RESEARCH | I1 | After the clusters |
+| B.8.2 | RESEARCH | I1 | After the clusters |
 | B.9 | RESEARCH | V | Programme checkpoint |
 | B.11 | RESEARCH | M | Interim release after B.9 (maintainer decision 2026-10-24) |
 

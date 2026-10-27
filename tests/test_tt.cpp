@@ -154,17 +154,10 @@ static void test_mate_score_adjustment() {
     EXPECT_EQ(TranspositionTable::score_from_tt(200, 5), 200);
     end_section();
 
-#if defined(BASILISK_B2_CORE)
     begin_section("score_from_tt: the rule-50 clock never changes an evaluation");
     EXPECT_EQ(TranspositionTable::score_from_tt(200, 5, 100), 200);
     EXPECT_EQ(TranspositionTable::score_from_tt(-200, 5, 120), -200);
     end_section();
-#else
-    begin_section("score_from_tt: non-mate scores draw at 50-move limit");
-    EXPECT_EQ(TranspositionTable::score_from_tt(200, 5, 100), 0);
-    EXPECT_EQ(TranspositionTable::score_from_tt(-200, 5, 120), 0);
-    end_section();
-#endif
 
     // Boundary: decisive scores (tablebase results and mates) are stored
     // relative to the node; the highest evaluation just below them is not.
@@ -175,15 +168,11 @@ static void test_mate_score_adjustment() {
     end_section();
 
     // A tablebase win 4 plies from the root (tablebaseValue - 4) at ply 5.
-#if defined(BASILISK_B2_CORE)
     // A tablebase win 9 plies from the root, found 4 plies below the node at
     // ply 5. (One 4 plies from the root cannot lie below a node at ply 5, and
     // stored at that node it would encode into the mate band, which this arm
     // reads as a mate the rule-50 clock may spoil.)
     const int tb_win = TranspositionTable::MATE_SCORE - TranspositionTable::MAX_PLY - 1 - 9;
-#else
-    const int tb_win = TranspositionTable::MATE_SCORE - TranspositionTable::MAX_PLY - 1 - 4;
-#endif
     begin_section("tablebase score: stored relative to the node, read back exactly");
     EXPECT_EQ(TranspositionTable::score_to_tt(tb_win, 5), tb_win + 5);
     EXPECT_EQ(TranspositionTable::score_from_tt(TranspositionTable::score_to_tt(tb_win, 5), 5), tb_win);
@@ -193,15 +182,11 @@ static void test_mate_score_adjustment() {
     // Mate in 3 (MATE_SCORE - 3 = 31997).  At ply 5:
     //   to_tt:   31997 + 5 = 32002
     //   from_tt: 32002 - 5 = 31997
-#if defined(BASILISK_B2_CORE)
     // On this arm 32002 is NO_SCORE, the evaluation-only slot, which a real
     // store never produces: a mate below a node at ply p is at least p plies
     // from the root. The round trip uses a mate a store can hold (7 plies from
     // the root, 2 from the node at ply 5).
     const int mate3 = TranspositionTable::MATE_SCORE - 7;
-#else
-    const int mate3 = TranspositionTable::MATE_SCORE - 3;
-#endif
     int stored = TranspositionTable::score_to_tt(mate3, 5);
 
     begin_section("mate score: to_tt adds ply");
@@ -212,7 +197,6 @@ static void test_mate_score_adjustment() {
     EXPECT_EQ(TranspositionTable::score_from_tt(stored, 5), mate3);
     end_section();
 
-#if defined(BASILISK_B2_CORE)
     // The stored mate is 2 plies from its node (32000 - 31998): it holds with
     // 2 plies left on the clock and is downgraded with 1.
     begin_section("score_from_tt: a mate the rule-50 clock can spoil is downgraded");
@@ -232,11 +216,6 @@ static void test_mate_score_adjustment() {
     EXPECT_EQ(TranspositionTable::score_from_tt(TranspositionTable::NO_SCORE, 7, 50),
               TranspositionTable::NO_SCORE);
     end_section();
-#else
-    begin_section("score_from_tt: mate scores ignore 50-move clamp");
-    EXPECT_EQ(TranspositionTable::score_from_tt(stored, 5, 100), mate3);
-    end_section();
-#endif
 
     // Mated in 5 (−MATE_SCORE + 5 = −31995).  At ply 3:
     //   to_tt:   −31995 − 3 = −31998
@@ -254,12 +233,8 @@ static void test_mate_score_adjustment() {
 
     // Different plies must be undone correctly
     for (int ply = 0; ply <= 5; ply++) {
-#if defined(BASILISK_B2_CORE)
         // A mate one ply below the node (see NO_SCORE above).
         const int mate1 = TranspositionTable::MATE_SCORE - 1 - ply;
-#else
-        const int mate1 = TranspositionTable::MATE_SCORE - 1;
-#endif
         char label[64];
         std::snprintf(label, sizeof(label), "mate round-trip ply %d", ply);
         begin_section(label);
@@ -425,7 +400,6 @@ static void test_empty_slot_with_key_zero_is_a_miss() {
     end_section();
 }
 
-#if defined(BASILISK_B2_CORE)
 static void test_pv_bit() {
     TranspositionTable tt(1);
     const Key key = 0x5A5A5A5A5A5A5A5AULL;
@@ -506,7 +480,6 @@ static void test_evaluation_only_entry() {
     EXPECT_EQ(int(e.depth), 127 - TT_DEPTH_OFFSET);
     end_section();
 }
-#endif
 
 /// The `Hash` byte contract (8.6.2a). Two bounds, both load-bearing:
 ///   upper — allocating MORE than the user asked for is the bug class that bit
@@ -610,12 +583,10 @@ int main() {
     std::printf("\nEmpty slots\n");
     test_empty_slot_with_key_zero_is_a_miss();
 
-#if defined(BASILISK_B2_CORE)
     std::printf("\nThe core's encoding: pv bit, age cycle, evaluation-only entries\n");
     test_pv_bit();
     test_age_cycle();
     test_evaluation_only_entry();
-#endif
 
     std::printf("\nHash byte contract\n");
     test_allocation_within_budget();

@@ -1,6 +1,6 @@
 #pragma once
 
-// The selectivity core's history tables (the B2_CORE arm), one set per search
+// The selectivity core's history tables, one set per search
 // thread. Each table is a type that owns its storage, its saturation bound and
 // its whole-table lifecycle (clear and per-search ageing), so the tables can be
 // tested without a Searcher; what trains them, and by how much, is the update

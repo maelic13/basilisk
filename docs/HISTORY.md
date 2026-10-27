@@ -6,9 +6,10 @@
 ## Numbering, and how to resolve an old reference
 
 The current roadmap uses lettered phases (`A.2.1`, `B.3`); no retired number
-is reused, with one declared exception: Phase A's 2026-10-24 leaves were
-renumbered the same day to run in order, and the *Number map* below resolves
-their first numbering. Retired identifiers stay valid in `EXPERIMENTS.md`,
+is reused, with two declared exceptions: Phase A's 2026-10-24 leaves were
+renumbered the same day to run in order, and on 2026-10-27 fail-soft
+quiescence moved from A.11.10 to A.11.11; the *Number map* below resolves
+the first numbering of both. Retired identifiers stay valid in `EXPERIMENTS.md`,
 `analysis/`, source comments and commit messages, and resolve here:
 
 | Scheme | Where it appears | Resolve it in |
@@ -219,6 +220,16 @@ uses the first numbering. A.10.1–A.10.6 and A.12 kept their numbers.
 | A.13 | A.10.7 | dev builds name their commit |
 | A.9 | A.11 | correctness repairs, after the instruments and delivery |
 | A.9.1–A.9.9 | A.11.1–A.11.9 | the same repairs in the same order |
+
+Renumbered within Phase A on 2026-10-27 (maintainer decision): the KR-K
+conversion repair found by fail-soft quiescence's research runs first, as
+A.11.10. A reference dated before this renumbering, the code audit
+(`analysis/code_audit_2026-10-27.md`) and the commit messages of branch
+`a11-10-fail-soft-quiescence` included, uses the first numbering.
+
+| Was | Now | Note |
+|---|---|---|
+| A.11.10 | A.11.11 | fail-soft quiescence, after the KR-K repair |
 
 ## Completed current-roadmap work (dated records; PLAN owns IDs)
 

@@ -32,9 +32,10 @@ INCLUDE = re.compile(r'#include "([a-z_0-9]+\.h)"')
 SEARCH_MODULES = (
     "search.h", "search_types.h", "search_root.h", "search_root.cpp",
     "search_diagnostics.h", "search_diagnostics.cpp", "search_params.h",
-    "search_worker.h", "search_worker.cpp", "search_kernel.cpp",
-    "search_history.cpp", "search_thread_pool.h", "search_thread_pool.cpp",
-    "move_picker.h", "move_picker.cpp", "history.h", "history.cpp", "tt.h",
+    "search_worker.h", "search_worker.cpp", "search_kernel_core.cpp",
+    "search_history_core.cpp", "search_thread_pool.h", "search_thread_pool.cpp",
+    "move_picker_core.h", "move_picker_core.cpp", "history_core.h", "history_core.cpp",
+    "tt.h",
 )
 # Member-state accesses the worker's regions are measured by.
 ACCESS = {
@@ -90,7 +91,7 @@ def include_edges(src: pathlib.Path) -> dict[str, list[str]]:
 
 def access_census(src: pathlib.Path) -> dict[str, dict[str, int]]:
     out: dict[str, dict[str, int]] = {}
-    for name in ("search_worker.cpp", "search_kernel.cpp", "search_history.cpp"):
+    for name in ("search_worker.cpp", "search_kernel_core.cpp", "search_history_core.cpp"):
         path = src / name
         if not path.exists():
             continue

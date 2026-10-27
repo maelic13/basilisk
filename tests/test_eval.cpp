@@ -237,6 +237,23 @@ static void test_bare_king_material_is_monotone() {
     EXPECT(eval_fen("1B6/5P2/8/2k2K2/8/8/8/R7 w - - 0 77")
            >= eval_fen("1B6/8/8/2k2K2/8/8/8/R7 w - - 0 77"));
     end_section();
+
+    // The halfmove clock damps only the score above a tier's base. Damped
+    // whole, the rook tier fell about 130 points a ply, more than the king
+    // drive KR-K is mated with, and at clock 99 it fell below a minor-piece
+    // mate at clock 0.
+    const int r99 = white_after("1B3R2/8/8/2k2K2/8/8/8/8 b - - 99 77");
+    const int q99 = white_after("1B3Q2/8/8/2k2K2/8/8/8/8 b - - 99 77");
+    begin_section("bare king: the tier order holds at any halfmove clock");
+    EXPECT(q99 > r);
+    EXPECT(r99 > n);
+    EXPECT(r99 > bi);
+    end_section();
+
+    begin_section("bare king: the clock damps the rook tier's score, not its base");
+    EXPECT(r99 < r);
+    EXPECT(r - r99 < (r - BARE_KING_ROOK_TIER) / 2 + 1);
+    end_section();
 }
 
 static void test_material_advantage() {

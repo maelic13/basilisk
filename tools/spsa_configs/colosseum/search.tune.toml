@@ -80,27 +80,6 @@ max = 100
 c_end = 2.7634
 
 [[parameters]]
-name = "RfpCoeff"
-initial = 160
-min = 60
-max = 240
-c_end = 5.0663
-
-[[parameters]]
-name = "RfpImproving"
-initial = 72
-min = 0
-max = 140
-c_end = 4.1451
-
-[[parameters]]
-name = "RazorCoeff"
-initial = 243
-min = 120
-max = 500
-c_end = 11.0537
-
-[[parameters]]
 name = "NullBase"
 initial = 3
 min = 2
@@ -120,34 +99,6 @@ initial = 189
 min = 80
 max = 360
 c_end = 8.2902
-
-[[parameters]]
-name = "FutilityBase"
-initial = 180
-min = 40
-max = 280
-c_end = 6.9085
-
-[[parameters]]
-name = "FutilityCoeff"
-initial = 128
-min = 40
-max = 200
-c_end = 4.6057
-
-[[parameters]]
-name = "HistPruneCoeff"
-initial = 14004
-min = 1000
-max = 28000
-c_end = 777.4409
-
-[[parameters]]
-name = "SeePruneCoeff"
-initial = 73
-min = 30
-max = 160
-c_end = 3.6846
 
 [[parameters]]
 name = "SingularMinDepth"
@@ -178,113 +129,8 @@ max = 200
 c_end = 5.5268
 
 [[parameters]]
-name = "LmrBase"
-initial = 60
-min = 0
-max = 150
-c_end = 4.1451
-
-[[parameters]]
-name = "LmrDivisor"
-initial = 209
-min = 150
-max = 350
-c_end = 5.9874
-
-[[parameters]]
-name = "LmrHistDiv"
-initial = 5683
-min = 4096
-max = 16384
-c_end = 353.7172
-
-[[parameters]]
-name = "LmrNonPvAdj"
-initial = 1024
-min = 0
-max = 3072
-c_end = 88.4293
-
-[[parameters]]
-name = "LmrCutNodeAdj"
-initial = 401
-min = 0
-max = 3072
-c_end = 88.4293
-
-[[parameters]]
-name = "LmrTtPvAdj"
-initial = 23
-min = 0
-max = 3072
-c_end = 88.4293
-
-[[parameters]]
-name = "LmrNotImprovingAdj"
-initial = 89
-min = 0
-max = 3072
-c_end = 88.4293
-
-[[parameters]]
-name = "LmrTtCapture"
-initial = 301
-min = 0
-max = 3072
-c_end = 88.4293
-
-[[parameters]]
 name = "LmrSingularQuiet"
 initial = 401
 min = 0
 max = 3072
 c_end = 88.4293
-
-[[parameters]]
-name = "HistBonusQuad"
-initial = 62
-min = 0
-max = 128
-c_end = 3.6846
-
-[[parameters]]
-name = "HistBonusLin"
-initial = 120
-min = 0
-max = 400
-c_end = 11.5142
-
-[[parameters]]
-name = "HistBonusMax"
-initial = 1863
-min = 512
-max = 4096
-c_end = 103.1675
-
-[[parameters]]
-name = "HistMalusQuad"
-initial = 62
-min = 0
-max = 128
-c_end = 3.6846
-
-[[parameters]]
-name = "HistMalusLin"
-initial = 143
-min = 0
-max = 400
-c_end = 11.5142
-
-[[parameters]]
-name = "HistMalusMax"
-initial = 1304
-min = 512
-max = 4096
-c_end = 103.1675
-
-[[parameters]]
-name = "HistTtMoveBonus"
-initial = 29
-min = 0
-max = 1024
-c_end = 29.4764

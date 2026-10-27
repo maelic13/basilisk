@@ -118,6 +118,11 @@ inline int ocb_draw_scale(int total_pawns) {
 
 inline constexpr Bitboard EVAL_DARK_SQUARES = 0xAA55AA55AA55AA55ULL;
 
+// Bare-king wins against a queen or a rook sit in tiers by the winner's
+// strongest piece (apply_endgame), above every minor-piece mate.
+inline constexpr int BARE_KING_QUEEN_TIER = 28700;
+inline constexpr int BARE_KING_ROOK_TIER  = 26100;
+
 // Rule-50 damping: the evaluation decays toward zero as the halfmove clock
 // grows, retaining ~50% at clock 99 (SF-era curve; a (100-clock)/100 line would
 // keep only 1%, telling the search almost every long-clock position is
@@ -127,8 +132,17 @@ inline constexpr int DAMP_RULE50_DEN = 199;
     return DAMP_RULE50_DEN - halfmove_clock;
 }
 
+// A tier's base is not damped, only the score above it: damped whole, the
+// rook tier lost about 130 points a ply, more than the king-drive gradient
+// the search mates with, and a lower tier could outrank it at a longer clock.
 [[nodiscard]] inline int damp_rule50(int score, int halfmove_clock) {
-    return score * damp_rule50_scale_num(halfmove_clock) / DAMP_RULE50_DEN;
+    const int magnitude = score < 0 ? -score : score;
+    const int base = magnitude >= BARE_KING_QUEEN_TIER ? BARE_KING_QUEEN_TIER
+                   : magnitude >= BARE_KING_ROOK_TIER  ? BARE_KING_ROOK_TIER
+                                                       : 0;
+    const int damped = base + (magnitude - base) * damp_rule50_scale_num(halfmove_clock)
+                                                 / DAMP_RULE50_DEN;
+    return score < 0 ? -damped : damped;
 }
 
 // Division truncates toward zero, so the damping is odd and may be applied to

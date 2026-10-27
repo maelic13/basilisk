@@ -308,9 +308,8 @@ static constexpr int kbnk_drive_max(const KbnkDriveWeights& w) {
 // rook, and either outranks a knight or bishop. Below the rook tier are the
 // minor-piece mates (KBNK and KXK), whose drives span thousands of points.
 // The cap is the highest score that is still an evaluation, not a decisive one.
+// The tier bases live in eval.h, where the rule-50 damping keeps them.
 static constexpr int BARE_KING_CAP        = 31742;
-static constexpr int BARE_KING_QUEEN_TIER = 28700;
-static constexpr int BARE_KING_ROOK_TIER  = 26100;
 static constexpr int BARE_KING_PAWN_STEP  = 3;
 static constexpr KbnkDriveWeights KBNK_DRIVE_DEFAULT{10000, 1900, 0, 460, 0};
 static_assert(kbnk_drive_max(KBNK_DRIVE_DEFAULT) + 8 * BARE_KING_PAWN_STEP < BARE_KING_ROOK_TIER,

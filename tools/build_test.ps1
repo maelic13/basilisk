@@ -21,9 +21,9 @@
     process exit code directly.
 
 .EXAMPLE
-    ./tools/build_test.ps1 -Suffix b21-off -Flavor Release -ArmOption B2_CORE -Arm Off
-    ./tools/build_test.ps1 -Suffix b21-on  -Flavor Release -ArmOption B2_CORE -Arm On
-    ./tools/build_test.ps1 -Suffix b23-tune -Flavor Tune -ArmOption B2_CORE -Arm On
+    ./tools/build_test.ps1 -Suffix a1110-fix -Flavor Release
+    ./tools/build_test.ps1 -Suffix c3-off -Flavor Release -ArmOption C3_EVAL -Arm Off
+    ./tools/build_test.ps1 -Suffix c3-on  -Flavor Release -ArmOption C3_EVAL -Arm On
 #>
 param(
     [Parameter(Mandatory)][string]$Suffix,
@@ -77,9 +77,8 @@ function Assert-UciSurface {
     param([string]$Output, [string]$ExpectedFlavor)
 
     $hasDiag = $Output -match '(?m)^option name Diag '
-    # A tune build exposes the search coordinates: the legacy kernel's
-    # RfpCoeff, or the B2_CORE kernel's CoreRfpPerPly in its place.
-    $hasTune = $Output -match '(?m)^option name (RfpCoeff|CoreRfpPerPly) '
+    # A tune build exposes the search coordinates.
+    $hasTune = $Output -match '(?m)^option name CoreRfpPerPly '
     $hasAblate = $Output -match '(?m)^option name AblationMask '
     switch ($ExpectedFlavor) {
         { $_ -in 'Release', 'Profile' } {

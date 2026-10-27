@@ -101,7 +101,7 @@ void DecisionTrace::print(const InfoCallback& info, const std::vector<Move>& roo
 
     info("info string trace begin version=2 plies=1-2 root="
              + move_to_uci(root_moves.front())
-             + " cutoff_count=" + (kTraceCutoffCountAvailable ? "available" : "unavailable")
+             + " cutoff_count=available"
              + " value_none=" + std::to_string(VALUE_NONE)
              + " bool_unknown=-1 capacity=" + std::to_string(CAPACITY));
     for (size_t i = 0; i < count_; ++i) {
@@ -263,7 +263,7 @@ void print_search_diag(const DiagCounters& d, const Evaluator& evaluator,
             d.sing_in_check, d.sing_triple,
             d.sing_ttbeta);
         emit(buf);
-        // The selectivity core's counters (zero under the legacy kernel).
+        // The selectivity core's counters.
         buf = std::format("kv rfp_cuts_d1_3={} rfp_cuts_d4_7={} rfp_cuts_d8p={} "
             "razor_cuts_d1_3={} razor_cuts_d4_7={} razor_cuts_d8p={} "
             "hindsight_up={} hindsight_down={} skip_quiets_nodes={} "
@@ -283,6 +283,9 @@ void print_search_diag(const DiagCounters& d, const Evaluator& evaluator,
             d.lmr_research_deeper, d.lmr_research_shallower,
             d.moveloop_tested, d.cont_hist_pruned, d.capture_futility_pruned,
             d.quiet_see_pruned, d.capture_see_pruned, d.singular_lone_move);
+        emit(buf);
+        buf = std::format("kv tie_promotions_at_alpha={} tie_promotions_below_alpha={}",
+            d.tie_promotions_at_alpha, d.tie_promotions_below_alpha);
         emit(buf);
     }
     // Speed telemetry: the evaluation rate, the pawn-cache hit rate, the

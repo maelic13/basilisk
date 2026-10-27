@@ -111,6 +111,23 @@ and next step).
   found. In the positions where the choice changes, measured at **−0.3 ±
   1.1 Elo** (6,318 games): no measurable effect on strength.
 
+- **Slow rook mates.** The fifty-move fade took a fixed share of the whole
+  score of a king against a king and rook, far more each move than the
+  gain from driving the king to the edge, so some rook endings drifted
+  into fifty-move draws. The fade now leaves the won ending's base alone
+  and works on the rest, as before the bare-king ranking: the engine mates
+  with a rook every time in the test set, in about a third fewer moves.
+  Measured at **−1.3 ± 6.7 Elo** at `3+0.03` (3,000 games), since games
+  rarely turn on it.
+
+- **Search values stuck to the window's edge.** When no capture improved a
+  position at the end of a line, the search returned the edge of the
+  window it was given instead of the position's own value, so a refuted
+  move could tie the best one, and the rules that compare a value with a
+  margin rarely fired. It now returns the position's value, as Stockfish
+  does: **+12.1 ± 9.9 Elo** at `3+0.03` (1,834 games). `bench` now reports
+  16,092,165 nodes.
+
 ---
 
 ## [1.10.2] - 2026-10-08

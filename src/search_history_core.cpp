@@ -1,4 +1,4 @@
-// The selectivity core's history and correction policy (the B2_CORE arm):
+// The selectivity core's history and correction policy:
 // where a training signal goes and how large it is. CoreHistoryTables owns the
 // storage and its lifecycle.
 //

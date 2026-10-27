@@ -178,6 +178,9 @@ tie rule, so the leaf's research starts from these facts:
 4. **The tie rule's second divergence.** `(int(state_.nodes) & 14) == 0`
    (`:1253-1255`) fires one node in eight; the donor's `& 15` fires one in
    sixteen. The leaf owns the rule's calibration and decides this with it.
+   **Correction (2026-10-27, A.11.11):** wrong. Stockfish's rule is
+   `(int(nodes) & 14) == 0` too, at the pinned `sf_19` (`edb0d9db`,
+   `src/search.cpp:1511`) and on master since; there is no divergence.
 5. **The counter the leaf needs.** Tie-rule promotions where the equal score
    is `alpha` exactly (a bound echo) against those where it is an exact value,
    in a Diag build, read before and after.
