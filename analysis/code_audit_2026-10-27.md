@@ -8,7 +8,7 @@
   inputs appended to A.11.10, and the amendments to D.3.2 and G.2
 
 **Recommendation.** Repair the one evaluation defect the audit found (a won
-KPK scored as a dead draw, A.13.1) and the one undefined read (A.13.2) before
+KPK scored as a dead draw, C.5.0) and the one undefined read (A.13.1) before
 B.3, give A.11.10 the research inputs below, do the two behaviour-neutral
 simplifications of A.14 while the search is quiet, and treat the universal
 binary as a measurement first (A.15.2) and a Phase G build second: the
@@ -95,7 +95,7 @@ Ranked: correctness of play first, then undefined behaviour, then protocol.
   depth 12), so the cost is in-tree pruning and ordering, not thrown games
   from KPK roots. Occurrence in real trees is not measured (BAS-E43's method
   applies).
-- **Repair (A.13.1).** In the KPK branch, when the bitbase says won, return a
+- **Repair (C.5.0).** In the KPK branch, when the bitbase says won, return a
   definite win from the pawn side's view: `KNOWN_WIN` plus a drive (the
   donor's `PawnValueEg + rank`), under the bare-king cap, and never reach the
   scalers. The first draft also proposed an explicit scaler invariant (a
@@ -120,7 +120,7 @@ Ranked: correctness of play first, then undefined behaviour, then protocol.
   must read the undamped evaluation; and the fixture needs its own
   materialised directory (`test_endgames` lacks the fixture define,
   `syzygy_fixture.h:92-93` hard-codes the KQvK files, `test_search.cpp:954`
-  counts the shared directory). A.13.1 carries all of it.
+  counts the shared directory). C.5.0 carries all of it.
 - **Test.** The exhaustive comparison, as a `test_endgames` section against a
   bundled `KPvK.rtbw` fixture (7,824 bytes; `tests/fixtures/syzygy/` already
   bundles KQvK as base64 and `tests/syzygy_fixture.h` materialises it): every
@@ -194,7 +194,7 @@ tie rule, so the leaf's research starts from these facts:
 - **Reach.** A negamax node at ply 127 needs the check extension to carry
   depth that far; the extension stops at `ply < MAX_PLY - 2`. Rare, but the
   read is undefined whenever it happens.
-- **Repair (A.13.2).** Size `pv_len` to `MAX_PLY + 1`, or guard the copy
+- **Repair (A.13.1).** Size `pv_len` to `MAX_PLY + 1`, or guard the copy
   with `ply + 1 < MAX_PLY`. Exact fingerprint. No failing test is
   constructible without exposing `negamax` (a fixed-depth search cannot
   reach ply 127); the leaf argues that exemption and relies on the sanitizer
@@ -493,10 +493,10 @@ justify it; pull G.2 forward if the ladder clears the rule.
 ## 5. Verification gaps found
 
 - The KPK bitbase had no truth test; the exhaustive comparison now exists as
-  a scratch program and becomes A.13.1's test with a bundled `KPvK.rtbw`.
+  a scratch program and becomes C.5.0's test with a bundled `KPvK.rtbw`.
 - The measurements that refused fail-soft quiescence live only in two
   comments; A.11.10 re-measures them (F2.2).
-- No test reaches the ply ceiling; A.13.2 argues the exemption (F3).
+- No test reaches the ply ceiling; A.13.1 argues the exemption (F3).
 - `verify_isa.py`'s portable set is incomplete for shared code (§4).
 - The macOS toolchain is unpinned (§4).
 
@@ -519,8 +519,8 @@ item at the leaf named; this section is the evidence and the inventory.
 F1, F3 and H1 hold. F4(c), the stale `stop`, was refuted (the Stop command
 clears the flag in queue order before the next `go`); F4(a), (b) and (d)
 hold with corrected line references, and (d) is wider than stated: a
-`SyzygyPath` that initialises and finds no files is cached too. The A.13.1
-text was corrected in five places (§2 F1's verification note): the scaler
+`SyzygyPath` that initialises and finds no files is cached too. The won-KPK text (then A.13.1, now C.5.0)
+was corrected in five places (§2 F1's verification note): the scaler
 invariant is withdrawn, the repair value is 10,207–10,212, the promotion
 closure is minimax, the test reads the undamped evaluation, and the fixture
 needs its own directory. The 662,704- and 2,022-position counts were not
@@ -589,7 +589,7 @@ both codebases unless marked a donor prior. PLAN placement in brackets.
   `edb0d9db`; B.0 deferred it as post-SF-19. [B.3.0 note]
 - **S11** `:356-375`, `:371`, `:455-457` — the TB store passes `ss->tt_pv`
   before this node assigns it; the probe runs before the TT probe, the
-  donor's after. [A.13.4]
+  donor's after. [A.13.2]
 - **S12** `:1077` — `(ss+1)->double_exts` stale under NMP and ProbCut
   children; off by one or two against a cap of 16. [B.3 bookkeeping]
 - **Upcoming repetition (cuckoo)** — absent; BAS-S12's retry trigger wanted
@@ -684,7 +684,7 @@ Cohesion findings (verified by reading):
 
 Defects:
 
-- **D1 (A.13.3)** the pawnless classifier compares in `EG_MAT` units, so
+- **D1 (C.5.0)** the pawnless classifier compares in `EG_MAT` units, so
   KQ against two minors (Q − (B+N) = 300 ≤ 330) is scaled 4/64; the donor
   compares in mg values (932 > 825) and does not scale. Syzygy over 4,000
   random positions a class, from the queen's side: KQ-KBN 82.5% won,
@@ -697,7 +697,7 @@ Defects:
 
 Leads for Phase C, ranked by expected Elo: C.3 king-danger form (E1); C.7
 phase with tempo and eg king danger (E2, E5); C.6 passers (D2, E4, weak
-lever, passed file); C.5.3 scalers (E3, the two absent scalers); A.13.3
+lever, passed file); C.5.3 scalers (E3, the two absent scalers); C.5.0
 (D1); C.0 sign and collinearity inventory (E6); C.5.2/C.10 correction over
 recognisers (E7); C.0 space (E8); C.7 bishop terms; C.4 the flat pawn
 threat; C.12 lazy margin and material cache (E8, E9). None of the Phase C
@@ -735,8 +735,11 @@ reproducible assets (release), NNUE (Phase F), datagen (F.2.1), contempt
 (E.2), WDL display (A.8.19). Absent and added: Chess960 (D.3.3, maintainer
 decision; castling is a fixed-square mask, `board.h:246-247`) and upcoming
 repetition detection (B.3 card, §6.2). Absent and not added: strength
-limiting (`UCI_LimitStrength`/`UCI_Elo`), a product feature G.2 may take;
-`nodestime`, not needed. The feature-cohesion question the maintainer
+limiting (`UCI_LimitStrength`/`UCI_Elo`);
+`nodestime`, not needed. Chess960 was drafted as a D.3.3 decision leaf
+and removed the same day: the maintainer declined it and strength
+limiting (2026-10-27); either returns to PLAN only by the maintainer's
+hand. The feature-cohesion question the maintainer
 asked is §6.2 and §6.3's content: the first pass audited mechanisms one at
 a time, this pass audited their couplings.
 
@@ -763,3 +766,52 @@ network file.
 Sources: https://gcc.gnu.org/projects/cxx-status.html ;
 https://en.cppreference.com/w/cpp/compiler_support/26.html ;
 https://herbsutter.com/2026/03/ (trip report, March 2026).
+
+### 6.7 Placement of the evaluation repairs (maintainer question, 2026-10-27)
+
+The maintainer asked whether F1 and D1 must be repaired inside the
+evaluation freeze or can wait for Phase C: does the search, its features or
+its fitting need them, and would the repairs change search behaviour in a
+way the search should take into account?
+
+**Does the search key on them?** No. `src/search_kernel_core.cpp`,
+`search_worker.cpp` and `search_types.h` reference no `KNOWN_WIN`; the only
+band the search reads is `is_decisive` at 31,743. The KPK repair moves won
+KPK leaves from about 0 to 10,207–10,212, a band the search already sees
+from KBNK and KXK leaves today; the queen repair unscales ordinary values
+(about +300 instead of +25). Neither adds a kind of value the search has
+not been fitted on, and the leaves in question are a handful per million
+nodes, so the B.3–B.5 constants fitted with them unrepaired stay valid
+after C.5.0. The correction history sees a different error at those leaves
+(mate against 10k instead of mate against 0), both clamped. The one
+behavioural effect is a gradient reaching pawn-ending trees earlier, which
+is the repair's purpose, not a dependency.
+
+**Cost in games.** Read over the archived games (`tools/results` and
+`D:/chess/results`, 107 PGN files, 974,796 games; filtered to the 191,216
+games with 27 or more captures, the minimum for either ending; Syzygy WDL
+from `syzygy3456`; script `scratchpad/kpk_games_par.py`):
+
+| Ending | Strong side | Syzygy won | Converted | Drawn | Lost |
+|---|---|---|---|---|---|
+| KPK | Basilisk | 3,775 | 3,764 (99.7%) | 11 | 0 |
+| KPK | opponents | 4,424 | 4,388 (99.2%) | 33 | 3 |
+| KQ v two minors | Basilisk | 25 | 20 | 5 | 0 |
+| KQ v two minors | opponents | 63 | 48 | 15 | 0 |
+
+Basilisk defending a drawn KPK held 4,019 of 4,020. The queen ending is
+reached in 0.003% of games and converted at the same rate by the field,
+which is the ending's difficulty at these budgets, not the classifier.
+Caveat: most archived games predate A.11.7 (`fdf4277`, 2026-10-26), when
+the won-KPK leaf served a wrong-signed −28 rather than 0; both are small
+leaf errors the search overrides from the root, and the conversion rate
+says the search does.
+
+**Decision (maintainer, 2026-10-27).** Both repairs go to C.5.0, the first
+leaf of C.5: the freeze holds through Phase B, the gain (if any) is
+attributed to the evaluation programme where it belongs, C.5.3 rewrites the
+same scaler lines once, and C.5.2 classifies KPK as an exact recogniser.
+The cost is that 1.11.0 ships both defects, as 1.7.0 to 1.10.2 shipped D1;
+B.11 lists them as known issues. The project's earlier admissions (B.10,
+A.11.7, A.11.9) were for defects that biased every position or threw
+measured games; neither holds here.
