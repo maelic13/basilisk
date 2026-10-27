@@ -92,11 +92,12 @@ B2_COUNTER_UNITS = {
         tt_cutoff_quiet_bonus tt_cutoff_graph_refused
         cont_hist_pruned capture_futility_pruned quiet_see_pruned
         capture_see_pruned singular_lone_move
+        tie_promotions_at_alpha tie_promotions_below_alpha
     """.split()},
     "skip_quiets_nodes": "nodes",
     "moveloop_tested": "moves",
 }
-assert len(B2_COUNTER_UNITS) == 23
+assert len(B2_COUNTER_UNITS) == 25
 assert not set(B2_COUNTER_UNITS) & set(CORE_COUNTER_UNITS)
 
 
