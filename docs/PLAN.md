@@ -1805,7 +1805,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         Elo (8,000 games, LLR +0.33, no faults), and the repair stays by the
         registered rule on the maintainer's confirmation. The development
         fingerprint is `bench 13` 19,470,325.
-    - [ ] **A.13.3** `[I1]` PV copy reads past the per-ply length array
+    - [x] **A.13.3** `[I1]` PV copy reads past the per-ply length array
       (F3) At `ply == MAX_PLY - 1` a move that raises alpha reads
       `state_.pv_len[ply + 1]` (`search_kernel_core.cpp:1272`), one past
       `int pv_len[MAX_PLY]` (`search_worker.h:135`); the value is clamped
@@ -1814,6 +1814,14 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       exact fingerprint on both arms; no gate. No fixed-depth test
       reaches ply 127 without exposing `negamax`, so the leaf records
       that exemption and the sanitizer CTest job stands for the proof.
+      - Closed 2026-10-27 (`c23eefa`): the copy is guarded rather than the
+        array widened, since a child at `MAX_PLY` returns before it sets a
+        length and so has no entry to read; at `ply == MAX_PLY - 1` the
+        guard yields `MAX_PLY`, the value the clamp gave, so the copy
+        loop is empty as before. Release PEXT `bench 13` 19,470,325,
+        exact (one arm since B.8.1); CTest 24/24. Exempt from a focused
+        test as registered: no fixed-depth search reaches ply 127; the
+        sanitizer CTest job runs on the PR.
     - [ ] **A.13.4** `[I1]` The tablebase store carries a stale PV bit
       (§6 S11) The in-search WDL probe (`search_kernel_core.cpp:356-375`)
       runs before the TT probe, and its store at `:371` passes
@@ -2917,7 +2925,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.13.3 | READY_FOR_IMPLEMENTATION | I1 | PV copy's read past `pv_len`; exact fingerprint |
 | A.13.4 | READY_FOR_IMPLEMENTATION | I1 | Tablebase probe after the TT cutoff; exact fingerprint, tablebase gate re-read |
 | A.14.1 | READY_FOR_IMPLEMENTATION | I1 | Score bands defined once in constants.h; exact fingerprint |
 | A.15.1 | RESEARCH | R2 | Universal binary design packet; the decision rule frozen before A.15.2 |

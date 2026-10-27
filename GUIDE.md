@@ -34,7 +34,7 @@ generations change. These are maintainer judgments, not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **A.13.3** `[I1]` PV copy reads past the per-ply length array — Claude Sonnet 5 — Medium
+**Next step:** **A.13.4** `[I1]` The tablebase store carries a stale PV bit — Claude Sonnet 5 — Medium
 
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
@@ -95,7 +95,7 @@ generations change. These are maintainer judgments, not measured rankings.
 - [ ] **A.13** Correctness repairs from the code audit
     - [x] **A.13.1** `[I1]` Won KPK scores as a win
     - [x] **A.13.2** `[I1]` A won queen against two minors is not scaled to a draw
-    - [ ] **A.13.3** `[I1]` PV copy reads past the per-ply length array
+    - [x] **A.13.3** `[I1]` PV copy reads past the per-ply length array
     - [ ] **A.13.4** `[I1]` The tablebase store carries a stale PV bit
 - [ ] **A.14** Simplifications from the code audit
     - [ ] **A.14.1** `[I1]` One definition of the score bands
