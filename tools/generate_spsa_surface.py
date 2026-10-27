@@ -2,10 +2,10 @@
 
 The C++ table owns option names, defaults, and bounds.  This generator derives
 the registered integer perturbation as max(2, round((max - min) / 16)) and
-writes both weather-factory JSON and Colosseum TOML, for the default arm and,
-separately, for the B2_CORE arm's own kernel coordinates.  Generated files are
-checked into the tree so experiment registrations can name an exact surface;
-edit the X-macro and regenerate rather than editing them.
+writes both weather-factory JSON and Colosseum TOML, for the root table and the
+groups the kernel inherited and, separately, for the kernel's own coordinates.
+Generated files are checked into the tree so experiment registrations can name
+an exact surface; edit the X-macro and regenerate rather than editing them.
 """
 
 from __future__ import annotations

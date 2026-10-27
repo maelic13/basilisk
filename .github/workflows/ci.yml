@@ -293,19 +293,6 @@ jobs:
           cmake --build build/ablate-pext --target basilisk test_uci_protocol
           ctest --test-dir build/ablate-pext -R test_uci_protocol --output-on-failure --no-tests=error
 
-      # The legacy kernel behind the Cluster 1 umbrella's OFF arm: built and
-      # tested in full, its bench printed, until B.8 deletes it. The default
-      # build, which the bench agreement compares, is the ON arm.
-      - name: Build and test the legacy B2_CORE arm
-        run: |
-          cmake --preset release-pext -B build/legacy-pext -DPORTABLE_BUILD=ON -DCOMP=clang \
-            -DTUNE=OFF -DDIAGNOSTIC=OFF -DABLATION=OFF -DTEXEL=OFF -DB2_CORE=OFF
-          cmake --build build/legacy-pext
-          ctest --test-dir build/legacy-pext --output-on-failure
-          out=$(printf "bench 10\nquit\n" | ./build/legacy-pext/basilisk)
-          echo "$out" | tail -8
-          echo "$out" | grep -qE "Nodes searched *: *[0-9]+" || { echo "FAIL: no node count"; exit 1; }
-
       - name: Build and verify TEXEL flavor
         run: |
           cmake --preset release-pext -B build/texel-pext -DPORTABLE_BUILD=ON -DCOMP=clang \

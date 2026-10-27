@@ -1122,8 +1122,9 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
   fingerprint move and CTest on both arms; a repair that changes play is gated
   by a registered `[-5,5]` repair SPRT unless its leaf argues none is owed.
   Evidence: `analysis/rarog_audit_2026-10-24.md`. The repairs change the
-  default search only: the legacy kernel (`-DB2_CORE=OFF`) is neither fixed
-  nor maintained, and B.8 deletes it (maintainer decision 2026-10-24).
+  default search only: the legacy kernel (`-DB2_CORE=OFF`) was neither fixed
+  nor maintained (maintainer decision 2026-10-24), and B.8.1 deleted it on
+  2026-10-27, after which there is one arm.
     - [x] **A.11.1** `[I1]` Rule-50 damping out of the TT static eval
       (B-1, C-7) `evaluate()` damps the score by the halfmove clock
       (`eval.cpp:1210`, `:1985`); the kernel stores that value as the TT
@@ -1618,7 +1619,8 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
   own engine commit with a test that fails on the old code, bench
   accounting for any fingerprint move, CTest on both arms, and a
   registered `[-5,5]` repair SPRT when play changes unless the leaf
-  argues none is owed. The legacy kernel is not fixed.
+  argues none is owed. The legacy kernel is deleted (B.8.1), so CTest has
+  one arm.
     - [ ] **A.13.1** `[I1]` Won KPK scores as a win
       (F1) `apply_endgame` keeps the tapered score of a KPK the bitbase
       calls won (`eval.cpp:753`); when that score favours the bare king,
@@ -1733,9 +1735,8 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
   language work done by A.8.12, and the long kernel and evaluator
   functions best left whole until B.3–B.5 and C.1 rewrite them; the
   smaller cleanups it found are folded into B.8, D.3.1 and D.3.2. Its
-  case for deleting the legacy kernel now was declined (maintainer
-  decision 2026-10-27): the kernel goes at B.8, whose inputs carry the
-  census inventory.
+  case for deleting the legacy kernel now was declined the same morning
+  and then taken (maintainer decision 2026-10-27): B.8.1 deleted it.
     - [ ] **A.14.1** `[I1]` One definition of the score bands
       `MATE_SCORE` and `MAX_PLY` are defined in `tt.h:106-107` and
       `search_types.h:18-19`, and `KBNK_STATIC_MATE_FLOOR` is a literal in
@@ -2736,12 +2737,34 @@ rejections stop B.
         head-to-head); read a bundle's members alone (D-16); a maintainer rule
         for real but sub-bar gains (D-17); screen with PGO (D-14); priors D-7
         (most prefetches lose under 4 KB pages), D-15 and D-20.
-- [ ] **B.8** `[I1]` Cleanup of legacy search and dead parameters
+- [ ] **B.8** Cleanup of legacy search and dead parameters
   Cleanup: remove the legacy search path, dead parameters, unconsumed switches
-  and diagnostics without an owner; exact fingerprint; no game gate. Until
-  then the legacy kernel (`-DB2_CORE=OFF`) is kept compilable only: it is
-  neither fixed nor maintained, and repairs touch the default search alone
-  (maintainer decision 2026-10-24).
+  and diagnostics without an owner; exact fingerprint; no game gate.
+    - [x] **B.8.1** `[I1]` Delete the legacy search kernel (ANY TIME) — before the A.11 gates
+      Done 2026-10-27 at the maintainer's request, out of turn, so that
+      A.11.10 and A.11.11 are gated on one arm. Deleted: the four legacy
+      kernel files with `history.h` and `move_picker.h`; every
+      `BASILISK_B2_CORE` arm (resolved as defined) in `search_worker.h`,
+      `search_types.h`, `tt.h`, `search_params.h`, `search_diagnostics.h`,
+      `uci_protocol.cpp` and the tests; the `B2_CORE` option and its CMake
+      branches; CI's legacy build-and-test step; the `+legacy` id suffix;
+      the legacy-only parameter groups (node margins, move loop, LMR,
+      history), so the default SPSA surface is regenerated (41 to 19
+      coordinates: the root table and the three groups the kernel
+      inherited). DESIGN loses its legacy-arm sentences.
+      - Kept, for B.8.2: the ten Diag counters only the legacy kernel wrote
+        (`lmp_prunes`, `hist_prunes`, `see_prunes`, the four `hist_*` reach
+        counters, three `lmr_blocked_*`). They are in the 57-counter
+        contract the oracle prints and `run_suite.py`'s LMR accounting
+        identity reads, so they now read 0 and are documented so.
+      - Exact fingerprint: `bench 13` 7,857,713; CTest 24/24; the Tune,
+        Diag, Ablate and TEXEL flavours build, their `test_uci_protocol`
+        passes, and `--verify` reconstructs all seven positions; the
+        `tools/diag` tests pass but `test_profile_regions`, which fails on
+        master already (`version.cpp` and `version.h` are unmapped).
+    - [ ] **B.8.2** `[I1]` Dead parameters, switches and diagnostics
+      What B.8 keeps after the kernel's deletion. The ten zero counters
+      leave the counter contract only with the oracle's side of it.
   Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
   are its items):
   - Delete the dead shallower re-search (B-63) and the probably-dead PVS guard
@@ -2756,17 +2779,8 @@ rejections stop B.
     arguments (B.2.0's F20); named helpers for `negamax`'s move loop
     (1,084 lines at the audit) only under the exact fingerprint and the
     NPS floor.
-  - The census of `00809cc` sizes the legacy deletion at about 1,900
-    lines and a CI cell: the four legacy `.cpp` files (1,462 lines),
-    `history.h` and `move_picker.h` (290), the eight `#else` arms of
-    `search_worker.h`, `search_types.h`, `tt.h`, `search_params.h`,
-    `search_diagnostics.h` and `uci_protocol.cpp` (123), the legacy
-    branches of `test_search` and `test_tt` (48), the ten `DiagCounters`
-    fields and twenty X-macro lines only it writes, the `B2_CORE` option
-    with its CMake and CI arms, the `+legacy` id suffix and the second
-    fingerprint in leaf records; DESIGN and PROCESS lose their
-    legacy-arm sentences. Deleted here, not before (maintainer decision
-    2026-10-27).
+  - The census of `00809cc` sized the legacy deletion at about 1,900
+    lines and a CI cell; B.8.1 did it, except the ten counters above.
 - [ ] **B.9** `[V]` Search programme checkpoint
   Checkpoint: re-measure every deficit meter.
   The meters are G(0) against the oracle, fixed-node depth and branching,
@@ -2817,7 +2831,7 @@ leaf's tag. Later phases carry only a class until they open.
 | B.6 | RESEARCH | V | Only if the clusters' curvature justifies it |
 | B.7.1 | READY_FOR_IMPLEMENTATION | I1 | Any time between leaves; must land before B.7.2 |
 | B.7.2 | RESEARCH | I1 | After B.7.1, on the new modules |
-| B.8 | RESEARCH | I1 | After the clusters |
+| B.8.2 | RESEARCH | I1 | After the clusters |
 | B.9 | RESEARCH | V | Programme checkpoint |
 | B.11 | RESEARCH | M | Interim release after B.9 (maintainer decision 2026-10-24) |
 

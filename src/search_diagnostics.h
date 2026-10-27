@@ -33,6 +33,9 @@ using InfoCallback = std::function<void(const std::string&)>;
 // oracle's matching build: a renamed counter breaks the differential harness.
 // New counters go at the end of the table, each with the denominator it is
 // read against, and are printed on new `kv` lines, never spliced into old ones.
+// Ten of the contract's counters belonged to the deleted original kernel and
+// read 0: lmp_prunes, hist_prunes, see_prunes, the four hist_* reach counters
+// and lmr_blocked_searched, _movetype and _gives_check.
 #define BASILISK_DIAG_COUNTERS(X)                                            \
     /* Node population. Shares are of interior (negamax) nodes. */           \
     X(interior_nodes) X(in_check_nodes) X(check_exts) X(tt_pv_nodes)         \
@@ -81,7 +84,7 @@ using InfoCallback = std::function<void(const std::string&)>;
     X(lmr_blocked_depth) X(lmr_blocked_searched)                             \
     X(lmr_blocked_in_check) X(lmr_blocked_movetype)                          \
     X(lmr_blocked_gives_check)                                               \
-    /* The selectivity core's mechanisms; the legacy kernel leaves them 0.  \
+    /* The selectivity core's mechanisms.                                   \
        Node pruning by remaining depth: each bucket set sums to rfp_cuts or  \
        razor_cuts. */                                                        \
     X(rfp_cuts_d1_3) X(rfp_cuts_d4_7) X(rfp_cuts_d8p)                        \
@@ -165,11 +168,6 @@ enum class TraceFamily : uint8_t {
     CaptureFutility, CaptureSee
 };
 // Whether this kernel produces cutoff_count; the trace header states it.
-#if defined(BASILISK_B2_CORE)
-inline constexpr bool kTraceCutoffCountAvailable = true;
-#else
-inline constexpr bool kTraceCutoffCountAvailable = false;
-#endif
 struct TraceRecord {
     TraceEvent event{};
     Move move = MOVE_NONE;

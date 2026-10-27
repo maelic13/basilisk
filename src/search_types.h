@@ -27,7 +27,6 @@ inline constexpr int PIECE_VALUE[PIECE_TYPE_NB] = {0, 100, 300, 300, 500, 900, 2
 // A move with its ordering score; the kernel's move buffers hold these.
 struct ScoredMove { Move move; int score; };
 
-#if defined(BASILISK_B2_CORE)
 struct PieceToHistory;
 struct PieceToCorrection;
 
@@ -57,21 +56,6 @@ struct SearchStack {
     bool      in_check    = false;           // side to move is in check
     int       double_exts = 0;               // stacked 2-ply singular extensions on this path
 };
-#else
-// Per-ply search stack used by alpha-beta/PVS search.
-// Root is at ss[0]; the records below it are sentinel slots pre-filled with MOVE_NONE.
-struct SearchStack {
-    Move      move        = MOVE_NONE;       // move being searched at this ply
-    Move      excluded    = MOVE_NONE;       // excluded move (singular extensions)
-    Move      killers[2]  = {};              // killer moves
-    int       eval        = VALUE_NONE;      // static eval at this ply
-    int       stat_score  = 0;               // combined history score for this move
-    int       reduction   = 0;               // LMR reduction applied by parent
-    PieceType moved_piece = NO_PIECE_TYPE;   // piece type that made 'move'
-    bool      tt_pv       = false;           // node lies near a TT/PV line
-    int       double_exts = 0;               // stacked 2-ply singular extensions on this path
-};
-#endif
 
 // A single-PV aspiration failure prints its bound only once a search has run
 // this long, as Stockfish does, so fast games print the same lines as before.

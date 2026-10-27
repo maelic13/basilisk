@@ -14,9 +14,6 @@
 #include "attacks.h"
 #include "bitboard.h"
 #include "eval.h"
-#if !defined(BASILISK_B2_CORE)
-#include "history.h"
-#endif
 #include "move.h"
 #include "search.h"
 #include "syzygy.h"
@@ -190,47 +187,6 @@ static void init_test_syzygy() {
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
-
-// The legacy kernel's tables; the B2_CORE arm's are tested in
-// test_history_core.
-#if !defined(BASILISK_B2_CORE)
-static void test_history_row_base_decomposition() {
-    HistoryTables hist;
-    constexpr Color side = BLACK;
-    constexpr Key pawn_key = 0x123456789ABCDEF0ULL;
-    constexpr int ply = HistoryTables::LOW_PLY_HISTORY_SIZE - 1;
-    constexpr Square from = C3;
-    constexpr Square to = F6;
-    constexpr PieceType pt = KNIGHT;
-
-    hist.main[side][from][to] = 101;
-    hist.pawn->data[pawn_key & (HistoryTables::PAWN_HIST_SIZE - 1)][pt][to] = 202;
-    hist.low_ply[ply][from][to] = 303;
-
-    const auto& main_row = hist.main[side];
-    const auto& pawn_row = hist.pawn->data[
-        pawn_key & (HistoryTables::PAWN_HIST_SIZE - 1)];
-    const auto low_ply_row_for = [&hist](int row) {
-        return row < HistoryTables::LOW_PLY_HISTORY_SIZE
-             ? &hist.low_ply[row] : nullptr;
-    };
-    const auto* low_ply_row = low_ply_row_for(ply);
-    const auto* out_of_range_row =
-        low_ply_row_for(HistoryTables::LOW_PLY_HISTORY_SIZE);
-
-    begin_section("history row bases preserve full-index addressing");
-    EXPECT(&main_row[from][to] == &hist.main[side][from][to]);
-    EXPECT(&pawn_row[pt][to]
-           == &hist.pawn->data[pawn_key & (HistoryTables::PAWN_HIST_SIZE - 1)][pt][to]);
-    EXPECT(low_ply_row != nullptr);
-    EXPECT(&(*low_ply_row)[from][to] == &hist.low_ply[ply][from][to]);
-    EXPECT_EQ(main_row[from][to], 101);
-    EXPECT_EQ(pawn_row[pt][to], 202);
-    EXPECT_EQ((*low_ply_row)[from][to], 303);
-    EXPECT(out_of_range_row == nullptr);
-    end_section();
-}
-#endif
 
 static void test_default_go_depth_and_syzygy_options() {
     Parameters params;
@@ -1426,7 +1382,6 @@ static void test_rule50_mate_found() {
     end_section();
 }
 
-#if defined(BASILISK_B2_CORE)
 static void test_tt_static_eval_served_at_reading_clock() {
     // The TT key has no halfmove clock, so a static eval stored at one clock
     // must be served as a fresh evaluation at the reading node's clock would
@@ -1480,9 +1435,7 @@ static void test_tt_static_eval_served_at_reading_clock() {
     EXPECT_EQ(root_score(true), -fresh);
     end_section();
 }
-#endif
 
-#if defined(BASILISK_B2_CORE)
 static void test_frontier_node_counted_once() {
     // The root's only move, Kh2, leaves a child with no capture and no check,
     // which a depth-1 search hands to quiescence for its stand-pat. That is
@@ -1501,7 +1454,6 @@ static void test_frontier_node_counted_once() {
     EXPECT_EQ(result.nodes, int64_t{2});
     end_section();
 }
-#endif
 
 static void test_singular_lone_move_fails_low_by_one() {
     // Rarog's forced position: White is in check and Kxg2 is the only legal
@@ -1585,9 +1537,6 @@ int main() {
     test_default_go_depth_and_syzygy_options();
 
     std::printf("\nHistory row decomposition (9.6)\n");
-#if !defined(BASILISK_B2_CORE)
-    test_history_row_base_decomposition();
-#endif
 
     std::printf("\nLegal move\n");
     test_returns_legal_move();
@@ -1625,10 +1574,8 @@ int main() {
 
     std::printf("\nRule-50 boundary (8.1a search-level)\n");
     test_rule50_mate_found();
-#if defined(BASILISK_B2_CORE)
     test_tt_static_eval_served_at_reading_clock();
     test_frontier_node_counted_once();
-#endif
 
     std::printf("\nSingular lone move\n");
     test_singular_lone_move_fails_low_by_one();

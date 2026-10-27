@@ -16,12 +16,12 @@
 // The lines are grouped into tables by owner:
 //
 //   BASILISK_ROOT_PARAMS            the driver's: aspiration and time management;
-//   BASILISK_LEGACY_KERNEL_PARAMS   the legacy node kernel's;
-//   BASILISK_CORE_KERNEL_PARAMS     Cluster 1's kernel, compiled on the B2_CORE
-//                                   arm in place of the legacy table.
+//   BASILISK_CORE_KERNEL_PARAMS     the node kernel's, which includes the
+//                                   groups it inherited from the kernel it
+//                                   replaced (the BASILISK_LEGACY_* groups).
 //
-// BASILISK_SEARCH_PARAMS, the table every consumer expands, is the arm's
-// kernel table followed by the root table.
+// BASILISK_SEARCH_PARAMS, the table every consumer expands, is the kernel
+// table followed by the root table.
 //
 // X(field, UciName, default, min, max) — one line per tunable.
 
@@ -53,13 +53,10 @@
     X(tm_effort_lo_mult,     TmEffortLoMult,       120,  100,   200)     \
     X(tm_instability,        TmInstability,         35,    0,   100)
 
-// ---- The legacy node kernel ---------------------------------------------------
+// ---- Groups inherited from the replaced kernel ------------------------------
 //
-// Removed mechanisms: capture futility, SEE pruning of quiets, qsearch quiet
-//   checks and the post-LMR continuation-history nudge were dead or inert at
-//   their defaults (capture futility's `lmr_depth < 1` cannot hold under the
-//   default LMR table) and were deleted with their coordinates. A donor form
-//   of any of them is a new mechanism, not a re-enabled knob.
+// The node kernel still runs three groups of the kernel it replaced at their
+// old values; they keep their old names.
 //
 // double_ext_max caps stacked 2-ply singular extensions so a pathological line
 //   cannot chain them without bound. 16 is a live bound the bench suite never
@@ -67,56 +64,15 @@
 //   of 5 broke the KBNK/KQK mate-resolution tests, and caps of 6 and 12 grew
 //   the bench by 18.5% and 30%: the double extensions are productive.
 //
-// LMR base table: lmr_base / lmr_divisor are stored x100 (60 == 0.60,
-//   209 == 2.09) and divided by 100.0 in init_lmr.
-//
-// LMR per-move adjustments are in 1024ths of a ply (1024 == 1 ply); the
-//   reduction is accumulated in 1024ths and shifted `>> 10` at the end.
-//   lmr_cut_node_adj 401 / lmr_tt_capture 301 / lmr_not_improving_adj 89 are
-//   the joint SPSA vector of 2026-07-14; hand seeds of 1024 and 512 broke the
-//   canaries eight times. lmr_tt_pv_adj 23 is near noise because the
-//   reconstructed tt_pv signal is weak (a persisted TT bit found no good
-//   operating point through this route either). The history term stays
-//   integer-quantised, divided by lmr_hist_div before the x1024; the
-//   continuous form measured worse (BAS-S13).
-//
-// History updates: bonus = min(quad*d*d/64 + lin*d, max), malus mirrored with
-//   its own knobs. The references prove the shape family, but transplanting
-//   their constants destabilised the mate tests because every consumer
-//   (history pruning, the LMR divisor) was tuned for this scale; the live
-//   values are the same 2026-07-14 SPSA vector with its rescaled consumers
-//   (HistPruneCoeff 14004, LmrHistDiv 5683). hist_ttmove_bonus is the extra
-//   when the best move was the TT move.
-//
 // Checking moves are extended and never reduced, deliberately: a path cap on
 //   the check extension was rejected in play (BAS-S16, -3.48 +/- 3.32), and
 //   reducing at checking nodes failed the WAC floor (137 -> 124, floor 130).
-//
-// The table is split into groups so that the B2_CORE arm's table can take
-// the groups whose mechanisms it still runs at their legacy values; the
-// legacy table is the groups in their original order.
-#define BASILISK_LEGACY_NODE_MARGINS(X)                                  \
-    /* Reverse futility pruning */                                       \
-    X(rfp_coeff,             RfpCoeff,             160,   60,   240)     \
-    X(rfp_improving,         RfpImproving,          72,    0,   140)     \
-    /* Razoring */                                                       \
-    X(razor_coeff,           RazorCoeff,           243,  120,   500)
-
 #define BASILISK_LEGACY_NULL_PROBCUT(X)                                  \
     /* Null-move pruning */                                              \
     X(null_base,             NullBase,               3,    2,     6)     \
     X(null_eval_div,         NullEvalDiv,          192,   80,   400)     \
     /* ProbCut */                                                        \
     X(probcut_margin,        ProbCutMargin,        189,   80,   360)
-
-#define BASILISK_LEGACY_MOVE_LOOP(X)                                     \
-    /* Move-loop futility */                                             \
-    X(futility_base,         FutilityBase,         180,   40,   280)     \
-    X(futility_coeff,        FutilityCoeff,        128,   40,   200)     \
-    /* History pruning */                                                \
-    X(hist_prune_coeff,      HistPruneCoeff,     14004, 1000, 28000)     \
-    /* SEE pruning (bad captures) */                                     \
-    X(see_prune_coeff,       SeePruneCoeff,         73,   30,   160)
 
 #define BASILISK_LEGACY_SINGULAR(X)                                      \
     /* Singular extension */                                             \
@@ -125,45 +81,13 @@
     X(singular_double_margin, SingularDoubleMargin,  4,    0,    60)     \
     X(double_ext_max,        DoubleExtMax,          16,    1,   200)
 
-#define BASILISK_LEGACY_LMR(X)                                           \
-    /* LMR base table (x100) */                                          \
-    X(lmr_base,              LmrBase,               60,    0,   150)     \
-    X(lmr_divisor,           LmrDivisor,           209,  150,   350)     \
-    /* LMR per-move adjustments (1024ths) */                             \
-    X(lmr_hist_div,          LmrHistDiv,          5683, 4096, 16384)     \
-    X(lmr_non_pv_adj,        LmrNonPvAdj,         1024,    0,  3072)     \
-    X(lmr_cut_node_adj,      LmrCutNodeAdj,        401,    0,  3072)     \
-    X(lmr_tt_pv_adj,         LmrTtPvAdj,            23,    0,  3072)     \
-    X(lmr_not_improving_adj, LmrNotImprovingAdj,    89,    0,  3072)     \
-    X(lmr_tt_capture,        LmrTtCapture,         301,    0,  3072)
-
 #define BASILISK_LEGACY_LMR_SINGULAR(X)                                  \
     X(lmr_singular_quiet,    LmrSingularQuiet,     401,    0,  3072)
 
-#define BASILISK_LEGACY_HISTORY(X)                                       \
-    /* History updates */                                                \
-    X(hist_bonus_quad,       HistBonusQuad,         62,    0,   128)     \
-    X(hist_bonus_lin,        HistBonusLin,         120,    0,   400)     \
-    X(hist_bonus_max,        HistBonusMax,        1863,  512,  4096)     \
-    X(hist_malus_quad,       HistMalusQuad,         62,    0,   128)     \
-    X(hist_malus_lin,        HistMalusLin,         143,    0,   400)     \
-    X(hist_malus_max,        HistMalusMax,        1304,  512,  4096)     \
-    X(hist_ttmove_bonus,     HistTtMoveBonus,       29,    0,  1024)
-
-#define BASILISK_LEGACY_KERNEL_PARAMS(X) \
-    BASILISK_LEGACY_NODE_MARGINS(X)      \
-    BASILISK_LEGACY_NULL_PROBCUT(X)      \
-    BASILISK_LEGACY_MOVE_LOOP(X)         \
-    BASILISK_LEGACY_SINGULAR(X)          \
-    BASILISK_LEGACY_LMR(X)               \
-    BASILISK_LEGACY_LMR_SINGULAR(X)      \
-    BASILISK_LEGACY_HISTORY(X)
-
-// ---- Cluster 1's kernel (the B2_CORE arm) -------------------------------------
+// ---- The node kernel (Cluster 1, the selectivity core) ----------------------
 //
-// The core kernel reads the legacy coordinates of every mechanism it has not
-// yet replaced, at their legacy values, and its own coordinates at the
-// cluster's seeds. Units are evaluation units unless a line says otherwise.
+// The kernel reads the inherited groups above for the mechanisms it has not
+// replaced, and its own coordinates at the cluster's seeds. Units are evaluation units unless a line says otherwise.
 //
 // Node margins: razoring at depth <= CoreRazorDepthCap returns quiescence
 //   when the estimate is below alpha - margin * depth. Reverse futility at
@@ -295,13 +219,8 @@
     S(lmp_exempt_checks,     CoreLmpExemptChecks,    0,    0,     1)     \
     S(lmr_negative_allowed,  CoreLmrNegativeAllowed, 1,    0,     1)
 
-#if defined(BASILISK_B2_CORE)
 #define BASILISK_KERNEL_PARAMS(X) BASILISK_CORE_KERNEL_PARAMS(X, X)
 #define BASILISK_KERNEL_SWITCHES(S) BASILISK_CORE_KERNEL_SWITCHES(S)
-#else
-#define BASILISK_KERNEL_PARAMS(X) BASILISK_LEGACY_KERNEL_PARAMS(X)
-#define BASILISK_KERNEL_SWITCHES(S)
-#endif
 
 #define BASILISK_SEARCH_PARAMS(X) \
     BASILISK_KERNEL_PARAMS(X)     \
