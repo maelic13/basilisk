@@ -1253,6 +1253,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         const int inc = !is_root && score == best_score && ply + 2 >= root_depth_
                      && (int(state_.nodes) & 14) == 0
                      && std::abs(score) + 1 < tablebaseWinInMaxPly;
+        if (inc)
+            DIAG_COUNT(++(score == alpha ? state_.diag.tie_promotions_at_alpha
+                                         : state_.diag.tie_promotions_below_alpha));
         if (score + inc > best_score) {
             if (is_root)
                 state_.root_best_nodes = std::max<int64_t>(0, move_nodes);
