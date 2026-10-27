@@ -1271,9 +1271,11 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 if (score < beta && depth > 3 && depth < 12 && !is_decisive(score)
                     && !is_root && !in_check)
                     depth -= 3;
-                // Update PV
+                // Update PV. A child at MAX_PLY returns before it sets a
+                // length, and pv_len has no entry for it, so it adds none.
                 state_.pv_table[ply][ply] = m;
-                int child_pv_len = std::clamp(state_.pv_len[ply + 1], ply + 1, MAX_PLY);
+                const int child_pv_len = ply + 1 < MAX_PLY
+                    ? std::clamp(state_.pv_len[ply + 1], ply + 1, MAX_PLY) : MAX_PLY;
                 for (int k = ply + 1; k < child_pv_len; k++)
                     state_.pv_table[ply][k] = state_.pv_table[ply + 1][k];
                 state_.pv_len[ply] = child_pv_len;
