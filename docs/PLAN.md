@@ -1731,6 +1731,20 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       freeze (maintainer decision 2026-10-27, after §6.7's games read);
       bench accounting (the bench suite's pawn ending can reach KPK),
       and the repair SPRT if the fingerprint moves.
+      - Implemented 2026-10-27 (`6e39087`), as specified. The test
+        `test_endgames`' KPK section, over the bundled `KPvK.rtbw` in its own
+        temporary directory, counts two failures apart: the wrong sign
+        (2,022 on the old code, the audit's number) and a decided position
+        below a known win (443,106 on the old code: the tapered score of
+        about 100 to 900). Both are 0 on the repair, in 1.1 s.
+      - Qualified: `bench 13` 19,108,490 (from 16,092,165, +18.7%; 38 of
+        the 40 positions move through KPK in deep lines; position 39's
+        lost score for Black moves from −30,837 to −8,165); CTest 24/24;
+        the conversion floors and WAC 182 unchanged.
+      - Exposure: 189 of 4,864 recent gate games (3.9%) reach KPK. It
+        changes play, so it owes the repair gate: BAS-S37, `[-5,5]`,
+        capped at 2,000 pairs, launcher `tools/run_a1131_gate.ps1`,
+        maintainer-run.
     - [ ] **A.13.2** `[I1]` A won queen against two minors is not scaled to a draw
       (§6 D1) The pawnless scaler's classifier compares non-pawn material
       in `EG_MAT` units (`eval.cpp:833-835`: Q 950, B 330, N 320), so a
@@ -2875,7 +2889,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.13.1 | READY_FOR_IMPLEMENTATION | I1 | Won KPK scores as a win; admitted into the freeze 2026-10-27 |
+| A.13.1 | GAME_GATE | I1 | Won KPK scores as a win; BAS-S37 registered, maintainer-run |
 | A.13.2 | READY_FOR_IMPLEMENTATION | I1 | Pawnless classifier in the donor's units; admitted into the freeze 2026-10-27 |
 | A.13.3 | READY_FOR_IMPLEMENTATION | I1 | PV copy's read past `pv_len`; exact fingerprint |
 | A.13.4 | READY_FOR_IMPLEMENTATION | I1 | Tablebase probe after the TT cutoff; exact fingerprint, tablebase gate re-read |
