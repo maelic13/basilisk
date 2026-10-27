@@ -26,7 +26,7 @@ class SurfaceTests(unittest.TestCase):
         parameters = surface.parse_parameters(surface.HEADER.read_text(encoding="utf-8"))
         generated = json.loads(surface.CONFIG.read_text(encoding="utf-8"))
         self.assertEqual([item[0] for item in parameters], list(generated))
-        self.assertEqual(len(parameters), 41)
+        self.assertEqual(len(parameters), 19)
 
     def test_core_arm_table_is_not_on_the_registered_surface(self):
         text = (
