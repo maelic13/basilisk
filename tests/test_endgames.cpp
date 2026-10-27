@@ -223,6 +223,9 @@ static void test_epd_verdicts(const std::vector<EpdEntry>& entries) {
 // nodes, a cold search per move: KQ-K 24/24, KR-K 24/24, KBB-K 24/24,
 // KBN-K 23/24. Raise a floor when a conversion improvement lands; a floor left
 // at an old rate stops protecting the gain.
+//
+// KR-K plays all 24: its first four kept converting while the rule-50 damping
+// of the rook tier's whole score let 4 of the 24 drift into fifty-move draws.
 // ---------------------------------------------------------------------------
 namespace {
 
@@ -296,7 +299,11 @@ struct Family { const char* name; std::vector<PieceType> pieces; int n; int floo
 static void test_conversion_floors() {
     const std::vector<Family> fams = {
         { "KQ-K",  { QUEEN },           4, 4 },   // must stay perfect
-        { "KR-K",  { ROOK },            4, 4 },   // must stay perfect
+#if defined(BASILISK_B2_CORE)
+        { "KR-K",  { ROOK },           24, 24 },  // must stay perfect
+#else
+        { "KR-K",  { ROOK },            4, 4 },   // the legacy kernel's sample
+#endif
         { "KBB-K", { BISHOP, BISHOP },  6, 5 },
         { "KBN-K", { BISHOP, KNIGHT },  6, 5 },
     };
