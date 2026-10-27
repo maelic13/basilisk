@@ -1681,7 +1681,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
   registered `[-5,5]` repair SPRT when play changes unless the leaf
   argues none is owed. The legacy kernel is deleted (B.8.1), so CTest has
   one arm.
-    - [ ] **A.13.1** `[I1]` Won KPK scores as a win
+    - [x] **A.13.1** `[I1]` Won KPK scores as a win
       (F1) `apply_endgame` keeps the tapered score of a KPK the bitbase
       calls won (`eval.cpp:753`); when that score favours the bare king,
       the pawnless scaler takes the bare king as the strong side (`:833`,
@@ -1745,6 +1745,10 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         changes play, so it owes the repair gate: BAS-S37, `[-5,5]`,
         capped at 2,000 pairs, launcher `tools/run_a1131_gate.ps1`,
         maintainer-run.
+      - Closed 2026-10-27: BAS-S37 reached its 2,000-pair cap at +2.3 ± 5.7
+        Elo (4,000 games, LLR +1.42, no faults), and the repair stays by the
+        registered rule on the maintainer's confirmation. The development
+        fingerprint is `bench 13` 19,108,490.
     - [ ] **A.13.2** `[I1]` A won queen against two minors is not scaled to a draw
       (§6 D1) The pawnless scaler's classifier compares non-pawn material
       in `EG_MAT` units (`eval.cpp:833-835`: Q 950, B 330, N 320), so a
@@ -2889,7 +2893,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.13.1 | GAME_GATE | I1 | Won KPK scores as a win; BAS-S37 registered, maintainer-run |
 | A.13.2 | READY_FOR_IMPLEMENTATION | I1 | Pawnless classifier in the donor's units; admitted into the freeze 2026-10-27 |
 | A.13.3 | READY_FOR_IMPLEMENTATION | I1 | PV copy's read past `pv_len`; exact fingerprint |
 | A.13.4 | READY_FOR_IMPLEMENTATION | I1 | Tablebase probe after the TT cutoff; exact fingerprint, tablebase gate re-read |

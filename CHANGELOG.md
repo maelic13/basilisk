@@ -125,8 +125,15 @@ and next step).
   window it was given instead of the position's own value, so a refuted
   move could tie the best one, and the rules that compare a value with a
   margin rarely fired. It now returns the position's value, as Stockfish
-  does: **+12.1 ± 9.9 Elo** at `3+0.03` (1,834 games). `bench` now reports
-  16,092,165 nodes.
+  does: **+12.1 ± 9.9 Elo** at `3+0.03` (1,834 games).
+
+- **A won king-and-pawn ending scored as a draw.** In a few king-and-pawn
+  against king positions the engine knew were won (mostly a pawn on its
+  second rank with the defending king beside it), the score favoured the
+  defender and was then cut to a draw. A won king-and-pawn ending now scores
+  as a clear win, as in Stockfish; every one of the 662,704 such positions
+  now agrees with the tablebase. Measured at **+2.3 ± 5.7 Elo** at
+  `3+0.03` (4,000 games). `bench` now reports 19,108,490 nodes.
 
 ---
 

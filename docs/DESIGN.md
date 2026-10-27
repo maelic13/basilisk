@@ -134,8 +134,9 @@ line names where it lives.
   must record the policy and never mix with natural-termination evidence.
 - Strength is measured at **3+0.03**, paired UHO openings, normalized Elo,
   **tablebases off** — the harness and the games are blind the same way.
-- **Bench signature** of the accepted head: `bench 13` = **16,092,165**
-  nodes (since A.11.11's fail-soft quiescence. Earlier: 8,913,394 at
+- **Bench signature** of the accepted head: `bench 13` = **19,108,490**
+  nodes (since A.13.1's won KPK. Earlier: 16,092,165 at A.11.11's
+  fail-soft quiescence, 8,913,394 at
   A.11.10's tier damping, 7,857,713 at A.11.9's bare-king tiers, where the
   legacy kernel, deleted at B.8.1, read 23,696,970; 7,384,101 at A.11.7's
   pawnless-scaler repair, 7,233,823 at

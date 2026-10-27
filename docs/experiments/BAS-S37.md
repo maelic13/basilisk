@@ -88,4 +88,28 @@
   against 2,940,692. The arms search different trees, so this reads tree
   shape, not a cost.
 
-- Disposition: registered, maintainer-run.
+#### RESULT — append after exposure
+
+- **Cap without a decision (maintainer-run 2026-10-27):** **+2.3 ± 5.7
+  Elo** (nElo +4.3 ± 10.8), LLR +1.42 in [−2.94, 2.94] at the 2,000-pair cap
+  (4,000 games); W/D/L 1104/1818/1078, pentanomial [49, 344, 1194, 358, 55].
+  - 0 faults, 0 time losses; the independent PGN recount agrees.
+  - The run took a fresh dry run with the registered hash
+    (`colosseum_sprt_a1131-gate_20261027_143000.dry-run.json`,
+    `008bb0c5…`); manifest `afbfab3a…`, run record `6d17bc1d…`, PGN
+    `552ce729…`.
+- **Verdict (registered rule):** the cap without a decision, so the repair
+  stays as a correctness fix with no measured harm; the maintainer
+  confirmed on 2026-10-27. The fingerprint record updates to `bench 13`
+  19,108,490.
+- Disposition: **cap, +2.3 ± 5.7; repair kept. CLOSED 2026-10-27.**
+
+#### PREDICTION CALIBRATION — preserve the original prediction above
+
+- **Prediction:** about 0 to +2 Elo, most likely the cap; not H0 at about
+  85%.
+- **Reading:** the cap at +2.3, at the top of the predicted range. As
+  predicted.
+- **What it teaches:** a repair that changes how 3.9% of games value a
+  trade into KPK reads near 0 in games; its evidence is the KPK truth test,
+  which now guards it.
