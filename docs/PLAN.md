@@ -1551,8 +1551,8 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         lower-bound-tightened stand-pat, not from fail-soft itself;
         falsified if the donor's form with the PV exclusion still breaks
         the KQK and KBNK fixtures. The tie rule's `(nodes & 14) == 0`
-        fires one node in eight against the donor's `& 15`; the leaf
-        decides it with the rule. The counter it needs: tie-rule
+        fires one node in eight; the audit read the donor's as `& 15`,
+        which is wrong (corrected below). The counter it needs: tie-rule
         promotions of a bound echo (`score == alpha`) against exact ties.
         Verified 2026-10-27: `quiescence` has no node-type parameter, so
         the PV exclusion needs a flag threaded through the call at
@@ -1624,9 +1624,14 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         registered rule. The development fingerprint is `bench 13`
         16,092,165. B.3 to B.5 refit RFP, razoring, aspiration and the
         margins fail-soft woke (LMR's deeper re-search, the singular double
-        and triple extensions) on this search. Left open: the tie rule's
-        `& 14` (one node in eight) against the donor's `& 15`, kept out of
-        this gate so that it tested one change; no leaf owns it yet.
+        and triple extensions) on this search.
+      - Correction, 2026-10-27: the tie rule has no divergence. Stockfish's
+        is `(int(nodes) & 14) == 0` as well, one node in eight: at the
+        pinned `sf_19` (`edb0d9db`, `src/search.cpp:1511`) and on master
+        since. The audit's F2.4 misread it, and this leaf repeated it
+        unchecked. A scratch `& 15` build read `bench 13`
+        13,430,303 and WAC 180 against 182; it is not the donor's form and
+        is not gated.
 - [ ] **A.12** `[M]` Roadmap rules from the audit
   Added 2026-10-24, for the maintainer to decide one by one: Rarog rule 7c's
   amendment of 2026-10-20 (a near-optimum surface may be tuned as one longer
