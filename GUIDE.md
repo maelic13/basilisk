@@ -92,8 +92,10 @@ generations change. These are maintainer judgments, not measured rankings.
     - [ ] **A.11.10** `[R2]` Fail-soft quiescence
 - [ ] **A.12** `[M]` Roadmap rules from the audit
 - [ ] **A.13** Correctness repairs from the code audit
-    - [ ] **A.13.1** `[I1]` PV copy reads past the per-ply length array
-    - [ ] **A.13.2** `[I1]` The tablebase store carries a stale PV bit
+    - [ ] **A.13.1** `[I1]` Won KPK scores as a win
+    - [ ] **A.13.2** `[I1]` A won queen against two minors is not scaled to a draw
+    - [ ] **A.13.3** `[I1]` PV copy reads past the per-ply length array
+    - [ ] **A.13.4** `[I1]` The tablebase store carries a stale PV bit
 - [ ] **A.14** Simplifications from the code audit
     - [ ] **A.14.1** `[I1]` One definition of the score bands
 - [ ] **A.15** Universal binaries and the release runners
@@ -139,7 +141,6 @@ generations change. These are maintainer judgments, not measured rankings.
 - [ ] **C.3** `[I2]` King safety cluster
 - [ ] **C.4** `[I2]` Threats and mobility cluster
 - [ ] **C.5** Endgame handling and winnability
-    - [ ] **C.5.0** `[I1]` Correctness repairs from the code audit
     - [ ] **C.5.1** `[R2]` Instruments and gate integrity
     - [ ] **C.5.2** `[R3]` Occurrence, classification and ranking
     - [ ] **C.5.3** `[I2]` Generic winnability and scaling

@@ -341,8 +341,7 @@ coordinate) is not a defect; its owner decides. IDs are the Rarog audit's
 | Owner | Defects |
 |---|---|
 | A.11.10 | B-19 fail-hard quiescence, which also lets the equal-score tie rule promote refuted moves near the leaves |
-| A.13.1–A.13.2 | F3 the PV copy's read past `pv_len`; S11 the tablebase store's stale PV bit (`analysis/code_audit_2026-10-27.md`) |
-| C.5.0 | F1 a won KPK scaled to a draw by the pawnless scaler; D1 a won queen against two minors scaled to a near draw by the pawnless classifier's endgame units (`analysis/code_audit_2026-10-27.md`) |
+| A.13.1–A.13.4 | F1 a won KPK scaled to a draw by the pawnless scaler; D1 a won queen against two minors scaled to a near draw by the pawnless classifier's endgame units; F3 the PV copy's read past `pv_len`; S11 the tablebase store's stale PV bit (`analysis/code_audit_2026-10-27.md`) |
 | B.3 | B-12 a move stored at fail-low nodes; B-14 correction training refuses decisive results; B-45 the singular margin's range excludes the donor's value; B-109 ablation bit 6 also removes the check extension |
 | B.4 | B-17 the dead SEE clamp |
 | B.5 (with D.1) | the fail-high stop's hole: a window that never returns is never checked (A-47; `analysis/b5_failhigh_stop_2026-10-25.md` §2.3) |
@@ -1513,15 +1512,99 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
   2026-10-24 audit).
 - [ ] **A.13** Correctness repairs from the code audit
   Added 2026-10-27 from the audit of the engine's crucial paths
-  (`analysis/code_audit_2026-10-27.md`; its items are F3 and §6's S11
-  from the second pass of 2026-10-27; the two evaluation repairs, F1 and
-  §6's D1, went to C.5.0 by maintainer decision 2026-10-27 so that the
-  evaluation freeze holds). The same rules as A.11: each repair is its
+  (`analysis/code_audit_2026-10-27.md`; its items are F1 and F3, and
+  §6's D1 and S11 from the second pass). The two evaluation repairs,
+  A.13.1 and A.13.2, are admitted into the evaluation freeze (maintainer
+  decision 2026-10-27, after §6.7's read found no cost in games and no
+  dependency of the search on them: known theory-truth defects are not
+  carried through Phase B). The same rules as A.11: each repair is its
   own engine commit with a test that fails on the old code, bench
   accounting for any fingerprint move, CTest on both arms, and a
   registered `[-5,5]` repair SPRT when play changes unless the leaf
   argues none is owed. The legacy kernel is not fixed.
-    - [ ] **A.13.1** `[I1]` PV copy reads past the per-ply length array
+    - [ ] **A.13.1** `[I1]` Won KPK scores as a win
+      (F1) `apply_endgame` keeps the tapered score of a KPK the bitbase
+      calls won (`eval.cpp:753`); when that score favours the bare king,
+      the pawnless scaler takes the bare king as the strong side (`:833`,
+      A.11.7's sign rule) and scales a won ending to 0. Measured against
+      Syzygy on all 662,704 legal KPK positions: the bitbase agrees on
+      every one, the engine serves 0 for 2,022 wins (0.31%, mostly a
+      second-rank pawn with the lone king adjacent;
+      `8/8/8/8/8/8/Pk6/3K4 w - - 0 1`, pre-scaler −28; its leaf
+      `8/8/8/8/8/2k5/P7/3K4 b` after `...Kb2` is served 0 at depth 1,
+      verified 2026-10-27). Repair, in the donor's form
+      (`sf9587-ks/src/endgame.cpp:153-171`): in the KPK branch a won
+      position returns `KNOWN_WIN` plus the donor's `PawnValueEg` 206
+      plus the pawn's rank, from the pawn side's view and signed to
+      White's as `apply_endgame` works, in place of the comment at
+      `:753` — before every tier, the wrong-bishop rule and the scalers;
+      one site covers the lazy path, since both paths call
+      `apply_endgame` and no evaluation cache sits between. The value
+      lands at 10,207–10,212: above `KNOWN_WIN`, below the rook tier
+      (26,100) and the queen tier (28,700), far below `is_decisive`
+      (31,743), so pruning treats it as an ordinary evaluation. The
+      scaler stays as it is: the donor also picks the strong side by
+      sign and also scales a bare king to a draw (`evaluate.cpp:829`,
+      `material.cpp:205-207`); the audit's proposed invariant that a
+      lone king is never the strong side is withdrawn, because in KPPK,
+      KNPK or KBPK with a score favouring the bare king it would turn a
+      served 0 into a wrong-signed score, untested and
+      fingerprint-moving. Promotion closure: KPPK, KNPK and KBPK reach
+      a won KPK when the lone king captures, and their ordinary scores
+      sit far below 10,2xx; only the defender makes that capture, so
+      minimax resolves it, as in the donor. Rule 50: the donor returns
+      the KPK value before its damping; Basilisk damps every score
+      (`eval.h:137`), a deliberate departure the leaf records. Test: a
+      `test_endgames` section over every legal KPK position against a
+      bundled `KPvK.rtbw` fixture (7,824 bytes; the WDL file alone
+      serves WDL probes): the undamped evaluation's sign equals the WDL
+      verdict and no won position scores below `KNOWN_WIN`; on the old
+      code it fails at 2,022 positions. Wiring the test needs:
+      `test_endgames` has no `BASILISK_TEST_SYZYGY_FIXTURE_DIR`
+      (`CMakeLists.txt:366-367`; `test_search` and
+      `test_engine_threading` have it), `tests/syzygy_fixture.h:92-93`
+      hard-codes the two KQvK files and their sizes, and
+      `test_search.cpp:954` counts the shared directory's files, so
+      KPvK is materialised into its own directory and the fixture
+      README's decoder list and SHA table are updated. Invariants:
+      white perspective; the KBP wrong-bishop rule and the bare-king
+      tiers unchanged (KPK has no pieces). Admitted into the evaluation
+      freeze (maintainer decision 2026-10-27, after §6.7's games read);
+      bench accounting (the bench suite's pawn ending can reach KPK),
+      and the repair SPRT if the fingerprint moves.
+    - [ ] **A.13.2** `[I1]` A won queen against two minors is not scaled to a draw
+      (§6 D1) The pawnless scaler's classifier compares non-pawn material
+      in `EG_MAT` units (`eval.cpp:833-835`: Q 950, B 330, N 320), so a
+      queen against bishop and knight is "ahead by at most a minor"
+      (300 ≤ 330) and the ending is scaled by 4/64; the donor compares in
+      middlegame values (`material.cpp:201`: 2538 − 1606 = 932 > 825) and
+      does not scale it. Syzygy over 4,000 random positions a class,
+      from the queen's side: KQ-KBN 82.5% won, KQ-KBB 71.0% (6% cursed),
+      KQ-KNN 73.5%. Served at depth 1 from White's view (verified
+      2026-10-27): KQ-KBN `8/8/3nb3/4k3/8/8/8/K6Q b - - 1 1` +21, KQ-KNN
+      +27, against KQ-KB +697 — one minor fewer and the defender scores
+      thirty times worse. The scaler also fires when the defender has
+      pawns. Repair, in the donor's form: the classifier compares in the
+      donor's middlegame values (a local table N 781, B 825, R 1276,
+      Q 2538 for this comparison alone, with the dead-draw branch at
+      `npm(strong) < RookValueMg`); every other `EG_MAT` use is
+      unchanged. The near-draw factor in the same `if` (4 whenever the
+      defender has material, where the donor gives 4 only against at
+      most a minor and 14 otherwise) is the Known-defects row C.3–C.7
+      owns; this leaf takes it only if the maintainer admits both, since
+      the same test decides both. Test: a `test_endgames` truth table
+      over material signatures through the evaluation trace's scale
+      factor (added to the trace if it lacks one) — KQ-KBN, KQ-KBB,
+      KQ-KNN and KQ-KR unscaled; KR-KB, KB-KN and KRB-KR scaled — plus
+      the three FENs served positive for the queen's side; on the old
+      code it fails at the first three. Invariants: A.13.1's KPK return
+      sits before this scaler; A.11.9's material-shed boundaries are
+      unaffected (no override row changes). Admitted into the evaluation
+      freeze with A.13.1 (maintainer decision 2026-10-27); bench
+      accounting (expect no move unless a bench position reaches a
+      pawnless ending), and the repair SPRT if the fingerprint moves;
+      the occurrence that matters is search without tablebases (C-147).
+    - [ ] **A.13.3** `[I1]` PV copy reads past the per-ply length array
       (F3) At `ply == MAX_PLY - 1` a move that raises alpha reads
       `state_.pv_len[ply + 1]` (`search_kernel_core.cpp:1272`), one past
       `int pv_len[MAX_PLY]` (`search_worker.h:135`); the value is clamped
@@ -1530,7 +1613,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       exact fingerprint on both arms; no gate. No fixed-depth test
       reaches ply 127 without exposing `negamax`, so the leaf records
       that exemption and the sanitizer CTest job stands for the proof.
-    - [ ] **A.13.2** `[I1]` The tablebase store carries a stale PV bit
+    - [ ] **A.13.4** `[I1]` The tablebase store carries a stale PV bit
       (§6 S11) The in-search WDL probe (`search_kernel_core.cpp:356-375`)
       runs before the TT probe, and its store at `:371` passes
       `ss->tt_pv`, which the node assigns only at `:455-457`: the stored
@@ -2610,10 +2693,7 @@ rejections stop B.
   see a thread-scaling loss both versions share (Rarog RAR-M74, RAR-M76).
   Version 1.11.0 (maintainer decision 2026-10-24: releases follow B, C and
   E, and 2.0.0 is the first NNUE release). Cut through A.8.6's tag-driven
-  flow after A.10.4. The CHANGELOG's known issues name C.5.0's two
-  evaluation defects (a won KPK leaf scored 0; a won queen against two
-  minors scaled toward a draw), which ship in 1.11.0 by the 2026-10-27
-  decision to keep the evaluation frozen through Phase B.
+  flow after A.10.4.
 
 ### Active workflow register
 
@@ -2625,8 +2705,10 @@ leaf's tag. Later phases carry only a class until they open.
 |---|---|---|---|
 | A.11.10 | RESEARCH | R2 | Fail-soft quiescence, pulled forward from B.4; research first |
 | A.12 | RESEARCH | M | Roadmap rules for the maintainer to decide |
-| A.13.1 | READY_FOR_IMPLEMENTATION | I1 | PV copy's read past `pv_len`; exact fingerprint |
-| A.13.2 | READY_FOR_IMPLEMENTATION | I1 | Tablebase probe after the TT cutoff; exact fingerprint, tablebase gate re-read |
+| A.13.1 | READY_FOR_IMPLEMENTATION | I1 | Won KPK scores as a win; admitted into the freeze 2026-10-27 |
+| A.13.2 | READY_FOR_IMPLEMENTATION | I1 | Pawnless classifier in the donor's units; admitted into the freeze 2026-10-27 |
+| A.13.3 | READY_FOR_IMPLEMENTATION | I1 | PV copy's read past `pv_len`; exact fingerprint |
+| A.13.4 | READY_FOR_IMPLEMENTATION | I1 | Tablebase probe after the TT cutoff; exact fingerprint, tablebase gate re-read |
 | A.14.1 | READY_FOR_IMPLEMENTATION | I1 | Score bands defined once in constants.h; exact fingerprint |
 | A.15.1 | RESEARCH | R2 | Universal binary design packet; the decision rule frozen before A.15.2 |
 | A.15.2 | RESEARCH | V | The portable/avx2/pext NPS ladder; maintainer-run after registration |
@@ -2916,7 +2998,11 @@ has lost games in both engines (BAS-X02).
       `1e-6` anchor moved them about 0.1 cp. The registration sets their
       anchor loose enough to let them move. The fit reports each table's
       movement (B.10's directional screen), and the gate tests the refitted
-      tables (maintainer, 2026-10-24).
+      tables (maintainer, 2026-10-24). A refit that moves the tables as
+      Rarog's did (C-66) also ends their PeSTO derivation: when the
+      refitted tables land, the originality disclosure of the
+      PeSTO-derived tables (1.10.2's audit; E.3's D-69 item) is retired
+      and the similarity screen is re-run (maintainer, 2026-10-27).
       Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`;
       IDs are its items):
       - A free PST refit moved Rarog's tables 11-57 cp an entry, which sizes
@@ -2976,104 +3062,6 @@ has lost games in both engines (BAS-X02).
 - [ ] **C.5** Endgame handling and winnability
   The goal is measured conversion and correct draw recognition where games
   actually go, not coverage of a function list.
-    - [ ] **C.5.0** `[I1]` Correctness repairs from the code audit
-      Moved from Phase A (maintainer decision 2026-10-27): two evaluation
-      defects with theory truth, found by the code audit
-      (`analysis/code_audit_2026-10-27.md` F1 and §6 D1), repaired here
-      rather than inside the freeze because neither changes what the
-      search is fitted on — the known-win band KPK joins already exists
-      for KBNK and KXK, the search keys on nothing below `is_decisive`
-      (31,743), and the queen repair only unscales ordinary values — and
-      both touch lines C.5.3 rewrites. Games read 2026-10-27 over
-      974,796 archived games (packet §6.7): Basilisk held the pawn in a
-      Syzygy-won KPK 3,775 times and converted 3,764 (99.7%; opponents
-      4,388 of 4,424), and the queen against two minors in a won
-      position 25 times and converted 20 (opponents 48 of 63), so the
-      cost in games is nil and the defects are in-tree leaf truth, not
-      conversion.
-      Each repair is its own engine commit with a test that fails on the
-      old code (A.11's rules); the gate is one registered `[-5,5]` repair
-      SPRT over both, or C.5.7's endgame gate if the maintainer folds
-      them in; the tests stay through C.5.3's rewrite. C.5.2 classifies
-      KPK as an exact recogniser.
-      - Won KPK scores as a win.
-        (F1) `apply_endgame` keeps the tapered score of a KPK the bitbase
-        calls won (`eval.cpp:753`); when that score favours the bare king,
-        the pawnless scaler takes the bare king as the strong side (`:833`,
-        A.11.7's sign rule) and scales a won ending to 0. Measured against
-        Syzygy on all 662,704 legal KPK positions: the bitbase agrees on
-        every one, the engine serves 0 for 2,022 wins (0.31%, mostly a
-        second-rank pawn with the lone king adjacent;
-        `8/8/8/8/8/8/Pk6/3K4 w - - 0 1`, pre-scaler −28; its leaf
-        `8/8/8/8/8/2k5/P7/3K4 b` after `...Kb2` is served 0 at depth 1,
-        verified 2026-10-27). Repair, in the donor's form
-        (`sf9587-ks/src/endgame.cpp:153-171`): in the KPK branch a won
-        position returns `KNOWN_WIN` plus the donor's `PawnValueEg` 206
-        plus the pawn's rank, from the pawn side's view and signed to
-        White's as `apply_endgame` works, in place of the comment at
-        `:753` — before every tier, the wrong-bishop rule and the scalers;
-        one site covers the lazy path, since both paths call
-        `apply_endgame` and no evaluation cache sits between. The value
-        lands at 10,207–10,212: above `KNOWN_WIN`, below the rook tier
-        (26,100) and the queen tier (28,700), far below `is_decisive`
-        (31,743), so pruning treats it as an ordinary evaluation. The
-        scaler stays as it is: the donor also picks the strong side by
-        sign and also scales a bare king to a draw (`evaluate.cpp:829`,
-        `material.cpp:205-207`); the audit's proposed invariant that a
-        lone king is never the strong side is withdrawn, because in KPPK,
-        KNPK or KBPK with a score favouring the bare king it would turn a
-        served 0 into a wrong-signed score, untested and
-        fingerprint-moving. Promotion closure: KPPK, KNPK and KBPK reach
-        a won KPK when the lone king captures, and their ordinary scores
-        sit far below 10,2xx; only the defender makes that capture, so
-        minimax resolves it, as in the donor. Rule 50: the donor returns
-        the KPK value before its damping; Basilisk damps every score
-        (`eval.h:137`), a deliberate departure the leaf records. Test: a
-        `test_endgames` section over every legal KPK position against a
-        bundled `KPvK.rtbw` fixture (7,824 bytes; the WDL file alone
-        serves WDL probes): the undamped evaluation's sign equals the WDL
-        verdict and no won position scores below `KNOWN_WIN`; on the old
-        code it fails at 2,022 positions. Wiring the test needs:
-        `test_endgames` has no `BASILISK_TEST_SYZYGY_FIXTURE_DIR`
-        (`CMakeLists.txt:366-367`; `test_search` and
-        `test_engine_threading` have it), `tests/syzygy_fixture.h:92-93`
-        hard-codes the two KQvK files and their sizes, and
-        `test_search.cpp:954` counts the shared directory's files, so
-        KPvK is materialised into its own directory and the fixture
-        README's decoder list and SHA table are updated. Invariants:
-        white perspective; the KBP wrong-bishop rule and the bare-king
-        tiers unchanged (KPK has no pieces). Bench accounting (the bench
-        suite's pawn ending can reach KPK).
-      - A won queen against two minors is not scaled to a draw.
-        (§6 D1) The pawnless scaler's classifier compares non-pawn material
-        in `EG_MAT` units (`eval.cpp:833-835`: Q 950, B 330, N 320), so a
-        queen against bishop and knight is "ahead by at most a minor"
-        (300 ≤ 330) and the ending is scaled by 4/64; the donor compares in
-        middlegame values (`material.cpp:201`: 2538 − 1606 = 932 > 825) and
-        does not scale it. Syzygy over 4,000 random positions a class,
-        from the queen's side: KQ-KBN 82.5% won, KQ-KBB 71.0% (6% cursed),
-        KQ-KNN 73.5%. Served at depth 1 from White's view (verified
-        2026-10-27): KQ-KBN `8/8/3nb3/4k3/8/8/8/K6Q b - - 1 1` +21, KQ-KNN
-        +27, against KQ-KB +697 — one minor fewer and the defender scores
-        thirty times worse. The scaler also fires when the defender has
-        pawns. Repair, in the donor's form: the classifier compares in the
-        donor's middlegame values (a local table N 781, B 825, R 1276,
-        Q 2538 for this comparison alone, with the dead-draw branch at
-        `npm(strong) < RookValueMg`); every other `EG_MAT` use is
-        unchanged. The near-draw factor in the same `if` (4 whenever the
-        defender has material, where the donor gives 4 only against at
-        most a minor and 14 otherwise) is the Known-defects row C.3–C.7
-        owns; this leaf takes it only if the maintainer admits both, since
-        the same test decides both. Test: a `test_endgames` truth table
-        over material signatures through the evaluation trace's scale
-        factor (added to the trace if it lacks one) — KQ-KBN, KQ-KBB,
-        KQ-KNN and KQ-KR unscaled; KR-KB, KB-KN and KRB-KR scaled — plus
-        the three FENs served positive for the queen's side; on the old
-        code it fails at the first three. Invariants: the KPK return above
-        sits before this scaler; A.11.9's material-shed boundaries are
-        unaffected (no override row changes). Bench accounting (expect no
-        move unless a bench position reaches a pawnless ending); the
-        occurrence that matters is search without tablebases (C-147).
     - [ ] **C.5.1** `[R2]` Instruments and gate integrity
       Instruments and gate integrity (archived 6.6.a–e and 6.6.h).
       - Audit the tools against the snapshot's endgame instruments
@@ -3139,8 +3127,9 @@ has lost games in both engines (BAS-X02).
         side to move, tempo, rule 50. Absent donor scalers: the
         one-flank rook ending (36/64) and the lone queen against minors
         (37 + 3 per minor). Firing share of the scalers at phase > 0 and
-        a Syzygy residual on those cohorts first. C.5.0 repairs the
-        pawnless classifier's units before this leaf.
+        a Syzygy residual on those cohorts first. A.13.2 repairs the
+        pawnless classifier's units before this leaf and leaves its
+        truth-table test for this leaf to keep.
     - [ ] **C.5.4** `[R3]` Won-rook-ending only-move precision (BAS-E53)
       Won-rook-ending only-move precision (archived 6.8.a; BAS-E53): all 68
       one-winning-move nodes studied with a held-out split; search, evaluation
@@ -3412,7 +3401,7 @@ has lost games in both engines (BAS-X02).
   are its items):
   - Cold tablebase reads at the root on the clock (A-57); the root ranking
     ignores repetitions already in the game (A-58); DTZ ranking (A-59).
-  - Code audit 2026-10-27 (S11): A.13.2 moves the in-search WDL probe
+  - Code audit 2026-10-27 (S11): A.13.4 moves the in-search WDL probe
     after the TT probe and cutoff, the donor's order; probe depth and
     limits stay here.
 
