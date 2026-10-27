@@ -834,18 +834,13 @@ static int apply_endgame(const Board& b, int score) {
         }
 
         // ---- Winning side has no pawns and at most a minor-piece advantage:
-        // it cannot force mate (KmK, KmKm, KRKm, ...). Standard SF heuristic.
-        // The winning side is the one the score favours, as in Stockfish; by
-        // material totals, equal totals always made it White.
+        // it cannot force mate (KmK, KmKm, KRKm, ...), in Stockfish's form
+        // (pawnless_scale). The winning side is the one the score favours, as
+        // in Stockfish; by material totals, equal totals always made it White.
         {
-            Color strong = (score > 0) ? WHITE : BLACK;
-            if (cnt[strong][PAWN] == 0
-                && npm(strong) - npm(~strong) <= EG_MAT[BISHOP]) {
-                int scale;
-                if (npm(strong) < EG_MAT[ROOK])
-                    scale = SCALE_DRAW;                   // KmK, KmKm: dead draw
-                else
-                    scale = (npm(~strong) > 0) ? 4 : 14;  // KRKm etc.: near draw
+            const Color strong = (score > 0) ? WHITE : BLACK;
+            const int scale = pawnless_scale(b, strong);
+            if (scale != SCALE_NORMAL) {
                 score = score * scale / SCALE_NORMAL;
                 scaled = true;
             }

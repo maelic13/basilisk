@@ -152,6 +152,25 @@ inline int Evaluator::evaluate(const Board& b) {
     return b.rule50_count() > 0 ? damp_rule50(score, b.rule50_count()) : score;
 }
 
+// The pawnless scaler, in Stockfish's form (material.cpp): `strong`, without
+// pawns and at most a minor piece ahead in the donor's middlegame values,
+// cannot force mate. The scale, of 64: 0 below a rook's worth, 4 against at
+// most a bishop's worth, otherwise 14; 64 where the rule does not apply.
+// Counted in middlegame values, a queen against two minors is not "a minor
+// ahead"; the endgame table would make it one.
+[[nodiscard]] inline int pawnless_scale(const Board& b, Color strong) {
+    if (b.piece_bb(strong, PAWN))
+        return 64;
+    auto material = [&](Color c) {
+        return popcount(b.piece_bb(c, KNIGHT)) * 781 + popcount(b.piece_bb(c, BISHOP)) * 825
+             + popcount(b.piece_bb(c, ROOK)) * 1276 + popcount(b.piece_bb(c, QUEEN)) * 2538;
+    };
+    const int ours = material(strong), theirs = material(~strong);
+    if (ours - theirs > 825)
+        return 64;
+    return ours < 1276 ? 0 : theirs <= 825 ? 4 : 14;
+}
+
 // Exactly one bishop each, on opposite colours. Says nothing about the rest of
 // the material — the scaler deliberately fires with other pieces present;
 // narrowing that scope is a deferred refinement.
