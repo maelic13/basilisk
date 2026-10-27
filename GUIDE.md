@@ -34,7 +34,7 @@ generations change. These are maintainer judgments, not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **A.12** `[M]` Roadmap rules from the audit — Claude Sonnet 5 — Medium
+**Next step:** **A.13.1** `[I1]` Won KPK scores as a win — Claude Sonnet 5 — Medium
 
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
@@ -91,7 +91,7 @@ generations change. These are maintainer judgments, not measured rankings.
     - [x] **A.11.9** `[R2]` Override boundaries never reward shedding material
     - [x] **A.11.10** `[R2]` KR-K conversion: the clock keeps a tier's base
     - [x] **A.11.11** `[R2]` Fail-soft quiescence
-- [ ] **A.12** `[M]` Roadmap rules from the audit
+- [x] **A.12** `[M]` Roadmap rules from the audit
 - [ ] **A.13** Correctness repairs from the code audit
     - [ ] **A.13.1** `[I1]` Won KPK scores as a win
     - [ ] **A.13.2** `[I1]` A won queen against two minors is not scaled to a draw

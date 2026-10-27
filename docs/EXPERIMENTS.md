@@ -17,7 +17,8 @@ resolves every retired number to its archived roadmap and maps retired open
 leaves to their current identifiers. Rows from BAS-X30 on cite the lettered
 roadmap. Rarog identifiers (`RAR-*`) and Rarog paths cited anywhere in this
 ledger resolve in the pinned snapshot `docs/reference/rarog/` (Rarog
-`015bccae`), or for BAS-X35 in `docs/reference/rarog-2026-10-06/`;
+`015bccae`), or for BAS-X35 in `docs/reference/rarog-2026-10-06/`, or for
+BAS-X36 in Rarog's live repository at `ec6f5b5`, read under A.12's exception;
 `docs/reference/README.md` says how. Do not rewrite measured records merely because the roadmap was
 reordered; the retry map in section 9 is live routing and carries current
 destinations.
@@ -687,6 +688,7 @@ evaluator is weaker than Basilisk's, and its verdicts do not transfer
 | [BAS-X33](experiments/BAS-X33.md) | What Rarog's B.0 found by measuring before designing | import |
 | [BAS-X34](experiments/BAS-X34.md) | Rarog's measurements of Basilisk and of the target pool | import |
 | [BAS-X35](experiments/BAS-X35.md) | Rarog 2.4.0→2.5.0, the final import | import |
+| [BAS-X36](experiments/BAS-X36.md) | One longer tune near an optimum (rule 7c's amendment) | import |
 
 ## 8b. Cross-engine evidence imported from Manta
 

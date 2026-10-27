@@ -186,6 +186,17 @@ roadmap.
    may run every registered block. A block cut short never counts, and a tune
    is judged by its gate, not by its movement. This is Rarog rule 7c
    (RAR-S75, RAR-S78, RAR-S82–S83, imported as BAS-X31).
+
+   The blocks are the shape for seeds far from their optimum. Where a
+   zero-game curvature sweep and an earlier block read the surface as near
+   its optimum with small gradients, a tune may instead be registered as
+   one longer run with a larger perturbation and a smaller gain ratio: a
+   restarted schedule only re-inflates the random walk near an optimum,
+   while a larger perturbation raises each gradient estimate's signal. The
+   registration states the perturbation, the gain ratio and the resolution
+   they buy; a full step stays the block's step in every movement reading,
+   and a run cut short is not theta. Maintainer decision 2026-10-27, from
+   Rarog's amendment of 2026-10-20 (RAR-S104, RAR-S105; BAS-X36).
 8. **State the measurement layer.** Theory truth, move quality, conversion,
    fixed-node tree shape, NPS and game strength are different units with no
    exchange rate. Counters, node counts, EBF, tactical suites and fit loss
@@ -326,6 +337,8 @@ derivations are in the linked records.
 | Search parameters have one source (the X-macro table) | `src/search_params.h` |
 | Endgame measurement layers (truth, move quality, conversion, strength) | `analysis/endgame_measurement_layers_v1.md`; `DESIGN.md` §4 |
 | Behaviour-neutral change = exact fingerprint plus targeted checks plus pooled NPS | `AGENTS.md` |
+| Diagnostic counters: one table, each counter with its unit and denominator; names and units are the cross-engine contract, extended at the end and never renamed | `src/search_diagnostics.h`; `tools/diag/run_suite.py` |
+| Cross-engine board timings are compared only on the `cross-engine-board-v1` profile and its five-position corpus | `tests/board_performance.cpp` |
 
 ### Known defects
 
@@ -1632,7 +1645,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         unchecked. A scratch `& 15` build read `bench 13`
         13,430,303 and WAC 180 against 182; it is not the donor's form and
         is not gated.
-- [ ] **A.12** `[M]` Roadmap rules from the audit
+- [x] **A.12** `[M]` Roadmap rules from the audit
   Added 2026-10-24, for the maintainer to decide one by one: Rarog rule 7c's
   amendment of 2026-10-20 (a near-optimum surface may be tuned as one longer
   run with a larger perturbation and a smaller gain ratio); the standing
@@ -1642,6 +1655,19 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
   and whether `agents/research.md`'s snapshot-only rule for reading Rarog gets
   a standing exception for audits the maintainer asks for (waived for the
   2026-10-24 audit).
+  - Decided 2026-10-27 by the maintainer:
+    - Rule 7c gains the single longer run as an opt-in for a surface read
+      as near its optimum; blocks stay the default. Rarog's evidence,
+      read from its live repository under the exception below (Rarog
+      `ec6f5b5`), is BAS-X36.
+    - *Standing contracts* gains the diagnostic counters' units and the
+      cross-engine board benchmark's profile, both already true in code.
+      The allocation guard enters with B.7.1 and the Texel data contract
+      with C.2.1; both leaves now say so. Board footprint assertions are
+      not adopted.
+    - `agents/research.md`'s snapshot-only rule has a standing exception:
+      an audit or import the maintainer asks for may read Rarog's live
+      repository, citing its commit.
 - [ ] **A.13** Correctness repairs from the code audit
   Added 2026-10-27 from the audit of the engine's crucial paths
   (`analysis/code_audit_2026-10-27.md`; its items are F1 and F3, and
@@ -2743,7 +2769,8 @@ rejections stop B.
       It asserts that allocations grow per iteration, never per node, while
       the node count grows by at least an order of magnitude. A planted
       per-node allocation must fail it, checked once and reverted. No engine
-      change. The snapshot's `tests/allocation_guard.rs` is the model.
+      change. The snapshot's `tests/allocation_guard.rs` is the model. The
+      leaf adds the guard to *Standing contracts* (A.12).
       Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`;
       IDs are its items):
       - Beside the counting allocator, a disassembly search for `memcpy` and
@@ -2848,7 +2875,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.12 | RESEARCH | M | Roadmap rules for the maintainer to decide |
 | A.13.1 | READY_FOR_IMPLEMENTATION | I1 | Won KPK scores as a win; admitted into the freeze 2026-10-27 |
 | A.13.2 | READY_FOR_IMPLEMENTATION | I1 | Pawnless classifier in the donor's units; admitted into the freeze 2026-10-27 |
 | A.13.3 | READY_FOR_IMPLEMENTATION | I1 | PV copy's read past `pv_len`; exact fingerprint |
@@ -2986,7 +3012,8 @@ has lost games in both engines (BAS-X02).
 - [ ] **C.2** Fit pipeline, corpus and label contract
   Fit pipeline, corpus and label contract (archived 8.1–8.8).
     - [ ] **C.2.1** `[I1]` Fit-tooling contract and Texel handbook
-      Fit-tooling contract (archived 8.1.a–h).
+      Fit-tooling contract (archived 8.1.a–h). The leaf adds the Texel data
+      contract it writes to *Standing contracts* (A.12).
       - K is fitted once and frozen across stages and arms.
       - Initial vectors are complete and explicit, and B.10's PST
         orientation test passes on them before any fit reads them.
