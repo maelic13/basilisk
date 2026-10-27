@@ -1,4 +1,4 @@
-// The selectivity core's node kernel (the B2_CORE arm): quiescence, negamax
+// The selectivity core's node kernel: quiescence, negamax
 // and the helpers only they call. The driver in search_worker.cpp reaches the
 // kernel through root_search(), kernel_begin_search() and kernel_new_game()
 // alone. The kernel owns the per-ply stack, the reduction table and the

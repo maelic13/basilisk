@@ -1,6 +1,6 @@
 #pragma once
 
-// The selectivity core's staged move picker (the B2_CORE arm):
+// The selectivity core's staged move picker:
 //
 //   1. the TT move, when it is a legal move of the side to move;
 //   2. good captures: the capture stage (captures and every promotion) scored

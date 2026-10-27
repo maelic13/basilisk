@@ -44,6 +44,7 @@ static_assert(KBNK_STATIC_MATE_FLOOR == MATE_SCORE - MAX_PLY,
 #include <memory>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <vector>
 
 // ---------------------------------------------------------------------------
@@ -215,17 +216,22 @@ static void test_epd_verdicts(const std::vector<EpdEntry>& entries) {
 //
 // Hand-picked positions are not enough: KBNK once converted 13% of RANDOM
 // legal positions while every hand-picked case still passed. A class-level
-// floor catches that kind of collapse. It is a floor, not a measurement: a
-// small sample with one position of slack in the minor-piece families, where
-// ordinary search churn can tip a single long mate.
+// floor catches that kind of collapse, and a small sample does not: KR-K's
+// first four positions kept converting while A.11.9's tiers let 4 of its
+// first 24 drift into fifty-move draws, unnoticed for a release cycle.
 //
-// Measured 2026-10-08 over the first 24 positions of this generator, 60k
-// nodes, a cold search per move: KQ-K 24/24, KR-K 24/24, KBB-K 24/24,
-// KBN-K 23/24. Raise a floor when a conversion improvement lands; a floor left
-// at an old rate stops protecting the gain.
-//
-// KR-K plays all 24: its first four kept converting while the rule-50 damping
-// of the rook tier's whole score let 4 of the 24 drift into fifty-move draws.
+// So every family plays the same 24 positions, and each holds three bounds,
+// all read against the rate measured when they were set:
+//   - the floor on conversions, perfect for the major pieces and one
+//     position of slack for the minor-piece mates, where ordinary search
+//     churn can tip a single long mate;
+//   - a ceiling on the mean plies to mate, a quarter above the measured mean,
+//     so a conversion that slows down fails before it starts to draw;
+//   - staleness: a family converting two above its floor, or mating in
+//     under two thirds of its ceiling, fails until the bound is moved to the
+//     new rate. A bound left at an old rate stops protecting the gain.
+// Measured 2026-10-27, 60k nodes, a cold search per move; the values are in
+// the table below with the arms they were read on.
 // ---------------------------------------------------------------------------
 namespace {
 
@@ -292,37 +298,90 @@ static bool random_family(Lcg& rng, std::string& out_fen, Color winner,
     return false;
 }
 
-struct Family { const char* name; std::vector<PieceType> pieces; int n; int floor_; };
+struct Family {
+    const char* name;
+    std::vector<PieceType> pieces;
+    int floor_;              // conversions out of CONVERSION_SAMPLE
+    double max_mean_plies;   // over the converted positions
+};
+
+constexpr int CONVERSION_SAMPLE = 24;
+constexpr int STALE_FLOOR_HEADROOM = 2;
+constexpr double STALE_PLIES_RATIO = 2.0 / 3.0;
+
+// Read 2026-10-27 on the KR-K repair (`3d7559a`) and with fail-soft
+// quiescence on it (`69ecf42`): KQ-K 24/24 both, mean 13.0 and 12.7 plies;
+// KR-K 24/24 both, 23.1 and 23.6; KBB-K 24/24 both, 25.3 and 25.2; KBN-K
+// 24/24 and 23/24, 49.7 and 55.0. Floors from the lower count, ceilings a
+// quarter above the higher mean.
+constexpr int FLOOR_KQ = 24, FLOOR_KR = 24, FLOOR_KBB = 23, FLOOR_KBN = 22;
+constexpr double PLIES_KQ = 16.3, PLIES_KR = 29.5, PLIES_KBB = 31.6, PLIES_KBN = 68.8;
 
 }  // namespace
 
 static void test_conversion_floors() {
     const std::vector<Family> fams = {
-        { "KQ-K",  { QUEEN },           4, 4 },   // must stay perfect
-#if defined(BASILISK_B2_CORE)
-        { "KR-K",  { ROOK },           24, 24 },  // must stay perfect
-#else
-        { "KR-K",  { ROOK },            4, 4 },   // the legacy kernel's sample
-#endif
-        { "KBB-K", { BISHOP, BISHOP },  6, 5 },
-        { "KBN-K", { BISHOP, KNIGHT },  6, 5 },
+        { "KQ-K",  { QUEEN },          FLOOR_KQ,  PLIES_KQ  },
+        { "KR-K",  { ROOK },           FLOOR_KR,  PLIES_KR  },
+        { "KBB-K", { BISHOP, BISHOP }, FLOOR_KBB, PLIES_KBB },
+        { "KBN-K", { BISHOP, KNIGHT }, FLOOR_KBN, PLIES_KBN },
     };
 
-    for (const Family& f : fams) {
+    // The positions are drawn first, in order, from one seed per family.
+    // Each playout is a cold single-threaded search at a node budget, so the
+    // playouts are independent and their results do not depend on how many
+    // run at once: they are spread over the host's cores, and the bounds are
+    // read afterwards in order.
+    struct Job { size_t family; std::string fen; int plies = -1; };
+    std::vector<Job> jobs;
+    std::vector<int> generated(fams.size(), 0);
+    for (size_t k = 0; k < fams.size(); ++k) {
+        Lcg rng(0x5E9D18ULL);           // same seed for every family
+        for (int i = 0; i < CONVERSION_SAMPLE; ++i) {
+            std::string fen;
+            if (!random_family(rng, fen, WHITE, fams[k].pieces)) continue;
+            ++generated[k];
+            jobs.push_back({k, fen});
+        }
+    }
+    // The longest playouts (the minor-piece mates) are started first.
+    std::stable_sort(jobs.begin(), jobs.end(),
+                     [](const Job& a, const Job& b) { return a.family > b.family; });
+    std::atomic<size_t> next{0};
+    auto work = [&] {
+        for (size_t j; (j = next.fetch_add(1)) < jobs.size();)
+            jobs[j].plies = mate_playout_plies(jobs[j].fen, WHITE, CONV_NODES);
+    };
+    const size_t workers = std::clamp<size_t>(std::thread::hardware_concurrency(), 1, jobs.size());
+    std::vector<std::thread> pool;
+    for (size_t w = 1; w < workers; ++w)
+        pool.emplace_back(work);
+    work();
+    for (std::thread& t : pool)
+        t.join();
+
+    for (size_t k = 0; k < fams.size(); ++k) {
+        const Family& f = fams[k];
         char label[96];
         std::snprintf(label, sizeof(label), "%s conversion floor", f.name);
         begin_section(label);
-        Lcg rng(0x5E9D18ULL);           // same seed for every family
-        int converted = 0, generated = 0;
-        for (int i = 0; i < f.n; ++i) {
-            std::string fen;
-            if (!random_family(rng, fen, WHITE, f.pieces)) continue;
-            ++generated;
-            if (mate_playout_plies(fen, WHITE, CONV_NODES) >= 0) ++converted;
+        int converted = 0, plies = 0;
+        for (const Job& job : jobs) {
+            if (job.family == k && job.plies >= 0) {
+                ++converted;
+                plies += job.plies;
+            }
         }
-        std::printf("%d/%d (floor %d) ", converted, generated, f.floor_);
-        EXPECT(generated == f.n);
+        const int sampled = generated[k];
+        const double mean = converted ? double(plies) / converted : 0.0;
+        std::printf("%d/%d (floor %d), mean %.1f plies (ceiling %.1f) ",
+                    converted, sampled, f.floor_, mean, f.max_mean_plies);
+        EXPECT(sampled == CONVERSION_SAMPLE);
         EXPECT(converted >= f.floor_);
+        EXPECT(mean <= f.max_mean_plies);
+        // Stale bounds: the family has improved past them.
+        EXPECT(converted <= f.floor_ + STALE_FLOOR_HEADROOM);
+        EXPECT(mean >= f.max_mean_plies * STALE_PLIES_RATIO);
         end_section();
     }
 }
@@ -493,7 +552,8 @@ int main(int argc, char** argv) {
     }
 
     if (conversion) {
-        std::printf("Endgame conversion floors (60k nodes per move)\n");
+        std::printf("Endgame conversion floors (60k nodes per move, %u threads)\n",
+                    std::thread::hardware_concurrency());
         test_conversion_floors();
         return harness_summary();
     }

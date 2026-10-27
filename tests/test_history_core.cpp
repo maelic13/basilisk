@@ -1,4 +1,4 @@
-/// The selectivity core's history tables (B2_CORE arm): every table's bound
+/// The selectivity core's history tables: every table's bound
 /// and gravity, clear(), the between-search ageing, row addressing and the
 /// footprint the architecture review sized.
 

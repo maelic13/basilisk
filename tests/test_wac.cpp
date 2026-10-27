@@ -10,10 +10,7 @@
 ///    the CTest label `strength`. `wac [depth]` (the engine command) is the
 ///    fine-grained per-step diagnostic; this is the tripwire.
 /// 3. `--count`: the same run, printing the solved count without a floor.
-///    The B2_CORE arm registers it in place of `--floor` until its node
-///    pruning and LMR land with the picker: a fixed-depth count of a
-///    selectivity stack assembled one ticket at a time is recorded, not
-///    gated (the B.0 packet's Amendment 2).
+///    Used to read the count for a recalibration.
 ///
 /// Build:
 ///   cmake --build --preset release --target test_wac
@@ -38,11 +35,14 @@
 #include <vector>
 
 static const int TEST_DEPTH = 6;
-// Calibrated 2026-07-15 (8.3 head after the 8.4 revert, bench 11,555,879):
-// solved 145/300 at depth 6 in ~4s; 138/300 in 3 s on 2026-10-08 (bench
-// 14,978,465). The floor leaves headroom for benign search-shape drift; only
-// a collapse (a real tactical regression) fails it.
-static const int FLOOR = 130;
+// Calibrated 2026-10-27: solved 188/300 at depth 6 on the KR-K repair
+// (bench 8,913,394) and 182/300 with fail-soft quiescence on it (bench
+// 16,092,165). The floor leaves headroom for benign search-shape drift; only
+// a real tactical regression fails it. A count more than STALE_HEADROOM above
+// the floor fails too, until the floor is moved to the new rate: the old
+// floor of 130 sat 57 below the count and guarded nothing.
+static const int FLOOR = 175;
+static const int STALE_HEADROOM = 20;
 
 static void test_request_parser() {
     begin_section("fixed-budget command forms parse exactly");
@@ -157,6 +157,7 @@ static void test_wac_floor() {
     std::printf("  WAC solved %d/%d at depth %d (floor %d)\n",
                 solved, total, TEST_DEPTH, FLOOR);
     EXPECT(solved >= FLOOR);
+    EXPECT(solved <= FLOOR + STALE_HEADROOM);
     end_section();
 }
 

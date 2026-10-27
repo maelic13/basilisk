@@ -1,4 +1,4 @@
-/// The selectivity core's move picker (B2_CORE arm), on a random-walk corpus
+/// The selectivity core's move picker, on a random-walk corpus
 /// with randomised histories so every stage and the partial sort are
 /// exercised:
 ///   - every legal move is delivered exactly once;

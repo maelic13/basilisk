@@ -1193,14 +1193,9 @@ static void test_rook_promotions() {
     EXPECT_STR(stalemate.uci, "f7f8r");
     end_section();
 
-#if defined(BASILISK_B2_CORE)
     // Here the rook line transposes into the queen line after ...Rxa8 Rxa8,
     // but Black has a drawing alternative only against the rook. At 100,000
-    // nodes the old search preferred the rook on that shared line. The
-    // legacy kernel lacks the root's promotion rule: it still plays the rook
-    // here at 800,000 nodes, and the budget at which it first proves
-    // Saavedra's mate below moves with the evaluation, so only the core is
-    // held to these.
+    // nodes the old search preferred the rook on that shared line.
     begin_section("promotion: a queen where a rook only transposes");
     auto transposing = run_search("3r4/P7/2K1p3/R7/5p2/6kP/8/8 w - - 2 66",
                                   MAX_SEARCH_DEPTH, 100000, 0, 64);
@@ -1227,7 +1222,6 @@ static void test_rook_promotions() {
     EXPECT_STR(saavedra.uci, "c7c8r");
     EXPECT(saavedra.sr.score >= MATE_SCORE - 40);
     end_section();
-#endif
 }
 
 static void test_tablebase_root_bound_line_has_no_bound() {
