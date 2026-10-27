@@ -1837,6 +1837,22 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       stores whose bit differs from the node's `tt_pv` (zero after), and
       a re-read of A.8.15's tablebase-enabled gate at its registered
       size, since the probe population changes.
+      - Implemented 2026-10-27 (`0c0571a`): the probe block, unchanged,
+        runs after the early TT cutoff and before the eval-difference
+        training, the donor's Step 7. It now reads the node's depth after
+        the check extension and the hindsight adjustment, as the donor's
+        does after its Step 5, so an in-check node entered at depth 0 is
+        probed at depth 1; the static eval runs before a tablebase return.
+      - The counter `tb_store_stale_pv` (diagnostic builds; counter 83):
+        on six 7–8-man endgames at depth 18 with 3–6-man tables, 2,901 of
+        54,443 stores on the old order (5.3%), 0 of 16,291 on the
+        candidate; the tablebase reads fall by 70% because a cut node no
+        longer probes.
+      - Qualified: `bench 13` 19,470,325, exact; CTest 24/24, the
+        tablebase fixtures included.
+      - Gate: BAS-S39, A.8.15's conditions (`[-5,5]` at `10+0.1`, tables on
+        both sides, concurrency 7, cap 4,000 pairs), launcher
+        `tools/run_a1134_tb_gate.ps1`, maintainer-run.
 - [ ] **A.14** Simplifications from the code audit
   Added 2026-10-27 (`analysis/code_audit_2026-10-27.md` §3, from a
   mechanical census of `00809cc`). Behaviour-neutral: exact fingerprint,
@@ -2925,7 +2941,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.13.4 | READY_FOR_IMPLEMENTATION | I1 | Tablebase probe after the TT cutoff; exact fingerprint, tablebase gate re-read |
+| A.13.4 | GAME_GATE | I1 | Tablebase probe after the TT cutoff; BAS-S39 registered, maintainer-run |
 | A.14.1 | READY_FOR_IMPLEMENTATION | I1 | Score bands defined once in constants.h; exact fingerprint |
 | A.15.1 | RESEARCH | R2 | Universal binary design packet; the decision rule frozen before A.15.2 |
 | A.15.2 | RESEARCH | V | The portable/avx2/pext NPS ladder; maintainer-run after registration |
