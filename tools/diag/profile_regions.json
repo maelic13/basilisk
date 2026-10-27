@@ -32,7 +32,7 @@
     ["tablebases", ["syzygy.cpp", "syzygy.h", "tbprobe.c", "tbprobe.h", "tbchess.c", "tbconfig.h", "stdendian.h"]],
     ["driver", ["main.cpp", "engine.cpp", "engine.h", "engine_entry.cpp", "engine_entry.h", "engine_command.h",
                 "uci_protocol.cpp", "uci_protocol.h", "uci_output.h", "bench.cpp", "bench.h",
-                "parameters.cpp", "parameters.h", "wac.cpp", "wac.h", "wac_epd.h", "constants.h",
+                "parameters.cpp", "parameters.h", "wac.cpp", "wac.h", "wac_epd.h", "constants.h", "version.cpp", "version.h",
                 "cpu_features.h"]]
   ]
 }
