@@ -91,4 +91,34 @@
   mean 23.1 plies (the repair 40/40 at 22.1).
 - WAC at depth 6, before the repair: 182/300 against the fail-hard 187.
 
-- Disposition: registered, maintainer-run; after BAS-S35.
+#### RESULT — append after exposure
+
+- **H1 accepted (maintainer-run 2026-10-27):** **+12.1 ± 9.9 Elo** (nElo
+  +19.5 ± 15.9), LLR +2.95 after 917 pairs (1,834 games); W/D/L
+  519/860/455, pentanomial [25, 212, 393, 248, 39]. A first-crossing
+  estimate, selected at the boundary: it is the stop's reading, not the
+  effect size.
+  - 0 faults, 0 time losses; 15 post-terminal pairs kept outside the
+    sample; the independent PGN recount agrees.
+  - It ran after BAS-S35 kept its baseline, as registered. The run took a
+    fresh dry run with the registered hash
+    (`colosseum_sprt_a1111-gate_20261027_132605.dry-run.json`,
+    `294ba988…`); manifest `e5ac1563…`, run record `04744d02…`, PGN
+    `2025cd99…`.
+- **Verdict (registered rule):** H1, so the repair stays and the
+  fingerprint record updates to `bench 13` 16,092,165.
+- Disposition: **H1, +12.1 ± 9.9; repair kept. CLOSED 2026-10-27.**
+
+#### PREDICTION CALIBRATION — preserve the original prediction above
+
+- **Prediction:** about −2 Elo (−10 to +6); not H0 at about 55%.
+- **Reading:** H1 at +12.1 after 917 pairs, above the predicted range.
+  Missed high, in sign as well as size.
+- **What it teaches:** the prediction priced the doubled tree as a cost and
+  the fail-hard fit of the neighbouring margins as a risk. Both readings
+  treated the extra nodes as waste. They are mostly the donor's own rules
+  (LMR's deeper re-search, the singular double and triple extensions)
+  running at the rate they were designed for, on values that now carry
+  their distance from the window, and a fixed-depth node count does not
+  price what they find. The margins fitted on fail-hard values were not
+  the binding cost; B.3 to B.5 still refit them on this search.

@@ -340,8 +340,6 @@ coordinate) is not a defect; its owner decides. IDs are the Rarog audit's
 
 | Owner | Defects |
 |---|---|
-| A.11.10 | A.11.9's rook tier damped whole by the rule-50 curve, which drifts KR-K into fifty-move draws |
-| A.11.11 | B-19 fail-hard quiescence, which also lets the equal-score tie rule promote refuted moves near the leaves |
 | A.13.1–A.13.4 | F1 a won KPK scaled to a draw by the pawnless scaler; D1 a won queen against two minors scaled to a near draw by the pawnless classifier's endgame units; F3 the PV copy's read past `pv_len`; S11 the tablebase store's stale PV bit (`analysis/code_audit_2026-10-27.md`) |
 | B.3 | B-12 a move stored at fail-low nodes; B-14 correction training refuses decisive results; B-45 the singular margin's range excludes the donor's value; B-109 ablation bit 6 also removes the check extension |
 | B.4 | B-17 the dead SEE clamp |
@@ -1116,7 +1114,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         MSYS2's own git reads this CRLF clone as modified. Configure now looks
         for Git for Windows first and hands the build that git. Under MSYS2
         it picks Git for Windows even with MSYS2's git present.
-- [ ] **A.11** Correctness repairs from the Rarog audit
+- [x] **A.11** Correctness repairs from the Rarog audit
   Added 2026-10-24 by maintainer decision. Each repair is its own engine
   commit with a test that fails on the old code, bench accounting for any
   fingerprint move and CTest on both arms; a repair that changes play is gated
@@ -1452,7 +1450,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         ordinary play), so the rule is re-applied (`d7d2c34`) by its cap
         rule on the maintainer's confirmation; `bench 13` 7,857,713, the
         legacy arm 23,696,970; CTest ON 24/24, OFF 21/21.
-    - [ ] **A.11.10** `[R2]` KR-K conversion: the clock keeps a tier's base
+    - [x] **A.11.10** `[R2]` KR-K conversion: the clock keeps a tier's base
       Added 2026-10-27 by maintainer decision, ahead of fail-soft
       quiescence, whose gate runs against the repaired head. A.11.9 put
       bare-king wins against a queen or rook in tiers (rook 26,100 and up,
@@ -1511,7 +1509,12 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         ceiling) and every other bound holds. The re-run: seed 35002,
         results `tools/results/a1110-gate-r2/`, the same pinned binaries,
         since neither engine changes.
-    - [ ] **A.11.11** `[R2]` Fail-soft quiescence
+      - Closed 2026-10-27: BAS-S35 reached its 1,500-pair cap at −1.3 ±
+        6.7 Elo (3,000 games, LLR −0.59, no faults), and the repair stays
+        by the registered rule on the maintainer's confirmation. It is
+        A.11.11's baseline, so the development fingerprint moves past its
+        8,913,394 to A.11.11's.
+    - [x] **A.11.11** `[R2]` Fail-soft quiescence
       (B-19) Pulled forward from B.4 by maintainer decision 2026-10-26, so
       that B.3 is not fitted around a known defect. Quiescence fails hard:
       a fail-low returns `alpha` (delta pruning and the final return in
@@ -1615,6 +1618,15 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         plies. Gate BAS-S36, `[-5,5]`, capped at 4,000 pairs (quiescence is
         in every game), launcher `tools/run_a1111_gate.ps1`,
         maintainer-run after BAS-S35 keeps the repair.
+      - Closed 2026-10-27: BAS-S36 accepted H1 after BAS-S35 kept its
+        baseline, +12.1 ± 9.9 Elo (1,834 games, LLR +2.95, no faults; a
+        first-crossing estimate), without a refit. The repair stays by the
+        registered rule. The development fingerprint is `bench 13`
+        16,092,165. B.3 to B.5 refit RFP, razoring, aspiration and the
+        margins fail-soft woke (LMR's deeper re-search, the singular double
+        and triple extensions) on this search. Left open: the tie rule's
+        `& 14` (one node in eight) against the donor's `& 15`, kept out of
+        this gate so that it tested one change; no leaf owns it yet.
 - [ ] **A.12** `[M]` Roadmap rules from the audit
   Added 2026-10-24, for the maintainer to decide one by one: Rarog rule 7c's
   amendment of 2026-10-20 (a near-optimum surface may be tuned as one longer
@@ -2831,8 +2843,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.11.10 | GAME_GATE | R2 | KR-K conversion repair; BAS-S35 registered, maintainer-run |
-| A.11.11 | GAME_GATE | R2 | Fail-soft quiescence; BAS-S36 registered, runs after BAS-S35 |
 | A.12 | RESEARCH | M | Roadmap rules for the maintainer to decide |
 | A.13.1 | READY_FOR_IMPLEMENTATION | I1 | Won KPK scores as a win; admitted into the freeze 2026-10-27 |
 | A.13.2 | READY_FOR_IMPLEMENTATION | I1 | Pawnless classifier in the donor's units; admitted into the freeze 2026-10-27 |

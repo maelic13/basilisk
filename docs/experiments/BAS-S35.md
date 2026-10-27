@@ -98,4 +98,27 @@
   nps against 2,620,083. The arms search different trees, so this reads
   tree shape, not a cost.
 
-- Disposition: registered, maintainer-run.
+#### RESULT — append after exposure
+
+- **Cap without a decision (maintainer-run 2026-10-27, second run):**
+  **−1.3 ± 6.7 Elo** (nElo −2.4 ± 12.4), LLR −0.59 in [−2.94, 2.94] at the
+  1,500-pair cap (3,000 games); W/D/L 813/1363/824, pentanomial
+  [35, 292, 862, 271, 40].
+  - 0 faults, 0 time losses; the independent PGN recount agrees.
+  - The run took a fresh dry run with the registered hash
+    (`colosseum_sprt_a1110-gate-r2_20261027_125607.dry-run.json`,
+    `ac2de413…`); manifest `a8320668…`, run record `830b1e54…`, PGN
+    `7952bc4e…`.
+- **Verdict (registered rule):** the cap without a decision, so the repair
+  stays as a correctness fix with no measured harm; the maintainer
+  confirmed on 2026-10-27. The fingerprint record updates to `bench 13`
+  8,913,394, and then to A.11.11's, gated on this repair.
+- Disposition: **cap, −1.3 ± 6.7; repair kept. CLOSED 2026-10-27.**
+
+#### PREDICTION CALIBRATION — preserve the original prediction above
+
+- **Prediction:** about 0 Elo, most likely the cap; not H0 at about 85%.
+- **Reading:** the cap at −1.3, within the interval of 0. As predicted.
+- **What it teaches:** a repair that acts in a third of the games but
+  almost never on their result reads as 0 in games; its evidence is the
+  conversion test, which now guards it.
