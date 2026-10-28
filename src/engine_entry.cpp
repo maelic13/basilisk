@@ -36,8 +36,14 @@ int run_engine(int argc, char* argv[]) {
     load_eval_file_if_set();
 #endif
 
+    // A universal binary's tier names itself: which one runs is the CPU's choice.
+#ifdef BASILISK_UNIVERSAL_TIER
+    uci_write_line(engine_version_info()
+                   + " by " + std::string(engineAuthor) + " (" BASILISK_UNIVERSAL_TIER ")");
+#else
     uci_write_line(engine_version_info()
                    + " by " + std::string(engineAuthor));
+#endif
 
     EngineCommandQueue command_queue;
     std::atomic_bool stop_requested{false};

@@ -6,6 +6,12 @@ endif()
 if(NOT DEFINED PGO_PRESET)
     message(FATAL_ERROR "PGO_PRESET is required")
 endif()
+if(NOT DEFINED PGO_NAME OR PGO_NAME STREQUAL "")
+    set(PGO_NAME "${PGO_PRESET}")
+endif()
+if(NOT DEFINED PGO_UNIVERSAL_TIER OR PGO_UNIVERSAL_TIER STREQUAL "")
+    set(PGO_UNIVERSAL_TIER "OFF")
+endif()
 if(NOT DEFINED PGO_COMP)
     set(PGO_COMP "auto")
 endif()
@@ -53,9 +59,9 @@ if(NOT DEFINED PGO_DIST_ASSET_NAME)
 endif()
 
 set(_build_root "${PGO_SOURCE_DIR}/build")
-set(_gen_dir "${_build_root}/${PGO_PRESET}-pgo-generate")
-set(_use_dir "${_build_root}/${PGO_PRESET}-pgo")
-set(_prof_dir "${_build_root}/${PGO_PRESET}-pgo-profile")
+set(_gen_dir "${_build_root}/${PGO_NAME}-pgo-generate")
+set(_use_dir "${_build_root}/${PGO_NAME}-pgo")
+set(_prof_dir "${_build_root}/${PGO_NAME}-pgo-profile")
 set(_profdata "${_prof_dir}/basilisk.profdata")
 set(_train_input "${_prof_dir}/bench.in")
 set(_train_log "${_prof_dir}/bench.log")
@@ -73,6 +79,7 @@ set(_pgo_configure_args
     -DABLATION=${PGO_ABLATION}
     -DPROFILE_SYMBOLS=${PGO_PROFILE_SYMBOLS}
     -DBASILISK_DEV_ID=${PGO_DEV_ID}
+    -DBASILISK_UNIVERSAL_TIER=${PGO_UNIVERSAL_TIER}
 )
 if(PGO_ARM_OPTION)
     if(NOT PGO_ARM_OPTION MATCHES "^[A-Za-z_][A-Za-z0-9_]*$")

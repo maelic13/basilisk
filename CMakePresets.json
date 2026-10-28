@@ -55,6 +55,17 @@
       }
     },
     {
+      "name": "universal",
+      "displayName": "Universal x86-64",
+      "description": "The universal x86-64 binary: portable, AVX2 and PEXT PGO tiers chosen at start-up. Build target universal. Clang, Windows or Linux.",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "PORTABLE_BUILD": "ON",
+        "BASILISK_UNIVERSAL": "ON"
+      }
+    },
+    {
       "name": "debug",
       "displayName": "Debug",
       "description": "Unoptimised debug build with AddressSanitizer and UBSan (GCC/Clang only).",
@@ -80,6 +91,7 @@
     { "name": "release-pext",   "configurePreset": "release-pext" },
     { "name": "msvc-release-pext", "configurePreset": "msvc-release-pext" },
     { "name": "release-avx2",   "configurePreset": "release-avx2" },
+    { "name": "universal",      "configurePreset": "universal" },
     { "name": "debug",          "configurePreset": "debug" },
     { "name": "relwithdebinfo", "configurePreset": "relwithdebinfo" }
   ]

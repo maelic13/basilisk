@@ -425,6 +425,8 @@ set(BASILISK_PGO_ARM_STATE "OFF" CACHE STRING "Value for BASILISK_PGO_ARM_OPTION
 # or weakening the flag set.
 option(WARNINGS_AS_ERRORS "Treat compiler warnings as errors" ON)
 option(TEXEL "Build Texel trace+tuner target basilisk-texel (sets TEXEL_TRACE; implies BASILISK_TUNE)" OFF)
+option(BASILISK_UNIVERSAL_TIER "Build one tier of the universal x86-64 binary: keep the engine link's LTO objects and name the tier at start-up" OFF)
+option(BASILISK_UNIVERSAL "Configure the universal x86-64 binary: its dispatcher, its three tier builds and the final link (target universal)" OFF)
 set(BASILISK_PGO "OFF" CACHE STRING "Profile-guided optimization phase: OFF, GENERATE, or USE")
 set_property(CACHE BASILISK_PGO PROPERTY STRINGS OFF GENERATE USE)
 set(BASILISK_PGO_PROFILE_FILE "" CACHE FILEPATH "LLVM/Clang .profdata file for BASILISK_PGO=USE")
@@ -677,6 +679,10 @@ endif()
 set(_basilisk_dist_dir "${CMAKE_SOURCE_DIR}/build/dist")
 _basilisk_dist_asset_name(_basilisk_dist_asset_name "")
 _basilisk_dist_asset_name(_basilisk_dist_pgo_asset_name "-pgo")
+# A tier is not an asset: the universal binary is, under the x86-64 name.
+if(BASILISK_UNIVERSAL_TIER)
+    set(_basilisk_dist_pgo_asset_name "")
+endif()
 
 # build/dist holds RELEASE-NAMED artifacts, so only an optimized, non-sanitized
 # build may publish into it. 8.6.2b: this rule previously fired for EVERY
@@ -689,6 +695,7 @@ _basilisk_dist_asset_name(_basilisk_dist_pgo_asset_name "-pgo")
 set(_basilisk_may_publish_dist FALSE)
 if(_basilisk_pgo STREQUAL "OFF"
    AND NOT SANITIZE
+   AND NOT BASILISK_UNIVERSAL_TIER
    AND (CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo"))
     set(_basilisk_may_publish_dist TRUE)
 endif()
@@ -709,7 +716,11 @@ if(PORTABLE_BUILD)
 else()
     set(_basilisk_pgo_portable OFF)
 endif()
-get_filename_component(_basilisk_pgo_preset "${CMAKE_BINARY_DIR}" NAME)
+# The child builds are named after this build directory and configured from
+# the preset of the same name, unless BASILISK_PGO_PRESET names another (a
+# universal binary's tier builds in its own directory from a tier preset).
+get_filename_component(_basilisk_pgo_name "${CMAKE_BINARY_DIR}" NAME)
+set(BASILISK_PGO_PRESET "${_basilisk_pgo_name}" CACHE STRING "Preset the pgo target's child builds are configured from")
 
 # Clang instrumentation profiles are tied to their LLVM toolchain. Asking the
 # selected compiler for its companion tool avoids accidentally merging a
@@ -773,7 +784,9 @@ option(STATIC_RUNTIME "Link the C++ runtime and standard library statically" ${M
 add_custom_target(pgo
     COMMAND "${CMAKE_COMMAND}"
         -DPGO_SOURCE_DIR=${CMAKE_SOURCE_DIR}
-        -DPGO_PRESET=${_basilisk_pgo_preset}
+        -DPGO_PRESET=${BASILISK_PGO_PRESET}
+        -DPGO_NAME=${_basilisk_pgo_name}
+        -DPGO_UNIVERSAL_TIER=${BASILISK_UNIVERSAL_TIER}
         -DPGO_COMP=${COMP}
         -DPGO_COMPILER_ID=${CMAKE_CXX_COMPILER_ID}
         -DPGO_TUNE=${TUNE}
@@ -865,6 +878,111 @@ set_target_properties(basilisk_launcher PROPERTIES
     INTERPROCEDURAL_OPTIMIZATION_RELEASE FALSE
     INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO FALSE
 )
+
+# ---------------------------------------------------------------------------
+# Universal x86-64 binary (analysis/universal_binary_2026-10.md)
+# ---------------------------------------------------------------------------
+# A tier is an ordinary PGO build of one ISA level whose engine link also keeps
+# the objects LTO produced: lld (Windows) writes them beside each input, the
+# gold plugin (Linux) as basilisk.lto.o<N>. cmake/universal-tiers.cmake builds
+# the three tiers and renames every symbol each defines under its tier's name;
+# the dispatcher, built here for the baseline, links them with one baseline
+# Fathom and the runtime. Nothing but the dispatcher runs before a tier is
+# chosen, so no tier object may carry an initialiser (the script checks).
+if(BASILISK_UNIVERSAL_TIER OR BASILISK_UNIVERSAL)
+    if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR MSVC OR APPLE
+       OR NOT CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|amd64")
+        message(FATAL_ERROR "The universal binary is built with Clang for x86-64 Windows or Linux")
+    endif()
+    if(NOT PORTABLE_BUILD)
+        message(FATAL_ERROR "The universal binary's builds need PORTABLE_BUILD=ON: "
+                            "-march=native and a tier chosen at run time contradict each other")
+    endif()
+    foreach(_flavor TUNE DIAGNOSTIC ABLATION TEXEL)
+        if(${_flavor})
+            message(FATAL_ERROR "The universal binary is a Release build; "
+                                "the ${_flavor} flavor stays single-tier")
+        endif()
+    endforeach()
+    if(BASILISK_UNIVERSAL_TIER AND BASILISK_UNIVERSAL)
+        message(FATAL_ERROR "BASILISK_UNIVERSAL_TIER builds one tier; BASILISK_UNIVERSAL links them")
+    endif()
+endif()
+
+if(BASILISK_UNIVERSAL_TIER)
+    if(USE_PEXT)
+        set(_basilisk_tier pext)
+    elseif(USE_AVX2)
+        set(_basilisk_tier avx2)
+    else()
+        set(_basilisk_tier portable)
+    endif()
+    target_compile_definitions(basilisk PRIVATE BASILISK_UNIVERSAL_TIER="${_basilisk_tier}")
+    target_compile_definitions(basilisk_launcher PRIVATE BASILISK_UNIVERSAL_TIER="${_basilisk_tier}")
+    # The instrumented build links without LTO, where the gold plugin is not loaded.
+    if(NOT _basilisk_pgo STREQUAL "GENERATE")
+        if(WIN32)
+            target_link_options(basilisk PRIVATE $<$<CONFIG:Release>:-Wl,--Xlink=-lldsavetemps>)
+        else()
+            target_link_options(basilisk PRIVATE $<$<CONFIG:Release>:-Wl,-plugin-opt=save-temps>)
+        endif()
+    endif()
+endif()
+
+if(BASILISK_UNIVERSAL)
+    if(USE_PEXT OR USE_AVX2)
+        message(FATAL_ERROR "BASILISK_UNIVERSAL is configured for the baseline: "
+                            "the dispatcher and Fathom run on every CPU")
+    endif()
+    if(NOT _basilisk_pgo STREQUAL "OFF")
+        message(FATAL_ERROR "BASILISK_UNIVERSAL links PGO tiers and is configured with BASILISK_PGO=OFF")
+    endif()
+    set(_basilisk_tiers_dir "${CMAKE_BINARY_DIR}/tiers")
+    set(_basilisk_tier_objects "${_basilisk_tiers_dir}/objects.rsp")
+    add_custom_target(universal_tiers
+        COMMAND "${CMAKE_COMMAND}"
+            -DUT_SOURCE_DIR=${CMAKE_SOURCE_DIR}
+            -DUT_NAME=${_basilisk_pgo_name}
+            -DUT_TIERS_DIR=${_basilisk_tiers_dir}
+            -DUT_COMP=${COMP}
+            -DUT_STATIC_RUNTIME=${STATIC_RUNTIME}
+            -DUT_DEV_ID=${BASILISK_DEV_ID}
+            -DUT_NM=${CMAKE_NM}
+            -DUT_OBJCOPY=${CMAKE_OBJCOPY}
+            -DUT_OBJDUMP=${CMAKE_OBJDUMP}
+            -P "${CMAKE_SOURCE_DIR}/cmake/universal-tiers.cmake"
+        BYPRODUCTS "${_basilisk_tier_objects}"
+        COMMENT "Building the universal binary's three PGO tiers"
+        USES_TERMINAL
+        VERBATIM
+    )
+    add_executable(basilisk_universal EXCLUDE_FROM_ALL src/main.cpp)
+    add_dependencies(basilisk_universal universal_tiers)
+    target_include_directories(basilisk_universal PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+    target_compile_definitions(basilisk_universal PRIVATE BASILISK_UNIVERSAL)
+    target_compile_options(basilisk_universal PRIVATE
+        -Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wno-unused-parameter
+        $<$<BOOL:${WARNINGS_AS_ERRORS}>:-Werror> -O2)
+    # The tiers' objects first, then the baseline Fathom they call, then the
+    # runtime: every tier symbol is renamed, so link order decides nothing.
+    target_link_options(basilisk_universal PRIVATE "@${_basilisk_tier_objects}")
+    target_link_libraries(basilisk_universal PRIVATE fathom)
+    if(STATIC_RUNTIME)
+        target_link_options(basilisk_universal PRIVATE -static)
+    endif()
+    set_target_properties(basilisk_universal PROPERTIES
+        OUTPUT_NAME basilisk-universal
+        LINK_DEPENDS "${_basilisk_tier_objects}")
+    add_custom_target(universal
+        COMMAND "${CMAKE_COMMAND}" -E make_directory "${_basilisk_dist_dir}"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+            "$<TARGET_FILE:basilisk_universal>"
+            "${_basilisk_dist_dir}/${_basilisk_dist_pgo_asset_name}"
+        COMMENT "Copying the universal binary to ${_basilisk_dist_dir}/${_basilisk_dist_pgo_asset_name}"
+        VERBATIM
+    )
+    add_dependencies(universal basilisk_universal)
+endif()
 
 # ---------------------------------------------------------------------------
 # Static runtime (default ON on MinGW to avoid libc++.dll / libgcc_s.dll
