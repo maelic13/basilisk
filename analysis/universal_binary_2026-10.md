@@ -2,8 +2,10 @@
 
 - State / class: `RESEARCH`, `R2`; closes A.15.1.
 - Date: 2026-10-28, at `master` `75d7fce` plus A.14.1.
-- Decision needed from the maintainer before A.15.2 reads: the decision rule
-  in §9 as the leaf proposed it, or the amendment recommended there.
+- Decided 2026-10-28: the maintainer chose to build it now (§9's
+  counter-argument). Amendment 1 (§12) records the form that was built,
+  where it departs from §4, and the leaves it was built under (A.15.2 to
+  A.15.5, renumbered in execution order).
 - Inputs: `analysis/code_audit_2026-10-27.md` §4; Rarog's record
   `docs/reference/rarog/analysis/universal_binary_2026-09.md` (a prior, not
   evidence for Basilisk); the Rarog audit items D-24, D-25, D-26, D-72 and
@@ -463,3 +465,70 @@ is to read the CCRL/CEGT build notes once Basilisk is listed.
     `.github/workflows/release.yml`, `tools/diag/verify_isa.py`.
 - Clang attribute documentation on `target`/`target_clones` and IFUNC:
   https://clang.llvm.org/docs/AttributeReference.html.
+
+## 12. Amendment 1 (2026-10-28): the form that was built
+
+Built under A.15.2 on branch `a15-universal-binary`, after probes of the
+LTO objects on both platforms. Five departures from §4, each with its
+evidence.
+
+1. **Every tier symbol renamed, no namespace wrap.** A tier's LTO output
+   internalises what nothing outside it references, but not everything:
+   - on Windows, about 48 libc++ template functions (`std::string`,
+     `std::stringstream`, `to_chars`) and their vtables stay global COMDATs,
+     because the static libc++ references them too;
+   - under ThinLTO, every function one module calls in another is promoted
+     to a global (407 in the Windows pext tier, 271 on Linux).
+
+   Each would be resolved first-wins across the tiers, silently: the §5.1
+   trap. `cmake/universal-tiers.cmake` therefore renames every symbol each
+   tier defines to `__basilisk_<tier>_<name>`, and `run_engine` to
+   `basilisk_<tier>::run_engine`. Only type identities (`_ZTI`, `_ZTS`),
+   which exception matching compares, and section-named data (`.refptr`
+   pointers) stay shared; both are data whose copies are identical. The
+   script fails if anything else stays global.
+   - This makes §4.1's 57-file wrap unnecessary. It also removes D-72's
+     profile trap: each tier trains and links under unchanged names in its
+     own build directory.
+   - Every function in the image then names its tier, so `verify_isa.py
+     --tier universal` attributes code by symbol, not by the linker map of
+     §4.6. That works the same with lld and with GNU ld.
+2. **ThinLTO kept.** §4.4 assumed one full-LTO module. The rename applies
+   across a tier's ThinLTO objects as well (one map per tier, applied to
+   all 23), so the tiers are the same ThinLTO code every measurement builds.
+3. **The tier objects come from the ordinary PGO build.**
+   - lld on Windows keeps the post-LTO objects with
+     `-Wl,--Xlink=-lldsavetemps`; the gold plugin on Linux keeps them with
+     `-Wl,-plugin-opt=save-temps`. No object extraction step and no
+     `objcopy -N main`.
+   - In a tier build the launcher is a bare `main` that calls
+     `run_engine`. The tier's LTO objects bind to anything a native object
+     of the tier's link defines. The first full build failed because the
+     engine had bound `std::string(string_view)` to the launcher's copy,
+     and that launcher is not in the universal link.
+4. **A.15.3's premise, corrected: `tzcnt` and SSE3 stay allowed.**
+   - LLVM emits `tzcnt` (`f3 0f bc`, a rep-prefixed `bsf`) for a count of
+     trailing zeros on the baseline. A CPU without BMI1 runs it as `bsf`.
+     Forbidding it would fail every portable build (380 in the portable
+     tier). The SDE runs on pre-BMI1 models (§4.7) prove the result.
+   - MSYS2 builds its static libc++ for `-march=nocona` (SSE3). Every
+     x86-64 CPU since 2005 has SSE3, so the portable floor is SSE3. SSSE3
+     is not on it: AMD's K10 lacks it.
+   - The portable set forbids SSSE3, SSE4.1, SSE4.2, AVX, BMI1 other than
+     `tzcnt`, BMI2, LZCNT and POPCNT. Checked once with planted `andn`,
+     `pshufb`, `ptest`, `vpxor` and `crc32q`; each fails. The avx2 tier
+     forbids BMI1, BMI2 and LZCNT.
+5. **Measured on the built binaries** (non-PGO-identical probes aside):
+   - Every tier reproduces `bench 13` 19,470,325, with and without
+     `BASILISK_ISA`, on Windows (clang 23.1.4, lld) and on Linux (WSL,
+     clang 19.1.1, GNU ld with the gold plugin, static).
+   - The sizes are 3,513,344 bytes on Windows and 5,140,440 on Linux
+     (static, including glibc and libstdc++).
+   - The universal contract passes on both. Its four regions: shared code
+     clean; the portable tier clean; the avx2 tier with popcnt and AVX2 and
+     no BMI or LZCNT; the pext tier with every family.
+   - Synthetic disassembly with `pext` in the portable region, `popcnt` in
+     shared code or `andn` in the avx2 region fails each time.
+
+The pooled NPS read of §4.7 and the ladder are BAS-P20 (A.15.4). The SDE
+selection matrix and the five assets are A.15.5.

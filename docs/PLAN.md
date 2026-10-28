@@ -1897,7 +1897,9 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
   release cells, `windows-2025`, `windows-11-arm`, `macos-26`; none
   deprecated), so the runners need no label change; the leaves are the
   design, the measurement that decides it, and the hygiene the check
-  found.
+  found. Restructured 2026-10-28 when the maintainer chose to build the
+  binary now: the leaves run in their numbered order, and the ladder read
+  that was A.15.2 is A.15.4, read from the universal builds.
     - [x] **A.15.1** `[R2]` Universal x86-64 binary: design packet
       Write `analysis/universal_binary_2026-10.md` from the audit's §4:
       the Stockfish 19 mechanism (`src/universal/`, the
@@ -1941,15 +1943,22 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         only on evidence of harm from asset choice, otherwise build it
         at G.2. A.15.3's advisory must also cover `pext` on a slow-`pext`
         CPU (A-36).
-    - [ ] **A.15.2** `[V]` The ISA tier ladder measured
-      (D-24) Pooled-PGO NPS of the portable, avx2 and pext tiers on the
-      5950X: four builds per tier, interleaved cycles, a null pair first,
-      each hop read directly rather than chained (`tools/nps_pool.ps1`,
-      `tools/nps_read.ps1`). Priors: Rarog read avx2 +4.59% over base and
-      pext +2.45% over avx2; Basilisk's avx2 tier has no intrinsics, so
-      its ladder may be smaller. Registered before the read with A.15.1's
-      rule; maintainer-run; the result decides whether G.2's build is
-      pulled forward.
+      - 2026-10-28: the maintainer chose to build it now, the packet's
+        counter-argument; no rule is left for the ladder to decide.
+    - [ ] **A.15.2** `[I2]` Universal x86-64 binary: tiers, dispatch, link
+      Added 2026-10-28. The packet's §4 in the form of its amendment 1:
+      each tier is the ordinary PGO build of its preset with the engine
+      link's LTO objects kept (`BASILISK_UNIVERSAL_TIER`), and
+      `cmake/universal-tiers.cmake` renames every symbol a tier defines
+      under the tier's name, so no 57-file namespace wrap. Only type
+      identities (`_ZTI`, `_ZTS`) and `.refptr` data stay shared; the
+      script fails on anything else left global and on any initialiser in
+      a tier object. The baseline dispatcher (`src/main.cpp` under
+      `BASILISK_UNIVERSAL`) links the three tiers with one Fathom and picks
+      pext unless the CPU is AMD family 15h or 17h, then avx2, then
+      portable; `BASILISK_ISA` forces a tier. `verify_isa.py --tier
+      universal` attributes each function by its tier's prefix. Exact
+      fingerprint on every tier, on Windows and on Linux (WSL, Clang 19).
     - [ ] **A.15.3** `[I1]` Tier advisory, ISA contract and toolchain pins
       (D-25, A-36, taken over from D.3.2) `src/main.cpp` prints an
       `info string` on stdout when a lower tier runs on a CPU that could
@@ -1965,6 +1974,24 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       their plan for a baseline `libstdc++.a` after `ubuntu-24.04`
       retires. Exact fingerprint; a release dispatch run proves the
       matrix.
+    - [ ] **A.15.4** `[V]` Universal binary speed and the ISA tier ladder
+      (D-24; was A.15.2, the ladder alone) BAS-P20, registered before any
+      reading: four universal builds and four pext builds, each hop read
+      directly (`tools/nps_pool.ps1`, `tools/nps_read.ps1`). The universal
+      binary against the pext asset under the no-regression form is the
+      gate that keeps it; the pext tier build against the pext asset
+      locates a loss; the ladder avx2/portable, pext/avx2 and pext/portable
+      is read from the universal builds' tier builds, which are the old
+      per-tier assets. Priors: Rarog read avx2 +4.59% over base and pext
+      +2.45% over avx2; the packet's §9 prediction is frozen.
+    - [ ] **A.15.5** `[I1]` Release: one x86-64 asset per OS
+      The release's six x86 cells become two universal cells, Linux and
+      Windows, each building the `universal` preset and checking
+      `verify_isa.py`'s universal contract and every forced tier's
+      `bench 13`; an SDE job runs the packet's selection matrix (§4.7).
+      Nine assets become five. README, CHANGELOG and
+      `docs/release_tiers.md` say which tier a CPU gets and how to force
+      one. A release dispatch run proves the matrix (maintainer).
 - [ ] **A.16** `[I1]` Zero-weight evaluation terms off the hot path
   Added 2026-10-28 (simplification read of the kernel and the evaluator
   against the donor, after A.14.1; the lines are cited here). Terms whose
@@ -3027,8 +3054,10 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.15.2 | RESEARCH | V | The portable/avx2/pext NPS ladder; maintainer-run after registration |
+| A.15.2 | IMPLEMENTED | I2 | Universal binary built; exact fingerprint on every tier, Windows and Linux |
 | A.15.3 | READY_FOR_IMPLEMENTATION | I1 | Tier advisory, verify_isa portable set, Xcode pin, stale ninja step |
+| A.15.4 | READY_FOR_IMPLEMENTATION | V | BAS-P20 registered: the universal binary's hot-path read and the ladder |
+| A.15.5 | READY_FOR_IMPLEMENTATION | I1 | Two universal release cells, the SDE selection matrix, five assets |
 | A.16 | READY_FOR_IMPLEMENTATION | I1 | Zero-weight evaluation compute deleted; exact fingerprint, kept on a pooled NPS read |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |
 | B.4 | RESEARCH | I2 | Contents fixed by B.0 |
