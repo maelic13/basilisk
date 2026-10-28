@@ -352,6 +352,9 @@ target_link_libraries(test_uci_protocol PRIVATE basilisk_engine basilisk_version
 # ---------------------------------------------------------------------------
 add_executable(test_endgames tests/test_endgames.cpp src/parameters.cpp)
 target_link_libraries(test_endgames PRIVATE basilisk_engine)
+target_compile_definitions(test_endgames PRIVATE
+    BASILISK_TEST_SYZYGY_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/syzygy"
+)
 
 include(CTest)
 add_test(NAME test_board        COMMAND test_board)

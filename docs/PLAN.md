@@ -186,6 +186,17 @@ roadmap.
    may run every registered block. A block cut short never counts, and a tune
    is judged by its gate, not by its movement. This is Rarog rule 7c
    (RAR-S75, RAR-S78, RAR-S82–S83, imported as BAS-X31).
+
+   The blocks are the shape for seeds far from their optimum. Where a
+   zero-game curvature sweep and an earlier block read the surface as near
+   its optimum with small gradients, a tune may instead be registered as
+   one longer run with a larger perturbation and a smaller gain ratio: a
+   restarted schedule only re-inflates the random walk near an optimum,
+   while a larger perturbation raises each gradient estimate's signal. The
+   registration states the perturbation, the gain ratio and the resolution
+   they buy; a full step stays the block's step in every movement reading,
+   and a run cut short is not theta. Maintainer decision 2026-10-27, from
+   Rarog's amendment of 2026-10-20 (RAR-S104, RAR-S105; BAS-X36).
 8. **State the measurement layer.** Theory truth, move quality, conversion,
    fixed-node tree shape, NPS and game strength are different units with no
    exchange rate. Counters, node counts, EBF, tactical suites and fit loss
@@ -326,6 +337,8 @@ derivations are in the linked records.
 | Search parameters have one source (the X-macro table) | `src/search_params.h` |
 | Endgame measurement layers (truth, move quality, conversion, strength) | `analysis/endgame_measurement_layers_v1.md`; `DESIGN.md` §4 |
 | Behaviour-neutral change = exact fingerprint plus targeted checks plus pooled NPS | `AGENTS.md` |
+| Diagnostic counters: one table, each counter with its unit and denominator; names and units are the cross-engine contract, extended at the end and never renamed | `src/search_diagnostics.h`; `tools/diag/run_suite.py` |
+| Cross-engine board timings are compared only on the `cross-engine-board-v1` profile and its five-position corpus | `tests/board_performance.cpp` |
 
 ### Known defects
 
@@ -340,12 +353,11 @@ coordinate) is not a defect; its owner decides. IDs are the Rarog audit's
 
 | Owner | Defects |
 |---|---|
-| A.13.1–A.13.4 | F1 a won KPK scaled to a draw by the pawnless scaler; D1 a won queen against two minors scaled to a near draw by the pawnless classifier's endgame units; F3 the PV copy's read past `pv_len`; S11 the tablebase store's stale PV bit (`analysis/code_audit_2026-10-27.md`) |
 | B.3 | B-12 a move stored at fail-low nodes; B-14 correction training refuses decisive results; B-45 the singular margin's range excludes the donor's value; B-109 ablation bit 6 also removes the check extension |
 | B.4 | B-17 the dead SEE clamp |
 | B.5 (with D.1) | the fail-high stop's hole: a window that never returns is never checked (A-47; `analysis/b5_failhigh_stop_2026-10-25.md` §2.3) |
 | C.2.1–C.2.2 | C-1 the tuner's missing scalers; C-2 `--verify` cannot fail; C-8 the extractor's de-dup ignores the clock; C-26 to C-30 the data pipeline (book, sampler, split, labels, row identity); C-49 K refitted per run |
-| C.3–C.7 | C-10 outpost ranks; C-11 a rear doubled passer scored as a passer; C-12 "opposed" read over the whole file; C-13 own-colour king blockers only; the pawnless scaler's near-draw factor, 4/64 where the donor gives 14/64 (found with A.11.7) |
+| C.3–C.7 | C-10 outpost ranks; C-11 a rear doubled passer scored as a passer; C-12 "opposed" read over the whole file; C-13 own-colour king blockers only |
 | D.1, D.4 | A-46 reserve arithmetic; A-57 cold table reads on the clock; A-58 and A-59 tablebase root ranking |
 | D.2 | BAS-C05 the TT key and payload published separately |
 | D.3.1 | A-2 and A-3 SEE's created pins and promotion recaptures (BAS-C09) |
@@ -1632,7 +1644,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         unchecked. A scratch `& 15` build read `bench 13`
         13,430,303 and WAC 180 against 182; it is not the donor's form and
         is not gated.
-- [ ] **A.12** `[M]` Roadmap rules from the audit
+- [x] **A.12** `[M]` Roadmap rules from the audit
   Added 2026-10-24, for the maintainer to decide one by one: Rarog rule 7c's
   amendment of 2026-10-20 (a near-optimum surface may be tuned as one longer
   run with a larger perturbation and a smaller gain ratio); the standing
@@ -1642,7 +1654,20 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
   and whether `agents/research.md`'s snapshot-only rule for reading Rarog gets
   a standing exception for audits the maintainer asks for (waived for the
   2026-10-24 audit).
-- [ ] **A.13** Correctness repairs from the code audit
+  - Decided 2026-10-27 by the maintainer:
+    - Rule 7c gains the single longer run as an opt-in for a surface read
+      as near its optimum; blocks stay the default. Rarog's evidence,
+      read from its live repository under the exception below (Rarog
+      `ec6f5b5`), is BAS-X36.
+    - *Standing contracts* gains the diagnostic counters' units and the
+      cross-engine board benchmark's profile, both already true in code.
+      The allocation guard enters with B.7.1 and the Texel data contract
+      with C.2.1; both leaves now say so. Board footprint assertions are
+      not adopted.
+    - `agents/research.md`'s snapshot-only rule has a standing exception:
+      an audit or import the maintainer asks for may read Rarog's live
+      repository, citing its commit.
+- [x] **A.13** Correctness repairs from the code audit
   Added 2026-10-27 from the audit of the engine's crucial paths
   (`analysis/code_audit_2026-10-27.md`; its items are F1 and F3, and
   §6's D1 and S11 from the second pass). The two evaluation repairs,
@@ -1655,7 +1680,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
   registered `[-5,5]` repair SPRT when play changes unless the leaf
   argues none is owed. The legacy kernel is deleted (B.8.1), so CTest has
   one arm.
-    - [ ] **A.13.1** `[I1]` Won KPK scores as a win
+    - [x] **A.13.1** `[I1]` Won KPK scores as a win
       (F1) `apply_endgame` keeps the tapered score of a KPK the bitbase
       calls won (`eval.cpp:753`); when that score favours the bare king,
       the pawnless scaler takes the bare king as the strong side (`:833`,
@@ -1705,7 +1730,25 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       freeze (maintainer decision 2026-10-27, after §6.7's games read);
       bench accounting (the bench suite's pawn ending can reach KPK),
       and the repair SPRT if the fingerprint moves.
-    - [ ] **A.13.2** `[I1]` A won queen against two minors is not scaled to a draw
+      - Implemented 2026-10-27 (`6e39087`), as specified. The test
+        `test_endgames`' KPK section, over the bundled `KPvK.rtbw` in its own
+        temporary directory, counts two failures apart: the wrong sign
+        (2,022 on the old code, the audit's number) and a decided position
+        below a known win (443,106 on the old code: the tapered score of
+        about 100 to 900). Both are 0 on the repair, in 1.1 s.
+      - Qualified: `bench 13` 19,108,490 (from 16,092,165, +18.7%; 38 of
+        the 40 positions move through KPK in deep lines; position 39's
+        lost score for Black moves from −30,837 to −8,165); CTest 24/24;
+        the conversion floors and WAC 182 unchanged.
+      - Exposure: 189 of 4,864 recent gate games (3.9%) reach KPK. It
+        changes play, so it owes the repair gate: BAS-S37, `[-5,5]`,
+        capped at 2,000 pairs, launcher `tools/run_a1131_gate.ps1`,
+        maintainer-run.
+      - Closed 2026-10-27: BAS-S37 reached its 2,000-pair cap at +2.3 ± 5.7
+        Elo (4,000 games, LLR +1.42, no faults), and the repair stays by the
+        registered rule on the maintainer's confirmation. The development
+        fingerprint is `bench 13` 19,108,490.
+    - [x] **A.13.2** `[I1]` A won queen against two minors is not scaled to a draw
       (§6 D1) The pawnless scaler's classifier compares non-pawn material
       in `EG_MAT` units (`eval.cpp:833-835`: Q 950, B 330, N 320), so a
       queen against bishop and knight is "ahead by at most a minor"
@@ -1737,7 +1780,31 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       accounting (expect no move unless a bench position reaches a
       pawnless ending), and the repair SPRT if the fingerprint moves;
       the occurrence that matters is search without tablebases (C-147).
-    - [ ] **A.13.3** `[I1]` PV copy reads past the per-ply length array
+      - The maintainer admitted the near-draw factor with it (2026-10-27),
+        so the Known-defects row C.3–C.7 held for it closes here.
+      - Implemented 2026-10-27 (`1375dff`) in the donor's form: the
+        predicate `pawnless_scale` in `eval.h` (the shape of
+        `is_knnk_draw`, so the tuner can mirror it at C.2.1) counts
+        material in the donor's middlegame values for this rule alone and
+        returns 0, 4 or 14, or 64 where the rule does not apply; the
+        evaluator calls it. The evaluation trace has no scale factor, so
+        the truth table reads the predicate the evaluator calls rather
+        than a new trace field: KQ-KBN, KQ-KBB, KQ-KNN and KQ-KR unscaled,
+        KR-KB 4, KB-KN 0, KRB-KR, KRN-KR and KQ-KRB 14. The three
+        queen-against-two-minors FENs are served above +150 for the queen
+        at depth 1 (+354, +458, +272); the old scaler fails all three
+        (about +20).
+      - Qualified: `bench 13` 19,470,325 (from 19,108,490, +1.9%); CTest
+        24/24; the conversion floors and WAC 182 unchanged.
+      - Exposure: up to 606 of 8,864 recent gate games (6.8%, transient
+        positions included). It changes play, so it owes the repair gate:
+        BAS-S38, `[-5,5]`, capped at 4,000 pairs, launcher
+        `tools/run_a1132_gate.ps1`, maintainer-run.
+      - Closed 2026-10-27: BAS-S38 reached its 4,000-pair cap at +0.3 ± 4.0
+        Elo (8,000 games, LLR +0.33, no faults), and the repair stays by the
+        registered rule on the maintainer's confirmation. The development
+        fingerprint is `bench 13` 19,470,325.
+    - [x] **A.13.3** `[I1]` PV copy reads past the per-ply length array
       (F3) At `ply == MAX_PLY - 1` a move that raises alpha reads
       `state_.pv_len[ply + 1]` (`search_kernel_core.cpp:1272`), one past
       `int pv_len[MAX_PLY]` (`search_worker.h:135`); the value is clamped
@@ -1746,7 +1813,15 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       exact fingerprint on both arms; no gate. No fixed-depth test
       reaches ply 127 without exposing `negamax`, so the leaf records
       that exemption and the sanitizer CTest job stands for the proof.
-    - [ ] **A.13.4** `[I1]` The tablebase store carries a stale PV bit
+      - Closed 2026-10-27 (`c23eefa`): the copy is guarded rather than the
+        array widened, since a child at `MAX_PLY` returns before it sets a
+        length and so has no entry to read; at `ply == MAX_PLY - 1` the
+        guard yields `MAX_PLY`, the value the clamp gave, so the copy
+        loop is empty as before. Release PEXT `bench 13` 19,470,325,
+        exact (one arm since B.8.1); CTest 24/24. Exempt from a focused
+        test as registered: no fixed-depth search reaches ply 127; the
+        sanitizer CTest job runs on the PR.
+    - [x] **A.13.4** `[I1]` The tablebase store carries a stale PV bit
       (§6 S11) The in-search WDL probe (`search_kernel_core.cpp:356-375`)
       runs before the TT probe, and its store at `:371` passes
       `ss->tt_pv`, which the node assigns only at `:455-457`: the stored
@@ -1761,6 +1836,27 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       stores whose bit differs from the node's `tt_pv` (zero after), and
       a re-read of A.8.15's tablebase-enabled gate at its registered
       size, since the probe population changes.
+      - Implemented 2026-10-27 (`0c0571a`): the probe block, unchanged,
+        runs after the early TT cutoff and before the eval-difference
+        training, the donor's Step 7. It now reads the node's depth after
+        the check extension and the hindsight adjustment, as the donor's
+        does after its Step 5, so an in-check node entered at depth 0 is
+        probed at depth 1; the static eval runs before a tablebase return.
+      - The counter `tb_store_stale_pv` (diagnostic builds; counter 83):
+        on six 7–8-man endgames at depth 18 with 3–6-man tables, 2,901 of
+        54,443 stores on the old order (5.3%), 0 of 16,291 on the
+        candidate; the tablebase reads fall by 70% because a cut node no
+        longer probes.
+      - Qualified: `bench 13` 19,470,325, exact; CTest 24/24, the
+        tablebase fixtures included.
+      - Gate: BAS-S39, A.8.15's conditions (`[-5,5]` at `10+0.1`, tables on
+        both sides, concurrency 7, cap 4,000 pairs), launcher
+        `tools/run_a1134_tb_gate.ps1`, maintainer-run.
+      - Closed 2026-10-28: BAS-S39 reached its 4,000-pair cap at +0.3 ± 3.2
+        Elo (8,000 games, LLR +0.48, no faults), and the repair stays by the
+        registered rule on the maintainer's confirmation. 2,285 of 2,286
+        clean tablebase wins were converted; the miss is the baseline's,
+        A-58 (D.4). The fingerprint is unchanged at 19,470,325.
 - [ ] **A.14** Simplifications from the code audit
   Added 2026-10-27 (`analysis/code_audit_2026-10-27.md` §3, from a
   mechanical census of `00809cc`). Behaviour-neutral: exact fingerprint,
@@ -2743,7 +2839,8 @@ rejections stop B.
       It asserts that allocations grow per iteration, never per node, while
       the node count grows by at least an order of magnitude. A planted
       per-node allocation must fail it, checked once and reverted. No engine
-      change. The snapshot's `tests/allocation_guard.rs` is the model.
+      change. The snapshot's `tests/allocation_guard.rs` is the model. The
+      leaf adds the guard to *Standing contracts* (A.12).
       Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`;
       IDs are its items):
       - Beside the counting allocator, a disassembly search for `memcpy` and
@@ -2848,11 +2945,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.12 | RESEARCH | M | Roadmap rules for the maintainer to decide |
-| A.13.1 | READY_FOR_IMPLEMENTATION | I1 | Won KPK scores as a win; admitted into the freeze 2026-10-27 |
-| A.13.2 | READY_FOR_IMPLEMENTATION | I1 | Pawnless classifier in the donor's units; admitted into the freeze 2026-10-27 |
-| A.13.3 | READY_FOR_IMPLEMENTATION | I1 | PV copy's read past `pv_len`; exact fingerprint |
-| A.13.4 | READY_FOR_IMPLEMENTATION | I1 | Tablebase probe after the TT cutoff; exact fingerprint, tablebase gate re-read |
 | A.14.1 | READY_FOR_IMPLEMENTATION | I1 | Score bands defined once in constants.h; exact fingerprint |
 | A.15.1 | RESEARCH | R2 | Universal binary design packet; the decision rule frozen before A.15.2 |
 | A.15.2 | RESEARCH | V | The portable/avx2/pext NPS ladder; maintainer-run after registration |
@@ -2986,7 +3078,8 @@ has lost games in both engines (BAS-X02).
 - [ ] **C.2** Fit pipeline, corpus and label contract
   Fit pipeline, corpus and label contract (archived 8.1–8.8).
     - [ ] **C.2.1** `[I1]` Fit-tooling contract and Texel handbook
-      Fit-tooling contract (archived 8.1.a–h).
+      Fit-tooling contract (archived 8.1.a–h). The leaf adds the Texel data
+      contract it writes to *Standing contracts* (A.12).
       - K is fitted once and frozen across stages and arms.
       - Initial vectors are complete and explicit, and B.10's PST
         orientation test passes on them before any fit reads them.
@@ -3545,6 +3638,9 @@ has lost games in both engines (BAS-X02).
   are its items):
   - Cold tablebase reads at the root on the clock (A-57); the root ranking
     ignores repetitions already in the game (A-58); DTZ ranking (A-59).
+  - A-58 has cost a game: BAS-S39's game 4965 (`tools/results/a1134-tb-gate/`)
+    drew a clean tablebase win by threefold repetition, the root reporting
+    the win at every move; 1 of 2,286 clean wins in that run.
   - Code audit 2026-10-27 (S11): A.13.4 moves the in-search WDL probe
     after the TT probe and cutoff, the donor's order; probe depth and
     limits stay here.

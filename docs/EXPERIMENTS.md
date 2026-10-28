@@ -17,7 +17,8 @@ resolves every retired number to its archived roadmap and maps retired open
 leaves to their current identifiers. Rows from BAS-X30 on cite the lettered
 roadmap. Rarog identifiers (`RAR-*`) and Rarog paths cited anywhere in this
 ledger resolve in the pinned snapshot `docs/reference/rarog/` (Rarog
-`015bccae`), or for BAS-X35 in `docs/reference/rarog-2026-10-06/`;
+`015bccae`), or for BAS-X35 in `docs/reference/rarog-2026-10-06/`, or for
+BAS-X36 in Rarog's live repository at `ec6f5b5`, read under A.12's exception;
 `docs/reference/README.md` says how. Do not rewrite measured records merely because the roadmap was
 reordered; the retry map in section 9 is live routing and carries current
 destinations.
@@ -505,6 +506,12 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S36](experiments/BAS-S36.md) — A.11.11: fail-soft quiescence in Stockfish's form, `[-5,5]` — H1, +12.1 ± 9.9; repair kept
 
+- [BAS-S37](experiments/BAS-S37.md) — A.13.1: a won KPK scores as a known win, `[-5,5]` — cap, +2.3 ± 5.7; repair kept
+
+- [BAS-S38](experiments/BAS-S38.md) — A.13.2: the pawnless scaler in Stockfish's form, `[-5,5]` — cap, +0.3 ± 4.0; repair kept
+
+- [BAS-S39](experiments/BAS-S39.md) — A.13.4: the tablebase probe after the TT cutoff, `[-5,5]` at `10+0.1` with tables — cap, +0.3 ± 3.2; repair kept
+
 | ID | Title | Disposition |
 |---|---|---|
 | [BAS-S17](experiments/BAS-S17.md) | Razoring depth reach in Elo (B.0.1, maintainer). | +2.4 ± 9.9; interval holds 0, the cluster decides the cap |
@@ -687,6 +694,7 @@ evaluator is weaker than Basilisk's, and its verdicts do not transfer
 | [BAS-X33](experiments/BAS-X33.md) | What Rarog's B.0 found by measuring before designing | import |
 | [BAS-X34](experiments/BAS-X34.md) | Rarog's measurements of Basilisk and of the target pool | import |
 | [BAS-X35](experiments/BAS-X35.md) | Rarog 2.4.0→2.5.0, the final import | import |
+| [BAS-X36](experiments/BAS-X36.md) | One longer tune near an optimum (rule 7c's amendment) | import |
 
 ## 8b. Cross-engine evidence imported from Manta
 

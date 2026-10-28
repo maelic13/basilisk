@@ -23,6 +23,8 @@
 #include "search.h"
 #include "tt.h"
 #include "zobrist.h"
+#include "syzygy.h"
+#include "syzygy_fixture.h"
 #include "test_harness.h"
 
 // 6.4.c: eval.h carries the mate-band floor so that eval does not depend on
@@ -537,6 +539,129 @@ static void test_kbnk_keeps_both_minors() {
 }
 
 // ---------------------------------------------------------------------------
+// KPK truth: every legal KPK position against the KPvK Syzygy table.
+//
+// The bitbase decides the verdict, but a won KPK used to keep its tapered
+// score, and where that score favoured the bare king the pawnless scaler took
+// the bare king for the strong side and scaled the win to 0: 2,022 of the
+// 662,704 positions, mostly a second-rank pawn with the lone king beside it.
+// A won position must score at least a known win for the pawn's side, a drawn
+// one exactly 0. The evaluation is read without the rule-50 damping, as the
+// search stores it; every FEN has a clock of 0.
+// ---------------------------------------------------------------------------
+static constexpr int KNOWN_WIN_SCORE = 10000;   // eval.cpp's KNOWN_WIN
+static constexpr int KPK_LEGAL_POSITIONS = 662704;
+
+static void test_kpk_matches_syzygy() {
+    begin_section("KPK: every legal position scores as Syzygy's verdict");
+    EXPECT(Syzygy::init(kpk_fixture_path().string()));
+    const auto ev = std::make_unique<Evaluator>();   // too large for the stack
+    int legal = 0, unprobed = 0, wrong_sign = 0, below_known_win = 0;
+    for (int strong = 0; strong < 2; ++strong) {
+        for (int pawn = 8; pawn < 56; ++pawn) {
+            for (int sk = 0; sk < 64; ++sk) {
+                for (int wk = 0; wk < 64; ++wk) {
+                    if (sk == pawn || wk == pawn || sk == wk)
+                        continue;
+                    for (int stm = 0; stm < 2; ++stm) {
+                        char grid[64] = {};
+                        grid[pawn] = strong == 0 ? 'P' : 'p';
+                        grid[sk] = strong == 0 ? 'K' : 'k';
+                        grid[wk] = strong == 0 ? 'k' : 'K';
+                        std::string fen;
+                        for (int r = 7; r >= 0; --r) {
+                            int run = 0;
+                            for (int f = 0; f < 8; ++f) {
+                                const char c = grid[r * 8 + f];
+                                if (!c) { ++run; continue; }
+                                if (run) { fen += char('0' + run); run = 0; }
+                                fen += c;
+                            }
+                            if (run) fen += char('0' + run);
+                            if (r) fen += '/';
+                        }
+                        fen += stm == 0 ? " w - - 0 1" : " b - - 0 1";
+                        Board b;
+                        if (!b.try_set_fen(fen, /*validate_legal_position=*/true))
+                            continue;
+                        ++legal;
+                        const auto wdl = Syzygy::probe_wdl(b, 7, true);
+                        if (!wdl) {
+                            ++unprobed;
+                            continue;
+                        }
+                        const int score = ev->evaluate_undamped(b);   // side to move's view
+                        const int verdict = int(*wdl);
+                        const int sign = (score > 0) - (score < 0);
+                        if (sign != (verdict > 0) - (verdict < 0)) {
+                            if (++wrong_sign <= 5)
+                                std::fprintf(stderr, "  KPK %s: WDL %d, evaluation %d\n",
+                                             fen.c_str(), verdict, score);
+                        } else if (verdict != 0 && std::abs(score) < KNOWN_WIN_SCORE) {
+                            ++below_known_win;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Syzygy::clear();
+    std::printf("%d legal, %d unprobed, %d of the wrong sign, %d decided below a known win ",
+                legal, unprobed, wrong_sign, below_known_win);
+    EXPECT(legal == KPK_LEGAL_POSITIONS);
+    EXPECT(unprobed == 0);
+    EXPECT(wrong_sign == 0);
+    EXPECT(below_known_win == 0);
+    end_section();
+}
+
+// ---------------------------------------------------------------------------
+// The pawnless scaler's truth table, in Stockfish's form (material.cpp): a
+// side without pawns at most a minor piece ahead, counted in the donor's
+// middlegame values, cannot force mate. Counted in the endgame table instead,
+// a queen against two minors (950 - 650 <= 330) was "a minor ahead" and
+// scaled toward a draw, though Syzygy wins 71-83% of those classes for the
+// queen; and the near-draw factor was 4 against any material, where the
+// donor gives 14 against more than a bishop.
+// ---------------------------------------------------------------------------
+static void test_pawnless_scale_truth_table() {
+    struct Row { const char* fen; int scale; const char* note; };
+    // White is the side the scaler asks about; Black to move throughout.
+    static const Row ROWS[] = {
+        { "4k3/8/8/2bn4/8/8/8/3QK3 b - - 0 1", 64, "KQ-KBN unscaled" },
+        { "4k3/8/8/2bb4/8/8/8/3QK3 b - - 0 1", 64, "KQ-KBB unscaled" },
+        { "4k3/8/8/2nn4/8/8/8/3QK3 b - - 0 1", 64, "KQ-KNN unscaled" },
+        { "4k3/8/8/2r5/8/8/8/3QK3 b - - 0 1",  64, "KQ-KR unscaled" },
+        { "4k3/8/8/2b5/8/8/8/3RK3 b - - 0 1",   4, "KR-KB near draw, 4" },
+        { "4k3/8/8/2n5/8/8/8/3BK3 b - - 0 1",   0, "KB-KN dead draw" },
+        { "4k3/8/8/2r5/8/8/8/2BRK3 b - - 0 1", 14, "KRB-KR near draw, 14" },
+        { "4k3/8/8/2r5/8/8/8/2NRK3 b - - 0 1", 14, "KRN-KR near draw, 14" },
+        { "4k3/8/8/2rb4/8/8/8/3QK3 b - - 0 1", 14, "KQ-KRB near draw, 14" },
+    };
+    for (const Row& row : ROWS) {
+        begin_section(row.note);
+        Board b;
+        b.set_fen(row.fen);
+        EXPECT_EQ(pawnless_scale(b, WHITE), row.scale);
+        end_section();
+    }
+
+    // Served from White's side at depth 1: the queen against two minors read
+    // +21 and +27 under the old classifier, scaled by 4/64, against +697 for
+    // KQ-KB; unscaled they read +272 to +458. The bound sits between a
+    // scaled and an unscaled score.
+    static const char* QUEEN_WINS[] = {
+        "8/8/3nb3/4k3/8/8/8/K6Q b - - 1 1",
+        "8/8/3nn3/4k3/8/8/8/K6Q b - - 1 1",
+        "8/8/3bb3/4k3/8/8/8/K6Q b - - 1 1",
+    };
+    begin_section("KQ against two minors is served as the queen's win");
+    for (const char* fen : QUEEN_WINS)
+        EXPECT(-search_score(fen, 1) > 150);
+    end_section();
+}
+
+// ---------------------------------------------------------------------------
 
 int main(int argc, char** argv) {
     init_bitboards();
@@ -574,6 +699,8 @@ int main(int argc, char** argv) {
     test_kbnk_corner_preference();
     test_kbbk_drive_gradient();
     test_kbnk_keeps_both_minors();
+    test_kpk_matches_syzygy();
+    test_pawnless_scale_truth_table();
 
     return harness_summary();
 }

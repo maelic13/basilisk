@@ -125,8 +125,32 @@ and next step).
   window it was given instead of the position's own value, so a refuted
   move could tie the best one, and the rules that compare a value with a
   margin rarely fired. It now returns the position's value, as Stockfish
-  does: **+12.1 ± 9.9 Elo** at `3+0.03` (1,834 games). `bench` now reports
-  16,092,165 nodes.
+  does: **+12.1 ± 9.9 Elo** at `3+0.03` (1,834 games).
+
+- **A won king-and-pawn ending scored as a draw.** In a few king-and-pawn
+  against king positions the engine knew were won (mostly a pawn on its
+  second rank with the defending king beside it), the score favoured the
+  defender and was then cut to a draw. A won king-and-pawn ending now scores
+  as a clear win, as in Stockfish; every one of the 662,704 such positions
+  now agrees with the tablebase. Measured at **+2.3 ± 5.7 Elo** at
+  `3+0.03` (4,000 games).
+
+- **A won queen against two minor pieces scored as a draw.** With no pawns
+  left, the engine treated a queen against two minor pieces as at most a
+  minor piece ahead and cut its score to a sixteenth, though the queen wins
+  most of these endings. It now counts material as Stockfish does for this
+  rule, so the queen keeps its winning score, and a rook-or-better ending
+  against more than a bishop is a near draw rather than almost dead.
+  Measured at **+0.3 ± 4.0 Elo** at `3+0.03` (8,000 games). `bench` now
+  reports 19,470,325 nodes.
+
+- **Tablebase probes in search after the hash-table check.** With
+  tablebases configured, the search read the tables before its hash table,
+  so a position the table already answered still paid a tablebase read,
+  and the stored result carried a flag left by another position. It now
+  probes after the hash table, as Stockfish does, which removes most of
+  those reads. Measured at **+0.3 ± 3.2 Elo** at `10+0.1` with tablebases
+  (8,000 games).
 
 ---
 

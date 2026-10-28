@@ -3,6 +3,7 @@
 # content (a file or patch hash), lost (a Basilisk commit lost before citations
 # had to stay reachable; the citing record carries its recipe instead).
 9587eeeb	external	Stockfish: the classical (HCE-era) donor and oracle search
+ec6f5b5	external	Rarog: the live head read for BAS-X36 under A.12's exception
 edb0d9db	external	Stockfish: the sf_19 release tag, the modern donor
 0a215d6c	external	Stockfish: the superseded default donor pin
 59aae690	external	Stockfish: a local checkout compared with sf_19
