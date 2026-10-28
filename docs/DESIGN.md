@@ -69,10 +69,10 @@ line names where it lives.
   bitboard — recompute what you need from the board.
 
 ### Mate scores
-- `MATE_SCORE = 32000`, `MAX_PLY = 128` (`src/search.h`), **duplicated** in
-  `src/tt.h`. They must agree; `tests/test_endgames.cpp` static-asserts
-  `KBNK_STATIC_MATE_FLOOR == MATE_SCORE - MAX_PLY`. Changing one without the
-  other is a silent corruption.
+- `MATE_SCORE = 32000`, `MAX_PLY = 128` and everything built from them -- the
+  tablebase band, `INF_SCORE`, `VALUE_NONE`, `KBNK_STATIC_MATE_FLOOR` -- are
+  defined **once**, in `src/constants.h`, which the search, the TT and the
+  evaluation all read. Keep it so: a second copy drifts silently.
 - The mate band is `|score| >= MATE_SCORE - MAX_PLY` = **31872**. Any static
   score must stay strictly below it, or the search reads technique as mate.
   `KNOWN_WIN = 10000` is the "won, mate is technique" magnitude.

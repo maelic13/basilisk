@@ -1857,7 +1857,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         registered rule on the maintainer's confirmation. 2,285 of 2,286
         clean tablebase wins were converted; the miss is the baseline's,
         A-58 (D.4). The fingerprint is unchanged at 19,470,325.
-- [ ] **A.14** Simplifications from the code audit
+- [x] **A.14** Simplifications from the code audit
   Added 2026-10-27 (`analysis/code_audit_2026-10-27.md` §3, from a
   mechanical census of `00809cc`). Behaviour-neutral: exact fingerprint,
   CTest, and a pooled NPS read only where a hot path is touched (the
@@ -1867,7 +1867,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
   smaller cleanups it found are folded into B.8, D.3.1 and D.3.2. Its
   case for deleting the legacy kernel now was declined the same morning
   and then taken (maintainer decision 2026-10-27): B.8.1 deleted it.
-    - [ ] **A.14.1** `[I1]` One definition of the score bands
+    - [x] **A.14.1** `[I1]` One definition of the score bands
       `MATE_SCORE` and `MAX_PLY` are defined in `tt.h:106-107` and
       `search_types.h:18-19`, and `KBNK_STATIC_MATE_FLOOR` is a literal in
       `eval.h`, held equal by static asserts in `search_worker.cpp:28` and
@@ -1878,6 +1878,14 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       `VALUE_NONE`/`NO_SCORE` there, derive the KBNK floor from them,
       delete the duplicates and the asserts that only pinned them, and
       update DESIGN §3's sentence. Exact fingerprint on both arms; CTest.
+      - Closed 2026-10-28: `constants.h` defines `MAX_PLY`, `MATE_SCORE`,
+        `INF_SCORE` and `VALUE_NONE`, and the tablebase band is derived
+        from them; the table's `INF_EVAL`/`NO_SCORE` became `INF_SCORE`/
+        `VALUE_NONE`, its `DECISIVE` and `TB_VALUE` are the band's names,
+        `KBNK_STATIC_MATE_FLOOR` is `MATE_SCORE - MAX_PLY`, and the three
+        pinning asserts are gone. `bench 13` 19,470,325 on the release,
+        tune, diagnostic and ablation builds; CTest 24/24 release, 22/22
+        diagnostic and tune.
 - [ ] **A.15** Universal binaries and the release runners
   Added 2026-10-27 at the maintainer's request
   (`analysis/code_audit_2026-10-27.md` §4). Stockfish 19 (2026-09-05)
@@ -2945,7 +2953,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.14.1 | READY_FOR_IMPLEMENTATION | I1 | Score bands defined once in constants.h; exact fingerprint |
 | A.15.1 | RESEARCH | R2 | Universal binary design packet; the decision rule frozen before A.15.2 |
 | A.15.2 | RESEARCH | V | The portable/avx2/pext NPS ladder; maintainer-run after registration |
 | A.15.3 | READY_FOR_IMPLEMENTATION | I1 | Tier advisory, verify_isa portable set, Xcode pin, stale ninja step |

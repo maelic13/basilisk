@@ -34,7 +34,7 @@ generations change. These are maintainer judgments, not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **A.14.1** `[I1]` One definition of the score bands — Claude Sonnet 5 — Medium
+**Next step:** **A.15.1** `[R2]` Universal x86-64 binary: design packet — Claude Opus 5 — High
 
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
@@ -97,8 +97,8 @@ generations change. These are maintainer judgments, not measured rankings.
     - [x] **A.13.2** `[I1]` A won queen against two minors is not scaled to a draw
     - [x] **A.13.3** `[I1]` PV copy reads past the per-ply length array
     - [x] **A.13.4** `[I1]` The tablebase store carries a stale PV bit
-- [ ] **A.14** Simplifications from the code audit
-    - [ ] **A.14.1** `[I1]` One definition of the score bands
+- [x] **A.14** Simplifications from the code audit
+    - [x] **A.14.1** `[I1]` One definition of the score bands
 - [ ] **A.15** Universal binaries and the release runners
     - [ ] **A.15.1** `[R2]` Universal x86-64 binary: design packet
     - [ ] **A.15.2** `[V]` The ISA tier ladder measured
