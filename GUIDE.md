@@ -34,7 +34,7 @@ generations change. These are maintainer judgments, not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **A.13.4** `[I1]` The tablebase store carries a stale PV bit — Claude Sonnet 5 — Medium
+**Next step:** **A.14.1** `[I1]` One definition of the score bands — Claude Sonnet 5 — Medium
 
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
@@ -92,11 +92,11 @@ generations change. These are maintainer judgments, not measured rankings.
     - [x] **A.11.10** `[R2]` KR-K conversion: the clock keeps a tier's base
     - [x] **A.11.11** `[R2]` Fail-soft quiescence
 - [x] **A.12** `[M]` Roadmap rules from the audit
-- [ ] **A.13** Correctness repairs from the code audit
+- [x] **A.13** Correctness repairs from the code audit
     - [x] **A.13.1** `[I1]` Won KPK scores as a win
     - [x] **A.13.2** `[I1]` A won queen against two minors is not scaled to a draw
     - [x] **A.13.3** `[I1]` PV copy reads past the per-ply length array
-    - [ ] **A.13.4** `[I1]` The tablebase store carries a stale PV bit
+    - [x] **A.13.4** `[I1]` The tablebase store carries a stale PV bit
 - [ ] **A.14** Simplifications from the code audit
     - [ ] **A.14.1** `[I1]` One definition of the score bands
 - [ ] **A.15** Universal binaries and the release runners

@@ -82,4 +82,36 @@
   six positions above, 2,901 on the old order (a measurement arm of
   `128f6b2` with the counter only), 0 on the candidate.
 
-- Disposition: registered, maintainer-run.
+#### RESULT — append after exposure
+
+- **Cap without a decision (maintainer-run 2026-10-27/28):** **+0.3 ± 3.2
+  Elo** (nElo +0.7 ± 7.6), LLR +0.48 in [−2.94, 2.94] at the 4,000-pair cap
+  (8,000 games); W/D/L 1960/4087/1953, pentanomial [21, 607, 2746, 596, 30].
+  - 0 faults, 0 time losses; the independent PGN recount agrees.
+  - The run took a fresh dry run with the registered hash
+    (`colosseum_sprt_a1134-tb-gate_20261027_223046.dry-run.json`,
+    `231b0079…`); manifest `ddd31fcb…`, run record `5fc93d87…`, PGN
+    `e392f000…`.
+- **Conversion** (`tools/diag/tb_gate_audit.py conversion`): 2,286 games
+  reached a clean tablebase win, 2,285 were converted. The one miss is the
+  baseline's (game 4965, Black: rook, knight and pawn against a queen,
+  clean from move 67): it reported the tablebase win at every move and
+  drew by threefold repetition (Kf4/Ke5 against Qc4/Qa4, moves 75–78).
+  That is A-58, the root ranking that ignores repetitions already in the
+  game (D.4), which the candidate shares and did not change. The candidate
+  converted every clean win it held.
+- **Verdict (registered rule):** the cap without a decision, so the repair
+  stays as a correctness fix with no measured harm; the maintainer
+  confirmed on 2026-10-28. The miss is not the candidate's. The fingerprint
+  record does not move (19,470,325).
+- Disposition: **cap, +0.3 ± 3.2; repair kept. CLOSED 2026-10-28.**
+
+#### PREDICTION CALIBRATION — preserve the original prediction above
+
+- **Prediction:** about 0 to +2 Elo, most likely the cap; not H0 at about
+  85%.
+- **Reading:** the cap at +0.3, at the bottom of the predicted range. As
+  predicted.
+- **What it teaches:** removing 70% of the tablebase reads did not show as
+  a gain at `10+0.1`, so cold reads cost little once a TT cut would have
+  answered the node; the repair's evidence is the stale-bit counter.

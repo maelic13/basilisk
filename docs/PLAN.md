@@ -353,7 +353,6 @@ coordinate) is not a defect; its owner decides. IDs are the Rarog audit's
 
 | Owner | Defects |
 |---|---|
-| A.13.1–A.13.4 | F1 a won KPK scaled to a draw by the pawnless scaler; D1 a won queen against two minors scaled to a near draw by the pawnless classifier's endgame units; F3 the PV copy's read past `pv_len`; S11 the tablebase store's stale PV bit (`analysis/code_audit_2026-10-27.md`) |
 | B.3 | B-12 a move stored at fail-low nodes; B-14 correction training refuses decisive results; B-45 the singular margin's range excludes the donor's value; B-109 ablation bit 6 also removes the check extension |
 | B.4 | B-17 the dead SEE clamp |
 | B.5 (with D.1) | the fail-high stop's hole: a window that never returns is never checked (A-47; `analysis/b5_failhigh_stop_2026-10-25.md` §2.3) |
@@ -1668,7 +1667,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
     - `agents/research.md`'s snapshot-only rule has a standing exception:
       an audit or import the maintainer asks for may read Rarog's live
       repository, citing its commit.
-- [ ] **A.13** Correctness repairs from the code audit
+- [x] **A.13** Correctness repairs from the code audit
   Added 2026-10-27 from the audit of the engine's crucial paths
   (`analysis/code_audit_2026-10-27.md`; its items are F1 and F3, and
   §6's D1 and S11 from the second pass). The two evaluation repairs,
@@ -1822,7 +1821,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         exact (one arm since B.8.1); CTest 24/24. Exempt from a focused
         test as registered: no fixed-depth search reaches ply 127; the
         sanitizer CTest job runs on the PR.
-    - [ ] **A.13.4** `[I1]` The tablebase store carries a stale PV bit
+    - [x] **A.13.4** `[I1]` The tablebase store carries a stale PV bit
       (§6 S11) The in-search WDL probe (`search_kernel_core.cpp:356-375`)
       runs before the TT probe, and its store at `:371` passes
       `ss->tt_pv`, which the node assigns only at `:455-457`: the stored
@@ -1853,6 +1852,11 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       - Gate: BAS-S39, A.8.15's conditions (`[-5,5]` at `10+0.1`, tables on
         both sides, concurrency 7, cap 4,000 pairs), launcher
         `tools/run_a1134_tb_gate.ps1`, maintainer-run.
+      - Closed 2026-10-28: BAS-S39 reached its 4,000-pair cap at +0.3 ± 3.2
+        Elo (8,000 games, LLR +0.48, no faults), and the repair stays by the
+        registered rule on the maintainer's confirmation. 2,285 of 2,286
+        clean tablebase wins were converted; the miss is the baseline's,
+        A-58 (D.4). The fingerprint is unchanged at 19,470,325.
 - [ ] **A.14** Simplifications from the code audit
   Added 2026-10-27 (`analysis/code_audit_2026-10-27.md` §3, from a
   mechanical census of `00809cc`). Behaviour-neutral: exact fingerprint,
@@ -2941,7 +2945,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.13.4 | GAME_GATE | I1 | Tablebase probe after the TT cutoff; BAS-S39 registered, maintainer-run |
 | A.14.1 | READY_FOR_IMPLEMENTATION | I1 | Score bands defined once in constants.h; exact fingerprint |
 | A.15.1 | RESEARCH | R2 | Universal binary design packet; the decision rule frozen before A.15.2 |
 | A.15.2 | RESEARCH | V | The portable/avx2/pext NPS ladder; maintainer-run after registration |
@@ -3635,6 +3638,9 @@ has lost games in both engines (BAS-X02).
   are its items):
   - Cold tablebase reads at the root on the clock (A-57); the root ranking
     ignores repetitions already in the game (A-58); DTZ ranking (A-59).
+  - A-58 has cost a game: BAS-S39's game 4965 (`tools/results/a1134-tb-gate/`)
+    drew a clean tablebase win by threefold repetition, the root reporting
+    the win at every move; 1 of 2,286 clean wins in that run.
   - Code audit 2026-10-27 (S11): A.13.4 moves the in-search WDL probe
     after the TT probe and cutoff, the donor's order; probe depth and
     limits stay here.

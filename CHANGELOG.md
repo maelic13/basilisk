@@ -144,6 +144,14 @@ and next step).
   Measured at **+0.3 ± 4.0 Elo** at `3+0.03` (8,000 games). `bench` now
   reports 19,470,325 nodes.
 
+- **Tablebase probes in search after the hash-table check.** With
+  tablebases configured, the search read the tables before its hash table,
+  so a position the table already answered still paid a tablebase read,
+  and the stored result carried a flag left by another position. It now
+  probes after the hash table, as Stockfish does, which removes most of
+  those reads. Measured at **+0.3 ± 3.2 Elo** at `10+0.1` with tablebases
+  (8,000 games).
+
 ---
 
 ## [1.10.2] - 2026-10-08

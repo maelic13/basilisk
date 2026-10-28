@@ -510,7 +510,7 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S38](experiments/BAS-S38.md) — A.13.2: the pawnless scaler in Stockfish's form, `[-5,5]` — cap, +0.3 ± 4.0; repair kept
 
-- [BAS-S39](experiments/BAS-S39.md) — A.13.4: the tablebase probe after the TT cutoff, `[-5,5]` at `10+0.1` with tables — registered, maintainer-run
+- [BAS-S39](experiments/BAS-S39.md) — A.13.4: the tablebase probe after the TT cutoff, `[-5,5]` at `10+0.1` with tables — cap, +0.3 ± 3.2; repair kept
 
 | ID | Title | Disposition |
 |---|---|---|
