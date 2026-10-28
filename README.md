@@ -39,22 +39,23 @@ from a chess GUI or an engine-testing tool.
 - [Latest release](https://github.com/maelic13/basilisk/releases/latest)
 - [All releases](https://github.com/maelic13/basilisk/releases)
 
-Every release provides ready-to-run executables — no installation needed. Pick
-the one matching your operating system and CPU:
+Every release provides ready-to-run executables â€” no installation needed. Pick
+the one matching your operating system:
 
-| Asset suffix | Use when |
+| Asset | Use when |
 | --- | --- |
-| `pext` | Modern Intel, or AMD Zen 3 and newer. Usually the fastest. |
-| `avx2` | AVX2-capable CPUs without fast PEXT, such as AMD Zen 1 and Zen 2. |
-| *(none)*, `x86_64` | Any 64-bit Intel or AMD CPU. Use this if the others do not start. |
-| *(none)*, `aarch64` | ARM64 Linux, Windows on ARM, and Apple Silicon Macs. |
+| `x86_64` | Any 64-bit Intel or AMD CPU, on Windows or Linux. |
+| `aarch64` | ARM64 Linux, Windows on ARM, and Apple Silicon Macs. |
 
-If unsure, try `pext` first and fall back to `avx2`, then the plain `x86_64`
-build. All builds play identically; they differ only in speed. A binary started
-on a CPU that lacks its required instructions reports a clear error instead of
-crashing.
+The `x86_64` executable carries three builds of the engine and starts the
+fastest one the CPU runs: `pext` on Intel Haswell and newer and on AMD Zen 3
+and newer, `avx2` on AMD Zen 1 and Zen 2 (whose `PEXT` is slow) and other
+AVX2 CPUs, and `portable` on anything older. The first line it prints names
+the one it chose. All of them play identically; they differ only in speed.
+To force one, set the environment variable `BASILISK_ISA` to `portable`,
+`avx2` or `pext`; a tier the CPU cannot run is refused with a message.
 
-Basilisk is 64-bit only — there is no 32-bit build.
+Basilisk is 64-bit only â€” there is no 32-bit build.
 
 ---
 
@@ -139,6 +140,7 @@ cmake --build --preset release
 | `release` | `-O3 -march=native` + LTO. Use this for playing and benchmarking. |
 | `release-avx2` | Like `release`, plus AVX2 code generation. |
 | `release-pext` | Like `release`, plus BMI2/PEXT sliding-piece attacks. |
+| `universal` | The universal x86-64 release binary (Clang, Windows or Linux): build target `universal`; three PGO builds. |
 | `relwithdebinfo` | Optimized with debug info, no sanitizers. |
 | `debug` | Unoptimized, with AddressSanitizer and UBSan. |
 
