@@ -184,14 +184,19 @@ jobs:
           esac
 
       # macOS uses the preinstalled AppleClang + libc++ (libc++'s <expected> is
-      # not gated on __cpp_concepts, so no version bump is needed here); cmake is
-      # preinstalled on the runner, ninja is not.
-      - name: Install Ninja (macOS)
-        timeout-minutes: 10
+      # not gated on __cpp_concepts, so no version bump is needed here). The
+      # Xcode major is pinned as the Windows clang major is; the image ships
+      # CMake and Ninja.
+      - name: Check the pinned Xcode (macOS)
         if: runner.os == 'macOS'
         run: |
-          command -v ninja >/dev/null 2>&1 || brew install ninja
-          ninja --version
+          want="$(tr -d '[:space:]' < .github/xcode-version)"
+          got="$(xcodebuild -version | head -n 1)"
+          echo "$got"; clang --version | head -n 1; ninja --version
+          case "$got" in
+            "Xcode $want"|"Xcode $want."*) ;;
+            *) echo "FAIL: $got is not Xcode $want, the pinned major (.github/xcode-version)"; exit 1 ;;
+          esac
 
       # PORTABLE_BUILD disables host-native tuning; the explicit AVX2/PEXT
       # presets remain active and therefore exercise their committed tier.
