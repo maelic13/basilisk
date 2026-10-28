@@ -34,7 +34,7 @@ generations change. These are maintainer judgments, not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **A.15.2** `[I2]` Universal x86-64 binary: tiers, dispatch, link — Claude Opus 5 — High
+**Next step:** **A.15.3** `[I1]` Tier advisory, ISA contract and toolchain pins — Claude Sonnet 5 — Medium
 
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
@@ -101,7 +101,7 @@ generations change. These are maintainer judgments, not measured rankings.
     - [x] **A.14.1** `[I1]` One definition of the score bands
 - [ ] **A.15** Universal binaries and the release runners
     - [x] **A.15.1** `[R2]` Universal x86-64 binary: design packet
-    - [ ] **A.15.2** `[I2]` Universal x86-64 binary: tiers, dispatch, link
+    - [x] **A.15.2** `[I2]` Universal x86-64 binary: tiers, dispatch, link
     - [ ] **A.15.3** `[I1]` Tier advisory, ISA contract and toolchain pins
     - [ ] **A.15.4** `[V]` Universal binary speed and the ISA tier ladder
     - [ ] **A.15.5** `[I1]` Release: one x86-64 asset per OS

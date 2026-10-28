@@ -1945,7 +1945,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         CPU (A-36).
       - 2026-10-28: the maintainer chose to build it now, the packet's
         counter-argument; no rule is left for the ladder to decide.
-    - [ ] **A.15.2** `[I2]` Universal x86-64 binary: tiers, dispatch, link
+    - [x] **A.15.2** `[I2]` Universal x86-64 binary: tiers, dispatch, link
       Added 2026-10-28. The packet's §4 in the form of its amendment 1:
       each tier is the ordinary PGO build of its preset with the engine
       link's LTO objects kept (`BASILISK_UNIVERSAL_TIER`), and
@@ -1959,6 +1959,15 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       portable; `BASILISK_ISA` forces a tier. `verify_isa.py --tier
       universal` attributes each function by its tier's prefix. Exact
       fingerprint on every tier, on Windows and on Linux (WSL, Clang 19).
+      - Closed 2026-10-28 (`0c1c0f4`, `3508756`; the packet's amendment 1).
+        Every tier and `BASILISK_ISA` reproduce 19,470,325 on Windows
+        (clang 23.1.4) and Linux (clang 19.1.1, static); the universal ISA
+        contract passes on both, and planted instructions and synthetic
+        images fail it. The assets are 3,513,344 bytes (Windows) and
+        5,140,440 (Linux). CTest 22/22. Two findings changed the plan: ThinLTO
+        and the static libc++ leave tier symbols global, so every symbol is
+        renamed instead of wrapping a namespace; and `tzcnt` (LLVM's `bsf`)
+        and SSE3 (MSYS2's runtime floor) stay allowed in portable code.
     - [ ] **A.15.3** `[I1]` Tier advisory, ISA contract and toolchain pins
       (D-25, A-36, taken over from D.3.2) `src/main.cpp` prints an
       `info string` on stdout when a lower tier runs on a CPU that could
@@ -1974,6 +1983,14 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       their plan for a baseline `libstdc++.a` after `ubuntu-24.04`
       retires. Exact fingerprint; a release dispatch run proves the
       matrix.
+      - Implemented 2026-10-28 with A.15.2 and A.15.5 (`0c1c0f4`,
+        `3508756`, `c81e220`): the advisory and the stdout refusal in
+        `src/main.cpp`, the dispatch truth table in `test_cpu_features`,
+        the portable set (corrected: `tzcnt` and SSE3 stay allowed, the
+        packet's amendment 1), `.github/xcode-version` checked in CI and
+        Release, the Ninja step gone, the libstdc++ plan (an `ubuntu:24.04`
+        container) in `release.yml`. Open until a release dispatch run
+        proves the Xcode pin and the matrix.
     - [ ] **A.15.4** `[V]` Universal binary speed and the ISA tier ladder
       (D-24; was A.15.2, the ladder alone) BAS-P20, registered before any
       reading: four universal builds and four pext builds, each hop read
@@ -1984,6 +2001,10 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       is read from the universal builds' tier builds, which are the old
       per-tier assets. Priors: Rarog read avx2 +4.59% over base and pext
       +2.45% over avx2; the packet's §9 prediction is frozen.
+      - Prepared 2026-10-28: the five pools are built (`a0daeeb`); two
+        agent attempts took no reading, the host's load bursting to 20-30%
+        from a process a user account cannot see. Maintainer-run:
+        `pwsh tools/run_a15_nps_reads.ps1` on an idle host.
     - [ ] **A.15.5** `[I1]` Release: one x86-64 asset per OS
       The release's six x86 cells become two universal cells, Linux and
       Windows, each building the `universal` preset and checking
@@ -1992,6 +2013,12 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       Nine assets become five. README, CHANGELOG and
       `docs/release_tiers.md` say which tier a CPU gets and how to force
       one. A release dispatch run proves the matrix (maintainer).
+      - Implemented 2026-10-28 (`c81e220`, `089fe7d`): two universal cells
+        with the universal contract and every forced tier's bench, the
+        `select` job running `tools/diag/check_universal.py` under SDE
+        9.58.0 (the donor's pinned action), five assets in `collect`.
+        The checker was exercised with a native stand-in for SDE; SDE
+        itself first runs in the dispatch run.
 - [ ] **A.16** `[I1]` Zero-weight evaluation terms off the hot path
   Added 2026-10-28 (simplification read of the kernel and the evaluator
   against the donor, after A.14.1; the lines are cited here). Terms whose
@@ -3054,10 +3081,9 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.15.2 | IMPLEMENTED | I2 | Universal binary built; exact fingerprint on every tier, Windows and Linux |
-| A.15.3 | READY_FOR_IMPLEMENTATION | I1 | Tier advisory, verify_isa portable set, Xcode pin, stale ninja step |
-| A.15.4 | READY_FOR_IMPLEMENTATION | V | BAS-P20 registered: the universal binary's hot-path read and the ladder |
-| A.15.5 | READY_FOR_IMPLEMENTATION | I1 | Two universal release cells, the SDE selection matrix, five assets |
+| A.15.3 | IMPLEMENTED | I1 | Advisory, portable set, Xcode pin, Ninja step done; a release dispatch run proves them |
+| A.15.4 | READY_FOR_IMPLEMENTATION | V | BAS-P20 prepared; maintainer-run `pwsh tools/run_a15_nps_reads.ps1` |
+| A.15.5 | IMPLEMENTED | I1 | Two universal cells, the SDE job, five assets; a release dispatch run proves them |
 | A.16 | READY_FOR_IMPLEMENTATION | I1 | Zero-weight evaluation compute deleted; exact fingerprint, kept on a pooled NPS read |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |
 | B.4 | RESEARCH | I2 | Contents fixed by B.0 |
@@ -3877,9 +3903,10 @@ fallback, which is why the archived "optional HCE fallback" phase is dropped.
   - The ISA tier ladder measured, not chained (D-24); the ARM contract goes
     with A.10.4; the universal-binary design notes and traps (D-72); a
     slow-PEXT advisory (D-25).
-  The universal binary's design is A.15.1's packet and its go/no-go is
-  A.15.2's ladder under A.15.1's frozen rule (2026-10-27); G.2 builds it
-  unless A.15.2 pulled it into Phase A, and the advisory is A.15.3's.
+  The universal binary was built in Phase A at the maintainer's choice
+  (A.15.2 to A.15.5, 2026-10-28; `analysis/universal_binary_2026-10.md`
+  and its amendment 1). G.2 extends its tier list when Phase F's SIMD
+  tiers arrive; the form applies unchanged.
   C++26 (checked 2026-10-27, `analysis/code_audit_2026-10-27.md` §6):
   the standard was finished at the March 2026 meeting. The release
   compilers are Clang 19 with libstdc++ on `ubuntu-24.04` (Linux; CI

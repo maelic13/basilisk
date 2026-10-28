@@ -5,6 +5,10 @@
 - **Registration.** Registered 2026-10-28, before any reading; PLAN A.15.4;
   agent-run at the maintainer's request ("do all the steps …
   stop only if you need my input and cannot decide or measure yourself").
+  Two agent attempts that day took no reading: the read's idle check found
+  the host's load bursting to 20-30% on several cores from a process a
+  user account cannot see. The read is therefore maintainer-run, on an idle
+  host: `pwsh tools/run_a15_nps_reads.ps1` (the pools are built).
   The design is `analysis/universal_binary_2026-10.md` (§4.7's hot-path
   check, §9's ladder prediction, amendment 1 for the form that was built).
 - **Instrument.** `tools/nps_read.ps1`, decided by `tools/diag/nps_read.py`
