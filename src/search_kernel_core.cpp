@@ -78,9 +78,6 @@ int Searcher::lmr_reduction(bool improving, int depth, int move_count, int delta
          + (improving ? 0 : scale * p.lmr_not_improving / 512) + p.lmr_offset;
 }
 
-static_assert(TranspositionTable::NO_SCORE == VALUE_NONE,
-              "an evaluation-only TT entry reads back as the search's VALUE_NONE");
-
 void Searcher::tt_store(Key key, int depth, int score, TTFlag flag, Move m,
                         int ply, int static_eval, bool pv) {
     DIAG_COUNT(++state_.diag.tt_stores);
@@ -191,7 +188,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     // Stand-pat evaluation. The TT holds the evaluation without the halfmove
     // clock, which its key lacks; the damping is applied at this node's clock.
     int tt_eval;
-    if (tt_found && tte.static_eval != TranspositionTable::INF_EVAL)
+    if (tt_found && tte.static_eval != INF_SCORE)
         tt_eval = tte.static_eval;
     else
         tt_eval = evaluator_.evaluate_undamped(*state_.board);
@@ -449,7 +446,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     // clock, to give the raw static eval.
     int static_eval;
     int raw_static_eval = VALUE_NONE;
-    int tt_static_eval = TranspositionTable::INF_EVAL;
+    int tt_static_eval = INF_SCORE;
     if (in_check) {
         // The record carries the eval from two plies up, so `improving` reads
         // across the check; nothing at this node prunes on it.
@@ -459,7 +456,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         // Inherit eval from parent to avoid calling evaluate twice
         static_eval = ss->eval;
     } else {
-        if (tt_found && tte.static_eval != TranspositionTable::INF_EVAL)
+        if (tt_found && tte.static_eval != INF_SCORE)
             tt_static_eval = tte.static_eval;
         else {
             tt_static_eval = evaluator_.evaluate_undamped(*state_.board);
@@ -552,7 +549,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             TTEntry next{};
             const bool next_found = shared_.tt.probe_copy(state_.board->position_key(), next);
             undo_move(ss, tt_move);
-            if (next_found && next.score != TranspositionTable::NO_SCORE
+            if (next_found && next.score != VALUE_NONE
                 && (tt_score >= beta) != (-int(next.score) >= beta)) {
                 cut = false;
                 DIAG_COUNT(++state_.diag.tt_cutoff_graph_refused);
@@ -591,7 +588,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                     DIAG_COUNT(state_.diag.tb_store_stale_pv
                                += ss->tt_pv != (is_pv || (tt_found && tte.is_pv())));
                     tt_store(state_.board->position_key(), std::min(MAX_PLY - 1, depth + 6),
-                             tb.value, tb.bound, MOVE_NONE, ply, TranspositionTable::INF_EVAL,
+                             tb.value, tb.bound, MOVE_NONE, ply, INF_SCORE,
                              ss->tt_pv);
                     return tb.value;
                 }

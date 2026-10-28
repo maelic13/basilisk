@@ -1,5 +1,6 @@
 #pragma once
 
+#include "constants.h"
 #include "types.h"
 #include "move.h"
 
@@ -94,13 +95,6 @@ static_assert(alignof(TTCluster) == 32, "TTCluster must stay 32-byte aligned");
 
 class TranspositionTable {
 public:
-    static constexpr int MATE_SCORE = 32000;
-    static constexpr int MAX_PLY    = 128;
-    static constexpr int INF_EVAL   = 32001;
-    // A score slot that holds no score (an evaluation-only entry); equal to
-    // the search's VALUE_NONE.
-    static constexpr int NO_SCORE   = 32002;
-
     explicit TranspositionTable(size_t mb = 64) { resize(mb); }
 
     // Size the table from the byte budget the user asked for. The cluster
@@ -246,10 +240,8 @@ public:
             m = move_from_tt(replace_entry.move16);
 
         const uint8_t pv_bit = pv ? TT_PV_MASK : uint8_t(0);
-        const int stored_score = score == NO_SCORE ? NO_SCORE : score_to_tt(score, ply);
-        const uint64_t data = pack_entry(stored_score,
-                                         static_eval == INF_EVAL ? INF_EVAL : static_eval,
-                                         m, depth,
+        const int stored_score = score == VALUE_NONE ? VALUE_NONE : score_to_tt(score, ply);
+        const uint64_t data = pack_entry(stored_score, static_eval, m, depth,
                                          static_cast<uint8_t>(age | pv_bit | uint8_t(flag)));
 
         // Publish the payload before the key fragment so a concurrent reader
@@ -282,7 +274,7 @@ public:
 
     // Decisive scores (mates and tablebase results) are stored relative to
     // the node, not the root, so their distance survives a transposition.
-    static constexpr int DECISIVE = MATE_SCORE - 2 * MAX_PLY - 1;
+    static constexpr int DECISIVE = tablebaseWinInMaxPly;
     static int score_to_tt(int score, int ply) {
         if (score >=  DECISIVE) return score + ply;
         if (score <= -DECISIVE) return score - ply;
@@ -293,22 +285,21 @@ public:
     // mate, or a tablebase result, further from this node than the plies left
     // on the clock) is downgraded to the strongest non-decisive score; an
     // evaluation is never changed by the clock. An entry without a score
-    // reads back as NO_SCORE.
+    // reads back as VALUE_NONE.
     static int score_from_tt(int score, int ply, int halfmove_clock = 0) {
-        static constexpr int TB_VALUE = MATE_SCORE - MAX_PLY - 1;
-        if (score == NO_SCORE)
-            return NO_SCORE;
+        if (score == VALUE_NONE)
+            return VALUE_NONE;
         if (score >= DECISIVE) {
             const int left = 100 - halfmove_clock;
             if (score >= MATE_SCORE - MAX_PLY ? MATE_SCORE - score > left
-                                              : TB_VALUE - score > left)
+                                              : tablebaseValue - score > left)
                 return DECISIVE - 1;
             return score - ply;
         }
         if (score <= -DECISIVE) {
             const int left = 100 - halfmove_clock;
             if (score <= -(MATE_SCORE - MAX_PLY) ? MATE_SCORE + score > left
-                                                 : TB_VALUE + score > left)
+                                                 : tablebaseValue + score > left)
                 return -(DECISIVE - 1);
             return score + ply;
         }

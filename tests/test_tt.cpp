@@ -172,7 +172,7 @@ static void test_mate_score_adjustment() {
     // ply 5. (One 4 plies from the root cannot lie below a node at ply 5, and
     // stored at that node it would encode into the mate band, which this arm
     // reads as a mate the rule-50 clock may spoil.)
-    const int tb_win = TranspositionTable::MATE_SCORE - TranspositionTable::MAX_PLY - 1 - 9;
+    const int tb_win = MATE_SCORE - MAX_PLY - 1 - 9;
     begin_section("tablebase score: stored relative to the node, read back exactly");
     EXPECT_EQ(TranspositionTable::score_to_tt(tb_win, 5), tb_win + 5);
     EXPECT_EQ(TranspositionTable::score_from_tt(TranspositionTable::score_to_tt(tb_win, 5), 5), tb_win);
@@ -182,11 +182,11 @@ static void test_mate_score_adjustment() {
     // Mate in 3 (MATE_SCORE - 3 = 31997).  At ply 5:
     //   to_tt:   31997 + 5 = 32002
     //   from_tt: 32002 - 5 = 31997
-    // On this arm 32002 is NO_SCORE, the evaluation-only slot, which a real
+    // On this arm 32002 is VALUE_NONE, the evaluation-only slot, which a real
     // store never produces: a mate below a node at ply p is at least p plies
     // from the root. The round trip uses a mate a store can hold (7 plies from
     // the root, 2 from the node at ply 5).
-    const int mate3 = TranspositionTable::MATE_SCORE - 7;
+    const int mate3 = MATE_SCORE - 7;
     int stored = TranspositionTable::score_to_tt(mate3, 5);
 
     begin_section("mate score: to_tt adds ply");
@@ -206,21 +206,21 @@ static void test_mate_score_adjustment() {
     end_section();
 
     begin_section("score_from_tt: a tablebase result the clock can spoil is downgraded");
-    const int tb_value = TranspositionTable::MATE_SCORE - TranspositionTable::MAX_PLY - 1;
+    const int tb_value = MATE_SCORE - MAX_PLY - 1;
     const int tb_stored = TranspositionTable::score_to_tt(tb_value - 10, 4);   // 6 plies from its node
     EXPECT_EQ(TranspositionTable::score_from_tt(tb_stored, 4, 94), tb_value - 10);
     EXPECT_EQ(TranspositionTable::score_from_tt(tb_stored, 4, 95), TranspositionTable::DECISIVE - 1);
     end_section();
 
     begin_section("score_from_tt: an evaluation-only slot reads back as no score");
-    EXPECT_EQ(TranspositionTable::score_from_tt(TranspositionTable::NO_SCORE, 7, 50),
-              TranspositionTable::NO_SCORE);
+    EXPECT_EQ(TranspositionTable::score_from_tt(VALUE_NONE, 7, 50),
+              VALUE_NONE);
     end_section();
 
     // Mated in 5 (−MATE_SCORE + 5 = −31995).  At ply 3:
     //   to_tt:   −31995 − 3 = −31998
     //   from_tt: −31998 + 3 = −31995
-    const int mated5 = -(TranspositionTable::MATE_SCORE - 5);
+    const int mated5 = -(MATE_SCORE - 5);
     int stored2 = TranspositionTable::score_to_tt(mated5, 3);
 
     begin_section("mated score: to_tt subtracts ply");
@@ -233,8 +233,8 @@ static void test_mate_score_adjustment() {
 
     // Different plies must be undone correctly
     for (int ply = 0; ply <= 5; ply++) {
-        // A mate one ply below the node (see NO_SCORE above).
-        const int mate1 = TranspositionTable::MATE_SCORE - 1 - ply;
+        // A mate one ply below the node (see VALUE_NONE above).
+        const int mate1 = MATE_SCORE - 1 - ply;
         char label[64];
         std::snprintf(label, sizeof(label), "mate round-trip ply %d", ply);
         begin_section(label);
@@ -255,7 +255,7 @@ static void test_hashfull() {
     for (int i = 1; i <= 1000; i++) {
         Key k = static_cast<Key>(i) * 0x9E3779B97F4A7C15ULL;
         tt.store(k, 3, i % 400 - 200, TT_EXACT, MOVE_NONE, 0,
-                 TranspositionTable::INF_EVAL);
+                 INF_SCORE);
     }
 
     begin_section("hashfull: > 0 after many stores");
@@ -453,14 +453,14 @@ static void test_evaluation_only_entry() {
     const Key key = 0x8D8D8D8D8D8D8D8DULL;
 
     begin_section("miss-store: a hit with no bound, no move, no score, its eval kept");
-    tt.store(key, TT_DEPTH_UNSEARCHED, TranspositionTable::NO_SCORE, TT_NONE, MOVE_NONE,
+    tt.store(key, TT_DEPTH_UNSEARCHED, VALUE_NONE, TT_NONE, MOVE_NONE,
              9, -77, /*pv=*/false);
     TTEntry e{};
     EXPECT(tt.probe_copy(key, e));
     EXPECT(e.bound() == TT_NONE);
     EXPECT_EQ(int(e.depth), TT_DEPTH_UNSEARCHED);
     EXPECT_EQ(int(e.static_eval), -77);
-    EXPECT_EQ(int(e.score), TranspositionTable::NO_SCORE);
+    EXPECT_EQ(int(e.score), VALUE_NONE);
     EXPECT(move_from_tt(e.move16) == MOVE_NONE);
     end_section();
 

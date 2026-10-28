@@ -15,10 +15,6 @@
 #include <vector>
 
 static constexpr int MAX_SEARCH_DEPTH = 100;
-static constexpr int MAX_PLY          = 128;
-static constexpr int MATE_SCORE       = 32000;
-static constexpr int INF_SCORE        = 32001;
-static constexpr int VALUE_NONE       = 32002;
 
 // Material the search reasons with in ordering and pruning margins; the
 // evaluation has its own values.
