@@ -1898,7 +1898,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
   deprecated), so the runners need no label change; the leaves are the
   design, the measurement that decides it, and the hygiene the check
   found.
-    - [ ] **A.15.1** `[R2]` Universal x86-64 binary: design packet
+    - [x] **A.15.1** `[R2]` Universal x86-64 binary: design packet
       Write `analysis/universal_binary_2026-10.md` from the audit's §4:
       the Stockfish 19 mechanism (`src/universal/`, the
       `universal-object-pgo` target, renamed init sections, the
@@ -1921,6 +1921,26 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       least 3% pooled NPS (about 6 Elo for a user on the wrong asset);
       otherwise G.2 builds it when Phase F's SIMD tiers arrive. No engine
       source changes.
+      - Closed 2026-10-28: `analysis/universal_binary_2026-10.md`. The
+        design is Stockfish's fat binary with two departures: Fathom
+        built once at baseline outside every tier, and tier objects that
+        carry no initialiser (only `syzygy.cpp` and Fathom have one
+        today), so no section rewriting. Each tier is a full PGO+LTO
+        executable under its `BASILISK_NS` namespace whose LTO object is
+        extracted; one LTO link over every tier's bitcode is rejected
+        (a prevailing `linkonce_odr` copy carries one tier's target
+        attributes to every caller). The dispatcher adds the donor's
+        slow-`pext` rule (AMD family 15h/17h) and a `BASILISK_ISA`
+        override; `verify_isa.py` attributes the image by the linker
+        map. Size about 3.5-5 MB per x86 asset; nine assets become five.
+        The rule above is frozen as proposed, with the packet's
+        prediction (`pext` over `portable` +7% [+4%, +12%], about 90%
+        that it clears +3%). Because the rule therefore nearly always
+        fires, the packet (§9) recommends an amendment for the
+        maintainer to choose before A.15.2 reads: pull the build forward
+        only on evidence of harm from asset choice, otherwise build it
+        at G.2. A.15.3's advisory must also cover `pext` on a slow-`pext`
+        CPU (A-36).
     - [ ] **A.15.2** `[V]` The ISA tier ladder measured
       (D-24) Pooled-PGO NPS of the portable, avx2 and pext tiers on the
       5950X: four builds per tier, interleaved cycles, a null pair first,
@@ -2953,7 +2973,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.15.1 | RESEARCH | R2 | Universal binary design packet; the decision rule frozen before A.15.2 |
 | A.15.2 | RESEARCH | V | The portable/avx2/pext NPS ladder; maintainer-run after registration |
 | A.15.3 | READY_FOR_IMPLEMENTATION | I1 | Tier advisory, verify_isa portable set, Xcode pin, stale ninja step |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |
