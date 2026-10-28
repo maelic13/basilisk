@@ -103,6 +103,7 @@ generations change. These are maintainer judgments, not measured rankings.
     - [x] **A.15.1** `[R2]` Universal x86-64 binary: design packet
     - [ ] **A.15.2** `[V]` The ISA tier ladder measured
     - [ ] **A.15.3** `[I1]` Tier advisory, ISA contract and toolchain pins
+- [ ] **A.16** `[I1]` Zero-weight evaluation terms off the hot path
 
 ### Phase B — Search programme (evaluation frozen)
 

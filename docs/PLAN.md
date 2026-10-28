@@ -1965,6 +1965,34 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       their plan for a baseline `libstdc++.a` after `ubuntu-24.04`
       retires. Exact fingerprint; a release dispatch run proves the
       matrix.
+- [ ] **A.16** `[I1]` Zero-weight evaluation terms off the hot path
+  Added 2026-10-28 (simplification read of the kernel and the evaluator
+  against the donor, after A.14.1; the lines are cited here). Terms whose
+  every weight is 0 are still computed on every full evaluation:
+  - the winnable block (`eval.cpp:1975-2009`): all seven `win_*` weights
+    are 0, yet it reads both kings' files and ranks, the flanks, the
+    piece census and the passer count each call;
+  - the hanging-piece loop (`eval.cpp:1706-1722`): `hang_pen` is all
+    zeros, absorbed by the threats package in Phase 4.2 (C-37);
+  - five king-danger inputs (`eval.cpp:1552-1592`): `ks_ring_pressure`,
+    `ks_flank_attack`, `ks_flank_defense`, `ks_pawnless_flank` and
+    `ks_open_file` are 0, but the flank zone's three popcounts and the
+    ring popcount run for both colours.
+  Deleting them is behaviour-neutral: each adds its weight times a
+  feature, and the winnable step adds `sgn * max(0, -|eg|)`, which is 0.
+  The space loop stays (`space_blocked_mg` is live).
+  - Gate: exact `bench 13`; CTest; a pooled-PGO NPS read registered
+    before it runs (maintainer-run, PROCESS's method). The deletion is
+    kept if the read is faster than BAS-P18's null interval
+    (−0.19% [−0.66, +0.27]); otherwise it is reverted and the slots wait
+    for their Phase C owners.
+  - Interactions: the slots' owners rebuild them in the donor's form
+    rather than refit them — king danger in C.3 (C-111: flank attack and
+    defence and the pawnless flank were nil in Rarog), the threats in
+    C.4 (C-37), the complexity term in C.5.3 (C-47: never fitted, the
+    tuner has no working winnable instrument). If the deletion is kept,
+    C.5.3 builds the donor's winnable term instead of refitting this
+    one, and the texel trace loses the `HangPen` sites with the loop.
 
 ## Phase B — Search programme (evaluation frozen)
 
@@ -2681,6 +2709,17 @@ rejections stop B.
   - S12: `(ss+1)->double_exts` is written only in the move loop
     (`:1077`), so NMP and ProbCut children inherit a previous node's
     count; off by one or two against a cap of 16. Bookkeeping.
+  Simplification read (2026-10-28, the kernel against the donor after
+  A.14.1), deletion arms beside the mechanisms above:
+  - The double-extension counter and its cap (`search_kernel_core.cpp:999-1001`,
+    `:1080`; `DoubleExtMax` 16) have no donor counterpart. Count how often
+    the cap binds per singular firing first; if it does not bind at the
+    budgets the cluster reads, delete the counter and the cap rather than
+    repair S12, under `[-5,0]`.
+  - The same-ply NMP verification at depth 10 and more (`:684-690`), which
+    B-31 reads as inert, is deleted at `[-5,0]` as the comparison arm for
+    the donor's verification region, so the region is accepted against
+    no verification as well as against today's.
   - Upcoming repetition (cuckoo) is absent from `src`; BAS-S12 closed it
     on the old harness with a retry trigger that wanted one named
     missing consumer. It is now named: at the TT probe, an upcoming
@@ -2746,6 +2785,12 @@ rejections stop B.
     (B-18); `MAX_QSEARCH_PLY` 10, where Stockfish has no cap; decisive TT
     cutoffs at PV qnodes (B-27); keep the stored PV bit, not Reckless's
     subtree marking (B-16), and SEE without check exemptions (B-23).
+  - Simplification read (2026-10-28): delta pruning
+    (`search_kernel_core.cpp:221-230`) is removed, as the donor has
+    none, at `[-5,0]` before its margin joins B-25's coordinates. The
+    per-move futility at +150 already bounds every capture that does not
+    check, and the node-level cut also drops checking captures and
+    promotions, which futility exempts.
   - Instruments: depth-0 refinements counted by total mass (B-20, B-24); the
     qsearch's size re-measured on the current head (B-28); the SEE/evaluation
     unit census (B-26).
@@ -2940,6 +2985,15 @@ rejections stop B.
     NPS floor.
   - The census of `00809cc` sized the legacy deletion at about 1,900
     lines and a CI cell; B.8.1 did it, except the ten counters above.
+  Simplification read (2026-10-28, after A.14.1):
+  - Telemetry counted in release builds, where nothing prints it (the
+    `Diag` option is advertised only in Tune and Diag builds,
+    `parameters.cpp:191-198`): `eval_calls` and `pawn_probes`/`pawn_hits`
+    (`eval.cpp:915-917`, `:1072`), the board's `diag_see_ge_calls` and
+    `diag_gives_check_calls` (`board.cpp:1416`, `:1784`), and the
+    lazy-audit branch, a runtime test on every lazy cut
+    (`eval.cpp:1236-1248`, `:2020-2030`). All go behind the flavour
+    guard; exact fingerprint, read with the NPS of the B-63 deletions.
 - [ ] **B.9** `[V]` Search programme checkpoint
   Checkpoint: re-measure every deficit meter.
   The meters are G(0) against the oracle, fixed-node depth and branching,
@@ -2975,6 +3029,7 @@ leaf's tag. Later phases carry only a class until they open.
 |---|---|---|---|
 | A.15.2 | RESEARCH | V | The portable/avx2/pext NPS ladder; maintainer-run after registration |
 | A.15.3 | READY_FOR_IMPLEMENTATION | I1 | Tier advisory, verify_isa portable set, Xcode pin, stale ninja step |
+| A.16 | READY_FOR_IMPLEMENTATION | I1 | Zero-weight evaluation compute deleted; exact fingerprint, kept on a pooled NPS read |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |
 | B.4 | RESEARCH | I2 | Contents fixed by B.0 |
 | B.5 | RESEARCH | I2 | Contents fixed by B.0 |
@@ -3798,10 +3853,11 @@ fallback, which is why the archived "optional HCE fallback" phase is dropped.
   unless A.15.2 pulled it into Phase A, and the advisory is A.15.3's.
   C++26 (checked 2026-10-27, `analysis/code_audit_2026-10-27.md` §6):
   the standard was finished at the March 2026 meeting. The release
-  compilers are Clang 22 (Linux), the pinned MSYS2 Clang 23 (Windows)
-  and the macOS runner's AppleClang with libc++; GCC 15 runs only the
-  PGO smoke job and MSVC is not in the matrix, so the floor is
-  AppleClang and libc++. On that floor `-std=c++26` buys `#embed`, pack
+  compilers are Clang 19 with libstdc++ on `ubuntu-24.04` (Linux; CI
+  runs Clang 22), the pinned MSYS2 Clang 23 (Windows) and the macOS
+  runner's AppleClang with libc++; GCC 15 runs only the PGO smoke job
+  and MSVC is not in the matrix, so the floor is Clang 19 and
+  AppleClang. On that floor `-std=c++26` buys `#embed`, pack
   indexing and `= delete("reason")`, nothing the engine needs; the
   features that would remove code — reflection for the hand-kept
   option, parameter and counter tables, erroneous behaviour for
