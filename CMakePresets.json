@@ -62,7 +62,8 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "PORTABLE_BUILD": "ON",
-        "BASILISK_UNIVERSAL": "ON"
+        "BASILISK_UNIVERSAL": "ON",
+        "BASILISK_ALIGN_FUNCTIONS": "64"
       }
     },
     {

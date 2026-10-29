@@ -427,6 +427,7 @@ option(WARNINGS_AS_ERRORS "Treat compiler warnings as errors" ON)
 option(TEXEL "Build Texel trace+tuner target basilisk-texel (sets TEXEL_TRACE; implies BASILISK_TUNE)" OFF)
 option(BASILISK_UNIVERSAL_TIER "Build one tier of the universal x86-64 binary: keep the engine link's LTO objects and name the tier at start-up" OFF)
 option(BASILISK_UNIVERSAL "Configure the universal x86-64 binary: its dispatcher, its three tier builds and the final link (target universal)" OFF)
+set(BASILISK_ALIGN_FUNCTIONS "" CACHE STRING "Align every function to this many bytes (-falign-functions); empty keeps the compiler's 16")
 set(BASILISK_PGO "OFF" CACHE STRING "Profile-guided optimization phase: OFF, GENERATE, or USE")
 set_property(CACHE BASILISK_PGO PROPERTY STRINGS OFF GENERATE USE)
 set(BASILISK_PGO_PROFILE_FILE "" CACHE FILEPATH "LLVM/Clang .profdata file for BASILISK_PGO=USE")
@@ -593,6 +594,24 @@ elseif(MSVC)
             $<$<CONFIG:Release>:/LTCG>
         )
     endforeach()
+endif()
+
+# Function alignment. A function's alignment decides where its loops fall in
+# cache lines and decoded-instruction windows. The default 16 leaves that to
+# what the linker places before the function, so one function moved by 16
+# bytes shifts everything after it: a universal binary's tier, relinked
+# beside two others, lost 0.58% that way with byte-identical code (BAS-P20).
+if(BASILISK_ALIGN_FUNCTIONS)
+    if(NOT BASILISK_ALIGN_FUNCTIONS MATCHES "^(16|32|64|128)$")
+        message(FATAL_ERROR "BASILISK_ALIGN_FUNCTIONS must be 16, 32, 64 or 128")
+    endif()
+    if(NOT CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        message(FATAL_ERROR "BASILISK_ALIGN_FUNCTIONS needs GCC or Clang")
+    endif()
+    foreach(_tgt IN LISTS _ALL_TARGETS)
+        target_compile_options(${_tgt} PRIVATE -falign-functions=${BASILISK_ALIGN_FUNCTIONS})
+    endforeach()
+    message(STATUS "Function alignment: ${BASILISK_ALIGN_FUNCTIONS} bytes")
 endif()
 
 # ---------------------------------------------------------------------------
@@ -787,6 +806,7 @@ add_custom_target(pgo
         -DPGO_PRESET=${BASILISK_PGO_PRESET}
         -DPGO_NAME=${_basilisk_pgo_name}
         -DPGO_UNIVERSAL_TIER=${BASILISK_UNIVERSAL_TIER}
+        -DPGO_ALIGN_FUNCTIONS=${BASILISK_ALIGN_FUNCTIONS}
         -DPGO_COMP=${COMP}
         -DPGO_COMPILER_ID=${CMAKE_CXX_COMPILER_ID}
         -DPGO_TUNE=${TUNE}
@@ -947,6 +967,7 @@ if(BASILISK_UNIVERSAL)
             -DUT_COMP=${COMP}
             -DUT_STATIC_RUNTIME=${STATIC_RUNTIME}
             -DUT_DEV_ID=${BASILISK_DEV_ID}
+            -DUT_ALIGN_FUNCTIONS=${BASILISK_ALIGN_FUNCTIONS}
             -DUT_NM=${CMAKE_NM}
             -DUT_OBJCOPY=${CMAKE_OBJCOPY}
             -DUT_OBJDUMP=${CMAKE_OBJDUMP}

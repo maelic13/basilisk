@@ -24,6 +24,9 @@ endif()
 if(NOT DEFINED UT_DEV_ID)
     set(UT_DEV_ID "")
 endif()
+if(NOT DEFINED UT_ALIGN_FUNCTIONS)
+    set(UT_ALIGN_FUNCTIONS "")
+endif()
 
 set(_tiers portable avx2 pext)
 set(_preset_portable release)
@@ -48,6 +51,7 @@ foreach(_tier IN LISTS _tiers)
                 -DBASILISK_UNIVERSAL_TIER=ON
                 -DBASILISK_PGO_PRESET=${_preset}
                 -DBASILISK_DEV_ID=${UT_DEV_ID}
+                -DBASILISK_ALIGN_FUNCTIONS=${UT_ALIGN_FUNCTIONS}
         WORKING_DIRECTORY "${UT_SOURCE_DIR}"
         COMMAND_ERROR_IS_FATAL ANY
     )
