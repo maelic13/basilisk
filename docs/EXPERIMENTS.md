@@ -601,6 +601,7 @@ not accept any new feature, vector or label policy by themselves.
 | [BAS-P21](experiments/BAS-P21.md) | The universal x86-64 binary with 64-byte function alignment, against the pext asset. | COMPLETE: universal +0.00% at step 1, PASS (−0.29% [−0.73, +0.16] at six cycles); relink −0.13%, alignment −0.16%, both NO_CHANGE |
 | [BAS-P22](experiments/BAS-P22.md) | The native release build, GCC and MSVC, against Clang, the universal binary and the pext asset. | COMPLETE, read twice: native −1.0% against pext (A.15.8 returned); universal −0.14% PASS; GCC −2.7%, MSVC −14.4% against Clang |
 | [BAS-P23](experiments/BAS-P23.md) | BAS-P22's read on an Intel host: native, the universal binary and GCC. | REGISTERED |
+| [BAS-P24](experiments/BAS-P24.md) | The universal binary on Stockfish's assembly route, for Clang and GCC. | REGISTERED |
 
 ## 7. Correctness and protocol lessons
 

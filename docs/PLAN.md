@@ -2218,6 +2218,35 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         uses the assembly one.
       - Interactions: A.17 candidate 5 (code generation) reads on the same
         builds; G.2 extends the tier list on whichever route ships.
+      - Implemented 2026-10-29 (`analysis/universal_binary_2026-10.md` §15):
+        GCC's `-save-temps` keeps each LTO partition's assembly; Clang links
+        the tier's objects a second time with the linker writing assembly
+        (`basilisk_tier_asm`); `cmake/universal-asm.py` renames every symbol
+        the tier defines in that text, with the COFF section names built
+        from them, and the result is assembled. The earlier Clang route
+        stays selectable (`BASILISK_UNIVERSAL_ROUTE=objects`) for BAS-P24.
+        The first builds found four things, each fixed and recorded: GCC's
+        PE COMDATs are the `.rdata$.refptr.<symbol>` pointers, matched by
+        section name, 90 a tier to the tier's own symbols (the evaluation
+        tables among them), which a symbol-only rename would have shared
+        silently; GCC's LTO output defines libstdc++'s type identities as
+        ordinary data (238 multiple definitions), so GCC tiers rename them
+        too and exceptions still match by name; Clang's `$` lambda names
+        escaped the first tokenizer, and the tier check now covers local
+        symbols as well; GCC does not align never-run functions
+        (207 of 596), fixed by `-fmin-function-alignment` (GCC 14).
+        Verified on Windows (clang 23.1.4, MSYS2 GCC 16.2.0): both universal
+        binaries bench 19,470,325 on every forced tier with its banner and
+        pass the universal ISA contract, 558 of 562 functions (Clang) and
+        all (GCC) on a cache line; every guard of §14 plus the two new ones
+        seen to fail on a planted fault on the new route. GCC's portable
+        build passes CTest 24/24 and the single-tier contract, `bench 10`
+        3,684,650 as Clang's. CI: GCC cells for every x86 tier on Linux
+        and Windows in the bench agreement; the release builds and checks
+        GCC's universal binary on both, unpublished.
+      - BAS-P24 registered before any pool was built; the pools are built
+        and the read waits for the maintainer to free the host:
+        `pwsh tools/run_a159_nps_reads.ps1`.
 - [ ] **A.16** `[I1]` Zero-weight evaluation terms off the hot path
   Added 2026-10-28 (simplification read of the kernel and the evaluator
   against the donor, after A.14.1; the lines are cited here). Terms whose
@@ -3340,7 +3369,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.15.9 | RESEARCH | I2 | GCC equal to Clang: Stockfish's assembly route for the universal binary, guards re-proved, CI cells, re-measured; after PR #18 merges |
+| A.15.9 | LOCAL_QUALIFIED | I2 | Assembly route built for Clang and GCC, every guard seen to fail; BAS-P24 decides Clang's route, then the losing route goes |
 | A.16 | READY_FOR_IMPLEMENTATION | I1 | Zero-weight evaluation compute deleted; exact fingerprint, kept on a pooled NPS read |
 | A.17 | RESEARCH | R2 | Survey instruction-specific speed (compressed PEXT tables, PEXT/PDEP and AVX2 in the evaluation); each kept candidate a registered NPS read |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |
