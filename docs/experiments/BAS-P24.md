@@ -64,3 +64,13 @@
   or build process.
 - **Reading time:** five pools, 20 readings a cycle: about 15 minutes at
   step 1, about 40 with step 2.
+
+#### Registration amendment 1 — 2026-10-29, while building the pools, before any reading
+
+- **Two revisions.** The `a159-casm` pool was built at `e092f0c`. The first
+  `a159-cobj` build then failed: the `pgo` target did not forward
+  `BASILISK_UNIVERSAL_ROUTE` to its child builds, so they took the default,
+  the assembly route, and kept no LTO objects. `7a346fe` forwards it. The other
+  four pools are built at `7a346fe`; for the assembly route the forwarded value
+  is the default the `casm` builds already had, so their recipe is
+  unchanged. Nothing else changes.
