@@ -2235,11 +2235,16 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         escaped the first tokenizer, and the tier check now covers local
         symbols as well; GCC does not align never-run functions
         (207 of 596), fixed by `-fmin-function-alignment` (GCC 14).
-        Verified on Windows (clang 23.1.4, MSYS2 GCC 16.2.0): both universal
-        binaries bench 19,470,325 on every forced tier with its banner and
-        pass the universal ISA contract, 558 of 562 functions (Clang) and
-        all (GCC) on a cache line; every guard of §14 plus the two new ones
-        seen to fail on a planted fault on the new route. GCC's portable
+        Linux added two: the gold plugin's extensionless assembly files
+        (assembled with `-x assembler`), and GCC's `.cold` fragments, which
+        the alignment rule now leaves out.
+        Verified on Windows (clang 23.1.4, MSYS2 GCC 16.2.0) and Linux (WSL
+        Ubuntu 24.04, Clang 19.1.1 with gold and GCC 14.2, static): all four
+        universal binaries bench 19,470,325 on every forced tier with its
+        banner and pass the universal ISA contract, every function on a
+        cache line but Clang's stubs (558 of 562 on Windows, 483 of 484 on
+        Linux); every guard of §14 plus the two new ones seen to fail on a
+        planted fault on the new route. GCC's portable
         build passes CTest 24/24 and the single-tier contract, `bench 10`
         3,684,650 as Clang's. CI: GCC cells for every x86 tier on Linux
         and Windows in the bench agreement; the release builds and checks

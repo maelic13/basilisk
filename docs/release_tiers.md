@@ -180,5 +180,6 @@ builds):
 
 Per-tier NPS is measured locally and is not published as a per-asset file.
 
-Sizes (2026-10-29, four tiers, aligned): 4,199,936 bytes on Windows; 5,812,912
-on Linux, statically linked with glibc and libstdc++.
+Sizes (2026-10-29, four tiers, aligned): 4,186,112 bytes on Windows; 5,812,832
+on Linux, statically linked with glibc and libstdc++. GCC's universal binary:
+6,221,994 bytes on Windows, 5,135,640 on Linux.

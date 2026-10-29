@@ -646,6 +646,21 @@ Stockfish's (`universal-object-pgo` and `rewrite_asm_sections.awk`, read at
    `-Wmissing-profile` an error. GCC writes a profile for every file the
    training run links, run or not, so no file is exempt, and the check finds
    a missing or misplaced profile, not an unexercised file.
+8. **Two Linux-only details.** The gold plugin's assembly files have no
+   extension (`basilisk_tier_asm1` to `23`), which a compiler driver takes
+   for a link input and skips with exit status 0; the tiers are assembled
+   with `-x assembler`, and a missing object fails. GCC on ELF splits each
+   function's never-run blocks into a `<function>.cold` fragment in
+   `.text.unlikely`, labelled like a function but never entered by a call;
+   the alignment rule leaves those fragments out (the ISA attribution does
+   not). GCC on Windows does not split.
+
+Built from the final tree on Windows (clang 23.1.4, MSYS2 GCC 16.2.0) and
+Linux (WSL Ubuntu 24.04, Clang 19.1.1 with gold, GCC 14.2, static), all four
+universal binaries bench 19,470,325 on every forced tier with its banner and
+pass the universal ISA contract. Functions on a cache line: Clang 558 of 562
+(Windows) and 483 of 484 (Linux) a tier, the rest its stubs; GCC every one.
+Sizes: Clang 4,186,112 and 5,812,832 bytes, GCC 6,221,994 and 5,135,640.
 
 Seen to fail on the new route (§14's table, re-run):
 
