@@ -107,8 +107,6 @@ jobs:
     runs-on: ${{ matrix.runner }}
     # An x86-64 cell builds four PGO tiers.
     timeout-minutes: 80
-    env:
-      RELEASE_TAG: v${{ needs.prepare.outputs.version }}
     strategy:
       fail-fast: false
       matrix:
@@ -121,7 +119,8 @@ jobs:
             target: universal
             compiler: clang
             asset_suffix: ""
-            dist_suffix: "-universal"
+            asset_arch: x64
+            built: build/universal/basilisk-universal
 
           - runner: ubuntu-24.04-arm
             os_name: linux
@@ -131,6 +130,8 @@ jobs:
             target: pgo
             compiler: clang
             asset_suffix: ""
+            asset_arch: arm64
+            built: build/release-pgo/basilisk
 
           - runner: windows-2025
             os_name: windows
@@ -140,7 +141,8 @@ jobs:
             target: universal
             compiler: clang
             asset_suffix: ""
-            dist_suffix: "-universal"
+            asset_arch: x64
+            built: build/universal/basilisk-universal
             msystem: CLANG64
             mingw_pkg_prefix: mingw-w64-clang-x86_64
             compiler_pkg: clang
@@ -153,6 +155,8 @@ jobs:
             target: pgo
             compiler: clang
             asset_suffix: ""
+            asset_arch: arm64
+            built: build/release-pgo/basilisk
             msystem: CLANGARM64
             mingw_pkg_prefix: mingw-w64-clang-aarch64
             compiler_pkg: clang
@@ -165,6 +169,8 @@ jobs:
             target: pgo
             compiler: clang
             asset_suffix: ""
+            asset_arch: arm64
+            built: build/release-pgo/basilisk
 
     steps:
       - name: Configure Git line endings (Windows)
@@ -288,29 +294,30 @@ jobs:
           static=OFF
           [ "$RUNNER_OS" = Linux ] && static=ON
           cmake --preset ${{ matrix.preset }} -DPORTABLE_BUILD=ON -DCOMP=${{ matrix.compiler }} \
-            -DSTATIC_RUNTIME=$static -DBASILISK_DIST_TAG="$RELEASE_TAG"
+            -DSTATIC_RUNTIME=$static
           cmake --build --preset ${{ matrix.preset }} --target ${{ matrix.target }}
 
       - name: Configure and build PGO (Windows)
         if: runner.os == 'Windows'
         shell: msys2 {0}
         run: |
-          cmake --preset ${{ matrix.preset }} -DPORTABLE_BUILD=ON -DCOMP=${{ matrix.compiler }} -DBASILISK_DIST_TAG="$RELEASE_TAG"
+          cmake --preset ${{ matrix.preset }} -DPORTABLE_BUILD=ON -DCOMP=${{ matrix.compiler }}
           cmake --build --preset ${{ matrix.preset }} --target ${{ matrix.target }}
 
       - name: Locate the PGO binary and name it for release
         id: asset
         shell: bash
         run: |
-          tag="$RELEASE_TAG"
-          os="${{ matrix.os_name }}"; arch="${{ matrix.arch }}"
-          ext="${{ matrix.ext }}"; suffix="${{ matrix.asset_suffix }}"
-          # CMake names the PGO dist binary with a -pgo suffix, and the
-          # universal binary with -universal; publish it under the plain name
-          # (no -pgo, no -universal), matching the 1.8.0 asset format.
-          built="build/dist/basilisk-${tag}-${os}-${arch}${suffix}${{ matrix.dist_suffix }}-pgo${ext}"
-          [ -f "$built" ] || { echo "FAIL: PGO binary $built not found"; ls -la build/dist || true; exit 1; }
-          asset="basilisk-${tag}-${os}-${arch}${suffix}${ext}"
+          version='${{ needs.prepare.outputs.version }}'
+          os="${{ matrix.os_name }}"; arch="${{ matrix.asset_arch }}"
+          ext="${{ matrix.ext }}"
+          # The asset is basilisk-<version>-<os>-<x64|arm64>: no tier word (the
+          # x64 binary is the universal one, arm64 has one build) and no -pgo
+          # (every release build is PGO). The binary comes from its build tree.
+          built="${{ matrix.built }}${ext}"
+          [ -f "$built" ] || { echo "FAIL: PGO binary $built not found"; exit 1; }
+          asset="basilisk-${version}-${os}-${arch}${ext}"
+          mkdir -p build/dist
           cp "$built" "build/dist/${asset}"
           echo "asset=$asset" >> "$GITHUB_OUTPUT"
           echo "path=build/dist/${asset}" >> "$GITHUB_OUTPUT"
@@ -475,10 +482,10 @@ jobs:
         include:
           - runner: ubuntu-26.04
             os_name: linux
-            asset: linux-x86_64
+            asset: linux-x64
           - runner: windows-2025
             os_name: windows
-            asset: windows-x86_64.exe
+            asset: windows-x64.exe
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -501,7 +508,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          binary="asset/basilisk-v${{ needs.prepare.outputs.version }}-${{ matrix.asset }}"
+          binary="asset/basilisk-${{ needs.prepare.outputs.version }}-${{ matrix.asset }}"
           chmod +x "$binary"
           python=$(command -v python3 || command -v python)
           "$python" tools/diag/check_universal.py --binary "$binary" --sde "$SDE_DIR" \
@@ -538,11 +545,11 @@ jobs:
         run: |
           set -euo pipefail
           cd bundle
-          tag='v${{ needs.prepare.outputs.version }}'
+          version='${{ needs.prepare.outputs.version }}'
           expected=(
-            "basilisk-${tag}-linux-x86_64" "basilisk-${tag}-linux-aarch64"
-            "basilisk-${tag}-windows-x86_64.exe" "basilisk-${tag}-windows-aarch64.exe"
-            "basilisk-${tag}-macos-aarch64"
+            "basilisk-${version}-linux-x64" "basilisk-${version}-linux-arm64"
+            "basilisk-${version}-windows-x64.exe" "basilisk-${version}-windows-arm64.exe"
+            "basilisk-${version}-macos-arm64"
           )
           for f in "${expected[@]}"; do test -f "$f" || { echo "::error::missing asset $f"; ls -la; exit 1; }; done
           test "$(ls | grep -vc '\.nodes$')" -eq 5 || { echo "::error::the bundle does not hold exactly five assets"; ls -la; exit 1; }
@@ -601,7 +608,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" bundle/basilisk-v* \
+          gh release create "$GITHUB_REF_NAME" bundle/basilisk-* \
             --repo "$GITHUB_REPOSITORY" --verify-tag --latest \
             --title "Basilisk ${{ needs.prepare.outputs.version }}" \
             --notes-file notes/release-notes.md

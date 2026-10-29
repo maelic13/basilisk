@@ -209,7 +209,7 @@ jobs:
         run: |
           cmake --preset ${{ matrix.preset }} ${{ matrix.isa }} -DPORTABLE_BUILD=ON -DCOMP=clang \
             -DTUNE=OFF -DDIAGNOSTIC=OFF -DABLATION=OFF -DTEXEL=OFF
-          cmake --build --preset ${{ matrix.preset }}
+          cmake --build --preset ${{ matrix.preset }} --target all
 
       - name: CTest
         run: ctest --test-dir build/${{ matrix.preset }} --output-on-failure
