@@ -121,8 +121,28 @@ function(_basilisk_dist_asset_name out_var pgo_suffix)
     elseif(USE_PEXT)
         set(_dist_cpu_suffix "-pext")
     endif()
+    # Anything but the release flavor says what it is, so a debug, sanitized,
+    # tuning or instrumented binary never takes a release build's name.
+    set(_dist_kind "")
+    if(TUNE)
+        string(APPEND _dist_kind "-tune")
+    elseif(DIAGNOSTIC)
+        string(APPEND _dist_kind "-diag")
+    elseif(ABLATION)
+        string(APPEND _dist_kind "-ablate")
+    endif()
+    if(PROFILE_SYMBOLS)
+        string(APPEND _dist_kind "-profile")
+    endif()
+    string(TOLOWER "${CMAKE_BUILD_TYPE}" _dist_build_type)
+    if(_dist_build_type AND NOT _dist_build_type STREQUAL "release")
+        string(APPEND _dist_kind "-${_dist_build_type}")
+    endif()
+    if(SANITIZE AND NOT _dist_build_type STREQUAL "debug")
+        string(APPEND _dist_kind "-sanitize")
+    endif()
     set("${out_var}"
-        "basilisk-${BASILISK_DIST_TAG}-${_dist_os}-${_dist_arch}${_dist_cpu_suffix}${pgo_suffix}${CMAKE_EXECUTABLE_SUFFIX}"
+        "basilisk-${BASILISK_DIST_TAG}-${_dist_os}-${_dist_arch}${_dist_cpu_suffix}${_dist_kind}${pgo_suffix}${CMAKE_EXECUTABLE_SUFFIX}"
         PARENT_SCOPE
     )
 endfunction()
@@ -732,19 +752,17 @@ if(BASILISK_UNIVERSAL_TIER)
     set(_basilisk_dist_pgo_asset_name "")
 endif()
 
-# build/dist holds RELEASE-NAMED artifacts, so only an optimized, non-sanitized
-# build may publish into it. 8.6.2b: this rule previously fired for EVERY
-# configuration, so configuring a Debug (or any scratch) build in a second
-# directory silently overwrote e.g.
-# basilisk-v1.9.0-windows-x86_64-pext.exe with a 10 MB ASan debug binary under
-# the release name — observed for real during the 2026-07-20 code audit. The
-# asset name encodes the version and ISA tier, not the build type, so a
-# mismatched binary is undetectable from the filename alone.
+# Every build copies its binary into build/dist under a name that says what
+# it is: version, system, tier, and any flavor or build type other than the
+# release (see _basilisk_dist_asset_name). Until the name carried the build
+# type, a Debug build in a second directory silently replaced
+# basilisk-v1.9.0-windows-x86_64-pext.exe with a 10 MB ASan binary (2026-07-20
+# audit); now it lands beside it as ...-pext-debug.exe. A pgo build's child
+# builds and a universal binary's tier builds do not publish: the pgo target
+# copies its final binary itself, and a tier is not an asset; in a universal
+# configure only the universal target publishes, not its baseline engine.
 set(_basilisk_may_publish_dist FALSE)
-if(_basilisk_pgo STREQUAL "OFF"
-   AND NOT SANITIZE
-   AND NOT BASILISK_UNIVERSAL_TIER
-   AND (CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo"))
+if(_basilisk_pgo STREQUAL "OFF" AND NOT BASILISK_UNIVERSAL_TIER AND NOT BASILISK_UNIVERSAL)
     set(_basilisk_may_publish_dist TRUE)
 endif()
 
