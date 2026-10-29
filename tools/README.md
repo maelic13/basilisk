@@ -48,6 +48,9 @@ kept so the run can be reproduced from its ledger entry.
 | `run_b10_gate.ps1` | BAS-S26, the piece-square orientation repair |
 | `run_head_reads.ps1` | BAS-S27, the head against 1.10.2 at `10+0.1`, four threads and with tablebases |
 | `run_a94_nps_reads.ps1` | BAS-P18 and BAS-P19, the pooled NPS read's null and the clang 22 to 23 read |
+| `run_a15_nps_reads.ps1` | BAS-P20, the universal binary and the tier ladder |
+| `run_a156_nps_reads.ps1` | BAS-P21, the universal binary with 64-byte function alignment |
+| `run_a158_nps_reads.ps1` | BAS-P22, the native release build and MSVC against the universal binary |
 
 ### Backup path: fastchess and weather-factory
 

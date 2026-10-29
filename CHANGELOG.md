@@ -31,8 +31,14 @@ and next step).
   a Ryzen 9 5950X, the executable runs as fast as the former `-pext`
   download, and its `pext` build is 8.5% faster than `base` (BAS-P20,
   BAS-P21).
-- A build compiled for one instruction set (the `release-avx2` and
-  `release-pext` presets) started on a CPU without its instructions now says
+- **Three build presets.** `release` builds the fastest engine for the
+  computer that builds it: `-march=native`, with PEXT turned on where that
+  processor runs it fast (`-DUSE_PEXT=ON` or `OFF` overrides it); add
+  `--target pgo` for the profile-guided binary. `universal` builds the
+  release's Intel/AMD download and `debug` a sanitized debug build. The
+  `release-pext`, `release-avx2` and `relwithdebinfo` presets are gone.
+- A build compiled for one instruction set (with `-DUSE_AVX2` or
+  `-DUSE_PEXT` and `-DPORTABLE_BUILD=ON`) started on a CPU without its instructions now says
   so on standard output as well (`info string`), where a GUI records it, and
   names the build to use; a build slower than the CPU allows, or a `pext`
   build on AMD Zen 1 and Zen 2, says which one would be faster.

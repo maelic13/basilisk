@@ -48,8 +48,9 @@ one at start-up:
 How it is built (the `universal` preset, target `universal`;
 `cmake/universal-tiers.cmake`):
 
-1. Each tier is the ordinary PGO build of `release`, `release-avx2` or
-   `release-pext` with `BASILISK_UNIVERSAL_TIER=ON`, which keeps the engine
+1. Each tier is the ordinary PGO build of the `release` preset with its
+   option (none for `base`, `USE_SSE41_POPCNT`, `USE_AVX2` or `USE_PEXT`)
+   and `BASILISK_UNIVERSAL_TIER=ON`, which keeps the engine
    link's post-LTO objects (lld `-lldsavetemps` on Windows, the gold plugin's
    `save-temps` on Linux) and gives the tier a bare `main`.
 2. Every symbol a tier's objects define is renamed `__basilisk_<tier>_<name>`,
@@ -67,9 +68,9 @@ How it is built (the `universal` preset, target `universal`;
    on a cache line in any link.
 
 Local builds and every measurement stay single-tier (`build_test.ps1` builds
-the pext tier with the release's portable codegen). The `release`,
-`release-avx2` and `release-pext` presets compile `-march=native` unless
-`PORTABLE_BUILD=ON` is given; `-march=native` and the universal binary
+the pext tier with the release's portable codegen). The `release` preset
+compiles `-march=native`, with PEXT where the building CPU runs it fast,
+unless `PORTABLE_BUILD=ON` is given; `-march=native` and the universal binary
 contradict each other, so the universal builds require `PORTABLE_BUILD=ON`.
 The TUNE, DIAGNOSTIC, ABLATION and TEXEL flavours stay single-tier.
 

@@ -1887,7 +1887,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         pinning asserts are gone. `bench 13` 19,470,325 on the release,
         tune, diagnostic and ablation builds; CTest 24/24 release, 22/22
         diagnostic and tune.
-- [x] **A.15** Universal binaries and the release runners
+- [ ] **A.15** Universal binaries and the release runners
   Added 2026-10-27 at the maintainer's request
   (`analysis/code_audit_2026-10-27.md` §4). Stockfish 19 (2026-09-05)
   ships one fat binary per OS and architecture — every ISA level a full
@@ -2128,6 +2128,25 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         binary: `sse41-popcnt` +5.6% over `base` (`avx2` +6.0%, `pext`
         +9.2%). Size 4.2 MB on Windows, 5.8 MB on Linux. The SDE job and
         the release workflow are proved by the PR's candidate run.
+    - [ ] **A.15.8** `[I1]` Three presets: release, universal, debug
+      Added 2026-10-29 at the maintainer's request. Nobody building for their
+      own machine should pick a tier: `release` builds with `-march=native`
+      and turns PEXT on where the building CPU runs it fast, by the
+      universal binary's own rule (`src/cpu_detect.h`, probed at configure
+      time by `cmake/probe_cpu.cpp`; `-DUSE_PEXT` overrides it). The
+      `release-pext`, `release-avx2`, `release-sse41-popcnt` and
+      `relwithdebinfo` presets go: the universal build, `build_test.ps1` and
+      CI build a tier from `release` with its option, the PGO step passes
+      the options to its child builds, and the profiler never used
+      `relwithdebinfo` (`build_test.ps1 -Flavor Profile`). The README leads
+      with `cmake --build --preset release --target pgo`; PGO stays a
+      target, not the default.
+      - BAS-P22, registered before any reading: the native release against
+        the universal binary and the pext asset, the four-tier universal
+        binary against the pext asset, and MSVC (still building, `bench 13`
+        exact, in no CI job) against Clang. MSVC stays only if the read
+        keeps it within reach and it then gets a CI job like GCC's; the
+        maintainer decides.
 - [ ] **A.16** `[I1]` Zero-weight evaluation terms off the hot path
   Added 2026-10-28 (simplification read of the kernel and the evaluator
   against the donor, after A.14.1; the lines are cited here). Terms whose
@@ -3236,6 +3255,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
+| A.15.8 | IMPLEMENTED | I1 | Three presets, PEXT detected; BAS-P22 reads native, universal and MSVC |
 | A.16 | READY_FOR_IMPLEMENTATION | I1 | Zero-weight evaluation compute deleted; exact fingerprint, kept on a pooled NPS read |
 | A.17 | RESEARCH | R2 | Survey instruction-specific speed (compressed PEXT tables, PEXT/PDEP and AVX2 in the evaluation); each kept candidate a registered NPS read |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |

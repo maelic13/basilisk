@@ -132,69 +132,49 @@ Build it to develop or test the engine, or for a system without a download.
 | You need | |
 | --- | --- |
 | Build tools | CMake 3.24 or newer, and Ninja |
-| Compiler | GCC 14+, Clang 19+ with libstdc++, Clang 16+ with libc++, or MSVC |
+| Compiler | Clang 19+ with libstdc++, Clang 16+ with libc++, or GCC 14+ |
+
+### The fastest engine for your computer
 
 ```bash
 cmake --preset release
-cmake --build --preset release
-# Binary: build/release/basilisk
+cmake --build --preset release --target pgo
 ```
 
-### Presets
+This builds Basilisk for the processor of the computer that builds it
+(`-march=native`), uses PEXT when that processor runs it fast (Intel Haswell
+and newer, AMD Zen 3 and newer), and optimizes it with a profile of the
+`bench` suite (PGO). The binary lands in `build/dist`. It may not start on
+another computer.
 
-Pick a preset by what you want the engine for:
+### Other builds
 
-| You want | Preset |
-| --- | --- |
-| To play on this computer, Intel Haswell (2013) or newer, or AMD Zen 3 (2020) or newer | `release-pext` (fastest there) |
-| To play on this computer, any other processor | `release` |
-| One file to copy to other Intel or AMD computers, like the official download | `universal` (Clang, on Windows or Linux) |
-| To debug the engine | `debug` (slow, with sanitizers) |
-| To profile the engine | `relwithdebinfo` |
-
-`release` and `release-pext` are built for the computer that builds them and
-may not start on an older one. `release-avx2` and `release-sse41-popcnt` build
-a single one of the universal binary's builds; you normally do not need them.
+| Build | Commands | Binary |
+| --- | --- | --- |
+| Quick, without the profile step, for development and tests | `cmake --preset release`<br>`cmake --build --preset release` | `build/release/basilisk` |
+| One file for any Intel or AMD computer, as released | `cmake --preset universal`<br>`cmake --build --preset universal --target universal` | `build/dist` |
+| Debug: slow, with AddressSanitizer and UBSan | `cmake --preset debug`<br>`cmake --build --preset debug` | `build/debug/basilisk` |
 
 ### Options
 
-Add these when configuring, for example `cmake --preset release -DCOMP=gcc`.
+Add them to the first command, for example `cmake --preset release -DCOMP=gcc`.
 
 | Option | Effect |
 | --- | --- |
-| `-DPORTABLE_BUILD=ON` | Drops `-march=native`, so the binary runs on other computers |
-| `-DCOMP=clang`, `gcc`, `llvm` or `msvc` | Chooses the compiler. The default is Clang on Linux and Windows, AppleClang on macOS. Remove the build directory before switching; which is faster varies by CPU, so compare with `bench`. |
+| `-DCOMP=clang`, `gcc` or `llvm` | Chooses the compiler. The default is Clang on Linux and Windows, AppleClang on macOS. Remove the build directory before switching. |
+| `-DUSE_PEXT=ON` or `OFF` | Overrides the PEXT choice `release` makes for this computer. |
 | `-DSTATIC_RUNTIME=OFF` | Windows: links the C++ runtime dynamically. By default it is static, so `basilisk.exe` needs no MSYS2 DLLs. |
 
 | System | Notes |
 | --- | --- |
-| Windows | Build in an MSYS2 Clang shell, or add `D:\msys64\clang64\bin` to `PATH`. For MSVC, from an x64 Native Tools prompt: `cmake --preset msvc-release-pext`, then `cmake --build --preset msvc-release-pext --target pgo` (dynamic Visual C++ runtime; binary in `build/dist`). |
+| Windows | Build in an MSYS2 Clang shell, or add `D:\msys64\clang64\bin` to `PATH`. For MSVC, from an x64 Native Tools prompt: `cmake --preset msvc-release-pext`, then `cmake --build --preset msvc-release-pext --target pgo` (binary in `build/dist`). |
 | macOS | `brew install cmake ninja`; add `brew install llvm` to try `-DCOMP=llvm`. Apple silicon only. |
-
-### Profile-guided builds
-
-The published binaries are profile-guided (PGO), which is worth a few percent
-of speed. Build the `pgo` target of any preset:
-
-```bash
-cmake --preset release-pext -DCOMP=clang
-cmake --build --preset release-pext --target pgo
-```
-
-It builds an instrumented engine, trains it on the `bench` suite and rebuilds
-with the profile; the binary lands in `build/dist`. Clang builds use the
-`llvm-profdata` of the configured compiler; GCC needs none.
 
 ### The universal binary
 
-```bash
-cmake --preset universal
-cmake --build --preset universal --target universal
-```
-
-This builds the release's Intel/AMD download: four profile-guided builds of
-the engine in one file, and a small start-up check that runs the fastest one
-the processor supports. The binary lands in `build/dist`.
+The `universal` build is the release's Intel/AMD download: four
+profile-guided builds of the engine in one file, and a small start-up check
+that runs the fastest one the processor supports.
 
 | Build | Chosen on | Speed |
 | --- | --- | --- |
@@ -204,9 +184,10 @@ the processor supports. The binary lands in `build/dist`.
 | `base` | Any other 64-bit Intel or AMD processor | About 8% slower |
 
 The first line Basilisk prints names the build it chose. To run one build on
-purpose, for testing, set the environment variable `BASILISK_ISA` to
-`base`, `sse41-popcnt`, `avx2` or `pext`; a build the processor cannot run is refused. How
-the binary is built and checked: [`docs/release_tiers.md`](docs/release_tiers.md).
+purpose, for testing, set the environment variable `BASILISK_ISA` to `base`,
+`sse41-popcnt`, `avx2` or `pext`; a build the processor cannot run is refused.
+How the binary is built and checked:
+[`docs/release_tiers.md`](docs/release_tiers.md).
 
 ### Tests
 

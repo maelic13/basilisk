@@ -370,13 +370,16 @@ so a registered `[0,3]` gate passes `-Elo1 3`**. `-Mode simplify` is `[-5,0]`.
 
 ## Build, bench and NPS
 
-- Presets: `release`, `release-pext`, `release-avx2`, `release-sse41-popcnt`,
-  `universal`, `debug`,
-  `relwithdebinfo`, `msvc-release-pext`. PGO: `cmake --build --preset
-  release-pext --target pgo`, which trains on the bench suite and writes to
-  `build/dist/`. The x86-64 release asset is the universal binary
-  (`cmake --build --preset universal --target universal`: the three tiers'
-  PGO builds, functions aligned to 64 bytes, behind a baseline dispatcher;
+- Presets: `release`, `universal`, `debug` and `msvc-release-pext`.
+  `release` builds for this machine (`-march=native`) and turns PEXT on when
+  this CPU runs it fast, the universal binary's rule; `-DUSE_PEXT`,
+  `-DUSE_AVX2` or `-DUSE_SSE41_POPCNT` with `-DPORTABLE_BUILD=ON` builds one
+  tier for other machines, as `build_test.ps1`, CI and the universal build
+  do. PGO: `cmake --build --preset release --target pgo`, which trains on the
+  bench suite and writes to `build/dist/`. The x86-64 release asset is the
+  universal binary (`cmake --build --preset universal --target universal`:
+  four tiers' PGO builds, functions aligned to 64 bytes, behind a baseline
+  dispatcher;
   `docs/release_tiers.md`). Every measurement stays on the single-tier pext
   build, which is its pext tier less the alignment (BAS-P21 read the two
   level); `build_test.ps1 -Universal` stages the universal binary and its
@@ -770,10 +773,10 @@ builds the bundle as a workflow artifact and creates no tag or release.
 ## Common commands
 
 ```powershell
-cmake --preset release-pext -DCOMP=clang
-cmake --build --preset release-pext
-ctest --test-dir build/release-pext --output-on-failure
-cmake --build --preset release-pext --target pgo
+cmake --preset release -DCOMP=clang
+cmake --build --preset release
+ctest --test-dir build/release --output-on-failure
+cmake --build --preset release --target pgo
 python tools/diag/check_roadmap.py
 python tools/diag/check_roadmap.py --self-test
 ```
