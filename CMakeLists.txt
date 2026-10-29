@@ -957,6 +957,11 @@ if(BASILISK_UNIVERSAL)
     if(NOT _basilisk_pgo STREQUAL "OFF")
         message(FATAL_ERROR "BASILISK_UNIVERSAL links PGO tiers and is configured with BASILISK_PGO=OFF")
     endif()
+    # Without it the relink moves the hot functions off their cache-line
+    # placement in the tier build, which read 0.58% slower (BAS-P20, BAS-P21).
+    if(NOT BASILISK_ALIGN_FUNCTIONS STREQUAL "64")
+        message(FATAL_ERROR "BASILISK_UNIVERSAL needs BASILISK_ALIGN_FUNCTIONS=64, as the universal preset sets")
+    endif()
     set(_basilisk_tiers_dir "${CMAKE_BINARY_DIR}/tiers")
     set(_basilisk_tier_objects "${_basilisk_tiers_dir}/objects.rsp")
     add_custom_target(universal_tiers
