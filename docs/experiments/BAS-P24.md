@@ -113,3 +113,18 @@
   from the second read.
 - **Decision:** as registered; a REPEAT here stops for the maintainer with
   no further read.
+
+#### RESULT of the third read (amendment 2)
+
+- **Result (agent-run 2026-10-29, after the maintainer closed every
+  application; host 3.7% and 4.9%, no cycle disturbed;
+  `tools/results/a159-nps/p24-gcc/`).** GCC universal 3.2964M, GCC pext
+  3.2828M (means of build medians). `gcchot`: **+0.41%** [+0.06%, +0.77%],
+  **PASS** at step 1.
+- **Decision (the registered rule).** All three contrasts pass: Clang's
+  universal binary takes the assembly route and the objects route is
+  removed; GCC's universal binary matches GCC's own pext build.
+- **Calibration.** `gcchot` +0.41% against −0.2% [−1.0%, +0.6%], inside the
+  interval. The GCC arms read about 4% higher here than in the second read
+  (3.153M and 3.179M there); the reads were taken on different host states,
+  so levels are compared only within one read, never across them.
