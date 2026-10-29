@@ -14,6 +14,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #endif
 
@@ -1430,8 +1431,8 @@ int Evaluator::evaluate_undamped(const Board& b) {
     // ---- Threats package (Step 3.1; SF-style, seeded inert) ----------------
     // Uses the Step 3.0 attack maps. Every weight is seeded 0 (bench identical);
     // the loops compute + trace so the Phase-4.2 fit can activate the group. It
-    // coexists with the flat pawn-threat and hang_pen terms above until Phase 4.2
-    // swaps the tuned replacement in.
+    // coexists with the flat pawn-threat term above until Phase 4.2 swaps the
+    // tuned replacement in.
     for (int c = 0; c < NCOLORS; c++) {
         int sign   = (c == WHITE) ? 1 : -1;
         Color us   = Color(c);
@@ -1526,15 +1527,6 @@ int Evaluator::evaluate_undamped(const Board& b) {
         if (n_attackers[c] >= 2) units += p.ks_coord_bonus;
         if (n_attackers[c] == 0) units = 0;
 
-        // King's flank file group (SF-style) and our camp (own half + one rank).
-        Bitboard flank_files;
-        if (kf <= FILE_C)
-            flank_files = BB_FILES[FILE_A] | BB_FILES[FILE_B] | BB_FILES[FILE_C] | BB_FILES[FILE_D];
-        else if (kf >= FILE_F)
-            flank_files = BB_FILES[FILE_E] | BB_FILES[FILE_F] | BB_FILES[FILE_G] | BB_FILES[FILE_H];
-        else
-            flank_files = BB_FILES[FILE_C] | BB_FILES[FILE_D] | BB_FILES[FILE_E] | BB_FILES[FILE_F];
-
         // Safe checks: enemy checking squares it attacks and we do not hold.
         Bitboard safe_sq = ~b.occupancy_bb(them) & ~attacked[us];
         for (int pt : {KNIGHT, BISHOP, ROOK, QUEEN}) {
@@ -1548,23 +1540,6 @@ int Evaluator::evaluate_undamped(const Board& b) {
         Bitboard ring = KingAttacks[ksq];
         Bitboard weak_ring = ring & attacked[them] & ~attacked2[us] & ~attacked_by[us][PAWN];
         units += p.ks_weak_ring * popcount(weak_ring);
-
-        // Enemy mobility pressure around the ring.
-        units += p.ks_ring_pressure * popcount(ring & attacked[them]);
-
-        // King-flank attack vs defense within our camp.
-        Bitboard camp = (us == WHITE)
-            ? (BB_RANKS[RANK_1] | BB_RANKS[RANK_2] | BB_RANKS[RANK_3] | BB_RANKS[RANK_4] | BB_RANKS[RANK_5])
-            : (BB_RANKS[RANK_4] | BB_RANKS[RANK_5] | BB_RANKS[RANK_6] | BB_RANKS[RANK_7] | BB_RANKS[RANK_8]);
-        Bitboard flank_zone = flank_files & camp;
-        int flank_attack  = popcount(flank_zone & attacked[them])
-                          + popcount(flank_zone & attacked2[them]);
-        int flank_defense = popcount(flank_zone & attacked[us]);
-        units += p.ks_flank_attack * flank_attack - p.ks_flank_defense * flank_defense;
-
-        // Pawnless flank.
-        if (!(b.piece_bb(us, PAWN) & flank_files))
-            units += p.ks_pawnless_flank;
 
         // Own pieces pinned in front of the king (a pinned defender doesn't defend).
         units += p.ks_king_blockers * popcount(blockers_for_king[c]);
@@ -1586,10 +1561,6 @@ int Evaluator::evaluate_undamped(const Board& b) {
         // No-enemy-queen relief (exposed scalar; was frozen 2/3, retuned since).
         if (!b.piece_bb(them, QUEEN))
             units = units * p.ks_noqueen_num / p.ks_noqueen_den;
-
-        // Open king file (existing term).
-        if (!(b.piece_bb(us, PAWN) & BB_FILES[kf]))
-            units += p.ks_open_file;
 
         units = std::min(units, 24);
         if (units < 0) units = 0;
@@ -1700,24 +1671,6 @@ int Evaluator::evaluate_undamped(const Board& b) {
                 mg -= sign * p.enemy_rook_passer_mg; TR_MG(EnemyRookPasserMg, 0, -sign);
                 eg -= sign * p.enemy_rook_passer_eg; TR_EG(EnemyRookPasserEg, 0, -sign);
             }
-        }
-    }
-
-    // ---- Hanging pieces (attacked and not defended) ------------------------
-    for (int c = 0; c < NCOLORS; c++) {
-        int sign = (c == WHITE) ? 1 : -1;
-        Color us   = Color(c);
-        Color them = ~us;
-        Bitboard pieces_bb = b.occupancy_bb(us) & ~b.piece_bb(us, PAWN) & ~b.piece_bb(us, KING);
-        while (pieces_bb) {
-            Square sq = Square(pop_lsb(pieces_bb));
-            // attacked[c] is the full union, identical to is_attacked_by(sq, all_occ, c):
-            // skip if not attacked by them, or if defended by us.
-            if (!(attacked[them] & sq_bb(sq))) continue;
-            if  (attacked[us]   & sq_bb(sq))   continue;
-            PieceType pt = type_of(b.piece_on(sq));
-            mg -= sign * p.hang_pen[pt]; TR_BOTH(HangPen, pt, -sign);
-            eg -= sign * p.hang_pen[pt];
         }
     }
 
@@ -1972,43 +1925,6 @@ int Evaluator::evaluate_undamped(const Board& b) {
         TR_MG(Tempo, 0, tempo_sign);
     }
 
-    // ---- Winnable / complexity coupling (Step 3.6) -------------------------
-    // Frozen, not traced (sign-preserving nonlinearity); all weights are 0,
-    // so the contribution is exactly 0 today (bench unchanged, --verify exact).
-    // NOTE: never actually tuned -- the winnability block is not
-    // traced and the generic optimizer only consumes linear trace
-    // coefficients, so its gradient was always zero (audit hce_analysis 4).
-    // Activating it is re-tune material. The complexity may never flip the
-    // sign of the endgame score.
-    {
-        Square wk = b.king_square(WHITE), bk = b.king_square(BLACK);
-        int outflanking = std::abs(file_of(wk) - file_of(bk))
-                        - std::abs(rank_of(wk) - rank_of(bk));
-        Bitboard all_pawns = b.piece_bb(WHITE, PAWN) | b.piece_bb(BLACK, PAWN);
-        bool both_flanks =
-            (all_pawns & (BB_FILES[FILE_A] | BB_FILES[FILE_B] | BB_FILES[FILE_C])) &&
-            (all_pawns & (BB_FILES[FILE_F] | BB_FILES[FILE_G] | BB_FILES[FILE_H]));
-        bool infiltration = rank_of(wk) > RANK_4 || rank_of(bk) < RANK_5;
-        Bitboard pieces = b.piece_bb(WHITE, KNIGHT) | b.piece_bb(WHITE, BISHOP)
-                        | b.piece_bb(WHITE, ROOK)   | b.piece_bb(WHITE, QUEEN)
-                        | b.piece_bb(BLACK, KNIGHT) | b.piece_bb(BLACK, BISHOP)
-                        | b.piece_bb(BLACK, ROOK)   | b.piece_bb(BLACK, QUEEN);
-        bool pawn_endgame = (pieces == 0);
-        int passed_cnt = popcount(passed[WHITE]) + popcount(passed[BLACK]);
-        int total_pawns = popcount(all_pawns);
-
-        int complexity = p.win_outflanking  * outflanking
-                       + p.win_both_flanks  * (both_flanks ? 1 : 0)
-                       + p.win_infiltration * (infiltration ? 1 : 0)
-                       + p.win_pawn_endgame * (pawn_endgame ? 1 : 0)
-                       + p.win_passed       * passed_cnt
-                       + p.win_total_pawns  * total_pawns
-                       - p.win_bias;
-
-        int sgn = (eg > 0) - (eg < 0);
-        eg += sgn * std::max(complexity, -std::abs(eg));
-    }
-
     // ---- Taper and return --------------------------------------------------
     int score = (mg * phase + eg * (TOTAL_PHASE - phase)) / TOTAL_PHASE;
 
@@ -2085,6 +2001,15 @@ static void load_eval_params(const char* filename, EvalParams& p) {
                                      + " out of range for '" + name
                                      + "' (length " + std::to_string(slot.size())
                                      + ") at line " + std::to_string(lineno));
+        // These terms are no longer computed (every weight was 0), so a
+        // nonzero value would be ignored without a word.
+        static constexpr std::string_view uncomputed[] = {
+            "KsOpenFile", "KsRingPressure", "KsFlankAttack", "KsFlankDefense", "KsPawnlessFlank",
+            "HangPen", "WinOutflanking", "WinBothFlanks", "WinInfiltration", "WinPawnEndgame",
+            "WinPassed", "WinTotalPawns", "WinBias"};
+        if (val != 0 && std::ranges::find(uncomputed, std::string_view(name)) != std::end(uncomputed))
+            throw std::runtime_error("Eval param '" + name + "' is not computed and must be 0, at line "
+                                     + std::to_string(lineno));
         slot[size_t(idx)] = val;
     }
 }
