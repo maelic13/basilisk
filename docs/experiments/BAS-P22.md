@@ -1,6 +1,6 @@
 # BAS-P22
 
-**BAS-P22 — the native release build and MSVC, against the universal binary and the pext asset**
+**BAS-P22 — the native release build, GCC and MSVC, against Clang, the universal binary and the pext asset**
 
 - **Registration.** Registered 2026-10-29, before any reading; PLAN A.15.8.
   Agent-run at the maintainer's request: `pwsh tools/run_a158_nps_reads.ps1`.
@@ -30,7 +30,7 @@
      binary still matches the pext asset (BAS-P21 read three tiers);
   4. `msvc`, MSVC over Clang's pext, gain form: MSVC's distance from Clang.
 - **Question.** How much faster is a native build than the download, and is
-  MSVC within reach of Clang?
+  MSVC within reach of Clang? (Amendment 1 adds GCC.)
 
 #### PRE-REGISTERED PREDICTION — freeze before exposure
 
@@ -53,5 +53,31 @@
 - **Conditions:** one pinned physical core (the last) at High priority, a
   `bench 8` warm-up per build, 60 s under 10% host load, no engine, harness
   or build process.
+
+#### Registration amendment 1 — 2026-10-29, before any reading
+
+- **All three compilers, each at its best.** At the maintainer's request a
+  fifth pool joins: `a158-gcc`, four `build_test.ps1 -Native -Gcc` builds
+  (MSYS2 GCC 16.2, `-march=native`, PEXT detected, GCC's PGO; a trial build
+  gave 19,470,325). MSVC has no native target, so its best is its pext
+  build. The contrasts become six:
+  1. `gcc`, GCC native over Clang native, gain form;
+  2. `msvc`, MSVC over Clang native, gain form: best against best;
+  3. `msvcisa`, MSVC over Clang's pext, gain form: the same instruction
+     set, so the compiler alone;
+  4. `native`, `nativecg` and `hot` as registered.
+- **Predictions added:** `gcc` −2% [−6%, +2%]; `msvc` −10.5% [−16%, −5%];
+  `msvcisa` −10% [−15%, −5%] (the registered `msvc` prediction).
+- **Decision rule.** The MSVC recommendation reads `msvcisa`, where only
+  the compiler differs: 3% or more behind Clang, MSVC goes; within 3% it
+  stays with a CI job. GCC stays supported either way (CI builds it); `gcc`
+  sets what the README says about compilers.
+- **Builds.** `a158-native` and `a158-pext` were built at `72ea2b5`, before
+  this amendment; the other three pools at the amendment's revision, whose
+  difference is tooling and records only (`build_test.ps1`'s `-Gcc`, this
+  launcher, documents), not the engine source or its build files.
+- **Reading time:** five pools, 20 readings a cycle: about 15 minutes at step
+  1, about 40 with step 2. The read waits for the maintainer to free the
+  host.
 
 #### RESULT — append after exposure

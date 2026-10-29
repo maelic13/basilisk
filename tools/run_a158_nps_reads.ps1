@@ -4,13 +4,17 @@
      a158-native      build_test.ps1 -Native: release as a user builds it here
      a158-pext        build_test.ps1 Release: the pext asset's recipe
      a158-universal   build_test.ps1 -Universal: the four-tier universal binary
+     a158-gcc         build_test.ps1 -Native -Gcc: the native release by GCC
      a158-msvc        build_test.ps1 -Msvc, in the Visual Studio x64 environment
 
-   One read, step 1 and step 2 only when a contrast says EXTEND:
+   One read (registration amendment 1), step 1 and step 2 only when a
+   contrast says EXTEND:
+     gcc        a158-gcc over a158-native (gain)
+     msvc       a158-msvc over a158-native (gain)
+     msvcisa    a158-msvc over a158-pext (gain)
      native     a158-native over a158-universal (gain)
      nativecg   a158-native over a158-pext (gain)
      hot        a158-universal against a158-pext (no-regression)
-     msvc       a158-msvc over a158-pext (gain)
    A REPEAT repeats the read once into a fresh directory; a second stops for
    the maintainer. -BuildOnly builds the pools and stops. #>
 param([switch]$BuildOnly)
@@ -26,9 +30,10 @@ $arms = [ordered]@{
     native    = @{ Switch = '-Native'; Staged = 'native-pgo' }
     pext      = @{ Switch = ''; Staged = 'pext-pgo' }
     universal = @{ Switch = '-Universal'; Staged = 'universal-pgo' }
+    gcc       = @{ Switch = '-Gcc'; Staged = 'native-gcc-pgo' }
     msvc      = @{ Switch = '-Msvc'; Staged = 'msvc-pgo' }
 }
-$letters = @{ native = 'n'; pext = 'p'; universal = 'u'; msvc = 'm' }
+$letters = @{ native = 'n'; pext = 'p'; universal = 'u'; gcc = 'g'; msvc = 'm' }
 $pools = [ordered]@{}
 foreach ($arm in $arms.Keys) {
     $pool = Join-Path $engines "a158-$arm.pool.json"
@@ -40,6 +45,8 @@ foreach ($arm in $arms.Keys) {
             if ($arm -eq 'msvc') {
                 & cmd /c "call `"$vcvars`" >nul && pwsh -NoProfile -File `"$buildTest`" -Suffix $suffix -Flavor Release -Msvc" | Out-Host
                 if ($LASTEXITCODE -ne 0) { throw "MSVC build $suffix failed (exit $LASTEXITCODE)." }
+            } elseif ($arm -eq 'gcc') {
+                & $buildTest -Suffix $suffix -Flavor Release -Native -Gcc | Out-Host
             } elseif ($arms[$arm].Switch) {
                 $switch = @{ ($arms[$arm].Switch.TrimStart('-')) = $true }
                 & $buildTest -Suffix $suffix -Flavor Release @switch | Out-Host
@@ -54,10 +61,12 @@ foreach ($arm in $arms.Keys) {
 if ($BuildOnly) { Write-Host 'Pools built; no read run.'; return }
 
 $contrasts = @(
+    'gcc=a158-native:a158-gcc:gain',
+    'msvc=a158-native:a158-msvc:gain',
+    'msvcisa=a158-pext:a158-msvc:gain',
     'native=a158-universal:a158-native:gain',
     'nativecg=a158-pext:a158-native:gain',
-    'hot=a158-pext:a158-universal:no-regression',
-    'msvc=a158-pext:a158-msvc:gain'
+    'hot=a158-pext:a158-universal:no-regression'
 )
 $read = Join-Path $PSScriptRoot 'nps_read.ps1'
 foreach ($name in @('p22', 'p22-repeat')) {

@@ -2143,8 +2143,11 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       target, not the default.
       - BAS-P22, registered before any reading: the native release against
         the universal binary and the pext asset, the four-tier universal
-        binary against the pext asset, and MSVC (still building, `bench 13`
-        exact, in no CI job) against Clang. MSVC stays only if the read
+        binary against the pext asset, and, by amendment 1, all three
+        compilers at their best (GCC and Clang native; MSVC, which has no
+        native target, at its pext build), with MSVC also against Clang on
+        the same instruction set. MSVC still builds, `bench 13` exact, in no
+        CI job. MSVC stays only if the read
         keeps it within reach and it then gets a CI job like GCC's; the
         maintainer decides.
 - [ ] **A.16** `[I1]` Zero-weight evaluation terms off the hot path
