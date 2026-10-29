@@ -62,9 +62,11 @@ endif()
 if(NOT DEFINED PGO_DIST_DIR)
     set(PGO_DIST_DIR "")
 endif()
-if(NOT DEFINED PGO_DIST_ASSET_NAME)
-    set(PGO_DIST_ASSET_NAME "")
-endif()
+foreach(_var PGO_DIST_HEADER PGO_DIST_STEM PGO_DIST_SUFFIX)
+    if(NOT DEFINED ${_var})
+        set(${_var} "")
+    endif()
+endforeach()
 
 set(_build_root "${PGO_SOURCE_DIR}/build")
 set(_gen_dir "${_build_root}/${PGO_NAME}-pgo-generate")
@@ -244,9 +246,12 @@ endif()
 
 message(STATUS "PGO binary: ${_pgo_binary}")
 
-if(PGO_DIST_DIR AND PGO_DIST_ASSET_NAME)
-    set(_pgo_dist_binary "${PGO_DIST_DIR}/${PGO_DIST_ASSET_NAME}")
-    file(MAKE_DIRECTORY "${PGO_DIST_DIR}")
-    file(COPY_FILE "${_pgo_binary}" "${_pgo_dist_binary}" ONLY_IF_DIFFERENT)
-    message(STATUS "PGO dist binary: ${_pgo_dist_binary}")
+if(PGO_DIST_DIR)
+    execute_process(
+        COMMAND "${CMAKE_COMMAND}" -DSRC_DIR=${PGO_SOURCE_DIR} -DHEADER=${PGO_DIST_HEADER}
+                -DBINARY=${_pgo_binary} -DDIST_DIR=${PGO_DIST_DIR} -DSTEM=${PGO_DIST_STEM}
+                -DSUFFIX=${PGO_DIST_SUFFIX} -DEXT=${PGO_EXECUTABLE_SUFFIX}
+                -P "${PGO_SOURCE_DIR}/cmake/dist-copy.cmake"
+        COMMAND_ERROR_IS_FATAL ANY
+    )
 endif()

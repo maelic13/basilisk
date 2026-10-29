@@ -77,14 +77,6 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# The dist tag defaults to v<project version>. An explicit -DBASILISK_DIST_TAG
-# (the release workflow passes the full tag, e.g. v1.11.0-dev) is kept; a
-# cached default is refreshed when the project version changes.
-if(NOT BASILISK_DIST_TAG OR BASILISK_DIST_TAG STREQUAL "${_BASILISK_DIST_TAG_DEFAULT}")
-    set(BASILISK_DIST_TAG "v${PROJECT_VERSION}" CACHE STRING "Release asset tag used in dist binary names" FORCE)
-endif()
-set(_BASILISK_DIST_TAG_DEFAULT "v${PROJECT_VERSION}" CACHE INTERNAL "The dist tag's default at the last configure")
-
 function(_basilisk_detect_dist_os out_var)
     if(WIN32)
         set(_os "windows")
@@ -99,52 +91,63 @@ endfunction()
 function(_basilisk_detect_dist_arch out_var)
     string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" _processor)
     if(_processor MATCHES "^(x86_64|amd64)$")
-        set(_arch "x86_64")
+        set(_arch "x64")
     elseif(_processor MATCHES "^(aarch64|arm64)$")
-        set(_arch "aarch64")
+        set(_arch "arm64")
     else()
         set(_arch "${_processor}")
     endif()
     set("${out_var}" "${_arch}" PARENT_SCOPE)
 endfunction()
 
-function(_basilisk_dist_asset_name out_var pgo_suffix)
+# A build's name in build/dist: basilisk-<version>-<os>-<arch>[-<tier>][-<kind>].
+# The version is added at build time (cmake/dist-copy.cmake). An x64 build of
+# one tier names it (base, sse41-popcnt, avx2, pext, or native); the universal
+# binary holds all of them and arm64 has one, so neither names a tier. The
+# release flavor built with PGO names no kind; anything else says what it is,
+# so no binary takes another's name.
+function(_basilisk_dist_stem out_var)
     _basilisk_detect_dist_os(_dist_os)
     _basilisk_detect_dist_arch(_dist_arch)
-    set(_dist_cpu_suffix "")
-    if(BASILISK_UNIVERSAL)
-        set(_dist_cpu_suffix "-universal")
-    elseif(USE_AVX2)
-        set(_dist_cpu_suffix "-avx2")
-    elseif(USE_SSE41_POPCNT)
-        set(_dist_cpu_suffix "-sse41-popcnt")
-    elseif(USE_PEXT)
-        set(_dist_cpu_suffix "-pext")
+    set("${out_var}" "${_dist_os}-${_dist_arch}" PARENT_SCOPE)
+endfunction()
+
+function(_basilisk_dist_suffix out_var pgo)
+    _basilisk_detect_dist_arch(_dist_arch)
+    set(_suffix "")
+    if(_dist_arch STREQUAL "x64" AND NOT BASILISK_UNIVERSAL)
+        if(NOT PORTABLE_BUILD)
+            set(_suffix "-native")
+        elseif(USE_PEXT)
+            set(_suffix "-pext")
+        elseif(USE_AVX2)
+            set(_suffix "-avx2")
+        elseif(USE_SSE41_POPCNT)
+            set(_suffix "-sse41-popcnt")
+        else()
+            set(_suffix "-base")
+        endif()
     endif()
-    # Anything but the release flavor says what it is, so a debug, sanitized,
-    # tuning or instrumented binary never takes a release build's name.
-    set(_dist_kind "")
     if(TUNE)
-        string(APPEND _dist_kind "-tune")
+        string(APPEND _suffix "-tune")
     elseif(DIAGNOSTIC)
-        string(APPEND _dist_kind "-diag")
+        string(APPEND _suffix "-diag")
     elseif(ABLATION)
-        string(APPEND _dist_kind "-ablate")
+        string(APPEND _suffix "-ablate")
     endif()
     if(PROFILE_SYMBOLS)
-        string(APPEND _dist_kind "-profile")
+        string(APPEND _suffix "-profile")
     endif()
-    string(TOLOWER "${CMAKE_BUILD_TYPE}" _dist_build_type)
-    if(_dist_build_type AND NOT _dist_build_type STREQUAL "release")
-        string(APPEND _dist_kind "-${_dist_build_type}")
+    string(TOLOWER "${CMAKE_BUILD_TYPE}" _build_type)
+    if(_build_type AND NOT _build_type STREQUAL "release")
+        string(APPEND _suffix "-${_build_type}")
+    elseif(NOT pgo)
+        string(APPEND _suffix "-nopgo")
     endif()
-    if(SANITIZE AND NOT _dist_build_type STREQUAL "debug")
-        string(APPEND _dist_kind "-sanitize")
+    if(SANITIZE AND NOT _build_type STREQUAL "debug")
+        string(APPEND _suffix "-sanitize")
     endif()
-    set("${out_var}"
-        "basilisk-${BASILISK_DIST_TAG}-${_dist_os}-${_dist_arch}${_dist_cpu_suffix}${_dist_kind}${pgo_suffix}${CMAKE_EXECUTABLE_SUFFIX}"
-        PARENT_SCOPE
-    )
+    set("${out_var}" "${_suffix}" PARENT_SCOPE)
 endfunction()
 
 # ---------------------------------------------------------------------------
@@ -745,17 +748,21 @@ if(BASILISK_UNIVERSAL_TIER AND _basilisk_pgo STREQUAL "USE" AND CMAKE_CXX_COMPIL
 endif()
 
 set(_basilisk_dist_dir "${CMAKE_SOURCE_DIR}/build/dist")
-_basilisk_dist_asset_name(_basilisk_dist_asset_name "")
-_basilisk_dist_asset_name(_basilisk_dist_pgo_asset_name "-pgo")
-# A tier is not an asset: the universal binary is, under the x86-64 name.
+_basilisk_dist_stem(_basilisk_dist_stem)
+_basilisk_dist_suffix(_basilisk_dist_suffix_nopgo FALSE)
+_basilisk_dist_suffix(_basilisk_dist_suffix_pgo TRUE)
+# A universal binary's tier is not an asset and does not publish.
+set(_basilisk_pgo_dist_dir "${_basilisk_dist_dir}")
 if(BASILISK_UNIVERSAL_TIER)
-    set(_basilisk_dist_pgo_asset_name "")
+    set(_basilisk_pgo_dist_dir "")
 endif()
+set(_basilisk_dist_copy
+    "${CMAKE_COMMAND}" -DSRC_DIR=${CMAKE_SOURCE_DIR} -DHEADER=${_basilisk_version_header}
+    -DDIST_DIR=${_basilisk_dist_dir} -DSTEM=${_basilisk_dist_stem} -DEXT=${CMAKE_EXECUTABLE_SUFFIX})
 
 # Every build copies its binary into build/dist under a name that says what
-# it is: version, system, tier, and any flavor or build type other than the
-# release (see _basilisk_dist_asset_name). Until the name carried the build
-# type, a Debug build in a second directory silently replaced
+# it is (_basilisk_dist_suffix, cmake/dist-copy.cmake). Until the name carried
+# the build type, a Debug build in a second directory silently replaced
 # basilisk-v1.9.0-windows-x86_64-pext.exe with a 10 MB ASan binary (2026-07-20
 # audit); now it lands beside it as ...-pext-debug.exe. A pgo build's child
 # builds and a universal binary's tier builds do not publish: the pgo target
@@ -768,13 +775,12 @@ endif()
 
 if(_basilisk_may_publish_dist)
     add_custom_command(TARGET basilisk POST_BUILD
-        COMMAND "${CMAKE_COMMAND}" -E make_directory "${_basilisk_dist_dir}"
-        COMMAND "${CMAKE_COMMAND}" -E copy_if_different
-            "$<TARGET_FILE:basilisk>"
-            "${_basilisk_dist_dir}/${_basilisk_dist_asset_name}"
-        COMMENT "Copying Basilisk release binary to ${_basilisk_dist_dir}/${_basilisk_dist_asset_name}"
+        COMMAND ${_basilisk_dist_copy} -DBINARY=$<TARGET_FILE:basilisk> -DSUFFIX=${_basilisk_dist_suffix_nopgo}
+                -P "${CMAKE_SOURCE_DIR}/cmake/dist-copy.cmake"
         VERBATIM
     )
+    # The engine alone without the profile step: the quick build, named -nopgo.
+    add_custom_target(nopgo DEPENDS basilisk)
 endif()
 
 if(PORTABLE_BUILD)
@@ -875,14 +881,17 @@ add_custom_target(pgo
         -DPGO_ARM_OPTION=${BASILISK_PGO_ARM_OPTION}
         -DPGO_ARM_STATE=${BASILISK_PGO_ARM_STATE}
         -DPGO_EXECUTABLE_SUFFIX=${CMAKE_EXECUTABLE_SUFFIX}
-        -DPGO_DIST_DIR=${_basilisk_dist_dir}
-        -DPGO_DIST_ASSET_NAME=${_basilisk_dist_pgo_asset_name}
+        -DPGO_DIST_DIR=${_basilisk_pgo_dist_dir}
+        -DPGO_DIST_HEADER=${_basilisk_version_header}
+        -DPGO_DIST_STEM=${_basilisk_dist_stem}
+        -DPGO_DIST_SUFFIX=${_basilisk_dist_suffix_pgo}
         -DPGO_LLVM_PROFDATA=${_basilisk_llvm_profdata}
         -P "${CMAKE_SOURCE_DIR}/cmake/pgo-build.cmake"
     COMMENT "Build Basilisk with profile-guided optimization"
     USES_TERMINAL
     VERBATIM
 )
+add_dependencies(pgo basilisk_git_version)
 
 # ---------------------------------------------------------------------------
 # Optional BMI2 PEXT support (faster sliding piece attacks on Haswell+)
@@ -1057,14 +1066,11 @@ if(BASILISK_UNIVERSAL)
         OUTPUT_NAME basilisk-universal
         LINK_DEPENDS "${_basilisk_tier_objects}")
     add_custom_target(universal
-        COMMAND "${CMAKE_COMMAND}" -E make_directory "${_basilisk_dist_dir}"
-        COMMAND "${CMAKE_COMMAND}" -E copy_if_different
-            "$<TARGET_FILE:basilisk_universal>"
-            "${_basilisk_dist_dir}/${_basilisk_dist_pgo_asset_name}"
-        COMMENT "Copying the universal binary to ${_basilisk_dist_dir}/${_basilisk_dist_pgo_asset_name}"
+        COMMAND ${_basilisk_dist_copy} -DBINARY=$<TARGET_FILE:basilisk_universal> -DSUFFIX=
+                -P "${CMAKE_SOURCE_DIR}/cmake/dist-copy.cmake"
         VERBATIM
     )
-    add_dependencies(universal basilisk_universal)
+    add_dependencies(universal basilisk_universal basilisk_git_version)
 endif()
 
 # ---------------------------------------------------------------------------

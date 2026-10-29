@@ -16,7 +16,7 @@
     {
       "name": "release",
       "displayName": "Release",
-      "description": "Fastest build for this computer: -O3 -march=native + LTO, with PEXT when this CPU runs it fast. Add --target pgo to the build for the profile-guided binary.",
+      "description": "Fastest build for this computer: its tier with the release's flags, LTO and PGO. Build --target all for the quick build with the tests, --target nopgo for the engine alone.",
       "inherits": "base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"
@@ -47,8 +47,8 @@
   ],
 
   "buildPresets": [
-    { "name": "release",        "configurePreset": "release" },
-    { "name": "universal",      "configurePreset": "universal" },
+    { "name": "release",        "configurePreset": "release", "targets": ["pgo"] },
+    { "name": "universal",      "configurePreset": "universal", "targets": ["universal"] },
     { "name": "debug",          "configurePreset": "debug" }
   ]
 }
