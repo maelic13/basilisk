@@ -266,8 +266,8 @@ try {
             Select-String '^CMAKE_CXX_COMPILER:(?:FILEPATH|STRING)=(.+)$'
         $compilerPath = if ($compilerMatch) { $compilerMatch.Matches[0].Groups[1].Value } else { '' }
         if (-not $compilerPath) { throw 'Configured C++ compiler is missing from CMakeCache.txt.' }
-        # cl prints its version banner when run without arguments.
-        $compiler = if ($Msvc) { (& $compilerPath 2>&1 | Select-Object -First 1).ToString().Trim() }
+        # cl prints its version banner, among other lines, when run without arguments.
+        $compiler = if ($Msvc) { (& $compilerPath 2>&1 | ForEach-Object { "$_" } | Where-Object { $_ -match 'Version' } | Select-Object -First 1).Trim() }
                     else { (& $compilerPath --version 2>&1 | Select-Object -First 1).Trim() }
         # Releases build with the LLVM major in the pin file; a local build on
         # another is not a measurement of the compiler that ships.
