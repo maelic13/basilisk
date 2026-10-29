@@ -2269,7 +2269,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         pins `-march=x86-64` where the compiler's default is above the
         baseline (a GCC emulating that default then passes the portable
         contract), and every other compiler builds as before.
-- [ ] **A.16** `[I1]` Zero-weight evaluation terms off the hot path
+- [x] **A.16** `[I1]` Zero-weight evaluation terms off the hot path
   Added 2026-10-28 (simplification read of the kernel and the evaluator
   against the donor, after A.14.1; the lines are cited here). Terms whose
   every weight is 0 are still computed on every full evaluation:
@@ -2306,8 +2306,12 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
     planted `WinBias 7` or `HangPen 25` is refused.
   - BAS-P25 registered before any pool was built; both pools are built
     (`a16-base` at `0680393`, `a16-cand` at `fcb3819`, every build
-    19,470,325) and the read waits for the maintainer to free the host:
-    `pwsh tools/run_a16_nps_read.ps1`.
+    19,470,325).
+  - Closed 2026-10-29: BAS-P25 read the deletion **+2.35%** NPS
+    [+2.01%, +2.70%] (ACCEPT at step 1, undisturbed), above the null
+    interval, so it is kept. The slots' Phase C owners build the donor's
+    forms (C.3, C.4, C.5.3); until then their parameters stay at 0 and an
+    eval file cannot set them.
 - [ ] **A.17** `[R2]` Instruction-specific speed for the avx2 and pext tiers
   Added 2026-10-29 at the maintainer's request, after A.15 shipped the
   universal binary. The tier ladder (BAS-P20) reads `avx2` +5.04% over the
@@ -3404,7 +3408,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.16 | LOCAL_QUALIFIED | I1 | Zero-weight evaluation compute deleted, exact fingerprint; BAS-P25 decides keep or revert |
 | A.17 | RESEARCH | R2 | Survey instruction-specific speed (compressed PEXT tables, PEXT/PDEP and AVX2 in the evaluation); each kept candidate a registered NPS read |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |
 | B.4 | RESEARCH | I2 | Contents fixed by B.0 |

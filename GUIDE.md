@@ -34,7 +34,7 @@ generations change. These are maintainer judgments, not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **A.16** `[I1]` Zero-weight evaluation terms off the hot path — Claude Sonnet 5 — Medium
+**Next step:** **A.17** `[R2]` Instruction-specific speed for the avx2 and pext tiers — Claude Opus 5 — High
 
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
@@ -109,7 +109,7 @@ generations change. These are maintainer judgments, not measured rankings.
     - [x] **A.15.7** `[I1]` Universal binary: an sse41-popcnt tier
     - [x] **A.15.8** `[I1]` Three presets: release, universal, debug
     - [x] **A.15.9** `[I2]` GCC as a full equal: Stockfish's universal route
-- [ ] **A.16** `[I1]` Zero-weight evaluation terms off the hot path
+- [x] **A.16** `[I1]` Zero-weight evaluation terms off the hot path
 - [ ] **A.17** `[R2]` Instruction-specific speed for the avx2 and pext tiers
 
 ### Phase B — Search programme (evaluation frozen)

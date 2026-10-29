@@ -44,3 +44,18 @@
   or build process.
 - **Reading time:** two pools, 8 readings a cycle: about 6 minutes at step
   1, about 15 with step 2.
+
+#### RESULT — append after exposure
+
+- **Result (agent-run 2026-10-29, host 0.6% and 0.9%, no cycle disturbed;
+  `tools/results/a16-nps/p25/`).** Every build 19,470,325. Means of build
+  medians: base 3.4371M, candidate 3.5180M. `zero`: **+2.35%**
+  [+2.01%, +2.70%], ACCEPT at step 1.
+- **Decision (the registered rule).** Above +0.27% with the lower bound
+  above 0: the deletion is kept.
+- **Calibration.** Missed: +2.35% against +0.4% [−0.1%, +1.0%]. The wrong
+  part of the model was the cost per evaluation: the three blocks are about
+  a dozen popcounts, a loop with two branches over every non-pawn piece and
+  the winnable block's census, on every full evaluation of both colours,
+  and the evaluation's share of a node is larger than the "minority" the
+  prediction assumed. The A.17 survey measures that share directly.
