@@ -373,10 +373,13 @@ so a registered `[0,3]` gate passes `-Elo1 3`**. `-Mode simplify` is `[-5,0]`.
 - Presets: `release`, `release-pext`, `release-avx2`, `universal`, `debug`,
   `relwithdebinfo`, `msvc-release-pext`. PGO: `cmake --build --preset
   release-pext --target pgo`, which trains on the bench suite and writes to
-  `build/dist/`. `universal` builds the three tiers' PGO builds behind a
-  baseline dispatcher (`docs/release_tiers.md`); it is not shipped, since
-  BAS-P20 read it 0.58% slower than the pext asset, and `build_test.ps1
-  -Universal` stages it with its tier builds for a read. `TUNE=ON` exposes diagnostics and search constants as UCI
+  `build/dist/`. The x86-64 release asset is the universal binary
+  (`cmake --build --preset universal --target universal`: the three tiers'
+  PGO builds, functions aligned to 64 bytes, behind a baseline dispatcher;
+  `docs/release_tiers.md`). Every measurement stays on the single-tier pext
+  build, which is its pext tier less the alignment (BAS-P21 read the two
+  level); `build_test.ps1 -Universal` stages the universal binary and its
+  tier builds when a read needs them. `TUNE=ON` exposes diagnostics and search constants as UCI
   options; `DIAGNOSTIC=ON` exposes diagnostics without tunable constants;
   the two flavors are mutually exclusive. `TEXEL=ON` builds the Texel target
   and is never measured for strength.
@@ -721,11 +724,12 @@ one. There are no permanent release branches.
    tools/diag/release_check.py check vX.Y.Z --base HEAD` passes.
 2. **The rehearsal is that PR.** Its `CI` run and its `Release` candidate
    run must both be green: the candidate builds, benches and fingerprints all
-   nine assets, and runs the release check for a plain version. The
+   five assets and every x86 tier, checks the tier selection under SDE, and
+   runs the release check for a plain version. The
    maintainer squash-merges it; the squash has the PR head's exact tree, so
    the candidate run stands for it.
 3. **The tag.** On the merged `master`, the maintainer tags and pushes. The
-   tag run checks again, rebuilds the nine assets, asserts one fingerprint
+   tag run checks again, rebuilds the five assets, asserts one fingerprint
    equal to GUIDE's, and only then publishes, with the CHANGELOG section as
    the notes.
 4. **Repair.** A failed tag run publishes nothing. Delete the tag locally and

@@ -1886,7 +1886,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         pinning asserts are gone. `bench 13` 19,470,325 on the release,
         tune, diagnostic and ablation builds; CTest 24/24 release, 22/22
         diagnostic and tune.
-- [ ] **A.15** Universal binaries and the release runners
+- [x] **A.15** Universal binaries and the release runners
   Added 2026-10-27 at the maintainer's request
   (`analysis/code_audit_2026-10-27.md` §4). Stockfish 19 (2026-09-05)
   ships one fat binary per OS and architecture — every ISA level a full
@@ -2035,7 +2035,9 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         libstdc++ note. The `universal` preset, the dispatcher,
         `verify_isa.py --tier universal` and `tools/diag/check_universal.py`
         stay in the tree for A.15.6.
-    - [ ] **A.15.6** `[R2]` Universal binary: the relink's code placement
+      - Shipped after all by A.15.6 (2026-10-29), with the tiers aligned
+        to 64 bytes, once BAS-P21 passed.
+    - [x] **A.15.6** `[R2]` Universal binary: the relink's code placement
       Added 2026-10-29 from BAS-P20's diagnosis. The universal binary's
       pext code is byte-identical to its tier build, but the relink moves
       the hot functions by 16 bytes modulo 64, and the read was 0.58%
@@ -2076,8 +2078,18 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         cycles); the relink alone reads −0.13% and the alignment alone
         −0.16%, both NO_CHANGE, so placement was BAS-P20's whole loss. By
         the registered rule the release takes the universal cells back
-        from `c81e220`, with the alignment; that restoration is what is
-        left of this leaf.
+        from `c81e220`, with the alignment.
+      - Closed 2026-10-29 SHIPPED. `release.yml` is `c81e220`'s again:
+        two universal x86-64 cells (the `universal` preset, which sets the
+        alignment), every forced tier benched, the SDE `select` job, five
+        assets in `collect`. A universal configure without
+        `BASILISK_ALIGN_FUNCTIONS=64` now fails, so the unaligned layout
+        cannot ship by accident. README, PROCESS, `docs/release_tiers.md`
+        and CHANGELOG describe one x86-64 asset again. Built locally from
+        the final tree with the release cell's commands: every forced tier
+        exact and the universal ISA contract passing. As for A.15.3 and
+        A.15.5, the release workflow itself is proved by its first run on
+        GitHub, the candidate run of the PR that carries it.
 - [ ] **A.16** `[I1]` Zero-weight evaluation terms off the hot path
   Added 2026-10-28 (simplification read of the kernel and the evaluator
   against the donor, after A.14.1; the lines are cited here). Terms whose
@@ -3140,7 +3152,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.15.6 | READY_FOR_IMPLEMENTATION | R2 | BAS-P21 PASS; restore A.15.5's universal release cells from `c81e220`, with the alignment |
 | A.16 | READY_FOR_IMPLEMENTATION | I1 | Zero-weight evaluation compute deleted; exact fingerprint, kept on a pooled NPS read |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |
 | B.4 | RESEARCH | I2 | Contents fixed by B.0 |
@@ -3962,9 +3973,10 @@ fallback, which is why the archived "optional HCE fallback" phase is dropped.
     slow-PEXT advisory (D-25).
   The universal binary was built in Phase A at the maintainer's choice
   (A.15.2 to A.15.5, 2026-10-28; `analysis/universal_binary_2026-10.md`
-  and its amendments) but not shipped: BAS-P20 read it 0.58% slower, a
-  placement effect of the relink that A.15.6 owns. G.2 extends its tier
-  list when Phase F's SIMD tiers arrive, if A.15.6 has made it ship.
+  and its amendments) and shipped by A.15.6, its tiers aligned to 64
+  bytes after BAS-P20 read the unaligned relink 0.58% slower (BAS-P21
+  passed). G.2 extends its tier list when Phase F's SIMD tiers arrive; the
+  form applies unchanged.
   C++26 (checked 2026-10-27, `analysis/code_audit_2026-10-27.md` §6):
   the standard was finished at the March 2026 meeting. The release
   compilers are Clang 19 with libstdc++ on `ubuntu-24.04` (Linux; CI

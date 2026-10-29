@@ -34,7 +34,7 @@ generations change. These are maintainer judgments, not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **A.15.6** `[R2]` Universal binary: the relink's code placement — Claude Opus 5 — High
+**Next step:** **A.16** `[I1]` Zero-weight evaluation terms off the hot path — Claude Sonnet 5 — Medium
 
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
@@ -99,13 +99,13 @@ generations change. These are maintainer judgments, not measured rankings.
     - [x] **A.13.4** `[I1]` The tablebase store carries a stale PV bit
 - [x] **A.14** Simplifications from the code audit
     - [x] **A.14.1** `[I1]` One definition of the score bands
-- [ ] **A.15** Universal binaries and the release runners
+- [x] **A.15** Universal binaries and the release runners
     - [x] **A.15.1** `[R2]` Universal x86-64 binary: design packet
     - [x] **A.15.2** `[I2]` Universal x86-64 binary: tiers, dispatch, link
     - [x] **A.15.3** `[I1]` Tier advisory, ISA contract and toolchain pins
     - [x] **A.15.4** `[V]` Universal binary speed and the ISA tier ladder
     - [x] **A.15.5** `[I1]` Release: one x86-64 asset per OS
-    - [ ] **A.15.6** `[R2]` Universal binary: the relink's code placement
+    - [x] **A.15.6** `[R2]` Universal binary: the relink's code placement
 - [ ] **A.16** `[I1]` Zero-weight evaluation terms off the hot path
 
 ### Phase B — Search programme (evaluation frozen)
