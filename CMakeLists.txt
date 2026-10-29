@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.24)
 
-set(COMP "auto" CACHE STRING "Compiler selection: auto, clang, gcc, llvm, or msvc")
-set_property(CACHE COMP PROPERTY STRINGS auto clang gcc llvm msvc)
+set(COMP "auto" CACHE STRING "Compiler selection: auto, clang, gcc or llvm")
+set_property(CACHE COMP PROPERTY STRINGS auto clang gcc llvm)
 
 string(TOLOWER "${COMP}" _basilisk_compiler)
 string(REPLACE "_" "-" _basilisk_compiler "${_basilisk_compiler}")
@@ -50,19 +50,17 @@ elseif(_basilisk_compiler STREQUAL "clang")
 elseif(_basilisk_compiler STREQUAL "gcc")
     set(CMAKE_C_COMPILER "gcc" CACHE FILEPATH "C compiler" FORCE)
     set(CMAKE_CXX_COMPILER "g++" CACHE FILEPATH "C++ compiler" FORCE)
-elseif(_basilisk_compiler STREQUAL "msvc")
-    # Leave compiler discovery to CMake. Configure from an MSVC developer
-    # environment so cl.exe, link.exe and the Windows SDK are all available.
 else()
-    message(FATAL_ERROR "Unsupported COMP='${COMP}'. Use auto, clang, gcc, llvm, or msvc.")
+    # MSVC is not supported: BAS-P22 read it 14% slower than Clang.
+    message(FATAL_ERROR "Unsupported COMP='${COMP}'. Use auto, clang, gcc or llvm.")
 endif()
 
-set(COMP "${_basilisk_compiler}" CACHE STRING "Compiler selection: auto, clang, gcc, llvm, or msvc" FORCE)
+set(COMP "${_basilisk_compiler}" CACHE STRING "Compiler selection: auto, clang, gcc or llvm" FORCE)
 
 project(basilisk VERSION 1.11.0 LANGUAGES CXX)
 
-if(_basilisk_compiler STREQUAL "msvc" AND NOT MSVC)
-    message(FATAL_ERROR "COMP=msvc requires the Microsoft Visual C++ compiler")
+if(MSVC)
+    message(FATAL_ERROR "MSVC is not supported; build with Clang or GCC")
 endif()
 
 _basilisk_detect_darwin_processor(_basilisk_system_processor "${CMAKE_SYSTEM_NAME}" "${CMAKE_SYSTEM_PROCESSOR}")
@@ -140,11 +138,7 @@ target_include_directories(fathom PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/external/fathom/src
 )
 target_compile_definitions(fathom PRIVATE TB_NO_HELPER_API)
-if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-    target_compile_options(fathom PRIVATE -w)
-elseif(MSVC)
-    target_compile_options(fathom PRIVATE /w)
-endif()
+target_compile_options(fathom PRIVATE -w)
 
 # Core board library — shared by the engine, tests, and benchmarks
 set(BOARD_SOURCES
@@ -410,8 +404,51 @@ add_test(NAME fatal_report_from_a_thread
 # ---------------------------------------------------------------------------
 # Compiler flags (applied to all targets)
 # ---------------------------------------------------------------------------
-option(PORTABLE_BUILD "Build without host-specific CPU flags for distributable binaries" OFF)
-option(BASILISK_MSVC_FAVOR_INTEL "Tune MSVC code generation for Intel 64 processors" OFF)
+# A configure that names no tier and leaves PORTABLE_BUILD unset (a person
+# building for this machine) builds this CPU's tier, by the universal
+# binary's rule (src/cpu_detect.h, probed by cmake/probe_cpu.cpp), with the
+# release's fixed flags: the code the download runs here, which read 1.0%
+# faster than -march=native on a Zen 3 (BAS-P22). NATIVE=ON builds with
+# -march=native instead, with PEXT where it is fast. Decided at the first
+# configure; naming a tier, or setting PORTABLE_BUILD as the tooling does,
+# skips the probe.
+option(NATIVE "Build for this machine with -march=native instead of its tier's fixed flags" OFF)
+set(_basilisk_pext_default OFF)
+set(_basilisk_avx2_default OFF)
+set(_basilisk_sse41_popcnt_default OFF)
+if(NOT DEFINED CACHE{PORTABLE_BUILD} AND NOT DEFINED CACHE{USE_PEXT} AND NOT DEFINED CACHE{USE_AVX2}
+   AND NOT DEFINED CACHE{USE_SSE41_POPCNT} AND NOT BASILISK_UNIVERSAL AND NOT BASILISK_UNIVERSAL_TIER
+   AND NOT CMAKE_CROSSCOMPILING AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|amd64")
+    try_run(_basilisk_probe_run _basilisk_probe_compile
+        "${CMAKE_BINARY_DIR}/probe_cpu" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/probe_cpu.cpp"
+        CMAKE_FLAGS "-DINCLUDE_DIRECTORIES=${CMAKE_CURRENT_SOURCE_DIR}/src"
+        CXX_STANDARD 23
+        RUN_OUTPUT_VARIABLE _basilisk_probe_tier)
+    if(NOT _basilisk_probe_compile OR NOT _basilisk_probe_run EQUAL 0)
+        set(_basilisk_probe_tier "base")
+    endif()
+    if(_basilisk_probe_tier STREQUAL "pext")
+        set(_basilisk_pext_default ON)
+    elseif(NOT NATIVE AND _basilisk_probe_tier STREQUAL "avx2")
+        set(_basilisk_avx2_default ON)
+    elseif(NOT NATIVE AND _basilisk_probe_tier STREQUAL "sse41-popcnt")
+        set(_basilisk_sse41_popcnt_default ON)
+    endif()
+    if(NATIVE)
+        message(STATUS "This CPU's tier: ${_basilisk_probe_tier}; building with -march=native, USE_PEXT ${_basilisk_pext_default}")
+    else()
+        message(STATUS "This CPU's tier: ${_basilisk_probe_tier}; building it with the release's flags")
+    endif()
+endif()
+if(NATIVE)
+    set(_basilisk_portable_default OFF)
+else()
+    set(_basilisk_portable_default ON)
+endif()
+option(PORTABLE_BUILD "Build without -march=native: the release's fixed flags for the chosen tier" ${_basilisk_portable_default})
+if(NATIVE AND PORTABLE_BUILD)
+    message(FATAL_ERROR "NATIVE=ON builds with -march=native; it contradicts PORTABLE_BUILD=ON")
+endif()
 option(TUNE "Expose search constants as UCI spin options for SPSA tuning (sets BASILISK_TUNE)" OFF)
 option(DIAGNOSTIC "Expose diagnostics without the tunable parameter surface (sets BASILISK_DIAGNOSTIC)" OFF)
 option(ABLATION "Expose the matched search-ablation instrument (sets BASILISK_ABLATION)" OFF)
@@ -430,27 +467,9 @@ option(TEXEL "Build Texel trace+tuner target basilisk-texel (sets TEXEL_TRACE; i
 option(BASILISK_UNIVERSAL_TIER "Build one tier of the universal x86-64 binary: keep the engine link's LTO objects and name the tier at start-up" OFF)
 option(BASILISK_UNIVERSAL "Configure the universal x86-64 binary: its dispatcher, its tier builds and the final link (target universal)" OFF)
 
-# A native build (no PORTABLE_BUILD, no tier named) on x86-64 uses PEXT when
-# the building machine runs it fast, by the universal binary's rule
-# (src/cpu_detect.h): BMI2 and not AMD family 15h or 17h. Decided at the first
-# configure; -DUSE_PEXT=ON or OFF overrides it.
-set(_basilisk_pext_default OFF)
-if(NOT DEFINED CACHE{USE_PEXT} AND NOT USE_AVX2 AND NOT USE_SSE41_POPCNT AND NOT PORTABLE_BUILD
-   AND NOT BASILISK_UNIVERSAL AND NOT BASILISK_UNIVERSAL_TIER AND NOT CMAKE_CROSSCOMPILING
-   AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|amd64")
-    try_run(_basilisk_probe_run _basilisk_probe_compile
-        "${CMAKE_BINARY_DIR}/probe_cpu" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/probe_cpu.cpp"
-        CMAKE_FLAGS "-DINCLUDE_DIRECTORIES=${CMAKE_CURRENT_SOURCE_DIR}/src"
-        CXX_STANDARD 23
-        RUN_OUTPUT_VARIABLE _basilisk_probe_tier)
-    if(_basilisk_probe_compile AND _basilisk_probe_run EQUAL 0 AND _basilisk_probe_tier STREQUAL "pext")
-        set(_basilisk_pext_default ON)
-    endif()
-    message(STATUS "This CPU's fastest tier: ${_basilisk_probe_tier}; USE_PEXT ${_basilisk_pext_default}")
-endif()
 option(USE_PEXT "Use BMI2 PEXT instruction for magic bitboards (requires Haswell+)" ${_basilisk_pext_default})
-option(USE_AVX2 "Build for x86-64 CPUs with AVX2" OFF)
-option(USE_SSE41_POPCNT "Build for x86-64 CPUs with SSE4.1 and POPCNT" OFF)
+option(USE_AVX2 "Build for x86-64 CPUs with AVX2" ${_basilisk_avx2_default})
+option(USE_SSE41_POPCNT "Build for x86-64 CPUs with SSE4.1 and POPCNT" ${_basilisk_sse41_popcnt_default})
 
 set(_basilisk_isa_count 0)
 foreach(_isa USE_PEXT USE_AVX2 USE_SSE41_POPCNT)
@@ -490,22 +509,11 @@ if(TEXEL)
             $<$<AND:$<CONFIG:Release>,$<NOT:$<BOOL:${PORTABLE_BUILD}>>>:-march=native>
             $<$<CONFIG:Debug>:-O0 -g3>
         )
-    elseif(MSVC)
-        target_compile_options(basilisk-texel PRIVATE
-            /W4 /WX- /utf-8
-            $<$<CONFIG:Release>:/O2 /GL>
-            $<$<CONFIG:Debug>:/Od /Zi>
-        )
-        target_link_options(basilisk-texel PRIVATE $<$<CONFIG:Release>:/LTCG>)
     endif()
     if(USE_PEXT)
         target_compile_definitions(basilisk-texel PRIVATE USE_PEXT)
-        if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
-            target_compile_options(basilisk-texel PRIVATE
-                -mavx2 -msse4.1 -mpopcnt -mbmi -mbmi2 -mlzcnt)
-        elseif(MSVC)
-            target_compile_options(basilisk-texel PRIVATE /arch:AVX2)
-        endif()
+        target_compile_options(basilisk-texel PRIVATE
+            -mavx2 -msse4.1 -mpopcnt -mbmi -mbmi2 -mlzcnt)
     endif()
     message(STATUS "TEXEL build: basilisk-texel enabled (TEXEL_TRACE + BASILISK_TUNE defined)")
 endif()
@@ -614,20 +622,6 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         endforeach()
     endif()
 
-elseif(MSVC)
-    foreach(_tgt IN LISTS _ALL_TARGETS)
-        target_compile_options(${_tgt} PRIVATE
-            /W4
-            /WX-
-            /utf-8
-            $<$<CONFIG:Release>:/O2 /GL>
-            $<$<AND:$<CONFIG:Release>,$<BOOL:${BASILISK_MSVC_FAVOR_INTEL}>>:/favor:INTEL64>
-            $<$<CONFIG:Debug>:/Od /Zi>
-        )
-        target_link_options(${_tgt} PRIVATE
-            $<$<CONFIG:Release>:/LTCG>
-        )
-    endforeach()
 endif()
 
 # Function alignment. A function's alignment decides where its loops fall in
@@ -649,23 +643,21 @@ if(BASILISK_ALIGN_FUNCTIONS)
 endif()
 
 # ---------------------------------------------------------------------------
-# Link-time optimisation (Release only, non-MSVC handled above via /GL+/LTCG)
+# Link-time optimisation (Release only)
 # ---------------------------------------------------------------------------
-if(NOT MSVC)
-    include(CheckIPOSupported)
-    check_ipo_supported(RESULT _lto_ok OUTPUT _lto_msg)
-    if(_lto_ok)
-        foreach(_tgt IN LISTS _ALL_TARGETS)
-            set_property(TARGET ${_tgt} PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
-        endforeach()
-        # basilisk-texel links basilisk_board, whose objects are LTO bitcode
-        # here, so it must link with LTO as well.
-        if(TEXEL)
-            set_property(TARGET basilisk-texel PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
-        endif()
-    else()
-        message(STATUS "LTO not supported: ${_lto_msg}")
+include(CheckIPOSupported)
+check_ipo_supported(RESULT _lto_ok OUTPUT _lto_msg)
+if(_lto_ok)
+    foreach(_tgt IN LISTS _ALL_TARGETS)
+        set_property(TARGET ${_tgt} PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
+    endforeach()
+    # basilisk-texel links basilisk_board, whose objects are LTO bitcode
+    # here, so it must link with LTO as well.
+    if(TEXEL)
+        set_property(TARGET basilisk-texel PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
     endif()
+else()
+    message(STATUS "LTO not supported: ${_lto_msg}")
 endif()
 
 # ---------------------------------------------------------------------------
@@ -679,12 +671,8 @@ function(_basilisk_apply_pgo _target)
         elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
             target_compile_options(${_target} PRIVATE $<$<CONFIG:Release>:-fprofile-generate=${BASILISK_PGO_PROFILE_DIR}>)
             target_link_options(${_target} PRIVATE $<$<CONFIG:Release>:-fprofile-generate=${BASILISK_PGO_PROFILE_DIR}>)
-        elseif(MSVC)
-            target_link_options(${_target} PRIVATE
-                $<$<CONFIG:Release>:/GENPROFILE:PGD=${BASILISK_PGO_PROFILE_DIR}/basilisk.pgd>
-            )
         else()
-            message(FATAL_ERROR "BASILISK_PGO=GENERATE is supported for Clang, GCC, and MSVC builds only")
+            message(FATAL_ERROR "BASILISK_PGO=GENERATE is supported for Clang and GCC builds only")
         endif()
 
         # Instrumented LTO builds are slower and less portable across toolchains;
@@ -709,15 +697,8 @@ function(_basilisk_apply_pgo _target)
                 $<$<CONFIG:Release>:-Wno-missing-profile>
             )
             target_link_options(${_target} PRIVATE $<$<CONFIG:Release>:-fprofile-use=${BASILISK_PGO_PROFILE_DIR}>)
-        elseif(MSVC)
-            if(NOT EXISTS "${BASILISK_PGO_PROFILE_DIR}/basilisk.pgd")
-                message(FATAL_ERROR "MSVC PGO database does not exist: ${BASILISK_PGO_PROFILE_DIR}/basilisk.pgd")
-            endif()
-            target_link_options(${_target} PRIVATE
-                $<$<CONFIG:Release>:/USEPROFILE:PGD=${BASILISK_PGO_PROFILE_DIR}/basilisk.pgd>
-            )
         else()
-            message(FATAL_ERROR "BASILISK_PGO=USE is supported for Clang, GCC, and MSVC builds only")
+            message(FATAL_ERROR "BASILISK_PGO=USE is supported for Clang and GCC builds only")
         endif()
     endif()
 endfunction()
@@ -914,12 +895,8 @@ if(USE_PEXT)
     endforeach()
     foreach(_tgt IN LISTS _ISA_TARGETS)
         if(NOT _tgt STREQUAL "basilisk_launcher")
-            if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
-                target_compile_options(${_tgt} PRIVATE
-                    -mavx2 -msse4.1 -mpopcnt -mbmi -mbmi2 -mlzcnt)
-            elseif(MSVC)
-                target_compile_options(${_tgt} PRIVATE /arch:AVX2)
-            endif()
+            target_compile_options(${_tgt} PRIVATE
+                -mavx2 -msse4.1 -mpopcnt -mbmi -mbmi2 -mlzcnt)
         endif()
     endforeach()
 endif()
@@ -930,19 +907,12 @@ if(USE_AVX2)
     endforeach()
     foreach(_tgt IN LISTS _ISA_TARGETS)
         if(NOT _tgt STREQUAL "basilisk_launcher")
-            if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
-                target_compile_options(${_tgt} PRIVATE -mavx2 -msse4.1 -mpopcnt)
-            elseif(MSVC)
-                target_compile_options(${_tgt} PRIVATE /arch:AVX2)
-            endif()
+            target_compile_options(${_tgt} PRIVATE -mavx2 -msse4.1 -mpopcnt)
         endif()
     endforeach()
 endif()
 
 if(USE_SSE41_POPCNT)
-    if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
-        message(FATAL_ERROR "USE_SSE41_POPCNT is built with Clang or GCC")
-    endif()
     foreach(_tgt IN LISTS _ALL_TARGETS)
         target_compile_definitions(${_tgt} PRIVATE USE_SSE41_POPCNT)
     endforeach()
@@ -973,7 +943,7 @@ set_target_properties(basilisk_launcher PROPERTIES
 # Fathom and the runtime. Nothing but the dispatcher runs before a tier is
 # chosen, so no tier object may carry an initialiser (the script checks).
 if(BASILISK_UNIVERSAL_TIER OR BASILISK_UNIVERSAL)
-    if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR MSVC OR APPLE
+    if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR APPLE
        OR NOT CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|amd64")
         message(FATAL_ERROR "The universal binary is built with Clang for x86-64 Windows or Linux")
     endif()

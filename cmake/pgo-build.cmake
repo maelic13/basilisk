@@ -150,9 +150,8 @@ if(PGO_COMPILER_ID MATCHES "Clang")
         COMMAND_ERROR_IS_FATAL ANY
     )
 else()
-    # GCC writes .gcda files through -fprofile-generate's directory argument;
-    # MSVC writes .pgc/.pgd files through its linker instrumentation. Neither
-    # consumes LLVM_PROFILE_FILE.
+    # GCC writes .gcda files through -fprofile-generate's directory argument,
+    # not through LLVM_PROFILE_FILE.
     execute_process(
         COMMAND "${_instrumented_binary}"
         INPUT_FILE "${_train_input}"
@@ -173,38 +172,7 @@ _basilisk_check_training_log("${_train_log}")
 # well-spread bench it was redundant (it mostly re-sampled the same hot search
 # loop). See docs/PLAN.md / GUIDE.md.
 
-if(PGO_COMPILER_ID STREQUAL "MSVC")
-    set(_msvc_pgd "${_prof_dir}/basilisk.pgd")
-    # MSVC writes each training run's .pgc beside the instrumented executable,
-    # even when /GENPROFILE gives the .pgd an explicit directory. Put the run
-    # files beside the database before /USEPROFILE consumes them.
-    file(GLOB _msvc_pgc_files "${_gen_dir}/*.pgc")
-    if(NOT EXISTS "${_msvc_pgd}" OR NOT _msvc_pgc_files)
-        message(FATAL_ERROR "MSVC training did not produce the expected .pgd/.pgc profile")
-    endif()
-    foreach(_msvc_pgc IN LISTS _msvc_pgc_files)
-        file(COPY "${_msvc_pgc}" DESTINATION "${_prof_dir}")
-    endforeach()
-
-    # MSVC's final /USEPROFILE link must reuse the /GL objects which produced
-    # the instrumented image. Reconfigure the generation tree and let the
-    # changed link command relink those same objects.
-    message(STATUS "PGO final MSVC relink: ${_gen_dir}")
-    execute_process(
-        COMMAND "${CMAKE_COMMAND}" --preset "${PGO_PRESET}" -B "${_gen_dir}"
-                ${_pgo_configure_args}
-                -DBASILISK_PGO=USE
-                -DBASILISK_PGO_PROFILE_DIR=${_prof_dir}
-        WORKING_DIRECTORY "${PGO_SOURCE_DIR}"
-        COMMAND_ERROR_IS_FATAL ANY
-    )
-    execute_process(
-        COMMAND "${CMAKE_COMMAND}" --build "${_gen_dir}" --target basilisk
-        WORKING_DIRECTORY "${PGO_SOURCE_DIR}"
-        COMMAND_ERROR_IS_FATAL ANY
-    )
-    set(_pgo_binary "${_gen_dir}/basilisk${PGO_EXECUTABLE_SUFFIX}")
-elseif(PGO_COMPILER_ID STREQUAL "GNU")
+if(PGO_COMPILER_ID STREQUAL "GNU")
     file(GLOB_RECURSE _gcda_files "${_prof_dir}/*.gcda")
     if(NOT _gcda_files)
         message(FATAL_ERROR "GCC training did not produce any .gcda files in ${_prof_dir}")

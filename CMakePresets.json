@@ -23,18 +23,6 @@
       }
     },
     {
-      "name": "msvc-release-pext",
-      "displayName": "MSVC Release + PEXT",
-      "description": "MSVC /O2 + /GL + /LTCG, Intel tuning and BMI2 PEXT; supports the pgo target.",
-      "inherits": "base",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
-        "BASILISK_MSVC_FAVOR_INTEL": "ON",
-        "COMP": "msvc",
-        "USE_PEXT": "ON"
-      }
-    },
-    {
       "name": "universal",
       "displayName": "Universal x86-64",
       "description": "The universal x86-64 binary: portable, AVX2 and PEXT PGO tiers chosen at start-up. Build target universal. Clang, Windows or Linux.",
@@ -60,7 +48,6 @@
 
   "buildPresets": [
     { "name": "release",        "configurePreset": "release" },
-    { "name": "msvc-release-pext", "configurePreset": "msvc-release-pext" },
     { "name": "universal",      "configurePreset": "universal" },
     { "name": "debug",          "configurePreset": "debug" }
   ]
