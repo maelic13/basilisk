@@ -51,6 +51,7 @@ kept so the run can be reproduced from its ledger entry.
 | `run_a15_nps_reads.ps1` | BAS-P20, the universal binary and the tier ladder |
 | `run_a156_nps_reads.ps1` | BAS-P21, the universal binary with 64-byte function alignment |
 | `run_a158_nps_reads.ps1` | BAS-P22, the native release build and MSVC against the universal binary |
+| `run_p23_intel_reads.ps1` | BAS-P23, BAS-P22's read on an Intel host |
 
 ### Backup path: fastchess and weather-factory
 
