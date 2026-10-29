@@ -461,17 +461,27 @@ function Get-HarnessBusyProcess {
     })
 }
 
+# Host load from the kernel's own counters (GetSystemTimes: idle, kernel and
+# user time summed over every logical CPU, read in one call). WMI's
+# Win32_PerfRawData_PerfOS_Processor is not used: its idle counter and its
+# timestamp are not sampled together, so over a 2 s window it reported 1.6 to
+# 2.7 s of idle time and a load of -35% to +23% on a host at 0-1% (2026-10-29),
+# refusing quiet hosts as busy.
 function Get-HarnessHostBusyPercent {
     param([double]$WindowSeconds = 2.0, [double]$SettleSeconds = 1.0)
     if (-not $script:HarnessIsWindows) { return $null }
-    $cpus = [Environment]::ProcessorCount
+    if (-not ('Harness.Kernel32' -as [type])) {
+        Add-Type -Namespace Harness -Name Kernel32 -MemberDefinition @'
+[DllImport("kernel32.dll", SetLastError = true)]
+public static extern bool GetSystemTimes(out long idle, out long kernel, out long user);
+'@
+    }
     $read = {
-        $raw = Get-CimInstance Win32_PerfRawData_PerfOS_Processor -ErrorAction SilentlyContinue |
-            Where-Object { $_.Name -eq '_Total' } | Select-Object -First 1
-        if (-not $raw) { return $null }
+        $idle = 0L; $kernel = 0L; $user = 0L
+        if (-not [Harness.Kernel32]::GetSystemTimes([ref]$idle, [ref]$kernel, [ref]$user)) { return $null }
         [pscustomobject]@{
-            Idle = [double]$raw.PercentProcessorTime
-            Time = [double]$raw.Timestamp_Sys100NS
+            Idle = [double]$idle
+            Total = [double]($kernel + $user)    # kernel time includes idle time
             Self = (Get-Process -Id $PID).TotalProcessorTime.TotalSeconds
         }
     }
@@ -480,10 +490,10 @@ function Get-HarnessHostBusyPercent {
     Start-Sleep -Milliseconds ([int](1000 * $WindowSeconds))
     $second = & $read
     if (-not $first -or -not $second) { return $null }
-    $elapsed = $second.Time - $first.Time
-    if ($elapsed -le 0) { return $null }
-    $busy = 100.0 * (1.0 - ($second.Idle - $first.Idle) / $elapsed)
-    $self = 100.0 * ($second.Self - $first.Self) / ($elapsed / 1e7) / $cpus
+    $total = $second.Total - $first.Total
+    if ($total -le 0) { return $null }
+    $busy = 100.0 * (1.0 - ($second.Idle - $first.Idle) / $total)
+    $self = 100.0 * 1e7 * ($second.Self - $first.Self) / $total
     [Math]::Max(0.0, $busy - $self)
 }
 
