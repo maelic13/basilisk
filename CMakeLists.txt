@@ -495,6 +495,9 @@ option(BASILISK_UNIVERSAL "Configure the universal x86-64 binary: its dispatcher
 option(USE_PEXT "Use BMI2 PEXT instruction for magic bitboards (requires Haswell+)" ${_basilisk_pext_default})
 option(USE_AVX2 "Build for x86-64 CPUs with AVX2" ${_basilisk_avx2_default})
 option(USE_SSE41_POPCNT "Build for x86-64 CPUs with SSE4.1 and POPCNT" ${_basilisk_sse41_popcnt_default})
+# Umbrella arm (A.17 candidate 1): the pext tier's slider tables stored as
+# 16-bit indices and expanded with pdep. OFF until its NPS read decides.
+option(PEXT_COMPRESSED "Store the pext tier's slider attack sets compressed, expanded by pdep" OFF)
 
 set(_basilisk_isa_count 0)
 foreach(_isa USE_PEXT USE_AVX2 USE_SSE41_POPCNT)
@@ -959,7 +962,7 @@ endif()
 
 if(USE_PEXT)
     foreach(_tgt IN LISTS _ALL_TARGETS)
-        target_compile_definitions(${_tgt} PRIVATE USE_PEXT)
+        target_compile_definitions(${_tgt} PRIVATE USE_PEXT $<$<BOOL:${PEXT_COMPRESSED}>:PEXT_COMPRESSED>)
     endforeach()
     foreach(_tgt IN LISTS _ISA_TARGETS)
         if(NOT _tgt STREQUAL "basilisk_launcher")
