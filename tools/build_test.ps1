@@ -166,11 +166,11 @@ try {
     if ($Universal) {
         $command = 'cmake --preset universal; cmake --build --preset universal --target universal'
         $outputs += , @("build/universal/basilisk-universal$exeSuffix", 'universal-pgo', 'universal',
-            'universal (PORTABLE_BUILD=ON, BASILISK_UNIVERSAL=ON; tiers from release, release-avx2 and release-pext with BASILISK_UNIVERSAL_TIER=ON, PGO=USE)',
+            'universal (PORTABLE_BUILD=ON, BASILISK_UNIVERSAL=ON, BASILISK_ALIGN_FUNCTIONS=64; tiers from release, release-avx2 and release-pext with BASILISK_UNIVERSAL_TIER=ON, PGO=USE)',
             $command)
         foreach ($tier in 'portable', 'avx2', 'pext') {
             $outputs += , @("build/universal-$tier-pgo/basilisk$exeSuffix", "$tier-pgo", $tier,
-                "the universal binary's $tier tier (PORTABLE_BUILD=ON, BASILISK_UNIVERSAL_TIER=ON, PGO=USE)",
+                "the universal binary's $tier tier (PORTABLE_BUILD=ON, BASILISK_UNIVERSAL_TIER=ON, BASILISK_ALIGN_FUNCTIONS=64, PGO=USE)",
                 $command)
         }
     } else {
