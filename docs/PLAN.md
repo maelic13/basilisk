@@ -3345,6 +3345,13 @@ rejections stop B.
         off or partial); the per-stage move-list copy (D-10; Rarog's in-place
         list +6.93%); a survivor count for the quiet early exit (D-11,
         +8.85%); attack lookups (D-12); thin against full LTO (D-32).
+      - Measured by A.17's profile (2026-10-30, `bench 13` after A.16): the
+        material imbalance recomputes 48 products of piece counts on every
+        evaluation, 2.89% of a node, and depends on material alone (a
+        material-keyed cache, Stockfish's material table); material and PST
+        are summed from scratch over every piece, 1.37% (incremental in
+        make and unmake). Slider lookups are 2.7%, and compressing their
+        tables read 0.98% slower (BAS-P26): leave them flat.
       - Rules: re-read 1T/4T bench scaling after speed or large-page work
         (D-9: Rarog's 4T/1T ratio fell 3.72 to 2.60, unseen by its
         head-to-head); read a bundle's members alone (D-16); a maintainer rule
