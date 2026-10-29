@@ -67,8 +67,8 @@ kept so the run can be reproduced from its ledger entry.
 |---|---|---|
 | `build_test.ps1` | A final-PGO PEXT test binary of one flavor (Release, Tune, Diag, Ablate, Profile) with its manifest; it warns when the local clang's LLVM major is not the release pin | PROCESS *Build, bench and NPS* |
 | `nps_pool.ps1` | A pool of four independent PGO builds of one clean revision, built (another revision from a temporary worktree) or adopted | PROCESS *Build, bench and NPS*; A.9.4 |
-| `nps_read.ps1` | The pooled NPS read: interleaved cycles of a pinned `bench 13 3`, every run archived, step 1 and `-Extend` | PROCESS *Build, bench and NPS*; BAS-P18, BAS-P19 |
-| `diag/nps_read.py` | The read's decision from its archive: per-build medians, a Welch t-interval, the two steps and the disturbance rule | `nps_read.ps1` |
+| `nps_read.ps1` | The pooled NPS read: two or more pools and named contrasts between them, interleaved cycles of a pinned `bench 13 3`, every run archived, step 1 and `-Extend` | PROCESS *Build, bench and NPS*; BAS-P18, BAS-P19, BAS-P21 |
+| `diag/nps_read.py` | The read's decision from its archive: per-build medians, a Welch t-interval per contrast, the two steps and the disturbance rule | `nps_read.ps1` |
 | `nps_ab.ps1` | The earlier bootstrap NPS A/B, kept only to compare with rows before A.9.4 | BAS-P12 to BAS-P17 |
 | `profile.ps1` | A user-mode sampling profile of a Profile-flavor engine over `bench 13` or an EPD cohort | PROCESS *Build, bench and NPS*; B.7.2, C.12 |
 | `diag/profile_regions.py`, `.json` | The profile's samples charged by inline chain to the innermost engine file's region, and refused when that attribution cannot be trusted | `profile.ps1` |

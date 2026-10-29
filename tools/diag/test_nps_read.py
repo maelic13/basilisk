@@ -23,7 +23,7 @@ def sha(arm, index):
 def archive(delta=0.0, cycles=2, mode="gain", spread=1.0, cycle_scale=None, busy=None, extra=()):
     """Readings for two four-build arms; cand is base scaled by (1 + delta%)."""
     config = {
-        "schema": nps_read.SCHEMA, "label": "t", "mode": mode, "busy_ceiling_percent": 5.0,
+        "schema": nps_read.SCHEMA_V1, "label": "t", "mode": mode, "busy_ceiling_percent": 5.0,
         "base": {"builds": [{"sha256": sha("b", i)} for i in range(4)]},
         "cand": {"builds": [{"sha256": sha("c", i)} for i in range(4)]},
     }
@@ -40,6 +40,26 @@ def archive(delta=0.0, cycles=2, mode="gain", spread=1.0, cycle_scale=None, busy
                                 "sha256": sha(arm[0], i), "nodes": 8437148,
                                 "nps": [nps * 0.98, nps, nps * 0.99]})
     records.extend(extra)
+    return config, records
+
+
+def multi(deltas, contrasts, cycles=2, cycle_scale=None, busy=None):
+    """Readings for four-build arms named by `deltas` (percent over the first arm)."""
+    config = {
+        "schema": nps_read.SCHEMA, "label": "m", "busy_ceiling_percent": 5.0,
+        "arms": [{"name": arm, "builds": [{"sha256": sha(arm, i)} for i in range(4)]} for arm in deltas],
+        "contrasts": [{"name": n, "base": b, "cand": c, "mode": m} for n, b, c, m in contrasts],
+    }
+    records = []
+    for cycle in range(1, cycles + 1):
+        records.append({"kind": "cycle", "cycle": cycle, "busy_percent": (busy or {}).get(cycle, 1.0),
+                        "busy_processes": []})
+        for arm, delta in deltas.items():
+            scale = (cycle_scale or {}).get((arm, cycle), 1.0)
+            for i, offset in enumerate(OFFSETS):
+                nps = BASE * (1.0 + delta / 100.0) * offset * WOBBLE[cycle - 1] * scale
+                records.append({"kind": "reading", "arm": arm, "build": i, "cycle": cycle,
+                                "sha256": sha(arm, i), "nodes": 8437148, "nps": [nps * 0.99, nps]})
     return config, records
 
 
@@ -136,6 +156,66 @@ class DecisionTests(unittest.TestCase):
         self.assertEqual(report["verdict"], "NO_CHANGE")
         self.assertLess(report["interval_percent"][0], 0.0)
         self.assertGreater(report["interval_percent"][1], 0.0)
+
+
+class MultiArmTests(unittest.TestCase):
+    CONTRASTS = [("hot", "a", "u", "no-regression"), ("place", "t", "u", "gain"), ("align", "a", "t", "gain")]
+
+    def contrasts(self, report):
+        return {c["name"]: c for c in report["contrasts"]}
+
+    def test_each_contrast_is_its_two_arms(self):
+        report = nps_read.analyse(*multi({"a": 0.0, "t": 0.5, "u": -0.3}, self.CONTRASTS))
+        c = self.contrasts(report)
+        self.assertAlmostEqual(c["hot"]["delta_percent"], -0.3, places=6)
+        self.assertAlmostEqual(c["align"]["delta_percent"], 0.5, places=6)
+        self.assertAlmostEqual(c["place"]["delta_percent"], 100 * (0.997 / 1.005 - 1), places=6)
+        self.assertEqual([c["hot"]["verdict"], c["align"]["verdict"]], ["EXTEND", "EXTEND"])
+        self.assertEqual(report["next"], "EXTEND")
+        self.assertNotIn("verdict", report)
+
+    def test_the_read_is_done_when_every_contrast_decides(self):
+        report = nps_read.analyse(*multi({"a": 0.0, "t": 0.0, "u": 0.0}, self.CONTRASTS))
+        self.assertEqual({c["verdict"] for c in report["contrasts"]}, {"PASS", "NO_CHANGE"})
+        self.assertEqual(report["next"], "DONE")
+
+    def test_a_disturbed_arm_repeats_only_its_contrasts(self):
+        report = nps_read.analyse(*multi({"a": 0.0, "t": 0.0, "u": 0.0}, self.CONTRASTS,
+                                         cycle_scale={("t", 2): 1.015}))
+        c = self.contrasts(report)
+        self.assertEqual(c["hot"]["verdict"], "PASS")
+        self.assertEqual([c["place"]["verdict"], c["align"]["verdict"]], ["REPEAT_STEP_1"] * 2)
+        self.assertEqual(report["next"], "REPEAT")
+
+    def test_host_load_disturbs_every_contrast(self):
+        report = nps_read.analyse(*multi({"a": 0.0, "t": 0.0, "u": 0.0}, self.CONTRASTS, busy={1: 12.0}))
+        self.assertEqual({c["verdict"] for c in report["contrasts"]}, {"REPEAT_STEP_1"})
+
+    def test_a_step_one_verdict_stands_when_the_read_extends(self):
+        # align decides at step 1 (+0.95%); hot reads -0.4% and extends the read.
+        deltas = {"a": 0.0, "t": 0.95, "u": -0.4}
+        step1 = self.contrasts(nps_read.analyse(*multi(deltas, self.CONTRASTS)))
+        self.assertEqual([step1["align"]["verdict"], step1["hot"]["verdict"]], ["ACCEPT", "EXTEND"])
+        report = nps_read.analyse(*multi(deltas, self.CONTRASTS, cycles=6))
+        c = self.contrasts(report)
+        self.assertEqual((c["align"]["step1_verdict"], c["align"]["verdict"]), ("ACCEPT", "ACCEPT"))
+        self.assertEqual((c["hot"]["step1_verdict"], c["hot"]["verdict"]), ("EXTEND", "PASS"))
+        self.assertEqual(report["next"], "DONE")
+        # align falls to about +0.4% after step 1, which alone would read NO_CHANGE at six cycles.
+        later = {("t", cycle): 0.9945 for cycle in range(3, 7)}
+        c = self.contrasts(nps_read.analyse(*multi(deltas, self.CONTRASTS, cycles=6, cycle_scale=later)))
+        self.assertLess(c["align"]["delta_percent"], 0.5)
+        self.assertEqual((c["align"]["step1_verdict"], c["align"]["verdict"]), ("ACCEPT", "ACCEPT"))
+
+    def test_a_contrast_must_name_two_arms(self):
+        for bad in [("x", "a", "a", "gain"), ("x", "a", "z", "gain"), ("x", "a", "u", "faster")]:
+            with self.assertRaises(nps_read.ArchiveError):
+                nps_read.analyse(*multi({"a": 0.0, "u": 0.0}, [bad]))
+        with self.assertRaisesRegex(nps_read.ArchiveError, "appears twice"):
+            nps_read.analyse(*multi({"a": 0.0, "u": 0.0}, [("x", "a", "u", "gain")] * 2))
+        config, records = multi({"a": 0.0, "u": 0.0}, [("x", "a", "u", "gain")])
+        with self.assertRaisesRegex(nps_read.ArchiveError, "list"):
+            nps_read.analyse(dict(config, contrasts=config["contrasts"][0]), records)
 
 
 class ArchiveTests(unittest.TestCase):

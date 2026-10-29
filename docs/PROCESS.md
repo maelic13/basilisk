@@ -425,23 +425,28 @@ so a registered `[0,3]` gate passes `-Elo1 3`**. `-Mode simplify` is `[-5,0]`.
   flavor. The wrapper starts from a fresh cache, forces portable tier codegen,
   verifies bench and the flavor's UCI surface, and writes a schema-2 sidecar
   with source tree, binary hash, compiler, flavor, arm and fingerprint.
-- **NPS:** two pools from `tools/nps_pool.ps1`, read by `tools/nps_read.ps1`
+- **NPS:** pools from `tools/nps_pool.ps1`, read by `tools/nps_read.ps1`
   and decided by `tools/diag/nps_read.py` (Rarog's RAR-P32 method). The
   builds set the limit, not the cycles.
   - **Pools.** A pool is four independent final-PGO builds of one clean
     revision. A single binary is not an arm, and identical hashes are
     refused. Another revision is built from a temporary worktree with its
     own `build_test.ps1`.
-  - **Cycles.** A cycle reads every build of both arms once, interleaved,
-    with arm order alternating. A reading is the best of one pinned
-    `bench 13 3 1`. There is one warm-up reading per build, and every run
-    is archived.
+  - **Arms and contrasts.** A read has two or more pools as arms and
+    decides one or more named contrasts, each a pair of arms in the gain
+    or the no-regression form. Comparisons that share pools go in one
+    read: every contrast is as precise as a two-pool read of its pair, and
+    the arms share one warm-up and one quiet wait.
+  - **Cycles.** A cycle reads every build of every arm once, interleaved,
+    the arm order rotating. A reading is the best of one pinned
+    `bench 13 3 1`. Every run is archived.
   - **Estimate.** The delta of the arms' means of per-build medians, with a
     Welch t-interval on those medians, never a bootstrap of readings.
   - **Step 1, two cycles.** At +0.9% or more the change is accepted; at
     +0.1% or less it is NO_CHANGE.
   - **Step 2, only in between, six cycles in all.** Accepted at +0.5% or
-    more with the lower bound above 0.
+    more with the lower bound above 0. The read extends when any contrast
+    is in between; a contrast decided at step 1 keeps that verdict.
   - **No-regression form (`-NoRegression`).** Step 1 passes at −0.1% or
     above and fails at −0.9% or below. Step 2 fails at −0.5% or below with
     the upper bound under 0.
@@ -449,8 +454,12 @@ so a registered `[0,3]` gate passes `-Elo1 3`**. `-Mode simplify` is `[-5,0]`.
     cycles, a cycle more than 1% off its arm's median cycle is disturbed;
     two are absorbed and three repeat the read. A cycle with host load over
     10%, or with an engine, harness or build process running, is disturbed.
-  - **Fresh executables are scanned by antivirus** (RAR-M48), so the read
-    first waits for sustained quiet: 120 s in a registered read.
+    A contrast is disturbed when either of its arms is.
+  - **Fresh executables are scanned by antivirus** (RAR-M48), so every
+    build first runs one short `bench 8`, which sets the scan off, and the
+    read then waits for 60 s under 10% load; a scan still running holds the
+    wait. A three-pool read takes about 9 minutes at step 1 and 23 with
+    step 2.
   - **The null** is two independent pools of one source (BAS-P18).
   - `tools/nps_ab.ps1` is kept only to compare with earlier rows. Its
     bootstrap resamples readings, not builds, so it is not this interval.
