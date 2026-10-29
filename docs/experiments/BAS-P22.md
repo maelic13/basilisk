@@ -119,3 +119,18 @@
   generation is a superset and so at least as fast. On Zen 3 Clang's
   `-mtune=znver3` scheduling, or an extension it then uses, costs more
   than it gains for this engine; which of the two is not yet known.
+
+#### Registration amendment 2 — 2026-10-29, after the first read, before the second
+
+- **A repeat read on a quieter host.** The maintainer suspects interference
+  in the first read (host 1.7-2.0%, both cycles undisturbed by the rule)
+  and closed further programs. The same five pools and six contrasts are
+  read again, step 1 (step 2 only on EXTEND), into
+  `tools/results/a158-nps/p22-r2/`; nothing else changes.
+- **Precision:** not raised. The widest intervals come from the spread
+  between builds of one pool (the Clang pext builds read 3.294M to
+  3.352M), which more cycles do not narrow; the repeat shows whether that
+  spread was the host's.
+- **Decision:** taken on both reads together. A contrast whose verdict and
+  sign agree in both stands; one that disagrees is the maintainer's call
+  with both reads in front of them, and no third read is run unasked.
