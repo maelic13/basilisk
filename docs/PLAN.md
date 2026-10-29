@@ -2232,6 +2232,19 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
        5950X has no AVX-512: SDE checks such a tier's selection and
        fingerprint, but a speed read needs hardware that has it (Intel
        Ice Lake or later, AMD Zen 4 or later), which may not be at hand.
+    5. **Code generation: why `-march=native` is slower.** BAS-P22 read
+       Clang's native build 1.0% slower than the fixed pext instruction set
+       on this Zen 3 ([−1.14%, −0.86%], twice). Native differs in three
+       separable ways, each one pool in one read: the pext build with
+       `-mtune=znver3` (the tuning model alone), native with
+       `-mtune=generic` (the extra instruction families alone: FMA, MOVBE,
+       ADX and the like), and native with 64-byte function alignment
+       (layout luck, as in BAS-P20). If the extra families help and the
+       tuning hurts, a tier with those families and generic tuning may beat
+       today's pext build, for local builds and, where every CPU of the tier
+       has them, for the shipped tiers. Only this Zen 3 can be read here:
+       a CPU-specific choice (tuning) applies to local builds only, and the
+       shipped tiers keep generic tuning unless other hardware is read.
   - Rules: every candidate is behaviour-neutral (`bench 13` identical in
     every tier, the base build untouched), keeps the ISA contract and the
     universal binary's checks, and respects the slow-`pdep` rule (AMD
