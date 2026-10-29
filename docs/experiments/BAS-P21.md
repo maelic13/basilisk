@@ -67,4 +67,31 @@
   warm-up reading per build, 120 s under 10% host load, no Rarog or other
   engine, harness or build process.
 
+#### Registration amendment 1 — 2026-10-29, before any exposure
+
+- **What changed.** The three reads become one read of the three pools
+  with three contrasts, `hot`, `place` and `align`, each between the same
+  two pools, in the same form, decided by the same rule as before
+  (`nps_read.ps1 -Pools ... -Contrasts ...`). A cycle reads every build of
+  every pool once, the arm order rotating; each contrast has as many
+  readings of each of its pools as a two-pool read, so its precision is
+  unchanged. The read extends to step 2 when any contrast says EXTEND; a
+  contrast decided at step 1 keeps its step-1 verdict. A REPEAT repeats the
+  whole read once into a fresh directory; a second stops for the
+  maintainer.
+- **Warm-up and quiet.** The warm-up is one `bench 8` per build instead of
+  one full reading, and it now runs before the quiet wait, so the antivirus
+  scan it sets off falls inside the wait, which holds until load has been
+  under 10% for 60 s (was 120 s, a margin for the broken load measure
+  repaired in `7996e4d`).
+- **Why.** The three reads paid three warm-ups and three quiet waits, about
+  30 to 65 minutes of idle host; the single read takes about 9 minutes at
+  step 1 and 23 if it extends.
+- **Exposure so far: none.** A first attempt at `hot` under the old
+  launcher was stopped by the maintainer during its first cycle (the host
+  was not idle). No cycle completed, nothing was printed or read from its
+  partial archive, and it is kept unread in
+  `tools/results/a156-nps/hot-stopped/`. The predictions above stand
+  unchanged.
+
 #### RESULT — append after exposure

@@ -2068,6 +2068,9 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         build (the relink alone) and the tier build against the pext asset
         (the alignment alone). Pools built; the reads need the host idle
         (`pwsh tools/run_a156_nps_reads.ps1`).
+      - BAS-P21 registration amendment 1 (2026-10-29, before exposure): the
+        three reads run as one read of the three pools with the same three
+        contrasts and rules, about 9 minutes at step 1 instead of about 30.
 - [ ] **A.16** `[I1]` Zero-weight evaluation terms off the hot path
   Added 2026-10-28 (simplification read of the kernel and the evaluator
   against the donor, after A.14.1; the lines are cited here). Terms whose
@@ -3130,7 +3133,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.15.6 | READY_FOR_IMPLEMENTATION | R2 | 64-byte-aligned tiers built; BAS-P21's three reads wait for an idle host |
+| A.15.6 | READY_FOR_IMPLEMENTATION | R2 | 64-byte-aligned tiers built; BAS-P21's one three-pool read waits for an idle host |
 | A.16 | READY_FOR_IMPLEMENTATION | I1 | Zero-weight evaluation compute deleted; exact fingerprint, kept on a pooled NPS read |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |
 | B.4 | RESEARCH | I2 | Contents fixed by B.0 |
