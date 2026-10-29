@@ -1887,7 +1887,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         pinning asserts are gone. `bench 13` 19,470,325 on the release,
         tune, diagnostic and ablation builds; CTest 24/24 release, 22/22
         diagnostic and tune.
-- [x] **A.15** Universal binaries and the release runners
+- [ ] **A.15** Universal binaries and the release runners
   Added 2026-10-27 at the maintainer's request
   (`analysis/code_audit_2026-10-27.md` §4). Stockfish 19 (2026-09-05)
   ships one fat binary per OS and architecture — every ISA level a full
@@ -2183,6 +2183,41 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         `-march=native` and benches 19,470,325; `build_test.ps1` Release,
         `-Native` and `-Universal` build and bench exact; CTest 24/24. A.17
         candidate 5 owns why native is slower.
+      - Names and defaults (2026-10-29, before the PR merged): `release` and
+        `universal` build PGO by default (build presets), `--target nopgo`
+        builds the engine alone and `--target all` the development loop;
+        every build lands in `build/dist` as
+        `basilisk-<version>-<os>-<x64|arm64>[-<tier>][-<kind>]`, the version
+        the engine reports, read at build time (`cmake/dist-copy.cmake`);
+        release assets are `basilisk-<X.Y.Z>-<os>-<x64|arm64>`.
+    - [ ] **A.15.9** `[I2]` GCC as a full equal: Stockfish's universal route
+      Added 2026-10-29 at the maintainer's request, to run on its own branch
+      after the universal binary's PR merges. GCC builds and passes CI for
+      normal and PGO builds, but the universal binary is Clang-only: it
+      renames the post-LTO objects that only LLVM's linkers keep (lld
+      `-lldsavetemps`, gold's LLVM plugin `save-temps`). Clang stays the
+      default and the release compiler (BAS-P22: GCC 2.7% slower); the aim
+      is that every build works and is tested with both.
+      - The universal route becomes Stockfish's, for both compilers, so there
+        is one route: each tier compiled with link-time optimisation to an
+        assembly file, its symbols renamed in that text, then assembled and
+        linked (Stockfish's `universal-object-pgo` and
+        `rewrite_asm_sections.awk`, read at `edb0d9db`). Every guard of
+        `analysis/universal_binary_2026-10.md` §14 is carried over and seen
+        to fail again on the new route: still-global symbols, initialisers,
+        a tier without its profile (GCC's own missing-profile check), stale
+        tiers, ISA attribution and alignment.
+      - CI: GCC test cells beside Clang's (Linux and Windows), a GCC
+        universal build in the release candidate run with the forced-tier
+        bench and the ISA contract.
+      - Re-measured, registered before reading: the new route's Clang
+        universal against today's (placement, BAS-P20/P21's lesson) and
+        against the pext build; GCC's universal against GCC's pext build.
+        The release keeps Clang's universal binary unless the new route
+        reads slower, in which case Clang keeps today's route and only GCC
+        uses the assembly one.
+      - Interactions: A.17 candidate 5 (code generation) reads on the same
+        builds; G.2 extends the tier list on whichever route ships.
 - [ ] **A.16** `[I1]` Zero-weight evaluation terms off the hot path
   Added 2026-10-28 (simplification read of the kernel and the evaluator
   against the donor, after A.14.1; the lines are cited here). Terms whose
@@ -3305,6 +3340,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
+| A.15.9 | RESEARCH | I2 | GCC equal to Clang: Stockfish's assembly route for the universal binary, guards re-proved, CI cells, re-measured; after PR #18 merges |
 | A.16 | READY_FOR_IMPLEMENTATION | I1 | Zero-weight evaluation compute deleted; exact fingerprint, kept on a pooled NPS read |
 | A.17 | RESEARCH | R2 | Survey instruction-specific speed (compressed PEXT tables, PEXT/PDEP and AVX2 in the evaluation); each kept candidate a registered NPS read |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |
