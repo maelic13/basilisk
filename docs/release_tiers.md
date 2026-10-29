@@ -80,7 +80,11 @@ function names its tier, so it is attributed by its label:
   LZCNT or POPCNT;
 - the avx2 tier contains `popcnt` and AVX2, and no BMI1, BMI2 or LZCNT;
 - the pext tier contains `popcnt`, `pext`, `blsr`, `lzcnt` and AVX2;
-- the dispatcher references all three entry points and executes `cpuid`.
+- the dispatcher references all three entry points and executes `cpuid`;
+- at least 95% of each tier's functions, and every function of the hot path
+  (`negamax`, `quiescence`, the move picker, `make_move`, `unmake_move`,
+  `is_legal`, `see_ge`, `evaluate`), start on a 64-byte line;
+- Fathom's functions are defined once, as shared code, and in no tier.
 
 The floor is x86-64 with SSE3: MSYS2 builds its static libc++ for
 `-march=nocona`, and every x86-64 CPU since 2005 has SSE3. `tzcnt` is allowed:
@@ -94,6 +98,24 @@ Sandy Bridge and Ivy Bridge start `portable`, Haswell, Skylake, Ice Lake and
 Alder Lake start `pext`, each reproducing the fingerprint, and that forcing
 `pext` on Sandy Bridge is refused. SDE cannot emulate AMD, so the slow-`PEXT`
 rule is the unit truth table's (`tests/test_cpu_features.cpp`).
+
+The build checks the tiers before it links them (`cmake/universal-tiers.cmake`):
+
+- the source tree and the compiler are the same for all three: the source is
+  hashed before the first tier and after each, and each tier's build
+  directory must name the dispatcher's compiler and version;
+- after the rename nothing a tier defines stays global except its entry
+  point, type identities and `.refptr` data, and no tier object carries a
+  static initialiser (`cmake/universal-check-tier.cmake`, which also runs on
+  its own against any objects);
+- each tier's PGO build treats a source file without profile data as an
+  error, except the four bench never runs (`move.cpp`, `syzygy.cpp`,
+  `search_diagnostics.cpp`, `wac.cpp`), so a tier that silently lost its
+  profile does not build. A profile that does not match its code already
+  fails under `-Werror`.
+
+Each of these checks has been seen to fail on a planted fault
+(`analysis/universal_binary_2026-10.md` §14).
 
 The single-tier builds keep their own check (`--tier portable|avx2|pext`): a
 specialized build's baseline launcher refuses a CPU without the tier's

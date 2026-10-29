@@ -556,3 +556,31 @@ refused quiet hosts:
   placement question: a padding sweep to confirm alignment as the cause,
   then a repair that makes the tier's placement independent of the link,
   and a new gate.
+
+## 14. Amendment 3 (2026-10-29): every trap guarded and seen to fail
+
+A.15.6 shipped the binary with alignment. BAS-P21 found that the relink's
+placement had been a real silent failure, so the traps of §5 and of Rarog's
+notes (`D:/code/rarog/analysis/universal_binary_2026-09.md` §3, §7, §9) were
+checked one by one: does each check exist, and has it been watched failing?
+Two were unguarded (stale tiers, the image's alignment), and one check was
+switched off (unprofiled files); all are fixed. "Planted" means the fault
+was made on purpose and the check was run on it.
+
+| Trap | Check, and where it runs | Seen to fail |
+|---|---|---|
+| First-wins symbols | After the rename, nothing a tier defines stays global but its entry, `_ZTI`/`_ZTS` and `.refptr` data (`cmake/universal-check-tier.cmake`, every tier build). Fathom is linked once, baseline, beside the dispatcher; `verify_isa.py --tier universal` requires `tb_init`, `tb_free` and both probe functions defined once as shared code and in no tier. The final link has no `--allow-multiple-definition`. | A tier object with `run_bench` put back under its plain name: "still global after the rename". A synthetic image with `tb_init` in the pext tier: fails (unit test). |
+| PGO profiles | Each tier is the ordinary PGO build of its preset, renamed only after; a tier's PGO build makes `-Wprofile-instr-unprofiled` an error, except for the four files bench never runs (move formatting, Syzygy, the search diagnostics, WAC). A profile that does not match its code already fails, as `-Wprofile-instr-out-of-date` under `-Werror`. | The pext tier built on a near-empty profile (one start-and-quit run): six files without data, the build fails. The pext tier on the portable tier's profile builds (PEXT changes no control flow the profile hashes) and read −0.4%; with no profile −3.9%, indicative single builds against its own profile. |
+| Early initialisers | No `.ctors`, `.dtors`, `.init_array`, `.fini_array`, `.preinit_array` or `.CRT$X[CIL]` section in any renamed tier object (`universal-check-tier.cmake`). | A planted object with a namespace-scope constructor: "carries .ctors, a static initialiser". |
+| ISA attribution | `verify_isa.py --tier universal` attributes every function by its tier label; the portable tier and shared code meet the floor, the avx2 tier has no BMI1, BMI2 or LZCNT. Runs in both release cells. | Unit tests plant `popcnt` and `pext` in shared code, `popcnt` and `andn` in the portable tier, `andn` and `pext` in the avx2 tier: each fails in its region; letting the avx2 tier accept BMI1 fails the suite. |
+| Stale tiers | The source (`src/`, `external/`, `cmake/`, `CMakeLists.txt`, `CMakePresets.json`) is hashed before the first tier and after each; each tier's build directory must name the dispatcher's compiler and version (`universal-tiers.cmake`). | A wrong expected version: "built by clang++ 23.1.4, not 22.1.8". An edit to `src/attacks.h`: a different hash, the original back on restoring it. |
+| Alignment | `verify_isa.py --tier universal`: at least 95% of each tier's functions, and every hot-path function by name, at 0 mod 64. CMake refuses a universal configure without `BASILISK_ALIGN_FUNCTIONS=64`. | BAS-P20's unaligned binary: 134 of 563 portable functions aligned, `negamax`, `quiescence`, the move picker, `is_legal` and `see_ge` named off their line. A synthetic image with `negamax` at 16 mod 64 fails (unit test). |
+| Tier choice | The release benches every forced tier for the declared fingerprint and its banner; SDE checks Intel selection; `tests/test_cpu_features.cpp` holds the slow-PEXT truth table. | The forced-tier step with an expected count off by one: "the portable tier benches 19470325, not 19470326". The rule without family 17h: the truth table fails at Zen 1/2. |
+
+The final tree passes all of it, built with the release cells' commands:
+- Windows (clang 23.1.4, lld): 558, 558 and 555 of 563, 563 and 560
+  functions aligned in the portable, avx2 and pext tiers, the exceptions
+  destructor thunks and the terminate handler;
+- Linux (WSL Ubuntu 24.04, Clang 19.1.1, gold, static): 484, 484 and 481 of
+  485, 485 and 482, the ISA contract passing with the C runtime exempt;
+- every forced tier 19,470,325 on both, with its banner.

@@ -2090,6 +2090,13 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         exact and the universal ISA contract passing. As for A.15.3 and
         A.15.5, the release workflow itself is proved by its first run on
         GitHub, the candidate run of the PR that carries it.
+      - Trap audit (2026-10-29, after closing, at the maintainer's request
+        with Rarog's notes): each universal-binary trap now has a check
+        that was watched failing on a planted fault. New: the stale-tier
+        guard (one source, one compiler), the image's alignment and
+        single-Fathom checks, unprofiled files as errors in tier builds,
+        and the tier object checks runnable on their own
+        (`analysis/universal_binary_2026-10.md` §14).
 - [ ] **A.16** `[I1]` Zero-weight evaluation terms off the hot path
   Added 2026-10-28 (simplification read of the kernel and the evaluator
   against the donor, after A.14.1; the lines are cited here). Terms whose
