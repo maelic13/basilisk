@@ -133,7 +133,7 @@ Build it to develop or test the engine, or for a system without a download.
 | You need | |
 | --- | --- |
 | Build tools | CMake 3.24 or newer, and Ninja |
-| Compiler | Clang 19+ with libstdc++, Clang 16+ with libc++, or GCC 14+. Clang builds the fastest engine (GCC about 3% slower); MSVC is not supported. |
+| Compiler | Clang 19+ with libstdc++, Clang 16+ with libc++, or GCC 14+. Clang builds the fastest engine (GCC about 3.5% slower); MSVC is not supported. |
 
 ### The fastest engine for your computer
 

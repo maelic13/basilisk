@@ -1887,7 +1887,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         pinning asserts are gone. `bench 13` 19,470,325 on the release,
         tune, diagnostic and ablation builds; CTest 24/24 release, 22/22
         diagnostic and tune.
-- [ ] **A.15** Universal binaries and the release runners
+- [x] **A.15** Universal binaries and the release runners
   Added 2026-10-27 at the maintainer's request
   (`analysis/code_audit_2026-10-27.md` §4). Stockfish 19 (2026-09-05)
   ships one fat binary per OS and architecture — every ISA level a full
@@ -2190,7 +2190,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         `basilisk-<version>-<os>-<x64|arm64>[-<tier>][-<kind>]`, the version
         the engine reports, read at build time (`cmake/dist-copy.cmake`);
         release assets are `basilisk-<X.Y.Z>-<os>-<x64|arm64>`.
-    - [ ] **A.15.9** `[I2]` GCC as a full equal: Stockfish's universal route
+    - [x] **A.15.9** `[I2]` GCC as a full equal: Stockfish's universal route
       Added 2026-10-29 at the maintainer's request, to run on its own branch
       after the universal binary's PR merges. GCC builds and passes CI for
       normal and PGO builds, but the universal binary is Clang-only: it
@@ -2249,9 +2249,22 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         3,684,650 as Clang's. CI: GCC cells for every x86 tier on Linux
         and Windows in the bench agreement; the release builds and checks
         GCC's universal binary on both, unpublished.
-      - BAS-P24 registered before any pool was built; the pools are built
-        and the read waits for the maintainer to free the host:
-        `pwsh tools/run_a159_nps_reads.ps1`.
+      - BAS-P24, registered before any pool was built, read on the 5950X
+        (four reads, amendments 1 to 3): the assembly route against Clang's
+        objects route +0.33% [−0.19%, +0.86%] and against the pext build
+        +0.04% [−0.21%, +0.29%], both PASS; GCC's universal binary against
+        GCC's pext build +0.41% [+0.06%, +0.77%], PASS; GCC against Clang
+        −3.47% universal and −3.70% pext.
+      - Closed 2026-10-29 by the registered rule: the objects route is
+        removed, so Clang and GCC build the universal binary one way. Before
+        closing, every trap of Rarog's notes (`analysis/universal_binary_2026-10.md`
+        §15) was re-shown failing on both compilers, and the hot pext-tier
+        code of the universal binary was found identical to the tier's own
+        PGO build (GCC byte for byte; Clang every instruction and its line
+        offset, the padding encoded differently). Rebuilt after the removal
+        on Windows and Linux with both compilers: every forced tier
+        19,470,325, the universal ISA contract passing. The new CI and
+        release cells are proved by the PR's first run.
 - [ ] **A.16** `[I1]` Zero-weight evaluation terms off the hot path
   Added 2026-10-28 (simplification read of the kernel and the evaluator
   against the donor, after A.14.1; the lines are cited here). Terms whose
@@ -3376,7 +3389,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.15.9 | LOCAL_QUALIFIED | I2 | Assembly route built for Clang and GCC, every guard seen to fail; BAS-P24 decides Clang's route, then the losing route goes |
 | A.16 | READY_FOR_IMPLEMENTATION | I1 | Zero-weight evaluation compute deleted; exact fingerprint, kept on a pooled NPS read |
 | A.17 | RESEARCH | R2 | Survey instruction-specific speed (compressed PEXT tables, PEXT/PDEP and AVX2 in the evaluation); each kept candidate a registered NPS read |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |

@@ -179,6 +179,13 @@ builds):
   over `base`, against +6.0% for `avx2` and +9.2% for `pext`. The hardware
   `popcnt` is nearly all of what `avx2` gains.
 
+- **The assembly route and GCC** (BAS-P24, 2026-10-29): Clang's universal
+  binary on the assembly route against its earlier objects route +0.33%
+  [−0.19%, +0.86%], and against the single-tier pext build +0.04%
+  [−0.21%, +0.29%]; GCC's universal binary against GCC's pext build +0.41%
+  [+0.06%, +0.77%]. GCC's builds read 3.5% behind Clang's: −3.47% universal,
+  −3.70% pext.
+
 Per-tier NPS is measured locally and is not published as a per-asset file.
 
 Sizes (2026-10-29, four tiers, aligned): 4,186,112 bytes on Windows; 5,812,832

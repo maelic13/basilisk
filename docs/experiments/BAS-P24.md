@@ -146,3 +146,19 @@
 - **Decision:** none in the code: the release ships Clang's binary either
   way. The result sets what README and `docs/release_tiers.md` say about
   GCC's speed. A REPEAT stops for the maintainer.
+
+#### RESULT of the fourth read (amendment 3)
+
+- **Result (agent-run 2026-10-29, host 2.0% and 1.4%, no cycle disturbed;
+  `tools/results/a159-nps/p24-compilers/`).** Means of build medians:
+  Clang universal 3.4129M, GCC universal 3.2944M, Clang pext 3.4113M, GCC
+  pext 3.2851M.
+
+  | Contrast | Delta | 95% t-interval | Verdict |
+  |---|---:|---|---|
+  | `gccuni`, GCC universal over Clang universal | −3.47% | [−3.77%, −3.17%] | NO_CHANGE |
+  | `gccpext`, GCC pext over Clang pext | −3.70% | [−3.97%, −3.43%] | NO_CHANGE |
+
+- **Decision.** None in the code, as registered: GCC builds the engine
+  about 3.5% slower than Clang, universal or not, and README says so.
+- **Calibration.** Both inside −3.5% [−5.5%, −1.5%].

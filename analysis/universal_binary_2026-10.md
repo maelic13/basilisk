@@ -676,3 +676,32 @@ Seen to fail on the new route (§14's table, re-run):
 | Stale tiers, compiler | GCC's tiers expected as 16.2.1 | "built by …g++.exe 16.2.0, not … 16.2.1" |
 | ISA attribution | `pextq` added to the base tier's `make_move`, relinked | "portable tier contains forbidden bmi2" |
 | Alignment | `negamax` moved 16 bytes off its line, relinked | "starts at 16 mod 64" |
+
+Re-checked on both compilers before closing, against Rarog's list
+(`D:/code/rarog/analysis/universal_binary_2026-09.md` §3, §7, §9), each check
+watched failing with GCC and with Clang:
+
+| Trap | Check, where it runs | Seen to fail, Clang | Seen to fail, GCC |
+|---|---|---|---|
+| First-wins symbols | every symbol a tier defines carries its name (`universal-check-tier.cmake`); no section named for a renamed symbol (`universal-asm.py check-sections`); Fathom once, baseline (`verify_isa.py`); no `--allow-multiple-definition` in either final link | missed global and local; objcopy-only rename | missed global and local; objcopy-only rename (90 sections); the first GCC link's 238 multiple definitions show the link refuses duplicates |
+| Profiles | Clang `-Wprofile-instr-unprofiled`, GCC `-Werror=missing-profile`, in every tier build | start-and-quit profile: 10 files | empty profile; another tier's profile (its files are keyed to that tier's build path) |
+| Profile reaches the shipped code | hot pext-tier code of the universal image against the tier's own PGO build | 14 functions: every instruction and its line offset the same, padding encoded differently | 23 functions byte for byte |
+| Early initialisers | no `.ctors`/`.init_array`/`.fini_array`/`.preinit_array`/`.CRT$X*` in a tier object | planted `.ctors` (COFF); `.init_array`, `.preinit_array`, `.fini_array` and a compiled constructor (ELF) | planted `.ctors` (COFF); a compiled constructor (ELF) |
+| ISA attribution | `verify_isa.py --tier universal`, both release cells | `pext` in sse41-popcnt, `popcnt` in base, `andn` in avx2, `pext` in base | `popcnt` in base, `andn` in avx2, `pext` in base |
+| Stale tiers | source hashed after every tier; each tier's compiler and version | wrong version (22.1.8) | wrong version (16.2.1); the source edited while tiers built |
+| `-march=native` | a universal configure without `PORTABLE_BUILD` is refused | refused | (the same CMake check) |
+| Alignment | `verify_isa.py`: 95% of a tier's functions and every hot one at 0 mod 64 | `negamax` 16 bytes off | `negamax.constprop.0` 16 bytes off |
+| Tier choice | every forced tier benches 19,470,325 with its banner (release); SDE (release); `test_cpu_features` truth table | all four binaries, both OSes | all four binaries, both OSes |
+
+Rarog's remaining trap, an instrumented universal binary training only the
+tier the host selects, does not arise: each tier is its own PGO build,
+trained natively on the runner. The Clang wrong-tier profile is not refused
+(profiles match by name and PEXT changes no control flow); it was read once
+on the earlier route (§14, −0.4% indicative), and the tier build is
+unchanged by the route.
+
+BAS-P24 then read the assembly route level with the objects route (+0.33%
+[−0.19%, +0.86%]) and with the single-tier pext build (+0.04%), and GCC's
+universal binary level with GCC's own pext build (+0.41%); the objects route
+was removed (A.15.9 closed 2026-10-29). GCC's builds read 3.5% behind
+Clang's.
