@@ -134,3 +134,36 @@
 - **Decision:** taken on both reads together. A contrast whose verdict and
   sign agree in both stands; one that disagrees is the maintainer's call
   with both reads in front of them, and no third read is run unasked.
+
+#### RESULT of the repeat read (amendment 2)
+
+- **Result (agent-run 2026-10-29, 15:45-16:20 UTC, revision `0171062`, the
+  same pools; host 1.4-1.7%, every cycle undisturbed;
+  `tools/results/a158-nps/p22-r2/`).** `hot` read −0.14% [−0.35%, +0.07%]
+  at step 1, EXTEND, so the read ran six cycles; the other five decided at
+  step 1 and keep those verdicts. Means of build medians (six cycles):
+  Clang pext 3.4253M, universal 3.4204M, Clang native 3.3912M, GCC native
+  3.2991M, MSVC 2.9338M.
+
+  | Contrast | First read | Repeat, step 1 | Repeat, six cycles | Verdict |
+  |---|---:|---:|---:|---|
+  | `gcc` | −2.49% | −2.66% [−2.79, −2.53] | −2.71% [−2.85, −2.57] | NO_CHANGE, agrees |
+  | `msvc` | −13.41% | −13.42% [−13.49, −13.35] | −13.49% [−13.53, −13.44] | NO_CHANGE, agrees |
+  | `msvcisa` | −14.72% | −14.30% [−14.45, −14.15] | −14.35% [−14.49, −14.20] | NO_CHANGE, agrees |
+  | `native` | −1.62% | −0.88% [−1.08, −0.67] | −0.86% [−0.97, −0.75] | NO_CHANGE, agrees |
+  | `nativecg` | −1.52% | −1.02% [−1.17, −0.87] | −1.00% [−1.14, −0.86] | NO_CHANGE, agrees |
+  | `hot` | +0.10%, PASS | −0.14%, EXTEND | −0.14% [−0.29, +0.00] | PASS, agrees |
+
+- **Every contrast agrees in verdict and sign**, so by amendment 2 the
+  decisions of the first read stand: the universal binary matches the pext
+  build, MSVC is about 14% behind Clang on the same instructions (the
+  registered recommendation: drop it), GCC about 2.7% behind Clang at their
+  native best, and `-march=native` makes Clang **1.0% slower** than the
+  fixed pext instruction set on this Zen 3.
+- **The interference was real.** The first read's builds of one pool spread
+  up to 1.7% (Clang pext 3.294M to 3.352M); on the quieter host they agree
+  within 0.2%, the intervals are ten times narrower, and every level is
+  about 3% higher. The first read's native deficit (−1.5%) was partly that
+  noise; the repeat's −1.0% is the estimate to use. A read whose builds of
+  one pool spread by more than about 0.5% is worth repeating on a quieter
+  host, whatever its cycles say.
