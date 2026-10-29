@@ -31,21 +31,6 @@ static MagicEntry BishopMagics[SQUARE_NB];
 static Bitboard RookTable[102400];
 static Bitboard BishopTable[5248];
 
-#if defined(USE_PEXT) && defined(PEXT_COMPRESSED)
-// The same attack sets, each stored as the 16-bit pext of the set over the
-// square's empty-board rays and expanded by pdep on lookup: 210 KB instead
-// of 840 KB, which fits the L2 cache the flat tables overflow.
-struct CompressedEntry {
-    Bitboard  mask;   // relevant occupancy, as MagicEntry::mask
-    Bitboard  rays;   // every square the piece reaches on an empty board
-    uint16_t* attacks;
-};
-static CompressedEntry RookCompressed[SQUARE_NB];
-static CompressedEntry BishopCompressed[SQUARE_NB];
-static uint16_t RookTable16[102400];
-static uint16_t BishopTable16[5248];
-#endif
-
 #if !defined(USE_PEXT)
 // ---- splitmix64 PRNG -------------------------------------------------------
 static uint64_t sm64_state;
@@ -187,44 +172,22 @@ static void init_pext_table(Square sq, bool bishop, MagicEntry& entry, Bitboard*
 }
 #endif
 
-#if defined(USE_PEXT) && defined(PEXT_COMPRESSED)
-static void compress_table(Square sq, bool bishop, const MagicEntry& flat, CompressedEntry& entry,
-                           uint16_t* table) {
-    entry.mask    = flat.mask;
-    entry.rays    = bishop ? bishop_attacks_slow(sq, 0) : rook_attacks_slow(sq, 0);
-    entry.attacks = table;
-    const size_t count = size_t(1) << popcount(flat.mask);
-    for (size_t i = 0; i < count; i++)
-        table[i] = static_cast<uint16_t>(_pext_u64(flat.attacks[i], entry.rays));
-}
-#endif
-
 // ---- Public attack functions -----------------------------------------------
 Bitboard bishop_attacks(Square sq, Bitboard occ) {
-#if defined(USE_PEXT) && defined(PEXT_COMPRESSED)
-    const CompressedEntry& e = BishopCompressed[sq];
-    return _pdep_u64(e.attacks[_pext_u64(occ, e.mask)], e.rays);
-#else
     const MagicEntry& e = BishopMagics[sq];
 #if defined(USE_PEXT)
     return e.attacks[_pext_u64(occ, e.mask)];
 #else
     return e.attacks[((occ & e.mask) * e.magic) >> e.shift];
 #endif
-#endif
 }
 
 Bitboard rook_attacks(Square sq, Bitboard occ) {
-#if defined(USE_PEXT) && defined(PEXT_COMPRESSED)
-    const CompressedEntry& e = RookCompressed[sq];
-    return _pdep_u64(e.attacks[_pext_u64(occ, e.mask)], e.rays);
-#else
     const MagicEntry& e = RookMagics[sq];
 #if defined(USE_PEXT)
     return e.attacks[_pext_u64(occ, e.mask)];
 #else
     return e.attacks[((occ & e.mask) * e.magic) >> e.shift];
-#endif
 #endif
 }
 
@@ -299,18 +262,4 @@ void init_attacks() {
 #endif
         offset += 1 << popcount(rook_mask(Square(s)));
     }
-
-#if defined(USE_PEXT) && defined(PEXT_COMPRESSED)
-    // Built from the flat tables, which are then never read again.
-    offset = 0;
-    for (int s = 0; s < 64; s++) {
-        compress_table(Square(s), true, BishopMagics[s], BishopCompressed[s], BishopTable16 + offset);
-        offset += 1 << popcount(bishop_mask(Square(s)));
-    }
-    offset = 0;
-    for (int s = 0; s < 64; s++) {
-        compress_table(Square(s), false, RookMagics[s], RookCompressed[s], RookTable16 + offset);
-        offset += 1 << popcount(rook_mask(Square(s)));
-    }
-#endif
 }
