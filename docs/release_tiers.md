@@ -1,12 +1,12 @@
 # Release binary tiers and ISA contract
 
-> **Audience: developer / maintainer** (PLAN Â§1, "Document audience"). This is
+> **Audience: developer / maintainer** (PLAN §1, "Document audience"). This is
 > the build/ISA contract behind the published assets. The *user-facing* version
 > of "which download do I pick" is the download table in `README.md`.
 
 Basilisk ships five assets: one x86-64 binary each for Windows and Linux, and
 one ARM64 binary each for Linux, Windows and macOS. Every asset is built
-**PGO** (profile-guided: instrument â†’ train on the bench suite â†’ merge â†’
+**PGO** (profile-guided: instrument → train on the bench suite → merge →
 optimised link) from the exact tagged revision with production flags (`TUNE`
 off, `PORTABLE_BUILD=ON`), and the release workflow **smoke-tests the exact
 file it publishes** before any release exists: the binary must answer
@@ -21,8 +21,11 @@ engine will not compile for a 32-bit target (`static_assert` in `src/types.h`).
 
 ## The universal x86-64 binary
 
-The x86-64 asset is a universal binary (`analysis/universal_binary_2026-10.md`,
-the design and its amendments). It holds three complete builds of the engine,
+The x86-64 asset, `basilisk-<tag>-<os>-x86_64`, is a universal binary
+(`analysis/universal_binary_2026-10.md`, the design and its amendments). It
+keeps the name the portable asset had, so a link or script that fetched the
+plain `x86_64` download now gets the fast build; Stockfish adds `-universal`
+to its names, which would break that. It holds three complete builds of the engine,
 each its own PGO build, and a dispatcher compiled for the baseline that picks
 one at start-up:
 

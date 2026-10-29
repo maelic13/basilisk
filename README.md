@@ -40,20 +40,38 @@ from a chess GUI or an engine-testing tool.
 - [All releases](https://github.com/maelic13/basilisk/releases)
 
 Every release provides ready-to-run executables — no installation needed. Pick
-the one matching your operating system:
+the one for your computer:
 
-| Asset | Use when |
+| Your computer | Download |
 | --- | --- |
-| `x86_64` | Any 64-bit Intel or AMD CPU, on Windows or Linux. |
-| `aarch64` | ARM64 Linux, Windows on ARM, and Apple Silicon Macs. |
+| Windows, Intel or AMD processor | `basilisk-vX.Y.Z-windows-x86_64.exe` |
+| Linux, Intel or AMD processor | `basilisk-vX.Y.Z-linux-x86_64` |
+| Windows on ARM | `basilisk-vX.Y.Z-windows-aarch64.exe` |
+| Linux on ARM | `basilisk-vX.Y.Z-linux-aarch64` |
+| Mac with Apple silicon | `basilisk-vX.Y.Z-macos-aarch64` |
 
-The `x86_64` executable carries three builds of the engine and starts the
-fastest one the CPU runs: `pext` on Intel Haswell and newer and on AMD Zen 3
-and newer, `avx2` on AMD Zen 1 and Zen 2 (whose `PEXT` is slow) and other
-AVX2 CPUs, and `portable` on anything older. The first line it prints names
-the one it chose. All of them play identically; they differ only in speed.
-To force one, set the environment variable `BASILISK_ISA` to `portable`,
-`avx2` or `pext`; a build the CPU cannot run is refused with a message.
+**One download for every Intel or AMD processor.** It holds three builds of
+Basilisk, each made for a different generation of processor. When it starts,
+it checks your processor and runs the fastest build that works on it, so there
+is nothing to choose. All three play exactly the same moves; only the speed
+differs, by about 8% between the oldest and the newest.
+
+The first line Basilisk prints names the build it picked, for example
+`Basilisk 1.11.0 by Miloslav Macurek (pext)`:
+
+| Build | Picked on |
+| --- | --- |
+| `pext` | Intel Haswell (2013) and newer, AMD Zen 3 (2020) and newer. The fastest. |
+| `avx2` | AMD Zen 1 and Zen 2, and other processors with AVX2. |
+| `portable` | Any other 64-bit Intel or AMD processor. |
+
+You never need to, but you can force one build by setting the environment
+variable `BASILISK_ISA` to `portable`, `avx2` or `pext`. If your processor
+cannot run the build you ask for, Basilisk says so and exits.
+
+Releases up to 1.10 had separate `-avx2` and `-pext` downloads beside the
+plain `x86_64` one, which was the slowest; from 1.11 the `x86_64` download
+alone does the job of all three.
 
 Basilisk is 64-bit only — there is no 32-bit build.
 
@@ -140,7 +158,7 @@ cmake --build --preset release
 | `release` | `-O3 -march=native` + LTO. Use this for playing and benchmarking. |
 | `release-avx2` | Like `release`, plus AVX2 code generation. |
 | `release-pext` | Like `release`, plus BMI2/PEXT sliding-piece attacks. |
-| `universal` | The x86-64 release binary: the portable, AVX2 and PEXT builds, each PGO, chosen at start-up (Clang, Windows or Linux; target `universal`). |
+| `universal` | The `x86_64` release download: the portable, AVX2 and PEXT builds, each profile-guided, chosen at start-up (Clang, Windows or Linux; target `universal`). Not needed to play: the download is built this way. |
 | `relwithdebinfo` | Optimized with debug info, no sanitizers. |
 | `debug` | Unoptimized, with AddressSanitizer and UBSan. |
 

@@ -16,14 +16,15 @@ and next step).
 
 ### Changed
 
-- **One x86-64 download per system.** The Windows and Linux x86-64
-  releases are now a single executable that holds three builds of the engine
-  and starts the fastest one the CPU runs: `pext` on Intel Haswell and newer
-  and AMD Zen 3 and newer, `avx2` on AMD Zen 1 and Zen 2 (whose `PEXT` is
-  slow) and other AVX2 CPUs, and `portable` on anything older. The first line
-  it prints names the one it chose, and the environment variable
-  `BASILISK_ISA` (`portable`, `avx2` or `pext`) forces one. A release has five
-  assets instead of nine, and the `-avx2` and `-pext` downloads are gone.
+- **One Intel/AMD download per system.** Windows and Linux on Intel or AMD
+  now have a single download, `x86_64`, in place of the plain (and slowest),
+  `-avx2` and `-pext` ones. It holds three builds of the engine and starts
+  the fastest one the processor runs: `pext` on Intel Haswell and newer and
+  AMD Zen 3 and newer, `avx2` on AMD Zen 1 and Zen 2 (whose `PEXT` is slow)
+  and other AVX2 processors, and `portable` on anything older, so there is
+  nothing to choose. The first line it prints names the one it chose, and
+  the environment variable `BASILISK_ISA` (`portable`, `avx2` or `pext`)
+  forces one. A release has five downloads instead of nine.
   Every build plays identically (`bench 13` 19,470,325 in each). Measured on
   a Ryzen 9 5950X, the executable runs as fast as the former `-pext`
   download, and its `pext` build is 8.5% faster than `portable` (BAS-P20,
