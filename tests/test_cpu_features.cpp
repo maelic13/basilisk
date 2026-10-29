@@ -24,15 +24,15 @@ int main() {
     begin_section("Dispatch picks the highest supported tier");
     constexpr CpuFeatures baseline{};
     constexpr CpuFeatures nehalem{true, true, false, false, false, false};  // SSE4.1 and POPCNT
-    EXPECT(best_tier(baseline) == IsaTier::Portable);
-    EXPECT(best_tier(nehalem) == IsaTier::Portable);
+    EXPECT(best_tier(baseline) == IsaTier::Base);
+    EXPECT(best_tier(nehalem) == IsaTier::Base);
     EXPECT(best_tier(avx2_ok) == IsaTier::Avx2);
     EXPECT(best_tier(pext_ok) == IsaTier::Pext);
     // AVX2 without LZCNT (or BMI1, or BMI2) cannot run the pext tier.
     EXPECT(best_tier(CpuFeatures{true, true, true, true, true, false}) == IsaTier::Avx2);
-    for (const IsaTier tier : {IsaTier::Portable, IsaTier::Avx2, IsaTier::Pext}) {
+    for (const IsaTier tier : {IsaTier::Base, IsaTier::Avx2, IsaTier::Pext}) {
         EXPECT(supports_tier(pext_ok, tier));
-        EXPECT(supports_tier(baseline, tier) == (tier == IsaTier::Portable));
+        EXPECT(supports_tier(baseline, tier) == (tier == IsaTier::Base));
     }
     EXPECT(!supports_tier(avx2_ok, IsaTier::Pext));
     end_section();
@@ -57,7 +57,8 @@ int main() {
     end_section();
 
     begin_section("BASILISK_ISA names a tier");
-    EXPECT(parse_tier("portable") == IsaTier::Portable);
+    EXPECT(parse_tier("base") == IsaTier::Base);
+    EXPECT(!parse_tier("portable").has_value());
     EXPECT(parse_tier("avx2") == IsaTier::Avx2);
     EXPECT(parse_tier("pext") == IsaTier::Pext);
     EXPECT(!parse_tier("PEXT").has_value());

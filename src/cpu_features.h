@@ -16,7 +16,7 @@ struct CpuFeatures {
     bool slow_pext = false;
 };
 
-enum class IsaTier { Portable, Avx2, Pext };
+enum class IsaTier { Base, Avx2, Pext };
 
 constexpr bool supports_avx2_tier(const CpuFeatures& features) {
     return features.sse41 && features.popcnt && features.avx2;
@@ -29,7 +29,7 @@ constexpr bool supports_pext_tier(const CpuFeatures& features) {
 
 constexpr bool supports_tier(const CpuFeatures& features, IsaTier tier) {
     switch (tier) {
-    case IsaTier::Portable: return true;
+    case IsaTier::Base:     return true;
     case IsaTier::Avx2:     return supports_avx2_tier(features);
     case IsaTier::Pext:     return supports_pext_tier(features);
     }
@@ -41,7 +41,7 @@ constexpr bool supports_tier(const CpuFeatures& features, IsaTier tier) {
 constexpr IsaTier best_tier(const CpuFeatures& features) {
     if (supports_pext_tier(features) && !features.slow_pext) return IsaTier::Pext;
     if (supports_avx2_tier(features)) return IsaTier::Avx2;
-    return IsaTier::Portable;
+    return IsaTier::Base;
 }
 
 // CPUID leaf 1's family: the base family, plus the extended family when the
@@ -57,7 +57,7 @@ constexpr bool slow_pext_cpu(bool amd, unsigned family) {
 
 constexpr std::string_view tier_name(IsaTier tier) {
     switch (tier) {
-    case IsaTier::Portable: return "portable";
+    case IsaTier::Base:     return "base";
     case IsaTier::Avx2:     return "avx2";
     case IsaTier::Pext:     return "pext";
     }
@@ -65,7 +65,7 @@ constexpr std::string_view tier_name(IsaTier tier) {
 }
 
 constexpr std::optional<IsaTier> parse_tier(std::string_view name) {
-    for (const IsaTier tier : {IsaTier::Portable, IsaTier::Avx2, IsaTier::Pext})
+    for (const IsaTier tier : {IsaTier::Base, IsaTier::Avx2, IsaTier::Pext})
         if (name == tier_name(tier)) return tier;
     return std::nullopt;
 }

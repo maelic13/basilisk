@@ -26,7 +26,7 @@ int main(int argc, char* argv[]) { return run_engine(argc, argv); }
 #if defined(BASILISK_UNIVERSAL)
 // The tiers' entry points. Each tier is the whole engine built for its ISA,
 // with every symbol it defines renamed, so this is all the tiers share.
-namespace basilisk_portable { int run_engine(int argc, char* argv[]); }
+namespace basilisk_base     { int run_engine(int argc, char* argv[]); }
 namespace basilisk_avx2     { int run_engine(int argc, char* argv[]); }
 namespace basilisk_pext     { int run_engine(int argc, char* argv[]); }
 #else
@@ -121,7 +121,7 @@ int run_tier(int argc, char* argv[]) {
     if (const char* forced = std::getenv("BASILISK_ISA"); forced && *forced) {
         const auto named = parse_tier(forced);
         if (!named) {
-            report(std::string("BASILISK_ISA=") + forced + " names no tier; use portable, avx2 or pext");
+            report(std::string("BASILISK_ISA=") + forced + " names no tier; use base, avx2 or pext");
             return 1;
         }
         if (!supports_tier(features, *named)) {
@@ -135,9 +135,9 @@ int run_tier(int argc, char* argv[]) {
     switch (tier) {
     case IsaTier::Pext: return basilisk_pext::run_engine(argc, argv);
     case IsaTier::Avx2: return basilisk_avx2::run_engine(argc, argv);
-    case IsaTier::Portable: break;
+    case IsaTier::Base: break;
     }
-    return basilisk_portable::run_engine(argc, argv);
+    return basilisk_base::run_engine(argc, argv);
 }
 #else
 int run_tier(int argc, char* argv[]) {
@@ -146,7 +146,7 @@ int run_tier(int argc, char* argv[]) {
 #  elif defined(USE_AVX2)
     constexpr IsaTier built = IsaTier::Avx2;
 #  else
-    constexpr IsaTier built = IsaTier::Portable;
+    constexpr IsaTier built = IsaTier::Base;
 #  endif
     const CpuFeatures features = detect_cpu_features();
     if (!supports_tier(features, built)) {
