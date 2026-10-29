@@ -75,3 +75,30 @@
   commits after it are records); for the assembly route the forwarded value
   is the default the `casm` builds already had, so their recipe is
   unchanged. Nothing else changes.
+
+#### RESULT — append after exposure
+
+- **Result (agent-run 2026-10-29, 21:29-21:57 local, pools at `e092f0c`
+  (`casm`) and `842259f` (the rest), `tools/results/a159-nps/p24/` and
+  `p24-repeat/`).** The maintainer judged the host idle enough; WSL was
+  shut down first. Every build 19,470,325.
+  - **Read 1:** host 6.5% in cycle 1, 2.3% in cycle 2; four arms' two cycle
+    levels disagreed by more than 1% (cycle 1 slower), so every contrast
+    read REPEAT_STEP_1.
+  - **Read 2 (the repeat),** host 1.5% and 2.9%; means of build medians:
+    Clang assembly route 3.2996M, objects route 3.2886M, Clang pext 3.2984M,
+    GCC universal 3.1527M, GCC pext 3.1786M.
+
+  | Contrast | Delta | 95% t-interval | Verdict |
+  |---|---:|---|---|
+  | `route`, assembly against objects (Clang) | +0.33% | [−0.19%, +0.86%] | **PASS** |
+  | `hot`, assembly route against Clang pext | +0.04% | [−0.21%, +0.29%] | **PASS** |
+  | `gcchot`, GCC universal against GCC pext | −0.81% | [−1.88%, +0.26%] | REPEAT_STEP_1 (its universal arm disturbed: cycles 3.137M and 3.169M) |
+
+- **Stop.** By the stop rule a second REPEAT stops for the maintainer.
+  `route` and `hot` were undisturbed and decided in the repeat; `gcchot`
+  is undecided twice, its GCC universal arm disturbed in both reads.
+- **Calibration.** `route` +0.33% against 0.0% [−0.4%, +0.4%] and `hot`
+  +0.04% against −0.1% [−0.6%, +0.4%], inside their intervals; `gcchot`
+  −0.81% is outside its interval of −0.2% [−1.0%, +0.6%] on a disturbed
+  arm, so not yet a calibration point.
