@@ -89,14 +89,16 @@ function(_ut_check_compiler tier dir)
     endif()
 endfunction()
 
-# Assembles one file with the tiers' compiler driver.
+# Assembles one file with the tiers' compiler driver. The gold plugin's files
+# have no extension, which a driver takes for a link input and skips.
 function(_ut_assemble source object)
+    file(REMOVE "${object}")
     execute_process(
-        COMMAND "${UT_CXX_COMPILER}" -c "${source}" -o "${object}"
+        COMMAND "${UT_CXX_COMPILER}" -x assembler -c "${source}" -o "${object}"
         RESULT_VARIABLE _result
         ERROR_VARIABLE _error
     )
-    if(NOT _result EQUAL 0)
+    if(NOT _result EQUAL 0 OR NOT EXISTS "${object}")
         message(FATAL_ERROR "Assembling ${source} failed: ${_error}")
     endif()
 endfunction()
