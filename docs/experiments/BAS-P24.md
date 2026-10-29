@@ -71,6 +71,7 @@
   `a159-cobj` build then failed: the `pgo` target did not forward
   `BASILISK_UNIVERSAL_ROUTE` to its child builds, so they took the default,
   the assembly route, and kept no LTO objects. `7a346fe` forwards it. The other
-  four pools are built at `7a346fe`; for the assembly route the forwarded value
+  four pools are built after this amendment, from `7a346fe`'s source (the
+  commits after it are records); for the assembly route the forwarded value
   is the default the `casm` builds already had, so their recipe is
   unchanged. Nothing else changes.
