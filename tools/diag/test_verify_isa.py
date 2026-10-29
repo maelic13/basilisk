@@ -47,6 +47,81 @@ class Arm64Tests(unittest.TestCase):
             self.assertTrue(any(f"forbidden {family}" in e for e in errors), family)
 
 
+# What each region of a clean universal image holds: the pext tier its five
+# signature families, the avx2 tier popcnt and AVX2, the portable tier and the
+# shared code only baseline instructions.
+TIER_CODE = {
+    "pext": ["popcntq %rdi, %rax", "pextq %rsi, %rdi, %rax", "blsrq %rdi, %rax", "lzcntq %rdi, %rax",
+             "vpermq $0x1, %ymm0, %ymm1"],
+    "avx2": ["popcntq %rdi, %rax", "vpermq $0x1, %ymm0, %ymm1"],
+    "portable": ["movq %rdi, %rax"],
+}
+
+
+def universal_image(plant=None, misalign=None, extra_fathom=None):
+    """A disassembly with every hot function of every tier, Fathom once and a
+    dispatcher; plant=(region, instruction) adds one instruction to a region,
+    misalign=(tier, hot) moves that function 16 bytes off its line."""
+    lines, address = [], 0x140001000
+
+    def function(name, body):
+        nonlocal address
+        lines.append(f"{address:016x} <{name}>:")
+        for instruction in body + ["retq"]:
+            lines.append(f"   {address:x}: 90 90               {instruction}")
+        address += 64
+
+    for tier, body in TIER_CODE.items():
+        for hot in verify_isa.HOT_FUNCTIONS:
+            name = f"__basilisk_{tier}__Z{hot}Ev"
+            if misalign == (tier, hot):
+                address += 16
+            code = body + ([plant[1]] if plant and plant[0] == tier and hot == verify_isa.HOT_FUNCTIONS[0] else [])
+            function(name, code)
+            if misalign == (tier, hot):
+                address -= 16
+    shared = ["movq %rdi, %rax"] + ([plant[1]] if plant and plant[0] == "shared" else [])
+    for name in verify_isa.FATHOM_FUNCTIONS:
+        function(name, shared)
+    if extra_fathom:
+        function(f"__basilisk_pext_{extra_fathom}", ["movq %rdi, %rax"])
+    function("main", ["cpuid"])
+    return "\n".join(lines) + "\n"
+
+
+class UniversalTests(unittest.TestCase):
+    def errors(self, text):
+        return verify_isa.verify_universal(text, frozenset())
+
+    def test_a_clean_image_passes(self):
+        self.assertEqual(self.errors(universal_image()), [])
+
+    def test_a_planted_instruction_fails_in_its_region(self):
+        for region, instruction, family in [("shared", "popcntq %rdi, %rax", "popcnt"),
+                                            ("shared", "pextq %rsi, %rdi, %rax", "bmi2"),
+                                            ("portable", "popcntq %rdi, %rax", "popcnt"),
+                                            ("portable", "andnq %rsi, %rdi, %rax", "bmi1"),
+                                            ("avx2", "andnq %rsi, %rdi, %rax", "bmi1"),
+                                            ("avx2", "pextq %rsi, %rdi, %rax", "bmi2")]:
+            errors = self.errors(universal_image(plant=(region, instruction)))
+            self.assertTrue(any(e.startswith(f"{region}:") and family in e for e in errors), (region, family, errors))
+
+    def test_the_pext_tier_may_use_every_family(self):
+        self.assertEqual(self.errors(universal_image(plant=("pext", "andnq %rsi, %rdi, %rax"))), [])
+
+    def test_a_hot_function_off_its_line_fails(self):
+        errors = self.errors(universal_image(misalign=("pext", "N8Searcher7negamax")))
+        self.assertTrue(any("hot function" in e and "negamax" in e and "16 mod 64" in e for e in errors), errors)
+
+    def test_a_missing_hot_function_fails(self):
+        text = "\n".join(line for line in universal_image().splitlines() if "Board6see_ge" not in line or "avx2" not in line)
+        self.assertTrue(any("avx2: no function matching" in e for e in self.errors(text)))
+
+    def test_fathom_in_a_tier_fails(self):
+        errors = self.errors(universal_image(extra_fathom="tb_init"))
+        self.assertTrue(any("Fathom's tb_init" in e for e in errors), errors)
+
+
 class RuntimeGatedTests(unittest.TestCase):
     TEXT = """
 0000000140001000 <_ZNK9libunwind15Registers_arm6411getRegisterEi>:

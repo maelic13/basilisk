@@ -695,6 +695,18 @@ if(NOT _basilisk_pgo STREQUAL "OFF")
     message(STATUS "PGO phase: ${_basilisk_pgo}")
 endif()
 
+# A universal tier must use its own profile. A file the profile does not cover
+# is an error there, so a tier that silently got no profile fails to build;
+# only the four files bench never runs (move formatting, Syzygy probing, the
+# search diagnostics, the WAC suite) are expected to have no data.
+if(BASILISK_UNIVERSAL_TIER AND _basilisk_pgo STREQUAL "USE" AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    foreach(_tgt IN LISTS _ALL_TARGETS)
+        target_compile_options(${_tgt} PRIVATE $<$<CONFIG:Release>:-Wprofile-instr-unprofiled>)
+    endforeach()
+    set_source_files_properties(src/move.cpp src/syzygy.cpp src/search_diagnostics.cpp src/wac.cpp
+        PROPERTIES COMPILE_OPTIONS "-Wno-profile-instr-unprofiled")
+endif()
+
 set(_basilisk_dist_dir "${CMAKE_SOURCE_DIR}/build/dist")
 _basilisk_dist_asset_name(_basilisk_dist_asset_name "")
 _basilisk_dist_asset_name(_basilisk_dist_pgo_asset_name "-pgo")
@@ -976,6 +988,8 @@ if(BASILISK_UNIVERSAL)
             -DUT_NM=${CMAKE_NM}
             -DUT_OBJCOPY=${CMAKE_OBJCOPY}
             -DUT_OBJDUMP=${CMAKE_OBJDUMP}
+            -DUT_CXX_COMPILER=${CMAKE_CXX_COMPILER}
+            -DUT_CXX_COMPILER_VERSION=${CMAKE_CXX_COMPILER_VERSION}
             -P "${CMAKE_SOURCE_DIR}/cmake/universal-tiers.cmake"
         BYPRODUCTS "${_basilisk_tier_objects}"
         COMMENT "Building the universal binary's three PGO tiers"

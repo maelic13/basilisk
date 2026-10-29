@@ -13,7 +13,8 @@ cmake_minimum_required(VERSION 3.24)
 # Without the rename the linker would keep one tier's copy of each shared
 # template (std::string, std::stringstream) for every tier and say nothing.
 
-foreach(_var UT_SOURCE_DIR UT_NAME UT_TIERS_DIR UT_NM UT_OBJCOPY UT_OBJDUMP UT_STATIC_RUNTIME)
+foreach(_var UT_SOURCE_DIR UT_NAME UT_TIERS_DIR UT_NM UT_OBJCOPY UT_OBJDUMP UT_STATIC_RUNTIME
+             UT_CXX_COMPILER UT_CXX_COMPILER_VERSION)
     if(NOT DEFINED ${_var} OR "${${_var}}" STREQUAL "")
         message(FATAL_ERROR "${_var} is required")
     endif()
@@ -27,6 +28,49 @@ endif()
 if(NOT DEFINED UT_ALIGN_FUNCTIONS)
     set(UT_ALIGN_FUNCTIONS "")
 endif()
+
+include("${CMAKE_CURRENT_LIST_DIR}/universal-check-tier.cmake")
+
+# All three tiers must come from one source tree and one compiler: a tier built
+# from other code, or by another clang, links without complaint. The source is
+# hashed before the first tier and after each one, so an edit made while the
+# tiers build fails here; each tier's build directory must name the compiler
+# the dispatcher's build uses.
+function(_ut_source_id out)
+    file(GLOB_RECURSE _files LIST_DIRECTORIES false
+        "${UT_SOURCE_DIR}/src/*" "${UT_SOURCE_DIR}/external/*" "${UT_SOURCE_DIR}/cmake/*")
+    list(APPEND _files "${UT_SOURCE_DIR}/CMakeLists.txt" "${UT_SOURCE_DIR}/CMakePresets.json")
+    list(SORT _files)
+    set(_all "")
+    foreach(_file IN LISTS _files)
+        file(SHA256 "${_file}" _hash)
+        string(APPEND _all "${_file} ${_hash}\n")
+    endforeach()
+    string(SHA256 _id "${_all}")
+    set(${out} "${_id}" PARENT_SCOPE)
+endfunction()
+
+function(_ut_check_compiler tier dir)
+    file(STRINGS "${dir}/CMakeCache.txt" _line REGEX "^CMAKE_CXX_COMPILER:[A-Z]+=")
+    string(REGEX REPLACE "^CMAKE_CXX_COMPILER:[A-Z]+=" "" _compiler "${_line}")
+    file(GLOB _compiler_files "${dir}/CMakeFiles/*/CMakeCXXCompiler.cmake")
+    set(_version "")
+    foreach(_file IN LISTS _compiler_files)
+        file(STRINGS "${_file}" _line REGEX "^set\\(CMAKE_CXX_COMPILER_VERSION \"")
+        if(_line MATCHES "\"([^\"]+)\"")
+            set(_version "${CMAKE_MATCH_1}")
+        endif()
+    endforeach()
+    file(REAL_PATH "${_compiler}" _compiler)
+    file(REAL_PATH "${UT_CXX_COMPILER}" _expected)
+    if(NOT _compiler STREQUAL _expected OR NOT _version STREQUAL UT_CXX_COMPILER_VERSION)
+        message(FATAL_ERROR "Tier ${tier}: ${dir} was built by ${_compiler} ${_version}, "
+                            "not ${_expected} ${UT_CXX_COMPILER_VERSION}")
+    endif()
+endfunction()
+
+_ut_source_id(_source_id)
+message(STATUS "Universal tiers: source ${_source_id}, ${UT_CXX_COMPILER} ${UT_CXX_COMPILER_VERSION}")
 
 set(_tiers portable avx2 pext)
 set(_preset_portable release)
@@ -55,11 +99,17 @@ foreach(_tier IN LISTS _tiers)
         WORKING_DIRECTORY "${UT_SOURCE_DIR}"
         COMMAND_ERROR_IS_FATAL ANY
     )
+    _ut_check_compiler(${_tier} "${_dir}")
     execute_process(
         COMMAND "${CMAKE_COMMAND}" --build "${_dir}" --target pgo
         WORKING_DIRECTORY "${UT_SOURCE_DIR}"
         COMMAND_ERROR_IS_FATAL ANY
     )
+    _ut_check_compiler(${_tier} "${_use_dir}")
+    _ut_source_id(_now)
+    if(NOT _now STREQUAL _source_id)
+        message(FATAL_ERROR "Tier ${_tier}: the source changed while the tiers were building")
+    endif()
 
     if(CMAKE_HOST_WIN32)
         file(GLOB_RECURSE _objects "${_use_dir}/*.exe.lto*.obj")
@@ -127,36 +177,7 @@ foreach(_tier IN LISTS _tiers)
         math(EXPR _index "${_index} + 1")
     endforeach()
 
-    # What the tier shares after the rename: its entry point, type identities
-    # and section-named data. Anything else global would be resolved by link
-    # order across the tiers.
-    execute_process(
-        COMMAND "${UT_NM}" --defined-only --extern-only ${_renamed}
-        OUTPUT_VARIABLE _nm
-        COMMAND_ERROR_IS_FATAL ANY
-    )
-    string(REGEX MATCHALL "[^\n]+" _nm_lines "${_nm}")
-    foreach(_line IN LISTS _nm_lines)
-        if(_line MATCHES "^[0-9a-fA-F]+ ([A-Za-z]) (.+)$")
-            set(_type "${CMAKE_MATCH_1}")
-            set(_name "${CMAKE_MATCH_2}")
-            if(NOT (_type MATCHES "^[aA]$" OR _name MATCHES "^\\." OR _name MATCHES "^_ZT[IS]"
-                    OR _name STREQUAL _entry OR _name MATCHES "^${_prefix}"))
-                message(FATAL_ERROR "Tier ${_tier}: ${_name} is still global after the rename")
-            endif()
-        endif()
-    endforeach()
-
-    # An initialiser in a tier would run in every tier, before the dispatcher
-    # has chosen one, and could execute that tier's instructions on any CPU.
-    execute_process(
-        COMMAND "${UT_OBJDUMP}" -h ${_renamed}
-        OUTPUT_VARIABLE _sections
-        COMMAND_ERROR_IS_FATAL ANY
-    )
-    if(_sections MATCHES "[ \t](\\.ctors|\\.dtors|\\.init_array|\\.fini_array|\\.preinit_array|\\.CRT\\$X[CIL][A-Za-z]*)[ \t\n]")
-        message(FATAL_ERROR "Tier ${_tier}: an object carries ${CMAKE_MATCH_1}, a static initialiser")
-    endif()
+    basilisk_check_tier_objects(${_tier} "${UT_NM}" "${UT_OBJDUMP}" ${_renamed})
 
     message(STATUS "Universal tier ${_tier}: ${_object_count} objects, ${_rename_count} symbols renamed")
     foreach(_object IN LISTS _renamed)

@@ -48,7 +48,7 @@ def disassemble(objdump: str, path: Path, relocations: bool = False) -> str:
     return result.stdout
 
 
-SYMBOL = re.compile(r"^[0-9a-f]+ <(.+)>:\s*$", re.IGNORECASE)
+SYMBOL = re.compile(r"^([0-9a-f]+) <(.+)>:\s*$", re.IGNORECASE)
 
 # Library helpers whose extension instructions run only after a runtime check
 # for that extension, so they are allowed on the ARM64 baseline. Each entry
@@ -104,7 +104,7 @@ def instructions(text: str, exempt: frozenset[str] = frozenset()) -> list[tuple[
     for line in text.splitlines():
         label = SYMBOL.match(line)
         if label:
-            symbol = label.group(1)
+            symbol = label.group(2)
             continue
         if symbol in exempt:
             continue
@@ -245,6 +245,54 @@ def symbol_region(symbol: str) -> str:
     return (match.group(1) or match.group(2)) if match else "shared"
 
 
+# Each tier's functions are aligned to 64 bytes, so the relink cannot move them
+# off the cache-line placement they had in the tier's own build (BAS-P20 read
+# that shift 0.58% slower). Compiler-generated stubs (destructor thunks,
+# terminate handlers) can escape the flag, so the rule is a share of each tier
+# plus every function of the hot path, by mangled name.
+ALIGNMENT = 64
+ALIGNED_SHARE = 0.95
+HOT_FUNCTIONS = (
+    "N8Searcher7negamax", "N8Searcher10quiescence", "N14CoreMovePicker4next",
+    "N5Board9make_move", "N5Board11unmake_move", "NK5Board8is_legal", "NK5Board6see_ge",
+    "N9Evaluator8evaluate",
+)
+# Fathom is compiled once, for the baseline, and linked once beside the
+# dispatcher: no tier may carry its own copy.
+FATHOM_FUNCTIONS = ("tb_init", "tb_free", "tb_probe_wdl_impl", "tb_probe_root_impl")
+
+
+def functions(text: str) -> list[tuple[int, str]]:
+    """(address, symbol) for every function label in the disassembly."""
+    return [(int(m.group(1), 16), m.group(2)) for m in map(SYMBOL.match, text.splitlines()) if m]
+
+
+def verify_layout(text: str) -> list[str]:
+    errors: list[str] = []
+    found = functions(text)
+    for tier in UNIVERSAL_TIERS:
+        own = [(address, symbol) for address, symbol in found if symbol_region(symbol) == tier]
+        if not own:
+            continue
+        aligned = sum(1 for address, _ in own if address % ALIGNMENT == 0)
+        print(f"{tier}: {aligned} of {len(own)} functions at 0 mod {ALIGNMENT}")
+        if aligned < ALIGNED_SHARE * len(own):
+            errors.append(f"{tier}: only {aligned} of {len(own)} functions start on a {ALIGNMENT}-byte line")
+        for hot in HOT_FUNCTIONS:
+            matches = [(address, symbol) for address, symbol in own if hot in symbol]
+            if not matches:
+                errors.append(f"{tier}: no function matching the hot-path name {hot}")
+            for address, symbol in matches:
+                if address % ALIGNMENT:
+                    errors.append(f"{tier}: hot function {symbol} starts at {address % ALIGNMENT} mod {ALIGNMENT}")
+    for name in FATHOM_FUNCTIONS:
+        shared = [symbol for _, symbol in found if symbol == name]
+        in_tiers = [symbol for _, symbol in found if symbol_region(symbol) != "shared" and symbol.endswith("_" + name)]
+        if len(shared) != 1 or in_tiers:
+            errors.append(f"Fathom's {name} is defined {len(shared)} times as shared code and in tiers as {in_tiers}")
+    return errors
+
+
 def verify_universal(text: str, exempt: frozenset[str]) -> list[str]:
     regions: dict[str, Counter[str]] = {name: Counter() for name in ("shared", *UNIVERSAL_TIERS)}
     offenders: Counter[str] = Counter()
@@ -265,6 +313,7 @@ def verify_universal(text: str, exempt: frozenset[str]) -> list[str]:
         print(f"{region}: " + " ".join(f"{name}={count}" for name, count in observed.items()))
     for entry, count in offenders.most_common(20):
         print(f"forbidden: {count} in {entry}", file=sys.stderr)
+    errors.extend(verify_layout(text))
     return errors
 
 
