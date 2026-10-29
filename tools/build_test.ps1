@@ -26,7 +26,9 @@
 
     -Native builds the release preset as a user would on this machine
     (-march=native, PEXT as the configure step detects it; Release only), in
-    build/release-native, staged as <suffix>-native-pgo.
+    build/release-native, staged as <suffix>-native-pgo. With -Gcc it is
+    built by GCC (COMP=gcc), in build/release-native-gcc, staged as
+    <suffix>-native-gcc-pgo.
 
     -Msvc builds the msvc-release-pext preset (MSVC, PEXT, MSVC's own PGO;
     Release only), in build/msvc-release-pext, staged as <suffix>-msvc-pgo.
@@ -52,6 +54,7 @@ param(
     [switch]$Universal,
     [switch]$Native,
     [switch]$Msvc,
+    [switch]$Gcc,
     [string]$TestEnginesDir = "$PSScriptRoot\test_engines"
 )
 
@@ -71,6 +74,7 @@ if (($Universal -or $Native -or $Msvc) -and ($Flavor -ne 'Release' -or $ArmOptio
     throw '-Universal, -Native and -Msvc build the Release flavor without an umbrella arm.'
 }
 if (@($Universal, $Native, $Msvc | Where-Object { $_ }).Count -gt 1) { throw '-Universal, -Native and -Msvc are separate builds.' }
+if ($Gcc -and -not $Native) { throw '-Gcc builds the native release only: add -Native.' }
 if ($Msvc -and -not (Get-Command cl.exe -ErrorAction SilentlyContinue)) {
     throw '-Msvc needs the Visual Studio x64 environment: run vcvars64.bat in this shell first.'
 }
@@ -145,7 +149,8 @@ $isWindowsHost = [Runtime.InteropServices.RuntimeInformation]::IsOSPlatform(
     [Runtime.InteropServices.OSPlatform]::Windows)
 $exeSuffix = if ($isWindowsHost) { '.exe' } else { '' }
 
-$buildDir = if ($Universal) { 'universal' } elseif ($Native) { 'release-native' } elseif ($Msvc) { 'msvc-release-pext' } else { 'release-pext' }
+$comp = if ($Gcc) { 'gcc' } else { 'clang' }
+$buildDir = if ($Universal) { 'universal' } elseif ($Native) { "release-native$(if ($Gcc) { '-gcc' })" } elseif ($Msvc) { 'msvc-release-pext' } else { 'release-pext' }
 Push-Location $repoRoot
 try {
     if ($Universal) {
@@ -155,8 +160,8 @@ try {
         Write-Host 'Building the MSVC PEXT release with MSVC PGO ...'
         $configureArgs = @('--fresh', '--preset', 'msvc-release-pext', '-B', 'build/msvc-release-pext', '-DTEXEL=OFF')
     } elseif ($Native) {
-        Write-Host 'Building the native release: -march=native, PEXT as detected ...'
-        $configureArgs = @('--fresh', '--preset', 'release', '-B', 'build/release-native', '-DCOMP=clang', '-DTEXEL=OFF')
+        Write-Host "Building the native release with $comp`: -march=native, PEXT as detected ..."
+        $configureArgs = @('--fresh', '--preset', 'release', '-B', "build/$buildDir", "-DCOMP=$comp", '-DTEXEL=OFF')
     } else {
         Write-Host "Building PEXT final-PGO $flavorLower flavor (arm: $armLabel) ..."
         $configureArgs = @(
@@ -202,11 +207,13 @@ try {
             'msvc-release-pext (COMP=msvc, USE_PEXT=ON, BASILISK_MSVC_FAVOR_INTEL=ON, MSVC PGO)',
             'cmake --preset msvc-release-pext -B build/msvc-release-pext; cmake --build build/msvc-release-pext --target pgo')
     } elseif ($Native) {
-        $cache = Get-Content -LiteralPath 'build/release-native/CMakeCache.txt'
+        $cache = Get-Content -LiteralPath "build/$buildDir/CMakeCache.txt"
         $pext = if ($cache -ccontains 'USE_PEXT:BOOL=ON') { 'ON' } else { 'OFF' }
-        $outputs += , @("build/release-native-pgo/basilisk$exeSuffix", 'native-pgo', 'native',
-            "release (-march=native, USE_PEXT=$pext as detected, PGO=USE)",
-            'cmake --preset release -B build/release-native; cmake --build build/release-native --target pgo')
+        # GCC's PGO rebuilds in the instrumented build's tree.
+        $built = if ($Gcc) { "build/$buildDir-pgo-generate/basilisk$exeSuffix" } else { "build/$buildDir-pgo/basilisk$exeSuffix" }
+        $outputs += , @($built, "native$(if ($Gcc) { '-gcc' })-pgo", 'native',
+            "release (COMP=$comp, -march=native, USE_PEXT=$pext as detected, PGO=USE)",
+            "cmake --preset release -B build/$buildDir -DCOMP=$comp; cmake --build build/$buildDir --target pgo")
     } else {
         $nameFlavor = if ($Flavor -eq 'Release') { 'pext-pgo' } else { "pext-$flavorLower-pgo" }
         $command = "cmake --preset release -B build/release-pext -DUSE_PEXT=ON -DPORTABLE_BUILD=ON -DTUNE=$tune -DDIAGNOSTIC=$diagnostic -DABLATION=$ablation -DPROFILE_SYMBOLS=$profileSymbols" +
@@ -265,7 +272,7 @@ try {
         # Releases build with the LLVM major in the pin file; a local build on
         # another is not a measurement of the compiler that ships.
         $pinFile = Join-Path $repoRoot '.github\windows-clang-version'
-        if ($isWindowsHost -and -not $Msvc -and (Test-Path -LiteralPath $pinFile)) {
+        if ($isWindowsHost -and -not $Msvc -and -not $Gcc -and (Test-Path -LiteralPath $pinFile)) {
             $pinnedMajor = (Get-Content -LiteralPath $pinFile -Raw).Trim()
             if ($compiler -notmatch "clang version $([regex]::Escape($pinnedMajor))\.") {
                 Write-Warning ("LOCAL COMPILER DRIFT - this build used '$compiler', but releases build with LLVM " +
