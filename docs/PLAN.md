@@ -389,7 +389,8 @@ order, and all of Phase A closes before B.3 opens (maintainer decision
 2026-10-24, which also renumbered them; HISTORY's *Number map* resolves the
 first numbering). A.13–A.15, added 2026-10-27 from the code audit of the
 engine's crucial paths (`analysis/code_audit_2026-10-27.md`), follow them
-in the same order and under the same rule. Each step is reviewed with the maintainer when it is
+in the same order and under the same rule, as do A.16 (2026-10-28) and A.17
+(2026-10-29, at the maintainer's request after A.15). Each step is reviewed with the maintainer when it is
 reached; its resolution may be a fix, an improvement or a skip. Rarog's
 Phase A also cut a release; 1.10.1 was cut the day before this plan, so
 Phase A has no release step.
@@ -2125,6 +2126,45 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
     tuner has no working winnable instrument). If the deletion is kept,
     C.5.3 builds the donor's winnable term instead of refitting this
     one, and the texel trace loses the `HangPen` sites with the loop.
+- [ ] **A.17** `[R2]` Instruction-specific speed for the avx2 and pext tiers
+  Added 2026-10-29 at the maintainer's request, after A.15 shipped the
+  universal binary. The tier ladder (BAS-P20) reads `avx2` +5.04% over the
+  base build and `pext` +2.82% over `avx2`. Almost all of the first is the
+  hardware `popcnt` the compiler may then use; the second is the one piece
+  of hand-written instruction-specific code, the rook and bishop lookups by
+  `_pext_u64` in `attacks.cpp`. Everything else the two tiers gain is
+  compiler code generation. The question: can code written for these
+  instruction sets buy more speed, without changing a single move?
+  - Candidates, each a hypothesis to measure, not a change to make:
+    1. **Compressed slider tables (pext tier).** The PEXT tables hold
+       107,648 attack sets of 8 bytes, about 860 KB, beyond the L2 cache.
+       Storing each set as a 16-bit index of its ray squares and
+       expanding it with `pdep` cuts them to about 215 KB, at the cost
+       of one `pdep` per lookup. First measure how many slider lookups
+       miss the cache (A.9.5's profiler, or hardware counters), which
+       bounds the gain.
+    2. **PEXT and PDEP in the evaluation (pext tier).** Bit-pattern
+       lookups such as king shelter and storm, or pawn-structure
+       patterns, indexed straight from a bitboard. Survey first which
+       evaluation terms are table lookups by pattern at all.
+    3. **AVX2 in the evaluation (avx2 and pext tiers).** The hand-written
+       evaluation is scalar. Survey what the compiler already vectorises,
+       then whether a feature or PST accumulation vectorises by hand.
+       Likely small before a network evaluation; Phase F's NNUE is where
+       AVX2 pays, so this must not build what Phase F replaces.
+  - Rules: every candidate is behaviour-neutral (`bench 13` identical in
+    every tier, the base build untouched), keeps the ISA contract and the
+    universal binary's checks, and respects the slow-`pdep` rule (AMD
+    family 15h and 17h already run the `avx2` tier).
+  - Method: a survey that ranks the candidates by measured headroom, then
+    one registered pooled NPS read per candidate kept, on its tier's
+    single-tier build (one read with named contrasts when they share
+    pools), deciding by PROCESS's gain form. The universal binary picks
+    up every kept change through its tier builds.
+  - Interactions: A.16 removes evaluation compute first, so the survey
+    measures the evaluation that remains; B.7's speed work and Phase F's
+    network evaluation are the other owners of NPS, and the survey names
+    any candidate that belongs to them instead.
 
 ## Phase B — Search programme (evaluation frozen)
 
@@ -3160,6 +3200,7 @@ leaf's tag. Later phases carry only a class until they open.
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
 | A.16 | READY_FOR_IMPLEMENTATION | I1 | Zero-weight evaluation compute deleted; exact fingerprint, kept on a pooled NPS read |
+| A.17 | RESEARCH | R2 | Survey instruction-specific speed (compressed PEXT tables, PEXT/PDEP and AVX2 in the evaluation); each kept candidate a registered NPS read |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |
 | B.4 | RESEARCH | I2 | Contents fixed by B.0 |
 | B.5 | RESEARCH | I2 | Contents fixed by B.0 |

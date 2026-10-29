@@ -107,6 +107,7 @@ generations change. These are maintainer judgments, not measured rankings.
     - [x] **A.15.5** `[I1]` Release: one x86-64 asset per OS
     - [x] **A.15.6** `[R2]` Universal binary: the relink's code placement
 - [ ] **A.16** `[I1]` Zero-weight evaluation terms off the hot path
+- [ ] **A.17** `[R2]` Instruction-specific speed for the avx2 and pext tiers
 
 ### Phase B — Search programme (evaluation frozen)
 
