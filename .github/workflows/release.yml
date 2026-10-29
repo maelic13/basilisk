@@ -231,7 +231,8 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           want="$(tr -d '[:space:]' < .github/xcode-version)"
-          got="$(xcodebuild -version | head -n 1)"
+          # xcodebuild aborts when head closes the pipe; read it whole.
+          got="$(xcodebuild -version)"; got="${got%%$'\n'*}"
           echo "$got"; clang --version | head -n 1; ninja --version
           case "$got" in
             "Xcode $want"|"Xcode $want."*) ;;
