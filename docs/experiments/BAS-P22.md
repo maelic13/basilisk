@@ -81,3 +81,41 @@
   host.
 
 #### RESULT — append after exposure
+
+- **Result (agent-run 2026-10-29, 15:22-15:36 UTC, revision `3097628`,
+  pools at `72ea2b5` (Clang native, Clang pext) and `7996d4b` (the rest);
+  both cycles undisturbed, host 1.7-2.0%; 20 builds read twice;
+  `tools/results/a158-nps/p22/`).** Every build 19,470,325. Means of build
+  medians: Clang pext 3.3205M, universal 3.3239M, Clang native 3.2699M,
+  GCC native 3.1885M, MSVC 2.8316M (MSVC 19.51.36260; its manifests record
+  `cl`'s usage line instead, repaired in `3097628`).
+
+  | Contrast | Delta | 95% t-interval | Verdict (step 1) |
+  |---|---:|---|---|
+  | `gcc`, GCC native over Clang native | −2.49% | [−3.76%, −1.22%] | NO_CHANGE |
+  | `msvc`, MSVC over Clang native | −13.41% | [−14.54%, −12.28%] | NO_CHANGE |
+  | `msvcisa`, MSVC over Clang pext | **−14.72%** | [−15.97%, −13.47%] | NO_CHANGE |
+  | `native`, Clang native over universal | **−1.62%** | [−2.77%, −0.48%] | NO_CHANGE |
+  | `nativecg`, Clang native over Clang pext | **−1.52%** | [−2.60%, −0.44%] | NO_CHANGE |
+  | `hot`, universal against Clang pext | +0.10% | [−1.17%, +1.37%] | **PASS** |
+
+- **Decision (the registered rule).**
+  - `hot` passed: the four-tier universal binary matches the pext build.
+  - `msvcisa` reads MSVC 14.7% behind Clang on the same instruction set,
+    far past the 3% line: the registered recommendation is to drop MSVC.
+    The maintainer decides.
+  - `native` and `nativecg` decide nothing in the code by registration,
+    but they contradict A.15.8's premise: `-march=native` on this Zen 3
+    makes the engine **1.5% slower** than the fixed pext instruction set,
+    so `release` as built is not the fastest build for this computer. A.15.8
+    returns to research with the options.
+  - GCC stays supported: 2.5% behind Clang at their native best (about 4%
+    behind Clang's pext build).
+- **Calibration.** `gcc` (−2.49% against −2% [−6, +2]), `msvc` (−13.41%
+  against −10.5% [−16, −5]), `msvcisa` (−14.72% against −10% [−15, −5]) and
+  `hot` (+0.10% against −0.2% [−0.7, +0.3]) inside their intervals;
+  `native` and `nativecg` missed in sign (+0.5% [−0.5, +2.0] predicted,
+  −1.6% and −1.5% read). The wrong part of the model: that native code
+  generation is a superset and so at least as fast. On Zen 3 Clang's
+  `-mtune=znver3` scheduling, or an extension it then uses, costs more
+  than it gains for this engine; which of the two is not yet known.
