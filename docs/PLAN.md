@@ -2150,6 +2150,24 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         CI job. MSVC stays only if the read
         keeps it within reach and it then gets a CI job like GCC's; the
         maintainer decides.
+      - BAS-P22 result (2026-10-29): the universal binary matches the pext
+        build (+0.10%, PASS); GCC native reads 2.5% behind Clang native;
+        MSVC 14.7% behind Clang on the same instruction set, so the
+        registered recommendation is to drop it (maintainer's decision).
+      - **Returned to research (2026-10-29):** the leaf's premise is false
+        on this host. Clang's `-march=native` build reads **1.5% slower**
+        than the fixed pext instruction set ([−2.6%, −0.4%]), so `release`
+        is not the fastest build for this computer. Options:
+        1. `release` builds the detected tier with the release's fixed
+           flags (the universal binary's tier for this CPU) and drops
+           `-march=native` by default: the measured fastest here, the same
+           code users download, and one less variable in measurement.
+        2. Keep `-march=native` and find what costs the 1.5% (the Zen 3
+           tuning, or an extension), then decide.
+        3. Keep native as it is and say in the README that the download is
+           as fast.
+        The recommendation is 1: it is what this read measured fastest, and
+        option 2's question can still be read later as a contrast.
 - [ ] **A.16** `[I1]` Zero-weight evaluation terms off the hot path
   Added 2026-10-28 (simplification read of the kernel and the evaluator
   against the donor, after A.14.1; the lines are cited here). Terms whose
@@ -3258,7 +3276,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.15.8 | IMPLEMENTED | I1 | Three presets, PEXT detected; BAS-P22 reads native, universal and MSVC |
+| A.15.8 | RESEARCH | I1 | Native read 1.5% slower than the pext tier (BAS-P22): choose release's code generation; MSVC drop pending |
 | A.16 | READY_FOR_IMPLEMENTATION | I1 | Zero-weight evaluation compute deleted; exact fingerprint, kept on a pooled NPS read |
 | A.17 | RESEARCH | R2 | Survey instruction-specific speed (compressed PEXT tables, PEXT/PDEP and AVX2 in the evaluation); each kept candidate a registered NPS read |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |
