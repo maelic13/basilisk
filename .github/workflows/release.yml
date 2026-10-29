@@ -6,11 +6,8 @@ run-name: ${{ github.ref_type == 'tag' && github.ref_name || format('release can
 # else creates one. The workflow validates first (tools/diag/release_check.py:
 # the tag names the version both CMakeLists.txt and src/constants.h declare, the
 # tagged commit is on master or on that patch line, CHANGELOG.md has a dated
-# section for it, and GUIDE marks it released), builds the five PGO assets
-# read-only (x86-64 as the universal binary, its three tiers each a PGO build;
-# analysis/universal_binary_2026-10.md), benches every one and every x86
-# tier, checks the x86 tier selection under Intel SDE, asserts a single
-# `bench 13` fingerprint
+# section for it, and GUIDE marks it released), builds the nine PGO assets
+# read-only, benches every one and asserts a single `bench 13` fingerprint
 # across the matrix equal to the one GUIDE declares, and only then one job
 # with write permission publishes the
 # release with every asset and the notes taken from that CHANGELOG section.
@@ -104,8 +101,7 @@ jobs:
     name: Build ${{ matrix.os_name }} ${{ matrix.arch }}${{ matrix.asset_suffix }}
     needs: prepare
     runs-on: ${{ matrix.runner }}
-    # An x86-64 cell builds three PGO tiers.
-    timeout-minutes: 60
+    timeout-minutes: 25
     env:
       RELEASE_TAG: v${{ needs.prepare.outputs.version }}
     strategy:
@@ -116,17 +112,31 @@ jobs:
             os_name: linux
             arch: x86_64
             ext: ""
-            preset: universal
-            target: universal
+            preset: release
             compiler: clang
             asset_suffix: ""
+
+          - runner: ubuntu-24.04
+            os_name: linux
+            arch: x86_64
+            ext: ""
+            preset: release-avx2
+            compiler: clang
+            asset_suffix: "-avx2"
+
+          - runner: ubuntu-24.04
+            os_name: linux
+            arch: x86_64
+            ext: ""
+            preset: release-pext
+            compiler: clang
+            asset_suffix: "-pext"
 
           - runner: ubuntu-24.04-arm
             os_name: linux
             arch: aarch64
             ext: ""
             preset: release
-            target: pgo
             compiler: clang
             asset_suffix: ""
 
@@ -134,10 +144,31 @@ jobs:
             os_name: windows
             arch: x86_64
             ext: ".exe"
-            preset: universal
-            target: universal
+            preset: release
             compiler: clang
             asset_suffix: ""
+            msystem: CLANG64
+            mingw_pkg_prefix: mingw-w64-clang-x86_64
+            compiler_pkg: clang
+
+          - runner: windows-2025
+            os_name: windows
+            arch: x86_64
+            ext: ".exe"
+            preset: release-avx2
+            compiler: clang
+            asset_suffix: "-avx2"
+            msystem: CLANG64
+            mingw_pkg_prefix: mingw-w64-clang-x86_64
+            compiler_pkg: clang
+
+          - runner: windows-2025
+            os_name: windows
+            arch: x86_64
+            ext: ".exe"
+            preset: release-pext
+            compiler: clang
+            asset_suffix: "-pext"
             msystem: CLANG64
             mingw_pkg_prefix: mingw-w64-clang-x86_64
             compiler_pkg: clang
@@ -147,7 +178,6 @@ jobs:
             arch: aarch64
             ext: ".exe"
             preset: release
-            target: pgo
             compiler: clang
             asset_suffix: ""
             msystem: CLANGARM64
@@ -159,7 +189,6 @@ jobs:
             arch: aarch64
             ext: ""
             preset: release
-            target: pgo
             compiler: clang
             asset_suffix: ""
 
@@ -188,8 +217,8 @@ jobs:
       # image version: a slow Ubuntu mirror once timed this step out
       # mid-download. When GitHub retires the ubuntu-24.04 image, the Linux
       # cells run in an ubuntu:24.04 container on the newest image, which
-      # keeps that baseline libstdc++.a; the shared region of the universal
-      # ISA check fails first if the library ever carries more.
+      # keeps that baseline libstdc++.a; the portable ISA check fails first if
+      # the library ever carries more.
       - name: Image version (Linux)
         id: image
         if: runner.os == 'Linux'
@@ -272,8 +301,6 @@ jobs:
       # revision + production flags (TUNE off), portable (no -march=native).
       # It instruments, trains on the bench suite, merges the profile and links
       # the optimised binary into build/dist. The pgo target is self-contained.
-      # On x86-64 the 'universal' target runs it once per tier and links the
-      # tiers behind the baseline dispatcher.
       # MACOSX_DEPLOYMENT_TARGET reaches the PGO target's child builds through
       # the environment; STATIC_RUNTIME is forwarded by the pgo target itself.
       - name: Configure and build PGO (Linux / macOS)
@@ -285,14 +312,14 @@ jobs:
           [ "$RUNNER_OS" = Linux ] && static=ON
           cmake --preset ${{ matrix.preset }} -DPORTABLE_BUILD=ON -DCOMP=${{ matrix.compiler }} \
             -DSTATIC_RUNTIME=$static -DBASILISK_DIST_TAG="$RELEASE_TAG"
-          cmake --build --preset ${{ matrix.preset }} --target ${{ matrix.target }}
+          cmake --build --preset ${{ matrix.preset }} --target pgo
 
       - name: Configure and build PGO (Windows)
         if: runner.os == 'Windows'
         shell: msys2 {0}
         run: |
           cmake --preset ${{ matrix.preset }} -DPORTABLE_BUILD=ON -DCOMP=${{ matrix.compiler }} -DBASILISK_DIST_TAG="$RELEASE_TAG"
-          cmake --build --preset ${{ matrix.preset }} --target ${{ matrix.target }}
+          cmake --build --preset ${{ matrix.preset }} --target pgo
 
       - name: Locate the PGO binary and name it for release
         id: asset
@@ -360,9 +387,6 @@ jobs:
           [ -n "$python" ] || { echo "FAIL: python not found"; exit 1; }
           "$python" tools/diag/verify_isa.py --tier arm64 --binary "${{ steps.asset.outputs.path }}" --objdump "$objdump"
 
-      # The universal contract: each tier's functions meet that tier's set,
-      # everything shared (dispatcher, Fathom, runtime) the portable set, and
-      # the dispatcher reaches all three tiers through CPU detection.
       - name: Verify x86 ISA contract on the release binary (Linux)
         if: matrix.arch == 'x86_64' && matrix.os_name != 'windows'
         shell: bash
@@ -375,11 +399,16 @@ jobs:
           python=$(command -v python3 || command -v python || true)
           [ -n "$objdump" ] || { echo "FAIL: llvm-objdump not found"; exit 1; }
           [ -n "$python" ] || { echo "FAIL: python not found"; exit 1; }
-          launcher=$(find build/universal/CMakeFiles/basilisk_universal.dir \
+          launcher=$(find "build/${{ matrix.preset }}-pgo/CMakeFiles/basilisk_launcher.dir" \
             -type f \( -name 'main.cpp.o' -o -name 'main.cpp.obj' \) -print -quit)
-          [ -n "$launcher" ] || { echo "FAIL: dispatcher object not found"; exit 1; }
+          [ -n "$launcher" ] || { echo "FAIL: baseline launcher object not found"; exit 1; }
+          case "${{ matrix.asset_suffix }}" in
+            -pext) tier=pext ;;
+            -avx2) tier=avx2 ;;
+            *) tier=portable ;;
+          esac
           "$python" tools/diag/verify_isa.py \
-            --tier universal --binary "${{ steps.asset.outputs.path }}" \
+            --tier "$tier" --binary "${{ steps.asset.outputs.path }}" \
             --launcher-object "$launcher" --objdump "$objdump" "${runtime[@]}"
 
       - name: Verify x86 ISA contract on the release binary (Windows)
@@ -390,31 +419,17 @@ jobs:
           python=$(command -v python3 || command -v python || true)
           [ -n "$objdump" ] || { echo "FAIL: llvm-objdump not found"; exit 1; }
           [ -n "$python" ] || { echo "FAIL: python not found"; exit 1; }
-          launcher=$(find build/universal/CMakeFiles/basilisk_universal.dir \
+          launcher=$(find "build/${{ matrix.preset }}-pgo/CMakeFiles/basilisk_launcher.dir" \
             -type f \( -name 'main.cpp.o' -o -name 'main.cpp.obj' \) -print -quit)
-          [ -n "$launcher" ] || { echo "FAIL: dispatcher object not found"; exit 1; }
+          [ -n "$launcher" ] || { echo "FAIL: baseline launcher object not found"; exit 1; }
+          case "${{ matrix.asset_suffix }}" in
+            -pext) tier=pext ;;
+            -avx2) tier=avx2 ;;
+            *) tier=portable ;;
+          esac
           "$python" tools/diag/verify_isa.py \
-            --tier universal --binary "${{ steps.asset.outputs.path }}" \
+            --tier "$tier" --binary "${{ steps.asset.outputs.path }}" \
             --launcher-object "$launcher" --objdump "$objdump"
-
-      # Every tier must reproduce the fingerprint, not only the one this
-      # runner selects, and name itself at start-up.
-      - name: Bench every forced tier (x86)
-        if: matrix.arch == 'x86_64'
-        shell: bash
-        run: |
-          set -euo pipefail
-          binary="${{ steps.asset.outputs.path }}"
-          expected='${{ needs.prepare.outputs.expected_nodes }}'
-          echo "selected here: $(printf 'quit\n' | "./$binary" 2>&1 | head -n 1)"
-          for isa in portable avx2 pext; do
-            out=$(printf "bench 13\nquit\n" | BASILISK_ISA=$isa "./$binary" 2>&1 || true)
-            nodes=$(echo "$out" | grep -oE "Nodes searched *: *[0-9]+" | grep -oE "[0-9]+$" || true)
-            echo "$isa: ${nodes:-none} nodes"
-            echo "$out" | tr -d '\r' | grep -qE "^Basilisk .* \($isa\)$" \
-              || { echo "::error::BASILISK_ISA=$isa did not start the $isa tier"; echo "$out" | head -5; exit 1; }
-            [ "$nodes" = "$expected" ] || { echo "::error::the $isa tier benches ${nodes:-none}, not $expected"; exit 1; }
-          done
 
       - name: Smoke-test and fingerprint the asset
         shell: bash
@@ -454,58 +469,10 @@ jobs:
           path: asset/*
           if-no-files-found: error
 
-  # ---- The universal binary's tier selection, under Intel SDE ---------------
-  # SDE emulates older and newer Intel CPUs on the runner: each must start the
-  # tier the dispatch rule gives it and reproduce the fingerprint there
-  # (tools/diag/check_universal.py). The action is pinned by commit, as the
-  # donor pins it.
-  select:
-    name: Tier selection under SDE (${{ matrix.os_name }})
-    needs: [prepare, build]
-    runs-on: ${{ matrix.runner }}
-    timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - runner: ubuntu-26.04
-            os_name: linux
-            asset: linux-x86_64
-          - runner: windows-2025
-            os_name: windows
-            asset: windows-x86_64.exe
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-
-      - name: Download the asset
-        uses: actions/download-artifact@v7
-        with:
-          name: asset-${{ matrix.os_name }}-x86_64
-          path: asset
-
-      - name: Download SDE
-        uses: petarpetrovt/setup-sde@31aa4a8e85e109bef00f1d838613fcc6ec421271 # v5.0
-        with:
-          environmentVariableName: SDE_DIR
-          sdeVersion: 9.58.0
-
-      - name: Check the tier each CPU selects
-        shell: bash
-        run: |
-          set -euo pipefail
-          binary="asset/basilisk-v${{ needs.prepare.outputs.version }}-${{ matrix.asset }}"
-          chmod +x "$binary"
-          python=$(command -v python3 || command -v python)
-          "$python" tools/diag/check_universal.py --binary "$binary" --sde "$SDE_DIR" \
-            --bench '${{ needs.prepare.outputs.expected_nodes }}'
-
-  # ---- The complete matrix: five assets, one fingerprint ---------------------
+  # ---- The complete matrix: nine assets, one fingerprint ---------------------
   collect:
     name: Verify the complete matrix
-    needs: [prepare, build, select]
+    needs: [prepare, build]
     # The required check for this workflow: it always runs and fails unless
     # every build succeeded, because a job skipped after a failed dependency
     # reports as passing.
@@ -528,25 +495,27 @@ jobs:
           merge-multiple: true
           path: bundle
 
-      - name: Five assets, one fingerprint
+      - name: Nine assets, one fingerprint
         shell: bash
         run: |
           set -euo pipefail
           cd bundle
           tag='v${{ needs.prepare.outputs.version }}'
           expected=(
-            "basilisk-${tag}-linux-x86_64" "basilisk-${tag}-linux-aarch64"
-            "basilisk-${tag}-windows-x86_64.exe" "basilisk-${tag}-windows-aarch64.exe"
+            "basilisk-${tag}-linux-x86_64" "basilisk-${tag}-linux-x86_64-avx2" "basilisk-${tag}-linux-x86_64-pext"
+            "basilisk-${tag}-linux-aarch64"
+            "basilisk-${tag}-windows-x86_64.exe" "basilisk-${tag}-windows-x86_64-avx2.exe"
+            "basilisk-${tag}-windows-x86_64-pext.exe" "basilisk-${tag}-windows-aarch64.exe"
             "basilisk-${tag}-macos-aarch64"
           )
           for f in "${expected[@]}"; do test -f "$f" || { echo "::error::missing asset $f"; ls -la; exit 1; }; done
-          test "$(ls | grep -vc '\.nodes$')" -eq 5 || { echo "::error::the bundle does not hold exactly five assets"; ls -la; exit 1; }
+          test "$(ls | grep -vc '\.nodes$')" -eq 9 || { echo "::error::the bundle does not hold exactly nine assets"; ls -la; exit 1; }
           nodes="$(cat ./*.nodes | sort -u)"
           test "$(wc -l <<<"$nodes")" -eq 1 || { echo "::error::the assets disagree on bench 13: $nodes"; exit 1; }
           test "$nodes" = '${{ needs.prepare.outputs.expected_nodes }}'
           rm -f ./*.nodes
           sha256sum "${expected[@]}" | tee SHA256SUMS
-          echo "five assets at bench 13 = $nodes"
+          echo "nine assets at bench 13 = $nodes"
 
       - name: Keep the bundle
         uses: actions/upload-artifact@v7
