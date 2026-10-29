@@ -489,7 +489,7 @@ set(BASILISK_PGO_ARM_STATE "OFF" CACHE STRING "Value for BASILISK_PGO_ARM_OPTION
 # or weakening the flag set.
 option(WARNINGS_AS_ERRORS "Treat compiler warnings as errors" ON)
 option(TEXEL "Build Texel trace+tuner target basilisk-texel (sets TEXEL_TRACE; implies BASILISK_TUNE)" OFF)
-option(BASILISK_UNIVERSAL_TIER "Build one tier of the universal x86-64 binary: keep the engine link's LTO objects and name the tier at start-up" OFF)
+option(BASILISK_UNIVERSAL_TIER "Build one tier of the universal x86-64 binary: keep the engine link's LTO output and name the tier at start-up" OFF)
 option(BASILISK_UNIVERSAL "Configure the universal x86-64 binary: its dispatcher, its tier builds and the final link (target universal)" OFF)
 
 option(USE_PEXT "Use BMI2 PEXT instruction for magic bitboards (requires Haswell+)" ${_basilisk_pext_default})
@@ -631,6 +631,24 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     if(PORTABLE_BUILD)
         message(STATUS "Portable build enabled: omitting -march=native")
     endif()
+    # A portable build is the x86-64 baseline plus its tier's flags, never the
+    # compiler's own default: ubuntu-26.04's GCC 15 targets AVX, BMI and POPCNT
+    # with no -march given. Pinned only where the default is above the
+    # baseline, so a compiler that targets it already builds as before.
+    if(PORTABLE_BUILD AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|amd64")
+        include(CheckCXXSourceCompiles)
+        check_cxx_source_compiles("
+#if defined(__SSE4_1__) || defined(__POPCNT__) || defined(__AVX__) || defined(__BMI__) || defined(__LZCNT__)
+#error the default target is above the x86-64 baseline
+#endif
+int main() { return 0; }" _basilisk_default_is_baseline)
+        if(NOT _basilisk_default_is_baseline)
+            foreach(_tgt IN LISTS _ISA_TARGETS)
+                target_compile_options(${_tgt} PRIVATE -march=x86-64 -mtune=generic)
+            endforeach()
+            message(STATUS "The compiler's default target is above the x86-64 baseline: -march=x86-64")
+        endif()
+    endif()
     if(SANITIZE)
         foreach(_tgt IN LISTS _ALL_TARGETS)
             target_compile_options(${_tgt} PRIVATE -fsanitize=address,undefined)
@@ -661,8 +679,23 @@ if(BASILISK_ALIGN_FUNCTIONS)
     if(NOT CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         message(FATAL_ERROR "BASILISK_ALIGN_FUNCTIONS needs GCC or Clang")
     endif()
+    set(_basilisk_align_options -falign-functions=${BASILISK_ALIGN_FUNCTIONS})
+    # GCC leaves out of -falign-functions every function it optimises for
+    # size, which under PGO is every function the training run never entered:
+    # about two thirds of a universal tier's. -fmin-function-alignment
+    # (GCC 14) aligns them all, as Clang does.
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        include(CheckCXXCompilerFlag)
+        check_cxx_compiler_flag(-fmin-function-alignment=${BASILISK_ALIGN_FUNCTIONS} _basilisk_min_alignment)
+        if(_basilisk_min_alignment)
+            list(APPEND _basilisk_align_options -fmin-function-alignment=${BASILISK_ALIGN_FUNCTIONS})
+        elseif(BASILISK_UNIVERSAL OR BASILISK_UNIVERSAL_TIER)
+            message(FATAL_ERROR "The universal binary aligns every function: GCC 14 or later "
+                                "(-fmin-function-alignment)")
+        endif()
+    endif()
     foreach(_tgt IN LISTS _ALL_TARGETS)
-        target_compile_options(${_tgt} PRIVATE -falign-functions=${BASILISK_ALIGN_FUNCTIONS})
+        target_compile_options(${_tgt} PRIVATE ${_basilisk_align_options})
     endforeach()
     message(STATUS "Function alignment: ${BASILISK_ALIGN_FUNCTIONS} bytes")
 endif()
@@ -736,15 +769,21 @@ if(NOT _basilisk_pgo STREQUAL "OFF")
 endif()
 
 # A universal tier must use its own profile. A file the profile does not cover
-# is an error there, so a tier that silently got no profile fails to build;
-# only the four files bench never runs (move formatting, Syzygy probing, the
-# search diagnostics, the WAC suite) are expected to have no data.
+# is an error there, so a tier that silently got no profile fails to build.
+# Clang: only the four files bench never runs (move formatting, Syzygy probing,
+# the search diagnostics, the WAC suite) are expected to have no data. GCC
+# writes a profile for every instrumented file the training run links, run or
+# not, so a missing one means the profile is not this build's.
 if(BASILISK_UNIVERSAL_TIER AND _basilisk_pgo STREQUAL "USE" AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     foreach(_tgt IN LISTS _ALL_TARGETS)
         target_compile_options(${_tgt} PRIVATE $<$<CONFIG:Release>:-Wprofile-instr-unprofiled>)
     endforeach()
     set_source_files_properties(src/move.cpp src/syzygy.cpp src/search_diagnostics.cpp src/wac.cpp
         PROPERTIES COMPILE_OPTIONS "-Wno-profile-instr-unprofiled")
+elseif(BASILISK_UNIVERSAL_TIER AND _basilisk_pgo STREQUAL "USE" AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    foreach(_tgt IN LISTS _ALL_TARGETS)
+        target_compile_options(${_tgt} PRIVATE $<$<CONFIG:Release>:-Werror=missing-profile>)
+    endforeach()
 endif()
 
 set(_basilisk_dist_dir "${CMAKE_SOURCE_DIR}/build/dist")
@@ -965,16 +1004,18 @@ set_target_properties(basilisk_launcher PROPERTIES
 # Universal x86-64 binary (analysis/universal_binary_2026-10.md)
 # ---------------------------------------------------------------------------
 # A tier is an ordinary PGO build of one ISA level whose engine link also keeps
-# the objects LTO produced: lld (Windows) writes them beside each input, the
-# gold plugin (Linux) as basilisk.lto.o<N>. cmake/universal-tiers.cmake builds
-# the three tiers and renames every symbol each defines under its tier's name;
-# the dispatcher, built here for the baseline, links them with one baseline
+# what LTO produced, as assembly: GCC's -save-temps keeps each partition's
+# (basilisk.ltrans<N>.ltrans.s), and Clang links the same objects a second time
+# with the linker writing assembly instead of an executable. Stockfish's route,
+# for both compilers. cmake/universal-tiers.cmake builds the four tiers, renames
+# every symbol each defines under its tier's name in that text and assembles
+# it; the dispatcher, built here for the baseline, links them with one baseline
 # Fathom and the runtime. Nothing but the dispatcher runs before a tier is
 # chosen, so no tier object may carry an initialiser (the script checks).
 if(BASILISK_UNIVERSAL_TIER OR BASILISK_UNIVERSAL)
-    if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR APPLE
+    if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU" OR APPLE
        OR NOT CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|amd64")
-        message(FATAL_ERROR "The universal binary is built with Clang for x86-64 Windows or Linux")
+        message(FATAL_ERROR "The universal binary is built with Clang or GCC for x86-64 Windows or Linux")
     endif()
     if(NOT PORTABLE_BUILD)
         message(FATAL_ERROR "The universal binary's builds need PORTABLE_BUILD=ON: "
@@ -1003,12 +1044,14 @@ if(BASILISK_UNIVERSAL_TIER)
     endif()
     target_compile_definitions(basilisk PRIVATE BASILISK_UNIVERSAL_TIER="${_basilisk_tier}")
     target_compile_definitions(basilisk_launcher PRIVATE BASILISK_UNIVERSAL_TIER="${_basilisk_tier}")
-    # The instrumented build links without LTO, where the gold plugin is not loaded.
+    # The instrumented build links without LTO, so it has nothing to keep.
     if(NOT _basilisk_pgo STREQUAL "GENERATE")
-        if(WIN32)
-            target_link_options(basilisk PRIVATE $<$<CONFIG:Release>:-Wl,--Xlink=-lldsavetemps>)
+        if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+            target_link_options(basilisk PRIVATE $<$<CONFIG:Release>:-save-temps=obj>)
         else()
-            target_link_options(basilisk PRIVATE $<$<CONFIG:Release>:-Wl,-plugin-opt=save-temps>)
+            # basilisk_tier_asm, defined at the end of this file once every
+            # option of basilisk's link is known, is that link again.
+            set(_basilisk_tier_asm TRUE)
         endif()
     endif()
 endif()
@@ -1026,6 +1069,7 @@ if(BASILISK_UNIVERSAL)
     if(NOT BASILISK_ALIGN_FUNCTIONS STREQUAL "64")
         message(FATAL_ERROR "BASILISK_UNIVERSAL needs BASILISK_ALIGN_FUNCTIONS=64, as the universal preset sets")
     endif()
+    find_package(Python3 3.8 REQUIRED COMPONENTS Interpreter)
     set(_basilisk_tiers_dir "${CMAKE_BINARY_DIR}/tiers")
     set(_basilisk_tier_objects "${_basilisk_tiers_dir}/objects.rsp")
     add_custom_target(universal_tiers
@@ -1033,18 +1077,19 @@ if(BASILISK_UNIVERSAL)
             -DUT_SOURCE_DIR=${CMAKE_SOURCE_DIR}
             -DUT_NAME=${_basilisk_pgo_name}
             -DUT_TIERS_DIR=${_basilisk_tiers_dir}
+            -DUT_PYTHON=${Python3_EXECUTABLE}
+            -DUT_COMPILER_ID=${CMAKE_CXX_COMPILER_ID}
             -DUT_COMP=${COMP}
             -DUT_STATIC_RUNTIME=${STATIC_RUNTIME}
             -DUT_DEV_ID=${BASILISK_DEV_ID}
             -DUT_ALIGN_FUNCTIONS=${BASILISK_ALIGN_FUNCTIONS}
             -DUT_NM=${CMAKE_NM}
-            -DUT_OBJCOPY=${CMAKE_OBJCOPY}
             -DUT_OBJDUMP=${CMAKE_OBJDUMP}
             -DUT_CXX_COMPILER=${CMAKE_CXX_COMPILER}
             -DUT_CXX_COMPILER_VERSION=${CMAKE_CXX_COMPILER_VERSION}
             -P "${CMAKE_SOURCE_DIR}/cmake/universal-tiers.cmake"
         BYPRODUCTS "${_basilisk_tier_objects}"
-        COMMENT "Building the universal binary's three PGO tiers"
+        COMMENT "Building the universal binary's four PGO tiers"
         USES_TERMINAL
         VERBATIM
     )
@@ -1056,7 +1101,8 @@ if(BASILISK_UNIVERSAL)
         -Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wno-unused-parameter
         $<$<BOOL:${WARNINGS_AS_ERRORS}>:-Werror> -O2)
     # The tiers' objects first, then the baseline Fathom they call, then the
-    # runtime: every tier symbol is renamed, so link order decides nothing.
+    # runtime: every tier symbol and section is renamed, so link order decides
+    # nothing.
     target_link_options(basilisk_universal PRIVATE "@${_basilisk_tier_objects}")
     target_link_libraries(basilisk_universal PRIVATE fathom)
     if(STATIC_RUNTIME)
@@ -1093,4 +1139,31 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     message(STATUS "Build type not set — defaulting to Release")
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release RelWithDebInfo MinSizeRel)
+endif()
+
+# ---------------------------------------------------------------------------
+# A universal tier's assembly (Clang)
+# ---------------------------------------------------------------------------
+# The engine's link again, over the same objects and libraries with every one
+# of its options, but the linker writes the LTO output as assembly instead of
+# linking an executable (cmake/universal-tiers.cmake collects it). The
+# launcher's main stays in the link, so LTO keeps what the executable keeps.
+if(_basilisk_tier_asm)
+    add_executable(basilisk_tier_asm EXCLUDE_FROM_ALL
+        $<TARGET_OBJECTS:basilisk_launcher> $<TARGET_OBJECTS:basilisk>)
+    get_target_property(_basilisk_link_libraries basilisk LINK_LIBRARIES)
+    get_target_property(_basilisk_link_options basilisk LINK_OPTIONS)
+    if(NOT _basilisk_link_options)
+        set(_basilisk_link_options "")
+    endif()
+    if(WIN32)
+        list(APPEND _basilisk_link_options "-Wl,--lto-emit-asm")
+    else()
+        list(APPEND _basilisk_link_options "-Wl,-plugin-opt=emit-asm")
+    endif()
+    set_target_properties(basilisk_tier_asm PROPERTIES
+        LINK_LIBRARIES "${_basilisk_link_libraries}"
+        LINK_OPTIONS "${_basilisk_link_options}"
+        INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE
+        LINKER_LANGUAGE CXX)
 endif()

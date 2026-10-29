@@ -584,3 +584,124 @@ The final tree passes all of it, built with the release cells' commands:
 - Linux (WSL Ubuntu 24.04, Clang 19.1.1, gold, static): 484, 484 and 481 of
   485, 485 and 482, the ISA contract passing with the C runtime exempt;
 - every forced tier 19,470,325 on both, with its banner.
+
+## 15. Amendment 4 (2026-10-29): Stockfish's assembly route, for Clang and GCC
+
+A.15.9 makes GCC build the universal binary as Clang does. Until now the
+route depended on LLVM's linkers keeping their post-LTO objects (lld
+`-lldsavetemps`, the gold plugin's `save-temps`). The new route is
+Stockfish's (`universal-object-pgo` and `rewrite_asm_sections.awk`, read at
+`edb0d9db`), for both compilers:
+
+1. **The tier's LTO output as assembly.** GCC's `-save-temps=obj` keeps each
+   LTO partition's `basilisk.ltrans<N>.ltrans.s` while the tier's executable
+   still links (seven partitions a tier). Clang's linker writes assembly
+   *instead of* an executable, so the tier build links the same objects a
+   second time (`basilisk_tier_asm`, every option of the engine's link plus
+   lld `--lto-emit-asm` or the gold plugin's `emit-asm`); lld writes one
+   `.lto.<module>.s` beside each input (23 a tier), the gold plugin numbers
+   them after the regular LTO partition's, which is empty.
+2. **Renamed in the text.** The assembly is assembled once as written, and
+   `nm` on that object lists what the tier defines, exactly as the objects
+   route listed it. `cmake/universal-asm.py` then renames those names
+   wherever the text uses them as symbols and the result is assembled.
+   Stockfish's awk folds static constructors into one section; Basilisk's
+   tiers have none (§4.3), so the script renames symbols instead, which
+   Stockfish does with its namespace macro.
+3. **Why the text and not objcopy.** GCC's PE COMDATs (`.linkonce discard`)
+   are matched by section name, not by symbol. In GCC's LTO output they are
+   the `.rdata$.refptr.<symbol>` pointers, 122 a tier, 90 of them to a
+   symbol the tier defines, the evaluation tables among them
+   (`.refptr._ZL8EG_TABLE.lto_priv.0`). Renamed by symbol alone, ld would
+   keep one tier's pointer for all four, and the chosen tier would read
+   another tier's tables, which only that tier initialises; nothing would
+   fail. The text rename renames those section names with the symbols, and
+   `check-sections` fails if any section is still named for a renamed
+   symbol. Clang's 13 `.refptr` pointers a tier all point into the runtime,
+   so the objects route never had this exposure.
+4. **Type identities, GCC.** GCC's LTO output defines the type identities of
+   the static libstdc++ it pulls in (`std::bad_alloc`, `std::exception`,
+   `std::filesystem::filesystem_error`) as ordinary global data, not COMDATs:
+   the first GCC link refused them, 238 multiple definitions. GCC's tiers
+   therefore rename `_ZTI`/`_ZTS` with everything else. libstdc++ compares
+   `type_info` by its name string (`__GXX_MERGED_TYPEINFO_NAMES` is 0), so a
+   tier still catches what it or the runtime throws: `std::stoll`'s
+   `invalid_argument` and `out_of_range` are caught on every GCC tier.
+   Clang's tiers keep them shared, as before.
+5. **Every symbol, not only the global ones.** The first Clang build on the
+   new route failed the universal ISA contract: Clang names local lambdas
+   with `$` (`…E3$_1…`), the first tokenizer split names at `$`, and those
+   functions kept their plain names in every tier. They were local, so
+   nothing was shared, but the image check attributed the avx2 and pext
+   copies to shared code (590 AVX and 2 PEXT instructions). The tier check
+   had looked only at global symbols; it now requires every defined symbol,
+   local or global, to carry the tier's name.
+6. **GCC's alignment.** GCC leaves out of `-falign-functions` every function
+   it optimises for size, which under PGO is every function the training run
+   never entered: 207 to 214 of each tier's 593 to 598 functions were
+   aligned, though every hot-path function was. `-fmin-function-alignment`
+   (GCC 14) aligns them all; a universal configure on an older GCC is
+   refused.
+7. **One more PGO guard, GCC's.** A GCC tier's use build makes
+   `-Wmissing-profile` an error. GCC writes a profile for every file the
+   training run links, run or not, so no file is exempt, and the check finds
+   a missing or misplaced profile, not an unexercised file.
+8. **Two Linux-only details.** The gold plugin's assembly files have no
+   extension (`basilisk_tier_asm1` to `23`), which a compiler driver takes
+   for a link input and skips with exit status 0; the tiers are assembled
+   with `-x assembler`, and a missing object fails. GCC on ELF splits each
+   function's never-run blocks into a `<function>.cold` fragment in
+   `.text.unlikely`, labelled like a function but never entered by a call;
+   the alignment rule leaves those fragments out (the ISA attribution does
+   not). GCC on Windows does not split.
+
+Built from the final tree on Windows (clang 23.1.4, MSYS2 GCC 16.2.0) and
+Linux (WSL Ubuntu 24.04, Clang 19.1.1 with gold, GCC 14.2, static), all four
+universal binaries bench 19,470,325 on every forced tier with its banner and
+pass the universal ISA contract. Functions on a cache line: Clang 558 of 562
+(Windows) and 483 of 484 (Linux) a tier, the rest its stubs; GCC every one.
+Sizes: Clang 4,186,112 and 5,812,832 bytes, GCC 6,221,994 and 5,135,640.
+
+Seen to fail on the new route (§14's table, re-run):
+
+| Trap | Planted fault | Result |
+|---|---|---|
+| First-wins symbols | A global symbol left out of the map (`init_eval_tables`) | "still global after the rename" |
+| Unrenamed locals | A local left out (`_ZL10g_kpk_once`) | "the local … is not renamed" |
+| Section-named COMDATs | GCC's seven partitions renamed by symbol only, with objcopy; one Clang file the same way | "90 sections keep a name the rename moved"; "section .bss$_ZL10g_kpk_once is still named for …" |
+| Early initialisers | A `.ctors` entry assembled into a tier object | "carries .ctors, a static initialiser" |
+| PGO profiles, Clang | A tier on the profile of a start-and-quit run | 10 files "no profile data available" |
+| PGO profiles, GCC | A tier with an empty profile directory | "profile count data file not found [-Werror=missing-profile]" |
+| Stale tiers, source | `cmake/universal-tiers.cmake` edited while GCC's tiers built (by accident) | "Tier avx2: the source changed while the tiers were building" |
+| Stale tiers, compiler | GCC's tiers expected as 16.2.1 | "built by …g++.exe 16.2.0, not … 16.2.1" |
+| ISA attribution | `pextq` added to the base tier's `make_move`, relinked | "portable tier contains forbidden bmi2" |
+| Alignment | `negamax` moved 16 bytes off its line, relinked | "starts at 16 mod 64" |
+
+Re-checked on both compilers before closing, against Rarog's list
+(`D:/code/rarog/analysis/universal_binary_2026-09.md` §3, §7, §9), each check
+watched failing with GCC and with Clang:
+
+| Trap | Check, where it runs | Seen to fail, Clang | Seen to fail, GCC |
+|---|---|---|---|
+| First-wins symbols | every symbol a tier defines carries its name (`universal-check-tier.cmake`); no section named for a renamed symbol (`universal-asm.py check-sections`); Fathom once, baseline (`verify_isa.py`); no `--allow-multiple-definition` in either final link | missed global and local; objcopy-only rename | missed global and local; objcopy-only rename (90 sections); the first GCC link's 238 multiple definitions show the link refuses duplicates |
+| Profiles | Clang `-Wprofile-instr-unprofiled`, GCC `-Werror=missing-profile`, in every tier build | start-and-quit profile: 10 files | empty profile; another tier's profile (its files are keyed to that tier's build path) |
+| Profile reaches the shipped code | hot pext-tier code of the universal image against the tier's own PGO build | 14 functions: every instruction and its line offset the same, padding encoded differently | 23 functions byte for byte |
+| Early initialisers | no `.ctors`/`.init_array`/`.fini_array`/`.preinit_array`/`.CRT$X*` in a tier object | planted `.ctors` (COFF); `.init_array`, `.preinit_array`, `.fini_array` and a compiled constructor (ELF) | planted `.ctors` (COFF); a compiled constructor (ELF) |
+| ISA attribution | `verify_isa.py --tier universal`, both release cells | `pext` in sse41-popcnt, `popcnt` in base, `andn` in avx2, `pext` in base | `popcnt` in base, `andn` in avx2, `pext` in base |
+| Stale tiers | source hashed after every tier; each tier's compiler and version | wrong version (22.1.8) | wrong version (16.2.1); the source edited while tiers built |
+| `-march=native` | a universal configure without `PORTABLE_BUILD` is refused | refused | (the same CMake check) |
+| Alignment | `verify_isa.py`: 95% of a tier's functions and every hot one at 0 mod 64 | `negamax` 16 bytes off | `negamax.constprop.0` 16 bytes off |
+| Tier choice | every forced tier benches 19,470,325 with its banner (release); SDE (release); `test_cpu_features` truth table | all four binaries, both OSes | all four binaries, both OSes |
+
+Rarog's remaining trap, an instrumented universal binary training only the
+tier the host selects, does not arise: each tier is its own PGO build,
+trained natively on the runner. The Clang wrong-tier profile is not refused
+(profiles match by name and PEXT changes no control flow); it was read once
+on the earlier route (§14, −0.4% indicative), and the tier build is
+unchanged by the route.
+
+BAS-P24 then read the assembly route level with the objects route (+0.33%
+[−0.19%, +0.86%]) and with the single-tier pext build (+0.04%), and GCC's
+universal binary level with GCC's own pext build (+0.41%); the objects route
+was removed (A.15.9 closed 2026-10-29). GCC's builds read 3.5% behind
+Clang's.

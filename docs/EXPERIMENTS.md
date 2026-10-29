@@ -600,7 +600,8 @@ not accept any new feature, vector or label policy by themselves.
 | [BAS-P20](experiments/BAS-P20.md) | The universal x86-64 binary against the pext asset, and the ISA tier ladder. | COMPLETE: universal −0.58% [−0.82, −0.33], FAIL (per-tier assets stay); ladder avx2 +5.04%, pext +2.82%, pext/portable +8.49% |
 | [BAS-P21](experiments/BAS-P21.md) | The universal x86-64 binary with 64-byte function alignment, against the pext asset. | COMPLETE: universal +0.00% at step 1, PASS (−0.29% [−0.73, +0.16] at six cycles); relink −0.13%, alignment −0.16%, both NO_CHANGE |
 | [BAS-P22](experiments/BAS-P22.md) | The native release build, GCC and MSVC, against Clang, the universal binary and the pext asset. | COMPLETE, read twice: native −1.0% against pext (A.15.8 returned); universal −0.14% PASS; GCC −2.7%, MSVC −14.4% against Clang |
-| [BAS-P23](experiments/BAS-P23.md) | BAS-P22's read on an Intel host: native, the universal binary and GCC. | REGISTERED |
+| [BAS-P23](experiments/BAS-P23.md) | BAS-P22's read on an Intel host: native, the universal binary and GCC. | INCONCLUSIVE: host never idle, both reads REPEAT (±2%); every sign matches BAS-P22; bench exact on Intel |
+| [BAS-P24](experiments/BAS-P24.md) | The universal binary on Stockfish's assembly route, for Clang and GCC. | COMPLETE: route +0.33% PASS, hot +0.04% PASS, gcchot +0.41% PASS; GCC −3.47% against Clang (universal), −3.70% (pext) |
 
 ## 7. Correctness and protocol lessons
 

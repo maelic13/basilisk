@@ -47,20 +47,38 @@ one at start-up:
   check keeps that name for the baseline contract (`--tier portable`).
 
 How it is built (the `universal` preset, target `universal`;
-`cmake/universal-tiers.cmake`):
+`cmake/universal-tiers.cmake`), with Clang or GCC (`-DCOMP=gcc`); the release
+ships Clang's, and builds and checks GCC's beside it without publishing it:
 
 1. Each tier is the ordinary PGO build of the `release` preset with its
    option (none for `base`, `USE_SSE41_POPCNT`, `USE_AVX2` or `USE_PEXT`)
-   and `BASILISK_UNIVERSAL_TIER=ON`, which keeps the engine
-   link's post-LTO objects (lld `-lldsavetemps` on Windows, the gold plugin's
-   `save-temps` on Linux) and gives the tier a bare `main`.
-2. Every symbol a tier's objects define is renamed `__basilisk_<tier>_<name>`,
-   and `run_engine` becomes `basilisk_<tier>::run_engine`. Only type
-   identities (`_ZTI`, `_ZTS`) and `.refptr` data stay shared. The script fails
-   if anything else stays global, or if a tier object carries an initialiser,
-   which would run before the dispatcher has chosen.
-3. The dispatcher (`src/main.cpp` under `BASILISK_UNIVERSAL`) links the three
+   and `BASILISK_UNIVERSAL_TIER=ON`, which gives the tier a bare `main` and
+   keeps its link-time-optimised code as assembly, Stockfish's route: GCC's
+   `-save-temps` keeps each LTO partition's `.s`; Clang links the same
+   objects a second time (`basilisk_tier_asm`) with the linker writing
+   assembly (lld `--lto-emit-asm`, the gold plugin's `emit-asm`).
+2. The tier's assembly is assembled once to read what it defines; every one
+   of those symbols is then renamed `__basilisk_<tier>_<name>` in the text
+   (`cmake/universal-asm.py`), with the COFF section names built from them
+   (`.text$<name>`: GCC's PE COMDATs are matched by section name, so a
+   symbol rename alone would still let the linker keep one tier's copy for
+   all), and assembled again. `run_engine` becomes
+   `basilisk_<tier>::run_engine`. Only `.refptr` data and, in Clang's tiers,
+   type identities (`_ZTI`, `_ZTS`, COMDATs whose copies are identical) keep
+   their names; GCC's LTO output defines the type identities of the static
+   libstdc++ as ordinary data, so its tiers rename them too, and libstdc++
+   compares `type_info` by name. The script fails if anything else keeps
+   its name, if a section is still named for a renamed symbol, or if a tier
+   object carries an initialiser, which would run before the dispatcher has
+   chosen.
+3. The dispatcher (`src/main.cpp` under `BASILISK_UNIVERSAL`) links the four
    tiers, one baseline Fathom and the static runtime.
+
+Until 2026-10-29 Clang's tiers took another route: the linker kept its
+post-LTO objects (lld `-lldsavetemps`, the gold plugin's `save-temps`) and
+`llvm-objcopy` renamed their symbols. BAS-P24 read the assembly route level
+with it (+0.33%) and with the single-tier pext build (+0.04%), and it was
+removed.
 4. Every tier's functions are aligned to 64 bytes (`BASILISK_ALIGN_FUNCTIONS=64`,
    which the preset sets and a universal configure requires). The relink
    places a tier's code differently from its own build, and without the
@@ -109,18 +127,24 @@ rule is the unit truth table's (`tests/test_cpu_features.cpp`).
 
 The build checks the tiers before it links them (`cmake/universal-tiers.cmake`):
 
-- the source tree and the compiler are the same for all three: the source is
+- the source tree and the compiler are the same for all four: the source is
   hashed before the first tier and after each, and each tier's build
   directory must name the dispatcher's compiler and version;
-- after the rename nothing a tier defines stays global except its entry
-  point, type identities and `.refptr` data, and no tier object carries a
-  static initialiser (`cmake/universal-check-tier.cmake`, which also runs on
-  its own against any objects);
+- after the rename nothing a tier defines, global or local, keeps its name
+  except its entry point, `.refptr` data and, for Clang, type identities, and
+  no tier object carries a static initialiser
+  (`cmake/universal-check-tier.cmake`, which also runs on its own against
+  any objects); on the assembly route no COFF section is still named for a
+  renamed symbol (`cmake/universal-asm.py check-sections`);
 - each tier's PGO build treats a source file without profile data as an
-  error, except the four bench never runs (`move.cpp`, `syzygy.cpp`,
-  `search_diagnostics.cpp`, `wac.cpp`), so a tier that silently lost its
-  profile does not build. A profile that does not match its code already
-  fails under `-Werror`.
+  error, so a tier that silently lost its profile does not build: Clang's
+  `-Wprofile-instr-unprofiled`, except the four files bench never runs
+  (`move.cpp`, `syzygy.cpp`, `search_diagnostics.cpp`, `wac.cpp`); GCC's
+  `-Werror=missing-profile`, which fails when a file's profile is missing
+  (GCC writes one for every file the training run links). A profile that
+  does not match its code already fails (Clang's
+  `-Wprofile-instr-out-of-date` under `-Werror`, GCC's coverage mismatch
+  error).
 
 Each of these checks has been seen to fail on a planted fault
 (`analysis/universal_binary_2026-10.md` §14).
@@ -155,7 +179,15 @@ builds):
   over `base`, against +6.0% for `avx2` and +9.2% for `pext`. The hardware
   `popcnt` is nearly all of what `avx2` gains.
 
+- **The assembly route and GCC** (BAS-P24, 2026-10-29): Clang's universal
+  binary on the assembly route against its earlier objects route +0.33%
+  [−0.19%, +0.86%], and against the single-tier pext build +0.04%
+  [−0.21%, +0.29%]; GCC's universal binary against GCC's pext build +0.41%
+  [+0.06%, +0.77%]. GCC's builds read 3.5% behind Clang's: −3.47% universal,
+  −3.70% pext.
+
 Per-tier NPS is measured locally and is not published as a per-asset file.
 
-Sizes (2026-10-29, four tiers, aligned): 4,199,936 bytes on Windows; 5,812,912
-on Linux, statically linked with glibc and libstdc++.
+Sizes (2026-10-29, four tiers, aligned): 4,186,112 bytes on Windows; 5,812,832
+on Linux, statically linked with glibc and libstdc++. GCC's universal binary:
+6,221,994 bytes on Windows, 5,135,640 on Linux.

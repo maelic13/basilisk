@@ -390,7 +390,8 @@ so a registered `[0,3]` gate passes `-Elo1 3`**. `-Mode simplify` is `[-5,0]`.
   `docs/release_tiers.md`). Every measurement stays on the single-tier pext
   build, which is its pext tier less the alignment (BAS-P21 read the two
   level); `build_test.ps1 -Universal` stages the universal binary and its
-  tier builds when a read needs them. `TUNE=ON` exposes diagnostics and search constants as UCI
+  tier builds when a read needs them, and `-Gcc` builds any of its builds
+  with GCC. `TUNE=ON` exposes diagnostics and search constants as UCI
   options; `DIAGNOSTIC=ON` exposes diagnostics without tunable constants;
   the two flavors are mutually exclusive. `TEXEL=ON` builds the Texel target
   and is never measured for strength.

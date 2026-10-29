@@ -265,6 +265,10 @@ HOT_FUNCTIONS = (
     "N5Board9make_move", "N5Board11unmake_move", "NK5Board8is_legal", "NK5Board6see_ge",
     "N9Evaluator8evaluate",
 )
+# GCC on ELF moves a function's never-run blocks into a fragment of its own,
+# <function>.cold, in .text.unlikely: labelled like a function, but never
+# entered by a call, so the alignment does not apply to it.
+COLD_FRAGMENT = re.compile(r"\.cold(\.\d+)?$")
 # Fathom is compiled once, for the baseline, and linked once beside the
 # dispatcher: no tier may carry its own copy.
 FATHOM_FUNCTIONS = ("tb_init", "tb_free", "tb_probe_wdl_impl", "tb_probe_root_impl")
@@ -279,7 +283,8 @@ def verify_layout(text: str) -> list[str]:
     errors: list[str] = []
     found = functions(text)
     for tier in UNIVERSAL_TIERS:
-        own = [(address, symbol) for address, symbol in found if symbol_region(symbol) == tier]
+        own = [(address, symbol) for address, symbol in found
+               if symbol_region(symbol) == tier and not COLD_FRAGMENT.search(symbol)]
         if not own:
             continue
         aligned = sum(1 for address, _ in own if address % ALIGNMENT == 0)

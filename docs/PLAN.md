@@ -1887,7 +1887,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         pinning asserts are gone. `bench 13` 19,470,325 on the release,
         tune, diagnostic and ablation builds; CTest 24/24 release, 22/22
         diagnostic and tune.
-- [ ] **A.15** Universal binaries and the release runners
+- [x] **A.15** Universal binaries and the release runners
   Added 2026-10-27 at the maintainer's request
   (`analysis/code_audit_2026-10-27.md` §4). Stockfish 19 (2026-09-05)
   ships one fat binary per OS and architecture — every ISA level a full
@@ -2190,7 +2190,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         `basilisk-<version>-<os>-<x64|arm64>[-<tier>][-<kind>]`, the version
         the engine reports, read at build time (`cmake/dist-copy.cmake`);
         release assets are `basilisk-<X.Y.Z>-<os>-<x64|arm64>`.
-    - [ ] **A.15.9** `[I2]` GCC as a full equal: Stockfish's universal route
+    - [x] **A.15.9** `[I2]` GCC as a full equal: Stockfish's universal route
       Added 2026-10-29 at the maintainer's request, to run on its own branch
       after the universal binary's PR merges. GCC builds and passes CI for
       normal and PGO builds, but the universal binary is Clang-only: it
@@ -2218,6 +2218,57 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         uses the assembly one.
       - Interactions: A.17 candidate 5 (code generation) reads on the same
         builds; G.2 extends the tier list on whichever route ships.
+      - Implemented 2026-10-29 (`analysis/universal_binary_2026-10.md` §15):
+        GCC's `-save-temps` keeps each LTO partition's assembly; Clang links
+        the tier's objects a second time with the linker writing assembly
+        (`basilisk_tier_asm`); `cmake/universal-asm.py` renames every symbol
+        the tier defines in that text, with the COFF section names built
+        from them, and the result is assembled. The earlier Clang route
+        stays selectable (`BASILISK_UNIVERSAL_ROUTE=objects`) for BAS-P24.
+        The first builds found four things, each fixed and recorded: GCC's
+        PE COMDATs are the `.rdata$.refptr.<symbol>` pointers, matched by
+        section name, 90 a tier to the tier's own symbols (the evaluation
+        tables among them), which a symbol-only rename would have shared
+        silently; GCC's LTO output defines libstdc++'s type identities as
+        ordinary data (238 multiple definitions), so GCC tiers rename them
+        too and exceptions still match by name; Clang's `$` lambda names
+        escaped the first tokenizer, and the tier check now covers local
+        symbols as well; GCC does not align never-run functions
+        (207 of 596), fixed by `-fmin-function-alignment` (GCC 14).
+        Linux added two: the gold plugin's extensionless assembly files
+        (assembled with `-x assembler`), and GCC's `.cold` fragments, which
+        the alignment rule now leaves out.
+        Verified on Windows (clang 23.1.4, MSYS2 GCC 16.2.0) and Linux (WSL
+        Ubuntu 24.04, Clang 19.1.1 with gold and GCC 14.2, static): all four
+        universal binaries bench 19,470,325 on every forced tier with its
+        banner and pass the universal ISA contract, every function on a
+        cache line but Clang's stubs (558 of 562 on Windows, 483 of 484 on
+        Linux); every guard of §14 plus the two new ones seen to fail on a
+        planted fault on the new route. GCC's portable
+        build passes CTest 24/24 and the single-tier contract, `bench 10`
+        3,684,650 as Clang's. CI: GCC cells for every x86 tier on Linux
+        and Windows in the bench agreement; the release builds and checks
+        GCC's universal binary on both, unpublished.
+      - BAS-P24, registered before any pool was built, read on the 5950X
+        (four reads, amendments 1 to 3): the assembly route against Clang's
+        objects route +0.33% [−0.19%, +0.86%] and against the pext build
+        +0.04% [−0.21%, +0.29%], both PASS; GCC's universal binary against
+        GCC's pext build +0.41% [+0.06%, +0.77%], PASS; GCC against Clang
+        −3.47% universal and −3.70% pext.
+      - Closed 2026-10-29 by the registered rule: the objects route is
+        removed, so Clang and GCC build the universal binary one way. Before
+        closing, every trap of Rarog's notes (`analysis/universal_binary_2026-10.md`
+        §15) was re-shown failing on both compilers, and the hot pext-tier
+        code of the universal binary was found identical to the tier's own
+        PGO build (GCC byte for byte; Clang every instruction and its line
+        offset, the padding encoded differently). Rebuilt after the removal
+        on Windows and Linux with both compilers: every forced tier
+        19,470,325, the universal ISA contract passing. The PR's first CI
+        run found that ubuntu-26.04's GCC 15 targets AVX, BMI and POPCNT by
+        default, so its "portable" builds were not; a portable build now
+        pins `-march=x86-64` where the compiler's default is above the
+        baseline (a GCC emulating that default then passes the portable
+        contract), and every other compiler builds as before.
 - [ ] **A.16** `[I1]` Zero-weight evaluation terms off the hot path
   Added 2026-10-28 (simplification read of the kernel and the evaluator
   against the donor, after A.14.1; the lines are cited here). Terms whose
@@ -2292,7 +2343,9 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
        has them, for the shipped tiers. Only this Zen 3 can be read here:
        a CPU-specific choice (tuning) applies to local builds only, and the
        shipped tiers keep generic tuning unless other hardware is read.
-       BAS-P23 repeats BAS-P22 on the maintainer's Intel machine.
+       BAS-P23 repeated BAS-P22 on the maintainer's Intel laptop:
+       inconclusive (a host that never idles, intervals about ±2%),
+       native again no faster in both reads.
   - Rules: every candidate is behaviour-neutral (`bench 13` identical in
     every tier, the base build untouched), keeps the ISA contract and the
     universal binary's checks, and respects the slow-`pdep` rule (AMD
@@ -3340,7 +3393,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.15.9 | RESEARCH | I2 | GCC equal to Clang: Stockfish's assembly route for the universal binary, guards re-proved, CI cells, re-measured; after PR #18 merges |
 | A.16 | READY_FOR_IMPLEMENTATION | I1 | Zero-weight evaluation compute deleted; exact fingerprint, kept on a pooled NPS read |
 | A.17 | RESEARCH | R2 | Survey instruction-specific speed (compressed PEXT tables, PEXT/PDEP and AVX2 in the evaluation); each kept candidate a registered NPS read |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |
