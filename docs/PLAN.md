@@ -2263,8 +2263,12 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         PGO build (GCC byte for byte; Clang every instruction and its line
         offset, the padding encoded differently). Rebuilt after the removal
         on Windows and Linux with both compilers: every forced tier
-        19,470,325, the universal ISA contract passing. The new CI and
-        release cells are proved by the PR's first run.
+        19,470,325, the universal ISA contract passing. The PR's first CI
+        run found that ubuntu-26.04's GCC 15 targets AVX, BMI and POPCNT by
+        default, so its "portable" builds were not; a portable build now
+        pins `-march=x86-64` where the compiler's default is above the
+        baseline (a GCC emulating that default then passes the portable
+        contract), and every other compiler builds as before.
 - [ ] **A.16** `[I1]` Zero-weight evaluation terms off the hot path
   Added 2026-10-28 (simplification read of the kernel and the evaluator
   against the donor, after A.14.1; the lines are cited here). Terms whose
