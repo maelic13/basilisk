@@ -128,3 +128,21 @@
   interval. The GCC arms read about 4% higher here than in the second read
   (3.153M and 3.179M there); the reads were taken on different host states,
   so levels are compared only within one read, never across them.
+
+#### Registration amendment 3 — 2026-10-29, after the third read, before the fourth
+
+- **Clang against GCC, at the maintainer's request.** No read so far has
+  held both compilers' universal binaries undisturbed: the second read's
+  GCC universal arm was disturbed, and levels are never compared across
+  reads. One read of the four pools `a159-casm`, `a159-gasm`, `a159-cpext`
+  and `a159-gpext`, step 1 and step 2 on EXTEND, into
+  `tools/results/a159-nps/p24-compilers/`, with two contrasts in the gain
+  form:
+  1. `gccuni`, GCC's universal binary over Clang's;
+  2. `gccpext`, GCC's pext build over Clang's.
+- **Prediction:** both −3.5%, 80% interval [−5.5%, −1.5%] (BAS-P22: GCC
+  native −2.5% against Clang native, about −4% against Clang's pext; the
+  disturbed second read −4.5% and −3.6%).
+- **Decision:** none in the code: the release ships Clang's binary either
+  way. The result sets what README and `docs/release_tiers.md` say about
+  GCC's speed. A REPEAT stops for the maintainer.
