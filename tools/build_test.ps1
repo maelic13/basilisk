@@ -19,16 +19,20 @@
     remain comparable while proving which arm each binary contains.
 
     -Universal builds the universal x86-64 binary instead (the universal
-    preset, Release only) and stages four executables from that one build:
-    the universal binary (<suffix>-universal-pgo) and the three tier builds it
+    preset, Release only) and stages five executables from that one build:
+    the universal binary (<suffix>-universal-pgo) and the four tier builds it
     was linked from (<suffix>-base-pgo, -sse41_popcnt-pgo, -avx2-pgo, -pext-pgo), each the
-    ordinary PGO build of its tier.
+    ordinary PGO build of its tier. -UniversalRoute objects builds it on the
+    earlier Clang route (BASILISK_UNIVERSAL_ROUTE=objects), in
+    build/universal-objects, its executables staged as <suffix>-objects-*.
 
     -Native builds the release preset with NATIVE=ON (-march=native, PEXT as
     the configure step detects it; Release only), in
-    build/release-native, staged as <suffix>-native-pgo. With -Gcc it is
-    built by GCC (COMP=gcc), in build/release-native-gcc, staged as
-    <suffix>-native-gcc-pgo.
+    build/release-native, staged as <suffix>-native-pgo.
+
+    -Gcc builds any of them with GCC (COMP=gcc) instead of Clang, in a build
+    directory ending -gcc, each executable staged with -gcc after its name
+    (<suffix>-pext-gcc-pgo, <suffix>-universal-gcc-pgo).
 
     Every output is copied to tools/test_engines with a hash-bound manifest.
     Bench and UCI-surface verification execute the copied binary and check the
@@ -50,6 +54,7 @@ param(
     [switch]$Universal,
     [switch]$Native,
     [switch]$Gcc,
+    [ValidateSet('assembly', 'objects')][string]$UniversalRoute = 'assembly',
     [string]$TestEnginesDir = "$PSScriptRoot\test_engines"
 )
 
@@ -69,7 +74,9 @@ if (($Universal -or $Native) -and ($Flavor -ne 'Release' -or $ArmOption)) {
     throw '-Universal and -Native build the Release flavor without an umbrella arm.'
 }
 if ($Universal -and $Native) { throw '-Universal and -Native are separate builds.' }
-if ($Gcc -and -not $Native) { throw '-Gcc builds the native release only: add -Native.' }
+if ($UniversalRoute -ne 'assembly' -and (-not $Universal -or $Gcc)) {
+    throw '-UniversalRoute objects is the Clang universal build: add -Universal, without -Gcc.'
+}
 
 function Invoke-CapturedProcess {
     param(
@@ -142,20 +149,25 @@ $isWindowsHost = [Runtime.InteropServices.RuntimeInformation]::IsOSPlatform(
 $exeSuffix = if ($isWindowsHost) { '.exe' } else { '' }
 
 $comp = if ($Gcc) { 'gcc' } else { 'clang' }
-$buildDir = if ($Universal) { 'universal' } elseif ($Native) { "release-native$(if ($Gcc) { '-gcc' })" } else { 'release-pext' }
+$gccSuffix = if ($Gcc) { '-gcc' } else { '' }
+$routeSuffix = if ($UniversalRoute -eq 'objects') { '-objects' } else { '' }
+$buildDir = if ($Universal) { "universal$routeSuffix$gccSuffix" } elseif ($Native) { "release-native$gccSuffix" } else { "release-pext$gccSuffix" }
+# GCC's PGO rebuilds in the instrumented build's tree.
+$pgoDirSuffix = if ($Gcc) { '-pgo-generate' } else { '-pgo' }
 Push-Location $repoRoot
 try {
     if ($Universal) {
-        Write-Host 'Building the universal x86-64 binary: three final-PGO tiers ...'
-        $configureArgs = @('--fresh', '--preset', 'universal', '-DCOMP=clang', '-DTEXEL=OFF')
+        Write-Host "Building the universal x86-64 binary with $comp ($UniversalRoute route): four final-PGO tiers ..."
+        $configureArgs = @('--fresh', '--preset', 'universal', '-B', "build/$buildDir", "-DCOMP=$comp",
+            "-DBASILISK_UNIVERSAL_ROUTE=$UniversalRoute", '-DTEXEL=OFF')
     } elseif ($Native) {
         Write-Host "Building the native release with $comp`: -march=native, PEXT as detected ..."
         $configureArgs = @('--fresh', '--preset', 'release', '-B', "build/$buildDir", "-DCOMP=$comp", '-DNATIVE=ON', '-DTEXEL=OFF')
     } else {
-        Write-Host "Building PEXT final-PGO $flavorLower flavor (arm: $armLabel) ..."
+        Write-Host "Building PEXT final-PGO $flavorLower flavor with $comp (arm: $armLabel) ..."
         $configureArgs = @(
-            '--fresh', '--preset', 'release', '-B', 'build/release-pext',
-            '-DCOMP=clang', '-DPORTABLE_BUILD=ON', '-DUSE_PEXT=ON', '-DTEXEL=OFF',
+            '--fresh', '--preset', 'release', '-B', "build/$buildDir",
+            "-DCOMP=$comp", '-DPORTABLE_BUILD=ON', '-DUSE_PEXT=ON', '-DTEXEL=OFF',
             "-DTUNE=$tune", "-DDIAGNOSTIC=$diagnostic", "-DABLATION=$ablation", "-DPROFILE_SYMBOLS=$profileSymbols",
             "-DBASILISK_PGO_ARM_OPTION=$ArmOption", "-DBASILISK_PGO_ARM_STATE=$armState"
         )
@@ -181,30 +193,31 @@ try {
     # Each staged executable: (built path, staged name, ISA, preset, build command).
     $outputs = @()
     if ($Universal) {
-        $command = 'cmake --preset universal; cmake --build --preset universal --target universal'
-        $outputs += , @("build/universal/basilisk-universal$exeSuffix", 'universal-pgo', 'universal',
-            'universal (PORTABLE_BUILD=ON, BASILISK_UNIVERSAL=ON, BASILISK_ALIGN_FUNCTIONS=64; tiers from release with USE_SSE41_POPCNT, USE_AVX2 or USE_PEXT and BASILISK_UNIVERSAL_TIER=ON, PGO=USE)',
+        $command = "cmake --preset universal -B build/$buildDir -DCOMP=$comp -DBASILISK_UNIVERSAL_ROUTE=$UniversalRoute; " +
+            "cmake --build build/$buildDir --target universal"
+        $staged = $routeSuffix.TrimStart('-')
+        $prefix = if ($staged) { "$staged-" } else { '' }
+        $outputs += , @("build/$buildDir/basilisk-universal$exeSuffix", "${prefix}universal$gccSuffix-pgo", 'universal',
+            "universal (COMP=$comp, BASILISK_UNIVERSAL_ROUTE=$UniversalRoute, PORTABLE_BUILD=ON, BASILISK_UNIVERSAL=ON, BASILISK_ALIGN_FUNCTIONS=64; tiers from release with USE_SSE41_POPCNT, USE_AVX2 or USE_PEXT and BASILISK_UNIVERSAL_TIER=ON, PGO=USE)",
             $command)
         foreach ($tier in 'base', 'sse41_popcnt', 'avx2', 'pext') {
-            $outputs += , @("build/universal-$tier-pgo/basilisk$exeSuffix", "$tier-pgo", $tier,
-                "the universal binary's $tier tier (PORTABLE_BUILD=ON, BASILISK_UNIVERSAL_TIER=ON, BASILISK_ALIGN_FUNCTIONS=64, PGO=USE)",
+            $outputs += , @("build/$buildDir-$tier$pgoDirSuffix/basilisk$exeSuffix", "$prefix$tier$gccSuffix-pgo", $tier,
+                "the universal binary's $tier tier (COMP=$comp, PORTABLE_BUILD=ON, BASILISK_UNIVERSAL_TIER=ON, BASILISK_ALIGN_FUNCTIONS=64, PGO=USE)",
                 $command)
         }
     } elseif ($Native) {
         $cache = Get-Content -LiteralPath "build/$buildDir/CMakeCache.txt"
         $pext = if ($cache -ccontains 'USE_PEXT:BOOL=ON') { 'ON' } else { 'OFF' }
-        # GCC's PGO rebuilds in the instrumented build's tree.
-        $built = if ($Gcc) { "build/$buildDir-pgo-generate/basilisk$exeSuffix" } else { "build/$buildDir-pgo/basilisk$exeSuffix" }
-        $outputs += , @($built, "native$(if ($Gcc) { '-gcc' })-pgo", 'native',
+        $outputs += , @("build/$buildDir$pgoDirSuffix/basilisk$exeSuffix", "native$gccSuffix-pgo", 'native',
             "release (COMP=$comp, NATIVE=ON, USE_PEXT=$pext as detected, PGO=USE)",
             "cmake --preset release -B build/$buildDir -DCOMP=$comp -DNATIVE=ON; cmake --build build/$buildDir --target pgo")
     } else {
-        $nameFlavor = if ($Flavor -eq 'Release') { 'pext-pgo' } else { "pext-$flavorLower-pgo" }
-        $command = "cmake --preset release -B build/release-pext -DUSE_PEXT=ON -DPORTABLE_BUILD=ON -DTUNE=$tune -DDIAGNOSTIC=$diagnostic -DABLATION=$ablation -DPROFILE_SYMBOLS=$profileSymbols" +
+        $nameFlavor = if ($Flavor -eq 'Release') { "pext$gccSuffix-pgo" } else { "pext-$flavorLower$gccSuffix-pgo" }
+        $command = "cmake --preset release -B build/$buildDir -DCOMP=$comp -DUSE_PEXT=ON -DPORTABLE_BUILD=ON -DTUNE=$tune -DDIAGNOSTIC=$diagnostic -DABLATION=$ablation -DPROFILE_SYMBOLS=$profileSymbols" +
             $(if ($ArmOption) { " -D$ArmOption=$armState" } else { '' }) +
-            '; cmake --build build/release-pext --target pgo'
-        $outputs += , @("build/release-pext-pgo/basilisk$exeSuffix", $nameFlavor, 'pext',
-            "release (USE_PEXT=ON, PORTABLE_BUILD=ON, TUNE=$tune, DIAGNOSTIC=$diagnostic, ABLATION=$ablation, PROFILE_SYMBOLS=$profileSymbols, PGO=USE)",
+            "; cmake --build build/$buildDir --target pgo"
+        $outputs += , @("build/$buildDir$pgoDirSuffix/basilisk$exeSuffix", $nameFlavor, 'pext',
+            "release (COMP=$comp, USE_PEXT=ON, PORTABLE_BUILD=ON, TUNE=$tune, DIAGNOSTIC=$diagnostic, ABLATION=$ablation, PROFILE_SYMBOLS=$profileSymbols, PGO=USE)",
             $command)
     }
 

@@ -7,10 +7,11 @@ run-name: ${{ github.ref_type == 'tag' && github.ref_name || format('release can
 # the tag names the version both CMakeLists.txt and src/constants.h declare, the
 # tagged commit is on master or on that patch line, CHANGELOG.md has a dated
 # section for it, and GUIDE marks it released), builds the five PGO assets
-# read-only (x86-64 as the universal binary, its three tiers each a PGO build
+# read-only (x86-64 as the universal binary, its four tiers each a PGO build
 # with functions aligned to 64 bytes;
 # analysis/universal_binary_2026-10.md), benches every one and every x86
-# tier, checks the x86 tier selection under Intel SDE, asserts a single
+# tier, builds the universal binary with GCC as well (checked the same way,
+# never published), checks the x86 tier selection under Intel SDE, asserts a single
 # `bench 13` fingerprint
 # across the matrix equal to the one GUIDE declares, and only then one job
 # with write permission publishes the
@@ -122,6 +123,19 @@ jobs:
             asset_arch: x64
             built: build/universal/basilisk-universal
 
+          # GCC's universal binary, built and checked as the asset is but not
+          # published: GCC 14, the newest on ubuntu-24.04, and MINGW64's GCC.
+          - runner: ubuntu-24.04
+            os_name: linux
+            arch: x86_64
+            ext: ""
+            preset: universal
+            target: universal
+            compiler: gcc
+            asset_suffix: "-gcc"
+            asset_arch: x64
+            built: build/universal/basilisk-universal
+
           - runner: ubuntu-24.04-arm
             os_name: linux
             arch: aarch64
@@ -146,6 +160,20 @@ jobs:
             msystem: CLANG64
             mingw_pkg_prefix: mingw-w64-clang-x86_64
             compiler_pkg: clang
+
+          - runner: windows-2025
+            os_name: windows
+            arch: x86_64
+            ext: ".exe"
+            preset: universal
+            target: universal
+            compiler: gcc
+            asset_suffix: "-gcc"
+            asset_arch: x64
+            built: build/universal/basilisk-universal
+            msystem: MINGW64
+            mingw_pkg_prefix: mingw-w64-x86_64
+            compiler_pkg: gcc
 
           - runner: windows-11-arm
             os_name: windows
@@ -231,6 +259,16 @@ jobs:
           [ -x "$pd" ] || { echo "FAIL: clang companion llvm-profdata not found: $pd"; exit 1; }
           "$pd" --version
 
+      # GCC 14 under the names COMP=gcc and CMake's LTO tools look for: the
+      # image's plain gcc is 13, whose gcc-ar cannot read GCC 14's LTO objects.
+      - name: Select GCC 14 (Linux)
+        if: runner.os == 'Linux' && matrix.compiler == 'gcc'
+        run: |
+          for tool in gcc g++ gcc-ar gcc-nm gcc-ranlib; do
+            sudo ln -sf "/usr/bin/$tool-14" "/usr/local/bin/$tool"
+          done
+          g++ --version | head -n 1
+
       # The macOS compiler is the image's AppleClang, so its Xcode major is
       # pinned as the Windows clang major is: .github/xcode-version names it
       # and a cell on another fails, so an image update cannot change the
@@ -266,7 +304,7 @@ jobs:
       # major step is read for speed before it ships (agents/measurement.md).
       # Patch releases pass and are printed here.
       - name: Check the pinned Clang (Windows)
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && matrix.compiler == 'clang'
         shell: msys2 {0}
         run: |
           want="$(tr -d '[:space:]' < .github/windows-clang-version)"
@@ -374,7 +412,7 @@ jobs:
 
       # The universal contract: each tier's functions meet that tier's set,
       # everything shared (dispatcher, Fathom, runtime) the portable set, and
-      # the dispatcher reaches all three tiers through CPU detection.
+      # the dispatcher reaches all four tiers through CPU detection.
       - name: Verify x86 ISA contract on the release binary (Linux)
         if: matrix.arch == 'x86_64' && matrix.os_name != 'windows'
         shell: bash
@@ -382,7 +420,9 @@ jobs:
           # The static binary carries the C runtime; its own archives are
           # exempt, as a dynamic build would load them (verify_isa.py).
           runtime=()
-          for a in libc.a libm.a libgcc.a libgcc_eh.a; do runtime+=(--runtime-archive "$(clang++ -print-file-name=$a)"); done
+          for a in libc.a libm.a libgcc.a libgcc_eh.a; do
+            runtime+=(--runtime-archive "$(${{ matrix.compiler == 'gcc' && 'g++' || 'clang++' }} -print-file-name=$a)")
+          done
           objdump=$(command -v llvm-objdump || true)
           python=$(command -v python3 || command -v python || true)
           [ -n "$objdump" ] || { echo "FAIL: llvm-objdump not found"; exit 1; }
@@ -460,6 +500,7 @@ jobs:
           echo "$nodes" > "asset/${{ steps.asset.outputs.asset }}.nodes"
 
       - name: Upload the asset
+        if: matrix.compiler == 'clang'
         uses: actions/upload-artifact@v7
         with:
           name: asset-${{ matrix.os_name }}-${{ matrix.arch }}${{ matrix.asset_suffix }}

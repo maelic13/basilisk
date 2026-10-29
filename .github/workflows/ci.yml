@@ -36,7 +36,7 @@ jobs:
   # minutes.
   # ---- Release-mode OS/architecture/ISA matrix -------------------------------
   test:
-    name: test (${{ matrix.os_name }} ${{ matrix.arch }} ${{ matrix.tier }})
+    name: test (${{ matrix.os_name }} ${{ matrix.arch }} ${{ matrix.tier }}${{ matrix.compiler == 'gcc' && ' gcc' || '' }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
     strategy:
@@ -63,6 +63,32 @@ jobs:
             preset: release
             isa: -DUSE_PEXT=ON
             bench_id: linux-x86_64-pext
+          # GCC beside Clang on every x86 tier: the image's GCC (15) on
+          # Linux, MSYS2's MINGW64 GCC on Windows. Their fingerprints join
+          # the bench agreement.
+          - runner: ubuntu-26.04
+            os_name: linux
+            arch: x86_64
+            tier: portable
+            preset: release
+            compiler: gcc
+            bench_id: linux-x86_64-gcc
+          - runner: ubuntu-26.04
+            os_name: linux
+            arch: x86_64
+            tier: avx2
+            preset: release
+            isa: -DUSE_AVX2=ON
+            compiler: gcc
+            bench_id: linux-x86_64-avx2-gcc
+          - runner: ubuntu-26.04
+            os_name: linux
+            arch: x86_64
+            tier: pext
+            preset: release
+            isa: -DUSE_PEXT=ON
+            compiler: gcc
+            bench_id: linux-x86_64-pext-gcc
           - runner: ubuntu-26.04-arm
             os_name: linux
             arch: aarch64
@@ -95,6 +121,35 @@ jobs:
             bench_id: windows-x86_64-pext
             msystem: CLANG64
             mingw_pkg_prefix: mingw-w64-clang-x86_64
+          - runner: windows-2025
+            os_name: windows
+            arch: x86_64
+            tier: portable
+            preset: release
+            compiler: gcc
+            bench_id: windows-x86_64-gcc
+            msystem: MINGW64
+            mingw_pkg_prefix: mingw-w64-x86_64
+          - runner: windows-2025
+            os_name: windows
+            arch: x86_64
+            tier: avx2
+            preset: release
+            isa: -DUSE_AVX2=ON
+            compiler: gcc
+            bench_id: windows-x86_64-avx2-gcc
+            msystem: MINGW64
+            mingw_pkg_prefix: mingw-w64-x86_64
+          - runner: windows-2025
+            os_name: windows
+            arch: x86_64
+            tier: pext
+            preset: release
+            isa: -DUSE_PEXT=ON
+            compiler: gcc
+            bench_id: windows-x86_64-pext-gcc
+            msystem: MINGW64
+            mingw_pkg_prefix: mingw-w64-x86_64
           - runner: windows-11-arm
             os_name: windows
             arch: aarch64
@@ -156,6 +211,7 @@ jobs:
           cmake --version | head -n 1
           ninja --version
 
+      # A GCC cell installs MINGW64's GCC, and LLVM for llvm-objdump only.
       - name: Set up MSYS2 / Clang (Windows)
         timeout-minutes: 20
         if: runner.os == 'Windows'
@@ -164,7 +220,7 @@ jobs:
           msystem: ${{ matrix.msystem }}
           update: true
           install: >-
-            ${{ matrix.mingw_pkg_prefix }}-clang
+            ${{ matrix.mingw_pkg_prefix }}-${{ matrix.compiler == 'gcc' && 'gcc' || 'clang' }}
             ${{ matrix.mingw_pkg_prefix }}-llvm
             ${{ matrix.mingw_pkg_prefix }}-python
             ${{ matrix.mingw_pkg_prefix }}-cmake
@@ -175,7 +231,7 @@ jobs:
       # major step is read for speed before it ships (agents/measurement.md).
       # Patch releases pass and are printed here.
       - name: Check the pinned Clang (Windows)
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && matrix.compiler != 'gcc'
         shell: msys2 {0}
         run: |
           want="$(tr -d '[:space:]' < .github/windows-clang-version)"
@@ -207,7 +263,7 @@ jobs:
       # (none for the base tier) selects its committed tier.
       - name: Configure and build (Release, TUNE off)
         run: |
-          cmake --preset ${{ matrix.preset }} ${{ matrix.isa }} -DPORTABLE_BUILD=ON -DCOMP=clang \
+          cmake --preset ${{ matrix.preset }} ${{ matrix.isa }} -DPORTABLE_BUILD=ON -DCOMP=${{ matrix.compiler || 'clang' }} \
             -DTUNE=OFF -DDIAGNOSTIC=OFF -DABLATION=OFF -DTEXEL=OFF
           cmake --build --preset ${{ matrix.preset }} --target all
 
@@ -264,7 +320,7 @@ jobs:
 
       - name: Configure and build (Release, TUNE on)
         run: |
-          cmake --preset ${{ matrix.preset }} ${{ matrix.isa }} -DPORTABLE_BUILD=ON -DCOMP=clang \
+          cmake --preset ${{ matrix.preset }} ${{ matrix.isa }} -DPORTABLE_BUILD=ON -DCOMP=${{ matrix.compiler || 'clang' }} \
             -DTUNE=ON -DDIAGNOSTIC=OFF -DABLATION=OFF -DTEXEL=OFF
           cmake --build --preset ${{ matrix.preset }} --target basilisk test_uci_protocol
           ctest --test-dir build/${{ matrix.preset }} -R test_uci_protocol --output-on-failure --no-tests=error
