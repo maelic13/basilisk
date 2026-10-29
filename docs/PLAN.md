@@ -2326,7 +2326,9 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
        has them, for the shipped tiers. Only this Zen 3 can be read here:
        a CPU-specific choice (tuning) applies to local builds only, and the
        shipped tiers keep generic tuning unless other hardware is read.
-       BAS-P23 repeats BAS-P22 on the maintainer's Intel machine.
+       BAS-P23 repeated BAS-P22 on the maintainer's Intel laptop:
+       inconclusive (a host that never idles, intervals about ±2%),
+       native again no faster in both reads.
   - Rules: every candidate is behaviour-neutral (`bench 13` identical in
     every tier, the base build untouched), keeps the ISA contract and the
     universal binary's checks, and respects the slow-`pdep` rule (AMD
