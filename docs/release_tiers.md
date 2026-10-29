@@ -69,8 +69,9 @@ How it is built (the `universal` preset, target `universal`;
 
 Local builds and every measurement stay single-tier (`build_test.ps1` builds
 the pext tier with the release's portable codegen). The `release` preset
-compiles `-march=native`, with PEXT where the building CPU runs it fast,
-unless `PORTABLE_BUILD=ON` is given; `-march=native` and the universal binary
+builds the building CPU's tier with these same fixed flags; `NATIVE=ON`
+compiles `-march=native` instead, which read 1.0% slower than the pext tier
+on the 5950X (BAS-P22); `-march=native` and the universal binary
 contradict each other, so the universal builds require `PORTABLE_BUILD=ON`.
 The TUNE, DIAGNOSTIC, ABLATION and TEXEL flavours stay single-tier.
 

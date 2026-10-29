@@ -32,11 +32,15 @@ and next step).
   download, and its `pext` build is 8.5% faster than `base` (BAS-P20,
   BAS-P21).
 - **Three build presets.** `release` builds the fastest engine for the
-  computer that builds it: `-march=native`, with PEXT turned on where that
-  processor runs it fast (`-DUSE_PEXT=ON` or `OFF` overrides it); add
-  `--target pgo` for the profile-guided binary. `universal` builds the
-  release's Intel/AMD download and `debug` a sanitized debug build. The
-  `release-pext`, `release-avx2` and `relwithdebinfo` presets are gone.
+  computer that builds it: it checks the processor and builds the
+  download's build for it (with PEXT where that runs fast), which measured
+  1% faster than `-march=native` on a Ryzen 9 5950X; `-DNATIVE=ON` builds
+  with `-march=native` instead. Add `--target pgo` for the profile-guided
+  binary. `universal` builds the release's Intel/AMD download and `debug` a
+  sanitized debug build. The `release-pext`, `release-avx2` and
+  `relwithdebinfo` presets are gone.
+- **MSVC is no longer supported.** It built an engine 14% slower than Clang
+  on the same instructions; build with Clang (the fastest) or GCC.
 - A build compiled for one instruction set (with `-DUSE_AVX2` or
   `-DUSE_PEXT` and `-DPORTABLE_BUILD=ON`) started on a CPU without its instructions now says
   so on standard output as well (`info string`), where a GUI records it, and

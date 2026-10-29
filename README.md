@@ -132,7 +132,7 @@ Build it to develop or test the engine, or for a system without a download.
 | You need | |
 | --- | --- |
 | Build tools | CMake 3.24 or newer, and Ninja |
-| Compiler | Clang 19+ with libstdc++, Clang 16+ with libc++, or GCC 14+ |
+| Compiler | Clang 19+ with libstdc++, Clang 16+ with libc++, or GCC 14+. Clang builds the fastest engine (GCC about 3% slower); MSVC is not supported. |
 
 ### The fastest engine for your computer
 
@@ -141,11 +141,12 @@ cmake --preset release
 cmake --build --preset release --target pgo
 ```
 
-This builds Basilisk for the processor of the computer that builds it
-(`-march=native`), uses PEXT when that processor runs it fast (Intel Haswell
-and newer, AMD Zen 3 and newer), and optimizes it with a profile of the
-`bench` suite (PGO). The binary lands in `build/dist`. It may not start on
-another computer.
+This checks the processor of the computer that builds it, builds the one
+of the download's four builds that runs fastest there (`pext` on Intel
+Haswell and newer and AMD Zen 3 and newer), and optimizes it with a profile
+of the `bench` suite (PGO). It is the same code the download runs on your
+processor, in a single smaller file. The binary lands in `build/dist`; it may
+not start on an older processor.
 
 ### Other builds
 
@@ -162,12 +163,12 @@ Add them to the first command, for example `cmake --preset release -DCOMP=gcc`.
 | Option | Effect |
 | --- | --- |
 | `-DCOMP=clang`, `gcc` or `llvm` | Chooses the compiler. The default is Clang on Linux and Windows, AppleClang on macOS. Remove the build directory before switching. |
-| `-DUSE_PEXT=ON` or `OFF` | Overrides the PEXT choice `release` makes for this computer. |
+| `-DNATIVE=ON` | Builds with `-march=native` instead. It measured 1% slower on a Ryzen 9 5950X; it may be faster on another processor, so compare with `bench`. |
 | `-DSTATIC_RUNTIME=OFF` | Windows: links the C++ runtime dynamically. By default it is static, so `basilisk.exe` needs no MSYS2 DLLs. |
 
 | System | Notes |
 | --- | --- |
-| Windows | Build in an MSYS2 Clang shell, or add `D:\msys64\clang64\bin` to `PATH`. For MSVC, from an x64 Native Tools prompt: `cmake --preset msvc-release-pext`, then `cmake --build --preset msvc-release-pext --target pgo` (binary in `build/dist`). |
+| Windows | Build in an MSYS2 Clang shell, or add `D:\msys64\clang64\bin` to `PATH`. |
 | macOS | `brew install cmake ninja`; add `brew install llvm` to try `-DCOMP=llvm`. Apple silicon only. |
 
 ### The universal binary

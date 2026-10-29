@@ -1887,7 +1887,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         pinning asserts are gone. `bench 13` 19,470,325 on the release,
         tune, diagnostic and ablation builds; CTest 24/24 release, 22/22
         diagnostic and tune.
-- [ ] **A.15** Universal binaries and the release runners
+- [x] **A.15** Universal binaries and the release runners
   Added 2026-10-27 at the maintainer's request
   (`analysis/code_audit_2026-10-27.md` §4). Stockfish 19 (2026-09-05)
   ships one fat binary per OS and architecture — every ISA level a full
@@ -2128,7 +2128,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         binary: `sse41-popcnt` +5.6% over `base` (`avx2` +6.0%, `pext`
         +9.2%). Size 4.2 MB on Windows, 5.8 MB on Linux. The SDE job and
         the release workflow are proved by the PR's candidate run.
-    - [ ] **A.15.8** `[I1]` Three presets: release, universal, debug
+    - [x] **A.15.8** `[I1]` Three presets: release, universal, debug
       Added 2026-10-29 at the maintainer's request. Nobody building for their
       own machine should pick a tier: `release` builds with `-march=native`
       and turns PEXT on where the building CPU runs it fast, by the
@@ -2171,6 +2171,18 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
            as fast.
         The recommendation is 1: it is what this read measured fastest, and
         option 2's question can still be read later as a contrast.
+      - Closed 2026-10-29 with the maintainer's choices: option 1, and MSVC
+        dropped. `release` probes the CPU and builds its tier with the
+        release's fixed flags (`-march=native` only with `-DNATIVE=ON`); a
+        named tier or an explicit `PORTABLE_BUILD`, as CI, `build_test.ps1`
+        and the universal build pass, skips the probe. MSVC's preset,
+        `-DCOMP=msvc` (now refused), its flags and PGO branches and
+        `build_test.ps1 -Msvc` are gone; the sources keep their small
+        `_MSC_VER` guards (CPUID, prefetch). Verified: a plain `release`
+        PGO build detects `pext`, compiles the pext tier's flags with no
+        `-march=native` and benches 19,470,325; `build_test.ps1` Release,
+        `-Native` and `-Universal` build and bench exact; CTest 24/24. A.17
+        candidate 5 owns why native is slower.
 - [ ] **A.16** `[I1]` Zero-weight evaluation terms off the hot path
   Added 2026-10-28 (simplification read of the kernel and the evaluator
   against the donor, after A.14.1; the lines are cited here). Terms whose
@@ -3292,7 +3304,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.15.8 | RESEARCH | I1 | Native read 1.0% slower than the pext tier (BAS-P22, twice): choose release's code generation; MSVC drop pending |
 | A.16 | READY_FOR_IMPLEMENTATION | I1 | Zero-weight evaluation compute deleted; exact fingerprint, kept on a pooled NPS read |
 | A.17 | RESEARCH | R2 | Survey instruction-specific speed (compressed PEXT tables, PEXT/PDEP and AVX2 in the evaluation); each kept candidate a registered NPS read |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |

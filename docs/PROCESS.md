@@ -370,12 +370,13 @@ so a registered `[0,3]` gate passes `-Elo1 3`**. `-Mode simplify` is `[-5,0]`.
 
 ## Build, bench and NPS
 
-- Presets: `release`, `universal`, `debug` and `msvc-release-pext`.
-  `release` builds for this machine (`-march=native`) and turns PEXT on when
-  this CPU runs it fast, the universal binary's rule; `-DUSE_PEXT`,
-  `-DUSE_AVX2` or `-DUSE_SSE41_POPCNT` with `-DPORTABLE_BUILD=ON` builds one
-  tier for other machines, as `build_test.ps1`, CI and the universal build
-  do. PGO: `cmake --build --preset release --target pgo`, which trains on the
+- Presets: `release`, `universal` and `debug`; Clang and GCC (MSVC was
+  dropped after BAS-P22 read it 14% behind Clang). `release` probes this CPU
+  and builds its tier with the release's fixed flags, the universal binary's
+  rule; `-DNATIVE=ON` builds with `-march=native` instead (1.0% slower on the
+  5950X, BAS-P22). `-DUSE_PEXT`, `-DUSE_AVX2` or `-DUSE_SSE41_POPCNT` with
+  `-DPORTABLE_BUILD=ON` names a tier and skips the probe, as `build_test.ps1`,
+  CI and the universal build do. PGO: `cmake --build --preset release --target pgo`, which trains on the
   bench suite and writes to `build/dist/`. The x86-64 release asset is the
   universal binary (`cmake --build --preset universal --target universal`:
   four tiers' PGO builds, functions aligned to 64 bytes, behind a baseline
