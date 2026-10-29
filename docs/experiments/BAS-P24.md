@@ -102,3 +102,14 @@
   +0.04% against −0.1% [−0.6%, +0.4%], inside their intervals; `gcchot`
   −0.81% is outside its interval of −0.2% [−1.0%, +0.6%] on a disturbed
   arm, so not yet a calibration point.
+
+#### Registration amendment 2 — 2026-10-29, after the second read, before the third
+
+- **A third read of `gcchot` alone, at the maintainer's request.** The
+  maintainer closed every application for a quieter host. Only the two GCC
+  pools are read (`a159-gasm`, `a159-gpext`), the one contrast `gcchot` as
+  registered, step 1 and step 2 on EXTEND, into
+  `tools/results/a159-nps/p24-gcc/`. `route` and `hot` keep their verdicts
+  from the second read.
+- **Decision:** as registered; a REPEAT here stops for the maintainer with
+  no further read.
