@@ -48,13 +48,13 @@ class Arm64Tests(unittest.TestCase):
 
 
 # What each region of a clean universal image holds: the pext tier its five
-# signature families, the avx2 tier popcnt and AVX2, the portable tier and the
+# signature families, the avx2 tier popcnt and AVX2, the base tier and the
 # shared code only baseline instructions.
 TIER_CODE = {
     "pext": ["popcntq %rdi, %rax", "pextq %rsi, %rdi, %rax", "blsrq %rdi, %rax", "lzcntq %rdi, %rax",
              "vpermq $0x1, %ymm0, %ymm1"],
     "avx2": ["popcntq %rdi, %rax", "vpermq $0x1, %ymm0, %ymm1"],
-    "portable": ["movq %rdi, %rax"],
+    "base": ["movq %rdi, %rax"],
 }
 
 
@@ -99,8 +99,8 @@ class UniversalTests(unittest.TestCase):
     def test_a_planted_instruction_fails_in_its_region(self):
         for region, instruction, family in [("shared", "popcntq %rdi, %rax", "popcnt"),
                                             ("shared", "pextq %rsi, %rdi, %rax", "bmi2"),
-                                            ("portable", "popcntq %rdi, %rax", "popcnt"),
-                                            ("portable", "andnq %rsi, %rdi, %rax", "bmi1"),
+                                            ("base", "popcntq %rdi, %rax", "popcnt"),
+                                            ("base", "andnq %rsi, %rdi, %rax", "bmi1"),
                                             ("avx2", "andnq %rsi, %rdi, %rax", "bmi1"),
                                             ("avx2", "pextq %rsi, %rdi, %rax", "bmi2")]:
             errors = self.errors(universal_image(plant=(region, instruction)))

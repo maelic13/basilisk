@@ -195,11 +195,11 @@ the processor supports. The binary lands in `build/dist`.
 | --- | --- | --- |
 | `pext` | Intel Haswell (2013) and newer, AMD Zen 3 (2020) and newer | Fastest |
 | `avx2` | AMD Zen 1 and Zen 2, and other AVX2 processors | About 3% slower |
-| `portable` | Any other 64-bit Intel or AMD processor | About 8% slower |
+| `base` | Any other 64-bit Intel or AMD processor | About 8% slower |
 
 The first line Basilisk prints names the build it chose. To run one build on
 purpose, for testing, set the environment variable `BASILISK_ISA` to
-`portable`, `avx2` or `pext`; a build the processor cannot run is refused. How
+`base`, `avx2` or `pext`; a build the processor cannot run is refused. How
 the binary is built and checked: [`docs/release_tiers.md`](docs/release_tiers.md).
 
 ### Tests

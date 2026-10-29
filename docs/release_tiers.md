@@ -33,14 +33,16 @@ one at start-up:
 |---|---|---|---|
 | `pext` | `-mavx2 -msse4.1 -mpopcnt -mbmi -mbmi2 -mlzcnt`, `USE_PEXT` | SSE4.1, POPCNT, AVX2 (with OS YMM state), BMI1, BMI2, LZCNT, and is not AMD family 15h or 17h | `PEXT` sliding attacks. |
 | `avx2` | `-mavx2 -msse4.1 -mpopcnt` | SSE4.1, POPCNT, AVX2 | Also chosen on AMD Excavator and Zen 1/2, whose `PEXT` is microcoded. |
-| `portable` | none (x86-64 baseline) | anything else | Software `popcount`. |
+| `base` | none (x86-64 baseline) | anything else | Software `popcount`. |
 
 - The start-up line names the tier: `Basilisk <version> by <author> (pext)`.
   `id name` does not change.
-- `BASILISK_ISA=portable|avx2|pext` forces a tier. A tier the CPU cannot run is
+- `BASILISK_ISA=base|avx2|pext` forces a tier. A tier the CPU cannot run is
   refused on stdout (`info string`) and stderr with exit status 1; a forced
   tier slower than the CPU's best is run with an `info string` saying so.
-- There is no SSE4.1-POPCNT tier: Nehalem to Ivy Bridge run `portable`.
+- There is no SSE4.1-POPCNT tier: Nehalem to Ivy Bridge run `base`.
+- The base tier was named `portable` until 2026-10-29; the single-tier
+  check keeps that name for the baseline contract (`--tier portable`).
 
 How it is built (the `universal` preset, target `universal`;
 `cmake/universal-tiers.cmake`):
@@ -75,7 +77,7 @@ The TUNE, DIAGNOSTIC, ABLATION and TEXEL flavours stay single-tier.
 `tools/diag/verify_isa.py --tier universal` checks the published image. Every
 function names its tier, so it is attributed by its label:
 
-- the portable tier and everything shared (dispatcher, Fathom, the runtime)
+- the base tier and everything shared (dispatcher, Fathom, the runtime)
   contain nothing above the floor: no SSSE3, SSE4.1, SSE4.2, AVX, BMI1, BMI2,
   LZCNT or POPCNT;
 - the avx2 tier contains `popcnt` and AVX2, and no BMI1, BMI2 or LZCNT;
@@ -94,7 +96,7 @@ C runtime's archives are exempt, as a dynamic build would load them.
 
 The release also benches every forced tier on its runner, and an Intel SDE job
 (`tools/diag/check_universal.py`) checks that Pentium 4 and Nehalem (Linux),
-Sandy Bridge and Ivy Bridge start `portable`, Haswell, Skylake, Ice Lake and
+Sandy Bridge and Ivy Bridge start `base`, Haswell, Skylake, Ice Lake and
 Alder Lake start `pext`, each reproducing the fingerprint, and that forcing
 `pext` on Sandy Bridge is refused. SDE cannot emulate AMD, so the slow-`PEXT`
 rule is the unit truth table's (`tests/test_cpu_features.cpp`).
@@ -135,11 +137,11 @@ builds):
 
   | Hop | NPS | 95% interval |
   |---|---:|---|
-  | `avx2` over `portable` | +5.04% | [+4.45%, +5.63%] |
+  | `avx2` over `base` | +5.04% | [+4.45%, +5.63%] |
   | `pext` over `avx2` | +2.82% | [+2.31%, +3.34%] |
-  | `pext` over `portable` | +8.49% | [+7.83%, +9.15%] |
+  | `pext` over `base` | +8.49% | [+7.83%, +9.15%] |
 
-  At about 2 Elo per 1% NPS (BAS-P01), running `portable` on a `pext` CPU
+  At about 2 Elo per 1% NPS (BAS-P01), running `base` on a `pext` CPU
   would give up about 17 Elo; the dispatcher's choice avoids it.
 
 Per-tier NPS is measured locally and is not published as a per-asset file.

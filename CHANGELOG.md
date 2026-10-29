@@ -21,13 +21,13 @@ and next step).
   `-avx2` and `-pext` ones. It holds three builds of the engine and starts
   the fastest one the processor runs: `pext` on Intel Haswell and newer and
   AMD Zen 3 and newer, `avx2` on AMD Zen 1 and Zen 2 (whose `PEXT` is slow)
-  and other AVX2 processors, and `portable` on anything older, so there is
+  and other AVX2 processors, and `base` on anything older, so there is
   nothing to choose. The first line it prints names the one it chose, and
-  the environment variable `BASILISK_ISA` (`portable`, `avx2` or `pext`)
+  the environment variable `BASILISK_ISA` (`base`, `avx2` or `pext`)
   forces one. A release has five downloads instead of nine.
   Every build plays identically (`bench 13` 19,470,325 in each). Measured on
   a Ryzen 9 5950X, the executable runs as fast as the former `-pext`
-  download, and its `pext` build is 8.5% faster than `portable` (BAS-P20,
+  download, and its `pext` build is 8.5% faster than `base` (BAS-P20,
   BAS-P21).
 - A build compiled for one instruction set (the `release-avx2` and
   `release-pext` presets) started on a CPU without its instructions now says

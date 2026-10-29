@@ -235,9 +235,9 @@ def verify_binary(tier: str, counts: Counter[str]) -> tuple[dict[str, int], list
 # A universal binary's tiers: every symbol a tier defines carries its name
 # (cmake/universal-tiers.cmake), so each function is attributed by its label.
 # Everything else (the dispatcher, Fathom, the runtime) is shared and runs on
-# every CPU, so it meets the portable contract.
-UNIVERSAL_TIERS = ("portable", "avx2", "pext")
-TIER_SYMBOL = re.compile(r"__basilisk_(portable|avx2|pext)_|_ZN\d+basilisk_(portable|avx2|pext)10run_engine")
+# every CPU, so it meets the portable contract, as the base tier does.
+UNIVERSAL_TIERS = ("base", "avx2", "pext")
+TIER_SYMBOL = re.compile(r"__basilisk_(base|avx2|pext)_|_ZN\d+basilisk_(base|avx2|pext)10run_engine")
 
 
 def symbol_region(symbol: str) -> str:
@@ -300,7 +300,7 @@ def verify_universal(text: str, exempt: frozenset[str]) -> list[str]:
         region = symbol_region(symbol)
         regions[region][mnemonic] += 1
         family = above_baseline(mnemonic)
-        if family and (region in ("shared", "portable")
+        if family and (region in ("shared", "base")
                        or (region == "avx2" and family in AVX2_FORBIDDEN)):
             offenders[f"{region} <{symbol or '?'}> {family}"] += 1
     errors: list[str] = []
@@ -308,7 +308,7 @@ def verify_universal(text: str, exempt: frozenset[str]) -> list[str]:
         if not counts:
             errors.append(f"universal binary holds no {region} code")
             continue
-        observed, region_errors = verify_binary("portable" if region == "shared" else region, counts)
+        observed, region_errors = verify_binary("portable" if region in ("shared", "base") else region, counts)
         errors.extend(f"{region}: {error}" for error in region_errors)
         print(f"{region}: " + " ".join(f"{name}={count}" for name, count in observed.items()))
     for entry, count in offenders.most_common(20):

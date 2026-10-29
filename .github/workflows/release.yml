@@ -408,7 +408,7 @@ jobs:
           binary="${{ steps.asset.outputs.path }}"
           expected='${{ needs.prepare.outputs.expected_nodes }}'
           echo "selected here: $(printf 'quit\n' | "./$binary" 2>&1 | head -n 1)"
-          for isa in portable avx2 pext; do
+          for isa in base avx2 pext; do
             out=$(printf "bench 13\nquit\n" | BASILISK_ISA=$isa "./$binary" 2>&1 || true)
             nodes=$(echo "$out" | grep -oE "Nodes searched *: *[0-9]+" | grep -oE "[0-9]+$" || true)
             echo "$isa: ${nodes:-none} nodes"

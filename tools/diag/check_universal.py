@@ -7,7 +7,7 @@ CPU cannot run must be refused. Stockfish's scripts/check_universal.sh is the
 model; the CPU list is Basilisk's three tiers:
 
 - Pentium 4 Prescott and Nehalem (Linux only; Windows 11 refuses them under
-  SDE), Sandy Bridge and Ivy Bridge: portable. They lack AVX2, and Basilisk has
+  SDE), Sandy Bridge and Ivy Bridge: base. They lack AVX2, and Basilisk has
   no SSE4.1-POPCNT tier.
 - Haswell, Skylake, Ice Lake and Alder Lake: pext.
 
@@ -27,15 +27,15 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 SELECTION = [
-    ("snb", "portable"),
-    ("ivb", "portable"),
+    ("snb", "base"),
+    ("ivb", "base"),
     ("hsw", "pext"),
     ("skl", "pext"),
     ("icl", "pext"),
     ("adl", "pext"),
 ]
-LINUX_ONLY = [("p4p", "portable"), ("nhm", "portable")]
-BANNER = re.compile(r"^Basilisk .* \((portable|avx2|pext)\)\s*$", re.MULTILINE)
+LINUX_ONLY = [("p4p", "base"), ("nhm", "base")]
+BANNER = re.compile(r"^Basilisk .* \((base|avx2|pext)\)\s*$", re.MULTILINE)
 NODES = re.compile(r"Nodes searched\s*:\s*(\d+)")
 
 
