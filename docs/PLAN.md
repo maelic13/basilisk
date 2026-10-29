@@ -2071,6 +2071,13 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       - BAS-P21 registration amendment 1 (2026-10-29, before exposure): the
         three reads run as one read of the three pools with the same three
         contrasts and rules, about 9 minutes at step 1 instead of about 30.
+      - BAS-P21 result (2026-10-29): the universal binary PASSES against
+        the pext asset (+0.00% at step 1; −0.29% [−0.73, +0.16] at six
+        cycles); the relink alone reads −0.13% and the alignment alone
+        −0.16%, both NO_CHANGE, so placement was BAS-P20's whole loss. By
+        the registered rule the release takes the universal cells back
+        from `c81e220`, with the alignment; that restoration is what is
+        left of this leaf.
 - [ ] **A.16** `[I1]` Zero-weight evaluation terms off the hot path
   Added 2026-10-28 (simplification read of the kernel and the evaluator
   against the donor, after A.14.1; the lines are cited here). Terms whose
@@ -3133,7 +3140,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.15.6 | READY_FOR_IMPLEMENTATION | R2 | 64-byte-aligned tiers built; BAS-P21's one three-pool read waits for an idle host |
+| A.15.6 | READY_FOR_IMPLEMENTATION | R2 | BAS-P21 PASS; restore A.15.5's universal release cells from `c81e220`, with the alignment |
 | A.16 | READY_FOR_IMPLEMENTATION | I1 | Zero-weight evaluation compute deleted; exact fingerprint, kept on a pooled NPS read |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |
 | B.4 | RESEARCH | I2 | Contents fixed by B.0 |

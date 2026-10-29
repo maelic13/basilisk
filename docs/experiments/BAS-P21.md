@@ -95,3 +95,32 @@
   unchanged.
 
 #### RESULT — append after exposure
+
+- **Result (agent-run 2026-10-29, 10:23-10:48 UTC, one three-pool read
+  under amendment 1, revision `c4ea96a`, pools built at `1cd784b`; every
+  cycle undisturbed, host 0.6-1.2%; `tools/results/a156-nps/p21/`).**
+
+  | Contrast | Step 1 (2 cycles) | Six cycles | Verdict |
+  |---|---|---|---|
+  | `hot`, universal against the pext asset | +0.00% [−0.70%, +0.70%] | −0.29% [−0.73%, +0.16%] | **PASS** (step 1) |
+  | `place`, universal against its tier build | −0.14% [−0.65%, +0.37%] | −0.13% [−0.51%, +0.26%] | NO_CHANGE (step 1) |
+  | `align`, aligned tier build against the pext asset | +0.14% [−0.54%, +0.82%], EXTEND | −0.16% [−0.56%, +0.24%] | NO_CHANGE (step 2) |
+
+  The read extended for `align`; `hot` and `place` keep their step-1
+  verdicts. At six cycles `hot` would also pass step 2's rule (a fail needs
+  −0.5% or below with the upper bound under 0).
+- **Decision (the registered rule).** `hot` passed, so the universal binary
+  is released: A.15.5's universal cells come back from `c81e220`, with the
+  64-byte alignment.
+- **Calibration.** All three inside their 80% intervals: `place` −0.13%
+  against 0.0% [−0.3, +0.3], `align` −0.16% against −0.2% [−1.0, +0.6],
+  `hot` −0.29% (six cycles) against −0.2% [−1.0, +0.6]. The falsifier,
+  `place` outside ±0.5%, did not fire: with every function on a cache line
+  the relink costs nothing measurable, so placement was the whole of
+  BAS-P20's loss. What is left of `hot` is the alignment's own cost, about
+  the sum of `place` and `align`.
+- **Observation, not a test.** Over cycles 3 to 6 both aligned arms fell
+  about 0.5% from their step-1 level while the pext asset held; each
+  stayed within the 1% disturbance band. It is the reason the six-cycle
+  `hot` reads −0.29% where step 1 read zero, and it is worth watching in
+  the next read that has an aligned arm.

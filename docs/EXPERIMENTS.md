@@ -598,7 +598,7 @@ not accept any new feature, vector or label policy by themselves.
 | [BAS-P18](experiments/BAS-P18.md) | The pooled-build NPS read's null: two independent pools of the head. | COMPLETE: −0.19% [−0.66, +0.27], NO_CHANGE; instrument validated |
 | [BAS-P19](experiments/BAS-P19.md) | MSYS2 clang 22.1.8 to 23.1.3 at identical source, a no-regression NPS read. | COMPLETE: +0.89% [+0.23, +1.54], no regression |
 | [BAS-P20](experiments/BAS-P20.md) | The universal x86-64 binary against the pext asset, and the ISA tier ladder. | COMPLETE: universal −0.58% [−0.82, −0.33], FAIL (per-tier assets stay); ladder avx2 +5.04%, pext +2.82%, pext/portable +8.49% |
-| [BAS-P21](experiments/BAS-P21.md) | The universal x86-64 binary with 64-byte function alignment, against the pext asset. | REGISTERED |
+| [BAS-P21](experiments/BAS-P21.md) | The universal x86-64 binary with 64-byte function alignment, against the pext asset. | COMPLETE: universal +0.00% at step 1, PASS (−0.29% [−0.73, +0.16] at six cycles); relink −0.13%, alignment −0.16%, both NO_CHANGE |
 
 ## 7. Correctness and protocol lessons
 
