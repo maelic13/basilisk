@@ -20,16 +20,18 @@ extern "C" {
 
 namespace {
 
-// The mutex and the path are function-local statics: a universal binary's
-// tier object carries no dynamic initialiser, which would run, in every tier,
-// before the dispatcher has chosen one. The atomics are constant-initialised.
+// The mutex and the path are made on first use and never destroyed: a
+// universal binary's tier object carries no dynamic initialiser, which would
+// run, in every tier, before the dispatcher has chosen one, and a static
+// object's destructor may still call clear() at exit, after a destroyed
+// function-local static would be gone. The atomics are constant-initialised.
 std::mutex& init_mutex() {
-    static std::mutex mutex;
+    static std::mutex& mutex = *new std::mutex;
     return mutex;
 }
 
 std::string& tb_path() {
-    static std::string path;
+    static std::string& path = *new std::string;
     return path;
 }
 
