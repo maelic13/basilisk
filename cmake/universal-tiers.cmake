@@ -72,29 +72,30 @@ endfunction()
 _ut_source_id(_source_id)
 message(STATUS "Universal tiers: source ${_source_id}, ${UT_CXX_COMPILER} ${UT_CXX_COMPILER_VERSION}")
 
+# Each tier is the release preset with its instruction-set option.
 set(_tiers base sse41_popcnt avx2 pext)
-set(_preset_base release)
-set(_preset_sse41_popcnt release-sse41-popcnt)
-set(_preset_avx2 release-avx2)
-set(_preset_pext release-pext)
+set(_isa_base -DUSE_PEXT=OFF -DUSE_AVX2=OFF -DUSE_SSE41_POPCNT=OFF)
+set(_isa_sse41_popcnt -DUSE_PEXT=OFF -DUSE_AVX2=OFF -DUSE_SSE41_POPCNT=ON)
+set(_isa_avx2 -DUSE_PEXT=OFF -DUSE_AVX2=ON -DUSE_SSE41_POPCNT=OFF)
+set(_isa_pext -DUSE_PEXT=ON -DUSE_AVX2=OFF -DUSE_SSE41_POPCNT=OFF)
 
 file(REMOVE_RECURSE "${UT_TIERS_DIR}")
 file(MAKE_DIRECTORY "${UT_TIERS_DIR}")
 set(_rsp_lines "")
 
 foreach(_tier IN LISTS _tiers)
-    set(_preset "${_preset_${_tier}}")
     set(_dir "${UT_SOURCE_DIR}/build/${UT_NAME}-${_tier}")
     set(_use_dir "${_dir}-pgo")
-    message(STATUS "Universal tier ${_tier}: ${_preset} PGO in ${_dir}")
+    message(STATUS "Universal tier ${_tier}: release ${_isa_${_tier}} PGO in ${_dir}")
     file(REMOVE_RECURSE "${_dir}")
     execute_process(
-        COMMAND "${CMAKE_COMMAND}" --preset "${_preset}" -B "${_dir}"
+        COMMAND "${CMAKE_COMMAND}" --preset release -B "${_dir}"
+                ${_isa_${_tier}}
                 -DCOMP=${UT_COMP}
                 -DPORTABLE_BUILD=ON
                 -DSTATIC_RUNTIME=${UT_STATIC_RUNTIME}
                 -DBASILISK_UNIVERSAL_TIER=ON
-                -DBASILISK_PGO_PRESET=${_preset}
+                -DBASILISK_PGO_PRESET=release
                 -DBASILISK_DEV_ID=${UT_DEV_ID}
                 -DBASILISK_ALIGN_FUNCTIONS=${UT_ALIGN_FUNCTIONS}
         WORKING_DIRECTORY "${UT_SOURCE_DIR}"

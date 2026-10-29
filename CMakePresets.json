@@ -16,20 +16,10 @@
     {
       "name": "release",
       "displayName": "Release",
-      "description": "Optimised build: -O3 -march=native + LTO. Requires GCC or Clang.",
+      "description": "Fastest build for this computer: -O3 -march=native + LTO, with PEXT when this CPU runs it fast. Add --target pgo to the build for the profile-guided binary.",
       "inherits": "base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"
-      }
-    },
-    {
-      "name": "release-pext",
-      "displayName": "Release + PEXT",
-      "description": "Like release, plus BMI2 PEXT sliding-piece attacks (Haswell+ / Zen 3+).",
-      "inherits": "base",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
-        "USE_PEXT": "ON"
       }
     },
     {
@@ -42,26 +32,6 @@
         "BASILISK_MSVC_FAVOR_INTEL": "ON",
         "COMP": "msvc",
         "USE_PEXT": "ON"
-      }
-    },
-    {
-      "name": "release-avx2",
-      "displayName": "Release + AVX2",
-      "description": "Like release, plus AVX2 code generation for Haswell+ / Zen+ x86-64 CPUs.",
-      "inherits": "base",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
-        "USE_AVX2": "ON"
-      }
-    },
-    {
-      "name": "release-sse41-popcnt",
-      "displayName": "Release + SSE4.1/POPCNT",
-      "description": "Like release, for x86-64 CPUs with SSE4.1 and POPCNT (Nehalem+ / AMD Bulldozer+); the universal binary's second tier.",
-      "inherits": "base",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
-        "USE_SSE41_POPCNT": "ON"
       }
     },
     {
@@ -85,26 +55,13 @@
         "CMAKE_BUILD_TYPE": "Debug",
         "SANITIZE": "ON"
       }
-    },
-    {
-      "name": "relwithdebinfo",
-      "displayName": "Release with Debug Info",
-      "description": "Optimised build with debug symbols, no sanitizers.",
-      "inherits": "base",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
-      }
     }
   ],
 
   "buildPresets": [
     { "name": "release",        "configurePreset": "release" },
-    { "name": "release-pext",   "configurePreset": "release-pext" },
     { "name": "msvc-release-pext", "configurePreset": "msvc-release-pext" },
-    { "name": "release-avx2",   "configurePreset": "release-avx2" },
-    { "name": "release-sse41-popcnt", "configurePreset": "release-sse41-popcnt" },
     { "name": "universal",      "configurePreset": "universal" },
-    { "name": "debug",          "configurePreset": "debug" },
-    { "name": "relwithdebinfo", "configurePreset": "relwithdebinfo" }
+    { "name": "debug",          "configurePreset": "debug" }
   ]
 }

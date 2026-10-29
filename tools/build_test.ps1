@@ -3,7 +3,9 @@
     Build and manifest a final-PGO PEXT test binary.
 
 .DESCRIPTION
-    Builds one explicit flavor from a fresh release-pext configuration:
+    Builds one explicit flavor from a fresh configuration of the release
+    preset with the release's PEXT tier (USE_PEXT, PORTABLE_BUILD), in
+    build/release-pext:
 
       Release  production UCI surface, for strength and release-equivalent arms
       Tune     tunable search/eval options, for SPSA and parameter probes
@@ -22,6 +24,14 @@
     was linked from (<suffix>-base-pgo, -sse41_popcnt-pgo, -avx2-pgo, -pext-pgo), each the
     ordinary PGO build of its tier.
 
+    -Native builds the release preset as a user would on this machine
+    (-march=native, PEXT as the configure step detects it; Release only), in
+    build/release-native, staged as <suffix>-native-pgo.
+
+    -Msvc builds the msvc-release-pext preset (MSVC, PEXT, MSVC's own PGO;
+    Release only), in build/msvc-release-pext, staged as <suffix>-msvc-pgo.
+    It needs the Visual Studio x64 environment (vcvars64.bat) on this shell.
+
     Every output is copied to tools/test_engines with a hash-bound manifest.
     Bench and UCI-surface verification execute the copied binary and check the
     process exit code directly.
@@ -29,6 +39,7 @@
 .EXAMPLE
     ./tools/build_test.ps1 -Suffix a1110-fix -Flavor Release
     ./tools/build_test.ps1 -Suffix a15-u1 -Flavor Release -Universal
+    ./tools/build_test.ps1 -Suffix a158-n1 -Flavor Release -Native
     ./tools/build_test.ps1 -Suffix c3-off -Flavor Release -ArmOption C3_EVAL -Arm Off
     ./tools/build_test.ps1 -Suffix c3-on  -Flavor Release -ArmOption C3_EVAL -Arm On
 #>
@@ -39,6 +50,8 @@ param(
     [ValidateSet('', 'On', 'Off')][string]$Arm = '',
     [ValidateRange(1, 128)][int]$BenchDepth = 13,
     [switch]$Universal,
+    [switch]$Native,
+    [switch]$Msvc,
     [string]$TestEnginesDir = "$PSScriptRoot\test_engines"
 )
 
@@ -54,8 +67,12 @@ if ($ArmOption -and $ArmOption -notmatch '^[A-Za-z_][A-Za-z0-9_]*$') {
 if ($Suffix -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]*$') {
     throw '-Suffix must use only letters, digits, dot, underscore, and hyphen.'
 }
-if ($Universal -and ($Flavor -ne 'Release' -or $ArmOption)) {
-    throw '-Universal builds the Release flavor without an umbrella arm.'
+if (($Universal -or $Native -or $Msvc) -and ($Flavor -ne 'Release' -or $ArmOption)) {
+    throw '-Universal, -Native and -Msvc build the Release flavor without an umbrella arm.'
+}
+if (@($Universal, $Native, $Msvc | Where-Object { $_ }).Count -gt 1) { throw '-Universal, -Native and -Msvc are separate builds.' }
+if ($Msvc -and -not (Get-Command cl.exe -ErrorAction SilentlyContinue)) {
+    throw '-Msvc needs the Visual Studio x64 environment: run vcvars64.bat in this shell first.'
 }
 
 function Invoke-CapturedProcess {
@@ -128,17 +145,23 @@ $isWindowsHost = [Runtime.InteropServices.RuntimeInformation]::IsOSPlatform(
     [Runtime.InteropServices.OSPlatform]::Windows)
 $exeSuffix = if ($isWindowsHost) { '.exe' } else { '' }
 
-$preset = if ($Universal) { 'universal' } else { 'release-pext' }
+$buildDir = if ($Universal) { 'universal' } elseif ($Native) { 'release-native' } elseif ($Msvc) { 'msvc-release-pext' } else { 'release-pext' }
 Push-Location $repoRoot
 try {
     if ($Universal) {
         Write-Host 'Building the universal x86-64 binary: three final-PGO tiers ...'
         $configureArgs = @('--fresh', '--preset', 'universal', '-DCOMP=clang', '-DTEXEL=OFF')
+    } elseif ($Msvc) {
+        Write-Host 'Building the MSVC PEXT release with MSVC PGO ...'
+        $configureArgs = @('--fresh', '--preset', 'msvc-release-pext', '-B', 'build/msvc-release-pext', '-DTEXEL=OFF')
+    } elseif ($Native) {
+        Write-Host 'Building the native release: -march=native, PEXT as detected ...'
+        $configureArgs = @('--fresh', '--preset', 'release', '-B', 'build/release-native', '-DCOMP=clang', '-DTEXEL=OFF')
     } else {
         Write-Host "Building PEXT final-PGO $flavorLower flavor (arm: $armLabel) ..."
         $configureArgs = @(
-            '--fresh', '--preset', 'release-pext',
-            '-DCOMP=clang', '-DPORTABLE_BUILD=ON', '-DTEXEL=OFF',
+            '--fresh', '--preset', 'release', '-B', 'build/release-pext',
+            '-DCOMP=clang', '-DPORTABLE_BUILD=ON', '-DUSE_PEXT=ON', '-DTEXEL=OFF',
             "-DTUNE=$tune", "-DDIAGNOSTIC=$diagnostic", "-DABLATION=$ablation", "-DPROFILE_SYMBOLS=$profileSymbols",
             "-DBASILISK_PGO_ARM_OPTION=$ArmOption", "-DBASILISK_PGO_ARM_STATE=$armState"
         )
@@ -149,7 +172,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "cmake configure failed (exit $LASTEXITCODE)" }
 
     if ($ArmOption) {
-        $cache = Get-Content -LiteralPath 'build/release-pext/CMakeCache.txt'
+        $cache = Get-Content -LiteralPath "build/$buildDir/CMakeCache.txt"
         $expected = "${ArmOption}:BOOL=$armState"
         if ($cache -cnotcontains $expected) {
             throw "Umbrella option was not configured as a BOOL: expected '$expected'."
@@ -158,7 +181,7 @@ try {
 
     $buildStarted = Get-Date
     $target = if ($Universal) { 'universal' } else { 'pgo' }
-    cmake --build --preset $preset --target $target
+    cmake --build "build/$buildDir" --target $target
     if ($LASTEXITCODE -ne 0) { throw "cmake $target build failed (exit $LASTEXITCODE)" }
 
     # Each staged executable: (built path, staged name, ISA, preset, build command).
@@ -166,20 +189,31 @@ try {
     if ($Universal) {
         $command = 'cmake --preset universal; cmake --build --preset universal --target universal'
         $outputs += , @("build/universal/basilisk-universal$exeSuffix", 'universal-pgo', 'universal',
-            'universal (PORTABLE_BUILD=ON, BASILISK_UNIVERSAL=ON, BASILISK_ALIGN_FUNCTIONS=64; tiers from release, release-sse41-popcnt, release-avx2 and release-pext with BASILISK_UNIVERSAL_TIER=ON, PGO=USE)',
+            'universal (PORTABLE_BUILD=ON, BASILISK_UNIVERSAL=ON, BASILISK_ALIGN_FUNCTIONS=64; tiers from release with USE_SSE41_POPCNT, USE_AVX2 or USE_PEXT and BASILISK_UNIVERSAL_TIER=ON, PGO=USE)',
             $command)
         foreach ($tier in 'base', 'sse41_popcnt', 'avx2', 'pext') {
             $outputs += , @("build/universal-$tier-pgo/basilisk$exeSuffix", "$tier-pgo", $tier,
                 "the universal binary's $tier tier (PORTABLE_BUILD=ON, BASILISK_UNIVERSAL_TIER=ON, BASILISK_ALIGN_FUNCTIONS=64, PGO=USE)",
                 $command)
         }
+    } elseif ($Msvc) {
+        # MSVC's PGO relinks the instrumented build in place.
+        $outputs += , @("build/msvc-release-pext-pgo-generate/basilisk$exeSuffix", 'msvc-pgo', 'pext',
+            'msvc-release-pext (COMP=msvc, USE_PEXT=ON, BASILISK_MSVC_FAVOR_INTEL=ON, MSVC PGO)',
+            'cmake --preset msvc-release-pext -B build/msvc-release-pext; cmake --build build/msvc-release-pext --target pgo')
+    } elseif ($Native) {
+        $cache = Get-Content -LiteralPath 'build/release-native/CMakeCache.txt'
+        $pext = if ($cache -ccontains 'USE_PEXT:BOOL=ON') { 'ON' } else { 'OFF' }
+        $outputs += , @("build/release-native-pgo/basilisk$exeSuffix", 'native-pgo', 'native',
+            "release (-march=native, USE_PEXT=$pext as detected, PGO=USE)",
+            'cmake --preset release -B build/release-native; cmake --build build/release-native --target pgo')
     } else {
         $nameFlavor = if ($Flavor -eq 'Release') { 'pext-pgo' } else { "pext-$flavorLower-pgo" }
-        $command = "cmake --preset release-pext -DPORTABLE_BUILD=ON -DTUNE=$tune -DDIAGNOSTIC=$diagnostic -DABLATION=$ablation -DPROFILE_SYMBOLS=$profileSymbols" +
+        $command = "cmake --preset release -B build/release-pext -DUSE_PEXT=ON -DPORTABLE_BUILD=ON -DTUNE=$tune -DDIAGNOSTIC=$diagnostic -DABLATION=$ablation -DPROFILE_SYMBOLS=$profileSymbols" +
             $(if ($ArmOption) { " -D$ArmOption=$armState" } else { '' }) +
-            '; cmake --build --preset release-pext --target pgo'
+            '; cmake --build build/release-pext --target pgo'
         $outputs += , @("build/release-pext-pgo/basilisk$exeSuffix", $nameFlavor, 'pext',
-            "release-pext (USE_PEXT=ON, PORTABLE_BUILD=ON, TUNE=$tune, DIAGNOSTIC=$diagnostic, ABLATION=$ablation, PROFILE_SYMBOLS=$profileSymbols, PGO=USE)",
+            "release (USE_PEXT=ON, PORTABLE_BUILD=ON, TUNE=$tune, DIAGNOSTIC=$diagnostic, ABLATION=$ablation, PROFILE_SYMBOLS=$profileSymbols, PGO=USE)",
             $command)
     }
 
@@ -221,15 +255,17 @@ try {
             Write-Warning "DIRTY TREE: manifest records dirty_diff $($dirtyHash.Substring(0,12))..."
         }
 
-        $compilerMatch = Get-Content "build/$preset/CMakeCache.txt" |
+        $compilerMatch = Get-Content "build/$buildDir/CMakeCache.txt" |
             Select-String '^CMAKE_CXX_COMPILER:(?:FILEPATH|STRING)=(.+)$'
         $compilerPath = if ($compilerMatch) { $compilerMatch.Matches[0].Groups[1].Value } else { '' }
         if (-not $compilerPath) { throw 'Configured C++ compiler is missing from CMakeCache.txt.' }
-        $compiler = (& $compilerPath --version 2>&1 | Select-Object -First 1).Trim()
+        # cl prints its version banner when run without arguments.
+        $compiler = if ($Msvc) { (& $compilerPath 2>&1 | Select-Object -First 1).ToString().Trim() }
+                    else { (& $compilerPath --version 2>&1 | Select-Object -First 1).Trim() }
         # Releases build with the LLVM major in the pin file; a local build on
         # another is not a measurement of the compiler that ships.
         $pinFile = Join-Path $repoRoot '.github\windows-clang-version'
-        if ($isWindowsHost -and (Test-Path -LiteralPath $pinFile)) {
+        if ($isWindowsHost -and -not $Msvc -and (Test-Path -LiteralPath $pinFile)) {
             $pinnedMajor = (Get-Content -LiteralPath $pinFile -Raw).Trim()
             if ($compiler -notmatch "clang version $([regex]::Escape($pinnedMajor))\.") {
                 Write-Warning ("LOCAL COMPILER DRIFT - this build used '$compiler', but releases build with LLVM " +
@@ -253,7 +289,7 @@ try {
             "arm_option: $(if ($ArmOption) { $ArmOption } else { 'none' })"
             "arm_state: $(if ($Arm) { $armState } else { 'none' })"
             "isa: $isa"
-            'portable_codegen: true'
+            "portable_codegen: $(if ($Native) { 'false' } else { 'true' })"
             "preset: $($output[3])"
             "build_command: $($output[4])"
             "compiler: $compiler"

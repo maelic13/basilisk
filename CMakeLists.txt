@@ -428,7 +428,39 @@ set(BASILISK_PGO_ARM_STATE "OFF" CACHE STRING "Value for BASILISK_PGO_ARM_OPTION
 option(WARNINGS_AS_ERRORS "Treat compiler warnings as errors" ON)
 option(TEXEL "Build Texel trace+tuner target basilisk-texel (sets TEXEL_TRACE; implies BASILISK_TUNE)" OFF)
 option(BASILISK_UNIVERSAL_TIER "Build one tier of the universal x86-64 binary: keep the engine link's LTO objects and name the tier at start-up" OFF)
-option(BASILISK_UNIVERSAL "Configure the universal x86-64 binary: its dispatcher, its three tier builds and the final link (target universal)" OFF)
+option(BASILISK_UNIVERSAL "Configure the universal x86-64 binary: its dispatcher, its tier builds and the final link (target universal)" OFF)
+
+# A native build (no PORTABLE_BUILD, no tier named) on x86-64 uses PEXT when
+# the building machine runs it fast, by the universal binary's rule
+# (src/cpu_detect.h): BMI2 and not AMD family 15h or 17h. Decided at the first
+# configure; -DUSE_PEXT=ON or OFF overrides it.
+set(_basilisk_pext_default OFF)
+if(NOT DEFINED CACHE{USE_PEXT} AND NOT USE_AVX2 AND NOT USE_SSE41_POPCNT AND NOT PORTABLE_BUILD
+   AND NOT BASILISK_UNIVERSAL AND NOT BASILISK_UNIVERSAL_TIER AND NOT CMAKE_CROSSCOMPILING
+   AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|amd64")
+    try_run(_basilisk_probe_run _basilisk_probe_compile
+        "${CMAKE_BINARY_DIR}/probe_cpu" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/probe_cpu.cpp"
+        CMAKE_FLAGS "-DINCLUDE_DIRECTORIES=${CMAKE_CURRENT_SOURCE_DIR}/src"
+        CXX_STANDARD 23
+        RUN_OUTPUT_VARIABLE _basilisk_probe_tier)
+    if(_basilisk_probe_compile AND _basilisk_probe_run EQUAL 0 AND _basilisk_probe_tier STREQUAL "pext")
+        set(_basilisk_pext_default ON)
+    endif()
+    message(STATUS "This CPU's fastest tier: ${_basilisk_probe_tier}; USE_PEXT ${_basilisk_pext_default}")
+endif()
+option(USE_PEXT "Use BMI2 PEXT instruction for magic bitboards (requires Haswell+)" ${_basilisk_pext_default})
+option(USE_AVX2 "Build for x86-64 CPUs with AVX2" OFF)
+option(USE_SSE41_POPCNT "Build for x86-64 CPUs with SSE4.1 and POPCNT" OFF)
+
+set(_basilisk_isa_count 0)
+foreach(_isa USE_PEXT USE_AVX2 USE_SSE41_POPCNT)
+    if(${_isa})
+        math(EXPR _basilisk_isa_count "${_basilisk_isa_count} + 1")
+    endif()
+endforeach()
+if(_basilisk_isa_count GREATER 1)
+    message(FATAL_ERROR "USE_PEXT, USE_AVX2 and USE_SSE41_POPCNT are mutually exclusive ISA tiers")
+endif()
 set(BASILISK_ALIGN_FUNCTIONS "" CACHE STRING "Align every function to this many bytes (-falign-functions); empty keeps the compiler's 16")
 set(BASILISK_PGO "OFF" CACHE STRING "Profile-guided optimization phase: OFF, GENERATE, or USE")
 set_property(CACHE BASILISK_PGO PROPERTY STRINGS OFF GENERATE USE)
@@ -750,10 +782,16 @@ else()
     set(_basilisk_pgo_portable OFF)
 endif()
 # The child builds are named after this build directory and configured from
-# the preset of the same name, unless BASILISK_PGO_PRESET names another (a
-# universal binary's tier builds in its own directory from a tier preset).
+# the preset of the same name when there is one, else from release; this
+# build's instruction-set options are passed to them explicitly.
 get_filename_component(_basilisk_pgo_name "${CMAKE_BINARY_DIR}" NAME)
-set(BASILISK_PGO_PRESET "${_basilisk_pgo_name}" CACHE STRING "Preset the pgo target's child builds are configured from")
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/CMakePresets.json" _basilisk_presets_json)
+if(_basilisk_presets_json MATCHES "\"name\": \"${_basilisk_pgo_name}\"")
+    set(_basilisk_pgo_preset_default "${_basilisk_pgo_name}")
+else()
+    set(_basilisk_pgo_preset_default "release")
+endif()
+set(BASILISK_PGO_PRESET "${_basilisk_pgo_preset_default}" CACHE STRING "Preset the pgo target's child builds are configured from")
 
 # Clang instrumentation profiles are tied to their LLVM toolchain. Asking the
 # selected compiler for its companion tool avoids accidentally merging a
@@ -818,6 +856,9 @@ add_custom_target(pgo
     COMMAND "${CMAKE_COMMAND}"
         -DPGO_SOURCE_DIR=${CMAKE_SOURCE_DIR}
         -DPGO_PRESET=${BASILISK_PGO_PRESET}
+        -DPGO_USE_PEXT=${USE_PEXT}
+        -DPGO_USE_AVX2=${USE_AVX2}
+        -DPGO_USE_SSE41_POPCNT=${USE_SSE41_POPCNT}
         -DPGO_NAME=${_basilisk_pgo_name}
         -DPGO_UNIVERSAL_TIER=${BASILISK_UNIVERSAL_TIER}
         -DPGO_ALIGN_FUNCTIONS=${BASILISK_ALIGN_FUNCTIONS}
@@ -845,19 +886,6 @@ add_custom_target(pgo
 # ---------------------------------------------------------------------------
 # Optional BMI2 PEXT support (faster sliding piece attacks on Haswell+)
 # ---------------------------------------------------------------------------
-option(USE_PEXT "Use BMI2 PEXT instruction for magic bitboards (requires Haswell+)" OFF)
-option(USE_AVX2 "Build for x86-64 CPUs with AVX2" OFF)
-option(USE_SSE41_POPCNT "Build for x86-64 CPUs with SSE4.1 and POPCNT" OFF)
-
-set(_basilisk_isa_count 0)
-foreach(_isa USE_PEXT USE_AVX2 USE_SSE41_POPCNT)
-    if(${_isa})
-        math(EXPR _basilisk_isa_count "${_basilisk_isa_count} + 1")
-    endif()
-endforeach()
-if(_basilisk_isa_count GREATER 1)
-    message(FATAL_ERROR "USE_PEXT, USE_AVX2 and USE_SSE41_POPCNT are mutually exclusive ISA tiers")
-endif()
 
 if(BASILISK_PGO_ARM_OPTION)
     if(NOT BASILISK_PGO_ARM_OPTION MATCHES "^[A-Za-z_][A-Za-z0-9_]*$")
