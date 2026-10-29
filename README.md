@@ -152,17 +152,40 @@ processor.
 
 ### Other builds
 
-| Build | Commands | In `build/dist` |
-| --- | --- | --- |
-| Quick, without the profile step, for development and tests | `cmake --preset release`<br>`cmake --build --preset release` | `basilisk-v1.11.0-windows-x86_64-pext.exe` |
-| One file for any Intel or AMD computer, as released | `cmake --preset universal`<br>`cmake --build --preset universal --target universal` | `basilisk-v1.11.0-windows-x86_64-universal-pgo.exe` |
-| Debug: slow, with AddressSanitizer and UBSan | `cmake --preset debug`<br>`cmake --build --preset debug` | none: it stays in `build/debug` |
+A quick build without the profile step, for development and tests:
 
-Every optimized build is copied to `build/dist` under such a name; the name's
-tier (`pext` here) is the one built for this computer. Each build's own folder,
-`build/<preset>`, holds the same binary as `basilisk` and the tests. A debug
-build is never copied to `build/dist`, so a slow sanitized binary cannot take a
-release name.
+```bash
+cmake --preset release
+cmake --build --preset release
+```
+
+One file for any Intel or AMD computer, as released (see below):
+
+```bash
+cmake --preset universal
+cmake --build --preset universal --target universal
+```
+
+A debug build, slow, with AddressSanitizer and UBSan:
+
+```bash
+cmake --preset debug
+cmake --build --preset debug
+```
+
+Every build is copied to `build/dist` under a name that says what it is: its
+version, system, the tier built for this computer, and any build type other
+than a release. On a Ryzen 9 5950X the three builds above give:
+
+| Build | In `build/dist` |
+| --- | --- |
+| Quick | `basilisk-v1.11.0-windows-x86_64-pext.exe` |
+| Profile-guided (`--target pgo`) | `basilisk-v1.11.0-windows-x86_64-pext-pgo.exe` |
+| Universal | `basilisk-v1.11.0-windows-x86_64-universal-pgo.exe` |
+| Debug | `basilisk-v1.11.0-windows-x86_64-pext-debug.exe` |
+
+Each build's own folder, `build/<preset>`, holds the same binary as `basilisk`,
+and the tests.
 
 ### Options
 
@@ -173,10 +196,25 @@ Add them to the first command, for example `cmake --preset release -DCOMP=gcc`.
 | `-DCOMP=clang`, `gcc` or `llvm` | Chooses the compiler. The default is Clang on Linux and Windows, AppleClang on macOS. Remove the build directory before switching. |
 | `-DNATIVE=ON` | Builds with `-march=native` instead. It measured 1% slower on a Ryzen 9 5950X; it may be faster on another processor, so compare with `bench`. |
 
-| System | Notes |
-| --- | --- |
-| Windows | Install [MSYS2](https://www.msys2.org) with its Clang toolchain (`pacman -S mingw-w64-clang-x86_64-clang mingw-w64-clang-x86_64-cmake mingw-w64-clang-x86_64-ninja`) and build in its CLANG64 shell. The engine links its runtime statically, so `basilisk.exe` runs anywhere without MSYS2. |
-| macOS | `brew install cmake ninja`; add `brew install llvm` to try `-DCOMP=llvm`. Apple silicon only. |
+### Windows
+
+Install [MSYS2](https://www.msys2.org), then its Clang toolchain from the
+MSYS2 shell:
+
+```bash
+pacman -S mingw-w64-clang-x86_64-clang mingw-w64-clang-x86_64-cmake mingw-w64-clang-x86_64-ninja
+```
+
+Build in the MSYS2 CLANG64 shell. The engine links its runtime statically, so
+`basilisk.exe` runs anywhere without MSYS2.
+
+### macOS
+
+```bash
+brew install cmake ninja
+```
+
+Add `brew install llvm` to try `-DCOMP=llvm`. Apple silicon only.
 
 ### The universal binary
 

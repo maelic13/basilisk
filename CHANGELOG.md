@@ -38,7 +38,9 @@ and next step).
   with `-march=native` instead. Add `--target pgo` for the profile-guided
   binary. `universal` builds the release's Intel/AMD download and `debug` a
   sanitized debug build. The `release-pext`, `release-avx2` and
-  `relwithdebinfo` presets are gone.
+  `relwithdebinfo` presets are gone. Every build, debug included, is copied
+  to `build/dist` under a name that says what it is (`-pgo`, `-universal-pgo`,
+  `-debug`).
 - **MSVC is no longer supported.** It built an engine 14% slower than Clang
   on the same instructions; build with Clang (the fastest) or GCC.
 - A build compiled for one instruction set (with `-DUSE_AVX2` or
