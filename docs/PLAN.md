@@ -2098,6 +2098,36 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         single-Fathom checks, unprofiled files as errors in tier builds,
         and the tier object checks runnable on their own
         (`analysis/universal_binary_2026-10.md` §14).
+    - [x] **A.15.7** `[I1]` Universal binary: an sse41-popcnt tier
+      Added 2026-10-29 at the maintainer's request, after comparing
+      Stockfish's universal binary (eight x86 builds: `x86-64`,
+      `sse41-popcnt`, `avx2`, `bmi2`, `avxvnni`, `avx512`, `vnni512`,
+      `avx512icl`). Most of what the avx2 tier gains over the base is the
+      hardware `popcnt`, which Nehalem to Ivy Bridge and AMD Bulldozer to
+      Steamroller have but the base build cannot use. A fourth tier,
+      `-msse4.1 -mpopcnt` (`USE_SSE41_POPCNT`, preset
+      `release-sse41-popcnt`), is selected on a CPU with SSE4.1 and POPCNT
+      and no AVX2; AMD K10 (POPCNT, no SSE4.1) stays on the base.
+      - Names: Basilisk keeps its own (`base`, `sse41-popcnt`, `avx2`,
+        `pext`), not Stockfish's `x86-64` and `bmi2`: the download is
+        already named `x86_64`, and `pext` names the one instruction
+        Basilisk's hand-written code uses, as its preset and slow-PEXT rule
+        do.
+      - Checks: the tier's ISA contract (popcnt, nothing of SSE4.2 or
+        later), the SDE selection (Nehalem, Sandy Bridge and Ivy Bridge),
+        the truth table, the forced-tier bench, and the universal build's
+        guards over four tiers.
+      - Stockfish's AVX-512 and VNNI builds serve its network's arithmetic;
+        A.17 and G.2 hold them as candidates to try.
+      - Closed 2026-10-29. Built from the final tree with the release
+        cells' commands on Windows (clang 23.1.4) and Linux (WSL, Clang
+        19.1.1, static): every guard passes over four tiers, the ISA
+        contract passes, 558 or 484 of each tier's functions on a cache
+        line, every forced tier 19,470,325 with its banner, the CPU truth
+        table 49/49. Indicative speed on the 5950X, each tier forced in one
+        binary: `sse41-popcnt` +5.6% over `base` (`avx2` +6.0%, `pext`
+        +9.2%). Size 4.2 MB on Windows, 5.8 MB on Linux. The SDE job and
+        the release workflow are proved by the PR's candidate run.
 - [ ] **A.16** `[I1]` Zero-weight evaluation terms off the hot path
   Added 2026-10-28 (simplification read of the kernel and the evaluator
   against the donor, after A.14.1; the lines are cited here). Terms whose
@@ -2152,6 +2182,13 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
        then whether a feature or PST accumulation vectorises by hand.
        Likely small before a network evaluation; Phase F's NNUE is where
        AVX2 pays, so this must not build what Phase F replaces.
+    4. **AVX-512 and VNNI tiers.** Stockfish's universal binary adds
+       `avxvnni`, `avx512`, `vnni512` and `avx512icl` builds. For the
+       hand-written evaluation they are worth trying only if candidate 3
+       finds vector code that pays; G.2 owns them for the network. The
+       5950X has no AVX-512: SDE checks such a tier's selection and
+       fingerprint, but a speed read needs hardware that has it (Intel
+       Ice Lake or later, AMD Zen 4 or later), which may not be at hand.
   - Rules: every candidate is behaviour-neutral (`bench 13` identical in
     every tier, the base build untouched), keeps the ISA contract and the
     universal binary's checks, and respects the slow-`pdep` rule (AMD
@@ -4024,7 +4061,11 @@ fallback, which is why the archived "optional HCE fallback" phase is dropped.
   and its amendments) and shipped by A.15.6, its tiers aligned to 64
   bytes after BAS-P20 read the unaligned relink 0.58% slower (BAS-P21
   passed). G.2 extends its tier list when Phase F's SIMD tiers arrive; the
-  form applies unchanged.
+  form applies unchanged. The candidates are Stockfish's: `avxvnni`,
+  `avx512`, `vnni512` and `avx512icl` beside the four Basilisk has
+  (A.15.7), each tried with the network and kept on a registered read.
+  The development host (a 5950X) has none of them, so the reads wait for
+  hardware that does; SDE covers only selection and the fingerprint.
   C++26 (checked 2026-10-27, `analysis/code_audit_2026-10-27.md` §6):
   the standard was finished at the March 2026 meeting. The release
   compilers are Clang 19 with libstdc++ on `ubuntu-24.04` (Linux; CI

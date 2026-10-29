@@ -25,7 +25,7 @@ The x86-64 asset, `basilisk-<tag>-<os>-x86_64`, is a universal binary
 (`analysis/universal_binary_2026-10.md`, the design and its amendments). It
 keeps the name the portable asset had, so a link or script that fetched the
 plain `x86_64` download now gets the fast build; Stockfish adds `-universal`
-to its names, which would break that. It holds three complete builds of the engine,
+to its names, which would break that. It holds four complete builds of the engine,
 each its own PGO build, and a dispatcher compiled for the baseline that picks
 one at start-up:
 
@@ -33,14 +33,15 @@ one at start-up:
 |---|---|---|---|
 | `pext` | `-mavx2 -msse4.1 -mpopcnt -mbmi -mbmi2 -mlzcnt`, `USE_PEXT` | SSE4.1, POPCNT, AVX2 (with OS YMM state), BMI1, BMI2, LZCNT, and is not AMD family 15h or 17h | `PEXT` sliding attacks. |
 | `avx2` | `-mavx2 -msse4.1 -mpopcnt` | SSE4.1, POPCNT, AVX2 | Also chosen on AMD Excavator and Zen 1/2, whose `PEXT` is microcoded. |
+| `sse41-popcnt` | `-msse4.1 -mpopcnt`, `USE_SSE41_POPCNT` | SSE4.1, POPCNT | Hardware `popcount`; Nehalem to Ivy Bridge, AMD Bulldozer to Steamroller. Added 2026-10-29, as Stockfish has it. |
 | `base` | none (x86-64 baseline) | anything else | Software `popcount`. |
 
 - The start-up line names the tier: `Basilisk <version> by <author> (pext)`.
   `id name` does not change.
-- `BASILISK_ISA=base|avx2|pext` forces a tier. A tier the CPU cannot run is
+- `BASILISK_ISA=base|sse41-popcnt|avx2|pext` forces a tier. A tier the CPU cannot run is
   refused on stdout (`info string`) and stderr with exit status 1; a forced
   tier slower than the CPU's best is run with an `info string` saying so.
-- There is no SSE4.1-POPCNT tier: Nehalem to Ivy Bridge run `base`.
+- AMD K10 (Phenom, Athlon II) has POPCNT but not SSE4.1, so it runs `base`.
 - The base tier was named `portable` until 2026-10-29; the single-tier
   check keeps that name for the baseline contract (`--tier portable`).
 
@@ -80,6 +81,8 @@ function names its tier, so it is attributed by its label:
 - the base tier and everything shared (dispatcher, Fathom, the runtime)
   contain nothing above the floor: no SSSE3, SSE4.1, SSE4.2, AVX, BMI1, BMI2,
   LZCNT or POPCNT;
+- the sse41-popcnt tier contains `popcnt`, and no SSE4.2, AVX, BMI1, BMI2 or
+  LZCNT;
 - the avx2 tier contains `popcnt` and AVX2, and no BMI1, BMI2 or LZCNT;
 - the pext tier contains `popcnt`, `pext`, `blsr`, `lzcnt` and AVX2;
 - the dispatcher references all three entry points and executes `cpuid`;
@@ -95,9 +98,9 @@ the same result for the non-zero inputs it is emitted for. On Linux the static
 C runtime's archives are exempt, as a dynamic build would load them.
 
 The release also benches every forced tier on its runner, and an Intel SDE job
-(`tools/diag/check_universal.py`) checks that Pentium 4 and Nehalem (Linux),
-Sandy Bridge and Ivy Bridge start `base`, Haswell, Skylake, Ice Lake and
-Alder Lake start `pext`, each reproducing the fingerprint, and that forcing
+(`tools/diag/check_universal.py`) checks that Pentium 4 (Linux) starts `base`,
+Nehalem (Linux), Sandy Bridge and Ivy Bridge start `sse41-popcnt`, and
+Haswell, Skylake, Ice Lake and Alder Lake start `pext`, each reproducing the fingerprint, and that forcing
 `pext` on Sandy Bridge is refused. SDE cannot emulate AMD, so the slow-`PEXT`
 rule is the unit truth table's (`tests/test_cpu_features.cpp`).
 
@@ -144,8 +147,12 @@ builds):
   At about 2 Elo per 1% NPS (BAS-P01), running `base` on a `pext` CPU
   would give up about 17 Elo; the dispatcher's choice avoids it.
 
+- **The sse41-popcnt tier** (A.15.7, 2026-10-29, indicative: one universal
+  build, each tier forced on the 5950X, four interleaved rounds): +5.6%
+  over `base`, against +6.0% for `avx2` and +9.2% for `pext`. The hardware
+  `popcnt` is nearly all of what `avx2` gains.
+
 Per-tier NPS is measured locally and is not published as a per-asset file.
 
-Sizes: 3,557,376 bytes on Windows (2026-10-29, aligned); 5,140,440 on Linux
-before the alignment (2026-10-28), statically linked with glibc and
-libstdc++.
+Sizes (2026-10-29, four tiers, aligned): 4,199,936 bytes on Windows; 5,812,912
+on Linux, statically linked with glibc and libstdc++.

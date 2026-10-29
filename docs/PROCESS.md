@@ -370,7 +370,8 @@ so a registered `[0,3]` gate passes `-Elo1 3`**. `-Mode simplify` is `[-5,0]`.
 
 ## Build, bench and NPS
 
-- Presets: `release`, `release-pext`, `release-avx2`, `universal`, `debug`,
+- Presets: `release`, `release-pext`, `release-avx2`, `release-sse41-popcnt`,
+  `universal`, `debug`,
   `relwithdebinfo`, `msvc-release-pext`. PGO: `cmake --build --preset
   release-pext --target pgo`, which trains on the bench suite and writes to
   `build/dist/`. The x86-64 release asset is the universal binary

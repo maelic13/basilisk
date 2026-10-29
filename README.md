@@ -142,14 +142,19 @@ cmake --build --preset release
 
 ### Presets
 
-| Preset | What it builds | Use it for |
-| --- | --- | --- |
-| `release` | Optimized for the computer that builds it (`-march=native`, LTO) | Playing and benchmarking on that computer |
-| `release-pext` | `release` plus PEXT sliding-piece attacks | The fastest build on Intel Haswell+ and AMD Zen 3+ |
-| `release-avx2` | `release` for AVX2 processors | With `-DPORTABLE_BUILD=ON`, a build for other AVX2 computers |
-| `universal` | The release's Intel/AMD download (see below) | Reproducing the download; Clang, Windows or Linux |
-| `relwithdebinfo` | Optimized, with debug info | Profiling |
-| `debug` | Unoptimized, with AddressSanitizer and UBSan | Debugging |
+Pick a preset by what you want the engine for:
+
+| You want | Preset |
+| --- | --- |
+| To play on this computer, Intel Haswell (2013) or newer, or AMD Zen 3 (2020) or newer | `release-pext` (fastest there) |
+| To play on this computer, any other processor | `release` |
+| One file to copy to other Intel or AMD computers, like the official download | `universal` (Clang, on Windows or Linux) |
+| To debug the engine | `debug` (slow, with sanitizers) |
+| To profile the engine | `relwithdebinfo` |
+
+`release` and `release-pext` are built for the computer that builds them and
+may not start on an older one. `release-avx2` and `release-sse41-popcnt` build
+a single one of the universal binary's builds; you normally do not need them.
 
 ### Options
 
@@ -187,19 +192,20 @@ cmake --preset universal
 cmake --build --preset universal --target universal
 ```
 
-This builds the release's Intel/AMD download: three profile-guided builds of
+This builds the release's Intel/AMD download: four profile-guided builds of
 the engine in one file, and a small start-up check that runs the fastest one
 the processor supports. The binary lands in `build/dist`.
 
-| Build | Chosen on | Speed (Ryzen 9 5950X) |
+| Build | Chosen on | Speed |
 | --- | --- | --- |
 | `pext` | Intel Haswell (2013) and newer, AMD Zen 3 (2020) and newer | Fastest |
 | `avx2` | AMD Zen 1 and Zen 2, and other AVX2 processors | About 3% slower |
+| `sse41-popcnt` | Intel Nehalem to Ivy Bridge (2008–2012), AMD Bulldozer to Steamroller | About 3% slower |
 | `base` | Any other 64-bit Intel or AMD processor | About 8% slower |
 
 The first line Basilisk prints names the build it chose. To run one build on
 purpose, for testing, set the environment variable `BASILISK_ISA` to
-`base`, `avx2` or `pext`; a build the processor cannot run is refused. How
+`base`, `sse41-popcnt`, `avx2` or `pext`; a build the processor cannot run is refused. How
 the binary is built and checked: [`docs/release_tiers.md`](docs/release_tiers.md).
 
 ### Tests
