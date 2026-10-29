@@ -44,34 +44,19 @@ the one for your computer:
 
 | Your computer | Download |
 | --- | --- |
-| Windows, Intel or AMD processor | `basilisk-vX.Y.Z-windows-x86_64.exe` |
-| Linux, Intel or AMD processor | `basilisk-vX.Y.Z-linux-x86_64` |
-| Windows on ARM | `basilisk-vX.Y.Z-windows-aarch64.exe` |
-| Linux on ARM | `basilisk-vX.Y.Z-linux-aarch64` |
-| Mac with Apple silicon | `basilisk-vX.Y.Z-macos-aarch64` |
+| Windows, Intel or AMD processor | `basilisk-{version}-windows-x86_64.exe` |
+| Linux, Intel or AMD processor | `basilisk-{version}-linux-x86_64` |
+| Windows on ARM | `basilisk-{version}-windows-aarch64.exe` |
+| Linux on ARM | `basilisk-{version}-linux-aarch64` |
+| Mac with Apple silicon | `basilisk-{version}-macos-aarch64` |
 
-**One download for every Intel or AMD processor.** It holds three builds of
-Basilisk, each made for a different generation of processor. When it starts,
-it checks your processor and runs the fastest build that works on it, so there
-is nothing to choose. All three play exactly the same moves; only the speed
-differs, by about 8% between the oldest and the newest.
+**One download for every Intel or AMD processor.** It contains builds for
+several processor generations and, when it starts, runs the fastest one your
+processor supports, so there is nothing to choose. Every build plays exactly
+the same moves; only the speed differs.
 
-The first line Basilisk prints names the build it picked, for example
-`Basilisk 1.11.0 by Miloslav Macurek (pext)`:
-
-| Build | Picked on |
-| --- | --- |
-| `pext` | Intel Haswell (2013) and newer, AMD Zen 3 (2020) and newer. The fastest. |
-| `avx2` | AMD Zen 1 and Zen 2, and other processors with AVX2. |
-| `portable` | Any other 64-bit Intel or AMD processor. |
-
-You never need to, but you can force one build by setting the environment
-variable `BASILISK_ISA` to `portable`, `avx2` or `pext`. If your processor
-cannot run the build you ask for, Basilisk says so and exits.
-
-Releases up to 1.10 had separate `-avx2` and `-pext` downloads beside the
-plain `x86_64` one, which was the slowest; from 1.11 the `x86_64` download
-alone does the job of all three.
+Upgrading from 1.10 or earlier? Those releases had separate `-avx2` and `-pext`
+downloads; the plain `x86_64` download now replaces all three.
 
 Basilisk is 64-bit only — there is no 32-bit build.
 
@@ -141,9 +126,13 @@ mean.
 
 ## Build From Source
 
-Basilisk builds with **CMake ≥ 3.24** and Ninja, using the presets in
-[`CMakePresets.json`](CMakePresets.json). You need a C++23 compiler: GCC 14+,
-Clang 19+ with libstdc++, or Clang 16+ with libc++.
+You do not need to build Basilisk to play: the downloads are already optimized.
+Build it to develop or test the engine, or for a system without a download.
+
+| You need | |
+| --- | --- |
+| Build tools | CMake 3.24 or newer, and Ninja |
+| Compiler | GCC 14+, Clang 19+ with libstdc++, Clang 16+ with libc++, or MSVC |
 
 ```bash
 cmake --preset release
@@ -153,57 +142,65 @@ cmake --build --preset release
 
 ### Presets
 
-| Preset | Notes |
+| Preset | What it builds | Use it for |
+| --- | --- | --- |
+| `release` | Optimized for the computer that builds it (`-march=native`, LTO) | Playing and benchmarking on that computer |
+| `release-pext` | `release` plus PEXT sliding-piece attacks | The fastest build on Intel Haswell+ and AMD Zen 3+ |
+| `release-avx2` | `release` for AVX2 processors | With `-DPORTABLE_BUILD=ON`, a build for other AVX2 computers |
+| `universal` | The release's Intel/AMD download (see below) | Reproducing the download; Clang, Windows or Linux |
+| `relwithdebinfo` | Optimized, with debug info | Profiling |
+| `debug` | Unoptimized, with AddressSanitizer and UBSan | Debugging |
+
+### Options
+
+Add these when configuring, for example `cmake --preset release -DCOMP=gcc`.
+
+| Option | Effect |
 | --- | --- |
-| `release` | `-O3 -march=native` + LTO. Use this for playing and benchmarking. |
-| `release-avx2` | Like `release`, plus AVX2 code generation. |
-| `release-pext` | Like `release`, plus BMI2/PEXT sliding-piece attacks. |
-| `universal` | The `x86_64` release download: the portable, AVX2 and PEXT builds, each profile-guided, chosen at start-up (Clang, Windows or Linux; target `universal`). Not needed to play: the download is built this way. |
-| `relwithdebinfo` | Optimized with debug info, no sanitizers. |
-| `debug` | Unoptimized, with AddressSanitizer and UBSan. |
+| `-DPORTABLE_BUILD=ON` | Drops `-march=native`, so the binary runs on other computers |
+| `-DCOMP=clang`, `gcc`, `llvm` or `msvc` | Chooses the compiler. The default is Clang on Linux and Windows, AppleClang on macOS. Remove the build directory before switching; which is faster varies by CPU, so compare with `bench`. |
+| `-DSTATIC_RUNTIME=OFF` | Windows: links the C++ runtime dynamically. By default it is static, so `basilisk.exe` needs no MSYS2 DLLs. |
 
-Add `-DPORTABLE_BUILD=ON` when configuring if the binary has to run on other
-machines: it keeps the optimization level but drops `-march=native`.
-
-Pick the compiler with `-DCOMP=clang`, `-DCOMP=gcc`, `-DCOMP=llvm` or
-`-DCOMP=msvc` (default
-`auto`: Clang on Linux and Windows, AppleClang on macOS). Remove the build
-directory before switching compilers. Which one is faster varies by CPU — use
-`bench` to compare.
-
-**Windows:** build in an MSYS2 Clang shell, or add `D:\msys64\clang64\bin` to
-your `PATH` and build from any terminal. Release builds link the C++ runtime
-statically, so the resulting `basilisk.exe` needs no MSYS2 DLLs
-(`-DSTATIC_RUNTIME=OFF` disables that).
-
-For MSVC on an Intel x64 host, open an x64 Native Tools command prompt and run
-`cmake --preset msvc-release-pext`, followed by
-`cmake --build --preset msvc-release-pext --target pgo`. The preset enables
-PEXT, whole-program optimization, Intel tuning and MSVC PGO; the final binary
-is copied to `build/dist`. MSVC builds use the dynamic Visual C++ runtime.
-
-**macOS:** `brew install cmake ninja` is enough; add `brew install llvm` if you
-want to compare against Homebrew LLVM with `-DCOMP=llvm`. Apple Silicon only —
-Intel Macs are not supported.
+| System | Notes |
+| --- | --- |
+| Windows | Build in an MSYS2 Clang shell, or add `D:\msys64\clang64\bin` to `PATH`. For MSVC, from an x64 Native Tools prompt: `cmake --preset msvc-release-pext`, then `cmake --build --preset msvc-release-pext --target pgo` (dynamic Visual C++ runtime; binary in `build/dist`). |
+| macOS | `brew install cmake ninja`; add `brew install llvm` to try `-DCOMP=llvm`. Apple silicon only. |
 
 ### Profile-guided builds
 
-Published binaries are profile-guided-optimized (PGO), which is worth a few
-percent of speed. To build one yourself, configure a preset and build the `pgo`
-target:
+The published binaries are profile-guided (PGO), which is worth a few percent
+of speed. Build the `pgo` target of any preset:
 
 ```bash
 cmake --preset release-pext -DCOMP=clang
 cmake --build --preset release-pext --target pgo
 ```
 
-This builds an instrumented engine, trains it on the `bench` suite, and rebuilds
-using the collected profile. For Clang builds, CMake selects the
-`llvm-profdata` shipped with the configured compiler, so multiple installed LLVM
-versions do not get mixed. GCC builds retain their generated `.gcda` files and
-rebuild in the same object tree so GCC can resolve every profile by its original
-object path. Select GCC at configure time with `-DCOMP=gcc`; no
-`llvm-profdata` is involved. The finished binary lands in `build/dist`.
+It builds an instrumented engine, trains it on the `bench` suite and rebuilds
+with the profile; the binary lands in `build/dist`. Clang builds use the
+`llvm-profdata` of the configured compiler; GCC needs none.
+
+### The universal binary
+
+```bash
+cmake --preset universal
+cmake --build --preset universal --target universal
+```
+
+This builds the release's Intel/AMD download: three profile-guided builds of
+the engine in one file, and a small start-up check that runs the fastest one
+the processor supports. The binary lands in `build/dist`.
+
+| Build | Chosen on | Speed (Ryzen 9 5950X) |
+| --- | --- | --- |
+| `pext` | Intel Haswell (2013) and newer, AMD Zen 3 (2020) and newer | Fastest |
+| `avx2` | AMD Zen 1 and Zen 2, and other AVX2 processors | About 3% slower |
+| `portable` | Any other 64-bit Intel or AMD processor | About 8% slower |
+
+The first line Basilisk prints names the build it chose. To run one build on
+purpose, for testing, set the environment variable `BASILISK_ISA` to
+`portable`, `avx2` or `pext`; a build the processor cannot run is refused. How
+the binary is built and checked: [`docs/release_tiers.md`](docs/release_tiers.md).
 
 ### Tests
 
