@@ -4,9 +4,11 @@
 
 - **Registration.** Registered 2026-10-29, before any reading; PLAN A.17
   (candidate 5) and A.15's universal binary. Run by the maintainer's Codex
-  agent on their Intel Windows 11 machine from this revision:
-  `pwsh tools/run_p23_intel_reads.ps1` (`-Cpu <n>` on a performance core of
-  a hybrid CPU; `-NoGcc` without MSYS2's GCC). The archive and `host.txt`
+  agent on their Intel Windows 11 machine from branch `bas-p23-intel`,
+  whose launcher master does not carry: `pwsh tools/run_p23_intel_reads.ps1`
+  (`-Cpu <n>` on a performance core of a hybrid CPU; `-NoGcc` without
+  MSYS2's GCC). It builds the pools with `build_test.ps1` and reads them
+  with `nps_read.ps1`, as `tools/run_a158_nps_reads.ps1` did for BAS-P22. The archive and `host.txt`
   come back to `tools/results/p23-intel/`.
 - **Background.** BAS-P22 on the 5950X (Zen 3): Clang's `-march=native`
   1.0% slower than the fixed pext instruction set, the universal binary
