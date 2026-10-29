@@ -389,7 +389,8 @@ order, and all of Phase A closes before B.3 opens (maintainer decision
 2026-10-24, which also renumbered them; HISTORY's *Number map* resolves the
 first numbering). A.13–A.15, added 2026-10-27 from the code audit of the
 engine's crucial paths (`analysis/code_audit_2026-10-27.md`), follow them
-in the same order and under the same rule. Each step is reviewed with the maintainer when it is
+in the same order and under the same rule, as do A.16 (2026-10-28) and A.17
+(2026-10-29, at the maintainer's request after A.15). Each step is reviewed with the maintainer when it is
 reached; its resolution may be a fix, an improvement or a skip. Rarog's
 Phase A also cut a release; 1.10.1 was cut the day before this plan, so
 Phase A has no release step.
@@ -1857,7 +1858,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         registered rule on the maintainer's confirmation. 2,285 of 2,286
         clean tablebase wins were converted; the miss is the baseline's,
         A-58 (D.4). The fingerprint is unchanged at 19,470,325.
-- [ ] **A.14** Simplifications from the code audit
+- [x] **A.14** Simplifications from the code audit
   Added 2026-10-27 (`analysis/code_audit_2026-10-27.md` §3, from a
   mechanical census of `00809cc`). Behaviour-neutral: exact fingerprint,
   CTest, and a pooled NPS read only where a hot path is touched (the
@@ -1867,7 +1868,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
   smaller cleanups it found are folded into B.8, D.3.1 and D.3.2. Its
   case for deleting the legacy kernel now was declined the same morning
   and then taken (maintainer decision 2026-10-27): B.8.1 deleted it.
-    - [ ] **A.14.1** `[I1]` One definition of the score bands
+    - [x] **A.14.1** `[I1]` One definition of the score bands
       `MATE_SCORE` and `MAX_PLY` are defined in `tt.h:106-107` and
       `search_types.h:18-19`, and `KBNK_STATIC_MATE_FLOOR` is a literal in
       `eval.h`, held equal by static asserts in `search_worker.cpp:28` and
@@ -1878,6 +1879,14 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       `VALUE_NONE`/`NO_SCORE` there, derive the KBNK floor from them,
       delete the duplicates and the asserts that only pinned them, and
       update DESIGN §3's sentence. Exact fingerprint on both arms; CTest.
+      - Closed 2026-10-28: `constants.h` defines `MAX_PLY`, `MATE_SCORE`,
+        `INF_SCORE` and `VALUE_NONE`, and the tablebase band is derived
+        from them; the table's `INF_EVAL`/`NO_SCORE` became `INF_SCORE`/
+        `VALUE_NONE`, its `DECISIVE` and `TB_VALUE` are the band's names,
+        `KBNK_STATIC_MATE_FLOOR` is `MATE_SCORE - MAX_PLY`, and the three
+        pinning asserts are gone. `bench 13` 19,470,325 on the release,
+        tune, diagnostic and ablation builds; CTest 24/24 release, 22/22
+        diagnostic and tune.
 - [ ] **A.15** Universal binaries and the release runners
   Added 2026-10-27 at the maintainer's request
   (`analysis/code_audit_2026-10-27.md` §4). Stockfish 19 (2026-09-05)
@@ -1889,8 +1898,10 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
   release cells, `windows-2025`, `windows-11-arm`, `macos-26`; none
   deprecated), so the runners need no label change; the leaves are the
   design, the measurement that decides it, and the hygiene the check
-  found.
-    - [ ] **A.15.1** `[R2]` Universal x86-64 binary: design packet
+  found. Restructured 2026-10-28 when the maintainer chose to build the
+  binary now: the leaves run in their numbered order, and the ladder read
+  that was A.15.2 is A.15.4, read from the universal builds.
+    - [x] **A.15.1** `[R2]` Universal x86-64 binary: design packet
       Write `analysis/universal_binary_2026-10.md` from the audit's §4:
       the Stockfish 19 mechanism (`src/universal/`, the
       `universal-object-pgo` target, renamed init sections, the
@@ -1913,16 +1924,52 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       least 3% pooled NPS (about 6 Elo for a user on the wrong asset);
       otherwise G.2 builds it when Phase F's SIMD tiers arrive. No engine
       source changes.
-    - [ ] **A.15.2** `[V]` The ISA tier ladder measured
-      (D-24) Pooled-PGO NPS of the portable, avx2 and pext tiers on the
-      5950X: four builds per tier, interleaved cycles, a null pair first,
-      each hop read directly rather than chained (`tools/nps_pool.ps1`,
-      `tools/nps_read.ps1`). Priors: Rarog read avx2 +4.59% over base and
-      pext +2.45% over avx2; Basilisk's avx2 tier has no intrinsics, so
-      its ladder may be smaller. Registered before the read with A.15.1's
-      rule; maintainer-run; the result decides whether G.2's build is
-      pulled forward.
-    - [ ] **A.15.3** `[I1]` Tier advisory, ISA contract and toolchain pins
+      - Closed 2026-10-28: `analysis/universal_binary_2026-10.md`. The
+        design is Stockfish's fat binary with two departures: Fathom
+        built once at baseline outside every tier, and tier objects that
+        carry no initialiser (only `syzygy.cpp` and Fathom have one
+        today), so no section rewriting. Each tier is a full PGO+LTO
+        executable under its `BASILISK_NS` namespace whose LTO object is
+        extracted; one LTO link over every tier's bitcode is rejected
+        (a prevailing `linkonce_odr` copy carries one tier's target
+        attributes to every caller). The dispatcher adds the donor's
+        slow-`pext` rule (AMD family 15h/17h) and a `BASILISK_ISA`
+        override; `verify_isa.py` attributes the image by the linker
+        map. Size about 3.5-5 MB per x86 asset; nine assets become five.
+        The rule above is frozen as proposed, with the packet's
+        prediction (`pext` over `portable` +7% [+4%, +12%], about 90%
+        that it clears +3%). Because the rule therefore nearly always
+        fires, the packet (§9) recommends an amendment for the
+        maintainer to choose before A.15.2 reads: pull the build forward
+        only on evidence of harm from asset choice, otherwise build it
+        at G.2. A.15.3's advisory must also cover `pext` on a slow-`pext`
+        CPU (A-36).
+      - 2026-10-28: the maintainer chose to build it now, the packet's
+        counter-argument; no rule is left for the ladder to decide.
+    - [x] **A.15.2** `[I2]` Universal x86-64 binary: tiers, dispatch, link
+      Added 2026-10-28. The packet's §4 in the form of its amendment 1:
+      each tier is the ordinary PGO build of its preset with the engine
+      link's LTO objects kept (`BASILISK_UNIVERSAL_TIER`), and
+      `cmake/universal-tiers.cmake` renames every symbol a tier defines
+      under the tier's name, so no 57-file namespace wrap. Only type
+      identities (`_ZTI`, `_ZTS`) and `.refptr` data stay shared; the
+      script fails on anything else left global and on any initialiser in
+      a tier object. The baseline dispatcher (`src/main.cpp` under
+      `BASILISK_UNIVERSAL`) links the three tiers with one Fathom and picks
+      pext unless the CPU is AMD family 15h or 17h, then avx2, then
+      portable; `BASILISK_ISA` forces a tier. `verify_isa.py --tier
+      universal` attributes each function by its tier's prefix. Exact
+      fingerprint on every tier, on Windows and on Linux (WSL, Clang 19).
+      - Closed 2026-10-28 (`0c1c0f4`, `3508756`; the packet's amendment 1).
+        Every tier and `BASILISK_ISA` reproduce 19,470,325 on Windows
+        (clang 23.1.4) and Linux (clang 19.1.1, static); the universal ISA
+        contract passes on both, and planted instructions and synthetic
+        images fail it. The assets are 3,513,344 bytes (Windows) and
+        5,140,440 (Linux). CTest 22/22. Two findings changed the plan: ThinLTO
+        and the static libc++ leave tier symbols global, so every symbol is
+        renamed instead of wrapping a namespace; and `tzcnt` (LLVM's `bsf`)
+        and SSE3 (MSYS2's runtime floor) stay allowed in portable code.
+    - [x] **A.15.3** `[I1]` Tier advisory, ISA contract and toolchain pins
       (D-25, A-36, taken over from D.3.2) `src/main.cpp` prints an
       `info string` on stdout when a lower tier runs on a CPU that could
       run a higher one, naming the asset, and the refusal of an
@@ -1937,6 +1984,328 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       their plan for a baseline `libstdc++.a` after `ubuntu-24.04`
       retires. Exact fingerprint; a release dispatch run proves the
       matrix.
+      - Implemented 2026-10-28 with A.15.2 and A.15.5 (`0c1c0f4`,
+        `3508756`, `c81e220`): the advisory and the stdout refusal in
+        `src/main.cpp`, the dispatch truth table in `test_cpu_features`,
+        the portable set (corrected: `tzcnt` and SSE3 stay allowed, the
+        packet's amendment 1), `.github/xcode-version` checked in CI and
+        Release, the Ninja step gone, the libstdc++ plan (an `ubuntu:24.04`
+        container) in `release.yml`. Closed 2026-10-29 on local evidence:
+        the truth table in CTest, the planted-instruction check, the
+        stricter sets passing on all three tier builds, both workflows
+        valid YAML. The Xcode pin's first run is this branch's pull
+        request (CI and the Release candidate run on it).
+    - [x] **A.15.4** `[V]` Universal binary speed and the ISA tier ladder
+      (D-24; was A.15.2, the ladder alone) BAS-P20, registered before any
+      reading: four universal builds and four pext builds, each hop read
+      directly (`tools/nps_pool.ps1`, `tools/nps_read.ps1`). The universal
+      binary against the pext asset under the no-regression form is the
+      gate that keeps it; the pext tier build against the pext asset
+      locates a loss; the ladder avx2/portable, pext/avx2 and pext/portable
+      is read from the universal builds' tier builds, which are the old
+      per-tier assets. Priors: Rarog read avx2 +4.59% over base and pext
+      +2.45% over avx2; the packet's §9 prediction is frozen.
+      - Closed 2026-10-29 (BAS-P20). The host-load measure was broken and
+        refused quiet hosts (WMI's raw counters, repaired in `7996e4d`);
+        after the repair every cycle was undisturbed. The universal binary
+        reads **−0.58%** [−0.82%, −0.33%] against the pext asset, FAIL,
+        so by the registered rule the release keeps its per-tier assets.
+        The pext tier build reads +0.04% [−0.12, +0.19]: the loss is in the
+        relink, whose hot code is byte-identical and whose functions sit
+        16 bytes off their 64-byte placement in all four builds (A.15.6).
+        The ladder: avx2 over portable **+5.04%**, pext over avx2
+        **+2.82%**, pext over portable **+8.49%**, each inside the
+        packet's frozen interval.
+    - [x] **A.15.5** `[I1]` Release: one x86-64 asset per OS
+      The release's six x86 cells become two universal cells, Linux and
+      Windows, each building the `universal` preset and checking
+      `verify_isa.py`'s universal contract and every forced tier's
+      `bench 13`; an SDE job runs the packet's selection matrix (§4.7).
+      Nine assets become five. README, CHANGELOG and
+      `docs/release_tiers.md` say which tier a CPU gets and how to force
+      one. A release dispatch run proves the matrix (maintainer).
+      - Implemented 2026-10-28 (`c81e220`, `089fe7d`): two universal cells
+        with the universal contract and every forced tier's bench, the
+        `select` job running `tools/diag/check_universal.py` under SDE
+        9.58.0 (the donor's pinned action), five assets in `collect`.
+        The checker was exercised with a native stand-in for SDE; SDE
+        itself first runs in the dispatch run.
+      - Closed 2026-10-29 NOT SHIPPED: BAS-P20's gate failed, so the
+        release's universal cells and the SDE job are reverted to the nine
+        per-tier cells, keeping A.15.3's Xcode pin, Ninja step and
+        libstdc++ note. The `universal` preset, the dispatcher,
+        `verify_isa.py --tier universal` and `tools/diag/check_universal.py`
+        stay in the tree for A.15.6.
+      - Shipped after all by A.15.6 (2026-10-29), with the tiers aligned
+        to 64 bytes, once BAS-P21 passed.
+    - [x] **A.15.6** `[R2]` Universal binary: the relink's code placement
+      Added 2026-10-29 from BAS-P20's diagnosis. The universal binary's
+      pext code is byte-identical to its tier build, but the relink moves
+      the hot functions by 16 bytes modulo 64, and the read was 0.58%
+      slower. Four builds of one source share that placement, so a pool
+      does not average it out.
+      - First, whether alignment is the cause: a padding sweep, 0, 16, 32
+        and 48 bytes of padding before the pext tier's objects in the
+        final link, each against the pext asset. If the sweep moves NPS by
+        about the loss, placement is the cause; if not, the hypothesis is
+        refuted and the cause is open.
+      - Then a repair that makes the tier's placement independent of the
+        link: `-falign-functions=64` on every build (a speed change of its
+        own, read against today's pext asset first), or 64-byte alignment
+        of each tier's code at the start of its objects, matched to its
+        tier build.
+      - Gate: a new registered no-regression read of the repaired
+        universal binary against the pext asset, with the padding control
+        beside it. The release adopts the universal binary only if it
+        passes; the cells of A.15.5 come back from `c81e220`.
+      - Research amendment 1 (2026-10-29): the images answered the cause
+        without a sweep. lld's call-graph sort puts `operator delete`
+        (`_ZdlPv`, a 16-byte runtime stub) inside the pext tier build's
+        hot cluster; in the universal link the tiers share it and it lands
+        elsewhere, moving every later hot function 16 bytes. `/order`
+        cannot place runtime symbols and GNU ld does not sort, so the
+        candidate is `-falign-functions=64` on the tiers (`4488e13`): 554
+        of 559 pext functions on a cache line in both images, identical
+        code, every tier exact. BAS-P21 replaces the sweep: the universal
+        binary against the pext asset (the gate), against its own tier
+        build (the relink alone) and the tier build against the pext asset
+        (the alignment alone). Pools built; the reads need the host idle
+        (`pwsh tools/run_a156_nps_reads.ps1`).
+      - BAS-P21 registration amendment 1 (2026-10-29, before exposure): the
+        three reads run as one read of the three pools with the same three
+        contrasts and rules, about 9 minutes at step 1 instead of about 30.
+      - BAS-P21 result (2026-10-29): the universal binary PASSES against
+        the pext asset (+0.00% at step 1; −0.29% [−0.73, +0.16] at six
+        cycles); the relink alone reads −0.13% and the alignment alone
+        −0.16%, both NO_CHANGE, so placement was BAS-P20's whole loss. By
+        the registered rule the release takes the universal cells back
+        from `c81e220`, with the alignment.
+      - Closed 2026-10-29 SHIPPED. `release.yml` is `c81e220`'s again:
+        two universal x86-64 cells (the `universal` preset, which sets the
+        alignment), every forced tier benched, the SDE `select` job, five
+        assets in `collect`. A universal configure without
+        `BASILISK_ALIGN_FUNCTIONS=64` now fails, so the unaligned layout
+        cannot ship by accident. README, PROCESS, `docs/release_tiers.md`
+        and CHANGELOG describe one x86-64 asset again. Built locally from
+        the final tree with the release cell's commands: every forced tier
+        exact and the universal ISA contract passing. As for A.15.3 and
+        A.15.5, the release workflow itself is proved by its first run on
+        GitHub, the candidate run of the PR that carries it.
+      - Trap audit (2026-10-29, after closing, at the maintainer's request
+        with Rarog's notes): each universal-binary trap now has a check
+        that was watched failing on a planted fault. New: the stale-tier
+        guard (one source, one compiler), the image's alignment and
+        single-Fathom checks, unprofiled files as errors in tier builds,
+        and the tier object checks runnable on their own
+        (`analysis/universal_binary_2026-10.md` §14).
+    - [x] **A.15.7** `[I1]` Universal binary: an sse41-popcnt tier
+      Added 2026-10-29 at the maintainer's request, after comparing
+      Stockfish's universal binary (eight x86 builds: `x86-64`,
+      `sse41-popcnt`, `avx2`, `bmi2`, `avxvnni`, `avx512`, `vnni512`,
+      `avx512icl`). Most of what the avx2 tier gains over the base is the
+      hardware `popcnt`, which Nehalem to Ivy Bridge and AMD Bulldozer to
+      Steamroller have but the base build cannot use. A fourth tier,
+      `-msse4.1 -mpopcnt` (`USE_SSE41_POPCNT`, preset
+      `release-sse41-popcnt`), is selected on a CPU with SSE4.1 and POPCNT
+      and no AVX2; AMD K10 (POPCNT, no SSE4.1) stays on the base.
+      - Names: Basilisk keeps its own (`base`, `sse41-popcnt`, `avx2`,
+        `pext`), not Stockfish's `x86-64` and `bmi2`: the download is
+        already named `x86_64`, and `pext` names the one instruction
+        Basilisk's hand-written code uses, as its preset and slow-PEXT rule
+        do.
+      - Checks: the tier's ISA contract (popcnt, nothing of SSE4.2 or
+        later), the SDE selection (Nehalem, Sandy Bridge and Ivy Bridge),
+        the truth table, the forced-tier bench, and the universal build's
+        guards over four tiers.
+      - Stockfish's AVX-512 and VNNI builds serve its network's arithmetic;
+        A.17 and G.2 hold them as candidates to try.
+      - Closed 2026-10-29. Built from the final tree with the release
+        cells' commands on Windows (clang 23.1.4) and Linux (WSL, Clang
+        19.1.1, static): every guard passes over four tiers, the ISA
+        contract passes, 558 or 484 of each tier's functions on a cache
+        line, every forced tier 19,470,325 with its banner, the CPU truth
+        table 49/49. Indicative speed on the 5950X, each tier forced in one
+        binary: `sse41-popcnt` +5.6% over `base` (`avx2` +6.0%, `pext`
+        +9.2%). Size 4.2 MB on Windows, 5.8 MB on Linux. The SDE job and
+        the release workflow are proved by the PR's candidate run.
+    - [x] **A.15.8** `[I1]` Three presets: release, universal, debug
+      Added 2026-10-29 at the maintainer's request. Nobody building for their
+      own machine should pick a tier: `release` builds with `-march=native`
+      and turns PEXT on where the building CPU runs it fast, by the
+      universal binary's own rule (`src/cpu_detect.h`, probed at configure
+      time by `cmake/probe_cpu.cpp`; `-DUSE_PEXT` overrides it). The
+      `release-pext`, `release-avx2`, `release-sse41-popcnt` and
+      `relwithdebinfo` presets go: the universal build, `build_test.ps1` and
+      CI build a tier from `release` with its option, the PGO step passes
+      the options to its child builds, and the profiler never used
+      `relwithdebinfo` (`build_test.ps1 -Flavor Profile`). The README leads
+      with `cmake --build --preset release --target pgo`; PGO stays a
+      target, not the default.
+      - BAS-P22, registered before any reading: the native release against
+        the universal binary and the pext asset, the four-tier universal
+        binary against the pext asset, and, by amendment 1, all three
+        compilers at their best (GCC and Clang native; MSVC, which has no
+        native target, at its pext build), with MSVC also against Clang on
+        the same instruction set. MSVC still builds, `bench 13` exact, in no
+        CI job. MSVC stays only if the read
+        keeps it within reach and it then gets a CI job like GCC's; the
+        maintainer decides.
+      - BAS-P22 result (2026-10-29, read twice, the repeat on a quieter host
+        with intervals ten times narrower, every verdict agreeing): the
+        universal binary matches the pext build (−0.14%, PASS); GCC native
+        reads 2.7% behind Clang native; MSVC 14.4% behind Clang on the same
+        instruction set, so the registered recommendation is to drop it
+        (maintainer's decision).
+      - **Returned to research (2026-10-29):** the leaf's premise is false
+        on this host. Clang's `-march=native` build reads **1.0% slower**
+        than the fixed pext instruction set ([−1.14%, −0.86%]; the first,
+        noisier read −1.5%), so `release`
+        is not the fastest build for this computer. Options:
+        1. `release` builds the detected tier with the release's fixed
+           flags (the universal binary's tier for this CPU) and drops
+           `-march=native` by default: the measured fastest here, the same
+           code users download, and one less variable in measurement.
+        2. Keep `-march=native` and find what costs the 1.5% (the Zen 3
+           tuning, or an extension), then decide.
+        3. Keep native as it is and say in the README that the download is
+           as fast.
+        The recommendation is 1: it is what this read measured fastest, and
+        option 2's question can still be read later as a contrast.
+      - Closed 2026-10-29 with the maintainer's choices: option 1, and MSVC
+        dropped. `release` probes the CPU and builds its tier with the
+        release's fixed flags (`-march=native` only with `-DNATIVE=ON`); a
+        named tier or an explicit `PORTABLE_BUILD`, as CI, `build_test.ps1`
+        and the universal build pass, skips the probe. MSVC's preset,
+        `-DCOMP=msvc` (now refused), its flags and PGO branches and
+        `build_test.ps1 -Msvc` are gone; the sources keep their small
+        `_MSC_VER` guards (CPUID, prefetch). Verified: a plain `release`
+        PGO build detects `pext`, compiles the pext tier's flags with no
+        `-march=native` and benches 19,470,325; `build_test.ps1` Release,
+        `-Native` and `-Universal` build and bench exact; CTest 24/24. A.17
+        candidate 5 owns why native is slower.
+      - Names and defaults (2026-10-29, before the PR merged): `release` and
+        `universal` build PGO by default (build presets), `--target nopgo`
+        builds the engine alone and `--target all` the development loop;
+        every build lands in `build/dist` as
+        `basilisk-<version>-<os>-<x64|arm64>[-<tier>][-<kind>]`, the version
+        the engine reports, read at build time (`cmake/dist-copy.cmake`);
+        release assets are `basilisk-<X.Y.Z>-<os>-<x64|arm64>`.
+    - [ ] **A.15.9** `[I2]` GCC as a full equal: Stockfish's universal route
+      Added 2026-10-29 at the maintainer's request, to run on its own branch
+      after the universal binary's PR merges. GCC builds and passes CI for
+      normal and PGO builds, but the universal binary is Clang-only: it
+      renames the post-LTO objects that only LLVM's linkers keep (lld
+      `-lldsavetemps`, gold's LLVM plugin `save-temps`). Clang stays the
+      default and the release compiler (BAS-P22: GCC 2.7% slower); the aim
+      is that every build works and is tested with both.
+      - The universal route becomes Stockfish's, for both compilers, so there
+        is one route: each tier compiled with link-time optimisation to an
+        assembly file, its symbols renamed in that text, then assembled and
+        linked (Stockfish's `universal-object-pgo` and
+        `rewrite_asm_sections.awk`, read at `edb0d9db`). Every guard of
+        `analysis/universal_binary_2026-10.md` §14 is carried over and seen
+        to fail again on the new route: still-global symbols, initialisers,
+        a tier without its profile (GCC's own missing-profile check), stale
+        tiers, ISA attribution and alignment.
+      - CI: GCC test cells beside Clang's (Linux and Windows), a GCC
+        universal build in the release candidate run with the forced-tier
+        bench and the ISA contract.
+      - Re-measured, registered before reading: the new route's Clang
+        universal against today's (placement, BAS-P20/P21's lesson) and
+        against the pext build; GCC's universal against GCC's pext build.
+        The release keeps Clang's universal binary unless the new route
+        reads slower, in which case Clang keeps today's route and only GCC
+        uses the assembly one.
+      - Interactions: A.17 candidate 5 (code generation) reads on the same
+        builds; G.2 extends the tier list on whichever route ships.
+- [ ] **A.16** `[I1]` Zero-weight evaluation terms off the hot path
+  Added 2026-10-28 (simplification read of the kernel and the evaluator
+  against the donor, after A.14.1; the lines are cited here). Terms whose
+  every weight is 0 are still computed on every full evaluation:
+  - the winnable block (`eval.cpp:1975-2009`): all seven `win_*` weights
+    are 0, yet it reads both kings' files and ranks, the flanks, the
+    piece census and the passer count each call;
+  - the hanging-piece loop (`eval.cpp:1706-1722`): `hang_pen` is all
+    zeros, absorbed by the threats package in Phase 4.2 (C-37);
+  - five king-danger inputs (`eval.cpp:1552-1592`): `ks_ring_pressure`,
+    `ks_flank_attack`, `ks_flank_defense`, `ks_pawnless_flank` and
+    `ks_open_file` are 0, but the flank zone's three popcounts and the
+    ring popcount run for both colours.
+  Deleting them is behaviour-neutral: each adds its weight times a
+  feature, and the winnable step adds `sgn * max(0, -|eg|)`, which is 0.
+  The space loop stays (`space_blocked_mg` is live).
+  - Gate: exact `bench 13`; CTest; a pooled-PGO NPS read registered
+    before it runs (maintainer-run, PROCESS's method). The deletion is
+    kept if the read is faster than BAS-P18's null interval
+    (−0.19% [−0.66, +0.27]); otherwise it is reverted and the slots wait
+    for their Phase C owners.
+  - Interactions: the slots' owners rebuild them in the donor's form
+    rather than refit them — king danger in C.3 (C-111: flank attack and
+    defence and the pawnless flank were nil in Rarog), the threats in
+    C.4 (C-37), the complexity term in C.5.3 (C-47: never fitted, the
+    tuner has no working winnable instrument). If the deletion is kept,
+    C.5.3 builds the donor's winnable term instead of refitting this
+    one, and the texel trace loses the `HangPen` sites with the loop.
+- [ ] **A.17** `[R2]` Instruction-specific speed for the avx2 and pext tiers
+  Added 2026-10-29 at the maintainer's request, after A.15 shipped the
+  universal binary. The tier ladder (BAS-P20) reads `avx2` +5.04% over the
+  base build and `pext` +2.82% over `avx2`. Almost all of the first is the
+  hardware `popcnt` the compiler may then use; the second is the one piece
+  of hand-written instruction-specific code, the rook and bishop lookups by
+  `_pext_u64` in `attacks.cpp`. Everything else the two tiers gain is
+  compiler code generation. The question: can code written for these
+  instruction sets buy more speed, without changing a single move?
+  - Candidates, each a hypothesis to measure, not a change to make:
+    1. **Compressed slider tables (pext tier).** The PEXT tables hold
+       107,648 attack sets of 8 bytes, about 860 KB, beyond the L2 cache.
+       Storing each set as a 16-bit index of its ray squares and
+       expanding it with `pdep` cuts them to about 215 KB, at the cost
+       of one `pdep` per lookup. First measure how many slider lookups
+       miss the cache (A.9.5's profiler, or hardware counters), which
+       bounds the gain.
+    2. **PEXT and PDEP in the evaluation (pext tier).** Bit-pattern
+       lookups such as king shelter and storm, or pawn-structure
+       patterns, indexed straight from a bitboard. Survey first which
+       evaluation terms are table lookups by pattern at all.
+    3. **AVX2 in the evaluation (avx2 and pext tiers).** The hand-written
+       evaluation is scalar. Survey what the compiler already vectorises,
+       then whether a feature or PST accumulation vectorises by hand.
+       Likely small before a network evaluation; Phase F's NNUE is where
+       AVX2 pays, so this must not build what Phase F replaces.
+    4. **AVX-512 and VNNI tiers.** Stockfish's universal binary adds
+       `avxvnni`, `avx512`, `vnni512` and `avx512icl` builds. For the
+       hand-written evaluation they are worth trying only if candidate 3
+       finds vector code that pays; G.2 owns them for the network. The
+       5950X has no AVX-512: SDE checks such a tier's selection and
+       fingerprint, but a speed read needs hardware that has it (Intel
+       Ice Lake or later, AMD Zen 4 or later), which may not be at hand.
+    5. **Code generation: why `-march=native` is slower.** BAS-P22 read
+       Clang's native build 1.0% slower than the fixed pext instruction set
+       on this Zen 3 ([−1.14%, −0.86%], twice). Native differs in three
+       separable ways, each one pool in one read: the pext build with
+       `-mtune=znver3` (the tuning model alone), native with
+       `-mtune=generic` (the extra instruction families alone: FMA, MOVBE,
+       ADX and the like), and native with 64-byte function alignment
+       (layout luck, as in BAS-P20). If the extra families help and the
+       tuning hurts, a tier with those families and generic tuning may beat
+       today's pext build, for local builds and, where every CPU of the tier
+       has them, for the shipped tiers. Only this Zen 3 can be read here:
+       a CPU-specific choice (tuning) applies to local builds only, and the
+       shipped tiers keep generic tuning unless other hardware is read.
+       BAS-P23 repeats BAS-P22 on the maintainer's Intel machine.
+  - Rules: every candidate is behaviour-neutral (`bench 13` identical in
+    every tier, the base build untouched), keeps the ISA contract and the
+    universal binary's checks, and respects the slow-`pdep` rule (AMD
+    family 15h and 17h already run the `avx2` tier).
+  - Method: a survey that ranks the candidates by measured headroom, then
+    one registered pooled NPS read per candidate kept, on its tier's
+    single-tier build (one read with named contrasts when they share
+    pools), deciding by PROCESS's gain form. The universal binary picks
+    up every kept change through its tier builds.
+  - Interactions: A.16 removes evaluation compute first, so the survey
+    measures the evaluation that remains; B.7's speed work and Phase F's
+    network evaluation are the other owners of NPS, and the survey names
+    any candidate that belongs to them instead.
 
 ## Phase B — Search programme (evaluation frozen)
 
@@ -2653,6 +3022,17 @@ rejections stop B.
   - S12: `(ss+1)->double_exts` is written only in the move loop
     (`:1077`), so NMP and ProbCut children inherit a previous node's
     count; off by one or two against a cap of 16. Bookkeeping.
+  Simplification read (2026-10-28, the kernel against the donor after
+  A.14.1), deletion arms beside the mechanisms above:
+  - The double-extension counter and its cap (`search_kernel_core.cpp:999-1001`,
+    `:1080`; `DoubleExtMax` 16) have no donor counterpart. Count how often
+    the cap binds per singular firing first; if it does not bind at the
+    budgets the cluster reads, delete the counter and the cap rather than
+    repair S12, under `[-5,0]`.
+  - The same-ply NMP verification at depth 10 and more (`:684-690`), which
+    B-31 reads as inert, is deleted at `[-5,0]` as the comparison arm for
+    the donor's verification region, so the region is accepted against
+    no verification as well as against today's.
   - Upcoming repetition (cuckoo) is absent from `src`; BAS-S12 closed it
     on the old harness with a retry trigger that wanted one named
     missing consumer. It is now named: at the TT probe, an upcoming
@@ -2718,6 +3098,12 @@ rejections stop B.
     (B-18); `MAX_QSEARCH_PLY` 10, where Stockfish has no cap; decisive TT
     cutoffs at PV qnodes (B-27); keep the stored PV bit, not Reckless's
     subtree marking (B-16), and SEE without check exemptions (B-23).
+  - Simplification read (2026-10-28): delta pruning
+    (`search_kernel_core.cpp:221-230`) is removed, as the donor has
+    none, at `[-5,0]` before its margin joins B-25's coordinates. The
+    per-move futility at +150 already bounds every capture that does not
+    check, and the node-level cut also drops checking captures and
+    promotions, which futility exempts.
   - Instruments: depth-0 refinements counted by total mass (B-20, B-24); the
     qsearch's size re-measured on the current head (B-28); the SEE/evaluation
     unit census (B-26).
@@ -2912,6 +3298,15 @@ rejections stop B.
     NPS floor.
   - The census of `00809cc` sized the legacy deletion at about 1,900
     lines and a CI cell; B.8.1 did it, except the ten counters above.
+  Simplification read (2026-10-28, after A.14.1):
+  - Telemetry counted in release builds, where nothing prints it (the
+    `Diag` option is advertised only in Tune and Diag builds,
+    `parameters.cpp:191-198`): `eval_calls` and `pawn_probes`/`pawn_hits`
+    (`eval.cpp:915-917`, `:1072`), the board's `diag_see_ge_calls` and
+    `diag_gives_check_calls` (`board.cpp:1416`, `:1784`), and the
+    lazy-audit branch, a runtime test on every lazy cut
+    (`eval.cpp:1236-1248`, `:2020-2030`). All go behind the flavour
+    guard; exact fingerprint, read with the NPS of the B-63 deletions.
 - [ ] **B.9** `[V]` Search programme checkpoint
   Checkpoint: re-measure every deficit meter.
   The meters are G(0) against the oracle, fixed-node depth and branching,
@@ -2945,10 +3340,9 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.14.1 | READY_FOR_IMPLEMENTATION | I1 | Score bands defined once in constants.h; exact fingerprint |
-| A.15.1 | RESEARCH | R2 | Universal binary design packet; the decision rule frozen before A.15.2 |
-| A.15.2 | RESEARCH | V | The portable/avx2/pext NPS ladder; maintainer-run after registration |
-| A.15.3 | READY_FOR_IMPLEMENTATION | I1 | Tier advisory, verify_isa portable set, Xcode pin, stale ninja step |
+| A.15.9 | RESEARCH | I2 | GCC equal to Clang: Stockfish's assembly route for the universal binary, guards re-proved, CI cells, re-measured; after PR #18 merges |
+| A.16 | READY_FOR_IMPLEMENTATION | I1 | Zero-weight evaluation compute deleted; exact fingerprint, kept on a pooled NPS read |
+| A.17 | RESEARCH | R2 | Survey instruction-specific speed (compressed PEXT tables, PEXT/PDEP and AVX2 in the evaluation); each kept candidate a registered NPS read |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |
 | B.4 | RESEARCH | I2 | Contents fixed by B.0 |
 | B.5 | RESEARCH | I2 | Contents fixed by B.0 |
@@ -3767,15 +4161,23 @@ fallback, which is why the archived "optional HCE fallback" phase is dropped.
   - The ISA tier ladder measured, not chained (D-24); the ARM contract goes
     with A.10.4; the universal-binary design notes and traps (D-72); a
     slow-PEXT advisory (D-25).
-  The universal binary's design is A.15.1's packet and its go/no-go is
-  A.15.2's ladder under A.15.1's frozen rule (2026-10-27); G.2 builds it
-  unless A.15.2 pulled it into Phase A, and the advisory is A.15.3's.
+  The universal binary was built in Phase A at the maintainer's choice
+  (A.15.2 to A.15.5, 2026-10-28; `analysis/universal_binary_2026-10.md`
+  and its amendments) and shipped by A.15.6, its tiers aligned to 64
+  bytes after BAS-P20 read the unaligned relink 0.58% slower (BAS-P21
+  passed). G.2 extends its tier list when Phase F's SIMD tiers arrive; the
+  form applies unchanged. The candidates are Stockfish's: `avxvnni`,
+  `avx512`, `vnni512` and `avx512icl` beside the four Basilisk has
+  (A.15.7), each tried with the network and kept on a registered read.
+  The development host (a 5950X) has none of them, so the reads wait for
+  hardware that does; SDE covers only selection and the fingerprint.
   C++26 (checked 2026-10-27, `analysis/code_audit_2026-10-27.md` §6):
   the standard was finished at the March 2026 meeting. The release
-  compilers are Clang 22 (Linux), the pinned MSYS2 Clang 23 (Windows)
-  and the macOS runner's AppleClang with libc++; GCC 15 runs only the
-  PGO smoke job and MSVC is not in the matrix, so the floor is
-  AppleClang and libc++. On that floor `-std=c++26` buys `#embed`, pack
+  compilers are Clang 19 with libstdc++ on `ubuntu-24.04` (Linux; CI
+  runs Clang 22), the pinned MSYS2 Clang 23 (Windows) and the macOS
+  runner's AppleClang with libc++; GCC 15 runs only the PGO smoke job
+  and MSVC is not in the matrix, so the floor is Clang 19 and
+  AppleClang. On that floor `-std=c++26` buys `#embed`, pack
   indexing and `= delete("reason")`, nothing the engine needs; the
   features that would remove code — reflection for the hand-kept
   option, parameter and counter tables, erroneous behaviour for

@@ -25,11 +25,6 @@
 #include <utility>
 #include <vector>
 
-static_assert(TranspositionTable::MATE_SCORE == MATE_SCORE
-              && TranspositionTable::MAX_PLY == MAX_PLY,
-              "the table's mate-score encoding uses the search's mate band");
-
-
 // ---- Constructor -----------------------------------------------------------
 
 Searcher::Searcher(TranspositionTable& tt,

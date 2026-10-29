@@ -12,12 +12,19 @@ inline constexpr int defaultMoveOverhead = 10;
 inline constexpr int defaultSearchDepth  = 7;
 inline constexpr int tablebaseWinScore   = 20000;   // display scale: `cp 20000 - plies`
 
-// Score bands, from the top: mates in [32000 - 128, 32000], then tablebase
-// results in [tablebaseValue - 128, tablebaseValue] (a win `n` plies from the
-// root is tablebaseValue - n), then evaluations, which stay below
-// tablebaseWinInMaxPly. A score in either upper band is decisive.
-inline constexpr int tablebaseValue       = 32000 - 128 - 1;
-inline constexpr int tablebaseWinInMaxPly = tablebaseValue - 128;
+// Score bands, from the top: mates in [MATE_SCORE - MAX_PLY, MATE_SCORE], then
+// tablebase results in [tablebaseValue - MAX_PLY, tablebaseValue] (a win `n`
+// plies from the root is tablebaseValue - n), then evaluations, which stay
+// below tablebaseWinInMaxPly. A score in either upper band is decisive. The
+// search, the table and the evaluation all read the bands from here.
+inline constexpr int MAX_PLY              = 128;
+inline constexpr int MATE_SCORE           = 32000;
+// Above every score: the full window's bound, and a TT entry's "no static
+// evaluation"; VALUE_NONE is "no score", an evaluation-only TT entry's slot.
+inline constexpr int INF_SCORE            = MATE_SCORE + 1;
+inline constexpr int VALUE_NONE           = MATE_SCORE + 2;
+inline constexpr int tablebaseValue       = MATE_SCORE - MAX_PLY - 1;
+inline constexpr int tablebaseWinInMaxPly = tablebaseValue - MAX_PLY;
 
 inline constexpr int infiniteDepth = std::numeric_limits<int>::max();
 

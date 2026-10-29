@@ -315,8 +315,7 @@ static constexpr int BARE_KING_PAWN_STEP  = 3;
 static constexpr KbnkDriveWeights KBNK_DRIVE_DEFAULT{10000, 1900, 0, 460, 0};
 static_assert(kbnk_drive_max(KBNK_DRIVE_DEFAULT) + 8 * BARE_KING_PAWN_STEP < BARE_KING_ROOK_TIER,
               "KBNK, a pawn bonus included, must stay below the rook tier");
-// The tablebase band is the 129 scores directly below the mate floor.
-static_assert(BARE_KING_CAP < KBNK_STATIC_MATE_FLOOR - 129,
+static_assert(BARE_KING_CAP < tablebaseWinInMaxPly,
               "bare-king scores stay below the tablebase band");
 static_assert(KBNK_DRIVE_DEFAULT.base >= KNOWN_WIN,
               "KBNK base must sit at or above KNOWN_WIN so the class outranks material");

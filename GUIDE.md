@@ -34,7 +34,7 @@ generations change. These are maintainer judgments, not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **A.14.1** `[I1]` One definition of the score bands — Claude Sonnet 5 — Medium
+**Next step:** **A.15.9** `[I2]` GCC as a full equal: Stockfish's universal route — Claude Opus 5 — High
 
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
@@ -97,12 +97,20 @@ generations change. These are maintainer judgments, not measured rankings.
     - [x] **A.13.2** `[I1]` A won queen against two minors is not scaled to a draw
     - [x] **A.13.3** `[I1]` PV copy reads past the per-ply length array
     - [x] **A.13.4** `[I1]` The tablebase store carries a stale PV bit
-- [ ] **A.14** Simplifications from the code audit
-    - [ ] **A.14.1** `[I1]` One definition of the score bands
+- [x] **A.14** Simplifications from the code audit
+    - [x] **A.14.1** `[I1]` One definition of the score bands
 - [ ] **A.15** Universal binaries and the release runners
-    - [ ] **A.15.1** `[R2]` Universal x86-64 binary: design packet
-    - [ ] **A.15.2** `[V]` The ISA tier ladder measured
-    - [ ] **A.15.3** `[I1]` Tier advisory, ISA contract and toolchain pins
+    - [x] **A.15.1** `[R2]` Universal x86-64 binary: design packet
+    - [x] **A.15.2** `[I2]` Universal x86-64 binary: tiers, dispatch, link
+    - [x] **A.15.3** `[I1]` Tier advisory, ISA contract and toolchain pins
+    - [x] **A.15.4** `[V]` Universal binary speed and the ISA tier ladder
+    - [x] **A.15.5** `[I1]` Release: one x86-64 asset per OS
+    - [x] **A.15.6** `[R2]` Universal binary: the relink's code placement
+    - [x] **A.15.7** `[I1]` Universal binary: an sse41-popcnt tier
+    - [x] **A.15.8** `[I1]` Three presets: release, universal, debug
+    - [ ] **A.15.9** `[I2]` GCC as a full equal: Stockfish's universal route
+- [ ] **A.16** `[I1]` Zero-weight evaluation terms off the hot path
+- [ ] **A.17** `[R2]` Instruction-specific speed for the avx2 and pext tiers
 
 ### Phase B — Search programme (evaluation frozen)
 

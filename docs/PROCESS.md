@@ -370,10 +370,27 @@ so a registered `[0,3]` gate passes `-Elo1 3`**. `-Mode simplify` is `[-5,0]`.
 
 ## Build, bench and NPS
 
-- Presets: `release`, `release-pext`, `release-avx2`, `debug`,
-  `relwithdebinfo`, `msvc-release-pext`. PGO: `cmake --build --preset
-  release-pext --target pgo`, which trains on the bench suite and writes to
-  `build/dist/`. `TUNE=ON` exposes diagnostics and search constants as UCI
+- Presets: `release`, `universal` and `debug`; Clang and GCC (MSVC was
+  dropped after BAS-P22 read it 14% behind Clang). `release` probes this CPU
+  and builds its tier with the release's fixed flags, the universal binary's
+  rule; `-DNATIVE=ON` builds with `-march=native` instead (1.0% slower on the
+  5950X, BAS-P22). `-DUSE_PEXT`, `-DUSE_AVX2` or `-DUSE_SSE41_POPCNT` with
+  `-DPORTABLE_BUILD=ON` names a tier and skips the probe, as `build_test.ps1`,
+  CI and the universal build do. `cmake --build --preset release` builds
+  the PGO binary (the `pgo` target, which trains on the bench suite);
+  `--target all` builds the engine without PGO and the tests, the
+  development loop; `--target nopgo` the engine alone. Every build is copied
+  to `build/dist` as `basilisk-<version>-<os>-<x64|arm64>[-<tier>][-<kind>]`
+  (`cmake/dist-copy.cmake`): the version the engine reports, the tier on an
+  x64 single-tier build, and `-nopgo`, `-debug`, `-tune` and the like for
+  anything but a PGO release build. The x86-64 release asset is the
+  universal binary (`cmake --build --preset universal --target universal`:
+  four tiers' PGO builds, functions aligned to 64 bytes, behind a baseline
+  dispatcher;
+  `docs/release_tiers.md`). Every measurement stays on the single-tier pext
+  build, which is its pext tier less the alignment (BAS-P21 read the two
+  level); `build_test.ps1 -Universal` stages the universal binary and its
+  tier builds when a read needs them. `TUNE=ON` exposes diagnostics and search constants as UCI
   options; `DIAGNOSTIC=ON` exposes diagnostics without tunable constants;
   the two flavors are mutually exclusive. `TEXEL=ON` builds the Texel target
   and is never measured for strength.
@@ -422,23 +439,28 @@ so a registered `[0,3]` gate passes `-Elo1 3`**. `-Mode simplify` is `[-5,0]`.
   flavor. The wrapper starts from a fresh cache, forces portable tier codegen,
   verifies bench and the flavor's UCI surface, and writes a schema-2 sidecar
   with source tree, binary hash, compiler, flavor, arm and fingerprint.
-- **NPS:** two pools from `tools/nps_pool.ps1`, read by `tools/nps_read.ps1`
+- **NPS:** pools from `tools/nps_pool.ps1`, read by `tools/nps_read.ps1`
   and decided by `tools/diag/nps_read.py` (Rarog's RAR-P32 method). The
   builds set the limit, not the cycles.
   - **Pools.** A pool is four independent final-PGO builds of one clean
     revision. A single binary is not an arm, and identical hashes are
     refused. Another revision is built from a temporary worktree with its
     own `build_test.ps1`.
-  - **Cycles.** A cycle reads every build of both arms once, interleaved,
-    with arm order alternating. A reading is the best of one pinned
-    `bench 13 3 1`. There is one warm-up reading per build, and every run
-    is archived.
+  - **Arms and contrasts.** A read has two or more pools as arms and
+    decides one or more named contrasts, each a pair of arms in the gain
+    or the no-regression form. Comparisons that share pools go in one
+    read: every contrast is as precise as a two-pool read of its pair, and
+    the arms share one warm-up and one quiet wait.
+  - **Cycles.** A cycle reads every build of every arm once, interleaved,
+    the arm order rotating. A reading is the best of one pinned
+    `bench 13 3 1`. Every run is archived.
   - **Estimate.** The delta of the arms' means of per-build medians, with a
     Welch t-interval on those medians, never a bootstrap of readings.
   - **Step 1, two cycles.** At +0.9% or more the change is accepted; at
     +0.1% or less it is NO_CHANGE.
   - **Step 2, only in between, six cycles in all.** Accepted at +0.5% or
-    more with the lower bound above 0.
+    more with the lower bound above 0. The read extends when any contrast
+    is in between; a contrast decided at step 1 keeps that verdict.
   - **No-regression form (`-NoRegression`).** Step 1 passes at −0.1% or
     above and fails at −0.9% or below. Step 2 fails at −0.5% or below with
     the upper bound under 0.
@@ -446,8 +468,12 @@ so a registered `[0,3]` gate passes `-Elo1 3`**. `-Mode simplify` is `[-5,0]`.
     cycles, a cycle more than 1% off its arm's median cycle is disturbed;
     two are absorbed and three repeat the read. A cycle with host load over
     10%, or with an engine, harness or build process running, is disturbed.
-  - **Fresh executables are scanned by antivirus** (RAR-M48), so the read
-    first waits for sustained quiet: 120 s in a registered read.
+    A contrast is disturbed when either of its arms is.
+  - **Fresh executables are scanned by antivirus** (RAR-M48), so every
+    build first runs one short `bench 8`, which sets the scan off, and the
+    read then waits for 60 s under 10% load; a scan still running holds the
+    wait. A three-pool read takes about 9 minutes at step 1 and 23 with
+    step 2.
   - **The null** is two independent pools of one source (BAS-P18).
   - `tools/nps_ab.ps1` is kept only to compare with earlier rows. Its
     bootstrap resamples readings, not builds, so it is not this interval.
@@ -709,11 +735,12 @@ one. There are no permanent release branches.
    tools/diag/release_check.py check vX.Y.Z --base HEAD` passes.
 2. **The rehearsal is that PR.** Its `CI` run and its `Release` candidate
    run must both be green: the candidate builds, benches and fingerprints all
-   nine assets, and runs the release check for a plain version. The
+   five assets and every x86 tier, checks the tier selection under SDE, and
+   runs the release check for a plain version. The
    maintainer squash-merges it; the squash has the PR head's exact tree, so
    the candidate run stands for it.
 3. **The tag.** On the merged `master`, the maintainer tags and pushes. The
-   tag run checks again, rebuilds the nine assets, asserts one fingerprint
+   tag run checks again, rebuilds the five assets, asserts one fingerprint
    equal to GUIDE's, and only then publishes, with the CHANGELOG section as
    the notes.
 4. **Repair.** A failed tag run publishes nothing. Delete the tag locally and
@@ -753,10 +780,10 @@ builds the bundle as a workflow artifact and creates no tag or release.
 ## Common commands
 
 ```powershell
-cmake --preset release-pext -DCOMP=clang
-cmake --build --preset release-pext
-ctest --test-dir build/release-pext --output-on-failure
-cmake --build --preset release-pext --target pgo
+cmake --preset release -DCOMP=clang
+cmake --build --preset release --target all
+ctest --test-dir build/release --output-on-failure
+cmake --build --preset release
 python tools/diag/check_roadmap.py
 python tools/diag/check_roadmap.py --self-test
 ```

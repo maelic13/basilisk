@@ -20,12 +20,25 @@ extern "C" {
 
 namespace {
 
-std::mutex g_init_mutex;
+// The mutex and the path are made on first use and never destroyed: a
+// universal binary's tier object carries no dynamic initialiser, which would
+// run, in every tier, before the dispatcher has chosen one, and a static
+// object's destructor may still call clear() at exit, after a destroyed
+// function-local static would be gone. The atomics are constant-initialised.
+std::mutex& init_mutex() {
+    static std::mutex& mutex = *new std::mutex;
+    return mutex;
+}
+
+std::string& tb_path() {
+    static std::string& path = *new std::string;
+    return path;
+}
+
 std::atomic_bool g_enabled{false};
 std::atomic_int g_largest{0};
 std::atomic_int g_wdl_files{0};
 std::atomic_int g_dtz_files{0};
-std::string g_path;
 
 struct TbPosition {
     uint64_t white = 0;
@@ -279,10 +292,10 @@ std::vector<std::pair<Move, int>> rank_moves_by_dtz(const Board& board, int prob
 namespace Syzygy {
 
 bool init(const std::string& path) {
-    std::scoped_lock lock(g_init_mutex);
+    std::scoped_lock lock(init_mutex());
 
     tb_free();
-    g_path = path;
+    tb_path() = path;
     g_enabled.store(false, std::memory_order_release);
     g_largest.store(0, std::memory_order_release);
     g_wdl_files.store(0, std::memory_order_release);
@@ -292,7 +305,7 @@ bool init(const std::string& path) {
         return true;
 
     if (!tb_init(path.c_str())) {
-        g_path.clear();
+        tb_path().clear();
         return false;
     }
 
@@ -305,9 +318,9 @@ bool init(const std::string& path) {
 }
 
 void clear() {
-    std::scoped_lock lock(g_init_mutex);
+    std::scoped_lock lock(init_mutex());
     tb_free();
-    g_path.clear();
+    tb_path().clear();
     g_enabled.store(false, std::memory_order_release);
     g_largest.store(0, std::memory_order_release);
     g_wdl_files.store(0, std::memory_order_release);
@@ -331,8 +344,8 @@ int dtz_file_count() {
 }
 
 std::string path() {
-    std::scoped_lock lock(g_init_mutex);
-    return g_path;
+    std::scoped_lock lock(init_mutex());
+    return tb_path();
 }
 
 bool can_probe_root(const Board& board, int probe_limit) {

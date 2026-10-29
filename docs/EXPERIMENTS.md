@@ -597,6 +597,10 @@ not accept any new feature, vector or label policy by themselves.
 | [BAS-P17](experiments/BAS-P17.md) | Frozen before the run, PLAN B.2.0's pooled-PGO NPS pool against the B.1 builds. | PASSED: 0.00% |
 | [BAS-P18](experiments/BAS-P18.md) | The pooled-build NPS read's null: two independent pools of the head. | COMPLETE: −0.19% [−0.66, +0.27], NO_CHANGE; instrument validated |
 | [BAS-P19](experiments/BAS-P19.md) | MSYS2 clang 22.1.8 to 23.1.3 at identical source, a no-regression NPS read. | COMPLETE: +0.89% [+0.23, +1.54], no regression |
+| [BAS-P20](experiments/BAS-P20.md) | The universal x86-64 binary against the pext asset, and the ISA tier ladder. | COMPLETE: universal −0.58% [−0.82, −0.33], FAIL (per-tier assets stay); ladder avx2 +5.04%, pext +2.82%, pext/portable +8.49% |
+| [BAS-P21](experiments/BAS-P21.md) | The universal x86-64 binary with 64-byte function alignment, against the pext asset. | COMPLETE: universal +0.00% at step 1, PASS (−0.29% [−0.73, +0.16] at six cycles); relink −0.13%, alignment −0.16%, both NO_CHANGE |
+| [BAS-P22](experiments/BAS-P22.md) | The native release build, GCC and MSVC, against Clang, the universal binary and the pext asset. | COMPLETE, read twice: native −1.0% against pext (A.15.8 returned); universal −0.14% PASS; GCC −2.7%, MSVC −14.4% against Clang |
+| [BAS-P23](experiments/BAS-P23.md) | BAS-P22's read on an Intel host: native, the universal binary and GCC. | REGISTERED |
 
 ## 7. Correctness and protocol lessons
 

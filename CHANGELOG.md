@@ -16,6 +16,46 @@ and next step).
 
 ### Changed
 
+- **One Intel/AMD download per system.** Windows and Linux on Intel or AMD
+  now have a single download, `x64`, in place of the plain (and slowest),
+  `-avx2` and `-pext` ones. It holds four builds of the engine and starts
+  the fastest one the processor runs: `pext` on Intel Haswell and newer and
+  AMD Zen 3 and newer, `avx2` on AMD Zen 1 and Zen 2 (whose `PEXT` is slow)
+  and other AVX2 processors, `sse41-popcnt` on Intel Nehalem to Ivy Bridge
+  and AMD Bulldozer to Steamroller, which before had only the slowest
+  download, and `base` on anything older, so there is nothing to choose.
+  The first line it prints names the one it chose, and the environment
+  variable `BASILISK_ISA` (`base`, `sse41-popcnt`, `avx2` or `pext`) forces
+  one. A release has five downloads instead of nine.
+  Every build plays identically (`bench 13` 19,470,325 in each). Measured on
+  a Ryzen 9 5950X, the executable runs as fast as the former `-pext`
+  download, and its `pext` build is 8.5% faster than `base` (BAS-P20,
+  BAS-P21).
+- **Three build presets.** `release` builds the fastest engine for the
+  computer that builds it: it checks the processor and builds the
+  download's build for it (with PEXT where that runs fast), which measured
+  1% faster than `-march=native` on a Ryzen 9 5950X; `-DNATIVE=ON` builds
+  with `-march=native` instead. Add `--target pgo` for the profile-guided
+  binary. `universal` builds the release's Intel/AMD download and `debug` a
+  sanitized debug build. The `release-pext`, `release-avx2` and
+  `relwithdebinfo` presets are gone. `release` and `universal` now build the
+  profile-guided binary by default; `--target nopgo` builds the engine
+  without the profile step.
+- **Shorter, clearer file names.** Downloads are named
+  `basilisk-<version>-<system>-<x64|arm64>`, for example
+  `basilisk-1.11.0-windows-x64.exe` (`x86_64` and `aarch64` before). A build
+  of your own lands in `build/dist` named with the version the engine
+  reports (`dev-<date>-<commit>` between releases), the build it holds
+  (`-pext`, `-avx2` and so on) and any kind other than a profile-guided
+  release (`-nopgo`, `-debug`), so it can never be taken for a download.
+- **MSVC is no longer supported.** It built an engine 14% slower than Clang
+  on the same instructions; build with Clang (the fastest) or GCC.
+- A build compiled for one instruction set (with `-DUSE_AVX2` or
+  `-DUSE_PEXT` and `-DPORTABLE_BUILD=ON`) started on a CPU without its instructions now says
+  so on standard output as well (`info string`), where a GUI records it, and
+  names the build to use; a build slower than the CPU allows, or a `pext`
+  build on AMD Zen 1 and Zen 2, says which one would be faster.
+
 - **A rebuilt search core.** The search now follows modern Stockfish's
   design in the parts that decide which moves it looks at, and how deeply:
   - how it reuses the transposition table;

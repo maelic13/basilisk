@@ -48,7 +48,7 @@ def disassemble(objdump: str, path: Path, relocations: bool = False) -> str:
     return result.stdout
 
 
-SYMBOL = re.compile(r"^[0-9a-f]+ <(.+)>:\s*$", re.IGNORECASE)
+SYMBOL = re.compile(r"^([0-9a-f]+) <(.+)>:\s*$", re.IGNORECASE)
 
 # Library helpers whose extension instructions run only after a runtime check
 # for that extension, so they are allowed on the ARM64 baseline. Each entry
@@ -104,7 +104,7 @@ def instructions(text: str, exempt: frozenset[str] = frozenset()) -> list[tuple[
     for line in text.splitlines():
         label = SYMBOL.match(line)
         if label:
-            symbol = label.group(1)
+            symbol = label.group(2)
             continue
         if symbol in exempt:
             continue
@@ -141,14 +141,45 @@ def arm64_split(text: str, exempt: frozenset[str] = frozenset()) -> tuple[Counte
     return counts, allowed, offending
 
 
-X86_EXTENSIONS = r"popcnt[qlw]?|pext[qlwd]?|blsr[qlwd]?|lzcnt[qlw]?|" + "|".join(AVX2_MNEMONICS)
+# Everything above the portable floor, by family. The portable tier and the
+# code every universal tier shares contain none of it; the avx2 tier none of
+# BMI1, BMI2 or LZCNT, which its CPUs need not have.
+# - The floor is x86-64 with SSE3: MSYS2 builds its static libc++ for
+#   -march=nocona, and every x86-64 CPU since 2005 has SSE3. SSSE3 is not on
+#   it (AMD's K10, Phenom II and Athlon II, lacks it).
+# - tzcnt is allowed: it is LLVM's encoding of bsf (f3 0f bc, a rep-prefixed
+#   bsf) for a count of trailing zeros whose input is not zero, and a CPU
+#   without BMI1 runs it as bsf with the same result.
+X86_ABOVE_BASELINE = {
+    "popcnt": r"popcnt[qlw]?",
+    "lzcnt": r"lzcnt[qlw]?",
+    "bmi1": r"(?:andn|bextr|blsi|blsmsk|blsr)[qlw]?",
+    "bmi2": r"(?:bzhi|mulx|pdep|pext|rorx|sarx|shlx|shrx)[qlw]?",
+    "ssse3": r"pshufb|palignr|ph(?:add|sub)(?:w|d|sw)|pabs[bwd]|psign[bwd]|pmaddubsw|pmulhrsw",
+    "sse4.1": r"blendv?p[sd]|pblend(?:w|vb)|dpp[sd]|(?:insert|extract)ps|pextr[bdq]|pinsr[bdq]"
+              r"|pm(?:ax|in)(?:sb|sd|ud|uw)|pmov[sz]x(?:bw|bd|bq|wd|wq|dq)|pmul(?:dq|ld)|ptest"
+              r"|round[ps][sd]|mpsadbw|packusdw|pcmpeqq|phminposuw|movntdqa",
+    "sse4.2": r"pcmpgtq|pcmp[ei]str[im]|crc32[bwlq]?",
+    # Every VEX or EVEX encoding: AVX and above (verr and verw are not).
+    "avx": r"v(?!err|erw)[a-z0-9]+",
+}
+AVX2_FORBIDDEN = ("lzcnt", "bmi1", "bmi2")
+# The sse41-popcnt tier: SSSE3, SSE4.1 and POPCNT, nothing of SSE4.2 or later.
+SSE41_POPCNT_FORBIDDEN = ("sse4.2", "avx", "lzcnt", "bmi1", "bmi2")
 
 
-def x86_offenders(text: str, exempt: frozenset[str] = frozenset()) -> Counter[str]:
-    """Functions holding instructions the portable tier forbids, with counts."""
-    regex = re.compile(X86_EXTENSIONS)
+def above_baseline(mnemonic: str) -> str | None:
+    for family, pattern in X86_ABOVE_BASELINE.items():
+        if re.fullmatch(pattern, mnemonic):
+            return family
+    return None
+
+
+def x86_offenders(text: str, exempt: frozenset[str] = frozenset(),
+                  families: tuple[str, ...] = tuple(X86_ABOVE_BASELINE)) -> Counter[str]:
+    """Functions holding instructions of the given families, with counts."""
     return Counter(symbol or "?" for symbol, mnemonic, _ in instructions(text, exempt)
-                   if regex.fullmatch(mnemonic))
+                   if above_baseline(mnemonic) in families)
 
 
 def family_count(counts: Counter[str], pattern: str) -> int:
@@ -176,18 +207,31 @@ def verify_binary(tier: str, counts: Counter[str]) -> tuple[dict[str, int], list
         "lzcnt": family_count(counts, r"lzcnt[qlw]?"),
         "avx2": sum(counts[mnemonic] for mnemonic in AVX2_MNEMONICS),
     }
+    families = Counter()
+    for mnemonic, count in counts.items():
+        family = above_baseline(mnemonic)
+        if family:
+            families[family] += count
     errors: list[str] = []
 
     if tier == "portable":
-        for family in ("popcnt", "pext", "blsr", "lzcnt", "avx2"):
-            if observed[family]:
+        for family in X86_ABOVE_BASELINE:
+            if families[family]:
                 errors.append(f"portable tier contains forbidden {family} instructions")
+        observed.update({name: families[name] for name in ("bmi1", "sse4.1", "avx")})
+    elif tier == "sse41-popcnt":
+        if not observed["popcnt"]:
+            errors.append("SSE4.1-POPCNT tier contains no popcnt instruction")
+        for family in SSE41_POPCNT_FORBIDDEN:
+            if families[family]:
+                errors.append(f"SSE4.1-POPCNT tier contains forbidden {family} instructions")
     elif tier == "avx2":
         for family in ("popcnt", "avx2"):
             if not observed[family]:
                 errors.append(f"AVX2 tier contains no {family} instruction")
-        if observed["pext"]:
-            errors.append("AVX2 tier contains forbidden PEXT instructions")
+        for family in AVX2_FORBIDDEN:
+            if families[family]:
+                errors.append(f"AVX2 tier contains forbidden {family} instructions")
     elif tier == "pext":
         for family in ("popcnt", "pext", "blsr", "lzcnt", "avx2"):
             if not observed[family]:
@@ -196,13 +240,103 @@ def verify_binary(tier: str, counts: Counter[str]) -> tuple[dict[str, int], list
     return observed, errors
 
 
+# A universal binary's tiers: every symbol a tier defines carries its name
+# (cmake/universal-tiers.cmake), so each function is attributed by its label.
+# Everything else (the dispatcher, Fathom, the runtime) is shared and runs on
+# every CPU, so it meets the portable contract, as the base tier does.
+UNIVERSAL_TIERS = ("base", "sse41_popcnt", "avx2", "pext")
+TIER_SYMBOL = re.compile(r"__basilisk_(base|sse41_popcnt|avx2|pext)_|_ZN\d+basilisk_(base|sse41_popcnt|avx2|pext)10run_engine")
+
+
+def symbol_region(symbol: str) -> str:
+    match = TIER_SYMBOL.match(symbol)
+    return (match.group(1) or match.group(2)) if match else "shared"
+
+
+# Each tier's functions are aligned to 64 bytes, so the relink cannot move them
+# off the cache-line placement they had in the tier's own build (BAS-P20 read
+# that shift 0.58% slower). Compiler-generated stubs (destructor thunks,
+# terminate handlers) can escape the flag, so the rule is a share of each tier
+# plus every function of the hot path, by mangled name.
+ALIGNMENT = 64
+ALIGNED_SHARE = 0.95
+HOT_FUNCTIONS = (
+    "N8Searcher7negamax", "N8Searcher10quiescence", "N14CoreMovePicker4next",
+    "N5Board9make_move", "N5Board11unmake_move", "NK5Board8is_legal", "NK5Board6see_ge",
+    "N9Evaluator8evaluate",
+)
+# Fathom is compiled once, for the baseline, and linked once beside the
+# dispatcher: no tier may carry its own copy.
+FATHOM_FUNCTIONS = ("tb_init", "tb_free", "tb_probe_wdl_impl", "tb_probe_root_impl")
+
+
+def functions(text: str) -> list[tuple[int, str]]:
+    """(address, symbol) for every function label in the disassembly."""
+    return [(int(m.group(1), 16), m.group(2)) for m in map(SYMBOL.match, text.splitlines()) if m]
+
+
+def verify_layout(text: str) -> list[str]:
+    errors: list[str] = []
+    found = functions(text)
+    for tier in UNIVERSAL_TIERS:
+        own = [(address, symbol) for address, symbol in found if symbol_region(symbol) == tier]
+        if not own:
+            continue
+        aligned = sum(1 for address, _ in own if address % ALIGNMENT == 0)
+        print(f"{tier}: {aligned} of {len(own)} functions at 0 mod {ALIGNMENT}")
+        if aligned < ALIGNED_SHARE * len(own):
+            errors.append(f"{tier}: only {aligned} of {len(own)} functions start on a {ALIGNMENT}-byte line")
+        for hot in HOT_FUNCTIONS:
+            matches = [(address, symbol) for address, symbol in own if hot in symbol]
+            if not matches:
+                errors.append(f"{tier}: no function matching the hot-path name {hot}")
+            for address, symbol in matches:
+                if address % ALIGNMENT:
+                    errors.append(f"{tier}: hot function {symbol} starts at {address % ALIGNMENT} mod {ALIGNMENT}")
+    for name in FATHOM_FUNCTIONS:
+        shared = [symbol for _, symbol in found if symbol == name]
+        in_tiers = [symbol for _, symbol in found if symbol_region(symbol) != "shared" and symbol.endswith("_" + name)]
+        if len(shared) != 1 or in_tiers:
+            errors.append(f"Fathom's {name} is defined {len(shared)} times as shared code and in tiers as {in_tiers}")
+    return errors
+
+
+def verify_universal(text: str, exempt: frozenset[str]) -> list[str]:
+    regions: dict[str, Counter[str]] = {name: Counter() for name in ("shared", *UNIVERSAL_TIERS)}
+    offenders: Counter[str] = Counter()
+    for symbol, mnemonic, _ in instructions(text, exempt):
+        region = symbol_region(symbol)
+        regions[region][mnemonic] += 1
+        family = above_baseline(mnemonic)
+        if family and (region in ("shared", "base")
+                       or (region == "sse41_popcnt" and family in SSE41_POPCNT_FORBIDDEN)
+                       or (region == "avx2" and family in AVX2_FORBIDDEN)):
+            offenders[f"{region} <{symbol or '?'}> {family}"] += 1
+    errors: list[str] = []
+    for region, counts in regions.items():
+        if not counts:
+            errors.append(f"universal binary holds no {region} code")
+            continue
+        contract = {"shared": "portable", "base": "portable", "sse41_popcnt": "sse41-popcnt"}.get(region, region)
+        observed, region_errors = verify_binary(contract, counts)
+        errors.extend(f"{region}: {error}" for error in region_errors)
+        print(f"{region}: " + " ".join(f"{name}={count}" for name, count in observed.items()))
+    for entry, count in offenders.most_common(20):
+        print(f"forbidden: {count} in {entry}", file=sys.stderr)
+    errors.extend(verify_layout(text))
+    return errors
+
+
 def verify_launcher(tier: str, text: str) -> list[str]:
     counts = instruction_counts(text)
     observed, errors = verify_binary("portable", counts)
     errors = [f"launcher: {error}" for error in errors]
 
-    if "run_engine" not in text:
-        errors.append("launcher: no relocation or symbol reference to run_engine")
+    entries = ([f"basilisk_{name}10run_engine" for name in UNIVERSAL_TIERS]
+               if tier == "universal" else ["run_engine"])
+    for entry in entries:
+        if entry not in text:
+            errors.append(f"launcher: no relocation or symbol reference to {entry}")
     if tier != "portable" and not (
         "__cpu_model" in text or "cpuid" in counts
     ):
@@ -217,7 +351,7 @@ def verify_launcher(tier: str, text: str) -> list[str]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--tier", required=True, choices=("portable", "avx2", "pext", "arm64"))
+    parser.add_argument("--tier", required=True, choices=("portable", "sse41-popcnt", "avx2", "pext", "universal", "arm64"))
     parser.add_argument("--binary", required=True, type=Path)
     parser.add_argument("--launcher-object", type=Path)
     parser.add_argument("--objdump", help="llvm-objdump executable")
@@ -256,14 +390,19 @@ def main() -> int:
                 print(f"forbidden: {entry}", file=sys.stderr)
         else:
             counts = instruction_counts(binary_text, frozenset(exempt))
-        observed, errors = verify_binary(args.tier, counts)
-        if args.tier == "portable" and errors:
-            for symbol, count in x86_offenders(binary_text, frozenset(exempt)).most_common(20):
-                print(f"forbidden: {count} in <{symbol}>", file=sys.stderr)
-        print(
-            f"{args.tier}: "
-            + " ".join(f"{name}={count}" for name, count in observed.items())
-        )
+        if args.tier == "universal":
+            errors = verify_universal(binary_text, frozenset(exempt))
+        else:
+            observed, errors = verify_binary(args.tier, counts)
+            if args.tier in ("portable", "sse41-popcnt", "avx2") and errors:
+                families = {"portable": tuple(X86_ABOVE_BASELINE), "sse41-popcnt": SSE41_POPCNT_FORBIDDEN,
+                            "avx2": AVX2_FORBIDDEN}[args.tier]
+                for symbol, count in x86_offenders(binary_text, frozenset(exempt), families).most_common(20):
+                    print(f"forbidden: {count} in <{symbol}>", file=sys.stderr)
+            print(
+                f"{args.tier}: "
+                + " ".join(f"{name}={count}" for name, count in observed.items())
+            )
 
         if args.launcher_object is not None:
             launcher_text = disassemble(objdump, args.launcher_object, relocations=True)

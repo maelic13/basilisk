@@ -1,27 +1,32 @@
 <#
 .SYNOPSIS
-    Pooled-build NPS read: two pools from tools/nps_pool.ps1, interleaved
-    cycles of `bench 13 3`, every run archived, decided by
-    tools/diag/nps_read.py.
+    Pooled-build NPS read: two or more pools from tools/nps_pool.ps1,
+    interleaved cycles of `bench 13 3`, every run archived, each contrast
+    between two pools decided by tools/diag/nps_read.py.
 
 .DESCRIPTION
     The method is PROCESS *Build, bench and NPS* (Rarog's RAR-P32 read):
 
-      - A cycle reads every build of both arms once. Builds are paired across
-        the arms, the pairs rotate from cycle to cycle, and which arm goes
-        first alternates, so drift and the first-slot penalty fall on both
-        arms alike. A reading is one pinned `bench <Depth> <Repeats> 1`
-        process at High priority, and its value is the best of its runs.
+      - The arms are pools, named by their pool names. A contrast is a
+        named pair of arms, read in the gain or the no-regression form;
+        -Base and -Cand are the two-arm read with one contrast, `read`.
+      - A cycle reads every build of every arm once. Builds are grouped by
+        their index across the arms, the groups rotate from cycle to cycle,
+        and the arm order rotates within each group, so drift and the
+        first-slot penalty fall on every arm alike. A reading is one pinned
+        `bench <Depth> <Repeats> 1` process at High priority, and its value
+        is the best of its runs. Every contrast is as precise as a two-arm
+        read of its pair, and the arms share one warm-up and one quiet wait.
       - Step 1 is two cycles. -Extend adds four more to the same archive,
-        six in all, when step 1 says EXTEND.
-      - One warm-up reading per build precedes step 1 and is archived but not
-        counted.
+        six in all, when step 1 says the read extends (any contrast EXTEND).
       - Fresh executables are scanned by antivirus, which contaminates a read
-        (RAR-M48), so the read first waits until host load has stayed under
-        -BusyCeilingPercent for -QuietSeconds. A start-of-read check is not
-        enough, so every cycle records the host's load and any engine,
-        harness or build process; the decision treats such a cycle as
-        disturbed.
+        (RAR-M48). So every build first runs one short warm-up bench
+        (`bench <WarmupDepth> 1 1`, archived, not counted), which sets off
+        the scan, and the read then waits until host load has stayed under
+        -BusyCeilingPercent for -QuietSeconds; a scan still running holds
+        the wait. A start-of-read check is not enough, so every cycle records
+        the host's load and any engine, harness or build process; the
+        decision treats such a cycle as disturbed.
       - Every binary is hashed against its pool before the first reading, and
         every reading records the hash it ran.
 
@@ -35,17 +40,26 @@
         -Out tools/results/nps-null-head -Label "head null"
 
 .EXAMPLE
+    ./tools/nps_read.ps1 -Pools tools/test_engines/old.pool.json, `
+        tools/test_engines/new.pool.json, tools/test_engines/alt.pool.json `
+        -Contrasts 'new=old:new:no-regression', 'alt=old:alt:gain' `
+        -Out tools/results/nps-three -Label "three arms"
+
+.EXAMPLE
     ./tools/nps_read.ps1 -Out tools/results/nps-null-head -Extend
 #>
 param(
     [string]$Base = '',
     [string]$Cand = '',
+    [string[]]$Pools = @(),
+    [string[]]$Contrasts = @(),
     [Parameter(Mandatory)][string]$Out,
     [switch]$Extend,
     [switch]$NoRegression,
     [string]$Label = '',
     [ValidateRange(1, 64)][int]$Depth = 13,
     [ValidateRange(1, 16)][int]$Repeats = 3,
+    [ValidateRange(1, 64)][int]$WarmupDepth = 8,
     [int]$Cpu = -1,
     [double]$BusyCeilingPercent = 10,
     [ValidateRange(0, 3600)][int]$QuietSeconds = 60,
@@ -69,55 +83,89 @@ function Read-Pool([string]$Path) {
     if ($pool.schema -ne 'basilisk-nps-pool-v1') { throw "$full is not an nps_pool.ps1 pool." }
     if ($pool.small_pool -and -not $AllowSmallPool) { throw "$full is a small pool; it reads only with -AllowSmallPool, as an instrument smoke." }
     [ordered]@{
+        name = $pool.name
         pool = [IO.Path]::GetRelativePath($repoRoot, $full).Replace('\', '/')
         pool_sha256 = Get-HarnessSha256 $full
-        name = $pool.name; revision = $pool.revision; compiler = $pool.compiler; bench = [long]$pool.bench
+        revision = $pool.revision; compiler = $pool.compiler; bench = [long]$pool.bench
         builds = @($pool.builds | ForEach-Object { [ordered]@{ path = $_.path; sha256 = $_.sha256 } })
     }
+}
+
+function Read-Contrast([string]$Spec, [string[]]$ArmNames) {
+    if ($Spec -notmatch '^([A-Za-z0-9_.-]+)=([^:]+):([^:]+)(?::(gain|no-regression))?$') {
+        throw "Contrast '$Spec' is not name=base:cand[:gain|:no-regression]."
+    }
+    $c = [ordered]@{ name = $Matches[1]; base = $Matches[2]; cand = $Matches[3]; mode = if ($Matches[4]) { $Matches[4] } else { 'gain' } }
+    foreach ($arm in @($c.base, $c.cand)) {
+        if ($arm -notin $ArmNames) { throw "Contrast $($c.name) names $arm, which is not one of the arms: $($ArmNames -join ', ')." }
+    }
+    if ($c.base -eq $c.cand) { throw "Contrast $($c.name) reads $($c.base) against itself." }
+    $c
 }
 
 if ($Extend) {
     if (-not (Test-Path -LiteralPath $configPath)) { throw "-Extend needs an existing read in $Out." }
     $config = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json -AsHashtable
+    if ($config.schema -ne 'basilisk-nps-read-v2') { throw "$Out is a $($config.schema) read; extend it with the nps_read.ps1 that started it." }
     $done = @(Get-Content -LiteralPath $runsPath | Where-Object { $_ } | ForEach-Object { $_ | ConvertFrom-Json } |
         Where-Object kind -EQ 'cycle').Count
     if ($done -ne $Step1Cycles) { throw "-Extend continues a $Step1Cycles-cycle step 1; $Out has $done cycles." }
+    $step1 = Get-Content -LiteralPath (Join-Path $Out "verdict-$Step1Cycles.json") -Raw | ConvertFrom-Json
+    if ($step1.next -ne 'EXTEND') { throw "Step 1 says $($step1.next), not EXTEND; this read does not extend." }
     $firstCycle = $Step1Cycles + 1; $lastCycle = $Step2Cycles
 } else {
-    if (-not $Base -or -not $Cand) { throw 'A new read needs -Base and -Cand pools.' }
+    if ($Base -or $Cand) {
+        if (-not $Base -or -not $Cand -or $Pools.Count -or $Contrasts.Count) { throw 'Give -Base and -Cand together, or -Pools and -Contrasts.' }
+        $Pools = @($Base, $Cand)
+    } elseif ($Pools.Count -lt 2 -or -not $Contrasts.Count) {
+        throw 'A new read needs -Base and -Cand pools, or two or more -Pools and one or more -Contrasts.'
+    } elseif ($NoRegression) {
+        throw '-NoRegression is for a -Base/-Cand read; a contrast states its own mode.'
+    }
     if (Test-Path -LiteralPath $Out) {
         if (@(Get-ChildItem -LiteralPath $Out -Force).Count) { throw "$Out exists and is not empty; a read never overwrites one." }
     }
+    $armSpecs = @($Pools | ForEach-Object { Read-Pool $_ })
+    $names = @($armSpecs | ForEach-Object { $_.name })
+    if (@($names | Sort-Object -Unique).Count -ne $names.Count) { throw "Two pools share a name: $($names -join ', ')." }
+    $contrastSpecs = @(if ($Base) {
+        [ordered]@{ name = 'read'; base = $names[0]; cand = $names[1]; mode = if ($NoRegression) { 'no-regression' } else { 'gain' } }
+    } else {
+        $Contrasts | ForEach-Object { Read-Contrast $_ $names }
+    })
+    $contrastNames = @($contrastSpecs | ForEach-Object { $_.name })
+    if (@($contrastNames | Sort-Object -Unique).Count -ne $contrastNames.Count) { throw "Two contrasts share a name: $($contrastNames -join ', ')." }
     New-Item -ItemType Directory -Force -Path $Out | Out-Null
     $config = [ordered]@{
-        schema = 'basilisk-nps-read-v1'
+        schema = 'basilisk-nps-read-v2'
         label = $Label
-        mode = if ($NoRegression) { 'no-regression' } else { 'gain' }
-        depth = $Depth; repeats = $Repeats
-        busy_ceiling_percent = $BusyCeilingPercent
-        base = Read-Pool $Base
-        cand = Read-Pool $Cand
+        depth = $Depth; repeats = $Repeats; warmup_depth = $WarmupDepth
+        busy_ceiling_percent = $BusyCeilingPercent; quiet_seconds = $QuietSeconds
+        arms = @($armSpecs)
+        contrasts = @($contrastSpecs)
         repo_revision = (& git -C $repoRoot rev-parse HEAD).Trim()
         created_utc = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
     }
     $firstCycle = 1; $lastCycle = $Step1Cycles
 }
 
-$arms = @('base', 'cand')
+$arms = @($config.arms | ForEach-Object { $_.name })
 $builds = @{}
-foreach ($arm in $arms) {
-    $builds[$arm] = @(foreach ($b in $config[$arm].builds) {
+foreach ($spec in $config.arms) {
+    $builds[$spec.name] = @(foreach ($b in $spec.builds) {
         $path = Join-Path $repoRoot $b.path
-        if (-not (Test-Path -LiteralPath $path)) { throw "$arm build missing: $path" }
+        if (-not (Test-Path -LiteralPath $path)) { throw "$($spec.name) build missing: $path" }
         $sha = Get-HarnessSha256 $path
         if ($sha -ne $b.sha256) { throw "PROVENANCE MISMATCH - $path hashes $sha, its pool says $($b.sha256)." }
         [pscustomobject]@{ Path = $path; Sha = $sha }
     })
 }
-if ($builds.base.Count -ne $builds.cand.Count) {
-    throw "Arms have $($builds.base.Count) and $($builds.cand.Count) builds; the interleaving pairs them, so they must match."
+$pairs = $builds[$arms[0]].Count
+foreach ($arm in $arms) {
+    if ($builds[$arm].Count -ne $pairs) {
+        throw "Arms have $(($arms | ForEach-Object { $builds[$_].Count }) -join ', ') builds; the interleaving groups them, so they must match."
+    }
 }
-$pairs = $builds.base.Count
 
 # One physical core, the last by default: Windows services interrupts on CPU 0,
 # and pinning concentrates whatever interference the chosen core sees.
@@ -132,7 +180,7 @@ if ($core[0].Cpu -ge 63) { throw 'Processor-group affinity above CPU 62 is not s
 $mask = [IntPtr]([int64]1 -shl $core[0].Cpu)
 if (-not $Extend) { $config.cpu = $core[0].Cpu; $config | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $configPath -Encoding utf8 }
 
-function Invoke-Reading([string]$Exe) {
+function Invoke-Reading([string]$Exe, [int]$BenchDepth, [int]$Runs) {
     $psi = [Diagnostics.ProcessStartInfo]::new($Exe)
     $psi.RedirectStandardInput = $true
     $psi.RedirectStandardOutput = $true
@@ -141,17 +189,19 @@ function Invoke-Reading([string]$Exe) {
     try {
         $p.ProcessorAffinity = $mask
         $p.PriorityClass = [Diagnostics.ProcessPriorityClass]::High
-        $p.StandardInput.WriteLine("bench $($config.depth) $($config.repeats) 1")
+        $p.StandardInput.WriteLine("bench $BenchDepth $Runs 1")
         $p.StandardInput.WriteLine('quit')
         $p.StandardInput.Close()
         $text = $p.StandardOutput.ReadToEnd()
         $p.WaitForExit()
     } finally { $p.Dispose() }
-    $runs = [regex]::Matches($text, '(?m)^run\s+\d+/\d+\s+nodes\s+(\d+)\s+time\s+\d+ms\s+nps\s+(\d+)')
-    if ($runs.Count -ne $config.repeats) { throw "$Exe printed $($runs.Count) bench runs, expected $($config.repeats)." }
-    $nodes = @($runs | ForEach-Object { [long]$_.Groups[1].Value } | Sort-Object -Unique)
+    # bench prints a line per run only when it makes more than one.
+    $pattern = if ($Runs -eq 1) { '(?ms)^Nodes searched\s*:\s*(\d+).*?^Nodes/second\s*:\s*(\d+)' } else { '(?m)^run\s+\d+/\d+\s+nodes\s+(\d+)\s+time\s+\d+ms\s+nps\s+(\d+)' }
+    $found = [regex]::Matches($text, $pattern)
+    if ($found.Count -ne $Runs) { throw "$Exe printed $($found.Count) bench runs, expected $Runs." }
+    $nodes = @($found | ForEach-Object { [long]$_.Groups[1].Value } | Sort-Object -Unique)
     if ($nodes.Count -ne 1) { throw "$Exe searched different node counts across its runs: $($nodes -join ', ')." }
-    [pscustomobject]@{ Nodes = $nodes[0]; Nps = @($runs | ForEach-Object { [long]$_.Groups[2].Value }) }
+    [pscustomobject]@{ Nodes = $nodes[0]; Nps = @($found | ForEach-Object { [long]$_.Groups[2].Value }) }
 }
 
 function Add-Record($Record) {
@@ -179,31 +229,34 @@ function Wait-HostQuiet {
     }
 }
 
-Write-Host "NPS read$(if ($config.label) { " [$($config.label)]" }): $($config.mode), cycles $firstCycle-$lastCycle, $pairs builds an arm, CPU $($core[0].Cpu)"
+$contrastText = ($config.contrasts | ForEach-Object { "$($_.name) ($($_.mode))" }) -join ', '
+Write-Host "NPS read$(if ($config.label) { " [$($config.label)]" }): $($arms.Count) arms of $pairs builds, $contrastText, cycles $firstCycle-$lastCycle, CPU $($core[0].Cpu)"
 Assert-HarnessHostIdle -MaxBusyPercent 15 -Allow:$AllowBusyHost | Out-Null
-Write-Host "  Waiting for $QuietSeconds s of host load under $BusyCeilingPercent% ..."
-Wait-HostQuiet
 
 if (-not $Extend) {
-    Write-Host '  Warm-up: one reading per build (archived, not counted)'
+    Write-Host "  Warm-up: one bench $($config.warmup_depth) per build (archived, not counted)"
     foreach ($arm in $arms) {
         for ($i = 0; $i -lt $pairs; $i++) {
-            $r = Invoke-Reading $builds[$arm][$i].Path
-            Add-Record ([ordered]@{ kind = 'warmup'; arm = $arm; build = $i; sha256 = $builds[$arm][$i].Sha; nodes = $r.Nodes; nps = $r.Nps })
+            $r = Invoke-Reading $builds[$arm][$i].Path $config.warmup_depth 1
+            Add-Record ([ordered]@{ kind = 'warmup'; arm = $arm; build = $i; sha256 = $builds[$arm][$i].Sha; depth = $config.warmup_depth; nodes = $r.Nodes; nps = $r.Nps })
         }
     }
 }
+Write-Host "  Waiting for $QuietSeconds s of host load under $BusyCeilingPercent% ..."
+Wait-HostQuiet
 
 for ($cycle = $firstCycle; $cycle -le $lastCycle; $cycle++) {
     $started = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
     $busyBefore = Get-HarnessHostBusyPercent
     $procsBefore = @(Get-HarnessBusyProcess)
-    $levels = @{ base = @(); cand = @() }
+    $levels = @{}
+    foreach ($arm in $arms) { $levels[$arm] = @() }
     for ($k = 0; $k -lt $pairs; $k++) {
         $i = ($k + $cycle - 1) % $pairs
-        $order = if (($cycle + $k) % 2) { @('cand', 'base') } else { @('base', 'cand') }
+        $first = ($cycle + $k) % $arms.Count
+        $order = @(for ($j = 0; $j -lt $arms.Count; $j++) { $arms[($first + $j) % $arms.Count] })
         foreach ($arm in $order) {
-            $r = Invoke-Reading $builds[$arm][$i].Path
+            $r = Invoke-Reading $builds[$arm][$i].Path $config.depth $config.repeats
             Add-Record ([ordered]@{ kind = 'reading'; cycle = $cycle; arm = $arm; build = $i; sha256 = $builds[$arm][$i].Sha; nodes = $r.Nodes; nps = $r.Nps })
             $levels[$arm] += ($r.Nps | Measure-Object -Maximum).Maximum
         }
@@ -212,8 +265,8 @@ for ($cycle = $firstCycle; $cycle -le $lastCycle; $cycle++) {
     $procs = @($procsBefore + @(Get-HarnessBusyProcess) | ForEach-Object { $_.ProcessName } | Sort-Object -Unique)
     $busy = @($busyBefore, $busyAfter | Where-Object { $null -ne $_ } | Measure-Object -Maximum).Maximum
     Add-Record ([ordered]@{ kind = 'cycle'; cycle = $cycle; started_utc = $started; busy_percent = $busy; busy_processes = @($procs) })
-    Write-Host ("  cycle {0}/{1}: base {2:N0}  cand {3:N0}  host {4:N1}%{5}" -f $cycle, $lastCycle,
-        ($levels.base | Measure-Object -Average).Average, ($levels.cand | Measure-Object -Average).Average, $busy,
+    $levelText = ($arms | ForEach-Object { '{0} {1:N0}' -f $_, ($levels[$_] | Measure-Object -Average).Average }) -join '  '
+    Write-Host ("  cycle {0}/{1}: {2}  host {3:N1}%{4}" -f $cycle, $lastCycle, $levelText, $busy,
         $(if ($procs.Count) { "  BUSY: $($procs -join ', ')" } else { '' }))
 }
 

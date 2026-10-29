@@ -16,42 +16,22 @@
     {
       "name": "release",
       "displayName": "Release",
-      "description": "Optimised build: -O3 -march=native + LTO. Requires GCC or Clang.",
+      "description": "Fastest build for this computer: its tier with the release's flags, LTO and PGO. Build --target all for the quick build with the tests, --target nopgo for the engine alone.",
       "inherits": "base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"
       }
     },
     {
-      "name": "release-pext",
-      "displayName": "Release + PEXT",
-      "description": "Like release, plus BMI2 PEXT sliding-piece attacks (Haswell+ / Zen 3+).",
+      "name": "universal",
+      "displayName": "Universal x86-64",
+      "description": "The universal x86-64 binary: portable, AVX2 and PEXT PGO tiers chosen at start-up. Build target universal. Clang, Windows or Linux.",
       "inherits": "base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "USE_PEXT": "ON"
-      }
-    },
-    {
-      "name": "msvc-release-pext",
-      "displayName": "MSVC Release + PEXT",
-      "description": "MSVC /O2 + /GL + /LTCG, Intel tuning and BMI2 PEXT; supports the pgo target.",
-      "inherits": "base",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
-        "BASILISK_MSVC_FAVOR_INTEL": "ON",
-        "COMP": "msvc",
-        "USE_PEXT": "ON"
-      }
-    },
-    {
-      "name": "release-avx2",
-      "displayName": "Release + AVX2",
-      "description": "Like release, plus AVX2 code generation for Haswell+ / Zen+ x86-64 CPUs.",
-      "inherits": "base",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
-        "USE_AVX2": "ON"
+        "PORTABLE_BUILD": "ON",
+        "BASILISK_UNIVERSAL": "ON",
+        "BASILISK_ALIGN_FUNCTIONS": "64"
       }
     },
     {
@@ -63,24 +43,12 @@
         "CMAKE_BUILD_TYPE": "Debug",
         "SANITIZE": "ON"
       }
-    },
-    {
-      "name": "relwithdebinfo",
-      "displayName": "Release with Debug Info",
-      "description": "Optimised build with debug symbols, no sanitizers.",
-      "inherits": "base",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
-      }
     }
   ],
 
   "buildPresets": [
-    { "name": "release",        "configurePreset": "release" },
-    { "name": "release-pext",   "configurePreset": "release-pext" },
-    { "name": "msvc-release-pext", "configurePreset": "msvc-release-pext" },
-    { "name": "release-avx2",   "configurePreset": "release-avx2" },
-    { "name": "debug",          "configurePreset": "debug" },
-    { "name": "relwithdebinfo", "configurePreset": "relwithdebinfo" }
+    { "name": "release",        "configurePreset": "release", "targets": ["pgo"] },
+    { "name": "universal",      "configurePreset": "universal", "targets": ["universal"] },
+    { "name": "debug",          "configurePreset": "debug" }
   ]
 }

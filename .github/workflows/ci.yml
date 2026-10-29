@@ -53,13 +53,15 @@ jobs:
             os_name: linux
             arch: x86_64
             tier: avx2
-            preset: release-avx2
+            preset: release
+            isa: -DUSE_AVX2=ON
             bench_id: linux-x86_64-avx2
           - runner: ubuntu-26.04
             os_name: linux
             arch: x86_64
             tier: pext
-            preset: release-pext
+            preset: release
+            isa: -DUSE_PEXT=ON
             bench_id: linux-x86_64-pext
           - runner: ubuntu-26.04-arm
             os_name: linux
@@ -79,7 +81,8 @@ jobs:
             os_name: windows
             arch: x86_64
             tier: avx2
-            preset: release-avx2
+            preset: release
+            isa: -DUSE_AVX2=ON
             bench_id: windows-x86_64-avx2
             msystem: CLANG64
             mingw_pkg_prefix: mingw-w64-clang-x86_64
@@ -87,7 +90,8 @@ jobs:
             os_name: windows
             arch: x86_64
             tier: pext
-            preset: release-pext
+            preset: release
+            isa: -DUSE_PEXT=ON
             bench_id: windows-x86_64-pext
             msystem: CLANG64
             mingw_pkg_prefix: mingw-w64-clang-x86_64
@@ -184,22 +188,28 @@ jobs:
           esac
 
       # macOS uses the preinstalled AppleClang + libc++ (libc++'s <expected> is
-      # not gated on __cpp_concepts, so no version bump is needed here); cmake is
-      # preinstalled on the runner, ninja is not.
-      - name: Install Ninja (macOS)
-        timeout-minutes: 10
+      # not gated on __cpp_concepts, so no version bump is needed here). The
+      # Xcode major is pinned as the Windows clang major is; the image ships
+      # CMake and Ninja.
+      - name: Check the pinned Xcode (macOS)
         if: runner.os == 'macOS'
         run: |
-          command -v ninja >/dev/null 2>&1 || brew install ninja
-          ninja --version
+          want="$(tr -d '[:space:]' < .github/xcode-version)"
+          # xcodebuild aborts when head closes the pipe; read it whole.
+          got="$(xcodebuild -version)"; got="${got%%$'\n'*}"
+          echo "$got"; clang --version | head -n 1; ninja --version
+          case "$got" in
+            "Xcode $want"|"Xcode $want."*) ;;
+            *) echo "FAIL: $got is not Xcode $want, the pinned major (.github/xcode-version)"; exit 1 ;;
+          esac
 
-      # PORTABLE_BUILD disables host-native tuning; the explicit AVX2/PEXT
-      # presets remain active and therefore exercise their committed tier.
+      # PORTABLE_BUILD disables host-native tuning; the cell's ISA option
+      # (none for the base tier) selects its committed tier.
       - name: Configure and build (Release, TUNE off)
         run: |
-          cmake --preset ${{ matrix.preset }} -DPORTABLE_BUILD=ON -DCOMP=clang \
+          cmake --preset ${{ matrix.preset }} ${{ matrix.isa }} -DPORTABLE_BUILD=ON -DCOMP=clang \
             -DTUNE=OFF -DDIAGNOSTIC=OFF -DABLATION=OFF -DTEXEL=OFF
-          cmake --build --preset ${{ matrix.preset }}
+          cmake --build --preset ${{ matrix.preset }} --target all
 
       - name: CTest
         run: ctest --test-dir build/${{ matrix.preset }} --output-on-failure
@@ -236,7 +246,7 @@ jobs:
             --launcher-object "$launcher" --objdump "$objdump"
 
       # TUNE build must also stay compilable — it is what every SPRT/SPSA
-      # binary is built from (release-pext locally; feature parity is what
+      # binary is built from (release with USE_PEXT locally; feature parity is what
       # matters here, not the ISA tier).
       # The ARM64 contract: the TT prefetch must compile to prfm, and nothing
       # beyond baseline ARMv8 with NEON may appear (tools/diag/verify_isa.py).
@@ -254,7 +264,7 @@ jobs:
 
       - name: Configure and build (Release, TUNE on)
         run: |
-          cmake --preset ${{ matrix.preset }} -DPORTABLE_BUILD=ON -DCOMP=clang \
+          cmake --preset ${{ matrix.preset }} ${{ matrix.isa }} -DPORTABLE_BUILD=ON -DCOMP=clang \
             -DTUNE=ON -DDIAGNOSTIC=OFF -DABLATION=OFF -DTEXEL=OFF
           cmake --build --preset ${{ matrix.preset }} --target basilisk test_uci_protocol
           ctest --test-dir build/${{ matrix.preset }} -R test_uci_protocol --output-on-failure --no-tests=error
@@ -281,32 +291,32 @@ jobs:
 
       - name: Build and test diagnostic-only flavor
         run: |
-          cmake --preset release-pext -B build/diag-pext -DPORTABLE_BUILD=ON -DCOMP=clang \
+          cmake --preset release -B build/diag-pext -DUSE_PEXT=ON -DPORTABLE_BUILD=ON -DCOMP=clang \
             -DTUNE=OFF -DDIAGNOSTIC=ON -DABLATION=OFF -DTEXEL=OFF
           cmake --build build/diag-pext --target basilisk test_uci_protocol
           ctest --test-dir build/diag-pext -R test_uci_protocol --output-on-failure --no-tests=error
 
       - name: Build and test ablation flavor
         run: |
-          cmake --preset release-pext -B build/ablate-pext -DPORTABLE_BUILD=ON -DCOMP=clang \
+          cmake --preset release -B build/ablate-pext -DUSE_PEXT=ON -DPORTABLE_BUILD=ON -DCOMP=clang \
             -DTUNE=OFF -DDIAGNOSTIC=OFF -DABLATION=ON -DTEXEL=OFF
           cmake --build build/ablate-pext --target basilisk test_uci_protocol
           ctest --test-dir build/ablate-pext -R test_uci_protocol --output-on-failure --no-tests=error
 
       - name: Build and verify TEXEL flavor
         run: |
-          cmake --preset release-pext -B build/texel-pext -DPORTABLE_BUILD=ON -DCOMP=clang \
+          cmake --preset release -B build/texel-pext -DUSE_PEXT=ON -DPORTABLE_BUILD=ON -DCOMP=clang \
             -DTUNE=OFF -DDIAGNOSTIC=OFF -DABLATION=OFF -DTEXEL=ON
           cmake --build build/texel-pext --target basilisk-texel
           ./build/texel-pext/basilisk-texel --verify tools/texel/test_positions.csv
 
       - name: Reject invalid build combinations
         run: |
-          if cmake --preset release-pext -B build/invalid-isa -DUSE_AVX2=ON; then
+          if cmake --preset release -B build/invalid-isa -DUSE_PEXT=ON -DUSE_AVX2=ON; then
             echo "FAIL: USE_PEXT+USE_AVX2 was accepted"
             exit 1
           fi
-          if cmake --preset release-pext -B build/invalid-flavor -DTUNE=ON -DDIAGNOSTIC=ON; then
+          if cmake --preset release -B build/invalid-flavor -DTUNE=ON -DDIAGNOSTIC=ON; then
             echo "FAIL: TUNE+DIAGNOSTIC was accepted"
             exit 1
           fi

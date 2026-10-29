@@ -6,6 +6,15 @@ endif()
 if(NOT DEFINED PGO_PRESET)
     message(FATAL_ERROR "PGO_PRESET is required")
 endif()
+if(NOT DEFINED PGO_NAME OR PGO_NAME STREQUAL "")
+    set(PGO_NAME "${PGO_PRESET}")
+endif()
+if(NOT DEFINED PGO_UNIVERSAL_TIER OR PGO_UNIVERSAL_TIER STREQUAL "")
+    set(PGO_UNIVERSAL_TIER "OFF")
+endif()
+if(NOT DEFINED PGO_ALIGN_FUNCTIONS)
+    set(PGO_ALIGN_FUNCTIONS "")
+endif()
 if(NOT DEFINED PGO_COMP)
     set(PGO_COMP "auto")
 endif()
@@ -15,6 +24,11 @@ endif()
 if(NOT DEFINED PGO_PORTABLE_BUILD)
     set(PGO_PORTABLE_BUILD "OFF")
 endif()
+foreach(_isa PGO_USE_PEXT PGO_USE_AVX2 PGO_USE_SSE41_POPCNT)
+    if(NOT DEFINED ${_isa} OR "${${_isa}}" STREQUAL "")
+        set(${_isa} "OFF")
+    endif()
+endforeach()
 if(NOT DEFINED PGO_STATIC_RUNTIME OR PGO_STATIC_RUNTIME STREQUAL "")
     message(FATAL_ERROR "PGO_STATIC_RUNTIME is required")
 endif()
@@ -48,14 +62,16 @@ endif()
 if(NOT DEFINED PGO_DIST_DIR)
     set(PGO_DIST_DIR "")
 endif()
-if(NOT DEFINED PGO_DIST_ASSET_NAME)
-    set(PGO_DIST_ASSET_NAME "")
-endif()
+foreach(_var PGO_DIST_HEADER PGO_DIST_STEM PGO_DIST_SUFFIX)
+    if(NOT DEFINED ${_var})
+        set(${_var} "")
+    endif()
+endforeach()
 
 set(_build_root "${PGO_SOURCE_DIR}/build")
-set(_gen_dir "${_build_root}/${PGO_PRESET}-pgo-generate")
-set(_use_dir "${_build_root}/${PGO_PRESET}-pgo")
-set(_prof_dir "${_build_root}/${PGO_PRESET}-pgo-profile")
+set(_gen_dir "${_build_root}/${PGO_NAME}-pgo-generate")
+set(_use_dir "${_build_root}/${PGO_NAME}-pgo")
+set(_prof_dir "${_build_root}/${PGO_NAME}-pgo-profile")
 set(_profdata "${_prof_dir}/basilisk.profdata")
 set(_train_input "${_prof_dir}/bench.in")
 set(_train_log "${_prof_dir}/bench.log")
@@ -73,6 +89,11 @@ set(_pgo_configure_args
     -DABLATION=${PGO_ABLATION}
     -DPROFILE_SYMBOLS=${PGO_PROFILE_SYMBOLS}
     -DBASILISK_DEV_ID=${PGO_DEV_ID}
+    -DBASILISK_UNIVERSAL_TIER=${PGO_UNIVERSAL_TIER}
+    -DBASILISK_ALIGN_FUNCTIONS=${PGO_ALIGN_FUNCTIONS}
+    -DUSE_PEXT=${PGO_USE_PEXT}
+    -DUSE_AVX2=${PGO_USE_AVX2}
+    -DUSE_SSE41_POPCNT=${PGO_USE_SSE41_POPCNT}
 )
 if(PGO_ARM_OPTION)
     if(NOT PGO_ARM_OPTION MATCHES "^[A-Za-z_][A-Za-z0-9_]*$")
@@ -131,9 +152,8 @@ if(PGO_COMPILER_ID MATCHES "Clang")
         COMMAND_ERROR_IS_FATAL ANY
     )
 else()
-    # GCC writes .gcda files through -fprofile-generate's directory argument;
-    # MSVC writes .pgc/.pgd files through its linker instrumentation. Neither
-    # consumes LLVM_PROFILE_FILE.
+    # GCC writes .gcda files through -fprofile-generate's directory argument,
+    # not through LLVM_PROFILE_FILE.
     execute_process(
         COMMAND "${_instrumented_binary}"
         INPUT_FILE "${_train_input}"
@@ -154,38 +174,7 @@ _basilisk_check_training_log("${_train_log}")
 # well-spread bench it was redundant (it mostly re-sampled the same hot search
 # loop). See docs/PLAN.md / GUIDE.md.
 
-if(PGO_COMPILER_ID STREQUAL "MSVC")
-    set(_msvc_pgd "${_prof_dir}/basilisk.pgd")
-    # MSVC writes each training run's .pgc beside the instrumented executable,
-    # even when /GENPROFILE gives the .pgd an explicit directory. Put the run
-    # files beside the database before /USEPROFILE consumes them.
-    file(GLOB _msvc_pgc_files "${_gen_dir}/*.pgc")
-    if(NOT EXISTS "${_msvc_pgd}" OR NOT _msvc_pgc_files)
-        message(FATAL_ERROR "MSVC training did not produce the expected .pgd/.pgc profile")
-    endif()
-    foreach(_msvc_pgc IN LISTS _msvc_pgc_files)
-        file(COPY "${_msvc_pgc}" DESTINATION "${_prof_dir}")
-    endforeach()
-
-    # MSVC's final /USEPROFILE link must reuse the /GL objects which produced
-    # the instrumented image. Reconfigure the generation tree and let the
-    # changed link command relink those same objects.
-    message(STATUS "PGO final MSVC relink: ${_gen_dir}")
-    execute_process(
-        COMMAND "${CMAKE_COMMAND}" --preset "${PGO_PRESET}" -B "${_gen_dir}"
-                ${_pgo_configure_args}
-                -DBASILISK_PGO=USE
-                -DBASILISK_PGO_PROFILE_DIR=${_prof_dir}
-        WORKING_DIRECTORY "${PGO_SOURCE_DIR}"
-        COMMAND_ERROR_IS_FATAL ANY
-    )
-    execute_process(
-        COMMAND "${CMAKE_COMMAND}" --build "${_gen_dir}" --target basilisk
-        WORKING_DIRECTORY "${PGO_SOURCE_DIR}"
-        COMMAND_ERROR_IS_FATAL ANY
-    )
-    set(_pgo_binary "${_gen_dir}/basilisk${PGO_EXECUTABLE_SUFFIX}")
-elseif(PGO_COMPILER_ID STREQUAL "GNU")
+if(PGO_COMPILER_ID STREQUAL "GNU")
     file(GLOB_RECURSE _gcda_files "${_prof_dir}/*.gcda")
     if(NOT _gcda_files)
         message(FATAL_ERROR "GCC training did not produce any .gcda files in ${_prof_dir}")
@@ -257,9 +246,12 @@ endif()
 
 message(STATUS "PGO binary: ${_pgo_binary}")
 
-if(PGO_DIST_DIR AND PGO_DIST_ASSET_NAME)
-    set(_pgo_dist_binary "${PGO_DIST_DIR}/${PGO_DIST_ASSET_NAME}")
-    file(MAKE_DIRECTORY "${PGO_DIST_DIR}")
-    file(COPY_FILE "${_pgo_binary}" "${_pgo_dist_binary}" ONLY_IF_DIFFERENT)
-    message(STATUS "PGO dist binary: ${_pgo_dist_binary}")
+if(PGO_DIST_DIR)
+    execute_process(
+        COMMAND "${CMAKE_COMMAND}" -DSRC_DIR=${PGO_SOURCE_DIR} -DHEADER=${PGO_DIST_HEADER}
+                -DBINARY=${_pgo_binary} -DDIST_DIR=${PGO_DIST_DIR} -DSTEM=${PGO_DIST_STEM}
+                -DSUFFIX=${PGO_DIST_SUFFIX} -DEXT=${PGO_EXECUTABLE_SUFFIX}
+                -P "${PGO_SOURCE_DIR}/cmake/dist-copy.cmake"
+        COMMAND_ERROR_IS_FATAL ANY
+    )
 endif()
