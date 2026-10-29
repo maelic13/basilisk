@@ -1968,7 +1968,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         and the static libc++ leave tier symbols global, so every symbol is
         renamed instead of wrapping a namespace; and `tzcnt` (LLVM's `bsf`)
         and SSE3 (MSYS2's runtime floor) stay allowed in portable code.
-    - [ ] **A.15.3** `[I1]` Tier advisory, ISA contract and toolchain pins
+    - [x] **A.15.3** `[I1]` Tier advisory, ISA contract and toolchain pins
       (D-25, A-36, taken over from D.3.2) `src/main.cpp` prints an
       `info string` on stdout when a lower tier runs on a CPU that could
       run a higher one, naming the asset, and the refusal of an
@@ -1989,9 +1989,12 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         the portable set (corrected: `tzcnt` and SSE3 stay allowed, the
         packet's amendment 1), `.github/xcode-version` checked in CI and
         Release, the Ninja step gone, the libstdc++ plan (an `ubuntu:24.04`
-        container) in `release.yml`. Open until a release dispatch run
-        proves the Xcode pin and the matrix.
-    - [ ] **A.15.4** `[V]` Universal binary speed and the ISA tier ladder
+        container) in `release.yml`. Closed 2026-10-29 on local evidence:
+        the truth table in CTest, the planted-instruction check, the
+        stricter sets passing on all three tier builds, both workflows
+        valid YAML. The Xcode pin's first run is this branch's pull
+        request (CI and the Release candidate run on it).
+    - [x] **A.15.4** `[V]` Universal binary speed and the ISA tier ladder
       (D-24; was A.15.2, the ladder alone) BAS-P20, registered before any
       reading: four universal builds and four pext builds, each hop read
       directly (`tools/nps_pool.ps1`, `tools/nps_read.ps1`). The universal
@@ -2001,11 +2004,18 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
       is read from the universal builds' tier builds, which are the old
       per-tier assets. Priors: Rarog read avx2 +4.59% over base and pext
       +2.45% over avx2; the packet's §9 prediction is frozen.
-      - Prepared 2026-10-28: the five pools are built (`a0daeeb`); two
-        agent attempts took no reading, the host's load bursting to 20-30%
-        from a process a user account cannot see. Maintainer-run:
-        `pwsh tools/run_a15_nps_reads.ps1` on an idle host.
-    - [ ] **A.15.5** `[I1]` Release: one x86-64 asset per OS
+      - Closed 2026-10-29 (BAS-P20). The host-load measure was broken and
+        refused quiet hosts (WMI's raw counters, repaired in `7996e4d`);
+        after the repair every cycle was undisturbed. The universal binary
+        reads **−0.58%** [−0.82%, −0.33%] against the pext asset, FAIL,
+        so by the registered rule the release keeps its per-tier assets.
+        The pext tier build reads +0.04% [−0.12, +0.19]: the loss is in the
+        relink, whose hot code is byte-identical and whose functions sit
+        16 bytes off their 64-byte placement in all four builds (A.15.6).
+        The ladder: avx2 over portable **+5.04%**, pext over avx2
+        **+2.82%**, pext over portable **+8.49%**, each inside the
+        packet's frozen interval.
+    - [x] **A.15.5** `[I1]` Release: one x86-64 asset per OS
       The release's six x86 cells become two universal cells, Linux and
       Windows, each building the `universal` preset and checking
       `verify_isa.py`'s universal contract and every forced tier's
@@ -2019,6 +2029,32 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         9.58.0 (the donor's pinned action), five assets in `collect`.
         The checker was exercised with a native stand-in for SDE; SDE
         itself first runs in the dispatch run.
+      - Closed 2026-10-29 NOT SHIPPED: BAS-P20's gate failed, so the
+        release's universal cells and the SDE job are reverted to the nine
+        per-tier cells, keeping A.15.3's Xcode pin, Ninja step and
+        libstdc++ note. The `universal` preset, the dispatcher,
+        `verify_isa.py --tier universal` and `tools/diag/check_universal.py`
+        stay in the tree for A.15.6.
+    - [ ] **A.15.6** `[R2]` Universal binary: the relink's code placement
+      Added 2026-10-29 from BAS-P20's diagnosis. The universal binary's
+      pext code is byte-identical to its tier build, but the relink moves
+      the hot functions by 16 bytes modulo 64, and the read was 0.58%
+      slower. Four builds of one source share that placement, so a pool
+      does not average it out.
+      - First, whether alignment is the cause: a padding sweep, 0, 16, 32
+        and 48 bytes of padding before the pext tier's objects in the
+        final link, each against the pext asset. If the sweep moves NPS by
+        about the loss, placement is the cause; if not, the hypothesis is
+        refuted and the cause is open.
+      - Then a repair that makes the tier's placement independent of the
+        link: `-falign-functions=64` on every build (a speed change of its
+        own, read against today's pext asset first), or 64-byte alignment
+        of each tier's code at the start of its objects, matched to its
+        tier build.
+      - Gate: a new registered no-regression read of the repaired
+        universal binary against the pext asset, with the padding control
+        beside it. The release adopts the universal binary only if it
+        passes; the cells of A.15.5 come back from `c81e220`.
 - [ ] **A.16** `[I1]` Zero-weight evaluation terms off the hot path
   Added 2026-10-28 (simplification read of the kernel and the evaluator
   against the donor, after A.14.1; the lines are cited here). Terms whose
@@ -3081,9 +3117,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.15.3 | IMPLEMENTED | I1 | Advisory, portable set, Xcode pin, Ninja step done; a release dispatch run proves them |
-| A.15.4 | READY_FOR_IMPLEMENTATION | V | BAS-P20 prepared; maintainer-run `pwsh tools/run_a15_nps_reads.ps1` |
-| A.15.5 | IMPLEMENTED | I1 | Two universal cells, the SDE job, five assets; a release dispatch run proves them |
+| A.15.6 | RESEARCH | R2 | The relink's 16-byte placement shift: a padding sweep first, then a repair and a new no-regression read |
 | A.16 | READY_FOR_IMPLEMENTATION | I1 | Zero-weight evaluation compute deleted; exact fingerprint, kept on a pooled NPS read |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |
 | B.4 | RESEARCH | I2 | Contents fixed by B.0 |
@@ -3905,8 +3939,9 @@ fallback, which is why the archived "optional HCE fallback" phase is dropped.
     slow-PEXT advisory (D-25).
   The universal binary was built in Phase A at the maintainer's choice
   (A.15.2 to A.15.5, 2026-10-28; `analysis/universal_binary_2026-10.md`
-  and its amendment 1). G.2 extends its tier list when Phase F's SIMD
-  tiers arrive; the form applies unchanged.
+  and its amendments) but not shipped: BAS-P20 read it 0.58% slower, a
+  placement effect of the relink that A.15.6 owns. G.2 extends its tier
+  list when Phase F's SIMD tiers arrive, if A.15.6 has made it ship.
   C++26 (checked 2026-10-27, `analysis/code_audit_2026-10-27.md` §6):
   the standard was finished at the March 2026 meeting. The release
   compilers are Clang 19 with libstdc++ on `ubuntu-24.04` (Linux; CI

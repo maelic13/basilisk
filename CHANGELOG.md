@@ -16,18 +16,12 @@ and next step).
 
 ### Changed
 
-- **One x86-64 download per system.** The Windows and Linux x86-64
-  releases are now a single executable that holds three builds of the engine
-  and starts the fastest one the CPU runs: `pext` on Intel Haswell and newer
-  and AMD Zen 3 and newer, `avx2` on AMD Zen 1 and Zen 2 (whose `PEXT` is
-  slow) and other AVX2 CPUs, and `portable` on anything older. The first line
-  it prints names the one it chose, and the environment variable
-  `BASILISK_ISA` (`portable`, `avx2` or `pext`) forces one. A release has five
-  assets instead of nine. Every build plays identically (`bench 13`
-  19,470,325 in each).
 - A specialized build started on a CPU without its instructions now says so
-  on standard output as well (`info string`), where a GUI records it, and a
-  build slower than the CPU allows says which one would be faster.
+  on standard output as well (`info string`), where a GUI records it, and
+  names the build to use; a build slower than the CPU allows, or the `pext`
+  build on AMD Zen 1 and Zen 2, says which one would be faster. Measured on
+  a Ryzen 9 5950X, `avx2` is 5.0% faster than the plain `x86_64` build and
+  `pext` 8.5% (BAS-P20).
 
 - **A rebuilt search core.** The search now follows modern Stockfish's
   design in the parts that decide which moves it looks at, and how deeply:

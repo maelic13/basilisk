@@ -597,7 +597,7 @@ not accept any new feature, vector or label policy by themselves.
 | [BAS-P17](experiments/BAS-P17.md) | Frozen before the run, PLAN B.2.0's pooled-PGO NPS pool against the B.1 builds. | PASSED: 0.00% |
 | [BAS-P18](experiments/BAS-P18.md) | The pooled-build NPS read's null: two independent pools of the head. | COMPLETE: −0.19% [−0.66, +0.27], NO_CHANGE; instrument validated |
 | [BAS-P19](experiments/BAS-P19.md) | MSYS2 clang 22.1.8 to 23.1.3 at identical source, a no-regression NPS read. | COMPLETE: +0.89% [+0.23, +1.54], no regression |
-| [BAS-P20](experiments/BAS-P20.md) | The universal x86-64 binary against the pext asset, and the ISA tier ladder. | REGISTERED |
+| [BAS-P20](experiments/BAS-P20.md) | The universal x86-64 binary against the pext asset, and the ISA tier ladder. | COMPLETE: universal −0.58% [−0.82, −0.33], FAIL (per-tier assets stay); ladder avx2 +5.04%, pext +2.82%, pext/portable +8.49% |
 
 ## 7. Correctness and protocol lessons
 

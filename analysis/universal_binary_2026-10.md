@@ -532,3 +532,27 @@ evidence.
 
 The pooled NPS read of §4.7 and the ladder are BAS-P20 (A.15.4). The SDE
 selection matrix and the five assets are A.15.5.
+
+## 13. Amendment 2 (2026-10-29): the speed read, and why it is not shipped
+
+BAS-P20, after a repair of the harness's host-load measure, which had
+refused quiet hosts:
+
+- The universal binary against the pext asset: **−0.58%** [−0.82%, −0.33%],
+  FAIL under the no-regression form. The pext tier build against the pext
+  asset: +0.04% [−0.12%, +0.19%]. So the loss is in the relink, not in the
+  tier build.
+- The ladder: avx2 over portable +5.04%, pext over avx2 +2.82%, pext over
+  portable +8.49%, each inside §9's frozen interval. A user of a pext CPU on
+  the portable asset gives up about 17 Elo.
+- The pext tier's hot code is byte-identical in both binaries (`negamax`
+  is the same 4,713 instructions), and the function order is almost the
+  same (8 adjacent inversions in 560). But the relink places the hot
+  functions 16 bytes off, modulo 64, in all four builds. §4.7 assumed that
+  four builds average layout out; builds of one source differ only in
+  their profile, so they share one placement.
+- By the registered rule the release keeps its nine per-tier assets. The
+  build, the dispatcher and the checks stay in the tree. A.15.6 owns the
+  placement question: a padding sweep to confirm alignment as the cause,
+  then a repair that makes the tier's placement independent of the link,
+  and a new gate.

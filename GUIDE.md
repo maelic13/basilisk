@@ -34,7 +34,7 @@ generations change. These are maintainer judgments, not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **A.15.3** `[I1]` Tier advisory, ISA contract and toolchain pins — Claude Sonnet 5 — Medium
+**Next step:** **A.15.6** `[R2]` Universal binary: the relink's code placement — Claude Opus 5 — High
 
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
@@ -102,9 +102,10 @@ generations change. These are maintainer judgments, not measured rankings.
 - [ ] **A.15** Universal binaries and the release runners
     - [x] **A.15.1** `[R2]` Universal x86-64 binary: design packet
     - [x] **A.15.2** `[I2]` Universal x86-64 binary: tiers, dispatch, link
-    - [ ] **A.15.3** `[I1]` Tier advisory, ISA contract and toolchain pins
-    - [ ] **A.15.4** `[V]` Universal binary speed and the ISA tier ladder
-    - [ ] **A.15.5** `[I1]` Release: one x86-64 asset per OS
+    - [x] **A.15.3** `[I1]` Tier advisory, ISA contract and toolchain pins
+    - [x] **A.15.4** `[V]` Universal binary speed and the ISA tier ladder
+    - [x] **A.15.5** `[I1]` Release: one x86-64 asset per OS
+    - [ ] **A.15.6** `[R2]` Universal binary: the relink's code placement
 - [ ] **A.16** `[I1]` Zero-weight evaluation terms off the hot path
 
 ### Phase B — Search programme (evaluation frozen)

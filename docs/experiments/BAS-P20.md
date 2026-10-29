@@ -5,10 +5,29 @@
 - **Registration.** Registered 2026-10-28, before any reading; PLAN A.15.4;
   agent-run at the maintainer's request ("do all the steps …
   stop only if you need my input and cannot decide or measure yourself").
-  Two agent attempts that day took no reading: the read's idle check found
-  the host's load bursting to 20-30% on several cores from a process a
-  user account cannot see. The read is therefore maintainer-run, on an idle
-  host: `pwsh tools/run_a15_nps_reads.ps1` (the pools are built).
+  Two agent attempts that day, and the maintainer's at 23:01, took no
+  reading: the read's idle check reported the host's load bursting to
+  20-30%.
+- **Instrument repair (2026-10-29, before any ladder reading).** That load
+  was the instrument's: `Get-HarnessHostBusyPercent` read WMI's raw
+  processor counters, whose idle count is not sampled with its timestamp.
+  Over 2 s windows it reported 1.6-2.7 s of idle time, so −35% to +23%
+  on a host that `GetSystemTimes` read at 0-1%; negative readings were
+  clamped to 0, positive ones refused the host. `7996e4d` reads
+  `GetSystemTimes` instead (idle 0.0-0.7%, eight bench threads of 32 at
+  25.0-25.4%). The NPS readings and the decision rule are unchanged; only
+  the quiet wait and the per-cycle disturbance flag used the broken
+  measure.
+  - **First `hot` attempt (06:50 UTC, before the repair),
+    `tools/results/a15-nps/hot-attempt1/`:** REPEAT_STEP_1, both cycles
+    flagged at 15.6% and 13.8% by the broken measure; −0.17%
+    [−2.61%, +2.26%]. Its first readings were slow on both arms (3.19-3.31M
+    against 3.43M later). Disclosed exposure: cycle 2 alone was read before
+    the repeat, about −0.5%. By the stop rule the read repeats once, into
+    a fresh directory, under the repaired instrument.
+  - The `tier` read was stopped for the repair in its quiet wait, before
+    any reading (`tier-stopped/` holds only its `read.json`); it restarts
+    fresh.
   The design is `analysis/universal_binary_2026-10.md` (§4.7's hot-path
   check, §9's ladder prediction, amendment 1 for the form that was built).
 - **Instrument.** `tools/nps_read.ps1`, decided by `tools/diag/nps_read.py`
@@ -71,3 +90,38 @@
   no Rarog or other engine, harness or build process running.
 
 #### RESULT — append after exposure
+
+- **Result (agent-run 2026-10-29, 07:00-08:20 UTC, after the instrument
+  repair; every cycle undisturbed, host 0.2-1.2%;
+  `tools/results/a15-nps/<read>/`).**
+
+  | Read | Delta | 95% t-interval | Cycles | Verdict |
+  |---|---:|---|---:|---|
+  | `hot`, universal against the pext asset | **−0.58%** | [−0.82%, −0.33%] | 6 | **FAIL** |
+  | `tier`, pext tier build against the pext asset | +0.04% | [−0.12%, +0.19%] | 2 | NO_CHANGE |
+  | avx2 over portable | **+5.04%** | [+4.45%, +5.63%] | 2 | ACCEPT |
+  | pext over avx2 | **+2.82%** | [+2.31%, +3.34%] | 2 | ACCEPT |
+  | pext over portable | **+8.49%** | [+7.83%, +9.15%] | 2 | ACCEPT |
+
+  `hot` read −0.62% [−0.87, −0.37] at step 1 (EXTEND) and failed at step 2.
+- **Decision (the registered rule).** `hot` failed, so the release stays on
+  per-tier assets; the universal build stays in the tree, unshipped. `tier`
+  reads zero, so the loss is in the relink, not in the tier build.
+- **Where the loss is (diagnosis after the read, not a registered test).**
+  The pext tier's hot code is byte-identical in the universal binary and in
+  its own tier build: `negamax` is the same 4,713 instructions modulo
+  addresses, and 8 adjacent inversions in 560 functions' order. The
+  call-graph profile survives the rename intact. What differs is placement:
+  in all four builds the relink moves the hot functions by 16 bytes modulo
+  64 (`CoreMovePicker::next`, `Board::is_legal`, `Board::unmake_move` from
+  offset 0 to 48 of a cache line, `quiescence` from 16 to 0). The −0.58% is
+  therefore a code-alignment effect of one layout, not a cost of dispatch.
+- **Calibration.** `hot` missed its 80% interval [−0.4%, +0.4%]; `tier`
+  hit. The ladder hit all three intervals: +5.04% against +5% [+3, +9],
+  +2.82% against +2% [0, +4], +8.49% against +7% [+4, +12]. The wrong part
+  of the model was that four builds would vary the layout and average it
+  out: builds of one source differ only in their PGO profile, their tier
+  objects are the same size within a few bytes, so all four shared one
+  placement. A pool of builds does not randomise link layout, so a
+  relinking change needs a layout control (a padding sweep), not only
+  more builds.
