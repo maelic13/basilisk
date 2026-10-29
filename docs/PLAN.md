@@ -2297,6 +2297,17 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
     tuner has no working winnable instrument). If the deletion is kept,
     C.5.3 builds the donor's winnable term instead of refitting this
     one, and the texel trace loses the `HangPen` sites with the loop.
+  - Implemented 2026-10-29 (`ba67ecc`): the three computations are
+    deleted, their parameters kept (a revert is the one commit), and
+    `load_eval_params` refuses a nonzero value for any of the thirteen
+    groups, so a tune cannot move a weight nothing reads. Verified:
+    `bench 13` 19,470,325; CTest 24/24; the TUNE and TEXEL flavors
+    build; a dumped parameter file loads and benches exact, and a
+    planted `WinBias 7` or `HangPen 25` is refused.
+  - BAS-P25 registered before any pool was built; both pools are built
+    (`a16-base` at `0680393`, `a16-cand` at `fcb3819`, every build
+    19,470,325) and the read waits for the maintainer to free the host:
+    `pwsh tools/run_a16_nps_read.ps1`.
 - [ ] **A.17** `[R2]` Instruction-specific speed for the avx2 and pext tiers
   Added 2026-10-29 at the maintainer's request, after A.15 shipped the
   universal binary. The tier ladder (BAS-P20) reads `avx2` +5.04% over the
@@ -3393,7 +3404,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.16 | READY_FOR_IMPLEMENTATION | I1 | Zero-weight evaluation compute deleted; exact fingerprint, kept on a pooled NPS read |
+| A.16 | LOCAL_QUALIFIED | I1 | Zero-weight evaluation compute deleted, exact fingerprint; BAS-P25 decides keep or revert |
 | A.17 | RESEARCH | R2 | Survey instruction-specific speed (compressed PEXT tables, PEXT/PDEP and AVX2 in the evaluation); each kept candidate a registered NPS read |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |
 | B.4 | RESEARCH | I2 | Contents fixed by B.0 |
