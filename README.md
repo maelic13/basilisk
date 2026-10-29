@@ -44,11 +44,11 @@ the one for your computer:
 
 | Your computer | Download |
 | --- | --- |
-| Windows, Intel or AMD processor | `basilisk-{version}-windows-x86_64.exe` |
-| Linux, Intel or AMD processor | `basilisk-{version}-linux-x86_64` |
-| Windows on ARM | `basilisk-{version}-windows-aarch64.exe` |
-| Linux on ARM | `basilisk-{version}-linux-aarch64` |
-| Mac with Apple silicon | `basilisk-{version}-macos-aarch64` |
+| Windows, Intel or AMD processor | `basilisk-{version}-windows-x64.exe` |
+| Linux, Intel or AMD processor | `basilisk-{version}-linux-x64` |
+| Windows on ARM | `basilisk-{version}-windows-arm64.exe` |
+| Linux on ARM | `basilisk-{version}-linux-arm64` |
+| Mac with Apple silicon | `basilisk-{version}-macos-arm64` |
 
 **One download for every Intel or AMD processor.** It contains builds for
 several processor generations and, when it starts, runs the fastest one your
@@ -56,7 +56,8 @@ processor supports, so there is nothing to choose. Every build plays exactly
 the same moves; only the speed differs.
 
 Upgrading from 1.10 or earlier? Those releases had separate `-avx2` and `-pext`
-downloads; the plain `x86_64` download now replaces all three.
+downloads beside the plain `x86_64` one; from 1.11 the single `x64` download
+replaces all three, and `aarch64` is called `arm64`.
 
 Basilisk is 64-bit only — there is no 32-bit build.
 
@@ -138,32 +139,22 @@ Build it to develop or test the engine, or for a system without a download.
 
 ```bash
 cmake --preset release
-cmake --build --preset release --target pgo
-```
-
-This checks the processor of the computer that builds it, builds the one
-of the download's four builds that runs fastest there (`pext` on Intel
-Haswell and newer and AMD Zen 3 and newer), and optimizes it with a profile
-of the `bench` suite (PGO). It is the same code the download runs on your
-processor, in a single smaller file. It lands in `build/dist`, named for its
-version, system and build, for example
-`basilisk-v1.11.0-windows-x86_64-pext-pgo.exe`; it may not start on an older
-processor.
-
-### Other builds
-
-A quick build without the profile step, for development and tests:
-
-```bash
-cmake --preset release
 cmake --build --preset release
 ```
+
+This checks the processor of the computer that builds it, builds the one of
+the download's four builds that runs fastest there (`pext` on Intel Haswell
+and newer and AMD Zen 3 and newer), and optimizes it with a profile of the
+`bench` suite (PGO). It is the same code the download runs on your processor,
+in a single smaller file, and it may not start on an older processor.
+
+### Other builds
 
 One file for any Intel or AMD computer, as released (see below):
 
 ```bash
 cmake --preset universal
-cmake --build --preset universal --target universal
+cmake --build --preset universal
 ```
 
 A debug build, slow, with AddressSanitizer and UBSan:
@@ -173,19 +164,33 @@ cmake --preset debug
 cmake --build --preset debug
 ```
 
-Every build is copied to `build/dist` under a name that says what it is: its
-version, system, the tier built for this computer, and any build type other
-than a release. On a Ryzen 9 5950X the three builds above give:
+Without the profile step, `--target nopgo` builds the engine alone, quickly,
+and `--target all` builds it with the tests:
+
+```bash
+cmake --build --preset release --target nopgo
+```
+
+### Where the binaries go
+
+Every build is copied to `build/dist`, named
+`basilisk-<version>-<system>-<processor>[-<build>][-<kind>]`. The version is
+the one the engine reports: `1.11.0` for a release, `dev-<date>-<commit>` for
+anything else. An Intel/AMD build names the build it holds (`base`,
+`sse41-popcnt`, `avx2`, `pext`, or `native`); the universal binary, which holds
+them all, and ARM, which has one, name none. A profile-guided release build
+names no kind; anything else says what it is. For example, on a Ryzen 9 5950X:
 
 | Build | In `build/dist` |
 | --- | --- |
-| Quick | `basilisk-v1.11.0-windows-x86_64-pext.exe` |
-| Profile-guided (`--target pgo`) | `basilisk-v1.11.0-windows-x86_64-pext-pgo.exe` |
-| Universal | `basilisk-v1.11.0-windows-x86_64-universal-pgo.exe` |
-| Debug | `basilisk-v1.11.0-windows-x86_64-pext-debug.exe` |
+| `release` | `basilisk-dev-20261029-3260134a-windows-x64-pext.exe` |
+| `release`, `--target nopgo` | `basilisk-dev-20261029-3260134a-windows-x64-pext-nopgo.exe` |
+| `universal` | `basilisk-dev-20261029-3260134a-windows-x64.exe` |
+| `debug` | `basilisk-dev-20261029-3260134a-windows-x64-pext-debug.exe` |
+| The 1.11.0 download | `basilisk-1.11.0-windows-x64.exe` |
 
-Each build's own folder, `build/<preset>`, holds the same binary as `basilisk`,
-and the tests.
+Each build's own folder, `build/<preset>`, holds its binary as `basilisk`, and
+the tests.
 
 ### Options
 

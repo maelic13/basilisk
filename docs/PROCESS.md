@@ -376,8 +376,14 @@ so a registered `[0,3]` gate passes `-Elo1 3`**. `-Mode simplify` is `[-5,0]`.
   rule; `-DNATIVE=ON` builds with `-march=native` instead (1.0% slower on the
   5950X, BAS-P22). `-DUSE_PEXT`, `-DUSE_AVX2` or `-DUSE_SSE41_POPCNT` with
   `-DPORTABLE_BUILD=ON` names a tier and skips the probe, as `build_test.ps1`,
-  CI and the universal build do. PGO: `cmake --build --preset release --target pgo`, which trains on the
-  bench suite and writes to `build/dist/`. The x86-64 release asset is the
+  CI and the universal build do. `cmake --build --preset release` builds
+  the PGO binary (the `pgo` target, which trains on the bench suite);
+  `--target all` builds the engine without PGO and the tests, the
+  development loop; `--target nopgo` the engine alone. Every build is copied
+  to `build/dist` as `basilisk-<version>-<os>-<x64|arm64>[-<tier>][-<kind>]`
+  (`cmake/dist-copy.cmake`): the version the engine reports, the tier on an
+  x64 single-tier build, and `-nopgo`, `-debug`, `-tune` and the like for
+  anything but a PGO release build. The x86-64 release asset is the
   universal binary (`cmake --build --preset universal --target universal`:
   four tiers' PGO builds, functions aligned to 64 bytes, behind a baseline
   dispatcher;
@@ -775,9 +781,9 @@ builds the bundle as a workflow artifact and creates no tag or release.
 
 ```powershell
 cmake --preset release -DCOMP=clang
-cmake --build --preset release
+cmake --build --preset release --target all
 ctest --test-dir build/release --output-on-failure
-cmake --build --preset release --target pgo
+cmake --build --preset release
 python tools/diag/check_roadmap.py
 python tools/diag/check_roadmap.py --self-test
 ```

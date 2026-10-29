@@ -21,9 +21,8 @@ engine will not compile for a 32-bit target (`static_assert` in `src/types.h`).
 
 ## The universal x86-64 binary
 
-The x86-64 asset, `basilisk-<tag>-<os>-x86_64`, is a universal binary (built
-locally into `build/dist` as `basilisk-<tag>-<os>-x86_64-universal-pgo`, which
-the release renames)
+The x86-64 asset, `basilisk-<version>-<os>-x64`, is a universal binary (the
+only x64 file with no tier word: a single-tier build names its tier)
 (`analysis/universal_binary_2026-10.md`, the design and its amendments). It
 keeps the name the portable asset had, so a link or script that fetched the
 plain `x86_64` download now gets the fast build; Stockfish adds `-universal`
