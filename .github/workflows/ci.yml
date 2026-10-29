@@ -491,8 +491,8 @@ jobs:
           echo "Collected fingerprints:"
           for f in bench-*.txt; do echo "  $f: $(cat "$f")"; done
           cells=$(ls bench-*.txt | wc -l)
-          if [ "$cells" -ne 9 ]; then
-            echo "FAIL: $cells of 9 matrix cells reported a fingerprint."
+          if [ "$cells" -ne 15 ]; then
+            echo "FAIL: $cells of 15 matrix cells reported a fingerprint."
             exit 1
           fi
           count=$(cat bench-*.txt | sort -u | wc -l)

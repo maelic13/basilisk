@@ -631,6 +631,24 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     if(PORTABLE_BUILD)
         message(STATUS "Portable build enabled: omitting -march=native")
     endif()
+    # A portable build is the x86-64 baseline plus its tier's flags, never the
+    # compiler's own default: ubuntu-26.04's GCC 15 targets AVX, BMI and POPCNT
+    # with no -march given. Pinned only where the default is above the
+    # baseline, so a compiler that targets it already builds as before.
+    if(PORTABLE_BUILD AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|amd64")
+        include(CheckCXXSourceCompiles)
+        check_cxx_source_compiles("
+#if defined(__SSE4_1__) || defined(__POPCNT__) || defined(__AVX__) || defined(__BMI__) || defined(__LZCNT__)
+#error the default target is above the x86-64 baseline
+#endif
+int main() { return 0; }" _basilisk_default_is_baseline)
+        if(NOT _basilisk_default_is_baseline)
+            foreach(_tgt IN LISTS _ISA_TARGETS)
+                target_compile_options(${_tgt} PRIVATE -march=x86-64 -mtune=generic)
+            endforeach()
+            message(STATUS "The compiler's default target is above the x86-64 baseline: -march=x86-64")
+        endif()
+    endif()
     if(SANITIZE)
         foreach(_tgt IN LISTS _ALL_TARGETS)
             target_compile_options(${_tgt} PRIVATE -fsanitize=address,undefined)
