@@ -374,7 +374,7 @@ so a registered `[0,3]` gate passes `-Elo1 3`**. `-Mode simplify` is `[-5,0]`.
   dropped after BAS-P22 read it 14% behind Clang). `release` probes this CPU
   and builds its tier with the release's fixed flags, the universal binary's
   rule; `-DNATIVE=ON` builds with `-march=native` instead (1.0% slower on the
-  5950X, BAS-P22). `-DUSE_PEXT`, `-DUSE_AVX2` or `-DUSE_SSE41_POPCNT` with
+  5950X, BAS-P22, all of it the znver3 tuning model, BAS-P26). `-DUSE_PEXT`, `-DUSE_AVX2` or `-DUSE_SSE41_POPCNT` with
   `-DPORTABLE_BUILD=ON` names a tier and skips the probe, as `build_test.ps1`,
   CI and the universal build do. `cmake --build --preset release` builds
   the PGO binary (the `pgo` target, which trains on the bench suite);

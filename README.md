@@ -199,7 +199,7 @@ Add them to the first command, for example `cmake --preset release -DCOMP=gcc`.
 | Option | Effect |
 | --- | --- |
 | `-DCOMP=clang`, `gcc` or `llvm` | Chooses the compiler. The default is Clang on Linux and Windows, AppleClang on macOS. Remove the build directory before switching. |
-| `-DNATIVE=ON` | Builds with `-march=native` instead. It measured 1% slower on a Ryzen 9 5950X; it may be faster on another processor, so compare with `bench`. |
+| `-DNATIVE=ON` | Builds with `-march=native` instead. It measured 1% slower on a Ryzen 9 5950X, all of it from tuning for that processor; it may be faster on another, so compare with `bench`. |
 
 ### Windows
 

@@ -603,7 +603,7 @@ not accept any new feature, vector or label policy by themselves.
 | [BAS-P23](experiments/BAS-P23.md) | BAS-P22's read on an Intel host: native, the universal binary and GCC. | INCONCLUSIVE: host never idle, both reads REPEAT (±2%); every sign matches BAS-P22; bench exact on Intel |
 | [BAS-P24](experiments/BAS-P24.md) | The universal binary on Stockfish's assembly route, for Clang and GCC. | COMPLETE: route +0.33% PASS, hot +0.04% PASS, gcchot +0.41% PASS; GCC −3.47% against Clang (universal), −3.70% (pext) |
 | [BAS-P25](experiments/BAS-P25.md) | The zero-weight evaluation terms no longer computed. | COMPLETE: +2.35% [+2.01, +2.70], kept |
-| [BAS-P26](experiments/BAS-P26.md) | Instruction-specific speed: compressed PEXT tables and code generation. | REGISTERED |
+| [BAS-P26](experiments/BAS-P26.md) | Instruction-specific speed: compressed PEXT tables and code generation. | COMPLETE: nothing faster; compressed −0.98%, znver3 tuning −0.95%, v3 +0.02%; native's −1.04% is its tuning |
 
 ## 7. Correctness and protocol lessons
 

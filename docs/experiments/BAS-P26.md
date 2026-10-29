@@ -76,3 +76,36 @@ taken to be Zen 3's tuning model, not its instruction families.
   or build process.
 - **Reading time:** seven pools, 28 readings a cycle: about 25 minutes at
   step 1, about 70 with step 2.
+
+#### RESULT — append after exposure
+
+- **Result (agent-run 2026-10-29/30, 23:45-00:35 local, pools at
+  `655bb79`; six cycles, host 0.2% to 1.5%, no cycle disturbed;
+  `tools/results/a17-nps/p26/`).** Every build 19,470,325. Means of build
+  medians over six cycles: pext 3.5210M, comp 3.4864M, tune 3.4875M, v3
+  3.5216M, native 3.4842M, natgen 3.5197M, natalign 3.4921M. Step 1 decided
+  every contrast but `natalign`, which step 2 decided.
+
+  | Contrast | Delta (6 cycles) | 95% t-interval | Verdict |
+  |---|---:|---|---|
+  | `comp`, compressed tables over pext | −0.98% | [−1.19%, −0.78%] | NO_CHANGE |
+  | `tune`, `-mtune=znver3` over pext | −0.95% | [−1.11%, −0.79%] | NO_CHANGE |
+  | `v3`, FMA, F16C and MOVBE over pext | +0.02% | [−0.14%, +0.17%] | NO_CHANGE |
+  | `native` over pext | −1.04% | [−1.19%, −0.90%] | NO_CHANGE |
+  | `natgen`, native with generic tuning, over pext | −0.04% | [−0.17%, +0.09%] | NO_CHANGE |
+  | `nattune`, native over natgen | −1.01% | [−1.13%, −0.89%] | NO_CHANGE |
+  | `natalign`, native aligned over native | +0.22% | [−0.03%, +0.48%] | NO_CHANGE (step 2) |
+
+- **Decision (the registered rule).** `comp` NO_CHANGE: the arm is removed.
+  `v3` and `tune` NO_CHANGE: nothing is offered. The native contrasts
+  explain BAS-P22: native's whole 1% loss on this Zen 3 is its tuning model
+  (`nattune` −1.01%); its extra instruction families are worth nothing
+  (`natgen` −0.04%), and neither is the layout (`natalign` within noise).
+- **Calibration.** `v3`, `native`, `natgen`, `natalign` inside their
+  intervals; `tune` (−0.95% against −0.5% [−1.5%, +0.5%]) and `nattune`
+  (−1.01% against −0.7% [−1.4%, 0.0%]) inside, the tuning model's cost
+  larger than predicted. `comp` missed in sign: −0.98% against +0.3%
+  [−0.5%, +1.2%]. The wrong part of the model: that slider lookups miss the
+  L2 often enough for 630 KB of savings to pay. They do not; the flat
+  table's hot lines stay cached, and the `pdep` added to every lookup's
+  dependency chain (three cycles on Zen 3) is a pure cost.

@@ -395,6 +395,8 @@ reached; its resolution may be a fix, an improvement or a skip. Rarog's
 Phase A also cut a release; 1.10.1 was cut the day before this plan, so
 Phase A has no release step.
 
+**Closed 2026-10-30** with A.17, its last leaf; B.3 is next.
+
 A.1–A.7 closed between 2026-09-28 and 2026-10-06; their text is in
 [`docs/archive/PLAN-closed-2026-10-07.md`](archive/PLAN-closed-2026-10-07.md).
 They reset the documents (A.1); cleaned the repository, branches and tags and
@@ -2312,7 +2314,7 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
     interval, so it is kept. The slots' Phase C owners build the donor's
     forms (C.3, C.4, C.5.3); until then their parameters stay at 0 and an
     eval file cannot set them.
-- [ ] **A.17** `[R2]` Instruction-specific speed for the avx2 and pext tiers
+- [x] **A.17** `[R2]` Instruction-specific speed for the avx2 and pext tiers
   Added 2026-10-29 at the maintainer's request, after A.15 shipped the
   universal binary. The tier ladder (BAS-P20) reads `avx2` +5.04% over the
   base build and `pext` +2.82% over `avx2`. Almost all of the first is the
@@ -2374,6 +2376,32 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
     measures the evaluation that remains; B.7's speed work and Phase F's
     network evaluation are the other owners of NPS, and the survey names
     any candidate that belongs to them instead.
+  - Closed 2026-10-30, `NO_CHANGE` (BAS-P26). The survey, a sampling
+    profile of `bench 13` after A.16 (`tools/results/a17-profile/head/`):
+    board 26.7%, move ordering 24.6%, search 19.8%, evaluation 17.2%,
+    attacks 5.4%, TT 4.7%.
+    1. Compressed tables: built behind an umbrella option and read
+       **−0.98%** [−1.19%, −0.78%]. The flat tables' hot lines stay in
+       cache, and `pdep` lengthens every lookup; the arm is removed. An
+       exhaustive lookup test (every square and occupancy against a ray
+       walk, in `test_magics`) stays.
+    2. PEXT in the evaluation: king shelter and storm, the only
+       pattern-like loops, are 0.75% of a node, below what a read resolves.
+       Not built (`NOT_WORTH_PURSUING`).
+    3. AVX2 in the evaluation: the scalar hotspot is the material imbalance
+       (2.89%), which depends on material alone, so it belongs to B.7 as a
+       material-keyed cache, not to hand vectorisation. Not built.
+    4. AVX-512 and VNNI: nothing in the evaluation to build them on, and no
+       such hardware here. Left to G.2.
+    5. Code generation: `-mtune=znver3` **−0.95%**; FMA, F16C and MOVBE
+       (the rest of x86-64-v3) +0.02%; native −1.04%, of which its tuning
+       −1.01% and its instruction families −0.04%; native's layout +0.22%,
+       within noise. The pext tier and the release flags stay as they are.
+  - For B.7, measured here: the material imbalance recomputes 48 products
+    of piece counts on every evaluation (2.89% of a node), and material and
+    PST are summed from scratch over every piece (1.37%); both could be
+    cached or kept incrementally. The comments calling the imbalance and
+    the small positional terms "seeded inert" are stale: both are fitted.
 
 ## Phase B — Search programme (evaluation frozen)
 
@@ -3408,7 +3436,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.17 | RESEARCH | R2 | Survey instruction-specific speed (compressed PEXT tables, PEXT/PDEP and AVX2 in the evaluation); each kept candidate a registered NPS read |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |
 | B.4 | RESEARCH | I2 | Contents fixed by B.0 |
 | B.5 | RESEARCH | I2 | Contents fixed by B.0 |
