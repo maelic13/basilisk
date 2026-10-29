@@ -59,10 +59,11 @@ TIER_CODE = {
 }
 
 
-def universal_image(plant=None, misalign=None, extra_fathom=None):
+def universal_image(plant=None, misalign=None, extra_fathom=None, cold=None):
     """A disassembly with every hot function of every tier, Fathom once and a
     dispatcher; plant=(region, instruction) adds one instruction to a region,
-    misalign=(tier, hot) moves that function 16 bytes off its line."""
+    misalign=(tier, hot) moves that function 16 bytes off its line, and
+    cold=(tier, hot) adds that function's .cold fragment off its line."""
     lines, address = [], 0x140001000
 
     def function(name, body):
@@ -80,6 +81,10 @@ def universal_image(plant=None, misalign=None, extra_fathom=None):
             code = body + ([plant[1]] if plant and plant[0] == tier and hot == verify_isa.HOT_FUNCTIONS[0] else [])
             function(name, code)
             if misalign == (tier, hot):
+                address -= 16
+            if cold == (tier, hot):
+                address += 16
+                function(f"{name}.cold", body)
                 address -= 16
     shared = ["movq %rdi, %rax"] + ([plant[1]] if plant and plant[0] == "shared" else [])
     for name in verify_isa.FATHOM_FUNCTIONS:
@@ -116,6 +121,9 @@ class UniversalTests(unittest.TestCase):
     def test_a_hot_function_off_its_line_fails(self):
         errors = self.errors(universal_image(misalign=("pext", "N8Searcher7negamax")))
         self.assertTrue(any("hot function" in e and "negamax" in e and "16 mod 64" in e for e in errors), errors)
+
+    def test_a_cold_fragment_off_its_line_passes(self):
+        self.assertEqual(self.errors(universal_image(cold=("pext", "N8Searcher7negamax"))), [])
 
     def test_a_missing_hot_function_fails(self):
         text = "\n".join(line for line in universal_image().splitlines() if "Board6see_ge" not in line or "avx2" not in line)
