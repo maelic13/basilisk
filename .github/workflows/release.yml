@@ -105,8 +105,8 @@ jobs:
     name: Build ${{ matrix.os_name }} ${{ matrix.arch }}${{ matrix.asset_suffix }}
     needs: prepare
     runs-on: ${{ matrix.runner }}
-    # An x86-64 cell builds three PGO tiers.
-    timeout-minutes: 60
+    # An x86-64 cell builds four PGO tiers.
+    timeout-minutes: 80
     env:
       RELEASE_TAG: v${{ needs.prepare.outputs.version }}
     strategy:
@@ -408,7 +408,7 @@ jobs:
           binary="${{ steps.asset.outputs.path }}"
           expected='${{ needs.prepare.outputs.expected_nodes }}'
           echo "selected here: $(printf 'quit\n' | "./$binary" 2>&1 | head -n 1)"
-          for isa in base avx2 pext; do
+          for isa in base sse41-popcnt avx2 pext; do
             out=$(printf "bench 13\nquit\n" | BASILISK_ISA=$isa "./$binary" 2>&1 || true)
             nodes=$(echo "$out" | grep -oE "Nodes searched *: *[0-9]+" | grep -oE "[0-9]+$" || true)
             echo "$isa: ${nodes:-none} nodes"

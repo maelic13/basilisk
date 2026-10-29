@@ -164,6 +164,8 @@ X86_ABOVE_BASELINE = {
     "avx": r"v(?!err|erw)[a-z0-9]+",
 }
 AVX2_FORBIDDEN = ("lzcnt", "bmi1", "bmi2")
+# The sse41-popcnt tier: SSSE3, SSE4.1 and POPCNT, nothing of SSE4.2 or later.
+SSE41_POPCNT_FORBIDDEN = ("sse4.2", "avx", "lzcnt", "bmi1", "bmi2")
 
 
 def above_baseline(mnemonic: str) -> str | None:
@@ -217,6 +219,12 @@ def verify_binary(tier: str, counts: Counter[str]) -> tuple[dict[str, int], list
             if families[family]:
                 errors.append(f"portable tier contains forbidden {family} instructions")
         observed.update({name: families[name] for name in ("bmi1", "sse4.1", "avx")})
+    elif tier == "sse41-popcnt":
+        if not observed["popcnt"]:
+            errors.append("SSE4.1-POPCNT tier contains no popcnt instruction")
+        for family in SSE41_POPCNT_FORBIDDEN:
+            if families[family]:
+                errors.append(f"SSE4.1-POPCNT tier contains forbidden {family} instructions")
     elif tier == "avx2":
         for family in ("popcnt", "avx2"):
             if not observed[family]:
@@ -236,8 +244,8 @@ def verify_binary(tier: str, counts: Counter[str]) -> tuple[dict[str, int], list
 # (cmake/universal-tiers.cmake), so each function is attributed by its label.
 # Everything else (the dispatcher, Fathom, the runtime) is shared and runs on
 # every CPU, so it meets the portable contract, as the base tier does.
-UNIVERSAL_TIERS = ("base", "avx2", "pext")
-TIER_SYMBOL = re.compile(r"__basilisk_(base|avx2|pext)_|_ZN\d+basilisk_(base|avx2|pext)10run_engine")
+UNIVERSAL_TIERS = ("base", "sse41_popcnt", "avx2", "pext")
+TIER_SYMBOL = re.compile(r"__basilisk_(base|sse41_popcnt|avx2|pext)_|_ZN\d+basilisk_(base|sse41_popcnt|avx2|pext)10run_engine")
 
 
 def symbol_region(symbol: str) -> str:
@@ -301,6 +309,7 @@ def verify_universal(text: str, exempt: frozenset[str]) -> list[str]:
         regions[region][mnemonic] += 1
         family = above_baseline(mnemonic)
         if family and (region in ("shared", "base")
+                       or (region == "sse41_popcnt" and family in SSE41_POPCNT_FORBIDDEN)
                        or (region == "avx2" and family in AVX2_FORBIDDEN)):
             offenders[f"{region} <{symbol or '?'}> {family}"] += 1
     errors: list[str] = []
@@ -308,7 +317,8 @@ def verify_universal(text: str, exempt: frozenset[str]) -> list[str]:
         if not counts:
             errors.append(f"universal binary holds no {region} code")
             continue
-        observed, region_errors = verify_binary("portable" if region in ("shared", "base") else region, counts)
+        contract = {"shared": "portable", "base": "portable", "sse41_popcnt": "sse41-popcnt"}.get(region, region)
+        observed, region_errors = verify_binary(contract, counts)
         errors.extend(f"{region}: {error}" for error in region_errors)
         print(f"{region}: " + " ".join(f"{name}={count}" for name, count in observed.items()))
     for entry, count in offenders.most_common(20):
@@ -341,7 +351,7 @@ def verify_launcher(tier: str, text: str) -> list[str]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--tier", required=True, choices=("portable", "avx2", "pext", "universal", "arm64"))
+    parser.add_argument("--tier", required=True, choices=("portable", "sse41-popcnt", "avx2", "pext", "universal", "arm64"))
     parser.add_argument("--binary", required=True, type=Path)
     parser.add_argument("--launcher-object", type=Path)
     parser.add_argument("--objdump", help="llvm-objdump executable")
@@ -384,8 +394,9 @@ def main() -> int:
             errors = verify_universal(binary_text, frozenset(exempt))
         else:
             observed, errors = verify_binary(args.tier, counts)
-            if args.tier in ("portable", "avx2") and errors:
-                families = tuple(X86_ABOVE_BASELINE) if args.tier == "portable" else AVX2_FORBIDDEN
+            if args.tier in ("portable", "sse41-popcnt", "avx2") and errors:
+                families = {"portable": tuple(X86_ABOVE_BASELINE), "sse41-popcnt": SSE41_POPCNT_FORBIDDEN,
+                            "avx2": AVX2_FORBIDDEN}[args.tier]
                 for symbol, count in x86_offenders(binary_text, frozenset(exempt), families).most_common(20):
                     print(f"forbidden: {count} in <{symbol}>", file=sys.stderr)
             print(

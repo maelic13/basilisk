@@ -4,11 +4,12 @@
 Each emulated CPU must start the tier the dispatch rule gives it, named in the
 start-up banner, and reproduce the declared `bench 13` there. A forced tier the
 CPU cannot run must be refused. Stockfish's scripts/check_universal.sh is the
-model; the CPU list is Basilisk's three tiers:
+model; the CPU list covers Basilisk's tiers that an Intel CPU selects:
 
-- Pentium 4 Prescott and Nehalem (Linux only; Windows 11 refuses them under
-  SDE), Sandy Bridge and Ivy Bridge: base. They lack AVX2, and Basilisk has
-  no SSE4.1-POPCNT tier.
+- Pentium 4 Prescott (Linux only; Windows 11 refuses it under SDE): base. It
+  has neither SSE4.1 nor POPCNT.
+- Nehalem (Linux only, likewise), Sandy Bridge and Ivy Bridge: sse41-popcnt.
+  They have SSE4.1 and POPCNT but not AVX2.
 - Haswell, Skylake, Ice Lake and Alder Lake: pext.
 
 SDE cannot emulate AMD, so the slow-pext rule (family 15h and 17h) is the unit
@@ -27,15 +28,15 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 SELECTION = [
-    ("snb", "base"),
-    ("ivb", "base"),
+    ("snb", "sse41-popcnt"),
+    ("ivb", "sse41-popcnt"),
     ("hsw", "pext"),
     ("skl", "pext"),
     ("icl", "pext"),
     ("adl", "pext"),
 ]
-LINUX_ONLY = [("p4p", "base"), ("nhm", "base")]
-BANNER = re.compile(r"^Basilisk .* \((base|avx2|pext)\)\s*$", re.MULTILINE)
+LINUX_ONLY = [("p4p", "base"), ("nhm", "sse41-popcnt")]
+BANNER = re.compile(r"^Basilisk .* \((base|sse41-popcnt|avx2|pext)\)\s*$", re.MULTILINE)
 NODES = re.compile(r"Nodes searched\s*:\s*(\d+)")
 
 

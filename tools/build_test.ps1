@@ -19,7 +19,7 @@
     -Universal builds the universal x86-64 binary instead (the universal
     preset, Release only) and stages four executables from that one build:
     the universal binary (<suffix>-universal-pgo) and the three tier builds it
-    was linked from (<suffix>-base-pgo, -avx2-pgo, -pext-pgo), each the
+    was linked from (<suffix>-base-pgo, -sse41_popcnt-pgo, -avx2-pgo, -pext-pgo), each the
     ordinary PGO build of its tier.
 
     Every output is copied to tools/test_engines with a hash-bound manifest.
@@ -166,9 +166,9 @@ try {
     if ($Universal) {
         $command = 'cmake --preset universal; cmake --build --preset universal --target universal'
         $outputs += , @("build/universal/basilisk-universal$exeSuffix", 'universal-pgo', 'universal',
-            'universal (PORTABLE_BUILD=ON, BASILISK_UNIVERSAL=ON, BASILISK_ALIGN_FUNCTIONS=64; tiers from release, release-avx2 and release-pext with BASILISK_UNIVERSAL_TIER=ON, PGO=USE)',
+            'universal (PORTABLE_BUILD=ON, BASILISK_UNIVERSAL=ON, BASILISK_ALIGN_FUNCTIONS=64; tiers from release, release-sse41-popcnt, release-avx2 and release-pext with BASILISK_UNIVERSAL_TIER=ON, PGO=USE)',
             $command)
-        foreach ($tier in 'base', 'avx2', 'pext') {
+        foreach ($tier in 'base', 'sse41_popcnt', 'avx2', 'pext') {
             $outputs += , @("build/universal-$tier-pgo/basilisk$exeSuffix", "$tier-pgo", $tier,
                 "the universal binary's $tier tier (PORTABLE_BUILD=ON, BASILISK_UNIVERSAL_TIER=ON, BASILISK_ALIGN_FUNCTIONS=64, PGO=USE)",
                 $command)

@@ -54,6 +54,7 @@ TIER_CODE = {
     "pext": ["popcntq %rdi, %rax", "pextq %rsi, %rdi, %rax", "blsrq %rdi, %rax", "lzcntq %rdi, %rax",
              "vpermq $0x1, %ymm0, %ymm1"],
     "avx2": ["popcntq %rdi, %rax", "vpermq $0x1, %ymm0, %ymm1"],
+    "sse41_popcnt": ["popcntq %rdi, %rax", "ptest %xmm0, %xmm1"],
     "base": ["movq %rdi, %rax"],
 }
 
@@ -101,6 +102,9 @@ class UniversalTests(unittest.TestCase):
                                             ("shared", "pextq %rsi, %rdi, %rax", "bmi2"),
                                             ("base", "popcntq %rdi, %rax", "popcnt"),
                                             ("base", "andnq %rsi, %rdi, %rax", "bmi1"),
+                                            ("sse41_popcnt", "vpermq $0x1, %ymm0, %ymm1", "avx"),
+                                            ("sse41_popcnt", "andnq %rsi, %rdi, %rax", "bmi1"),
+                                            ("sse41_popcnt", "crc32q %rsi, %rax", "sse4.2"),
                                             ("avx2", "andnq %rsi, %rdi, %rax", "bmi1"),
                                             ("avx2", "pextq %rsi, %rdi, %rax", "bmi2")]:
             errors = self.errors(universal_image(plant=(region, instruction)))
