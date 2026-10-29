@@ -2055,6 +2055,19 @@ performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
         universal binary against the pext asset, with the padding control
         beside it. The release adopts the universal binary only if it
         passes; the cells of A.15.5 come back from `c81e220`.
+      - Research amendment 1 (2026-10-29): the images answered the cause
+        without a sweep. lld's call-graph sort puts `operator delete`
+        (`_ZdlPv`, a 16-byte runtime stub) inside the pext tier build's
+        hot cluster; in the universal link the tiers share it and it lands
+        elsewhere, moving every later hot function 16 bytes. `/order`
+        cannot place runtime symbols and GNU ld does not sort, so the
+        candidate is `-falign-functions=64` on the tiers (`4488e13`): 554
+        of 559 pext functions on a cache line in both images, identical
+        code, every tier exact. BAS-P21 replaces the sweep: the universal
+        binary against the pext asset (the gate), against its own tier
+        build (the relink alone) and the tier build against the pext asset
+        (the alignment alone). Pools built; the reads need the host idle
+        (`pwsh tools/run_a156_nps_reads.ps1`).
 - [ ] **A.16** `[I1]` Zero-weight evaluation terms off the hot path
   Added 2026-10-28 (simplification read of the kernel and the evaluator
   against the donor, after A.14.1; the lines are cited here). Terms whose
@@ -3117,7 +3130,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| A.15.6 | RESEARCH | R2 | The relink's 16-byte placement shift: a padding sweep first, then a repair and a new no-regression read |
+| A.15.6 | READY_FOR_IMPLEMENTATION | R2 | 64-byte-aligned tiers built; BAS-P21's three reads wait for an idle host |
 | A.16 | READY_FOR_IMPLEMENTATION | I1 | Zero-weight evaluation compute deleted; exact fingerprint, kept on a pooled NPS read |
 | B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |
 | B.4 | RESEARCH | I2 | Contents fixed by B.0 |
