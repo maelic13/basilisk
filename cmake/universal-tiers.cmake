@@ -72,8 +72,9 @@ endfunction()
 _ut_source_id(_source_id)
 message(STATUS "Universal tiers: source ${_source_id}, ${UT_CXX_COMPILER} ${UT_CXX_COMPILER_VERSION}")
 
-set(_tiers base avx2 pext)
+set(_tiers base sse41_popcnt avx2 pext)
 set(_preset_base release)
+set(_preset_sse41_popcnt release-sse41-popcnt)
 set(_preset_avx2 release-avx2)
 set(_preset_pext release-pext)
 

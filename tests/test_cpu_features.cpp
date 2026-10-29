@@ -25,16 +25,20 @@ int main() {
     constexpr CpuFeatures baseline{};
     constexpr CpuFeatures nehalem{true, true, false, false, false, false};  // SSE4.1 and POPCNT
     EXPECT(best_tier(baseline) == IsaTier::Base);
-    EXPECT(best_tier(nehalem) == IsaTier::Base);
+    EXPECT(best_tier(nehalem) == IsaTier::Sse41Popcnt);
+    // POPCNT without SSE4.1 (AMD K10) stays on the base tier.
+    EXPECT(best_tier(CpuFeatures{false, true, false, false, false, false}) == IsaTier::Base);
     EXPECT(best_tier(avx2_ok) == IsaTier::Avx2);
     EXPECT(best_tier(pext_ok) == IsaTier::Pext);
     // AVX2 without LZCNT (or BMI1, or BMI2) cannot run the pext tier.
     EXPECT(best_tier(CpuFeatures{true, true, true, true, true, false}) == IsaTier::Avx2);
-    for (const IsaTier tier : {IsaTier::Base, IsaTier::Avx2, IsaTier::Pext}) {
+    for (const IsaTier tier : {IsaTier::Base, IsaTier::Sse41Popcnt, IsaTier::Avx2, IsaTier::Pext}) {
         EXPECT(supports_tier(pext_ok, tier));
         EXPECT(supports_tier(baseline, tier) == (tier == IsaTier::Base));
     }
     EXPECT(!supports_tier(avx2_ok, IsaTier::Pext));
+    EXPECT(supports_tier(nehalem, IsaTier::Sse41Popcnt));
+    EXPECT(!supports_tier(nehalem, IsaTier::Avx2));
     end_section();
 
     begin_section("Slow pext on AMD family 15h and 17h selects avx2");
@@ -59,6 +63,7 @@ int main() {
     begin_section("BASILISK_ISA names a tier");
     EXPECT(parse_tier("base") == IsaTier::Base);
     EXPECT(!parse_tier("portable").has_value());
+    EXPECT(parse_tier("sse41-popcnt") == IsaTier::Sse41Popcnt);
     EXPECT(parse_tier("avx2") == IsaTier::Avx2);
     EXPECT(parse_tier("pext") == IsaTier::Pext);
     EXPECT(!parse_tier("PEXT").has_value());

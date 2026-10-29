@@ -26,9 +26,10 @@ int main(int argc, char* argv[]) { return run_engine(argc, argv); }
 #if defined(BASILISK_UNIVERSAL)
 // The tiers' entry points. Each tier is the whole engine built for its ISA,
 // with every symbol it defines renamed, so this is all the tiers share.
-namespace basilisk_base     { int run_engine(int argc, char* argv[]); }
-namespace basilisk_avx2     { int run_engine(int argc, char* argv[]); }
-namespace basilisk_pext     { int run_engine(int argc, char* argv[]); }
+namespace basilisk_base         { int run_engine(int argc, char* argv[]); }
+namespace basilisk_sse41_popcnt { int run_engine(int argc, char* argv[]); }
+namespace basilisk_avx2         { int run_engine(int argc, char* argv[]); }
+namespace basilisk_pext         { int run_engine(int argc, char* argv[]); }
 #else
 #  include "engine_entry.h"
 #endif
@@ -121,7 +122,7 @@ int run_tier(int argc, char* argv[]) {
     if (const char* forced = std::getenv("BASILISK_ISA"); forced && *forced) {
         const auto named = parse_tier(forced);
         if (!named) {
-            report(std::string("BASILISK_ISA=") + forced + " names no tier; use base, avx2 or pext");
+            report(std::string("BASILISK_ISA=") + forced + " names no tier; use base, sse41-popcnt, avx2 or pext");
             return 1;
         }
         if (!supports_tier(features, *named)) {
@@ -135,6 +136,7 @@ int run_tier(int argc, char* argv[]) {
     switch (tier) {
     case IsaTier::Pext: return basilisk_pext::run_engine(argc, argv);
     case IsaTier::Avx2: return basilisk_avx2::run_engine(argc, argv);
+    case IsaTier::Sse41Popcnt: return basilisk_sse41_popcnt::run_engine(argc, argv);
     case IsaTier::Base: break;
     }
     return basilisk_base::run_engine(argc, argv);
@@ -145,6 +147,8 @@ int run_tier(int argc, char* argv[]) {
     constexpr IsaTier built = IsaTier::Pext;
 #  elif defined(USE_AVX2)
     constexpr IsaTier built = IsaTier::Avx2;
+#  elif defined(USE_SSE41_POPCNT)
+    constexpr IsaTier built = IsaTier::Sse41Popcnt;
 #  else
     constexpr IsaTier built = IsaTier::Base;
 #  endif
@@ -152,7 +156,7 @@ int run_tier(int argc, char* argv[]) {
     if (!supports_tier(features, built)) {
         report("this Basilisk build needs a CPU with the " + std::string(tier_name(built))
                + " tier's instructions (pext: AVX2, POPCNT, BMI1, BMI2 and LZCNT;"
-                 " avx2: AVX2, SSE4.1 and POPCNT); use the "
+                 " avx2: AVX2, SSE4.1 and POPCNT; sse41-popcnt: SSE4.1 and POPCNT); use the "
                + std::string(tier_name(best_tier(features))) + " x86-64 build");
         return 1;
     }

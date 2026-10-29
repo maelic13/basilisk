@@ -16,10 +16,16 @@ struct CpuFeatures {
     bool slow_pext = false;
 };
 
-enum class IsaTier { Base, Avx2, Pext };
+enum class IsaTier { Base, Sse41Popcnt, Avx2, Pext };
+
+// SSE4.1 with POPCNT, Nehalem to Ivy Bridge and AMD before Excavator: the
+// hardware popcount is most of what the avx2 tier gains over the base.
+constexpr bool supports_sse41_popcnt_tier(const CpuFeatures& features) {
+    return features.sse41 && features.popcnt;
+}
 
 constexpr bool supports_avx2_tier(const CpuFeatures& features) {
-    return features.sse41 && features.popcnt && features.avx2;
+    return supports_sse41_popcnt_tier(features) && features.avx2;
 }
 
 constexpr bool supports_pext_tier(const CpuFeatures& features) {
@@ -29,9 +35,10 @@ constexpr bool supports_pext_tier(const CpuFeatures& features) {
 
 constexpr bool supports_tier(const CpuFeatures& features, IsaTier tier) {
     switch (tier) {
-    case IsaTier::Base:     return true;
-    case IsaTier::Avx2:     return supports_avx2_tier(features);
-    case IsaTier::Pext:     return supports_pext_tier(features);
+    case IsaTier::Base:        return true;
+    case IsaTier::Sse41Popcnt: return supports_sse41_popcnt_tier(features);
+    case IsaTier::Avx2:        return supports_avx2_tier(features);
+    case IsaTier::Pext:        return supports_pext_tier(features);
     }
     return false;
 }
@@ -41,6 +48,7 @@ constexpr bool supports_tier(const CpuFeatures& features, IsaTier tier) {
 constexpr IsaTier best_tier(const CpuFeatures& features) {
     if (supports_pext_tier(features) && !features.slow_pext) return IsaTier::Pext;
     if (supports_avx2_tier(features)) return IsaTier::Avx2;
+    if (supports_sse41_popcnt_tier(features)) return IsaTier::Sse41Popcnt;
     return IsaTier::Base;
 }
 
@@ -57,15 +65,16 @@ constexpr bool slow_pext_cpu(bool amd, unsigned family) {
 
 constexpr std::string_view tier_name(IsaTier tier) {
     switch (tier) {
-    case IsaTier::Base:     return "base";
-    case IsaTier::Avx2:     return "avx2";
-    case IsaTier::Pext:     return "pext";
+    case IsaTier::Base:        return "base";
+    case IsaTier::Sse41Popcnt: return "sse41-popcnt";
+    case IsaTier::Avx2:        return "avx2";
+    case IsaTier::Pext:        return "pext";
     }
     return "?";
 }
 
 constexpr std::optional<IsaTier> parse_tier(std::string_view name) {
-    for (const IsaTier tier : {IsaTier::Base, IsaTier::Avx2, IsaTier::Pext})
+    for (const IsaTier tier : {IsaTier::Base, IsaTier::Sse41Popcnt, IsaTier::Avx2, IsaTier::Pext})
         if (name == tier_name(tier)) return tier;
     return std::nullopt;
 }

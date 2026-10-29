@@ -55,6 +55,16 @@
       }
     },
     {
+      "name": "release-sse41-popcnt",
+      "displayName": "Release + SSE4.1/POPCNT",
+      "description": "Like release, for x86-64 CPUs with SSE4.1 and POPCNT (Nehalem+ / AMD Bulldozer+); the universal binary's second tier.",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "USE_SSE41_POPCNT": "ON"
+      }
+    },
+    {
       "name": "universal",
       "displayName": "Universal x86-64",
       "description": "The universal x86-64 binary: portable, AVX2 and PEXT PGO tiers chosen at start-up. Build target universal. Clang, Windows or Linux.",
@@ -92,6 +102,7 @@
     { "name": "release-pext",   "configurePreset": "release-pext" },
     { "name": "msvc-release-pext", "configurePreset": "msvc-release-pext" },
     { "name": "release-avx2",   "configurePreset": "release-avx2" },
+    { "name": "release-sse41-popcnt", "configurePreset": "release-sse41-popcnt" },
     { "name": "universal",      "configurePreset": "universal" },
     { "name": "debug",          "configurePreset": "debug" },
     { "name": "relwithdebinfo", "configurePreset": "relwithdebinfo" }
