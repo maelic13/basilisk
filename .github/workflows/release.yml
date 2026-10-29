@@ -121,6 +121,7 @@ jobs:
             target: universal
             compiler: clang
             asset_suffix: ""
+            dist_suffix: "-universal"
 
           - runner: ubuntu-24.04-arm
             os_name: linux
@@ -139,6 +140,7 @@ jobs:
             target: universal
             compiler: clang
             asset_suffix: ""
+            dist_suffix: "-universal"
             msystem: CLANG64
             mingw_pkg_prefix: mingw-w64-clang-x86_64
             compiler_pkg: clang
@@ -303,9 +305,10 @@ jobs:
           tag="$RELEASE_TAG"
           os="${{ matrix.os_name }}"; arch="${{ matrix.arch }}"
           ext="${{ matrix.ext }}"; suffix="${{ matrix.asset_suffix }}"
-          # CMake names the PGO dist binary with a -pgo suffix; publish it under
-          # the plain tier name (no -pgo), matching the 1.8.0 asset format.
-          built="build/dist/basilisk-${tag}-${os}-${arch}${suffix}-pgo${ext}"
+          # CMake names the PGO dist binary with a -pgo suffix, and the
+          # universal binary with -universal; publish it under the plain name
+          # (no -pgo, no -universal), matching the 1.8.0 asset format.
+          built="build/dist/basilisk-${tag}-${os}-${arch}${suffix}${{ matrix.dist_suffix }}-pgo${ext}"
           [ -f "$built" ] || { echo "FAIL: PGO binary $built not found"; ls -la build/dist || true; exit 1; }
           asset="basilisk-${tag}-${os}-${arch}${suffix}${ext}"
           cp "$built" "build/dist/${asset}"
