@@ -74,10 +74,11 @@ ships Clang's, and builds and checks GCC's beside it without publishing it:
 3. The dispatcher (`src/main.cpp` under `BASILISK_UNIVERSAL`) links the four
    tiers, one baseline Fathom and the static runtime.
 
-`-DBASILISK_UNIVERSAL_ROUTE=objects` builds Clang's earlier route, which keeps
-the post-LTO objects (lld `-lldsavetemps`, the gold plugin's `save-temps`) and
-renames them with `llvm-objcopy`; it stays until BAS-P24 has read the two
-routes against each other.
+Until 2026-10-29 Clang's tiers took another route: the linker kept its
+post-LTO objects (lld `-lldsavetemps`, the gold plugin's `save-temps`) and
+`llvm-objcopy` renamed their symbols. BAS-P24 read the assembly route level
+with it (+0.33%) and with the single-tier pext build (+0.04%), and it was
+removed.
 4. Every tier's functions are aligned to 64 bytes (`BASILISK_ALIGN_FUNCTIONS=64`,
    which the preset sets and a universal configure requires). The relink
    places a tier's code differently from its own build, and without the

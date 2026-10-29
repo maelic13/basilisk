@@ -22,9 +22,7 @@
     preset, Release only) and stages five executables from that one build:
     the universal binary (<suffix>-universal-pgo) and the four tier builds it
     was linked from (<suffix>-base-pgo, -sse41_popcnt-pgo, -avx2-pgo, -pext-pgo), each the
-    ordinary PGO build of its tier. -UniversalRoute objects builds it on the
-    earlier Clang route (BASILISK_UNIVERSAL_ROUTE=objects), in
-    build/universal-objects, its executables staged as <suffix>-objects-*.
+    ordinary PGO build of its tier.
 
     -Native builds the release preset with NATIVE=ON (-march=native, PEXT as
     the configure step detects it; Release only), in
@@ -54,7 +52,6 @@ param(
     [switch]$Universal,
     [switch]$Native,
     [switch]$Gcc,
-    [ValidateSet('assembly', 'objects')][string]$UniversalRoute = 'assembly',
     [string]$TestEnginesDir = "$PSScriptRoot\test_engines"
 )
 
@@ -74,9 +71,6 @@ if (($Universal -or $Native) -and ($Flavor -ne 'Release' -or $ArmOption)) {
     throw '-Universal and -Native build the Release flavor without an umbrella arm.'
 }
 if ($Universal -and $Native) { throw '-Universal and -Native are separate builds.' }
-if ($UniversalRoute -ne 'assembly' -and (-not $Universal -or $Gcc)) {
-    throw '-UniversalRoute objects is the Clang universal build: add -Universal, without -Gcc.'
-}
 
 function Invoke-CapturedProcess {
     param(
@@ -150,16 +144,14 @@ $exeSuffix = if ($isWindowsHost) { '.exe' } else { '' }
 
 $comp = if ($Gcc) { 'gcc' } else { 'clang' }
 $gccSuffix = if ($Gcc) { '-gcc' } else { '' }
-$routeSuffix = if ($UniversalRoute -eq 'objects') { '-objects' } else { '' }
-$buildDir = if ($Universal) { "universal$routeSuffix$gccSuffix" } elseif ($Native) { "release-native$gccSuffix" } else { "release-pext$gccSuffix" }
+$buildDir = if ($Universal) { "universal$gccSuffix" } elseif ($Native) { "release-native$gccSuffix" } else { "release-pext$gccSuffix" }
 # GCC's PGO rebuilds in the instrumented build's tree.
 $pgoDirSuffix = if ($Gcc) { '-pgo-generate' } else { '-pgo' }
 Push-Location $repoRoot
 try {
     if ($Universal) {
-        Write-Host "Building the universal x86-64 binary with $comp ($UniversalRoute route): four final-PGO tiers ..."
-        $configureArgs = @('--fresh', '--preset', 'universal', '-B', "build/$buildDir", "-DCOMP=$comp",
-            "-DBASILISK_UNIVERSAL_ROUTE=$UniversalRoute", '-DTEXEL=OFF')
+        Write-Host "Building the universal x86-64 binary with $comp`: four final-PGO tiers ..."
+        $configureArgs = @('--fresh', '--preset', 'universal', '-B', "build/$buildDir", "-DCOMP=$comp", '-DTEXEL=OFF')
     } elseif ($Native) {
         Write-Host "Building the native release with $comp`: -march=native, PEXT as detected ..."
         $configureArgs = @('--fresh', '--preset', 'release', '-B', "build/$buildDir", "-DCOMP=$comp", '-DNATIVE=ON', '-DTEXEL=OFF')
@@ -193,15 +185,12 @@ try {
     # Each staged executable: (built path, staged name, ISA, preset, build command).
     $outputs = @()
     if ($Universal) {
-        $command = "cmake --preset universal -B build/$buildDir -DCOMP=$comp -DBASILISK_UNIVERSAL_ROUTE=$UniversalRoute; " +
-            "cmake --build build/$buildDir --target universal"
-        $staged = $routeSuffix.TrimStart('-')
-        $prefix = if ($staged) { "$staged-" } else { '' }
-        $outputs += , @("build/$buildDir/basilisk-universal$exeSuffix", "${prefix}universal$gccSuffix-pgo", 'universal',
-            "universal (COMP=$comp, BASILISK_UNIVERSAL_ROUTE=$UniversalRoute, PORTABLE_BUILD=ON, BASILISK_UNIVERSAL=ON, BASILISK_ALIGN_FUNCTIONS=64; tiers from release with USE_SSE41_POPCNT, USE_AVX2 or USE_PEXT and BASILISK_UNIVERSAL_TIER=ON, PGO=USE)",
+        $command = "cmake --preset universal -B build/$buildDir -DCOMP=$comp; cmake --build build/$buildDir --target universal"
+        $outputs += , @("build/$buildDir/basilisk-universal$exeSuffix", "universal$gccSuffix-pgo", 'universal',
+            "universal (COMP=$comp, PORTABLE_BUILD=ON, BASILISK_UNIVERSAL=ON, BASILISK_ALIGN_FUNCTIONS=64; tiers from release with USE_SSE41_POPCNT, USE_AVX2 or USE_PEXT and BASILISK_UNIVERSAL_TIER=ON, PGO=USE)",
             $command)
         foreach ($tier in 'base', 'sse41_popcnt', 'avx2', 'pext') {
-            $outputs += , @("build/$buildDir-$tier$pgoDirSuffix/basilisk$exeSuffix", "$prefix$tier$gccSuffix-pgo", $tier,
+            $outputs += , @("build/$buildDir-$tier$pgoDirSuffix/basilisk$exeSuffix", "$tier$gccSuffix-pgo", $tier,
                 "the universal binary's $tier tier (COMP=$comp, PORTABLE_BUILD=ON, BASILISK_UNIVERSAL_TIER=ON, BASILISK_ALIGN_FUNCTIONS=64, PGO=USE)",
                 $command)
         }

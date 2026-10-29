@@ -13,24 +13,16 @@ cmake_minimum_required(VERSION 3.24)
 # Without the rename the linker would keep one tier's copy of each shared
 # template (std::string, std::stringstream) for every tier and say nothing.
 #
-# The assembly route (both compilers) keeps the LTO output as assembly,
-# assembles it once to read the symbols it defines, renames them in the text
-# (cmake/universal-asm.py) and assembles the result. The objects route (Clang)
-# keeps the LTO objects and renames their symbols with objcopy.
+# The LTO output is kept as assembly (Stockfish's route, both compilers),
+# assembled once to read the symbols it defines, renamed in the text
+# (cmake/universal-asm.py) and assembled again.
 
-foreach(_var UT_SOURCE_DIR UT_NAME UT_TIERS_DIR UT_ROUTE UT_COMPILER_ID UT_NM UT_OBJCOPY UT_OBJDUMP
+foreach(_var UT_SOURCE_DIR UT_NAME UT_TIERS_DIR UT_PYTHON UT_COMPILER_ID UT_NM UT_OBJDUMP
              UT_STATIC_RUNTIME UT_CXX_COMPILER UT_CXX_COMPILER_VERSION)
     if(NOT DEFINED ${_var} OR "${${_var}}" STREQUAL "")
         message(FATAL_ERROR "${_var} is required")
     endif()
 endforeach()
-if(UT_ROUTE STREQUAL "assembly")
-    if(NOT DEFINED UT_PYTHON OR UT_PYTHON STREQUAL "")
-        message(FATAL_ERROR "UT_PYTHON is required for the assembly route")
-    endif()
-elseif(NOT (UT_ROUTE STREQUAL "objects" AND UT_COMPILER_ID MATCHES "Clang"))
-    message(FATAL_ERROR "UT_ROUTE is assembly, or objects with Clang, not ${UT_ROUTE} with ${UT_COMPILER_ID}")
-endif()
 if(NOT DEFINED UT_COMP)
     set(UT_COMP "clang")
 endif()
@@ -116,8 +108,7 @@ else()
 endif()
 
 _ut_source_id(_source_id)
-message(STATUS "Universal tiers: source ${_source_id}, ${UT_CXX_COMPILER} ${UT_CXX_COMPILER_VERSION}, "
-               "${UT_ROUTE} route")
+message(STATUS "Universal tiers: source ${_source_id}, ${UT_CXX_COMPILER} ${UT_CXX_COMPILER_VERSION}")
 
 # Each tier is the release preset with its instruction-set option.
 set(_tiers base sse41_popcnt avx2 pext)
@@ -148,7 +139,6 @@ foreach(_tier IN LISTS _tiers)
                 -DPORTABLE_BUILD=ON
                 -DSTATIC_RUNTIME=${UT_STATIC_RUNTIME}
                 -DBASILISK_UNIVERSAL_TIER=ON
-                -DBASILISK_UNIVERSAL_ROUTE=${UT_ROUTE}
                 -DBASILISK_PGO_PRESET=release
                 -DBASILISK_DEV_ID=${UT_DEV_ID}
                 -DBASILISK_ALIGN_FUNCTIONS=${UT_ALIGN_FUNCTIONS}
@@ -174,52 +164,40 @@ foreach(_tier IN LISTS _tiers)
     else()
         set(_ext o)
     endif()
-    if(UT_ROUTE STREQUAL "objects")
-        if(CMAKE_HOST_WIN32)
-            file(GLOB_RECURSE _objects "${_use_dir}/*.exe.lto*.obj")
-        else()
-            file(GLOB _objects "${_use_dir}/basilisk.lto.o*")
-        endif()
-        list(LENGTH _objects _object_count)
-        if(_object_count EQUAL 0)
-            message(FATAL_ERROR "Tier ${_tier}: the engine link in ${_use_dir} kept no LTO objects")
-        endif()
+    if(UT_COMPILER_ID STREQUAL "GNU")
+        file(GLOB _sources "${_use_dir}/basilisk.ltrans*.ltrans.s")
     else()
-        if(UT_COMPILER_ID STREQUAL "GNU")
-            file(GLOB _sources "${_use_dir}/basilisk.ltrans*.ltrans.s")
-        else()
-            execute_process(
-                COMMAND "${CMAKE_COMMAND}" --build "${_use_dir}" --target basilisk_tier_asm
-                WORKING_DIRECTORY "${UT_SOURCE_DIR}"
-                COMMAND_ERROR_IS_FATAL ANY
-            )
-            # lld writes a file for each module beside its input
-            # (basilisk_tier_asm.exe.lto.<module>.s); the gold plugin numbers
-            # them after the regular LTO partition's, which is empty here.
-            file(GLOB_RECURSE _candidates LIST_DIRECTORIES false "${_use_dir}/basilisk_tier_asm*")
-            set(_sources "")
-            foreach(_candidate IN LISTS _candidates)
-                file(SIZE "${_candidate}" _size)
-                if(_size GREATER 0)
-                    list(APPEND _sources "${_candidate}")
-                endif()
-            endforeach()
-        endif()
-        list(SORT _sources)
-        list(LENGTH _sources _object_count)
-        if(_object_count EQUAL 0)
-            message(FATAL_ERROR "Tier ${_tier}: the engine link in ${_use_dir} kept no LTO assembly")
-        endif()
-        # Assembled once as written, to read what the tier defines.
-        set(_objects "")
-        set(_index 0)
-        foreach(_source IN LISTS _sources)
-            set(_plain "${_tier_dir}/plain${_index}.${_ext}")
-            _ut_assemble("${_source}" "${_plain}")
-            list(APPEND _objects "${_plain}")
-            math(EXPR _index "${_index} + 1")
+        execute_process(
+            COMMAND "${CMAKE_COMMAND}" --build "${_use_dir}" --target basilisk_tier_asm
+            WORKING_DIRECTORY "${UT_SOURCE_DIR}"
+            COMMAND_ERROR_IS_FATAL ANY
+        )
+        # lld writes a file for each module beside its input
+        # (basilisk_tier_asm.exe.lto.<module>.s); the gold plugin numbers
+        # them after the regular LTO partition's, which is empty here.
+        file(GLOB_RECURSE _candidates LIST_DIRECTORIES false "${_use_dir}/basilisk_tier_asm*")
+        set(_sources "")
+        foreach(_candidate IN LISTS _candidates)
+            file(SIZE "${_candidate}" _size)
+            if(_size GREATER 0)
+                list(APPEND _sources "${_candidate}")
+            endif()
         endforeach()
     endif()
+    list(SORT _sources)
+    list(LENGTH _sources _object_count)
+    if(_object_count EQUAL 0)
+        message(FATAL_ERROR "Tier ${_tier}: the engine link in ${_use_dir} kept no LTO assembly")
+    endif()
+    # Assembled once as written, to read what the tier defines.
+    set(_objects "")
+    set(_index 0)
+    foreach(_source IN LISTS _sources)
+        set(_plain "${_tier_dir}/plain${_index}.${_ext}")
+        _ut_assemble("${_source}" "${_plain}")
+        list(APPEND _objects "${_plain}")
+        math(EXPR _index "${_index} + 1")
+    endforeach()
 
     execute_process(
         COMMAND "${UT_NM}" --defined-only ${_objects}
@@ -263,42 +241,30 @@ foreach(_tier IN LISTS _tiers)
 
     set(_renamed "")
     set(_index 0)
-    if(UT_ROUTE STREQUAL "objects")
-        foreach(_object IN LISTS _objects)
-            set(_out "${_tier_dir}/${_index}.${_ext}")
-            execute_process(
-                COMMAND "${UT_OBJCOPY}" "--redefine-syms=${_map}" "${_object}" "${_out}"
-                COMMAND_ERROR_IS_FATAL ANY
-            )
-            list(APPEND _renamed "${_out}")
-            math(EXPR _index "${_index} + 1")
-        endforeach()
-    else()
-        foreach(_source IN LISTS _sources)
-            set(_text "${_tier_dir}/${_index}.s")
-            set(_out "${_tier_dir}/${_index}.${_ext}")
-            execute_process(
-                COMMAND "${UT_PYTHON}" "${UT_SOURCE_DIR}/cmake/universal-asm.py"
-                        rename "${_map}" "${_source}" "${_text}"
-                COMMAND_ERROR_IS_FATAL ANY
-            )
-            _ut_assemble("${_text}" "${_out}")
-            list(APPEND _renamed "${_out}")
-            math(EXPR _index "${_index} + 1")
-        endforeach()
+    foreach(_source IN LISTS _sources)
+        set(_text "${_tier_dir}/${_index}.s")
+        set(_out "${_tier_dir}/${_index}.${_ext}")
         execute_process(
-            COMMAND "${UT_PYTHON}" "${UT_SOURCE_DIR}/cmake/universal-asm.py" check-sections
-                    ${_tier} "${UT_NM}" "${UT_OBJDUMP}" ${_renamed}
-            RESULT_VARIABLE _sections_result
+            COMMAND "${UT_PYTHON}" "${UT_SOURCE_DIR}/cmake/universal-asm.py"
+                    rename "${_map}" "${_source}" "${_text}"
+            COMMAND_ERROR_IS_FATAL ANY
         )
-        if(NOT _sections_result EQUAL 0)
-            message(FATAL_ERROR "Tier ${_tier}: a section keeps the name of a renamed symbol")
-        endif()
+        _ut_assemble("${_text}" "${_out}")
+        list(APPEND _renamed "${_out}")
+        math(EXPR _index "${_index} + 1")
+    endforeach()
+    execute_process(
+        COMMAND "${UT_PYTHON}" "${UT_SOURCE_DIR}/cmake/universal-asm.py" check-sections
+                ${_tier} "${UT_NM}" "${UT_OBJDUMP}" ${_renamed}
+        RESULT_VARIABLE _sections_result
+    )
+    if(NOT _sections_result EQUAL 0)
+        message(FATAL_ERROR "Tier ${_tier}: a section keeps the name of a renamed symbol")
     endif()
 
     basilisk_check_tier_objects(${_tier} "${UT_NM}" "${UT_OBJDUMP}" ${_share_types} ${_renamed})
 
-    message(STATUS "Universal tier ${_tier}: ${_object_count} ${UT_ROUTE} files, ${_rename_count} symbols renamed")
+    message(STATUS "Universal tier ${_tier}: ${_object_count} assembly files, ${_rename_count} symbols renamed")
     foreach(_object IN LISTS _renamed)
         list(APPEND _rsp_lines "\"${_object}\"")
     endforeach()

@@ -491,9 +491,6 @@ option(WARNINGS_AS_ERRORS "Treat compiler warnings as errors" ON)
 option(TEXEL "Build Texel trace+tuner target basilisk-texel (sets TEXEL_TRACE; implies BASILISK_TUNE)" OFF)
 option(BASILISK_UNIVERSAL_TIER "Build one tier of the universal x86-64 binary: keep the engine link's LTO output and name the tier at start-up" OFF)
 option(BASILISK_UNIVERSAL "Configure the universal x86-64 binary: its dispatcher, its tier builds and the final link (target universal)" OFF)
-set(BASILISK_UNIVERSAL_ROUTE "assembly" CACHE STRING
-    "How a universal tier's LTO output reaches the final link: assembly (its symbols renamed in the text; Clang or GCC) or objects (Clang's kept LTO objects, renamed by objcopy)")
-set_property(CACHE BASILISK_UNIVERSAL_ROUTE PROPERTY STRINGS assembly objects)
 
 option(USE_PEXT "Use BMI2 PEXT instruction for magic bitboards (requires Haswell+)" ${_basilisk_pext_default})
 option(USE_AVX2 "Build for x86-64 CPUs with AVX2" ${_basilisk_avx2_default})
@@ -892,7 +889,6 @@ add_custom_target(pgo
         -DPGO_USE_SSE41_POPCNT=${USE_SSE41_POPCNT}
         -DPGO_NAME=${_basilisk_pgo_name}
         -DPGO_UNIVERSAL_TIER=${BASILISK_UNIVERSAL_TIER}
-        -DPGO_UNIVERSAL_ROUTE=${BASILISK_UNIVERSAL_ROUTE}
         -DPGO_ALIGN_FUNCTIONS=${BASILISK_ALIGN_FUNCTIONS}
         -DPGO_COMP=${COMP}
         -DPGO_COMPILER_ID=${CMAKE_CXX_COMPILER_ID}
@@ -998,18 +994,10 @@ set_target_properties(basilisk_launcher PROPERTIES
 # it; the dispatcher, built here for the baseline, links them with one baseline
 # Fathom and the runtime. Nothing but the dispatcher runs before a tier is
 # chosen, so no tier object may carry an initialiser (the script checks).
-# BASILISK_UNIVERSAL_ROUTE=objects is the earlier Clang route, which keeps the
-# LTO objects and renames them with objcopy.
 if(BASILISK_UNIVERSAL_TIER OR BASILISK_UNIVERSAL)
     if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU" OR APPLE
        OR NOT CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|amd64")
         message(FATAL_ERROR "The universal binary is built with Clang or GCC for x86-64 Windows or Linux")
-    endif()
-    if(NOT BASILISK_UNIVERSAL_ROUTE MATCHES "^(assembly|objects)$")
-        message(FATAL_ERROR "BASILISK_UNIVERSAL_ROUTE is assembly or objects")
-    endif()
-    if(BASILISK_UNIVERSAL_ROUTE STREQUAL "objects" AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-        message(FATAL_ERROR "BASILISK_UNIVERSAL_ROUTE=objects keeps LLVM linkers' LTO objects: Clang only")
     endif()
     if(NOT PORTABLE_BUILD)
         message(FATAL_ERROR "The universal binary's builds need PORTABLE_BUILD=ON: "
@@ -1040,13 +1028,7 @@ if(BASILISK_UNIVERSAL_TIER)
     target_compile_definitions(basilisk_launcher PRIVATE BASILISK_UNIVERSAL_TIER="${_basilisk_tier}")
     # The instrumented build links without LTO, so it has nothing to keep.
     if(NOT _basilisk_pgo STREQUAL "GENERATE")
-        if(BASILISK_UNIVERSAL_ROUTE STREQUAL "objects")
-            if(WIN32)
-                target_link_options(basilisk PRIVATE $<$<CONFIG:Release>:-Wl,--Xlink=-lldsavetemps>)
-            else()
-                target_link_options(basilisk PRIVATE $<$<CONFIG:Release>:-Wl,-plugin-opt=save-temps>)
-            endif()
-        elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
             target_link_options(basilisk PRIVATE $<$<CONFIG:Release>:-save-temps=obj>)
         else()
             # basilisk_tier_asm, defined at the end of this file once every
@@ -1069,12 +1051,7 @@ if(BASILISK_UNIVERSAL)
     if(NOT BASILISK_ALIGN_FUNCTIONS STREQUAL "64")
         message(FATAL_ERROR "BASILISK_UNIVERSAL needs BASILISK_ALIGN_FUNCTIONS=64, as the universal preset sets")
     endif()
-    if(BASILISK_UNIVERSAL_ROUTE STREQUAL "assembly")
-        find_package(Python3 3.8 REQUIRED COMPONENTS Interpreter)
-        set(_basilisk_ut_python "${Python3_EXECUTABLE}")
-    else()
-        set(_basilisk_ut_python "")
-    endif()
+    find_package(Python3 3.8 REQUIRED COMPONENTS Interpreter)
     set(_basilisk_tiers_dir "${CMAKE_BINARY_DIR}/tiers")
     set(_basilisk_tier_objects "${_basilisk_tiers_dir}/objects.rsp")
     add_custom_target(universal_tiers
@@ -1082,15 +1059,13 @@ if(BASILISK_UNIVERSAL)
             -DUT_SOURCE_DIR=${CMAKE_SOURCE_DIR}
             -DUT_NAME=${_basilisk_pgo_name}
             -DUT_TIERS_DIR=${_basilisk_tiers_dir}
-            -DUT_ROUTE=${BASILISK_UNIVERSAL_ROUTE}
-            -DUT_PYTHON=${_basilisk_ut_python}
+            -DUT_PYTHON=${Python3_EXECUTABLE}
             -DUT_COMPILER_ID=${CMAKE_CXX_COMPILER_ID}
             -DUT_COMP=${COMP}
             -DUT_STATIC_RUNTIME=${STATIC_RUNTIME}
             -DUT_DEV_ID=${BASILISK_DEV_ID}
             -DUT_ALIGN_FUNCTIONS=${BASILISK_ALIGN_FUNCTIONS}
             -DUT_NM=${CMAKE_NM}
-            -DUT_OBJCOPY=${CMAKE_OBJCOPY}
             -DUT_OBJDUMP=${CMAKE_OBJDUMP}
             -DUT_CXX_COMPILER=${CMAKE_CXX_COMPILER}
             -DUT_CXX_COMPILER_VERSION=${CMAKE_CXX_COMPILER_VERSION}
