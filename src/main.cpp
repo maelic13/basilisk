@@ -152,7 +152,8 @@ int run_tier(int argc, char* argv[]) {
     if (!supports_tier(features, built)) {
         report("this Basilisk build needs a CPU with the " + std::string(tier_name(built))
                + " tier's instructions (pext: AVX2, POPCNT, BMI1, BMI2 and LZCNT;"
-                 " avx2: AVX2, SSE4.1 and POPCNT); use the universal x86-64 build");
+                 " avx2: AVX2, SSE4.1 and POPCNT); use the "
+               + std::string(tier_name(best_tier(features))) + " x86-64 build");
         return 1;
     }
     advise(features, built, "this build");
