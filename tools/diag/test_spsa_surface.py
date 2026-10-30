@@ -94,6 +94,34 @@ class SurfaceTests(unittest.TestCase):
         # F lines and switches stay off it.
         self.assertFalse(set(generated) & {"B3NmpBetaFloor", "B3NmpVerify", "B3CheckExt"})
 
+    def test_b3_sweep_notes_are_checked_against_the_table(self):
+        text = (
+            "#define BASILISK_B3_PARAMS(X, F, S) \\\n"
+            "    X(t_field, Tau, 5, 0, 10) \\\n"
+            "    F(u_field, Upsilon, 3, 0, 4) \\\n"
+            "    S(s_field, Sigma, 1, 0, 1)\n"
+        )
+        notes = surface.sweep_notes(text, {"Upsilon": (0, 1, 3)}, {"Tau": (2, 9)})
+        self.assertEqual(notes, [
+            "# sweep coordinate Upsilon: 0, 1, 3 (default 3; never fitted by SPSA)",
+            "# sweep extra points Tau: 2, 9 (beside the default 5)",
+        ])
+        for coordinates, extra in (({"Tau": (0, 5)}, {}),          # an X line
+                                   ({"Sigma": (0, 1)}, {}),        # a switch
+                                   ({"Upsilon": (0, 1)}, {}),      # default missing
+                                   ({"Upsilon": (3, 5)}, {}),      # out of range
+                                   ({}, {"Upsilon": (1,)}),        # an F line
+                                   ({}, {"Tau": (5, 9)}),          # the default
+                                   ({}, {"Tau": (11,)})):          # out of range
+            with self.assertRaises(ValueError):
+                surface.sweep_notes(text, coordinates, extra)
+
+    def test_b3_tune_file_carries_the_registered_sweep(self):
+        tune = surface.B3_TUNE.read_text(encoding="utf-8")
+        self.assertIn("# sweep coordinate B3SeekMateDepth: 8, 12, 16", tune)
+        self.assertIn("# sweep coordinate B3SingNegative: 0, 1, 3", tune)
+        self.assertIn("# sweep extra points B3SingMargin: 17, 126", tune)
+
     def test_steps_are_half_up_range_sixteenths_with_floor(self):
         self.assertEqual(surface.perturbation(0, 40), 3)
         self.assertEqual(surface.perturbation(0, 24), 2)
