@@ -2092,3 +2092,135 @@ research's own and are decided here.
    margin together, which the re-scoped screen tolerates.
 
 B.3.1 resumes `READY_FOR_IMPLEMENTATION` on these two decisions.
+
+## Return 3 — B.3.1 ticket 6 on amendment 2's seed: one position carries the node gate, and the arm throws a won promotion (2026-10-30)
+
+**What resumed.** Amendment 2's three changes landed in its order, each
+with the per-ticket checks:
+
+- Ticket 3, `B3NmpEvalGate` (default 0): `e6c120a`. ON is unchanged at
+  18,049,092. The switch is live: bench position 11 at depth 11 reads
+  2,033,267 nodes, and 1,670,826 with the gate on.
+- Ticket 5, `B3ProbCutTt` (default 0; its on-form margin 240 in 100..400):
+  `80d8261` and surface `51563d9`. ON reads 167,919,223, the hybrid with
+  the old quiet triple term still in place.
+- Ticket 6 re-done, `B3SingTripleQuiet` 0 in −110..0: `1e77ec9` and
+  surface `9264fc8`. OFF reads 16,615,757 at every commit.
+
+**Premise returned.** Amendment 2 §5: ticket 6 passes when "the interior
+nodes of the depth-13 read [are] within 2× the OFF arm's (about 16M) and
+WAC at 100,000 nodes ≥ 232 with §2's default; outside either, the leaf
+returns with the counters and no further seed is moved by hand". With it,
+§3 and the maintainer's decision 2: bench position 11's tree "at about
+twice the gated form's ... which the re-scoped screen tolerates".
+
+**The three gates at `1e77ec9`** (amendment 1 §7's read; the OFF arm's own
+read beside it; `tools/results/b31-20261030/t6b/counters_on.json` and
+`counters_off.json`):
+
+| Gate | Read | Rule | Verdict |
+|---|---:|---|---|
+| P8b: `ext_budget_bound / sing_fired`, 40 bench positions, depth 13 | 30,255 / 56,570 = **53.5%** | [25%, 70%] | pass |
+| WAC at 100,000 nodes | **234/300** | ≥ 232 | pass |
+| Interior nodes of the depth-13 read, ON / OFF | 25,792,530 / 8,008,320 = **3.22×** | ≤ 2× | **fail** |
+
+Recorded, not judged:
+
+- `bench 13` is **427,471,707**.
+- WAC at depth 6 is 134.
+- Triples are 92.7% of firings and doubles 99.4%.
+- At depth 20 on bench position 15, the share is 58.3% (2,883 of 4,944).
+
+**One position carries the node gate.** Bench position 11 (the won
+middlegame of Return 2's cost-screen finding) is 22,660,108 interior nodes
+of the ON arm's 25,792,530 (87.9%), against the OFF arm's 277,125: 81.8×.
+The other 39 positions read 3,132,422 against 7,731,195, which is
+**0.41×**, and the geometric mean of the per-position ratios over all 40 is
+0.57. In `bench 13`, where the table carries over from the earlier
+positions, position 11 takes 413,713,714 of the 427M. On this position the
+switches move the tree chaotically. Total nodes at depth 13, fresh, Hash 64,
+Tune build of `1e77ec9`:
+
+| Setting | Nodes |
+|---|---:|
+| the defaults | 57.2M |
+| `B3NmpEvalGate=1` | 161.7M |
+| `B3ProbCutTt=1` | 6.2M |
+| both | 12.4M |
+
+The maintainer's "about twice" was read on the ticket-3 arm (amendment 2
+§3, read N); on the ticket-6 arm the same position is 82× and dominates a
+gate written as a sum over 40 positions.
+
+**A won promotion thrown.** The ON arm's `test_search` fails one section
+that passed at ticket 5b: "promotion: a queen where a rook only
+transposes" (`3r4/P7/2K1p3/R7/5p2/6kP/8/8 w - - 2 66`, 100,000 nodes, Hash
+64) plays **h3h4** where the test requires **a7a8q**. This is a
+theory-truth miss, not a style choice. The OFF arm at depth 22 scores a7a8q
++198.71 (the known-win class) and h3h4 0. The ON arm's 100,000-node search
+prefers a7a8q through depth 9, reads the queen line as a draw from depth 10
+and plays the draw at depth 16.
+
+Every single switch flip recovers a7a8q on the Tune build of `1e77ec9`, at
+depth 10–11 where the defaults reach 16:
+
+| Switch flipped | Score |
+|---|---:|
+| `B3SingTripleQuiet=-53` | +837 |
+| `B3ProbCutTt=1` | 0, still a7a8q |
+| `B3ExtBudget=0` | +118 |
+| `B3SingNegative=0` | +319 |
+| `B3MultiCut=1` | +510 |
+| `B3NmpEvalGate=1` | +864 |
+| `B3CheckExt=1` | +317 |
+
+So the defaults' greater selectivity in this ending, not one mechanism,
+loses the win. DESIGN §4 makes theory truth an absolute veto. The OFF
+arm's `test_search` passes at every commit, and the ON arm's failure is in
+the committed tree (`1e77ec9`) so the reviewer can reproduce it.
+
+**The counter table against ticket 5b** (`t6b/compare.md`): the tree is
+0.29× ticket 5b's hybrid. Cluster 1 rows over 20%: `razor_cuts`,
+`fut_prunes`, `hindsight_down` and `hist_reward_updates`, all following
+the singular tree's shrinkage. Against the OFF arm on the same read:
+
+| Rule | ON | OFF |
+|---|---:|---:|
+| null-move tries (share of interior nodes) | 2.6% | 9.1% |
+| ProbCut cuts | 4.6% | 1.0% |
+| RFP cuts | 9.3% | 23.9% |
+| LMR applied | 36.2% | 26.2% |
+| quiescence nodes (per interior node) | 1.52 | 0.67 |
+
+**Options.**
+
+1. *Re-state the node gate per position*: the geometric mean of ON/OFF
+   over the 40 positions ≤ 2 (it reads 0.57), with position 11 recorded,
+   as the screen was re-scoped. That honours the maintainer's acceptance of
+   position 11's shape, but it is a gate changed after a read, so it is the
+   maintainer's to make or refuse.
+2. *Take the small ProbCut's on-form as the default* (`B3ProbCutTt=1`): on
+   position 11 it reads 6.2M against 57.2M, and amendment 2's read P had
+   the whole arm at 6.58M interior nodes with it on. It is a default the
+   maintainer set at 0 on WAC evidence (read P: 229 at 100k with it on),
+   and it would need its own read of the floor and of the promotion test.
+3. *Hand the throw to research before anything else.* The promotion miss
+   is a theory-truth veto independent of the node gate, and no single
+   switch carries it. It says the default arm's selectivity in won pawn
+   endings needs a reason before ticket 7 lands on top of it. B.12's
+   KBP-K repair and BAS-R07 are the nearest precedents.
+
+Recommendation: option 3 first, because a veto outranks a node gate; then
+the maintainer chooses between 1 and 2 with that research in hand. No seed
+or default has been moved.
+
+**State at the return.** Tickets 0–6 as amended are committed (`1e77ec9`,
+`9264fc8`). The OFF arm is 16,615,757 with release CTest 25/25 at every
+commit. The ON arm's release CTest passes through ticket 5b; at `1e77ec9`
+it fails one `test_search` section, the promotion above, which was not
+relaxed. Tickets 7–10 are not started. The amendment-2 surface additions
+(the three RFP coordinates and the donor's sweep pair) belong to the
+regeneration at ticket 10 and are not made. The `test_b3_proof` forced-cap
+assertion was corrected at `80d8261`: it compared two different trees'
+truncation counts, and it now asserts the capped run truncates. No
+idle-host read was run.

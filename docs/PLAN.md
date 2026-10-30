@@ -792,6 +792,11 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         the quiet triple term seeded at 0 (the donor's pair a sweep
         point), the null-move gate a categorical with the donor's form
         as default. Resumes at tickets 3, 5 and 6 as amended.
+      - Returned 2026-10-30 at ticket 6 on amendment 2 (packet *Return 3*):
+        P8b 53.5% and WAC 234 at 100k pass, but the depth-13 tree is
+        3.22x OFF's (bench 11 alone 82x; the other 39 at 0.41x) and the
+        ON arm throws a won promotion (`test_search`, a7a8q); tickets 0-6
+        committed (`1e77ec9`), OFF arm 16,615,757.
     - [ ] **B.3.2** `[V]` Diagnostics and the unfitted paired run
       Packet §11, BAS-S41: the zero-game screens on both arms (counters,
       the oracle differential, WAC, the crossover band, the canary
@@ -1172,7 +1177,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.1 | READY_FOR_IMPLEMENTATION | I2 | Resumes on research amendment 2 (packet) with the maintainer's decisions of its §7: tickets 3, 5 and 6 amended, then 7–10 |
+| B.3.1 | RESEARCH | I2 | Returned at ticket 6 (packet *Return 3*: bench 11 carries the node gate; the ON arm throws a won promotion); resumes on research amendment 3 |
 | B.3.2 | RESEARCH | V | Waits for B.3.1's accepted review |
 | B.3.3 | RESEARCH | V | Waits for B.3.2 |
 | B.3.4 | RESEARCH | V | Waits for B.3.3 |
