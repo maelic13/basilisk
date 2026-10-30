@@ -1026,6 +1026,24 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
   Version 1.11.0 (maintainer decision 2026-10-24: releases follow B, C and
   E, and 2.0.0 is the first NNUE release). Cut through A.8.6's tag-driven
   flow after A.10.4.
+- [ ] **B.12** `[I2]` False win in drawn KBP-K (ANY TIME) — before B.3.1
+  Correctness repair, opened 2026-10-30 at the maintainer's decision when
+  B.3.0's counter suite stopped on it (packet §2.3,
+  `analysis/b30_cluster2_research_2026-10-30.md`). `7k/8/6KP/8/8/8/8/5B2 w`,
+  an h-pawn with the wrong bishop and the defending king in the corner, is a
+  draw; 1.10.2 reads 0 at every depth (11,704 nodes at depth 14), the head
+  +150.94 at depth 8 and +112.08 at depth 10 on 13,553,601 nodes with
+  seldepth 112, and depth 11 does not finish in a minute. The static
+  evaluation is right along the false line; the bisect names `75d7fce`
+  (A.13: a won KPK scores `KNOWN_WIN` plus material), with an earlier drift
+  to +3.94 before it.
+  - Diagnose by ablation and counters on the position, then repair the
+    cause in the donor's form, with a test that fails on the head: the
+    position and its siblings read a draw at depths 8 to 14 inside a node
+    bound near 1.10.2's.
+  - Gate: exact `bench 13` or a recorded fingerprint move; CTest; the
+    conversion floors at the five budgets of the packet's §2.2; a repair
+    SPRT `[-5,5]` when play changes, unless the leaf argues none is owed.
 
 ### Active workflow register
 
@@ -1048,6 +1066,7 @@ leaf's tag. Later phases carry only a class until they open.
 | B.8.2 | RESEARCH | I1 | After the clusters |
 | B.9 | RESEARCH | V | Programme checkpoint |
 | B.11 | RESEARCH | M | Interim release after B.9 (maintainer decision 2026-10-24) |
+| B.12 | RESEARCH | I2 | Before B.3.1; B.3.0's blocker |
 
 ## Phase C — Evaluation programme (search frozen)
 
