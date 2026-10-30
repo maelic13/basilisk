@@ -1396,3 +1396,330 @@ ticket 2 with §6's consumer added, and so on in §10's order with §5's
 fingerprint rules. No further research is owed before ticket 6's P8a
 read; a rate outside P8a's bands at ticket 6 returns the leaf with the
 counters.
+
+## Return 2 — B.3.1 ticket 6: every singular firing extends three plies, and the budget truncates most of them (2026-10-30)
+
+**Premise returned.** Research amendment 1 §4's P8a, frozen before any
+ON-arm build carried the budget: at ticket 6, on the 40 bench positions at
+depth 13, `ext_budget_bound / sing_fired` lies in [0.5%, 10%]; at depth 20
+on bench positions 11 and 15 it is above 0 and under 25%. Its stated
+consequence outside the band: the graded extension's bars are mis-scaled
+for this evaluation (triples too common), and the bars, not the budget,
+return to research. Its prior read "the donor's bars make doubles the rule
+off the PV and triples common, Rarog 21%".
+
+**Evidence.** Ticket 6 as contracted (`13cdda0`; surface `03c703e`),
+release and Diag builds of the release preset, PEXT portable, Clang
+23.1.4; the counters by amendment 1 §7's method (`run_suite.py --suite
+tools/results/b31-20261030/bench_fens.epd --depth 13 --stride 1 --hash
+64`, `tools/results/b31-20261030/t6/counters_on.json`).
+
+| Read | Value | P8a |
+|---|---:|---|
+| depth 13, 40 bench positions: `ext_budget_bound / sing_fired` | **107,076 / 139,667 = 76.7%** | band [0.5%, 10%]: **outside** |
+| depth 20, bench position 15: the same | **13,216 / 16,037 = 82.4%** (finished, 1.68M interior nodes) | under 25%: **outside** |
+| depth 20, bench position 11: the same | **700,551 / 725,009 = 96.6%** (finished in 462 s, 405M interior nodes) | under 25%: **outside** |
+| depth 13: `sing_ext3 / sing_fired` | **137,342 / 139,667 = 98.3%** | prior "triples common", Rarog 21% |
+| depth 13: `sing_double / sing_fired` (2 or 3 plies) | 139,302 / 139,667 = 99.7% | |
+| depth 13: tries, multi-cuts, negatives | 458,890; 97,727 (21.3% of tries); 200,667 (43.7%; 164,191 at cut nodes below beta) | |
+
+The tree: the counter read's interior nodes rose from 2,470,896 at ticket 5
+to 58,788,438 (23.8×), `bench 13` from 10,754,654 to 18,049,092 (1.68×),
+and WAC fell to 103/300 at depth 6 and 217/300 at 100,000 nodes.
+
+**Why every firing is a triple.** For a quiet TT move at a non-PV node
+(not past the root depth), the seeds give a double bar of −1 − 43 = −44
+and a triple bar of 20 − 53 = −33 (−10 near a PV), before the correction
+term lowers both and the TT-move history term moves the double by at most
+±23. A value below the singular bound is below the bound plus 33 or 44, so
+both comparisons succeed whenever the exclusion search fails low: the
+extension is 3 on every such firing. Only a capture TT move (−1 and +20)
+or a PV node (+58 and +79) can see 1 or 2. The donor's bars have the same
+sign structure in its own units (−2 − 152 = −154, 70 − 188 = −118), so the
+conversion is not the cause: in the donor's form, a singular quiet TT move
+at a non-PV node always takes three plies, and P8a's prior of "doubles the
+rule, triples common" did not follow from the formula. The budget then
+binds after about four firings along a line at root depth 13, which is the
+76.7%.
+
+**Reads by UCI option on the Tune build of `13cdda0`** (no code changed;
+`tools/results/b31-20261030/t6/on-tune.exe`), for the options below:
+
+| Variant (options on the Tune build) | WAC depth 6 | WAC 100,000 nodes |
+|---|---:|---:|
+| ticket 6's defaults | 103 | 217 |
+| `B3ExtBudget=0` (no budget) | 103 | 207 |
+| triple bars at their range tops (`B3SingTripleBase=60`, `B3SingTripleQuiet=0`, `B3SingTripleDeep=0`) | 97 | 216 |
+| both bars at their range tops (the above and `B3SingDoubleBase=40`, `B3SingDoubleQuiet=0`, `B3SingDoubleDeep=0`) | 97 | 216 |
+| `B3SingMargin=252` (the legacy 4 per ply) | 101 | 217 |
+| `B3SingMargin=378` (6 per ply, the range top) | 103 | 230 |
+| `B3MultiCut=1` | 101 | 211 |
+
+The engine's `bench` command searches with the default parameters and
+ignores `setoption`, so it gives no per-variant fingerprint here. Two
+readings: removing the budget makes 100,000-node WAC worse (207), so the
+budget is containing the triples, not causing the loss; and no single
+singular option restores the ticket-5 arm's 227, let alone 232. P1's
+ablation order names "the singular margin at 378 (today's 4/ply)": 378 is
+6 per ply at 1/63 per ply; today's 4 per ply is 252, read above.
+
+**The other open findings of this run, which a researcher should read with
+this one** (the implementation record below carries their evidence):
+
+- WAC: depth 6 182 → 158 (ticket 2) → 157 → 156 → 109 (ticket 5) → 103;
+  100,000 nodes 240 → 238 → 245 → 234 → 227 → 217. Each move of 10 or more
+  is attributed with nothing unexplained (ticket 2: the check extension
+  −20, the PV quiet pruning −5, pruning in check +1; ticket 5: the small TT
+  ProbCut −38 and −18). Both floors (≥ 175 and ≥ 232) bind at the final
+  qualification and fail on today's arm.
+- The deep-iteration cost screen failed on bench position 11 at ticket 3
+  (geometric mean 23.5× at depths 16–17, depths 18–19 unfinished): the
+  donor's null move tries at 3.3% of interior nodes against 11.9% there, a
+  won middlegame (+20 pawns) where the null move is the main shortcut; no
+  single NMP coordinate or switch, the child's type or the legacy
+  `eval ≥ beta` gate restores it (the table in the record).
+- The small TT ProbCut costs 38 WAC positions at depth 6 and 18 at 100,000
+  nodes; restricting it to search-proven entries, non-PV nodes or the
+  widest coordinates does not recover them; off, or out of check, does.
+
+**Options.**
+
+1. *Re-scale the bars* (P8a's own consequence). A researcher decides what
+   the donor's negative bars mean in a tree whose singular search fires on
+   a margin of 2 per ply rather than 0.26, and seeds them so that the
+   graded extension separates 1, 2 and 3 plies here; ticket 6 is then
+   re-read against P8a.
+2. *Keep the donor's bars and re-register P8a* around the budget as the
+   binding control (Rarog's budget truncated 44,914 extensions at
+   `bench 13`). The tree and WAC reads above say the arm would then fail
+   its final floors and cost screen.
+3. *Return the whole cluster to research* with this run's evidence: four of
+   the six landed mechanisms (the check policy, NMP, the small ProbCut and
+   the graded singular) each move a floor or the cost screen on their own,
+   which says the cluster's seeds were chosen mechanism by mechanism against
+   a population §5.12 meant to read only after the arm was coherent.
+
+Recommendation: option 1 for the singular bars, with option 3's findings
+read by the same researcher before ticket 6 resumes: the WAC floors and the
+cost screen will not pass on today's arm whatever the bars do, and the
+researcher should decide whether the small ProbCut and the donor's null-move
+population fit this engine before more tickets land on them.
+
+**State at the return.** Tickets 0–6 committed (the list in the
+implementation record below); the OFF arm 16,615,757 at every commit;
+release CTest 25/25 on both arms at every ticket (the ON arm's WAC test a
+count since ticket 2, by B.2.1 Amendment 2's rule, which ticket 10's
+re-registration ends); tickets 7–10 not started. Implementation resumes on
+research amendment 2 in this packet.
+
+## Implementation record — tickets 0 to 6, at Return 2 (2026-10-30)
+
+Branch `b3-pruning-extensions`. Builds: the release preset, PEXT portable,
+Clang 23.1.4, non-PGO `all` trees for both arms in Release and Diag
+(`build/b3-off`, `build/b3-on`, `build/b3-off-diag`, `build/b3-on-diag`)
+and a Tune tree of the ON arm for option reads. `bench 13` is the release
+binary's; the Diag binary of the same source reads the same count at every
+ticket (checked each time). The PGO two-arm table of ticket 10 was not
+reached. Per-ticket logs, counter JSON and comparison tables:
+`tools/results/b31-20261030/<ticket>/`.
+
+### Per ticket
+
+| Ticket | Commits | OFF `bench 13` | ON `bench 13` | ON WAC depth 6 / 100k | Bench 11, depth 15, ON |
+|---|---|---:|---:|---:|---:|
+| 0 | `dafe92d`, `a676317` | 16,615,757 | 16,615,757 | 182 / 240 | 1,363,091 (as OFF) |
+| 1 | `823d087` (Return 1) | 16,615,757 | 13,315,120 | 180 / — | — |
+| 1b | `4f7119d` | 16,615,757 | 16,615,757 | 182 / 240 | 1,363,091 |
+| 2 | `64439dd`, `0929527` | 16,615,757 | 5,568,900 | 158 / 238 | 1,303,387 |
+| 3 | `b0ff158`, `e5b49ca` | 16,615,757 | 6,765,087 | 157 / 245 | 26,065,865 |
+| 4 | `1ba0fc7`, `dcf060f` | 16,615,757 | 8,747,261 | 156 / 234 | 18,087,547 |
+| 5 | `2df2732`, `d2df385` | 16,615,757 | 10,754,654 | 109 / 227 | 30,464,545 |
+| 6 | `13cdda0`, `03c703e` | 16,615,757 | 18,049,092 | 103 / 217 | — |
+
+Release CTest passed on both arms at every ticket (24 tests at ticket 0,
+25 from ticket 1). The ON arm's Diag build ran `test_stack_unwind`,
+`test_b3_proof` and `test_search` with node checks live at every ticket,
+and passed.
+
+### Cluster 1 rows that moved by more than 20% (amendment 1 §7's read)
+
+Shares of interior nodes, ON arm, against the previous ticket; never
+repaired. Full tables: `tools/results/b31-20261030/t<N>/compare.md`.
+
+- **Ticket 2.** `skip_quiets_nodes` +34%, `fut_prunes` +42%,
+  `cont_hist_pruned` +81%, `capture_futility_pruned` +47%,
+  `quiet_see_pruned` +73%, `capture_see_pruned` +26%, `moveloop_tested`
+  +45%, `lmr_applied` +46%, `lmr_researched` +34%, `lmr_floor_hits` +34%,
+  `cutoff_src_goodcap` +23%, `hindsight_up` +49%, `hist_reward_updates`
+  +41%. Cause: the tree is 0.37×, and its in-check share falls from 19.9%
+  to 11.9% of interior nodes once the check extension is gone. In-check
+  nodes now enter LMR and the move-loop rules (the `in_check_*` rows), and
+  PV nodes off the previous PV prune quiets: `pv_quiet_pruned` is 1.56% of
+  interior nodes, about 1.2% of moves tested, more than amendment 1 §6's
+  "small share".
+- **Ticket 3.** `rfp_cuts` −37%, `razor_cuts` +24%, `fut_prunes` −36%,
+  `cont_hist_pruned` +232%, `lmr_researched` +78%, `lmr_floor_hits` −21%,
+  `cutoff_src_quiet` +44%, `cutoff_src_badcap` +115%, `hindsight_up` and
+  `hindsight_down` −31%, the continuation-correction updates +76%,
+  `hist_cutoff_updates` +21%, `hist_reward_updates` −39%. Cause: the null
+  move's population narrows (`null_tries` −64%, `null_cuts` −48% of
+  interior), so subtrees it used to cut are searched; the counter read's
+  tree is 2.1× ticket 2's.
+- **Ticket 4.** `capture_futility_pruned` −24%, `hindsight_down` +39%.
+  Cause: IIR fires 29% less (the stale-entry clause and the in-check
+  firings are gone; PV nodes off the PV are added), so nodes keep a ply,
+  which raises `lmr_depth` and the children's remaining depth.
+- **Ticket 5.** `razor_cuts` −35%, `fut_prunes` +31%, `quiet_see_pruned`
+  +23%, `lmr_researched` −22%, `cutoff_src_badcap` −38%, `hindsight_up`
+  +23%, `hindsight_down` +43%, `hist_reward_updates` +73%. Cause: ProbCut
+  cuts 5.4% of interior nodes (4×) and the small ProbCut 2.1%, mostly at
+  depth 3 and 4, before the node and move-loop rules see those nodes; the
+  tree is 0.46×.
+- **Ticket 6.** Seventeen of the twenty-three rows. Cause: the counter
+  read's tree is 23.8× ticket 5's (Return 2).
+
+### WAC moves of ten or more, attributed (B.2.1 Amendment 2's rule)
+
+- **Ticket 2**, depth 6 182 → 158, by the switches on the Tune build:
+  - the PV quiet pruning: −5 (182 → 177);
+  - reductions and pruning in check: +1 (→ 178);
+  - no check extension: −20 (→ 158).
+  At 100,000 nodes: 240 → 244 → 242 → 238. Nothing unexplained.
+- **Ticket 5**, depth 6 156 → 109, reverted cumulatively (a temporary build
+  without the small ProbCut, then options):
+  - the small TT ProbCut: −38 at depth 6 and −18 at 100,000 nodes;
+  - PV admission: +3;
+  - minimum depth 3 against 5: −9;
+  - the margin 68/18 against 189: −6;
+  - the rest of the donor's form: +3.
+  Nothing unexplained. The small ProbCut's variants (temporary builds, read
+  at depth 6 / 100,000 nodes):
+  - search-proven entries only (depth ≥ 1): 106 / 225, which refutes
+    quiescence's stand-pat stores as the cause;
+  - non-PV only: 105 / 226;
+  - not in check: 132 / 237;
+  - the widest coordinates (margin 240, `tt_depth ≥ depth − 2`): 141 / 234;
+  - off: 147 / 245.
+
+### The deep-iteration screen at ticket 3
+
+`deep_iteration_screen.py`, bench positions 11 and 15, depths 16–19, 60 s
+watchdog, the ticket-3 release binaries
+(`tools/results/b31-20261030/t3/screen.json`):
+
+| Position | Geometric mean of ON/OFF cumulative nodes | Depths compared | ON unfinished | Verdict |
+|---:|---:|---|---|---|
+| 11 | 23.5 | 16–17 | 18, 19 | fail |
+| 15 | 0.64 | 16–19 | none | pass |
+
+The deep iterations do not cause it. Position 11 is a won middlegame
+(Re7xb7 wins the queen, the score passes +20 pawns), and its ON tree
+exceeds OFF's from depth 7. Ticket 2's arm is clean there (depth 15:
+1,303,387 against OFF's 1,363,091).
+
+The depth-15 reads on the ticket-3 Tune build all stay several times OFF's:
+
+| Change | Depth 15 |
+|---|---:|
+| `B3NmpCutOnly=0` | 11.1M |
+| `B3NmpVerify=0` | 16.2M |
+| `B3NmpVerify=2` | 15.6M |
+| R as 3 + d/4 | 8.8M |
+| `B3NmpRedEvalDiv=192` | 37.9M |
+| `B3NmpBase=300` | 10.9M |
+| a flat margin | 6.5M |
+| `B3NmpBetaFloor=-2000` | 11.5M |
+| the null child typed cut (temporary build) | 127M |
+| the legacy `eval ≥ beta` gate added (temporary build) | 10.7M |
+
+At depth 13 the null move is tried at 3.3% of interior nodes against OFF's
+11.9%, and the tree is 15×. The screen is the final qualification's
+binding test; this read is its early warning.
+
+### Tests added
+
+- `test_b3_proof`, both arms:
+  - the budget's edge arithmetic;
+  - the `follow_pv` predicate;
+  - a forced `ext_budget_cap` that moves the ON tree from ticket 6 (none
+    before) and leaves the OFF tree alone, with its counter in Diag builds;
+  - `follow_pv_nodes` 1 at iteration 1 in Diag builds;
+  - the singular bound at depths 6, 10 and 20, with and without the PV
+    term;
+  - the graded extension in [1, 3] and monotone in the gap;
+  - multi-cut admission under both rules, never decisive;
+  - the negative extension;
+  - `is_shuffling`'s truth table;
+  - the `seek_mate` gate.
+- `test_move_picker_core`: the ProbCut picker's contract over 3,000 random
+  positions:
+  - exactly the candidates clearing SEE, in descending capture order;
+  - a qualifying TT move first;
+  - a foreign TT move and the excluded move never delivered.
+- Python:
+  - `test_deep_iteration_screen.py`;
+  - the Cluster 2 counter checks in `test_run_suite.py`;
+  - the event names in `test_decision_trace.py`;
+  - the B3 surface in `test_spsa_surface.py`.
+
+### Deviations and interpretations, each with its reason
+
+- Ticket 1b. The `ext_plies ≤ root_depth_` node check and the forced-cap
+  test's ON expectation move to ticket 6: without the bound neither can
+  hold, and Return 1's rows 4 and 5 tripped the check. From ticket 6 the
+  check reads `!B3ExtBudget || ext_plies ≤ root_depth_`.
+- Ticket 2. The ON arm's `test_wac_floor` runs `test_wac --count` (CMake,
+  `B3_PROOF` only) until ticket 10 re-registers the floor. This follows
+  B.2.1 Amendment 2's rule, which §10 ticket 10 cites; the OFF arm's floor
+  is untouched.
+- Ticket 3.
+  - The ON condition list is the contract's, which is the donor's: no
+    `depth ≥ 3` and no TT-refined `eval ≥ beta`. Basilisk's `allow_null`
+    and previous-null guards are kept.
+  - The region verification passes `allow_null = true`, so the region
+    governs, as in the donor; the legacy form (`B3NmpVerify=2`) keeps
+    `false`.
+  - B-37: the verification re-enters the node's record and is followed by
+    ProbCut, whose children read `(ss-1)->move_count` and
+    `(ss-1)->stat_score` (the TT-cutoff penalty and the fail-low parent
+    bonus). So the ON arm saves and restores those two, packet §3.1's first
+    branch, rather than the ticket's "reads none of them".
+  - The other fields the re-entry writes:
+    - `tt_pv` and `follow_pv` are recomputed to equal values;
+    - `ext_taken` is reset at entry, where it is already 0;
+    - `(ss+2)->cutoff_cnt` is reset;
+    - `(ss+1)->cutoff_cnt` accumulates, which the donor shares;
+    - `move` is reset by undo;
+    - `cont_hist` and `cont_corr` are rewritten by the next `do_move`
+      before any read.
+- Ticket 4. IIR skips in-check nodes on the ON arm (the donor reaches it
+  only out of check); the ticket's list is silent on check.
+- Ticket 5.
+  - The picker delivers queen promotions and captures only, and no
+    underpromotion (the donor's capture generation).
+  - The store's static eval at an exclusion node is the entry's own raw
+    eval, because the node computed none and a store of `INF_SCORE` would
+    erase it.
+- Ticket 6.
+  - The node's `depth++` deepens the moves after the TT move but not the TT
+    move itself (`depth_bump`), as the donor's `newDepth` is fixed before
+    it.
+  - Under `B3MultiCut=1` the admission is the singular bound clearing beta
+    and the return is the value, as the ticket says. Neither rule admits a
+    decisive value.
+  - `ply < MAX_PLY − 2` is added to the entry.
+- The X ranges are my provisional choices spanning §7's columns; B.3.3
+  registers the surface.
+- The packet says "the double and triple bars 8"; the code has nine `X`
+  lines (four double, five triple).
+
+### What the reviewer must check
+
+- Each ticket's diff against §10 as amended, and the deviations above.
+- The OFF arm's code: compile-time `!kB3Proof &&` prefixes on the legacy
+  NMP, ProbCut, IIR and singular blocks, and shared seams only (counters,
+  stack fields, the driver's previous PV and score, a `!in_check` on quiet
+  futility that the OFF arm never reaches in check).
+- The B-37 field list above.
+- The budget's invariant under `test_stack_unwind` on a Diag ON build.
+- The fingerprints, reproduced from a clean tree.

@@ -775,6 +775,11 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         a miss and re-registered as P8a; `B3ExtBudget` read by games
         unconditionally; the quiet-pruning consumer of `follow_pv`
         assigned to ticket 2. Resumes at ticket 1b.
+      - Returned 2026-10-30 at ticket 6 (packet *Return 2*): P8a fails,
+        the budget truncating 76.7% of singular firings at depth 13 and
+        83-97% at depth 20, because every quiet non-PV firing extends
+        three plies; tickets 0-6 committed (`13cdda0`), OFF arm
+        16,615,757; WAC floors and the bench-11 cost screen also fail.
     - [ ] **B.3.2** `[V]` Diagnostics and the unfitted paired run
       Packet §11, BAS-S41: the zero-game screens on both arms (counters,
       the oracle differential, WAC, the crossover band, the canary
@@ -1155,7 +1160,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.1 | READY_FOR_IMPLEMENTATION | I2 | Resumes at ticket 1b on research amendment 1 (packet): the budget lands with ticket 6, the cap stays until then |
+| B.3.1 | RESEARCH | I2 | Returned at ticket 6 (packet *Return 2*: every singular firing a triple, P8a outside its band); resumes on research amendment 2 |
 | B.3.2 | RESEARCH | V | Waits for B.3.1's accepted review |
 | B.3.3 | RESEARCH | V | Waits for B.3.2 |
 | B.3.4 | RESEARCH | V | Waits for B.3.3 |
