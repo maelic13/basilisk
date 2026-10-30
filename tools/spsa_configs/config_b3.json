@@ -102,7 +102,7 @@
         "step": 10
     },
     "B3SingTripleQuiet": {
-        "value": -53,
+        "value": 0,
         "min_value": -110,
         "max_value": 0,
         "step": 7

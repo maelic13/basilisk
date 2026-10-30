@@ -123,7 +123,7 @@ c_end = 4.6057
 
 [[parameters]]
 name = "B3SingTripleQuiet"
-initial = -53
+initial = 0
 min = -110
 max = 0
 c_end = 3.2240
