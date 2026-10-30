@@ -158,9 +158,7 @@ static void usage(const char* exe) {
         << "  minors      bishop pair, knight outpost, trapped bishop terms\n"
         << "  mobility    per-piece safe mobility terms\n"
         << "  threats     pawn threats to minor/rook/queen\n"
-        << "  hanging     hanging piece penalties\n"
         << "  misc        passed-king proximity, space (+3.6 refinement), tempo\n"
-        << "  winnable    complexity/winnable coupling (3.6; finite-diff)\n"
         << "  kingsafety  king attack, shelter, and storm terms\n"
         << "  pst         PSTs plus material refit\n"
         << "  texel       PSTs + scalars, material PINNED (1116; the 5.9.12 set)\n"
@@ -305,26 +303,18 @@ static std::vector<int> active_indices_for_group(const std::string& group) {
             if (!dead) active.push_back(their_base + t);
         }
     } else if (group == "threats") {
-        // Old flat pawn-threats + the new threats package (3.1) + hang_pen, so the
-        // new threat_hanging/weak_queen_prot can absorb the flat hanging term in a
-        // joint fit (Stage 4.2 "drop the old flat hang[]").
+        // Old flat pawn-threats + the threats package (3.1).
         append_groups(active, EPG_ThreatMinorMg, EPG_ThreatPushEg);
-        append_group(active, EPG_HangPen);
-    } else if (group == "hanging") {
-        append_group(active, EPG_HangPen);
     } else if (group == "misc") {
         append_group(active, EPG_ProxBase);
         append_group(active, EPG_SpaceMg);
         append_group(active, EPG_SpacePieceMg);
         append_group(active, EPG_SpaceBlockedMg);
         append_group(active, EPG_Tempo);
-    } else if (group == "winnable") {
-        for (int g = EPG_WinOutflanking; g <= EPG_WinBias; ++g)
-            append_group(active, g);
     } else if (group == "phase45") {
         // Stage 4.5: the full positional data-fit in one joint group. Covers
         // pawn refinement (3.4), the seeded-0 small positional terms (3.7), the
-        // HCE survey adds (3.9), minors, rooks, space (3.6) and winnable (3.6).
+        // HCE survey adds (3.9), minors, rooks and space (3.6).
         // Deliberately EXCLUDES material/PST (4.7), imbalance (4.6), mobility
         // (4.4, done), threats (4.2, done) and king safety (4.3, done).
         // ALWAYS run with --l2 (mobility lesson: sparse/seeded terms over-fit
@@ -332,13 +322,11 @@ static std::vector<int> active_indices_for_group(const std::string& group) {
         // Phase-2 pawn/passer/rook cores from drifting while the seeded terms
         // grow). The three ranges below are contiguous in EVAL_PARAM_LIST and
         // skip exactly Imb* (between BishopPairPawnsEg and MinorBehindPawnMg)
-        // and the Mob*/Threat*/Ks*/HangPen block (between KnightOutpostEg and
+        // and the Mob*/Threat*/Ks* block (between KnightOutpostEg and
         // ProxBase). (4.8a pruned the dead survey/space/pawn-lever terms.)
         append_groups(active, EPG_PassedMg, EPG_BishopPairPawnsEg);
         append_groups(active, EPG_MinorBehindPawnMg, EPG_KnightOutpostEg);
         append_groups(active, EPG_ProxBase, EPG_Tempo);
-        for (int g = EPG_WinOutflanking; g <= EPG_WinBias; ++g)
-            append_group(active, g);
     } else if (group == "kingsafety" || group == "king") {
         for (int g = EPG_KsUnit; g <= EPG_StormWeightAdj; ++g)
             append_group(active, g);
@@ -354,16 +342,13 @@ static std::vector<int> active_indices_for_group(const std::string& group) {
         // expressiveness because the PST can already express any material
         // change; it only removes the degeneracy.
         //
-        // King safety (57) and winnable (7) are absent because they are capped
-        // and non-linear -- BAS-X14. They belong to --tune-kingsafety and the
-        // finite-difference winnable group. BAS-E21 is the evidence that this
+        // King safety is absent because it is capped and non-linear -- BAS-X14.
+        // It belongs to --tune-kingsafety. BAS-E21 is the evidence that this
         // split matters: the king-safety funnel produced +2.64 Elo through the
         // coordinate-descent fitter after a linear fit had nothing to say about
         // it.
         //
-        // Do NOT use "all" for this. It reaches 1,183 -- sweeping king safety
-        // into the gradient fit -- while silently omitting the 7 winnable
-        // params, which sit after EPG_Tempo and fall outside its range.
+        // Do NOT use "all" for this: it sweeps king safety into the gradient fit.
         for (int g = EPG_PstMgPawn; g <= EPG_PstEgKing; ++g)
             append_group(active, g);
         for (int g = EPG_PassedMg; g <= EPG_Tempo; ++g) {
@@ -509,11 +494,6 @@ static void clamp_weights_for_group(const std::string&, double* w) {
     clamp_group_range(w, EPG_RookBehindPasserEg, 0.0, 200.0);
     clamp_group_range(w, EPG_EnemyRookPasserMg, 0.0, 200.0);
     clamp_group_range(w, EPG_EnemyRookPasserEg, 0.0, 200.0);
-
-    for (int pt = 0; pt < PIECE_TYPE_NB; ++pt) {
-        double hi = (pt >= KNIGHT && pt <= QUEEN) ? 200.0 : 0.0;
-        clamp_range(w, flat_index(EPG_HangPen, pt), 0.0, hi);
-    }
 
     // Per-count mobility tables (Step 3.3): bounded; seeded values (queen eg max
     // 324) sit inside the range so this never perturbs an untuned fit.
@@ -756,8 +736,8 @@ static void cmd_verify(const std::string& path) {
 // loaded positions give it a nonzero linear trace (the positions that can
 // supply gradient signal).
 // Flags any *linearly-traced* param active in fewer than max(200, 0.05% N)
-// positions. The king-safety index knobs and the winnable knobs are tuned by
-// finite difference / are frozen, so they carry no linear trace by design --
+// positions. The king-safety index knobs are tuned by finite difference, so
+// they carry no linear trace by design --
 // they are reported separately as expected-zero, not flagged. Also closes the
 // Phase-3 trace-regression item (d): every traced term must fire nonzero.
 // ---------------------------------------------------------------------------
@@ -771,14 +751,10 @@ static const char* const FS_GROUP_NAMES[EPG_COUNT] = {
 // expected, not a defect.
 static bool fs_is_finite_diff_group(int g) {
     switch (g) {
-        case EPG_KsUnit: case EPG_KsCoordBonus: case EPG_KsOpenFile:
-        case EPG_KsSafeCheck: case EPG_KsWeakRing: case EPG_KsRingPressure:
-        case EPG_KsFlankAttack: case EPG_KsFlankDefense: case EPG_KsPawnlessFlank:
+        case EPG_KsUnit: case EPG_KsCoordBonus:
+        case EPG_KsSafeCheck: case EPG_KsWeakRing:
         case EPG_KsKingBlockers: case EPG_KsCentralKing: case EPG_KsShelterStorm:
         case EPG_KsNoqueenNum: case EPG_KsNoqueenDen:
-        case EPG_WinOutflanking: case EPG_WinBothFlanks: case EPG_WinInfiltration:
-        case EPG_WinPawnEndgame: case EPG_WinPassed: case EPG_WinTotalPawns:
-        case EPG_WinBias:
             return true;
         default:
             return false;
@@ -878,7 +854,7 @@ static void cmd_feature_support(const std::string& path, int max_positions) {
         std::cout << "CHECK the " << zero_traced << " zero-activation traced "
                      "param(s) above — they should be ONLY structurally-impossible "
                      "indices (piece-type none/king slots like ThreatBy*[0]/[6] and "
-                     "HangPen[0/1/6], pawn PSTs on ranks 1/8). Any other zero is a "
+                     "pawn PSTs on ranks 1/8). Any other zero is a "
                      "trace bug. Run on the FULL train set for a clean verdict (a "
                      "small holdout under-samples rare terms).\n";
     }
@@ -1287,7 +1263,6 @@ static void cmd_audit_coverage() {
 
     claim(active_indices_for_group("texel"),      "texel");
     claim(active_indices_for_group("kingsafety"), "kingsafety");
-    claim(active_indices_for_group("winnable"),   "winnable");
     std::vector<int> mat; append_material(mat);
     claim(mat, "material");
 
@@ -1357,13 +1332,8 @@ static void cmd_tune_kingsafety(int argc, char* argv[]) {
     };
     for (int pt = KNIGHT; pt <= QUEEN; ++pt) add(&P.ks_unit[pt], "ks_unit", pt, 0, 20, -1);
     add(&P.ks_coord_bonus, "ks_coord_bonus", 0, 0, 20, -1);
-    add(&P.ks_open_file, "ks_open_file", 0, 0, 20, -1);
     for (int pt = KNIGHT; pt <= QUEEN; ++pt) add(&P.ks_safe_check[pt], "ks_safe_check", pt, 0, 30, -1);
     add(&P.ks_weak_ring, "ks_weak_ring", 0, 0, 20, -1);
-    add(&P.ks_ring_pressure, "ks_ring_pressure", 0, 0, 20, -1);
-    add(&P.ks_flank_attack, "ks_flank_attack", 0, 0, 20, -1);
-    add(&P.ks_flank_defense, "ks_flank_defense", 0, 0, 20, -1);
-    add(&P.ks_pawnless_flank, "ks_pawnless_flank", 0, 0, 30, -1);
     add(&P.ks_king_blockers, "ks_king_blockers", 0, 0, 20, -1);
     add(&P.ks_central_king, "ks_central_king", 0, 0, 30, -1);
     add(&P.ks_shelter_storm, "ks_shelter_storm", 0, 0, 20, -1);

@@ -14,7 +14,6 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
-#include <string_view>
 #include <unordered_map>
 #endif
 
@@ -2001,15 +2000,6 @@ static void load_eval_params(const char* filename, EvalParams& p) {
                                      + " out of range for '" + name
                                      + "' (length " + std::to_string(slot.size())
                                      + ") at line " + std::to_string(lineno));
-        // These terms are no longer computed (every weight was 0), so a
-        // nonzero value would be ignored without a word.
-        static constexpr std::string_view uncomputed[] = {
-            "KsOpenFile", "KsRingPressure", "KsFlankAttack", "KsFlankDefense", "KsPawnlessFlank",
-            "HangPen", "WinOutflanking", "WinBothFlanks", "WinInfiltration", "WinPawnEndgame",
-            "WinPassed", "WinTotalPawns", "WinBias"};
-        if (val != 0 && std::ranges::find(uncomputed, std::string_view(name)) != std::end(uncomputed))
-            throw std::runtime_error("Eval param '" + name + "' is not computed and must be 0, at line "
-                                     + std::to_string(lineno));
         slot[size_t(idx)] = val;
     }
 }

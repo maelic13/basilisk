@@ -283,7 +283,7 @@ struct EvalParams {
     // Every weight seeded 0 so the structure computes + traces but does not change
     // eval (bench identical); the Phase-4.2 fit activates them. Per-type arrays are
     // indexed by the attacked PieceType [0..6].
-    // (Phase 4.2 fit; the new package absorbed the old flat hang_pen, now zeroed.)
+    // (Phase 4.2 fit; it absorbed the old flat hanging-piece penalty.)
     int threat_by_minor_mg[7] = { 0, 2, 38, 47, 59, 51, 0 };  // weak/defended enemy attacked by N/B
     int threat_by_minor_eg[7] = { 0, 26, 3, 11, 22, 30, 0 };
     int threat_by_rook_mg[7] = { 0, -4, 17, 25, 4, 46, 0 };  // weak enemy attacked by rook
@@ -302,7 +302,6 @@ struct EvalParams {
     // ---- King safety (Phase 4.1 fit via --tune-kingsafety) -----------------
     int ks_unit[7] = { 0, 0, 4, 0, 2, 0, 0 };  // attacker weight by PieceType
     int ks_coord_bonus = 2;  // extra attack_units when 2+ attackers in zone
-    int ks_open_file = 0;  // open file in front of the king; not computed, must stay 0
 
     // Penalty lookup: index = clamped attack_units [0..24]
     int safety_table[25] = { -3, 0, 0, 12, 28, 31, 45, 59, 76, 88, 105, 121, 156, 167, 189, 226, 256, 293, 301, 331, 339, 360, 393, 393, 430 };
@@ -316,12 +315,6 @@ struct EvalParams {
     // not pure-linear, so they carry no linear trace (only SafetyTable is traced).
     int ks_safe_check[7] = { 0, 0, 5, 3, 6, 4, 0 };  // per safe check, by checker type (Phase 4.1)
     int ks_weak_ring = 1;  // per king-ring square attacked and not solidly defended
-    // The ring-pressure and flank inputs are not computed and must stay 0
-    // (load_eval_params refuses others); C.3 rebuilds them in the donor's form.
-    int ks_ring_pressure  = 0;  // per king-ring square the enemy attacks
-    int ks_flank_attack   = 0;  // per enemy attack in the king's flank
-    int ks_flank_defense  = 0;  // per friendly defense in the king's flank (subtracted)
-    int ks_pawnless_flank = 0;  // king on a flank with no friendly pawns
     int ks_king_blockers = 3;  // per own piece pinned/blocking in front of the king (Phase 4.1)
     int ks_central_king = 1;  // king central with castling rights gone
     int ks_shelter_storm = 1;  // king pawn-shelter exposure folded into danger
@@ -335,9 +328,6 @@ struct EvalParams {
     int shelter_close2 = 7;  // mg bonus for pawn 2 ranks ahead of king
     int storm_weight_kf = -1;  // mg penalty per rank, king file
     int storm_weight_adj = 1;  // mg penalty per rank, adjacent files
-
-    // ---- Hanging pieces penalty (indexed by PieceType 0..6) ----------------
-    int hang_pen[7] = {0, 0, 0, 0, 0, 0, 0};  // absorbed by the threats package; not computed, must stay 0
 
     // ---- Passed pawn king proximity (endgame) ------------------------------
     int prox_base = 0;  // constant in (prox_base + rel_r) distance multiplier
@@ -354,19 +344,6 @@ struct EvalParams {
 
     // ---- Tempo bonus -------------------------------------------------------
     int tempo = 22;
-
-    // ---- Winnable / complexity coupling (Step 3.6) -------------------------
-    // Not computed and must stay 0 (load_eval_params refuses others): never
-    // tuned, since the term is not traced and the generic optimizer only
-    // consumes linear traces (audit hce_analysis 4). C.5.3 builds the donor's
-    // winnable term in its place.
-    int win_outflanking  = 0;  // king file-distance minus rank-distance
-    int win_both_flanks  = 0;  // pawns present on both flanks
-    int win_infiltration = 0;  // a king advanced into enemy territory
-    int win_pawn_endgame = 0;  // no non-pawn material on the board
-    int win_passed       = 0;  // total passed-pawn count
-    int win_total_pawns  = 0;  // total pawn count
-    int win_bias         = 0;  // constant complexity offset
 };
 
 // ---- Helpers for iterating EVAL_PARAM_LIST generically --------------------
@@ -514,14 +491,9 @@ inline std::span<const int> eval_param_cspan(const T& v, size_t len) {
     X(ThreatPushEg,         threat_push_eg,        1)               \
     X(KsUnit,               ks_unit,               7)               \
     X(KsCoordBonus,         ks_coord_bonus,        1)               \
-    X(KsOpenFile,           ks_open_file,          1)               \
     X(SafetyTable,          safety_table,         25)               \
     X(KsSafeCheck,          ks_safe_check,         7)               \
     X(KsWeakRing,           ks_weak_ring,          1)               \
-    X(KsRingPressure,       ks_ring_pressure,      1)               \
-    X(KsFlankAttack,        ks_flank_attack,       1)               \
-    X(KsFlankDefense,       ks_flank_defense,      1)               \
-    X(KsPawnlessFlank,      ks_pawnless_flank,     1)               \
     X(KsKingBlockers,       ks_king_blockers,      1)               \
     X(KsCentralKing,        ks_central_king,       1)               \
     X(KsShelterStorm,       ks_shelter_storm,      1)               \
@@ -533,21 +505,13 @@ inline std::span<const int> eval_param_cspan(const T& v, size_t len) {
     X(ShelterClose2,        shelter_close2,        1)               \
     X(StormWeightKf,        storm_weight_kf,       1)               \
     X(StormWeightAdj,       storm_weight_adj,      1)               \
-    X(HangPen,              hang_pen,              7)               \
     X(ProxBase,             prox_base,             1)               \
     X(SpaceMg,              space_mg,              1)               \
     X(SpacePieceMg,         space_piece_mg,        1)               \
     X(SpaceBlockedMg,       space_blocked_mg,      1)               \
     X(TrappedMg,            trapped_mg,            1)               \
     X(TrappedEg,            trapped_eg,            1)               \
-    X(Tempo,                tempo,                 1)               \
-    X(WinOutflanking,       win_outflanking,       1)               \
-    X(WinBothFlanks,        win_both_flanks,       1)               \
-    X(WinInfiltration,      win_infiltration,      1)               \
-    X(WinPawnEndgame,       win_pawn_endgame,      1)               \
-    X(WinPassed,            win_passed,            1)               \
-    X(WinTotalPawns,        win_total_pawns,       1)               \
-    X(WinBias,              win_bias,              1)
+    X(Tempo,                tempo,                 1)
 
 // ---- Texel trace infrastructure (TEXEL_TRACE builds only) -----------------
 // These definitions depend on EVAL_PARAM_LIST and therefore live after it.
