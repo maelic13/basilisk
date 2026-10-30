@@ -118,6 +118,36 @@ and the defending king in the corner, a textbook draw.
   distorted by the explosion. The defect also misplays real games (a
   drawn KBP-K scored as a win invites trading into it).
 
+B.12 working record (2026-10-30, interrupted at the maintainer's request).
+Ablation build of `a08d40f` (`AblationMask`; bits: 0 razoring, 1 RFP,
+2 NMP, 3 ProbCut, 4 IIR, 5 move-loop pruning, 6 singular and the check
+extension, 7 LMR), depth 10 unless noted:
+
+| Mask | Score | Nodes | Seldepth |
+|---:|---:|---:|---:|
+| 0 | +112.08 | 13,553,601 | 112 |
+| 1 | +95.13 | 21,599 | 45 |
+| 2 | +26.82 | 49,277 | 46 |
+| 4 (NMP off) | +1.36 | 24,319 | 45 |
+| 8 | +4.08 | 19,664,420 | 114 |
+| 16 | +33.33 | 9,995 | 60 |
+| 32 | +11.69 | 6,328,450 | 97 |
+| 64 (singular, check ext. off) | +95.39 | 4,750 | 26 |
+| 128 | +1.49 | 191,410 | 45 |
+| 68, depth 14 | +88.75 | 25,391 | 23 |
+| 255, depth 10 / 14 | +198.71 / +198.71 | 69,457 / 467,418 | 11 / 16 |
+| 5, depth 14 | +145.88 (upper bound) | 54,531,100 | 128 |
+| 12, depth 14 | +167.78 (upper bound) | 76,137,796 | 116 |
+
+Reading so far: no single family is the cause. With every family off
+(255) the score is still +198.71, so the false win is not a pruning
+artefact at all: plain alpha-beta plus quiescence reaches positions scored
+as known wins. NMP and LMR amplify it, and the extensions turn it into the
+explosion. Next: walk the all-off PV (`f1d3 h8g8 h6h7 g8h8 g6h5 h8g7
+h5g5 g7h8 g5h4 h8g7`) for the leaf that scores a known win, most likely a
+quiescence or evaluation path, which `go depth 1` along the line did not
+show.
+
 ## 3. Mechanisms against the donor
 
 Units: Basilisk evaluation units; donor values converted by B.0 §7.1
