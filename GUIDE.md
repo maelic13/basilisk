@@ -106,6 +106,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
 - [ ] **B.9** `[V]` Search programme checkpoint
 - [ ] **B.11** `[M]` Interim release after the search programme
 - [x] **B.12** `[I2]` False win in drawn KBP-K (ANY TIME) — before B.3.1
+- [x] **B.13** `[I1]` Colosseum re-pinned to 0.5.0 (ANY TIME)
 
 ### Phase C — Evaluation programme (search frozen)
 

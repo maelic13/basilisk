@@ -10,7 +10,7 @@ options, adjudication, policy drift in the resolved configuration (fresh
 engine processes per game included), runner faults, and a PGN recount that
 disagrees with the runner. In a gauntlet a Basilisk build's fault voids the
 run; a foreign opponent's faults are read up to 1% of its games. `-DryRun` exercises all preflight checks without
-playing. The runner is `colosseum-cli` 0.4.0, pinned by revision and SHA-256
+playing. The runner is `colosseum-cli` 0.5.0, pinned by revision and SHA-256
 in `colosseum.pin.json`; `tools/setup_tools.ps1` stages it from the release
 asset and checks both digests.
 

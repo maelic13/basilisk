@@ -300,13 +300,17 @@ and gauntlets. `tools/colosseum.ps1` drives matches from the committed run
 files in `tools/colosseum/`; `tools/spsa_colosseum.ps1` drives generated tune
 blocks from `tools/spsa_configs/colosseum/`. The experiment registration owns
 the engines, cap or horizon, seed and evidence directory. The runner is pinned
-by revision and SHA-256 in `colosseum.pin.json` (`colosseum-cli` 0.4.0 since
-2026-10-24); a different binary is refused, not substituted. Colosseum is
+by revision and SHA-256 in `colosseum.pin.json` (`colosseum-cli` 0.5.0 since
+2026-10-30); a different binary is refused, not substituted. Colosseum is
 qualified in its own repository, with Rarog as the validation engine, and
 Basilisk repeats none of that qualification. Every run keeps each slot's
 engine processes between games (`engine-processes = "per-slot"` in
 `common.toml`); the wrapper refuses any other resolved value, because a
 command's default has changed between runner versions.
+A run's per-engine results (games by colour, terminations, faults, search)
+are in `results.txt` beside `run-record.json`, not on the console, and are
+kept per side: one binary on both arms reads as `name (A)` and `name (B)`
+in the PGN and every report, where 0.4.0 merged the two.
 
 The wrappers prove an idle host, runner and engine hashes, build manifests,
 the expected revision and bench fingerprint, advertised UCI options, natural

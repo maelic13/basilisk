@@ -1061,6 +1061,29 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     `tools/run_b12_gate.ps1`; maintainer-run 2026-10-30: H1, +3.8 ± 5.2
     Elo after 2,567 pairs (a first-crossing estimate), 0 faults. The
     repair stays and the fingerprint record moves to 16,615,757. CLOSED.
+- [x] **B.13** `[I1]` Colosseum re-pinned to 0.5.0 (ANY TIME)
+  Maintainer decision 2026-10-30, before B.3.0, with the null pair
+  waived. 0.5.0 changes reporting only: counts in games, per-engine
+  results in the run's `results.txt`, and search telemetry and terminations
+  kept per side, so one binary on both arms is `name (A)` and `name (B)`.
+  — CLOSED 2026-10-30.
+  - The pin is `cli-v0.5.0` (`8fa63cc`): archive SHA-256 `DF03C7AB…`, as
+    GitHub serves it; executable `81EA6CBA…`. `tools/setup_tools.ps1`
+    refused the staged 0.4.0 and staged it. Rarog is still on 0.4.0, so
+    this pin is not one Rarog has run.
+  - The wrapper reads only the runner's JSON and the PGN, whose fields 0.5.0
+    keeps; no tool needed a change. Guard cases 31/31 on 0.5.0, every
+    policy dry run included, after their default arms moved to B.12's
+    staged pair; the recount's unit tests pass.
+  - Replays: `stats --json` and `status --json` of five finished runs
+    (BAS-S40's and BAS-S39's SPRTs, a gauntlet, a match and an SPSA block)
+    are identical leaf for leaf under 0.4.0 and 0.5.0, except BAS-S24's
+    one-binary match, where 0.4.0 merged the two sides and 0.5.0 splits
+    them; the split sums to the merged counts.
+  - Live on 0.5.0 through the wrapper: a 100-game SPRT, a 40-game
+    one-binary match and a 40-game calibrate run each finished with the
+    independent PGN recount agreeing, and 0.4.0 reads their directories
+    with the same scores. Evidence in `tools/results/col050-*`.
 
 ### Active workflow register
 
