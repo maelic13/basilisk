@@ -43,3 +43,24 @@ initial = 6
 min = 3
 max = 10
 c_end = 0.9211
+
+[[parameters]]
+name = "B3ProbCutBase"
+initial = 68
+min = 34
+max = 240
+c_end = 5.9874
+
+[[parameters]]
+name = "B3ProbCutImproving"
+initial = 18
+min = 0
+max = 48
+c_end = 1.3817
+
+[[parameters]]
+name = "B3ProbCutTtMargin"
+initial = 121
+min = 60
+max = 240
+c_end = 5.0663
