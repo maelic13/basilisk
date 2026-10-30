@@ -81,6 +81,12 @@ void DecisionTrace::print(const InfoCallback& info, const std::vector<Move>& roo
             case TraceEvent::QsLatePrune:          return "qs_late_prune";
             case TraceEvent::QsBetaCutoff:         return "qs_beta_cutoff";
             case TraceEvent::SkipQuiets:           return "skip_quiets";
+            case TraceEvent::NullVerify:           return "null_verify";
+            case TraceEvent::NullRegionRefused:    return "null_region_refused";
+            case TraceEvent::ProbcutTtCutoff:      return "probcut_tt_cutoff";
+            case TraceEvent::ExtBudgetTruncate:    return "ext_budget_truncate";
+            case TraceEvent::CuckooDraw:           return "cuckoo_draw";
+            case TraceEvent::TtPenalty:            return "tt_penalty";
         }
         return "unknown";
     };
@@ -299,6 +305,24 @@ void print_search_diag(const DiagCounters& d, const Evaluator& evaluator,
         buf = std::format("kv tie_promotions_at_alpha={} tie_promotions_below_alpha={} "
             "tb_store_stale_pv={}",
             d.tie_promotions_at_alpha, d.tie_promotions_below_alpha, d.tb_store_stale_pv);
+        emit(buf);
+        // Cluster 2's counters.
+        buf = std::format("kv null_verifications={} null_verify_failed={} "
+            "null_region_refusals={} probcut_tt_cuts={} probcut_pv_tries={} "
+            "sing_ext3={} sing_negative_cut={} sing_shuffle_refused={} "
+            "sing_seekmate_refused={} ext_budget_bound={} follow_pv_nodes={}",
+            d.null_verifications, d.null_verify_failed, d.null_region_refusals,
+            d.probcut_tt_cuts, d.probcut_pv_tries,
+            d.sing_ext3, d.sing_negative_cut, d.sing_shuffle_refused,
+            d.sing_seekmate_refused, d.ext_budget_bound, d.follow_pv_nodes);
+        emit(buf);
+        buf = std::format("kv iir_pv_nodes={} cuckoo_draws={} tt_move_absent={} "
+            "tt_penalized={} in_check_lmr_applied={} in_check_skip_quiets={} "
+            "in_check_capt_fut={} in_check_capt_see={} in_check_cont_hist={} "
+            "in_check_quiet_see={}",
+            d.iir_pv_nodes, d.cuckoo_draws, d.tt_move_absent, d.tt_penalized,
+            d.in_check_lmr_applied, d.in_check_skip_quiets, d.in_check_capt_fut,
+            d.in_check_capt_see, d.in_check_cont_hist, d.in_check_quiet_see);
         emit(buf);
     }
     // Speed telemetry: the evaluation rate, the pawn-cache hit rate, the

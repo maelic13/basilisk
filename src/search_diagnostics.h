@@ -133,7 +133,40 @@ using InfoCallback = std::function<void(const std::string&)>;
        (the RFP/NMP crossover band): each set sums to null_tries or       \
        null_cuts. */                                                      \
     X(null_tries_d1_3) X(null_tries_d4_7) X(null_tries_d8p)                \
-    X(null_cuts_d1_3) X(null_cuts_d4_7) X(null_cuts_d8p)
+    X(null_cuts_d1_3) X(null_cuts_d4_7) X(null_cuts_d8p)                   \
+    /* Cluster 2 (the B3_PROOF arm; the OFF arm leaves most at 0).         \
+       Null-move verification: searches run, those that failed to reach   \
+       beta (denominator null_verifications), and nodes the region kept   \
+       from trying a null move (denominator interior_nodes). */           \
+    X(null_verifications) X(null_verify_failed) X(null_region_refusals)    \
+    /* ProbCut: cutoffs of the TT-served form (denominator interior_nodes) \
+       and tries at PV nodes (denominator probcut_tries). */              \
+    X(probcut_tt_cuts) X(probcut_pv_tries)                                 \
+    /* Singular: three-ply extensions (denominator sing_fired), negative  \
+       extensions taken at a cut node whose TT score is below beta        \
+       (denominator sing_tries), and entries the shuffling and seek-mate  \
+       guards refused (denominator interior_nodes). */                    \
+    X(sing_ext3) X(sing_negative_cut)                                      \
+    X(sing_shuffle_refused) X(sing_seekmate_refused)                       \
+    /* The per-line extension budget: extensions it truncated             \
+       (denominator sing_fired). */                                       \
+    X(ext_budget_bound)                                                    \
+    /* Nodes on the previous iteration's PV (denominator interior_nodes)  \
+       and IIR firings at PV nodes (denominator iir_reductions). */       \
+    X(follow_pv_nodes) X(iir_pv_nodes)                                     \
+    /* Upcoming repetitions that raised alpha to the draw (denominator    \
+       interior_nodes + qs_nodes). */                                      \
+    X(cuckoo_draws)                                                        \
+    /* Interior nodes without a TT move (denominator interior_nodes), and \
+       TT entries whose depth the bound-mismatch penalty lowered          \
+       (denominator tt_hits). */                                          \
+    X(tt_move_absent) X(tt_penalized)                                      \
+    /* In-check shares of the reductions and move-loop rules: each is the \
+       in-check subset of lmr_applied, skip_quiets_nodes,                 \
+       capture_futility_pruned, capture_see_pruned, cont_hist_pruned and  \
+       quiet_see_pruned. */                                               \
+    X(in_check_lmr_applied) X(in_check_skip_quiets) X(in_check_capt_fut)   \
+    X(in_check_capt_see) X(in_check_cont_hist) X(in_check_quiet_see)
 
 struct DiagCounters {
 #define BASILISK_DIAG_COUNTER_FIELD(name) int64_t name = 0;
@@ -156,7 +189,7 @@ struct DiagCounters {
 // aggregate and the field count stay in step with the table.
 static_assert(sizeof(DiagCounters) == DiagCounters::COUNT * sizeof(int64_t),
               "DiagCounters holds something that is not a counter from the table");
-static_assert(DiagCounters::COUNT == 95, "the counter contract has 95 entries; extend, never rename");
+static_assert(DiagCounters::COUNT == 116, "the counter contract has 116 entries; extend, never rename");
 
 // One search's counters as `info string diag` lines, followed by the
 // evaluator's speed telemetry.
@@ -178,7 +211,10 @@ enum class TraceEvent : uint8_t {
     LmrReduction, LmrResearch, BetaCutoff,
     QsTtCutoff, QsStandPatCutoff, QsDeltaPrune,
     QsFutilityPrune, QsSeePrune, QsLatePrune, QsBetaCutoff,
-    SkipQuiets
+    SkipQuiets,
+    // Cluster 2's events.
+    NullVerify, NullRegionRefused, ProbcutTtCutoff, ExtBudgetTruncate,
+    CuckooDraw, TtPenalty
 };
 // The pruning family a record belongs to, so the move-loop family's members
 // can be told apart where one event name covers several rules.

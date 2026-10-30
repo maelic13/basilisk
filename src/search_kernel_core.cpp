@@ -420,6 +420,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         tt_depth = tte.depth;
         tt_flag  = tte.bound();
     }
+    if (tt_move == MOVE_NONE) DIAG_COUNT(++state_.diag.tt_move_absent);
 
     // The node lies on or near a principal variation: a PV node, or a
     // position the table marked so. An excluded search keeps its node's flag.
