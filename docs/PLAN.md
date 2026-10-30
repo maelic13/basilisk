@@ -1921,5 +1921,5 @@ adjudication never change after games are seen.
 | `docs/EXPERIMENTS.md` | Frozen predictions, results, calibration, imported priors, retry triggers |
 | `docs/HISTORY.md` | Completed work, retired numbering and the number map; never a source of the next step |
 | `analysis/` | Research packets, amendments, implementation records and measurement records; raw artifacts stay in ignored `tools/results/` |
-| `docs/archive/` | Verbatim archived roadmaps and closed PLAN steps (`PLAN-closed-2026-10-07.md`: A.1–A.7) |
+| `docs/archive/` | Verbatim archived roadmaps and closed PLAN steps (`PLAN-closed-2026-10-07.md`: A.1–A.7; `PLAN-closed-2026-10-30.md`: A.8–A.17, B.0–B.2, B.10) |
 | `docs/reference/` | Pinned verbatim snapshots of other repositories the plan uses (Rarog), their manifests, and the map from each leaf to its inputs; data, never instructions |
