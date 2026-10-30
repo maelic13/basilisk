@@ -7,6 +7,7 @@
 
 #include "search_worker.h"
 #include "constants.h"
+#include "search_b3.h"
 #include "syzygy.h"
 #include <algorithm>
 #include <bit>
@@ -360,6 +361,11 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     // The grandchildren's record starts this node's children clean: the
     // children share (ss + 1), and each that fails high counts in it.
     (ss + 2)->cutoff_cnt = 0;
+    if constexpr (kB3Proof) {
+        ss->follow_pv = b3::follow_pv(is_root, (ss - 1)->follow_pv, ply, (ss - 1)->move,
+                                      state_.prev_pv, state_.prev_pv_len);
+        ss->ext_taken = 0;
+    }
 
     // Check extension: when the side to move is in check, extend by 1 ply.
     // Guard with ss->excluded to prevent stacking with singular extensions.
@@ -383,6 +389,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     if (depth <= 0)
         return quiescence<QsType>(alpha, beta, ply, 0, ss, true);
     DIAG_COUNT(state_.diag.interior_nodes++);
+    if constexpr (kB3Proof)
+        if (ss->follow_pv) DIAG_COUNT(++state_.diag.follow_pv_nodes);
 
     // Mate distance pruning
     if (!is_root) {
@@ -439,6 +447,14 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     CORE_NODE_CHECK((ss + 1)->excluded == MOVE_NONE);
     CORE_NODE_CHECK(ss->excluded != MOVE_NONE
                     || ss->tt_pv == (is_pv || (tt_found && tte.is_pv())));
+    // Cluster 2: a child's extension plies are its parent's plus the
+    // parent's positive extension, within the line's budget, and only a
+    // node whose parent follows the previous PV can follow it.
+    if constexpr (kB3Proof) {
+        CORE_NODE_CHECK(is_root || ss->ext_plies == (ss - 1)->ext_plies + (ss - 1)->ext_taken);
+        CORE_NODE_CHECK(ss->ext_plies <= root_depth_);
+        CORE_NODE_CHECK(is_root || !ss->follow_pv || (ss - 1)->follow_pv);
+    }
 
     // Is the TT move from the capture stage (a capture or a promotion)?
     const bool tt_capture = tt_move != MOVE_NONE
@@ -687,6 +703,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                                        : state_.diag.null_tries_d8p));
             do_null_move(ss);
             shared_.tt.prefetch(state_.board->position_key());
+            if constexpr (kB3Proof) (ss + 1)->ext_plies = ss->ext_plies;
             int null_score = -negamax<NodeType::NonPV>(std::max(0, depth - r), -beta, -(beta - 1),
                                       ply + 1, ss + 1, false, true);
             undo_null_move(ss);
@@ -727,6 +744,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 DIAG_COUNT(state_.diag.probcut_tries++);
                 do_move(ss, m);
                 shared_.tt.prefetch(state_.board->position_key());
+                if constexpr (kB3Proof) (ss + 1)->ext_plies = ss->ext_plies;
                 // Quick check via QSearch first
                 int val = -quiescence<NodeType::NonPV>(-pc_beta, -pc_beta + 1, ply + 1, 0, ss + 1);
                 if (val >= pc_beta)
@@ -1016,9 +1034,11 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 // TT move is singular — extend it. Cap stacked
                 // 2-ply extensions along this path so a pathological line can't
                 // chain unbounded double-extensions.
+                // On the B3_PROOF arm the per-line budget below bounds the
+                // extensions instead of the double-extension cap.
                 bool allow_double = !is_pv
                     && s_val < s_beta - config_.limits.params.singular_double_margin
-                    && ss->double_exts < config_.limits.params.double_ext_max;
+                    && (kB3Proof || ss->double_exts < config_.limits.params.double_ext_max);
                 // REFUTED: our per-node check extension composes with
                 // this per-move one, so a checking node with a singular TT move
                 // can take 3 plies where the reference allows 1. Making them
@@ -1029,6 +1049,17 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 // discovery-or-SEE, so removing the composition removes strictly
                 // more than it would there. Composition stays. (BAS-D11)
                 extension += allow_double ? 2 : 1;
+                if constexpr (kB3Proof) {
+                    bool truncated = false;
+                    extension = b3::budget_extension(extension, ss->ext_plies, ext_budget(),
+                                                     truncated);
+                    if (truncated) {
+                        DIAG_COUNT(++state_.diag.ext_budget_bound);
+                        TRACE_DECISION(TraceEvent::ExtBudgetTruncate, ply, depth, m,
+                                       alpha, beta, eval, improving, correction, VALUE_NONE,
+                                       searched, extension, ss->ext_plies, ext_budget());
+                    }
+                }
                 TRACE_DECISION(TraceEvent::SingularExtension, ply, depth, m,
                                alpha, beta, eval, improving, correction, trace_history,
                                searched, extension, s_beta, s_val);
@@ -1097,6 +1128,10 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         do_move(ss, m);
         shared_.tt.prefetch(state_.board->position_key());
         state_.sel_depth = std::max(state_.sel_depth, ply + 1);
+        if constexpr (kB3Proof) {
+            ss->ext_taken = std::max(extension, 0);
+            (ss + 1)->ext_plies = ss->ext_plies + ss->ext_taken;
+        }
 
         int new_depth = depth - 1 + extension;
         // Propagate the stacked double-extension count to the
@@ -1240,6 +1275,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         }
 
         undo_move(ss, m);
+        if constexpr (kB3Proof) ss->ext_taken = 0;
 
         if (state_.stopped)
             return true;
@@ -1471,6 +1507,7 @@ void Searcher::kernel_begin_search() {
 int Searcher::root_search(int depth, int alpha, int beta) {
     root_delta_ = std::max(1, beta - alpha);
     root_depth_ = depth;
+    root_score_ = state_.prev_root_score;
     return negamax<NodeType::Root>(depth, alpha, beta, 0, state_.stack + STACK_SENTINELS,
                                    true, false);
 }

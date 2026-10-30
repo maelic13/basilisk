@@ -373,6 +373,8 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
     kernel_begin_search();
 
     std::memset(state_.pv_len, 0, sizeof(state_.pv_len));
+    state_.prev_pv_len = 0;
+    state_.prev_root_score = 0;
     init_root_tablebase_scores(board);
     state_.root_ordering = RootOrdering{&state_.root_tb_moves, shared_.pool.root_table};
 
@@ -583,6 +585,8 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
         struct ExtraLine { int score; std::vector<Move> pv; };
         std::vector<ExtraLine> extra_lines;
         if (state_.multipv_lines > 1 && cur_best != MOVE_NONE && !state_.stopped) {
+            // A later line follows no previous PV.
+            state_.prev_pv_len = 0;
             state_.root_excluded.assign(1, cur_best);
             for (int k = 2; k <= state_.multipv_lines; ++k) {
                 state_.pv_len[0] = 0;
@@ -595,6 +599,12 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
             }
             state_.root_excluded.clear();
         }
+
+        // What the next iteration reads of this one: the first line's PV and
+        // its raw score.
+        state_.prev_pv_len = static_cast<int>(first_line.size());
+        std::copy(first_line.begin(), first_line.end(), state_.prev_pv);
+        state_.prev_root_score = score;
 
         double elapsed = elapsed_seconds();
         if (extra_lines.empty()) {

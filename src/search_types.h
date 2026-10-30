@@ -51,7 +51,23 @@ struct SearchStack {
     bool      tt_hit      = false;           // the TT probe found this position
     bool      in_check    = false;           // side to move is in check
     int       double_exts = 0;               // stacked 2-ply singular extensions on this path
+    // Cluster 2's fields (the B3_PROOF arm; the OFF arm leaves them at their
+    // defaults). The node lies on the previous iteration's PV; the positive
+    // extension plies taken along the line to this node, which the parent
+    // writes for every child; and the positive plies the move searched from
+    // here adds to them.
+    bool      follow_pv   = false;
+    int       ext_plies   = 0;
+    int       ext_taken   = 0;
 };
+
+// Cluster 2's umbrella (CMake B3_PROOF): the node kernel's proof-search
+// branches are `if constexpr` on this, so both arms compile on every build.
+#if defined(BASILISK_B3_PROOF)
+inline constexpr bool kB3Proof = true;
+#else
+inline constexpr bool kB3Proof = false;
+#endif
 
 // A single-PV aspiration failure prints its bound only once a search has run
 // this long, as Stockfish does, so fast games print the same lines as before.
@@ -88,6 +104,9 @@ struct SearchLimits {
     SearchParams params;
     // Bound lines print past this elapsed time; a test sets 0 to see them.
     double bound_line_after = kBoundLineAfterSeconds;
+    // A test caps the per-line extension budget below the root depth with
+    // this (0 = the root depth alone), to prove the bound live.
+    int ext_budget_cap = 0;
 };
 
 struct SearchResult {

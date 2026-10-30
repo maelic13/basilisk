@@ -315,6 +315,10 @@ target_link_libraries(test_move_picker_core PRIVATE basilisk_engine)
 add_executable(test_stack_unwind tests/test_stack_unwind.cpp
                src/parameters.cpp src/bench.cpp src/wac.cpp)
 target_link_libraries(test_stack_unwind PRIVATE basilisk_engine)
+# Cluster 2's arithmetic and mechanisms, on either arm.
+add_executable(test_b3_proof tests/test_b3_proof.cpp
+               src/parameters.cpp src/bench.cpp src/wac.cpp)
+target_link_libraries(test_b3_proof PRIVATE basilisk_engine)
 
 add_executable(test_cpu_features tests/test_cpu_features.cpp)
 target_include_directories(test_cpu_features PRIVATE
@@ -385,6 +389,7 @@ add_test(NAME test_threats      COMMAND test_threats)
 add_test(NAME test_history_core     COMMAND test_history_core)
 add_test(NAME test_move_picker_core COMMAND test_move_picker_core)
 add_test(NAME test_stack_unwind     COMMAND test_stack_unwind)
+add_test(NAME test_b3_proof         COMMAND test_b3_proof)
 add_test(NAME test_cpu_features COMMAND test_cpu_features)
 add_test(NAME test_move         COMMAND test_move)
 add_test(NAME test_magics       COMMAND test_magics)
@@ -564,7 +569,7 @@ set(_ALL_TARGETS
     basilisk board_performance_test
     test_board test_move test_tt test_fatal_report test_eval test_search test_engine_ponder test_engine_threading test_uci_protocol test_cpu_features
     test_endgames test_wac test_invariants test_magics test_threats
-    test_history_core test_move_picker_core test_stack_unwind
+    test_history_core test_move_picker_core test_stack_unwind test_b3_proof
 )
 
 # Fathom is part of the shipped executable and must obey its ISA contract, but

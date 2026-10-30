@@ -118,6 +118,12 @@ struct SearchState {
     int64_t root_depth_nodes = 0;
     int64_t root_best_nodes = 0;
     int     root_best_effort = 0;
+    // The last completed iteration, which Cluster 2 reads: its first line's
+    // PV (empty before one completes and while a MultiPV line after the first
+    // is searched) and its raw root score (0 before one completes).
+    Move prev_pv[MAX_PLY];
+    int  prev_pv_len = 0;
+    int  prev_root_score = 0;
 
     DiagCounters diag;
 #if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
@@ -211,6 +217,14 @@ private:
     // root_search() for the reduction's window term and the equal-score rule.
     int root_delta_ = 1;
     int root_depth_ = 1;
+    // The last completed iteration's raw root score, as root_search() found it.
+    int root_score_ = 0;
+    // The positive extension plies a line may take: the iteration's depth, or
+    // a test's cap below it.
+    [[nodiscard]] int ext_budget() const {
+        const int cap = config_.limits.ext_budget_cap;
+        return cap > 0 ? std::min(root_depth_, cap) : root_depth_;
+    }
     // The base reduction of a move, in 1024ths of a ply: the product of the
     // depth's and the move count's entries, less a share of the node's window
     // against the root's, more when not improving, plus an offset.
