@@ -166,7 +166,10 @@ using InfoCallback = std::function<void(const std::string&)>;
        capture_futility_pruned, capture_see_pruned, cont_hist_pruned and  \
        quiet_see_pruned. */                                               \
     X(in_check_lmr_applied) X(in_check_skip_quiets) X(in_check_capt_fut)   \
-    X(in_check_capt_see) X(in_check_cont_hist) X(in_check_quiet_see)
+    X(in_check_capt_see) X(in_check_cont_hist) X(in_check_quiet_see)      \
+    /* Moves the quiet branch of move-loop pruning removed at PV nodes off \
+       the previous PV (denominator moveloop_tested). */                  \
+    X(pv_quiet_pruned)
 
 struct DiagCounters {
 #define BASILISK_DIAG_COUNTER_FIELD(name) int64_t name = 0;
@@ -189,7 +192,7 @@ struct DiagCounters {
 // aggregate and the field count stay in step with the table.
 static_assert(sizeof(DiagCounters) == DiagCounters::COUNT * sizeof(int64_t),
               "DiagCounters holds something that is not a counter from the table");
-static_assert(DiagCounters::COUNT == 116, "the counter contract has 116 entries; extend, never rename");
+static_assert(DiagCounters::COUNT == 117, "the counter contract has 117 entries; extend, never rename");
 
 // One search's counters as `info string diag` lines, followed by the
 // evaluator's speed telemetry.

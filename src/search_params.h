@@ -219,6 +219,23 @@
     S(lmp_exempt_checks,     CoreLmpExemptChecks,    0,    0,     1)     \
     S(lmr_negative_allowed,  CoreLmrNegativeAllowed, 1,    0,     1)
 
+// ---- Cluster 2 (the B3_PROOF arm) -------------------------------------------
+//
+// B(X, F, S): X the coordinates at the packet's seeds, F the donor's fixed
+// terms (read and advertised, never on a surface), S the categoricals and
+// attribution switches. Every arm compiles the fields so the kernel's
+// `if constexpr` branches compile on both; only the B3_PROOF arm reads them,
+// and tune builds advertise them there alone.
+//
+// b3_check_ext: 1 extends every in-check node by a ply (the legacy policy);
+//   0, the donor's, extends none.
+// b3_check_prune: 1 admits in-check nodes to LMR, the first-move step-down,
+//   the depth step after alpha rises and move-loop pruning (quiet futility
+//   excepted), as the donor does; 0 reduces and prunes none in check.
+#define BASILISK_B3_PARAMS(X, F, S)                                      \
+    S(b3_check_ext,          B3CheckExt,             0,    0,     1)     \
+    S(b3_check_prune,        B3CheckPrune,           1,    0,     1)
+
 #define BASILISK_KERNEL_PARAMS(X) BASILISK_CORE_KERNEL_PARAMS(X, X)
 #define BASILISK_KERNEL_SWITCHES(S) BASILISK_CORE_KERNEL_SWITCHES(S)
 
@@ -230,5 +247,7 @@ struct SearchParams {
 #define BASILISK_SEARCH_PARAM_FIELD(field, uci, def, lo, hi) int field = def;
     BASILISK_SEARCH_PARAMS(BASILISK_SEARCH_PARAM_FIELD)
     BASILISK_KERNEL_SWITCHES(BASILISK_SEARCH_PARAM_FIELD)
+    BASILISK_B3_PARAMS(BASILISK_SEARCH_PARAM_FIELD, BASILISK_SEARCH_PARAM_FIELD,
+                       BASILISK_SEARCH_PARAM_FIELD)
 #undef BASILISK_SEARCH_PARAM_FIELD
 };

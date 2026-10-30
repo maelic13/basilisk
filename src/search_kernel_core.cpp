@@ -376,8 +376,11 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     // defaulted to 0 (disabled) and was the residue of a failed trial
     // (BAS-S16 REJECTED at -3.48 +/- 3.32), not an avenue still open.
     // Reducing extension at checking nodes was measured to fail our WAC floor.
+    // Cluster 2's arm takes the donor's policy instead (no extension in check)
+    // unless the categorical restores it.
     bool did_check_ext = false;
-    if (!ABLATED(6) && in_check && ss->excluded == MOVE_NONE && ply < MAX_PLY - 2) {
+    if (!ABLATED(6) && in_check && ss->excluded == MOVE_NONE && ply < MAX_PLY - 2
+        && (!kB3Proof || config_.limits.params.b3_check_ext)) {
         depth++;
         did_check_ext = true;
         DIAG_COUNT(state_.diag.check_exts++);
@@ -402,6 +405,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     // The reduction the parent applied to reach this node, read once: a
     // re-search of the same move must not see it again.
     const auto& kp = config_.limits.params;
+    // Cluster 2's check policy: in-check nodes are reduced and move-loop
+    // pruned as the donor's are (quiet futility excepted).
+    const bool check_prune = kB3Proof && kp.b3_check_prune;
     const int prior_reduction = (ss - 1)->reduction;
     (ss - 1)->reduction = 0;
 
@@ -472,7 +478,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     int tt_static_eval = INF_SCORE;
     if (in_check) {
         // The record carries the eval from two plies up, so `improving` reads
-        // across the check; nothing at this node prunes on it.
+        // across the check; only Cluster 2's arm prunes on it here (capture
+        // futility, the donor's form).
         ss->eval = (ss - 2)->eval;
         static_eval = VALUE_NONE;
     } else if (ss->excluded != MOVE_NONE) {
@@ -886,11 +893,12 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 #endif
 
         // ---- Move-loop pruning ---------------------------------------------
-        // Not at the root, in check or before a move was searched, not while
+        // Not at the root, in check (off Cluster 2's arm) or before a move
+        // was searched, not while
         // the best score is a proven loss, and not for a side left with king
         // and pawns. Each test reads the depth the move's reduced search
         // would have, adjusted by the quiet move's history (`lmr_depth`).
-        if (!ABLATED(5) && !is_root && !in_check && searched > 0
+        if (!ABLATED(5) && !is_root && (!in_check || check_prune) && searched > 0
             && best_score > -tablebaseWinInMaxPly
             && state_.board->has_non_pawn_material(state_.board->turn())) {
             DIAG_COUNT(++state_.diag.moveloop_tested);
@@ -905,6 +913,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                                  / (2 - improving)) {
                 picker.skip_quiets(kp.lmp_exempt_checks != 0);
                 DIAG_COUNT(++state_.diag.skip_quiets_nodes);
+                if (in_check) DIAG_COUNT(++state_.diag.in_check_skip_quiets);
                 TRACE_DECISION(TraceEvent::SkipQuiets, ply, depth, m,
                                alpha, beta, eval, improving, correction, VALUE_NONE,
                                move_count, 0, VALUE_NONE, alpha,
@@ -925,6 +934,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                     && ss->eval + kp.capt_fut_base + kp.capt_fut_slope * lmr_depth
                            + PIECE_VALUE[captured] + capt_hist / kp.capt_fut_hist_div <= alpha) {
                     DIAG_COUNT(++state_.diag.capture_futility_pruned);
+                    if (in_check) DIAG_COUNT(++state_.diag.in_check_capt_fut);
                     TRACE_DECISION(TraceEvent::CaptureFutilityPrune, ply, depth, m,
                                    alpha, beta, eval, improving, correction, capt_hist,
                                    move_count, 0,
@@ -945,6 +955,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 const bool last_piece = moved >= KNIGHT && moved <= QUEEN && popcount(pieces) == 1;
                 if ((alpha >= 0 || !last_piece) && !state_.board->see_ge(m, -margin)) {
                     DIAG_COUNT(++state_.diag.capture_see_pruned);
+                    if (in_check) DIAG_COUNT(++state_.diag.in_check_capt_see);
                     TRACE_DECISION(TraceEvent::CaptureSeePrune, ply, depth, m,
                                    alpha, beta, eval, improving, correction, capt_hist,
                                    move_count, 0, -margin, alpha,
@@ -952,7 +963,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                                    TraceFamily::CaptureSee);
                     return false;
                 }
-            } else if (!is_pv) {
+            } else if (!is_pv || (kB3Proof && !ss->follow_pv)) {
+                // Cluster 2's arm also prunes quiets at a PV node off the
+                // previous iteration's PV, as the donor does.
                 // Continuation-history pruning: the two nearest continuations
                 // and the pawn history rate the move this far below zero.
                 int history = (ss - 1)->cont_hist->entry[moved][to]
@@ -960,6 +973,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                             + pawn_hist[moved][to];
                 if (history < -kp.cont_hist_prune_slope * depth) {
                     DIAG_COUNT(++state_.diag.cont_hist_pruned);
+                    if (in_check) DIAG_COUNT(++state_.diag.in_check_cont_hist);
+                    if (is_pv)    DIAG_COUNT(++state_.diag.pv_quiet_pruned);
                     TRACE_DECISION(TraceEvent::HistoryPrune, ply, depth, m,
                                    alpha, beta, eval, improving, correction, history,
                                    move_count, 0, -kp.cont_hist_prune_slope * depth, alpha,
@@ -977,11 +992,12 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 // fails low softly.
                 const int futility = ss->eval + kp.quiet_fut_base + kp.quiet_fut_slope * lmr_depth
                                    + kp.quiet_fut_alpha_term * (ss->eval > alpha);
-                if (lmr_depth < kp.quiet_fut_depth_cap && futility <= alpha) {
+                if (!in_check && lmr_depth < kp.quiet_fut_depth_cap && futility <= alpha) {
                     if (best_score <= futility && !is_decisive(best_score)
                         && futility < tablebaseWinInMaxPly)
                         best_score = futility;
                     DIAG_COUNT(state_.diag.fut_prunes++);
+                    if (is_pv) DIAG_COUNT(++state_.diag.pv_quiet_pruned);
                     TRACE_DECISION(TraceEvent::FutilityPrune, ply, depth, m,
                                    alpha, beta, eval, improving, correction, history,
                                    move_count, 0, futility - ss->eval, alpha,
@@ -995,6 +1011,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 lmr_depth = std::max(lmr_depth, 0);
                 if (!state_.board->see_ge(m, -kp.quiet_see_coeff * lmr_depth * lmr_depth)) {
                     DIAG_COUNT(++state_.diag.quiet_see_pruned);
+                    if (in_check) DIAG_COUNT(++state_.diag.in_check_quiet_see);
+                    if (is_pv)    DIAG_COUNT(++state_.diag.pv_quiet_pruned);
                     TRACE_DECISION(TraceEvent::QuietSeePrune, ply, depth, m,
                                    alpha, beta, eval, improving, correction, history,
                                    move_count, 0, -kp.quiet_see_coeff * lmr_depth * lmr_depth,
@@ -1163,10 +1181,10 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         int score;
         if (searched == 0) {
             // At a non-PV node a first move whose reduction would be large is
-            // searched one or two plies shallower (never at the root or in
-            // check), as later moves without LMR are.
+            // searched one or two plies shallower (never at the root, nor in
+            // check off Cluster 2's arm), as later moves without LMR are.
             int step = 0;
-            if (!is_pv && !ABLATED(7) && !is_root && !in_check) {
+            if (!is_pv && !ABLATED(7) && !is_root && (!in_check || check_prune)) {
                 const int rr = r + (tt_move == MOVE_NONE ? 1127 : 0);
                 step = (rr > 5234) + (rr > 5487 && new_depth > 2);
             }
@@ -1181,12 +1199,12 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             score = -negamax<PvChild>(new_depth - step, -beta, -alpha, ply + 1, ss + 1, true,
                                       !is_pv && !cut_node);
         } else {
-            // Nothing is reduced at the root or in check.
-            const bool reducible = !ABLATED(7) && !is_root && !in_check;
+            // Nothing is reduced at the root, nor in check off Cluster 2's arm.
+            const bool reducible = !ABLATED(7) && !is_root && (!in_check || check_prune);
             if (!ABLATED(7) && !is_root) {
                 DIAG_COUNT(++state_.diag.lmr_eligible);
                 if (depth < 2)     DIAG_COUNT(++state_.diag.lmr_blocked_depth);
-                else if (in_check) DIAG_COUNT(++state_.diag.lmr_blocked_in_check);
+                else if (in_check && !check_prune) DIAG_COUNT(++state_.diag.lmr_blocked_in_check);
             }
             if (reducible && depth >= 2) {
                 // The reduced depth: at least one ply, at most two beyond the
@@ -1202,6 +1220,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 if (d < new_depth) {
                     DIAG_COUNT(state_.diag.lmr_applied++);
                     DIAG_COUNT(state_.diag.lmr_reduction_plies += new_depth - d);
+                    if (in_check) DIAG_COUNT(++state_.diag.in_check_lmr_applied);
                 } else {
                     DIAG_COUNT(++state_.diag.lmr_clamped_zero);
                     if (d > new_depth) DIAG_COUNT(++state_.diag.lmr_extended);
@@ -1315,9 +1334,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 cut_alpha = alpha;
                 alpha = score;
                 // Once a move raised alpha the rest are searched shallower
-                // (never at the root or in check).
+                // (never at the root, nor in check off Cluster 2's arm).
                 if (score < beta && depth > 3 && depth < 12 && !is_decisive(score)
-                    && !is_root && !in_check)
+                    && !is_root && (!in_check || check_prune))
                     depth -= 3;
                 // Update PV. A child at MAX_PLY returns before it sets a
                 // length, and pv_len has no entry for it, so it adds none.

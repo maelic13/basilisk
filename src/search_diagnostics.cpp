@@ -319,10 +319,11 @@ void print_search_diag(const DiagCounters& d, const Evaluator& evaluator,
         buf = std::format("kv iir_pv_nodes={} cuckoo_draws={} tt_move_absent={} "
             "tt_penalized={} in_check_lmr_applied={} in_check_skip_quiets={} "
             "in_check_capt_fut={} in_check_capt_see={} in_check_cont_hist={} "
-            "in_check_quiet_see={}",
+            "in_check_quiet_see={} pv_quiet_pruned={}",
             d.iir_pv_nodes, d.cuckoo_draws, d.tt_move_absent, d.tt_penalized,
             d.in_check_lmr_applied, d.in_check_skip_quiets, d.in_check_capt_fut,
-            d.in_check_capt_see, d.in_check_cont_hist, d.in_check_quiet_see);
+            d.in_check_capt_see, d.in_check_cont_hist, d.in_check_quiet_see,
+            d.pv_quiet_pruned);
         emit(buf);
     }
     // Speed telemetry: the evaluation rate, the pawn-cache hit rate, the

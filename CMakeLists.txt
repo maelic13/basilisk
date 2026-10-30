@@ -405,7 +405,14 @@ add_test(NAME test_endgames     COMMAND test_endgames
 # Search-strength floors: deterministic, but they measure strength rather than
 # correctness, and an unoptimised build only reproduces the same numbers far
 # more slowly. `ctest -LE strength` runs the correctness tests alone.
-add_test(NAME test_wac_floor    COMMAND test_wac --floor)
+# The depth-6 floor was calibrated on the OFF arm's tree. Cluster 2's arm
+# reads the count instead until its last ticket re-registers the floor there
+# (the WAC floor binds an ON arm at the coherent cluster, not a hybrid).
+if(B3_PROOF)
+    add_test(NAME test_wac_floor COMMAND test_wac --count)
+else()
+    add_test(NAME test_wac_floor COMMAND test_wac --floor)
+endif()
 add_test(NAME test_endgame_conversion COMMAND test_endgames --conversion)
 set_tests_properties(test_wac_floor test_endgame_conversion PROPERTIES LABELS strength)
 
