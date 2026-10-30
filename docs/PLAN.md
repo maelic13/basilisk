@@ -797,6 +797,21 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         3.22x OFF's (bench 11 alone 82x; the other 39 at 0.41x) and the
         ON arm throws a won promotion (`test_search`, a7a8q); tickets 0-6
         committed (`1e77ec9`), OFF arm 16,615,757.
+      - Research amendment 3, 2026-10-30 (packet): the thrown promotion
+        is a tablebase win (a8=Q wins, h4 draws) lost to the arm's
+        selectivity on a line the evaluation reads as level: quiet
+        futility prunes the winning king move on a history-driven
+        negative reduced depth (PV nodes off the previous PV included),
+        the -3 negative extension strips the forced reply, the horizon
+        takes the rest; no single switch names it (IIR off alone repairs
+        at fixed depth within 1.3x). The singular margin at 252 repairs
+        it with every floor held; bench 11's 82x is the donor's singular
+        block in a won middlegame, chaotic in its constants, and the
+        donor's seekMate guard fired from depth 12 collapses it (every
+        gate as written passes: suite 0.26x, bench 13 6,263,268, floors
+        118, WAC 237); P8b's lower edge scored, P11-P14 registered.
+        Resumes at ticket 6b on the maintainer's two decisions (packet
+        amendment 3 §5).
     - [ ] **B.3.2** `[V]` Diagnostics and the unfitted paired run
       Packet §11, BAS-S41: the zero-game screens on both arms (counters,
       the oracle differential, WAC, the crossover band, the canary
@@ -1177,7 +1192,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.1 | RESEARCH | I2 | Returned at ticket 6 (packet *Return 3*: bench 11 carries the node gate; the ON arm throws a won promotion); resumes on research amendment 3 |
+| B.3.1 | RESEARCH | I2 | Research amendment 3 written; resumes `READY_FOR_IMPLEMENTATION` at ticket 6b on the maintainer's two decisions (packet amendment 3 §5) |
 | B.3.2 | RESEARCH | V | Waits for B.3.1's accepted review |
 | B.3.3 | RESEARCH | V | Waits for B.3.2 |
 | B.3.4 | RESEARCH | V | Waits for B.3.3 |

@@ -2224,3 +2224,621 @@ regeneration at ticket 10 and are not made. The `test_b3_proof` forced-cap
 assertion was corrected at `80d8261`: it compared two different trees'
 truncation counts, and it now asserts the capped run truncates. No
 idle-host read was run.
+
+## Research amendment 3 — the thrown promotion, bench position 11's carrier, and whether the coherent arm continues (2026-10-30)
+
+Answers Return 3. Class `R2`; no engine code is changed in the committed
+tree and no seed or default is moved here; every read is a deterministic
+node-count, counter or WAC read on the five trees of `45d4e6d` (`build/b3-on`
+427,471,707 and `build/b3-off` 16,615,757, both re-read here; the Diag tree
+of each arm; the Tune ON tree) or on a temporary build whose edit was
+reverted (`git status` clean after each) with its patch kept. No timed
+read was run; the re-scoped cost screen still needs the idle host (§5).
+Recipes, option lists, logs and JSON: `tools/results/b31-20261030/amend3/`
+(the read scripts under `scripts/`, `a3_*.py`, one per read; the patches
+`linetrace.patch`, `linetrace2.patch`, `v1_pv_quiet_prune_off.patch`,
+`v2_negative_ttbeta_only.patch`, `v3_both.patch`,
+`v4_sing_negative_1.patch`, `v5_sing_margin_252.patch`,
+`v6_margin252_seekmate12.patch`). Each read's verdict rule was written in
+its script's header before it ran and is quoted where the read is judged.
+The 6-man tablebases (`D:/chess/tablebases/syzygy3456`, python-chess
+1.11.2) give the theory truth; the engine's searches never saw them. A
+caution for the recipes: under `go nodes N` the last `info` line carries
+the last completed iteration's node count, not the budget spent.
+
+### 0. What this run says, plainly
+
+The ON arm throws a won promotion because, in a won rook-and-pawn ending
+that the static evaluation reads as level, three "only moves" in a row are
+what the arm's selectivity removes: the king move that wins is pruned by
+quiet futility on a history-driven negative reduced depth (at non-PV
+nodes, and on this arm also at PV nodes off the previous PV), the one
+forced reply gets the donor's three-ply negative extension because at
+shallow depth the exclusion search finds a second move that looks as good,
+and the last king move is futility-pruned at the horizon. The OFF arm
+keeps the win only because it finds the first king move at depth 4,
+stores it, and then extends every only-move singularly. No single switch
+names the mechanism: at fixed depth every flip that recovers the move does
+so with a two- to ten-fold tree, bar IIR off at 1.3× (§1.4); at the test's
+100,000 nodes three settings recover it with the WAC floor held, and only
+one of them, the singular margin at Basilisk's own 4 cp per ply, does so
+without failing a read of its own (§1.5). Bench position 11 is a different
+question with the same block at its centre: in a decisively won middlegame
+the donor's singular block, negative extension included, turns cheap cut
+nodes into wide ones in one iteration (1.6M nodes at depth 12, 57M at 13),
+and the tree's response to the block's constants is chaotic (the negative
+extension at 0: 0.7M, at 1: 236M, at 3: 57M), so a gate summed over 40
+positions is decided by this one and nothing the ticket may move can
+satisfy it, except the donor's own guard for won positions, `seekMate`,
+fired from root depth 12 instead of 16 (§2). With the margin at 252 and
+the guard at 12 every registered gate passes as written: the fixture at
+six budgets, WAC 237, the suite at 0.26× the OFF arm's, position 11 at
+0.97×, the conversion floors at five budgets (118), both test binaries;
+the one miss is P8b's lower edge (§4). The recommendation is those two
+seeds, the sweep carrying the donor's values beside them, and B.3.1
+continuing to tickets 7–10 (§3, §5). Three of the four returns of this
+leaf traced to a donor constant paired with a Basilisk partner; this one
+traces to the donor's selectivity paired with an evaluation that does not
+see the ending, which the fit cannot repair and the floors exist to catch.
+
+### 1. The thrown win (question 1)
+
+**1.1 Theory truth (read T0, `t0_tablebase.txt`).** The root is 7 men and
+unprobeable; every White root move was walked three plies to the first
+6-man position. After a8=Q Rxa8 Rxa8 the position is a tablebase win for
+White against every Black reply (WDL +2; DTZ 3 after ...f3, 9 after ...Kxh3),
+and the win is narrow: after ...f3 only Rf8, Rh8 and Ra3 keep it (Ra1, the
+ON arm's own line, draws); after ...Kxh3 only Rf8; after ...Kxh3 Rf8 Kg3
+only Kc5 (DTZ 6: Kc5 f3 Kd4 f2 Ke3 f1=Q Rxf1). After h4 Kxh4 a8=Q Rxa8 Rxa8
+the 5-man position is a draw (WDL 0). The rook promotion a8=R also wins,
+so the fixture is a theory-truth test of the queen line and a move-quality
+test against the rook. The test's premise holds and the veto stands.
+
+**1.2 Where the draw score lives (reads T1–T6).** Fresh searches of the
+line's positions on the ON arm are correct: after Rxa8 it reads +712 at
+depth 10 and the known-win band at 13; after ...f3 +884 at depth 8 (the
+OFF arm reads 0 from depth 7 to 11 after Rxa8 and +857 after ...f3). With
+`searchmoves a7a8q` the ON arm reads +788 to +1,406 at depths 10–12 while
+the OFF arm reads 0 at 11 and 12 on a rook-check shuffle (`t34_d11.log`):
+the fixture is knife-edge on both arms, and the OFF arm passes it by the
+shape of its full root tree. The draw score is a property of the root
+tree's table state: after `go depth 11` at the root, without clearing the
+table, the position after ...Kxh3 reads 0 with Kd6 as best and Rf8 at +18
+(the only winning move; OFF +599), and under Rf8 the reply Kg3 reads +33 on
+a Rg8+ repetition (OFF +387 on Kc5). Read as a root in that state the Kg3
+node finds Kc5 at +254 (`t5_d11.log`, `t6_d11.log`): the winning move is
+there, the tree does not reach it.
+
+**1.3 The mechanism (reads T7, T11, T11b: a temporary Diag-only edit that
+prints every interior node whose path is a prefix of the winning line,
+its depth at entry and at the move loop, node type, `follow_pv`, the TT
+entry and window, and every decision-trace event at that node, both arms,
+`go depth 11`; `linetrace2.patch`, `t11b_*_d11.log`, condensed in
+`t11b_on_it10_line.txt` and `t11b_off_it10_line.txt`).** Iteration 10 is
+the first that reads the draw. Its aspiration window fails low six times
+(alpha 356, 337, 307, 265, 202, 108, then 0), and along the line a8=Q
+Rxa8 Rxa8 Kxh3 Rf8 Kg3 the ON tree does this at the only-move node (ply 6,
+White to move; the winning move is Kc5, the TT move is the drawing check
+Rg8+ from the first pass on):
+
+- Passes 1–3: Kc5 is pruned by **quiet futility** (`futility c6c5`,
+  continuation history −14,377 to −17,977, reduced depth −3 to −5, margin
+  −155 to −369) at depths 4, 9 and 6. Pass 1 is a PV node off the previous
+  PV (`pv=1 fpv=0`), which on this arm prunes quiets (amendment 1 §6's
+  consumer, ticket 2); passes 2–3 are non-PV nodes, where the OFF arm's
+  rule is the same.
+- Pass 4 (alpha 265, depth 13 at the node): Kc5 is searched three plies
+  shallower (LMR, history −9,302), the f3 node has 7, Kd4 is reduced two
+  more (history −85 at move 2), f2 has 3, and Ke3 is **futility-pruned**
+  at depth 3 (static eval +78 against alpha 265, margin 59).
+- Passes 5–6 (PV, alpha 202 and 108): Kc5 is searched unreduced; at the
+  Kc5 node (a cut node) the exclusion search at depth 4–5 finds ...e5
+  holding the singular bound (`beta_cutoff e6e5` at −206/−202 against a
+  bound of −283/−223), so Black's only reply ...f3 takes the **negative
+  extension −3** (`sing_negative f4f3 red=-3`): the f3 node has depth 5
+  from 9 (pass 5) and 7 from 11 (pass 6); Kd4 is LMR'd three plies (history
+  −9,050 / −10,707) to depth 1 and 3; the line ends in a horizon cutoff
+  (pass 5: `beta_cutoff f3f2 result -21`) or Ke3's futility (pass 6: static
+  −64 against alpha 108, margin 166).
+- Final pass (alpha 0): the Kg3 node is non-PV at depth 10 and its
+  corrected static eval has fallen from +327 to **−13** across the passes
+  (the correction history trained on the fail-lows), so Kc5 is
+  futility-pruned (history −20,719, reduced depth −2, margin −48). The
+  a8=Q subtree returns ≤ 0 and the root prefers h4's exact 0.
+
+The OFF arm's iteration 10 on the same line: the Kg3 node's TT move is
+Kc5 from the first pass (found at depth 4, static eval +343), PV nodes
+never prune quiets, the negative extension is −1 and only on
+`tt_score ≥ beta`, and the three only-moves are **extended singularly**:
+Kc5 +1 at depth 6 (value 51 against a bound of 288), Kd4 +1 at depth 5,
+Ke3 +2 at depth 7 (175 against 222). The same singular machinery that
+inflates position 11 (§2) is what holds this win on the OFF arm.
+
+Two rules that are not Cluster 2's carry the pruning: quiet futility on a
+history-driven reduced depth (the donor has it in the same form,
+`search.cpp:1211-1218`: `lmrDepth += history / …`, then `lmrDepth < 12 &&
+futilityValue <= alpha`) and LMR by history. What Cluster 2 adds is the
+negative extension's cut-node clause and the PV-node quiet pruning, and
+what the arm lacks against the OFF arm is the shallow singular firing
+(entry at depth 5 and a margin of 4 cp per ply there, against 6 and 2 cp
+here). The base cause is the evaluation: along a tablebase-won line the
+corrected static eval reads −13 (Kg3 node), −80/+78 (Kd4, f2) and −64 (f2,
+pass 6), so every pruning rule that compares the static eval with alpha
+is working as designed on a wrong number, and only depth corrects it.
+
+**1.4 Not one mechanism: the switches at fixed depth (read T8, Tune ON
+build, `go depth 12`, Hash 64; `t8_switches_depth12.json`; rule frozen
+before the run: a setting repairs the position at depth D when its
+completed-iteration score at D is ≥ +150 with best move a7a8q; a repair at
+depth 11 within 1.5× the defaults' depth-11 nodes names a mechanism, a
+repair only with a larger tree is a tree-shape effect).**
+
+| Setting | Depth-11 nodes (defaults 42,440) | Depth 10 / 11 / 12 (White view, best) |
+|---|---:|---|
+| defaults | 1.00× | +28 h4 / 0 h4 / 0 h4 |
+| `B3Iir=0` | **1.29×** | +103 / **+275** / +1,108, a8=Q |
+| `B3CheckExt=1` | 1.98× | +81 / +317 / +1,246 |
+| `B3NmpEvalGate=1` | 2.30× | +144 / +864 / +1,068 |
+| `B3SingNegative=0` | 3.04× | +319 / +1,118 / +1,113 |
+| `B3MultiCut=1` | 3.00× | +510 / +1,005 / +1,105 |
+| `B3SingMargin=252` | 3.05× | +956 / +1,095 / +1,153 |
+| `B3SingMargin=17` | 4.88× | +1,166 / +1,205 / +1,532 |
+| `B3SingTripleQuiet=-53` | 4.57× | +837 / +1,165 / +1,150 |
+| `B3NmpCutOnly=0` | 5.33× | +816 / +1,128 / +1,152 |
+| `B3ProbCutMinDepth=5` | 4.54× | +601 / +1,018 / +1,402 |
+| `B3IirStale=1` | 1.84× | +265 / +703 / +1,187 |
+| `B3SingularQuietLmr=1` | 2.96× | +553 / +869 / +1,132 |
+| `B3ExtBudget=0` | 0.58× | +128 / +118 / +1,126 (4.3× at 12) |
+| `B3CheckPrune=0` | 0.71× | 0 / 0 / 0, a8=Q by order only |
+| `B3ProbCutPv=0` | 0.88× | +4 h4 / 0 / 0 |
+| `B3ProbCutTt=1` | 1.17× | 0 / 0 / +745 (2.9× at 12) |
+| legacy check policy (`Ext=1`, `Prune=0`) | 7.56× | +582 / +1,066 / +1,683 (432× at 12) |
+| `B3NmpVerify=0` | identical | identical |
+
+By the rule, IIR is the one mechanism named at depth 11: the donor's IIR
+at PV nodes off the previous PV loses a ply at the line's nodes (the PV
+alternates between a8=Q and h4 across iterations, so the line is off the
+previous PV on every other iteration). Every other recovery is a wider
+tree. Return 3's "every single switch flip recovers a7a8q" at 100,000 nodes
+is therefore correct and uninformative: those arms reach depth 10–11 in
+the budget where the defaults reach 16, and a wider tree at 10 beats a
+narrow one at 16 in this ending.
+
+**1.5 The repair (reads T13–T19; rules frozen before each: a setting
+repairs the fixture when its 100,000-node best move is a7a8q with a score
+≥ +150; it is admissible as a contract change only with WAC at 100,000
+nodes ≥ 232 and, for a seed, with ticket 6's own reads: P8b in [25%, 70%],
+the depth-13 interior nodes within 2× the OFF arm's 8,008,320, the
+floors).** Three temporary builds isolated the two Cluster 2 consumers
+named in 1.3 (`t13.log`):
+
+| Variant (release ON, reverted) | Fixture at 100k | WAC 100k | `bench 10` |
+|---|---|---:|---:|
+| defaults (`build/b3-on`) | h4, 0, depth 16 | 234 | 1,654,548 |
+| V1 PV nodes exempt from quiet pruning (the OFF arm's rule; `follow_pv` kept for IIR) | a8=Q, 0, depth 13 (by order) | **231** | 1,068,836 |
+| V2 negative extension only on `tt_score ≥ beta` (the OFF arm's condition, −3) | a8=Q, 0, depth 12 (by order) | 232 | 2,683,473 |
+| V3 both | **a8=R**, +491, depth 9 | 235 | 1,240,650 |
+
+Neither consumer alone repairs it (the futility pruning at non-PV nodes
+and the LMR on the king walk remain), both together make the tree three
+to six times wider at fixed depth (+1,043 at 10) and at 100,000 nodes stop
+at depth 9 on the rook. The Tune build's settings at the test's budget,
+with bench position 11 beside them (`t14.log`, `t14b.log`, `t17.log`;
+position 11 at depth 13, defaults 57.2M):
+
+| Setting | Fixture at 100k (White view, best, depth) | WAC 100k | Position 11 |
+|---|---|---:|---:|
+| `B3SingMargin=252` (4 cp per ply, Basilisk's fitted value) | **+956 a8=Q, 10** | **237** | 52.8M |
+| `B3SingMargin=252` + `B3SeekMateDepth=12` | **+956 a8=Q, 10** | **237** | **0.51M** |
+| `B3SingNegative=1` (the OFF arm's magnitude at the donor's population) | **+578 a8=Q, 10** | **239** | 235.6M |
+| `B3NmpEvalGate=1` | **+864 a8=Q, 11** | **238** | 161.7M |
+| `B3SingMargin=252` + `B3SingNegative=0` | +1,097 a8=Q, 10 | 233 | 280.7M |
+| `B3SingMargin=252` + `B3SingNegative=1` | a8=Q, 0, 12 (by order) | 235 | 60.0M |
+| `B3SingNegative=0` | +319 a8=Q, 10 | 230 | 0.72M |
+| `B3Iir=0` | +275 a8=Q, 11 | 230 | not read |
+| `B3SeekMateDepth=12` | h4, 0, 16 | 233 | 0.70M |
+| `B3SeekMateDepth=8` | h4, 0, 16 | 228 | 0.30M |
+| `B3SingNegative=0` + `B3SeekMateDepth=8` | +319 a8=Q, 10 | 231 | not read |
+| `B3ProbCutTt=1` | a8=Q, 0, 11 (by order) | 229 | 6.2M |
+| `B3ProbCutTt=1` + `B3NmpEvalGate=1` | +314 a8=Q, 10 | 230 | 12.4M (Return 3) |
+| `B3SingMinDepth=5` | a8=Q, 0, 15 (by order) | 241 | not read |
+
+Four settings repair the fixture with the floor held. Their price on the
+whole suite (read T17: Tune build, `go depth 13` per position, total nodes
+against the OFF release build read the same way, 13,126,021; and the Diag
+seed builds V4, V5 and V6 for the counters against the OFF arm's ticket-6
+read, `t15_v4.json`, `t18_v5.json`, `t19_v6.json`):
+
+| Setting | 40-position total (OFF 1.00) | Without position 11 | Geometric mean of per-position ratios | Interior nodes, Diag (OFF 8,008,320) | P8b | WAC 6 |
+|---|---:|---:|---:|---:|---:|---:|
+| defaults (`1e77ec9`) | 4.79× | 0.45× | 0.65 | 3.22× | 53.5% | 134 |
+| `B3SingMargin=252` (V5) | 4.39× | 0.38× | 0.47 | 2.99× | 50.6% | 136 |
+| `B3SingMargin=252` + `B3SeekMateDepth=12` (V6) | **0.29×** | 0.26× | 0.35 | **0.26×** | **14.9%** | 136 |
+| `B3SingNegative=1` (V4) | 18.56× | 0.63× | 0.67 | 12.55× | 72.7% | 132 |
+| `B3NmpEvalGate=1` | 12.90× | 0.60× | 0.68 | not read | not read | — |
+
+`B3SingNegative=1` is the repair closest to the mechanism (it is the
+clause 1.3 names, at the OFF arm's magnitude), it reads WAC 239 and the
+fixture at +208 to +1,321 from 33,000 to 1,000,000 nodes (read T16,
+`t16_budgets.log`; the defaults read 0 from 60,000 up, the OFF arm a8=Q at
+every budget), and `test_search` passes 554/554 on it; but it fails ticket
+6's own reads on the suite (P8b 72.7%, interior nodes 12.5×: position 11
+at 236M with 97% of firings triples) and its `bench 13` is 184,706,542.
+`B3NmpEvalGate=1` is the maintainer's decision 2 of amendment 2, not
+reopened by this evidence (position 11 reads 162M with it). **The margin
+at 252** repairs the fixture with the largest margin (+956), holds WAC at
+237 (+3) and 136 at depth 6 (+2), P8b at 50.6%, and shrinks the other 39
+positions to 0.38× the OFF arm's; it fails only the summed node gate,
+through position 11 (21.3M interior nodes, 77× the OFF arm's 277,125),
+which §2 shows no margin value moves. It is Basilisk's own fitted value
+(P1's ablation note, corrected in amendment 2 §6: "252, today's 4 cp per
+ply"), already a registered point of B.3.3's sweep, and it acts through
+the mechanism the OFF arm's trace shows: a margin of 4 cp per ply fires
+the singular search on the only-moves (the exclusion search must hold a
+bound 4·depth below the TT score) and refuses it on the ambiguous ones,
+so the negative extension reaches fewer of them. Amendment 2 §1 kept 126
+on reads S5/S6 made under the old triple term (the donor's 17 explodes
+with graded triples; 252 was not read); this read does not contradict
+them. With the donor's guard for won positions fired from root depth 12
+beside it (V6; §2), every registered gate passes as written: the fixture
+at all six budgets (+282 at 33,000 and 60,000, +956 at 100,000, +1,203,
++1,273, +1,556), WAC 237 and 136, `test_search` 554/554, the endgame suite
+121/121, the suite at 0.26× with position 11 at 267,873 interior nodes
+(0.97× the OFF arm's) and a geometric mean of 0.31, the conversion floors
+(below), and `bench 13` at **6,263,268** (0.38× the OFF arm's); P8b reads
+14.9%, below its band, scored in §4.
+
+**The guard with precedent, and what has none.** The donor carries no
+guard for this position class: its quiet futility and history reductions
+are the same rules, and its evaluation sees the ending. The oracle's
+known-win bounds (packet §2.3) do not reach KRP–KPP, which is no known-win
+class; a static bound for it would be new evaluation knowledge, not a
+search guard, and belongs to the evaluation programme (§5). The donor's
+`seekMate` (root depth ≥ 16, |score| ≥ 2000, its `search.cpp:727`, `:996`,
+`:1248`) is the donor's own guard against singular machinery in won
+positions and is position 11's lever, not this fixture's: at root depth 8
+or 12 it does not recover the fixture (the defaults' root score never
+reaches 564 there, so the guard never fires). The repair a contract can carry is
+therefore the margin, with the fixture and the floors as its test, and
+the guard beside it for the position class of §2; the negative
+extension's magnitude (1 against 3) and the PV quiet pruning are
+questions for games, registered in §4 as categoricals so a negative
+paired run can ablate them.
+
+**The test, pre-registered.** The fixture is the existing `test_search`
+section "promotion: a queen where a rook only transposes" at 100,000 nodes
+and Hash 64, unchanged, binding on both arms at every ticket as release
+CTest already makes it (Return 3 reported it rather than relaxing it; this
+amendment names it a theory-truth fixture of the ON arm so no later ticket
+reads it as style). Beside it: the budget series of read T16 (33,000,
+60,000, 200,000, 400,000 and 1,000,000 nodes), recorded at ticket 10 for
+the ON arm (a8=Q with a positive score at each is the expectation; a
+budget where it reads 0 is reported, not a floor: DESIGN §4's budget
+rule); the endgame suite (`test_endgames`, the KBP-K wrong-bishop draws
+included: 121/121 on the ON arm, `endgames_on.log`, and on V6); the
+conversion floors at five budgets; and the other promotion fixtures.
+
+**The other won-ending fixtures do not show the failure (reads T9, T10,
+T19).** Conversion floors (`test_endgames --conversion --nodes N`,
+release builds; `conv_on_*.log`, `conv_v6_*.log`; the OFF arm beside them
+reproduces §2.2's repaired-head table exactly, 115, `conv_off_*.log`):
+
+| Family | ON arm `45d4e6d`: 30k / 45k / 60k / 90k / 120k (sum) | V6: 30k / 45k / 60k / 90k / 120k (sum) |
+|---|---|---|
+| KQ-K | 24 (14.6) / 24 (12.7) / 24 (11.2) / 24 (11.1) / 24 (11.0) (120) | 24 (13.5) / 24 (14.3) / 24 (12.6) / 24 (11.2) / 24 (11.0) (120) |
+| KR-K | 24 (**32.7**) / 24 (27.4) / 24 (22.8) / 24 (21.8) / 24 (22.2) (120) | 24 (28.2) / 24 (24.9) / 24 (23.3) / 24 (21.8) / 24 (20.5) (120) |
+| KBB-K | 24 (24.5) / 24 (25.0) / 24 (24.9) / 24 (24.4) / 24 (24.6) (120) | 24 (24.4) / 24 (23.6) / 24 (23.7) / 24 (24.7) / 24 (24.4) (120) |
+| KBN-K | 24 (52.0) / 24 (53.6) / 23 (50.1) / 24 (52.2) / 24 (54.1) (**119**) | 24 (57.7) / 24 (57.8) / 22 (53.7) / 24 (52.5) / 24 (51.2) (**118**) |
+
+Both arms hold every floor (KBN-K ≥ 112: 119 and 118 against the head's
+115). The one mark on the ticket-6 arm is KR-K's mean at 30,000 nodes,
+32.7 plies against the 29.5-ply ceiling the floors judge at 60,000 only
+(28.9 on the OFF arm, 28.2 on V6): slower, not thrown, reported for
+B.3.2. BAS-R07's rec1 (`7r/5R2/8/2k1PB2/8/4K3/8/8 w`, a tablebase win,
+DTZ 1) is won on both arms at 60,000 to 600,000 nodes (ON Rd7 +1,002, a
+tablebase win with DTZ 2 after it; OFF e6 +900 to +1,388, DTZ 6), the ON
+arm needing more than 600,000 nodes for depth 11 where the OFF arm needs
+398,000 (slower in a won ending, consistent with KR-K above). The
+rook-first promotion (g8=Q on both arms at every budget), Saavedra (c8=R,
+mate in 7 on both) and the stalemate-avoiding rook (f8=R, both) pass
+(`t10.log`). The failure is this one fixture.
+
+### 2. Bench position 11 and the node gate (question 2)
+
+**The counters at the ticket-6 arm (read T12, Diag builds, `run_suite.py`
+on position 11 alone, depth 13, Hash 64, `pos11_counters_*.json`).** The
+OFF arm searches 277,125 interior nodes, the ON arm 22,660,108 (81.8×).
+Per interior node, the ON arm tries the null move at 1.75% (OFF 11.9%),
+cuts with ProbCut at 4.5% (1.0%), is in check at 24.5% (19.7% with the
+extension on OFF), and runs 1.6 quiescence nodes (0.58). The singular
+rows: 129,831 tries, 36,961 firings of which **36,909 triples** (99.9%),
+25,946 truncated by the budget (70.2%), 31,394 multi-cuts, **55,019
+negative extensions of which 40,971 at cut nodes with `tt_score < beta`**
+(OFF: 1,880 firings, 829 multi-cuts, 683 negatives of −1). By depth
+(`t12_pos11.json`), the defaults read 25k, 187k, 277k, 594k, 1.63M and
+**57.2M** nodes at depths 8–13: one iteration multiplies the tree by 35.
+The position is won by more than twenty pawns from depth 8 (the queen
+falls to Rxb7), and in a position where every move wins the exclusion
+search finds a second winning move at almost every cut node: the TT move
+is "not singular", the multi-cut rule admits it only when the exclusion
+value clears beta (which a fail-soft bound 2·depth below the TT score
+rarely does here), so the negative extension fires, the TT move is
+searched three plies shallower, fails to confirm the cutoff it would have
+given at full depth, and the node searches its other moves at full depth
+with LMR; the triples that do fire chain into the budget. The donor's own
+answer to this position class is `seekMate`: at root depth 16 and |score|
+≥ 2000 it switches the singular block off and caps reverse futility; it
+was ported with those constants and at depth 13 is silent.
+
+**The switches on this position (Tune ON build, `go depth 13`, fresh,
+Hash 64, `t12_pos11.json`, `t14b.log`, `t17.log`; rule frozen before the
+run: a switch names a mechanism here when it moves the count by more than
+3× either way):**
+
+| Setting | Nodes at depth 13 | Against the defaults |
+|---|---:|---:|
+| defaults | 57,196,052 | 1.00 |
+| `B3SeekMateDepth=8` (the donor's guard from root depth 8) | **299,611** | 0.005 |
+| `B3SingMargin=252` + `B3SeekMateDepth=12` (V6) | **510,696** | 0.009 |
+| `B3SeekMateDepth=12` | 700,200 | 0.012 |
+| `B3SingNegative=0` | **722,172** | 0.013 |
+| `B3ProbCutTt=1` | 6,193,688 | 0.11 |
+| `B3SingMargin=252` | 52,791,981 | 0.92 |
+| `B3SingMargin=252` + `B3SingNegative=1` | 60,036,824 | 1.05 |
+| `B3MultiCut=1` | 72,569,826 | 1.27 |
+| V1 (PV quiet pruning off, release) | 98,468,141 | 1.72 |
+| `B3NmpEvalGate=1` | 161,680,917 | 2.83 |
+| `B3SingTripleQuiet=-53` | 203,408,543 | 3.56 |
+| V2 (negative only on `tt_score ≥ beta`, release) | 234,434,339 | 4.10 |
+| `B3SingNegative=1` | 235,603,170 | 4.12 |
+| `B3SingMargin=252` + `B3SingNegative=0` | 280,652,807 | 4.91 |
+| `B3CheckExt=1` | unfinished: 21.8M at depth 12 after 40 minutes | — |
+
+The singular block is the carrier: the donor's guard for won positions
+collapses the tree to 0.69× the OFF arm's total nodes at root depth 8 and
+to 1.6× at 12 (V6 0.97× on interior nodes: the block is on through depth
+11, where the tree is 481k, and off from 12, where it would have
+multiplied), and the negative extension off collapses it to 1.7×. The
+block's response to
+the negative extension's magnitude is non-monotone (0: 0.7M, 1: 236M, 3:
+57M; with the margin at 252: 281M, 60M, 53M) and to its population too
+(V2, the cut-node clause removed at −3: 234M): DESIGN §5's chaos, as in
+amendment 2's S1/S2. So this position cannot choose the negative
+extension's seed, and a gate it dominates cannot pass or fail a seed on
+its merits; what it can do is show the guard the donor uses for it.
+Question 1's answer touches it twice: the same clause (the negative
+extension at cut nodes) is at the centre of both, and the margin at 252
+leaves this position at 0.92 of the defaults, so the fixture's repair
+neither helps nor harms it.
+
+**The options, priced (each with the fixture and WAC at 100,000 nodes):**
+
+1. *The donor's guard fired earlier* (Return 3's "another remedy"):
+   `B3SeekMateDepth` 12 beside the margin at 252 (V6). Every registered
+   gate passes as written (§1.5): the suite at 0.26× the OFF arm's
+   interior nodes, position 11 at 0.97×, the fixture at six budgets, WAC
+   237, the floors at 118, both test binaries, `bench 13` 6,263,268. It
+   is the donor's own mechanism for this position class at a constant
+   four plies shallower than the donor's, which is a ply seed (B.0 §7.2
+   rule 1) moved by a read; the sweep keeps 16 (and 8) as points so the
+   fit decides it. Its cost is P8b's lower edge (14.9%: the budget binds
+   less because the won positions, where triples chain, no longer run the
+   block above depth 11) and a question for games: whether switching
+   singular extensions off in won positions from depth 12 costs
+   conversion at longer controls (the floors at five budgets say no; KR-K
+   at 30,000 nodes improves from 32.7 to 28.2 plies; B.3.4's `10+0.1`
+   direction read is where it would show). Recommended.
+2. *The gate re-stated per position* (Return 3's option 1) with the
+   margin at 252 and the donor's 16 kept: the geometric mean of the
+   per-position interior-node ratios ≤ 2, position 11 recorded. V5 reads
+   0.41 (0.47 on total nodes), the ticket-6 arm 0.57. It is a gate
+   changed after a read and the maintainer's to take; the case for it is
+   that the sum was written to catch an explosion of the arm and catches
+   one won middlegame's response to the singular block below the depth
+   the donor's guard watches. Its cost: position 11 stays at 77× (21.3M
+   interior nodes at depth 13 and growing 35× at that iteration), P11
+   below predicts the re-scoped screen fails on it at ticket 10, and the
+   paired run reads whatever a 77× tree in won middlegames costs. The
+   alternative to 1.
+3. *The small ProbCut on by default* (Return 3's option 2): position 11
+   at 6.2M, but WAC 229 and the fixture at 0 (a8=Q by order only), both
+   floors failed; with the eval gate as well 12.4M, WAC 230, fixture +314.
+   Not admissible by the floors.
+4. *The negative extension off* (`B3SingNegative=0`): position 11 at
+   0.72M and the fixture at +319, but WAC 230 (233 with the margin at
+   252, where position 11 is 281M). Not admissible as a default; the
+   magnitude goes to games and the sweep (§4).
+
+Recommendation: option 1, with option 2 as the alternative if the
+maintainer keeps the donor's 16. The alternative that keeps both the sum
+and the 16 is a return of B.3 to research as a whole, because no
+admissible setting then brings position 11 under 50M (§3).
+
+### 3. Whether the coherent ON arm is still the right next step (question 3)
+
+Three returns in one leaf, four counting this one, each traced to a
+pairing: the donor's bars with a margin eight times the donor's (Return 2);
+the donor's small-ProbCut margin with Basilisk's stand-pat store depth and
+the donor's null-move margin with Cluster 1's reverse futility (amendment
+2); now the donor's negative extension and PV pruning with an evaluation
+that reads a won ending as level, and the donor's singular block with a
+won middlegame below the depth its own guard watches. The first three were
+seeds and forms; this one is a property of the evaluation that no seed
+removes and that the floors exist to catch, with the donor's own guard as
+the lever. Priced:
+
+- **Continue B.3.1 to tickets 7–10 on this amendment** (recommended).
+  Maintainer time: the two decisions of §5 and one Opus session for
+  ticket 6b and tickets 7–10 (ticket 6b is two seed lines, two switch
+  lines and a surface regeneration), then the review session; compute:
+  the per-ticket counter reads (minutes each), the re-scoped cost screen
+  on the idle host (five positions, four depths, two arms, about half an
+  hour), no games before B.3.2. Condition: the amended arm repeats the
+  reads of §1.5 on the committed tree at ticket 6b.
+- **Land a smaller coherent subset first** (the check policy, the null
+  move and IIR; ProbCut and singular after). The ticket-4 arm had its own
+  unresolved cost on position 11 (26M at depth 15, the RFP–NMP band of
+  amendment 2 §3) and WAC 156/234, so it is not a clean half; two clusters
+  mean two paired runs (4,000 games), two sweeps, two SPRTs and two
+  reviews, roughly twice B.3.2–B.3.4's compute and maintainer time, and
+  the categoricals of §9 read on a search that lacks the block they
+  interact with (the check policy against singular, `B3MultiCut` against
+  the null move's population). It is also against the programme's unit of
+  strength (PROCESS *Cluster delivery shape*; the maintainer's cohesion
+  rule of 2026-10-30). Not recommended; it becomes the right step only if
+  the fixture cannot be held with the floors by any seed, which §1.5 shows
+  is not the case.
+- **Return B.3 to RESEARCH as a whole.** It would re-open B.3.0 with the
+  evaluation's blindness in won endings as a premise (a week of research
+  and a dependency on the evaluation programme) while the mechanisms,
+  the order and the switches stand and every return has located its
+  cause within a day. Not recommended; the condition for it is the
+  maintainer keeping both the summed node gate and the donor's 16, which
+  no admissible setting passes.
+
+**Condition for `READY_FOR_IMPLEMENTATION`:** the maintainer's two
+decisions of §5. On both as recommended, B.3.1 resumes at ticket 6b. On
+the margin alone with the per-position gate (option 2), likewise, with
+P11's warning. On the margin alone with the summed gate, ticket 6b lands
+and the leaf returns at the gate with the counters already here. On
+neither, B.3 returns to research as a whole.
+
+### 4. Clauses changed, predictions and calibration (question 4)
+
+**Clauses replaced** (old → new; the originals stand as written):
+
+- §7 "Singular margin, per ply (1/63 cp) … **126** (2.0/ply); range
+  13..378" → "**252** (4 cp per ply, Basilisk's fitted value); range
+  13..378; the donor's 17 and the geometric mean 126 are the sweep's extra
+  points" (maintainer decision 1, §5).
+- §7 "`seekMate` … **16, 564** (F lines)" → "**12**, 564; `B3SeekMateDepth`
+  a registered sweep coordinate at 8, 12 and 16" (maintainer decision 2,
+  §5; under its alternative the 16 stands and amendment 2 §5's node bound
+  becomes "the geometric mean over the 40 bench positions of the
+  per-position ON/OFF interior-node ratios ≤ 2, position 11's ratio
+  recorded").
+- §9 gains item 14, `B3SingNegative` 3 against 1 (F line, one paired run
+  at ±5 after item 5; default the donor's 3), and item 15,
+  `B3PvQuietPrune` (1 the donor's PV-node quiet pruning off the previous
+  PV; 0 the OFF arm's exemption; default 1; a new S line on ticket 2's
+  seam), both also ablation levers for a negative paired run before any
+  mechanism is blamed.
+- §11's BAS-S42 sweep registration gains `B3SeekMateDepth` at 8, 12 and 16
+  and `B3SingNegative` at 0, 1 and 3 as registered sweep coordinates (F
+  lines read by the curvature sweep only, never SPSA), beside the margin's
+  extra points 17 and 126.
+- §10 ticket 6's end-of-ticket reads gain the fixture at 100,000 nodes
+  (a8=Q with a positive score); ticket 10's two-arm table gains the
+  fixture's budget series (T16's five budgets, recorded), KR-K's
+  30,000-node mean (recorded) and BAS-R07's rec1 at 100,000 nodes
+  (recorded, a tablebase win expected).
+- §10's cheap qualification: "the conversion floors at the five budgets …
+  the wrong-bishop draws" → adds "the promotion fixture at 100,000 nodes
+  and its budget series".
+- Amendment 2 §3's cost-screen re-scoping stands.
+- Amendment 1 §6's `follow_pv` quiet-pruning consumer stays on the ON arm
+  (V1 shows it is not the fixture's cause alone and costs WAC 3 when
+  removed); it gains the switch above.
+
+**Frozen predictions and calibration.** P8b (frozen in amendment 2 §6:
+[25%, 70%] at depth 13; its upper edge the return trigger) read 53.5% at
+`1e77ec9` and reads **14.9%** on V6: a miss on the lower edge if decision
+2 is taken, to be copied into BAS-S41: *"P8b's lower edge assumed the
+singular block runs in won positions, where the triples chain into the
+budget (position 11 alone carried 25,946 of the ticket-6 arm's 30,255
+truncations); with the donor's guard fired from root depth 12 those
+positions leave the block above depth 11 and the budget binds on the
+rest at 15%. The band should have been conditioned on the guard."* The
+binding tests of ticket 6b stay amendment 2's (the node bound, the 100k
+floor, the screen) with the fixture added; P8b's upper edge remains the
+return trigger. P5 (bench 13 within 0.6–1.4× at the final arm) is not yet
+scored: at `1e77ec9` the ON arm reads 25.7× with position 11 at 97% of
+it, on V6 0.38×; the final read is ticket 10's. Return 3's "every single
+switch flip recovers a7a8q" is scored here as a tree-width effect (§1.4),
+not a mechanism.
+
+**New predictions, frozen before their reads:**
+
+| # | Prediction | Confidence | Falsifier |
+|---|---|---|---|
+| P11 | The re-scoped cost screen (amendment 2 §3: per position, the geometric mean over depths 16–19 of the ON arm's per-depth growth ratio over the OFF arm's ≤ 1.5, every depth finished) **passes on all five positions on the V6 arm** (probability 75%), and on the margin-252 arm with the donor's 16 **fails on position 11** (probability 60%) and passes on the other four | moderate / low-moderate | a V6 fail says the growth comes from outside the singular block (ProbCut's 4.5% of cuts, the null move's hand-off band) and ticket 6b returns; a pass on position 11 with the 16 says the won-position cost is in size, not growth |
+| P12 | B.3.3's sweep reads `B3SeekMateDepth` 8 and 16 within ±5 Elo of 12 at `3+0.03`, and `B3SingNegative` 1 within ±5 of 3; neither moves by games what position 11 moves by nodes | moderate | either outside ±5 says the won-position tree is Elo, and the fit moves it |
+| P13 | The paired run of `B3PvQuietPrune` 0 against 1 reads within ±5 | moderate | ≤ −5 says the donor's PV pruning costs the engine the endings its evaluation cannot see, and the default flips to the OFF arm's exemption |
+| P14 | B.3.4's `10+0.1` direction read of the fitted arm shows no conversion regression against the OFF arm: the won-position share of its decisive games (a win from a position the oracle scores ≥ +564 at move 40) within 3 points of the OFF arm's | low-moderate | a drop says `seekMate` at 12 costs conversion at length and the sweep's 16 is re-read at `10+0.1` |
+
+### 5. Decisions, recommendations, the amended tickets, the condition
+
+**Research decides (its own):**
+
+1. The fixture "promotion: a queen where a rook only transposes" at
+   100,000 nodes is a theory-truth fixture of the ON arm, binding at every
+   ticket, with the budget series and the fixtures of §1.5 beside it.
+2. §9 gains `B3SingNegative` and `B3PvQuietPrune` as read-by-games
+   categoricals (items 14 and 15, §4), and the sweep gains
+   `B3SeekMateDepth` and `B3SingNegative` as coordinates.
+3. P11–P14 are registered; P8b's lower edge is scored (§4).
+4. The evaluation finding is recorded for the evaluation programme, not
+   implemented here: along a tablebase-won KRP–KPP line the corrected
+   static eval reads −13 to +78 (§1.3), and the OFF arm's own fixture
+   survives on tree shape (`searchmoves a7a8q` reads 0 at depths 11–12).
+   No leaf owns it; B.3.2's oracle differential will show whether the
+   class recurs.
+
+**The maintainer decides, each with its alternative and the main
+counter-argument:**
+
+1. **The singular margin seeded at 252** (4 cp per ply; range 13..378
+   unchanged) as the fixture's repair. Recommended: it is the one repair
+   that holds the floors and its own ticket's reads (fixture +956, WAC
+   237 and 136, P8b 50.6%, the other 39 positions at 0.38× the OFF
+   arm's), it is Basilisk's own fitted value and a registered sweep
+   point, and it acts through the mechanism the OFF arm's trace shows.
+   Alternative: `B3SingNegative=1` (WAC 239, the mechanism's own clause),
+   rejected by ticket 6's reads (P8b 72.7%, 12.5× interior nodes,
+   position 11 at 236M). Counter-argument: 126 was the geometric-mean seed
+   of §7's rule 2, confirmed twice, and amendment 2 §1 defended it;
+   moving it on a fixture read means the fit starts from Basilisk's
+   column rather than between the columns. The answer is that the sweep
+   keeps 17 and 126 as points, so the fit loses nothing, and a
+   theory-truth veto outranks a seed rule.
+2. **The donor's `seekMate` guard fired from root depth 12** (`B3SeekMateDepth`
+   seed 12; 564 unchanged; 8, 12 and 16 on the sweep). Recommended: with
+   it every registered gate passes as written (§1.5, §2 option 1),
+   position 11 reads 0.97× the OFF arm's, and the conversion floors hold
+   at 118 with KR-K faster at 30,000 nodes. Alternative: keep the donor's
+   16 and re-state the node gate per position (§2 option 2), which passes
+   on the margin alone at a geometric mean of 0.41 and leaves position 11
+   at 77× for the screen and the paired run to price. Counter-argument: a
+   ply seed moved four plies from the donor's on one position's node
+   count is the hand-tuning the contract forbids, and a guard that
+   switches singular extensions off in every won position from depth 12
+   could cost conversion in games where the floors' 120,000 nodes do not
+   reach. The answer is that the sweep reads 16 beside it (P12), the
+   `10+0.1` read is registered for it (P14), and the alternative's price
+   is a gate changed after a read plus a 77× position the screen is
+   predicted to fail on (P11).
+
+**The amended ticket text implementation resumes on** (replacing the
+ticket-6 paragraph of the resumption brief):
+
+- *Ticket 6b.* `B3SingMargin` seed 252 (range 13..378) and
+  `B3SeekMateDepth` seed 12 (range 8..64), both in `search_params.h`;
+  `B3SingNegative` stays 3 and becomes §9 item 14; `B3PvQuietPrune` is
+  added on ticket 2's seam (`!is_pv || (kB3Proof && kp.b3_pv_quiet_prune
+  && !ss->follow_pv)`, default 1) as §9 item 15; the surface regenerated
+  with `B3SeekMateDepth` (8, 12, 16) and `B3SingNegative` (0, 1, 3) as
+  sweep coordinates and the margin's points 17 and 126. OFF 16,615,757;
+  ON recorded (V6 read 6,263,268 on this source less the switch line). At
+  its end, on the committed tree: P8b recorded, its upper edge binding;
+  WAC at 100,000 nodes ≥ 232; the fixture at 100,000 nodes a8=Q with a
+  positive score; the depth-13 read's interior nodes within 2× the OFF
+  arm's (V6 read 0.26×), position 11 recorded; the two-arm `bench 13`.
+  Outside any of these, Return 4 with the counters, no seed moved by hand.
+- *Tickets 7–10* as packet §10 with amendments 1–2 and this one: the cost
+  screen as re-scoped (idle host; P11 is its prediction), ticket 10's
+  depth-6 floor re-based on the ON arm, the fixture's budget series,
+  KR-K's 30,000-node mean and BAS-R07's rec1 recorded in the two-arm
+  table.
+
+**Condition for resuming:** the maintainer's decisions 1 and 2 above, as
+§3 states. B.3.1 stays `RESEARCH` until then.
