@@ -853,7 +853,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         improving = improving || ss->eval >= beta;
 
     // IIR: reduce non-PV nodes when no TT move (or a stale TT entry) guides the search.
-    if (!ABLATED(4) && !is_pv && depth >= kp.iir_min_depth
+    if (!kB3Proof && !ABLATED(4) && !is_pv && depth >= kp.iir_min_depth
         && (tt_move == MOVE_NONE || (tt_found && tt_depth < depth - 3))) {
         TRACE_DECISION(TraceEvent::IirReduction, ply, depth, tt_move,
                        alpha, beta, eval, improving, correction, VALUE_NONE,
@@ -862,6 +862,24 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         if (tt_move != MOVE_NONE) DIAG_COUNT(++state_.diag.iir_stale);
         if (hindsight_reduced)    DIAG_COUNT(++state_.diag.iir_after_hindsight);
         depth--;
+    }
+
+    // IIR (Cluster 2, the donor's form): a PV or cut node off the previous
+    // iteration's PV, not in check, without a TT move loses a ply.
+    if constexpr (kB3Proof) {
+        if (!ABLATED(4) && kp.b3_iir && !in_check && !ss->follow_pv && (is_pv || cut_node)
+            && depth >= kp.b3_iir_min_depth
+            && (tt_move == MOVE_NONE
+                || (kp.b3_iir_stale && tt_found && tt_depth < depth - 3))) {
+            TRACE_DECISION(TraceEvent::IirReduction, ply, depth, tt_move,
+                           alpha, beta, eval, improving, correction, VALUE_NONE,
+                           0, 1, depth - 3, depth - 1);
+            DIAG_COUNT(++state_.diag.iir_reductions);
+            if (tt_move != MOVE_NONE) DIAG_COUNT(++state_.diag.iir_stale);
+            if (hindsight_reduced)    DIAG_COUNT(++state_.diag.iir_after_hindsight);
+            if (is_pv)                DIAG_COUNT(++state_.diag.iir_pv_nodes);
+            depth--;
+        }
     }
 
     int  orig_alpha  = alpha;
