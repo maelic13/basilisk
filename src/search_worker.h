@@ -219,6 +219,9 @@ private:
     int root_depth_ = 1;
     // The last completed iteration's raw root score, as root_search() found it.
     int root_score_ = 0;
+    // Cluster 2's null-move verification region: while a verification runs,
+    // nodes above this ply try no null move (0 outside a verification).
+    int nmp_min_ply_ = 0;
     // The positive extension plies a line may take: the iteration's depth, or
     // a test's cap below it.
     [[nodiscard]] int ext_budget() const {

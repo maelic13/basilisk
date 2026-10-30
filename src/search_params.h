@@ -232,9 +232,29 @@
 // b3_check_prune: 1 admits in-check nodes to LMR, the first-move step-down,
 //   the depth step after alpha rises and move-loop pruning (quiet futility
 //   excepted), as the donor does; 0 reduces and prunes none in check.
+//
+// Null move: tried when the static eval is at least beta - per_ply * depth
+//   - improving + base, and beta is above the floor; R = red_base + depth /
+//   red_depth_div + max((static eval - beta) / red_eval_div, 0) plies. A cut
+//   at depth >= verify_depth outside a verification is verified at the same
+//   ply with null moves barred for 3/4 of the remaining depth below it.
+//   b3_nmp_cut_only: 1 tries it at expected cut nodes only; 0 at any non-PV
+//   node. b3_nmp_verify: 1 the region; 0 no verification; 2 the legacy
+//   same-ply verification at depth >= 10, kept for the counter read.
 #define BASILISK_B3_PARAMS(X, F, S)                                      \
     S(b3_check_ext,          B3CheckExt,             0,    0,     1)     \
-    S(b3_check_prune,        B3CheckPrune,           1,    0,     1)
+    S(b3_check_prune,        B3CheckPrune,           1,    0,     1)     \
+    /* Null move */                                                      \
+    X(b3_nmp_per_ply,        B3NmpPerPly,           16,    2,    32)     \
+    X(b3_nmp_improving,      B3NmpImproving,        16,    0,    40)     \
+    X(b3_nmp_base,           B3NmpBase,            151,   50,   300)     \
+    X(b3_nmp_red_base,       B3NmpRedBase,           7,    2,    10)     \
+    X(b3_nmp_red_eval_div,   B3NmpRedEvalDiv,       72,   36,   256)     \
+    F(b3_nmp_red_depth_div,  B3NmpRedDepthDiv,       3,    2,     6)     \
+    F(b3_nmp_beta_floor,     B3NmpBetaFloor,      -564, -2000,    0)     \
+    F(b3_nmp_verify_depth,   B3NmpVerifyDepth,      16,    8,    32)     \
+    S(b3_nmp_cut_only,       B3NmpCutOnly,           1,    0,     1)     \
+    S(b3_nmp_verify,         B3NmpVerify,            1,    0,     2)
 
 #define BASILISK_KERNEL_PARAMS(X) BASILISK_CORE_KERNEL_PARAMS(X, X)
 #define BASILISK_KERNEL_SWITCHES(S) BASILISK_CORE_KERNEL_SWITCHES(S)

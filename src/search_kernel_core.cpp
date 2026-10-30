@@ -695,8 +695,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             }
         }
 
-        // Null-move pruning
-        if (!ABLATED(2) && allow_null && depth >= 3
+        // Null-move pruning (the OFF arm's form)
+        if (!kB3Proof && !ABLATED(2) && allow_null && depth >= 3
             && eval >= beta
             && state_.board->has_non_pawn_material(state_.board->turn())
             && (ss-1)->move != MOVE_NULL) {
@@ -709,7 +709,6 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                                        : state_.diag.null_tries_d8p));
             do_null_move(ss);
             shared_.tt.prefetch(state_.board->position_key());
-            if constexpr (kB3Proof) (ss + 1)->ext_plies = ss->ext_plies;
             int null_score = -negamax<NodeType::NonPV>(std::max(0, depth - r), -beta, -(beta - 1),
                                       ply + 1, ss + 1, false, true);
             undo_null_move(ss);
@@ -733,6 +732,85 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                                    alpha, beta, eval, improving, correction, VALUE_NONE,
                                    0, r, VALUE_NONE, null_score);
                     return null_score;
+                }
+            }
+        }
+
+        // Null-move pruning (Cluster 2, the donor's form): at an expected cut
+        // node whose static eval clears a depth-scaled margin. The null child
+        // is an all node, and a win is never returned unproven. A deep cut
+        // outside a verification is verified at this ply with null moves
+        // barred above a region of plies below it.
+        if constexpr (kB3Proof) {
+            if (!ABLATED(2) && (cut_node || !kp.b3_nmp_cut_only) && allow_null
+                && (ss - 1)->move != MOVE_NULL
+                && static_eval >= beta - kp.b3_nmp_per_ply * depth
+                                  - kp.b3_nmp_improving * improving + kp.b3_nmp_base
+                && beta >= kp.b3_nmp_beta_floor
+                && state_.board->has_non_pawn_material(state_.board->turn())) {
+                const int r = kp.b3_nmp_red_base + depth / kp.b3_nmp_red_depth_div
+                            + std::max((static_eval - beta) / kp.b3_nmp_red_eval_div, 0);
+                if (ply < nmp_min_ply_) {
+                    DIAG_COUNT(++state_.diag.null_region_refusals);
+                    TRACE_DECISION(TraceEvent::NullRegionRefused, ply, depth, MOVE_NULL,
+                                   alpha, beta, static_eval, improving, correction, VALUE_NONE,
+                                   0, r, nmp_min_ply_, VALUE_NONE);
+                } else {
+                    DIAG_COUNT(state_.diag.null_tries++);
+                    DIAG_COUNT(++(depth <= 3 ? state_.diag.null_tries_d1_3
+                                  : depth <= 7 ? state_.diag.null_tries_d4_7
+                                               : state_.diag.null_tries_d8p));
+                    do_null_move(ss);
+                    shared_.tt.prefetch(state_.board->position_key());
+                    (ss + 1)->ext_plies = ss->ext_plies;
+                    int null_score = -negamax<NodeType::NonPV>(std::max(0, depth - r), -beta,
+                                                               -(beta - 1), ply + 1, ss + 1,
+                                                               false, false);
+                    undo_null_move(ss);
+                    if (state_.stopped) return 0;
+                    if (null_score >= beta && !is_decisive(null_score)) {
+                        const int mode = kp.b3_nmp_verify;
+                        const bool verify = mode == 1 ? nmp_min_ply_ == 0
+                                                        && depth >= kp.b3_nmp_verify_depth
+                                          : mode == 2 && depth >= 10;
+                        bool verified = true;
+                        if (verify) {
+                            // The verification re-enters this record; the
+                            // fields its move loop leaves behind are put back,
+                            // so ProbCut's children read this node's own.
+                            const int saved_move_count = ss->move_count;
+                            const int saved_stat_score = ss->stat_score;
+                            int v;
+                            if (mode == 1) {
+                                nmp_min_ply_ = ply + 3 * (depth - r) / 4;
+                                v = negamax<NodeType::NonPV>(depth - r, beta - 1, beta,
+                                                             ply, ss, true, false);
+                                nmp_min_ply_ = 0;
+                            } else {
+                                v = negamax<NodeType::NonPV>(std::max(1, depth - r), beta - 1,
+                                                             beta, ply, ss, false, false);
+                            }
+                            ss->move_count = saved_move_count;
+                            ss->stat_score = saved_stat_score;
+                            if (state_.stopped) return 0;
+                            verified = v >= beta;
+                            DIAG_COUNT(++state_.diag.null_verifications);
+                            if (!verified) DIAG_COUNT(++state_.diag.null_verify_failed);
+                            TRACE_DECISION(TraceEvent::NullVerify, ply, depth, MOVE_NULL,
+                                           alpha, beta, static_eval, improving, correction,
+                                           VALUE_NONE, 0, r, null_score, v);
+                        }
+                        if (verified) {
+                            DIAG_COUNT(state_.diag.null_cuts++);
+                            DIAG_COUNT(++(depth <= 3 ? state_.diag.null_cuts_d1_3
+                                          : depth <= 7 ? state_.diag.null_cuts_d4_7
+                                                       : state_.diag.null_cuts_d8p));
+                            TRACE_DECISION(TraceEvent::NullCutoff, ply, depth, MOVE_NULL,
+                                           alpha, beta, static_eval, improving, correction,
+                                           VALUE_NONE, 0, r, VALUE_NONE, null_score);
+                            return null_score;
+                        }
+                    }
                 }
             }
         }
@@ -1493,6 +1571,7 @@ void Searcher::kernel_new_game() {
 }
 
 void Searcher::kernel_begin_search() {
+    nmp_min_ply_ = 0;
     reductions_[0] = 0;
     for (int i = 1; i < 256; ++i)
         reductions_[i] = int(config_.limits.params.lmr_table_scale / 128.0 * std::log(i));
