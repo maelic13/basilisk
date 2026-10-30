@@ -1044,6 +1044,21 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
   - Gate: exact `bench 13` or a recorded fingerprint move; CTest; the
     conversion floors at the five budgets of the packet's §2.2; a repair
     SPRT `[-5,5]` when play changes, unless the leaf argues none is owed.
+  - Diagnosed and repaired 2026-10-30 (`d8d30e9`; BAS-S40 holds the
+    record). The false line ends in an underpromotion beside the
+    defending king: after `h8=B` the defender's stand-pat is a won KBB-K
+    for the opponent, and quiescence's delta pruning, capture futility and
+    alpha-relative SEE threshold read `Kxh8` as a gain of one minor
+    against it, though it leaves a dead draw. The three now stand down
+    when the futility base is below `-KNOWN_WIN`, the oracle's guard.
+    Four wrong-bishop positions read 0 at every depth 8–14 inside a
+    200,000-node cap (14,373 nodes at depth 14 on the suite's; the test
+    fails on the head); CTest 24/24; the conversion floors hold at all
+    five budgets (KBN-K 115/120 against 113). `bench 13` moves to
+    16,615,757 through state the bench positions share; the fingerprint
+    record updates when the gate keeps the repair.
+  - Game gate: BAS-S40, `[-5,5]` at `3+0.03`, 4,000-pair cap,
+    `tools/run_b12_gate.ps1`, dry run accepted; maintainer-run.
 
 ### Active workflow register
 
@@ -1066,7 +1081,7 @@ leaf's tag. Later phases carry only a class until they open.
 | B.8.2 | RESEARCH | I1 | After the clusters |
 | B.9 | RESEARCH | V | Programme checkpoint |
 | B.11 | RESEARCH | M | Interim release after B.9 (maintainer decision 2026-10-24) |
-| B.12 | RESEARCH | I2 | Before B.3.1; B.3.0's blocker |
+| B.12 | GAME_GATE | I2 | BAS-S40 registered; awaiting the maintainer's run |
 
 ## Phase C — Evaluation programme (search frozen)
 

@@ -512,6 +512,8 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S39](experiments/BAS-S39.md) — A.13.4: the tablebase probe after the TT cutoff, `[-5,5]` at `10+0.1` with tables — cap, +0.3 ± 3.2; repair kept
 
+- [BAS-S40](experiments/BAS-S40.md) — B.12: quiescence's gain pruning stands down in a known loss, `[-5,5]` — registered
+
 | ID | Title | Disposition |
 |---|---|---|
 | [BAS-S17](experiments/BAS-S17.md) | Razoring depth reach in Elo (B.0.1, maintainer). | +2.4 ± 9.9; interval holds 0, the cluster decides the cap |

@@ -148,6 +148,29 @@ h5g5 g7h8 g5h4 h8g7`) for the leaf that scores a known win, most likely a
 quiescence or evaluation path, which `go depth 1` along the line did not
 show.
 
+Found 2026-10-30. Along the all-off line, each white-to-move position with
+the pawn on h7 and the king in the corner reads the known-win class at
+depth 2 and 0 from its own root, so the score is made inside quiescence.
+The leaf is an underpromotion beside the defending king: after `h8=B` (or
+`=N`) the defender's stand-pat is a won KBB-K (KBN-K) for the opponent,
+and delta pruning, capture futility and the alpha-relative SEE threshold
+read `Kxh8`, which leaves a dead draw, as a gain of one minor against
+it. The cut returns the known win as a bound. That is why no ablation bit
+removed it, and why NMP and the extensions only scaled it. The repair
+(`d8d30e9`) is the oracle's guard: the three prunes stand down when the
+futility base is below `-KNOWN_WIN`. The record and the gate are BAS-S40.
+Two consequences for this packet:
+
+- §2.1's counters and §2.2's floors were read on the head; the counter
+  suite reruns on the repaired head, and the floors there are BAS-S40's
+  (KBN-K 115/120, the same under the rule).
+- The main search's move-loop pruning is safe here: like the oracle's
+  (`9587eeeb` `search.cpp:1007`) it runs only for a side with non-pawn
+  material, which a bare defending king never has. RFP's
+  `eval < tablebaseWinInMaxPly` bound and NMP's beta test are not: the
+  oracle bounds both by `VALUE_KNOWN_WIN` (`:821`, `:855`). NMP's is
+  §3.1's to dispose; RFP's is B.4's input.
+
 ## 3. Mechanisms against the donor
 
 Units: Basilisk evaluation units; donor values converted by B.0 §7.1
