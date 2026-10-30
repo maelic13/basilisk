@@ -48,10 +48,10 @@
         "step": 3
     },
     "B3ProbCutTtMargin": {
-        "value": 121,
-        "min_value": 60,
-        "max_value": 240,
-        "step": 11
+        "value": 240,
+        "min_value": 100,
+        "max_value": 400,
+        "step": 19
     },
     "B3SingMargin": {
         "value": 126,

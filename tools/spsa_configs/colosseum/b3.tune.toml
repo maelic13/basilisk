@@ -60,10 +60,10 @@ c_end = 1.3817
 
 [[parameters]]
 name = "B3ProbCutTtMargin"
-initial = 121
-min = 60
-max = 240
-c_end = 5.0663
+initial = 240
+min = 100
+max = 400
+c_end = 8.7508
 
 [[parameters]]
 name = "B3SingMargin"
