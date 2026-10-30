@@ -925,10 +925,12 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             }
         }
 
-        // The small ProbCut, in check too: a lower bound nearly deep enough
-        // that clears beta by a wide margin returns that margin.
+        // The small ProbCut, when switched on, in check too: a lower bound
+        // nearly deep enough that clears beta by a wide margin returns that
+        // margin.
         const int tt_pc_beta = beta + kp.b3_probcut_tt_margin;
-        if (!is_root && proves_lower(tt_flag) && tt_depth >= depth - kp.b3_probcut_tt_depth
+        if (kp.b3_probcut_tt && !is_root && proves_lower(tt_flag)
+            && tt_depth >= depth - kp.b3_probcut_tt_depth
             && tt_score != VALUE_NONE && tt_score >= tt_pc_beta
             && !is_decisive(beta) && !is_decisive(tt_score)) {
             DIAG_COUNT(++state_.diag.probcut_tt_cuts);

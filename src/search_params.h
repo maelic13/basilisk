@@ -253,7 +253,8 @@
 //   beta' in quiescence and at depth - (improving ? depth_improving : depth),
 //   returns its value less the margin. The small ProbCut returns beta +
 //   tt_margin from a lower bound at least depth - tt_depth deep that clears
-//   it. b3_probcut_pv: 1 admits PV nodes; 0 non-PV only.
+//   it. b3_probcut_pv: 1 admits PV nodes; 0 non-PV only. b3_probcut_tt: 1
+//   runs the small ProbCut (in check too, the donor's form); 0 none.
 //
 // Singular extension, at depth >= min_depth (+1 near a PV): the bound is the
 //   TT score less (margin + margin_ttpv at a non-PV node near a PV) * depth /
@@ -297,9 +298,10 @@
     F(b3_probcut_min_depth,  B3ProbCutMinDepth,      3,    2,     8)     \
     F(b3_probcut_depth,      B3ProbCutDepth,         3,    2,     6)     \
     F(b3_probcut_depth_improving, B3ProbCutDepthImproving, 5, 3,    8)     \
-    X(b3_probcut_tt_margin,  B3ProbCutTtMargin,    121,   60,   240)     \
+    X(b3_probcut_tt_margin,  B3ProbCutTtMargin,    240,  100,   400)     \
     F(b3_probcut_tt_depth,   B3ProbCutTtDepth,       4,    2,     8)     \
     S(b3_probcut_pv,         B3ProbCutPv,            1,    0,     1)     \
+    S(b3_probcut_tt,         B3ProbCutTt,            0,    0,     1)     \
     /* Singular extension */                                             \
     F(b3_sing_min_depth,     B3SingMinDepth,         6,    4,    10)     \
     X(b3_sing_margin,        B3SingMargin,         126,   13,   378)     \

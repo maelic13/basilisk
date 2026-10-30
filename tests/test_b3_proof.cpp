@@ -211,9 +211,10 @@ static void test_budget_bound_is_live() {
         Board b;
         b.set_fen(fen);
         legal += is_legal_move_on_board(b, capped.result.bestmove);
-        // Where the cap moved the tree, the counter saw it truncate.
+        // Where the cap moved the tree, the counter saw it truncate. (The
+        // two runs are different trees, so their counts are not compared.)
         if (kCounters && kBudgetApplied && full.result.nodes != capped.result.nodes)
-            EXPECT(counter(capped, "ext_budget_bound") > counter(full, "ext_budget_bound"));
+            EXPECT(counter(capped, "ext_budget_bound") > 0);
     }
     begin_section("budget: a forced cap moves the tree where the budget is applied");
     if constexpr (kBudgetApplied)
