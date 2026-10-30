@@ -1118,9 +1118,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                                    TraceFamily::CaptureSee);
                     return false;
                 }
-            } else if (!is_pv || (kB3Proof && !ss->follow_pv)) {
+            } else if (!is_pv || (kB3Proof && kp.b3_pv_quiet_prune && !ss->follow_pv)) {
                 // Cluster 2's arm also prunes quiets at a PV node off the
-                // previous iteration's PV, as the donor does.
+                // previous iteration's PV, as the donor does (B3PvQuietPrune).
                 // Continuation-history pruning: the two nearest continuations
                 // and the pawn history rate the move this far below zero.
                 int history = (ss - 1)->cont_hist->entry[moved][to]

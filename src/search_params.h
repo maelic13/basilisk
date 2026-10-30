@@ -232,6 +232,8 @@
 // b3_check_prune: 1 admits in-check nodes to LMR, the first-move step-down,
 //   the depth step after alpha rises and move-loop pruning (quiet futility
 //   excepted), as the donor does; 0 reduces and prunes none in check.
+// b3_pv_quiet_prune: 1 prunes quiets at PV nodes off the previous PV, as the
+//   donor does; 0 exempts every PV node (the legacy rule).
 //
 // Null move: tried when the static eval is at least beta - per_ply * depth
 //   - improving + base, and beta is above the floor; R = red_base + depth /
@@ -276,7 +278,8 @@
 #define BASILISK_B3_PARAMS(X, F, S)                                   \
     S(b3_check_ext,          B3CheckExt,             0,    0,     1)     \
     S(b3_check_prune,        B3CheckPrune,           1,    0,     1)     \
-    /* Null move */                                                      \
+    S(b3_pv_quiet_prune,     B3PvQuietPrune,         1,    0,     1)     \
+    /* Null move */                                                    \
     X(b3_nmp_per_ply,        B3NmpPerPly,           16,    2,    32)     \
     X(b3_nmp_improving,      B3NmpImproving,        16,    0,    40)     \
     X(b3_nmp_base,           B3NmpBase,            151,   50,   300)     \
@@ -304,7 +307,7 @@
     S(b3_probcut_tt,         B3ProbCutTt,            0,    0,     1)     \
     /* Singular extension */                                             \
     F(b3_sing_min_depth,     B3SingMinDepth,         6,    4,    10)     \
-    X(b3_sing_margin,        B3SingMargin,         126,   13,   378)     \
+    X(b3_sing_margin,        B3SingMargin,         252,   13,   378)     \
     X(b3_sing_margin_ttpv,   B3SingMarginTtPv,      19,    0,   126)     \
     X(b3_sing_double_base,   B3SingDoubleBase,      -1,  -40,    40)     \
     X(b3_sing_double_pv,     B3SingDoublePv,        58,    0,   120)     \
@@ -322,7 +325,7 @@
     F(b3_sing_mc_tmh_base,   B3SingMcTmhBase,      421,    0,  1000)     \
     F(b3_sing_mc_tmh_slope,  B3SingMcTmhSlope,     110,    0,   300)     \
     F(b3_sing_mc_corr,       B3SingMcCorr,         177,    0,   400)     \
-    F(b3_seek_mate_depth,    B3SeekMateDepth,       16,    8,    64)     \
+    F(b3_seek_mate_depth,    B3SeekMateDepth,       12,    8,    64)     \
     F(b3_seek_mate_score,    B3SeekMateScore,      564,  100,  2000)     \
     S(b3_multi_cut,          B3MultiCut,             0,    0,     1)     \
     S(b3_sing_tt_depth,      B3SingTtDepth,          0,    0,     1)     \
