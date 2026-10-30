@@ -263,6 +263,11 @@ void print_search_diag(const DiagCounters& d, const Evaluator& evaluator,
             d.sing_in_check, d.sing_triple,
             d.sing_ttbeta);
         emit(buf);
+        buf = std::format("kv sing_cap_bound={} iir_reductions={} iir_stale={} "
+            "iir_after_hindsight={}",
+            d.sing_cap_bound, d.iir_reductions, d.iir_stale,
+            d.iir_after_hindsight);
+        emit(buf);
         // The selectivity core's counters.
         buf = std::format("kv rfp_cuts_d1_3={} rfp_cuts_d4_7={} rfp_cuts_d8p={} "
             "razor_cuts_d1_3={} razor_cuts_d4_7={} razor_cuts_d8p={} "

@@ -118,7 +118,13 @@ using InfoCallback = std::function<void(const std::string&)>;
     /* In-search tablebase stores whose PV flag differs from the node's     \
        own (a PV node, or a TT entry marked PV). Zero once the probe runs   \
        after the node sets its flag. Denominator: tbhits. */                 \
-    X(tb_store_stale_pv)
+    X(tb_store_stale_pv)                                                     \
+    /* Singular firings whose margin admitted the double extension but whose \
+       path had reached DoubleExtMax. Denominator: sing_fired. */            \
+    X(sing_cap_bound)                                                        \
+    /* IIR: reductions, those taken on a stale TT entry (a TT move present), \
+       and those at a node hindsight had already reduced. */                \
+    X(iir_reductions) X(iir_stale) X(iir_after_hindsight)
 
 struct DiagCounters {
 #define BASILISK_DIAG_COUNTER_FIELD(name) int64_t name = 0;
@@ -141,7 +147,7 @@ struct DiagCounters {
 // aggregate and the field count stay in step with the table.
 static_assert(sizeof(DiagCounters) == DiagCounters::COUNT * sizeof(int64_t),
               "DiagCounters holds something that is not a counter from the table");
-static_assert(DiagCounters::COUNT == 83, "the counter contract has 83 entries; extend, never rename");
+static_assert(DiagCounters::COUNT == 87, "the counter contract has 87 entries; extend, never rename");
 
 // One search's counters as `info string diag` lines, followed by the
 // evaluator's speed telemetry.

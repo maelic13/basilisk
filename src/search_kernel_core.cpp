@@ -508,9 +508,11 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         ++depth;
         DIAG_COUNT(++state_.diag.hindsight_up);
     }
+    [[maybe_unused]] bool hindsight_reduced = false;
     if (prior_reduction >= 2 && depth >= 2 && ss->eval + (ss - 1)->eval > 47) {
         --depth;
         DIAG_COUNT(++state_.diag.hindsight_down);
+        DIAG_COUNT(hindsight_reduced = true);
     }
 
 
@@ -740,6 +742,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         TRACE_DECISION(TraceEvent::IirReduction, ply, depth, tt_move,
                        alpha, beta, eval, improving, correction, VALUE_NONE,
                        0, 1, depth - 3, depth - 1);
+        DIAG_COUNT(++state_.diag.iir_reductions);
+        if (tt_move != MOVE_NONE) DIAG_COUNT(++state_.diag.iir_stale);
+        if (hindsight_reduced)    DIAG_COUNT(++state_.diag.iir_after_hindsight);
         depth--;
     }
 
@@ -1018,6 +1023,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 if (allow_double)   DIAG_COUNT(++state_.diag.sing_double);
                 if (did_check_ext)  DIAG_COUNT(++state_.diag.sing_in_check);
                 if (allow_double && did_check_ext) DIAG_COUNT(++state_.diag.sing_triple);
+                if (!is_pv && s_val < s_beta - config_.limits.params.singular_double_margin
+                    && !allow_double)
+                    DIAG_COUNT(++state_.diag.sing_cap_bound);
 
                 // Relax LMR for this node's remaining moves. Suppressed
                 // when the TT move is a capture -- a singular capture says the
