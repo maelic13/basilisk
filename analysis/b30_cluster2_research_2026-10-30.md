@@ -60,6 +60,64 @@ and predictions' base.
 Pending: `run_suite.py --depth 14 --stride 1` on `suite_v2`, Diagnostic
 build of `43b4c35` (`tools/results/b30-20261030/`).
 
+### 2.2 The conversion floors at five budgets (B-3)
+
+`test_endgames --conversion --nodes N` (`ebc7623`: the floors replay at
+another budget and report; their bounds are set at 60k), release build of
+`ba31f28` (behaviour as `43b4c35`), the 24 seeded positions per family, a
+cold search per move (`tools/results/b30-20261030/conversion/`):
+
+| Family | 30k | 45k | 60k | 90k | 120k | Floor (60k) |
+|---|---:|---:|---:|---:|---:|---:|
+| KQ-K | 24 (14.8) | 24 (14.2) | 24 (12.7) | 24 (12.4) | 24 (11.3) | 24 |
+| KR-K | 24 (27.2) | 24 (25.4) | 24 (23.6) | 24 (21.6) | 24 (21.2) | 24 |
+| KBB-K | 24 (26.2) | 24 (24.2) | 24 (25.2) | 24 (24.5) | 24 (24.6) | 23 |
+| KBN-K | **21** (55.2) | 24 (58.6) | 23 (55.0) | 23 (51.8) | 22 (53.0) | 22 |
+
+Conversions of 24, mean plies to mate in brackets. The major-piece and
+two-bishop mates are budget-stable; KBN-K is not monotone in budget
+(24 at 45k, 22 at 120k) and falls below its floor at 30k. A single-budget
+KBN-K verdict is therefore one draw from a spread of about ±1.5
+conversions on the head itself. The rule the cluster reads (registered
+here, before any ON-arm build): **a KBN-K change counts only as a majority
+over the five budgets against this table, the sum over budgets moving by
+more than 3 (the head's 113 of 120)**; the other families hold 24 at every
+budget.
+
+### 2.3 A blocker found by §2.1's run: a false win in a drawn KBP-K
+
+§2.1's suite stopped at its 600 s limit on `suite_v2` position 89,
+`7k/8/6KP/8/8/8/8/5B2 w - - 0 1`: an h-pawn with the wrong (light) bishop
+and the defending king in the corner, a textbook draw.
+
+| Build | Depth 8 | Depth 10 | Depth 14 |
+|---|---|---|---|
+| 1.10.2 (`tools/test_engines/basilisk-1.10.2-rc-pext-pgo.exe`) | 0, 1,328 nodes | 0, 2,408 | 0, 11,704 |
+| head `ba31f28` (release) | **+150.94**, 5,182 nodes, seldepth 17 | **+112.08**, 13,553,601 nodes, seldepth 112 | does not finish in 60 s |
+
+- The static evaluation is right along the false line (depth-1 search of
+  every position on it reads 0, and +7.89 only with the black king out on
+  f7). 15094 lies in the `KNOWN_WIN` class (`eval.cpp:132`, 10000 plus
+  material), so the search reaches positions it rates as known wins: a won
+  KPK after the bishop is lost, or a promoted bare-king win. A minimax line
+  can only reach them from this root if black is compelled out of the
+  corner, which in this ending happens only by zugzwang.
+- Bisect over `master`'s squash commits since `v1.10.2` (depth 10, good
+  under 200,000 nodes): first bad **`75d7fce`** (A.13: a won KPK now
+  scores `KNOWN_WIN + 206 + rank` instead of its tapered score). Before
+  it the position already read +3.94 (`6e66c5d`) and +5.57 (`057797d`)
+  on small trees, where 1.10.2 reads 0: an earlier, smaller drift.
+- Leading hypothesis, untested: null-move pruning in a zugzwang ending.
+  NMP is allowed here because White has a bishop (non-pawn material), has
+  no verification below depth 10, and its cutoffs are now fed known-win
+  magnitudes, which are not "decisive" by the band check (`is_decisive`
+  covers the tablebase and mate bands only). NMP's verification region is
+  Cluster 2's own item (B-31).
+- Consequence for this leaf: §2.1's counters cannot complete at depth 14
+  on the head, and any Cluster 2 reading that includes this ending is
+  distorted by the explosion. The defect also misplays real games (a
+  drawn KBP-K scored as a win invites trading into it).
+
 ## 3. Mechanisms against the donor
 
 Units: Basilisk evaluation units; donor values converted by B.0 §7.1
@@ -194,14 +252,41 @@ To be completed with §2.1's numbers. The couplings already known:
    the exact fingerprint).
 3. The IIR/hindsight overlap: the share of IIR reductions on nodes
    hindsight also reduced, and IIR's stale-entry clause's share of IIR.
-4. KBNK and KQK at several budgets for the current head, as the floor
-   the ON arm and the multi-cut categorical are read against (B-3).
+4. ~~KBNK and KQK at several budgets for the current head~~ — done, §2.2.
 5. B-35's RFP/NMP crossover band and B-54's in-check share against the
    oracle, as instruments B.3.2 reads.
 
 ## 7. Seeds
 
-To be completed with §2.1's numbers, by B.0 §7.2's rules.
+By B.0 §7.2's rules: plies, counts and history units take the donor's
+value (rule 1); an evaluation-unit constant takes the donor's converted
+value (rule 3) unless it lies more than 2× outside the range of the
+oracle-converted and Basilisk-fitted values, when it takes their geometric
+mean, or the oracle's alone where Basilisk has no fitted coordinate
+(rule 2). The oracle is classical Stockfish `9587eeeb` (×0.485).
+
+| Constant | Donor (SF 19) | ×0.282 | Oracle | ×0.485 | Basilisk fitted | Rule | Seed |
+|---|---|---:|---|---:|---|---|---|
+| NMP entry: per ply | 13 | 3.7 | 33 | 16 | none (`eval ≥ beta`) | 2, oracle alone (B.0 §7.2 names the NMP margin) | **16** |
+| NMP entry: improving | 47 | 13 | 33 | 16 | none | 2, oracle alone | **16** |
+| NMP entry: constant | 365 | 103 | 311 (+112·ttPv) | 151 (+54) | none | 2, oracle alone; the donor's shape has no `ttPv` term | **151** |
+| NMP reduction base, depth divisor | `7 + d/3` | plies | `(737 + 77d)/246` | plies | `3 + d/4` | 1 | **7, 3** |
+| NMP reduction, eval divisor | 256 | 72 | 192, capped at 3 | 93, capped | 192, capped at 3 | 3 (72 is within 2× of 93) | **72, uncapped** (range widened below 80) |
+| ProbCut margin | `241 − 64·improving` | 68, 18 | `176 − 49·improving` | 85, 24 | 189 | 3 | **68, 18** |
+| Small TT ProbCut | 428 | 121 | (TT capture form) | — | none | 3 | **121** |
+| Singular margin, per ply | `59·d/63` | 0.26 | `2·d` (`(4 + formerPv)·d/2`) | 0.97 | 4 | 2: 0.26 is more than 2× below 0.97; geometric mean of 0.97 and 4 | **2.0** (126/63), range down to 0.2 so the donor's value is reachable (B-45) |
+| Singular margin, `ttPv && !PV` per ply | `66·d/63` | 0.30 | `formerPv·d/2` | 0.24 | none | 3 | **0.30** (19/63) |
+| Double margin | `−2 + 204·PV − 152·!ttCapture − corr − ttMoveHist − 38·deep` | −0.6, 58, −43, …, −11 | none | — | 4, non-PV only | 3 | the converted vector; the correction term by Amendment 3's rule 4 |
+| Triple margin | `70 + 279·PV − 188·!ttCapture + 81·ttPv − corr − 43·deep` | 20, 79, −53, 23, …, −12 | none | — | none | 3 | the converted vector |
+| Negative extension | −3 | plies | — | — | −1 | 1 | **−3** |
+| Singular min depth | `6 + ttPv` | plies | 6 | plies | 5 | 1 | **6 + ttPv** |
+| IIR min depth | 6 | plies | IID at 7 | plies | 8 (rail) | 1 | **6** |
+| `ttMoveHistory` | updates `−421 − 110·d`, `918 / −747` | history units | — | — | none | 1 | as the donor |
+
+Two seeds move far from Basilisk's fitted values and are flagged for
+B.3.2's paired run: the NMP reduction (base 3 → 7) and the ProbCut margin
+(189 → 68). Both are the donor's shape at rule 3; B.3.3's ranges span all
+three columns, as B.2.3's did.
 
 ## 8. Ready when
 

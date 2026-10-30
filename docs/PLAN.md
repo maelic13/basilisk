@@ -566,8 +566,8 @@ its lead, G(0) − G(32) = 210.3 ± 23.9 of 312.6 (B.0.2). B.1 restructured the
 search behaviour-neutrally, +1.21% NPS (BAS-P16). B.2, Cluster 1, rebuilt
 the selectivity core in the donor's shape behind `B2_CORE` and fitted it:
 +136.2 ± 33.6 Elo unfitted and +58.7 ± 20.9 fitted, about +195 over the
-B.1 head (BAS-S23); `B2_CORE` is on, and the legacy kernel builds with
-`-DB2_CORE=OFF` until B.8. B.10 repaired seven rank-mirrored piece-square
+B.1 head (BAS-S23); the legacy kernel and the switch were later deleted
+(B.8.1). B.10 repaired seven rank-mirrored piece-square
 tables, +18.3 ± 12.9 Elo (BAS-S26).
 
 - [ ] **B.3** Cluster 2 — pruning and extensions
