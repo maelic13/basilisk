@@ -1723,3 +1723,346 @@ binding test; this read is its early warning.
 - The B-37 field list above.
 - The budget's invariant under `test_stack_unwind` on a Diag ON build.
 - The fingerprints, reproduced from a clean tree.
+
+## Research amendment 2 — the bars, the small ProbCut, the null move's hand-off, the floors (2026-10-30)
+
+Answers Return 2. Class `R2`; no engine code changed; every read below is a
+fixed-depth node count or a WAC count on existing binaries and tune
+options (deterministic, no idle host needed), except the one temporary
+Diag edit of read G, reverted (`git status` clean) with its patch kept.
+Recipes, option lists and JSON: `tools/results/b31-20261030/amend2/`
+(`sing_summary.json`, `sing2_summary.json`, `proposed_summary.json`,
+`wac_summary.json`, `gap_summary.json`, `gap_counters.patch`,
+`nmp_pos11.json`, `nmp_pos11_t3.json`, `nmp_pos11_t3_base.json`); logs
+beside them as `amend2_*.log`. Binaries: the Tune ON build of `2698b35`
+(`build/b3-on-tune`, `bench 13` 18,049,092), the release OFF build
+(`build/b3-off`, 16,615,757), the ticket-3 Tune ON build
+(`tools/results/b31-20261030/t3/on-tune.exe`, 6,765,087) where the legacy
+singular block isolates the null move. Counter reads are amendment 1 §7's
+(40 bench positions, one process each, `go depth 13`, Hash 64). A tune
+option set outside its range is clamped by `parameters.cpp`, which the
+reads below account for.
+
+### 0. What this run says about the contract, plainly
+
+Four of the six landed mechanisms each cost a floor or the screen on
+their own, and in each case the cause is the same: a seed or a form was
+taken from the donor's column while its partner in the search stayed at
+Basilisk's fitted value. The graded extension's quiet-move bars were
+converted from the donor, where they sit under a margin eight times
+smaller; the small ProbCut's margin was converted from the donor, whose
+quiescence stores stand-pat cutoffs at a depth the rule cannot read; the
+null move's margin was seeded from the oracle's column without the
+oracle's own gate beside it and against a reverse-futility margin fitted
+three times less aggressive than the donor's at shallow depth. The
+researcher wrote §5.12 to catch exactly this and then exempted the
+reverse-futility coordinates from it (§5.3, "RFP's coordinates stay off
+B.3.3's surface"); that exemption is withdrawn here. None of this says
+the donor's shape does not fit: with the three pairs re-matched the arm
+reads the registered 100,000-node floor (read P), and the proof-search
+contents stand.
+
+### 1. The singular bars (question 1)
+
+**What the donor's bars mean.** For a quiet TT move at a non-PV node the
+donor's double bar is `−2 − 152 = −154` and its triple bar `70 − 188 =
+−118` in its units, both negative before the correction and TT-move
+history terms, so `value < singularBeta − bar` holds whenever the
+exclusion search fails low: the donor's grading is not by the gap at
+all for that class. It grades by class: a quiet non-PV TT move that is
+singular takes three plies, a capture TT move two (three when the gap
+clears about 20 cp), a PV quiet move one (two at about 14 cp, three at 46).
+Where the donor spends its triples is therefore wherever its singular
+search fires on a quiet move off the PV, and its firing is governed by
+the margin alone: `(59 + 66·ttPv)·d/63` in its units, about 0.26 cp per
+ply here, so the exclusion search asks whether every other move is a
+hair worse than the table's, and the gap distribution at its firings is
+whatever the alternatives happen to score. The node's `depth++` then
+searches the siblings a ply deeper if the extended move fails low.
+Rarog's 21% triple rate came from its own positive quiet bar (its packet:
+"the three-ply bar is 16 or less"), not from the donor's.
+
+**What they do here.** Under a margin of 2 cp per ply (§7's seed,
+eight times the donor's) the firings are the strongly singular ones, and
+their gaps are large: read G (temporary counters at firings, defaults,
+depth 13; `gap_summary.json`) gives `s_beta − s_val` under 10 cp at 24%
+of firings, 10–30 at 22%, 30–60 at 17%, 60–120 at 16% and 120 or more at
+21%; half the firings have a capture TT move (70,008 of 139,667), 44% are
+`tt_pv` non-PV nodes, 1.7% PV nodes. With the donor's negative quiet
+bars every quiet firing is a triple and every capture firing with a gap
+above 20 cp is one: 98.3% (Return 2). Read S (the parts, one at a time,
+`sing_summary.json`, `wac_summary.json`):
+
+| Variant (Tune ON build, options) | Interior nodes, depth-13 read | Triples / fired | Budget truncations / fired | WAC depth 6 / 100k |
+|---|---:|---:|---:|---:|
+| S0 ticket 6's defaults | 58,788,438 | 98.3% | 76.7% | 103 / 217 |
+| S1 triple bars at their range tops (base 60, quiet 0, deep 0) | 6,261,283 | 77.8% | 42.1% | 97 / 216 |
+| S2 S1 and the double bars at their tops (base 40, quiet 0, deep 0) | 17,332,884 | 90.0% | 67.3% | 97 / 216 |
+| S3 negative extension off (`B3SingNegative=0`) | 84,096,359 | 99.1% | 79.7% | 103 / 210 |
+| S4 the budget off (`B3ExtBudget=0`) | 398,432,076 | 99.8% | — | 103 / 207 |
+| S5 the donor's margin (`B3SingMargin=17`) | 10,179,441 | 95.2% | 55.5% | 103 / 208 |
+| S6 S5 with S1's triple bars | 170,816,906 | 96.0% | 85.6% | — |
+| S7 Rarog's multi-cut rule (`B3MultiCut=1`) | 89,021,881 | 99.0% | 82.7% | 101 / 211 |
+| S10 the donor's bars with the quiet triple term dropped (`B3SingTripleQuiet=0`) | 9,171,009 | 91.9% | 52.2% | 102 / 220 |
+| S11 S10 and the quiet double term dropped | 9,775,841 | 92.1% | 55.0% | 102 / 220 |
+| S12 S11 and the double base at Basilisk's fitted 4 | 10,920,167 | 95.2% | 57.9% | 102 / 220 |
+
+Ticket 5's read is 2,470,896 interior nodes and the OFF arm's about
+8.0M (ticket 2's 2,967,802 at 0.37×). Readings: the negative quiet
+triple term alone is the 24×: dropping it (S10) brings the tree to 1.15×
+OFF's and the 100,000-node WAC up by 3; the tree is not monotone in the
+bars (S2 is larger than S1 with stricter doubles, DESIGN §5's chaos), so
+no bar is chosen by node count; the negative extension is load-bearing
+(S3 grows the tree and costs 7 at 100k); the donor's margin alone costs
+9 at 100k here (S5) and with graded triples explodes (S6, 171M), so §7's
+seed of 2 cp per ply stands; the budget is containing an explosion, not
+causing one (S4: 398M interior nodes without it, 68× ticket 5), which
+settles amendment 1's `B3ExtBudget` question in the budget's favour
+before any game; Rarog's multi-cut rule is worse here (S7). The rate of
+triples stays above 90% under S10 because the gaps are large: at this
+margin the third ply is earned by the gap on most firings, which is the
+donor's own logic, not a defect.
+
+**Seeds.** §7's rules give no seed for the quiet terms: the oracle has no
+graded extension and Basilisk no fitted triple, so rule 3 converted the
+donor's terms, which encode "quiet non-PV equals three plies" and explode
+this tree. Research decision, by read S' (`sing2_summary.json`; verdict
+rule frozen before it: admissible if under 4× ticket 5's nodes and
+within 5 of S1's 216 at 100k; among admissible candidates the one with
+the fewest terms changed from the donor, never the best WAC): the triple
+bar keeps the donor's base (20), PV (79), `tt_pv` (23) and deep (−12)
+terms and drops the quiet term (**`B3SingTripleQuiet` seed 0**, range
+−110..0 so B.3.3 can fit it back); every other bar term stays at §7's
+value, the double bar included (doubles by default off the PV, which
+Basilisk's own fitted 4-cp margin already gave, BAS-D11). S11 and S12
+change more for the same reads and are not taken. This is a §7 seed
+and the maintainer confirmed §7: the amendment recommends the change
+and the maintainer decides it (§7 of this amendment).
+
+### 2. The small TT ProbCut (question 2)
+
+**The donor's surroundings.** The donor stores a quiescence stand-pat
+cutoff at `DEPTH_UNSEARCHED` (−2) with `BOUND_LOWER`, a searched
+quiescence result at `DEPTH_QS` (0), and its rule reads
+`ttData.depth >= depth − 4`: a stand-pat entry can serve it only at depth
+1 and 2, a searched quiescence entry at depth up to 4, and an interior
+entry otherwise. Basilisk stores its stand-pat cutoff at depth 0
+(`search_kernel_core.cpp`, the `tt_store(hash, 0, stand_pat, TT_BETA, …)`
+line), so a static evaluation alone can serve the rule at depth 3 and
+4. The record's "search-proven entries only: 106/225" says that is not
+the main cost, and "not in check: 132/237" says the in-check application
+is; both are read at the seed margin of 121.
+
+**What decides it here.** Read W's last row: with the margin at its
+range top, 240, beside S1's bars, the arm reads **108 / 233** against
+S1's 97 / 216, and the record's "widest coordinates" row (240 with the
+depth margin 2) read 141 / 234. The cost is the margin, 428 × 0.282 =
+121 cp: at that margin a lower bound four plies shallower cuts far more
+nodes here (3.99% of interior at ticket 6) than the donor's rule cuts in
+its own tree, and the lost positions are tactical. The donor's eval units
+convert at 0.282 on the per-position median and 0.26–0.37 by phase (B.0
+§2.4); a margin on a TT bound is a comparison of two search values, not
+of two static evaluations, and the conversion may not apply to it at
+all.
+
+**Decision: the mechanism stays in the arm behind `B3ProbCutTt` (1 on,
+0 off), default 0, read by games in B.3.2 directly after §9's item 5;
+its switched-on form carries the margin at 240 (range 100..400) and the
+donor's in-check application.** Off by default because every local read
+of it is a tactical cost (−38/−18 at the seed, and the proposed arm with
+it at 240 still sits at the floor's edge, read P: 229 at 100k against
+233 without the quiet-bar change), because the donor's rule here reads
+entries the donor's own stores would not serve it (the stand-pat depth),
+and because the margin's conversion rests on an evaluation-unit factor
+that a comparison of two search bounds may not obey; its prior is small
+(+6.4 alone in Rarog, declined there). The seed 240 for the on-form is
+the one setting that held the floor, flagged as floor-driven: the sweep
+and B.3.3 fit it over the range if the paired run adopts the switch.
+Evidence that would change the choice: `B3ProbCutTt` 1 against 0 at or
+above +5 adopts it (and widens the range down for the fit); at or below
+−5 it leaves until B.4 realigns the quiescence stores. B.4.0 inherits
+the note on stand-pat store depth (−2 against 0).
+
+### 3. The null move at bench position 11 (question 3)
+
+Read N on the ticket-3 arm (`nmp_pos11_t3.json`, `nmp_pos11_t3_base.json`;
+the ticket-6 arm's reads in `nmp_pos11.json` are dominated by the singular
+explosion and are not used): bench position 11, `go depth 13` and `15`,
+Hash 64, one process each, OFF 431,430 / 1,363,091.
+
+| Setting on the ticket-3 Tune ON build | Depth 13 | Depth 15 |
+|---|---:|---:|
+| defaults | 8,260,302 | 26,065,865 |
+| N1 every null-move coordinate at its legacy value (any non-PV node, same-ply verification at depth 10, margin `beta − 2d + 50` (the floors of the ranges), R `3 + d/4 + (Δ/192)`, beta floor −2000) | 637,576 | 3,744,714 |
+| N2 any non-PV node (`B3NmpCutOnly=0`) | 1,077,697 | 11,096,013 |
+| N3 the margin alone at the floors (`beta − 2d + 50`) | 584,978 | 6,511,939 |
+| N4 the legacy R alone | 1,712,263 | 8,862,522 |
+| N5 N1 but cut nodes only | 2,092,322 | 11,354,853 |
+| N6 the base at its floor (`beta − 16d − 16i + 50`) | 3,145,702 | 17,163,504 |
+| N8 the base at 100 | 3,352,196 | 15,245,588 |
+
+Verdict rule, frozen before the run: N1 within 1.5× of OFF says the
+donor's population, margin and reduction together are the cost and no
+single coordinate carries it; above 3× says the ON block differs beyond
+its settings. N1 reads 1.48× at depth 13 and 2.75× at depth 15: the
+form as a whole, with the residual in what no option reaches (the
+TT-refined `eval ≥ beta` gate, the null child's type, the eval term's
+cap of 3). The margin is the largest part (N3 against defaults, 14× at
+depth 13), and its shape is what matters: a margin that is permissive at
+depth and restrictive at shallow depth (the donor's and the oracle's:
+`151 − 16d` is +103 at depth 3 and −57 at depth 13) is five times the
+tree of a flat margin near beta (N6 against N3) on this position. At
+shallow depth the donor's margin asks for a static eval about a pawn
+above beta before a null move, because its reverse futility already cuts
+from 48 cp above beta at depth 3 (`min(45 + 4d, 85)·d` less the
+improving term, converted); Basilisk's fitted RFP cuts from 205–303 cp
+above beta at depth 3 (`101·d − 98·improving`), so on the ON arm the band
+between the two margins, which the legacy null move covered at every
+non-PV node, is searched in full. Position 11 is a won middlegame whose
+proof runs through exactly that band, and the OFF arm's legacy null move
+collapses it; the ON arm searches it. This is a property of the pair, not
+of the null move alone, and not something a later ticket absorbs (ticket
+5 read 30.5M there).
+
+**Decision.** Three things, none a change of population:
+- `CoreRfpPerPly`, `CoreRfpImproving` and `CoreRfpDepthCap` join B.3.3's
+  surface by §5.12's rule, on this evidence; §5.3's exemption is
+  withdrawn. The hand-off band between RFP and NMP is a joint property,
+  and the fit must see both ends.
+- The oracle's own gate goes beside the oracle's constants as a
+  categorical, **`B3NmpEvalGate`** (1: the null move also requires the
+  TT-refined `eval ≥ beta`, the oracle's and the legacy kernel's gate; 0:
+  the donor's form), **default 1**: the record read the gate at 10.7M
+  against 26.1M at depth 15, the seed rule took the oracle's constants
+  (B.0 §7.2 rule 2) and the oracle never ran them without that gate. The
+  default is a change to the ON arm's form the maintainer has not
+  confirmed: the amendment recommends it (§7).
+- The deep-iteration cost screen is re-scoped to what it was registered
+  for, an explosion at deep iterations: on each position the rule reads
+  the growth of cumulative nodes from depth 16 to 19 on the ON arm
+  against the OFF arm's growth over the same depths, geometric mean of
+  the per-depth growth ratios **≤ 1.5**, plus the ON arm finishing every
+  depth the OFF arm finishes within the watchdog; the absolute ratio is
+  recorded, not judged. A position where the ON arm's tree exceeds the
+  OFF arm's from depth 7 (position 11 from ticket 3) is a shape finding
+  for the paired run and the fit, not an explosion. This re-registration
+  is made before the screen is re-run; the screen needs an idle host and
+  was not run here.
+
+### 4. The floors (question 4)
+
+With §1's seed and the small ProbCut at its range top (read P,
+`proposed_summary.json`; the switch of §2 and the gate of §3 cannot be
+set on ticket 6's build): P1 (`B3SingTripleQuiet=0`,
+`B3ProbCutTtMargin=240`) reads **110 / 229** at depth 6 and
+100,000 nodes, interior nodes 6,575,559 on the depth-13 read (0.82× the
+OFF arm's); read W's S1 bars with the same margin read 108 / 233. With
+the small ProbCut off, the record's ticket-5 read is 147 / 245, and the
+singular ticket under §1's seed costs about 7 at 100k on top of ticket
+5's 227 (S10 220), so the resumed arm is expected at about **235 ± 5** at
+100,000 nodes and 100–115 at depth 6; the gate read of ticket 3 had no
+WAC leg and is read at ticket 10. Against the floors:
+
+- **100,000 nodes, 232 (240 − 8): stands and binds.** It is the fixed-node
+  tactical floor, the one instrument B.0 §2.6 and BAS-D11 showed to be
+  robust to the depth-for-width trade, and the ON arm reads it. A read
+  under 232 at ticket 10 returns the leaf.
+- **Depth 6, 175: re-based on the ON arm** under B.2.1 Amendment 2's rule
+  (research decides the ON arm's depth-6 floor with both numbers in hand).
+  The fixed-depth count is not comparable across the arms: the ON arm
+  turns nodes into depth (B.0 §2.6: extensions off took the median
+  completed depth at 100,000 nodes from 10 to 14 on both engines), so its
+  depth-6 tree is a different budget. The ON arm's `test_wac --floor`
+  is re-registered at ticket 10 from its own count less 13, the headroom
+  the OFF floor was calibrated with (188 → 175), and from then on guards
+  the ON arm's own drift. The OFF arm's 175 is untouched.
+
+### 5. Whether the cluster as contracted still fits (question 5)
+
+It fits with three pairs re-matched, and it does not return as a whole:
+the contents, the order and the switches stand, the OFF arm is exact at
+every commit, and the reads above locate each cost in a seed or a gate,
+not in a mechanism. **B.3.1 is `READY_FOR_IMPLEMENTATION` on this
+amendment once the maintainer takes the two decisions of §7**; the leaf
+stays returned until then. What resumes:
+
+- Ticket 5 is amended in place: the `B3ProbCutTt` switch added, default
+  0; `B3ProbCutTtMargin` seed 240, range 100..400, for its on-form.
+- Ticket 3 is amended in place: `B3NmpEvalGate` (default 1 if confirmed).
+- Ticket 6 is re-done on §1's seed: `B3SingTripleQuiet` seed 0; everything
+  else as built. Its end reads P8b (§6) and the arm's WAC at 100,000
+  nodes ≥ 232.
+- Then tickets 7–10 as §10, with the per-ticket counter tables, the
+  cost screen as re-scoped (idle host), and ticket 10's depth-6 floor
+  re-based.
+
+The condition for resuming: the maintainer's two decisions. The
+condition for passing ticket 6: the interior nodes of the depth-13 read
+within 2× the OFF arm's (about 16M) and WAC at 100,000 nodes ≥ 232 with
+§2's default; outside either, the leaf returns with the counters and no
+further seed is moved by hand. The 100k read is expected near the floor
+(§4), so a return there is a real possibility and is the method working:
+the next lever is then the paired run of the whole arm, which the floors
+exist to protect, not a further seed.
+
+### 6. P8a, P1 and the clauses this amendment changes (question 6)
+
+**P8a** is frozen and is not edited. Calibration, to be copied into
+BAS-S41: *"P8a was falsified at ticket 6 on 2026-10-30 (76.7% at depth
+13, 82.4% and 96.6% at depth 20). Its band [0.5%, 10%] came from one read
+on the legacy extension (1.22%) and ignored the prior the same amendment
+cited: Rarog's budget truncated 44,914 extensions at bench 13, about half
+of its extensions. Second miss of the same kind as P8's; confidence
+(moderate) was over-calibrated and should have been low."* **P8b**, frozen
+here for ticket 6 on §1's seed: on the 40 bench positions at depth 13,
+`ext_budget_bound / sing_fired` in **[25%, 70%]** (S10 read 52%, S1 42%,
+Rarog about 49%); at depth 20 on bench positions 11 and 15 the share is
+recorded, not judged; the binding tests are §5's node bound, the 100k
+floor and the re-scoped screen. Above 70% at depth 13 says the bars are
+mis-scaled again and returns the leaf.
+
+**P1's ablation note** (clerical, the frozen text stands): "the singular
+margin at 378 (today's 4/ply)" should read "at 252 (today's 4 cp per
+ply; 378 is 6 per ply, the range top)". The ablation order is unchanged.
+
+**Clauses replaced** (old → new; the originals stand as written):
+- §7 "Triple margin: base, PV, `!ttCapture`, ttPv, deep … 20, 79, −53, 23,
+  −12" → "20, 79, **0**, 23, −12; the quiet term's range −110..0"
+  (maintainer decision, §7 below).
+- §7 "Small TT ProbCut … **121, 4**" → "off by default (`B3ProbCutTt`
+  0); **240**, 4 for the on-form, range 100..400".
+- §9 item 8's neighbourhood gains `B3ProbCutTt` (1/0, default 0) and
+  `B3NmpEvalGate` (1/0, default 1 if confirmed), both read by paired runs
+  after item 5; item 13 (`B3ExtBudget`) is settled by S4 before any game:
+  the budget stays, and its paired run is dropped.
+- §5.3 "RFP's coordinates stay off B.3.3's surface unless 5.12's rule
+  pulls `CoreRfpCorrMult` in" → "`CoreRfpPerPly`, `CoreRfpImproving` and
+  `CoreRfpDepthCap` join the surface (amendment 2 §3)".
+- §5.12's candidate list gains those three.
+- §10 ticket 3 → the gate; ticket 5 → the margin and switch; ticket 6 →
+  the seed; the cheap qualification's cost screen → the re-scoped rule;
+  ticket 10's `--floor` → re-based on the ON arm (§4).
+- §11 P6 "WAC at 100,000 nodes in [232, 262]; the depth-6 count ≥ 175" is
+  frozen; calibration note: the depth-6 leg is retired by §4 (the floor is
+  re-based), the 100k leg stands.
+- Amendment 1 §4's P8a → §6 above; amendment 1 §5's fingerprint rule for
+  ticket 6 → unchanged in form, the ON fingerprint re-recorded on the new
+  seed.
+
+### 7. Two decisions for the maintainer
+
+Both change something the maintainer confirmed, so neither is taken here:
+
+1. **The quiet triple term seeded at 0** instead of the donor's converted
+   −53 (§1). Recommended. The alternative, keeping −53, leaves every
+   quiet firing a triple and the tree at 7× the OFF arm's (ticket 6 as
+   built), which fails every floor; the fit could not rescue it from there.
+2. **The oracle's `eval ≥ beta` gate on the null move by default** (§3).
+   Recommended. The alternative, the donor's bare form as default with
+   the gate as a categorical at 0, keeps the ON arm closer to the donor
+   and reads the gate by games either way; it leaves position 11's tree
+   at about 2× what the gate gives until the fit moves RFP and the margin
+   together.
+
+The small ProbCut's margin (§2) and the surface additions (§3) are
+research's own and are decided here.

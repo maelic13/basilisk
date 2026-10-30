@@ -780,6 +780,16 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         83-97% at depth 20, because every quiet non-PV firing extends
         three plies; tickets 0-6 committed (`13cdda0`), OFF arm
         16,615,757; WAC floors and the bench-11 cost screen also fail.
+      - Research amendment 2, 2026-10-30 (packet): each failed floor
+        traced to a seed taken without its partner; the quiet triple
+        term is the 24x (dropping it reads 1.15x the OFF tree), the
+        small ProbCut's margin 121 the WAC loss (240 holds the floor),
+        the null move's margin a hand-off band against Cluster 1's
+        RFP (three RFP coordinates join the surface; the oracle's
+        eval gate proposed as default); P8a scored a miss, P8b
+        registered; the depth-6 floor re-based on the ON arm, the
+        100k floor 232 binding. Resumes once the maintainer decides
+        the two seeds of amendment 2 §7.
     - [ ] **B.3.2** `[V]` Diagnostics and the unfitted paired run
       Packet §11, BAS-S41: the zero-game screens on both arms (counters,
       the oracle differential, WAC, the crossover band, the canary
@@ -1160,7 +1170,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.1 | RESEARCH | I2 | Returned at ticket 6 (packet *Return 2*: every singular firing a triple, P8a outside its band); resumes on research amendment 2 |
+| B.3.1 | RESEARCH | I2 | Research amendment 2 written; resumes `READY_FOR_IMPLEMENTATION` on the maintainer's two seed decisions (packet amendment 2 §7) |
 | B.3.2 | RESEARCH | V | Waits for B.3.1's accepted review |
 | B.3.3 | RESEARCH | V | Waits for B.3.2 |
 | B.3.4 | RESEARCH | V | Waits for B.3.3 |
