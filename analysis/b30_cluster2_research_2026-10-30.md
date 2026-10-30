@@ -2066,3 +2066,29 @@ Both change something the maintainer confirmed, so neither is taken here:
 
 The small ProbCut's margin (§2) and the surface additions (§3) are
 research's own and are decided here.
+
+**Maintainer decisions, 2026-10-30, after the amendment:**
+
+1. **Taken, with a read added.** `B3SingTripleQuiet` is seeded at 0 and
+   is an SPSA coordinate (range −110..0). The maintainer asked whether a
+   seed this far from the donor's means the implementation or an
+   interaction is wrong. Read S5 answers it: the donor's bars with the
+   donor's margin (17) read 10.2M interior nodes, 1.3× the OFF arm, so
+   the implementation of the bars behaves as the donor's when given the
+   donor's pair; the 24× came from pairing the donor's bars with §7's
+   margin of 2 cp per ply (B.0 §7.2's rule-2 seed), eight times the
+   donor's — the researcher's pairing error, of the same kind as §3's.
+   The donor's whole pair (margin 17 with the quiet term at −53) joins
+   B.3.3's curvature sweep as a registered point beside the margin's
+   extra point, so the fit starts from both pairs; it is not the seed
+   because it reads about 208 at 100,000 nodes (about 226 with the small
+   ProbCut off) against the registered floor of 232, and a floor is not
+   waived by research after a read.
+2. **Not taken; the donor's form stays the default.** `B3NmpEvalGate`
+   defaults to 0 (the donor's bare null move) and is a categorical read
+   by one 2,000-game paired run in B.3.2 before the sweep, as every
+   categorical is. The cost accepted: bench position 11's tree at about
+   twice the gated form's until the fit moves the RFP coordinates and the
+   margin together, which the re-scoped screen tolerates.
+
+B.3.1 resumes `READY_FOR_IMPLEMENTATION` on these two decisions.

@@ -788,8 +788,10 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         RFP (three RFP coordinates join the surface; the oracle's
         eval gate proposed as default); P8a scored a miss, P8b
         registered; the depth-6 floor re-based on the ON arm, the
-        100k floor 232 binding. Resumes once the maintainer decides
-        the two seeds of amendment 2 §7.
+        100k floor 232 binding. Maintainer decisions the same day:
+        the quiet triple term seeded at 0 (the donor's pair a sweep
+        point), the null-move gate a categorical with the donor's form
+        as default. Resumes at tickets 3, 5 and 6 as amended.
     - [ ] **B.3.2** `[V]` Diagnostics and the unfitted paired run
       Packet §11, BAS-S41: the zero-game screens on both arms (counters,
       the oracle differential, WAC, the crossover band, the canary
@@ -1170,7 +1172,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.1 | RESEARCH | I2 | Research amendment 2 written; resumes `READY_FOR_IMPLEMENTATION` on the maintainer's two seed decisions (packet amendment 2 §7) |
+| B.3.1 | READY_FOR_IMPLEMENTATION | I2 | Resumes on research amendment 2 (packet) with the maintainer's decisions of its §7: tickets 3, 5 and 6 amended, then 7–10 |
 | B.3.2 | RESEARCH | V | Waits for B.3.1's accepted review |
 | B.3.3 | RESEARCH | V | Waits for B.3.2 |
 | B.3.4 | RESEARCH | V | Waits for B.3.3 |
