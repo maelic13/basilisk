@@ -207,6 +207,10 @@ private:
     // and whole-table lifecycle live in CoreHistoryTables, the update policy
     // (bonus shapes, what a cutoff trains) in search_history_core.cpp.
     CoreHistoryTables hist_;
+    // True from a clear until the next search starts, when Cluster 2's arm
+    // fills the fresh tables with the donor's values if CoreHistoryFills asks
+    // (the option is read from the search's own parameters).
+    bool hist_fresh_ = true;
     // Pawn-history buckets in use, as an index mask (set per search).
     Key pawn_hist_mask_ = PawnHistory::MAX_BUCKETS - 1;
 

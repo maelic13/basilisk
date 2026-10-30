@@ -127,8 +127,11 @@ struct CoreHistoryTables {
 
     CoreHistoryTables();
 
-    // Every entry to zero (ucinewgame).
-    void clear();
+    // Every entry to zero (ucinewgame), or with donor_fills to sf_19's fresh
+    // values (Worker::clear: main -5, capture -742, pawn -1338, continuation
+    // -586, structural correction -5, continuation correction +5); the
+    // low-ply and TT-move histories clear to zero either way.
+    void clear(bool donor_fills = false);
     // Between searches: the main history keeps main_num/1024 of each entry and
     // the low-ply history restarts at LOW_PLY_REFILL; nothing else ages.
     void age(int main_num);

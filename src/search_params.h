@@ -275,6 +275,12 @@
 //   the legacy relaxation of a singular node's quiet reductions.
 //   b3_ext_budget: 1 bounds a line's positive singular plies by the root
 //   depth; 0 leaves them unbounded.
+//
+// Correction: b3_corr_decisive: 1 trains the correction on decisive scores;
+//   0 refuses them (the legacy rule). b3_corr_excluded: 1 trains it at
+//   singular-excluded nodes; 0 refuses them. core_history_fills: 1 fills
+//   fresh history tables with the donor's values at the first search after a
+//   clear; 0 leaves them at zero.
 #define BASILISK_B3_PARAMS(X, F, S)                                   \
     S(b3_check_ext,          B3CheckExt,             0,    0,     1)     \
     S(b3_check_prune,        B3CheckPrune,           1,    0,     1)     \
@@ -330,7 +336,11 @@
     S(b3_multi_cut,          B3MultiCut,             0,    0,     1)     \
     S(b3_sing_tt_depth,      B3SingTtDepth,          0,    0,     1)     \
     S(b3_singular_quiet_lmr, B3SingularQuietLmr,     0,    0,     1)     \
-    S(b3_ext_budget,         B3ExtBudget,            1,    0,     1)
+    S(b3_ext_budget,         B3ExtBudget,            1,    0,     1)     \
+    /* Correction and the fresh tables */                                \
+    S(b3_corr_decisive,      B3CorrDecisive,         1,    0,     1)     \
+    S(b3_corr_excluded,      B3CorrExcluded,         1,    0,     1)     \
+    S(core_history_fills,    CoreHistoryFills,       0,    0,     1)
 
 #define BASILISK_KERNEL_PARAMS(X) BASILISK_CORE_KERNEL_PARAMS(X, X)
 #define BASILISK_KERNEL_SWITCHES(S) BASILISK_CORE_KERNEL_SWITCHES(S)

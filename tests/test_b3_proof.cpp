@@ -158,7 +158,8 @@ struct Run {
     std::map<std::string, long long> diag;
 };
 
-static Run search(const std::string& fen, int depth, int ext_budget_cap = 0) {
+static Run search(const std::string& fen, int depth, int ext_budget_cap = 0,
+                  void (*set)(SearchParams&) = nullptr) {
     TranspositionTable tt(16);
     std::atomic_bool stop{false};
     Run run;
@@ -177,6 +178,8 @@ static Run search(const std::string& fen, int depth, int ext_budget_cap = 0) {
     lim.depth = depth;
     lim.diag = true;
     lim.ext_budget_cap = ext_budget_cap;
+    if (set)
+        set(lim.params);
     run.result = searcher->search(b, lim);
     return run;
 }
@@ -245,6 +248,62 @@ static void test_follow_pv_in_search() {
     end_section();
 }
 
+// ---- Correction and the fresh tables (ticket 7) ----------------------------
+
+// The donor's fills land in every table they name; the default clear leaves
+// every entry at zero.
+static void test_history_fill_values() {
+    auto t = std::make_unique<CoreHistoryTables>();
+    begin_section("fills: clear(true) writes the donor's values, clear() zero");
+    t->clear(true);
+    EXPECT_EQ(int(t->main.entry[WHITE][0][1]), -5);
+    EXPECT_EQ(int(t->capture.entry[0][0][0]), -742);
+    EXPECT_EQ(int(t->continuation->row[1][1][KNIGHT][20].entry[QUEEN][63]), -586);
+    EXPECT_EQ(int(t->pawn->bucket[0].entry[0][0]), -1338);
+    EXPECT_EQ(int(t->pawn_corr[BLACK][7]), -5);
+    EXPECT_EQ(int(t->minor_corr[WHITE][9]), -5);
+    EXPECT_EQ(int(t->nonpawn_corr[WHITE][BLACK][11]), -5);
+    EXPECT_EQ(int(t->cont_corr->row[ROOK][5].entry[PAWN][40]), 5);
+    EXPECT_EQ(int(t->low_ply.entry[0][0][0]), 0);
+    EXPECT_EQ(t->tt_move.value, 0);
+    t->clear();
+    EXPECT_EQ(int(t->main.entry[WHITE][0][1]), 0);
+    EXPECT_EQ(int(t->capture.entry[0][0][0]), 0);
+    EXPECT_EQ(int(t->continuation->row[1][1][KNIGHT][20].entry[QUEEN][63]), 0);
+    EXPECT_EQ(int(t->pawn->bucket[0].entry[0][0]), 0);
+    EXPECT_EQ(int(t->pawn_corr[BLACK][7]), 0);
+    EXPECT_EQ(int(t->cont_corr->row[ROOK][5].entry[PAWN][40]), 0);
+    end_section();
+}
+
+// Each switch moves the tree on the B3_PROOF arm and nothing on the OFF arm:
+// the fills from the first search, decisive training in a won ending, and
+// training under exclusion in a middlegame where singular searches run.
+static void test_correction_switches_live() {
+    const std::string kqk = "8/8/8/4k3/8/8/8/4K2Q w - - 0 1";
+    const std::string mid(bench_fens()[1]);
+    const long long fills0 = search(mid, 10).result.nodes;
+    const long long fills1 = search(mid, 10, 0, [](SearchParams& p) {
+        p.core_history_fills = 1; }).result.nodes;
+    const long long dec1 = search(kqk, 14).result.nodes;
+    const long long dec0 = search(kqk, 14, 0, [](SearchParams& p) {
+        p.b3_corr_decisive = 0; }).result.nodes;
+    const long long exc1 = search(mid, 12).result.nodes;
+    const long long exc0 = search(mid, 12, 0, [](SearchParams& p) {
+        p.b3_corr_excluded = 0; }).result.nodes;
+    begin_section("correction: CoreHistoryFills, B3CorrDecisive, B3CorrExcluded move the ON arm only");
+    if constexpr (kB3Proof) {
+        EXPECT(fills0 != fills1);
+        EXPECT(dec0 != dec1);
+        EXPECT(exc0 != exc1);
+    } else {
+        EXPECT_EQ(fills0, fills1);
+        EXPECT_EQ(dec0, dec1);
+        EXPECT_EQ(exc0, exc1);
+    }
+    end_section();
+}
+
 int main() {
     init_bitboards();
     init_attacks();
@@ -263,6 +322,8 @@ int main() {
     test_multicut_and_negative();
     test_shuffling_truth_table();
     test_seek_mate_gate();
+    test_history_fill_values();
+    test_correction_switches_live();
 
     return harness_summary();
 }
