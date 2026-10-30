@@ -70,6 +70,30 @@ class SurfaceTests(unittest.TestCase):
         self.assertTrue(all(name.startswith("Core") for name in generated))
         self.assertFalse(set(generated) & {"NullBase", "ProbCutMargin", "LmrSingularQuiet"})
 
+    def test_b3_table_is_its_own_surface(self):
+        text = (
+            "#define BASILISK_CORE_KERNEL_PARAMS(X, F) \\\n"
+            "    X(b_field, Beta, 5, 0, 10)\n"
+            "#define BASILISK_B3_PARAMS(X, F, S) \\\n"
+            "    S(s_field, Sigma, 1, 0, 1) \\\n"
+            "    X(t_field, Tau, 5, 0, 10) \\\n"
+            "    F(u_field, Upsilon, 5, 0, 10)\n"
+            "#define BASILISK_ROOT_PARAMS(X) \\\n"
+            "    X(c_field, Gamma, 5, 0, 10)\n"
+        )
+        self.assertEqual([item[0] for item in surface.parse_parameters(text)], ["Gamma"])
+        self.assertEqual([item[0] for item in surface.parse_parameters(text, core=True)], ["Beta"])
+        self.assertEqual([item[0] for item in surface.parse_parameters(text, b3=True)], ["Tau"])
+
+    def test_b3_surface_is_the_clusters_coordinates(self):
+        text = surface.HEADER.read_text(encoding="utf-8")
+        parameters = surface.parse_parameters(text, b3=True)
+        generated = json.loads(surface.B3_CONFIG.read_text(encoding="utf-8"))
+        self.assertEqual([item[0] for item in parameters], list(generated))
+        self.assertTrue(all(name.startswith("B3") for name in generated))
+        # F lines and switches stay off it.
+        self.assertFalse(set(generated) & {"B3NmpBetaFloor", "B3NmpVerify", "B3CheckExt"})
+
     def test_steps_are_half_up_range_sixteenths_with_floor(self):
         self.assertEqual(surface.perturbation(0, 40), 3)
         self.assertEqual(surface.perturbation(0, 24), 2)

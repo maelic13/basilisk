@@ -29,6 +29,10 @@ RUN = COLOSSEUM / "search.run.toml"
 # cluster's). Its tune runs on the shared run file with --tune pointing here.
 CORE_CONFIG = ROOT / "tools" / "spsa_configs" / "config_core.json"
 CORE_TUNE = COLOSSEUM / "core.tune.toml"
+# The B3_PROOF arm's own surface (Cluster 2): its table's X lines alone, on
+# the same run file. Neither the default nor the core surface carries them.
+B3_CONFIG = ROOT / "tools" / "spsa_configs" / "config_b3.json"
+B3_TUNE = COLOSSEUM / "b3.tune.toml"
 PARAM_RE = re.compile(
     r"^\s*X\(\s*[a-z][a-z0-9_]*\s*,\s*([A-Za-z][A-Za-z0-9]*)\s*,"
     r"\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(-?\d+)\s*\)"
@@ -39,22 +43,31 @@ PARAM_RE = re.compile(
 # advertises but no tune fits, so, like S lines, they are never on a surface
 # (only X lines match PARAM_RE).
 CORE_TABLE = "#define BASILISK_CORE_KERNEL_PARAMS("
+B3_TABLE = "#define BASILISK_B3_PARAMS("
+TABLES = (CORE_TABLE, B3_TABLE)
+
+
+def split_tables(text: str) -> dict[str, list[str]]:
+    """The header's lines by table: each arm table's own, and the rest."""
+    out: dict[str, list[str]] = {"default": [], **{table: [] for table in TABLES}}
+    current = None
+    for line in text.splitlines():
+        if current is None:
+            current = next((t for t in TABLES if line.startswith(t)), None)
+        out[current or "default"].append(line)
+        if current is not None and not line.rstrip().endswith("\\"):
+            current = None
+    return out
 
 
 def split_arm_lines(text: str) -> tuple[list[str], list[str]]:
-    """The header's lines outside the core table, and the core table's own."""
-    default, core = [], []
-    in_core = False
-    for line in text.splitlines():
-        if line.startswith(CORE_TABLE):
-            in_core = True
-        if not in_core:
-            default.append(line)
-        else:
-            core.append(line)
-            if not line.rstrip().endswith("\\"):
-                in_core = False
-    return default, core
+    """The header's lines outside the arm tables, and the core table's own."""
+    tables = split_tables(text)
+    return tables["default"], tables[CORE_TABLE]
+
+
+def b3_arm_lines(text: str) -> list[str]:
+    return split_tables(text)[B3_TABLE]
 
 
 def default_arm_lines(text: str) -> list[str]:
@@ -65,10 +78,13 @@ def core_arm_lines(text: str) -> list[str]:
     return split_arm_lines(text)[1]
 
 
-def parse_parameters(text: str, core: bool = False) -> list[tuple[str, int, int, int]]:
+def parse_parameters(text: str, core: bool = False,
+                     b3: bool = False) -> list[tuple[str, int, int, int]]:
     parameters = []
     seen = set()
-    for line in (core_arm_lines(text) if core else default_arm_lines(text)):
+    lines = (b3_arm_lines(text) if b3 else core_arm_lines(text) if core
+             else default_arm_lines(text))
+    for line in lines:
         match = PARAM_RE.match(line)
         if not match:
             continue
@@ -142,10 +158,12 @@ option = ["Hash=64", "Threads=1"]
 
 
 def render_all(text: str, iterations: int) -> dict[pathlib.Path, str]:
-    """The default arm's surface and run file, and the core arm's surface."""
+    """The default arm's surface and run file, the core arm's and the B3 arm's."""
     outputs = render(parse_parameters(text), iterations)
     outputs.update(render(parse_parameters(text, core=True), iterations,
                           config=CORE_CONFIG, tune=CORE_TUNE, run=None))
+    outputs.update(render(parse_parameters(text, b3=True), iterations,
+                          config=B3_CONFIG, tune=B3_TUNE, run=None))
     return outputs
 
 
@@ -173,8 +191,9 @@ def main() -> int:
             print(f"stale or missing: {path}", file=sys.stderr)
         if stale:
             return 1
-        print(f"{len(outputs)} generated files current ({len(parse_parameters(text))} default-arm "
-              f"and {len(parse_parameters(text, core=True))} core-arm parameters)")
+        print(f"{len(outputs)} generated files current ({len(parse_parameters(text))} default-arm, "
+              f"{len(parse_parameters(text, core=True))} core-arm and "
+              f"{len(parse_parameters(text, b3=True))} B3-arm parameters)")
         return 0
     COLOSSEUM.mkdir(parents=True, exist_ok=True)
     for path, content in outputs.items():
