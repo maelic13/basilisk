@@ -1,8 +1,8 @@
-# Basilisk plan — closed steps A.8–A.17
+# Basilisk plan — closed steps A.8–A.17, B.0–B.2 and B.10
 
 Moved verbatim out of `docs/PLAN.md` on 2026-10-30, when A.17 closed Phase
-A, as A.8.4 moved A.1–A.7 (PLAN keeps open work). PLAN citations of
-A.8–A.17 resolve here. This is a record: never take a next step from it.
+A, as A.8.4 moved A.1–A.7 (PLAN keeps open work). PLAN citations of these
+steps resolve here. This is a record: never take a next step from it.
 
 ## Phase A — Reset: documents, harness, instruments, baselines (closed)
 
@@ -1910,6 +1910,14 @@ A.8–A.17 resolve here. This is a record: never take a next step from it.
     interval, so it is kept. The slots' Phase C owners build the donor's
     forms (C.3, C.4, C.5.3); until then their parameters stay at 0 and an
     eval file cannot set them.
+  - Amended 2026-10-30 at the maintainer's review: the thirteen slots are
+    removed too, with the loader's guard and the tuner's `hanging` and
+    `winnable` groups. They were kept only so a failed read could be
+    reverted in one commit, and BAS-P25 kept the deletion. Verified:
+    `bench 13` 19,470,325; CTest 24/24; the TUNE and TEXEL flavors build;
+    a dumped parameter file (1,159 slots) loads and benches exact, and one
+    naming `HangPen` is refused as unknown; `--audit-coverage` reads texel
+    1,093, kingsafety 52, material 10.
 - [x] **A.17** `[R2]` Instruction-specific speed for the avx2 and pext tiers
   Added 2026-10-29 at the maintainer's request, after A.15 shipped the
   universal binary. The tier ladder (BAS-P20) reads `avx2` +5.04% over the
@@ -1998,3 +2006,471 @@ A.8–A.17 resolve here. This is a record: never take a next step from it.
     PST are summed from scratch over every piece (1.37%); both could be
     cached or kept incrementally. The comments calling the imbalance and
     the small positional terms "seeded inert" are stale: both are fitted.
+
+## Phase B — Search programme (closed leaves)
+
+- [x] **B.0** Search programme investigation
+  Investigation (`R3`): the Basilisk-versus-Stockfish mechanism map, cluster
+  contents, scale ratio and seed rule, survivors, SPSA surfaces, B.2.2's
+  registered screen numbers, frozen B.2 predictions and handoffs for B.1–B.3.
+  No engine source changes.
+  **Research delivered 2026-10-06:** `analysis/search_programme_2026-10-06.md`
+  ends `READY_FOR_IMPLEMENTATION` for B.1 and B.2, B.3 contingent on the
+  accepted B.2 head, with the donor pinned at Stockfish `sf_19` (`edb0d9db`).
+  Measured on the 1.10.1 head (BAS-D20, BAS-D21): per-ply growth equals the
+  oracle's (1.767 against 1.757) but the tree is a constant ×4 from depth 4
+  on; with the shallow move-loop pruning family removed on both matched
+  ablation builds the trees are equal at depth 4, so that family carries the
+  multiplier (oracle 4.5× of selectivity against Basilisk's 2.2×); Basilisk's
+  razoring costs 51 WAC positions at 100k nodes and its LMR 15, where the
+  oracle's cost none; the evaluation scale is 0.282 of Stockfish 19's and
+  0.557 of the oracle's with a residual over half its own magnitude, so the
+  oracle column seeds every evaluation-unit constant. Phase 5's "width is a
+  symptom" premise stays refuted; the check policy is not the differential
+  (both extension families cost 1.9× nodes for no fixed-node tactics) and
+  stays B.3's. Retry triggers recorded: BAS-S07/S10 fire at B.2, BAS-S08/S09/
+  S11 at B.3, BAS-S12 not fired. Two cheap maintainer-run game tests were
+  registered and spawned below; neither blocks B.1, and B.0 closes when both
+  have been read into the packet's calibration.
+  — CLOSED 2026-10-08: both read into packet §11, inside their 80%
+  intervals; no falsifier fired, the cluster order and P2 stand.
+  The deliverable covers:
+  1. The donor revisions pinned.
+  2. Zero-game measurements on the 1.10.1 head, with the A.5 instruments:
+     - the branching profile and the depth reached at 300k nodes;
+     - WAC at fixed nodes;
+     - stride-1 counters, including the share of LMR reductions that land in
+       qsearch, the re-search rate after reduced fail-highs, NMP conversion,
+       the qsearch share, the check-extension population (BAS-S16 measured
+       15.84% of interior nodes) and history-pruning activity (last measured
+       near-dead).
+  3. The scale ratios and the three-column seed rule.
+  4. The mechanism map, per area: node entry (draw value, upcoming
+     repetition as BAS-S12's retry, mate distance); TT; static eval and
+     correction; node-level pruning; singular and extensions, including
+     Basilisk's check extension; the picker and histories, including whether
+     killers go; move-loop pruning and LMR; plus qsearch, root and time as
+     boundaries.
+  5. The interaction map and shared signals.
+  6. Cluster contents confirmed or changed, and the board producers the
+     clusters need.
+  7. Survivors with local evidence (operating rule 4).
+  8. SPSA surfaces, with categorical switches kept apart.
+  9. Counter re-keying and the ablation-mask disposition.
+  10. B.2.2's screen numbers: a branching window, WAC floors and targets,
+      the agreement floor, the time-to-depth floor, and the paired-run floor
+      and target.
+  11. Frozen predictions for B.2.
+  12. Handoffs for B.1, B.2 and, contingent on B.2's head, B.3.
+
+  A.2.3's `analysis/parameter_inventory_v1.md` is an input: the live list,
+  and no SPSA surface moves `LmrBase` while capture futility is in the tree.
+  It also answers the four `DESIGN.md` questions for the programme. It
+  tests Phase 5's "width is a symptom" premise, and it records which retry
+  triggers the programme fires: BAS-S07, BAS-S10 and BAS-S12 name a history
+  ownership change; BAS-S08 and BAS-S09 name a joint architecture and fit.
+    - [x] **B.0.1** `[V]` Razoring depth reach in Elo (maintainer)
+      BAS-S17, registered 2026-10-06: `RazorCoeff=500` against 243 on the
+      B.0 Tune binary, 2,000 paired games at `3+0.03`, no adjudication,
+      through the A.3.1 run-file path; a Tune-build diagnostic, never
+      acceptance. Frozen: +8 Elo, 80% interval [−4, +20]. The reading rule
+      in BAS-S17 decides whether B.2 seeds razoring from the oracle column
+      (depth 1, 256 cp) without a categorical re-test. Prepare the run file
+      and the one runnable command; append the calibration to BAS-S17 and
+      to the packet's §11.
+      Prepared 2026-10-08: `tools/colosseum.ps1 -Mode match`
+      (`match-fixed.toml`), one binary two option sets, 1,000 paired
+      openings, seed 20101, 14 slots, revision and bench pinned; dry run
+      accepted.
+      — CLOSED 2026-10-08: **+2.4 Elo**, 95% interval [−7.5, +12.3]
+      (pentanomial [50, 224, 431, 252, 43], 0 faults, every game ended
+      naturally). The interval holds 0, so neither branch of the reading rule
+      fires and B.2 decides razoring's depth cap with the cluster.
+      Calibration: inside the 80% interval [−4, +20], 5.6 below centre.
+    - [x] **B.0.2** `[V]` Oracle move-loop pruning family in Elo (maintainer)
+      BAS-S18, registered 2026-10-06: `oracle-1.10.1-ablate.exe` with
+      `AblationMask=32` (its shallow move-loop pruning off) against Basilisk
+      1.10.1 at equal time, the BAS-O05 recipe at 1,000 cycles (2,000
+      games); G(32) = 1500 − Basilisk's rating. Frozen: G(32) = +110, 80%
+      interval [+40, +180], so the family explains about 200 of the 312.6.
+      G(32) ≥ +250 lowers B.2's prediction P2 and re-opens the cluster order
+      before B.2.1. Prepare from `tools/run_a73_oracle_g0.ps1` with the
+      ablate binary and option; append the calibration to BAS-S18 and §11.
+      Prepared 2026-10-08: `tools/run_b02_oracle_g32.ps1`, BAS-O05's
+      launcher with the ablate binary, `AblationMask=32`, 1,000 cycles and
+      seed 20102; dry run accepted, and the mask is live (startpos depth 14:
+      445,620 nodes against 131,089 at mask 0).
+      — CLOSED 2026-10-08: **G(32) = +102.3 ± 15.9** (Basilisk 1397.7;
+      oracle 868-838-294, 64.35%; 0 faults, every game ended naturally).
+      G(0) − G(32) = **210.3 ± 23.9** of 312.6: the oracle's move-loop
+      pruning family is worth about two thirds of its lead. At mask 0 the
+      ablate oracle searches the same tree as G(0)'s oracle (967,078
+      nodes) at the same NPS within 1%. No falsifier fired, so P2 and the
+      cluster order stand. Calibration: inside [+40, +180], 7.7 below
+      centre.
+- [x] **B.1** `[I1]` Search restructure, behaviour-neutral
+  `src/search.cpp` split into modules, node types as template parameters, a
+  per-thread worker and stack separated from per-search configuration and
+  engine-owned shared resources, inert parameters removed per A.2.3; exact
+  fingerprint and pooled-PGO NPS within noise.
+  The move table comes from A.6 and B.0. Release and sanitizer CTest, and
+  exact `bench 13` at every commit.
+  Handoff frozen by B.0 (packet §12.1, 2026-10-06): A.6's tickets 1–8 with
+  `NodeType`, the A.2.3 removals and the two comment corrections; killers,
+  countermove, low-ply history and every live mechanism stay byte-identical
+  in behaviour; the B.0 zero-game baselines (packet §10) are reproduced on
+  the B.1 binary exactly except NPS. Does not wait on B.0.1 or B.0.2.
+  Implemented 2026-10-08, `456cf6a`..`bf44834`, one commit per ticket:
+  - the A.2.3 removals: `time_limit_`, `RootMoveStat`, capture futility,
+    quiet SEE pruning, qsearch quiet checks and the post-LMR nudge with
+    their 7 coordinates, `KBNK Drive`; the `DoubleExtMax` note corrected
+    (the capture-futility comment went with its code);
+  - `search_types.h`, `search_root`, `search_diagnostics`,
+    `search_history.cpp`, `move_picker`, `search_worker` with
+    `SearchConfig` / `SearchShared` / `SearchState`, `NodeType`,
+    `search_thread_pool`, and `search.h` as the facade.
+  Bench 14,978,465 at every commit on PEXT, non-PEXT, Tune, Diag and
+  Ablate; release and Tune CTest 19/19, sanitizer CTest 17/17 (`-LE
+  strength`), the Texel build reconstructs exactly; Diag, decision trace,
+  MultiPV, tablebase, pool and time-budget output match the pre-B.1 Tune
+  build line for line. Packet §10 reproduced on the B.1 PGO builds
+  (`tools/results/b1-qual/`): branching 1.767 and every position at every
+  depth; WAC at 100k / 400k nodes 204 / 242, identical to the A.8 head in
+  every field; LMR-off WAC 219 (+15); the mask 0 / 32 profiles cell for
+  cell; counters and the oracle differential (66/105, median depth 14
+  against 18) identical except the mated root `Fool's mate`, which the B.0
+  binaries searched once per iteration and A.8.8 reports without
+  searching; canaries 77/77.
+  — CLOSED 2026-10-09: the NPS gate BAS-P16 (maintainer-run) reads B.1
+  **+1.21%** against the A.8 head, 95% CI [+0.57%, +1.44%], with the self
+  pair at −0.04%. It passes, and the gain is recorded unexplained. B.1's
+  pooled median, 4.216M NPS, is B.2's NPS reference.
+- [x] **B.2** Cluster 1 — the selectivity core
+  Cluster 1 — the selectivity core; final contents fixed by B.0.
+  Expected contents:
+  - TT use: the TT-adjusted eval, raw eval stored on a miss, and the
+    graph-history check on cutoffs;
+  - the correction histories and the corrected eval, with the correction
+    magnitude as an input to margins and reductions;
+  - the history set and its update policy (tables, TT-cutoff bonus,
+    eval-swing training, fail-low parent bonus, post-LMR update, malus
+    decay; killers dropped if B.0 confirms);
+  - the move picker;
+  - move-loop pruning;
+  - the LMR formula and re-search rules;
+  - RFP and razoring on the corrected eval;
+  - the hindsight depth adjustment and cutoff counting.
+
+  NMP, ProbCut, singular and extensions keep Basilisk's forms in this
+  cluster so that B.3 can measure them separately. Gated at `[0,10]`,
+  because the prior is large.
+  Contents fixed by B.0 (packet §5, §12.2, 2026-10-06), changing the list
+  above in five places: razoring in the donor's return shape seeded from
+  the oracle column (depth 1, 256 cp; the cap categorical); RFP in
+  Stockfish 19's shape with the TT-move condition and the blended return;
+  a persisted `tt_pv` bit taken from the age field; killers and countermove
+  dropped, low-ply history kept; and the move-loop family (count pruning
+  as a picker skip, history-adjusted `lmrDepth`, continuation-history
+  pruning, quiet SEE pruning, capture futility, fail-soft futility) named
+  as the primary target, since it carries the ×4 node multiplier
+  (BAS-D21). Seeds, surfaces, screens and the frozen predictions P1–P6 are
+  the packet's §7, §8, §10 and §11.
+    - [x] **B.2.0** `[R2]` Architecture review and neutral upgrades
+      Architecture review of the B.1 head: the seams the cluster needs, and
+      behaviour-neutral upgrades landed at the exact fingerprint before the
+      first mechanism ticket.
+      Rarog's review landed twelve such upgrades.
+      Reviewed 2026-10-10 on the B.1 head `8c706a8`:
+      `analysis/b20_architecture_review_2026-10-10.md`. The head needs no
+      structural rewrite; the weight sat where the cluster presses. Landed at
+      the exact fingerprint (`c434ee4`..`9b51b46`): the node kernel split out
+      of the driver behind three entry points (`root_search`,
+      `kernel_begin_search`, `kernel_new_game`) with Searcher's kernel members
+      in one fenced section; the `B2_CORE` umbrella option, inert, both arms
+      at 14,978,465; the counter, parameter (root, legacy kernel, core kernel)
+      and TT-layout tables made one-source; the driver's comments without
+      retired numbers (391 → 288 references in `src/`); the SPSA surface
+      regenerated; a source census tool. Release PEXT and plain, Tune, Diag,
+      Ablate and the sanitizer build at the fingerprint; release CTest 19/19,
+      sanitizer 17/17; the Tune option set, `Diag` and trace output
+      byte-identical to the B.1 Tune build. The review's §5 refines B.2.1's
+      contract to the code: the fence, the per-ply record, the tables and
+      their 9.2 MiB footprint, the TT encoding with the miss-store's
+      occupancy rule, the picker and threat-producer contracts, 51 seeded
+      coordinates and 6 categorical switches, the tests. Remaining gate:
+      BAS-P17, the pooled-PGO NPS pool against the B.1 builds (maintainer-run
+      on an idle host, `tools/run_b20_nps_gate.ps1`), passing above −0.5%.
+      — CLOSED 2026-10-10: BAS-P17 (maintainer-run) reads the B.2.0 pair
+      **0.00%** against the B.1 pair, 95% CI [−0.22%, +0.28%], self pair
+      −0.03% OK, fingerprints identical; the frozen 0.0% held at its centre.
+      B.1's 4.216M pooled median stays B.2's NPS reference.
+    - [x] **B.2.1** `[I2]` Implement behind the umbrella switch
+      Implement to the B.0 handoff behind one umbrella CMake option, OFF by
+      default, as ordered tickets; ticket 0 is the decision trace hook.
+      Each ticket keeps the umbrella-off arm at the exact fingerprint. Unit
+      tests cover every table's bounds and gravity, picker exhaustiveness, TT
+      store and probe, and stack unwind. CTest passes on both arms: the
+      mate-drive floors bind the on arm too (the WAC floor from ticket 7,
+      Amendment 2), and a failure there returns the premise to research.
+      Reviewer acceptance (a separate `R2` session) is
+      recorded before B.2.2.
+      Tickets 0–2 landed 2026-10-10 (`1dbf0d9`..`f179404`): the counters and
+      trace version 2, the threat producer and the core's stack record, the
+      TT encoding with the miss-store and the cutoff rules. The off arm stays
+      at 14,978,465 at every commit; the ON arm reads 13,488,940; CTest
+      passes on both arms.
+      — RETURNED 2026-10-10 (Return 1, packet §16): Basilisk's `see_ge`
+      answers `0 ≥ threshold` for every quiet move, so the picker's
+      `see_ge(−75)` check gate and quiet SEE pruning are inert as written.
+      Research amendment 1 decides before ticket 3; the implementation
+      recommends the donor's quiet-move semantics for `see_ge`.
+      — AMENDED 2026-10-10 (Amendment 1, packet §17): `see_ge` takes the
+      donor's quiet-move semantics (option a); decisions 2–13 confirmed except
+      razoring above depth 1, now linear `margin·d`; P5's sources re-registered.
+      Implementation resumes at ticket 3.
+      Ticket 3's first commit landed 2026-10-10 (`ea5c49f`, `60a610e`):
+      `see_ge` evaluates quiet moves, tested against the legality oracle;
+      neither arm's fingerprint moved.
+      — RETURNED 2026-10-10 (Return 2, packet §18): the rest of ticket 3 (the
+      core tables, the picker, the update routing; held as a patch) fails
+      the ON arm's WAC floor, 119/300 at depth 6 against 130. The picker's
+      SEE-gated check bonus costs 13 of the 19 positions under the legacy
+      pruning and LMR still in place. Research amendment 2 decides; the
+      implementation recommends a categorical switch for the gate.
+      — AMENDED 2026-10-10 (Amendment 2, packet §19): the check gate stays
+      as contracted, no switch; the depth-6 WAC floor binds the ON arm from
+      ticket 7, recorded as a count per ticket before that with §10's
+      100k-node reading beside it. Implementation resumes at ticket 3's
+      remainder from the held patch.
+      Ticket 3 landed 2026-10-10 (`9a632e6` count mode, `bcf63e8` tables,
+      picker and routing; record in packet §20): ON arm 12,815,895
+      (transient), off arm 14,978,465; CTest passes on both arms; the ON
+      arm's WAC reads 119 at depth 6 and 200 at 100,000 nodes.
+      Ticket 4 landed 2026-10-10 (`221afdf`; packet §20): the cluster's
+      correction form and admission, `improving`, opponent worsening,
+      hindsight and eval-difference training. ON arm 13,061,601, off arm
+      14,978,465; CTest passes on both arms; WAC 127 at depth 6 and 193 at
+      100,000 nodes.
+      Ticket 5 landed 2026-10-11 (`bb73fb5`; packet §20): razoring at
+      depth 1 with the quiescence value returned, and RFP in the cluster's
+      shape. ON arm 25,182,694 (one bench position found a forced mate),
+      off arm 14,978,465; CTest passes on both arms; WAC 167 at depth 6
+      (+40: razoring +43, RFP +5, −8 interaction) and 237 at 100,000 nodes.
+      Ticket 6 landed 2026-10-11 (`573add0`, `8337944`; packet §20): the
+      move-loop pruning family on the history-adjusted reduced depth. ON
+      arm 11,922,648, off arm 14,978,465; CTest passes on both arms; every
+      member fires at `bench 13`; WAC 153 at depth 6 (−14: the legacy family
+      removed +14, the new family −28, capture/check SEE −23 of it) and 235
+      at 100,000 nodes.
+      Ticket 7 landed 2026-10-11 (`b02fcb7`, `802ed5c`; packet §20): the
+      cluster's LMR, its floor and re-search rules, `depth −= 3`, the
+      fail-high blend. ON arm 10,739,013, off arm 14,978,465; CTest passes
+      on both arms with the ON arm's depth-6 WAC floor binding again (176
+      against 130; +23: LMR +29, `depth −= 3` −8); 241 at 100,000 nodes.
+      Windows sanitizer builds now reserve an 8 MB stack, as Linux does.
+      Ticket 8 landed 2026-10-11 (`4112db0`; packet §20): the cluster's
+      update policy (exit-time training of every alpha-raising node, the
+      fail-low parent bonus, the post-LMR update, the TT-move history) and
+      the per-search decay. ON arm 6,337,226, off arm 14,978,465; CTest
+      passes on both arms; WAC 185 at depth 6 and 249 at 100,000 nodes.
+      The ablation bits are live (8 of 8), and the four decision traces are
+      recorded.
+      — IMPLEMENTED 2026-10-11: implementation record in packet §20, with
+      the reviewer's checklist. Reviewer acceptance (a separate `R2`
+      session) comes before B.2.2.
+      — RETURNED 2026-10-11 (Return 3, review, packet §21): every
+      fingerprint reproduced from clean sources (149 of 149), CTest on both
+      arms, WAC 185 at depth 6 and 249 at 100k nodes; not accepted. Two
+      defects: `stat_score` never reset at node entry, and the PV
+      TT-move depth rule inert on the first move. One gap: the
+      stack-unwind test. Two contract questions: the first child's
+      node type, and two donor constants on evaluation units left
+      unconverted. Research amendment 3 rules on the questions; then
+      implementation lands all five and a delta review accepts them.
+      — AMENDED 2026-10-11 (Amendment 3, packet §22): the first child at a
+      non-PV node typed `!cut_node` with the donor's first-move step-down;
+      three evaluation-unit conversions (`|corr|/7419`, the LMR alpha term
+      and the eval-difference training on scaled differences); F1, F2 and
+      F5 confirmed; two more defects (the per-ply move count surviving
+      same-slot re-entries; the absent step-down). Implementation lands
+      eleven items in order, then the delta review. B.2.2–B.2.4 registered
+      as BAS-S21–S23.
+      — RETURNED 2026-10-11 (Return 4, packet §23): items 1–5 landed
+      (`31c80db`..`90d7db7`); ON arm 5,941,186, WAC 172 at depth 6 and 250
+      at 100k nodes; the off arm stays at 14,978,465. Item 6's `|corr|/7419`
+      never finishes `bench 13`: where the correction saturates it removes
+      up to 9.3 plies of reduction, against the donor's 2.6. Research
+      amendment 4 decides the divisor; items 6–11 resume after it.
+      — AMENDED 2026-10-12 (Amendment 4, packet §24): item 6 is the converted
+      slope under the donor's bound, `min(|corr|/7419, 2695)`; rule 4 gains a
+      saturation clause; the item-2 deviation is accepted; the correction
+      bound's own conversion is a registered B.2.3 question. Items 6–11
+      resume in order, then the delta review.
+      Return 4 resume landed 2026-10-12 (items 6–10: `45f4827`..`7f1b5bb`;
+      items 1–5: `31c80db`..`90d7db7`; record in the packet's §20 addendum):
+      ON arm 9,132,715 at `bench 13` on every flavour, `bench 10`
+      1,678,409 release and sanitizer; off arm 14,978,465 on every flavour,
+      sanitizer 3,190,673. CTest: ON 23/23 release and 21/21 sanitizer, off
+      20/20 and 18/18. ON WAC 185 at depth 6 and 249 at 100k nodes.
+      `test_stack_unwind` and the node-entry checks were proven live with
+      two planted stale fields. The R2 delta review (§21.4) accepts before
+      B.2.2.
+      — ACCEPTED 2026-10-12 (delta review, packet §25): every fingerprint of
+      items 1–10 reproduced from clean sources on both arms, CTest on both
+      arms, WAC 249 / 204 at 100k nodes, the changed lines exact against
+      §22.6 and §24.1, the planted proofs re-run; two follow-ups bind
+      nothing here. CLOSED.
+    - [x] **B.2.2** `[V]` Diagnostics and the unfitted paired run
+      Screens at B.0's registered numbers; the ablation sweep if a floor
+      fails; the unfitted 2,000-game paired run against the accepted head,
+      maintainer-run, which governs. Categorical switches the review asks for
+      are settled by 2,000-game paired runs on one tune build and never
+      become SPSA coordinates.
+      Screens read 2026-10-12 on the accepted head (packet §26, BAS-S21):
+      two floors flagged. The canaries read 68/77; eight of the nine
+      regressions come back with the move-loop pruning family removed, and
+      there are 30 new passes, WAC.001 among them. Branching 4–14 reads
+      1.6465 against the window's 1.65, carried by the LMR at depths 12–14.
+      Nodes at depth 12 relative to the oracle read 1.86 (median 1.04); WAC
+      249 at 100k and 276 at 400k nodes; the LMR-off delta +8; the
+      shallow-pruning factor 3.46; agreement 66/105; time to depth 0.59×;
+      pooled NPS 1.038× the B.1 head. P6 held; BAS-C09's trigger was not
+      met. Prepared, not started: the paired run and the six categorical
+      runs (`tools/run_b22_games.ps1`, `526a68d`; dry runs accepted). The
+      paired run governs, and the review decides on the flagged floors
+      with its result.
+      Games 2026-10-13 (maintainer-run, packet §26.5, BAS-S21): the paired
+      run reads **+130.9 ± 11.4 Elo** (ON against OFF), which proceeds to
+      B.2.3; P1's −15 ± 30 missed high. `CoreLmpExemptChecks` is adopted at
+      0 (+13.6 ± 9.7); the other five switches keep their defaults
+      (`CoreCorrAdmission` = 0 costs −96.9). The fastchess cross-check
+      agrees (+136.2 ± 11.0, 2026-10-13).
+      — CLOSED 2026-10-13: `CoreLmpExemptChecks` defaults to 0 (`cd2e397`).
+      The ON arm's `bench 13` is now 6,199,439 (`bench 10` 1,598,399
+      release and sanitizer) and the off arm 14,978,465 on every flavour.
+      CTest passes on both arms (ON 23/23 and 21/21, off 20/20 and 18/18);
+      ON WAC reads 173 at depth 6 and 249 at 100k nodes. B.2.3 starts from
+      this head.
+    - [x] **B.2.3** `[V]` Curvature sweep, then SPSA in blocks
+      Curvature sweep, then SPSA in blocks (rule 7c) over the cluster's live
+      coordinates, maintainer-run; theta baked in one engine commit.
+      Sweep read 2026-10-13 (`analysis/b23_sweep_2026-10-13.md`, classification
+      frozen before the first point): `CoreRfpPerPly`, `CoreLmpSquareScale`,
+      `CoreLmrOffset` and `CoreCorrUpdateScale` curved, `CoreQuietFutBase`
+      monotone, so the tune runs. Every curve peaks at the seed (WAC 249 at
+      100k), so the curvature is shallow. Block 1 is registered in BAS-S22
+      and prepared, not started: the core surface's 50 coordinates (now
+      generated, `e24914f`) on the ON Tune build at `526dd49`; runner
+      preflight and dry run accepted.
+      — AMENDED 2026-10-13 (Amendment 5, packet §27): before block 1, one `I1`
+      commit gives the picker's capture score, its threat term and LMR's
+      capture `statScore` the donor's `PieceValue` (history-unit sums),
+      converts the good-capture split to `−score/47`, seeds
+      `CoreRfpCorrMult` at 676 and fixes `CoreQuietSeeCoeff` off the surface
+      (49 coordinates); then the sweep re-runs on the new binary and block 1
+      is re-registered. The eight legacy coordinates stay B.3's.
+      Amendment 5 landed 2026-10-13 (packet §28: `3eea3c5` engine; `e24114a`,
+      `b5983c6` tooling). The ON `bench 13` is now 6,096,792 and the off arm
+      14,978,465; CTest passes on both arms. ON WAC reads 177 at depth 6 and
+      237 at 100k (from 249); first-move cutoffs rise 88.5% → 89.1% and
+      good-capture cutoffs 21.0% → 24.9%. The sweep re-run on the new Tune
+      binary finds three coordinates curved and the seed now at or near the
+      lowest WAC point; block 1 is re-registered (49 coordinates) and
+      prepared, not started.
+      Owed before the bake (maintainer, 2026-10-14): a written analysis of
+      the fitted constants, not only their gate. Every coordinate that
+      moved a full step, ended at a range edge or moved against its seed
+      column (§7.3) is read for what it says about implementation,
+      design, unit or feature cohesion. Examples: a mechanism tuned toward
+      off, two terms moving to cancel, a margin compensating for a
+      mis-scaled input, a rail that hides a wanted value outside the range.
+      Each finding gets a proposed fix and an owner leaf. Block 1 already
+      shows two rails at iteration 1,530: `CoreIirMinDepth` 4 → 8 (the
+      kept IIR barely wanted) and `CoreResearchShallower` 2 → 0.
+      Block 1 complete 2026-10-14 (60,000 games, 0 faults): six coordinates
+      moved a full step, so the movement rule says CONTINUE. The interim
+      analysis is `analysis/b23_constants_2026-10-14.md`: IIR tuned off
+      (B.3), the shallower re-search firing only on fail-hard bound echoes
+      (B.4, B.8), RFP's seed column conservative (C, B.9), the `cutoffCnt`
+      terms (B.3), and the correction rate (the registered `CoreCorrLimit`
+      question). Block 2 is prepared (seed 23002, from block 1's centres),
+      maintainer-run. After the last block: the final analysis, the bake,
+      then B.2.4's gates whatever the analysis finds.
+      Block 2 complete 2026-10-16 (60,000 games, 0 faults): two full-step
+      movers, so the rule says STOP; theta is block 2's rounded centres.
+      The final analysis (`analysis/b23_constants_2026-10-14.md`) carries
+      seven findings with owners (IIR tuned off and the shallower re-search
+      inside its dead zone, B.3 and B.4/B.8; RFP's seed, C and B.9; the
+      correction wanting more weight, which argues against running the
+      `CoreCorrLimit` categorical; histories weighing more, the `CoreHistoryFills`
+      residual); none holds the bake.
+      — CLOSED 2026-10-16: theta baked in one engine commit (`b777ba8`; 46
+      of 49 defaults change), surface regenerated (`2ab17c7`). The ON
+      `bench 13` is now 11,099,210 (`bench 10` 2,034,942) and the off arm
+      14,978,465 on every flavour. CTest passes on both arms (ON 23/23 and
+      21/21, off 20/20 and 18/18); ON WAC reads 181 at depth 6 and 241 at
+      100k. The endgame cohort at 600k nodes holds every floor (KBN-K 23/24
+      inside its slack; BAS-S23). B.2.4's gates are registered and
+      dry-run.
+    - [x] **B.2.4** `[V]` Cluster 1 gates
+      Gate: (a) the unfitted arm against the umbrella-off arm at the same
+      revision, `[0,10]`, once its PGO binaries exist; (b) the fitted arm
+      against the unfitted one, `[0,10]`, after the bake.
+      Each gate accepts one thing on its own evidence, so a weak tune cannot
+      ride on the cluster's margin. The default flips to the accepted arm;
+      the legacy search stays compilable until B.8.
+      — CLOSED 2026-10-16 (BAS-S23): both gates accept H1. (a) the unfitted
+      arm against the off arm, **+136.2 ± 33.6 Elo** (252 games); (b) the
+      fitted arm against the unfitted, **+58.7 ± 20.9 Elo** (430 games).
+      Chained, B.2 reads about +195 Elo over the B.1 head; P2's +40 missed
+      high. `B2_CORE` now defaults ON (`8a10d14`): the development
+      fingerprint is `bench 13` 11,099,210, and the legacy kernel builds
+      with `-DB2_CORE=OFF` (14,978,465), tested in CI (`2853699`), until B.8.
+- [x] **B.10** `[I1]` PST orientation repair (ANY TIME) — before B.3
+  Correctness repair, admitted into the evaluation freeze by maintainer
+  decision (2026-10-23): fix it before B.3 starts fitting to the eval. Seven
+  piece-square tables have been stored rank-mirrored since v1.0.0: mg and eg
+  knight, bishop and queen, plus eg king. They hold PeSTO's rank-8-first rows
+  on a1-first squares, so, for example, a White knight on f3 gets f6's +110.
+  Pawn, rook and mg king are correct. Evidence is in
+  `analysis/pst_orientation_2026-10-23.md`, all of it static:
+  - the fix moves the eval by 31.7 cp mean;
+  - holdout loss is lower with no refit, on two corpora;
+  - an unanchored refit pulls only the seven mirrored tables toward their flip;
+  - the L2 anchor froze the error in place.
+  Change: rank-flip exactly those seven tables in `src/eval_params.h` and
+  nothing else. The candidate header is recorded by sha256 in the analysis.
+  Add an orientation test that fails on the old tables. Example: the White
+  and Black PST contributions of mirrored piece placements must agree with
+  the declared a1 = 0 orientation for every table, checked against a
+  committed PeSTO-orientation fixture.
+  Qualification:
+  - CTest on both arms;
+  - WAC;
+  - the endgame cohort floors at 600k nodes, with KBN-K and the KXK drives
+    as the fragile ones;
+  - bench accounting for the new fingerprint.
+  Gate: register a BAS-S entry first, then Colosseum `sprt-repair.toml`
+  (`[-5,5]` nElo, 3+0.03, 1 thread, Hash 64, UHO, no adjudication). Clean
+  PGO builds; the candidate plays the B.2.4 head (`bench 13` 11,099,210).
+  Frozen prediction: H1, +3 to +10 Elo, about 70% confidence. The main risk
+  is that terms fitted around the mirrored tables compensate (outposts,
+  mobility, Cluster 1's margins).
+  Verdict:
+  - H1: the flip becomes the default and the fingerprint record updates;
+  - H0: the old tables stay, and C.2.5 fits from the flipped seeds instead.
+  Scope (maintainer decision 2026-10-23): the flip alone, gated; no refit
+  inside Phase B. Phase C fits the tables onward from the flipped values:
+  no neutral start is required, and PeSTO-derived values may stay. The
+  follow-ups are routed to C.0, C.2.1, C.2.5, C.7 and C.10.
+  Implemented 2026-10-23 (`75381dc`): the seven tables flipped, reproducing
+  the analysis's candidate header, with the orientation test in
+  `tests/test_eval.cpp`. ON `bench 13` 11,099,210 → 8,437,148; CTest
+  passes on both arms; WAC at 100k 241 → 248. BAS-S26 is registered and
+  dry-run; the baseline is rebuilt with clang 23.1.3 at the B.2.4 head's
+  engine (still 11,099,210). The endgame cohort at 600k holds every floor
+  (conversions 460/480 against the head's 452); the SPRT is maintainer-run.
+  — CLOSED 2026-10-24 (BAS-S26): H1, **+18.3 ± 12.9 Elo** (1,388 games),
+  above the frozen +3 to +10. The flipped tables are the default: the
+  development fingerprint is `bench 13` 8,437,148, and the legacy
+  `-DB2_CORE=OFF` arm reads 15,887,213.

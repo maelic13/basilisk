@@ -46,17 +46,6 @@ generations change. These are maintainer judgments, not measured rankings.
 
 ### Phase B — Search programme (evaluation frozen)
 
-- [x] **B.0** Search programme investigation
-    - [x] **B.0.1** `[V]` Razoring depth reach in Elo (maintainer)
-    - [x] **B.0.2** `[V]` Oracle move-loop pruning family in Elo (maintainer)
-- [x] **B.1** `[I1]` Search restructure, behaviour-neutral
-- [x] **B.2** Cluster 1 — the selectivity core
-    - [x] **B.2.0** `[R2]` Architecture review and neutral upgrades
-    - [x] **B.2.1** `[I2]` Implement behind the umbrella switch
-    - [x] **B.2.2** `[V]` Diagnostics and the unfitted paired run
-    - [x] **B.2.3** `[V]` Curvature sweep, then SPSA in blocks
-    - [x] **B.2.4** `[V]` Cluster 1 gates
-- [x] **B.10** `[I1]` PST orientation repair (ANY TIME) — before B.3
 - [ ] **B.3** `[I2]` Cluster 2 — pruning and extensions
 - [ ] **B.4** `[I2]` Cluster 3 — quiescence
 - [ ] **B.5** `[I2]` Cluster 4 — root and aspiration
