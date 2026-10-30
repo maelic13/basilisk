@@ -101,6 +101,26 @@ assert len(B2_COUNTER_UNITS) == 26
 assert not set(B2_COUNTER_UNITS) & set(CORE_COUNTER_UNITS)
 
 
+# Cluster 2's counters (the B3_PROOF arm; the OFF arm prints most as 0). Each
+# is read against the denominator its engine table names. Validated when
+# present, all or none.
+B3_COUNTER_UNITS = {
+    **{name: "events" for name in """
+        null_verifications null_verify_failed probcut_tt_cuts probcut_pv_tries
+        sing_ext3 sing_negative_cut sing_shuffle_refused sing_seekmate_refused
+        ext_budget_bound iir_pv_nodes cuckoo_draws tt_penalized
+        in_check_lmr_applied in_check_capt_fut in_check_capt_see
+        in_check_cont_hist in_check_quiet_see
+    """.split()},
+    "null_region_refusals": "nodes",
+    "follow_pv_nodes": "nodes",
+    "tt_move_absent": "nodes",
+    "in_check_skip_quiets": "nodes",
+}
+assert len(B3_COUNTER_UNITS) == 21
+assert not set(B3_COUNTER_UNITS) & (set(CORE_COUNTER_UNITS) | set(B2_COUNTER_UNITS))
+
+
 def pct(a, b):
     return 100.0 * a / b if a is not None and b else 0.0
 
@@ -267,6 +287,32 @@ def validate_diag(counters):
                 and c["tt_cutoff_graph_refused"] <= c["tt_hits"]
             ),
         })
+    present = set(B3_COUNTER_UNITS) & set(counters)
+    if present and present != set(B3_COUNTER_UNITS):
+        raise ValueError("partial Cluster 2 counters: missing "
+                         + ", ".join(sorted(set(B3_COUNTER_UNITS) - present)))
+    if present:
+        c = counters
+        checks.update({
+            "null verifications bound their failures": (
+                c["null_verify_failed"] <= c["null_verifications"]
+            ),
+            "probcut pv tries within tries": c["probcut_pv_tries"] <= c["probcut_tries"],
+            "three-ply extensions within firings": c["sing_ext3"] <= c["sing_fired"],
+            "node populations within interior nodes": (
+                c["follow_pv_nodes"] <= c["interior_nodes"]
+                and c["tt_move_absent"] <= c["interior_nodes"]
+            ),
+            "in-check shares within their families": (
+                c["in_check_lmr_applied"] <= c["lmr_applied"]
+                and c["in_check_capt_fut"] <= c.get("capture_futility_pruned", 0)
+                and c["in_check_capt_see"] <= c.get("capture_see_pruned", 0)
+                and c["in_check_cont_hist"] <= c.get("cont_hist_pruned", 0)
+                and c["in_check_quiet_see"] <= c.get("quiet_see_pruned", 0)
+                and c["in_check_skip_quiets"] <= c.get("skip_quiets_nodes", 0)
+            ),
+            "tt penalties within hits": c["tt_penalized"] <= c["tt_hits"],
+        })
     failed = [name for name, passed in checks.items() if not passed]
     if failed:
         raise ValueError("diagnostic invariant failed: " + "; ".join(failed))
@@ -382,7 +428,8 @@ def main():
     report = {"suite": pathlib.Path(args.suite).name, "positions": len(fens),
               "depth": args.depth, "nodes": args.nodes, "hash_mb": args.hash,
               "sampling_stride": 1, "counter_units": CORE_COUNTER_UNITS,
-              "b2_counter_units": B2_COUNTER_UNITS}
+              "b2_counter_units": B2_COUNTER_UNITS,
+              "b3_counter_units": B3_COUNTER_UNITS}
 
     # A fresh engine process is started per position, so options are re-applied
     # every time rather than once at startup.

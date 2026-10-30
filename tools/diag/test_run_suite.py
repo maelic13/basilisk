@@ -34,6 +34,25 @@ class FixedBudgetRecordTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "partial"):
             run_suite.validate_diag(counters)
 
+    def test_cluster_two_counters_are_all_or_none_and_bounded(self):
+        self.assertEqual(len(run_suite.B3_COUNTER_UNITS), 21)
+        counters = {name: 0 for name in run_suite.CORE_COUNTER_UNITS}
+        counters.update({name: 0 for name in run_suite.B2_COUNTER_UNITS})
+        counters.update({name: 0 for name in run_suite.B3_COUNTER_UNITS})
+        counters.update({"null_verifications": 2, "null_verify_failed": 1})
+        self.assertTrue(all(run_suite.validate_diag(counters).values()))
+        counters["null_verify_failed"] = 3
+        with self.assertRaisesRegex(ValueError, "null verifications"):
+            run_suite.validate_diag(counters)
+        counters["null_verify_failed"] = 1
+        counters["in_check_capt_see"] = 1
+        with self.assertRaisesRegex(ValueError, "in-check shares"):
+            run_suite.validate_diag(counters)
+        counters["in_check_capt_see"] = 0
+        del counters["tt_move_absent"]
+        with self.assertRaisesRegex(ValueError, "partial Cluster 2"):
+            run_suite.validate_diag(counters)
+
     def test_counter_parser_rejects_duplicates_and_broken_identity(self):
         with self.assertRaisesRegex(ValueError, "duplicate"):
             run_suite.parse_diag(
