@@ -36,3 +36,10 @@ initial = 72
 min = 36
 max = 256
 c_end = 6.4480
+
+[[parameters]]
+name = "B3IirMinDepth"
+initial = 6
+min = 3
+max = 10
+c_end = 0.9211

@@ -28,5 +28,11 @@
         "min_value": 36,
         "max_value": 256,
         "step": 14
+    },
+    "B3IirMinDepth": {
+        "value": 6,
+        "min_value": 3,
+        "max_value": 10,
+        "step": 2
     }
 }
