@@ -241,6 +241,8 @@
 //   b3_nmp_cut_only: 1 tries it at expected cut nodes only; 0 at any non-PV
 //   node. b3_nmp_verify: 1 the region; 0 no verification; 2 the legacy
 //   same-ply verification at depth >= 10, kept for the counter read.
+//   b3_nmp_eval_gate: 1 also requires the TT-refined estimate to reach beta
+//   (the oracle's and the legacy kernel's gate); 0 the donor's bare form.
 //
 // IIR: a ply off a PV or cut node off the previous PV, not in check, at
 //   depth >= min_depth without a TT move. b3_iir: 1 on; 0 off. b3_iir_stale:
@@ -284,6 +286,7 @@
     F(b3_nmp_verify_depth,   B3NmpVerifyDepth,      16,    8,    32)     \
     S(b3_nmp_cut_only,       B3NmpCutOnly,           1,    0,     1)     \
     S(b3_nmp_verify,         B3NmpVerify,            1,    0,     2)     \
+    S(b3_nmp_eval_gate,      B3NmpEvalGate,          0,    0,     1)     \
     /* Internal iterative reduction */                                   \
     X(b3_iir_min_depth,      B3IirMinDepth,          6,    3,    10)     \
     S(b3_iir,                B3Iir,                  1,    0,     1)     \

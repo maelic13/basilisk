@@ -747,7 +747,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 && (ss - 1)->move != MOVE_NULL
                 && static_eval >= beta - kp.b3_nmp_per_ply * depth
                                   - kp.b3_nmp_improving * improving + kp.b3_nmp_base
-                && beta >= kp.b3_nmp_beta_floor
+                && beta >= kp.b3_nmp_beta_floor && (!kp.b3_nmp_eval_gate || eval >= beta)
                 && state_.board->has_non_pawn_material(state_.board->turn())) {
                 const int r = kp.b3_nmp_red_base + depth / kp.b3_nmp_red_depth_div
                             + std::max((static_eval - beta) / kp.b3_nmp_red_eval_div, 0);
