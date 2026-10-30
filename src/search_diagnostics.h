@@ -124,7 +124,16 @@ using InfoCallback = std::function<void(const std::string&)>;
     X(sing_cap_bound)                                                        \
     /* IIR: reductions, those taken on a stale TT entry (a TT move present), \
        and those at a node hindsight had already reduced. */                \
-    X(iir_reductions) X(iir_stale) X(iir_after_hindsight)
+    X(iir_reductions) X(iir_stale) X(iir_after_hindsight)                 \
+    /* Singular exclusion searches attempted, and those that ended in a    \
+       multi-cut. Denominator: interior_nodes for the tries; sing_tries   \
+       for the outcomes sing_fired, sing_multicut and sing_ttbeta. */     \
+    X(sing_tries) X(sing_multicut)                                         \
+    /* Null-move tries and cuts by remaining depth, in rfp_cuts' buckets  \
+       (the RFP/NMP crossover band): each set sums to null_tries or       \
+       null_cuts. */                                                      \
+    X(null_tries_d1_3) X(null_tries_d4_7) X(null_tries_d8p)                \
+    X(null_cuts_d1_3) X(null_cuts_d4_7) X(null_cuts_d8p)
 
 struct DiagCounters {
 #define BASILISK_DIAG_COUNTER_FIELD(name) int64_t name = 0;
@@ -147,7 +156,7 @@ struct DiagCounters {
 // aggregate and the field count stay in step with the table.
 static_assert(sizeof(DiagCounters) == DiagCounters::COUNT * sizeof(int64_t),
               "DiagCounters holds something that is not a counter from the table");
-static_assert(DiagCounters::COUNT == 87, "the counter contract has 87 entries; extend, never rename");
+static_assert(DiagCounters::COUNT == 95, "the counter contract has 95 entries; extend, never rename");
 
 // One search's counters as `info string diag` lines, followed by the
 // evaluator's speed telemetry.

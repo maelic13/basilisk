@@ -268,6 +268,13 @@ void print_search_diag(const DiagCounters& d, const Evaluator& evaluator,
             d.sing_cap_bound, d.iir_reductions, d.iir_stale,
             d.iir_after_hindsight);
         emit(buf);
+        buf = std::format("kv sing_tries={} sing_multicut={} "
+            "null_tries_d1_3={} null_tries_d4_7={} null_tries_d8p={} "
+            "null_cuts_d1_3={} null_cuts_d4_7={} null_cuts_d8p={}",
+            d.sing_tries, d.sing_multicut,
+            d.null_tries_d1_3, d.null_tries_d4_7, d.null_tries_d8p,
+            d.null_cuts_d1_3, d.null_cuts_d4_7, d.null_cuts_d8p);
+        emit(buf);
         // The selectivity core's counters.
         buf = std::format("kv rfp_cuts_d1_3={} rfp_cuts_d4_7={} rfp_cuts_d8p={} "
             "razor_cuts_d1_3={} razor_cuts_d4_7={} razor_cuts_d8p={} "

@@ -681,6 +681,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             int r = config_.limits.params.null_base + depth / 4
                   + std::min((eval - beta) / config_.limits.params.null_eval_div, 3);
             DIAG_COUNT(state_.diag.null_tries++);
+            DIAG_COUNT(++(depth <= 3 ? state_.diag.null_tries_d1_3
+                          : depth <= 7 ? state_.diag.null_tries_d4_7
+                                       : state_.diag.null_tries_d8p));
             do_null_move(ss);
             shared_.tt.prefetch(state_.board->position_key());
             int null_score = -negamax<NodeType::NonPV>(std::max(0, depth - r), -beta, -(beta - 1),
@@ -699,6 +702,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 }
                 if (verified) {
                     DIAG_COUNT(state_.diag.null_cuts++);
+                    DIAG_COUNT(++(depth <= 3 ? state_.diag.null_cuts_d1_3
+                                  : depth <= 7 ? state_.diag.null_cuts_d4_7
+                                               : state_.diag.null_cuts_d8p));
                     TRACE_DECISION(TraceEvent::NullCutoff, ply, depth, MOVE_NULL,
                                    alpha, beta, eval, improving, correction, VALUE_NONE,
                                    0, r, VALUE_NONE, null_score);
@@ -994,6 +1000,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             int s_beta  = tt_score - config_.limits.params.singular_beta_mult * depth;
             int s_depth = (depth - 1) / 2;
 
+            DIAG_COUNT(++state_.diag.sing_tries);
             ss->excluded = m;
             int s_val = negamax<NodeType::NonPV>(s_depth, s_beta - 1, s_beta, ply, ss, false, true);
             ss->excluded = MOVE_NONE;
@@ -1042,6 +1049,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 singular_quiet_lmr = !tt_capture;
             } else if (s_beta >= beta) {
                 // Multicut: likely to fail high without this move too
+                DIAG_COUNT(++state_.diag.sing_multicut);
                 TRACE_DECISION(TraceEvent::SingularMulticut, ply, depth, m,
                                alpha, beta, eval, improving, correction, trace_history,
                                searched, 0, s_beta, s_val);
