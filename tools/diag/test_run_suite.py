@@ -35,7 +35,7 @@ class FixedBudgetRecordTests(unittest.TestCase):
             run_suite.validate_diag(counters)
 
     def test_cluster_two_counters_are_all_or_none_and_bounded(self):
-        self.assertEqual(len(run_suite.B3_COUNTER_UNITS), 21)
+        self.assertEqual(len(run_suite.B3_COUNTER_UNITS), 22)
         counters = {name: 0 for name in run_suite.CORE_COUNTER_UNITS}
         counters.update({name: 0 for name in run_suite.B2_COUNTER_UNITS})
         counters.update({name: 0 for name in run_suite.B3_COUNTER_UNITS})

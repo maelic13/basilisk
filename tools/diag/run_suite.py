@@ -110,14 +110,14 @@ B3_COUNTER_UNITS = {
         sing_ext3 sing_negative_cut sing_shuffle_refused sing_seekmate_refused
         ext_budget_bound iir_pv_nodes cuckoo_draws tt_penalized
         in_check_lmr_applied in_check_capt_fut in_check_capt_see
-        in_check_cont_hist in_check_quiet_see
+        in_check_cont_hist in_check_quiet_see pv_quiet_pruned
     """.split()},
     "null_region_refusals": "nodes",
     "follow_pv_nodes": "nodes",
     "tt_move_absent": "nodes",
     "in_check_skip_quiets": "nodes",
 }
-assert len(B3_COUNTER_UNITS) == 21
+assert len(B3_COUNTER_UNITS) == 22
 assert not set(B3_COUNTER_UNITS) & (set(CORE_COUNTER_UNITS) | set(B2_COUNTER_UNITS))
 
 
@@ -312,6 +312,9 @@ def validate_diag(counters):
                 and c["in_check_skip_quiets"] <= c.get("skip_quiets_nodes", 0)
             ),
             "tt penalties within hits": c["tt_penalized"] <= c["tt_hits"],
+            "pv quiet pruning within moves tested": (
+                c["pv_quiet_pruned"] <= c.get("moveloop_tested", 0)
+            ),
         })
     failed = [name for name, passed in checks.items() if not passed]
     if failed:
