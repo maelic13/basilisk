@@ -2842,3 +2842,10 @@ ticket-6 paragraph of the resumption brief):
 
 **Condition for resuming:** the maintainer's decisions 1 and 2 above, as
 §3 states. B.3.1 stays `RESEARCH` until then.
+
+**Maintainer decisions, 2026-10-30, after the amendment:** both taken as
+recommended. 1. `B3SingMargin` is seeded at 252 (range 13..378; 17 and 126
+the sweep's extra points). 2. `B3SeekMateDepth` is seeded at 12 (range
+8..64; 8, 12 and 16 on the sweep; `B3SeekMateScore` 564 unchanged). The
+amended ticket 6b text above is the contract implementation resumes on;
+B.3.1 resumes `READY_FOR_IMPLEMENTATION`.

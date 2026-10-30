@@ -811,7 +811,9 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         gate as written passes: suite 0.26x, bench 13 6,263,268, floors
         118, WAC 237); P8b's lower edge scored, P11-P14 registered.
         Resumes at ticket 6b on the maintainer's two decisions (packet
-        amendment 3 §5).
+        amendment 3 §5). Maintainer decisions the same day: both
+        taken (the margin at 252, the guard from depth 12). Resumes
+        at ticket 6b.
     - [ ] **B.3.2** `[V]` Diagnostics and the unfitted paired run
       Packet §11, BAS-S41: the zero-game screens on both arms (counters,
       the oracle differential, WAC, the crossover band, the canary
@@ -1192,7 +1194,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.1 | RESEARCH | I2 | Research amendment 3 written; resumes `READY_FOR_IMPLEMENTATION` at ticket 6b on the maintainer's two decisions (packet amendment 3 §5) |
+| B.3.1 | READY_FOR_IMPLEMENTATION | I2 | Resumes at ticket 6b on research amendment 3 (packet) with the maintainer's two decisions of its §5 (the margin at 252, `seekMate` from depth 12), then tickets 7–10 |
 | B.3.2 | RESEARCH | V | Waits for B.3.1's accepted review |
 | B.3.3 | RESEARCH | V | Waits for B.3.2 |
 | B.3.4 | RESEARCH | V | Waits for B.3.3 |
