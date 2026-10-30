@@ -2849,3 +2849,165 @@ the sweep's extra points). 2. `B3SeekMateDepth` is seeded at 12 (range
 8..64; 8, 12 and 16 on the sweep; `B3SeekMateScore` 564 unchanged). The
 amended ticket 6b text above is the contract implementation resumes on;
 B.3.1 resumes `READY_FOR_IMPLEMENTATION`.
+
+## Return 4 — B.3.1 ticket 7: training the correction under exclusion turns the wrong-bishop draws into wins (2026-10-30)
+
+**What resumed.** Amendment 3's ticket 6b landed and passed every gate.
+Ticket 7 was built as §10 wrote it. Ticket 7 fails a floor that §10
+binds on both arms at every ticket: the KBP-K wrong-bishop draws (B.12).
+
+**Ticket 6b** (`eeeaa86`, with the sweep notes in `cfb9232`). The changes:
+
+- `B3SingMargin` is 252 and `B3SeekMateDepth` is 12.
+- `B3PvQuietPrune` (S, default 1) is added on ticket 2's seam.
+- The B3 surface is regenerated: `b3.tune.toml` carries the sweep
+  registrations as generated notes, which the generator checks against
+  the table. `B3SeekMateDepth` 8, 12, 16 and `B3SingNegative` 0, 1, 3
+  are F-line sweep coordinates. `B3SingMargin`'s extra points are 17
+  and 126.
+
+Its reads, on the committed tree (`tools/results/b31-20261030/a3t6b/`):
+
+| Read | Result | Rule |
+|---|---|---|
+| OFF `bench 13` | 16,615,757 | exact |
+| ON `bench 13` | **6,263,268** | recorded (V6's read; the switch at 1 is the V6 behaviour) |
+| Interior nodes, depth 13, 40 positions | 2,061,141 against the OFF arm's 8,008,320 = **0.26×** | ≤ 2× |
+| Position 11 | 267,873 against 277,125 = 0.97× | recorded |
+| Geometric mean of per-position ratios | 0.31 | — |
+| P8b | 1,557 / 10,453 = **14.9%** | upper edge 70% binds; the lower-edge miss scored by amendment 3 §4 |
+| WAC | 237 at 100,000 nodes; 136 at depth 6 | ≥ 232 |
+| The fixture at 100,000 nodes | **a7a8q +956** at depth 10 (OFF a7a8q +616) | a8=Q, positive |
+| Release CTest | 25/25 on both arms | — |
+| Diag `test_b3_proof`, `test_search`, `test_stack_unwind` | pass | — |
+
+The counter table against ticket 6 (`compare.md`) flags 17 Cluster 1 rows
+over 20%. That is the read's composition: bench position 11 was 87.9% of
+the previous read and is now 13% of this one. Over the other 39
+positions every Cluster 1 row is within 20% except `hist_reward_updates`
+(+32.7%).
+
+**Ticket 7 as built** (`6007ab5`). Three changes:
+
+- `B3CorrDecisive` (default 1) removes the `!is_decisive(best_score)`
+  refusal on the ON arm. The bonus stays clamped at ±256.
+- `B3CorrExcluded` (default 1) removes the exclusion refusal. The
+  exclusion node trains with the parent's corrected static eval, as the
+  donor's `eval = ss->staticEval` does (`search.cpp:831-832`).
+- `CoreHistoryFills` (default 0) at 1 fills fresh tables with sf_19's
+  `Worker::clear()` values: main −5, capture −742, pawn −1,338,
+  continuation −586, structural correction −5, continuation correction
+  +5. They are applied at the first search after a clear, so a tune
+  build's option takes effect at `ucinewgame`.
+
+Tests in `test_b3_proof`:
+
+- The fill values.
+- Each switch moves the ON arm's tree and leaves the OFF arm's.
+- 79/79 on both arms.
+
+Ticket 7's per-ticket reads (`tools/results/b31-20261030/t7/`):
+
+| Read | Result |
+|---|---|
+| OFF `bench 13` | 16,615,757 |
+| ON `bench 13` | **4,517,333** |
+| WAC | 249 at 100,000 nodes; 134 at depth 6 |
+| Fixture | a8=Q at 100,000 nodes (`test_search` passes) |
+| Interior nodes | 2,529,401 (1.23× ticket 6b) |
+| Cluster 1 rows over 20% | `cont_hist_pruned` only (2.40% to 3.22% of interior nodes), following the correction's new producers |
+| OFF release CTest | 25/25 |
+| ON release CTest | **24/25** |
+
+The failing ON test is `test_endgames`: 103/121, all 18 failures in
+"KBP-K wrong bishop reads a draw at depths 8-14".
+
+**Premise returned.** §10 *Invariants*: "the mate-drive floors, the
+wrong-bishop draws (B.12) and the mate band bind both arms at every
+ticket". §11's stop rule: "a floor failure at any ticket returns the
+leaf". The §9 default under ticket 7, `B3CorrExcluded` 1 ("the donor";
+B-15, "low stakes"), breaks it.
+
+**Attribution** (read W7, `wb_switches.py`, `wb_switches.json`). Setup:
+
+- The test's four FENs at depths 8–14 under its 200,000-node cap.
+- Hash 8, a fresh `ucinewgame` per search, on the ON Tune build of the
+  ticket-7 source.
+- Rule, written before the run: a setting holds when all 28 searches
+  read |score| ≤ 75 (the test's `DRAW_TOL`) at full depth. A switch
+  whose flip alone restores that carries the failure.
+
+| Setting | Held | KBP 7k/8/6KP…5B2, depths 8–14 | a-file k7/8/PK6…2B5 | reversed 5b2/…/7K b | 7k/7P/6K1…3B4 |
+|---|---:|---|---|---|---|
+| defaults | 10/28 | 0 0 0 +151 +259 +259 +256 | 0 0 0 +396 +358 +358 +382 | +68 +68 +149 +235 +233 +233 +233 | +32 +36 +218 +225 +225 +225 +225 |
+| `B3CorrDecisive=0` | 10/28 | the same to +404 | | | |
+| `B3CorrExcluded=0` | **28/28** | 0 at every depth | 0 | 0 | 0 |
+
+`B3CorrExcluded` alone carries it, and `B3CorrDecisive` is innocent.
+The false scores are not of the known-win class. They are 150–400 cp,
+the size of a corrected static eval.
+
+A guess was refuted, so it is not claimed: refusing exclusion training
+when |best score| ≥ `KNOWN_WIN` (temporary build `t7-v1`, patch
+`v1_excluded_known_win_guard.patch`, reverted) reads the same 10/28.
+
+The likely route, a hypothesis for research and not established here:
+
+- In these endings the evaluation's recognised draw is 0.
+- `corrected_eval` adds the correction to it unconditionally.
+- An exclusion search that excludes the defender's one drawing move
+  returns a large error that the normal nodes of a dead draw never
+  produce.
+- So the pawn-key correction drifts, and the corrected static eval of
+  a dead draw reads ±2–4 pawns.
+- The OFF arm never trains there.
+
+**The ticket's own read: the floors at five budgets, by switch.** Release
+builds; the switch variants are temporary builds with that default
+flipped (`t7-cd0`, `t7-ce0`, patches `cd0.patch` and `ce0.patch`,
+reverted). Logs are `conv_*.log` and `endgames_*.log`.
+
+| Setting | KQ-K / KR-K / KBB-K | KBN-K 30k / 45k / 60k / 90k / 120k (sum) | KR-K mean at 30k | `test_endgames` | `bench 13` | WAC 100k / depth 6 |
+|---|---|---|---:|---|---:|---|
+| defaults (1, 1) | 24 at every budget | 23 / 23 / 24 / 24 / 24 (**118**) | 26.4 | 103/121 | 4,517,333 | 249 / 134 |
+| `B3CorrDecisive=0` | 24 at every budget | 24 / 21 / 24 / 24 / 24 (117) | 29.8 | 103/121 | 5,128,849 | 243 / 136 |
+| `B3CorrExcluded=0` | 24 at every budget | 22 / 23 / 24 / 24 / 24 (117) | 27.7 | **121/121** | 4,372,801 | 239 / 135 |
+
+Every setting holds the conversion floors: KBN-K ≥ 112, and the
+families at 24. The means at budgets other than 60,000 are recorded,
+not judged. KQ-K's 10.7 at 120,000 trips the test's staleness ratio
+there, as amendment 3's read noted for KR-K at 30,000.
+
+**Options.**
+
+1. *`B3CorrExcluded` default 0* (the legacy refusal), with the switch
+   kept for B.3.2's paired run (§9 item 11).
+   - It restores 121/121 and holds every floor (WAC 239, KBN-K 117).
+   - The stakes are those §9 already gave it: B-15, "low stakes";
+     Rarog read +2.3 ± 9.5.
+   - It is a §9 default and so the maintainer's. The donor trains there.
+2. *Keep the donor's default and guard the producer or the consumer*:
+   no correction applied to an evaluation the evaluator has scaled to a
+   recognised draw, or no exclusion training on such a node.
+   - This is new mechanism, research's to specify and test.
+   - It touches the correction form, which §10 lists as a non-goal for
+     this leaf.
+3. *Both*: 1 now, and 2 as a finding for the evaluation programme,
+   beside amendment 3's KRP–KPP finding (§5, research decision 4).
+
+Recommendation: option 3. Option 1 because a theory-truth floor is a
+veto and the switch costs little. Option 2 because the route above, if
+research confirms it, also affects the OFF arm's correction wherever a
+recognised draw meets a pawn key trained elsewhere. No default has been
+moved.
+
+**State at the return.**
+
+- Tickets 0–7 are committed (`6007ab5`).
+- The OFF arm is 16,615,757 with release CTest 25/25 at every commit.
+- The ON arm's release CTest passes at ticket 6b. At `6007ab5` it fails
+  `test_endgames`' wrong-bishop section, which was not relaxed.
+- Tickets 8–10 are not started.
+- Amendment 2's surface additions (the RFP coordinates and the donor's
+  pair) belong to ticket 10's regeneration.
+- No idle-host read was run.

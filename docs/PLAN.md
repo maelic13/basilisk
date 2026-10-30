@@ -814,6 +814,12 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         amendment 3 §5). Maintainer decisions the same day: both
         taken (the margin at 252, the guard from depth 12). Resumes
         at ticket 6b.
+      - Returned 2026-10-30 at ticket 7 (packet *Return 4*): ticket 6b
+        passed every gate (suite 0.26x, fixture +956, WAC 237, bench 13
+        6,263,268); ticket 7's `B3CorrExcluded` default (the donor's)
+        turns the KBP-K wrong-bishop draws into +150 to +400 from depth
+        11 (18 of 121 `test_endgames` sections; 0 at every depth with
+        it off); tickets 0-7 committed (`6007ab5`), OFF arm 16,615,757.
     - [ ] **B.3.2** `[V]` Diagnostics and the unfitted paired run
       Packet §11, BAS-S41: the zero-game screens on both arms (counters,
       the oracle differential, WAC, the crossover band, the canary
@@ -1194,7 +1200,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.1 | READY_FOR_IMPLEMENTATION | I2 | Resumes at ticket 6b on research amendment 3 (packet) with the maintainer's two decisions of its §5 (the margin at 252, `seekMate` from depth 12), then tickets 7–10 |
+| B.3.1 | RESEARCH | I2 | Returned at ticket 7 (packet *Return 4*: training the correction under exclusion breaks the wrong-bishop draws); resumes on research amendment 4 |
 | B.3.2 | RESEARCH | V | Waits for B.3.1's accepted review |
 | B.3.3 | RESEARCH | V | Waits for B.3.2 |
 | B.3.4 | RESEARCH | V | Waits for B.3.3 |
