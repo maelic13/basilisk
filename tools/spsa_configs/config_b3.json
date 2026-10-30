@@ -52,5 +52,71 @@
         "min_value": 60,
         "max_value": 240,
         "step": 11
+    },
+    "B3SingMargin": {
+        "value": 126,
+        "min_value": 13,
+        "max_value": 378,
+        "step": 23
+    },
+    "B3SingMarginTtPv": {
+        "value": 19,
+        "min_value": 0,
+        "max_value": 126,
+        "step": 8
+    },
+    "B3SingDoubleBase": {
+        "value": -1,
+        "min_value": -40,
+        "max_value": 40,
+        "step": 5
+    },
+    "B3SingDoublePv": {
+        "value": 58,
+        "min_value": 0,
+        "max_value": 120,
+        "step": 8
+    },
+    "B3SingDoubleQuiet": {
+        "value": -43,
+        "min_value": -90,
+        "max_value": 0,
+        "step": 6
+    },
+    "B3SingDoubleDeep": {
+        "value": -11,
+        "min_value": -30,
+        "max_value": 0,
+        "step": 2
+    },
+    "B3SingTripleBase": {
+        "value": 20,
+        "min_value": -20,
+        "max_value": 60,
+        "step": 5
+    },
+    "B3SingTriplePv": {
+        "value": 79,
+        "min_value": 0,
+        "max_value": 160,
+        "step": 10
+    },
+    "B3SingTripleQuiet": {
+        "value": -53,
+        "min_value": -110,
+        "max_value": 0,
+        "step": 7
+    },
+    "B3SingTripleTtPv": {
+        "value": 23,
+        "min_value": 0,
+        "max_value": 60,
+        "step": 4
+    },
+    "B3SingTripleDeep": {
+        "value": -12,
+        "min_value": -30,
+        "max_value": 0,
+        "step": 2
     }
 }

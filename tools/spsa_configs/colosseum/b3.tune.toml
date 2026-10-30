@@ -64,3 +64,80 @@ initial = 121
 min = 60
 max = 240
 c_end = 5.0663
+
+[[parameters]]
+name = "B3SingMargin"
+initial = 126
+min = 13
+max = 378
+c_end = 10.5931
+
+[[parameters]]
+name = "B3SingMarginTtPv"
+initial = 19
+min = 0
+max = 126
+c_end = 3.6846
+
+[[parameters]]
+name = "B3SingDoubleBase"
+initial = -1
+min = -40
+max = 40
+c_end = 2.3028
+
+[[parameters]]
+name = "B3SingDoublePv"
+initial = 58
+min = 0
+max = 120
+c_end = 3.6846
+
+[[parameters]]
+name = "B3SingDoubleQuiet"
+initial = -43
+min = -90
+max = 0
+c_end = 2.7634
+
+[[parameters]]
+name = "B3SingDoubleDeep"
+initial = -11
+min = -30
+max = 0
+c_end = 0.9211
+
+[[parameters]]
+name = "B3SingTripleBase"
+initial = 20
+min = -20
+max = 60
+c_end = 2.3028
+
+[[parameters]]
+name = "B3SingTriplePv"
+initial = 79
+min = 0
+max = 160
+c_end = 4.6057
+
+[[parameters]]
+name = "B3SingTripleQuiet"
+initial = -53
+min = -110
+max = 0
+c_end = 3.2240
+
+[[parameters]]
+name = "B3SingTripleTtPv"
+initial = 23
+min = 0
+max = 60
+c_end = 1.8423
+
+[[parameters]]
+name = "B3SingTripleDeep"
+initial = -12
+min = -30
+max = 0
+c_end = 0.9211
