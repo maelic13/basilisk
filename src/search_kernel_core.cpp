@@ -458,6 +458,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     // the previous PV can follow it.
     if constexpr (kB3Proof) {
         CORE_NODE_CHECK(is_root || ss->ext_plies == (ss - 1)->ext_plies + (ss - 1)->ext_taken);
+        CORE_NODE_CHECK(!kp.b3_ext_budget || ss->ext_plies <= root_depth_);
         CORE_NODE_CHECK(is_root || !ss->follow_pv || (ss - 1)->follow_pv);
     }
 
@@ -1177,9 +1178,13 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
         // ---- Extensions -------------------------------------------------------
         int extension = 0;
+        // Cluster 2's singular extension also deepens the node by a ply for
+        // the moves after this one (the donor's form); this move's own depth
+        // is not raised by it.
+        int depth_bump = 0;
 
         // ---- Singular extension (only for TT move) -------------------------
-        if (!ABLATED(6) && !is_root && m == tt_move && ss->excluded == MOVE_NONE
+        if (!kB3Proof && !ABLATED(6) && !is_root && m == tt_move && ss->excluded == MOVE_NONE
             && depth >= config_.limits.params.singular_min_depth
             && tt_found && tt_depth >= depth - 3
             && (tt_flag == TT_BETA || tt_flag == TT_EXACT)
@@ -1262,6 +1267,111 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             }
         }
 
+        // ---- Singular extension (Cluster 2, the donor's form) ---------------
+        // The TT move is searched alone against a bound just below its score:
+        // when every other move falls below it, the move is extended one to
+        // three plies by how far they fell, within the line's budget, and the
+        // node deepens; when they clear the node's beta it is a multi-cut;
+        // otherwise a move the table says fails high, or one at an expected
+        // cut node, is searched shallower.
+        if constexpr (kB3Proof) {
+            if (!ABLATED(6) && !is_root && m == tt_move && ss->excluded == MOVE_NONE
+                && ply < MAX_PLY - 2 && depth >= kp.b3_sing_min_depth + int(ss->tt_pv)
+                && tt_score != VALUE_NONE && !is_decisive(tt_score) && proves_lower(tt_flag)
+                && tt_depth >= depth - (kp.b3_sing_tt_depth ? 2 : 3)) {
+                if (b3::is_shuffling(tt_capture, state_.board->rule50_count(),
+                                     state_.board->plies_since_null(), ply, m,
+                                     (ss - 2)->move, (ss - 4)->move)) {
+                    DIAG_COUNT(++state_.diag.sing_shuffle_refused);
+                } else if (b3::seek_mate(root_depth_, root_score_, kp.b3_seek_mate_depth,
+                                         kp.b3_seek_mate_score)) {
+                    DIAG_COUNT(++state_.diag.sing_seekmate_refused);
+                } else {
+                    const int s_beta = b3::singular_beta(tt_score, depth, ss->tt_pv && !is_pv,
+                                                         kp.b3_sing_margin, kp.b3_sing_margin_ttpv);
+                    const int s_depth = (depth - 1) / 2;
+
+                    DIAG_COUNT(++state_.diag.sing_tries);
+                    ss->excluded = m;
+                    const int s_val = negamax<NodeType::NonPV>(s_depth, s_beta - 1, s_beta, ply, ss,
+                                                               false, cut_node);
+                    ss->excluded = MOVE_NONE;
+
+                    if (state_.stopped) {
+                        immediate_return = true;
+                        immediate_score = 0;
+                        return true;
+                    }
+
+                    if (s_val < s_beta) {
+                        const int corr_adj = std::min(std::abs(correction_raw) / kp.b3_sing_corr_div,
+                                                      kp.b3_sing_corr_cap);
+                        const bool deep = ply > root_depth_;
+                        const int double_margin = kp.b3_sing_double_base + kp.b3_sing_double_pv * is_pv
+                            + kp.b3_sing_double_quiet * !tt_capture - corr_adj
+                            - kp.b3_sing_tmh_mult * hist_.tt_move.value / 114178
+                            + kp.b3_sing_double_deep * deep;
+                        const int triple_margin = kp.b3_sing_triple_base + kp.b3_sing_triple_pv * is_pv
+                            + kp.b3_sing_triple_quiet * !tt_capture
+                            + kp.b3_sing_triple_ttpv * ss->tt_pv - corr_adj
+                            + kp.b3_sing_triple_deep * deep;
+                        const int graded = b3::graded_extension(s_val, s_beta, double_margin,
+                                                                triple_margin);
+                        extension = graded;
+                        if (kp.b3_ext_budget) {
+                            bool truncated = false;
+                            extension = b3::budget_extension(graded, ss->ext_plies, ext_budget(),
+                                                             truncated);
+                            if (truncated) {
+                                DIAG_COUNT(++state_.diag.ext_budget_bound);
+                                TRACE_DECISION(TraceEvent::ExtBudgetTruncate, ply, depth, m,
+                                               alpha, beta, eval, improving, correction, VALUE_NONE,
+                                               searched, extension, ss->ext_plies, ext_budget());
+                            }
+                        }
+                        ++depth;
+                        depth_bump = 1;
+                        TRACE_DECISION(TraceEvent::SingularExtension, ply, depth, m,
+                                       alpha, beta, eval, improving, correction, trace_history,
+                                       searched, extension, s_beta, s_val);
+                        DIAG_COUNT(++state_.diag.sing_fired);
+                        if (graded >= 2) DIAG_COUNT(++state_.diag.sing_double);
+                        if (graded == 3) DIAG_COUNT(++state_.diag.sing_ext3);
+                        if (did_check_ext) DIAG_COUNT(++state_.diag.sing_in_check);
+                        if (graded >= 2 && did_check_ext) DIAG_COUNT(++state_.diag.sing_triple);
+                        singular_quiet_lmr = kp.b3_singular_quiet_lmr && !tt_capture;
+                    } else if (b3::multicut_admits(kp.b3_multi_cut, s_val, s_beta, beta,
+                                                   is_decisive(s_val))) {
+                        // The node fails high without its TT move too: the
+                        // TT move's history learns it was not needed, and the
+                        // correction learns the static eval was low.
+                        TTMoveHistory::update(hist_.tt_move.value,
+                                              -kp.b3_sing_mc_tmh_base - kp.b3_sing_mc_tmh_slope * depth);
+                        if (!in_check && s_val > static_eval) {
+                            const int bonus = std::clamp(
+                                (s_val - static_eval) * 1000 / 282 * s_depth * kp.b3_sing_mc_corr / 1024,
+                                -256, 256);
+                            update_correction_history(ss, bonus);
+                        }
+                        DIAG_COUNT(++state_.diag.sing_multicut);
+                        TRACE_DECISION(TraceEvent::SingularMulticut, ply, depth, m,
+                                       alpha, beta, eval, improving, correction, trace_history,
+                                       searched, 0, s_beta, s_val);
+                        immediate_return = true;
+                        immediate_score = s_val;
+                        return true;
+                    } else if (b3::negative_extension(tt_score, beta, cut_node)) {
+                        extension = -kp.b3_sing_negative;
+                        DIAG_COUNT(++state_.diag.sing_ttbeta);
+                        if (tt_score < beta) DIAG_COUNT(++state_.diag.sing_negative_cut);
+                        TRACE_DECISION(TraceEvent::SingularNegative, ply, depth, m,
+                                       alpha, beta, eval, improving, correction, trace_history,
+                                       searched, extension, s_beta, s_val);
+                    }
+                }
+            }
+        }
+
         // The move's history score: a capture's captured value and capture
         // history, a quiet's main and nearest continuation histories.
         const PieceType moved_pt = type_of(state_.board->piece_on(from_sq(m)));
@@ -1289,7 +1399,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             (ss + 1)->ext_plies = ss->ext_plies + ss->ext_taken;
         }
 
-        int new_depth = depth - 1 + extension;
+        int new_depth = depth - 1 + extension - depth_bump;
         // Propagate the stacked double-extension count to the
         // child so a chain of singular double-extensions is eventually capped.
         (ss + 1)->double_exts = ss->double_exts + (extension >= 2 ? 1 : 0);

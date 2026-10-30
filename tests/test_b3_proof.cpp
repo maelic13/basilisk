@@ -70,6 +70,87 @@ static void test_follow_pv_predicate() {
     end_section();
 }
 
+// ---- The singular extension's arithmetic ---------------------------------
+
+static void test_singular_margin() {
+    // The seeds: 126/63 = 2 per ply, plus 19/63 near a PV off it.
+    begin_section("singular: the bound at depths 6, 10 and 20, with and without the PV term");
+    EXPECT_EQ(b3::singular_beta(500, 6, false, 126, 19), 500 - 12);
+    EXPECT_EQ(b3::singular_beta(500, 10, false, 126, 19), 500 - 20);
+    EXPECT_EQ(b3::singular_beta(500, 20, false, 126, 19), 500 - 40);
+    EXPECT_EQ(b3::singular_beta(500, 6, true, 126, 19), 500 - 145 * 6 / 63);
+    EXPECT_EQ(b3::singular_beta(500, 10, true, 126, 19), 500 - 145 * 10 / 63);
+    EXPECT_EQ(b3::singular_beta(500, 20, true, 126, 19), 500 - 145 * 20 / 63);
+    // The donor's 17 (0.26 per ply) is reachable and divides as the donor's.
+    EXPECT_EQ(b3::singular_beta(0, 20, false, 17, 0), -(17 * 20 / 63));
+    EXPECT_EQ(b3::singular_beta(-300, 7, true, 13, 0), -300 - 13 * 7 / 63);
+    end_section();
+}
+
+static void test_graded_extension() {
+    begin_section("singular: the extension lies in [1, 3] and grows with the gap");
+    bool ok = true;
+    for (int dbl = -60; dbl <= 120; dbl += 7)
+        for (int trp = -60; trp <= 200; trp += 11) {
+            int prev = 0;
+            // value runs from just below the bound to far below it.
+            for (int gap = 1; gap <= 400; ++gap) {
+                const int e = b3::graded_extension(100 - gap, 100, dbl, trp);
+                ok = ok && e >= 1 && e <= 3 && e >= prev;
+                prev = e;
+            }
+        }
+    EXPECT(ok);
+    EXPECT_EQ(b3::graded_extension(99, 100, 10, 20), 1);
+    EXPECT_EQ(b3::graded_extension(85, 100, 10, 20), 2);
+    EXPECT_EQ(b3::graded_extension(70, 100, 10, 20), 3);
+    end_section();
+}
+
+static void test_multicut_and_negative() {
+    begin_section("singular: multi-cut admission under both rules, never decisive");
+    // The donor's rule reads the value, the alternative the bound.
+    EXPECT(b3::multicut_admits(0, 120, 90, 100, false));
+    EXPECT(!b3::multicut_admits(0, 95, 90, 100, false));
+    EXPECT(!b3::multicut_admits(1, 120, 90, 100, false));
+    EXPECT(b3::multicut_admits(1, 110, 105, 100, false));
+    EXPECT(!b3::multicut_admits(0, 31000, 90, 100, true));
+    EXPECT(!b3::multicut_admits(1, 31000, 105, 100, true));
+    end_section();
+    begin_section("singular: the negative extension at a fail-high TT score or a cut node");
+    EXPECT(b3::negative_extension(100, 100, false));
+    EXPECT(b3::negative_extension(50, 100, true));      // a cut node, TT score below beta
+    EXPECT(!b3::negative_extension(50, 100, false));
+    end_section();
+}
+
+static void test_shuffling_truth_table() {
+    // e1-e2, then e2-e1 by the same side two plies later: the next e1-e2
+    // shuffles.
+    const Move m = make_move(E1, E2), prev2 = make_move(E2, E1), prev4 = make_move(E1, E2);
+    begin_section("singular: is_shuffling's truth table");
+    EXPECT(b3::is_shuffling(false, 10, 6, 20, m, prev2, prev4));
+    EXPECT(!b3::is_shuffling(true, 10, 6, 20, m, prev2, prev4));    // capture stage
+    EXPECT(!b3::is_shuffling(false, 9, 6, 20, m, prev2, prev4));    // rule 50 under 10
+    EXPECT(!b3::is_shuffling(false, 10, 5, 20, m, prev2, prev4));   // a recent null move
+    EXPECT(!b3::is_shuffling(false, 10, 6, 19, m, prev2, prev4));   // ply under 20
+    EXPECT(!b3::is_shuffling(false, 10, 6, 20, make_move(E1, D1), make_move(D1, E1), prev4));
+    EXPECT(!b3::is_shuffling(false, 10, 6, 20, m, prev2, make_move(E1, D2)));
+    EXPECT(!b3::is_shuffling(false, 10, 6, 20, make_move(D2, E2), prev2, prev4));
+    end_section();
+}
+
+static void test_seek_mate_gate() {
+    begin_section("singular: seek_mate stands down at root depth >= 16 with |score| >= 564");
+    EXPECT(b3::seek_mate(16, 564, 16, 564));
+    EXPECT(b3::seek_mate(20, -564, 16, 564));
+    EXPECT(b3::seek_mate(16, 31000, 16, 564));
+    EXPECT(!b3::seek_mate(15, 31000, 16, 564));
+    EXPECT(!b3::seek_mate(30, 563, 16, 564));
+    EXPECT(!b3::seek_mate(30, -563, 16, 564));
+    end_section();
+}
+
 // ---- Searches ------------------------------------------------------------
 
 struct Run {
@@ -113,9 +194,9 @@ static constexpr bool kCounters =
     false;
 #endif
 
-// The arm whose singular extension the budget bounds: none until the graded
-// extension lands with it.
-static constexpr bool kBudgetApplied = false;
+// The arm whose singular extension the budget bounds: the B3_PROOF arm's
+// graded extension.
+static constexpr bool kBudgetApplied = kB3Proof;
 
 // A cap far below the root depth truncates extensions where the budget is
 // applied and changes the tree; elsewhere the cap is ignored.
@@ -176,6 +257,11 @@ int main() {
     test_follow_pv_predicate();
     test_budget_bound_is_live();
     test_follow_pv_in_search();
+    test_singular_margin();
+    test_graded_extension();
+    test_multicut_and_negative();
+    test_shuffling_truth_table();
+    test_seek_mate_gate();
 
     return harness_summary();
 }

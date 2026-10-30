@@ -252,7 +252,25 @@
 //   returns its value less the margin. The small ProbCut returns beta +
 //   tt_margin from a lower bound at least depth - tt_depth deep that clears
 //   it. b3_probcut_pv: 1 admits PV nodes; 0 non-PV only.
-#define BASILISK_B3_PARAMS(X, F, S)                                    \
+//
+// Singular extension, at depth >= min_depth (+1 near a PV): the bound is the
+//   TT score less (margin + margin_ttpv at a non-PV node near a PV) * depth /
+//   63. Below it, the extension is 1 + (below by more than the double bar) +
+//   (below by more than the triple bar); each bar is base + pv (PV node) +
+//   quiet (a quiet TT move) + deep (ply beyond the root depth) [+ ttpv for the
+//   triple], less min(|correction| / corr_div, corr_cap) and, for the double,
+//   tmh_mult * TT-move history / 114178. A multi-cut trains the TT-move
+//   history by -(mc_tmh_base + mc_tmh_slope * depth) and the correction by
+//   (value - static eval) * 1000/282 * singular depth * mc_corr / 1024; the
+//   negative extension is -negative plies. At root depth >= seek_mate_depth
+//   with a root score of at least seek_mate_score either way, no singular
+//   search runs. b3_multi_cut: 0 the donor's rule (the value clears beta); 1
+//   the singular bound clears beta. b3_sing_tt_depth: 1 lowers the entry's
+//   required depth from depth - 3 to depth - 2. b3_singular_quiet_lmr: 1 keeps
+//   the legacy relaxation of a singular node's quiet reductions.
+//   b3_ext_budget: 1 bounds a line's positive singular plies by the root
+//   depth; 0 leaves them unbounded.
+#define BASILISK_B3_PARAMS(X, F, S)                                   \
     S(b3_check_ext,          B3CheckExt,             0,    0,     1)     \
     S(b3_check_prune,        B3CheckPrune,           1,    0,     1)     \
     /* Null move */                                                      \
@@ -278,7 +296,33 @@
     F(b3_probcut_depth_improving, B3ProbCutDepthImproving, 5, 3,    8)     \
     X(b3_probcut_tt_margin,  B3ProbCutTtMargin,    121,   60,   240)     \
     F(b3_probcut_tt_depth,   B3ProbCutTtDepth,       4,    2,     8)     \
-    S(b3_probcut_pv,         B3ProbCutPv,            1,    0,     1)
+    S(b3_probcut_pv,         B3ProbCutPv,            1,    0,     1)     \
+    /* Singular extension */                                             \
+    F(b3_sing_min_depth,     B3SingMinDepth,         6,    4,    10)     \
+    X(b3_sing_margin,        B3SingMargin,         126,   13,   378)     \
+    X(b3_sing_margin_ttpv,   B3SingMarginTtPv,      19,    0,   126)     \
+    X(b3_sing_double_base,   B3SingDoubleBase,      -1,  -40,    40)     \
+    X(b3_sing_double_pv,     B3SingDoublePv,        58,    0,   120)     \
+    X(b3_sing_double_quiet,  B3SingDoubleQuiet,    -43,  -90,     0)     \
+    X(b3_sing_double_deep,   B3SingDoubleDeep,     -11,  -30,     0)     \
+    X(b3_sing_triple_base,   B3SingTripleBase,      20,  -20,    60)     \
+    X(b3_sing_triple_pv,     B3SingTriplePv,        79,    0,   160)     \
+    X(b3_sing_triple_quiet,  B3SingTripleQuiet,    -53, -110,     0)     \
+    X(b3_sing_triple_ttpv,   B3SingTripleTtPv,      23,    0,    60)     \
+    X(b3_sing_triple_deep,   B3SingTripleDeep,     -12,  -30,     0)     \
+    F(b3_sing_corr_div,      B3SingCorrDiv,     198368, 50000, 800000)   \
+    F(b3_sing_corr_cap,      B3SingCorrCap,        101,    0,   300)     \
+    F(b3_sing_tmh_mult,      B3SingTmhMult,        331,    0,  1000)     \
+    F(b3_sing_negative,      B3SingNegative,         3,    0,     4)     \
+    F(b3_sing_mc_tmh_base,   B3SingMcTmhBase,      421,    0,  1000)     \
+    F(b3_sing_mc_tmh_slope,  B3SingMcTmhSlope,     110,    0,   300)     \
+    F(b3_sing_mc_corr,       B3SingMcCorr,         177,    0,   400)     \
+    F(b3_seek_mate_depth,    B3SeekMateDepth,       16,    8,    64)     \
+    F(b3_seek_mate_score,    B3SeekMateScore,      564,  100,  2000)     \
+    S(b3_multi_cut,          B3MultiCut,             0,    0,     1)     \
+    S(b3_sing_tt_depth,      B3SingTtDepth,          0,    0,     1)     \
+    S(b3_singular_quiet_lmr, B3SingularQuietLmr,     0,    0,     1)     \
+    S(b3_ext_budget,         B3ExtBudget,            1,    0,     1)
 
 #define BASILISK_KERNEL_PARAMS(X) BASILISK_CORE_KERNEL_PARAMS(X, X)
 #define BASILISK_KERNEL_SWITCHES(S) BASILISK_CORE_KERNEL_SWITCHES(S)
