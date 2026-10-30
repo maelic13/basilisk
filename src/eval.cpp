@@ -129,7 +129,6 @@ static constexpr int SCALE_MAX    = 128;
 // because that curve is chaotic (32 costs +28.5% while 24 and 40 are within
 // 9% of baseline) and picking its minimum would be fitting to noise.
 static constexpr int SCALE_FLOOR  = 24;
-static constexpr int KNOWN_WIN    = 10000; // static "won, mate is technique" magnitude
 static constexpr int KPK_PAWN_EG  = 206;   // the donor's PawnValueEg, in a won KPK
 
 // Lazy-eval margin (Step 3.11): if the cheap (material/PST/imbalance/pawns/minor)

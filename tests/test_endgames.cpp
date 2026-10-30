@@ -543,7 +543,6 @@ static void test_kbnk_keeps_both_minors() {
 // one exactly 0. The evaluation is read without the rule-50 damping, as the
 // search stores it; every FEN has a clock of 0.
 // ---------------------------------------------------------------------------
-static constexpr int KNOWN_WIN_SCORE = 10000;   // eval.cpp's KNOWN_WIN
 static constexpr int KPK_LEGAL_POSITIONS = 662704;
 
 static void test_kpk_matches_syzygy() {
@@ -591,7 +590,7 @@ static void test_kpk_matches_syzygy() {
                             if (++wrong_sign <= 5)
                                 std::fprintf(stderr, "  KPK %s: WDL %d, evaluation %d\n",
                                              fen.c_str(), verdict, score);
-                        } else if (verdict != 0 && std::abs(score) < KNOWN_WIN_SCORE) {
+                        } else if (verdict != 0 && std::abs(score) < KNOWN_WIN) {
                             ++below_known_win;
                         }
                     }
@@ -656,6 +655,43 @@ static void test_pawnless_scale_truth_table() {
 }
 
 // ---------------------------------------------------------------------------
+// The wrong rook-pawn bishop in search (B.12). An underpromotion beside the
+// defending king scores as a won KBB-K or KBN-K, and quiescence read the
+// king's capture of the new piece as a gain of one minor against that score:
+// delta pruning and capture futility cut the defence, the bound came back as
+// a known win, and the head read the drawn 7k/8/6KP/.../5B2 at +150 from
+// depth 8, past 13.5M nodes without finishing depth 11 (1.10.2: 0 in 11,704
+// nodes at depth 14). Each position must read a draw at every depth 8-14
+// inside a node cap about fourteen times what the repaired search needs.
+// ---------------------------------------------------------------------------
+static void test_wrong_bishop_draw_in_search() {
+    static const char* FENS[] = {
+        "7k/8/6KP/8/8/8/8/5B2 w - - 0 1",   // suite_v2 89
+        "k7/8/PK6/8/8/8/8/2B5 w - - 0 1",   // the a-file
+        "5b2/8/8/8/8/6kp/8/7K b - - 0 1",   // colours reversed
+        "7k/7P/6K1/8/8/3B4/8/8 w - - 0 1",  // on its false PV, stalemate near
+    };
+    constexpr int64_t NODE_CAP = 200000;
+    begin_section("KBP-K wrong bishop reads a draw at depths 8-14");
+    for (const char* fen : FENS) {
+        for (int depth = 8; depth <= 14; ++depth) {
+            Board b;
+            b.set_fen(fen);
+            TranspositionTable tt(8);
+            std::atomic_bool stop{false};
+            SearchLimits lim;
+            lim.depth = depth;
+            lim.nodes = NODE_CAP;
+            auto searcher = std::make_unique<Searcher>(tt, stop);
+            const SearchResult r = searcher->search(b, lim);
+            EXPECT_EQ(r.depth, depth);
+            EXPECT(std::abs(r.score) <= DRAW_TOL);
+        }
+    }
+    end_section();
+}
+
+// ---------------------------------------------------------------------------
 
 int main(int argc, char** argv) {
     init_bitboards();
@@ -697,6 +733,7 @@ int main(int argc, char** argv) {
     test_kbnk_keeps_both_minors();
     test_kpk_matches_syzygy();
     test_pawnless_scale_truth_table();
+    test_wrong_bishop_draw_in_search();
 
     return harness_summary();
 }

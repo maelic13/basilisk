@@ -116,6 +116,11 @@ inline int ocb_draw_scale(int total_pawns) {
 
 inline constexpr Bitboard EVAL_DARK_SQUARES = 0xAA55AA55AA55AA55ULL;
 
+// The static "won, mate is technique" magnitude: every known-win class
+// scores at or above it. The search reads it too, as the edge below which
+// a stand-pat says nothing about what a capture leaves.
+inline constexpr int KNOWN_WIN = 10000;
+
 // Bare-king wins against a queen or a rook sit in tiers by the winner's
 // strongest piece (apply_endgame), above every minor-piece mate.
 inline constexpr int BARE_KING_QUEEN_TIER = 28700;

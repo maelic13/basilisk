@@ -218,10 +218,16 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         return stand_pat;
     }
 
+    // The pruning below reads a capture's gain as the piece it takes. Not
+    // when the opponent holds a known win: a capture there can end the
+    // ending, as Kxh8 ends a KBB-K in a dead draw, and the stand-pat says
+    // nothing about what it leaves (the oracle's futilityBase > -KNOWN_WIN).
+    const bool prune_by_gain = stand_pat + 150 > -KNOWN_WIN;
+
     // Delta pruning: even capturing a queen with a margin to spare cannot
     // raise alpha, so that optimistic value is the node's upper bound.
     const int delta_bound = stand_pat + PIECE_VALUE[QUEEN] + 200;
-    if (delta_bound < alpha) {
+    if (prune_by_gain && delta_bound < alpha) {
         TRACE_DECISION(TraceEvent::QsDeltaPrune, ply, 0, MOVE_NONE,
                        alpha, beta, stand_pat, -1, correction, VALUE_NONE,
                        0, 0, PIECE_VALUE[QUEEN] + 200, delta_bound);
@@ -274,7 +280,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         // Futility: the capture's optimistic value cannot raise alpha, and
         // stands in for the move in the node's upper bound.
         const int futility_value = stand_pat + tactical_gain + 150;
-        if (!is_promo
+        if (prune_by_gain && !is_promo
             && futility_value <= alpha
             && !move_gives_check()) {
             TRACE_DECISION(TraceEvent::QsFutilityPrune, ply, 0, m,
@@ -284,7 +290,8 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
             continue;
         }
 
-        const int see_threshold = std::clamp(alpha - stand_pat - 200, -800, 200);
+        const int see_threshold = prune_by_gain
+                                ? std::clamp(alpha - stand_pat - 200, -800, 200) : 0;
         if (!state_.board->see_ge(m, see_threshold)) {
             TRACE_DECISION(TraceEvent::QsSeePrune, ply, 0, m,
                            alpha, beta, stand_pat, -1, correction, VALUE_NONE,
