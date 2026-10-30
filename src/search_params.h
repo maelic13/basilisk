@@ -245,7 +245,14 @@
 // IIR: a ply off a PV or cut node off the previous PV, not in check, at
 //   depth >= min_depth without a TT move. b3_iir: 1 on; 0 off. b3_iir_stale:
 //   1 also reduces when the TT entry is shallower than depth - 3.
-#define BASILISK_B3_PARAMS(X, F, S)                                     \
+//
+// ProbCut: at depth >= min_depth, with beta' = beta + base - improving, a
+//   capture or queen promotion whose SEE clears beta' - static eval, holding
+//   beta' in quiescence and at depth - (improving ? depth_improving : depth),
+//   returns its value less the margin. The small ProbCut returns beta +
+//   tt_margin from a lower bound at least depth - tt_depth deep that clears
+//   it. b3_probcut_pv: 1 admits PV nodes; 0 non-PV only.
+#define BASILISK_B3_PARAMS(X, F, S)                                    \
     S(b3_check_ext,          B3CheckExt,             0,    0,     1)     \
     S(b3_check_prune,        B3CheckPrune,           1,    0,     1)     \
     /* Null move */                                                      \
@@ -262,7 +269,16 @@
     /* Internal iterative reduction */                                   \
     X(b3_iir_min_depth,      B3IirMinDepth,          6,    3,    10)     \
     S(b3_iir,                B3Iir,                  1,    0,     1)     \
-    S(b3_iir_stale,          B3IirStale,             0,    0,     1)
+    S(b3_iir_stale,          B3IirStale,             0,    0,     1)     \
+    /* ProbCut */                                                        \
+    X(b3_probcut_base,       B3ProbCutBase,         68,   34,   240)     \
+    X(b3_probcut_improving,  B3ProbCutImproving,    18,    0,    48)     \
+    F(b3_probcut_min_depth,  B3ProbCutMinDepth,      3,    2,     8)     \
+    F(b3_probcut_depth,      B3ProbCutDepth,         3,    2,     6)     \
+    F(b3_probcut_depth_improving, B3ProbCutDepthImproving, 5, 3,    8)     \
+    X(b3_probcut_tt_margin,  B3ProbCutTtMargin,    121,   60,   240)     \
+    F(b3_probcut_tt_depth,   B3ProbCutTtDepth,       4,    2,     8)     \
+    S(b3_probcut_pv,         B3ProbCutPv,            1,    0,     1)
 
 #define BASILISK_KERNEL_PARAMS(X) BASILISK_CORE_KERNEL_PARAMS(X, X)
 #define BASILISK_KERNEL_SWITCHES(S) BASILISK_CORE_KERNEL_SWITCHES(S)

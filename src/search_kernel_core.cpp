@@ -816,7 +816,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         }
 
         // ProbCut: if a capture is likely to fail high at reduced depth
-        if (!ABLATED(3) && depth >= 5 && !is_decisive(beta)) {
+        if (!kB3Proof && !ABLATED(3) && depth >= 5 && !is_decisive(beta)) {
             int pc_beta = std::min(beta + config_.limits.params.probcut_margin,
                                    MATE_SCORE - MAX_PLY - 1);
             MoveList pcaps;
@@ -828,7 +828,6 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 DIAG_COUNT(state_.diag.probcut_tries++);
                 do_move(ss, m);
                 shared_.tt.prefetch(state_.board->position_key());
-                if constexpr (kB3Proof) (ss + 1)->ext_plies = ss->ext_plies;
                 // Quick check via QSearch first
                 int val = -quiescence<NodeType::NonPV>(-pc_beta, -pc_beta + 1, ply + 1, 0, ss + 1);
                 if (val >= pc_beta)
@@ -879,6 +878,63 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             if (hindsight_reduced)    DIAG_COUNT(++state_.diag.iir_after_hindsight);
             if (is_pv)                DIAG_COUNT(++state_.diag.iir_pv_nodes);
             depth--;
+        }
+    }
+
+    // ProbCut (Cluster 2, the donor's form), after IIR and at PV nodes too:
+    // a capture or queen promotion that holds a margin above beta in
+    // quiescence and at a reduced depth proves the node, which returns the
+    // value less the margin; a valid TT score below the margin says none will.
+    if constexpr (kB3Proof) {
+        const int pc_beta = beta + kp.b3_probcut_base - kp.b3_probcut_improving * improving;
+        if (!ABLATED(3) && !is_root && !in_check && (!is_pv || kp.b3_probcut_pv)
+            && depth >= kp.b3_probcut_min_depth && !is_decisive(beta)
+            && !(tt_score != VALUE_NONE && tt_score < pc_beta)) {
+            const int pc_depth = depth - (improving ? kp.b3_probcut_depth_improving
+                                                    : kp.b3_probcut_depth);
+            // The store keeps the raw evaluation; an exclusion search, which
+            // computed none, keeps the entry's own.
+            const int store_eval = tt_static_eval != INF_SCORE ? tt_static_eval
+                                 : tt_found ? int(tte.static_eval) : INF_SCORE;
+            ProbCutPicker pc(*state_.board, hist_, tt_move, ss->excluded, pc_beta - static_eval,
+                             state_.move_buffers[ply][1]);
+            for (Move m = pc.next(); m != MOVE_NONE; m = pc.next()) {
+                DIAG_COUNT(state_.diag.probcut_tries++);
+                if (is_pv) DIAG_COUNT(++state_.diag.probcut_pv_tries);
+                do_move(ss, m);
+                shared_.tt.prefetch(state_.board->position_key());
+                (ss + 1)->ext_plies = ss->ext_plies;
+                int val = -quiescence<NodeType::NonPV>(-pc_beta, -pc_beta + 1, ply + 1, 0, ss + 1);
+                if (val >= pc_beta && pc_depth > 0)
+                    val = -negamax<NodeType::NonPV>(pc_depth, -pc_beta, -pc_beta + 1,
+                                                    ply + 1, ss + 1, true, !cut_node);
+                undo_move(ss, m);
+                if (state_.stopped) return 0;
+                if (val >= pc_beta) {
+                    tt_store(hash, pc_depth + 1, val, TT_BETA, m, ply, store_eval, ss->tt_pv);
+                    if (!is_decisive(val)) {
+                        DIAG_COUNT(state_.diag.probcut_cuts++);
+                        TRACE_DECISION(TraceEvent::ProbcutCutoff, ply, depth, m,
+                                       alpha, beta, eval, improving, correction, VALUE_NONE,
+                                       0, depth - pc_depth, pc_beta - static_eval,
+                                       val - (pc_beta - beta));
+                        return val - (pc_beta - beta);
+                    }
+                }
+            }
+        }
+
+        // The small ProbCut, in check too: a lower bound nearly deep enough
+        // that clears beta by a wide margin returns that margin.
+        const int tt_pc_beta = beta + kp.b3_probcut_tt_margin;
+        if (!is_root && proves_lower(tt_flag) && tt_depth >= depth - kp.b3_probcut_tt_depth
+            && tt_score != VALUE_NONE && tt_score >= tt_pc_beta
+            && !is_decisive(beta) && !is_decisive(tt_score)) {
+            DIAG_COUNT(++state_.diag.probcut_tt_cuts);
+            TRACE_DECISION(TraceEvent::ProbcutTtCutoff, ply, depth, tt_move,
+                           alpha, beta, eval, improving, correction, VALUE_NONE,
+                           0, 0, kp.b3_probcut_tt_margin, tt_pc_beta);
+            return tt_pc_beta;
         }
     }
 
