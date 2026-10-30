@@ -570,7 +570,7 @@ B.1 head (BAS-S23); `B2_CORE` is on, and the legacy kernel builds with
 `-DB2_CORE=OFF` until B.8. B.10 repaired seven rank-mirrored piece-square
 tables, +18.3 ± 12.9 Elo (BAS-S26).
 
-- [ ] **B.3** `[I2]` Cluster 2 — pruning and extensions
+- [ ] **B.3** Cluster 2 — pruning and extensions
   Cluster 2 — proof searches and extensions: NMP (cut-node population,
   improving and prior-fail-high margin, dynamic reduction, verification
   region), ProbCut (qsearch pre-verification, margin-scaled depth, the small
@@ -713,6 +713,26 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     fixed draw value (B-84) and the board's key history (D.3.1). Prior:
     a few Elo in Stockfish; one pre-registered terminal test as BAS-S12
     required.
+    - [ ] **B.3.0** `[R2]` Research and handoff on the B.2 head
+      Opened 2026-10-30. Re-base B.0's Cluster 2 handoff on the accepted B.2
+      head (bench 19,470,325 since A.13.2) and settle every input above
+      into one handoff packet in `analysis/`: the contents, the
+      interactions with Cluster 1's fitted core, the categoricals and
+      deletion arms, the zero-game reads it needs (fixed-node counters,
+      bench, the KBNK and KQK floors), the prospective predictions, the
+      falsifiers and the B.3.1 contract with its seeds. Behaviour-neutral
+      seams the cluster needs land at the exact fingerprint, as B.2.0's
+      did. Closes `READY_FOR_IMPLEMENTATION` or returns the cluster with
+      its evidence.
+    - [ ] **B.3.1** `[I2]` Implement behind the umbrella switch
+      The packet's contract behind one umbrella option, both arms building;
+      accepted by an independent review that reproduces the fingerprints
+      before diagnostics start.
+    - [ ] **B.3.2** `[V]` Diagnostics and the unfitted paired run
+    - [ ] **B.3.3** `[V]` Curvature sweep, then SPSA in blocks
+    - [ ] **B.3.4** `[V]` Cluster 2 gates
+      SPRT `[0,3]` for the cluster, and each categorical and deletion arm
+      at the bounds the packet registers.
 - [ ] **B.4** `[I2]` Cluster 3 — quiescence
   TT cutoff, corrected stand-pat with interpolated fail-high, futility base,
   move-count and SEE pruning, evasions only in check, TT write on exit; SPRT
@@ -1015,7 +1035,11 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3 | RESEARCH | I2 | Contents fixed by B.0, contingent on B.2's head |
+| B.3.0 | RESEARCH | R2 | Re-base B.0's handoff on the B.2 head; the packet is the deliverable |
+| B.3.1 | RESEARCH | I2 | Waits for B.3.0's contract |
+| B.3.2 | RESEARCH | V | Waits for B.3.1's accepted review |
+| B.3.3 | RESEARCH | V | Waits for B.3.2 |
+| B.3.4 | RESEARCH | V | Waits for B.3.3 |
 | B.4 | RESEARCH | I2 | Contents fixed by B.0 |
 | B.5 | RESEARCH | I2 | Contents fixed by B.0 |
 | B.6 | RESEARCH | V | Only if the clusters' curvature justifies it |
