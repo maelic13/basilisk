@@ -1144,7 +1144,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.1 | READY_FOR_IMPLEMENTATION | I2 | Packet §10's contract, eleven tickets behind `B3_PROOF`; the maintainer may flip the two check-policy defaults (§9) before it starts |
+| B.3.1 | READY_FOR_IMPLEMENTATION | I2 | Packet §10's contract, eleven tickets behind `B3_PROOF`; the donor's check policy as the ON arm confirmed by the maintainer 2026-10-30 |
 | B.3.2 | RESEARCH | V | Waits for B.3.1's accepted review |
 | B.3.3 | RESEARCH | V | Waits for B.3.2 |
 | B.3.4 | RESEARCH | V | Waits for B.3.3 |
