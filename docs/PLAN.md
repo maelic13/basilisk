@@ -764,6 +764,10 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       depth-20 wire check, the deep-iteration cost screen, the liveness
       proof). A false premise returns the leaf with a *Return* section
       in the packet, as B.2.1 did.
+      - Returned 2026-10-30 at ticket 1 (packet *Return 1*): the budget
+        binds at bench depth (12,800 of 89,121 singular firings; ON
+        13,315,120) and the cap it replaces binds there too; tickets 0-1
+        committed (`823d087`), OFF arm 16,615,757.
     - [ ] **B.3.2** `[V]` Diagnostics and the unfitted paired run
       Packet §11, BAS-S41: the zero-game screens on both arms (counters,
       the oracle differential, WAC, the crossover band, the canary
@@ -1144,7 +1148,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.1 | READY_FOR_IMPLEMENTATION | I2 | Packet §10's contract, eleven tickets behind `B3_PROOF`; the donor's check policy as the ON arm confirmed by the maintainer 2026-10-30 |
+| B.3.1 | RESEARCH | I2 | Returned at ticket 1 (packet *Return 1*: the extension budget binds at bench depth); resumes on research amendment 1 |
 | B.3.2 | RESEARCH | V | Waits for B.3.1's accepted review |
 | B.3.3 | RESEARCH | V | Waits for B.3.2 |
 | B.3.4 | RESEARCH | V | Waits for B.3.3 |

@@ -1085,3 +1085,93 @@ with measured activation; if P2 fails and P3 failed, B.3 returns to
 | Conversion floors, pre-repair head | `conversion/conv_*.txt` (§2.2's first table, `ba31f28`) |
 | Conversion floors, repaired head | `../b12-20261030/conversion/conv_*.txt` (§2.2's second table, `d8d30e9`) |
 | The donor's `search.cpp` | `git -C D:/code/stockfish show sf_19:src/search.cpp` (`edb0d9db`), the line numbers of §3 |
+
+## Return 1 — B.3.1 ticket 1: the extension budget binds at bench depth (2026-10-30)
+
+**Premise returned.** §10 ticket 1: "Both arms 16,615,757: the budget
+never binds at bench depth"; §5.10: "the budget is expected never to bind
+at depth ≤ 14 (P8) ... a guard that never binds costs no games"; §4 and
+§9: the double-extension cap it replaces "binds 0.001%", so dropping it is
+free. Both halves are false at `bench 13`.
+
+**Evidence.** Branch `b3-pruning-extensions`: ticket 0 (`dafe92d`,
+`a676317`) and ticket 1 as contracted (`823d087`). Release-preset builds,
+PEXT portable, Clang 23.1.4, `bench 13` from the release binary; the
+counters from the Diag binary of the same source, one fresh process per
+bench position at `go depth 13`, Hash 64
+(`tools/results/b31-20261030/bench_fens.epd`, the 40 `BENCH_FENS`). Rows 2
+to 5 are temporary edits of `Searcher::ext_budget()` (row 3 also restores
+the cap in the singular block's `allow_double` condition and skips the
+budget; rows 4 and 5's counters ran with the `ext_plies <= root_depth_`
+node check removed), built, read and reverted, never committed.
+
+| ON-arm variant | `bench 13` | `ext_budget_bound` / `sing_fired` |
+|---|---:|---:|
+| 1. ticket 1 as contracted: budget = `root_depth_`, no cap | **13,315,120** (−19.9%) | **12,800 / 89,121 (14.4%)** |
+| 2. no budget, no cap | 18,212,126 (+9.6%) | — |
+| 3. no budget, the cap kept (the producers alone) | **16,615,757** | — |
+| 4. budget 2 × `root_depth_`, no cap | 11,060,918 (−33.4%) | 346 / 73,894 (0.47%) |
+| 5. budget 3 × `root_depth_`, no cap | 13,932,846 (−16.1%) | 398 / 69,226 (0.57%) |
+
+The OFF arm reads 16,615,757, and on the same counter read its double cap
+binds 40 times in 68,385 singular firings (`sing_cap_bound`). Bench
+position 39 (`1Q4R1/5k2/4rpp1/3K4/8/7p/8/8 b - - 2 9`, queen and rook
+against rook with checks) carries 10,913 of row 1's 12,800 truncations,
+position 38 808. The bookkeeping is not the cause: on the Diag build the
+node checks (a child's `ext_plies` is its parent's plus the parent's
+positive extension; never above `root_depth_`) hold through
+`test_stack_unwind`, and rows 4 and 5 tripped the second check as they
+must. Row 3 shows the ticket's producers (`follow_pv`, `ext_plies`, the
+previous PV and root score) are behaviour-neutral.
+
+**Why the premise failed.** The cap counts doubles along a line (16 of
+them, up to 32 plies) and was read at depth 14 on `suite_v2`; the budget
+counts plies against the iteration's depth, which every search passes
+through at 5 to 12 before it reaches 13. On this head 84% of singular
+extensions are doubles (§2.1) and the unconditional check extension
+lengthens forcing lines so that singular fires deep inside them: a bound of
+`root_depth_` plies is tighter than 16 doubles, not looser. And the cap
+binds at bench depth itself, so its removal alone moves the fingerprint
+(row 2).
+
+**Consequences.** Ticket 1 cannot keep the ON arm at 16,615,757 with the
+budget as written. On today's extension the budget is an active
+selectivity rule, truncating one firing in seven, not a dormant bound; P8
+fails on `bench 13` before the graded extension exists; and §9's
+`B3ExtBudget` rule ("no games unless `ext_budget_bound > 0`") would owe
+games.
+
+**Options.**
+
+1. *Land the budget with ticket 6 and keep the double cap on the ON arm
+   until then.* Ticket 1 becomes the producers alone, which row 3 shows
+   reproduce 16,615,757 on both arms. The budget then bounds the graded
+   extension it was designed for, after ticket 2 has removed the check
+   extension that lengthens the lines it binds on, and `ext_budget_bound`
+   is read against P8 at ticket 6 with the counter already in place; a
+   budget that still binds at bench depth there returns again. The
+   per-ticket counter tables keep ticket 1 neutral, so tickets 2 to 5 are
+   read without an unregistered rule under them.
+2. *Keep ticket 1 as committed* and record its ON fingerprint
+   (13,315,120); P8 is read at ticket 6 instead of ticket 1. The least
+   code, but the budget acts as an unregistered pruning rule through
+   tickets 2 to 5, and their counter tables carry it.
+3. *Loosen the bound* (rows 4 and 5). A change of mechanism, which is
+   research's: 2× still truncates 0.47% of firings, and the fingerprints
+   are not monotone in the multiple (−33%, −16%), so the bound reaches the
+   tree through the TT and ordering rather than locally.
+
+Recommendation: option 1. It keeps ticket 1 behaviour-neutral as the
+contract intends, and reads the budget where its premise is defined: on the
+donor's graded extension without the check extension.
+
+**State at the return.** Tickets 0 and 1 committed as contracted; the
+OFF arm 16,615,757 on Release and Diag; release CTest 25/25 on both arms
+(`test_b3_proof` added: the budget's edge arithmetic, the `follow_pv`
+predicate, a forced cap that moves the ON tree and its counter and leaves
+the OFF tree alone, and in counter builds `follow_pv_nodes` 1 at iteration
+1); WAC at depth 6 180/300 on the ON arm (OFF 182). A draft Diag-only
+assertion that `ext_budget_bound` is 0 at depth 10 failed on three of
+eight bench positions (35, 6 and 142 truncations) and was not committed;
+the amendment decides the expectation. Implementation resumes on research
+amendment 1 in this packet.
