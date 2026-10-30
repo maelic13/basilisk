@@ -113,8 +113,12 @@ static constexpr bool kCounters =
     false;
 #endif
 
-// A cap far below the root depth truncates extensions on the B3_PROOF arm
-// and changes the tree; the OFF arm has no budget and ignores it.
+// The arm whose singular extension the budget bounds: none until the graded
+// extension lands with it.
+static constexpr bool kBudgetApplied = false;
+
+// A cap far below the root depth truncates extensions where the budget is
+// applied and changes the tree; elsewhere the cap is ignored.
 static void test_budget_bound_is_live() {
     int changed = 0;
     int legal = 0;
@@ -127,11 +131,11 @@ static void test_budget_bound_is_live() {
         b.set_fen(fen);
         legal += is_legal_move_on_board(b, capped.result.bestmove);
         // Where the cap moved the tree, the counter saw it truncate.
-        if (kCounters && kB3Proof && full.result.nodes != capped.result.nodes)
+        if (kCounters && kBudgetApplied && full.result.nodes != capped.result.nodes)
             EXPECT(counter(capped, "ext_budget_bound") > counter(full, "ext_budget_bound"));
     }
-    begin_section("budget: a forced cap moves the tree on the B3_PROOF arm only");
-    if constexpr (kB3Proof)
+    begin_section("budget: a forced cap moves the tree where the budget is applied");
+    if constexpr (kBudgetApplied)
         EXPECT(changed > 0);
     else
         EXPECT_EQ(changed, 0);

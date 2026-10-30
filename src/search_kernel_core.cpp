@@ -448,11 +448,10 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     CORE_NODE_CHECK(ss->excluded != MOVE_NONE
                     || ss->tt_pv == (is_pv || (tt_found && tte.is_pv())));
     // Cluster 2: a child's extension plies are its parent's plus the
-    // parent's positive extension, within the line's budget, and only a
-    // node whose parent follows the previous PV can follow it.
+    // parent's positive extension, and only a node whose parent follows
+    // the previous PV can follow it.
     if constexpr (kB3Proof) {
         CORE_NODE_CHECK(is_root || ss->ext_plies == (ss - 1)->ext_plies + (ss - 1)->ext_taken);
-        CORE_NODE_CHECK(ss->ext_plies <= root_depth_);
         CORE_NODE_CHECK(is_root || !ss->follow_pv || (ss - 1)->follow_pv);
     }
 
@@ -1034,11 +1033,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 // TT move is singular — extend it. Cap stacked
                 // 2-ply extensions along this path so a pathological line can't
                 // chain unbounded double-extensions.
-                // On the B3_PROOF arm the per-line budget below bounds the
-                // extensions instead of the double-extension cap.
                 bool allow_double = !is_pv
                     && s_val < s_beta - config_.limits.params.singular_double_margin
-                    && (kB3Proof || ss->double_exts < config_.limits.params.double_ext_max);
+                    && ss->double_exts < config_.limits.params.double_ext_max;
                 // REFUTED: our per-node check extension composes with
                 // this per-move one, so a checking node with a singular TT move
                 // can take 3 plies where the reference allows 1. Making them
@@ -1049,17 +1046,6 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 // discovery-or-SEE, so removing the composition removes strictly
                 // more than it would there. Composition stays. (BAS-D11)
                 extension += allow_double ? 2 : 1;
-                if constexpr (kB3Proof) {
-                    bool truncated = false;
-                    extension = b3::budget_extension(extension, ss->ext_plies, ext_budget(),
-                                                     truncated);
-                    if (truncated) {
-                        DIAG_COUNT(++state_.diag.ext_budget_bound);
-                        TRACE_DECISION(TraceEvent::ExtBudgetTruncate, ply, depth, m,
-                                       alpha, beta, eval, improving, correction, VALUE_NONE,
-                                       searched, extension, ss->ext_plies, ext_budget());
-                    }
-                }
                 TRACE_DECISION(TraceEvent::SingularExtension, ply, depth, m,
                                alpha, beta, eval, improving, correction, trace_history,
                                searched, extension, s_beta, s_val);
