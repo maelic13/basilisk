@@ -512,7 +512,7 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S39](experiments/BAS-S39.md) — A.13.4: the tablebase probe after the TT cutoff, `[-5,5]` at `10+0.1` with tables — cap, +0.3 ± 3.2; repair kept
 
-- [BAS-S40](experiments/BAS-S40.md) — B.12: quiescence's gain pruning stands down in a known loss, `[-5,5]` — registered
+- [BAS-S40](experiments/BAS-S40.md) — B.12: quiescence's gain pruning stands down in a known loss, `[-5,5]` — H1, +3.8 ± 5.2; repair kept
 
 | ID | Title | Disposition |
 |---|---|---|

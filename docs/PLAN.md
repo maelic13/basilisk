@@ -1026,7 +1026,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
   Version 1.11.0 (maintainer decision 2026-10-24: releases follow B, C and
   E, and 2.0.0 is the first NNUE release). Cut through A.8.6's tag-driven
   flow after A.10.4.
-- [ ] **B.12** `[I2]` False win in drawn KBP-K (ANY TIME) — before B.3.1
+- [x] **B.12** `[I2]` False win in drawn KBP-K (ANY TIME) — before B.3.1
   Correctness repair, opened 2026-10-30 at the maintainer's decision when
   B.3.0's counter suite stopped on it (packet §2.3,
   `analysis/b30_cluster2_research_2026-10-30.md`). `7k/8/6KP/8/8/8/8/5B2 w`,
@@ -1058,7 +1058,9 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     16,615,757 through state the bench positions share; the fingerprint
     record updates when the gate keeps the repair.
   - Game gate: BAS-S40, `[-5,5]` at `3+0.03`, 4,000-pair cap,
-    `tools/run_b12_gate.ps1`, dry run accepted; maintainer-run.
+    `tools/run_b12_gate.ps1`; maintainer-run 2026-10-30: H1, +3.8 ± 5.2
+    Elo after 2,567 pairs (a first-crossing estimate), 0 faults. The
+    repair stays and the fingerprint record moves to 16,615,757. CLOSED.
 
 ### Active workflow register
 
@@ -1081,7 +1083,6 @@ leaf's tag. Later phases carry only a class until they open.
 | B.8.2 | RESEARCH | I1 | After the clusters |
 | B.9 | RESEARCH | V | Programme checkpoint |
 | B.11 | RESEARCH | M | Interim release after B.9 (maintainer decision 2026-10-24) |
-| B.12 | GAME_GATE | I2 | BAS-S40 registered; awaiting the maintainer's run |
 
 ## Phase C — Evaluation programme (search frozen)
 

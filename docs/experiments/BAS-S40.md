@@ -102,4 +102,37 @@
 
 #### RESULT — append after exposure
 
+- **H1 accepted (maintainer-run 2026-10-30):** **+3.8 ± 5.2 Elo** (nElo
+  +6.9 ± 9.5), LLR +2.95 after 2,567 pairs (5,134 games); W/D/L
+  1450/2290/1394, pentanomial [66, 473, 1436, 523, 69]. A first-crossing
+  estimate, selected at the boundary: it is the stop's reading, not the
+  effect size.
+  - 0 faults, 0 time losses; 14 post-terminal pairs kept outside the
+    sample; the independent PGN recount agrees.
+  - Both arms searched alike per move: 143,754 nodes and depth 13.97
+    (without mate scores) for the repair, 144,679 and 13.94 for the head;
+    2.02M and 2.03M nodes per second.
+  - The run took a fresh dry run with the registered hash
+    (`colosseum_sprt_b12-gate_20261030_142029.dry-run.json`,
+    `2a0f697a…`); manifest `1dcedd8e…`, run record `ed22e1bb…`, PGN
+    `e7a69e01…`.
+- **Correctness floors:** CTest 24/24 on the candidate's source, the
+  wrong-bishop test and the conversion floors included (§QUALIFICATION).
+- **Verdict (registered rule):** H1, so the repair stays and the
+  fingerprint record updates to `bench 13` 16,615,757.
+- Disposition: **H1, +3.8 ± 5.2; repair kept. CLOSED 2026-10-30.**
+
 #### PREDICTION CALIBRATION — preserve the original prediction above
+
+- **Prediction:** about 0 to +2 Elo, most likely the cap; not H0 at about
+  85%.
+- **Reading:** H1 at +3.8 after 2,567 pairs. The sign is right and the
+  estimate sits within its error of the predicted range, but the predicted
+  outcome, the cap, missed: the effect was large enough to decide.
+- **What it teaches:** the exposure argument priced the change as moving
+  only the defender's search in decided endings. The same false bound
+  also reaches the stronger side's choices: a search that misses the
+  defender's saving capture misjudges which conversion holds, and steers
+  for endings it cannot win. A defect in a band of scores is judged by
+  every decision that reads the band, not only by the nodes it sits in.
+  This is a reading, not a measured split; the games were not classified.

@@ -84,6 +84,13 @@ and next step).
 
 ### Fixed
 
+- **False wins in drawn bishop-and-rook-pawn endings.** With the wrong
+  bishop for the rook pawn's promotion square, the engine could read a
+  dead draw as a large win and search it without end: it missed that the
+  defending king captures a piece the pawn promotes to beside it. Fixed,
+  worth **+3.8 ± 5.2 Elo** at `3+0.03` (5,134 games). `bench 13` is now
+  16,615,757.
+
 - **Seven piece-square tables were mirrored.** The knight, bishop and queen
   tables, and the endgame king table, valued each square as its mirror
   image across the board's middle: a White knight on f3 was paid as if it
