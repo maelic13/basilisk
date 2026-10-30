@@ -34,7 +34,7 @@ generations change. These are maintainer judgments, not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **B.3.0** `[R2]` Research and handoff on the B.2 head — Claude Opus 5 — High
+**Next step:** **B.3.1** `[I2]` Implement behind the umbrella switch — Claude Opus 5 — High
 
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
@@ -89,7 +89,7 @@ B.1 head (BAS-S23); the legacy kernel and the switch were later deleted
 tables, +18.3 ± 12.9 Elo (BAS-S26).
 
 - [ ] **B.3** Cluster 2 — pruning and extensions
-    - [ ] **B.3.0** `[R2]` Research and handoff on the B.2 head
+    - [x] **B.3.0** `[R2]` Research and handoff on the B.2 head
     - [ ] **B.3.1** `[I2]` Implement behind the umbrella switch
     - [ ] **B.3.2** `[V]` Diagnostics and the unfitted paired run
     - [ ] **B.3.3** `[V]` Curvature sweep, then SPSA in blocks

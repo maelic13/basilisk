@@ -713,7 +713,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     fixed draw value (B-84) and the board's key history (D.3.1). Prior:
     a few Elo in Stockfish; one pre-registered terminal test as BAS-S12
     required.
-    - [ ] **B.3.0** `[R2]` Research and handoff on the B.2 head
+    - [x] **B.3.0** `[R2]` Research and handoff on the B.2 head
       Opened 2026-10-30. Re-base B.0's Cluster 2 handoff on the accepted B.2
       head (bench 19,470,325 since A.13.2) and settle every input above
       into one handoff packet in `analysis/`: the contents, the
@@ -724,15 +724,66 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       seams the cluster needs land at the exact fingerprint, as B.2.0's
       did. Closes `READY_FOR_IMPLEMENTATION` or returns the cluster with
       its evidence.
+      - Stopped 2026-10-30 on the KBP-K false win (B.12, repaired the
+        same day) and resumed on the repaired head. Seam: eight
+        diagnostic counters (singular tries and multi-cuts, null-move
+        tries and cuts by depth bucket) at the exact fingerprint
+        (`1414039`, `bench 13` 16,615,757, Diag flavour verified).
+      - Closed 2026-10-30 `READY_FOR_IMPLEMENTATION`
+        (`analysis/b30_cluster2_research_2026-10-30.md` §8). Reads: the
+        depth-14 stride-1 counters on the repaired head (§2.1: in-check
+        nodes 26.4% of interior, NMP conversion 41.5%, singular tries
+        2.41% with 28.5% extended, IIR's stale clause 56% of its
+        firings and 0.3% overlap with hindsight, the double cap bound 5
+        times in 51.5M nodes), the conversion floors at five budgets
+        (KBN-K 115/120, the majority rule's base), WAC at 100,000 nodes
+        240/300. Decisions: the donor's check policy is the ON arm with
+        the current policy as the first two categoricals; the per-line
+        extension budget (B-7) replaces the double-extension cap; B-12,
+        B-14, B-45 and B-109 are repaired inside the ON arm behind
+        attribution switches; thirteen categoricals and four attribution
+        switches registered with brackets (§9); the cross-cluster surface
+        rule (§5.12) puts a Cluster 1 coordinate on B.3.3's surface when
+        the ON arm moves its population by 10% or more. The B.3.1
+        contract is §10 (eleven tickets), the seeds §7, the frozen
+        predictions P1–P10 and the B.3.2–B.3.4 registrations §11
+        (BAS-S41 to BAS-S43 reserved). Corrections to the inputs:
+        `ttMoveHistory` is not an LMR term in `edb0d9db` (B-51 moot);
+        the oracle build exposes no counters, so B-54 reads ON against
+        OFF.
     - [ ] **B.3.1** `[I2]` Implement behind the umbrella switch
       The packet's contract behind one umbrella option, both arms building;
       accepted by an independent review that reproduces the fingerprints
       before diagnostics start.
+      Contract: packet §10 (`B3_PROOF`, tickets 0–10 in order, each
+      keeping the OFF arm at 16,615,757 and recording the ON arm's
+      fingerprint and its per-ticket counter table for both clusters'
+      rows), seeds §7, switches and defaults §9, invariants and tests
+      §10, cheap qualification §10 (the two-arm table, WAC at 100,000
+      nodes ≥ 232, the floors at five budgets with KBN-K ≥ 112, the
+      depth-20 wire check, the deep-iteration cost screen, the liveness
+      proof). A false premise returns the leaf with a *Return* section
+      in the packet, as B.2.1 did.
     - [ ] **B.3.2** `[V]` Diagnostics and the unfitted paired run
+      Packet §11, BAS-S41: the zero-game screens on both arms (counters,
+      the oracle differential, WAC, the crossover band, the canary
+      calibration, pooled NPS, the cost screen), the 2,000-game paired
+      run that governs (P1, the −40 stop), then the categorical paired
+      runs in §9's order, two of them at `10+0.1` as well; the §5.12
+      surface read decides which Cluster 1 coordinates B.3.3 fits.
     - [ ] **B.3.3** `[V]` Curvature sweep, then SPSA in blocks
+      Packet §11, BAS-S42: five registered sweep coordinates (the
+      singular margin with the donor's value as an extra point), then
+      SPSA in blocks on Cluster 2's X lines plus §5.12's admissions;
+      theta is the last completed block; the fitted-constant analysis
+      precedes the bake.
     - [ ] **B.3.4** `[V]` Cluster 2 gates
       SPRT `[0,3]` for the cluster, and each categorical and deletion arm
       at the bounds the packet registers.
+      Packet §11, BAS-S43: (a) the fitted ON arm against the OFF arm,
+      `[0,3]` at `3+0.03`; (b) the fit against the unfitted arm, `[0,3]`,
+      only if B.3.3 ran its SPSA; (c) a 2,000-game `10+0.1` direction
+      read, recorded, not a gate.
 - [ ] **B.4** `[I2]` Cluster 3 — quiescence
   TT cutoff, corrected stand-pat with interpolated fail-high, futility base,
   move-count and SEE pruning, evasions only in check, TT write on exit; SPRT
@@ -1093,8 +1144,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.0 | RESEARCH | R2 | Re-base B.0's handoff on the B.2 head; the packet is the deliverable |
-| B.3.1 | RESEARCH | I2 | Waits for B.3.0's contract |
+| B.3.1 | READY_FOR_IMPLEMENTATION | I2 | Packet §10's contract, eleven tickets behind `B3_PROOF`; the maintainer may flip the two check-policy defaults (§9) before it starts |
 | B.3.2 | RESEARCH | V | Waits for B.3.1's accepted review |
 | B.3.3 | RESEARCH | V | Waits for B.3.2 |
 | B.3.4 | RESEARCH | V | Waits for B.3.3 |
