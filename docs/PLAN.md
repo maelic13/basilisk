@@ -768,6 +768,13 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         binds at bench depth (12,800 of 89,121 singular firings; ON
         13,315,120) and the cap it replaces binds there too; tickets 0-1
         committed (`823d087`), OFF arm 16,615,757.
+      - Research amendment 1, 2026-10-30 (packet): the budget lands
+        with ticket 6 on the graded extension and the cap stays until
+        then; with the check extension off the budget binds 1.2% of
+        firings and the cap 0.007% (no deletion games owed); P8 scored
+        a miss and re-registered as P8a; `B3ExtBudget` read by games
+        unconditionally; the quiet-pruning consumer of `follow_pv`
+        assigned to ticket 2. Resumes at ticket 1b.
     - [ ] **B.3.2** `[V]` Diagnostics and the unfitted paired run
       Packet §11, BAS-S41: the zero-game screens on both arms (counters,
       the oracle differential, WAC, the crossover band, the canary
@@ -1148,7 +1155,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.1 | RESEARCH | I2 | Returned at ticket 1 (packet *Return 1*: the extension budget binds at bench depth); resumes on research amendment 1 |
+| B.3.1 | READY_FOR_IMPLEMENTATION | I2 | Resumes at ticket 1b on research amendment 1 (packet): the budget lands with ticket 6, the cap stays until then |
 | B.3.2 | RESEARCH | V | Waits for B.3.1's accepted review |
 | B.3.3 | RESEARCH | V | Waits for B.3.2 |
 | B.3.4 | RESEARCH | V | Waits for B.3.3 |

@@ -1175,3 +1175,224 @@ assertion that `ext_budget_bound` is 0 at depth 10 failed on three of
 eight bench positions (35, 6 and 142 truncations) and was not committed;
 the amendment decides the expectation. Implementation resumes on research
 amendment 1 in this packet.
+
+## Research amendment 1 — the extension budget lands with the graded extension (2026-10-30)
+
+Answers Return 1. Class `R2`; no engine code changed; the temporary edits
+below were reverted (`git status` clean after the run) and their recipes
+are the patches in `tools/results/b31-20261030/amend1/`. The maintainer's
+confirmed decisions (§7 seeds, §9 defaults, the donor's check policy as
+the ON arm) are not reopened.
+
+### 1. Why the premise failed, plainly
+
+The researcher compared the budget (`root_depth_` plies, 13 at bench
+depth) with the double cap (16 doubles, 32 plies) and called the budget
+the looser bound. It is the tighter one by a factor of two and a half, and
+on a tree whose forcing lines are lengthened by an unconditional check
+extension it binds one singular firing in seven. Rarog's own budget arm
+was never dormant either: it truncated 44,914 extensions at `bench 13`
+(its final implementation record) and shipped at +4.1% bench nodes, so
+"a guard that never binds" was this packet's claim, not Rarog's. The
+error was arithmetic, and the dormant-guard premise is withdrawn.
+
+### 2. The registered read (question 1)
+
+Registered before the run: three temporary variants of the ticket-1 ON
+arm (`823d087`, `B3_PROOF=ON`, `DIAGNOSTIC=ON`, `build/b3-on-diag`), each
+with the in-check extension disabled on the ON arm (`!kB3Proof &&` in its
+condition), `bench 13` from the same Diag binary (the seam proved the
+Diag flavour bench-identical) and the 40 bench positions one fresh
+process each at `go depth 13`, Hash 64, `Diag true`, summed by
+`run_suite.py --suite tools/results/b31-20261030/bench_fens.epd --depth 13`.
+Verdict rule, frozen: `ext_budget_bound / sing_fired` under 1% says the
+budget is a guard on an extension shape without the check extension and
+ticket 6 asserts a band around that rate; above 5% says it is an active
+selectivity rule on any extension shape and `B3ExtBudget` must be read by
+games unconditionally; between, both: the band is registered and the
+games are owed. What the read cannot show: the legacy singular block is
+still in place (84% doubles under a 4-cp double margin), so the rate under
+the donor's graded 1/2/3 extension is not this number.
+
+| Variant (check extension off on the ON arm) | `bench 13` | interior nodes | `sing_fired` | `ext_budget_bound` | `sing_cap_bound` |
+|---|---:|---:|---:|---:|---:|
+| A. the budget as ticket 1, no cap | 5,313,412 | 3,022,493 | 28,399 | **347 (1.22%)** | — |
+| B. the double cap restored, no budget | 5,464,579 | 2,944,772 | 27,070 | — | 2 (0.007%) |
+| C. no cap, no budget | 5,173,931 | 2,921,302 | 26,701 | — | — |
+
+Against Return 1's rows with the check extension on: the budget's rate
+falls from 14.4% to 1.22% of firings, its bench effect from −19.9% to
++2.7% (A against C), and the cap's rate from 0.06% to 0.007%. The check
+extension is the amplifier: it lengthens the forcing lines on which
+singular doubles chain, and the budget was reading that composition, not
+the singular mechanism. One more reading, recorded for P5 and not acted
+on: removing the check extension alone takes the ON arm's `bench 13` from
+18,212,126 (Return 1 row 2) to 5,173,931, 0.28× — B.0 §2.6's 1.9× was
+measured on the 1.10.1 head, and Cluster 1's tree carries far more of its
+depth in check (26.4% of interior nodes, §2.1).
+
+**Decision: Return 1's option 1.** Ticket 1 is the producers alone and
+keeps the double cap on the ON arm; the budget lands with ticket 6, after
+ticket 2 has removed the check extension, on the graded extension it was
+designed for. The 1.22% read sits in the rule's middle band, so both
+halves apply: ticket 6 asserts a band and `B3ExtBudget` is read by games.
+Options 2 and 3 are declined: 2 carries an unregistered pruning rule
+through tickets 2–5 and their counter tables; 3 changes the mechanism on
+a bench curve that is not monotone in the multiple (−33%, −16%), which
+DESIGN §5 forbids as a selection method.
+
+### 3. The double cap (question 2)
+
+The cap binds 40 of 68,385 firings (0.06%) at `bench 13` with the check
+extension and 2 of 27,070 (0.007%) without it; §2.1's 0.001% was read at
+depth 14 on `suite_v2`, a different suite and depth, and is superseded
+by the bench-13 figures for this question. All three are under §9's 1%
+threshold: the deleted form is not live, no `[-5,0]` games are owed, and
+the cap's removal is priced inside the arm's paired run. The cap leaves
+the ON arm at ticket 6, in the commit that replaces the singular block
+and lands the budget, so that at no ticket is the ON arm's singular
+extension unbounded.
+
+### 4. P8 and `B3ExtBudget` (question 3)
+
+P8 is frozen and is not edited. Its calibration entry, to be copied into
+BAS-S41 when that entry is created: *"P8's `bench 13` leg was falsified
+on 2026-10-30 before any ON-arm mechanism existed, on the legacy
+extension at ticket 1 (12,800 truncations of 89,121 firings). Cause: the
+mechanism assumption that a bound of `root_depth_` plies is looser than a
+cap of 16 doubles, which is false; the check extension's lengthening of
+forcing lines was the missed interaction. Sign and magnitude wrong;
+confidence over-calibrated (it was marked high). The prediction is scored
+a miss on the mechanism, and the budget's expectation is re-registered as
+P8a below, before any ON-arm build carrying the budget exists."*
+
+P8a (new, frozen here): at ticket 6, on the 40 bench positions at depth
+13 as above, `ext_budget_bound / sing_fired` lies in **[0.5%, 10%]**
+(prior: 1.22% on the legacy extension without the check extension; the
+donor's bars make doubles the rule off the PV and triples common, Rarog
+21%, so the rate rises); at depth 20 on bench positions 11 and 15 it is
+above 0 and **under 25%** of firings; and the cost screen passes. A rate
+above 10% at depth 13 or 25% at depth 20 says the graded extension's bars
+are mis-scaled for this evaluation (triples too common), and the bars,
+not the budget, return to research. Confidence moderate.
+
+§9 item 13 is amended: `B3ExtBudget` (1 on; 0 off; default 1) is read by
+a 2,000-game paired run unconditionally, in §9's order after item 12;
+0 may be adopted only if the deep-iteration cost screen also passes with
+it at 0 (B-5, B-7: PLAN requires a bound on the IIR arms, and the screen
+is the only other one).
+
+### 5. The budget's contract (question 4)
+
+- **Definition.** `ss->ext_plies` is the sum of positive singular
+  extension plies taken along the line from the root; a singular
+  extension of 1, 2 or 3 is granted up to `root_depth_ − ss->ext_plies`
+  and truncated at the edge, never refused (`ext_budget_bound` counts
+  truncations, `ExtBudgetTruncate` traces them). The check extension
+  under `B3CheckExt=1` does **not** consume the budget: it is a tune-build
+  categorical, and with in-check nodes at a quarter of the tree a budget
+  that counted it would bind at every forcing line and the categorical
+  would measure the budget, not the extension. Negative extensions,
+  hindsight's +1 and LMR's negative reductions neither consume nor refund
+  it (as §5.10).
+- **Invariant and node checks** (unchanged from ticket 1, which proved
+  them through `test_stack_unwind`): a child's `ext_plies` equals its
+  parent's plus the parent's positive singular extension (`ext_taken`),
+  the null and ProbCut children and the same-ply re-entries inherit the
+  node's value, and `ext_plies ≤ root_depth_` at every entry. Under
+  `B3CheckExt=1` the checks read the same, since the check extension is
+  not in `ext_taken`.
+- **Expected values.** No test asserts `ext_budget_bound = 0` anywhere.
+  `test_b3_proof` keeps the edge arithmetic and the forced-cap test
+  (`ext_budget_cap`) that proves the bound live. The cheap qualification
+  records the depth-13 and depth-20 rates against P8a's bands, and the
+  cost screen is the binding test.
+- **Fingerprint rules.** Ticket 1: both arms 16,615,757 (the producers
+  alone; Return 1's row 3 proved it). Tickets 2–5: OFF 16,615,757, ON
+  recorded, the cap still bounding the ON arm's legacy singular block.
+  Ticket 6: OFF 16,615,757, ON recorded with the graded extension, the
+  budget and no cap; the ticket's counter table includes
+  `ext_budget_bound`, `sing_fired`, `sing_ext3` and `sing_double`.
+  Tickets 7–10: as §10.
+
+### 6. The quiet-pruning consumer of `follow_pv` (question 5)
+
+A gap in §10: §3.6 and §5.6 give `follow_pv` two consumers and the
+tickets place one. The second is assigned to **ticket 2**, which already
+rewrites the move-loop admission gates: the quiet branch of move-loop
+pruning (continuation-history pruning, quiet futility, quiet SEE), today
+`else if (!is_pv)`, becomes `else if (!is_pv || !ss->follow_pv)` — the
+donor's `!ss->followPV || !PvNode` — so a PV node off the previous
+iteration's PV prunes its quiets as a non-PV node does, and a PV node on
+it does not. The capture branch is unchanged (the donor prunes captures
+at every node type). A counter `pv_quiet_pruned` (moves pruned by the
+quiet branch at PV nodes; denominator `moveloop_tested`) is appended at
+ticket 2, extending the table as ticket 0 did; the trace's `FutilityPrune`,
+`HistoryPrune` and `QuietSeePrune` records already carry the ply. Cohesion
+note for §5.12: quiet futility's and continuation-history pruning's
+populations gain PV nodes off the PV, a small share at depth 13 (PV nodes
+are under 0.1% of interior nodes); the per-ticket counter table shows it.
+
+### 7. The per-ticket counter method (question 6)
+
+Confirmed: `bench` clears the table once per run and prints no counters,
+so "the ON arm's `bench 13` counters at stride 1" means, everywhere in
+§10, the 40 bench positions (`tools/results/b31-20261030/bench_fens.epd`,
+regenerated from `src/bench.cpp`'s `BENCH_FENS` if missing) one fresh
+process each with Hash 64, `Diag true`, `ucinewgame` and `go depth 13`,
+summed by `run_suite.py --suite ... --depth 13 --stride 1 --hash 64` on
+the Diag build of the same source. Its node sum differs from `bench 13`
+(the table is cleared per position); the fingerprint stays the release
+binary's `bench 13`, the counters this read. Return 1 used exactly this
+method, and so did §2's read.
+
+### 8. Other premises reading the cap, the budget or "never binds" (question 7)
+
+Handoff clauses replaced (old → new); the original sections stand as
+written and are read with this list:
+
+- §5.10 "Today's double cap bound 5 times in 51.5M nodes; the budget is
+  expected never to bind at depth ≤ 14 (P8) and exists for the deep
+  iterations the cost screen reads. ... retires the simplification read's
+  deletion arm: a guard that never binds costs no games." → "The budget is
+  an active bound on the graded extension (P8a); it replaces the cap, whose
+  removal owes no games because the cap binds under 1% (amendment 1 §3)."
+- §6 item 2 "the ON arm does not carry it (5.10)" → "the ON arm carries
+  it until ticket 6".
+- §9 item 13 → amendment 1 §4.
+- §10 ticket 1, "`ext_plies` written for every child and bounded by
+  `root_depth_` for the singular extension on the ON arm (truncated, not
+  refused; `ext_budget_bound` counts truncations); `double_exts` and
+  `DoubleExtMax` are dead on the ON arm. ... Both arms 16,615,757: the
+  budget never binds at bench depth, and a test forcing `root_depth_`
+  small proves the bound live." → "`ext_plies` written for every child;
+  the budget's arithmetic and its forced-cap test land here but the bound
+  is not applied to the singular extension until ticket 6; `double_exts`
+  and `DoubleExtMax` stay live on the ON arm until ticket 6. Both arms
+  16,615,757." The committed `823d087` is amended by a ticket-1b commit
+  that lifts the bound from the singular block (the cap condition back to
+  `ss->double_exts < double_ext_max` on both arms) and keeps everything
+  else; its ON fingerprint is 16,615,757 (Return 1 row 3).
+- §10 ticket 6, "under the budget, then `depth++` at the node" and "the
+  double cap is gone" → unchanged in words, now the ticket where the
+  budget is applied and the cap removed; its tests gain the budget's
+  application (a forced `ext_budget_cap` moves the ON tree and
+  `ext_budget_bound`, as `test_b3_proof` already checks) and its end reads
+  P8a's depth-13 band.
+- §10 cheap qualification, "The depth-20 wire check (ticket 3) and
+  `ext_budget_bound` at depth 20." → "... and `ext_budget_bound` at depth
+  20 against P8a".
+- §4 rows "Double-extension counter and cap" and "S12" → replaced by the
+  cap's removal at ticket 6 (no games) and the budget's inheritance write
+  (unchanged).
+- §11 P5 is not amended (frozen); amendment 1 §2's 0.28× reading is its
+  early calibration input, recorded in BAS-S41 with P8's.
+
+### 9. Condition for resuming
+
+B.3.1 resumes `READY_FOR_IMPLEMENTATION` on this amendment at ticket 1b
+(the bound lifted from the singular block, both arms 16,615,757), then
+ticket 2 with §6's consumer added, and so on in §10's order with §5's
+fingerprint rules. No further research is owed before ticket 6's P8a
+read; a rate outside P8a's bands at ticket 6 returns the leaf with the
+counters.
