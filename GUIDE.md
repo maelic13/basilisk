@@ -43,8 +43,50 @@ generations change. These are maintainer judgments, not measured rankings.
 
 ### Phase A — Reset: documents, harness, instruments, baselines (EXTENDED)
 
+A.1–A.7 closed between 2026-09-28 and 2026-10-06; their text is in
+[`docs/archive/PLAN-closed-2026-10-07.md`](docs/archive/PLAN-closed-2026-10-07.md).
+They reset the documents (A.1); cleaned the repository, branches and tags and
+inventoried features, options and parameters (A.2); made the Colosseum CLI
+the main harness with its SPSA path (A.3); refreshed and froze the toolchain
+with build flavours for arms (A.4); built the search programme's
+instruments: fixed-budget probe, reference-anchored branching profile,
+counter summation and decision trace, matched ablation mask, PGN conversion
+instrument and canaries (A.5); mapped the codebase consolidation (A.6); and
+measured the 1.10.1 baselines (A.7): the 1T pool census (BAS-M08), 4T
+performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
+(BAS-O05) and pooled-PGO NPS **4.127M** (BAS-P12).
+
+A.8–A.17 closed between 2026-10-07 and 2026-10-30; their text is in
+[`docs/archive/PLAN-closed-2026-10-30.md`](docs/archive/PLAN-closed-2026-10-30.md).
+They brought Basilisk to Rarog's parity: the last Rarog import, CI on pull
+requests, the tag-driven release, UCI and MultiPV conformance, tablebase
+score bands and probes, the won-endgame time sink and the 1.10.2 patch
+release (A.8); rebuilt the harness and the instruments, among them the
+pooled-build NPS read and the inline-attributing profiler (A.9); repaired
+delivery and the repository (A.10); fixed the correctness defects of the
+Rarog audit (A.11) and of the code audit (A.13), with the roadmap rules
+(A.12) and one simplification (A.14) the audits asked for; shipped one
+universal x86-64 binary per OS, four PGO tiers behind a CPU dispatcher,
+buildable with Clang or GCC by Stockfish's assembly route, every trap
+guarded (A.15); deleted the evaluation's zero-weight terms and their
+parameters, **+2.35%** NPS (BAS-P25, A.16); and found no instruction-specific code that
+makes the engine faster, the native build's 1% loss being Zen 3's tuning
+model (BAS-P26, A.17).
 
 ### Phase B — Search programme (evaluation frozen)
+
+B.0–B.2 and B.10 closed between 2026-10-06 and 2026-10-24; their text is
+in [`docs/archive/PLAN-closed-2026-10-30.md`](docs/archive/PLAN-closed-2026-10-30.md).
+B.0 pinned the donor (`sf_19`, `edb0d9db`), measured the deficit and fixed
+the cluster order: razoring's depth reach read +2.4 Elo [−7.5, +12.3]
+(B.0.1), and the oracle's move-loop pruning family is about two thirds of
+its lead, G(0) − G(32) = 210.3 ± 23.9 of 312.6 (B.0.2). B.1 restructured the
+search behaviour-neutrally, +1.21% NPS (BAS-P16). B.2, Cluster 1, rebuilt
+the selectivity core in the donor's shape behind `B2_CORE` and fitted it:
++136.2 ± 33.6 Elo unfitted and +58.7 ± 20.9 fitted, about +195 over the
+B.1 head (BAS-S23); `B2_CORE` is on, and the legacy kernel builds with
+`-DB2_CORE=OFF` until B.8. B.10 repaired seven rank-mirrored piece-square
+tables, +18.3 ± 12.9 Elo (BAS-S26).
 
 - [ ] **B.3** Cluster 2 — pruning and extensions
     - [ ] **B.3.0** `[R2]` Research and handoff on the B.2 head

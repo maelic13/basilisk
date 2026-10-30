@@ -75,6 +75,11 @@ FINGERPRINT_ANCHORS = (("docs/DESIGN.md", "Bench signature"), ("AGENTS.md", "cur
 # A title is the step's name in GUIDE's overview, not its description.
 TITLE_MAX = 64
 PHASE_HEADING = re.compile(r"^## (Phase [A-Z]\b.*)$")
+# A phase's closed steps moved to the archive leave a summary paragraph that
+# links the archive file; GUIDE shows it where the steps were.
+ARCHIVE_SUMMARY_LINK = "](archive/PLAN-closed-"
+# PLAN's relative links, rewritten for GUIDE at the repository root.
+RELATIVE_LINK = re.compile(r"\]\((?!https?:|#|/)([^)]+)\)")
 MAPPING_ROW = re.compile(r"^\|\s*`(R3|R2|I2|I1|M|V)`\s*\|[^|]*\|\s*(?P<model>[^|]+?)\s*\|\s*$")
 GENERATED_BEGIN = (
     "<!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py "
@@ -180,11 +185,23 @@ def render_guide_block(plan_path: Path, plan: Checklist, mapping: dict[str, str]
     titles: dict[str, str] = {}
     board: list[str] = []
     phase = None
+    paragraph: list[str] = []
+
+    def end_paragraph() -> None:
+        if phase is not None and any(ARCHIVE_SUMMARY_LINK in part for part in paragraph):
+            board.extend(RELATIVE_LINK.sub(r"](docs/\1)", part) for part in paragraph)
+            board.append("")
+        paragraph.clear()
+
     for number, line in enumerate(plan_path.read_text(encoding="utf-8").splitlines(), 1):
         heading = PHASE_HEADING.match(line)
+        if heading or not line.strip() or line.startswith(("#", "-", "|", " ")):
+            end_paragraph()
+        else:
+            paragraph.append(line.rstrip())
         if heading:
             phase = heading.group(1)
-            board += ["", f"### {phase}", ""]
+            board += ([] if board and board[-1] == "" else [""]) + [f"### {phase}", ""]
             continue
         match = ITEM.match(line)
         if not match:
@@ -193,6 +210,8 @@ def render_guide_block(plan_path: Path, plan: Checklist, mapping: dict[str, str]
             raise ValueError(f"{plan_path}:{number}: step {match.group('id')} outside a phase")
         titles[match.group("id")] = match.group("rest")
         board.append(line.rstrip())
+
+    end_paragraph()
 
     def describe(key: str) -> str:
         model = mapping.get(plan.capabilities.get(key, ""))
@@ -532,6 +551,9 @@ def self_test() -> None:
         # without regeneration is stale, and a description is not a title.
         phased = (
             "## Phase A — Reset\n\n"
+            "A prose paragraph that stays in PLAN.\n\n"
+            "A.0 closed earlier; its text is in\n"
+            "[`docs/archive/PLAN-closed-x.md`](archive/PLAN-closed-x.md).\n\n"
             "- [x] **A.1** `[M]` Done\n"
             "- [ ] **A.2** Parent\n"
             "    - [ ] **A.2.1** `[I1]` Open\n"
@@ -548,8 +570,12 @@ def self_test() -> None:
         rendered = render_guide_block(root / "PLAN.md", plan, model_mapping(guide_text))
         if "**Next step:** **A.2.1** `[I1]` Open — Model X — High" not in rendered:
             raise AssertionError(f"next step misrendered:\n{rendered}")
-        if "The detail lives here" in rendered:
+        if "The detail lives here" in rendered or "stays in PLAN" in rendered:
             raise AssertionError("PLAN detail leaked into GUIDE")
+        summary = ("A.0 closed earlier; its text is in\n"
+                   "[`docs/archive/PLAN-closed-x.md`](docs/archive/PLAN-closed-x.md).")
+        if summary not in rendered:
+            raise AssertionError(f"archive summary not rendered with GUIDE's links:\n{rendered}")
         expect_failure("a stale GUIDE block", lambda: validate_guide(root / "GUIDE.md", rendered))
         write_guide(root / "GUIDE.md", rendered)
         validate_guide(root / "GUIDE.md", rendered)
