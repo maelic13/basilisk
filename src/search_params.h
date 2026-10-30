@@ -312,7 +312,7 @@
     X(b3_sing_double_deep,   B3SingDoubleDeep,     -11,  -30,     0)     \
     X(b3_sing_triple_base,   B3SingTripleBase,      20,  -20,    60)     \
     X(b3_sing_triple_pv,     B3SingTriplePv,        79,    0,   160)     \
-    X(b3_sing_triple_quiet,  B3SingTripleQuiet,    -53, -110,     0)     \
+    X(b3_sing_triple_quiet,  B3SingTripleQuiet,      0, -110,     0)     \
     X(b3_sing_triple_ttpv,   B3SingTripleTtPv,      23,    0,    60)     \
     X(b3_sing_triple_deep,   B3SingTripleDeep,     -12,  -30,     0)     \
     F(b3_sing_corr_div,      B3SingCorrDiv,     198368, 50000, 800000)   \
