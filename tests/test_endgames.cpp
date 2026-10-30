@@ -51,6 +51,9 @@ static constexpr int MATE_DEPTH  = 18;    // fixed depth for mate recognition
 // conflated knowledge with search effort -- KBB-K scored 2/12 at depth 10 AND
 // at depth 14, while converting 87% at this node count.
 static constexpr int64_t CONV_NODES = 60000;
+// `--nodes N` replays the floors at another budget (B-3's multi-budget read);
+// the bounds are set at CONV_NODES, so another budget reports, it does not judge.
+static int64_t conv_nodes = CONV_NODES;
 static constexpr int MATE_BUDGET = 100;   // max plies to deliver mate
 
 // White-perspective static eval.
@@ -343,7 +346,7 @@ static void test_conversion_floors() {
     std::atomic<size_t> next{0};
     auto work = [&] {
         for (size_t j; (j = next.fetch_add(1)) < jobs.size();)
-            jobs[j].plies = mate_playout_plies(jobs[j].fen, WHITE, CONV_NODES);
+            jobs[j].plies = mate_playout_plies(jobs[j].fen, WHITE, conv_nodes);
     };
     const size_t workers = std::clamp<size_t>(std::thread::hardware_concurrency(), 1, jobs.size());
     std::vector<std::thread> pool;
@@ -664,12 +667,14 @@ int main(int argc, char** argv) {
     bool conversion = false;
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "--conversion") == 0) conversion = true;
+        else if (std::strcmp(argv[i], "--nodes") == 0 && i + 1 < argc)
+            conv_nodes = std::atoll(argv[++i]);
         else epd_path = argv[i];
     }
 
     if (conversion) {
-        std::printf("Endgame conversion floors (60k nodes per move, %u threads)\n",
-                    std::thread::hardware_concurrency());
+        std::printf("Endgame conversion floors (%lld nodes per move, %u threads)\n",
+                    static_cast<long long>(conv_nodes), std::thread::hardware_concurrency());
         test_conversion_floors();
         return harness_summary();
     }
