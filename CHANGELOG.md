@@ -16,6 +16,9 @@ and next step).
 
 ### Changed
 
+- **About 2% faster.** The evaluation no longer computes terms whose weight
+  was zero (BAS-P25: +2.35% nodes per second). It plays the same moves:
+  `bench 13` is unchanged at 19,470,325.
 - **One Intel/AMD download per system.** Windows and Linux on Intel or AMD
   now have a single download, `x64`, in place of the plain (and slowest),
   `-avx2` and `-pext` ones. It holds four builds of the engine and starts

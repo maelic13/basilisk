@@ -32,6 +32,10 @@
     directory ending -gcc, each executable staged with -gcc after its name
     (<suffix>-pext-gcc-pgo, <suffix>-universal-gcc-pgo).
 
+    -CxxFlags adds compiler flags to every compile of the build and its PGO
+    children (through CXXFLAGS, which a fresh configure reads), for a
+    code-generation arm such as '-mtune=znver3'; the manifest records them.
+
     Every output is copied to tools/test_engines with a hash-bound manifest.
     Bench and UCI-surface verification execute the copied binary and check the
     process exit code directly.
@@ -52,6 +56,7 @@ param(
     [switch]$Universal,
     [switch]$Native,
     [switch]$Gcc,
+    [string]$CxxFlags = '',
     [string]$TestEnginesDir = "$PSScriptRoot\test_engines"
 )
 
@@ -130,6 +135,7 @@ function Assert-UciSurface {
 }
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
+$savedCxxFlags = $env:CXXFLAGS
 $TestEnginesDir = [IO.Path]::GetFullPath($TestEnginesDir)
 $flavorLower = $Flavor.ToLowerInvariant()
 $tune = if ($Flavor -eq 'Tune') { 'ON' } else { 'OFF' }
@@ -166,6 +172,7 @@ try {
         if ($ArmOption) { $configureArgs += "-D$ArmOption=$armState" }
     }
 
+    $env:CXXFLAGS = $CxxFlags
     & cmake @configureArgs
     if ($LASTEXITCODE -ne 0) { throw "cmake configure failed (exit $LASTEXITCODE)" }
 
@@ -282,7 +289,8 @@ try {
             "isa: $isa"
             "portable_codegen: $(if ($Native) { 'false' } else { 'true' })"
             "preset: $($output[3])"
-            "build_command: $($output[4])"
+            "build_command: $(if ($CxxFlags) { "CXXFLAGS='$CxxFlags' " })$($output[4])"
+            "cxxflags: $(if ($CxxFlags) { $CxxFlags } else { 'none' })"
             "compiler: $compiler"
             'verification: bench'
             "bench_depth: $BenchDepth"
@@ -296,5 +304,6 @@ try {
         Write-Host "Manifest: $manifest (revision $($revision.Substring(0,10)), bench $bench, flavor $flavorLower)"
     }
 } finally {
+    $env:CXXFLAGS = $savedCxxFlags
     Pop-Location
 }

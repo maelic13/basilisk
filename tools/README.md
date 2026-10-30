@@ -52,6 +52,8 @@ kept so the run can be reproduced from its ledger entry.
 | `run_a156_nps_reads.ps1` | BAS-P21, the universal binary with 64-byte function alignment |
 | `run_a158_nps_reads.ps1` | BAS-P22, the native release build and MSVC against the universal binary |
 | `run_a159_nps_reads.ps1` | BAS-P24, the universal binary's assembly route for Clang and GCC |
+| `run_a16_nps_read.ps1` | BAS-P25, the zero-weight evaluation terms no longer computed |
+| `run_a17_nps_reads.ps1` | BAS-P26, compressed PEXT tables and code generation |
 
 ### Backup path: fastchess and weather-factory
 
