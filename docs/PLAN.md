@@ -841,6 +841,9 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         the consumer guard goes to a correctness leaf (ANY TIME, before
         C.0). P15-P16 scored, P17-P18 registered. Resumes at ticket 7b
         on the maintainer's decision 1 (packet amendment 4 §5).
+        Maintainer decision the same day: taken (ticket 7b takes the
+        raw-evaluation guard, default 1 kept); the consumer-guard leaf
+        is still open. Resumes at ticket 7b.
     - [ ] **B.3.2** `[V]` Diagnostics and the unfitted paired run
       Packet §11, BAS-S41: the zero-game screens on both arms (counters,
       the oracle differential, WAC, the crossover band, the canary
@@ -1221,7 +1224,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.1 | RESEARCH | I2 | Research amendment 4 written; resumes `READY_FOR_IMPLEMENTATION` at ticket 7b on the maintainer's decision (packet amendment 4 §5) |
+| B.3.1 | READY_FOR_IMPLEMENTATION | I2 | Resumes at ticket 7b on research amendment 4 (packet) with the maintainer's decision of its §5 (the raw-evaluation guard on exclusion training, `B3CorrExcluded` default 1), then tickets 8–10 |
 | B.3.2 | RESEARCH | V | Waits for B.3.1's accepted review |
 | B.3.3 | RESEARCH | V | Waits for B.3.2 |
 | B.3.4 | RESEARCH | V | Waits for B.3.3 |

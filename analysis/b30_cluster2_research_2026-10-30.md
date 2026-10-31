@@ -3640,6 +3640,14 @@ ticket 7 paragraph and the resumption brief's):
 its alternative with the fixture clause decided). B.3.1 stays `RESEARCH`
 until then. Decision 2 is independent of B.3.1.
 
+**Maintainer decision, 2026-10-31, after the amendment:** decision 1 taken
+as recommended. Ticket 7b takes G-C: no correction training at a
+singular-excluded node whose raw static evaluation is 0, carried in
+`ss->raw_eval`; `B3CorrExcluded` keeps default 1 with §9 item 11's amended
+semantics. The amended ticket 7b text above is the contract implementation
+resumes on; B.3.1 resumes `READY_FOR_IMPLEMENTATION`. Decision 2 (the
+correctness leaf for the consumer guard) is open and does not block B.3.1.
+
 ### 6. Artifacts (`tools/results/b31-20261030/amend4/`, ignored storage)
 
 | Artifact | Content |
