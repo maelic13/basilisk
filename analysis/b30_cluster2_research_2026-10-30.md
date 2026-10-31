@@ -3665,3 +3665,189 @@ Builds: `build/a4-on-trace`, `a4-off-trace`, `a4-gb`, `a4-gc`, `a4-gd`,
 `a4-gc-off` (release, `-DUSE_PEXT=ON -DPORTABLE_BUILD=ON`, B3_PROOF as
 named), the ticket-7 trees `build/b3-on`, `b3-off`, `b3-on-tune` and
 Return 4's `t7-ce0` (bench 4,372,801 reproduced).
+
+## Return 5 — B.3.1 ticket 8: the upcoming-repetition test is a cutoff, and the registered terminal tests read it as a score (2026-10-31)
+
+**What resumed.** Amendment 4's ticket 7b landed and passed every binding
+read (`920cc5d`). Ticket 8 was built as §10 wrote it. Its two pre-registered
+terminal tests cannot be written as registered. In the donor's form the
+mechanism never puts a draw score on a principal variation, so a fixed-depth
+root search does not read 0 where the registered tests expect it.
+
+**Ticket 7b** (`920cc5d`). `SearchStack::raw_eval` is written beside
+`ss->eval` in the normal branch, and the training block's exclusion clause
+is amendment 4's `(ss->excluded == MOVE_NONE || (train_excluded &&
+ss->raw_eval != 0))`. The test is in `test_b3_proof`: the wrong-bishop FEN
+at depth 12 under 200,000 nodes at Hash 8, both switch settings. Its reads,
+on the committed tree (`tools/results/b31-20261030/t7b/`, `gates.txt`):
+
+| Read | Result | Rule |
+|---|---|---|
+| OFF `bench 13` | 16,615,757 (Release and Diag) | exact |
+| ON `bench 13` | **3,498,408** (Release = Diag) | recorded (amendment 4 read 3,498,408) |
+| Release CTest | 25/25 on both arms; ON `test_endgames` 121/121 | — |
+| ON Diag `test_stack_unwind`, `test_b3_proof`, `test_search` | pass | — |
+| WAC | **250** at 100,000 nodes; 134 at depth 6 | ≥ 232; recorded |
+| The fixture a7a8q | +94 / +661 / **+661** / +926 / +1,180 / +1,180 at 33k / 60k / 100k / 200k / 400k / 1M nodes | a8=Q, positive at 100k |
+| Conversion floors | KQ-K, KR-K, KBB-K 24 at every budget; KBN-K 23/23/24/24/24 = **118** | ≥ 112 |
+| KR-K mean at 30,000 | 26.4 | recorded |
+| Wrong-bishop 28 (the test's form) | 28/28 | binds |
+| Organic `5k2/8/6KP/8/8/8/8/5B2 b`, depths 8–14 | OFF 6/7 (−90 at depth 11); ON 7/7 | recorded |
+| Primed 28 (R2b's recipe) | OFF 24/28; ON 27/28 (+86 at depth 8 on the first FEN); controls 28/28 | recorded |
+| Counters against ticket 6b | interior 1.23×; Cluster 1 over 20%: `cont_hist_pruned` +32.7% (as ticket 7) | recorded |
+
+The organic and primed rows are amendment 4's finding on the OFF arm,
+now B.14's; they bind nothing here.
+
+**Ticket 8 as built** (`7e92ecb`):
+
+- **The tables.** `Zobrist::Cuckoo` and `CuckooMove` (8,192 slots, the
+  donor's `H1`/`H2`) are built in `Zobrist::init()` from the empty-board
+  geometry and asserted complete (3,668 moves).
+- **The repetition test.** `Board::upcoming_repetition(ply)` is the donor's
+  loop over the key history. Its bound is `min(rule50, plies_from_null,
+  history)`; it applies the between-squares occupancy test, and at or
+  before the root it asks for a position already met again four or more
+  plies before.
+- **The two consumers, behind `B3Cuckoo` (S line, default 1).**
+  - Negamax, after `is_draw(ply)` and before mate-distance pruning (and
+    before the hand-off to quiescence).
+  - Quiescence, after its draw check, on nodes it was not handed.
+  - Each runs only when `alpha < 0`. It raises alpha to 0 and returns 0
+    when that reaches beta. It counts `cuckoo_draws` and traces
+    `CuckooDraw`.
+- **Tests in `test_b3_proof`, both arms.**
+  - Every reversible move's key is found, checked by the attack tables.
+  - No false positive on 10,000 random-walk positions against a slow
+    reference that makes every legal reversible move. The walks undo a move
+    from two plies back half the time, and the test probes at search plies
+    0, 2, 5 and 64. Result: 9,915 positive reads, no false positive and no
+    miss.
+
+Its reads:
+
+| Read | Result | Rule |
+|---|---|---|
+| OFF `bench 13` | 16,615,757 (Release and Diag) | exact |
+| ON `bench 13` | **5,635,655** (Release = Diag) | recorded |
+| Release CTest | 25/25 on both arms (`test_b3_proof` 89/89; `test_endgames` 121/121; `test_search`'s fixture) | — |
+| ON Diag `test_stack_unwind`, `test_b3_proof`, `test_search` | pass | — |
+| WAC | **243** at 100,000 nodes; 132 at depth 6 | ≥ 232; recorded (−7 and −2: under the attribution rule's 10) |
+| The fixture a7a8q | +315 / +315 / **+913** / +1,084 / +1,255 / +1,324 at 33k / 60k / 100k / 200k / 400k / 1M nodes | positive at 100k |
+| Conversion floors | KQ-K, KR-K, KBB-K 24 at every budget; KBN-K 24/23/24/24/24 = **119** | ≥ 112 |
+| Wrong-bishop 28 (the test's form) | 28/28 | binds |
+| Organic FEN / primed 28 | OFF 6/7, 24/28; ON 7/7, 25/28 (+95, +113 on the first FEN, +347 at depth 8 on the reversed one); controls 28/28 | recorded |
+| Counters against ticket 7b | interior 0.88×; `cuckoo_draws` 0.87% of interior nodes; no Cluster 1 row over 20% | recorded |
+
+**The premise.** §10 ticket 8 registers, for BAS-S12's trigger:
+
+- (a) a position, reached by a pre-root move list, in which the side to move
+  is lost by evaluation and by a depth-2 search but has a reversible move
+  completing a repetition. It should read **0** at `go depth 2` on the ON
+  arm and the loss on the OFF arm.
+- (b) a losing bound stored in the TT from a path without the repetition,
+  pre-empted by the draw on a path with it. It should read **0** at
+  `go depth 1` on the ON arm.
+
+Both treat the test as a rule that scores a node as a draw. The donor's form
+(`search.cpp:736-742`, `:1661-1667`), which the ticket specifies and which
+is built here, is a **cutoff**:
+
+- It raises `alpha` to the draw and returns only when that reaches `beta`.
+- Otherwise the node searches on, and fail-soft returns its own best value,
+  which may lie below the raised alpha.
+
+The consequence for a fixed-depth root read:
+
+- A return happens only at a node whose `beta ≤ 0` for the drawing side. Its
+  value is a lower bound that fails low in the parent, so the parent rejects
+  that move. A node on the final, exact principal variation is never such a
+  node.
+- Basilisk searches depths 1–3 with the full window (`search_worker.cpp`:
+  `depth <= 3`). Along that variation the drawing side's `beta` comes from
+  the opponent's best alternative, so it is positive or infinite.
+- So the mechanism changes which lines the search rejects. It never makes a
+  draw the root's score. A root score of 0 at `go depth 1` or `2` has to come
+  from `is_draw` itself, and then it comes on the OFF arm too.
+
+The read (`t8/terminal_reads.py`, `terminal_reads.txt`) uses this position:
+
+- FEN `rb6/p1p2K1k/p1p1p3/p1p1p3/P1P1P1N1/8/8/8 b - - 0 1` with the moves
+  `h7h8 f7f8 h8h7 f8f7 h7h8`.
+- White is lost by material: Black's eight blocked pawns and a trapped rook
+  and bishop.
+- Black's king is held to h8/h7. After the root's `f7f8 h8h7`, White's
+  `f8f7` reaches a position met twice before (a three-fold).
+- At the depth-2 node White has that move, and `upcoming_repetition(2)` is
+  true there.
+
+| Read (`go depth N`, Hash 8, fresh) | d1 | d2 | d3 | d4 | d5 | d6 |
+|---|---:|---:|---:|---:|---:|---:|
+| ON, `B3Cuckoo` 1 | −1,114 | **−935** | −935 | −730 | −730 | −613 |
+| ON, `B3Cuckoo` 0 | −1,114 | −935 | −935 | −730 | −730 | −615 |
+| OFF | −1,114 | −935 | −935 | −730 | −730 | −659 |
+| ON, `searchmoves f7f8` | −1,276 | −190 | −127 | −13 | 0 | 0 |
+| ON, `searchmoves f7f8`, `B3Cuckoo` 0 | −1,276 | −1,157 | −1,157 | −972 | — | — |
+| OFF, `searchmoves f7f8` | −1,276 | −1,157 | −1,157 | −972 | 0 | 0 |
+
+Every full search plays `g4e5` and reads the loss on all three settings, so
+(a) as registered fails on the ON arm. The ON Diag build counts
+`cuckoo_draws` 0 at depths 2 and 4 and 10 at depth 6. Under the root's null
+window the line `f7f8` is cut at Black's node by reverse futility before it
+reaches White's node, so the test never runs where it would act.
+
+Restricted to `f7f8` the test fires at depth 2 (`cuckoo_draws` 1), and the
+root reads **−190**, which is neither the draw nor the loss. Quiescence's
+delta bound produces it: with alpha raised to 0, `stand_pat + queen + 200 <
+alpha` returns that optimistic upper bound, and the PV parent takes it as
+exact. This is a separate finding, reported below and not repaired.
+
+**Options.**
+
+1. *Register the terminal tests as the cutoff they are* (recommended). Drive
+   the node with a window whose `beta ≤ 0` for the drawing side.
+   - The test: in a kernel-driving test as `test_stack_unwind`, or a root
+     search of the position after the pre-root list restricted by
+     `searchmoves` to a move whose null-window search reaches the node.
+   - The ON arm returns 0 (a cutoff) and the OFF arm the loss or its bound.
+   - Two cases stay as registered: `alpha ≥ 0` is never touched, and with
+     `B3Cuckoo=0` the node is the OFF arm's.
+   - (b)'s TT pre-emption becomes the same read at a non-PV node holding a
+     losing TT bound, where the cutoff returns 0 before the TT probe would
+     return the bound.
+2. *Keep a score test, at the root of a winning side.* The cutoff steers the
+   winning side away from a line where the defender has a reversible move to
+   a repetition. The read is the best move rather than a score, but it
+   depends on the root's move order (the move that allows the repetition
+   must not be searched first), which the test would have to pin.
+3. *Read the mechanism by its counters and the paired run only.*
+   - Use `cuckoo_draws`, the reference test above, and §9 item 9's paired
+     run.
+   - Drop the terminal tests.
+   - It loses BAS-S12's trigger as a deterministic fixture.
+
+Recommendation: option 1. It tests the construct at the node where it acts
+and binds both arms. Option 2's dependence on move order makes it a test of
+the picker. The ticket's mechanism, tables, reference test and switch are
+committed as built. Because the registered fixture cannot be written as
+registered, this returns the leaf rather than letting implementation choose
+a replacement experiment. No default was moved.
+
+**A separate finding, not repaired.** Quiescence's delta bound
+(`search_kernel_core.cpp`, the `prune_by_gain && delta_bound < alpha`
+return) returns an optimistic upper bound below alpha. At a PV node whose
+alpha was raised inside the node, the parent cannot tell that this value is
+a bound, and it takes it as exact. The cuckoo is the first producer that
+raises alpha far above the stand-pat at a PV node. On the read above it
+puts −190, −127 and −13 on the root at depths 2–4, values no line
+produced. Research decides whether this belongs to ticket 8's contract, for
+example the donor's quiescence, which returns no delta bound, or to a
+separate leaf.
+
+**State at the return.**
+
+- Tickets 0–7b are committed (`920cc5d`), and ticket 8's implementation is
+  committed (`7e92ecb`) without the two terminal tests.
+- The OFF arm is 16,615,757 with release CTest 25/25 at every commit.
+- Tickets 9 and 10 are not started.
+- No idle-host read was run.

@@ -844,6 +844,15 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         Maintainer decision the same day: taken (ticket 7b takes the
         raw-evaluation guard, default 1 kept); the consumer-guard leaf
         opened as B.14. Resumes at ticket 7b.
+      - Returned 2026-10-31 at ticket 8 (packet *Return 5*): ticket 7b
+        passed every binding read (`920cc5d`: bench 13 3,498,408, WAC
+        250, fixture +661, KBN-K 118, the 28 held); ticket 8's cuckoo
+        test is built and checked (`7e92ecb`: tables complete, no false
+        positive in 10,000 positions, floors hold, WAC 243), but in the
+        donor's form it is a cutoff that never puts the draw on a
+        full-window PV, so the registered terminal tests (a root score
+        of 0 at depths 2 and 1) cannot be written as registered; OFF arm
+        16,615,757.
     - [ ] **B.3.2** `[V]` Diagnostics and the unfitted paired run
       Packet §11, BAS-S41: the zero-game screens on both arms (counters,
       the oracle differential, WAC, the crossover band, the canary
@@ -1257,7 +1266,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.1 | READY_FOR_IMPLEMENTATION | I2 | Resumes at ticket 7b on research amendment 4 (packet) with the maintainer's decision of its §5 (the raw-evaluation guard on exclusion training, `B3CorrExcluded` default 1), then tickets 8–10 |
+| B.3.1 | RESEARCH | I2 | Returned at ticket 8 (packet *Return 5*: the upcoming-repetition test is a cutoff and the registered terminal tests read it as a root score); resumes on research amendment 5 |
 | B.3.2 | RESEARCH | V | Waits for B.3.1's accepted review |
 | B.3.3 | RESEARCH | V | Waits for B.3.2 |
 | B.3.4 | RESEARCH | V | Waits for B.3.3 |
