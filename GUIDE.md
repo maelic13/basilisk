@@ -39,6 +39,7 @@ generations change. These are maintainer judgments, not measured rankings.
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
 - **B.7.1** `[I1]` Allocation guard (ANY TIME) — before B.7.2 — Claude Sonnet 5 — Medium
+- **B.14** `[I2]` Correction added to recognised draws (ANY TIME) — before C.0 — Claude Opus 5 — High
 - **D.3.1** `[R2]` Board contract audit (ANY TIME) — before E.1 — Claude Opus 5 — High
 
 ### Phase A — Reset: documents, harness, instruments, baselines (EXTENDED)
@@ -107,6 +108,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
 - [ ] **B.11** `[M]` Interim release after the search programme
 - [x] **B.12** `[I2]` False win in drawn KBP-K (ANY TIME) — before B.3.1
 - [x] **B.13** `[I1]` Colosseum re-pinned to 0.5.0 (ANY TIME)
+- [ ] **B.14** `[I2]` Correction added to recognised draws (ANY TIME) — before C.0
 
 ### Phase C — Evaluation programme (search frozen)
 

@@ -843,7 +843,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         on the maintainer's decision 1 (packet amendment 4 §5).
         Maintainer decision the same day: taken (ticket 7b takes the
         raw-evaluation guard, default 1 kept); the consumer-guard leaf
-        is still open. Resumes at ticket 7b.
+        opened as B.14. Resumes at ticket 7b.
     - [ ] **B.3.2** `[V]` Diagnostics and the unfitted paired run
       Packet §11, BAS-S41: the zero-game screens on both arms (counters,
       the oracle differential, WAC, the crossover band, the canary
@@ -1215,6 +1215,39 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     one-binary match and a 40-game calibrate run each finished with the
     independent PGN recount agreeing, and 0.4.0 reads their directories
     with the same scores. Evidence in `tools/results/col050-*`.
+- [ ] **B.14** `[I2]` Correction added to recognised draws (ANY TIME) — before C.0
+  Correctness repair, opened 2026-10-31 at the maintainer's decision on
+  research amendment 4 (`analysis/b30_cluster2_research_2026-10-30.md`,
+  amendment 4 §2 and §3.4). The evaluation classifies the wrong-bishop
+  KBP-K corner, KNNK, the drawn KPK and every `SCALE_DRAW` position as 0,
+  and `corrected_eval` and the quiescence stand-pat add the correction
+  history on top of that 0, on both arms. Measured on the head:
+  `5k2/8/6KP/8/8/8/8/5B2 b` (Kg8 the only drawing move) reads +90 for
+  White at depth 11 inside 3,075 nodes, trained by its own root (ordinary
+  evaluation −797 for Black against a search value of 0); B.12's four
+  positions read up to +172 (4 of 28) after two same-structure priming
+  searches in one process, and 0 from cleared tables, which is why B.12's
+  test passes. Neither donor composes the two mechanisms (sf_19's
+  evaluation has no recognised draw; classical `9587eeeb` had no
+  correction), so there is no donor form to port; C.5.2's E7 switch and
+  C.10's ablation name the same idea, and this leaf owns the repair.
+  - Candidate: the consumer guard priced in amendment 4 §3.2 — no
+    correction added where the raw static evaluation is 0 (`corrected_eval`
+    and the stand-pat). On the ON arm it read 28/28, floors unchanged to
+    the decimal, WAC 244 at 100,000 nodes, the promotion fixture +479.
+    The producer side (B.3.1's ticket 7b guard) stays; this is the consumer
+    side.
+  - Fixtures, both failing on the head: the organic FEN above at depths
+    8–14 under 200,000 nodes (Hash 8, |score| ≤ 75) and the primed 28
+    (amendment 4 §R, R2b's recipe: one process, one `ucinewgame`, two
+    priming searches `go depth 12` on `8/8/5K1P/8/8/8/k7/5B2 b` and
+    `8/8/6KP/8/8/8/8/k4B2 b`, then B.12's 28 searches).
+  - Gate: a recorded fingerprint move on both arms (B.3.1's OFF arm then
+    re-bases to it); CTest; the conversion floors at the five budgets; a
+    repair SPRT `[-5,5]` at `3+0.03` in BAS-S40's shape, unless the leaf
+    argues none is owed.
+  - Lands between leaves, never inside a B.3.1 ticket (it moves the OFF
+    arm's fingerprint).
 
 ### Active workflow register
 
@@ -1236,6 +1269,7 @@ leaf's tag. Later phases carry only a class until they open.
 | B.8.2 | RESEARCH | I1 | After the clusters |
 | B.9 | RESEARCH | V | Programme checkpoint |
 | B.11 | RESEARCH | M | Interim release after B.9 (maintainer decision 2026-10-24) |
+| B.14 | RESEARCH | I2 | Opened 2026-10-31 on research amendment 4: the consumer guard with its two fixtures; lands between leaves, before C.0 |
 
 ## Phase C — Evaluation programme (search frozen)
 

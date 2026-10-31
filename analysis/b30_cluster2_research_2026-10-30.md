@@ -3645,8 +3645,9 @@ as recommended. Ticket 7b takes G-C: no correction training at a
 singular-excluded node whose raw static evaluation is 0, carried in
 `ss->raw_eval`; `B3CorrExcluded` keeps default 1 with §9 item 11's amended
 semantics. The amended ticket 7b text above is the contract implementation
-resumes on; B.3.1 resumes `READY_FOR_IMPLEMENTATION`. Decision 2 (the
-correctness leaf for the consumer guard) is open and does not block B.3.1.
+resumes on; B.3.1 resumes `READY_FOR_IMPLEMENTATION`. Decision 2 taken the
+same day: the consumer guard is PLAN leaf **B.14** (`I2`, ANY TIME, before
+C.0) with the two fixtures and B.12's gate; it does not block B.3.1.
 
 ### 6. Artifacts (`tools/results/b31-20261030/amend4/`, ignored storage)
 
