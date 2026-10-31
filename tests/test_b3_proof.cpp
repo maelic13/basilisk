@@ -536,9 +536,11 @@ static void test_fail_low_store() {
 }
 
 // Both switches move the ON arm's tree and not the OFF arm's; the penalty
-// fires where it is on, and only there.
+// fires where it is on, and only there. With the store at 0 the penalty can
+// fire and leave a tree's node count unchanged (bench positions 0, 1, 5, 8
+// and 9 at depth 12), so the read is on a position where it moves the count.
 static void test_tt_switches_live() {
-    const std::string mid(bench_fens()[1]);
+    const std::string mid(bench_fens()[2]);
     const Run base = search(mid, 12);
     const Run store1 = search(mid, 12, 0, [](SearchParams& p) { p.b3_fail_low_store = 1; });
     const Run pen0 = search(mid, 12, 0, [](SearchParams& p) { p.b3_tt_penalty = 0; });
