@@ -3011,3 +3011,648 @@ moved.
 - Amendment 2's surface additions (the RFP coordinates and the donor's
   pair) belong to ticket 10's regeneration.
 - No idle-host read was run.
+
+## Research amendment 4 — the correction meets the recognised draw: the exclusion producer, the shared consumer and ticket 7's default (2026-10-31)
+
+Written on Return 4, at `6286acf`, class `R2`: no ticket implemented, no
+engine code committed, no seed or default moved. Reads are node-count or
+depth reads and ran on the busy host under the host rule; no timed read was
+needed. Temporary builds are byte-exact edits reverted after the build, their
+patches under `tools/results/b31-20261030/amend4/` (`trace.patch`,
+`gb.patch`, `gc.patch`, `gd.patch`); the scripts are in `amend4/scripts/`
+(`a4lib.py` the UCI helpers, `variant.py` the save-and-restore builder,
+`a4_trace_patch.py`, `a4_r1.py`, `a4_r2.py`, `a4_guards.py`, `a4_price.py`).
+
+### 0. What this run says, plainly
+
+Return 4's hypothesis is confirmed, with instrumentation, and it is half
+the story. The exclusion search at the defender's corner node excludes the
+one drawing king move, reads the loss of the position without it (−3 to −9
+pawns at depth 2–5, never a decisive score), and the training block charges
+that error to the node's static evaluation, which is the recogniser's 0.
+The bonus saturates at −256 and lands on every structural table at once,
+not on the pawn key alone: in these endings the pawn key is one pawn, the
+minor key one bishop, the defender's non-pawn key is empty (one entry for
+every bare-king position in any ending) and the attacker's is the bishop's
+square. The corrected static evaluation of a dead draw then reads
+±1.0–4.3 pawns, and the score reaches the root as the PV leaf's quiescence
+stand-pat, carried up unchanged by thirteen plies of king and bishop
+moves and stored as exact TT entries that seed the next iteration.
+
+The other half: the consumer is shared. `corrected_eval` adds the
+correction to a recognised draw on both arms, and the OFF arm is exposed
+whenever its tables were trained on the same structures elsewhere. One
+position proves it organically: `5k2/8/6KP/8/8/8/8/5B2 b` (Black to move,
+Kg8 the only drawing move, the recogniser silent until the king reaches
+g8) reads **+90 for White at depth 11 on the OFF arm**, because the root's
+ordinary evaluation (−797 for Black, true value 0) trains Black's shared
+entries +256 per iteration and the recognised nodes one ply later inherit
+them. Priming the OFF arm's tables with two lost same-structure positions
+breaks the test's own fixtures (4 of 28, up to +172). The normal nodes of a
+recognised draw cannot repair this: their search value is the corrected
+evaluation itself, so the error they measure is zero whatever the
+correction says. Neither donor composes these two mechanisms: sf_19's
+evaluation has no recognised draw for a correction to meet, and the
+classical donor had the recognisers and no correction history. Basilisk's
+composition order — recogniser, then correction — is the defect, and it
+is older than Cluster 2; ticket 7's exclusion training is the first
+producer strong enough to show it inside a 200,000-node search.
+
+For B.3.1 the consequence is that the two theory-truth fixtures pull in
+opposite directions. The exclusion training that breaks the drawn
+wrong-bishop corner is what gives the won promotion fixture its positive
+score at 100,000 nodes: the same biased estimator — the value without the
+only move understates every singular position — is right by accident
+where the only move merely delays a loss and wrong where it holds a
+draw. `B3CorrExcluded=0` holds the 28 wrong-bishop reads and leaves the
+fixture at a7a8q with score 0 at depths 9–11 (positive from 200,000
+nodes), which amendment 3's rule as written forbids. The producer guard
+on the raw evaluation (G-C below) holds both, keeps the donor's default
+and its tactics (WAC 249), and names the mechanism exactly. The consumer
+guard (G-D) is the general repair and belongs to its own correctness
+leaf, because it moves the OFF arm.
+
+### R. Reads registered before running
+
+Frozen before any build or read of this amendment (the scratch record is
+reproduced here; `price_*.json`, `r1_*.log`, `r2.json`, `r2.txt` are the
+results).
+
+- **R1, the route.** Trace build `a4-on-trace` (ON release plus
+  `trace.patch`): `a4x` every correction-training event at an exclusion
+  node (iteration, ply, side, path, excluded move, best score, static eval,
+  recomputed raw eval with the recogniser flag, depth, bonus, the four
+  structural entries before the update); `a4n` every PV interior node at
+  exit (raw, flag, correction and its per-table parts, corrected static
+  eval, best, bound); `a4q` every PV quiescence stand-pat; `a4it`
+  per-iteration counts of training events by node kind, side and sign;
+  later `a4y` every normal-node event with |bonus| ≥ 64 at ply ≤ 14
+  (added for R2a′, below). Searches: the test's first two FENs at
+  `go depth 11 nodes 200000`, Hash 8, and the first at depth 12. Rule: the
+  route is CONFIRMED when, on the first search reading > 75, (a) `a4x`
+  events exist with the defender to move, static eval 0 from the
+  recogniser, best below −75, a negative bonus, and an excluded king move
+  that keeps the corner; (b) the PV leaf has raw 0 from the recogniser and
+  a corrected value of magnitude ≥ 75 favouring the attacker; (c) the
+  per-table parts at that leaf sum to the correction and name the
+  carrier. REFUTED if the moving events are normal-node events
+  (exclusion events fewer than a tenth of the same-sign normal events on
+  the defender's side) or the PV leaf's raw eval is an ordinary
+  evaluation. Also recorded: |best| at `a4x` events against `KNOWN_WIN`
+  and `tablebaseWinInMaxPly`; the route to the root from the PV records.
+- **R2a, organic, both arms, fresh tables.** `5k2/8/6KP/8/8/8/8/5B2 b`,
+  depths 8–14 under 200,000 nodes, Hash 8, `ucinewgame` per search. Rule:
+  a setting holds when all seven read |score| ≤ 75 at full depth. **P15a:**
+  OFF holds 7/7 (65%); ON fails at least one depth (70%).
+- **R2a′** (registered after R2a's miss, before running): the OFF trace
+  build on the same FEN at depth 11. Rule: the OFF drift is the same
+  consumer with a different producer when (i) no `a4x` event exists,
+  (ii) normal-node events at ordinary-evaluation nodes (flag 0) on the
+  shared keys carry it, and (iii) the PV nodes of the +90 iteration have
+  raw 0 from the recogniser and a correction of magnitude ≥ 75 favouring
+  White. (ii) was first written as "negative-bonus events with Black to
+  move"; the counts-only first run showed the sign and side were not that,
+  so the `a4y` record was added and (ii) re-stated as either side and
+  sign before the second run; the first wording is the calibration note.
+- **R2b, primed, OFF arm.** One process, Hash 8, one `ucinewgame`, two
+  priming searches `go depth 12` with the defender to move on lost
+  same-pawn-key positions (`8/8/5K1P/8/8/8/k7/5B2 b`,
+  `8/8/6KP/8/8/8/8/k4B2 b`), then the test's 28 searches without
+  `ucinewgame`. Rule: the OFF consumer is EXPOSED when any of the 28 reads
+  |score| > 75 at full depth; the control (the test's form, `ucinewgame`
+  per search) must hold 28/28 or the read is void. **P15b:** exposed, at
+  least 4 of 28 (75%).
+- **R2c, the donor.** `git show sf_19:src/evaluate.cpp` read for any
+  evaluation-level recognised draw.
+- **R3, the guards priced.** On the ticket-7 source, ON release:
+  **G-A** `B3CorrExcluded` 0 (Return 4's `t7-ce0`, bench 4,372,801
+  reproduced); **G-B** fail-high only — an exclusion node trains only when
+  its search failed high, `(ss->excluded == MOVE_NONE || (train_excluded
+  && best_score >= beta))`; **G-C** the raw-evaluation guard — an
+  exclusion node trains only when the node's raw static evaluation is not
+  0, carried from the outer pass in a new stack field `ss->raw_eval`,
+  `(ss->excluded == MOVE_NONE || (train_excluded && ss->raw_eval != 0))`;
+  **G-D** the consumer guard — `corrected_eval` returns 0 for a raw
+  evaluation of 0 and the quiescence stand-pat adds no correction to one
+  (both arms; priced on the ON arm, the OFF fingerprint moves). For each,
+  with the defaults beside them: the test's 28, `bench 13`, WAC at depth
+  6 and at 100,000 nodes (floor 232), the promotion fixture at 33,000,
+  60,000, 100,000, 200,000, 400,000 and 1,000,000 nodes, `test_endgames`,
+  the conversion floors at the five budgets (KQ-K, KR-K, KBB-K 24 at
+  each; KBN-K's sum ≥ 112). **P16:** G-B holds the 28 (60%); G-C holds the
+  28 (80%); G-D holds the 28 (90%); every guard holds the floors and the
+  fixture (70%); G-B's WAC at 100,000 nodes within 3 of the defaults' 249
+  (55%). Admissibility: holds the 28, every floor and the fixture; then
+  preferred by the narrowest semantics that names the mechanism, donor
+  precedent, and WAC and nodes recorded rather than judged.
+
+### 1. The route (question 1)
+
+**1.1 What the trace shows on the test's first FEN** (`7k/8/6KP/8/8/8/8/5B2 w`,
+`r1_wb0_d11.log`, `r1_wb0_d12.log`; the a-file FEN `k7/8/PK6/8/8/8/8/2B5 w`
+in `r1_wb1_d11.log` reads the same way with the squares mirrored). Depths
+1–10 read 0 with no exclusion training at all (`a4it`: zero `x` events;
+the tree is 2,832 nodes at depth 10). Iteration 11 is the first with
+exclusion searches at the defender's corner nodes, and the first to read a
+false score: 151 at depth 11, 259 at 12 (a-file: 396 at 11).
+
+**1.2 Which exclusion nodes train, and what they exclude.** Every negative
+exclusion event has Black to move with the king on g8 (or g7 after the
+white king left g6), the recogniser's 0 as its static evaluation
+(`raw=0 rec=1`) and the excluded move **Kh8** — the one move that keeps
+the corner (`g8h8` 177 of 213 events at depth 12, `g7h8` 28; a-file
+`b7a8` 98, `b8a8` 96 of 197). The exclusion search finds Kf8 (or the
+mirror) and reads the attacker's h7–h8 as material: best −315 to −962,
+median −415 (a-file −527), at exclusion depths 2–6. Three white-side
+events (`g6f6`, `e2d1` excluded) and 69 fail-high positive events
+(best ≥ beta, the multi-cut and negative-extension cases) complete the
+population. **Every negative event is a fail-low exclusion** (213 of 213
+at depth 12; 197 of 197 on the a-file), and every fail-high event has a
+positive bonus. That split is what the G-B guard reads.
+
+**1.3 The size of the trained error.** The bonus is
+`(best − static) · depth · scale · 3/2 / 128` clamped to ±256 (the
+exclusion fails low, so `raised_alpha` is false and the 3/2 factor
+applies); with an error of −4 pawns at depth 3 it is −225. The median
+bonus is −146 (a-file −154) and 34 of 213 events saturate at −256; the
+error is one to two orders larger than the few-centipawn errors the
+correction is built to learn. After one aspiration pass of iteration 11
+the defender's entries read −400 to −630 of the ±1024 bound (`a4x`:
+`pw=-518 mi=-414 nw=-500 nb=-633` at a ply-19 node); weighted, that is
+−60 cp from the pawn table, −33 from the minor and −50 to −62 from each
+non-pawn table.
+
+**1.4 Which tables carry it.** All four structural tables and the
+continuation correction, because in this ending every key is constant
+across the drawn region or nearly so: the pawn key is the single pawn
+(one entry for the whole tree until it advances), the minor key the
+bishop's square (a handful of entries), the defender's non-pawn key is
+**empty** (`nonpawn_key[BLACK] = 0`: one entry shared by every position in
+which Black has a bare king, in this or any other ending), the attacker's
+non-pawn key the bishop's square again, and the continuation correction
+is keyed by the king's shuffle moves (`[KING][g8]`, `[KING][h8]`). At the
+root of iteration 12 (`a4n it=12`, the last pass): correction 225 cp =
+pawn 24 + minor 14 + non-pawn(W) 20 + non-pawn(B) 17 + continuation 150
+(the remainder); at the PV node at ply 12, iteration 11: 110 = 45 + 8 +
+13 + 47 − 3; on the a-file at ply 12: 392 = 96 + 69 + 91 + 83 + 53. The
+bookkeeping holds at every PV node (the parts are integer-divided, so the
+remainder absorbs rounding of a few cp). The largest single part is the
+pawn table on the h-file FEN and the pawn and non-pawn tables on the
+a-file; Return 4's guess ("most likely the pawn key") named the largest
+structural carrier but missed that the drift is spread over every table
+the training touches — a guard on one table would not hold.
+
+**1.5 The false-scored nodes.** Every PV interior node of iteration 11
+(168 on the h-file, 232 on the a-file) has `raw=0 rec=1`: the evaluator
+returned the recogniser's 0 at every one, and the correction added
+±100–154 (h-file) or ±237–433 (a-file). The PV leaf is a quiescence
+stand-pat at ply 19 (`a4q path=[f1e2 h8g8 e2d3 g8h8 g6f6 h8g8 d3c2 g8h8
+f6g5 h8g8 c2b1 g8h8 g5h4 h8g8 h4g3 g8h8 g3h3 h8g8 b1d3] raw=0 rec=1
+corr=-151 sp=-151`), and the root reads exactly 151. One PV node on the
+a-file (ply 3, Black to move after `d2f4`) carries `raw=32002`, a stored
+mate-band static eval from an earlier underpromotion line — recorded,
+not pursued; the node's best is the PV's −396 regardless.
+
+**1.6 How it reaches the root.** By the PV, not by pruning and not by a
+TT cutoff: the leaf's stand-pat is the corrected static evaluation of a
+recognised draw, and every ancestor's best equals it because every move
+in the corner shuffle leads to another recognised draw with the same
+correction. The scores are stored as exact entries (`flag=1`, `TT_EXACT`)
+and iteration 12 opens with them (`a4n it=12` root: `se=68 best=170`
+before any new training). The static evaluation's pruning uses are not
+on the route at PV nodes; they carry the corrupted value at the non-PV
+siblings, which is why the exclusion search's own answer (the loss after
+Kf8) stays undisturbed.
+
+**1.7 Why the `KNOWN_WIN` guard failed, and why `B3CorrDecisive` is
+innocent.** `|best|` at the negative events is 24–962: `<1000` for 249
+of 283 events, `<75` for the rest, none ≥ 10,000 and none ≥ 31,744. The
+exclusion search runs at depth 2–6 and never reaches the promotion; it
+reads the material after Kf8 h7. A guard at `KNOWN_WIN` excludes nothing
+that trains here, and `is_decisive` (|score| ≥ `tablebaseWinInMaxPly`
+= 31,744) is further still: `B3CorrDecisive` admits mate and tablebase
+scores, and no such score is involved. Return 4's attribution (10/28 with
+`B3CorrDecisive=0`, 28/28 with `B3CorrExcluded=0`) stands.
+
+**1.8 The mechanism in chess terms.** An exclusion search measures the
+value of the position *without its TT move*. Where the move is singular
+that value understates the position by construction: the search is
+asking "how bad is it if the only move is unavailable?" and charging the
+answer to the static evaluation of a position in which the move is
+available. The estimator is biased toward "worse for the side to move"
+exactly at singular nodes. The bias is right by accident where the only
+move merely postpones a loss — the promotion fixture's defender has a
+string of only moves along a tablebase-lost line, and the training pushes
+its corrected evaluation toward the truth, which is why ticket 7 reads
+a7a8q +747 at depth 10 where `B3CorrExcluded=0` reads 0 — and wrong where
+the only move holds a draw forever, which is the wrong-bishop corner.
+The donor accepts the bias on NNUE evaluations whose errors are small and
+varied; its multi-cut block trains the correction only on a fail-high
+exclusion result (`search.cpp:1280-1287`), which is the half of the
+estimator that is a true lower bound, and its node-level training
+(`:1631-1638`) trains on both halves. Rarog's B-15 read, +2.3 ± 9.5, is
+consistent with a small effect either way and is a prior only.
+
+Two properties of Basilisk make the bias load-bearing here. First, the
+recogniser returns exactly 0 at every node of the drawn region
+whatever the kings and bishop do, so the structural keys receive hundreds
+of consistent −256 updates with no counter-signal from the evaluation's
+own variation. Second, the normal nodes of a recognised draw cannot
+restore the tables: their search value is the corrected evaluation of
+another recognised node, so `best − static` is zero whatever the
+correction has become (`a4it`: the 439 and 650 positive normal events on
+Black's side in iterations 11 and 12 are small bonuses from the
+aspiration passes, and the drift grows from 151 to 259 through them). The
+only restoring force is the gravity term of `HistoryBound::update`, which
+acts only when an entry is updated. On the OFF arm the same consumer
+exists and the same absence of a restoring force; what the OFF arm lacks
+is a producer that fires inside the drawn region (§2).
+
+### 2. The OFF arm and the donor (question 2)
+
+**2.1 Organic exposure, one position (R2a).** `5k2/8/6KP/8/8/8/8/5B2 b`:
+Black to move, Kg8 the only drawing move (Ke7/Ke8 lose to h7), the
+recogniser silent at the root (the king is two squares from h8) and
+firing after Kg8. Fresh tables, `ucinewgame` per search, Hash 8:
+
+| Depth | OFF arm | ON arm (ticket 7 defaults) |
+|---|---|---|
+| 8–10 | 0, 0, 0 | 0, 0, 0 |
+| 11 | **−90** (for Black; 3,075 nodes) | 0 |
+| 12 | −66 | 0 |
+| 13 | −66 | −7 |
+| 14 | −3 | **−152** (24,886 nodes) |
+
+Both arms hold 6 of 7. **P15a is a miss on the OFF arm** (predicted 7/7
+at 65%) and a hit on the ON arm. The OFF arm's correction corrupts a
+recognised draw from one position's own search, inside 3,075 nodes.
+
+**2.2 The OFF arm's producer (R2a′,** `r2a_off_trace_d11.log`). No `a4x`
+event (the OFF arm never trains under exclusion). The producer is the
+**root itself**: its raw evaluation is −797 for Black (the ordinary
+evaluation of a bishop and a pawn, the recogniser not firing) and its
+search value is 0 (Kg8 draws), so every iteration trains Black's shared
+entries +256 (`a4y it=1..10 ply=0 raw=-797 rec=0 best=0 bonus=+99, +186,
++250, +256…`; the pawn entry climbs 0 → 883 of 1024). Those entries are
+the pawn key, the minor key (the bishop on f1), the attacker's non-pawn
+key (the same bishop) and the **empty** defender's non-pawn key. One ply
+later, in the corner, the recognised nodes read 0 plus Black's inherited
+correction, the search value flows through them, and a handful of
+−256 updates at the corner nodes (`a4y rec=1 stm=b` five events) and the
+circular training of §1.8 settle the PV at +90 for White: every PV node
+of the depth-11 iteration has `raw=0 rec=1` with corrections +63…+83
+(White) and −70…−77 (Black), the continuation correction the largest part
+(+48 of +83 at ply 1). (ii) holds in its re-stated form — the carrier is
+normal-node training at an ordinary-evaluation node on the shared keys —
+and the first wording's sign and side were wrong: the drift here is
+seeded by the *defender's* correction trained *upward* at the root, not
+by negative training in lost sub-lines. The calibration lesson is that
+the direction of a shared-table drift is not predictable from the
+producer's sign once the circular training of recognised nodes takes
+over; only its presence is.
+
+**2.3 Primed exposure (R2b).** The OFF arm, one process, two priming
+searches on lost same-structure positions (both read the promotion:
+−19,871 and mate −11 at depth 12), then the test's 28 searches without
+`ucinewgame`:
+
+| FEN | depths 8–14 |
+|---|---|
+| `7k/8/6KP/…/5B2 w` | **172 137** 25 25 48 48 71 |
+| `k7/8/PK6/…/2B5 w` | 0 0 0 0 0 0 0 |
+| `5b2/…/6kp/8/7K b` | 64 29 11 11 11 0 0 |
+| `7k/7P/6K1/…/3B4 w` | 28 **107 107** 24 31 31 31 |
+
+Held 24 of 28; the control (the test's form) 28 of 28. **P15b is a hit**
+(predicted at least 4 of 28 at 75%; read exactly 4). The a-file FEN is
+untouched because its pawn and bishop keys differ from the priming
+positions' (an a-pawn and a c1-bishop); the h-file FENs share the pawn
+key and the empty defender key. `test_endgames` passes on the OFF arm
+only because each of its searches starts from cleared tables; a game
+reaching the corner with trained tables is the primed read, not the
+control.
+
+**2.4 The donor.** sf_19's `Eval::evaluate` is the network's two outputs
+blended with optimism and material, damped by the rule-50 count and
+clamped inside the tablebase band (`evaluate.cpp:40-70`); it has **no
+evaluation-level recognised draw**, no scale factor and no endgame table.
+Draws in the donor are search-level (`pos.is_draw`, repetition, the
+50-move rule, insufficient material), and the correction is never added
+to them. The classical donor `9587eeeb` had the recognisers (`Endgame<KBPsK>`
+is its wrong-bishop rule, `SCALE_FACTOR_DRAW`) and no correction history.
+So the donor's precedent for `B3CorrExcluded=1` — and for `B3CorrDecisive`,
+and for the correction form itself — says nothing about an engine whose
+evaluation classifies positions: Basilisk composes two mechanisms neither
+donor composes, and composes them in the order that lets the later one
+overwrite the earlier one's verdict. PLAN already carries one face of
+this: C.5.2's E7 switch and C.10's ablation ("skip the correction when
+the score came from a recogniser", the 2026-10-27 code audit). This
+amendment adds the measured defect and the second face: the producers
+that train on a recognised 0 (the exclusion search on the ON arm, the
+ordinary-evaluation root of a drawn position on both).
+
+**2.5 What this means for the floors.** B.12's test is a theory-truth
+floor and stays binding as written. On the OFF arm it passes by the
+test's form (fresh tables), not by the engine's behaviour in a game; the
+leaf that owns the consumer guard (§3.4) owes a fixture in the primed
+form — the test's 28 after two same-structure priming searches in one
+process — and the organic FEN of §2.1 at depths 8–14. Neither is added to
+B.3.1's floors: both fail on the OFF arm today, and §10 does not fix the
+OFF arm.
+
+### 3. The decision (question 3)
+
+**3.1 The guards, exactly.** All on ticket 7's source, the ON arm's
+release build, source restored after each (`gb.patch`, `gc.patch`,
+`gd.patch`, `gc_off.patch`).
+
+- **G-A** — Return 4's option 1: `B3CorrExcluded` default 0, the legacy
+  refusal; the switch stays for §9 item 11's paired run. Precedent: the
+  pre-ticket-7 rule (B-15's refusal).
+- **G-B** — fail-high only. An exclusion node trains the correction only
+  when its own search failed high: `(ss->excluded == MOVE_NONE ||
+  (train_excluded && best_score >= beta))`. Chess meaning: the value
+  without the TT move is a lower bound on the position only when the
+  other moves also hold; when they do not, it is the value of a different
+  position. Precedent: the donor's multi-cut block trains the correction
+  on exactly this half (`search.cpp:1280-1287`, `value > ss->staticEval`
+  after `value >= beta`); its node-level training has no such clause.
+- **G-C** — the raw-evaluation guard. An exclusion node trains only when
+  the node's raw static evaluation is not 0: `SearchStack` gains
+  `int raw_eval = VALUE_NONE`, written beside `ss->eval` from
+  `raw_static_eval` in the normal branch (the exclusion re-entry reuses
+  the record, so the outer pass's value is read), and the clause is
+  `(ss->excluded == MOVE_NONE || (train_excluded && ss->raw_eval != 0))`.
+  Chess meaning: a raw 0 from the evaluator is a classification — a
+  recognised draw (`return 0`) or a position scaled to `SCALE_DRAW` — and
+  a classification has no error for the exclusion search to measure; the
+  coincidental ordinary 0 is skipped with them, harmlessly. Precedent:
+  none in either donor (neither has both mechanisms); PLAN's C.5.2 E7 /
+  C.10 ablation is the same idea on the consumer side.
+- **G-D** — the consumer guard. `corrected_eval(raw, corr)` returns 0 for
+  a raw evaluation of 0, and the quiescence stand-pat adds no correction
+  to one; both arms, every node. Precedent: PLAN C.5.2's E7 switch as
+  planned by the 2026-10-27 audit. It moves the OFF arm, so it is priced
+  here and not admissible in B.3.1.
+
+**3.2 The price** (`price_defaults_ce0_gb_gc_gd.json`, `price_run.log`,
+`conv_*_*.log`, `endgames_*.log`). The defaults column is ticket 7 as
+committed (`6007ab5`), re-read on the same host.
+
+| Read | defaults (1) | G-A (`B3CorrExcluded` 0) | G-B fail-high only | **G-C raw-eval guard** | G-D consumer guard |
+|---|---:|---:|---:|---:|---:|
+| Wrong-bishop 28 (test's form) | 10/28 | **28/28** | **28/28** | **28/28** | **28/28** |
+| `test_endgames` (ON release) | 103/121 | 121/121 | 121/121 | 121/121 | 121/121 |
+| ON `bench 13` | 4,517,333 | 4,372,801 | 6,295,754 | 3,498,408 | 4,619,025 |
+| OFF `bench 13` | 16,615,757 | 16,615,757 | 16,615,757 (by construction) | **16,615,757** (read, `a4-gc-off`) | moves (not read) |
+| WAC at 100,000 nodes (≥ 232) / depth 6 | 249 / 134 | 239 / 135 | 242 / 134 | **250** / 134 | 244 / 136 |
+| Fixture a7a8q, 33k / 60k / 100k nodes | +47 / +538 / **+747** | 0 / 0 / **0** (d11) | +10 / +336 / +336 | +94 / +661 / **+661** | +50 / +479 / +479 |
+| Fixture 200k / 400k / 1M | +918 / +932 / +932 | +1154 / +1349 / +1520 | +1192 / +1296 / +1473 | +926 / +1180 / +1180 | +885 / +1091 / +1091 |
+| KQ-K, KR-K, KBB-K at five budgets | 24 each | 24 each | 24 each | 24 each | 24 each |
+| KBN-K 30k/45k/60k/90k/120k (sum ≥ 112) | 23/23/24/24/24 (118) | 22/23/24/24/24 (117) | 23/24/24/24/24 (119) | 23/23/24/24/24 (118) | 23/23/24/24/24 (118) |
+| KR-K mean at 30,000 (ceiling 29.5, recorded) | 26.4 | 27.7 | 30.7 | 26.4 | 26.4 |
+
+G-C's and G-D's floor rows are identical to the defaults' to the decimal:
+no node of a pawnless mate drive has a raw evaluation of 0, so neither
+guard touches those trees. The `test_endgames` runs at 120,000 nodes exit
+1 on the defaults, G-C and G-D for KQ-K's mean 10.7 against the test's
+staleness ratio, as Return 4 recorded; G-B's 30,000-node run exits 1 on
+KR-K's 30.7 against the 29.5 ceiling. Both are means recorded, not judged
+(amendment 3 §4); the floors hold everywhere.
+
+**P16 scored:** G-B holds the 28 — hit (60%); G-C holds — hit (80%); G-D
+holds — hit (90%); every guard holds the floors and the fixture — hit
+(70%; G-B's fixture is +336, positive); G-B's WAC within 3 of 249 — **miss**
+(242, −7; 55%). The miss is in the expected direction: G-B discards every
+fail-low exclusion update, three quarters of the population on these
+positions, and the tactical read moves with it.
+
+**3.3 Does a guard fall under §10's non-goal on the correction form?**
+§10 keeps "the correction form and weights" untouched: the tables, their
+keys, the update rule, the weights, and `corrected_eval`. The training's
+*admission* — which nodes train — is the seam ticket 7 already edits
+(`B3CorrDecisive`, `B3CorrExcluded`); G-B and G-C are admission clauses
+on that seam and change nothing on the OFF arm (G-C's OFF read is
+16,615,757; G-B's OFF clause is dead by `train_excluded`). G-D changes
+the consumer on both arms: it is the form, it is the non-goal, and it is
+the right repair for a defect that exists without Cluster 2 — so it goes
+to its own leaf (§3.4), not into B.3.1. Research reads G-B and G-C as
+inside the non-goal's boundary; the maintainer owns that reading, and §5
+gives the path if the reading is the other way.
+
+**3.4 Recommendation.** **G-C as ticket 7b, with `B3CorrExcluded`'s
+default kept at 1** and its value 1 defined as "trains at singular-excluded
+nodes except where the node's raw static evaluation is 0". It is the only
+candidate that holds every floor as written — the 28, the fixture's
+positive score at 100,000 nodes (+661), the conversion floors (118), WAC
+(250, the best read of the leaf so far) — while keeping the donor's
+default for the paired run and the OFF arm's fingerprint; and it names the
+mechanism exactly: the exclusion search may not charge a classification
+with the value of a position the classification was never about.
+
+*Alternative:* G-A (option 1, default 0). It holds the 28, costs 10 WAC
+points against the defaults, and leaves the fixture at a7a8q with score 0
+at 33,000–100,000 nodes (depth 11), positive only from 200,000; amendment
+3's clause ("a8=Q with a positive score at 100,000 nodes") would have to
+be reduced to the move, a floor relaxed after a read, which §10 forbids
+and which research will not propose. If the maintainer reads §10's
+non-goal as covering the admission seam too, G-A is the only path left,
+and the fixture's clause then needs its own maintainer decision; that is
+the second-best outcome and research says so plainly.
+
+*The main counter-argument to G-C:* it is a Basilisk-only device with no
+donor precedent, keyed to a proxy (`raw == 0`) for a recogniser verdict,
+and it leaves the biased estimator of §1.8 live in every fortress the
+evaluation does not classify: a drawn position the evaluation reads at
++0.3 with one holding move will still have its defender's correction
+pushed toward a loss by every exclusion search. The answer is that this
+bias is the donor's accepted form, read by §9 item 11's paired run as
+contracted (`B3CorrExcluded` 1 against 0), and that where the evaluation
+does classify, the classification must win — which is what G-C enforces
+on the producer side now and what G-D will enforce on the consumer side
+in its own leaf. G-B was the principled search-side alternative; it holds
+everything too, but at WAC 242 and `bench 13` 6.3M it is a different
+mechanism from the donor's rather than the donor's with a guard, and the
+paired run would then not be reading B-15.
+
+*Where G-D belongs.* A correctness leaf of its own in Phase B's `ANY
+TIME` class, like B.12: the defect is the composition order recogniser →
+correction on both arms, measured here as +90 on the OFF arm from one
+position (R2a) and 4 of 28 after priming (R2b); the candidate is G-D; its
+fixtures are the primed 28 and the organic FEN at depths 8–14 (both fail
+on today's head); its gate is B.12's — a recorded fingerprint move, CTest,
+the floors at five budgets, a repair SPRT `[-5,5]` at `3+0.03`. Research
+recommends the deadline "before C.0", because C.0 measures evaluation
+residuals by cohort on the B.9 head and a correction that overwrites
+recognised draws would be read as evaluation error in the endgame
+cohorts. It is also PLAN's C.5.2 E7 / C.10 ablation, already registered
+by the 2026-10-27 audit; this amendment gives that entry its measured
+defect and its fixtures. The finding sits beside amendment 3's KRP–KPP
+finding (§5, research decision 4) in the evaluation programme's list, and
+unlike that one it has an owner candidate. Opening the leaf is the
+maintainer's decision; it does not block B.3.1.
+
+### 4. Clauses changed, predictions and calibration (question 4)
+
+Clauses of §9, §10 and amendments 1–3 this amendment changes, on the
+maintainer's decision 1 (§5):
+
+1. **§9 item 11** (`B3CorrExcluded`): values "1 trains at singular-excluded
+   nodes (the donor) *except at a node whose raw static evaluation is 0*
+   (amendment 4's guard); 0 refused"; default 1 unchanged; the read
+   unchanged (paired run, last; B-15, low stakes; ±5).
+2. **§4's B-14/B-15 row**: "B-15 the categorical `B3CorrExcluded`,
+   guarded at a raw evaluation of 0 (amendment 4)".
+3. **§10 *Producer → stored state → consumer***: new producer
+   `ss->raw_eval` (the raw static evaluation of the outer pass, written on
+   both arms beside `ss->eval`, read by the ON arm's training block
+   only). The clause "new stack fields the OFF arm leaves at their
+   defaults" reads "leaves at their defaults or writes without reading".
+4. **§10 ticket 7** → the amended ticket 7b text of §5.
+5. **§10 *Invariants***: unchanged — the wrong-bishop draws bind both arms
+   at every ticket — with the note that the test's form (fresh tables per
+   search) is what binds; the primed 28 and the organic FEN are recorded
+   on both arms in ticket 10's table and bind nothing in B.3.1 (both fail
+   on the OFF arm today, §2).
+6. **§10 *Non-goals***: "the correction form and weights" is stated as the
+   tables, keys, update rule, weights and `corrected_eval`; the training's
+   admission at exclusion nodes is ticket 7's seam. The consumer guard
+   (G-D) is named as the evaluation programme's / a correctness leaf's,
+   not B.3.1's.
+7. **§10 ticket 10's two-arm table** gains two recorded rows on both arms:
+   the organic FEN `5k2/8/6KP/8/8/8/8/5B2 b` at depths 8–14 under 200,000
+   nodes (Hash 8), and the primed wrong-bishop 28 (R2b's recipe, Hash 8).
+8. **§10 *Cheap qualification***: "the wrong-bishop draws" reads "the
+   wrong-bishop draws (the test's form; the primed and organic reads
+   recorded)".
+9. **§9's attribution table, `B3CorrDecisive`**: unchanged; its innocence
+   is on record (§1.7), and its 2×2 with `B3CorrExcluded` on the fixture
+   is recorded in §5 for B.3.2's ablation order.
+10. **Amendment 3 §5, the fixture clause**: unchanged ("a8=Q with a
+    positive score at 100,000 nodes"); G-C reads +661. The clause is the
+    reason G-A is the alternative and not the recommendation.
+11. **Amendment 1 §7's per-ticket method**: the `trace.patch` records
+    (`a4x`, `a4n`, `a4q`, `a4y`, `a4it`) are a reusable temporary
+    instrument for any correction question; they stay a patch, not a Diag
+    feature, until B.3.2 asks for one.
+
+Tickets 8–10 need no change of substance: ticket 10's table gains the
+two rows above and its implementation record names the guard among the
+deviations with this amendment as its reason.
+
+**Predictions scored** (frozen in §R before the reads): P15a — OFF 7/7:
+**miss** (6/7, −90 at depth 11; 65%); ON fails at least one depth: hit
+(−152 at depth 14; 70%). P15b — primed OFF exposed at ≥ 4 of 28: hit
+(exactly 4; 75%). P16 — four hits and one miss (G-B's WAC), §3.2. The
+calibration note on R2a′'s wording is in §R and §2.2. Lesson for the
+model: research predicted the OFF arm safe because its producer never
+fires in the drawn region, and forgot that the region's boundary — the
+position one move before the recogniser fires — is an ordinary-evaluation
+node whose search value is the draw, the strongest producer of all.
+
+**New prediction, frozen now.** **P17:** B.3.2's paired run of §9 item 11
+(`B3CorrExcluded` 1 against 0 on the ON arm, G-C in place) reads within
+±5 Elo — probability 60%; a read ≤ −5 says the biased estimator costs
+more than the donor's tactics gain on this evaluation and flips the
+default to 0 by §9's rule, no return. **P18:** the G-D leaf's repair SPRT
+`[-5,5]` at `3+0.03`, if opened, does not read H0 at −5 (the fixtures
+occur too rarely in games to cost Elo; the gain is correctness) —
+probability 75%.
+
+### 5. Decisions, recommendations, the amended ticket, the condition
+
+**Research decides (its own):**
+
+1. The route is confirmed (§1) with the trace; Return 4's hypothesis
+   stands with one correction: the drift is spread over every table the
+   training touches, not the pawn key alone.
+2. P15a, P15b and P16 are scored; P17 and P18 are registered (§4).
+3. `B3CorrDecisive` is innocent and its row stands; the fixture's 2×2 on
+   the Tune build is recorded for B.3.2's ablation order:
+   (`B3CorrDecisive`, `B3CorrExcluded`) = (0, 0) a7a8q +956 at depth 10
+   (ticket 6b's read); (0, 1) +481 at depth 13; (1, 0) **0** at depths
+   9–11; (1, 1) +747 at depth 10. The fixture is a knife-edge in the
+   correction's settings as amendment 3 §1.3 said of the OFF arm's;
+   `B3CorrDecisive` alone, without exclusion training, is the setting
+   that drops it to 0, and that is a B.3.2 question, not a floor failure
+   of the recommended tree.
+4. The composition defect — the correction added to a recognised draw, on
+   both arms — is recorded for a correctness leaf with G-D as its
+   candidate and the primed 28 and the organic FEN as its fixtures
+   (§3.4), beside amendment 3's KRP–KPP finding; the two recorded rows
+   join ticket 10's table so B.3.1's final state carries the defect's
+   measurement on both arms.
+
+**The maintainer decides, each with its alternative and its main
+counter-argument:**
+
+1. **Ticket 7b takes G-C** — the raw-evaluation guard on the exclusion
+   producer, `B3CorrExcluded` default 1 with the guarded semantics — as
+   §3.4 recommends. Alternative: G-A (default 0) with amendment 3's
+   fixture clause reduced to the move at 100,000 nodes and the positive
+   score at 200,000, a relaxation research does not propose.
+   Counter-argument: a Basilisk-only guard on a proxy for the recogniser,
+   with the biased estimator left live elsewhere; answered in §3.4 (the
+   bias is the donor's form and the paired run reads it; the consumer
+   repair that covers every case has its own leaf).
+2. **A correctness leaf for the consumer guard (G-D)** in the `ANY TIME`
+   class, deadline before C.0, with the fixtures and gate of §3.4.
+   Alternative: leave it to C.5.2's E7 switch / C.10's ablation in Phase
+   C as PLAN already plans, with this amendment's measurements attached.
+   Counter-argument: a leaf now costs an SPRT and a fingerprint move while
+   B.3 is open; answered by the defect's class — a false score on a
+   recognised draw is a theory-truth matter on the OFF arm's own play,
+   and C.0's cohort residuals would otherwise read it as evaluation
+   error. This decision does not block B.3.1.
+
+**The amended ticket text implementation resumes on** (replacing §10's
+ticket 7 paragraph and the resumption brief's):
+
+- *Ticket 7b* (on `6007ab5`'s tree). `SearchStack` gains
+  `int raw_eval = VALUE_NONE`, written beside `ss->eval` from
+  `raw_static_eval` in the static-evaluation block's normal branch (both
+  arms write it; only the ON arm reads it); the training block's
+  exclusion clause becomes `(ss->excluded == MOVE_NONE || (train_excluded
+  && ss->raw_eval != 0))`; `B3CorrExcluded` keeps default 1 with §9 item
+  11's amended semantics, 0 the refusal; `B3CorrDecisive` and
+  `CoreHistoryFills` unchanged. Tests in `test_b3_proof`: the ON arm reads
+  |score| ≤ 75 on `7k/8/6KP/8/8/8/8/5B2 w` at depth 12 within 200,000
+  nodes with `B3CorrExcluded` 1 (the ticket-7 tree reads 259 and fails
+  it) and at 0; the OFF arm's tree on that position is unchanged by the
+  switch. Reads at the ticket's end, on the committed tree: OFF
+  `bench 13` 16,615,757 exact (the guard's OFF read); ON recorded (the
+  guard's read 3,498,408); release CTest on both arms (`test_endgames`
+  121/121 on the ON arm); WAC at 100,000 nodes ≥ 232 (read 250) and
+  depth 6 recorded (134); the fixture a7a8q with a positive score at
+  100,000 nodes (read +661) and its budget series recorded; the
+  conversion floors at five budgets (read KQ/KR/KBB 24, KBN-K 118); the
+  per-ticket counter table against ticket 6b; and, recorded on both arms,
+  the organic FEN at depths 8–14 and the primed 28. Outside any binding
+  read, Return 5 with the counters, no default moved by hand.
+- *Tickets 8–10* as packet §10 with amendments 1–4: ticket 10's two-arm
+  table carries the two recorded rows of §4 item 7 beside the fixture's
+  budget series, KR-K's 30,000-node mean and BAS-R07's rec1; the
+  implementation record names the guard among the deviations with this
+  amendment as the reason; the cost screen as re-scoped (idle host, ask
+  first; P11 its prediction); the depth-6 floor re-based on the ON arm.
+
+**Condition for resuming:** the maintainer's decision 1 above (G-C, or
+its alternative with the fixture clause decided). B.3.1 stays `RESEARCH`
+until then. Decision 2 is independent of B.3.1.
+
+### 6. Artifacts (`tools/results/b31-20261030/amend4/`, ignored storage)
+
+| Artifact | Content |
+|---|---|
+| `trace.patch`, `gb.patch`, `gc.patch`, `gd.patch`, `gc_off.patch` | the temporary edits, all reverted (`git status` clean after each build) |
+| `scripts/` | `a4lib.py`, `variant.py`, `a4_trace_patch.py`, `a4_r1.py`, `a4_r2.py`, `a4_guards.py`, `a4_price.py` |
+| `r1_wb0_d11.log`, `r1_wb1_d11.log`, `r1_wb0_d12.log`, `r1_analysis.txt` | R1's full engine output with the `a4x/a4n/a4q/a4it` records and the condensed analysis |
+| `r2.json`, `r2.txt`, `r2a_off_trace_d11.log` | R2a (both arms), R2b (primed and control), R2a′ (the OFF trace with `a4y`) |
+| `price_defaults_ce0_gb_gc_gd.json`, `price_run.log`, `conv_<build>_<budget>.log`, `endgames_<build>.log` | R3's prices |
+| `ctest_gc.log` | release CTest on the G-C tree: 25/25 |
+| `D:/code/stockfish`, `git show sf_19:src/evaluate.cpp`, `sf_19:src/search.cpp` | the donor's evaluation (no recognised draw) and its correction blocks (`:85-130`, `:824-856`, `:1280-1287`, `:1631-1638`) |
+
+Builds: `build/a4-on-trace`, `a4-off-trace`, `a4-gb`, `a4-gc`, `a4-gd`,
+`a4-gc-off` (release, `-DUSE_PEXT=ON -DPORTABLE_BUILD=ON`, B3_PROOF as
+named), the ticket-7 trees `build/b3-on`, `b3-off`, `b3-on-tune` and
+Return 4's `t7-ce0` (bench 4,372,801 reproduced).

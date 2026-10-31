@@ -820,6 +820,27 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         turns the KBP-K wrong-bishop draws into +150 to +400 from depth
         11 (18 of 121 `test_endgames` sections; 0 at every depth with
         it off); tickets 0-7 committed (`6007ab5`), OFF arm 16,615,757.
+      - Research amendment 4, 2026-10-31 (packet): the route is
+        confirmed by a trace: at the defender's corner the exclusion
+        search excludes the one drawing king move, reads the loss
+        without it (-3 to -9 pawns, never decisive, so neither the
+        KNOWN_WIN guard nor B3CorrDecisive is involved) and charges it
+        to the recogniser's 0; the -256 updates land on every structural
+        table and the continuation correction, and the PV leaf's
+        stand-pat (raw 0 plus correction) carries the score to the root.
+        The consumer is shared: the OFF arm reads +90 on a drawn KBP-K
+        one move before the recogniser fires and 4 of the 28 test reads
+        fail after priming its tables; sf_19 has no evaluation-level
+        recognised draw, so the donor's precedent says nothing here.
+        Four guards priced: every one holds the 28, the floors and the
+        fixture; B3CorrExcluded=0 holds the 28 but leaves the fixture at
+        0 until 200,000 nodes. Recommended: ticket 7b takes the
+        raw-evaluation guard on the exclusion producer (no exclusion
+        training where the raw static eval is 0; default 1 kept; OFF
+        16,615,757, ON 3,498,408, WAC 250, fixture +661, KBN-K 118), and
+        the consumer guard goes to a correctness leaf (ANY TIME, before
+        C.0). P15-P16 scored, P17-P18 registered. Resumes at ticket 7b
+        on the maintainer's decision 1 (packet amendment 4 §5).
     - [ ] **B.3.2** `[V]` Diagnostics and the unfitted paired run
       Packet §11, BAS-S41: the zero-game screens on both arms (counters,
       the oracle differential, WAC, the crossover band, the canary
@@ -1200,7 +1221,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.1 | RESEARCH | I2 | Returned at ticket 7 (packet *Return 4*: training the correction under exclusion breaks the wrong-bishop draws); resumes on research amendment 4 |
+| B.3.1 | RESEARCH | I2 | Research amendment 4 written; resumes `READY_FOR_IMPLEMENTATION` at ticket 7b on the maintainer's decision (packet amendment 4 §5) |
 | B.3.2 | RESEARCH | V | Waits for B.3.1's accepted review |
 | B.3.3 | RESEARCH | V | Waits for B.3.2 |
 | B.3.4 | RESEARCH | V | Waits for B.3.3 |
