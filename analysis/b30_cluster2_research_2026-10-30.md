@@ -4079,3 +4079,136 @@ tests, then the ticket's reads again), then tickets 9 and 10.
 | `seam.patch` | the root-window seam as read |
 | `read.patch` | the temporary read section (R4–R5 form) |
 | `r1_r3.txt`, `r4_r5.txt` | the reads, both arms, `B3Cuckoo` 1 and 0 |
+
+## Return 6 — B.3.1 ticket 9: the fail-low store throws the promotion fixture through IIR, and with the penalty it costs a KR-K floor (2026-10-31)
+
+**What resumed.** On amendment 5, ticket 8's terminal test landed
+(`5b6bae1`). It uses the root-window seam, with the ON arm reading 0 at
+depths 1–3 and the switch and the OFF arm reading the win. Its tree was
+unchanged, with OFF 16,615,757 and ON 5,635,655, and release CTest passed
+25/25 on both arms. Ticket 9 was then built as §10 writes it (`58ea1ed`).
+Two of its binding reads fail on the contract's defaults.
+
+**Ticket 9 as built** (`58ea1ed`):
+
+- **The fail-low store.** `B3FailLowStore` is an S line, default 1. On a
+  fail low (`TT_ALPHA`), negamax's final store passes no move, and the
+  table keeps the entry's own move as it already did for a no-move store.
+  Otherwise it stores the best-scored move, which there is the move that
+  raised alpha. Quiescence already stored only a move that raised alpha.
+- **The bound-mismatch penalty.** `B3TtPenalty` is an S line, default 1.
+  It is the donor's `else if` on the TT cutoff:
+  - the conditions are a non-PV node, no exclusion, a valid score, and
+    `tt_depth > depth − (tt_score ≤ beta)`;
+  - the bound must be on the wrong side, `TT_ALPHA` when `tt_score ≥ beta`
+    and `TT_BETA` otherwise, at depth > 5;
+  - the effect is `TranspositionTable::penalize(key)`, which lowers the
+    entry's depth byte by one and nothing else. An entry at depth ≤ 0 is
+    left alone. It counts `tt_penalized` and traces `TtPenalty`.
+- **Tests.**
+  - `test_tt` checks `penalize`: depth −1 with every other field kept,
+    and depth 0, evaluation-only and missing entries unchanged.
+  - `test_b3_proof` checks a root that fails low under the window
+    (5000, 5001). Its entry holds no move with the store on the ON arm,
+    and the best-scored move otherwise.
+  - Both switches move the ON tree and not the OFF tree, and
+    `tt_penalized` fires only with the penalty on.
+
+| Read (ticket 9, both switches 1) | Result | Rule |
+|---|---|---|
+| OFF `bench 13` | 16,615,757 (Release and Diag) | exact |
+| ON `bench 13` | **3,345,971** (Release = Diag) | recorded |
+| Release CTest | OFF 25/25; ON **24/25**: `test_search`, "a queen where a rook only transposes", plays `h3h4` | — |
+| WAC | 249 at 100,000 nodes; 133 at depth 6 | ≥ 232; recorded |
+| The fixture a7a8q | h3h4 0 / h3h4 0 / **h3h4 0** / a7a8q +1,196 / +1,192 / +1,387 at 33k / 60k / 100k / 200k / 400k / 1M | a8=Q, positive at 100k: **fails** |
+| Conversion floors | KQ-K, KBB-K 24 at every budget; **KR-K 23 at 30,000**; KBN-K 24/24/22/24/23 = 117 | KR-K 24 at every budget: **fails**; KBN-K ≥ 112 holds |
+| Wrong-bishop 28 (the test's form); `test_endgames` | 28/28; 121/121 | binds |
+| Organic FEN / primed 28 | OFF 6/7, 24/28; ON 6/7 (−111 at depth 13), 23/28 | recorded |
+| Counters against ticket 8 | interior 0.90×; `tt_move_absent` 65.4% → 72.7%; `tt_penalized` 0.84%; `iir_pv_nodes` +195%; Cluster 1 over 20%: `cont_hist_pruned` +35.5% | recorded |
+
+**The two switches separated.** Each variant is a temporary build with
+one default flipped, then restored byte-exact; the patches are
+`t9/t9_fls0.patch` and `t9_pen0.patch`. The fixture reads are on the
+Tune build with the option.
+
+| (`B3FailLowStore`, `B3TtPenalty`) | `bench 13` | WAC 100k | Fixture at 100k | KR-K at 30k | KBN-K sum |
+|---|---:|---:|---|---:|---:|
+| (0, 0), ticket 8 | 5,635,655 | 243 | a7a8q +913 | 24 | 119 |
+| (1, 0) | 5,133,969 | 246 | **h3h4 0** | 24 | 114 |
+| (0, 1) | 6,723,172 | 241 | a7a8q +918 | 24 | 120 |
+| (1, 1), ticket 9 | 3,345,971 | 249 | **h3h4 0** | **23** | 117 |
+
+- **The fixture fails whenever the store is on.** It is not a budget
+  knife-edge: the store-on arm reads `h3h4` 0 at every budget from 50,000
+  to 130,000 nodes in steps of 10,000, and a7a8q from 140,000 on. The
+  store-off arm reads a7a8q at every one (`t9/fixture_sweep.txt`).
+- **The KR-K miss needs both switches.** Each switch alone holds 24 at
+  every budget.
+
+**The carrier is IIR.** With `B3Iir` 0 and the store on, the fixture
+reads a7a8q **+382** at 33k, 60k and 100k (`t9/fixture_iir.txt`).
+- The store removes the TT move from every fail-low entry, so
+  `tt_move_absent` rises 7.3 points of interior nodes.
+- The ON arm's IIR reduces a PV or cut node of depth ≥ 6 that has no TT
+  move. That is the donor's step 11 exactly (`!followPV && !allNode &&
+  depth >= 6 && !ttMove`), and `iir_pv_nodes` triples.
+- On the a7a8q line, the nodes whose entries lost their move are reduced
+  a ply. The line reads ≤ 0 at depths 9–11 (a7a8q +506 at depth 8, then
+  `h3h4` 107 and 0), and `h3h4` wins the root until 140,000 nodes.
+
+Packet §5.6 predicted this population effect (the store "enlarges the
+no-TT-move population, which IIR, razoring's and RFP's admission ... all
+read"). It put the read in B.3.2. The fixture shows the effect inside
+B.3.1's binding reads.
+
+**The premise.** Ticket 9's contract carries `B3FailLowStore` and
+`B3TtPenalty` at their §9 defaults, 1 and 1. On those defaults two binding
+reads fail:
+- amendment 3's fixture clause (a8=Q with a positive score at 100,000
+  nodes);
+- the conversion floor (KR-K 24 at every budget).
+
+Both store and IIR are the donor's forms, so the ticket is built as
+contracted. Implementation may not move a default, relax the fixture or
+the floor, or change IIR. Either one of those changes, or the contract
+holds as written and the binding reads fail, so the leaf returns.
+
+**Options:**
+
+1. *Land ticket 9 with `B3FailLowStore` 0* (the penalty at 1). Every
+   binding read holds: fixture +918, floors 24, KBN-K 120, WAC 241.
+   - §9 already registers the store's paired run ("ablation on a
+     negative paired run"). B.3.2 would read 1 against 0 with IIR in the
+     tree, and §5.6's population read (`tt_move_absent`, both settings)
+     comes with it.
+   - Cost: the ON arm carries B-12 unrepaired into B.3.2, and its bench
+     tree is 6.72M, 1.19× ticket 8 and 2.0× ticket 9.
+2. *Keep both defaults and re-read the fixture clause and the 30k floor.*
+   The fixture has now flipped with several ON-arm settings: the
+   correction 2×2 (amendment 4 §5.3), the store, and IIR. That says it reads the
+   tree's composition at 100k as much as the conversion.
+   - Amendment 4 declined exactly this relaxation, and the KR-K miss is a
+     floor, not a fixture.
+3. *Research the store × IIR composition*: the donor composes the same
+   two, so why does the donor's own tree not lose this conversion?
+   - This is the expensive option. It may end in a Basilisk-only IIR
+     admission, which is a mechanism change.
+
+Recommendation: option 1. It keeps every binding read without relaxing
+anything, and it moves the store's verdict to the paired run §9 already
+registered for it. Main counter-argument: B-12 is a defect, and option 1
+defers its repair. The defect is "a move stored at fail-low", whose harm
+is a wrong TT move. That is ordering noise, and the paired run prices it;
+the repair's harm here is a lost won ending at 100k.
+
+**State at the return.**
+
+- Tickets 0–8 are complete. Ticket 9 is committed as built (`58ea1ed`),
+  with the ON arm's CTest at 24/25 (the fixture).
+- The OFF arm is 16,615,757 with release CTest 25/25 at every commit.
+- Ticket 10 has not started. No idle-host read was run, and no default
+  was moved.
+- Evidence is in `tools/results/b31-20261030/t9/`: `gates.txt` is the check
+  log, plus `t9_reads.log` and `.json`, `compare.md`, `fixture_sweep.txt`,
+  `fixture_iir.txt`, `variants.txt` and the two patches. Builds are in
+  `build/t9-fls0` and `build/t9-pen0`.
