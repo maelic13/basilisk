@@ -968,7 +968,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         // nearly deep enough that clears beta by a wide margin returns that
         // margin.
         const int tt_pc_beta = beta + kp.b3_probcut_tt_margin;
-        if (kp.b3_probcut_tt && !is_root && proves_lower(tt_flag)
+        if (!ABLATED(3) && kp.b3_probcut_tt && !is_root && proves_lower(tt_flag)
             && tt_depth >= depth - kp.b3_probcut_tt_depth
             && tt_score != VALUE_NONE && tt_score >= tt_pc_beta
             && !is_decisive(beta) && !is_decisive(tt_score)) {
