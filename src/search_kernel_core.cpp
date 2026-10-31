@@ -501,6 +501,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         // TT stores the raw static eval; correction is applied at probe time.
         static_eval = corrected_eval(raw_static_eval, correction_raw);
         ss->eval = static_eval;
+        ss->raw_eval = raw_static_eval;
     }
 
     // Value used for PRUNING decisions only. When a TT entry's bound
@@ -1720,11 +1721,14 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     // admission takes the error only where its sign agrees with the bound:
     // above the static eval exactly when a move raised alpha. Cluster 2's arm
     // trains on decisive scores (B3CorrDecisive) and under exclusion
-    // (B3CorrExcluded), as the donor does; the bonus is clamped either way.
+    // (B3CorrExcluded), as the donor does, except at an exclusion node whose
+    // raw static eval is 0: that is the evaluator's verdict (a recognised
+    // draw), and the value without the only move is no error of it. The
+    // bonus is clamped either way.
     const bool raised_alpha = best_score > orig_alpha;
     const bool train_decisive = kB3Proof && kp.b3_corr_decisive;
     const bool train_excluded = kB3Proof && kp.b3_corr_excluded;
-    if (!in_check && (train_excluded || ss->excluded == MOVE_NONE)
+    if (!in_check && (ss->excluded == MOVE_NONE || (train_excluded && ss->raw_eval != 0))
         && static_eval != VALUE_NONE
         && (train_decisive || !is_decisive(best_score))
         && !(raised_alpha && (state_.board->piece_on(to_sq(best_move)) != NO_PIECE

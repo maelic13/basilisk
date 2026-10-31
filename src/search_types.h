@@ -42,6 +42,9 @@ struct SearchStack {
     // sentinel row likewise).
     PieceToCorrection* cont_corr = nullptr;
     int       eval        = VALUE_NONE;      // corrected static eval at this ply
+    // The raw static eval beside it, written by the outer pass and kept by
+    // the exclusion re-entry; only Cluster 2's correction training reads it.
+    int       raw_eval    = VALUE_NONE;
     int       stat_score  = 0;               // history score of the move searched from here
     int       reduction   = 0;               // reduction applied to the move searched from here
     int       move_count  = 0;               // moves picked at this node, pruned ones included

@@ -278,7 +278,8 @@
 //
 // Correction: b3_corr_decisive: 1 trains the correction on decisive scores;
 //   0 refuses them (the legacy rule). b3_corr_excluded: 1 trains it at
-//   singular-excluded nodes; 0 refuses them. core_history_fills: 1 fills
+//   singular-excluded nodes except where the node's raw static eval is 0
+//   (a recognised draw); 0 refuses them. core_history_fills: 1 fills
 //   fresh history tables with the donor's values at the first search after a
 //   clear; 0 leaves them at zero.
 #define BASILISK_B3_PARAMS(X, F, S)                                   \

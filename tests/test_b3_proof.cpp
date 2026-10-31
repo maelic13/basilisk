@@ -304,6 +304,39 @@ static void test_correction_switches_live() {
     end_section();
 }
 
+// Amendment 4's guard: an exclusion node whose raw static eval is 0 (the
+// wrong-bishop corner the recogniser draws) trains no correction, so the
+// ON arm keeps the draw with exclusion training on (the unguarded tree read
+// 259 here) and off; the OFF arm's tree does not see the switch.
+static void test_excluded_training_spares_recognised_draws() {
+    const std::string fen = "7k/8/6KP/8/8/8/8/5B2 w - - 0 1";
+    auto run = [&](int excluded) {
+        TranspositionTable tt(8);
+        std::atomic_bool stop{false};
+        auto searcher = std::make_unique<Searcher>(tt, stop);
+        Board b;
+        b.set_fen(fen);
+        SearchLimits lim;
+        lim.depth = 12;
+        lim.nodes = 200000;
+        lim.params.b3_corr_excluded = excluded;
+        return searcher->search(b, lim);
+    };
+    const SearchResult on = run(1);
+    const SearchResult off = run(0);
+    begin_section("correction: exclusion training spares a recognised draw (KBP-K wrong bishop, depth 12)");
+    EXPECT_EQ(on.depth, 12);
+    EXPECT_EQ(off.depth, 12);
+    if constexpr (kB3Proof) {
+        EXPECT(std::abs(on.score) <= 75);
+        EXPECT(std::abs(off.score) <= 75);
+    } else {
+        EXPECT_EQ(on.nodes, off.nodes);
+        EXPECT_EQ(on.score, off.score);
+    }
+    end_section();
+}
+
 int main() {
     init_bitboards();
     init_attacks();
@@ -324,6 +357,7 @@ int main() {
     test_seek_mate_gate();
     test_history_fill_values();
     test_correction_switches_live();
+    test_excluded_training_spares_recognised_draws();
 
     return harness_summary();
 }
