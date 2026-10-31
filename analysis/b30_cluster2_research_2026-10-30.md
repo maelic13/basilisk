@@ -4738,3 +4738,201 @@ is the contract implementation resumes on; B.3.1 resumes
 - Builds: `build/a6-trace` (`TUNE=ON`, 3,345,971), `build/a6-iir-cut`,
   `build/a6-iir-pv`, `build/a6-iirmin7` (5,486,508), `build/a6-iirmin7-off`
   (16,615,757); the source tree clean after every build (`git status`).
+
+## Implementation record — tickets 6b to 10, the final state (2026-10-31)
+
+Continues the record of tickets 0 to 6 (above, at Return 2). Branch
+`b3-pruning-extensions`; the release preset, PEXT portable, Clang 23.1.4,
+non-PGO `all` trees. Flavours: Release, Tune, Diag and Ablate on both arms
+(`build/b3-{on,off}`, `-tune`, `-diag`, `-ablate`) and the sanitizer trees
+(`build/b3-{on,off}-san`: the `debug` preset, ASan and UBSan). Every read
+below is on the committed tree, each binary rebuilt from it; the
+temporary variant builds restored the source byte-exact (`git status`
+clean after each). Evidence: `tools/results/b31-20261030/t9b/` and
+`t10/` (ignored storage), with `t9b.check.log` in the ticket checks'
+shape.
+
+### Per ticket
+
+| Ticket | Commits | OFF `bench 13` | ON `bench 13` | ON WAC depth 6 / 100k | Fixture at 100k | Release CTest |
+|---|---|---:|---:|---|---|---|
+| 6b | `eeeaa86`, `cfb9232` | 16,615,757 | 6,263,268 | 136 / 237 | a7a8q +956 | 25/25 both arms |
+| 7 (Return 4) | `6007ab5` | 16,615,757 | 4,517,333 | 134 / 249 | a7a8q | ON 24/25 (`test_endgames`) |
+| 7b | `920cc5d` | 16,615,757 | 3,498,408 | 134 / 250 | a7a8q +661 | 25/25 both arms |
+| 8 | `7e92ecb`, `5b6bae1` | 16,615,757 | 5,635,655 | 132 / 243 | a7a8q +913 | 25/25 both arms |
+| 9 (Return 6) | `58ea1ed` | 16,615,757 | 3,345,971 | 133 / 249 | h3h4 0 | ON 24/25 (`test_search`) |
+| 9b | `738261f`, `fb559d0` | 16,615,757 | **6,723,172** | 132 / 241 | a7a8q +918 | 25/25 both arms |
+| 10 | `5dcf030`, `3321cf3` | 16,615,757 | 6,723,172 | 132 (floor 119) / 241 | a7a8q +918 | 25/25 both arms |
+
+The Diag binary of each source read the release count at every ticket.
+The ON arm's Diag build ran `test_stack_unwind`, `test_b3_proof` and
+`test_search` with node checks live at every ticket, and passed.
+
+### Ticket 9b's binding reads (amendment 6 §5)
+
+| Read | Result | Rule |
+|---|---|---|
+| OFF `bench 13` | 16,615,757 (Release and Diag) | exact |
+| ON `bench 13` | 6,723,172 (Release = Diag = Tune) | recorded; amendment 6's variant read 6,723,172 |
+| Release CTest | 25/25 on both arms | binds |
+| WAC | 241 at 100,000 nodes; 132 at depth 6 | ≥ 232; recorded |
+| The fixture `3r4/P7/2K1p3/R7/5p2/6kP/8/8 w` | a7a8q +315 / +315 / **+918** / +1,097 / +1,097 / +1,464 at 33k / 60k / 100k / 200k / 400k / 1M nodes | a8=Q, positive at 100k |
+| Conversion floors | KQ-K, KR-K, KBB-K 24 at every budget; KBN-K 24 × 5 = **120** | 24; ≥ 112 |
+| Wrong-bishop 28 (the test's form); `test_endgames` | 28/28; 121/121 | binds |
+| Organic `5k2/8/6KP/8/8/8/8/5B2 b`, depths 8–14 | OFF 6/7 (−90 at depth 11); ON 7/7 | recorded |
+| Primed 28 | OFF 24/28; ON 27/28 (+295 at depth 8 on the first FEN, +64 at depth 9 on the third); controls 28/28 | recorded |
+| `tt_move_absent`, depth 13, the 40 positions (Tune build, the option) | store 0: 66.11% of 2,021,950 interior nodes; store 1: 72.67% of 2,003,134 | recorded (P33 is B.3.2's, at depth 14) |
+| Counters against ticket 8 | interior 0.909×; `tt_penalized` 0.70%; `tt_move_absent` +1.1%; Cluster 1 over 20%: `cont_hist_pruned` −29.8% | recorded |
+
+### Cluster 1 rows that moved by more than 20%, tickets 6b to 9b
+
+Shares of interior nodes, ON arm, against the previous ticket; never
+repaired.
+
+- **Ticket 6b.** Return 4's table: within 20% except
+  `hist_reward_updates`, on a tree 0.29× ticket 5b's hybrid.
+- **Ticket 7 and 7b.** `cont_hist_pruned` +34% (2.40% to 3.22%) and
+  +32.7%, following the correction's new producers.
+- **Ticket 8.** None.
+- **Ticket 9b.** `cont_hist_pruned` −29.8% (3.75% to 2.63%). The whole
+  move is bench position 11: −30,382 of the −30,186 net, its tree halving
+  under the penalty (457,467 to 251,939 interior nodes); the other 39
+  positions net +196.
+
+### Ticket 10
+
+- **The mask.** Bits 2, 3, 4 and 6 sit on the ON arm's mechanisms from
+  their tickets (the null move, ProbCut, IIR, and the singular block with
+  its multi-cut and negative extension); ticket 10 adds bit 3 to the small
+  TT ProbCut, which is off by default (`B3ProbCutTt` 0), so no fingerprint
+  moves. The check extension exists on the ON arm only at
+  `B3CheckExt=1`, a Tune-build option, so the Ablate flavour never has it
+  and bit 6 stays matched to the oracle's extension family (B-109).
+- **Liveness** (`ablation_liveness.py`, eight `suite_v2` positions, depth 9,
+  `ablation_liveness_{on,off}.json`): all eight bits live on both arms,
+  every bit moving all eight positions. ON (101,363 nodes unmasked):
+  razoring 0.89×, RFP 1.70×, null move 1.03×, ProbCut 0.99×, IIR 1.14×,
+  shallow move pruning 3.25×, extensions 0.97×, LMR 1.38×. OFF (209,378):
+  0.80×, 1.59×, 0.78×, 1.03×, 0.56×, 3.61×, 0.55×, 1.21×.
+- **The depth-6 WAC floor** re-registered on the ON arm: 132 less the 13
+  of headroom the OFF floor carries, **119** (`test_wac.cpp`, by
+  `kB3Proof`); `test_wac_floor` runs `--floor` on both arms again. OFF 182
+  against 175, ON 132 against 119; both pass.
+- **Sanitizers.** `bench 10` on the sanitizer trees equals release on both
+  arms (ON 1,367,728, OFF 4,034,698); CTest under ASan and UBSan,
+  `-LE strength`, 23/23 on both arms, no sanitizer report.
+- **CI.** The `flavors` job's `B3_PROOF` cell has existed since ticket 0.
+  Nothing was pushed, so CI has not run on this branch; it runs at the PR.
+
+### The two-arm table (B.2's final-state shape)
+
+| Read | OFF | ON |
+|---|---:|---:|
+| `bench 13` Release / Tune / Diag / Ablate | 16,615,757 × 4 | 6,723,172 × 4 |
+| `bench 10` release / sanitizer | 4,034,698 / 4,034,698 | 1,367,728 / 1,367,728 |
+| Release CTest / sanitizer CTest | 25/25 / 23/23 | 25/25 / 23/23 |
+| WAC depth 6 (floor) | 182 (175) | 132 (119) |
+| WAC 100,000 / 400,000 nodes | 240 / 265 | **241** / 261 |
+| WAC `depthpv 10` | 248 | 223 |
+| The fixture, 33k / 60k / 100k / 200k / 400k / 1M | a7a8q +68 / +370 / +616 / +841 / +841 / +841 | a7a8q +315 / +315 / +918 / +1,097 / +1,097 / +1,464 |
+| Floors, KQ-K / KR-K / KBB-K | 24 at every budget | 24 at every budget |
+| KBN-K, 30k–120k (sum) | 22 / 23 / 24 / 23 / 23 (115) | 24 × 5 (120) |
+| KR-K mean plies at 30,000 | 28.9 | 22.6 |
+| BAS-R07's rec1 `7r/5R2/8/2k1PB2/8/4K3/8/8 w` at 100k | e5e6 +1,095 (depth 10) | f5g4 +747 (depth 9) |
+| Organic FEN, depths 8–14 | 6/7 | 7/7 |
+| Primed 28 / control 28 | 24 / 28 | 27 / 28 |
+| Return 5's line, `searchmoves f7f8`, depths 1–6 | −1,276 / −1,157 / −1,157 / −972 / 0 / 0 | −1,276 / −190 / −127 / −13 / 0 / 0 |
+
+The OFF arm's 120,000-node conversion run exits 1 on the floors' own
+staleness guard (KQ-K's mean 10.8 plies, as §2.2 recorded for the head),
+not on a floor.
+
+Recorded on the ON arm (amendment 6 §5 item 4), the (store, penalty) 2×2
+of Return 6 at `6b0e4c4`'s source:
+
+| (`B3FailLowStore`, `B3TtPenalty`) | `bench 13` | WAC 100k | Fixture at 100k | KR-K at 30k |
+|---|---:|---:|---|---:|
+| (0, 0) | 5,635,655 | 243 | a7a8q +913 | 24 |
+| (1, 0) | 5,133,969 | 246 | h3h4 0 | 24 |
+| (0, 1), the final defaults | 6,723,172 | 241 | a7a8q +918 | 24 |
+| (1, 1) | 3,345,971 | 249 | h3h4 0 | 23 |
+
+And the fixture at depth 11 (Tune build, Hash 64, `fixture_d11.txt`),
+reproducing amendment 6 §1.1–1.2 exactly:
+
+| Root | Store 1, depths 8 / 9 / 10 / 11 | Store 0, depths 8 / 9 / 10 / 11 |
+|---|---|---|
+| Whole | a7a8q +506 / h3h4 +107 / h3h4 0 / h3h4 0 | a7a8q +384 / +315 / +918 / +1,144 |
+| `searchmoves a7a8q` | +389 / +516 / +716 / +952 | +446 / 0 / 0 / 0 |
+
+### Cheap qualification
+
+| Item | Result | Rule |
+|---|---|---|
+| The two-arm table, every fingerprint from a clean tree | above | — |
+| WAC at 100,000 nodes; depth 6 | 241; 132 | ≥ 232; ≥ the re-based 119 |
+| Floors at five budgets; the fixture at 100k | 24 × 15 and KBN-K 120; a7a8q +918 | 24; ≥ 112; a8=Q positive |
+| Wrong-bishop draws (the test's form) | 28/28; primed and organic recorded | binds |
+| `B3CorrDecisive` 0 and 1 | 0: every family 24 at every budget, KBN-K 120 (`bench 13` 5,508,967); 1: the same, 120 | recorded |
+| The KBN-K multi-cut read (§9 item 4) | `B3MultiCut` 0: 120; 1: 23/22/24/23/23 = 115 (`bench 13` 4,339,893). The ON arm passes the majority rule (base 115) at its default, so the default stays 0 and `B3MultiCut` goes to its paired run | rule |
+| The depth-20 wire check (ticket 3) | bench position 11: `null_verifications` 237, `ext_budget_bound` 370 of 1,081 singular firings; position 15: 0 and 263 of 566 (Diag, finished in 27 s and under 1 s) | ≥ 1 on position 11 |
+| Liveness | all eight bits, both arms | every bit moves nodes |
+| The decision trace on WAC.001, 085, 203, 253 (depth 8, the WAC move as root, Diag) | ON 477 / 332 / 851 / 108 records; OFF 620 / 492 / 824 / 139; `trace_{on,off}_WAC.*.json` | archived |
+| The deep-iteration cost screen (re-scoped, amendment 2 §3; P11) | **not run: needs an idle host** | growth geomean ≤ 1.5, every depth finished |
+
+The screen's positions are in `t10/screen_positions.epd` (bench positions
+11 and 15, `suite_v2` positions 50, 42 and 60); `t10/screen_growth.py`
+scores `deep_iteration_screen.py`'s JSON by the re-scoped rule and records
+the absolute ratio.
+
+### Tests added, tickets 7 to 10
+
+- `test_b3_proof`, both arms:
+  - the donor's fills (`clear(true)` against `clear()`);
+  - the three correction switches moving the ON arm only;
+  - exclusion training sparing a recognised draw (KBP-K, depth 12);
+  - every reversible move's cuckoo key found, and no false positive
+    against a slow reference over 10,000 positions;
+  - the cuckoo cutoff at the draw window (depths 1–3);
+  - the fail-low root's stored move under both store settings;
+  - both TT switches moving the ON arm only.
+- `test_tt`: `penalize` lowers the depth by one and keeps every other
+  field, and leaves depth-0, evaluation-only and missing entries alone.
+- `test_wac`: the ON arm's floor 119.
+- `test_spsa_surface.py`: the B3 sweep points (ticket 6b).
+
+### Deviations and interpretations, each with its reason
+
+- Ticket 6b: the singular margin seeded at 252 and the donor's `seekMate`
+  fired from root depth 12 (amendment 3, the maintainer's decisions);
+  `B3PvQuietPrune` added (amendment 3 §5).
+- Ticket 7b: the raw-evaluation guard on the exclusion producer (no
+  exclusion training where the raw static eval is 0), `B3CorrExcluded`
+  default 1 kept (amendment 4, the maintainer's decision 1).
+- Ticket 8: the terminal test reads the cutoff at the root's child under a
+  test-only root window, `SearchLimits::root_alpha`/`root_beta`, read by
+  the driver alone; test (b) withdrawn (amendment 5).
+- Ticket 9b: **`B3FailLowStore` default 0**, the best-scored move stored
+  after a fail low (the OFF arm's form), with the store reclassified as §9
+  item 16 and read by a paired run in B.3.2; `B3TtPenalty` 1 (amendment 6,
+  the maintainer's decisions 1 and 2). B-12's repair is built and switched,
+  not on.
+- Ticket 9b's switch test reads bench position 3 (`bench_fens()[2]`) at
+  depth 12, not position 2: with the store at 0 the penalty fires and leaves the node
+  count unchanged on bench positions 1, 2, 6, 9 and 10 (position 2: 32,555
+  nodes either way; position 3: 67,822 against 84,770). The assertions are
+  unchanged (`fb559d0`).
+- Ticket 10: bit 3 also covers the small TT ProbCut (above); the depth-6
+  floor is chosen in `test_wac.cpp` by `kB3Proof` rather than by a CMake
+  branch.
+
+### What the reviewer must check
+
+- Each ticket's diff against §10 as amended by amendments 1–6, and the
+  deviations above.
+- The OFF arm's code: shared seams only since ticket 6 (the root-window
+  fields at their equal defaults, `TranspositionTable::penalize` reached
+  only from an ON-arm branch, the counters).
+- The fingerprints of the two-arm table, reproduced from a clean tree on
+  every flavour.
+- The cost screen's result, once the maintainer has run it on an idle host.

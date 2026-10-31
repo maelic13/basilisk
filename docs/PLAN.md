@@ -886,6 +886,14 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         Maintainer decisions 2026-10-31: both taken as recommended
         (`B3FailLowStore` default 0, the store §9 item 16; `B3TtPenalty`
         1). Resumes at ticket 9b.
+      - Tickets 9b and 10 landed 2026-10-31 (packet *Implementation
+        record — tickets 6b to 10*): OFF 16,615,757 and ON 6,723,172 on
+        Release, Tune, Diag and Ablate, sanitizer `bench 10` equal, CTest
+        25/25 and 23/23 under sanitizers on both arms; WAC 241 at 100k,
+        the depth-6 floor re-based to 119 (count 132); fixture +918;
+        floors 24 x 15, KBN-K 120; the 28 held; all eight ablation bits
+        live; `B3MultiCut` stays 0. The re-scoped cost screen waits for
+        an idle host; then the independent review.
     - [ ] **B.3.2** `[V]` Diagnostics and the unfitted paired run
       Packet §11, BAS-S41: the zero-game screens on both arms (counters,
       the oracle differential, WAC, the crossover band, the canary
@@ -1299,7 +1307,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.1 | READY_FOR_IMPLEMENTATION | I2 | Resumes at ticket 9b on research amendment 6 (packet) with the maintainer's decisions of its §5 (`B3FailLowStore` default 0, `B3TtPenalty` 1), then ticket 10 |
+| B.3.1 | IMPLEMENTED | I2 | Tickets 0-10 landed; every deterministic qualification read passes (packet *Implementation record — tickets 6b to 10*); the re-scoped deep-iteration cost screen waits for an idle host, then the independent review |
 | B.3.2 | RESEARCH | V | Waits for B.3.1's accepted review |
 | B.3.3 | RESEARCH | V | Waits for B.3.2 |
 | B.3.4 | RESEARCH | V | Waits for B.3.3 |
