@@ -540,14 +540,14 @@ static void test_fail_low_store() {
 static void test_tt_switches_live() {
     const std::string mid(bench_fens()[1]);
     const Run base = search(mid, 12);
-    const Run store0 = search(mid, 12, 0, [](SearchParams& p) { p.b3_fail_low_store = 0; });
+    const Run store1 = search(mid, 12, 0, [](SearchParams& p) { p.b3_fail_low_store = 1; });
     const Run pen0 = search(mid, 12, 0, [](SearchParams& p) { p.b3_tt_penalty = 0; });
     begin_section("tt: B3FailLowStore and B3TtPenalty move the ON arm only");
     if constexpr (kB3Proof) {
-        EXPECT(base.result.nodes != store0.result.nodes);
+        EXPECT(base.result.nodes != store1.result.nodes);
         EXPECT(base.result.nodes != pen0.result.nodes);
     } else {
-        EXPECT_EQ(base.result.nodes, store0.result.nodes);
+        EXPECT_EQ(base.result.nodes, store1.result.nodes);
         EXPECT_EQ(base.result.nodes, pen0.result.nodes);
     }
     if constexpr (kCounters) {
