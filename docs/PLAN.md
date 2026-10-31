@@ -579,9 +579,12 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
   SPRT `[0,3]`.
   Opens in the standard cluster shape: B.3.0 research on the accepted B.2
   head (re-basing B.0's handoff), B.3.1 implement, B.3.2 diagnostics and
-  paired run, B.3.3 sweep and SPSA, B.3.4 gate. Known risk: Rarog's donor
-  multi-cut rule failed its KBNK drive test and Rarog kept its own rule.
-  Basilisk's mate-drive floors are at least as fragile: literature seeds
+  paired run, B.3.3 sweep and SPSA, B.3.4 Basilisk's forms re-read on the
+  fitted arm, B.3.5 gate, B.3.6 colour-indexed histories (S2; the B.3.4,
+  B.3.5 and B.3.6 leaves were added or renumbered 2026-10-31 by the
+  maintainer: the packet's B.3.4 and BAS-S43 are B.3.5). Known risk:
+  Rarog's donor multi-cut rule failed its KBNK drive test and Rarog kept
+  its own rule. Basilisk's mate-drive floors are at least as fragile: literature seeds
   have tripped them eight times.
   B.2.3 residuals (maintainer decision 2026-10-24; evidence
   `analysis/b23_constants_2026-10-14.md`, findings 4 and 5):
@@ -654,8 +657,8 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     not separate the storage and no board symmetry maps f3 to f3; the
     donor indexes by `Piece`. The tables feed ordering, statScore,
     history pruning, LMR depth and the capture margins. A B.3.0 residual
-    beside B.2.3's, settled before B.6: a shadow counter of cross-colour
-    hits per table, a colour-indexed build read on first-move cutoffs,
+    beside B.2.3's, settled before B.6 as leaf B.3.6: a shadow counter of
+    cross-colour hits per table, a colour-indexed build read on first-move cutoffs,
     mean cutoff index and bench (memory about doubles for the
     continuation and pawn tables), then SPRT `[0,3]`.
   - S3: in-check nodes are never reduced or move-loop pruned (`:854`,
@@ -907,17 +910,49 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       SPSA in blocks on Cluster 2's X lines plus §5.12's admissions;
       theta is the last completed block; the fitted-constant analysis
       precedes the bake.
-    - [ ] **B.3.4** `[V]` Cluster 2 gates
+    - [ ] **B.3.4** `[V]` Basilisk's forms re-read on the fitted arm
+      Added 2026-10-31 (maintainer). B.3.2's categorical runs read the
+      donor's forms with Cluster 1's constants fitted to the old tree, so
+      a donor form can lose only for want of its fit. On the fitted tune
+      build, every place the arm still keeps Basilisk's form where the
+      donor's differs is read once more, the donor's form against
+      Basilisk's: a §9 categorical at Basilisk's value by default or by
+      B.3.2's run (today `B3FailLowStore` 0 and `CoreHistoryFills` 0), and
+      every categorical whose B.3.2 run read inside ±5. Each is one
+      2,000-game paired run at `3+0.03`, after the conversion floors at
+      the five budgets and the WAC floor as vetoes; the donor's form is
+      adopted at ≥ +5, Basilisk's kept otherwise. An adoption does not
+      re-run the fit unless the fitted-constant analysis asks. Seeds that
+      differ from the donor's (the singular margin 252 against 17,
+      `B3SeekMateDepth` 12 against 16) are B.3.3's, whose sweep carries
+      the donor's points. Every departure that stays is written to the
+      packet's departures table for B.6.1: Basilisk's form, the donor's,
+      the reading that kept it, and the feature or fit it waits on.
+    - [ ] **B.3.5** `[V]` Cluster 2 gates
       SPRT `[0,3]` for the cluster, and each categorical and deletion arm
       at the bounds the packet registers.
-      Packet §11, BAS-S43: (a) the fitted ON arm against the OFF arm,
-      `[0,3]` at `3+0.03`; (b) the fit against the unfitted arm, `[0,3]`,
-      only if B.3.3 ran its SPSA; (c) a 2,000-game `10+0.1` direction
-      read, recorded, not a gate.
+      Packet §11, BAS-S43 (the packet's B.3.4): (a) the fitted ON arm
+      against the OFF arm, `[0,3]` at `3+0.03`; (b) the fit against the
+      unfitted arm, `[0,3]`, only if B.3.3 ran its SPSA; (c) a 2,000-game
+      `10+0.1` direction read, recorded, not a gate. The candidate is
+      B.3.4's: the fitted arm with its adoptions.
+    - [ ] **B.3.6** `[I2]` Colour-indexed histories (S2)
+      Added 2026-10-31 (maintainer): S2 above, given a leaf so it runs. On
+      the accepted B.3 head, research first: a shadow counter of
+      cross-colour hits per table (capture, continuation and pawn
+      histories, the continuation correction); a negligible rate closes
+      the leaf `NO_CHANGE` without games. Otherwise the donor's indexing
+      by `Piece`, read at fixed nodes on first-move cutoffs, mean cutoff
+      index and bench with its memory priced, then SPRT `[0,3]` at
+      `3+0.03`. Settled before B.6, which may put these tables on a
+      surface.
 - [ ] **B.4** `[I2]` Cluster 3 — quiescence
   TT cutoff, corrected stand-pat with interpolated fail-high, futility base,
   move-count and SEE pruning, evasions only in check, TT write on exit; SPRT
   `[0,3]`.
+  Its packet keeps a departures table for B.6.1 (maintainer 2026-10-31):
+  every place the cluster keeps Basilisk's form where the donor's differs,
+  the reason, and the feature or fit it waits on.
   Opens with B.4.0 research, which carries two cards:
   1. **The SEE and move-ordering value scale** (archived 9.2). The dedicated
      SEE vector 100/300/300/500/900/20000 and `search.cpp`'s legacy values
@@ -998,6 +1033,8 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
   the root move's average score with width from its mean squared score,
   optimism, root-move effort, the `pvIdx` root structure with a `MultiPV`
   option, and deep-iteration line growth; SPRT `[0,3]`.
+  Its packet keeps a departures table for B.6.1 (maintainer 2026-10-31),
+  as B.4's does.
   MultiPV exists since A.8.9, identity-gated at `MultiPV 1`, and BAS-C13's
   tablebase PV contract is kept. Time management
   proper is D.1's.
@@ -1072,10 +1109,12 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     its best-scored move (B-12). A counter of root TT move ≠ the last
     iteration's best, split by fail-low and other, at 1T and 4T; the
     helper side is D.2's.
-- [ ] **B.6** `[V]` Joint search SPSA, if justified
+- [ ] **B.6** Donor-form reconciliation, then joint search SPSA
   Joint search SPSA over the coordinates the four clusters left live, only if
   their curvature evidence and results justify it; registered surface; PGO
-  bake; SPRT `[0,3]`.
+  bake; SPRT `[0,3]`. Before it, the reconciliation (B.6.1, added
+  2026-10-31 by the maintainer), so the surface is fitted on the forms
+  the evidence chose.
   Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
   are its items):
   - Before any surface: a both-ways relevance check on every `Core*`
@@ -1086,6 +1125,23 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
   - Judging: an SPSA journal z-read of net travel against a null (B-101);
     movement is not Elo (B-100); Rarog's joint tune after fitted clusters
     bought +4.5 for 120k games (B-106).
+    - [ ] **B.6.1** `[R2]` Donor-form reconciliation
+      After B.4 and B.5 close, every place the search still keeps
+      Basilisk's form where the donor's differs is re-read against the
+      donor's on the current head, now that the features and fits those
+      forms waited on have been tried. The input is the departures
+      tables: B.3's (written by B.3.4), B.4's and B.5's from their
+      packets, and B.2's collected from its packet; each row names
+      Basilisk's form, the donor's, why it was kept and the feature or
+      fit it waits on. A row whose prerequisite has landed and been
+      accepted gets one 2,000-game paired run at `3+0.03`, the donor's
+      form against Basilisk's, after the conversion and WAC floors as
+      vetoes, and the donor's form is adopted at ≥ +5; a row whose
+      prerequisite was rejected or never built stays and says so. The
+      adoptions land together behind one switch and pass SPRT `[0,3]`
+      against the head before B.6.2.
+    - [ ] **B.6.2** `[V]` Joint search SPSA, if justified
+      The joint SPSA above, on the reconciled head.
 - [ ] **B.7** Search speed pass
     - [ ] **B.7.1** `[I1]` Allocation guard (ANY TIME) — before B.7.2
       Allocation guard (ANY TIME) — must land before B.7.2: a test with a
@@ -1310,10 +1366,13 @@ leaf's tag. Later phases carry only a class until they open.
 | B.3.1 | IMPLEMENTED | I2 | Tickets 0-10 landed; every deterministic qualification read passes (packet *Implementation record — tickets 6b to 10*); the re-scoped deep-iteration cost screen waits for an idle host, then the independent review |
 | B.3.2 | RESEARCH | V | Waits for B.3.1's accepted review |
 | B.3.3 | RESEARCH | V | Waits for B.3.2 |
-| B.3.4 | RESEARCH | V | Waits for B.3.3 |
+| B.3.4 | RESEARCH | V | Added 2026-10-31; waits for B.3.3 |
+| B.3.5 | RESEARCH | V | Waits for B.3.4 (renumbered from B.3.4 on 2026-10-31) |
+| B.3.6 | RESEARCH | I2 | Added 2026-10-31; waits for B.3.5 |
 | B.4 | RESEARCH | I2 | Contents fixed by B.0 |
 | B.5 | RESEARCH | I2 | Contents fixed by B.0 |
-| B.6 | RESEARCH | V | Only if the clusters' curvature justifies it |
+| B.6.1 | RESEARCH | R2 | Added 2026-10-31; after B.4 and B.5 close |
+| B.6.2 | RESEARCH | V | Only if the clusters' curvature justifies it |
 | B.7.1 | READY_FOR_IMPLEMENTATION | I1 | Any time between leaves; must land before B.7.2 |
 | B.7.2 | RESEARCH | I1 | After B.7.1, on the new modules |
 | B.8.2 | RESEARCH | I1 | After the clusters |

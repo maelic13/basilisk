@@ -94,10 +94,14 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     - [ ] **B.3.1** `[I2]` Implement behind the umbrella switch
     - [ ] **B.3.2** `[V]` Diagnostics and the unfitted paired run
     - [ ] **B.3.3** `[V]` Curvature sweep, then SPSA in blocks
-    - [ ] **B.3.4** `[V]` Cluster 2 gates
+    - [ ] **B.3.4** `[V]` Basilisk's forms re-read on the fitted arm
+    - [ ] **B.3.5** `[V]` Cluster 2 gates
+    - [ ] **B.3.6** `[I2]` Colour-indexed histories (S2)
 - [ ] **B.4** `[I2]` Cluster 3 — quiescence
 - [ ] **B.5** `[I2]` Cluster 4 — root and aspiration
-- [ ] **B.6** `[V]` Joint search SPSA, if justified
+- [ ] **B.6** Donor-form reconciliation, then joint search SPSA
+    - [ ] **B.6.1** `[R2]` Donor-form reconciliation
+    - [ ] **B.6.2** `[V]` Joint search SPSA, if justified
 - [ ] **B.7** Search speed pass
     - [ ] **B.7.1** `[I1]` Allocation guard (ANY TIME) — before B.7.2
     - [ ] **B.7.2** `[I1]` Speed pass
