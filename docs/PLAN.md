@@ -866,6 +866,23 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         promotion fixture through IIR (h3h4 0 from 50k to 130k nodes;
         a7a8q +382 with IIR off) and, with the penalty, KR-K reads 23 at
         30,000; OFF arm 16,615,757.
+      - Research amendment 6, 2026-10-31 (packet): the whole-root trace
+        shows the fixture flips at iteration 9 when a7a8q fails low and
+        h3h4 takes the root; the store's own product (fail-low entries
+        without a move) is 7 of the 83 IIR firings on the line, the
+        rest fresh and evaluation-only entries both settings make; IIR
+        off, IIR's minimum depth 7 and CoreLmrCutNodeNoTt 0 each restore
+        the win, and under `searchmoves a7a8q` the store-on tree wins it
+        while the store-off tree reads 0 (a knife-edge both ways). The
+        KR-K miss (`4K3/8/8/8/8/5k2/8/1R6 w`) converts under every one of
+        six single-setting changes: the same class of event, still a
+        floor miss. The donor composes the same forms; the difference is
+        the calibration of the no-TT-move consumers. Recommended: Return
+        6's option 1 (`B3FailLowStore` default 0, the penalty 1, the
+        store read as §9 item 16 by a paired run); alternative
+        `B3IirMinDepth` seeded 7, both priced in full. P24-P31 scored,
+        P32-P33 registered. Resumes at ticket 9b on the maintainer's
+        decision 1 (packet amendment 6 §5).
     - [ ] **B.3.2** `[V]` Diagnostics and the unfitted paired run
       Packet §11, BAS-S41: the zero-game screens on both arms (counters,
       the oracle differential, WAC, the crossover band, the canary
@@ -1279,7 +1296,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.1 | RESEARCH | I2 | Returned at ticket 9 (packet *Return 6*: the fail-low store throws the promotion fixture through IIR, and with the penalty costs KR-K at 30k); resumes on research amendment 6 |
+| B.3.1 | RESEARCH | I2 | Research amendment 6 written; resumes `READY_FOR_IMPLEMENTATION` at ticket 9b on the maintainer's decision (packet amendment 6 §5: the fail-low store's default) |
 | B.3.2 | RESEARCH | V | Waits for B.3.1's accepted review |
 | B.3.3 | RESEARCH | V | Waits for B.3.2 |
 | B.3.4 | RESEARCH | V | Waits for B.3.3 |

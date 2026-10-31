@@ -4212,3 +4212,513 @@ the repair's harm here is a lost won ending at 100k.
   log, plus `t9_reads.log` and `.json`, `compare.md`, `fixture_sweep.txt`,
   `fixture_iir.txt`, `variants.txt` and the two patches. Builds are in
   `build/t9-fls0` and `build/t9-pen0`.
+
+## Research amendment 6 — the fail-low store's population, the knife-edge fixture and ticket 9's defaults (2026-10-31)
+
+Written on Return 6, at `6b0e4c4`, class `R2`: no ticket implemented, no
+default moved, no floor or clause relaxed. Every read is a node-count or
+depth read on the busy host; no game was played and no timed read was run.
+Temporary builds went through `amend4/scripts/variant.py` (byte-exact
+edits, restored, patches under `tools/results/b31-20261030/amend6/`); the
+registration (`amend6_R.md`) was frozen before each read, with two
+addenda registered before their reads ran.
+
+### 0. What this run says, plainly
+
+Return 6 is right that the store and IIR together lose the fixture, and
+its framing ("the carrier is IIR") is too narrow. The whole-root trace
+shows the fixture flips at iteration 9: the first root move a7a8q fails
+low under its aspiration window, h3h4 takes the root, and from then on
+a7a8q is searched second under a null window at h3h4's score and never
+again deeply (its subtree fires no IIR at iterations 10–11 at all). At
+the decisive iteration the store's own product — a fail-low entry without
+a move, found at a node IIR then reduces — is 7 of the 83 IIR firings in
+the a7a8q subtree. The other 76 fire on fresh nodes, evaluation-only
+entries and quiescence stand-pat entries, which both settings produce.
+
+What the store does is reshape the tree through every consumer of "no TT
+move": IIR, the cut-node LMR term `CoreLmrCutNodeNoTt` and the first-move
+step-down. Each of three single-constant changes restores a7a8q with the
+store on — IIR off (+382), IIR's minimum depth 7 (+284 → +1,235), the LMR
+term 0 (+365 → +983) — and each holds from 50,000 to 130,000 nodes. And
+the fixture flips the other way under a root-window change: with
+`searchmoves a7a8q` the store-on tree reads +952 at depth 11 and the
+store-off tree reads **0** at depths 9–11. Amendment 3 §1.2 said the
+fixture is knife-edge on both arms; this run says it is knife-edge in the
+store's setting too, in both directions.
+
+The KR-K miss at 30,000 nodes is the same kind of event, not a second
+mechanism. The failing position is `4K3/8/8/8/8/5k2/8/1R6 w`, a cold
+rook ending the (1, 1) tree shuffles for 100 plies; every one of six
+single-setting changes converts it (the store off in 21 plies, the
+penalty off in 45, IIR off in 69, IIR's minimum 7 in 69, 8 in 25, the LMR
+term 0 in 23). Nothing in it is specific to the penalty beyond the
+penalty being one more way to change the tree.
+
+The donor composes exactly these forms (§2): no move stored after a fail
+low, the entry keeping its move, IIR at depth ≥ 6 on PV and cut nodes off
+the previous PV, `933·!ttMove` in the cut-node LMR term, the 1127
+step-down, the evaluation-only and stand-pat stores without a move. There
+is no structural difference around the store, IIR or the TT move. The
+difference is calibration: the donor's consumers were fitted on the
+population the store makes; Basilisk's were fitted (B.2, `CoreLmrCutNodeNoTt`
+864) or carried (IIR at 6) on the population the OFF arm makes, where a
+fail-low node keeps its best-scored move. B.3.3's surface already carries
+both consumers (§5.6, `config_b3.json`), so the re-fit is planned; what
+the arm carries into B.3.2 before that fit is the question.
+
+**Recommendation (§4): Return 6's option 1.** `B3FailLowStore` default 0
+for B.3.1 (the OFF arm's form: the best-scored move stored), the penalty
+at 1, and the store read by one paired run in B.3.2 as §9 item 16 with
+`tt_move_absent` on both settings. Every binding read holds on that tree
+at every budget with margin (fixture +918, floors 24 × 20, KBN-K 120, WAC
+241, `test_endgames` 121/121, the 28 draws); it keeps the consumers on
+the population they were fitted for until B.3.3 refits them; and it
+costs one default line, one test section and one paired run. Its price
+is the tree: 6,723,172 at `bench 13`, 1.19× ticket 8 and 2.0× ticket 9,
+which the cost screen will read. The alternative priced in full is
+`B3IirMinDepth` seeded 7 with both switches at 1: it passes every binding
+read too (fixture +284 → +1,235, floors 24 × 20, KBN-K 119, WAC 245,
+5,486,508 nodes), keeps both donor forms, and is a seed moved on two
+low-budget conversion reads with no mechanism behind the choice of 7
+over 8 or the LMR term.
+
+### R. Reads registered before running (`amend6_R.md`, frozen at `6b0e4c4`)
+
+R1 the a7a8q subtree's IIR records under `searchmoves a7a8q` (P24); R1b,
+registered after R1's result and before it ran, the same on the
+whole-root search (P30); R2 the fixture by option on the Tune build (P25);
+R2b, registered after R2, the 50,000–130,000 sweep for the recovering
+settings (P29); R3 two release builds, IIR admitting cut nodes only and
+PV nodes only (P26); R4 the KR-K miss: the harness with a per-job print,
+a UCI cold-replay instrument checked against the harness on four
+positions, then the failing position by setting (P27, P28); R5 the
+donor's source at `edb0d9db`, read only; R6/R7 the pricing recipe of
+amendment 4 (wb28, `bench 13`, WAC at depth 6 and 100,000 nodes, the
+fixture's series, `test_endgames`, the floors at five budgets) on any
+candidate that recovers the fixture (P31). The verdict rules are in the
+file; §4 scores the predictions against them unchanged.
+
+Instruments: `a6-trace` (ON arm, `TUNE=ON`, an environment-gated stderr
+print of every ON-arm IIR firing — iteration, ply, depth, node type, the
+entry's presence, bound and depth, the path — and a per-job print in the
+floors; `bench 13` 3,345,971, so the prints change no node); `a6-iir-cut`,
+`a6-iir-pv`, `a6-iirmin7` and `a6-iirmin7-off` (release). The existing
+`b3-on-tune` and `b3-on-diag` reproduce 3,345,971; `t9-fls0` and `t9-pen0`
+are Return 6's.
+
+### 1. The mechanism on the fixture (question 1)
+
+**1.1 The whole-root search, traced (R1b).** `go depth 11`, Hash 64,
+Threads 1, the fixture `3r4/P7/2K1p3/R7/5p2/6kP/8/8 w`:
+
+| Iteration | Store 1: score, nodes, PV | Store 0: score, nodes, PV |
+|---|---|---|
+| 8 | a7a8q +506, 9,046, `a7a8q d8a8 a5a8 f4f3 a8f8 f3f2 c6d6 g3g2` | a7a8q +384, 6,237 |
+| 9 | **h3h4 +107**, 21,069, `h3h4 d8a8 a5a1` | a7a8q +315, 17,069, `… g3h3 a8f8 h3g3 c6c5 e6e5 c5d5 f4f3 d5e4` |
+| 10 | h3h4 0, 31,655, `h3h4 f4f3 a7a8q d8a8 a5a8 g3h4 a8a1 f3f2 a1h1 h4g3 h1b1` | a7a8q +918, 73,485 |
+| 11 | h3h4 0, 39,452 | a7a8q +1,144, 170,195 |
+
+The win is Rf8 behind the f-pawn with the king walking in (the store-0
+PV at depth 9; the store-1 PV at depth 8 reaches it one move later). At
+iteration 9 the store-1 tree's first move a7a8q fails low under the
+aspiration window around +506, the re-search gives h3h4 +107, and from
+iteration 10 a7a8q is a later root move searched under a null window at
+h3h4's score (the root does not reduce its moves, `search_kernel_core.cpp`
+`reducible = !is_root`), where it fails low at once. The depth-10 PV
+shows the engine still sees the queen promotion after h3h4 f4f3, but
+rates the whole line 0.
+
+The ON-arm IIR firings whose path begins with a7a8q, by iteration and by
+the entry IIR found (NF none; EO an evaluation-only entry; SP a
+quiescence stand-pat or delta-bound entry, bound without a move; FL a
+negamax fail-low entry without a move, the store's product):
+
+| Iteration | Store 1: records (NF / EO / SP / FL) | Store 0: records (NF / EO / SP / FL) |
+|---|---|---|
+| 9 | 83 (25 / 44 / 5 / 9, of which 2 are depth-0 delta-bound entries and **7** negamax fail-low entries at depths 1–10) | 88 (16 / 61 / 9 / 2) |
+| 10 | **0** | 360 (140 / 107 / 99 / 14) |
+| 11 | **0** | 213 (89 / 56 / 64 / 4) |
+
+Four of the 83 are PV-node firings (store 0: one, at iteration 10). The
+seven store-made firings sit at plies 5–10 on the Kh3/Kd6/Rf8 lines
+(`r1b_store1.iir`). So at the iteration that flips the root, the
+store's direct product is 8% of the IIR firings on the line; the rest fire
+on entry classes both settings produce. After the flip the subtree is not
+searched deeply enough to fire IIR at all. "The store removes the TT
+move and IIR reduces the a7a8q line" is true of seven nodes; it is not
+the account of why depth 9 reads +107.
+
+**1.2 The same search under `searchmoves a7a8q` (R1).** The root's only
+move, its aspiration window its own: store 1 reads +389 / +516 / +716 /
+**+952** at depths 8–11 (136,048 nodes); store 0 reads +446 at depth 8
+and **0** at depths 9, 10 and 11 (15,629 / 17,078 / 19,595 nodes) on the
+Rg8+ shuffle amendment 3 §1.2 described. The fixture flips under a
+root-window change, and in the opposite direction to the whole-root
+flip. P24's and P30's "at least half of the IIR firings are the store's
+product" missed on both reads (§4).
+
+**1.3 Competing carriers, by option (R2, the Tune build, Hash 64, store
+1, penalty 1).** The fixture at 33,000 / 60,000 / 100,000 nodes:
+
+| Setting | 33k | 60k | 100k |
+|---|---|---|---|
+| defaults (1, 1) | h3h4 0 | h3h4 0 | h3h4 0 |
+| `B3FailLowStore` 0 | a7a8q +315 | +315 | +918 |
+| `B3Iir` 0 | a7a8q +382 | +382 | +382 |
+| `B3IirMinDepth` 7 | a7a8q +284 | +284 | +1,235 |
+| `B3IirMinDepth` 8 | a7a8q 0 | +344 | +344 |
+| `B3IirMinDepth` 9 | a7a8q +372 | +372 | +774 |
+| `B3IirMinDepth` 10 | a7a8q +372 | +388 | +388 |
+| `CoreLmrCutNodeNoTt` 0 | a7a8q +365 | +365 | +983 |
+| `B3IirStale` 1 | a5a3 +147 | a5a3 +147 | a7a8q +961 |
+
+Three of the "no TT move" consumers were separable by option — IIR (its
+switch and its minimum depth), the cut-node LMR term, and a second IIR
+admission (the stale clause) — and each alone restores the win. The
+first-move step-down (+1127 without a TT move, the donor's) has no
+option and was not read. Razoring runs at depth ≤ 1 on this engine
+(`CoreRazorDepthCap` 1) and cannot carry a depth-9 flip; RFP's
+`tt_move == MOVE_NONE || tt_capture` admission has no switch, its share
+moved −1.3% against ticket 8 (`t9/compare.md`), and it was not
+discriminated. P25's "the LMR term leaves h3h4" missed: the term is as
+sufficient as IIR.
+
+**1.4 Robustness of the recoveries (R2b).** Over 50,000–130,000 nodes in
+steps of 10,000: `B3Iir` 0 reads a7a8q +382 at seven budgets and +1,166
+at two; `B3IirMinDepth` 7 reads +284, +1,235, +1,205, +1,212; the LMR
+term 0 reads +365 then +983. P29 hit twice — with the calibration note
+that nine budgets of one deterministic search are that search's
+iterations 10–11 seen at nine stopping points, not nine reads; Return
+6's "not a budget knife-edge" sweep has the same structure.
+
+**1.5 IIR's node type (R3).** Two release ON builds:
+
+| Build | `bench 13` | WAC 100k | Fixture 33k / 60k / 100k / 200k | Floors at 30k |
+|---|---:|---:|---|---|
+| IIR at cut nodes only | 4,418,297 | 242 | h3h4 +76 / a7a8q 0 / **+856** / +1,065 | 24 / 24 / 24 / 22 |
+| IIR at PV nodes only | 3,445,881 | 246 | a7a8q +393 / +393 / +393 / +1,197 | 24 / 24 / 24 / 23 |
+
+Removing cut-node IIR (98% of IIR's firings) restores the win robustly
+and grows the tree 1.3×; removing PV-node IIR (`iir_pv_nodes`, 1.5% of
+IIR's firings, the row Return 6 saw triple) restores it at 100,000 nodes
+only, with a7a8q 0 at 60,000. P26 hit on both halves. The tripled
+`iir_pv_nodes` is a symptom of the PV changing more often, not the
+carrier.
+
+**1.6 What the trace settles.** The store's effect on the fixture is a
+population effect spread over every consumer of the no-TT-move signal,
+as §5.6 predicted ("enlarges the no-TT-move population, which IIR,
+razoring's and RFP's admission, `CoreLmrCutNodeNoTt` and the first-move
+step-down's +1127 all read"); `tt_move_absent` rose from 65.4% to 72.7%
+of interior nodes. The fixture reads the tree's shape at depths 9–11
+through all of them at once, and reverses under a root-window change.
+It is not a theory-truth read of the store; it is a coin the (1, 1) tree
+loses and the (0, 1) tree wins, on the whole-root search only.
+
+### 2. The donor's composition (question 2)
+
+Read at `edb0d9db` (Stockfish 19; the local checkout's head is a 2026-10-28
+development revision whose `search.cpp` differs in 292 lines, so the
+pinned revision was read with `git show`). The local binary has no network file and searches no
+node, and building the donor was not attempted (the net is a download).
+
+| Form | Donor (`edb0d9db`) | Basilisk ON arm (ticket 9) | Same? |
+|---|---|---|---|
+| Fail-low store | `bestMove` is set only when a move raises alpha; the final write passes it, so a fail low stores no move (`search.cpp:1621-1627`); `TTEntry::save` keeps the entry's move on a none-move write to the same key (`tt.cpp:104-106`) | `stored_move = MOVE_NONE` on `TT_ALPHA`; `TranspositionTable::store` keeps the entry's move on a none-move store to the same key | yes |
+| IIR | `!ss->followPV && !allNode && depth >= 6 && !ttData.move` (`:1051`), not in check by the step's position | `!follow_pv && (is_pv || cut_node) && depth >= 6 && tt_move == MOVE_NONE`, not in check | yes |
+| Cut-node LMR term | `r += 4026 + 933 * !ttData.move` (`:1328`) | `lmr_cut_node + lmr_cut_node_no_tt·(tt_move == MOVE_NONE)`, 864 fitted in B.2 | form yes; constant Basilisk's |
+| First-move step-down | `if (!ttData.move) r += 1127` before the full-depth search (`:1398-1399`) | `rr = r + 1127·(tt_move == MOVE_NONE)` | yes |
+| RFP admission | `(!ttData.move || ttCapture)` (`:996`) | `tt_move == MOVE_NONE || tt_capture` | yes |
+| Evaluation-only store at a miss | `BOUND_NONE, DEPTH_UNSEARCHED, Move::none()` | `TT_NONE, TT_DEPTH_UNSEARCHED, MOVE_NONE` | yes |
+| Quiescence stand-pat store | `BOUND_LOWER, DEPTH_UNSEARCHED, Move::none()` | `TT_BETA`, depth 0, `MOVE_NONE` (and the delta bound as `TT_ALPHA`) | yes (the SP class of §1.1) |
+| Bound-mismatch penalty | `ttWriter.penalize(1)` at depth > 5 (`:919`) | `penalize(hash)`, the same conditions | yes |
+| Root TT move | `rootMoves[pvIdx].pv[0]` (`:820`) | the shared table's move (PLAN B.5's S6) | no — but the root follows the PV on both, so IIR never fires there |
+| Move update on a declined store | the move is written before the depth test (`tt.cpp:104-106`), so a shallower store with a move still updates the move | a declined store returns before the move | no — bears on moves, not on none-move stores |
+
+So the donor composes the same forms with the same constants (one fitted
+to 864 instead of 933), and nothing around the store, IIR or the TT move
+differs structurally. Whether the donor "loses" this fixture is not
+readable here, and the question presumes an answer the evidence does not
+give: at 100,000 nodes on a position that needs twelve plies to resolve,
+any engine's answer is a property of its tree's shape. What differs is
+calibration. The donor's IIR threshold, LMR term and step-down were
+fitted on a population where a fail-low node carries no move; Basilisk's
+`CoreLmrCutNodeNoTt` was fitted in B.2 on a population where it carries
+its best-scored move, and IIR's minimum was carried from the donor at 6
+with the IID-era 7 and a rail at 8 in its own history (§7). The ON arm
+puts the donor's population under consumers fitted for the OFF arm's.
+That is the Basilisk-only fact, and B.3.3's surface already carries both
+consumers for the re-fit (`B3IirMinDepth` 3..10 step 2 in
+`tools/spsa_configs/config_b3.json`; `CoreLmrCutNodeNoTt` by §5.6).
+
+### 3. The KR-K miss at 30,000 nodes (question 3)
+
+The harness with a per-job print (R4 i) reproduces Return 6's read —
+KR-K 23/24, mean 27.5 plies (P28 hit) — and names the position:
+`4K3/8/8/8/8/5k2/8/1R6 w - - 0 1`, no mate in 100 plies. A UCI cold
+replay (one process, `ucinewgame` before every move, Hash 8, `go nodes
+30000`, the game's moves on the position) reproduced the harness's
+plies on three converting positions (3, 5, 11) and the miss (R4 ii); only
+then was the position read by setting (R4 iii):
+
+| Setting on the failing position | Plies to mate |
+|---|---:|
+| (store 1, penalty 1, IIR 1) | none in 100 (`Kf7 … Rb2 … Rb3 … Rb8 Rc8 Rc7 …`: the rook wanders, the king does not close) |
+| IIR 0 | 69 |
+| penalty 0 | 45 |
+| store 0 | 21 |
+| `B3IirMinDepth` 8 | 25 |
+| `B3IirMinDepth` 7 | 69 |
+| `CoreLmrCutNodeNoTt` 0 | 23 |
+
+P27 hit. Every single-setting change converts the position, and the
+penalty's removal is one of six, not a mechanism of its own: the miss is
+the (1, 1) tree's shape at a budget where the mate is beyond the
+horizon and the mop-up gradient has to carry the king, the same class of
+event as the fixture. It is the same interaction in the sense that
+matters — no single carrier, every perturbation flips it — and not a
+second mechanism. It stays a floor miss: the floor rule is 24 at every
+budget, and research proposes no relaxation of it.
+
+A finding beside the leaf: the floors' generator admits positions with
+the side not to move in check (`3k3R/8/1K6/8/8/8/8/8 w` is a KR-K sample
+position, the harness's plies 15; `Board::try_set_fen` validates
+nothing by default, and `test_epd_verdicts` validates strictly only the
+packaged EPD). The harness plays them (White moves first, Black is in
+check); the UCI path refuses them. Changing the generator would re-draw
+the samples and re-base every floor, so it is reported, not done.
+
+### 4. The decision (question 4)
+
+**4.1 The arms priced.** Every line is the ON arm; the OFF arm is
+16,615,757 on every source here (the min-depth build's OFF arm read it
+exactly; the IIR edits are under `if constexpr (kB3Proof)`).
+
+| Arm | `bench 13` | WAC 100k / d6 | Fixture 33k / 60k / 100k | Floors (five budgets) | KBN-K sum | wb28 | `test_endgames` |
+|---|---:|---|---|---|---:|---|---|
+| (1, 1) ticket 9 | 3,345,971 | 249 / 133 | h3h4 0 / 0 / 0 ✗ | **KR-K 23 at 30k** ✗ | 117 | 28/28 | 121/121 |
+| (0, 1) store 0, Return 6's option 1 | 6,723,172 | 241 / 132 | +315 / +315 / +918 | 24 at every budget | 120 | 28/28 | 121/121 |
+| (1, 0) penalty 0 | 5,133,969 | 246 / 133 | a5a3 +50 / h3h4 +46 / h3h4 +21 ✗ | 24 at every budget (KBN-K 21 at 45k) | 114 | 28/28 | 121/121 |
+| (0, 0) ticket 8 | 5,635,655 | 243 / — | +913 | 24 | 119 | 28/28 | 121/121 |
+| (1, 1), `B3IirMinDepth` 7 | 5,486,508 | 245 / 132 | +284 / +284 / +1,235 | 24 at every budget | 119 | 28/28 | 121/121 |
+| (1, 1), IIR at PV nodes only | 3,445,881 | 246 / 134 | +393 / +393 / +393 | 24 at every budget | 119 | 28/28 | 121/121 |
+| (1, 1), IIR at cut nodes only | 4,418,297 | 242 / 133 | h3h4 +76 / a7a8q 0 / +856 | 24 at every budget | 116 | 28/28 | 121/121 |
+
+Release CTest on `t9-fls0` is 24/25: `test_b3_proof`'s "both switches
+move the ON arm only" section asserts the base tree differs from the
+store-0 tree, which with default 0 it cannot; the fail-low root test sets
+the parameter explicitly on both values and passes. That is the one test
+section option 1 rewrites.
+
+**4.2 Return 6's option 1 — `B3FailLowStore` default 0, the penalty at 1.**
+Binding reads: all hold, with margin at every budget. Bench tree:
+6,723,172, 1.19× ticket 8 and 2.0× ticket 9; the cost screen (§10: the
+geometric mean of ON/OFF cumulative-node ratios over depths 16–19 ≤ 3 on
+five positions, an idle host) reads growth at depth, not size at 13, so
+the risk is moderate and is the screen's to price. B.3.2/B.3.3 surface:
+the store becomes §9 item 16, one 2,000-game paired run at ±5 (1 against
+the default 0) with `tt_move_absent` on both settings, placed last; if
+it adopts 1, B.3.3's sweep of `B3IirMinDepth` and `CoreLmrCutNodeNoTt`
+runs on the store's population, which is the right order (the consumers
+re-fitted for the population). Maintenance: one default line, one test
+section, one PLAN §2 row re-worded (B-12's repair is built and switched,
+its default read by games). Doctrine: §9 says an attribution switch's
+default is the repair and a paired run never moves it; this amendment
+asks the maintainer to reclassify the store from attribution switch to
+categorical, because its "harm" on the OFF arm has never been measured
+and its repair's measured harm is two low-budget conversions through
+consumers fitted for the other population. Search cohesion argues the
+same way: the consumers and the population they were fitted on travel
+together until the fit moves.
+
+**4.3 Option 2 — keep (1, 1), re-read the fixture clause and the floor.**
+The evidence for re-reading the fixture clause is now strong: it flips
+both ways (§1.2), under three single constants (§1.3), and amendment 3
+§1.2 already called it knife-edge on both arms. But the KR-K floor is a
+floor: 24 at every budget is the registered rule, the miss is a
+100-ply shuffle in a won ending, and research does not propose to relax
+a floor on the evidence that a different tree passes it. Option 2 is
+therefore not available as written; a maintainer who wants (1, 1) kept
+has to decide the floor clause too, and the main counter-argument is
+B-3's reason for the multi-budget floors in the first place: a
+conversion that fails at a low budget is the early sign of fragile
+knowledge, which A.11.9 let through for a release cycle.
+
+**4.4 Option 3 — a composition change.** Three were priced.
+- `B3IirMinDepth` seeded 7 (both switches 1): passes every binding read;
+  5,486,508 nodes (0.97× ticket 8); WAC 245; the KR-K position converts
+  in 69 plies and the family's mean at 30,000 nodes is 28.4 against a
+  29.5 ceiling. It keeps both donor forms and both repairs, moves a seed
+  inside its registered range to a value Basilisk once ran (IID at 7), and
+  is already a sweep coordinate. Against it: it is a seed moved on two
+  low-budget conversion reads with no mechanism naming 7 rather than 8 or
+  the LMR term (8 converts the rook ending in 25 plies but reads the
+  fixture 0 at 33,000); and it thins IIR, which the donor's scaler note
+  says is sensitive in the other direction only.
+- IIR at PV nodes only: passes every binding read at the smallest tree
+  (3,445,881) and WAC 246, and deletes 98% of IIR's firings — a mechanism
+  change away from the donor's form made on a fixture read. Not proposed.
+- IIR at cut nodes only: passes the clause as written (+856 at 100,000)
+  with a7a8q 0 at 60,000 and h3h4 at 33,000. Not proposed.
+
+**4.5 `B3TtPenalty`.** Keep default 1. Alone it grows the tree to
+6,723,172 against ticket 8's 5,635,655 and moves no zero-game read
+beyond noise (WAC 241 against 243, KBN-K 120 against 119, the fixture
++918 against +913); with the store it shrinks the tree to 3,345,971 and
+the pair is the donor's. A 19% change in bench nodes is not a strength
+read, the cost screen is the instrument that prices growth, and §9's
+ablation order names the penalty first if the paired run is negative.
+The alternative is 0, which lands ticket 8's tree exactly (fully
+qualified at ticket 8) and leaves the penalty as an ablation arm that is
+off; its counter-argument is that it drops a donor form on a bench-node
+read, which §9's doctrine forbids as much as it forbids moving the store
+on one.
+
+**4.6 Predictions scored and registered.**
+
+| P | Prediction (frozen) | Result | Verdict |
+|---|---|---|---|
+| P24 | R1, store 1: ≥ half of the a7a8q subtree's IIR records at iterations 9–11 are fail-low entries without a move; store 0's count ≤ half of store 1's (70%) | 93 of 405 (23%); 89 against 405 — but because the store-0 tree read 0 and stayed small | half miss |
+| P25 | `CoreLmrCutNodeNoTt` 0 leaves h3h4 at 100k (75%); the smallest recovering `B3IirMinDepth` ≤ 9 (65%) | +983; 7 | miss; hit |
+| P26 | cut-only IIR recovers a7a8q at 100k (60%); PV-only keeps it (55%) | +856; +393 | hit; hit |
+| P27 | the KR-K position converts with IIR 0 (60%) | 69 plies | hit |
+| P28 | the per-job harness reproduces 23/24 and 27.5 (85%) | reproduced | hit |
+| P29 | the LMR term 0 and IIR 0 hold a7a8q at all nine budgets (55%, 65%) | both hold (one search's iterations) | hit; hit |
+| P30 | whole root, store 1: h3h4 best with a7a8q ≤ 0 at depths 9–11 (80%); class-FL IIR records at iterations 9–11 outnumber store 0's IIR records 2:1 (60%) | h3h4 +107 / 0 / 0; 9 against 88 at iteration 9, 0 against 573 after | hit; miss |
+| P31 | IIR at PV nodes only passes every binding read (50%); `B3IirMinDepth` 7 passes them (50%) | both pass | hit; hit |
+
+Calibration: the two misses share one wrong belief — that the store's
+direct product (a fail-low entry without a move) would be the bulk of
+the IIR firings on the line. It is a tenth of them; the no-TT-move
+population at IIR's depth is mostly fresh nodes and evaluation-only
+entries, which both settings produce, and the store's effect runs
+through ordering and the shape of the tree rather than through the
+entries it writes. The second lesson is R2b's: a budget sweep of one
+search is that search's iterations, and "holds at nine budgets" is two
+or three data points.
+
+Registered for B.3.2 (BAS-S41) if option 1 is taken:
+
+- **P32.** §9 item 16's paired run (store 1 against the default 0, 2,000
+  games at `3+0.03`) reads inside ±5 and leaves the default (60%); a
+  read ≥ +5 adopts 1 and B.3.3's sweep of `B3IirMinDepth` and
+  `CoreLmrCutNodeNoTt` then runs on that population.
+- **P33.** `tt_move_absent` at depth 14 on the ON arm is at least 5
+  points of interior nodes higher with the store at 1 than at 0 (80%;
+  the ticket-8 → ticket-9 read was +7.3).
+
+### 5. Clauses changed, decisions, the amended ticket, the condition
+
+**Clauses changed on the maintainer's decision 1 (option 1):**
+
+1. **§9's attribution table** loses the `B3FailLowStore` row; **§9's
+   categorical table gains item 16**: `B3FailLowStore` — 0 the
+   best-scored move stored after a fail low (the OFF arm's form); 1 no
+   move stored (the donor's form, B-12's repair) — default **0** —
+   decided by one paired run at ±5, last in the order, with
+   `tt_move_absent` read on both settings at depth 14 before it. The
+   `B3TtPenalty` row is unchanged (default 1, ablation only).
+2. **§4's B-12 row** reads: a defect by PLAN §2's table; its repair is
+   built in the ON arm behind `B3FailLowStore` (ticket 9) and its default
+   is 0 until §9 item 16's paired run reads it, because the repair's
+   population effect on IIR, `CoreLmrCutNodeNoTt` and the step-down
+   (§5.6) loses two low-budget conversions on consumers fitted for the
+   OFF arm's population (amendment 6). **PLAN §2's table row** for B.3
+   needs the same re-wording, which is the maintainer's edit.
+3. **§5.6** gains: the population effect is measured (`tt_move_absent`
+   65.4% → 72.7%); each of its separable consumers alone flips the
+   promotion fixture and the KR-K position at 30,000 nodes; the store is
+   read as §9 item 16, and B.3.3's sweep of the two consumers runs on
+   whichever population that run chooses.
+4. **§10 ticket 9 → ticket 9b** (below). **§10 ticket 10's two-arm table**
+   gains, as recorded rows on the ON arm: the (store, penalty) 2×2 of
+   Return 6 (bench, WAC, the fixture at 100,000, KR-K at 30,000) and the
+   fixture at depth 11 with and without `searchmoves a7a8q` on both store
+   settings (§1.1–1.2). The cheap qualification is unchanged.
+5. **Amendment 3 §5's fixture clause** is unchanged and still binds; its
+   composition sensitivity is on record (§1) and is the reason it is read
+   on the final tree only, never used to pick a constant.
+6. **P24–P31 scored; P32–P33 registered** (§4.6).
+
+**Research decides (its own):**
+
+1. The mechanism is a population effect through every no-TT-move consumer,
+   not IIR alone (§1); the donor composes the same forms and the
+   difference is calibration (§2); the KR-K miss is the same class of
+   event and stays a floor miss (§3).
+2. Option 3's three candidates are priced and not proposed; the
+   `B3IirMinDepth` 7 arm is the alternative to decision 1 below.
+3. The floors' generator finding (§3) is reported beside the leaf.
+
+**The maintainer decides, each with its alternative and its main
+counter-argument:**
+
+1. **Ticket 9b lands with `B3FailLowStore` default 0 and `B3TtPenalty` 1**
+   (§4.2), the store reclassified as §9 item 16. Alternative:
+   `B3IirMinDepth` seeded 7 with both switches at 1 (§4.4), every binding
+   read passing, both donor forms kept. Counter-argument to the
+   recommendation: B-12 is a defect by PLAN §2 and the arm goes to its
+   paired run without the repair; answered by the repair's measured harm
+   being two conversions lost through consumers fitted for the other
+   population, the "defect" having no measured harm, and the paired run
+   being the instrument that decides a question of this kind.
+2. **`B3TtPenalty` keeps default 1** (§4.5). Alternative: 0, ticket 8's
+   tree exactly. Counter-argument: 19% more bench nodes for no zero-game
+   gain; answered by bench nodes not being a strength read and the cost
+   screen being the gate that prices growth.
+
+**The amended ticket text implementation resumes on** (replacing §10's
+ticket 9 paragraph and Return 6's premise):
+
+- *Ticket 9b* (on `58ea1ed`'s tree, `6b0e4c4`). `B3FailLowStore` default
+  0 in `search_params.h` (`t9/t9_fls0.patch` is the line); its
+  semantics: 1 stores no move after a fail low and the entry keeps its
+  own (B-12's repair, the donor's form), 0 stores the best-scored move
+  (the OFF arm's form); `B3TtPenalty` default 1 unchanged; no other
+  source change. `test_b3_proof`: the "both switches move the ON arm
+  only" section compares the base tree against `b3_fail_low_store = 1`
+  and `b3_tt_penalty = 0`, each differing from the base and neither
+  moving the OFF arm; the fail-low root section unchanged (it sets both
+  values explicitly); `tt_penalized` fires with the penalty on only.
+  Reads at the ticket's end, on the committed tree: OFF `bench 13`
+  16,615,757 exact; ON recorded (the variant read 6,723,172); release
+  CTest 25/25 on both arms; WAC at 100,000 nodes ≥ 232 (read 241) and
+  depth 6 recorded (132); the fixture a7a8q with a positive score at
+  100,000 nodes (read +918) and its budget series recorded; the
+  conversion floors at five budgets, KQ-K, KR-K and KBB-K 24 at every
+  budget and KBN-K's sum ≥ 112 (read 24 × 15 and 120); the wrong-bishop
+  28 (read 28/28) and `test_endgames` (read 121/121); the per-ticket
+  counter table against ticket 8 with `tt_move_absent` on both store
+  settings; recorded on both arms, the organic FEN and the primed 28
+  (amendment 4's rows). Outside any binding read, Return 7 with the
+  counters, no default moved by hand.
+- *Ticket 10* as packet §10 with amendments 1–5 and this one: the
+  two-arm table carries the rows of §5 item 4; the implementation record
+  names the store's default among the deviations with this amendment as
+  the reason; the cost screen as re-scoped (idle host, ask first; P11 its
+  prediction); the depth-6 floor re-based on the ON arm.
+
+**Condition for resuming:** the maintainer's decision 1 above (option 1,
+or its alternative with the seed decided). B.3.1 stays `RESEARCH` until
+then. Decision 2 is taken with decision 1.
+
+### 6. Artifacts (`tools/results/b31-20261030/amend6/`, ignored storage)
+
+- `amend6_R.md`: the registration, frozen before each read, with the
+  R1b, R2b, R4 and R7 addenda and one clerical note.
+- Patches, each restored byte-exact: `trace.patch` (the IIR print and
+  the floors' per-job print), `iir_cut.patch`, `iir_pv.patch`,
+  `iirmin7.patch`.
+- Scripts: `scripts/a6_builds.py`, `a6_build_min7.py`, `a6_r1.py`,
+  `a6_r1b.py`, `a6_r2.py`, `a6_r2b.py`, `a6_r3.py`, `a6_r4.py`,
+  `a6_price.py` (amendment 4's recipe with the output here).
+- Reads: `r1.txt`, `r1_store{1,0}.{stdout,iir}`, `r1_*_recs.json`,
+  `r1b.txt`, `r1b_*`, `r2.txt`/`r2.json`, `r2b.txt`/`r2b.json`,
+  `r3.txt`/`r3.json`, `r4.txt`/`r4.json`, `r4_floors_30000.log` (the
+  per-job floors), `price_r3.log`, `price_t9variants.log`,
+  `price_iirmin7.log` with their `price_*.json`, `conv_*_<budget>.log`
+  and `endgames_*.log`.
+- Builds: `build/a6-trace` (`TUNE=ON`, 3,345,971), `build/a6-iir-cut`,
+  `build/a6-iir-pv`, `build/a6-iirmin7` (5,486,508), `build/a6-iirmin7-off`
+  (16,615,757); the source tree clean after every build (`git status`).
