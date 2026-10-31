@@ -317,7 +317,7 @@ Units: Basilisk evaluation units; donor values converted by B.0 §7.1
 | S12 `double_exts` inheritance | moot: the per-line budget replaces the counter and is written for every child (§5.10, ticket 1) |
 | B-3 KBNK multi-budget majority | §2.2 (the rule, base 115); decides `B3MultiCut` before any game (§9) |
 | B-5, B-6, B-7, B-97, B-98 | the budget (ticket 1), the cost screen and its driver (ticket 0, §10), `B3Iir` read only after the screen passes with IIR off (§9) |
-| B-12 best move stored at fail-low | a defect (PLAN §2's table): repaired in the ON arm (ticket 9) behind the attribution switch `B3FailLowStore`; its population effect on IIR, razoring, RFP and LMR is §5.6's and pulls `CoreLmrCutNodeNoTt` onto the surface |
+| B-12 best move stored at fail-low | a defect by PLAN §2's table; its repair is built in the ON arm behind `B3FailLowStore` (ticket 9) and its default is 0 until §9 item 16's paired run reads it, because the repair's population effect on IIR, `CoreLmrCutNodeNoTt` and the step-down (§5.6) loses two low-budget conversions on consumers fitted for the OFF arm's population (research amendment 6) |
 | B-14, B-15 correction training at decisive results and singular-excluded nodes | B-14 a defect: repaired (ticket 7, `B3CorrDecisive`) and read on the conversion floors first (§5.5); B-15 the categorical `B3CorrExcluded` |
 | B-31, B-32, B-37 NMP verification | §3.1 |
 | B-33 cut-node-only NMP at LTC | §3.1 |
@@ -463,6 +463,12 @@ already consumed no longer inflates NMP's population or its reduction.
   step-down's +1127 all read. `CoreLmrCutNodeNoTt` joins the surface
   (5.12); the step-down constant is the donor's. B.3.2 reads the share of
   interior nodes without a TT move on both arms (`tt_move_absent`).
+  The population effect is measured (research amendment 6):
+  `tt_move_absent` 65.4% → 72.7% of interior nodes; each of its separable
+  consumers alone flips the promotion fixture and the KR-K position at
+  30,000 nodes. The store is read as §9 item 16, and B.3.3's sweep of
+  `B3IirMinDepth` and `CoreLmrCutNodeNoTt` runs on whichever population
+  that run chooses.
 - `followPV` gates IIR at PV nodes and quiet pruning at PV nodes off the
   previous iteration's PV (S8): at iteration 1 and below the first
   deviation from the previous PV the bit is false, so PV nodes there are
@@ -676,6 +682,10 @@ is measuring.
 | 11 | `B3CorrExcluded` | 1 correction trains at singular-excluded nodes (the donor); 0 refused | 1 | paired run, last (B-15, low stakes) | ±5 |
 | 12 | `B3Iir` | 1 on; 0 off | 1 | only after the deep-iteration cost screen passes with 0 (B-5); then a paired run | ±5 |
 | 13 | `B3ExtBudget` | 1 on; 0 off | 1 | no games unless `ext_budget_bound > 0` at a B.3.2 read (identical trees otherwise) | ±5 |
+| 16 | `B3FailLowStore` | 0 the best-scored move stored after a fail low (the OFF arm's form); 1 no move stored (the donor's form, B-12's repair) | 0 | one paired run, last in the order, with `tt_move_absent` read on both settings at depth 14 before it (research amendment 6) | ±5 |
+
+Items 14 (`B3SingNegative`) and 15 (`B3PvQuietPrune`) are research
+amendment 3's (§5).
 
 Attribution switches: defaults are the repair or the donor's form and a
 paired run never moves them (PLAN §2: a correct repair that loses is
@@ -685,7 +695,6 @@ can read one repair alone.
 
 | Option | Values | Default | Read |
 |---|---|---|---|
-| `B3FailLowStore` | 1 no move stored after a fail low (B-12 repaired); 0 the best-scored move | 1 | ablation on a negative paired run; `tt_move_absent` on both settings |
 | `B3CorrDecisive` | 1 decisive results train the correction (B-14 repaired); 0 refused | 1 | the conversion floors at five budgets with 0 and 1 before any game (5.5); ablation on a negative paired run |
 | `B3SingularQuietLmr` | 0 BAS-D18's sibling relaxation removed; 1 kept at 401 | 0 | ablation on a negative paired run or when the fitted-constant analysis asks |
 | `B3TtPenalty` | 1 the bound-mismatch penalty (S10); 0 off | 1 | ablation only |
@@ -4702,6 +4711,13 @@ ticket 9 paragraph and Return 6's premise):
 **Condition for resuming:** the maintainer's decision 1 above (option 1,
 or its alternative with the seed decided). B.3.1 stays `RESEARCH` until
 then. Decision 2 is taken with decision 1.
+
+**Maintainer decisions, 2026-10-31, after the amendment:** both taken as
+recommended. 1. Ticket 9b lands with `B3FailLowStore` default 0 and
+`B3TtPenalty` 1; the store is §9 item 16, read by one paired run in
+B.3.2. 2. `B3TtPenalty` keeps default 1. The amended ticket 9b text above
+is the contract implementation resumes on; B.3.1 resumes
+`READY_FOR_IMPLEMENTATION`.
 
 ### 6. Artifacts (`tools/results/b31-20261030/amend6/`, ignored storage)
 

@@ -353,7 +353,7 @@ coordinate) is not a defect; its owner decides. IDs are the Rarog audit's
 
 | Owner | Defects |
 |---|---|
-| B.3 | B-12 a move stored at fail-low nodes; B-14 correction training refuses decisive results; B-45 the singular margin's range excludes the donor's value; B-109 ablation bit 6 also removes the check extension |
+| B.3 | B-12 a move stored at fail-low nodes (the repair is built behind `B3FailLowStore`; its default is read by B.3.2's paired run, research amendment 6); B-14 correction training refuses decisive results; B-45 the singular margin's range excludes the donor's value; B-109 ablation bit 6 also removes the check extension |
 | B.4 | B-17 the dead SEE clamp |
 | B.5 (with D.1) | the fail-high stop's hole: a window that never returns is never checked (A-47; `analysis/b5_failhigh_stop_2026-10-25.md` §2.3) |
 | C.2.1–C.2.2 | C-1 the tuner's missing scalers; C-2 `--verify` cannot fail; C-8 the extractor's de-dup ignores the clock; C-26 to C-30 the data pipeline (book, sampler, split, labels, row identity); C-49 K refitted per run |
@@ -883,6 +883,9 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         `B3IirMinDepth` seeded 7, both priced in full. P24-P31 scored,
         P32-P33 registered. Resumes at ticket 9b on the maintainer's
         decision 1 (packet amendment 6 §5).
+        Maintainer decisions 2026-10-31: both taken as recommended
+        (`B3FailLowStore` default 0, the store §9 item 16; `B3TtPenalty`
+        1). Resumes at ticket 9b.
     - [ ] **B.3.2** `[V]` Diagnostics and the unfitted paired run
       Packet §11, BAS-S41: the zero-game screens on both arms (counters,
       the oracle differential, WAC, the crossover band, the canary
@@ -1296,7 +1299,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.1 | RESEARCH | I2 | Research amendment 6 written; resumes `READY_FOR_IMPLEMENTATION` at ticket 9b on the maintainer's decision (packet amendment 6 §5: the fail-low store's default) |
+| B.3.1 | READY_FOR_IMPLEMENTATION | I2 | Resumes at ticket 9b on research amendment 6 (packet) with the maintainer's decisions of its §5 (`B3FailLowStore` default 0, `B3TtPenalty` 1), then ticket 10 |
 | B.3.2 | RESEARCH | V | Waits for B.3.1's accepted review |
 | B.3.3 | RESEARCH | V | Waits for B.3.2 |
 | B.3.4 | RESEARCH | V | Waits for B.3.3 |
