@@ -853,6 +853,13 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         full-window PV, so the registered terminal tests (a root score
         of 0 at depths 2 and 1) cannot be written as registered; OFF arm
         16,615,757.
+      - Research amendment 5, 2026-10-31 (packet): Return 5's option 1
+        taken; the terminal test reads the cutoff at the root's child
+        under a test-only root window at the draw, (0, 1): ON 0 at depths
+        1-3, `B3Cuckoo` 0 and OFF the win, and (-1, 0) unchanged by the
+        switch; the TT pre-emption test (b) withdrawn (a PV first child
+        never takes a TT cut); the delta-bound finding recorded for B.4.
+        Resumes at ticket 8's terminal tests.
     - [ ] **B.3.2** `[V]` Diagnostics and the unfitted paired run
       Packet §11, BAS-S41: the zero-game screens on both arms (counters,
       the oracle differential, WAC, the crossover band, the canary
@@ -1266,7 +1273,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.1 | RESEARCH | I2 | Returned at ticket 8 (packet *Return 5*: the upcoming-repetition test is a cutoff and the registered terminal tests read it as a root score); resumes on research amendment 5 |
+| B.3.1 | READY_FOR_IMPLEMENTATION | I2 | Research amendment 5 (2026-10-31): ticket 8's terminal test re-registered as a root null-window read at the draw; resumes at ticket 8's tests, then tickets 9-10 |
 | B.3.2 | RESEARCH | V | Waits for B.3.1's accepted review |
 | B.3.3 | RESEARCH | V | Waits for B.3.2 |
 | B.3.4 | RESEARCH | V | Waits for B.3.3 |

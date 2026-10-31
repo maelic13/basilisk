@@ -3851,3 +3851,231 @@ separate leaf.
 - The OFF arm is 16,615,757 with release CTest 25/25 at every commit.
 - Tickets 9 and 10 are not started.
 - No idle-host read was run.
+
+## Research amendment 5 — ticket 8's terminal test is a cutoff read at the draw window (2026-10-31)
+
+Written on Return 5, at `36107e6`, class `R2`: no ticket implemented and
+no default moved. The reads are node-count reads at depths 1–3 and ran on
+the busy host. The instrument is a test-only root-window seam (below),
+built into the release trees and run through a temporary section of
+`test_b3_proof`. The patches and outputs are in
+`tools/results/b31-20261030/amend5/`.
+
+### 0. What this run says, plainly
+
+Return 5 is right. In the donor's form the upcoming-repetition test is a
+cutoff. A whole search reads it only where a node is searched with
+`beta ≤ 0` for the side that can repeat. On a non-PV node that is always
+true when the test can fire: a null window with `alpha < 0` has
+`beta ≤ 0`. On a PV node it is true only under a narrow root window. The
+registered tests (a) and (b) read it on an open-window PV, where the node
+raises alpha and then searches on, so they could not pass as written.
+
+The construct can still be read through the root, deterministically and
+in release CTest on both arms. Return 5's fixture needs one more ply, so
+the node that can repeat is the root's child. The root is then searched
+under a null window at the draw, (0, 1), the question every null-window
+search asks: is this move better than a draw? The ON arm reads exactly
+**0** at depths 1, 2 and 3. The same arm with `B3Cuckoo` 0, and the OFF
+arm, read the win. Under the window one below, (−1, 0), the repeating
+node's alpha is 0, and the switch moves neither the score nor the node
+count. That is BAS-S12's one terminal test.
+
+Test (b), the TT pre-emption, is withdrawn as a whole-search test. A
+stored bound can cut only at a non-PV node, and the fixture's line has a
+single reply at every ply, so every node on it is the first child of a PV
+node (R3). The pre-emption follows from code order, because the cut
+returns before the probe, and the review checks it. Return 5's delta-bound
+finding belongs to a PV node that raises alpha without cutting. It is not
+ticket 8's, and it is recorded for B.4.
+
+### R. Reads registered before running
+
+The instrument is `SearchLimits::root_alpha` and `root_beta`. When the two
+differ they fix every iteration's root window. They follow the precedent
+of `ext_budget_cap`, a test seam on the same struct that the driver
+otherwise ignores. Fresh tables and Hash 16 are used per read; the
+release ON and OFF trees are both read; `B3Cuckoo` is 1 and 0.
+
+The registration, frozen before R1 (`amend5_R.md`):
+
+- **R1** is Return 5's fixture, `rb6/p1p2K1k/p1p1p3/p1p1p3/P1P1P1N1/8/8/8 b - - 0 1`
+  with `h7h8 f7f8 h8h7 f8f7 h7h8` and `searchmoves f7f8`, read at depth 2
+  under (−2000, −1999). **P19:** ON reads 0; ON with `B3Cuckoo` 0 and OFF
+  read the loss. 85%.
+- **R2** is the same fixture under (0, 1). **P20:** `B3Cuckoo` 1 and 0
+  give the same score and nodes. 75%.
+- **R3** first fills the TT by searching the ply-2 position from its FEN to
+  depth 6, then reads depth 3 under R1's window. **P21:** ON reads 0,
+  `B3Cuckoo` 0 reads a stored loss, and OFF reads as `B3Cuckoo` 0. 60%.
+
+Rule: a test is written only in a form whose read matched its prediction
+on both arms. A miss is recorded and the form is re-chosen here.
+
+R4 and R5 were registered after R1–R3 and before they ran. They use the
+fixture plus `f7f8`. Black is to move and has one legal move, `h8h7`.
+White's node at ply 1 has `f8f7`, which reaches a position seen twice;
+`upcoming_repetition(1)` reads 1 through the prior repetition.
+
+- **R4** reads under (0, 1) at depths 1–3. **P22:** ON reads exactly 0;
+  ON with `B3Cuckoo` 0 and OFF read above 0. 80%.
+- **R5** reads under (−1, 0). **P23:** ON with `B3Cuckoo` 1 and 0 read
+  the same score and node count. 80%.
+
+| Read | ON, `B3Cuckoo` 1 | ON, `B3Cuckoo` 0 | OFF (either) |
+|---|---|---|---|
+| R1, depth 2 | −666, 5 nodes | −1,526, 5 | −1,526, 5 |
+| R2, depth 2 | −95, 5 | −95, 5 | −95, 5 |
+| R3, depth 3, prefilled (unprefilled) | −499 (−499) | −1,927 (−1,683) | −1,939 (−1,683) |
+| R4 (0, 1), depths 1 / 2 / 3 | **0 / 0 / 0**, 2 / 4 / 6 nodes | 95 / 130 / 73, 2 / 7 / 12 | 95 / 65 / 340, 2 / 7 / 14 |
+| R5 (−1, 0), depths 1 / 2 / 3 | 95 / 130 / 72, 2 / 7 / 12 | 95 / 130 / 72, 2 / 7 / 12 | 95 / 64 / 339, 2 / 7 / 14 |
+
+The predictions scored:
+
+- **P19 missed in form, though the direction held.** The root softens a
+  fail-high value to `(v·d + beta)/(d + 1)`. −666 is the draw softened at
+  depth 2; −1,526 is the loss (about −1,290 raw) softened the same way.
+  The cutoff fired. The read cannot show a 0, because a root that fails
+  high never reports its raw value.
+- **P20 hit.**
+- **P21 missed.** With one reply at every ply, every node on the line is
+  a PV first child, so the TT never cuts there. On ON, the prefill moved
+  nothing (−499 either way).
+- **P22 hit.** The fail-low root reports its raw 0. The positive reads
+  are softened fail-highs: 95 at depth 1 is the delta bound's −190 seen
+  from White's side, a correct upper bound here.
+- **P23 hit.** The OFF arm also reads the same with the switch at 1 and
+  0, as a compiled-out mechanism must.
+
+Calibration: research predicted R1 from the cutoff's logic and forgot the
+root's own fail-high adjustment. That adjustment is Cluster 1's, adopted in
+B.2, and it is a consumer of every root read. The lesson: a root-score
+test must put the root's verdict on the fail-low side, where the value is
+reported raw.
+
+### 1. The terminal test (question 1)
+
+Option 1 of Return 5 is taken, in the form R4 measured: a whole-search
+read at the root under a null window at the draw. A kernel probe was not
+used. Basilisk has no seam that runs one node with a chosen window, and
+building one means rebuilding the driver's per-search set-up outside
+`search()`. The root window gets the node the same window with a
+two-line driver branch the default leaves dead.
+
+Option 2, a best-move read, is not taken, for Return 5's reason: it tests
+the root's move order.
+
+Option 3 is not taken either. The counters alone cannot fail where the
+logic is wrong but the tree happens to shrink.
+
+**(b) is withdrawn as a separate test.**
+- **Why it can't be built here:** the consumer is the TT probe at a
+  non-PV node with `alpha < 0` and `beta ≤ 0`. Driving one needs a parent
+  with at least two moves whose order the test controls (a PV first child
+  never takes a TT cut, as R3 shows). That brings back option 2's move
+  order dependence.
+- **How the pre-emption is checked instead:**
+  - by code order: the cut returns before the TT probe and before
+    mate-distance pruning, on both node types;
+  - by the review, which reads that order in ticket 8's diff;
+  - by B.3.2's paired run, which reads the whole consumer. Every non-PV
+    firing is a cut, so `cuckoo_draws` at non-PV nodes counts the
+    pre-emptions.
+- **BAS-S12:** its trigger asks for one terminal test, and R4 is it.
+
+### 2. Return 5's delta-bound finding (question 2)
+
+What the arm does at a PV node:
+
+- The cuckoo raises alpha to 0 at a PV node that does not cut
+  (`alpha < 0 < beta`), and then searches on.
+- At depth ≥ 1 the repeating move is itself searched, and its child is
+  `is_draw`, so the node returns at least 0 unless that move is pruned.
+- At depth 0, quiescence has no quiet move to play. It returns a
+  fail-soft value below the raised alpha, and the PV parent takes that
+  value as exact:
+  - the stand-pat, on the donor's form;
+  - the delta bound `stand_pat + Q + 200`, on Basilisk's.
+
+**The donor:** its quiescence also returns a value below the raised alpha
+there (`sf_19` qsearch: `alpha = VALUE_DRAW`, then `bestValue` fail-soft),
+which is the stand-pat or the best capture, about the loss. Basilisk's
+reads −190 on Return 5's line. Neither reads the true 0.
+
+**Scope:**
+- **Only PV nodes.** A non-PV node with `alpha < 0` has `beta ≤ 0` and
+  always cuts.
+- **The PV ranks a value no line produced.** The line is ranked by the
+  loss on the donor's form, or by the delta bound on Basilisk's. It is
+  never ranked by the draw.
+
+**Decision:**
+- **Not a B.3.1 matter.** Ticket 8 stays the donor's form.
+- **The finding is recorded for B.4,** whose surface is quiescence's
+  delta bound and stand-pat: a quiescence node whose alpha was raised by
+  a lower bound it knows (here the draw) returns that bound, not a value
+  below it. It is the donor-divergent candidate if B.4 wants one.
+- **B.3.2 records it:** the reported score on Return 5's line at depths
+  2–6 beside the counters, so B.4 starts with a measured case.
+
+No new prediction is registered; the finding has no gate in B.3.
+
+### 3. The seam (question 3, implementation's)
+
+`SearchLimits` gains `int root_alpha = 0, root_beta = 0`. The driver's
+iteration searches the root under that window at every depth when the two
+differ. No other driver path reads them. The default is dead, so it is
+behaviour-neutral: the OFF arm stays at 16,615,757, and so does the ON
+arm's fingerprint. The seam belongs to the driver, which both arms share,
+and it lands in ticket 8's commit beside the test.
+
+### 4. Clauses changed
+
+1. **§10 ticket 8, terminal tests.** "(a) … reads 0 at `go depth 2` …
+   (b) … read as 0 at `go depth 1`" → the following, both arms, in
+   release CTest:
+   - The fixture: `rb6/p1p2K1k/p1p1p3/p1p1p3/P1P1P1N1/8/8/8 b - - 0 1`
+     with `h7h8 f7f8 h8h7 f8f7 h7h8 f7f8`, root `searchmoves h8h7`, fresh
+     tables per read.
+   - Under the root window (0, 1) at depths 1, 2 and 3, the ON arm reads
+     **0**. The ON arm with `B3Cuckoo` 0, and the OFF arm, read **> 0**.
+   - Under (−1, 0) at the same depths, `B3Cuckoo` 1 and 0 give equal
+     score and nodes on each arm.
+   - `upcoming_repetition(1)` is true at White's ply-1 node.
+   - (b) is withdrawn, as §1 says.
+2. **§5.8**: "the node returns 0 on `alpha ≥ beta`" gains: "It never puts
+   the draw on a PV it does not cut; a PV node that raises alpha and then
+   searches on returns its own fail-soft value (amendment 5 §2)."
+3. **§10 *Producer → stored state → consumer***: the seam
+   `SearchLimits::root_alpha`/`root_beta` (§3), read by the driver alone.
+4. **Return 5's options**: option 1 taken in R4's form.
+5. **Ticket 10's two-arm table** gains a recorded row: Return 5's line
+   (`searchmoves f7f8`, depths 1–6) on both arms, B.4's starting case.
+
+**Tickets 9 and 10** stay as packet §10 with amendments 1–4. Ticket 8's
+implementation record names the seam among its deviations, with this
+amendment as the reason.
+
+### 5. Decisions and the condition
+
+Research decides (its own):
+
+1. Return 5's option 1, in R4's form, with (b) withdrawn (§1).
+2. The delta-bound finding goes to B.4 and is recorded in B.3.2 (§2).
+3. P19–P23 are scored (§R).
+
+There is no maintainer decision. The test's form is the meaning of an
+experiment, which research owns.
+
+**Condition for resuming:** none outstanding. B.3.1 resumes
+`READY_FOR_IMPLEMENTATION` at ticket 8's terminal tests (the seam and the
+tests, then the ticket's reads again), then tickets 9 and 10.
+
+### 6. Artifacts (`tools/results/b31-20261030/amend5/`, ignored storage)
+
+| Artifact | Content |
+|---|---|
+| `amend5_R.md` | the registration as frozen, with R1–R3 scored before R4–R5 ran |
+| `seam.patch` | the root-window seam as read |
+| `read.patch` | the temporary read section (R4–R5 form) |
+| `r1_r3.txt`, `r4_r5.txt` | the reads, both arms, `B3Cuckoo` 1 and 0 |
