@@ -623,6 +623,17 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                            0, 0, tt_depth, tt_score);
             return tt_score;
         }
+    } else if (kB3Proof && kp.b3_tt_penalty && !is_pv && ss->excluded == MOVE_NONE
+               && tt_score != VALUE_NONE && tt_depth > depth - (tt_score <= beta)
+               && tt_flag == (tt_score >= beta ? TT_ALPHA : TT_BETA) && depth > 5) {
+        // Deep enough to cut, but the bound lies on the wrong side of beta:
+        // the entry no longer answers this window, so it gives up a ply of
+        // depth to the next store (the donor's penalty).
+        shared_.tt.penalize(hash);
+        DIAG_COUNT(++state_.diag.tt_penalized);
+        TRACE_DECISION(TraceEvent::TtPenalty, ply, depth, tt_move,
+                       alpha, beta, tt_score, -1, VALUE_NONE, VALUE_NONE,
+                       0, 0, tt_depth, tt_score);
     }
 
     // ---- In-search tablebase probe ------------------------------------------
@@ -1779,8 +1790,12 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 :                             TT_ALPHA;
     // A later MultiPV line searched the root without its best moves; its
     // result is not the root's, so it is not stored (Stockfish skips it too).
+    // Cluster 2's arm stores no move after a fail low (B3FailLowStore): no
+    // move proved itself, and the entry keeps the move it had.
+    const Move stored_move = (kB3Proof && kp.b3_fail_low_store && flag == TT_ALPHA)
+                           ? MOVE_NONE : best_move;
     if (ss->excluded == MOVE_NONE && !(is_root && !state_.root_excluded.empty()))
-        tt_store(hash, depth, best_score, flag, best_move, ply, tt_static_eval,
+        tt_store(hash, depth, best_score, flag, stored_move, ply, tt_static_eval,
                   ss->tt_pv);
 
     return best_score;

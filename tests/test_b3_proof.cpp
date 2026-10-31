@@ -499,6 +499,67 @@ static SearchResult search_windowed(const Board& b, int depth, int root_alpha, i
     return searcher->search(b, lim);
 }
 
+// ---- TT (ticket 9) -------------------------------------------------------
+
+// The root searched under a window no move reaches fails low at every
+// iteration; its entry then holds no move where the fail-low store is
+// repaired and the best-scored move elsewhere.
+static void test_fail_low_store() {
+    auto root_move = [](int fail_low_store) {
+        TranspositionTable tt(16);
+        std::atomic_bool stop{false};
+        auto searcher = std::make_unique<Searcher>(tt, stop);
+        Board b;
+        b.set_fen(std::string(bench_fens()[0]));
+        SearchLimits lim;
+        lim.depth = 6;
+        lim.root_alpha = 5000;
+        lim.root_beta = 5001;
+        lim.params.b3_fail_low_store = fail_low_store;
+        const SearchResult r = searcher->search(b, lim);
+        TTEntry e{};
+        const bool found = tt.probe_copy(b.position_key(), e);
+        EXPECT(found && e.bound() == TT_ALPHA && r.score <= 5000);
+        return found ? move_from_tt(e.move16) : MOVE_NONE;
+    };
+    Board b;
+    b.set_fen(std::string(bench_fens()[0]));
+    begin_section("tt: a fail-low root stores no move where B3FailLowStore repairs it");
+    const Move repaired = root_move(1);
+    const Move legacy = root_move(0);
+    EXPECT(is_legal_move_on_board(b, legacy));
+    if constexpr (kB3Proof)
+        EXPECT(repaired == MOVE_NONE);
+    else
+        EXPECT(repaired == legacy);
+    end_section();
+}
+
+// Both switches move the ON arm's tree and not the OFF arm's; the penalty
+// fires where it is on, and only there.
+static void test_tt_switches_live() {
+    const std::string mid(bench_fens()[1]);
+    const Run base = search(mid, 12);
+    const Run store0 = search(mid, 12, 0, [](SearchParams& p) { p.b3_fail_low_store = 0; });
+    const Run pen0 = search(mid, 12, 0, [](SearchParams& p) { p.b3_tt_penalty = 0; });
+    begin_section("tt: B3FailLowStore and B3TtPenalty move the ON arm only");
+    if constexpr (kB3Proof) {
+        EXPECT(base.result.nodes != store0.result.nodes);
+        EXPECT(base.result.nodes != pen0.result.nodes);
+    } else {
+        EXPECT_EQ(base.result.nodes, store0.result.nodes);
+        EXPECT_EQ(base.result.nodes, pen0.result.nodes);
+    }
+    if constexpr (kCounters) {
+        EXPECT_EQ(counter(pen0, "tt_penalized"), 0);
+        if constexpr (kB3Proof)
+            EXPECT(counter(base, "tt_penalized") > 0);
+        else
+            EXPECT_EQ(counter(base, "tt_penalized"), 0);
+    }
+    end_section();
+}
+
 static void test_cuckoo_terminal() {
     Board b;
     b.set_fen("rb6/p1p2K1k/p1p1p3/p1p1p3/P1P1P1N1/8/8/8 b - - 0 1");
@@ -549,6 +610,8 @@ int main() {
     test_cuckoo_tables_complete();
     test_cuckoo_no_false_positive();
     test_cuckoo_terminal();
+    test_fail_low_store();
+    test_tt_switches_live();
 
     return harness_summary();
 }

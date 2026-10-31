@@ -286,6 +286,11 @@
 // Upcoming repetition: b3_cuckoo: 1 raises alpha to the draw at a node
 //   (interior or quiescence) whose side to move has a reversible move to a
 //   repetition; 0 none.
+//
+// TT: b3_fail_low_store: 1 stores no move after a fail low (the entry keeps
+//   its own); 0 stores the best-scored move. b3_tt_penalty: 1 lowers by one
+//   ply the depth of an entry deep enough to cut at a non-PV node of depth
+//   6 or more whose bound lies on the wrong side of beta; 0 none.
 #define BASILISK_B3_PARAMS(X, F, S)                                   \
     S(b3_check_ext,          B3CheckExt,             0,    0,     1)     \
     S(b3_check_prune,        B3CheckPrune,           1,    0,     1)     \
@@ -347,7 +352,10 @@
     S(b3_corr_excluded,      B3CorrExcluded,         1,    0,     1)     \
     S(core_history_fills,    CoreHistoryFills,       0,    0,     1)     \
     /* Upcoming repetition */                                            \
-    S(b3_cuckoo,             B3Cuckoo,               1,    0,     1)
+    S(b3_cuckoo,             B3Cuckoo,               1,    0,     1)     \
+    /* TT */                                                             \
+    S(b3_fail_low_store,     B3FailLowStore,         1,    0,     1)     \
+    S(b3_tt_penalty,         B3TtPenalty,            1,    0,     1)
 
 #define BASILISK_KERNEL_PARAMS(X) BASILISK_CORE_KERNEL_PARAMS(X, X)
 #define BASILISK_KERNEL_SWITCHES(S) BASILISK_CORE_KERNEL_SWITCHES(S)

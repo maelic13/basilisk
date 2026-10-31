@@ -257,6 +257,25 @@ public:
         return same_key;
     }
 
+    // Lowers this position's entry by one ply of depth and changes nothing
+    // else in it (Cluster 2's bound-mismatch penalty). An entry at depth 0
+    // or below is left alone, so the slot stays occupied and searched. The
+    // read and the write are two publications, as any store's are (BAS-C05).
+    void penalize(Key key) {
+        TTCluster& cluster = clusters_[key & mask_];
+        const uint16_t want = static_cast<uint16_t>(key >> 48);
+        for (int i = 0; i < 3; ++i) {
+            if (cluster.key16[i].load(std::memory_order_relaxed) != want)
+                continue;
+            const uint64_t data = cluster.data[i].load(std::memory_order_relaxed);
+            if (!occupied(data))
+                continue;
+            if (unpack_entry(data).depth > 0)
+                cluster.data[i].store(data - (uint64_t(1) << 48), std::memory_order_relaxed);
+            return;
+        }
+    }
+
     [[nodiscard]] int hashfull() const {
         int count = 0;
         size_t sample = std::min(size_t(334), cluster_count_);
