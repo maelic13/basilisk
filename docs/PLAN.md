@@ -897,6 +897,15 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         floors 24 x 15, KBN-K 120; the 28 held; all eight ablation bits
         live; `B3MultiCut` stays 0. The re-scoped cost screen waits for
         an idle host; then the independent review.
+      - Returned 2026-10-31 at the cheap qualification (packet *Return
+        7*): the re-scoped cost screen passes four positions and fails
+        `suite_v2` position 50, growth geomean 2.53 against 1.5. The OFF
+        arm's tree settles at depth 14 (30.07M, then growth about 1.000);
+        the ON arm is smaller at every depth (0.38x at 19) but still grows
+        2.27, 1.93 and 3.71 per iteration. The screen records nodes only,
+        so explosion and an unreached settling point are not yet told
+        apart; three depth reads are listed. P11 missed. Resumes on
+        research amendment 7.
     - [ ] **B.3.2** `[V]` Diagnostics and the unfitted paired run
       Packet §11, BAS-S41: the zero-game screens on both arms (counters,
       the oracle differential, WAC, the crossover band, the canary
@@ -1363,7 +1372,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.1 | IMPLEMENTED | I2 | Tickets 0-10 landed; every deterministic qualification read passes (packet *Implementation record — tickets 6b to 10*); the re-scoped deep-iteration cost screen waits for an idle host, then the independent review |
+| B.3.1 | RESEARCH | I2 | Returned 2026-10-31 at the cheap qualification (packet *Return 7*): the re-scoped cost screen fails on `suite_v2` position 50 (growth 2.53 against 1.5); every other qualification read passes; resumes on research amendment 7 |
 | B.3.2 | RESEARCH | V | Waits for B.3.1's accepted review |
 | B.3.3 | RESEARCH | V | Waits for B.3.2 |
 | B.3.4 | RESEARCH | V | Added 2026-10-31; waits for B.3.3 |

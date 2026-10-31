@@ -4878,7 +4878,7 @@ reproducing amendment 6 §1.1–1.2 exactly:
 | The depth-20 wire check (ticket 3) | bench position 11: `null_verifications` 237, `ext_budget_bound` 370 of 1,081 singular firings; position 15: 0 and 263 of 566 (Diag, finished in 27 s and under 1 s) | ≥ 1 on position 11 |
 | Liveness | all eight bits, both arms | every bit moves nodes |
 | The decision trace on WAC.001, 085, 203, 253 (depth 8, the WAC move as root, Diag) | ON 477 / 332 / 851 / 108 records; OFF 620 / 492 / 824 / 139; `trace_{on,off}_WAC.*.json` | archived |
-| The deep-iteration cost screen (re-scoped, amendment 2 §3; P11) | **not run: needs an idle host** | growth geomean ≤ 1.5, every depth finished |
+| The deep-iteration cost screen (re-scoped, amendment 2 §3; P11) | **FAIL** on `suite_v2` position 50: growth geomean 2.53; the other four pass (*Return 7*) | growth geomean ≤ 1.5, every depth finished |
 
 The screen's positions are in `t10/screen_positions.epd` (bench positions
 11 and 15, `suite_v2` positions 50, 42 and 60); `t10/screen_growth.py`
@@ -4936,3 +4936,69 @@ the absolute ratio.
 - The fingerprints of the two-arm table, reproduced from a clean tree on
   every flavour.
 - The cost screen's result, once the maintainer has run it on an idle host.
+
+## Return 7 — B.3.1 cheap qualification: the re-scoped cost screen fails on `suite_v2` position 50 (2026-10-31)
+
+**What ran.** The maintainer ran the deep-iteration cost screen on an idle
+host on 2026-10-31, as registered: `deep_iteration_screen.py` with its
+defaults (depths 16–19, a 60 s watchdog per iteration, Hash 64), base
+`build/b3-off`, arm `build/b3-on`, the five positions of
+`t10/screen_positions.epd`. The binaries' SHA-256 equal ticket 10's
+(`t10/hashes.txt`), so the read is the committed tree (`f2fa3c6`); the
+JSON is `t10/screen.json` (SHA-256 b4f160bd…). `t10/screen_growth.py`
+scores it by amendment 2 §3's rule. No watchdog fired on either arm.
+
+| # | Position | OFF cumulative nodes, depths 16 / 17 / 18 / 19 | ON cumulative nodes, depths 16 / 17 / 18 / 19 | Growth ratio, steps 17 / 18 / 19 | Growth geomean | Absolute geomean (recorded) | Rule |
+|---|---|---|---|---|---|---|---|
+| 1 | bench 11 | 2,950,852 / 4,040,018 / 6,576,469 / 6,663,683 | 1,353,587 / 2,290,243 / 3,148,082 / 4,617,856 | 1.24 / 0.84 / 1.45 | 1.147 | 0.542 | pass |
+| 2 | bench 15 | 223,388 / 252,698 / 372,366 / 695,230 | 90,545 / 94,944 / 99,328 / 108,493 | 0.93 / 0.71 / 0.59 | 0.727 | 0.282 | pass |
+| 3 | `suite_v2` 50 | 30,080,153 / 30,092,599 / 30,151,520 / 30,177,476 | 702,258 / 1,594,587 / 3,075,838 / 11,418,629 | **2.27 / 1.93 / 3.71** | **2.531** | 0.083 | **FAIL** |
+| 4 | `suite_v2` 42 | 10,403,275 / 10,517,412 / 10,534,184 / 10,576,913 | 2,461,948 / 2,478,915 / 2,502,649 / 2,528,501 | 1.00 / 1.01 / 1.01 | 1.003 | 0.237 | pass |
+| 5 | `suite_v2` 60 | 8,664,742 / 8,677,782 / 8,696,737 / 8,717,040 | 95,545 / 105,215 / 117,884 / 132,956 | 1.10 / 1.12 / 1.13 | 1.114 | 0.013 | pass |
+
+**The miss.** Position 3 is `4rrk1/pppb4/7p/3P2pq/3Qn3/P5P1/1PP4P/R3RNNK b`.
+The OFF arm's tree grows from 9.67M at depth 13 to 30.07M at depth 14,
+then adds 6,000 to 59,000 nodes per iteration through depth 19 (growth
+1.000–1.002): its iterations have settled. The ON arm finishes every
+depth and is smaller at every depth (0.023 of the OFF arm's cumulative
+nodes at 16, 0.378 at 19), but it is still growing: 0.70M, 1.59M, 3.08M
+and 11.42M at depths 16–19, per-iteration growth 2.27, 1.93 and 3.71. The
+geometric mean of the growth ratios is 2.53 against 1.5. The clause fails
+as registered; no default and no clause was moved.
+
+**What the read does and does not say.** Positions 4 and 5 show the same
+settled OFF arm (growth ≤ 1.004 from depth 15) and an ON arm settled too,
+so they pass. On position 3 the rule divides the ON arm's growth by an OFF
+growth of about 1, and the screen records only node counts. It cannot tell
+an ON-arm explosion on this position from an ON arm that has not yet
+reached whatever settled the OFF arm at depth 14 (a decisive score, a
+resolved PV, a TT-carried bound). P11's falsifier names a fail on this arm
+as growth from outside the singular block and returns ticket 6b; that
+attribution is not yet shown either.
+
+**P11 scored:** predicted a pass on all five positions (probability 75%);
+missed on position 3.
+
+**Reads that discriminate** (deterministic depth reads, minutes each; they
+wait until the host is free of the maintainer's other runs):
+
+1. Both arms' `info` lines on position 3 to depth 19 (score, PV, seldepth
+   per iteration): what settles the OFF arm at 14, and whether the ON arm
+   has reached it by 19.
+2. The ON arm continued to depths 20–22 under the watchdog: whether its
+   growth falls to about 1 once it reaches the same score, or keeps rising.
+3. The Diag counters on the ON arm at depths 17–19 on position 3
+   (`ext_budget_bound`, singular firings and extensions, null
+   verifications, ProbCut and small-ProbCut cuts, IIR firings), and the
+   ablation bits 2, 3, 4 and 6 at depth 19: which mechanism carries the
+   growth.
+
+**Options for research.** (1) The growth is a mechanism's: amend that
+mechanism, as P11's falsifier says. (2) The growth is the approach to the
+OFF arm's settling point: the clause has no registered treatment of a
+settled OFF arm, and research decides one before any re-run. Changing
+the clause is research's decision, not implementation's.
+
+**State.** B.3.1 returns to `RESEARCH` and resumes on research amendment 7.
+Everything else of the cheap qualification passes (*Implementation record
+— tickets 6b to 10*).
