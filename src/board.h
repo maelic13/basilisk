@@ -237,6 +237,12 @@ public:
     // occupancy. pinner_of[sq] is valid only where pinned[] has the bit.
     void see_pins(Bitboard occ, Bitboard pinned[NCOLORS], Square pinner_of[SQUARE_NB]) const;
     [[nodiscard]] bool is_repetition(int search_ply) const;
+    // Whether the side to move has a reversible move back to a position of
+    // the key history, found by the cuckoo tables without generating moves
+    // (Stockfish's upcoming_repetition): a draw when the position lies
+    // within search_ply plies, otherwise only when it had already repeated.
+    // Bounded by min(rule50, plies since a null move).
+    [[nodiscard]] bool upcoming_repetition(int search_ply) const;
     [[nodiscard]] bool is_insufficient_material() const;
 
     [[nodiscard]] bool has_non_pawn_material(Color c) const;

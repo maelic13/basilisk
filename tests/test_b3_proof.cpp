@@ -17,10 +17,12 @@
 #include "tt.h"
 #include "zobrist.h"
 
+#include <algorithm>
 #include <atomic>
 #include <cstdio>
 #include <map>
 #include <memory>
+#include <random>
 #include <regex>
 #include <string>
 #include <vector>
@@ -337,6 +339,144 @@ static void test_excluded_training_spares_recognised_draws() {
     end_section();
 }
 
+// ---- Upcoming repetition (the cuckoo tables) ----------------------------
+
+// Every move of a non-pawn piece between two squares on an empty board, by
+// the attack tables, is in the cuckoo tables under its key, in one of its
+// two slots, as the move from the lower square.
+static void test_cuckoo_tables_complete() {
+    int found = 0, missing = 0;
+    for (int c = 0; c < NCOLORS; c++)
+        for (int pt = KNIGHT; pt <= KING; pt++)
+            for (int s1 = 0; s1 < SQUARE_NB; s1++) {
+                const Square sq = Square(s1);
+                const Bitboard reach = pt == KNIGHT ? KnightAttacks[sq]
+                                     : pt == BISHOP ? bishop_attacks(sq, 0)
+                                     : pt == ROOK   ? rook_attacks(sq, 0)
+                                     : pt == QUEEN  ? queen_attacks(sq, 0)
+                                                    : KingAttacks[sq];
+                for (int s2 = s1 + 1; s2 < SQUARE_NB; s2++) {
+                    if (!(reach & sq_bb(Square(s2))))
+                        continue;
+                    const Key key = Zobrist::PieceKeys[c][pt][s1]
+                                  ^ Zobrist::PieceKeys[c][pt][s2] ^ Zobrist::SideKey;
+                    const Move m = make_move(sq, Square(s2));
+                    const int h1 = Zobrist::cuckoo_h1(key), h2 = Zobrist::cuckoo_h2(key);
+                    if ((Zobrist::Cuckoo[h1] == key && Zobrist::CuckooMove[h1] == m)
+                        || (Zobrist::Cuckoo[h2] == key && Zobrist::CuckooMove[h2] == m))
+                        ++found;
+                    else
+                        ++missing;
+                }
+            }
+    int filled = 0;
+    for (int i = 0; i < Zobrist::CUCKOO_SIZE; i++)
+        filled += Zobrist::CuckooMove[i] != MOVE_NONE;
+    begin_section("cuckoo: every reversible move's key is found");
+    EXPECT_EQ(found, Zobrist::CUCKOO_MOVES);
+    EXPECT_EQ(missing, 0);
+    EXPECT_EQ(filled, Zobrist::CUCKOO_MOVES);
+    end_section();
+}
+
+// The slow reference: make every legal reversible move of the side to move
+// (a non-pawn piece to an empty square, no castling) and look for its key
+// i plies back for odd i in [3, end], end = min(rule50, plies since a null
+// move, the history); within search_ply a draw, otherwise only a position
+// already met again at least four plies before it.
+static bool upcoming_repetition_slow(Board& b, const std::vector<Key>& keys, int search_ply) {
+    const int n = static_cast<int>(keys.size()) - 1;
+    const int end = std::min({b.rule50_count(), b.plies_since_null(), n});
+    auto back = [&](int d) { return keys[static_cast<size_t>(n - d)]; };
+    MoveList legal;
+    b.gen_legal(legal);
+    for (Move m : legal) {
+        const Piece pc = b.piece_on(from_sq(m));
+        if (move_type(m) != NORMAL || type_of(pc) == PAWN || b.piece_on(to_sq(m)) != NO_PIECE)
+            continue;
+        b.make_move(m);
+        const Key reached = b.position_key();
+        b.unmake_move(m);
+        for (int i = 3; i <= end; i += 2) {
+            if (back(i) != reached)
+                continue;
+            if (search_ply > i)
+                return true;
+            for (int k = i + 4; k <= end; k += 2)
+                if (back(k) == back(i))
+                    return true;
+        }
+    }
+    return false;
+}
+
+// Random walks that shuffle pieces back and forth, so repetitions are
+// common: the cuckoo test never reports a repetition the reference does not
+// find, at search plies inside and outside the walk's reach.
+static void test_cuckoo_no_false_positive() {
+    const char* seeds[] = {
+        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
+        "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1",
+        "4k3/8/8/3q4/8/2N5/1B6/4K2R w K - 0 1",
+        "6k1/5pp1/7p/8/8/2B5/5PPP/3R2K1 w - - 0 1",
+    };
+    std::mt19937_64 rng(0xC0C0C0ULL);
+    int positions = 0, positives = 0, false_positives = 0, false_negatives = 0;
+    for (int w = 0; positions < 10000; ++w) {
+        Board b;
+        b.set_fen(seeds[w % 5]);
+        std::vector<Key> keys{b.position_key()};
+        std::vector<Move> played;
+        const int plies = 4 + static_cast<int>(rng() % 36);
+        for (int p = 0; p < plies && positions < 10000; ++p) {
+            MoveList legal;
+            b.gen_legal(legal);
+            if (legal.empty())
+                break;
+            // Prefer undoing this side's move from two plies back, then a
+            // reversible move, then anything.
+            Move pick = MOVE_NONE;
+            if (played.size() >= 2 && rng() % 2 == 0) {
+                const Move old = played[played.size() - 2];
+                const Move back = make_move(to_sq(old), from_sq(old));
+                for (Move m : legal)
+                    if (m == back)
+                        pick = m;
+            }
+            if (pick == MOVE_NONE && rng() % 5 != 0) {
+                MoveList rev;
+                for (Move m : legal)
+                    if (move_type(m) == NORMAL && type_of(b.piece_on(from_sq(m))) != PAWN
+                        && b.piece_on(to_sq(m)) == NO_PIECE)
+                        rev.push(m);
+                if (!rev.empty())
+                    pick = rev[static_cast<int>(rng() % static_cast<uint64_t>(rev.size()))];
+            }
+            if (pick == MOVE_NONE)
+                pick = legal[static_cast<int>(rng() % static_cast<uint64_t>(legal.size()))];
+            b.make_move(pick);
+            played.push_back(pick);
+            keys.push_back(b.position_key());
+            ++positions;
+            for (int search_ply : {0, 2, 5, 64}) {
+                const bool fast = b.upcoming_repetition(search_ply);
+                const bool slow = upcoming_repetition_slow(b, keys, search_ply);
+                positives += fast;
+                false_positives += fast && !slow;
+                false_negatives += slow && !fast;
+            }
+        }
+    }
+    std::printf("%d positions, %d positive reads, %d missed by the cuckoo ", positions,
+                positives, false_negatives);
+    begin_section("cuckoo: no false positive against the slow reference (10,000 positions)");
+    EXPECT_EQ(positions, 10000);
+    EXPECT(positives > 500);
+    EXPECT_EQ(false_positives, 0);
+    end_section();
+}
+
 int main() {
     init_bitboards();
     init_attacks();
@@ -358,6 +498,8 @@ int main() {
     test_history_fill_values();
     test_correction_switches_live();
     test_excluded_training_spares_recognised_draws();
+    test_cuckoo_tables_complete();
+    test_cuckoo_no_false_positive();
 
     return harness_summary();
 }

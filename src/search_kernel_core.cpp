@@ -126,6 +126,19 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         if (state_.stopped) return 0;
         if (ply >= MAX_PLY) return evaluator_.evaluate(*state_.board);
         if (state_.board->is_draw(ply)) return 0;
+        // Cluster 2's upcoming repetition, as at an interior node (which
+        // made the test for a node it hands here).
+        if constexpr (kB3Proof) {
+            if (alpha < 0 && config_.limits.params.b3_cuckoo
+                && state_.board->upcoming_repetition(ply)) {
+                DIAG_COUNT(++state_.diag.cuckoo_draws);
+                TRACE_DECISION(TraceEvent::CuckooDraw, ply, 0, MOVE_NONE,
+                               alpha, beta, VALUE_NONE, -1, VALUE_NONE, VALUE_NONE,
+                               0, 0, 0, 0);
+                alpha = 0;
+                if (alpha >= beta) return alpha;
+            }
+        }
     }
 
     bool in_check = state_.board->is_in_check();
@@ -353,6 +366,20 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     state_.pv_len[ply] = ply;
 
     if (!is_root && state_.board->is_draw(ply)) return 0;
+    // Cluster 2: a reversible move to a repetition is available, so the
+    // node is worth at least the draw (B3Cuckoo; never when alpha is
+    // already at it).
+    if constexpr (kB3Proof) {
+        if (!is_root && alpha < 0 && config_.limits.params.b3_cuckoo
+            && state_.board->upcoming_repetition(ply)) {
+            DIAG_COUNT(++state_.diag.cuckoo_draws);
+            TRACE_DECISION(TraceEvent::CuckooDraw, ply, depth, MOVE_NONE,
+                           alpha, beta, VALUE_NONE, -1, VALUE_NONE, VALUE_NONE,
+                           0, 0, 0, 0);
+            alpha = 0;
+            if (alpha >= beta) return alpha;
+        }
+    }
 
     bool in_check = state_.board->is_in_check();
     ss->in_check   = in_check;

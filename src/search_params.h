@@ -282,6 +282,10 @@
 //   (a recognised draw); 0 refuses them. core_history_fills: 1 fills
 //   fresh history tables with the donor's values at the first search after a
 //   clear; 0 leaves them at zero.
+//
+// Upcoming repetition: b3_cuckoo: 1 raises alpha to the draw at a node
+//   (interior or quiescence) whose side to move has a reversible move to a
+//   repetition; 0 none.
 #define BASILISK_B3_PARAMS(X, F, S)                                   \
     S(b3_check_ext,          B3CheckExt,             0,    0,     1)     \
     S(b3_check_prune,        B3CheckPrune,           1,    0,     1)     \
@@ -341,7 +345,9 @@
     /* Correction and the fresh tables */                                \
     S(b3_corr_decisive,      B3CorrDecisive,         1,    0,     1)     \
     S(b3_corr_excluded,      B3CorrExcluded,         1,    0,     1)     \
-    S(core_history_fills,    CoreHistoryFills,       0,    0,     1)
+    S(core_history_fills,    CoreHistoryFills,       0,    0,     1)     \
+    /* Upcoming repetition */                                            \
+    S(b3_cuckoo,             B3Cuckoo,               1,    0,     1)
 
 #define BASILISK_KERNEL_PARAMS(X) BASILISK_CORE_KERNEL_PARAMS(X, X)
 #define BASILISK_KERNEL_SWITCHES(S) BASILISK_CORE_KERNEL_SWITCHES(S)

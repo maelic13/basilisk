@@ -1579,6 +1579,42 @@ bool Board::is_repetition(int search_ply) const {
     return false;
 }
 
+bool Board::upcoming_repetition(int search_ply) const {
+    const int hist_size = static_cast<int>(history.size());
+    const int end = std::min({halfmove_clock, plies_from_null, hist_size});
+    if (end < 3)
+        return false;
+
+    // The position d plies back.
+    auto key = [&](int d) { return history[static_cast<size_t>(hist_size - d)].hash; };
+    // The opponent's moves since the position i plies back cancel exactly
+    // when `other` is 0; the difference is then one move of ours.
+    Key other = hash ^ key(1) ^ Zobrist::SideKey;
+    for (int i = 3; i <= end; i += 2) {
+        other ^= key(i - 1) ^ key(i) ^ Zobrist::SideKey;
+        if (other != 0)
+            continue;
+
+        const Key move_key = hash ^ key(i);
+        int j = Zobrist::cuckoo_h1(move_key);
+        if (Zobrist::Cuckoo[j] != move_key) {
+            j = Zobrist::cuckoo_h2(move_key);
+            if (Zobrist::Cuckoo[j] != move_key)
+                continue;
+        }
+        const Move m = Zobrist::CuckooMove[j];
+        if (BB_BETWEEN[from_sq(m)][to_sq(m)] & all_occ)
+            continue;
+        if (search_ply > i)
+            return true;
+        // At or before the root: the position must have repeated already.
+        for (int k = i + 4; k <= end; k += 2)
+            if (key(k) == key(i))
+                return true;
+    }
+    return false;
+}
+
 bool Board::is_draw(int search_ply) const {
     if (is_insufficient_material()) return true;
     if (rule50_draw()) return true;
