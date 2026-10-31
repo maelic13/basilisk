@@ -445,7 +445,9 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
         state_.root_best_effort = 0;
         int score;
 
-        if (depth <= 3 || std::abs(prev_score) >= MATE_SCORE - MAX_PLY) {
+        if (limits.root_alpha != limits.root_beta) {
+            score = root_search(depth, limits.root_alpha, limits.root_beta);
+        } else if (depth <= 3 || std::abs(prev_score) >= MATE_SCORE - MAX_PLY) {
             score = root_search(depth, -INF_SCORE, INF_SCORE);
         } else {
             int delta = config_.limits.params.aspiration_delta;

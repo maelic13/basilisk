@@ -477,6 +477,54 @@ static void test_cuckoo_no_false_positive() {
     end_section();
 }
 
+// The terminal test (BAS-S12's trigger, amendment 5): White is lost by
+// material and its king and knight hold Black's king to h8/h7. After the
+// pre-root list Black's only move h8h7 lets White play f8f7 to a position
+// seen twice. The root, searched under a null window at the draw, asks
+// whether h8h7 beats a draw: White's node gets (-1, 0), and the cutoff
+// returns the draw there, so the ON arm's root fails low at exactly 0;
+// without it the root fails high on the win. One below, White's alpha is 0
+// and the switch changes nothing.
+static SearchResult search_windowed(const Board& b, int depth, int root_alpha, int root_beta,
+                                    int cuckoo) {
+    TranspositionTable tt(16);
+    std::atomic_bool stop{false};
+    auto searcher = std::make_unique<Searcher>(tt, stop);
+    SearchLimits lim;
+    lim.depth = depth;
+    lim.root_alpha = root_alpha;
+    lim.root_beta = root_beta;
+    lim.root_moves = {make_move(H8, H7)};
+    lim.params.b3_cuckoo = cuckoo;
+    return searcher->search(b, lim);
+}
+
+static void test_cuckoo_terminal() {
+    Board b;
+    b.set_fen("rb6/p1p2K1k/p1p1p3/p1p1p3/P1P1P1N1/8/8/8 b - - 0 1");
+    for (Move m : {make_move(H7, H8), make_move(F7, F8), make_move(H8, H7), make_move(F8, F7),
+                   make_move(H7, H8), make_move(F7, F8)})
+        b.make_move(m);
+    Board child = b;
+    child.make_move(make_move(H8, H7));
+    begin_section("cuckoo: the root's null window at the draw reads 0 through the cutoff (depths 1-3)");
+    EXPECT(child.upcoming_repetition(1));
+    for (int depth = 1; depth <= 3; ++depth) {
+        const SearchResult at_draw = search_windowed(b, depth, 0, 1, 1);
+        const SearchResult at_draw_off = search_windowed(b, depth, 0, 1, 0);
+        const SearchResult below = search_windowed(b, depth, -1, 0, 1);
+        const SearchResult below_off = search_windowed(b, depth, -1, 0, 0);
+        if constexpr (kB3Proof)
+            EXPECT_EQ(at_draw.score, 0);
+        else
+            EXPECT_EQ(at_draw.nodes, at_draw_off.nodes);
+        EXPECT(at_draw_off.score > 0);
+        EXPECT_EQ(below.score, below_off.score);
+        EXPECT_EQ(below.nodes, below_off.nodes);
+    }
+    end_section();
+}
+
 int main() {
     init_bitboards();
     init_attacks();
@@ -500,6 +548,7 @@ int main() {
     test_excluded_training_spares_recognised_draws();
     test_cuckoo_tables_complete();
     test_cuckoo_no_false_positive();
+    test_cuckoo_terminal();
 
     return harness_summary();
 }
