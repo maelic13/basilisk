@@ -5166,3 +5166,102 @@ list (§11 now says so).
 bracket; Return 7's state (B.3.1 `RESEARCH`, resuming on research
 amendment 7) and its three discriminating reads; the independent review,
 which still precedes B.3.2.
+
+## Research amendment 7 — the cost screen's window: a late root resolution is not a deep-iteration explosion (2026-11-01)
+
+This amendment answers *Return 7* and its addendum. It was written on the
+maintainer's instruction of 2026-11-01 ("do the research and continue"),
+in the session that implemented tickets 9b and 10 and wrote Return 7.
+PROCESS's role table puts a research amendment at `R3`. This one is
+treated as `R2`: it moves no mechanism, default, seed, floor or frozen
+prediction, only the depths at which one qualification clause reads its
+statistic, and the addendum's reads had already answered the causal
+question. Both departures, the class and the session, are for the
+independent review to weigh (§3).
+
+### 0. What this says, plainly
+
+- Position 50's fail is not an explosion. The ON arm finds at depth 19
+  the `mate 9` that the OFF arm found at depth 14, using 0.38 of the OFF
+  arm's nodes. No mechanism's share of the tree rises with the growth,
+  no single ablation removes it, and it stops once the mate is found
+  (growth 1.02–1.03 at depths 20–22).
+- The clause compared the arms at matched depth. Amendment 2 §4 named why
+  that is confounded between arms of different selectivity (the ON arm
+  turns nodes into depth) and re-based the depth-6 WAC floor for it.
+  Amendment 2 §3 took the level out of the screen but left the confound:
+  when one arm resolves the root inside depths 16–19 and the other before
+  them, their growth differs by the resolution.
+- The position set made that likely. The three `suite_v2` positions were
+  chosen as the OFF arm's three largest trees at depth 14, and on all
+  three the OFF arm's tree jumps at depth 13 or 14 and then stops growing
+  (the table in §R). A large depth-14 tree is a resolution event at
+  depth 14. An arm that resolves the same point later reads its approach,
+  inside 16–19, against a flat baseline.
+- The clause keeps its statistic and its bound, but reads them where an
+  explosion still shows and a resolution has ended: the last three steps
+  of a read to depth 22, continued to depth 25 when those fail. The
+  explosion the screen was built for (B-5/B-6: a ply bound that does not
+  bound the tree) persists, so the later window loses no power against
+  it, while a resolution hump ends.
+- P11's frozen consequence for a fail on this arm is not taken. It reads
+  "the growth comes from outside the singular block (ProbCut's 4.5% of
+  cuts, the null move's hand-off band) and ticket 6b returns". The
+  addendum reads both mechanisms' shares falling in the failing iteration
+  and the growth surviving each one's ablation (2.90 with ProbCut off,
+  2.24 with the null move off). The attribution the consequence rests on
+  is refuted.
+
+### R. The rule and the predictions, registered before running
+
+Registered in this commit, before any depth past 19 is read on positions
+1, 2, 4 and 5, and before the OFF arm is read past 19 on position 3. The
+ON arm's depths 20–22 on position 3 are already exposed (the addendum),
+so the rule scores position 3 but does not count it as evidence.
+
+The OFF arm's per-iteration growth on the three `suite_v2` positions
+(`t10/screen.json`):
+
+| Position | Depth 13 | Depth 14 | Depths 15–19 |
+|---|---|---|---|
+| 3, `suite_v2` 50 | 4.41 | 3.11 | 1.000–1.002 |
+| 4, `suite_v2` 42 | 3.60 | 9.07 | 1.000–1.011 |
+| 5, `suite_v2` 60 | 1.80 | 6.28 | 1.001–1.003 |
+
+**The amended clause.** It replaces amendment 2 §3's growth clause; its
+purpose, catching a deep-iteration explosion, is unchanged.
+
+- **Read.** `deep_iteration_screen.py` on §10's five positions, base
+  `build/b3-off`, arm `build/b3-on`, `--depth-min 16 --depth-max 25`, the
+  60 s watchdog, Hash 64. A step d is a depth both arms finish together
+  with d − 1. Its growth ratio is the ON arm's cumulative-node growth
+  from d − 1 to d over the OFF arm's.
+- **(a)** The ON arm finishes every depth from 16 to 22 that the OFF arm
+  finishes.
+- **(b)** The geometric mean of the growth ratios at steps 20, 21 and 22
+  is **≤ 1.5**.
+- **(c)** Only when (b) fails: the geometric mean over the last three
+  steps both arms finish at depths ≤ 25 is ≤ 1.5, and the ON arm finishes
+  every depth from 23 to 25 that the OFF arm finishes.
+- **(d)** Node counts decide, so the host need not be idle. A watchdog
+  stop on either arm at a depth the rule judges (16–22, or 16–25 under
+  (c)) makes that position inconclusive unless the host was idle; the
+  read is then repeated on an idle host before any verdict. Load can only
+  slow an iteration, so a pass on a busy host is also a pass on an idle
+  one.
+- **Recorded, not judged:** steps 17–19 (amendment 2's window) and the
+  absolute ratio at depth 22. The verdict that `deep_iteration_screen.py`
+  prints itself (the original absolute rule, ≤ 3) is not the verdict.
+- **Scorer:** `t10/a7/screen_score_a7.py` (SHA-256 57c0ea35…). It was
+  self-tested on five synthetic rows: a pass, a pass under (c), a
+  sustained ×2 growth that fails, a stop beyond the judged depths, and a
+  stop inside them.
+
+**P34.** The amended screen passes on positions 1, 2, 4 and 5
+(probability 70%). Falsifier: a fail under (b) and (c) on any of them
+returns the leaf with the addendum's attribution reads on that position.
+The rule is not re-scoped a second time unless a mechanism is named.
+
+**P35.** Position 1 (bench 11) is the only position that needs (c): its
+ON arm is still growing at depth 19 (1.47) while its OFF arm has
+flattened (1.013) (probability 40%).
