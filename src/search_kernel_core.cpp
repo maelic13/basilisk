@@ -208,9 +208,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         tt_eval = evaluator_.evaluate_undamped(*state_.board);
     const int raw_eval = damp_rule50(tt_eval, state_.board->rule50_count());
 
-    int stand_pat = raw_eval;
-    stand_pat += correction_value(ss) / 131072;
-    stand_pat = std::clamp(stand_pat, -(tablebaseWinInMaxPly - 1), tablebaseWinInMaxPly - 1);
+    int stand_pat = corrected_eval(raw_eval, correction_value(ss));
 #if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
     const int correction = stand_pat - raw_eval;
 #endif

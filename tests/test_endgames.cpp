@@ -664,14 +664,17 @@ static void test_pawnless_scale_truth_table() {
 // nodes at depth 14). Each position must read a draw at every depth 8-14
 // inside a node cap about fourteen times what the repaired search needs.
 // ---------------------------------------------------------------------------
+static const char* WRONG_BISHOP_FENS[] = {
+    "7k/8/6KP/8/8/8/8/5B2 w - - 0 1",   // suite_v2 89
+    "k7/8/PK6/8/8/8/8/2B5 w - - 0 1",   // the a-file
+    "5b2/8/8/8/8/6kp/8/7K b - - 0 1",   // colours reversed
+    "7k/7P/6K1/8/8/3B4/8/8 w - - 0 1",  // on its false PV, stalemate near
+};
+static constexpr int64_t WRONG_BISHOP_NODE_CAP = 200000;
+
 static void test_wrong_bishop_draw_in_search() {
-    static const char* FENS[] = {
-        "7k/8/6KP/8/8/8/8/5B2 w - - 0 1",   // suite_v2 89
-        "k7/8/PK6/8/8/8/8/2B5 w - - 0 1",   // the a-file
-        "5b2/8/8/8/8/6kp/8/7K b - - 0 1",   // colours reversed
-        "7k/7P/6K1/8/8/3B4/8/8 w - - 0 1",  // on its false PV, stalemate near
-    };
-    constexpr int64_t NODE_CAP = 200000;
+    const auto& FENS = WRONG_BISHOP_FENS;
+    constexpr int64_t NODE_CAP = WRONG_BISHOP_NODE_CAP;
     begin_section("KBP-K wrong bishop reads a draw at depths 8-14");
     for (const char* fen : FENS) {
         for (int depth = 8; depth <= 14; ++depth) {
@@ -686,6 +689,71 @@ static void test_wrong_bishop_draw_in_search() {
             const SearchResult r = searcher->search(b, lim);
             EXPECT_EQ(r.depth, depth);
             EXPECT(std::abs(r.score) <= DRAW_TOL);
+        }
+    }
+    end_section();
+}
+
+// ---------------------------------------------------------------------------
+// A recognised draw is a classification: the evaluator returns 0 because the
+// position is drawn, not because its terms cancel, so the correction history
+// has no error to correct there. Added on top of the 0, the correction
+// trained on the same pawn, minor and non-pawn keys by the drawn side's own
+// root (an ordinary evaluation far from 0 against a search value of 0)
+// overwrites the verdict. With Black to move Kg8 is the only drawing move,
+// and the recogniser fires only after it; the head read -90 at depth 11 from
+// fresh tables. The test above starts every search from cleared tables; a
+// game reaches the corner with trained ones, which the primed form reads:
+// two lost same-structure positions searched first in one process, then the
+// same 28 searches without clearing (the head read up to +172).
+// ---------------------------------------------------------------------------
+static void test_recognised_draw_takes_no_correction() {
+    constexpr int64_t NODE_CAP = WRONG_BISHOP_NODE_CAP;
+    begin_section("a recognised draw reads a draw from its own root's training, depths 8-14");
+    for (int depth = 8; depth <= 14; ++depth) {
+        Board b;
+        b.set_fen("5k2/8/6KP/8/8/8/8/5B2 b - - 0 1");
+        TranspositionTable tt(8);
+        std::atomic_bool stop{false};
+        SearchLimits lim;
+        lim.depth = depth;
+        lim.nodes = NODE_CAP;
+        auto searcher = std::make_unique<Searcher>(tt, stop);
+        const SearchResult r = searcher->search(b, lim);
+        EXPECT_EQ(r.depth, depth);
+        EXPECT(std::abs(r.score) <= DRAW_TOL);
+        if (std::abs(r.score) > DRAW_TOL)
+            std::fprintf(stderr, "    depth %d reads %d\n", depth, r.score);
+    }
+    end_section();
+
+    static const char* PRIMING[] = {
+        "8/8/5K1P/8/8/8/k7/5B2 b - - 0 1",
+        "8/8/6KP/8/8/8/8/k4B2 b - - 0 1",
+    };
+    begin_section("KBP-K wrong bishop reads a draw at depths 8-14 after trained tables");
+    TranspositionTable tt(8);
+    std::atomic_bool stop{false};
+    auto searcher = std::make_unique<Searcher>(tt, stop);
+    for (const char* fen : PRIMING) {
+        Board b;
+        b.set_fen(fen);
+        SearchLimits lim;
+        lim.depth = 12;
+        searcher->search(b, lim);
+    }
+    for (const char* fen : WRONG_BISHOP_FENS) {
+        for (int depth = 8; depth <= 14; ++depth) {
+            Board b;
+            b.set_fen(fen);
+            SearchLimits lim;
+            lim.depth = depth;
+            lim.nodes = NODE_CAP;
+            const SearchResult r = searcher->search(b, lim);
+            EXPECT_EQ(r.depth, depth);
+            EXPECT(std::abs(r.score) <= DRAW_TOL);
+            if (std::abs(r.score) > DRAW_TOL)
+                std::fprintf(stderr, "    %s depth %d reads %d\n", fen, depth, r.score);
         }
     }
     end_section();
@@ -734,6 +802,7 @@ int main(int argc, char** argv) {
     test_kpk_matches_syzygy();
     test_pawnless_scale_truth_table();
     test_wrong_bishop_draw_in_search();
+    test_recognised_draw_takes_no_correction();
 
     return harness_summary();
 }
