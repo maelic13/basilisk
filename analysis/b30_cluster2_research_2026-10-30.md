@@ -5016,6 +5016,79 @@ the clause is research's decision, not implementation's.
 Everything else of the cheap qualification passes (*Implementation record
 — tickets 6b to 10*).
 
+### Return 7 addendum — the three discriminating reads (2026-11-01)
+
+**What ran.** The three reads above, once, on a free host (no other engine
+running), with the binaries of ticket 10's `t10/hashes.txt` (re-hashed
+equal; no source change since `f2fa3c6`). `t10/p50_reads.py` drives the
+screen's UCI sequence (Hash 64, `ucinewgame`, `go depth N`, a 60 s
+per-iteration watchdog); every engine line is in `t10/p50_r*.log`, the
+summary in `t10/p50_reads.json` (SHA-256 331b4f87…). No watchdog fired.
+Identity holds: both arms reproduce the screen's per-depth nodes to the
+node, and the diag build and the ablation build at mask 0 reproduce the
+ON arm's to depth 19.
+
+**Read 1 — what settles each arm.** Both arms find the same `mate 9`
+(PV `e4f2 d4f2 f8f2 e1e8 h5e8`, transpositions after). The OFF arm finds
+it at depth 14, with 30,068,087 cumulative nodes (score at depths 12/13:
+cp 1910 / 2682), and every later iteration re-proves it. The ON arm
+climbs cp 1725 / 2260 / 2523 at depths 16/17/18 and finds the mate at
+depth 19, with 11,418,629 cumulative nodes: 0.380 of what the OFF arm
+spent to find it.
+
+**Read 2 — the ON arm past 19.** Cumulative nodes 11,607,784 /
+11,822,394 / 12,173,197 at depths 20/21/22, per-iteration growth 1.017 /
+1.018 / 1.030, the mate and PV unchanged. Once it has the mate, the ON arm
+settles as the OFF arm did from depth 15.
+
+**Read 3 — which mechanism carries the growth.** The Diag build's
+increments per iteration (depth 17 / 18 / 19; the depth-16 dump is the
+base):
+
+| Counter | Iteration 17 | Iteration 18 | Iteration 19 | Share of interior nodes, 17 / 18 / 19 |
+|---|---|---|---|---|
+| interior nodes | 475,263 | 818,100 | 5,436,705 | — |
+| singular tries / fired | 0 / 0 | 0 / 0 | 0 / 0 | all 47 tries and 27 firings precede depth 17 |
+| `ext_budget_bound` | 0 | 0 | 0 | — |
+| null verifications | 1 | 3 | 2 | — |
+| null-move cuts | 23,091 | 41,215 | 75,085 | 4.9% / 5.0% / 1.4% |
+| ProbCut cuts | 38,218 | 70,758 | 186,203 | 8.0% / 8.6% / 3.4% |
+| IIR reductions | 11,631 | 18,177 | 97,794 | 2.4% / 2.2% / 1.8% |
+| `sing_seekmate_refused` | 15,461 | 34,724 | 155,293 | 3.3% / 4.2% / 2.9% |
+| in-check nodes | 133,546 | 210,319 | 1,770,299 | 28.1% / 25.7% / 32.6% |
+
+The ON ablation build to depth 19, one bit at a time, growth over the
+OFF arm's per step 17 / 18 / 19 (screen rule, unablated OFF base):
+
+| Mask (bit) | Growth 17 / 18 / 19 | Geomean | Mate found at | Cumulative nodes there |
+|---|---|---|---|---|
+| 0 (control) | 2.27 / 1.93 / 3.71 | 2.531 | depth 19 | 11,418,629 |
+| 4 (null move) | 4.56 / 2.42 / 1.02 | 2.239 | depth 18 | 7,683,780 |
+| 8 (ProbCut) | 2.02 / 5.15 / 2.35 | 2.900 | depth 19 | 17,951,189 |
+| 16 (IIR) | 3.49 / 1.41 / 1.73 | 2.046 | not by 19 (cp 9448) | 13,829,026 at 19 |
+| 64 (extensions) | 1.03 / 5.51 / 1.02 | 1.793 | depth 18 | 6,780,561 |
+
+**What the reads say.**
+
+- The singular block is idle in the failing iterations. No mechanism's
+  share of interior nodes rises with the growth: null-move, ProbCut and
+  IIR shares fall at iteration 19, and only the in-check share rises
+  (the mate hunt).
+- No single ablation removes the growth. Every masked arm keeps growing
+  until it finds the mate, then flattens, and every one still reads above
+  1.5.
+- The growth on this position is the ON arm's approach to the mate the
+  OFF arm found at depth 14. The ON arm reaches that mate at 0.38 of the
+  OFF arm's nodes, and its growth ends there (read 2).
+- Return 7's option (2) describes the reads. Option (1) has no mechanism
+  to name.
+- P11's falsifier, read literally ("the growth comes from outside the
+  singular block"), is met. But the two mechanisms it names do not carry
+  the growth either.
+- What the clause does with an OFF arm that settled before depth 16, and
+  whether the ticket-6b return applies, are research amendment 7's
+  decisions. No clause, default or prediction was moved.
+
 ## Roadmap audit — B.3's remaining path (2026-11-01)
 
 A read-only audit of Phase B's state and its remaining leaves, its
