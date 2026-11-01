@@ -959,6 +959,15 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         replaces bench 11; the band reads recorded, not judged), decision
         2 not taken (ProbCut's form unchanged). `READY_FOR_IMPLEMENTATION`
         at ticket 10b.
+      - Ticket 10b, 2026-11-01 (packet *Implementation record — tickets
+        6b to 10*): amendment 7's screen passes all five positions of
+        amendment 8's set. On `suite_v2` 12, steps 20-22 have geomean
+        0.99, both arms finish every depth to 25, and no watchdog fired.
+        Positions 2-5 reproduce amendment 7's read node for node. Bench
+        11's conversion band is recorded and not judged. P41 hit. The
+        cheap qualification is complete (`LOCAL_QUALIFIED`); the
+        independent review is next (packet §10 *Review*, which includes
+        amendment 7 §R and amendment 8 §1-§4).
     - [ ] **B.3.2** `[V]` Diagnostics and the unfitted paired run
       Packet §11, BAS-S41, in the order the roadmap audit of 2026-11-01
       fixed (the entry file is assembled from §11 plus every amendment's
@@ -1451,7 +1460,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.1 | READY_FOR_IMPLEMENTATION | I2 | Research amendment 8 (bench position 11's blowup is the position's conversion band, not ProbCut's; no default moves) decided 2026-11-01: `suite_v2` 12 replaces bench 11 in the screen's set, ProbCut's form unchanged; implementation resumes at ticket 10b, the screen on the amended set (packet amendment 8 §6) |
+| B.3.1 | LOCAL_QUALIFIED | I2 | Cheap qualification complete 2026-11-01: ticket 10b's screen passes all five positions of amendment 8's set (`suite_v2` 12, steps 20-22 geomean 0.99), and bench 11's conversion band is recorded, not judged. Waits for the independent review in a separate session (packet §10 *Review*, including amendment 7 §R and amendment 8 §1-§4) |
 | B.3.2 | RESEARCH | V | Waits for B.3.1's accepted review, then B.14 (which lands before its first game) |
 | B.3.3 | RESEARCH | V | Waits for B.3.2 |
 | B.3.4 | RESEARCH | V | Added 2026-10-31; waits for B.3.3 |

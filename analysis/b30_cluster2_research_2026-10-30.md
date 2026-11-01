@@ -4878,6 +4878,45 @@ reproducing amendment 6 §1.1–1.2 exactly:
 | Whole | a7a8q +506 / h3h4 +107 / h3h4 0 / h3h4 0 | a7a8q +384 / +315 / +918 / +1,144 |
 | `searchmoves a7a8q` | +389 / +516 / +716 / +952 | +446 / 0 / 0 / 0 |
 
+**The screen's position set, from ticket 10b** (research amendment 8 §5,
+the maintainer's decision 1 of 2026-11-01). The rule: from the 40 bench
+and 106 `suite_v2` positions, the OFF arm's largest depth-14 tree among
+those whose depth-14 root score is within ±564 (`B3SeekMateScore`, so
+every ON mechanism is live) and whose tree grows less than 2× at both
+depths 13 and 14 (no resolution event). 53 of the 146 qualify. The
+largest is `suite_v2` position 12,
+`rn2kb1r/pp2pppp/2p5/3q4/3P1Bb1/5NP1/PPP2P1P/R2QKB1R w KQkq`: 746,048
+nodes at depth 14, root score +104, growth 1.96 and 1.27 (the next is
+bench position 2, 653,952). The data is `amend8/a8_select.json`
+(SHA-256 1bae09fa…; the OFF arm, Hash 64, `go depth 14`), re-scored by
+the rule for this record. Position 12 replaces bench position 11 on the
+first line of `t10/screen_positions.epd` (now SHA-256 1ff7b03d…);
+amendment 7's set is kept as `t10/a7/screen_positions_a7.epd`
+(65b6a56a…).
+
+**The conversion-band read, bench position 11** (amendment 8 §2 and
+decision 1: recorded, not judged). Cumulative nodes, growth over the
+previous depth and root score in centipawns; Hash 64, `go depth N` under
+the 600 s per-iteration watchdog (`t10/a7/b11_reads.json`;
+`amend8/a8_r1.json`, the ON ablation build at `AblationMask 8`). The
+band's iterations are in bold.
+
+| Depth | OFF | ON | ON, ProbCut off (bit 8) |
+|---|---|---|---|
+| 19 | 6,663,683 · 1.01 · 2,424 | 4,617,856 · 1.47 · 2,593 | 5,165,192 · 1.17 · 2,608 |
+| 20 | 6,746,421 · 1.01 · 2,424 | **20,917,059 · 4.53 · 2,704** | 7,015,730 · 1.36 · 2,716 |
+| 21 | 6,820,051 · 1.01 · 2,424 | **140,180,782 · 6.70 · 2,878** | **22,919,965 · 3.27 · 2,985** |
+| 22 | 9,665,168 · 1.42 · 2,462 | **640,119,499 · 4.57 · 3,053** | **83,036,567 · 3.62 · 3,307** |
+| 23 | **36,257,665 · 3.75 · 2,700** | — | 93,608,334 · 1.13 · 3,714 |
+| 24 | **157,177,066 · 4.34 · 3,106** | — | — |
+| 25 | **1,781,283,940 · 11.33 · 4,953** | — | — |
+
+Each arm's band begins in the iteration whose root score climbs past
+about 2,700, and every iteration that grows 3× or more ends there or
+higher. The ON arm enters the band three plies before the OFF arm; with
+ProbCut off it enters one ply later than the control and passes it more
+cheaply (amendment 8 §2–§4).
+
 ### Cheap qualification
 
 | Item | Result | Rule |
@@ -4892,11 +4931,35 @@ reproducing amendment 6 §1.1–1.2 exactly:
 | Liveness | all eight bits, both arms | every bit moves nodes |
 | The decision trace on WAC.001, 085, 203, 253 (depth 8, the WAC move as root, Diag) | ON 477 / 332 / 851 / 108 records; OFF 620 / 492 / 824 / 139; `trace_{on,off}_WAC.*.json` | archived |
 | The deep-iteration cost screen (re-scoped, amendment 2 §3; P11) | **FAIL** on `suite_v2` position 50: growth geomean 2.53; the other four pass (*Return 7*) | growth geomean ≤ 1.5, every depth finished |
+| The cost screen on amendment 8's set (ticket 10b: amendment 7 §R's clause, `suite_v2` position 12 for bench position 11; P41) | **PASS** on all five. `suite_v2` 12: steps 20 / 21 / 22 at 0.996 / 0.933 / 1.038, geomean 0.988; both arms finish every depth to 25; no watchdog stop. Bench 15 and `suite_v2` 50, 42 and 60 as amendment 7 read them (0.493, 1.020, 1.016, 1.163), node for node | (a)–(d): steps 20–22 geomean ≤ 1.5, every depth 16–22 finished |
 
 The screen's positions are in `t10/screen_positions.epd` (bench positions
 11 and 15, `suite_v2` positions 50, 42 and 60); `t10/screen_growth.py`
 scores `deep_iteration_screen.py`'s JSON by the re-scoped rule and records
 the absolute ratio.
+
+**Ticket 10b (2026-11-01).** From ticket 10b the set is `suite_v2`
+position 12, bench position 15 and `suite_v2` positions 50, 42 and 60
+(amendment 8 §7's clause).
+
+- **The run.** It was read once with `deep_iteration_screen.py
+  --depth-min 16 --depth-max 25`, the 60 s watchdog and Hash 64
+  (`t10/t10b/screen25b.json`, SHA-256 bc4f052e…, and `screen25b.log`).
+  The binaries were ticket 10's (`t10/a7/hashes.txt`, re-hashed equal;
+  no source change since `f2fa3c6`).
+- **The score.** `t10/a7/screen_score_a7.py` (SHA-256 57c0ea35…, the
+  registered file) scored it into `t10/t10b/score.log`, which exits 0.
+- **The host.** It was in use, but no watchdog fired on either arm, so
+  (d) does not arise.
+- **Identity.** Positions 2–5 reproduce amendment 7's `screen25.json` at
+  every depth on both arms.
+- **Position 12.** The ON arm's tree is 0.41–0.65× the OFF arm's at
+  every depth from 15 to 22 (0.499 at 22) and 0.24× at 25. Steps 17–19
+  read 1.498, 0.865 and 0.920. These numbers are recorded, not judged.
+- **The tool's own verdict.** The screen's printed verdict, the original
+  absolute rule, also reads pass; it is not the verdict.
+
+**P41 scored: hit** (75%).
 
 ### Tests added, tickets 7 to 10
 
@@ -4949,6 +5012,14 @@ the absolute ratio.
 - The fingerprints of the two-arm table, reproduced from a clean tree on
   every flavour.
 - The cost screen's result, once the maintainer has run it on an idle host.
+- Added at ticket 10b (§10 *Review* with amendment 8 §6):
+  - amendment 7 §R's rule against its §0 argument, and the registration
+    order (`50a97b8` before the read);
+  - research amendment 8 §1–§4: the port read line for line, the band on
+    every arm, the constants as a phase reading, and H3's channel left
+    unmeasured;
+  - ticket 10b's selection, re-scored from `amend8/a8_select.json`, and
+    the five-position read with its score.
 
 ## Return 7 — B.3.1 cheap qualification: the re-scoped cost screen fails on `suite_v2` position 50 (2026-10-31)
 
