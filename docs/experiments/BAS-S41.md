@@ -301,3 +301,27 @@ Predictions frozen by the amendments for B.3.2's runs (verbatim):
     return trigger (70%), does not fire.
   - **P9:** pending the idle-host NPS read. **P1, P10, P13, P17, P32 and
     P33** are read by the games and their counter reads.
+- **§9 item 1 at `3+0.03`, which is also item 2's read B** (maintainer-run
+  2026-11-01; `B3CheckExt=1` as arm A against the defaults; seed 41001;
+  2,000 games; 0 faults, 0 time losses; the PGN recount agrees):
+  - **−22.4 ± 9.7 Elo** (nElo −35.4 ± 15.2); W/D/L 457/957/586;
+    pentanomial [57, 272, 444, 197, 30]. The 95% interval [−32.1, −12.7]
+    excludes 0.
+  - Per move, the check extension searches 14.59 plies on average without
+    mate scores (median 14) against 16.38 (median 15) for the default. It
+    spends 125,636 nodes per move at 1.77M nodes per second, against
+    133,797 at 1.92M.
+  - Provenance: manifest `colosseum_match_b32-cat-CheckExt_20261101_223700.manifest.txt`,
+    repo `92575a3` clean, host 3.8% busy and not waived, dry run
+    `13A24567…`; run record `0409D8E9…`, PGN `A3EA295E…`.
+  - **By the registered rule:** item 1 adopts 1 only if neither read is
+    ≤ −5 and one is ≥ +5. This read is ≤ −5 with its interval excluding
+    0, so the unconditional check extension cannot be adopted whatever
+    the `10+0.1` read says, and the default 0 stands. Item 2's read B,
+    the default against (1, 1), reads +22.4 for the default.
+  - **P10's first leg missed:** it predicted within ±8. The sign is the
+    premise's: with informed in-check pruning, the extension costs
+    depth.
+  - The `10+0.1` run stays registered and is read as recorded: the rule
+    is already decided, but it is BAS-X01's re-read, and a registered
+    run is not shrunk after a result.

@@ -1026,6 +1026,12 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         - `tools/run_b32_games.ps1` is prepared: items 1-3 (five runs)
           and the paired run, all dry runs accepted. Each game waits for
           the maintainer's go-ahead.
+      - §9 item 1 at `3+0.03` (also item 2's read B), maintainer-run
+        2026-11-01: `B3CheckExt=1` reads **−22.4 ± 9.7 Elo** (2,000
+        games, 0 faults), 1.8 plies shallower per move. The interval
+        excludes 0, so by item 1's rule the extension cannot be adopted
+        and the default 0 stands; P10's first leg (within ±8) missed.
+        The `10+0.1` run stays registered as the recorded LTC read.
       - Maintainer decision 2026-11-01 (review follow-up 5): B.12, B.14,
         B.3.0 and Cluster 2 reach `master` together, in one delivery at
         the end of Cluster 2, once everything is accepted.
