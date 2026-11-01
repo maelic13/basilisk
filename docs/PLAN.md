@@ -768,7 +768,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         `ttMoveHistory` is not an LMR term in `edb0d9db` (B-51 moot);
         the oracle build exposes no counters, so B-54 reads ON against
         OFF.
-    - [ ] **B.3.1** `[I2]` Implement behind the umbrella switch
+    - [x] **B.3.1** `[I2]` Implement behind the umbrella switch
       The packet's contract behind one umbrella option, both arms building;
       accepted by an independent review that reproduces the fingerprints
       before diagnostics start.
@@ -968,6 +968,17 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         cheap qualification is complete (`LOCAL_QUALIFIED`); the
         independent review is next (packet §10 *Review*, which includes
         amendment 7 §R and amendment 8 §1-§4).
+      - Review accepted with named follow-ups, 2026-11-01 (packet
+        *Review*, a separate session): every fingerprint reproduced from
+        clean trees on all four flavours and both sanitizer trees, CTest
+        25/25 and 23/23 on both arms, WAC 241 at 100k and 132 at depth 6,
+        floors 24 x 15 with KBN-K 120, the fixture +918, the 28 held, all
+        eight bits live, the wire check 237, amendment 8's selection
+        re-scored and amendment 7's screen reproduced node for node (all
+        five pass); the code matches the handoff as amended with four
+        unrecorded deviations, none a change of mechanism; follow-ups:
+        amendment 2's surface additions for B.3.3's registration, and
+        three packet-record items. Closed.
     - [ ] **B.3.2** `[V]` Diagnostics and the unfitted paired run
       Packet §11, BAS-S41, in the order the roadmap audit of 2026-11-01
       fixed (the entry file is assembled from §11 plus every amendment's
@@ -1460,8 +1471,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.1 | LOCAL_QUALIFIED | I2 | Cheap qualification complete 2026-11-01: ticket 10b's screen passes all five positions of amendment 8's set (`suite_v2` 12, steps 20-22 geomean 0.99), and bench 11's conversion band is recorded, not judged. Waits for the independent review in a separate session (packet §10 *Review*, including amendment 7 §R and amendment 8 §1-§4) |
-| B.3.2 | RESEARCH | V | Waits for B.3.1's accepted review, then B.14 (which lands before its first game) |
+| B.3.2 | RESEARCH | V | B.3.1's review accepted 2026-11-01 (packet *Review*); waits for B.14 (which lands before its first game); the review's follow-up 1 (amendment 2's surface additions) belongs to B.3.3's registration and follow-ups 2-4 to the packet's record at B.3.2's opening |
 | B.3.3 | RESEARCH | V | Waits for B.3.2 |
 | B.3.4 | RESEARCH | V | Added 2026-10-31; waits for B.3.3 |
 | B.3.5 | RESEARCH | V | Waits for B.3.4 (renumbered from B.3.4 on 2026-10-31) |

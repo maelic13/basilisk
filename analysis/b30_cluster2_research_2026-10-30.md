@@ -6049,3 +6049,368 @@ reads say the arm's cost in the band is set by where the climb lands
 (razoring and the move-loop leaves, P39), with step 13 inert at the
 widened windows (P38). The channel left in §4 is registered as
 unmeasured, with its counter named, not as a finding.
+
+## Review — B.3.1 accepted with named follow-ups (2026-11-01)
+
+Independent review of B.3.1 at `ee90a12`, in a separate session from the
+implementing one (PROCESS *Reusable review prompt*; §10 *Review*; the
+implementation record's *What the reviewer must check*, tickets 0 to 6 and
+6b to 10b). Class `R2`. Nothing was fixed, no default, seed, floor, test or
+clause was moved, and no game was played. Every read below is a node-count
+or depth read on trees rebuilt from the committed source; the host was in
+use throughout, which the reads tolerate (amendment 7 §R (d)). Evidence:
+the review's logs and JSON are in `tools/results/b31-20261030/review/`
+(ignored storage), with the clean trees under `build/rev-*`.
+
+**Verdict: accept, with the follow-ups of §4.** Every fingerprint, test and
+binding read of the implementation record reproduces from a clean tree on
+every flavour and both sanitizer trees; the code matches §10 as amended by
+research amendments 1 to 8 and the maintainer's decisions, with the
+deviations the record lists plus four it does not, none a change of
+mechanism; DESIGN §3's invariants hold on both arms; the OFF arm's edits are
+shared seams only; amendment 7's rule was registered before its read and
+is consistent with its argument, and the departure in its class and session
+cost the leaf one more return without letting a wrong clause stand;
+amendment 8 §1 to §4 reproduce from its own data and the donor's source.
+The follow-ups are records and registrations for B.3.2 and B.3.3, not
+returns.
+
+### 1. Rebuilt from clean sources, every fingerprint reproduced
+
+Ten trees configured and built from `ee90a12` with the record's recipe
+(`cmake --preset release`, `-DUSE_PEXT=ON -DPORTABLE_BUILD=ON -DCOMP=clang`,
+target `all`, Clang 23.1.4; the sanitizer trees `--preset debug`, ASan and
+UBSan), into fresh directories (`build/rev-{on,off}[-tune|-diag|-ablate|-san]`),
+not the implementer's.
+
+| Read | OFF | ON | Record |
+|---|---:|---:|---|
+| `bench 13` Release / Tune / Diag / Ablate | 16,615,757 × 4 | 6,723,172 × 4 | equal |
+| `bench 10` release / sanitizer | 4,034,698 / 4,034,698 | 1,367,728 / 1,367,728 | equal |
+| Release CTest | 25/25 | 25/25 | 25/25 both |
+| Sanitizer CTest, `-LE strength` (ASan, UBSan; node checks armed) | 23/23, no report | 23/23, no report | 23/23 both |
+| WAC at 100,000 nodes | 240 | **241** (floor 232) | 240 / 241 |
+| WAC at 400,000 nodes | — | 261 | 261 |
+| WAC depth 6, count (the ON arm's regression guard 119, headroom 20) | — | 132 (`--floor` passes) | 132 |
+| Conversion floors, KQ-K / KR-K / KBB-K at 30k, 45k, 60k, 90k, 120k | — | 24 at every budget | 24 at every budget |
+| KBN-K at the five budgets (sum ≥ 112) | — | 24 / 24 / 24 / 24 / 24 = **120** | 24 × 5 = 120 |
+| `test_endgames` (the 28 wrong-bishop reads among its 121 sections) | — | 121/121 | 121/121 |
+| The promotion fixture `3r4/P7/2K1p3/R7/5p2/6kP/8/8 w` at 100,000 nodes | a7a8q +616 (depth 11) | **a7a8q +918 (depth 10)** | a7a8q +616 / +918 |
+| Liveness of the eight ablation bits (`ablation_liveness.py`, depth 9) | all eight | all eight | all eight, both arms |
+| Depth-20 wire check, bench position 11 (ON Diag) | — | 237 verifications, 0 failed; 370 of 1,081 firings truncated; 20,917,059 nodes | `null_verifications` 237, `ext_budget_bound` 370 / 1,081 |
+| Depth-20 wire check, bench position 15 (ON Diag) | — | 0 verifications; 263 of 566; 122,131 nodes | 0 and 263 / 566 |
+
+Binaries' SHA-256 (release): ON `7ab40104…`, OFF `11386c4b…`; the Diag,
+Ablate and Tune builds beside them in `review/hashes.txt`. The hashes differ
+from ticket 10's (`t10/hashes.txt`) as a fresh non-reproducible build's do;
+the fingerprints are what the record claims and are what the review
+compares.
+
+### 2. The two research reads re-done
+
+**Amendment 8's selection (ticket 10b), re-scored from `amend8/a8_select.json`**
+(SHA-256 `1bae09fa…`, unchanged): 146 rows; the rule (`|score14| < 564`,
+growth at 13 and 14 both < 2) admits 53; the largest is `suite_v2` 12 at
+746,048 nodes, +104, growth 1.96 and 1.27; the next is bench 2 at 653,952.
+Bench 11 reads +2,079 at depth 14 (701,309 nodes) and is excluded by the
+score clause. Exactly as recorded.
+
+**Amendment 7's screen on amendment 8's set**, run once by this session
+(`deep_iteration_screen.py --depth-min 16 --depth-max 25`, the 60 s
+watchdog, Hash 64, base `build/rev-off`, arm `build/rev-on`,
+`t10/screen_positions.epd` at SHA-256 `1ff7b03d…`), scored by the
+registered `t10/a7/screen_score_a7.py` (SHA-256 `57c0ea35…`):
+
+| # | Position | Steps 17–19 (recorded) | Steps 20–22 | (b) geomean | (a) 16–22 | Absolute at 22 (recorded) | Verdict |
+|---|---|---|---|---|---|---|---|
+| 1 | `suite_v2` 12 | 1.498 / 0.865 / 0.920 | 0.996 / 0.933 / 1.038 | 0.988 | holds | 0.499 | pass |
+| 2 | bench 15 | 0.927 / 0.710 / 0.585 | 0.465 / 0.447 / 0.578 | 0.493 | holds | 0.019 | pass |
+| 3 | `suite_v2` 50 | 2.270 / 1.925 / 3.709 | 1.015 / 1.017 / 1.027 | 1.020 | holds | 0.401 | pass |
+| 4 | `suite_v2` 42 | 0.996 / 1.008 / 1.006 | 1.012 / 1.015 / 1.020 | 1.016 | holds | 0.251 | pass |
+| 5 | `suite_v2` 60 | 1.100 / 1.118 / 1.125 | 1.147 / 1.157 / 1.183 | 1.163 | holds | 0.024 | pass |
+
+The scorer reads **PASS** (exit 0) with no watchdog stop on either arm, so (d) does not arise. Every per-depth node count on both arms, at every depth 1 to 25 of all five positions, equals ticket 10b's `t10/t10b/screen25b.json` (SHA-256 `bc4f052e…`): the read is reproduced node for node from the clean trees. P41's hit stands.
+
+### 3. The code against the handoff, ticket by ticket
+
+Read against §10 as amended (amendments 1 to 8 with the maintainer's
+decisions), §7's seeds as amended, §9's defaults as amended, and the donor's
+`search.cpp` at `edb0d9db` (steps 10 to 13, 16, the TT penalty at `:913-920`,
+the final store, `is_shuffling` at `:153`, `qsearch`'s repetition test at
+`:1661-1667`). E = an ordinary engineering choice; M = a change of mechanism;
+R = recorded in the packet (the record's deviations, or the amendment named).
+
+- **Ticket 0.** The option, definition and CI cell as written (`flavors`
+  gains the `B3_PROOF` cell, CTest and `bench 13`). The counters are
+  appended (117 entries, never renamed), each with its denominator in the
+  table and its unit in `run_suite.py` (22 names: the 21 of the ticket plus
+  `pv_quiet_pruned` from amendment 1 §6); the six trace events are
+  appended and `decision_trace.py` rejects unknown names. The counters
+  landed on the OFF arm's legacy blocks too (`sing_tries`, `sing_multicut`,
+  `sing_cap_bound`, the null-move depth buckets): E, Diag-only, R.
+- **Ticket 1 / 1b.** `follow_pv`, `ext_plies`, `ext_taken`, the previous PV
+  and raw root score in the driver (MultiPV lines after the first carry an
+  empty PV), `root_score_` set in `root_search()`. The budget's arithmetic
+  is in `search_b3.h` and applied at ticket 6 (amendment 1, R). The node
+  checks hold: a child's `ext_plies` is its parent's plus `ext_taken`;
+  `!B3ExtBudget || ext_plies ≤ root_depth_`; `follow_pv` only under a
+  following parent. The null and ProbCut children and the same-ply
+  re-entries inherit the node's `ext_plies`. The root's `ext_plies` is never
+  written and stays at its default 0.
+- **Ticket 2.** No in-check extension on the ON arm unless `B3CheckExt`;
+  `check_prune` admits in-check nodes to LMR, the first-move step-down, the
+  `depth -= 3` step and the whole move-loop block with quiet futility gated
+  `!in_check`: the donor's own gates (its capture futility has no in-check
+  clause; its quiet futility does). The PV quiet-pruning consumer
+  (`!is_pv || (b3_pv_quiet_prune && !follow_pv)`), amendment 1 §6 and
+  amendment 3 (R). `sing_in_check` and `sing_triple` count the categorical's
+  extension only. The ON arm's `test_wac` ran `--count` until ticket 10: E, R.
+- **Ticket 3.** The donor's step 10 line for line at the contract's seeds
+  (`16·d + 16·improving − 151`, floor −564, `R = 7 + d/3 + max((se − β)/72, 0)`,
+  no depth floor, the null child `NonPV` with `cut_node = false`, no win
+  returned unproven, the region `ply + 3(d − R)/4` at depth ≥ 16 outside a
+  verification, the verification at `d − R` under `(β − 1, β)` with
+  `cut_node = false` and null moves allowed, the region cleared after it,
+  the null score returned only when the verification reaches β, no
+  verification inside one). `B3NmpCutOnly`, `B3NmpVerify` 0/1/2 and
+  amendment 2's `B3NmpEvalGate` (default 0, the maintainer's decision 2).
+  Basilisk's `allow_null` and previous-null guards kept, the exclusion
+  search passing `allow_null = false` in place of the donor's
+  `!excludedMove`: E, R. B-37: the verification re-enters the node's record;
+  `move_count` and `stat_score` are saved and restored around it because
+  ProbCut's children read `(ss − 1)->move_count` and `stat_score`: E, R
+  (the record's "first branch"). Two things the record's field list does
+  not carry, both shared with the donor and neither a change of mechanism:
+  (i) the re-entry rewrites `ss->eval` and `ss->raw_eval` from the same
+  raw evaluation but the correction as the null subtree and the
+  verification left it, so after a verification the node's `improving |=
+  ss->eval ≥ β` and its children's `(ss − 1)->eval` reads (hindsight, the
+  eval-difference training, the in-check inheritance) see the re-entry's
+  corrected value while the node's own `static_eval` and `eval` locals keep
+  the first; the donor's `ss->staticEval` behaves the same, and its
+  `improving |=` reads it; (ii) `tt_hit` and `in_check` are rewritten equal.
+  Follow-up 2. The wire check: the clause reads "bench positions 11 and 15
+  read `null_verifications ≥ 1`"; position 15 (`8/8/p1p5/1p5p/1P5P/P1P5/8/K1k5 w`)
+  is a pawn ending with no non-pawn material, where the null move is never
+  tried, so the clause was unsatisfiable there by construction; the record
+  reads 0 and narrows the rule column to position 11 without listing the
+  narrowing as a deviation. The wire is proved live by position 11
+  (reproduced above). Follow-up 3.
+- **Ticket 4.** `!follow_pv && (is_pv || cut_node) && depth ≥ 6 && tt_move
+  == NONE`, after the null move's `improving |= ss->eval ≥ β` and before
+  ProbCut, as the donor; `B3Iir`, `B3IirStale`, `iir_pv_nodes`. Not in check
+  (the donor reaches step 11 only out of check): E, R.
+- **Ticket 5.** The donor's step 12 line for line at the converted margin
+  (`β + 68 − 18·improving`, depth ≥ 3, `!is_decisive(β)`, the valid-TT-value
+  guard, PV nodes admitted under `B3ProbCutPv`, `ProbCutPicker` over
+  captures and queen promotions in capture-history order with the TT move
+  first after the main picker's validation and SEE at `pc_beta −
+  static_eval`, the excluded move skipped, quiescence at `(−pc_beta,
+  −pc_beta + 1)`, the reduced search at `d − (improving ? 5 : 3)` with
+  `!cut_node`, the store at `pc_depth + 1` as a lower bound with the raw
+  evaluation and the node's `tt_pv`, the return `value − (pc_beta − β)`
+  unless decisive). `!is_root` added, which §10's invariants require
+  (nothing at the root is pruned by a B.3 mechanism) and amendment 8 §1
+  records: E. No underpromotion (the donor's capture stage): E, R. The
+  store's evaluation at an exclusion node is the entry's own raw value
+  (the donor writes its corrected `ss->staticEval` there): E, R, and the
+  one difference amendment 8 §1's line-for-line read does not name
+  (follow-up 4). The small ProbCut behind `B3ProbCutTt` default 0 with
+  margin 240 (amendment 2 §2, R), in check too, refusing decisive β and
+  TT scores. The picker is tested over 3,000 positions.
+- **Ticket 6 / 6b.** Entry as the donor's step 16 (`m == tt_move`, no
+  exclusion, `depth ≥ 6 + tt_pv`, a valid non-decisive TT score proving a
+  lower bound at `tt_depth ≥ d − 3` or `d − 2` under `B3SingTtDepth`,
+  `is_shuffling` ported as written, `seek_mate` from root depth 12 at |root
+  score| ≥ 564 on the previous completed iteration's raw score), `s_beta =
+  tt_score − (252 + 19·(tt_pv && !PV))·d/63`, `s_depth = (d − 1)/2`, the
+  exclusion search `NonPV` under the node's `cut_node`; the double and
+  triple bars of §7 as amended (quiet triple term 0; the correction term
+  `min(|corr|/198368, 101)`; the `ttMoveHistory` term `331·tmh/114178`;
+  `deep = ply > root_depth_`); `1 + (…) + (…)` under the budget, truncated
+  and counted, then `depth++`; multi-cut under `B3MultiCut` 0/1 refusing a
+  decisive value, with `−421 − 110·d` to the TT-move history and the
+  correction bonus `clamp((v − se)·1000/282·sd·177/1024, ±256)` out of
+  check when `v > se`, returning the value; `−3` when `tt_score ≥ β || cut
+  node`. The node's `depth++` deepens the later moves and not the TT move
+  (`depth_bump`), with the TT move's reduction read before the bump as the
+  donor's `reduction()` is: E, R. `ply < MAX_PLY − 2` on the entry: E, R.
+  `singular_quiet_lmr` dead unless `B3SingularQuietLmr`; the double cap
+  gone. The margin 252 and `B3SeekMateDepth` 12 (amendment 3, the
+  maintainer's decisions 1 and 2; R); nine X lines for "the double and
+  triple bars 8" (R). One definition the contract inherits from B.2 rather
+  than the donor: Basilisk's capture stage is a capture or any promotion,
+  the donor's a capture or a queen promotion, so `!ttCapture` in the bars
+  and `is_shuffling`'s capture clause read an underpromotion TT move as a
+  capture here: E, Basilisk's existing definition, not recorded, no
+  consequence the review can name.
+- **Ticket 7 / 7b.** `B3CorrDecisive` (the refusal of decisive scores
+  removed, the bonus clamped), `B3CorrExcluded` with amendment 4's
+  raw-evaluation guard on `ss->raw_eval` (written beside `ss->eval` on
+  both arms, read on the ON arm's training block only; the maintainer's
+  decision 1; R), `CoreHistoryFills` at the first search after a clear
+  with sf_19's `Worker::clear()` values (tested). The floors with
+  `B3CorrDecisive` 0 and 1 are recorded (120 both).
+- **Ticket 8.** The cuckoo tables (8,192 slots, the donor's `H1`/`H2`, every
+  reversible move of every non-pawn piece between two squares, asserted
+  complete at 3,668, tested complete by the attack tables),
+  `Board::upcoming_repetition(ply)` as the donor's loop with the bound
+  `min(rule50, plies_from_null, history)` (the history bound is an added
+  safety the slow reference shares: E, not recorded) and the
+  between-squares occupancy test; the two consumers behind `B3Cuckoo`
+  where the ticket puts them: negamax after `is_draw` and before the
+  check-extension, the quiescence hand-off and mate-distance pruning;
+  quiescence after its draw check on nodes it was not handed; `alpha < 0`
+  only, raising alpha to 0 and returning it when that reaches beta (the
+  draw value 0, not the donor's `value_draw`). The terminal test in
+  amendment 5's form through the test-only `SearchLimits::root_alpha`
+  /`root_beta` seam (R; test (b) withdrawn, R). No false positive against
+  the slow reference over 10,000 positions.
+- **Ticket 9 / 9b.** The fail-low store behind `B3FailLowStore` with the
+  default **0** (amendment 6, the maintainer's decision 1; R): the OFF
+  arm's form stores the best-scored move, the ON arm at 1 stores none and
+  the entry keeps its own. The penalty behind `B3TtPenalty` 1 as the
+  donor's `else if` on the cutoff block (`!PV`, no exclusion, a valid score,
+  `tt_depth > d − (tt_score ≤ β)`, the bound on the wrong side, `d > 5`):
+  Basilisk's cutoff block carries Cluster 1's typed-cutoff clause inside
+  the same `if`, which cannot divert a wrong-side bound into the `else if`
+  and cannot reach it at `d ≤ 4`, so the two conditions are equivalent.
+  `TranspositionTable::penalize` rewrites the payload with `depth − 1` and
+  nothing else, leaving an entry at depth ≤ 0 alone where the donor
+  clamps its byte at 0: E, unreachable (the condition needs `tt_depth ≥ 5`),
+  tested, R (the test's text). The switch test on bench position 3: E, R.
+- **Ticket 10 / 10b.** Bits 2, 3 (the small ProbCut included), 4 and 6 on
+  the ON arm's mechanisms; the check extension exists only under the
+  tune-build categorical so the Ablate flavour never has it (B-109 by
+  construction); the depth-6 floor 119 chosen in `test_wac.cpp` by
+  `kB3Proof` (E, R); the CI cell since ticket 0. The screen's set replaced
+  by amendment 8's rule (R). Not made at ticket 10, where Return 3 placed
+  them: amendment 2 §3's three RFP coordinates on B.3.3's surface and the
+  donor's whole pair (margin 17 with the quiet triple term at −53) as a
+  registered sweep point (the maintainer's decision 1 on amendment 2);
+  `config_b3.json` carries the twenty B3 X lines and `b3.tune.toml` the
+  three sweep notes of amendment 3 only. Follow-up 1.
+
+**The OFF arm's shared seams.** Every legacy block the ON arm replaces is
+prefixed `!kB3Proof &&` (NMP, ProbCut, IIR, the singular block); the ON
+blocks are `if constexpr (kB3Proof)`. What the OFF arm shares: the counters
+and trace events (Diag-only); the stack fields `follow_pv`, `ext_plies`,
+`ext_taken` (never written on the OFF arm) and `raw_eval` (written, never
+read); the driver's previous PV and raw root score, `root_score_`,
+`nmp_min_ply_` (reset per search), `hist_fresh_`; the root-window seam at
+its equal defaults; `penalize` reached only from an ON branch; the quiet
+futility `!in_check` that the OFF arm never reaches in check; `KNOWN_WIN`
+moved from `eval.cpp` to `eval.h` unchanged; and B.12's quiescence repair,
+which is this branch's (`d8d30e9`) and inside the OFF fingerprint. The
+fingerprint and CTest reproduce on every OFF flavour, which is the proof.
+
+**DESIGN §3's invariants, both arms.** The mate constants stay in
+`constants.h`; no static score enters the mate band; TT scores are
+ply-adjusted on store and probe (every new store goes through `tt_store`);
+every TT move is validated at every consumer (the ProbCut stage validates
+piece, colour, legality and candidacy); the stored static eval is the raw
+one; the fail-high blend is untouched; the draw value is 0; nothing at the
+root is pruned, reduced or extended by a B.3 mechanism (`!is_root` on the
+cuckoo, ProbCut, the small ProbCut and the singular entry; NMP runs only
+at cut nodes, never the root); the exclusion search keeps the node's
+`tt_pv`; the node checks hold at every entry under the sanitizer CTest
+(`test_stack_unwind`, `test_b3_proof`, `test_search`); `ply < MAX_PLY − 2`
+bounds the singular entry; the budget's invariant is a node check; no
+mechanism admits a decisive value the donor refuses. The TT's two-publication
+tolerance (BAS-C05) applies to `penalize` as to any store and is said so in
+the seam.
+
+**The interactions §5 names** are read where the handoff puts them: the
+check policy against every move-loop rule and LMR (ticket 2's in-check
+counters); the proof-search children's `cut_node` typing (the null child an
+all node, ProbCut's `!cut_node`, the exclusion search the node's own); the
+RFP–NMP hand-off band (amendment 2 §3, follow-up 1); the no-TT-move
+population (amendment 6, §9 item 16); `seekMate` against the mate drives
+(the floors); the budget against hindsight and the negative reductions
+(neither consumes it). The donor's `ttMoveHistory` has two producers on
+the ON arm as in the donor.
+
+### 4. Amendment 7's rule, class and order; amendment 8 §1–§4
+
+**Order.** `50a97b8` (2026-11-01 12:53:36) carries §R and no §1; the screen's
+JSON `t10/a7/screen25.json` was written at 12:57:52 and §1 landed in
+`bb64565` (13:31:47). The rule preceded the read.
+
+**The rule against its argument.** §0 argues that a position whose OFF arm
+resolves at depth 13 or 14 and whose ON arm resolves later shows the ON
+arm's approach as growth inside 16–19 against a flat baseline, and that an
+explosion of the kind the screen was built for (a ply bound that does not
+bound the tree) persists. §R keeps the statistic and the bound and moves
+the judged steps to 20–22, with (c) a second window to 25 and (d) a
+watchdog rule that makes node counts decide. That follows from the
+argument for a resolution hump, and the scorer's self-test shows a
+sustained ×2 explosion still fails. Two limits, both now on record: the
+window was chosen after position 50's depths 20–22 were exposed (the
+addendum's read 2), which §R says and excludes from the evidence; and the
+rule still compares the arms at matched depth, so a position-driven event
+entered at different depths fails it, which Return 8 then read as a
+mechanism and amendment 8 corrected.
+
+**The departure.** PROCESS's role table puts a research amendment at `R3`
+in a separate session; amendment 7 was written as `R2` in the implementing
+session at the maintainer's instruction. What it moved was one clause's
+reading window, on a causal question the addendum's deterministic reads
+had answered and this review reproduces (position 50's steps 20–22 read
+1.015, 1.017, 1.027 here). The cost of the departure was realised in the
+next step, not in the clause: the same session's Return 8 misattributed
+bench 11's band to ProbCut, and the `R3` amendment in a separate session
+(amendment 8) corrected it with the port read line for line. The clause
+itself stands unchanged and passes on the set amendment 8's rule chooses.
+The review weighs the departure as acceptable for a window change under
+the maintainer's instruction, with this review as the control amendment 7
+§3 asked for; a mechanism decision would not have been.
+
+**Amendment 8 §1–§4.** §1: the donor's step 12 at `:1046-1093` against the
+kernel's block reads line for line as the amendment says, with its two
+named differences (the root skipped; the `is_decisive` band) and one it does
+not name (the exclusion-node store's evaluation, ticket 5's recorded
+deviation; unreachable on the band, since no ProbCut store there is at an
+exclusion node of consequence). §2: the band on every arm reproduces from
+the logs (`b11_on.log`, `b11_off.log`, `a8_r1_m8_d23.log`, the seven
+`a8_r2_*_d21.log`): every step with growth ≥ 3 at depth ≥ 17 ends with a
+root score of 2,700 or more on every arm, and no arm grows 3× before its
+score passes about 2,650 (P40). §3: the R2 counts reproduce from
+`a8_r2.json` (control 140.18M at 21; (a) 46.42M, (b) 529.11M, (c) 67.77M,
+(d) 573.39M, (e) identical, (f) 33.30M, (g) 111.22M) and are non-monotone in
+the margin, the depth gate and the reduction as stated. §4: the channel left
+is labelled unmeasured with its counter named, and the game-depth argument
+is a statement of where the read would be taken, not a finding. The
+maintainer's decisions (1 taken, 2 not taken) are recorded in the packet.
+
+### 5. Follow-ups (records and registrations; no code, no default)
+
+1. **B.3.3's surface registration** (BAS-S42's assembly): add amendment 2
+   §3's `CoreRfpPerPly`, `CoreRfpImproving` and `CoreRfpDepthCap` to the
+   Cluster 2 surface by §5.12's rule, and the donor's pair (margin 17 with
+   `B3SingTripleQuiet` −53) as a registered curvature-sweep point beside
+   the margin's extra points, as the maintainer's decision 1 on amendment 2
+   states; decide whether `B3ProbCutTtMargin` stays an X line while
+   `B3ProbCutTt` is 0 (an inert coordinate on the surface). Owner: B.3.3's
+   registration, before the sweep.
+2. **The B-37 field list** gains `ss->eval` and `ss->raw_eval` (rewritten by
+   the verification re-entry under the correction as the null subtree left
+   it; read afterwards by the node's `improving |=` and by its children;
+   shared with the donor) and the equal rewrites of `tt_hit` and `in_check`.
+   Owner: the packet's record, at B.3.2's opening.
+3. **Ticket 3's wire check** is recorded as satisfiable on bench position 11
+   only (position 15 is a pawn ending); the record's rule column says so
+   rather than narrowing silently. Owner: the packet's record.
+4. **Amendment 8 §1** gains the third port difference (the exclusion-node
+   store's evaluation, raw here, corrected in the donor). Owner: the
+   packet's record.
+5. **Delivery shape.** B.12's repair (`d8d30e9`) and B.3.0 are on this
+   branch and not on `master`, whose head is `43b4c35`; the OFF fingerprint
+   16,615,757 is the branch's. AGENTS *Commits and reporting* lands one
+   feature per PR; how B.12, B.3.0 and B.3.1 reach `master` is the
+   maintainer's delivery decision, raised here so the review's "OFF arm
+   reproduces master" is read correctly: it reproduces the branch's OFF
+   arm. Owner: the maintainer, before B.3.2's first game.
+
+Not follow-ups: the `is_shuffling` capture-stage definition and the history
+bound in `upcoming_repetition` (§3), both Basilisk's own definitions with no
+consequence the review can name; they are listed for completeness.
