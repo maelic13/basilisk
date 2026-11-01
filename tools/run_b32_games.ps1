@@ -48,8 +48,10 @@ $wrapper = Join-Path $PSScriptRoot 'colosseum.ps1'
 $engines = Join-Path $PSScriptRoot 'test_engines'
 $results = Join-Path $PSScriptRoot 'results'
 $revision = 'c6f7151a9da91a7990d01ed5b4217164b5466c61'
-$on   = @{ Path = Join-Path $engines 'basilisk-b32-on-pgo1-pext-pgo.exe';       Sha = '4CE2E74867ECE9A394188F110C937423B1EC93598D2314ABAB93E6745152640D'; Bench = 4923507 }
-$off  = @{ Path = Join-Path $engines 'basilisk-b32-off-pgo1-pext-pgo.exe';      Sha = 'A919936F9199F7778BA77CAB7ACDA574E2767BEDC87F7CE6ED29CAFB7DDB8CAD'; Bench = 11880564 }
+# The paired arms are build 1 of each NPS pool (b32-on, b32-off), which
+# replaced the first pgo1 builds under the same names before any game used them.
+$on   = @{ Path = Join-Path $engines 'basilisk-b32-on-pgo1-pext-pgo.exe';       Sha = '0B5D9DC605D765ECAC802775C83067A6A5454EB8AF21D73DEFEE0E29F77EA0D5'; Bench = 4923507 }
+$off  = @{ Path = Join-Path $engines 'basilisk-b32-off-pgo1-pext-pgo.exe';      Sha = '8E5B98742393E76DD196534A945BFF5A09B7E96A3AEE7A2F17D06298CE9646E5'; Bench = 11880564 }
 $tune = @{ Path = Join-Path $engines 'basilisk-b32-on-tune-pext-tune-pgo.exe';  Sha = 'B757C9369EEACCA541DA7457D2C892F7EDD7F6CE9814F245D9535F24F2052F70'; Bench = 4923507 }
 
 # Alternative (arm A) against the defaults (arm B), the control and the seed
