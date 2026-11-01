@@ -7235,3 +7235,29 @@ C-A9-1 is taken (the OFF arm's clause: `a7a8q` with a positive score at
 the narrowed form is BAS-S44's candidate. B.14 resumes at the amended
 candidate: `narrow.patch` and the test edit in one engine commit, the
 binding reads on the committed tree, then BAS-S44's registration.
+
+### B.14 implemented on the amended candidate (2026-11-01)
+
+Engine commit `1b2515b`: `narrow.patch` (SHA-256 2eb8d896...) applied to
+`e883a13` and C-A9-1's test edit (`r8_test.patch`'s content, the comment
+updated) in one commit. Evidence: `tools/results/b14-20261101/amend9/commit/`
+(build logs, `ctest-*-san.log`) and `amend9/commit_price.{json,txt}` with
+its `ctest_commit_*.log`, `conv_commit_*_*.log`, `endgames_commit_*.log`.
+
+| Read | OFF | ON |
+|---|---:|---:|
+| `bench 13`, release / Tune / Diag / Ablate / final PGO | 11,880,564 x 5 | 4,923,507 x 4 (PGO: OFF arm only) |
+| `bench 10`, sanitizer trees = release | 3,647,409 | 1,507,204 |
+| Release CTest; ASan+UBSan CTest (`-LE strength`) | 25/25; 23/23 | 25/25; 23/23 |
+| Wrong-bishop 28 / organic 7 / primed 28; `test_endgames` | 28 / 7 / 28; exit 0 | 28 / 7 / 28; exit 0 |
+| WAC at 100,000 nodes; depth 6 | 240; 182 | 241; 132 |
+| KQ-K, KR-K, KBB-K at the five budgets; KBN-K sum | 24 each; 115 | 24 each; 120 |
+| The fixture at 33k / 60k / 100k / 200k / 400k / 1M | `a5a3` +7 / `a5a3` 0 / `a5a3` 0 / `a7a8q` +781 / +781 / +781 | `a7a8q` +347 / +347 / +957 / +957 / +1,307 / +1,374 |
+
+Every number equals amendment 9's R7 read on the temporary builds. The
+gate: BAS-S44 registered (`docs/experiments/BAS-S44.md`, prediction
+frozen), `tools/run_b14_gate.ps1`, `b14-fix` (77BB764C..., bench
+11,880,564, clean manifest at `1b2515b`) against `b14-base` (3CC41280...,
+16,615,757, clean at `c15d097`, built from a temporary worktree); dry run accepted 2026-11-01 (`tools/results/colosseum_sprt_b14-gate_20261101_213650.*`, dry run 32006BE5..., manifest 443FA844...).
+The fingerprint record (GUIDE, `AGENTS.md`, DESIGN) stays at 16,615,757
+until the verdict, as BAS-S40's rule did for B.12.

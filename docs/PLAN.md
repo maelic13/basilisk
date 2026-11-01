@@ -1515,6 +1515,23 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     fixture edit before decision 1.
   - Maintainer decision 2026-11-01: C-A9-1 taken and the narrowed form
     is BAS-S44's candidate. Resumes at the amended candidate (`I2`).
+  - Implemented 2026-11-01, `LOCAL_QUALIFIED` (`1b2515b`: `narrow.patch`
+    and C-A9-1's test edit in one engine commit; packet *B.14*, the
+    record after amendment 9).
+    - `bench 13`: OFF 16,615,757 -> 11,880,564, ON 6,723,172 ->
+      4,923,507, equal on the Tune, Diag and Ablate flavours and on the
+      final-PGO build; `bench 10` on the sanitizer trees equal to release.
+      B.3.1's OFF arm re-bases; the fingerprint record stays at
+      16,615,757 until BAS-S44's verdict.
+    - CTest 25/25 on both arms, 23/23 under ASan and UBSan (`-LE
+      strength`); both B.14 fixtures 7/7 and 28/28 on both arms; the
+      floors 24 x 15 with KBN-K OFF 115 / ON 120; WAC at 100k OFF 240 /
+      ON 241, depth 6 182 / 132; the promotion fixture OFF `a7a8q` +781
+      at 200k (`a5a3` 0 at 100k, recorded), ON +957 at 100k.
+    - Gate prepared: BAS-S44 registered (`docs/experiments/BAS-S44.md`),
+      `tools/run_b14_gate.ps1`, the two final-PGO OFF-arm binaries
+      pinned (`b14-fix` 77BB764C..., `b14-base` 3CC41280...),
+      dry run accepted 2026-11-01 (`tools/results/colosseum_sprt_b14-gate_20261101_213650.*`, dry run 32006BE5..., manifest 443FA844...). The maintainer starts it; `GAME_GATE`.
 
 ### Active workflow register
 
@@ -1538,7 +1555,7 @@ leaf's tag. Later phases carry only a class until they open.
 | B.8.2 | RESEARCH | I1 | After the clusters |
 | B.9 | RESEARCH | V | Programme checkpoint |
 | B.11 | RESEARCH | M | Interim release after B.9 (maintainer decision 2026-10-24) |
-| B.14 | READY_FOR_IMPLEMENTATION | I2 | Maintainer decision 2026-11-01 on research amendment 9: C-A9-1 (the OFF arm's promotion fixture binds `a7a8q` with a positive score at 200,000 nodes) and the narrowed guard (`narrow.patch` on `e883a13`) as BAS-S44's candidate. Implementation commits both in one engine commit, reads the binding set on the committed tree, then registers BAS-S44 for the maintainer to start. Lands before B.3.2's first game |
+| B.14 | GAME_GATE | I2 | Narrowed guard and C-A9-1 committed (`1b2515b`), qualified on both arms; BAS-S44 registered and prepared (`tools/run_b14_gate.ps1`, `[-5,5]` at `3+0.03`, 4,000-pair cap, OFF arm against `c15d097`). The maintainer starts it; the fingerprint record moves on H1 or the cap. Lands before B.3.2's first game |
 
 ## Phase C — Evaluation programme (search frozen)
 
