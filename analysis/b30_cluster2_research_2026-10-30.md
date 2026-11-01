@@ -5934,6 +5934,13 @@ alternative is taken, which adds its pricing before ticket 10b). B.3.1
 stays `RESEARCH` until then and resumes `READY_FOR_IMPLEMENTATION` at
 ticket 10b.
 
+**Maintainer's decision, 2026-11-01:** decision 1 taken as recommended
+(`suite_v2` position 12 replaces bench position 11 in the screen's set;
+position 11's band tables are recorded, not judged); decision 2 not
+taken (ProbCut's form unchanged; the guard variant is not priced, its
+scripts stay under `amend8/` against the retry trigger). B.3.1 is
+`READY_FOR_IMPLEMENTATION` at ticket 10b.
+
 ### 7. Clauses replaced, predictions scored and calibration
 
 **Clauses replaced** (old → new; the originals stand as written):

@@ -955,6 +955,10 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         Alternative priced in prospect: ProbCut standing down under
         `seekMate`. P41 registered. Resumes at ticket 10b on the
         maintainer's decision (packet amendment 8 §6).
+      - Maintainer decision 2026-11-01: decision 1 taken (`suite_v2` 12
+        replaces bench 11; the band reads recorded, not judged), decision
+        2 not taken (ProbCut's form unchanged). `READY_FOR_IMPLEMENTATION`
+        at ticket 10b.
     - [ ] **B.3.2** `[V]` Diagnostics and the unfitted paired run
       Packet §11, BAS-S41, in the order the roadmap audit of 2026-11-01
       fixed (the entry file is assembled from §11 plus every amendment's
@@ -1447,7 +1451,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.1 | RESEARCH | I2 | Research amendment 8 written: bench position 11's blowup is the position's conversion band, which every arm has (ProbCut off: 3.27x, 3.62x at 21-22), not ProbCut's; no default moves; resumes `READY_FOR_IMPLEMENTATION` at ticket 10b (the screen on the amended position set) on the maintainer's decision (packet amendment 8 §6) |
+| B.3.1 | READY_FOR_IMPLEMENTATION | I2 | Research amendment 8 (bench position 11's blowup is the position's conversion band, not ProbCut's; no default moves) decided 2026-11-01: `suite_v2` 12 replaces bench 11 in the screen's set, ProbCut's form unchanged; implementation resumes at ticket 10b, the screen on the amended set (packet amendment 8 §6) |
 | B.3.2 | RESEARCH | V | Waits for B.3.1's accepted review, then B.14 (which lands before its first game) |
 | B.3.3 | RESEARCH | V | Waits for B.3.2 |
 | B.3.4 | RESEARCH | V | Added 2026-10-31; waits for B.3.3 |
