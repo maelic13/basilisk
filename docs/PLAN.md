@@ -1026,6 +1026,9 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         - `tools/run_b32_games.ps1` is prepared: items 1-3 (five runs)
           and the paired run, all dry runs accepted. Each game waits for
           the maintainer's go-ahead.
+      - Maintainer decision 2026-11-01 (review follow-up 5): B.12, B.14,
+        B.3.0 and Cluster 2 reach `master` together, in one delivery at
+        the end of Cluster 2, once everything is accepted.
     - [ ] **B.3.3** `[V]` Curvature sweep, then SPSA in blocks
       Packet §11, BAS-S42: five registered sweep coordinates (the
       singular margin with the donor's value as an extra point), then
