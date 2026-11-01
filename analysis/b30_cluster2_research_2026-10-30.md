@@ -6572,3 +6572,86 @@ of the nodes it changes are the classifications the leaf is about.
   semantics, which is the maintainer's decision.
 - **It should come before the gate:** an SPRT run on the proxy and a
   narrowing afterwards would need a second gate.
+
+### The narrowed form, on the maintainer's decision: blocked on the OFF arm's promotion fixture (2026-11-01)
+
+The maintainer took the recommendation and narrowed the guard first. It
+was built as specified and is **not committed**: it fails a binding test
+on the OFF arm.
+
+**What it is.** `tools/results/b14-20261101/narrow/narrow.patch` (SHA-256
+2eb8d896…, against `e883a13`; left uncommitted in the working tree, not
+reverted):
+
+- `apply_endgame` reports its four draw verdicts (KNNK, the drawn KPK,
+  the wrong-corner KBP-K, a pawnless scale of 0) through an out
+  parameter.
+- `Evaluator::draw_verdict(b)` evaluates `b` again and returns the
+  verdict, without touching the endgame census or the lazy audit.
+- `corrected_eval` adds no correction only where the raw evaluation is 0
+  and the evaluator calls it a verdict. An ordinary 0 keeps its
+  correction.
+
+**What holds.** Evidence is in `narrow/`: `b14_reads.json`,
+`ctest_*.log`, `endgames_*.log` and `b14_alone.json`.
+
+| Read | OFF | ON |
+|---|---:|---:|
+| `bench 13` | 11,880,564 | 4,923,507 |
+| Bench positions searched alone, moved against the head (`raw == 0` form) | **6 / 40** (38 / 40) | **4 / 40** (36 / 40) |
+| Organic 7 / primed 28 / test's 28; `test_endgames` | 7 / 28 / 28; 191/191 | 7 / 28 / 28; 191/191 |
+| WAC at 100k; depth 6 | 240; 182 | 241; 132 |
+| The floors at five budgets | 24 x 15, KBN-K 115 | 24 x 15, KBN-K 120 |
+| The fixture at 33k / 60k / 100k / 200k | **a5a3 +7 / a5a3 0 / a5a3 0** / a7a8q +781 | a7a8q +347 / +347 / +957 / +957 |
+| Release CTest | **24/25: `test_search` fails** | 25/25 |
+
+- **It is precise.** Searched alone from fresh tables, the narrowed form
+  moves only the endings whose search reaches a verdict: bench positions
+  3 and 37–40 on both arms, and 6 on OFF. The `raw == 0` form moves
+  36–38 of the 40 positions, the start position included. Bench
+  position 29's `...Nxf3`, lost by the `raw == 0` form, is back. Bench's
+  total moves more (−28.5% on OFF) only because its positions share the
+  TT and histories: the first position moved is the third on OFF and the
+  sixth on ON.
+- **It throws the OFF arm's promotion.** "promotion: a queen where a
+  rook only transposes" (`3r4/P7/2K1p3/R7/5p2/6kP/8/8 w`, 100,000 nodes,
+  Hash 64) asserts `a7a8q`; the narrowed OFF arm plays `a5a3`. Read to
+  depth 20, `a7a8q` scores +19,871 (the tablebase band) and `a5a3` scores
+  0: the move throws a won promotion. The test binds both arms in CTest,
+  so the form is inadmissible as it stands.
+
+**Why, as far as the reads go.**
+
+- At 100k nodes neither OFF search sees the win. Searched alone at that
+  budget, the head reads `a7a8q` 0 (depth 14), and the narrowed arm reads
+  `a5a3` 0 (depth 16).
+- The OFF arm's full search reached `a7a8q` on the head (+616 at depth
+  11) and on the `raw == 0` form (0 at depth 13). That search meets
+  mostly verdict nodes: 1,352 of 1,550 raw zeros, nearly all exact KPK
+  draws. On the head they carried White's correction.
+- The reading is that the head's pass leaned on the defect's inflation
+  of those draws, and the `raw == 0` form's on a tie at 0. That is an
+  inference, not measured.
+- It is the same knife-edge fixture that turned at Returns 3 and 6
+  (amendment 6: "a knife-edge both ways"), now on the OFF arm.
+- The ON arm holds it at +957.
+
+**Options** (the maintainer's):
+
+1. **Gate the `raw == 0` form (`e883a13`) as built.** It passes every
+   binding read on both arms. Its ordinary-zero cost (36–38 of 40
+   positions moved) is unmeasured and is what BAS-S44 would bound. The
+   narrowed form is kept as the patch, the retry form if BAS-S44 reads
+   H0.
+2. **Return B.14 to research** on the narrowed form: whether the OFF
+   arm's pass at 100k on this fixture is a property of the defect, and
+   what the fixture should bind on the OFF arm. No test is relaxed
+   without that amendment and the maintainer's decision.
+
+**Implementation's position: option 1.** It is the only admissible
+candidate, and the fixture question is a research question that a
+correctness repair should not wait on.
+
+The main counter-argument is that option 1 ships the proxy, whose
+fixture pass is itself a tie at 0. A later change that breaks that tie
+returns the same question.

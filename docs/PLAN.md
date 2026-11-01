@@ -1479,6 +1479,17 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     - The maintainer decides first whether the guard keys on the
       evaluator's classifications instead of `raw == 0`; then the gate
       is prepared and the maintainer starts it.
+  - Narrowed form, 2026-11-01, on the maintainer's decision (packet
+    *B.14*; `narrow.patch`, not committed).
+    - Keyed on the evaluator's four draw verdicts, it holds both
+      fixtures, the floors and WAC on both arms. Searched alone, it
+      moves 4 and 6 of the 40 bench positions (the `raw == 0` form
+      moves 36 and 38).
+    - It fails `test_search` on the OFF arm: the promotion fixture
+      plays `a5a3` (a draw at depth 20) instead of `a7a8q` (a tablebase
+      win) at 33k-100k. The ON arm passes 25/25.
+    - Blocked: the maintainer chooses between gating the `raw == 0`
+      form and returning the narrowed form to research on the fixture.
 
 ### Active workflow register
 
@@ -1502,7 +1513,7 @@ leaf's tag. Later phases carry only a class until they open.
 | B.8.2 | RESEARCH | I1 | After the clusters |
 | B.9 | RESEARCH | V | Programme checkpoint |
 | B.11 | RESEARCH | M | Interim release after B.9 (maintainer decision 2026-10-24) |
-| B.14 | LOCAL_QUALIFIED | I2 | Guard implemented on both arms 2026-11-01 (`e883a13`): both fixtures failed on the head and pass; OFF 15,100,437, ON 6,178,678; every floor holds. The repair SPRT is owed (BAS-S44, BAS-S40's shape): the maintainer decides first whether to key the guard on the evaluator's classifications (78-86% of raw zeros are ordinary), then starts the gate. Lands before B.3.2's first game |
+| B.14 | LOCAL_QUALIFIED | I2 | The `raw == 0` guard (`e883a13`) passes every binding read on both arms (OFF 15,100,437, ON 6,178,678). The narrowed form, keyed on the evaluator's verdicts and tried on the maintainer's decision, throws the OFF arm's promotion fixture (`test_search`; packet *B.14*) and is not committed. The maintainer chooses: gate the `raw == 0` form (BAS-S44, BAS-S40's shape, owed), or return the narrowed form to research. Lands before B.3.2's first game |
 
 ## Phase C — Evaluation programme (search frozen)
 
