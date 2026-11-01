@@ -7228,3 +7228,10 @@ root on all forms); `a9_price.py` / `.json` / `.txt` with `ctest_*.log`,
 `r8_test.patch`, `ctest_r8_*.log` (R8); `hashes.txt` (SHA-256 of every
 patch and binary). The traced builds print to stderr only and reproduce
 their forms' fingerprints (§1.1).
+
+**Maintainer's decision, 2026-11-01: decisions 1 and 2 as recommended.**
+C-A9-1 is taken (the OFF arm's clause: `a7a8q` with a positive score at
+200,000 nodes; the ON arm's at 100,000; both arms assert the score), and
+the narrowed form is BAS-S44's candidate. B.14 resumes at the amended
+candidate: `narrow.patch` and the test edit in one engine commit, the
+binding reads on the committed tree, then BAS-S44's registration.

@@ -1513,6 +1513,8 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     binding read on both arms (CTest 25/25 on both arms under the amended test, R8) and BAS-S44 measures
     it. Blocked on decisions 1 (C-A9-1) and 2 (the candidate); no
     fixture edit before decision 1.
+  - Maintainer decision 2026-11-01: C-A9-1 taken and the narrowed form
+    is BAS-S44's candidate. Resumes at the amended candidate (`I2`).
 
 ### Active workflow register
 
@@ -1536,7 +1538,7 @@ leaf's tag. Later phases carry only a class until they open.
 | B.8.2 | RESEARCH | I1 | After the clusters |
 | B.9 | RESEARCH | V | Programme checkpoint |
 | B.11 | RESEARCH | M | Interim release after B.9 (maintainer decision 2026-10-24) |
-| B.14 | RESEARCH | I2 | Research amendment 9 written 2026-11-01 (packet): the OFF arm's fixture at 100,000 nodes binds the root's order on every form, not the win; the head's pass is not the verdict nodes' correction. Blocked on the maintainer's decisions: C-A9-1 (the OFF arm's clause `a7a8q` with a positive score at 200,000 nodes) and the candidate (the narrowed form, recommended; the `raw == 0` form `e883a13` the alternative). Then BAS-S44 is registered and the maintainer starts it. Lands before B.3.2's first game |
+| B.14 | READY_FOR_IMPLEMENTATION | I2 | Maintainer decision 2026-11-01 on research amendment 9: C-A9-1 (the OFF arm's promotion fixture binds `a7a8q` with a positive score at 200,000 nodes) and the narrowed guard (`narrow.patch` on `e883a13`) as BAS-S44's candidate. Implementation commits both in one engine commit, reads the binding set on the committed tree, then registers BAS-S44 for the maintainer to start. Lands before B.3.2's first game |
 
 ## Phase C — Evaluation programme (search frozen)
 
