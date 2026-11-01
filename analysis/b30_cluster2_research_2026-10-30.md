@@ -5454,3 +5454,149 @@ read of one constant here would not choose a seed.
 8. Every other qualification read passes (the four other screen
 positions and every read of *Implementation record — tickets 6b to 10*).
 No default, clause, floor or frozen prediction was moved.
+
+## Research amendment 8 — ProbCut in the conversion band: the position's event, three plies earlier (2026-11-01)
+
+Answers *Return 8*. Class `R3`, in a separate session from the one that
+implemented tickets 9b and 10 and wrote Returns 7 and 8 (PROCESS's role
+table). No engine code is changed in the committed tree and no default,
+seed, floor, clause or frozen prediction is moved here; every read is a
+deterministic node-count or counter read on the ticket-10 binaries
+(`t10/a7/hashes.txt`) or on the Tune build's options, with a 600 s
+per-iteration watchdog that only stops a runaway. No timed read, no game.
+Recipes, logs and JSON: `tools/results/b31-20261030/amend8/` (`a8_r1.py`,
+`a8_r2.py`, `a8_*.log`, `a8_*.json`). This section's §R was committed
+before any read ran; §1 onward were written after.
+
+### R. Hypotheses, reads and predictions, registered before running
+
+**What Return 8 established.** On bench position 11 the ON arm's tree
+grows 4.53×, 6.70× and 4.57× at depths 20–22 and the OFF arm's 3.75×,
+4.33× and 11.33× at depths 23–25; ProbCut off (ablation bit 3) leaves the
+ON arm's depth-21 tree at 0.16×; the singular block is silent under
+`seekMate`; the extension budget never binds. What the logs add, read
+before this registration (`t10/a7/b11_*.log`, the ablation logs):
+
+- Every arm's event begins in the iteration whose root score climbs out
+  of the 2,400–2,600 plateau. ON: 2,593 → 2,704 (depth 20, growth 4.53).
+  OFF: 2,462 → 2,700 (depth 23, 3.75). Bit 8 (ProbCut off): 2,716 at 20
+  (1.36), 2,985 at 21 (3.27). Bit 4: 2,711 at 20 (2.48), 2,884 at 21
+  (3.55). Bit 16: 2,837 at 19 (9.3). Bit 64: 2,695 at 20 (3.17). Before
+  the climb no arm grows more than 2.2× at a depth ≥ 17.
+- Both arms' PVs carry the same conversion: `...Rf8`, `a5 bxa5`, the
+  d-pawn to d7, with the score rising 100–400 cp an iteration and lines to
+  the 128-ply maximum; the OFF arm's depth 25 reads 4,953.
+- The iterations fail high four to seven times each (`asp_fail_high` 4 /
+  5 / 5 on ON at 20–22; 2 / 5 / 7 on OFF at 22–24), and the ON arm's
+  last window of depth 21 (beta 2,971 after five fail-highs, settling at
+  2,878) is 74M of the iteration's 119M nodes. Basilisk re-searches a root
+  fail-high at full depth (BAS-D17; the donor reduces by the fail-high
+  count), so a climbing score costs a full tree per widening.
+- Per interior node at the matched event the ON arm runs 1.7 quiescence
+  nodes (OFF 0.6–0.8), 23% of them evasions (OFF 4–7%), tries ProbCut at
+  5.5% (1.3%) and cuts at 4.2% (0.8%); its null-move tries at depth ≥ 8
+  are 0.03–0.13% (OFF 1.0–1.6%), its RFP cuts 6% (10%, the legacy RFP
+  capped at depth 10 on both arms), its TT-move-absent share 66–75%
+  (44–57%).
+- The port is the donor's step 12 line for line (`edb0d9db` search.cpp
+  `:1046-1093` against kernel `:924-963`): `improving |= staticEval ≥
+  beta` before it; `beta + 241 − 64·improving` converted to `68 − 18`;
+  depth ≥ 3; the valid-TT-value guard; the picker over captures and queen
+  promotions by capture history with the TT move first and SEE at
+  `probCutBeta − staticEval`; the quiescence pre-test; the reduced search
+  at `depth − (improving ? 5 : 3)` with `!cutNode`; the store at
+  `probCutDepth + 1` as a lower bound with the value; the return of
+  `value − (probCutBeta − beta)` unless decisive. The donor's step 13 (the
+  small ProbCut: a lower bound at `ttDepth ≥ depth − 4` clearing
+  `beta + 428` returns `beta + 428`) consumes exactly the entries step 12
+  stores; Basilisk carries it as `B3ProbCutTt`, off (amendment 2 §2).
+
+**Hypotheses.**
+
+- *H1, the port.* Basilisk's ProbCut differs from the donor's form in a
+  way this regime exposes. The reading above says no; the reads below
+  can only reopen it if a constant at the donor's raw value behaves
+  unlike the converted one in a way the units do not explain.
+- *H2, the constants.* A ProbCut constant inside its sweep bracket
+  (`B3ProbCutBase` 34–240, `B3ProbCutImproving` 0–48,
+  `B3ProbCutMinDepth` 2–8, `B3ProbCutDepth` 2–6,
+  `B3ProbCutDepthImproving` 3–8, `B3ProbCutPv`) carries the growth: a
+  setting other than switching ProbCut off removes the ON arm's event at
+  depth 21.
+- *H3, the regime.* The donor's form, in a position Basilisk's
+  material-scale evaluation reads as climbing with depth, multiplies the
+  cost of the climb: each ProbCut proof is a quiescence search of a
+  checking capture (evasions) and a reduced search, stored two to four
+  plies shallow, so it is re-proven at every widened window and every
+  iteration, and the donor's consumer of those stores (step 13) is off.
+  Under H3 no in-bracket constant removes the event; switching ProbCut
+  off (bit 8, or `B3ProbCutMinDepth` 8) does; and the small ProbCut on
+  shrinks it.
+- *H4, the position.* The event is the conversion band of a position won
+  by more than 24 pawns under an evaluation with no won-position
+  compression: every arm has it in the iterations where its score climbs
+  past about 2,650, and what ProbCut (or any mechanism that reaches the
+  band at a lower nominal depth) moves is the depth at which it starts,
+  not whether it happens. H3 and H4 are not exclusive: H4 says both arms
+  have the event; H3 says ProbCut makes the ON arm's iterations in it
+  costlier.
+
+**Reads** (bench position 11, Hash 64, `ucinewgame`, `go depth N`, the
+600 s watchdog; node counts and counters are read, never time):
+
+- *R1* (`a8_r1.py`): `build/b3-on-ablate`, `AblationMask 8`, to depth
+  23, every line kept. Identity: depths 1–21 reproduce `b11_ablate_m8.log`.
+- *R2* (`a8_r2.py`): `build/b3-on-tune` with `Diag true`, one search to
+  depth 21 per setting, counters from the dump, the depth-20 dump of the
+  control for iteration differences where needed:
+  control (defaults; identity: 140,180,782 at 21, every depth equal to
+  `b11_on.log`);
+  (a) `B3ProbCutMinDepth 5` (the legacy depth gate);
+  (b) `B3ProbCutBase 189`, `B3ProbCutImproving 0` (the legacy margin);
+  (c) `B3ProbCutBase 240`, `B3ProbCutImproving 48` (the bracket's top,
+  the donor's raw 241/64);
+  (d) `B3ProbCutDepth 4`, `B3ProbCutDepthImproving 4` (the legacy
+  reduction);
+  (e) `B3ProbCutPv 0` (§9 item 8);
+  (f) `B3ProbCutMinDepth 8` (the bracket's top: ProbCut nearly off);
+  (g) `B3ProbCutTt 1` (the small ProbCut, the donor's step 13).
+  Rule (amendment 3 §2's, frozen there): a setting names a carrier when
+  it moves the depth-21 count by more than 3× either way (≤ 46.7M or
+  ≥ 420.5M against 140.2M). Recorded per setting: nodes at 19, 20, 21,
+  growth at 20 and 21, the score path and fail-high count, and per 100
+  interior nodes `probcut_tries`, `probcut_cuts`, `probcut_tt_cuts`,
+  `qs_nodes`, `qs_evasion_nodes`, `razor_cuts`, `null_tries`,
+  `tt_move_absent`.
+- *R3*, conditional: only if R2 leaves no in-bracket setting under 0.33×
+  while (f) is under it, a temporary release build of the ON arm with
+  ProbCut standing down under `seek_mate` (the guard the singular block
+  already obeys), read at depths 19–23 on position 11 and then priced with
+  the full binding set (§R's last paragraph). Its edit, patch and restore
+  follow `amend4/scripts/variant.py`.
+
+**Predictions.**
+
+- **P36.** R1's arm has the band event: a step with growth ≥ 3 at depth
+  22 or 23, ending with a root score ≥ 2,650 (probability 80%).
+  Falsifier: both steps under 2 — then the ON arm's event is ProbCut's,
+  not the position's, and H4 falls.
+- **P37.** In R2 none of (a)–(d) moves the depth-21 count by more than
+  3× either way (65%); (e) moves it by under 1% (90%; `probcut_pv_tries`
+  read 0, 0, 3 in iterations 20–22); (f) moves it under 0.33× (85%; the
+  ablation's 0.16 within DESIGN §5's chaos).
+- **P38.** (g) moves the depth-21 count under 0.33× (60%): the donor's
+  consumer of ProbCut's stores short-circuits the re-proofs.
+- **P39.** Across R2's settings, `qs_evasion_nodes` per 100 interior
+  nodes falls by at least half in every setting whose `probcut_tries`
+  per 100 interior nodes fall by 3× or more (70%): the pre-test's
+  checking captures carry the quiescence load.
+- **P40.** In R1 and R2 every iteration at depth ≥ 19 with growth ≥ 3
+  ends with a root score ≥ 2,650 (90%).
+
+**Pricing, if a candidate default is left.** `bench 13` on both arms
+(the OFF arm 16,615,757), WAC at 100,000 nodes ≥ 232 and the depth-6
+regression guard 119, the conversion floors at five budgets (KQ-K, KR-K,
+KBB-K 24 each; KBN-K sum ≥ 112), the promotion fixture at six budgets
+(a8=Q, positive at 100,000), the 28 wrong-bishop reads, and amendment 7's
+screen on all five positions (node counts decide; a watchdog stop on
+this host is inconclusive, not a fail).
