@@ -6673,3 +6673,166 @@ returns the same question.
   3. whether the narrowed form is admissible, with any fixture change
      as a numbered amendment and the maintainer's decision;
   4. the candidate the BAS-S44 gate then measures.
+
+## Research amendment 9 — the OFF arm's promotion fixture under B.14's guards: the defect's pass, the tie and what the fixture binds (2026-11-01)
+
+Answers B.14's return (*B.14*, the maintainer's decision of 2026-11-01).
+Class `R3`, in a separate session from the one that implemented `e883a13`
+and the narrowed form (PROCESS's role table). No engine code is changed
+in the committed tree and no default, seed, floor, test or clause is
+moved here; a fixture clause this amendment proposes is numbered for the
+maintainer's decision and is not applied. Every read is a deterministic
+node-count or depth read on temporary builds whose patches are saved and
+whose source bytes are restored after the build; no timed read, no game.
+Recipes, patches, logs and JSON: `tools/results/b14-20261101/amend9/`.
+This section's §R was committed before any build or read ran; §0 and §1
+onward were written after.
+
+### R. Hypotheses, reads and predictions, registered before running
+
+**What the return established** (*B.14*, read before this registration):
+on the OFF arm the fixture `3r4/P7/2K1p3/R7/5p2/6kP/8/8 w` at 100,000
+nodes (Hash 64, fresh tables) reads `a7a8q` +616 at depth 11 on the head
+(`c15d097`), `a7a8q` 0 at depth 13 on the `raw == 0` form (`e883a13`)
+and `a5a3` 0 at depth 16 on the narrowed form (`narrow.patch`); from
+200,000 nodes both guarded forms read `a7a8q` positive (+834, +781).
+Searched alone with `searchmoves a7a8q` at 100,000 nodes the head reads
+0 at depth 14. On that search 1,352 of the 1,550 main-search raw zeros
+are classifications, nearly all drawn KPK. The ON arm reads `a7a8q`
++599 (head and `raw == 0`) and +957 (narrowed). The root never replaces
+its best move on an equal score (`search_kernel_core.cpp`, the
+"never at the root" rule: a later root move is searched with a null
+window at alpha and must exceed it), and the root's first move is the
+previous iteration's best, so a root whose alternatives all read the
+best move's score is held by order, not by preference.
+
+**Hypotheses.**
+
+- **H1 (the packet's inference).** The head's `a7a8q` is produced by the
+  correction added at verdict nodes: the drawn-KPK leaves of the
+  `a7a8q` subtree carry White's trained correction on top of their 0,
+  so the subtree reads positive and the root prefers the promotion.
+  Under it the `raw == 0` form's pass is a tie at 0 held by order.
+- **H2 (the ordinary zeros).** The head's positive score needs the
+  correction on ordinary zeros as well (or instead): the search's
+  shape through both populations, not the verdict nodes' inflation,
+  gives the +616. Under H2 the narrowed form's `a5a3` is the tree's
+  own answer at 100,000 nodes and the verdict nodes are not the carrier.
+- **H3 (the tie).** At 100,000 nodes no OFF form sees the win: every
+  form's root alternatives read 0, and which move is played is the
+  order of a tie — the previous iteration's best first, then the
+  capture stage (a promotion) before the quiets. The narrowed form
+  plays `a5a3` because `a5a3` once exceeded `a7a8q`'s exact score by a
+  few centipawns and the order never gave the promotion the window
+  back.
+
+**Builds** (temporary, OFF arm unless named; the release recipe of
+`build/b3-*`: `--preset release`, `USE_PEXT=ON`, `PORTABLE_BUILD=ON`,
+clang 23.1.4; patches `amend9/*.patch`, source restored byte-exact,
+`git status` clean asserted after each). All on `e883a13`'s source plus
+the evaluator half of `narrow.patch` (`draw_verdict`, a query that
+changes no evaluation), so that every form can ask the verdict; the
+consumer `corrected_eval` takes one of four forms:
+
+| Form | `corrected_eval` on a raw 0 | Expected `bench 13` (OFF) |
+|---|---|---:|
+| F0 head | adds the correction (the head's arithmetic) | 16,615,757 (`c15d097`'s; proves the query is neutral and F0 is the head's consumer) |
+| F1 `raw == 0` | returns 0 | 15,100,437 (`e883a13`'s) |
+| F2 narrowed | returns 0 only at a verdict | 11,880,564 (`narrow/`) |
+| F3 complement | returns 0 only at an ordinary zero; a verdict keeps its correction | recorded |
+
+F0–F3 are built twice: a **trace** build of each (stderr only: every
+root move's returned score, window, depth and node count at every root
+pass, and at exit the consumer counter below), node-identical to the
+untraced form (the fixture's final info line at 100,000 nodes and
+`bench 13` equal), and an untraced release of F2 and F3 (both arms for
+F2, the candidate; OFF for F3, a diagnostic arm, not a candidate). F2's
+trace is also built on the ON arm. The counter: at both consumers,
+every raw 0 is classed verdict or ordinary by `draw_verdict`, and its
+correction in centipawns (`correction / 131072`) is recorded from
+White's perspective (negated with Black to move) — on F0 the amount
+added, on F1–F3 the amount dropped or added by the form — as count,
+sum, and the counts of positive, zero and negative values, per class.
+
+**Reads** (fixture: Hash 64, `ucinewgame`, one process per search;
+scored by node counts and scores, never time).
+
+- **R1, the root trace.** F0–F3 OFF and F2 ON, `go nodes 100000`.
+  Record per completed iteration: the first move, its exact score, and
+  every other root move's returned value against its window; the
+  iteration at which the root's move changes, and the margin.
+- **R2, the consumer counter** on R1's searches: per class, the mean
+  White-perspective correction and the positive share.
+- **R3, the factorial.** F3 OFF at 33,000, 60,000, 100,000 and 200,000
+  nodes, read beside F0–F2's series (R5), as the 2×2 of {verdict
+  correction kept, dropped} × {ordinary-zero correction kept, dropped}:
+  F0 = (kept, kept), F1 = (dropped, dropped), F2 = (dropped, kept),
+  F3 = (kept, dropped).
+- **R4, the rest of the root.** F0 and F1 OFF release, `go nodes 100000
+  searchmoves` every legal root move except `a7a8q`: the best of the
+  rest and its score. A different tree (amendment 6 §1.2); supplementary.
+- **R5, the budget scan.** F0–F3 OFF: the fixture at 33,000, 60,000,
+  100,000, then 110,000 to 200,000 in steps of 10,000, then 400,000 and
+  1,000,000 nodes: move, depth, score.
+- **R6, the truth of the root moves.** F1 OFF release, Hash 64,
+  `go depth 22 searchmoves m` for `a7a8q`, `a7a8r`, `a5a3`, `h3h4`:
+  score and nodes at depth 22 (`a5a3` also on F0 and F2). A move keeps
+  the win when its depth-22 score is at or above `KNOWN_WIN` (10,000);
+  it throws the win when |score| < 200.
+- **R7, the price.** The narrowed form on fresh builds, both arms, by
+  amendment 4's recipe (`a4_price.price`: the wrong-bishop 28,
+  `bench 13`, WAC at depth 6 and at 100,000 nodes, the fixture's series
+  at 33k/60k/100k/200k/400k/1M, `test_endgames`, the floors at
+  30k/45k/60k/90k/120k), the organic 7 and the primed 28 over UCI, and
+  release CTest; the `raw == 0` form re-read the same way on
+  `build/b3-{on,off}` (`bench 13` 6,178,678 / 15,100,437 verified today).
+- **R8, the amended fixture, if §2 proposes one.** `tests/test_search.cpp`
+  edited to the proposed clause in a temporary build of F2 OFF (bytes
+  restored, not committed), CTest read.
+
+**Rules, frozen.**
+
+- *Question 1.* H1 is CONFIRMED when (a) F3 reads `a7a8q` with a
+  positive score at 100,000 nodes — the verdict correction alone
+  restores the head's pass — and (b) on F0's search the verdict-node
+  correction, White's perspective, has a positive mean and a positive
+  share above 60%. H1 is REFUTED, and H2 stands, when F3 reads `a5a3`
+  or `a7a8q` at 0. The `raw == 0` form's pass is a TIE when F1's final
+  completed iteration shows `a7a8q` exact at 0 and every other root
+  move returned at or below 0; a PREFERENCE when `a7a8q`'s exact score
+  is above every alternative's returned value by more than 0.
+- *Question 2.* The clause the fixture binds on the OFF arm is chosen by
+  this rule: a change must strengthen the clause (the move and a
+  positive score, as the ON arm's) and move only to a budget already in
+  the registered series; the proposal is the smallest series budget at
+  which every form admissible on every other read passes it, if that
+  budget is at or below 200,000 nodes; otherwise no clause change is
+  proposed and the narrowed form is inadmissible. The alternative
+  "the move at 100,000 nodes judged against R6's truth" is scored
+  beside it: under it `a5a3` fails unless R6 reads it a win.
+- *Question 3.* The narrowed form is admissible when it holds every
+  binding read of R7 on both arms under the clause question 2 proposes;
+  inadmissible otherwise. The complement F3 is not a candidate: it
+  keeps the defect at every verdict (the organic and primed fixtures
+  are read on it only to show that).
+- *Question 4.* BAS-S44 measures the admissible candidate with the
+  narrower semantics; if only the `raw == 0` form is admissible, it
+  measures that; if neither, no gate is prepared and the leaf returns
+  with the evidence.
+
+**Predictions, frozen (P-A9).**
+
+| # | Prediction | Confidence |
+|---|---|---|
+| P-A9-1 | F3 OFF reads `a7a8q` with a positive score at 100,000 nodes (H1's half) | 55% |
+| P-A9-2 | On F0's 100,000-node search the verdict-node correction, White's perspective, has mean > +10 cp and positive share > 60% | 65% |
+| P-A9-3 | F1's final completed iteration: `a7a8q` exact 0, every other root move ≤ 0 (a tie held by order) | 85% |
+| P-A9-4 | R4 on F1 reads 0 (the rest of the root is the draw, not below it) | 65% |
+| P-A9-5 | F0's final completed iteration: `a5a3` and `h3h4` returned at or below 0 (the alternatives sit at the draw while `a7a8q` reads +616) | 60% |
+| P-A9-6 | On F2 the root changes to `a5a3` at an iteration ≤ 10 where `a5a3` exceeds `a7a8q`'s exact score by ≤ 10 cp, and `a7a8q` never raises alpha again before 100,000 nodes | 70% |
+| P-A9-7 | At 200,000 nodes every OFF form (F0–F3) reads `a7a8q` with a positive score | 70% |
+| P-A9-8 | In R5's 10,000-step scan the first positive-`a7a8q` budget of F0–F3 lies in [110,000, 200,000] for each form, and the forms' first budgets span ≥ 30,000 nodes | 55% |
+| P-A9-9 | R6 at depth 22: `a7a8q` ≥ 10,000; `a7a8r` ≥ 10,000; `a5a3` with |score| < 200; `h3h4` with |score| < 200 | 85 / 60 / 75 / 60% |
+| P-A9-10 | F2 ON trace: `a7a8q` holds the root with an exact positive score at every completed iteration from 8 on (a preference, not a tie) | 65% |
+| P-A9-11 | R7 replicates `narrow/` on fresh builds (`bench 13` 11,880,564 / 4,923,507; 7 / 28 / 28 on both arms; floors 24 × 15 with KBN-K ≥ 112; WAC ≥ 232 on ON; CTest OFF 24/25 failing only the fixture, ON 25/25) and its 400,000- and 1,000,000-node points read `a7a8q` positive on both arms | 85% |
+| P-A9-12 | F3 fails the organic or the primed fixture on the OFF arm (the complement keeps the defect) | 80% |
