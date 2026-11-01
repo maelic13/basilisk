@@ -6655,3 +6655,21 @@ correctness repair should not wait on.
 The main counter-argument is that option 1 ships the proxy, whose
 fixture pass is itself a tie at 0. A later change that breaks that tie
 returns the same question.
+
+**Maintainer's decision, 2026-11-01: option 2.** B.14 returns to
+`RESEARCH` on the narrowed form; no gate runs until the research answers.
+
+- The working tree is restored to `e883a13` from `narrow.patch`, which
+  was first checked equal to the working-tree diff and to re-apply
+  cleanly; nothing was lost. The release trees are rebuilt (OFF
+  15,100,437, ON 6,178,678).
+- The research owes:
+  1. whether the OFF arm's `a7a8q` at 100,000 nodes, on the head and on
+     the `raw == 0` form, is produced by the correction on verdict nodes
+     or by a tie, read rather than inferred;
+  2. what "promotion: a queen where a rook only transposes" should bind
+     on the OFF arm, given that no OFF search at that budget sees the
+     win;
+  3. whether the narrowed form is admissible, with any fixture change
+     as a numbered amendment and the maintainer's decision;
+  4. the candidate the BAS-S44 gate then measures.

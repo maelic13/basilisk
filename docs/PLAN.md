@@ -1490,6 +1490,12 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       win) at 33k-100k. The ON arm passes 25/25.
     - Blocked: the maintainer chooses between gating the `raw == 0`
       form and returning the narrowed form to research on the fixture.
+  - Maintainer decision 2026-11-01: research on the narrowed form.
+    Returned to `RESEARCH` (`R3`). The tree is at `e883a13` and the
+    narrowed form is kept as `narrow.patch`. The research reads whether
+    the OFF arm's pass at 100k is the defect's or a tie, what the
+    fixture binds on the OFF arm, and which candidate BAS-S44 measures
+    (packet *B.14*).
 
 ### Active workflow register
 
@@ -1513,7 +1519,7 @@ leaf's tag. Later phases carry only a class until they open.
 | B.8.2 | RESEARCH | I1 | After the clusters |
 | B.9 | RESEARCH | V | Programme checkpoint |
 | B.11 | RESEARCH | M | Interim release after B.9 (maintainer decision 2026-10-24) |
-| B.14 | LOCAL_QUALIFIED | I2 | The `raw == 0` guard (`e883a13`) passes every binding read on both arms (OFF 15,100,437, ON 6,178,678). The narrowed form, keyed on the evaluator's verdicts and tried on the maintainer's decision, throws the OFF arm's promotion fixture (`test_search`; packet *B.14*) and is not committed. The maintainer chooses: gate the `raw == 0` form (BAS-S44, BAS-S40's shape, owed), or return the narrowed form to research. Lands before B.3.2's first game |
+| B.14 | RESEARCH | I2 | Returned 2026-11-01 on the maintainer's decision: the narrowed guard (the evaluator's verdicts; `narrow.patch`) throws the OFF arm's promotion fixture at 33k-100k while the `raw == 0` form (`e883a13`, committed) passes everything. Research (`R3`, a separate session) reads whether the OFF arm's pass is the defect's or a tie, what the fixture binds on the OFF arm and which candidate BAS-S44 measures (packet *B.14*). Lands before B.3.2's first game |
 
 ## Phase C — Evaluation programme (search frozen)
 
