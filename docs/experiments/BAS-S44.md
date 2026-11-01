@@ -103,3 +103,41 @@
   +347 / +957 / +957 / +1,307 / +1,374.
 
 #### RESULT — append after exposure
+
+- **H1 accepted (maintainer-run 2026-11-01):** **+7.4 ± 6.9 Elo** (nElo
+  +14.4 ± 13.5), LLR +3.02 after 1,271 pairs (2,542 games); W/D/L
+  705/1186/651, pentanomial [25, 200, 777, 234, 35]. A first-crossing
+  estimate, selected at the boundary: it is the stop's reading, not the
+  effect size.
+  - 0 faults, 0 time losses; 32 post-terminal games kept outside the
+    sample; the independent PGN recount agrees.
+  - Both arms searched alike per move: 144,633 nodes and depth 14.10
+    (without mate scores) for the repair, 145,360 and 14.18 for the head;
+    2.02M and 2.03M nodes per second.
+  - Manifest `colosseum_sprt_b14-gate_20261101_213822.manifest.txt`
+    (repo `2fcc432`, clean; host 2.5% busy, not waived; dry run
+    `32006BE5…`); run record `02E93EFE…`, PGN `362BAE55…`; the arms'
+    hashes as pinned (`77BB764C…`, `3CC41280…`).
+- **Correctness floors:** CTest 25/25 on both arms of `1b2515b` (23/23
+  under ASan and UBSan), the two B.14 fixtures and the conversion floors
+  included (§QUALIFICATION).
+- **Verdict (registered rule):** H1, so the repair stays and the
+  fingerprint record updates to `bench 13` 11,880,564 (ON 4,923,507).
+- Disposition: **H1, +7.4 ± 6.9; repair kept. CLOSED 2026-11-01.**
+
+#### PREDICTION CALIBRATION — preserve the original prediction above
+
+- **Prediction:** about 0 to +2 Elo, most likely the cap; not H0 at about
+  85%.
+- **Reading:** H1 at +7.4 after 1,271 pairs. The sign is right; the
+  predicted outcome, the cap, missed, and the estimate sits above the
+  predicted range by its error.
+- **What it teaches:** the exposure argument priced the change as the
+  verdict nodes alone, leaves of decided endings. BAS-S40 taught that a
+  false score in a band is judged by every decision that reads it; the
+  same holds for a verdict overwritten by a correction: the search that
+  reads a drawn KPK or wrong-corner ending as won or lost steers for
+  it or away from it many plies earlier, in the rook and minor-piece
+  endings that lead there (amendment 9 §1.3 measured the head's lean at
+  the verdict nodes of one such line at −40 cp). As with BAS-S40 this is
+  a reading, not a measured split; the games were not classified.

@@ -1426,7 +1426,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     one-binary match and a 40-game calibrate run each finished with the
     independent PGN recount agreeing, and 0.4.0 reads their directories
     with the same scores. Evidence in `tools/results/col050-*`.
-- [ ] **B.14** `[I2]` Correction added to recognised draws (ANY TIME) — before B.3.2
+- [x] **B.14** `[I2]` Correction added to recognised draws (ANY TIME) — before B.3.2
   Correctness repair, opened 2026-10-31 at the maintainer's decision on
   research amendment 4 (`analysis/b30_cluster2_research_2026-10-30.md`,
   amendment 4 §2 and §3.4). The evaluation classifies the wrong-bishop
@@ -1532,6 +1532,11 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       `tools/run_b14_gate.ps1`, the two final-PGO OFF-arm binaries
       pinned (`b14-fix` 77BB764C..., `b14-base` 3CC41280...),
       dry run accepted 2026-11-01 (`tools/results/colosseum_sprt_b14-gate_20261101_213650.*`, dry run 32006BE5..., manifest 443FA844...). The maintainer starts it; `GAME_GATE`.
+  - Game gate: BAS-S44, `[-5,5]` at `3+0.03`, 4,000-pair cap,
+    `tools/run_b14_gate.ps1`; maintainer-run 2026-11-01: H1, +7.4 ± 6.9
+    Elo after 1,271 pairs (a first-crossing estimate), 0 faults. The
+    repair stays and the fingerprint record moves to 11,880,564 (ON
+    4,923,507). CLOSED.
 
 ### Active workflow register
 
@@ -1541,7 +1546,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.2 | RESEARCH | V | B.3.1's review accepted 2026-11-01 (packet *Review*); waits for B.14 (which lands before its first game; its head reads OFF 15,100,437 and ON 6,178,678, and its form is the maintainer's open decision); the review's follow-up 1 (amendment 2's surface additions) belongs to B.3.3's registration and follow-ups 2-4 to the packet's record at B.3.2's opening |
+| B.3.2 | RESEARCH | V | B.3.1's review accepted 2026-11-01 (packet *Review*); B.14 landed 2026-11-01 (BAS-S44 H1; the head reads OFF 11,880,564 and ON 4,923,507), so its first game may follow; the review's follow-up 1 (amendment 2's surface additions) belongs to B.3.3's registration and follow-ups 2-4 to the packet's record at B.3.2's opening |
 | B.3.3 | RESEARCH | V | Waits for B.3.2 |
 | B.3.4 | RESEARCH | V | Added 2026-10-31; waits for B.3.3 |
 | B.3.5 | RESEARCH | V | Waits for B.3.4 (renumbered from B.3.4 on 2026-10-31) |
@@ -1555,7 +1560,6 @@ leaf's tag. Later phases carry only a class until they open.
 | B.8.2 | RESEARCH | I1 | After the clusters |
 | B.9 | RESEARCH | V | Programme checkpoint |
 | B.11 | RESEARCH | M | Interim release after B.9 (maintainer decision 2026-10-24) |
-| B.14 | GAME_GATE | I2 | Narrowed guard and C-A9-1 committed (`1b2515b`), qualified on both arms; BAS-S44 registered and prepared (`tools/run_b14_gate.ps1`, `[-5,5]` at `3+0.03`, 4,000-pair cap, OFF arm against `c15d097`). The maintainer starts it; the fingerprint record moves on H1 or the cap. Lands before B.3.2's first game |
 
 ## Phase C — Evaluation programme (search frozen)
 

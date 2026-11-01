@@ -7261,3 +7261,8 @@ frozen), `tools/run_b14_gate.ps1`, `b14-fix` (77BB764C..., bench
 16,615,757, clean at `c15d097`, built from a temporary worktree); dry run accepted 2026-11-01 (`tools/results/colosseum_sprt_b14-gate_20261101_213650.*`, dry run 32006BE5..., manifest 443FA844...).
 The fingerprint record (GUIDE, `AGENTS.md`, DESIGN) stays at 16,615,757
 until the verdict, as BAS-S40's rule did for B.12.
+
+**BAS-S44, maintainer-run 2026-11-01: H1, +7.4 ± 6.9 Elo after 1,271 pairs**
+(a first-crossing estimate; `docs/experiments/BAS-S44.md`). The repair
+stays, the fingerprint record moves to OFF 11,880,564 / ON 4,923,507, and
+B.14 is closed. B.3.2 may open; its OFF arm is this head.

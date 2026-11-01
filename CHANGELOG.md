@@ -84,6 +84,15 @@ and next step).
 
 ### Fixed
 
+- **Recognised draws no longer drift.** The evaluation knows that a lone
+  king against two knights, a drawn king-and-pawn ending, a rook pawn
+  with the wrong bishop or a side that cannot mate is a draw, but the
+  search's learned evaluation correction was added on top of that
+  verdict, so a dead draw could read as a win or a loss after a few
+  similar positions had been searched. The correction now leaves those
+  verdicts alone. Worth **+7.4 ± 6.9 Elo** at `3+0.03` (2,542 games).
+  `bench 13` is now 11,880,564.
+
 - **False wins in drawn bishop-and-rook-pawn endings.** With the wrong
   bishop for the rook pawn's promotion square, the engine could read a
   dead draw as a large win and search it without end: it missed that the

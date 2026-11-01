@@ -514,7 +514,7 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S40](experiments/BAS-S40.md) — B.12: quiescence's gain pruning stands down in a known loss, `[-5,5]` — H1, +3.8 ± 5.2; repair kept
 
-- [BAS-S44](experiments/BAS-S44.md) — B.14: the evaluator's draw verdicts take no correction, `[-5,5]` — registered 2026-11-01, prepared; the maintainer starts it
+- [BAS-S44](experiments/BAS-S44.md) — B.14: the evaluator's draw verdicts take no correction, `[-5,5]` — H1, +7.4 ± 6.9; repair kept
 
 | ID | Title | Disposition |
 |---|---|---|
