@@ -1462,6 +1462,23 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     the ON arm's primed 28 reads 27/28 until it lands, so every B.3.2 to
     B.3.5 read is on one head (audit 2026-11-01; the slot was "before
     C.0").
+  - Implemented 2026-11-01, `LOCAL_QUALIFIED` (packet *B.14*,
+    `e883a13`).
+    - Both fixtures are in `test_endgames`, both arms, and failed on the
+      head: the organic FEN on the OFF arm (−90 at depth 11), the primed
+      28 on both (OFF 24/28, ON 27/28).
+    - `bench 13`: OFF 16,615,757 → 15,100,437, ON 6,723,172 →
+      6,178,678, equal on every flavour; B.3.1's OFF arm re-bases.
+    - CTest 25/25 on both arms; the floors 24 x 15 on both, KBN-K OFF
+      115, ON 120; WAC at 100k ON 242, OFF 241; the fixture a7a8q, ON
+      +599 at 100k (the OFF arm 0, recorded).
+    - The repair SPRT is owed: 0.2-0.3% of evaluations are a raw 0, in
+      every bench position, and 78-86% of those are ordinary zeros, not
+      classifications. Its shape is BAS-S40's: OFF arm, 4,000-pair cap,
+      to be registered as BAS-S44.
+    - The maintainer decides first whether the guard keys on the
+      evaluator's classifications instead of `raw == 0`; then the gate
+      is prepared and the maintainer starts it.
 
 ### Active workflow register
 
@@ -1471,7 +1488,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.2 | RESEARCH | V | B.3.1's review accepted 2026-11-01 (packet *Review*); waits for B.14 (which lands before its first game); the review's follow-up 1 (amendment 2's surface additions) belongs to B.3.3's registration and follow-ups 2-4 to the packet's record at B.3.2's opening |
+| B.3.2 | RESEARCH | V | B.3.1's review accepted 2026-11-01 (packet *Review*); waits for B.14 (which lands before its first game; its head reads OFF 15,100,437 and ON 6,178,678, and its form is the maintainer's open decision); the review's follow-up 1 (amendment 2's surface additions) belongs to B.3.3's registration and follow-ups 2-4 to the packet's record at B.3.2's opening |
 | B.3.3 | RESEARCH | V | Waits for B.3.2 |
 | B.3.4 | RESEARCH | V | Added 2026-10-31; waits for B.3.3 |
 | B.3.5 | RESEARCH | V | Waits for B.3.4 (renumbered from B.3.4 on 2026-10-31) |
@@ -1485,7 +1502,7 @@ leaf's tag. Later phases carry only a class until they open.
 | B.8.2 | RESEARCH | I1 | After the clusters |
 | B.9 | RESEARCH | V | Programme checkpoint |
 | B.11 | RESEARCH | M | Interim release after B.9 (maintainer decision 2026-10-24) |
-| B.14 | RESEARCH | I2 | Opened 2026-10-31 on research amendment 4: the consumer guard with its two fixtures; lands after B.3.1's accepted review and before B.3.2's first game |
+| B.14 | LOCAL_QUALIFIED | I2 | Guard implemented on both arms 2026-11-01 (`e883a13`): both fixtures failed on the head and pass; OFF 15,100,437, ON 6,178,678; every floor holds. The repair SPRT is owed (BAS-S44, BAS-S40's shape): the maintainer decides first whether to key the guard on the evaluator's classifications (78-86% of raw zeros are ordinary), then starts the gate. Lands before B.3.2's first game |
 
 ## Phase C — Evaluation programme (search frozen)
 

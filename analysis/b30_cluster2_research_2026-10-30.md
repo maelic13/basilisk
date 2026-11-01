@@ -6414,3 +6414,161 @@ maintainer's decisions (1 taken, 2 not taken) are recorded in the packet.
 Not follow-ups: the `is_shuffling` capture-stage definition and the history
 bound in `upcoming_repetition` (§3), both Basilisk's own definitions with no
 consequence the review can name; they are listed for completeness.
+
+## B.14 — the consumer guard on both arms (2026-11-01)
+
+PLAN B.14, the repair amendment 4 §3.4 assigned to its own leaf: no
+correction history is added where the raw static evaluation is 0. Engine
+commit `e883a13` on `b3-pruning-extensions`, both arms. Evidence:
+`tools/results/b14-20261101/` (ignored storage). `head/` holds the
+head's binaries (`c15d097`, equal to ticket 10's hashes), their
+`bench 13` logs and the fixtures' first run. `new/` holds the guarded
+tree's reads (`b14_reads.py`, `b14_reads.json`, `ctest_*.log`,
+`flavours.txt`, `hashes.txt`). `count/` holds the exposure read
+(`b14_count.py`, `count.patch`). The reads ran on the tree as committed
+except for one comment, and `bench 13` was re-read equal after the
+commit.
+
+### The change
+
+- **`corrected_eval`** (`search_worker.h`) returns 0 for a raw
+  evaluation of 0.
+- **The quiescence stand-pat** now calls `corrected_eval` instead of
+  repeating its arithmetic. With a nonzero raw evaluation it computes
+  exactly what it did before, so both consumers carry the guard and
+  cannot drift apart.
+- **Unchanged:** correction training and ticket 7b's producer guard.
+  Training still measures its bonus against the static evaluation, which
+  is now 0 at these nodes.
+
+### The fixtures (`test_endgames`, both arms)
+
+- **"a recognised draw reads a draw from its own root's training, depths
+  8-14".** `5k2/8/6KP/8/8/8/8/5B2 b`, depths 8–14 under 200,000 nodes,
+  Hash 8, fresh tables per depth; each depth must finish and read
+  |score| ≤ 75.
+- **"KBP-K wrong bishop reads a draw at depths 8-14 after trained
+  tables".** One table and one searcher. The two priming searches
+  (`8/8/5K1P/8/8/8/k7/5B2 b` and `8/8/6KP/8/8/8/8/k4B2 b`, depth 12) run
+  first, then B.12's 28 searches without clearing. Amendment 4 §R's R2b
+  read this over UCI; the in-test form reproduces those reads exactly
+  (below).
+- Both fixtures print the score of a failing depth.
+
+On the head (`head/endgames_{on,off}.log`), both fail:
+
+| Fixture | OFF arm | ON arm |
+|---|---|---|
+| Organic | **fails**: −90 at depth 11, as amendment 4 §2.1 | holds 7/7 |
+| Primed | **fails**: 172 and 137 at depths 8–9 on the first FEN, 107 at depths 9–10 on the fourth (24/28, as R2b) | **fails**: 295 at depth 8 on the first FEN (27/28, as ticket 9b's read) |
+
+On `e883a13` both hold on both arms (191/191). The UCI reads agree:
+organic 7/7 and primed 28/28 on both arms, controls 28/28.
+
+### Qualification
+
+| Read | OFF | ON | Rule |
+|---|---:|---:|---|
+| `bench 13`, head → guarded | 16,615,757 → **15,100,437** (−9.1%) | 6,723,172 → **6,178,678** (−8.1%) | recorded; B.3.1's OFF arm re-bases |
+| Tune / Diag / Ablate `bench 13` | 15,100,437 × 3 | 6,178,678 × 3 | equal to release |
+| Release CTest | 25/25 | 25/25 | binds |
+| `test_endgames` | 191/191 | 191/191 | binds |
+| Wrong-bishop 28, test's form / primed / organic | 28 / 28 / 7 | 28 / 28 / 7 | binds |
+| WAC at 100,000 nodes; depth 6 | 241; 184 (floor 175) | **242**; 132 (guard 119) | ON ≥ 232; floors |
+| KQ-K, KR-K, KBB-K at 30k/45k/60k/90k/120k | 24 each | 24 each | 24 |
+| KBN-K at the five budgets (sum) | 22/23/24/23/23 (115) | 24 × 5 (120) | ≥ 112 |
+| The fixture `3r4/P7/2K1p3/R7/5p2/6kP/8/8 w`, a7a8q at 33k / 60k / 100k / 200k / 400k / 1M | +168 / +168 / **0** / +834 / +938 / +1,053 | +276 / +599 / **+599** / +864 / +1,247 / +1,491 | the ON arm's clause: a8=Q, positive at 100k |
+
+- **The 120,000-node floor run's exit 1 on the OFF arm** is the floors
+  tool's staleness guard (KQ-K's mean 10.8 plies), as B.3.2's leaf text
+  records. It is not a floor.
+- **The fixture's positive-score clause binds the ON arm** (amendment 3
+  §5, research decision 1), and the ON arm passes it. `test_search`
+  asserts the move on both arms and passes.
+- **The OFF arm's fixture at 100k** reads `a7a8q` with score 0 at depth
+  13 (head: +616 at depth 11), and +834 from 200k up. It is recorded, not
+  judged. On that search 1,352 of the 1,550 main-search nodes with a raw
+  evaluation of 0 are classifications, nearly all drawn KPK, which the
+  bitbase makes exact. The head's +616 included correction added on top
+  of exact draws.
+
+### Exposure (`count/`)
+
+A temporary counting build of the guarded source, patched and built into
+`build/b14-count-{on,off}` with the source bytes restored. It reproduces
+both guarded fingerprints. At both consumers it counts the evaluated
+nodes, the nodes with a raw evaluation of 0, the share of those that are
+classifications (KNNK, drawn KPK, the wrong-corner draw, a pawnless
+scale of 0; the flag is re-derived by one more, pure, evaluation), and
+those whose dropped correction is nonzero. Over `bench 13`:
+
+| Arm, consumer | Evaluated nodes | Raw 0 | Of which classifications | Correction nonzero |
+|---|---:|---:|---:|---:|
+| ON, main search | 2,811,285 | 8,369 (0.30%) | 1,868 (22%) | 8,175 |
+| ON, quiescence | 2,214,157 | 4,430 (0.20%) | 894 (20%) | 4,248 |
+| OFF, main search | 7,214,022 | 15,562 (0.22%) | 2,107 (14%) | 15,186 |
+| OFF, quiescence | 3,499,473 | 7,703 (0.22%) | 1,069 (14%) | 7,396 |
+
+- **Most guarded nodes are ordinary.** 78–86% of the nodes the guard
+  changes are ordinary evaluations that happen to be exactly 0, not
+  classifications. Amendment 4 §3.1 called that case harmless for the
+  producer guard; on the consumer side it is most of the change.
+- **All 40 positions moved on both arms**, for this reason. Over three
+  in four of the 0.2–0.3% of evaluations that are 0, the guard drops a
+  nonzero correction from an ordinary estimate. So it is not confined to
+  drawn endings, and every game's search meets it.
+- **One position's fresh read, recorded and not judged.** On bench
+  position 29 (`1B6/1p6/p1p2k2/P1P1p1p1/1P1nPp1p/5P1P/1K4P1/8 b`, Hash 64,
+  depth 13) the head's OFF arm finds `...Nxf3` at depth 12 (+775). The
+  guarded OFF arm plays `...Ne6` at −45 through depth 13. That is a
+  fixed-depth difference in one position, not a measured harm.
+
+### The gate: the repair SPRT is owed
+
+The `[-5,5]` repair SPRT at `3+0.03` is owed. The rule is to measure the
+exposure first and cap where further games could not change the
+decision; this exposure is every game, not a band.
+
+- The guard changes the search at 0.2–0.3% of evaluated nodes in every
+  bench position on both arms.
+- Most of those nodes are ordinary positions, so the sign of the effect
+  is not given by the repair's chess argument.
+
+The shape is BAS-S40's:
+
+- Colosseum `sprt-repair.toml`, `[-5,5]`, α = β = 0.05, `3+0.03`, 1T,
+  Hash 64, paired reversed UHO openings, no adjudication, tablebases off.
+- Release PEXT final-PGO builds pinned by SHA-256.
+- The cap is the full 4,000 pairs, since the exposure is above 2%.
+- The arm is OFF, the engine `master` ships: the candidate is `e883a13`'s
+  OFF arm, the baseline `c15d097`'s. The ON arm's measure is B.3.2's
+  paired run, on this head.
+- It would be registered as BAS-S44 (BAS-S41 to BAS-S43 are reserved)
+  before any game, with its prediction frozen. It is prepared once the
+  guard's form is settled (below). It is a game, and the maintainer
+  starts it.
+
+Until the verdict, the fingerprint record (GUIDE, `AGENTS.md`, DESIGN)
+stays at 16,615,757, as BAS-S40's verdict rule did for B.12. The B.3
+comparisons on this branch read OFF 15,100,437 and ON 6,178,678 from
+`e883a13`.
+
+### Finding for the maintainer: the guard's key
+
+The guard is keyed on `raw == 0`, the proxy amendment 4 §3.4's
+counter-argument named, and the exposure read measures the proxy: 14–22%
+of the nodes it changes are the classifications the leaf is about.
+
+- **A narrower form** keys the guard on the evaluator's own verdict:
+  KNNK, the drawn KPK, the wrong-corner draw and a pawnless scale of 0,
+  the set the counting build already flags. Where a raw 0 is read (from
+  the TT or fresh), the node is evaluated once more to learn whether it
+  was classified. That costs 0.2–0.3% more evaluations and leaves every
+  ordinary 0 its correction.
+- **What the narrower form would change:** it should repair the same two
+  fixtures, whose zeros are the wrong-corner classification (amendment 4
+  §1–§2's traces), and move the fingerprints less. Neither is measured.
+- **It is not implemented here.** It narrows the decided candidate's
+  semantics, which is the maintainer's decision.
+- **It should come before the gate:** an SPRT run on the proxy and a
+  narrowing afterwards would need a second gate.
