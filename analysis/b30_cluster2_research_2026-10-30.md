@@ -317,7 +317,7 @@ Units: Basilisk evaluation units; donor values converted by B.0 §7.1
 | S12 `double_exts` inheritance | moot: the per-line budget replaces the counter and is written for every child (§5.10, ticket 1) |
 | B-3 KBNK multi-budget majority | §2.2 (the rule, base 115); decides `B3MultiCut` before any game (§9) |
 | B-5, B-6, B-7, B-97, B-98 | the budget (ticket 1), the cost screen and its driver (ticket 0, §10), `B3Iir` read only after the screen passes with IIR off (§9) |
-| B-12 best move stored at fail-low | a defect by PLAN §2's table; its repair is built in the ON arm behind `B3FailLowStore` (ticket 9) and its default is 0 until §9 item 16's paired run reads it, because the repair's population effect on IIR, `CoreLmrCutNodeNoTt` and the step-down (§5.6) loses two low-budget conversions on consumers fitted for the OFF arm's population (research amendment 6) |
+| B-12 best move stored at fail-low | reclassified as a gap on 2026-11-01 (*Roadmap audit*): a donor-form difference, not a wrong computation, since the store's own product is 7 of the 83 IIR firings on the fixture line (research amendment 6 §1); the donor's form is built in the ON arm behind `B3FailLowStore` (ticket 9) at default 0 and read by §9 item 16's paired run. Before the audit this row read it as a defect by PLAN §2's table whose default waited on item 16 |
 | B-14, B-15 correction training at decisive results and singular-excluded nodes | B-14 a defect: repaired (ticket 7, `B3CorrDecisive`) and read on the conversion floors first (§5.5); B-15 the categorical `B3CorrExcluded` |
 | B-31, B-32, B-37 NMP verification | §3.1 |
 | B-33 cut-node-only NMP at LTC | §3.1 |
@@ -663,9 +663,15 @@ knob).
 Tune-build UCI options, each settled by one 2,000-game paired run on one
 tune build at `3+0.03` (PROCESS *Cluster delivery shape*: adopted at
 ≥ +5 Elo, rejected at ≤ −5, left at the default between; never an SPSA
-coordinate), in the order below, before B.3.3's sweep. The first four
-reads come first because they decide what the paired run of the whole arm
-is measuring.
+coordinate), in the order below, before B.3.3's sweep. Items 1-3 are read
+before the whole-arm paired run, which then runs on the defaults they
+leave (item 4's zero-game read is done: the default stays 0); items 4-16
+follow it. Items 6, 7, 8 and 11 run only if B.3.2's depth-14 counters
+show the alternative moving its mechanism's firing share by 10% or more
+of itself (5.12's rule); otherwise the default stays and the read is
+recorded. Adoption and rejection need the 95% interval to exclude 0 as
+well as the ±5 estimate (PROCESS, 2026-11-01). Roadmap audit of
+2026-11-01; the original sentence stands in that section.
 
 | # | Option | Values | Default | What decides | Bracket |
 |---|---|---|---|---|---|
@@ -968,6 +974,13 @@ Priors: Rarog's unfitted Cluster 2 read +18.4 ± 9.4 (RAR-S79), its
 in-range singular margin +24.2 ± 9.4 (RAR-S80) and its fit added nothing
 measurable over the margin (RAR-S84); Rarog's verdicts do not transfer
 (BAS-X01), only its designs.
+
+Amendments 1-6 and the *Roadmap audit* of 2026-11-01 replace clauses of
+this section through their *clauses replaced* lists; an entry file is
+assembled from this section plus every such list, never from this
+section alone (today: the sweep's singular margin is 252 with 17 and 126
+as extra points, BAS-S43 is PLAN's B.3.5, and BAS-S41's order is the
+audit's).
 
 | # | Prediction | Confidence | Falsifier |
 |---|---|---|---|
@@ -5002,3 +5015,81 @@ the clause is research's decision, not implementation's.
 **State.** B.3.1 returns to `RESEARCH` and resumes on research amendment 7.
 Everything else of the cheap qualification passes (*Implementation record
 — tickets 6b to 10*).
+
+## Roadmap audit — B.3's remaining path (2026-11-01)
+
+A read-only audit of Phase B's state and its remaining leaves, its
+recommendations taken by the maintainer the same day. It is not research
+amendment 7, which answers Return 7. It changes no engine code, no
+default, no floor and no frozen prediction. The originals stand where
+they are written; the clauses below are replaced, and the entry files of
+BAS-S41 to BAS-S43 are assembled from §11 plus every *clauses replaced*
+list (§11 now says so).
+
+**What the audit found.**
+
+- §9 said items 1-4 come first "because they decide what the paired run
+  of the whole arm is measuring" while BAS-S41 listed the whole-arm run
+  first: if item 1, 2 or 3 flipped a default, the whole-arm run and its
+  −40 stop were read on a different arm.
+- B-12 sat in PLAN §2's defects table, whose rule repairs a defect and
+  refits its neighbours, while ticket 9b keeps the OFF form, B.3.3 fits
+  the no-TT-move consumers around it and B.3.4 asks the repair to win
+  against constants fitted for its absence. Amendment 6's evidence (the
+  store's own product 7 of 83 IIR firings on the fixture line) reads a
+  population calibration, not a wrong computation.
+- B.14 ("ANY TIME, before C.0") moves both arms' fingerprints; landing it
+  inside B.3.2 to B.3.5 puts the paired run, the categoricals, the fit and
+  the gate on different heads, and the ON arm's primed 28 reads 27/28
+  until it lands.
+- BAS-S43 (b) priced "the fit" with a candidate that carries B.3.4's
+  adoptions.
+- ±5 at 2,000 games: BAS-S40 read ±5.2 after 5,134 games, so 2,000 games
+  read about ±8 and a true-zero categorical crosses ±5 about one time in
+  four; §9 has sixteen categoricals, B.3.4 re-read the inside-±5 ones
+  and B.6.1 reads them again.
+- P5 is outside its band on both reads (bench 0.40x, suite 0.26x) and
+  unscored; the depth-6 WAC floor of 119 is the arm's own reading minus
+  headroom, a regression guard, not a correctness floor.
+- §11 is copied "verbatim" into the entry files, but amendment 3 moved the
+  singular margin's sweep seed from 126 to 252 and PLAN renumbered the
+  packet's B.3.4 to B.3.5; "double and triple bars 8" is nine X lines
+  (`config_b3.json`'s twenty coordinates match `search_params.h`).
+- The floors tool exits 1 on the OFF arm at 120,000 nodes on its
+  staleness guard (KQ-K's mean 10.8 plies); the floors' generator admits
+  positions with the side not to move in check (amendment 6 §3).
+
+**Clauses replaced** (old → new; the originals stand as written):
+
+- §9's preamble "The first four reads come first …" → items 1-3 precede
+  the whole-arm run, which runs on the defaults they leave; items 4-16
+  follow; items 6, 7, 8 and 11 run only on a measured population move
+  (5.12's 10% rule); adoption and rejection need the 95% interval to
+  exclude 0 as well (edited in place, the original quoted there).
+- §4's B-12 row "a defect by PLAN §2's table …" → a gap, read by item 16
+  (edited in place); PLAN §2's defects table loses B-12 and PLAN B.3's
+  B-12 input records the reclassification.
+- §11 BAS-S41 "The paired run … The categorical runs: §9's table in its
+  order" → the zero-game screens with P5 scored at the opening (the
+  mechanism named from ticket 10's ablation table); §9 items 1-3; the
+  whole-arm paired run on the defaults they leave; items 4-16 as §9 now
+  orders them; the floors tool's staleness exit told from a floor failure
+  before the first read.
+- §11 BAS-S42 "the double and triple bars 8" → 9.
+- §11 BAS-S43 (b) "The fitted ON arm against the unfitted ON arm" → the
+  fitted arm at B.3.3's bake revision, before B.3.4's adoptions, against
+  the unfitted arm.
+- PROCESS *Cluster delivery shape*, the categorical rule → adopted at
+  ≥ +5 and rejected at ≤ −5 only when the 95% interval also excludes 0.
+- PLAN B.3.4 → re-reads only a categorical whose mechanism's constants
+  B.3.3 moved; adoption at ≥ +5 with the interval excluding 0.
+- PLAN B.14 "before C.0; lands between leaves" → after B.3.1's accepted
+  review and before B.3.2's first game.
+- PLAN B.9 gains the floors' generator repair (between clusters, never
+  inside one); PLAN B.3.1's ticket 10 record labels the 119 floor a
+  regression guard.
+
+**Not changed.** Every default, seed, floor, frozen prediction and
+bracket; Return 7's state (B.3.1 `RESEARCH`, resuming on research
+amendment 7) and its three discriminating reads; the independent review,
+which still precedes B.3.2.

@@ -231,9 +231,11 @@ Taken from Rarog's B.2 and B.3, which took it from Manta's 6.5.10.
 - **Categorical switches.** A handoff choice that the research could not
   settle becomes a tune-build UCI option with values `0..1`, its default equal
   to the handoff's choice. It is settled by a 2,000-game paired run on one
-  tune build (no build offset between the arms), adopted at ≥ +5 Elo,
-  rejected at ≤ −5, and left at default between. It is never an SPSA
-  coordinate.
+  tune build (no build offset between the arms), adopted at ≥ +5 Elo and
+  rejected at ≤ −5 only when the 95% interval also excludes 0 (2,000
+  games read about ±8, so a bare ±5 crossing is noise about one time in
+  four; maintainer decision 2026-11-01), and left at default otherwise.
+  It is never an SPSA coordinate.
 - **Canaries are anchored to the reference.** A tactical canary must be
   solved at the depth classical Stockfish solves it, not at whatever depth
   the current build manages. A changed canary is recorded with its cause and

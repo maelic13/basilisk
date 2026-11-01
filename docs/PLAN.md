@@ -353,7 +353,7 @@ coordinate) is not a defect; its owner decides. IDs are the Rarog audit's
 
 | Owner | Defects |
 |---|---|
-| B.3 | B-12 a move stored at fail-low nodes (the repair is built behind `B3FailLowStore`; its default is read by B.3.2's paired run, research amendment 6); B-14 correction training refuses decisive results; B-45 the singular margin's range excludes the donor's value; B-109 ablation bit 6 also removes the check extension |
+| B.3 | B-14 correction training refuses decisive results; B-45 the singular margin's range excludes the donor's value; B-109 ablation bit 6 also removes the check extension |
 | B.4 | B-17 the dead SEE clamp |
 | B.5 (with D.1) | the fail-high stop's hole: a window that never returns is never checked (A-47; `analysis/b5_failhigh_stop_2026-10-25.md` §2.3) |
 | C.2.1–C.2.2 | C-1 the tuner's missing scalers; C-2 `--verify` cannot fail; C-8 the extractor's de-dup ignores the clock; C-26 to C-30 the data pipeline (book, sampler, split, labels, row identity); C-49 K refitted per run |
@@ -586,6 +586,17 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
   Rarog's donor multi-cut rule failed its KBNK drive test and Rarog kept
   its own rule. Basilisk's mate-drive floors are at least as fragile: literature seeds
   have tripped them eight times.
+  Audit of the remaining path, 2026-11-01 (packet *Roadmap audit*, the
+  maintainer's decisions): B-12 is a gap read by §9 item 16; §9 items
+  1-3 precede the whole-arm paired run, which runs on the defaults they
+  leave; items 6, 7, 8 and 11 run only on a measured population move;
+  a categorical verdict needs the 95% interval to exclude 0 as well as
+  the ±5 estimate (PROCESS *Cluster delivery shape*); B.3.4 re-reads
+  only forms whose constants the fit moved; B.3.5 (b) reads the bake
+  revision before B.3.4's adoptions; B.14 lands before B.3.2's first
+  game; P5 (bench 0.40x, suite 0.26x against 0.6-1.4x) is scored at
+  B.3.2's opening; the ledger entries BAS-S41 to BAS-S43 are assembled
+  from the packet's §11 plus every amendment's *clauses replaced* list.
   B.2.3 residuals (maintainer decision 2026-10-24; evidence
   `analysis/b23_constants_2026-10-14.md`, findings 4 and 5):
   - `CoreHistoryFills` 0/1 categorical: the donor's negative fills for
@@ -616,7 +627,10 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     donor's converted margin of about 0.26 (B-45; Rarog's in-range read
     +24.2); the best-scored move is stored at fail-low nodes, unlike
     Stockfish, which changes the no-TT-move populations of IIR, razoring, RFP
-    and LMR (B-12, `:1219-1223`); IIR's range widened off its rail (B-55,
+    and LMR (B-12, `:1219-1223`; reclassified 2026-11-01 as a gap, not a
+    defect: research amendment 6 read the store's own product as 7 of the
+    83 IIR firings on the fixture line, a population calibration, so §9
+    item 16 reads it as a categorical); IIR's range widened off its rail (B-55,
     B-103).
   - Mechanisms: the NMP verification region (B-31; same-ply verification is
     inert) with a deep wire check and the verify depth off the tune surface
@@ -893,7 +907,8 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         record — tickets 6b to 10*): OFF 16,615,757 and ON 6,723,172 on
         Release, Tune, Diag and Ablate, sanitizer `bench 10` equal, CTest
         25/25 and 23/23 under sanitizers on both arms; WAC 241 at 100k,
-        the depth-6 floor re-based to 119 (count 132); fixture +918;
+        the depth-6 floor re-based to 119 (count 132; a regression guard
+        on the arm's own reading, not a correctness floor); fixture +918;
         floors 24 x 15, KBN-K 120; the 28 held; all eight ablation bits
         live; `B3MultiCut` stays 0. The re-scoped cost screen waits for
         an idle host; then the independent review.
@@ -907,12 +922,25 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         apart; three depth reads are listed. P11 missed. Resumes on
         research amendment 7.
     - [ ] **B.3.2** `[V]` Diagnostics and the unfitted paired run
-      Packet §11, BAS-S41: the zero-game screens on both arms (counters,
-      the oracle differential, WAC, the crossover band, the canary
-      calibration, pooled NPS, the cost screen), the 2,000-game paired
-      run that governs (P1, the −40 stop), then the categorical paired
-      runs in §9's order, two of them at `10+0.1` as well; the §5.12
-      surface read decides which Cluster 1 coordinates B.3.3 fits.
+      Packet §11, BAS-S41, in the order the roadmap audit of 2026-11-01
+      fixed (the entry file is assembled from §11 plus every amendment's
+      *clauses replaced* list, never from §11 alone): the zero-game
+      screens on both arms (counters, the oracle differential, WAC, the
+      crossover band, the canary calibration, pooled NPS, the cost
+      screen), with P5 scored at the opening (already outside its band:
+      bench 0.40x, suite 0.26x; the mechanism named from the ablation
+      table); §9 items 1-3 (five runs, two at `10+0.1`), which decide
+      what arm the whole-arm run measures; the 2,000-game paired run
+      that governs (P1, the −40 stop) on the defaults they leave; then
+      items 4-16 in §9's order, items 6, 7, 8 and 11 only if the
+      depth-14 counters show the alternative moving its mechanism's
+      firing share by 10% or more of itself (§5.12's rule). Adoption or
+      rejection needs the 95% interval to exclude 0 as well as the ±5
+      estimate (PROCESS). The floors tool's staleness guard exits 1 on
+      the OFF arm at 120,000 nodes (KQ-K's mean 10.8 plies); the run's
+      scripts tell that exit from a floor failure before the first
+      read. The §5.12 surface read decides which Cluster 1 coordinates
+      B.3.3 fits. B.14 lands before the first game.
     - [ ] **B.3.3** `[V]` Curvature sweep, then SPSA in blocks
       Packet §11, BAS-S42: five registered sweep coordinates (the
       singular margin with the donor's value as an extra point), then
@@ -927,10 +955,14 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       donor's differs is read once more, the donor's form against
       Basilisk's: a §9 categorical at Basilisk's value by default or by
       B.3.2's run (today `B3FailLowStore` 0 and `CoreHistoryFills` 0), and
-      every categorical whose B.3.2 run read inside ±5. Each is one
+      every categorical whose B.3.2 run read inside ±5 and whose
+      mechanism's constants B.3.3 moved (a coordinate it gates, or is
+      gated by, on the fitted surface); one whose constants did not move
+      keeps B.3.2's verdict (audit 2026-11-01). Each is one
       2,000-game paired run at `3+0.03`, after the conversion floors at
       the five budgets and the WAC floor as vetoes; the donor's form is
-      adopted at ≥ +5, Basilisk's kept otherwise. An adoption does not
+      adopted at ≥ +5 with the 95% interval excluding 0, Basilisk's kept
+      otherwise. An adoption does not
       re-run the fit unless the fitted-constant analysis asks. Seeds that
       differ from the donor's (the singular margin 252 against 17,
       `B3SeekMateDepth` 12 against 16) are B.3.3's, whose sweep carries
@@ -941,7 +973,8 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       SPRT `[0,3]` for the cluster, and each categorical and deletion arm
       at the bounds the packet registers.
       Packet §11, BAS-S43 (the packet's B.3.4): (a) the fitted ON arm
-      against the OFF arm, `[0,3]` at `3+0.03`; (b) the fit against the
+      against the OFF arm, `[0,3]` at `3+0.03`; (b) the fitted arm at
+      B.3.3's bake revision, before B.3.4's adoptions, against the
       unfitted arm, `[0,3]`, only if B.3.3 ran its SPSA; (c) a 2,000-game
       `10+0.1` direction read, recorded, not a gate. The candidate is
       B.3.4's: the fitted arm with its adoptions.
@@ -1256,6 +1289,11 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
   Record the attributed Elo per accepted cluster and the checkpoint against
   the budget table, remove the ablation build, then freeze the search head
   for C.
+  - The floors' generator admits positions with the side not to move in
+    check (research amendment 6 §3: `3k3R/8/1K6/8/8/8/8/8 w` is a KR-K
+    sample). Fixing it re-draws the 24 samples per family and re-bases
+    every floor, so it is done here, between clusters, never inside one
+    (audit 2026-11-01).
   Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
   are its items):
   - The pool read includes the head on the match host: Rarog's pool still
@@ -1330,7 +1368,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     one-binary match and a 40-game calibrate run each finished with the
     independent PGN recount agreeing, and 0.4.0 reads their directories
     with the same scores. Evidence in `tools/results/col050-*`.
-- [ ] **B.14** `[I2]` Correction added to recognised draws (ANY TIME) — before C.0
+- [ ] **B.14** `[I2]` Correction added to recognised draws (ANY TIME) — before B.3.2
   Correctness repair, opened 2026-10-31 at the maintainer's decision on
   research amendment 4 (`analysis/b30_cluster2_research_2026-10-30.md`,
   amendment 4 §2 and §3.4). The evaluation classifies the wrong-bishop
@@ -1361,8 +1399,11 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     re-bases to it); CTest; the conversion floors at the five budgets; a
     repair SPRT `[-5,5]` at `3+0.03` in BAS-S40's shape, unless the leaf
     argues none is owed.
-  - Lands between leaves, never inside a B.3.1 ticket (it moves the OFF
-    arm's fingerprint).
+  - Lands after B.3.1's accepted review and before B.3.2's first game,
+    never inside a B.3.1 ticket: it moves both arms' fingerprints, and
+    the ON arm's primed 28 reads 27/28 until it lands, so every B.3.2 to
+    B.3.5 read is on one head (audit 2026-11-01; the slot was "before
+    C.0").
 
 ### Active workflow register
 
@@ -1373,7 +1414,7 @@ leaf's tag. Later phases carry only a class until they open.
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
 | B.3.1 | RESEARCH | I2 | Returned 2026-10-31 at the cheap qualification (packet *Return 7*): the re-scoped cost screen fails on `suite_v2` position 50 (growth 2.53 against 1.5); every other qualification read passes; resumes on research amendment 7 |
-| B.3.2 | RESEARCH | V | Waits for B.3.1's accepted review |
+| B.3.2 | RESEARCH | V | Waits for B.3.1's accepted review, then B.14 (which lands before its first game) |
 | B.3.3 | RESEARCH | V | Waits for B.3.2 |
 | B.3.4 | RESEARCH | V | Added 2026-10-31; waits for B.3.3 |
 | B.3.5 | RESEARCH | V | Waits for B.3.4 (renumbered from B.3.4 on 2026-10-31) |
@@ -1382,12 +1423,12 @@ leaf's tag. Later phases carry only a class until they open.
 | B.5 | RESEARCH | I2 | Contents fixed by B.0 |
 | B.6.1 | RESEARCH | R2 | Added 2026-10-31; after B.4 and B.5 close |
 | B.6.2 | RESEARCH | V | Only if the clusters' curvature justifies it |
-| B.7.1 | READY_FOR_IMPLEMENTATION | I1 | Any time between leaves; must land before B.7.2 |
+| B.7.1 | READY_FOR_IMPLEMENTATION | I1 | Any time between leaves; must land before B.7.2; no engine change and no idle host, so it fits a review or research wait |
 | B.7.2 | RESEARCH | I1 | After B.7.1, on the new modules |
 | B.8.2 | RESEARCH | I1 | After the clusters |
 | B.9 | RESEARCH | V | Programme checkpoint |
 | B.11 | RESEARCH | M | Interim release after B.9 (maintainer decision 2026-10-24) |
-| B.14 | RESEARCH | I2 | Opened 2026-10-31 on research amendment 4: the consumer guard with its two fixtures; lands between leaves, before C.0 |
+| B.14 | RESEARCH | I2 | Opened 2026-10-31 on research amendment 4: the consumer guard with its two fixtures; lands after B.3.1's accepted review and before B.3.2's first game |
 
 ## Phase C — Evaluation programme (search frozen)
 
