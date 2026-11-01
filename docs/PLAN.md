@@ -921,6 +921,24 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         so explosion and an unreached settling point are not yet told
         apart; three depth reads are listed. P11 missed. Resumes on
         research amendment 7.
+      - Research amendment 7, 2026-11-01 (packet; written as `R2` in the
+        implementing session at the maintainer's instruction): position
+        50's growth is the ON arm reaching at depth 19 the mate the OFF
+        arm found at 14, at 0.38 of its nodes. No mechanism carries it,
+        and growth is 1.02 once the mate is found. The screen's positions
+        were the OFF arm's largest depth-14 trees, each a resolution at
+        13-14. The clause now judges steps 20-22 of a read to depth 22,
+        continued to 25 if those fail; node counts decide. P11's
+        consequence is not taken; P34-P35 were registered first
+        (`50a97b8`).
+      - Returned 2026-11-01 at the amended screen (packet *Return 8*):
+        four positions pass. Bench position 11 fails, at depth 22 under
+        (a) (ON's iteration 22 is 500M nodes) and on growth under (b)
+        (4.57). ProbCut carries it: switched off, the depth-21 tree is
+        0.16x; its tries are 4x the OFF arm's share at the matched event.
+        Singular is silent under seekMate. The OFF arm has a blowup of the
+        same kind three plies later (184x over depths 23-25). P34 missed.
+        Resumes on research amendment 8.
     - [ ] **B.3.2** `[V]` Diagnostics and the unfitted paired run
       Packet §11, BAS-S41, in the order the roadmap audit of 2026-11-01
       fixed (the entry file is assembled from §11 plus every amendment's
@@ -1413,7 +1431,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.1 | RESEARCH | I2 | Returned 2026-10-31 at the cheap qualification (packet *Return 7*): the re-scoped cost screen fails on `suite_v2` position 50 (growth 2.53 against 1.5); every other qualification read passes; resumes on research amendment 7 |
+| B.3.1 | RESEARCH | I2 | Returned 2026-11-01 at the cheap qualification (packet *Return 8*): amendment 7's screen (steps 20-22) passes four positions and fails bench position 11, where ProbCut carries a deep-iteration blowup in a won middlegame (switched off, the depth-21 tree is 0.16x); every other qualification read passes; resumes on research amendment 8 (`R3`) |
 | B.3.2 | RESEARCH | V | Waits for B.3.1's accepted review, then B.14 (which lands before its first game) |
 | B.3.3 | RESEARCH | V | Waits for B.3.2 |
 | B.3.4 | RESEARCH | V | Added 2026-10-31; waits for B.3.3 |

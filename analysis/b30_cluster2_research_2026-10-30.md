@@ -5265,3 +5265,192 @@ The rule is not re-scoped a second time unless a mechanism is named.
 **P35.** Position 1 (bench 11) is the only position that needs (c): its
 ON arm is still growing at depth 19 (1.47) while its OFF arm has
 flattened (1.013) (probability 40%).
+
+### 1. The result (2026-11-01)
+
+**What ran.** §R's read, once, after the registration was committed
+(`50a97b8`). The binaries are ticket 10's (`t10/a7/hashes.txt` equals
+`t10/hashes.txt`). The JSON is `t10/a7/screen25.json` (SHA-256
+f2ecc570…), scored by `t10/a7/screen_score_a7.py` into
+`t10/a7/score.log`. On position 1 the scorer read **inconclusive** under
+(d): the ON arm's watchdog fired at depth 21, the OFF arm's at 24, and
+the host was not certified idle. The same binaries were then read on
+position 1 with a 600 s per-iteration watchdog (`t10/a7/b11_reads.py`,
+`b11_reads.json`, SHA-256 d2bb2f8f…). Those two iterations took 36.6 s
+and 37.5 s there, so the host was loaded during the screen, and (d) did
+what it was registered for.
+
+| # | Position | Growth steps 20 / 21 / 22 | (b) geomean | (a), depths 16–22 | Steps 17–19 geomean (recorded) | Absolute at 22 (recorded) | Verdict |
+|---|---|---|---|---|---|---|---|
+| 1 | bench 11 | 4.47 / 6.63 / 3.22 (600 s read) | **4.57** | **fails at 22** | 1.147 | 66.2 | **FAIL** |
+| 2 | bench 15 | 0.47 / 0.45 / 0.58 | 0.493 | holds | 0.727 | 0.019 | pass |
+| 3 | `suite_v2` 50 | 1.02 / 1.02 / 1.03 | 1.020 | holds | 2.531 | 0.401 | pass (exposed; not evidence) |
+| 4 | `suite_v2` 42 | 1.01 / 1.02 / 1.02 | 1.016 | holds | 1.003 | 0.251 | pass |
+| 5 | `suite_v2` 60 | 1.15 / 1.16 / 1.18 | 1.163 | holds | 1.114 | 0.024 | pass |
+
+**Position 1 fails on node counts, whatever the host.**
+
+- (b) is a node-count statistic: 4.57 against 1.5, so (c) is required.
+- (a) fails at depth 22. The ON arm's iteration 22 is 499,938,717 nodes
+  (151 s at 3.29M nodes per second). At the highest single-thread rate
+  any read on this host measured (3.38M), 60 s holds at most about 203M
+  nodes. The OFF arm's iteration 22 is 2,845,117 nodes.
+- The idle re-run that (d) asks for can only make iterations faster. It
+  cannot finish a 500M-node iteration in 60 s, so it cannot turn the
+  position into a pass, and the verdict is taken from the node counts.
+
+**P34 scored:** missed: position 1 fails. **P35 scored:** hit: (b)
+fails on position 1 alone, but (c) fails with it.
+
+**What it says.** The window change does what §0 argued on position 3:
+the resolution hump has ended by depths 20–22. The failure on position 1
+is a different event. P34's falsifier applies: the leaf returns with the
+attribution reads on position 1 (*Return 8*). Those reads name a
+mechanism, so §R's bar on a second re-scope does not come into play, and
+the next step is a mechanism amendment.
+
+### 2. Clauses replaced, and what stands
+
+- Amendment 2 §3's growth clause → §R's clause. It stands as registered,
+  and Return 8 is a fail under it.
+- Return 7's options → option (2) for position 50: its fail is the
+  approach to a resolution the OFF arm reached earlier.
+- P11's consequence ("ticket 6b returns") → not taken on position 50,
+  where its attribution is refuted (§0). On position 1, Return 8 names
+  ProbCut, one of the two mechanisms P11 named. P11's model was right
+  about the arm's risk and wrong about which position would show it.
+- Recorded for the later clusters, with no PLAN change: a screen
+  position chosen by the base arm's tree size at one depth is likely a
+  resolution event at that depth. B.4's and B.5's screens should read
+  both arms past their resolutions.
+
+### 3. The class and the session
+
+This amendment was written as `R2`, in the implementing session, at the
+maintainer's instruction (preamble). The independent review checks §R's
+rule against §0's argument and the registration commit's order (rule
+first, read after). Return 8's answer is a mechanism decision and goes
+to research under PROCESS's class, `R3`, in a separate session.
+
+## Return 8 — B.3.1 cheap qualification: the amended cost screen fails on bench position 11, and ProbCut carries it (2026-11-01)
+
+**What ran.** Amendment 7's screen (above). Then, on bench position 11
+(`2r3k1/1q2Rp1p/p2p2p1/1p1P4/1Pp1P3/2Q5/1P4PP/6K1 w`), deterministic
+reads with a 600 s per-iteration watchdog (node counts are read, not
+time):
+
+- both arms' `info` lines, the ON arm to depth 22 and the OFF arm to 25
+  (`t10/a7/b11_reads.py`, `b11_on.log`, `b11_off.log`);
+- the Diag builds, one search per depth, so that an iteration's counters
+  are the difference of two dumps: the ON arm at depths 19–22, the OFF
+  arm at 21–24, each arm's growth event;
+- the ON ablation build at depth 21 with masks 0, 4, 8, 16 and 64
+  (`t10/a7/b11_attr.py`, `b11_attr.json`, SHA-256 b74502c7…).
+
+Every Diag run and the mask-0 control reproduce the release arms'
+per-depth nodes.
+
+**Both arms, per depth** (cumulative nodes, score, seldepth):
+
+| Depth | ON | OFF |
+|---|---|---|
+| 19 | 4,617,856, cp 2593, 52 | 6,663,683, cp 2424, 54 |
+| 20 | 20,917,059, cp 2704, 65 | 6,746,421, cp 2424, 44 |
+| 21 | 140,180,782, cp 2878, **128** | 6,820,051, cp 2424, 58 |
+| 22 | 640,119,499, cp 3053, **128** | 9,665,168, cp 2462, 58 |
+| 23 | — | 36,257,665, cp 2700, **128** |
+| 24 | — | 157,177,066, cp 3106, 123 |
+| 25 | — | 1,781,283,940, cp 4953, **128** |
+
+Both arms play `e7b7` (Rxb7, winning the queen) throughout, with the
+score past +24 pawns and climbing. At depth 24 the OFF arm switches to
+the ON arm's reply `c8f8` (from `c8e8`).
+
+- **ON:** grows 4.53×, 6.70× and 4.57× at depths 20–22 (138× in three
+  iterations).
+- **OFF:** grows 3.75×, 4.33× and 11.33× at depths 23–25 (184×).
+- **Both:** lines reach the 128-ply maximum.
+
+The OFF arm has the same kind of event, three plies later.
+
+**The counters at the matched event** (ON iterations 20–22 against OFF
+iterations 22–24, per interior node; the singular rows are the ON arm's
+`B3SeekMateDepth` guard at work, since the score is far past
+`B3SeekMateScore`):
+
+| Counter | ON, iterations 20 / 21 / 22 | OFF, iterations 22 / 23 / 24 |
+|---|---|---|
+| interior nodes | 6.24M / 45.1M / 192.2M | 1.80M / 16.1M / 70.6M |
+| singular tries | 0 / 0 / 0 (seekMate refused 64k, 213k, 423k) | 3.0% / 2.6% / 2.6% |
+| ProbCut tries | **5.5% / 5.5% / 5.2%** | 1.3% / 1.3% / 1.2% |
+| ProbCut cuts | 4.3% / 4.1% / 3.8% | 0.9% / 0.8% / 0.7% |
+| quiescence nodes | **1.68 / 1.75 / 1.74** | 0.62 / 0.69 / 0.77 |
+| quiescence evasion nodes | **23% / 24% / 22%** | 3.6% / 4.8% / 6.6% |
+| razoring cuts | 6.7% / **10.9% / 14.6%** | 3.5% / 4.4% / 6.3% |
+| LMR applied / re-searched | 37% / 6.2% (iteration 21) | 20% / 1.6% (iteration 23) |
+| no TT move | 66% / 72% / 75% | 44% / 49% / 57% |
+| null-move tries | 1.8% / 1.2% / 1.0% | 9.6% / 8.5% / 6.7% |
+| `tt_pv` nodes | 0.17% / 0.06% / 0.02% | 4.6% / 4.1% / 4.5% |
+| IIR reductions | 0.59% / 0.43% / 0.35% | 0.66% / 0.71% / 0.80% |
+| `ext_budget_bound` | 0 | 0 |
+
+**The ablations at depth 21** (ON ablation build; amendment 3's rule: a
+switch names a mechanism when it moves the count by more than 3× either
+way):
+
+| Mask (bit) | Nodes at 21 | Against the control | Growth at 20 / 21 |
+|---|---|---|---|
+| 0 (control) | 140,180,782 | 1.00 | 4.53 / 6.70 |
+| 4 (null move) | 123,792,413 | 0.88 | 2.48 / 3.55 |
+| **8 (ProbCut)** | **22,919,965** | **0.16** | 1.36 / 3.27 |
+| 16 (IIR) | 1,216,038,985 | 8.67 | 2.01 / 3.27 (the event moves to depth 19: 185M) |
+| 64 (extensions) | 155,103,128 | 1.11 | 3.17 / 4.59 |
+
+**What the reads say.**
+
+- ProbCut is named. It is the only ablation that shrinks the tree by
+  more than 3× (6.1×), and on the ON arm it is tried at four times the
+  OFF arm's share at the matched event.
+- With ProbCut off, the ON arm's event starts a ply later and smaller
+  (3.27 at depth 21). Its tree at 21 (22.9M) is still 3.4× the OFF arm's
+  (6.8M), so ProbCut is not the whole difference.
+- IIR off makes the event earlier and larger, so IIR restrains it.
+- The singular block is silent (seekMate), and the extension budget
+  never binds.
+- The ON arm's quiescence load (1.7 quiescence nodes per interior node,
+  a quarter of them evasions) and its rising razoring share also set it
+  apart. That ProbCut's quiescence pre-test produces this load is an
+  inference that has not been measured.
+
+**What it does not say.**
+
+- Whether ProbCut's form, its gate or its constants carry the growth.
+- Whether the OFF arm's later event (184× over 23–25) is the same
+  position-driven event, which ProbCut only brings forward three plies.
+- Whether either arm's event costs anything in a game. The position is
+  won by more than 24 pawns on every read.
+
+Amendment 3 recorded this position's response to the singular block's
+constants as chaotic (DESIGN §5). The same may hold for ProbCut, and a
+read of one constant here would not choose a seed.
+
+**Options for research.**
+
+1. *ProbCut in the won-position regime.* The donor's seekMate guard
+   (root depth ≥ `B3SeekMateDepth`, |score| ≥ `B3SeekMateScore`) turns
+   the singular block off and caps reverse futility, but leaves ProbCut
+   on. Research reads the donor's ProbCut gate at `edb0d9db` against
+   Basilisk's port (`B3ProbCutBase` 68, `B3ProbCutPv` 1, the min depth
+   3) to decide whether the port differs from the donor's form, or
+   whether the donor's form needs a guard for this regime.
+2. *ProbCut's constants.* These are B.3.3's sweep, but only after a
+   qualification that passes, which this does not give.
+3. *A shape finding.* Both arms have the event, and ProbCut brings it
+   forward. That is a second re-scope, which amendment 7 §R bars unless
+   a mechanism is named. A mechanism is now named, so research answers
+   the mechanism first.
+
+**State.** B.3.1 returns to `RESEARCH` and resumes on research amendment
+8. Every other qualification read passes (the four other screen
+positions and every read of *Implementation record — tickets 6b to 10*).
+No default, clause, floor or frozen prediction was moved.
