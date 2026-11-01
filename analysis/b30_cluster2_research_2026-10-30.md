@@ -7266,3 +7266,40 @@ until the verdict, as BAS-S40's rule did for B.12.
 (a first-crossing estimate; `docs/experiments/BAS-S44.md`). The repair
 stays, the fingerprint record moves to OFF 11,880,564 / ON 4,923,507, and
 B.14 is closed. B.3.2 may open; its OFF arm is this head.
+
+## B.3.2 — opening (2026-11-01)
+
+B.3.2 opens on the head after B.14 (`bench 13` OFF 11,880,564, ON
+4,923,507). BAS-S41's entry is assembled from §11 and every *clauses
+replaced* list (`docs/experiments/BAS-S41.md`), with its order, run
+table and seeds registered before any game. Item 2's read B (the
+default against (1, 1)) is item 1's `3+0.03` run, so §9 items 1–3 are
+the five runs PLAN names.
+
+The review's record follow-ups (*Review* §5), owned by this opening:
+
+- **Follow-up 2, the B-37 field list.** The fields the verification's
+  re-entry rewrites, beyond the implementation record's list (`tt_pv`,
+  `follow_pv`, `ext_taken`, `(ss+2)->cutoff_cnt`, and the saved and
+  restored `(ss-1)->move_count` and `(ss-1)->stat_score`), also include
+  `ss->eval` and `ss->raw_eval`. The re-entry writes them under the
+  correction as the null subtree left it. They are read afterwards by
+  the node's `improving |= ss->eval >= beta` and by its children's
+  `(ss-1)->eval` (hindsight, the eval-difference training, the in-check
+  inheritance), while the node's own `static_eval` and `eval` locals
+  keep the first values; the donor's `ss->staticEval` behaves the same.
+  `tt_hit` and `in_check` are rewritten to equal values.
+- **Follow-up 3, ticket 3's wire check.** The clause "bench positions 11
+  and 15 read `null_verifications >= 1`" is satisfiable on position 11
+  only: position 15 (`8/8/p1p5/1p5p/1P5P/P1P5/8/K1k5 w`) is a pawn
+  ending with no non-pawn material, where the null move is never tried.
+  The rule column reads position 11 (237 verifications at depth 20); the
+  narrowing is a recorded clause, not a silent one.
+- **Follow-up 4, amendment 8 §1's port differences.** A third
+  difference joins the two listed: the exclusion-node store's
+  evaluation is the raw static evaluation here and the corrected one in
+  the donor (the review's finding; not read for its effect).
+
+Follow-up 5 (how B.12, B.3.0 and B.3.1 reach `master`) is the
+maintainer's, before the first game; follow-up 1 belongs to BAS-S42's
+registration.

@@ -999,6 +999,12 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       scripts tell that exit from a floor failure before the first
       read. The §5.12 surface read decides which Cluster 1 coordinates
       B.3.3 fits. B.14 lands before the first game.
+      - Opened 2026-11-01 on the head after B.14 (BAS-S44 H1; `bench 13`
+        OFF 11,880,564, ON 4,923,507). BAS-S41 is registered
+        (`docs/experiments/BAS-S41.md`): the order, the run table and
+        the seeds, before any game. Item 2's read B is item 1's `3+0.03`
+        run. The review's follow-ups 2-4 are recorded (packet *B.3.2 —
+        opening*).
     - [ ] **B.3.3** `[V]` Curvature sweep, then SPSA in blocks
       Packet §11, BAS-S42: five registered sweep coordinates (the
       singular margin with the donor's value as an extra point), then
@@ -1546,7 +1552,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.2 | RESEARCH | V | B.3.1's review accepted 2026-11-01 (packet *Review*); B.14 landed 2026-11-01 (BAS-S44 H1; the head reads OFF 11,880,564 and ON 4,923,507), so its first game may follow; the review's follow-up 1 (amendment 2's surface additions) belongs to B.3.3's registration and follow-ups 2-4 to the packet's record at B.3.2's opening |
+| B.3.2 | RESEARCH | V | Opened 2026-11-01 on the head after B.14 (OFF 11,880,564, ON 4,923,507): BAS-S41 registered with its order, runs and seeds; the review's follow-ups 2-4 recorded (packet *B.3.2 — opening*); the zero-game screens next, then §9 items 1-3, each game on the maintainer's go-ahead |
 | B.3.3 | RESEARCH | V | Waits for B.3.2 |
 | B.3.4 | RESEARCH | V | Added 2026-10-31; waits for B.3.3 |
 | B.3.5 | RESEARCH | V | Waits for B.3.4 (renumbered from B.3.4 on 2026-10-31) |
