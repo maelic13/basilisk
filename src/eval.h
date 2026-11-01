@@ -54,6 +54,11 @@ public:
     // of the position key alone. This is the value the TT may store and reuse;
     // the damping is applied at the reading node's own clock.
     int evaluate_undamped(const Board& b);
+    // Whether evaluate_undamped(b) is one of the evaluator's draw verdicts
+    // (KNNK, the drawn KPK, the wrong-corner KBP-K, a pawnless side that
+    // cannot mate): a 0 that classifies the position rather than estimating
+    // it. Evaluates b again; meant for positions whose evaluation is 0.
+    bool draw_verdict(const Board& b);
     void clear_pawn_table();
 
     // ---- Lazy dual-eval audit ----------------------------------------------
@@ -87,6 +92,8 @@ public:
 
 private:
     PawnEntry pawn_table_[PAWN_TABLE_SIZE];
+
+    int evaluate_full(const Board& b, bool& verdict, bool query);
 
     void eval_pawns(const Board& b,
                     int& mg, int& eg,

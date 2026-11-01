@@ -323,13 +323,12 @@ private:
     // 131072ths of an evaluation unit, and its training by `bonus`.
     int  correction_value(const SearchStack* ss) const;
     void update_correction_history(SearchStack* ss, int bonus);
-    // A raw evaluation of 0 takes no correction. The evaluator returns 0 for
-    // its classifications (a recognised draw, a position scaled to a draw),
-    // which have no error to correct, and the shared keys' training would
-    // overwrite the verdict; an ordinary evaluation of exactly 0 is skipped
-    // with them.
-    static int corrected_eval(int raw_eval, int correction) {
-        if (raw_eval == 0) return 0;
+    // The evaluator's draw verdicts take no correction: a classification has
+    // no error to correct, and the shared keys' training would overwrite it.
+    // A verdict is a 0, so only a 0 is asked about (a TT-stored evaluation
+    // carries no verdict); an ordinary evaluation of 0 keeps its correction.
+    int corrected_eval(int raw_eval, int correction) {
+        if (raw_eval == 0 && evaluator_.draw_verdict(*state_.board)) return 0;
         return std::clamp(raw_eval + correction / 131072,
                           -(tablebaseWinInMaxPly - 1), tablebaseWinInMaxPly - 1);
     }

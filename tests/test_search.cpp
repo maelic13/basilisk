@@ -1195,11 +1195,15 @@ static void test_rook_promotions() {
 
     // Here the rook line transposes into the queen line after ...Rxa8 Rxa8,
     // but Black has a drawing alternative only against the rook. At 100,000
-    // nodes the old search preferred the rook on that shared line.
+    // nodes the old search preferred the rook on that shared line. The win
+    // (Rf8 behind the f-pawn, the king to c5) must be read, not the root's
+    // order in a tie at 0: the ON arm sights it at 100,000 nodes, the OFF
+    // arm at 200,000 (research amendment 9, clause C-A9-1).
     begin_section("promotion: a queen where a rook only transposes");
     auto transposing = run_search("3r4/P7/2K1p3/R7/5p2/6kP/8/8 w - - 2 66",
-                                  MAX_SEARCH_DEPTH, 100000, 0, 64);
+                                  MAX_SEARCH_DEPTH, kB3Proof ? 100000 : 200000, 0, 64);
     EXPECT_STR(transposing.uci, "a7a8q");
+    EXPECT(transposing.sr.score > 0);
     end_section();
 
     // The rook was the best move of an earlier iteration, so it comes first
