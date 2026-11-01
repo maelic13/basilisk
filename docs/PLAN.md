@@ -1005,6 +1005,27 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         the seeds, before any game. Item 2's read B is item 1's `3+0.03`
         run. The review's follow-ups 2-4 are recorded (packet *B.3.2 —
         opening*).
+      - Zero-game screens 2026-11-01 (BAS-S41 *RESULT*; packet *B.3.2 —
+        the zero-game screens*), on clean `c6f7151` binaries:
+        - The cost screen passes all five positions.
+        - The floors hold. The OFF arm's 120k exit is the staleness
+          guard (KQ-K 24/24), not a floor.
+        - WAC at 100k reads 240 on both arms; at 400k, 264 on both.
+        - The canary calibration flips 0 under Hash 32 and 128. The ON
+          arm then passes 65 of 77 canaries, the OFF arm 70.
+        - Item 5's same-ply form refuses 0.036% of null cuts, so the
+          1-against-2 run is not owed.
+        - Seven §5.12 candidates join B.3.3's surface; the LMR pair and
+          `CoreLmrCutNodeNoTt` stay off.
+        - P5 misses: 0.41× on `bench 13`, 0.17× on the suite. The
+          extension family carries it (0.78× with it removed on both
+          arms): the check policy drops the check extension.
+        - P6 and P7 held. P3, P4 and P8b's lower edge missed; P4's
+          falsifiers fired. No stop rule fired.
+        - Pooled NPS (P9) waits for an idle host.
+        - `tools/run_b32_games.ps1` is prepared: items 1-3 (five runs)
+          and the paired run, all dry runs accepted. Each game waits for
+          the maintainer's go-ahead.
     - [ ] **B.3.3** `[V]` Curvature sweep, then SPSA in blocks
       Packet §11, BAS-S42: five registered sweep coordinates (the
       singular margin with the donor's value as an extra point), then
@@ -1552,7 +1573,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.2 | RESEARCH | V | Opened 2026-11-01 on the head after B.14 (OFF 11,880,564, ON 4,923,507): BAS-S41 registered with its order, runs and seeds; the review's follow-ups 2-4 recorded (packet *B.3.2 — opening*); the zero-game screens next, then §9 items 1-3, each game on the maintainer's go-ahead |
+| B.3.2 | RESEARCH | V | Opened 2026-11-01 on the head after B.14 (OFF 11,880,564, ON 4,923,507): BAS-S41 registered with its order, runs and seeds; the review's follow-ups 2-4 recorded (packet *B.3.2 — opening*); the zero-game screens read (no stop rule fired; pooled NPS waits for an idle host); §9 item 1 (`tools/run_b32_games.ps1 -Run CheckExt`) is next, on the maintainer's go-ahead |
 | B.3.3 | RESEARCH | V | Waits for B.3.2 |
 | B.3.4 | RESEARCH | V | Added 2026-10-31; waits for B.3.3 |
 | B.3.5 | RESEARCH | V | Waits for B.3.4 (renumbered from B.3.4 on 2026-10-31) |

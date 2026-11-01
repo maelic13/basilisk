@@ -194,4 +194,110 @@ Predictions frozen by the amendments for B.3.2's runs (verbatim):
 
 #### RESULT — append after exposure
 
-- (zero-game screens, then each run, appended in order)
+- **Binaries** (2026-11-01, `c6f7151`, a documentation commit on the
+  engine of `1b2515b`; every manifest clean, clang 23.1.4, PEXT final
+  PGO; `tools/results/b32-20261101/build_all.ps1`):
+  - Release ON `pgo1` `4CE2E748…`, `pgo2` `040BF082…` (`bench 13`
+    4,923,507); OFF `pgo1` `A919936F…`, `pgo2` `2F981F2B…` (11,880,564).
+  - ON Tune `B757C936…` (4,923,507), and Diag and Ablate on both arms,
+    each at its arm's fingerprint.
+- **Zero-game screens** (2026-11-01, deterministic node and depth reads;
+  `tools/results/b32-20261101/screens/`, read by `analyze.py` into
+  `analyze.txt`; packet *B.3.2 — the zero-game screens* has the tables):
+  - **Counters at depth 14** (`suite_v2`, Hash 64, stride 1, the LMR
+    identity holds on both arms): total nodes ON 13,587,191 against OFF
+    80,635,359. In-check interior nodes 16.8% (OFF 26.5%); check
+    extensions 0 (OFF 26.2%). The null move tries 8.30% of interior nodes
+    (OFF 7.49%) and converts 56.9% (OFF 41.4%). ProbCut tries 6.66% and
+    converts 76.9% (OFF 1.40%, 53.9%). Singular: tries 1.67%, extensions
+    0.52% of interior, multi-cuts 23.7% and negative extensions 42.0% of
+    tries, three-ply extensions 83.8% of extensions, `ext_budget_bound`
+    37.0% of extensions.
+  - **The crossover band (§5.3):** RFP cuts 22.75 / 1.75 / 0.28% at
+    remaining depths 1–3 / 4–7 / 8+ (OFF 14.08 / 0.81 / 0.05%); NMP
+    tries 1.82 / 4.01 / 2.47% converting 58.5 / 61.1 / 48.9% (OFF 2.30 /
+    4.19 / 1.00%, 37.4 / 42.4 / 46.6%). The crossover stays at depth 4.
+  - **§5.12's candidates** (the mechanism's firing share, ON against OFF,
+    and the in-check share of the ON arm's firings): **join** B.3.3's
+    surface `CoreLmpBase` (+36.1%), `CoreQuietFutBase` (+52.6%),
+    `CoreCaptFutBase` (−28.0%), `CoreCaptSeeCoeff` (−16.2%),
+    `CoreContHistPruneSlope` (−81.7%; in check 21.6%),
+    `CoreRfpCorrMult` with amendment 2's `CoreRfpPerPly`,
+    `CoreRfpImproving` and `CoreRfpDepthCap` (RFP +65.8%), and
+    `CoreCorrUpdateScale` (+82.1%). **Stay off:** `CoreLmrCutNode`,
+    `CoreLmrTableScale` and `CoreLmrOffset` (LMR applied per move tested
+    −6.4%, in check 4.1%) and `CoreLmrCutNodeNoTt` (`tt_move_absent`
+    +8.4%). The LMR and no-TT-move shares are proxies: no counter
+    separates cut nodes.
+  - **The oracle differential at 300,000 nodes:** best-move agreement ON
+    54/105, OFF 56/105; median depth ON 17, OFF 15.
+  - **WAC:** 100,000 nodes ON 240, OFF 240; 400,000 nodes 264 and 264;
+    `depthpv 10` 223 and 248 (`fixed_budget_probe.py`; B.14's
+    `test_wac` read 241 and 240 at 100,000 on the same engine).
+  - **The canary calibration (B-94):** the OFF arm at Hash 32 and 128
+    flips **0** of the 77 required canaries against Hash 64 (70 pass at
+    every size). Read after it, the ON arm passes **65**: it loses
+    WAC.031, 072, 125, 126, 150 and 164 and gains WAC.255. With the
+    neutral flip count at 0, all seven flips are the arm's.
+  - **The cost screen** (amendment 7 §R on amendment 8's set,
+    `cost_screen25.json`, scored by the registered `screen_score_a7.py`):
+    **PASS** on all five positions, depth 25 finished on both arms with no
+    watchdog stop. It is node for node ticket 10b's read: the five
+    positions never reach a B.14 verdict.
+  - **Item 5's counter:** with the same-ply form (`B3NmpVerify=2`) the ON
+    arm refuses 147 of 406,493 null cuts (0.036%), under 1%. So the
+    1-against-2 run is not owed, and PLAN's `[-5,0]` arm is retired as
+    behaviour-identical by §9's rule. The OFF arm's legacy verification
+    has no counter, so §9's "on the OFF arm" read cannot be taken with
+    the committed instruments; the ON read answers the rule's question.
+    The region (the default) verifies 1,577 times and refuses 2.
+  - **The won-position row** (amendment 8 decision 4; the ten bench
+    positions whose OFF root at depth 14 is at or beyond ±564: 5, 10–12,
+    15, 16, 29, 31, 38, 39). Per interior node on the ON arm, for the won
+    subset, all 40 positions and `suite_v2`: ProbCut tries 6.12 / 7.03 /
+    6.66%; ProbCut cuts 4.91 / 5.82 / 5.12%; quiescence 87.2 / 88.1 /
+    75.9%; evasions 11.3 / 6.7 / 7.0%; razoring 2.44 / 2.94 / 3.27%.
+    ProbCut's won-position shares are not above the whole-suite shares.
+  - **The floors**, read on this engine at B.14 (BAS-S44
+    §QUALIFICATION, not repeated: same source): KQ-K, KR-K and KBB-K 24
+    at every budget on both arms; KBN-K OFF 115, ON 120. The OFF arm's
+    120,000-node run exits 1 on the tool's staleness guard alone: KQ-K
+    converts 24/24 with a mean of 10.8 plies against its ceiling of 16.3
+    (`conv_commit_off_120000.log`). That is not a floor failure.
+  - **Pooled NPS** (P9): not read. It needs an idle host, and the
+    maintainer is using it.
+- **Predictions read at the opening:**
+  - **P3 missed on two legs.** Null tries per interior node are 1.11×
+    the OFF arm's share, not ≤ 50%, and conversion is 56.9%, not ≥ 65%.
+    The falsifier (under 55%) does not fire. The region leg holds: 2
+    refusals in 1,577 verifications. The shares are of a tree 6.7×
+    smaller, so the per-node rates compare different populations.
+  - **P4 missed on three legs; two falsifiers fire.** Tries hold (1.67%)
+    and multi-cuts hold (23.7%). Extensions read 0.52% of interior nodes
+    (falsifier: under 0.9%, "the margin did not reach the population"),
+    three-ply extensions 83.8% (falsifier: above 25%, "the bars are
+    mis-scaled") and negatives 42.0% (band 5–25%). The three-ply share
+    has been on record since Return 2 (98.3% at depth 13) and amendments
+    2 and 3 set the bars. The falsifiers are diagnoses, not §11 stop
+    rules.
+  - **P5 missed on both reads, the mechanism named.** `bench 13` is
+    0.414× and `suite_v2` at depth 14 0.169×. The 40 bench positions
+    searched alone at depth 13 read 0.316× (`ablate_alone13.json`, both
+    arms' Ablate builds; `bench` itself ignores `AblationMask`). With
+    the extension family (bit 6) removed on both arms the ratio is
+    **0.780**, inside the band. With any other single bit removed it is
+    0.25–0.53. The OFF arm's extensions multiply its tree 4.51× (its
+    unconditional check extension extends 26.2% of interior nodes); the
+    ON arm's graded singular extension multiplies its tree 1.83×. So the
+    mechanism is the check policy (§5.1) removing the check extension,
+    by design: it "died". Item 1 reads it in games.
+  - **P6 held:** WAC 240 at 100,000 nodes, in [232, 262].
+  - **P7 held:** the floors as above, KBN-K 120 ≥ 112.
+  - **P8 missed again (it was scored a miss in amendment 1):**
+    `ext_budget_bound` is 14,889 of 40,266 extensions on `suite_v2` at
+    depth 14 and 2,053 on the bench positions at depth 14. P8b at depth
+    13 on the 40 bench positions reads **16.2%** (1,767 of 10,904):
+    under the band's lower edge, as on V6 (14.9%). Its upper edge, the
+    return trigger (70%), does not fire.
+  - **P9:** pending the idle-host NPS read. **P1, P10, P13, P17, P32 and
+    P33** are read by the games and their counter reads.

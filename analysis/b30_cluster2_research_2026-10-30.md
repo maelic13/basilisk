@@ -7303,3 +7303,110 @@ The review's record follow-ups (*Review* §5), owned by this opening:
 Follow-up 5 (how B.12, B.3.0 and B.3.1 reach `master`) is the
 maintainer's, before the first game; follow-up 1 belongs to BAS-S42's
 registration.
+
+### B.3.2 — the zero-game screens (2026-11-01)
+
+BAS-S41's screens on `c6f7151`'s binaries (the engine of `1b2515b`; clean
+manifests, both arms; `tools/results/b32-20261101/`). The verdicts and
+predictions are in `docs/experiments/BAS-S41.md`; the tables are here
+for B.3.3's registration.
+
+**Counters at depth 14** (`suite_v2`, Hash 64, stride 1; Diag builds;
+`screens/suite_d14_diff300k_{off,on}.json`; shares of interior nodes
+unless the row says otherwise):
+
+| Quantity | OFF | ON |
+|---|---:|---:|
+| interior / quiescence nodes | 51,414,181 / 29,221,178 (qs 36.2%) | 7,723,195 / 5,863,996 (qs 43.2%) |
+| total nodes | 80,635,359 | 13,587,191 |
+| in-check interior; check extensions | 26.49%; 26.19% | 16.82%; 0.00% |
+| rfp_cuts; razor | 14.94%; 5.14% | 24.78%; 3.27% |
+| null_tries; conversion | 7.49%; 41.4% | 8.30%; 56.9% |
+| null conversion d1-3 / 4-7 / 8+ | 37.4 / 42.4 / 46.6 | 58.5 / 61.1 / 48.9 |
+| null verifications; failed; region refusals | 0; 0; 0 | 1,577; 2; 7 |
+| probcut_tries; conversion; TT cuts | 1.40%; 53.9%; 0 | 6.66%; 76.9%; 0 |
+| IIR; stale share; after hindsight | 0.81%; 56.4%; 0.3% | 1.75%; 0.0%; 7.8% |
+| hindsight up / down | 5.19% / 1.02% | 6.01% / 4.82% |
+| singular tries; extended / multi-cut / negative per try | 2.40%; 28.5 / 11.7 / 0.0% | 1.67%; 31.3 / 23.7 / 31.7% |
+| singular extensions / interior; doubles; triples (sing_ext3 / sing_triple, of ext) | 0.68%; 84.2%; 0.0% / 16.2% | 0.52%; 98.6%; 83.8% / 0.0% |
+| ext_budget_bound (of singular extensions) | 0 (0.00%) | 14,889 (36.98%) |
+| LMR applied (of eligible); mean; re-search | 41.7%; 2.48; 6.56% | 61.4%; 3.12; 5.38% |
+| cutoffs first move; TT / good cap / quiet | 87.1%; 38.1 / 27.9 / 33.8% | 87.2%; 35.2 / 31.7 / 32.9% |
+| TT hits; tt_pv nodes; tt_move_absent | 45.2%; 2.11%; 60.1% | 40.2%; 5.64%; 65.2% |
+| cuckoo draws; tt_penalized; follow_pv nodes | 0; 0; 0 | 58,765; 71,108; 21,435 |
+
+**The crossover band (§5.3):**
+
+| Depth | OFF RFP | OFF NMP | OFF conv | ON RFP | ON NMP | ON conv |
+|---|---:|---:|---:|---:|---:|---:|
+| 1-3 | 14.08% | 2.30% | 37.4% | 22.75% | 1.82% | 58.5% |
+| 4-7 | 0.81% | 4.19% | 42.4% | 1.75% | 4.01% | 61.1% |
+| 8+ | 0.05% | 1.00% | 46.6% | 0.28% | 2.47% | 48.9% |
+
+**§5.12's candidates** (the mechanism's firing share, of interior nodes
+or of moves tested; the change is ON against OFF as a fraction of the
+OFF share; "joins" by 10% of itself or an in-check share above 10%).
+The LMR and no-TT-move rows are proxies, since no counter separates cut
+nodes. Amendment 2's `CoreRfpPerPly`, `CoreRfpImproving` and
+`CoreRfpDepthCap` join with RFP's row.
+
+| Candidate (mechanism) | OFF share | ON share | change of itself | ON in-check share | rule |
+|---|---:|---:|---:|---:|---|
+| CoreLmrCutNode, CoreLmrTableScale, CoreLmrOffset (LMR applied / moves tested) | 28.433% | 26.619% | -6.4% | 4.1% | stays off |
+| CoreLmrCutNodeNoTt (tt_move_absent / interior) | 60.106% | 65.156% | +8.4% | nan% | stays off |
+| CoreLmpBase (count-skip nodes / interior) | 9.905% | 13.480% | +36.1% | 6.3% | joins |
+| CoreQuietFutBase (quiet futility / moves tested) | 24.821% | 37.870% | +52.6% | nan% | joins |
+| CoreCaptFutBase (capture futility / moves tested) | 8.574% | 6.174% | -28.0% | 0.2% | joins |
+| CoreCaptSeeCoeff (capture SEE / moves tested) | 8.902% | 7.458% | -16.2% | 0.4% | joins |
+| quiet SEE, read beside (moves tested) | 8.454% | 8.874% | +5.0% | 2.9% | stays off |
+| CoreContHistPruneSlope (continuation pruning / moves tested) | 6.603% | 1.210% | -81.7% | 21.6% | joins |
+| CoreRfpCorrMult (RFP cuts / interior) | 14.944% | 24.778% | +65.8% | nan% | joins |
+| CoreCorrUpdateScale (ply-2 correction updates / interior) | 7.077% | 12.887% | +82.1% | nan% | joins |
+
+**The won-position row** (amendment 8 decision 4; ON arm, per interior
+node at depth 14; the subset is the ten bench positions whose OFF root
+reads at or beyond ±564: 5, 10–12, 15, 16, 29, 31, 38, 39):
+
+| per interior node (ON) | won subset | all 40 bench | suite_v2 |
+|---|---:|---:|---:|
+| probcut_tries | 6.12% | 7.03% | 6.66% |
+| probcut_cuts | 4.91% | 5.82% | 5.12% |
+| qs_nodes | 87.24% | 88.12% | 75.93% |
+| qs_evasion_nodes | 11.28% | 6.71% | 7.04% |
+| razor_cuts | 2.44% | 2.94% | 3.27% |
+
+ProbCut's won-position shares are not above the whole-suite shares, so
+amendment 8's retry trigger for its guard variant is not met by this row.
+
+**P5's mechanism** (the 40 bench positions searched alone at `go depth
+13`, each arm's Ablate build, one bit removed on both arms;
+`screens/ablate_alone13.json`). `bench` ignores `AblationMask`, so the
+first form of this read measured nothing and was discarded.
+
+| Bit removed | ON nodes | OFF nodes | ON / OFF |
+|---|---:|---:|---:|
+| none | 3,907,117 | 12,356,442 | 0.316 |
+| razoring | 3,727,413 | 14,746,441 | 0.253 |
+| reverse futility | 7,329,577 | 13,856,302 | 0.529 |
+| null move | 5,601,430 | 20,670,606 | 0.271 |
+| ProbCut | 3,863,042 | 14,493,210 | 0.267 |
+| IIR | 4,379,114 | 17,622,752 | 0.248 |
+| shallow move pruning | 11,354,428 | 24,206,176 | 0.469 |
+| **extensions** | 2,138,324 | 2,739,914 | **0.780** |
+| LMR | 7,176,380 | 17,614,725 | 0.407 |
+
+The extension family carries the shrink: the OFF arm's extensions
+multiply its tree 4.51×, the ON arm's 1.83×. This is the check policy of
+§5.1 removing the unconditional check extension.
+
+**The canaries.** The B-94 calibration flips 0 of 77 required canaries
+on the OFF arm at Hash 32 and 128 against 64. The ON arm then passes 65
+(OFF 70): it loses WAC.031, 072, 125, 126, 150 and 164 and gains
+WAC.255. No canary floor is registered for BAS-S41. The losses are
+recorded for the ablation by switch if the paired run is negative.
+
+**The OFF arm's legacy null-move verification** (`search_kernel_core.cpp`,
+the `!kB3Proof` block) increments no counter. So §9 item 5's "on the OFF
+arm" read is not available with the committed instruments; item 5's
+question was answered on the ON Tune build at `B3NmpVerify=2` instead
+(0.036% of null cuts refused).
