@@ -1032,6 +1032,21 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         excludes 0, so by item 1's rule the extension cannot be adopted
         and the default 0 stands; P10's first leg (within ±8) missed.
         The `10+0.1` run stays registered as the recorded LTC read.
+      - §9 item 2 read A, maintainer-run 2026-11-01: the legacy check
+        policy reads **−30.8 ± 9.5 Elo**, so both check defaults stand.
+      - Preconditions for items 4-16, all zero-game:
+        - By §5.12's 10% rule items 6 and 7 run, and items 8 and 11
+          keep their defaults without games.
+        - P33 held (+7.9 points).
+        - Item 12's cost screen with `B3Iir` 0 passes.
+        - NPS pools `b32-on` and `b32-off` are built: four clean
+          builds each at `c6f7151`. They replaced the first `pgo1`
+          and `pgo2` builds before any game used them, so the paired
+          run is re-pinned to each pool's build 1.
+        - `tools/run_b32_games.ps1` now carries items 4-16. An order
+          guard refuses the paired run until items 1-3 leave the
+          defaults, and items 4-16 until the paired run reads above −40.
+        - Every queued launch was dry-run and accepted.
       - Maintainer decision 2026-11-01 (review follow-up 5): B.12, B.14,
         B.3.0 and Cluster 2 reach `master` together, in one delivery at
         the end of Cluster 2, once everything is accepted.
@@ -1582,7 +1597,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.2 | RESEARCH | V | Opened 2026-11-01 on the head after B.14 (OFF 11,880,564, ON 4,923,507): BAS-S41 registered with its order, runs and seeds; the review's follow-ups 2-4 recorded (packet *B.3.2 — opening*); the zero-game screens read (no stop rule fired; pooled NPS waits for an idle host); §9 item 1 (`tools/run_b32_games.ps1 -Run CheckExt`) is next, on the maintainer's go-ahead |
+| B.3.2 | RESEARCH | V | Opened 2026-11-01 on the head after B.14 (OFF 11,880,564, ON 4,923,507): BAS-S41 registered with its order, runs and seeds; the review's follow-ups 2-4 recorded (packet *B.3.2 — opening*); the zero-game screens read (no stop rule fired); items 1 (STC) and 2 (read A) played, defaults kept; the overnight queue (NPS, items 1 and 3 at their remaining controls, the paired run, items 4-16) is prepared behind BAS-S41's order guard |
 | B.3.3 | RESEARCH | V | Waits for B.3.2 |
 | B.3.4 | RESEARCH | V | Added 2026-10-31; waits for B.3.3 |
 | B.3.5 | RESEARCH | V | Waits for B.3.4 (renumbered from B.3.4 on 2026-10-31) |

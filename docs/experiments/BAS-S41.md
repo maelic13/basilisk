@@ -325,3 +325,49 @@ Predictions frozen by the amendments for B.3.2's runs (verbatim):
   - The `10+0.1` run stays registered and is read as recorded: the rule
     is already decided, but it is BAS-X01's re-read, and a registered
     run is not shrunk after a result.
+- **§9 item 2, read A** (maintainer-run 2026-11-01; the legacy check
+  policy `B3CheckExt=1`, `B3CheckPrune=0` as arm A against the defaults;
+  seed 41002; 2,000 games; 0 faults, 0 time losses; the PGN recount
+  agrees):
+  - **−30.8 ± 9.5 Elo** for the legacy policy (nElo −49.6 ± 15.2); W/D/L
+    425/973/602; pentanomial [55, 298, 441, 181, 25]. Read as the rule
+    states it (the default against the legacy policy) that is **+30.8**,
+    interval [+21.3, +40.3].
+  - Per move, the legacy policy searches 14.09 plies on average without
+    mate scores against 16.46, at 1.77M against 1.90M nodes per second.
+  - Provenance: manifest `colosseum_match_b32-cat-CheckLegacy_20261101_230307.manifest.txt`,
+    repo `bd0a71b` clean, host 2.9% busy and not waived, dry run
+    `8693F554…`; run record `50918E8C…`, PGN `50575899…`.
+  - **By the registered rule** (read A at ≤ −5 flips both defaults): it
+    is not ≤ −5, so both check defaults stand (`B3CheckExt` 0,
+    `B3CheckPrune` 1) and §5.1 stays closed. Together with item 1, the
+    donor's check policy is worth about 31 Elo over the legacy policy
+    on this arm, and about 22 of them come from not extending checks.
+- **Preconditions for items 4–16** (2026-11-01, zero-game, on the ON
+  Tune build at the defaults items 1–3 leave unless item 3 moves one;
+  `screens/suite_d14_on_*.json`, depth 14, `suite_v2`):
+  - **The 10% rule**, the alternative's firing share against the
+    default's: item 6 `B3SingTtDepth=1` singular tries −17.1% (runs);
+    item 7 `B3IirStale=1` IIR +137.9% (runs); item 8 `B3ProbCutPv=0`
+    ProbCut tries +4.2% (no run: the default 1 stands); item 11
+    `B3CorrExcluded=0` correction updates +3.7% (no run: the default 1
+    stands, and P17 is not read; the update count is a proxy, since no
+    counter isolates training at exclusion nodes).
+  - **P33 held:** `tt_move_absent` reads 73.0% of interior nodes with
+    the store at 1 against 65.2% at 0, +7.9 points (≥ 5).
+  - **Item 12's cost screen with `B3Iir` 0** (`screen_opts.py`, the
+    option wire proved live first: the arm moves on all five positions
+    at depth 12 and the base does not): **PASS** on all five, no
+    watchdog stop (steps 20–22 geomeans 1.137, 0.507, 1.035, 1.045,
+    1.045). Item 12 runs.
+  - Item 4 runs (the KBN-K majority rule passes at the default, ticket
+    10's read, the floors unchanged by B.14). Item 9's terminal tests
+    pass in release CTest. Item 13 has no run (amendment 2).
+- **The paired run's binaries are re-pinned before any game used
+  them.** Building the NPS pools (`nps_pool.ps1 -Revision c6f7151`, four
+  clean builds per arm, pools `b32-on` and `b32-off`) staged its builds
+  under the same names as the first `pgo1` and `pgo2`, replacing them.
+  The paired run now plays each pool's build 1: ON `0B5D9DC6…`, OFF
+  `8E5B9874…`, both clean at `c6f7151` with their arms' fingerprints.
+  Items 1 and 2 played the Tune build, which was untouched
+  (`B757C936…`).
