@@ -5466,7 +5466,7 @@ deterministic node-count or counter read on the ticket-10 binaries
 per-iteration watchdog that only stops a runaway. No timed read, no game.
 Recipes, logs and JSON: `tools/results/b31-20261030/amend8/` (`a8_r1.py`,
 `a8_r2.py`, `a8_*.log`, `a8_*.json`). This section's §R was committed
-before any read ran; §1 onward were written after.
+before any read ran (`45fca15`); §0 and §1 onward were written after.
 
 ### R. Hypotheses, reads and predictions, registered before running
 
@@ -5600,3 +5600,374 @@ KBB-K 24 each; KBN-K sum ≥ 112), the promotion fixture at six budgets
 (a8=Q, positive at 100,000), the 28 wrong-bishop reads, and amendment 7's
 screen on all five positions (node counts decide; a watchdog stop on
 this host is inconclusive, not a fail).
+
+### 0. What the reads say, plainly
+
+- The blowup on bench position 11 is the position's, not ProbCut's. It
+  is the conversion band of a game won by more than 24 pawns under an
+  evaluation that reads material and nothing of "won": the root score
+  climbs 100–400 cp an iteration from about 2,650 up, every iteration
+  fails high four to eight times, each widened window is re-searched at
+  full depth (BAS-D17), and lines run to the 128-ply maximum. Every arm
+  has it in the iterations where its own score enters the band: the ON
+  arm at 20–22, the OFF arm at 23–25, the ON arm with ProbCut off at
+  21–22 (3.27×, 3.62×; P36 hit), and every one of seven ProbCut settings
+  at some step between 19 and 21 (§3). Every iteration with growth ≥ 3
+  at depth ≥ 19, in every arm, ends with a root score of 2,704 or more
+  (P40 hit).
+- ProbCut's port is the donor's step 12 line for line (§1). Its
+  constants do not carry the event, and the depth-21 count cannot read
+  them: inside the sweep bracket the count moves from 0.24× to 4.1×
+  without monotony (the legacy margin 189 reads 3.8×, the donor's raw
+  240/48 reads 0.48×, the legacy depth gate 5 reads 0.33×, the legacy
+  reduction 4/4 reads 4.1×; P37's first clause missed), and each count
+  is where that arm stands in the band (root scores 2,776 to 3,001 at
+  depth 21), not whether it has the event. DESIGN §5's chaos, as
+  amendment 3 §2 read for the singular block on this same position.
+- What ProbCut does here is move the ON arm's entry into the band three
+  plies earlier and make its passage costlier: with ProbCut off the arm
+  reaches 2,985 at depth 21 for 22.9M nodes and 3,714 at depth 23 for
+  93.6M, against the control's 2,878 for 140.2M and 3,053 for 640.1M.
+  The quiescence load Return 8 pinned on ProbCut's pre-test is not its:
+  with ProbCut tried at 0.22% of interior nodes the arm still runs 1.24
+  quiescence nodes per interior node, 16.5% of them evasions (P39
+  missed). The channel that remains, proofs stored two to four plies
+  shallow and re-proven at every widened window, is consistent with the
+  counts and unmeasured (§4); it is a property of the donor's form met
+  by Basilisk's evaluation scale and full-depth re-search, which no
+  Cluster 2 constant repairs and which the donor's step 13 does not
+  relieve here (0.79×; P38 missed).
+- The screen cannot read this position. Amendment 7's clause compares
+  the arms' per-iteration growth at matched depth; on position 11 both
+  arms have a position-driven event, and the clause reads which arm
+  enters it first. An arm that reaches the band's information at a lower
+  nominal depth, which is what a more selective arm does, fails; the
+  ProbCut-off arm would fail (b) too (ratios 1.35, 3.24, 2.55 at 20–22).
+  The screen's purpose, catching a ply bound that does not bound the tree
+  (B-5/B-6), is served by positions that are not decisively won.
+- Recommended: no default, seed or clause moves; position 11 leaves the
+  screen's position set for a position the rule of §5 chooses, and its
+  band reads are recorded in the two-arm table, not judged; B.3.1
+  resumes at ticket 10b (the screen on the new set) on the maintainer's
+  decision (§6). The alternative, ProbCut standing down under `seekMate`
+  as the singular block does, is priced in prospect and not recommended:
+  it would be a departure from the donor's form taken on one +24 position
+  where no admissible setting avoids the band, it would still fail the
+  clause as written, and the question it answers (ProbCut's cost in won
+  positions at game depths) is B.3.2's paired run's and the Diag read's,
+  which §6 extends by one row.
+
+### 1. The port (H1): the donor's step 12, line for line
+
+Read side by side (`edb0d9db` search.cpp `:1046-1093`, kernel
+`:924-963`), with §R's list: the `improving` OR before the block, the
+margin converted at B.0 §2.4's factor (241 → 68, 64 → 18), the depth gate
+3, the valid-TT-value guard, the picker (captures and queen promotions by
+capture history, the TT move first, SEE at the margin less the static
+eval), the quiescence pre-test, the reduced search at `depth − (improving
+? 5 : 3)` as `!cut_node`, the store at `pc_depth + 1` as a lower bound
+with the value, the return of `value − (pc_beta − beta)` unless decisive.
+Two differences, neither reachable here: the port skips the root (one
+node), and `is_decisive` reads Basilisk's tablebase band (`search_types.h
+:144`) as the donor's does its own; no score on this position is within
+either. Read (e) confirms the PV admission is inert on this position
+(identical count, `probcut_pv_tries` 0 to depth 21). H1 is closed: the
+form is the donor's.
+
+### 2. The event is the position's (H4)
+
+**R1** (`a8_r1_m8_d23.log`, identity with `b11_ablate_m8.log` at depths
+1–21): the ON arm with ProbCut off.
+
+| Depth | Nodes | Growth | Root score | Fail-highs |
+|---|---:|---:|---:|---:|
+| 19 | 5,165,192 | 1.17 | 2,608 | 0 |
+| 20 | 7,015,730 | 1.36 | 2,716 | 0 |
+| 21 | 22,919,965 | **3.27** | 2,985 | 5 |
+| 22 | 83,036,567 | **3.62** | 3,307 | 8 |
+| 23 | 93,608,334 | 1.13 | 3,714 | 7 |
+
+The band on every arm read on this position (the iteration where growth
+first reaches 3, and the root score it ends with; the ON arm's settings
+are §3's):
+
+| Arm | First step ≥ 3 | Score before → after | Steps in the band (growth) |
+|---|---|---|---|
+| OFF | 23 | 2,462 → 2,700 | 23–25 (3.75, 4.33, 11.33) |
+| ON control | 20 | 2,593 → 2,704 | 20–22 (4.53, 6.70, 4.57) |
+| ON, bit 8 (ProbCut off) | 21 | 2,716 → 2,985 | 21–22 (3.27, 3.62); 1.13 at 23 |
+| ON, bit 4 (null move off) | 21 | 2,711 → 2,884 | (2.48 at 20) 21 (3.55) |
+| ON, bit 16 (IIR off) | 19 | 2,640 → 2,837 | 19 (9.3), 21 (3.27) |
+| ON, bit 64 | 20 | 2,585 → 2,695 | 20–21 (3.17, 4.59) |
+| ON, (a) depth gate 5 | 19 | 2,603 → 2,726 | 19 (4.18) |
+| ON, (b) margin 189 | 20 | 2,685 → 2,861 | 20 (13.78) |
+| ON, (c) margin 240/48 | — (2.97 at 20) | 2,713 → 2,979 | 20 (2.97) |
+| ON, (d) reduction 4/4 | 20 | 2,671 → 2,778 | 20–21 (5.05, 6.81) |
+| ON, (f) depth gate 8 | 20 | 2,666 → 2,839 | 20 (3.91) |
+| ON, (g) small ProbCut on | 20 | 2,560 → 2,735 | 20–21 (4.78, 4.16) |
+
+No arm grows 3× at a depth ≥ 17 before its score reaches 2,650, and
+every arm grows 3× (or 2.97×) in the iteration its score passes about
+2,700. Both arms' principal variations carry one plan: `...Rf8`, `a5
+bxa5`, the d-pawn to d7, Black's pawns falling; the ON arm's depth-22
+line and the OFF arm's depth-24 line differ in Black's h-pawn tempi only.
+The OFF arm's event at 23–25 is the same event; the ON arm enters it
+three plies earlier because it reaches the band's information at a lower
+nominal depth (its depth-19 tree is 4.6M nodes against the OFF arm's
+6.7M, with the score 169 cp higher), as amendment 7 §0 read on position
+50 in the other direction. P36 and P40 hit.
+
+### 3. The constants (H2): chaotic, and a phase reading
+
+**R2** (`a8_r2_*_d21.log`, `a8_r2.json`; the control reproduces
+`b11_on.log` at every depth; counters per 100 interior nodes over the
+whole search to depth 21):
+
+| Setting | Nodes at 19 / 20 / 21 | Growth 20 / 21 | Score at 21 | × control | ProbCut tries / cuts | Quiescence / evasions | Razoring |
+|---|---|---|---:|---:|---|---|---:|
+| control | 4.62M / 20.92M / 140.18M | 4.53 / 6.70 | 2,878 | 1.000 | 5.54 / 4.23 | 171 / 23.4 | 10.1 |
+| (a) `B3ProbCutMinDepth` 5 | 17.31M / 21.20M / 46.42M | 1.23 / 2.19 | 2,776 | **0.331** | 1.28 / 1.02 | 143 / 19.5 | 8.7 |
+| (b) `B3ProbCutBase` 189, `Improving` 0 | 17.29M / 238.26M / 529.11M | 13.78 / 2.22 | 2,969 | **3.775** | 3.58 / 2.44 | 172 / 22.2 | 13.4 |
+| (c) `B3ProbCutBase` 240, `Improving` 48 | 11.33M / 33.59M / 67.77M | 2.97 / 2.02 | 3,001 | 0.483 | 3.76 / 2.70 | 127 / 18.3 | 10.7 |
+| (d) `B3ProbCutDepth` 4, `DepthImproving` 4 | 16.69M / 84.24M / 573.39M | 5.05 / 6.81 | 2,955 | **4.090** | 4.93 / 3.61 | 178 / 22.9 | 13.5 |
+| (e) `B3ProbCutPv` 0 | = control | = control | 2,878 | 1.000 | 5.54 / 4.23 | 171 / 23.4 | 10.1 |
+| (f) `B3ProbCutMinDepth` 8 | 4.72M / 18.44M / 33.30M | 3.91 / 1.81 | 2,869 | **0.238** | 0.22 / 0.18 | 124 / 16.5 | 8.4 |
+| (g) `B3ProbCutTt` 1 | 5.59M / 26.74M / 111.22M | 4.78 / 4.16 | 2,816 | 0.793 | 5.90 / 4.56 (+1.15 small) | 169 / 23.4 | 8.9 |
+
+- Amendment 3 §2's rule names a carrier when a switch moves the count by
+  more than 3× either way. Four settings do, in both directions: (a) and
+  (f) under 0.33×, (b) and (d) over 3×, with the count non-monotone in
+  the margin (68: 1.0; 189: 3.8; 240: 0.48), in the depth gate (3: 1.0;
+  5: 0.33; 8: 0.24) and in the reduction (3/5: 1.0; 4/4: 4.1). This is
+  the chaos amendment 3 §2 recorded for the negative extension on this
+  position (0: 0.7M, 1: 236M, 3: 57M), and the same conclusion holds: a
+  read of one constant here chooses nothing. P37's first clause missed;
+  its second and third hit.
+- The counts are phase readings. Every setting has the band (§2's table);
+  what differs is which iteration the climb lands in and how far the arm
+  is through it at depth 21: (a) spent its 4.18× at depth 19 and sits at
+  2,776; (c) climbed to 2,979 at depth 20 for 33.6M and is at 3,001; (b)
+  climbed 13.8× at depth 20. Read at matched information instead, the
+  nodes to the first completed iteration with a root score ≥ 2,860:
+  ProbCut off 22.9M (2,985), (f) 33.3M (2,869), (c) 33.6M (2,979 at 20),
+  control 140.2M (2,878), (b) 238.3M (2,861 at 20), (d) 573.4M (2,955),
+  (a) and (g) not reached by depth 21; the OFF arm 157.2M (3,106 at 24).
+  The ordering is not the sweep's bracket order either way.
+- The quiescence load is the ON arm's, not ProbCut's. Across settings
+  the tries move 25-fold (0.22 to 5.90 per 100 interior nodes) while
+  quiescence nodes per interior node move from 1.24 to 1.78 and the
+  evasion share from 16.5% to 23.9%; (f) keeps 72% of the control's
+  quiescence and 71% of its evasions with 4% of its ProbCut tries. P39
+  missed. The load's producers are the legacy razoring at depths 1–3
+  (8.4–13.5 cuts per 100 interior nodes, each a quiescence call, against
+  the OFF arm's 3.5–6.3) and the arm's leaves under the donor's move-loop
+  pruning (capture futility 21.5, quiet SEE 17 per 100, against 5–7 and
+  4–8 on the OFF arm); Return 8's inference is withdrawn.
+- The small ProbCut (g) does not relieve the band: 1.15 cuts per 100
+  interior nodes, the count 0.79×, the score 2,816 (lower than the
+  control's). The stored values from step 12 (≥ beta + 68 at the window
+  they were proven in) rarely clear `beta + 240` at the widened windows
+  that follow. P38 missed; amendment 2 §2's decision stands.
+
+### 4. ProbCut in the regime (H3): what stands, what does not, and why it is not a port defect
+
+- What stands: on this position the arm without ProbCut is the cheapest
+  arm through the band (§3's matched-information list), and the control
+  the costliest ON arm but two. ProbCut's cost here is real and is not a
+  defect of the port.
+- What does not stand: the pre-test's quiescence as the channel (P39).
+- The channel left, unmeasured: a ProbCut cut stores its proof at
+  `pc_depth + 1` (two to four plies shallower than the node), so on the
+  next widened window the entry serves no cutoff, the valid-TT-value
+  guard admits ProbCut again whenever the stored value still clears the
+  new margin, and the proof (a quiescence search and a reduced search)
+  is run again; a normally cut node is served by its full-depth lower
+  bound for free. With five to eight widened windows an iteration, each
+  re-searched at full depth (BAS-D17's refusal of the donor's
+  `failedHighCnt` reduction, kept), every ProbCut-cut node near the
+  principal variation pays its proof that many times. The counter that
+  would measure it is per-window `probcut_tries` at nodes whose TT entry
+  is a ProbCut store; it is not needed for this amendment's decision and
+  is left to B.3.2's Diag read if the paired run asks (§6).
+- Why no Cluster 2 constant repairs it: the regime is made by two
+  Basilisk partners, the evaluation's material scale (a +24 position
+  climbs 100–400 cp a ply pair with no won-position compression; the
+  donor's NNUE output saturates) and the root's full-depth re-search of
+  every widened window. The donor's own answers are those two, plus
+  `seekMate`'s RFP cap (B.4's). Cluster 2's share is `seekMate`, which
+  already stands the singular block down; extending it to ProbCut is the
+  one Cluster 2 form that would move this position (it reads as bit 8 at
+  root depth ≥ 12, which is where every band iteration is), and it is a
+  departure from the donor priced in §6.
+- Game relevance: at this position the ON arm enters the band at depth
+  20 after 20.9M nodes, beyond the nodes a `3+0.03` move has, with the
+  move decided at depth 1 and the game won. Whether ProbCut's form costs
+  in won positions at game depths is a question the floors have already
+  answered for the pure endings (24 at every budget, KBN-K 120) and the
+  paired run answers for the rest; §6 adds the Diag row that lets the
+  ablation-by-switch name it if that run is negative.
+
+### 5. What the screen can read
+
+- Amendment 7's clause is right for its purpose and wrong for this
+  position: it reads growth ratios at matched depth, and on a position
+  where both arms have a position-driven event it reads only which arm
+  enters first. An arm that is better informed at a nominal depth enters
+  first and fails; here even the ProbCut-off arm fails (b) (ratios 1.35,
+  3.24, 2.55 at steps 20–22, geometric mean 2.2), and under (c) the
+  verdict would turn on whether two position-driven events happen to
+  align in depth, which is not a mechanism reading. Amendment 7 §2
+  recorded the resolution-event form of this confound for the later
+  clusters; the conversion-band form is its twin, and the rule below
+  excludes both at selection.
+- The replacement rule, for ticket 10b: from the 40 bench positions and
+  the 106 `suite_v2` positions, the OFF arm's largest depth-14 tree among
+  those whose depth-14 root score is within ±564 (`B3SeekMateScore`: the
+  arm's own won-position line, so every ON mechanism is live on it) and
+  whose OFF tree grows less than 2× at both depths 13 and 14 (not a
+  resolution event). The data is `amend8/a8_select.json` (the OFF arm,
+  Hash 64, `go depth 14`, deterministic); the choice is in §6. Position
+  11 stays in the record as the conversion-band read, with both arms'
+  and the ProbCut-off arm's band tables (§2) in the two-arm table,
+  recorded and not judged.
+- The rule changes the screen's position set, not its clause: §R's
+  read, (a)–(d), the scorer and the bound are unchanged, and P34's
+  consequence (a fail returns the leaf with the attribution reads) stands
+  on the new set.
+
+### 6. Decisions, the recommendation, the amended ticket and the condition
+
+**Research decides (its own):**
+
+1. Return 8's attribution is corrected: ProbCut does not carry the
+   event; the position does, and ProbCut moves the ON arm's entry into
+   it three plies earlier and makes its passage costlier (§2–§4). Its
+   quiescence inference is withdrawn (§3).
+2. H1 is closed (§1). H2 is answered: no in-bracket constant removes the
+   event, and the depth-21 count on this position is a phase reading
+   that chooses nothing (§3); `B3ProbCutBase`, `B3ProbCutImproving`,
+   `B3ProbCutMinDepth`, `B3ProbCutDepth` and `B3ProbCutDepthImproving`
+   stay on B.3.3's sweep at their seeds, read by the fit on games.
+3. Recorded for the roadmap, with no PLAN change here: the
+   conversion-band event of a decisively won position under the
+   material-scale evaluation (both arms, 138× and 184× over three
+   iterations, lines to the ply maximum) is a property of the evaluation
+   and of the root's full-depth re-search, owned by no Cluster 2 leaf.
+   Position 11 at depths ≥ 20 is a test position for B.5's aspiration
+   work (B-76: the fail-high depth reduction BAS-D17 refused) and for
+   the evaluation programme's won-position scale; the donor-form re-read
+   when NNUE lands asks whether the band exists under a saturating
+   evaluation.
+4. BAS-S41's Diag read gains one row, no games: the ON arm's
+   `probcut_tries`, `probcut_cuts`, `qs_nodes`, `qs_evasion_nodes` and
+   `razor_cuts` per interior node on the subset of the 40 bench positions
+   whose OFF root score at depth 14 is at or beyond ±564, beside the
+   whole-suite shares, so that a negative paired run's ablation by switch
+   can name ProbCut's won-position cost or clear it.
+
+**The maintainer decides, with the alternative and the main
+counter-argument:**
+
+1. **The screen's position set** (§5): bench position 11 leaves the set
+   and `suite_v2` position 12
+   (`rn2kb1r/pp2pppp/2p5/3q4/3P1Bb1/5NP1/PPP2P1P/R2QKB1R w`, the OFF
+   arm's largest depth-14 tree under the rule: 746,048 nodes, +104,
+   growth 1.96 and 1.27 at depths 13 and 14) takes its place; position
+   11's band tables (§2) go to the two-arm table as the conversion-band
+   read, recorded and not judged; the clause, scorer and bound of
+   amendment 7 §R are unchanged. Recommended: the mechanism question is
+   answered, the clause cannot read a position where both arms have a
+   position-driven event, and the screen's purpose is served by a
+   position where every ON mechanism is live. Alternative: keep position
+   11 and take its fail as the leaf's verdict, which returns B.3 to
+   research as a whole with no Cluster 2 clause to amend. Counter-
+   argument: this is the screen's second re-scope and the set's four
+   other positions are exposed passes (three resolve to `mate 9` at
+   depth 14 and bench 15 reads −1,025, all outside the rule). The answer
+   is that §R barred a re-scope only until a mechanism was named and
+   answered, the four passes stand as recorded reads whatever the rule
+   would have chosen, and the rule is written down for B.4's and B.5's
+   screens before their positions are picked.
+2. **ProbCut's form.** Unchanged: the donor's step 12 at its seeds.
+   Alternative: ProbCut standing down under `seek_mate` as the singular
+   block does (kernel `:931`, one condition; a Basilisk departure from
+   the donor's form, which leaves step 12 on under `seekMate`), either as
+   a default or as a §9 categorical `B3ProbCutSeekMate` (0 the donor's
+   form, 1 standing down) read by a paired run. Not recommended now: on
+   this position it reads as bit 8 (the band at 21–22, 3.27× and 3.62×,
+   and (b) still failed), the departure would rest on one +24 position
+   beyond game depth, and the question it answers is read without a
+   code change by decision 4's row and the paired run. If chosen, its
+   price is the binding set of §R's last paragraph on a temporary build
+   (`amend8/a8_r3.py`, written and not run; R3's condition in §R was not
+   met, since (a) read 0.331); the switch form moves no fingerprint.
+   Retry trigger: B.3.2's paired run negative with the ablation by
+   switch pointing at ProbCut and decision 4's row showing its
+   won-position shares above the whole-suite shares, or the oracle
+   differential showing conversion losses in won middlegames.
+
+**The amended ticket text implementation resumes on** (ticket 10b, no
+engine code):
+
+- Replace the first line of `t10/screen_positions.epd` with `suite_v2`
+  position 12's FEN; record the rule, the chosen position's depth-14
+  numbers and `amend8/a8_select.json` beside the two-arm table.
+- Run amendment 7 §R's read on the five positions (`--depth-min 16
+  --depth-max 25`, the 60 s watchdog, Hash 64, `t10/a7/screen_score_a7.py`);
+  the verdict is the scorer's under (a)–(d); a watchdog stop on a busy
+  host is inconclusive and the position is re-read on an idle host.
+- Add position 11's band tables (§2: ON 20–22, OFF 23–25, bit 8 to 23)
+  to the two-arm table as the conversion-band read, recorded and not
+  judged.
+- A pass completes the cheap qualification; the review follows as §10's
+  *Review* states, with this amendment's §1–§4 among what it checks. A
+  fail returns the leaf with the attribution reads on the failing
+  position (P34's consequence, on the new set).
+
+**P41.** The amended screen passes on `suite_v2` position 12 (probability
+75%); the other four positions' reads are already exposed passes and are
+not evidence. Falsifier: a fail under (b) and (c) on it, which returns
+the leaf as above.
+
+**Condition for resuming:** the maintainer's decision 1 (and 2, if the
+alternative is taken, which adds its pricing before ticket 10b). B.3.1
+stays `RESEARCH` until then and resumes `READY_FOR_IMPLEMENTATION` at
+ticket 10b.
+
+### 7. Clauses replaced, predictions scored and calibration
+
+**Clauses replaced** (old → new; the originals stand as written):
+
+- §10 *Cheap qualification*, the screen's positions ("bench positions 11
+  and 15 and `suite_v2` positions 50, 42 and 60") → "`suite_v2` position
+  12, bench position 15 and `suite_v2` positions 50, 42 and 60; bench
+  position 11 recorded as the conversion-band read, not judged" (on
+  maintainer decision 1; the clause itself is amendment 7 §R's,
+  unchanged).
+- Return 8 "ProbCut carries it" → "the position carries it; ProbCut
+  moves the ON arm's entry three plies earlier and its passage dearer;
+  no in-bracket constant removes it" (§2–§4).
+- §11 BAS-S41's Diag read gains the won-position row of decision 4.
+- Recorded for B.4's and B.5's screens (with amendment 7 §2's note): a
+  screen position is chosen with the OFF arm's depth-14 root score within
+  ±564 and its tree growing less than 2× at depths 13 and 14.
+
+**Predictions scored.**
+
+| | Registered | Result | Score |
+|---|---|---|---|
+| P36 | bit 8 has the band at 22 or 23, ending ≥ 2,650 (80%) | 3.62 at 22, 3,307 | hit |
+| P37 | no (a)–(d) beyond 3× (65%); (e) under 1% (90%); (f) under 0.33× (85%) | (a) 0.331, (b) 3.78, (d) 4.09; (e) identical; (f) 0.238 | first clause missed; second and third hit |
+| P38 | (g) under 0.33× (60%) | 0.793 | missed |
+| P39 | evasions halve where tries fall 3× (70%) | (a) −17%, (f) −29% | missed |
+| P40 | growth ≥ 3 at depth ≥ 19 ends ≥ 2,650 (90%) | every such iteration ends ≥ 2,704 | hit |
+
+**Calibration.** The two hits are the position-driven model (P36, P40).
+The three misses share one wrong part of the registered model: H3's
+channel was written as ProbCut's own cost (its pre-test's quiescence,
+its constants' monotone effect, its store served by step 13), and the
+reads say the arm's cost in the band is set by where the climb lands
+(chaos in the constants, P37) and by producers other than ProbCut
+(razoring and the move-loop leaves, P39), with step 13 inert at the
+widened windows (P38). The channel left in §4 is registered as
+unmeasured, with its counter named, not as a finding.

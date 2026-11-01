@@ -939,6 +939,22 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         Singular is silent under seekMate. The OFF arm has a blowup of the
         same kind three plies later (184x over depths 23-25). P34 missed.
         Resumes on research amendment 8.
+      - Research amendment 8, 2026-11-01 (packet, `R3`): the blowup is the
+        position's conversion band (a +24 game under the material-scale
+        evaluation: the root score climbs 100-400 cp an iteration from
+        about 2,650, four to eight full-depth fail-high re-searches each),
+        which every arm has when its score enters it; ProbCut off still
+        grows 3.27x and 3.62x at 21-22 (P36 hit) and no ProbCut constant
+        inside its bracket removes it (0.24x to 4.1x at depth 21, chaotic
+        and a phase reading; P37 missed); the quiescence load is
+        razoring's and the leaves', not ProbCut's (P39 missed); the port
+        is the donor's line for line. Recommended: no default moves;
+        bench position 11 leaves the screen's set for `suite_v2` 12 by a
+        written rule (|score| < 564 at depth 14, no resolution jump), its
+        band reads recorded, not judged; ticket 10b runs the screen.
+        Alternative priced in prospect: ProbCut standing down under
+        `seekMate`. P41 registered. Resumes at ticket 10b on the
+        maintainer's decision (packet amendment 8 §6).
     - [ ] **B.3.2** `[V]` Diagnostics and the unfitted paired run
       Packet §11, BAS-S41, in the order the roadmap audit of 2026-11-01
       fixed (the entry file is assembled from §11 plus every amendment's
@@ -1431,7 +1447,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.1 | RESEARCH | I2 | Returned 2026-11-01 at the cheap qualification (packet *Return 8*): amendment 7's screen (steps 20-22) passes four positions and fails bench position 11, where ProbCut carries a deep-iteration blowup in a won middlegame (switched off, the depth-21 tree is 0.16x); every other qualification read passes; resumes on research amendment 8 (`R3`) |
+| B.3.1 | RESEARCH | I2 | Research amendment 8 written: bench position 11's blowup is the position's conversion band, which every arm has (ProbCut off: 3.27x, 3.62x at 21-22), not ProbCut's; no default moves; resumes `READY_FOR_IMPLEMENTATION` at ticket 10b (the screen on the amended position set) on the maintainer's decision (packet amendment 8 §6) |
 | B.3.2 | RESEARCH | V | Waits for B.3.1's accepted review, then B.14 (which lands before its first game) |
 | B.3.3 | RESEARCH | V | Waits for B.3.2 |
 | B.3.4 | RESEARCH | V | Added 2026-10-31; waits for B.3.3 |
