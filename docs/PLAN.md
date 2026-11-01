@@ -1496,6 +1496,23 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     the OFF arm's pass at 100k is the defect's or a tie, what the
     fixture binds on the OFF arm, and which candidate BAS-S44 measures
     (packet *B.14*).
+  - Research amendment 9, 2026-11-01 (packet, a separate session;
+    registered at `65d892a` before any read): the head's `a7a8q` at
+    100,000 nodes is a 4-cp preference inside a root reading +460 to
+    +616 for every move, produced by its tree reaching the draw-reading
+    iteration last, not by the verdict nodes' correction (which leans 40
+    cp toward Black on that search; the complement form reads 0); the
+    `raw == 0` form's pass is a tie at 0 held by the root's order; the
+    narrowed form's `a5a3` is a 7-cp tie-break at depth 8 that throws a
+    tablebase win. At 200,000 nodes both candidates sight the win
+    (`raw == 0` +834 from 180,000 nodes, narrowed +781 from 150,000,
+    held to 1,000,000). Proposed for the maintainer's decision: C-A9-1,
+    the OFF arm's clause `a7a8q` with a positive score at 200,000
+    nodes (the ON arm's 100,000-node clause unchanged, both arms
+    asserting the score); under it the narrowed form holds every
+    binding read on both arms (CTest 25/25 on both arms under the amended test, R8) and BAS-S44 measures
+    it. Blocked on decisions 1 (C-A9-1) and 2 (the candidate); no
+    fixture edit before decision 1.
 
 ### Active workflow register
 
@@ -1519,7 +1536,7 @@ leaf's tag. Later phases carry only a class until they open.
 | B.8.2 | RESEARCH | I1 | After the clusters |
 | B.9 | RESEARCH | V | Programme checkpoint |
 | B.11 | RESEARCH | M | Interim release after B.9 (maintainer decision 2026-10-24) |
-| B.14 | RESEARCH | I2 | Returned 2026-11-01 on the maintainer's decision: the narrowed guard (the evaluator's verdicts; `narrow.patch`) throws the OFF arm's promotion fixture at 33k-100k while the `raw == 0` form (`e883a13`, committed) passes everything. Research (`R3`, a separate session) reads whether the OFF arm's pass is the defect's or a tie, what the fixture binds on the OFF arm and which candidate BAS-S44 measures (packet *B.14*). Lands before B.3.2's first game |
+| B.14 | RESEARCH | I2 | Research amendment 9 written 2026-11-01 (packet): the OFF arm's fixture at 100,000 nodes binds the root's order on every form, not the win; the head's pass is not the verdict nodes' correction. Blocked on the maintainer's decisions: C-A9-1 (the OFF arm's clause `a7a8q` with a positive score at 200,000 nodes) and the candidate (the narrowed form, recommended; the `raw == 0` form `e883a13` the alternative). Then BAS-S44 is registered and the maintainer starts it. Lands before B.3.2's first game |
 
 ## Phase C — Evaluation programme (search frozen)
 

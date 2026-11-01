@@ -6836,3 +6836,395 @@ scored by node counts and scores, never time).
 | P-A9-10 | F2 ON trace: `a7a8q` holds the root with an exact positive score at every completed iteration from 8 on (a preference, not a tie) | 65% |
 | P-A9-11 | R7 replicates `narrow/` on fresh builds (`bench 13` 11,880,564 / 4,923,507; 7 / 28 / 28 on both arms; floors 24 × 15 with KBN-K ≥ 112; WAC ≥ 232 on ON; CTest OFF 24/25 failing only the fixture, ON 25/25) and its 400,000- and 1,000,000-node points read `a7a8q` positive on both arms | 85% |
 | P-A9-12 | F3 fails the organic or the primed fixture on the OFF arm (the complement keeps the defect) | 80% |
+
+### 0. What this run says, plainly
+
+**Recommendation: adopt the narrowed guard under clause C-A9-1 (the OFF
+arm's promotion fixture binds `a7a8q` with a positive score at 200,000
+nodes; the ON arm's 100,000-node clause unchanged, now asserted with its
+positive score), and let BAS-S44 measure the narrowed form.** The OFF
+arm's fixture at 100,000 nodes is not a read of chess on any form: the
+head holds `a7a8q` by 4 cp over the rook inside a root where every move
+reads +460 to +616; the `raw == 0` form holds it by order in a root where
+every move reads exactly 0; the narrowed form lost it at depth 8 to a
+7-cp tie-break that the root's rule then froze. No OFF search at that
+budget has yet sighted the win (the Kc5 route), and the one that reads
+positive, the head, does so because its tree is the slowest of the four
+to reach the draw-reading iterations.
+
+The packet's inference is refuted: the head's +616 is not produced by
+the correction on verdict nodes. With the verdict correction kept and
+only the ordinary zeros guarded (F3) the fixture reads `a7a8q` 0 at
+depth 14 and stays there to 1,000,000 nodes; with the verdict correction
+dropped and the ordinary zeros kept (F2, the narrowed form) it reads
+`a5a3`; and on the head's own search the correction met at verdict
+nodes leans toward **Black** (726 nodes, mean −39.6 cp from White's
+side, 30% positive). The drawn-KPK leaves of the head's tree are not
+inflated for White; the head's score is the position's own optimism
+before the search finds the defence, and the search finds it one
+iteration later than the 100,000-node cut allows.
+
+At 200,000 nodes the fixture is a theory-truth read on the OFF arm: both
+candidates sight the win there (`raw == 0` +834 at depth 14 from 180,000
+nodes; narrowed +781 at depth 13 from 150,000), both hold it to 1,000,000
+nodes, and the moves the narrowed form played at 100,000 nodes throw it
+(`a5a3` and `h3h4` read 0 with the tablebases on; `a7a8q` reads +19,991
+in the tablebase band; `a7a8r` wins too, +1,795). The clause change is
+a strengthening (a positive score required where only the move was) at
+a budget already in the registered series, and it is the maintainer's
+decision. Under it the narrowed form holds every binding read on both
+arms; the `raw == 0` form holds them too, with the fixture passing by a
+tie at 100,000 nodes and by the win at 200,000.
+
+### 1. The pass at 100,000 nodes (question 1)
+
+**1.1 Identity.** Every traced build reproduces its form's fingerprint
+(`bench 13` OFF: F0 16,615,757, F1 15,100,437, F2 11,880,564; F2 ON
+4,923,507), F3 reads 14,200,918 traced and untraced alike, and each
+trace's final line at 100,000 nodes equals its untraced form's (score,
+depth, nodes), so the trace changes no node. F0's fingerprint equal to
+`c15d097`'s proves two things at once: the evaluator's `draw_verdict`
+query (narrow.patch's evaluator half) changes no evaluation, and F0 is
+the head's consumer.
+
+**1.2 The factorial (R3).** The fixture at 33,000 / 60,000 / 100,000 /
+200,000 nodes, OFF arm:
+
+| Form | Verdict correction | Ordinary-zero correction | 33k | 60k | 100k | 200k |
+|---|---|---|---|---|---|---|
+| F0 head | kept | kept | `a7a8q` +68 (d8) | +370 (d9) | **+616 (d11)** | +841 (d14) |
+| F1 `raw == 0` | dropped | dropped | +168 (d11) | +168 | **0 (d13)** | +834 (d14) |
+| F2 narrowed | dropped | kept | `a5a3` +7 (d8) | `a5a3` 0 (d12) | **`a5a3` 0 (d12)** | `a7a8q` +781 (d13) |
+| F3 complement | kept | dropped | `a7a8q` +213 (d8) | 0 (d11) | **0 (d14)** | 0 (d14) |
+
+H1 predicted F3 positive at 100,000 nodes; it reads 0, and reads 0 at
+every budget to 1,000,000 (its depth-15 iteration never completes).
+Neither population's correction alone carries the head's pass, and the
+table has no additive structure: the four forms are four trees, each
+reaching the draw-reading and the win-sighting iterations at its own
+budget. **H1 is refuted; H2 stands in its tree-shape reading.**
+
+**1.3 The correction the head meets at verdict nodes (R2).** On each
+form's 100,000-node search, every raw 0 met by a consumer, classed by
+`draw_verdict`, with its correction from White's side (what F0 adds;
+what F1–F3 drop or add by their form):
+
+| Form, arm | Verdict nodes: n, mean, positive share | Ordinary zeros: n, mean, positive share |
+|---|---|---|
+| F0 head, OFF | 726, **−39.6 cp**, 30% | 138, −23.2 cp, 39% |
+| F1 `raw == 0`, OFF | 1,936, −24.4 cp, 36% | 302, −77.2 cp, 22% |
+| F2 narrowed, OFF | 1,759, −32.5 cp, 38% | 340, −38.6 cp, 30% |
+| F3 complement, OFF | 1,104, −47.6 cp, 19% | 399, −50.0 cp, 21% |
+| F2 narrowed, ON | 700, **+137.5 cp**, 68% | 48, +13.8 cp, 48% |
+
+On the OFF arm the correction that reaches a verdict node favours the
+defender in every form: the head adds, on average, 40 cp *against*
+White to its drawn-KPK leaves. The sentence the return inferred ("the
+head's +616 included correction added on top of exact draws") is true
+of the arithmetic and false of the direction. On the ON arm the sign is
+the other way and large (+137 cp, 68% positive): ticket 7's exclusion
+training, guarded at raw-0 nodes by ticket 7b, still fills the shared
+keys from the ordinary nodes beside them, and the consumer carries that
+lean into the classifications — the consumer defect amendment 4 §2
+described, measured here on the fixture.
+
+**1.4 The root, traced (R1).** The final pass of each completed
+iteration, with the first move's exact score and the others' returned
+values (`trace_*.stderr`; the full tables in `a9_reads.log`):
+
+- **F0 head.** Depth 8: every move 68. Depth 9: 370, with `c6c7` 370
+  and `a5h5` 369. Depth 10: `a7a8q` 616, `a7a8r` 616. Depth 11, the
+  last at 100,000 nodes, window (597, 635): `a7a8q` **616** exact,
+  `a7a8r` 612, `a5a3` 585, `a5a2` 561, `h3h4` 464. A PREFERENCE of 4 cp
+  over the rook and 31 over `a5a3`, inside a root whose every sensible
+  move reads +460 to +616: the pawn promotes next move in every line,
+  so the root's moves differ by order and a few centipawns. At 200,000
+  nodes depth 12 reads 841 with `a5b5` 815 — the win sighted
+  (`...Rf8`, `Kc5`), and every move rises with it.
+- **F1 `raw == 0`.** Depths 8–11: 186, 186, 168, 168, the rook equal
+  at each. Depth 12: 6. Depth 13, the last at 100,000 nodes, window
+  (−13, 25): `a7a8q` **0** exact, and every other root move returned
+  at or below 0 (`a7a8r` 0, `a5a3` 0, `h3h4` 0, `a5g5` 0, …; `c6b5`
+  −22, `a5d5` −189). A TIE held by order: the previous iteration's
+  best is searched first, the rest fail the null window at 0. Depth 14
+  (180,000 nodes): 834, with `c6c5` 832 and `a7a8r` 831.
+- **F2 narrowed.** Depths 1–7 identical to F0's (the forms differ only
+  at verdict nodes, first met at depth 8). Depth 8, window (−130, 296):
+  `a7a8q` first, **0** exact; `a5a3` returns **7** and takes the root;
+  `h3h4` 7 and `a5a4` 7 do not exceed it. Depths 9–12: `a5a3` first at
+  0, `a7a8q` searched at the null window (0, 1) and returned 0 every
+  time — equal, never greater, so the root's rule keeps `a5a3`. Depth
+  13 (150,000 nodes): `a7a8q` 781, `a7a8r` 778, `a5a3` 755. The
+  narrowed form's `a5a3` is a 7-cp tie-break at depth 8 that four
+  iterations of exact ties could not reverse.
+- **F3 complement.** Depths 1–6 identical to F1's. Depth 9: 19. Depths
+  10–14: `a7a8q` 0 with every alternative at or below 0 — the same tie
+  by order as F1's, one iteration deeper.
+- **F2 ON.** Depth 8: 93; depth 9: 347; depth 10, window (328, 1,280):
+  `a7a8q` **957** exact, `a7a8r` 957, `c6c7` 944, `c6c5` 917, `a5a4`
+  865 — a preference of 13 cp over the best non-promotion, with every
+  move positive. The ON arm sights the win three iterations earlier
+  than the OFF arm (its singular extensions on the only-moves,
+  amendment 3 §1.3), and holds the fixture by preference at 100,000
+  nodes on this form as on the others.
+
+**1.5 The rest of the root and the pair (R4, supplementary; a
+different tree each).** `searchmoves` every legal move but `a7a8q` at
+100,000 nodes: F0 `a7a8r` 0 (depth 15), F1 `a7a8r` **+445** (depth 11),
+F2 `a7a8r` 0 (depth 16), F3 `a7a8r` 0 (depth 15). The two promotions
+alone: F0 **0** (depth 17), F1 +720 (depth 12), F2 0 (depth 17), F3 +617
+(depth 11). The head reads 0 when only the promotions are searched and
+the `raw == 0` form reads +445 for the rook when the queen is excluded:
+the fixture's budget sits on the iteration boundary between the
+draw-reading and the win-sighting trees on every form and under every
+root window, as amendment 6 §1.6 read it on the ON arm.
+
+**Question 1, answered.** The head's `a7a8q` at 100,000 nodes is a
+preference of a few centipawns inside a root the search reads +460 to
++616 for every move, produced by the head's tree being the slowest to
+reach the iteration that reads the defence (its depth 11 ends at 81,689
+nodes; F1's depth 13 at 71,246; F3's depth 14 at 82,100), not by the
+correction on verdict nodes, which on that search leans 40 cp toward
+Black. The `raw == 0` form's `a7a8q` is a tie at 0 held by order. The
+narrowed form's `a5a3` is the same tie broken by 7 cp at depth 8.
+
+### 2. What the fixture binds on the OFF arm (question 2)
+
+**2.1 The truth of the root moves (R6).** `go depth 22 searchmoves m`
+on F1: `a7a8q` **+19,871** (the tablebase band; 199.8M nodes), `a7a8r`
++1,029 (28.4M), `a5a3` **0** (195,840 nodes), `h3h4` **0** (224,792);
+`a5a3` on F0 0 (2.6M). With the tablebases on (`SyzygyPath`
+`D:/chess/tablebases/syzygy3456`, depth 16; added after R6, a check of
+its reads): `a7a8q` **+19,991** (28,057 hits), `a7a8r` +1,795, `a5a3`
+0, `h3h4` 0. The queen wins, the rook wins more slowly (amendment 3
+§1.1's "a8=R also wins"), and the two moves the narrowed form played
+at 33,000–100,000 nodes throw the win to a draw. The fixture's purpose
+since `00809cc` — the queen where the rook only transposes — is a real
+distinction at every budget (the rook reads 3–4 cp below the queen
+whenever the win is sighted), and `a5a3` is a worse move than either.
+
+**2.2 The series and the scan (R5).** The fixture from 33,000 to
+1,000,000 nodes, OFF arm, the move with its score and the depth of the
+last completed iteration:
+
+| Nodes | F0 head | F1 `raw == 0` | F2 narrowed | F3 complement |
+|---:|---|---|---|---|
+| 33,000 | `a7a8q` +68 d8 | +168 d11 | `a5a3` +7 d8 | +213 d8 |
+| 60,000 | +370 d9 | +168 d11 | `a5a3` 0 d12 | 0 d11 |
+| 100,000–140,000 | +616 d11 | 0 d13 | `a5a3` 0 d12 | 0 d14 |
+| 150,000 | +616 d11 | 0 d13 | **+781 d13** | 0 d14 |
+| 160,000 | +616 d11 | 0 d13 | +781 d13 | 0 d14 |
+| 170,000 | **+841 d14** | 0 d13 | +781 d13 | 0 d14 |
+| 180,000–200,000 | +841 d14 | **+834 d14** | +781 d13 | 0 d14 |
+| 220,000–240,000 | +841 d14 | +834 d14 | +781 d13 | — |
+| 260,000–340,000 | +841 d14 | +872 d15 | +781 d13 | — |
+| 360,000–400,000 | +841 d14 | +938 d16 | +781 d13 | 0 d14 |
+| 1,000,000 | +841 d14 | +1,053 d17 | +781 d13 | 0 d14 |
+
+Each form's first positive budget above 100,000: F0 170,000 (its
+depth 12 completes there), F1 180,000, F2 150,000; F3 none to
+1,000,000. From the win-sighting iteration on, no form reads a draw
+again within the scan: F1 completes depths 15–17 positive, F2 and F0
+complete no further iteration before 1,000,000 nodes (the conversion
+band's growth, amendment 8 §4), and F3 none past 14. Above 200,000
+nodes the two candidates' margins are 20,000 (F1) and 50,000 (F2)
+nodes below the clause and the whole scan above it.
+
+**2.3 The clause.** By the rule registered in §R — a change must
+strengthen the clause and may move only to a budget in the registered
+series; the proposal is the smallest such budget at which every
+candidate admissible on every other read passes — the proposal is:
+
+- **C-A9-1 (the maintainer's decision).** "Promotion: a queen where a
+  rook only transposes" binds, on the OFF arm, `a7a8q` **with a
+  positive score at 200,000 nodes** (in place of the move alone at
+  100,000); on the ON arm, `a7a8q` with a positive score at 100,000
+  nodes, as amendment 3 §5's research decision 1 already contracts and
+  the test now asserts. Both arms assert the score; the budget is
+  `kB3Proof ? 100000 : 200000`. The budget series (33k/60k/100k/200k/
+  400k/1M) stays the ON arm's contract read, recorded on the OFF arm.
+
+What C-A9-1 changes and what it does not: it binds the OFF arm at the
+first series budget where the fixture is a read of the win rather than
+of the root's order, and it is stricter there than the clause it
+replaces (score, not move). It does not relax anything the OFF arm was
+measured to hold: no OFF form holds a positive score at 100,000 nodes,
+the head's +616 included, and the move-only clause at 100,000 was
+holding by a tie on the committed form.
+
+*Alternative, scored:* the move at 100,000 nodes judged against R6's
+truth ("any move that keeps the win"). `a5a3` throws it, so the
+narrowed form stays inadmissible under it, and the clause would still
+bind a tie on the `raw == 0` form. *Second alternative:* 400,000
+nodes, with 40,000 and 250,000 nodes of margin for F1 and F2; rejected
+by the rule (not the smallest) and recorded for the maintainer.
+
+*The main counter-argument:* a clause moved after a read to admit a
+candidate. The answer is that the move is upward on every axis the
+clause measures (budget and score), was fixed by rule before the reads
+(§R), and the read that motivates it is not the candidate's pass but
+the finding that the 100,000-node read on the OFF arm never measured
+the win on any form — a false premise in the fixture's OFF-arm
+reading, which amendment 3 §5 (research decision 4: "the OFF arm's own
+fixture survives on tree shape") had already recorded without acting
+on. A clause that binds a tie-break is a clause that the next
+behaviour-neutral change can break for no chess reason; Returns 3 and 6
+and this return are three such.
+
+### 3. The narrowed form's admissibility (question 3)
+
+**3.1 The price (R7), fresh builds, both arms**
+(`a9_price.json`, `a9_price.txt`, `ctest_*.log`, `conv_*_*.log`,
+`endgames_*.log`):
+
+| Read | narrowed OFF | narrowed ON | `raw == 0` OFF | `raw == 0` ON | Rule |
+|---|---:|---:|---:|---:|---|
+| `bench 13` | 11,880,564 | 4,923,507 | 15,100,437 | 6,178,678 | recorded; `narrow/` and `new/` reproduced |
+| Wrong-bishop 28 (test's form) / organic 7 / primed 28 | 28 / 7 / 28 | 28 / 7 / 28 | 28 / 7 / 28 | 28 / 7 / 28 | binds |
+| `test_endgames` | exit 0 | exit 0 | exit 0 | exit 0 | binds |
+| WAC at 100,000 nodes; depth 6 | 240; 182 | **241**; 132 | 241; 184 | **242**; 132 | ON ≥ 232; floors 175 / 119 |
+| KQ-K, KR-K, KBB-K at 30k/45k/60k/90k/120k | 24 each | 24 each | 24 each | 24 each | 24 |
+| KBN-K at the five budgets (sum) | 22/23/24/23/23 (115) | 24 × 5 (120) | 22/23/24/23/23 (115) | 24 × 5 (120) | ≥ 112 |
+| The fixture at 33k / 60k / 100k | `a5a3` +7 / `a5a3` 0 / **`a5a3` 0** | +347 / +347 / **+957** | +168 / +168 / **0** | +276 / +599 / **+599** | ON: a8=Q positive at 100k |
+| The fixture at 200k / 400k / 1M | **+781** / +781 / +781 | +957 / +1,307 / +1,374 | **+834** / +938 / +1,053 | +864 / +1,247 / +1,491 | recorded (C-A9-1: OFF positive at 200k) |
+| Release CTest, the committed test | **24/25** (`test_search`: the fixture) | 25/25 | 25/25 | 25/25 | binds |
+
+The OFF arm's 120,000-node floor run exits 1 on both forms for the
+floors tool's staleness guard (KQ-K's mean), as B.3.2's leaf text and
+*B.14* record; the floors hold. The two forms' floors and fixtures are
+identical to the decimal: no node of a pawnless mate drive or of the
+wrong-bishop fixtures has an ordinary raw 0.
+
+**3.2 The amended fixture (R8).** `tests/test_search.cpp` edited to
+C-A9-1 in a temporary build (`r8_test.patch`, bytes restored,
+`test_search` rebuilt from the committed source afterwards):
+
+| Tree | CTest under C-A9-1 |
+|---|---|
+| narrowed OFF (`build/b14-rel-f2-off`) | **25/25** |
+| narrowed ON (`build/b14-rel-f2-on`) | 25/25 |
+| `raw == 0` OFF (`build/b3-off`) | 25/25 |
+| `raw == 0` ON (`build/b3-on`) | 25/25 |
+
+Both forms pass on both arms: the OFF arm reads the win at 200,000
+nodes (+781, +834) and the ON arm its positive score at 100,000 (+957,
++599). After the read the file's bytes were restored and `test_search`
+rebuilt from the committed source in all four trees; `git status` is
+clean.
+
+**Question 3, answered.** The narrowed form is admissible under C-A9-1:
+it holds every binding read on both arms, and the one read it failed
+was the OFF arm's tie-order clause. Without C-A9-1 it is inadmissible
+as the return found. F3 is not a candidate (it fails the organic FEN
+at depth 11, −90, and the primed 28 at 24/28 on the OFF arm — the
+head's own numbers, as P-A9-12 predicted).
+
+### 4. BAS-S44's candidate (question 4)
+
+BAS-S44 measures the **narrowed form** on the OFF arm against
+`c15d097`, BAS-S40's shape as the return fixed it: `[-5,5]` at
+`3+0.03`, 1T, Hash 64, paired reversed UHO openings, no adjudication,
+tablebases off, release PEXT final-PGO builds pinned by SHA-256,
+4,000-pair cap. The candidate's form: `e883a13` plus `narrow.patch`
+(SHA-256 `2eb8d896…`), to be committed under C-A9-1 once the
+maintainer decides, with its fingerprints OFF 11,880,564 / ON
+4,923,507 recorded (B.3.1's OFF arm re-bases to it; the record stays
+at 16,615,757 until BAS-S44's verdict, as BAS-S40's rule did for B.12).
+
+Why the narrowed form and not `raw == 0`: it is the repair that names
+the defect (a classification takes no correction) and nothing else;
+searched alone it moves 4–6 of the 40 bench positions, the endings
+whose search reaches a verdict, where the `raw == 0` form moves 36–38
+and changes every game's search at 0.2–0.3% of its evaluations (*B.14*,
+Exposure). The `raw == 0` form's pass of the fixture at 100,000 nodes
+is the tie §1.4 read, which BAS-S44 would otherwise be asked to carry
+as a merit. *Counter-argument:* the narrowed form costs one more
+evaluation at every raw 0 (0.2–0.3% of evaluations, an unmeasured NPS
+cost below the pooled read's resolution; the SPRT measures Elo, which
+contains it), and its OFF-arm bench moves −28.5% against the head
+because the positions share tables (the alone-search read, 6 of 40, is
+the exposure).
+
+The gate's cap, read against `agents/measurement.md`'s exposure rule:
+the narrowed form's changed condition is a verdict position in search
+(a lone king against a pawn or two knights, the wrong-corner KBP-K, a
+pawnless scale of 0), reached from an ending the game has already
+entered; BAS-S40 measured 39.8% of BAS-S38's games reaching a bare king.
+The 4,000-pair cap the return fixed stands; a measured exposure of the
+four verdict classes in BAS-S38's games could justify a smaller one,
+and is left to the registration.
+
+### 5. Predictions scored, decisions, the amended candidate, the condition
+
+**P-A9 scored** (frozen in §R; hits and misses as read):
+
+| # | Prediction | Result |
+|---|---|---|
+| P-A9-1 | F3 positive at 100k (55%) | **miss**: 0 at depth 14, and at every budget to 1M |
+| P-A9-2 | F0's verdict correction mean > +10 cp, > 60% positive (65%) | **miss**: −39.6 cp, 30% — the lean is toward Black |
+| P-A9-3 | F1's final iteration a tie by order (85%) | hit: `a7a8q` 0, every alternative ≤ 0 |
+| P-A9-4 | R4 on F1 reads 0 (65%) | **miss**: `a7a8r` +445 at depth 11 |
+| P-A9-5 | F0's alternatives at or below 0 (60%) | **miss**: 464–612; every move positive |
+| P-A9-6 | F2 loses the root at ≤ depth 10 by ≤ 10 cp, never regains it before 100k (70%) | hit: depth 8, 7 cp; depths 9–12 exact ties |
+| P-A9-7 | Every OFF form positive at 200k (70%) | **miss**: F3 0 (the non-candidate); F0–F2 hit |
+| P-A9-8 | First positive budgets in [110k, 200k], spanning ≥ 30k (55%) | **miss**: F0 170k, F1 180k, F2 150k, F3 none; the candidates span 30k |
+| P-A9-9 | R6: a7a8q ≥ 10,000; a7a8r ≥ 10,000; a5a3 and h3h4 |score| < 200 | hit / **miss** (+1,029 at depth 22; +1,795 with tablebases; a win read below the band) / hit / hit |
+| P-A9-10 | F2 ON holds the root by a positive exact score from depth 8 (65%) | hit: 93, 347, 957 |
+| P-A9-11 | R7 replicates `narrow/`; 400k and 1M positive on both arms (85%) | hit: every number equal; OFF +781 / +781, ON +1,307 / +1,374 |
+| P-A9-12 | F3 fails the organic or primed fixture on OFF (80%) | hit: organic −90 at depth 11 (6/7), primed 24/28 |
+
+*Calibration.* The misses are one finding: the registration still
+carried the return's inference as H1 at 55% and shaped P-A9-2, P-A9-5
+and P-A9-7 around a verdict-node inflation for White that the counter
+shows does not exist on the OFF arm (and does on the ON arm, at +137
+cp, where the fixture holds anyway). P-A9-4 and P-A9-9's rook read the
+tree's knife-edge in directions the registration did not foresee: the
+rook promotion reads +445 when the queen is excluded on F1, and its
+depth-22 value is a win the search has not yet read into the band.
+
+**Research decides (its own):**
+
+1. H1 refuted, H3 confirmed: the OFF arm's fixture at 100,000 nodes
+   binds the root's order on every form (§1).
+2. F3 is a diagnostic arm, not a candidate (§3).
+3. The 200,000-node clause is proposed by §R's rule, not chosen after
+   the reads; the 400,000-node alternative is recorded (§2.3).
+
+**The maintainer decides:**
+
+1. **C-A9-1** (§2.3): the OFF arm's clause moves to `a7a8q` with a
+   positive score at 200,000 nodes, both arms asserting the score.
+   Recommended. Alternative: keep the 100,000-node move clause, under
+   which the narrowed form is inadmissible and BAS-S44 measures the
+   `raw == 0` form; counter-argument in §2.3.
+2. **The candidate** (§4): the narrowed form under C-A9-1, as BAS-S44's
+   OFF arm. Alternative: the `raw == 0` form, admissible as built;
+   counter-argument in §4.
+
+**The amended candidate implementation resumes on** (the maintainer's
+decisions 1 and 2 taken): `narrow.patch` applied to `e883a13` and
+committed with C-A9-1's test edit (`r8_test.patch`'s content) in one
+engine commit; `bench 13` OFF 11,880,564 / ON 4,923,507 recorded in PLAN
+and the packet; CTest 25/25 on both arms, the two B.14 fixtures, the
+floors at the five budgets, WAC at 100,000 nodes ≥ 232 with the depth-6
+guards, and the series read on the committed tree (the R7 numbers,
+reproduced); then BAS-S44 registered (its entry file and index line)
+with its prediction frozen, and the maintainer starts it. If decision 1
+is the alternative, the `raw == 0` form (`e883a13`, already committed)
+goes to BAS-S44 as the return's option 1 described.
+
+**The condition for resuming:** the maintainer's decisions 1 and 2
+recorded in PLAN B.14; no fixture edit before decision 1.
+
+**Artifacts** (`tools/results/b14-20261101/amend9/`, ignored storage):
+`a9_build.py` and the eight patches (`tr-f{0..3}-off.patch`,
+`tr-f2-on.patch`, `rel-f2-{on,off}.patch`, `rel-f3-off.patch`);
+`a9_early.py` / `.log` / `.json` (R4, R5 on F0–F1, R6); `a9_reads.py` /
+`.log` / `.json` and `trace_*.stdout` / `.stderr` (identity, R1, R2, R5 on
+F2–F3, P-A9-12); `a9_more.py` / `.log` / `.json` (the 200,000-node traces,
+the scan above 200,000); `a9_qr_rest.log` (the pair and the rest of the
+root on all forms); `a9_price.py` / `.json` / `.txt` with `ctest_*.log`,
+`conv_*_*.log`, `endgames_*.log` (R7); `a9_r8.py` / `a9_r8.log`,
+`r8_test.patch`, `ctest_r8_*.log` (R8); `hashes.txt` (SHA-256 of every
+patch and binary). The traced builds print to stderr only and reproduce
+their forms' fingerprints (§1.1).
