@@ -1107,6 +1107,15 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           coordinate is inert (the review's follow-up 1).
         - The donor's singular pair (17 with `B3SingTripleQuiet` −53)
           is a read-only sweep point.
+      - Sweep read 2026-11-02 (`analysis/b33_sweep_2026-11-02.md`):
+        - Three of the five coordinates are curved, so the SPSA runs:
+          the null move's entry constant, its reduction divisor and
+          ProbCut's margin.
+        - The singular margin is monotone toward its range's top (378);
+          the triple bar's base toward the 0.5× edge.
+        - The surface is generated (`464ef33`, 29 coordinates).
+        - Block 1 is prepared (seed 42001) and its dry run accepted.
+          Maintainer-run overnight.
     - [ ] **B.3.4** `[V]` Basilisk's forms re-read on the fitted arm
       Added 2026-10-31 (maintainer). B.3.2's categorical runs read the
       donor's forms with Cluster 1's constants fitted to the old tree, so
@@ -1670,7 +1679,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.3 | RESEARCH | V | Opened 2026-11-02: BAS-S42 registered (surface 19 + 10, the sweep frozen); the curvature sweep is next, zero-game; SPSA blocks only if a coordinate is curved, maintainer-run overnight |
+| B.3.3 | RESEARCH | V | Opened 2026-11-02: BAS-S42 registered; the sweep read three curved coordinates, so the SPSA runs on the 29-coordinate surface; block 1 prepared and dry-run accepted, maintainer-run overnight |
 | B.3.4 | RESEARCH | V | Added 2026-10-31; waits for B.3.3 |
 | B.3.5 | RESEARCH | V | Waits for B.3.4 (renumbered from B.3.4 on 2026-10-31) |
 | B.3.6 | RESEARCH | I2 | Added 2026-10-31; waits for B.3.5 |
