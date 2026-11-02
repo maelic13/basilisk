@@ -474,6 +474,16 @@ Predictions frozen by the amendments for B.3.2's runs (verbatim):
   P13 missed narrowly: `B3PvQuietPrune` 0 read +5.9, outside ±5; its
   falsifier (≤ −5) did not fire. P32 held: the store read +3.3, inside
   ±5, and leaves the default.
+- **The maintainer's decision (2026-11-02):** the two binding tests veto
+  the gate's adoption now. The donor's bare null move stays through
+  B.3.3's fit, and B.3.4 re-reads the gate on the fitted arm with release
+  CTest among its vetoes (PLAN B.3.4).
+- **Disposition:** the paired run reads **+67.5 ± 9.7 Elo**, ON against
+  OFF, unfitted, and B.3 proceeds to B.3.3. No §9 default moved: IIR is
+  confirmed (off −11.3 ± 9.2), and the eval gate's +11.3 ± 9.3 is
+  vetoed now and re-read in B.3.4. The ON arm stays at `bench 13`
+  4,923,507. P9's consequence is the maintainer's before B.3.5.
+  **CLOSED 2026-11-02.**
 - **The paired run's binaries are re-pinned before any game used
   them.** Building the NPS pools (`nps_pool.ps1 -Revision c6f7151`, four
   clean builds per arm, pools `b32-on` and `b32-off`) staged its builds

@@ -979,7 +979,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         unrecorded deviations, none a change of mechanism; follow-ups:
         amendment 2's surface additions for B.3.3's registration, and
         three packet-record items. Closed.
-    - [ ] **B.3.2** `[V]` Diagnostics and the unfitted paired run
+    - [x] **B.3.2** `[V]` Diagnostics and the unfitted paired run
       Packet §11, BAS-S41, in the order the roadmap audit of 2026-11-01
       fixed (the entry file is assembled from §11 plus every amendment's
       *clauses replaced* list, never from §11 alone): the zero-game
@@ -1080,6 +1080,19 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       - Maintainer decision 2026-11-01 (review follow-up 5): B.12, B.14,
         B.3.0 and Cluster 2 reach `master` together, in one delivery at
         the end of Cluster 2, once everything is accepted.
+      - Maintainer decision 2026-11-02 on the gate:
+        - The two binding tests veto its adoption now. The donor's bare
+          null move (`B3NmpEvalGate` 0) stays through B.3.3's fit.
+        - B.3.4 re-reads the gate on the fitted arm (its clause below).
+      - Closed 2026-11-02 (BAS-S41):
+        - The paired run reads **+67.5 ± 9.7 Elo**, ON against OFF,
+          unfitted.
+        - Every §9 run is read; no default moved; IIR is confirmed.
+        - §5.12 admits seven Cluster 1 candidates to B.3.3's surface.
+        - The ON arm stays at `bench 13` 4,923,507; the OFF arm, the
+          fingerprint record, at 11,880,564.
+        - P9's consequence (the cuckoo loop to B.7) is the maintainer's
+          decision before B.3.5's gate.
     - [ ] **B.3.3** `[V]` Curvature sweep, then SPSA in blocks
       Packet §11, BAS-S42: five registered sweep coordinates (the
       singular margin with the donor's value as an extra point), then
@@ -1093,7 +1106,8 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       build, every place the arm still keeps Basilisk's form where the
       donor's differs is read once more, the donor's form against
       Basilisk's: a §9 categorical at Basilisk's value by default or by
-      B.3.2's run (today `B3FailLowStore` 0 and `CoreHistoryFills` 0), and
+      B.3.2's run (today `B3FailLowStore` 0, `CoreHistoryFills` 0 and
+      `B3ProbCutTt` 0), and
       every categorical whose B.3.2 run read inside ±5 and whose
       mechanism's constants B.3.3 moved (a coordinate it gates, or is
       gated by, on the fitted surface); one whose constants did not move
@@ -1108,6 +1122,17 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       the donor's points. Every departure that stays is written to the
       packet's departures table for B.6.1: Basilisk's form, the donor's,
       the reading that kept it, and the feature or fit it waits on.
+      - Added 2026-11-02 (maintainer): the null move's eval gate
+        (`B3NmpEvalGate` 1, a departure from the donor), re-read on the
+        fitted arm against the donor's bare form.
+        - B.3.2 read it +11.3 ± 9.3, but its adoption failed two ON
+          binding tests, so the donor's form went into the fit.
+        - One 2,000-game paired run at `3+0.03`, adopted at ≥ +5 with
+          the 95% interval excluding 0.
+        - Release CTest is a veto as well as the floors and WAC: the
+          promotion fixture's ON clause and `test_b3_proof`'s liveness
+          sections included.
+        - Kept or not, the reading goes to the departures table.
     - [ ] **B.3.5** `[V]` Cluster 2 gates
       SPRT `[0,3]` for the cluster, and each categorical and deletion arm
       at the bounds the packet registers.
@@ -1627,8 +1652,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.2 | RESEARCH | V | Opened 2026-11-01 on the head after B.14 (OFF 11,880,564, ON 4,923,507): BAS-S41 registered with its order, runs and seeds; the review's follow-ups 2-4 recorded (packet *B.3.2 — opening*); the zero-game screens read (no stop rule fired); every game played: the paired run +67.5 ± 9.7, no default moved by items 1-3, IIR confirmed (off −11.3); `B3NmpEvalGate` 1 reads +11.3 but its adoption fails the ON promotion fixture and a `test_b3_proof` liveness section, so it waits for the maintainer's decision; P9's consequence is the maintainer's before B.3.5 |
-| B.3.3 | RESEARCH | V | Waits for B.3.2 |
+| B.3.3 | RESEARCH | V | B.3.2 closed 2026-11-02 (paired run +67.5 ± 9.7, no default moved); next: BAS-S42's registration, adding the review's follow-up 1 and §5.12's seven admissions, then the curvature sweep |
 | B.3.4 | RESEARCH | V | Added 2026-10-31; waits for B.3.3 |
 | B.3.5 | RESEARCH | V | Waits for B.3.4 (renumbered from B.3.4 on 2026-10-31) |
 | B.3.6 | RESEARCH | I2 | Added 2026-10-31; waits for B.3.5 |
