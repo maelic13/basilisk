@@ -1047,6 +1047,20 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           guard refuses the paired run until items 1-3 leave the
           defaults, and items 4-16 until the paired run reads above −40.
         - Every queued launch was dry-run and accepted.
+      - Overnight 2026-11-01/02 (maintainer-run; BAS-S41 *RESULT*):
+        - Item 1 at `10+0.1` read −5.4 ± 8.6 (recorded).
+        - Item 3 read −1.4 ± 9.2 at `3+0.03` and −5.0 ± 9.0 at
+          `10+0.1`. No default moves.
+        - **The paired run, ON against OFF: +67.5 ± 9.7 Elo** (2,000
+          games, 0 faults), 2.6 plies deeper per move. P1 (+10)
+          missed high, and the −40 stop is far away.
+        - Pooled NPS on `bench 13` reads −11.1%. The arms search
+          different trees; in games they read −2.4%. P9's falsifier
+          fires as written ("the cuckoo loop to B.7 before the gate").
+          That is the maintainer's decision before B.3.5.
+        - Items 4-16 did not play: the order guard could not parse a
+          positive estimate and refused every launch. Fixed and proved
+          on all six finished runs; items 4-16 are next.
       - Maintainer decision 2026-11-01 (review follow-up 5): B.12, B.14,
         B.3.0 and Cluster 2 reach `master` together, in one delivery at
         the end of Cluster 2, once everything is accepted.
@@ -1597,7 +1611,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.2 | RESEARCH | V | Opened 2026-11-01 on the head after B.14 (OFF 11,880,564, ON 4,923,507): BAS-S41 registered with its order, runs and seeds; the review's follow-ups 2-4 recorded (packet *B.3.2 — opening*); the zero-game screens read (no stop rule fired); items 1 (STC) and 2 (read A) played, defaults kept; the overnight queue (NPS, items 1 and 3 at their remaining controls, the paired run, items 4-16) is prepared behind BAS-S41's order guard |
+| B.3.2 | RESEARCH | V | Opened 2026-11-01 on the head after B.14 (OFF 11,880,564, ON 4,923,507): BAS-S41 registered with its order, runs and seeds; the review's follow-ups 2-4 recorded (packet *B.3.2 — opening*); the zero-game screens read (no stop rule fired); items 1-3 played, no default moved; the paired run +67.5 ± 9.7; pooled NPS −11.1% on different trees (P9's consequence for the maintainer before B.3.5); items 4-16 next (`tools/run_b32_games.ps1`, the guard's sign fix in place) |
 | B.3.3 | RESEARCH | V | Waits for B.3.2 |
 | B.3.4 | RESEARCH | V | Added 2026-10-31; waits for B.3.3 |
 | B.3.5 | RESEARCH | V | Waits for B.3.4 (renumbered from B.3.4 on 2026-10-31) |

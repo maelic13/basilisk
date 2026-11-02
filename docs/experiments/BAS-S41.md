@@ -363,6 +363,68 @@ Predictions frozen by the amendments for B.3.2's runs (verbatim):
   - Item 4 runs (the KBN-K majority rule passes at the default, ticket
     10's read, the floors unchanged by B.14). Item 9's terminal tests
     pass in release CTest. Item 13 has no run (amendment 2).
+- **The overnight queue, 2026-11-01/02** (maintainer-run from one
+  chained command; every run on repo `d567850`, clean, host at most 0.26%
+  busy and never waived, 0 faults, 0 time losses, the PGN recount
+  agreeing; logs `tools/results/b32-night/`):
+  - **Item 1 at `10+0.1`** (seed 41011): `B3CheckExt=1` reads
+    **−5.4 ± 8.6 Elo** (nElo −9.6 ± 15.2; W/D/L 489/991/520;
+    pentanomial [20, 255, 478, 230, 17]; 17.83 against 20.23 plies per
+    move without mates). Recorded; item 1's verdict was already fixed
+    by its `3+0.03` read: **the default 0 stands.** Run record
+    `5A699FDA…`, PGN `15380C7B…`.
+  - **Item 3 at `3+0.03`** (seed 41003): `B3NmpCutOnly=0` reads
+    **−1.4 ± 9.2** (W/D/L 495/1002/503; pentanomial [31, 239, 471, 225,
+    34]). Run record `FF0601DA…`, PGN `A995B25C…`.
+  - **Item 3 at `10+0.1`** (seed 41013): `B3NmpCutOnly=0` reads
+    **−5.0 ± 9.0** (W/D/L 486/999/515; pentanomial [28, 251, 471, 222,
+    28]), so cut-only reads +5.0 at the long control with its interval
+    including 0. By the rule (keep 1 unless the `10+0.1` read is ≤ −5
+    for it), **the default 1 stands.** Run record `903018D1…`, PGN
+    `8FBF9F1A…`.
+  - **Items 1–3 move no default**, so the paired run measured the
+    registered arm.
+  - **The paired run** (seed 41000; ON `0B5D9DC6…` against OFF
+    `8E5B9874…`): **+67.5 ± 9.7 Elo** (nElo +108.7 ± 15.2); W/D/L
+    767/850/383; pentanomial [12, 138, 388, 378, 84]. Per move the ON arm
+    searches 16.57 plies without mate scores against 13.96, at 145,496
+    nodes and 2.07M nodes per second against 151,386 and 2.12M. Run
+    record `6FEE0406…`, PGN `D47B3F00…`, dry run `B4821293…`. Far above
+    the −40 stop, so items 4–16 follow. PROCESS re-runs no Colosseum
+    result on the backup path, a surprising one included.
+  - **Pooled NPS** (`nps_read.ps1`, pools `b32-on` and `b32-off`, four
+    builds each, two cycles, CPU 30, host idle; archive
+    `tools/results/b32-nps-try1`): the ON arm reads **−11.09%** on
+    `bench 13`, 95% interval [−11.39%, −10.78%] (2.813M against
+    3.164M), next DONE. The tool flags it "not pure speed": the arms'
+    `bench 13` trees differ (4,923,507 against 11,880,564 nodes).
+  - **Items 4–16 did not run.** The order guard read the paired run's
+    "+67.5" as unparseable, because its pattern allowed only a minus
+    sign, so it refused each launch and played nothing. The pattern now
+    accepts a sign. On all six finished runs it reads the estimates and
+    the adoption rule as above, and item 4's dry run is accepted.
+- **Predictions read:**
+  - **P1 missed high.** It predicted +10 with an 80% interval of
+    [−15, +35]; the read is +67.5 ± 9.7, positive as its 65% said, and
+    the −40 stop is far away. Same direction as BAS-S21's P1 (−15 ± 30
+    against +130.9). The model underpriced what the donor's proof
+    searches add once Cluster 1's core feeds them; about 2.6 plies per
+    move is the measured channel, with about 22 Elo of it from the check
+    policy alone (items 1–2).
+  - **P9 missed, and its falsifier fires as written.** 0.889× is below
+    0.97, which "sends the cuckoo loop to B.7 before the gate". The
+    premise it tested, that the cuckoo loop and `follow_pv` are the only
+    per-node additions, is not what this instrument separates. The two
+    arms' `bench 13` trees differ in composition (quiescence 43% of the
+    ON arm's nodes against 36%, ProbCut tried at 6.7% against 1.4% of
+    interior nodes), and in games the same arms read 2.07M against 2.12M
+    nodes per second (−2.4%). The consequence is recorded for the
+    maintainer's decision before B.3.5's gate; the per-node cost of the
+    cuckoo loop is unmeasured.
+  - **P10:** the `B3CheckExt` leg missed (STC −22.4, outside ±8; LTC
+    −5.4 inside); its falsifier (≥ +5 at both) did not fire. The
+    `B3NmpCutOnly` leg held (STC −1.4 within ±5, LTC −5.0 ≤ 0). The
+    `B3MultiCut` leg waits for item 4.
 - **The paired run's binaries are re-pinned before any game used
   them.** Building the NPS pools (`nps_pool.ps1 -Revision c6f7151`, four
   clean builds per arm, pools `b32-on` and `b32-off`) staged its builds
