@@ -1061,6 +1061,22 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         - Items 4-16 did not play: the order guard could not parse a
           positive estimate and refused every launch. Fixed and proved
           on all six finished runs; items 4-16 are next.
+      - Items 4-16, maintainer-run 2026-11-02 (BAS-S41 *RESULT*, all
+        clean):
+        - `B3NmpEvalGate` 1 reads **+11.3 ± 9.3**, so the rule adopts it.
+        - IIR off reads **−11.3 ± 9.2** and is rejected.
+        - Every other run reads inside ±5, or at ±5 with its interval
+          holding 0, and keeps its default.
+      - Blocked 2026-11-02: the gate's adoption (default 0 → 1,
+        `adopt/adopt_gate.patch`; ON `bench 13` 5,920,540) fails two
+        ON release tests.
+        - The promotion fixture plays `a7a8q` at 0, not positive, at
+          100,000 nodes; it sights the win from 200,000.
+        - `test_b3_proof`'s `B3TtPenalty` liveness section stops moving
+          the node count.
+        - Every other binding read holds.
+        - The change is not committed: the default stays 0 and the ON
+          arm stays 4,923,507. The maintainer decides.
       - Maintainer decision 2026-11-01 (review follow-up 5): B.12, B.14,
         B.3.0 and Cluster 2 reach `master` together, in one delivery at
         the end of Cluster 2, once everything is accepted.
@@ -1611,7 +1627,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.2 | RESEARCH | V | Opened 2026-11-01 on the head after B.14 (OFF 11,880,564, ON 4,923,507): BAS-S41 registered with its order, runs and seeds; the review's follow-ups 2-4 recorded (packet *B.3.2 — opening*); the zero-game screens read (no stop rule fired); items 1-3 played, no default moved; the paired run +67.5 ± 9.7; pooled NPS −11.1% on different trees (P9's consequence for the maintainer before B.3.5); items 4-16 next (`tools/run_b32_games.ps1`, the guard's sign fix in place) |
+| B.3.2 | RESEARCH | V | Opened 2026-11-01 on the head after B.14 (OFF 11,880,564, ON 4,923,507): BAS-S41 registered with its order, runs and seeds; the review's follow-ups 2-4 recorded (packet *B.3.2 — opening*); the zero-game screens read (no stop rule fired); every game played: the paired run +67.5 ± 9.7, no default moved by items 1-3, IIR confirmed (off −11.3); `B3NmpEvalGate` 1 reads +11.3 but its adoption fails the ON promotion fixture and a `test_b3_proof` liveness section, so it waits for the maintainer's decision; P9's consequence is the maintainer's before B.3.5 |
 | B.3.3 | RESEARCH | V | Waits for B.3.2 |
 | B.3.4 | RESEARCH | V | Added 2026-10-31; waits for B.3.3 |
 | B.3.5 | RESEARCH | V | Waits for B.3.4 (renumbered from B.3.4 on 2026-10-31) |

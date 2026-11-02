@@ -425,6 +425,55 @@ Predictions frozen by the amendments for B.3.2's runs (verbatim):
     −5.4 inside); its falsifier (≥ +5 at both) did not fire. The
     `B3NmpCutOnly` leg held (STC −1.4 within ±5, LTC −5.0 ≤ 0). The
     `B3MultiCut` leg waits for item 4.
+- **Items 4–16** (maintainer-run 2026-11-02; ON Tune `B757C936…`; repo
+  `2537f15` clean for every run; host at most 2.1% busy and never
+  waived; 0 faults, 0 time losses; every PGN recount agreeing; arm A the
+  alternative, so a positive result favours it):
+
+| Run | Arm A | Elo (nElo) | W/D/L | Pentanomial | Verdict | Run record, PGN |
+|---|---|---|---|---|---|---|
+| 4 (41004) | `B3MultiCut=1` | +3.3 ± 9.6 (+5.2) | 522/975/503 | [32, 254, 419, 253, 42] | default 0 kept | `CA4F7214…`, `FB07425D…` |
+| 5 (41005) | `B3NmpVerify=0` | −5.0 ± 8.8 (−8.7) | 514/943/543 | [21, 259, 474, 220, 26] | default 1 kept (interval holds 0) | `C680CF00…`, `E59268A2…` |
+| `B3ProbCutTt` (41051) | `=1` | +0.9 ± 9.5 (+1.4) | 529/947/524 | [41, 228, 453, 241, 37] | default 0 kept | `B681675C…`, `DA5475B2…` |
+| `B3NmpEvalGate` (41052) | `=1` | **+11.3 ± 9.3** (+18.6) | 538/989/473 | [37, 195, 466, 270, 32] | **adopted by the rule; blocked by two binding tests (below)** | `66AC249B…`, `2F4191D6…` |
+| 14 (41014) | `B3SingNegative=1` | 0.0 ± 9.2 (0.0) | 541/918/541 | [36, 229, 464, 241, 30] | default 3 kept | `2A47A629…`, `1D387629…` |
+| 15 (41015) | `B3PvQuietPrune=0` | +5.9 ± 9.9 (+9.1) | 531/972/497 | [43, 231, 419, 263, 44] | default 1 kept (interval holds 0) | `C7CB880A…`, `C18DED3B…` |
+| 6 (41006) | `B3SingTtDepth=1` | −1.0 ± 9.2 (−1.7) | 512/970/518 | [31, 242, 463, 230, 34] | default 0 kept | `22895C56…`, `61DE0474…` |
+| 7 (41007) | `B3IirStale=1` | +2.8 ± 9.2 (+4.6) | 503/1010/487 | [30, 238, 448, 254, 30] | default 0 kept | `42134BE9…`, `FD195991…` |
+| 9 (41009) | `B3Cuckoo=0` | 0.0 ± 9.3 (0.0) | 510/980/510 | [31, 252, 428, 264, 25] | default 1 kept | `A671E7CE…`, `3816BA2A…` |
+| 10 (41010) | `CoreHistoryFills=1` | −0.5 ± 9.3 (−0.9) | 507/983/510 | [36, 236, 452, 247, 29] | default 0 kept | `91C51040…`, `D27EEC79…` |
+| 12 (41020) | `B3Iir=0` | **−11.3 ± 9.2** (−18.6) | 472/991/537 | [41, 255, 456, 224, 24] | **IIR off rejected**: default 1 kept, interval [−20.5, −2.1] | `385F3079…`, `6C02568C…` |
+| 16 (41016) | `B3FailLowStore=1` | +3.3 ± 9.1 (+5.5) | 509/1001/490 | [29, 224, 480, 233, 34] | default 0 kept | `DB296C1E…`, `ABCB25E7…` |
+
+  Items 8, 11 and 13 had no run (the 10% rule; amendment 2).
+- **The adoption of `B3NmpEvalGate` 1 is blocked.** Applied as one line
+  (`adopt/adopt_gate.patch`, SHA-256 96856677…, the default 0 → 1), it
+  moves the ON arm's `bench 13` to 5,920,540 on Release, Tune, Diag and
+  Ablate (`bench 10` 1,240,782 release and sanitizer); the OFF arm is
+  unchanged at 11,880,564. On the ON arm the binding set otherwise holds:
+  WAC 243 at 100,000 nodes and 132 at depth 6; floors 24 for KQ-K, KR-K
+  and KBB-K and KBN-K 120; the wrong-bishop 28, the organic 7/7 and the
+  primed 28/28; `test_endgames` exit 0 (`adopt/adopt_price.{txt,json}`).
+  Two release tests fail (`adopt/ctest_on.log`):
+  - `test_search`, "promotion: a queen where a rook only transposes":
+    the ON arm plays `a7a8q` but scores it **0** at 33,000, 60,000 and
+    100,000 nodes, where its clause asks for a positive score at
+    100,000. It sights the win from 200,000 nodes (+1,232; +1,297 at
+    400,000; +1,567 at 1,000,000): the tie at 0 that research
+    amendment 9 found on the OFF arm.
+  - `test_b3_proof`, "B3FailLowStore and B3TtPenalty move the ON arm
+    only": with the gate on, `B3TtPenalty` 0 no longer changes the node
+    count on that section's position (line 550).
+
+  Neither test is relaxed, and a strength result does not outrank a
+  binding test, so the change is not committed. The source keeps the
+  default 0 and the ON arm's fingerprint stays 4,923,507 (rebuilt and
+  read on every flavour). The adoption waits for the maintainer's
+  decision.
+- **Predictions read:** P10's `B3MultiCut` leg held (+3.3, within ±5).
+  P13 missed narrowly: `B3PvQuietPrune` 0 read +5.9, outside ±5; its
+  falsifier (≤ −5) did not fire. P32 held: the store read +3.3, inside
+  ±5, and leaves the default.
 - **The paired run's binaries are re-pinned before any game used
   them.** Building the NPS pools (`nps_pool.ps1 -Revision c6f7151`, four
   clean builds per arm, pools `b32-on` and `b32-off`) staged its builds
