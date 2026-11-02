@@ -1099,6 +1099,14 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       SPSA in blocks on Cluster 2's X lines plus §5.12's admissions;
       theta is the last completed block; the fitted-constant analysis
       precedes the bake.
+      - Opened 2026-11-02. BAS-S42 is registered, with the sweep frozen
+        before its first point (`analysis/b33_sweep_2026-11-02.md`).
+        - The surface: Cluster 2's 19 X lines plus §5.12's ten Cluster 1
+          admissions.
+        - `B3ProbCutTtMargin` is dropped: its switch stays 0, so the
+          coordinate is inert (the review's follow-up 1).
+        - The donor's singular pair (17 with `B3SingTripleQuiet` −53)
+          is a read-only sweep point.
     - [ ] **B.3.4** `[V]` Basilisk's forms re-read on the fitted arm
       Added 2026-10-31 (maintainer). B.3.2's categorical runs read the
       donor's forms with Cluster 1's constants fitted to the old tree, so
@@ -1142,6 +1150,16 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       unfitted arm, `[0,3]`, only if B.3.3 ran its SPSA; (c) a 2,000-game
       `10+0.1` direction read, recorded, not a gate. The candidate is
       B.3.4's: the fitted arm with its adoptions.
+      - Added 2026-11-02 (maintainer), before the gate: P9's
+        consequence is read on the fitted arm, never on `bench 13`
+        pools of different trees (B.3.2 read −11.1% there and −2.4% in
+        games).
+        - First, the Release ON build's profile (`tools/profile.ps1`):
+          the share of search time in the upcoming-repetition check.
+        - Only if that share is material, pooled NPS of two Release
+          pools that differ only in `B3Cuckoo`'s default.
+        - Item 9 read the check at 0.0 ± 9.3 Elo. The maintainer then
+          chooses B.7 or keeping the donor's form at its cost.
     - [ ] **B.3.6** `[I2]` Colour-indexed histories (S2)
       Added 2026-10-31 (maintainer): S2 above, given a leaf so it runs. On
       the accepted B.3 head, research first: a shadow counter of
@@ -1652,7 +1670,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.3 | RESEARCH | V | B.3.2 closed 2026-11-02 (paired run +67.5 ± 9.7, no default moved); next: BAS-S42's registration, adding the review's follow-up 1 and §5.12's seven admissions, then the curvature sweep |
+| B.3.3 | RESEARCH | V | Opened 2026-11-02: BAS-S42 registered (surface 19 + 10, the sweep frozen); the curvature sweep is next, zero-game; SPSA blocks only if a coordinate is curved, maintainer-run overnight |
 | B.3.4 | RESEARCH | V | Added 2026-10-31; waits for B.3.3 |
 | B.3.5 | RESEARCH | V | Waits for B.3.4 (renumbered from B.3.4 on 2026-10-31) |
 | B.3.6 | RESEARCH | I2 | Added 2026-10-31; waits for B.3.5 |
