@@ -1,0 +1,176 @@
+{
+    "B3NmpPerPly": {
+        "value": 16,
+        "min_value": 2,
+        "max_value": 32,
+        "step": 2
+    },
+    "B3NmpImproving": {
+        "value": 16,
+        "min_value": 0,
+        "max_value": 40,
+        "step": 3
+    },
+    "B3NmpBase": {
+        "value": 151,
+        "min_value": 50,
+        "max_value": 300,
+        "step": 16
+    },
+    "B3NmpRedBase": {
+        "value": 7,
+        "min_value": 2,
+        "max_value": 10,
+        "step": 2
+    },
+    "B3NmpRedEvalDiv": {
+        "value": 72,
+        "min_value": 36,
+        "max_value": 256,
+        "step": 14
+    },
+    "B3IirMinDepth": {
+        "value": 6,
+        "min_value": 3,
+        "max_value": 10,
+        "step": 2
+    },
+    "B3ProbCutBase": {
+        "value": 68,
+        "min_value": 34,
+        "max_value": 240,
+        "step": 13
+    },
+    "B3ProbCutImproving": {
+        "value": 18,
+        "min_value": 0,
+        "max_value": 48,
+        "step": 3
+    },
+    "B3SingMargin": {
+        "value": 252,
+        "min_value": 13,
+        "max_value": 378,
+        "step": 23
+    },
+    "B3SingMarginTtPv": {
+        "value": 19,
+        "min_value": 0,
+        "max_value": 126,
+        "step": 8
+    },
+    "B3SingDoubleBase": {
+        "value": -1,
+        "min_value": -40,
+        "max_value": 40,
+        "step": 5
+    },
+    "B3SingDoublePv": {
+        "value": 58,
+        "min_value": 0,
+        "max_value": 120,
+        "step": 8
+    },
+    "B3SingDoubleQuiet": {
+        "value": -43,
+        "min_value": -90,
+        "max_value": 0,
+        "step": 6
+    },
+    "B3SingDoubleDeep": {
+        "value": -11,
+        "min_value": -30,
+        "max_value": 0,
+        "step": 2
+    },
+    "B3SingTripleBase": {
+        "value": 20,
+        "min_value": -20,
+        "max_value": 60,
+        "step": 5
+    },
+    "B3SingTriplePv": {
+        "value": 79,
+        "min_value": 0,
+        "max_value": 160,
+        "step": 10
+    },
+    "B3SingTripleQuiet": {
+        "value": 0,
+        "min_value": -110,
+        "max_value": 0,
+        "step": 7
+    },
+    "B3SingTripleTtPv": {
+        "value": 23,
+        "min_value": 0,
+        "max_value": 60,
+        "step": 4
+    },
+    "B3SingTripleDeep": {
+        "value": -12,
+        "min_value": -30,
+        "max_value": 0,
+        "step": 2
+    },
+    "CoreLmpBase": {
+        "value": 3,
+        "min_value": 1,
+        "max_value": 8,
+        "step": 2
+    },
+    "CoreQuietFutBase": {
+        "value": 166,
+        "min_value": 80,
+        "max_value": 300,
+        "step": 14
+    },
+    "CoreCaptFutBase": {
+        "value": 79,
+        "min_value": 40,
+        "max_value": 270,
+        "step": 14
+    },
+    "CoreCaptSeeCoeff": {
+        "value": 68,
+        "min_value": 30,
+        "max_value": 200,
+        "step": 11
+    },
+    "CoreContHistPruneSlope": {
+        "value": 3825,
+        "min_value": 1500,
+        "max_value": 8000,
+        "step": 406
+    },
+    "CoreRfpCorrMult": {
+        "value": 538,
+        "min_value": 0,
+        "max_value": 2048,
+        "step": 128
+    },
+    "CoreCorrUpdateScale": {
+        "value": 16,
+        "min_value": 4,
+        "max_value": 30,
+        "step": 2
+    },
+    "CoreRfpPerPly": {
+        "value": 101,
+        "min_value": 40,
+        "max_value": 227,
+        "step": 12
+    },
+    "CoreRfpImproving": {
+        "value": 98,
+        "min_value": 35,
+        "max_value": 160,
+        "step": 8
+    },
+    "CoreRfpDepthCap": {
+        "value": 10,
+        "min_value": 6,
+        "max_value": 19,
+        "step": 2
+    }
+}

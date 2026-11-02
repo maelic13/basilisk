@@ -122,6 +122,29 @@ class SurfaceTests(unittest.TestCase):
         self.assertIn("# sweep coordinate B3SingNegative: 0, 1, 3", tune)
         self.assertIn("# sweep extra points B3SingMargin: 17, 126", tune)
 
+    def test_b33_surface_is_the_b3_lines_and_the_admissions(self):
+        text = surface.HEADER.read_text(encoding="utf-8")
+        b3 = [item[0] for item in surface.parse_parameters(text, b3=True)]
+        generated = json.loads(surface.B33_CONFIG.read_text(encoding="utf-8"))
+        self.assertEqual(list(generated),
+                         [name for name in b3 if name != "B3ProbCutTtMargin"]
+                         + list(surface.B33_ADMITTED_CORE))
+        self.assertEqual(len(generated), 29)
+        # The core coordinates keep the core table's values and steps.
+        core = json.loads(surface.CORE_CONFIG.read_text(encoding="utf-8"))
+        for name in surface.B33_ADMITTED_CORE:
+            self.assertEqual(generated[name], core[name])
+
+    def test_b33_surface_rejects_a_name_with_no_x_line(self):
+        text = surface.HEADER.read_text(encoding="utf-8")
+        saved = surface.B33_ADMITTED_CORE
+        try:
+            surface.B33_ADMITTED_CORE = saved + ("CoreNoSuchCoordinate",)
+            with self.assertRaises(ValueError):
+                surface.b33_parameters(text)
+        finally:
+            surface.B33_ADMITTED_CORE = saved
+
     def test_steps_are_half_up_range_sixteenths_with_floor(self):
         self.assertEqual(surface.perturbation(0, 40), 3)
         self.assertEqual(surface.perturbation(0, 24), 2)
