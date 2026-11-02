@@ -91,7 +91,7 @@ function Get-B32Read([string]$Name) {
     $progress = ($last | ConvertFrom-Json).progress
     if ([int]$progress.done -ne 2000) { throw "ORDER - $Name's last progress record is not its final one." }
     $elo = ($progress.fields | Where-Object { $_.label -eq 'Elo' }).value
-    if ($elo -notmatch '^(?<e>-?[0-9.]+) \+/- (?<h>[0-9.]+)$') { throw "ORDER - cannot read $Name's Elo '$elo'." }
+    if ($elo -notmatch '^(?<e>[+-]?[0-9.]+) \+/- (?<h>[0-9.]+)$') { throw "ORDER - cannot read $Name's Elo '$elo'." }
     [pscustomobject]@{ Elo = [double]$Matches.e; Half = [double]$Matches.h }
 }
 function Test-Adopts($read) { $read.Elo -ge 5 -and ($read.Elo - $read.Half) -gt 0 }
