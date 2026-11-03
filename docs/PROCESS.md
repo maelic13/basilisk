@@ -253,6 +253,16 @@ Donors (maintainer decision 2026-09-28; PLAN rule 1 points here):
 - **Classical Stockfish `9587eeeb`** for the evaluation families, as the
   deficit oracle (`oracle/hybrid`), and as a seed column for eval-coupled
   margins.
+- **Triumviratus** (maintainer decision 2026-11-03), for mechanisms only:
+  measured priors on its Stockfish-19-shaped search, board and
+  infrastructure, time management, NNUE architecture and training, and its
+  own measurement failures. Read through the pinned snapshots
+  `docs/reference/triumviratus/` (`main` at `0c18907`) and
+  `docs/reference/triumviratus-networks/` (`5f3dc60`), never the live
+  repository; a later finding enters only through a new dated snapshot.
+  `analysis/triumviratus_review_2026-11-03.md` maps every finding to its
+  leaf. Its verdicts are priors, like Rarog's: one machine, self-play,
+  often early-stopped SPRTs, a search tuned around a network.
 
 Rarog and Manta are worked examples of the same method; Reckless is Rarog's
 donor. None of them donates to Basilisk, and their verdicts are priors, never

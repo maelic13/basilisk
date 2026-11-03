@@ -39,7 +39,6 @@ generations change. These are maintainer judgments, not measured rankings.
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
 - **B.7.1** `[I1]` Allocation guard (ANY TIME) — before B.7.2 — Claude Sonnet 5 — Medium
-- **D.3.1** `[R2]` Board contract audit (ANY TIME) — before E.1 — Claude Opus 5 — High
 
 ### Phase A — Reset: documents, harness, instruments, baselines (EXTENDED)
 
@@ -101,6 +100,11 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
 - [ ] **B.6** Donor-form reconciliation, then joint search SPSA
     - [ ] **B.6.1** `[R2]` Donor-form reconciliation
     - [ ] **B.6.2** `[V]` Joint search SPSA, if justified
+- [ ] **B.15** Board review and rebuild
+    - [ ] **B.15.1** `[R2]` Board contract audit and instruments
+    - [ ] **B.15.2** `[R2]` Board review against Stockfish and Triumviratus
+    - [ ] **B.15.3** `[I2]` Rebuild behind the board contract
+    - [ ] **B.15.4** `[V]` Board speed read and gate
 - [ ] **B.7** Search speed pass
     - [ ] **B.7.1** `[I1]` Allocation guard (ANY TIME) — before B.7.2
     - [ ] **B.7.2** `[I1]` Speed pass
@@ -147,8 +151,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
 
 - [ ] **D.1** `[R2]` Time management
 - [ ] **D.2** `[R2]` Lazy SMP quality
-- [ ] **D.3** Engine lifecycle, protocol and board contracts
-    - [ ] **D.3.1** `[R2]` Board contract audit (ANY TIME) — before E.1
+- [ ] **D.3** Engine lifecycle and protocol
     - [ ] **D.3.2** `[R2]` Lifecycle and protocol robustness
 - [ ] **D.4** `[R2]` Tablebase policy
 
@@ -179,5 +182,11 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
 - [ ] **G.1** `[R2]` High-thread and NUMA
 - [ ] **G.2** `[I1]` Platform and product
 - [ ] **G.3** `[R3]` Frontier
+
+### Phase H — Refinements after the big gains
+
+- [ ] **H.1** `[R2]` Refinement backlog triage
+- [ ] **H.2** `[I2]` Search refinements, one at a time
+- [ ] **H.3** `[I2]` Time-management refinements at their own control
 
 <!-- END GENERATED -->

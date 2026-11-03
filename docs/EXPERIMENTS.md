@@ -19,7 +19,10 @@ roadmap. Rarog identifiers (`RAR-*`) and Rarog paths cited anywhere in this
 ledger resolve in the pinned snapshot `docs/reference/rarog/` (Rarog
 `015bccae`), or for BAS-X35 in `docs/reference/rarog-2026-10-06/`, or for
 BAS-X36 in Rarog's live repository at `ec6f5b5`, read under A.12's exception;
-`docs/reference/README.md` says how. Do not rewrite measured records merely because the roadmap was
+`docs/reference/README.md` says how. Triumviratus items (`TS-1`, `TB-1`
+and the like) and paths cited by BAS-X37–X40 resolve in
+`analysis/triumviratus_review_2026-11-03.md` and the snapshots
+`docs/reference/triumviratus/` and `docs/reference/triumviratus-networks/`. Do not rewrite measured records merely because the roadmap was
 reordered; the retry map in section 9 is live routing and carries current
 destinations.
 
@@ -55,6 +58,7 @@ for Basilisk and never bypasses Basilisk's own gates.
 - [7. Correctness and protocol lessons](#7-correctness-and-protocol-lessons)
 - [8. Cross-engine evidence imported from Rarog](#8-cross-engine-evidence-imported-from-rarog)
 - [8b. Cross-engine evidence imported from Manta](#8b-cross-engine-evidence-imported-from-manta)
+- [8c. Cross-engine evidence imported from Triumviratus](#8c-cross-engine-evidence-imported-from-triumviratus)
 - [9. Open retry map](#9-open-retry-map)
 - [10. Prediction calibration review](#10-prediction-calibration-review)
 - [11. Template for a new experiment](#11-template-for-a-new-experiment)
@@ -727,6 +731,23 @@ never accept a Basilisk change.
 
 Manta also supplied the **method** that produced BAS-D05, which is recorded
 there rather than here because it is our own measurement.
+
+## 8c. Cross-engine evidence imported from Triumviratus
+
+Triumviratus is Basilisk's third donor (maintainer decision 2026-11-03), read
+for mechanisms: a GPL-3 engine whose search was rebuilt on Stockfish 19's base
+and whose every change is measured in its development logs, first on CCRL
+40/15 on 2026-10-30. These are **imported priors** from
+`analysis/triumviratus_review_2026-11-03.md`: self-play on one machine,
+often early-stopped, on a search tuned around a network. They order, warn
+and refuse; they never accept a Basilisk change.
+
+| ID | Title | Disposition |
+|---|---|---|
+| [BAS-X37](experiments/BAS-X37.md) | Search priors on a Stockfish-19-shaped search | import |
+| [BAS-X38](experiments/BAS-X38.md) | Measurement and tuning failure modes it found in itself | import |
+| [BAS-X39](experiments/BAS-X39.md) | Clock, protocol and time-management findings | import |
+| [BAS-X40](experiments/BAS-X40.md) | NNUE architecture, inference and training | import |
 
 ## 9. Open retry map
 
