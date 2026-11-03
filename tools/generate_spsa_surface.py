@@ -72,7 +72,14 @@ LINE_RE = re.compile(
 # (only X lines match PARAM_RE).
 CORE_TABLE = "#define BASILISK_CORE_KERNEL_PARAMS("
 B3_TABLE = "#define BASILISK_B3_PARAMS("
-TABLES = (CORE_TABLE, B3_TABLE)
+# The B3_PROOF arm's own defaults for core coordinates fitted on its tree:
+# A(field, UciName, value) lines. The core surface keeps the X lines' values
+# (the OFF arm's); a surface tuned on the B3_PROOF arm starts from these.
+B3_CORE_DEFAULTS_TABLE = "#define BASILISK_B3_CORE_DEFAULTS("
+TABLES = (CORE_TABLE, B3_TABLE, B3_CORE_DEFAULTS_TABLE)
+ARM_DEFAULT_RE = re.compile(
+    r"^\s*A\(\s*[a-z][a-z0-9_]*\s*,\s*([A-Za-z][A-Za-z0-9]*)\s*,\s*(-?\d+)\s*\)"
+)
 
 
 def split_tables(text: str) -> dict[str, list[str]]:
@@ -131,6 +138,27 @@ def parse_parameters(text: str, core: bool = False,
     return parameters
 
 
+def b3_core_defaults(text: str) -> dict[str, int]:
+    """The B3_PROOF arm's own core defaults, each checked: a core X line's
+    name, inside its range, off its default, named once."""
+    core = {name: (default, minimum, maximum)
+            for name, default, minimum, maximum in parse_parameters(text, core=True)}
+    overrides: dict[str, int] = {}
+    for line in split_tables(text)[B3_CORE_DEFAULTS_TABLE]:
+        match = ARM_DEFAULT_RE.match(line)
+        if not match:
+            continue
+        name, value = match.group(1), int(match.group(2))
+        if name not in core:
+            raise ValueError(f"B3_PROOF default {name} names no core X line")
+        default, minimum, maximum = core[name]
+        if not minimum <= value <= maximum or value == default or name in overrides:
+            raise ValueError(f"B3_PROOF default {name} {value}: must lie in "
+                             f"[{minimum}, {maximum}] off {default}, once")
+        overrides[name] = value
+    return overrides
+
+
 def sweep_notes(text: str, coordinates: dict[str, tuple[int, ...]],
                 extra_points: dict[str, tuple[int, ...]]) -> list[str]:
     """The B3 table's sweep registrations as comment lines, each checked: a
@@ -166,9 +194,13 @@ def sweep_notes(text: str, coordinates: dict[str, tuple[int, ...]],
 
 def b33_parameters(text: str) -> list[tuple[str, int, int, int]]:
     """B.3.3's fit surface: the B3 X lines less B33_EXCLUDED, then the core X
-    lines B33_ADMITTED_CORE names, in that order; every name is checked."""
+    lines B33_ADMITTED_CORE names, in that order; every name is checked. The
+    surface is the B3_PROOF arm's, so a core coordinate starts from that
+    arm's own default where it has one."""
     b3 = parse_parameters(text, b3=True)
-    core = {parameter[0]: parameter for parameter in parse_parameters(text, core=True)}
+    overrides = b3_core_defaults(text)
+    core = {name: (name, overrides.get(name, default), minimum, maximum)
+            for name, default, minimum, maximum in parse_parameters(text, core=True)}
     missing = [name for name in B33_EXCLUDED if name not in {p[0] for p in b3}]
     missing += [name for name in B33_ADMITTED_CORE if name not in core]
     if missing:

@@ -130,10 +130,34 @@ class SurfaceTests(unittest.TestCase):
                          [name for name in b3 if name != "B3ProbCutTtMargin"]
                          + list(surface.B33_ADMITTED_CORE))
         self.assertEqual(len(generated), 29)
-        # The core coordinates keep the core table's values and steps.
+        # The core coordinates keep the core table's ranges and steps and
+        # start from the B3_PROOF arm's own default where it has one.
         core = json.loads(surface.CORE_CONFIG.read_text(encoding="utf-8"))
+        overrides = surface.b3_core_defaults(text)
+        self.assertTrue(overrides)
         for name in surface.B33_ADMITTED_CORE:
-            self.assertEqual(generated[name], core[name])
+            wanted = dict(core[name], value=overrides.get(name, core[name]["value"]))
+            self.assertEqual(generated[name], wanted)
+
+    def test_b3_core_defaults_are_checked_against_the_core_table(self):
+        head = (
+            "#define BASILISK_CORE_KERNEL_PARAMS(X, F) \\\n"
+            "    X(b_field, Beta, 5, 0, 10) \\\n"
+            "    F(e_field, Epsilon, 5, 0, 10)\n"
+            "#define BASILISK_B3_CORE_DEFAULTS(A) \\\n"
+        )
+        self.assertEqual(surface.b3_core_defaults(head + "    A(b_field, Beta, 7)\n"),
+                         {"Beta": 7})
+        # The core surface is the X lines' values, not the arm's.
+        text = head + "    A(b_field, Beta, 7)\n"
+        self.assertEqual(surface.parse_parameters(text, core=True), [("Beta", 5, 0, 10)])
+        for body in ("    A(e_field, Epsilon, 7)\n",          # an F line
+                     "    A(z_field, Zeta, 7)\n",             # no line
+                     "    A(b_field, Beta, 5)\n",             # the default
+                     "    A(b_field, Beta, 11)\n",            # out of range
+                     "    A(b_field, Beta, 7) \\\n    A(b_field, Beta, 8)\n"):  # twice
+            with self.assertRaises(ValueError):
+                surface.b3_core_defaults(head + body)
 
     def test_b33_surface_rejects_a_name_with_no_x_line(self):
         text = surface.HEADER.read_text(encoding="utf-8")
