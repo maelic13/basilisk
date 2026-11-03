@@ -1284,6 +1284,17 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           pools that differ only in `B3Cuckoo`'s default.
         - Item 9 read the check at 0.0 ± 9.3 Elo. The maintainer then
           chooses B.7 or keeping the donor's form at its cost.
+      - Registered 2026-11-03, before any of its games (BAS-S43, while
+        BAS-S45 plays):
+        - (a) has a cap of 2,000 pairs; the drift model at B.3.2's +67.5
+          puts the stop near 550.
+        - (b) has a cap of 12,000 pairs; at an expected +5 the stop is
+          near 9,000.
+        - (c) is 2,000 games at `10+0.1` and scores P14.
+        - The order: B.3.4's games, the P9 profile, (b), the maintainer's
+          P9 choice, then (a) and (c).
+        - The packet gives (b) no consequence. A reversion of theta is
+          the maintainer's decision.
     - [ ] **B.3.6** `[I2]` Colour-indexed histories (S2)
       Added 2026-10-31 (maintainer): S2 above, given a leaf so it runs. On
       the accepted B.3 head, research first: a shadow counter of
