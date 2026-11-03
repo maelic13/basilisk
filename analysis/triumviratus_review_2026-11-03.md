@@ -1,8 +1,11 @@
 # Triumviratus review, 2026-11-03: a third donor, read for mechanisms
 
 - State / class: delivered; the source of the Triumviratus inputs added to
-  PLAN on 2026-11-03 (B.4, B.5, B.6.1, B.7.2, the new B.15, C.0, D.1–D.3,
-  F.0–F.8, G.1, G.2 and the new Phase H), `R2`
+  PLAN on 2026-11-03 (B.3.3, B.4, B.5, B.6.1, B.7.2, the new B.15 and
+  B.16, C.0, D.1–D.3, F.0–F.8, G.1, G.2 and the new Phase H), `R2`.
+  Amended the same day at the maintainer's request: the instruments that
+  help now became B.16 (§4.7), and Triumviratus's NNUE path was recorded
+  for self-play training (§4.12).
 - Owner / date: agent, 2026-11-03, at maintainer request ("take what is
   useful for us and place it in the proper place of the plan ... mechanisms,
   not code ... fine-tuning after we switch to NNUE and after all our bigger
@@ -181,8 +184,8 @@ Phase H.
 
 | ID | Mechanism | Evidence | Destination |
 |---|---|---|---|
-| TT-1 | **Loss analysis by cell**: every move of lost and spoiled games scored by a judge engine, tabulated by position class (defending, level, ahead) × clock left × material. 33.8% of the loss sat in "defending with under 10% of the clock"; half the real errors vanished with more nodes (D8 §32, §43); defence held 36.7% against Stockfish's 50.6% (D8 §47.4) | an instrument that found the targets of every later time rule | **D.1** |
-| TT-2 | **Wall-clock overhead instrument**: `go nodes 1000` wall time against the engine's own report and against Stockfish (6.15 ms against 1.24 ms found the brake); `go movetime` overshoot; ponderhit-to-bestmove latency (D8 §45) | found +29.8 Elo | **D.1** (Basilisk passed the code reading in §3; the instrument verifies it) |
+| TT-1 | **Loss analysis by cell**: every move of lost and spoiled games scored by a judge engine, tabulated by position class (defending, level, ahead) × clock left × material. 33.8% of the loss sat in "defending with under 10% of the clock"; half the real errors vanished with more nodes (D8 §32, §43); defence held 36.7% against Stockfish's 50.6% (D8 §47.4) | an instrument that found the targets of every later time rule | **B.16.3**, read by D.1 |
+| TT-2 | **Wall-clock overhead instrument**: `go nodes 1000` wall time against the engine's own report and against Stockfish (6.15 ms against 1.24 ms found the brake); `go movetime` overshoot; ponderhit-to-bestmove latency (D8 §45) | found +29.8 Elo | **B.16.1**, read by D.1 (Basilisk passed the code reading in §3; the read verifies it) |
 | TT-3 | Time levers depend on the time control: measure each at its own control; tune them against an external engine with release-speed builds, because self-play rewards the side that spends more (D8 §19, §21, §23; commit `878b574`) | method | **D.1** |
 | TT-4 | Game ply from a FEN's move number (`TmFenPly`: after a book the first move got about 30% less time); `go movetime` not scaled by time factors; a hard timeout that fired before any root move existed (D8 §20, D6 note 8) | defects | **D.1** |
 | TT-5 | A lower cap on the longest thinks lost −27.1 ± 17.0 at 40+0.4; an expected-reply depth floor lost (−5.5 ± 13.4) (D8 §23, §27) | negative priors | **D.1** |
@@ -218,13 +221,15 @@ Phase H.
 | ID | Lesson | Evidence | Destination |
 |---|---|---|---|
 | TM-1 | One engine per physical core: two engines on one core cost about 1.6 plies at 5 s, and SPSA vectors tuned under hyperthreading gained only where the machine was slow (D8 §45.3, §45.5) | Basilisk already pins physical cores (PLAN rule 7) | reference; no leaf |
-| TM-2 | The SPSA perturbation schedule: `c` must reach its final value at the last iteration (fishtest's form); the iteration count of the schedule must equal the iterations played; ranges chosen so the start ± 2.25c never crosses a point where the formula changes nature (D8 §48.1; D81 *Plan*, item 4) | a tool defect that halved every 8.0 tune | **B.3.3 onwards**: one check that Basilisk's `spsa_colosseum.ps1` schedule reaches `c_end` at the last iteration (Basilisk's own tool, not Triumviratus's; recorded as an open check in §6) |
+| TM-2 | The SPSA perturbation schedule: `c` must reach its final value at the last iteration (fishtest's form); the iteration count of the schedule must equal the iterations played; ranges chosen so the start ± 2.25c never crosses a point where the formula changes nature (D8 §48.1; D81 *Plan*, item 4) | a tool defect that halved every 8.0 tune | **B.3.3**: checked 2026-11-03 on block 1, Colosseum reaches `c_end` at the last iteration (§6) |
 | TM-3 | A lever enters a bake only when its net move is at least 2.5 times the random-walk expectation: random-walk segments look monotone (rank correlation ≥ 0.85) 30% of the time, so with 37 levers about 11 pass a monotonicity test by chance (S2 §2.4) | Basilisk's B-101 journal z-read is the same rule | reference (B.6) |
 | TM-4 | Stopped "leans" add up to nothing; a bundle of single +1 to +2 estimates read +0.51 ± 6.49 (D8 §18, §48.1) | Basilisk's registered stop rules already forbid this | reference |
 | TM-5 | A measurement is valid only in the regime it was taken: quiet checks in quiescence flipped sign once a one-move cap was lifted (D6 notes 9–10); a correction weight went up at 15 s and down at 30 s (D7 §2) | method | C.0, B.4 (cited there) |
 | TM-6 | An idea that should not lose but does is analysed before closing: `CorrPhase` lost −5.1 until a prefetch of the wrong (unsalted) keys was found, then gained +3.2 (D8 §25) | method | reference |
-| TM-7 | Speed by hardware counters at an identical tree: cycles, instructions and branch misses per node, the engine pinned to one core, only search threads counted (the start-up was 5% of the cycles at 400k nodes per position), and a byte-identical copy of the base as the noise control; paired simultaneous runs on two hyperthread siblings with a null test of ±0.1% (D8 §2, §36) | Basilisk's pooled-PGO read (A.9.4) and profiler (A.9.5) are its instruments | **B.7.2** (an alternative instrument, read beside A.9.4's) |
+| TM-7 | Speed by hardware counters at an identical tree: cycles, instructions and branch misses per node, the engine pinned to one core, only search threads counted (the start-up was 5% of the cycles at 400k nodes per position), and a byte-identical copy of the base as the noise control; paired simultaneous runs on two hyperthread siblings with a null test of ±0.1% (D8 §2, §36) | Basilisk's pooled-PGO read (A.9.4) and profiler (A.9.5) are its instruments | **B.16.4**, then B.15.4 and B.7.2 |
 | TM-8 | Tree-size centring for any lever that changes the tree: a fit on search data plus a node-count sweep on fixed positions finds in minutes the value an SPSA looks for over hours; the bench is no use for it because a few positions dominate its sum (S2 §2.6) | method | reference |
+| TM-9 | **Pricing what pruning and reductions hide.** Data builds record which rule pruned or reduced a move and search a sample of those moves again at the denied depth: `prunelog` for every pruning rule (S3 §3.3), `redlog` for reduced searches, a quarter of the reduced fail-lows probed at full depth (S2 §2.6). The useful label is "failed low reduced, beats alpha at full depth" (1.7% of probed moves); the first label, "beats alpha", spent nodes on moves already re-searched (−9.65 ± 10.36) | Basilisk's `TraceEvent` records each decision but never prices it | **B.16.2** |
+| TM-10 | Shortcut builds: every identical-tree shortcut ships with a build switch that runs the original beside it at every node and aborts on the first disagreement (`TRIUMV_VERIFY_*`: SEE, TT store, rank, quiet scores, attack maps, accumulator sync) (D8 §27, §40) | method | **B.15.3**, **B.7.2** |
 
 ### 4.8 Evaluation analysis (TE)
 
@@ -259,6 +264,14 @@ Phase H.
 | TD-6 | Hard examples: train more on positions the engine loses or where a deep search contradicts the static evaluation, which needs a dedicated generation at scale; overlapping material bands in training so neighbouring experts agree at the edge (FD §4–5) | proposals, unmeasured | **F.8** |
 | TD-7 | Network gains shrink at longer time controls and are hidden by shared cores: the same network read +0.8 ± 10.1 at 30+0.3 with 75 concurrent games and +23.4 ± 12.0 at 12+0.12 with 38 (D8 §9; D6) | method | **F.6** |
 | TD-8 | Eval scale per piece-count bucket recalibrated for each network; matching the raw ratio to the previous network lost (−27 ± 24) where the search's preferred scale differed; the scale-dependent margins (25 parameters) retuned by SPSA on the final network (+8.6 ± 11.5); the blend constants inherited from Stockfish tuned on its own network (+3.75 ± 3.49 at 20+0.2) (NET; D7 §2) | method | **F.6** |
+| TD-9 | One label scale per run, and label depth over volume: every source re-labelled by one evaluator before mixing, because mixed targets train toward neither; a net trained on Stockfish's 5,000-node self-play alone ended −84 against the reference, and a second stage on data with stronger labels (Leela's) closed half the gap; for self-play, stronger means deeper (`removed/dfa5a6b/docs/networks/NETWORKS_4.2-7.0.md`; recipe 02) | method, for self-play data | **F.2.1** |
+| TD-10 | The stream's shape is measured: files drawn uniformly over-read small ones; piece-count sampling toward endgames; soft early skipping; the positions the search evaluates against the training stream by bucket (the search held 2–3.5× more unbalanced material pairs than the data; game positions at every ply are the right source) (recipe 07 `docs/C2_SEARCH_DISTRIBUTION_2026-10-21.md`) | method | **F.2.1** |
+| TD-11 | Its first network's failures, each visible in the command line: no factoriser, λ 1.0 only, a stop on a flat validation loss while the rate was still 38% of its start: −102 against the reference; fixed, −39. Check a recipe against a reference before paying for a run (recipe 01) | method | **F.3** |
+| TD-12 | Judge checkpoints at 20+0.2 or longer (−27 at 8+0.08, −84 at 20+0.2 for one net) and against one fixed anchor (checkpoint-to-checkpoint deltas summed to +71 where the direct gap closed by +28); the first epochs after a restart at a higher rate are recovery, not progress (−27 at epoch 19, parity by 119); a validation loss at a moving λ cannot rank checkpoints (recipes 02, 05) | method | **F.3**, **F.8** |
+| TD-13 | Saturation calls for capacity or information, not epochs: on the 1024-wide net no gain between epochs 249 and 416, an annealing tail at −0.28 ± 5.21 over 5,024, fine-tunes at zero, while a 99k-parameter passed-pawn block bought +7 in four epochs and material buckets about +15 (recipe 05; NETWORKS_4.2-7.0) | method | **F.7** |
+| TD-14 | Own self-play in a refine: 67M positions (6.5% of the mix, listed ten times) rode with new Leela data and the pawn-pair block, +18 together, so its share is unknown; a dataloader filter that streamed only positions with passed pawns added nothing to a converged block (recipe 03; NETWORKS_4.2-7.0) | prior | **F.8** |
+| TD-15 | Finishing: weight average of the last few epochs (+3.8 ± 7.7 over a single checkpoint, kept for lower variance); feature-transformer neurons permuted over all input blocks, the evaluation bit-identical (+1.6 to +2.5% NPS; permuting only some blocks makes the net wrong, not slow) (NETWORKS_4.2-7.0; NET) | method | **F.3**, **F.5** |
+| TD-16 | Its next-network design (recipe 07 `docs/DESIGN_NEXT_NETWORK_2026-10-21.md`): CPU-only gates before any GPU hour (the shape's speed with a random net, bucket changes per node in the tree, occupancy per bucket on the data, engine against trainer), proxy trainings of about 40G positions each judged by an SPRT, one full run, close calls to the conservative choice; and a survey of Stockfish's networks in October 2026: PSQT removed (SFNNv17), int8 first-layer weights by clamping, king × opponent-queen buckets with 32 layer stacks (SFNNv18, about +4 at STC and LTC, every single change failing alone), row pairing (+5 to +7% NPS), learned routers for the layer stacks | method and survey | **F.0**, **F.7** |
 
 ### 4.11 Analysis build and product (TA)
 
@@ -267,6 +280,31 @@ Phase H.
 | TA-1 | An analysis build: the second-best root move always searched with a full window (Arasan 157 → 170 at 1M nodes, two to three plies of depth), paused in quiet positions; the more direct of two clear wins played (search tree unchanged); the analysis search compiled as a second copy so games pay nothing (D8 §36, §49) | product | **G.2** |
 | TA-2 | Printed scale calibrated on self-play so +1.00 means a 50% chance to win, refitted for each network; tablebase wins printed as `cp 20000` minus the distance (D8 §24; commits `28c44db`, `9e74ae8`) | product | **G.2** |
 | TA-3 | Playing strength levels (`UCI_LimitStrength`, `UCI_Elo`) by limiting the search and choosing among the best root lines, calibrated in games (FD §13) | proposal | **G.2** |
+
+### 4.12 Triumviratus's NNUE path, network by network
+
+Read for Basilisk's Phase F, which trains only on Basilisk's own self-play:
+the method and the failures transfer, the public-data recipe does not.
+
+| Net (release) | What was done | Result | Lesson |
+|---|---|---|---|
+| before 4.2 | Stockfish's own network in the engine; a policy network tried inside alpha-beta | the policy net lost in four forms | TN-6 |
+| `rubicon-v1` (4.2) | `HalfKAv2_hm^`, L1 2560, Leela `test80`, nnue-pytorch; first run without the factoriser, λ 1.0, stopped at epoch 124 on a flat validation loss | first run **−102** against the Stockfish net; the fixed run (factoriser, about 400 epochs, λ squeezed to 0.75 on the best checkpoint) **−39** | TD-11 |
+| `rubicon-alea-v1` (5.0) | threat inputs (SFNNv13), L1 1024; stage 1 on Stockfish 5,000-node self-play, stage 2 on Leela data at λ 0.74 | stage 1 **−84** at 20+0.2 (−27 at 8+0.08); after stage 2 **−40**; the engine +50 over 4.2 | TD-9, TD-12 |
+| `rubicon-alea-v2` (6.0) | fine-tune of v1 with a pawn-pair block grafted at zero, two learning rates (base 1e-4, new block 1e-3), λ 0.75 fixed, 6.5% own self-play; validation flat from epoch 80, stopped at 470; anneal and average of the last 3 | **+18.3** over v1, network isolated | TN-4, TD-14, TD-15 |
+| `rubicon-alea-v3` (6.0) | a 96-input passed-pawn block trained alone on the frozen base | **+7.0** in four epochs; later epochs no better | TD-13 |
+| `legio-septima` (7.0) | SFNNv16, everything from scratch, both stages re-labelled to one scale (BT4); λ fixed early in stage 2 | **+23.4**; then saturated (annealing tail 0, no gain between epochs 249 and 416) | TD-9, TD-13 |
+| Consilium (8.0) | four input-weight sets by material at the same L1; one data mix; a λ cycle that climbed back to 1.0 caused a plateau, fixed mid-run; restart cycles F3 and F4; average of the last 5 epochs | about **+15** of 8.0's +27.3 | TN-1, TD-1, TD-3 |
+| Consilium Plebis (8.1) | eight per-side sets by the opponent's material, int8 king-relative weights, a cached pawn-king subnetwork; CPU gates and a staged plan before training | **+10.3** at fixed nodes | TN-2, TD-16 |
+
+What Basilisk can skip, in the order Phase F meets it: a recipe checked
+against a reference before the first paid hour (TD-11); conformance gates
+before training (TN-9); one label scale and labels deep enough (TD-9);
+the stream's shape measured against what the search evaluates (TD-10);
+checkpoints judged at long controls against one anchor (TD-12) on
+holdout loss at fixed λ (TD-1); λ fixed early; capacity, not epochs, once
+saturated (TD-13); and a network programme shaped as CPU gates, proxies,
+then one full run (TD-16).
 
 ## 5. Interactions (what each placed item touches in Basilisk)
 
@@ -295,13 +333,12 @@ Phase H.
 
 ## 6. Open checks this review leaves
 
-1. Basilisk's SPSA schedule against TM-2. The input side is right: the
-   generated tune files set `c_end = step · N^-0.102` for N = 2,000
-   (`tools/spsa_configs/colosseum/b33.tune.toml`), fishtest's convention.
-   Whether the pinned Colosseum runner applies `c_end` at the last
-   iteration rather than the first is not documented here; B.3.3 block 1's
-   own journal shows the perturbation it applied per iteration, a read to
-   make before block 2 is generated.
+1. Basilisk's SPSA schedule against TM-2: **resolved 2026-11-03.** The
+   generated tune files set `c_end = step · N^-0.102` for N = 2,000, and
+   block 1's resolved schedule (`tools/results/b33-spsa-block1/resolved-config.json`)
+   sets `c0 = c_end · 2000^0.102` (1.9999 for `c_end` 0.9211) with
+   `gamma` 0.102; its log shows c falling from c0 each iteration. `c_end`
+   is reached at the last iteration, fishtest's form.
 2. Basilisk's hot-function frame sizes against TB-11 (a disassembly read).
 3. Whether Basilisk has a per-thread eval cache that the TT duplicates
    (TB-15).
@@ -333,3 +370,34 @@ constant evaluation terms added on top of a network; an expected-reply
 depth floor; a lower cap on the longest thinks; a helper thread one
 iteration ahead; a policy network inside alpha-beta; expert blending at
 evaluation time; a split accumulator; post-training 8-bit weights.
+
+## 8. One rebuild or clusters: what Triumviratus's record says
+
+The maintainer asked (2026-11-03) whether rebuilding the search and the
+rest in one step would have been faster. Triumviratus did both, and its
+record separates the cases:
+
+- **One step, statistical acceptance.** On 2026-10-04 it rebuilt its whole
+  search on Stockfish 19's base in a day and fitted it with one 51-parameter
+  SPSA: +85.8 ± 12.8 at 20+0.2 (D8 §17). It then spent the next two weeks
+  finding what the big diff had hidden, each a separate SPRT: the cycle
+  filter from an older Stockfish (+5.62), quiescence TT depth (+3.38), pins
+  in SEE (+4.5), the null move and fifty-move counter (+1.6), a lost
+  prefetch, seven adapter divergences and wrongly ported options (D8 §20,
+  §25, §41, §48.2). Its first one-step rebuild of the reductions in 8.1,
+  accepted on short-control parity, lost at long controls and was taken
+  back out (D81 §3).
+- **One step, exact acceptance.** Its 8.1 rewrites at an identical tree
+  (inference, infrastructure, time manager, each block of the search) went
+  fast because the bench, perft and bit-identical evaluations decide each
+  one with no games (D81 §3).
+
+For Basilisk: a component whose correctness has an exact oracle
+(identical tree, perft, bit-identical output) can be rebuilt in one step,
+which is B.15's shape. A component accepted by games is cheaper in
+clusters, because a failed one-step change cannot say which part failed,
+and Basilisk's evaluation sits on a different score scale from the donor's,
+so its constants need fitting cluster by cluster (Rarog's first cluster
+read +65 unfitted and +138 fitted; Basilisk's +136 and +58.7 on top).
+Much of Phase B's calendar time so far went to correctness repairs and
+instruments (A.9–A.17), which a one-step rebuild would also have needed.

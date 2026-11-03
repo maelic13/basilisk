@@ -1127,6 +1127,12 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         - The surface is generated (`464ef33`, 29 coordinates).
         - Block 1 is prepared (seed 42001) and its dry run accepted.
           Maintainer-run overnight.
+      - Schedule check, 2026-11-03 (Triumviratus review TM-2: its tuner
+        decayed from the value meant as the final one and halved every
+        tune): block 1's resolved schedule sets `c0 = c_end · 2000^0.102`
+        (1.9999 for `c_end` 0.9211) and its log shows c falling from there
+        each iteration, so `c_end` is reached at the last iteration, as in
+        fishtest. Nothing to change.
     - [ ] **B.3.4** `[V]` Basilisk's forms re-read on the fitted arm
       Added 2026-10-31 (maintainer). B.3.2's categorical runs read the
       donor's forms with Cluster 1's constants fitted to the old tree, so
@@ -1190,6 +1196,66 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       index and bench with its memory priced, then SPRT `[0,3]` at
       `3+0.03`. Settled before B.6, which may put these tables on a
       surface.
+- [ ] **B.16** Search-programme instruments
+  Added 2026-11-03 (maintainer: "the instruments which would help us now,
+  somewhere close"): four instruments the Triumviratus review found that
+  Basilisk lacks, built before B.4 because B.4 and B.5 are their first
+  users. None changes the engine's tree or a gate; each is validated on a
+  planted case before it is trusted. B.16.2 needs no idle host, so it can
+  be worked while B.3.3's blocks hold the machine. Sources:
+  `analysis/triumviratus_review_2026-11-03.md` (TT-1, TT-2, TM-7, TM-9).
+    - [ ] **B.16.1** `[V]` Wall-clock overhead read
+      What the gate's clock costs outside the search, at the controls the
+      gates use (`3+0.03` leaves about 50–100 ms a move, so a few ms is
+      several per cent of the think) (TT-2). Timed from outside the
+      engine: `go nodes 1000` wall time against the engine's own report
+      and against Stockfish 19 on the same host; `go movetime` 50, 100 and
+      300 overshoot; ponderhit-to-bestmove latency; at Threads 1 and 4.
+      Triumviratus found 6.15 ms against Stockfish's 1.24 ms this way, a
+      +29.8 Elo brake at 5+0.05 with an identical tree. Basilisk passed the
+      code reading (steady clock, unsynced streams, persistent threads);
+      this read verifies it. A timing read needs an idle host: the
+      maintainer chooses when. A gap to Stockfish beyond 1 ms goes to the
+      correctness-repair path with its own gate.
+    - [ ] **B.16.2** `[I2]` Pruning and reduction pricing
+      What each pruning rule and each reduction hides (TM-9, Triumviratus's
+      `prunelog` and `redlog`). In the Diag flavour, a deterministic sample
+      of the moves each rule prunes (every `TraceEvent` pruning kind,
+      quiescence's included) and of the reduced searches that fail low is
+      searched again at the depth the rule denied, with the window the node
+      had. Recorded per rule, depth, node type and move number: decisions,
+      the share that would have raised alpha, and the share that would have
+      changed the node's best move. The label that matters is a move that
+      failed low reduced and beats alpha at full depth (1.7% of probed
+      moves there); a label of "beats alpha at the reduced depth" spends
+      nodes on moves already re-searched (−9.65 there). Validation: with
+      sampling off the bench is identical; a planted over-pruning rule
+      shows a higher hidden share than its honest form. The readings
+      screen, never accept: they point B.4's quiescence pruning, B.5's
+      line growth, B.3.4's form re-reads and later fits at the rules worth
+      a game.
+    - [ ] **B.16.3** `[V]` Loss analysis by cell
+      Where Basilisk loses, from games already played (TT-1): the pool
+      tournaments' PGNs (BAS-M08, BAS-M11) and the latest gates', every
+      move scored by a judge (Stockfish 19 at fixed nodes) as the
+      evaluation before it minus the evaluation after, from the mover's
+      side. Tabulated for both sides by position class (defending, level,
+      ahead), clock left and material, with the opponent's moves in the
+      same cells as the control; the worst errors searched again at 4× and
+      16× the game's nodes to split clock errors from evaluation errors.
+      On Triumviratus one cell, defending with under 10% of the clock,
+      held a third of the loss to Stockfish 19. It feeds B.9's checkpoint
+      and the order of C and D. No new games; the judge's CPU is the cost,
+      maintainer-run.
+    - [ ] **B.16.4** `[I1]` Identical-tree counter read
+      Speed of a change that keeps the tree, by hardware counters (TM-7):
+      cycles, instructions and branch misses per node, the engine pinned to
+      one core, only the search thread counted (start-up excluded), and a
+      byte-identical copy of the base as the noise control. The tool on the
+      5950X is chosen here (ETW PMC sources or AMD uProf). Validated
+      against A.9.4's pooled read on one patch of known effect. Then the
+      instrument of B.15.4, B.7.2 and any profile share a gate asks for
+      (B.3.5's repetition-check share).
 - [ ] **B.4** `[I2]` Cluster 3 — quiescence
   TT cutoff, corrected stand-pat with interpolated fail-high, futility base,
   move-count and SEE pruning, evasions only in check, TT write on exit; SPRT
@@ -1499,7 +1565,9 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       B.15.2's accepted components, one commit each, each passing B.15.1's
       corpus and search-board perft and keeping the exact `bench 13`
       fingerprint while the generation order is unchanged. No search,
-      evaluation or parameter change rides along.
+      evaluation or parameter change rides along. Each replaced component
+      keeps, behind a build switch, a check that runs the old form beside
+      the new at every node and aborts on the first disagreement (TM-10).
     - [ ] **B.15.4** `[V]` Board speed read and gate
       Pooled-PGO NPS of the rebuilt board against the head (A.9.4) and
       each component's share in the profiler (A.9.5); a component that
@@ -1569,10 +1637,11 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         TT duplicates, if one exists (TB-15).
       - Priors on what did not pay there: prefetching and reordering loads,
         AVX-512 gathers, the next-move TT prefetch on AMD (TB-16).
-      - An alternative instrument read beside A.9.4's: cycles, instructions
-        and branch misses per node at an identical tree, the engine pinned,
-        search threads only, a byte-identical copy of the base as the noise
-        control (TM-7).
+      - B.16.4's identical-tree counter read beside A.9.4's pooled read
+        (TM-7).
+      - Shortcut builds (TM-10): each shortcut ships with a build switch that
+        runs the original beside it at every node and aborts on the first
+        disagreement, as Triumviratus checked every identical-tree patch.
 - [ ] **B.8** Cleanup of legacy search and dead parameters
   Cleanup: remove the legacy search path, dead parameters, unconsumed switches
   and diagnostics without an owner; exact fingerprint; no game gate.
@@ -1837,6 +1906,10 @@ leaf's tag. Later phases carry only a class until they open.
 | B.3.4 | RESEARCH | V | Added 2026-10-31; waits for B.3.3 |
 | B.3.5 | RESEARCH | V | Waits for B.3.4 (renumbered from B.3.4 on 2026-10-31) |
 | B.3.6 | RESEARCH | I2 | Added 2026-10-31; waits for B.3.5 |
+| B.16.1 | RESEARCH | V | Added 2026-11-03; a timing read on an idle host, the maintainer chooses when |
+| B.16.2 | RESEARCH | I2 | Added 2026-11-03; needs no idle host, can be worked between B.3.3's blocks |
+| B.16.3 | RESEARCH | V | Added 2026-11-03; stored games, judge CPU, maintainer-run |
+| B.16.4 | RESEARCH | I1 | Added 2026-11-03; before B.15.4 |
 | B.4 | RESEARCH | I2 | Contents fixed by B.0 |
 | B.5 | RESEARCH | I2 | Contents fixed by B.0 |
 | B.6.1 | RESEARCH | R2 | Added 2026-10-31; after B.4 and B.5 close |
@@ -2479,17 +2552,10 @@ has lost games in both engines (BAS-X02).
   sweep lost −64.81. The won-endgame time sink is A.8.16's, not this leaf's.
   Triumviratus review inputs (2026-11-03,
   `analysis/triumviratus_review_2026-11-03.md`; IDs are its items):
-  - Instruments before design:
-    - a loss analysis by cell (TT-1): every move of lost and spoiled games
-      scored by a judge engine and tabulated by position class (defending,
-      level, ahead) × clock left × material. On Triumviratus it put 33.8%
-      of the loss in "defending with under 10% of the clock", and half of
-      those errors vanished with more nodes;
-    - a wall-clock overhead read (TT-2): `go nodes 1000` wall time against
-      the engine's own report and against Stockfish, `go movetime`
-      overshoot, ponderhit-to-bestmove latency. Basilisk passed the code
-      reading (steady clock, unsynced streams, persistent threads); the read
-      verifies it, as the same read found +29.8 Elo of brake there.
+  - Instruments, built in B.16 and read here first: the loss analysis by
+    cell (B.16.3, TT-1) says which clock situations lose games; the
+    wall-clock read (B.16.1, TT-2) sizes the overhead the budget must
+    leave.
   - Method: time levers are measured at the time control they act at and
     tuned against an external engine at release speed, since self-play
     rewards the side that spends more (TT-3); a fitted moves-left horizon
@@ -2660,6 +2726,20 @@ fallback, which is why the archived "optional HCE fallback" phase is dropped.
     forms (−85 to −22.8); ordering already reached 79.2% first-move cutoffs
     without a hash move, and a static prior computed at the parent loses to
     histories that adapt to the subtree.
+  - Triumviratus's seven networks, with what each cost and taught, are the
+    review's §4.12 (TD-9 to TD-16); F.0 reads them before choosing the
+    first architecture and recipe. Its next-network design is the model
+    for every network step here: CPU-only gates first (speed of the shape
+    with a random net, bucket-change rate in the tree, occupancy per
+    bucket on the training data, engine against trainer), then small proxy
+    trainings each judged by an SPRT, then one full run; close calls take
+    the conservative choice (TD-16).
+  - The state of Stockfish's networks as of October 2026, a free survey
+    for F.7: PSQT removed (SFNNv17), int8 first-layer weights trained by
+    clamping, king × opponent-queen buckets and 32 layer stacks (SFNNv18,
+    about +4 at STC and LTC together, every single change failing alone),
+    row pairing in the update (+5 to +7% NPS), learned routers for the
+    layer stacks, pawn input blocks in test (TD-16).
 - [ ] **F.1** `[I2]` Board events and accumulator scaffolding
   Board events and accumulator scaffolding, behaviour-neutral for the HCE:
   factual per-ply dirty-piece deltas, evaluator-owned per-thread stacks,
@@ -2671,6 +2751,26 @@ fallback, which is why the archived "optional HCE fallback" phase is dropped.
       hashes, maintainer-run (archived 11.0.b). Reference forms from Rarog's
       F.0 and F.2: node-limited self-play with soft and hard caps, opening
       books sampled by inverse use-count (`gyatso_read`, audit 2026-10-24).
+      Triumviratus review inputs (2026-11-03,
+      `analysis/triumviratus_review_2026-11-03.md`; IDs are its items), read
+      for self-play data, since Basilisk's networks train only on its own
+      games:
+      - One label scale per run (TD-9): Triumviratus re-labelled every
+        source with one evaluator before mixing, because two target
+        distributions in one run train toward neither. Self-play from
+        successive heads is re-scored by one search before it is mixed.
+      - Label strength decides more than volume (TD-9): its network trained
+        on Stockfish's 5,000-node self-play alone ended −84 against
+        Stockfish's net, and a second stage on data with stronger labels
+        closed half the gap. For self-play, stronger means deeper: the node
+        budget per label is sized by the learning curve, not by throughput.
+      - The stream's shape is measured, not assumed (TD-10): files drawn
+        uniformly over-read small files; positions by piece count shaped
+        toward endgames, which a material bucket otherwise starves; soft
+        early skipping rather than hard; the positions the search actually
+        evaluates compared with the training stream bucket by bucket (on
+        Triumviratus the search held 2–3.5× more unbalanced material pairs
+        than its data), with game positions at every ply as the source.
     - [ ] **F.2.2** `[V]` Classical refit on search-visited data
       Added 2026-10-24 from Rarog's open plan (its F.2.1, 2026-10-22,
       `analysis/phase_c_review_2026-10-19.md` question 3). Rarog's same-search
@@ -2699,6 +2799,17 @@ fallback, which is why the archived "optional HCE fallback" phase is dropped.
   - The loader, not the GPU, was the limit; files drawn uniformly over-read
     small files; sampling by piece count fed the endgame buckets; soft
     rather than hard early skipping (TD-4).
+  - Its first network's failures, each visible in the command line (TD-11):
+    no factoriser, a pure-evaluation target (λ 1.0) and a stop on a flat
+    validation loss read −102 against the reference; with the factoriser,
+    about 400 epochs and a λ squeeze, −39. A recipe is checked against a
+    reference recipe before a GPU hour is paid.
+  - Judging checkpoints (TD-12): at 20+0.2 or longer (one net read −27 at
+    8+0.08 and −84 at 20+0.2) and against one fixed anchor
+    (checkpoint-to-checkpoint gains summed to +71 where the direct gap
+    closed by +28); the first epochs after a restart at a higher rate are
+    recovery, not progress; a validation loss computed at a moving λ cannot
+    rank checkpoints.
 - [ ] **F.4** `[I2]` Scalar integration, integer-exact conformance
   Scalar integration: the network file contract and integer-exact
   trainer/engine conformance; clean HCE fallback (archived 11.2).
@@ -2760,6 +2871,13 @@ fallback, which is why the archived "optional HCE fallback" phase is dropped.
     limit: frozen later layers may not use the new information (TN-4).
   - Negative priors (TN-5): averaging two buckets near an edge, a split
     accumulator, fixing the root's bucket for the whole search.
+  - The order it climbed and what each rung bought (TD-13): threat inputs
+    over plain king-relative inputs (+50 for the engine), a pawn-pair block
+    grafted (+18), a passed-pawn block (+7), the whole net trained from
+    scratch on one label scale (+23), then saturation: more epochs, an
+    annealing tail and fine-tunes all read zero, and only capacity paid
+    (material buckets, +15). Capacity is priced in speed first (L1 2048
+    −20% NPS).
 - [ ] **F.8** `[V]` Data frontier
   On-policy refresh with the strongest net, deduplication, hard-position
   mining; repeat while a cycle accepts (archived 12.0.a, 12.0.c).
@@ -2769,6 +2887,11 @@ fallback, which is why the archived "optional HCE fallback" phase is dropped.
     scale and 0 Elo; per-bucket fine-tunes +0.7 (TD-5). Hard examples
     (positions lost, or where a deep search contradicts the static score)
     need a dedicated generation at scale (TD-6).
+  - A refresh adds new information, not more of the old: Triumviratus's
+    one refine with its own self-play (6.5% of the mix, repeated ten times)
+    rode with a new input block and new data, and its gain cannot be split
+    between them (TD-14). Each refresh is gated against the previous net on
+    the fixed anchor (TD-12).
 - [ ] **F.9** `[M]` NNUE release
   Beat the classical release at STC, LTC and 4T; platform matrix; version
   **2.0.0** (archived 11.4.c, 11.5; maintainer decision 2026-10-24). Open

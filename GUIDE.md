@@ -95,6 +95,11 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     - [ ] **B.3.4** `[V]` Basilisk's forms re-read on the fitted arm
     - [ ] **B.3.5** `[V]` Cluster 2 gates
     - [ ] **B.3.6** `[I2]` Colour-indexed histories (S2)
+- [ ] **B.16** Search-programme instruments
+    - [ ] **B.16.1** `[V]` Wall-clock overhead read
+    - [ ] **B.16.2** `[I2]` Pruning and reduction pricing
+    - [ ] **B.16.3** `[V]` Loss analysis by cell
+    - [ ] **B.16.4** `[I1]` Identical-tree counter read
 - [ ] **B.4** `[I2]` Cluster 3 — quiescence
 - [ ] **B.5** `[I2]` Cluster 4 — root and aspiration
 - [ ] **B.6** Donor-form reconciliation, then joint search SPSA
