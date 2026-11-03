@@ -1153,6 +1153,37 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           defaults that both arms share. Baking them moves the OFF arm's
           fingerprint as well, unless the defaults become per-arm
           (finding 8, recommended (A), per-arm, OFF unchanged).
+      - Maintainer decision 2026-11-03: per-arm defaults.
+      - Bake blocked 2026-11-03 (not committed;
+        `tools/results/b33-bake/bake.patch` `527adc63…81d5`, with the test
+        logs):
+        - What the patch does:
+          - The 14 Cluster 2 values go into their X lines.
+          - The seven Cluster 1 values go into a B3_PROOF-only table,
+            `BASILISK_B3_CORE_DEFAULTS`, which a constructor applies.
+          - Tune builds now advertise the compiled default.
+          - The generator seeds the ON arm's surfaces from the arm's own
+            defaults, and `test_search` checks each arm's defaults.
+        - What it reads:
+          - ON `bench 13` **5,369,042**; OFF stays 11,880,564.
+          - The old tune binary with theta's 29 options replays
+            5,369,042.
+          - OFF CTest passes, and the arm-defaults sections pass on all
+            four builds.
+        - Two ON binding tests fail:
+          - The promotion fixture (`test_search` 1267) plays `a7a8q` at
+            0 at 100,000 nodes. It sights the win at 150,000 (+1098),
+            200,000 and 300,000. `B3ProbCutBase`, `CoreCaptFutBase` or
+            `CoreRfpCorrMult` alone each drop the 100,000 reading to 0,
+            and nine of the other single changes lower it.
+          - The cuckoo fixture (`test_b3_proof` 584) needs a search
+            without cuckoo to read above 0 at depths 1-3. At depth 3 it
+            now finds White's repeating `Kf7` and reads the draw, 0.
+            `CoreLmpBase` 3 → 4 alone does it: LMP searches one more
+            quiet move at White's depth-2 node.
+        - Neither is a wrong move or a wrong value. Both are a fixture's
+          budget or premise. These are the binding tests that vetoed the
+          eval gate on 2026-11-02, so the maintainer decides.
     - [ ] **B.3.4** `[V]` Basilisk's forms re-read on the fitted arm
       Added 2026-10-31 (maintainer). B.3.2's categorical runs read the
       donor's forms with Cluster 1's constants fitted to the old tree, so
@@ -1922,7 +1953,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.3 | RESEARCH | V | Opened 2026-11-02: BAS-S42 registered; the sweep read three curved coordinates, so the SPSA ran on the 29-coordinate surface; block 1 (2026-11-03) read STOP, theta is its rounded centres; the fitted-constant analysis is written; the bake waits on the maintainer's per-arm decision |
+| B.3.3 | RESEARCH | V | Opened 2026-11-02: BAS-S42 registered; the sweep read three curved coordinates, so the SPSA ran on the 29-coordinate surface; block 1 (2026-11-03) read STOP, theta is its rounded centres; the fitted-constant analysis is written; per-arm bake built (ON 5,369,042, OFF unchanged) but blocked by two ON binding fixtures; the maintainer decides |
 | B.3.4 | RESEARCH | V | Added 2026-10-31; waits for B.3.3 |
 | B.3.5 | RESEARCH | V | Waits for B.3.4 (renumbered from B.3.4 on 2026-10-31) |
 | B.3.6 | RESEARCH | I2 | Added 2026-10-31; waits for B.3.5 |
