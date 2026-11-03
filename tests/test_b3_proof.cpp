@@ -562,6 +562,12 @@ static void test_tt_switches_live() {
     end_section();
 }
 
+// Black's king move h8h7 lets White repeat with Kf7. The cuckoo check reads
+// the draw at the root's null window; without it the search must read above
+// the draw for the check to be what reads it. That premise holds only while
+// the repeating reply goes unsearched, so it is asserted at depths 1-2: from
+// depth 3 a plain search may reach Kf7 itself (it does once LMP admits one
+// more quiet move at White's depth-2 node).
 static void test_cuckoo_terminal() {
     Board b;
     b.set_fen("rb6/p1p2K1k/p1p1p3/p1p1p3/P1P1P1N1/8/8/8 b - - 0 1");
@@ -581,7 +587,8 @@ static void test_cuckoo_terminal() {
             EXPECT_EQ(at_draw.score, 0);
         else
             EXPECT_EQ(at_draw.nodes, at_draw_off.nodes);
-        EXPECT(at_draw_off.score > 0);
+        if (depth <= 2)
+            EXPECT(at_draw_off.score > 0);
         EXPECT_EQ(below.score, below_off.score);
         EXPECT_EQ(below.nodes, below_off.nodes);
     }
