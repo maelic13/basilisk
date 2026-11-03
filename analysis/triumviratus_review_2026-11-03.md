@@ -295,9 +295,13 @@ Phase H.
 
 ## 6. Open checks this review leaves
 
-1. Basilisk's SPSA schedule against TM-2: does `c` reach `c_end` at the last
-   iteration of a block? Read `tools/spsa_colosseum.ps1` and the Colosseum
-   tuner's schedule before B.3.3's next block is generated. Not read here.
+1. Basilisk's SPSA schedule against TM-2. The input side is right: the
+   generated tune files set `c_end = step · N^-0.102` for N = 2,000
+   (`tools/spsa_configs/colosseum/b33.tune.toml`), fishtest's convention.
+   Whether the pinned Colosseum runner applies `c_end` at the last
+   iteration rather than the first is not documented here; B.3.3 block 1's
+   own journal shows the perturbation it applied per iteration, a read to
+   make before block 2 is generated.
 2. Basilisk's hot-function frame sizes against TB-11 (a disassembly read).
 3. Whether Basilisk has a per-thread eval cache that the TT duplicates
    (TB-15).
