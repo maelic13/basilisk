@@ -520,7 +520,7 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S41](experiments/BAS-S41.md) — B.3.2: Cluster 2 diagnostics, the unfitted paired run and the categoricals — +67.5 ± 9.7, proceeds; no default moved; closed
 
-- [BAS-S42](experiments/BAS-S42.md) — B.3.3: Cluster 2 curvature sweep, then SPSA in blocks — registered
+- [BAS-S42](experiments/BAS-S42.md) — B.3.3: Cluster 2 curvature sweep, then SPSA in blocks — block 1 STOP; bake pending
 
 - [BAS-S44](experiments/BAS-S44.md) — B.14: the evaluator's draw verdicts take no correction, `[-5,5]` — H1, +7.4 ± 6.9; repair kept
 

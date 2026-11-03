@@ -149,3 +149,36 @@ Packet §11's predictions that BAS-S42 carries, verbatim:
   tools/results/b33-spsa-block1`.
 - Disposition: the sweep sends B.3.3 to SPSA; block 1 is prepared,
   maintainer-run, not started.
+
+#### Block 1 result (2026-11-03, after exposure)
+
+- **Run:** `tools/results/b33-spsa-block1/`, as registered. It was
+  launched once and resumed four times from its checkpoint, and all five
+  manifests carry the same command and seed 42001.
+  - 2,000 contiguous iterations, 60,000 games, which the journal and the
+    PGN both count.
+  - 0 engine faults, 0 time losses, 0 infrastructure faults.
+  - `result.json` `ef1cf65e…850a`, `tuned-options.txt` `d0ac7042…50a0`.
+- **Stop rule:** `spsa_block_rule.py` exit 1, one of 29 coordinates moved
+  a full step (`B3NmpRedBase` 7 → 4, −1.50). **STOP**: theta is block 1's
+  rounded centres (`tuned-options.txt`); 21 of 29 differ from the seed.
+- **Liveness** (read during the block,
+  `tools/results/b33-20261102/inertness/runs.jsonl`): every coordinate
+  the sweep did not cover moves `bench 13` at one or both range edges.
+- **Fitted-constant analysis:** `analysis/b33_constants_2026-11-03.md`.
+  - The bare null move is made less aggressive on all four of its moving
+    terms. B.3.4's gate re-read prices this, and no refit is asked.
+  - The singular margin goes 252 → 232, against the sweep's WAC
+    direction. On every coordinate the fit moved, the sweep's WAC optimum
+    pointed the other way.
+  - The Cluster 1 admissions barely move (B.6's input).
+  - The bake waits on one decision (finding 8): seven fitted Cluster 1
+    defaults are shared by both arms.
+- **Hypothesis against competing explanation:**
+  - The fit moved the two groups only slightly. The hypothesis holds for
+    the null move and the singular margin.
+  - The competing explanation's "flat for most coordinates" holds for
+    the rest.
+  - BAS-S43 (b) decides whether the fit is worth anything.
+- Disposition: block 1 is the last block. The bake is pending the
+  maintainer's per-arm decision.

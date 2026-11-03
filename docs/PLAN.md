@@ -1133,6 +1133,26 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         (1.9999 for `c_end` 0.9211) and its log shows c falling from there
         each iteration, so `c_end` is reached at the last iteration, as in
         fishtest. Nothing to change.
+      - Block 1 read 2026-11-03 (BAS-S42 *RESULT*; maintainer-run, resumed
+        four times from its checkpoint with the same command):
+        - 2,000 iterations, 60,000 games, 0 faults. The block's final
+          progress record confirms the schedule check: c reached `c_end`
+          at iteration 2,000.
+        - **The movement rule reads STOP:** only `B3NmpRedBase` (7 → 4)
+          moved a full step. Theta is block 1's rounded centres: 21 of 29
+          coordinates differ from the seed.
+        - Every coordinate the sweep did not cover moves `bench 13` at
+          its range edges, so none is inert.
+        - The fitted-constant analysis is written
+          (`analysis/b33_constants_2026-11-03.md`). The fit makes the bare
+          null move less aggressive on all four of its moving terms
+          (B.3.4's gate re-read prices that; no refit is asked). The
+          singular margin goes 252 → 232, against the sweep's WAC
+          direction. The rest of the surface is near-flat.
+        - Waiting on the maintainer: theta changes seven Cluster 1
+          defaults that both arms share. Baking them moves the OFF arm's
+          fingerprint as well, unless the defaults become per-arm
+          (finding 8, recommended (A), per-arm, OFF unchanged).
     - [ ] **B.3.4** `[V]` Basilisk's forms re-read on the fitted arm
       Added 2026-10-31 (maintainer). B.3.2's categorical runs read the
       donor's forms with Cluster 1's constants fitted to the old tree, so
@@ -1902,7 +1922,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.3 | RESEARCH | V | Opened 2026-11-02: BAS-S42 registered; the sweep read three curved coordinates, so the SPSA runs on the 29-coordinate surface; block 1 prepared and dry-run accepted, maintainer-run overnight |
+| B.3.3 | RESEARCH | V | Opened 2026-11-02: BAS-S42 registered; the sweep read three curved coordinates, so the SPSA ran on the 29-coordinate surface; block 1 (2026-11-03) read STOP, theta is its rounded centres; the fitted-constant analysis is written; the bake waits on the maintainer's per-arm decision |
 | B.3.4 | RESEARCH | V | Added 2026-10-31; waits for B.3.3 |
 | B.3.5 | RESEARCH | V | Waits for B.3.4 (renumbered from B.3.4 on 2026-10-31) |
 | B.3.6 | RESEARCH | I2 | Added 2026-10-31; waits for B.3.5 |
