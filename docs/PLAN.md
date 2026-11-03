@@ -1244,6 +1244,27 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           promotion fixture's ON clause and `test_b3_proof`'s liveness
           sections included.
         - Kept or not, the reading goes to the departures table.
+      - Opened 2026-11-03 (BAS-S45, registered before any game; agent-run
+        on the maintainer's instruction):
+        - Nine runs on one fitted ON Tune build
+          (`tools/run_b34_games.ps1`).
+          - Clause a: `B3FailLowStore`, `CoreHistoryFills` and
+            `B3ProbCutTt` at the donor's form.
+          - Clause b, a B.3.2 read inside ±5 whose mechanism the fit
+            moved: `B3NmpCutOnly` 0, `B3MultiCut` 1, `B3SingNegative` 1,
+            `B3SingTtDepth` 1 and `B3IirStale` 1.
+          - The eval gate.
+        - Not re-read: `B3NmpVerify` (−5.0 is at ±5, not inside), the
+          runs that read outside ±5, `B3Cuckoo` (no fitted coordinate on
+          either side of it) and `B3ExtBudget` (settled without games;
+          it goes to the departures table unread).
+        - The fitted arm's binding set before any game
+          (`tools/results/b34-20261103/fitted_price.*`):
+          - release CTest passes;
+          - the wrong-bishop 28, the organic 7/7 and the primed 28/28;
+          - WAC 136 at depth 6 and 241 at 100,000 nodes;
+          - KBN-K 119 summed over the five budgets, and `test_endgames`
+            passes.
     - [ ] **B.3.5** `[V]` Cluster 2 gates
       SPRT `[0,3]` for the cluster, and each categorical and deletion arm
       at the bounds the packet registers.
@@ -1979,7 +2000,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.4 | RESEARCH | V | Added 2026-10-31; B.3.3 closed 2026-11-03 (fitted ON arm 5,369,042), so it is next: its run list is drawn from `analysis/b33_constants_2026-11-03.md` *For B.3.4* |
+| B.3.4 | GAME_GATE | V | Opened 2026-11-03: BAS-S45 registered, nine paired runs on the fitted ON Tune build (`tools/run_b34_games.ps1`), agent-run on the maintainer's instruction |
 | B.3.5 | RESEARCH | V | Waits for B.3.4 (renumbered from B.3.4 on 2026-10-31) |
 | B.3.6 | RESEARCH | I2 | Added 2026-10-31; waits for B.3.5 |
 | B.16.1 | RESEARCH | V | Added 2026-11-03; a timing read on an idle host, the maintainer chooses when |

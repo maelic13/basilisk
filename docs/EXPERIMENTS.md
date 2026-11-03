@@ -524,6 +524,8 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S44](experiments/BAS-S44.md) — B.14: the evaluator's draw verdicts take no correction, `[-5,5]` — H1, +7.4 ± 6.9; repair kept
 
+- [BAS-S45](experiments/BAS-S45.md) — B.3.4: Basilisk's forms re-read on the fitted arm — registered
+
 | ID | Title | Disposition |
 |---|---|---|
 | [BAS-S17](experiments/BAS-S17.md) | Razoring depth reach in Elo (B.0.1, maintainer). | +2.4 ± 9.9; interval holds 0, the cluster decides the cap |
