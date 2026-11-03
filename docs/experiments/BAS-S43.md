@@ -3,8 +3,8 @@
 **BAS-S43 — B.3.5: the Cluster 2 gates**
 
 - **Registration.** Created 2026-11-03 before any of its games, while
-  BAS-S45 (B.3.4) plays. Agent-run on the maintainer's instruction ("do
-  the B.3.4 and B.3.5"). Assembled from packet §11's BAS-S43 text
+  BAS-S45 (B.3.4) is prepared. Maintainer-run games; the agent builds,
+  pins and dry-runs. Assembled from packet §11's BAS-S43 text
   (`analysis/b30_cluster2_research_2026-10-30.md`, the packet's B.3.4),
   the *Roadmap audit*'s replaced clause for (b), and PLAN B.3.5 with its
   2026-11-02 clause on P9.

@@ -1244,8 +1244,8 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           promotion fixture's ON clause and `test_b3_proof`'s liveness
           sections included.
         - Kept or not, the reading goes to the departures table.
-      - Opened 2026-11-03 (BAS-S45, registered before any game; agent-run
-        on the maintainer's instruction):
+      - Opened 2026-11-03 (BAS-S45, registered before any game;
+        maintainer-run):
         - Nine runs on one fitted ON Tune build
           (`tools/run_b34_games.ps1`).
           - Clause a: `B3FailLowStore`, `CoreHistoryFills` and
@@ -1265,6 +1265,13 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           - WAC 136 at depth 6 and 241 at 100,000 nodes;
           - KBN-K 119 summed over the five budgets, and `test_endgames`
             passes.
+        - The build is pinned (`basilisk-b34-on-tune-pext-tune-pgo.exe`,
+          `D47013B9…`, revision `220f36f`). All nine launches were dry-run
+          and accepted.
+        - An agent-started queue (not its to start) was stopped by the
+          maintainer during run 1. `B3FailLowStore` checkpointed at 1,494
+          of 2,000 games and resumes with its own command. Runs 2-9 have
+          not started. Maintainer-run from here.
     - [ ] **B.3.5** `[V]` Cluster 2 gates
       SPRT `[0,3]` for the cluster, and each categorical and deletion arm
       at the bounds the packet registers.
@@ -1285,7 +1292,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         - Item 9 read the check at 0.0 ± 9.3 Elo. The maintainer then
           chooses B.7 or keeping the donor's form at its cost.
       - Registered 2026-11-03, before any of its games (BAS-S43, while
-        BAS-S45 plays):
+        BAS-S45 is prepared):
         - (a) has a cap of 2,000 pairs; the drift model at B.3.2's +67.5
           puts the stop near 550.
         - (b) has a cap of 12,000 pairs; at an expected +5 the stop is
@@ -2011,7 +2018,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.4 | GAME_GATE | V | Opened 2026-11-03: BAS-S45 registered, nine paired runs on the fitted ON Tune build (`tools/run_b34_games.ps1`), agent-run on the maintainer's instruction |
+| B.3.4 | GAME_GATE | V | Opened 2026-11-03: BAS-S45 registered, nine paired runs on the fitted ON Tune build (`tools/run_b34_games.ps1`), all dry-run accepted; run 1 interrupted at 1,494 games (resumes); maintainer-run |
 | B.3.5 | RESEARCH | V | Waits for B.3.4 (renumbered from B.3.4 on 2026-10-31) |
 | B.3.6 | RESEARCH | I2 | Added 2026-10-31; waits for B.3.5 |
 | B.16.1 | RESEARCH | V | Added 2026-11-03; a timing read on an idle host, the maintainer chooses when |

@@ -3,8 +3,8 @@
 **BAS-S45 — B.3.4: Basilisk's forms re-read on the fitted arm**
 
 - **Registration.** Created 2026-11-03 at B.3.4's opening, before any
-  game. Agent-run, on the maintainer's instruction ("do the B.3.4 and
-  B.3.5"); search cluster, Elo layer, with the binding set as vetoes.
+  game. Maintainer-run games, agent-run pricing; search cluster, Elo
+  layer, with the binding set as vetoes.
   Assembled from PLAN B.3.4 (its 2026-11-01 audit clause and the
   2026-11-02 eval-gate clause) and B.3.3's fitted-constant analysis
   (`analysis/b33_constants_2026-11-03.md`, *For B.3.4*).
@@ -93,3 +93,13 @@ Not re-read, with the reason:
 | Q4 | Every one of runs 1-8 reads within ±8 of its B.3.2 reading | 75% | a run more than 8 Elo from its B.3.2 read |
 
 #### RESULT — append after exposure
+
+- **2026-11-03, an interrupted start.** The agent started the nine-run
+  queue at 22:33, which was not its to start. The maintainer stopped it
+  during run 1 (`B3FailLowStore=1`), which checkpointed at 1,494 of 2,000
+  games with 0 faults.
+  - Its directory `tools/results/b34-cat-FailLowStore/` resumes at its
+    recorded seed with the same command, to the registered 2,000 games.
+  - That is not an extension. Nothing was read from the partial run, and
+    nothing is decided on it.
+  - Runs 2-9 had not started.
