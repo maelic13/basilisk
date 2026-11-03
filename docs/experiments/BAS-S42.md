@@ -182,3 +182,19 @@ Packet §11's predictions that BAS-S42 carries, verbatim:
   - BAS-S43 (b) decides whether the fit is worth anything.
 - Disposition: block 1 is the last block. The bake is pending the
   maintainer's per-arm decision.
+
+#### Bake (2026-11-03)
+
+- The maintainer chose per-arm defaults.
+  - The 14 Cluster 2 values go into their X lines.
+  - The seven Cluster 1 values go into `BASILISK_B3_CORE_DEFAULTS`, which
+    only the B3_PROOF arm applies.
+  - This is engine commit `f02a9e4`, after the fixture-precondition commit
+    `61ac728`.
+- **Fingerprints:** ON `bench 13` **5,369,042** (was 4,923,507); OFF
+  11,880,564 unchanged.
+  - The old tune binary with theta's 29 options replays 5,369,042, so
+    the bake is theta exactly.
+- Release CTest passes 25/25 on both arms.
+- Disposition: **closed.** The fitted arm at `f02a9e4` is BAS-S43 (b)'s
+  candidate against the unfitted arm.

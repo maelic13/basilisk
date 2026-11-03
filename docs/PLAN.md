@@ -1104,7 +1104,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           fingerprint record, at 11,880,564.
         - P9's consequence (the cuckoo loop to B.7) is the maintainer's
           decision before B.3.5's gate.
-    - [ ] **B.3.3** `[V]` Curvature sweep, then SPSA in blocks
+    - [x] **B.3.3** `[V]` Curvature sweep, then SPSA in blocks
       Packet §11, BAS-S42: five registered sweep coordinates (the
       singular margin with the donor's value as an extra point), then
       SPSA in blocks on Cluster 2's X lines plus §5.12's admissions;
@@ -1184,6 +1184,32 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         - Neither is a wrong move or a wrong value. Both are a fixture's
           budget or premise. These are the binding tests that vetoed the
           eval gate on 2026-11-02, so the maintainer decides.
+      - Maintainer decision 2026-11-03: fix the two fixtures'
+        preconditions in their own commit, then bake.
+        - `61ac728`: the promotion fixture reads within 200,000 nodes on
+          both arms, and the cuckoo fixture's premise is asserted at
+          depths 1-2. The cuckoo assertions stay at 1-3. Both pass on the
+          pre-bake engine, ON and OFF.
+        - `f02a9e4`, the bake, as the blocked patch:
+          - ON `bench 13` **5,369,042** (was 4,923,507); OFF 11,880,564
+            unchanged, on Release and Tune builds.
+          - The old tune binary with theta's 29 options replays 5,369,042.
+          - Release CTest passes 25/25 on both arms. `test_search` and
+            `test_b3_proof` pass on both Tune builds, the arm-defaults
+            sections included.
+        - `a271a24`: the generator seeds the B3_PROOF surfaces from the
+          arm's own defaults. `config_b33.json` now equals theta, and
+          `--check` and its tests pass.
+        - For B.3.4: the eval gate was vetoed partly by the promotion
+          fixture's 100,000-node budget, which `61ac728` replaced, so its
+          re-read meets the 200,000 budget.
+      - Closed 2026-11-03 (BAS-S42):
+        - Block 1 is the only block (STOP), and theta is its rounded
+          centres.
+        - The fitted-constant analysis is written
+          (`analysis/b33_constants_2026-11-03.md`).
+        - Baked per arm: the ON arm's fingerprint is 5,369,042, and the
+          fingerprint record (OFF) stays 11,880,564.
     - [ ] **B.3.4** `[V]` Basilisk's forms re-read on the fitted arm
       Added 2026-10-31 (maintainer). B.3.2's categorical runs read the
       donor's forms with Cluster 1's constants fitted to the old tree, so
@@ -1953,8 +1979,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.3 | RESEARCH | V | Opened 2026-11-02: BAS-S42 registered; the sweep read three curved coordinates, so the SPSA ran on the 29-coordinate surface; block 1 (2026-11-03) read STOP, theta is its rounded centres; the fitted-constant analysis is written; per-arm bake built (ON 5,369,042, OFF unchanged) but blocked by two ON binding fixtures; the maintainer decides |
-| B.3.4 | RESEARCH | V | Added 2026-10-31; waits for B.3.3 |
+| B.3.4 | RESEARCH | V | Added 2026-10-31; B.3.3 closed 2026-11-03 (fitted ON arm 5,369,042), so it is next: its run list is drawn from `analysis/b33_constants_2026-11-03.md` *For B.3.4* |
 | B.3.5 | RESEARCH | V | Waits for B.3.4 (renumbered from B.3.4 on 2026-10-31) |
 | B.3.6 | RESEARCH | I2 | Added 2026-10-31; waits for B.3.5 |
 | B.16.1 | RESEARCH | V | Added 2026-11-03; a timing read on an idle host, the maintainer chooses when |
