@@ -1,0 +1,61 @@
+// Universal binary (08/10/2026): all the system headers the engine uses, included BEFORE the namespace
+// of the variant. Inside the namespace the same #includes do nothing (guards), so the declarations of the
+// standard library and of Windows stay global and only the engine code ends up in Triumv_<variant>.
+#pragma once
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#include <psapi.h>
+#include <io.h>
+#include <direct.h>
+#include <conio.h>
+#include <fcntl.h>
+#include <intrin.h>
+#include <immintrin.h>
+#include <algorithm>
+#include <array>
+#include <atomic>
+#include <bitset>
+#include <cassert>
+#include <cctype>
+#include <chrono>
+#include <climits>
+#include <cmath>
+#include <condition_variable>   // 12/10/2026: thread persistenti (search/15_threads.inc)
+#include <cstddef>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <errno.h>
+#include <exception>
+#include <fstream>
+#include <functional>
+#include <initializer_list>
+#include <iomanip>
+#include <ios>
+#include <iosfwd>
+#include <iostream>
+#include <iterator>
+#include <limits>
+#include <limits.h>
+#include <map>
+#include <memory>
+#include <mutex>
+#include <new>
+#include <optional>
+#include <sstream>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <string>
+#include <string_view>
+#include <thread>
+#include <tuple>
+#include <type_traits>
+#include <unordered_map>
+#include <utility>
+#include <variant>
+#include <vector>
