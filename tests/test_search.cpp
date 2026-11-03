@@ -188,6 +188,67 @@ static void init_test_syzygy() {
 // Tests
 // ---------------------------------------------------------------------------
 
+// Both arms share the parameter table's X lines; the B3_PROOF arm overrides a
+// few Cluster 1 defaults from its own table. Each override must name a field,
+// lie in its line's range and differ from its default; it must reach the ON
+// arm only; every other field keeps its line's default on both arms; and a
+// tune build advertises the compiled value, not the line's.
+static void test_arm_defaults() {
+    struct ArmDefault {
+        std::string_view field;
+        std::string_view uci;
+        int value;
+    };
+    static constexpr ArmDefault arm[] = {
+#define ARM_DEFAULT_ENTRY(field, uci, value) {#field, #uci, value},
+        BASILISK_B3_CORE_DEFAULTS(ARM_DEFAULT_ENTRY)
+#undef ARM_DEFAULT_ENTRY
+    };
+    const auto find = [](std::string_view field) -> const ArmDefault* {
+        for (const ArmDefault& a : arm)
+            if (a.field == field) return &a;
+        return nullptr;
+    };
+    const SearchParams compiled;
+    int matched = 0;
+
+    begin_section("arm defaults: each override names a field, in range, off its default");
+#define ARM_DEFAULT_RANGE(field, uci, def, lo, hi)                       \
+    if (const ArmDefault* a = find(#field)) {                           \
+        ++matched;                                                       \
+        EXPECT(lo <= a->value && a->value <= hi);                        \
+        EXPECT(a->value != def);                                         \
+    }
+    BASILISK_SEARCH_PARAMS(ARM_DEFAULT_RANGE)
+    EXPECT_EQ(matched, int(std::size(arm)));
+    end_section();
+
+    begin_section("arm defaults: overrides reach the B3_PROOF arm only; the rest keep their line");
+#define ARM_DEFAULT_VALUE(field, uci, def, lo, hi)                       \
+    if (const ArmDefault* a = find(#field))                             \
+        EXPECT_EQ(compiled.field, kB3Proof ? a->value : def);            \
+    else                                                                 \
+        EXPECT_EQ(compiled.field, def);
+    BASILISK_SEARCH_PARAMS(ARM_DEFAULT_VALUE)
+    BASILISK_KERNEL_SWITCHES(ARM_DEFAULT_VALUE)
+    BASILISK_B3_PARAMS(ARM_DEFAULT_VALUE, ARM_DEFAULT_VALUE, ARM_DEFAULT_VALUE)
+#undef ARM_DEFAULT_VALUE
+#undef ARM_DEFAULT_RANGE
+    end_section();
+
+#ifdef BASILISK_TUNE
+    begin_section("arm defaults: a tune build advertises the compiled default");
+    const std::string options = Parameters::uci_options();
+#define ARM_DEFAULT_ADVERTISED(field, uci, def, lo, hi)                  \
+    EXPECT(options.find("option name " #uci " type spin default "        \
+                        + std::to_string(compiled.field) + " min ")      \
+           != std::string::npos);
+    BASILISK_SEARCH_PARAMS(ARM_DEFAULT_ADVERTISED)
+#undef ARM_DEFAULT_ADVERTISED
+    end_section();
+#endif
+}
+
 static void test_default_go_depth_and_syzygy_options() {
     Parameters params;
 
@@ -1535,6 +1596,7 @@ int main() {
 
     std::printf("\nParameters\n");
     test_default_go_depth_and_syzygy_options();
+    test_arm_defaults();
 
     std::printf("\nHistory row decomposition (9.6)\n");
 

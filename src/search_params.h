@@ -298,10 +298,10 @@
     S(b3_pv_quiet_prune,     B3PvQuietPrune,         1,    0,     1)     \
     /* Null move */                                                    \
     X(b3_nmp_per_ply,        B3NmpPerPly,           16,    2,    32)     \
-    X(b3_nmp_improving,      B3NmpImproving,        16,    0,    40)     \
-    X(b3_nmp_base,           B3NmpBase,            151,   50,   300)     \
-    X(b3_nmp_red_base,       B3NmpRedBase,           7,    2,    10)     \
-    X(b3_nmp_red_eval_div,   B3NmpRedEvalDiv,       72,   36,   256)     \
+    X(b3_nmp_improving,      B3NmpImproving,        15,    0,    40)     \
+    X(b3_nmp_base,           B3NmpBase,            163,   50,   300)     \
+    X(b3_nmp_red_base,       B3NmpRedBase,           4,    2,    10)     \
+    X(b3_nmp_red_eval_div,   B3NmpRedEvalDiv,       80,   36,   256)     \
     F(b3_nmp_red_depth_div,  B3NmpRedDepthDiv,       3,    2,     6)     \
     F(b3_nmp_beta_floor,     B3NmpBetaFloor,      -564, -2000,    0)     \
     F(b3_nmp_verify_depth,   B3NmpVerifyDepth,      16,    8,    32)     \
@@ -309,12 +309,12 @@
     S(b3_nmp_verify,         B3NmpVerify,            1,    0,     2)     \
     S(b3_nmp_eval_gate,      B3NmpEvalGate,          0,    0,     1)     \
     /* Internal iterative reduction */                                   \
-    X(b3_iir_min_depth,      B3IirMinDepth,          6,    3,    10)     \
+    X(b3_iir_min_depth,      B3IirMinDepth,          5,    3,    10)     \
     S(b3_iir,                B3Iir,                  1,    0,     1)     \
     S(b3_iir_stale,          B3IirStale,             0,    0,     1)     \
     /* ProbCut */                                                        \
-    X(b3_probcut_base,       B3ProbCutBase,         68,   34,   240)     \
-    X(b3_probcut_improving,  B3ProbCutImproving,    18,    0,    48)     \
+    X(b3_probcut_base,       B3ProbCutBase,         73,   34,   240)     \
+    X(b3_probcut_improving,  B3ProbCutImproving,    19,    0,    48)     \
     F(b3_probcut_min_depth,  B3ProbCutMinDepth,      3,    2,     8)     \
     F(b3_probcut_depth,      B3ProbCutDepth,         3,    2,     6)     \
     F(b3_probcut_depth_improving, B3ProbCutDepthImproving, 5, 3,    8)     \
@@ -324,16 +324,16 @@
     S(b3_probcut_tt,         B3ProbCutTt,            0,    0,     1)     \
     /* Singular extension */                                             \
     F(b3_sing_min_depth,     B3SingMinDepth,         6,    4,    10)     \
-    X(b3_sing_margin,        B3SingMargin,         252,   13,   378)     \
-    X(b3_sing_margin_ttpv,   B3SingMarginTtPv,      19,    0,   126)     \
+    X(b3_sing_margin,        B3SingMargin,         232,   13,   378)     \
+    X(b3_sing_margin_ttpv,   B3SingMarginTtPv,      17,    0,   126)     \
     X(b3_sing_double_base,   B3SingDoubleBase,      -1,  -40,    40)     \
-    X(b3_sing_double_pv,     B3SingDoublePv,        58,    0,   120)     \
-    X(b3_sing_double_quiet,  B3SingDoubleQuiet,    -43,  -90,     0)     \
+    X(b3_sing_double_pv,     B3SingDoublePv,        60,    0,   120)     \
+    X(b3_sing_double_quiet,  B3SingDoubleQuiet,    -41,  -90,     0)     \
     X(b3_sing_double_deep,   B3SingDoubleDeep,     -11,  -30,     0)     \
     X(b3_sing_triple_base,   B3SingTripleBase,      20,  -20,    60)     \
-    X(b3_sing_triple_pv,     B3SingTriplePv,        79,    0,   160)     \
-    X(b3_sing_triple_quiet,  B3SingTripleQuiet,      0, -110,     0)     \
-    X(b3_sing_triple_ttpv,   B3SingTripleTtPv,      23,    0,    60)     \
+    X(b3_sing_triple_pv,     B3SingTriplePv,        77,    0,   160)     \
+    X(b3_sing_triple_quiet,  B3SingTripleQuiet,     -2, -110,     0)     \
+    X(b3_sing_triple_ttpv,   B3SingTripleTtPv,      22,    0,    60)     \
     X(b3_sing_triple_deep,   B3SingTripleDeep,     -12,  -30,     0)     \
     F(b3_sing_corr_div,      B3SingCorrDiv,     198368, 50000, 800000)   \
     F(b3_sing_corr_cap,      B3SingCorrCap,        101,    0,   300)     \
@@ -358,6 +358,21 @@
     S(b3_fail_low_store,     B3FailLowStore,         0,    0,     1)     \
     S(b3_tt_penalty,         B3TtPenalty,            1,    0,     1)
 
+// The B3_PROOF arm's own defaults for Cluster 1 coordinates fitted on its tree
+// beside Cluster 2's: A(field, UciName, value). Both arms share the X line,
+// which keeps the OFF arm's value so the OFF arm does not take a fit made on
+// the other tree; the ON arm compiles and advertises these instead, and its
+// generated surfaces start from them. Each lies in its X line's range and
+// differs from its default (test_search checks both).
+#define BASILISK_B3_CORE_DEFAULTS(A)                                     \
+    A(rfp_per_ply,           CoreRfpPerPly,          99)                \
+    A(rfp_corr_mult,         CoreRfpCorrMult,       498)                \
+    A(lmp_base,              CoreLmpBase,             4)                \
+    A(quiet_fut_base,        CoreQuietFutBase,      167)                \
+    A(capt_fut_base,         CoreCaptFutBase,        74)                \
+    A(cont_hist_prune_slope, CoreContHistPruneSlope, 3832)              \
+    A(corr_update_scale,     CoreCorrUpdateScale,    17)
+
 #define BASILISK_KERNEL_PARAMS(X) BASILISK_CORE_KERNEL_PARAMS(X, X)
 #define BASILISK_KERNEL_SWITCHES(S) BASILISK_CORE_KERNEL_SWITCHES(S)
 
@@ -372,4 +387,11 @@ struct SearchParams {
     BASILISK_B3_PARAMS(BASILISK_SEARCH_PARAM_FIELD, BASILISK_SEARCH_PARAM_FIELD,
                        BASILISK_SEARCH_PARAM_FIELD)
 #undef BASILISK_SEARCH_PARAM_FIELD
+#if defined(BASILISK_B3_PROOF)
+    constexpr SearchParams() noexcept {
+#define BASILISK_B3_CORE_DEFAULT(field, uci, value) field = value;
+        BASILISK_B3_CORE_DEFAULTS(BASILISK_B3_CORE_DEFAULT)
+#undef BASILISK_B3_CORE_DEFAULT
+    }
+#endif
 };

@@ -204,9 +204,11 @@ std::string Parameters::uci_options() {
 #endif
 #ifdef BASILISK_TUNE
     // Generated from the SearchParams X-macro table — the advertised
-    // default IS the compiled default by construction.
+    // default IS the compiled default by construction: it is read from a
+    // default-constructed struct, which carries the arm's own defaults.
+    const SearchParams compiled;
 #define BASILISK_SEARCH_PARAM_OPT(field, uci, def, lo, hi)                    \
-    opts += "option name " #uci " type spin default " + std::to_string(def) + \
+    opts += "option name " #uci " type spin default " + std::to_string(compiled.field) + \
             " min " + std::to_string(lo) + " max " + std::to_string(hi) + "\n";
     BASILISK_SEARCH_PARAMS(BASILISK_SEARCH_PARAM_OPT)
     BASILISK_KERNEL_SWITCHES(BASILISK_SEARCH_PARAM_OPT)
