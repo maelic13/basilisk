@@ -23,8 +23,8 @@ $ErrorActionPreference = 'Stop'
 $wrapper = Join-Path $PSScriptRoot 'colosseum.ps1'
 $engines = Join-Path $PSScriptRoot 'test_engines'
 $results = Join-Path $PSScriptRoot 'results'
-$revision = '__REVISION__'
-$tune = @{ Path = Join-Path $engines 'basilisk-b34-on-tune-pext-tune-pgo.exe'; Sha = '__SHA__'; Bench = 5369042 }
+$revision = '220f36fcb37c51d73a54574391342d143d6cdbcf'
+$tune = @{ Path = Join-Path $engines 'basilisk-b34-on-tune-pext-tune-pgo.exe'; Sha = 'D47013B95B903F533B786144F70FF5FA243011E4921DB83E9E7DD24779983520'; Bench = 5369042 }
 
 # Alternative (arm A) against the defaults (arm B), with BAS-S45's seeds.
 $runs = [ordered]@{
