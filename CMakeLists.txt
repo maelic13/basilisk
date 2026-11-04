@@ -808,8 +808,9 @@ endif()
 
 # A universal tier must use its own profile. A file the profile does not cover
 # is an error there, so a tier that silently got no profile fails to build.
-# Clang: only the four files bench never runs (move formatting, Syzygy probing,
-# the search diagnostics, the WAC suite) are expected to have no data. GCC
+# Clang: only the five files bench never runs (move formatting, Syzygy probing,
+# the search diagnostics, the WAC suite, the physical-memory query behind the
+# Hash limit) are expected to have no data. GCC
 # writes a profile for every instrumented file the training run links, run or
 # not, so a missing one means the profile is not this build's.
 if(BASILISK_UNIVERSAL_TIER AND _basilisk_pgo STREQUAL "USE" AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -817,6 +818,7 @@ if(BASILISK_UNIVERSAL_TIER AND _basilisk_pgo STREQUAL "USE" AND CMAKE_CXX_COMPIL
         target_compile_options(${_tgt} PRIVATE $<$<CONFIG:Release>:-Wprofile-instr-unprofiled>)
     endforeach()
     set_source_files_properties(src/move.cpp src/syzygy.cpp src/search_diagnostics.cpp src/wac.cpp
+        src/physical_memory.cpp
         PROPERTIES COMPILE_OPTIONS "-Wno-profile-instr-unprofiled")
 elseif(BASILISK_UNIVERSAL_TIER AND _basilisk_pgo STREQUAL "USE" AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     foreach(_tgt IN LISTS _ALL_TARGETS)
