@@ -225,27 +225,3 @@
     tables.
   - X7 waits for the gate.
 
-#### GATE RE-REGISTRATION (2026-11-04)
-
-- **First run, stopped (void).** Seed 46001, `tools/results/b36-gate/`
-  (journal `64b22257…`, checkpoint `534a3231…`).
-  - The maintainer reports that a Rarog workload ran on the host during
-    the run, so its clocks were not the registered conditions. Its only
-    faults are four time losses, two per arm, inside one minute (14:18).
-  - The maintainer stopped it at 3,702 pairs, before any decision: W/D/L
-    1,948/3,564/1,892, pentanomial [115, 881, 1,678, 889, 139], LLR +0.51.
-  - It is not a result. It is not continued, pooled or re-scored.
-- **The re-run starts from zero with seed 46002**, in
-  `tools/results/b36-gate-r2/`, launched by `tools/run_b36_gate.ps1`.
-  - The arms are the same pinned binaries. Nothing in them changed.
-  - The bounds, cap and conditions are the step-2 registration's
-    unchanged: SPRT `[0,3]` normalized, cap 16,000 pairs, `3+0.03`, 1T,
-    Hash 64, UHO paired, no adjudication, tablebases off. The void run's
-    interim figures do not change the design.
-  - The host must be idle for the whole run: no Rarog or other engine,
-    harness or build job beside it.
-- **Dry run accepted 2026-11-04**
-  (`tools/results/colosseum_sprt_b36-gate-r2_20261104_163525.*`, manifest
-  `fc1a9673…`): seed 46002, 16,000 pairs, Hash 64, 1T, the pinned arms'
-  hashes and fingerprints verified.
-
