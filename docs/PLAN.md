@@ -1468,6 +1468,23 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           `Piece`.
         - The header's "colour-redundant" rationale (`history_core.h`) is
           measured false.
+      - Step 2 prepared 2026-11-04 (BAS-S46). The maintainer decided:
+        now, not Phase H.
+        - The investigation: a continuation row is read one ply on by the
+          other side and two on by its own, so it needs colour on both
+          row and leaf, the donor's form. The pawn and capture histories
+          need it on the piece. The continuation correction needs it on
+          its row alone.
+        - `70e978b`: behind the `COLOUR_HISTORY` switch, default OFF, with
+          every flavour exact while it is off. With it on, `bench 13`
+          reads 5,361,058.
+        - The planted check reads 0% on the capture, continuation and
+          pawn histories. The correction's 0.59% is all its shared
+          sentinel row, as a probe showed.
+        - From clear tables the cutoff reads are slightly worse: 0.8743 →
+          0.8731 first-move, and 5.9% more nodes at depth 14.
+        - The gate, SPRT `[0,3]` with a 16,000-pair cap, is pinned and
+          dry-run accepted (`tools/run_b36_gate.ps1`). Maintainer-run.
 - [ ] **B.16** Search-programme instruments
   Added 2026-11-03 (maintainer: "the instruments which would help us now,
   somewhere close"): four instruments the Triumviratus review found that
@@ -2210,7 +2227,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.6 | RESEARCH | I2 | Opened 2026-11-04 (BAS-S46): step 1 read, the other colour trains 3.1-16.3% of what each table serves, above the 2% rule, so step 2 (index by `Piece`) is next, registered before it is built |
+| B.3.6 | GAME_GATE | I2 | Opened 2026-11-04 (BAS-S46): step 1 read 3.1-16.3% cross-colour; step 2, the coloured index behind `COLOUR_HISTORY` (`70e978b`), planted check exact, gate pinned and dry-run accepted (`tools/run_b36_gate.ps1`); maintainer-run |
 | B.16.1 | RESEARCH | V | Added 2026-11-03; a timing read on an idle host, the maintainer chooses when |
 | B.16.2 | RESEARCH | I2 | Added 2026-11-03; needs no idle host, can be worked between B.3.3's blocks |
 | B.16.3 | RESEARCH | V | Added 2026-11-03; stored games, judge CPU, maintainer-run |

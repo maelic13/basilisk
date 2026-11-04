@@ -170,3 +170,58 @@
 | X6 | The colour-indexed build raises the first-move cutoff rate on the suite | 60% | equal or lower |
 | X7 | The SPRT accepts H1 | 55% | H0 |
 
+#### STEP 2 RESULT BEFORE THE GATE (2026-11-04)
+
+- **Built:** `70e978b`, the `COLOUR_HISTORY` switch, default OFF.
+  - With it OFF, every flavour of both Cluster 2 arms reproduces its
+    fingerprint: Release, Diag, Tune and Ablate, ON 5,369,042 and OFF
+    11,880,564.
+  - With it ON, `bench 13` reads **5,361,058**.
+  - Release CTest passes 26/26 on the coloured build and on both
+    switch-OFF arms, the strength floors included.
+  - The coloured sanitizer build passes `test_history_core`,
+    `test_move_picker_core`, `test_tt`, `test_b3_proof`, `test_search`,
+    `test_engine_ponder` and `test_invariants`.
+- **The planted check** (`tools/results/b36-20261104/col_suite_d14.json`
+  `bc53b0a5…`, the coloured Diag build on `suite_v2` at depth 14):
+  - The capture, continuation and pawn histories read **0.0000%**
+    other-colour share, with no read of an entry the other colour
+    trained.
+  - The continuation correction read **0.59%** (60,258 reads trained by
+    the other colour alone, 99,077 by both).
+  - A probe that left the correction's sentinel row out of the counter
+    (a throwaway build, not committed) read **0.0000%** on 16,323,619
+    reads.
+  - So the residual is the sentinel, `row[NO_PIECE_TYPE][A1]`. Records
+    with no move two or four plies back point to it, and the update trains
+    those rows whichever colour moved. That behaviour predates this step,
+    and the donor's `NO_PIECE` sentinel shares it.
+  - The colour index itself is exact.
+- **Cutoff reads, suite at depth 14** (each position from clear tables),
+  colourless → coloured:
+  - first-move cutoff rate **0.8743 → 0.8731**;
+  - mean cutoff index **0.2102 → 0.2158**;
+  - nodes **15,836,468 → 16,766,365** (+5.9%).
+  
+  From clear tables each entry learns from half the data. A game carries
+  the tables over from move to move, so these reads are a lower bound on
+  what the split earns. They are recorded, not deciding.
+- **Memory:** continuation 1,568 → 6,272 KiB, pawn 7,168 → 14,336 KiB,
+  correction 392 → 784 KiB, capture 6 → 12 KiB. `test_history_core`
+  checks every size on both builds.
+- **The gate's arms:** `basilisk-b36-colour-on-pext-pgo.exe`
+  (`0E2C93E2…`, 5,361,058) against `basilisk-b36-colour-off-pext-pgo.exe`
+  (`21CF9C56…`, 5,369,042).
+  - Both are clean final-PGO builds at `70e978b`, Cluster 2 on through
+    the default.
+  - `tools/run_b36_gate.ps1` pins them, and its dry run is accepted:
+    `[0,3]` normalized, 16,000 pairs, `3+0.03`, seed 46001.
+  - Maintainer-run.
+- **Predictions so far:**
+  - **X5 missed as written:** the correction read 0.59%, not 0%. The
+    probe places all of it in the sentinel row and none in the colour
+    index.
+  - **X6 missed:** the first-move cutoff rate fell slightly, from clear
+    tables.
+  - X7 waits for the gate.
+
