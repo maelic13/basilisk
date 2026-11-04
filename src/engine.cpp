@@ -397,9 +397,9 @@ void Engine::apply_table_state() {
         if (tt_.resize(static_cast<size_t>(parameters_.hash_mb))) {
             current_hash_mb_ = parameters_.hash_mb;
         } else {
-            uci_write_line("info string Hash " + std::to_string(parameters_.hash_mb)
-                           + " MB could not be allocated; keeping "
-                           + std::to_string(tt_.allocated_bytes() >> 20) + " MB");
+            uci_write_line("info string Unable to allocate Hash value "
+                           + std::to_string(parameters_.hash_mb) + "; keeping "
+                           + std::to_string(tt_.allocated_bytes() >> 20) + " MiB.");
             parameters_.hash_mb = current_hash_mb_;
         }
     }

@@ -310,7 +310,7 @@ static int count_lines_with(const std::string& text, const std::string& needle) 
 }
 
 static void test_refused_hash_is_announced_every_time() {
-    const std::string refused = "info string Hash 16 MB could not be allocated; keeping 64 MB";
+    const std::string refused = "info string Unable to allocate Hash value 16; keeping 64 MiB.";
     {
         EngineSession session;
         TranspositionTable::reservable_clusters = (size_t{8} << 20) / sizeof(TTCluster);
@@ -324,7 +324,7 @@ static void test_refused_hash_is_announced_every_time() {
         session.new_game();
         session.sync();
         begin_section("refused hash: other commands repeat nothing");
-        EXPECT_EQ(count_lines_with(session.output(), "info string Hash"), 1);
+        EXPECT_EQ(count_lines_with(session.output(), "Hash"), 1);
         end_section();
 
         session.set_option("name Hash value 16");
@@ -336,7 +336,7 @@ static void test_refused_hash_is_announced_every_time() {
         session.set_option("name Hash value 4");
         session.sync();
         begin_section("refused hash: a value that fits is applied without a notice");
-        EXPECT_EQ(count_lines_with(session.output(), "info string Hash"), 2);
+        EXPECT_EQ(count_lines_with(session.output(), "Hash"), 2);
         end_section();
     }
     TranspositionTable::reservable_clusters = TranspositionTable::kMaxReservableClusters;
