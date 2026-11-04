@@ -588,6 +588,46 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
   TT ProbCut), singular extensions (double and triple margins, multi-cut,
   negative extension, shuffling guard), IIR and Basilisk's check extension;
   SPRT `[0,3]`.
+  Delivery checklist (prepared 2026-11-04 at the maintainer's request).
+  B.12, B.14, B.3.0 and Cluster 2 reach `master` together as one squash PR
+  from `b3-pruning-extensions` (maintainer decision 2026-11-01), once B.3's
+  last leaf closes. The branch carries the Hash bound by physical memory
+  as well (`1468936`, maintainer 2026-11-04). In order:
+  1. On BAS-S43 (a) H1, one engine commit flips `B3_PROOF`'s CMake
+     default to ON.
+     - The fingerprint record moves to the ON arm's 5,369,042: GUIDE's
+       *Now*, AGENTS' restatement and DESIGN, which `check_roadmap.py`
+       cross-checks.
+     - CHANGELOG gets an entry for the new pruning with (a)'s result.
+     - The OFF arm stays compilable until the cleanup leaf.
+     - On H0, BAS-S43's reject clause applies instead.
+  2. Qualify the Hash bound, which is still syntax-checked only:
+     - release CTest on both arms, including `uci_hash_above_machine_limit`;
+     - `bench 13` unchanged on both arms;
+     - the sanitizer build's `test_tt` and `test_uci_protocol`.
+     macOS and Linux are first compiled by the PR's CI.
+  3. Final qualification on the delivery head, on both arms:
+     - release and sanitizer CTest, and `bench 13` (OFF 11,880,564; ON the
+       new record);
+     - `python tools/diag/check_roadmap.py`;
+     - `python tools/diag/check_citations.py`, which needs the PR refs;
+     - `python tools/generate_spsa_surface.py --check`;
+     - `python -m pytest tools/diag/test_profile_regions.py
+       tools/diag/test_spsa_surface.py`.
+  4. Merge `master` into the branch if it moved; it had not on 2026-11-04.
+  5. Open the PR (the maintainer's command). The squash message follows
+     PROCESS *Delivery* step 3:
+     - a short imperative title (draft: "Rebuild pruning and extensions");
+     - a few lines on what and why: Cluster 2's proof searches and
+       extensions in Stockfish's form, fitted; the false win in drawn
+       KBP-K; draw verdicts that take no correction; Hash bounded by
+       physical memory;
+     - the results, one per line: B.12 `[-5,5]` +3.8 ± 5.2 Elo (2,567
+       pairs); B.14 `[-5,5]` +7.4 ± 6.9 Elo (1,271 pairs); B.3.5 (a) and
+       (b) at their stops; (c) at `10+0.1`;
+     - after an empty line, `Bench: <the ON record>`.
+  6. After the squash merge, delete the branch locally and on `origin`.
+     The branch's commits stay citable under the PR's ref.
   Opens in the standard cluster shape: B.3.0 research on the accepted B.2
   head (re-basing B.0's handoff), B.3.1 implement, B.3.2 diagnostics and
   paired run, B.3.3 sweep and SPSA, B.3.4 Basilisk's forms re-read on the
@@ -1808,6 +1848,16 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         (TB-12).
       - Large pages for the search state, not only the TT: histories,
         correction tables and per-thread data (−0.93% cycles) (TB-13).
+      - Large pages on every platform, not only Windows (maintainer
+        2026-11-04).
+        - Linux: transparent huge pages through `madvise(MADV_HUGEPAGE)`
+          on a 2 MiB-aligned block, as Stockfish does, with explicit
+          `MAP_HUGETLB` as the alternative.
+        - macOS: `VM_FLAGS_SUPERPAGE_SIZE_2MB` on Intel, and what Apple
+          silicon's 16 KiB pages allow.
+        - Each platform falls back silently and is reported by `bench` as
+          on, off or partial. Each is measured on its own platform before
+          it is kept.
       - The picker: branch-free selection (the best-quiet selection caused
         11% of branch misses there), quiet scoring per node with history
         rows read once, rank by the count of larger keys, captures not
@@ -1890,6 +1940,21 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     sample). Fixing it re-draws the 24 samples per family and re-bases
     every floor, so it is done here, between clusters, never inside one
     (audit 2026-11-01).
+    - Prepared 2026-10-31 on `master` and kept as a patch
+      (`tools/results/b9-floor-legality/legal-floors.patch`, SHA-256
+      `d1b0fcce…293a`); the throwaway branch was deleted 2026-11-04.
+      - The recipe: `random_family` in `tests/test_endgames.cpp` reads
+        each FEN with `try_set_fen(fen, /*validate_legal_position=*/true)`,
+        so a bare king in check with White to move is dropped. 24 of the 96
+        samples were such positions: KQ-K 8, KR-K 4, KBB-K 7, KBN-K 5. The
+        legal samples keep their order, and the next legal draws fill each
+        24.
+      - Read on `master` (`43b4c35`) at 60,000 nodes: 24/24 in every
+        family, means 12.2, 23.0, 24.4 and 54.4 plies. Every bound holds
+        there.
+      - The patch applies cleanly to the B.3 head (checked 2026-11-04).
+        B.9 applies it, reads all four families at the five budgets on the
+        head, and re-bases a floor only if the read asks.
   Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
   are its items):
   - The pool read includes the head on the match host: Rarog's pool still
