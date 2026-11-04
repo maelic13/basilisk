@@ -1513,9 +1513,11 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
   Basilisk lacks, built before B.4 because B.4 and B.5 are their first
   users. None changes the engine's tree or a gate; each is validated on a
   planted case before it is trusted. B.16.2 needs no idle host, so it can
-  be worked while B.3.3's blocks hold the machine. Sources:
+  be worked while B.3.3's blocks hold the machine. Its leaves are marked
+  `(ANY TIME) — before B.4` (maintainer 2026-11-04: B.16 now, after B.3),
+  because the roadmap orders leaves by number. Sources:
   `analysis/triumviratus_review_2026-11-03.md` (TT-1, TT-2, TM-7, TM-9).
-    - [ ] **B.16.1** `[V]` Wall-clock overhead read
+    - [ ] **B.16.1** `[V]` Wall-clock overhead read (ANY TIME) — before B.4
       What the gate's clock costs outside the search, at the controls the
       gates use (`3+0.03` leaves about 50–100 ms a move, so a few ms is
       several per cent of the think) (TT-2). Timed from outside the
@@ -1528,7 +1530,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       this read verifies it. A timing read needs an idle host: the
       maintainer chooses when. A gap to Stockfish beyond 1 ms goes to the
       correctness-repair path with its own gate.
-    - [ ] **B.16.2** `[I2]` Pruning and reduction pricing
+    - [ ] **B.16.2** `[I2]` Pruning and reduction pricing (ANY TIME) — before B.4
       What each pruning rule and each reduction hides (TM-9, Triumviratus's
       `prunelog` and `redlog`). In the Diag flavour, a deterministic sample
       of the moves each rule prunes (every `TraceEvent` pruning kind,
@@ -1545,7 +1547,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       screen, never accept: they point B.4's quiescence pruning, B.5's
       line growth, B.3.4's form re-reads and later fits at the rules worth
       a game.
-    - [ ] **B.16.3** `[V]` Loss analysis by cell
+    - [ ] **B.16.3** `[V]` Loss analysis by cell (ANY TIME) — before B.4
       Where Basilisk loses, from games already played (TT-1): the pool
       tournaments' PGNs (BAS-M08, BAS-M11) and the latest gates', every
       move scored by a judge (Stockfish 19 at fixed nodes) as the
@@ -1558,7 +1560,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       held a third of the loss to Stockfish 19. It feeds B.9's checkpoint
       and the order of C and D. No new games; the judge's CPU is the cost,
       maintainer-run.
-    - [ ] **B.16.4** `[I1]` Identical-tree counter read
+    - [ ] **B.16.4** `[I1]` Identical-tree counter read (ANY TIME) — before B.4
       Speed of a change that keeps the tree, by hardware counters (TM-7):
       cycles, instructions and branch misses per node, the engine pinned to
       one core, only the search thread counted (start-up excluded), and a
