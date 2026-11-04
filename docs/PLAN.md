@@ -662,7 +662,13 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       pre-Cluster-2 arm. CTest passes 26/26 on both arms, Release and
       sanitizer. `check_roadmap`, `check_citations`, the SPSA-surface
       check and the tool tests pass.
-    - Steps 4-6 are next.
+    - Steps 4-6 are done. `master` had not moved. PR #21's CI first
+      failed the universal release build, because the physical-memory
+      query has no bench profile. It was exempted beside the other
+      unprofiled files (`6f76a99`). A macOS cell that never got a runner
+      was re-run. Squash-merged 2026-11-04 as `d26f92b`, whose tree is
+      the branch head's. The branch is deleted locally and on `origin`;
+      its commits stay under `refs/pull/21/head`.
   Opens in the standard cluster shape: B.3.0 research on the accepted B.2
   head (re-basing B.0's handoff), B.3.1 implement, B.3.2 diagnostics and
   paired run, B.3.3 sweep and SPSA, B.3.4 Basilisk's forms re-read on the
