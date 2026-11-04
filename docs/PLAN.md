@@ -1291,6 +1291,16 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           expensive fine tuning for a few Elo (B.3.2 read them at +3.3,
           −0.5 and +0.9), so it waits in Phase H (H.2). Their departures
           rows say so.
+        - The same day, after a challenge the maintainer asked for:
+          `B3FailLowStore` goes to B.4 instead.
+          - B.4's TT write on exit must choose what quiescence stores
+            after a fail low. The donor stores no move there, which is
+            the same question in the main search.
+          - So B.4 settles both together, and its own fit covers the
+            chosen form. This is a form B.4 must choose anyway (Phase H's
+            exception).
+          - `CoreHistoryFills`, `B3ProbCutTt` and `B3ExtBudget` stay in
+            H.2: nothing in B.4 or B.5 forces them.
     - [ ] **B.3.5** `[V]` Cluster 2 gates
       SPRT `[0,3]` for the cluster, and each categorical and deletion arm
       at the bounds the packet registers.
@@ -1485,6 +1495,17 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
   - Already in the donor's form here, so nothing to do: quiescence TT
     entries at depth 0 (Triumviratus's −1 cost it +3.38 ± 2.58), pinned
     attackers filtered in SEE, promotions in SEE (the review's §3).
+  B.3.4 input (maintainer decision 2026-11-04):
+  - The fail-low store, decided once for both searches. The TT write on
+    exit chooses what quiescence stores after a fail low; the donor stores
+    no move there. The main search keeps Basilisk's form behind
+    `B3FailLowStore` 0, which stores the best-scored move.
+    - B.3.2 read the donor's form at +3.3 ± 9.1, unfitted, on an arm
+      whose fit came later and was made with Basilisk's form.
+    - B.4 chooses one form for both, in the main search and quiescence,
+      before its fit, so that the fit covers the chosen form. The IIR
+      coordinates the store feeds (`B3IirMinDepth`, the stale trigger) go
+      on its surface if the form changes.
 - [ ] **B.5** `[I2]` Cluster 4 — root and aspiration
   Cluster 4 — root, aspiration and iterative deepening: aspiration centred on
   the root move's average score with width from its mean squared score,
@@ -3151,9 +3172,9 @@ already repairing or a form it must choose anyway, and says so.
     on.
   B.3.4 input (maintainer decision 2026-11-04):
   - Basilisk's kept forms against the donor's, each arm fitted: today
-    `B3FailLowStore` 0, `CoreHistoryFills` 0, `B3ProbCutTt` 0 and
-    `B3ExtBudget` 1. B.3.2 read the first three at +3.3, −0.5 and +0.9
-    with the donor's form unfitted.
+    `CoreHistoryFills` 0, `B3ProbCutTt` 0 and `B3ExtBudget` 1 (the
+    fail-low store went to B.4). B.3.2 read the first two at −0.5 and
+    +0.9 with the donor's form unfitted.
     - A paired run on one fitted arm is tilted toward whichever form the
       fit was made with, so the comparison refits each arm: the donor's
       forms switched on and refitted, against the current fitted arm,

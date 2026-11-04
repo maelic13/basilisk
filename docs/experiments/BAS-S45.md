@@ -110,6 +110,9 @@ Not re-read, with the reason:
   `B3ProbCutTt` 0, `B3ExtBudget` 1) stay while they work.
   - A fair comparison refits both arms. That is fine tuning for a few
     Elo, so it waits in PLAN H.2.
+  - The exception is `B3FailLowStore`, which goes to B.4 (same day):
+    B.4's TT write on exit must choose the quiescence fail-low store
+    anyway, so B.4 settles both searches' forms before its fit.
   - The departures table records each form with that reason, and the
     eval gate's reading, kept or not.
 - **Predictions:** Q1 and Q2 stand. Q3 and Q4 are withdrawn with their
