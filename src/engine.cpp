@@ -390,12 +390,18 @@ void Engine::run_perft_command(uint64_t command_epoch) {
 // resize and clear ran after `go` on the engine's clock -- 138 ms at 256 MB,
 // ~550 ms at 1 GB on the first move of every game.
 void Engine::apply_table_state() {
+    // A refused Hash puts the setting back to the table in use, so only a
+    // setoption that sends a Hash again tries again, and each one that is
+    // refused says so; no other command repeats the notice.
     if (parameters_.hash_mb != current_hash_mb_) {
-        if (!tt_.resize(static_cast<size_t>(parameters_.hash_mb)))
+        if (tt_.resize(static_cast<size_t>(parameters_.hash_mb))) {
+            current_hash_mb_ = parameters_.hash_mb;
+        } else {
             uci_write_line("info string Hash " + std::to_string(parameters_.hash_mb)
                            + " MB could not be allocated; keeping "
                            + std::to_string(tt_.allocated_bytes() >> 20) + " MB");
-        current_hash_mb_ = parameters_.hash_mb;
+            parameters_.hash_mb = current_hash_mb_;
+        }
     }
     if (parameters_.new_game || parameters_.clear_hash) {
         tt_.clear();

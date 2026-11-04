@@ -523,9 +523,17 @@ static void test_hash_limit() {
     p.set_option("name Hash value 2");
     const std::string above = std::to_string(limit + 1);
     const std::string out = capture([&] { p.set_option("name Hash value " + above); });
+    const std::string notice = "info string Hash value " + above + " is above the "
+                             + std::to_string(limit)
+                             + " MiB this machine can hold; the setting is unchanged.\n";
     begin_section("hash limit: a value above it is refused with one notice, the setting kept");
-    EXPECT_STR(out, "info string Hash value " + above + " is above the " + std::to_string(limit)
-                        + " MiB this machine can hold; the setting is unchanged.\n");
+    EXPECT_STR(out, notice);
+    EXPECT_EQ(p.hash_mb, 2);
+    end_section();
+
+    begin_section("hash limit: each setoption that sends it is announced; others are not");
+    EXPECT_STR(capture([&] { p.set_option("name MultiPV value 2"); }), "");
+    EXPECT_STR(capture([&] { p.set_option("name Hash value " + above); }), notice);
     EXPECT_EQ(p.hash_mb, 2);
     end_section();
 

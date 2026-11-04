@@ -87,8 +87,10 @@ and next step).
 - **A `Hash` larger than the computer can hold is refused.** The option's
   maximum is now the computer's total physical memory in MiB (at most the
   former 33,554,432), and the `uci` option list shows it. A larger value is
-  refused when it is set, with one `info string` naming the value and the
-  limit; nothing is allocated and the current table and setting are kept.
+  refused each time it is sent, with an `info string` naming the value and
+  the limit; nothing is allocated and the current table and setting are
+  kept. A size the system will not allocate is likewise refused and
+  announced on every `setoption` that sends it, and on no other command.
   Before, macOS, and Linux when it overcommits memory, could grant such a
   table and the engine then stalled filling it. Play is unchanged.
 

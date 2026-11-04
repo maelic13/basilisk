@@ -7,6 +7,7 @@
 #include "bitboard.h"
 #include "eval.h"
 #include "test_harness.h"
+#include "tt.h"
 #include "zobrist.h"
 
 #include <atomic>
@@ -296,6 +297,51 @@ void test_hash_setup_is_off_the_clock() {
 
 } // namespace
 
+// A Hash the platform refuses keeps the table in use and is announced each
+// time a setoption sends it; other commands repeat nothing. The refusal is
+// made deterministic by lowering the table's reservation ceiling to 8 MiB.
+static int count_lines_with(const std::string& text, const std::string& needle) {
+    std::istringstream input(text);
+    std::string line;
+    int count = 0;
+    while (std::getline(input, line))
+        count += line.find(needle) != std::string::npos;
+    return count;
+}
+
+static void test_refused_hash_is_announced_every_time() {
+    const std::string refused = "info string Hash 16 MB could not be allocated; keeping 64 MB";
+    {
+        EngineSession session;
+        TranspositionTable::reservable_clusters = (size_t{8} << 20) / sizeof(TTCluster);
+        session.set_option("name Hash value 16");
+        session.sync();
+        begin_section("refused hash: the first setoption is announced");
+        EXPECT_EQ(count_lines_with(session.output(), refused), 1);
+        end_section();
+
+        session.set_option("name Threads value 1");
+        session.new_game();
+        session.sync();
+        begin_section("refused hash: other commands repeat nothing");
+        EXPECT_EQ(count_lines_with(session.output(), "info string Hash"), 1);
+        end_section();
+
+        session.set_option("name Hash value 16");
+        session.sync();
+        begin_section("refused hash: sending it again is announced again");
+        EXPECT_EQ(count_lines_with(session.output(), refused), 2);
+        end_section();
+
+        session.set_option("name Hash value 4");
+        session.sync();
+        begin_section("refused hash: a value that fits is applied without a notice");
+        EXPECT_EQ(count_lines_with(session.output(), "info string Hash"), 2);
+        end_section();
+    }
+    TranspositionTable::reservable_clusters = TranspositionTable::kMaxReservableClusters;
+}
+
 int main() {
     init_bitboards();
     init_attacks();
@@ -313,6 +359,7 @@ int main() {
     test_immediate_ponderhit_after_depth_cap();
     test_stale_ponderhit_does_not_poison_next_ponder();
     test_hash_setup_is_off_the_clock();
+    test_refused_hash_is_announced_every_time();
 
     return harness_summary();
 }
