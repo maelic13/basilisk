@@ -1355,6 +1355,8 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         - Waiting on the maintainer: the P9 choice (B.7, or keep the
           donor's form at 0.3%), which (a) and (c) wait for. (b) is ready
           for the maintainer to run.
+        - The maintainer's P9 choice (2026-11-04): keep the check at its
+          0.3%. All three gates are released to the maintainer.
     - [ ] **B.3.6** `[I2]` Colour-indexed histories (S2)
       Added 2026-10-31 (maintainer): S2 above, given a leaf so it runs. On
       the accepted B.3 head, research first: a shadow counter of
@@ -2082,7 +2084,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.5 | GAME_GATE | V | Registered 2026-11-03 (BAS-S43); arms built and pinned at `5f1cdf3`, all three dry runs accepted; P9 profile 0.30% (not material); (b) ready for the maintainer; (a) and (c) wait for the P9 choice |
+| B.3.5 | GAME_GATE | V | Registered 2026-11-03 (BAS-S43); arms built and pinned at `5f1cdf3`, all three dry runs accepted; P9 profile 0.30%, the check kept (maintainer 2026-11-04); (a), (b) and (c) maintainer-run |
 | B.3.6 | RESEARCH | I2 | Added 2026-10-31; waits for B.3.5 |
 | B.16.1 | RESEARCH | V | Added 2026-11-03; a timing read on an idle host, the maintainer chooses when |
 | B.16.2 | RESEARCH | I2 | Added 2026-11-03; needs no idle host, can be worked between B.3.3's blocks |

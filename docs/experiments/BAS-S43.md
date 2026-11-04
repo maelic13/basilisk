@@ -127,3 +127,16 @@ Added before exposure:
   donor's form at its cost. Item 9 read the check at 0.0 ± 9.3 Elo, and
   it costs 0.3% of search time on this profile. (a) and (c) wait for the
   choice; (b) does not.
+- **The maintainer's P9 choice (2026-11-04): keep the check** (the
+  donor's form) at its 0.3%. It does not go to B.7. The candidate is
+  unchanged, and (a), (b) and (c) are released to the maintainer.
+- **A reference read, not part of any gate (2026-11-04):** our 40 bench
+  positions replayed at depth 13, 1T, Hash 16, after one `ucinewgame`
+  (`bench_replay.py`, the sum of each search's final node count; all 40
+  answered):
+  - Stockfish 19 (the donor, NNUE): **1,911,294**.
+  - Stockfish 11 (the last classical evaluation): **4,797,242**.
+  - The ON arm: 5,369,042. The OFF arm: 11,880,564.
+  - A node count to a nominal depth is not comparable across engines,
+    because depth means a different tree in each. It says how hard each
+    engine prunes to reach "depth 13", not how strong it is.
