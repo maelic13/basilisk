@@ -140,3 +140,67 @@ Added before exposure:
   - A node count to a nominal depth is not comparable across engines,
     because depth means a different tree in each. It says how hard each
     engine prunes to reach "depth 13", not how strong it is.
+- **The gates (maintainer-run 2026-11-04; every count recounted from the
+  game journal and the PGN):**
+
+  | Gate | Result | Games | W/D/L (fitted ON) | Faults | Files |
+  |---|---|---:|---|---|---|
+  | (a) ON against OFF, `[0,3]` | **H1**, +92.8 ± 14.1 Elo (nElo +149.2 ± 21.6) | 996 (498 pairs) | 413/430/153 | none | `b35-gate-a`, `result.json` `4e7030c2…`, PGN `39e73cc1…` |
+  | (b) fitted against unfitted, `[0,3]` | **H1**, +17.6 ± 6.4 Elo (nElo +27.6 ± 10.1) | 4,574 (2,287 pairs) | 1,308/2,189/1,077 | 2 time forfeits by the unfitted arm, within the runner's allowance of 22 | `b35-gate-b`, `result.json` `61e069cd…`, PGN `4a171335…` |
+  | (c) ON against OFF at `10+0.1`, fixed | +84.7 ± 9.1 Elo (nElo +147.5 ± 15.2) | 2,000 | 770/938/292 | none | `b35-direction-ltc`, `result.json` `8bade93f…`, PGN `8c09df9a…` |
+
+  - The SPRT estimates are first-crossing estimates, not effect sizes.
+    The 28 and 30 games that finished after each SPRT's decision are
+    kept as evidence and excluded from the sample.
+  - (c) is recorded beside `B3NmpCutOnly` 0's `10+0.1` read in B.3.2,
+    which was −5.0 ± 9.0 (B-33). The arm keeps the donor's cut-node
+    restriction.
+- **In games:**
+  - At `3+0.03` the fitted ON arm reaches 15.82 plies (mean, mate scores
+    excluded) against the OFF arm's 13.91, at 1.96M nodes per second
+    against 2.04M.
+  - At `10+0.1` it reaches 19.49 against 16.97, at 2.03M against 2.11M.
+- **Verdicts by the registered rules:**
+  - **(a) H1:** the B3_PROOF default flips ON, and the fingerprint record
+    moves to the ON arm's 5,369,042.
+  - **(b) H1:** the fit is worth +17.6 ± 6.4 against the unfitted arm.
+    Theta stays, and the question of reverting to the seeds does not
+    arise.
+  - **(c)** is recorded, positive at the longer control.
+- **P14 scored (2026-11-04, agent-run, zero-game;
+  `tools/results/b35-20261104/p14.py` `a2cc9e91…`, output `p14.json`
+  `2c8a1e1a…`).** The reading was fixed in the script before any position
+  was scored.
+  - Each game's position 80 half-moves after its book start is scored by
+    the oracle at 1,000,000 nodes. An arm stood won at ≥ +564, and P14
+    compares conversion, the share of those games the arm won.
+  - 1,746 of the 2,000 games reached move 40, and all were scored.
+  - ON converted **264 of 264**, OFF **101 of 101**: both 100%, so
+    **P14 holds**.
+  - At that threshold the instrument sits at its ceiling and cannot
+    separate the arms.
+  - The literal reading, wins from a won move-40 position over the 1,062
+    decisive games both arms share, is ON 24.9% and OFF 9.5%. That
+    measures how much more often ON reaches a won position, not
+    conversion, and it is not scored.
+- **Predictions scored:**
+  - **G1 hit:** (a) accepted H1.
+  - **G2:** (b) accepted H1, which G2 gave 40%.
+  - **G3 hit:** 0.30% of profile samples.
+  - **P2:** the H1 leg hit. The estimate leg missed high: +92.8, a
+    first-crossing estimate, and +84.7 fixed at `10+0.1`, against +20
+    with a 90% interval of [0, +45]. B.3.2's unfitted +67.5 had already
+    left the band.
+  - **P9 missed:** game NPS is 0.961× the OFF arm at `3+0.03` and 0.962×
+    at `10+0.1`, below 0.97.
+    - Its falsifier names the cuckoo loop as the cause. The profile puts
+      the loop at 0.30%, so it is not the cause, and the maintainer kept
+      the check.
+    - The remaining gap is the ON tree's costlier node mix, the singular
+      and ProbCut searches among it. That is input for B.7.2's speed pass.
+  - **P14 holds**, at the instrument's ceiling.
+- **Disposition: CLOSED 2026-11-04.**
+  - Cluster 2 is accepted at `[0,3]`, and B3_PROOF defaults ON
+    (`bench 13` 5,369,042).
+  - The OFF arm stays compilable at 11,880,564 until the search
+    programme's cleanup.

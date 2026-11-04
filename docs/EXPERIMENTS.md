@@ -522,7 +522,7 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S42](experiments/BAS-S42.md) — B.3.3: Cluster 2 curvature sweep, then SPSA in blocks — closed: block 1 STOP, baked per arm (ON 5,369,042)
 
-- [BAS-S43](experiments/BAS-S43.md) — B.3.5: the Cluster 2 gates — registered
+- [BAS-S43](experiments/BAS-S43.md) — B.3.5: the Cluster 2 gates — closed: (a) H1 +92.8 ± 14.1, (b) H1 +17.6 ± 6.4, (c) +84.7 ± 9.1 at 10+0.1; Cluster 2 defaults ON
 
 - [BAS-S44](experiments/BAS-S44.md) — B.14: the evaluator's draw verdicts take no correction, `[-5,5]` — H1, +7.4 ± 6.9; repair kept
 

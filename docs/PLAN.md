@@ -635,6 +635,23 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
      - after an empty line, `Bench: <the ON record>`.
   6. After the squash merge, delete the branch locally and on `origin`.
      The branch's commits stay citable under the PR's ref.
+  - Progress 2026-11-04, after B.3.5's gates:
+    - Step 1 is done: the B3_PROOF default is ON, the fingerprint record
+      is 5,369,042, and the CHANGELOG has the entry. CI's extra arm job
+      now builds and tests the OFF arm.
+    - Step 2 is done:
+      - release CTest passes 26/26 on the default, ON and OFF builds,
+        `uci_hash_above_machine_limit` included;
+      - the Tune builds' Hash and search tests pass;
+      - the sanitizer builds' `test_tt`, `test_uci_protocol`,
+        `test_engine_ponder` and the process test pass;
+      - the allocator-refusal notice now reads "Unable to allocate Hash
+        value N; keeping M MiB.";
+      - `bench` is unchanged by the Hash work on every build.
+    - Step 3's checks pass on this head: the SPSA-surface check, the tool
+      tests, `check_roadmap` with its self-test, and `check_citations`.
+      It is run again on the delivery head after B.3.6.
+    - Steps 4-6 wait for B.3.6, B.3's last leaf.
   Opens in the standard cluster shape: B.3.0 research on the accepted B.2
   head (re-basing B.0's handoff), B.3.1 implement, B.3.2 diagnostics and
   paired run, B.3.3 sweep and SPSA, B.3.4 Basilisk's forms re-read on the
@@ -1359,7 +1376,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           (`analysis/b30_cluster2_research_2026-10-30.md`): four kept
           forms with their waits (B.4 for the fail-low store, H.2 for
           the rest), two seed values for the fit, and the gate's reading.
-    - [ ] **B.3.5** `[V]` Cluster 2 gates
+    - [x] **B.3.5** `[V]` Cluster 2 gates
       SPRT `[0,3]` for the cluster, and each categorical and deletion arm
       at the bounds the packet registers.
       Packet §11, BAS-S43 (the packet's B.3.4): (a) the fitted ON arm
@@ -1404,6 +1421,22 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           for the maintainer to run.
         - The maintainer's P9 choice (2026-11-04): keep the check at its
           0.3%. All three gates are released to the maintainer.
+      - Closed 2026-11-04 (BAS-S43 *RESULT*; maintainer-run, every count
+        recounted):
+        - (a) **H1, +92.8 ± 14.1 Elo** (996 games) against the OFF arm.
+        - (b) **H1, +17.6 ± 6.4 Elo** (4,574 games) for the fit itself.
+          The two time forfeits were the unfitted arm's, within the
+          allowance.
+        - (c) **+84.7 ± 9.1 Elo** at `10+0.1` (2,000 games).
+        - So B3_PROOF defaults ON, and the fingerprint record moves to
+          5,369,042. The OFF arm stays compilable at 11,880,564.
+        - The default build was re-read on a fresh configure: `bench 13`
+          5,369,042. Release CTest passes 26/26 on the default, ON and OFF
+          builds.
+        - P14 holds at the instrument's ceiling (264/264 and 101/101
+          conversions).
+        - P9 missed: game NPS is 0.96× the OFF arm, and the cause is not
+          the cuckoo loop (0.30%). B.7.2 takes it.
     - [ ] **B.3.6** `[I2]` Colour-indexed histories (S2)
       Added 2026-10-31 (maintainer): S2 above, given a leaf so it runs. On
       the accepted B.3 head, research first: a shadow counter of
@@ -2156,7 +2189,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.5 | GAME_GATE | V | Registered 2026-11-03 (BAS-S43); arms built and pinned at `5f1cdf3`, all three dry runs accepted; P9 profile 0.30%, the check kept (maintainer 2026-11-04); (a), (b) and (c) maintainer-run |
 | B.3.6 | RESEARCH | I2 | Added 2026-10-31; waits for B.3.5 |
 | B.16.1 | RESEARCH | V | Added 2026-11-03; a timing read on an idle host, the maintainer chooses when |
 | B.16.2 | RESEARCH | I2 | Added 2026-11-03; needs no idle host, can be worked between B.3.3's blocks |
