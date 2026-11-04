@@ -1447,6 +1447,17 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       index and bench with its memory priced, then SPRT `[0,3]` at
       `3+0.03`. Settled before B.6, which may put these tables on a
       surface.
+      - Opened 2026-11-04 (BAS-S46, registered before the read):
+        - Step 1 is the shadow counter, in diagnostic builds only
+          (`src/history_shadow.h`): per table, how much of the training
+          behind each read the other colour gave.
+        - Every flavour's `bench 13` is unchanged (ON 5,369,042, OFF
+          11,880,564), and `test_history_core` checks the counter on a
+          planted case.
+        - The read: `run_suite.py` on `suite_v2` at depth 14 with the ON
+          Diag build.
+        - The rule: NO_CHANGE without games if every table reads under 2%
+          on both measures; otherwise step 2, registered separately.
 - [ ] **B.16** Search-programme instruments
   Added 2026-11-03 (maintainer: "the instruments which would help us now,
   somewhere close"): four instruments the Triumviratus review found that
@@ -2189,7 +2200,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.6 | RESEARCH | I2 | Added 2026-10-31; waits for B.3.5 |
+| B.3.6 | RESEARCH | I2 | Opened 2026-11-04: BAS-S46 registered, step 1 the Diag-only cross-colour shadow counter, read on `suite_v2` at depth 14 before any step 2 |
 | B.16.1 | RESEARCH | V | Added 2026-11-03; a timing read on an idle host, the maintainer chooses when |
 | B.16.2 | RESEARCH | I2 | Added 2026-11-03; needs no idle host, can be worked between B.3.3's blocks |
 | B.16.3 | RESEARCH | V | Added 2026-11-03; stored games, judge CPU, maintainer-run |
