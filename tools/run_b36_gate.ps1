@@ -3,7 +3,9 @@
    both with Cluster 2 on. SPRT [0,3] nElo (sprt-default.toml) at 3+0.03,
    capped at 16,000 pairs, one thread, Hash 64, UHO, no adjudication,
    tablebases off. Both arms are Release PEXT final-PGO builds of one
-   revision, pinned by SHA-256. #>
+   revision, pinned by SHA-256. The first run (seed 46001, results\b36-gate)
+   is void: a Rarog workload shared the host. This re-run starts from zero
+   with seed 46002 in results\b36-gate-r2. #>
 param([switch]$DryRun)
 
 $ErrorActionPreference = 'Stop'
@@ -26,13 +28,13 @@ $arguments = @{
     EngineB = $colourless.Path; NameB = 'Colourless'
     ExpectBench = @($colour.Bench, $colourless.Bench)
     ExpectRevision = $revision
-    Seed = 46001
+    Seed = 46002
     Hash = 64
     Threads = 1
     BaseMs = 3000
     IncrementMs = 30
     MarginMs = 20
-    Dir = Join-Path $PSScriptRoot 'results\b36-gate'
+    Dir = Join-Path $PSScriptRoot 'results\b36-gate-r2'
     DryRun = $DryRun
 }
 & $wrapper @arguments
