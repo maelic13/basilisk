@@ -76,6 +76,17 @@ class DecisionTraceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "schema mismatch"):
             decision_trace.parse_trace(lines)
 
+    def test_cluster_two_events_are_known_and_others_rejected(self):
+        for event in ("null_verify", "null_region_refused", "probcut_tt_cutoff",
+                      "ext_budget_truncate", "cuckoo_draw", "tt_penalty"):
+            lines = [line.replace("event=rfp_prune", f"event={event}")
+                     for line in valid_lines(2, "available", 0)]
+            self.assertEqual(decision_trace.parse_trace(lines)["records"][0]["event"], event)
+        lines = [line.replace("event=rfp_prune", "event=null_verified")
+                 for line in valid_lines(2, "available", 0)]
+        with self.assertRaisesRegex(ValueError, "unknown trace event"):
+            decision_trace.parse_trace(lines)
+
     def test_out_of_range_ply_is_rejected(self):
         lines = [line.replace(" ply=1", " ply=3") for line in valid_lines()]
         with self.assertRaisesRegex(ValueError, "out-of-contract"):

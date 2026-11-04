@@ -11,9 +11,9 @@ in `docs/PROCESS.md`; where the engine stands is PLAN §1.
 | Item | Value |
 |---|---|
 | Released baseline | **1.10.2** on `master`, tagged `v1.10.2` (2026-10-08), `bench 13` 14,978,465 |
-| Bench fingerprint | **19,470,325** (`bench 13`, since A.13.2's pawnless scaler; 19,108,490 at A.13.1; 16,092,165 at A.11.11; 8,913,394 at A.11.10; 7,857,713 at A.11.9; 7,384,101 at A.11.7; 7,233,823 at A.11.6; 8,753,339 at A.11.2; 9,260,429 at A.11.1; 8,437,148 at B.10; 11,099,210 at B.2.4; 14,978,465 for 1.10.0 to 1.10.2) |
+| Bench fingerprint | **5,361,058** (`bench 13`, since B.3.6's gate turned the coloured histories on; 5,369,042 at B.3.5; 11,880,564 at B.14; 16,615,757 at B.12; 19,470,325 at A.13.2; 19,108,490 at A.13.1; 16,092,165 at A.11.11; 8,913,394 at A.11.10; 7,857,713 at A.11.9; 7,384,101 at A.11.7; 7,233,823 at A.11.6; 8,753,339 at A.11.2; 9,260,429 at A.11.1; 8,437,148 at B.10; 11,099,210 at B.2.4; 14,978,465 for 1.10.0 to 1.10.2) |
 | Active experiment | None |
-| Long job | None |
+| Long job | None (B.3 is complete and its delivery PR is open; B.16 runs next, before B.4) |
 | Next release | **1.11.0** after B (B.11), then 1.12.0 after C, 1.13.0 after E; **2.0.0** is the first NNUE release |
 
 ## Model by class
@@ -34,22 +34,86 @@ generations change. These are maintainer judgments, not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **B.3** `[I2]` Cluster 2 — pruning and extensions — Claude Opus 5 — High
+**Next step:** **B.4** `[I2]` Cluster 3 — quiescence — Claude Opus 5 — High
 
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
 - **B.7.1** `[I1]` Allocation guard (ANY TIME) — before B.7.2 — Claude Sonnet 5 — Medium
-- **D.3.1** `[R2]` Board contract audit (ANY TIME) — before E.1 — Claude Opus 5 — High
+- **B.16.1** `[V]` Wall-clock overhead read (ANY TIME) — before B.4 — Claude Sonnet 5 — High
+- **B.16.2** `[I2]` Pruning and reduction pricing (ANY TIME) — before B.4 — Claude Opus 5 — High
+- **B.16.3** `[V]` Loss analysis by cell (ANY TIME) — before B.4 — Claude Sonnet 5 — High
+- **B.16.4** `[I1]` Identical-tree counter read (ANY TIME) — before B.4 — Claude Sonnet 5 — Medium
 
 ### Phase A — Reset: documents, harness, instruments, baselines (EXTENDED)
 
+A.1–A.7 closed between 2026-09-28 and 2026-10-06; their text is in
+[`docs/archive/PLAN-closed-2026-10-07.md`](docs/archive/PLAN-closed-2026-10-07.md).
+They reset the documents (A.1); cleaned the repository, branches and tags and
+inventoried features, options and parameters (A.2); made the Colosseum CLI
+the main harness with its SPSA path (A.3); refreshed and froze the toolchain
+with build flavours for arms (A.4); built the search programme's
+instruments: fixed-budget probe, reference-anchored branching profile,
+counter summation and decision trace, matched ablation mask, PGN conversion
+instrument and canaries (A.5); mapped the codebase consolidation (A.6); and
+measured the 1.10.1 baselines (A.7): the 1T pool census (BAS-M08), 4T
+performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
+(BAS-O05) and pooled-PGO NPS **4.127M** (BAS-P12).
+
+A.8–A.17 closed between 2026-10-07 and 2026-10-30; their text is in
+[`docs/archive/PLAN-closed-2026-10-30.md`](docs/archive/PLAN-closed-2026-10-30.md).
+They brought Basilisk to Rarog's parity: the last Rarog import, CI on pull
+requests, the tag-driven release, UCI and MultiPV conformance, tablebase
+score bands and probes, the won-endgame time sink and the 1.10.2 patch
+release (A.8); rebuilt the harness and the instruments, among them the
+pooled-build NPS read and the inline-attributing profiler (A.9); repaired
+delivery and the repository (A.10); fixed the correctness defects of the
+Rarog audit (A.11) and of the code audit (A.13), with the roadmap rules
+(A.12) and one simplification (A.14) the audits asked for; shipped one
+universal x86-64 binary per OS, four PGO tiers behind a CPU dispatcher,
+buildable with Clang or GCC by Stockfish's assembly route, every trap
+guarded (A.15); deleted the evaluation's zero-weight terms and their
+parameters, **+2.35%** NPS (BAS-P25, A.16); and found no instruction-specific code that
+makes the engine faster, the native build's 1% loss being Zen 3's tuning
+model (BAS-P26, A.17).
 
 ### Phase B — Search programme (evaluation frozen)
 
-- [ ] **B.3** `[I2]` Cluster 2 — pruning and extensions
+B.0–B.2 and B.10 closed between 2026-10-06 and 2026-10-24; their text is
+in [`docs/archive/PLAN-closed-2026-10-30.md`](docs/archive/PLAN-closed-2026-10-30.md).
+B.0 pinned the donor (`sf_19`, `edb0d9db`), measured the deficit and fixed
+the cluster order: razoring's depth reach read +2.4 Elo [−7.5, +12.3]
+(B.0.1), and the oracle's move-loop pruning family is about two thirds of
+its lead, G(0) − G(32) = 210.3 ± 23.9 of 312.6 (B.0.2). B.1 restructured the
+search behaviour-neutrally, +1.21% NPS (BAS-P16). B.2, Cluster 1, rebuilt
+the selectivity core in the donor's shape behind `B2_CORE` and fitted it:
++136.2 ± 33.6 Elo unfitted and +58.7 ± 20.9 fitted, about +195 over the
+B.1 head (BAS-S23); the legacy kernel and the switch were later deleted
+(B.8.1). B.10 repaired seven rank-mirrored piece-square
+tables, +18.3 ± 12.9 Elo (BAS-S26).
+
+- [x] **B.3** Cluster 2 — pruning and extensions
+    - [x] **B.3.0** `[R2]` Research and handoff on the B.2 head
+    - [x] **B.3.1** `[I2]` Implement behind the umbrella switch
+    - [x] **B.3.2** `[V]` Diagnostics and the unfitted paired run
+    - [x] **B.3.3** `[V]` Curvature sweep, then SPSA in blocks
+    - [x] **B.3.4** `[V]` Basilisk's forms re-read on the fitted arm
+    - [x] **B.3.5** `[V]` Cluster 2 gates
+    - [x] **B.3.6** `[I2]` Colour-indexed histories (S2)
+- [ ] **B.16** Search-programme instruments
+    - [ ] **B.16.1** `[V]` Wall-clock overhead read (ANY TIME) — before B.4
+    - [ ] **B.16.2** `[I2]` Pruning and reduction pricing (ANY TIME) — before B.4
+    - [ ] **B.16.3** `[V]` Loss analysis by cell (ANY TIME) — before B.4
+    - [ ] **B.16.4** `[I1]` Identical-tree counter read (ANY TIME) — before B.4
 - [ ] **B.4** `[I2]` Cluster 3 — quiescence
 - [ ] **B.5** `[I2]` Cluster 4 — root and aspiration
-- [ ] **B.6** `[V]` Joint search SPSA, if justified
+- [ ] **B.6** Donor-form reconciliation, then joint search SPSA
+    - [ ] **B.6.1** `[R2]` Donor-form reconciliation
+    - [ ] **B.6.2** `[V]` Joint search SPSA, if justified
+- [ ] **B.15** Board review and rebuild
+    - [ ] **B.15.1** `[R2]` Board contract audit and instruments
+    - [ ] **B.15.2** `[R2]` Board review against Stockfish and Triumviratus
+    - [ ] **B.15.3** `[I2]` Rebuild behind the board contract
+    - [ ] **B.15.4** `[V]` Board speed read and gate
 - [ ] **B.7** Search speed pass
     - [ ] **B.7.1** `[I1]` Allocation guard (ANY TIME) — before B.7.2
     - [ ] **B.7.2** `[I1]` Speed pass
@@ -58,6 +122,9 @@ generations change. These are maintainer judgments, not measured rankings.
     - [ ] **B.8.2** `[I1]` Dead parameters, switches and diagnostics
 - [ ] **B.9** `[V]` Search programme checkpoint
 - [ ] **B.11** `[M]` Interim release after the search programme
+- [x] **B.12** `[I2]` False win in drawn KBP-K (ANY TIME) — before B.3.1
+- [x] **B.13** `[I1]` Colosseum re-pinned to 0.5.0 (ANY TIME)
+- [x] **B.14** `[I2]` Correction added to recognised draws (ANY TIME) — before B.3.2
 
 ### Phase C — Evaluation programme (search frozen)
 
@@ -93,8 +160,7 @@ generations change. These are maintainer judgments, not measured rankings.
 
 - [ ] **D.1** `[R2]` Time management
 - [ ] **D.2** `[R2]` Lazy SMP quality
-- [ ] **D.3** Engine lifecycle, protocol and board contracts
-    - [ ] **D.3.1** `[R2]` Board contract audit (ANY TIME) — before E.1
+- [ ] **D.3** Engine lifecycle and protocol
     - [ ] **D.3.2** `[R2]` Lifecycle and protocol robustness
 - [ ] **D.4** `[R2]` Tablebase policy
 
@@ -125,5 +191,11 @@ generations change. These are maintainer judgments, not measured rankings.
 - [ ] **G.1** `[R2]` High-thread and NUMA
 - [ ] **G.2** `[I1]` Platform and product
 - [ ] **G.3** `[R3]` Frontier
+
+### Phase H — Refinements after the big gains
+
+- [ ] **H.1** `[R2]` Refinement backlog triage
+- [ ] **H.2** `[I2]` Search refinements, one at a time
+- [ ] **H.3** `[I2]` Time-management refinements at their own control
 
 <!-- END GENERATED -->

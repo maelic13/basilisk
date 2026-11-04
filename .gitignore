@@ -96,3 +96,7 @@ tools/texel/dump*.txt
 # committed to development or merged into the engine. Ignoring it here keeps a
 # stray `git add -A` from dragging Stockfish sources into the product tree.
 hybrid/
+
+# Reference snapshots are verbatim copies: nothing inside them is ignored.
+!docs/reference/**/
+!docs/reference/**

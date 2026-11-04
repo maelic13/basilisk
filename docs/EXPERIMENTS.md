@@ -19,7 +19,10 @@ roadmap. Rarog identifiers (`RAR-*`) and Rarog paths cited anywhere in this
 ledger resolve in the pinned snapshot `docs/reference/rarog/` (Rarog
 `015bccae`), or for BAS-X35 in `docs/reference/rarog-2026-10-06/`, or for
 BAS-X36 in Rarog's live repository at `ec6f5b5`, read under A.12's exception;
-`docs/reference/README.md` says how. Do not rewrite measured records merely because the roadmap was
+`docs/reference/README.md` says how. Triumviratus items (`TS-1`, `TB-1`
+and the like) and paths cited by BAS-X37–X40 resolve in
+`analysis/triumviratus_review_2026-11-03.md` and the snapshots
+`docs/reference/triumviratus/` and `docs/reference/triumviratus-networks/`. Do not rewrite measured records merely because the roadmap was
 reordered; the retry map in section 9 is live routing and carries current
 destinations.
 
@@ -55,6 +58,7 @@ for Basilisk and never bypasses Basilisk's own gates.
 - [7. Correctness and protocol lessons](#7-correctness-and-protocol-lessons)
 - [8. Cross-engine evidence imported from Rarog](#8-cross-engine-evidence-imported-from-rarog)
 - [8b. Cross-engine evidence imported from Manta](#8b-cross-engine-evidence-imported-from-manta)
+- [8c. Cross-engine evidence imported from Triumviratus](#8c-cross-engine-evidence-imported-from-triumviratus)
 - [9. Open retry map](#9-open-retry-map)
 - [10. Prediction calibration review](#10-prediction-calibration-review)
 - [11. Template for a new experiment](#11-template-for-a-new-experiment)
@@ -512,6 +516,20 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S39](experiments/BAS-S39.md) — A.13.4: the tablebase probe after the TT cutoff, `[-5,5]` at `10+0.1` with tables — cap, +0.3 ± 3.2; repair kept
 
+- [BAS-S40](experiments/BAS-S40.md) — B.12: quiescence's gain pruning stands down in a known loss, `[-5,5]` — H1, +3.8 ± 5.2; repair kept
+
+- [BAS-S41](experiments/BAS-S41.md) — B.3.2: Cluster 2 diagnostics, the unfitted paired run and the categoricals — +67.5 ± 9.7, proceeds; no default moved; closed
+
+- [BAS-S42](experiments/BAS-S42.md) — B.3.3: Cluster 2 curvature sweep, then SPSA in blocks — closed: block 1 STOP, baked per arm (ON 5,369,042)
+
+- [BAS-S43](experiments/BAS-S43.md) — B.3.5: the Cluster 2 gates — closed: (a) H1 +92.8 ± 14.1, (b) H1 +17.6 ± 6.4, (c) +84.7 ± 9.1 at 10+0.1; Cluster 2 defaults ON
+
+- [BAS-S44](experiments/BAS-S44.md) — B.14: the evaluator's draw verdicts take no correction, `[-5,5]` — H1, +7.4 ± 6.9; repair kept
+
+- [BAS-S45](experiments/BAS-S45.md) — B.3.4: Basilisk's forms re-read on the fitted arm — closed: the eval gate −6.1 ± 9.7, not adopted; no default moved
+
+- [BAS-S46](experiments/BAS-S46.md) — B.3.6 step 1: the colourless histories' cross-colour reads — read: continuation 16.3%, pawn 11.3%, capture 7.8%, correction 3.1%; closed: step 2 H1 +4.7 ± 3.0 Elo (9,618 pairs); coloured histories default ON (5,361,058)
+
 | ID | Title | Disposition |
 |---|---|---|
 | [BAS-S17](experiments/BAS-S17.md) | Razoring depth reach in Elo (B.0.1, maintainer). | +2.4 ± 9.9; interval holds 0, the cluster decides the cap |
@@ -604,6 +622,7 @@ not accept any new feature, vector or label policy by themselves.
 | [BAS-P24](experiments/BAS-P24.md) | The universal binary on Stockfish's assembly route, for Clang and GCC. | COMPLETE: route +0.33% PASS, hot +0.04% PASS, gcchot +0.41% PASS; GCC −3.47% against Clang (universal), −3.70% (pext) |
 | [BAS-P25](experiments/BAS-P25.md) | The zero-weight evaluation terms no longer computed. | COMPLETE: +2.35% [+2.01, +2.70], kept |
 | [BAS-P26](experiments/BAS-P26.md) | Instruction-specific speed: compressed PEXT tables and code generation. | COMPLETE: nothing faster; compressed −0.98%, znver3 tuning −0.95%, v3 +0.02%; native's −1.04% is its tuning |
+| [BAS-P27](experiments/BAS-P27.md) | Clang for Microsoft's ABI from winget against the MSYS2 build. | COMPLETE: −5.10% [−5.28, −4.92], FAIL (Windows stays on MSYS2) |
 
 ## 7. Correctness and protocol lessons
 
@@ -718,6 +737,23 @@ never accept a Basilisk change.
 
 Manta also supplied the **method** that produced BAS-D05, which is recorded
 there rather than here because it is our own measurement.
+
+## 8c. Cross-engine evidence imported from Triumviratus
+
+Triumviratus is Basilisk's third donor (maintainer decision 2026-11-03), read
+for mechanisms: a GPL-3 engine whose search was rebuilt on Stockfish 19's base
+and whose every change is measured in its development logs, first on CCRL
+40/15 on 2026-10-30. These are **imported priors** from
+`analysis/triumviratus_review_2026-11-03.md`: self-play on one machine,
+often early-stopped, on a search tuned around a network. They order, warn
+and refuse; they never accept a Basilisk change.
+
+| ID | Title | Disposition |
+|---|---|---|
+| [BAS-X37](experiments/BAS-X37.md) | Search priors on a Stockfish-19-shaped search | import |
+| [BAS-X38](experiments/BAS-X38.md) | Measurement and tuning failure modes it found in itself | import |
+| [BAS-X39](experiments/BAS-X39.md) | Clock, protocol and time-management findings | import |
+| [BAS-X40](experiments/BAS-X40.md) | NNUE architecture, inference and training | import |
 
 ## 9. Open retry map
 

@@ -159,8 +159,8 @@ map covers only open work.
 | 6.10.a–6.10.d | C.5.6 | lower-yield remainder |
 | 6.10.e, 6.11.a–6.11.d | C.5.7 | gate and closure |
 | 7.0 | A.4.1 | toolchain refresh and freeze |
-| 7.1, 7.7, 7.9–7.12 | D.3.1 | board contract audit, a defect hunt |
-| 7.2–7.8 | B.7.2 | board speed, only if a profile makes it hot |
+| 7.1, 7.7, 7.9–7.12 | B.15.1 | board contract audit, a defect hunt (D.3.1 until 2026-11-03) |
+| 7.2–7.8 | B.15.2–B.15.4 | board speed and representation, in the board review (B.7.2 until 2026-11-03) |
 | 8.0.a–8.0.d | C.0 | HCE surface audit |
 | 8.0.e | C.1 and each C cluster | categorical tests and the architecture freeze |
 | 8.1.a–8.1.h | C.2.1 | fit-tooling contract, Texel handbook |
@@ -230,6 +230,16 @@ A.11.10. A reference dated before this renumbering, the code audit
 | Was | Now | Note |
 |---|---|---|
 | A.11.10 | A.11.11 | fail-soft quiescence, after the KR-K repair |
+
+Moved into Phase B on 2026-11-03 (maintainer decision): the board contract
+audit becomes the first leaf of the board review and rebuild (B.15), which
+Triumviratus's registration as the third donor opened. References dated
+before this, the Rarog audit (`analysis/rarog_audit_2026-10-24.md`), the
+code audit and the B.2.0 architecture review included, use D.3.1.
+
+| Was | Now | Note |
+|---|---|---|
+| D.3.1 | B.15.1 | board contract audit, now B.15's safety net and defect hunt |
 
 ## Completed current-roadmap work (dated records; PLAN owns IDs)
 

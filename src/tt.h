@@ -95,6 +95,12 @@ static_assert(alignof(TTCluster) == 32, "TTCluster must stay 32-byte aligned");
 
 class TranspositionTable {
 public:
+    static constexpr size_t kMaxReservableClusters = (size_t{1} << 57) / sizeof(TTCluster);
+    // The ceiling resize() enforces, in clusters: every platform's address
+    // space. Tests lower it to make a refusal deterministic at any size; it
+    // is read only by resize(), never during a search.
+    static inline size_t reservable_clusters = kMaxReservableClusters;
+
     explicit TranspositionTable(size_t mb = 64) { resize(mb); }
 
     // Size the table from the byte budget the user asked for. The cluster
@@ -118,6 +124,12 @@ public:
         bool allocated = true;
         clusters_.reset();
         try {
+            // A table above every platform's virtual address space (2^57
+            // bytes, x86-64 with five-level paging) is refused here, without
+            // asking the allocator: no platform could reserve it, and under a
+            // sanitizer the allocator's refusal aborts rather than throws.
+            if (power > reservable_clusters)
+                throw std::bad_alloc();
             clusters_ = std::make_unique<TTCluster[]>(power);
         } catch (const std::bad_alloc&) {
             // Not a smaller table: zero-filling the largest one the system
@@ -255,6 +267,25 @@ public:
         cluster.data[replace_idx].store(data, std::memory_order_relaxed);
         cluster.key16[replace_idx].store(want, std::memory_order_release);
         return same_key;
+    }
+
+    // Lowers this position's entry by one ply of depth and changes nothing
+    // else in it (Cluster 2's bound-mismatch penalty). An entry at depth 0
+    // or below is left alone, so the slot stays occupied and searched. The
+    // read and the write are two publications, as any store's are (BAS-C05).
+    void penalize(Key key) {
+        TTCluster& cluster = clusters_[key & mask_];
+        const uint16_t want = static_cast<uint16_t>(key >> 48);
+        for (int i = 0; i < 3; ++i) {
+            if (cluster.key16[i].load(std::memory_order_relaxed) != want)
+                continue;
+            const uint64_t data = cluster.data[i].load(std::memory_order_relaxed);
+            if (!occupied(data))
+                continue;
+            if (unpack_entry(data).depth > 0)
+                cluster.data[i].store(data - (uint64_t(1) << 48), std::memory_order_relaxed);
+            return;
+        }
     }
 
     [[nodiscard]] int hashfull() const {

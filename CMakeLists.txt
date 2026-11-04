@@ -203,6 +203,7 @@ add_library(basilisk_engine STATIC
     src/search_root.cpp
     src/search_diagnostics.cpp
     src/syzygy.cpp
+    src/physical_memory.cpp
     ${BASILISK_SEARCH_KERNEL_SOURCES}
 )
 target_link_libraries(basilisk_engine PUBLIC basilisk_board PRIVATE fathom)
@@ -315,6 +316,10 @@ target_link_libraries(test_move_picker_core PRIVATE basilisk_engine)
 add_executable(test_stack_unwind tests/test_stack_unwind.cpp
                src/parameters.cpp src/bench.cpp src/wac.cpp)
 target_link_libraries(test_stack_unwind PRIVATE basilisk_engine)
+# Cluster 2's arithmetic and mechanisms, on either arm.
+add_executable(test_b3_proof tests/test_b3_proof.cpp
+               src/parameters.cpp src/bench.cpp src/wac.cpp)
+target_link_libraries(test_b3_proof PRIVATE basilisk_engine)
 
 add_executable(test_cpu_features tests/test_cpu_features.cpp)
 target_include_directories(test_cpu_features PRIVATE
@@ -385,6 +390,7 @@ add_test(NAME test_threats      COMMAND test_threats)
 add_test(NAME test_history_core     COMMAND test_history_core)
 add_test(NAME test_move_picker_core COMMAND test_move_picker_core)
 add_test(NAME test_stack_unwind     COMMAND test_stack_unwind)
+add_test(NAME test_b3_proof         COMMAND test_b3_proof)
 add_test(NAME test_cpu_features COMMAND test_cpu_features)
 add_test(NAME test_move         COMMAND test_move)
 add_test(NAME test_magics       COMMAND test_magics)
@@ -400,7 +406,7 @@ add_test(NAME test_endgames     COMMAND test_endgames
 # Search-strength floors: deterministic, but they measure strength rather than
 # correctness, and an unoptimised build only reproduces the same numbers far
 # more slowly. `ctest -LE strength` runs the correctness tests alone.
-add_test(NAME test_wac_floor    COMMAND test_wac --floor)
+add_test(NAME test_wac_floor COMMAND test_wac --floor)
 add_test(NAME test_endgame_conversion COMMAND test_endgames --conversion)
 set_tests_properties(test_wac_floor test_endgame_conversion PROPERTIES LABELS strength)
 
@@ -415,6 +421,11 @@ basilisk_cli_test(cli_bench 0 "Nodes searched *: *[0-9]+" bench 3)
 basilisk_cli_test(cli_go_runs_to_its_depth 0 "info depth 4 .*bestmove [a-h][1-8][a-h][1-8]" go depth 4)
 basilisk_cli_test(cli_help 0 "UCI chess engine.*bench .depth. .repeats." help)
 basilisk_cli_test(cli_unknown_exits_2 2 "Unknown command: 'frobnicate'" frobnicate)
+# Hash above the machine's physical memory is refused at parse time, and
+# announced for each setoption that sends it.
+add_test(NAME uci_hash_above_machine_limit
+         COMMAND ${CMAKE_COMMAND} "-DEXE=$<TARGET_FILE:basilisk>" "-DWORK=${CMAKE_CURRENT_BINARY_DIR}"
+                 -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/hash_limit_check.cmake)
 # An exception escaping a non-UCI thread is reported on stdout, then exit 1.
 add_test(NAME fatal_report_from_a_thread
          COMMAND ${CMAKE_COMMAND} "-DEXE=$<TARGET_FILE:test_fatal_report>" "-DARGS="
@@ -478,6 +489,19 @@ option(TUNE "Expose search constants as UCI spin options for SPSA tuning (sets B
 option(DIAGNOSTIC "Expose diagnostics without the tunable parameter surface (sets BASILISK_DIAGNOSTIC)" OFF)
 option(ABLATION "Expose the matched search-ablation instrument (sets BASILISK_ABLATION)" OFF)
 option(RELEASE_DIAG_COUNTERS "Count diagnostic search events in production builds (measurement arm)" OFF)
+# Cluster umbrellas (PROCESS, Cluster delivery shape): a Boolean option that
+# compiles one search cluster in. It defaults OFF until the cluster passes its
+# gate, then ON; OFF then reproduces the previous fingerprint and stays
+# compilable, unmaintained, until the search programme's cleanup deletes it.
+# B3_PROOF is Cluster 2, the proof searches and extensions, built as
+# `if constexpr` branches inside the node kernel so both arms compile on
+# every build. It passed its gate and defaults ON.
+option(B3_PROOF "Compile Cluster 2's proof searches and extensions into the node kernel (sets BASILISK_B3_PROOF)" ON)
+# COLOUR_HISTORY indexes the capture, continuation and pawn histories and the
+# continuation correction by coloured piece, the donor's form. It passed its
+# gate and defaults ON; OFF indexes them by piece type, the colours sharing
+# entries, and reproduces the previous fingerprint.
+option(COLOUR_HISTORY "Index the piece-keyed histories by coloured piece (sets BASILISK_COLOUR_HISTORY)" ON)
 option(PROFILE_SYMBOLS "Emit line tables with inline records in Release builds for the sampling profiler; code generation is unchanged" OFF)
 set(BASILISK_PGO_ARM_OPTION "" CACHE STRING "Boolean CMake option identifying an umbrella arm in PGO child builds")
 set(BASILISK_PGO_ARM_STATE "OFF" CACHE STRING "Value for BASILISK_PGO_ARM_OPTION in PGO child builds")
@@ -558,7 +582,7 @@ set(_ALL_TARGETS
     basilisk board_performance_test
     test_board test_move test_tt test_fatal_report test_eval test_search test_engine_ponder test_engine_threading test_uci_protocol test_cpu_features
     test_endgames test_wac test_invariants test_magics test_threats
-    test_history_core test_move_picker_core test_stack_unwind
+    test_history_core test_move_picker_core test_stack_unwind test_b3_proof
 )
 
 # Fathom is part of the shipped executable and must obey its ISA contract, but
@@ -589,6 +613,20 @@ endif()
 
 if(RELEASE_DIAG_COUNTERS)
     target_compile_definitions(basilisk_engine PRIVATE BASILISK_RELEASE_DIAG_COUNTERS)
+endif()
+
+if(COLOUR_HISTORY)
+    foreach(_tgt IN LISTS _ALL_TARGETS)
+        target_compile_definitions(${_tgt} PRIVATE BASILISK_COLOUR_HISTORY)
+    endforeach()
+    message(STATUS "COLOUR_HISTORY: the piece-keyed histories are indexed by coloured piece")
+endif()
+
+if(B3_PROOF)
+    foreach(_tgt IN LISTS _ALL_TARGETS)
+        target_compile_definitions(${_tgt} PRIVATE BASILISK_B3_PROOF)
+    endforeach()
+    message(STATUS "B3_PROOF arm: Cluster 2's proof searches are compiled in (BASILISK_B3_PROOF defined)")
 endif()
 
 if(TUNE)
@@ -770,8 +808,9 @@ endif()
 
 # A universal tier must use its own profile. A file the profile does not cover
 # is an error there, so a tier that silently got no profile fails to build.
-# Clang: only the four files bench never runs (move formatting, Syzygy probing,
-# the search diagnostics, the WAC suite) are expected to have no data. GCC
+# Clang: only the five files bench never runs (move formatting, Syzygy probing,
+# the search diagnostics, the WAC suite, the physical-memory query behind the
+# Hash limit) are expected to have no data. GCC
 # writes a profile for every instrumented file the training run links, run or
 # not, so a missing one means the profile is not this build's.
 if(BASILISK_UNIVERSAL_TIER AND _basilisk_pgo STREQUAL "USE" AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -779,6 +818,7 @@ if(BASILISK_UNIVERSAL_TIER AND _basilisk_pgo STREQUAL "USE" AND CMAKE_CXX_COMPIL
         target_compile_options(${_tgt} PRIVATE $<$<CONFIG:Release>:-Wprofile-instr-unprofiled>)
     endforeach()
     set_source_files_properties(src/move.cpp src/syzygy.cpp src/search_diagnostics.cpp src/wac.cpp
+        src/physical_memory.cpp
         PROPERTIES COMPILE_OPTIONS "-Wno-profile-instr-unprofiled")
 elseif(BASILISK_UNIVERSAL_TIER AND _basilisk_pgo STREQUAL "USE" AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     foreach(_tgt IN LISTS _ALL_TARGETS)

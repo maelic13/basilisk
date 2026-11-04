@@ -129,7 +129,6 @@ static constexpr int SCALE_MAX    = 128;
 // because that curve is chaotic (32 costs +28.5% while 24 and 40 are within
 // 9% of baseline) and picking its minimum would be fitting to noise.
 static constexpr int SCALE_FLOOR  = 24;
-static constexpr int KNOWN_WIN    = 10000; // static "won, mate is technique" magnitude
 static constexpr int KPK_PAWN_EG  = 206;   // the donor's PawnValueEg, in a won KPK
 
 // Lazy-eval margin (Step 3.11): if the cheap (material/PST/imbalance/pawns/minor)
@@ -712,7 +711,10 @@ static int rook_ending_scale(const Board& b) {
 // Definition lives in eval.h so the Texel tuner uses the identical
 // curve; see the shared-predicates block there.
 
-static int apply_endgame(const Board& b, int score) {
+// `draw_verdict` is set when the 0 returned is one of the draw verdicts below
+// (KNNK, the drawn KPK, the wrong-corner KBP-K, a pawnless side that cannot
+// mate): a classification, which the search adds no correction to.
+static int apply_endgame(const Board& b, int score, bool& draw_verdict) {
     auto lone_king = [&](Color c) {
         return b.occupancy_bb(c) == sq_bb(b.king_square(c));
     };
@@ -742,7 +744,10 @@ static int apply_endgame(const Board& b, int score) {
         // popcounts rather than reading the cnt[] census; that census is still
         // needed by the KPK/KBNK/scaling rules below, and this path is already
         // gated behind the lone-king/pawnless guard.
-        if (is_knnk_draw(b)) return 0;
+        if (is_knnk_draw(b)) {
+            draw_verdict = true;
+            return 0;
+        }
 
         // ---- KPK: exact bitbase classification -----------------------------
         // A won KPK scores as a known win plus the donor's endgame pawn value
@@ -752,8 +757,10 @@ static int apply_endgame(const Board& b, int score) {
         if (total_pawns == 1 && npm(WHITE) == 0 && npm(BLACK) == 0) {
             Color strong = cnt[WHITE][PAWN] ? WHITE : BLACK;
             if (lone_king(~strong)) {
-                if (!kpk_strong_wins(b, strong))
+                if (!kpk_strong_wins(b, strong)) {
+                    draw_verdict = true;
                     return 0; // drawn KPK
+                }
                 const Square pawn = Square(lsb(b.piece_bb(strong, PAWN)));
                 const int v = KNOWN_WIN + KPK_PAWN_EG + int(relative_rank(strong, pawn));
                 return (strong == WHITE) ? v : -v;
@@ -828,8 +835,10 @@ static int apply_endgame(const Board& b, int score) {
             bool has_right_bishop = (b.piece_bb(strong, BISHOP) & right_mask) != 0;
             if (has_right_bishop)
                 continue;
-            if (KING_DIST[b.king_square(weak)][promo] <= 1)
+            if (KING_DIST[b.king_square(weak)][promo] <= 1) {
+                draw_verdict = true;
                 return 0; // defender holds the wrong-corner draw
+            }
         }
 
         // ---- Winning side has no pawns and at most a minor-piece advantage:
@@ -842,6 +851,7 @@ static int apply_endgame(const Board& b, int score) {
             if (scale != SCALE_NORMAL) {
                 score = score * scale / SCALE_NORMAL;
                 scaled = true;
+                draw_verdict = scale == 0;
             }
         }
     }
@@ -1069,9 +1079,23 @@ void Evaluator::eval_pawns(const Board& b,
 // ---- Main evaluation -------------------------------------------------------
 
 int Evaluator::evaluate_undamped(const Board& b) {
+    bool verdict = false;
+    return evaluate_full(b, verdict, false);
+}
+
+bool Evaluator::draw_verdict(const Board& b) {
+    bool verdict = false;
+    evaluate_full(b, verdict, true);
+    return verdict;
+}
+
+// A verdict query evaluates a node the search has already counted, so it
+// adds nothing to the endgame census or the lazy audit; eval_calls counts it,
+// since it pays for an evaluation.
+int Evaluator::evaluate_full(const Board& b, bool& verdict, bool query) {
     ++eval_calls;
 #ifdef BASILISK_TUNE
-    if (diag_endgames)
+    if (diag_endgames && !query)
         record_endgame_occurrence(b, endgame_occurrence);
 #endif
     const EvalParams& p = g_eval_params;
@@ -1241,9 +1265,9 @@ int Evaluator::evaluate_undamped(const Board& b) {
         int lazy = (mg * phase + eg * (TOTAL_PHASE - phase)) / TOTAL_PHASE;
         int lazy_abs = lazy < 0 ? -lazy : lazy;
         if (lazy_abs > LAZY_MARGIN) {
-            const int score = apply_endgame(b, lazy);
+            const int score = apply_endgame(b, lazy, verdict);
             const int served = (b.turn() == WHITE) ? score : -score;
-            if (!diag_lazy)
+            if (!diag_lazy || query)
                 return served;
             lazy_served = served;
         }
@@ -1928,7 +1952,7 @@ int Evaluator::evaluate_undamped(const Board& b) {
     int score = (mg * phase + eg * (TOTAL_PHASE - phase)) / TOTAL_PHASE;
 
     // ---- Endgame scaling + knowledge (Step 3.5) ----------------------------
-    score = apply_endgame(b, score);
+    score = apply_endgame(b, score, verdict);
 
     const int full_served = (b.turn() == WHITE) ? score : -score;
 #ifndef TEXEL_TRACE

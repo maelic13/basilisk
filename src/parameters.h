@@ -61,6 +61,7 @@ public:
 
     static std::string uci_options();
     static int max_threads();
+    static int max_hash_mb();
 
 private:
     void set_search_parameter(const std::string &parameter, const std::string &value);

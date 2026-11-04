@@ -4,27 +4,36 @@ CoreHistoryTables::CoreHistoryTables()
     : continuation(std::make_unique<ContinuationHistory>())
     , pawn(std::make_unique<PawnHistory>())
     , cont_corr(std::make_unique<ContinuationCorrection>()) {
+#ifdef BASILISK_DIAGNOSTIC
+    shadow = std::make_unique<CrossColourShadow>(
+        size_t{HIST_PIECE_NB} * SQUARE_NB * PIECE_TYPE_NB,
+        sizeof(ContinuationHistory::row) / sizeof(PieceToHistory) * ROW_CELLS,
+        size_t{PawnHistory::MAX_BUCKETS} * ROW_CELLS,
+        sizeof(ContinuationCorrection::row) / sizeof(PieceToCorrection) * CORR_ROW_CELLS);
+#endif
     clear();
 }
 
-void CoreHistoryTables::clear() {
-    fill_entries(main.entry, 0);
-    fill_entries(capture.entry, 0);
+void CoreHistoryTables::clear(bool donor_fills) {
+    const auto fill = [donor_fills](int donor) { return donor_fills ? donor : 0; };
+    fill_entries(main.entry, fill(-5));
+    fill_entries(capture.entry, fill(-742));
     fill_entries(low_ply.entry, 0);
     tt_move.value = 0;
     for (auto& a : continuation->row)
         for (auto& b : a)
             for (auto& c : b)
                 for (auto& row : c)
-                    fill_entries(row.entry, 0);
+                    fill_entries(row.entry, fill(-586));
     for (auto& bucket : pawn->bucket)
-        fill_entries(bucket.entry, 0);
-    fill_entries(pawn_corr, 0);
-    fill_entries(minor_corr, 0);
-    fill_entries(nonpawn_corr, 0);
+        fill_entries(bucket.entry, fill(-1338));
+    fill_entries(pawn_corr, fill(-5));
+    fill_entries(minor_corr, fill(-5));
+    fill_entries(nonpawn_corr, fill(-5));
     for (auto& a : cont_corr->row)
         for (auto& row : a)
-            fill_entries(row.entry, 0);
+            fill_entries(row.entry, fill(5));
+    HIST_SHADOW(shadow->clear_cells());
 }
 
 void CoreHistoryTables::age(int main_num) {

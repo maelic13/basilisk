@@ -64,23 +64,11 @@ static void test_store_probe() {
 
 // A Hash the system cannot allocate keeps the previous table, cleared and
 // usable; it used to throw bad_alloc after freeing the old table, leaving no
-// table behind. The request is 2^43 MB, 2^63 bytes, beyond any address space,
-// so every allocator refuses it at once. The advertised maximum (32 TiB) is
-// not: macOS, and Linux under full overcommit, grant it lazily, and the
-// zero-fill then exhausts memory. Skipped under ASan, whose allocator aborts
-// on an oversized request instead of throwing.
-#if defined(__SANITIZE_ADDRESS__)
-#define BASILISK_TT_ASAN 1
-#elif defined(__has_feature)
-#if __has_feature(address_sanitizer)
-#define BASILISK_TT_ASAN 1
-#endif
-#endif
+// table behind. The request is 2^43 MB, 2^63 bytes, above every platform's
+// address space, so resize() refuses it before asking the allocator: the
+// refusal is the same everywhere, sanitizers included, and no memory of the
+// requested table is touched.
 static void test_failed_resize_keeps_a_table() {
-#ifdef BASILISK_TT_ASAN
-    begin_section("resize: an unallocatable Hash keeps a usable table (skipped under ASan)");
-    end_section();
-#else
     TranspositionTable tt(4);
     const size_t before = tt.allocated_bytes();
     const Key key = 0x0F1E2D3C4B5A6978ULL;
@@ -108,7 +96,6 @@ static void test_failed_resize_keeps_a_table() {
         EXPECT(tt.probe_copy(key, e));
         end_section();
     }
-#endif
 }
 
 static void test_key_miss() {
@@ -448,6 +435,47 @@ static void test_age_cycle() {
     end_section();
 }
 
+// Cluster 2's bound-mismatch penalty: the entry loses one ply of depth and
+// nothing else; an entry at depth 0, an evaluation-only entry and a missing
+// key are left as they were.
+static void test_penalize() {
+    TranspositionTable tt(1);
+    const Key key = 0x5A5A5A5A12345678ULL;
+    tt.new_search();
+    tt.store(key, 9, -321, TT_BETA, make_move(B1, C3), 0, 44, /*pv=*/true);
+    TTEntry before{};
+    const bool stored = tt.probe_copy(key, before);
+    tt.penalize(key);
+    TTEntry after{};
+
+    begin_section("penalize: depth lowered by one, every other field kept");
+    EXPECT(stored);
+    EXPECT(tt.probe_copy(key, after));
+    EXPECT_EQ(int(after.depth), 8);
+    EXPECT_EQ(int(after.score), int(before.score));
+    EXPECT_EQ(int(after.static_eval), int(before.static_eval));
+    EXPECT_EQ(int(after.move16), int(before.move16));
+    EXPECT_EQ(int(after.flag_age), int(before.flag_age));
+    end_section();
+
+    begin_section("penalize: depth 0, evaluation-only and missing entries unchanged");
+    const Key shallow = 0x1111222233334444ULL;
+    tt.store(shallow, 0, 5, TT_ALPHA, MOVE_NONE, 0, 5);
+    tt.penalize(shallow);
+    EXPECT(tt.probe_copy(shallow, after));
+    EXPECT_EQ(int(after.depth), 0);
+    const Key eval_only = 0x7777888899990000ULL;
+    tt.store(eval_only, TT_DEPTH_UNSEARCHED, VALUE_NONE, TT_NONE, MOVE_NONE, 0, 9);
+    tt.penalize(eval_only);
+    EXPECT(tt.probe_copy(eval_only, after));
+    EXPECT_EQ(int(after.depth), TT_DEPTH_UNSEARCHED);
+    tt.penalize(0x0F0F0F0F0F0F0F0FULL);
+    EXPECT(!tt.probe_copy(0x0F0F0F0F0F0F0F0FULL, after));
+    EXPECT(tt.probe_copy(key, after));
+    EXPECT_EQ(int(after.depth), 8);
+    end_section();
+}
+
 static void test_evaluation_only_entry() {
     TranspositionTable tt(1);
     const Key key = 0x8D8D8D8D8D8D8D8DULL;
@@ -587,6 +615,7 @@ int main() {
     test_pv_bit();
     test_age_cycle();
     test_evaluation_only_entry();
+    test_penalize();
 
     std::printf("\nHash byte contract\n");
     test_allocation_within_budget();

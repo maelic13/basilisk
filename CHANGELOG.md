@@ -76,6 +76,33 @@ and next step).
 
   Each of these reads is 1,000 games.
 
+- **Rebuilt pruning and extensions.** The searches that prove a move is
+  good enough or bad enough without searching it fully now follow modern
+  Stockfish:
+  - the null move, tried only where a cut is expected, with a reduction
+    that grows with the margin;
+  - ProbCut, which proves a node with a capture's shallow search;
+  - singular extensions, which search a move that alone holds the position
+    one, two or three moves deeper;
+  - the reduction of a node with no move from earlier searches;
+  - spotting a draw by repetition one move earlier.
+
+  Its constants were then fitted by tuning. Measured against the previous
+  search at `3+0.03`, it gained **+93 ± 14 Elo** (996 games, a sequential
+  test stopped when it was sure), of which the tuning gave **+18 ± 6 Elo**
+  (4,574 games). At `10+0.1` it gained **+85 ± 9 Elo** (2,000 games). In
+  the same time it searches two to two and a half plies (half-moves)
+  deeper. `bench 13` is now 5,369,042.
+
+- **Move-ordering histories tell White's moves from Black's.** The
+  histories that rank captures, follow-up moves and pawn-structure moves
+  used to share one entry between White's move and Black's identical
+  one, so each side learned partly from the other's experience. They
+  now keep the colours apart, as Stockfish does. Measured at `3+0.03`,
+  this gained **+4.7 ± 3.0 Elo** (19,236 games, a sequential test). Each
+  search thread's history tables grow from about 9 MiB to 21 MiB.
+  `bench 13` is now 5,361,058.
+
 - **Development builds name their commit**, as Stockfish's do. A build
   between releases reports `Basilisk dev-20261025-8b3f151c`: the commit's
   date and the first eight characters of its hash, with `-m` after the date
@@ -83,6 +110,32 @@ and next step).
   `Basilisk 1.11.0`.
 
 ### Fixed
+
+- **A `Hash` larger than the computer can hold is refused.** The option's
+  maximum is now the computer's total physical memory in MiB (at most the
+  former 33,554,432), and the `uci` option list shows it. A larger value is
+  refused each time it is sent, with an `info string` naming the value and
+  the limit; nothing is allocated and the current table and setting are
+  kept. A size the system will not allocate is likewise refused and
+  announced on every `setoption` that sends it, and on no other command.
+  Before, macOS, and Linux when it overcommits memory, could grant such a
+  table and the engine then stalled filling it. Play is unchanged.
+
+- **Recognised draws no longer drift.** The evaluation knows that a lone
+  king against two knights, a drawn king-and-pawn ending, a rook pawn
+  with the wrong bishop or a side that cannot mate is a draw, but the
+  search's learned evaluation correction was added on top of that
+  verdict, so a dead draw could read as a win or a loss after a few
+  similar positions had been searched. The correction now leaves those
+  verdicts alone. Worth **+7.4 ± 6.9 Elo** at `3+0.03` (2,542 games).
+  `bench 13` is now 11,880,564.
+
+- **False wins in drawn bishop-and-rook-pawn endings.** With the wrong
+  bishop for the rook pawn's promotion square, the engine could read a
+  dead draw as a large win and search it without end: it missed that the
+  defending king captures a piece the pawn promotes to beside it. Fixed,
+  worth **+3.8 ± 5.2 Elo** at `3+0.03` (5,134 games). `bench 13` is now
+  16,615,757.
 
 - **Seven piece-square tables were mirrored.** The knight, bishop and queen
   tables, and the endgame king table, valued each square as its mirror

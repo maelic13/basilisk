@@ -54,6 +54,11 @@ public:
     // of the position key alone. This is the value the TT may store and reuse;
     // the damping is applied at the reading node's own clock.
     int evaluate_undamped(const Board& b);
+    // Whether evaluate_undamped(b) is one of the evaluator's draw verdicts
+    // (KNNK, the drawn KPK, the wrong-corner KBP-K, a pawnless side that
+    // cannot mate): a 0 that classifies the position rather than estimating
+    // it. Evaluates b again; meant for positions whose evaluation is 0.
+    bool draw_verdict(const Board& b);
     void clear_pawn_table();
 
     // ---- Lazy dual-eval audit ----------------------------------------------
@@ -88,6 +93,8 @@ public:
 private:
     PawnEntry pawn_table_[PAWN_TABLE_SIZE];
 
+    int evaluate_full(const Board& b, bool& verdict, bool query);
+
     void eval_pawns(const Board& b,
                     int& mg, int& eg,
                     Bitboard passed[NCOLORS],
@@ -115,6 +122,11 @@ inline int ocb_draw_scale(int total_pawns) {
 // mask, the rule-50 curve) lives here and has exactly one definition.
 
 inline constexpr Bitboard EVAL_DARK_SQUARES = 0xAA55AA55AA55AA55ULL;
+
+// The static "won, mate is technique" magnitude: every known-win class
+// scores at or above it. The search reads it too, as the edge below which
+// a stand-pat says nothing about what a capture leaves.
+inline constexpr int KNOWN_WIN = 10000;
 
 // Bare-king wins against a queen or a rook sit in tiers by the winner's
 // strongest piece (apply_endgame), above every minor-piece mate.

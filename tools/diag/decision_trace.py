@@ -32,6 +32,18 @@ FAMILIES = {
     "none", "razor", "rfp", "skip_quiets", "cont_hist", "quiet_futility",
     "quiet_see", "capture_futility", "capture_see",
 }
+# The engine's event names (TraceEvent); Cluster 2 appended the last six.
+EVENTS = {
+    "check_extension", "tt_cutoff", "rfp_prune", "razor_prune",
+    "null_cutoff", "probcut_cutoff", "iir_reduction", "futility_prune",
+    "lmp_prune", "history_prune", "quiet_see_prune", "capture_futility_prune",
+    "capture_see_prune", "singular_extension", "singular_multicut",
+    "singular_negative", "lmr_reduction", "lmr_research", "beta_cutoff",
+    "qs_tt_cutoff", "qs_stand_pat_cutoff", "qs_delta_prune",
+    "qs_futility_prune", "qs_see_prune", "qs_late_prune", "qs_beta_cutoff",
+    "skip_quiets", "null_verify", "null_region_refused", "probcut_tt_cutoff",
+    "ext_budget_truncate", "cuckoo_draw", "tt_penalty",
+}
 
 
 def sha256(path: pathlib.Path) -> str:
@@ -94,6 +106,8 @@ def parse_trace(lines: list[str]) -> dict:
         }
         if record["seq"] != expected_seq:
             raise ValueError(f"non-consecutive trace sequence at {expected_seq}")
+        if record["event"] not in EVENTS:
+            raise ValueError(f"unknown trace event: {record['event']}")
         if record["ply"] not in (1, 2):
             raise ValueError(f"out-of-contract trace ply: {record['ply']}")
         if availability == "unavailable" and record["cutoff_count"] != -1:

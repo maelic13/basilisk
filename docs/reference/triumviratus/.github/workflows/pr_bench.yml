@@ -1,0 +1,30 @@
+# Check on every pull request to dev or main: build the engine (Linux, clang, no PGO) and compare its bench with the
+# "Bench: <nodes>" line of the last commit message. Same flags as the release (-ffp-contract=off), so the bench
+# matches the Windows and Linux release builds.
+name: Pull request bench
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [dev, main]
+
+jobs:
+  bench:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Network
+        run: curl -sSL -o source/nn-consilium-plebis.nnue https://github.com/Tors3/Triumviratus-Networks/releases/download/consilium-plebis/nn-consilium-plebis.nnue
+      - name: Build
+        run: make -C source -j4 all CXX=clang++ CC=clang EXTRACXXFLAGS="-DTRIUMV_RELEASE -DTRIUMV_OFFICIAL -ffp-contract=off"
+      - name: Bench
+        run: |
+          printf 'bench\nquit\n' | ./source/triumviratus > bench.txt 2>&1 || true
+          tail -5 bench.txt
+          GOT=$(grep -o "Nodes searched *: *[0-9]*" bench.txt | grep -o "[0-9]*$")
+          WANT=$(git log -1 --format=%B | grep -o -i "bench: *[0-9]*" | tail -1 | grep -o "[0-9]*$")
+          echo "bench of the build: $GOT, declared in the commit message: ${WANT:-none}"
+          if [ -z "$WANT" ]; then echo "::error::add 'Bench: $GOT' to the last commit message"; exit 1; fi
+          [ "$GOT" = "$WANT" ] || { echo "::error::bench $GOT differs from the declared $WANT"; exit 1; }

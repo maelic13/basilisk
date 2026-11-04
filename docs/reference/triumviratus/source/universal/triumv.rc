@@ -1,0 +1,4 @@
+// Binario universale: le stesse risorse di Triumviratus_8.0.rc (icona e rete incorporata), in UTF-8 per llvm-rc.
+#include "../resource.h"
+IDI_MAIN_ICON ICON "../logo.ico"
+NNUE_DEFAULT RCDATA "../nn-consilium.nnue"

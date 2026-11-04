@@ -219,6 +219,160 @@
     S(lmp_exempt_checks,     CoreLmpExemptChecks,    0,    0,     1)     \
     S(lmr_negative_allowed,  CoreLmrNegativeAllowed, 1,    0,     1)
 
+// ---- Cluster 2 (the B3_PROOF arm) -------------------------------------------
+//
+// B(X, F, S): X the coordinates at the packet's seeds, F the donor's fixed
+// terms (read and advertised, never on a surface), S the categoricals and
+// attribution switches. Every arm compiles the fields so the kernel's
+// `if constexpr` branches compile on both; only the B3_PROOF arm reads them,
+// and tune builds advertise them there alone.
+//
+// b3_check_ext: 1 extends every in-check node by a ply (the legacy policy);
+//   0, the donor's, extends none.
+// b3_check_prune: 1 admits in-check nodes to LMR, the first-move step-down,
+//   the depth step after alpha rises and move-loop pruning (quiet futility
+//   excepted), as the donor does; 0 reduces and prunes none in check.
+// b3_pv_quiet_prune: 1 prunes quiets at PV nodes off the previous PV, as the
+//   donor does; 0 exempts every PV node (the legacy rule).
+//
+// Null move: tried when the static eval is at least beta - per_ply * depth
+//   - improving + base, and beta is above the floor; R = red_base + depth /
+//   red_depth_div + max((static eval - beta) / red_eval_div, 0) plies. A cut
+//   at depth >= verify_depth outside a verification is verified at the same
+//   ply with null moves barred for 3/4 of the remaining depth below it.
+//   b3_nmp_cut_only: 1 tries it at expected cut nodes only; 0 at any non-PV
+//   node. b3_nmp_verify: 1 the region; 0 no verification; 2 the legacy
+//   same-ply verification at depth >= 10, kept for the counter read.
+//   b3_nmp_eval_gate: 1 also requires the TT-refined estimate to reach beta
+//   (the oracle's and the legacy kernel's gate); 0 the donor's bare form.
+//
+// IIR: a ply off a PV or cut node off the previous PV, not in check, at
+//   depth >= min_depth without a TT move. b3_iir: 1 on; 0 off. b3_iir_stale:
+//   1 also reduces when the TT entry is shallower than depth - 3.
+//
+// ProbCut: at depth >= min_depth, with beta' = beta + base - improving, a
+//   capture or queen promotion whose SEE clears beta' - static eval, holding
+//   beta' in quiescence and at depth - (improving ? depth_improving : depth),
+//   returns its value less the margin. The small ProbCut returns beta +
+//   tt_margin from a lower bound at least depth - tt_depth deep that clears
+//   it. b3_probcut_pv: 1 admits PV nodes; 0 non-PV only. b3_probcut_tt: 1
+//   runs the small ProbCut (in check too, the donor's form); 0 none.
+//
+// Singular extension, at depth >= min_depth (+1 near a PV): the bound is the
+//   TT score less (margin + margin_ttpv at a non-PV node near a PV) * depth /
+//   63. Below it, the extension is 1 + (below by more than the double bar) +
+//   (below by more than the triple bar); each bar is base + pv (PV node) +
+//   quiet (a quiet TT move) + deep (ply beyond the root depth) [+ ttpv for the
+//   triple], less min(|correction| / corr_div, corr_cap) and, for the double,
+//   tmh_mult * TT-move history / 114178. A multi-cut trains the TT-move
+//   history by -(mc_tmh_base + mc_tmh_slope * depth) and the correction by
+//   (value - static eval) * 1000/282 * singular depth * mc_corr / 1024; the
+//   negative extension is -negative plies. At root depth >= seek_mate_depth
+//   with a root score of at least seek_mate_score either way, no singular
+//   search runs. b3_multi_cut: 0 the donor's rule (the value clears beta); 1
+//   the singular bound clears beta. b3_sing_tt_depth: 1 lowers the entry's
+//   required depth from depth - 3 to depth - 2. b3_singular_quiet_lmr: 1 keeps
+//   the legacy relaxation of a singular node's quiet reductions.
+//   b3_ext_budget: 1 bounds a line's positive singular plies by the root
+//   depth; 0 leaves them unbounded.
+//
+// Correction: b3_corr_decisive: 1 trains the correction on decisive scores;
+//   0 refuses them (the legacy rule). b3_corr_excluded: 1 trains it at
+//   singular-excluded nodes except where the node's raw static eval is 0
+//   (a recognised draw); 0 refuses them. core_history_fills: 1 fills
+//   fresh history tables with the donor's values at the first search after a
+//   clear; 0 leaves them at zero.
+//
+// Upcoming repetition: b3_cuckoo: 1 raises alpha to the draw at a node
+//   (interior or quiescence) whose side to move has a reversible move to a
+//   repetition; 0 none.
+//
+// TT: b3_fail_low_store: 1 stores no move after a fail low (the entry keeps
+//   its own; B-12's repair, the donor's form); 0 stores the best-scored move
+//   (the OFF arm's form). b3_tt_penalty: 1 lowers by one
+//   ply the depth of an entry deep enough to cut at a non-PV node of depth
+//   6 or more whose bound lies on the wrong side of beta; 0 none.
+#define BASILISK_B3_PARAMS(X, F, S)                                   \
+    S(b3_check_ext,          B3CheckExt,             0,    0,     1)     \
+    S(b3_check_prune,        B3CheckPrune,           1,    0,     1)     \
+    S(b3_pv_quiet_prune,     B3PvQuietPrune,         1,    0,     1)     \
+    /* Null move */                                                    \
+    X(b3_nmp_per_ply,        B3NmpPerPly,           16,    2,    32)     \
+    X(b3_nmp_improving,      B3NmpImproving,        15,    0,    40)     \
+    X(b3_nmp_base,           B3NmpBase,            163,   50,   300)     \
+    X(b3_nmp_red_base,       B3NmpRedBase,           4,    2,    10)     \
+    X(b3_nmp_red_eval_div,   B3NmpRedEvalDiv,       80,   36,   256)     \
+    F(b3_nmp_red_depth_div,  B3NmpRedDepthDiv,       3,    2,     6)     \
+    F(b3_nmp_beta_floor,     B3NmpBetaFloor,      -564, -2000,    0)     \
+    F(b3_nmp_verify_depth,   B3NmpVerifyDepth,      16,    8,    32)     \
+    S(b3_nmp_cut_only,       B3NmpCutOnly,           1,    0,     1)     \
+    S(b3_nmp_verify,         B3NmpVerify,            1,    0,     2)     \
+    S(b3_nmp_eval_gate,      B3NmpEvalGate,          0,    0,     1)     \
+    /* Internal iterative reduction */                                   \
+    X(b3_iir_min_depth,      B3IirMinDepth,          5,    3,    10)     \
+    S(b3_iir,                B3Iir,                  1,    0,     1)     \
+    S(b3_iir_stale,          B3IirStale,             0,    0,     1)     \
+    /* ProbCut */                                                        \
+    X(b3_probcut_base,       B3ProbCutBase,         73,   34,   240)     \
+    X(b3_probcut_improving,  B3ProbCutImproving,    19,    0,    48)     \
+    F(b3_probcut_min_depth,  B3ProbCutMinDepth,      3,    2,     8)     \
+    F(b3_probcut_depth,      B3ProbCutDepth,         3,    2,     6)     \
+    F(b3_probcut_depth_improving, B3ProbCutDepthImproving, 5, 3,    8)     \
+    X(b3_probcut_tt_margin,  B3ProbCutTtMargin,    240,  100,   400)     \
+    F(b3_probcut_tt_depth,   B3ProbCutTtDepth,       4,    2,     8)     \
+    S(b3_probcut_pv,         B3ProbCutPv,            1,    0,     1)     \
+    S(b3_probcut_tt,         B3ProbCutTt,            0,    0,     1)     \
+    /* Singular extension */                                             \
+    F(b3_sing_min_depth,     B3SingMinDepth,         6,    4,    10)     \
+    X(b3_sing_margin,        B3SingMargin,         232,   13,   378)     \
+    X(b3_sing_margin_ttpv,   B3SingMarginTtPv,      17,    0,   126)     \
+    X(b3_sing_double_base,   B3SingDoubleBase,      -1,  -40,    40)     \
+    X(b3_sing_double_pv,     B3SingDoublePv,        60,    0,   120)     \
+    X(b3_sing_double_quiet,  B3SingDoubleQuiet,    -41,  -90,     0)     \
+    X(b3_sing_double_deep,   B3SingDoubleDeep,     -11,  -30,     0)     \
+    X(b3_sing_triple_base,   B3SingTripleBase,      20,  -20,    60)     \
+    X(b3_sing_triple_pv,     B3SingTriplePv,        77,    0,   160)     \
+    X(b3_sing_triple_quiet,  B3SingTripleQuiet,     -2, -110,     0)     \
+    X(b3_sing_triple_ttpv,   B3SingTripleTtPv,      22,    0,    60)     \
+    X(b3_sing_triple_deep,   B3SingTripleDeep,     -12,  -30,     0)     \
+    F(b3_sing_corr_div,      B3SingCorrDiv,     198368, 50000, 800000)   \
+    F(b3_sing_corr_cap,      B3SingCorrCap,        101,    0,   300)     \
+    F(b3_sing_tmh_mult,      B3SingTmhMult,        331,    0,  1000)     \
+    F(b3_sing_negative,      B3SingNegative,         3,    0,     4)     \
+    F(b3_sing_mc_tmh_base,   B3SingMcTmhBase,      421,    0,  1000)     \
+    F(b3_sing_mc_tmh_slope,  B3SingMcTmhSlope,     110,    0,   300)     \
+    F(b3_sing_mc_corr,       B3SingMcCorr,         177,    0,   400)     \
+    F(b3_seek_mate_depth,    B3SeekMateDepth,       12,    8,    64)     \
+    F(b3_seek_mate_score,    B3SeekMateScore,      564,  100,  2000)     \
+    S(b3_multi_cut,          B3MultiCut,             0,    0,     1)     \
+    S(b3_sing_tt_depth,      B3SingTtDepth,          0,    0,     1)     \
+    S(b3_singular_quiet_lmr, B3SingularQuietLmr,     0,    0,     1)     \
+    S(b3_ext_budget,         B3ExtBudget,            1,    0,     1)     \
+    /* Correction and the fresh tables */                                \
+    S(b3_corr_decisive,      B3CorrDecisive,         1,    0,     1)     \
+    S(b3_corr_excluded,      B3CorrExcluded,         1,    0,     1)     \
+    S(core_history_fills,    CoreHistoryFills,       0,    0,     1)     \
+    /* Upcoming repetition */                                            \
+    S(b3_cuckoo,             B3Cuckoo,               1,    0,     1)     \
+    /* TT */                                                             \
+    S(b3_fail_low_store,     B3FailLowStore,         0,    0,     1)     \
+    S(b3_tt_penalty,         B3TtPenalty,            1,    0,     1)
+
+// The B3_PROOF arm's own defaults for Cluster 1 coordinates fitted on its tree
+// beside Cluster 2's: A(field, UciName, value). Both arms share the X line,
+// which keeps the OFF arm's value so the OFF arm does not take a fit made on
+// the other tree; the ON arm compiles and advertises these instead, and its
+// generated surfaces start from them. Each lies in its X line's range and
+// differs from its default (test_search checks both).
+#define BASILISK_B3_CORE_DEFAULTS(A)                                     \
+    A(rfp_per_ply,           CoreRfpPerPly,          99)                \
+    A(rfp_corr_mult,         CoreRfpCorrMult,       498)                \
+    A(lmp_base,              CoreLmpBase,             4)                \
+    A(quiet_fut_base,        CoreQuietFutBase,      167)                \
+    A(capt_fut_base,         CoreCaptFutBase,        74)                \
+    A(cont_hist_prune_slope, CoreContHistPruneSlope, 3832)              \
+    A(corr_update_scale,     CoreCorrUpdateScale,    17)
+
 #define BASILISK_KERNEL_PARAMS(X) BASILISK_CORE_KERNEL_PARAMS(X, X)
 #define BASILISK_KERNEL_SWITCHES(S) BASILISK_CORE_KERNEL_SWITCHES(S)
 
@@ -230,5 +384,14 @@ struct SearchParams {
 #define BASILISK_SEARCH_PARAM_FIELD(field, uci, def, lo, hi) int field = def;
     BASILISK_SEARCH_PARAMS(BASILISK_SEARCH_PARAM_FIELD)
     BASILISK_KERNEL_SWITCHES(BASILISK_SEARCH_PARAM_FIELD)
+    BASILISK_B3_PARAMS(BASILISK_SEARCH_PARAM_FIELD, BASILISK_SEARCH_PARAM_FIELD,
+                       BASILISK_SEARCH_PARAM_FIELD)
 #undef BASILISK_SEARCH_PARAM_FIELD
+#if defined(BASILISK_B3_PROOF)
+    constexpr SearchParams() noexcept {
+#define BASILISK_B3_CORE_DEFAULT(field, uci, value) field = value;
+        BASILISK_B3_CORE_DEFAULTS(BASILISK_B3_CORE_DEFAULT)
+#undef BASILISK_B3_CORE_DEFAULT
+    }
+#endif
 };

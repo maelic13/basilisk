@@ -107,7 +107,7 @@ Paths are relative to `rarog/`.
 | C.5.3–C.5.7 | `analysis/mate_drive_promotion_closure_2026-09-06.md`, `analysis/conversion_claims_correction_2026-09-06.md`, `analysis/endgame_refresh_2026-09-09.md` | reference |
 | D.1 | `analysis/time_forfeit_2026-09-09.md`; `PLAN.md` D.1 (the audit checklist, also quoted in Basilisk's PLAN) | reference |
 | D.2 | `tools/diag_smp_sweep.ps1`, `tools/nps_scaling.ps1`; `PLAN.md` D.2 | port |
-| D.3.1 | `tools/diag/board_v2_oracle.py`, `board_v2_run.py`, `see_contract_oracle.py`, `normalized_see_compare.py`, `verify_normalized_see.py`, with their tests; `tests/data/board-v2.tsv`, `board-v2-oracle.tsv`, `see-contract-v1.tsv`, `see-repair-v1.tsv`; `tests/board_v2.rs`, `board_v2_allocations.rs`, `see_contract.rs`, `see_pins.rs`, `draw_semantics.rs`, `board_correctness.rs`, `board_differential.rs`; `analysis/board_v2_instrument_2026-09-06.md`, `analysis/see_contract_2026-09-06.md`, `analysis/see_repair_2026-09-06.md`, `analysis/draw_policy_2026-09-08.md`, `analysis/history_contracts_2026-09-08.md` | port |
+| B.15.1 (was D.3.1) | `tools/diag/board_v2_oracle.py`, `board_v2_run.py`, `see_contract_oracle.py`, `normalized_see_compare.py`, `verify_normalized_see.py`, with their tests; `tests/data/board-v2.tsv`, `board-v2-oracle.tsv`, `see-contract-v1.tsv`, `see-repair-v1.tsv`; `tests/board_v2.rs`, `board_v2_allocations.rs`, `see_contract.rs`, `see_pins.rs`, `draw_semantics.rs`, `board_correctness.rs`, `board_differential.rs`; `analysis/board_v2_instrument_2026-09-06.md`, `analysis/see_contract_2026-09-06.md`, `analysis/see_repair_2026-09-06.md`, `analysis/draw_policy_2026-09-08.md`, `analysis/history_contracts_2026-09-08.md` | port |
 | D.3.2 | `tests/uci_process.rs`, `analysis/ponder_race_report_2026-09-26.md` | model |
 | D.4 | `analysis/tb_root_pv_2026-09-27.md` | reference |
 | A.8.2 | `rarog-2026-10-06/.github/workflows/ci.yml` | model |
@@ -122,3 +122,45 @@ Paths are relative to `rarog/`.
 | A.8.19 | `analysis/uci_info_review_2026-09-16.md`, item 6 | reference |
 | F.0 | `analysis/gyatso_read_2026-09-26.md` | reference |
 | G.2 | `analysis/universal_binary_2026-09.md` | reference |
+
+## Triumviratus (`triumviratus/`, `triumviratus-networks/`)
+
+The third donor (maintainer decision 2026-11-03), read for mechanisms only;
+`analysis/triumviratus_review_2026-11-03.md` maps every finding to its leaf.
+
+| Item | Value |
+|---|---|
+| Source | `Tors3/Triumviratus` `main`, commit `0c18907e067518d3bb4dc42969eecec671d222d0` (2026-11-03), by Francesco Torsello, GPL-3.0 (`triumviratus/COPYING`); `Tors3/Triumviratus-Networks` `main`, commit `5f3dc60c09dcd7a82449f13f8fbf9a400de04367` (2026-10-28) |
+| Why | A Stockfish-19-shaped search rebuilt on its own network, first on CCRL 40/15 on 2026-10-30, with every change measured and recorded: priors for Basilisk's search, board, time management, NNUE and measurement |
+| Included, `triumviratus/` | Every tracked file at the commit except images, the zipped game record, `source/fathom/` and `source/incbin/` (third-party), and the repository's own `.gitignore` and `.gitattributes` files, which would act on Basilisk's tree: README, `docs/`, `source/`, `build/`, `.github/`. Under `removed/`, documents Triumviratus deleted, each from the parent of the deleting commit: `removed/e876fa3/` (the 8.1 development log, its block documents and the clean-room inference specification, deleted by `5b36328`) and `removed/dfa5a6b/` (FUTURE_DIRECTIONS, the experimental-grafts record and the 4.2–7.0 network record, deleted by `9efeed2`). 139 files, each byte-identical to its git blob |
+| Included, `triumviratus-networks/` | Every Markdown file (recipes 01–07, the Consilium Plebis run log, data list and design documents) and the trainer patches, with `COPYING`: 33 files. The networks themselves are not copied |
+| Manifest | `triumviratus.sha256` and `triumviratus-networks.sha256`, verified by `check_roadmap.py` |
+| Resolving | The review's short references (D8 §n, D81 §n, NOV, NET, FD §n, R07, S1–S5) are listed in its §1; a path resolves under `triumviratus/` or `triumviratus-networks/`. A Triumviratus commit cited in a Basilisk document resolves in the bundle below |
+
+**Bundle (untracked backup).** `tools/results/triumviratus-reference/triumviratus-0c18907-all-refs.bundle`,
+SHA-256 `79523ab592280776754dc4ea939d387a986fa3a2a4443c3c9a55dd5920cd1ca4`,
+holds every branch and tag of Triumviratus at the pin (`main`, `dev`, the
+release tags `v2.0` to `v8.0` and the 8.1 pre-releases). Restore with
+`git clone <bundle> triumviratus`.
+
+**Later findings** enter only as a new dated snapshot with its own manifest
+and a review that maps them to leaves; Basilisk documents never cite the
+live repository.
+
+### Where each leaf's Triumviratus inputs are
+
+Paths are relative to `triumviratus/` unless they start with
+`triumviratus-networks/`.
+
+| Basilisk leaf | Snapshot inputs | Use |
+|---|---|---|
+| B.4, B.5, B.6.1, H.2 | `docs/development/archive/DEVELOPMENT_8.0.md` §17–§33, §41–§47 and its appendix (every search idea with its result); `docs/development/archive/DEVELOPMENT_6.0.md` (quiescence notes 9–10) | priors |
+| B.7.2 | `docs/development/archive/DEVELOPMENT_8.0.md` §2–§4, §20, §22, §27, §30, §36, §40, §48.3; `build/nps_pair.py`, `build/node_identity.py`, `build/search_counters.py` | reference |
+| B.16 | `source/prunelog.h`, `source/redlog.h`, `source/ordlog.h` (the pricing data builds), `removed/e876fa3/docs/development/8.1/SEARCH_2_REDUCTIONS.md` §2.6 and `SEARCH_3_PRUNING.md` §3.3; `docs/development/archive/DEVELOPMENT_8.0.md` §2, §32, §36, §45; `build/nps_pair.py`, `build/node_identity.py`, `build/search_counters.py` | reference |
+| B.15.1, B.15.2 | `source/search/16_tdperft.inc`, `source/movegen_legal.h`, `source/search/07_makemove.inc`, `source/see.cpp`, `source/attacks.cpp`, `source/sliders.cpp`, `source/zobrist.cpp`, `source/tt.h`; `docs/development/archive/DEVELOPMENT_8.0.md` §12, §14, §28, §40 | read, then design from Basilisk's own code |
+| C.0 | `removed/dfa5a6b/docs/project/FUTURE_DIRECTIONS.md` §1–§2 (the residual and regime studies) | template |
+| D.1, H.3 | `docs/development/archive/DEVELOPMENT_8.0.md` §23, §27, §31–§33, §43–§45; `removed/e876fa3/docs/development/8.1/TIME_MANAGEMENT.md`; `source/search/14_deepen.inc` | reference |
+| D.2 | `source/tt.h` (16-byte XOR-verified entries); `docs/development/archive/DEVELOPMENT_8.0.md` §6, §12, §47.2; `removed/e876fa3/docs/development/8.1/SEARCH_5_CORE.md` §5.3 | reference |
+| D.3.2 | `docs/development/archive/DEVELOPMENT_8.0.md` §12, §30, §44, §49; `build/uci_stress.py` | reference |
+| F.0–F.8 | `docs/networks/NETWORKS.md`; `removed/dfa5a6b/docs/networks/NETWORKS_4.2-7.0.md` (the 4.2–7.0 networks and their failures); `triumviratus-networks/recipes/07_consilium-plebis/docs/DESIGN_NEXT_NETWORK_2026-10-21.md` and `C2_SEARCH_DISTRIBUTION_2026-10-21.md`; `removed/e876fa3/docs/development/8.1/CONSILIUM_INFERENCE.md`; `removed/dfa5a6b/docs/networks/moe_experimental_grafts.md`; `triumviratus-networks/recipes/*/README.md`, `triumviratus-networks/recipes/07_consilium-plebis/` (run log, data, design documents) | reference |
+| G.2 | `docs/development/archive/DEVELOPMENT_8.0.md` §14 (Chess960), §35 (universal build), §49 (analysis build) | reference |

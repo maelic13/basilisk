@@ -70,6 +70,105 @@ class SurfaceTests(unittest.TestCase):
         self.assertTrue(all(name.startswith("Core") for name in generated))
         self.assertFalse(set(generated) & {"NullBase", "ProbCutMargin", "LmrSingularQuiet"})
 
+    def test_b3_table_is_its_own_surface(self):
+        text = (
+            "#define BASILISK_CORE_KERNEL_PARAMS(X, F) \\\n"
+            "    X(b_field, Beta, 5, 0, 10)\n"
+            "#define BASILISK_B3_PARAMS(X, F, S) \\\n"
+            "    S(s_field, Sigma, 1, 0, 1) \\\n"
+            "    X(t_field, Tau, 5, 0, 10) \\\n"
+            "    F(u_field, Upsilon, 5, 0, 10)\n"
+            "#define BASILISK_ROOT_PARAMS(X) \\\n"
+            "    X(c_field, Gamma, 5, 0, 10)\n"
+        )
+        self.assertEqual([item[0] for item in surface.parse_parameters(text)], ["Gamma"])
+        self.assertEqual([item[0] for item in surface.parse_parameters(text, core=True)], ["Beta"])
+        self.assertEqual([item[0] for item in surface.parse_parameters(text, b3=True)], ["Tau"])
+
+    def test_b3_surface_is_the_clusters_coordinates(self):
+        text = surface.HEADER.read_text(encoding="utf-8")
+        parameters = surface.parse_parameters(text, b3=True)
+        generated = json.loads(surface.B3_CONFIG.read_text(encoding="utf-8"))
+        self.assertEqual([item[0] for item in parameters], list(generated))
+        self.assertTrue(all(name.startswith("B3") for name in generated))
+        # F lines and switches stay off it.
+        self.assertFalse(set(generated) & {"B3NmpBetaFloor", "B3NmpVerify", "B3CheckExt"})
+
+    def test_b3_sweep_notes_are_checked_against_the_table(self):
+        text = (
+            "#define BASILISK_B3_PARAMS(X, F, S) \\\n"
+            "    X(t_field, Tau, 5, 0, 10) \\\n"
+            "    F(u_field, Upsilon, 3, 0, 4) \\\n"
+            "    S(s_field, Sigma, 1, 0, 1)\n"
+        )
+        notes = surface.sweep_notes(text, {"Upsilon": (0, 1, 3)}, {"Tau": (2, 9)})
+        self.assertEqual(notes, [
+            "# sweep coordinate Upsilon: 0, 1, 3 (default 3; never fitted by SPSA)",
+            "# sweep extra points Tau: 2, 9 (beside the default 5)",
+        ])
+        for coordinates, extra in (({"Tau": (0, 5)}, {}),          # an X line
+                                   ({"Sigma": (0, 1)}, {}),        # a switch
+                                   ({"Upsilon": (0, 1)}, {}),      # default missing
+                                   ({"Upsilon": (3, 5)}, {}),      # out of range
+                                   ({}, {"Upsilon": (1,)}),        # an F line
+                                   ({}, {"Tau": (5, 9)}),          # the default
+                                   ({}, {"Tau": (11,)})):          # out of range
+            with self.assertRaises(ValueError):
+                surface.sweep_notes(text, coordinates, extra)
+
+    def test_b3_tune_file_carries_the_registered_sweep(self):
+        tune = surface.B3_TUNE.read_text(encoding="utf-8")
+        self.assertIn("# sweep coordinate B3SeekMateDepth: 8, 12, 16", tune)
+        self.assertIn("# sweep coordinate B3SingNegative: 0, 1, 3", tune)
+        self.assertIn("# sweep extra points B3SingMargin: 17, 126", tune)
+
+    def test_b33_surface_is_the_b3_lines_and_the_admissions(self):
+        text = surface.HEADER.read_text(encoding="utf-8")
+        b3 = [item[0] for item in surface.parse_parameters(text, b3=True)]
+        generated = json.loads(surface.B33_CONFIG.read_text(encoding="utf-8"))
+        self.assertEqual(list(generated),
+                         [name for name in b3 if name != "B3ProbCutTtMargin"]
+                         + list(surface.B33_ADMITTED_CORE))
+        self.assertEqual(len(generated), 29)
+        # The core coordinates keep the core table's ranges and steps and
+        # start from the B3_PROOF arm's own default where it has one.
+        core = json.loads(surface.CORE_CONFIG.read_text(encoding="utf-8"))
+        overrides = surface.b3_core_defaults(text)
+        self.assertTrue(overrides)
+        for name in surface.B33_ADMITTED_CORE:
+            wanted = dict(core[name], value=overrides.get(name, core[name]["value"]))
+            self.assertEqual(generated[name], wanted)
+
+    def test_b3_core_defaults_are_checked_against_the_core_table(self):
+        head = (
+            "#define BASILISK_CORE_KERNEL_PARAMS(X, F) \\\n"
+            "    X(b_field, Beta, 5, 0, 10) \\\n"
+            "    F(e_field, Epsilon, 5, 0, 10)\n"
+            "#define BASILISK_B3_CORE_DEFAULTS(A) \\\n"
+        )
+        self.assertEqual(surface.b3_core_defaults(head + "    A(b_field, Beta, 7)\n"),
+                         {"Beta": 7})
+        # The core surface is the X lines' values, not the arm's.
+        text = head + "    A(b_field, Beta, 7)\n"
+        self.assertEqual(surface.parse_parameters(text, core=True), [("Beta", 5, 0, 10)])
+        for body in ("    A(e_field, Epsilon, 7)\n",          # an F line
+                     "    A(z_field, Zeta, 7)\n",             # no line
+                     "    A(b_field, Beta, 5)\n",             # the default
+                     "    A(b_field, Beta, 11)\n",            # out of range
+                     "    A(b_field, Beta, 7) \\\n    A(b_field, Beta, 8)\n"):  # twice
+            with self.assertRaises(ValueError):
+                surface.b3_core_defaults(head + body)
+
+    def test_b33_surface_rejects_a_name_with_no_x_line(self):
+        text = surface.HEADER.read_text(encoding="utf-8")
+        saved = surface.B33_ADMITTED_CORE
+        try:
+            surface.B33_ADMITTED_CORE = saved + ("CoreNoSuchCoordinate",)
+            with self.assertRaises(ValueError):
+                surface.b33_parameters(text)
+        finally:
+            surface.B33_ADMITTED_CORE = saved
+
     def test_steps_are_half_up_range_sixteenths_with_floor(self):
         self.assertEqual(surface.perturbation(0, 40), 3)
         self.assertEqual(surface.perturbation(0, 24), 2)

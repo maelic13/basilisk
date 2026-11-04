@@ -7,6 +7,7 @@
 
 #include "search_worker.h"
 #include "constants.h"
+#include "search_b3.h"
 #include "syzygy.h"
 #include <algorithm>
 #include <bit>
@@ -125,6 +126,19 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         if (state_.stopped) return 0;
         if (ply >= MAX_PLY) return evaluator_.evaluate(*state_.board);
         if (state_.board->is_draw(ply)) return 0;
+        // Cluster 2's upcoming repetition, as at an interior node (which
+        // made the test for a node it hands here).
+        if constexpr (kB3Proof) {
+            if (alpha < 0 && config_.limits.params.b3_cuckoo
+                && state_.board->upcoming_repetition(ply)) {
+                DIAG_COUNT(++state_.diag.cuckoo_draws);
+                TRACE_DECISION(TraceEvent::CuckooDraw, ply, 0, MOVE_NONE,
+                               alpha, beta, VALUE_NONE, -1, VALUE_NONE, VALUE_NONE,
+                               0, 0, 0, 0);
+                alpha = 0;
+                if (alpha >= beta) return alpha;
+            }
+        }
     }
 
     bool in_check = state_.board->is_in_check();
@@ -194,9 +208,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         tt_eval = evaluator_.evaluate_undamped(*state_.board);
     const int raw_eval = damp_rule50(tt_eval, state_.board->rule50_count());
 
-    int stand_pat = raw_eval;
-    stand_pat += correction_value(ss) / 131072;
-    stand_pat = std::clamp(stand_pat, -(tablebaseWinInMaxPly - 1), tablebaseWinInMaxPly - 1);
+    int stand_pat = corrected_eval(raw_eval, correction_value(ss));
 #if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
     const int correction = stand_pat - raw_eval;
 #endif
@@ -218,10 +230,16 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         return stand_pat;
     }
 
+    // The pruning below reads a capture's gain as the piece it takes. Not
+    // when the opponent holds a known win: a capture there can end the
+    // ending, as Kxh8 ends a KBB-K in a dead draw, and the stand-pat says
+    // nothing about what it leaves (the oracle's futilityBase > -KNOWN_WIN).
+    const bool prune_by_gain = stand_pat + 150 > -KNOWN_WIN;
+
     // Delta pruning: even capturing a queen with a margin to spare cannot
     // raise alpha, so that optimistic value is the node's upper bound.
     const int delta_bound = stand_pat + PIECE_VALUE[QUEEN] + 200;
-    if (delta_bound < alpha) {
+    if (prune_by_gain && delta_bound < alpha) {
         TRACE_DECISION(TraceEvent::QsDeltaPrune, ply, 0, MOVE_NONE,
                        alpha, beta, stand_pat, -1, correction, VALUE_NONE,
                        0, 0, PIECE_VALUE[QUEEN] + 200, delta_bound);
@@ -244,7 +262,12 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         PieceType atk = type_of(state_.board->piece_on(from_sq(m)));
         PieceType cap = (move_type(m) == EN_PASSANT) ? PAWN : type_of(state_.board->piece_on(to_sq(m)));
         int score = (m == tt_move) ? 10'000'000
-                  : PIECE_VALUE[cap] * 16 - PIECE_VALUE[atk] + hist_.capture.entry[atk][to_sq(m)][cap];
+                  : PIECE_VALUE[cap] * 16 - PIECE_VALUE[atk]
+                    + hist_.capture.entry[hist_piece(state_.board->turn(), atk)][to_sq(m)][cap];
+        HIST_SHADOW(m == tt_move ? void() : hist_.shadow->read(
+            ShadowTable::Capture,
+            CoreHistoryTables::capture_cell(hist_piece(state_.board->turn(), atk), Square(to_sq(m)), cap),
+            state_.board->turn()));
         sm[nm++] = {m, score};
     }
 
@@ -274,7 +297,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         // Futility: the capture's optimistic value cannot raise alpha, and
         // stands in for the move in the node's upper bound.
         const int futility_value = stand_pat + tactical_gain + 150;
-        if (!is_promo
+        if (prune_by_gain && !is_promo
             && futility_value <= alpha
             && !move_gives_check()) {
             TRACE_DECISION(TraceEvent::QsFutilityPrune, ply, 0, m,
@@ -284,7 +307,8 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
             continue;
         }
 
-        const int see_threshold = std::clamp(alpha - stand_pat - 200, -800, 200);
+        const int see_threshold = prune_by_gain
+                                ? std::clamp(alpha - stand_pat - 200, -800, 200) : 0;
         if (!state_.board->see_ge(m, see_threshold)) {
             TRACE_DECISION(TraceEvent::QsSeePrune, ply, 0, m,
                            alpha, beta, stand_pat, -1, correction, VALUE_NONE,
@@ -345,6 +369,20 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     state_.pv_len[ply] = ply;
 
     if (!is_root && state_.board->is_draw(ply)) return 0;
+    // Cluster 2: a reversible move to a repetition is available, so the
+    // node is worth at least the draw (B3Cuckoo; never when alpha is
+    // already at it).
+    if constexpr (kB3Proof) {
+        if (!is_root && alpha < 0 && config_.limits.params.b3_cuckoo
+            && state_.board->upcoming_repetition(ply)) {
+            DIAG_COUNT(++state_.diag.cuckoo_draws);
+            TRACE_DECISION(TraceEvent::CuckooDraw, ply, depth, MOVE_NONE,
+                           alpha, beta, VALUE_NONE, -1, VALUE_NONE, VALUE_NONE,
+                           0, 0, 0, 0);
+            alpha = 0;
+            if (alpha >= beta) return alpha;
+        }
+    }
 
     bool in_check = state_.board->is_in_check();
     ss->in_check   = in_check;
@@ -353,6 +391,11 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     // The grandchildren's record starts this node's children clean: the
     // children share (ss + 1), and each that fails high counts in it.
     (ss + 2)->cutoff_cnt = 0;
+    if constexpr (kB3Proof) {
+        ss->follow_pv = b3::follow_pv(is_root, (ss - 1)->follow_pv, ply, (ss - 1)->move,
+                                      state_.prev_pv, state_.prev_pv_len);
+        ss->ext_taken = 0;
+    }
 
     // Check extension: when the side to move is in check, extend by 1 ply.
     // Guard with ss->excluded to prevent stacking with singular extensions.
@@ -363,8 +406,11 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     // defaulted to 0 (disabled) and was the residue of a failed trial
     // (BAS-S16 REJECTED at -3.48 +/- 3.32), not an avenue still open.
     // Reducing extension at checking nodes was measured to fail our WAC floor.
+    // Cluster 2's arm takes the donor's policy instead (no extension in check)
+    // unless the categorical restores it.
     bool did_check_ext = false;
-    if (!ABLATED(6) && in_check && ss->excluded == MOVE_NONE && ply < MAX_PLY - 2) {
+    if (!ABLATED(6) && in_check && ss->excluded == MOVE_NONE && ply < MAX_PLY - 2
+        && (!kB3Proof || config_.limits.params.b3_check_ext)) {
         depth++;
         did_check_ext = true;
         DIAG_COUNT(state_.diag.check_exts++);
@@ -376,6 +422,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     if (depth <= 0)
         return quiescence<QsType>(alpha, beta, ply, 0, ss, true);
     DIAG_COUNT(state_.diag.interior_nodes++);
+    if constexpr (kB3Proof)
+        if (ss->follow_pv) DIAG_COUNT(++state_.diag.follow_pv_nodes);
 
     // Mate distance pruning
     if (!is_root) {
@@ -387,6 +435,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     // The reduction the parent applied to reach this node, read once: a
     // re-search of the same move must not see it again.
     const auto& kp = config_.limits.params;
+    // Cluster 2's check policy: in-check nodes are reduced and move-loop
+    // pruned as the donor's are (quiet futility excepted).
+    const bool check_prune = kB3Proof && kp.b3_check_prune;
     const int prior_reduction = (ss - 1)->reduction;
     (ss - 1)->reduction = 0;
 
@@ -413,6 +464,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         tt_depth = tte.depth;
         tt_flag  = tte.bound();
     }
+    if (tt_move == MOVE_NONE) DIAG_COUNT(++state_.diag.tt_move_absent);
 
     // The node lies on or near a principal variation: a PV node, or a
     // position the table marked so. An excluded search keeps its node's flag.
@@ -431,6 +483,14 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     CORE_NODE_CHECK((ss + 1)->excluded == MOVE_NONE);
     CORE_NODE_CHECK(ss->excluded != MOVE_NONE
                     || ss->tt_pv == (is_pv || (tt_found && tte.is_pv())));
+    // Cluster 2: a child's extension plies are its parent's plus the
+    // parent's positive extension, and only a node whose parent follows
+    // the previous PV can follow it.
+    if constexpr (kB3Proof) {
+        CORE_NODE_CHECK(is_root || ss->ext_plies == (ss - 1)->ext_plies + (ss - 1)->ext_taken);
+        CORE_NODE_CHECK(!kp.b3_ext_budget || ss->ext_plies <= root_depth_);
+        CORE_NODE_CHECK(is_root || !ss->follow_pv || (ss - 1)->follow_pv);
+    }
 
     // Is the TT move from the capture stage (a capture or a promotion)?
     const bool tt_capture = tt_move != MOVE_NONE
@@ -449,7 +509,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     int tt_static_eval = INF_SCORE;
     if (in_check) {
         // The record carries the eval from two plies up, so `improving` reads
-        // across the check; nothing at this node prunes on it.
+        // across the check; only Cluster 2's arm prunes on it here (capture
+        // futility, the donor's form).
         ss->eval = (ss - 2)->eval;
         static_eval = VALUE_NONE;
     } else if (ss->excluded != MOVE_NONE) {
@@ -470,6 +531,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         // TT stores the raw static eval; correction is applied at probe time.
         static_eval = corrected_eval(raw_static_eval, correction_raw);
         ss->eval = static_eval;
+        ss->raw_eval = raw_static_eval;
     }
 
     // Value used for PRUNING decisions only. When a TT entry's bound
@@ -508,9 +570,11 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         ++depth;
         DIAG_COUNT(++state_.diag.hindsight_up);
     }
+    [[maybe_unused]] bool hindsight_reduced = false;
     if (prior_reduction >= 2 && depth >= 2 && ss->eval + (ss - 1)->eval > 47) {
         --depth;
         DIAG_COUNT(++state_.diag.hindsight_down);
+        DIAG_COUNT(hindsight_reduced = true);
     }
 
 
@@ -535,8 +599,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             if (prev != MOVE_NONE && prev != MOVE_NULL && (ss - 1)->move_count < 5
                 && state_.board->captured_piece() == NO_PIECE)
                 update_continuation_histories(
-                    ss - 1, type_of(state_.board->piece_on(to_sq(prev))), Square(to_sq(prev)),
-                    -2210);
+                    ss - 1, state_.board->piece_on(to_sq(prev)), Square(to_sq(prev)), -2210);
         }
 
         // Near the rule-50 limit the stored score may not hold, so no cutoff.
@@ -562,6 +625,17 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                            0, 0, tt_depth, tt_score);
             return tt_score;
         }
+    } else if (kB3Proof && kp.b3_tt_penalty && !is_pv && ss->excluded == MOVE_NONE
+               && tt_score != VALUE_NONE && tt_depth > depth - (tt_score <= beta)
+               && tt_flag == (tt_score >= beta ? TT_ALPHA : TT_BETA) && depth > 5) {
+        // Deep enough to cut, but the bound lies on the wrong side of beta:
+        // the entry no longer answers this window, so it gives up a ply of
+        // depth to the next store (the donor's penalty).
+        shared_.tt.penalize(hash);
+        DIAG_COUNT(++state_.diag.tt_penalized);
+        TRACE_DECISION(TraceEvent::TtPenalty, ply, depth, tt_move,
+                       alpha, beta, tt_score, -1, VALUE_NONE, VALUE_NONE,
+                       0, 0, tt_depth, tt_score);
     }
 
     // ---- In-search tablebase probe ------------------------------------------
@@ -663,8 +737,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             }
         }
 
-        // Null-move pruning
-        if (!ABLATED(2) && allow_null && depth >= 3
+        // Null-move pruning (the OFF arm's form)
+        if (!kB3Proof && !ABLATED(2) && allow_null && depth >= 3
             && eval >= beta
             && state_.board->has_non_pawn_material(state_.board->turn())
             && (ss-1)->move != MOVE_NULL) {
@@ -672,6 +746,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             int r = config_.limits.params.null_base + depth / 4
                   + std::min((eval - beta) / config_.limits.params.null_eval_div, 3);
             DIAG_COUNT(state_.diag.null_tries++);
+            DIAG_COUNT(++(depth <= 3 ? state_.diag.null_tries_d1_3
+                          : depth <= 7 ? state_.diag.null_tries_d4_7
+                                       : state_.diag.null_tries_d8p));
             do_null_move(ss);
             shared_.tt.prefetch(state_.board->position_key());
             int null_score = -negamax<NodeType::NonPV>(std::max(0, depth - r), -beta, -(beta - 1),
@@ -690,6 +767,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 }
                 if (verified) {
                     DIAG_COUNT(state_.diag.null_cuts++);
+                    DIAG_COUNT(++(depth <= 3 ? state_.diag.null_cuts_d1_3
+                                  : depth <= 7 ? state_.diag.null_cuts_d4_7
+                                               : state_.diag.null_cuts_d8p));
                     TRACE_DECISION(TraceEvent::NullCutoff, ply, depth, MOVE_NULL,
                                    alpha, beta, eval, improving, correction, VALUE_NONE,
                                    0, r, VALUE_NONE, null_score);
@@ -698,8 +778,87 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             }
         }
 
+        // Null-move pruning (Cluster 2, the donor's form): at an expected cut
+        // node whose static eval clears a depth-scaled margin. The null child
+        // is an all node, and a win is never returned unproven. A deep cut
+        // outside a verification is verified at this ply with null moves
+        // barred above a region of plies below it.
+        if constexpr (kB3Proof) {
+            if (!ABLATED(2) && (cut_node || !kp.b3_nmp_cut_only) && allow_null
+                && (ss - 1)->move != MOVE_NULL
+                && static_eval >= beta - kp.b3_nmp_per_ply * depth
+                                  - kp.b3_nmp_improving * improving + kp.b3_nmp_base
+                && beta >= kp.b3_nmp_beta_floor && (!kp.b3_nmp_eval_gate || eval >= beta)
+                && state_.board->has_non_pawn_material(state_.board->turn())) {
+                const int r = kp.b3_nmp_red_base + depth / kp.b3_nmp_red_depth_div
+                            + std::max((static_eval - beta) / kp.b3_nmp_red_eval_div, 0);
+                if (ply < nmp_min_ply_) {
+                    DIAG_COUNT(++state_.diag.null_region_refusals);
+                    TRACE_DECISION(TraceEvent::NullRegionRefused, ply, depth, MOVE_NULL,
+                                   alpha, beta, static_eval, improving, correction, VALUE_NONE,
+                                   0, r, nmp_min_ply_, VALUE_NONE);
+                } else {
+                    DIAG_COUNT(state_.diag.null_tries++);
+                    DIAG_COUNT(++(depth <= 3 ? state_.diag.null_tries_d1_3
+                                  : depth <= 7 ? state_.diag.null_tries_d4_7
+                                               : state_.diag.null_tries_d8p));
+                    do_null_move(ss);
+                    shared_.tt.prefetch(state_.board->position_key());
+                    (ss + 1)->ext_plies = ss->ext_plies;
+                    int null_score = -negamax<NodeType::NonPV>(std::max(0, depth - r), -beta,
+                                                               -(beta - 1), ply + 1, ss + 1,
+                                                               false, false);
+                    undo_null_move(ss);
+                    if (state_.stopped) return 0;
+                    if (null_score >= beta && !is_decisive(null_score)) {
+                        const int mode = kp.b3_nmp_verify;
+                        const bool verify = mode == 1 ? nmp_min_ply_ == 0
+                                                        && depth >= kp.b3_nmp_verify_depth
+                                          : mode == 2 && depth >= 10;
+                        bool verified = true;
+                        if (verify) {
+                            // The verification re-enters this record; the
+                            // fields its move loop leaves behind are put back,
+                            // so ProbCut's children read this node's own.
+                            const int saved_move_count = ss->move_count;
+                            const int saved_stat_score = ss->stat_score;
+                            int v;
+                            if (mode == 1) {
+                                nmp_min_ply_ = ply + 3 * (depth - r) / 4;
+                                v = negamax<NodeType::NonPV>(depth - r, beta - 1, beta,
+                                                             ply, ss, true, false);
+                                nmp_min_ply_ = 0;
+                            } else {
+                                v = negamax<NodeType::NonPV>(std::max(1, depth - r), beta - 1,
+                                                             beta, ply, ss, false, false);
+                            }
+                            ss->move_count = saved_move_count;
+                            ss->stat_score = saved_stat_score;
+                            if (state_.stopped) return 0;
+                            verified = v >= beta;
+                            DIAG_COUNT(++state_.diag.null_verifications);
+                            if (!verified) DIAG_COUNT(++state_.diag.null_verify_failed);
+                            TRACE_DECISION(TraceEvent::NullVerify, ply, depth, MOVE_NULL,
+                                           alpha, beta, static_eval, improving, correction,
+                                           VALUE_NONE, 0, r, null_score, v);
+                        }
+                        if (verified) {
+                            DIAG_COUNT(state_.diag.null_cuts++);
+                            DIAG_COUNT(++(depth <= 3 ? state_.diag.null_cuts_d1_3
+                                          : depth <= 7 ? state_.diag.null_cuts_d4_7
+                                                       : state_.diag.null_cuts_d8p));
+                            TRACE_DECISION(TraceEvent::NullCutoff, ply, depth, MOVE_NULL,
+                                           alpha, beta, static_eval, improving, correction,
+                                           VALUE_NONE, 0, r, VALUE_NONE, null_score);
+                            return null_score;
+                        }
+                    }
+                }
+            }
+        }
+
         // ProbCut: if a capture is likely to fail high at reduced depth
-        if (!ABLATED(3) && depth >= 5 && !is_decisive(beta)) {
+        if (!kB3Proof && !ABLATED(3) && depth >= 5 && !is_decisive(beta)) {
             int pc_beta = std::min(beta + config_.limits.params.probcut_margin,
                                    MATE_SCORE - MAX_PLY - 1);
             MoveList pcaps;
@@ -735,12 +894,92 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         improving = improving || ss->eval >= beta;
 
     // IIR: reduce non-PV nodes when no TT move (or a stale TT entry) guides the search.
-    if (!ABLATED(4) && !is_pv && depth >= kp.iir_min_depth
+    if (!kB3Proof && !ABLATED(4) && !is_pv && depth >= kp.iir_min_depth
         && (tt_move == MOVE_NONE || (tt_found && tt_depth < depth - 3))) {
         TRACE_DECISION(TraceEvent::IirReduction, ply, depth, tt_move,
                        alpha, beta, eval, improving, correction, VALUE_NONE,
                        0, 1, depth - 3, depth - 1);
+        DIAG_COUNT(++state_.diag.iir_reductions);
+        if (tt_move != MOVE_NONE) DIAG_COUNT(++state_.diag.iir_stale);
+        if (hindsight_reduced)    DIAG_COUNT(++state_.diag.iir_after_hindsight);
         depth--;
+    }
+
+    // IIR (Cluster 2, the donor's form): a PV or cut node off the previous
+    // iteration's PV, not in check, without a TT move loses a ply.
+    if constexpr (kB3Proof) {
+        if (!ABLATED(4) && kp.b3_iir && !in_check && !ss->follow_pv && (is_pv || cut_node)
+            && depth >= kp.b3_iir_min_depth
+            && (tt_move == MOVE_NONE
+                || (kp.b3_iir_stale && tt_found && tt_depth < depth - 3))) {
+            TRACE_DECISION(TraceEvent::IirReduction, ply, depth, tt_move,
+                           alpha, beta, eval, improving, correction, VALUE_NONE,
+                           0, 1, depth - 3, depth - 1);
+            DIAG_COUNT(++state_.diag.iir_reductions);
+            if (tt_move != MOVE_NONE) DIAG_COUNT(++state_.diag.iir_stale);
+            if (hindsight_reduced)    DIAG_COUNT(++state_.diag.iir_after_hindsight);
+            if (is_pv)                DIAG_COUNT(++state_.diag.iir_pv_nodes);
+            depth--;
+        }
+    }
+
+    // ProbCut (Cluster 2, the donor's form), after IIR and at PV nodes too:
+    // a capture or queen promotion that holds a margin above beta in
+    // quiescence and at a reduced depth proves the node, which returns the
+    // value less the margin; a valid TT score below the margin says none will.
+    if constexpr (kB3Proof) {
+        const int pc_beta = beta + kp.b3_probcut_base - kp.b3_probcut_improving * improving;
+        if (!ABLATED(3) && !is_root && !in_check && (!is_pv || kp.b3_probcut_pv)
+            && depth >= kp.b3_probcut_min_depth && !is_decisive(beta)
+            && !(tt_score != VALUE_NONE && tt_score < pc_beta)) {
+            const int pc_depth = depth - (improving ? kp.b3_probcut_depth_improving
+                                                    : kp.b3_probcut_depth);
+            // The store keeps the raw evaluation; an exclusion search, which
+            // computed none, keeps the entry's own.
+            const int store_eval = tt_static_eval != INF_SCORE ? tt_static_eval
+                                 : tt_found ? int(tte.static_eval) : INF_SCORE;
+            ProbCutPicker pc(*state_.board, hist_, tt_move, ss->excluded, pc_beta - static_eval,
+                             state_.move_buffers[ply][1]);
+            for (Move m = pc.next(); m != MOVE_NONE; m = pc.next()) {
+                DIAG_COUNT(state_.diag.probcut_tries++);
+                if (is_pv) DIAG_COUNT(++state_.diag.probcut_pv_tries);
+                do_move(ss, m);
+                shared_.tt.prefetch(state_.board->position_key());
+                (ss + 1)->ext_plies = ss->ext_plies;
+                int val = -quiescence<NodeType::NonPV>(-pc_beta, -pc_beta + 1, ply + 1, 0, ss + 1);
+                if (val >= pc_beta && pc_depth > 0)
+                    val = -negamax<NodeType::NonPV>(pc_depth, -pc_beta, -pc_beta + 1,
+                                                    ply + 1, ss + 1, true, !cut_node);
+                undo_move(ss, m);
+                if (state_.stopped) return 0;
+                if (val >= pc_beta) {
+                    tt_store(hash, pc_depth + 1, val, TT_BETA, m, ply, store_eval, ss->tt_pv);
+                    if (!is_decisive(val)) {
+                        DIAG_COUNT(state_.diag.probcut_cuts++);
+                        TRACE_DECISION(TraceEvent::ProbcutCutoff, ply, depth, m,
+                                       alpha, beta, eval, improving, correction, VALUE_NONE,
+                                       0, depth - pc_depth, pc_beta - static_eval,
+                                       val - (pc_beta - beta));
+                        return val - (pc_beta - beta);
+                    }
+                }
+            }
+        }
+
+        // The small ProbCut, when switched on, in check too: a lower bound
+        // nearly deep enough that clears beta by a wide margin returns that
+        // margin.
+        const int tt_pc_beta = beta + kp.b3_probcut_tt_margin;
+        if (!ABLATED(3) && kp.b3_probcut_tt && !is_root && proves_lower(tt_flag)
+            && tt_depth >= depth - kp.b3_probcut_tt_depth
+            && tt_score != VALUE_NONE && tt_score >= tt_pc_beta
+            && !is_decisive(beta) && !is_decisive(tt_score)) {
+            DIAG_COUNT(++state_.diag.probcut_tt_cuts);
+            TRACE_DECISION(TraceEvent::ProbcutTtCutoff, ply, depth, tt_move,
+                           alpha, beta, eval, improving, correction, VALUE_NONE,
+                           0, 0, kp.b3_probcut_tt_margin, tt_pc_beta);
+            return tt_pc_beta;
+        }
     }
 
     int  orig_alpha  = alpha;
@@ -843,24 +1082,26 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         if (state_.trace.enabled() && is_quiet) {
             const PieceType pt = type_of(state_.board->piece_on(from_sq(m)));
             trace_history = main_hist[from_sq(m)][to_sq(m)]
-                          + cont_hist_score(ss, pt, Square(to_sq(m)))
+                          + cont_hist_score(ss, hist_piece(state_.board->turn(), pt), Square(to_sq(m)))
                           + pawn_hist[pt][to_sq(m)]
                           + (low_ply_hist ? (*low_ply_hist)[from_sq(m)][to_sq(m)] : 0);
         }
 #endif
 
         // ---- Move-loop pruning ---------------------------------------------
-        // Not at the root, in check or before a move was searched, not while
+        // Not at the root, in check (off Cluster 2's arm) or before a move
+        // was searched, not while
         // the best score is a proven loss, and not for a side left with king
         // and pawns. Each test reads the depth the move's reduced search
         // would have, adjusted by the quiet move's history (`lmr_depth`).
-        if (!ABLATED(5) && !is_root && !in_check && searched > 0
+        if (!ABLATED(5) && !is_root && (!in_check || check_prune) && searched > 0
             && best_score > -tablebaseWinInMaxPly
             && state_.board->has_non_pawn_material(state_.board->turn())) {
             DIAG_COUNT(++state_.diag.moveloop_tested);
             const Square from = Square(from_sq(m));
             const Square to   = Square(to_sq(m));
             const PieceType moved = type_of(state_.board->piece_on(from));
+            const int moved_hp = hist_piece(state_.board->piece_on(from));
 
             // Count pruning: past this many moves the picker delivers no
             // more quiets (direct checks excepted while the switch is on).
@@ -869,6 +1110,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                                  / (2 - improving)) {
                 picker.skip_quiets(kp.lmp_exempt_checks != 0);
                 DIAG_COUNT(++state_.diag.skip_quiets_nodes);
+                if (in_check) DIAG_COUNT(++state_.diag.in_check_skip_quiets);
                 TRACE_DECISION(TraceEvent::SkipQuiets, ply, depth, m,
                                alpha, beta, eval, improving, correction, VALUE_NONE,
                                move_count, 0, VALUE_NONE, alpha,
@@ -880,7 +1122,10 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             if (is_cap || is_promo || move_gives_check()) {
                 const PieceType captured = move_type(m) == EN_PASSANT ? PAWN
                                          : type_of(state_.board->piece_on(to));
-                const int capt_hist = hist_.capture.entry[moved][to][captured];
+                const int capt_hist = hist_.capture.entry[moved_hp][to][captured];
+                HIST_SHADOW(hist_.shadow->read(ShadowTable::Capture,
+                                               CoreHistoryTables::capture_cell(moved_hp, to, captured),
+                                               state_.board->turn()));
 
                 // Capture futility: even the captured piece and a margin
                 // that grows with the reduced depth leave the static eval
@@ -889,6 +1134,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                     && ss->eval + kp.capt_fut_base + kp.capt_fut_slope * lmr_depth
                            + PIECE_VALUE[captured] + capt_hist / kp.capt_fut_hist_div <= alpha) {
                     DIAG_COUNT(++state_.diag.capture_futility_pruned);
+                    if (in_check) DIAG_COUNT(++state_.diag.in_check_capt_fut);
                     TRACE_DECISION(TraceEvent::CaptureFutilityPrune, ply, depth, m,
                                    alpha, beta, eval, improving, correction, capt_hist,
                                    move_count, 0,
@@ -909,6 +1155,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 const bool last_piece = moved >= KNIGHT && moved <= QUEEN && popcount(pieces) == 1;
                 if ((alpha >= 0 || !last_piece) && !state_.board->see_ge(m, -margin)) {
                     DIAG_COUNT(++state_.diag.capture_see_pruned);
+                    if (in_check) DIAG_COUNT(++state_.diag.in_check_capt_see);
                     TRACE_DECISION(TraceEvent::CaptureSeePrune, ply, depth, m,
                                    alpha, beta, eval, improving, correction, capt_hist,
                                    move_count, 0, -margin, alpha,
@@ -916,14 +1163,24 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                                    TraceFamily::CaptureSee);
                     return false;
                 }
-            } else if (!is_pv) {
+            } else if (!is_pv || (kB3Proof && kp.b3_pv_quiet_prune && !ss->follow_pv)) {
+                // Cluster 2's arm also prunes quiets at a PV node off the
+                // previous iteration's PV, as the donor does (B3PvQuietPrune).
                 // Continuation-history pruning: the two nearest continuations
                 // and the pawn history rate the move this far below zero.
-                int history = (ss - 1)->cont_hist->entry[moved][to]
-                            + (ss - 2)->cont_hist->entry[moved][to]
+#ifdef BASILISK_DIAGNOSTIC
+                for (int back : {1, 2})
+                    hist_.shadow->read(ShadowTable::Continuation,
+                                       hist_.continuation_cell((ss - back)->cont_hist, moved_hp, to),
+                                       state_.board->turn());
+#endif
+                int history = (ss - 1)->cont_hist->entry[moved_hp][to]
+                            + (ss - 2)->cont_hist->entry[moved_hp][to]
                             + pawn_hist[moved][to];
                 if (history < -kp.cont_hist_prune_slope * depth) {
                     DIAG_COUNT(++state_.diag.cont_hist_pruned);
+                    if (in_check) DIAG_COUNT(++state_.diag.in_check_cont_hist);
+                    if (is_pv)    DIAG_COUNT(++state_.diag.pv_quiet_pruned);
                     TRACE_DECISION(TraceEvent::HistoryPrune, ply, depth, m,
                                    alpha, beta, eval, improving, correction, history,
                                    move_count, 0, -kp.cont_hist_prune_slope * depth, alpha,
@@ -941,11 +1198,12 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 // fails low softly.
                 const int futility = ss->eval + kp.quiet_fut_base + kp.quiet_fut_slope * lmr_depth
                                    + kp.quiet_fut_alpha_term * (ss->eval > alpha);
-                if (lmr_depth < kp.quiet_fut_depth_cap && futility <= alpha) {
+                if (!in_check && lmr_depth < kp.quiet_fut_depth_cap && futility <= alpha) {
                     if (best_score <= futility && !is_decisive(best_score)
                         && futility < tablebaseWinInMaxPly)
                         best_score = futility;
                     DIAG_COUNT(state_.diag.fut_prunes++);
+                    if (is_pv) DIAG_COUNT(++state_.diag.pv_quiet_pruned);
                     TRACE_DECISION(TraceEvent::FutilityPrune, ply, depth, m,
                                    alpha, beta, eval, improving, correction, history,
                                    move_count, 0, futility - ss->eval, alpha,
@@ -959,6 +1217,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 lmr_depth = std::max(lmr_depth, 0);
                 if (!state_.board->see_ge(m, -kp.quiet_see_coeff * lmr_depth * lmr_depth)) {
                     DIAG_COUNT(++state_.diag.quiet_see_pruned);
+                    if (in_check) DIAG_COUNT(++state_.diag.in_check_quiet_see);
+                    if (is_pv)    DIAG_COUNT(++state_.diag.pv_quiet_pruned);
                     TRACE_DECISION(TraceEvent::QuietSeePrune, ply, depth, m,
                                    alpha, beta, eval, improving, correction, history,
                                    move_count, 0, -kp.quiet_see_coeff * lmr_depth * lmr_depth,
@@ -971,9 +1231,13 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
         // ---- Extensions -------------------------------------------------------
         int extension = 0;
+        // Cluster 2's singular extension also deepens the node by a ply for
+        // the moves after this one (the donor's form); this move's own depth
+        // is not raised by it.
+        int depth_bump = 0;
 
         // ---- Singular extension (only for TT move) -------------------------
-        if (!ABLATED(6) && !is_root && m == tt_move && ss->excluded == MOVE_NONE
+        if (!kB3Proof && !ABLATED(6) && !is_root && m == tt_move && ss->excluded == MOVE_NONE
             && depth >= config_.limits.params.singular_min_depth
             && tt_found && tt_depth >= depth - 3
             && (tt_flag == TT_BETA || tt_flag == TT_EXACT)
@@ -982,6 +1246,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             int s_beta  = tt_score - config_.limits.params.singular_beta_mult * depth;
             int s_depth = (depth - 1) / 2;
 
+            DIAG_COUNT(++state_.diag.sing_tries);
             ss->excluded = m;
             int s_val = negamax<NodeType::NonPV>(s_depth, s_beta - 1, s_beta, ply, ss, false, true);
             ss->excluded = MOVE_NONE;
@@ -1018,6 +1283,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 if (allow_double)   DIAG_COUNT(++state_.diag.sing_double);
                 if (did_check_ext)  DIAG_COUNT(++state_.diag.sing_in_check);
                 if (allow_double && did_check_ext) DIAG_COUNT(++state_.diag.sing_triple);
+                if (!is_pv && s_val < s_beta - config_.limits.params.singular_double_margin
+                    && !allow_double)
+                    DIAG_COUNT(++state_.diag.sing_cap_bound);
 
                 // Relax LMR for this node's remaining moves. Suppressed
                 // when the TT move is a capture -- a singular capture says the
@@ -1027,6 +1295,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 singular_quiet_lmr = !tt_capture;
             } else if (s_beta >= beta) {
                 // Multicut: likely to fail high without this move too
+                DIAG_COUNT(++state_.diag.sing_multicut);
                 TRACE_DECISION(TraceEvent::SingularMulticut, ply, depth, m,
                                alpha, beta, eval, improving, correction, trace_history,
                                searched, 0, s_beta, s_val);
@@ -1051,6 +1320,111 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             }
         }
 
+        // ---- Singular extension (Cluster 2, the donor's form) ---------------
+        // The TT move is searched alone against a bound just below its score:
+        // when every other move falls below it, the move is extended one to
+        // three plies by how far they fell, within the line's budget, and the
+        // node deepens; when they clear the node's beta it is a multi-cut;
+        // otherwise a move the table says fails high, or one at an expected
+        // cut node, is searched shallower.
+        if constexpr (kB3Proof) {
+            if (!ABLATED(6) && !is_root && m == tt_move && ss->excluded == MOVE_NONE
+                && ply < MAX_PLY - 2 && depth >= kp.b3_sing_min_depth + int(ss->tt_pv)
+                && tt_score != VALUE_NONE && !is_decisive(tt_score) && proves_lower(tt_flag)
+                && tt_depth >= depth - (kp.b3_sing_tt_depth ? 2 : 3)) {
+                if (b3::is_shuffling(tt_capture, state_.board->rule50_count(),
+                                     state_.board->plies_since_null(), ply, m,
+                                     (ss - 2)->move, (ss - 4)->move)) {
+                    DIAG_COUNT(++state_.diag.sing_shuffle_refused);
+                } else if (b3::seek_mate(root_depth_, root_score_, kp.b3_seek_mate_depth,
+                                         kp.b3_seek_mate_score)) {
+                    DIAG_COUNT(++state_.diag.sing_seekmate_refused);
+                } else {
+                    const int s_beta = b3::singular_beta(tt_score, depth, ss->tt_pv && !is_pv,
+                                                         kp.b3_sing_margin, kp.b3_sing_margin_ttpv);
+                    const int s_depth = (depth - 1) / 2;
+
+                    DIAG_COUNT(++state_.diag.sing_tries);
+                    ss->excluded = m;
+                    const int s_val = negamax<NodeType::NonPV>(s_depth, s_beta - 1, s_beta, ply, ss,
+                                                               false, cut_node);
+                    ss->excluded = MOVE_NONE;
+
+                    if (state_.stopped) {
+                        immediate_return = true;
+                        immediate_score = 0;
+                        return true;
+                    }
+
+                    if (s_val < s_beta) {
+                        const int corr_adj = std::min(std::abs(correction_raw) / kp.b3_sing_corr_div,
+                                                      kp.b3_sing_corr_cap);
+                        const bool deep = ply > root_depth_;
+                        const int double_margin = kp.b3_sing_double_base + kp.b3_sing_double_pv * is_pv
+                            + kp.b3_sing_double_quiet * !tt_capture - corr_adj
+                            - kp.b3_sing_tmh_mult * hist_.tt_move.value / 114178
+                            + kp.b3_sing_double_deep * deep;
+                        const int triple_margin = kp.b3_sing_triple_base + kp.b3_sing_triple_pv * is_pv
+                            + kp.b3_sing_triple_quiet * !tt_capture
+                            + kp.b3_sing_triple_ttpv * ss->tt_pv - corr_adj
+                            + kp.b3_sing_triple_deep * deep;
+                        const int graded = b3::graded_extension(s_val, s_beta, double_margin,
+                                                                triple_margin);
+                        extension = graded;
+                        if (kp.b3_ext_budget) {
+                            bool truncated = false;
+                            extension = b3::budget_extension(graded, ss->ext_plies, ext_budget(),
+                                                             truncated);
+                            if (truncated) {
+                                DIAG_COUNT(++state_.diag.ext_budget_bound);
+                                TRACE_DECISION(TraceEvent::ExtBudgetTruncate, ply, depth, m,
+                                               alpha, beta, eval, improving, correction, VALUE_NONE,
+                                               searched, extension, ss->ext_plies, ext_budget());
+                            }
+                        }
+                        ++depth;
+                        depth_bump = 1;
+                        TRACE_DECISION(TraceEvent::SingularExtension, ply, depth, m,
+                                       alpha, beta, eval, improving, correction, trace_history,
+                                       searched, extension, s_beta, s_val);
+                        DIAG_COUNT(++state_.diag.sing_fired);
+                        if (graded >= 2) DIAG_COUNT(++state_.diag.sing_double);
+                        if (graded == 3) DIAG_COUNT(++state_.diag.sing_ext3);
+                        if (did_check_ext) DIAG_COUNT(++state_.diag.sing_in_check);
+                        if (graded >= 2 && did_check_ext) DIAG_COUNT(++state_.diag.sing_triple);
+                        singular_quiet_lmr = kp.b3_singular_quiet_lmr && !tt_capture;
+                    } else if (b3::multicut_admits(kp.b3_multi_cut, s_val, s_beta, beta,
+                                                   is_decisive(s_val))) {
+                        // The node fails high without its TT move too: the
+                        // TT move's history learns it was not needed, and the
+                        // correction learns the static eval was low.
+                        TTMoveHistory::update(hist_.tt_move.value,
+                                              -kp.b3_sing_mc_tmh_base - kp.b3_sing_mc_tmh_slope * depth);
+                        if (!in_check && s_val > static_eval) {
+                            const int bonus = std::clamp(
+                                (s_val - static_eval) * 1000 / 282 * s_depth * kp.b3_sing_mc_corr / 1024,
+                                -256, 256);
+                            update_correction_history(ss, bonus);
+                        }
+                        DIAG_COUNT(++state_.diag.sing_multicut);
+                        TRACE_DECISION(TraceEvent::SingularMulticut, ply, depth, m,
+                                       alpha, beta, eval, improving, correction, trace_history,
+                                       searched, 0, s_beta, s_val);
+                        immediate_return = true;
+                        immediate_score = s_val;
+                        return true;
+                    } else if (b3::negative_extension(tt_score, beta, cut_node)) {
+                        extension = -kp.b3_sing_negative;
+                        DIAG_COUNT(++state_.diag.sing_ttbeta);
+                        if (tt_score < beta) DIAG_COUNT(++state_.diag.sing_negative_cut);
+                        TRACE_DECISION(TraceEvent::SingularNegative, ply, depth, m,
+                                       alpha, beta, eval, improving, correction, trace_history,
+                                       searched, extension, s_beta, s_val);
+                    }
+                }
+            }
+        }
+
         // The move's history score: a capture's captured value and capture
         // history, a quiet's main and nearest continuation histories.
         const PieceType moved_pt = type_of(state_.board->piece_on(from_sq(m)));
@@ -1061,11 +1435,22 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             const PieceType captured = move_type(m) == EN_PASSANT ? PAWN
                                      : type_of(state_.board->piece_on(move_to));
             stat_score = 873 * HIST_PIECE_VALUE[captured] / 128
-                       + hist_.capture.entry[moved_pt][move_to][captured];
+                       + hist_.capture.entry[hist_piece(state_.board->turn(), moved_pt)][move_to][captured];
+            HIST_SHADOW(hist_.shadow->read(
+                ShadowTable::Capture,
+                CoreHistoryTables::capture_cell(hist_piece(state_.board->turn(), moved_pt), move_to, captured),
+                state_.board->turn()));
         } else {
+            const int moved_piece = hist_piece(state_.board->turn(), moved_pt);
             stat_score = (2252 * main_hist[from_sq(m)][move_to]
-                          + 1126 * (ss - 1)->cont_hist->entry[moved_pt][move_to]
-                          + 1093 * (ss - 2)->cont_hist->entry[moved_pt][move_to]) / 1024;
+                          + 1126 * (ss - 1)->cont_hist->entry[moved_piece][move_to]
+                          + 1093 * (ss - 2)->cont_hist->entry[moved_piece][move_to]) / 1024;
+#ifdef BASILISK_DIAGNOSTIC
+            for (int back : {1, 2})
+                hist_.shadow->read(ShadowTable::Continuation,
+                                   hist_.continuation_cell((ss - back)->cont_hist, moved_piece, move_to),
+                                   state_.board->turn());
+#endif
         }
         ss->stat_score = stat_score;
 
@@ -1073,8 +1458,12 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         do_move(ss, m);
         shared_.tt.prefetch(state_.board->position_key());
         state_.sel_depth = std::max(state_.sel_depth, ply + 1);
+        if constexpr (kB3Proof) {
+            ss->ext_taken = std::max(extension, 0);
+            (ss + 1)->ext_plies = ss->ext_plies + ss->ext_taken;
+        }
 
-        int new_depth = depth - 1 + extension;
+        int new_depth = depth - 1 + extension - depth_bump;
         // Propagate the stacked double-extension count to the
         // child so a chain of singular double-extensions is eventually capped.
         (ss + 1)->double_exts = ss->double_exts + (extension >= 2 ? 1 : 0);
@@ -1118,10 +1507,10 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         int score;
         if (searched == 0) {
             // At a non-PV node a first move whose reduction would be large is
-            // searched one or two plies shallower (never at the root or in
-            // check), as later moves without LMR are.
+            // searched one or two plies shallower (never at the root, nor in
+            // check off Cluster 2's arm), as later moves without LMR are.
             int step = 0;
-            if (!is_pv && !ABLATED(7) && !is_root && !in_check) {
+            if (!is_pv && !ABLATED(7) && !is_root && (!in_check || check_prune)) {
                 const int rr = r + (tt_move == MOVE_NONE ? 1127 : 0);
                 step = (rr > 5234) + (rr > 5487 && new_depth > 2);
             }
@@ -1136,12 +1525,12 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             score = -negamax<PvChild>(new_depth - step, -beta, -alpha, ply + 1, ss + 1, true,
                                       !is_pv && !cut_node);
         } else {
-            // Nothing is reduced at the root or in check.
-            const bool reducible = !ABLATED(7) && !is_root && !in_check;
+            // Nothing is reduced at the root, nor in check off Cluster 2's arm.
+            const bool reducible = !ABLATED(7) && !is_root && (!in_check || check_prune);
             if (!ABLATED(7) && !is_root) {
                 DIAG_COUNT(++state_.diag.lmr_eligible);
                 if (depth < 2)     DIAG_COUNT(++state_.diag.lmr_blocked_depth);
-                else if (in_check) DIAG_COUNT(++state_.diag.lmr_blocked_in_check);
+                else if (in_check && !check_prune) DIAG_COUNT(++state_.diag.lmr_blocked_in_check);
             }
             if (reducible && depth >= 2) {
                 // The reduced depth: at least one ply, at most two beyond the
@@ -1157,6 +1546,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 if (d < new_depth) {
                     DIAG_COUNT(state_.diag.lmr_applied++);
                     DIAG_COUNT(state_.diag.lmr_reduction_plies += new_depth - d);
+                    if (in_check) DIAG_COUNT(++state_.diag.in_check_lmr_applied);
                 } else {
                     DIAG_COUNT(++state_.diag.lmr_clamped_zero);
                     if (d > new_depth) DIAG_COUNT(++state_.diag.lmr_extended);
@@ -1189,7 +1579,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                                                           ply + 1, ss + 1, true, !cut_node);
                     }
                     // A reduced move that failed high trains its continuations.
-                    update_continuation_histories(ss, moved_pt, move_to, 1334);
+                    // The move is still made, so its side is the one not to move.
+                    update_continuation_histories(ss, make_piece(~state_.board->turn(), moved_pt),
+                                                  move_to, 1334);
                 }
             } else {
                 // Without LMR the move is searched at full depth, one or two
@@ -1216,6 +1608,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         }
 
         undo_move(ss, m);
+        if constexpr (kB3Proof) ss->ext_taken = 0;
 
         if (state_.stopped)
             return true;
@@ -1269,9 +1662,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 cut_alpha = alpha;
                 alpha = score;
                 // Once a move raised alpha the rest are searched shallower
-                // (never at the root or in check).
+                // (never at the root, nor in check off Cluster 2's arm).
                 if (score < beta && depth > 3 && depth < 12 && !is_decisive(score)
-                    && !is_root && !in_check)
+                    && !is_root && (!in_check || check_prune))
                     depth -= 3;
                 // Update PV. A child at MAX_PLY returns before it sets a
                 // length, and pv_len has no entry for it, so it adds none.
@@ -1389,10 +1782,18 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     // Correction training: never in check, under exclusion, from a decisive
     // score or from a node whose best move is a capture. The default
     // admission takes the error only where its sign agrees with the bound:
-    // above the static eval exactly when a move raised alpha.
+    // above the static eval exactly when a move raised alpha. Cluster 2's arm
+    // trains on decisive scores (B3CorrDecisive) and under exclusion
+    // (B3CorrExcluded), as the donor does, except at an exclusion node whose
+    // raw static eval is 0: that is the evaluator's verdict (a recognised
+    // draw), and the value without the only move is no error of it. The
+    // bonus is clamped either way.
     const bool raised_alpha = best_score > orig_alpha;
-    if (!in_check && ss->excluded == MOVE_NONE && static_eval != VALUE_NONE
-        && !is_decisive(best_score)
+    const bool train_decisive = kB3Proof && kp.b3_corr_decisive;
+    const bool train_excluded = kB3Proof && kp.b3_corr_excluded;
+    if (!in_check && (ss->excluded == MOVE_NONE || (train_excluded && ss->raw_eval != 0))
+        && static_eval != VALUE_NONE
+        && (train_decisive || !is_decisive(best_score))
         && !(raised_alpha && (state_.board->piece_on(to_sq(best_move)) != NO_PIECE
                               || move_type(best_move) == EN_PASSANT))
         && (kp.corr_admission ? (best_score > static_eval) == raised_alpha
@@ -1414,8 +1815,12 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 :                             TT_ALPHA;
     // A later MultiPV line searched the root without its best moves; its
     // result is not the root's, so it is not stored (Stockfish skips it too).
+    // Cluster 2's arm stores no move after a fail low (B3FailLowStore): no
+    // move proved itself, and the entry keeps the move it had.
+    const Move stored_move = (kB3Proof && kp.b3_fail_low_store && flag == TT_ALPHA)
+                           ? MOVE_NONE : best_move;
     if (ss->excluded == MOVE_NONE && !(is_root && !state_.root_excluded.empty()))
-        tt_store(hash, depth, best_score, flag, best_move, ply, tt_static_eval,
+        tt_store(hash, depth, best_score, flag, stored_move, ply, tt_static_eval,
                   ss->tt_pv);
 
     return best_score;
@@ -1425,9 +1830,15 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
 void Searcher::kernel_new_game() {
     hist_.clear();
+    hist_fresh_ = true;
 }
 
 void Searcher::kernel_begin_search() {
+    if constexpr (kB3Proof)
+        if (hist_fresh_ && config_.limits.params.core_history_fills)
+            hist_.clear(true);
+    hist_fresh_ = false;
+    nmp_min_ply_ = 0;
     reductions_[0] = 0;
     for (int i = 1; i < 256; ++i)
         reductions_[i] = int(config_.limits.params.lmr_table_scale / 128.0 * std::log(i));
@@ -1447,6 +1858,7 @@ void Searcher::kernel_begin_search() {
 int Searcher::root_search(int depth, int alpha, int beta) {
     root_delta_ = std::max(1, beta - alpha);
     root_depth_ = depth;
+    root_score_ = state_.prev_root_score;
     return negamax<NodeType::Root>(depth, alpha, beta, 0, state_.stack + STACK_SENTINELS,
                                    true, false);
 }

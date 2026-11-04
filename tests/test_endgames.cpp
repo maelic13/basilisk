@@ -51,6 +51,9 @@ static constexpr int MATE_DEPTH  = 18;    // fixed depth for mate recognition
 // conflated knowledge with search effort -- KBB-K scored 2/12 at depth 10 AND
 // at depth 14, while converting 87% at this node count.
 static constexpr int64_t CONV_NODES = 60000;
+// `--nodes N` replays the floors at another budget (B-3's multi-budget read);
+// the bounds are set at CONV_NODES, so another budget reports, it does not judge.
+static int64_t conv_nodes = CONV_NODES;
 static constexpr int MATE_BUDGET = 100;   // max plies to deliver mate
 
 // White-perspective static eval.
@@ -343,7 +346,7 @@ static void test_conversion_floors() {
     std::atomic<size_t> next{0};
     auto work = [&] {
         for (size_t j; (j = next.fetch_add(1)) < jobs.size();)
-            jobs[j].plies = mate_playout_plies(jobs[j].fen, WHITE, CONV_NODES);
+            jobs[j].plies = mate_playout_plies(jobs[j].fen, WHITE, conv_nodes);
     };
     const size_t workers = std::clamp<size_t>(std::thread::hardware_concurrency(), 1, jobs.size());
     std::vector<std::thread> pool;
@@ -540,7 +543,6 @@ static void test_kbnk_keeps_both_minors() {
 // one exactly 0. The evaluation is read without the rule-50 damping, as the
 // search stores it; every FEN has a clock of 0.
 // ---------------------------------------------------------------------------
-static constexpr int KNOWN_WIN_SCORE = 10000;   // eval.cpp's KNOWN_WIN
 static constexpr int KPK_LEGAL_POSITIONS = 662704;
 
 static void test_kpk_matches_syzygy() {
@@ -588,7 +590,7 @@ static void test_kpk_matches_syzygy() {
                             if (++wrong_sign <= 5)
                                 std::fprintf(stderr, "  KPK %s: WDL %d, evaluation %d\n",
                                              fen.c_str(), verdict, score);
-                        } else if (verdict != 0 && std::abs(score) < KNOWN_WIN_SCORE) {
+                        } else if (verdict != 0 && std::abs(score) < KNOWN_WIN) {
                             ++below_known_win;
                         }
                     }
@@ -653,6 +655,111 @@ static void test_pawnless_scale_truth_table() {
 }
 
 // ---------------------------------------------------------------------------
+// The wrong rook-pawn bishop in search (B.12). An underpromotion beside the
+// defending king scores as a won KBB-K or KBN-K, and quiescence read the
+// king's capture of the new piece as a gain of one minor against that score:
+// delta pruning and capture futility cut the defence, the bound came back as
+// a known win, and the head read the drawn 7k/8/6KP/.../5B2 at +150 from
+// depth 8, past 13.5M nodes without finishing depth 11 (1.10.2: 0 in 11,704
+// nodes at depth 14). Each position must read a draw at every depth 8-14
+// inside a node cap about fourteen times what the repaired search needs.
+// ---------------------------------------------------------------------------
+static const char* WRONG_BISHOP_FENS[] = {
+    "7k/8/6KP/8/8/8/8/5B2 w - - 0 1",   // suite_v2 89
+    "k7/8/PK6/8/8/8/8/2B5 w - - 0 1",   // the a-file
+    "5b2/8/8/8/8/6kp/8/7K b - - 0 1",   // colours reversed
+    "7k/7P/6K1/8/8/3B4/8/8 w - - 0 1",  // on its false PV, stalemate near
+};
+static constexpr int64_t WRONG_BISHOP_NODE_CAP = 200000;
+
+static void test_wrong_bishop_draw_in_search() {
+    const auto& FENS = WRONG_BISHOP_FENS;
+    constexpr int64_t NODE_CAP = WRONG_BISHOP_NODE_CAP;
+    begin_section("KBP-K wrong bishop reads a draw at depths 8-14");
+    for (const char* fen : FENS) {
+        for (int depth = 8; depth <= 14; ++depth) {
+            Board b;
+            b.set_fen(fen);
+            TranspositionTable tt(8);
+            std::atomic_bool stop{false};
+            SearchLimits lim;
+            lim.depth = depth;
+            lim.nodes = NODE_CAP;
+            auto searcher = std::make_unique<Searcher>(tt, stop);
+            const SearchResult r = searcher->search(b, lim);
+            EXPECT_EQ(r.depth, depth);
+            EXPECT(std::abs(r.score) <= DRAW_TOL);
+        }
+    }
+    end_section();
+}
+
+// ---------------------------------------------------------------------------
+// A recognised draw is a classification: the evaluator returns 0 because the
+// position is drawn, not because its terms cancel, so the correction history
+// has no error to correct there. Added on top of the 0, the correction
+// trained on the same pawn, minor and non-pawn keys by the drawn side's own
+// root (an ordinary evaluation far from 0 against a search value of 0)
+// overwrites the verdict. With Black to move Kg8 is the only drawing move,
+// and the recogniser fires only after it; the head read -90 at depth 11 from
+// fresh tables. The test above starts every search from cleared tables; a
+// game reaches the corner with trained ones, which the primed form reads:
+// two lost same-structure positions searched first in one process, then the
+// same 28 searches without clearing (the head read up to +172).
+// ---------------------------------------------------------------------------
+static void test_recognised_draw_takes_no_correction() {
+    constexpr int64_t NODE_CAP = WRONG_BISHOP_NODE_CAP;
+    begin_section("a recognised draw reads a draw from its own root's training, depths 8-14");
+    for (int depth = 8; depth <= 14; ++depth) {
+        Board b;
+        b.set_fen("5k2/8/6KP/8/8/8/8/5B2 b - - 0 1");
+        TranspositionTable tt(8);
+        std::atomic_bool stop{false};
+        SearchLimits lim;
+        lim.depth = depth;
+        lim.nodes = NODE_CAP;
+        auto searcher = std::make_unique<Searcher>(tt, stop);
+        const SearchResult r = searcher->search(b, lim);
+        EXPECT_EQ(r.depth, depth);
+        EXPECT(std::abs(r.score) <= DRAW_TOL);
+        if (std::abs(r.score) > DRAW_TOL)
+            std::fprintf(stderr, "    depth %d reads %d\n", depth, r.score);
+    }
+    end_section();
+
+    static const char* PRIMING[] = {
+        "8/8/5K1P/8/8/8/k7/5B2 b - - 0 1",
+        "8/8/6KP/8/8/8/8/k4B2 b - - 0 1",
+    };
+    begin_section("KBP-K wrong bishop reads a draw at depths 8-14 after trained tables");
+    TranspositionTable tt(8);
+    std::atomic_bool stop{false};
+    auto searcher = std::make_unique<Searcher>(tt, stop);
+    for (const char* fen : PRIMING) {
+        Board b;
+        b.set_fen(fen);
+        SearchLimits lim;
+        lim.depth = 12;
+        searcher->search(b, lim);
+    }
+    for (const char* fen : WRONG_BISHOP_FENS) {
+        for (int depth = 8; depth <= 14; ++depth) {
+            Board b;
+            b.set_fen(fen);
+            SearchLimits lim;
+            lim.depth = depth;
+            lim.nodes = NODE_CAP;
+            const SearchResult r = searcher->search(b, lim);
+            EXPECT_EQ(r.depth, depth);
+            EXPECT(std::abs(r.score) <= DRAW_TOL);
+            if (std::abs(r.score) > DRAW_TOL)
+                std::fprintf(stderr, "    %s depth %d reads %d\n", fen, depth, r.score);
+        }
+    }
+    end_section();
+}
+
+// ---------------------------------------------------------------------------
 
 int main(int argc, char** argv) {
     init_bitboards();
@@ -664,12 +771,14 @@ int main(int argc, char** argv) {
     bool conversion = false;
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "--conversion") == 0) conversion = true;
+        else if (std::strcmp(argv[i], "--nodes") == 0 && i + 1 < argc)
+            conv_nodes = std::atoll(argv[++i]);
         else epd_path = argv[i];
     }
 
     if (conversion) {
-        std::printf("Endgame conversion floors (60k nodes per move, %u threads)\n",
-                    std::thread::hardware_concurrency());
+        std::printf("Endgame conversion floors (%lld nodes per move, %u threads)\n",
+                    static_cast<long long>(conv_nodes), std::thread::hardware_concurrency());
         test_conversion_floors();
         return harness_summary();
     }
@@ -692,6 +801,8 @@ int main(int argc, char** argv) {
     test_kbnk_keeps_both_minors();
     test_kpk_matches_syzygy();
     test_pawnless_scale_truth_table();
+    test_wrong_bishop_draw_in_search();
+    test_recognised_draw_takes_no_correction();
 
     return harness_summary();
 }

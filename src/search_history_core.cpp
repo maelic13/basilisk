@@ -16,7 +16,7 @@
 
 static bool move_made(Move m) { return m != MOVE_NONE && m != MOVE_NULL; }
 
-void Searcher::update_continuation_histories(SearchStack* ss, PieceType pt, Square to,
+void Searcher::update_continuation_histories(SearchStack* ss, Piece piece, Square to,
                                              int bonus) {
     struct Back { int plies; int weight; };
     static constexpr Back backs[] = {{1, 520}, {2, 390}, {3, 145}, {4, 251}, {5, 66}, {6, 209}};
@@ -31,40 +31,55 @@ void Searcher::update_continuation_histories(SearchStack* ss, PieceType pt, Squa
         SearchStack* prev = ss - b.plies;
         if (!move_made(prev->move))
             continue;
-        int16_t& e = prev->cont_hist->entry[pt][to];
+        int16_t& e = prev->cont_hist->entry[hist_piece(piece)][to];
         if (e > 0)
             ++positive;
         PieceToHistory::update(e, bonus * b.weight * consistency[positive] / 65536
                                   + 73 * (b.plies < 2));
+        HIST_SHADOW(hist_.shadow->write(ShadowTable::Continuation,
+                                        hist_.continuation_cell(prev->cont_hist, hist_piece(piece), to),
+                                        shadow_mover(ss)));
     }
 }
 
 void Searcher::update_quiet_histories(SearchStack* ss, Move m, int bonus) {
     const Square from = Square(from_sq(m));
     const Square to   = Square(to_sq(m));
-    const PieceType pt = type_of(state_.board->piece_on(from));
+    const Piece piece = state_.board->piece_on(from);
     const int ply = static_cast<int>(ss - (state_.stack + STACK_SENTINELS));
 
     MainHistory::update(hist_.main.entry[state_.board->turn()][from][to], bonus);
     if (ply < LowPlyHistory::PLIES)
         LowPlyHistory::update(hist_.low_ply.entry[ply][from][to], bonus * 712 / 1024);
-    update_continuation_histories(ss, pt, to, bonus * 750 / 1024);
-    PawnHistoryBucket::update(pawn_bucket().entry[pt][to],
+    update_continuation_histories(ss, piece, to, bonus * 750 / 1024);
+    PawnHistoryBucket::update(pawn_bucket().entry[hist_piece(piece)][to],
                               bonus * (bonus > -4 ? 1104 : 459) / 1024);
+    HIST_SHADOW(hist_.shadow->write(ShadowTable::Pawn,
+                                    hist_.pawn_cell(&pawn_bucket(), hist_piece(piece), to),
+                                    state_.board->turn()));
 }
 
 void Searcher::update_capture_history(Move m, int bonus) {
     const Square to = Square(to_sq(m));
-    const PieceType attacker = type_of(state_.board->piece_on(from_sq(m)));
+    const int attacker = hist_piece(state_.board->piece_on(from_sq(m)));
     const PieceType captured = move_type(m) == EN_PASSANT ? PAWN
                              : type_of(state_.board->piece_on(to));
     CaptureHistory::update(hist_.capture.entry[attacker][to][captured], bonus);
+    HIST_SHADOW(hist_.shadow->write(ShadowTable::Capture,
+                                    CoreHistoryTables::capture_cell(attacker, to, captured),
+                                    state_.board->turn()));
 }
 
-int Searcher::cont_hist_score(const SearchStack* ss, PieceType pt, Square to) const {
-    return (ss - 1)->cont_hist->entry[pt][to]
-         + (ss - 2)->cont_hist->entry[pt][to]
-         + (ss - 4)->cont_hist->entry[pt][to] / 2;
+int Searcher::cont_hist_score(const SearchStack* ss, int piece, Square to) const {
+#ifdef BASILISK_DIAGNOSTIC
+    for (int back : {1, 2, 4})
+        hist_.shadow->read(ShadowTable::Continuation,
+                           hist_.continuation_cell((ss - back)->cont_hist, piece, to),
+                           state_.board->turn());
+#endif
+    return (ss - 1)->cont_hist->entry[piece][to]
+         + (ss - 2)->cont_hist->entry[piece][to]
+         + (ss - 4)->cont_hist->entry[piece][to] / 2;
 }
 
 // After a move raised alpha: the bonus grows with depth, with the TT move as
@@ -103,7 +118,7 @@ void Searcher::update_all_stats(SearchStack* ss, Move best, Move tt_move,
     if (move_made(prev) && (ss - 1)->move_count == 1 + int((ss - 1)->tt_hit)
         && b.captured_piece() == NO_PIECE) {
         const Square prev_to = Square(to_sq(prev));
-        update_continuation_histories(ss - 1, type_of(b.piece_on(prev_to)), prev_to,
+        update_continuation_histories(ss - 1, b.piece_on(prev_to), prev_to,
                                       -malus * 713 / 1024);
     }
 
@@ -122,7 +137,11 @@ void Searcher::update_fail_low_parent(SearchStack* ss, int depth, int best_score
     const Piece captured = b.captured_piece();
     if (captured != NO_PIECE) {
         CaptureHistory::update(
-            hist_.capture.entry[type_of(b.piece_on(prev_to))][prev_to][type_of(captured)], 892);
+            hist_.capture.entry[hist_piece(b.piece_on(prev_to))][prev_to][type_of(captured)], 892);
+        HIST_SHADOW(hist_.shadow->write(
+            ShadowTable::Capture,
+            CoreHistoryTables::capture_cell(hist_piece(b.piece_on(prev_to)), prev_to, type_of(captured)),
+            ~b.turn()));
         return;
     }
     int scale = -241;
@@ -135,10 +154,14 @@ void Searcher::update_fail_low_parent(SearchStack* ss, int depth, int best_score
     const int scaled = std::min(150 * depth - 85, 1337) * scale;
 
     const PieceType pt = type_of(b.piece_on(prev_to));
-    update_continuation_histories(ss - 1, pt, prev_to, scaled * 263 / 16384);
+    update_continuation_histories(ss - 1, b.piece_on(prev_to), prev_to, scaled * 263 / 16384);
     MainHistory::update(hist_.main.entry[~b.turn()][from_sq(prev)][prev_to], scaled * 215 / 32768);
-    if (pt != PAWN && move_type(prev) != PROMOTION)
-        PawnHistoryBucket::update(pawn_bucket().entry[pt][prev_to], scaled * 324 / 8192);
+    if (pt != PAWN && move_type(prev) != PROMOTION) {
+        const int piece = hist_piece(b.piece_on(prev_to));
+        PawnHistoryBucket::update(pawn_bucket().entry[piece][prev_to], scaled * 324 / 8192);
+        HIST_SHADOW(hist_.shadow->write(ShadowTable::Pawn,
+                                        hist_.pawn_cell(&pawn_bucket(), piece, prev_to), ~b.turn()));
+    }
 }
 
 void Searcher::update_parent_by_eval_difference(SearchStack* ss, int eval_diff, bool tt_hit) {
@@ -147,8 +170,12 @@ void Searcher::update_parent_by_eval_difference(SearchStack* ss, int eval_diff, 
     const Square to   = Square(to_sq(prev));
     MainHistory::update(hist_.main.entry[~state_.board->turn()][from][to], eval_diff * 11);
     const PieceType pt = type_of(state_.board->piece_on(to));
-    if (!tt_hit && pt != PAWN && move_type(prev) != PROMOTION)
-        PawnHistoryBucket::update(pawn_bucket().entry[pt][to], eval_diff * 13);
+    if (!tt_hit && pt != PAWN && move_type(prev) != PROMOTION) {
+        const int piece = hist_piece(state_.board->piece_on(to));
+        PawnHistoryBucket::update(pawn_bucket().entry[piece][to], eval_diff * 13);
+        HIST_SHADOW(hist_.shadow->write(ShadowTable::Pawn, hist_.pawn_cell(&pawn_bucket(), piece, to),
+                                        ~state_.board->turn()));
+    }
 }
 
 // The correction of the node at `ss`, in 131072ths of an evaluation unit: the
@@ -170,6 +197,11 @@ int Searcher::correction_value(const SearchStack* ss) const {
         const PieceType pt = type_of(b.piece_on(to));
         cont = config_.limits.params.corr_cont_weight
              * ((ss - 2)->cont_corr->entry[pt][to] + (ss - 4)->cont_corr->entry[pt][to]);
+#ifdef BASILISK_DIAGNOSTIC
+        for (int back : {2, 4})
+            hist_.shadow->read(ShadowTable::ContCorr,
+                               hist_.cont_corr_cell((ss - back)->cont_corr, pt, to), us);
+#endif
     }
     return 15341 * pawn + 10569 * minor + 12906 * (white + black) + cont;
 }
@@ -190,6 +222,11 @@ void Searcher::update_correction_history(SearchStack* ss, int bonus) {
         const PieceType pt = type_of(b.piece_on(to));
         PieceToCorrection::update((ss - 2)->cont_corr->entry[pt][to], bonus * 130 / 128);
         PieceToCorrection::update((ss - 4)->cont_corr->entry[pt][to], bonus * 70 / 128);
+#ifdef BASILISK_DIAGNOSTIC
+        for (int back : {2, 4})
+            hist_.shadow->write(ShadowTable::ContCorr,
+                                hist_.cont_corr_cell((ss - back)->cont_corr, pt, to), us);
+#endif
         DIAG_COUNT(++state_.diag.corr_cont2_updates);
         DIAG_COUNT(++state_.diag.corr_cont4_updates);
     }

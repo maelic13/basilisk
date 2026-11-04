@@ -1,0 +1,2584 @@
+diff -ruN -x .pgo a/c2_gate_int.py b/c2_gate_int.py
+--- a/c2_gate_int.py	1970-01-01 01:00:00.000000000 +0100
++++ b/c2_gate_int.py	2026-10-21 13:17:11.690736100 +0200
+@@ -0,0 +1,295 @@
++"""Gate 1 of Consilium-2 (21/10/2026): integer evaluation of the exported .nnue against the trainer.
++
++1. Builds a random Consilium-2 network (experts made different, pawn-king subnetwork active, a random routing table),
++   clips it, exports it with the serializer (int8 HalfKA, router and pawn-king sections) and reads it back.
++2. Evaluates sampled game positions in two independent ways:
++   - the trainer's model read from the file (float, fake quantization as in training) x nnue2score;
++   - an integer evaluator written here from the file bytes, with the rules of tools/halfka_int8/simulate.py (verified
++     against the engine on 51/51 positions on 12/10/2026): accumulators, clamp 0..255, pairwise product / 512, fc_0
++     + pawn-king output, SqrClippedReLU >> 21, ClippedReLU >> 7, fc_1, >> 19, >> 6, fc_2, skip fc_0[30]-fc_0[31],
++     x 9600 / 16384, psqt / 2, both / 16, C++ truncations.
++   The expected differences are rounding only (historical cross-checks: mean |d| 0.6-1.7 internal units).
++3. Checks the export round trip (router table, pawn-king tensors) and the int8 range of the HalfKA block.
++This is also the reference the engine must match after the launch.
++Usage: python c2_gate_int.py game.pgn [positions] [--out net.nnue]
++"""
++import argparse
++import io
++import random
++import struct
++
++import chess.pgn
++import numpy as np
++import torch
++
++import model as M
++from data_loader._native import set_router_table
++from data_loader.stream import destroy_sparse_batch, get_sparse_batch_from_fens
++from model.modules.features.halfka_v2_hm_x import NUM_CELLS, NUM_EXPERTS
++from model.modules.pawn_king import PK_HASH, PK_INPUTS
++from model.utils.serialize import ROUTER_MAGIC, NNUEReader, NNUEWriter
++
++FEATURES = "Full_Threats+HalfKAv2_hm_X8^+PP_3Wide+PassedPawns"
++LOADER_FEATURES = "Full_Threats+HalfKAv2_hm_X8+PP_3Wide+PassedPawns"
++L1, HALF, L2, L3, PSQT_B, LS = 1024, 512, 32, 32, 8, 8
++THREAT, HKA_TRAIN, HKA_EXPORT, PP, PA = 59808, 24576 * 8, 22528 * 8, 4560, 96
++PK_H = 256
++MAGIC = b"COMPRESSED_LEB128"
++
++
++# ---------------------------------------------------------------- file reader (independent of the serializer)
++def decode_leb128(buf, count):
++    out = np.zeros(count, dtype=np.int64)
++    i = k = 0
++    while k < count:
++        v = shift = 0
++        while True:
++            b = int(buf[i]); i += 1
++            v |= (b & 0x7F) << shift
++            shift += 7
++            if not b & 0x80:
++                if b & 0x40:
++                    v -= 1 << shift
++                break
++        out[k] = v
++        k += 1
++    return out
++
++
++class R:
++    def __init__(self, data):
++        self.f = io.BytesIO(data)
++
++    def u32(self):
++        return struct.unpack("<I", self.f.read(4))[0]
++
++    def tensor(self, dtype, count):
++        pos = self.f.tell()
++        if self.f.read(len(MAGIC)) == MAGIC:
++            n = self.u32()
++            return decode_leb128(np.frombuffer(self.f.read(n), dtype=np.uint8), count).astype(dtype)
++        self.f.seek(pos)
++        return np.frombuffer(self.f.read(np.dtype(dtype).itemsize * count), dtype=dtype).copy()
++
++
++def read_net(data):
++    r = R(data)
++    net = {}
++    r.u32(); r.u32()
++    r.f.read(r.u32())
++    r.u32()                                   # FT hash
++    net["bias"] = r.tensor(np.int16, L1).astype(np.int32)
++    segs = [("thr", THREAT, np.int8), ("hka", HKA_EXPORT, np.int8), ("pp", PP, np.int8), ("pa", PA, np.int8)]
++    for name, n, dt in segs:
++        net[name + "_w"] = r.tensor(dt, n * L1).reshape(n, L1).astype(np.int32)
++        net[name + "_psqt"] = r.tensor(np.int32, n * PSQT_B).reshape(n, PSQT_B).astype(np.int64)
++    net["ls"] = []
++    for _ in range(LS):
++        r.u32()
++        d = {}
++        d["b0"] = r.tensor(np.int32, L2); d["w0"] = r.tensor(np.int8, L2 * L1).reshape(L2, L1)
++        d["b1"] = r.tensor(np.int32, L3); d["w1"] = r.tensor(np.int8, L3 * 64).reshape(L3, 64)
++        d["b2"] = r.tensor(np.int32, 1); d["w2"] = r.tensor(np.int8, 128).reshape(1, 128)
++        net["ls"].append(d)
++    assert r.u32() == ROUTER_MAGIC
++    n = r.u32(); k = r.u32()
++    assert n == NUM_CELLS and k == NUM_EXPERTS
++    net["router"] = np.frombuffer(r.f.read(n), dtype=np.uint8).copy()
++    assert r.u32() == PK_HASH
++    h = r.u32(); o = r.u32()
++    net["pk_b1"] = np.frombuffer(r.f.read(2 * h), "<i2").astype(np.int64)
++    net["pk_w1"] = np.frombuffer(r.f.read(2 * PK_INPUTS * h), "<i2").reshape(PK_INPUTS, h).astype(np.int64)
++    net["pk_b2"] = np.frombuffer(r.f.read(4 * o), "<i4").astype(np.int64)
++    net["pk_w2"] = np.frombuffer(r.f.read(o * h), "<i1").reshape(o, h).astype(np.int64)
++    assert r.f.read() == b"", "bytes left after the last section"
++    return net
++
++
++# ---------------------------------------------------------------- integer forward
++def tdiv(a, b):
++    q = np.abs(a) // b
++    return np.where(a < 0, -q, q)
++
++
++def accumulate(net, idx):
++    """Accumulator (int16 range) and PSQT of one perspective from the loader's training indices."""
++    n, m = idx.shape
++    acc = np.repeat(net["bias"][None, :], n, axis=0).astype(np.int64)
++    ps = np.zeros((n, PSQT_B), dtype=np.int64)
++    for j in range(m):
++        col = idx[:, j]
++        for name, lo, hi, conv in (
++            ("thr", 0, THREAT, lambda t: t),
++            ("hka", THREAT, THREAT + HKA_TRAIN, None),
++            ("pp", THREAT + HKA_TRAIN, THREAT + HKA_TRAIN + PP, lambda t: t - THREAT - HKA_TRAIN),
++            ("pa", THREAT + HKA_TRAIN + PP, THREAT + HKA_TRAIN + PP + PA, lambda t: t - THREAT - HKA_TRAIN - PP),
++        ):
++            sel = (col >= lo) & (col < hi)
++            if not sel.any():
++                continue
++            t = col[sel]
++            if conv is None:
++                r0 = t - THREAT
++                e, r1 = r0 // 24576, r0 % 24576
++                bucket, plane, sq = r1 // 768, (r1 % 768) // 64, r1 % 64
++                rows = (e * 32 + bucket) * 704 + np.minimum(plane, 10) * 64 + sq
++            else:
++                rows = conv(t)
++            acc[sel] += net[name + "_w"][rows]
++            ps[sel] += net[name + "_psqt"][rows]
++    assert acc.min() >= -32768 and acc.max() <= 32767, "accumulator outside int16"
++    return acc, ps
++
++
++def pawn_king_int(net, pk_idx):
++    h = np.repeat(net["pk_b1"][None, :], pk_idx.shape[0], axis=0)
++    for j in range(pk_idx.shape[1]):
++        col = pk_idx[:, j]
++        sel = col >= 0
++        h[sel] += net["pk_w1"][col[sel]]
++    assert h.min() >= -32768 and h.max() <= 32767, "pawn-king accumulator outside int16"
++    h = np.clip(h, 0, 127)
++    return net["pk_b2"][None, :] + h @ net["pk_w2"].T
++
++
++def int_eval(net, stm_white, w, b, pc, pk_idx, parts=None):
++    acc_w, ps_w = accumulate(net, w)
++    acc_b, ps_b = accumulate(net, b)
++    acc_us = np.where(stm_white[:, None], acc_w, acc_b)
++    acc_th = np.where(stm_white[:, None], acc_b, acc_w)
++    x = np.empty((len(pc), L1), dtype=np.int64)
++    for p, acc in enumerate((acc_us, acc_th)):
++        a = np.clip(acc[:, :HALF], 0, 255)
++        c = np.clip(acc[:, HALF:], 0, 255)
++        x[:, p * HALF:(p + 1) * HALF] = (a * c) // 512
++    bucket = (pc - 1) // 4
++    pk = pawn_king_int(net, pk_idx)
++    pos = np.empty(len(pc), dtype=np.int64)
++    for bk in np.unique(bucket):
++        sel = bucket == bk
++        d = net["ls"][bk]
++        fc0 = d["b0"].astype(np.int64) + x[sel] @ d["w0"].astype(np.int64).T + pk[sel]
++        sq0 = np.minimum(127, (fc0 * fc0) >> 21)
++        cr0 = np.clip(fc0 >> 7, 0, 127)
++        c01 = np.concatenate([sq0, cr0], axis=1)
++        fc1 = d["b1"].astype(np.int64) + c01 @ d["w1"].astype(np.int64).T
++        sq1 = np.minimum(127, (fc1 * fc1) >> 19)
++        cr1 = np.clip(fc1 >> 6, 0, 127)
++        cc = np.concatenate([c01, sq1, cr1], axis=1)
++        fc2 = d["b2"].astype(np.int64) + cc @ d["w2"].astype(np.int64).T
++        fwd = fc2[:, 0] + (fc0[:, 30] - fc0[:, 31])
++        pos[sel] = tdiv(fwd * 9600, 16384)
++    n = np.arange(len(pc))
++    ps_us = np.where(stm_white, ps_w[n, bucket], ps_b[n, bucket])
++    ps_th = np.where(stm_white, ps_b[n, bucket], ps_w[n, bucket])
++    psqt = tdiv(ps_us - ps_th, 2)
++    if parts is not None:
++        parts.extend(zip(psqt.tolist(), pos.tolist()))
++    return tdiv(psqt, 16) + tdiv(pos, 16)
++
++
++# ---------------------------------------------------------------- random network
++def random_model(seed):
++    torch.manual_seed(seed)
++    cfg = M.ModelConfig()
++    cfg.pawn_king_hidden = PK_H
++    model = M.NNUEModel(FEATURES, cfg)
++    with torch.no_grad():
++        for f in model.input.features:
++            L = f.num_outputs - 8
++            if hasattr(f, "router"):
++                f.base_weight[:, :L].uniform_(-0.06, 0.06)
++                f.weight[:, :L].uniform_(-0.05, 0.05)            # the experts differ
++                f.virtual_weight[:, :L].uniform_(-0.01, 0.01)
++                f.router.copy_(torch.randint(0, NUM_EXPERTS, (NUM_CELLS,), dtype=torch.uint8))
++            else:
++                f.weight[:, :L].uniform_(-0.06, 0.06)
++        model.input.bias[:L1].uniform_(0.1, 0.5)
++        pk = model.pawn_king
++        pk.w1.weight.uniform_(-0.3, 0.3)
++        pk.w1.weight[PK_INPUTS].zero_()
++        pk.b1.uniform_(-0.2, 0.6)
++        pk.out.weight.uniform_(-0.5, 0.5)
++        pk.out.bias.uniform_(-0.5, 0.5)
++    model.clip_weights(include_input=True)
++    return model, cfg
++
++
++def main():
++    ap = argparse.ArgumentParser()
++    ap.add_argument("pgn")
++    ap.add_argument("positions", nargs="?", type=int, default=3000)
++    ap.add_argument("--out", default="")
++    ap.add_argument("--seed", type=int, default=7)
++    ap.add_argument("--net", default="", help="check an exported network instead of a random one")
++    ap.add_argument("--dump", default="", help="write <dump>.fen and <dump>.int (psqt positional total per position) "
++                                               "for the engine's evalbatch")
++    a = ap.parse_args()
++    random.seed(a.seed)
++    fens = []
++    with open(a.pgn, encoding="utf-8", errors="replace") as f:
++        while len(fens) < a.positions:
++            g = chess.pgn.read_game(f)
++            if g is None:
++                break
++            bd = g.board()
++            for mv in g.mainline_moves():
++                bd.push(mv)
++                if random.random() < 0.08 and not bd.is_game_over():
++                    fens.append(bd.fen())
++    if a.net:
++        cfg = M.ModelConfig()
++        cfg.pawn_king_hidden = PK_H
++        out = a.net
++        with open(out, "rb") as fi:
++            model = NNUEReader(fi, FEATURES, cfg).model
++        data = open(out, "rb").read()
++    else:
++        model, cfg = random_model(a.seed)
++        data = bytes(NNUEWriter(model, verbose=False).buf)
++        out = a.out or "c2_gate_random.nnue"
++        with open(out, "wb") as fo:
++            fo.write(data)
++    with open(out, "rb") as fi:   # the trainer's reader needs a real file (np.fromfile)
++        back = NNUEReader(fi, FEATURES, cfg).model
++    net = read_net(data)
++
++    # round trip of the new sections and int8 range
++    f0 = [f for f in model.input.features if hasattr(f, "router")][0]
++    f1 = [f for f in back.input.features if hasattr(f, "router")][0]
++    ok_router = bool((f0.router == f1.router).all()) and bool((torch.from_numpy(net["router"]) == f0.router).all())
++    q0, q1 = model.pawn_king.quantized(), back.pawn_king.quantized()
++    ok_pk = all(bool((q0[k] == q1[k]).all()) for k in q0)
++    ok_i8 = int(np.abs(net["hka_w"]).max()) <= 127
++
++    n = len(fens)
++    # the loader routes with the network's table, as train.py does (without it: the default table, which the trainer
++    # and this evaluator would share, but not the engine; found on 21/10 with the engine gate)
++    set_router_table(net["router"])
++    bt = get_sparse_batch_from_fens(LOADER_FEATURES, fens, [0] * n, [40] * n, [0] * n)
++    t = tuple(x.clone() for x in bt.contents.get_tensors("cpu"))
++    destroy_sparse_batch(bt)
++    us, them, w, b, outcome, score, pc, aux = t
++    with torch.no_grad():
++        y = back(us, them, w, b, pc, True, True, aux).view(-1).double() * back.quantization.nnue2score
++    parts = []
++    ie = int_eval(net, us.view(-1).numpy() > 0.5, w.numpy().astype(np.int64), b.numpy().astype(np.int64),
++                  pc.numpy().astype(np.int64), aux[:, 2:].numpy().astype(np.int64), parts)
++    if a.dump:
++        with open(a.dump + ".fen", "w") as ff, open(a.dump + ".int", "w") as fi:
++            for fen, (ps_, po_), t_ in zip(fens, parts, ie.tolist()):
++                ff.write(fen + "\n")
++                fi.write(f"{ps_} {po_} {t_}\n")
++    yt = y.numpy()
++    d = ie - yt
++    r2 = 1 - (d ** 2).sum() / ((yt - yt.mean()) ** 2).sum()
++    pk_share = float(np.abs(pawn_king_int(net, aux[:, 2:].numpy().astype(np.int64))).mean())
++    print(f"positions {n}; |eval| mean {np.abs(yt).mean():.1f}; integer vs trainer: mean |d| {np.abs(d).mean():.3f}, "
++          f"max |d| {np.abs(d).max():.1f}, R2 {r2:.7f}; pawn-king |out| mean {pk_share:.0f} (l1 units)")
++    print(f"router round trip {ok_router}, pawn-king round trip {ok_pk}, HalfKA inside int8 {ok_i8}")
++    ok = ok_router and ok_pk and ok_i8 and r2 > 0.99999 and np.abs(d).mean() < 2.0
++    print("GATE 1", "OK" if ok else "FAILED")
++
++
++if __name__ == "__main__":
++    main()
+diff -ruN -x .pgo a/c2_gate_loader.py b/c2_gate_loader.py
+--- a/c2_gate_loader.py	1970-01-01 01:00:00.000000000 +0100
++++ b/c2_gate_loader.py	2026-10-21 13:17:11.705350100 +0200
+@@ -0,0 +1,115 @@
++"""Gate 2 of Consilium-2 (21/10/2026): the data loader's indices against an independent python-chess computation.
++
++Checks, for positions sampled from games plus a few made by hand (promoted pieces, bare kings, Black to move):
++  - aux block: routing cell of White and of Black, the 18 pawn-king indices (order: own pawns, enemy pawns, own king,
++    enemy king, padding -1), against python-chess;
++  - HalfKAv2_hm_X8: every index equals the plain HalfKAv2_hm index + expert * 24,576 with expert = default table[cell]
++    of that perspective; the blocks after it are shifted by the larger HalfKA block; the threat block is unchanged.
++Usage: python c2_gate_loader.py game.pgn [positions]
++"""
++import random
++import sys
++
++import chess
++import chess.pgn
++import numpy as np
++
++from data_loader.stream import destroy_sparse_batch, get_sparse_batch_from_fens
++from model.modules.features.halfka_v2_hm_x import default_router_table
++
++THREATS, HKA, X8 = 59808, 24576, 24576 * 8
++SIG = 54
++
++
++def signature(board, color):
++    c = lambda pt: len(board.pieces(pt, color))
++    return min(c(chess.KNIGHT), 2) * 18 + min(c(chess.BISHOP), 2) * 6 + min(c(chess.ROOK), 2) * 2 + min(c(chess.QUEEN), 1)
++
++
++def cell(board, persp):
++    return signature(board, persp) * SIG + signature(board, not persp)
++
++
++def pk_ref(board):
++    us = board.turn
++    flip = 0 if us == chess.WHITE else 56
++    out = [0 + (s ^ flip) for s in sorted(board.pieces(chess.PAWN, us))]
++    out += [64 + (s ^ flip) for s in sorted(board.pieces(chess.PAWN, not us))]
++    out += [128 + (board.king(us) ^ flip), 192 + (board.king(not us) ^ flip)]
++    return out + [-1] * (18 - len(out))
++
++
++def batch_tensors(feature, fens):
++    n = len(fens)
++    b = get_sparse_batch_from_fens(feature, fens, [0] * n, [40] * n, [0] * n)
++    t = b.contents.get_tensors("cpu")
++    out = tuple(x.clone() for x in t)
++    destroy_sparse_batch(b)
++    return out
++
++
++def main():
++    pgn = sys.argv[1]
++    npos = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
++    random.seed(3)
++    fens = []
++    with open(pgn, encoding="utf-8", errors="replace") as f:
++        while len(fens) < npos:
++            g = chess.pgn.read_game(f)
++            if g is None:
++                break
++            board = g.board()
++            for i, mv in enumerate(g.mainline_moves()):
++                board.push(mv)
++                if random.random() < 0.08:
++                    fens.append(board.fen())
++    fens += [
++        "4k3/8/8/8/8/8/8/4K3 w - - 0 1",
++        "4k3/8/8/8/8/8/8/4K3 b - - 0 1",
++        "NNN1k3/8/8/8/8/8/8/QQ2K3 b - - 0 1",
++        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1",
++        "4k3/1P6/8/8/8/8/6p1/4K3 w - - 0 1",
++        "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1",
++    ]
++    feat_x8 = "Full_Threats+HalfKAv2_hm_X8+PP_3Wide+PassedPawns"
++    feat_pl = "Full_Threats+HalfKAv2_hm+PP_3Wide+PassedPawns"
++    tx = batch_tensors(feat_x8, fens)
++    tp = batch_tensors(feat_pl, fens)
++    table = default_router_table().numpy()
++    bad_aux = bad_idx = bad_pk = 0
++    experts_seen = np.zeros(8, dtype=np.int64)
++    for i, fen in enumerate(fens):
++        board = chess.Board(fen)
++        aux = tx[7][i].tolist()
++        cw, cb = cell(board, chess.WHITE), cell(board, chess.BLACK)
++        if aux[0] != cw or aux[1] != cb:
++            bad_aux += 1
++            if bad_aux <= 5:
++                print("aux cell mismatch", fen, aux[:2], (cw, cb))
++        if aux[2:] != pk_ref(board):
++            bad_pk += 1
++            if bad_pk <= 5:
++                print("pawn-king mismatch", fen, aux[2:], pk_ref(board))
++        for persp, (xi, pi) in enumerate(((tx[2][i], tp[2][i]), (tx[3][i], tp[3][i]))):
++            e = int(table[cw if persp == 0 else cb])
++            experts_seen[e] += 1
++            for x, p in zip(xi.tolist(), pi.tolist()):
++                if p < 0:
++                    exp = -1
++                elif p < THREATS:
++                    exp = p
++                elif p < THREATS + HKA:
++                    exp = p + e * HKA
++                else:
++                    exp = p + (X8 - HKA)
++                if x != exp:
++                    bad_idx += 1
++                    if bad_idx <= 5:
++                        print("index mismatch", fen, persp, x, exp)
++    print(f"positions {len(fens)}: aux cell mismatches {bad_aux}, pawn-king mismatches {bad_pk}, "
++          f"feature index mismatches {bad_idx}; experts used per perspective {experts_seen.tolist()}")
++    print("GATE 2", "OK" if bad_aux == bad_pk == bad_idx == 0 else "FAILED")
++
++
++if __name__ == "__main__":
++    main()
+diff -ruN -x .pgo a/c2_npm_quantiles.py b/c2_npm_quantiles.py
+--- a/c2_npm_quantiles.py	1970-01-01 01:00:00.000000000 +0100
++++ b/c2_npm_quantiles.py	2026-10-21 13:17:11.718735000 +0200
+@@ -0,0 +1,38 @@
++"""Opponent non-pawn material (capped signature) per perspective on game positions: histogram and 8 equal-frequency
++classes, for the initial routing table of Consilium-2 (21/10/2026). Usage: python c2_npm_quantiles.py a.pgn [b.pgn ...]"""
++import random
++import sys
++from collections import Counter
++
++import chess
++import chess.pgn
++
++
++def sig_npm(board, color):
++    c = lambda pt: min(len(board.pieces(pt, color)), 2 if pt != chess.QUEEN else 1)
++    return 3 * c(chess.KNIGHT) + 3 * c(chess.BISHOP) + 5 * c(chess.ROOK) + 9 * c(chess.QUEEN)
++
++
++random.seed(5)
++h = Counter()
++for path in sys.argv[1:]:
++    with open(path, encoding="utf-8", errors="replace") as f:
++        for _ in range(2500):
++            g = chess.pgn.read_game(f)
++            if g is None:
++                break
++            b = g.board()
++            for i, mv in enumerate(g.mainline_moves()):
++                b.push(mv)
++                if i >= 8:
++                    h[sig_npm(b, chess.BLACK)] += 1   # White's perspective: opponent = Black
++                    h[sig_npm(b, chess.WHITE)] += 1
++tot = sum(h.values())
++acc, cuts, k = 0, [], 1
++for v in sorted(h):
++    acc += h[v]
++    while k < 8 and acc >= tot * k / 8:
++        cuts.append(v)
++        k += 1
++print("histogram", {v: round(100 * h[v] / tot, 2) for v in sorted(h)})
++print("upper bounds of classes 0..6 (class 7 = above):", cuts)
+diff -ruN -x .pgo a/c2_test_assign.py b/c2_test_assign.py
+--- a/c2_test_assign.py	1970-01-01 01:00:00.000000000 +0100
++++ b/c2_test_assign.py	2026-10-21 13:17:11.730978100 +0200
+@@ -0,0 +1,27 @@
++"""Unit test of RouterEM.assign (Consilium-2, 21/10/2026) on synthetic data, CPU only: runs, respects the budget,
++the minimum share and the move limit, and how long it takes. Usage: python c2_test_assign.py"""
++import time
++
++import numpy as np
++
++from model.modules.features.halfka_v2_hm_x import NUM_CELLS, NUM_EXPERTS, default_router_table
++from trainer.router_em import assign
++
++rng = np.random.default_rng(0)
++z = np.load("c2_transitions.npz")
++trans = (z["src"].astype(np.int64), z["dst"].astype(np.int64), z["w"].astype(np.float64))
++cur = default_router_table().numpy().astype(np.int64)
++N = np.zeros(NUM_CELLS)
++used = np.unique(np.concatenate([trans[0], trans[1]]))
++N[used] = rng.integers(0, 60000, size=len(used))
++D = rng.normal(0, 1, size=(NUM_CELLS, NUM_EXPERTS)) * N[:, None] * 1e-3
++D[np.arange(NUM_CELLS), cur] = 0.0
++src, dst, wt = trans
++cross = lambda t: 2.0 * float((wt * (t[src] != t[dst])).sum() / wt.sum())
++for budget in (0.25, 0.15):
++    t0 = time.time()
++    new, mu = assign(D, N, cur, trans, budget, 0.04, 0.15, 2000)
++    share = np.bincount(new, weights=N, minlength=NUM_EXPERTS) / N.sum()
++    moved = N[new != cur].sum() / N.sum()
++    print(f"budget {budget}: {time.time() - t0:.1f} s, crossing {cross(cur):.4f} -> {cross(new):.4f}, mu {mu:.3g}, "
++          f"moved share {moved:.3f}, min share {share.min():.3f}, gain {sum(D[c, new[c]] for c in range(NUM_CELLS)):.1f}")
+diff -ruN -x .pgo a/c2_transitions.py b/c2_transitions.py
+--- a/c2_transitions.py	1970-01-01 01:00:00.000000000 +0100
++++ b/c2_transitions.py	2026-10-21 13:17:11.742498300 +0200
+@@ -0,0 +1,106 @@
++"""Capture transitions between routing cells (Consilium-2, 21/10/2026), for the budget of the learned routing.
++
++For a sample of game positions, every legal capture and promotion is played and, for each perspective, the pair
++(cell before, cell after) is counted. Pawn captures give self-transitions (they count as captures that cannot change
++the expert). The quiescence search evaluates mostly captures, so this is the case that costs accumulator rebuilds.
++Also prints the crossing rate (changes of expert per capture, summed over the two perspectives) of the default table
++and of today's piece-count bands for reference.
++
++Usage: python c2_transitions.py out.npz game1.pgn [game2.pgn ...] [--games-per-file 1500] [--skip 8]
++"""
++import argparse
++import random
++from collections import Counter
++
++import chess
++import chess.pgn
++import numpy as np
++
++SIG = 54
++
++
++def signature(board, color):
++    n = len(board.pieces(chess.KNIGHT, color))
++    b = len(board.pieces(chess.BISHOP, color))
++    r = len(board.pieces(chess.ROOK, color))
++    q = len(board.pieces(chess.QUEEN, color))
++    return min(n, 2) * 18 + min(b, 2) * 6 + min(r, 2) * 2 + min(q, 1)
++
++
++def cell(board, persp):
++    return signature(board, persp) * SIG + signature(board, not persp)
++
++
++def npm_of_signature(s):
++    return 3 * (s // 18) + 3 * ((s // 6) % 3) + 5 * ((s // 2) % 3) + 9 * (s % 2)
++
++
++def default_table():   # IDENTICAL to router::default_expert (data loader) and default_router_table (Python)
++    upper = (3, 5, 8, 9, 13, 18, 25)
++    t = np.zeros(SIG * SIG, dtype=np.int64)
++    for c in range(SIG * SIG):
++        opp = npm_of_signature(c % SIG)
++        t[c] = sum(opp > u for u in upper)
++    return t
++
++
++def band(n):
++    return 0 if n <= 9 else 1 if n <= 15 else 2 if n <= 23 else 3
++
++
++def main():
++    ap = argparse.ArgumentParser()
++    ap.add_argument("out")
++    ap.add_argument("pgns", nargs="+")
++    ap.add_argument("--games-per-file", type=int, default=1500)
++    ap.add_argument("--skip", type=int, default=8)
++    a = ap.parse_args()
++    random.seed(1)
++    T = Counter()
++    today_cross = today_n = 0
++    for path in a.pgns:
++        offsets = []
++        with open(path, encoding="utf-8", errors="replace") as f:
++            while True:
++                off = f.tell()
++                line = f.readline()
++                if not line:
++                    break
++                if line.startswith("[Event "):
++                    offsets.append(off)
++        with open(path, encoding="utf-8", errors="replace") as f:
++            for off in sorted(random.sample(offsets, min(a.games_per_file, len(offsets)))):
++                f.seek(off)
++                g = chess.pgn.read_game(f)
++                if g is None:
++                    continue
++                board = g.board()
++                for ply, mv in enumerate(g.mainline_moves()):
++                    board.push(mv)
++                    if ply < a.skip:
++                        continue
++                    before = (cell(board, chess.WHITE), cell(board, chess.BLACK))
++                    pcs = len(board.piece_map())
++                    for m in board.legal_moves:
++                        if not (board.is_capture(m) or m.promotion):
++                            continue
++                        board.push(m)
++                        after = (cell(board, chess.WHITE), cell(board, chess.BLACK))
++                        T[(before[0], after[0])] += 1
++                        T[(before[1], after[1])] += 1
++                        today_cross += 2 * (band(len(board.piece_map())) != band(pcs))
++                        today_n += 1
++                        board.pop()
++    src = np.array([k[0] for k in T], dtype=np.int64)
++    dst = np.array([k[1] for k in T], dtype=np.int64)
++    w = np.array([T[k] for k in T], dtype=np.float64)
++    np.savez(a.out, src=src, dst=dst, w=w)
++    t = default_table()
++    cross = float((w * (t[src] != t[dst])).sum() / w.sum()) * 2   # per capture, summed over the two perspectives
++    print(f"captures {today_n}, distinct transitions {len(w)}")
++    print(f"crossing per capture (two perspectives): today's bands {today_cross / max(today_n, 1):.4f}, "
++          f"default table {cross:.4f}")
++
++
++if __name__ == "__main__":
++    main()
+diff -ruN -x .pgo a/c2_val_loss_fixed.py b/c2_val_loss_fixed.py
+--- a/c2_val_loss_fixed.py	1970-01-01 01:00:00.000000000 +0100
++++ b/c2_val_loss_fixed.py	2026-10-21 13:17:11.753506100 +0200
+@@ -0,0 +1,95 @@
++"""Loss of Consilium and Consilium-2 networks on the same holdout with lambda FIXED (21/10/2026).
++
++The log's train loss does not compare two runs: data mix, batch and lambda schedule differ. Here every network is
++evaluated on batches of the same file with the same skip configuration and the default LossParams of both runs, at
++lambda 1.0 (data eval only), 0.75 (the project's reference) and 0.0 (game result only). The two feature sets cannot
++share one stream (the loader shuffles with a thread-local generator), so each network reads its own sample of the
++same file: with a few million positions the sampling error of the mean stays far below the differences of interest.
++For a Consilium-2 network the loader is given the network's routing table first (as train.py does).
++Usage: python c2_val_loss_fixed.py <holdout.binpack> <net.nnue> [<net.nnue> ...] [--batches 400]
++"""
++import argparse
++import os
++
++import torch
++
++import data_loader
++import model as M
++from data_loader._native import set_router_table
++from model.nnue import calculate_sf_loss
++from model.utils.serialize import NNUEReader
++
++FEATURES = {"c2": "Full_Threats+HalfKAv2_hm_X8^+PP_3Wide+PassedPawns",
++            "consilium": "Full_Threats+HalfKAv2_hm_P4^+PP_3Wide+PassedPawns"}
++LAMBDAS = (1.0, 0.75, 0.0)
++
++
++def load(path):
++    """Tries the Consilium-2 layout first, then Consilium's."""
++    for kind in ("c2", "consilium"):
++        cfg = M.ModelConfig(L1=1024)
++        if kind == "c2":
++            cfg.pawn_king_hidden = 256
++        try:
++            with open(path, "rb") as f:
++                m = NNUEReader(f, FEATURES[kind], cfg).model
++            return kind, m
++        except Exception:
++            continue
++    raise SystemExit(f"cannot read {path} as Consilium-2 or Consilium")
++
++
++def main():
++    ap = argparse.ArgumentParser()
++    ap.add_argument("data")
++    ap.add_argument("nets", nargs="+")
++    ap.add_argument("--batches", type=int, default=400)
++    ap.add_argument("--batch-size", type=int, default=8192)
++    ap.add_argument("--threads", type=int, default=8)
++    a = ap.parse_args()
++    torch.set_num_threads(a.threads)
++    loss_params = M.NNUELightningConfig().loss_params
++    rows = []
++    for path in a.nets:
++        kind, m = load(path)
++        m.eval()
++        for f in m.input.features:
++            if hasattr(f, "router"):
++                set_router_table(f.router.detach().cpu().numpy())
++        # On Windows the stream creation fails now and then with an access violation (seen on 21/10 with every
++        # feature set, never on the Linux VMs): a few attempts.
++        for attempt in range(8):
++            try:
++                provider = data_loader.SparseBatchProvider(
++                    feature_set=m.input_feature_name, filenames=[a.data], cyclic=True, num_workers=2,
++                    batch_size=a.batch_size,
++                    config=data_loader.DataloaderSkipConfig(random_fen_skipping=10, filtered=True))
++                break
++            except OSError as e:
++                print(f"stream creation failed ({e}), attempt {attempt + 1}", flush=True)
++        else:
++            raise SystemExit("cannot create the data stream")
++        sums, sq = [0.0] * len(LAMBDAS), [0.0] * len(LAMBDAS)
++        with torch.no_grad():
++            for i in range(a.batches):
++                us, them, wi, bi, outcome, score, pc, *rest = next(provider)
++                aux = rest[0] if rest else None
++                y = m(us, them, wi, bi, pc, True, True, aux) * m.quantization.nnue2score
++                for k, lam in enumerate(LAMBDAS):
++                    v = calculate_sf_loss(y, score, outcome, loss_params, lam).item()
++                    sums[k] += v
++                    sq[k] += v * v
++                if (i + 1) % 50 == 0:
++                    print(f"{os.path.basename(path)}: batch {i + 1}/{a.batches}", flush=True)
++        n = a.batches
++        mean = [s / n for s in sums]
++        se = [((q / n - mu * mu) / max(1, n - 1)) ** 0.5 for q, mu in zip(sq, mean)]   # over batch means
++        rows.append((os.path.basename(path), kind, mean, se))
++    print(f"\n{a.batches} batches x {a.batch_size} positions of {os.path.basename(a.data)} per network (x1e-3, +- s.e.)")
++    print(f"{'network':<40}{'kind':<11}" + "".join(f"lambda {lam:<14}" for lam in LAMBDAS))
++    for name, kind, mean, se in rows:
++        print(f"{name:<40}{kind:<11}" + "".join(f"{mu * 1e3:7.4f} +-{s * 1e3:6.4f}  " for mu, s in zip(mean, se)))
++
++
++if __name__ == "__main__":
++    main()
+diff -ruN -x .pgo a/config.py b/config.py
+--- a/config.py	2026-10-21 13:17:10.415459800 +0200
++++ b/config.py	2026-10-21 13:17:11.771404600 +0200
+@@ -48,6 +48,21 @@
+     max_time: str = "30:00:00:00"
+     """The maximum time to train for. A string in the format DD:HH:MM:SS (Default 30:00:00:00)."""
+ 
++    router_em_epochs: str = ""
++    """Consilium-2: comma-separated epochs at whose end the expert routing table is re-learned (empty = fixed table)."""
++
++    router_em_budget: float = 0.15
++    """Consilium-2: maximum expert changes per capture, summed over both perspectives (today's bands: 0.25)."""
++
++    router_em_transitions: str = "c2_transitions.npz"
++    """Consilium-2: capture transitions between routing cells (c2_transitions.py)."""
++
++    router_em_sample_batches: int = 64
++    """Consilium-2: sampled batches per rank for one routing round."""
++
++    router_em_sample_size: int = 16384
++    """Consilium-2: positions kept from each sampled batch."""
++
+     num_workers: int = 1
+     """Number of worker threads to use for data loading. Currently only works well for binpack."""
+ 
+diff -ruN -x .pgo a/data_loader/_native.py b/data_loader/_native.py
+--- a/data_loader/_native.py	2026-10-21 13:17:10.672522200 +0200
++++ b/data_loader/_native.py	2026-10-21 13:17:11.970670500 +0200
+@@ -43,6 +43,9 @@
+         ("white", ctypes.POINTER(ctypes.c_int)),
+         ("black", ctypes.POINTER(ctypes.c_int)),
+         ("piece_count", ctypes.POINTER(ctypes.c_int)),
++        # Consilium-2 (21/10/2026): routing cells (White, Black) and pawn-king indices per position.
++        ("aux_width", ctypes.c_int),
++        ("aux", ctypes.POINTER(ctypes.c_int)),
+     ]
+ 
+     def get_tensors(self, device, use_pinned_memory=False):
+@@ -51,9 +54,10 @@
+ 
+         # We only transfer:
+         # - float block: is_white, outcome, score (3 * size floats)
+-        # - int block: white, black, piece_count (2 * size * max_active + size ints)
++        # - int block: white, black, piece_count, aux (2 * size * max_active + size + size * aux_width ints)
++        aux_width = self.aux_width
+         total_floats = size * 3
+-        total_ints = size * max_active * 2 + size
++        total_ints = size * max_active * 2 + size + size * aux_width
+ 
+         float_block_cpu = torch.from_numpy(
+             np.ctypeslib.as_array(self.is_white, shape=(total_floats,))
+@@ -72,6 +76,8 @@
+         white_indices = int_block_gpu[0 : size * max_active].view(size, max_active)
+         black_indices = int_block_gpu[size * max_active : 2 * size * max_active].view(size, max_active)
+         piece_count_i32 = int_block_gpu[2 * size * max_active : 2 * size * max_active + size].view(size)
++        aux_start = 2 * size * max_active + size
++        aux = int_block_gpu[aux_start : aux_start + size * aux_width].view(size, aux_width)
+ 
+         # Keep piece counts as int64 so callers can derive buckets on the target device.
+         if not us.is_cuda and use_pinned_memory:
+@@ -93,6 +99,7 @@
+             outcome,
+             score,
+             piece_count,
++            aux,
+         )
+ 
+ 
+@@ -201,6 +208,12 @@
+         #    int* plies,
+         #    int* results
+         # )
++        # Consilium-2 routing table (learned routing replaces it while training)
++        self.dll.get_router_num_cells.restype = ctypes.c_int
++        self.dll.get_router_num_experts.restype = ctypes.c_int
++        self.dll.set_router_table.argtypes = [ctypes.POINTER(ctypes.c_ubyte), ctypes.c_int]
++        self.dll.get_router_table.argtypes = [ctypes.POINTER(ctypes.c_ubyte), ctypes.c_int]
++
+         self.dll.get_sparse_batch_from_fens.restype = ctypes.POINTER(SparseBatch)
+         self.dll.get_sparse_batch_from_fens.argtypes = [
+             ctypes.c_char_p,
+@@ -219,3 +232,16 @@
+     c_lib = CDataLoaderAPI()
+ except FileNotFoundError as e:
+     raise ImportError(f"Failed to initialize CDataLoaderAPI: {e}.")
++
++
++def set_router_table(table) -> None:
++    """Consilium-2: replace the loader's routing table (cell -> expert, uint8, one entry per cell)."""
++    arr = np.ascontiguousarray(np.asarray(table, dtype=np.uint8))
++    c_lib.dll.set_router_table(arr.ctypes.data_as(ctypes.POINTER(ctypes.c_ubyte)), int(arr.size))
++
++
++def get_router_table() -> np.ndarray:
++    n = c_lib.dll.get_router_num_cells()
++    arr = np.zeros(n, dtype=np.uint8)
++    c_lib.dll.get_router_table(arr.ctypes.data_as(ctypes.POINTER(ctypes.c_ubyte)), n)
++    return arr
+diff -ruN -x .pgo a/data_loader/cpp/lib/parallel_dataloader.h b/data_loader/cpp/lib/parallel_dataloader.h
+--- a/data_loader/cpp/lib/parallel_dataloader.h	2026-10-21 13:17:10.530855700 +0200
++++ b/data_loader/cpp/lib/parallel_dataloader.h	2026-10-21 13:17:11.863744100 +0200
+@@ -26,6 +26,12 @@
+ 
+ #pragma once
+ 
++// Triumviratus, SOLO copia locale di test su Windows/MinGW (28/09/2026): gmtime_r non esiste in UCRT.
++#if defined(_WIN32)
++    #include <ctime>
++    static inline struct tm* gmtime_r(const time_t* t, struct tm* out) { return gmtime_s(out, t) == 0 ? out : nullptr; }
++#endif
++
+ #include <atomic>
+ #include <algorithm>
+ #include <cstdio>
+diff -ruN -x .pgo a/data_loader/cpp/training_data_loader.cpp b/data_loader/cpp/training_data_loader.cpp
+--- a/data_loader/cpp/training_data_loader.cpp	2026-10-21 13:17:10.569151100 +0200
++++ b/data_loader/cpp/training_data_loader.cpp	2026-10-21 13:17:11.898509900 +0200
+@@ -7,6 +7,7 @@
+ #include <random>
+ #include <cstring>
+ #include <cmath>
++#include <cstdlib>
+ 
+ #include "lib/rng.h"
+ 
+@@ -82,6 +83,159 @@
+     }
+ };
+ 
++// Triumviratus 28/09/2026: HalfKA a esperti per fase (model/modules/features/halfka_v2_hm_phase.py).
++// Indice = HalfKA + fase * HalfKAv2_hm::INPUTS, fase dal numero di pezzi sulla scacchiera.
++// 🔴 PHASE_OF_PIECECOUNT identica al Python e al motore.
++struct HalfKAv2_hm_P4 {
++    static constexpr int NUM_PHASES          = 4;
++    static constexpr int INPUTS              = HalfKAv2_hm::INPUTS * NUM_PHASES;
++    static constexpr int MAX_ACTIVE_FEATURES = HalfKAv2_hm::MAX_ACTIVE_FEATURES;
++    // pezzi (2..32) -> fase, a frequenza uguale (quartili misurati): <=9 -> 0, 10-15 -> 1, 16-23 -> 2, >=24 -> 3
++    static constexpr int PHASE_OF_PIECECOUNT[33] = {
++      0, 0, 0, 0, 0, 0, 0, 0, 0, 0,            // 0..9
++      1, 1, 1, 1, 1, 1,                        // 10..15
++      2, 2, 2, 2, 2, 2, 2, 2,                  // 16..23
++      3, 3, 3, 3, 3, 3, 3, 3, 3                // 24..32
++    };
++
++    static std::pair<int, int>
++    fill_features_sparse(const TrainingDataEntry& e, int* features, Color color) {
++        auto [n, base_inputs] = HalfKAv2_hm::fill_features_sparse(e, features, color);
++        const int phase  = PHASE_OF_PIECECOUNT[e.pos.piecesBB().count()];
++        const int offset = phase * HalfKAv2_hm::INPUTS;
++        for (int i = 0; i < n; ++i)
++            features[i] += offset;
++        return {n, INPUTS};
++    }
++};
++
++struct HalfKAv2_hm_P4Extractor: IFeatureExtractor {
++    int inputs() const override { return HalfKAv2_hm_P4::INPUTS; }
++    int max_active_features() const override { return HalfKAv2_hm_P4::MAX_ACTIVE_FEATURES; }
++    std::pair<int, int> fill_features_sparse(const TrainingDataEntry& e,
++                                             int*                     features,
++                                             Color                    color) const override {
++        return HalfKAv2_hm_P4::fill_features_sparse(e, features, color);
++    }
++};
++
++// ---------------------------------------------------------------------------
++// Consilium-2 (Triumviratus, 21/10/2026; docs/rete/PROGETTO_NUOVA_RETE_2026-10-21.md §5).
++// HalfKA experts chosen PER PERSPECTIVE by a routing table over the non-pawn material signature:
++//   signature(c) = min(N,2)*18 + min(B,2)*6 + min(R,2)*2 + min(Q,1)          (54 values)
++//   cell(p)      = signature(p) * 54 + signature(opponent of p)               (2,916 cells)
++//   expert(p)    = router::table[cell(p)]                                     (0..NUM_EXPERTS-1)
++//   index        = HalfKA index + expert * HalfKAv2_hm::INPUTS
++// Pawn captures never change a cell; a non-pawn capture changes the cells of both perspectives, but the expert
++// only where the table says so. The table is global to the loader (one loader per rank process) and can be replaced
++// while training (set_router_table: learned routing); batches already queued keep the table they were built with.
++// The default table (opponent NPM in 8 equal-frequency classes, measured on game positions on 21/10/2026: upper
++// bounds 3, 5, 8, 9, 13, 18, 25) is the starting point of the learned routing, which may then use the own material.
++// IDENTICAL in the engine (consilium/cn.cpp, router of the .nnue file) and in model/modules/features/halfka_v2_hm_x.py.
++// ---------------------------------------------------------------------------
++namespace router {
++constexpr int NUM_EXPERTS = 8;
++constexpr int SIG         = 54;
++constexpr int CELLS       = SIG * SIG;
++
++inline int signature(int n, int b, int r, int q) {
++    return std::min(n, 2) * 18 + std::min(b, 2) * 6 + std::min(r, 2) * 2 + std::min(q, 1);
++}
++inline int npm_of_signature(int s) {  // non-pawn material of a signature, N = B = 3, R = 5, Q = 9
++    return 3 * (s / 18) + 3 * ((s / 6) % 3) + 5 * ((s / 2) % 3) + 9 * (s % 2);
++}
++inline int default_expert(int cell) {
++    constexpr int upper[7] = {3, 5, 8, 9, 13, 18, 25};
++    const int     opp      = npm_of_signature(cell % SIG);
++    int           e        = 0;
++    while (e < 7 && opp > upper[e])
++        ++e;
++    return e;
++}
++
++struct Table {
++    std::atomic<std::uint8_t> e[CELLS];
++    Table() {
++        for (int c = 0; c < CELLS; ++c)
++            e[c].store(static_cast<std::uint8_t>(default_expert(c)), std::memory_order_relaxed);
++    }
++};
++inline Table table;
++
++inline int side_signature(const Position& pos, Color c) {
++    return signature(pos.piecesBB(Piece(PieceType::Knight, c)).count(),
++                     pos.piecesBB(Piece(PieceType::Bishop, c)).count(),
++                     pos.piecesBB(Piece(PieceType::Rook, c)).count(),
++                     pos.piecesBB(Piece(PieceType::Queen, c)).count());
++}
++inline int cell(const Position& pos, Color persp) {
++    const Color opp = persp == Color::White ? Color::Black : Color::White;
++    return side_signature(pos, persp) * SIG + side_signature(pos, opp);
++}
++inline int expert(const Position& pos, Color persp) {
++    return table.e[cell(pos, persp)].load(std::memory_order_relaxed);
++}
++}  // namespace router
++
++int  router_num_cells() { return router::CELLS; }
++int  router_num_experts() { return router::NUM_EXPERTS; }
++void router_set_table(const unsigned char* t, int n) {
++    for (int c = 0; c < router::CELLS && c < n; ++c)
++        router::table.e[c].store(static_cast<std::uint8_t>(t[c] % router::NUM_EXPERTS), std::memory_order_relaxed);
++}
++void router_get_table(unsigned char* out, int n) {
++    for (int c = 0; c < router::CELLS && c < n; ++c)
++        out[c] = router::table.e[c].load(std::memory_order_relaxed);
++}
++
++struct HalfKAv2_hm_X8 {
++    static constexpr int INPUTS              = HalfKAv2_hm::INPUTS * router::NUM_EXPERTS;
++    static constexpr int MAX_ACTIVE_FEATURES = HalfKAv2_hm::MAX_ACTIVE_FEATURES;
++
++    static std::pair<int, int>
++    fill_features_sparse(const TrainingDataEntry& e, int* features, Color color) {
++        auto [n, base_inputs] = HalfKAv2_hm::fill_features_sparse(e, features, color);
++        const int offset      = router::expert(e.pos, color) * HalfKAv2_hm::INPUTS;
++        for (int i = 0; i < n; ++i)
++            features[i] += offset;
++        return {n, INPUTS};
++    }
++};
++
++struct HalfKAv2_hm_X8Extractor: IFeatureExtractor {
++    int inputs() const override { return HalfKAv2_hm_X8::INPUTS; }
++    int max_active_features() const override { return HalfKAv2_hm_X8::MAX_ACTIVE_FEATURES; }
++    std::pair<int, int> fill_features_sparse(const TrainingDataEntry& e,
++                                             int*                     features,
++                                             Color                    color) const override {
++        return HalfKAv2_hm_X8::fill_features_sparse(e, features, color);
++    }
++};
++
++// Pawn-king subnetwork inputs (Consilium-2): the side to move's view, flipped vertically when Black moves (no mirror).
++//   0..63 own pawns, 64..127 enemy pawns, 128..191 own king, 192..255 enemy king; at most 16 pawns + 2 kings.
++// Written in the aux block of the batch together with the two routing cells (aux row = cell_w, cell_b, 18 indices).
++namespace pawn_king {
++constexpr int INPUTS     = 256;
++constexpr int MAX_ACTIVE = 18;
++constexpr int AUX_WIDTH  = 2 + MAX_ACTIVE;
++
++inline void fill(const Position& pos, int* out) {
++    const Color us   = pos.sideToMove();
++    const Color them = us == Color::White ? Color::Black : Color::White;
++    const int   flip = us == Color::White ? 0 : 56;
++    int         k    = 0;
++    for (Square s : pos.piecesBB(Piece(PieceType::Pawn, us)))
++        out[k++] = 0 + (int(s) ^ flip);
++    for (Square s : pos.piecesBB(Piece(PieceType::Pawn, them)))
++        out[k++] = 64 + (int(s) ^ flip);
++    out[k++] = 128 + (int(pos.kingSquare(us)) ^ flip);
++    out[k++] = 192 + (int(pos.kingSquare(them)) ^ flip);
++    while (k < MAX_ACTIVE)
++        out[k++] = -1;
++}
++}  // namespace pawn_king
++
+ // Pawn attackers no longer target pawns; those relationships are represented by PP_3Wide.
+ constexpr int numvalidtargets[6] = {4, 10, 8, 8, 10, 0};
+ 
+@@ -388,6 +542,172 @@
+     }
+ };
+ 
++// ---------------------------------------------------------------------------
++// Passed-pawn inputs — blocco PROPRIO di Triumviratus (rete "legio-septima", 7.0).
++// Non esiste in Stockfish. Trapiantato dal nostro fork (TrainingAleaV2_Grafting),
++// adattato all'interfaccia upstream che non passa piu' l'array `values`
++// (nnue-pytorch PR #490 "Removing feature value tensors": i valori sono tutti 1.0).
++//
++// Una feature per pedone passato. 96 slot (48 propri + 48 avversari, traverse 2-7
++// orientate per prospettiva e specchiate col re come HalfKA/threats/PP_3Wide).
++// "Passato" = nessun pedone avversario sulla stessa colonna o su quelle adiacenti
++// davanti, E nessun pedone proprio direttamente davanti sulla stessa colonna (un
++// doppiato arretrato non e' un passato). Deliberatamente solo-casa (nessun flag
++// bloccato/re/connesso): quelle interazioni sono apprendibili dal prodotto a coppie
++// in L1 contro i blocchi HalfKA e PP_3Wide.
++//
++// 🔴 DEVE combaciare con il motore (Triumviratus_7/nnue/nnue/features/passed_pawns.cpp).
++// Il gate che lo verifica e' cross_check_eval.py — vedi il README del workspace.
++// ---------------------------------------------------------------------------
++struct PassedPawns {
++    static constexpr std::string_view NAME = "PassedPawns";
++
++    static constexpr int INPUTS              = 96;
++    static constexpr int MAX_ACTIVE_FEATURES = 16;  // tutti i pedoni passati (limite teorico)
++
++    // Stessa codifica di slot del pawn_id di PP_3Wide: 0..47 propri, 48..95 avversari.
++    static int pawn_id(Color persp, Square ksq, Color pc, Square sq) {
++        int o = int(sq) ^ int(FullThreats::OrientTBL[(int) persp][(int) ksq]);
++        return (pc != persp ? 48 : 0) + o - 8;  // i pedoni orientati vivono su 8..55 -> 0..47
++    }
++
++    // Test "passato" su case RAW: l'orientazione entra solo al momento dell'indice.
++    static bool is_passed(int s, bool white, const int* own, int nOwn, const int* opp, int nOpp) {
++        const int f = s & 7, r = s >> 3;
++        for (int i = 0; i < nOpp; i++)
++        {
++            const int of = opp[i] & 7, orr = opp[i] >> 3;
++            const int df = of - f;
++            if (df >= -1 && df <= 1 && (white ? orr > r : orr < r))
++                return false;
++        }
++        for (int i = 0; i < nOwn; i++)
++        {
++            if (own[i] == s)
++                continue;
++            const int orr = own[i] >> 3;
++            if ((own[i] & 7) == f && (white ? orr > r : orr < r))
++                return false;
++        }
++        return true;
++    }
++
++    // Conta i pedoni passati (entrambi i lati). Stessa verita' di fill_features_sparse:
++    // un solo posto dove "passato" e' definito.
++    static int count_passed(const TrainingDataEntry& e) {
++        auto& pos = e.pos;
++        int   wp[8], bp[8];
++        int   nw = 0, nb = 0;
++        for (Square s : pos.piecesBB(whitePawn))
++            wp[nw++] = int(s);
++        for (Square s : pos.piecesBB(blackPawn))
++            bp[nb++] = int(s);
++        int cnt = 0;
++        for (int i = 0; i < nw; i++)
++            if (is_passed(wp[i], true, wp, nw, bp, nb))
++                cnt++;
++        for (int i = 0; i < nb; i++)
++            if (is_passed(bp[i], false, bp, nb, wp, nw))
++                cnt++;
++        return cnt;
++    }
++
++    static std::pair<int, int>
++    fill_features_sparse(const TrainingDataEntry& e, int* features, Color color) {
++        auto&  pos = e.pos;
++        Square ksq = pos.kingSquare(color);
++
++        int wp[8], bp[8];
++        int nw = 0, nb = 0;
++        for (Square s : pos.piecesBB(whitePawn))
++            wp[nw++] = int(s);
++        for (Square s : pos.piecesBB(blackPawn))
++            bp[nb++] = int(s);
++
++        int k = 0;
++        for (int i = 0; i < nw; i++)
++            if (is_passed(wp[i], true, wp, nw, bp, nb))
++                features[k++] = pawn_id(color, ksq, Color::White, Square(wp[i]));
++        for (int i = 0; i < nb; i++)
++            if (is_passed(bp[i], false, bp, nb, wp, nw))
++                features[k++] = pawn_id(color, ksq, Color::Black, Square(bp[i]));
++        return {k, INPUTS};
++    }
++};
++
++struct PassedPawnsExtractor: IFeatureExtractor {
++    int inputs() const override { return PassedPawns::INPUTS; }
++    int max_active_features() const override { return PassedPawns::MAX_ACTIVE_FEATURES; }
++    std::pair<int, int> fill_features_sparse(const TrainingDataEntry& e,
++                                             int*                     features,
++                                             Color                    color) const override {
++        return PassedPawns::fill_features_sparse(e, features, color);
++    }
++};
++
++// ---------------------------------------------------------------------------
++// Mobility inputs — blocco PROPRIO di Triumviratus (8.0, graft sulla MoE-1024), 29/09/2026.
++// FullThreats vede solo attacchi su PEZZI; qui entrano gli attacchi su case vuote, in forma
++// bucketizzata: una feature per cavallo/alfiere/torre/donna (proprio o avversario) =
++// (casa orientata, bucket di mobilita' 0-3).
++//   indice   = (own ? 0 : 4 + (pt - Knight)) * 256 + (sq ^ orient) * 4 + bucket
++//   orient   = FullThreats::OrientTBL[persp][ksq]  (come PassedPawns)
++//   mobilita = popcount(attacks(pt, sq, tutti i pezzi) & ~(pezzi propri | attacchi dei pedoni nemici))
++//   bucket   = numero di soglie superate, per tipo: N {2,4,6}, B {3,6,9}, R {4,7,10}, Q {7,13,19}
++// Ordine di raccolta e tetto a 32 come il motore (Mobility::collect: bianco poi nero, N..Q,
++// case crescenti).
++// 🔴 DEVE combaciare con Triumviratus_8.0/nnue/nnue/features/mobility.{h,cpp}. Il gate che lo
++// verifica e' cross_check_eval.py con una rete random a pesi Mobility non nulli.
++// ---------------------------------------------------------------------------
++struct Mobility {
++    static constexpr std::string_view NAME = "Mobility";
++
++    static constexpr int INPUTS              = 2048;
++    static constexpr int MAX_ACTIVE_FEATURES = 32;
++
++    static constexpr int THRESHOLDS[4][3] = {{2, 4, 6}, {3, 6, 9}, {4, 7, 10}, {7, 13, 19}};
++
++    static int bucket(int t, int mob) {
++        return (mob >= THRESHOLDS[t][0]) + (mob >= THRESHOLDS[t][1]) + (mob >= THRESHOLDS[t][2]);
++    }
++
++    static std::pair<int, int>
++    fill_features_sparse(const TrainingDataEntry& e, int* features, Color color) {
++        auto&     pos    = e.pos;
++        const int orient = int(FullThreats::OrientTBL[(int) color][(int) pos.kingSquare(color)]);
++        int       k      = 0;
++        for (Color c : {Color::White, Color::Black})
++        {
++            const Color    them   = c == Color::White ? Color::Black : Color::White;
++            const Bitboard eAtt   = bb::pawnAttacks(pos.piecesBB(Piece(PieceType::Pawn, them)), them);
++            const Bitboard area   = ~(pos.piecesBB(c) | eAtt);
++            const int      side   = c == color ? 0 : 4;
++            for (int t = 0; t < 4; ++t)
++            {
++                const PieceType pt = PieceType((int) PieceType::Knight + t);
++                for (Square sq : pos.piecesBB(Piece(pt, c)))
++                {
++                    if (k >= MAX_ACTIVE_FEATURES)
++                        return {k, INPUTS};
++                    const int mob = (pos.attacks(sq) & area).count();
++                    features[k++] = (side + t) * 256 + ((int(sq) ^ orient) << 2) + bucket(t, mob);
++                }
++            }
++        }
++        return {k, INPUTS};
++    }
++};
++
++struct MobilityExtractor: IFeatureExtractor {
++    int inputs() const override { return Mobility::INPUTS; }
++    int max_active_features() const override { return Mobility::MAX_ACTIVE_FEATURES; }
++    std::pair<int, int> fill_features_sparse(const TrainingDataEntry& e,
++                                             int*                     features,
++                                             Color                    color) const override {
++        return Mobility::fill_features_sparse(e, features, color);
++    }
++};
++
+ struct ComposedFeatureExtractor: IFeatureExtractor {
+     std::vector<std::unique_ptr<IFeatureExtractor>> extractors;
+     int                                             m_inputs;
+@@ -437,6 +757,17 @@
+         return std::make_unique<FullThreatsExtractor>();
+     if (name == "PP_3Wide")
+         return std::make_unique<PP_3WideExtractor>();
++    // Triumviratus 7.0 "legio-septima": blocco nostro, assente in Stockfish.
++    if (name == "PassedPawns")
++        return std::make_unique<PassedPawnsExtractor>();
++    if (name == "HalfKAv2_hm_P4")
++        return std::make_unique<HalfKAv2_hm_P4Extractor>();
++    // Consilium-2 (21/10/2026): experts per perspective from the routing table.
++    if (name == "HalfKAv2_hm_X8")
++        return std::make_unique<HalfKAv2_hm_X8Extractor>();
++    // Triumviratus 8.0: mobilita' bucketizzata (graft sulla MoE-1024).
++    if (name == "Mobility")
++        return std::make_unique<MobilityExtractor>();
+     return nullptr;
+ }
+ 
+@@ -495,7 +826,9 @@
+     size                = entries.size();
+     max_active_features = feature_set.max_active_features();
+     const size_t total_floats = size * 3;
+-    const size_t total_ints   = size + size * max_active_features * 2;
++    // Consilium-2: + aux block (routing cells and pawn-king indices), after piece_count in the same int block.
++    aux_width                 = pawn_king::AUX_WIDTH;
++    const size_t total_ints   = size + size * max_active_features * 2 + size * aux_width;
+ 
+     m_float_block = new float[total_floats];
+     m_int_block   = new int[total_ints];
+@@ -509,6 +842,7 @@
+     white               = int_alloc.alloc(size * max_active_features);
+     black               = int_alloc.alloc(size * max_active_features);
+     piece_count         = int_alloc.alloc(size);
++    aux                 = int_alloc.alloc(size * aux_width);
+ 
+     num_active_white_features = 0;
+     num_active_black_features = 0;
+@@ -532,6 +866,10 @@
+     outcome[i]             = (e.result + 1.0f) / 2.0f;
+     score[i]               = e.score;
+     piece_count[i]         = e.pos.piecesBB().count();
++    int* a                 = aux + i * aux_width;
++    a[0]                   = router::cell(e.pos, Color::White);
++    a[1]                   = router::cell(e.pos, Color::Black);
++    pawn_king::fill(e.pos, a + 2);
+     fill_features(fs, i, e);
+ }
+ 
+@@ -543,16 +881,43 @@
+       fs.fill_features_sparse(e, black + offset, Color::Black).first;
+ }
+ 
++// Ripartizione dei thread fra chi DECODIFICA il binpack (reader) e chi ESTRAE le feature
++// (worker). Il valore upstream, 0.14, e' tarato sul costo di estrazione di upstream; il
++// nostro feature set e' molto piu' pesante (Full_Threats 128 attive + PP_3Wide 128 +
++// PassedPawns) a parita' di costo di lettura, quindi l'ottimo si sposta verso i worker.
++// Reso regolabile a runtime con NNUE_WORKER_THREAD_RATIO per poter fare uno sweep senza
++// ricompilare: 0 < ratio < 1. Fuori range o non impostata => il default compilato.
++static double effective_worker_thread_ratio(double compiled_default) {
++    static const double cached = [compiled_default]() {
++        const char* env = std::getenv("NNUE_WORKER_THREAD_RATIO");
++        if (env == nullptr)
++            return compiled_default;
++        const double v = std::atof(env);
++        if (!(v > 0.0) || !(v < 1.0))
++        {
++            std::cerr << "NNUE_WORKER_THREAD_RATIO='" << env
++                      << "' fuori range (0,1): uso il default " << compiled_default << std::endl;
++            return compiled_default;
++        }
++        std::cerr << "NNUE_WORKER_THREAD_RATIO=" << v << " (default compilato "
++                  << compiled_default << ")" << std::endl;
++        return v;
++    }();
++    return cached;
++}
++
+ int FeaturedBatchStream::calculate_num_reader_threads(int concurrency) {
+-    if (worker_thread_ratio >= 1)
++    const double ratio = effective_worker_thread_ratio(worker_thread_ratio);
++    if (ratio >= 1)
+         return 1;
+     return std::max(1, concurrency - calculate_num_worker_threads(concurrency));
+ }
+ 
+ int FeaturedBatchStream::calculate_num_worker_threads(int concurrency) {
+-    if (worker_thread_ratio <= 0)
++    const double ratio = effective_worker_thread_ratio(worker_thread_ratio);
++    if (ratio <= 0)
+         return 1;
+-    return std::max(1, static_cast<int>(std::floor(concurrency * worker_thread_ratio)));
++    return std::max(1, static_cast<int>(std::floor(concurrency * ratio)));
+ }
+ 
+ FeaturedBatchStream::FeaturedBatchStream(
+@@ -575,6 +940,12 @@
+     m_concurrency(concurrency),
+     m_num_workers(calculate_num_worker_threads(concurrency)) {
+ 
++    // Diagnostica: la ripartizione reader/worker non era visibile da nessuna parte, e col
++    // ratio di default un --num-workers 64 diventa 8 estrattori di feature e 56 lettori.
++    std::cerr << "[loader] concurrency=" << concurrency
++              << "  reader=" << calculate_num_reader_threads(concurrency)
++              << "  worker(feature)=" << m_num_workers.load() << std::endl;
++
+     m_stop_flag.store(false);
+ 
+     auto worker = [this]() {
+diff -ruN -x .pgo a/data_loader/cpp/training_data_loader_abi.cpp b/data_loader/cpp/training_data_loader_abi.cpp
+--- a/data_loader/cpp/training_data_loader_abi.cpp	2026-10-21 13:17:10.594288900 +0200
++++ b/data_loader/cpp/training_data_loader_abi.cpp	2026-10-21 13:17:11.910517500 +0200
+@@ -88,3 +88,9 @@
+ NNUE_API void NNUE_CDECL destroy_fen_batch(FenBatch* e) {
+     delete e;
+ }
++
++// Consilium-2 (21/10/2026): routing table of the experts (learned routing replaces it while training).
++NNUE_API int NNUE_CDECL get_router_num_cells() { return router_num_cells(); }
++NNUE_API int NNUE_CDECL get_router_num_experts() { return router_num_experts(); }
++NNUE_API void NNUE_CDECL set_router_table(const unsigned char* table, int n) { router_set_table(table, n); }
++NNUE_API void NNUE_CDECL get_router_table(unsigned char* out, int n) { router_get_table(out, n); }
+diff -ruN -x .pgo a/data_loader/cpp/training_data_loader_internal.h b/data_loader/cpp/training_data_loader_internal.h
+--- a/data_loader/cpp/training_data_loader_internal.h	2026-10-21 13:17:10.628086000 +0200
++++ b/data_loader/cpp/training_data_loader_internal.h	2026-10-21 13:17:11.940660600 +0200
+@@ -27,6 +27,12 @@
+ };
+ 
+ std::shared_ptr<IFeatureExtractor> get_feature(std::string_view name);
++
++// Consilium-2 routing table (training_data_loader.cpp, namespace router): read and replace it while training.
++int  router_num_cells();
++int  router_num_experts();
++void router_set_table(const unsigned char* table, int n);
++void router_get_table(unsigned char* out, int n);
+ std::function<bool(const struct binpack::TrainingDataEntry&)> make_skip_predicate(DataloaderSkipConfig config);
+ 
+ struct SparseBatch final {
+@@ -49,6 +55,10 @@
+     int* white;
+     int* black;
+     int* piece_count;
++    // Consilium-2 (21/10/2026): per position, the routing cells of White and Black and the pawn-king indices
++    // (aux_width ints per position, same int block, after piece_count). Fields at the END: ctypes mirrors this order.
++    int  aux_width;
++    int* aux;
+ 
+ #ifdef NNUE_LOADER_STATISTICS
+     std::vector<struct binpack::TrainingDataEntry> entries_copy;
+diff -ruN -x .pgo a/ftperm.py b/ftperm.py
+--- a/ftperm.py	2026-10-21 13:17:10.864105300 +0200
++++ b/ftperm.py	2026-10-21 13:17:12.130954300 +0200
+@@ -539,6 +539,7 @@
+             _outcome,
+             _score,
+             piece_count,
++            *_aux,   # Consilium-2: aux block (routing cells, pawn-king indices), not needed by the FT
+         ) = batch_tuple
+         psqt_indices, _  = model.calculate_buckets(piece_count)
+         l0_, wpsqt, bpsqt = model.forward_ft(
+diff -ruN -x .pgo a/graft_mobility.py b/graft_mobility.py
+--- a/graft_mobility.py	1970-01-01 01:00:00.000000000 +0100
++++ b/graft_mobility.py	2026-10-21 13:17:12.146764900 +0200
+@@ -0,0 +1,69 @@
++"""Graft del blocco Mobility su una rete gia' allenata (Triumviratus 8.0, 29/09/2026).
++
++    python graft_mobility.py IN.pt OUT.pt [--random-scale S]
++
++IN.pt  : modello NNUE serializzato (serialize.py last.ckpt IN.pt), feature senza Mobility.
++OUT.pt : stesso modello con "+Mobility" in coda alla feature string. Tutti i pesi copiati;
++         il blocco Mobility e' a ZERO, quindi OUT valuta esattamente come IN (graft neutro).
++--random-scale S : invece dello zero, pesi Mobility casuali uniformi in [-S, S] (e PSQT a
++         zero). Serve SOLO per il gate motore == trainer (cross_check_eval.py): con pesi zero
++         un errore di indice nel blocco sarebbe invisibile.
++
++Poi il training del solo blocco:
++    NNUE_TRAIN_ONLY=Mobility python train.py ... --resume-from-model OUT.pt \
++        --features "<feature di IN>+Mobility"
++"""
++
++import argparse
++import dataclasses
++
++import torch
++
++import model as M
++
++
++def main():
++    ap = argparse.ArgumentParser()
++    ap.add_argument("src")
++    ap.add_argument("dst")
++    ap.add_argument("--random-scale", type=float, default=0.0)
++    args = ap.parse_args()
++
++    old = torch.load(args.src, weights_only=False, map_location="cpu")
++    old_features = old.config.features
++    if "Mobility" in old_features.split("+"):
++        raise SystemExit(f"{args.src} ha gia' il blocco Mobility: {old_features}")
++    new_features = old_features + "+Mobility"
++
++    config = dataclasses.replace(old.config, features=new_features)
++    new = M.NNUE(config=config)
++
++    old_sd = {k.replace("_orig_mod.", ""): v for k, v in old.model.state_dict().items()}
++    missing, unexpected = new.model.load_state_dict(old_sd, strict=False)
++    mob_index = len(new.model.input.features) - 1
++    expected_missing = {f"input.features.{mob_index}.weight"}
++    if set(missing) != expected_missing or unexpected:
++        raise SystemExit(f"graft inatteso: missing={missing} unexpected={unexpected}")
++
++    mob = new.model.input.features[mob_index]
++    with torch.no_grad():
++        if args.random_scale > 0:
++            g = torch.Generator().manual_seed(1)
++            mob.weight.uniform_(-args.random_scale, args.random_scale, generator=g)
++            mob.weight[:, new.model.L1:] = 0.0
++        else:
++            mob.weight.zero_()
++
++    # Controllo: stessi tensori copiati bit per bit.
++    new_sd = new.model.state_dict()
++    for k, v in old_sd.items():
++        if not torch.equal(new_sd[k], v):
++            raise SystemExit(f"copia non identica: {k}")
++
++    torch.save(new, args.dst)
++    print(f"{args.src} ({old_features}) -> {args.dst} ({new_features}), "
++          f"Mobility {'random +-' + str(args.random_scale) if args.random_scale > 0 else 'a zero'}")
++
++
++if __name__ == "__main__":
++    main()
+diff -ruN -x .pgo a/model/config.py b/model/config.py
+--- a/model/config.py	2026-10-21 13:17:10.871679800 +0200
++++ b/model/config.py	2026-10-21 13:17:12.150819400 +0200
+@@ -26,14 +26,24 @@
+             type=int,
+             default=ModelConfig.L2,
+         )
++        parser.add_argument(
++            "--pawn-king-hidden",
++            dest="pawn_king_hidden",
++            type=int,
++            default=ModelConfig.pawn_king_hidden,
++        )
+ 
+     @staticmethod
+     def get_model_config(args) -> "ModelConfig":
+         config = ModelConfig()
+         config.L1 = args.L1
+         config.L2 = args.L2
++        config.pawn_king_hidden = getattr(args, "pawn_king_hidden", 0)
+         return config
+ 
++    # Consilium-2 (21/10/2026): hidden width of the pawn-king subnetwork added to the l1 outputs; 0 = none.
++    pawn_king_hidden: int = 0
++
+     # Not omitting prefix on purpose.
+     quantize_config: QuantizationConfig = field(default_factory=QuantizationConfig)
+ 
+diff -ruN -x .pgo a/model/model.py b/model/model.py
+--- a/model/model.py	2026-10-21 13:17:10.898148800 +0200
++++ b/model/model.py	2026-10-21 13:17:12.177247700 +0200
+@@ -3,6 +3,7 @@
+ 
+ from .config import ModelConfig
+ from .modules import ComposedFeatureTransformer, LayerStacks, get_feature_cls
++from .modules.pawn_king import PawnKingNet
+ from .quantize import QuantizationManager
+ 
+ 
+@@ -32,6 +33,9 @@
+         self.input_feature_name = self.input.INPUT_FEATURE_NAME
+         self.feature_hash = self.input.HASH
+         self.layer_stacks = LayerStacks(self.num_ls_buckets, config, self.quantization)
++        # Consilium-2: pawn-king subnetwork added to the l1 outputs (None when pawn_king_hidden = 0).
++        pk_hidden = getattr(config, "pawn_king_hidden", 0)
++        self.pawn_king = PawnKingNet(pk_hidden, self.L2) if pk_hidden > 0 else None
+ 
+         self.weight_clipping = self.quantization.generate_weight_clipping_config(self)
+ 
+@@ -46,6 +50,8 @@
+         """
+         if include_input:
+             self.input.clip_weights(self.quantization)
++        if self.pawn_king is not None:
++            self.pawn_king.clip_weights()
+ 
+         for group in self.weight_clipping:
+             for p in group["params"]:
+@@ -113,8 +119,16 @@
+         piece_count: torch.Tensor,
+         fake_quantize_acts: bool=True,
+         fake_quantize_weights: bool=True,
++        aux: torch.Tensor | None = None,
+     ):
+         psqt_indices, layer_stack_indices = self.calculate_buckets(piece_count)
++        # aux row (data loader): routing cell of White, of Black, then the 18 pawn-king indices.
++        l1_add = None
++        if self.pawn_king is not None:
++            if aux is None:
++                raise ValueError("the pawn-king subnetwork needs the aux block of the batch")
++            # Always on the integer grid: the engine's cached subnetwork then matches the trainer exactly.
++            l1_add = self.pawn_king(aux[:, 2:], True)
+ 
+         l0_, wpsqt, bpsqt = self.forward_ft(
+             us,
+@@ -128,6 +142,6 @@
+         # The PSQT values are averaged over perspectives. "Their" perspective
+         # has a negative influence (us-0.5 is 0.5 for white and -0.5 for black,
+         # which does both the averaging and sign flip for black to move)
+-        x = self.layer_stacks(l0_, layer_stack_indices, fake_quantize_acts, fake_quantize_weights) + (wpsqt - bpsqt) * (us - 0.5)
++        x = self.layer_stacks(l0_, layer_stack_indices, fake_quantize_acts, fake_quantize_weights, l1_add) + (wpsqt - bpsqt) * (us - 0.5)
+ 
+         return x
+diff -ruN -x .pgo a/model/modules/feature_transformer/fused_ft_kernel.py b/model/modules/feature_transformer/fused_ft_kernel.py
+--- a/model/modules/feature_transformer/fused_ft_kernel.py	2026-10-21 13:17:11.006518400 +0200
++++ b/model/modules/feature_transformer/fused_ft_kernel.py	2026-10-21 13:17:12.294302600 +0200
+@@ -1,3 +1,4 @@
++import os
+ import cupy as cp
+ import torch
+ 
+@@ -124,7 +125,11 @@
+         )
+     return _fused_double_ft_forward_kernel_cache[key]
+ 
+-BACKWARD_TILE_SIZE = 4
++# Quante posizioni elabora insieme un blocco nel backward. Il costo del backward e'
++# dominato dagli atomicAdd su grad_weight (una tabella 87k x 1024): tile piu' grandi
++# ammortizzano le letture delle slice di gradiente su piu' posizioni. Regolabile da
++# NNUE_BACKWARD_TILE per poter cercare l'ottimo senza ricompilare.
++BACKWARD_TILE_SIZE = int(os.environ.get("NNUE_BACKWARD_TILE", "4"))
+ 
+ _fused_double_ft_backward_kernel_cache = {}
+ 
+diff -ruN -x .pgo a/model/modules/features/__init__.py b/model/modules/features/__init__.py
+--- a/model/modules/features/__init__.py	2026-10-21 13:17:10.966432300 +0200
++++ b/model/modules/features/__init__.py	2026-10-21 13:17:12.258658400 +0200
+@@ -7,16 +7,36 @@
+ 
+ from .full_threats import FullThreats
+ from .halfka_v2_hm import HalfKav2Hm
++from .halfka_v2_hm_phase import HalfKav2HmPhase
++from .halfka_v2_hm_x import HalfKav2HmX
+ from .input_feature import InputFeature
++from .mobility import Mobility
++from .passed_pawns import PassedPawns
+ from .pp_3wide import PP3Wide
+ 
+ _FEATURE_COMPONENTS: dict[str, type[InputFeature]] = {
+     "HalfKAv2_hm^": HalfKav2Hm,
+     "Full_Threats": FullThreats,
+     "PP_3Wide": PP3Wide,
++    # Triumviratus 7.0 "legio-septima": blocco NOSTRO, non esiste in SF.
++    # L'estrazione degli indici sta nel data loader C++ ("PassedPawns").
++    "PassedPawns": PassedPawns,
++    # Triumviratus 28/09/2026: HalfKA a esperti per fase (MoE nel feature transformer), al posto di HalfKAv2_hm^.
++    "HalfKAv2_hm_P4^": HalfKav2HmPhase,
++    # Triumviratus 29/09/2026: mobilita' bucketizzata, blocco in CODA (graft sulla MoE-1024).
++    "Mobility": Mobility,
++    # Triumviratus 21/10/2026 (Consilium-2): 8 experts per perspective from a learned routing table, int8 export.
++    "HalfKAv2_hm_X8^": HalfKav2HmX,
+ }
+ 
+-DEFAULT_FEATURES = "Full_Threats+PP_3Wide+HalfKAv2_hm^"
++# Default upstream: "Full_Threats+PP_3Wide+HalfKAv2_hm^"
++# Default Triumviratus 7.0: lo stesso + PassedPawns.
++# 🔴 L'ORDINE NON E' ESTETICO: determina sia il layout dei pesi nel file .nnue sia
++# l'hash (combine_hash e' una rotazione+xor, quindi ordine-dipendente). Il nostro motore
++# legge lo stream come Full_Threats -> HalfKA -> PawnPair -> PassedPawns
++# (nnue_feature_transformer.h::read_parameters), quindi HalfKA va PRIMA di PP_3Wide.
++# Upstream ha l'ordine opposto: invertirlo fa rifiutare la rete dal motore (verificato 27/07).
++DEFAULT_FEATURES = "Full_Threats+HalfKAv2_hm^+PP_3Wide+PassedPawns"
+ 
+ 
+ def get_feature_cls(name: str) -> list[Callable[[int], InputFeature]]:
+diff -ruN -x .pgo a/model/modules/features/halfka_v2_hm_phase.py b/model/modules/features/halfka_v2_hm_phase.py
+--- a/model/modules/features/halfka_v2_hm_phase.py	1970-01-01 01:00:00.000000000 +0100
++++ b/model/modules/features/halfka_v2_hm_phase.py	2026-10-21 13:17:12.201161500 +0200
+@@ -0,0 +1,110 @@
++"""HalfKAv2_hm_P4^ — HalfKA a ESPERTI per fase di gioco (Triumviratus, 28/09/2026). Idea nostra, non esiste in SF.
++
++Una "mixture of experts" dentro il feature transformer: i pesi HalfKA dipendono dal re (32 bucket, come HalfKA) E
++dalla fase, scelta dal numero di pezzi sulla scacchiera (NUM_PHASES fasce). L'accumulatore resta largo L1: la
++capacita' cresce di NUM_PHASES volte senza allargare L1 (niente -11%/-20% di NPS). Il motore ricalcola
++l'accumulatore quando una cattura fa cambiare fascia (tabelle Finny), come gia' fa quando il re cambia bucket.
++
++Pesi = DELTA per (fase, re) + BASE per re (comune a tutte le fasi) + VIRTUALE per piano (comune a tutto).
++La base e' inizializzata come una HalfKA normale e le delta a zero: all'epoca 0 la rete E' una HalfKA; le fasi si
++specializzano solo dove i dati lo chiedono. La base vede TUTTE le posizioni: e' la risposta al "ogni esperto vede
++un quarto dei dati".
++
++🔴 PHASE_OF_PIECECOUNT deve essere IDENTICA nel loader C++ (training_data_loader.cpp, HalfKAv2_hm_P4) e nel
++motore (nnue/nnue/features/half_ka_v2_hm_phase.*). Fasce provvisorie; da rifare a frequenza uguale sul corpus.
++"""
++import torch
++from torch import nn
++
++from .halfka_v2_hm import HalfKav2Hm, InverseKingBuckets
++from .input_feature import InputFeature
++
++NUM_PHASES = 4
++# pezzi sulla scacchiera (re compresi, 2..32) -> fase 0..3, a FREQUENZA UGUALE: i quartili dei 16 bin misurati in
++# docs/rete/PROSPETTIVE_RETE_7.0.md §15.2 (479.243 posizioni): <=9, 10-15, 16-23, >=24.
++# ⚠️ Da rifare sulla distribuzione EFFETTIVA del training (binpack x pesi pc_y del loader) prima del run.
++PHASE_OF_PIECECOUNT = [0] * 10 + [1] * 6 + [2] * 8 + [3] * 9  # indici 0..32
++assert len(PHASE_OF_PIECECOUNT) == 33
++
++
++class HalfKav2HmPhase(InputFeature):
++    HASH = 0x7F234CB8 ^ 0x50484134  # HalfKAv2_hm ^ "PHA4": deve coincidere col motore
++    FEATURE_NAME = "HalfKAv2_hm_P4^"
++    INPUT_FEATURE_NAME = "HalfKAv2_hm_P4"
++    MAX_ACTIVE_FEATURES = 32
++
++    NUM_PLANES = HalfKav2Hm.NUM_PLANES      # 768 (12 tipi di pezzo)
++    NUM_BUCKETS = HalfKav2Hm.NUM_BUCKETS    # 32 bucket del re
++    NUM_BASE = NUM_PLANES * NUM_BUCKETS     # 24.576 = una HalfKA
++    NUM_INPUTS = NUM_BASE * NUM_PHASES      # 98.304
++    NUM_REAL_FEATURES = 704 * 32 * NUM_PHASES  # export a 11 tipi di pezzo, come HalfKA
++
++    def __init__(self, num_outputs: int):
++        super().__init__()
++        self.num_outputs = num_outputs
++        self.weight = nn.Parameter(torch.zeros(self.NUM_INPUTS, num_outputs))           # delta per fase
++        self.base_weight = nn.Parameter(torch.empty(self.NUM_BASE, num_outputs))       # comune alle fasi
++        self.virtual_weight = nn.Parameter(torch.zeros(self.NUM_PLANES, num_outputs))  # comune a tutto
++        self.reset_parameters()
++
++    def reset_parameters(self):
++        sigma = (1 / self.NUM_BASE) ** 0.5  # come una HalfKA: la base e' la rete di partenza
++        with torch.no_grad():
++            self.base_weight.uniform_(-sigma, sigma)
++            self.weight.zero_()
++
++    def merged_weight(self) -> torch.Tensor:
++        return (self.weight + self.base_weight.repeat(NUM_PHASES, 1)
++                + self.virtual_weight.repeat(self.NUM_BUCKETS * NUM_PHASES, 1))
++
++    @torch.no_grad()
++    def coalesce(self) -> None:
++        self.weight.copy_(self.merged_weight())
++        self.base_weight.zero_()
++        self.virtual_weight.zero_()
++
++    @torch.no_grad()
++    def zero_virtual_weights(self) -> None:
++        self.virtual_weight.zero_()
++
++    @torch.no_grad()
++    def init_weights(self, num_psqt_buckets: int, nnue2score: float) -> None:
++        # PSQT iniziale sulla BASE (quindi uguale in tutte le fasi), delta a zero.
++        self.zero_virtual_weights()
++        L1 = self.num_outputs - num_psqt_buckets
++        vals = torch.tensor(HalfKav2Hm.halfka_psqts(), device=self.base_weight.device,
++                            dtype=self.base_weight.dtype) / nnue2score
++        for i in range(num_psqt_buckets):
++            self.base_weight[:, L1 + i] = vals
++            self.weight[:, L1 + i] = 0.0
++
++    @torch.no_grad()
++    def get_export_weights(self) -> torch.Tensor:
++        """Pesi fusi, rimappati da 12 a 11 tipi di pezzo per ogni (fase, bucket del re): stesso schema di HalfKA."""
++        merged = self.merged_weight()
++        export = merged.new_zeros(self.NUM_REAL_FEATURES, merged.shape[1])
++        for ph in range(NUM_PHASES):
++            for b in range(self.NUM_BUCKETS):
++                src = (ph * self.NUM_BUCKETS + b) * self.NUM_PLANES
++                dst = (ph * self.NUM_BUCKETS + b) * 704
++                export[dst: dst + 640] = merged[src: src + 640]
++                ksq = InverseKingBuckets[b]
++                export[dst + 640: dst + 704] = merged[src + 11 * 64: src + 12 * 64]  # re avversario
++                export[dst + 640 + ksq] = merged[src + 10 * 64 + ksq]                # re proprio
++        return export
++
++    @torch.no_grad()
++    def load_export_weights(self, export_weight: torch.Tensor) -> None:
++        expanded = export_weight.new_zeros(self.NUM_INPUTS, export_weight.shape[1])
++        for ph in range(NUM_PHASES):
++            for b in range(self.NUM_BUCKETS):
++                src = (ph * self.NUM_BUCKETS + b) * 704
++                dst = (ph * self.NUM_BUCKETS + b) * self.NUM_PLANES
++                expanded[dst: dst + 640] = export_weight[src: src + 640]
++                ksq = InverseKingBuckets[b]
++                expanded[dst + 10 * 64 + ksq] = export_weight[src + 640 + ksq]
++                expanded[dst + 11 * 64: dst + 12 * 64] = export_weight[src + 640: src + 704]
++                expanded[dst + 11 * 64 + ksq] = 0
++        self.weight.data.copy_(expanded)
++        self.base_weight.data.zero_()
++        self.virtual_weight.data.zero_()
+diff -ruN -x .pgo a/model/modules/features/halfka_v2_hm_x.py b/model/modules/features/halfka_v2_hm_x.py
+--- a/model/modules/features/halfka_v2_hm_x.py	1970-01-01 01:00:00.000000000 +0100
++++ b/model/modules/features/halfka_v2_hm_x.py	2026-10-21 13:17:12.215747600 +0200
+@@ -0,0 +1,147 @@
++"""HalfKAv2_hm_X8^ -- Consilium-2 (Triumviratus, 21/10/2026; docs/rete/PROGETTO_NUOVA_RETE_2026-10-21.md §5).
++
++Input buckets on the first layer ("experts", our Consilium) chosen PER PERSPECTIVE by a routing table over the
++non-pawn material signature, instead of fixed piece-count bands:
++
++    signature(c) = min(N,2)*18 + min(B,2)*6 + min(R,2)*2 + min(Q,1)      54 values
++    cell(p)      = signature(p) * 54 + signature(opponent of p)          2,916 cells
++    expert(p)    = router[cell(p)]                                       0..7
++
++Pawn captures never change a cell, and the table decides which non-pawn captures change the expert. The table is
++learned while training (trainer/router_em.py: hard EM with a budget on how often captures change the expert) and
++stored in the .nnue file; the data loader computes the index with the same table (set_router_table).
++
++Weights = per-expert DELTA + BASE per king bucket (shared by the experts) + VIRTUAL per plane (shared by all), as in
++HalfKAv2_hm_P4. The merged weights are exported as int8 at the scale of the threat rows (+-127/256): clip_weights
++clamps the merged value (delta + base + virtual) and puts the excess back into the delta, as nnue-pytorch #542 does
++for the virtual weights. The PSQT columns are not clamped (they are exported as int32).
++"""
++import torch
++from torch import nn
++
++from .halfka_v2_hm import HalfKav2Hm, InverseKingBuckets
++from .input_feature import InputFeature
++
++NUM_EXPERTS = 8
++SIG = 54
++NUM_CELLS = SIG * SIG
++
++
++def npm_of_signature(s: int) -> int:
++    return 3 * (s // 18) + 3 * ((s // 6) % 3) + 5 * ((s // 2) % 3) + 9 * (s % 2)
++
++
++DEFAULT_UPPER = (3, 5, 8, 9, 13, 18, 25)   # opponent NPM, 8 equal-frequency classes (game positions, 21/10/2026)
++
++
++def default_router_table() -> torch.Tensor:
++    """Opponent's non-pawn material in 8 equal-frequency classes: the starting point of the learned routing, which
++    may then use the own material too. IDENTICAL to router::default_expert in the data loader."""
++    t = torch.zeros(NUM_CELLS, dtype=torch.uint8)
++    for c in range(NUM_CELLS):
++        opp = npm_of_signature(c % SIG)
++        t[c] = sum(opp > u for u in DEFAULT_UPPER)
++    return t
++
++
++class HalfKav2HmX(InputFeature):
++    HASH = 0x7F234CB8 ^ 0x58384331  # HalfKAv2_hm ^ "X8C1": must match the engine (consilium/cn.cpp)
++    FEATURE_NAME = "HalfKAv2_hm_X8^"
++    INPUT_FEATURE_NAME = "HalfKAv2_hm_X8"
++    MAX_ACTIVE_FEATURES = 32
++    EXPORT_WEIGHT_DTYPE = torch.int8
++
++    NUM_PLANES = HalfKav2Hm.NUM_PLANES      # 768
++    NUM_BUCKETS = HalfKav2Hm.NUM_BUCKETS    # 32 king buckets
++    NUM_BASE = NUM_PLANES * NUM_BUCKETS     # 24,576 = one HalfKA
++    NUM_INPUTS = NUM_BASE * NUM_EXPERTS     # 196,608
++    NUM_REAL_FEATURES = 704 * 32 * NUM_EXPERTS
++
++    def __init__(self, num_outputs: int):
++        super().__init__()
++        self.num_outputs = num_outputs
++        self.weight = nn.Parameter(torch.zeros(self.NUM_INPUTS, num_outputs))           # delta per expert
++        self.base_weight = nn.Parameter(torch.empty(self.NUM_BASE, num_outputs))       # shared by the experts
++        self.virtual_weight = nn.Parameter(torch.zeros(self.NUM_PLANES, num_outputs))  # shared by all
++        self.register_buffer("router", default_router_table())                         # cell -> expert
++        self.reset_parameters()
++
++    def reset_parameters(self):
++        sigma = (1 / self.NUM_BASE) ** 0.5
++        with torch.no_grad():
++            self.base_weight.uniform_(-sigma, sigma)
++            self.weight.zero_()
++
++    def merged_weight(self) -> torch.Tensor:
++        return (self.weight + self.base_weight.repeat(NUM_EXPERTS, 1)
++                + self.virtual_weight.repeat(self.NUM_BUCKETS * NUM_EXPERTS, 1))
++
++    @torch.no_grad()
++    def coalesce(self) -> None:
++        self.weight.copy_(self.merged_weight())
++        self.base_weight.zero_()
++        self.virtual_weight.zero_()
++
++    @torch.no_grad()
++    def zero_virtual_weights(self) -> None:
++        self.virtual_weight.zero_()
++
++    @torch.no_grad()
++    def clip_weights(self, quantization) -> None:
++        """Merged int8 weights inside +-127/256 (the L1 columns only); the excess goes back into the deltas."""
++        lo, hi = quantization.min_threat_weight, quantization.max_threat_weight
++        L1 = self.num_outputs - quantization_num_psqt(self)
++        shared = (self.base_weight[:, :L1].view(self.NUM_BUCKETS, self.NUM_PLANES, L1)
++                  + self.virtual_weight[:, :L1].view(1, self.NUM_PLANES, L1))
++        d = self.weight.data[:, :L1].view(NUM_EXPERTS, self.NUM_BUCKETS, self.NUM_PLANES, L1)
++        for e in range(NUM_EXPERTS):   # one expert at a time: no temporary of the whole table
++            m = d[e] + shared
++            m.clamp_(lo, hi)
++            d[e].copy_(m - shared)
++
++    @torch.no_grad()
++    def init_weights(self, num_psqt_buckets: int, nnue2score: float) -> None:
++        self.zero_virtual_weights()
++        self._num_psqt = num_psqt_buckets
++        L1 = self.num_outputs - num_psqt_buckets
++        vals = torch.tensor(HalfKav2Hm.halfka_psqts(), device=self.base_weight.device,
++                            dtype=self.base_weight.dtype) / nnue2score
++        for i in range(num_psqt_buckets):
++            self.base_weight[:, L1 + i] = vals
++            self.weight[:, L1 + i] = 0.0
++
++    @torch.no_grad()
++    def get_export_weights(self) -> torch.Tensor:
++        """Merged weights, remapped from 12 to 11 piece types for every (expert, king bucket), as HalfKA."""
++        merged = self.merged_weight()
++        export = merged.new_zeros(self.NUM_REAL_FEATURES, merged.shape[1])
++        for ex in range(NUM_EXPERTS):
++            for b in range(self.NUM_BUCKETS):
++                src = (ex * self.NUM_BUCKETS + b) * self.NUM_PLANES
++                dst = (ex * self.NUM_BUCKETS + b) * 704
++                export[dst: dst + 640] = merged[src: src + 640]
++                ksq = InverseKingBuckets[b]
++                export[dst + 640: dst + 704] = merged[src + 11 * 64: src + 12 * 64]  # enemy king
++                export[dst + 640 + ksq] = merged[src + 10 * 64 + ksq]                # own king
++        return export
++
++    @torch.no_grad()
++    def load_export_weights(self, export_weight: torch.Tensor) -> None:
++        expanded = export_weight.new_zeros(self.NUM_INPUTS, export_weight.shape[1])
++        for ex in range(NUM_EXPERTS):
++            for b in range(self.NUM_BUCKETS):
++                src = (ex * self.NUM_BUCKETS + b) * 704
++                dst = (ex * self.NUM_BUCKETS + b) * self.NUM_PLANES
++                expanded[dst: dst + 640] = export_weight[src: src + 640]
++                ksq = InverseKingBuckets[b]
++                expanded[dst + 10 * 64 + ksq] = export_weight[src + 640 + ksq]
++                expanded[dst + 11 * 64: dst + 12 * 64] = export_weight[src + 640: src + 704]
++                expanded[dst + 11 * 64 + ksq] = 0
++        self.weight.data.copy_(expanded)
++        self.base_weight.data.zero_()
++        self.virtual_weight.data.zero_()
++
++
++def quantization_num_psqt(feature: HalfKav2HmX) -> int:
++    """PSQT columns of the feature's weight matrix (set by init_weights; 8 in every network of the project)."""
++    return getattr(feature, "_num_psqt", 8)
+diff -ruN -x .pgo a/model/modules/features/mobility.py b/model/modules/features/mobility.py
+--- a/model/modules/features/mobility.py	1970-01-01 01:00:00.000000000 +0100
++++ b/model/modules/features/mobility.py	2026-10-21 13:17:12.232611700 +0200
+@@ -0,0 +1,67 @@
++import torch
++from torch import nn
++
++from .input_feature import InputFeature
++
++
++class Mobility(InputFeature):
++    """Bucketed mobility inputs (Triumviratus 8.0, graft on the MoE-1024), 29/09/2026.
++
++    FullThreats only encodes attacks on PIECES. This block adds attacks on empty
++    squares in bucketed form: one feature per knight / bishop / rook / queen (own or
++    enemy) = (oriented square, mobility bucket 0-3), 2048 inputs.
++    Mobility = attacked squares not occupied by own pieces and not attacked by
++    enemy pawns. Extraction lives in the C++ data loader ("Mobility"), and must
++    match the engine (Triumviratus_8.0/nnue/nnue/features/mobility.{h,cpp}).
++    """
++
++    HASH = 0x4D4F4231  # "MOB1" — must match the engine-side hash (mobility.h)
++    FEATURE_NAME = "Mobility"
++    INPUT_FEATURE_NAME = "Mobility"
++    MAX_ACTIVE_FEATURES = 32
++
++    NUM_INPUTS = 2048
++    NUM_REAL_FEATURES = 2048
++    EXPORT_WEIGHT_DTYPE = torch.int8
++
++    def __init__(self, num_outputs: int):
++        super().__init__()
++
++        self.num_outputs = num_outputs
++        self.weight = nn.Parameter(
++            torch.empty(self.NUM_INPUTS, num_outputs, dtype=torch.float32)
++        )
++
++        self.reset_parameters()
++
++    def merged_weight(self) -> torch.Tensor:
++        return self.weight
++
++    @torch.no_grad()
++    def coalesce(self) -> None:
++        pass  # no virtual weights
++
++    @torch.no_grad()
++    def zero_virtual_weights(self) -> None:
++        pass  # no virtual weights
++
++    @torch.no_grad()
++    def init_weights(self, num_psqt_buckets: int, nnue2score: float) -> None:
++        """No material term: the pieces themselves are already in the HalfKA PSQT."""
++        L1 = self.num_outputs - num_psqt_buckets
++        for i in range(num_psqt_buckets):
++            self.weight[:, L1 + i] = 0.0
++
++    @torch.no_grad()
++    def get_export_weights(self) -> torch.Tensor:
++        return self.weight.data.clone()
++
++    @torch.no_grad()
++    def load_export_weights(self, export_weight: torch.Tensor) -> None:
++        self.weight.data.copy_(export_weight)
++
++    def clip_weights(self, quantization) -> None:
++        """int8 export like threats -> same quantization-safe clamp range."""
++        self.weight.data.clamp_(
++            quantization.min_threat_weight, quantization.max_threat_weight
++        )
+diff -ruN -x .pgo a/model/modules/features/passed_pawns.py b/model/modules/features/passed_pawns.py
+--- a/model/modules/features/passed_pawns.py	1970-01-01 01:00:00.000000000 +0100
++++ b/model/modules/features/passed_pawns.py	2026-10-21 13:17:12.243144300 +0200
+@@ -0,0 +1,73 @@
++import torch
++from torch import nn
++
++from .input_feature import InputFeature
++
++
++class PassedPawns(InputFeature):
++    """Passed-pawn inputs (rubicon-alea-v3 graft).
++
++    One feature per passed pawn: 96 slots (48 own + 48 enemy; squares on
++    ranks 2-7 oriented per perspective and file-mirrored with the king like
++    HalfKA/threats/PawnPair). "Passed" = no enemy pawn on the same or
++    adjacent files ahead of the pawn AND no own pawn directly ahead on the
++    same file (a rear doubled pawn is not a passer).
++
++    The passed property is the relational signal HalfKA cannot represent
++    directly; interactions with blockers / kings / chains are learnable
++    through the SFNNv13 pairwise-multiplied L1 against the HalfKA and
++    PawnPair blocks, so v1 is deliberately square-only (no flags).
++    Extraction lives in the C++ data loader ("PassedPawns").
++    """
++
++    HASH = 0x50535344  # "PSSD" — must match the engine-side hash (passed_pawns.h)
++    FEATURE_NAME = "PassedPawns"
++    INPUT_FEATURE_NAME = "PassedPawns"
++    MAX_ACTIVE_FEATURES = 16  # all 16 pawns passed (theoretical bound)
++
++    NUM_INPUTS = 96
++    NUM_REAL_FEATURES = 96
++    EXPORT_WEIGHT_DTYPE = torch.int8
++
++    def __init__(self, num_outputs: int):
++        super().__init__()
++
++        self.num_outputs = num_outputs
++        self.weight = nn.Parameter(
++            torch.empty(self.NUM_INPUTS, num_outputs, dtype=torch.float32)
++        )
++
++        self.reset_parameters()
++
++    def merged_weight(self) -> torch.Tensor:
++        return self.weight
++
++    @torch.no_grad()
++    def coalesce(self) -> None:
++        pass  # no virtual weights
++
++    @torch.no_grad()
++    def zero_virtual_weights(self) -> None:
++        pass  # no virtual weights
++
++    @torch.no_grad()
++    def init_weights(self, num_psqt_buckets: int, nnue2score: float) -> None:
++        """Passed pawns carry no material (the pawn itself is already in the
++        HalfKA PSQT), so PSQT columns are zero."""
++        L1 = self.num_outputs - num_psqt_buckets
++        for i in range(num_psqt_buckets):
++            self.weight[:, L1 + i] = 0.0
++
++    @torch.no_grad()
++    def get_export_weights(self) -> torch.Tensor:
++        return self.weight.data.clone()
++
++    @torch.no_grad()
++    def load_export_weights(self, export_weight: torch.Tensor) -> None:
++        self.weight.data.copy_(export_weight)
++
++    def clip_weights(self, quantization) -> None:
++        """int8 export like threats -> same quantization-safe clamp range."""
++        self.weight.data.clamp_(
++            quantization.min_threat_weight, quantization.max_threat_weight
++        )
+diff -ruN -x .pgo a/model/modules/layer_stacks.py b/model/modules/layer_stacks.py
+--- a/model/modules/layer_stacks.py	2026-10-21 13:17:11.071669000 +0200
++++ b/model/modules/layer_stacks.py	2026-10-21 13:17:12.328777900 +0200
+@@ -35,8 +35,12 @@
+         ls_indices: torch.Tensor,
+         fake_quantize_acts: bool=True,
+         fake_quantize_weights: bool=True,
++        l1_add: torch.Tensor | None = None,
+     ):
+         l1c_ = self.l1(x, ls_indices, fake_quantize_weights)
++        # Consilium-2: the pawn-king subnetwork's output joins the l1 outputs before the skip and the activations.
++        if l1_add is not None:
++            l1c_ = l1c_ + l1_add
+ 
+         # Extract the short-path skip connection before fake quantization
+         l1x_out = l1c_[:, -2].view(-1, 1) - l1c_[:, -1].view(-1, 1)
+diff -ruN -x .pgo a/model/modules/pawn_king.py b/model/modules/pawn_king.py
+--- a/model/modules/pawn_king.py	1970-01-01 01:00:00.000000000 +0100
++++ b/model/modules/pawn_king.py	2026-10-21 13:17:12.337836400 +0200
+@@ -0,0 +1,87 @@
++"""Pawn-king subnetwork (Triumviratus, Consilium-2, 21/10/2026; docs/rete/PROGETTO_NUOVA_RETE_2026-10-21.md §6).
++
++A small non-linear network over the pawns and kings only, seen from the side to move (board flipped vertically when
++Black moves, no horizontal mirror):
++    inputs 0..63 own pawns, 64..127 enemy pawns, 128..191 own king, 192..255 enemy king (at most 18 active)
++    h   = clamp(b1 + sum of W1 rows, 0, 127/128)               H values
++    out = b2 + W2 h                                            L2 values, ADDED to the output of the first layer of
++                                                               the layer stack (before its activations and the skip)
++Its output depends only on pawns, kings and side to move, so the engine keeps it in a small per-thread cache keyed by
++them and computes it on a miss. It reads no feature-transformer row.
++
++Integer form used by the engine (exact when the weights sit on their grid, which fake quantization keeps):
++    W1, b1 int16 at x128, h = clamp(acc, 0, 127) (uint8, units of 1/128)
++    W2 int8 at x128 (|w| <= 127), b2 int32 at x128x128: out is in the units of the l1 accumulators (x128x128).
++W2 starts at zero, so a fresh network starts exactly as one without the subnetwork.
++Prior art: a cached pawn-king network concatenated after a hidden layer was proposed by Alvin Peng (TalkChess,
++22/04/2022); no published measurement found.
++"""
++import torch
++from torch import nn
++
++from ..quantize import _fake_quantize_weights
++
++PK_INPUTS = 256
++PK_MAX_ACTIVE = 18
++PK_HASH = 0x504B4E31        # "PKN1"
++W1_SCALE = 128.0
++W2_SCALE = 128.0
++B2_SCALE = 128.0 * 128.0
++# int16 safety of the hidden accumulator: |b1| + 18 |w1| <= 255 (x128 = 32,640)
++W1_MAX = 12.0
++B1_MAX = 20.0
++W2_MAX = 127.0 / 128.0
++
++
++class PawnKingNet(nn.Module):
++    def __init__(self, hidden: int, outputs: int):
++        super().__init__()
++        self.hidden = hidden
++        self.outputs = outputs
++        self.w1 = nn.Embedding(PK_INPUTS + 1, hidden, padding_idx=PK_INPUTS)   # last row = padding (-1)
++        self.b1 = nn.Parameter(torch.full((hidden,), 0.25))
++        self.out = nn.Linear(hidden, outputs)
++        with torch.no_grad():
++            self.w1.weight.uniform_(-0.1, 0.1)
++            self.w1.weight[PK_INPUTS].zero_()
++            self.out.weight.zero_()
++            self.out.bias.zero_()
++
++    def forward(self, pk_indices: torch.Tensor, fake_quantize_weights: bool = True) -> torch.Tensor:
++        idx = torch.where(pk_indices < 0, torch.full_like(pk_indices, PK_INPUTS), pk_indices).long()
++        w1, b1 = self.w1.weight, self.b1
++        w2, b2 = self.out.weight, self.out.bias
++        if fake_quantize_weights:
++            w1 = _fake_quantize_weights(w1, W1_SCALE)
++            b1 = _fake_quantize_weights(b1, W1_SCALE)
++            w2 = _fake_quantize_weights(w2, W2_SCALE)
++            b2 = _fake_quantize_weights(b2, B2_SCALE)
++        h = nn.functional.embedding(idx, w1, padding_idx=PK_INPUTS).sum(dim=1) + b1
++        h = h.clamp(0.0, 127.0 / 128.0)
++        return nn.functional.linear(h, w2, b2)
++
++    @torch.no_grad()
++    def clip_weights(self) -> None:
++        self.w1.weight.clamp_(-W1_MAX, W1_MAX)
++        self.w1.weight[PK_INPUTS].zero_()
++        self.b1.clamp_(-B1_MAX, B1_MAX)
++        self.out.weight.clamp_(-W2_MAX, W2_MAX)
++
++    @torch.no_grad()
++    def quantized(self) -> dict:
++        """Integer tensors in the order and layout of the .nnue section (engine: consilium/cn.cpp)."""
++        r = lambda t, s, dt: torch.round(t * s).to(dt)
++        return {
++            "b1": r(self.b1, W1_SCALE, torch.int16),
++            "w1": r(self.w1.weight[:PK_INPUTS], W1_SCALE, torch.int16),          # [256][H]: one row per input
++            "b2": r(self.out.bias, B2_SCALE, torch.int32),
++            "w2": r(self.out.weight, W2_SCALE, torch.int8),                       # [L2][H]
++        }
++
++    @torch.no_grad()
++    def load_quantized(self, b1, w1, b2, w2) -> None:
++        self.b1.copy_(b1.float() / W1_SCALE)
++        self.w1.weight[:PK_INPUTS].copy_(w1.float() / W1_SCALE)
++        self.w1.weight[PK_INPUTS].zero_()
++        self.out.bias.copy_(b2.float() / B2_SCALE)
++        self.out.weight.copy_(w2.float() / W2_SCALE)
+diff -ruN -x .pgo a/model/nnue.py b/model/nnue.py
+--- a/model/nnue.py	2026-10-21 13:17:11.112621100 +0200
++++ b/model/nnue.py	2026-10-21 13:17:12.361538100 +0200
+@@ -1,3 +1,5 @@
++import os
++
+ import torch
+ from torch import Tensor, nn
+ from torchmetrics import MeanMetric, MetricCollection
+@@ -118,6 +120,30 @@
+         optimizer_config = self.config.optimizer_config
+         self.optimizer_wrapper = optimizer_config.get_optimizer_wrapper()
+ 
++        # Triumviratus 29/09/2026: graft a base congelata (la ricetta di PassedPawns). Con
++        # NNUE_TRAIN_ONLY="Mobility" (nomi FEATURE_NAME separati da virgola) si allenano SOLO
++        # i pesi di quei blocchi: tutto il resto passa a requires_grad=False e resta fuori
++        # dall'ottimizzatore, quindi non lo tocca nemmeno il lookahead di RangerLite. Va fatto
++        # qui, prima che SimpleTrainer crei il DDP (che registra solo i pesi con gradiente).
++        train_only = {n.strip() for n in os.environ.get("NNUE_TRAIN_ONLY", "").split(",") if n.strip()}
++        if train_only:
++            feats = self.model.input.features
++            keep = [f.weight for f in feats if f.FEATURE_NAME in train_only]
++            found = {f.FEATURE_NAME for f in feats if f.FEATURE_NAME in train_only}
++            if found != train_only:
++                raise ValueError(f"NNUE_TRAIN_ONLY: blocchi non trovati: {sorted(train_only - found)}")
++            for p in self.parameters():
++                p.requires_grad_(False)
++            for p in keep:
++                p.requires_grad_(True)
++            print(
++                f"[configure_optimizers] NNUE_TRAIN_ONLY={sorted(train_only)}: "
++                f"{sum(p.numel() for p in keep)} pesi allenati, tutto il resto congelato",
++                flush=True,
++            )
++            train_params = [{"params": keep, "lr": optimizer_config.lr, "weight_decay": 0.0}]
++            return self.optimizer_wrapper.configure_optimizers(train_params)
++
+         LRs = [optimizer_config.lr] * 10
+ 
+         ft_wd = optimizer_config.ft_weight_decay
+@@ -178,6 +204,12 @@
+                 "weight_decay": 0.0,
+             },
+         ]
++        # Consilium-2: pawn-king subnetwork (dense weights with the dense decay, biases without).
++        if self.model.pawn_king is not None:
++            pk = self.model.pawn_king
++            train_params.append({"params": [pk.w1.weight, pk.out.weight], "lr": optimizer_config.lr,
++                                 "weight_decay": dense_wd})
++            train_params.append({"params": [pk.b1, pk.out.bias], "lr": optimizer_config.lr, "weight_decay": 0.0})
+ 
+         return self.optimizer_wrapper.configure_optimizers(train_params)
+ 
+@@ -322,6 +354,7 @@
+             _outcome,
+             _score,
+             piece_count,
++            *rest,
+         ) = batch
+         scorenet = self.model(
+             us,
+@@ -331,6 +364,7 @@
+             piece_count,
+             self.config.use_fake_act_quantization,
+             self.config.use_fake_weight_quantization,
++            rest[0] if rest else None,   # Consilium-2: aux block (routing cells, pawn-king indices)
+         )
+         return self.compute_loss_with_scorenet(scorenet, batch, current_step)
+ 
+@@ -345,6 +379,7 @@
+             outcome,
+             score,
+             _piece_count,
++            *_rest,
+         ) = batch
+ 
+         scorenet = scorenet * self.model.quantization.nnue2score
+diff -ruN -x .pgo a/model/utils/serialize.py b/model/utils/serialize.py
+--- a/model/utils/serialize.py	2026-10-21 13:17:11.213722800 +0200
++++ b/model/utils/serialize.py	2026-10-21 13:17:12.428339000 +0200
+@@ -12,6 +12,14 @@
+ 
+ from ..config import ModelConfig
+ from ..model import NNUEModel
++from ..modules.features.halfka_v2_hm_x import NUM_EXPERTS as ROUTER_EXPERTS
++from ..modules.pawn_king import PK_HASH, PK_INPUTS
++
++# Consilium-2 (21/10/2026): sections after the layer stacks, in this order, each only if the network has it:
++#   router    : uint32 ROUTER_MAGIC, uint32 cells, uint32 experts, uint8 table[cells]       (HalfKAv2_hm_X8)
++#   pawn-king : uint32 PK_HASH, uint32 hidden, uint32 outputs, int16 b1[hidden], int16 w1[256][hidden],
++#               int32 b2[outputs], int8 w2[outputs][hidden]                                 (pawn_king_hidden > 0)
++ROUTER_MAGIC = 0x52544231  # "RTB1"
+ 
+ 
+ def ascii_hist(name, x, bins=7):
+@@ -127,6 +135,24 @@
+             self.write_fc_layer(model, l1, layer_stacks.l1.layer_key, f"bucket {bucket}")
+             self.write_fc_layer(model, l2, layer_stacks.l2.layer_key, f"bucket {bucket}")
+             self.write_fc_layer(model, output, layer_stacks.output.layer_key, f"bucket {bucket}")
++        self.write_consilium2_sections(model)
++
++    def write_consilium2_sections(self, model: NNUEModel) -> None:
++        for f in model.input.features:
++            if hasattr(f, "router"):
++                t = f.router.detach().cpu().to(torch.uint8).numpy()
++                self.int32(ROUTER_MAGIC)
++                self.int32(int(t.size))
++                self.int32(ROUTER_EXPERTS)
++                self.buf.extend(t.tobytes())
++        pk = model.pawn_king
++        if pk is not None:
++            q = pk.quantized()
++            self.int32(PK_HASH)
++            self.int32(pk.hidden)
++            self.int32(pk.outputs)
++            for key in ("b1", "w1", "b2", "w2"):   # little endian (x86)
++                self.buf.extend(q[key].detach().cpu().contiguous().numpy().tobytes())
+ 
+     @staticmethod
+     def fc_hash(model: NNUEModel) -> int:
+@@ -288,6 +314,27 @@
+                     l_b_slices[layer_idx][b],
+                     layers[layer_idx].layer_key,
+                 )
++        self.read_consilium2_sections()
++
++    def read_consilium2_sections(self) -> None:
++        for f in self.model.input.features:
++            if hasattr(f, "router"):
++                self.read_int32(ROUTER_MAGIC)
++                n = self.read_int32()
++                self.read_int32(ROUTER_EXPERTS)
++                t = np.frombuffer(self.f.read(n), dtype=np.uint8).copy()
++                f.router.copy_(torch.from_numpy(t))
++        pk = self.model.pawn_king
++        if pk is not None:
++            self.read_int32(PK_HASH)
++            h = self.read_int32(pk.hidden)
++            o = self.read_int32(pk.outputs)
++            rd = lambda dt, n: np.frombuffer(self.f.read(np.dtype(dt).itemsize * n), dtype=dt).copy()
++            b1 = torch.from_numpy(rd("<i2", h))
++            w1 = torch.from_numpy(rd("<i2", PK_INPUTS * h).reshape(PK_INPUTS, h))
++            b2 = torch.from_numpy(rd("<i4", o))
++            w2 = torch.from_numpy(rd("<i1", o * h).reshape(o, h))
++            pk.load_quantized(b1, w1, b2, w2)
+ 
+     def read_header(self, feature_hash: int, fc_hash: int) -> None:
+         self.read_int32(VERSION)  # version
+diff -ruN -x .pgo a/train.py b/train.py
+--- a/train.py	2026-10-21 13:17:11.501776200 +0200
++++ b/train.py	2026-10-21 13:17:12.562876400 +0200
+@@ -254,6 +254,12 @@
+ 
+     input_feature_name = nnue.model.input_feature_name
+ 
++    # Consilium-2 (21/10/2026): the data loader routes the experts with the network's table (the default one, or the
++    # one of the resumed model), set before the loader threads start; RouterEM keeps them in step afterwards.
++    for _f in nnue.model.input.features:
++        if hasattr(_f, "router"):
++            data_loader._native.set_router_table(_f.router.detach().cpu().numpy())
++
+     torch.manual_seed(args.seed)
+     random.seed(args.seed)
+     np.random.seed(args.seed)
+@@ -338,6 +344,18 @@
+     if 0 <= args.swa_start_epoch < args.max_epochs:
+         swa_callback = ExplicitSWA(args.swa_start_epoch, tb_logger.log_dir)
+         trainer_callbacks.append(swa_callback)
++    # Consilium-2: learned routing of the experts (after WeightClipper: rounds see the clipped weights).
++    if args.router_em_epochs.strip():
++        from trainer.router_em import RouterEM
++
++        trainer_callbacks.append(RouterEM(
++            epochs=[int(e) for e in args.router_em_epochs.split(",") if e.strip()],
++            budget=args.router_em_budget,
++            transitions_path=args.router_em_transitions,
++            log_dir=tb_logger.log_dir,
++            sample_batches=args.router_em_sample_batches,
++            sample_size=args.router_em_sample_size,
++        ))
+ 
+     trainer = SimpleTrainer(
+         model=nnue,
+diff -ruN -x .pgo a/trainer/engine.py b/trainer/engine.py
+--- a/trainer/engine.py	2026-10-21 13:17:11.524577400 +0200
++++ b/trainer/engine.py	2026-10-21 13:17:12.588293400 +0200
+@@ -190,7 +190,7 @@
+         if self._ddp_model is not None:
+             # DDP wraps the inner NNUEModel; run its forward to get scorenet,
+             # then compute the loss on the plain NNUE object.
+-            us, them, white_indices, black_indices, _outcome, _score, piece_count = batch
++            us, them, white_indices, black_indices, _outcome, _score, piece_count, *rest = batch
+             scorenet = self._ddp_model(
+                 us,
+                 them,
+@@ -199,6 +199,7 @@
+                 piece_count,
+                 self.model.config.use_fake_act_quantization,
+                 self.model.config.use_fake_weight_quantization,
++                rest[0] if rest else None,   # Consilium-2: aux block (routing cells, pawn-king indices)
+             )
+             loss = _unwrap_module(self.model).compute_loss_with_scorenet(
+                 scorenet, batch, self.global_step
+diff -ruN -x .pgo a/trainer/router_em.py b/trainer/router_em.py
+--- a/trainer/router_em.py	1970-01-01 01:00:00.000000000 +0100
++++ b/trainer/router_em.py	2026-10-21 13:17:12.604616000 +0200
+@@ -0,0 +1,250 @@
++"""Learned routing of the Consilium-2 experts (Triumviratus, 21/10/2026; docs/rete/PROGETTO_NUOVA_RETE_2026-10-21.md §5).
++
++The experts of HalfKAv2_hm_X8 are chosen per perspective by a table cell -> expert (cell = non-pawn material
++signature of the perspective and of its opponent). This callback learns the table by hard EM while the network trains:
++
++  E-step   during the epochs listed in `epochs`, a sample of the training positions is kept (CPU copies). At the end of
++           such an epoch, for every sampled position and perspective, the loss is computed again with that
++           perspective's HalfKA indices moved to each of the 8 experts (the other perspective unchanged). The loss
++           differences are summed per (cell, expert) on every rank, then all-reduced.
++  M-step   cells are reassigned to minimise the summed loss, under two constraints:
++             - budget: the share of captures that change the expert of a perspective (summed over the two
++               perspectives, the unit of the design document: 0.262 for today's piece-count bands) stays <= `budget`;
++               capture transitions between cells come from game positions (tools: c2_transitions.py);
++             - every expert keeps at least `min_share` of the sampled positions; at most `max_move_share` of them
++               change expert in one round (the shared base weights keep the move gentle).
++           The penalty weight is found by bisection; the local search is a deterministic sweep (rank 0 decides, the
++           table is broadcast so every rank and every data loader use the same one).
++  Then     the table is written into the network (feature buffer `router`, saved in checkpoints and in the .nnue) and
++           into the data loader (set_router_table). Batches already queued keep the previous table.
++
++Log of every round (table, loss gain, crossing rate, shares): <log_dir>/router_em.jsonl.
++"""
++import json
++import os
++
++import numpy as np
++import torch
++import torch.distributed as dist
++
++from data_loader._native import set_router_table
++from model.modules.features.halfka_v2_hm_x import NUM_CELLS, NUM_EXPERTS, HalfKav2HmX
++from model.nnue import remap_tablebase_score
++
++from .callbacks import Callback
++
++
++def _inner(model):
++    m = model.model
++    return getattr(m, "_orig_mod", m)
++
++
++def _x8_feature(inner):
++    off = 0
++    for f in inner.input.features:
++        if isinstance(f, HalfKav2HmX):
++            return f, off
++        off += f.NUM_INPUTS
++    raise RuntimeError("RouterEM needs the HalfKAv2_hm_X8^ feature")
++
++
++def _per_sample_loss(nnue, inner, batch, current_step):
++    """The training loss of nnue.compute_loss_with_scorenet, per position (weighted, not normalised)."""
++    us, them, w, b, outcome, score, piece_count, aux = batch
++    scorenet = inner(us, them, w, b, piece_count, nnue.config.use_fake_act_quantization,
++                     nnue.config.use_fake_weight_quantization, aux)
++    scorenet = scorenet * inner.quantization.nnue2score
++    p = nnue.config.loss_params
++    lam = nnue.lambda_scheduler(loss_params=p, current_step=current_step, max_steps=nnue.max_steps,
++                                is_training=False, scorenet=scorenet)
++    score = remap_tablebase_score(score, base=p.tb_remap_base, scale=p.tb_remap_scale, decay=p.tb_remap_decay)
++    q = (scorenet - p.in_offset) / p.in_scaling
++    qm = (-scorenet - p.in_offset) / p.in_scaling
++    qf = 0.5 * (1.0 + q.sigmoid() - qm.sigmoid())
++    s = (score - p.out_offset) / p.out_scaling
++    sm = (-score - p.out_offset) / p.out_scaling
++    pf = 0.5 * (1.0 + s.sigmoid() - sm.sigmoid())
++    pt = pf * lam + outcome * (1.0 - lam)
++    loss = torch.pow(torch.abs(pt - qf), p.pow_exp)
++    if p.qp_asymmetry != 0.0:
++        loss = loss * ((qf > pt) * p.qp_asymmetry + 1)
++    weights = 1 + (2.0 ** p.w1 - 1) * torch.pow((pf - 0.5) ** 2 * pf * (1 - pf), p.w2)
++    return (loss * weights).view(-1), weights.view(-1)
++
++
++def assign(D, N, cur, trans, budget, min_share, max_move_share, min_cell_samples, iters=14):
++    """M-step. D[c, e] = summed loss change if cell c used expert e (0 at the current expert); N[c] = samples;
++    cur[c] = current expert; trans = (src, dst, weight) capture transitions between cells, one entry per perspective
++    (self-transitions included: they count captures that cannot change the expert). Returns the new table."""
++    C, K = D.shape
++    src, dst, wt = trans
++    wsum = float(wt.sum()) if len(wt) else 1.0
++    ntot = float(N.sum()) if N.sum() > 0 else 1.0
++    nbr = [[] for _ in range(C)]          # undirected neighbours with weights (crossing counted once per edge)
++    for s_, d_, w_ in zip(src, dst, wt):
++        if s_ != d_:
++            nbr[s_].append((d_, w_))
++            nbr[d_].append((s_, w_))
++
++    def crossing(t):   # expert changes per capture, summed over the two perspectives (each capture = 2 entries)
++        if not len(wt):
++            return 0.0
++        return 2.0 * float((wt * (t[src] != t[dst])).sum()) / wsum
++
++    movable = [c for c in np.argsort(-N, kind="stable") if N[c] >= min_cell_samples]
++
++    def local_search(mu):
++        t = cur.copy()
++        share = np.bincount(t, weights=N, minlength=K) / ntot
++        moved = 0.0
++        for _sweep in range(8):
++            changed = False
++            for c in movable:
++                e0 = t[c]
++                best_e, best_gain = e0, 0.0
++                for e in range(K):
++                    if e == e0:
++                        continue
++                    if share[e0] - N[c] / ntot < min_share:
++                        break
++                    if (cur[c] == e0 and e != cur[c]) and moved + N[c] / ntot > max_move_share:
++                        continue
++                    dl = (D[c, e] - D[c, e0]) / ntot
++                    dx = sum(w_ * (int(e != t[o]) - int(e0 != t[o])) for o, w_ in nbr[c]) / wsum
++                    g = dl + mu * dx
++                    if g < best_gain - 1e-12:
++                        best_e, best_gain = e, g
++                if best_e != e0:
++                    share[e0] -= N[c] / ntot
++                    share[best_e] += N[c] / ntot
++                    if cur[c] == e0:
++                        moved += N[c] / ntot
++                    elif cur[c] == best_e:
++                        moved -= N[c] / ntot
++                    t[c] = best_e
++                    changed = True
++            if not changed:
++                break
++        return t
++
++    t = local_search(0.0)
++    if crossing(t) <= budget:
++        return t, 0.0
++    lo, hi = 0.0, 1.0
++    while crossing(local_search(hi)) > budget and hi < 1e6:
++        hi *= 4.0
++    best = local_search(hi)
++    for _ in range(iters):
++        mid = 0.5 * (lo + hi)
++        tm = local_search(mid)
++        if crossing(tm) <= budget:
++            hi, best = mid, tm
++        else:
++            lo = mid
++    return best, hi
++
++
++class RouterEM(Callback):
++    def __init__(self, epochs, budget, transitions_path, log_dir, sample_batches=64, sample_size=16384,
++                 min_share=0.04, max_move_share=0.15, min_cell_samples=2000):
++        self.epochs = sorted(set(int(e) for e in epochs))
++        self.budget = budget
++        self.log_path = os.path.join(log_dir, "router_em.jsonl")
++        self.sample_batches = sample_batches
++        self.sample_size = sample_size
++        self.min_share = min_share
++        self.max_move_share = max_move_share
++        self.min_cell_samples = min_cell_samples
++        z = np.load(transitions_path)
++        self.trans = (z["src"].astype(np.int64), z["dst"].astype(np.int64), z["w"].astype(np.float64))
++        self.buf = []
++        self.stride = 1
++
++    def _round_this_epoch(self, trainer):
++        return (trainer.current_epoch + 1) in self.epochs
++
++    def on_train_start(self, trainer):
++        # The loader must route with the network's table (default, or the one restored from a checkpoint).
++        feat, _ = _x8_feature(_inner(trainer.model))
++        set_router_table(feat.router.detach().cpu().numpy())
++        n = max(1, getattr(trainer, "num_training_batches", 0) or 1)
++        self.stride = max(1, n // max(1, self.sample_batches))
++
++    def on_train_batch_end(self, trainer, batch, batch_idx, outputs):
++        if not self._round_this_epoch(trainer) or len(self.buf) >= self.sample_batches:
++            return
++        if batch_idx % self.stride:
++            return
++        k = min(self.sample_size, batch[0].shape[0])
++        self.buf.append(tuple(t[:k].detach().to("cpu", copy=True) for t in batch))
++
++    @torch.no_grad()
++    def on_train_epoch_end(self, trainer):
++        if not self._round_this_epoch(trainer):
++            return
++        nnue = trainer.model
++        inner = _inner(nnue)
++        feat, off = _x8_feature(inner)
++        base = feat.NUM_BASE
++        dev = next(inner.parameters()).device
++        D = torch.zeros(NUM_CELLS, NUM_EXPERTS, dtype=torch.float64, device=dev)
++        N = torch.zeros(NUM_CELLS, dtype=torch.float64, device=dev)
++        loss_sum = torch.zeros((), dtype=torch.float64, device=dev)
++        was_training = inner.training
++        inner.eval()
++        for cpu_batch in self.buf:
++            batch = tuple(t.to(dev, non_blocking=True) for t in cpu_batch)
++            us, them, w, b, outcome, score, pc, aux = batch
++            l0, wts = _per_sample_loss(nnue, inner, batch, trainer.global_step)
++            loss_sum += l0.sum().double()
++            for persp, idx in ((0, w), (1, b)):
++                cells = aux[:, persp].long()
++                inblock = (idx >= off) & (idx < off + NUM_EXPERTS * base)
++                rel = (idx - off) % base
++                N.index_add_(0, cells, torch.ones_like(cells, dtype=torch.float64))
++                for e in range(NUM_EXPERTS):
++                    moved = torch.where(inblock, off + e * base + rel, idx)
++                    bb = (us, them, moved, b, outcome, score, pc, aux) if persp == 0 else \
++                         (us, them, w, moved, outcome, score, pc, aux)
++                    le, _ = _per_sample_loss(nnue, inner, bb, trainer.global_step)
++                    D[:, e].index_add_(0, cells, (le - l0).double())
++        if was_training:
++            inner.train()
++        if dist.is_available() and dist.is_initialized():
++            dist.all_reduce(D)
++            dist.all_reduce(N)
++            dist.all_reduce(loss_sum)
++        cur = feat.router.detach().cpu().numpy().astype(np.int64)
++        table = torch.from_numpy(cur.astype(np.uint8))
++        info = {}
++        if trainer.rank == 0:
++            Dn, Nn = D.cpu().numpy(), N.cpu().numpy()
++            new, mu = assign(Dn, Nn, cur, self.trans, self.budget, self.min_share, self.max_move_share,
++                             self.min_cell_samples)
++            src, dst, wt = self.trans
++            cross = lambda t: 2.0 * float((wt * (t[src] != t[dst])).sum() / max(wt.sum(), 1e-9))
++            gain = float(sum(Dn[c, new[c]] for c in range(NUM_CELLS)) / max(Nn.sum(), 1.0))
++            info = {
++                "epoch": trainer.current_epoch + 1, "step": trainer.global_step, "samples": float(Nn.sum()),
++                "mean_loss": float(loss_sum.item() / max(Nn.sum() / 2, 1.0)), "loss_gain": gain,
++                "crossing_before": cross(cur), "crossing_after": cross(new), "mu": mu,
++                "cells_moved": int((new != cur).sum()),
++                "share_moved": float(Nn[new != cur].sum() / max(Nn.sum(), 1.0)),
++                "shares": (np.bincount(new, weights=Nn, minlength=NUM_EXPERTS) / max(Nn.sum(), 1.0)).tolist(),
++                "table": new.astype(int).tolist(),
++            }
++            table = torch.from_numpy(new.astype(np.uint8))
++        if dist.is_available() and dist.is_initialized():
++            t_dev = table.to(dev)
++            dist.broadcast(t_dev, src=0)
++            table = t_dev.cpu()
++        feat.router.copy_(table.to(feat.router.device))
++        set_router_table(table.numpy())
++        if trainer.rank == 0:
++            os.makedirs(os.path.dirname(self.log_path), exist_ok=True)
++            with open(self.log_path, "a", encoding="utf-8") as f:
++                f.write(json.dumps(info) + "\n")
++            print(f"[RouterEM] epoch {info['epoch']}: loss gain {info['loss_gain']:.3e}, crossing "
++                  f"{info['crossing_before']:.4f} -> {info['crossing_after']:.4f}, cells moved {info['cells_moved']}, "
++                  f"share moved {info['share_moved']:.3f}", flush=True)
++        self.buf = []
+diff -ruN -x .pgo a/val_loss_fixed.py b/val_loss_fixed.py
+--- a/val_loss_fixed.py	1970-01-01 01:00:00.000000000 +0100
++++ b/val_loss_fixed.py	2026-10-21 13:17:12.616022000 +0200
+@@ -0,0 +1,68 @@
++"""Loss di piu' reti sulle STESSE posizioni con lambda FISSO (29/09/2026).
++
++La train/val loss del log non confronta le epoche: il run usa un ciclo di lambda (1,0 -> 0,7 all'epoca ~112 ->
++di nuovo 1,0 a fine run), e la loss cambia con il bersaglio. Qui ogni rete e' valutata sugli stessi batch con
++lambda 1,0 (solo eval dei dati), 0,0 (solo risultato della partita) e 0,85, con i LossParams di default del run.
++USO: python val_loss_fixed.py <dati.binpack> <rete.nnue> [<rete.nnue> ...] [--batches N] [--features F]
++"""
++import argparse
++import os
++
++import torch
++
++import data_loader
++import model as M
++from model.nnue import calculate_sf_loss
++
++FEATURES = "Full_Threats+HalfKAv2_hm_P4^+PP_3Wide+PassedPawns"
++
++
++def main():
++    ap = argparse.ArgumentParser()
++    ap.add_argument("data")
++    ap.add_argument("nets", nargs="+")
++    ap.add_argument("--batches", type=int, default=100)
++    ap.add_argument("--batch-size", type=int, default=4096)
++    ap.add_argument("--features", default=FEATURES)
++    ap.add_argument("--threads", type=int, default=8)
++    args = ap.parse_args()
++    torch.set_num_threads(args.threads)
++
++    cfg = M.NNUELightningConfig(features=args.features, model_config=M.ModelConfig(L1=1024))
++    nets = []
++    for p in args.nets:
++        with open(p, "rb") as f:
++            m = M.NNUEReader(f, cfg.features, cfg.model_config).model
++        m.eval()
++        nets.append((os.path.basename(p), m))
++    feature_set = nets[0][1].input_feature_name
++
++    provider = data_loader.SparseBatchProvider(
++        feature_set=feature_set,
++        filenames=[args.data],
++        cyclic=True,
++        num_workers=2,
++        batch_size=args.batch_size,
++        config=data_loader.DataloaderSkipConfig(random_fen_skipping=10, filtered=True),
++    )
++    lambdas = (1.0, 0.85, 0.75, 0.0)
++    sums = {name: [0.0] * len(lambdas) for name, _ in nets}
++    with torch.no_grad():
++        for i in range(args.batches):
++            us, them, wi, bi, outcome, score, pc = next(provider)
++            for name, m in nets:
++                scorenet = m(us, them, wi, bi, pc, True, True) * m.quantization.nnue2score
++                for k, lam in enumerate(lambdas):
++                    sums[name][k] += calculate_sf_loss(scorenet, score, outcome, cfg.loss_params, lam).item()
++            if (i + 1) % 10 == 0:
++                print(f"batch {i + 1}/{args.batches}", flush=True)
++
++    n = args.batches
++    print(f"\n{args.batches} batch x {args.batch_size} posizioni da {os.path.basename(args.data)}")
++    print(f"{'rete':<34}" + "".join(f"  lambda {lam:<5}" for lam in lambdas))
++    for name, _ in nets:
++        print(f"{name:<34}" + "".join(f"  {s / n * 1e3:>9.4f}e-3" for s in sums[name]))
++
++
++if __name__ == "__main__":
++    main()

@@ -85,4 +85,33 @@ edbd475	external	Rarog: cited by the 2026-10-24 Rarog audit (analysis/rarog_audi
 eed3f6b	external	Rarog: cited by the 2026-10-24 Rarog audit (analysis/rarog_audit_2026-10-24*.md)
 f209981	external	Rarog: cited by the 2026-10-24 Rarog audit (analysis/rarog_audit_2026-10-24*.md)
 f548432	external	Rarog: cited by the 2026-10-24 Rarog audit (analysis/rarog_audit_2026-10-24*.md)
-9c72539	external	Colosseum: the cli-v0.4.0 release revision pinned in colosseum.pin.json
+9c72539	external	Colosseum: the cli-v0.4.0 release revision, pinned until 2026-10-30
+8fa63cc	external	Colosseum: the cli-v0.5.0 release revision pinned in colosseum.pin.json
+0c18907	external	Triumviratus: the main head pinned as the third donor's snapshot
+5f3dc60	external	Triumviratus-Networks: the head pinned for the networks snapshot
+e876fa3	external	Triumviratus: parent of the 8.1 document deletion, snapshotted under removed/
+5b36328	external	Triumviratus: the commit that deleted its 8.1 documents
+9efeed2	external	Triumviratus: the commit that deleted FUTURE_DIRECTIONS and two network records
+db98633b	external	Stockfish: the hybrid accumulator update on king moves
+11bd148	external	Triumviratus: quiescence material stand-pat option
+24d791c	external	Triumviratus: 64-bit Zobrist keys after a rank-32 key set
+28c44db	external	Triumviratus: printed scale recalibrated per network
+2c33b92	external	Triumviratus: correction weights rebalanced
+36c4e9f	external	Triumviratus: NUMA spread on by default
+42e68f5	external	Triumviratus: large-page cost of a 250 MB network
+51a3ca6	external	Triumviratus: start position before the first position command
+59003c8	external	Triumviratus: HistGrad history update
+5a1a1b2	external	Triumviratus: own time base and TmTrans
+67538a5	external	Triumviratus: time levers ramped by game time; FEN side-to-move check
+878b574	external	Triumviratus: time tuning build; fixed root expert
+9910b23	external	Triumviratus: knowledge ordering terms removed
+9e74ae8	external	Triumviratus: tablebase wins printed as cp 20000 minus distance
+af49b20	external	Triumviratus: no null move with a minor piece or less
+b34547f	external	Triumviratus: no threat tuples opened and closed inside one move
+c35fcca	external	Triumviratus: clean-room inference with a bit-identical golden set
+c8704f4	external	Triumviratus: per-expert piece values unbaked
+ce03c53	external	Triumviratus: fishtest-style SPSA; surprise rule silent when behind
+d6a79a8	external	Triumviratus: shared enemy attack map
+e1a884c	external	Triumviratus: per-expert margins of experts 5-7 unbaked
+f7a83be	external	Triumviratus: NUMA spread on Linux
+f7e1489	external	Triumviratus: per-thread state aligned to 128 bytes

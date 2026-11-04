@@ -373,6 +373,8 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
     kernel_begin_search();
 
     std::memset(state_.pv_len, 0, sizeof(state_.pv_len));
+    state_.prev_pv_len = 0;
+    state_.prev_root_score = 0;
     init_root_tablebase_scores(board);
     state_.root_ordering = RootOrdering{&state_.root_tb_moves, shared_.pool.root_table};
 
@@ -416,6 +418,10 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
 
     int start_depth = 1;
     state_.diag.reset();         // fresh diagnostic counters per `go`
+#ifdef BASILISK_DIAGNOSTIC
+    shadow_root_side_ = board.turn();
+    hist_.shadow->reset_reads();
+#endif
     evaluator_.diag_lazy = config_.limits.diag;
     evaluator_.lazy_fires = evaluator_.lazy_sign_flips = 0;
     evaluator_.lazy_margin_crossings = 0;
@@ -443,7 +449,9 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
         state_.root_best_effort = 0;
         int score;
 
-        if (depth <= 3 || std::abs(prev_score) >= MATE_SCORE - MAX_PLY) {
+        if (limits.root_alpha != limits.root_beta) {
+            score = root_search(depth, limits.root_alpha, limits.root_beta);
+        } else if (depth <= 3 || std::abs(prev_score) >= MATE_SCORE - MAX_PLY) {
             score = root_search(depth, -INF_SCORE, INF_SCORE);
         } else {
             int delta = config_.limits.params.aspiration_delta;
@@ -583,6 +591,8 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
         struct ExtraLine { int score; std::vector<Move> pv; };
         std::vector<ExtraLine> extra_lines;
         if (state_.multipv_lines > 1 && cur_best != MOVE_NONE && !state_.stopped) {
+            // A later line follows no previous PV.
+            state_.prev_pv_len = 0;
             state_.root_excluded.assign(1, cur_best);
             for (int k = 2; k <= state_.multipv_lines; ++k) {
                 state_.pv_len[0] = 0;
@@ -595,6 +605,12 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
             }
             state_.root_excluded.clear();
         }
+
+        // What the next iteration reads of this one: the first line's PV and
+        // its raw score.
+        state_.prev_pv_len = static_cast<int>(first_line.size());
+        std::copy(first_line.begin(), first_line.end(), state_.prev_pv);
+        state_.prev_root_score = score;
 
         double elapsed = elapsed_seconds();
         if (extra_lines.empty()) {
@@ -678,6 +694,21 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
     // print_search_diag() runs after this point.
     state_.diag.see_ge_calls      = board.see_ge_call_count();
     state_.diag.gives_check_calls = board.gives_check_call_count();
+#ifdef BASILISK_DIAGNOSTIC
+    const auto harvest = [](const CrossColourReads& r, int64_t& reads, int64_t& other_only,
+                            int64_t& mixed, int64_t& other_ppm) {
+        reads = r.reads; other_only = r.other_only; mixed = r.mixed; other_ppm = r.other_share_ppm;
+    };
+    DiagCounters& d = state_.diag;
+    harvest(hist_.shadow->reads(ShadowTable::Capture),
+            d.xc_cap_reads, d.xc_cap_other_only, d.xc_cap_mixed, d.xc_cap_other_ppm);
+    harvest(hist_.shadow->reads(ShadowTable::Continuation),
+            d.xc_cont_reads, d.xc_cont_other_only, d.xc_cont_mixed, d.xc_cont_other_ppm);
+    harvest(hist_.shadow->reads(ShadowTable::Pawn),
+            d.xc_pawn_reads, d.xc_pawn_other_only, d.xc_pawn_mixed, d.xc_pawn_other_ppm);
+    harvest(hist_.shadow->reads(ShadowTable::ContCorr),
+            d.xc_corr_reads, d.xc_corr_other_only, d.xc_corr_mixed, d.xc_corr_other_ppm);
+#endif
     state_.board = nullptr;
     shared_.pool = PoolResources{};
     state_.root_ordering = RootOrdering{};

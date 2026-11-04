@@ -41,7 +41,10 @@ static const int TEST_DEPTH = 6;
 // a real tactical regression fails it. A count more than STALE_HEADROOM above
 // the floor fails too, until the floor is moved to the new rate: the old
 // floor of 130 sat 57 below the count and guarded nothing.
-static const int FLOOR = 175;
+// Cluster 2's arm turns nodes into depth, so its depth-6 tree is a different
+// budget: its floor is its own count (132 at bench 6,723,172) less the same
+// 13 of headroom.
+static const int FLOOR = kB3Proof ? 119 : 175;
 static const int STALE_HEADROOM = 20;
 
 static void test_request_parser() {

@@ -1,0 +1,147 @@
+# macOS builds of Triumviratus (issue #4; 8.1 from 29/10/2026). Started by hand (Actions -> macOS builds -> Run
+# workflow, on the branch or tag to build). The version, the expected bench and the network (URL, SHA-256) come from
+# source/universal/release.json, the file the Windows chain (build/release.ps1) reads. Each job downloads Consilium
+# Plebis from the Triumviratus-Networks release, checks its SHA-256, and builds with Apple clang and PGO with the same
+# training as the Windows release (source/universal/pgo_train_det.py on pgo_positions.epd, fixed nodes): instrumented
+# build, training, llvm-profdata merge, optimised build. The bench is then checked on the Mac itself and the executable
+# is uploaded as an artifact. With release_tag set, a last job attaches the executables and SHA256SUMS_macos.txt to that
+# GitHub release, which must already exist (the author creates it; starting the workflow with the tag is the approval).
+name: macOS builds
+
+on:
+  workflow_dispatch:
+    inputs:
+      day:
+        description: "Release day yyyymmdd for a dated pre-release (id name and file names); empty = official release"
+        default: ""
+      possolver:
+        description: "Also build the Position Solver"
+        type: boolean
+        default: false
+      possolver_bench:
+        description: "Expected Position Solver bench (empty = bench_possolver of release.json)"
+        default: ""
+      intel_runner:
+        description: "Runner label for the Intel build"
+        default: "macos-15-intel"
+      pgo:
+        description: "Profile-guided optimisation"
+        type: boolean
+        default: true
+      release_tag:
+        description: "Attach the builds to this existing release (empty = artifacts only)"
+        default: ""
+      clobber:
+        description: "Replace assets with the same name already on the release"
+        type: boolean
+        default: false
+
+jobs:
+  setup:
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: m
+        env:
+          DAY: ${{ inputs.day }}
+          POSSOLVER: ${{ inputs.possolver }}
+          PS_BENCH: ${{ inputs.possolver_bench }}
+          INTEL: ${{ inputs.intel_runner }}
+        run: |
+          python3 - <<'EOF'
+          import json, os, re, sys
+          rel = json.load(open("source/universal/release.json"))
+          ver, day = rel["version"], os.environ["DAY"].strip()
+          if day and not re.fullmatch(r"\d{8}", day):
+              sys.exit(f"day must be yyyymmdd, got {day!r}")
+          flavours = [("game", str(rel["bench"]), "")]
+          if os.environ["POSSOLVER"] == "true":
+              b = os.environ["PS_BENCH"].strip() or str(rel.get("bench_possolver") or "")
+              if not b:
+                  sys.exit("Position Solver: no expected bench (input possolver_bench or bench_possolver of release.json)")
+              flavours.append(("possolver", b, "PosSolver_"))
+          stamp = f"{day}_" if day else ""
+          inc = []
+          for target, runner, suffix in (("macos-arm", "macos-14", "macos_arm"), ("macos-x86", os.environ["INTEL"], "macos_x86")):
+              for fl, bench, tag in flavours:
+                  extra = "-DTRIUMV_RELEASE -ffp-contract=off"   # as the Windows build: no fused multiply-add, same bench
+                  extra += f" -DTRIUMV_RELEASE_DAY={day}" if day else " -DTRIUMV_OFFICIAL"
+                  if fl == "possolver":
+                      extra += " -DTRIUMV_POS_SOLVER"
+                  inc.append({"runner": runner, "target": target, "flavour": fl, "bench": bench, "extra": extra,
+                              "bin": f"source/triumviratus_{suffix}", "out": f"Triumviratus_{ver}_{tag}{stamp}{suffix}"})
+          print(json.dumps(inc, indent=1))
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write("matrix=" + json.dumps({"include": inc}) + "\n")
+          EOF
+
+  build:
+    needs: setup
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.setup.outputs.matrix) }}
+    runs-on: ${{ matrix.runner }}
+    env:
+      EXTRA: ${{ matrix.extra }}
+      BIN: ${{ matrix.bin }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Network
+        run: |
+          eval "$(python3 -c "import json; n = json.load(open('source/universal/release.json'))['network']; print('NET=%s URL=%s SHA=%s' % (n['file'], n['url'], n['sha256']))")"
+          curl -sSL --fail -o "source/$NET" "$URL"
+          echo "$SHA  source/$NET" | shasum -a 256 -c -
+          echo "MK=make -C source -j4 ${{ matrix.target }} CXX=clang++ CC=clang NET_NAME=$NET" >> "$GITHUB_ENV"
+      - name: Instrumented build and training
+        if: ${{ inputs.pgo }}
+        run: |
+          $MK EXTRACXXFLAGS="$EXTRA -fprofile-generate -DCLANG_PGO_GEN"
+          mkdir -p prof
+          LLVM_PROFILE_FILE="$PWD/prof/p_%p.profraw" python3 source/universal/pgo_train_det.py "$PWD/$BIN" 0 \
+            source/universal/pgo_positions.epd 200 --workers 3
+          ls prof | head -3; ls prof | wc -l
+          xcrun llvm-profdata merge -output=merged.profdata prof/*.profraw
+          make -C source clean >/dev/null && rm -f "$BIN"   # only clean: the next step builds with the profile
+      - name: Build
+        run: |
+          if [ "${{ inputs.pgo }}" = "true" ]; then
+            $MK EXTRACXXFLAGS="$EXTRA -fprofile-use=$PWD/merged.profdata -Wno-profile-instr-out-of-date -Wno-profile-instr-unprofiled"
+          else
+            $MK EXTRACXXFLAGS="$EXTRA"
+          fi
+          cp "$BIN" ${{ matrix.out }}
+      - name: Bench
+        run: |
+          printf 'bench\nquit\n' | ./${{ matrix.out }} > bench.txt 2>&1 || true
+          tail -5 bench.txt
+          printf 'uci\nquit\n' | ./${{ matrix.out }} | grep "^id name"
+          grep -q "Nodes searched *: *${{ matrix.bench }}$" bench.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.out }}
+          path: ${{ matrix.out }}
+
+  attach:
+    needs: build
+    if: ${{ inputs.release_tag != '' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ inputs.release_tag }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: assets
+          merge-multiple: true
+      - name: Attach to the release
+        run: |
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json name,isDraft,isPrerelease
+          cd assets
+          chmod +x Triumviratus_*
+          sha256sum Triumviratus_* > SHA256SUMS_macos.txt
+          cat SHA256SUMS_macos.txt
+          gh release upload "$TAG" Triumviratus_* SHA256SUMS_macos.txt --repo "$GITHUB_REPOSITORY" ${{ inputs.clobber && '--clobber' || '' }}

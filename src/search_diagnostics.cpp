@@ -81,6 +81,12 @@ void DecisionTrace::print(const InfoCallback& info, const std::vector<Move>& roo
             case TraceEvent::QsLatePrune:          return "qs_late_prune";
             case TraceEvent::QsBetaCutoff:         return "qs_beta_cutoff";
             case TraceEvent::SkipQuiets:           return "skip_quiets";
+            case TraceEvent::NullVerify:           return "null_verify";
+            case TraceEvent::NullRegionRefused:    return "null_region_refused";
+            case TraceEvent::ProbcutTtCutoff:      return "probcut_tt_cutoff";
+            case TraceEvent::ExtBudgetTruncate:    return "ext_budget_truncate";
+            case TraceEvent::CuckooDraw:           return "cuckoo_draw";
+            case TraceEvent::TtPenalty:            return "tt_penalty";
         }
         return "unknown";
     };
@@ -263,6 +269,18 @@ void print_search_diag(const DiagCounters& d, const Evaluator& evaluator,
             d.sing_in_check, d.sing_triple,
             d.sing_ttbeta);
         emit(buf);
+        buf = std::format("kv sing_cap_bound={} iir_reductions={} iir_stale={} "
+            "iir_after_hindsight={}",
+            d.sing_cap_bound, d.iir_reductions, d.iir_stale,
+            d.iir_after_hindsight);
+        emit(buf);
+        buf = std::format("kv sing_tries={} sing_multicut={} "
+            "null_tries_d1_3={} null_tries_d4_7={} null_tries_d8p={} "
+            "null_cuts_d1_3={} null_cuts_d4_7={} null_cuts_d8p={}",
+            d.sing_tries, d.sing_multicut,
+            d.null_tries_d1_3, d.null_tries_d4_7, d.null_tries_d8p,
+            d.null_cuts_d1_3, d.null_cuts_d4_7, d.null_cuts_d8p);
+        emit(buf);
         // The selectivity core's counters.
         buf = std::format("kv rfp_cuts_d1_3={} rfp_cuts_d4_7={} rfp_cuts_d8p={} "
             "razor_cuts_d1_3={} razor_cuts_d4_7={} razor_cuts_d8p={} "
@@ -287,6 +305,35 @@ void print_search_diag(const DiagCounters& d, const Evaluator& evaluator,
         buf = std::format("kv tie_promotions_at_alpha={} tie_promotions_below_alpha={} "
             "tb_store_stale_pv={}",
             d.tie_promotions_at_alpha, d.tie_promotions_below_alpha, d.tb_store_stale_pv);
+        emit(buf);
+        // Cluster 2's counters.
+        buf = std::format("kv null_verifications={} null_verify_failed={} "
+            "null_region_refusals={} probcut_tt_cuts={} probcut_pv_tries={} "
+            "sing_ext3={} sing_negative_cut={} sing_shuffle_refused={} "
+            "sing_seekmate_refused={} ext_budget_bound={} follow_pv_nodes={}",
+            d.null_verifications, d.null_verify_failed, d.null_region_refusals,
+            d.probcut_tt_cuts, d.probcut_pv_tries,
+            d.sing_ext3, d.sing_negative_cut, d.sing_shuffle_refused,
+            d.sing_seekmate_refused, d.ext_budget_bound, d.follow_pv_nodes);
+        emit(buf);
+        buf = std::format("kv iir_pv_nodes={} cuckoo_draws={} tt_move_absent={} "
+            "tt_penalized={} in_check_lmr_applied={} in_check_skip_quiets={} "
+            "in_check_capt_fut={} in_check_capt_see={} in_check_cont_hist={} "
+            "in_check_quiet_see={} pv_quiet_pruned={}",
+            d.iir_pv_nodes, d.cuckoo_draws, d.tt_move_absent, d.tt_penalized,
+            d.in_check_lmr_applied, d.in_check_skip_quiets, d.in_check_capt_fut,
+            d.in_check_capt_see, d.in_check_cont_hist, d.in_check_quiet_see,
+            d.pv_quiet_pruned);
+        emit(buf);
+        buf = std::format("kv xc_cap_reads={} xc_cap_other_only={} xc_cap_mixed={} "
+            "xc_cap_other_ppm={} xc_cont_reads={} xc_cont_other_only={} xc_cont_mixed={} "
+            "xc_cont_other_ppm={} xc_pawn_reads={} xc_pawn_other_only={} xc_pawn_mixed={} "
+            "xc_pawn_other_ppm={} xc_corr_reads={} xc_corr_other_only={} xc_corr_mixed={} "
+            "xc_corr_other_ppm={}",
+            d.xc_cap_reads, d.xc_cap_other_only, d.xc_cap_mixed, d.xc_cap_other_ppm,
+            d.xc_cont_reads, d.xc_cont_other_only, d.xc_cont_mixed, d.xc_cont_other_ppm,
+            d.xc_pawn_reads, d.xc_pawn_other_only, d.xc_pawn_mixed, d.xc_pawn_other_ppm,
+            d.xc_corr_reads, d.xc_corr_other_only, d.xc_corr_mixed, d.xc_corr_other_ppm);
         emit(buf);
     }
     // Speed telemetry: the evaluation rate, the pawn-cache hit rate, the

@@ -186,6 +186,96 @@ static void test_picker_contract() {
     end_section();
 }
 
+// ProbCut's candidates: a capture or a queen promotion.
+static bool probcut_candidate(const Board& b, Move m) {
+    if (move_type(m) == PROMOTION)
+        return promo_type(m) == QUEEN;
+    return move_type(m) == EN_PASSANT || b.piece_on(to_sq(m)) != NO_PIECE;
+}
+
+static std::vector<Move> run_probcut(const Board& b, const CoreHistoryTables& h, Move tt,
+                                     Move excluded, int threshold) {
+    static ScoredMove buffer[MoveList::CAPACITY];
+    ProbCutPicker picker(b, h, tt, excluded, threshold, buffer);
+    std::vector<Move> out;
+    for (Move m; (m = picker.next()) != MOVE_NONE; )
+        out.push_back(m);
+    return out;
+}
+
+static void test_probcut_picker() {
+    begin_section("ProbCut picker: candidates clearing SEE, TT first, foreign and excluded moves");
+    std::mt19937_64 rng(0x9B0BC0DEULL);
+    auto h = std::make_unique<CoreHistoryTables>();
+    randomise(*h, rng);
+
+    int positions = 0, failures = 0, tt_firsts = 0, foreign_runs = 0, delivered = 0;
+    Move foreign = make_move(A1, A1);
+    while (positions < 3000 && failures < 10) {
+        Board b;
+        b.set_fen(SEED_FENS[positions % 6]);
+        const int plies = int(rng() % 30);
+        for (int p = 0; p < plies; ++p) {
+            MoveList l;
+            b.gen_legal(l);
+            if (l.empty()) break;
+            b.make_move(l[int(rng() % uint64_t(l.size()))]);
+        }
+        MoveList legal_list;
+        b.gen_legal(legal_list);
+        if (legal_list.empty())
+            continue;
+        ++positions;
+        auto fail = [&](const char* what) {
+            if (++failures <= 5)
+                std::fprintf(stderr, "  %s: %s\n", what, b.get_fen().c_str());
+        };
+        const int threshold = int(rng() % 1201) - 600;
+        std::vector<Move> want;
+        for (Move m : legal_list)
+            if (probcut_candidate(b, m) && b.see_ge(m, threshold)) want.push_back(m);
+
+        // Exactly the candidates that clear the threshold, in descending
+        // capture order, each once.
+        const std::vector<Move> got = run_probcut(b, *h, MOVE_NONE, MOVE_NONE, threshold);
+        delivered += int(got.size());
+        if (sorted(got) != sorted(want)) fail("not exactly the candidates clearing SEE");
+        for (size_t i = 1; i < got.size(); ++i)
+            if (capture_order_score(b, *h, got[i]) > capture_order_score(b, *h, got[i - 1]))
+                fail("not in descending capture order");
+
+        // A legal TT move comes first exactly when it is a candidate that
+        // clears the threshold, and is never delivered twice.
+        const Move tt = legal_list[int(rng() % uint64_t(legal_list.size()))];
+        const std::vector<Move> with_tt = run_probcut(b, *h, tt, MOVE_NONE, threshold);
+        const bool tt_wanted = std::find(want.begin(), want.end(), tt) != want.end();
+        if (tt_wanted) {
+            ++tt_firsts;
+            if (with_tt.empty() || with_tt.front() != tt) fail("qualifying TT move not first");
+        }
+        if (sorted(with_tt) != sorted(want)) fail("TT move run not exact");
+
+        // A TT move from another position, illegal here, changes nothing.
+        if (std::find(legal_list.begin(), legal_list.end(), foreign) == legal_list.end()) {
+            ++foreign_runs;
+            if (sorted(run_probcut(b, *h, foreign, MOVE_NONE, threshold)) != sorted(want))
+                fail("foreign TT move changed the delivered set");
+        }
+        foreign = tt;
+
+        // The excluded move is never delivered, as TT move or otherwise.
+        const std::vector<Move> ex = run_probcut(b, *h, tt, tt, threshold);
+        if (std::find(ex.begin(), ex.end(), tt) != ex.end()) fail("excluded move delivered");
+    }
+    std::printf("%d positions, %d delivered, %d qualifying TT moves, %d foreign-TT runs ",
+                positions, delivered, tt_firsts, foreign_runs);
+    EXPECT_EQ(failures, 0);
+    EXPECT(positions == 3000);
+    EXPECT(tt_firsts > 100);
+    EXPECT(foreign_runs > 1000);
+    end_section();
+}
+
 static void test_partial_sort() {
     begin_section("partial insertion sort: descending above the limit, a permutation");
     std::mt19937_64 rng(42);
@@ -223,5 +313,6 @@ int main() {
     std::printf("================\n");
     test_partial_sort();
     test_picker_contract();
+    test_probcut_picker();
     return harness_summary();
 }

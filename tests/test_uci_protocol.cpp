@@ -6,6 +6,7 @@
 
 #include "engine_command.h"
 #include "parameters.h"
+#include "physical_memory.h"
 #include "attacks.h"
 #include "bitboard.h"
 #include "zobrist.h"
@@ -491,6 +492,59 @@ static void test_unknown_setoption() {
     end_section();
 }
 
+// Hash is bounded by the machine's total physical memory: the advertised
+// maximum is that limit, and a value above it is refused at parse time with
+// one notice, the setting unchanged.
+static void test_hash_limit() {
+    constexpr std::uint64_t MiB = std::uint64_t{1} << 20;
+    begin_section("hash limit: physical memory in whole MiB, capped and floored");
+    EXPECT_EQ(hash_limit_mb(0), kHashProtocolMaxMb);                       // not reported
+    EXPECT_EQ(hash_limit_mb(16384 * MiB), 16384);
+    EXPECT_EQ(hash_limit_mb(16384 * MiB + MiB - 1), 16384);                 // whole MiB only
+    EXPECT_EQ(hash_limit_mb(MiB / 2), kHashMinMb);                          // held to the minimum
+    EXPECT_EQ(hash_limit_mb((std::uint64_t{kHashProtocolMaxMb} - 1) * MiB), kHashProtocolMaxMb - 1);
+    EXPECT_EQ(hash_limit_mb(std::uint64_t{kHashProtocolMaxMb} * MiB), kHashProtocolMaxMb);
+    EXPECT_EQ(hash_limit_mb(std::uint64_t{1} << 62), kHashProtocolMaxMb);    // capped
+    end_section();
+
+    const int limit = Parameters::max_hash_mb();
+    begin_section("hash limit: this machine reports its memory, read once");
+    EXPECT(query_physical_memory_bytes() > 0);
+    EXPECT_EQ(limit, hash_limit_mb(query_physical_memory_bytes()));
+    EXPECT_EQ(limit, machine_hash_limit_mb());
+    end_section();
+
+    begin_section("hash limit: the uci option list advertises it");
+    EXPECT(contains(Parameters::uci_options(),
+                    "option name Hash type spin default 64 min 1 max " + std::to_string(limit) + "\n"));
+    end_section();
+
+    Parameters p;
+    p.set_option("name Hash value 2");
+    const std::string above = std::to_string(limit + 1);
+    const std::string out = capture([&] { p.set_option("name Hash value " + above); });
+    const std::string notice = "info string Hash value " + above + " is above the "
+                             + std::to_string(limit)
+                             + " MiB this machine can hold; the setting is unchanged.\n";
+    begin_section("hash limit: a value above it is refused with one notice, the setting kept");
+    EXPECT_STR(out, notice);
+    EXPECT_EQ(p.hash_mb, 2);
+    end_section();
+
+    begin_section("hash limit: each setoption that sends it is announced; others are not");
+    EXPECT_STR(capture([&] { p.set_option("name MultiPV value 2"); }), "");
+    EXPECT_STR(capture([&] { p.set_option("name Hash value " + above); }), notice);
+    EXPECT_EQ(p.hash_mb, 2);
+    end_section();
+
+    begin_section("hash limit: values within it behave as before");
+    EXPECT_STR(capture([&] { p.set_option("name Hash value 0"); }), "");
+    EXPECT_EQ(p.hash_mb, kHashMinMb);
+    p.set_option("name Hash value " + std::to_string(limit));
+    EXPECT_EQ(p.hash_mb, limit);
+    end_section();
+}
+
 int main() {
     // 15.0.d drives Parameters, which builds real Boards and generates legal
     // moves; the protocol-only tests above never needed the attack tables.
@@ -523,6 +577,7 @@ int main() {
     test_fen_counter_boundaries();
     test_malformed_go();
     test_unknown_setoption();
+    test_hash_limit();
 
     return harness_summary();
 }

@@ -231,9 +231,11 @@ Taken from Rarog's B.2 and B.3, which took it from Manta's 6.5.10.
 - **Categorical switches.** A handoff choice that the research could not
   settle becomes a tune-build UCI option with values `0..1`, its default equal
   to the handoff's choice. It is settled by a 2,000-game paired run on one
-  tune build (no build offset between the arms), adopted at ≥ +5 Elo,
-  rejected at ≤ −5, and left at default between. It is never an SPSA
-  coordinate.
+  tune build (no build offset between the arms), adopted at ≥ +5 Elo and
+  rejected at ≤ −5 only when the 95% interval also excludes 0 (2,000
+  games read about ±8, so a bare ±5 crossing is noise about one time in
+  four; maintainer decision 2026-11-01), and left at default otherwise.
+  It is never an SPSA coordinate.
 - **Canaries are anchored to the reference.** A tactical canary must be
   solved at the depth classical Stockfish solves it, not at whatever depth
   the current build manages. A changed canary is recorded with its cause and
@@ -251,6 +253,16 @@ Donors (maintainer decision 2026-09-28; PLAN rule 1 points here):
 - **Classical Stockfish `9587eeeb`** for the evaluation families, as the
   deficit oracle (`oracle/hybrid`), and as a seed column for eval-coupled
   margins.
+- **Triumviratus** (maintainer decision 2026-11-03), for mechanisms only:
+  measured priors on its Stockfish-19-shaped search, board and
+  infrastructure, time management, NNUE architecture and training, and its
+  own measurement failures. Read through the pinned snapshots
+  `docs/reference/triumviratus/` (`main` at `0c18907`) and
+  `docs/reference/triumviratus-networks/` (`5f3dc60`), never the live
+  repository; a later finding enters only through a new dated snapshot.
+  `analysis/triumviratus_review_2026-11-03.md` maps every finding to its
+  leaf. Its verdicts are priors, like Rarog's: one machine, self-play,
+  often early-stopped SPRTs, a search tuned around a network.
 
 Rarog and Manta are worked examples of the same method; Reckless is Rarog's
 donor. None of them donates to Basilisk, and their verdicts are priors, never
@@ -300,13 +312,17 @@ and gauntlets. `tools/colosseum.ps1` drives matches from the committed run
 files in `tools/colosseum/`; `tools/spsa_colosseum.ps1` drives generated tune
 blocks from `tools/spsa_configs/colosseum/`. The experiment registration owns
 the engines, cap or horizon, seed and evidence directory. The runner is pinned
-by revision and SHA-256 in `colosseum.pin.json` (`colosseum-cli` 0.4.0 since
-2026-10-24); a different binary is refused, not substituted. Colosseum is
+by revision and SHA-256 in `colosseum.pin.json` (`colosseum-cli` 0.5.0 since
+2026-10-30); a different binary is refused, not substituted. Colosseum is
 qualified in its own repository, with Rarog as the validation engine, and
 Basilisk repeats none of that qualification. Every run keeps each slot's
 engine processes between games (`engine-processes = "per-slot"` in
 `common.toml`); the wrapper refuses any other resolved value, because a
 command's default has changed between runner versions.
+A run's per-engine results (games by colour, terminations, faults, search)
+are in `results.txt` beside `run-record.json`, not on the console, and are
+kept per side: one binary on both arms reads as `name (A)` and `name (B)`
+in the PGN and every report, where 0.4.0 merged the two.
 
 The wrappers prove an idle host, runner and engine hashes, build manifests,
 the expected revision and bench fingerprint, advertised UCI options, natural

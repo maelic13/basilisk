@@ -51,15 +51,21 @@ int CoreMovePicker::fill(const MoveList& list, int at) {
     return at;
 }
 
+int capture_order_score(const Board& board, const CoreHistoryTables& history, Move m) {
+    const Square to = Square(to_sq(m));
+    const int attacker = hist_piece(board.piece_on(from_sq(m)));
+    const PieceType captured = move_type(m) == EN_PASSANT ? PAWN
+                             : type_of(board.piece_on(to));
+    HIST_SHADOW(history.shadow->read(ShadowTable::Capture,
+                                     CoreHistoryTables::capture_cell(attacker, to, captured),
+                                     board.turn()));
+    return history.capture.entry[attacker][to][captured] + 7 * HIST_PIECE_VALUE[captured];
+}
+
 void CoreMovePicker::score_captures(int begin, int end) {
     for (int i = begin; i < end; ++i) {
         const Move m = moves_[i].move;
-        const Square to = Square(to_sq(m));
-        const PieceType attacker = type_of(board_.piece_on(from_sq(m)));
-        const PieceType captured = move_type(m) == EN_PASSANT ? PAWN
-                                 : type_of(board_.piece_on(to));
-        moves_[i].score = history_.capture.entry[attacker][to][captured]
-                        + 7 * HIST_PIECE_VALUE[captured] + root_ordering(m);
+        moves_[i].score = capture_order_score(board_, history_, m) + root_ordering(m);
     }
 }
 
@@ -83,9 +89,17 @@ void CoreMovePicker::score_quiets(int begin, int end) {
         const Square to   = Square(to_sq(m));
         const PieceType pt = type_of(board_.piece_on(from));
 
-        int v = 2 * main[from][to] + 2 * pawn_.entry[pt][to]
-              + cont_[0]->entry[pt][to] + cont_[1]->entry[pt][to] + cont_[2]->entry[pt][to]
-              + cont_[3]->entry[pt][to] + cont_[5]->entry[pt][to];
+        const int hp = hist_piece(us, pt);
+
+        int v = 2 * main[from][to] + 2 * pawn_.entry[hp][to]
+              + cont_[0]->entry[hp][to] + cont_[1]->entry[hp][to] + cont_[2]->entry[hp][to]
+              + cont_[3]->entry[hp][to] + cont_[5]->entry[hp][to];
+#ifdef BASILISK_DIAGNOSTIC
+        history_.shadow->read(ShadowTable::Pawn, history_.pawn_cell(&pawn_, hp, to), us);
+        for (int k : {0, 1, 2, 3, 5})
+            history_.shadow->read(ShadowTable::Continuation,
+                                  history_.continuation_cell(cont_[k], hp, to), us);
+#endif
 
         if ((checks_for(pt) & sq_bb(to)) && board_.see_ge(m, -75))
             v += 16384;
@@ -186,6 +200,58 @@ Move CoreMovePicker::next() {
                         last_src_ = Src::Quiet;
                         return sm.move;
                     }
+                }
+                stage_ = Stage::Done;
+                break;
+
+            case Stage::Done:
+                return MOVE_NONE;
+        }
+    }
+}
+
+bool ProbCutPicker::candidate(Move m) const {
+    if (move_type(m) == PROMOTION)
+        return promo_type(m) == QUEEN;
+    return move_type(m) == EN_PASSANT || board_.piece_on(to_sq(m)) != NO_PIECE;
+}
+
+Move ProbCutPicker::next() {
+    while (true) {
+        switch (stage_) {
+            case Stage::TT:
+                stage_ = Stage::Init;
+                if (tt_move_ != MOVE_NONE && tt_move_ != excluded_) {
+                    const Piece p = board_.piece_on(from_sq(tt_move_));
+                    if (p != NO_PIECE && color_of(p) == board_.turn() && board_.is_legal(tt_move_)
+                        && candidate(tt_move_)) {
+                        tt_delivered_ = true;
+                        if (board_.see_ge(tt_move_, threshold_))
+                            return tt_move_;
+                    }
+                }
+                break;
+
+            case Stage::Init: {
+                MoveList list;
+                board_.gen_legal_captures(list);
+                end_ = 0;
+                for (Move m : list) {
+                    if (m == excluded_ || (tt_delivered_ && m == tt_move_) || !candidate(m))
+                        continue;
+                    moves_[end_++] = {m, capture_order_score(board_, history_, m)};
+                }
+                partial_insertion_sort(moves_, moves_ + end_, INT_MIN);
+                cur_ = 0;
+                stage_ = Stage::Captures;
+                break;
+            }
+
+            case Stage::Captures:
+                while (cur_ < end_) {
+                    const Move m = moves_[cur_++].move;
+                    if (board_.see_ge(m, threshold_))
+                        return m;
                 }
                 stage_ = Stage::Done;
                 break;

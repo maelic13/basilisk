@@ -29,8 +29,40 @@ RUN = COLOSSEUM / "search.run.toml"
 # cluster's). Its tune runs on the shared run file with --tune pointing here.
 CORE_CONFIG = ROOT / "tools" / "spsa_configs" / "config_core.json"
 CORE_TUNE = COLOSSEUM / "core.tune.toml"
+# The B3_PROOF arm's own surface (Cluster 2): its table's X lines alone, on
+# the same run file. Neither the default nor the core surface carries them.
+B3_CONFIG = ROOT / "tools" / "spsa_configs" / "config_b3.json"
+B3_TUNE = COLOSSEUM / "b3.tune.toml"
+# B.3.3's curvature-sweep registrations on the B3 surface (packet
+# b30_cluster2_research_2026-10-30, amendment 3 section 4). A sweep coordinate is
+# an F line the sweep reads at the listed points and SPSA never fits; an extra
+# point is a value of an X coordinate the sweep reads beside its default.
+# Both are rendered as notes in the B3 tune file and checked against the table.
+B3_SWEEP_COORDINATES = {
+    "B3SeekMateDepth": (8, 12, 16),
+    "B3SingNegative": (0, 1, 3),
+}
+B3_SWEEP_EXTRA_POINTS = {
+    "B3SingMargin": (17, 126),
+}
+# B.3.3's fit surface (BAS-S42): the B3 table's X lines less the inert ones,
+# with the Cluster 1 coordinates whose consumer populations the ON arm moved
+# (packet section 5.12, read by B.3.2 in BAS-S41), on the same run file.
+B33_CONFIG = ROOT / "tools" / "spsa_configs" / "config_b33.json"
+B33_TUNE = COLOSSEUM / "b33.tune.toml"
+# Inert while its switch B3ProbCutTt stays 0 (BAS-S41: +0.9 +- 9.5).
+B33_EXCLUDED = ("B3ProbCutTtMargin",)
+B33_ADMITTED_CORE = (
+    "CoreLmpBase", "CoreQuietFutBase", "CoreCaptFutBase", "CoreCaptSeeCoeff",
+    "CoreContHistPruneSlope", "CoreRfpCorrMult", "CoreCorrUpdateScale",
+    "CoreRfpPerPly", "CoreRfpImproving", "CoreRfpDepthCap",
+)
 PARAM_RE = re.compile(
     r"^\s*X\(\s*[a-z][a-z0-9_]*\s*,\s*([A-Za-z][A-Za-z0-9]*)\s*,"
+    r"\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(-?\d+)\s*\)"
+)
+LINE_RE = re.compile(
+    r"^\s*([XFS])\(\s*[a-z][a-z0-9_]*\s*,\s*([A-Za-z][A-Za-z0-9]*)\s*,"
     r"\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(-?\d+)\s*\)"
 )
 # The B2_CORE arm's kernel table. The default arm's surface (the root and
@@ -39,22 +71,38 @@ PARAM_RE = re.compile(
 # advertises but no tune fits, so, like S lines, they are never on a surface
 # (only X lines match PARAM_RE).
 CORE_TABLE = "#define BASILISK_CORE_KERNEL_PARAMS("
+B3_TABLE = "#define BASILISK_B3_PARAMS("
+# The B3_PROOF arm's own defaults for core coordinates fitted on its tree:
+# A(field, UciName, value) lines. The core surface keeps the X lines' values
+# (the OFF arm's); a surface tuned on the B3_PROOF arm starts from these.
+B3_CORE_DEFAULTS_TABLE = "#define BASILISK_B3_CORE_DEFAULTS("
+TABLES = (CORE_TABLE, B3_TABLE, B3_CORE_DEFAULTS_TABLE)
+ARM_DEFAULT_RE = re.compile(
+    r"^\s*A\(\s*[a-z][a-z0-9_]*\s*,\s*([A-Za-z][A-Za-z0-9]*)\s*,\s*(-?\d+)\s*\)"
+)
+
+
+def split_tables(text: str) -> dict[str, list[str]]:
+    """The header's lines by table: each arm table's own, and the rest."""
+    out: dict[str, list[str]] = {"default": [], **{table: [] for table in TABLES}}
+    current = None
+    for line in text.splitlines():
+        if current is None:
+            current = next((t for t in TABLES if line.startswith(t)), None)
+        out[current or "default"].append(line)
+        if current is not None and not line.rstrip().endswith("\\"):
+            current = None
+    return out
 
 
 def split_arm_lines(text: str) -> tuple[list[str], list[str]]:
-    """The header's lines outside the core table, and the core table's own."""
-    default, core = [], []
-    in_core = False
-    for line in text.splitlines():
-        if line.startswith(CORE_TABLE):
-            in_core = True
-        if not in_core:
-            default.append(line)
-        else:
-            core.append(line)
-            if not line.rstrip().endswith("\\"):
-                in_core = False
-    return default, core
+    """The header's lines outside the arm tables, and the core table's own."""
+    tables = split_tables(text)
+    return tables["default"], tables[CORE_TABLE]
+
+
+def b3_arm_lines(text: str) -> list[str]:
+    return split_tables(text)[B3_TABLE]
 
 
 def default_arm_lines(text: str) -> list[str]:
@@ -65,10 +113,13 @@ def core_arm_lines(text: str) -> list[str]:
     return split_arm_lines(text)[1]
 
 
-def parse_parameters(text: str, core: bool = False) -> list[tuple[str, int, int, int]]:
+def parse_parameters(text: str, core: bool = False,
+                     b3: bool = False) -> list[tuple[str, int, int, int]]:
     parameters = []
     seen = set()
-    for line in (core_arm_lines(text) if core else default_arm_lines(text)):
+    lines = (b3_arm_lines(text) if b3 else core_arm_lines(text) if core
+             else default_arm_lines(text))
+    for line in lines:
         match = PARAM_RE.match(line)
         if not match:
             continue
@@ -87,6 +138,76 @@ def parse_parameters(text: str, core: bool = False) -> list[tuple[str, int, int,
     return parameters
 
 
+def b3_core_defaults(text: str) -> dict[str, int]:
+    """The B3_PROOF arm's own core defaults, each checked: a core X line's
+    name, inside its range, off its default, named once."""
+    core = {name: (default, minimum, maximum)
+            for name, default, minimum, maximum in parse_parameters(text, core=True)}
+    overrides: dict[str, int] = {}
+    for line in split_tables(text)[B3_CORE_DEFAULTS_TABLE]:
+        match = ARM_DEFAULT_RE.match(line)
+        if not match:
+            continue
+        name, value = match.group(1), int(match.group(2))
+        if name not in core:
+            raise ValueError(f"B3_PROOF default {name} names no core X line")
+        default, minimum, maximum = core[name]
+        if not minimum <= value <= maximum or value == default or name in overrides:
+            raise ValueError(f"B3_PROOF default {name} {value}: must lie in "
+                             f"[{minimum}, {maximum}] off {default}, once")
+        overrides[name] = value
+    return overrides
+
+
+def sweep_notes(text: str, coordinates: dict[str, tuple[int, ...]],
+                extra_points: dict[str, tuple[int, ...]]) -> list[str]:
+    """The B3 table's sweep registrations as comment lines, each checked: a
+    sweep coordinate is an F line whose points lie in its range and include
+    its default; an extra point lies in its X line's range off the default."""
+    table = {}
+    for line in b3_arm_lines(text):
+        match = LINE_RE.match(line)
+        if match:
+            kind, name, *values = match.groups()
+            table[name] = (kind, *map(int, values))
+    notes = []
+    for name, points in coordinates.items():
+        kind, default, minimum, maximum = table.get(name, ("?", 0, 0, 0))
+        if kind != "F":
+            raise ValueError(f"sweep coordinate {name} is not an F line of the B3 table")
+        if default not in points or not all(minimum <= p <= maximum for p in points):
+            raise ValueError(f"sweep coordinate {name}: points {points} must include "
+                             f"{default} and lie in [{minimum}, {maximum}]")
+        notes.append(f"# sweep coordinate {name}: {', '.join(map(str, points))} "
+                     f"(default {default}; never fitted by SPSA)")
+    for name, points in extra_points.items():
+        kind, default, minimum, maximum = table.get(name, ("?", 0, 0, 0))
+        if kind != "X":
+            raise ValueError(f"sweep extra point {name} is not an X line of the B3 table")
+        if default in points or not all(minimum <= p <= maximum for p in points):
+            raise ValueError(f"sweep extra points {name}: {points} must lie in "
+                             f"[{minimum}, {maximum}] off the default {default}")
+        notes.append(f"# sweep extra points {name}: {', '.join(map(str, points))} "
+                     f"(beside the default {default})")
+    return notes
+
+
+def b33_parameters(text: str) -> list[tuple[str, int, int, int]]:
+    """B.3.3's fit surface: the B3 X lines less B33_EXCLUDED, then the core X
+    lines B33_ADMITTED_CORE names, in that order; every name is checked. The
+    surface is the B3_PROOF arm's, so a core coordinate starts from that
+    arm's own default where it has one."""
+    b3 = parse_parameters(text, b3=True)
+    overrides = b3_core_defaults(text)
+    core = {name: (name, overrides.get(name, default), minimum, maximum)
+            for name, default, minimum, maximum in parse_parameters(text, core=True)}
+    missing = [name for name in B33_EXCLUDED if name not in {p[0] for p in b3}]
+    missing += [name for name in B33_ADMITTED_CORE if name not in core]
+    if missing:
+        raise ValueError(f"B.3.3 surface names no X line: {', '.join(missing)}")
+    return [p for p in b3 if p[0] not in B33_EXCLUDED] + [core[name] for name in B33_ADMITTED_CORE]
+
+
 def perturbation(minimum: int, maximum: int) -> int:
     # Positive integer half-up rounding; unlike Python round(), ties do not
     # depend on parity.
@@ -95,7 +216,8 @@ def perturbation(minimum: int, maximum: int) -> int:
 
 def render(parameters: list[tuple[str, int, int, int]], iterations: int,
            config: pathlib.Path = CONFIG, tune: pathlib.Path = TUNE,
-           run: pathlib.Path | None = RUN) -> dict[pathlib.Path, str]:
+           run: pathlib.Path | None = RUN,
+           notes: list[str] | None = None) -> dict[pathlib.Path, str]:
     surface = {
         name: {
             "value": default,
@@ -110,6 +232,7 @@ def render(parameters: list[tuple[str, int, int, int]], iterations: int,
         "# Generated by tools/generate_spsa_surface.py from src/search_params.h.",
         f"# N = {iterations}; c_end = step * N ** -{GAMMA}.",
         "# Regenerate rather than edit; --check rejects drift.",
+        *(notes or []),
     ]
     for name, spec in surface.items():
         tune_lines.extend(
@@ -142,10 +265,19 @@ option = ["Hash=64", "Threads=1"]
 
 
 def render_all(text: str, iterations: int) -> dict[pathlib.Path, str]:
-    """The default arm's surface and run file, and the core arm's surface."""
+    """The default arm's surface and run file, the core arm's and the B3 arm's."""
     outputs = render(parse_parameters(text), iterations)
     outputs.update(render(parse_parameters(text, core=True), iterations,
                           config=CORE_CONFIG, tune=CORE_TUNE, run=None))
+    outputs.update(render(parse_parameters(text, b3=True), iterations,
+                          config=B3_CONFIG, tune=B3_TUNE, run=None,
+                          notes=sweep_notes(text, B3_SWEEP_COORDINATES,
+                                            B3_SWEEP_EXTRA_POINTS)))
+    outputs.update(render(b33_parameters(text), iterations,
+                          config=B33_CONFIG, tune=B33_TUNE, run=None,
+                          notes=["# B.3.3's fit surface (BAS-S42): the B3 X lines less "
+                                 + ", ".join(B33_EXCLUDED) + ", with section 5.12's "
+                                 "Cluster 1 admissions."]))
     return outputs
 
 
@@ -173,8 +305,10 @@ def main() -> int:
             print(f"stale or missing: {path}", file=sys.stderr)
         if stale:
             return 1
-        print(f"{len(outputs)} generated files current ({len(parse_parameters(text))} default-arm "
-              f"and {len(parse_parameters(text, core=True))} core-arm parameters)")
+        print(f"{len(outputs)} generated files current ({len(parse_parameters(text))} default-arm, "
+              f"{len(parse_parameters(text, core=True))} core-arm, "
+              f"{len(parse_parameters(text, b3=True))} B3-arm and "
+              f"{len(b33_parameters(text))} B.3.3 fit-surface parameters)")
         return 0
     COLOSSEUM.mkdir(parents=True, exist_ok=True)
     for path, content in outputs.items():

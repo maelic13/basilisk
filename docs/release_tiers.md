@@ -141,8 +141,9 @@ The build checks the tiers before it links them (`cmake/universal-tiers.cmake`):
   renamed symbol (`cmake/universal-asm.py check-sections`);
 - each tier's PGO build treats a source file without profile data as an
   error, so a tier that silently lost its profile does not build: Clang's
-  `-Wprofile-instr-unprofiled`, except the four files bench never runs
-  (`move.cpp`, `syzygy.cpp`, `search_diagnostics.cpp`, `wac.cpp`); GCC's
+  `-Wprofile-instr-unprofiled`, except the five files bench never runs
+  (`move.cpp`, `syzygy.cpp`, `search_diagnostics.cpp`, `wac.cpp`,
+  `physical_memory.cpp`); GCC's
   `-Werror=missing-profile`, which fails when a file's profile is missing
   (GCC writes one for every file the training run links). A profile that
   does not match its code already fails (Clang's

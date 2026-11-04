@@ -1,7 +1,7 @@
 <# Prove each A.3.1 guard refuses one deliberately broken input. #>
 param(
-    [string]$EngineA = "tools/test_engines/basilisk-head-4fa68b4-pext-pgo.exe",
-    [string]$EngineB = "tools/test_engines/basilisk-v1102-clang23-pext-pgo.exe",
+    [string]$EngineA = "tools/test_engines/basilisk-b12-fix-pext-pgo.exe",
+    [string]$EngineB = "tools/test_engines/basilisk-b12-base-pext-pgo.exe",
     [switch]$KeepScratch
 )
 

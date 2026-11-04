@@ -99,6 +99,41 @@ private:
     Src last_src_ = Src::None;
 };
 
+// A capture-stage move's ordering score: its capture history plus seven
+// times the captured value (in history units).
+int capture_order_score(const Board& board, const CoreHistoryTables& history, Move m);
+
+// ProbCut's candidates: the TT move when it is a capture or a queen
+// promotion, then the captures and queen promotions in the capture stage's
+// order, each delivered only if its SEE clears `threshold`; never the
+// excluded move, never an underpromotion. The TT move is validated as the
+// main picker validates it. Picking allocates nothing.
+class ProbCutPicker {
+public:
+    ProbCutPicker(const Board& board, const CoreHistoryTables& history, Move tt_move,
+                  Move excluded, int threshold, ScoredMove* buffer)
+        : board_(board), history_(history), tt_move_(tt_move), excluded_(excluded),
+          threshold_(threshold), moves_(buffer) {}
+
+    Move next();
+
+private:
+    enum class Stage { TT, Init, Captures, Done };
+    // A capture or a queen promotion: what this picker delivers.
+    bool candidate(Move m) const;
+
+    const Board& board_;
+    const CoreHistoryTables& history_;
+    Move tt_move_;
+    Move excluded_;
+    int threshold_;
+    ScoredMove* moves_;
+    Stage stage_ = Stage::TT;
+    bool tt_delivered_ = false;
+    int cur_ = 0;
+    int end_ = 0;
+};
+
 // Sorts [begin, end) in descending score order up to and including `limit`;
 // the order of the moves below it is left unspecified.
 void partial_insertion_sort(ScoredMove* begin, ScoredMove* end, int limit);

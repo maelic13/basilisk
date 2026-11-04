@@ -3,6 +3,7 @@
 /// footprint the architecture review sized.
 
 #include "history_core.h"
+#include "history_shadow.h"
 #include "test_harness.h"
 
 #include <cstdio>
@@ -171,12 +172,80 @@ static void test_row_addressing() {
     end_section();
 
     begin_section("footprint: the sizes the architecture review registered");
-    EXPECT_EQ(sizeof(ContinuationHistory), size_t(1'605'632));   // 1,568 KiB
-    EXPECT_EQ(sizeof(PawnHistory), size_t(7'340'032));           // 7,168 KiB at 8,192 buckets
+    if constexpr (kColourHistory) {
+        // Coloured piece keys: the continuation history's rows and leaves
+        // both double, the pawn history's leaves and the correction's rows.
+        EXPECT_EQ(sizeof(ContinuationHistory), size_t(6'422'528));   // 6,272 KiB
+        EXPECT_EQ(sizeof(PawnHistory), size_t(14'680'064));          // 14,336 KiB at 8,192 buckets
+        EXPECT_EQ(sizeof(ContinuationCorrection), size_t(802'816));  // 784 KiB
+    } else {
+        EXPECT_EQ(sizeof(ContinuationHistory), size_t(1'605'632));   // 1,568 KiB
+        EXPECT_EQ(sizeof(PawnHistory), size_t(7'340'032));           // 7,168 KiB at 8,192 buckets
+        EXPECT_EQ(sizeof(ContinuationCorrection), size_t(401'408));  // 392 KiB
+    }
     EXPECT_EQ(sizeof(MainHistory), size_t(16'384));
     EXPECT_EQ(sizeof(LowPlyHistory), size_t(40'960));
-    EXPECT_EQ(sizeof(ContinuationCorrection), size_t(401'408));   // 392 KiB
     end_section();
+}
+
+// The diagnostic shadow behind the cross-colour read: its accounting on a
+// planted sequence, and (in diagnostic builds) cell indices that address
+// every row of each table once.
+static void test_cross_colour_shadow() {
+    CrossColourShadow s(4, 4, 4, 4);
+    begin_section("cross-colour shadow: an untrained entry is not a read");
+    s.read(ShadowTable::Capture, 2, WHITE);
+    EXPECT_EQ(s.reads(ShadowTable::Capture).reads, 0);
+    end_section();
+
+    begin_section("cross-colour shadow: own, other-only and mixed training");
+    s.write(ShadowTable::Capture, 1, WHITE);
+    s.read(ShadowTable::Capture, 1, BLACK);      // trained by White alone
+    s.read(ShadowTable::Capture, 1, WHITE);      // its own colour
+    s.write(ShadowTable::Capture, 1, BLACK);
+    s.read(ShadowTable::Capture, 1, WHITE);      // one update each
+    const CrossColourReads& r = s.reads(ShadowTable::Capture);
+    EXPECT_EQ(r.reads, 3);
+    EXPECT_EQ(r.other_only, 1);
+    EXPECT_EQ(r.mixed, 1);
+    EXPECT_EQ(r.other_share_ppm, 1'000'000 + 0 + 500'000);
+    EXPECT_EQ(s.reads(ShadowTable::Pawn).reads, 0);
+    end_section();
+
+    begin_section("cross-colour shadow: a count saturates, and resets clear");
+    for (int i = 0; i < 70'000; ++i)
+        s.write(ShadowTable::Pawn, 3, BLACK);
+    s.write(ShadowTable::Pawn, 3, WHITE);
+    s.read(ShadowTable::Pawn, 3, WHITE);
+    EXPECT_EQ(s.reads(ShadowTable::Pawn).other_share_ppm, 65'535LL * 1'000'000 / 65'536);
+    s.reset_reads();
+    EXPECT_EQ(s.reads(ShadowTable::Capture).reads, 0);
+    s.clear_cells();
+    s.read(ShadowTable::Capture, 1, WHITE);
+    EXPECT_EQ(s.reads(ShadowTable::Capture).reads, 0);
+    end_section();
+
+#ifdef BASILISK_DIAGNOSTIC
+    auto h = std::make_unique<CoreHistoryTables>();
+    constexpr size_t row = CoreHistoryTables::ROW_CELLS;
+    constexpr PieceType last_pt = PieceType(PIECE_TYPE_NB - 1);
+    constexpr int last_piece = HIST_PIECE_NB - 1;
+    begin_section("cross-colour shadow: cell indices span each table once");
+    EXPECT_EQ(h->continuation_cell(&h->continuation->row[0][0][NO_PIECE_TYPE][A1], NO_PIECE_TYPE, A1),
+              size_t(0));
+    EXPECT_EQ(h->continuation_cell(&h->continuation->row[1][1][last_piece][H8], last_piece, H8),
+              sizeof(ContinuationHistory) / sizeof(int16_t) - 1);
+    EXPECT_EQ(h->continuation_cell(&h->continuation->row[0][1][KNIGHT][F3], BISHOP, C4),
+              ((size_t(1) * HIST_PIECE_NB + KNIGHT) * SQUARE_NB + F3) * row
+                  + size_t(BISHOP) * SQUARE_NB + C4);
+    EXPECT_EQ(h->pawn_cell(&h->pawn->bucket[PawnHistory::MAX_BUCKETS - 1], last_piece, H8),
+              sizeof(PawnHistory) / sizeof(int16_t) - 1);
+    EXPECT_EQ(h->cont_corr_cell(&h->cont_corr->row[last_piece][H8], last_pt, H8),
+              sizeof(ContinuationCorrection) / sizeof(int16_t) - 1);
+    EXPECT_EQ(CoreHistoryTables::capture_cell(last_piece, H8, last_pt),
+              sizeof(CaptureHistory::entry) / sizeof(int16_t) - 1);
+    end_section();
+#endif
 }
 
 int main() {
@@ -185,5 +254,6 @@ int main() {
     test_bounds();
     test_clear_and_halve();
     test_row_addressing();
+    test_cross_colour_shadow();
     return harness_summary();
 }

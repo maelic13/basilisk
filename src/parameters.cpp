@@ -13,6 +13,7 @@
 #include "constants.h"
 #include "eval.h"
 #include "parameters.h"
+#include "physical_memory.h"
 #include "uci_output.h"
 
 namespace {
@@ -179,7 +180,8 @@ std::string Parameters::uci_options() {
     std::string opts =
            "option name Threads type spin default 1 min 1 max "
            + std::to_string(max_threads()) + "\n"
-           "option name Hash type spin default 64 min 1 max 33554432\n"
+           "option name Hash type spin default 64 min " + std::to_string(kHashMinMb)
+           + " max " + std::to_string(max_hash_mb()) + "\n"
            "option name Clear Hash type button\n"
            "option name Ponder type check default false\n"
            "option name Move Overhead type spin default 10 min 0 max 5000\n"
@@ -204,12 +206,18 @@ std::string Parameters::uci_options() {
 #endif
 #ifdef BASILISK_TUNE
     // Generated from the SearchParams X-macro table — the advertised
-    // default IS the compiled default by construction.
+    // default IS the compiled default by construction: it is read from a
+    // default-constructed struct, which carries the arm's own defaults.
+    const SearchParams compiled;
 #define BASILISK_SEARCH_PARAM_OPT(field, uci, def, lo, hi)                    \
-    opts += "option name " #uci " type spin default " + std::to_string(def) + \
+    opts += "option name " #uci " type spin default " + std::to_string(compiled.field) + \
             " min " + std::to_string(lo) + " max " + std::to_string(hi) + "\n";
     BASILISK_SEARCH_PARAMS(BASILISK_SEARCH_PARAM_OPT)
     BASILISK_KERNEL_SWITCHES(BASILISK_SEARCH_PARAM_OPT)
+#ifdef BASILISK_B3_PROOF
+    BASILISK_B3_PARAMS(BASILISK_SEARCH_PARAM_OPT, BASILISK_SEARCH_PARAM_OPT,
+                       BASILISK_SEARCH_PARAM_OPT)
+#endif
 #undef BASILISK_SEARCH_PARAM_OPT
 #endif
     return opts;
@@ -221,6 +229,12 @@ std::string Parameters::uci_options() {
 // would honour is a 2 GB allocation waiting for a curious operator.
 int Parameters::max_threads() {
     return max_search_threads();
+}
+
+// The same rule for Hash: the advertised maximum is the limit the option
+// enforces, this machine's total physical memory (physical_memory.h).
+int Parameters::max_hash_mb() {
+    return machine_hash_limit_mb();
 }
 
 void Parameters::set_search_parameters(const std::string& args) {
@@ -389,7 +403,17 @@ void Parameters::set_option(const std::string& args) {
     } else if (name_lower == "multipv") {
         multipv = std::clamp(parsed, 1, 256);
     } else if (name_lower == "hash") {
-        hash_mb = std::clamp(parsed, 1, 33554432);
+        // Refused here, before anything is allocated: a table larger than the
+        // machine must not depend on the allocator saying no, since macOS (and
+        // Linux with overcommit) grants it lazily and the engine then stalls
+        // filling it.
+        const int limit = max_hash_mb();
+        if (parsed > limit)
+            uci_write_line("info string Hash value " + std::to_string(parsed) + " is above the "
+                           + std::to_string(limit)
+                           + " MiB this machine can hold; the setting is unchanged.");
+        else
+            hash_mb = std::max(parsed, kHashMinMb);
     } else if (name_lower == "threads") {
         threads = std::clamp(parsed, 1, max_threads());
     } else if (name_lower == "syzygyprobedepth") {
@@ -408,6 +432,10 @@ void Parameters::set_option(const std::string& args) {
     else if (uci_option_name_is(name_lower, #uci)) { search_params.field = std::clamp(parsed, lo, hi); }
     BASILISK_SEARCH_PARAMS(BASILISK_SEARCH_PARAM_SET)
     BASILISK_KERNEL_SWITCHES(BASILISK_SEARCH_PARAM_SET)
+#ifdef BASILISK_B3_PROOF
+    BASILISK_B3_PARAMS(BASILISK_SEARCH_PARAM_SET, BASILISK_SEARCH_PARAM_SET,
+                       BASILISK_SEARCH_PARAM_SET)
+#endif
 #undef BASILISK_SEARCH_PARAM_SET
 #endif
     // An unrecognised option name must not fall off the end of this chain in

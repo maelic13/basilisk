@@ -50,8 +50,11 @@ mechanism. `AGENTS.md` holds the rules every task shares.
 
 - Donor engines teach mechanisms, contracts, dependencies, failure modes and
   methods. The donors are modern Stockfish (search, TT, histories, time,
-  threads, later NNUE runtime) and classical Stockfish `9587eeeb` (evaluation
-  families, the oracle, seed values). Rarog is a sibling whose *method* this
+  threads, later NNUE runtime), classical Stockfish `9587eeeb` (evaluation
+  families, the oracle, seed values) and Triumviratus (measured priors on a
+  Stockfish-19-shaped search, board, time, NNUE and measurement), read only
+  through `docs/reference/triumviratus*/` and mapped to leaves by
+  `analysis/triumviratus_review_2026-11-03.md`. Its verdicts are priors. Rarog is a sibling whose *method* this
   roadmap follows and whose results are imported priors; it is not a donor,
   and its verdicts do not transfer (BAS-X01: check-extension removal was +30.75
   there and −10.17 here).

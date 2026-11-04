@@ -1,0 +1,157 @@
+# Linux builds of Triumviratus (x86-64; 8.1 from 29/10/2026). Started by hand (Actions -> Linux builds -> Run workflow,
+# on the branch or tag to build). The version, the expected bench and the network (URL, SHA-256) come from
+# source/universal/release.json, the file the Windows chain (build/release.ps1) reads. Each job downloads Consilium
+# Plebis from the Triumviratus-Networks release, checks its SHA-256, and builds with clang and PGO with the same training
+# as the Windows release (source/universal/pgo_train_det.py on pgo_positions.epd, fixed nodes), statically linked so
+# the file runs on any distribution. The bench is checked on the runner; a build whose instruction set the runner lacks
+# gets no profile and no bench, the log says so, and it is never attached to a release. With release_tag set, a last job
+# attaches the benched executables and SHA256SUMS_linux.txt to that existing GitHub release (the author creates it;
+# starting the workflow with the tag is the approval).
+name: Linux builds
+
+on:
+  workflow_dispatch:
+    inputs:
+      day:
+        description: "Release day yyyymmdd for a dated pre-release (id name and file names); empty = official release"
+        default: ""
+      possolver:
+        description: "Also build the Position Solver (avx2)"
+        type: boolean
+        default: false
+      possolver_bench:
+        description: "Expected Position Solver bench (empty = bench_possolver of release.json)"
+        default: ""
+      pgo:
+        description: "Profile-guided optimisation"
+        type: boolean
+        default: true
+      release_tag:
+        description: "Attach the benched builds to this existing release (empty = artifacts only)"
+        default: ""
+      clobber:
+        description: "Replace assets with the same name already on the release"
+        type: boolean
+        default: false
+
+jobs:
+  setup:
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: m
+        env:
+          DAY: ${{ inputs.day }}
+          POSSOLVER: ${{ inputs.possolver }}
+          PS_BENCH: ${{ inputs.possolver_bench }}
+        run: |
+          python3 - <<'EOF'
+          import json, os, re, sys
+          rel = json.load(open("source/universal/release.json"))
+          ver, day = rel["version"], os.environ["DAY"].strip()
+          if day and not re.fullmatch(r"\d{8}", day):
+              sys.exit(f"day must be yyyymmdd, got {day!r}")
+          stamp = f"{day}_" if day else ""
+          base = "-DTRIUMV_RELEASE -ffp-contract=off -static"   # as the Windows build: no fused multiply-add
+          base += f" -DTRIUMV_RELEASE_DAY={day}" if day else " -DTRIUMV_OFFICIAL"
+          game = str(rel["bench"])
+          # make target, /proc/cpuinfo flag the runner needs to run it, binary, file name suffix
+          rows = [("all", "avx2", "triumviratus", "avx2"), ("nopext", "avx2", "triumviratus", "avx2-nopext"),
+                  ("avx512", "avx512bw", "triumviratus", "avx512"), ("sse41", "sse4_1", "triumviratus_sse41", "sse41")]
+          inc = [{"target": t, "flag": fl, "bin": b, "bench": game, "extra": base,
+                  "out": f"Triumviratus_{ver}_{stamp}linux_{s}"} for t, fl, b, s in rows]
+          if os.environ["POSSOLVER"] == "true":
+              b = os.environ["PS_BENCH"].strip() or str(rel.get("bench_possolver") or "")
+              if not b:
+                  sys.exit("Position Solver: no expected bench (input possolver_bench or bench_possolver of release.json)")
+              inc.append({"target": "all", "flag": "avx2", "bin": "triumviratus", "bench": b,
+                          "extra": base + " -DTRIUMV_POS_SOLVER", "out": f"Triumviratus_{ver}_PosSolver_{stamp}linux_avx2"})
+          print(json.dumps(inc, indent=1))
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write("matrix=" + json.dumps({"include": inc}) + "\n")
+          EOF
+
+  build:
+    needs: setup
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.setup.outputs.matrix) }}
+    env:
+      EXTRA: ${{ matrix.extra }}
+      BIN: source/${{ matrix.bin }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain and network
+        run: |
+          clang++ --version | head -1
+          PROFDATA=$(ls /usr/bin/llvm-profdata* 2>/dev/null | sort -V | tail -1); echo "PROFDATA=$PROFDATA" >> "$GITHUB_ENV"; echo "llvm-profdata: $PROFDATA"
+          grep -o -w -E 'avx2|bmi2|avx512bw|sse4_1' /proc/cpuinfo | sort -u | tr '\n' ' '; echo
+          eval "$(python3 -c "import json; n = json.load(open('source/universal/release.json'))['network']; print('NET=%s URL=%s SHA=%s' % (n['file'], n['url'], n['sha256']))")"
+          curl -sSL --fail -o "source/$NET" "$URL"
+          echo "$SHA  source/$NET" | sha256sum -c -
+          echo "MK=make -C source -j4 ${{ matrix.target }} CXX=clang++ CC=clang NET_NAME=$NET" >> "$GITHUB_ENV"
+          if grep -q -w "${{ matrix.flag }}" /proc/cpuinfo; then echo "CANRUN=1" >> "$GITHUB_ENV"; else echo "CANRUN=0" >> "$GITHUB_ENV"; fi
+      - name: Instrumented build and training
+        if: ${{ inputs.pgo && env.CANRUN == '1' }}
+        run: |
+          $MK EXTRACXXFLAGS="$EXTRA -fprofile-generate -DCLANG_PGO_GEN"
+          mkdir -p prof
+          LLVM_PROFILE_FILE="$PWD/prof/p_%p.profraw" python3 source/universal/pgo_train_det.py "$PWD/$BIN" 0 \
+            source/universal/pgo_positions.epd 200 --workers 4
+          ls prof | wc -l
+          $PROFDATA merge -output=merged.profdata prof/*.profraw
+          make -C source clean >/dev/null && rm -f "$BIN"   # only clean: the next step builds with the profile
+      - name: Build
+        run: |
+          if [ -f merged.profdata ]; then
+            $MK EXTRACXXFLAGS="$EXTRA -fprofile-use=$PWD/merged.profdata -Wno-profile-instr-out-of-date -Wno-profile-instr-unprofiled"
+          else
+            echo "no profile (PGO off, or the runner cannot run this instruction set)"
+            $MK EXTRACXXFLAGS="$EXTRA"
+          fi
+          cp "$BIN" ${{ matrix.out }}
+          file ${{ matrix.out }}
+      - name: Bench
+        if: ${{ env.CANRUN == '1' }}
+        run: |
+          printf 'bench\nquit\n' | ./${{ matrix.out }} > bench.txt 2>&1 || true
+          tail -5 bench.txt
+          printf 'uci\nquit\n' | ./${{ matrix.out }} | grep "^id name"
+          grep -q "Nodes searched *: *${{ matrix.bench }}$" bench.txt
+          touch ${{ matrix.out }}.benched   # only these go to a release
+      - name: Not run on this machine
+        if: ${{ env.CANRUN != '1' }}
+        run: echo "::warning::${{ matrix.out }} built without PGO and not benched (the runner has no ${{ matrix.flag }})"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.out }}
+          path: ${{ matrix.out }}*
+
+  attach:
+    needs: build
+    if: ${{ inputs.release_tag != '' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ inputs.release_tag }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: assets
+          merge-multiple: true
+      - name: Attach to the release
+        run: |
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json name,isDraft,isPrerelease
+          cd assets
+          files=$(for f in *.benched; do echo "${f%.benched}"; done)
+          for f in Triumviratus_*; do case "$f" in *.benched) ;; *) [ -f "$f.benched" ] || echo "not attached (not benched): $f";; esac; done
+          [ -n "$files" ] || { echo "nothing benched to attach"; exit 1; }
+          chmod +x $files
+          sha256sum $files > SHA256SUMS_linux.txt
+          cat SHA256SUMS_linux.txt
+          gh release upload "$TAG" $files SHA256SUMS_linux.txt --repo "$GITHUB_REPOSITORY" ${{ inputs.clobber && '--clobber' || '' }}

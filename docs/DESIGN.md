@@ -134,8 +134,11 @@ line names where it lives.
   must record the policy and never mix with natural-termination evidence.
 - Strength is measured at **3+0.03**, paired UHO openings, normalized Elo,
   **tablebases off** — the harness and the games are blind the same way.
-- **Bench signature** of the accepted head: `bench 13` = **19,470,325**
-  nodes (since A.13.2's pawnless scaler. Earlier: 19,108,490 at A.13.1's
+- **Bench signature** of the accepted head: `bench 13` = **5,361,058**
+  nodes (since B.3.6's gate indexed the histories by coloured piece.
+  Earlier: 5,369,042 at B.3.5's gate, which turned Cluster 2's proof
+  searches and extensions on; 11,880,564 at B.14's verdict guard, 16,615,757 at B.12's quiescence repair, 19,470,325 at A.13.2's
+  pawnless scaler, 19,108,490 at A.13.1's
   won KPK, 16,092,165 at A.11.11's
   fail-soft quiescence, 8,913,394 at
   A.11.10's tier damping, 7,857,713 at A.11.9's bare-king tiers, where the
@@ -175,9 +178,10 @@ The four layers, kept separate (`analysis/endgame_measurement_layers_v1.md`):
 
 - **The board is not the bottleneck, and "make it faster" is not a motivation.**
   BAS-X16 measured this source ahead of a peer engine by 22-46% on every board
-  microbenchmark. Board work is a **defect hunt** (PLAN D.3.1); the
-  board-speed leaves inside B.7.2 open only when a profile makes them hot and
-  default to no-change.
+  microbenchmark. Board work starts as a **defect hunt** (PLAN B.15.1). The
+  review against Stockfish's and Triumviratus's boards (B.15.2, maintainer
+  decision 2026-11-03) replaces a component only where the other form
+  measures better, and keeps Basilisk's otherwise.
 - **Nodes-to-depth, not raw NPS, is where the peer gap lives.**
 - Bench node counts are **chaotic** under small evaluation perturbations: in
   the 6.5.a floor sweep, floor 32 cost +28.5% while 24 and 40 sat near

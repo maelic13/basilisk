@@ -118,6 +118,12 @@ struct SearchState {
     int64_t root_depth_nodes = 0;
     int64_t root_best_nodes = 0;
     int     root_best_effort = 0;
+    // The last completed iteration, which Cluster 2 reads: its first line's
+    // PV (empty before one completes and while a MultiPV line after the first
+    // is searched) and its raw root score (0 before one completes).
+    Move prev_pv[MAX_PLY];
+    int  prev_pv_len = 0;
+    int  prev_root_score = 0;
 
     DiagCounters diag;
 #if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
@@ -201,6 +207,10 @@ private:
     // and whole-table lifecycle live in CoreHistoryTables, the update policy
     // (bonus shapes, what a cutoff trains) in search_history_core.cpp.
     CoreHistoryTables hist_;
+    // True from a clear until the next search starts, when Cluster 2's arm
+    // fills the fresh tables with the donor's values if CoreHistoryFills asks
+    // (the option is read from the search's own parameters).
+    bool hist_fresh_ = true;
     // Pawn-history buckets in use, as an index mask (set per search).
     Key pawn_hist_mask_ = PawnHistory::MAX_BUCKETS - 1;
 
@@ -211,6 +221,17 @@ private:
     // root_search() for the reduction's window term and the equal-score rule.
     int root_delta_ = 1;
     int root_depth_ = 1;
+    // The last completed iteration's raw root score, as root_search() found it.
+    int root_score_ = 0;
+    // Cluster 2's null-move verification region: while a verification runs,
+    // nodes above this ply try no null move (0 outside a verification).
+    int nmp_min_ply_ = 0;
+    // The positive extension plies a line may take: the iteration's depth, or
+    // a test's cap below it.
+    [[nodiscard]] int ext_budget() const {
+        const int cap = config_.limits.ext_budget_cap;
+        return cap > 0 ? std::min(root_depth_, cap) : root_depth_;
+    }
     // The base reduction of a move, in 1024ths of a ply: the product of the
     // depth's and the move count's entries, less a share of the node's window
     // against the root's, more when not improving, plus an offset.
@@ -247,9 +268,10 @@ private:
         const bool capture_stage = state_.board->piece_on(to) != NO_PIECE
                                 || move_type(m) == EN_PASSANT || move_type(m) == PROMOTION;
         ss->move        = m;
-        ss->moved_piece = type_of(state_.board->piece_on(from_sq(m)));
-        ss->cont_hist   = &hist_.continuation->row[ss->in_check][capture_stage][ss->moved_piece][to];
-        ss->cont_corr   = &hist_.cont_corr->row[ss->moved_piece][to];
+        const Piece piece = state_.board->piece_on(from_sq(m));
+        ss->moved_piece = type_of(piece);
+        ss->cont_hist   = &hist_.continuation->row[ss->in_check][capture_stage][hist_piece(piece)][to];
+        ss->cont_corr   = &hist_.cont_corr->row[hist_piece(piece)][to];
         state_.board->make_move(m);
     }
     void undo_move(SearchStack* ss, Move m) {
@@ -273,11 +295,21 @@ private:
         return hist_.pawn->bucket[state_.board->pawn_key_value() & pawn_hist_mask_];
     }
 
+#ifdef BASILISK_DIAGNOSTIC
+    // The colour that moves at stack record `ss`: every record is one ply,
+    // null moves included, so it alternates from the root's side.
+    Color shadow_root_side_ = WHITE;
+    [[nodiscard]] Color shadow_mover(const SearchStack* ss) const {
+        const auto ply = ss - (state_.stack + STACK_SENTINELS);
+        return (ply & 1) ? ~shadow_root_side_ : shadow_root_side_;
+    }
+#endif
+
     // Training: of the quiet histories by a quiet move made from `ss`; of the
     // continuation histories alone (e.g. the parent's move, from `ss - 1`); of
     // the capture history by a capture.
     void update_quiet_histories(SearchStack* ss, Move m, int bonus);
-    void update_continuation_histories(SearchStack* ss, PieceType pt, Square to, int bonus);
+    void update_continuation_histories(SearchStack* ss, Piece piece, Square to, int bonus);
     void update_capture_history(Move m, int bonus);
     // The parent's quiet move, by how far it moved the static eval in the
     // mover's favour (`eval_diff`), in the main and, without a TT hit, the
@@ -287,7 +319,7 @@ private:
     // Continuation history of a (piece, to) pair one, two and four plies on
     // from the moves at (ss - 1), (ss - 2) and (ss - 4), the last at half
     // weight.
-    int  cont_hist_score(const SearchStack* ss, PieceType pt, Square to) const;
+    int  cont_hist_score(const SearchStack* ss, int piece, Square to) const;
 
     // At node exit: the training by a move that raised alpha, against the
     // quiets and captures searched before it, and the parent's move's reward
@@ -302,7 +334,12 @@ private:
     // 131072ths of an evaluation unit, and its training by `bonus`.
     int  correction_value(const SearchStack* ss) const;
     void update_correction_history(SearchStack* ss, int bonus);
-    static int corrected_eval(int raw_eval, int correction) {
+    // The evaluator's draw verdicts take no correction: a classification has
+    // no error to correct, and the shared keys' training would overwrite it.
+    // A verdict is a 0, so only a 0 is asked about (a TT-stored evaluation
+    // carries no verdict); an ordinary evaluation of 0 keeps its correction.
+    int corrected_eval(int raw_eval, int correction) {
+        if (raw_eval == 0 && evaluator_.draw_verdict(*state_.board)) return 0;
         return std::clamp(raw_eval + correction / 131072,
                           -(tablebaseWinInMaxPly - 1), tablebaseWinInMaxPly - 1);
     }
