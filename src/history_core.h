@@ -6,10 +6,14 @@
 // tested without a Searcher; what trains them, and by how much, is the update
 // policy in search_history_core.cpp.
 //
-// Pieces are indexed by type: every consumer knows the side to move, so the
-// donor's colour-qualified piece index would only duplicate it. The main
-// history is [colour][from][to]: promotions share their from-to, which differs
-// from keying the whole move only for under-promotions.
+// The capture, continuation and pawn histories and the continuation
+// correction key a move by its piece: by type, where the colours share an
+// entry, or under COLOUR_HISTORY by coloured piece, the donor's form. Sharing
+// is not redundant: a continuation row is read one ply on by the other side
+// and two plies on by its own, so a colourless row serves one colour the
+// other's training. The main history is [colour][from][to]: promotions share
+// their from-to, which differs from keying the whole move only for
+// under-promotions.
 
 #include "types.h"
 
@@ -25,6 +29,20 @@
 #else
 #define HIST_SHADOW(statement) ((void)0)
 #endif
+
+#if defined(BASILISK_COLOUR_HISTORY)
+inline constexpr bool kColourHistory = true;
+#else
+inline constexpr bool kColourHistory = false;
+#endif
+
+// The piece index of the piece-keyed tables: the type, or colour * 7 + type
+// under COLOUR_HISTORY. NO_PIECE_TYPE is 0 either way.
+inline constexpr int HIST_PIECE_NB = kColourHistory ? int(NCOLORS) * int(PIECE_TYPE_NB) : int(PIECE_TYPE_NB);
+inline constexpr int hist_piece(Color c, PieceType pt) {
+    return kColourHistory ? int(c) * PIECE_TYPE_NB + int(pt) : int(pt);
+}
+inline constexpr int hist_piece(Piece p) { return hist_piece(color_of(p), type_of(p)); }
 
 // History gravity: a bonus, first clamped to [-Limit, Limit], pulls the entry
 // toward the bound of its sign by the bonus's share of the remaining distance,
@@ -53,29 +71,30 @@ struct MainHistory : HistoryBound<7183> {
     int16_t entry[NCOLORS][SQUARE_NB][SQUARE_NB];
 };
 
-// Captures by attacking piece type, destination and captured piece type.
+// Captures by attacking piece, destination and captured piece type (the
+// victim's colour is the attacker's opposite).
 struct CaptureHistory : HistoryBound<10692> {
-    int16_t entry[PIECE_TYPE_NB][SQUARE_NB][PIECE_TYPE_NB];
+    int16_t entry[HIST_PIECE_NB][SQUARE_NB][PIECE_TYPE_NB];
 };
 
-// A [piece type][to] row: one continuation-history leaf, selected by an
-// earlier move and read for the move being scored.
+// A [piece][to] row: one continuation-history leaf, selected by an earlier
+// move and read for the move being scored.
 struct PieceToHistory : HistoryBound<30000> {
-    int16_t entry[PIECE_TYPE_NB][SQUARE_NB];
+    int16_t entry[HIST_PIECE_NB][SQUARE_NB];
 };
 
 // Continuation history: the row an earlier move selects, by whether that move
-// was made in check and whether it was from the capture stage, its piece type
-// and its destination. Row [0][0][NO_PIECE_TYPE][A1] is the sentinel that
-// records without a move point to; no update ever reaches it.
+// was made in check and whether it was from the capture stage, its piece and
+// its destination. Row [0][0][NO_PIECE_TYPE][A1] is the sentinel that records
+// without a move point to; no update ever reaches it.
 struct ContinuationHistory {
-    PieceToHistory row[2][2][PIECE_TYPE_NB][SQUARE_NB];
+    PieceToHistory row[2][2][HIST_PIECE_NB][SQUARE_NB];
 };
 
 // Quiet moves by pawn structure: a bucket per pawn-key hash, each a
-// [piece type][to] row.
+// [piece][to] row.
 struct PawnHistoryBucket : HistoryBound<8192> {
-    int16_t entry[PIECE_TYPE_NB][SQUARE_NB];
+    int16_t entry[HIST_PIECE_NB][SQUARE_NB];
 };
 struct PawnHistory {
     static constexpr int MAX_BUCKETS_LOG2 = 13;
@@ -103,11 +122,13 @@ struct PieceToCorrection : HistoryBound<1024> {
     int16_t entry[PIECE_TYPE_NB][SQUARE_NB];
 };
 
-// Continuation correction: the row a move selects, by its piece type and
+// Continuation correction: the row a move selects, by its piece and
 // destination. Row [NO_PIECE_TYPE][A1] is the one records without a move
-// point to.
+// point to. Rows are read only two and four plies on, by the side that made
+// the move, so a coloured row separates the colours and the [piece type][to]
+// leaf needs no colour.
 struct ContinuationCorrection {
-    PieceToCorrection row[PIECE_TYPE_NB][SQUARE_NB];
+    PieceToCorrection row[HIST_PIECE_NB][SQUARE_NB];
 };
 
 // The storage owner: every table one search thread trains, and their
@@ -155,19 +176,23 @@ struct CoreHistoryTables {
     // Diagnostic builds: which colour trained each entry of the four
     // colourless tables (history_shadow.h), addressed by these cell indices.
     std::unique_ptr<CrossColourShadow> shadow;
-    static constexpr size_t ROW_CELLS = size_t{PIECE_TYPE_NB} * SQUARE_NB;
-    [[nodiscard]] static size_t capture_cell(PieceType attacker, Square to, PieceType captured) {
+    static constexpr size_t ROW_CELLS = size_t{HIST_PIECE_NB} * SQUARE_NB;
+    static constexpr size_t CORR_ROW_CELLS = size_t{PIECE_TYPE_NB} * SQUARE_NB;
+    [[nodiscard]] static size_t capture_cell(int attacker, Square to, PieceType captured) {
         return (static_cast<size_t>(attacker) * SQUARE_NB + static_cast<size_t>(to)) * PIECE_TYPE_NB
                + static_cast<size_t>(captured);
     }
-    [[nodiscard]] size_t continuation_cell(const PieceToHistory* row, PieceType pt, Square to) const {
-        return row_index(row, &continuation->row[0][0][0][0]) * ROW_CELLS + static_cast<size_t>(pt) * SQUARE_NB + static_cast<size_t>(to);
+    [[nodiscard]] size_t continuation_cell(const PieceToHistory* row, int piece, Square to) const {
+        return row_index(row, &continuation->row[0][0][0][0]) * ROW_CELLS
+               + static_cast<size_t>(piece) * SQUARE_NB + static_cast<size_t>(to);
     }
-    [[nodiscard]] size_t pawn_cell(const PawnHistoryBucket* bucket, PieceType pt, Square to) const {
-        return row_index(bucket, &pawn->bucket[0]) * ROW_CELLS + static_cast<size_t>(pt) * SQUARE_NB + static_cast<size_t>(to);
+    [[nodiscard]] size_t pawn_cell(const PawnHistoryBucket* bucket, int piece, Square to) const {
+        return row_index(bucket, &pawn->bucket[0]) * ROW_CELLS
+               + static_cast<size_t>(piece) * SQUARE_NB + static_cast<size_t>(to);
     }
     [[nodiscard]] size_t cont_corr_cell(const PieceToCorrection* row, PieceType pt, Square to) const {
-        return row_index(row, &cont_corr->row[0][0]) * ROW_CELLS + static_cast<size_t>(pt) * SQUARE_NB + static_cast<size_t>(to);
+        return row_index(row, &cont_corr->row[0][0]) * CORR_ROW_CELLS
+               + static_cast<size_t>(pt) * SQUARE_NB + static_cast<size_t>(to);
     }
 
 private:

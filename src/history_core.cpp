@@ -6,10 +6,10 @@ CoreHistoryTables::CoreHistoryTables()
     , cont_corr(std::make_unique<ContinuationCorrection>()) {
 #ifdef BASILISK_DIAGNOSTIC
     shadow = std::make_unique<CrossColourShadow>(
-        size_t{PIECE_TYPE_NB} * SQUARE_NB * PIECE_TYPE_NB,
+        size_t{HIST_PIECE_NB} * SQUARE_NB * PIECE_TYPE_NB,
         sizeof(ContinuationHistory::row) / sizeof(PieceToHistory) * ROW_CELLS,
         size_t{PawnHistory::MAX_BUCKETS} * ROW_CELLS,
-        sizeof(ContinuationCorrection::row) / sizeof(PieceToCorrection) * ROW_CELLS);
+        sizeof(ContinuationCorrection::row) / sizeof(PieceToCorrection) * CORR_ROW_CELLS);
 #endif
     clear();
 }

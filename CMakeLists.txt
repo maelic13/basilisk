@@ -497,6 +497,10 @@ option(RELEASE_DIAG_COUNTERS "Count diagnostic search events in production build
 # `if constexpr` branches inside the node kernel so both arms compile on
 # every build. It passed its gate and defaults ON.
 option(B3_PROOF "Compile Cluster 2's proof searches and extensions into the node kernel (sets BASILISK_B3_PROOF)" ON)
+# COLOUR_HISTORY indexes the capture, continuation and pawn histories and the
+# continuation correction by coloured piece, the donor's form, where the
+# default indexes them by piece type and the colours share entries.
+option(COLOUR_HISTORY "Index the piece-keyed histories by coloured piece (sets BASILISK_COLOUR_HISTORY)" OFF)
 option(PROFILE_SYMBOLS "Emit line tables with inline records in Release builds for the sampling profiler; code generation is unchanged" OFF)
 set(BASILISK_PGO_ARM_OPTION "" CACHE STRING "Boolean CMake option identifying an umbrella arm in PGO child builds")
 set(BASILISK_PGO_ARM_STATE "OFF" CACHE STRING "Value for BASILISK_PGO_ARM_OPTION in PGO child builds")
@@ -608,6 +612,13 @@ endif()
 
 if(RELEASE_DIAG_COUNTERS)
     target_compile_definitions(basilisk_engine PRIVATE BASILISK_RELEASE_DIAG_COUNTERS)
+endif()
+
+if(COLOUR_HISTORY)
+    foreach(_tgt IN LISTS _ALL_TARGETS)
+        target_compile_definitions(${_tgt} PRIVATE BASILISK_COLOUR_HISTORY)
+    endforeach()
+    message(STATUS "COLOUR_HISTORY: the piece-keyed histories are indexed by coloured piece")
 endif()
 
 if(B3_PROOF)

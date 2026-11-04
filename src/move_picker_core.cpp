@@ -53,7 +53,7 @@ int CoreMovePicker::fill(const MoveList& list, int at) {
 
 int capture_order_score(const Board& board, const CoreHistoryTables& history, Move m) {
     const Square to = Square(to_sq(m));
-    const PieceType attacker = type_of(board.piece_on(from_sq(m)));
+    const int attacker = hist_piece(board.piece_on(from_sq(m)));
     const PieceType captured = move_type(m) == EN_PASSANT ? PAWN
                              : type_of(board.piece_on(to));
     HIST_SHADOW(history.shadow->read(ShadowTable::Capture,
@@ -89,14 +89,16 @@ void CoreMovePicker::score_quiets(int begin, int end) {
         const Square to   = Square(to_sq(m));
         const PieceType pt = type_of(board_.piece_on(from));
 
-        int v = 2 * main[from][to] + 2 * pawn_.entry[pt][to]
-              + cont_[0]->entry[pt][to] + cont_[1]->entry[pt][to] + cont_[2]->entry[pt][to]
-              + cont_[3]->entry[pt][to] + cont_[5]->entry[pt][to];
+        const int hp = hist_piece(us, pt);
+
+        int v = 2 * main[from][to] + 2 * pawn_.entry[hp][to]
+              + cont_[0]->entry[hp][to] + cont_[1]->entry[hp][to] + cont_[2]->entry[hp][to]
+              + cont_[3]->entry[hp][to] + cont_[5]->entry[hp][to];
 #ifdef BASILISK_DIAGNOSTIC
-        history_.shadow->read(ShadowTable::Pawn, history_.pawn_cell(&pawn_, pt, to), us);
+        history_.shadow->read(ShadowTable::Pawn, history_.pawn_cell(&pawn_, hp, to), us);
         for (int k : {0, 1, 2, 3, 5})
             history_.shadow->read(ShadowTable::Continuation,
-                                  history_.continuation_cell(cont_[k], pt, to), us);
+                                  history_.continuation_cell(cont_[k], hp, to), us);
 #endif
 
         if ((checks_for(pt) & sq_bb(to)) && board_.see_ge(m, -75))

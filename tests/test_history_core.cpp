@@ -172,11 +172,19 @@ static void test_row_addressing() {
     end_section();
 
     begin_section("footprint: the sizes the architecture review registered");
-    EXPECT_EQ(sizeof(ContinuationHistory), size_t(1'605'632));   // 1,568 KiB
-    EXPECT_EQ(sizeof(PawnHistory), size_t(7'340'032));           // 7,168 KiB at 8,192 buckets
+    if constexpr (kColourHistory) {
+        // Coloured piece keys: the continuation history's rows and leaves
+        // both double, the pawn history's leaves and the correction's rows.
+        EXPECT_EQ(sizeof(ContinuationHistory), size_t(6'422'528));   // 6,272 KiB
+        EXPECT_EQ(sizeof(PawnHistory), size_t(14'680'064));          // 14,336 KiB at 8,192 buckets
+        EXPECT_EQ(sizeof(ContinuationCorrection), size_t(802'816));  // 784 KiB
+    } else {
+        EXPECT_EQ(sizeof(ContinuationHistory), size_t(1'605'632));   // 1,568 KiB
+        EXPECT_EQ(sizeof(PawnHistory), size_t(7'340'032));           // 7,168 KiB at 8,192 buckets
+        EXPECT_EQ(sizeof(ContinuationCorrection), size_t(401'408));  // 392 KiB
+    }
     EXPECT_EQ(sizeof(MainHistory), size_t(16'384));
     EXPECT_EQ(sizeof(LowPlyHistory), size_t(40'960));
-    EXPECT_EQ(sizeof(ContinuationCorrection), size_t(401'408));   // 392 KiB
     end_section();
 }
 
@@ -221,19 +229,20 @@ static void test_cross_colour_shadow() {
     auto h = std::make_unique<CoreHistoryTables>();
     constexpr size_t row = CoreHistoryTables::ROW_CELLS;
     constexpr PieceType last_pt = PieceType(PIECE_TYPE_NB - 1);
+    constexpr int last_piece = HIST_PIECE_NB - 1;
     begin_section("cross-colour shadow: cell indices span each table once");
     EXPECT_EQ(h->continuation_cell(&h->continuation->row[0][0][NO_PIECE_TYPE][A1], NO_PIECE_TYPE, A1),
               size_t(0));
-    EXPECT_EQ(h->continuation_cell(&h->continuation->row[1][1][last_pt][H8], last_pt, H8),
+    EXPECT_EQ(h->continuation_cell(&h->continuation->row[1][1][last_piece][H8], last_piece, H8),
               sizeof(ContinuationHistory) / sizeof(int16_t) - 1);
     EXPECT_EQ(h->continuation_cell(&h->continuation->row[0][1][KNIGHT][F3], BISHOP, C4),
-              ((size_t(1) * PIECE_TYPE_NB + KNIGHT) * SQUARE_NB + F3) * row
+              ((size_t(1) * HIST_PIECE_NB + KNIGHT) * SQUARE_NB + F3) * row
                   + size_t(BISHOP) * SQUARE_NB + C4);
-    EXPECT_EQ(h->pawn_cell(&h->pawn->bucket[PawnHistory::MAX_BUCKETS - 1], last_pt, H8),
+    EXPECT_EQ(h->pawn_cell(&h->pawn->bucket[PawnHistory::MAX_BUCKETS - 1], last_piece, H8),
               sizeof(PawnHistory) / sizeof(int16_t) - 1);
-    EXPECT_EQ(h->cont_corr_cell(&h->cont_corr->row[last_pt][H8], last_pt, H8),
+    EXPECT_EQ(h->cont_corr_cell(&h->cont_corr->row[last_piece][H8], last_pt, H8),
               sizeof(ContinuationCorrection) / sizeof(int16_t) - 1);
-    EXPECT_EQ(CoreHistoryTables::capture_cell(last_pt, H8, last_pt),
+    EXPECT_EQ(CoreHistoryTables::capture_cell(last_piece, H8, last_pt),
               sizeof(CaptureHistory::entry) / sizeof(int16_t) - 1);
     end_section();
 #endif

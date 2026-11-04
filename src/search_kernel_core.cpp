@@ -262,9 +262,11 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         PieceType atk = type_of(state_.board->piece_on(from_sq(m)));
         PieceType cap = (move_type(m) == EN_PASSANT) ? PAWN : type_of(state_.board->piece_on(to_sq(m)));
         int score = (m == tt_move) ? 10'000'000
-                  : PIECE_VALUE[cap] * 16 - PIECE_VALUE[atk] + hist_.capture.entry[atk][to_sq(m)][cap];
+                  : PIECE_VALUE[cap] * 16 - PIECE_VALUE[atk]
+                    + hist_.capture.entry[hist_piece(state_.board->turn(), atk)][to_sq(m)][cap];
         HIST_SHADOW(m == tt_move ? void() : hist_.shadow->read(
-            ShadowTable::Capture, CoreHistoryTables::capture_cell(atk, Square(to_sq(m)), cap),
+            ShadowTable::Capture,
+            CoreHistoryTables::capture_cell(hist_piece(state_.board->turn(), atk), Square(to_sq(m)), cap),
             state_.board->turn()));
         sm[nm++] = {m, score};
     }
@@ -597,8 +599,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             if (prev != MOVE_NONE && prev != MOVE_NULL && (ss - 1)->move_count < 5
                 && state_.board->captured_piece() == NO_PIECE)
                 update_continuation_histories(
-                    ss - 1, type_of(state_.board->piece_on(to_sq(prev))), Square(to_sq(prev)),
-                    -2210);
+                    ss - 1, state_.board->piece_on(to_sq(prev)), Square(to_sq(prev)), -2210);
         }
 
         // Near the rule-50 limit the stored score may not hold, so no cutoff.
@@ -1081,7 +1082,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         if (state_.trace.enabled() && is_quiet) {
             const PieceType pt = type_of(state_.board->piece_on(from_sq(m)));
             trace_history = main_hist[from_sq(m)][to_sq(m)]
-                          + cont_hist_score(ss, pt, Square(to_sq(m)))
+                          + cont_hist_score(ss, hist_piece(state_.board->turn(), pt), Square(to_sq(m)))
                           + pawn_hist[pt][to_sq(m)]
                           + (low_ply_hist ? (*low_ply_hist)[from_sq(m)][to_sq(m)] : 0);
         }
@@ -1100,6 +1101,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             const Square from = Square(from_sq(m));
             const Square to   = Square(to_sq(m));
             const PieceType moved = type_of(state_.board->piece_on(from));
+            const int moved_hp = hist_piece(state_.board->piece_on(from));
 
             // Count pruning: past this many moves the picker delivers no
             // more quiets (direct checks excepted while the switch is on).
@@ -1120,9 +1122,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             if (is_cap || is_promo || move_gives_check()) {
                 const PieceType captured = move_type(m) == EN_PASSANT ? PAWN
                                          : type_of(state_.board->piece_on(to));
-                const int capt_hist = hist_.capture.entry[moved][to][captured];
+                const int capt_hist = hist_.capture.entry[moved_hp][to][captured];
                 HIST_SHADOW(hist_.shadow->read(ShadowTable::Capture,
-                                               CoreHistoryTables::capture_cell(moved, to, captured),
+                                               CoreHistoryTables::capture_cell(moved_hp, to, captured),
                                                state_.board->turn()));
 
                 // Capture futility: even the captured piece and a margin
@@ -1169,11 +1171,11 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 #ifdef BASILISK_DIAGNOSTIC
                 for (int back : {1, 2})
                     hist_.shadow->read(ShadowTable::Continuation,
-                                       hist_.continuation_cell((ss - back)->cont_hist, moved, to),
+                                       hist_.continuation_cell((ss - back)->cont_hist, moved_hp, to),
                                        state_.board->turn());
 #endif
-                int history = (ss - 1)->cont_hist->entry[moved][to]
-                            + (ss - 2)->cont_hist->entry[moved][to]
+                int history = (ss - 1)->cont_hist->entry[moved_hp][to]
+                            + (ss - 2)->cont_hist->entry[moved_hp][to]
                             + pawn_hist[moved][to];
                 if (history < -kp.cont_hist_prune_slope * depth) {
                     DIAG_COUNT(++state_.diag.cont_hist_pruned);
@@ -1433,18 +1435,20 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             const PieceType captured = move_type(m) == EN_PASSANT ? PAWN
                                      : type_of(state_.board->piece_on(move_to));
             stat_score = 873 * HIST_PIECE_VALUE[captured] / 128
-                       + hist_.capture.entry[moved_pt][move_to][captured];
-            HIST_SHADOW(hist_.shadow->read(ShadowTable::Capture,
-                                           CoreHistoryTables::capture_cell(moved_pt, move_to, captured),
-                                           state_.board->turn()));
+                       + hist_.capture.entry[hist_piece(state_.board->turn(), moved_pt)][move_to][captured];
+            HIST_SHADOW(hist_.shadow->read(
+                ShadowTable::Capture,
+                CoreHistoryTables::capture_cell(hist_piece(state_.board->turn(), moved_pt), move_to, captured),
+                state_.board->turn()));
         } else {
+            const int moved_piece = hist_piece(state_.board->turn(), moved_pt);
             stat_score = (2252 * main_hist[from_sq(m)][move_to]
-                          + 1126 * (ss - 1)->cont_hist->entry[moved_pt][move_to]
-                          + 1093 * (ss - 2)->cont_hist->entry[moved_pt][move_to]) / 1024;
+                          + 1126 * (ss - 1)->cont_hist->entry[moved_piece][move_to]
+                          + 1093 * (ss - 2)->cont_hist->entry[moved_piece][move_to]) / 1024;
 #ifdef BASILISK_DIAGNOSTIC
             for (int back : {1, 2})
                 hist_.shadow->read(ShadowTable::Continuation,
-                                   hist_.continuation_cell((ss - back)->cont_hist, moved_pt, move_to),
+                                   hist_.continuation_cell((ss - back)->cont_hist, moved_piece, move_to),
                                    state_.board->turn());
 #endif
         }
@@ -1575,7 +1579,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                                                           ply + 1, ss + 1, true, !cut_node);
                     }
                     // A reduced move that failed high trains its continuations.
-                    update_continuation_histories(ss, moved_pt, move_to, 1334);
+                    // The move is still made, so its side is the one not to move.
+                    update_continuation_histories(ss, make_piece(~state_.board->turn(), moved_pt),
+                                                  move_to, 1334);
                 }
             } else {
                 // Without LMR the move is searched at full depth, one or two

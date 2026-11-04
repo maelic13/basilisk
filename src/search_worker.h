@@ -268,9 +268,10 @@ private:
         const bool capture_stage = state_.board->piece_on(to) != NO_PIECE
                                 || move_type(m) == EN_PASSANT || move_type(m) == PROMOTION;
         ss->move        = m;
-        ss->moved_piece = type_of(state_.board->piece_on(from_sq(m)));
-        ss->cont_hist   = &hist_.continuation->row[ss->in_check][capture_stage][ss->moved_piece][to];
-        ss->cont_corr   = &hist_.cont_corr->row[ss->moved_piece][to];
+        const Piece piece = state_.board->piece_on(from_sq(m));
+        ss->moved_piece = type_of(piece);
+        ss->cont_hist   = &hist_.continuation->row[ss->in_check][capture_stage][hist_piece(piece)][to];
+        ss->cont_corr   = &hist_.cont_corr->row[hist_piece(piece)][to];
         state_.board->make_move(m);
     }
     void undo_move(SearchStack* ss, Move m) {
@@ -308,7 +309,7 @@ private:
     // continuation histories alone (e.g. the parent's move, from `ss - 1`); of
     // the capture history by a capture.
     void update_quiet_histories(SearchStack* ss, Move m, int bonus);
-    void update_continuation_histories(SearchStack* ss, PieceType pt, Square to, int bonus);
+    void update_continuation_histories(SearchStack* ss, Piece piece, Square to, int bonus);
     void update_capture_history(Move m, int bonus);
     // The parent's quiet move, by how far it moved the static eval in the
     // mover's favour (`eval_diff`), in the main and, without a TT hit, the
@@ -318,7 +319,7 @@ private:
     // Continuation history of a (piece, to) pair one, two and four plies on
     // from the moves at (ss - 1), (ss - 2) and (ss - 4), the last at half
     // weight.
-    int  cont_hist_score(const SearchStack* ss, PieceType pt, Square to) const;
+    int  cont_hist_score(const SearchStack* ss, int piece, Square to) const;
 
     // At node exit: the training by a move that raised alpha, against the
     // quiets and captures searched before it, and the parent's move's reward
