@@ -76,6 +76,24 @@ and next step).
 
   Each of these reads is 1,000 games.
 
+- **Rebuilt pruning and extensions.** The searches that prove a move is
+  good enough or bad enough without searching it fully now follow modern
+  Stockfish:
+  - the null move, tried only where a cut is expected, with a reduction
+    that grows with the margin;
+  - ProbCut, which proves a node with a capture's shallow search;
+  - singular extensions, which search a move that alone holds the position
+    one, two or three moves deeper;
+  - the reduction of a node with no move from earlier searches;
+  - spotting a draw by repetition one move earlier.
+
+  Its constants were then fitted by tuning. Measured against the previous
+  search at `3+0.03`, it gained **+93 ± 14 Elo** (996 games, a sequential
+  test stopped when it was sure), of which the tuning gave **+18 ± 6 Elo**
+  (4,574 games). At `10+0.1` it gained **+85 ± 9 Elo** (2,000 games). In
+  the same time it searches two to two and a half plies (half-moves)
+  deeper. `bench 13` is now 5,369,042.
+
 - **Development builds name their commit**, as Stockfish's do. A build
   between releases reports `Basilisk dev-20261025-8b3f151c`: the commit's
   date and the first eight characters of its hash, with `-m` after the date

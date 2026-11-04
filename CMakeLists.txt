@@ -490,11 +490,13 @@ option(DIAGNOSTIC "Expose diagnostics without the tunable parameter surface (set
 option(ABLATION "Expose the matched search-ablation instrument (sets BASILISK_ABLATION)" OFF)
 option(RELEASE_DIAG_COUNTERS "Count diagnostic search events in production builds (measurement arm)" OFF)
 # Cluster umbrellas (PROCESS, Cluster delivery shape): a Boolean option that
-# compiles one search cluster in; OFF reproduces the accepted fingerprint.
+# compiles one search cluster in. It defaults OFF until the cluster passes its
+# gate, then ON; OFF then reproduces the previous fingerprint and stays
+# compilable, unmaintained, until the search programme's cleanup deletes it.
 # B3_PROOF is Cluster 2, the proof searches and extensions, built as
 # `if constexpr` branches inside the node kernel so both arms compile on
-# every build.
-option(B3_PROOF "Compile Cluster 2's proof searches and extensions into the node kernel (sets BASILISK_B3_PROOF)" OFF)
+# every build. It passed its gate and defaults ON.
+option(B3_PROOF "Compile Cluster 2's proof searches and extensions into the node kernel (sets BASILISK_B3_PROOF)" ON)
 option(PROFILE_SYMBOLS "Emit line tables with inline records in Release builds for the sampling profiler; code generation is unchanged" OFF)
 set(BASILISK_PGO_ARM_OPTION "" CACHE STRING "Boolean CMake option identifying an umbrella arm in PGO child builds")
 set(BASILISK_PGO_ARM_STATE "OFF" CACHE STRING "Value for BASILISK_PGO_ARM_OPTION in PGO child builds")
