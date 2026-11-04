@@ -1536,6 +1536,17 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       this read verifies it. A timing read needs an idle host: the
       maintainer chooses when. A gap to Stockfish beyond 1 ms goes to the
       correctness-repair path with its own gate.
+      - Prepared 2026-11-04 (BAS-R08, registered with its prediction):
+        `tools/diag/wallclock.py` times each trial from outside the
+        engine, Basilisk and Stockfish 19 alternating every round, each
+        pinned to N game cores. It recovered delays planted in a fake
+        engine (`tools/diag/test_wallclock.py`): +5.03, +2.99 and +4.01
+        ms for 5, 3 and 4, and 0 with none. The deciding quantities are
+        wall times, because both engines report `time` in whole ms.
+        Binary `basilisk-b161-master-pext-pgo` (5,361,058, D5E67D0A...)
+        and launcher `tools/run_b161_wallclock.ps1`, dry run accepted.
+        The read takes about seven minutes on an idle host; the
+        maintainer starts it.
     - [ ] **B.16.2** `[I2]` Pruning and reduction pricing (ANY TIME) — before B.4
       What each pruning rule and each reduction hides (TM-9, Triumviratus's
       `prunelog` and `redlog`). In the Diag flavour, a deterministic sample
@@ -2257,7 +2268,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.16.1 | RESEARCH | V | Added 2026-11-03; a timing read on an idle host, the maintainer chooses when |
+| B.16.1 | LOCAL_QUALIFIED | V | Instrument validated 2026-11-04; BAS-R08's read waits for an idle host, maintainer-run |
 | B.16.2 | RESEARCH | I2 | Added 2026-11-03; needs no idle host, can be worked between B.3.3's blocks |
 | B.16.3 | RESEARCH | V | Added 2026-11-03; stored games, judge CPU, maintainer-run |
 | B.16.4 | RESEARCH | I1 | Added 2026-11-03; before B.15.4 |
