@@ -79,3 +79,38 @@
 | X4 | The continuation correction reads at least 20% | 55% | under 20% |
 
 #### RESULT — append after exposure
+
+- **Read 2026-11-04** (`tools/results/b36-20261104/xc_suite_d14.json`
+  `80a8bae8…`):
+  - The build is `build/b3-on-diag/basilisk.exe` (`a3615da0…`) at
+    `183e0bd`, `bench 13` 5,369,042.
+  - 106 positions at depth 14, Hash 64, each from clear tables. Every
+    position reported, and the suite's accounting identities hold.
+
+  | Table | Reads | Mean other-colour share | Other colour alone | Both | Own colour alone | Per-position median (range) |
+  |---|---:|---:|---:|---:|---:|---|
+  | Continuation history | 205,036,663 | **16.3%** | 8.8% | 18.9% | 72.3% | 11.2% (0.0–25.8%) |
+  | Pawn history | 31,028,486 | **11.3%** | 6.2% | 13.1% | 80.7% | 8.1% (0.0–29.9%) |
+  | Capture history | 18,524,983 | **7.8%** | 1.2% | 23.8% | 75.0% | 6.6% (0.0–38.6%) |
+  | Continuation correction | 16,269,653 | **3.1%** | 1.8% | 3.5% | 94.7% | 3.5% (0.0–13.1%) |
+
+- **The rule: every table reads above 2% on the mean other-colour share,
+  so B.3.6 proceeds to step 2**, the colour-indexed build, registered
+  separately before it is built.
+  - The continuation and pawn histories are also above 2% on reads
+    trained by the other colour alone.
+  - The competing explanation, that the colours rarely meet in one
+    entry, is refuted: about one read in six of the continuation history
+    draws on the other side's training, and one in eleven draws on
+    nothing else.
+  - This is a lower bound, because each position starts from clear
+    tables and a game carries them over from move to move.
+- **Predictions:**
+  - **X1 hit:** the read sends the leaf to step 2.
+  - **X2 missed:** continuation 16.3% and pawn 11.3%, against at least 20%.
+  - **X3 missed:** capture 7.8%.
+  - **X4 missed:** correction 3.1%.
+  - Every magnitude was overestimated. The direction held, and the
+    ordering (continuation > pawn > capture > correction) matches how
+    freely each table's index lets the colours meet.
+- Disposition: step 1 done; step 2 next.

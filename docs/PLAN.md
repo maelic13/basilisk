@@ -1458,6 +1458,16 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           Diag build.
         - The rule: NO_CHANGE without games if every table reads under 2%
           on both measures; otherwise step 2, registered separately.
+      - Step 1 read 2026-11-04 (BAS-S46 *RESULT*):
+        - The other colour's share of the training behind a read is 16.3%
+          in the continuation history, 11.3% in the pawn history, 7.8% in
+          the capture history and 3.1% in the continuation correction.
+        - In the continuation history, 8.8% of reads were trained by the
+          other colour alone.
+        - Every table is above 2%, so step 2 follows: the donor's index by
+          `Piece`.
+        - The header's "colour-redundant" rationale (`history_core.h`) is
+          measured false.
 - [ ] **B.16** Search-programme instruments
   Added 2026-11-03 (maintainer: "the instruments which would help us now,
   somewhere close"): four instruments the Triumviratus review found that
@@ -2200,7 +2210,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.6 | RESEARCH | I2 | Opened 2026-11-04: BAS-S46 registered, step 1 the Diag-only cross-colour shadow counter, read on `suite_v2` at depth 14 before any step 2 |
+| B.3.6 | RESEARCH | I2 | Opened 2026-11-04 (BAS-S46): step 1 read, the other colour trains 3.1-16.3% of what each table serves, above the 2% rule, so step 2 (index by `Piece`) is next, registered before it is built |
 | B.16.1 | RESEARCH | V | Added 2026-11-03; a timing read on an idle host, the maintainer chooses when |
 | B.16.2 | RESEARCH | I2 | Added 2026-11-03; needs no idle host, can be worked between B.3.3's blocks |
 | B.16.3 | RESEARCH | V | Added 2026-11-03; stored games, judge CPU, maintainer-run |
