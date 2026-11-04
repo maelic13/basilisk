@@ -6,7 +6,8 @@
             the candidate ON arm (B.3.4's adoptions) against the OFF arm of
             the same revision.
    -Gate b  SPRT [0,3] at 3+0.03, cap 12,000 pairs: the fitted ON arm at
-            B.3.3's bake against the unfitted ON arm (c6f7151). The arms
+            B.3.3's bake (the candidate: B.3.4 adopted nothing) against the
+            unfitted ON arm (c6f7151). The arms
             come from different commits, so each manifest's clean tree and
             fingerprint are checked by the wrapper and both hashes here.
    -Gate c  a direction read, not a gate: 2,000 games of (a)'s pair at
@@ -20,10 +21,11 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot '..\harness_common.ps1')
 $wrapper = Join-Path $PSScriptRoot 'colosseum.ps1'
 $engines = Join-Path $PSScriptRoot 'test_engines'
-$candidateRevision = '__CANDIDATE_REVISION__'
-$candidate = @{ Path = Join-Path $engines 'basilisk-b35-on-pext-pgo.exe';      Sha = '__CANDIDATE_SHA__'; Bench = __CANDIDATE_BENCH__ }
-$off       = @{ Path = Join-Path $engines 'basilisk-b35-off-pext-pgo.exe';     Sha = '__OFF_SHA__';       Bench = 11880564 }
-$fitted    = @{ Path = Join-Path $engines 'basilisk-b35-fitted-pext-pgo.exe';  Sha = '__FITTED_SHA__';    Bench = 5369042 }
+$candidateRevision = '5f1cdf3eddeda54c5b2f0dab59ac9e6f9140d69c'
+$candidate = @{ Path = Join-Path $engines 'basilisk-b35-on-pext-pgo.exe';      Sha = '3DFF7B64533B92FB352A6E0E0B6CD61B03C8E06DFD2DF18FDB5140357C8EA810'; Bench = 5369042 }
+$off       = @{ Path = Join-Path $engines 'basilisk-b35-off-pext-pgo.exe';     Sha = '4127849DB8ACD77D5715BADDFECBF81011DE28B333989C20BD054C4A8C05CCE9'; Bench = 11880564 }
+# B.3.4 adopted nothing, so (b)'s fitted arm at the bake is the candidate itself.
+$fitted    = $candidate
 $unfitted  = @{ Path = Join-Path $engines 'basilisk-b32-on-pgo1-pext-pgo.exe'; Sha = '0B5D9DC605D765ECAC802775C83067A6A5454EB8AF21D73DEFEE0E29F77EA0D5'; Bench = 4923507 }
 
 $pair = if ($Gate -eq 'b') { @($fitted, $unfitted) } else { @($candidate, $off) }
