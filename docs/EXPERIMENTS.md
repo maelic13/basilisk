@@ -528,7 +528,7 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S45](experiments/BAS-S45.md) — B.3.4: Basilisk's forms re-read on the fitted arm — closed: the eval gate −6.1 ± 9.7, not adopted; no default moved
 
-- [BAS-S46](experiments/BAS-S46.md) — B.3.6 step 1: the colourless histories' cross-colour reads — read: continuation 16.3%, pawn 11.3%, capture 7.8%, correction 3.1%; step 2 built, gate pinned
+- [BAS-S46](experiments/BAS-S46.md) — B.3.6 step 1: the colourless histories' cross-colour reads — read: continuation 16.3%, pawn 11.3%, capture 7.8%, correction 3.1%; step 2 built; gate interrupted at 3,702 pairs, resuming
 
 | ID | Title | Disposition |
 |---|---|---|

@@ -1485,6 +1485,10 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           0.8731 first-move, and 5.9% more nodes at depth 14.
         - The gate, SPRT `[0,3]` with a 16,000-pair cap, is pinned and
           dry-run accepted (`tools/run_b36_gate.ps1`). Maintainer-run.
+        - The run was interrupted at 3,702 pairs, before a decision. A
+          Rarog workload spiked the host for about four minutes and
+          slowed both arms equally. It resumes from its checkpoint,
+          unchanged (BAS-S46 *GATE INTERRUPTION*).
 - [ ] **B.16** Search-programme instruments
   Added 2026-11-03 (maintainer: "the instruments which would help us now,
   somewhere close"): four instruments the Triumviratus review found that
@@ -2227,7 +2231,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.6 | GAME_GATE | I2 | Opened 2026-11-04 (BAS-S46): step 1 read 3.1-16.3% cross-colour; step 2, the coloured index behind `COLOUR_HISTORY` (`70e978b`), planted check exact, gate pinned and dry-run accepted (`tools/run_b36_gate.ps1`); maintainer-run |
+| B.3.6 | GAME_GATE | I2 | Opened 2026-11-04 (BAS-S46): step 1 read 3.1-16.3% cross-colour; step 2, the coloured index behind `COLOUR_HISTORY` (`70e978b`), planted check exact, gate pinned (`tools/run_b36_gate.ps1`); interrupted at 3,702 pairs by a host load, resuming; maintainer-run |
 | B.16.1 | RESEARCH | V | Added 2026-11-03; a timing read on an idle host, the maintainer chooses when |
 | B.16.2 | RESEARCH | I2 | Added 2026-11-03; needs no idle host, can be worked between B.3.3's blocks |
 | B.16.3 | RESEARCH | V | Added 2026-11-03; stored games, judge CPU, maintainer-run |

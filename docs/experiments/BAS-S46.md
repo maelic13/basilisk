@@ -225,3 +225,33 @@
     tables.
   - X7 waits for the gate.
 
+#### GATE INTERRUPTION (2026-11-04)
+
+- **The run was interrupted and is resumed unchanged.** Seed 46001,
+  `tools/results/b36-gate/`.
+  - A Rarog workload shared the host for part of the run. The maintainer
+    stopped the run on learning of it, at 3,702 pairs (14:39), before any
+    decision (LLR +0.51).
+  - The run resumes from its checkpoint, with the same command, arms,
+    bounds and cap. Resuming an undecided run does not extend it.
+- **The load in the games**, each arm's nodes over its search time from
+  the PGN, by game end:
+
+  | Window | Games | Coloured | Colourless | Ratio |
+  |---|---:|---:|---:|---:|
+  | 13:25–14:15 | about 5,000 | 1.90–2.03 Mnps | 1.91–2.04 Mnps | 0.99–1.00 |
+  | 14:15–14:20 | 508 | 1.74 Mnps | 1.74 Mnps | 0.999 |
+  | 14:20–14:39 | about 1,900 | 1.90–2.00 Mnps | 1.91–2.01 Mnps | 0.99–1.00 |
+
+  - The slowest minute is 14:18, at 1.36 Mnps.
+  - The run's only faults fall in that window: four time losses, two
+    per arm.
+  - From 14:20 the speed is back to its earlier level.
+- **Reading:** about 400 games ran slower than registered, and both arms
+  slowed equally. That shortens those games' effective time control
+  without favouring either arm, so the run stands.
+  - Every game is kept. Dropping the window after seeing the results
+    would re-score the run.
+- The maintainer must confirm the host is idle before resuming. The
+  wrapper's preflight also refuses a busy host.
+
