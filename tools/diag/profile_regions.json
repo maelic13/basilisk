@@ -22,7 +22,7 @@
     ["attacks", ["attacks.cpp", "attacks.h", "magics.h", "bitboard.cpp", "bitboard.h", "threats.cpp", "threats.h"]],
     ["eval", ["eval.cpp", "eval.h", "eval_params.h"]],
     ["ordering", ["move_picker.cpp", "move_picker.h", "move_picker_core.cpp", "move_picker_core.h",
-                  "history.cpp", "history.h", "history_core.cpp", "history_core.h",
+                  "history.cpp", "history.h", "history_core.cpp", "history_core.h", "history_shadow.h",
                   "search_history.cpp", "search_history_core.cpp"]],
     ["tt", ["tt.h"]],
     ["search", ["search_kernel.cpp", "search_kernel_core.cpp", "search_worker.cpp", "search_worker.h",
