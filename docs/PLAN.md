@@ -1342,6 +1342,19 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           P9 choice, then (a) and (c).
         - The packet gives (b) no consequence. A reversion of theta is
           the maintainer's decision.
+      - Prepared 2026-11-04 (BAS-S43 *RESULT*):
+        - B.3.4 adopted nothing, so the candidate is the fitted arm.
+          ON Release (`3DFF7B64…`, 5,369,042), OFF Release (`4127849D…`,
+          11,880,564) and ON Profile (`389FD285…`) are built clean at
+          `5f1cdf3` and pinned in `tools/run_b35_gates.ps1`.
+        - The dry runs of (a), (b) and (c) are accepted.
+        - P9's profile: the upcoming-repetition check is in 0.30% of
+          samples, Wilson [0.21%, 0.42%], on the bench 13 cohort. That is
+          not material, so no NPS pools are owed. The profiler's region
+          map gained two missing files on the way (`ec9d6de`).
+        - Waiting on the maintainer: the P9 choice (B.7, or keep the
+          donor's form at 0.3%), which (a) and (c) wait for. (b) is ready
+          for the maintainer to run.
     - [ ] **B.3.6** `[I2]` Colour-indexed histories (S2)
       Added 2026-10-31 (maintainer): S2 above, given a leaf so it runs. On
       the accepted B.3 head, research first: a shadow counter of
@@ -2069,7 +2082,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.5 | GAME_GATE | V | Registered 2026-11-03 (BAS-S43); B.3.4 closed 2026-11-04 with no adoption, so the candidate is the fitted arm (5,369,042); next: build and pin the arms, the P9 profile, then (b) and the maintainer's P9 choice before (a) and (c) |
+| B.3.5 | GAME_GATE | V | Registered 2026-11-03 (BAS-S43); arms built and pinned at `5f1cdf3`, all three dry runs accepted; P9 profile 0.30% (not material); (b) ready for the maintainer; (a) and (c) wait for the P9 choice |
 | B.3.6 | RESEARCH | I2 | Added 2026-10-31; waits for B.3.5 |
 | B.16.1 | RESEARCH | V | Added 2026-11-03; a timing read on an idle host, the maintainer chooses when |
 | B.16.2 | RESEARCH | I2 | Added 2026-11-03; needs no idle host, can be worked between B.3.3's blocks |

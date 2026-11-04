@@ -91,3 +91,39 @@ Added before exposure:
 | G3 | The upcoming-repetition check takes under 1% of search time in the Release ON profile | 70% | ≥ 1% |
 
 #### RESULT — append after exposure
+
+- **The arms (2026-11-04).** B.3.4 adopted nothing, so the candidate is
+  the fitted arm. Every build is a clean final-PGO PEXT build at
+  `5f1cdf3`, whose engine is `f02a9e4`'s:
+
+  | Build | Bench 13 | SHA-256 |
+  |---|---:|---|
+  | ON Release (`basilisk-b35-on-pext-pgo.exe`) | 5,369,042 | `3DFF7B64…A810` |
+  | OFF Release (`basilisk-b35-off-pext-pgo.exe`) | 11,880,564 | `4127849D…CCE9` |
+  | ON Profile (`basilisk-b35-on-prof-pext-profile-pgo.exe`) | 5,369,042 | `389FD285…3F06` |
+
+  - (b)'s fitted arm is the ON Release build; its unfitted arm is
+    `0B5D9DC6…`.
+  - `tools/run_b35_gates.ps1` pins them. Its dry runs of (a), (b) and (c)
+    are accepted, with `[0,3]` normalized, the caps 2,000 and 12,000
+    pairs, `3+0.03`, (c) at `10+0.1` for 2,000 games, and the seeds
+    43001-43003.
+- **P9's profile (2026-11-04).** `tools/profile.ps1` on the ON Profile
+  build, cohort `bench 13` × 5, 1 ms sampling on an idle host
+  (`tools/results/b35-profile-on/`, `report.json` `289940bb…`,
+  `samples.json` `57dc58cd…`). 11,225 samples, inline chains on 61.8%,
+  none unresolved.
+  - **`Board::upcoming_repetition` appears in the inline chain of 0.30%
+    of in-module samples** (32 of 10,737; Wilson 95% [0.21%, 0.42%]). It
+    is the innermost frame in 0.15%.
+  - The first run was refused because the region map lacked
+    `search_b3.h` and `cpu_detect.h`. They are mapped in `ec9d6de`, and
+    the map's test passes again.
+  - **The share is not material**, so the pooled NPS read of two
+    `B3Cuckoo` pools is not owed (PLAN's clause).
+  - **G3 hit** (under 1%).
+  - **P9** is scored on game NPS at (a), as its reading says.
+- **Waiting on the maintainer:** the P9 choice, either B.7 or keeping the
+  donor's form at its cost. Item 9 read the check at 0.0 ± 9.3 Elo, and
+  it costs 0.3% of search time on this profile. (a) and (c) wait for the
+  choice; (b) does not.
