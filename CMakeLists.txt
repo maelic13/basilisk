@@ -498,9 +498,10 @@ option(RELEASE_DIAG_COUNTERS "Count diagnostic search events in production build
 # every build. It passed its gate and defaults ON.
 option(B3_PROOF "Compile Cluster 2's proof searches and extensions into the node kernel (sets BASILISK_B3_PROOF)" ON)
 # COLOUR_HISTORY indexes the capture, continuation and pawn histories and the
-# continuation correction by coloured piece, the donor's form, where the
-# default indexes them by piece type and the colours share entries.
-option(COLOUR_HISTORY "Index the piece-keyed histories by coloured piece (sets BASILISK_COLOUR_HISTORY)" OFF)
+# continuation correction by coloured piece, the donor's form. It passed its
+# gate and defaults ON; OFF indexes them by piece type, the colours sharing
+# entries, and reproduces the previous fingerprint.
+option(COLOUR_HISTORY "Index the piece-keyed histories by coloured piece (sets BASILISK_COLOUR_HISTORY)" ON)
 option(PROFILE_SYMBOLS "Emit line tables with inline records in Release builds for the sampling profiler; code generation is unchanged" OFF)
 set(BASILISK_PGO_ARM_OPTION "" CACHE STRING "Boolean CMake option identifying an umbrella arm in PGO child builds")
 set(BASILISK_PGO_ARM_STATE "OFF" CACHE STRING "Value for BASILISK_PGO_ARM_OPTION in PGO child builds")

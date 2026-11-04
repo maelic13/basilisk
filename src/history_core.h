@@ -7,11 +7,11 @@
 // policy in search_history_core.cpp.
 //
 // The capture, continuation and pawn histories and the continuation
-// correction key a move by its piece: by type, where the colours share an
-// entry, or under COLOUR_HISTORY by coloured piece, the donor's form. Sharing
-// is not redundant: a continuation row is read one ply on by the other side
-// and two plies on by its own, so a colourless row serves one colour the
-// other's training. The main history is [colour][from][to]: promotions share
+// correction key a move by its piece: by coloured piece under COLOUR_HISTORY,
+// the donor's form and the default, or by type, where the colours share an
+// entry. Sharing is not redundant: a continuation row is read one ply on by
+// the other side and two plies on by its own, so a colourless row serves one
+// colour the other's training. The main history is [colour][from][to]: promotions share
 // their from-to, which differs from keying the whole move only for
 // under-promotions.
 
