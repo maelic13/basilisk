@@ -114,3 +114,59 @@
     ordering (continuation > pawn > capture > correction) matches how
     freely each table's index lets the colours meet.
 - Disposition: step 1 done; step 2 next.
+
+#### STEP 2 REGISTRATION (2026-11-04, before any step-2 code or game)
+
+- **The maintainer's decision (2026-11-04):** step 2 runs now; it is not
+  deferred to Phase H.
+- **The form, after the step-2 investigation:**
+  - A continuation-history row is read at 1 to 6 plies back, both
+    parities. A colourless row then mixes "White moved Nf3, and two plies
+    later White plays X" with "Black moved Nf3, and one ply later White
+    plays X". Colour on the leaf alone does not separate them; the row
+    needs it too. This is the donor's `[Piece][to]` row and `[Piece][to]`
+    leaf.
+  - The pawn history takes colour on the moving piece, and the capture
+    history on the attacker; the victim's colour is implied. Both are the
+    donor's form.
+  - The continuation correction is read only at 2 and 4 plies back, so
+    its row's colour is always the side to move. Colour on the row alone
+    separates it. The donor colours the leaf as well, but half of those
+    cells could never be reached here.
+  - The coloured index is `colour × 7 + type`, 14 slots, where the donor
+    uses 16.
+- **Build:** a CMake option, `COLOUR_HISTORY`, defaulting OFF, defines
+  `BASILISK_COLOUR_HISTORY`.
+  - OFF keeps every table and `bench 13` exact (ON arm 5,369,042, OFF arm
+    11,880,564).
+  - Memory with it ON: continuation 1.6 → 6.4 MB, pawn 7.3 → 14.7 MB,
+    correction 0.4 → 0.8 MB, capture 6 → 12 KB.
+- **Planted check:** step 1's counter must read 0% other-colour share in
+  every table on the coloured Diag build. A non-zero read is an
+  implementation defect.
+- **Reads before the gate, recorded, not deciding:** on `suite_v2` at
+  depth 14, coloured against colourless (both with Cluster 2 on):
+  - the first-move cutoff rate, `fail_high_first / fail_highs`;
+  - the mean cutoff index, `fail_high_index_sum / fail_highs`;
+  - `bench 13`;
+  - the memory above.
+- **Gate:** SPRT `[0,3]` normalized, at `3+0.03`, 1T, Hash 64, UHO paired,
+  no adjudication, tablebases off. Two clean final-PGO Release builds of
+  one revision, colour-indexed against colourless, both with Cluster 2
+  on. Seed 46001.
+  - **Cap 16,000 pairs.** The drift model at an expected +4 Elo, about
+    +6.4 nElo, with σ ≈ 245 per pair (BAS-S43), puts the expected stop
+    near 12,000 pairs.
+  - The speed cost of the larger tables is inside the gate. A pooled NPS
+    read is the maintainer's to schedule on an idle host.
+  - **H1:** `COLOUR_HISTORY` defaults ON, and the fingerprint record moves.
+  - **H0:** the colourless form stays, and it goes to B.3's departures
+    table with this reading.
+  - A cap without a decision goes to the maintainer.
+
+| # | Prediction | Confidence | Falsifier |
+|---|---|---|---|
+| X5 | The planted check reads 0% on all four tables | 95% | any table above 0% |
+| X6 | The colour-indexed build raises the first-move cutoff rate on the suite | 60% | equal or lower |
+| X7 | The SPRT accepts H1 | 55% | H0 |
+
