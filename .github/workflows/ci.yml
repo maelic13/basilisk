@@ -359,13 +359,14 @@ jobs:
           cmake --build build/ablate-pext --target basilisk test_uci_protocol
           ctest --test-dir build/ablate-pext -R test_uci_protocol --output-on-failure --no-tests=error
 
-      # The pre-Cluster-2 arm (B3_PROOF=OFF), kept compilable until the search
-      # programme's cleanup: every test on it, and its fingerprint printed. The
-      # bench agreement compares the default arm, which has Cluster 2 on.
+      # The pre-Cluster-2 arm (B3_PROOF=OFF, with the colourless histories it
+      # had), kept compilable until the search programme's cleanup: every test
+      # on it, and its fingerprint printed. The bench agreement compares the
+      # default arm, which has Cluster 2 and the coloured histories on.
       - name: Build and test the B3_PROOF=OFF arm
         run: |
           cmake --preset release -B build/b3proof-off-pext -DUSE_PEXT=ON -DPORTABLE_BUILD=ON -DCOMP=clang \
-            -DTUNE=OFF -DDIAGNOSTIC=OFF -DABLATION=OFF -DTEXEL=OFF -DB3_PROOF=OFF
+            -DTUNE=OFF -DDIAGNOSTIC=OFF -DABLATION=OFF -DTEXEL=OFF -DB3_PROOF=OFF -DCOLOUR_HISTORY=OFF
           cmake --build build/b3proof-off-pext --target all
           ctest --test-dir build/b3proof-off-pext --output-on-failure --no-tests=error
           out=$(printf "bench 13\nquit\n" | ./build/b3proof-off-pext/basilisk)
