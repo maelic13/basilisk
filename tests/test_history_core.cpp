@@ -3,6 +3,7 @@
 /// footprint the architecture review sized.
 
 #include "history_core.h"
+#include "history_shadow.h"
 #include "test_harness.h"
 
 #include <cstdio>
@@ -179,11 +180,71 @@ static void test_row_addressing() {
     end_section();
 }
 
+// The diagnostic shadow behind the cross-colour read: its accounting on a
+// planted sequence, and (in diagnostic builds) cell indices that address
+// every row of each table once.
+static void test_cross_colour_shadow() {
+    CrossColourShadow s(4, 4, 4, 4);
+    begin_section("cross-colour shadow: an untrained entry is not a read");
+    s.read(ShadowTable::Capture, 2, WHITE);
+    EXPECT_EQ(s.reads(ShadowTable::Capture).reads, 0);
+    end_section();
+
+    begin_section("cross-colour shadow: own, other-only and mixed training");
+    s.write(ShadowTable::Capture, 1, WHITE);
+    s.read(ShadowTable::Capture, 1, BLACK);      // trained by White alone
+    s.read(ShadowTable::Capture, 1, WHITE);      // its own colour
+    s.write(ShadowTable::Capture, 1, BLACK);
+    s.read(ShadowTable::Capture, 1, WHITE);      // one update each
+    const CrossColourReads& r = s.reads(ShadowTable::Capture);
+    EXPECT_EQ(r.reads, 3);
+    EXPECT_EQ(r.other_only, 1);
+    EXPECT_EQ(r.mixed, 1);
+    EXPECT_EQ(r.other_share_ppm, 1'000'000 + 0 + 500'000);
+    EXPECT_EQ(s.reads(ShadowTable::Pawn).reads, 0);
+    end_section();
+
+    begin_section("cross-colour shadow: a count saturates, and resets clear");
+    for (int i = 0; i < 70'000; ++i)
+        s.write(ShadowTable::Pawn, 3, BLACK);
+    s.write(ShadowTable::Pawn, 3, WHITE);
+    s.read(ShadowTable::Pawn, 3, WHITE);
+    EXPECT_EQ(s.reads(ShadowTable::Pawn).other_share_ppm, 65'535LL * 1'000'000 / 65'536);
+    s.reset_reads();
+    EXPECT_EQ(s.reads(ShadowTable::Capture).reads, 0);
+    s.clear_cells();
+    s.read(ShadowTable::Capture, 1, WHITE);
+    EXPECT_EQ(s.reads(ShadowTable::Capture).reads, 0);
+    end_section();
+
+#ifdef BASILISK_DIAGNOSTIC
+    auto h = std::make_unique<CoreHistoryTables>();
+    constexpr size_t row = CoreHistoryTables::ROW_CELLS;
+    constexpr PieceType last_pt = PieceType(PIECE_TYPE_NB - 1);
+    begin_section("cross-colour shadow: cell indices span each table once");
+    EXPECT_EQ(h->continuation_cell(&h->continuation->row[0][0][NO_PIECE_TYPE][A1], NO_PIECE_TYPE, A1),
+              size_t(0));
+    EXPECT_EQ(h->continuation_cell(&h->continuation->row[1][1][last_pt][H8], last_pt, H8),
+              sizeof(ContinuationHistory) / sizeof(int16_t) - 1);
+    EXPECT_EQ(h->continuation_cell(&h->continuation->row[0][1][KNIGHT][F3], BISHOP, C4),
+              ((size_t(1) * PIECE_TYPE_NB + KNIGHT) * SQUARE_NB + F3) * row
+                  + size_t(BISHOP) * SQUARE_NB + C4);
+    EXPECT_EQ(h->pawn_cell(&h->pawn->bucket[PawnHistory::MAX_BUCKETS - 1], last_pt, H8),
+              sizeof(PawnHistory) / sizeof(int16_t) - 1);
+    EXPECT_EQ(h->cont_corr_cell(&h->cont_corr->row[last_pt][H8], last_pt, H8),
+              sizeof(ContinuationCorrection) / sizeof(int16_t) - 1);
+    EXPECT_EQ(CoreHistoryTables::capture_cell(last_pt, H8, last_pt),
+              sizeof(CaptureHistory::entry) / sizeof(int16_t) - 1);
+    end_section();
+#endif
+}
+
 int main() {
     std::printf("Core history tables\n");
     std::printf("===================\n");
     test_bounds();
     test_clear_and_halve();
     test_row_addressing();
+    test_cross_colour_shadow();
     return harness_summary();
 }

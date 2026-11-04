@@ -36,6 +36,9 @@ void Searcher::update_continuation_histories(SearchStack* ss, PieceType pt, Squa
             ++positive;
         PieceToHistory::update(e, bonus * b.weight * consistency[positive] / 65536
                                   + 73 * (b.plies < 2));
+        HIST_SHADOW(hist_.shadow->write(ShadowTable::Continuation,
+                                        hist_.continuation_cell(prev->cont_hist, pt, to),
+                                        shadow_mover(ss)));
     }
 }
 
@@ -51,6 +54,8 @@ void Searcher::update_quiet_histories(SearchStack* ss, Move m, int bonus) {
     update_continuation_histories(ss, pt, to, bonus * 750 / 1024);
     PawnHistoryBucket::update(pawn_bucket().entry[pt][to],
                               bonus * (bonus > -4 ? 1104 : 459) / 1024);
+    HIST_SHADOW(hist_.shadow->write(ShadowTable::Pawn, hist_.pawn_cell(&pawn_bucket(), pt, to),
+                                    state_.board->turn()));
 }
 
 void Searcher::update_capture_history(Move m, int bonus) {
@@ -59,9 +64,18 @@ void Searcher::update_capture_history(Move m, int bonus) {
     const PieceType captured = move_type(m) == EN_PASSANT ? PAWN
                              : type_of(state_.board->piece_on(to));
     CaptureHistory::update(hist_.capture.entry[attacker][to][captured], bonus);
+    HIST_SHADOW(hist_.shadow->write(ShadowTable::Capture,
+                                    CoreHistoryTables::capture_cell(attacker, to, captured),
+                                    state_.board->turn()));
 }
 
 int Searcher::cont_hist_score(const SearchStack* ss, PieceType pt, Square to) const {
+#ifdef BASILISK_DIAGNOSTIC
+    for (int back : {1, 2, 4})
+        hist_.shadow->read(ShadowTable::Continuation,
+                           hist_.continuation_cell((ss - back)->cont_hist, pt, to),
+                           state_.board->turn());
+#endif
     return (ss - 1)->cont_hist->entry[pt][to]
          + (ss - 2)->cont_hist->entry[pt][to]
          + (ss - 4)->cont_hist->entry[pt][to] / 2;
@@ -123,6 +137,10 @@ void Searcher::update_fail_low_parent(SearchStack* ss, int depth, int best_score
     if (captured != NO_PIECE) {
         CaptureHistory::update(
             hist_.capture.entry[type_of(b.piece_on(prev_to))][prev_to][type_of(captured)], 892);
+        HIST_SHADOW(hist_.shadow->write(
+            ShadowTable::Capture,
+            CoreHistoryTables::capture_cell(type_of(b.piece_on(prev_to)), prev_to, type_of(captured)),
+            ~b.turn()));
         return;
     }
     int scale = -241;
@@ -137,8 +155,11 @@ void Searcher::update_fail_low_parent(SearchStack* ss, int depth, int best_score
     const PieceType pt = type_of(b.piece_on(prev_to));
     update_continuation_histories(ss - 1, pt, prev_to, scaled * 263 / 16384);
     MainHistory::update(hist_.main.entry[~b.turn()][from_sq(prev)][prev_to], scaled * 215 / 32768);
-    if (pt != PAWN && move_type(prev) != PROMOTION)
+    if (pt != PAWN && move_type(prev) != PROMOTION) {
         PawnHistoryBucket::update(pawn_bucket().entry[pt][prev_to], scaled * 324 / 8192);
+        HIST_SHADOW(hist_.shadow->write(ShadowTable::Pawn,
+                                        hist_.pawn_cell(&pawn_bucket(), pt, prev_to), ~b.turn()));
+    }
 }
 
 void Searcher::update_parent_by_eval_difference(SearchStack* ss, int eval_diff, bool tt_hit) {
@@ -147,8 +168,11 @@ void Searcher::update_parent_by_eval_difference(SearchStack* ss, int eval_diff, 
     const Square to   = Square(to_sq(prev));
     MainHistory::update(hist_.main.entry[~state_.board->turn()][from][to], eval_diff * 11);
     const PieceType pt = type_of(state_.board->piece_on(to));
-    if (!tt_hit && pt != PAWN && move_type(prev) != PROMOTION)
+    if (!tt_hit && pt != PAWN && move_type(prev) != PROMOTION) {
         PawnHistoryBucket::update(pawn_bucket().entry[pt][to], eval_diff * 13);
+        HIST_SHADOW(hist_.shadow->write(ShadowTable::Pawn, hist_.pawn_cell(&pawn_bucket(), pt, to),
+                                        ~state_.board->turn()));
+    }
 }
 
 // The correction of the node at `ss`, in 131072ths of an evaluation unit: the
@@ -170,6 +194,11 @@ int Searcher::correction_value(const SearchStack* ss) const {
         const PieceType pt = type_of(b.piece_on(to));
         cont = config_.limits.params.corr_cont_weight
              * ((ss - 2)->cont_corr->entry[pt][to] + (ss - 4)->cont_corr->entry[pt][to]);
+#ifdef BASILISK_DIAGNOSTIC
+        for (int back : {2, 4})
+            hist_.shadow->read(ShadowTable::ContCorr,
+                               hist_.cont_corr_cell((ss - back)->cont_corr, pt, to), us);
+#endif
     }
     return 15341 * pawn + 10569 * minor + 12906 * (white + black) + cont;
 }
@@ -190,6 +219,11 @@ void Searcher::update_correction_history(SearchStack* ss, int bonus) {
         const PieceType pt = type_of(b.piece_on(to));
         PieceToCorrection::update((ss - 2)->cont_corr->entry[pt][to], bonus * 130 / 128);
         PieceToCorrection::update((ss - 4)->cont_corr->entry[pt][to], bonus * 70 / 128);
+#ifdef BASILISK_DIAGNOSTIC
+        for (int back : {2, 4})
+            hist_.shadow->write(ShadowTable::ContCorr,
+                                hist_.cont_corr_cell((ss - back)->cont_corr, pt, to), us);
+#endif
         DIAG_COUNT(++state_.diag.corr_cont2_updates);
         DIAG_COUNT(++state_.diag.corr_cont4_updates);
     }

@@ -263,6 +263,9 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         PieceType cap = (move_type(m) == EN_PASSANT) ? PAWN : type_of(state_.board->piece_on(to_sq(m)));
         int score = (m == tt_move) ? 10'000'000
                   : PIECE_VALUE[cap] * 16 - PIECE_VALUE[atk] + hist_.capture.entry[atk][to_sq(m)][cap];
+        HIST_SHADOW(m == tt_move ? void() : hist_.shadow->read(
+            ShadowTable::Capture, CoreHistoryTables::capture_cell(atk, Square(to_sq(m)), cap),
+            state_.board->turn()));
         sm[nm++] = {m, score};
     }
 
@@ -1118,6 +1121,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 const PieceType captured = move_type(m) == EN_PASSANT ? PAWN
                                          : type_of(state_.board->piece_on(to));
                 const int capt_hist = hist_.capture.entry[moved][to][captured];
+                HIST_SHADOW(hist_.shadow->read(ShadowTable::Capture,
+                                               CoreHistoryTables::capture_cell(moved, to, captured),
+                                               state_.board->turn()));
 
                 // Capture futility: even the captured piece and a margin
                 // that grows with the reduced depth leave the static eval
@@ -1160,6 +1166,12 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 // previous iteration's PV, as the donor does (B3PvQuietPrune).
                 // Continuation-history pruning: the two nearest continuations
                 // and the pawn history rate the move this far below zero.
+#ifdef BASILISK_DIAGNOSTIC
+                for (int back : {1, 2})
+                    hist_.shadow->read(ShadowTable::Continuation,
+                                       hist_.continuation_cell((ss - back)->cont_hist, moved, to),
+                                       state_.board->turn());
+#endif
                 int history = (ss - 1)->cont_hist->entry[moved][to]
                             + (ss - 2)->cont_hist->entry[moved][to]
                             + pawn_hist[moved][to];
@@ -1422,10 +1434,19 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                                      : type_of(state_.board->piece_on(move_to));
             stat_score = 873 * HIST_PIECE_VALUE[captured] / 128
                        + hist_.capture.entry[moved_pt][move_to][captured];
+            HIST_SHADOW(hist_.shadow->read(ShadowTable::Capture,
+                                           CoreHistoryTables::capture_cell(moved_pt, move_to, captured),
+                                           state_.board->turn()));
         } else {
             stat_score = (2252 * main_hist[from_sq(m)][move_to]
                           + 1126 * (ss - 1)->cont_hist->entry[moved_pt][move_to]
                           + 1093 * (ss - 2)->cont_hist->entry[moved_pt][move_to]) / 1024;
+#ifdef BASILISK_DIAGNOSTIC
+            for (int back : {1, 2})
+                hist_.shadow->read(ShadowTable::Continuation,
+                                   hist_.continuation_cell((ss - back)->cont_hist, moved_pt, move_to),
+                                   state_.board->turn());
+#endif
         }
         ss->stat_score = stat_score;
 

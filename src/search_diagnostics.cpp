@@ -325,6 +325,16 @@ void print_search_diag(const DiagCounters& d, const Evaluator& evaluator,
             d.in_check_capt_see, d.in_check_cont_hist, d.in_check_quiet_see,
             d.pv_quiet_pruned);
         emit(buf);
+        buf = std::format("kv xc_cap_reads={} xc_cap_other_only={} xc_cap_mixed={} "
+            "xc_cap_other_ppm={} xc_cont_reads={} xc_cont_other_only={} xc_cont_mixed={} "
+            "xc_cont_other_ppm={} xc_pawn_reads={} xc_pawn_other_only={} xc_pawn_mixed={} "
+            "xc_pawn_other_ppm={} xc_corr_reads={} xc_corr_other_only={} xc_corr_mixed={} "
+            "xc_corr_other_ppm={}",
+            d.xc_cap_reads, d.xc_cap_other_only, d.xc_cap_mixed, d.xc_cap_other_ppm,
+            d.xc_cont_reads, d.xc_cont_other_only, d.xc_cont_mixed, d.xc_cont_other_ppm,
+            d.xc_pawn_reads, d.xc_pawn_other_only, d.xc_pawn_mixed, d.xc_pawn_other_ppm,
+            d.xc_corr_reads, d.xc_corr_other_only, d.xc_corr_mixed, d.xc_corr_other_ppm);
+        emit(buf);
     }
     // Speed telemetry: the evaluation rate, the pawn-cache hit rate, the
     // gives_check rate and SEE calls per node.

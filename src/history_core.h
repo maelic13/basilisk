@@ -19,6 +19,13 @@
 #include <cstdlib>
 #include <memory>
 
+#ifdef BASILISK_DIAGNOSTIC
+#include "history_shadow.h"
+#define HIST_SHADOW(statement) (statement)
+#else
+#define HIST_SHADOW(statement) ((void)0)
+#endif
+
 // History gravity: a bonus, first clamped to [-Limit, Limit], pulls the entry
 // toward the bound of its sign by the bonus's share of the remaining distance,
 // so repeated bonuses saturate at the bound instead of overflowing.
@@ -143,4 +150,33 @@ struct CoreHistoryTables {
     [[nodiscard]] PieceToCorrection* sentinel_corr_row() {
         return &cont_corr->row[NO_PIECE_TYPE][0];
     }
+
+#ifdef BASILISK_DIAGNOSTIC
+    // Diagnostic builds: which colour trained each entry of the four
+    // colourless tables (history_shadow.h), addressed by these cell indices.
+    std::unique_ptr<CrossColourShadow> shadow;
+    static constexpr size_t ROW_CELLS = size_t{PIECE_TYPE_NB} * SQUARE_NB;
+    [[nodiscard]] static size_t capture_cell(PieceType attacker, Square to, PieceType captured) {
+        return (static_cast<size_t>(attacker) * SQUARE_NB + static_cast<size_t>(to)) * PIECE_TYPE_NB
+               + static_cast<size_t>(captured);
+    }
+    [[nodiscard]] size_t continuation_cell(const PieceToHistory* row, PieceType pt, Square to) const {
+        return row_index(row, &continuation->row[0][0][0][0]) * ROW_CELLS + static_cast<size_t>(pt) * SQUARE_NB + static_cast<size_t>(to);
+    }
+    [[nodiscard]] size_t pawn_cell(const PawnHistoryBucket* bucket, PieceType pt, Square to) const {
+        return row_index(bucket, &pawn->bucket[0]) * ROW_CELLS + static_cast<size_t>(pt) * SQUARE_NB + static_cast<size_t>(to);
+    }
+    [[nodiscard]] size_t cont_corr_cell(const PieceToCorrection* row, PieceType pt, Square to) const {
+        return row_index(row, &cont_corr->row[0][0]) * ROW_CELLS + static_cast<size_t>(pt) * SQUARE_NB + static_cast<size_t>(to);
+    }
+
+private:
+    // The row's position in its table, from its address: rows are stored
+    // contiguously in each table's nested array.
+    template<class Row>
+    [[nodiscard]] static size_t row_index(const Row* row, const Row* first) {
+        return static_cast<size_t>(reinterpret_cast<const char*>(row)
+                                   - reinterpret_cast<const char*>(first)) / sizeof(Row);
+    }
+#endif
 };

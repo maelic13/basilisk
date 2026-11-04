@@ -4,6 +4,13 @@ CoreHistoryTables::CoreHistoryTables()
     : continuation(std::make_unique<ContinuationHistory>())
     , pawn(std::make_unique<PawnHistory>())
     , cont_corr(std::make_unique<ContinuationCorrection>()) {
+#ifdef BASILISK_DIAGNOSTIC
+    shadow = std::make_unique<CrossColourShadow>(
+        size_t{PIECE_TYPE_NB} * SQUARE_NB * PIECE_TYPE_NB,
+        sizeof(ContinuationHistory::row) / sizeof(PieceToHistory) * ROW_CELLS,
+        size_t{PawnHistory::MAX_BUCKETS} * ROW_CELLS,
+        sizeof(ContinuationCorrection::row) / sizeof(PieceToCorrection) * ROW_CELLS);
+#endif
     clear();
 }
 
@@ -26,6 +33,7 @@ void CoreHistoryTables::clear(bool donor_fills) {
     for (auto& a : cont_corr->row)
         for (auto& row : a)
             fill_entries(row.entry, fill(5));
+    HIST_SHADOW(shadow->clear_cells());
 }
 
 void CoreHistoryTables::age(int main_num) {

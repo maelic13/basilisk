@@ -56,6 +56,9 @@ int capture_order_score(const Board& board, const CoreHistoryTables& history, Mo
     const PieceType attacker = type_of(board.piece_on(from_sq(m)));
     const PieceType captured = move_type(m) == EN_PASSANT ? PAWN
                              : type_of(board.piece_on(to));
+    HIST_SHADOW(history.shadow->read(ShadowTable::Capture,
+                                     CoreHistoryTables::capture_cell(attacker, to, captured),
+                                     board.turn()));
     return history.capture.entry[attacker][to][captured] + 7 * HIST_PIECE_VALUE[captured];
 }
 
@@ -89,6 +92,12 @@ void CoreMovePicker::score_quiets(int begin, int end) {
         int v = 2 * main[from][to] + 2 * pawn_.entry[pt][to]
               + cont_[0]->entry[pt][to] + cont_[1]->entry[pt][to] + cont_[2]->entry[pt][to]
               + cont_[3]->entry[pt][to] + cont_[5]->entry[pt][to];
+#ifdef BASILISK_DIAGNOSTIC
+        history_.shadow->read(ShadowTable::Pawn, history_.pawn_cell(&pawn_, pt, to), us);
+        for (int k : {0, 1, 2, 3, 5})
+            history_.shadow->read(ShadowTable::Continuation,
+                                  history_.continuation_cell(cont_[k], pt, to), us);
+#endif
 
         if ((checks_for(pt) & sq_bb(to)) && board_.see_ge(m, -75))
             v += 16384;

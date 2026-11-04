@@ -169,7 +169,21 @@ using InfoCallback = std::function<void(const std::string&)>;
     X(in_check_capt_see) X(in_check_cont_hist) X(in_check_quiet_see)      \
     /* Moves the quiet branch of move-loop pruning removed at PV nodes off \
        the previous PV (denominator moveloop_tested). */                  \
-    X(pv_quiet_pruned)
+    X(pv_quiet_pruned)                                                     \
+    /* Diagnostic builds: reads of the colourless capture (cap),          \
+       continuation (cont) and pawn histories and the continuation        \
+       correction (corr), by the colour that trained the entry read. Per  \
+       table: reads of a trained entry, those trained by the other colour \
+       alone, those trained by both, and the sum of the other colour's    \
+       share of the entry's updates in parts per million (denominator     \
+       its reads). */                                                     \
+    X(xc_cap_reads) X(xc_cap_other_only) X(xc_cap_mixed) X(xc_cap_other_ppm) \
+    X(xc_cont_reads) X(xc_cont_other_only) X(xc_cont_mixed)               \
+    X(xc_cont_other_ppm)                                                   \
+    X(xc_pawn_reads) X(xc_pawn_other_only) X(xc_pawn_mixed)               \
+    X(xc_pawn_other_ppm)                                                   \
+    X(xc_corr_reads) X(xc_corr_other_only) X(xc_corr_mixed)               \
+    X(xc_corr_other_ppm)
 
 struct DiagCounters {
 #define BASILISK_DIAG_COUNTER_FIELD(name) int64_t name = 0;
@@ -192,7 +206,7 @@ struct DiagCounters {
 // aggregate and the field count stay in step with the table.
 static_assert(sizeof(DiagCounters) == DiagCounters::COUNT * sizeof(int64_t),
               "DiagCounters holds something that is not a counter from the table");
-static_assert(DiagCounters::COUNT == 117, "the counter contract has 117 entries; extend, never rename");
+static_assert(DiagCounters::COUNT == 133, "the counter contract has 133 entries; extend, never rename");
 
 // One search's counters as `info string diag` lines, followed by the
 // evaluator's speed telemetry.

@@ -294,6 +294,16 @@ private:
         return hist_.pawn->bucket[state_.board->pawn_key_value() & pawn_hist_mask_];
     }
 
+#ifdef BASILISK_DIAGNOSTIC
+    // The colour that moves at stack record `ss`: every record is one ply,
+    // null moves included, so it alternates from the root's side.
+    Color shadow_root_side_ = WHITE;
+    [[nodiscard]] Color shadow_mover(const SearchStack* ss) const {
+        const auto ply = ss - (state_.stack + STACK_SENTINELS);
+        return (ply & 1) ? ~shadow_root_side_ : shadow_root_side_;
+    }
+#endif
+
     // Training: of the quiet histories by a quiet move made from `ss`; of the
     // continuation histories alone (e.g. the parent's move, from `ss - 1`); of
     // the capture history by a capture.

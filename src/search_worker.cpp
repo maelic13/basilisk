@@ -418,6 +418,10 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
 
     int start_depth = 1;
     state_.diag.reset();         // fresh diagnostic counters per `go`
+#ifdef BASILISK_DIAGNOSTIC
+    shadow_root_side_ = board.turn();
+    hist_.shadow->reset_reads();
+#endif
     evaluator_.diag_lazy = config_.limits.diag;
     evaluator_.lazy_fires = evaluator_.lazy_sign_flips = 0;
     evaluator_.lazy_margin_crossings = 0;
@@ -690,6 +694,21 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
     // print_search_diag() runs after this point.
     state_.diag.see_ge_calls      = board.see_ge_call_count();
     state_.diag.gives_check_calls = board.gives_check_call_count();
+#ifdef BASILISK_DIAGNOSTIC
+    const auto harvest = [](const CrossColourReads& r, int64_t& reads, int64_t& other_only,
+                            int64_t& mixed, int64_t& other_ppm) {
+        reads = r.reads; other_only = r.other_only; mixed = r.mixed; other_ppm = r.other_share_ppm;
+    };
+    DiagCounters& d = state_.diag;
+    harvest(hist_.shadow->reads(ShadowTable::Capture),
+            d.xc_cap_reads, d.xc_cap_other_only, d.xc_cap_mixed, d.xc_cap_other_ppm);
+    harvest(hist_.shadow->reads(ShadowTable::Continuation),
+            d.xc_cont_reads, d.xc_cont_other_only, d.xc_cont_mixed, d.xc_cont_other_ppm);
+    harvest(hist_.shadow->reads(ShadowTable::Pawn),
+            d.xc_pawn_reads, d.xc_pawn_other_only, d.xc_pawn_mixed, d.xc_pawn_other_ppm);
+    harvest(hist_.shadow->reads(ShadowTable::ContCorr),
+            d.xc_corr_reads, d.xc_corr_other_only, d.xc_corr_mixed, d.xc_corr_other_ppm);
+#endif
     state_.board = nullptr;
     shared_.pool = PoolResources{};
     state_.root_ordering = RootOrdering{};
