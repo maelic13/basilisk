@@ -95,6 +95,8 @@ static_assert(alignof(TTCluster) == 32, "TTCluster must stay 32-byte aligned");
 
 class TranspositionTable {
 public:
+    static constexpr size_t kMaxReservableClusters = (size_t{1} << 57) / sizeof(TTCluster);
+
     explicit TranspositionTable(size_t mb = 64) { resize(mb); }
 
     // Size the table from the byte budget the user asked for. The cluster
@@ -118,6 +120,12 @@ public:
         bool allocated = true;
         clusters_.reset();
         try {
+            // A table above every platform's virtual address space (2^57
+            // bytes, x86-64 with five-level paging) is refused here, without
+            // asking the allocator: no platform could reserve it, and under a
+            // sanitizer the allocator's refusal aborts rather than throws.
+            if (power > kMaxReservableClusters)
+                throw std::bad_alloc();
             clusters_ = std::make_unique<TTCluster[]>(power);
         } catch (const std::bad_alloc&) {
             // Not a smaller table: zero-filling the largest one the system

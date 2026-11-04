@@ -64,23 +64,11 @@ static void test_store_probe() {
 
 // A Hash the system cannot allocate keeps the previous table, cleared and
 // usable; it used to throw bad_alloc after freeing the old table, leaving no
-// table behind. The request is 2^43 MB, 2^63 bytes, beyond any address space,
-// so every allocator refuses it at once. The advertised maximum (32 TiB) is
-// not: macOS, and Linux under full overcommit, grant it lazily, and the
-// zero-fill then exhausts memory. Skipped under ASan, whose allocator aborts
-// on an oversized request instead of throwing.
-#if defined(__SANITIZE_ADDRESS__)
-#define BASILISK_TT_ASAN 1
-#elif defined(__has_feature)
-#if __has_feature(address_sanitizer)
-#define BASILISK_TT_ASAN 1
-#endif
-#endif
+// table behind. The request is 2^43 MB, 2^63 bytes, above every platform's
+// address space, so resize() refuses it before asking the allocator: the
+// refusal is the same everywhere, sanitizers included, and no memory of the
+// requested table is touched.
 static void test_failed_resize_keeps_a_table() {
-#ifdef BASILISK_TT_ASAN
-    begin_section("resize: an unallocatable Hash keeps a usable table (skipped under ASan)");
-    end_section();
-#else
     TranspositionTable tt(4);
     const size_t before = tt.allocated_bytes();
     const Key key = 0x0F1E2D3C4B5A6978ULL;
@@ -108,7 +96,6 @@ static void test_failed_resize_keeps_a_table() {
         EXPECT(tt.probe_copy(key, e));
         end_section();
     }
-#endif
 }
 
 static void test_key_miss() {

@@ -203,6 +203,7 @@ add_library(basilisk_engine STATIC
     src/search_root.cpp
     src/search_diagnostics.cpp
     src/syzygy.cpp
+    src/physical_memory.cpp
     ${BASILISK_SEARCH_KERNEL_SOURCES}
 )
 target_link_libraries(basilisk_engine PUBLIC basilisk_board PRIVATE fathom)
@@ -420,6 +421,10 @@ basilisk_cli_test(cli_bench 0 "Nodes searched *: *[0-9]+" bench 3)
 basilisk_cli_test(cli_go_runs_to_its_depth 0 "info depth 4 .*bestmove [a-h][1-8][a-h][1-8]" go depth 4)
 basilisk_cli_test(cli_help 0 "UCI chess engine.*bench .depth. .repeats." help)
 basilisk_cli_test(cli_unknown_exits_2 2 "Unknown command: 'frobnicate'" frobnicate)
+# Hash above the machine's physical memory is refused at parse time.
+add_test(NAME uci_hash_above_machine_limit
+         COMMAND ${CMAKE_COMMAND} "-DEXE=$<TARGET_FILE:basilisk>" "-DWORK=${CMAKE_CURRENT_BINARY_DIR}"
+                 -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/hash_limit_check.cmake)
 # An exception escaping a non-UCI thread is reported on stdout, then exit 1.
 add_test(NAME fatal_report_from_a_thread
          COMMAND ${CMAKE_COMMAND} "-DEXE=$<TARGET_FILE:test_fatal_report>" "-DARGS="
