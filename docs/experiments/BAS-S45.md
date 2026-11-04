@@ -92,6 +92,30 @@ Not re-read, with the reason:
 | Q3 | Of runs 1-8, none adopts | 70% | any of 1-8 adopts |
 | Q4 | Every one of runs 1-8 reads within ±8 of its B.3.2 reading | 75% | a run more than 8 Elo from its B.3.2 read |
 
+#### AMENDMENT 1 (2026-11-04, maintainer; before runs 2-9 played)
+
+- **The run list is run 9 alone** (`B3NmpEvalGate=1`, seed 45009). Runs
+  1-8 are withdrawn.
+  - The fit (B.3.3) was made with Basilisk's forms in place. A donor
+    form read on this arm plays unfitted against a form fitted for it,
+    so the read is tilted toward the kept form: it could confirm a donor
+    form, but never clear one.
+  - Clause b's five runs already default to the donor's form, and B.3.2
+    read them near zero.
+  - The eval gate's tilt runs the other way, because the fit was made
+    with the donor's bare null move. A gate that wins here is trusted.
+- **Run 1's partial games** (1,494 of 2,000,
+  `tools/results/b34-cat-FailLowStore/`) are dropped, unread.
+- **The kept forms** (`B3FailLowStore` 0, `CoreHistoryFills` 0,
+  `B3ProbCutTt` 0, `B3ExtBudget` 1) stay while they work.
+  - A fair comparison refits both arms. That is fine tuning for a few
+    Elo, so it waits in PLAN H.2.
+  - The departures table records each form with that reason, and the
+    eval gate's reading, kept or not.
+- **Predictions:** Q1 and Q2 stand. Q3 and Q4 are withdrawn with their
+  runs, unscored.
+- The rule, the vetoes and the conditions are unchanged.
+
 #### RESULT — append after exposure
 
 - **2026-11-03, an interrupted start.** The agent started the nine-run

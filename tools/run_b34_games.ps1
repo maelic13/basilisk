@@ -6,14 +6,13 @@
    the defaults, so a positive result favours the alternative (adopted at
    >= +5 with the 95% interval excluding 0).
 
-   -Run FailLowStore, HistoryFills, ProbCutTt, NmpAnyNode, MultiCut,
-        SingNegative, SingTtDepth, IirStale, NmpEvalGate
-   The runs are independent of one another, so they may be queued in any
-   order. A dry run plays nothing. #>
+   -Run NmpEvalGate   the null move's eval gate (B3NmpEvalGate=1)
+   BAS-S45's amendment 1 withdrew the other eight runs: on an arm fitted
+   with Basilisk's forms, a donor form plays unfitted, so their read was
+   tilted. A dry run plays nothing. #>
 param(
     [Parameter(Mandatory)]
-    [ValidateSet('FailLowStore', 'HistoryFills', 'ProbCutTt', 'NmpAnyNode', 'MultiCut',
-                 'SingNegative', 'SingTtDepth', 'IirStale', 'NmpEvalGate')]
+    [ValidateSet('NmpEvalGate')]
     [string]$Run,
     [switch]$DryRun
 )
@@ -28,14 +27,6 @@ $tune = @{ Path = Join-Path $engines 'basilisk-b34-on-tune-pext-tune-pgo.exe'; S
 
 # Alternative (arm A) against the defaults (arm B), with BAS-S45's seeds.
 $runs = [ordered]@{
-    FailLowStore = @{ Name = 'FailLowStore1'; Options = @('B3FailLowStore=1');   Seed = 45001 }
-    HistoryFills = @{ Name = 'HistoryFills1'; Options = @('CoreHistoryFills=1'); Seed = 45002 }
-    ProbCutTt    = @{ Name = 'ProbCutTt1';    Options = @('B3ProbCutTt=1');      Seed = 45003 }
-    NmpAnyNode   = @{ Name = 'NmpCutOnly0';   Options = @('B3NmpCutOnly=0');     Seed = 45004 }
-    MultiCut     = @{ Name = 'MultiCut1';     Options = @('B3MultiCut=1');       Seed = 45005 }
-    SingNegative = @{ Name = 'SingNegative1'; Options = @('B3SingNegative=1');   Seed = 45006 }
-    SingTtDepth  = @{ Name = 'SingTtDepth1';  Options = @('B3SingTtDepth=1');    Seed = 45007 }
-    IirStale     = @{ Name = 'IirStale1';     Options = @('B3IirStale=1');       Seed = 45008 }
     NmpEvalGate  = @{ Name = 'NmpEvalGate1';  Options = @('B3NmpEvalGate=1');    Seed = 45009 }
 }
 

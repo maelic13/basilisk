@@ -1272,6 +1272,25 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           maintainer during run 1. `B3FailLowStore` checkpointed at 1,494
           of 2,000 games and resumes with its own command. Runs 2-9 have
           not started. Maintainer-run from here.
+      - Maintainer decision 2026-11-04, before runs 2-9: **B.3.4 is the
+        eval gate's run alone** (BAS-S45 amendment 1).
+        - Why the other runs go:
+          - The fit was made with Basilisk's forms in place, so a donor
+            form read now plays unfitted against a form fitted for it.
+            The read is tilted toward the kept form: it could confirm a
+            donor form, but never clear one.
+          - Clause b's five runs already default to the donor's form,
+            and B.3.2 read them near zero.
+        - Why the gate stays: its tilt runs the other way. The fit was
+          made with the donor's bare null move, so a gate that wins
+          against it is trusted.
+        - The partial `B3FailLowStore` run is dropped, unread.
+        - The three kept forms and `B3ExtBudget` stay Basilisk's while
+          they work; there is no switch to the donor's form without a
+          reason. A fair comparison needs both arms fitted, which is
+          expensive fine tuning for a few Elo (B.3.2 read them at +3.3,
+          −0.5 and +0.9), so it waits in Phase H (H.2). Their departures
+          rows say so.
     - [ ] **B.3.5** `[V]` Cluster 2 gates
       SPRT `[0,3]` for the cluster, and each categorical and deletion arm
       at the bounds the packet registers.
@@ -2018,7 +2037,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.4 | GAME_GATE | V | Opened 2026-11-03: BAS-S45 registered, nine paired runs on the fitted ON Tune build (`tools/run_b34_games.ps1`), all dry-run accepted; run 1 interrupted at 1,494 games (resumes); maintainer-run |
+| B.3.4 | GAME_GATE | V | Opened 2026-11-03: BAS-S45 registered; amended 2026-11-04 (maintainer) to the eval gate's run alone on the fitted ON Tune build (`tools/run_b34_games.ps1 -Run NmpEvalGate`); maintainer-run |
 | B.3.5 | RESEARCH | V | Waits for B.3.4 (renumbered from B.3.4 on 2026-10-31) |
 | B.3.6 | RESEARCH | I2 | Added 2026-10-31; waits for B.3.5 |
 | B.16.1 | RESEARCH | V | Added 2026-11-03; a timing read on an idle host, the maintainer chooses when |
@@ -3130,6 +3149,16 @@ already repairing or a form it must choose anyway, and says so.
     per-bucket pruning offsets +1.6 ± 4.3, piece values per bucket
     unbaked) (TS-12): only if F.7's network has buckets the search can key
     on.
+  B.3.4 input (maintainer decision 2026-11-04):
+  - Basilisk's kept forms against the donor's, each arm fitted: today
+    `B3FailLowStore` 0, `CoreHistoryFills` 0, `B3ProbCutTt` 0 and
+    `B3ExtBudget` 1. B.3.2 read the first three at +3.3, −0.5 and +0.9
+    with the donor's form unfitted.
+    - A paired run on one fitted arm is tilted toward whichever form the
+      fit was made with, so the comparison refits each arm: the donor's
+      forms switched on and refitted, against the current fitted arm,
+      then one SPRT.
+    - Until then Basilisk's forms stay, since they work.
 - [ ] **H.3** `[I2]` Time-management refinements at their own control
   Each measured at the time control it acts at, never only at `3+0.03`,
   and tuned against an external engine at release speed (TT-3); every
