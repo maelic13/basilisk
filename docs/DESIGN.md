@@ -134,9 +134,10 @@ line names where it lives.
   must record the policy and never mix with natural-termination evidence.
 - Strength is measured at **3+0.03**, paired UHO openings, normalized Elo,
   **tablebases off** — the harness and the games are blind the same way.
-- **Bench signature** of the accepted head: `bench 13` = **5,369,042**
-  nodes (since B.3.5's gate turned Cluster 2's proof searches and extensions
-  on. Earlier: 11,880,564 at B.14's verdict guard, 16,615,757 at B.12's quiescence repair, 19,470,325 at A.13.2's
+- **Bench signature** of the accepted head: `bench 13` = **5,361,058**
+  nodes (since B.3.6's gate indexed the histories by coloured piece.
+  Earlier: 5,369,042 at B.3.5's gate, which turned Cluster 2's proof
+  searches and extensions on; 11,880,564 at B.14's verdict guard, 16,615,757 at B.12's quiescence repair, 19,470,325 at A.13.2's
   pawnless scaler, 19,108,490 at A.13.1's
   won KPK, 16,092,165 at A.11.11's
   fail-soft quiescence, 8,913,394 at

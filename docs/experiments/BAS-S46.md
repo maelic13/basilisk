@@ -255,3 +255,41 @@
 - The maintainer must confirm the host is idle before resuming. The
   wrapper's preflight also refuses a busy host.
 
+#### GATE RESULT (2026-11-04)
+
+- **H1 accepted** at 9,618 pairs (19,236 games): LLR 2.947 against the
+  2.944 bound, after the resumed run's 3h12m.
+  - Elo **+4.7 ± 3.0**, nElo +7.7 ± 4.9. This is a first-crossing
+    estimate.
+  - W/D/L 5,143/9,210/4,883; pentanomial [281, 2,292, 4,280, 2,416, 349].
+  - Faults: eight time losses, five for the coloured arm and three for
+    the colourless, of 96 allowed. No other fault occurred.
+  - Sixteen post-terminal pairs are kept as evidence outside the sample.
+  - Recomputed from the pentanomial: score 0.50676, Elo +4.70, nElo
+    +7.66, LLR 2.947. The harness's PGN recount agrees.
+- **Artifacts:** `tools/results/b36-gate/`, seed 46001.
+  - Run record `F82B90F3…`, PGN `A38F1459…`, results `39154974…`.
+  - The resumed run's manifest is
+    `tools/results/colosseum_sprt_b36-gate_20261104_172825.manifest.txt`
+    (`10ac28b2…`). The tree was clean at `0ba63a5`, and both arms' hashes
+    and fingerprints matched their pins.
+- **Game speed:** the coloured arm searched 1.95M nodes per second
+  against the colourless arm's 1.99M (−2.0%).
+  - Per move: 137,302 nodes against 140,278.
+  - Mean depth without mate scores: 15.78 against 15.84.
+  - The larger tables' cost is inside the gate's result.
+- **The rule (H1):** `COLOUR_HISTORY` defaults ON, and the fingerprint
+  record moves to **5,361,058**.
+  - `COLOUR_HISTORY=OFF` reproduces 5,369,042.
+  - With `B3_PROOF=OFF` as well, it reproduces 11,880,564. CI's
+    pre-Cluster-2 job builds that arm.
+- **The default, qualified on fresh builds** (Release PEXT, clang, no
+  profile; the source is the closing head's):
+  - Default Release, Tune, Diag and Ablate: `bench 13` 5,361,058.
+  - `COLOUR_HISTORY=OFF`: 5,369,042.
+  - `B3_PROOF=OFF` with `COLOUR_HISTORY=OFF`: 11,880,564.
+  - CTest 26/26 on the default and on the pre-Cluster-2 arm, in Release
+    and in sanitizer builds.
+- **X7 hit:** the SPRT accepted H1.
+- Disposition: B.3.6 closed.
+

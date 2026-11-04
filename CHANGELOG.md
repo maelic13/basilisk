@@ -94,6 +94,15 @@ and next step).
   the same time it searches two to two and a half plies (half-moves)
   deeper. `bench 13` is now 5,369,042.
 
+- **Move-ordering histories tell White's moves from Black's.** The
+  histories that rank captures, follow-up moves and pawn-structure moves
+  used to share one entry between White's move and Black's identical
+  one, so each side learned partly from the other's experience. They
+  now keep the colours apart, as Stockfish does. Measured at `3+0.03`,
+  this gained **+4.7 ± 3.0 Elo** (19,236 games, a sequential test). Each
+  search thread's history tables grow from about 9 MiB to 21 MiB.
+  `bench 13` is now 5,361,058.
+
 - **Development builds name their commit**, as Stockfish's do. A build
   between releases reports `Basilisk dev-20261025-8b3f151c`: the commit's
   date and the first eight characters of its hash, with `-m` after the date

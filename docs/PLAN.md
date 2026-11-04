@@ -581,7 +581,7 @@ B.1 head (BAS-S23); the legacy kernel and the switch were later deleted
 (B.8.1). B.10 repaired seven rank-mirrored piece-square
 tables, +18.3 ± 12.9 Elo (BAS-S26).
 
-- [ ] **B.3** Cluster 2 — pruning and extensions
+- [x] **B.3** Cluster 2 — pruning and extensions
   Cluster 2 — proof searches and extensions: NMP (cut-node population,
   improving and prior-fail-high margin, dynamic reduction, verification
   region), ProbCut (qsearch pre-verification, margin-scaled depth, the small
@@ -627,11 +627,12 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
      - a short imperative title (draft: "Rebuild pruning and extensions");
      - a few lines on what and why: Cluster 2's proof searches and
        extensions in Stockfish's form, fitted; the false win in drawn
-       KBP-K; draw verdicts that take no correction; Hash bounded by
-       physical memory;
+       KBP-K; draw verdicts that take no correction; histories indexed
+       by coloured piece; Hash bounded by physical memory;
      - the results, one per line: B.12 `[-5,5]` +3.8 ± 5.2 Elo (2,567
        pairs); B.14 `[-5,5]` +7.4 ± 6.9 Elo (1,271 pairs); B.3.5 (a) and
-       (b) at their stops; (c) at `10+0.1`;
+       (b) at their stops; (c) at `10+0.1`; B.3.6 `[0,3]` +4.7 ± 3.0 Elo
+       (9,618 pairs);
      - after an empty line, `Bench: <the ON record>`.
   6. After the squash merge, delete the branch locally and on `origin`.
      The branch's commits stay citable under the PR's ref.
@@ -652,6 +653,16 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       tests, `check_roadmap` with its self-test, and `check_citations`.
       It is run again on the delivery head after B.3.6.
     - Steps 4-6 wait for B.3.6, B.3's last leaf.
+  - Progress 2026-11-04, after B.3.6's gate (BAS-S46 H1, +4.7 ± 3.0
+    Elo): `COLOUR_HISTORY` defaults ON, and the fingerprint record is
+    5,361,058. CI's pre-Cluster-2 job builds `B3_PROOF=OFF` with
+    `COLOUR_HISTORY=OFF`, at 11,880,564.
+    - Step 3 passes on this head. `bench 13` is 5,361,058 on the default
+      Release, Tune, Diag and Ablate builds, and 11,880,564 on the
+      pre-Cluster-2 arm. CTest passes 26/26 on both arms, Release and
+      sanitizer. `check_roadmap`, `check_citations`, the SPSA-surface
+      check and the tool tests pass.
+    - Steps 4-6 are next.
   Opens in the standard cluster shape: B.3.0 research on the accepted B.2
   head (re-basing B.0's handoff), B.3.1 implement, B.3.2 diagnostics and
   paired run, B.3.3 sweep and SPSA, B.3.4 Basilisk's forms re-read on the
@@ -1437,7 +1448,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           conversions).
         - P9 missed: game NPS is 0.96× the OFF arm, and the cause is not
           the cuckoo loop (0.30%). B.7.2 takes it.
-    - [ ] **B.3.6** `[I2]` Colour-indexed histories (S2)
+    - [x] **B.3.6** `[I2]` Colour-indexed histories (S2)
       Added 2026-10-31 (maintainer): S2 above, given a leaf so it runs. On
       the accepted B.3 head, research first: a shadow counter of
       cross-colour hits per table (capture, continuation and pawn
@@ -1489,6 +1500,13 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           Rarog workload spiked the host for about four minutes and
           slowed both arms equally. It resumes from its checkpoint,
           unchanged (BAS-S46 *GATE INTERRUPTION*).
+      - Gate 2026-11-04 (BAS-S46 *GATE RESULT*): **H1** at 9,618 pairs,
+        +4.7 ± 3.0 Elo (a first-crossing estimate). It had eight time
+        losses (5-3) and no other faults. In games the coloured arm
+        searched 2.0% fewer nodes per second.
+        - `COLOUR_HISTORY` defaults ON. The fingerprint record moves to
+          5,361,058. `COLOUR_HISTORY=OFF` reproduces 5,369,042.
+        - CLOSED.
 - [ ] **B.16** Search-programme instruments
   Added 2026-11-03 (maintainer: "the instruments which would help us now,
   somewhere close"): four instruments the Triumviratus review found that
@@ -2231,7 +2249,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.6 | GAME_GATE | I2 | Opened 2026-11-04 (BAS-S46): step 1 read 3.1-16.3% cross-colour; step 2, the coloured index behind `COLOUR_HISTORY` (`70e978b`), planted check exact, gate pinned (`tools/run_b36_gate.ps1`); interrupted at 3,702 pairs by a host load, resuming; maintainer-run |
 | B.16.1 | RESEARCH | V | Added 2026-11-03; a timing read on an idle host, the maintainer chooses when |
 | B.16.2 | RESEARCH | I2 | Added 2026-11-03; needs no idle host, can be worked between B.3.3's blocks |
 | B.16.3 | RESEARCH | V | Added 2026-11-03; stored games, judge CPU, maintainer-run |

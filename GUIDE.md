@@ -11,9 +11,9 @@ in `docs/PROCESS.md`; where the engine stands is PLAN §1.
 | Item | Value |
 |---|---|
 | Released baseline | **1.10.2** on `master`, tagged `v1.10.2` (2026-10-08), `bench 13` 14,978,465 |
-| Bench fingerprint | **5,369,042** (`bench 13`, since B.3.5's gate turned Cluster 2 on; 11,880,564 at B.14; 16,615,757 at B.12; 19,470,325 at A.13.2; 19,108,490 at A.13.1; 16,092,165 at A.11.11; 8,913,394 at A.11.10; 7,857,713 at A.11.9; 7,384,101 at A.11.7; 7,233,823 at A.11.6; 8,753,339 at A.11.2; 9,260,429 at A.11.1; 8,437,148 at B.10; 11,099,210 at B.2.4; 14,978,465 for 1.10.0 to 1.10.2) |
+| Bench fingerprint | **5,361,058** (`bench 13`, since B.3.6's gate turned the coloured histories on; 5,369,042 at B.3.5; 11,880,564 at B.14; 16,615,757 at B.12; 19,470,325 at A.13.2; 19,108,490 at A.13.1; 16,092,165 at A.11.11; 8,913,394 at A.11.10; 7,857,713 at A.11.9; 7,384,101 at A.11.7; 7,233,823 at A.11.6; 8,753,339 at A.11.2; 9,260,429 at A.11.1; 8,437,148 at B.10; 11,099,210 at B.2.4; 14,978,465 for 1.10.0 to 1.10.2) |
 | Active experiment | None |
-| Long job | None (B.3.5 closed on BAS-S43's H1; Cluster 2 defaults ON; B.3.6 is next) |
+| Long job | None (B.3.6 closed on BAS-S46's H1; B.3 is complete, and its delivery PR is next) |
 | Next release | **1.11.0** after B (B.11), then 1.12.0 after C, 1.13.0 after E; **2.0.0** is the first NNUE release |
 
 ## Model by class
@@ -34,7 +34,7 @@ generations change. These are maintainer judgments, not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **B.3.6** `[I2]` Colour-indexed histories (S2) — Claude Opus 5 — High
+**Next step:** **B.4** `[I2]` Cluster 3 — quiescence — Claude Opus 5 — High
 
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
@@ -87,14 +87,14 @@ B.1 head (BAS-S23); the legacy kernel and the switch were later deleted
 (B.8.1). B.10 repaired seven rank-mirrored piece-square
 tables, +18.3 ± 12.9 Elo (BAS-S26).
 
-- [ ] **B.3** Cluster 2 — pruning and extensions
+- [x] **B.3** Cluster 2 — pruning and extensions
     - [x] **B.3.0** `[R2]` Research and handoff on the B.2 head
     - [x] **B.3.1** `[I2]` Implement behind the umbrella switch
     - [x] **B.3.2** `[V]` Diagnostics and the unfitted paired run
     - [x] **B.3.3** `[V]` Curvature sweep, then SPSA in blocks
     - [x] **B.3.4** `[V]` Basilisk's forms re-read on the fitted arm
     - [x] **B.3.5** `[V]` Cluster 2 gates
-    - [ ] **B.3.6** `[I2]` Colour-indexed histories (S2)
+    - [x] **B.3.6** `[I2]` Colour-indexed histories (S2)
 - [ ] **B.16** Search-programme instruments
     - [ ] **B.16.1** `[V]` Wall-clock overhead read
     - [ ] **B.16.2** `[I2]` Pruning and reduction pricing
