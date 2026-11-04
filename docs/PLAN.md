@@ -601,8 +601,15 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
      - CHANGELOG gets an entry for the new pruning with (a)'s result.
      - The OFF arm stays compilable until the cleanup leaf.
      - On H0, BAS-S43's reject clause applies instead.
-  2. Qualify the Hash bound, which is still syntax-checked only:
-     - release CTest on both arms, including `uci_hash_above_machine_limit`;
+  2. Qualify the Hash bound, which is still syntax-checked only. Since
+     2026-11-04 (maintainer) every `setoption` that sends a refused Hash,
+     above the machine's limit or refused by the platform, is announced,
+     and no other command repeats the notice:
+     - release CTest on both arms, including `uci_hash_above_machine_limit`
+       and `test_engine_ponder`'s refused-Hash section; the process test's
+       script was checked against stub engines (a correct one passes; a
+       silent one, a once-only one and one that repeats on other commands
+       fail);
      - `bench 13` unchanged on both arms;
      - the sanitizer build's `test_tt` and `test_uci_protocol`.
      macOS and Linux are first compiled by the PR's CI.
