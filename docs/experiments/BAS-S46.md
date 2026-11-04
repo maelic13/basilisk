@@ -183,7 +183,7 @@
     `test_move_picker_core`, `test_tt`, `test_b3_proof`, `test_search`,
     `test_engine_ponder` and `test_invariants`.
 - **The planted check** (`tools/results/b36-20261104/col_suite_d14.json`
-  `bc53b0a5…`, the coloured Diag build on `suite_v2` at depth 14):
+  `0b0c3a04…`, the coloured Diag build on `suite_v2` at depth 14):
   - The capture, continuation and pawn histories read **0.0000%**
     other-colour share, with no read of an entry the other colour
     trained.
