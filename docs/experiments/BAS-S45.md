@@ -121,6 +121,42 @@ Not re-read, with the reason:
 
 #### RESULT — append after exposure
 
+- **Run 9, `B3NmpEvalGate=1`** (maintainer-run 2026-11-04,
+  `tools/results/b34-cat-NmpEvalGate/`, seed 45009):
+  - **−6.1 ± 9.7 Elo** (nElo −9.6 ± 15.2).
+  - W/D/L 518/929/553, recounted from the PGN; pentanomial [49, 239, 447,
+    228, 37].
+  - 0 engine faults, 0 time losses, 0 infrastructure faults. The binary
+    is `D47013B9…`; the repository was clean at launch.
+  - `result.json` `085a0557…`, `games.pgn` `8a5f80b6…`.
+- **The rule:** −6.1 is below +5, so the gate is not adopted. The default
+  stays 0, the donor's bare null move, and there is nothing to price.
+  - The interval [−15.8, +3.6] holds 0.
+  - The read is 17.4 Elo below B.3.2's +11.3 ± 9.3, about 2.5 standard
+    errors apart. Two things account for it:
+    - The fit was made with the bare form, and it made the null move
+      less aggressive on all four of its moving terms (B.3.3's finding
+      1), doing part of the gate's work with the constants.
+    - The tilt runs against the gate.
+  - A refit with the gate on was not asked for, and the gate's B.3.2 gain
+    does not survive the fit.
+- **Predictions:**
+  - **Q1 hit:** the gate read −6.1, below +11.3.
+  - **Q2:** the gate did not adopt; Q2 gave it 35%.
+  - Q3 and Q4 were withdrawn by amendment 1.
+- **Departures table:** written to the packet
+  (`analysis/b30_cluster2_research_2026-10-30.md`, *Departures table
+  (B.3.4)*).
+  - Four categorical forms are kept, with their waits: `B3FailLowStore`
+    goes to B.4, and `CoreHistoryFills`, `B3ProbCutTt` and `B3ExtBudget`
+    go to H.2.
+  - Two seed values, the singular margin and `seekMate`'s depth, belong
+    to the fit.
+  - The gate's reading is recorded too.
+- **Disposition: CLOSED.** No default moved. B.3.5's candidate is the
+  fitted arm itself (engine of `f02a9e4`, 5,369,042), so BAS-S43 (a) and
+  (c) play the same ON build as (b)'s fitted arm.
+
 - **2026-11-03, an interrupted start.** The agent started the nine-run
   queue at 22:33, which was not its to start. The maintainer stopped it
   during run 1 (`B3FailLowStore=1`), which checkpointed at 1,494 of 2,000

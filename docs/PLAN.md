@@ -1210,7 +1210,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           (`analysis/b33_constants_2026-11-03.md`).
         - Baked per arm: the ON arm's fingerprint is 5,369,042, and the
           fingerprint record (OFF) stays 11,880,564.
-    - [ ] **B.3.4** `[V]` Basilisk's forms re-read on the fitted arm
+    - [x] **B.3.4** `[V]` Basilisk's forms re-read on the fitted arm
       Added 2026-10-31 (maintainer). B.3.2's categorical runs read the
       donor's forms with Cluster 1's constants fitted to the old tree, so
       a donor form can lose only for want of its fit. On the fitted tune
@@ -1301,6 +1301,17 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
             exception).
           - `CoreHistoryFills`, `B3ProbCutTt` and `B3ExtBudget` stay in
             H.2: nothing in B.4 or B.5 forces them.
+      - Closed 2026-11-04 (BAS-S45; maintainer-run):
+        - The eval gate reads **−6.1 ± 9.7 Elo** on the fitted arm (2,000
+          games, 0 faults, PGN recounted), so it is not adopted. B.3.2
+          read +11.3 unfitted. The fit, made with the bare form, made the
+          null move less aggressive on all four of its moving terms.
+        - No default moved. B.3.5's candidate is the fitted arm at
+          `f02a9e4`, 5,369,042.
+        - The departures table is in the packet
+          (`analysis/b30_cluster2_research_2026-10-30.md`): four kept
+          forms with their waits (B.4 for the fail-low store, H.2 for
+          the rest), two seed values for the fit, and the gate's reading.
     - [ ] **B.3.5** `[V]` Cluster 2 gates
       SPRT `[0,3]` for the cluster, and each categorical and deletion arm
       at the bounds the packet registers.
@@ -2058,8 +2069,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.3.4 | GAME_GATE | V | Opened 2026-11-03: BAS-S45 registered; amended 2026-11-04 (maintainer) to the eval gate's run alone on the fitted ON Tune build (`tools/run_b34_games.ps1 -Run NmpEvalGate`); maintainer-run |
-| B.3.5 | RESEARCH | V | Waits for B.3.4 (renumbered from B.3.4 on 2026-10-31) |
+| B.3.5 | GAME_GATE | V | Registered 2026-11-03 (BAS-S43); B.3.4 closed 2026-11-04 with no adoption, so the candidate is the fitted arm (5,369,042); next: build and pin the arms, the P9 profile, then (b) and the maintainer's P9 choice before (a) and (c) |
 | B.3.6 | RESEARCH | I2 | Added 2026-10-31; waits for B.3.5 |
 | B.16.1 | RESEARCH | V | Added 2026-11-03; a timing read on an idle host, the maintainer chooses when |
 | B.16.2 | RESEARCH | I2 | Added 2026-11-03; needs no idle host, can be worked between B.3.3's blocks |

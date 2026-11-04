@@ -526,7 +526,7 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S44](experiments/BAS-S44.md) — B.14: the evaluator's draw verdicts take no correction, `[-5,5]` — H1, +7.4 ± 6.9; repair kept
 
-- [BAS-S45](experiments/BAS-S45.md) — B.3.4: Basilisk's forms re-read on the fitted arm — registered
+- [BAS-S45](experiments/BAS-S45.md) — B.3.4: Basilisk's forms re-read on the fitted arm — closed: the eval gate −6.1 ± 9.7, not adopted; no default moved
 
 | ID | Title | Disposition |
 |---|---|---|

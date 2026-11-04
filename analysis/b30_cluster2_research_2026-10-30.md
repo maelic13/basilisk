@@ -7410,3 +7410,34 @@ the `!kB3Proof` block) increments no counter. So §9 item 5's "on the OFF
 arm" read is not available with the committed instruments; item 5's
 question was answered on the ON Tune build at `B3NmpVerify=2` instead
 (0.036% of null cuts refused).
+
+## Departures table (B.3.4, 2026-11-04)
+
+Every place the fitted ON arm (engine of `f02a9e4`, `bench 13` 5,369,042)
+keeps Basilisk's form where the donor's differs, for B.6.1. Each row gives
+the reading that kept the form and what the re-read waits on. B.3.4's
+amendment 1 (BAS-S45; maintainer 2026-11-04) explains the waits:
+- a paired run on one fitted arm is tilted toward the form the fit was
+  made with;
+- a fair re-read refits both arms;
+- a fair re-read worth a few Elo waits in Phase H, unless a programme
+  leaf must choose the form anyway.
+
+| Place | Basilisk's form (kept) | The donor's form | The reading that kept it | Waits on |
+|---|---|---|---|---|
+| Fail-low TT store (`B3FailLowStore` 0) | stores the best-scored move after a fail low | stores no move | B.3.2: the donor's form +3.3 ± 9.1, unfitted; not re-read in B.3.4 (tilted) | **B.4**: its TT write on exit chooses the quiescence form, and B.4 settles both searches before its fit |
+| Fresh history tables (`CoreHistoryFills` 0) | zero at the first search after a clear | filled with the donor's values | B.3.2: −0.5 ± 9.3, unfitted; not re-read (tilted) | H.2: each arm refitted, then one SPRT |
+| Small TT ProbCut (`B3ProbCutTt` 0) | none | returns beta + margin from a deep enough lower bound | B.3.2: +0.9 ± 9.5, unfitted; not re-read (tilted); its margin is off the fit surface (inert) | H.2, as above |
+| Per-line extension budget (`B3ExtBudget` 1) | positive singular plies on a line bounded by the root depth | none | B.3.2 item 13, settled without games (amendment 2: the budget stays as a guard) | H.2, as above |
+| Singular margin (`B3SingMargin` 232) | 232/63 cp per ply (seed 252) | 17 | B.3.3: the sweep read the donor's 17 at WAC 241 against 240; the fit moved 252 → 232, away from 17 | the fit's: B.6's joint surface carries the coordinate and its full range (13-378) |
+| `seekMate` root depth (`B3SeekMateDepth` 12) | 12 | 16 | B.3.3's sweep (zero-game): 8 and 16 read WAC 241, as 12 does; P12's Elo leg unscored | the fit's: an F line, read at `10+0.1` only if P14 fires (BAS-S43 (c)) |
+
+Not a departure, recorded as the clause asks:
+- **The null move's eval gate** (`B3NmpEvalGate`). The arm runs the
+  donor's bare form, and the gate is Basilisk's (and the oracle's).
+  - B.3.2 read the gate at +11.3 ± 9.3, unfitted, but two binding tests
+    vetoed it.
+  - B.3.4 read it at **−6.1 ± 9.7** on the arm fitted with the bare form.
+    That fit made the bare null move less aggressive on all four of its
+    moving terms (B.3.3's finding 1), so the tilt runs against the gate.
+  - The donor's form stays. Nothing waits.
