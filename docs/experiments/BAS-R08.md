@@ -98,11 +98,64 @@ report (+1.07, a rounding-affected secondary quantity).
 
 #### RESULT — append after exposure
 
+Read 2026-11-05 06:30–06:37 UTC by the maintainer,
+`tools/run_b161_wallclock.ps1`, archive `tools/results/b161-wallclock/`
+(3,600 trials; `python tools/diag/wallclock.py --report` reproduces the
+table). Host load 0.6% before and 0.3% after, no engine, harness or build
+process; CPUs 2 (1T) and 2, 4, 6, 8 (4T) at high priority; both hashes
+matched.
+
+Medians in ms, Basilisk / Stockfish 19 / gap (deciding quantities):
+
+| Quantity | Threads 1 | Threads 4 |
+|---|---|---|
+| `go nodes 1000` wall | 0.51 / 0.81 / −0.30 | 0.52 / 0.28 / +0.24 |
+| `movetime 50` overshoot | 0.58 / −0.13 / +0.71 | 0.97 / −0.11 / **+1.08** |
+| `movetime 100` overshoot | 0.56 / −0.12 / +0.68 | 0.96 / −0.14 / **+1.10** |
+| `movetime 300` overshoot | 0.62 / −0.15 / +0.77 | 1.01 / −0.14 / **+1.14** |
+| ponderhit latency | 0.58 / 0.43 / +0.15 | 1.02 / 0.46 / +0.56 |
+
+No early and no missing `bestmove`; every nodes trial carried an info
+`time`. The round order did not matter (Basilisk 4T overshoot 1.00 in
+even rounds, 0.96 in odd).
+
 - Diagnostics (not the verdict):
-- Deciding result:
-- Disposition:
+  - Basilisk's overshoot does not grow with the budget (0.56–0.62 ms at
+    1T, 0.96–1.01 at 4T over 50 to 300 ms): a fixed stop latency, not a
+    share of the think. Four threads add about 0.4 ms to both the
+    `movetime` stop and the ponderhit stop, and nothing to `go nodes`.
+    The helpers' stop and join is the likely place; not attributed.
+  - Wall − report (secondary): +0.70 at 1T, +1.24 at 4T, inflated the
+    same way as below and by whole-ms reports.
+  - **Confound in the reference, found after exposure.** Stockfish
+    reports exactly the movetime (`time 50`, `100`, `300` in all 600
+    trials) yet its `bestmove` arrived before the movetime on the outside
+    clock in 63–70% of trials: its clock counts whole milliseconds, so it
+    stops up to 1 ms early. Basilisk's steady clock never stopped early
+    (0 of 600). The instrument's own floor is 0.13 ms (the honest fake
+    engine). Against an unrounded reference the 4T overshoot gap would be
+    about 0.5–0.6 ms; the registered rule compares with Stockfish as read,
+    so the verdict below stands as registered.
+- Deciding result: **4-thread `movetime` overshoot exceeds the 1.0 ms
+  line** at all three budgets (+1.08, +1.10, +1.14). Every Threads 1
+  quantity, 4T `go nodes` wall and 4T ponderhit latency pass. Basilisk's
+  absolute cost is about 0.5 ms a move at 1T (the gates' setting) and
+  1.0 ms at 4T: under 1% and about 1.7% of a 60 ms `3+0.03` think,
+  against Triumviratus's 6.15 ms.
+- Disposition: observation; the read passes at 1T. The 4T stop latency is
+  a finding for the correctness-repair path; its leaf and gate are the
+  maintainer's to place. D.1 takes the numbers as its overhead prior.
 
 #### PREDICTION CALIBRATION — preserve the original prediction above
 
-- Original prediction summary:
-- Observed result:
+- Original prediction summary: 1T within 1 ms on every quantity (0.85);
+  `go nodes 1000` about 0.7 against 1.0 ms; 4T movetime 0.5–1.2 ms above
+  Stockfish, 0.5 that a gap exceeds 1 ms; likeliest failure the helpers'
+  stop and join.
+- Observed result: 1T passed (largest gap +0.77); nodes 0.51 against
+  0.81; 4T movetime +1.08 to +1.14, inside the predicted range and over
+  the line; the 4T-only extra latency points at the predicted place. Miss:
+  the dry runs showed Stockfish's negative overshoot and it was read as
+  noise; the reference's whole-ms clock should have been named before the
+  rule fixed Stockfish as the comparison. A later read of this kind
+  compares with the instrument's floor as well as with Stockfish.

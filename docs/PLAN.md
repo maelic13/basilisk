@@ -1523,7 +1523,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
   `(ANY TIME) — before B.4` (maintainer 2026-11-04: B.16 now, after B.3),
   because the roadmap orders leaves by number. Sources:
   `analysis/triumviratus_review_2026-11-03.md` (TT-1, TT-2, TM-7, TM-9).
-    - [ ] **B.16.1** `[V]` Wall-clock overhead read (ANY TIME) — before B.4
+    - [x] **B.16.1** `[V]` Wall-clock overhead read (ANY TIME) — before B.4
       What the gate's clock costs outside the search, at the controls the
       gates use (`3+0.03` leaves about 50–100 ms a move, so a few ms is
       several per cent of the think) (TT-2). Timed from outside the
@@ -1547,6 +1547,15 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         and launcher `tools/run_b161_wallclock.ps1`, dry run accepted.
         The read takes about seven minutes on an idle host; the
         maintainer starts it.
+      - Read 2026-11-05 (BAS-R08 *RESULT*), host idle, 3,600 trials.
+        Threads 1 passes: Basilisk's stop costs about 0.5 ms a move,
+        every gap to Stockfish at most +0.77 ms, `go nodes 1000` 0.51
+        against 0.81 ms. Threads 4: `movetime` overshoot +1.08 to +1.14
+        ms, over the 1 ms line; four threads add about 0.4 ms to every
+        stop. Part of the gap is the reference's: Stockfish's whole-ms
+        clock stops up to 1 ms early. The 4T stop latency is a
+        correctness-repair finding whose leaf the maintainer places;
+        D.1 takes the numbers as its overhead prior. CLOSED.
     - [ ] **B.16.2** `[I2]` Pruning and reduction pricing (ANY TIME) — before B.4
       What each pruning rule and each reduction hides (TM-9, Triumviratus's
       `prunelog` and `redlog`). In the Diag flavour, a deterministic sample
@@ -2268,7 +2277,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.16.1 | LOCAL_QUALIFIED | V | Instrument validated 2026-11-04; BAS-R08's read waits for an idle host, maintainer-run |
 | B.16.2 | RESEARCH | I2 | Added 2026-11-03; needs no idle host, can be worked between B.3.3's blocks |
 | B.16.3 | RESEARCH | V | Added 2026-11-03; stored games, judge CPU, maintainer-run |
 | B.16.4 | RESEARCH | I1 | Added 2026-11-03; before B.15.4 |
