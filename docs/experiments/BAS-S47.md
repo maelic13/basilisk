@@ -130,6 +130,36 @@ Three registered runs, all `Hash 64`, one fresh process per position,
 - Full conditions / provenance: `tools/diag/suite_v2.epd`, archives
   `tools/results/b162-pricing/{isolation,honest,planted-qfut,planted-rfp,reading}/`.
 
+#### AMENDMENT 1 — registered 2026-11-05, after run 2
+
+Run 1 passed (106 positions, 2,490,852 probes, none differ). Run 2's
+reverse-futility arm passed (2.57% [2.48, 2.67] honest, 3.19% [3.09, 3.30]
+planted). Its quiet-futility arm **failed its rule, in the wrong
+direction**: 1.42% [1.36, 1.47] honest, 0.78% [0.73, 0.83] planted, lower
+in every depth band, node type and move bucket.
+
+The plant was not a loosening, a design error made at registration. The
+futility value is `eval + base + slope × lmr_depth`, and `lmr_depth`
+(reduced depth plus history / about 3,000) is negative for quiets with a
+poor history. The planted margin 80 + 34 L lies above the honest 166 + 107 L
+for every L ≤ −2, so the plant tightened the rule for poorly rated quiets
+and loosened it only for well-rated ones; its decisions per search node
+fell (0.339 against 0.360). Lowering the reverse-futility margin's slope
+lowered it at every depth, which is why that arm was a valid plant.
+
+Exposure before this amendment: runs 1 and 2 above, read in full (every
+quiet-futility and reverse-futility cell of the three arms); the reading
+(run 3) not run.
+
+Amended check (2a): the tune binary, the same 40 positions, depth 12,
+`Pricing 4`, quiet futility planted with `CoreQuietFutBase 80` alone (slope
+107 kept): the futility value falls by 86 at every `lmr_depth`, so the rule
+prunes everything it pruned before and more. Rule: the planted beat share
+above the honest arm's 1.42% [1.36, 1.47] with disjoint 95% intervals.
+Probability 0.8. If it fails, the instrument is not trusted and the leaf
+returns to research with this record. Run 3 waits for it. Archive
+`tools/results/b162-pricing/planted-qfut-base/`.
+
 #### RESULT — append after exposure
 
 - Diagnostics (not the verdict):
