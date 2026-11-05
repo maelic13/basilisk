@@ -74,6 +74,20 @@ class SummaryTest(unittest.TestCase):
         self.assertEqual(s["quiet_futility moves 4-6"]["beats"], 4)
         self.assertNotIn("rfp moves -", s)
 
+    def test_screen(self):
+        cells, _ = pricing.parse_price(SEARCH)
+        total = {}
+        pricing.add_cells(total, cells)
+        s = pricing.summarise(total)
+        # rfp: 80 decisions x 10% beats; quiet_futility: 40 x 20% changes,
+        # both per 1,000 search nodes.
+        self.assertAlmostEqual(pricing.hidden_per_mnode("rfp", s["rfp"], 1000), 8000.0)
+        self.assertAlmostEqual(
+            pricing.hidden_per_mnode("quiet_futility", s["quiet_futility"], 1000), 8000.0)
+        out = pricing.screen(s, 1000)
+        self.assertEqual(sorted(out["top_hidden"]), ["quiet_futility", "rfp"])
+        self.assertEqual(out["beat_floor_above_5pct"], ["quiet_futility"])
+
     def test_wilson(self):
         lo, hi = pricing.wilson(0, 100)
         self.assertEqual(lo, 0.0)

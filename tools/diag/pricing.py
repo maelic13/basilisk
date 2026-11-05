@@ -183,9 +183,29 @@ def fmt_share(v: float | None) -> str:
     return "-" if v is None else f"{100 * v:6.2f}%"
 
 
-def print_table(summary: dict, detail: str | None) -> None:
+def hidden_per_mnode(name: str, s: dict, search_nodes: int) -> float | None:
+    """Estimated hidden changes per million search nodes: decisions times the
+    change share (the beat share for a node rule, which has no best move)."""
+    share = s["beat_share"] if name.split()[0] in NODE_RULES else s["change_share"]
+    if share is None or search_nodes <= 0:
+        return None
+    return s["decisions"] * share / search_nodes * 1e6
+
+
+def screen(summary: dict, search_nodes: int) -> dict:
+    """BAS-S47's screening rule: the three rules with the most estimated
+    hidden changes per million search nodes, and every rule whose beat
+    share's lower 95% bound exceeds 5%."""
+    rules = [r for r in RULE_ORDER if r in summary and summary[r]["probed"]]
+    ranked = sorted(rules, key=lambda r: hidden_per_mnode(r, summary[r], search_nodes),
+                    reverse=True)
+    return {"top_hidden": ranked[:3],
+            "beat_floor_above_5pct": [r for r in rules if summary[r]["beat_ci"][0] > 0.05]}
+
+
+def print_table(summary: dict, detail: str | None, search_nodes: int = 0) -> None:
     print(f"{'rule':40} {'decisions':>11} {'probed':>8} {'beats':>7} {'beat%':>8} "
-          f"{'95% CI':>17} {'change%':>8} {'nodes/probe':>12}")
+          f"{'95% CI':>17} {'change%':>8} {'nodes/probe':>12} {'hidden/Mn':>10}")
     names = [r for r in RULE_ORDER if r in summary]
     if detail:
         names = sorted((n for n in summary if n.split()[0] == detail),
@@ -195,9 +215,11 @@ def print_table(summary: dict, detail: str | None) -> None:
         lo, hi = s["beat_ci"]
         change = "-" if name.split()[0] in NODE_RULES else fmt_share(s["change_share"])
         npp = "-" if s["nodes_per_probe"] is None else f"{s['nodes_per_probe']:.0f}"
+        hidden = hidden_per_mnode(name, s, search_nodes)
+        hid = "-" if hidden is None else f"{hidden:.1f}"
         print(f"{name:40} {s['decisions']:>11,} {s['probed']:>8,} {s['beats']:>7,} "
               f"{fmt_share(s['beat_share']):>8} {100 * lo:7.2f}-{100 * hi:6.2f}% "
-              f"{change:>8} {npp:>12}")
+              f"{change:>8} {npp:>12} {hid:>10}")
 
 
 def run_read(args) -> int:
@@ -232,7 +254,7 @@ def run_read(args) -> int:
     (out / "summary.json").write_text(json.dumps(report, indent=1), encoding="utf-8")
     print(f"{len(fens)} positions at depth {args.depth}, every {args.every}: "
           f"{search_nodes:,} search nodes, {probe_nodes:,} probe nodes")
-    print_table(summary, None)
+    print_table(summary, None, search_nodes)
     return 0
 
 
@@ -291,7 +313,12 @@ def run_report(args) -> int:
     print(f"{report['positions']} positions at depth {report['depth']}, every "
           f"{report['every']}: {report['search_nodes']:,} search nodes, "
           f"{report['probe_nodes']:,} probe nodes")
-    print_table(report["rules"], args.cells)
+    print_table(report["rules"], args.cells, report["search_nodes"])
+    if not args.cells:
+        s = screen(report["rules"], report["search_nodes"])
+        print(f"most hidden changes per million search nodes: {', '.join(s['top_hidden'])}")
+        print("beat share's lower 95% bound above 5%: "
+              + (", ".join(s["beat_floor_above_5pct"]) or "none"))
     return 0
 
 
