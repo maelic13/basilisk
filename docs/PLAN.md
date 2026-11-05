@@ -1595,6 +1595,22 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       against A.9.4's pooled read on one patch of known effect. Then the
       instrument of B.15.4, B.7.2 and any profile share a gate asks for
       (B.3.5's repetition-check share).
+    - [ ] **B.16.5** `[I1]` Prompt helper stop (ANY TIME) — before B.4
+      Added 2026-11-05 (maintainer: "investigate and repair now"),
+      worked straight after B.16.1: the repair of its four-thread
+      finding. A timestamp build placed the extra 0.4 ms in the join,
+      where the main thread waited for each helper's next stop check,
+      made every 2,048 nodes with the clock read. Helpers now read the
+      stop flag at every node (`fa2b866`); the clock read is unchanged.
+      - Implemented 2026-11-05, `LOCAL_QUALIFIED`: bench 5,361,058
+        unchanged; CTest 24/24; screening read at 4T, base / repair,
+        `movetime` overshoot 0.99 / 0.82 and 1.07 / 0.80 ms, ponderhit
+        1.10 / 0.81 ms, 1T within noise; the gap to Stockfish falls
+        under 1 ms (BAS-R09).
+      - Gate prepared: BAS-R09, `[-5,5]` at `3+0.03` with Threads 4,
+        1,500-pair cap, `tools/run_b165_gate.ps1`, dry run accepted.
+        At one thread the change cannot alter a game without pondering,
+        so the gate runs at four. The maintainer starts it; `GAME_GATE`.
 - [ ] **B.4** `[I2]` Cluster 3 — quiescence
   TT cutoff, corrected stand-pat with interpolated fail-high, futility base,
   move-count and SEE pruning, evasions only in check, TT write on exit; SPRT
@@ -2277,6 +2293,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
+| B.16.5 | GAME_GATE | I1 | Repair of B.16.1's 4T stop latency; BAS-R09's gate waits for an idle host, maintainer-run |
 | B.16.2 | RESEARCH | I2 | Added 2026-11-03; needs no idle host, can be worked between B.3.3's blocks |
 | B.16.3 | RESEARCH | V | Added 2026-11-03; stored games, judge CPU, maintainer-run |
 | B.16.4 | RESEARCH | I1 | Added 2026-11-03; before B.15.4 |
