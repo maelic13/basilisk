@@ -1610,6 +1610,19 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       held a third of the loss to Stockfish 19. It feeds B.9's checkpoint
       and the order of C and D. No new games; the judge's CPU is the cost,
       maintainer-run.
+      - Prepared 2026-11-05 (BAS-M14, registered with its prediction):
+        `tools/diag/loss_by_cell.py` judges every move at 150,000 nodes,
+        tabulates ours against the opponents by class, clock and
+        material, and searches the 100 worst open errors again at 1×,
+        4× and 16× the game's nodes. Sources: BAS-M11's 2,400 games
+        (exported read-only from the Colosseum app; its PGN on disk had
+        none), the first 2,000 games of B.3.6's gate (today's engine) and
+        Basilisk 1.10.0's 8,200 games of BAS-M08's tournament, which carry
+        no clocks or nodes. Validated on synthetic games, a planted queen
+        sacrifice (868 cp, counted 300) and a determinism check (761
+        positions identical); dry run accepted. Launcher
+        `tools/run_b163_loss.ps1`, resumable, about five hours on 15
+        cores; the maintainer starts it.
     - [ ] **B.16.4** `[I1]` Identical-tree counter read (ANY TIME) — before B.4
       Speed of a change that keeps the tree, by hardware counters (TM-7):
       cycles, instructions and branch misses per node, the engine pinned to
@@ -2320,7 +2333,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.16.3 | RESEARCH | V | Added 2026-11-03; stored games, judge CPU, maintainer-run |
+| B.16.3 | LOCAL_QUALIFIED | V | BAS-M14 prepared; about five hours of judge CPU on a free host, maintainer-run |
 | B.16.4 | RESEARCH | I1 | Added 2026-11-03; before B.15.4 |
 | B.4 | RESEARCH | I2 | Contents fixed by B.0 |
 | B.5 | RESEARCH | I2 | Contents fixed by B.0 |
