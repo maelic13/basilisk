@@ -252,6 +252,7 @@ B.3 and B.16 records and their commits included, uses the earlier numbering.
 | Was | Now | Note |
 |---|---|---|
 | B.15, B.15.1–B.15.4 | B.7, B.7.1–B.7.4 | board review and rebuild, after B.6 |
+| B.4.0 | B.4.3 | quiescence research, never a leaf; B.4 split into leaves the same day, its two repairs first |
 | B.7 | B.8 | the speed pass joins the cleanup step |
 | B.7.1 | B.8.3 | allocation guard, no longer `(ANY TIME)` |
 | B.7.2 | B.8.4, B.8.5 | large pages split out, before the speed pass |
@@ -265,7 +266,7 @@ B.3 and B.16 records and their commits included, uses the earlier numbering.
 | D.3 | retired | its one open leaf moved to B.9 |
 
 Moved between leaves the same day: B.9's floor-legality patch and B.15.1's
-SEE repairs (A-2, A-3) to B.4's opening; D.3.2's clean child frame (TR-4)
+SEE repairs (A-2, A-3) to B.4's opening (B.4.1, B.4.2); D.3.2's clean child frame (TR-4)
 and deep-line stack test (A-25) to B.5; D.4's A-57 and A-58 and D.1's
 A-50 and TT-4 tests to B.9.1; C.12's lazy-threshold audit and C.5.2's E7
 read to C.10; D.1's thread-instability time factor to D.2; B.5's 4T S6

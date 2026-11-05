@@ -343,7 +343,7 @@ derivations are in the linked records.
 |---|---|
 | Score perspective, mate band (`MATE_SCORE − MAX_PLY` = 31,872, duplicated in `search.h` and `tt.h`), endgame scale floor, lazy-eval path | `DESIGN.md` §3; `tests/test_endgames.cpp` static assert |
 | TT publication incoherence is a known defect, tolerated until D.2 repairs it without an NPS cost; every consumer validates the stored move | `DESIGN.md` §3; BAS-C05 |
-| SEE king legality repaired; created pins and promotion recaptures are known defects with fixtures, repaired in B.4 before quiescence's fit | BAS-C08, BAS-C09; `tests/test_board.cpp` |
+| SEE king legality repaired; created pins and promotion recaptures are known defects with fixtures, repaired in B.4.2 before quiescence's fit | BAS-C08, BAS-C09; `tests/test_board.cpp` |
 | Draw, rule-50, null-move clock and legal-EP hashing semantics | BAS-C02; `tests/test_invariants.cpp` |
 | One mutation authority for redundant board state | BAS-C07; `src/board.h` |
 | Protocol: `ponderhit` owned by the UCI thread; setup work done before `readyok`, never on the clock; a rejected `position` exits with status 1; tablebase PV lines time-boxed the Stockfish way | BAS-C10–BAS-C13; `tests/test_engine_ponder.cpp`, `tests/test_uci_protocol.cpp` |
@@ -1686,42 +1686,21 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       - Gate 2026-11-05, `CLOSED`, retained: the cap without a boundary
         (3,000 games, LLR −0.96), −2.2 ± 7.1 Elo at 4T, no faults or time
         losses; the cap keeps a repair (BAS-R09).
-- [ ] **B.4** `[I2]` Cluster 3 — quiescence
+- [ ] **B.4** Cluster 3 — quiescence
   TT cutoff, corrected stand-pat with interpolated fail-high, futility base,
   move-count and SEE pruning, evasions only in check, TT write on exit; SPRT
   `[0,3]`.
   Its packet keeps a departures table for B.6.1 (maintainer 2026-10-31):
   every place the cluster keeps Basilisk's form where the donor's differs,
   the reason, and the feature or fit it waits on.
-  First, between clusters (2026-11-05, before B.4.0's first read):
-  - The floors' generator admits positions with the side not to move in
-    check (research amendment 6 §3: `3k3R/8/1K6/8/8/8/8/8 w` is a KR-K
-    sample). Fixing it re-draws the 24 samples per family and re-bases
-    every floor, so it is done between clusters, never inside one
-    (audit 2026-11-01): here, the first point between clusters, before
-    B.4.0's first read (B.9's until 2026-11-05).
-    - Prepared 2026-10-31 on `master` and kept as a patch
-      (`tools/results/b9-floor-legality/legal-floors.patch`, SHA-256
-      `d1b0fcce…293a`); the throwaway branch was deleted 2026-11-04.
-      - The recipe: `random_family` in `tests/test_endgames.cpp` reads
-        each FEN with `try_set_fen(fen, /*validate_legal_position=*/true)`,
-        so a bare king in check with White to move is dropped. 24 of the 96
-        samples were such positions: KQ-K 8, KR-K 4, KBB-K 7, KBN-K 5. The
-        legal samples keep their order, and the next legal draws fill each
-        24.
-      - Read on `master` (`43b4c35`) at 60,000 nodes: 24/24 in every
-        family, means 12.2, 23.0, 24.4 and 54.4 plies. Every bound holds
-        there.
-      - The patch applies cleanly to the B.3 head (checked 2026-11-04).
-        B.4 applies it, reads all four families at the five budgets on the
-        head, and re-bases a floor only if the read asks.
-  - SEE's created pins and promotion recaptures (A-2, A-3, BAS-C09;
-    fixtures in `tests/test_board.cpp`) are repaired here, before the
-    fit: quiescence's SEE pruning and thresholds are fitted on SEE's
-    verdicts (B.15.1's until 2026-11-05). Card 1's census counts the
-    verdicts each repair changes; each goes through the
-    correctness-repair path with its own gate.
-  Opens with B.4.0 research, which carries two cards:
+  Split into leaves 2026-11-05 (maintainer: the sub-steps visible in
+  GUIDE), in the order they run: the two between-cluster repairs (B.4.1,
+  B.4.2), then the standard cluster shape (PROCESS *Cluster delivery
+  shape*): B.4.3 research, B.4.4 implement, B.4.5 diagnostics and paired
+  run, B.4.6 sweep and SPSA, B.4.7 gates. Basilisk's forms are re-read
+  against the donor's in B.6.1, from the departures table. B.4.3 is the
+  research earlier records call B.4.0.
+  B.4.3 research carries two cards:
   1. **The SEE and move-ordering value scale** (archived 9.2). The dedicated
      SEE vector 100/300/300/500/900/20000 and `search.cpp`'s legacy values
      are compared against the HCE's material by counting, at real
@@ -1829,6 +1808,57 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     if so, the form is a categorical on B.4's surface (B-21 puts RFP
     there). Stockfish has the same form, so it questions the donor's
     form; it is not a porting defect.
+    - [ ] **B.4.1** `[I1]` Legal positions in the floors' generator
+      Between clusters, before B.4.3's first read (2026-11-05; B.9's
+      until then). The floors' generator admits positions with the side
+      not to move in check (research amendment 6 §3:
+      `3k3R/8/1K6/8/8/8/8/8 w` is a KR-K sample). Fixing it re-draws the
+      24 samples per family and re-bases every floor, so it is done
+      between clusters, never inside one (audit 2026-11-01).
+      - Prepared 2026-10-31 on `master` and kept as a patch
+        (`tools/results/b9-floor-legality/legal-floors.patch`, SHA-256
+        `d1b0fcce…293a`); the throwaway branch was deleted 2026-11-04.
+        - The recipe: `random_family` in `tests/test_endgames.cpp` reads
+          each FEN with `try_set_fen(fen, /*validate_legal_position=*/true)`,
+          so a bare king in check with White to move is dropped. 24 of the
+          96 samples were such positions: KQ-K 8, KR-K 4, KBB-K 7, KBN-K 5.
+          The legal samples keep their order, and the next legal draws fill
+          each 24.
+        - Read on `master` (`43b4c35`) at 60,000 nodes: 24/24 in every
+          family, means 12.2, 23.0, 24.4 and 54.4 plies. Every bound holds
+          there.
+        - The patch applies cleanly to the B.3 head (checked 2026-11-04).
+      - The leaf applies it, reads all four families at the five budgets
+        on the head, and re-bases a floor only if the read asks.
+    - [ ] **B.4.2** `[I2]` SEE's created pins and promotion recaptures
+      Between clusters, before the fit (2026-11-05; B.15.1's until then):
+      quiescence's SEE pruning and thresholds are fitted on SEE's
+      verdicts. A-2 and A-3 (BAS-C09; fixtures in `tests/test_board.cpp`)
+      are repaired here. Card 1's census counts the verdicts each repair
+      changes; each goes through the correctness-repair path with its own
+      gate.
+    - [ ] **B.4.3** `[R2]` Research and handoff on the repaired head
+      Settle the two cards and every input above into one handoff packet
+      in `analysis/`: the contents, the interactions with Clusters 1 and
+      2's fitted cores, the categoricals and deletion arms, the zero-game
+      reads it needs, the departures table, the prospective predictions,
+      the falsifiers and the B.4.4 contract with its seeds.
+      Behaviour-neutral seams land at the exact fingerprint. Closes
+      `READY_FOR_IMPLEMENTATION` or returns the cluster with its evidence.
+    - [ ] **B.4.4** `[I2]` Implement behind the umbrella switch
+      The packet's contract behind one umbrella option, both arms
+      building; accepted by an independent review that reproduces the
+      fingerprints before diagnostics start.
+    - [ ] **B.4.5** `[V]` Diagnostics and the unfitted paired run
+      The packet's zero-game screens on both arms, then its registered
+      categorical and deletion reads and the unfitted paired run.
+    - [ ] **B.4.6** `[V]` Curvature sweep, then SPSA in blocks
+      The packet's registered sweep, then SPSA in blocks on Cluster 3's
+      surface (with B-21's RFP, razoring and NMP-base coordinates); the
+      fitted-constant analysis precedes the bake.
+    - [ ] **B.4.7** `[V]` Cluster 3 gates
+      SPRT `[0,3]` for the cluster, and each categorical and deletion arm
+      at the bounds the packet registers.
 - [ ] **B.5** `[I2]` Cluster 4 — root and aspiration
   Cluster 4 — root, aspiration and iterative deepening: aspiration centred on
   the root move's average score with width from its mean squared score,
@@ -2571,7 +2601,13 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.4 | RESEARCH | I2 | Contents fixed by B.0; opens with the floor patch and the SEE repairs (2026-11-05) |
+| B.4.1 | READY_FOR_IMPLEMENTATION | I1 | The patch is prepared; between clusters, before B.4.3's first read |
+| B.4.2 | RESEARCH | I2 | Was in B.15.1; before quiescence's fit, each repair with its own gate |
+| B.4.3 | RESEARCH | R2 | Was B.4.0; contents fixed by B.0, on the repaired head |
+| B.4.4 | RESEARCH | I2 | On B.4.3's handoff |
+| B.4.5 | RESEARCH | V | After B.4.4's review |
+| B.4.6 | RESEARCH | V | After B.4.5 |
+| B.4.7 | RESEARCH | V | After B.4.6 |
 | B.5 | RESEARCH | I2 | Contents fixed by B.0; the ply cap and the clean child frame added 2026-11-05 |
 | B.6.1 | RESEARCH | R2 | Added 2026-10-31; after B.4 and B.5 close |
 | B.6.2 | RESEARCH | V | Runs (maintainer 2026-11-05); the curvature evidence chooses its surface |
