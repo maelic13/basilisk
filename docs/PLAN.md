@@ -2071,7 +2071,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       - Tests: a stored TT win never answers a repeated position (A-13); the
         clock stays out of the position identity (A-14); an external oracle
         corpus (A-5, A-24); the SEE approximations (A-2, A-3, BAS-C09) are
-        repaired in B.4, before quiescence's fit; their fixtures join
+        repaired in B.4.2, before quiescence's fit; their fixtures join
         this corpus.
       Triumviratus review inputs (2026-11-03,
       `analysis/triumviratus_review_2026-11-03.md`; IDs are its items):
