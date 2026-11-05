@@ -202,6 +202,7 @@ add_library(basilisk_engine STATIC
     src/search_worker.cpp
     src/search_root.cpp
     src/search_diagnostics.cpp
+    src/search_pricing.cpp
     src/syzygy.cpp
     src/physical_memory.cpp
     ${BASILISK_SEARCH_KERNEL_SOURCES}

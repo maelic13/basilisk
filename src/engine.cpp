@@ -84,6 +84,7 @@ SearchLimits Engine::build_limits() const {
     limits.diag      = parameters_.diag;
 #if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
     limits.decision_trace = parameters_.decision_trace;
+    limits.pricing_every  = parameters_.pricing_every;
 #endif
 #ifdef BASILISK_ABLATION
     limits.ablation_mask = parameters_.ablation_mask;

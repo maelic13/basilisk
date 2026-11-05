@@ -81,6 +81,12 @@ int Searcher::lmr_reduction(bool improving, int depth, int move_count, int delta
 
 void Searcher::tt_store(Key key, int depth, int score, TTFlag flag, Move m,
                         int ply, int static_eval, bool pv) {
+#ifdef BASILISK_PRICING
+    if (state_.price.probing()) {
+        state_.price.store_tt(key, depth, score, flag, m, ply, static_eval, pv);
+        return;
+    }
+#endif
     DIAG_COUNT(++state_.diag.tt_stores);
     if (shared_.tt.store(key, depth, score, flag, m, ply, static_eval, pv))
         DIAG_COUNT(++state_.diag.tt_stores_same_key);
@@ -96,6 +102,48 @@ bool Searcher::tt_move_playable(Move m) const {
 // The bound a TT entry proves on its score.
 static bool proves_lower(TTFlag f) { return f == TT_BETA || f == TT_EXACT; }
 static bool proves_upper(TTFlag f) { return f == TT_ALPHA || f == TT_EXACT; }
+
+// ---- Pricing probes ----------------------------------------------------------
+
+// A statement that only pricing builds compile.
+#ifdef BASILISK_PRICING
+#define PRICE(...) __VA_ARGS__
+#else
+#define PRICE(...) ((void)0)
+#endif
+
+#ifdef BASILISK_PRICING
+// The probe may write the node's record and its children's, the PV length at
+// its ply, the node counts, the selective depth, the null-move region and the
+// counters; all are put back. A node limit counts the engine's own nodes.
+template<class Probe>
+int Searcher::isolated_probe(SearchStack* ss, int ply, int64_t& nodes, Probe&& probe) {
+    const SearchStack records[3] = {ss[0], ss[1], ss[2]};
+    const int64_t own_nodes = state_.nodes;
+    const int64_t nodes_limit = state_.nodes_limit;
+    const int64_t tb_hits = state_.tb_hits;
+    const int sel_depth = state_.sel_depth;
+    const int pv_len = state_.pv_len[ply];
+    const int nmp_min_ply = nmp_min_ply_;
+    const DiagCounters diag = state_.diag;
+    state_.nodes_limit = 0;
+    state_.price.enter();
+    const int value = probe();
+    state_.price.leave();
+    nodes = state_.nodes - own_nodes;
+    ss[0] = records[0];
+    ss[1] = records[1];
+    ss[2] = records[2];
+    state_.nodes = own_nodes;
+    state_.nodes_limit = nodes_limit;
+    state_.tb_hits = tb_hits;
+    state_.sel_depth = sel_depth;
+    state_.pv_len[ply] = pv_len;
+    nmp_min_ply_ = nmp_min_ply;
+    state_.diag = diag;
+    return value;
+}
+#endif
 
 // ---- Move loop bookkeeping ----------------------------------------------
 
@@ -120,6 +168,14 @@ template<NodeType NT>
 int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss,
                          bool counted) {
     constexpr bool is_pv = NT != NodeType::NonPV;
+#ifdef BASILISK_PRICING
+    // A pricing probe of this node's delta rule runs it without that rule.
+    const bool bare = state_.price.take_bare();
+    const int entry_alpha = alpha;
+    const PriceNode node_kind = is_pv ? PriceNode::Pv : PriceNode::Qs;
+#else
+    constexpr bool bare = false;
+#endif
     if (!counted) {
         record_node();
         // The clock is read every 2048 nodes, the stop flag at every node:
@@ -151,7 +207,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     // TT probe
     Key hash = state_.board->position_key();
     TTEntry tte{};
-    bool tt_found = shared_.tt.probe_copy(hash, tte);
+    bool tt_found = tt_probe(hash, tte);
     DIAG_COUNT(state_.diag.tt_probes++);
     if (tt_found) DIAG_COUNT(state_.diag.tt_hits++);
     // A store here keeps the pv bit an entry for this position already has.
@@ -242,10 +298,21 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     // Delta pruning: even capturing a queen with a margin to spare cannot
     // raise alpha, so that optimistic value is the node's upper bound.
     const int delta_bound = stand_pat + PIECE_VALUE[QUEEN] + 200;
-    if (prune_by_gain && delta_bound < alpha) {
+    if (!bare && prune_by_gain && delta_bound < alpha) {
         TRACE_DECISION(TraceEvent::QsDeltaPrune, ply, 0, MOVE_NONE,
                        alpha, beta, stand_pat, -1, correction, VALUE_NONE,
                        0, 0, PIECE_VALUE[QUEEN] + 200, delta_bound);
+#ifdef BASILISK_PRICING
+        if (const int cell = state_.price.decide(PriceRule::QsDelta, 0, node_kind, 0); cell >= 0) {
+            int64_t probe_nodes = 0;
+            const int v = isolated_probe(ss, ply, probe_nodes, [&] {
+                state_.price.set_bare();
+                return quiescence<NT>(entry_alpha, beta, ply, qply, ss, counted);
+            });
+            if (!state_.stopped)
+                state_.price.probed(cell, v > alpha, probe_nodes);
+        }
+#endif
         tt_store(hash, 0, delta_bound, TT_ALPHA, MOVE_NONE, ply, tt_eval, pv_hit);
         return delta_bound;
     }
@@ -275,6 +342,35 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     }
 
     Move best_move = MOVE_NONE;
+
+#ifdef BASILISK_PRICING
+    // A pruned capture searched in quiescence with the node's window; those
+    // that beat alpha are judged against the final best when the node ends.
+    PricePending pending[8];
+    int pending_count = 0;
+    auto price_move = [&](PriceRule rule, Move m, int move_number) {
+        const int cell = state_.price.decide(rule, 0, node_kind, move_number);
+        if (cell < 0)
+            return;
+        int64_t probe_nodes = 0;
+        const int v = isolated_probe(ss, ply, probe_nodes, [&] {
+            do_move(ss, m);
+            const int s = -quiescence<NT>(-beta, -alpha, ply + 1, qply + 1, ss + 1);
+            undo_move(ss, m);
+            return s;
+        });
+        if (state_.stopped)
+            return;
+        state_.price.probed(cell, v > alpha, probe_nodes);
+        if (v > alpha && pending_count < 8)
+            pending[pending_count++] = {cell, v};
+    };
+    auto settle = [&](int final_best) {
+        for (int k = 0; k < pending_count; ++k)
+            if (pending[k].value > final_best)
+                state_.price.changed(pending[k].cell);
+    };
+#endif
 
     for (int i = 0; i < nm; i++) {
         Move m = pick_next(sm, i, nm);
@@ -306,6 +402,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
             TRACE_DECISION(TraceEvent::QsFutilityPrune, ply, 0, m,
                            alpha, beta, stand_pat, -1, correction, VALUE_NONE,
                            i, 0, tactical_gain + 150, alpha);
+            PRICE(price_move(PriceRule::QsFutility, m, i + 1));
             best = std::max(best, futility_value);
             continue;
         }
@@ -316,6 +413,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
             TRACE_DECISION(TraceEvent::QsSeePrune, ply, 0, m,
                            alpha, beta, stand_pat, -1, correction, VALUE_NONE,
                            i, 0, see_threshold, alpha);
+            PRICE(price_move(PriceRule::QsSee, m, i + 1));
             continue;
         }
 
@@ -323,6 +421,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
             TRACE_DECISION(TraceEvent::QsLatePrune, ply, 0, m,
                            alpha, beta, stand_pat, -1, correction, VALUE_NONE,
                            i, 0, -50, alpha);
+            PRICE(price_move(PriceRule::QsLate, m, i + 1));
             continue;
         }
 
@@ -340,11 +439,13 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
             TRACE_DECISION(TraceEvent::QsBetaCutoff, ply, 0, m,
                            alpha, beta, stand_pat, -1, correction, VALUE_NONE,
                            i, 0, VALUE_NONE, s);
+            PRICE(settle(s));
             tt_store(hash, 0, s, TT_BETA, m, ply, tt_eval, pv_hit);
             return s;
         }
     }
 
+    PRICE(settle(best));
     tt_store(hash, 0, best, TT_ALPHA, best_move, ply, tt_eval, pv_hit);
     return best;
 }
@@ -362,6 +463,18 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     // The node's own type in quiescence, where the root is a PV node.
     constexpr NodeType QsType = is_pv ? NodeType::PV : NodeType::NonPV;
     assert(is_root == (ply == 0));
+#ifdef BASILISK_PRICING
+    // A pricing probe of a node rule runs this node again from its entry
+    // without its node-level shortcuts (razoring, reverse futility, the null
+    // move, ProbCut and the singular multi-cut).
+    const bool bare = state_.price.take_bare();
+    const int entry_depth = depth;
+    const int entry_alpha = alpha;
+    const int entry_beta = beta;
+    const PriceNode node_kind = is_pv ? PriceNode::Pv : cut_node ? PriceNode::Cut : PriceNode::All;
+#else
+    constexpr bool bare = false;
+#endif
     record_node();
     // The clock is read every 2048 nodes, the stop flag at every node: the
     // main thread waits for every helper before `bestmove`, so a helper
@@ -447,10 +560,40 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     const int prior_reduction = (ss - 1)->reduction;
     (ss - 1)->reduction = 0;
 
+#ifdef BASILISK_PRICING
+    // A node rule's decision: the node searched again from its entry, with
+    // the reduction its parent gave it, and judged against the bound the
+    // rule's value claims (a fail high at or above beta, a fail low at or
+    // below alpha). Returns VALUE_NONE when the search stopped.
+    auto node_probe = [&]() {
+        int64_t probe_nodes = 0;
+        const int v = isolated_probe(ss, ply, probe_nodes, [&] {
+            (ss - 1)->reduction = prior_reduction;
+            state_.price.set_bare();
+            const int s = negamax<NT>(entry_depth, entry_alpha, entry_beta, ply, ss,
+                                      allow_null, cut_node);
+            (ss - 1)->reduction = 0;
+            return s;
+        });
+        return std::pair<int, int64_t>{state_.stopped ? VALUE_NONE : v, probe_nodes};
+    };
+    auto node_record = [&](int cell, int value, std::pair<int, int64_t> probe) {
+        if (probe.first == VALUE_NONE)
+            return;
+        const bool beats = value >= beta ? probe.first < beta
+                                         : value <= alpha && probe.first > alpha;
+        state_.price.probed(cell, beats, probe.second);
+    };
+    auto price_node = [&](PriceRule rule, int value) {
+        if (const int cell = state_.price.decide(rule, depth, node_kind, 0); cell >= 0)
+            node_record(cell, value, node_probe());
+    };
+#endif
+
     // ---- Transposition table lookup ----------------------------------------
     Key hash     = state_.board->position_key();
     TTEntry tte{};
-    bool tt_found = shared_.tt.probe_copy(hash, tte);
+    bool tt_found = tt_probe(hash, tte);
     DIAG_COUNT(state_.diag.tt_probes++);
     if (tt_found) DIAG_COUNT(state_.diag.tt_hits++);
     ss->tt_hit = tt_found;
@@ -616,7 +759,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         if (cut && depth >= 7 && !is_decisive(tt_score) && tt_move_playable(tt_move)) {
             do_move(ss, tt_move);
             TTEntry next{};
-            const bool next_found = shared_.tt.probe_copy(state_.board->position_key(), next);
+            const bool next_found = tt_probe(state_.board->position_key(), next);
             undo_move(ss, tt_move);
             if (next_found && next.score != VALUE_NONE
                 && (tt_score >= beta) != (-int(next.score) >= beta)) {
@@ -637,7 +780,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         // Deep enough to cut, but the bound lies on the wrong side of beta:
         // the entry no longer answers this window, so it gives up a ply of
         // depth to the next store (the donor's penalty).
-        shared_.tt.penalize(hash);
+        if (!PRICE_PROBING())
+            shared_.tt.penalize(hash);
         DIAG_COUNT(++state_.diag.tt_penalized);
         TRACE_DECISION(TraceEvent::TtPenalty, ply, depth, tt_move,
                        alpha, beta, tt_score, -1, VALUE_NONE, VALUE_NONE,
@@ -701,10 +845,18 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         // Razoring: an estimate this far below alpha at a shallow node is
         // left to quiescence, whose value is returned. Not when the table
         // suggests a quiet move, or proves the node fails high.
-        if (!ABLATED(0) && depth <= kp.razor_depth_cap
+        if (!bare && !ABLATED(0) && depth <= kp.razor_depth_cap
             && eval < alpha - kp.razor_margin * depth
             && (tt_move == MOVE_NONE || tt_capture) && tt_flag != TT_BETA) {
+            // Priced before the quiescence search, whose stores at this
+            // position the probe would otherwise read.
+#ifdef BASILISK_PRICING
+            const int razor_cell = state_.price.decide(PriceRule::Razor, depth, node_kind, 0);
+            const auto razor_probe = razor_cell >= 0 ? node_probe()
+                                                     : std::pair<int, int64_t>{VALUE_NONE, 0};
+#endif
             const int q = quiescence<NodeType::NonPV>(alpha, beta, ply, 0, ss, true);
+            PRICE(if (razor_cell >= 0) node_record(razor_cell, q, razor_probe));
             DIAG_COUNT(state_.diag.razor_cuts++);
             DIAG_COUNT(++(depth <= 3 ? state_.diag.razor_cuts_d1_3
                           : depth <= 7 ? state_.diag.razor_cuts_d4_7
@@ -721,7 +873,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         // or the opponent's position worsens, and grows with the size of the
         // correction (off at a multiplier of 0). Not near a PV, not when the
         // table suggests a quiet move, and never on a decisive bound.
-        if (!ABLATED(1) && !ss->tt_pv && depth <= kp.rfp_depth_cap && eval >= beta
+        if (!bare && !ABLATED(1) && !ss->tt_pv && depth <= kp.rfp_depth_cap && eval >= beta
             && (tt_move == MOVE_NONE || tt_capture)
             && beta > -tablebaseWinInMaxPly && eval < tablebaseWinInMaxPly) {
             int margin = kp.rfp_per_ply * depth
@@ -739,12 +891,13 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                                alpha, beta, eval, improving, correction, VALUE_NONE,
                                0, 0, margin, value,
                                -1, VALUE_NONE, -1, TraceFamily::Rfp);
+                PRICE(price_node(PriceRule::Rfp, value));
                 return value;
             }
         }
 
         // Null-move pruning (the OFF arm's form)
-        if (!kB3Proof && !ABLATED(2) && allow_null && depth >= 3
+        if (!kB3Proof && !bare && !ABLATED(2) && allow_null && depth >= 3
             && eval >= beta
             && state_.board->has_non_pawn_material(state_.board->turn())
             && (ss-1)->move != MOVE_NULL) {
@@ -790,7 +943,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         // outside a verification is verified at this ply with null moves
         // barred above a region of plies below it.
         if constexpr (kB3Proof) {
-            if (!ABLATED(2) && (cut_node || !kp.b3_nmp_cut_only) && allow_null
+            if (!bare && !ABLATED(2) && (cut_node || !kp.b3_nmp_cut_only) && allow_null
                 && (ss - 1)->move != MOVE_NULL
                 && static_eval >= beta - kp.b3_nmp_per_ply * depth
                                   - kp.b3_nmp_improving * improving + kp.b3_nmp_base
@@ -856,6 +1009,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                             TRACE_DECISION(TraceEvent::NullCutoff, ply, depth, MOVE_NULL,
                                            alpha, beta, static_eval, improving, correction,
                                            VALUE_NONE, 0, r, VALUE_NONE, null_score);
+                            PRICE(price_node(PriceRule::NullMove, null_score));
                             return null_score;
                         }
                     }
@@ -864,7 +1018,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         }
 
         // ProbCut: if a capture is likely to fail high at reduced depth
-        if (!kB3Proof && !ABLATED(3) && depth >= 5 && !is_decisive(beta)) {
+        if (!kB3Proof && !bare && !ABLATED(3) && depth >= 5 && !is_decisive(beta)) {
             int pc_beta = std::min(beta + config_.limits.params.probcut_margin,
                                    MATE_SCORE - MAX_PLY - 1);
             MoveList pcaps;
@@ -935,7 +1089,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     // value less the margin; a valid TT score below the margin says none will.
     if constexpr (kB3Proof) {
         const int pc_beta = beta + kp.b3_probcut_base - kp.b3_probcut_improving * improving;
-        if (!ABLATED(3) && !is_root && !in_check && (!is_pv || kp.b3_probcut_pv)
+        if (!bare && !ABLATED(3) && !is_root && !in_check && (!is_pv || kp.b3_probcut_pv)
             && depth >= kp.b3_probcut_min_depth && !is_decisive(beta)
             && !(tt_score != VALUE_NONE && tt_score < pc_beta)) {
             const int pc_depth = depth - (improving ? kp.b3_probcut_depth_improving
@@ -959,6 +1113,10 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 undo_move(ss, m);
                 if (state_.stopped) return 0;
                 if (val >= pc_beta) {
+                    // Priced before the store at this position, which the
+                    // probe would otherwise read.
+                    PRICE(if (!is_decisive(val))
+                              price_node(PriceRule::ProbCut, val - (pc_beta - beta)));
                     tt_store(hash, pc_depth + 1, val, TT_BETA, m, ply, store_eval, ss->tt_pv);
                     if (!is_decisive(val)) {
                         DIAG_COUNT(state_.diag.probcut_cuts++);
@@ -976,7 +1134,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         // nearly deep enough that clears beta by a wide margin returns that
         // margin.
         const int tt_pc_beta = beta + kp.b3_probcut_tt_margin;
-        if (!ABLATED(3) && kp.b3_probcut_tt && !is_root && proves_lower(tt_flag)
+        if (!bare && !ABLATED(3) && kp.b3_probcut_tt && !is_root && proves_lower(tt_flag)
             && tt_depth >= depth - kp.b3_probcut_tt_depth
             && tt_score != VALUE_NONE && tt_score >= tt_pc_beta
             && !is_decisive(beta) && !is_decisive(tt_score)) {
@@ -984,6 +1142,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             TRACE_DECISION(TraceEvent::ProbcutTtCutoff, ply, depth, tt_move,
                            alpha, beta, eval, improving, correction, VALUE_NONE,
                            0, 0, kp.b3_probcut_tt_margin, tt_pc_beta);
+            PRICE(price_node(PriceRule::ProbCutTt, tt_pc_beta));
             return tt_pc_beta;
         }
     }
@@ -1045,6 +1204,54 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     CoreMovePicker picker(*state_.board, hist_, pawn_bucket(), conts, tt_move, ss->excluded,
                           depth, ply, is_root ? &state_.root_ordering : nullptr,
                           state_.move_buffers[ply][0]);
+
+#ifdef BASILISK_PRICING
+    // A move searched as a rule denied it, at `child_depth` with the node's
+    // window, as a later move's child (`made`: the move is already on the
+    // board). Those that beat alpha are judged against the node's final best
+    // when its move loop ends.
+    PricePending pending[8];
+    int pending_count = 0;
+    auto probe_move = [&](int cell, Move m, int child_depth, bool made) {
+        int64_t probe_nodes = 0;
+        const int v = isolated_probe(ss, ply, probe_nodes, [&] {
+            if (!made) {
+                (ss + 1)->double_exts = ss->double_exts;
+                if constexpr (kB3Proof) {
+                    ss->ext_taken = 0;
+                    (ss + 1)->ext_plies = ss->ext_plies;
+                }
+                do_move(ss, m);
+            }
+            const int s = -negamax<PvChild>(child_depth, -beta, -alpha, ply + 1, ss + 1, true,
+                                             !is_pv && !cut_node);
+            if (!made)
+                undo_move(ss, m);
+            return s;
+        });
+        if (state_.stopped)
+            return;
+        state_.price.probed(cell, v > alpha, probe_nodes);
+        if (v > alpha && pending_count < 8)
+            pending[pending_count++] = {cell, v};
+    };
+    // A pruned move at the depth it would have had before any reduction.
+    auto price_move = [&](PriceRule rule, Move m) {
+        if (const int cell = state_.price.decide(rule, depth, node_kind, move_count); cell >= 0)
+            probe_move(cell, m, depth - 1, false);
+    };
+    // The move-count rule: the first quiet it keeps from the picker.
+    auto price_skip = [&]() {
+        const int cell = state_.price.decide(PriceRule::SkipQuiets, depth, node_kind, move_count);
+        if (cell < 0)
+            return;
+        const Move denied = picker.first_denied_quiet(state_.move_buffers[ply][1]);
+        if (denied == MOVE_NONE)
+            state_.price.probed(cell, false, 0);
+        else
+            probe_move(cell, denied, depth - 1, false);
+    };
+#endif
 
     // The root's queen promotions searched so far, for the rule below.
     static constexpr int ROOT_UNDERPROMOTION_MARGIN = 200;
@@ -1121,6 +1328,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                                alpha, beta, eval, improving, correction, VALUE_NONE,
                                move_count, 0, VALUE_NONE, alpha,
                                -1, VALUE_NONE, 1, TraceFamily::SkipQuiets);
+                PRICE(price_skip());
             }
 
             int lmr_depth = depth - 1 - r / 1024;
@@ -1147,6 +1355,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                                    kp.capt_fut_base + kp.capt_fut_slope * lmr_depth, alpha,
                                    -1, lmr_depth, picker.quiets_skipped(),
                                    TraceFamily::CaptureFutility);
+                    PRICE(price_move(PriceRule::CaptureFutility, m));
                     return false;
                 }
 
@@ -1167,6 +1376,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                                    move_count, 0, -margin, alpha,
                                    -1, lmr_depth, picker.quiets_skipped(),
                                    TraceFamily::CaptureSee);
+                    PRICE(price_move(PriceRule::CaptureSee, m));
                     return false;
                 }
             } else if (!is_pv || (kB3Proof && kp.b3_pv_quiet_prune && !ss->follow_pv)) {
@@ -1192,6 +1402,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                                    move_count, 0, -kp.cont_hist_prune_slope * depth, alpha,
                                    -1, lmr_depth, picker.quiets_skipped(),
                                    TraceFamily::ContHist);
+                    PRICE(price_move(PriceRule::ContHist, m));
                     return false;
                 }
 
@@ -1215,6 +1426,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                                    move_count, 0, futility - ss->eval, alpha,
                                    -1, lmr_depth, picker.quiets_skipped(),
                                    TraceFamily::QuietFutility);
+                    PRICE(price_move(PriceRule::QuietFutility, m));
                     return false;
                 }
 
@@ -1230,6 +1442,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                                    move_count, 0, -kp.quiet_see_coeff * lmr_depth * lmr_depth,
                                    alpha, -1, lmr_depth, picker.quiets_skipped(),
                                    TraceFamily::QuietSee);
+                    PRICE(price_move(PriceRule::QuietSee, m));
                     return false;
                 }
             }
@@ -1399,13 +1612,17 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                         if (did_check_ext) DIAG_COUNT(++state_.diag.sing_in_check);
                         if (graded >= 2 && did_check_ext) DIAG_COUNT(++state_.diag.sing_triple);
                         singular_quiet_lmr = kp.b3_singular_quiet_lmr && !tt_capture;
-                    } else if (b3::multicut_admits(kp.b3_multi_cut, s_val, s_beta, beta,
-                                                   is_decisive(s_val))) {
+                    } else if (!bare && b3::multicut_admits(kp.b3_multi_cut, s_val, s_beta, beta,
+                                                            is_decisive(s_val))) {
+                        // Priced before the multi-cut's training.
+                        PRICE(price_node(PriceRule::MultiCut, s_val));
                         // The node fails high without its TT move too: the
                         // TT move's history learns it was not needed, and the
                         // correction learns the static eval was low.
-                        TTMoveHistory::update(hist_.tt_move.value,
-                                              -kp.b3_sing_mc_tmh_base - kp.b3_sing_mc_tmh_slope * depth);
+                        if (!PRICE_PROBING())
+                            TTMoveHistory::update(hist_.tt_move.value,
+                                                  -kp.b3_sing_mc_tmh_base
+                                                  - kp.b3_sing_mc_tmh_slope * depth);
                         if (!in_check && s_val > static_eval) {
                             const int bonus = std::clamp(
                                 (s_val - static_eval) * 1000 / 282 * s_depth * kp.b3_sing_mc_corr / 1024,
@@ -1565,6 +1782,15 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 score = -negamax<NodeType::NonPV>(d, -alpha - 1, -alpha,
                                                   ply + 1, ss + 1, true, true);
                 ss->reduction = 0;
+#ifdef BASILISK_PRICING
+                // A reduced search that failed low, searched again at the
+                // move's full depth.
+                if (score <= alpha && d < new_depth && !state_.stopped)
+                    if (const int cell = state_.price.decide(PriceRule::LmrFailLow, depth,
+                                                             node_kind, move_count);
+                        cell >= 0)
+                        probe_move(cell, m, new_depth, true);
+#endif
 
                 // A reduced search that fails high is searched again at full
                 // depth, a ply deeper when it beat the best by a margin and a
@@ -1751,6 +1977,13 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             break;
     }
 
+#ifdef BASILISK_PRICING
+    if (!immediate_return && !state_.stopped)
+        for (int k = 0; k < pending_count; ++k)
+            if (pending[k].value > best_score)
+                state_.price.changed(pending[k].cell);
+#endif
+
     if (immediate_return)
         return immediate_score;
 
@@ -1776,7 +2009,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                                          : state_.diag.hist_reward_updates));
         update_all_stats(ss, alpha_move, tt_move, quiets_searched, quiets_count,
                          captures_searched, captures_count, depth, is_pv);
-        if (!is_pv)
+        if (!is_pv && !PRICE_PROBING())
             TTMoveHistory::update(hist_.tt_move.value, alpha_move == tt_move ? 918 : -747);
     } else if ((ss - 1)->move != MOVE_NONE && (ss - 1)->move != MOVE_NULL) {
         update_fail_low_parent(ss, depth, best_score);

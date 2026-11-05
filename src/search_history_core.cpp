@@ -18,6 +18,7 @@ static bool move_made(Move m) { return m != MOVE_NONE && m != MOVE_NULL; }
 
 void Searcher::update_continuation_histories(SearchStack* ss, Piece piece, Square to,
                                              int bonus) {
+    if (PRICE_PROBING()) return;
     struct Back { int plies; int weight; };
     static constexpr Back backs[] = {{1, 520}, {2, 390}, {3, 145}, {4, 251}, {5, 66}, {6, 209}};
     // Indexed by the number of rows that already rate the move positively.
@@ -43,6 +44,7 @@ void Searcher::update_continuation_histories(SearchStack* ss, Piece piece, Squar
 }
 
 void Searcher::update_quiet_histories(SearchStack* ss, Move m, int bonus) {
+    if (PRICE_PROBING()) return;
     const Square from = Square(from_sq(m));
     const Square to   = Square(to_sq(m));
     const Piece piece = state_.board->piece_on(from);
@@ -60,6 +62,7 @@ void Searcher::update_quiet_histories(SearchStack* ss, Move m, int bonus) {
 }
 
 void Searcher::update_capture_history(Move m, int bonus) {
+    if (PRICE_PROBING()) return;
     const Square to = Square(to_sq(m));
     const int attacker = hist_piece(state_.board->piece_on(from_sq(m)));
     const PieceType captured = move_type(m) == EN_PASSANT ? PAWN
@@ -93,6 +96,7 @@ void Searcher::update_all_stats(SearchStack* ss, Move best, Move tt_move,
                                 const Move* quiets, int quiet_count,
                                 const Move* captures, int capture_count,
                                 int depth, bool pv_node) {
+    if (PRICE_PROBING()) return;
     const auto& p = config_.limits.params;
     const Board& b = *state_.board;
     int bonus = std::min(p.quiet_bonus_slope * depth - 81, p.quiet_bonus_cap)
@@ -131,6 +135,7 @@ void Searcher::update_all_stats(SearchStack* ss, Move best, Move tt_move,
 // was, and with how far this node fell below its own and the parent's
 // static evals; a capture is rewarded by a fixed bonus.
 void Searcher::update_fail_low_parent(SearchStack* ss, int depth, int best_score) {
+    if (PRICE_PROBING()) return;
     const Board& b = *state_.board;
     const Move prev = (ss - 1)->move;
     const Square prev_to = Square(to_sq(prev));
@@ -165,6 +170,7 @@ void Searcher::update_fail_low_parent(SearchStack* ss, int depth, int best_score
 }
 
 void Searcher::update_parent_by_eval_difference(SearchStack* ss, int eval_diff, bool tt_hit) {
+    if (PRICE_PROBING()) return;
     const Move prev = (ss - 1)->move;
     const Square from = Square(from_sq(prev));
     const Square to   = Square(to_sq(prev));
@@ -207,6 +213,7 @@ int Searcher::correction_value(const SearchStack* ss) const {
 }
 
 void Searcher::update_correction_history(SearchStack* ss, int bonus) {
+    if (PRICE_PROBING()) return;
     constexpr Key mask = CoreHistoryTables::CORR_SIZE - 1;
     const Board& b = *state_.board;
     const Color us = b.turn();

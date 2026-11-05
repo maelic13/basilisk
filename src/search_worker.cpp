@@ -355,6 +355,13 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
                        && limits.root_moves.size() == 1);
     if (limits.decision_trace && shared_.info && !state_.trace.enabled())
         shared_.info("info string trace error requires Diag=true Threads=1 and exactly one searchmoves root");
+    // Pricing probes restore a single thread's state; the trace would record
+    // the probes' decisions.
+    const bool pricing = limits.pricing_every > 0 && config_.thread_count == 1
+                      && !state_.trace.enabled();
+    state_.price.start(pricing ? limits.pricing_every : 0);
+    if (limits.pricing_every > 0 && !pricing && shared_.info)
+        shared_.info("info string price error requires Threads=1 and no DecisionTrace");
 #endif
 
     // The clock starts at the `go`-receipt instant the protocol captured, not
@@ -723,6 +730,7 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
 #if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
     if (config_.limits.decision_trace)
         state_.trace.print(shared_.info, config_.limits.root_moves);
+    state_.price.print(shared_.info);
 #endif
 
     // TM_Debug: one line per move with the time budget, the elapsed time and

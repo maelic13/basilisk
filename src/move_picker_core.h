@@ -56,6 +56,12 @@ public:
     }
     [[nodiscard]] bool quiets_skipped() const { return skip_quiets_; }
     [[nodiscard]] Src last_source() const { return last_src_; }
+#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
+    // The first quiet skip_quiets() keeps from being delivered, in the order
+    // it would have come, or MOVE_NONE. Quiets not yet generated are
+    // generated and ordered into `scratch`; delivery is unchanged.
+    Move first_denied_quiet(ScoredMove* scratch);
+#endif
 
     static constexpr int GOOD_QUIET_THRESHOLD = -14000;
 
