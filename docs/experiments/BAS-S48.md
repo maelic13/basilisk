@@ -96,4 +96,32 @@
 
 #### RESULT — append after exposure
 
+- **Cap without a decision (maintainer-run 2026-11-05):** **+1.9 ± 4.4
+  Elo** (nElo +3.3 ± 7.6), LLR +2.18 in [−2.94, 2.94] after the full
+  4,000 pairs (8,000 games); W/D/L 2128/3788/2084, pentanomial
+  [98, 903, 1981, 893, 125].
+  - 0 faults, 0 time losses, 0 post-terminal pairs; the independent PGN
+    recount agrees (2128/3788/2084).
+  - Both arms searched alike per move: 138,111 nodes and depth 15.72
+    (without mate scores) for the repair, 138,310 and 15.71 for the base;
+    1.96M nodes per second each.
+  - The run's dry run is the registered one (`…_200528.dry-run.json`,
+    `18d17467…`, config `cfc6a687…`); both arms hashed at the pins after
+    the run; manifest `3df99a14…`, run record `e0419e28…`, PGN
+    `06732826…`.
+- **Correctness floors:** read before the gate on the branch head, which
+  carries this repair (§QUALIFICATION): release CTest 24/24 and 2/2,
+  ASan/UBSan 24/24, the conversion floors unchanged.
+- **Verdict (registered rule):** the cap, so the repair stays as a
+  correctness fix with no measured harm; the maintainer confirms.
+
 #### PREDICTION CALIBRATION — preserve the original prediction above
+
+- **Prediction:** about 0 to +3 Elo, most likely the cap; not H0 at about
+  85%.
+- **Reading:** the cap at +1.9 ± 4.4, inside the predicted range, with
+  the LLR leaning to H1 (+2.18). The prediction held in sign, size and
+  outcome.
+- **What it teaches:** a 0.07% verdict change that reaches a third of the
+  bench trees through promotion squares buys at most a few Elo; the
+  exposure argument priced it about right.

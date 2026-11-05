@@ -74,4 +74,33 @@
 
 #### RESULT — append after exposure
 
+- **Cap without a decision (maintainer-run 2026-11-05):** **−3.8 ± 7.6
+  Elo** (nElo −6.2 ± 12.4), LLR −1.55 in [−2.94, 2.94] after the full
+  1,500 pairs (3,000 games); W/D/L 770/1427/803, pentanomial
+  [57, 372, 657, 375, 39].
+  - 0 faults, 0 time losses, 0 post-terminal pairs; the independent PGN
+    recount agrees (770/1427/803).
+  - Per move: 137,428 nodes and depth 15.72 (without mate scores) for the
+    repair, 138,498 and 15.73 for the base; 1.95M and 1.96M nodes per
+    second (game telemetry, not a controlled speed read).
+  - The middle of the pentanomial is symmetric (372 against 375); the
+    lean is carried by the extremes (57 double losses, 39 double wins),
+    which is what noise looks like at this sample.
+  - The run's dry run is the registered one (`…_212515.dry-run.json`,
+    `74055bae…`, config `9d846707…`); both arms hashed at the pins after
+    the run; manifest `a8357f66…`, run record `dbd9997d…`, PGN
+    `b57e0dd4…`.
+- **Correctness floors:** BAS-S48's, read on this candidate.
+- **Verdict (registered rule):** the cap, so the repair stays as a
+  correctness fix with no measured harm; the maintainer confirms.
+
 #### PREDICTION CALIBRATION — preserve the original prediction above
+
+- **Prediction:** about 0 Elo, most likely the cap; not H0 at about 90%.
+- **Reading:** the cap, as predicted; the estimate is −3.8 with an
+  interval (−11.5 to +3.8) that holds 0. The sign leaned against the
+  prediction; the outcome did not.
+- **What it teaches:** a change seen in 100 of 7.66M `see_ge` calls
+  cannot be read in 1,500 pairs, as registered; its lean is not evidence
+  either way. If a cost exists it would be the recompute's speed, which
+  the telemetry's 0.5% difference neither shows nor excludes.
