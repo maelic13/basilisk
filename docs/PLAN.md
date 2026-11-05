@@ -1595,7 +1595,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       against A.9.4's pooled read on one patch of known effect. Then the
       instrument of B.15.4, B.7.2 and any profile share a gate asks for
       (B.3.5's repetition-check share).
-    - [ ] **B.16.5** `[I1]` Prompt helper stop (ANY TIME) — before B.4
+    - [x] **B.16.5** `[I1]` Prompt helper stop (ANY TIME) — before B.4
       Added 2026-11-05 (maintainer: "investigate and repair now"),
       worked straight after B.16.1: the repair of its four-thread
       finding. A timestamp build placed the extra 0.4 ms in the join,
@@ -1611,6 +1611,9 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         1,500-pair cap, `tools/run_b165_gate.ps1`, dry run accepted.
         At one thread the change cannot alter a game without pondering,
         so the gate runs at four. The maintainer starts it; `GAME_GATE`.
+      - Gate 2026-11-05, `CLOSED`, retained: the cap without a boundary
+        (3,000 games, LLR −0.96), −2.2 ± 7.1 Elo at 4T, no faults or time
+        losses; the cap keeps a repair (BAS-R09).
 - [ ] **B.4** `[I2]` Cluster 3 — quiescence
   TT cutoff, corrected stand-pat with interpolated fail-high, futility base,
   move-count and SEE pruning, evasions only in check, TT write on exit; SPRT
@@ -2293,7 +2296,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.16.5 | GAME_GATE | I1 | Repair of B.16.1's 4T stop latency; BAS-R09's gate waits for an idle host, maintainer-run |
 | B.16.2 | RESEARCH | I2 | Added 2026-11-03; needs no idle host, can be worked between B.3.3's blocks |
 | B.16.3 | RESEARCH | V | Added 2026-11-03; stored games, judge CPU, maintainer-run |
 | B.16.4 | RESEARCH | I1 | Added 2026-11-03; before B.15.4 |

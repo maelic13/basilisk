@@ -76,11 +76,32 @@ stop latency BAS-R08 found**
 
 #### RESULT — append after exposure
 
-- Diagnostics (not the verdict):
-- Deciding result:
-- Disposition:
+Gate run 2026-11-05 09:25–11:54 UTC by the maintainer,
+`tools/run_b165_gate.ps1` at repository `661bb3b` (clean), archive
+`tools/results/b165-gate/`, manifest
+`tools/results/colosseum_sprt_b165-gate_20261105_102520.manifest.txt`.
+Both engine hashes and benches matched; host 2.6% busy at the start, the
+idle guard not waived; the manifest holds the PGN's and run record's
+SHA-256; the PGN recount agrees with the runner.
+
+- Diagnostics (not the verdict): no faults and no time losses in 3,000
+  games. Per move, repair / head: 68.1 / 68.2 ms, mean depth 19.89 /
+  19.85 (median 16 both), 648,314 / 640,570 nodes. The helpers' work
+  after the stop no longer runs, and the engines' node and time reports
+  end at different moments, so the node figures are not a speed read.
+- Deciding result: **cap reached without a boundary**: 3,000 games, LLR
+  −0.96 in [−2.94, 2.94]; −2.2 ± 7.1 Elo (nElo −3.9 ± 12.4); W/D/L
+  739 / 1,503 / 758; pentanomial [29, 381, 699, 362, 29].
+- Disposition: **retained** under the registered rule (the cap keeps a
+  repair): the stop latency it removes is measured (BAS-R08, the screening
+  read above), and the games show no harm beyond about −9 Elo at 4T.
 
 #### PREDICTION CALIBRATION — preserve the original prediction above
 
-- Original prediction summary:
-- Observed result:
+- Original prediction summary: 0 to +1 Elo at 4T `3+0.03`, not resolvable
+  at the cap; 0.9 that the gate keeps it; likeliest failure a loss of
+  helper tail iterations, shown as H0.
+- Observed result: kept at the cap, as predicted; −2.2 ± 7.1 Elo, below
+  the predicted range but well inside its interval, and LLR −0.96 is far
+  from H0. Search depth and time per move were unchanged, so no sign of
+  the lost-tail failure. The gate answered only "no harm", as registered.
