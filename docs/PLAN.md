@@ -1808,7 +1808,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     if so, the form is a categorical on B.4's surface (B-21 puts RFP
     there). Stockfish has the same form, so it questions the donor's
     form; it is not a porting defect.
-    - [ ] **B.4.1** `[I1]` Legal positions in the floors' generator
+    - [x] **B.4.1** `[I1]` Legal positions in the floors' generator
       Between clusters, before B.4.3's first read (2026-11-05; B.9's
       until then). The floors' generator admits positions with the side
       not to move in check (research amendment 6 §3:
@@ -1830,6 +1830,28 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         - The patch applies cleanly to the B.3 head (checked 2026-11-04).
       - The leaf applies it, reads all four families at the five budgets
         on the head, and re-bases a floor only if the read asks.
+      - Closed 2026-11-05 (`933929d`): the patch applied as prepared, its
+        comment carrying the head's read. `test_endgames --conversion
+        --nodes N` on a release build of `7a926de` (`bench 13`
+        5,361,058), a cold search per move
+        (`tools/results/b41-20261105/conversion/`); conversions of 24,
+        mean plies in brackets:
+
+        | Family | 30k | 45k | 60k | 90k | 120k | Sum |
+        |---|---:|---:|---:|---:|---:|---:|
+        | KQ-K | 24 (15.9) | 24 (11.5) | 24 (12.1) | 24 (11.7) | 24 (10.8) | 120 |
+        | KR-K | 24 (24.1) | 24 (23.2) | 24 (21.2) | 24 (20.9) | 24 (20.2) | 120 |
+        | KBB-K | 24 (24.8) | 24 (24.4) | 24 (24.5) | 24 (23.7) | 24 (23.6) | 120 |
+        | KBN-K | 21 (54.6) | 22 (51.9) | 24 (56.2) | 24 (51.5) | 24 (53.4) | **115** |
+
+        - Every bound holds at 60k, where the bounds judge, staleness
+          included, so no floor moves. Off 60k the read reports only:
+          KBN-K's 21 at 30k and KQ-K's staleness trip at 120k (a mean
+          below two thirds of its ceiling, as on the illegal sample).
+        - The cluster's KBN-K rule (the B.3.0 packet §2.2: a change
+          counts only as a majority over the five budgets, the sum moving
+          by more than 3) reads against this table from here on; its base
+          stays 115. The default endgame suite passes (191/191).
     - [ ] **B.4.2** `[I2]` SEE's created pins and promotion recaptures
       Between clusters, before the fit (2026-11-05; B.15.1's until then):
       quiescence's SEE pruning and thresholds are fitted on SEE's
@@ -2601,7 +2623,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.4.1 | READY_FOR_IMPLEMENTATION | I1 | The patch is prepared; between clusters, before B.4.3's first read |
 | B.4.2 | RESEARCH | I2 | Was in B.15.1; before quiescence's fit, each repair with its own gate |
 | B.4.3 | RESEARCH | R2 | Was B.4.0; contents fixed by B.0, on the repaired head |
 | B.4.4 | RESEARCH | I2 | On B.4.3's handoff |
