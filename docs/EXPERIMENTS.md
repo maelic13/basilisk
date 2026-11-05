@@ -535,6 +535,10 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S47](experiments/BAS-S47.md) — B.16.2: what pruning and reductions hide, each rule's decisions searched again as denied — observation: instrument validated (isolation clean, planted rules higher); most hidden: quiescence futility, reduced fail-lows, reverse futility; razoring 12.4% (25% at cut nodes)
 
+- [BAS-S48](experiments/BAS-S48.md) — B.4.2: SEE scores promoting recaptures, `[-5,5]` — registered
+
+- [BAS-S49](experiments/BAS-S49.md) — B.4.2: SEE follows pins opened during the exchange, `[-5,5]` — registered
+
 | ID | Title | Disposition |
 |---|---|---|
 | [BAS-S17](experiments/BAS-S17.md) | Razoring depth reach in Elo (B.0.1, maintainer). | +2.4 ± 9.9; interval holds 0, the cluster decides the cap |
@@ -644,7 +648,7 @@ not accept any new feature, vector or label policy by themselves.
 | [BAS-C06](experiments/BAS-C06.md) | Positive Syzygy tests depended on `D:\\chess\\Syzygy345`; when that private directory was absent | Test-instrument repair accepted; search unchanged. |
 | [BAS-C07](experiments/BAS-C07.md) | `Board` exposed writable bitboards, occupancies, mailbox, king/check caches, incremental keys and u… | API containment accepted; search unchanged. |
 | [BAS-C08](experiments/BAS-C08.md) | SEE king legality (15.0.a). | Repaired and closed 2026-09-09. |
-| [BAS-C09](experiments/BAS-C09.md) | Created pins and recapture promotions (15.0.c). | CLOSED 2026-09-10 as a documented approximation, no engine… |
+| [BAS-C09](experiments/BAS-C09.md) | Created pins and recapture promotions (15.0.c). | Approximation closed 2026-09-10; both repaired 2026-11-05 in B.4.2 (BAS-S48, BAS-S49) |
 | [BAS-C10](experiments/BAS-C10.md) | Lost `ponderhit` after an instant opponent reply (1.10.1). | Fixed in 1.10.1; bench unchanged at 14,978,465. |
 | [BAS-C11](experiments/BAS-C11.md) | Setup work charged to the clock (1.10.1). | Repaired 2026-09-27; bench unchanged at 14,978,465. |
 | [BAS-C12](experiments/BAS-C12.md) | Rejected `position` searched the previous board (1.10.1). | Policy flipped by maintainer decision 2026-09-27; bench unc… |

@@ -1859,6 +1859,43 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       are repaired here. Card 1's census counts the verdicts each repair
       changes; each goes through the correctness-repair path with its own
       gate.
+      - Implemented 2026-11-05, one engine commit each; `GAME_GATE`.
+        - The quiet-SEE test's bound is corrected first, in its own
+          commit (`9f29f49`): a quiet move to a back rank an enemy pawn
+          attacks can lose the mover and the queen's surplus; the oracle
+          reads below −mover in exactly the corpus's 22 such cases.
+        - A-3 (`9aaa528`, `bench 13` 8,532,389): a pawn recapturing onto
+          a back rank wins the queen's surplus and leaves a queen.
+          `see_ge` charges the surplus at its two "safe even if my piece
+          is taken" exits when the next recapturer is a pawn the pins
+          allow; `see()` adds it to the gain. The fixture whose promoted
+          queen stands reads −800 (was 0).
+        - A-2 (`d3add9c`, `bench 13` 6,090,091): a departure that shares
+          a line with a king and an enemy slider of that line's kind
+          recomputes the pins. The mid-exchange fixture reads −300 (was
+          −400).
+        - Every changed `see_ge` boundary on a 104,000-move random-walk
+          corpus was wrong before and equals the make/unmake oracle
+          after (A-3 48, A-2 16); the 138 divergences left all have a
+          check on the exchange. In the head's `bench 13` tree 5,226 of
+          7,660,016 calls change verdict (0.068%), 5,126 on a back rank.
+          Searched alone from fresh tables, A-3 changes 10 of the 40
+          bench trees and A-2 none; the rest of each `bench 13` move is
+          the shared table and histories.
+        - Qualified on `d3add9c`: release CTest 24/24 and the strength
+          tests 2/2, ASan/UBSan CTest 24/24 (sanitizer `bench 10`
+          2,135,353), the conversion floors at the five budgets equal to
+          B.4.1's table (`tools/results/b42-20261105/conversion/`).
+        - Gates registered and prepared, maintainer-run: BAS-S48 (A-3
+          against `9f29f49`, cap 4,000 pairs, `tools/run_b42_promo_gate.ps1`)
+          and BAS-S49 (A-2 against A-3, cap 1,500 pairs,
+          `tools/run_b42_pins_gate.ps1`), both `[-5,5]` at `3+0.03`. The
+          fingerprint record moves to 6,090,091 when both keep their
+          repair.
+        - Not repaired, outside A-2 and A-3: SEE does not model check,
+          so a capture that discovers check, or an exchange that opens
+          one, still diverges from the oracle (BAS-C09's note of
+          2026-10-10).
     - [ ] **B.4.3** `[R2]` Research and handoff on the repaired head
       Settle the two cards and every input above into one handoff packet
       in `analysis/`: the contents, the interactions with Clusters 1 and
@@ -2623,7 +2660,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.4.2 | RESEARCH | I2 | Was in B.15.1; before quiescence's fit, each repair with its own gate |
+| B.4.2 | GAME_GATE | I2 | Both repairs committed; BAS-S48 and BAS-S49 prepared, maintainer-run |
 | B.4.3 | RESEARCH | R2 | Was B.4.0; contents fixed by B.0, on the repaired head |
 | B.4.4 | RESEARCH | I2 | On B.4.3's handoff |
 | B.4.5 | RESEARCH | V | After B.4.4's review |
