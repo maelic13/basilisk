@@ -208,7 +208,7 @@ structures hide.
 
 A separable categorical alternative may have a preliminary paired run, which
 never replaces the fitted integrated cluster's SPRT. The programme checkpoints
-(B.9, C.11, E.1) own the combined confirmation runs; none may rescue an
+(B.11.1, C.11, E.1) own the combined confirmation runs; none may rescue an
 earlier losing cluster. Two failed coherent clusters in one programme trigger
 a return to evidence (PLAN rule 6), not silent closure.
 

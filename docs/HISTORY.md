@@ -6,10 +6,11 @@
 ## Numbering, and how to resolve an old reference
 
 The current roadmap uses lettered phases (`A.2.1`, `B.3`); no retired number
-is reused, with two declared exceptions: Phase A's 2026-10-24 leaves were
-renumbered the same day to run in order, and on 2026-10-27 fail-soft
-quiescence moved from A.11.10 to A.11.11; the *Number map* below resolves
-the first numbering of both. Retired identifiers stay valid in `EXPERIMENTS.md`,
+is reused, with three declared exceptions: Phase A's 2026-10-24 leaves were
+renumbered the same day to run in order; on 2026-10-27 fail-soft
+quiescence moved from A.11.10 to A.11.11; and on 2026-11-05 the open steps
+of Phases B to D were renumbered in the order they run. The *Number map*
+below resolves the earlier numbering of all three. Retired identifiers stay valid in `EXPERIMENTS.md`,
 `analysis/`, source comments and commit messages, and resolve here:
 
 | Scheme | Where it appears | Resolve it in |
@@ -149,18 +150,18 @@ map covers only open work.
 
 | Retired (archive 2026-09-09) | Continues as | Note |
 |---|---|---|
-| 6.6.a–6.6.e, 6.6.h | C.5.1 | endgame instruments and gate integrity |
+| 6.6.a–6.6.e, 6.6.h | C.7.1 | endgame instruments and gate integrity |
 | 6.6.f | A.3.1 | harness provenance refusals, shared guards |
 | 6.6.g | A.4.2 | build option and ISA combination matrix |
-| 6.7.a–6.7.d | C.5.2 | occurrence, classification, closure, ranking |
-| 6.8.a | C.5.4 | the BAS-E53 only-move defect |
-| 6.8.b–6.8.e | C.5.5 | Group B families by measured kind |
-| 6.9.a–6.9.b | C.5.7 | occurrence-tiered endgame gates |
-| 6.10.a–6.10.d | C.5.6 | lower-yield remainder |
-| 6.10.e, 6.11.a–6.11.d | C.5.7 | gate and closure |
+| 6.7.a–6.7.d | C.7.2 | occurrence, classification, closure, ranking |
+| 6.8.a | C.7.4 | the BAS-E53 only-move defect |
+| 6.8.b–6.8.e | C.7.5 | Group B families by measured kind |
+| 6.9.a–6.9.b | C.7.7 | occurrence-tiered endgame gates |
+| 6.10.a–6.10.d | C.7.6 | lower-yield remainder |
+| 6.10.e, 6.11.a–6.11.d | C.7.7 | gate and closure |
 | 7.0 | A.4.1 | toolchain refresh and freeze |
-| 7.1, 7.7, 7.9–7.12 | B.15.1 | board contract audit, a defect hunt (D.3.1 until 2026-11-03) |
-| 7.2–7.8 | B.15.2–B.15.4 | board speed and representation, in the board review (B.7.2 until 2026-11-03) |
+| 7.1, 7.7, 7.9–7.12 | B.7.1 | board contract audit, a defect hunt (D.3.1 until 2026-11-03, B.15.1 until 2026-11-05) |
+| 7.2–7.8 | B.7.2–B.7.4 | board speed and representation, in the board review (the speed pass until 2026-11-03, B.15.2–B.15.4 until 2026-11-05) |
 | 8.0.a–8.0.d | C.0 | HCE surface audit |
 | 8.0.e | C.1 and each C cluster | categorical tests and the architecture freeze |
 | 8.1.a–8.1.h | C.2.1 | fit-tooling contract, Texel handbook |
@@ -177,11 +178,11 @@ map covers only open work.
 | 9.1.a–9.1.b | B.3 | extension authority |
 | 9.2.a–9.2.c | B.4 (research card), C.10 | SEE and move-ordering value scale |
 | 9.3 | B.0, B.2 | TT and caches, inside cluster 1 |
-| 9.4 | D.3.2, D.4 | lifecycle, protocol, tablebases |
+| 9.4 | B.9.1, D.3 | lifecycle, protocol, tablebases |
 | 9.5 | A.3, A.5, B.8 | harness and diagnostics audit |
 | 9.6.a–9.6.e | B.2.3, B.6 and each cluster's SPSA | search SPSA |
 | 9.7.a–9.7.d | D.1 | time management |
-| 9.8.a–9.8.c | B.8, B.9 | cleanup and checkpoint |
+| 9.8.a–9.8.c | B.8, B.11.1 | cleanup and checkpoint |
 | 9.9 | E.1 | attribution checkpoint |
 | 9.10.a, 9.10.c, 9.10.d | E.3.2 | classical release |
 | 9.10.b | D.2 | SMP quality |
@@ -240,6 +241,35 @@ code audit and the B.2.0 architecture review included, use D.3.1.
 | Was | Now | Note |
 |---|---|---|
 | D.3.1 | B.15.1 | board contract audit, now B.15's safety net and defect hunt |
+
+Renumbered in Phases B to D on 2026-11-05 (maintainer decision;
+`analysis/rarog_sweep_2026-11-04.md`): the open steps run in ascending
+order, each measurement sits in the step that reads it, and no step depends
+on a later one. B.7, B.9, B.11 and C.5 to C.7 now name different work. A
+reference dated before this, the Rarog, code and Triumviratus audits, the
+B.3 and B.16 records and their commits included, uses the earlier numbering.
+
+| Was | Now | Note |
+|---|---|---|
+| B.15, B.15.1–B.15.4 | B.7, B.7.1–B.7.4 | board review and rebuild, after B.6 |
+| B.7 | B.8 | the speed pass joins the cleanup step |
+| B.7.1 | B.8.3 | allocation guard, no longer `(ANY TIME)` |
+| B.7.2 | B.8.4, B.8.5 | large pages split out, before the speed pass |
+| D.3.2 | B.9.1, B.9.2 | lifecycle and protocol, before the release |
+| B.9 | B.11.1 | search programme checkpoint |
+| B.11 | B.11.2 | interim release 1.11.0 |
+| C.5, C.5.1–C.5.7 | C.7, C.7.1–C.7.7 | endgame cluster, after pawns and material |
+| C.6 | C.5 | pawns and passers |
+| C.7 | C.6 | material, imbalance and pieces; its phase and tempo went to C.3 |
+| D.4 | D.3 | tablebase policy |
+| D.3 | retired | its one open leaf moved to B.9 |
+
+Moved between leaves the same day: B.9's floor-legality patch and B.15.1's
+SEE repairs (A-2, A-3) to B.4's opening; D.3.2's clean child frame (TR-4)
+and deep-line stack test (A-25) to B.5; D.4's A-57 and A-58 and D.1's
+A-50 and TT-4 tests to B.9.1; C.12's lazy-threshold audit and C.5.2's E7
+read to C.10; D.1's thread-instability time factor to D.2; B.5's 4T S6
+read to D.2.
 
 ## Completed current-roadmap work (dated records; PLAN owns IDs)
 

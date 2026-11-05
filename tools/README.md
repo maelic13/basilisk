@@ -78,7 +78,7 @@ kept so the run can be reproduced from its ledger entry.
 | `nps_read.ps1` | The pooled NPS read: two or more pools and named contrasts between them, interleaved cycles of a pinned `bench 13 3`, every run archived, step 1 and `-Extend` | PROCESS *Build, bench and NPS*; BAS-P18, BAS-P19, BAS-P21 |
 | `diag/nps_read.py` | The read's decision from its archive: per-build medians, a Welch t-interval per contrast, the two steps and the disturbance rule | `nps_read.ps1` |
 | `nps_ab.ps1` | The earlier bootstrap NPS A/B, kept only to compare with rows before A.9.4 | BAS-P12 to BAS-P17 |
-| `profile.ps1` | A user-mode sampling profile of a Profile-flavor engine over `bench 13` or an EPD cohort | PROCESS *Build, bench and NPS*; B.7.2, C.12 |
+| `profile.ps1` | A user-mode sampling profile of a Profile-flavor engine over `bench 13` or an EPD cohort | PROCESS *Build, bench and NPS*; B.8.5, C.12 |
 | `diag/profile_regions.py`, `.json` | The profile's samples charged by inline chain to the innermost engine file's region, and refused when that attribution cannot be trusted | `profile.ps1` |
 | `diag/verify_isa.py` | Each asset's CPU-tier contract from its disassembly: portable, AVX2, PEXT, and ARM64 with its required `prfm` | CI, Release |
 | `diag/release_check.py` | The release checks: version sources, CHANGELOG section, GUIDE's released row and fingerprint, the release line | PROCESS *Release*; `release.yml` |
@@ -114,26 +114,26 @@ kept so the run can be reproduced from its ledger entry.
 ## Endgames
 
 The endgame instruments and frozen cohorts. Most were built in the retired
-endgame phase, which HISTORY's *Number map* continues as C.5; the two label
+endgame phase, which HISTORY's *Number map* continues as C.7; the two label
 tools serve C.2's corpus work.
 
 | Tool | Purpose | Used by |
 |---|---|---|
-| `diag/endgame_truth.py` | The Syzygy-truth endgame corpus and conversion baseline | C.5; BAS-E47 |
-| `diag/endgame_cohort.py`, `diag/endgame_cohort_v1.epd`, `.manifest.json` | The frozen Syzygy endgame cohort, generated and verified | C.5; A.8.13 |
-| `diag/endgame_compare.py` | Position-paired confidence analysis of two truth reports | C.5 |
-| `diag/endgame_ceilings.py`, `diag/endgame_ceilings_v1.json`, `_v2.json` | Finite-node family ceilings derived from paired truth reports | C.5; BAS-E08, BAS-E50 |
-| `diag/endgame_vetoes.py` | Absolute theory and engine-anomaly vetoes for truth candidates | C.5 |
+| `diag/endgame_truth.py` | The Syzygy-truth endgame corpus and conversion baseline | C.7; BAS-E47 |
+| `diag/endgame_cohort.py`, `diag/endgame_cohort_v1.epd`, `.manifest.json` | The frozen Syzygy endgame cohort, generated and verified | C.7; A.8.13 |
+| `diag/endgame_compare.py` | Position-paired confidence analysis of two truth reports | C.7 |
+| `diag/endgame_ceilings.py`, `diag/endgame_ceilings_v1.json`, `_v2.json` | Finite-node family ceilings derived from paired truth reports | C.7; BAS-E08, BAS-E50 |
+| `diag/endgame_vetoes.py` | Absolute theory and engine-anomaly vetoes for truth candidates | C.7 |
 | `diag/endgame_label_census.py`, `diag/endgame_label_census_v1.json` | Self-play labels checked against Syzygy on every corpus row of six men or fewer | C.2 |
 | `diag/datagen_label_audit.py` | How often datagen's WDL labels contradict tablebase truth | C.2 |
-| `diag/endgame_search_occurrence.py` | How often reference endgame families occur inside search trees | C.5 |
+| `diag/endgame_search_occurrence.py` | How often reference endgame families occur inside search trees | C.7 |
 | `diag/endgame_drawn_bias.py` | Per-class evaluation bias on the drawn subset | BAS-E54 |
-| `diag/kbnk_cohort.py`, `diag/kbnk_cohort_v1.epd`, `.manifest.json` | The 198 Syzygy KBN-K wins of BAS-E35's census, frozen and verified | C.5; BAS-E35 |
+| `diag/kbnk_cohort.py`, `diag/kbnk_cohort_v1.epd`, `.manifest.json` | The 198 Syzygy KBN-K wins of BAS-E35's census, frozen and verified | C.7; BAS-E35 |
 | `diag/kbnk_outcomes.py` | A KBN-K outcome census, classified and Syzygy-validated | BAS-E35, BAS-E36 |
-| `diag/krppkrp_cohort_v1`, `.manifest.json` | The frozen KRPP-KRP cohort | C.5 |
+| `diag/krppkrp_cohort_v1`, `.manifest.json` | The frozen KRPP-KRP cohort | C.7 |
 | `diag/narrow_node_probe.py` | Whether the narrow-window rook failure is resolvable at all | BAS-E53 |
-| `diag/rook_ending_failure_profile.py` | Why won rook endings are thrown, against a control | C.5 |
-| `diag/passer_king_geometry.py` | Whether king-to-passer distance explains the pawn-family losses | C.5 |
+| `diag/rook_ending_failure_profile.py` | Why won rook endings are thrown, against a control | C.7 |
+| `diag/passer_king_geometry.py` | Whether king-to-passer distance explains the pawn-family losses | C.7 |
 
 ## Evaluation data and fitting
 

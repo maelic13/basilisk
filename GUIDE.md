@@ -13,8 +13,8 @@ in `docs/PROCESS.md`; where the engine stands is PLAN §1.
 | Released baseline | **1.10.2** on `master`, tagged `v1.10.2` (2026-10-08), `bench 13` 14,978,465 |
 | Bench fingerprint | **5,361,058** (`bench 13`, since B.3.6's gate turned the coloured histories on; 5,369,042 at B.3.5; 11,880,564 at B.14; 16,615,757 at B.12; 19,470,325 at A.13.2; 19,108,490 at A.13.1; 16,092,165 at A.11.11; 8,913,394 at A.11.10; 7,857,713 at A.11.9; 7,384,101 at A.11.7; 7,233,823 at A.11.6; 8,753,339 at A.11.2; 9,260,429 at A.11.1; 8,437,148 at B.10; 11,099,210 at B.2.4; 14,978,465 for 1.10.0 to 1.10.2) |
 | Active experiment | None |
-| Long job | None (B.3 delivered to `master` as `d26f92b`; B.16 runs next, before B.4) |
-| Next release | **1.11.0** after B (B.11), then 1.12.0 after C, 1.13.0 after E; **2.0.0** is the first NNUE release |
+| Long job | None (B.16 delivered to `master` as `d7f3178`; B.4 is next) |
+| Next release | **1.11.0** after B (B.11.2), then 1.12.0 after C, 1.13.0 after E; **2.0.0** is the first NNUE release |
 
 ## Model by class
 
@@ -35,10 +35,6 @@ generations change. These are maintainer judgments, not measured rankings.
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
 **Next step:** **B.4** `[I2]` Cluster 3 — quiescence — Claude Opus 5 — High
-
-**Held `(ANY TIME)` steps**, done between steps when asked:
-
-- **B.7.1** `[I1]` Allocation guard (ANY TIME) — before B.7.2 — Claude Sonnet 5 — Medium
 
 ### Phase A — Reset: documents, harness, instruments, baselines (EXTENDED)
 
@@ -105,20 +101,24 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
 - [ ] **B.5** `[I2]` Cluster 4 — root and aspiration
 - [ ] **B.6** Donor-form reconciliation, then joint search SPSA
     - [ ] **B.6.1** `[R2]` Donor-form reconciliation
-    - [ ] **B.6.2** `[V]` Joint search SPSA, if justified
-- [ ] **B.15** Board review and rebuild
-    - [ ] **B.15.1** `[R2]` Board contract audit and instruments
-    - [ ] **B.15.2** `[R2]` Board review against Stockfish and Triumviratus
-    - [ ] **B.15.3** `[I2]` Rebuild behind the board contract
-    - [ ] **B.15.4** `[V]` Board speed read and gate
-- [ ] **B.7** Search speed pass
-    - [ ] **B.7.1** `[I1]` Allocation guard (ANY TIME) — before B.7.2
-    - [ ] **B.7.2** `[I1]` Speed pass
-- [ ] **B.8** Cleanup of legacy search and dead parameters
+    - [ ] **B.6.2** `[V]` Joint search SPSA
+- [ ] **B.7** Board review and rebuild
+    - [ ] **B.7.1** `[R2]` Board contract audit and instruments
+    - [ ] **B.7.2** `[R2]` Board review against Stockfish and Triumviratus
+    - [ ] **B.7.3** `[I2]` Rebuild behind the board contract
+    - [ ] **B.7.4** `[V]` Board speed read and gate
+- [ ] **B.8** Cleanup and speed pass
     - [x] **B.8.1** `[I1]` Delete the legacy search kernel (ANY TIME) — before the A.11 gates
     - [ ] **B.8.2** `[I1]` Dead parameters, switches and diagnostics
-- [ ] **B.9** `[V]` Search programme checkpoint
-- [ ] **B.11** `[M]` Interim release after the search programme
+    - [ ] **B.8.3** `[I1]` Allocation guard
+    - [ ] **B.8.4** `[I1]` Large pages on every platform
+    - [ ] **B.8.5** `[I1]` Speed pass
+- [ ] **B.9** Robustness and protocol before the release
+    - [ ] **B.9.1** `[R2]` Lifecycle and protocol audit and tests
+    - [ ] **B.9.2** `[I2]` Repairs and the repair gate
+- [ ] **B.11** Checkpoint and interim release
+    - [ ] **B.11.1** `[V]` Search programme checkpoint
+    - [ ] **B.11.2** `[M]` Interim release 1.11.0
 - [x] **B.12** `[I2]` False win in drawn KBP-K (ANY TIME) — before B.3.1
 - [x] **B.13** `[I1]` Colosseum re-pinned to 0.5.0 (ANY TIME)
 - [x] **B.14** `[I2]` Correction added to recognised draws (ANY TIME) — before B.3.2
@@ -134,18 +134,18 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     - [ ] **C.2.4** `[R2]` Matched label arms
     - [ ] **C.2.5** `[R2]` Initialization control
     - [ ] **C.2.6** `[V]` Matched fits and the label-contract gate
-- [ ] **C.3** `[I2]` King safety cluster
+- [ ] **C.3** `[I2]` King safety and phase cluster
 - [ ] **C.4** `[I2]` Threats and mobility cluster
-- [ ] **C.5** Endgame handling and winnability
-    - [ ] **C.5.1** `[R2]` Instruments and gate integrity
-    - [ ] **C.5.2** `[R3]` Occurrence, classification and ranking
-    - [ ] **C.5.3** `[I2]` Generic winnability and scaling
-    - [ ] **C.5.4** `[R3]` Won-rook-ending only-move precision (BAS-E53)
-    - [ ] **C.5.5** `[I2]` Group B families by measured kind
-    - [ ] **C.5.6** `[R2]` Lower-yield remainder
-    - [ ] **C.5.7** `[V]` Endgame gate and closure
-- [ ] **C.6** `[I2]` Pawns and passers cluster
-- [ ] **C.7** `[I2]` Material, imbalance, phase and pieces cluster
+- [ ] **C.5** `[I2]` Pawns and passers cluster
+- [ ] **C.6** `[I2]` Material, imbalance and pieces cluster
+- [ ] **C.7** Endgame handling and winnability
+    - [ ] **C.7.1** `[R2]` Instruments and gate integrity
+    - [ ] **C.7.2** `[R3]` Occurrence, classification and ranking
+    - [ ] **C.7.3** `[I2]` Generic winnability and scaling
+    - [ ] **C.7.4** `[R3]` Won-rook-ending only-move precision (BAS-E53)
+    - [ ] **C.7.5** `[I2]` Group B families by measured kind
+    - [ ] **C.7.6** `[R2]` Lower-yield remainder
+    - [ ] **C.7.7** `[V]` Endgame gate and closure
 - [ ] **C.8** `[V]` Refit cycles
 - [ ] **C.9** `[V]` Nonlinear HCE SPSA or a written skip
 - [ ] **C.10** `[V]` Search re-fit after the new evaluation
@@ -153,13 +153,11 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
 - [ ] **C.12** `[I2]` Evaluation throughput, bit-exact
 - [ ] **C.13** `[M]` Interim release after the evaluation programme
 
-### Phase D — Clock, threads, robustness
+### Phase D — Clock, threads, tablebases
 
 - [ ] **D.1** `[R2]` Time management
 - [ ] **D.2** `[R2]` Lazy SMP quality
-- [ ] **D.3** Engine lifecycle and protocol
-    - [ ] **D.3.2** `[R2]` Lifecycle and protocol robustness
-- [ ] **D.4** `[R2]` Tablebase policy
+- [ ] **D.3** `[R2]` Tablebase policy
 
 ### Phase E — Classical checkpoint and release
 

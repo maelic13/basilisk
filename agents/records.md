@@ -20,7 +20,7 @@ touches tags.
   most 64 characters: the name GUIDE shows. Everything else goes on the
   indented lines below it. Never edit GUIDE's generated block by hand.
 - Sub-steps indent by 4 spaces; nothing goes deeper than three levels
-  (`C.5.1`). Let `check_roadmap.py` check the structure rather than reading
+  (`C.7.1`). Let `check_roadmap.py` check the structure rather than reading
   the file.
 - Keep GUIDE a one-page overview: its *Now* table, the model mapping and the
   generated step list. What a step involves goes in PLAN, a completed record in

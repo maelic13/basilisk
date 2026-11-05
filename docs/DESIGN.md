@@ -51,7 +51,7 @@ gate, not a failure to deliver. See `agents/research.md`, "Refutation and refusa
   an only-move failure class and refuted the blanket claim that an evaluator
   cannot resolve it: Stockfish resolved the paired nodes at the same nominal
   budget. That result does not identify a transferable HCE mechanism or make a
-  recogniser equivalent to a gradient; PLAN C.5.4 owns the question.
+  recogniser equivalent to a gradient; PLAN C.7.4 owns the question.
 - **Draw scaling never asserts a draw it cannot prove.** Heuristic scaling is
   floored (`SCALE_FLOOR`) so a misfire discounts rather than throwing a win.
 
@@ -178,8 +178,8 @@ The four layers, kept separate (`analysis/endgame_measurement_layers_v1.md`):
 
 - **The board is not the bottleneck, and "make it faster" is not a motivation.**
   BAS-X16 measured this source ahead of a peer engine by 22-46% on every board
-  microbenchmark. Board work starts as a **defect hunt** (PLAN B.15.1). The
-  review against Stockfish's and Triumviratus's boards (B.15.2, maintainer
+  microbenchmark. Board work starts as a **defect hunt** (PLAN B.7.1). The
+  review against Stockfish's and Triumviratus's boards (B.7.2, maintainer
   decision 2026-11-03) replaces a component only where the other form
   measures better, and keeps Basilisk's otherwise.
 - **Nodes-to-depth, not raw NPS, is where the peer gap lives.**

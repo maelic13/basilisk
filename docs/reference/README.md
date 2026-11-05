@@ -98,18 +98,18 @@ Paths are relative to `rarog/`.
 | B.3 | `analysis/b3_research_2026-09-23.md` (research amendments and the implementation record), `analysis/b32_screens_2026-09-23.md`, `analysis/b33_sweep_2026-09-24.md`; `EXPERIMENTS.md` RAR-S79–RAR-S84 | template |
 | B.4 | `EXPERIMENTS.md` RAR-M19 (piece-value scale audit), `analysis/see_value_injection_2026-09-07.md` | reference |
 | B.5 | `tests/multipv.rs`, `tests/multipv_syzygy.rs`; `PLAN.md` B.2.0.2 (the MultiPV contract) | model |
-| B.7.1 | `tests/allocation_guard.rs` | port |
-| B.7.2 | `analysis/board_search_profile_2026-09-08.md`, `tools/profile_etw.ps1`, `tools/diag/board_search_profile.py`, `tools/diag/board_search_profile_etw.ps1`, `tools/diag/summarize_board_search_etw.py` | port |
+| B.8.3 | `tests/allocation_guard.rs` | port |
+| B.8.5 | `analysis/board_search_profile_2026-09-08.md`, `tools/profile_etw.ps1`, `tools/diag/board_search_profile.py`, `tools/diag/board_search_profile_etw.ps1`, `tools/diag/summarize_board_search_etw.py` | port |
 | C.0 | `analysis/hce_maturity_2026-08-25.md`, `analysis/hce_residuals_2026-09-01.md` | template |
 | C.2 | `tools/texel/`, `tools/texel-tuner/`, `tools/datagen.ps1`, `tools/diag/book_yield.py`, `tools/diag/datagen_label_audit.py`; `analysis/texel_fitting_handbook.md`, `analysis/texel_corpus_book_shape_2026-09-02.md`, `analysis/datagen_label_audit_2026-09-06.md` | port and template |
-| C.5.1 | `tools/diag/endgame_truth.py`, `endgame_floors.py`, `endgame_conversion.py`, `endgame_drawn.py`, `endgame_budget_bracket.py`, `nodes_per_move.py`, `endgame_reference_results.py`, with their tests and JSON artifacts; `analysis/endgame_truth_instrument_audit_2026-09-04.md`, `analysis/endgame_measurement_layers.md`, `analysis/endgame_budget_transfer_2026-09-05.md` | port |
-| C.5.2 | `tools/diag/endgame_occurrence.py`, `endgame_board_occurrence.py`, `endgame_ranking.py` and their JSON artifacts; `analysis/endgame_occurrence_tournament_2026-09-05.md`, `analysis/endgame_search_occurrence_2026-09-03.md`, `analysis/endgame_occurrence_split_2026-09-05.md` | port |
-| C.5.3–C.5.7 | `analysis/mate_drive_promotion_closure_2026-09-06.md`, `analysis/conversion_claims_correction_2026-09-06.md`, `analysis/endgame_refresh_2026-09-09.md` | reference |
+| C.7.1 | `tools/diag/endgame_truth.py`, `endgame_floors.py`, `endgame_conversion.py`, `endgame_drawn.py`, `endgame_budget_bracket.py`, `nodes_per_move.py`, `endgame_reference_results.py`, with their tests and JSON artifacts; `analysis/endgame_truth_instrument_audit_2026-09-04.md`, `analysis/endgame_measurement_layers.md`, `analysis/endgame_budget_transfer_2026-09-05.md` | port |
+| C.7.2 | `tools/diag/endgame_occurrence.py`, `endgame_board_occurrence.py`, `endgame_ranking.py` and their JSON artifacts; `analysis/endgame_occurrence_tournament_2026-09-05.md`, `analysis/endgame_search_occurrence_2026-09-03.md`, `analysis/endgame_occurrence_split_2026-09-05.md` | port |
+| C.7.3–C.7.7 | `analysis/mate_drive_promotion_closure_2026-09-06.md`, `analysis/conversion_claims_correction_2026-09-06.md`, `analysis/endgame_refresh_2026-09-09.md` | reference |
 | D.1 | `analysis/time_forfeit_2026-09-09.md`; `PLAN.md` D.1 (the audit checklist, also quoted in Basilisk's PLAN) | reference |
 | D.2 | `tools/diag_smp_sweep.ps1`, `tools/nps_scaling.ps1`; `PLAN.md` D.2 | port |
-| B.15.1 (was D.3.1) | `tools/diag/board_v2_oracle.py`, `board_v2_run.py`, `see_contract_oracle.py`, `normalized_see_compare.py`, `verify_normalized_see.py`, with their tests; `tests/data/board-v2.tsv`, `board-v2-oracle.tsv`, `see-contract-v1.tsv`, `see-repair-v1.tsv`; `tests/board_v2.rs`, `board_v2_allocations.rs`, `see_contract.rs`, `see_pins.rs`, `draw_semantics.rs`, `board_correctness.rs`, `board_differential.rs`; `analysis/board_v2_instrument_2026-09-06.md`, `analysis/see_contract_2026-09-06.md`, `analysis/see_repair_2026-09-06.md`, `analysis/draw_policy_2026-09-08.md`, `analysis/history_contracts_2026-09-08.md` | port |
-| D.3.2 | `tests/uci_process.rs`, `analysis/ponder_race_report_2026-09-26.md` | model |
-| D.4 | `analysis/tb_root_pv_2026-09-27.md` | reference |
+| B.7.1 (was D.3.1, then B.15.1) | `tools/diag/board_v2_oracle.py`, `board_v2_run.py`, `see_contract_oracle.py`, `normalized_see_compare.py`, `verify_normalized_see.py`, with their tests; `tests/data/board-v2.tsv`, `board-v2-oracle.tsv`, `see-contract-v1.tsv`, `see-repair-v1.tsv`; `tests/board_v2.rs`, `board_v2_allocations.rs`, `see_contract.rs`, `see_pins.rs`, `draw_semantics.rs`, `board_correctness.rs`, `board_differential.rs`; `analysis/board_v2_instrument_2026-09-06.md`, `analysis/see_contract_2026-09-06.md`, `analysis/see_repair_2026-09-06.md`, `analysis/draw_policy_2026-09-08.md`, `analysis/history_contracts_2026-09-08.md` | port |
+| B.9.1 | `tests/uci_process.rs`, `analysis/ponder_race_report_2026-09-26.md` | model |
+| D.3 | `analysis/tb_root_pv_2026-09-27.md` | reference |
 | A.8.2 | `rarog-2026-10-06/.github/workflows/ci.yml` | model |
 | A.8.4 | `rarog-2026-10-06/docs/PLAN.md` (the archived-phase pointers, §5) | model |
 | A.8.5 | `rarog-2026-10-06/docs/EXPERIMENTS.md`, `rarog-2026-10-06/tools/diag/check_guide.py` (index and entry agreement) | port |
@@ -155,12 +155,12 @@ Paths are relative to `triumviratus/` unless they start with
 | Basilisk leaf | Snapshot inputs | Use |
 |---|---|---|
 | B.4, B.5, B.6.1, H.2 | `docs/development/archive/DEVELOPMENT_8.0.md` §17–§33, §41–§47 and its appendix (every search idea with its result); `docs/development/archive/DEVELOPMENT_6.0.md` (quiescence notes 9–10) | priors |
-| B.7.2 | `docs/development/archive/DEVELOPMENT_8.0.md` §2–§4, §20, §22, §27, §30, §36, §40, §48.3; `build/nps_pair.py`, `build/node_identity.py`, `build/search_counters.py` | reference |
+| B.8.5 | `docs/development/archive/DEVELOPMENT_8.0.md` §2–§4, §20, §22, §27, §30, §36, §40, §48.3; `build/nps_pair.py`, `build/node_identity.py`, `build/search_counters.py` | reference |
 | B.16 | `source/prunelog.h`, `source/redlog.h`, `source/ordlog.h` (the pricing data builds), `removed/e876fa3/docs/development/8.1/SEARCH_2_REDUCTIONS.md` §2.6 and `SEARCH_3_PRUNING.md` §3.3; `docs/development/archive/DEVELOPMENT_8.0.md` §2, §32, §36, §45; `build/nps_pair.py`, `build/node_identity.py`, `build/search_counters.py` | reference |
-| B.15.1, B.15.2 | `source/search/16_tdperft.inc`, `source/movegen_legal.h`, `source/search/07_makemove.inc`, `source/see.cpp`, `source/attacks.cpp`, `source/sliders.cpp`, `source/zobrist.cpp`, `source/tt.h`; `docs/development/archive/DEVELOPMENT_8.0.md` §12, §14, §28, §40 | read, then design from Basilisk's own code |
+| B.7.1, B.7.2 | `source/search/16_tdperft.inc`, `source/movegen_legal.h`, `source/search/07_makemove.inc`, `source/see.cpp`, `source/attacks.cpp`, `source/sliders.cpp`, `source/zobrist.cpp`, `source/tt.h`; `docs/development/archive/DEVELOPMENT_8.0.md` §12, §14, §28, §40 | read, then design from Basilisk's own code |
 | C.0 | `removed/dfa5a6b/docs/project/FUTURE_DIRECTIONS.md` §1–§2 (the residual and regime studies) | template |
 | D.1, H.3 | `docs/development/archive/DEVELOPMENT_8.0.md` §23, §27, §31–§33, §43–§45; `removed/e876fa3/docs/development/8.1/TIME_MANAGEMENT.md`; `source/search/14_deepen.inc` | reference |
 | D.2 | `source/tt.h` (16-byte XOR-verified entries); `docs/development/archive/DEVELOPMENT_8.0.md` §6, §12, §47.2; `removed/e876fa3/docs/development/8.1/SEARCH_5_CORE.md` §5.3 | reference |
-| D.3.2 | `docs/development/archive/DEVELOPMENT_8.0.md` §12, §30, §44, §49; `build/uci_stress.py` | reference |
+| B.9.1 | `docs/development/archive/DEVELOPMENT_8.0.md` §12, §30, §44, §49; `build/uci_stress.py` | reference |
 | F.0–F.8 | `docs/networks/NETWORKS.md`; `removed/dfa5a6b/docs/networks/NETWORKS_4.2-7.0.md` (the 4.2–7.0 networks and their failures); `triumviratus-networks/recipes/07_consilium-plebis/docs/DESIGN_NEXT_NETWORK_2026-10-21.md` and `C2_SEARCH_DISTRIBUTION_2026-10-21.md`; `removed/e876fa3/docs/development/8.1/CONSILIUM_INFERENCE.md`; `removed/dfa5a6b/docs/networks/moe_experimental_grafts.md`; `triumviratus-networks/recipes/*/README.md`, `triumviratus-networks/recipes/07_consilium-plebis/` (run log, data, design documents) | reference |
 | G.2 | `docs/development/archive/DEVELOPMENT_8.0.md` §14 (Chess960), §35 (universal build), §49 (analysis build) | reference |
