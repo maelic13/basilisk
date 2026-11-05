@@ -236,6 +236,9 @@ public:
     // SEE pin support: absolute pins for both colors against the given
     // occupancy. pinner_of[sq] is valid only where pinned[] has the bit.
     void see_pins(Bitboard occ, Bitboard pinned[NCOLORS], Square pinner_of[SQUARE_NB]) const;
+    // Whether vacating `s` can pin a piece against either king: `s` shares a
+    // line with the king and an enemy slider of that line's kind is on it.
+    [[nodiscard]] bool see_departure_opens_line(Square s, Bitboard occ) const;
     [[nodiscard]] bool is_repetition(int search_ply) const;
     // Whether the side to move has a reversible move back to a position of
     // the key history, found by the cuckoo tables without generating moves

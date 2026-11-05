@@ -1291,9 +1291,6 @@ static void test_see_king_legality() {
 }
 
 
-// The SEE approximation the kernel still keeps, a pin opened mid-exchange.
-// Its fixture pins BOTH the truth (the promotion-aware legality oracle) and
-// the kernel's approximate answer, so the divergence cannot drift unnoticed.
 static int see_ge_boundary(const Board& b, Move m) {
     // see_ge(m, t) is monotone non-increasing in t; return the largest true t.
     int lo = -30000, hi = 30000;
@@ -1304,28 +1301,11 @@ static int see_ge_boundary(const Board& b, Move m) {
     return lo;
 }
 
-static void check_see_approx(const char* label, const char* fen,
-                             Square from, Square to,
-                             int truth, int kernel_see, int kernel_ge_boundary) {
-    Board b;
-    b.set_fen(fen);
-    Move m = find_capture(b, from, to);
-    begin_section(label);
-    EXPECT(m != MOVE_NONE);
-    if (m != MOVE_NONE) {
-        EXPECT_EQ(oracle_see(b, m), truth);              // what is actually true
-        EXPECT_EQ(b.see(m), kernel_see);                 // what the kernel says
-        EXPECT_EQ(see_ge_boundary(b, m), kernel_ge_boundary);
-    }
-    end_section();
-}
-
 // Created pins and promotion recaptures. Fixtures ported from Rarog's
 // `see-contract-v1.tsv` / `see-repair-v1.tsv`, retargeted to Basilisk's
-// 100/300/300/500/900 vector. A promoting recapture is scored exactly; a pin
-// opened mid-exchange is still approximated.
+// 100/300/300/500/900 vector. Both kernels score them exactly.
 static void test_see_created_pins_and_promotions() {
-    // --- Created pins: three of the four Rarog fixtures already pass. -------
+    // --- Created pins -------------------------------------------------------
     // `see_pins` is computed on the exchange occupancy with the MOVER already
     // removed, so a pin opened by the mover's own departure is honoured.
     check_see_case("created pin: opened by the mover's departure",
@@ -1336,15 +1316,11 @@ static void test_see_created_pins_and_promotions() {
     check_see_case("created pin: skip the pinned attacker, choose the rook",
                    "2kr4/2n5/2B5/3p4/8/8/8/2R1K3 w - - 0 1", C6, D5, -200);
 
-    // The one that genuinely fails: the pin is opened mid-exchange by a LATER
-    // capturer (the c6 bishop's own recapture), not by the initial mover, so
-    // the once-computed pin set never sees it and Nc7 is allowed to recapture.
-    // Truth -300; see() reaches -300 only because its X-ray truncation happens
-    // to stop first, while the exact see_ge carries the illegal knight
-    // recapture and lands at -400. ACCEPTED APPROXIMATION -- see 15.0.c.
-    check_see_approx("created pin: opened mid-exchange (accepted approximation)",
-                     "2k5/2n5/2B1p3/3p4/8/8/3R4/2R4K w - - 0 1", D2, D5,
-                     /*truth*/ -300, /*see()*/ -300, /*see_ge boundary*/ -400);
+    // The pin opened mid-exchange by a LATER capturer: the c6 bishop's own
+    // recapture opens the c-file, so Nc7 may no longer recapture. Pins
+    // computed once at the start let it, and see_ge read -400 for -300.
+    check_see_case("created pin: opened mid-exchange",
+                   "2k5/2n5/2B1p3/3p4/8/8/3R4/2R4K w - - 0 1", D2, D5, -300);
 
     // --- Promotion recaptures ----------------------------------------------
     // A promotion made by the INITIAL move is handled exactly by both kernels.
@@ -1377,10 +1353,10 @@ static void test_see_created_pins_and_promotions() {
 // semantics): never above 0, never below minus the mover's value. Checked for
 // every legal quiet on the SEE FEN list and a fixed-seed random-walk corpus
 // against the legality oracle. The kernel's legality model is the one
-// captures already use (pins computed once on the starting occupancy, checks
-// not modelled), so a quiet diverges from the oracle in the same geometries a
+// captures already use (pins followed through the exchange, checks not
+// modelled), so a quiet diverges from the oracle in the same geometries a
 // capture does: a check the move discovers, or an exchange in which legality
-// removes an attacker (a pin or a check opened mid-exchange). Each geometry
+// removes an attacker (a check opened mid-exchange). Each geometry
 // is pinned by count on the corpus, a pawn recapture that promotes at zero; a
 // divergence in none of them fails.
 struct QuietSeeTally {
@@ -1470,10 +1446,10 @@ static void check_quiet_see(Board& b, QuietSeeTally& tally) {
 }
 
 // The corpus's divergences by geometry (seed 0x5EE0F1E7, 400 walks, 10,872
-// quiets, 19 divergences). Captures diverge in the same geometries.
+// quiets, 15 divergences). Captures diverge in the same geometries.
 static constexpr int PINNED_PROMOTION_RECAPTURES = 0;
 static constexpr int PINNED_DISCOVERED_CHECKS = 8;
-static constexpr int PINNED_LEGALITY_FILTERED = 11;
+static constexpr int PINNED_LEGALITY_FILTERED = 7;
 
 static void test_see_quiet_moves() {
     begin_section("quiet SEE: boundary == oracle, within [-mover, 0], on the SEE FENs");

@@ -1690,6 +1690,24 @@ void Board::see_pins(Bitboard occ, Bitboard pinned[NCOLORS], Square pinner_of[SQ
     }
 }
 
+bool Board::see_departure_opens_line(Square s, Bitboard occ) const {
+    // A superset test, cheap and rarely true: a pin needs a king, the vacated
+    // square and an enemy slider of the line's kind on one line.
+    for (int ci = 0; ci < NCOLORS; ++ci) {
+        const Color c = Color(ci);
+        const Square ksq = king_sq[c];
+        const Bitboard line = BB_LINE[ksq][s];
+        if (!line)
+            continue;
+        const bool straight = rank_of(ksq) == rank_of(s) || file_of(ksq) == file_of(s);
+        const Bitboard sliders = pieces[~c][QUEEN]
+                               | (straight ? pieces[~c][ROOK] : pieces[~c][BISHOP]);
+        if (line & sliders & occ)
+            return true;
+    }
+    return false;
+}
+
 int Board::see(Move m) const {
     static constexpr int SEE_VALUES[PIECE_TYPE_NB] = {0, 100, 300, 300, 500, 900, 20000};
 
@@ -1731,8 +1749,10 @@ int Board::see(Move m) const {
 
     // Absolutely pinned pieces cannot recapture while their pinner is
     // still on the board, unless the exchange square lies on the pin line.
-    // Pins are computed once against the pre-move board; a pinner that is
-    // captured or moves during the exchange leaves `occ`, releasing the pin.
+    // Pins are computed on the exchange occupancy, so the mover's departure
+    // counts; a pinner that is captured or moves during the exchange leaves
+    // `occ`, releasing the pin, and a later departure that opens a king's
+    // line recomputes them, since it can pin a piece that was free.
     Bitboard pinned[NCOLORS];
     Square pinner_of[SQUARE_NB];
     see_pins(occ, pinned, pinner_of);
@@ -1805,6 +1825,8 @@ int Board::see(Move m) const {
         // Remove attacker (reveals X-ray)
         Bitboard lva_bit = attacker_bb & (-attacker_bb); // lowest set bit
         occ ^= lva_bit;
+        if (see_departure_opens_line(Square(lsb(lva_bit)), occ))
+            see_pins(occ, pinned, pinner_of);
         piece_on_sq = promotes ? QUEEN : attacker_type;
         side = ~side;
 
@@ -1942,6 +1964,8 @@ bool Board::see_ge(Move m, int threshold) const {
 
         Bitboard lva_bit = attacker_bb & (0ULL - attacker_bb);
         occ ^= lva_bit;
+        if (see_departure_opens_line(Square(lsb(lva_bit)), occ))
+            see_pins(occ, pinned, pinner_of);
         attackers = attackers_to(to, occ) & occ;
         if (promo_sq && swap + promo_threat(~stm) < result)
             break;
