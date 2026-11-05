@@ -80,7 +80,7 @@
 - **Cap: 4,000 pairs.**
 - Launcher `tools/run_b42_promo_gate.ps1`; results in
   `tools/results/b42-promo-gate/`.
-- **Dry run:** DRYRUN_PROMO
+- **Dry run:** dry run accepted 2026-11-05 (`tools/results/colosseum_sprt_b42-promo-gate_20261105_191129.*`, dry run 18D17467..., manifest 93ED8493...). The maintainer starts it; `GAME_GATE`.
 
 #### QUALIFICATION (before the gate)
 

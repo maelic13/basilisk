@@ -70,7 +70,7 @@
 - **Cap: 1,500 pairs.**
 - Launcher `tools/run_b42_pins_gate.ps1`; results in
   `tools/results/b42-pins-gate/`.
-- **Dry run:** DRYRUN_PINS
+- **Dry run:** dry run accepted 2026-11-05 (`tools/results/colosseum_sprt_b42-pins-gate_20261105_191140.*`, dry run 74055BAE..., manifest AF8CC425...). The maintainer starts it; `GAME_GATE`.
 
 #### RESULT — append after exposure
 
