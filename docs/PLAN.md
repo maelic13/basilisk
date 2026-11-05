@@ -1643,6 +1643,19 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         to `tools/results/b164-pmc-probe/`. Then the read, its null (a
         byte-identical copy) and its check against BAS-P25's +2.35%
         (identical tree) are built and registered.
+      - Probe traced 2026-11-05 by the maintainer: every one of 13,241
+        counter logs paired with its switch, no negative delta; the search
+        thread at 4.83 GHz, 3,656 instructions, 1,788 cycles and 19.5
+        branch mispredictions a node; start-up 2.2% of the cycles.
+      - Implemented 2026-11-05, `LOCAL_QUALIFIED` (BAS-P28):
+        `tools/diag/pmc_read.py` (6 tests) and the elevated launcher
+        `tools/run_b164_pmc.ps1`: BAS-P25's two revisions rebuilt as
+        four-build pools (19,470,325 each) and a byte-identical copy as the
+        null, three interleaved cycles of a pinned `bench 13`. Accepted
+        when the null holds 0 within ±0.5% and P25's interval lies below 0
+        and meets its NPS read's −2.30% [−2.63%, −1.97%]. Dry run accepted;
+        the read needs an elevated shell and an idle host, about ten
+        minutes, maintainer-run.
     - [x] **B.16.5** `[I1]` Prompt helper stop (ANY TIME) — before B.4
       Added 2026-11-05 (maintainer: "investigate and repair now"),
       worked straight after B.16.1: the repair of its four-thread
@@ -2345,7 +2358,7 @@ leaf's tag. Later phases carry only a class until they open.
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
 | B.16.3 | LOCAL_QUALIFIED | V | BAS-M14 prepared; about five hours of judge CPU on a free host, maintainer-run |
-| B.16.4 | RESEARCH | I1 | Tool chosen (ETW PMC, xperf); waits for the maintainer's elevated `pmc_probe.ps1` trace |
+| B.16.4 | LOCAL_QUALIFIED | I1 | BAS-P28 prepared; elevated, idle host, about ten minutes, maintainer-run |
 | B.4 | RESEARCH | I2 | Contents fixed by B.0 |
 | B.5 | RESEARCH | I2 | Contents fixed by B.0 |
 | B.6.1 | RESEARCH | R2 | Added 2026-10-31; after B.4 and B.5 close |

@@ -628,6 +628,7 @@ not accept any new feature, vector or label policy by themselves.
 | [BAS-P25](experiments/BAS-P25.md) | The zero-weight evaluation terms no longer computed. | COMPLETE: +2.35% [+2.01, +2.70], kept |
 | [BAS-P26](experiments/BAS-P26.md) | Instruction-specific speed: compressed PEXT tables and code generation. | COMPLETE: nothing faster; compressed −0.98%, znver3 tuning −0.95%, v3 +0.02%; native's −1.04% is its tuning |
 | [BAS-P27](experiments/BAS-P27.md) | Clang for Microsoft's ABI from winget against the MSYS2 build. | COMPLETE: −5.10% [−5.28, −4.92], FAIL (Windows stays on MSYS2) |
+| [BAS-P28](experiments/BAS-P28.md) | Speed at an identical tree from hardware counters, validated on BAS-P25 (B.16.4). | Registered; maintainer-run, elevated |
 
 ## 7. Correctness and protocol lessons
 
