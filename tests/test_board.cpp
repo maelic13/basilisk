@@ -1429,8 +1429,17 @@ static void check_quiet_see(Board& b, QuietSeeTally& tally) {
         if (!quiet)
             continue;
         ++tally.quiets;
+        // The most a quiet move can lose is the moved piece, and the queen's
+        // surplus over a pawn when an enemy pawn takes it on a back rank and
+        // promotes.
         const int mover = ORACLE_VALUES[type_of(b.piece_on(from_sq(m)))];
-        if (!b.see_ge(m, -mover) || b.see_ge(m, 1))
+        const Square dest = to_sq(m);
+        const bool promoting_recapture =
+            (rank_of(dest) == RANK_1 || rank_of(dest) == RANK_8)
+            && (PawnAttacks[b.turn()][dest] & b.piece_bb(~b.turn(), PAWN));
+        const int worst = mover
+                        + (promoting_recapture ? ORACLE_VALUES[QUEEN] - ORACLE_VALUES[PAWN] : 0);
+        if (!b.see_ge(m, -worst) || b.see_ge(m, 1))
             ++tally.bound_failures;
         const int boundary = see_ge_boundary(b, m);
         const int truth = oracle_see(b, m);
