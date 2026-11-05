@@ -54,6 +54,12 @@ BAS-P25's patch**
   ten minutes; archive `tools/results/b164-pmc/` (`runs.jsonl`,
   `report.json`, `host.json`).
 
+**Scheduled 2026-11-05 (maintainer):** the read runs as B.15.4's first
+step, the first leaf that reads the instrument, not with B.16.4. Its
+prediction stays frozen and unexposed. If the pools are gone by then they
+are rebuilt from the same revisions with the same recipe; their hashes
+change, and the read records the new pool files.
+
 #### RESULT — append after exposure
 
 - Diagnostics (not the verdict):

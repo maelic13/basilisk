@@ -1513,7 +1513,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         - `COLOUR_HISTORY` defaults ON. The fingerprint record moves to
           5,361,058. `COLOUR_HISTORY=OFF` reproduces 5,369,042.
         - CLOSED.
-- [ ] **B.16** Search-programme instruments
+- [x] **B.16** Search-programme instruments
   Added 2026-11-03 (maintainer: "the instruments which would help us now,
   somewhere close"): four instruments the Triumviratus review found that
   Basilisk lacks, built before B.4 because B.4 and B.5 are their first
@@ -1597,7 +1597,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         null move 0.4%). For B.4 (quiescence futility and delta), B.5
         (early moves at cut nodes) and the fits and form re-reads (razoring
         and reverse futility by node type). CLOSED.
-    - [ ] **B.16.3** `[V]` Loss analysis by cell (ANY TIME) — before B.4
+    - [x] **B.16.3** `[V]` Loss analysis by cell (ANY TIME) — before B.4
       Where Basilisk loses, from games already played (TT-1): the pool
       tournaments' PGNs (BAS-M08, BAS-M11) and the latest gates', every
       move scored by a judge (Stockfish 19 at fixed nodes) as the
@@ -1623,7 +1623,13 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         positions identical); dry run accepted. Launcher
         `tools/run_b163_loss.ps1`, resumable, about five hours on 15
         cores; the maintainer starts it.
-    - [ ] **B.16.4** `[I1]` Identical-tree counter read (ANY TIME) — before B.4
+      - Closed 2026-11-05 as an instrument built (maintainer: a read runs
+        in the step that needs it). The run was withdrawn unplayed: two of
+        its sources were 1.10.x, before the search rebuild, and the third
+        today's engine against itself, which B.4 to B.6 change before any
+        reader. The read moves to D.1, its reader, on the games of the
+        engine D.1 tunes (BAS-M14). CLOSED.
+    - [x] **B.16.4** `[I1]` Identical-tree counter read (ANY TIME) — before B.4
       Speed of a change that keeps the tree, by hardware counters (TM-7):
       cycles, instructions and branch misses per node, the engine pinned to
       one core, only the search thread counted (start-up excluded), and a
@@ -1656,6 +1662,9 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         and meets its NPS read's −2.30% [−2.63%, −1.97%]. Dry run accepted;
         the read needs an elevated shell and an idle host, about ten
         minutes, maintainer-run.
+      - Closed 2026-11-05 as an instrument built (maintainer): its
+        validation read (BAS-P28, registered, not run) moves to B.15.4, the
+        first leaf that reads it; B.7.2 reads it after. CLOSED.
     - [x] **B.16.5** `[I1]` Prompt helper stop (ANY TIME) — before B.4
       Added 2026-11-05 (maintainer: "investigate and repair now"),
       worked straight after B.16.1: the repair of its four-thread
@@ -2004,6 +2013,10 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       does not pay its +0.5% returns to Basilisk's form. A component that
       changes the generation order, and so the tree, takes a `[-5,0]`
       SPRT at `3+0.03`.
+      First, B.16.4's counter read is validated: BAS-P28, registered
+      2026-11-05, `tools/run_b164_pmc.ps1` (elevated, idle host, about ten
+      minutes; its P25 pools rebuilt by `tools/nps_pool.ps1` if gone, the
+      new pool hashes recorded). Then it reads beside the pooled read.
 - [ ] **B.7** Search speed pass
     - [ ] **B.7.1** `[I1]` Allocation guard (ANY TIME) — before B.7.2
       Allocation guard (ANY TIME) — must land before B.7.2: a test with a
@@ -2357,8 +2370,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.16.3 | LOCAL_QUALIFIED | V | BAS-M14 prepared; about five hours of judge CPU on a free host, maintainer-run |
-| B.16.4 | LOCAL_QUALIFIED | I1 | BAS-P28 prepared; elevated, idle host, about ten minutes, maintainer-run |
 | B.4 | RESEARCH | I2 | Contents fixed by B.0 |
 | B.5 | RESEARCH | I2 | Contents fixed by B.0 |
 | B.6.1 | RESEARCH | R2 | Added 2026-10-31; after B.4 and B.5 close |
@@ -3002,7 +3013,10 @@ has lost games in both engines (BAS-X02).
   Triumviratus review inputs (2026-11-03,
   `analysis/triumviratus_review_2026-11-03.md`; IDs are its items):
   - Instruments, built in B.16 and read here first: the loss analysis by
-    cell (B.16.3, TT-1) says which clock situations lose games; the
+    cell (B.16.3, TT-1; `tools/diag/loss_by_cell.py`, BAS-M14's method)
+    says which clock situations lose games. It is run here, first, on the
+    clock- and node-annotated games of the engine this leaf tunes against
+    stronger engines (B.9's pool gauntlet, or a fresh one); the
     wall-clock read (B.16.1, TT-2) sizes the overhead the budget must
     leave.
   - Method: time levers are measured at the time control they act at and

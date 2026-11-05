@@ -113,11 +113,19 @@ a source; no table of a full source has been seen.
 
 #### RESULT — append after exposure
 
-- Diagnostics (not the verdict):
-- Deciding result:
-- Disposition:
+- Diagnostics (not the verdict): none; nothing was run beyond the
+  validation and the dry run above.
+- Deciding result: **withdrawn unplayed, 2026-11-05 (maintainer).** Its
+  readers come long after it: D.1 reads the clock cells, and nothing before
+  D.1 does. By then two of its sources describe engines from before the
+  search rebuild and the third an engine B.4 to B.6 will have changed, so
+  the read would be stale when used. A read runs in the step that needs it.
+- Disposition: **instrument built**; the method stands as registered here
+  and runs in D.1 on the games of the engine D.1 tunes, with a prediction
+  frozen then.
 
 #### PREDICTION CALIBRATION — preserve the original prediction above
 
-- Original prediction summary:
-- Observed result:
+- Original prediction summary: as registered; not exposed.
+- Observed result: none. The lesson is the registration's: a measurement is
+  scheduled with its reader, not with its instrument.
