@@ -122,7 +122,10 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     constexpr bool is_pv = NT != NodeType::NonPV;
     if (!counted) {
         record_node();
-        if ((state_.nodes & 2047) == 0) check_stop();
+        // The clock is read every 2048 nodes, the stop flag at every node:
+        // the main thread waits for every helper before `bestmove`.
+        if ((state_.nodes & 2047) == 0 || shared_.stop.load(std::memory_order_relaxed))
+            check_stop();
         if (state_.stopped) return 0;
         if (ply >= MAX_PLY) return evaluator_.evaluate(*state_.board);
         if (state_.board->is_draw(ply)) return 0;
@@ -360,9 +363,12 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     constexpr NodeType QsType = is_pv ? NodeType::PV : NodeType::NonPV;
     assert(is_root == (ply == 0));
     record_node();
-    if ((state_.nodes & 2047) == 0) {
+    // The clock is read every 2048 nodes, the stop flag at every node: the
+    // main thread waits for every helper before `bestmove`, so a helper
+    // that saw the stop only at its next clock read held the move back by
+    // up to 2048 nodes.
+    if ((state_.nodes & 2047) == 0 || shared_.stop.load(std::memory_order_relaxed))
         check_stop();
-    }
     if (state_.stopped) return 0;
 
     if (ply >= MAX_PLY) return evaluator_.evaluate(*state_.board);
