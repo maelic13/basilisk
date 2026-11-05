@@ -1727,6 +1727,7 @@ int Board::see(Move m) const {
     }
 
     Color side = ~side_to_move; // first recapture is by opponent
+    const bool promo_sq = (sq_bb(to) & (BB_RANKS[RANK_1] | BB_RANKS[RANK_8])) != 0;
 
     // Absolutely pinned pieces cannot recapture while their pinner is
     // still on the board, unless the exchange square lies on the pin line.
@@ -1782,8 +1783,12 @@ int Board::see(Move m) const {
         if (attacker_type == KING && (attackers & occupancy[~side] & occ))
             break;
 
+        // A pawn capturing onto a back rank promotes: it wins the queen's
+        // surplus over the pawn and leaves a queen on the square.
+        const bool promotes = attacker_type == PAWN && promo_sq;
         depth++;
-        gain[depth] = SEE_VALUES[piece_on_sq] - gain[depth-1];
+        gain[depth] = SEE_VALUES[piece_on_sq] - gain[depth-1]
+                    + (promotes ? SEE_VALUES[QUEEN] - SEE_VALUES[PAWN] : 0);
 
         // Early exit: even capturing for free doesn't help. This standard
         // gain-array prune is NOT exact — a slider X-ray revealed deep in the
@@ -1800,7 +1805,7 @@ int Board::see(Move m) const {
         // Remove attacker (reveals X-ray)
         Bitboard lva_bit = attacker_bb & (-attacker_bb); // lowest set bit
         occ ^= lva_bit;
-        piece_on_sq = attacker_type;
+        piece_on_sq = promotes ? QUEEN : attacker_type;
         side = ~side;
 
         // Recompute attackers (X-ray sliders revealed)
@@ -1849,8 +1854,16 @@ bool Board::see_ge(Move m, int threshold) const {
     if (mt == PROMOTION)
         attacker_type = promo_type(m);
 
+    // A pawn capturing onto a back rank promotes. In the swap form that leaves
+    // `swap` unchanged (the queen's surplus is won and the queen left on the
+    // square is worth as much more), but it moves both "already safe even if
+    // my piece is taken" exits below: losing the piece to a promoting pawn
+    // costs the surplus as well.
+    const bool promo_sq = (sq_bb(to) & (BB_RANKS[RANK_1] | BB_RANKS[RANK_8])) != 0;
+    constexpr int PROMO_SURPLUS = SEE_VALUES[QUEEN] - SEE_VALUES[PAWN];
+
     swap = SEE_VALUES[attacker_type] - swap;
-    if (swap <= 0)
+    if (swap <= 0 && !promo_sq)
         return true;
 
     Bitboard occ = all_occ ^ sq_bb(from);
@@ -1885,6 +1898,15 @@ bool Board::see_ge(Move m, int threshold) const {
     };
 
     Bitboard attackers = attackers_to(to, occ) & occ;
+    // The surplus `c` would add by recapturing now: its least valuable
+    // attacker is a pawn whenever it has one the pins allow.
+    auto promo_threat = [&](Color c) {
+        return promo_sq && pin_filtered(attackers & pieces[c][PAWN], c)
+             ? PROMO_SURPLUS : 0;
+    };
+    if (swap + promo_threat(~stm) <= 0)
+        return true;
+
     int result = 1;
 
     while (true) {
@@ -1915,12 +1937,14 @@ bool Board::see_ge(Move m, int threshold) const {
 
         result ^= 1;
         swap = SEE_VALUES[next_attacker] - swap;
-        if (swap < result)
+        if (swap < result && !promo_sq)
             break;
 
         Bitboard lva_bit = attacker_bb & (0ULL - attacker_bb);
         occ ^= lva_bit;
         attackers = attackers_to(to, occ) & occ;
+        if (promo_sq && swap + promo_threat(~stm) < result)
+            break;
     }
 
     return result != 0;

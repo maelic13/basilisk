@@ -1291,10 +1291,9 @@ static void test_see_king_legality() {
 }
 
 
-// 15.0.c: the two SEE approximations Basilisk deliberately keeps. These
-// fixtures pin BOTH the truth (the promotion-aware legality oracle) and the
-// kernel's approximate answer, so the divergence cannot drift unnoticed and
-// cannot be "fixed" by accident without this test going red.
+// The SEE approximation the kernel still keeps, a pin opened mid-exchange.
+// Its fixture pins BOTH the truth (the promotion-aware legality oracle) and
+// the kernel's approximate answer, so the divergence cannot drift unnoticed.
 static int see_ge_boundary(const Board& b, Move m) {
     // see_ge(m, t) is monotone non-increasing in t; return the largest true t.
     int lo = -30000, hi = 30000;
@@ -1321,11 +1320,10 @@ static void check_see_approx(const char* label, const char* fen,
     end_section();
 }
 
-// Created pins and promotion recaptures (15.0.c). Fixtures ported from Rarog's
+// Created pins and promotion recaptures. Fixtures ported from Rarog's
 // `see-contract-v1.tsv` / `see-repair-v1.tsv`, retargeted to Basilisk's
-// 100/300/300/500/900 vector. CLOSED as a documented approximation, not a
-// repair: neither defect changed a single verdict in 339,607 production
-// `see_ge` calls, and the created-pin repair costs +16.8% of the SEE column.
+// 100/300/300/500/900 vector. A promoting recapture is scored exactly; a pin
+// opened mid-exchange is still approximated.
 static void test_see_created_pins_and_promotions() {
     // --- Created pins: three of the four Rarog fixtures already pass. -------
     // `see_pins` is computed on the exchange occupancy with the MOVER already
@@ -1353,22 +1351,25 @@ static void test_see_created_pins_and_promotions() {
     check_see_case("promotion as the initial capture: queen",
                    "1r2k3/P7/8/8/8/8/8/4K3 w - - 0 1", A7, B8, 1300);
 
-    // A promotion made by a RECAPTURE is scored as a plain pawn: the kernel
-    // adds no promotion gain and leaves a pawn, not a queen, on the square.
-    // Those two errors are each worth (queen - pawn) = 800 and cancel EXACTLY
-    // when the promoted piece is immediately recaptured -- so this one is
-    // correct by cancellation, not by handling:
-    check_see_case("promotion recapture: errors cancel when it is recaptured",
+    // A promotion made by a RECAPTURE wins the queen's surplus and leaves a
+    // queen on the square. When the queen is recaptured at once the surplus
+    // is given back, so a kernel scoring the pawn recapture as a plain pawn
+    // gets this one right by cancellation:
+    check_see_case("promotion recapture: the queen is recaptured",
                    "7k/8/8/8/8/8/pR6/1rR1K3 w - - 0 1", B2, B1, 100);
 
-    // ...and only survives when the promoted piece stands. Truth -800, kernel
-    // 0: the full 800. ACCEPTED APPROXIMATION -- see 15.0.c.
-    check_see_approx("promotion recapture: promoted piece survives (accepted)",
-                     "7k/8/8/8/8/7K/pR6/1r6 w - - 0 1", B2, B1,
-                     /*truth*/ -800, /*see()*/ 0, /*see_ge boundary*/ 0);
-    check_see_approx("promotion recapture: promoted piece survives, mirror",
-                     "1R6/Pr6/7k/8/8/8/8/7K b - - 0 1", B7, B8,
-                     /*truth*/ -800, /*see()*/ 0, /*see_ge boundary*/ 0);
+    // ...and only this one tells them apart: the promoted queen stands, and
+    // Rxb1 axb1=Q loses the rook and the surplus (-800). A plain-pawn kernel
+    // reads 0, and its "safe even if the rook is taken" exit says so before
+    // looking at the recapture.
+    check_see_case("promotion recapture: the promoted queen stands",
+                   "7k/8/8/8/8/7K/pR6/1r6 w - - 0 1", B2, B1, -800);
+    check_see_case("promotion recapture: the promoted queen stands, mirror",
+                   "1R6/Pr6/7k/8/8/8/8/7K b - - 0 1", B7, B8, -800);
+    // A pinned pawn cannot promote by recapture (Ra8 pins a2 to Ka1): the
+    // surplus is not at risk, and Kxb1 makes the exchange level.
+    check_see_case("promotion recapture: the pawn is pinned",
+                   "R6K/8/8/8/8/8/pR6/kr6 w - - 0 1", B2, B1, 0);
 }
 
 // A quiet move's SEE is the exchange the opponent can start on its
@@ -1378,9 +1379,9 @@ static void test_see_created_pins_and_promotions() {
 // against the legality oracle. The kernel's legality model is the one
 // captures already use (pins computed once on the starting occupancy, checks
 // not modelled), so a quiet diverges from the oracle in the same geometries a
-// capture does: a pawn recapture that promotes, a check the move discovers,
-// or an exchange in which legality removes an attacker (a pin or a check
-// opened mid-exchange). Each geometry is pinned by count on the corpus; a
+// capture does: a check the move discovers, or an exchange in which legality
+// removes an attacker (a pin or a check opened mid-exchange). Each geometry
+// is pinned by count on the corpus, a pawn recapture that promotes at zero; a
 // divergence in none of them fails.
 struct QuietSeeTally {
     int quiets = 0;
@@ -1469,8 +1470,8 @@ static void check_quiet_see(Board& b, QuietSeeTally& tally) {
 }
 
 // The corpus's divergences by geometry (seed 0x5EE0F1E7, 400 walks, 10,872
-// quiets, 41 divergences). Captures diverge in the same three geometries.
-static constexpr int PINNED_PROMOTION_RECAPTURES = 22;
+// quiets, 19 divergences). Captures diverge in the same geometries.
+static constexpr int PINNED_PROMOTION_RECAPTURES = 0;
 static constexpr int PINNED_DISCOVERED_CHECKS = 8;
 static constexpr int PINNED_LEGALITY_FILTERED = 11;
 
