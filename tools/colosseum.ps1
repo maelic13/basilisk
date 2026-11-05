@@ -7,6 +7,17 @@
     host, runner, engine provenance, advertised options and resolved policy
     before play, writes a complete manifest, then checks the runner status and
     independently recounts the PGN.
+
+    A two-arm run may give arm B its own thread count (-ThreadsB) or clock
+    (-BaseMsB, -IncrementMsB): a self-relative scaling read plays an engine
+    at four threads against itself at one, and its time-odds leg at twice the
+    time against itself. A null pair and a gauntlet refuse both.
+
+    Placement is automatic with a core of headroom at one thread. A run in
+    which any side has more than one thread is sibling-free: Colosseum's
+    automatic slots cut to one logical CPU per physical core and passed as an
+    explicit list, because an automatic slot holds both SMT siblings of its
+    cores and Windows packs a multi-thread engine onto them (Rarog RAR-M82).
 #>
 param(
     [ValidateSet('sprt', 'match', 'calibrate', 'gauntlet')][string]$Mode = 'sprt',
@@ -23,8 +34,12 @@ param(
     [string[]]$OptionsB = @(),
     [int]$Hash = 64,
     [int]$Threads = 1,
+    [int]$ThreadsB = 0,
     [int]$BaseMs = 3000,
     [int]$IncrementMs = 30,
+    [int]$BaseMsB = -1,
+    [int]$IncrementMsB = -1,
+    [ValidateSet('', 'auto', 'sibling-free')][string]$Placement = '',
     [int]$MarginMs = 20,
     [int]$Concurrency = 0,
     [string]$ExpectRevision = '',
@@ -66,6 +81,23 @@ if ($Mode -in @('match', 'calibrate') -and $Games -gt 0 -and ($Games -lt 2 -or (
 if ($Mode -eq 'gauntlet' -and $ExtraArgs.Count -eq 0) { throw '-Mode gauntlet requires participants in -ExtraArgs.' }
 if ($Mode -ne 'sprt' -and $PSBoundParameters.ContainsKey('Bracket')) { throw "-Mode $Mode ignores -Bracket." }
 if ($Hash -lt 1 -or $Threads -lt 1) { throw '-Hash and -Threads must be positive.' }
+# Arm B plays at its own thread count and clock only when they are given.
+$threadsB = if ($PSBoundParameters.ContainsKey('ThreadsB')) { $ThreadsB } else { $Threads }
+$baseMsB = if ($PSBoundParameters.ContainsKey('BaseMsB')) { $BaseMsB } else { $BaseMs }
+$incrementMsB = if ($PSBoundParameters.ContainsKey('IncrementMsB')) { $IncrementMsB } else { $IncrementMs }
+if ($threadsB -lt 1) { throw '-ThreadsB must be positive.' }
+if ($baseMsB -lt 1 -or $incrementMsB -lt 0) { throw '-BaseMsB must be positive and -IncrementMsB not negative.' }
+$threadOdds = $threadsB -ne $Threads
+$clockOdds = $baseMsB -ne $BaseMs -or $incrementMsB -ne $IncrementMs
+if (($threadOdds -or $clockOdds) -and $Mode -in @('calibrate', 'gauntlet')) {
+    throw "-Mode $Mode refuses -ThreadsB, -BaseMsB and -IncrementMsB: " +
+        $(if ($Mode -eq 'calibrate') { "a null pair's arms are identical." } else { 'a gauntlet has one thread count and one clock.' })
+}
+$maxThreads = [Math]::Max($Threads, $threadsB)
+if (-not $Placement) { $Placement = if ($maxThreads -gt 1) { 'sibling-free' } else { 'auto' } }
+if ($Placement -eq 'auto' -and $maxThreads -gt 1) {
+    throw "-Placement auto with $maxThreads threads packs them on SMT siblings; a multi-thread run is sibling-free."
+}
 
 Write-Host ''
 Write-Host 'Preflight:'
@@ -152,7 +184,8 @@ for ($i = 0; $i -lt $engines.Count; $i++) {
     }
     $details = @(Get-EngineUciOptions -Path $arm.Path -Detailed)
     $threadOption = if ($Mode -eq 'gauntlet') { $ThreadOptionNames[$i] } else { 'Threads' }
-    Assert-AdvertisedOptions -Advertised $details -Wanted @("Hash=$Hash", "${threadOption}=$Threads") -Label $arm.Label
+    $armThreads = if ($twoArm -and $i -eq 1) { $threadsB } else { $Threads }
+    Assert-AdvertisedOptions -Advertised $details -Wanted @("Hash=$Hash", "${threadOption}=$armThreads") -Label $arm.Label
     Assert-AdvertisedOptions -Advertised $details -Wanted $arm.Options -Label $arm.Label
 }
 if ($twoArm) {
@@ -160,8 +193,9 @@ if ($twoArm) {
     $shaA = Get-HarnessSha256 $engines[0].Path
     $shaB = Get-HarnessSha256 $engines[1].Path
     if ($Mode -eq 'calibrate' -and $shaA -ne $shaB) { throw 'A null pair requires byte-identical binaries.' }
-    if ($Mode -ne 'calibrate' -and $shaA -eq $shaB -and (($OptionsA -join '|') -eq ($OptionsB -join '|'))) {
-        throw 'Identical binaries and options require -Mode calibrate.'
+    if ($Mode -ne 'calibrate' -and $shaA -eq $shaB -and (($OptionsA -join '|') -eq ($OptionsB -join '|')) -and
+        -not $threadOdds -and -not $clockOdds) {
+        throw 'Identical binaries, options, threads and clock require -Mode calibrate.'
     }
 }
 Write-Host "  Engine manifests, fingerprints, compilers, flavors and UCI options verified."
@@ -177,7 +211,7 @@ if (Test-Path -LiteralPath $storedConfig) {
     elseif ($Seed -ne $storedSeed) { throw "$Dir records seed $storedSeed; -Seed $Seed would change a resumed run." }
 }
 $Seed = New-HarnessSeed -Requested $Seed
-$concurrencyInfo = Resolve-HarnessConcurrency -Requested $Concurrency -ReservePhysicalCores 1 -ThreadsPerGame $Threads
+$concurrencyInfo = Resolve-HarnessConcurrency -Requested $Concurrency -ReservePhysicalCores 1 -ThreadsPerGame $maxThreads
 $expectedConcurrency = $concurrencyInfo.Concurrency
 
 $commandArgs = @('--run-file', $RunFile)
@@ -187,13 +221,14 @@ switch ($Mode) {
     'match' { $commandArgs += @($engines[0].Path, $engines[1].Path); if ($Games) { $commandArgs += @('--games', "$Games") } }
     'calibrate' { $commandArgs += @($engines[0].Path, $engines[1].Path); if ($Games) { $commandArgs += @('--games', "$Games") } }
 }
-function Get-SideOptions([string[]]$Own) {
+function Get-SideOptions([string[]]$Own, [int]$SideThreads) {
     $names = @($Own | ForEach-Object { ($_ -split '=', 2)[0].Trim().ToLowerInvariant() })
-    @(@("Hash=$Hash", "Threads=$Threads") | Where-Object { $names -notcontains ($_ -split '=', 2)[0].ToLowerInvariant() }) + @($Own)
+    @(@("Hash=$Hash", "Threads=$SideThreads") | Where-Object { $names -notcontains ($_ -split '=', 2)[0].ToLowerInvariant() }) + @($Own)
 }
 if ($twoArm) {
-    foreach ($option in (Get-SideOptions $OptionsA)) { $commandArgs += @('--a-option', $option) }
-    foreach ($option in (Get-SideOptions $OptionsB)) { $commandArgs += @('--b-option', $option) }
+    foreach ($option in (Get-SideOptions $OptionsA $Threads)) { $commandArgs += @('--a-option', $option) }
+    foreach ($option in (Get-SideOptions $OptionsB $threadsB)) { $commandArgs += @('--b-option', $option) }
+    if ($clockOdds) { $commandArgs += @('--b-base-ms', "$baseMsB", '--b-increment-ms', "$incrementMsB") }
 } else {
     $commandArgs += @('--option', "Hash=$Hash")
     for ($i = 0; $i -lt $engines.Count; $i++) {
@@ -202,7 +237,7 @@ if ($twoArm) {
     $commandArgs += $ExtraArgs
 }
 $commandArgs += @('--concurrency', "$expectedConcurrency")
-$commandArgs += @('--cores-per-game', "$Threads")
+$commandArgs += @('--cores-per-game', "$maxThreads")
 $commandArgs += @('--seed', "$Seed", '--dir', $Dir)
 # The run files name the UHO book; only a launcher that names another passes it.
 if ($PSBoundParameters.ContainsKey('Book')) { $commandArgs += @('--book', $Book) }
@@ -220,6 +255,16 @@ $logPath = Join-Path $resultsDir "colosseum_${Mode}_${label}_${stamp}.log"
 if ($LASTEXITCODE -ne 0) { throw "colosseum-cli refused the dry run (exit $LASTEXITCODE)." }
 $dry = Get-Content -LiteralPath $dryPath -Raw | ConvertFrom-Json
 $resolved = $dry.resolved_configuration
+$placementCpus = @()
+if ($Placement -eq 'sibling-free') {
+    # The automatic plan chooses the slots; the run names their game cores.
+    $placementCpus = @(Get-HarnessSiblingFreeCpuList -AutoResolved $resolved)
+    $commandArgs += @('--placement', ($placementCpus -join ','))
+    & $cli.Path @commandArgs --dry-run --json 2> $notesPath > $dryPath
+    if ($LASTEXITCODE -ne 0) { throw "colosseum-cli refused the sibling-free dry run (exit $LASTEXITCODE)." }
+    $dry = Get-Content -LiteralPath $dryPath -Raw | ConvertFrom-Json
+    $resolved = $dry.resolved_configuration
+}
 $violations = [System.Collections.Generic.List[string]]::new()
 function Add-Violation([string]$Text) { $violations.Add($Text) }
 $expectedCommand = if ($Mode -eq 'gauntlet') { 'tournament' } else { $Mode }
@@ -234,14 +279,20 @@ foreach ($field in @('engine_a_time_control', 'engine_b_time_control', 'time_con
 if ($controls.Count -eq 0) { Add-Violation 'resolved configuration has no time control' }
 foreach ($pair in $controls) {
     $name = $pair[0]; $control = $pair[1]
-    if ([int]$control.control.Increment.base_ms -ne $BaseMs) { Add-Violation "$name base is not $BaseMs ms" }
-    if ([int]$control.control.Increment.inc_ms -ne $IncrementMs) { Add-Violation "$name increment is not $IncrementMs ms" }
+    $expectedBase = if ($name -eq 'engine_b_time_control') { $baseMsB } else { $BaseMs }
+    $expectedIncrement = if ($name -eq 'engine_b_time_control') { $incrementMsB } else { $IncrementMs }
+    if ([int]$control.control.Increment.base_ms -ne $expectedBase) { Add-Violation "$name base is not $expectedBase ms" }
+    if ([int]$control.control.Increment.inc_ms -ne $expectedIncrement) { Add-Violation "$name increment is not $expectedIncrement ms" }
     if ([int]$control.margin_ms -ne $MarginMs) { Add-Violation "$name margin is not $MarginMs ms" }
+}
+if ($clockOdds -and @($controls | Where-Object { $_[0] -eq 'engine_b_time_control' }).Count -ne 1) {
+    Add-Violation 'arm B has its own clock, but the resolved configuration states no engine_b_time_control'
 }
 foreach ($field in @('engine_a', 'engine_b')) {
     if ($resolved.PSObject.Properties.Name -contains $field) {
+        $expectedThreads = if ($field -eq 'engine_b') { $threadsB } else { $Threads }
         if ([int]$resolved.$field.options.Hash.value -ne $Hash) { Add-Violation "$field Hash is not $Hash" }
-        if ([int]$resolved.$field.options.Threads.value -ne $Threads) { Add-Violation "$field Threads is not $Threads" }
+        if ([int]$resolved.$field.options.Threads.value -ne $expectedThreads) { Add-Violation "$field Threads is not $expectedThreads" }
     }
 }
 if ($Mode -eq 'gauntlet') {
@@ -305,7 +356,7 @@ if ("$($resolved.openings.order)" -ne 'Random') { Add-Violation "opening order i
 if ($resolved.openings.wrap) { Add-Violation 'openings wrap; a run must not replay its book' }
 try {
     Assert-HarnessResolvedPlacement -Resolved $resolved `
-        -ExpectedConcurrency $expectedConcurrency -ThreadsPerGame $Threads
+        -ExpectedConcurrency $expectedConcurrency -ThreadsPerGame $maxThreads -Placement $Placement
 } catch {
     Add-Violation $_.Exception.Message
 }
@@ -357,8 +408,10 @@ $lines.Add("book_sha256:      $(Get-HarnessSha256 $Book)")
 $lines.Add("opening_seed:     $Seed")
 $lines.Add("adjudication:     none (natural termination)")
 $lines.Add("hash_mb:          $Hash")
-$lines.Add("threads:          $Threads")
+$lines.Add("threads:          $(if ($threadOdds) { "A $Threads, B $threadsB" } else { $Threads })")
+$lines.Add("time_control:     $(if ($clockOdds) { "A ${BaseMs}+${IncrementMs} ms, B ${baseMsB}+${incrementMsB} ms" } else { "${BaseMs}+${IncrementMs} ms" }); margin $MarginMs ms")
 $lines.Add("cores_per_game:   $($resolved.execution.allocation.cores_per_game)")
+$lines.Add("placement:        $(if ($Placement -eq 'sibling-free') { "sibling-free, explicit ($($placementCpus -join ',')), one logical CPU per physical core" } else { "auto, headroom $($resolved.execution.placement_policy.headroom_physical_cores) physical core(s)" })")
 $lines.Add("concurrency:      $($resolved.execution.concurrency)")
 $lines.Add("host_busy_percent: $($hostState.BusyPercent)")
 $lines.Add("host_idle_waived: $($hostState.Waived)")

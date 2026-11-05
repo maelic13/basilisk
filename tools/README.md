@@ -21,6 +21,8 @@ and working as the backup, which PROCESS *Harness* says when to use.
 | `spsa_block_rule.py` | PLAN rule 7c's movement rule applied to a finished block | PROCESS *Common commands*; BAS-S22 |
 | `diag/colosseum_parity.py` | A Colosseum dry run compared field by field with a recorded `sprt.ps1` manifest | the harness parity of A.3 |
 | `diag/colosseum_recount.py` | A run's paired sample recounted from its PGN | `colosseum.ps1`'s post-run check |
+| `host_sampler.ps1` | A passive one-second typeperf sampler beside a multi-thread read: every logical CPU's load, parking and frequency, the engines' threads, and the core topology | PROCESS *Harness*, multi-thread reads |
+| `diag/smp_read.py` | A multi-thread run read: per arm NPS, non-mate depth and the in-game thread ratio R by fifths (`sides`); per slot, how many physical cores the hot logical CPUs spanned (`placement`, from the sampler) | PROCESS *Harness*; PLAN D.2 |
 | `diag/pgn_census.py` | One engine's head-to-head records from PGN headers | `colosseum.ps1`'s gauntlet census; BAS-M08 |
 | `diag/export_tournament_pgn.py` | One Colosseum desktop tournament exported to a PGN archive, the database read in place | desktop-app pool reads (BAS-M11) |
 | `diag/tb_gate_audit.py` | A tablebase-enabled gate audited from its PGN | BAS-S19 |

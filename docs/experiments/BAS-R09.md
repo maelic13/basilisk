@@ -105,3 +105,14 @@ SHA-256; the PGN recount agrees with the runner.
   the predicted range but well inside its interval, and LLR −0.96 is far
   from H0. Search depth and time per move were unchanged, so no sign of
   the lost-tail failure. The gate answered only "no harm", as registered.
+
+#### AUDIT NOTE 2026-11-05 — placement
+
+The gate ran in Colosseum's automatic slots (each slot logical CPUs 2–9,
+16–23 and 24–31: four physical cores with both SMT siblings), where Windows
+packs a four-thread engine onto two or three cores' siblings (Rarog
+RAR-P54, RAR-M82). Both arms played in the same state, so the head-to-head
+verdict, no harm, stands; the conditions were not the sibling-free ones a
+four-thread read now uses (PROCESS *Harness*), and the depth and node
+figures above are of packed threads. No re-run is owed for a retained
+repair.

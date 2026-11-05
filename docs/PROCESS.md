@@ -355,9 +355,26 @@ A registered experiment names its runner and never changes it mid-way.
 Shared conditions: `3+0.03`, Hash 64, one thread, the UHO book in random order
 and paired, no adjudication, a 20 ms time margin, and automatic placement on
 one shared physical core per non-ponder game with headroom. A registered
-multi-thread run passes `--cores-per-game Threads`; because pondering is off,
-both arms share the slot's core set, and the wrapper requires one physical
-core per engine thread. Windows CPU 0 is never a timed game core; on hybrid
+multi-thread run passes `--cores-per-game` at the larger side's thread count;
+because pondering is off, both arms share the slot's core set, and the
+wrapper requires one physical core per engine thread. **A multi-thread run is
+sibling-free**: `colosseum.ps1` takes Colosseum's automatic slots, cuts each
+to one logical CPU per physical core and passes them as an explicit
+`--placement` list, and refuses an automatic slot, an SMT sibling or a list
+with no game core free. An automatic slot holds both siblings of its cores;
+Windows 11 packs a four-thread engine onto two or three cores' siblings
+inside it, where a thread keeps about 0.63 of its work for any engine, so
+Rarog read its four threads at 2.65 times one thread in the automatic slot
+and 4.03 sibling-free, and a thread-scaling deficit that was the placement
+(Rarog RAR-P54, RAR-M82, 2026-11-03). Every multi-thread read before this
+rule, BAS-M11's unpinned 4T pool included, carries that confound. A
+self-relative scaling read plays one engine against itself with `-ThreadsB`
+or with `-BaseMsB`/`-IncrementMsB` time odds; `tools/host_sampler.ps1` runs
+beside it, and `tools/diag/smp_read.py` gives each leg's in-game thread
+ratio R by fifths (its validity check), the non-mate depth (mate-score moves
+stop at unrelated depths and contaminate a mean over all moves) and, from
+the sampler, how many physical cores each slot's hot logical CPUs spanned.
+Windows CPU 0 is never a timed game core; on hybrid
 CPUs only the highest efficiency class is eligible. The Ryzen
 9 5950X production host therefore runs fourteen concurrent match games with
 two physical cores free. A tune runs the registered fifteen slots × thirty
