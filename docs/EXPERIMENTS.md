@@ -18,7 +18,9 @@ leaves to their current identifiers. Rows from BAS-X30 on cite the lettered
 roadmap. Rarog identifiers (`RAR-*`) and Rarog paths cited anywhere in this
 ledger resolve in the pinned snapshot `docs/reference/rarog/` (Rarog
 `015bccae`), or for BAS-X35 in `docs/reference/rarog-2026-10-06/`, or for
-BAS-X36 in Rarog's live repository at `ec6f5b5`, read under A.12's exception;
+BAS-X36 in Rarog's live repository at `ec6f5b5`, or for BAS-X41 at `019646a`
+(with the run artifacts copied to `tools/results/imported-rarog-2026-11-04/`),
+read under A.12's exception;
 `docs/reference/README.md` says how. Triumviratus items (`TS-1`, `TB-1`
 and the like) and paths cited by BAS-X37–X40 resolve in
 `analysis/triumviratus_review_2026-11-03.md` and the snapshots
@@ -727,6 +729,7 @@ evaluator is weaker than Basilisk's, and its verdicts do not transfer
 | [BAS-X34](experiments/BAS-X34.md) | Rarog's measurements of Basilisk and of the target pool | import |
 | [BAS-X35](experiments/BAS-X35.md) | Rarog 2.4.0→2.5.0, the final import | import |
 | [BAS-X36](experiments/BAS-X36.md) | One longer tune near an optimum (rule 7c's amendment) | import |
+| [BAS-X41](experiments/BAS-X41.md) | Self-relative thread scaling, sibling-free: Stockfish 18 and Reckless as D.2's references | import |
 
 ## 8b. Cross-engine evidence imported from Manta
 
