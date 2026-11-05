@@ -1632,6 +1632,17 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       against A.9.4's pooled read on one patch of known effect. Then the
       instrument of B.15.4, B.7.2 and any profile share a gate asks for
       (B.3.5's repetition-check share).
+      - Tool chosen 2026-11-05: ETW PMC through the Windows Performance
+        Toolkit's `xperf`, which lists InstructionRetired, TotalCycles and
+        BranchMispredictions on the 5950X (AMD uProf is not installed).
+        Counters recorded at each context switch attribute them to the
+        thread switched out, so only the search thread is counted. The
+        kernel logger needs an elevated shell, which the agent lacks; the
+        parser waits for a real trace: `tools/diag/pmc_probe.ps1` (about a
+        minute, elevated, no idle host) saves one of a pinned `bench 13`
+        to `tools/results/b164-pmc-probe/`. Then the read, its null (a
+        byte-identical copy) and its check against BAS-P25's +2.35%
+        (identical tree) are built and registered.
     - [x] **B.16.5** `[I1]` Prompt helper stop (ANY TIME) — before B.4
       Added 2026-11-05 (maintainer: "investigate and repair now"),
       worked straight after B.16.1: the repair of its four-thread
@@ -2334,7 +2345,7 @@ leaf's tag. Later phases carry only a class until they open.
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
 | B.16.3 | LOCAL_QUALIFIED | V | BAS-M14 prepared; about five hours of judge CPU on a free host, maintainer-run |
-| B.16.4 | RESEARCH | I1 | Added 2026-11-03; before B.15.4 |
+| B.16.4 | RESEARCH | I1 | Tool chosen (ETW PMC, xperf); waits for the maintainer's elevated `pmc_probe.ps1` trace |
 | B.4 | RESEARCH | I2 | Contents fixed by B.0 |
 | B.5 | RESEARCH | I2 | Contents fixed by B.0 |
 | B.6.1 | RESEARCH | R2 | Added 2026-10-31; after B.4 and B.5 close |
