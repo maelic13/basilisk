@@ -111,6 +111,14 @@ and next step).
 
 ### Fixed
 
+- **A quicker answer with several threads.** Before it answered, the
+  engine waited for every helper thread to notice that the search had
+  stopped, which each did only every 2,048 positions: about a quarter of
+  a millisecond a move at four threads. Helpers now notice at once, as Stockfish's do. Measured
+  at four threads at `3+0.03`: **−2.2 ± 7.1 Elo** (3,000 games), no
+  measurable effect on strength. One thread is unchanged, and so is
+  `bench`.
+
 - **A `Hash` larger than the computer can hold is refused.** The option's
   maximum is now the computer's total physical memory in MiB (at most the
   former 33,554,432), and the `uci` option list shows it. A larger value is

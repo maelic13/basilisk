@@ -95,6 +95,7 @@ struct SearchLimits {
     bool diag = false;          // emit end-of-search diagnostic counters
 #if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
     bool decision_trace = false; // the bounded plies 1-2 decision trace
+    int pricing_every = 0;       // probe every N-th pruning decision (0 = off)
 #endif
 #ifdef BASILISK_ABLATION
     int ablation_mask = 0;

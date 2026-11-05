@@ -662,7 +662,13 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       pre-Cluster-2 arm. CTest passes 26/26 on both arms, Release and
       sanitizer. `check_roadmap`, `check_citations`, the SPSA-surface
       check and the tool tests pass.
-    - Steps 4-6 are next.
+    - Steps 4-6 are done. `master` had not moved. PR #21's CI first
+      failed the universal release build, because the physical-memory
+      query has no bench profile. It was exempted beside the other
+      unprofiled files (`6f76a99`). A macOS cell that never got a runner
+      was re-run. Squash-merged 2026-11-04 as `d26f92b`, whose tree is
+      the branch head's. The branch is deleted locally and on `origin`;
+      its commits stay under `refs/pull/21/head`.
   Opens in the standard cluster shape: B.3.0 research on the accepted B.2
   head (re-basing B.0's handoff), B.3.1 implement, B.3.2 diagnostics and
   paired run, B.3.3 sweep and SPSA, B.3.4 Basilisk's forms re-read on the
@@ -1507,7 +1513,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         - `COLOUR_HISTORY` defaults ON. The fingerprint record moves to
           5,361,058. `COLOUR_HISTORY=OFF` reproduces 5,369,042.
         - CLOSED.
-- [ ] **B.16** Search-programme instruments
+- [x] **B.16** Search-programme instruments
   Added 2026-11-03 (maintainer: "the instruments which would help us now,
   somewhere close"): four instruments the Triumviratus review found that
   Basilisk lacks, built before B.4 because B.4 and B.5 are their first
@@ -1517,7 +1523,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
   `(ANY TIME) — before B.4` (maintainer 2026-11-04: B.16 now, after B.3),
   because the roadmap orders leaves by number. Sources:
   `analysis/triumviratus_review_2026-11-03.md` (TT-1, TT-2, TM-7, TM-9).
-    - [ ] **B.16.1** `[V]` Wall-clock overhead read (ANY TIME) — before B.4
+    - [x] **B.16.1** `[V]` Wall-clock overhead read (ANY TIME) — before B.4
       What the gate's clock costs outside the search, at the controls the
       gates use (`3+0.03` leaves about 50–100 ms a move, so a few ms is
       several per cent of the think) (TT-2). Timed from outside the
@@ -1530,7 +1536,27 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       this read verifies it. A timing read needs an idle host: the
       maintainer chooses when. A gap to Stockfish beyond 1 ms goes to the
       correctness-repair path with its own gate.
-    - [ ] **B.16.2** `[I2]` Pruning and reduction pricing (ANY TIME) — before B.4
+      - Prepared 2026-11-04 (BAS-R08, registered with its prediction):
+        `tools/diag/wallclock.py` times each trial from outside the
+        engine, Basilisk and Stockfish 19 alternating every round, each
+        pinned to N game cores. It recovered delays planted in a fake
+        engine (`tools/diag/test_wallclock.py`): +5.03, +2.99 and +4.01
+        ms for 5, 3 and 4, and 0 with none. The deciding quantities are
+        wall times, because both engines report `time` in whole ms.
+        Binary `basilisk-b161-master-pext-pgo` (5,361,058, D5E67D0A...)
+        and launcher `tools/run_b161_wallclock.ps1`, dry run accepted.
+        The read takes about seven minutes on an idle host; the
+        maintainer starts it.
+      - Read 2026-11-05 (BAS-R08 *RESULT*), host idle, 3,600 trials.
+        Threads 1 passes: Basilisk's stop costs about 0.5 ms a move,
+        every gap to Stockfish at most +0.77 ms, `go nodes 1000` 0.51
+        against 0.81 ms. Threads 4: `movetime` overshoot +1.08 to +1.14
+        ms, over the 1 ms line; four threads add about 0.4 ms to every
+        stop. Part of the gap is the reference's: Stockfish's whole-ms
+        clock stops up to 1 ms early. The 4T stop latency is a
+        correctness-repair finding whose leaf the maintainer places;
+        D.1 takes the numbers as its overhead prior. CLOSED.
+    - [x] **B.16.2** `[I2]` Pruning and reduction pricing (ANY TIME) — before B.4
       What each pruning rule and each reduction hides (TM-9, Triumviratus's
       `prunelog` and `redlog`). In the Diag flavour, a deterministic sample
       of the moves each rule prunes (every `TraceEvent` pruning kind,
@@ -1547,7 +1573,31 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       screen, never accept: they point B.4's quiescence pruning, B.5's
       line growth, B.3.4's form re-reads and later fits at the rules worth
       a game.
-    - [ ] **B.16.3** `[V]` Loss analysis by cell (ANY TIME) — before B.4
+      - Built 2026-11-05 (`f2d8116`, reader `tools/diag/pricing.py`): the
+        `Pricing N` option of the tune and diagnostic builds probes every
+        N-th decision of 16 rules (the table-served ProbCut too, off by
+        default) and of reduced fail-lows. A probe is isolated: it writes
+        neither the table nor the histories and its state is restored, so
+        a priced search is the same search, a stronger check than "the
+        bench is identical with sampling off". IIR, the hindsight and
+        post-alpha depth changes and the negative singular extension are
+        not priced.
+      - Validated (BAS-S47): bench 5,361,058 on all three flavours; isolation
+        clean on 106 positions (2,490,852 probes), and live (a leaking
+        build differed everywhere); planted loose reverse futility and
+        quiet futility read higher than honest with disjoint intervals.
+        The first quiet-futility plant failed: lowering its slope tightened
+        the rule for poorly rated quiets (Amendment 1).
+      - Reading (106 positions, depth 16, every 4th decision): most hidden
+        changes per million search nodes in quiescence futility (4.3% of
+        pruned captures beat alpha, 5.1% of the first three), reduced
+        fail-lows (2.4%; 4.1% at cut nodes, 4.8% for moves 1–3) and
+        reverse futility (2.7%; 10.9% at all nodes); razoring 12.4%, 25.0%
+        at cut nodes. The exchange rules hide little (SEE 0.5–0.6%, the
+        null move 0.4%). For B.4 (quiescence futility and delta), B.5
+        (early moves at cut nodes) and the fits and form re-reads (razoring
+        and reverse futility by node type). CLOSED.
+    - [x] **B.16.3** `[V]` Loss analysis by cell (ANY TIME) — before B.4
       Where Basilisk loses, from games already played (TT-1): the pool
       tournaments' PGNs (BAS-M08, BAS-M11) and the latest gates', every
       move scored by a judge (Stockfish 19 at fixed nodes) as the
@@ -1560,7 +1610,26 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       held a third of the loss to Stockfish 19. It feeds B.9's checkpoint
       and the order of C and D. No new games; the judge's CPU is the cost,
       maintainer-run.
-    - [ ] **B.16.4** `[I1]` Identical-tree counter read (ANY TIME) — before B.4
+      - Prepared 2026-11-05 (BAS-M14, registered with its prediction):
+        `tools/diag/loss_by_cell.py` judges every move at 150,000 nodes,
+        tabulates ours against the opponents by class, clock and
+        material, and searches the 100 worst open errors again at 1×,
+        4× and 16× the game's nodes. Sources: BAS-M11's 2,400 games
+        (exported read-only from the Colosseum app; its PGN on disk had
+        none), the first 2,000 games of B.3.6's gate (today's engine) and
+        Basilisk 1.10.0's 8,200 games of BAS-M08's tournament, which carry
+        no clocks or nodes. Validated on synthetic games, a planted queen
+        sacrifice (868 cp, counted 300) and a determinism check (761
+        positions identical); dry run accepted. Launcher
+        `tools/run_b163_loss.ps1`, resumable, about five hours on 15
+        cores; the maintainer starts it.
+      - Closed 2026-11-05 as an instrument built (maintainer: a read runs
+        in the step that needs it). The run was withdrawn unplayed: two of
+        its sources were 1.10.x, before the search rebuild, and the third
+        today's engine against itself, which B.4 to B.6 change before any
+        reader. The read moves to D.1, its reader, on the games of the
+        engine D.1 tunes (BAS-M14). CLOSED.
+    - [x] **B.16.4** `[I1]` Identical-tree counter read (ANY TIME) — before B.4
       Speed of a change that keeps the tree, by hardware counters (TM-7):
       cycles, instructions and branch misses per node, the engine pinned to
       one core, only the search thread counted (start-up excluded), and a
@@ -1569,6 +1638,52 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       against A.9.4's pooled read on one patch of known effect. Then the
       instrument of B.15.4, B.7.2 and any profile share a gate asks for
       (B.3.5's repetition-check share).
+      - Tool chosen 2026-11-05: ETW PMC through the Windows Performance
+        Toolkit's `xperf`, which lists InstructionRetired, TotalCycles and
+        BranchMispredictions on the 5950X (AMD uProf is not installed).
+        Counters recorded at each context switch attribute them to the
+        thread switched out, so only the search thread is counted. The
+        kernel logger needs an elevated shell, which the agent lacks; the
+        parser waits for a real trace: `tools/diag/pmc_probe.ps1` (about a
+        minute, elevated, no idle host) saves one of a pinned `bench 13`
+        to `tools/results/b164-pmc-probe/`. Then the read, its null (a
+        byte-identical copy) and its check against BAS-P25's +2.35%
+        (identical tree) are built and registered.
+      - Probe traced 2026-11-05 by the maintainer: every one of 13,241
+        counter logs paired with its switch, no negative delta; the search
+        thread at 4.83 GHz, 3,656 instructions, 1,788 cycles and 19.5
+        branch mispredictions a node; start-up 2.2% of the cycles.
+      - Implemented 2026-11-05, `LOCAL_QUALIFIED` (BAS-P28):
+        `tools/diag/pmc_read.py` (6 tests) and the elevated launcher
+        `tools/run_b164_pmc.ps1`: BAS-P25's two revisions rebuilt as
+        four-build pools (19,470,325 each) and a byte-identical copy as the
+        null, three interleaved cycles of a pinned `bench 13`. Accepted
+        when the null holds 0 within ±0.5% and P25's interval lies below 0
+        and meets its NPS read's −2.30% [−2.63%, −1.97%]. Dry run accepted;
+        the read needs an elevated shell and an idle host, about ten
+        minutes, maintainer-run.
+      - Closed 2026-11-05 as an instrument built (maintainer): its
+        validation read (BAS-P28, registered, not run) moves to B.15.4, the
+        first leaf that reads it; B.7.2 reads it after. CLOSED.
+    - [x] **B.16.5** `[I1]` Prompt helper stop (ANY TIME) — before B.4
+      Added 2026-11-05 (maintainer: "investigate and repair now"),
+      worked straight after B.16.1: the repair of its four-thread
+      finding. A timestamp build placed the extra 0.4 ms in the join,
+      where the main thread waited for each helper's next stop check,
+      made every 2,048 nodes with the clock read. Helpers now read the
+      stop flag at every node (`fa2b866`); the clock read is unchanged.
+      - Implemented 2026-11-05, `LOCAL_QUALIFIED`: bench 5,361,058
+        unchanged; CTest 24/24; screening read at 4T, base / repair,
+        `movetime` overshoot 0.99 / 0.82 and 1.07 / 0.80 ms, ponderhit
+        1.10 / 0.81 ms, 1T within noise; the gap to Stockfish falls
+        under 1 ms (BAS-R09).
+      - Gate prepared: BAS-R09, `[-5,5]` at `3+0.03` with Threads 4,
+        1,500-pair cap, `tools/run_b165_gate.ps1`, dry run accepted.
+        At one thread the change cannot alter a game without pondering,
+        so the gate runs at four. The maintainer starts it; `GAME_GATE`.
+      - Gate 2026-11-05, `CLOSED`, retained: the cap without a boundary
+        (3,000 games, LLR −0.96), −2.2 ± 7.1 Elo at 4T, no faults or time
+        losses; the cap keeps a repair (BAS-R09).
 - [ ] **B.4** `[I2]` Cluster 3 — quiescence
   TT cutoff, corrected stand-pat with interpolated fail-high, futility base,
   move-count and SEE pruning, evasions only in check, TT write on exit; SPRT
@@ -1898,6 +2013,10 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       does not pay its +0.5% returns to Basilisk's form. A component that
       changes the generation order, and so the tree, takes a `[-5,0]`
       SPRT at `3+0.03`.
+      First, B.16.4's counter read is validated: BAS-P28, registered
+      2026-11-05, `tools/run_b164_pmc.ps1` (elevated, idle host, about ten
+      minutes; its P25 pools rebuilt by `tools/nps_pool.ps1` if gone, the
+      new pool hashes recorded). Then it reads beside the pooled read.
 - [ ] **B.7** Search speed pass
     - [ ] **B.7.1** `[I1]` Allocation guard (ANY TIME) — before B.7.2
       Allocation guard (ANY TIME) — must land before B.7.2: a test with a
@@ -2251,10 +2370,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.16.1 | RESEARCH | V | Added 2026-11-03; a timing read on an idle host, the maintainer chooses when |
-| B.16.2 | RESEARCH | I2 | Added 2026-11-03; needs no idle host, can be worked between B.3.3's blocks |
-| B.16.3 | RESEARCH | V | Added 2026-11-03; stored games, judge CPU, maintainer-run |
-| B.16.4 | RESEARCH | I1 | Added 2026-11-03; before B.15.4 |
 | B.4 | RESEARCH | I2 | Contents fixed by B.0 |
 | B.5 | RESEARCH | I2 | Contents fixed by B.0 |
 | B.6.1 | RESEARCH | R2 | Added 2026-10-31; after B.4 and B.5 close |
@@ -2898,7 +3013,10 @@ has lost games in both engines (BAS-X02).
   Triumviratus review inputs (2026-11-03,
   `analysis/triumviratus_review_2026-11-03.md`; IDs are its items):
   - Instruments, built in B.16 and read here first: the loss analysis by
-    cell (B.16.3, TT-1) says which clock situations lose games; the
+    cell (B.16.3, TT-1; `tools/diag/loss_by_cell.py`, BAS-M14's method)
+    says which clock situations lose games. It is run here, first, on the
+    clock- and node-annotated games of the engine this leaf tunes against
+    stronger engines (B.9's pool gauntlet, or a fresh one); the
     wall-clock read (B.16.1, TT-2) sizes the overhead the budget must
     leave.
   - Method: time levers are measured at the time control they act at and

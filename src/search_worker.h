@@ -30,6 +30,7 @@
 #include "board.h"
 #include "eval.h"
 #include "search_diagnostics.h"
+#include "search_pricing.h"
 #include "search_root.h"
 #include "search_types.h"
 #include "syzygy.h"
@@ -49,6 +50,13 @@
 // The kind of negamax node, fixed at compile time: the root (ply 0, always
 // PV), a PV node searched with an open window, or a null-window node.
 enum class NodeType { Root, PV, NonPV };
+
+// Inside a pricing probe nothing the engine's own search reads is written.
+#ifdef BASILISK_PRICING
+#define PRICE_PROBING() (state_.price.probing())
+#else
+#define PRICE_PROBING() false
+#endif
 
 struct SearchConfig {
     SearchLimits limits;
@@ -128,6 +136,9 @@ struct SearchState {
     DiagCounters diag;
 #if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
     DecisionTrace trace;
+#endif
+#ifdef BASILISK_PRICING
+    PruningPrice price;
 #endif
 
     // The kernel's per-ply records and buffers, sized for the deepest line.
@@ -241,6 +252,21 @@ private:
     // telemetry cannot drift out of sync with the store sites.
     void tt_store(Key key, int depth, int score, TTFlag flag, Move m, int ply,
                   int static_eval, bool pv);
+    // Every TT read in the kernel likewise (a pricing probe reads its own
+    // table beside the engine's).
+    bool tt_probe(Key key, TTEntry& out) const {
+#ifdef BASILISK_PRICING
+        if (state_.price.probing())
+            return state_.price.probe_tt(shared_.tt, key, out);
+#endif
+        return shared_.tt.probe_copy(key, out);
+    }
+#ifdef BASILISK_PRICING
+    // Runs `probe` so that the engine's own search cannot tell it ran (see
+    // search_pricing.h); returns its value and its node count in `nodes`.
+    template<class Probe>
+    int isolated_probe(SearchStack* ss, int ply, int64_t& nodes, Probe&& probe);
+#endif
     // A TT move as this node may play it: a piece of the side to move on its
     // from-square and a legal move. TT moves have no publication guarantee.
     [[nodiscard]] bool tt_move_playable(Move m) const;

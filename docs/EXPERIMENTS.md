@@ -132,6 +132,7 @@ X is good/bad”. If conditions or artifacts are unknown, say so.
 | [BAS-M11](experiments/BAS-M11.md) | Frozen before its first game, A.7.2 4T baseline re-run after BAS-M10's void. | COMPLETE: 4T performance 3040.4 [3026.4, 3054.3] |
 | [BAS-M12](experiments/BAS-M12.md) | Houdini 3 crashes at 4T: diagnosis (observation, 2026-10-05). | A race in Houdini 3's multi-thread start-up, triggered |
 | [BAS-M13](experiments/BAS-M13.md) | Frozen before any game, the 1.10.2 verification match against 1.10.1 with tablebases. | WITHDRAWN unplayed |
+| [BAS-M14](experiments/BAS-M14.md) | Loss analysis by cell: stored games judged by Stockfish 19, worst errors re-searched (B.16.3). | Withdrawn unplayed: instrument built, the read moves to D.1 |
 
 ## 3. Search and selectivity
 
@@ -530,6 +531,8 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S46](experiments/BAS-S46.md) — B.3.6 step 1: the colourless histories' cross-colour reads — read: continuation 16.3%, pawn 11.3%, capture 7.8%, correction 3.1%; closed: step 2 H1 +4.7 ± 3.0 Elo (9,618 pairs); coloured histories default ON (5,361,058)
 
+- [BAS-S47](experiments/BAS-S47.md) — B.16.2: what pruning and reductions hide, each rule's decisions searched again as denied — observation: instrument validated (isolation clean, planted rules higher); most hidden: quiescence futility, reduced fail-lows, reverse futility; razoring 12.4% (25% at cut nodes)
+
 | ID | Title | Disposition |
 |---|---|---|
 | [BAS-S17](experiments/BAS-S17.md) | Razoring depth reach in Elo (B.0.1, maintainer). | +2.4 ± 9.9; interval holds 0, the cluster decides the cap |
@@ -570,6 +573,8 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 | [BAS-R05](experiments/BAS-R05.md) | Shared-node batching/scaling change. | Retained: |
 | [BAS-R06](experiments/BAS-R06.md) | Extra helper coordination, aspiration sharing, diversification, TT variants and HCE refit during | Rejected or removed; not shipped. |
 | [BAS-R07](experiments/BAS-R07.md) | Fail-high clock stop sink probes: B.10 ended rec1's sink by a mate proof; cascade and the stop's hole remain. | Observation |
+| [BAS-R08](experiments/BAS-R08.md) | Wall-clock overhead read against Stockfish 19 at Threads 1 and 4. | Observation: 1T passes (gaps ≤ +0.77 ms); 4T movetime overshoot +1.08 to +1.14 ms over the line, a repair finding |
+| [BAS-R09](experiments/BAS-R09.md) | Helpers read the stop flag at every node (4T stop latency). | Retained: cap 3,000 games at 4T, −2.2 ± 7.1 Elo, LLR −0.96; 4T stop latency −0.25 ms |
 
 ## 5. Evaluation and data experiments
 
@@ -623,6 +628,7 @@ not accept any new feature, vector or label policy by themselves.
 | [BAS-P25](experiments/BAS-P25.md) | The zero-weight evaluation terms no longer computed. | COMPLETE: +2.35% [+2.01, +2.70], kept |
 | [BAS-P26](experiments/BAS-P26.md) | Instruction-specific speed: compressed PEXT tables and code generation. | COMPLETE: nothing faster; compressed −0.98%, znver3 tuning −0.95%, v3 +0.02%; native's −1.04% is its tuning |
 | [BAS-P27](experiments/BAS-P27.md) | Clang for Microsoft's ABI from winget against the MSYS2 build. | COMPLETE: −5.10% [−5.28, −4.92], FAIL (Windows stays on MSYS2) |
+| [BAS-P28](experiments/BAS-P28.md) | Speed at an identical tree from hardware counters, validated on BAS-P25 (B.16.4). | Registered; the read runs at B.15.4 |
 
 ## 7. Correctness and protocol lessons
 

@@ -37,6 +37,7 @@ public:
     bool    diag;            // hidden Diag check: end-of-search diagnostic counters
 #if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
     bool    decision_trace;  // bounded plies 1-2 search-decision trace
+    int     pricing_every;   // probe every N-th pruning decision (0 = off)
 #endif
 #ifdef BASILISK_ABLATION
     int     ablation_mask;   // matched search-family removal mask, 0..255

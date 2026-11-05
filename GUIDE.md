@@ -13,7 +13,7 @@ in `docs/PROCESS.md`; where the engine stands is PLAN §1.
 | Released baseline | **1.10.2** on `master`, tagged `v1.10.2` (2026-10-08), `bench 13` 14,978,465 |
 | Bench fingerprint | **5,361,058** (`bench 13`, since B.3.6's gate turned the coloured histories on; 5,369,042 at B.3.5; 11,880,564 at B.14; 16,615,757 at B.12; 19,470,325 at A.13.2; 19,108,490 at A.13.1; 16,092,165 at A.11.11; 8,913,394 at A.11.10; 7,857,713 at A.11.9; 7,384,101 at A.11.7; 7,233,823 at A.11.6; 8,753,339 at A.11.2; 9,260,429 at A.11.1; 8,437,148 at B.10; 11,099,210 at B.2.4; 14,978,465 for 1.10.0 to 1.10.2) |
 | Active experiment | None |
-| Long job | None (B.3 is complete and its delivery PR is open; B.16 runs next, before B.4) |
+| Long job | None (B.3 delivered to `master` as `d26f92b`; B.16 runs next, before B.4) |
 | Next release | **1.11.0** after B (B.11), then 1.12.0 after C, 1.13.0 after E; **2.0.0** is the first NNUE release |
 
 ## Model by class
@@ -39,10 +39,6 @@ generations change. These are maintainer judgments, not measured rankings.
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
 - **B.7.1** `[I1]` Allocation guard (ANY TIME) — before B.7.2 — Claude Sonnet 5 — Medium
-- **B.16.1** `[V]` Wall-clock overhead read (ANY TIME) — before B.4 — Claude Sonnet 5 — High
-- **B.16.2** `[I2]` Pruning and reduction pricing (ANY TIME) — before B.4 — Claude Opus 5 — High
-- **B.16.3** `[V]` Loss analysis by cell (ANY TIME) — before B.4 — Claude Sonnet 5 — High
-- **B.16.4** `[I1]` Identical-tree counter read (ANY TIME) — before B.4 — Claude Sonnet 5 — Medium
 
 ### Phase A — Reset: documents, harness, instruments, baselines (EXTENDED)
 
@@ -99,11 +95,12 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     - [x] **B.3.4** `[V]` Basilisk's forms re-read on the fitted arm
     - [x] **B.3.5** `[V]` Cluster 2 gates
     - [x] **B.3.6** `[I2]` Colour-indexed histories (S2)
-- [ ] **B.16** Search-programme instruments
-    - [ ] **B.16.1** `[V]` Wall-clock overhead read (ANY TIME) — before B.4
-    - [ ] **B.16.2** `[I2]` Pruning and reduction pricing (ANY TIME) — before B.4
-    - [ ] **B.16.3** `[V]` Loss analysis by cell (ANY TIME) — before B.4
-    - [ ] **B.16.4** `[I1]` Identical-tree counter read (ANY TIME) — before B.4
+- [x] **B.16** Search-programme instruments
+    - [x] **B.16.1** `[V]` Wall-clock overhead read (ANY TIME) — before B.4
+    - [x] **B.16.2** `[I2]` Pruning and reduction pricing (ANY TIME) — before B.4
+    - [x] **B.16.3** `[V]` Loss analysis by cell (ANY TIME) — before B.4
+    - [x] **B.16.4** `[I1]` Identical-tree counter read (ANY TIME) — before B.4
+    - [x] **B.16.5** `[I1]` Prompt helper stop (ANY TIME) — before B.4
 - [ ] **B.4** `[I2]` Cluster 3 — quiescence
 - [ ] **B.5** `[I2]` Cluster 4 — root and aspiration
 - [ ] **B.6** Donor-form reconciliation, then joint search SPSA
