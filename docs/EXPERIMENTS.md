@@ -530,7 +530,7 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S46](experiments/BAS-S46.md) — B.3.6 step 1: the colourless histories' cross-colour reads — read: continuation 16.3%, pawn 11.3%, capture 7.8%, correction 3.1%; closed: step 2 H1 +4.7 ± 3.0 Elo (9,618 pairs); coloured histories default ON (5,361,058)
 
-- [BAS-S47](experiments/BAS-S47.md) — B.16.2: what pruning and reductions hide, each rule's decisions searched again as denied — registered
+- [BAS-S47](experiments/BAS-S47.md) — B.16.2: what pruning and reductions hide, each rule's decisions searched again as denied — observation: instrument validated (isolation clean, planted rules higher); most hidden: quiescence futility, reduced fail-lows, reverse futility; razoring 12.4% (25% at cut nodes)
 
 | ID | Title | Disposition |
 |---|---|---|

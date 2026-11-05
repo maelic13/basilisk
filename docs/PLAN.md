@@ -1556,7 +1556,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         clock stops up to 1 ms early. The 4T stop latency is a
         correctness-repair finding whose leaf the maintainer places;
         D.1 takes the numbers as its overhead prior. CLOSED.
-    - [ ] **B.16.2** `[I2]` Pruning and reduction pricing (ANY TIME) — before B.4
+    - [x] **B.16.2** `[I2]` Pruning and reduction pricing (ANY TIME) — before B.4
       What each pruning rule and each reduction hides (TM-9, Triumviratus's
       `prunelog` and `redlog`). In the Diag flavour, a deterministic sample
       of the moves each rule prunes (every `TraceEvent` pruning kind,
@@ -1573,6 +1573,30 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       screen, never accept: they point B.4's quiescence pruning, B.5's
       line growth, B.3.4's form re-reads and later fits at the rules worth
       a game.
+      - Built 2026-11-05 (`f2d8116`, reader `tools/diag/pricing.py`): the
+        `Pricing N` option of the tune and diagnostic builds probes every
+        N-th decision of 16 rules (the table-served ProbCut too, off by
+        default) and of reduced fail-lows. A probe is isolated: it writes
+        neither the table nor the histories and its state is restored, so
+        a priced search is the same search, a stronger check than "the
+        bench is identical with sampling off". IIR, the hindsight and
+        post-alpha depth changes and the negative singular extension are
+        not priced.
+      - Validated (BAS-S47): bench 5,361,058 on all three flavours; isolation
+        clean on 106 positions (2,490,852 probes), and live (a leaking
+        build differed everywhere); planted loose reverse futility and
+        quiet futility read higher than honest with disjoint intervals.
+        The first quiet-futility plant failed: lowering its slope tightened
+        the rule for poorly rated quiets (Amendment 1).
+      - Reading (106 positions, depth 16, every 4th decision): most hidden
+        changes per million search nodes in quiescence futility (4.3% of
+        pruned captures beat alpha, 5.1% of the first three), reduced
+        fail-lows (2.4%; 4.1% at cut nodes, 4.8% for moves 1–3) and
+        reverse futility (2.7%; 10.9% at all nodes); razoring 12.4%, 25.0%
+        at cut nodes. The exchange rules hide little (SEE 0.5–0.6%, the
+        null move 0.4%). For B.4 (quiescence futility and delta), B.5
+        (early moves at cut nodes) and the fits and form re-reads (razoring
+        and reverse futility by node type). CLOSED.
     - [ ] **B.16.3** `[V]` Loss analysis by cell (ANY TIME) — before B.4
       Where Basilisk loses, from games already played (TT-1): the pool
       tournaments' PGNs (BAS-M08, BAS-M11) and the latest gates', every
@@ -2296,7 +2320,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.16.2 | RESEARCH | I2 | Added 2026-11-03; needs no idle host, can be worked between B.3.3's blocks |
 | B.16.3 | RESEARCH | V | Added 2026-11-03; stored games, judge CPU, maintainer-run |
 | B.16.4 | RESEARCH | I1 | Added 2026-11-03; before B.15.4 |
 | B.4 | RESEARCH | I2 | Contents fixed by B.0 |

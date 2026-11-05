@@ -39,7 +39,6 @@ generations change. These are maintainer judgments, not measured rankings.
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
 - **B.7.1** `[I1]` Allocation guard (ANY TIME) — before B.7.2 — Claude Sonnet 5 — Medium
-- **B.16.2** `[I2]` Pruning and reduction pricing (ANY TIME) — before B.4 — Claude Opus 5 — High
 - **B.16.3** `[V]` Loss analysis by cell (ANY TIME) — before B.4 — Claude Sonnet 5 — High
 - **B.16.4** `[I1]` Identical-tree counter read (ANY TIME) — before B.4 — Claude Sonnet 5 — Medium
 
@@ -100,7 +99,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     - [x] **B.3.6** `[I2]` Colour-indexed histories (S2)
 - [ ] **B.16** Search-programme instruments
     - [x] **B.16.1** `[V]` Wall-clock overhead read (ANY TIME) — before B.4
-    - [ ] **B.16.2** `[I2]` Pruning and reduction pricing (ANY TIME) — before B.4
+    - [x] **B.16.2** `[I2]` Pruning and reduction pricing (ANY TIME) — before B.4
     - [ ] **B.16.3** `[V]` Loss analysis by cell (ANY TIME) — before B.4
     - [ ] **B.16.4** `[I1]` Identical-tree counter read (ANY TIME) — before B.4
     - [x] **B.16.5** `[I1]` Prompt helper stop (ANY TIME) — before B.4

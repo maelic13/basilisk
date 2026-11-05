@@ -162,11 +162,88 @@ returns to research with this record. Run 3 waits for it. Archive
 
 #### RESULT — append after exposure
 
+Runs 2026-11-05 by the agent, binaries as registered.
+
+- Run 1, isolation: **passed**. 106 positions at depth 12, `Pricing 4`,
+  2,490,852 probes, no position differs
+  (`tools/results/b162-pricing/isolation/output.txt`).
+- Run 2, planted rules: reverse futility **passed** (2.57% [2.48, 2.67]
+  honest, 3.19% [3.09, 3.30] planted); quiet futility **failed** as
+  registered, a plant that tightened the rule (Amendment 1); the amended
+  check 2a **passed**: 1.42% [1.36, 1.47] honest, 1.91% [1.85, 1.97]
+  planted, decisions 743,042 → 799,194.
+- Run 3, the reading: 106 positions at depth 16, `Pricing 4`; 31,000,309
+  search and 74,809,408 probe nodes; `runs.jsonl` SHA-256 `1B75647A…`,
+  `summary.json` `A9985964…`
+  (`python tools/diag/pricing.py report tools/results/b162-pricing/reading`
+  reproduces it). Beat share [95% interval], change share, estimated
+  hidden changes per million search nodes:
+
+| Rule | Decisions | Beat % | Change % | Hidden / Mn |
+|---|---:|---:|---:|---:|
+| razor | 598,718 | 12.44 [12.27, 12.61] | – | 2,402.7 |
+| rfp | 4,841,269 | 2.70 [2.67, 2.73] | – | 4,210.9 |
+| null_move | 807,589 | 0.41 [0.38, 0.44] | – | 106.7 |
+| probcut | 915,109 | 1.49 [1.44, 1.54] | – | 438.9 |
+| multicut | 46,716 | 0.70 [0.57, 0.87] | – | 10.6 |
+| qs_delta | 491,043 | 3.08 [2.99, 3.18] | – | 488.0 |
+| capture_futility | 2,133,690 | 2.08 [2.05, 2.12] | 1.97 | 1,356.6 |
+| capture_see | 2,318,738 | 0.62 [0.60, 0.64] | 0.59 | 444.2 |
+| cont_hist | 401,518 | 4.96 [4.83, 5.10] | 4.64 | 600.7 |
+| quiet_futility | 11,189,650 | 1.01 [1.00, 1.02] | 0.97 | 3,504.5 |
+| quiet_see | 2,784,011 | 0.46 [0.45, 0.48] | 0.41 | 369.7 |
+| skip_quiets | 2,553,548 | 2.35 [2.32, 2.39] | 2.07 | 1,701.6 |
+| qs_futility | 3,783,878 | 4.27 [4.23, 4.31] | 4.24 | 5,174.1 |
+| qs_see | 4,650,381 | 1.53 [1.51, 1.55] | 1.35 | 2,028.7 |
+| qs_late | 1,019 | 2.54 [1.17, 5.43] | 2.54 | 0.8 |
+| lmr_fail_low | 7,401,145 | 2.35 [2.33, 2.37] | 2.09 | 4,994.9 |
+
+  The table-served ProbCut made no decision: its switch is off by default.
+
 - Diagnostics (not the verdict):
-- Deciding result:
-- Disposition:
+  - Razoring at expected cut nodes hides a fail high in 25.0% [24.6,
+    25.5] of its probes (all nodes 7.4%); reverse futility at expected all
+    nodes 10.9% [10.6, 11.3] (cut nodes 2.4%).
+  - Quiescence futility hides 5.1% of the first three captures it prunes
+    and under 0.7% of later ones.
+  - Reduced fail-lows: 3.0% at depths 1–7, 1.0% at 8 and above; 4.1% at
+    expected cut nodes against 1.2% at all nodes; 4.8% for moves 1–3
+    falling to 0.8% for 17 and later.
+  - A beat counts a probe one point past the bound; the margin is not
+    recorded, so a beat share is an upper bound on what matters.
+  - Probes cost 2.4 times the search's nodes at `Pricing 4`.
+- Deciding result (the registered screen): the most estimated hidden
+  changes per million search nodes are **quiescence futility (5,174),
+  reduced fail-lows (4,995) and reverse futility (4,211)**; the only rule
+  whose beat share's lower bound exceeds 5% is **razoring** (12.27%).
+- Disposition: **observation**; the instrument is validated (runs 1, 2,
+  2a). The screen points B.4 at quiescence futility and its delta rule,
+  B.5 at the reduction of early moves at cut nodes, and the next fits and
+  form re-reads at razoring and reverse futility by node type. No rule
+  changes here.
 
 #### PREDICTION CALIBRATION — preserve the original prediction above
 
-- Original prediction summary:
-- Observed result:
+- Original prediction summary: isolation clean (0.95); both plants above
+  honest (0.85 each); beat shares by rule in stated ranges; reduced
+  fail-lows 1–4% and rising with depth (0.6); change share at least 60% of
+  beat share for move rules; the top three drawn from reduced fail-lows,
+  quiet futility, the move-count rule and capture SEE (0.6).
+- Observed result: isolation clean; reverse-futility plant above honest;
+  the quiet-futility plant failed because the plant was misdesigned (the
+  amended plant passed). Nine of the fifteen beat-share ranges with
+  decisions held (razor,
+  reverse futility, quiet futility, continuation history, the move-count
+  rule, capture futility, quiescence SEE, late captures, reduced
+  fail-lows). Misses, one direction each: the SEE rules hide far less
+  than predicted (quiet SEE 0.46%, capture SEE 0.62%), as do the null move
+  (0.41%), ProbCut (1.49%) and the multi-cut (0.70%); quiescence's
+  gain-based rules hide far more (futility 4.27%, delta 3.08%, against
+  under 1%). Reduced fail-lows fell with depth instead of rising. The
+  change shares held (88–99% of beat shares). One of the predicted top
+  three appeared. What the model got wrong: it treated a static material
+  margin as safe in quiescence and an exchange test as risky, and the
+  reverse holds; a capture's evaluation swing beyond its material is
+  larger than the margins assume. The plant error: a registered plant
+  must be checked to prune a superset of the honest rule's moves before
+  it is registered.
