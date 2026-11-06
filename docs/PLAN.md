@@ -1950,6 +1950,19 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           (packet §5.8).
         - IDs reserved: BAS-S50 (B.4.5), BAS-S51 (B.4.6), BAS-S52
           (B.4.7); the predictions are frozen in packet §11.
+      - Read R2, after the close, at the maintainer's request
+        (2026-11-06; packet *Read R2* and *Research amendment 1*):
+        quiescence futility priced by class, with a throwaway split of
+        B.16.2's instrument, registered at `cd2c294` before running.
+        - Recaptures are 25.5% of the rule's decisions and 90.1% of the
+          moves it hides: 14.77% of them beat alpha when searched,
+          against 0.56% of other captures.
+        - The packet's verdict stands by the registered rule. P5 is
+          re-registered at 1.5%, and ticket 0's pricing keeps the class.
+        - Separate finding, not added to the arm: a queen capture that
+          is not a recapture beats futility 45.9% and the alpha-relative
+          SEE rule 27.3% of the time (26,810 decisions in 31.2M nodes);
+          B.4.5 reads it on the arm, and it is a candidate for H.2.
     - [ ] **B.4.4** `[I2]` Implement behind the umbrella switch
       The packet's contract behind one umbrella option, both arms
       building; accepted by an independent review that reproduces the

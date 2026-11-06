@@ -857,3 +857,127 @@ Rules, fixed here:
   `B4GainValues`' paired run.
 
 No branch changes §10's contract.
+
+## Research amendment 1 — read R2's result (2026-11-06)
+
+Run by the agent on the registered recipe. The patched build reads
+`bench 13` 6,090,091 and the isolation check finds no differing position
+(20 positions, 174,772 probes), so the read counts: 106 positions at
+depth 16, `Pricing 4`, 31,212,872 search and 80,650,493 probe nodes
+(`pricing_split/`; `python tools/results/b43-20261106/read_pricing_split.py
+tools/results/b43-20261106/pricing_split` reproduces the tables).
+
+### 1. Result
+
+Beat share is the share of probed decisions whose move, searched,
+exceeds alpha, with its 95% interval.
+
+| Quiescence futility | Decisions | Beat % |
+|---|---:|---:|
+| all | 3,686,844 | 4.18 [4.14, 4.22] |
+| recaptures | 939,239 (25.5%) | **14.77** [14.62, 14.91] |
+| other captures | 2,747,605 | **0.56** [0.54, 0.57] |
+
+Recaptures carry **90.1%** of the rule's beats.
+
+| Captured piece | Decisions | Beat %, all | Recaptures | Other captures | HCE value less the 100-scale |
+|---|---:|---:|---:|---:|---:|
+| pawn | 2,760,504 | 0.31 | 1.23 | 0.16 | −12 |
+| knight | 469,344 | 10.41 | 17.19 | 1.83 | +16 |
+| rook | 105,163 | 14.28 | 19.07 | 3.93 | +38 |
+| bishop | 344,254 | 22.41 | 31.82 | 4.61 | +43 |
+| queen | 7,579 | 58.51 | 62.24 | 45.88 | +141 |
+
+By move number, recaptures against other captures: moves 1 to 3, 15.72%
+against 0.68%; moves 4 to 6, 4.38% against 0.12%.
+
+The alpha-relative SEE rule: 1.60% over 4,472,173 decisions; recaptures
+3.81%, other captures 1.37%; a captured queen 23.49% (recaptures 20.18%,
+other captures 27.27%, 53,344 decisions).
+
+Beside them on this head: the delta rule 3.33%, razoring 13.42%, reverse
+futility 2.81%.
+
+### 2. Predictions scored
+
+| # | Result | Verdict |
+|---|---|---|
+| Q1 | 4.18% | held |
+| Q2 | 14.77% against 0.56%, a factor of 26 | held; both of the sizes named in brackets missed, in opposite directions |
+| Q3 | 90.1% of the beats | held |
+| Q4 | the queen at 58.5% | held, far above the 10% named |
+| Q5 | 3.81% against 1.37% | held |
+
+Calibration: the direction was right and the size was not. The
+prediction spread the hidden share over both classes; it sits in one.
+A static margin is nearly exact for a capture that starts an exchange
+(0.56%) and wrong one time in seven for a capture that finishes one.
+
+### 3. Verdict of the registered rules
+
+Rule (a): §1 stands as written. The recapture exemption is the
+cluster's lead mechanism, now measured rather than inferred.
+
+What the numbers add, without changing a rule:
+
+- **The exemption's size.** With recaptures exempt, the futility rule's
+  remaining population reads 0.56% at today's margin of 150. The seed
+  of 86 prunes more of that population, so the arm's figure will lie
+  above 0.56%; P5 is re-registered below.
+- **Card 1.** Among captures that are not recaptures, the beat share
+  rises with the gap between the HCE's value and the credited one:
+  pawn 0.16%, knight 1.83%, rook 3.93%, bishop 4.61%, queen 45.88%.
+  This is evidence beside `B4GainValues`' paired run and changes no
+  rule, as registered.
+- **The count rule.** The moves it adds to what futility already
+  prunes sit at move 4 or later, where captures that are not recaptures
+  beat the rule 0.12% of the time. P5's `QsCount` clause stands.
+
+### 4. A finding outside the contract
+
+Capturing a queen is misjudged by both gain rules whether or not it
+recaptures: 45.9% of the queen captures futility prunes and 27.3% of
+those the alpha-relative SEE rule prunes beat alpha when searched. An
+even queen trade has an SEE of 0 on any vector, so this is not card 1's
+unit question. The likely cause is that removing a queen moves the
+evaluation's king-safety terms by more than any material margin; that
+is a hypothesis, not a measurement.
+
+The arm exempts the recaptures among them and keeps pruning the rest.
+The rest is small: 26,810 decisions in 31.2M search nodes, about a
+twentieth of the recaptures' hidden moves. It is not added to the arm.
+B.4.5 reads it on the arm (clause 2 below); a queen capture exempt from
+quiescence's gain rules is a candidate for H.2 on that reading.
+
+### 5. Predictions affected and clauses replaced
+
+Both made before any ON-arm build exists and before any game.
+
+1. **P5, substantive.** Old: "`QsFutility`'s falls from 4.27% to
+   **≤ 3.5%**", with the falsifier "`QsFutility` above 4.3% says the
+   hidden share was not the recaptures". New: "`QsFutility`'s beat share
+   on the arm is **≤ 1.5%**", with the falsifier "above 2.5% says the
+   base of 86 costs more than the exemption saves; B.4.6's sweep reads
+   `B4QsFutBase` first, and the whole-arm run is not blamed before it".
+   P5's other clauses stand.
+2. **§10, ticket 0, the pricing clause.** Old: "Pricing rules `QsCount`
+   and `QsEvasion`, as `QsFutility` is priced (the move searched in
+   quiescence with the node's window), with `pricing.py` reporting
+   them". New: the same, and "the cells of quiescence's move rules
+   (`QsFutility`, `QsSee`, `QsCount`) carry read R2's class, the
+   captured piece and whether the move recaptures, as
+   `pricing_split.patch` does; `pricing.py report` prints a rule by
+   class; a test covers the decoding". B.4.5's pricing screen (BAS-S50)
+   reads P5 and §4's queen captures by class on both arms.
+
+No other clause of §10 or §11 changes.
+
+### 6. Artifacts (`tools/results/b43-20261106/`)
+
+| Artifact | Identity |
+|---|---|
+| Instrument | `pricing_split.patch`, SHA-256 `AEB02F97B4B46A6E52AD1D2DA041D45AEC7B2ADB676536C0C5818A5FC07F4FE8`; never committed |
+| Build | `basilisk-b43-pricing-diag-nopgo.exe`, the patch on `cd2c294` (engine source of `1fd783b`), release preset with `-DDIAGNOSTIC=ON`, no PGO, `bench 13` 6,090,091 (`bench_pricing.log`), SHA-256 `7304C0F7165583B8D5DED814E6ABDC9FE336ECEA6B8786B70E62F23903B330E6` |
+| Isolation | `pricing_isolation.log`: 20 positions at depth 10, 0 differ |
+| The read | `pricing_split/runs.jsonl` (SHA-256 `154BE911…EFEE5B7E`), `pricing_split/summary.json` (`FD4973FA…C4FAF644`), `pricing_split.log` |
+| The reader | `read_pricing_split.py` |
