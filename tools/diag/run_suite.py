@@ -358,12 +358,15 @@ def validate_diag(counters):
                 + c["qs_cap_hits"] + c["qs_fail_highs"] + c["qs_fail_lows"]
                 + c["qs_evasion_nodes"] <= c["qs_nodes"]
             ),
+            # A quiet check counts as searched and was never a delivered capture.
             "quiescence move rules within its captures": (
                 c["qs_futility_pruned"] + c["qs_see_pruned"] + c["qs_late_pruned"]
-                + c["qs_count_pruned"] + c["qs_searched"] <= c["qs_moves"]
+                + c["qs_count_pruned"] + c["qs_searched"] - c["qs_quiet_checks"]
+                <= c["qs_moves"]
             ),
             "quiescence recaptures exempt and gains tested within what the loop delivered": (
-                c["qs_recapture_exempt"] + c["qs_gain_tested"] <= c["qs_searched"]
+                c["qs_recapture_exempt"] + c["qs_gain_tested"]
+                <= c["qs_searched"] - c["qs_quiet_checks"]
                 + c["qs_futility_pruned"] + c["qs_see_pruned"] + c["qs_late_pruned"]
                 + c["qs_count_pruned"]
             ),

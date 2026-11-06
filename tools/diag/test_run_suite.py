@@ -90,6 +90,27 @@ class FixedBudgetRecordTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "partial quiescence"):
             run_suite.validate_diag(counters)
 
+    def test_a_quiet_check_is_searched_but_not_delivered(self):
+        # Three captures delivered, two searched and one pruned, and two quiet
+        # checks searched after them: qs_searched holds four, qs_moves three.
+        counters = {name: 0 for name in run_suite.CORE_COUNTER_UNITS}
+        counters.update({name: 0 for name in run_suite.B4_COUNTER_UNITS})
+        counters.update({"qs_nodes": 10, "qs_moves": 3, "qs_searched": 4,
+                         "qs_quiet_checks": 2, "qs_count_pruned": 1,
+                         "qs_gain_tested": 2, "qs_recapture_exempt": 1})
+        self.assertTrue(all(run_suite.validate_diag(counters).values()))
+        counters["qs_searched"] = 5
+        with self.assertRaisesRegex(ValueError, "quiescence move rules"):
+            run_suite.validate_diag(counters)
+        counters["qs_searched"] = 4
+        counters["qs_gain_tested"] = 3
+        with self.assertRaisesRegex(ValueError, "gains tested"):
+            run_suite.validate_diag(counters)
+        counters["qs_gain_tested"] = 2
+        counters["qs_quiet_checks"] = 5
+        with self.assertRaisesRegex(ValueError, "rare exits"):
+            run_suite.validate_diag(counters)
+
     def test_counter_parser_rejects_duplicates_and_broken_identity(self):
         with self.assertRaisesRegex(ValueError, "duplicate"):
             run_suite.parse_diag(
