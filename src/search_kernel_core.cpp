@@ -231,6 +231,46 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         }
     }
 
+    // Cluster 3's arm answers a check through the node kernel's own picker: the
+    // table move first when it is a legal evasion, then the picker's stages,
+    // so the history a node has learned orders its evasions.
+    if constexpr (kB4Qsearch) {
+        if (in_check) {
+            int best = -INF_SCORE;
+            DIAG_COUNT(state_.diag.qs_evasion_nodes++);
+            const PieceToHistory* const conts[6] = {
+                (ss - 1)->cont_hist, (ss - 2)->cont_hist, (ss - 3)->cont_hist,
+                (ss - 4)->cont_hist, (ss - 5)->cont_hist, (ss - 6)->cont_hist};
+            CoreMovePicker picker(*state_.board, hist_, pawn_bucket(), conts, tt_move, MOVE_NONE,
+                                  0, ply, nullptr, state_.move_buffers[ply][0]);
+            int evasions_searched = 0;
+            for (Move m = picker.next(); m != MOVE_NONE; m = picker.next()) {
+                DIAG_COUNT(state_.diag.qs_evasion_tt_move
+                           += picker.last_source() == CoreMovePicker::Src::TT);
+                do_move(ss, m);
+                const int s = -quiescence<NT>(-beta, -alpha, ply + 1, qply + 1, ss + 1);
+                undo_move(ss, m);
+                if (state_.stopped) return 0;
+                DIAG_COUNT(++state_.diag.qs_evasion_moves);
+                ++evasions_searched;
+                if (s > best) best = s;
+                if (s > alpha) alpha = s;
+                if (alpha >= beta) {
+                    TRACE_DECISION(TraceEvent::QsBetaCutoff, ply, 0, m,
+                                   alpha, beta, VALUE_NONE, -1, VALUE_NONE, VALUE_NONE,
+                                   0, 0, VALUE_NONE, s);
+                    DIAG_COUNT(++state_.diag.qs_evasion_fail_highs);
+                    DIAG_COUNT(state_.diag.qs_evasion_fail_high_first += evasions_searched == 1);
+                    DIAG_COUNT(state_.diag.qs_evasion_fail_high_index_sum += evasions_searched - 1);
+                    DIAG_COUNT(state_.diag.qs_evasion_tt_cuts += m == tt_move);
+                    best = s;
+                    break;
+                }
+            }
+            return evasions_searched > 0 ? best : -(MATE_SCORE - ply);
+        }
+    }
+
     if (in_check) {
         // No qsearch-depth cap for evasion nodes: a static eval of an
         // in-check position is not a valid bound and can mask mates in long
@@ -347,10 +387,16 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     MoveList captures;
     state_.board->gen_legal_captures(captures);
 
-    // Score captures: MVV + cap_hist; prefer TT move
+    // Score captures: MVV + cap_hist; prefer TT move. Cluster 3's arm orders
+    // them as the picker's capture stage does.
     ScoredMove* sm = state_.move_buffers[ply][0];
     int nm = 0;
     for (Move m : captures) {
+        if constexpr (kB4Qsearch) {
+            sm[nm++] = {m, m == tt_move ? 10'000'000
+                                        : capture_order_score(*state_.board, hist_, m)};
+            continue;
+        }
         PieceType atk = type_of(state_.board->piece_on(from_sq(m)));
         PieceType cap = (move_type(m) == EN_PASSANT) ? PAWN : type_of(state_.board->piece_on(to_sq(m)));
         int score = (m == tt_move) ? 10'000'000
