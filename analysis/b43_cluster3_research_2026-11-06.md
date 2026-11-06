@@ -2974,3 +2974,109 @@ Nothing here says how much is ticket 1's evasion delivery.
 
 `depthpv 10` and the oracle differential are not in §11's list and were not read.
 `wac_depthpv12.json` exists for the canaries.
+
+## B.4.5 — the speed work (2026-11-06)
+
+P9's falsifier fired at the screens, and the maintainer asked for a profile and for
+the speed recovered before the games. Every change here is behaviour-neutral: no
+default, seed, floor or fingerprint moved. Evidence: `tools/results/b45-20261106/prof/`
+and `speed/`, and `tools/results/b45s-nps/`; BAS-P29 is the speed entry.
+
+### What the arm's gap is made of
+
+`tools/profile.ps1` on `bench 13`, 30 passes an arm, and a throwaway patch timing the
+evasion delivery with `rdtsc` (`speed/evasion_cost.py`, restored byte-exact). The
+arm costs about 24 ns a node more than the OFF arm, spread over the move picker
+(about 10 ns), the main search and quiescence.
+
+- **Ticket 1's evasion delivery, measured.** 458 cycles an evasion node on the arm,
+  228 on the OFF arm: 1.78% of the run against 0.95%. It accounts for about **0.8
+  points** of the gap, so P9's falsifier named a real cost and not the main one.
+  What remains of it is the two generations and the quiet scoring an exact order
+  needs. Making the attack maps lazy, below, is the part that could go.
+- **The tree's mix, estimated.** The arm's tree holds more interior nodes (58.2%
+  against 55.0% on the bench positions at depth 13), and an interior node costs
+  several times a quiescence node. At a cost ratio of 2.5 to 3 that alone gives 2.6
+  to 3 points. This is an inference from the counters, not a measurement.
+- **`gives_check`.** 1.22 calls a node against 0.98, the capture loop testing every
+  non-exempt capture for check before the gain rules. It cannot move behind them: a
+  rule that would prune still needs the answer.
+
+P9's premise, that the delivery would carry the cost, is therefore mostly false. The
+ratio is a property of the arm's tree, and it stands at 0.945 after this work.
+
+### What was tried
+
+Same-tree A/B: two final-PGO builds a side, six interleaved cycles of a pinned
+`bench 13 3 1` (`prof/ab.py`). Build-to-build noise is about ±0.3%.
+
+| Candidate | Read | Kept |
+|---|---:|---|
+| The imbalance from a table keyed on the ten piece counts | **+2.46%** | yes |
+| Material and piece-square values in one walk of the occupied squares | **+1.02%** | yes |
+| SEE: attackers once at entry, then only the line a capture opens | **+0.43%** | yes |
+| The sort's scan without a branch on the score | **+0.31%** | yes |
+| `score_quiets`' attack maps wait for the first piece that uses them | **+0.27%** | yes |
+| Quiescence prefetches the child's table entry | +0.10%; +0.09% at Hash 64 | no |
+| `see_pins` skips a line with no enemy slider on the king's rays | +0.09% | no |
+| The arm skips the plain SEE once the gain SEE settles it | −0.15% | no |
+| LMR's window term once per window, not per move | −0.33% | no |
+| `make_move` writes its undo record in place | −0.36% | no |
+| The picker's check squares unzeroed, `fill` without a branch | −0.43% | no |
+| The arm runs the higher of its two SEE thresholds first | −0.54% | no |
+| `gives_check` skips lookups off the king's rays | −0.69% | no |
+
+The five kept are three commits: `1ee67b7` (the evaluation), `1990343` (the quiet
+stage) and `516d422` (SEE). They touch shared code, so both arms gain. The prefilters
+lost because a PEXT lookup is cheaper than the branch that avoids it.
+
+Two tool repairs came with them: `search_b4.h` (`7c4a381`) and `search_pricing`
+(`4422d12`) were missing from `tools/diag/profile_regions.json`, which refused the
+arm's profile and left `test_profile_regions.py` failing since B.4.4.
+
+### The pooled read
+
+`tools/nps_read.ps1`, four pools of four final-PGO builds, two cycles, host at 1% or
+less, no cycle disturbed (`tools/results/b45s-nps`):
+
+| Contrast | Delta | 95% interval | Verdict |
+|---|---:|---|---|
+| The arm, `b45s-on` over `b45-on`, same tree | **+3.99%** | [+3.84%, +4.14%] | ACCEPT |
+| The OFF arm, `b45s-off` over `b45-off`, same tree | **+4.16%** | [+4.00%, +4.33%] | ACCEPT |
+| P9's ratio, `b45s-on` over `b45s-off` | −5.49% | [−5.61%, −5.37%] | 0.945× |
+
+The arm now reads 2.784M, 98.4% of the old OFF arm's 2.829M. P9's ratio does not
+move, because the gain is shared: the paired run's speed handicap is what it was.
+
+### Qualification on `516d422`
+
+Clean tree (`speed/final/`, the recipe of `t10/final_table.py`), every flavour from
+nothing:
+
+| Read | OFF | ON |
+|---|---:|---:|
+| `bench 13` Release / Tune / Diag / Ablate | 6,090,091 × 4 | 4,003,560 × 4 |
+| `bench 10` Release / sanitizer | 2,135,353 × 2 | 1,047,747 × 2 |
+| Release CTest / sanitizer CTest | 27/27, 25/25, no report | 27/27, 25/25, no report |
+| WAC depth 6 / 100,000 nodes | 133 / 247 | 149 / 258 |
+| Floors; KBN-K sum | 24; 115 | 24; 118 |
+
+Neutrality beyond the fingerprint, each against the record it must equal:
+
+- the depth-12 counter suite on both arms: 177 rows and 106 records, 0 differ
+  from the review's files;
+- pricing isolation: 114,787 and 174,772 probes, 0 positions differ;
+- the eight decision traces and both liveness reports: equal to `t10`'s;
+- the cost screen on the final PGO binaries: node for node `cost/screen25.json`;
+- game-like, Hash 64, 40 positions at 250,000 nodes: identical node totals, +3.66%
+  (`prof/ab_game.py`);
+- `TEXEL_TRACE` build: `test_eval` passes on the kept per-piece path.
+
+Tests added: the imbalance table against a fresh evaluator and across a parameter
+change, and the sort move for move against the one-pass reference with ties; each
+mutant fails, and SEE's two line mutants fail the oracle corpus.
+
+### Revision
+
+BAS-S50's binaries are re-pinned, before any game, to `516d422`. The screens stand:
+they read trees this work leaves unchanged. P9 stays scored as a miss.

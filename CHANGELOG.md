@@ -16,6 +16,10 @@ and next step).
 
 ### Changed
 
+- **About 4% faster.** The evaluation caches its material imbalance and sums
+  material in one pass, and the exchange evaluator recomputes less (BAS-P29:
+  +4.16% nodes per second). It plays the same moves: `bench 13` is unchanged at
+  6,090,091.
 - **About 2% faster.** The evaluation no longer computes terms whose weight
   was zero (BAS-P25: +2.35% nodes per second). It plays the same moves:
   `bench 13` is unchanged at 19,470,325.

@@ -11,7 +11,8 @@
   predictions and rules are copied; where a clause replaced §11's words, the
   new words are given and the source named.
 - **Baseline / candidate.** One revision: the accepted B.4.4 head with the
-  opening's two commits, source `33654f8`. The OFF arm against the ON arm
+  opening's two commits, source `33654f8`, then re-pinned before any game to
+  `516d422`, the same trees made faster (see *RESULT*). The OFF arm against the ON arm
   (`-DB4_QSEARCH=ON`), §7's seeds as amendment 2 §9 replaces the cap's row,
   §9's defaults; `bench 13` OFF **6,090,091**, ON **4,003,560**. PGO pairs per
   arm; the categoricals on one tune build of the arm, the alternative as arm A
@@ -237,5 +238,16 @@ Notes on the frozen table (the table stands):
   implementation for its cost before the gate". The read is of two different trees,
   so it is not ticket 1's cost alone, and nothing here attributes it. It binds before
   B.4.7's gate, not before this entry's runs. Its handling is the maintainer's.
+- **P9's falsifier, answered** (2026-11-06, packet *B.4.5 — the speed work*,
+  BAS-P29). The delivery was measured: 458 cycles an evasion node on the arm against
+  228 on the OFF arm, 1.78% of the run against 0.95%, about 0.8 points of the gap. The
+  arm's tree holds more interior nodes, which by estimate gives 2.6 to 3 points. P9
+  stays a miss. The ratio after the speed work reads 0.945×, [−5.61%, −5.37%].
+- **Binaries re-pinned before any game used them.** The speed work (BAS-P29) made
+  both arms faster at unchanged trees: the arm +3.99% [+3.84, +4.14], the OFF arm
+  +4.16% [+4.00, +4.33]. `tools/run_b45_games.ps1` now plays `516d422`: Release ON pool
+  `b45s-on`, build 1 9C9E463E…, OFF pool `b45s-off`, build 1 84F059B4…; Tune ON FDB8D28C….
+  The screens stand: the depth-12 counters, isolation, traces and the cost screen read
+  the same on these binaries, node for node. The first set was never played.
 
 #### PREDICTION CALIBRATION — preserve the original prediction above

@@ -2060,6 +2060,13 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           maintainer's.
         - The games are prepared in `tools/run_b45_games.ps1`, dry-run, and
           its order guards tested on 24 synthetic cases.
+      - Speed work 2026-11-06 (packet *B.4.5 — the speed work*; BAS-P29),
+        behaviour-neutral, before any game:
+        - Both arms are about 4% faster at unchanged trees. P9's ratio stays
+          0.945×, since the gain is shared.
+        - P9's falsifier is answered: ticket 1's delivery measures about 0.8
+          points of the gap, and the rest is mostly the arm's tree.
+        - The games are re-pinned to `516d422`, dry-run again.
     - [ ] **B.4.6** `[V]` Curvature sweep, then SPSA in blocks
       The packet's registered sweep, then SPSA in blocks on Cluster 3's
       surface (with B-21's RFP, razoring and NMP-base coordinates); the
@@ -2825,7 +2832,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.4.5 | RESEARCH | V | The screens are read (BAS-S50 *RESULT*); the games are prepared and the maintainer's to run: items 1 and 2, the paired run, items 3 to 5 (`tools/run_b45_games.ps1`). P9's falsifier fired, to be handled before B.4.7 |
+| B.4.5 | RESEARCH | V | The screens are read and the speed work is in (BAS-S50 *RESULT*, BAS-P29); the games are prepared at `516d422` and the maintainer's to run: items 1 and 2, the paired run, items 3 to 5 (`tools/run_b45_games.ps1`) |
 | B.4.6 | RESEARCH | V | After B.4.5 |
 | B.4.7 | RESEARCH | V | After B.4.6 |
 | B.5 | RESEARCH | I2 | Contents fixed by B.0; the ply cap and the clean child frame added 2026-11-05 |
