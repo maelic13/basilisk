@@ -1898,7 +1898,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           so a capture that discovers check, or an exchange that opens
           one, still diverges from the oracle (BAS-C09's note of
           2026-10-10).
-    - [ ] **B.4.3** `[R2]` Research and handoff on the repaired head
+    - [x] **B.4.3** `[R2]` Research and handoff on the repaired head
       Settle the two cards and every input above into one handoff packet
       in `analysis/`: the contents, the interactions with Clusters 1 and
       2's fitted cores, the categoricals and deletion arms, the zero-game
@@ -1906,6 +1906,50 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       the falsifiers and the B.4.4 contract with its seeds.
       Behaviour-neutral seams land at the exact fingerprint. Closes
       `READY_FOR_IMPLEMENTATION` or returns the cluster with its evidence.
+      - Closed `READY_FOR_IMPLEMENTATION` 2026-11-06:
+        `analysis/b43_cluster3_research_2026-11-06.md`. Run in one
+        session on the `R3` model at the maintainer's request.
+        - Seams: 33 diagnostic counters for quiescence and what its
+          depth-0 entries feed (`1fd783b`), with their suite-runner
+          units (`86769bf`). `bench 13` 6,090,091 on release and
+          diagnostic builds; CTest 24/24.
+        - Reads, registered at `8de2c95` before running (packet §R,
+          scored in §6), `suite_v2` at depth 14:
+          - quiescence is 42.2% of nodes (36.2% at B.3.0);
+          - card 1: the HCE's material changes 1.03% of `see_ge`
+            verdicts and 2.30% of quiescence's futility verdicts, over
+            the registered 1% and 2%;
+          - 24.5% of futility-pruned captures are recaptures, which the
+            donor exempts;
+          - 14.5% of the captures the donor's count rule would remove,
+            and that are searched today, fail high;
+          - evasions: 63.0% first-move fail highs against 92.6% for
+            captures; 40.6% of the quiet evasions the donor would skip
+            raise the node's value in generator order;
+          - the ply cap binds at 0.008% of nodes and the late rule 289
+            times; RAR-S40's population is 0.53% of interior nodes,
+            under the registered 1%;
+          - WAC at 100,000 nodes 247/300, the arm's floor base.
+        - Decisions:
+          - the donor's quiescence behind `B4_QSEARCH`, in eleven
+            tickets (packet §10);
+          - card 1: two-vector categoricals `B4SeeValues` and
+            `B4GainValues`, exact default identity;
+          - card 2: `B4QuietChecks`, default off, a paired run owed only
+            if quiet checks lower razoring's priced hidden share by a
+            quarter;
+          - the fail-low store: the donor's form in both searches on
+            the arm, read before the fit and bound by the floors;
+          - quiet-evasion pruning on in the arm, read first;
+          - the delta rule removed, its `[-5,0]` in B.4.7; the late
+            rule and the ply cap removed without games;
+          - no categorical for RAR-S40.
+        - Surface for B.4.6: the futility base and the two blend
+          weights, with PLAN's reverse futility, razoring and null-move
+          base coordinates, `B3IirMinDepth` and `CoreLmrCutNodeNoTt`
+          (packet §5.8).
+        - IDs reserved: BAS-S50 (B.4.5), BAS-S51 (B.4.6), BAS-S52
+          (B.4.7); the predictions are frozen in packet §11.
     - [ ] **B.4.4** `[I2]` Implement behind the umbrella switch
       The packet's contract behind one umbrella option, both arms
       building; accepted by an independent review that reproduces the
@@ -2662,8 +2706,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.4.3 | RESEARCH | R2 | Was B.4.0; contents fixed by B.0, on the repaired head |
-| B.4.4 | RESEARCH | I2 | On B.4.3's handoff |
+| B.4.4 | READY_FOR_IMPLEMENTATION | I2 | The contract of `analysis/b43_cluster3_research_2026-11-06.md` §10 |
 | B.4.5 | RESEARCH | V | After B.4.4's review |
 | B.4.6 | RESEARCH | V | After B.4.5 |
 | B.4.7 | RESEARCH | V | After B.4.6 |
