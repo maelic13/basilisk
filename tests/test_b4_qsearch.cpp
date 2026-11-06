@@ -656,6 +656,59 @@ static void test_stalemate() {
     end_section();
 }
 
+// ---- The fail-low store ---------------------------------------------------------
+
+// exd5 recaptures the queen and is searched as a recapture, but with alpha at
+// +3000 it fails low. The arm's one form stores no move after a fail low; with
+// the switch at 0 it stores the best-scored searched move, here exd5. The OFF
+// arm stores no move in quiescence at either setting.
+static void test_fail_low_store_in_quiescence() {
+    NodeRead r;
+    r.fen = "3qk3/8/8/3N4/4P3/8/8/6K1 b - - 0 1";
+    r.from = D8;
+    r.to = D5;
+    set_node_alpha(r, 3000);
+    Board child;
+    child.set_fen(r.fen);
+    child.make_move(legal_move(child, D8, D5));
+    const Move recapture = legal_move(child, E4, D5);
+    const SearchParams defaults;
+
+    r.set = [](SearchParams& p) { p.b3_fail_low_store = 1; };
+    const Run none = read_node(r);
+    r.set = [](SearchParams& p) { p.b3_fail_low_store = 0; };
+    const Run scored = read_node(r);
+    begin_section("fail-low store: one form on the arm, none in quiescence off it");
+    EXPECT_EQ(defaults.b3_fail_low_store, kB4Qsearch ? 1 : 0);
+    EXPECT(none.node_stored && scored.node_stored);
+    EXPECT(none.node_entry.bound() == TT_ALPHA);
+    EXPECT(scored.node_entry.bound() == TT_ALPHA);
+    EXPECT_EQ(move_from_tt(none.node_entry.move16), MOVE_NONE);
+    EXPECT_EQ(move_from_tt(scored.node_entry.move16), kB4Qsearch ? recapture : MOVE_NONE);
+    end_section();
+
+    // In check the arm's form is the same: Re5+ Nxe5 is the best-scored evasion.
+    NodeRead check;
+    check.fen = "4k3/5n2/8/R7/8/8/8/K7 w - - 0 1";
+    check.from = A5;
+    check.to = E5;
+    set_node_alpha(check, 5000);
+    Board in_check;
+    in_check.set_fen(check.fen);
+    in_check.make_move(legal_move(in_check, A5, E5));
+    check.set = [](SearchParams& p) { p.b3_fail_low_store = 1; };
+    const Run none_in_check = read_node(check);
+    check.set = [](SearchParams& p) { p.b3_fail_low_store = 0; };
+    const Run scored_in_check = read_node(check);
+    begin_section("fail-low store: the same form at an evasion node");
+    if constexpr (kB4Qsearch) {
+        EXPECT_EQ(move_from_tt(none_in_check.node_entry.move16), MOVE_NONE);
+        EXPECT_EQ(move_from_tt(scored_in_check.node_entry.move16),
+                  legal_move(in_check, F7, E5));
+    }
+    end_section();
+}
+
 // ---- The tune surface -----------------------------------------------------------
 
 static void test_options_are_the_arms_alone() {
@@ -697,6 +750,7 @@ int main() {
     test_blend_arithmetic();
     test_stand_pat_returns_and_stores_the_blend();
     test_stalemate();
+    test_fail_low_store_in_quiescence();
 
     return harness_summary();
 }

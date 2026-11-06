@@ -198,11 +198,15 @@ static void test_arm_defaults() {
         std::string_view field;
         std::string_view uci;
         int value;
+        bool compiled_in;
     };
     static constexpr ArmDefault arm[] = {
-#define ARM_DEFAULT_ENTRY(field, uci, value) {#field, #uci, value},
-        BASILISK_B3_CORE_DEFAULTS(ARM_DEFAULT_ENTRY)
-#undef ARM_DEFAULT_ENTRY
+#define ARM_DEFAULT_B3(field, uci, value) {#field, #uci, value, kB3Proof},
+#define ARM_DEFAULT_B4(field, uci, value) {#field, #uci, value, kB4Qsearch},
+        BASILISK_B3_CORE_DEFAULTS(ARM_DEFAULT_B3)
+        BASILISK_B4_CORE_DEFAULTS(ARM_DEFAULT_B4)
+#undef ARM_DEFAULT_B4
+#undef ARM_DEFAULT_B3
     };
     const auto find = [](std::string_view field) -> const ArmDefault* {
         for (const ArmDefault& a : arm)
@@ -220,13 +224,14 @@ static void test_arm_defaults() {
         EXPECT(a->value != def);                                         \
     }
     BASILISK_SEARCH_PARAMS(ARM_DEFAULT_RANGE)
+    BASILISK_B3_PARAMS(ARM_DEFAULT_RANGE, ARM_DEFAULT_RANGE, ARM_DEFAULT_RANGE)
     EXPECT_EQ(matched, int(std::size(arm)));
     end_section();
 
-    begin_section("arm defaults: overrides reach the B3_PROOF arm only; the rest keep their line");
+    begin_section("arm defaults: overrides reach their own arm only; the rest keep their line");
 #define ARM_DEFAULT_VALUE(field, uci, def, lo, hi)                       \
     if (const ArmDefault* a = find(#field))                             \
-        EXPECT_EQ(compiled.field, kB3Proof ? a->value : def);            \
+        EXPECT_EQ(compiled.field, a->compiled_in ? a->value : def);      \
     else                                                                 \
         EXPECT_EQ(compiled.field, def);
     BASILISK_SEARCH_PARAMS(ARM_DEFAULT_VALUE)

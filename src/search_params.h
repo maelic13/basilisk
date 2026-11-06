@@ -420,6 +420,13 @@
     S(b4_see_values,         B4SeeValues,            0,    0,     1)     \
     S(b4_quiet_checks,       B4QuietChecks,          0,    0,     6)
 
+// The B4_QSEARCH arm's own defaults for earlier clusters' lines, in the form of
+// BASILISK_B3_CORE_DEFAULTS. b3_fail_low_store: one form of the fail-low store
+// for both searches; on the arm 1 stores no move in either, and 0 stores the
+// best-scored searched move in both.
+#define BASILISK_B4_CORE_DEFAULTS(A)                                     \
+    A(b3_fail_low_store,     B3FailLowStore,          1)
+
 #define BASILISK_KERNEL_PARAMS(X) BASILISK_CORE_KERNEL_PARAMS(X, X)
 #define BASILISK_KERNEL_SWITCHES(S) BASILISK_CORE_KERNEL_SWITCHES(S)
 
@@ -436,11 +443,16 @@ struct SearchParams {
     BASILISK_B4_PARAMS(BASILISK_SEARCH_PARAM_FIELD, BASILISK_SEARCH_PARAM_FIELD,
                        BASILISK_SEARCH_PARAM_FIELD)
 #undef BASILISK_SEARCH_PARAM_FIELD
-#if defined(BASILISK_B3_PROOF)
+#if defined(BASILISK_B3_PROOF) || defined(BASILISK_B4_QSEARCH)
     constexpr SearchParams() noexcept {
-#define BASILISK_B3_CORE_DEFAULT(field, uci, value) field = value;
-        BASILISK_B3_CORE_DEFAULTS(BASILISK_B3_CORE_DEFAULT)
-#undef BASILISK_B3_CORE_DEFAULT
+#define BASILISK_ARM_DEFAULT(field, uci, value) field = value;
+#if defined(BASILISK_B3_PROOF)
+        BASILISK_B3_CORE_DEFAULTS(BASILISK_ARM_DEFAULT)
+#endif
+#if defined(BASILISK_B4_QSEARCH)
+        BASILISK_B4_CORE_DEFAULTS(BASILISK_ARM_DEFAULT)
+#endif
+#undef BASILISK_ARM_DEFAULT
     }
 #endif
 };

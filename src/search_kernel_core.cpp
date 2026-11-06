@@ -283,6 +283,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         if (in_check) {
             int best = -INF_SCORE;
             Move best_move = MOVE_NONE;
+            Move best_scored = MOVE_NONE;
             DIAG_COUNT(state_.diag.qs_evasion_nodes++);
             const PieceToHistory* const conts[6] = {
                 (ss - 1)->cont_hist, (ss - 2)->cont_hist, (ss - 3)->cont_hist,
@@ -315,7 +316,10 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
                 DIAG_COUNT(quiets_searched += quiet);
                 PRICE(if (quiet) quiets_tried.push(m));
                 ++evasions_searched;
-                if (s > best) best = s;
+                if (s > best) {
+                    best = s;
+                    best_scored = m;
+                }
                 if (s > alpha) {
                     alpha = s;
                     best_move = m;
@@ -359,6 +363,8 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
             }
 #endif
             PRICE(settle(best));
+            if (best_move == MOVE_NONE && !kp.b3_fail_low_store)
+                best_move = best_scored;
             tt_store(hash, 0, best, TT_ALPHA, best_move, ply, INF_SCORE, pv_hit);
             return best;
         }
@@ -517,6 +523,8 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     [[maybe_unused]] int captures_searched = 0;
     [[maybe_unused]] int move_count = 0;
     [[maybe_unused]] const Move previous_move = (ss - 1)->move;
+    [[maybe_unused]] Move best_scored = MOVE_NONE;
+    [[maybe_unused]] int best_scored_value = -INF_SCORE;
 
     for (int i = 0; i < nm; i++) {
         Move m = pick_next(sm, i, nm);
@@ -633,6 +641,12 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         if (state_.stopped) return 0;
         DIAG_COUNT(++state_.diag.qs_searched);
         DIAG_COUNT(++captures_searched);
+        if constexpr (kB4Qsearch) {
+            if (s > best_scored_value) {
+                best_scored_value = s;
+                best_scored = m;
+            }
+        }
         if (s > best) best = s;
         if (s > alpha) {
             alpha = s;
@@ -675,6 +689,8 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     PRICE(settle(best));
     DIAG_COUNT(++state_.diag.qs_fail_lows);
     DIAG_COUNT(state_.diag.qs_fail_low_searched += captures_searched > 0);
+    if (kB4Qsearch && best_move == MOVE_NONE && !kp.b3_fail_low_store)
+        best_move = best_scored;
     tt_store(hash, 0, best, best >= beta ? TT_BETA : TT_ALPHA, best_move, ply, tt_eval, pv_hit);
     return best;
 }
@@ -2300,7 +2316,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     // A later MultiPV line searched the root without its best moves; its
     // result is not the root's, so it is not stored (Stockfish skips it too).
     // Cluster 2's arm stores no move after a fail low (B3FailLowStore): no
-    // move proved itself, and the entry keeps the move it had.
+    // move proved itself, and the entry keeps the move it had. Cluster 3's arm
+    // sets quiescence's store by the same switch.
     const Move stored_move = (kB3Proof && kp.b3_fail_low_store && flag == TT_ALPHA)
                            ? MOVE_NONE : best_move;
     if (ss->excluded == MOVE_NONE && !(is_root && !state_.root_excluded.empty()))
