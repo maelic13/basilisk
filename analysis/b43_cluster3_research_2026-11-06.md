@@ -2877,3 +2877,100 @@ the item's number).
 The categoricals and the paired run read the head with these two commits.
 §11 says "the accepted B.4.4 head": `33654f8` is that source with the gate on top,
 at both fingerprints and with the counters, prices and traces above unchanged.
+
+## B.4.5 — the zero-game screens (2026-11-06)
+
+BAS-S50's screens, on `abc3b0f`'s binaries (engine source `33654f8`). Node-budget
+and fixed-depth reads, except the pooled NPS read, which ran first and alone on the
+idle host the maintainer gave. No game ran. Evidence:
+`tools/results/b45-20261106/` (`screens/`, `binding/`, `cost/`, `analyze.py`,
+`analyze.txt`) and `tools/results/b45-nps/`. BAS-S50's *RESULT* holds the scored
+predictions; this section holds the tables.
+
+### §2's table, depth 14
+
+`run_suite.py --depth 14 --stride 1 --hash 64` on `suite_v2`, Diag builds. The OFF
+column equals §2's on the rows §2 prints.
+
+| Quantity | OFF | ON |
+|---|---:|---:|
+| Interior / quiescence nodes | 9,434,361 / 6,891,318 (42.2%) | 6,491,965 / 4,487,603 (40.9%) |
+| In-check interior nodes | 17.22% | 13.93% |
+| Exits of quiescence nodes: table / stand-pat / delta / ply cap / fail high / fail low / evasion | 17.23 / 27.27 / 3.76 / 0.01 / 11.56 / 30.69 / 9.49 | 16.69 / 25.43 / 0 / 0 / 11.83 / 37.01 / 9.03 |
+| Stand-pat: mean margin over beta at a cut | 378 | 446 |
+| Capture loop, of captures: futility / SEE / late / count / searched | 24.0 / 29.1 / 0.0 / 0 / 23.4 | 13.9 / 24.1 / 0 / 17.1 / 24.8 |
+| Capture fail highs: first move; mean margin | 92.6%; 213 | 94.3%; 186 |
+| Fail-low exits that searched a capture | 25.4% | 34.7% |
+| Evasions: searched per node; fail highs of nodes; first move; legal table move | 1.849; 34.2%; 63.0%; 4.5% | 0.881; 41.5%; 98.3%; 3.2% |
+| Estimate: refined of interior; depth-0 of refinements; depth-0 of distance | 17.7%; 25.5%; 16.7% | 16.1%; 21.6%; 12.1% |
+| No table move; from a depth-0 entry | 65.10%; 3.38% | 72.58%; 3.76% |
+| Reverse futility: cuts; on a table bound | 24.5%; 9.0% | 26.4%; 6.0% |
+| Razoring; null tries, conversion; ProbCut tries, conversion | 3.33%; 6.69%, 61.2%; 6.24%, 76.1% | 3.06%; 7.79%, 62.8%; 6.06%, 76.8% |
+| Gain rules: tested; exempt; share | — | 2,661,020; 820,046; 23.6% |
+
+### 5.8's read
+
+The firing share on the arm against the OFF arm, the rule 10% of itself.
+
+| Candidate (mechanism) | OFF | ON | Change | Rule |
+|---|---:|---:|---:|---|
+| `B3NmpPerPly` (null tries / interior) | 6.689% | 7.786% | +16.4% | **joins** |
+| `B3ProbCutBase`, `B3ProbCutImproving` (ProbCut tries / interior) | 6.244% | 6.061% | −2.9% | stays off |
+| `CoreCaptFutBase` (capture futility / moves tested) | 6.866% | 7.158% | +4.3% | stays off |
+| `CoreCaptSeeCoeff` (capture SEE / moves tested) | 7.568% | 7.758% | +2.5% | stays off |
+| `CoreQuietFutBase` (quiet futility / moves tested) | 37.523% | 39.794% | +6.1% | stays off |
+| `CoreLmrTtCapture` (LMR applied / moves tested, a proxy) | 25.006% | 24.036% | −3.9% | stays off |
+| `CoreResearchDeeper` (re-searches / LMR applied, a proxy) | 5.557% | 4.915% | −11.6% | **joins** |
+
+§5.8 froze the candidates and not their denominators. These are B.3.2's where it
+read the same mechanism, and no counter separates a table-move capture's LMR or the
+deeper re-search, so those two rows are proxies. `CoreResearchDeeper`'s verdict
+rests on one.
+
+### Pricing 4, depth 16
+
+`suite_v2`. ON 20,277,540 search and 43,005,065 probe nodes; OFF 31,212,872 and
+80,650,493. Diag and Tune read the same search at the defaults, cell for cell.
+
+| Rule | OFF | ON |
+|---|---:|---:|
+| `QsEvasion`, pooled | — | 6.37% [6.24, 6.49] of 150,008 |
+| — at PV quiescence nodes | — | 20.26% [18.41, 22.25] of 1,683 |
+| — elsewhere | — | 6.21% [6.09, 6.33] of 148,325 |
+| `QsCount` | — | 2.15% [2.11, 2.20] of 407,968 |
+| `QsFutility` | 4.18% [4.14, 4.22] of 921,677 | 1.86% [1.81, 1.91] of 334,369 |
+| — a queen, no recapture | 45.88% [41.33, 50.50] of 449 | 21.24% [20.09, 22.43] of 4,690 |
+| `QsSee` | 1.60% [1.58, 1.63] of 1,118,008 | 1.46% [1.43, 1.49] of 588,724 |
+| — a queen, no recapture | 27.27% [26.19, 28.39] of 6,303 | 23.04% [22.04, 24.08] of 6,579 |
+
+**Item 5's gate.** Razoring's beat share at expected cut nodes reads 17.31% [16.85,
+17.78] at `B4QuietChecks` 0 and 6.44% [6.17, 6.73] at 6: −62.8%, past the rule's
+quarter. At all nodes it reads −4.2%. The search grows 1.22× at 6. §9 item 5's gate
+is met, so its paired run is owed; P10 said it would not be.
+
+### Item 2's table-move reads
+
+Tune build, depth 14, the same search as Diag at store 1 (only the cross-colour
+telemetry rows differ, a Tune-only instrument).
+
+| Setting | Total nodes | `tt_move_absent` | `tt_move_d0` | `qs_evasion_tt_move` of evasion nodes |
+|---|---:|---:|---:|---:|
+| `B3FailLowStore` 1 | 10,979,568 | 72.58% | 3.76% | 3.16% |
+| `B3FailLowStore` 0 | 14,082,885 | 62.00% | 6.74% | 7.76% |
+
+Amendment 2 §7's account of P4 holds in direction: the share more than doubles with
+moves in the store, and it stays under 15% with them, as a stored fail high still
+ends a node's next visit before the counter.
+
+### The rest
+
+The floors, WAC, canaries, cost screen, pooled NPS and items 1 and 2's binding reads
+are in BAS-S50's *RESULT*. On the pooled NPS read: P9's falsifier fires. The arms'
+trees differ, so −5.57% is the two engines on two trees and not the arm's cost per
+node. PROCESS's 2 Elo per 1% would price it near −11 Elo if it were all speed.
+Nothing here says how much is ticket 1's evasion delivery.
+
+### Reads not taken
+
+`depthpv 10` and the oracle differential are not in §11's list and were not read.
+`wac_depthpv12.json` exists for the canaries.

@@ -165,4 +165,77 @@ Notes on the frozen table (the table stands):
 
 #### RESULT — append after exposure
 
+- **Binaries** (2026-11-06, `abc3b0f`, every manifest clean, clang 23.1.5, PEXT
+  final PGO; `tools/results/b45-20261106/build_all.ps1`; pinned in
+  `tools/run_b45_games.ps1`): Release ON pool `b45-on`, build 1 5DC68ED8…, OFF pool
+  `b45-off`, build 1 D318F3FE…; Tune ON AD267824…; Diag on both arms. Each reads its
+  arm's `bench 13`.
+- **Zero-game screens** (2026-11-06, `tools/results/b45-20261106/screens/`, read
+  by `analyze.py` into `analyze.txt`; packet *B.4.5 — the zero-game screens* has
+  the tables):
+  - **Counters at depth 14** (`suite_v2`, Hash 64, stride 1): total nodes ON
+    10,979,568 against OFF 16,325,679; quiescence 40.9% of nodes (OFF 42.2%).
+  - **5.8's candidates:** `B3NmpPerPly` (+16.4%) and `CoreResearchDeeper`
+    (−11.6%, a proxy) **join** B.4.6's surface; `B3ProbCutBase`,
+    `B3ProbCutImproving`, `CoreCaptFutBase`, `CoreCaptSeeCoeff`,
+    `CoreQuietFutBase` and `CoreLmrTtCapture` (a proxy) **stay off**.
+  - **Pricing 4, depth 16:** `QsEvasion` 6.37%, `QsCount` 2.15%, `QsFutility`
+    1.86%, `QsSee` 1.46% on the arm.
+  - **Item 5's gate is met:** razoring's beat share at expected cut nodes reads
+    17.31% at 0 and 6.44% at 6, −62.8%, against the rule's quarter. Item 5's
+    paired run is owed.
+  - **WAC:** 100,000 nodes ON 258, OFF 247; 400,000 nodes 276 and 271.
+  - **The canary calibration:** the OFF arm changed since B.3.2, so it was read
+    again: at Hash 32 and 128 it flips **0** of the 77 required canaries. ON
+    passes 65 and OFF 66, with 13 flips: lost WAC.013, 026, 044, 122, 152, 201
+    and 235; gained WAC.030, 031, 059, 083, 125 and 273.
+  - **The floors:** KQ-K, KR-K and KBB-K 24 at every budget on both arms; KBN-K
+    ON 118, OFF 115; `test_endgames` 191/191 on both. Both arms' 120,000-node
+    runs exit 1 on KQ-K's staleness guard, as B.4.4's record says, not on a floor.
+  - **The cost screen** (amendment 7 §R on §10's set and on bench 11):
+    **PASS** on all six positions, no watchdog stop. Node for node B.4.4's read
+    and the review's bench 11.
+  - **Pooled NPS** (`nps_read.ps1`, pools `b45-off` and `b45-on`, four builds
+    each, two cycles, host at 2%, no cycle disturbed; `tools/results/b45-nps`):
+    the arm reads **−5.57%** on `bench 13`, 95% interval [−5.97%, −5.17%],
+    2.620M against 2.774M, 0.944×. The tool flags it "not pure speed": the arms'
+    trees differ.
+- **Items 1 and 2's binding reads**, on variant builds of the head
+  (`tools/results/b45-20261106/binding/`):
+
+  | Setting | `bench 13` | Major floors | KBN-K | `test_endgames` | `test_search` | WAC 6 / 100k |
+  |---|---:|---|---:|---|---|---|
+  | The defaults | 4,003,560 | 24 | 118 | 191/191 | pass | 149 / 258 |
+  | `B4EvasionPrune` 0 | 4,540,697 | 24 | 117 | 191/191 | 719/719 | 139 / 251 |
+  | `B3FailLowStore` 0 | 3,548,571 | 24 | 117 | 191/191 | 718/719 | 148 / 249 |
+
+  The one `test_search` failure is the arm-default assertion reading the default
+  the variant changed. The defaults fail no binding read, so both stay 1 and both
+  go to their paired runs. Item 2's table-move reads at depth 14: `tt_move_absent`
+  72.58% at 1 and 62.00% at 0; `tt_move_d0` 3.76% and 6.74%.
+- **Amendment 2 §8's recorded reads:** `qs_evasion_tt_move` is 3.16% of evasion
+  nodes at store 1 and 7.76% at 0. `QsEvasion` by node type: 20.26% [18.41, 22.25]
+  of 1,683 probes at PV quiescence nodes, 6.21% [6.09, 6.33] elsewhere.
+- **Queen captures by class, the first reading of H.2's candidate:** a queen
+  capture that is no recapture beats futility at 21.24% on the arm (45.88% OFF)
+  and the SEE rules at 23.04% (27.27% OFF). Exempted recaptures no longer appear
+  in the arm's futility cells.
+- **Predictions read at the screens, each scored as frozen:**
+
+  | # | Read | Verdict |
+  |---|---|---|
+  | P3 | quiescence 40.9% against 30 to 40%; bench 0.657× inside 0.6 to 1.3× | **miss** on the share; the falsifier, above 45%, does not fire |
+  | P4 | searched 0.881; first-move 98.3%; table move 3.2% against ≥ 15%; `QsEvasion` 6.37% | **miss** on the table move, as amendment 2 §7 foretold; the falsifier, above 12%, does not fire |
+  | P5 | `QsCount` 2.15%; `QsFutility` 1.86% against ≤ 1.5%; exempt share 23.6% | **miss** on `QsFutility`; the falsifier, above 2.5%, does not fire |
+  | P6 | WAC 258 against [239, 255] | **miss**, high; the floor holds |
+  | P7 | floors and draws | **hit** |
+  | P8 | depth-0 distance 12.1% against ≤ 13%; table-bound cuts 6.0% against 7 to 10% | **miss** on the second clause; no falsifier |
+  | P9 | 0.944× against 0.96 to 1.01× | **miss; the falsifier fires:** the whole interval is below 0.95 |
+  | P10 | item 5's gate met, against "not met" (60%) | that clause **missed**; the rest wait on their games |
+
+- **P9's falsifier** reads "below 0.95 returns the evasion delivery of ticket 1 to
+  implementation for its cost before the gate". The read is of two different trees,
+  so it is not ticket 1's cost alone, and nothing here attributes it. It binds before
+  B.4.7's gate, not before this entry's runs. Its handling is the maintainer's.
+
 #### PREDICTION CALIBRATION — preserve the original prediction above

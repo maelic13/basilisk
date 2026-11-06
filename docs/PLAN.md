@@ -2049,6 +2049,17 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           BAS-S50 is registered and cites it.
         - The records are in BAS-S50, and the capture stage's row is in the
           packet's opening section.
+      - Zero-game screens 2026-11-06 (BAS-S50 *RESULT*; packet *B.4.5 — the
+        zero-game screens*), on clean `abc3b0f` binaries:
+        - The floors, the WAC floor and the cost screen pass. Both defaults
+          of items 1 and 2 fail no binding read, so both go to their runs.
+        - Item 5's gate is met (−62.8%), so its paired run is owed.
+        - `B3NmpPerPly` and `CoreResearchDeeper` join B.4.6's surface.
+        - P9's falsifier fires: pooled NPS 0.944× the OFF arm, on different
+          trees. It binds before B.4.7's gate; its handling is the
+          maintainer's.
+        - The games are prepared in `tools/run_b45_games.ps1`, dry-run, and
+          its order guards tested on 24 synthetic cases.
     - [ ] **B.4.6** `[V]` Curvature sweep, then SPSA in blocks
       The packet's registered sweep, then SPSA in blocks on Cluster 3's
       surface (with B-21's RFP, razoring and NMP-base coordinates); the
@@ -2814,7 +2825,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.4.5 | RESEARCH | V | The opening's items are done (`analysis/b43_cluster3_research_2026-11-06.md`, *B.4.5 — opening*; BAS-S50 registered); the zero-game screens are next |
+| B.4.5 | RESEARCH | V | The screens are read (BAS-S50 *RESULT*); the games are prepared and the maintainer's to run: items 1 and 2, the paired run, items 3 to 5 (`tools/run_b45_games.ps1`). P9's falsifier fired, to be handled before B.4.7 |
 | B.4.6 | RESEARCH | V | After B.4.5 |
 | B.4.7 | RESEARCH | V | After B.4.6 |
 | B.5 | RESEARCH | I2 | Contents fixed by B.0; the ply cap and the clean child frame added 2026-11-05 |
