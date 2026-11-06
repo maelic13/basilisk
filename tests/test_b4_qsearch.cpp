@@ -485,6 +485,28 @@ static void test_en_passant_is_credited_a_pawn() {
     end_section();
 }
 
+// Black's bare king stands next to a loose bishop in a won KBB-K, a known
+// loss by the static eval. The capture ends the ending in a draw, and it is
+// no recapture, so only the band's guard keeps the gain rules from reading it
+// as a bishop against that eval. (The wrong-bishop draws of test_endgames end
+// in a recapture, which the arm exempts either way.)
+static void test_the_known_loss_band_stands_down() {
+    NodeRead r;
+    r.fen = "8/7K/8/8/8/7B/8/3kB3 w - - 0 1";
+    r.from = H7;
+    r.to = H8;
+    set_node_alpha(r, -5000);
+    const SearchParams defaults;
+    const Run run = read_node(r);
+    begin_section("gain rules: a capture in the known-loss band is searched");
+    EXPECT(node_eval(r) + defaults.b4_qs_fut_base <= -KNOWN_WIN);
+    // The node holds at least the draw, so the root fails low on it.
+    EXPECT(run.result.score <= 5000);
+    if constexpr (kCounters)
+        EXPECT_EQ(counter(run, "qs_futility_pruned"), 0);
+    end_section();
+}
+
 // The delta rule is off by default on the arm and returns with its switch;
 // the late rule and the ply cap are gone from the arm's tree.
 static void test_the_rules_the_arm_removes() {
@@ -558,6 +580,7 @@ int main() {
     test_a_recapture_is_exempt();
     test_the_count_rule();
     test_en_passant_is_credited_a_pawn();
+    test_the_known_loss_band_stands_down();
     test_the_rules_the_arm_removes();
 
     return harness_summary();
