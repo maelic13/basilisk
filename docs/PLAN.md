@@ -2017,7 +2017,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           - a denser conversion floor is registered at B.5's research;
           - the full evasion sort stays an H.2 candidate, with no sixth
             categorical in B.4.5.
-    - [ ] **B.4.5** `[V]` Diagnostics and the unfitted paired run
+    - [x] **B.4.5** `[V]` Diagnostics and the unfitted paired run
       The packet's zero-game screens on both arms, then its registered
       categorical and deletion reads and the unfitted paired run.
       Its pricing screen also reads queen captures by class on both arms
@@ -2067,6 +2067,16 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         - P9's falsifier is answered: ticket 1's delivery measures about 0.8
           points of the gap, and the rest is mostly the arm's tree.
         - The games are re-pinned to `516d422`, dry-run again.
+      - Games 2026-11-06 (BAS-S50 *RESULT*; packet *B.4.5 — the games*), six
+        runs of 2,000 at `516d422`, no fault:
+        - The unfitted arm reads +29.3 ± 9.5 Elo over the OFF arm. P1's stop
+          does not fire. This is a diagnostic; the gates are B.4.7's.
+        - No default moves. Items 1 to 5 read +6.8, −3.1, −1.9, −0.5 and
+          −8.9, each ± about 9, and each interval holds 0.
+        - In play the arm is level with the OFF arm (0.99 to 1.01× by game
+          phase) against 0.945× on `bench 13`. P9 stays a miss and its
+          falsifier still binds before B.4.7's gate.
+        - B.4.6 fits this arm, `bench 13` 4,003,560. CLOSED.
     - [ ] **B.4.6** `[V]` Curvature sweep, then SPSA in blocks
       The packet's registered sweep, then SPSA in blocks on Cluster 3's
       surface (with B-21's RFP, razoring and NMP-base coordinates); the
@@ -2832,9 +2842,8 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.4.5 | RESEARCH | V | The screens are read and the speed work is in (BAS-S50 *RESULT*, BAS-P29); the games are prepared at `516d422` and the maintainer's to run: items 1 and 2, the paired run, items 3 to 5 (`tools/run_b45_games.ps1`) |
-| B.4.6 | RESEARCH | V | After B.4.5 |
-| B.4.7 | RESEARCH | V | After B.4.6 |
+| B.4.6 | RESEARCH | V | B.4.5 closed: the arm at `516d422`, every default standing, +29.3 ± 9.5 unfitted (BAS-S50). `B3NmpPerPly` and `CoreResearchDeeper` join the surface |
+| B.4.7 | RESEARCH | V | After B.4.6. P9's falsifier binds before its gate; its handling is the maintainer's (BAS-S50 *RESULT*) |
 | B.5 | RESEARCH | I2 | Contents fixed by B.0; the ply cap and the clean child frame added 2026-11-05 |
 | B.6.1 | RESEARCH | R2 | Added 2026-10-31; after B.4 and B.5 close |
 | B.6.2 | RESEARCH | V | Runs (maintainer 2026-11-05); the curvature evidence chooses its surface |

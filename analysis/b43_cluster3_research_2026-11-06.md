@@ -3080,3 +3080,47 @@ mutant fails, and SEE's two line mutants fail the oracle corpus.
 
 BAS-S50's binaries are re-pinned, before any game, to `516d422`. The screens stand:
 they read trees this work leaves unchanged. P9 stays scored as a miss.
+
+## B.4.5 — the games (2026-11-06)
+
+The maintainer ran BAS-S50's six games in the registered order on the binaries of
+`516d422`, 2,000 games each at `3+0.03`, with no fault and no time loss. A positive
+result favours arm A.
+
+| Run | Arm A against arm B | W/D/L | Pentanomial | Elo, 95% interval | Verdict |
+|---|---|---|---|---|---|
+| item 1 | `B4EvasionPrune` 0 against 1 | 521/997/482 | 29, 223, 459, 258, 31 | +6.8 [−2.4, +15.9] | default stays 1 |
+| item 2 | `B3FailLowStore` 0 against 1 | 498/986/516 | 27, 260, 448, 234, 31 | −3.1 [−12.3, +6.1] | default stays 1 |
+| paired | ON against OFF | 638/892/470 | 26, 180, 446, 296, 52 | **+29.3 [+19.8, +38.7]** | P1's stop does not fire |
+| item 3 | `B4GainValues` 1 against 0 | 538/913/549 | 38, 249, 434, 244, 35 | −1.9 [−11.5, +7.6] | default stays 0 |
+| item 4 | `B4SeeValues` 1 against 0 | 506/985/509 | 25, 255, 451, 236, 33 | −0.5 [−9.7, +8.6] | default stays 0 |
+| item 5 | `B4QuietChecks` 6 against 0 | 499/951/550 | 37, 267, 436, 230, 30 | −8.9 [−18.3, +0.5] | default stays 0 |
+
+No default moves, and P1's stop does not fire. The arm enters B.4.6 as it played:
+`bench 13` 4,003,560, `B4EvasionPrune` 1, `B3FailLowStore` 1, `B4GainValues` 0,
+`B4SeeValues` 0, `B4QuietChecks` 0, `B4RfpSeekMate` 0.
+
+- **The paired run** says the unfitted arm carries no defect. It is a diagnostic: the
+  default flips only on B.4.7 (a), and nothing here attributes the Elo to a mechanism.
+- **Item 1** leans towards searching every evasion, +6.8, but its interval holds 0,
+  so the rule leaves it. No re-run is owed, and BAS-S52 registers none.
+- **Item 5** met its gate at −62.8% and still read −8.9, at 0.945× the defaults' speed.
+- **Items 3 and 4** are nulls of live options.
+
+Speed in play, from the paired run (nodes over reported time, a bootstrap over pairs):
+
+| Plies | Arm over OFF | 95% interval |
+|---|---:|---|
+| all | 1.012× | [1.009, 1.015] |
+| 0 to 39 | 1.007× | [1.003, 1.011] |
+| 40 to 79 | 0.994× | [0.988, 1.000] |
+| 80 to 119 | 1.003× | [0.995, 1.011] |
+| 120 on | 0.990× | [0.980, 1.000] |
+
+The arm is level with the OFF arm in play, against 0.945× on `bench 13`. That is a
+recorded read with no rule: P9 stays a miss, its falsifier still binds before B.4.7's
+gate, and why the two reads differ is not established. The speed entry's inference
+that the bench gap is the arm's tree is consistent with it and not proved by it.
+
+Evidence: `tools/results/b45-20261106/games/` (`recount.py`, `liveness.py`,
+`game_nps.py` and their outputs). BAS-S50 *RESULT* has the checks and hashes.

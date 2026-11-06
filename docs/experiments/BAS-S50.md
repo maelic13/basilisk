@@ -249,5 +249,70 @@ Notes on the frozen table (the table stands):
   `b45s-on`, build 1 9C9E463E…, OFF pool `b45s-off`, build 1 84F059B4…; Tune ON FDB8D28C….
   The screens stand: the depth-12 counters, isolation, traces and the cost screen read
   the same on these binaries, node for node. The first set was never played.
+- **The games** (2026-11-06, maintainer-run, in the registered order at `516d422`,
+  2,000 games each, no fault, no time loss; `tools/results/b45-cat-*`,
+  `tools/results/b45-paired`). A positive result favours arm A:
+
+  | Run | Arm A against arm B | W/D/L | Pentanomial | Elo, 95% interval | Verdict |
+  |---|---|---|---|---|---|
+  | item 1 | `B4EvasionPrune` 0 against 1 | 521/997/482 | 29, 223, 459, 258, 31 | +6.8 [−2.4, +15.9] | default stays 1 |
+  | item 2 | `B3FailLowStore` 0 against 1 | 498/986/516 | 27, 260, 448, 234, 31 | −3.1 [−12.3, +6.1] | default stays 1 |
+  | paired | ON against OFF | 638/892/470 | 26, 180, 446, 296, 52 | **+29.3 [+19.8, +38.7]** | P1's stop does not fire |
+  | item 3 | `B4GainValues` 1 against 0 | 538/913/549 | 38, 249, 434, 244, 35 | −1.9 [−11.5, +7.6] | default stays 0 |
+  | item 4 | `B4SeeValues` 1 against 0 | 506/985/509 | 25, 255, 451, 236, 33 | −0.5 [−9.7, +8.6] | default stays 0 |
+  | item 5 | `B4QuietChecks` 6 against 0 | 499/951/550 | 37, 267, 436, 230, 30 | −8.9 [−18.3, +0.5] | default stays 0 |
+
+- **Verdicts by the categorical rule.** No default moves, so the arm that played the
+  paired run is the arm B.4.6 fits. Item 1 reaches +5 and item 5 reaches −5, but each
+  interval holds 0, item 5's by 0.5. Item 5 costs 5.5% of its speed in play: 0.945×
+  [0.942, 0.948] against the defaults.
+- **The paired run** is a fixed 2,000 games, so its estimate is no first-crossing
+  estimate, and it is a diagnostic, not a gate: the default flips only on B.4.7 (a).
+  Nothing here attributes the Elo to a mechanism.
+- **Checks on the reads.** Each run's pentanomial, recounted from its PGN alone by
+  opening pairs, equals Colosseum's, as do its Elo and half-width
+  (`tools/results/b45-20261106/games/recount.txt`). Every manifest is clean, at the
+  pinned hashes, seeds and revision; the host read below 0.5% busy at each start.
+  Each option reached arm A alone (`resolved-config.json`) and is live on the pinned
+  Tune binary: on 60 `suite_v2` positions at depth 11, setting each option to its
+  default reproduces the defaults on 60 of 60, and each alternative moves the nodes
+  of 59 or 60 and the best move of 15 to 24 (`games/liveness.txt`). Items 3 and 4
+  are nulls of live options.
+- **Speed as the games read it**, recorded and carrying no rule; P9's registered read
+  is the pooled bench read, and P9 stays a miss. Sums of nodes over reported time in
+  the paired run, a 95% bootstrap over the 1,000 pairs, the parse held to
+  `results.txt`'s moves and nodes (`games/game_nps.txt`):
+
+  | Plies | Arm over OFF | 95% interval |
+  |---|---:|---|
+  | all | 1.012× | [1.009, 1.015] |
+  | 0 to 39 | 1.007× | [1.003, 1.011] |
+  | 40 to 79 | 0.994× | [0.988, 1.000] |
+  | 80 to 119 | 1.003× | [0.995, 1.011] |
+  | 120 on | 0.990× | [0.980, 1.000] |
+
+  The arm is level with the OFF arm in play, against 0.945× on `bench 13`. The
+  whole-game figure sits above every band's because the arms spend their time
+  differently across a game, so the bands are the fairer read. The same
+  read finds item 5's 0.945×, so it can see a gap of this size. Why the two reads
+  differ is not established.
+- **Run record and PGN hashes:** item 1 7C5F2BA3…, 4434F0F6…; item 2 5B448E6F…, 3E22DBE8…; paired DCFA3D3F…, 80226F40…; item 3 6CC17601…, 9950B77A…; item 4 DD891202…, 354F6D73…; item 5 2D7FDE21…, 825F5330….
+- Disposition: **COMPLETE 2026-11-06. The unfitted arm reads +29.3 ± 9.5 Elo over the
+  OFF arm; every default stands.** The gates are B.4.7's (BAS-S52).
 
 #### PREDICTION CALIBRATION — preserve the original prediction above
+
+- **P1:** predicted +5, 80% interval [−20, +30], positive at 60%. Read +29.3: **hit**,
+  at the top of the interval, and the point estimate was low by 24. The stop at −30
+  is far away.
+- **P10, by clause:** item 1 within ±6 **missed** at +6.8; item 2 within ±5 **hit** at
+  −3.1; item 3 within ±5 **hit** at −1.9; item 4 at or below +5 **hit** at −0.5;
+  item 5's gate not met **missed** at the screens. The falsifier, item 1 at −5 or
+  below, does not fire.
+- **P3 to P9** are scored in *RESULT*. **P2 and P11** wait on B.4.7.
+- **What it teaches:** six of the screens' seven tree and speed predictions missed
+  a clause, and the arm still came in well above its point estimate. P9's miss, the
+  one falsifier that fired, does not appear as a speed cost in play. A screen sizes a
+  mechanism; it did not size the Elo here, as the rule that screens never accept
+  strength assumes. Item 5 met its gate by a wide margin and read −8.9, which is the
+  same lesson from the other side.
