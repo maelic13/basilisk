@@ -1142,7 +1142,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             }
             const bool seek_mate_capped = kB4Qsearch && kp.b4_rfp_seek_mate
                 && b4::rfp_past_seek_mate_cap(
-                       b3::seek_mate(root_depth_, root_score_, kp.b3_seek_mate_depth,
+                       b3::seek_mate(root_depth_, root_score_, kp.b4_rfp_seek_mate_depth,
                                      kp.b3_seek_mate_score),
                        depth, kp.b4_rfp_seek_mate_cap);
             DIAG_COUNT(state_.diag.rfp_seekmate_capped

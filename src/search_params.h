@@ -388,8 +388,11 @@
 // b4_qs_see_margin: every capture, and an evasion capture once the node holds
 //   a value that is not a loss, must clear this SEE. An F line: on the
 //   default vector every value from -99 to 0 prunes the same captures.
-// b4_rfp_seek_mate_cap: reverse futility's deepest node while Cluster 2's
-//   seek_mate holds.
+// b4_rfp_seek_mate_cap: reverse futility's deepest node in a mate drive.
+// b4_rfp_seek_mate_depth: the root depth from which that cap binds, with a
+//   root score of at least b3_seek_mate_score either way. Its own bar:
+//   b3_seek_mate_depth is the singular half's, set to bound a tree this cap
+//   would grow.
 //
 // b4_evasion_prune: 1 once an evasion holds a value that is not a loss,
 //   quiets and SEE-losing captures are skipped; 0 every evasion is searched.
@@ -397,7 +400,8 @@
 //   the count rule, futility and the alpha-relative SEE; 0 not exempt.
 // b4_stalemate: 1 tests for stalemate where quiescence's cheap conditions
 //   hold; 0 stands pat on it.
-// b4_rfp_seek_mate: 1 applies b4_rfp_seek_mate_cap; 0 no cap.
+// b4_rfp_seek_mate: 1 applies b4_rfp_seek_mate_cap; 0 no cap, reverse
+//   futility as at any root depth.
 // b4_qs_delta: 1 restores the OFF arm's delta rule; 0 none.
 // b4_gain_values: the captured value quiescence's gain rules read. 0 the
 //   search's PIECE_VALUE; 1 the evaluation's material.
@@ -411,10 +415,11 @@
     F(b4_qs_move_count,      B4QsMoveCount,          2,    1,    64)     \
     F(b4_qs_see_margin,      B4QsSeeMargin,        -28, -200,     0)     \
     F(b4_rfp_seek_mate_cap,  B4RfpSeekMateCap,       5,    1,    19)     \
+    F(b4_rfp_seek_mate_depth, B4RfpSeekMateDepth,   16,    8,    64)     \
     S(b4_evasion_prune,      B4EvasionPrune,         1,    0,     1)     \
     S(b4_qs_recapture,       B4QsRecapture,          1,    0,     1)     \
     S(b4_stalemate,          B4Stalemate,            1,    0,     1)     \
-    S(b4_rfp_seek_mate,      B4RfpSeekMate,          1,    0,     1)     \
+    S(b4_rfp_seek_mate,      B4RfpSeekMate,          0,    0,     1)     \
     S(b4_qs_delta,           B4QsDelta,              0,    0,     1)     \
     S(b4_gain_values,        B4GainValues,           0,    0,     1)     \
     S(b4_see_values,         B4SeeValues,            0,    0,     1)     \

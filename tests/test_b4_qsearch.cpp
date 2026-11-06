@@ -722,51 +722,103 @@ static void test_rfp_seek_mate_gate() {
     EXPECT(!b4::rfp_past_seek_mate_cap(false, 19, 5));
     end_section();
 
-    begin_section("reverse futility: the gate with forced root depths and scores");
+    begin_section("reverse futility: the cap reads its own bar, not the singular half's");
     const SearchParams p;
     auto capped = [&](int root_depth, int root_score, int depth) {
         return b4::rfp_past_seek_mate_cap(
-            b3::seek_mate(root_depth, root_score, p.b3_seek_mate_depth, p.b3_seek_mate_score),
+            b3::seek_mate(root_depth, root_score, p.b4_rfp_seek_mate_depth, p.b3_seek_mate_score),
             depth, p.b4_rfp_seek_mate_cap);
     };
-    const int deep = p.b3_seek_mate_depth, won = p.b3_seek_mate_score;
-    const int over = p.b4_rfp_seek_mate_cap + 1;
-    EXPECT(capped(deep, won, over));
-    EXPECT(capped(deep + 8, -won, over));
-    EXPECT(capped(deep, MATE_SCORE - 9, over));
-    EXPECT(!capped(deep - 1, won, over));        // an early iteration
-    EXPECT(!capped(deep, won - 1, over));        // not decided enough
-    EXPECT(!capped(deep, -(won - 1), over));
-    EXPECT(!capped(deep, won, over - 1));        // at the cap
+    EXPECT_EQ(p.b4_rfp_seek_mate_depth, 16);
+    EXPECT_EQ(p.b3_seek_mate_depth, 12);
+    EXPECT_EQ(p.b3_seek_mate_score, 564);
+    EXPECT_EQ(p.b4_rfp_seek_mate_cap, 5);
+    for (int root_depth : {16, 24}) {
+        EXPECT(capped(root_depth, 564, 6));
+        EXPECT(capped(root_depth, -564, 6));
+        EXPECT(capped(root_depth, MATE_SCORE - 9, 6));
+        EXPECT(capped(root_depth, -(MATE_SCORE - 9), 6));
+        EXPECT(!capped(root_depth, 563, 6));     // not decided enough
+        EXPECT(!capped(root_depth, -563, 6));
+        EXPECT(!capped(root_depth, 564, 5));     // at the cap
+    }
+    EXPECT(!capped(15, 564, 6));                 // an early iteration
+    EXPECT(!capped(15, MATE_SCORE - 9, 6));
+    EXPECT(!capped(12, 564, 6));                 // the singular half's bar
+    EXPECT(!capped(12, MATE_SCORE - 9, 6));
+    end_section();
+
+    begin_section("reverse futility: the default leaves the cap off");
+    EXPECT_EQ(p.b4_rfp_seek_mate, 0);
     end_section();
 }
 
-// A won KR-K: the root's iterations pass seek_mate's bar and no mate is in
-// reach, so the cap fires on the arm with its switch on and nowhere else.
+// A won KR-K: the root's iterations pass the cap's bar and no mate is in reach,
+// so the cap fires on the arm with its switch on and nowhere else.
+static Run search_krk(int depth, void (*set)(SearchParams&)) {
+    NodeRead r;
+    r.fen = "8/8/8/4k3/8/8/8/4K2R w - - 0 1";
+    r.from = E1;
+    r.to = E2;
+    r.depth = depth;
+    r.set = set;
+    return read_node(r);
+}
+
+static void cap_on(SearchParams& p) { p.b4_rfp_seek_mate = 1; }
+
 static void test_rfp_seek_mate_live() {
-    auto search_krk = [](void (*set)(SearchParams&)) {
-        NodeRead r;
-        r.fen = "8/8/8/4k3/8/8/8/4K2R w - - 0 1";
-        r.from = E1;
-        r.to = E2;
-        r.depth = 15;
-        r.set = set;
-        return read_node(r);
-    };
-    const Run on = search_krk(nullptr);
-    const Run off = search_krk([](SearchParams& p) { p.b4_rfp_seek_mate = 0; });
-    begin_section("reverse futility: the cap moves the arm's tree and no other");
+    const Run deep_default = search_krk(18, nullptr);
+    const Run deep_on = search_krk(18, cap_on);
+    const Run shallow_default = search_krk(15, nullptr);
+    const Run shallow_on = search_krk(15, cap_on);
+
+    begin_section("reverse futility: from its bar the cap moves the arm's tree and no other");
     if constexpr (kB4Qsearch)
-        EXPECT(on.result.nodes != off.result.nodes);
+        EXPECT(deep_on.result.nodes != deep_default.result.nodes);
     else
-        EXPECT_EQ(on.result.nodes, off.result.nodes);
+        EXPECT_EQ(deep_on.result.nodes, deep_default.result.nodes);
     if constexpr (kCounters) {
-        EXPECT_EQ(counter(off, "rfp_seekmate_capped"), 0);
+        EXPECT_EQ(counter(deep_default, "rfp_seekmate_capped"), 0);
         if constexpr (kB4Qsearch)
-            EXPECT(counter(on, "rfp_seekmate_capped") > 0);
+            EXPECT(counter(deep_on, "rfp_seekmate_capped") > 0);
         else
-            EXPECT_EQ(counter(on, "rfp_seekmate_capped"), 0);
+            EXPECT_EQ(counter(deep_on, "rfp_seekmate_capped"), 0);
     }
+    end_section();
+
+    begin_section("reverse futility: below its bar the cap changes nothing");
+    EXPECT_EQ(shallow_on.result.nodes, shallow_default.result.nodes);
+    if constexpr (kCounters)
+        EXPECT_EQ(counter(shallow_on, "rfp_seekmate_capped"), 0);
+    end_section();
+
+    // The singular half's bar moved out of reach: the cap fires as before, and
+    // the switch alone separates the two trees.
+    const Run singular_far_on = search_krk(18, [](SearchParams& p) {
+        p.b4_rfp_seek_mate = 1;
+        p.b3_seek_mate_depth = 64;
+    });
+    const Run singular_far_off = search_krk(18, [](SearchParams& p) {
+        p.b3_seek_mate_depth = 64;
+    });
+    begin_section("reverse futility: the cap does not read the singular half's bar");
+    if constexpr (kB4Qsearch)
+        EXPECT(singular_far_on.result.nodes != singular_far_off.result.nodes);
+    else
+        EXPECT_EQ(singular_far_on.result.nodes, singular_far_off.result.nodes);
+    if constexpr (kCounters && kB4Qsearch)
+        EXPECT(counter(singular_far_on, "rfp_seekmate_capped") > 0);
+    end_section();
+
+    const Run bar_far = search_krk(18, [](SearchParams& p) {
+        p.b4_rfp_seek_mate = 1;
+        p.b4_rfp_seek_mate_depth = 64;
+    });
+    begin_section("reverse futility: with its bar out of reach the tree is the default's");
+    EXPECT_EQ(bar_far.result.nodes, deep_default.result.nodes);
+    if constexpr (kCounters)
+        EXPECT_EQ(counter(bar_far, "rfp_seekmate_capped"), 0);
     end_section();
 }
 

@@ -25,8 +25,8 @@ namespace b4 {
 }
 
 // Whether a depth is past reverse futility's cap in a search that drives for
-// mate (Cluster 2's seek_mate): a cut there would spend the depth the drive
-// needs on the estimate's word.
+// mate (seek_mate, on the cap's own root depth): a cut there would spend the
+// depth the drive needs on the estimate's word.
 [[nodiscard]] inline bool rfp_past_seek_mate_cap(bool seek_mate, int depth, int cap) {
     return seek_mate && depth > cap;
 }
