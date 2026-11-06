@@ -329,8 +329,9 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
                     DIAG_COUNT(state_.diag.qs_evasion_fail_high_index_sum += evasions_searched - 1);
                     DIAG_COUNT(state_.diag.qs_evasion_tt_cuts += m == tt_move);
                     PRICE(settle(s));
-                    tt_store(hash, 0, s, TT_BETA, m, ply, INF_SCORE, pv_hit);
-                    return s;
+                    const int value = b4::fail_high_value(s, beta, kp.b4_qs_fail_high_blend);
+                    tt_store(hash, 0, value, TT_BETA, m, ply, INF_SCORE, pv_hit);
+                    return value;
                 }
                 if (kp.b4_evasion_prune && best > -tablebaseWinInMaxPly && !picker.quiets_skipped())
                     picker.skip_quiets();
@@ -433,11 +434,16 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     if (stand_pat >= beta) {
         DIAG_COUNT(++state_.diag.qs_standpat_cuts);
         DIAG_COUNT(state_.diag.qs_standpat_excess += stand_pat - beta);
+        // Cluster 3's arm returns a value near the bound it proved, so the main
+        // search's margins read a leaf's value and not its excess.
+        const int value = kB4Qsearch
+                        ? b4::fail_high_value(stand_pat, beta, kp.b4_qs_stand_pat_blend)
+                        : stand_pat;
         TRACE_DECISION(TraceEvent::QsStandPatCutoff, ply, 0, MOVE_NONE,
                        alpha, beta, stand_pat, -1, correction, VALUE_NONE,
-                       0, 0, 0, stand_pat);
-        tt_store(hash, 0, stand_pat, TT_BETA, MOVE_NONE, ply, tt_eval, pv_hit);
-        return stand_pat;
+                       0, 0, 0, value);
+        tt_store(hash, 0, value, TT_BETA, MOVE_NONE, ply, tt_eval, pv_hit);
+        return value;
     }
 
     // The pruning below reads a capture's gain as the piece it takes. Not
@@ -641,8 +647,10 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
                            alpha, beta, stand_pat, -1, correction, VALUE_NONE,
                            i, 0, VALUE_NONE, s);
             PRICE(settle(s));
-            tt_store(hash, 0, s, TT_BETA, m, ply, tt_eval, pv_hit);
-            return s;
+            const int value = kB4Qsearch
+                            ? b4::fail_high_value(s, beta, kp.b4_qs_fail_high_blend) : s;
+            tt_store(hash, 0, value, TT_BETA, m, ply, tt_eval, pv_hit);
+            return value;
         }
     }
 

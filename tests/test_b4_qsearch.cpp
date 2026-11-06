@@ -544,6 +544,72 @@ static void test_the_rules_the_arm_removes() {
     end_section();
 }
 
+// ---- The blends ---------------------------------------------------------------------
+
+static void test_blend_arithmetic() {
+    begin_section("blends: the arithmetic at the seeds");
+    EXPECT_EQ(b4::fail_high_value(1000, 0, 441), 441 * 1000 / 1024);
+    EXPECT_EQ(b4::fail_high_value(1000, 0, 462), 462 * 1000 / 1024);
+    EXPECT_EQ(b4::fail_high_value(300, 100, 441), (441 * 300 + 583 * 100) / 1024);
+    EXPECT_EQ(b4::fail_high_value(300, 100, 462), (462 * 300 + 562 * 100) / 1024);
+    EXPECT_EQ(b4::fail_high_value(-100, -300, 441), (441 * -100 + 583 * -300) / 1024);
+    end_section();
+
+    begin_section("blends: a weight of 1024 is the identity");
+    for (int v : {-5000, -1, 0, 7, 901, 9000})
+        EXPECT_EQ(b4::fail_high_value(v, v - 37, 1024), v);
+    end_section();
+
+    begin_section("blends: a decisive value is untouched");
+    const int mate = MATE_SCORE - 9;
+    EXPECT_EQ(b4::fail_high_value(mate, 100, 441), mate);
+    EXPECT_EQ(b4::fail_high_value(tablebaseValue - 5, 100, 462), tablebaseValue - 5);
+    EXPECT_EQ(b4::fail_high_value(tablebaseWinInMaxPly, 100, 462), tablebaseWinInMaxPly);
+    end_section();
+
+    begin_section("blends: a value at or below beta is untouched");
+    EXPECT_EQ(b4::fail_high_value(100, 100, 441), 100);
+    EXPECT_EQ(b4::fail_high_value(99, 100, 462), 99);
+    end_section();
+
+    begin_section("blends: a returned fail high is at or above beta for every weight in range");
+    bool holds = true, below_value = true;
+    for (int weight = 256; weight <= 1024; ++weight)
+        for (int beta : {-9973, -1001, -3, -2, -1, 0, 1, 2, 3, 77, 1024, 9973})
+            for (int gap : {1, 2, 3, 5, 100, 1023, 1024, 1025, 7000}) {
+                const int v = b4::fail_high_value(beta + gap, beta, weight);
+                holds = holds && v >= beta;
+                below_value = below_value && v <= beta + gap;
+            }
+    EXPECT(holds);
+    EXPECT(below_value);
+    end_section();
+}
+
+// The node stands pat 100 above beta. The root reads the node's value, and
+// the table's lower bound is the value returned, on the arm the blend.
+static void test_stand_pat_returns_and_stores_the_blend() {
+    NodeRead r;
+    r.fen = "3qk3/8/8/8/4P3/8/8/6K1 b - - 0 1";
+    r.from = D8;
+    r.to = D7;
+    const int eval = node_eval(r);
+    const int beta = eval - 100;
+    set_node_alpha(r, beta - 1);
+    const Run run = read_node(r);
+    const SearchParams defaults;
+    const int expected = kB4Qsearch
+                       ? (defaults.b4_qs_stand_pat_blend * eval
+                          + (1024 - defaults.b4_qs_stand_pat_blend) * beta) / 1024
+                       : eval;
+    begin_section("blends: a stand-pat cut returns and stores the value");
+    EXPECT_EQ(run.result.score, -expected);
+    EXPECT(run.node_stored);
+    EXPECT(run.node_entry.bound() == TT_BETA);
+    EXPECT_EQ(TranspositionTable::score_from_tt(run.node_entry.score, 1, 0), expected);
+    end_section();
+}
+
 // ---- The tune surface -----------------------------------------------------------
 
 static void test_options_are_the_arms_alone() {
@@ -582,6 +648,8 @@ int main() {
     test_en_passant_is_credited_a_pawn();
     test_the_known_loss_band_stands_down();
     test_the_rules_the_arm_removes();
+    test_blend_arithmetic();
+    test_stand_pat_returns_and_stores_the_blend();
 
     return harness_summary();
 }
