@@ -276,6 +276,42 @@ static void test_probcut_picker() {
     end_section();
 }
 
+// The sort as one pass, each move inserted as the scan meets it: the order every
+// search reads, sub-limit moves included.
+static void reference_sort(ScoredMove* begin, ScoredMove* end, int limit) {
+    if (end - begin < 2)
+        return;
+    for (ScoredMove *sorted_end = begin, *p = begin + 1; p < end; ++p)
+        if (p->score >= limit) {
+            const ScoredMove tmp = *p;
+            *p = *++sorted_end;
+            ScoredMove* q = sorted_end;
+            for (; q != begin && (q - 1)->score < tmp.score; --q)
+                *q = *(q - 1);
+            *q = tmp;
+        }
+}
+
+static void test_partial_sort_order() {
+    begin_section("partial insertion sort: move for move the one-pass order, ties included");
+    std::mt19937_64 rng(7);
+    int differ = 0;
+    for (int trial = 0; trial < 20000; ++trial) {
+        ScoredMove a[64], b[64];
+        const int n = int(rng() % 65);
+        const uint64_t spread = trial % 2 ? 7 : 20001;  // the narrow spread makes ties
+        for (int i = 0; i < n; ++i)
+            a[i] = b[i] = {Move(i + 1), int(rng() % spread) - int(spread / 2)};
+        const int limit = int(rng() % spread) - int(spread / 2);
+        partial_insertion_sort(a, a + n, limit);
+        reference_sort(b, b + n, limit);
+        for (int i = 0; i < n; ++i)
+            differ += a[i].move != b[i].move || a[i].score != b[i].score;
+    }
+    EXPECT_EQ(differ, 0);
+    end_section();
+}
+
 static void test_partial_sort() {
     begin_section("partial insertion sort: descending above the limit, a permutation");
     std::mt19937_64 rng(42);
@@ -312,6 +348,7 @@ int main() {
     std::printf("Core move picker\n");
     std::printf("================\n");
     test_partial_sort();
+    test_partial_sort_order();
     test_picker_contract();
     test_probcut_picker();
     return harness_summary();
