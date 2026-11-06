@@ -400,9 +400,11 @@ static void test_a_recapture_is_exempt() {
         if constexpr (kCounters) {
             EXPECT_EQ(counter(exempt, "qs_futility_pruned"), 0);
             EXPECT_EQ(counter(exempt, "qs_recapture_exempt"), 1);
+            EXPECT_EQ(counter(exempt, "qs_gain_tested"), 0);
             EXPECT(counter(exempt, "qs_searched") >= 1);
             EXPECT_EQ(counter(judged, "qs_futility_pruned"), 1);
             EXPECT_EQ(counter(judged, "qs_recapture_exempt"), 0);
+            EXPECT_EQ(counter(judged, "qs_gain_tested"), 1);
             EXPECT_EQ(counter(judged, "qs_searched"), 0);
         }
     } else {
@@ -438,6 +440,7 @@ static void test_the_count_rule() {
         EXPECT(limited.result.nodes < unlimited.result.nodes);
         if constexpr (kCounters) {
             EXPECT_EQ(counter(limited, "qs_count_pruned"), 1);
+            EXPECT_EQ(counter(limited, "qs_gain_tested"), 3);
             EXPECT_EQ(counter(limited, "qs_searched"), 2);
             EXPECT_EQ(counter(unlimited, "qs_count_pruned"), 0);
             EXPECT_EQ(counter(unlimited, "qs_searched"), 3);

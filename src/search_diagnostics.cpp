@@ -368,10 +368,10 @@ void print_search_diag(const DiagCounters& d, const Evaluator& evaluator,
         // Cluster 3's quiescence.
         buf = std::format("kv qs_count_pruned={} qs_recapture_exempt={} "
             "qs_evasion_quiets_pruned={} qs_evasion_see_pruned={} qs_stalemates={} "
-            "qs_quiet_checks={} rfp_seekmate_capped={}",
+            "qs_quiet_checks={} rfp_seekmate_capped={} qs_gain_tested={}",
             d.qs_count_pruned, d.qs_recapture_exempt, d.qs_evasion_quiets_pruned,
             d.qs_evasion_see_pruned, d.qs_stalemates, d.qs_quiet_checks,
-            d.rfp_seekmate_capped);
+            d.rfp_seekmate_capped, d.qs_gain_tested);
         emit(buf);
     }
     // Speed telemetry: the evaluation rate, the pawn-cache hit rate, the

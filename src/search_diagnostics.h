@@ -225,17 +225,21 @@ using InfoCallback = std::function<void(const std::string&)>;
     X(rfp_cuts_tt_eval) X(rfp_corr_blocked) X(rfp_corr_blocked_tt_eval)   \
     /* Cluster 3 (the B4_QSEARCH arm; the OFF arm leaves them at 0).        \
        Captures the count rule pruned (denominator qs_moves); recaptures    \
-       the exemption alone kept from the gain rules (denominator the        \
-       captures the loop delivered, qs_searched plus the rules' prunes);    \
+       the exemption alone kept from the gain rules (denominator            \
+       qs_gain_tested plus itself);                                         \
        quiet evasions the rule left unsearched at nodes that ended without \
        a cutoff, and evasion captures it skipped on SEE (denominator        \
        qs_evasion_moves plus themselves); stalemates quiescence found       \
        (denominator qs_nodes); quiet checks searched (denominator           \
-       qs_nodes); and reverse-futility cuts the seek_mate cap refused       \
-       (denominator rfp_cuts plus itself). */                               \
+       qs_nodes); reverse-futility cuts the seek_mate cap refused           \
+       (denominator rfp_cuts plus itself); and captures that entered the    \
+       gain rules' block: no check, promotion or exempt recapture, at a     \
+       node where the rules run (denominator the captures the loop          \
+       delivered, qs_searched plus the rules' prunes). */                   \
     X(qs_count_pruned) X(qs_recapture_exempt)                              \
     X(qs_evasion_quiets_pruned) X(qs_evasion_see_pruned)                   \
-    X(qs_stalemates) X(qs_quiet_checks) X(rfp_seekmate_capped)
+    X(qs_stalemates) X(qs_quiet_checks) X(rfp_seekmate_capped)             \
+    X(qs_gain_tested)
 
 struct DiagCounters {
 #define BASILISK_DIAG_COUNTER_FIELD(name) int64_t name = 0;
@@ -258,7 +262,7 @@ struct DiagCounters {
 // aggregate and the field count stay in step with the table.
 static_assert(sizeof(DiagCounters) == DiagCounters::COUNT * sizeof(int64_t),
               "DiagCounters holds something that is not a counter from the table");
-static_assert(DiagCounters::COUNT == 173, "the counter contract has 173 entries; extend, never rename");
+static_assert(DiagCounters::COUNT == 174, "the counter contract has 174 entries; extend, never rename");
 
 // One search's counters as `info string diag` lines, followed by the
 // evaluator's speed telemetry.

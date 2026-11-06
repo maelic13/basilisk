@@ -561,6 +561,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
             DIAG_COUNT(state_.diag.qs_recapture_exempt
                        += prune_by_gain && !is_promo && recapture && !move_gives_check());
             if (prune_by_gain && !is_promo && !recapture && !move_gives_check()) {
+                DIAG_COUNT(++state_.diag.qs_gain_tested);
                 if (move_count > kp.b4_qs_move_count) {
                     TRACE_DECISION(TraceEvent::QsCountPrune, ply, 0, m,
                                    alpha, beta, stand_pat, -1, correction, VALUE_NONE,
