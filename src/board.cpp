@@ -1909,7 +1909,8 @@ bool Board::see_ge(Move m, int threshold) const {
     // Nobody of the other side attacks `to`: the loop would stop at its first
     // step with the move standing. The pin filter only removes attackers, so
     // answering here is exact and skips the pin computation.
-    if (!(attackers_to(to, occ) & occ & occupancy[~stm]))
+    Bitboard attackers = attackers_to(to, occ) & occ;
+    if (!(attackers & occupancy[~stm]))
         return true;
 
     // Same pin exclusion as see() (see the comment there).
@@ -1927,7 +1928,6 @@ bool Board::see_ge(Move m, int threshold) const {
         return bb;
     };
 
-    Bitboard attackers = attackers_to(to, occ) & occ;
     // The surplus `c` would add by recapturing now: its least valuable
     // attacker is a pawn whenever it has one the pins allow.
     auto promo_threat = [&](Color c) {
@@ -1974,7 +1974,18 @@ bool Board::see_ge(Move m, int threshold) const {
         occ ^= lva_bit;
         if (see_departure_opens_line(Square(lsb(lva_bit)), occ))
             see_pins(occ, pinned, pinner_of);
-        attackers = attackers_to(to, occ) & occ;
+        // A piece attacking `to` stands on one of its lines, so taking it away
+        // opens that kind of line alone: pawns and bishops the diagonals, rooks
+        // the files and ranks, queens both.
+        attackers &= occ;
+        if (next_attacker == PAWN || next_attacker == BISHOP || next_attacker == QUEEN)
+            attackers |= bishop_attacks(to, occ) & occ
+                       & (pieces[WHITE][BISHOP] | pieces[WHITE][QUEEN]
+                          | pieces[BLACK][BISHOP] | pieces[BLACK][QUEEN]);
+        if (next_attacker == ROOK || next_attacker == QUEEN)
+            attackers |= rook_attacks(to, occ) & occ
+                       & (pieces[WHITE][ROOK] | pieces[WHITE][QUEEN]
+                          | pieces[BLACK][ROOK] | pieces[BLACK][QUEEN]);
         if (promo_sq && swap + promo_threat(~stm) < result)
             break;
     }
