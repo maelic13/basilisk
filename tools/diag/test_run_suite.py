@@ -53,6 +53,26 @@ class FixedBudgetRecordTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "partial Cluster 2"):
             run_suite.validate_diag(counters)
 
+    def test_quiescence_counters_are_all_or_none_and_bounded(self):
+        self.assertEqual(len(run_suite.B4_COUNTER_UNITS), 33)
+        counters = {name: 0 for name in run_suite.CORE_COUNTER_UNITS}
+        counters.update({name: 0 for name in run_suite.B4_COUNTER_UNITS})
+        counters.update({"qs_nodes": 10, "qs_moves": 6, "qs_searched": 4,
+                         "qs_fail_highs": 2, "qs_fail_high_first": 1,
+                         "qs_fail_lows": 3, "qs_fail_low_searched": 2})
+        self.assertTrue(all(run_suite.validate_diag(counters).values()))
+        counters["qs_fail_high_first"] = 3
+        with self.assertRaisesRegex(ValueError, "quiescence fail highs"):
+            run_suite.validate_diag(counters)
+        counters["qs_fail_high_first"] = 1
+        counters["qs_see_pruned"] = 3
+        with self.assertRaisesRegex(ValueError, "quiescence move rules"):
+            run_suite.validate_diag(counters)
+        counters["qs_see_pruned"] = 0
+        del counters["tt_move_d0"]
+        with self.assertRaisesRegex(ValueError, "partial quiescence"):
+            run_suite.validate_diag(counters)
+
     def test_counter_parser_rejects_duplicates_and_broken_identity(self):
         with self.assertRaisesRegex(ValueError, "duplicate"):
             run_suite.parse_diag(
