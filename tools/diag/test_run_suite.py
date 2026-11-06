@@ -54,7 +54,7 @@ class FixedBudgetRecordTests(unittest.TestCase):
             run_suite.validate_diag(counters)
 
     def test_quiescence_counters_are_all_or_none_and_bounded(self):
-        self.assertEqual(len(run_suite.B4_COUNTER_UNITS), 40)
+        self.assertEqual(len(run_suite.B4_COUNTER_UNITS), 41)
         counters = {name: 0 for name in run_suite.CORE_COUNTER_UNITS}
         counters.update({name: 0 for name in run_suite.B4_COUNTER_UNITS})
         counters.update({"qs_nodes": 10, "qs_moves": 6, "qs_searched": 4,
@@ -76,7 +76,12 @@ class FixedBudgetRecordTests(unittest.TestCase):
         counters["qs_recapture_exempt"] = 5
         with self.assertRaisesRegex(ValueError, "recaptures exempt"):
             run_suite.validate_diag(counters)
+        counters["qs_recapture_exempt"] = 3
+        counters["qs_gain_tested"] = 2
+        with self.assertRaisesRegex(ValueError, "gains tested"):
+            run_suite.validate_diag(counters)
         counters["qs_recapture_exempt"] = 0
+        counters["qs_gain_tested"] = 0
         counters["qs_stalemates"] = 6
         with self.assertRaisesRegex(ValueError, "rare exits"):
             run_suite.validate_diag(counters)

@@ -138,14 +138,14 @@ B4_COUNTER_UNITS = {
         qs_moves qs_futility_pruned qs_see_pruned qs_late_pruned qs_searched
         qs_evasion_moves qs_fail_high_index_sum qs_evasion_fail_high_index_sum
         qs_count_pruned qs_recapture_exempt qs_evasion_quiets_pruned
-        qs_evasion_see_pruned qs_quiet_checks
+        qs_evasion_see_pruned qs_quiet_checks qs_gain_tested
     """.split()},
     **{name: "evaluation units" for name in """
         qs_standpat_excess qs_standpat_refine_mass qs_fail_high_excess
         eval_refine_mass eval_refine_mass_d0
     """.split()},
 }
-assert len(B4_COUNTER_UNITS) == 40
+assert len(B4_COUNTER_UNITS) == 41
 assert not set(B4_COUNTER_UNITS) & (set(CORE_COUNTER_UNITS) | set(B2_COUNTER_UNITS)
                                     | set(B3_COUNTER_UNITS))
 
@@ -362,9 +362,10 @@ def validate_diag(counters):
                 c["qs_futility_pruned"] + c["qs_see_pruned"] + c["qs_late_pruned"]
                 + c["qs_count_pruned"] + c["qs_searched"] <= c["qs_moves"]
             ),
-            "quiescence recaptures exempt within what the loop delivered": (
-                c["qs_recapture_exempt"] <= c["qs_searched"] + c["qs_futility_pruned"]
-                + c["qs_see_pruned"] + c["qs_late_pruned"] + c["qs_count_pruned"]
+            "quiescence recaptures exempt and gains tested within what the loop delivered": (
+                c["qs_recapture_exempt"] + c["qs_gain_tested"] <= c["qs_searched"]
+                + c["qs_futility_pruned"] + c["qs_see_pruned"] + c["qs_late_pruned"]
+                + c["qs_count_pruned"]
             ),
             "quiescence's rare exits within its nodes": (
                 c["qs_stalemates"] <= c["qs_fail_lows"] + c["qs_fail_highs"]
