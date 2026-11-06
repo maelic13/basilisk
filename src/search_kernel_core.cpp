@@ -171,6 +171,12 @@ static constexpr int LMR_HISTORY_DIVISOR[16] = {
     return move_type(m) == EN_PASSANT ? PAWN : type_of(board.piece_on(to_sq(m)));
 }
 
+[[maybe_unused]] static bool has_no_legal_move(const Board& board) {
+    MoveList legal;
+    board.gen_legal(legal);
+    return legal.empty();
+}
+
 // Fail-soft throughout, in Stockfish's form: every return is the node's best
 // value, which may lie outside the window, and the table stores it as the
 // bound it proves -- a lower bound at a fail high, otherwise an upper bound,
@@ -340,8 +346,10 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
                 if (kp.b4_evasion_prune && best > -tablebaseWinInMaxPly && !picker.quiets_skipped())
                     picker.skip_quiets();
             }
-            if (evasions_searched == 0)
+            if (evasions_searched == 0) {
+                CORE_NODE_CHECK(has_no_legal_move(*state_.board));
                 return -(MATE_SCORE - ply);
+            }
 #if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC) \
     || defined(BASILISK_RELEASE_DIAG_COUNTERS)
             // What the rule left unsearched at a node that found no cutoff.
