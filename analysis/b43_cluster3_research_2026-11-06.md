@@ -1233,3 +1233,216 @@ implementation only on the amended contract. They do not depend on this
 choice, except that ticket 8's and ticket 9's identity reads take ticket
 7's final fingerprint. No game ran, no default was moved and no NPS read
 was started.
+
+## Reads A2 — Return 1's reads (registered 2026-11-06, before running)
+
+Registered at `632bbb3`, before any of them runs. Class `R2`. They answer
+Return 1. Every read is a node-budget or fixed-depth read, so the host's
+load does not move it; no game, SPRT, SPSA or timed read is part of this.
+Evidence goes to `tools/results/b44-20261106/amend2/` (ignored storage).
+
+**Facts read before registering, none of them a result.**
+
+- The donor's `seekMate` at `edb0d9db` is `rootDepth >= 16 &&
+  abs(score) >= 2000`, read by reverse futility (`depth < (seekMate ? 6 :
+  19)`) and by singular extensions alone. Its commit (`598ae2c4` in the
+  donor's repository) states the purpose as mate finding, measured on a
+  mate suite at fixed nodes, and passed non-regression bounds
+  `<-1.75, 0.25>` at two time controls. It claims no Elo.
+- Basilisk's cap reads Cluster 2's `B3SeekMateDepth`, which is 12: the B.3
+  packet's amendment 3 lowered it to bound a singular-extension tree.
+  Reverse futility's ordinary reach here is `CoreRfpDepthCap` 10 against
+  the donor's 18, so the cap removes depths 6 to 10.
+- `root_score_` is the previous iteration's score, and UCI `cp` is the
+  internal score, so the bar's 564 is 564 in a PGN's `s=` field.
+
+**The candidate form ("own bar").** A throwaway patch, never committed:
+a new F line `B4RfpSeekMateDepth`, seed 16, range 8 to 64 (B.0 §7.2 rule
+1, the donor's ply), read only by reverse futility's cap in place of
+`B3SeekMateDepth`. `B3SeekMateScore`, `B4RfpSeekMateCap` 5 and
+`B4RfpSeekMate` 1 are unchanged, and the singular half keeps its bar of
+12. Trees: `CAND` the patch at its defaults; `T6` ticket 6's tree, the
+committed source with `B4RfpSeekMate` default 0; `T7` the committed
+source (cap 5 on the bar of 12); `OFF` the OFF arm.
+
+**Instrument checks, which must hold before a read counts.**
+
+- `T6` reads `bench 13` 4,003,560 and `T7` 3,166,820 (the implementation
+  record's counts). The patch's Tune build reads 3,166,820 with
+  `B4RfpSeekMateDepth` 12 and 4,003,560 with `B4RfpSeekMate` 0.
+- The cap is live on `CAND`: on `8/8/8/4k3/8/8/8/4K2R w` at depth 18 the
+  Diag build counts `rfp_seekmate_capped` above 0, and the Tune build's
+  node count differs between `B4RfpSeekMate` 1 and 0.
+- The UCI cold replay (one process per playout, `ucinewgame` before every
+  move) reproduces `return1/sweep.txt` on four cells of the Return 1
+  position: cap 5 at 30,000 (27 plies), 45,000 (the rule-50 draw) and
+  60,000 (35), and the switch off at 45,000 (37). If it does not, the
+  replay uses a fresh process per move.
+- The source is restored byte-exact after every temporary build (`git
+  status` clean), and each patch is saved with its SHA-256.
+
+### R1 — the floors' base rate (question 3)
+
+`test_endgames --conversion --nodes N`, with a print of every playout,
+on `OFF`, `T6`, `T7` and `CAND`, at 25 budgets: the five registered ones
+(30,000, 45,000, 60,000, 90,000, 120,000) and 25,000, 27,500, 32,500,
+35,000, 37,500, 40,000, 42,500, 47,500, 50,000, 52,500, 55,000, 57,500,
+65,000, 70,000, 75,000, 80,000, 85,000, 95,000, 105,000 and 135,000.
+Each family is 24 positions, so 600 playouts a family a tree. Reported
+per tree and family: playouts not converted, budgets reading under 24,
+mean plies; for KBN-K also the count at each budget.
+
+| # | Prediction | Probability |
+|---|---|---|
+| A2-P1 | `OFF` converts all 600 in each of KQ-K, KR-K and KBB-K | 70% |
+| A2-P2 | `T6` converts all 600 KR-K playouts | 55% |
+| A2-P3 | `T7` fails 1 to 3 KR-K playouts of 600, the known one included | 65% |
+| A2-P4 | `CAND` equals `T6` playout for playout in KR-K at every budget | 70% |
+
+Verdict rules.
+- **Base rate.** For a tree and family, the rate is unconverted playouts
+  over 600, and the chance that a five-budget read shows a miss is
+  estimated as `1 − (1 − b/25)^5`, `b` being the budgets under 24.
+- **Whose miss.** Over KQ-K, KR-K and KBB-K together (1,800 playouts a
+  tree): the miss is `T7`'s own when `T7` fails at least 3 more than
+  `T6`; the trees are not told apart when they differ by 2 or fewer.
+- **The stop rule.** §11's rule stands as written whatever this reads,
+  and no floor is relaxed on it. If `OFF` and `T6` both read 0 of 1,800
+  it stands unqualified. If either reads 1 or more, the amendment records
+  the false-alarm rate and puts to the maintainer, for later clusters
+  only, whether a floor is registered over a denser grid.
+
+### R2 — how often the bar is reached in games (question 2)
+
+`tools/results/b42-pins-gate/games.pgn`: 3,000 games at `3+0.03`, no
+adjudication, the moves of `basilisk-b42-pins-pext-pgo` alone (`bench
+13` 6,090,091, today's OFF arm). A move is *live at bar B* when its
+recorded depth is at least B and its recorded score is at least 564
+either way, a mate score included. Reported for B of 12 and 16: the share
+of moves, of games with at least one such move, and of recorded nodes.
+
+| # | Prediction | Probability |
+|---|---|---|
+| A2-P5 | At bar 12: 12 to 30% of moves, and at least 60% of games | 70% |
+| A2-P6 | At bar 16: 4 to 15% of moves, and at least 35% of games | 65% |
+
+Verdict rule: a bar is *live in games* at 2% of moves and 20% of games or
+more; *nearly inert* under 1% of moves or under 5% of games; *marginal*
+between. The depths are the OFF arm's; the arm's smaller tree reaches a
+bar more often, so the shares are lower bounds for it.
+
+### R3 — how often the cap fires at game budgets (question 2)
+
+Every 225th move of that engine in the PGN's order (about 600
+positions), rebuilt from the game's FEN and moves, searched cold
+(`ucinewgame`, Hash 64) at the node count the PGN records for the move,
+on the arm's Diag builds: the committed one (bar 12) and the patch's
+(bar 16). Reported: searches with a refusal, `rfp_seekmate_capped`
+against `rfp_cuts`, over all searches and over the live ones.
+
+| # | Prediction | Probability |
+|---|---|---|
+| A2-P7 | At bar 12 the refusals are under 1% of reverse futility's cuts over the sample; at bar 16 they are under a third of bar 12's | 75%; 65% |
+
+No verdict rule of its own: it sizes R2.
+
+### R4 — the mechanism's own read: mates found at fixed nodes (question 2)
+
+The donor justified the cap by mates found at a node budget, so that is
+read here. Populations: (A) the 96 floor positions; (B) from the games of
+the R2 PGN that end in checkmate, the positions 10, 16 and 24 plies
+before the mate, the first 150 such games (450 positions). Each is
+searched cold at 250,000 and at 1,000,000 nodes on the patch's Tune
+build under three settings: the switch off; bar 12; bar 16. A mate is
+*found* when the last completed iteration's score is a mate score of
+either sign. Reported per setting, population and budget: mates found,
+and among positions every setting solves, how often each announces the
+shorter mate.
+
+| # | Prediction | Probability |
+|---|---|---|
+| A2-P8 | Pooled over both populations and budgets (1,092 searches a setting), bar 16 finds within ±8 mates of the switch off, and bar 12 within ±12 | 60%; 55% |
+
+Verdict rule, per bar against the switch off, on the pooled count:
+*benefit* when it finds at least 5% more mates and no fewer in either
+population; *harm* when it finds at least 5% fewer; *no effect shown*
+otherwise.
+
+### R5 — conversion at budgets that reach the bar (question 1)
+
+(a) The four families at 250,000 and 1,000,000 nodes on `T6`, `T7` and
+`CAND`, with `OFF` for reference. (b) Won game positions: for each game
+of the R2 PGN in order, the first position where that engine is to move
+with a recorded score of +564 or more, not a mate score, at depth 12 or
+more; the first 240 games that have one. One engine plays both sides from it, a cold search
+per move at `N` nodes, on the patch's Tune build under the three
+settings, until mate, stalemate, the rule-50 draw, a threefold
+repetition, insufficient material or 300 plies. `N` is the median
+recorded node count of that engine's moves in the PGN, rounded to the
+nearest 10,000. The first 96 of those positions are also played at
+1,000,000 nodes. A position is *won* when the side that led mates.
+
+| # | Prediction | Probability |
+|---|---|---|
+| A2-P9 | (a) Every tree converts 24 in KQ-K, KR-K and KBB-K at both budgets | 75% |
+| A2-P10 | (b) At `N`, bar 12 and bar 16 each win within ±4 positions of the switch off, and the mean plies over positions all three win are within ±5% of it | 70%; 60% |
+
+Verdict rule, per bar against the switch off. *Harm* when (a) it reads
+under 24 in a major-piece family that the switch off holds at 24, or
+KBN-K more than 1 below the switch off's count at either budget; or (b)
+at either budget the positions the two decide differently split against
+it by at least 6 with a two-sided exact sign test under 0.05. *Benefit*
+on (b) by the same test in its favour, or mean plies at least 5% shorter
+over positions both win at both budgets. *No effect shown* otherwise.
+
+### R6 — the candidate's binding reads (question 1)
+
+On `CAND`'s release tree, `variant.py`'s reads: `bench 13`,
+`test_endgames` (the mate fixtures and the wrong-bishop draws),
+`test_search`, the floors at the five budgets, WAC at depth 6 and at
+100,000 nodes.
+
+| # | Prediction | Probability |
+|---|---|---|
+| A2-P11 | `CAND` reads `bench 13` 4,003,560, floors of 24 with KBN-K 118, and WAC 149 and 258: ticket 6's reads | 85% |
+
+### R7 — the evasion picker's sort (question 4, deviation 4)
+
+The donor sorts every evasion; the arm's picker at depth 0 sorts the
+quiets that score above 0 and leaves the rest in generator order, and
+once one evasion holds the other quiets are skipped. A throwaway variant
+of `T6` sorts every quiet evasion in quiescence. Read on both: `bench
+13`; on the bench positions at depth 13, stride 1, evasions searched per
+node, first-move fail highs and the fail-high share of evasion nodes;
+the floors at the five budgets; WAC at depth 6 and at 100,000 nodes.
+
+| # | Prediction | Probability |
+|---|---|---|
+| A2-P12 | The full sort moves `bench 13` by under 3% and no floor or WAC count by more than 2 | 55% |
+
+Verdict rule. If the full sort moves `bench 13` by under 3% and fails no
+binding read, depth 0 is confirmed as immaterial. If it moves more, both
+forms are priced (`Pricing 4`, depth 12, the first 40 positions of
+`suite_v2`, `QsEvasion` alone): the full sort replaces depth 0 only when
+its priced beat share is at least 2 points lower and it fails no binding
+read; otherwise depth 0 stays. P4's registered read is B.4.5's and is
+not this one.
+
+### The decision rule (question 1), frozen
+
+1. **Ticket 7 as built is not kept**, whatever R1 reads: the cap of 5 on
+   the bar of 12 fails P7 on its own tree, and no read here re-opens the
+   floor clause. A benefit for bar 12 in R4 or R5 is recorded for H.2 and
+   changes nothing in B.4.4.
+2. **The candidate is adopted**, `B4RfpSeekMate` 1 on its own bar of 16,
+   when R6 passes every binding read (the major-piece floors at 24, KBN-K's
+   sum at 112 or more, `test_endgames`, `test_search`, WAC at 100,000
+   nodes at 239 or more), R1 shows `CAND` failing fewer than
+   3 more major-piece playouts than `T6`, R5 shows no harm for bar 16,
+   and R4 shows no harm for bar 16. It needs no benefit: it is the
+   donor's form, and the donor kept it on non-regression.
+3. **Otherwise the fallback**: `B4RfpSeekMate` default 0, the switch and
+   its F lines kept, a departure row in §14 and a re-read on the network
+   (H.2). No paired run in B.4.5: the rule acts in decided positions
+   only, and a 2,000-game run at ±5 cannot read an effect of that size.
+4. A2-P13: the candidate is adopted by this rule (70%).
