@@ -131,18 +131,21 @@ B4_COUNTER_UNITS = {
         qs_fail_lows qs_fail_low_searched qs_evasion_fail_highs
         qs_evasion_fail_high_first qs_evasion_tt_move qs_evasion_tt_cuts
         eval_refined eval_refined_d0 tt_move_d0 rfp_cuts_tt_eval
-        rfp_corr_blocked rfp_corr_blocked_tt_eval
+        rfp_corr_blocked rfp_corr_blocked_tt_eval qs_stalemates
+        rfp_seekmate_capped
     """.split()},
     **{name: "moves" for name in """
         qs_moves qs_futility_pruned qs_see_pruned qs_late_pruned qs_searched
         qs_evasion_moves qs_fail_high_index_sum qs_evasion_fail_high_index_sum
+        qs_count_pruned qs_recapture_exempt qs_evasion_quiets_pruned
+        qs_evasion_see_pruned qs_quiet_checks
     """.split()},
     **{name: "evaluation units" for name in """
         qs_standpat_excess qs_standpat_refine_mass qs_fail_high_excess
         eval_refine_mass eval_refine_mass_d0
     """.split()},
 }
-assert len(B4_COUNTER_UNITS) == 33
+assert len(B4_COUNTER_UNITS) == 40
 assert not set(B4_COUNTER_UNITS) & (set(CORE_COUNTER_UNITS) | set(B2_COUNTER_UNITS)
                                     | set(B3_COUNTER_UNITS))
 
@@ -357,7 +360,15 @@ def validate_diag(counters):
             ),
             "quiescence move rules within its captures": (
                 c["qs_futility_pruned"] + c["qs_see_pruned"] + c["qs_late_pruned"]
-                + c["qs_searched"] <= c["qs_moves"]
+                + c["qs_count_pruned"] + c["qs_searched"] <= c["qs_moves"]
+            ),
+            "quiescence recaptures exempt within what the loop delivered": (
+                c["qs_recapture_exempt"] <= c["qs_searched"] + c["qs_futility_pruned"]
+                + c["qs_see_pruned"] + c["qs_late_pruned"] + c["qs_count_pruned"]
+            ),
+            "quiescence's rare exits within its nodes": (
+                c["qs_stalemates"] <= c["qs_fail_lows"] + c["qs_fail_highs"]
+                and c["qs_quiet_checks"] <= c["qs_searched"]
             ),
             "quiescence fail highs are bounded": (
                 c["qs_fail_high_first"] <= c["qs_fail_highs"] <= c["qs_searched"]

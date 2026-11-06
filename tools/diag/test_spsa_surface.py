@@ -94,6 +94,18 @@ class SurfaceTests(unittest.TestCase):
         # F lines and switches stay off it.
         self.assertFalse(set(generated) & {"B3NmpBetaFloor", "B3NmpVerify", "B3CheckExt"})
 
+    def test_b4_surface_is_the_clusters_coordinates(self):
+        text = surface.HEADER.read_text(encoding="utf-8")
+        parameters = surface.parse_parameters(text, b4=True)
+        generated = json.loads(surface.B4_CONFIG.read_text(encoding="utf-8"))
+        self.assertEqual([item[0] for item in parameters], list(generated))
+        self.assertEqual(list(generated),
+                         ["B4QsFutBase", "B4QsStandPatBlend", "B4QsFailHighBlend"])
+        # Its table stays off every other surface.
+        for other in (surface.parse_parameters(text), surface.parse_parameters(text, core=True),
+                      surface.parse_parameters(text, b3=True)):
+            self.assertFalse({item[0] for item in other} & set(generated))
+
     def test_b3_sweep_notes_are_checked_against_the_table(self):
         text = (
             "#define BASILISK_B3_PARAMS(X, F, S) \\\n"

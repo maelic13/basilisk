@@ -5,6 +5,9 @@ A tune or diagnostic build with `setoption name Pricing value N` searches
 every N-th decision of each pruning rule again as the rule denied it and
 prints one `info string price kv` line per cell (rule, remaining depth, node
 type, move-number bucket) at the end of the search (src/search_pricing.h).
+Quiescence's move rules have no remaining depth: their cells carry the move's
+class in the depth slot, the piece taken and whether it recaptures, and the
+report prints such a rule by class.
 This tool drives one fresh engine process per position at `go depth D`,
 sums the cells over the suite with the committed parser and reports, per
 rule and per cell, the share of probes that beat the rule's bound and the
@@ -57,8 +60,14 @@ SHARED_PREFIX = ("xc_",)
 RULE_ORDER = ["razor", "rfp", "null_move", "probcut", "probcut_tt", "multicut",
               "qs_delta", "capture_futility", "capture_see", "cont_hist",
               "quiet_futility", "quiet_see", "skip_quiets", "qs_futility", "qs_see",
-              "qs_late", "lmr_fail_low"]
+              "qs_late", "qs_count", "qs_evasion", "lmr_fail_low"]
 NODE_RULES = {"razor", "rfp", "null_move", "probcut", "probcut_tt", "multicut", "qs_delta"}
+
+# The rules whose cells carry a move's class in the depth slot: the piece it
+# takes (price_class in src/search_pricing.h) plus 6 for a recapture.
+CLASS_RULES = {"qs_futility", "qs_see", "qs_count", "qs_evasion"}
+VICTIMS = ("none", "pawn", "knight", "bishop", "rook", "queen")
+PRICE_RECAPTURE = 6
 
 
 def parse_price(text: str) -> tuple[list[dict], dict | None]:
@@ -149,6 +158,14 @@ def add_cells(total: dict, cells: list[dict]) -> None:
             slot[k] += c[k]
 
 
+def move_class(code: int) -> tuple[str, bool]:
+    """The victim's name and whether the move recaptures, from a class cell."""
+    victim, recapture = code % PRICE_RECAPTURE, code // PRICE_RECAPTURE
+    if not 0 <= code < 2 * PRICE_RECAPTURE:
+        raise ValueError(f"not a move class: {code}")
+    return VICTIMS[victim], bool(recapture)
+
+
 def depth_band(depth: int) -> str:
     return "0" if depth == 0 else "1-3" if depth <= 3 else "4-7" if depth <= 7 else "8+"
 
@@ -164,7 +181,16 @@ def summarise(cells: dict) -> dict:
 
     for (rule, depth, node, moves), slot in cells.items():
         bump(rule, slot)
-        bump(f"{rule} depth {depth_band(depth)}", slot)
+        if rule in CLASS_RULES:
+            victim, recapture = move_class(depth)
+            kind = "recapture" if recapture else "other"
+            bump(f"{rule} class {kind}", slot)
+            bump(f"{rule} victim {victim}", slot)
+            bump(f"{rule} victim {victim} {kind}", slot)
+            if moves != "-":
+                bump(f"{rule} moves {moves} {kind}", slot)
+        else:
+            bump(f"{rule} depth {depth_band(depth)}", slot)
         bump(f"{rule} node {node}", slot)
         if moves != "-":
             bump(f"{rule} moves {moves}", slot)
@@ -220,6 +246,17 @@ def print_table(summary: dict, detail: str | None, search_nodes: int = 0) -> Non
         print(f"{name:40} {s['decisions']:>11,} {s['probed']:>8,} {s['beats']:>7,} "
               f"{fmt_share(s['beat_share']):>8} {100 * lo:7.2f}-{100 * hi:6.2f}% "
               f"{change:>8} {npp:>12} {hid:>10}")
+
+
+def class_shares(summary: dict, rule: str) -> dict | None:
+    """Recaptures' share of a class rule's decisions and of its beats."""
+    whole, recaptures = summary.get(rule), summary.get(f"{rule} class recapture")
+    if rule not in CLASS_RULES or not whole or not whole["decisions"]:
+        return None
+    if not recaptures:
+        return {"decisions": 0.0, "beats": 0.0}
+    return {"decisions": recaptures["decisions"] / whole["decisions"],
+            "beats": recaptures["beats"] / whole["beats"] if whole["beats"] else 0.0}
 
 
 def run_read(args) -> int:
@@ -314,6 +351,10 @@ def run_report(args) -> int:
           f"{report['every']}: {report['search_nodes']:,} search nodes, "
           f"{report['probe_nodes']:,} probe nodes")
     print_table(report["rules"], args.cells, report["search_nodes"])
+    shares = class_shares(report["rules"], args.cells) if args.cells else None
+    if shares:
+        print(f"recaptures: {fmt_share(shares['decisions'])} of decisions, "
+              f"{fmt_share(shares['beats'])} of beats")
     if not args.cells:
         s = screen(report["rules"], report["search_nodes"])
         print(f"most hidden changes per million search nodes: {', '.join(s['top_hidden'])}")

@@ -33,6 +33,10 @@ CORE_TUNE = COLOSSEUM / "core.tune.toml"
 # the same run file. Neither the default nor the core surface carries them.
 B3_CONFIG = ROOT / "tools" / "spsa_configs" / "config_b3.json"
 B3_TUNE = COLOSSEUM / "b3.tune.toml"
+# The B4_QSEARCH arm's own surface (Cluster 3): its table's X lines alone, on
+# the same run file. B.4.6 admits the earlier clusters' coordinates to its fit.
+B4_CONFIG = ROOT / "tools" / "spsa_configs" / "config_b4.json"
+B4_TUNE = COLOSSEUM / "b4.tune.toml"
 # B.3.3's curvature-sweep registrations on the B3 surface (packet
 # b30_cluster2_research_2026-10-30, amendment 3 section 4). A sweep coordinate is
 # an F line the sweep reads at the listed points and SPSA never fits; an extra
@@ -72,11 +76,12 @@ LINE_RE = re.compile(
 # (only X lines match PARAM_RE).
 CORE_TABLE = "#define BASILISK_CORE_KERNEL_PARAMS("
 B3_TABLE = "#define BASILISK_B3_PARAMS("
+B4_TABLE = "#define BASILISK_B4_PARAMS("
 # The B3_PROOF arm's own defaults for core coordinates fitted on its tree:
 # A(field, UciName, value) lines. The core surface keeps the X lines' values
 # (the OFF arm's); a surface tuned on the B3_PROOF arm starts from these.
 B3_CORE_DEFAULTS_TABLE = "#define BASILISK_B3_CORE_DEFAULTS("
-TABLES = (CORE_TABLE, B3_TABLE, B3_CORE_DEFAULTS_TABLE)
+TABLES = (CORE_TABLE, B3_TABLE, B4_TABLE, B3_CORE_DEFAULTS_TABLE)
 ARM_DEFAULT_RE = re.compile(
     r"^\s*A\(\s*[a-z][a-z0-9_]*\s*,\s*([A-Za-z][A-Za-z0-9]*)\s*,\s*(-?\d+)\s*\)"
 )
@@ -105,6 +110,10 @@ def b3_arm_lines(text: str) -> list[str]:
     return split_tables(text)[B3_TABLE]
 
 
+def b4_arm_lines(text: str) -> list[str]:
+    return split_tables(text)[B4_TABLE]
+
+
 def default_arm_lines(text: str) -> list[str]:
     return split_arm_lines(text)[0]
 
@@ -113,12 +122,12 @@ def core_arm_lines(text: str) -> list[str]:
     return split_arm_lines(text)[1]
 
 
-def parse_parameters(text: str, core: bool = False,
-                     b3: bool = False) -> list[tuple[str, int, int, int]]:
+def parse_parameters(text: str, core: bool = False, b3: bool = False,
+                     b4: bool = False) -> list[tuple[str, int, int, int]]:
     parameters = []
     seen = set()
-    lines = (b3_arm_lines(text) if b3 else core_arm_lines(text) if core
-             else default_arm_lines(text))
+    lines = (b4_arm_lines(text) if b4 else b3_arm_lines(text) if b3
+             else core_arm_lines(text) if core else default_arm_lines(text))
     for line in lines:
         match = PARAM_RE.match(line)
         if not match:
@@ -265,7 +274,8 @@ option = ["Hash=64", "Threads=1"]
 
 
 def render_all(text: str, iterations: int) -> dict[pathlib.Path, str]:
-    """The default arm's surface and run file, the core arm's and the B3 arm's."""
+    """The default arm's surface and run file, the core arm's, the B3 arm's and
+    the B4 arm's."""
     outputs = render(parse_parameters(text), iterations)
     outputs.update(render(parse_parameters(text, core=True), iterations,
                           config=CORE_CONFIG, tune=CORE_TUNE, run=None))
@@ -278,6 +288,8 @@ def render_all(text: str, iterations: int) -> dict[pathlib.Path, str]:
                           notes=["# B.3.3's fit surface (BAS-S42): the B3 X lines less "
                                  + ", ".join(B33_EXCLUDED) + ", with section 5.12's "
                                  "Cluster 1 admissions."]))
+    outputs.update(render(parse_parameters(text, b4=True), iterations,
+                          config=B4_CONFIG, tune=B4_TUNE, run=None))
     return outputs
 
 
@@ -307,8 +319,9 @@ def main() -> int:
             return 1
         print(f"{len(outputs)} generated files current ({len(parse_parameters(text))} default-arm, "
               f"{len(parse_parameters(text, core=True))} core-arm, "
-              f"{len(parse_parameters(text, b3=True))} B3-arm and "
-              f"{len(b33_parameters(text))} B.3.3 fit-surface parameters)")
+              f"{len(parse_parameters(text, b3=True))} B3-arm, "
+              f"{len(b33_parameters(text))} B.3.3 fit-surface and "
+              f"{len(parse_parameters(text, b4=True))} B4-arm parameters)")
         return 0
     COLOSSEUM.mkdir(parents=True, exist_ok=True)
     for path, content in outputs.items():

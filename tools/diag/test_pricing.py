@@ -20,6 +20,54 @@ bestmove e2e4 ponder e7e5
 """
 
 
+class ClassTest(unittest.TestCase):
+    def test_a_class_decodes_to_its_victim_and_recapture(self):
+        self.assertEqual(pricing.move_class(0), ("none", False))
+        self.assertEqual(pricing.move_class(1), ("pawn", False))
+        self.assertEqual(pricing.move_class(5), ("queen", False))
+        self.assertEqual(pricing.move_class(6), ("none", True))
+        self.assertEqual(pricing.move_class(7), ("pawn", True))
+        self.assertEqual(pricing.move_class(11), ("queen", True))
+        for bad in (-1, 12, 15):
+            with self.assertRaises(ValueError):
+                pricing.move_class(bad)
+
+    def cells(self):
+        def cell(decisions, beats, changes=0):
+            return {"decisions": decisions, "probed": decisions, "beats": beats,
+                    "changes": changes, "probe_nodes": decisions}
+        return {("qs_futility", 1, "qs", "1-3"): cell(100, 1),      # a pawn
+                ("qs_futility", 11, "qs", "1-3"): cell(10, 6),      # a queen, recaptured
+                ("qs_futility", 3, "pv", "4-6"): cell(30, 3),       # a bishop
+                ("qs_delta", 0, "qs", "-"): cell(5, 1),             # not a class rule
+                ("rfp", 3, "cut", "-"): cell(7, 0)}
+
+    def test_summary_splits_class_rules_and_leaves_others_by_depth(self):
+        s = pricing.summarise(self.cells())
+        self.assertEqual(s["qs_futility"]["decisions"], 140)
+        self.assertEqual(s["qs_futility class recapture"]["decisions"], 10)
+        self.assertEqual(s["qs_futility class other"]["decisions"], 130)
+        self.assertEqual(s["qs_futility victim queen"]["beats"], 6)
+        self.assertEqual(s["qs_futility victim queen recapture"]["beats"], 6)
+        self.assertEqual(s["qs_futility victim bishop other"]["decisions"], 30)
+        self.assertEqual(s["qs_futility moves 1-3 other"]["decisions"], 100)
+        # The class is not a depth: no band is read from it.
+        self.assertNotIn("qs_futility depth 1-3", s)
+        self.assertEqual(s["rfp depth 1-3"]["decisions"], 7)
+        self.assertEqual(s["qs_delta depth 0"]["decisions"], 5)
+
+    def test_recaptures_share_of_a_rule(self):
+        s = pricing.summarise(self.cells())
+        shares = pricing.class_shares(s, "qs_futility")
+        self.assertAlmostEqual(shares["decisions"], 10 / 140)
+        self.assertAlmostEqual(shares["beats"], 6 / 10)
+        self.assertIsNone(pricing.class_shares(s, "rfp"))
+
+    def test_quiescence_rules_are_reported(self):
+        for rule in pricing.CLASS_RULES:
+            self.assertIn(rule, pricing.RULE_ORDER)
+
+
 class ParseTest(unittest.TestCase):
     def test_cells_and_total(self):
         cells, total = pricing.parse_price(SEARCH)

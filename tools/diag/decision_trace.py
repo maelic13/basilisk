@@ -32,7 +32,8 @@ FAMILIES = {
     "none", "razor", "rfp", "skip_quiets", "cont_hist", "quiet_futility",
     "quiet_see", "capture_futility", "capture_see",
 }
-# The engine's event names (TraceEvent); Cluster 2 appended the last six.
+# The engine's event names (TraceEvent); Cluster 2 appended the six from
+# null_verify, Cluster 3 the last three.
 EVENTS = {
     "check_extension", "tt_cutoff", "rfp_prune", "razor_prune",
     "null_cutoff", "probcut_cutoff", "iir_reduction", "futility_prune",
@@ -43,6 +44,7 @@ EVENTS = {
     "qs_futility_prune", "qs_see_prune", "qs_late_prune", "qs_beta_cutoff",
     "skip_quiets", "null_verify", "null_region_refused", "probcut_tt_cutoff",
     "ext_budget_truncate", "cuckoo_draw", "tt_penalty",
+    "qs_count_prune", "qs_evasion_prune", "qs_stalemate",
 }
 
 
