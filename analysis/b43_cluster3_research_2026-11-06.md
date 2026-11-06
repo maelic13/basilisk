@@ -2094,3 +2094,208 @@ as one (`t6_full_sort.patch`). It waits on B.4.5's P4, then H.2.
 | R5 (b) | `r5b_playouts.py`; `r5b_120000.json`, `r5b_1000000.json` and their `.txt` |
 | R6, R7 | `run_reads.py`, `reads.out` and the `*_test_*.log`, `*_wac_*.log` beside it; `r7/price_t6`, `r7/price_sort`, `r7/counters_*.json` |
 | R9 | `r9_kbnk.py`, `r9_kbnk.json`, `r9_kbnk.txt` |
+
+## Implementation record — tickets 7b to 10 (2026-11-06)
+
+Continues the record of tickets 0 to 7 (above, at Return 1), on *Research
+amendment 2*. Branch `b4-quiescence`, from `de91e38`. Builds: the release
+preset, PEXT portable, Clang 23.1.5, non-PGO `all` trees; the sanitizer trees
+are the `debug` preset, ASan and UBSan. Per-ticket reads used
+`build/b4-{on,off}`, `-diag`, `-tune`. The final table used a detached
+worktree at `cedc148` with every flavour built from nothing
+(`build/b4-final`). Evidence: `tools/results/b44-20261106/{t7b,t8,t9,t10}/`
+(ignored storage); `t10/final_table.py` holds the final table's recipe,
+`t10/table.txt` its output and `t10/hashes.json` every binary's SHA-256.
+No game, SPSA or NPS read ran.
+
+### Per ticket
+
+| Ticket | Commits | OFF `bench 13` | ON `bench 13` | WAC depth 6 / 100k | KQ-K, KR-K, KBB-K | KBN-K by budget, sum |
+|---|---|---:|---:|---|---|---|
+| 7b | `9cf84ae` | 6,090,091 | 4,003,560 | 149 / 258 | 24 at every budget | 23/23/24/24/24, 118 |
+| The counter | `f895750`, `2b75777` | 6,090,091 | 4,003,560 | not read: no behaviour moved | | |
+| 8 | `f771999` | 6,090,091 | 4,003,560 | not read: §10 reads them when the fingerprint changes | | |
+| 9 | `417db0c` | 6,090,091 | 4,003,560 | not read, as ticket 8 | | |
+| 10 | `2e84a10`, `cedc148` | 6,090,091 | 4,003,560 | 149 / 258 | 24 at every budget | 23/23/24/24/24, 118 |
+
+Each row's OFF and ON counts held on Release, Diag and Tune.
+
+- **Ticket 7b's tree is ticket 6's.** The counters on the bench positions at
+  depth 13, stride 1: 176 rows compared, 0 differ, and 0 of 40 positions
+  differ (`same_rows.py t6 t7b`). No row moved by more than 20%.
+- **Tickets 8 and 9 moved nothing.** Against the ticket before, 0 rows and 0
+  of 40 positions differ; ticket 8's read leaves out `qs_gain_tested`, which
+  ticket 7b's file does not hold.
+- **CTest.** Release 27/27 on both arms at tickets 7b, 8 and 9 and on the
+  final tree. At each of those the arm's Diag build ran `test_stack_unwind`,
+  `test_b4_qsearch`, `test_b3_proof` and `test_search` with node checks live,
+  and passed. At the counter's commits the six builds, their fingerprints and
+  `test_b4_qsearch` were read, and `test_run_suite.py` 8 of 8.
+- **Every commit.** A temporary worktree built `all` on both arms at each of
+  the seven commits: OFF 6,090,091, ON 4,003,560 at each
+  (`every_commit_7b_10.txt`).
+
+### Tests added
+
+`test_b4_qsearch` holds 153 checks on the arm in a release build, 216 in Diag
+and 233 in Tune, and 145, 174 and 191 on the OFF arm. `test_board` gains 23 in
+Tune builds. By ticket:
+
+- **7b.** The default is 0. The gate reads the cap's bar: refused at root depth
+  16 and 24 with ±564 and with a mate score either way at node depth 6; not at
+  root depth 15 or 12, not at 563, not at node depth 5. The bars are
+  independent both ways. Live on `8/8/8/4k3/8/8/8/4K2R w`: the switch moves the
+  arm's tree at depth 18 and not at 15, the counter is above 0 at 1 and 0 at the
+  default, and the OFF arm is equal at both depths. The earlier gate and live
+  tests are replaced, as the amendment's clause requires.
+- **The counter.** `qs_gain_tested` read on the exempt and judged recapture (0
+  and 1) and on the count rule's position (3). `run_suite.py` carries its unit
+  and bounds `qs_gain_tested + qs_recapture_exempt` by what the loop delivered,
+  with a test.
+- **8.** The gain vector moves a rook's credit from 500 to 538 and en passant's
+  to 88 (`test_the_gain_vector`). On tune builds a whole search reads the SEE
+  vector on the arm alone. `test_board`, on tune builds: five fixtures on vector
+  1 against the oracle, a bishop for a knight reading −27 among them; `see_ge`'s
+  boundary equal to the oracle's on every capture of three positions; back on
+  vector 0 the same bishop reads 0.
+- **9.** Rd8 mate found at 6 and not at 0 at depth 1, reading
+  `-(MATE_SCORE - 2)`. Two quiet checks at 6 and one at 1, none past the first
+  ply, none that loses SEE.
+- **10.** The node check: `has_no_legal_move` where quiescence returns a mate
+  with no evasion searched.
+
+Mutants, each run through `mutate.py` and each failing:
+
+| Ticket | Mutation | Result |
+|---|---|---|
+| 7b | the kernel reads `b3_seek_mate_depth` | 3 sections fail |
+| 7b | the kernel ignores `b4_rfp_seek_mate` | 3 sections fail |
+| 8 | the search sets vector 0 | the SEE vector section fails |
+| 8 | `set_see_vector` ignores its argument | 6 sections fail |
+| 8 | `gain_value` ignores its vector | the rook section fails |
+| 8 | the kernel passes vector 0 | 2 sections fail |
+| 9 | no first-ply test; no SEE test; a fixed limit of 6 | each fails the rule's section |
+| 10 | every evasion skipped | `node check failed: has_no_legal_move(*state_.board)`, abort |
+
+### Ticket 8's reads
+
+`bench` ignores options, so each is a Tune build with the default changed
+(`tune_variant.py`, `t8/tune_variants.txt`), the source restored byte-exact.
+
+| Setting | ON Tune | OFF Tune |
+|---|---:|---:|
+| Defaults | 4,003,560 (Release the same) | 6,090,091 (Release the same) |
+| `B4GainValues` 1 | 3,675,826 | 6,090,091 |
+| `B4SeeValues` 1 | 3,625,848 | 6,090,091 |
+
+### The two-arm table (clean tree at `cedc148`)
+
+| Read | OFF | ON |
+|---|---:|---:|
+| `bench 13` Release / Tune / Diag / Ablate | 6,090,091 × 4 | 4,003,560 × 4 |
+| `bench 10` Release / sanitizer | 2,135,353 / 2,135,353 | 1,047,747 / 1,047,747 |
+| Release CTest / sanitizer CTest (`-LE strength`) | 27/27 / 25/25, no report | 27/27 / 25/25, no report |
+| WAC depth 6 (floor) | 133 (119) | 149 (136) |
+| WAC 100,000 nodes | 247 | **258** |
+| Floors, KQ-K / KR-K / KBB-K | 24 at every budget | 24 at every budget |
+| KBN-K, 30k to 120k (sum) | 21/22/24/24/24 (115) | 23/23/24/24/24 (118) |
+| Wrong-bishop draws (`test_endgames`) | pass | pass |
+| Return 1's `4K3/8/8/8/8/5k2/8/1R6 w` at 45,000 nodes, recorded | not read | mate in 37 plies |
+| Ticket 7b's variant row, `B4RfpSeekMate` 1, recorded | — | `bench 13` 4,003,560; floors 24; KBN-K 23/22/23/24/23 (115); `test_endgames` 191/191; `test_search` 719/719; WAC 149 / 258 |
+
+The variant row was read at ticket 7b and again on the final source, with the
+same result, and it equals the amendment's read on its own patch. Return 1's
+row used a Tune build of the final source and Hash 8, cold per move
+(`return1_playout.py trace 45000`, `t10/return1_45000.txt`).
+
+Three conversion runs exit 1, and none is a binding floor. Both arms' 120,000-node
+runs trip the fixture's own staleness guard on KQ-K (24/24, mean 10.8 plies), as
+the B.3 record noted of its head. The OFF arm's 30,000-node run trips the test's
+per-budget KBN-K line, 21 against 22, the OFF arm's known read; the binding rule
+for KBN-K is the sum.
+
+### Ticket 10 and the rest of the qualification
+
+- **The mask.** No bit is re-declared. The eight bits name interior-node
+  families and quiescence holds no `ABLATED` test, so none names a deleted rule.
+- **Liveness** (`ablation_liveness_{on,off}.json`, eight `suite_v2` positions,
+  depth 9). All eight bits live on both arms, each moving all eight positions.
+  ON (67,564 nodes unmasked): razoring 1.47×, reverse futility 2.75×, null move
+  1.62×, ProbCut 1.01×, IIR 1.13×, shallow move pruning 6.79×, extensions
+  1.02×, LMR 2.00×. OFF (129,311): 0.78×, 1.39×, 0.90×, 0.64×, 0.97×, 2.70×,
+  0.72×, 1.59×.
+- **The WAC floor.** `test_wac --floor` on the arm is 136, the final count of
+  149 less 13. The number did not move at this ticket; `cedc148` states it
+  against the final tree.
+- **The deep-iteration screen** (`screen25.json`, `screen_score.log`), on §10's
+  five positions by the amended clause, depths 16 to 25, 60 s watchdog, Hash
+  64, the clean tree's Release binaries, scored by
+  `tools/results/b31-20261030/t10/a7/screen_score_a7.py`. **PASS.** No watchdog
+  stopped on either arm, so clause (d) does not arise. Host load was about 10%
+  at the start; the host was not certified idle.
+
+  | Position | Steps 20, 21, 22 | (b) geomean | Steps 17–19 geomean (recorded) | Absolute at 22 (recorded) |
+  |---|---|---:|---:|---:|
+  | Bench 11 | 1.004, 0.806, 0.852 | 0.884 | 0.895 | 0.558 |
+  | Bench 15 | 1.173, 1.139, 0.872 | 1.052 | 1.050 | 0.578 |
+  | `suite_v2` 50 | 0.994, 1.005, 0.998 | 0.999 | 1.049 | 0.695 |
+  | `suite_v2` 42 | 1.024, 1.035, 1.031 | 1.030 | 1.036 | 0.263 |
+  | `suite_v2` 60 | 1.011, 1.007, 0.998 | 1.005 | 1.014 | 0.989 |
+
+- **The decision trace** on WAC.001, 085, 203 and 253 (depth 8, the WAC move as
+  root, Diag): ON 479 / 411 / 1,002 / 158 records, OFF 478 / 1,018 / 866 / 122;
+  `trace_{on,off}_WAC.*.json`, archived.
+- **Ticket 2's and ticket 6's reads** with their verdicts stand in the record
+  above: both defaults stay 1.
+- **Not run.** CI: nothing is pushed, so it first runs at the PR. The CI cell
+  that builds the arm has existed since ticket 0. No PGO build.
+
+### Deviations from the handoff
+
+1. **`generate_spsa_surface.py` is not edited.** The contract asks that its B4
+   table list the new line as fixed. The generator reads the header's table and
+   keeps its X lines alone, so an F line is already off the surface:
+   `--check` reports the 11 generated files current, with 3 B4 coordinates.
+2. **The live tests read one root move.** They use `test_b4_qsearch`'s
+   `read_node`, with `e1e2` as the root and a 16 MB table, so their counts are
+   not the amendment's 347,065 and 261,485 over UCI. They assert only the
+   amendment's differences and equalities.
+3. **"At 1 each moves it", ticket 8.** The clause sits beside "on both arms".
+   Each vector moves the arm's fingerprint and neither moves the OFF arm's: the
+   gain rules and the seam's setter are the arm's, and §10 lets the OFF arm's code
+   change only for shared seams. I read this as the intended sense.
+4. **Where the vector lives.** `HCE_PIECE_VALUE` is in `src/types.h`, because
+   `Board` and the kernel both read it. In a tune build `Board` holds a pointer
+   to its vector, set once on the search's own copy in `Searcher::search`, on
+   the arm alone, so a SEE call outside a search stays on vector 0. Release,
+   Diag and Ablate builds compile the constants as before; `PROMO_SURPLUS` went
+   from `constexpr` to `const` to allow the pointer.
+5. **The oracle reads a vector.** `test_board`'s `ORACLE_VALUES` became a
+   pointer, so the same oracle checks both vectors.
+6. **The quiet-check loop repeats the capture loop's tail.** Sharing it would
+   have meant editing the OFF arm's loop, which §10 forbids outside shared
+   seams. B.8's deletion of the OFF arm removes the repetition. A quiet check
+   counts in `qs_searched`, as "searched as captures are" and `run_suite.py`'s
+   bound require, and in the fail-high index the capture loop keeps.
+7. **Floors at tickets 8 and 9 were not read,** by §10's rule: neither changed
+   the fingerprint, and each ticket's counters equal the one before. The final
+   table reads them.
+8. **The screen's position set.** §10 names B.3's five positions, and those were
+   read. B.3's amendment 8 had replaced bench 11 in that cluster's own screen
+   because it is a conversion-band position, so its row here is recorded as §10
+   requires. It passes either way.
+
+### What the reviewer must check
+
+- Each diff against §10 and §7 as amendment 2 §9 replaces them.
+- Both fingerprints at every commit, on every flavour, and the tests on both
+  arms.
+- The deviations above, 3, 4 and 6 first, as judgements and not as settled.
+- That `B3SeekMateDepth`, `B3SeekMateScore`, the seed of `B4RfpSeekMateCap` and
+  every Cluster 1 and 2 constant are unmoved (`git diff de91e38 cedc148 --
+  src/search_params.h` touches the B4 table and its comments alone).
+- The mutants above, and that the arm's tree equals ticket 6's row for row.
+
+Separate, for B.4.5 and not a read: `qs_recapture_exempt` over
+`qs_gain_tested + qs_recapture_exempt` is 22.1% on the bench positions at depth
+13, on ticket 9's tree. P5 registers 15 to 30% on B.4.5's own read.

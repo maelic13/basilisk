@@ -1990,6 +1990,10 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           more mates at a node budget (505 of 1,092 against 512), so
           Basilisk's form stays and the departure waits on the network.
         - Tickets 7b and 8 to 10 resume on the amended contract.
+      - Tickets 7b to 10 built and qualified 2026-11-06 (packet
+        *Implementation record — tickets 7b to 10*): OFF 6,090,091, the arm
+        4,003,560, WAC 149 at depth 6 and 258 at 100,000 nodes, the floors
+        24 with KBN-K 118, the cost screen passed. The review is next.
     - [ ] **B.4.5** `[V]` Diagnostics and the unfitted paired run
       The packet's zero-game screens on both arms, then its registered
       categorical and deletion reads and the unfitted paired run.
@@ -2745,7 +2749,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.4.4 | READY_FOR_IMPLEMENTATION | I2 | Ticket 7b, then tickets 8 to 10 of `analysis/b43_cluster3_research_2026-11-06.md` §10 as *Research amendment 2* replaces it |
+| B.4.4 | LOCAL_QUALIFIED | I2 | Built and qualified (`analysis/b43_cluster3_research_2026-11-06.md`, *Implementation record — tickets 7b to 10*); next, the independent review in a separate session |
 | B.4.5 | RESEARCH | V | After B.4.4's review |
 | B.4.6 | RESEARCH | V | After B.4.5 |
 | B.4.7 | RESEARCH | V | After B.4.6 |
