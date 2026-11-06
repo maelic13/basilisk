@@ -113,7 +113,9 @@
   carries this repair (§QUALIFICATION): release CTest 24/24 and 2/2,
   ASan/UBSan 24/24, the conversion floors unchanged.
 - **Verdict (registered rule):** the cap, so the repair stays as a
-  correctness fix with no measured harm; the maintainer confirms.
+  correctness fix with no measured harm; the maintainer confirmed
+  2026-11-06.
+- Disposition: **cap, +1.9 ± 4.4; repair kept. CLOSED 2026-11-06.**
 
 #### PREDICTION CALIBRATION — preserve the original prediction above
 

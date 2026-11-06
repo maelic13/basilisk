@@ -92,7 +92,10 @@
     `b57e0dd4…`.
 - **Correctness floors:** BAS-S48's, read on this candidate.
 - **Verdict (registered rule):** the cap, so the repair stays as a
-  correctness fix with no measured harm; the maintainer confirms.
+  correctness fix with no measured harm; the maintainer confirmed
+  2026-11-06. With BAS-S48's repair kept too, the fingerprint record
+  updates to `bench 13` 6,090,091.
+- Disposition: **cap, −3.8 ± 7.6; repair kept. CLOSED 2026-11-06.**
 
 #### PREDICTION CALIBRATION — preserve the original prediction above
 

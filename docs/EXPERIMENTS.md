@@ -535,9 +535,9 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S47](experiments/BAS-S47.md) — B.16.2: what pruning and reductions hide, each rule's decisions searched again as denied — observation: instrument validated (isolation clean, planted rules higher); most hidden: quiescence futility, reduced fail-lows, reverse futility; razoring 12.4% (25% at cut nodes)
 
-- [BAS-S48](experiments/BAS-S48.md) — B.4.2: SEE scores promoting recaptures, `[-5,5]` — cap, +1.9 ± 4.4; repair stays, maintainer to confirm
+- [BAS-S48](experiments/BAS-S48.md) — B.4.2: SEE scores promoting recaptures, `[-5,5]` — cap, +1.9 ± 4.4; repair kept
 
-- [BAS-S49](experiments/BAS-S49.md) — B.4.2: SEE follows pins opened during the exchange, `[-5,5]` — cap, −3.8 ± 7.6; repair stays, maintainer to confirm
+- [BAS-S49](experiments/BAS-S49.md) — B.4.2: SEE follows pins opened during the exchange, `[-5,5]` — cap, −3.8 ± 7.6; repair kept
 
 | ID | Title | Disposition |
 |---|---|---|

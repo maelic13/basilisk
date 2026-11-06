@@ -111,6 +111,14 @@ and next step).
 
 ### Fixed
 
+- **Exchanges count promotions and new pins.** When the engine judges
+  whether a capture or a quiet move is safe, a pawn that recaptures on the
+  last rank now counts as promoting, and a piece that becomes pinned
+  partway through the exchange no longer recaptures. Measured at
+  `3+0.03`: **+1.9 ± 4.4 Elo** (8,000 games) for the promotions and
+  **−3.8 ± 7.6 Elo** (3,000 games) for the pins, no measurable effect on
+  strength. `bench 13` is now 6,090,091.
+
 - **A quicker answer with several threads.** Before it answered, the
   engine waited for every helper thread to notice that the search had
   stopped, which each did only every 2,048 positions: about a quarter of

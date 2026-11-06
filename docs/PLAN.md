@@ -343,7 +343,7 @@ derivations are in the linked records.
 |---|---|
 | Score perspective, mate band (`MATE_SCORE − MAX_PLY` = 31,872, duplicated in `search.h` and `tt.h`), endgame scale floor, lazy-eval path | `DESIGN.md` §3; `tests/test_endgames.cpp` static assert |
 | TT publication incoherence is a known defect, tolerated until D.2 repairs it without an NPS cost; every consumer validates the stored move | `DESIGN.md` §3; BAS-C05 |
-| SEE king legality repaired; created pins and promotion recaptures are known defects with fixtures, repaired in B.4.2 before quiescence's fit | BAS-C08, BAS-C09; `tests/test_board.cpp` |
+| SEE king legality, created pins and promotion recaptures repaired, the last two in B.4.2 before quiescence's fit; a check on the exchange stays unmodelled | BAS-C08, BAS-C09; `tests/test_board.cpp` |
 | Draw, rule-50, null-move clock and legal-EP hashing semantics | BAS-C02; `tests/test_invariants.cpp` |
 | One mutation authority for redundant board state | BAS-C07; `src/board.h` |
 | Protocol: `ponderhit` owned by the UCI thread; setup work done before `readyok`, never on the clock; a rejected `position` exits with status 1; tablebase PV lines time-boxed the Stockfish way | BAS-C10–BAS-C13; `tests/test_engine_ponder.cpp`, `tests/test_uci_protocol.cpp` |
@@ -366,7 +366,7 @@ coordinate) is not a defect; its owner decides. IDs are the Rarog audit's
 
 | Owner | Defects |
 |---|---|
-| B.4 | B-17 the dead SEE clamp; A-2 and A-3 SEE's created pins and promotion recaptures (BAS-C09) |
+| B.4 | B-17 the dead SEE clamp |
 | B.5 (with D.1) | the fail-high stop's hole: a window that never returns is never checked (A-47; `analysis/b5_failhigh_stop_2026-10-25.md` §2.3); the ply cap returns the static evaluation in check (NODE-8) |
 | B.9 | `go depth N` answered by a deeper helper (DRIVER-12); Fathom's `exit` on a table that fails to map (PROTO-11); A-50 a stop inside the first iteration; A-57 cold table reads on the clock; A-58 the tablebase root ranking ignores the game's repetitions |
 | C.2.1–C.2.2 | C-1 the tuner's missing scalers; C-2 `--verify` cannot fail; C-8 the extractor's de-dup ignores the clock; C-26 to C-30 the data pipeline (book, sampler, split, labels, row identity); C-49 K refitted per run |
@@ -1852,14 +1852,14 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           counts only as a majority over the five budgets, the sum moving
           by more than 3) reads against this table from here on; its base
           stays 115. The default endgame suite passes (191/191).
-    - [ ] **B.4.2** `[I2]` SEE's created pins and promotion recaptures
+    - [x] **B.4.2** `[I2]` SEE's created pins and promotion recaptures
       Between clusters, before the fit (2026-11-05; B.15.1's until then):
       quiescence's SEE pruning and thresholds are fitted on SEE's
       verdicts. A-2 and A-3 (BAS-C09; fixtures in `tests/test_board.cpp`)
       are repaired here. Card 1's census counts the verdicts each repair
       changes; each goes through the correctness-repair path with its own
       gate.
-      - Implemented 2026-11-05, one engine commit each; `GAME_GATE`.
+      - Implemented 2026-11-05, one engine commit each; closed 2026-11-06.
         - The quiet-SEE test's bound is corrected first, in its own
           commit (`9f29f49`): a quiet move to a back rank an enemy pawn
           attacks can lose the mover and the queen's surplus; the oracle
@@ -1874,6 +1874,8 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           a line with a king and an enemy slider of that line's kind
           recomputes the pins. The mid-exchange fixture reads −300 (was
           −400).
+        - Card 1's census of the verdicts each repair changes was read
+          here, ahead of B.4.3; these are its counts.
         - Every changed `see_ge` boundary on a 104,000-move random-walk
           corpus was wrong before and equals the make/unmake oracle
           after (A-3 48, A-2 16); the 138 divergences left all have a
@@ -1886,12 +1888,12 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           tests 2/2, ASan/UBSan CTest 24/24 (sanitizer `bench 10`
           2,135,353), the conversion floors at the five budgets equal to
           B.4.1's table (`tools/results/b42-20261105/conversion/`).
-        - Gates registered and prepared, maintainer-run: BAS-S48 (A-3
-          against `9f29f49`, cap 4,000 pairs, `tools/run_b42_promo_gate.ps1`)
-          and BAS-S49 (A-2 against A-3, cap 1,500 pairs,
-          `tools/run_b42_pins_gate.ps1`), both `[-5,5]` at `3+0.03`. The
-          fingerprint record moves to 6,090,091 when both keep their
-          repair.
+        - Gates, maintainer-run 2026-11-05, both `[-5,5]` at `3+0.03`, both
+          the cap without a decision: BAS-S48 (A-3 against `9f29f49`)
+          +1.9 ± 4.4 Elo, LLR +2.18, 4,000 pairs; BAS-S49 (A-2 against
+          A-3) −3.8 ± 7.6 Elo, LLR −1.55, 1,500 pairs. Both repairs stay
+          as correctness fixes with no measured harm, as the maintainer
+          confirmed 2026-11-06. The fingerprint record moves to 6,090,091.
         - Not repaired, outside A-2 and A-3: SEE does not model check,
           so a capture that discovers check, or an exchange that opens
           one, still diverges from the oracle (BAS-C09's note of
@@ -2129,7 +2131,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       IDs are its items):
       - Tests: a stored TT win never answers a repeated position (A-13); the
         clock stays out of the position identity (A-14); an external oracle
-        corpus (A-5, A-24); the SEE approximations (A-2, A-3, BAS-C09) are
+        corpus (A-5, A-24); the SEE approximations (A-2, A-3, BAS-C09) were
         repaired in B.4.2, before quiescence's fit; their fixtures join
         this corpus.
       Triumviratus review inputs (2026-11-03,
@@ -2660,7 +2662,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.4.2 | GAME_GATE | I2 | Both repairs committed; BAS-S48 and BAS-S49 prepared, maintainer-run |
 | B.4.3 | RESEARCH | R2 | Was B.4.0; contents fixed by B.0, on the repaired head |
 | B.4.4 | RESEARCH | I2 | On B.4.3's handoff |
 | B.4.5 | RESEARCH | V | After B.4.4's review |
