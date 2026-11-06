@@ -1464,3 +1464,35 @@ Verdict rule: benefit, harm and no effect as in R4. With a benefit,
 §14's row for the cap names the reach as what it waits on, and B.6's
 joint surface reads the two together. Without one it names the network
 alone. Nothing in B.4.4 depends on this read.
+
+### R9 — addendum, registered after R1's grid and before it runs
+
+R1's rule for the candidate named the major-piece families. Its grid
+also shows something the rule did not ask about: `CAND` leaves 23 KBN-K
+playouts of 600 unconverted where `OFF`, `T6` and `T7` each leave 13,
+and 21 of the 23 are at budgets of 60,000 nodes or fewer, where a KBN-K
+search ends near root depth 16 (median depth 16 at 45,000 nodes and 17.5
+at 60,000 on eight of the positions). `T7`'s KR-K miss is at 45,000
+nodes, where a KR-K search ends near depth 12. That suggests a
+hypothesis formed after exposure: the cap costs conversion at a budget
+that ends near its bar. It cannot be scored on the grid that suggested
+it, so R9 tests it on positions the grid did not hold.
+
+100 new KBN-K positions, drawn by a fixed-seed generator on the
+harness's own criteria (a legal position, White to move and not in
+check, with a legal move). Each is played out by the validated cold
+replay, 100 plies at most as the harness allows, at 30,000, 35,000,
+40,000, 45,000, 50,000 and 60,000 nodes, on the patch's Tune build
+under the switch off, bar 16 and bar 12: 600 playouts a setting. A
+playout is unconverted when White has not mated within 100 plies.
+
+| # | Prediction | Probability |
+|---|---|---|
+| A2-P16 | Bar 16 leaves at least 1.5 times as many playouts unconverted as the switch off | 55% |
+
+Verdict rule. *Harm* for a bar when its unconverted count is at least
+1.5 times the switch off's and a one-sided Fisher exact test on the two
+counts of 600 is under 0.05. If R9 reads harm for bar 16, the decision
+rule's fallback applies and the cap is left off. If it does not, the
+grid's KBN-K difference is recorded as not replicated and the decision
+rule is applied as it stands.
