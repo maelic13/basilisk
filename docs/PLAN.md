@@ -1970,6 +1970,9 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     - [ ] **B.4.5** `[V]` Diagnostics and the unfitted paired run
       The packet's zero-game screens on both arms, then its registered
       categorical and deletion reads and the unfitted paired run.
+      Its pricing screen also reads queen captures by class on both arms
+      (packet research amendment 1 §4), the first reading of H.2's
+      candidate.
     - [ ] **B.4.6** `[V]` Curvature sweep, then SPSA in blocks
       The packet's registered sweep, then SPSA in blocks on Cluster 3's
       surface (with B-21's RFP, razoring and NMP-base coordinates); the
@@ -3898,6 +3901,25 @@ already repairing or a form it must choose anyway, and says so.
   B.6.1 input (2026-11-05): a departures row that reads under +5 there is
   not cleared by a run on one fitted arm; it waits here for the fair
   re-read with both arms refitted.
+  B.4.3 input (2026-11-06, `analysis/b43_cluster3_research_2026-11-06.md`,
+  research amendment 1 §4):
+  - A queen capture exempt from quiescence's gain rules. On the B.4.2
+    head, of the queen captures that are not recaptures, 45.9% of those
+    futility prunes and 27.3% of those the alpha-relative SEE rule prunes
+    beat alpha when searched. The population is 26,810 decisions in
+    31.2M nodes, about a twentieth of what the recapture exemption
+    recovers, which is why it waits here.
+    - The cause is unmeasured. The leading hypothesis is the evaluation's
+      king-safety swing when a queen leaves the board; an even queen
+      trade has an SEE of 0 on any value vector.
+    - First reading: B.4.5's pricing by class on Cluster 3's arm, which
+      exempts the recaptures. The item is worth a game only if the
+      remaining queen captures still beat either rule more than 10% of
+      the time there.
+    - Cheapest test of the cause, before any game: the same pricing
+      split by whether the capturing side's king is under attack.
+    - The figure belongs to this evaluation: re-read after C.3 rebuilds
+      king safety, and again on the network.
 - [ ] **H.3** `[I2]` Time-management refinements at their own control
   Each measured at the time control it acts at, never only at `3+0.03`,
   and tuned against an external engine at release speed (TT-3); every
