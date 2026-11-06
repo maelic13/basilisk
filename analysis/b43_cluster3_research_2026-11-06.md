@@ -1446,3 +1446,21 @@ not this one.
    (H.2). No paired run in B.4.5: the rule acts in decided positions
    only, and a 2,000-game run at ±5 cannot read an effect of that size.
 4. A2-P13: the candidate is adopted by this rule (70%).
+
+### R8 — addendum, registered after R4's result and before it runs
+
+R4 read no benefit for either bar (scored in the amendment). One
+explanation is reach: Basilisk's reverse futility stops at depth 10
+where the donor's stops at 18, so the cap removes five depths here
+against thirteen there. R8 reads R4's two populations at 1,000,000
+nodes on the patch's Tune build with `CoreRfpDepthCap` 18, under the
+switch off and under bar 16.
+
+| # | Prediction | Probability |
+|---|---|---|
+| A2-P14 | With the reach at 18, bar 16 finds at least 5% more mates than the switch off | 40% |
+
+Verdict rule: benefit, harm and no effect as in R4. With a benefit,
+§14's row for the cap names the reach as what it waits on, and B.6's
+joint surface reads the two together. Without one it names the network
+alone. Nothing in B.4.4 depends on this read.
