@@ -12,6 +12,7 @@
 #include "board.h"
 #include "eval.h"
 #include "parameters.h"
+#include "search_b3.h"
 #include "search_b4.h"
 #include "search_worker.h"
 #include "test_harness.h"
@@ -709,6 +710,66 @@ static void test_fail_low_store_in_quiescence() {
     end_section();
 }
 
+// ---- Reverse futility's cap -------------------------------------------------------
+
+static void test_rfp_seek_mate_gate() {
+    begin_section("reverse futility: the cap binds past it, under seek_mate alone");
+    EXPECT(b4::rfp_past_seek_mate_cap(true, 6, 5));
+    EXPECT(b4::rfp_past_seek_mate_cap(true, 10, 5));
+    EXPECT(!b4::rfp_past_seek_mate_cap(true, 5, 5));
+    EXPECT(!b4::rfp_past_seek_mate_cap(true, 1, 5));
+    EXPECT(!b4::rfp_past_seek_mate_cap(false, 6, 5));
+    EXPECT(!b4::rfp_past_seek_mate_cap(false, 19, 5));
+    end_section();
+
+    begin_section("reverse futility: the gate with forced root depths and scores");
+    const SearchParams p;
+    auto capped = [&](int root_depth, int root_score, int depth) {
+        return b4::rfp_past_seek_mate_cap(
+            b3::seek_mate(root_depth, root_score, p.b3_seek_mate_depth, p.b3_seek_mate_score),
+            depth, p.b4_rfp_seek_mate_cap);
+    };
+    const int deep = p.b3_seek_mate_depth, won = p.b3_seek_mate_score;
+    const int over = p.b4_rfp_seek_mate_cap + 1;
+    EXPECT(capped(deep, won, over));
+    EXPECT(capped(deep + 8, -won, over));
+    EXPECT(capped(deep, MATE_SCORE - 9, over));
+    EXPECT(!capped(deep - 1, won, over));        // an early iteration
+    EXPECT(!capped(deep, won - 1, over));        // not decided enough
+    EXPECT(!capped(deep, -(won - 1), over));
+    EXPECT(!capped(deep, won, over - 1));        // at the cap
+    end_section();
+}
+
+// A won KR-K: the root's iterations pass seek_mate's bar and no mate is in
+// reach, so the cap fires on the arm with its switch on and nowhere else.
+static void test_rfp_seek_mate_live() {
+    auto search_krk = [](void (*set)(SearchParams&)) {
+        NodeRead r;
+        r.fen = "8/8/8/4k3/8/8/8/4K2R w - - 0 1";
+        r.from = E1;
+        r.to = E2;
+        r.depth = 15;
+        r.set = set;
+        return read_node(r);
+    };
+    const Run on = search_krk(nullptr);
+    const Run off = search_krk([](SearchParams& p) { p.b4_rfp_seek_mate = 0; });
+    begin_section("reverse futility: the cap moves the arm's tree and no other");
+    if constexpr (kB4Qsearch)
+        EXPECT(on.result.nodes != off.result.nodes);
+    else
+        EXPECT_EQ(on.result.nodes, off.result.nodes);
+    if constexpr (kCounters) {
+        EXPECT_EQ(counter(off, "rfp_seekmate_capped"), 0);
+        if constexpr (kB4Qsearch)
+            EXPECT(counter(on, "rfp_seekmate_capped") > 0);
+        else
+            EXPECT_EQ(counter(on, "rfp_seekmate_capped"), 0);
+    }
+    end_section();
+}
+
 // ---- The tune surface -----------------------------------------------------------
 
 static void test_options_are_the_arms_alone() {
@@ -751,6 +812,8 @@ int main() {
     test_stand_pat_returns_and_stores_the_blend();
     test_stalemate();
     test_fail_low_store_in_quiescence();
+    test_rfp_seek_mate_gate();
+    test_rfp_seek_mate_live();
 
     return harness_summary();
 }

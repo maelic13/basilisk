@@ -1140,7 +1140,14 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 DIAG_COUNT(++state_.diag.rfp_corr_blocked);
                 DIAG_COUNT(state_.diag.rfp_corr_blocked_tt_eval += eval != static_eval);
             }
-            if (eval - margin >= beta) {
+            const bool seek_mate_capped = kB4Qsearch && kp.b4_rfp_seek_mate
+                && b4::rfp_past_seek_mate_cap(
+                       b3::seek_mate(root_depth_, root_score_, kp.b3_seek_mate_depth,
+                                     kp.b3_seek_mate_score),
+                       depth, kp.b4_rfp_seek_mate_cap);
+            DIAG_COUNT(state_.diag.rfp_seekmate_capped
+                       += seek_mate_capped && eval - margin >= beta);
+            if (!seek_mate_capped && eval - margin >= beta) {
                 DIAG_COUNT(state_.diag.rfp_cuts_tt_eval += eval != static_eval);
                 const int value = (kp.rfp_beta_weight * beta
                                    + (1024 - kp.rfp_beta_weight) * eval) / 1024;
