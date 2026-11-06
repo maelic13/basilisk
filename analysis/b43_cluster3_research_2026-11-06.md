@@ -808,3 +808,52 @@ B.4.5 and B.4.7 add the switches that end at Basilisk's form.
 | Evasion order | the kernel's picker stages (good captures, quiets, bad captures) | captures by victim, then quiets by history | one picker for both searches | H.2, if B.4.5's P4 fails |
 | SEE vector (`B4SeeValues` 0) | 100/300/300/500/900 | the donor has one vector for SEE and evaluation-free material | §9 item 4's read, tilted against vector 1 | H.2: both arms refitted, unless item 4 adopts |
 | Reverse futility's ordinary cap | `CoreRfpDepthCap` 10, fitted | 18 | the fit's | B.6's joint surface |
+
+## Read R2 — futility priced by recapture and captured piece (registered 2026-11-06, before running)
+
+Asked by the maintainer after the packet closed, as a read to take
+before B.4.4 starts. §1 infers that quiescence futility's hidden share
+sits in the recaptures and in the queen's value, from two reads that
+were never joined: BAS-S47 priced the rule as a whole (4.27% of its
+decisions beat it) and C5 counted its population (24.5% recaptures).
+This read joins them.
+
+- **Instrument.** B.16.2's pricing with one throwaway change,
+  `tools/results/b43-20261106/pricing_split.patch` (SHA-256
+  `AEB02F97B4B46A6E52AD1D2DA041D45AEC7B2ADB676536C0C5818A5FC07F4FE8`,
+  on `de4a8d0`). Quiescence's cells always carry depth 0, so the depth
+  slot takes the captured piece (1 pawn to 5 queen) plus 6 for a
+  recapture on the previous move's square, for the futility and SEE
+  rules. The per-rule sampling stride is untouched, so the same
+  decisions are probed.
+- **Validity, before the read counts.** The patched Diag build reads
+  `bench 13` 6,090,091, and `pricing.py isolation --every 4 --depth 10
+  --limit 20` finds no position that differs. Otherwise it is not read.
+- **Recipe.** `python tools/diag/pricing.py read <build> --every 4
+  --depth 16` on `suite_v2` (Hash 64), BAS-S47's reading recipe.
+- **Exposure before freezing.** BAS-S47's table on the B.3 head and §6;
+  nothing from this build, which does not exist yet.
+
+| # | Prediction | Probability |
+|---|---|---|
+| Q1 | Futility's beat share on this head is 3.5 to 5.0% | 70% |
+| Q2 | Recaptures' beat share is at least twice the other captures' (about 8 to 12% against 2 to 3.5%) | 60% |
+| Q3 | Recaptures carry at least half of futility's beats | 55% |
+| Q4 | By captured piece, the queen has the highest beat share, at least 10% | 55% |
+| Q5 | The alpha-relative SEE rule's recaptures beat it more often than its other captures | 55% |
+
+Rules, fixed here:
+
+- **(a)** Q3 holds: §1 stands as written.
+- **(b)** Recaptures' beat share is under 1.5 times the other captures':
+  §1's inference is wrong. An amendment withdraws the claim that the
+  exemption is the cluster's lead mechanism and re-registers P5. The
+  exemption stays in the arm as the donor's form behind its switch.
+  The futility base's seed, 86 against today's 150, becomes the arm's
+  named main risk, and B.4.6's sweep reads it first.
+- **(c)** Between the two: §1 stands with the measured shares written
+  beside it.
+- The queen's share (Q4) changes no rule: it is evidence beside
+  `B4GainValues`' paired run.
+
+No branch changes §10's contract.
