@@ -364,6 +364,164 @@ static void test_mate_distance_under_the_rule() {
     end_section();
 }
 
+// ---- The gain rules ---------------------------------------------------------------
+
+// The static evaluation a node reads from fresh tables, at its own clock.
+static int node_eval(const NodeRead& r) {
+    Board b;
+    b.set_fen(r.fen);
+    b.make_move(legal_move(b, r.from, r.to));
+    Evaluator evaluator;
+    return evaluator.evaluate(b);
+}
+
+// A window that makes `alpha` the node's lower edge, one wide.
+static void set_node_alpha(NodeRead& r, int alpha) {
+    r.root_alpha = -alpha - 1;
+    r.root_beta = -alpha;
+}
+
+// Black's queen takes the knight on d5 and White's pawn recaptures: the node
+// stands a queen down, and with alpha at +200 the 900 credited, on the seed's
+// margin, leaves the recapture below alpha.
+static void test_a_recapture_is_exempt() {
+    NodeRead r;
+    r.fen = "3qk3/8/8/3N4/4P3/8/8/6K1 b - - 0 1";
+    r.from = D8;
+    r.to = D5;
+    set_node_alpha(r, 200);
+    const Run exempt = read_node(r);
+    r.set = [](SearchParams& p) { p.b4_qs_recapture = 0; };
+    const Run judged = read_node(r);
+    begin_section("gain rules: a queen recapture below alpha is searched, and pruned without the exemption");
+    if constexpr (kB4Qsearch) {
+        EXPECT(exempt.result.nodes > judged.result.nodes);
+        if constexpr (kCounters) {
+            EXPECT_EQ(counter(exempt, "qs_futility_pruned"), 0);
+            EXPECT_EQ(counter(exempt, "qs_recapture_exempt"), 1);
+            EXPECT(counter(exempt, "qs_searched") >= 1);
+            EXPECT_EQ(counter(judged, "qs_futility_pruned"), 1);
+            EXPECT_EQ(counter(judged, "qs_recapture_exempt"), 0);
+            EXPECT_EQ(counter(judged, "qs_searched"), 0);
+        }
+    } else {
+        EXPECT_EQ(exempt.result.nodes, judged.result.nodes);
+    }
+    end_section();
+}
+
+// After ...Kg8 White has three captures of loose pawns. None checks or
+// recaptures, and Black has no capture after any of them, so the count rule
+// reaches the third.
+static NodeRead three_loose_pawns() {
+    NodeRead r;
+    r.fen = "7k/8/p7/2p5/4p3/1N6/6B1/R5K1 b - - 0 1";
+    r.from = H8;
+    r.to = G8;
+    return r;
+}
+
+static void test_the_count_rule() {
+    // The widest futility base, so that only the count rule can stop the third.
+    NodeRead on = three_loose_pawns();
+    on.set = [](SearchParams& p) { p.b4_qs_fut_base = 220; };
+    const Run limited = read_node(on);
+    NodeRead off = three_loose_pawns();
+    off.set = [](SearchParams& p) {
+        p.b4_qs_fut_base = 220;
+        p.b4_qs_move_count = 64;
+    };
+    const Run unlimited = read_node(off);
+    begin_section("gain rules: the third non-checking capture is skipped at 2 and searched at 64");
+    if constexpr (kB4Qsearch) {
+        EXPECT(limited.result.nodes < unlimited.result.nodes);
+        if constexpr (kCounters) {
+            EXPECT_EQ(counter(limited, "qs_count_pruned"), 1);
+            EXPECT_EQ(counter(limited, "qs_searched"), 2);
+            EXPECT_EQ(counter(unlimited, "qs_count_pruned"), 0);
+            EXPECT_EQ(counter(unlimited, "qs_searched"), 3);
+        }
+    } else {
+        EXPECT_EQ(limited.result.nodes, unlimited.result.nodes);
+    }
+    end_section();
+
+    // A quiet table move takes no count slot: the same two captures are searched.
+    Board child;
+    child.set_fen(three_loose_pawns().fen);
+    child.make_move(legal_move(child, H8, G8));
+    NodeRead quiet = on;
+    quiet.seed = true;
+    quiet.table_move = legal_move(child, G1, G2);
+    const Run with_quiet = read_node(quiet);
+    begin_section("gain rules: a quiet table move is neither searched nor counted");
+    EXPECT_EQ(with_quiet.result.nodes, limited.result.nodes);
+    end_section();
+}
+
+// exd6 en passant: the node's alpha is set either side of the pawn it credits.
+// One below the rule's sum the capture is searched; at the sum it is pruned.
+static void test_en_passant_is_credited_a_pawn() {
+    NodeRead r;
+    r.fen = "7k/3p4/8/4P3/8/8/8/6K1 b - - 0 1";
+    r.from = D7;
+    r.to = D5;
+    const SearchParams defaults;
+    const int sum = node_eval(r) + defaults.b4_qs_fut_base + PIECE_VALUE[PAWN];
+    NodeRead below = r;
+    set_node_alpha(below, sum - 1);
+    NodeRead at = r;
+    set_node_alpha(at, sum);
+    const Run searched = read_node(below);
+    const Run pruned = read_node(at);
+    begin_section("gain rules: en passant is credited a pawn");
+    if constexpr (kB4Qsearch) {
+        EXPECT(searched.result.nodes > pruned.result.nodes);
+        if constexpr (kCounters) {
+            EXPECT_EQ(counter(searched, "qs_futility_pruned"), 0);
+            EXPECT_EQ(counter(pruned, "qs_futility_pruned"), 1);
+        }
+    }
+    end_section();
+}
+
+// The delta rule is off by default on the arm and returns with its switch;
+// the late rule and the ply cap are gone from the arm's tree.
+static void test_the_rules_the_arm_removes() {
+    if constexpr (!kCounters)
+        return;
+    NodeRead r;
+    r.fen = "3qk3/8/8/3N4/4P3/8/8/6K1 b - - 0 1";
+    r.from = D8;
+    r.to = D5;
+    set_node_alpha(r, 1000);
+    const Run plain = read_node(r);
+    r.set = [](SearchParams& p) { p.b4_qs_delta = 1; };
+    const Run delta = read_node(r);
+    begin_section("gain rules: the delta rule fires only behind its switch on the arm");
+    EXPECT_EQ(counter(delta, "qs_delta_pruned"), 1);
+    EXPECT_EQ(counter(plain, "qs_delta_pruned"), kB4Qsearch ? 0 : 1);
+    end_section();
+
+    NodeRead tree;
+    tree.fen = std::string(bench_fens()[3]);
+    Board b;
+    b.set_fen(tree.fen);
+    MoveList legal;
+    b.gen_legal(legal);
+    tree.from = Square(from_sq(legal[0]));
+    tree.to = Square(to_sq(legal[0]));
+    tree.depth = 9;
+    const Run run = read_node(tree);
+    begin_section("gain rules: the arm's tree holds no late rule and no ply cap");
+    EXPECT(counter(run, "qs_nodes") > 0);
+    if constexpr (kB4Qsearch) {
+        EXPECT_EQ(counter(run, "qs_late_pruned"), 0);
+        EXPECT_EQ(counter(run, "qs_cap_hits"), 0);
+    }
+    end_section();
+}
+
 // ---- The tune surface -----------------------------------------------------------
 
 static void test_options_are_the_arms_alone() {
@@ -397,6 +555,10 @@ int main() {
     test_exit_store_in_check();
     test_a_lost_node_searches_every_evasion();
     test_mate_distance_under_the_rule();
+    test_a_recapture_is_exempt();
+    test_the_count_rule();
+    test_en_passant_is_credited_a_pawn();
+    test_the_rules_the_arm_removes();
 
     return harness_summary();
 }

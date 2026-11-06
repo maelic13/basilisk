@@ -413,6 +413,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     const int raw_eval = damp_rule50(tt_eval, state_.board->rule50_count());
 
     int stand_pat = corrected_eval(raw_eval, correction_value(ss));
+    [[maybe_unused]] const int static_eval = stand_pat;
 #if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
     const int correction = stand_pat - raw_eval;
 #endif
@@ -443,12 +444,16 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     // when the opponent holds a known win: a capture there can end the
     // ending, as Kxh8 ends a KBB-K in a dead draw, and the stand-pat says
     // nothing about what it leaves (the oracle's futilityBase > -KNOWN_WIN).
-    const bool prune_by_gain = stand_pat + 150 > -KNOWN_WIN;
+    // Cluster 3's arm reads the gain against the static eval, not the table's
+    // tighter stand-pat: a bound proved for this node says nothing about what
+    // a capture leaves.
+    [[maybe_unused]] const int futility_base = static_eval + kp.b4_qs_fut_base;
+    const bool prune_by_gain = (kB4Qsearch ? futility_base : stand_pat + 150) > -KNOWN_WIN;
 
     // Delta pruning: even capturing a queen with a margin to spare cannot
     // raise alpha, so that optimistic value is the node's upper bound.
     const int delta_bound = stand_pat + PIECE_VALUE[QUEEN] + 200;
-    if (!bare && prune_by_gain && delta_bound < alpha) {
+    if ((!kB4Qsearch || kp.b4_qs_delta) && !bare && prune_by_gain && delta_bound < alpha) {
         DIAG_COUNT(++state_.diag.qs_delta_pruned);
         TRACE_DECISION(TraceEvent::QsDeltaPrune, ply, 0, MOVE_NONE,
                        alpha, beta, stand_pat, -1, correction, VALUE_NONE,
@@ -471,7 +476,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     int best = stand_pat;
     if (stand_pat > alpha) alpha = stand_pat;
 
-    if (qply >= MAX_QSEARCH_PLY) {
+    if (!kB4Qsearch && qply >= MAX_QSEARCH_PLY) {
         DIAG_COUNT(++state_.diag.qs_cap_hits);
         return stand_pat;
     }
@@ -504,6 +509,8 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     Move best_move = MOVE_NONE;
     DIAG_COUNT(state_.diag.qs_moves += nm);
     [[maybe_unused]] int captures_searched = 0;
+    [[maybe_unused]] int move_count = 0;
+    [[maybe_unused]] const Move previous_move = (ss - 1)->move;
 
     for (int i = 0; i < nm; i++) {
         Move m = pick_next(sm, i, nm);
@@ -526,43 +533,91 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
             }
             return gives_check;
         };
-        // Futility: the capture's optimistic value cannot raise alpha, and
-        // stands in for the move in the node's upper bound.
-        const int futility_value = stand_pat + tactical_gain + 150;
 #ifdef BASILISK_PRICING
         const int move_class = price_class(capture_victim(*state_.board, m),
                                            b4::is_recapture(m, (ss - 1)->move));
 #endif
-        if (prune_by_gain && !is_promo
-            && futility_value <= alpha
-            && !move_gives_check()) {
-            TRACE_DECISION(TraceEvent::QsFutilityPrune, ply, 0, m,
-                           alpha, beta, stand_pat, -1, correction, VALUE_NONE,
-                           i, 0, tactical_gain + 150, alpha);
-            PRICE(price_move(PriceRule::QsFutility, m, i + 1, move_class));
-            DIAG_COUNT(++state_.diag.qs_futility_pruned);
-            best = std::max(best, futility_value);
-            continue;
-        }
+        if constexpr (kB4Qsearch) {
+            // A static margin is nearly exact for a capture that starts an
+            // exchange and often wrong for one that finishes it, so a
+            // recapture, like a check or a promotion, is not judged by what
+            // it takes. Every capture must still clear the plain SEE.
+            ++move_count;
+            const bool recapture = kp.b4_qs_recapture && b4::is_recapture(m, previous_move);
+            DIAG_COUNT(state_.diag.qs_recapture_exempt
+                       += prune_by_gain && !is_promo && recapture && !move_gives_check());
+            if (prune_by_gain && !is_promo && !recapture && !move_gives_check()) {
+                if (move_count > kp.b4_qs_move_count) {
+                    TRACE_DECISION(TraceEvent::QsCountPrune, ply, 0, m,
+                                   alpha, beta, stand_pat, -1, correction, VALUE_NONE,
+                                   i, 0, kp.b4_qs_move_count, alpha);
+                    PRICE(price_move(PriceRule::QsCount, m, i + 1, move_class));
+                    DIAG_COUNT(++state_.diag.qs_count_pruned);
+                    continue;
+                }
+                const int futility_value = futility_base + captured_value;
+                if (futility_value <= alpha) {
+                    TRACE_DECISION(TraceEvent::QsFutilityPrune, ply, 0, m,
+                                   alpha, beta, stand_pat, -1, correction, VALUE_NONE,
+                                   i, 0, kp.b4_qs_fut_base + captured_value, alpha);
+                    PRICE(price_move(PriceRule::QsFutility, m, i + 1, move_class));
+                    DIAG_COUNT(++state_.diag.qs_futility_pruned);
+                    best = std::max(best, futility_value);
+                    continue;
+                }
+                if (!state_.board->see_ge(m, alpha - futility_base)) {
+                    TRACE_DECISION(TraceEvent::QsSeePrune, ply, 0, m,
+                                   alpha, beta, stand_pat, -1, correction, VALUE_NONE,
+                                   i, 0, alpha - futility_base, alpha);
+                    PRICE(price_move(PriceRule::QsSee, m, i + 1, move_class));
+                    DIAG_COUNT(++state_.diag.qs_see_pruned);
+                    best = std::max(best, std::min(alpha, futility_base));
+                    continue;
+                }
+            }
+            if (!state_.board->see_ge(m, kp.b4_qs_see_margin)) {
+                TRACE_DECISION(TraceEvent::QsSeePrune, ply, 0, m,
+                               alpha, beta, stand_pat, -1, correction, VALUE_NONE,
+                               i, 0, kp.b4_qs_see_margin, alpha);
+                PRICE(price_move(PriceRule::QsSee, m, i + 1, move_class));
+                DIAG_COUNT(++state_.diag.qs_see_pruned);
+                continue;
+            }
+        } else {
+            // Futility: the capture's optimistic value cannot raise alpha, and
+            // stands in for the move in the node's upper bound.
+            const int futility_value = stand_pat + tactical_gain + 150;
+            if (prune_by_gain && !is_promo
+                && futility_value <= alpha
+                && !move_gives_check()) {
+                TRACE_DECISION(TraceEvent::QsFutilityPrune, ply, 0, m,
+                               alpha, beta, stand_pat, -1, correction, VALUE_NONE,
+                               i, 0, tactical_gain + 150, alpha);
+                PRICE(price_move(PriceRule::QsFutility, m, i + 1, move_class));
+                DIAG_COUNT(++state_.diag.qs_futility_pruned);
+                best = std::max(best, futility_value);
+                continue;
+            }
 
-        const int see_threshold = prune_by_gain
-                                ? std::clamp(alpha - stand_pat - 200, -800, 200) : 0;
-        if (!state_.board->see_ge(m, see_threshold)) {
-            TRACE_DECISION(TraceEvent::QsSeePrune, ply, 0, m,
-                           alpha, beta, stand_pat, -1, correction, VALUE_NONE,
-                           i, 0, see_threshold, alpha);
-            PRICE(price_move(PriceRule::QsSee, m, i + 1, move_class));
-            DIAG_COUNT(++state_.diag.qs_see_pruned);
-            continue;
-        }
+            const int see_threshold = prune_by_gain
+                                    ? std::clamp(alpha - stand_pat - 200, -800, 200) : 0;
+            if (!state_.board->see_ge(m, see_threshold)) {
+                TRACE_DECISION(TraceEvent::QsSeePrune, ply, 0, m,
+                               alpha, beta, stand_pat, -1, correction, VALUE_NONE,
+                               i, 0, see_threshold, alpha);
+                PRICE(price_move(PriceRule::QsSee, m, i + 1, move_class));
+                DIAG_COUNT(++state_.diag.qs_see_pruned);
+                continue;
+            }
 
-        if (!is_promo && i >= 6 && !state_.board->see_ge(m, -50) && !move_gives_check()) {
-            TRACE_DECISION(TraceEvent::QsLatePrune, ply, 0, m,
-                           alpha, beta, stand_pat, -1, correction, VALUE_NONE,
-                           i, 0, -50, alpha);
-            PRICE(price_move(PriceRule::QsLate, m, i + 1));
-            DIAG_COUNT(++state_.diag.qs_late_pruned);
-            continue;
+            if (!is_promo && i >= 6 && !state_.board->see_ge(m, -50) && !move_gives_check()) {
+                TRACE_DECISION(TraceEvent::QsLatePrune, ply, 0, m,
+                               alpha, beta, stand_pat, -1, correction, VALUE_NONE,
+                               i, 0, -50, alpha);
+                PRICE(price_move(PriceRule::QsLate, m, i + 1));
+                DIAG_COUNT(++state_.diag.qs_late_pruned);
+                continue;
+            }
         }
 
         do_move(ss, m);
