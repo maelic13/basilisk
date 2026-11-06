@@ -43,10 +43,10 @@ $ErrorActionPreference = 'Stop'
 $wrapper = Join-Path $PSScriptRoot 'colosseum.ps1'
 $engines = Join-Path $PSScriptRoot 'test_engines'
 $results = if ($ResultsRoot) { $ResultsRoot } else { Join-Path $PSScriptRoot 'results' }
-$revision = 'abc3b0f730e93d335ae23c4519d09652387491cb'
-$on   = @{ Path = Join-Path $engines 'basilisk-b45-on-pgo1-pext-pgo.exe';      Sha = '5DC68ED8B23C381402BF4F8801DDBCEBE56B5510B04EA5123B2899144D5FF8EE';   Bench = 4003560 }
-$off  = @{ Path = Join-Path $engines 'basilisk-b45-off-pgo1-pext-pgo.exe';     Sha = 'D318F3FEFDFC7CCFABB6F2DAB70FE87AB27916CDB3156059F9E30E7950825989';  Bench = 6090091 }
-$tune = @{ Path = Join-Path $engines 'basilisk-b45-on-tune-pext-tune-pgo.exe'; Sha = 'AD267824B82EF7CA6D2B0AB2E3BA27A98A2AE7EBA335EB561829D98F1B8A03D5'; Bench = 4003560 }
+$revision = '516d42224038ee28ebd840f11cfbcc8188a2e480'
+$on   = @{ Path = Join-Path $engines 'basilisk-b45s-on-pgo1-pext-pgo.exe';      Sha = '9C9E463E9AC691860BCF51FFA6D15A72AEDD7375E4615D171FF1A15785915F27';   Bench = 4003560 }
+$off  = @{ Path = Join-Path $engines 'basilisk-b45s-off-pgo1-pext-pgo.exe';     Sha = '84F059B4DD71B9CDAEB073A57D57866483C1FBCC925CDE2DEA7EE8E17F2AC711';  Bench = 6090091 }
+$tune = @{ Path = Join-Path $engines 'basilisk-b45s-on-tune-pext-tune-pgo.exe'; Sha = 'FDB8D28C0F0E377615C7D27E17425775754800294B2957D7DDCBEE8C0116A24D'; Bench = 4003560 }
 # Item 5's gate (§9): razoring's beat share at expected cut nodes falls by a
 # quarter of itself or more with six quiet checks. Read 17.31% to 6.44%, -62.8%.
 $itemFiveGateMet = $true
