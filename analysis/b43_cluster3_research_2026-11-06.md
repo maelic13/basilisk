@@ -981,3 +981,255 @@ No other clause of §10 or §11 changes.
 | Isolation | `pricing_isolation.log`: 20 positions at depth 10, 0 differ |
 | The read | `pricing_split/runs.jsonl` (SHA-256 `154BE911…EFEE5B7E`), `pricing_split/summary.json` (`FD4973FA…C4FAF644`), `pricing_split.log` |
 | The reader | `read_pricing_split.py` |
+
+## Implementation record — tickets 0 to 7, at Return 1 (2026-11-06)
+
+Branch `b4-quiescence`, from `bc8e449` (`b4bbefe` with one PLAN-only commit
+on top). Builds: the release preset, PEXT portable, Clang 23.1.5, non-PGO
+`all` trees (`build/b4-{on,off}`, `-diag`, `-tune`). `bench 13` is the
+release binary's; the Diag and Tune binaries of the same source read the
+same count at every ticket. Tickets 8 to 10 have not started. Evidence:
+`tools/results/b44-20261106/<ticket>/` (ignored storage): `report.txt`,
+`compare.md`, `counters_on.json`, the floors' and WAC's logs. The reader is
+`read_ticket.py` beside them.
+
+### Per ticket
+
+| Ticket | Commits | OFF `bench 13` | ON `bench 13` | WAC depth 6 / 100k | KQ-K, KR-K, KBB-K | KBN-K by budget, sum |
+|---|---|---:|---:|---|---|---|
+| 0 | `8a15250`, `49480f9` | 6,090,091 | 6,090,091 | 133 / 247 | 24 at every budget | 21/22/24/24/24, 115 |
+| 1 | `e429e48` | 6,090,091 | 6,740,352 | 137 / 244 | 24 | 22/23/24/24/23, 116 |
+| 2 | `d9b11ab` | 6,090,091 | 4,997,291 | 139 / 250 | 24 | 24/23/23/24/24, 118 |
+| 3 | `6d5a23f`, `ea3b49e`, `f94804b` | 6,090,091 | 4,287,895 | 141 / 252 | 24 | 23/24/24/23/24, 118 |
+| 4 | `86feb7b` | 6,090,091 | 4,757,482 | 148 / 248 | 24 | 23/24/23/24/23, 117 |
+| 5 | `f34b85e`, `3e1f41a` | 6,090,091 | 3,824,402 | 149 / 247 | 24 | 23/24/23/24/23, 117 |
+| 6 | `af06733`, `dbc552e` | 6,090,091 | 4,003,560 | 149 / 258 | 24 | 23/23/24/24/24, 118 |
+| 7 (Return 1) | `b003b3c` | 6,090,091 | **3,166,820** | 149 / 257 | **KR-K 24/23/24/24/24** | 22/23/23/22/24, 114 |
+
+Release CTest passed 27/27 on both arms at the end of every ticket from 1
+on (26/26 at ticket 0). The arm's Diag build ran `test_stack_unwind`,
+`test_b4_qsearch`, `test_b3_proof` and `test_search` with node checks live
+at every ticket, and passed. The wrong-bishop draws are in `test_endgames`,
+inside CTest. `test_b4_qsearch` holds 110 checks in a release build and 158
+in Diag on the arm (102 and 129 on the OFF arm). A temporary worktree built
+`all` on both arms at each of the thirteen commits: every build passed, the
+OFF arm read 6,090,091 at each, and the arm read the table's counts
+(`every_commit.txt`).
+
+### The registered zero-game rules
+
+**§9 item 1, `B4EvasionPrune` (ticket 2).** Read on ticket 2's tree.
+
+| Setting | `bench 13` | Floors | KBN-K sum | `test_endgames` | `test_search` | WAC 6 / 100k |
+|---|---:|---|---:|---|---|---|
+| 1, the default | 4,997,291 | 24 | 118 | pass | pass | 139 / 250 |
+| 0 | 5,005,640 | 24 | 119 | 191/191 | 716/716 | 141 / 242 |
+
+1 fails no binding read, so the default stays 1. The paired run is B.4.5's.
+
+**§9 item 2, `B3FailLowStore` on the arm (ticket 6).** Read on ticket 6's tree.
+
+| Setting | `bench 13` | Floors | KBN-K sum | `test_endgames` | Promotion fixtures | WAC 6 / 100k | `tt_move_absent`; `tt_move_d0`, depth 14 |
+|---|---:|---|---:|---|---|---|---|
+| 1, the arm's default | 4,003,560 | 24 | 118 | pass | pass | 149 / 258 | 72.58%; 3.76% |
+| 0 | 3,548,571 | 24 | 117 | 191/191 | pass | 148 / 249 | 62.00%; 6.74% |
+
+1 fails no binding read, so the default stays 1. The variant's one
+`test_search` failure is the arm-default assertion reading the default the
+variant build changed.
+
+### Cluster 1 and 2 rows that moved by more than 20%
+
+Shares of interior nodes on the bench positions at depth 13, stride 1,
+against the previous ticket; none repaired. Full tables:
+`<ticket>/compare.md`; `flagged_rows.py` sizes each by position.
+
+- **`cont_hist_pruned` at tickets 1 (+60.7%), 2 (−60.8%), 3 (+75.8%) and
+  6 (+55.0%).** Bench position 11 carries it: 70%, 82%, 51% and 47% of the
+  row's gross movement. That position's tree swings with the arm's order and
+  pruning; the row's total ends at 70,070 against 79,965 at ticket 0.
+- **`null_verifications` and `null_region_refusals`.** Moved at tickets 1,
+  2, 3, 4, 5 and 6, on 21 to 350 events in about 2.5M interior nodes.
+  Positions 36 and 39 carry most of it; verification starts at depth 16,
+  so the row follows which bench trees reach it.
+- **Ticket 3: `tt_cutoffs` +22.3%, `hist_reward_updates` +28.7%,
+  `sing_negative_cut` +32.1%, `sing_ttbeta` +30.8%, `tt_penalized` +25.8%.**
+  No position carries these (at most 15% of the movement). The gain rules
+  change what depth-0 entries hold across the tree, and every row reads the
+  table.
+- **Ticket 2: `sing_negative_cut` −20.5%,** position 11 again (52%).
+- **Ticket 6: `follow_pv_nodes` +30.9%,** on a tree 0.80× the size, so
+  the share rises with the smaller denominator.
+- **Ticket 7:** none.
+
+### Deviations from the handoff
+
+1. **The start.** The branch stood at `bc8e449`, not `b4bbefe`: one commit
+   placing the queen-capture finding in PLAN, no source.
+2. **The WAC floor moved early, twice.** `test_wac --floor` has a stale
+   bound, and the arm's count at depth 6 passed it at tickets 3 and 5. §10
+   registers the arm's floor at ticket 10, but CTest had to stay green at
+   every commit, so each move is its own test commit ahead of the engine
+   commit that needed it (`6d5a23f`, `f34b85e`), on the file's own rule (the
+   count less 13). The floor is 136 for now; ticket 10 re-registers it.
+3. **`test_tt_switches_live`.** It compared the default against
+   `B3FailLowStore` 1, which the arm's default makes the same setting. Its
+   precondition is fixed in its own commit (`af06733`): it reads 0 against 1.
+4. **The evasion picker's depth is 0.** "As at an interior in-check node"
+   does not name it. Quiescence's depth is 0, so the picker sorts scores
+   from 0 up and leaves the negative ones in generator order, where an
+   interior node's limit is −3560 per ply. First-move fail highs read 98.7%
+   at ticket 7, so nothing here asks for more. §14's evasion row stands.
+5. **Quiet delivery ends early.** The arm calls `skip_quiets()` as soon as
+   the best stops being a loss, so a node that holds on a capture never
+   generates its quiets. The contract's wording, a quiet skipped when it
+   arrives, selects the same moves.
+6. **The stalemate takes no blend.** §10's "Both" blends any best above
+   beta, and its invariants say the draw value stays 0, the stalemate's
+   included. The two meet only when the static eval is below a beta that
+   is below 0. I took the invariant: the value is exact, and the store is a
+   lower bound at or above beta and an upper bound otherwise.
+7. **Pricing's shape on the arm.** `QsSee` covers both SEE rules, as
+   `qs_see_pruned` does. `QsEvasion` carries the class as well, so a quiet
+   reads as class 0 and a SEE-losing capture by its victim; that is one
+   more rule than amendment 1 named, and it costs nothing. Quiets are
+   priced and counted, each one, only at a node that ended without a
+   cutoff: a cutoff proves they hid nothing.
+8. **`qs_recapture_exempt`'s denominator.** P5 reads it against "the moves
+   the gain rules test", which no counter holds. The table's comment names
+   the moves the loop delivered, `qs_searched` plus the rules' prunes,
+   rather than adding an eighth counter.
+9. **Ticket 3's band test is direct.** The wrong-bishop draws pass on the
+   arm with the band's guard removed, because `Kxh8` is a recapture and is
+   exempt either way. `test_the_known_loss_band_stands_down` holds a
+   capture that is no recapture, and that mutant fails it (`f94804b`).
+
+### What the reviewer must check
+
+- Each ticket's diff against §10 and §7, with deviations 4 to 7 above read
+  as judgements, not as settled.
+- Both fingerprints at every commit, and the tests on both arms.
+- The mutants: replacing the loss test in the two evasion rules with
+  `evasions_searched > 0` fails two sections of `test_b4_qsearch`, and
+  `prune_by_gain = true` fails the band's (`mutate.py`).
+- Pricing isolation on the arm: 20 positions at depth 10, 114,787 probes,
+  0 differ (`return1/isolation_on.log`); on the empty arm at ticket 0,
+  174,772 probes, 0 differ.
+
+Not yet read, all ticket 10's or the qualification's: the sanitizer suite
+on both arms, the Ablate flavour, the liveness proof, the two-arm table
+from a clean tree, CI, the deep-iteration screen and the archived traces.
+
+## Return 1 — B.4.4 ticket 7: reverse futility's cap costs a KR-K floor (2026-11-06)
+
+**The premise.** §11's P7 and §10's invariants: KQ-K, KR-K and KBB-K convert
+24 of 24 at each of the five budgets, at every ticket. §11's stop rule: a
+floor failure at any ticket returns the leaf. Ticket 7, built as §10 writes
+it (`b003b3c`), reads **KR-K 23 at 45,000 nodes**. Tickets 1 to 6 read 24
+at every budget. No later ticket can repair it: 8 and 9 hold their
+fingerprint at their defaults, so ticket 7's tree is the arm's final tree.
+
+**The failure.** `4K3/8/8/8/8/5k2/8/1R6 w`, reproduced over UCI with the
+game's history, a fresh process per move (`return1_playout.py`).
+
+- With the cap the rook shuffles to the rule-50 draw at 100 plies. No
+  search reads a mate.
+- With `B4RfpSeekMate` 0 it mates in 37 plies, first reading a mate at ply
+  24.
+- The two playouts are identical to ply 15. At ply 16 the capped search
+  plays `h4h5` where the other plays `d7c6`.
+
+This is the shape of B.3's Return 6: a long shuffle in a won ending at one
+low budget.
+
+**Attribution by switch (P7's falsifier).** Whole floors, five budgets,
+temporary variant builds restored byte-exact (`return1/variant_*.txt`).
+
+| Setting, the rest at defaults | `bench 13` | KR-K | KBN-K sum | WAC 6 / 100k |
+|---|---:|---|---:|---|
+| Defaults (ticket 7) | 3,166,820 | **24/23/24/24/24** | 114 | 149 / 257 |
+| `B4RfpSeekMate` 0 (ticket 6's tree) | 4,003,560 | 24 | 118 | 149 / 258 |
+| `B4EvasionPrune` 0 | 3,645,533 | 24 | 118 | 139 / 250 |
+| `B3FailLowStore` 0 | 3,413,322 | 24 | 119 | 148 / 249 |
+| `B4RfpSeekMateCap` 4 | 3,440,919 | 24 | 116 | 149 / 258 |
+| `B4RfpSeekMateCap` 6 | 3,234,635 | 24 | 117 | 149 / 257 |
+| `B4RfpSeekMateCap` 8 | 3,470,506 | 24 | 117 | 149 / 258 |
+| `B3SeekMateDepth` 16 | 7,399,149 | 24 | 117 | 149 / 257 |
+
+KQ-K and KBB-K are 24 at every budget in every row. `test_endgames` passes
+in every row. `test_search` passes in every row, but for the arm-default
+assertion in the `B3FailLowStore` 0 variant, as at ticket 6.
+
+**How far the miss reaches.** The position alone, plies to mate at twelve
+budgets (−2 is the rule-50 draw; `return1/sweep.txt`):
+
+| Setting | 30k | 35k | 40k | 42.5k | 45k | 47.5k | 50k | 55k | 60k | 75k | 90k | 120k |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Cap 5 (default) | 27 | 27 | 27 | 71 | **−2** | 41 | 41 | 47 | 35 | 43 | 31 | 27 |
+| Switch off | 27 | 27 | 29 | 71 | 37 | 41 | 41 | 49 | 45 | 37 | 51 | 25 |
+| Cap 4 | 27 | 27 | 27 | 41 | 41 | 41 | 41 | 55 | 35 | 35 | 41 | 27 |
+| Cap 6 | 27 | 27 | 27 | 71 | 41 | 41 | 41 | 39 | 29 | 43 | 49 | 47 |
+| Cap 7 | 27 | 27 | 27 | 71 | 67 | 65 | 41 | 31 | 31 | 43 | 37 | 31 |
+| Cap 8 | 27 | 27 | 29 | 71 | 67 | 41 | 41 | 55 | 45 | 39 | 37 | 25 |
+| `B3SeekMateDepth` 16, cap 5 | 27 | 27 | 27 | 39 | 39 | 39 | 39 | 55 | 27 | 35 | 27 | 31 |
+| OFF arm | 43 | 29 | 37 | 15 | 15 | 15 | 31 | 31 | 29 | 33 | 47 | 41 |
+
+One cell in 96 fails, and the position's neighbours on both axes convert.
+
+**A fact the contract did not carry.** The cap reads `b3::seek_mate`, and
+§7 seeds the cap from the donor's `depth < 6`. But the donor's bar is root
+depth 16, and Basilisk's is 12: the B.3 packet's amendment 3 lowered
+`B3SeekMateDepth` for the singular half, to bound bench position 11. So the
+arm's cap binds four plies of root depth earlier than the donor's would.
+
+**Inference.** This reads as a knife-edge in the ending's tree more than a
+loss of technique. The cap fires rarely (426 refusals against 502,535 cuts
+on the bench positions), and at 45,000 nodes this ending completes depth 9
+to 13, so the cap touches the last iterations only, which a bar of 16 would
+not reach. That is why the row at 16 converts, but it is not clean evidence:
+the bar moves the singular half too, which is the 7,399,149. The read does
+not show the cap is harmful and does not show it is harmless: the floors
+exist to catch fragile conversion early (the B.3 packet's amendment 6, §4.3).
+
+**As built and kept.** Tickets 0 to 7 stand as committed, ticket 7 with
+`B4RfpSeekMate` 1 and the cap at 5 as contracted. The counter
+`rfp_seekmate_capped` and the arithmetic `b4::rfp_past_seek_mate_cap` stay
+whichever way this goes.
+
+**Options.**
+
+1. *Default `B4RfpSeekMate` to 0 and read it in B.4.5.* Every binding read
+   holds on ticket 6's tree, unchanged (floors 24, KBN-K 118, WAC 258). The
+   switch becomes a categorical with a paired run, which §9 does not give
+   it: this needs the reclassification amendment 6 made for the store. Cost:
+   the arm enters B.4.5 without S5's half of the donor's mate drive, and its
+   bench tree is 1.26× ticket 7's.
+2. *Move the cap's seed.* Caps 4, 6 and 8 all pass. §7's rule 1 gives the
+   donor's 5, no mechanism names another value, and a seed chosen by the
+   cell it passes is the selection amendment 6 §4.4 warned against, though
+   this one is an F line on no fit surface. 6 is the nearest to the donor's.
+3. *Re-read the clause.* Accept 23 at 45,000 as a knife-edge. Amendment 6
+   §4.3 declined this for a floor; a maintainer who wants it decides the
+   floor clause too.
+4. *Give the cap its own bar.* An F line at the donor's root depth 16,
+   read only by reverse futility, restores the donor's pairing and leaves
+   the singular half at 12. It is a new coordinate and its floors are
+   unread: the row above moves both halves. It is the option that answers
+   the mechanism, and it needs an amendment to §7 and ticket 7.
+
+Recommendation: option 4, read before anything else. The contract meant
+the donor's cap, and the donor's cap is paired with the donor's bar; the
+read is one build. If its floors hold, ticket 7 lands as the donor's form
+with no default moved. If they do not, option 1 keeps every floor and every
+seed and sends the verdict to games, where amendment 6 sent the store. Main
+counter-argument: 16 is chosen by the donor's number, not by evidence here,
+and a bar this KR-K search rarely reaches may make the cap nearly inert at
+`3+0.03`, which is close to option 1 with one more coordinate to carry.
+
+**State at the return.** Tickets 0 to 7 are complete and committed; the OFF
+arm reads 6,090,091 at every commit; release CTest passes 27/27 on both
+arms. Tickets 8 to 10 have not started, because AGENTS.md resumes
+implementation only on the amended contract. They do not depend on this
+choice, except that ticket 8's and ticket 9's identity reads take ticket
+7's final fingerprint. No game ran, no default was moved and no NPS read
+was started.

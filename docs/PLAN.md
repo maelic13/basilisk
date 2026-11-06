@@ -1967,6 +1967,19 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       The packet's contract behind one umbrella option, both arms
       building; accepted by an independent review that reproduces the
       fingerprints before diagnostics start.
+      - Tickets 0 to 7 built 2026-11-06 (packet *Implementation record*),
+        each keeping the OFF arm at 6,090,091; the arm reads 3,166,820,
+        WAC 149 at depth 6 and 257 at 100,000 nodes.
+        - Ticket 2's and ticket 6's zero-game rules leave `B4EvasionPrune`
+          and the arm's `B3FailLowStore` at 1: neither fails a binding read.
+      - Returned 2026-11-06 at ticket 7 (packet *Return 1*): reverse
+        futility's cap costs a KR-K floor, 23 of 24 at 45,000 nodes, a
+        100-ply shuffle in `4K3/8/8/8/8/5k2/8/1R6 w`.
+        - Every switch and neighbouring cap holds 24, so the miss is one
+          cell of the position's sweep. The cap reads `seek_mate`'s bar,
+          which is the donor's 16 lowered to 12 for the singular half.
+        - Options in the packet; recommended: the cap's own bar at 16, read
+          first. Tickets 8 to 10 wait on the amendment.
     - [ ] **B.4.5** `[V]` Diagnostics and the unfitted paired run
       The packet's zero-game screens on both arms, then its registered
       categorical and deletion reads and the unfitted paired run.
@@ -2722,7 +2735,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.4.4 | READY_FOR_IMPLEMENTATION | I2 | The contract of `analysis/b43_cluster3_research_2026-11-06.md` §10 |
+| B.4.4 | RESEARCH | I2 | Returned at ticket 7 (packet *Return 1*): a research amendment answers it, then tickets 8 to 10 of `analysis/b43_cluster3_research_2026-11-06.md` §10 |
 | B.4.5 | RESEARCH | V | After B.4.4's review |
 | B.4.6 | RESEARCH | V | After B.4.5 |
 | B.4.7 | RESEARCH | V | After B.4.6 |
