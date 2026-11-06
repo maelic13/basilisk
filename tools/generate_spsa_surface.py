@@ -61,6 +61,16 @@ B33_ADMITTED_CORE = (
     "CoreContHistPruneSlope", "CoreRfpCorrMult", "CoreCorrUpdateScale",
     "CoreRfpPerPly", "CoreRfpImproving", "CoreRfpDepthCap",
 )
+# B.4.6's fit surface (BAS-S51): the B4 table's X lines with packet section 5.8's
+# coordinates (its unconditional list, then the two B.4.5's read admitted), on
+# the same run file.
+B46_CONFIG = ROOT / "tools" / "spsa_configs" / "config_b46.json"
+B46_TUNE = COLOSSEUM / "b46.tune.toml"
+B46_ADMITTED = (
+    "CoreRazorMargin", "CoreRfpPerPly", "CoreRfpImproving", "CoreRfpWorsening",
+    "CoreRfpCorrMult", "CoreRfpBetaWeight", "CoreRfpDepthCap", "B3NmpBase",
+    "B3IirMinDepth", "CoreLmrCutNodeNoTt", "B3NmpPerPly", "CoreResearchDeeper",
+)
 PARAM_RE = re.compile(
     r"^\s*X\(\s*[a-z][a-z0-9_]*\s*,\s*([A-Za-z][A-Za-z0-9]*)\s*,"
     r"\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(-?\d+)\s*\)"
@@ -217,6 +227,21 @@ def b33_parameters(text: str) -> list[tuple[str, int, int, int]]:
     return [p for p in b3 if p[0] not in B33_EXCLUDED] + [core[name] for name in B33_ADMITTED_CORE]
 
 
+def b46_parameters(text: str) -> list[tuple[str, int, int, int]]:
+    """B.4.6's fit surface: the B4 X lines, then the coordinates B46_ADMITTED
+    names from the core and B3 tables, in that order; every name is checked.
+    Each starts from the value the arm runs, so a core coordinate from the
+    B3_PROOF arm's own default where it has one."""
+    overrides = b3_core_defaults(text)
+    earlier = {name: (name, overrides.get(name, default), minimum, maximum)
+               for name, default, minimum, maximum in
+               [*parse_parameters(text, core=True), *parse_parameters(text, b3=True)]}
+    missing = [name for name in B46_ADMITTED if name not in earlier]
+    if missing:
+        raise ValueError(f"B.4.6 surface names no X line: {', '.join(missing)}")
+    return parse_parameters(text, b4=True) + [earlier[name] for name in B46_ADMITTED]
+
+
 def perturbation(minimum: int, maximum: int) -> int:
     # Positive integer half-up rounding; unlike Python round(), ties do not
     # depend on parity.
@@ -290,6 +315,10 @@ def render_all(text: str, iterations: int) -> dict[pathlib.Path, str]:
                                  "Cluster 1 admissions."]))
     outputs.update(render(parse_parameters(text, b4=True), iterations,
                           config=B4_CONFIG, tune=B4_TUNE, run=None))
+    outputs.update(render(b46_parameters(text), iterations,
+                          config=B46_CONFIG, tune=B46_TUNE, run=None,
+                          notes=["# B.4.6's fit surface (BAS-S51): the B4 X lines with "
+                                 "section 5.8's coordinates."]))
     return outputs
 
 
@@ -320,8 +349,9 @@ def main() -> int:
         print(f"{len(outputs)} generated files current ({len(parse_parameters(text))} default-arm, "
               f"{len(parse_parameters(text, core=True))} core-arm, "
               f"{len(parse_parameters(text, b3=True))} B3-arm, "
-              f"{len(b33_parameters(text))} B.3.3 fit-surface and "
-              f"{len(parse_parameters(text, b4=True))} B4-arm parameters)")
+              f"{len(b33_parameters(text))} B.3.3 fit-surface, "
+              f"{len(parse_parameters(text, b4=True))} B4-arm and "
+              f"{len(b46_parameters(text))} B.4.6 fit-surface parameters)")
         return 0
     COLOSSEUM.mkdir(parents=True, exist_ok=True)
     for path, content in outputs.items():

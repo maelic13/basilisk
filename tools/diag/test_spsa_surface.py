@@ -181,6 +181,35 @@ class SurfaceTests(unittest.TestCase):
         finally:
             surface.B33_ADMITTED_CORE = saved
 
+    def test_b46_surface_is_the_b4_lines_and_the_admissions(self):
+        text = surface.HEADER.read_text(encoding="utf-8")
+        b4 = [item[0] for item in surface.parse_parameters(text, b4=True)]
+        generated = json.loads(surface.B46_CONFIG.read_text(encoding="utf-8"))
+        self.assertEqual(list(generated), b4 + list(surface.B46_ADMITTED))
+        self.assertEqual(len(generated), 15)
+        # The admitted coordinates keep their tables' ranges and steps and
+        # start from the value the arm runs: the B3_PROOF arm's where it has
+        # one, as the pinned binary advertises.
+        self.assertEqual(generated["CoreRfpPerPly"]["value"], 99)
+        self.assertEqual(generated["CoreRfpCorrMult"]["value"], 498)
+        self.assertEqual(generated["B3NmpBase"]["value"], 163)
+        core = json.loads(surface.CORE_CONFIG.read_text(encoding="utf-8"))
+        b3 = json.loads(surface.B3_CONFIG.read_text(encoding="utf-8"))
+        for name in surface.B46_ADMITTED:
+            source = core[name] if name in core else b3[name]
+            self.assertEqual({k: generated[name][k] for k in ("min_value", "max_value", "step")},
+                             {k: source[k] for k in ("min_value", "max_value", "step")})
+
+    def test_b46_surface_rejects_a_name_with_no_x_line(self):
+        text = surface.HEADER.read_text(encoding="utf-8")
+        saved = surface.B46_ADMITTED
+        try:
+            surface.B46_ADMITTED = saved + ("CoreNoSuchCoordinate",)
+            with self.assertRaises(ValueError):
+                surface.b46_parameters(text)
+        finally:
+            surface.B46_ADMITTED = saved
+
     def test_steps_are_half_up_range_sixteenths_with_floor(self):
         self.assertEqual(surface.perturbation(0, 40), 3)
         self.assertEqual(surface.perturbation(0, 24), 2)
