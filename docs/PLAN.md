@@ -1963,7 +1963,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           is not a recapture beats futility 45.9% and the alpha-relative
           SEE rule 27.3% of the time (26,810 decisions in 31.2M nodes);
           B.4.5 reads it on the arm, and it is a candidate for H.2.
-    - [ ] **B.4.4** `[I2]` Implement behind the umbrella switch
+    - [x] **B.4.4** `[I2]` Implement behind the umbrella switch
       The packet's contract behind one umbrella option, both arms
       building; accepted by an independent review that reproduces the
       fingerprints before diagnostics start.
@@ -1994,19 +1994,61 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         *Implementation record — tickets 7b to 10*): OFF 6,090,091, the arm
         4,003,560, WAC 149 at depth 6 and 258 at 100,000 nodes, the floors
         24 with KBN-K 118, the cost screen passed. The review is next.
+      - Accepted with named follow-ups 2026-11-06 by an independent review
+        in a separate session (packet *Review — B.4.4 accepted with named
+        follow-ups*). Every fingerprint, test and binding read reproduces
+        from clean sources on both arms, and the code matches the amended
+        contract: six deviations the records do not list, none a change
+        of mechanism.
+        - Two statements of the record are corrected by the review's own
+          reads. The screen's first row was `suite_v2` 12, not bench 11;
+          bench 11 passes (steps 20 to 22, geometric mean 0.643).
+          `run_suite.py` aborts on the arm with `B4QuietChecks` 6.
+        - Amendment 2's tables reproduce from its data, and from searches
+          for the two its decision leans on. The cap off overrides the
+          amendment's own registered rule on the maintainer's standing
+          decision, so it awaits the maintainer's confirmation.
+        - The follow-ups sit in B.4.5, B.4.6 and B.4.7 below.
     - [ ] **B.4.5** `[V]` Diagnostics and the unfitted paired run
       The packet's zero-game screens on both arms, then its registered
       categorical and deletion reads and the unfitted paired run.
       Its pricing screen also reads queen captures by class on both arms
       (packet research amendment 1 §4), the first reading of H.2's
       candidate.
+      - Owed at the opening, from B.4.4's review (packet *Review — B.4.4
+        accepted with named follow-ups*, §7):
+        - `run_suite.py` is not read with `B4QuietChecks` above 0 until
+          its bound "quiescence move rules within its captures" and
+          `qs_gain_tested`'s comment are repaired in their own commit,
+          with a test that fails first. Item 5's gate reads `pricing.py`
+          and is not blocked.
+        - BAS-S50 registers, before item 1's paired run, how the tune
+          build's offset is handled: the evasion rule's accounting runs
+          only with `B4EvasionPrune` 1, at up to 1.86% of nodes. Either
+          it is gated on the flags that read it, at both fingerprints,
+          or the offset is stated beside the verdict with its size.
+        - Records: the screen's first row is `suite_v2` 12, and bench 11
+          passes by the review's read; A2-P5 and A2-P11 are misses as
+          frozen; the departures table gains a row for the capture stage
+          (every promotion, where the donor's is a capture or a queen
+          promotion).
     - [ ] **B.4.6** `[V]` Curvature sweep, then SPSA in blocks
       The packet's registered sweep, then SPSA in blocks on Cluster 3's
       surface (with B-21's RFP, razoring and NMP-base coordinates); the
       fitted-constant analysis precedes the bake.
+      - From B.4.4's review: `test_tt_switches_live` follows the tree
+        (three unrelated quiescence mutants flip it). If the bake trips
+        it, its precondition is repaired in its own commit.
     - [ ] **B.4.7** `[V]` Cluster 3 gates
       SPRT `[0,3]` for the cluster, and each categorical and deletion arm
       at the bounds the packet registers.
+      - From B.4.4's review: (c)'s registration says that `B4QsDelta` 1
+        restores the delta rule under the arm's band guard, not the OFF
+        arm's.
+      - From B.4.4's review: on H1, before the flip, the ten clauses of
+        the arm's quiescence that no test binds (packet *Review — B.4.4
+        accepted with named follow-ups*, §5) get tests in their own
+        commit, each shown to fail on its mutant.
 - [ ] **B.5** `[I2]` Cluster 4 — root and aspiration
   Cluster 4 — root, aspiration and iterative deepening: aspiration centred on
   the root move's average score with width from its mean squared score,
@@ -2749,8 +2791,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.4.4 | LOCAL_QUALIFIED | I2 | Built and qualified (`analysis/b43_cluster3_research_2026-11-06.md`, *Implementation record — tickets 7b to 10*); next, the independent review in a separate session |
-| B.4.5 | RESEARCH | V | After B.4.4's review |
+| B.4.5 | RESEARCH | V | The next action: B.4.4 closed 2026-11-06, accepted with named follow-ups (`analysis/b43_cluster3_research_2026-11-06.md`, *Review — B.4.4 accepted with named follow-ups*); the follow-ups bind its opening |
 | B.4.6 | RESEARCH | V | After B.4.5 |
 | B.4.7 | RESEARCH | V | After B.4.6 |
 | B.5 | RESEARCH | I2 | Contents fixed by B.0; the ply cap and the clean child frame added 2026-11-05 |

@@ -2299,3 +2299,471 @@ for KBN-K is the sum.
 Separate, for B.4.5 and not a read: `qs_recapture_exempt` over
 `qs_gain_tested + qs_recapture_exempt` is 22.1% on the bench positions at depth
 13, on ticket 9's tree. P5 registers 15 to 30% on B.4.5's own read.
+
+## Review — B.4.4 accepted with named follow-ups (2026-11-06)
+
+Independent review of B.4.4 at `44b4868` (the source of `cedc148` with one
+record-only commit on top), in a separate session from the implementing one
+(PROCESS *Reusable review prompt*; §10 *Review*; both records' *What the
+reviewer must check*). Class `R2`. Nothing was fixed. No default, seed,
+floor, test or clause was moved, and no game, SPRT, SPSA or NPS read ran.
+Every read below is a node-budget or fixed-depth read on trees built from
+the committed source by this session; the host was shared throughout, which
+those reads tolerate. Evidence is in `tools/results/b44-20261106/review/`
+(ignored storage); the clean trees are a detached worktree, `build/rev-b4`.
+
+**Verdict: accept, with the follow-ups of §7.** Every fingerprint, test and
+binding read of both records reproduces from clean sources on every flavour
+and both sanitizer trees. The code matches §10 as research amendments 1 and
+2 replace it, clause for clause, with the deviations the records list and
+six they do not, none a change of mechanism. The invariants of §10 and
+DESIGN §3 hold on both arms. The OFF arm's edits are shared seams. Amendment
+2's decision tables reproduce from its raw data, and the two the decision
+leans on reproduce again from searches this session ran. Two statements of
+the second record are wrong, and each is corrected by a read made here: the
+screen's first row is not bench position 11, and `run_suite.py`'s bounds do
+not hold with quiet checks on. Neither blocks a registered read of B.4.5,
+so they are follow-ups and not a return.
+
+### 1. Rebuilt from clean sources, every row reproduced
+
+Ten trees configured and built from nothing at `44b4868` with the record's
+recipe (`review/review_table.py`, which is `t10/final_table.py` pointed at
+this session's worktree): the release preset, PEXT portable, Clang 23.1.5,
+target `all`, for Release, Tune, Diag and Ablate, and the `debug` preset
+(ASan, UBSan) for the sanitizer trees, on both arms.
+
+| Read | OFF | ON | Record |
+|---|---:|---:|---|
+| `bench 13` Release / Tune / Diag / Ablate | 6,090,091 × 4 | 4,003,560 × 4 | equal |
+| `bench 10` Release / sanitizer | 2,135,353 / 2,135,353 | 1,047,747 / 1,047,747 | equal |
+| Release CTest | 27/27 | 27/27 | equal |
+| Sanitizer CTest, `-LE strength`, node checks armed | 25/25, no report | 25/25, no report | equal |
+| Diag: `test_stack_unwind`, `test_b4_qsearch`, `test_b3_proof`, `test_search` | 5, 174, 118, 719 | 5, 216, 118, 719 | equal |
+| Tune: `test_b4_qsearch`, `test_board` | 191, 422 | 233, 422 | equal |
+| WAC depth 6 (floor) | 133 (119) | 149 (136) | equal |
+| WAC at 100,000 nodes | 247 | **258** | equal |
+| KQ-K, KR-K, KBB-K at the five budgets | 24 at each | 24 at each | equal |
+| KBN-K, 30k to 120k (sum) | 21/22/24/24/24 (115) | 23/23/24/24/24 (**118**) | equal |
+| Wrong-bishop draws (`test_endgames`, inside CTest) | pass | pass | equal |
+| Liveness of the eight ablation bits, depth 9 | all eight | all eight | the JSON equal, number for number |
+| Decision traces, WAC.001 / 085 / 203 / 253 | 478 / 1,018 / 866 / 122 | 479 / 411 / 1,002 / 158 | the records equal, one for one |
+| Deep-iteration screen on the record's five positions | — | PASS, no watchdog stop | every node count equal, depths 1 to 25, both arms |
+| Return 1's position at 45,000 nodes, Hash 8, cold per move | mate in 15 plies | mate in 37 plies | equal (the OFF cell is `return1/sweep.txt`'s) |
+| Variant row, `B4RfpSeekMate` 1 | — | `bench 13` 4,003,560; floors 24; KBN-K 23/22/23/24/23 (115); 191/191; 719/719; WAC 149 / 258 | equal |
+
+The three conversion runs that exit 1 are the record's three (both arms at
+120,000 on the KQ-K staleness guard, the OFF arm at 30,000 on its per-budget
+KBN-K line). The binaries' hashes differ from `t10/hashes.json`, as a fresh
+build's do; the fingerprints are what the review compares.
+
+**Earlier tickets, spot-checked** in a second worktree
+(`review/spot_commits.py`): at `e429e48`, `6d5a23f`, `ea3b49e`, `86feb7b` and
+`b003b3c` the OFF arm reads 6,090,091 and the arm reads the first record's
+6,740,352, 4,997,291, 4,287,895, 4,757,482 and 3,166,820. At `b003b3c` the
+arm's KR-K reads 23 of 24 at 45,000 nodes, which is Return 1's premise. At
+`6d5a23f` `test_wac --floor` passes on the arm (139 against a floor of 128),
+so deviation 2's commit order does keep CTest green there.
+
+**What `every_commit.txt` and `every_commit_7b_10.txt` measured.** One
+worktree stepped through the 13 and the 7 commits, built `all` on both
+arms' release trees incrementally, and read `bench 13` from the release
+binary. That is the claim the records make of them. They did not run CTest,
+the Tune or Diag flavours, or a build from nothing at each commit; those are
+the per-ticket reads on the implementer's trees and the final table. The
+five commits between `b003b3c` and `de91e38`, and `44b4868`, touch no
+source.
+
+### 2. The code against the handoff
+
+Read against §10's "The arm's quiescence, stated once", §7 and §9 as
+amendment 2 §9 replaces them, and the donor's `qsearch` at `edb0d9db`
+(`:1653-1883`). Lines are `src/search_kernel_core.cpp`'s at `44b4868`.
+
+| Clause | Code |
+|---|---|
+| Entry, draw, upcoming repetition, probe, non-PV table cutoff: today's | `:197-249`, untouched by the leaf |
+| In check: best from minus infinity; the kernel's picker; the table move first when a legal evasion | `:290-298`; the picker's own stage validates piece, colour and legality (`move_picker_core.cpp:122-131`) |
+| Once the best is not a loss, under `B4EvasionPrune`: quiets skipped, a capture or promotion failing `see_ge(m, B4QsSeeMargin)` skipped | `:305-315` and `:346-347` (`skip_quiets()`, so no quiet is delivered again) |
+| No legal move is mate | `:349-352`, with the node check of ticket 10 |
+| Static eval the corrected one; a non-decisive table bound may replace the best | `:430-446`, the tightening untouched |
+| Stand-pat: blended unless decisive, stored as a depth-0 lower bound with no move, returned | `:448-461`, `b4::fail_high_value` |
+| Futility base on the static eval; the gain rules only above `−KNOWN_WIN` | `:470-471` |
+| `B4QsDelta` 1 restores the delta rule | `:475-494` |
+| Alpha rises to the best; no ply cap | `:496-502` |
+| Legal captures by the picker's score, the table move first; a quiet table move neither searched nor counted | `:504-516`: the move is matched among the generated captures, so a quiet never appears |
+| `move_count` counts every capture delivered | `:567` |
+| Gain rules, in order, for a move that is no check, promotion or exempt recapture: count, futility with its raise, alpha-relative SEE with its raise | `:568-602`; `b4::is_recapture`, `b4::gain_value` |
+| Plain SEE for every capture | `:603-610` |
+| Quiet checks, first ply only, after the captures, up to the limit, `see_ge(m, 0)`, generator order | `:685-727` |
+| Stalemate: no capture generated, no non-pawn material, a knight or heavier just captured, no legal move | `:732-745` |
+| A fail high blends unless decisive; the store is depth 0, a lower bound at or above beta, the PV bit kept; a fail low stores no move, or the best-scored one under `B3FailLowStore` 0 | `:342-344`, `:374-376`, `:675-678`, `:721-722`, `:750-752` |
+| Ticket 7b: the cap on its own bar, off | `:1201-1208`, `b3::seek_mate` with `b4_rfp_seek_mate_depth` |
+
+**Seeds, ranges and defaults.** `BASILISK_B4_PARAMS` holds §7's rows as
+amended: `B4QsFutBase` 86 (40 to 220), the blends 441 and 462 (256 to 1024),
+`B4QsMoveCount` 2 (1 to 64), `B4QsSeeMargin` −28 (−200 to 0),
+`B4RfpSeekMateCap` 5 (1 to 19), `B4RfpSeekMateDepth` 16 (8 to 64), and the
+switches at §9's defaults with `B4RfpSeekMate` 0. The arm's
+`B3FailLowStore` is 1 through `BASILISK_B4_CORE_DEFAULTS`. The diff of
+`src/search_params.h` from `bc8e449` adds that table, that default and the
+constructor's second arm, and moves no existing value: `B3SeekMateDepth` 12,
+`B3SeekMateScore` 564 and every Cluster 1 and 2 constant are unmoved. The
+generated surface holds the three X lines (`generate_spsa_surface.py
+--check`: 11 files current, 3 B4 coordinates).
+
+**Tickets.** Each ticket's tests are the ones §10 lists, and each can fail
+(§5). Ticket 0's counters are appended (166 to 174 entries), the three
+trace events and the two pricing rules exist, and the CI cell builds `all`
+on the arm, runs CTest and prints `bench 13`; it has not run, because
+nothing is pushed.
+
+**Deviations the records list, ruled.** E is an ordinary engineering
+choice; none is a change of mechanism.
+
+- *First record, 1 to 3 and 9.* The start at `bc8e449`: E. The WAC floor
+  moved in its own commits ahead of the engine commits: E, and it is the
+  rule of `agents/implementation.md`, since each move tightens a stale
+  bound and is checked above. `test_tt_switches_live` reading 0 against 1:
+  E, in its own commit. The direct band test: E, and it is the stronger
+  test; its mutant fails in release as well as in Diag.
+- *First record, 4 to 8*, ruled by amendment 2 §6. The code matches each
+  ruling: the picker's depth is 0 (`:297`); quiet delivery ends as soon as
+  the best is not a loss; the stalemate's 0 takes no blend and stores on
+  either side of beta; `QsSee` prices both SEE rules and the skipped quiets
+  are priced only at a node that ended without a cutoff; `qs_gain_tested`
+  exists and `qs_recapture_exempt`'s comment names it.
+- *Second record, 1 and 2.* The generator not edited: E; an F line never
+  reaches a surface. The live tests on one root move: E.
+- *Second record, 3: "at 1 each moves it" read as the arm alone.* Right.
+  "Each" is each vector. The OFF arm is the baseline of every later read
+  and may not answer a Cluster 3 switch, tune builds advertise the table on
+  the arm alone, and §10 keeps the OFF arm's code to shared seams.
+- *Second record, 4 and 5: the Board seam, `HCE_PIECE_VALUE` in
+  `types.h`, the oracle's pointer.* E. The vector is the registered one,
+  fixed, so a named constant is its right form. One property the record
+  does not state: `Board`'s copy assignment does not carry the vector
+  (`board.cpp:240`), so a copy reads vector 0. Nothing copies the search's
+  board today, and every thread's `Searcher::search` sets its own.
+- *Second record, 6: the quiet-check loop repeats the capture loop's
+  tail.* E. The two tails are equal but for the trace index. The record's
+  reason for counting a quiet check in `qs_searched` is half wrong: one
+  bound of `run_suite.py` needs it and another is broken by it (found
+  deviation 5 below).
+- *Second record, 7.* By §10's rule. The final table reads the floors.
+- *Second record, 8: the screen's set.* The sentence is wrong (found
+  deviation 1 below).
+
+**Deviations the records do not list.**
+
+1. **The screen was not read on bench position 11.** The file the record
+   read, `tools/results/b31-20261030/t10/screen_positions.epd`, is the set
+   B.3's amendment 8 chose (the B.3 review cites it by the same content
+   hash). Its first position is `suite_v2` 12,
+   `rn2kb1r/pp2pppp/2p5/3q4/3P1Bb1/5NP1/PPP2P1P/R2QKB1R w`, and the
+   record's table labels that row "Bench 11". §10 names bench 11,
+   `2r3k1/1q2Rp1p/p2p2p1/1p1P4/1Pp1P3/2Q5/1P4PP/6K1 w`. This review read
+   it by the same clause (`screen25_bench11.json`): steps 20 to 22 read
+   0.679, 0.441 and 0.887,
+   geometric mean 0.643; steps 17 to 19 0.669; the absolute ratio at depth
+   22 is 0.059; no watchdog stopped on either arm. **Pass.** So §10's
+   clause holds on its own set and on amendment 8's. E, a mislabelled
+   read; recorded here.
+2. **The delta rule under `B4QsDelta` 1 reads the arm's band guard**, the
+   static eval plus `B4QsFutBase`, where the OFF arm's reads the stand-pat
+   plus 150 (`:471`, `:476`). §10 says "the OFF arm's delta rule". The two
+   differ in a band 64 wide at `−KNOWN_WIN` and where a table bound moved
+   the stand-pat across it. E; it is B.4.7 (c)'s arm, and the registration
+   should say so.
+3. **Every promotion is a capture-stage move in both loops**, Basilisk's
+   own definition, where the donor's is a capture or a queen promotion. A
+   quiet underpromotion that answers a check is therefore tested on SEE
+   and not skipped as a quiet, and quiescence searches quiet
+   underpromotions at all, on both arms. E; §14 has no row for it.
+4. **Tune builds run the evasion rule's accounting whether or not anything
+   reads it** (`:353-372`): a legal quiet generation, a trace call and the
+   pricing loop at every evasion node that ends without a cutoff with its
+   quiets skipped. That is at most 97,624 of 5,261,149 nodes (1.86%) on
+   `suite_v2` at depth 12. It runs only with `B4EvasionPrune` 1. §9 item
+   1's paired run is one tune build with "no build offset between the
+   arms", and this is an offset inside the build, against the default. E;
+   follow-up 2.
+5. **`run_suite.py` aborts on the arm with `B4QuietChecks` 6.** On the Tune
+   build at depth 10 the bound "quiescence move rules within its captures"
+   fails after 25 positions: a quiet check counts in `qs_searched` and
+   not in `qs_moves`. `qs_gain_tested`'s comment names a denominator that
+   is true at 0 only, for the same reason. At the defaults the bounds hold
+   on real runs of both arms (depth 12, 106 positions, exit 0). E, an
+   instrument defect at one switch's second value; follow-up 1.
+6. **The mate return stores nothing** (`:349-352`), as the donor's. §10 is
+   silent. E.
+
+### 3. Invariants, both arms
+
+- **No static score in the mate band; no blend on a decisive value.** The
+  blend's inputs are a stand-pat that is never decisive and a searched
+  value that `fail_high_value` returns untouched when decisive. Test:
+  "blends: a decisive value is untouched"; it fails under mutant M12. A
+  non-decisive value above a beta in the loss band blends to a value
+  between the two, as the donor's does and as the interior fail-high blend
+  already does: at the seed, 0 against −32,000 returns −18,218. That is a
+  valid lower bound, and no consumer reads it as an evaluation.
+- **A returned fail high stays at or above beta; the stored lower bound is
+  the value returned.** The arithmetic test covers every weight in range
+  and can fail. The store is by reading at the four sites; a test reads it
+  at the stand-pat alone (M2 survives the tests and moves the fingerprint).
+- **The stand-pat takes no decisive table score.** By reading, a line the
+  leaf does not touch. No test fails without it (M9); the fingerprint
+  moves.
+- **A quiescence mate is a proven mate.** By reading: `holds` needs a best
+  above the loss band, and the first evasion is always searched. Tests:
+  two sections fail under R1; the node check aborts under R12. On this
+  review's depth-12 Diag run at least 38,361 evasion nodes returned the
+  mate under that check and none aborted, which answers amendment 2 §9's
+  "plausible and has not been checked".
+- **Table scores ply-adjusted, the stored evaluation raw, none in check.**
+  Every store goes through `tt_store`; the stored evaluation is `tt_eval`,
+  the undamped raw one; an evasion node stores `INF_SCORE`, which a test
+  reads and M17 breaks.
+- **Every table move validated.** The evasion picker's stage validates it
+  (a test seeds a move that answers no check; it is never played). The
+  capture loop matches it among generated legal captures.
+- **A PV node takes no table cutoff; the exit store keeps the PV bit.** By
+  reading; no test fails without either (M10, M7), and both move the
+  fingerprint.
+- **The gain rules stand down in the known-loss band.** The direct test,
+  which fails under R2 in Diag and in release. The plain SEE still runs
+  there, as the OFF arm's SEE at 0 does.
+- **The draw value is 0, the stalemate's included.** Tests, with the
+  window either side.
+- **The stack unwinds; quiescence allocates nothing.** `test_stack_unwind`
+  and the node checks on both arms, in Diag and under the sanitizers. By
+  reading, the arm's lists are fixed arrays on the stack, the picker sorts
+  in the search's per-ply buffer, and the quiet-check path and the node
+  check's helper do the same. PLAN B.8.3's guard does not exist yet.
+
+**What no test here reads.**
+
+- *Rule 50 and repetition.* An evasion node is entered through the draw
+  test like any other, and its quiet evasions' children are too. The arm
+  stores evasion nodes, so a depth-0 bound can now carry a path's draw
+  (a quiet check, a quiet evasion, a repeated position) under a key with
+  no clock and no path. Interior nodes have that exposure today and the
+  donor has it at depth 0. A quiet check is searched at the first ply only
+  and its reply is an evasion, so no chain of reversible moves can form.
+- *En passant and promotion.* En passant is credited a pawn (tested) and
+  can never be a recapture, since it lands behind the pawn. A promotion is
+  exempt from the gain rules and meets the plain SEE. In check, see found
+  deviation 3.
+- *A null move before the node.* `b4::is_recapture` refuses it and "no
+  move". No test reads that (M11); without the guard the fingerprint reads
+  3,792,866, so it is live.
+- *SMP and the Board seam.* Tune builds only; each thread sets the vector
+  on its own copy. No shared state is new, so no ThreadSanitizer run is
+  owed.
+- *A quiet table move outside check.* Tested: neither searched nor counted.
+
+### 4. The OFF arm
+
+Every OFF-arm edit is a seam. Those the fingerprint alone does not prove
+are named with what does.
+
+- *Quiescence.* The arm's branches are `if constexpr (kB4Qsearch)` and the
+  OFF arm's rules sit unchanged in the `else` (futility on the stand-pat
+  plus 150, the clamped SEE, the late rule). The stand-pat and fail-high
+  values are ternaries that fold to today's. The delta rule and the ply cap
+  keep their conditions. The exit store's flag became `best >= beta ?
+  lower : upper` on both arms: on the OFF arm the best is below beta there
+  by construction, so the flag is today's by argument, not by the bench.
+- *Reverse futility.* `seek_mate_capped` is false on the OFF arm.
+- *`SearchParams`.* Fifteen fields more on both arms. The OFF tune build
+  advertises none of them (a test) and no arm default reaches it (a test).
+- *`Board`, tune builds.* `see` and `see_ge` read through a pointer on both
+  arms. The OFF arm never sets it. The bench proves the values where the
+  bench reaches; `test_board` proves the fixtures on vector 0. The cost of
+  the indirection is a tune build's alone.
+- *Counters, trace, pricing.* Eight counters, which read 0 on the OFF arm
+  over 106 positions at depth 12. The OFF arm's pricing cells for
+  quiescence's move rules now carry the class in the depth slot, as
+  amendment 1 asked; the bench cannot see that, and `test_pricing.py` and
+  the isolation read can. Isolation on the final tree, 20 positions at
+  depth 10: the arm 114,787 probes, the OFF arm 174,772, 0 positions
+  differ on either.
+- *Tests and tools.* `test_wac`'s floor is 119 on the OFF arm as before.
+  The four tool test scripts pass.
+
+### 5. The mutants
+
+All in the review's worktree (`review/rev_mutate.py`), Diag tree unless
+said, the source restored byte-exact after each and the arm's `bench 13`
+read at 4,003,560 at the end.
+
+**The records' twelve, re-run: each fails as recorded.** The loss test
+replaced (2 sections); `prune_by_gain = true` (the band's section, in Diag
+and in release); the kernel reading `b3_seek_mate_depth` (3 sections); the
+kernel ignoring the switch, both ways (3 and 2); the search setting vector
+0 and the setter ignoring its argument (Tune: the SEE vector section, and 6
+of `test_board`); `gain_value` ignoring its vector and the kernel passing
+0 (2 sections each); no first-ply test, no SEE test, a fixed limit of 6
+(the rule's section each); every evasion skipped (the node check aborts).
+
+**The review's own**, each run against `test_b4_qsearch`, `test_search`,
+`test_endgames`, `test_b3_proof` and `test_stack_unwind`:
+
+| Mutation | Tests | `bench 13` |
+|---|---|---:|
+| M1 no SEE rule for evasions | survive | 3,509,884 |
+| M2 a capture fail high stores the unblended value | survive | 3,189,104 |
+| M3 no alpha-relative SEE | survive | 4,269,348 |
+| M4 the alpha-relative SEE without its raise | one section of `test_b3_proof` | — |
+| M5 no plain SEE | survive | 4,314,417 |
+| M6 the count rule counts searched captures only | survive | 4,858,064 |
+| M7 the evasion stores drop the PV bit | survive | 4,414,090 |
+| M8 futility without its raise | survive | 3,846,850 |
+| M9 the stand-pat takes a decisive table score | survive | 2,934,041 |
+| M10 a PV node takes the table cutoff | survive | 3,014,624 |
+| M11 the recapture test without its null-move guard | survive | 3,792,866 |
+| M12 the blend applied to a decisive value | the blend's section | — |
+| M13 checks not exempt from the gain rules | survive | 3,410,360 |
+| M14 promotions not exempt | one section of `test_b3_proof` | — |
+| M15 no blend at an evasion or quiet-check fail high | one section of `test_b3_proof` | — |
+| M16 no blend at a capture fail high | survive | 3,285,407 |
+| M17 an evasion node stores an evaluation | the exit store's section | — |
+
+Reading. Every test §10 asked for exists and can fail. Twelve clauses of
+"the arm's quiescence, stated once" are bound by the fingerprint and by no
+test: a mutant of each passes all five test programs and moves `bench 13`.
+M9 and M10 are lines the leaf did not write. M4, M14 and M15 fail one
+section only, `test_b3_proof`'s "B3FailLowStore and B3TtPenalty move the ON
+arm only", which asserts that two settings give different node counts on
+one bench position: it is a liveness test that any change of the tree can
+flip, not a test of those clauses. Follow-ups 5 and 6.
+
+### 6. Amendment 2, checked without leaning on it
+
+**Order.** The reads were registered at `99ddb2c` (11:38:37) and the
+first evidence file is `r2_exposure.txt` at 11:41:30. R8 was registered at
+`1764dc3` (12:00:32), after `r4_mates.json` (11:56:37) and before
+`r8_reach.json` (12:20:11). R9 was registered at `6e460f9` (12:09:40),
+after `r1/floors.json` (12:08:14) and before `r9_kbnk.json` (12:18:00).
+Each rule preceded its read.
+
+**Re-scored from the raw data** by this review's own script
+(`a2_rescore.py`, not the amendment's report scripts):
+
+- *The grid (§5).* `OFF` 600 / 599 / 600 with the KR-K miss at 35,000 on
+  `R7/8/8/4k3/1K6/8/8/8 w`; `T6` 600 / 600 / 600; `T7` 600 / 599 / 600 with
+  the miss at 45,000 on Return 1's position; `CAND` 600 / 600 / 600. KBN-K
+  587, 587, 587 and 577 of 600, with 11, 12, 10 and 21 unconverted at
+  60,000 nodes or fewer; the five registered budgets sum to 115, 118, 114
+  and 115. `CAND` differs from `T6` at 6 of 25 KR-K budgets. All as
+  written.
+- *Mates found (§4).* 512, 498 and 505 of 1,092; the four cells and the
+  discordant pairs as written; at 1,000,000 nodes 293 against 302 with 7 to
+  16, sign test 0.093. R8: 297 against 304, 11 to 18.
+- *R9 (§3).* 100 positions, none on the grid; 15, 12 and 22 unconverted of
+  600; 1.467 times; Fisher 0.158.
+- *R2 and R5.* 188,020 moves; 13.37% and 6.97% of moves, 52.8% and 52.7%
+  of games; 235, 234 and 235 of 240; 94 each of 96; 60.6 against 62.9
+  plies. As written.
+
+**Re-run from searches** on this session's clean builds:
+
+- The OFF arm's `test_endgames --conversion --nodes 35000` reads **KR-K 23
+  of 24**. The base rate's one event is real: a tree that plays on `master`
+  misses a major-piece floor at a budget the register does not hold.
+- R4's population A, 576 searches (96 positions, two budgets, three
+  settings) on the committed Tune build with the switch set over UCI: all
+  576 equal `r4_mates.json` in depth, kind and value. 52, 50 and 52 at
+  250,000 nodes; 71, 66 and 66 at 1,000,000. So the committed ticket 7b is
+  the patch the amendment read.
+- The variant row of §1 equals the amendment's R6 on its patch.
+
+**Scored as frozen?** Thirteen of the fifteen are. Two are softened:
+A2-P5 and A2-P11 are each one statement with one probability, each has a
+clause that missed (52.8% of games against "at least 60%"; KBN-K 115
+against 118), and each is scored "half". As frozen, both are misses.
+Nothing decides on either. Follow-up 3.
+
+**Does "the cap stays off" follow?** Not from the registered rule, which
+adopts the candidate, as the amendment says itself. It follows from the
+maintainer's standing decision that a working Basilisk form is kept, which
+the amendment sets above its own clause after the results were in. The
+review's reading:
+
+- The evidence is as stated. No read reaches a registered bar either way.
+  The donor's own measure shows nothing for the cap at either reach, and
+  that part is reproduced here from searches.
+- Overriding a frozen rule after exposure is the thing registration exists
+  to prevent. Here it is done in the open, the registered verdict is kept
+  beside it, and the rule it yields to was the maintainer's before the
+  read. The decision is therefore the maintainer's, not research's, and
+  amendment 2 §10 item 1 puts it there.
+- The stakes are one default. Both settings read `bench 13` 4,003,560 and
+  pass every binding read; the arm's KBN-K sum is 118 off and 115 on.
+
+The review's position is off, for the amendment's reasons. It should stand
+in PLAN as the maintainer's decision once confirmed (§7, the maintainer's
+decisions).
+
+**Does a prediction need more before B.4.5?** No. P3, P4's table-move
+clause and P6 stand as frozen and will score as misses on their registered
+reads; none carries a decision rule the exposure touches. P5's
+`QsFutility` clause read 2.04% on an unregistered read against 1.5% or
+less, inside its falsifier's 2.5%; it stands and its consequence is an
+order in B.4.6's sweep. P7 holds on the final tree.
+
+### 7. Follow-ups (records and registrations; no code, no default)
+
+1. **`run_suite.py` at `B4QuietChecks` above 0** (found deviation 5).
+   B.4.5 records at its opening that the counter suite is not read with
+   quiet checks on until the bound and `qs_gain_tested`'s comment are
+   repaired in their own commit, with a test that fails first. Item 5's
+   gate reads `pricing.py`, which does not pass through the bound, so the
+   gate is not blocked. Owner: B.4.5's opening.
+2. **Item 1's paired run carries a build offset** (found deviation 4).
+   BAS-S50 registers, before that run, how it is handled: the accounting
+   gated on the run-time flags that read it, in a behaviour-neutral commit
+   at both fingerprints; or the offset stated beside the verdict, with its
+   size from an NPS pair of the two settings on the tune build. Owner:
+   BAS-S50's entry.
+3. **Records for BAS-S50's entry and §14.** The screen's first row is
+   `suite_v2` 12, and bench 11 passes by this review's read. A2-P5 and
+   A2-P11 are misses as frozen. §14 gains a row for the capture stage
+   (every promotion, where the donor's is a capture or a queen promotion).
+   Owner: B.4.5's opening.
+4. **B.4.7 (c)'s arm.** The registration says that `B4QsDelta` 1 restores
+   the delta rule under the arm's band guard (found deviation 2). Owner:
+   BAS-S52's entry.
+5. **The clauses no test binds** (§5: M1, M2, M3, M5, M6, M7, M8, M11,
+   M13, M16). Their tests are owed before the default flips, in their own
+   commit, each shown to fail on its mutant. Owner: B.4.7, on H1, before
+   the flip.
+6. **`test_tt_switches_live` follows the tree.** Three unrelated
+   quiescence mutants flip it. B.4.6's bake changes the arm's tree; if the
+   test fails there, its precondition is repaired in its own commit, as
+   `af06733` did. Owner: B.4.6's bake.
+7. **CI.** The arm's cell has never run. It runs at the PR. Owner: the
+   maintainer, at the push.
+
+**The maintainer's decisions**, none of which the review takes: amendment
+2 §10's three (the cap off; a denser floor for later clusters; the evasion
+sort to H.2). The review's position on each is the amendment's.
+
+Not follow-ups, listed for completeness: `Board`'s copy assignment not
+carrying the vector, the mate return storing nothing, and the path-carried
+draw in a depth-0 evasion bound (§3), none with a consequence the review
+can name.
+
+### 8. Artifacts (`tools/results/b44-20261106/review/`, ignored storage)
+
+| Artifact | Identity |
+|---|---|
+| The table | `review_table.py`; `review_table.out`; `hashes.json` (release binaries' SHA-256: ON 5EEEE7EC…, OFF DCB1A92D…); the logs beside them |
+| Screen, Return 1's position, the variant row | `review_reads.py`; `screen25.json`, `screen_score.log`; `screen25_bench11.json`, `screen_score_bench11.log`; `return1_45000.txt`; `reads_variant.out` |
+| Earlier tickets | `spot_commits.py`, `spot_commits.txt` |
+| Counter suite | `suite_on_d12.json`, `suite_off_d12.json` (Diag, depth 12, stride 1); `suite_on_qc6_d10.log` (the failing bound) |
+| Pricing isolation | `isolation_on.log`, `isolation_off.log` |
+| Mutants | `rev_mutate.py`; `mutants.json`, `mutants.out`; `mutant_bench_part1.json`, `mutant_bench.json` |
+| Amendment 2 | `a2_rescore.py`, `a2_rescore.txt`; `a2_rerun.py`, `a2_rerun_hash64.json`, `a2_rerun.out`; `conv_off_35000.log` |
+| Tool tests | `py_test_run_suite.log`, `py_test_pricing.log`, `py_test_decision_trace.log`, `py_test_spsa_surface.log` |
