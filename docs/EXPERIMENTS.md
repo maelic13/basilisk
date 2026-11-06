@@ -540,7 +540,8 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 - [BAS-S49](experiments/BAS-S49.md) — B.4.2: SEE follows pins opened during the exchange, `[-5,5]` — cap, −3.8 ± 7.6; repair kept
 
 - [BAS-S50](experiments/BAS-S50.md) — B.4.5: Cluster 3 diagnostics, the unfitted paired run and the categoricals — paired +29.3 ± 9.5; every default stands
-- [BAS-S51](experiments/BAS-S51.md) — B.4.6: the Cluster 3 curvature sweep, then SPSA in blocks — registered
+
+- [BAS-S51](experiments/BAS-S51.md) — B.4.6: the Cluster 3 curvature sweep, then SPSA in blocks — sweep curved on three of five; block 1 prepared
 
 | ID | Title | Disposition |
 |---|---|---|

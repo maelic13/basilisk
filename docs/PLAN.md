@@ -2084,6 +2084,14 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       - Opened 2026-11-06. BAS-S51 is registered, with the sweep frozen
         before its first point (`analysis/b46_sweep_2026-11-06.md`): 15
         coordinates on the surface, five swept.
+      - Sweep read 2026-11-06 (`analysis/b46_sweep_2026-11-06.md`):
+        - Three of the five coordinates are curved, so the SPSA runs: the
+          futility base, the stand-pat blend and razoring's margin.
+        - The fail-high blend reads monotone (its 256 edge ties the seed) and
+          reverse futility's per-ply margin monotone toward its 2× edge.
+        - None is flat, so all 15 coordinates stay. Each is proved live.
+        - The surface is generated (`14a1810`). Block 1 is prepared (seed
+          46001) and its dry run accepted. Maintainer-run overnight.
       - From B.4.4's review: `test_tt_switches_live` follows the tree
         (three unrelated quiescence mutants flip it). If the bake trips
         it, its precondition is repaired in its own commit.
@@ -2845,7 +2853,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.4.6 | RESEARCH | V | B.4.5 closed: the arm at `516d422`, every default standing, +29.3 ± 9.5 unfitted (BAS-S50). `B3NmpPerPly` and `CoreResearchDeeper` join the surface |
+| B.4.6 | RESEARCH | V | The sweep sends it to SPSA (three of five curved); block 1 is prepared on 15 coordinates and the maintainer's to run (BAS-S51) |
 | B.4.7 | RESEARCH | V | After B.4.6. P9's falsifier binds before its gate; its handling is the maintainer's (BAS-S50 *RESULT*) |
 | B.5 | RESEARCH | I2 | Contents fixed by B.0; the ply cap and the clean child frame added 2026-11-05 |
 | B.6.1 | RESEARCH | R2 | Added 2026-10-31; after B.4 and B.5 close |
