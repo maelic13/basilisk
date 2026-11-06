@@ -2081,6 +2081,9 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       The packet's registered sweep, then SPSA in blocks on Cluster 3's
       surface (with B-21's RFP, razoring and NMP-base coordinates); the
       fitted-constant analysis precedes the bake.
+      - Opened 2026-11-06. BAS-S51 is registered, with the sweep frozen
+        before its first point (`analysis/b46_sweep_2026-11-06.md`): 15
+        coordinates on the surface, five swept.
       - From B.4.4's review: `test_tt_switches_live` follows the tree
         (three unrelated quiescence mutants flip it). If the bake trips
         it, its precondition is repaired in its own commit.
