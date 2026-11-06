@@ -335,6 +335,33 @@ void print_search_diag(const DiagCounters& d, const Evaluator& evaluator,
             d.xc_pawn_reads, d.xc_pawn_other_only, d.xc_pawn_mixed, d.xc_pawn_other_ppm,
             d.xc_corr_reads, d.xc_corr_other_only, d.xc_corr_mixed, d.xc_corr_other_ppm);
         emit(buf);
+        // Quiescence's population, and what its depth-0 entries feed.
+        buf = std::format("kv qs_pv_nodes={} qs_tt_cutoffs={} qs_standpat_cuts={} "
+            "qs_standpat_excess={} qs_standpat_refined={} qs_standpat_refine_mass={} "
+            "qs_delta_pruned={} qs_cap_hits={} qs_moves={} qs_futility_pruned={} "
+            "qs_see_pruned={} qs_late_pruned={} qs_searched={}",
+            d.qs_pv_nodes, d.qs_tt_cutoffs, d.qs_standpat_cuts, d.qs_standpat_excess,
+            d.qs_standpat_refined, d.qs_standpat_refine_mass, d.qs_delta_pruned,
+            d.qs_cap_hits, d.qs_moves, d.qs_futility_pruned, d.qs_see_pruned,
+            d.qs_late_pruned, d.qs_searched);
+        emit(buf);
+        buf = std::format("kv qs_fail_highs={} qs_fail_high_first={} "
+            "qs_fail_high_index_sum={} qs_fail_high_excess={} qs_fail_lows={} "
+            "qs_fail_low_searched={} qs_evasion_moves={} qs_evasion_fail_highs={} "
+            "qs_evasion_fail_high_first={} qs_evasion_fail_high_index_sum={} "
+            "qs_evasion_tt_move={} qs_evasion_tt_cuts={}",
+            d.qs_fail_highs, d.qs_fail_high_first, d.qs_fail_high_index_sum,
+            d.qs_fail_high_excess, d.qs_fail_lows, d.qs_fail_low_searched,
+            d.qs_evasion_moves, d.qs_evasion_fail_highs, d.qs_evasion_fail_high_first,
+            d.qs_evasion_fail_high_index_sum, d.qs_evasion_tt_move, d.qs_evasion_tt_cuts);
+        emit(buf);
+        buf = std::format("kv eval_refined={} eval_refined_d0={} eval_refine_mass={} "
+            "eval_refine_mass_d0={} tt_move_d0={} rfp_cuts_tt_eval={} "
+            "rfp_corr_blocked={} rfp_corr_blocked_tt_eval={}",
+            d.eval_refined, d.eval_refined_d0, d.eval_refine_mass, d.eval_refine_mass_d0,
+            d.tt_move_d0, d.rfp_cuts_tt_eval, d.rfp_corr_blocked,
+            d.rfp_corr_blocked_tt_eval);
+        emit(buf);
     }
     // Speed telemetry: the evaluation rate, the pawn-cache hit rate, the
     // gives_check rate and SEE calls per node.

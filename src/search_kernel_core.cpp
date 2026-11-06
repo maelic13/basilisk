@@ -203,6 +203,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     bool in_check = state_.board->is_in_check();
     ss->in_check = in_check;
     DIAG_COUNT(state_.diag.qs_nodes++);
+    DIAG_COUNT(state_.diag.qs_pv_nodes += is_pv);
 
     // TT probe
     Key hash = state_.board->position_key();
@@ -224,6 +225,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
             TRACE_DECISION(TraceEvent::QsTtCutoff, ply, 0, tt_move,
                            alpha, beta, tt_score, -1, VALUE_NONE, VALUE_NONE,
                            0, 0, VALUE_NONE, tt_score);
+            DIAG_COUNT(++state_.diag.qs_tt_cutoffs);
             return tt_score;
         }
     }
@@ -238,6 +240,10 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         state_.board->gen_legal(legal);
         int best = -INF_SCORE;
         DIAG_COUNT(state_.diag.qs_evasion_nodes++);
+        DIAG_COUNT(state_.diag.qs_evasion_tt_move
+                   += tt_move != MOVE_NONE
+                      && std::find(legal.begin(), legal.end(), tt_move) != legal.end());
+        [[maybe_unused]] int evasions_searched = 0;
         bool has_legal = false;
         for (Move m : legal) {
             has_legal = true;
@@ -245,12 +251,18 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
             int s = -quiescence<NT>(-beta, -alpha, ply + 1, qply + 1, ss + 1);
             undo_move(ss, m);
             if (state_.stopped) return 0;
+            DIAG_COUNT(++state_.diag.qs_evasion_moves);
+            DIAG_COUNT(++evasions_searched);
             if (s > best) best = s;
             if (s > alpha) alpha = s;
             if (alpha >= beta) {
                 TRACE_DECISION(TraceEvent::QsBetaCutoff, ply, 0, m,
                                alpha, beta, VALUE_NONE, -1, VALUE_NONE, VALUE_NONE,
                                0, 0, VALUE_NONE, s);
+                DIAG_COUNT(++state_.diag.qs_evasion_fail_highs);
+                DIAG_COUNT(state_.diag.qs_evasion_fail_high_first += evasions_searched == 1);
+                DIAG_COUNT(state_.diag.qs_evasion_fail_high_index_sum += evasions_searched - 1);
+                DIAG_COUNT(state_.diag.qs_evasion_tt_cuts += m == tt_move);
                 best = s;
                 break;
             }
@@ -278,10 +290,15 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     // window would leave the evaluation band as a value no capture searched.
     if (tt_found && tt_score != VALUE_NONE
         && !is_decisive(tt_score)
-        && (tt_score > stand_pat ? proves_lower(tt_flag) : proves_upper(tt_flag)))
+        && (tt_score > stand_pat ? proves_lower(tt_flag) : proves_upper(tt_flag))) {
+        DIAG_COUNT(++state_.diag.qs_standpat_refined);
+        DIAG_COUNT(state_.diag.qs_standpat_refine_mass += std::abs(tt_score - stand_pat));
         stand_pat = tt_score;
+    }
 
     if (stand_pat >= beta) {
+        DIAG_COUNT(++state_.diag.qs_standpat_cuts);
+        DIAG_COUNT(state_.diag.qs_standpat_excess += stand_pat - beta);
         TRACE_DECISION(TraceEvent::QsStandPatCutoff, ply, 0, MOVE_NONE,
                        alpha, beta, stand_pat, -1, correction, VALUE_NONE,
                        0, 0, 0, stand_pat);
@@ -299,6 +316,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     // raise alpha, so that optimistic value is the node's upper bound.
     const int delta_bound = stand_pat + PIECE_VALUE[QUEEN] + 200;
     if (!bare && prune_by_gain && delta_bound < alpha) {
+        DIAG_COUNT(++state_.diag.qs_delta_pruned);
         TRACE_DECISION(TraceEvent::QsDeltaPrune, ply, 0, MOVE_NONE,
                        alpha, beta, stand_pat, -1, correction, VALUE_NONE,
                        0, 0, PIECE_VALUE[QUEEN] + 200, delta_bound);
@@ -320,7 +338,10 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     int best = stand_pat;
     if (stand_pat > alpha) alpha = stand_pat;
 
-    if (qply >= MAX_QSEARCH_PLY) return stand_pat;
+    if (qply >= MAX_QSEARCH_PLY) {
+        DIAG_COUNT(++state_.diag.qs_cap_hits);
+        return stand_pat;
+    }
 
     MoveList captures;
     state_.board->gen_legal_captures(captures);
@@ -342,6 +363,8 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     }
 
     Move best_move = MOVE_NONE;
+    DIAG_COUNT(state_.diag.qs_moves += nm);
+    [[maybe_unused]] int captures_searched = 0;
 
 #ifdef BASILISK_PRICING
     // A pruned capture searched in quiescence with the node's window; those
@@ -403,6 +426,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
                            alpha, beta, stand_pat, -1, correction, VALUE_NONE,
                            i, 0, tactical_gain + 150, alpha);
             PRICE(price_move(PriceRule::QsFutility, m, i + 1));
+            DIAG_COUNT(++state_.diag.qs_futility_pruned);
             best = std::max(best, futility_value);
             continue;
         }
@@ -414,6 +438,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
                            alpha, beta, stand_pat, -1, correction, VALUE_NONE,
                            i, 0, see_threshold, alpha);
             PRICE(price_move(PriceRule::QsSee, m, i + 1));
+            DIAG_COUNT(++state_.diag.qs_see_pruned);
             continue;
         }
 
@@ -422,6 +447,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
                            alpha, beta, stand_pat, -1, correction, VALUE_NONE,
                            i, 0, -50, alpha);
             PRICE(price_move(PriceRule::QsLate, m, i + 1));
+            DIAG_COUNT(++state_.diag.qs_late_pruned);
             continue;
         }
 
@@ -430,12 +456,18 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         undo_move(ss, m);
 
         if (state_.stopped) return 0;
+        DIAG_COUNT(++state_.diag.qs_searched);
+        DIAG_COUNT(++captures_searched);
         if (s > best) best = s;
         if (s > alpha) {
             alpha = s;
             best_move = m;
         }
         if (s >= beta) {
+            DIAG_COUNT(++state_.diag.qs_fail_highs);
+            DIAG_COUNT(state_.diag.qs_fail_high_first += captures_searched == 1);
+            DIAG_COUNT(state_.diag.qs_fail_high_index_sum += captures_searched - 1);
+            DIAG_COUNT(state_.diag.qs_fail_high_excess += is_decisive(s) ? 0 : s - beta);
             TRACE_DECISION(TraceEvent::QsBetaCutoff, ply, 0, m,
                            alpha, beta, stand_pat, -1, correction, VALUE_NONE,
                            i, 0, VALUE_NONE, s);
@@ -446,6 +478,8 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     }
 
     PRICE(settle(best));
+    DIAG_COUNT(++state_.diag.qs_fail_lows);
+    DIAG_COUNT(state_.diag.qs_fail_low_searched += captures_searched > 0);
     tt_store(hash, 0, best, TT_ALPHA, best_move, ply, tt_eval, pv_hit);
     return best;
 }
@@ -614,6 +648,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         tt_flag  = tte.bound();
     }
     if (tt_move == MOVE_NONE) DIAG_COUNT(++state_.diag.tt_move_absent);
+    else if (tt_depth <= 0) DIAG_COUNT(++state_.diag.tt_move_d0);
 
     // The node lies on or near a principal variation: a PV node, or a
     // position the table marked so. An excluded search keeps its node's flag.
@@ -696,8 +731,15 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         && !is_decisive(tt_score)
         && (tt_flag == TT_EXACT
             || (tt_flag == TT_BETA  && tt_score > static_eval)
-            || (tt_flag == TT_ALPHA && tt_score < static_eval)))
+            || (tt_flag == TT_ALPHA && tt_score < static_eval))) {
+        DIAG_COUNT(++state_.diag.eval_refined);
+        DIAG_COUNT(state_.diag.eval_refine_mass += std::abs(tt_score - static_eval));
+        if (tt_depth <= 0) {
+            DIAG_COUNT(++state_.diag.eval_refined_d0);
+            DIAG_COUNT(state_.diag.eval_refine_mass_d0 += std::abs(tt_score - static_eval));
+        }
         eval = tt_score;
+    }
 
 #if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
     const int correction = raw_static_eval == VALUE_NONE
@@ -879,8 +921,16 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             int margin = kp.rfp_per_ply * depth
                        - kp.rfp_improving * improving
                        - kp.rfp_worsening * opponent_worsening;
-            margin += std::abs(correction_raw) / 131072 * kp.rfp_corr_mult / 1024;
+            const int correction_term
+                = std::abs(correction_raw) / 131072 * kp.rfp_corr_mult / 1024;
+            margin += correction_term;
+            // The node would have cut without the correction term.
+            if (eval - margin < beta && eval - margin + correction_term >= beta) {
+                DIAG_COUNT(++state_.diag.rfp_corr_blocked);
+                DIAG_COUNT(state_.diag.rfp_corr_blocked_tt_eval += eval != static_eval);
+            }
             if (eval - margin >= beta) {
+                DIAG_COUNT(state_.diag.rfp_cuts_tt_eval += eval != static_eval);
                 const int value = (kp.rfp_beta_weight * beta
                                    + (1024 - kp.rfp_beta_weight) * eval) / 1024;
                 DIAG_COUNT(state_.diag.rfp_cuts++);

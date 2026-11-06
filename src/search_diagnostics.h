@@ -183,7 +183,46 @@ using InfoCallback = std::function<void(const std::string&)>;
     X(xc_pawn_reads) X(xc_pawn_other_only) X(xc_pawn_mixed)               \
     X(xc_pawn_other_ppm)                                                   \
     X(xc_corr_reads) X(xc_corr_other_only) X(xc_corr_mixed)               \
-    X(xc_corr_other_ppm)
+    X(xc_corr_other_ppm)                                                   \
+    /* Quiescence's population (denominator qs_nodes): PV nodes, table     \
+       cutoffs, stand-pat fail highs and the sum of their margins over    \
+       beta, stand-pats a table bound replaced and the sum of the         \
+       distances it moved them, nodes the delta rule cut, and nodes that  \
+       stopped at the quiescence ply cap. */                              \
+    X(qs_pv_nodes) X(qs_tt_cutoffs) X(qs_standpat_cuts) X(qs_standpat_excess) \
+    X(qs_standpat_refined) X(qs_standpat_refine_mass)                      \
+    X(qs_delta_pruned) X(qs_cap_hits)                                      \
+    /* Its move loop outside check: captures generated at nodes that      \
+       reached it, those each rule pruned and those searched (the four    \
+       sum to qs_moves at a node that fails low); fail highs, those on    \
+       the first searched move, the sum of the searched index at the      \
+       cutoff and of the margins over beta (decisive values excluded);    \
+       nodes that ended without a cutoff, and those of them that searched \
+       a move. */                                                         \
+    X(qs_moves) X(qs_futility_pruned) X(qs_see_pruned) X(qs_late_pruned)   \
+    X(qs_searched)                                                         \
+    X(qs_fail_highs) X(qs_fail_high_first) X(qs_fail_high_index_sum)       \
+    X(qs_fail_high_excess)                                                 \
+    X(qs_fail_lows) X(qs_fail_low_searched)                                \
+    /* Its evasion nodes (denominator qs_evasion_nodes): evasions         \
+       searched; fail highs, those on the first evasion and the sum of    \
+       the searched index at the cutoff; nodes whose table move is a      \
+       legal evasion, and cutoffs that move made. */                      \
+    X(qs_evasion_moves)                                                    \
+    X(qs_evasion_fail_highs) X(qs_evasion_fail_high_first)                 \
+    X(qs_evasion_fail_high_index_sum)                                      \
+    X(qs_evasion_tt_move) X(qs_evasion_tt_cuts)                            \
+    /* Interior nodes whose pruning estimate a table bound replaced, the  \
+       sum of the distances, and the share of both from entries at depth  \
+       0 or below, which quiescence wrote (denominator interior_nodes);   \
+       interior nodes whose table move came from such an entry. */        \
+    X(eval_refined) X(eval_refined_d0)                                     \
+    X(eval_refine_mass) X(eval_refine_mass_d0)                             \
+    X(tt_move_d0)                                                          \
+    /* Reverse futility by the estimate's source: cuts taken on a table   \
+       bound (denominator rfp_cuts), and nodes the margin's correction    \
+       term alone kept from cutting, with those of them on a table bound. */ \
+    X(rfp_cuts_tt_eval) X(rfp_corr_blocked) X(rfp_corr_blocked_tt_eval)
 
 struct DiagCounters {
 #define BASILISK_DIAG_COUNTER_FIELD(name) int64_t name = 0;
@@ -206,7 +245,7 @@ struct DiagCounters {
 // aggregate and the field count stay in step with the table.
 static_assert(sizeof(DiagCounters) == DiagCounters::COUNT * sizeof(int64_t),
               "DiagCounters holds something that is not a counter from the table");
-static_assert(DiagCounters::COUNT == 133, "the counter contract has 133 entries; extend, never rename");
+static_assert(DiagCounters::COUNT == 166, "the counter contract has 166 entries; extend, never rename");
 
 // One search's counters as `info string diag` lines, followed by the
 // evaluator's speed telemetry.
