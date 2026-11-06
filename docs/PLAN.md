@@ -1980,6 +1980,16 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           which is the donor's 16 lowered to 12 for the singular half.
         - Options in the packet; recommended: the cap's own bar at 16, read
           first. Tickets 8 to 10 wait on the amendment.
+      - Resolved 2026-11-06 (packet *Research amendment 2*): the cap reads
+        its own bar, `B4RfpSeekMateDepth` 16, and stays off
+        (`B4RfpSeekMate` 0), so ticket 7b's tree is ticket 6's, `bench 13`
+        4,003,560.
+        - The miss was the floor's own rate: on a 25-budget grid the OFF
+          arm also fails one KR-K playout of 600. The stop rule stands.
+        - The cap is live in 53% of games at the donor's bar and finds no
+          more mates at a node budget (505 of 1,092 against 512), so
+          Basilisk's form stays and the departure waits on the network.
+        - Tickets 7b and 8 to 10 resume on the amended contract.
     - [ ] **B.4.5** `[V]` Diagnostics and the unfitted paired run
       The packet's zero-game screens on both arms, then its registered
       categorical and deletion reads and the unfitted paired run.
@@ -2735,7 +2745,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.4.4 | RESEARCH | I2 | Returned at ticket 7 (packet *Return 1*): a research amendment answers it, then tickets 8 to 10 of `analysis/b43_cluster3_research_2026-11-06.md` §10 |
+| B.4.4 | READY_FOR_IMPLEMENTATION | I2 | Ticket 7b, then tickets 8 to 10 of `analysis/b43_cluster3_research_2026-11-06.md` §10 as *Research amendment 2* replaces it |
 | B.4.5 | RESEARCH | V | After B.4.4's review |
 | B.4.6 | RESEARCH | V | After B.4.5 |
 | B.4.7 | RESEARCH | V | After B.4.6 |

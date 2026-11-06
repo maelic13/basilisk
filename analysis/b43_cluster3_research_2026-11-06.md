@@ -1496,3 +1496,601 @@ counts of 600 is under 0.05. If R9 reads harm for bar 16, the decision
 rule's fallback applies and the cap is left off. If it does not, the
 grid's KBN-K difference is recorded as not replicated and the decision
 rule is applied as it stands.
+
+## Research amendment 2 — reverse futility's cap gets its own bar and stays off; what the KR-K miss measures (2026-11-06)
+
+Written on Return 1, class `R2`. Nothing in the contract was implemented,
+no default was moved and no floor was relaxed. The reads were registered
+in *Reads A2* at `99ddb2c`, R8 at `1764dc3` and R9 at `6e460f9`, each
+before it ran, and are scored here unchanged. Every read is a
+node-budget or fixed-depth read: no game was played and no timed read
+was run, so the Rarog session sharing the host could not move a result.
+Temporary builds came from throwaway patches through `amend2/build.py`,
+which restores the source byte-exact after each (§12).
+
+Names: `OFF` is the OFF arm. `T6` is ticket 6's tree, the committed
+source with `B4RfpSeekMate` 0. `T7` is ticket 7 as built, the cap of 5 on
+Cluster 2's bar of 12. `CAND` is the candidate, the cap of 5 on its own
+bar of 16. "Bar 12" and "bar 16" name the cap under each bar on one Tune
+build; "the switch off" is no cap.
+
+### 0. What this says, plainly
+
+1. **Return 1's miss is a failed rule and not evidence about the cap.**
+   On a 25-budget grid `T7` misses one KR-K playout of 600, the known
+   one. The OFF arm also misses one of 600, at 35,000 nodes on another
+   position. `T6` misses none. The floor read at five budgets has a
+   false-alarm rate, and ticket 7 drew it (§5). The stop rule stands as
+   written, so ticket 7 as built still does not land.
+2. **The return is right that the contract did not carry the bar.** The
+   donor pairs the cap with root depth 16. Cluster 2 lowered its bar to
+   12 to bound a singular-extension tree, and that reason does not reach
+   the cap, which grows a tree. The cap gets its own bar, an F line at
+   the donor's 16 (§3).
+3. **The implementer's worry is refuted: the cap is not inert at 16.** In
+   3,000 games at `3+0.03` the OFF arm is at root depth 16 or more with
+   a decided score on 7.0% of its moves and in 53% of its games (§4).
+4. **The cap does not do here what the donor built it for.** On the
+   donor's own measure, mates found at a node budget, it finds 505 of
+   1,092 against 512 without it, and no more with reverse futility's
+   reach raised to the donor's 18 (297 against 304). No read reaches a
+   registered bar either way; two lean against the cap and one for it
+   (§3).
+5. **So the cap stays off in the arm.** `B4RfpSeekMate` defaults to 0 and
+   the arm's tree is ticket 6's, `bench 13` 4,003,560. The switch, its two
+   F lines, the counter and the tests stay, on the donor's pairing, for
+   the re-read on the network. My registered rule would have adopted the
+   cap; §3 says why the maintainer's standing rule outranks it. Keeping
+   it on costs one default and is the maintainer's to choose (§10).
+6. **Four of the five deviations are confirmed.** Deviation 8 is
+   amended: P5's share needs one counter. A full sort of the evasions is
+   a real effect that the registered rule keeps out of the arm (§6).
+7. **No prediction is re-registered.** P3, P4's table-move clause and P6
+   stand as frozen and will score as misses; P4's clause was a modelling
+   error of mine (§7).
+
+### 1. Instruments and their checks
+
+- **Identity.** `T6` reads `bench 13` 4,003,560, `T7` 3,166,820 and `OFF`
+  6,090,091. `CAND` reads 4,003,560 on Release, Diag and Tune.
+- **A registered check that could not be read, and its replacement.**
+  The registration checked the patch's Tune build through `bench 13` with
+  an option set. `bench` ignores UCI options on every Tune build: the
+  committed one reads 3,166,820 with `B4RfpSeekMate` 0 set. The check was
+  replaced, before any read that needs it, by a stricter one through
+  `go`. Over the 40 bench positions at depth 13 and two KR-K positions at
+  depth 18, the patch's Tune build with `B4RfpSeekMateDepth` 12 equals
+  the committed Tune build search for search, and with `B4RfpSeekMate` 0
+  it equals the committed build with that switch at 0 (0 of 42 differ
+  each; `identity.txt`). The patch does nothing but move the bar.
+- **The cap is live on `CAND`.** On `8/8/8/4k3/8/8/8/4K2R w` at depth 18
+  the Diag build counts 511 refusals, and the Tune build searches 347,065
+  nodes under bar 16, 261,485 with the switch off and 413,183 under bar
+  12.
+- **The cold replay.** One process per playout with `ucinewgame` before
+  every move and Hash 8 reproduces four cells of `return1/sweep.txt`: 27
+  plies, the rule-50 draw, 35 and 37 (`checks.txt`).
+- **Two clerical slips.** R3's "every 225th move" gives 835 positions,
+  not "about 600"; the rule was applied as written. R4's first table
+  keyed positions without the game, so 7 of population B's 450 collided;
+  the pooled counts were right, and `r4_report.py` prints the table used
+  here.
+- **A driver fault, caught.** The driver for the later reads was named
+  `queue.py`, which shadows Python's standard module, so each script that
+  imported `concurrent.futures` ran the driver again. The copies were
+  stopped and R5 (b), R8 and R9 were run again from clean processes. The
+  reads that had finished are deterministic and were reproduced by the
+  copies (`queue_runaway.out`); the driver is now `run_reads.py`.
+
+### 2. The predictions, scored
+
+| # | Prediction (frozen) | Result | Verdict |
+|---|---|---|---|
+| A2-P1 | `OFF` converts all 600 in each major-piece family (70%) | KR-K 599 of 600 | miss |
+| A2-P2 | `T6` converts all 600 KR-K playouts (55%) | 600 | hit |
+| A2-P3 | `T7` fails 1 to 3 KR-K playouts, the known one included (65%) | 1 | hit |
+| A2-P4 | `CAND` equals `T6` playout for playout in KR-K (70%) | differs at 6 of 25 budgets | miss |
+| A2-P5 | Bar 12: 12 to 30% of moves and at least 60% of games (70%) | 13.37%; 52.8% | half |
+| A2-P6 | Bar 16: 4 to 15% of moves and at least 35% of games (65%) | 6.97%; 52.7% | hit |
+| A2-P7 | Bar 12's refusals under 1% of cuts (75%); bar 16's under a third of bar 12's (65%) | 0.195%; 66% of bar 12's | hit; miss |
+| A2-P8 | Mates found: bar 16 within ±8 of the switch off (60%); bar 12 within ±12 (55%) | −7; −14 | hit; miss |
+| A2-P9 | Every tree converts 24 in the major-piece families at 250,000 and 1,000,000 nodes (75%) | 24 everywhere, KBN-K too | hit |
+| A2-P10 | Won positions at 120,000 nodes: each bar within ±4 wins of the switch off (70%); mean plies within ±5% (60%) | 235, 234 and 235 of 240; 0.995× and 1.002× (at 1,000,000 nodes: 94 each of 96; 1.008× and 0.964×) | hit; hit |
+| A2-P11 | `CAND` reads ticket 6's bench, floors and WAC (85%) | bench and WAC yes; KBN-K 115, not 118 | half |
+| A2-P12 | A full evasion sort moves `bench 13` by under 3% (55%) | −25.2% | miss |
+| A2-P13 | The candidate is adopted by the registered rule (70%) | every clause of the rule passes | hit; the decision differs (§3) |
+| A2-P14 | With the reach at 18, bar 16 finds at least 5% more mates (40%) | −2.3% | miss |
+| A2-P16 | New KBN-K positions: bar 16 leaves at least 1.5 times as many unconverted (55%) | 22 against 15, 1.47 times | miss |
+
+There is no A2-P15.
+
+Calibration. Three misses (P4, P11's KBN-K clause, and the half of P7)
+share one wrong belief: that a bar of 16 is out of the floors' reach. I
+took it from KR-K, where a search at 45,000 nodes ends at depth 9 to 12,
+and from the return's sentence to that effect. KBB-K and KBN-K searches
+pass depth 16 at 45,000 nodes (medians 17 and 16; `depths.txt`), so
+`CAND` is not ticket 6's tree in those families. P1 missed because I took
+five clean budgets for a clean tree, which is the error §5 measures. P14
+missed because I blamed the reach for what belongs to the evaluation.
+
+### 3. Question 1: what answers Return 1
+
+**Decision.** The cap reads its own bar, `B4RfpSeekMateDepth` 16, and is
+off by default, `B4RfpSeekMate` 0. The arm's tree is ticket 6's.
+
+**The form: option 4, the cap's own bar.** It is what the contract meant.
+§3's row adopted "the cap of 5 under Cluster 2's `seek_mate`", reading
+`seek_mate` as the donor's condition, when the B.3 packet's amendment 3
+had moved its bar to 12 for a reason of its own: a singular-extension
+chain that multiplied bench position 11's tree. Standing singular
+extensions down earlier shrinks a tree. Refusing reverse-futility cuts
+earlier grows one. One bar cannot serve both, so each half reads its own,
+and any later read of the cap tests the donor's pairing.
+
+**The default: evidence.**
+
+- *Binding reads on `CAND` (R6): all pass.* `bench 13` 4,003,560; the
+  major-piece floors 24 at each of the five budgets; KBN-K 23 / 22 / 23 /
+  24 / 23, sum 115 against the floor of 112 (`T6`: 118);
+  `test_endgames` 191 of 191; `test_search` 719 of 719; WAC 149 at depth
+  6 and 258 at 100,000 nodes.
+- *The grid (R1).* `CAND` fails no major-piece playout of 1,800, as `T6`.
+  In KBN-K it leaves 23 of 600 unconverted where `OFF`, `T6` and `T7`
+  each leave 13:
+
+  | Tree | KBN-K unconverted at 60,000 nodes or fewer (360) | Above (240) |
+  |---|---:|---:|
+  | `OFF` | 11 | 2 |
+  | `T6` | 12 | 1 |
+  | `T7` | 10 | 3 |
+  | `CAND` | **21** | 2 |
+
+  The rule registered for R1 named the major-piece families, so this is
+  an observation made after exposure. R9 was registered to test it.
+- *New KBN-K positions (R9).* 100 positions at six budgets from 30,000 to
+  60,000 nodes, 600 playouts a setting: the switch off leaves 15
+  unconverted, bar 12 leaves 12 and bar 16 leaves **22**. That is 1.47
+  times the switch off, with a one-sided Fisher test of 0.16, against a
+  registered bar of 1.5 times and 0.05. *Not harm* by the rule. The
+  direction replicates and the size does not reach the bar.
+- *Conversion at budgets that reach the bar (R5): no effect shown.* (a)
+  At 250,000 and 1,000,000 nodes every tree converts 24 in all four
+  families. (b) From 240 won game positions at 120,000 nodes the leading
+  side wins 235 with the switch off, 234 under bar 12 and 235 under bar
+  16, in 59.8, 59.5 and 59.9 plies. From the first 96 of them at
+  1,000,000 nodes it wins 94 under each setting; over the 93 that all
+  three win, bar 16 takes 60.6 plies against 62.9 (0.964 times) and bar
+  12 takes 63.3. The registered bar for a benefit is 5% at both
+  budgets.
+- *Mates found (R4, R8)*, in §4: no effect shown, leaning against.
+
+**The default: two rules, and which governs.**
+
+- *The registered decision rule adopts the candidate.* Every clause
+  passes: R6, R1's major-piece clause, R5, R4 and R9. Its clause 2 said
+  the candidate "needs no benefit: it is the donor's form".
+- *That clause was wrong when I wrote it.* The maintainer's standing
+  decision of 2026-11-04 (PLAN H.2, "Basilisk's forms stay, since they
+  work") is that a Basilisk form that works is kept and is not exchanged
+  for the donor's without a reason. Ticket 6's form works: no
+  major-piece playout of 1,800 fails on the grid, and every binding read
+  holds. The reason PLAN gave for the cap was the mate drives, and R4
+  and R8 measured it: there is none. A standing decision of the
+  maintainer outranks a clause I registered against it, so it governs.
+  The registered verdict is recorded beside it, unchanged.
+- *The reads lean, and none reaches its bar.* For the cap: won game
+  positions at 1,000,000 nodes convert in 3.6% fewer plies. Against it:
+  mates found at 1,000,000 nodes, 293 against 302 with the discordant
+  positions 7 to 16 (sign test 0.09); and KBN-K at 60,000 nodes or
+  fewer, 21 unconverted against 12 on the grid and 22 against 15 on new
+  positions. That is no reason to leave a form that works.
+
+**The other options.**
+
+- *Option 1 as written, the switch at 0 and a paired run in B.4.5:* the
+  default is taken, the run is not. The cap acts in decided positions
+  only, and a 2,000-game run at ±5 cannot read an effect of that size.
+  The switch is therefore a departure (§14), not a categorical.
+- *Option 2, another seed for the cap: declined.* Caps of 4, 6 and 8
+  pass five budgets as the cap of 5 fails one, and §5 shows that any
+  tree does that at a one-in-600 rate. A seed picked by the cell it
+  passes is the selection the B.3 packet's amendment 6 §4.4 warned
+  against.
+- *Option 3, re-reading the floor clause: declined, and not needed.* §5.
+
+**Semantics, seed, default, re-read.** With `B4RfpSeekMate` 1 a
+reverse-futility cut is refused when the iteration's root depth is at
+least `B4RfpSeekMateDepth`, the previous iteration's root score is at
+least `B3SeekMateScore` either way, and the node's depth is above
+`B4RfpSeekMateCap`. `B4RfpSeekMateDepth` is an F line, seed 16 (B.0 §7.2
+rule 1), range 8 to 64. `B4RfpSeekMateCap` stays 5. `B4RfpSeekMate`
+defaults to **0**. There is no fallback to register: the default is
+ticket 6's tree, which has passed every read. The switch is re-read on
+the network (H.2), by R4's recipe first: mates found at a node budget,
+before any game.
+
+### 4. Question 2: is the cap worth having
+
+**What it serves (evidence, the donor's record).** The donor's commit
+that introduced `seekMate` (`598ae2c4` there) justifies it by mates found
+at a node budget on a mate suite, and passed it on non-regression bounds
+at two time controls. It claims no Elo. The property: in a decided
+position a reverse-futility cut returns the evaluator's word that a
+subtree is good enough, so the search never proves the mate inside it.
+Refusing those cuts at deep nodes makes a deep search prove mates
+sooner.
+
+**How often the bar is reached in games (R2, evidence).** The OFF arm's
+188,020 moves in the B.4.2 gate's 3,000 games at `3+0.03`, no
+adjudication, median 116,021 nodes a move:
+
+| | Moves | Games with one | Nodes |
+|---|---:|---:|---:|
+| Decided: a score of 564 or more either way, or a mate score | 21.14% | — | — |
+| Live at bar 12 (decided, depth 12 or more) | 13.37% | 52.8% | 10.99% |
+| Live at bar 16 (decided, depth 16 or more) | 6.97% | 52.7% | 5.36% |
+
+Both bars are *live in games* by the registered rule. Bar 16 is reached
+in as many games as bar 12, on half as many moves. These are the OFF
+arm's depths; the arm's smaller tree reaches a bar more often.
+
+**How often it fires when live (R3, evidence).** 835 sampled moves,
+searched cold at each move's recorded node count on the arm's Diag
+builds:
+
+| | Searches with a refusal | Refusals against cuts, all searches | In searches live by the PGN's record |
+|---|---:|---:|---:|
+| Bar 12 | 54 of 835 (6.5%) | 37,780 against 19,326,088 (0.195%) | 2.74% |
+| Bar 16 | 23 of 835 (2.8%) | 24,783 against 19,321,845 (0.128%) | 3.80% |
+
+When the bar is reached the cap refuses 3 to 4% of reverse futility's
+cuts.
+
+**Mates found at a node budget (R4, evidence).** Population A is the 96
+floor positions. Population B is 450 positions 10, 16 and 24 plies
+before the mate in 150 games.
+
+| Population, budget | Switch off | Bar 12 | Bar 16 | Found only with / only without bar 16 |
+|---|---:|---:|---:|---|
+| A, 250,000 | 52 | 50 | 52 | 2 / 2 |
+| A, 1,000,000 | 71 | 66 | 66 | 2 / 7 |
+| B, 250,000 | 158 | 157 | 160 | 6 / 4 |
+| B, 1,000,000 | 231 | 225 | 227 | 5 / 9 |
+| Pooled, of 1,092 | **512** | **498** (−2.7%) | **505** (−1.4%) | 15 / 22 |
+
+*No effect shown* for either bar by the registered rule (5% either way).
+The cap costs depth at a fixed budget: mean depth falls by 0.1 to 0.9
+plies, and the KR-K position of §1 takes 33% more nodes to depth 18.
+
+**Whether the reach explains it (R8, evidence).** Basilisk's reverse
+futility stops at depth 10 where the donor's stops at 18, so the cap
+removes five depths here against thirteen there. With `CoreRfpDepthCap`
+18, at 1,000,000 nodes, bar 16 finds 297 mates against 304 (−2.3%; 11
+found only with it, 18 only without). *No effect shown*, and the reach
+does not explain it. By R8's rule the departure waits on the network
+alone.
+
+**Answer.** The cap is worth nothing measurable on this evaluation. It
+is live in half the games, it refuses a few per cent of reverse
+futility's cuts when it is, and it proves no more mates for them at
+either reach. Why it works in the donor and not here is not measured.
+The hypothesis is the evaluation: a won position's hand-written
+evaluation rises steadily toward the mate, so a cut on it hides little,
+where a network's value in a won position does not order the mating
+lines. That is the reason to read it again on the network and not
+before.
+
+### 5. Question 3: how noisy the floor is, and whether §11's stop rule stands
+
+**Evidence (R1).** The four families at 25 budgets from 25,000 to 135,000
+nodes, 600 playouts a family a tree (`r1/floors.json`; `r1_report.txt`):
+
+| Tree | KQ-K | KR-K | KBB-K | KBN-K, of 600 | KBN-K at the five registered budgets |
+|---|---|---|---|---:|---:|
+| `OFF` | 600 | **599**: `R7/8/8/4k3/1K6/8/8/8 w` at 35,000 | 600 | 587 | 115 |
+| `T6` | 600 | 600 | 600 | 587 | 118 |
+| `T7` | 600 | **599**: `4K3/8/8/8/8/5k2/8/1R6 w` at 45,000 | 600 | 587 | 114 |
+| `CAND` | 600 | 600 | 600 | 577 | 115 |
+
+- **The base rate.** A healthy tree, the OFF arm that plays on `master`,
+  fails one KR-K playout in 600 and one budget in 25. By the registered
+  estimate a five-budget read then shows a miss 18.5% of the time. One
+  event carries a wide interval, so read it as "of the order of one read
+  in five to ten", not as a rate.
+- **Whose miss.** `T7` fails 1 major-piece playout of 1,800 and `T6`
+  fails 0: by the registered rule the two trees are not told apart. The
+  cap on the bar of 12 put the bad budget on a registered one; the grid
+  does not show it converting worse.
+- **KBN-K.** `OFF`, `T6` and `T7` each convert 587 of 600. Their
+  five-budget sums of 115, 118 and 114 are three draws from one rate,
+  and the return's "114 against 118" is not a difference. The floor of
+  112 sits about 5 below the expected sum of 117.4.
+
+**The stop rule (decision).** It stands as written. This is not the
+relaxation the B.3 packet's amendment 6 §4.3 declined, and it is not
+needed: ticket 7b's tree is ticket 6's, which fails nothing on the grid.
+What changes is how a miss is read. A single 23 in a major-piece family
+at one budget still returns the leaf, and the return's first read is
+this grid on the failing tree and on the previous ticket's, before any
+mechanism is blamed.
+
+**For the maintainer, for later clusters only.** The five-budget floor at
+24 of 24 false-alarms on a healthy tree at a rate that will return a
+leaf every few clusters. A floor read over the 25-budget grid with a
+bound on unconverted playouts (`OFF` and `T7` read 1 of 600, `T6` and
+`CAND` 0) would tell a tree that converts worse from one whose bad
+budget moved. It costs about ten minutes of the host a tree. It changes
+a registered instrument, so it is the maintainer's, and nothing in B.4
+uses it.
+
+### 6. Question 4: the deviations, ruled
+
+**4, the evasion picker's depth is 0: confirmed by the registered
+rule.** The donor sorts every evasion. The arm's picker at depth 0 sorts
+the quiets that score above 0 and leaves the rest in generator order,
+and once one evasion holds the remaining quiets are skipped, so which
+quiet comes first can decide the node. R7 read a throwaway variant of
+`T6` that sorts every quiet evasion:
+
+| | `T6` (depth 0) | Full sort |
+|---|---:|---:|
+| `bench 13` | 4,003,560 | 2,996,564 (−25.2%) |
+| Evasions searched per node, bench positions at depth 13 | 0.957 | 0.963 |
+| First-move fail highs; fail highs per evasion node | 98.7%; 40.2% | 98.5%; 40.2% |
+| `QsEvasion` priced beat share (`Pricing 4`, depth 12, 40 positions) | 7.99% [7.40, 8.64] | 6.06% [5.54, 6.63] |
+| Major-piece floors; KBN-K's sum | 24; 118 | 24; 114 |
+| `test_endgames`; WAC at depth 6 and 100,000 nodes | 191 of 191; 149 and 258 | **189 of 191**; 154 and 253 |
+
+The bench moved by more than 3%, so the rule priced both forms. The full
+sort is 1.93 points lower where the rule asked for 2, and it fails a
+binding read: the wrong-bishop draw after trained tables no longer
+reads as a draw.
+Depth 0 stays on both counts. The priced intervals do not overlap, so
+the effect is real: a full sort hides a quarter fewer beating evasions.
+It is recorded in §11 and §14 and is not added to the arm.
+
+**5, `skip_quiets()` as soon as the best stops being a loss: confirmed.**
+The best never falls, so "not a loss" once is "not a loss" for the rest
+of the node, and ending quiet delivery selects the moves §10's wording
+selects. The table move is delivered before the test can hold.
+
+**6, the stalemate takes no blend and stores on either side of beta:
+confirmed.** §10's invariant governs and its "Both" paragraph was loose.
+The donor sets the stalemate's 0 and then blends any value above beta,
+so with beta below 0 it returns a stalemate at 0.55 of beta
+(`search.cpp:1863-1872` at `edb0d9db`). A stalemate is a terminal fact
+and its value is exact. An exact 0 is a true lower bound when it is at
+or above beta and a true upper bound otherwise. §14 gains the row.
+
+**7, pricing's shape: confirmed.** `QsSee` holding both SEE rules matches
+`qs_see_pruned`, and no registered read needs them apart. The queen
+captures of amendment 1 §4 stay readable: a queen capture never fails
+the plain margin of −28, so every queen cell of `QsSee` is the
+alpha-relative rule. `QsEvasion` carrying the class costs nothing.
+Pricing the skipped quiets only at a node that ended without a cutoff
+differs from §10's wording at one kind of node, a cutoff by a capture
+the picker had set aside after the quiets, which is rare. P4's share is
+read pooled over the rule's two halves, as frozen.
+
+**8, `qs_recapture_exempt`'s denominator: amended.** P5 reads the
+exempted recaptures against "the moves the gain rules test". The
+captures the loop delivered include checks, promotions and the moves of
+nodes where the gain rules stand down, so the share on that denominator
+is not P5's. One counter is added, `qs_gain_tested`: the captures that
+enter the gain rules' block. P5's share is `qs_recapture_exempt /
+(qs_gain_tested + qs_recapture_exempt)`. This is a clerical statement of
+the denominator P5 always named, made before its registered read.
+
+### 7. Question 5: the predictions exposed during implementation
+
+Nothing is re-registered. Each was seen on a read that is not its
+registered one, and none carries a decision rule that the exposure
+touches.
+
+- **P3 stands.** Its share clause (30 to 40%) reads 40.9% on ticket 6's
+  tree. Its bench clause (0.6 to 1.3×) reads 0.66× on the amended tree,
+  4,003,560 against 6,090,091; the 0.52× belonged to ticket 7 as built
+  and goes with it. P3's falsifier is a share above 45% and is not near.
+  It is scored in BAS-S50 on its registered read.
+- **P4 stands, and its table-move clause will miss for a reason that is
+  mine.** §5.5 expected the evasion store to raise the share of evasion
+  nodes holding a legal table move from 4.5% to 15% or more. The model
+  left out two things. A stored fail high ends the node's next visit at
+  the table cutoff, before the evasion loop is reached and before the
+  counter can count it. And the arm's store writes no move after a fail
+  low, in either search. So the figure never fitted that store; it would
+  have needed the other form. This is a substantive error in the causal
+  model, recorded now and scored as a miss in BAS-S50. Nothing decides
+  on the clause: P4's falsifier is the priced beat share. The evasion
+  reads that carry the order's verdict hit (0.88 searched per node
+  against 1.45 or fewer; 98.3% first-move fail highs against 78% or
+  more).
+- **P6 stands.** 257 to 258 against [239, 255] is a miss on the high
+  side. The binding rule is the floor of 239 and is unaffected.
+- **P7.** Its falsifier fired once, at ticket 7 as built, and the
+  attribution it names found no owner: each of the three switches
+  restores 24, as in the B.3 packet's amendment 6. §5 is its reading. P7
+  is read again on the final tree at the qualification.
+- **Exposed by this amendment's R7**, on `T6` at depth 12 over 40
+  positions, which is not B.4.5's read: `QsEvasion` 7.99% (P4: 8% or
+  less), `QsFutility` 2.04% (P5 as amendment 1 re-registered it: 1.5% or
+  less, falsifier above 2.5%), `QsCount` 2.02% (6% or less). They stand.
+- **P1, P2, P8 to P11** do not move: ticket 7b's tree is ticket 6's.
+
+### 8. Question 6: what changes for B.4.5 to B.4.7
+
+- **§5.8, the surface rule: unchanged.** The cap's two lines are F lines
+  and stay off the surface.
+- **§11's ablation order: unchanged.** The cap is off and was never in
+  it.
+- **BAS-S50 gains two recorded reads and no rule:**
+  1. `qs_evasion_tt_move` on both settings of item 2, beside
+     `tt_move_absent` and `tt_move_d0`. It measures §7's account of P4.
+  2. P4's `QsEvasion` share by node type as well as pooled. R7 read 21.9%
+     [16.5, 28.4] at PV quiescence nodes against 7.6% elsewhere, on 183
+     probes.
+- **BAS-S50 does not read `B4RfpSeekMate`.** It has no paired run.
+- **BAS-S51 and BAS-S52: unchanged.**
+
+### 9. Question 7, and the clauses replaced
+
+Tickets 8 to 10 proceed on ticket 7b with three changes: the identity
+reads of tickets 8 and 9 take **4,003,560**; ticket 0's counter list
+gains one counter; ticket 10 gains one check and two recorded rows. The
+WAC floor stays 136, the count of 149 less 13. Ticket 10 registers that
+on the arm unless the final count differs, when the file's rule applies.
+The qualification's WAC bound at 100,000 nodes stays 239.
+
+**§7, the cap's row, replaced by two.**
+
+| Constant | Donor | Converted | Oracle | Basilisk today | Rule | Seed | Line |
+|---|---|---:|---|---|---|---|---|
+| Reverse futility's depth cap in a mate drive | `depth < 6` | — | none | none | 1 | **5**, range 1 to 19 | F `B4RfpSeekMateCap` |
+| The root depth from which that cap binds | `rootDepth >= 16` | — | none | none; Cluster 2's 12 is the singular half's | 1 | **16**, range 8 to 64 | F `B4RfpSeekMateDepth` |
+
+**§9, the attribution table loses `B4RfpSeekMate`.** It becomes a
+departure switch, in a table of its own:
+
+| Option | Values | Default | Read |
+|---|---|---|---|
+| `B4RfpSeekMate` | 0 no cap, Basilisk's form; 1 a reverse-futility cut is refused at a node deeper than `B4RfpSeekMateCap` when the iteration's root depth is at least `B4RfpSeekMateDepth` and the previous iteration's root score is at least `B3SeekMateScore` either way | **0** | no paired run; §14's row; H.2 on the network |
+
+**§10, ticket 0, the counter list gains** `qs_gain_tested`: the captures
+that enter the gain rules' block (not a check, not a promotion, not an
+exempt recapture, at a node where the gain rules run). It is appended
+after `rfp_seekmate_capped`, with its unit in `run_suite.py`, and
+`qs_recapture_exempt`'s comment names the new denominator. It lands as
+its own commit with both arms' fingerprints unchanged.
+
+**§10, ticket 7, replaced by ticket 7b.**
+
+7b. **Reverse futility's cap, on its own bar and off.** With
+    `B4RfpSeekMate` 1 a reverse-futility cut is refused when the
+    iteration's root depth is at least `B4RfpSeekMateDepth` (F, seed 16,
+    range 8 to 64), the previous iteration's root score is at least
+    `B3SeekMateScore` either way, and the node's depth is above
+    `B4RfpSeekMateCap`. It is `b3::seek_mate` called with the cap's own
+    bar, so there is no new arithmetic. `B4RfpSeekMate` defaults to 0.
+    `B3SeekMateDepth` is read by singular extensions alone and is not
+    touched. The counter `rfp_seekmate_capped` and
+    `b4::rfp_past_seek_mate_cap` are unchanged. It lands as a new commit
+    on top of `b003b3c`; ticket 7's commit is not rewritten.
+    - Fingerprints: OFF 6,090,091. ON **4,003,560** on Release, Diag and
+      Tune, ticket 6's count. Any other count returns the leaf.
+    - Tests, in `test_b4_qsearch`:
+      - the arm's default is 0;
+      - the gate with forced root depths and scores reads the cap's bar:
+        refused at root depth 16 and 24 with a score of ±564 and with a
+        mate score, at node depth 6; not at root depth 15, not at 12
+        (Cluster 2's bar), not with a score of 563, not at node depth 5;
+      - the two bars are independent: with the switch at 1 and
+        `b3_seek_mate_depth` 64 the cap still fires on the live
+        position, and with `b4_rfp_seek_mate_depth` 64 it never does and
+        the tree is the default's;
+      - live: `8/8/8/4k3/8/8/8/4K2R w` at depth 18, which was 15. On the
+        arm the node count differs between the switch at 1 and at 0, and
+        `rfp_seekmate_capped` is above 0 at 1 and 0 at the default where
+        counters are compiled; at depth 15 the two counts are equal. On
+        the OFF arm they are equal at both depths. This amendment read
+        347,065 against 261,485 nodes and 511 refusals over UCI at Hash
+        64.
+    - The tune surface: `B4RfpSeekMateDepth` is advertised by tune
+      builds on the arm alone and listed as fixed in
+      `generate_spsa_surface.py`'s B4 table.
+    - Reads at the ticket's end, on the default: the tree is ticket 6's,
+      so the counters equal ticket 6's row for row, the floors read 24
+      with KBN-K 23 / 23 / 24 / 24 / 24, and WAC reads 149 and 258. A
+      difference returns the leaf.
+    - Recorded, with the switch at 1 on a variant build (`variant.py`):
+      `bench 13`, the floors at five budgets, `test_endgames`, WAC. This
+      amendment read 4,003,560, 24 with KBN-K 23 / 22 / 23 / 24 / 23,
+      191 of 191, and 149 and 258 on its patch. They are §14's numbers
+      on the committed code and bind nothing.
+
+**§10, tickets 8 and 9.** "The fingerprint" each must hold at its
+defaults is ticket 7b's, 4,003,560.
+
+**§10, ticket 10, gains.**
+- A node check in the builds that compile them: where quiescence returns
+  a mate because no evasion was searched, the position has no legal
+  move. The donor asserts the same. Evasions searched per node read
+  below 1 (0.88 to 0.96), so at least one evasion node in twenty is a
+  checkmate. That is plausible and has not been checked.
+- Two recorded rows in the two-arm table: the Return 1 position at
+  45,000 nodes on the final tree (`T6` mates in 37 plies), and ticket
+  7b's variant row.
+
+**§10, the cheap qualification.** Unchanged, read on ticket 10's tree.
+
+**§10, "Producer → stored state → consumer".** The driver's
+`root_depth_` and `root_score_` reach ticket 7b through `b3::seek_mate`
+with the cap's own bar, when the switch is 1.
+
+**§14 gains two rows and one sentence.**
+
+| Place | Basilisk's form (kept) | The donor's form | Why kept | Waits on |
+|---|---|---|---|---|
+| Reverse futility in a mate drive | no cap: `CoreRfpDepthCap` at every root depth (`B4RfpSeekMate` 0) | depth under 6 from root depth 16 with a decided root score; the switch's 1 reads its own bar of 16, not Cluster 2's 12 | Basilisk's form works (no major-piece playout of 1,800 fails on the grid). The donor's shows no gain on the donor's own measure (505 mates of 1,092 against 512; 297 against 304 at the donor's reach) and leans against on KBN-K at 60,000 nodes or fewer (22 unconverted of 600 against 15) | the network: H.2, mates found at a node budget first |
+| The stalemate's value | exactly 0, unblended | 0 blended toward a beta below it | a terminal draw is exact | nothing |
+
+The "Evasion order" row gains: quiets scoring 0 or less stay in
+generator order at depth 0, where the donor sorts every evasion. A full
+sort reads 6.06% against 7.99% on the evasion rule's priced beat share,
+a `bench 13` 25% smaller, and a wrong-bishop draw that no longer reads
+as one (`t6_full_sort.patch`). It waits on B.4.5's P4, then H.2.
+
+### 10. Decisions that are the maintainer's
+
+1. **The cap off or on in the arm.** Taken here as off, on the standing
+   decision that a working Basilisk form is kept. The case for on: it is
+   the donor's form, the donor kept it on non-regression, my registered
+   rule adopts it, and no read reaches its bar for harm. On costs one
+   default (`B4RfpSeekMate` 1) and moves the arm's KBN-K floor sum from
+   118 to 115; the fingerprint stays 4,003,560. My position: off. Five
+   reads could have shown a gain and none reached its bar, the leans
+   split two against and one for, and off gives up nothing, because the
+   switch stays.
+2. **A denser floor for later clusters** (§5). Not decided here. My
+   position: register it at B.5's research, with the grid's bound taken
+   from this read.
+3. **The evasion sort** (§6). Taken here as an H.2 candidate. The
+   alternative is a sixth categorical in B.4.5. My position: H.2. It
+   fails a wrong-bishop draw as it stands, and its priced gain is a
+   quarter of an 8% share on a tenth of quiescence's nodes.
+
+### 11. Findings outside the contract
+
+- **`bench` ignores UCI options on a Tune build.** `setoption` followed
+  by `bench 13` reads the compiled defaults with no warning. The
+  implementer's variant builds avoided it; a reader who sets an option
+  and benches gets the default tree's count. One line in PROCESS or a
+  refusal in `bench` would close it.
+- **`bench 13` is path-dependent.** `bench` clears the table and the
+  histories once a run, not once a position (`src/bench.cpp`), so a
+  change that fires on one position moves every later one. Ticket 7 as
+  built moved the count from 4,003,560 to 3,166,820 on 426 refusals in
+  502,535 cuts, and the same 40 searches run cold through `go` differ by
+  0.2% in total (3,247,003 against 3,252,375). A ticket's bench ratio is
+  not its tree's size, and P3's bench clause is read with that in mind.
+- **A full sort of quiescence's evasions** (§6): a candidate for H.2
+  with its patch and both readings.
+- **The evasion rule at PV quiescence nodes** hides more than elsewhere
+  (21.9% against 7.6%, §8). B.4.5 reads it on its registered run.
+
+### 12. Artifacts (`tools/results/b44-20261106/amend2/`, ignored storage)
+
+| Artifact | Identity |
+|---|---|
+| Builder | `build.py`: applies each patch, builds, restores the source byte-exact, asserts `git status` clean; `build.out` lists every binary's SHA-256 |
+| The candidate | `own_bar.patch`, SHA-256 `EE83CB6ED0D2797910AEE944727ECAEF9EFEC3CFB8E7A81566FEC459FE6BB2D7`, on `632bbb3`; trees `build/b4-a2-cand`, `-cand-tune`, `-cand-diag`; `bin/cand_basilisk.exe` SHA-256 `DEC2EBEB8CFB57F75B2DA58C58AA0949473A9DF318B7B05F6052A0574FA7E467` |
+| Ticket 6's tree | `t6_sw0.patch`, SHA-256 `7DAC69C95AC15BD8CA3DB21F4E1887149DA781E6A0A2B889773A35149D5BF14D`; `build/b4-a2-t6`, `-t6-diag` |
+| The full sort | `t6_full_sort.patch`, SHA-256 `14820EB227B8BC5A77DEEB34A1A9D7C2D44066AFEC5330905CF9E2CC69551F71`; `build/b4-a2-sort`, `-sort-diag` |
+| Playout listing | `bin/{off-list,t7-list,t6,cand,sort}_test_endgames.exe`: `test_endgames` with a print of every playout |
+| Checks | `checks.py`, `checks.txt`; `identity.py`, `identity.txt`; `depths.py`, `depths.txt` |
+| R1, R5 (a), R7's floors | `floors.py`; `r1/`, `r5a/` and `r7/floors.json` with their logs; `r1_report.py`, `r1_report.txt` |
+| R2 | `r2_exposure.py`, `r2_exposure.txt`; the PGN is `tools/results/b42-pins-gate/games.pgn`, and `games.json` is its parsed form |
+| R3 | `r3_firing.py`, `r3_firing.json`, `r3_firing.txt` |
+| R4, R8 | `r4_mates.py`, `r4_mates.json`, `r4_report.py`, `r4_mates.txt`; `r8_reach.py`, `r8_reach.json`, `r8_reach.txt` |
+| R5 (b) | `r5b_playouts.py`; `r5b_120000.json`, `r5b_1000000.json` and their `.txt` |
+| R6, R7 | `run_reads.py`, `reads.out` and the `*_test_*.log`, `*_wac_*.log` beside it; `r7/price_t6`, `r7/price_sort`, `r7/counters_*.json` |
+| R9 | `r9_kbnk.py`, `r9_kbnk.json`, `r9_kbnk.txt` |
