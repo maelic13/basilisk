@@ -654,10 +654,28 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         }
     }
 
+    // A side with only king and pawns that has just lost a piece may have no
+    // move at all, which the stand-pat cannot see. The value is the draw, exact,
+    // so it takes no blend and may lie on either side of the window.
+    if constexpr (kB4Qsearch) {
+        if (kp.b4_stalemate && nm == 0 && type_of(state_.board->captured_piece()) >= KNIGHT
+            && !state_.board->has_non_pawn_material(state_.board->turn())) {
+            MoveList legal;
+            state_.board->gen_legal(legal);
+            if (legal.empty()) {
+                DIAG_COUNT(++state_.diag.qs_stalemates);
+                TRACE_DECISION(TraceEvent::QsStalemate, ply, 0, MOVE_NONE,
+                               alpha, beta, stand_pat, -1, correction, VALUE_NONE,
+                               0, 0, VALUE_NONE, 0);
+                best = 0;
+            }
+        }
+    }
+
     PRICE(settle(best));
     DIAG_COUNT(++state_.diag.qs_fail_lows);
     DIAG_COUNT(state_.diag.qs_fail_low_searched += captures_searched > 0);
-    tt_store(hash, 0, best, TT_ALPHA, best_move, ply, tt_eval, pv_hit);
+    tt_store(hash, 0, best, best >= beta ? TT_BETA : TT_ALPHA, best_move, ply, tt_eval, pv_hit);
     return best;
 }
 

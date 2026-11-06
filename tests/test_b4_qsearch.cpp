@@ -610,6 +610,52 @@ static void test_stand_pat_returns_and_stores_the_blend() {
     end_section();
 }
 
+// ---- Stalemate ----------------------------------------------------------------------
+
+// Rxh3 takes Black's last piece and leaves a bare king with a blocked pawn and
+// no legal move. The arm reads the draw; with the switch off, and on the OFF
+// arm, quiescence stands pat on it.
+static void test_stalemate() {
+    NodeRead r;
+    r.fen = "k7/p1K5/P7/8/8/7r/8/7R w - - 0 1";
+    r.from = H1;
+    r.to = H3;
+    const int eval = node_eval(r);
+    const Run on = read_node(r);
+    r.set = [](SearchParams& p) { p.b4_stalemate = 0; };
+    const Run off = read_node(r);
+    begin_section("stalemate: a blocked bare king reads 0 with the switch on, the static eval off");
+    EXPECT(eval != 0);
+    EXPECT_EQ(on.result.score, kB4Qsearch ? 0 : -eval);
+    EXPECT_EQ(off.result.score, -eval);
+    if constexpr (kCounters)
+        EXPECT_EQ(counter(on, "qs_stalemates"), kB4Qsearch ? 1 : 0);
+    end_section();
+
+    // The same stalemate after a pawn fell: the donor's condition asks for a
+    // piece, so quiescence stands pat.
+    NodeRead pawn;
+    pawn.fen = "k7/p1K5/P7/8/8/7p/8/7R w - - 0 1";
+    pawn.from = H1;
+    pawn.to = H3;
+    const Run after_pawn = read_node(pawn);
+    begin_section("stalemate: the test asks for a captured piece");
+    EXPECT_EQ(after_pawn.result.score, -node_eval(pawn));
+    end_section();
+
+    // The draw is exact: above a window that ends below it, no blend moves it.
+    // The node's beta of -200 lies between the static eval and the draw.
+    NodeRead narrow = r;
+    narrow.set = nullptr;
+    set_node_alpha(narrow, -201);
+    const Run exact = read_node(narrow);
+    begin_section("stalemate: the draw takes no blend");
+    EXPECT(eval < -200);
+    if constexpr (kB4Qsearch)
+        EXPECT_EQ(exact.result.score, 0);
+    end_section();
+}
+
 // ---- The tune surface -----------------------------------------------------------
 
 static void test_options_are_the_arms_alone() {
@@ -650,6 +696,7 @@ int main() {
     test_the_rules_the_arm_removes();
     test_blend_arithmetic();
     test_stand_pat_returns_and_stores_the_blend();
+    test_stalemate();
 
     return harness_summary();
 }
