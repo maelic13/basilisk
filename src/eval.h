@@ -16,6 +16,16 @@ struct PawnEntry {
 
 static constexpr int PAWN_TABLE_SIZE = 16384;
 
+// The material imbalance depends on the ten piece counts alone. A search meets few
+// such sets, so a small table holds them. The key is the counts themselves, six
+// bits each, so an entry can never answer for another position's material.
+struct ImbalanceEntry {
+    uint64_t key;
+    int      value;
+};
+
+static constexpr int IMBALANCE_TABLE_BITS = 10;
+
 // The search treats any score at or above MATE_SCORE - MAX_PLY as a mate and
 // ply-adjusts it on its way into the TT, so a STATIC evaluation must stay
 // strictly below it.
@@ -92,6 +102,8 @@ public:
 
 private:
     PawnEntry pawn_table_[PAWN_TABLE_SIZE];
+    ImbalanceEntry imbalance_table_[1 << IMBALANCE_TABLE_BITS];
+    int imbalance_generation_ = 0;
 
     int evaluate_full(const Board& b, bool& verdict, bool query);
 
