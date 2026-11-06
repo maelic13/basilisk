@@ -2009,6 +2009,14 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           amendment's own registered rule on the maintainer's standing
           decision, so it awaits the maintainer's confirmation.
         - The follow-ups sit in B.4.5, B.4.6 and B.4.7 below.
+        - Decided 2026-11-06 (maintainer, taking the review's positions):
+          - the cap stays off in the arm (`B4RfpSeekMate` 0), with its
+            re-read on the network in H.2;
+          - the evasion rule's accounting in tune builds is gated, not
+            measured (B.4.5's opening);
+          - a denser conversion floor is registered at B.5's research;
+          - the full evasion sort stays an H.2 candidate, with no sixth
+            categorical in B.4.5.
     - [ ] **B.4.5** `[V]` Diagnostics and the unfitted paired run
       The packet's zero-game screens on both arms, then its registered
       categorical and deletion reads and the unfitted paired run.
@@ -2027,6 +2035,8 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           only with `B4EvasionPrune` 1, at up to 1.86% of nodes. Either
           it is gated on the flags that read it, at both fingerprints,
           or the offset is stated beside the verdict with its size.
+          Decided 2026-11-06 (maintainer): gated, in a behaviour-neutral
+          commit before the run; BAS-S50 cites the commit.
         - Records: the screen's first row is `suite_v2` 12, and bench 11
           passes by the review's read; A2-P5 and A2-P11 are misses as
           frozen; the departures table gains a row for the capture stage
@@ -2056,6 +2066,12 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
   option, and deep-iteration line growth; SPRT `[0,3]`.
   Its packet keeps a departures table for B.6.1 (maintainer 2026-10-31),
   as B.4's does.
+  Its research registers a denser conversion floor for this cluster and
+  the later ones (maintainer 2026-11-06): the four families over the
+  25-budget grid with a bound on unconverted playouts, the bound taken
+  from B.4's read (`analysis/b43_cluster3_research_2026-11-06.md`,
+  research amendment 2 §5: a healthy tree misses one KR-K playout of 600,
+  so five budgets at 24 of 24 false-alarm about one read in five to ten).
   MultiPV exists since A.8.9, identity-gated at `MultiPV 1`, and BAS-C13's
   tablebase PV contract is kept. Time management
   proper is D.1's.

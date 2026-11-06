@@ -2767,3 +2767,31 @@ can name.
 | Mutants | `rev_mutate.py`; `mutants.json`, `mutants.out`; `mutant_bench_part1.json`, `mutant_bench.json` |
 | Amendment 2 | `a2_rescore.py`, `a2_rescore.txt`; `a2_rerun.py`, `a2_rerun_hash64.json`, `a2_rerun.out`; `conv_off_35000.log` |
 | Tool tests | `py_test_run_suite.log`, `py_test_pricing.log`, `py_test_decision_trace.log`, `py_test_spsa_surface.log` |
+
+### 9. The maintainer's decisions on the review (2026-11-06)
+
+The maintainer took the review's positions as decisions.
+
+1. **The cap stays off in the arm.** `B4RfpSeekMate` 0, as amendment 2 §3
+   left it. The switch, its two F lines, the counter and the tests stay
+   for the re-read on the network (H.2, mates found at a node budget
+   first). Amendment 2 §10 item 1 is closed.
+2. **The tune build's offset is gated, not measured** (follow-up 2). The
+   evasion rule's accounting runs only when something reads it: the Diag
+   option or pricing on. It lands at B.4.5's opening as a behaviour-neutral
+   commit at both fingerprints, before item 1's paired run, and BAS-S50
+   cites it.
+3. **A denser conversion floor is registered at B.5's research**
+   (amendment 2 §10 item 2): the 25-budget grid with a bound on
+   unconverted playouts. Nothing in B.4 uses it, and B.4's floors stay as
+   registered.
+4. **The full evasion sort is an H.2 candidate** (amendment 2 §10 item 3).
+   B.4.5 gets no sixth categorical.
+5. **`run_suite.py`'s bound is repaired on the tool's side** (follow-up 1):
+   a quiet check stays in `qs_searched`, the two bounds that compare
+   searched moves with delivered captures subtract `qs_quiet_checks`, and
+   `qs_gain_tested`'s comment says so. No counter changes its meaning.
+
+The review's clean trees (`build/rev-b4`) were removed after this record;
+its logs, JSON and scripts stay in `tools/results/b44-20261106/review/`.
+`review_table.py` rebuilds the worktree, and `rev_mutate.py` runs in it.
