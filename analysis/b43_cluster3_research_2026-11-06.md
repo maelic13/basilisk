@@ -2795,3 +2795,85 @@ The maintainer took the review's positions as decisions.
 The review's clean trees (`build/rev-b4`) were removed after this record;
 its logs, JSON and scripts stay in `tools/results/b44-20261106/review/`.
 `review_table.py` rebuilds the worktree, and `rev_mutate.py` runs in it.
+
+## B.4.5 — opening (2026-11-06)
+
+What PLAN B.4.5 owed at its opening, from the review's §7 and the maintainer's
+decisions of its §9. It is not B.4.5's screens and not its runs: no game, SPSA,
+NPS read or zero-game screen ran. Evidence: `tools/results/b45-20261106/opening/`
+(ignored storage).
+
+### The commits
+
+| Commit | What | Fingerprints |
+|---|---|---|
+| `cdee38f` | Tooling. `run_suite.py`'s two bounds that compare searched moves with delivered captures subtract `qs_quiet_checks`; `test_run_suite.py` gains a case that failed on the old tool | no engine change |
+| `33654f8` | Engine, behaviour-neutral. The evasion rule's accounting runs only when `config_.limits.diag` or `state_.price.enabled()` holds. `qs_gain_tested`'s comment names its denominator: `qs_searched` less `qs_quiet_checks` plus the rules' prunes | OFF 6,090,091, arm 4,003,560 |
+
+The trace starts only with `limits.diag` set (`search_worker.cpp:357`), and the
+counters print only under it, so those two flags are every reader the
+accounting has.
+
+### Qualification
+
+**`cdee38f`.** The new case failed before the repair (1 failed, 8 passed,
+`test_run_suite_before.log`) and passes after it (9 passed). On real runs:
+
+| Run | Exit | Against the review |
+|---|---|---|
+| The arm's Tune build, `B4QuietChecks` 6, depth 10 | 0 (`qs_quiet_checks` 123,921) | the review's run failed after 25 positions |
+| The arm's Diag build, depth 12, stride 1, Hash 64 | 0 | `suite_on_d12.json`: 177 rows and 106 records, 0 differ |
+| The OFF arm's Diag build, the same | 0 | `suite_off_d12.json`: 177 rows and 106 records, 0 differ |
+
+**`33654f8`** (`gate_reads.py`, `gate_reads.txt`), on the committed tree:
+
+| Read | Result |
+|---|---|
+| `bench 13` Release / Tune / Diag / Ablate | OFF 6,090,091 × 4, ON 4,003,560 × 4 |
+| Release CTest | 27/27 on both arms |
+| `test_b4_qsearch` Diag / Tune | ON 216 / 233, OFF 174 / 191, all pass |
+| The arm's depth-12 counter suite | equal to `suite_on_d12.json`: 177 rows, 106 records, 0 differ |
+| Pricing isolation, 20 positions, depth 10, every 4 | 114,787 probes, 0 positions differ |
+| Decision traces, WAC.001 / 085 / 203 / 253 | 479 / 411 / 1,002 / 158 records, each equal to `t10/trace_on_*.json` apart from hash, path and time |
+
+**Mutants**, the source restored byte-exact after each:
+
+- *The gate forced false:* `test_b4_qsearch` fails in Diag, in "a holding capture
+  and three quiets search no quiet" and "a quiet table move is the one quiet
+  searched" (`mutant_gate_false.txt`).
+- *The Pricing half dropped* (`pricing_mutant.py`): see below.
+
+**One read beyond the list.** Isolation runs with Diag on in both arms, so it
+cannot see the gate's Pricing half on its own. A `pricing.py read` with Diag off,
+20 positions, depth 10, every 4, on a Diag binary of `cdee38f` and on one of
+`33654f8`: all 20 runs equal, cells included, and `summary.json` differs in its
+`engine` field alone (`price_base/`, `price_gate/`). With the Pricing half
+dropped, all 20 runs differ, so the comparison can fail.
+
+**What no read shows.** That the block is skipped with neither flag set has no
+observable but speed, and no NPS read ran. The evidence is the code's one
+condition and the two mutants above, each of which shows that a flag being false
+stops the block.
+
+### §14, one new row
+
+| Place | Basilisk's form (kept) | The donor's form | Why kept | Waits on |
+|---|---|---|---|---|
+| The capture stage | a capture or any promotion, so quiescence searches quiet underpromotions and SEE-tests one that answers a check | a capture or a queen promotion, so quiescence does not search a quiet underpromotion and skips one that answers a check | it is Basilisk's existing definition, on both arms | B.6.1 |
+
+### BAS-S50
+
+`docs/experiments/BAS-S50.md` is registered, before any game, from §11's text as
+amended. It carries amendment 1's re-registered P5, amendment 2 §8's two recorded
+reads, that `B4RfpSeekMate` has no paired run, and the review's records: the cost
+screen's first row is `suite_v2` 12 and bench 11 passes by the review's read
+(steps 20 to 22, geometric mean 0.643); A2-P5 and A2-P11 are misses as frozen;
+item 1's offset is gated at `33654f8`; `run_suite.py` is repaired at `cdee38f`.
+The run table's seeds are not in §11; they follow BAS-S41's numbering (50000 and
+the item's number).
+
+### Revision
+
+The categoricals and the paired run read the head with these two commits.
+§11 says "the accepted B.4.4 head": `33654f8` is that source with the gate on top,
+at both fingerprints and with the counters, prices and traces above unchanged.

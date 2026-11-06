@@ -2042,6 +2042,13 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           frozen; the departures table gains a row for the capture stage
           (every promotion, where the donor's is a capture or a queen
           promotion).
+      - Done at the opening, 2026-11-06 (packet *B.4.5 — opening*):
+        - `run_suite.py` reads quiet checks: `cdee38f`, with a test that
+          failed first; `qs_gain_tested`'s comment is corrected in `33654f8`.
+        - The tune build's offset is gated: `33654f8`, at both fingerprints.
+          BAS-S50 is registered and cites it.
+        - The records are in BAS-S50, and the capture stage's row is in the
+          packet's opening section.
     - [ ] **B.4.6** `[V]` Curvature sweep, then SPSA in blocks
       The packet's registered sweep, then SPSA in blocks on Cluster 3's
       surface (with B-21's RFP, razoring and NMP-base coordinates); the
@@ -2807,7 +2814,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.4.5 | RESEARCH | V | The next action: B.4.4 closed 2026-11-06, accepted with named follow-ups (`analysis/b43_cluster3_research_2026-11-06.md`, *Review — B.4.4 accepted with named follow-ups*); the follow-ups bind its opening |
+| B.4.5 | RESEARCH | V | The opening's items are done (`analysis/b43_cluster3_research_2026-11-06.md`, *B.4.5 — opening*; BAS-S50 registered); the zero-game screens are next |
 | B.4.6 | RESEARCH | V | After B.4.5 |
 | B.4.7 | RESEARCH | V | After B.4.6 |
 | B.5 | RESEARCH | I2 | Contents fixed by B.0; the ply cap and the clean child frame added 2026-11-05 |

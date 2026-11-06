@@ -539,6 +539,8 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S49](experiments/BAS-S49.md) — B.4.2: SEE follows pins opened during the exchange, `[-5,5]` — cap, −3.8 ± 7.6; repair kept
 
+- [BAS-S50](experiments/BAS-S50.md) — B.4.5: Cluster 3 diagnostics, the unfitted paired run and the categoricals — registered
+
 | ID | Title | Disposition |
 |---|---|---|
 | [BAS-S17](experiments/BAS-S17.md) | Razoring depth reach in Elo (B.0.1, maintainer). | +2.4 ± 9.9; interval holds 0, the cluster decides the cap |
