@@ -671,6 +671,53 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         }
     }
 
+    // A quiet check is the one threat the captures cannot show. At the first
+    // ply, after them, up to the limit are searched as captures are; a check
+    // that hangs the piece shows nothing a stand-pat does not.
+    if constexpr (kB4Qsearch) {
+        if (kp.b4_quiet_checks > 0 && qply == 0) {
+            MoveList checks;
+            state_.board->gen_quiet_checks(checks);
+            int tried = 0;
+            for (Move m : checks) {
+                if (tried == kp.b4_quiet_checks)
+                    break;
+                if (!state_.board->see_ge(m, 0))
+                    continue;
+                ++tried;
+                do_move(ss, m);
+                const int s = -quiescence<NT>(-beta, -alpha, ply + 1, qply + 1, ss + 1);
+                undo_move(ss, m);
+                if (state_.stopped) return 0;
+                DIAG_COUNT(++state_.diag.qs_searched);
+                DIAG_COUNT(++state_.diag.qs_quiet_checks);
+                DIAG_COUNT(++captures_searched);
+                if (s > best_scored_value) {
+                    best_scored_value = s;
+                    best_scored = m;
+                }
+                if (s > best) best = s;
+                if (s > alpha) {
+                    alpha = s;
+                    best_move = m;
+                }
+                if (s >= beta) {
+                    DIAG_COUNT(++state_.diag.qs_fail_highs);
+                    DIAG_COUNT(state_.diag.qs_fail_high_first += captures_searched == 1);
+                    DIAG_COUNT(state_.diag.qs_fail_high_index_sum += captures_searched - 1);
+                    DIAG_COUNT(state_.diag.qs_fail_high_excess += is_decisive(s) ? 0 : s - beta);
+                    TRACE_DECISION(TraceEvent::QsBetaCutoff, ply, 0, m,
+                                   alpha, beta, stand_pat, -1, correction, VALUE_NONE,
+                                   nm + tried - 1, 0, VALUE_NONE, s);
+                    PRICE(settle(s));
+                    const int value = b4::fail_high_value(s, beta, kp.b4_qs_fail_high_blend);
+                    tt_store(hash, 0, value, TT_BETA, m, ply, tt_eval, pv_hit);
+                    return value;
+                }
+            }
+        }
+    }
+
     // A side with only king and pawns that has just lost a piece may have no
     // move at all, which the stand-pat cannot see. The value is the draw, exact,
     // so it takes no blend and may lie on either side of the window.

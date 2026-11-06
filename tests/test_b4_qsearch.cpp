@@ -869,6 +869,70 @@ static void test_rfp_seek_mate_live() {
     end_section();
 }
 
+// ---- Quiet checks -----------------------------------------------------------------
+
+// After ...a6 White has one quiet check, Rd8 mate: a depth-1 search can see it
+// only from quiescence.
+static void test_a_quiet_mate_at_the_first_ply() {
+    NodeRead r;
+    r.fen = "6k1/p4ppp/8/8/8/8/8/3R2K1 b - - 0 1";
+    r.from = A7;
+    r.to = A6;
+    const Run none = read_node(r);
+    r.set = [](SearchParams& p) { p.b4_quiet_checks = 6; };
+    const Run six = read_node(r);
+    begin_section("quiet checks: a quiet mate at the first ply is found at 6 and not at 0");
+    EXPECT_EQ(SearchParams{}.b4_quiet_checks, 0);
+    EXPECT(!is_decisive(none.result.score));
+    if constexpr (kB4Qsearch) {
+        EXPECT_EQ(six.result.score, -(MATE_SCORE - 2));
+        if constexpr (kCounters) {
+            EXPECT_EQ(counter(none, "qs_quiet_checks"), 0);
+            EXPECT_EQ(counter(six, "qs_quiet_checks"), 1);
+        }
+    } else {
+        EXPECT_EQ(six.result.score, none.result.score);
+        EXPECT_EQ(six.result.nodes, none.result.nodes);
+    }
+    end_section();
+}
+
+static void test_which_quiet_checks_are_searched() {
+    // Two quiet checks from d1. Each leaves further checks after the king
+    // moves, at a ply the rule does not reach.
+    NodeRead two;
+    two.fen = "7k/p7/8/8/8/8/8/1K1R4 b - - 0 1";
+    two.from = A7;
+    two.to = A6;
+    two.set = [](SearchParams& p) { p.b4_quiet_checks = 6; };
+    const Run first_ply = read_node(two);
+    two.set = [](SearchParams& p) { p.b4_quiet_checks = 1; };
+    const Run limited = read_node(two);
+
+    // Rd8 is White's only check, and the rook on a8 takes it.
+    NodeRead hanging;
+    hanging.fen = "r5k1/p4ppp/8/8/8/8/8/3R2K1 b - - 0 1";
+    hanging.from = A7;
+    hanging.to = A6;
+    const Run off = read_node(hanging);
+    hanging.set = [](SearchParams& p) { p.b4_quiet_checks = 6; };
+    const Run on = read_node(hanging);
+
+    begin_section("quiet checks: the first ply alone, up to the limit, none that loses SEE");
+    if constexpr (kB4Qsearch) {
+        EXPECT(first_ply.result.nodes > limited.result.nodes);
+        EXPECT_EQ(on.result.nodes, off.result.nodes);
+        if constexpr (kCounters) {
+            EXPECT_EQ(counter(first_ply, "qs_quiet_checks"), 2);
+            EXPECT_EQ(counter(limited, "qs_quiet_checks"), 1);
+            EXPECT_EQ(counter(on, "qs_quiet_checks"), 0);
+        }
+    } else {
+        EXPECT_EQ(first_ply.result.nodes, limited.result.nodes);
+    }
+    end_section();
+}
+
 // ---- The SEE vector -----------------------------------------------------------
 
 // The seam is a tune build's alone, and a search reads it from its limits: the
@@ -934,6 +998,8 @@ int main() {
     test_rfp_seek_mate_gate();
     test_rfp_seek_mate_live();
     test_the_see_vector_reaches_the_search();
+    test_a_quiet_mate_at_the_first_ply();
+    test_which_quiet_checks_are_searched();
 
     return harness_summary();
 }
