@@ -28,7 +28,7 @@
     ["search", ["search_kernel.cpp", "search_kernel_core.cpp", "search_worker.cpp", "search_worker.h",
                 "search_root.cpp", "search_root.h", "search.h", "search_types.h", "search_params.h",
                 "search_thread_pool.cpp", "search_thread_pool.h", "search_diagnostics.cpp",
-                "search_diagnostics.h", "search_b3.h"]],
+                "search_diagnostics.h", "search_b3.h", "search_b4.h"]],
     ["tablebases", ["syzygy.cpp", "syzygy.h", "tbprobe.c", "tbprobe.h", "tbchess.c", "tbconfig.h", "stdendian.h"]],
     ["driver", ["main.cpp", "engine.cpp", "engine.h", "engine_entry.cpp", "engine_entry.h", "engine_command.h",
                 "uci_protocol.cpp", "uci_protocol.h", "uci_output.h", "bench.cpp", "bench.h",
