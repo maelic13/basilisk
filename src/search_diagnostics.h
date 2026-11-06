@@ -235,7 +235,8 @@ using InfoCallback = std::function<void(const std::string&)>;
        (denominator rfp_cuts plus itself); and captures that entered the    \
        gain rules' block: no check, promotion or exempt recapture, at a     \
        node where the rules run (denominator the captures the loop          \
-       delivered, qs_searched plus the rules' prunes). */                   \
+       delivered: qs_searched less qs_quiet_checks plus the rules'          \
+       prunes). */                                                          \
     X(qs_count_pruned) X(qs_recapture_exempt)                              \
     X(qs_evasion_quiets_pruned) X(qs_evasion_see_pruned)                   \
     X(qs_stalemates) X(qs_quiet_checks) X(rfp_seekmate_capped)             \

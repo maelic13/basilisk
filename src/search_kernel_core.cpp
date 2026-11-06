@@ -352,8 +352,15 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
             }
 #if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC) \
     || defined(BASILISK_RELEASE_DIAG_COUNTERS)
-            // What the rule left unsearched at a node that found no cutoff.
-            if (picker.quiets_skipped()) {
+            // What the rule left unsearched at a node that found no cutoff. It
+            // costs a generation of the quiets, so it runs only for its readers:
+            // the counters and the trace under Diag, the prices under Pricing.
+            // Unread, it would make a tune build's rule dearer than its switch.
+            bool accounted = config_.limits.diag;
+#ifdef BASILISK_PRICING
+            accounted = accounted || state_.price.enabled();
+#endif
+            if (accounted && picker.quiets_skipped()) {
                 MoveList quiets;
                 state_.board->gen_legal_quiets(quiets);
                 DIAG_COUNT(state_.diag.qs_evasion_quiets_pruned
