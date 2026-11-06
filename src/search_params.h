@@ -373,6 +373,53 @@
     A(cont_hist_prune_slope, CoreContHistPruneSlope, 3832)              \
     A(corr_update_scale,     CoreCorrUpdateScale,    17)
 
+// ---- Cluster 3 (the B4_QSEARCH arm) -----------------------------------------
+//
+// B(X, F, S) as Cluster 2's: every arm compiles the fields, the kernel reads
+// them on the arm alone, and tune builds advertise them there alone.
+//
+// Quiescence's margins. b4_qs_fut_base is added to the corrected static eval
+// (not the table-tightened stand-pat) to give the futility base. The blends
+// are the value's weight in 1024ths, the rest going to beta, at a stand-pat
+// cut and at any other fail high; 1024 returns the value as it is.
+// b4_qs_move_count: captures after this many, in delivery order and pruned
+//   ones included, are pruned unless a check, promotion or recapture; 64
+//   turns the rule off. An F line: it is a count.
+// b4_qs_see_margin: every capture, and an evasion capture once the node holds
+//   a value that is not a loss, must clear this SEE. An F line: on the
+//   default vector every value from -99 to 0 prunes the same captures.
+// b4_rfp_seek_mate_cap: reverse futility's deepest node while Cluster 2's
+//   seek_mate holds.
+//
+// b4_evasion_prune: 1 once an evasion holds a value that is not a loss,
+//   quiets and SEE-losing captures are skipped; 0 every evasion is searched.
+// b4_qs_recapture: 1 a recapture on the previous move's square is exempt from
+//   the count rule, futility and the alpha-relative SEE; 0 not exempt.
+// b4_stalemate: 1 tests for stalemate where quiescence's cheap conditions
+//   hold; 0 stands pat on it.
+// b4_rfp_seek_mate: 1 applies b4_rfp_seek_mate_cap; 0 no cap.
+// b4_qs_delta: 1 restores the OFF arm's delta rule; 0 none.
+// b4_gain_values: the captured value quiescence's gain rules read. 0 the
+//   search's PIECE_VALUE; 1 the evaluation's material.
+// b4_see_values: the vector every `see` and `see_ge` call reads, on the same
+//   two choices (tune builds; release builds keep the constants).
+// b4_quiet_checks: quiet checks searched at the first quiescence ply; 0 none.
+#define BASILISK_B4_PARAMS(X, F, S)                                      \
+    X(b4_qs_fut_base,        B4QsFutBase,           86,   40,   220)     \
+    X(b4_qs_stand_pat_blend, B4QsStandPatBlend,    441,  256,  1024)     \
+    X(b4_qs_fail_high_blend, B4QsFailHighBlend,    462,  256,  1024)     \
+    F(b4_qs_move_count,      B4QsMoveCount,          2,    1,    64)     \
+    F(b4_qs_see_margin,      B4QsSeeMargin,        -28, -200,     0)     \
+    F(b4_rfp_seek_mate_cap,  B4RfpSeekMateCap,       5,    1,    19)     \
+    S(b4_evasion_prune,      B4EvasionPrune,         1,    0,     1)     \
+    S(b4_qs_recapture,       B4QsRecapture,          1,    0,     1)     \
+    S(b4_stalemate,          B4Stalemate,            1,    0,     1)     \
+    S(b4_rfp_seek_mate,      B4RfpSeekMate,          1,    0,     1)     \
+    S(b4_qs_delta,           B4QsDelta,              0,    0,     1)     \
+    S(b4_gain_values,        B4GainValues,           0,    0,     1)     \
+    S(b4_see_values,         B4SeeValues,            0,    0,     1)     \
+    S(b4_quiet_checks,       B4QuietChecks,          0,    0,     6)
+
 #define BASILISK_KERNEL_PARAMS(X) BASILISK_CORE_KERNEL_PARAMS(X, X)
 #define BASILISK_KERNEL_SWITCHES(S) BASILISK_CORE_KERNEL_SWITCHES(S)
 
@@ -385,6 +432,8 @@ struct SearchParams {
     BASILISK_SEARCH_PARAMS(BASILISK_SEARCH_PARAM_FIELD)
     BASILISK_KERNEL_SWITCHES(BASILISK_SEARCH_PARAM_FIELD)
     BASILISK_B3_PARAMS(BASILISK_SEARCH_PARAM_FIELD, BASILISK_SEARCH_PARAM_FIELD,
+                       BASILISK_SEARCH_PARAM_FIELD)
+    BASILISK_B4_PARAMS(BASILISK_SEARCH_PARAM_FIELD, BASILISK_SEARCH_PARAM_FIELD,
                        BASILISK_SEARCH_PARAM_FIELD)
 #undef BASILISK_SEARCH_PARAM_FIELD
 #if defined(BASILISK_B3_PROOF)

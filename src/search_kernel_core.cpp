@@ -8,6 +8,7 @@
 #include "search_worker.h"
 #include "constants.h"
 #include "search_b3.h"
+#include "search_b4.h"
 #include "syzygy.h"
 #include <algorithm>
 #include <bit>
@@ -371,8 +372,8 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     // that beat alpha are judged against the final best when the node ends.
     PricePending pending[8];
     int pending_count = 0;
-    auto price_move = [&](PriceRule rule, Move m, int move_number) {
-        const int cell = state_.price.decide(rule, 0, node_kind, move_number);
+    auto price_move = [&](PriceRule rule, Move m, int move_number, int move_class = 0) {
+        const int cell = state_.price.decide(rule, move_class, node_kind, move_number);
         if (cell < 0)
             return;
         int64_t probe_nodes = 0;
@@ -419,13 +420,17 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         // Futility: the capture's optimistic value cannot raise alpha, and
         // stands in for the move in the node's upper bound.
         const int futility_value = stand_pat + tactical_gain + 150;
+#ifdef BASILISK_PRICING
+        const int move_class = price_class(
+            mt == EN_PASSANT ? PAWN : type_of(target), b4::is_recapture(m, (ss - 1)->move));
+#endif
         if (prune_by_gain && !is_promo
             && futility_value <= alpha
             && !move_gives_check()) {
             TRACE_DECISION(TraceEvent::QsFutilityPrune, ply, 0, m,
                            alpha, beta, stand_pat, -1, correction, VALUE_NONE,
                            i, 0, tactical_gain + 150, alpha);
-            PRICE(price_move(PriceRule::QsFutility, m, i + 1));
+            PRICE(price_move(PriceRule::QsFutility, m, i + 1, move_class));
             DIAG_COUNT(++state_.diag.qs_futility_pruned);
             best = std::max(best, futility_value);
             continue;
@@ -437,7 +442,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
             TRACE_DECISION(TraceEvent::QsSeePrune, ply, 0, m,
                            alpha, beta, stand_pat, -1, correction, VALUE_NONE,
                            i, 0, see_threshold, alpha);
-            PRICE(price_move(PriceRule::QsSee, m, i + 1));
+            PRICE(price_move(PriceRule::QsSee, m, i + 1, move_class));
             DIAG_COUNT(++state_.diag.qs_see_pruned);
             continue;
         }

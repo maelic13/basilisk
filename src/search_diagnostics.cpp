@@ -87,6 +87,9 @@ void DecisionTrace::print(const InfoCallback& info, const std::vector<Move>& roo
             case TraceEvent::ExtBudgetTruncate:    return "ext_budget_truncate";
             case TraceEvent::CuckooDraw:           return "cuckoo_draw";
             case TraceEvent::TtPenalty:            return "tt_penalty";
+            case TraceEvent::QsCountPrune:         return "qs_count_prune";
+            case TraceEvent::QsEvasionPrune:       return "qs_evasion_prune";
+            case TraceEvent::QsStalemate:          return "qs_stalemate";
         }
         return "unknown";
     };
@@ -361,6 +364,14 @@ void print_search_diag(const DiagCounters& d, const Evaluator& evaluator,
             d.eval_refined, d.eval_refined_d0, d.eval_refine_mass, d.eval_refine_mass_d0,
             d.tt_move_d0, d.rfp_cuts_tt_eval, d.rfp_corr_blocked,
             d.rfp_corr_blocked_tt_eval);
+        emit(buf);
+        // Cluster 3's quiescence.
+        buf = std::format("kv qs_count_pruned={} qs_recapture_exempt={} "
+            "qs_evasion_quiets_pruned={} qs_evasion_see_pruned={} qs_stalemates={} "
+            "qs_quiet_checks={} rfp_seekmate_capped={}",
+            d.qs_count_pruned, d.qs_recapture_exempt, d.qs_evasion_quiets_pruned,
+            d.qs_evasion_see_pruned, d.qs_stalemates, d.qs_quiet_checks,
+            d.rfp_seekmate_capped);
         emit(buf);
     }
     // Speed telemetry: the evaluation rate, the pawn-cache hit rate, the

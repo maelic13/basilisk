@@ -222,7 +222,20 @@ using InfoCallback = std::function<void(const std::string&)>;
     /* Reverse futility by the estimate's source: cuts taken on a table   \
        bound (denominator rfp_cuts), and nodes the margin's correction    \
        term alone kept from cutting, with those of them on a table bound. */ \
-    X(rfp_cuts_tt_eval) X(rfp_corr_blocked) X(rfp_corr_blocked_tt_eval)
+    X(rfp_cuts_tt_eval) X(rfp_corr_blocked) X(rfp_corr_blocked_tt_eval)   \
+    /* Cluster 3 (the B4_QSEARCH arm; the OFF arm leaves them at 0).        \
+       Captures the count rule pruned (denominator qs_moves); recaptures    \
+       the exemption alone kept from the gain rules (denominator the        \
+       captures the loop delivered, qs_searched plus the rules' prunes);    \
+       quiet evasions the rule left unsearched at nodes that ended without \
+       a cutoff, and evasion captures it skipped on SEE (denominator        \
+       qs_evasion_moves plus themselves); stalemates quiescence found       \
+       (denominator qs_nodes); quiet checks searched (denominator           \
+       qs_nodes); and reverse-futility cuts the seek_mate cap refused       \
+       (denominator rfp_cuts plus itself). */                               \
+    X(qs_count_pruned) X(qs_recapture_exempt)                              \
+    X(qs_evasion_quiets_pruned) X(qs_evasion_see_pruned)                   \
+    X(qs_stalemates) X(qs_quiet_checks) X(rfp_seekmate_capped)
 
 struct DiagCounters {
 #define BASILISK_DIAG_COUNTER_FIELD(name) int64_t name = 0;
@@ -245,7 +258,7 @@ struct DiagCounters {
 // aggregate and the field count stay in step with the table.
 static_assert(sizeof(DiagCounters) == DiagCounters::COUNT * sizeof(int64_t),
               "DiagCounters holds something that is not a counter from the table");
-static_assert(DiagCounters::COUNT == 166, "the counter contract has 166 entries; extend, never rename");
+static_assert(DiagCounters::COUNT == 173, "the counter contract has 173 entries; extend, never rename");
 
 // One search's counters as `info string diag` lines, followed by the
 // evaluator's speed telemetry.
@@ -270,7 +283,9 @@ enum class TraceEvent : uint8_t {
     SkipQuiets,
     // Cluster 2's events.
     NullVerify, NullRegionRefused, ProbcutTtCutoff, ExtBudgetTruncate,
-    CuckooDraw, TtPenalty
+    CuckooDraw, TtPenalty,
+    // Cluster 3's events.
+    QsCountPrune, QsEvasionPrune, QsStalemate
 };
 // The pruning family a record belongs to, so the move-loop family's members
 // can be told apart where one event name covers several rules.

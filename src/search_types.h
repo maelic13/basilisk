@@ -72,6 +72,14 @@ inline constexpr bool kB3Proof = true;
 inline constexpr bool kB3Proof = false;
 #endif
 
+// Cluster 3's umbrella (CMake B4_QSEARCH), in the same form: quiescence's
+// branches are `if constexpr` on this.
+#if defined(BASILISK_B4_QSEARCH)
+inline constexpr bool kB4Qsearch = true;
+#else
+inline constexpr bool kB4Qsearch = false;
+#endif
+
 // A single-PV aspiration failure prints its bound only once a search has run
 // this long, as Stockfish does, so fast games print the same lines as before.
 inline constexpr double kBoundLineAfterSeconds = 3.0;
