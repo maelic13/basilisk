@@ -570,11 +570,13 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
                     DIAG_COUNT(++state_.diag.qs_count_pruned);
                     continue;
                 }
-                const int futility_value = futility_base + captured_value;
+                const int gain = b4::gain_value(capture_victim(*state_.board, m),
+                                                kp.b4_gain_values);
+                const int futility_value = futility_base + gain;
                 if (futility_value <= alpha) {
                     TRACE_DECISION(TraceEvent::QsFutilityPrune, ply, 0, m,
                                    alpha, beta, stand_pat, -1, correction, VALUE_NONE,
-                                   i, 0, kp.b4_qs_fut_base + captured_value, alpha);
+                                   i, 0, kp.b4_qs_fut_base + gain, alpha);
                     PRICE(price_move(PriceRule::QsFutility, m, i + 1, move_class));
                     DIAG_COUNT(++state_.diag.qs_futility_pruned);
                     best = std::max(best, futility_value);

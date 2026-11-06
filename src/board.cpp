@@ -1709,7 +1709,11 @@ bool Board::see_departure_opens_line(Square s, Bitboard occ) const {
 }
 
 int Board::see(Move m) const {
+#ifdef BASILISK_TUNE
+    const int* const SEE_VALUES = see_values_;
+#else
     static constexpr int SEE_VALUES[PIECE_TYPE_NB] = {0, 100, 300, 300, 500, 900, 20000};
+#endif
 
     Square from = from_sq(m);
     Square to   = to_sq(m);
@@ -1845,7 +1849,11 @@ int Board::see(Move m) const {
 
 bool Board::see_ge(Move m, int threshold) const {
     ++diag_see_ge_calls;
+#ifdef BASILISK_TUNE
+    const int* const SEE_VALUES = see_values_;
+#else
     static constexpr int SEE_VALUES[PIECE_TYPE_NB] = {0, 100, 300, 300, 500, 900, 20000};
+#endif
 
     const Square from = from_sq(m);
     const Square to   = to_sq(m);
@@ -1882,7 +1890,7 @@ bool Board::see_ge(Move m, int threshold) const {
     // my piece is taken" exits below: losing the piece to a promoting pawn
     // costs the surplus as well.
     const bool promo_sq = (sq_bb(to) & (BB_RANKS[RANK_1] | BB_RANKS[RANK_8])) != 0;
-    constexpr int PROMO_SURPLUS = SEE_VALUES[QUEEN] - SEE_VALUES[PAWN];
+    const int PROMO_SURPLUS = SEE_VALUES[QUEEN] - SEE_VALUES[PAWN];
 
     swap = SEE_VALUES[attacker_type] - swap;
     if (swap <= 0 && !promo_sq)

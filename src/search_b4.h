@@ -24,6 +24,12 @@ namespace b4 {
     return (weight * value + (1024 - weight) * beta) / 1024;
 }
 
+// What quiescence's gain rules credit a capture of `victim`: on vector 0 the
+// search's values, on 1 the evaluation's material.
+[[nodiscard]] inline int gain_value(PieceType victim, int vector) {
+    return vector ? HCE_PIECE_VALUE[victim] : PIECE_VALUE[victim];
+}
+
 // Whether a depth is past reverse futility's cap in a search that drives for
 // mate (seek_mate, on the cap's own root depth): a cut there would spend the
 // depth the drive needs on the estimate's word.

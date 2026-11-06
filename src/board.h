@@ -251,6 +251,19 @@ public:
     [[nodiscard]] bool has_non_pawn_material(Color c) const;
     [[nodiscard]] int see(Move m) const;
     [[nodiscard]] bool see_ge(Move m, int threshold) const;
+#ifdef BASILISK_TUNE
+    // The vector see and see_ge read: 0 the search's values, 1 the evaluation's
+    // material. Tune builds alone; every other build keeps the constants.
+    void set_see_vector(int vector) noexcept {
+        see_values_ = vector ? HCE_PIECE_VALUE : SEE_SEARCH_VALUES;
+    }
+
+private:
+    static constexpr int SEE_SEARCH_VALUES[PIECE_TYPE_NB] = {0, 100, 300, 300, 500, 900, 20000};
+    const int* see_values_ = SEE_SEARCH_VALUES;
+
+public:
+#endif
 
     // Castling permission mask per square (AND onto castling_rights when piece moves from/to sq)
     static constexpr int CASTLING_MASK[SQUARE_NB] = {

@@ -489,6 +489,50 @@ static void test_en_passant_is_credited_a_pawn() {
     end_section();
 }
 
+// After ...Kg8 a knight takes a loose rook. At the sum on the search's values
+// the capture is pruned; the evaluation's material credits it 38 more, so the
+// same alpha lets it through. En passant on vector 1 is credited its pawn, 88.
+static void test_the_gain_vector() {
+    NodeRead r;
+    r.fen = "7k/8/8/8/8/2r5/8/1N4K1 b - - 0 1";
+    r.from = H8;
+    r.to = G8;
+    const SearchParams defaults;
+    set_node_alpha(r, node_eval(r) + defaults.b4_qs_fut_base + PIECE_VALUE[ROOK]);
+    const Run search_values = read_node(r);
+    r.set = [](SearchParams& p) { p.b4_gain_values = 1; };
+    const Run hce_values = read_node(r);
+    begin_section("gain rules: the gain vector moves a rook's credit from 500 to 538");
+    EXPECT_EQ(defaults.b4_gain_values, 0);
+    EXPECT_EQ(b4::gain_value(ROOK, 0), 500);
+    EXPECT_EQ(b4::gain_value(ROOK, 1), 538);
+    if constexpr (kB4Qsearch) {
+        EXPECT(hce_values.result.nodes > search_values.result.nodes);
+        if constexpr (kCounters) {
+            EXPECT_EQ(counter(search_values, "qs_futility_pruned"), 1);
+            EXPECT_EQ(counter(hce_values, "qs_futility_pruned"), 0);
+        }
+    } else {
+        EXPECT_EQ(hce_values.result.nodes, search_values.result.nodes);
+    }
+    end_section();
+
+    NodeRead ep;
+    ep.fen = "7k/3p4/8/4P3/8/8/8/6K1 b - - 0 1";
+    ep.from = D7;
+    ep.to = D5;
+    set_node_alpha(ep, node_eval(ep) + defaults.b4_qs_fut_base + HCE_PIECE_VALUE[PAWN]);
+    const Run ep_search_values = read_node(ep);
+    ep.set = [](SearchParams& p) { p.b4_gain_values = 1; };
+    const Run ep_hce_values = read_node(ep);
+    begin_section("gain rules: en passant is credited the vector's pawn");
+    if constexpr (kB4Qsearch && kCounters) {
+        EXPECT_EQ(counter(ep_search_values, "qs_futility_pruned"), 0);
+        EXPECT_EQ(counter(ep_hce_values, "qs_futility_pruned"), 1);
+    }
+    end_section();
+}
+
 // Black's bare king stands next to a loose bishop in a won KBB-K, a known
 // loss by the static eval. The capture ends the ending in a draw, and it is
 // no recapture, so only the band's guard keeps the gain rules from reading it
@@ -825,6 +869,25 @@ static void test_rfp_seek_mate_live() {
     end_section();
 }
 
+// ---- The SEE vector -----------------------------------------------------------
+
+// The seam is a tune build's alone, and a search reads it from its limits: the
+// arm's tree moves with the vector and the OFF arm's does not.
+static void test_the_see_vector_reaches_the_search() {
+#ifdef BASILISK_TUNE
+    const char* const kiwipete =
+        "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
+    const SearchResult search_values = search_fen(kiwipete, 8);
+    const SearchResult hce_values = search_fen(kiwipete, 8, [](SearchParams& p) {
+        p.b4_see_values = 1;
+    });
+    begin_section("SEE vector: a search reads it on the arm alone");
+    EXPECT_EQ(SearchParams{}.b4_see_values, 0);
+    EXPECT_EQ(hce_values.nodes != search_values.nodes, kB4Qsearch);
+    end_section();
+#endif
+}
+
 // ---- The tune surface -----------------------------------------------------------
 
 static void test_options_are_the_arms_alone() {
@@ -861,6 +924,7 @@ int main() {
     test_a_recapture_is_exempt();
     test_the_count_rule();
     test_en_passant_is_credited_a_pawn();
+    test_the_gain_vector();
     test_the_known_loss_band_stands_down();
     test_the_rules_the_arm_removes();
     test_blend_arithmetic();
@@ -869,6 +933,7 @@ int main() {
     test_fail_low_store_in_quiescence();
     test_rfp_seek_mate_gate();
     test_rfp_seek_mate_live();
+    test_the_see_vector_reaches_the_search();
 
     return harness_summary();
 }

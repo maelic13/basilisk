@@ -339,6 +339,10 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
     const SearchLimits& limits = config_.limits;
 
     state_.board        = &board;
+#ifdef BASILISK_TUNE
+    if constexpr (kB4Qsearch)
+        board.set_see_vector(limits.params.b4_see_values);
+#endif
     state_.nodes        = 0;
     state_.tb_hits      = 0;
     state_.nodes_limit  = limits.nodes;
