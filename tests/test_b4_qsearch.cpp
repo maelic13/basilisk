@@ -37,6 +37,8 @@ static constexpr bool kCounters =
 struct Run {
     SearchResult result;
     std::map<std::string, long long> diag;
+    bool node_stored = false;   // the table holds the node after the search
+    TTEntry node_entry{};
 };
 
 static long long counter(const Run& run, const std::string& name) {
@@ -100,8 +102,28 @@ static Run read_node(const NodeRead& r) {
     if (r.set)
         r.set(lim.params);
     run.result = searcher->search(b, lim);
+    Board child = b;
+    child.make_move(root_move);
+    run.node_stored = tt.probe_copy(child.position_key(), run.node_entry);
     return run;
 }
+
+// A whole search from `fen` under one setting.
+static SearchResult search_fen(const std::string& fen, int depth,
+                               void (*set)(SearchParams&) = nullptr) {
+    TranspositionTable tt(16);
+    std::atomic_bool stop{false};
+    auto searcher = std::make_unique<Searcher>(tt, stop);
+    Board b;
+    b.set_fen(fen);
+    SearchLimits lim;
+    lim.depth = depth;
+    if (set)
+        set(lim.params);
+    return searcher->search(b, lim);
+}
+
+static void evasions_all(SearchParams& p) { p.b4_evasion_prune = 0; }
 
 // ---- Order --------------------------------------------------------------------
 
@@ -205,6 +227,143 @@ static void test_quiet_table_move_outside_check() {
     end_section();
 }
 
+// ---- Evasions -------------------------------------------------------------------
+
+// Re5+ loses the rook to Nxe5; the king has three quiet evasions besides. The
+// capture holds, so the arm searches no quiet after it.
+static NodeRead knight_takes_rook() {
+    NodeRead r;
+    r.fen = "4k3/5n2/8/R7/8/8/8/K7 w - - 0 1";
+    r.from = A5;
+    r.to = E5;
+    return r;
+}
+
+static void test_a_holding_evasion_ends_the_quiets() {
+    Board child;
+    child.set_fen(knight_takes_rook().fen);
+    child.make_move(legal_move(child, A5, E5));
+
+    const Run pruned = read_node(knight_takes_rook());
+    NodeRead everything = knight_takes_rook();
+    everything.set = evasions_all;
+    const Run searched = read_node(everything);
+    NodeRead quiet_first = knight_takes_rook();
+    quiet_first.seed = true;
+    quiet_first.table_move = legal_move(child, E8, D7);
+    const Run one_quiet = read_node(quiet_first);
+
+    begin_section("evasions: a holding capture and three quiets search no quiet (arm)");
+    if constexpr (kB4Qsearch) {
+        EXPECT(pruned.result.nodes < searched.result.nodes);
+        if constexpr (kCounters) {
+            EXPECT_EQ(counter(pruned, "qs_evasion_moves"), 1);
+            EXPECT_EQ(counter(pruned, "qs_evasion_quiets_pruned"), 3);
+        }
+    } else {
+        EXPECT_EQ(pruned.result.nodes, searched.result.nodes);
+    }
+    end_section();
+
+    begin_section("evasions: with the switch at 0 every evasion is searched");
+    if constexpr (kCounters) {
+        EXPECT_EQ(counter(searched, "qs_evasion_moves"), 4);
+        EXPECT_EQ(counter(searched, "qs_evasion_quiets_pruned"), 0);
+    }
+    end_section();
+
+    begin_section("evasions: a quiet table move is the one quiet searched");
+    if constexpr (kB4Qsearch && kCounters) {
+        EXPECT_EQ(counter(one_quiet, "qs_evasion_moves"), 2);
+        EXPECT_EQ(counter(one_quiet, "qs_evasion_quiets_pruned"), 2);
+    }
+    end_section();
+
+    begin_section("evasions: the rule leaves the node's value where it was here");
+    EXPECT_EQ(pruned.result.score, searched.result.score);
+    end_section();
+}
+
+// The arm stores an evasion node at depth 0 with no static evaluation and the
+// move that raised alpha; the OFF arm stores none.
+static void test_exit_store_in_check() {
+    Board child;
+    child.set_fen(knight_takes_rook().fen);
+    child.make_move(legal_move(child, A5, E5));
+    const Run run = read_node(knight_takes_rook());
+    begin_section("evasions: the exit store in check");
+    if constexpr (kB4Qsearch) {
+        EXPECT(run.node_stored);
+        EXPECT_EQ(int(run.node_entry.depth), 0);
+        EXPECT_EQ(run.node_entry.static_eval, INF_SCORE);
+        EXPECT_EQ(move_from_tt(run.node_entry.move16), legal_move(child, F7, E5));
+        EXPECT(run.node_entry.bound() == TT_ALPHA);
+    } else {
+        EXPECT(!run.node_stored);
+    }
+    end_section();
+}
+
+// Ra8+ leaves two evasions, Nc8 and Ng8, and each loses to the rook's capture
+// with mate, so the best stays a loss and no evasion may be skipped: a mate
+// score is only as good as its proof.
+static void test_a_lost_node_searches_every_evasion() {
+    NodeRead lost;
+    lost.fen = "7k/4n1pp/8/3B4/8/8/8/R5K1 w - - 0 1";
+    lost.from = A1;
+    lost.to = A8;
+    const Run pruned = read_node(lost);
+    lost.set = evasions_all;
+    const Run searched = read_node(lost);
+    begin_section("evasions: a node whose every evasion loses searches all of them");
+    EXPECT(pruned.result.score >= MATE_SCORE - MAX_PLY);
+    EXPECT_EQ(pruned.result.score, searched.result.score);
+    EXPECT_EQ(pruned.result.nodes, searched.result.nodes);
+    if constexpr (kCounters) {
+        EXPECT_EQ(counter(pruned, "qs_evasion_quiets_pruned"), 0);
+        EXPECT_EQ(counter(pruned, "qs_evasion_see_pruned"), 0);
+    }
+    end_section();
+
+    // Without the bishop Ng8 holds: Rxg8+ Kxg8. With Nc8 searched first the
+    // node's best is a loss when Ng8 comes, so Ng8 is searched and the root
+    // reads no mate.
+    NodeRead one_holds;
+    one_holds.fen = "7k/4n1pp/8/8/8/8/8/R5K1 w - - 0 1";
+    one_holds.from = A1;
+    one_holds.to = A8;
+    Board child;
+    child.set_fen(one_holds.fen);
+    child.make_move(legal_move(child, A1, A8));
+    one_holds.seed = true;
+    one_holds.table_move = legal_move(child, E7, C8);
+    const Run saved = read_node(one_holds);
+    begin_section("evasions: a loss searched first does not end the node's evasions");
+    EXPECT(std::abs(saved.result.score) < KNOWN_WIN);
+    end_section();
+}
+
+// The mate-recognition fixtures of test_endgames and test_search's KQK
+// shortest mate read the same distance with the rule on and off.
+static void test_mate_distance_under_the_rule() {
+    static const char* const FENS[] = {
+        "k7/7Q/2K5/8/8/8/8/8 w - - 0 1",
+        "k7/8/2K5/8/8/8/8/1Q6 w - - 0 1",
+        "k7/2K5/8/8/8/8/8/7R w - - 0 1",
+        "7k/8/6K1/8/8/8/8/R7 w - - 0 1",
+        "k7/2K5/8/3N4/4B3/8/8/8 w - - 0 1",
+        "4K3/2Q5/6k1/8/8/8/8/8 w - - 0 1",
+    };
+    begin_section("evasions: a mate reads the same distance with the rule on and off");
+    for (const char* fen : FENS) {
+        const SearchResult on = search_fen(fen, 18);
+        const SearchResult off = search_fen(fen, 18, evasions_all);
+        EXPECT(on.score >= MATE_SCORE - MAX_PLY);
+        EXPECT_EQ(on.score, off.score);
+    }
+    end_section();
+}
+
 // ---- The tune surface -----------------------------------------------------------
 
 static void test_options_are_the_arms_alone() {
@@ -234,6 +393,10 @@ int main() {
     test_options_are_the_arms_alone();
     test_table_move_leads_the_evasions();
     test_quiet_table_move_outside_check();
+    test_a_holding_evasion_ends_the_quiets();
+    test_exit_store_in_check();
+    test_a_lost_node_searches_every_evasion();
+    test_mate_distance_under_the_rule();
 
     return harness_summary();
 }

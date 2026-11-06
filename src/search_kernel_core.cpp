@@ -160,6 +160,17 @@ static constexpr int LMR_HISTORY_DIVISOR[16] = {
 
 // ---- Quiescence search -----------------------------------------------------
 
+// A capture, an en passant or a promotion: what the picker's capture stage
+// holds.
+[[maybe_unused]] static bool is_capture_stage(const Board& board, Move m) {
+    return board.piece_on(to_sq(m)) != NO_PIECE || move_type(m) == EN_PASSANT
+        || move_type(m) == PROMOTION;
+}
+
+[[maybe_unused]] static PieceType capture_victim(const Board& board, Move m) {
+    return move_type(m) == EN_PASSANT ? PAWN : type_of(board.piece_on(to_sq(m)));
+}
+
 // Fail-soft throughout, in Stockfish's form: every return is the node's best
 // value, which may lie outside the window, and the table stores it as the
 // bound it proves -- a lower bound at a fail high, otherwise an upper bound,
@@ -231,12 +242,47 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         }
     }
 
+#ifdef BASILISK_PRICING
+    // A pruned capture searched in quiescence with the node's window; those
+    // that beat alpha are judged against the final best when the node ends.
+    PricePending pending[8];
+    int pending_count = 0;
+    auto price_move = [&](PriceRule rule, Move m, int move_number, int move_class = 0) {
+        const int cell = state_.price.decide(rule, move_class, node_kind, move_number);
+        if (cell < 0)
+            return;
+        int64_t probe_nodes = 0;
+        const int v = isolated_probe(ss, ply, probe_nodes, [&] {
+            do_move(ss, m);
+            const int s = -quiescence<NT>(-beta, -alpha, ply + 1, qply + 1, ss + 1);
+            undo_move(ss, m);
+            return s;
+        });
+        if (state_.stopped)
+            return;
+        state_.price.probed(cell, v > alpha, probe_nodes);
+        if (v > alpha && pending_count < 8)
+            pending[pending_count++] = {cell, v};
+    };
+    auto settle = [&](int final_best) {
+        for (int k = 0; k < pending_count; ++k)
+            if (pending[k].value > final_best)
+                state_.price.changed(pending[k].cell);
+    };
+#endif
+
+    [[maybe_unused]] const auto& kp = config_.limits.params;
+
     // Cluster 3's arm answers a check through the node kernel's own picker: the
     // table move first when it is a legal evasion, then the picker's stages,
-    // so the history a node has learned orders its evasions.
+    // so the history a node has learned orders its evasions. Once one evasion
+    // holds a value that is not a loss, the quiets stay undelivered and a
+    // capture that loses material is skipped; while the best is a loss every
+    // evasion is searched, so a mate score here is a proven mate.
     if constexpr (kB4Qsearch) {
         if (in_check) {
             int best = -INF_SCORE;
+            Move best_move = MOVE_NONE;
             DIAG_COUNT(state_.diag.qs_evasion_nodes++);
             const PieceToHistory* const conts[6] = {
                 (ss - 1)->cont_hist, (ss - 2)->cont_hist, (ss - 3)->cont_hist,
@@ -244,17 +290,36 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
             CoreMovePicker picker(*state_.board, hist_, pawn_bucket(), conts, tt_move, MOVE_NONE,
                                   0, ply, nullptr, state_.move_buffers[ply][0]);
             int evasions_searched = 0;
+            [[maybe_unused]] int quiets_searched = 0;
+            PRICE(MoveList quiets_tried);
             for (Move m = picker.next(); m != MOVE_NONE; m = picker.next()) {
                 DIAG_COUNT(state_.diag.qs_evasion_tt_move
                            += picker.last_source() == CoreMovePicker::Src::TT);
+                const bool holds = kp.b4_evasion_prune && best > -tablebaseWinInMaxPly;
+                if (holds && !state_.board->see_ge(m, kp.b4_qs_see_margin)) {
+                    TRACE_DECISION(TraceEvent::QsEvasionPrune, ply, 0, m,
+                                   alpha, beta, best, -1, VALUE_NONE, VALUE_NONE,
+                                   evasions_searched, 0, kp.b4_qs_see_margin, alpha);
+                    PRICE(price_move(PriceRule::QsEvasion, m, evasions_searched + 1,
+                                     price_class(capture_victim(*state_.board, m),
+                                                 b4::is_recapture(m, (ss - 1)->move))));
+                    DIAG_COUNT(++state_.diag.qs_evasion_see_pruned);
+                    continue;
+                }
+                [[maybe_unused]] const bool quiet = !is_capture_stage(*state_.board, m);
                 do_move(ss, m);
                 const int s = -quiescence<NT>(-beta, -alpha, ply + 1, qply + 1, ss + 1);
                 undo_move(ss, m);
                 if (state_.stopped) return 0;
                 DIAG_COUNT(++state_.diag.qs_evasion_moves);
+                DIAG_COUNT(quiets_searched += quiet);
+                PRICE(if (quiet) quiets_tried.push(m));
                 ++evasions_searched;
                 if (s > best) best = s;
-                if (s > alpha) alpha = s;
+                if (s > alpha) {
+                    alpha = s;
+                    best_move = m;
+                }
                 if (alpha >= beta) {
                     TRACE_DECISION(TraceEvent::QsBetaCutoff, ply, 0, m,
                                    alpha, beta, VALUE_NONE, -1, VALUE_NONE, VALUE_NONE,
@@ -263,11 +328,38 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
                     DIAG_COUNT(state_.diag.qs_evasion_fail_high_first += evasions_searched == 1);
                     DIAG_COUNT(state_.diag.qs_evasion_fail_high_index_sum += evasions_searched - 1);
                     DIAG_COUNT(state_.diag.qs_evasion_tt_cuts += m == tt_move);
-                    best = s;
-                    break;
+                    PRICE(settle(s));
+                    tt_store(hash, 0, s, TT_BETA, m, ply, INF_SCORE, pv_hit);
+                    return s;
                 }
+                if (kp.b4_evasion_prune && best > -tablebaseWinInMaxPly && !picker.quiets_skipped())
+                    picker.skip_quiets();
             }
-            return evasions_searched > 0 ? best : -(MATE_SCORE - ply);
+            if (evasions_searched == 0)
+                return -(MATE_SCORE - ply);
+#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC) \
+    || defined(BASILISK_RELEASE_DIAG_COUNTERS)
+            // What the rule left unsearched at a node that found no cutoff.
+            if (picker.quiets_skipped()) {
+                MoveList quiets;
+                state_.board->gen_legal_quiets(quiets);
+                DIAG_COUNT(state_.diag.qs_evasion_quiets_pruned
+                           += static_cast<int>(quiets.size()) - quiets_searched);
+                TRACE_DECISION(TraceEvent::QsEvasionPrune, ply, 0, MOVE_NONE,
+                               alpha, beta, best, -1, VALUE_NONE, VALUE_NONE,
+                               evasions_searched, 0, VALUE_NONE, alpha);
+#ifdef BASILISK_PRICING
+                int move_number = evasions_searched;
+                for (Move m : quiets)
+                    if (std::find(quiets_tried.begin(), quiets_tried.end(), m) == quiets_tried.end())
+                        price_move(PriceRule::QsEvasion, m, ++move_number,
+                                   price_class(NO_PIECE_TYPE, false));
+#endif
+            }
+#endif
+            PRICE(settle(best));
+            tt_store(hash, 0, best, TT_ALPHA, best_move, ply, INF_SCORE, pv_hit);
+            return best;
         }
     }
 
@@ -413,35 +505,6 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     DIAG_COUNT(state_.diag.qs_moves += nm);
     [[maybe_unused]] int captures_searched = 0;
 
-#ifdef BASILISK_PRICING
-    // A pruned capture searched in quiescence with the node's window; those
-    // that beat alpha are judged against the final best when the node ends.
-    PricePending pending[8];
-    int pending_count = 0;
-    auto price_move = [&](PriceRule rule, Move m, int move_number, int move_class = 0) {
-        const int cell = state_.price.decide(rule, move_class, node_kind, move_number);
-        if (cell < 0)
-            return;
-        int64_t probe_nodes = 0;
-        const int v = isolated_probe(ss, ply, probe_nodes, [&] {
-            do_move(ss, m);
-            const int s = -quiescence<NT>(-beta, -alpha, ply + 1, qply + 1, ss + 1);
-            undo_move(ss, m);
-            return s;
-        });
-        if (state_.stopped)
-            return;
-        state_.price.probed(cell, v > alpha, probe_nodes);
-        if (v > alpha && pending_count < 8)
-            pending[pending_count++] = {cell, v};
-    };
-    auto settle = [&](int final_best) {
-        for (int k = 0; k < pending_count; ++k)
-            if (pending[k].value > final_best)
-                state_.price.changed(pending[k].cell);
-    };
-#endif
-
     for (int i = 0; i < nm; i++) {
         Move m = pick_next(sm, i, nm);
 
@@ -467,8 +530,8 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         // stands in for the move in the node's upper bound.
         const int futility_value = stand_pat + tactical_gain + 150;
 #ifdef BASILISK_PRICING
-        const int move_class = price_class(
-            mt == EN_PASSANT ? PAWN : type_of(target), b4::is_recapture(m, (ss - 1)->move));
+        const int move_class = price_class(capture_victim(*state_.board, m),
+                                           b4::is_recapture(m, (ss - 1)->move));
 #endif
         if (prune_by_gain && !is_promo
             && futility_value <= alpha
