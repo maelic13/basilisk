@@ -188,11 +188,12 @@ static void init_test_syzygy() {
 // Tests
 // ---------------------------------------------------------------------------
 
-// Both arms share the parameter table's X lines; the B3_PROOF arm overrides a
-// few Cluster 1 defaults from its own table. Each override must name a field,
-// lie in its line's range and differ from its default; it must reach the ON
-// arm only; every other field keeps its line's default on both arms; and a
-// tune build advertises the compiled value, not the line's.
+// Both arms share the parameter table's X lines; each arm overrides a few
+// earlier defaults from its own table. Each override must name a field, lie in
+// its line's range and differ from its default; it must reach its own arm only,
+// and where two compiled tables name a field the later one wins; every other
+// field keeps its line's default on both arms; and a tune build advertises the
+// compiled value, not the line's.
 static void test_arm_defaults() {
     struct ArmDefault {
         std::string_view field;
@@ -209,20 +210,25 @@ static void test_arm_defaults() {
 #undef ARM_DEFAULT_B3
     };
     const auto find = [](std::string_view field) -> const ArmDefault* {
+        const ArmDefault* found = nullptr;
         for (const ArmDefault& a : arm)
-            if (a.field == field) return &a;
-        return nullptr;
+            if (a.field == field && (a.compiled_in || !found)) found = &a;
+        return found;
+    };
+    const auto names = [](const ArmDefault& a, std::string_view field) {
+        return a.field == field;
     };
     const SearchParams compiled;
     int matched = 0;
 
     begin_section("arm defaults: each override names a field, in range, off its default");
 #define ARM_DEFAULT_RANGE(field, uci, def, lo, hi)                       \
-    if (const ArmDefault* a = find(#field)) {                           \
-        ++matched;                                                       \
-        EXPECT(lo <= a->value && a->value <= hi);                        \
-        EXPECT(a->value != def);                                         \
-    }
+    for (const ArmDefault& a : arm)                                      \
+        if (names(a, #field)) {                                          \
+            ++matched;                                                   \
+            EXPECT(lo <= a.value && a.value <= hi);                      \
+            EXPECT(a.value != def);                                      \
+        }
     BASILISK_SEARCH_PARAMS(ARM_DEFAULT_RANGE)
     BASILISK_B3_PARAMS(ARM_DEFAULT_RANGE, ARM_DEFAULT_RANGE, ARM_DEFAULT_RANGE)
     EXPECT_EQ(matched, int(std::size(arm)));
