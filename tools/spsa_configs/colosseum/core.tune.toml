@@ -52,13 +52,6 @@ max = 1024
 c_end = 14.7382
 
 [[parameters]]
-name = "CoreIirMinDepth"
-initial = 8
-min = 3
-max = 8
-c_end = 0.9211
-
-[[parameters]]
 name = "CoreLmpBase"
 initial = 3
 min = 1

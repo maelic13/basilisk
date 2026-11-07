@@ -101,8 +101,7 @@ assert len(B2_COUNTER_UNITS) == 26
 assert not set(B2_COUNTER_UNITS) & set(CORE_COUNTER_UNITS)
 
 
-# Cluster 2's counters (the B3_PROOF arm; the OFF arm prints most as 0). Each
-# is read against the denominator its engine table names. Validated when
+# Cluster 2's counters. Each is read against the denominator its engine table names. Validated when
 # present, all or none.
 B3_COUNTER_UNITS = {
     **{name: "events" for name in """

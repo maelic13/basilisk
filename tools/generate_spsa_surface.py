@@ -3,7 +3,7 @@
 The C++ table owns option names, defaults, and bounds.  This generator derives
 the registered integer perturbation as max(2, round((max - min) / 16)) and
 writes both weather-factory JSON and Colosseum TOML, for the root table and the
-groups the kernel inherited and, separately, for the kernel's own coordinates.
+line the kernel inherited and, separately, for each cluster's coordinates.
 Generated files are checked into the tree so experiment registrations can name
 an exact surface; edit the X-macro and regenerate rather than editing them.
 """
@@ -24,17 +24,17 @@ CONFIG = ROOT / "tools" / "spsa_configs" / "config_search.json"
 COLOSSEUM = ROOT / "tools" / "spsa_configs" / "colosseum"
 TUNE = COLOSSEUM / "search.tune.toml"
 RUN = COLOSSEUM / "search.run.toml"
-# The B2_CORE arm's own surface: the coordinates written in its kernel table,
-# without the legacy groups it splices in (those mechanisms are a later
-# cluster's). Its tune runs on the shared run file with --tune pointing here.
+# Cluster 1's surface: the coordinates written in its kernel table, without
+# the legacy line it splices in. Its tune runs on the shared run file with
+# --tune pointing here.
 CORE_CONFIG = ROOT / "tools" / "spsa_configs" / "config_core.json"
 CORE_TUNE = COLOSSEUM / "core.tune.toml"
-# The B3_PROOF arm's own surface (Cluster 2): its table's X lines alone, on
-# the same run file. Neither the default nor the core surface carries them.
+# Cluster 2's surface: its table's X lines alone, on the same run file.
+# Neither the default nor the core surface carries them.
 B3_CONFIG = ROOT / "tools" / "spsa_configs" / "config_b3.json"
 B3_TUNE = COLOSSEUM / "b3.tune.toml"
-# The B4_QSEARCH arm's own surface (Cluster 3): its table's X lines alone, on
-# the same run file. B.4.6 admits the earlier clusters' coordinates to its fit.
+# Cluster 3's surface: its table's X lines alone, on the same run file.
+# B.4.6 admits the earlier clusters' coordinates to its fit.
 B4_CONFIG = ROOT / "tools" / "spsa_configs" / "config_b4.json"
 B4_TUNE = COLOSSEUM / "b4.tune.toml"
 # B.3.3's curvature-sweep registrations on the B3 surface (packet
@@ -50,7 +50,7 @@ B3_SWEEP_EXTRA_POINTS = {
     "B3SingMargin": (17, 126),
 }
 # B.3.3's fit surface (BAS-S42): the B3 table's X lines less the inert ones,
-# with the Cluster 1 coordinates whose consumer populations the ON arm moved
+# with the Cluster 1 coordinates whose consumer populations Cluster 2 moved
 # (packet section 5.12, read by B.3.2 in BAS-S41), on the same run file.
 B33_CONFIG = ROOT / "tools" / "spsa_configs" / "config_b33.json"
 B33_TUNE = COLOSSEUM / "b33.tune.toml"
@@ -79,20 +79,19 @@ LINE_RE = re.compile(
     r"^\s*([XFS])\(\s*[a-z][a-z0-9_]*\s*,\s*([A-Za-z][A-Za-z0-9]*)\s*,"
     r"\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(-?\d+)\s*\)"
 )
-# The B2_CORE arm's kernel table. The default arm's surface (the root and
-# legacy kernel tables) skips its lines; the core surface is its X lines
-# alone. Its F lines are coordinates the engine reads and a tune build
+# Cluster 1's kernel table. The default surface (the root table and the
+# legacy line) skips its lines; the core surface is its X lines alone. Its F lines are coordinates the engine reads and a tune build
 # advertises but no tune fits, so, like S lines, they are never on a surface
 # (only X lines match PARAM_RE).
 CORE_TABLE = "#define BASILISK_CORE_KERNEL_PARAMS("
 B3_TABLE = "#define BASILISK_B3_PARAMS("
 B4_TABLE = "#define BASILISK_B4_PARAMS("
-# The B3_PROOF arm's own defaults for core coordinates fitted on its tree:
-# A(field, UciName, value) lines. The core surface keeps the X lines' values
-# (the OFF arm's); a surface tuned on the B3_PROOF arm starts from these.
+# Cluster 2's refit of core coordinates: A(field, UciName, value) lines. The
+# core surface keeps the X lines' values (Cluster 1's fit); a surface tuned
+# after Cluster 2 starts from these.
 B3_CORE_DEFAULTS_TABLE = "#define BASILISK_B3_CORE_DEFAULTS("
-# The B4_QSEARCH arm's own defaults for earlier clusters' lines, in the same
-# form; a surface tuned on that arm starts from these, over the B3 table's.
+# Cluster 3's refit of earlier clusters' lines, in the same form; a surface
+# tuned after Cluster 3 starts from these, over the B3 table's.
 B4_CORE_DEFAULTS_TABLE = "#define BASILISK_B4_CORE_DEFAULTS("
 TABLES = (CORE_TABLE, B3_TABLE, B4_TABLE, B3_CORE_DEFAULTS_TABLE, B4_CORE_DEFAULTS_TABLE)
 ARM_DEFAULT_RE = re.compile(
@@ -162,7 +161,7 @@ def parse_parameters(text: str, core: bool = False, b3: bool = False,
 
 
 def b3_core_defaults(text: str) -> dict[str, int]:
-    """The B3_PROOF arm's own core defaults, each checked: a core X line's
+    """Cluster 2's refit of core defaults, each checked: a core X line's
     name, inside its range, off its default, named once."""
     core = {name: (default, minimum, maximum)
             for name, default, minimum, maximum in parse_parameters(text, core=True)}
@@ -173,17 +172,17 @@ def b3_core_defaults(text: str) -> dict[str, int]:
             continue
         name, value = match.group(1), int(match.group(2))
         if name not in core:
-            raise ValueError(f"B3_PROOF default {name} names no core X line")
+            raise ValueError(f"Cluster 2 default {name} names no core X line")
         default, minimum, maximum = core[name]
         if not minimum <= value <= maximum or value == default or name in overrides:
-            raise ValueError(f"B3_PROOF default {name} {value}: must lie in "
+            raise ValueError(f"Cluster 2 default {name} {value}: must lie in "
                              f"[{minimum}, {maximum}] off {default}, once")
         overrides[name] = value
     return overrides
 
 
 def b4_core_defaults(text: str) -> dict[str, int]:
-    """The B4_QSEARCH arm's own defaults for earlier clusters' X lines, each
+    """Cluster 3's refit of earlier clusters' X lines, each
     checked: inside its range, off its line's default, named once. A switch
     is never on a surface, so its line here is passed over."""
     lines = {name: (default, minimum, maximum)
@@ -199,10 +198,10 @@ def b4_core_defaults(text: str) -> dict[str, int]:
         if name in switches:
             continue
         if name not in lines:
-            raise ValueError(f"B4_QSEARCH default {name} names no X line")
+            raise ValueError(f"Cluster 3 default {name} names no X line")
         default, minimum, maximum = lines[name]
         if not minimum <= value <= maximum or value == default or name in overrides:
-            raise ValueError(f"B4_QSEARCH default {name} {value}: must lie in "
+            raise ValueError(f"Cluster 3 default {name} {value}: must lie in "
                              f"[{minimum}, {maximum}] off {default}, once")
         overrides[name] = value
     return overrides
@@ -244,8 +243,8 @@ def sweep_notes(text: str, coordinates: dict[str, tuple[int, ...]],
 def b33_parameters(text: str) -> list[tuple[str, int, int, int]]:
     """B.3.3's fit surface: the B3 X lines less B33_EXCLUDED, then the core X
     lines B33_ADMITTED_CORE names, in that order; every name is checked. The
-    surface is the B3_PROOF arm's, so a core coordinate starts from that
-    arm's own default where it has one."""
+    surface is Cluster 2's, so a core coordinate starts from its refit where
+    it has one."""
     b3 = parse_parameters(text, b3=True)
     overrides = b3_core_defaults(text)
     core = {name: (name, overrides.get(name, default), minimum, maximum)
@@ -260,8 +259,8 @@ def b33_parameters(text: str) -> list[tuple[str, int, int, int]]:
 def b46_parameters(text: str) -> list[tuple[str, int, int, int]]:
     """B.4.6's fit surface: the B4 X lines, then the coordinates B46_ADMITTED
     names from the core and B3 tables, in that order; every name is checked.
-    Each starts from the value the arm runs: the B4_QSEARCH arm's own default
-    where it has one, then the B3_PROOF arm's."""
+    Each starts from the value the engine runs: Cluster 3's refit where it has
+    one, then Cluster 2's."""
     overrides = {**b3_core_defaults(text), **b4_core_defaults(text)}
     earlier = {name: (name, overrides.get(name, default), minimum, maximum)
                for name, default, minimum, maximum in
@@ -329,8 +328,8 @@ option = ["Hash=64", "Threads=1"]
 
 
 def render_all(text: str, iterations: int) -> dict[pathlib.Path, str]:
-    """The default arm's surface and run file, the core arm's, the B3 arm's and
-    the B4 arm's."""
+    """The default surface and run file, then the core, B3, B.3.3, B4 and
+    B.4.6 surfaces."""
     outputs = render(parse_parameters(text), iterations)
     outputs.update(render(parse_parameters(text, core=True), iterations,
                           config=CORE_CONFIG, tune=CORE_TUNE, run=None))
@@ -376,11 +375,11 @@ def main() -> int:
             print(f"stale or missing: {path}", file=sys.stderr)
         if stale:
             return 1
-        print(f"{len(outputs)} generated files current ({len(parse_parameters(text))} default-arm, "
-              f"{len(parse_parameters(text, core=True))} core-arm, "
-              f"{len(parse_parameters(text, b3=True))} B3-arm, "
+        print(f"{len(outputs)} generated files current ({len(parse_parameters(text))} default, "
+              f"{len(parse_parameters(text, core=True))} core, "
+              f"{len(parse_parameters(text, b3=True))} B3, "
               f"{len(b33_parameters(text))} B.3.3 fit-surface, "
-              f"{len(parse_parameters(text, b4=True))} B4-arm and "
+              f"{len(parse_parameters(text, b4=True))} B4 and "
               f"{len(b46_parameters(text))} B.4.6 fit-surface parameters)")
         return 0
     COLOSSEUM.mkdir(parents=True, exist_ok=True)
