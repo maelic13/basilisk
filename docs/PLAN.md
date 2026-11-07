@@ -2139,9 +2139,8 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           6,090,091.
         - A fresh default build reads 4,144,790 and passes Release CTest
           27/27, as `B4_QSEARCH=OFF` does at 6,090,091.
-        - Open for the maintainer: CI's `B3_PROOF=OFF` job fails one section
-          of `test_b4_qsearch`, as it did before this leaf (BAS-S52
-          *RESULT*). The PR will show it red until it is settled.
+        - The tests now bind the default arm alone (maintainer 2026-11-07),
+          and CI builds the two OFF arms without testing them.
       - From B.4.4's review: (c)'s registration says that `B4QsDelta` 1
         restores the delta rule under the arm's band guard, not the OFF
         arm's.

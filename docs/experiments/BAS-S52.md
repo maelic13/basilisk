@@ -184,9 +184,11 @@ Added before exposure:
     (`src/search_kernel_core.cpp:842`), so the section's child is a depth-1 negamax node
     that stores, not a quiescence node. The section's premise fails there; the search does
     not.
-  - The repair is the maintainer's: PROCESS leaves an old path unmaintained, but CI runs
-    this one, and the branch's PR will show it red until the expectation is limited to
-    `kB3Proof`.
+  - **Settled (maintainer, 2026-11-07):** tests bind what the engine uses, not what it is
+    replacing. `test_b4_qsearch`, `test_b3_proof`, `test_search` and `test_wac` lose their
+    old-arm branches, and CI builds the two OFF arms without testing them. The ON arm's
+    section counts are unchanged, so nothing that binds the default path went. The OFF
+    arms' tests are no longer expected to pass.
 - Disposition: **CLOSED 2026-11-07.** All three SPRTs H1: `B4_QSEARCH` defaults ON at
   **4,144,790**, and the OFF arm stays compilable at 6,090,091 until the search programme's
   cleanup.

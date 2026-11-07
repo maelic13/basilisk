@@ -222,7 +222,9 @@ Taken from Rarog's B.2 and B.3, which took it from Manta's 6.5.10.
   tree as the candidate minus the cluster. The switch flips to ON in one
   commit after the gate; the old path stays compilable until the programme's
   cleanup leaf deletes it, and is neither fixed nor maintained meanwhile:
-  repairs touch the default path alone.
+  repairs touch the default path alone. At the flip the tests move to the
+  default path too: their old-arm branches go, and CI builds the old path
+  without testing it (maintainer 2026-11-07).
 - **Tickets.** The cluster lands in ordered tickets, one mechanism each, every
   one keeping the off arm exact. Ticket 0 installs the decision trace (a
   diag-only printout, bounded to plies one and two under `searchmoves`, of
