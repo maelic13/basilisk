@@ -1,6 +1,5 @@
-/// Cluster 2 (the B3_PROOF arm): its arithmetic read directly, and its
-/// mechanisms driven through whole searches. Every section binds both arms:
-/// where the arms differ, the OFF arm's expectation is the legacy kernel's.
+/// Cluster 2, the proof searches and extensions the engine plays: its arithmetic
+/// read directly, and its mechanisms driven through whole searches.
 ///
 /// In Diag and Tune builds the counter sections also read the searches'
 /// `Diag` lines through the info callback; release builds compile the
@@ -199,12 +198,7 @@ static constexpr bool kCounters =
     false;
 #endif
 
-// The arm whose singular extension the budget bounds: the B3_PROOF arm's
-// graded extension.
-static constexpr bool kBudgetApplied = kB3Proof;
-
-// A cap far below the root depth truncates extensions where the budget is
-// applied and changes the tree; elsewhere the cap is ignored.
+// A cap far below the root depth truncates extensions and changes the tree.
 static void test_budget_bound_is_live() {
     int changed = 0;
     int legal = 0;
@@ -218,14 +212,11 @@ static void test_budget_bound_is_live() {
         legal += is_legal_move_on_board(b, capped.result.bestmove);
         // Where the cap moved the tree, the counter saw it truncate. (The
         // two runs are different trees, so their counts are not compared.)
-        if (kCounters && kBudgetApplied && full.result.nodes != capped.result.nodes)
+        if (kCounters && full.result.nodes != capped.result.nodes)
             EXPECT(counter(capped, "ext_budget_bound") > 0);
     }
     begin_section("budget: a forced cap moves the tree where the budget is applied");
-    if constexpr (kBudgetApplied)
-        EXPECT(changed > 0);
-    else
-        EXPECT_EQ(changed, 0);
+    EXPECT(changed > 0);
     EXPECT_EQ(legal, 8);
     end_section();
 }
@@ -239,14 +230,9 @@ static void test_follow_pv_in_search() {
     const Run one = search(fen, 1);
     const Run four = search(fen, 4);
     begin_section("follow_pv: the root alone at iteration 1, the line after it");
-    if constexpr (kB3Proof) {
-        EXPECT_EQ(counter(one, "follow_pv_nodes"), 1);
-        EXPECT(counter(four, "follow_pv_nodes") > 4);
-        EXPECT(counter(four, "follow_pv_nodes") < counter(four, "interior_nodes"));
-    } else {
-        EXPECT_EQ(counter(one, "follow_pv_nodes"), 0);
-        EXPECT_EQ(counter(four, "follow_pv_nodes"), 0);
-    }
+    EXPECT_EQ(counter(one, "follow_pv_nodes"), 1);
+    EXPECT(counter(four, "follow_pv_nodes") > 4);
+    EXPECT(counter(four, "follow_pv_nodes") < counter(four, "interior_nodes"));
     end_section();
 }
 
@@ -278,7 +264,7 @@ static void test_history_fill_values() {
     end_section();
 }
 
-// Each switch moves the tree on the B3_PROOF arm and nothing on the OFF arm:
+// Each switch moves the tree:
 // the fills from the first search, decisive training in a won ending, and
 // training under exclusion in a middlegame where singular searches run.
 static void test_correction_switches_live() {
@@ -293,23 +279,17 @@ static void test_correction_switches_live() {
     const long long exc1 = search(mid, 12).result.nodes;
     const long long exc0 = search(mid, 12, 0, [](SearchParams& p) {
         p.b3_corr_excluded = 0; }).result.nodes;
-    begin_section("correction: CoreHistoryFills, B3CorrDecisive, B3CorrExcluded move the ON arm only");
-    if constexpr (kB3Proof) {
-        EXPECT(fills0 != fills1);
-        EXPECT(dec0 != dec1);
-        EXPECT(exc0 != exc1);
-    } else {
-        EXPECT_EQ(fills0, fills1);
-        EXPECT_EQ(dec0, dec1);
-        EXPECT_EQ(exc0, exc1);
-    }
+    begin_section("correction: CoreHistoryFills, B3CorrDecisive, B3CorrExcluded move the tree");
+    EXPECT(fills0 != fills1);
+    EXPECT(dec0 != dec1);
+    EXPECT(exc0 != exc1);
     end_section();
 }
 
 // Amendment 4's guard: an exclusion node whose raw static eval is 0 (the
 // wrong-bishop corner the recogniser draws) trains no correction, so the
-// ON arm keeps the draw with exclusion training on (the unguarded tree read
-// 259 here) and off; the OFF arm's tree does not see the switch.
+// search keeps the draw with exclusion training on (the unguarded tree read
+// 259 here) and off.
 static void test_excluded_training_spares_recognised_draws() {
     const std::string fen = "7k/8/6KP/8/8/8/8/5B2 w - - 0 1";
     auto run = [&](int excluded) {
@@ -329,13 +309,8 @@ static void test_excluded_training_spares_recognised_draws() {
     begin_section("correction: exclusion training spares a recognised draw (KBP-K wrong bishop, depth 12)");
     EXPECT_EQ(on.depth, 12);
     EXPECT_EQ(off.depth, 12);
-    if constexpr (kB3Proof) {
-        EXPECT(std::abs(on.score) <= 75);
-        EXPECT(std::abs(off.score) <= 75);
-    } else {
-        EXPECT_EQ(on.nodes, off.nodes);
-        EXPECT_EQ(on.score, off.score);
-    }
+    EXPECT(std::abs(on.score) <= 75);
+    EXPECT(std::abs(off.score) <= 75);
     end_section();
 }
 
@@ -482,7 +457,7 @@ static void test_cuckoo_no_false_positive() {
 // pre-root list Black's only move h8h7 lets White play f8f7 to a position
 // seen twice. The root, searched under a null window at the draw, asks
 // whether h8h7 beats a draw: White's node gets (-1, 0), and the cutoff
-// returns the draw there, so the ON arm's root fails low at exactly 0;
+// returns the draw there, so the root fails low at exactly 0;
 // without it the root fails high on the win. One below, White's alpha is 0
 // and the switch changes nothing.
 static SearchResult search_windowed(const Board& b, int depth, int root_alpha, int root_beta,
@@ -528,15 +503,12 @@ static void test_fail_low_store() {
     const Move repaired = root_move(1);
     const Move legacy = root_move(0);
     EXPECT(is_legal_move_on_board(b, legacy));
-    if constexpr (kB3Proof)
-        EXPECT(repaired == MOVE_NONE);
-    else
-        EXPECT(repaired == legacy);
+    EXPECT(repaired == MOVE_NONE);
     end_section();
 }
 
-// Both switches move the ON arm's tree and not the OFF arm's; the penalty
-// fires where it is on, and only there. With the store at 0 the penalty can
+// Both switches move the tree; the penalty fires where it is on, and only
+// there. With the store at 0 the penalty can
 // fire and leave a tree's node count unchanged (bench positions 0, 1, 5, 8
 // and 9 at depth 12), so the read is on a position where it moves the count.
 static void test_tt_switches_live() {
@@ -545,20 +517,12 @@ static void test_tt_switches_live() {
     const Run store0 = search(mid, 12, 0, [](SearchParams& p) { p.b3_fail_low_store = 0; });
     const Run store1 = search(mid, 12, 0, [](SearchParams& p) { p.b3_fail_low_store = 1; });
     const Run pen0 = search(mid, 12, 0, [](SearchParams& p) { p.b3_tt_penalty = 0; });
-    begin_section("tt: B3FailLowStore and B3TtPenalty move the ON arm only");
-    if constexpr (kB3Proof) {
-        EXPECT(store0.result.nodes != store1.result.nodes);
-        EXPECT(base.result.nodes != pen0.result.nodes);
-    } else {
-        EXPECT_EQ(store0.result.nodes, store1.result.nodes);
-        EXPECT_EQ(base.result.nodes, pen0.result.nodes);
-    }
+    begin_section("tt: B3FailLowStore and B3TtPenalty move the tree");
+    EXPECT(store0.result.nodes != store1.result.nodes);
+    EXPECT(base.result.nodes != pen0.result.nodes);
     if constexpr (kCounters) {
         EXPECT_EQ(counter(pen0, "tt_penalized"), 0);
-        if constexpr (kB3Proof)
-            EXPECT(counter(base, "tt_penalized") > 0);
-        else
-            EXPECT_EQ(counter(base, "tt_penalized"), 0);
+        EXPECT(counter(base, "tt_penalized") > 0);
     }
     end_section();
 }
@@ -584,10 +548,7 @@ static void test_cuckoo_terminal() {
         const SearchResult at_draw_off = search_windowed(b, depth, 0, 1, 0);
         const SearchResult below = search_windowed(b, depth, -1, 0, 1);
         const SearchResult below_off = search_windowed(b, depth, -1, 0, 0);
-        if constexpr (kB3Proof)
-            EXPECT_EQ(at_draw.score, 0);
-        else
-            EXPECT_EQ(at_draw.nodes, at_draw_off.nodes);
+        EXPECT_EQ(at_draw.score, 0);
         if (depth <= 2)
             EXPECT(at_draw_off.score > 0);
         EXPECT_EQ(below.score, below_off.score);
@@ -602,8 +563,8 @@ int main() {
     Zobrist::init();
     init_eval_tables();
 
-    std::printf("Cluster 2 (%s arm)\n", kB3Proof ? "B3_PROOF" : "OFF");
-    std::printf("==================\n");
+    std::printf("Cluster 2\n");
+    std::printf("=========\n");
 
     test_budget_arithmetic();
     test_follow_pv_predicate();

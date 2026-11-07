@@ -317,11 +317,11 @@ target_link_libraries(test_move_picker_core PRIVATE basilisk_engine)
 add_executable(test_stack_unwind tests/test_stack_unwind.cpp
                src/parameters.cpp src/bench.cpp src/wac.cpp)
 target_link_libraries(test_stack_unwind PRIVATE basilisk_engine)
-# Cluster 2's arithmetic and mechanisms, on either arm.
+# Cluster 2's arithmetic and mechanisms.
 add_executable(test_b3_proof tests/test_b3_proof.cpp
                src/parameters.cpp src/bench.cpp src/wac.cpp)
 target_link_libraries(test_b3_proof PRIVATE basilisk_engine)
-# Cluster 3's arithmetic and mechanisms, on either arm.
+# Cluster 3's arithmetic and mechanisms.
 add_executable(test_b4_qsearch tests/test_b4_qsearch.cpp
                src/parameters.cpp src/bench.cpp src/wac.cpp)
 target_link_libraries(test_b4_qsearch PRIVATE basilisk_engine)

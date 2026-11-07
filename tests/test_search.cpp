@@ -188,31 +188,27 @@ static void init_test_syzygy() {
 // Tests
 // ---------------------------------------------------------------------------
 
-// Both arms share the parameter table's X lines; each arm overrides a few
-// earlier defaults from its own table. Each override must name a field, lie in
-// its line's range and differ from its default; it must reach its own arm only,
-// and where two compiled tables name a field the later one wins; every other
-// field keeps its line's default on both arms; and a tune build advertises the
-// compiled value, not the line's.
+// Each cluster overrides a few earlier defaults from its own table. Each
+// override must name a field, lie in its line's range and differ from its
+// default; where two tables name a field the later one wins; every other field
+// keeps its line's default; and a tune build advertises the compiled value, not
+// the line's.
 static void test_arm_defaults() {
     struct ArmDefault {
         std::string_view field;
         std::string_view uci;
         int value;
-        bool compiled_in;
     };
     static constexpr ArmDefault arm[] = {
-#define ARM_DEFAULT_B3(field, uci, value) {#field, #uci, value, kB3Proof},
-#define ARM_DEFAULT_B4(field, uci, value) {#field, #uci, value, kB4Qsearch},
-        BASILISK_B3_CORE_DEFAULTS(ARM_DEFAULT_B3)
-        BASILISK_B4_CORE_DEFAULTS(ARM_DEFAULT_B4)
-#undef ARM_DEFAULT_B4
-#undef ARM_DEFAULT_B3
+#define ARM_DEFAULT_ROW(field, uci, value) {#field, #uci, value},
+        BASILISK_B3_CORE_DEFAULTS(ARM_DEFAULT_ROW)
+        BASILISK_B4_CORE_DEFAULTS(ARM_DEFAULT_ROW)
+#undef ARM_DEFAULT_ROW
     };
     const auto find = [](std::string_view field) -> const ArmDefault* {
         const ArmDefault* found = nullptr;
         for (const ArmDefault& a : arm)
-            if (a.field == field && (a.compiled_in || !found)) found = &a;
+            if (a.field == field) found = &a;
         return found;
     };
     const auto names = [](const ArmDefault& a, std::string_view field) {
@@ -234,10 +230,10 @@ static void test_arm_defaults() {
     EXPECT_EQ(matched, int(std::size(arm)));
     end_section();
 
-    begin_section("arm defaults: overrides reach their own arm only; the rest keep their line");
+    begin_section("arm defaults: the last override wins; the rest keep their line");
 #define ARM_DEFAULT_VALUE(field, uci, def, lo, hi)                       \
     if (const ArmDefault* a = find(#field))                             \
-        EXPECT_EQ(compiled.field, a->compiled_in ? a->value : def);      \
+        EXPECT_EQ(compiled.field, a->value);                             \
     else                                                                 \
         EXPECT_EQ(compiled.field, def);
     BASILISK_SEARCH_PARAMS(ARM_DEFAULT_VALUE)
@@ -1270,10 +1266,9 @@ static void test_rook_promotions() {
     // but Black has a drawing alternative only against the rook. At 100,000
     // nodes the old search preferred the rook on that shared line. The win
     // (Rf8 behind the f-pawn, the king to c5) must be read, not the root's
-    // order in a tie at 0, within 200,000 nodes on either arm. The first
-    // budget that sights it moves with any retune of the pruning margins
-    // (the OFF arm at 200,000; the ON arm at 100,000 or 150,000), so the
-    // budget is not set at an arm's edge.
+    // order in a tie at 0, within 200,000 nodes. The first budget that sights
+    // it moves with any retune of the pruning margins, so the budget is not
+    // set at its edge.
     begin_section("promotion: a queen where a rook only transposes");
     auto transposing = run_search("3r4/P7/2K1p3/R7/5p2/6kP/8/8 w - - 2 66",
                                   MAX_SEARCH_DEPTH, 200000, 0, 64);

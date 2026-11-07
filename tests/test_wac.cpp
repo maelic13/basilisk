@@ -46,7 +46,7 @@ static const int TEST_DEPTH = 6;
 // 13 of headroom. Cluster 3's arm is likewise its own budget: its final tree
 // solves 149 at depth 6 (bench 4,003,560), above the stale bound of the floor
 // before it, and its floor is that count less 13.
-static const int FLOOR = kB4Qsearch ? 136 : kB3Proof ? 119 : 175;
+static const int FLOOR = 136;
 static const int STALE_HEADROOM = 20;
 
 static void test_request_parser() {

@@ -1,6 +1,5 @@
-/// Cluster 3 (the B4_QSEARCH arm): its arithmetic read directly, and its
-/// mechanisms driven through whole searches. Every section binds both arms:
-/// where the arms differ, the OFF arm's expectation is today's quiescence.
+/// Cluster 3, the quiescence the engine plays: its arithmetic read directly,
+/// and its mechanisms driven through whole searches.
 ///
 /// A mechanism is read at a quiescence node by a one-ply search of one root
 /// move under a fixed root window: the child is the node. In Diag and Tune
@@ -164,11 +163,9 @@ static void test_table_move_leads_the_evasions() {
     EXPECT_EQ(counter(with_table, "qs_evasion_nodes"), 1);
     EXPECT_EQ(counter(with_table, "qs_evasion_tt_move"), 1);
     EXPECT_EQ(counter(with_table, "qs_evasion_fail_highs"), 1);
-    if constexpr (kB4Qsearch) {
-        EXPECT_EQ(counter(with_table, "qs_evasion_fail_high_first"), 1);
-        EXPECT_EQ(counter(with_table, "qs_evasion_tt_cuts"), 1);
-        EXPECT_EQ(counter(with_table, "qs_evasion_moves"), 1);
-    }
+    EXPECT_EQ(counter(with_table, "qs_evasion_fail_high_first"), 1);
+    EXPECT_EQ(counter(with_table, "qs_evasion_tt_cuts"), 1);
+    EXPECT_EQ(counter(with_table, "qs_evasion_moves"), 1);
     end_section();
 
     begin_section("order: without one the node takes the picker's first evasion");
@@ -256,14 +253,10 @@ static void test_a_holding_evasion_ends_the_quiets() {
     const Run one_quiet = read_node(quiet_first);
 
     begin_section("evasions: a holding capture and three quiets search no quiet (arm)");
-    if constexpr (kB4Qsearch) {
-        EXPECT(pruned.result.nodes < searched.result.nodes);
-        if constexpr (kCounters) {
-            EXPECT_EQ(counter(pruned, "qs_evasion_moves"), 1);
-            EXPECT_EQ(counter(pruned, "qs_evasion_quiets_pruned"), 3);
-        }
-    } else {
-        EXPECT_EQ(pruned.result.nodes, searched.result.nodes);
+    EXPECT(pruned.result.nodes < searched.result.nodes);
+    if constexpr (kCounters) {
+        EXPECT_EQ(counter(pruned, "qs_evasion_moves"), 1);
+        EXPECT_EQ(counter(pruned, "qs_evasion_quiets_pruned"), 3);
     }
     end_section();
 
@@ -275,7 +268,7 @@ static void test_a_holding_evasion_ends_the_quiets() {
     end_section();
 
     begin_section("evasions: a quiet table move is the one quiet searched");
-    if constexpr (kB4Qsearch && kCounters) {
+    if constexpr (kCounters) {
         EXPECT_EQ(counter(one_quiet, "qs_evasion_moves"), 2);
         EXPECT_EQ(counter(one_quiet, "qs_evasion_quiets_pruned"), 2);
     }
@@ -287,22 +280,18 @@ static void test_a_holding_evasion_ends_the_quiets() {
 }
 
 // The arm stores an evasion node at depth 0 with no static evaluation and the
-// move that raised alpha; the OFF arm stores none.
+// move that raised alpha.
 static void test_exit_store_in_check() {
     Board child;
     child.set_fen(knight_takes_rook().fen);
     child.make_move(legal_move(child, A5, E5));
     const Run run = read_node(knight_takes_rook());
     begin_section("evasions: the exit store in check");
-    if constexpr (kB4Qsearch) {
-        EXPECT(run.node_stored);
-        EXPECT_EQ(int(run.node_entry.depth), 0);
-        EXPECT_EQ(run.node_entry.static_eval, INF_SCORE);
-        EXPECT_EQ(move_from_tt(run.node_entry.move16), legal_move(child, F7, E5));
-        EXPECT(run.node_entry.bound() == TT_ALPHA);
-    } else {
-        EXPECT(!run.node_stored);
-    }
+    EXPECT(run.node_stored);
+    EXPECT_EQ(int(run.node_entry.depth), 0);
+    EXPECT_EQ(run.node_entry.static_eval, INF_SCORE);
+    EXPECT_EQ(move_from_tt(run.node_entry.move16), legal_move(child, F7, E5));
+    EXPECT(run.node_entry.bound() == TT_ALPHA);
     end_section();
 }
 
@@ -396,20 +385,16 @@ static void test_a_recapture_is_exempt() {
     r.set = [](SearchParams& p) { p.b4_qs_recapture = 0; };
     const Run judged = read_node(r);
     begin_section("gain rules: a queen recapture below alpha is searched, and pruned without the exemption");
-    if constexpr (kB4Qsearch) {
-        EXPECT(exempt.result.nodes > judged.result.nodes);
-        if constexpr (kCounters) {
-            EXPECT_EQ(counter(exempt, "qs_futility_pruned"), 0);
-            EXPECT_EQ(counter(exempt, "qs_recapture_exempt"), 1);
-            EXPECT_EQ(counter(exempt, "qs_gain_tested"), 0);
-            EXPECT(counter(exempt, "qs_searched") >= 1);
-            EXPECT_EQ(counter(judged, "qs_futility_pruned"), 1);
-            EXPECT_EQ(counter(judged, "qs_recapture_exempt"), 0);
-            EXPECT_EQ(counter(judged, "qs_gain_tested"), 1);
-            EXPECT_EQ(counter(judged, "qs_searched"), 0);
-        }
-    } else {
-        EXPECT_EQ(exempt.result.nodes, judged.result.nodes);
+    EXPECT(exempt.result.nodes > judged.result.nodes);
+    if constexpr (kCounters) {
+        EXPECT_EQ(counter(exempt, "qs_futility_pruned"), 0);
+        EXPECT_EQ(counter(exempt, "qs_recapture_exempt"), 1);
+        EXPECT_EQ(counter(exempt, "qs_gain_tested"), 0);
+        EXPECT(counter(exempt, "qs_searched") >= 1);
+        EXPECT_EQ(counter(judged, "qs_futility_pruned"), 1);
+        EXPECT_EQ(counter(judged, "qs_recapture_exempt"), 0);
+        EXPECT_EQ(counter(judged, "qs_gain_tested"), 1);
+        EXPECT_EQ(counter(judged, "qs_searched"), 0);
     }
     end_section();
 }
@@ -437,17 +422,13 @@ static void test_the_count_rule() {
     };
     const Run unlimited = read_node(off);
     begin_section("gain rules: the third non-checking capture is skipped at 2 and searched at 64");
-    if constexpr (kB4Qsearch) {
-        EXPECT(limited.result.nodes < unlimited.result.nodes);
-        if constexpr (kCounters) {
-            EXPECT_EQ(counter(limited, "qs_count_pruned"), 1);
-            EXPECT_EQ(counter(limited, "qs_gain_tested"), 3);
-            EXPECT_EQ(counter(limited, "qs_searched"), 2);
-            EXPECT_EQ(counter(unlimited, "qs_count_pruned"), 0);
-            EXPECT_EQ(counter(unlimited, "qs_searched"), 3);
-        }
-    } else {
-        EXPECT_EQ(limited.result.nodes, unlimited.result.nodes);
+    EXPECT(limited.result.nodes < unlimited.result.nodes);
+    if constexpr (kCounters) {
+        EXPECT_EQ(counter(limited, "qs_count_pruned"), 1);
+        EXPECT_EQ(counter(limited, "qs_gain_tested"), 3);
+        EXPECT_EQ(counter(limited, "qs_searched"), 2);
+        EXPECT_EQ(counter(unlimited, "qs_count_pruned"), 0);
+        EXPECT_EQ(counter(unlimited, "qs_searched"), 3);
     }
     end_section();
 
@@ -480,12 +461,10 @@ static void test_en_passant_is_credited_a_pawn() {
     const Run searched = read_node(below);
     const Run pruned = read_node(at);
     begin_section("gain rules: en passant is credited a pawn");
-    if constexpr (kB4Qsearch) {
-        EXPECT(searched.result.nodes > pruned.result.nodes);
-        if constexpr (kCounters) {
-            EXPECT_EQ(counter(searched, "qs_futility_pruned"), 0);
-            EXPECT_EQ(counter(pruned, "qs_futility_pruned"), 1);
-        }
+    EXPECT(searched.result.nodes > pruned.result.nodes);
+    if constexpr (kCounters) {
+        EXPECT_EQ(counter(searched, "qs_futility_pruned"), 0);
+        EXPECT_EQ(counter(pruned, "qs_futility_pruned"), 1);
     }
     end_section();
 }
@@ -507,14 +486,10 @@ static void test_the_gain_vector() {
     EXPECT_EQ(defaults.b4_gain_values, 0);
     EXPECT_EQ(b4::gain_value(ROOK, 0), 500);
     EXPECT_EQ(b4::gain_value(ROOK, 1), 538);
-    if constexpr (kB4Qsearch) {
-        EXPECT(hce_values.result.nodes > search_values.result.nodes);
-        if constexpr (kCounters) {
-            EXPECT_EQ(counter(search_values, "qs_futility_pruned"), 1);
-            EXPECT_EQ(counter(hce_values, "qs_futility_pruned"), 0);
-        }
-    } else {
-        EXPECT_EQ(hce_values.result.nodes, search_values.result.nodes);
+    EXPECT(hce_values.result.nodes > search_values.result.nodes);
+    if constexpr (kCounters) {
+        EXPECT_EQ(counter(search_values, "qs_futility_pruned"), 1);
+        EXPECT_EQ(counter(hce_values, "qs_futility_pruned"), 0);
     }
     end_section();
 
@@ -527,7 +502,7 @@ static void test_the_gain_vector() {
     ep.set = [](SearchParams& p) { p.b4_gain_values = 1; };
     const Run ep_hce_values = read_node(ep);
     begin_section("gain rules: en passant is credited the vector's pawn");
-    if constexpr (kB4Qsearch && kCounters) {
+    if constexpr (kCounters) {
         EXPECT_EQ(counter(ep_search_values, "qs_futility_pruned"), 0);
         EXPECT_EQ(counter(ep_hce_values, "qs_futility_pruned"), 1);
     }
@@ -571,7 +546,7 @@ static void test_the_rules_the_arm_removes() {
     const Run delta = read_node(r);
     begin_section("gain rules: the delta rule fires only behind its switch on the arm");
     EXPECT_EQ(counter(delta, "qs_delta_pruned"), 1);
-    EXPECT_EQ(counter(plain, "qs_delta_pruned"), kB4Qsearch ? 0 : 1);
+    EXPECT_EQ(counter(plain, "qs_delta_pruned"), 0);
     end_section();
 
     NodeRead tree;
@@ -586,10 +561,8 @@ static void test_the_rules_the_arm_removes() {
     const Run run = read_node(tree);
     begin_section("gain rules: the arm's tree holds no late rule and no ply cap");
     EXPECT(counter(run, "qs_nodes") > 0);
-    if constexpr (kB4Qsearch) {
-        EXPECT_EQ(counter(run, "qs_late_pruned"), 0);
-        EXPECT_EQ(counter(run, "qs_cap_hits"), 0);
-    }
+    EXPECT_EQ(counter(run, "qs_late_pruned"), 0);
+    EXPECT_EQ(counter(run, "qs_cap_hits"), 0);
     end_section();
 }
 
@@ -647,10 +620,8 @@ static void test_stand_pat_returns_and_stores_the_blend() {
     set_node_alpha(r, beta - 1);
     const Run run = read_node(r);
     const SearchParams defaults;
-    const int expected = kB4Qsearch
-                       ? (defaults.b4_qs_stand_pat_blend * eval
-                          + (1024 - defaults.b4_qs_stand_pat_blend) * beta) / 1024
-                       : eval;
+    const int expected = (defaults.b4_qs_stand_pat_blend * eval
+                          + (1024 - defaults.b4_qs_stand_pat_blend) * beta) / 1024;
     begin_section("blends: a stand-pat cut returns and stores the value");
     EXPECT_EQ(run.result.score, -expected);
     EXPECT(run.node_stored);
@@ -679,20 +650,16 @@ static void test_a_losing_evasion_capture_is_skipped() {
     r.set = evasions_all;
     const Run searched = read_node(r);
     begin_section("evasions: a capture that loses material is skipped once the node holds");
-    if constexpr (kB4Qsearch) {
-        EXPECT(pruned.result.nodes < searched.result.nodes);
-        if constexpr (kCounters) {
-            EXPECT(counter(pruned, "qs_evasion_see_pruned") >= 1);
-            EXPECT_EQ(counter(searched, "qs_evasion_see_pruned"), 0);
-        }
-    } else {
-        EXPECT_EQ(pruned.result.nodes, searched.result.nodes);
+    EXPECT(pruned.result.nodes < searched.result.nodes);
+    if constexpr (kCounters) {
+        EXPECT(counter(pruned, "qs_evasion_see_pruned") >= 1);
+        EXPECT_EQ(counter(searched, "qs_evasion_see_pruned"), 0);
     }
     end_section();
 }
 
 // An evasion node keeps the table's PV mark at its fail-high store and at its
-// exit store. The OFF arm stores no evasion node.
+// exit store.
 static void test_the_evasion_stores_keep_the_pv_mark() {
     NodeRead high = back_rank_check();
     Board child;
@@ -713,12 +680,10 @@ static void test_the_evasion_stores_keep_the_pv_mark() {
     const Run exit = read_node(low);
 
     begin_section("evasions: both stores keep the PV mark");
-    if constexpr (kB4Qsearch) {
-        EXPECT(fail_high.node_entry.bound() == TT_BETA);
-        EXPECT(fail_high.node_entry.is_pv());
-        EXPECT(exit.node_entry.bound() == TT_ALPHA);
-        EXPECT(exit.node_entry.is_pv());
-    }
+    EXPECT(fail_high.node_entry.bound() == TT_BETA);
+    EXPECT(fail_high.node_entry.is_pv());
+    EXPECT(exit.node_entry.bound() == TT_ALPHA);
+    EXPECT(exit.node_entry.is_pv());
     end_section();
 }
 
@@ -747,16 +712,14 @@ static void test_a_checking_capture_is_exempt() {
     const Run exempt = read_node(check);
     const Run judged = read_node(quiet);
     begin_section("gain rules: a checking capture below alpha is searched");
-    if constexpr (kB4Qsearch) {
-        EXPECT(exempt.result.nodes > judged.result.nodes);
-        if constexpr (kCounters) {
-            EXPECT_EQ(counter(exempt, "qs_gain_tested"), 0);
-            EXPECT_EQ(counter(exempt, "qs_futility_pruned"), 0);
-            EXPECT(counter(exempt, "qs_searched") >= 1);
-            EXPECT_EQ(counter(judged, "qs_gain_tested"), 1);
-            EXPECT_EQ(counter(judged, "qs_futility_pruned"), 1);
-            EXPECT_EQ(counter(judged, "qs_searched"), 0);
-        }
+    EXPECT(exempt.result.nodes > judged.result.nodes);
+    if constexpr (kCounters) {
+        EXPECT_EQ(counter(exempt, "qs_gain_tested"), 0);
+        EXPECT_EQ(counter(exempt, "qs_futility_pruned"), 0);
+        EXPECT(counter(exempt, "qs_searched") >= 1);
+        EXPECT_EQ(counter(judged, "qs_gain_tested"), 1);
+        EXPECT_EQ(counter(judged, "qs_futility_pruned"), 1);
+        EXPECT_EQ(counter(judged, "qs_searched"), 0);
     }
     end_section();
 }
@@ -772,13 +735,11 @@ static void test_the_plain_see_binds_an_exempt_capture() {
     r.set = [](SearchParams& p) { p.b4_qs_see_margin = -1000; };
     const Run searched = read_node(r);
     begin_section("gain rules: a losing check is stopped by the plain SEE");
-    if constexpr (kB4Qsearch) {
-        EXPECT(pruned.result.nodes < searched.result.nodes);
-        if constexpr (kCounters) {
-            EXPECT_EQ(counter(pruned, "qs_see_pruned"), 1);
-            EXPECT_EQ(counter(pruned, "qs_searched"), 0);
-            EXPECT(counter(searched, "qs_searched") >= 1);
-        }
+    EXPECT(pruned.result.nodes < searched.result.nodes);
+    if constexpr (kCounters) {
+        EXPECT_EQ(counter(pruned, "qs_see_pruned"), 1);
+        EXPECT_EQ(counter(pruned, "qs_searched"), 0);
+        EXPECT(counter(searched, "qs_searched") >= 1);
     }
     end_section();
 }
@@ -801,16 +762,14 @@ static void test_the_alpha_relative_see() {
     const Run pruned = read_node(above);
     const Run searched = read_node(below);
     begin_section("gain rules: the alpha-relative SEE prunes a level exchange and leaves the base");
-    if constexpr (kB4Qsearch) {
-        EXPECT(pruned.result.nodes < searched.result.nodes);
-        EXPECT(pruned.node_entry.bound() == TT_ALPHA);
-        EXPECT_EQ(TranspositionTable::score_from_tt(pruned.node_entry.score, 1, 0), base);
-        if constexpr (kCounters) {
-            EXPECT_EQ(counter(pruned, "qs_see_pruned"), 1);
-            EXPECT_EQ(counter(pruned, "qs_searched"), 0);
-            EXPECT_EQ(counter(pruned, "qs_futility_pruned"), 0);
-            EXPECT(counter(searched, "qs_searched") >= 1);
-        }
+    EXPECT(pruned.result.nodes < searched.result.nodes);
+    EXPECT(pruned.node_entry.bound() == TT_ALPHA);
+    EXPECT_EQ(TranspositionTable::score_from_tt(pruned.node_entry.score, 1, 0), base);
+    if constexpr (kCounters) {
+        EXPECT_EQ(counter(pruned, "qs_see_pruned"), 1);
+        EXPECT_EQ(counter(pruned, "qs_searched"), 0);
+        EXPECT_EQ(counter(pruned, "qs_futility_pruned"), 0);
+        EXPECT(counter(searched, "qs_searched") >= 1);
     }
     end_section();
 }
@@ -827,15 +786,13 @@ static void test_the_count_rule_counts_pruned_captures() {
     r.set = [](SearchParams& p) { p.b4_qs_move_count = 64; };
     const Run unlimited = read_node(r);
     begin_section("gain rules: a pruned capture takes its place in the count");
-    if constexpr (kB4Qsearch) {
-        EXPECT(limited.result.nodes < unlimited.result.nodes);
-        if constexpr (kCounters) {
-            EXPECT_EQ(counter(limited, "qs_count_pruned"), 1);
-            EXPECT_EQ(counter(limited, "qs_see_pruned"), 2);
-            EXPECT_EQ(counter(limited, "qs_searched"), 0);
-            EXPECT_EQ(counter(unlimited, "qs_count_pruned"), 0);
-            EXPECT(counter(unlimited, "qs_searched") >= 1);
-        }
+    EXPECT(limited.result.nodes < unlimited.result.nodes);
+    if constexpr (kCounters) {
+        EXPECT_EQ(counter(limited, "qs_count_pruned"), 1);
+        EXPECT_EQ(counter(limited, "qs_see_pruned"), 2);
+        EXPECT_EQ(counter(limited, "qs_searched"), 0);
+        EXPECT_EQ(counter(unlimited, "qs_count_pruned"), 0);
+        EXPECT(counter(unlimited, "qs_searched") >= 1);
     }
     end_section();
 }
@@ -852,12 +809,10 @@ static void test_futility_leaves_its_sum() {
     set_node_alpha(r, sum + 20);
     const Run run = read_node(r);
     begin_section("gain rules: futility leaves its sum as the node's bound");
-    if constexpr (kB4Qsearch) {
-        EXPECT(run.node_entry.bound() == TT_ALPHA);
-        EXPECT_EQ(TranspositionTable::score_from_tt(run.node_entry.score, 1, 0), sum);
-        if constexpr (kCounters)
-            EXPECT_EQ(counter(run, "qs_futility_pruned"), 1);
-    }
+    EXPECT(run.node_entry.bound() == TT_ALPHA);
+    EXPECT_EQ(TranspositionTable::score_from_tt(run.node_entry.score, 1, 0), sum);
+    if constexpr (kCounters)
+        EXPECT_EQ(counter(run, "qs_futility_pruned"), 1);
     end_section();
 }
 
@@ -878,9 +833,7 @@ static void test_a_capture_fail_high_returns_and_stores_the_blend() {
     const Run plain = read_node(r);
     const SearchParams defaults;
     const int value = -plain.result.score;
-    const int expected = kB4Qsearch
-                       ? b4::fail_high_value(value, beta, defaults.b4_qs_fail_high_blend)
-                       : value;
+    const int expected = b4::fail_high_value(value, beta, defaults.b4_qs_fail_high_blend);
     begin_section("blends: a capture fail high returns and stores the value");
     EXPECT(value > beta + 100);
     EXPECT_EQ(blended.result.score, -expected);
@@ -894,8 +847,7 @@ static void test_a_capture_fail_high_returns_and_stores_the_blend() {
 // ---- Stalemate ----------------------------------------------------------------------
 
 // Rxh3 takes Black's last piece and leaves a bare king with a blocked pawn and
-// no legal move. The arm reads the draw; with the switch off, and on the OFF
-// arm, quiescence stands pat on it.
+// no legal move. Quiescence reads the draw; with the switch off it stands pat.
 static void test_stalemate() {
     NodeRead r;
     r.fen = "k7/p1K5/P7/8/8/7r/8/7R w - - 0 1";
@@ -907,10 +859,10 @@ static void test_stalemate() {
     const Run off = read_node(r);
     begin_section("stalemate: a blocked bare king reads 0 with the switch on, the static eval off");
     EXPECT(eval != 0);
-    EXPECT_EQ(on.result.score, kB4Qsearch ? 0 : -eval);
+    EXPECT_EQ(on.result.score, 0);
     EXPECT_EQ(off.result.score, -eval);
     if constexpr (kCounters)
-        EXPECT_EQ(counter(on, "qs_stalemates"), kB4Qsearch ? 1 : 0);
+        EXPECT_EQ(counter(on, "qs_stalemates"), 1);
     end_section();
 
     // The same stalemate after a pawn fell: the donor's condition asks for a
@@ -932,8 +884,7 @@ static void test_stalemate() {
     const Run exact = read_node(narrow);
     begin_section("stalemate: the draw takes no blend");
     EXPECT(eval < -200);
-    if constexpr (kB4Qsearch)
-        EXPECT_EQ(exact.result.score, 0);
+    EXPECT_EQ(exact.result.score, 0);
     end_section();
 }
 
@@ -941,8 +892,7 @@ static void test_stalemate() {
 
 // exd5 recaptures the queen and is searched as a recapture, but with alpha at
 // +3000 it fails low. The arm's one form stores no move after a fail low; with
-// the switch at 0 it stores the best-scored searched move, here exd5. The OFF
-// arm stores no move in quiescence at either setting.
+// the switch at 0 it stores the best-scored searched move, here exd5.
 static void test_fail_low_store_in_quiescence() {
     NodeRead r;
     r.fen = "3qk3/8/8/3N4/4P3/8/8/6K1 b - - 0 1";
@@ -959,13 +909,13 @@ static void test_fail_low_store_in_quiescence() {
     const Run none = read_node(r);
     r.set = [](SearchParams& p) { p.b3_fail_low_store = 0; };
     const Run scored = read_node(r);
-    begin_section("fail-low store: one form on the arm, none in quiescence off it");
-    EXPECT_EQ(defaults.b3_fail_low_store, kB4Qsearch ? 1 : 0);
+    begin_section("fail-low store: no move at 1, the best-scored move at 0");
+    EXPECT_EQ(defaults.b3_fail_low_store, 1);
     EXPECT(none.node_stored && scored.node_stored);
     EXPECT(none.node_entry.bound() == TT_ALPHA);
     EXPECT(scored.node_entry.bound() == TT_ALPHA);
     EXPECT_EQ(move_from_tt(none.node_entry.move16), MOVE_NONE);
-    EXPECT_EQ(move_from_tt(scored.node_entry.move16), kB4Qsearch ? recapture : MOVE_NONE);
+    EXPECT_EQ(move_from_tt(scored.node_entry.move16), recapture);
     end_section();
 
     // In check the arm's form is the same: Re5+ Nxe5 is the best-scored evasion.
@@ -982,11 +932,9 @@ static void test_fail_low_store_in_quiescence() {
     check.set = [](SearchParams& p) { p.b3_fail_low_store = 0; };
     const Run scored_in_check = read_node(check);
     begin_section("fail-low store: the same form at an evasion node");
-    if constexpr (kB4Qsearch) {
-        EXPECT_EQ(move_from_tt(none_in_check.node_entry.move16), MOVE_NONE);
-        EXPECT_EQ(move_from_tt(scored_in_check.node_entry.move16),
-                  legal_move(in_check, F7, E5));
-    }
+    EXPECT_EQ(move_from_tt(none_in_check.node_entry.move16), MOVE_NONE);
+    EXPECT_EQ(move_from_tt(scored_in_check.node_entry.move16),
+              legal_move(in_check, F7, E5));
     end_section();
 }
 
@@ -1053,17 +1001,11 @@ static void test_rfp_seek_mate_live() {
     const Run shallow_default = search_krk(15, nullptr);
     const Run shallow_on = search_krk(15, cap_on);
 
-    begin_section("reverse futility: from its bar the cap moves the arm's tree and no other");
-    if constexpr (kB4Qsearch)
-        EXPECT(deep_on.result.nodes != deep_default.result.nodes);
-    else
-        EXPECT_EQ(deep_on.result.nodes, deep_default.result.nodes);
+    begin_section("reverse futility: from its bar the cap moves the tree");
+    EXPECT(deep_on.result.nodes != deep_default.result.nodes);
     if constexpr (kCounters) {
         EXPECT_EQ(counter(deep_default, "rfp_seekmate_capped"), 0);
-        if constexpr (kB4Qsearch)
-            EXPECT(counter(deep_on, "rfp_seekmate_capped") > 0);
-        else
-            EXPECT_EQ(counter(deep_on, "rfp_seekmate_capped"), 0);
+        EXPECT(counter(deep_on, "rfp_seekmate_capped") > 0);
     }
     end_section();
 
@@ -1083,11 +1025,8 @@ static void test_rfp_seek_mate_live() {
         p.b3_seek_mate_depth = 64;
     });
     begin_section("reverse futility: the cap does not read the singular half's bar");
-    if constexpr (kB4Qsearch)
-        EXPECT(singular_far_on.result.nodes != singular_far_off.result.nodes);
-    else
-        EXPECT_EQ(singular_far_on.result.nodes, singular_far_off.result.nodes);
-    if constexpr (kCounters && kB4Qsearch)
+    EXPECT(singular_far_on.result.nodes != singular_far_off.result.nodes);
+    if constexpr (kCounters)
         EXPECT(counter(singular_far_on, "rfp_seekmate_capped") > 0);
     end_section();
 
@@ -1117,15 +1056,10 @@ static void test_a_quiet_mate_at_the_first_ply() {
     begin_section("quiet checks: a quiet mate at the first ply is found at 6 and not at 0");
     EXPECT_EQ(SearchParams{}.b4_quiet_checks, 0);
     EXPECT(!is_decisive(none.result.score));
-    if constexpr (kB4Qsearch) {
-        EXPECT_EQ(six.result.score, -(MATE_SCORE - 2));
-        if constexpr (kCounters) {
-            EXPECT_EQ(counter(none, "qs_quiet_checks"), 0);
-            EXPECT_EQ(counter(six, "qs_quiet_checks"), 1);
-        }
-    } else {
-        EXPECT_EQ(six.result.score, none.result.score);
-        EXPECT_EQ(six.result.nodes, none.result.nodes);
+    EXPECT_EQ(six.result.score, -(MATE_SCORE - 2));
+    if constexpr (kCounters) {
+        EXPECT_EQ(counter(none, "qs_quiet_checks"), 0);
+        EXPECT_EQ(counter(six, "qs_quiet_checks"), 1);
     }
     end_section();
 }
@@ -1152,16 +1086,12 @@ static void test_which_quiet_checks_are_searched() {
     const Run on = read_node(hanging);
 
     begin_section("quiet checks: the first ply alone, up to the limit, none that loses SEE");
-    if constexpr (kB4Qsearch) {
-        EXPECT(first_ply.result.nodes > limited.result.nodes);
-        EXPECT_EQ(on.result.nodes, off.result.nodes);
-        if constexpr (kCounters) {
-            EXPECT_EQ(counter(first_ply, "qs_quiet_checks"), 2);
-            EXPECT_EQ(counter(limited, "qs_quiet_checks"), 1);
-            EXPECT_EQ(counter(on, "qs_quiet_checks"), 0);
-        }
-    } else {
-        EXPECT_EQ(first_ply.result.nodes, limited.result.nodes);
+    EXPECT(first_ply.result.nodes > limited.result.nodes);
+    EXPECT_EQ(on.result.nodes, off.result.nodes);
+    if constexpr (kCounters) {
+        EXPECT_EQ(counter(first_ply, "qs_quiet_checks"), 2);
+        EXPECT_EQ(counter(limited, "qs_quiet_checks"), 1);
+        EXPECT_EQ(counter(on, "qs_quiet_checks"), 0);
     }
     end_section();
 }
@@ -1169,7 +1099,7 @@ static void test_which_quiet_checks_are_searched() {
 // ---- The SEE vector -----------------------------------------------------------
 
 // The seam is a tune build's alone, and a search reads it from its limits: the
-// arm's tree moves with the vector and the OFF arm's does not.
+// tree moves with the vector.
 static void test_the_see_vector_reaches_the_search() {
 #ifdef BASILISK_TUNE
     const char* const kiwipete =
@@ -1178,24 +1108,23 @@ static void test_the_see_vector_reaches_the_search() {
     const SearchResult hce_values = search_fen(kiwipete, 8, [](SearchParams& p) {
         p.b4_see_values = 1;
     });
-    begin_section("SEE vector: a search reads it on the arm alone");
+    begin_section("SEE vector: a search reads it");
     EXPECT_EQ(SearchParams{}.b4_see_values, 0);
-    EXPECT_EQ(hce_values.nodes != search_values.nodes, kB4Qsearch);
+    EXPECT(hce_values.nodes != search_values.nodes);
     end_section();
 #endif
 }
 
 // ---- The tune surface -----------------------------------------------------------
 
-static void test_options_are_the_arms_alone() {
+static void test_options_are_advertised() {
 #ifdef BASILISK_TUNE
     const std::string options = Parameters::uci_options();
     const SearchParams compiled;
-    begin_section("options: a tune build advertises Cluster 3's table on the arm alone");
+    begin_section("options: a tune build advertises Cluster 3's table");
 #define B4_ADVERTISED(field, uci, def, lo, hi)                                              \
-    EXPECT_EQ(options.find("option name " #uci " type spin default "                        \
-                           + std::to_string(compiled.field) + " min ") != std::string::npos, \
-              kB4Qsearch);
+    EXPECT(options.find("option name " #uci " type spin default "                           \
+                        + std::to_string(compiled.field) + " min ") != std::string::npos);
     BASILISK_B4_PARAMS(B4_ADVERTISED, B4_ADVERTISED, B4_ADVERTISED)
 #undef B4_ADVERTISED
     end_section();
@@ -1208,10 +1137,10 @@ int main() {
     Zobrist::init();
     init_eval_tables();
 
-    std::printf("Cluster 3 (%s arm)\n", kB4Qsearch ? "B4_QSEARCH" : "OFF");
-    std::printf("==================\n");
+    std::printf("Cluster 3\n");
+    std::printf("=========\n");
 
-    test_options_are_the_arms_alone();
+    test_options_are_advertised();
     test_table_move_leads_the_evasions();
     test_quiet_table_move_outside_check();
     test_a_holding_evasion_ends_the_quiets();
