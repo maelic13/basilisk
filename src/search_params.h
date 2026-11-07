@@ -409,9 +409,9 @@
 //   two choices (tune builds; release builds keep the constants).
 // b4_quiet_checks: quiet checks searched at the first quiescence ply; 0 none.
 #define BASILISK_B4_PARAMS(X, F, S)                                      \
-    X(b4_qs_fut_base,        B4QsFutBase,           86,   40,   220)     \
-    X(b4_qs_stand_pat_blend, B4QsStandPatBlend,    441,  256,  1024)     \
-    X(b4_qs_fail_high_blend, B4QsFailHighBlend,    462,  256,  1024)     \
+    X(b4_qs_fut_base,        B4QsFutBase,           82,   40,   220)     \
+    X(b4_qs_stand_pat_blend, B4QsStandPatBlend,    437,  256,  1024)     \
+    X(b4_qs_fail_high_blend, B4QsFailHighBlend,    466,  256,  1024)     \
     F(b4_qs_move_count,      B4QsMoveCount,          2,    1,    64)     \
     F(b4_qs_see_margin,      B4QsSeeMargin,        -28, -200,     0)     \
     F(b4_rfp_seek_mate_cap,  B4RfpSeekMateCap,       5,    1,    19)     \
@@ -426,11 +426,21 @@
     S(b4_quiet_checks,       B4QuietChecks,          0,    0,     6)
 
 // The B4_QSEARCH arm's own defaults for earlier clusters' lines, in the form of
-// BASILISK_B3_CORE_DEFAULTS. b3_fail_low_store: one form of the fail-low store
+// BASILISK_B3_CORE_DEFAULTS, applied after it, so a line here wins on the arm.
+// The coordinates are fitted on this arm's tree beside Cluster 3's, so the OFF
+// arm keeps its values. b3_fail_low_store: one form of the fail-low store
 // for both searches; on the arm 1 stores no move in either, and 0 stores the
 // best-scored searched move in both.
 #define BASILISK_B4_CORE_DEFAULTS(A)                                     \
-    A(b3_fail_low_store,     B3FailLowStore,          1)
+    A(b3_fail_low_store,     B3FailLowStore,          1)                \
+    A(razor_margin,          CoreRazorMargin,       261)                \
+    A(rfp_per_ply,           CoreRfpPerPly,         107)                \
+    A(rfp_improving,         CoreRfpImproving,       94)                \
+    A(rfp_corr_mult,         CoreRfpCorrMult,       457)                \
+    A(lmr_cut_node_no_tt,    CoreLmrCutNodeNoTt,    856)                \
+    A(b3_nmp_base,           B3NmpBase,             172)                \
+    A(b3_nmp_per_ply,        B3NmpPerPly,            13)                \
+    A(b3_iir_min_depth,      B3IirMinDepth,           6)
 
 #define BASILISK_KERNEL_PARAMS(X) BASILISK_CORE_KERNEL_PARAMS(X, X)
 #define BASILISK_KERNEL_SWITCHES(S) BASILISK_CORE_KERNEL_SWITCHES(S)
