@@ -132,3 +132,61 @@ Added before exposure:
   fitted arm against the OFF arm directly.
 - **(a) and (d) are unlocked:** P9 is closed and (c) left the candidate as pinned, so
   `$candidateFixed` is set and no binary changes.
+- **(a): H1 (2026-11-07).** LLR +2.96 at 1,230 pairs, 2,460 games, 25 minutes (cap 4,500
+  pairs). First-crossing estimate **+31.7 ± 8.6 Elo, +50.8 ± 13.7 nElo**; pentanomial
+  [28, 224, 551, 350, 77]. No fault, no time loss, no anomaly. `tools/results/b47-gate-a/`
+  (`result.json` bbb0371d…).
+- **(d) (2026-11-07).** **+38.4 ± 9.2 Elo, +64.3 ± 15.2 nElo** at `10+0.1`, 2,000 games,
+  68 minutes; W/D/L 622/976/402, pentanomial [10, 183, 438, 315, 54]. No fault, no time
+  loss, no anomaly. `tools/results/b47-direction-ltc/` (`result.json` 6cbefbb0…). A
+  direction read: it carries no rule.
+- **Both were recounted** from `games.jsonl`: (a)'s pentanomial equals its run record,
+  (d)'s equals the harness's closing line (a match's run record holds none), every pair
+  has one opening with colours reversed, and (a)'s 28 post-terminal games are outside its
+  sample. Seeds, clocks and adjudication match this entry, and both binaries still hash to
+  their pins.
+- **Speed and depth as the games read them**, recorded and carrying no rule:
+
+  | Read | ON nodes a second | OFF | Ratio | ON depth without mates | OFF |
+  |---|---:|---:|---:|---:|---:|
+  | (a), `3+0.03` | 1.99M | 2.01M | 0.989× | 16.57 | 15.60 |
+  | (d), `10+0.1` | 2.02M | 2.06M | 0.978× | 20.60 | 19.04 |
+
+- **Predictions.**
+
+  | # | Result | Score |
+  |---|---|---|
+  | P2 | H1 at `[0,3]`, against 50%; +31.7 first-crossing against +10, [−3, +28] | H1 **hit**; the estimate is above the interval, with the caveat of its reading above |
+  | P11 | (c) accepted H1 | **hit** |
+  | G1 | (a) accepted H1 | **hit** |
+  | G2 | (b) accepted H1, against 35% | **hit** |
+  | G3 | (d) read above 0 | **hit** |
+
+- **The H1 clause, in its order.**
+  - `a346d22` binds the ten clauses (M1, M2, M3, M5, M6, M7, M8, M11, M13, M16) with nine
+    sections of `test_b4_qsearch`; M2 and M16 share one. Each mutant fails its section on
+    a Diag and a Release tree, and the controls pass before and after
+    (`tools/results/b47-20261107/clause-mutants.json`). The sections pass on the ON and
+    OFF arms in Release, Tune and Diag builds.
+  - `312dd5b` flips `B4_QSEARCH` to ON, and the fingerprint record moves to **4,144,790**.
+    `9ef253d` makes CI's arm job the OFF arm and pins `B4_QSEARCH=OFF` in its pre-Cluster-2
+    job.
+  - On fresh configures (`tools/results/b47-20261107/flip/`): the default build `bench 13`
+    4,144,790, CTest 27/27; `B4_QSEARCH=OFF` 6,090,091, CTest 27/27; the default Tune build
+    4,144,790, with `test_search`, `test_b3_proof` and `test_b4_qsearch` passing; the Texel
+    build's verify passes.
+- **Found, not repaired: CI's pre-Cluster-2 job has one failing section.** With
+  `B3_PROOF=OFF` (`bench 13` 15,198,763), `test_b4_qsearch`'s "the exit store in check"
+  fails at `EXPECT(!run.node_stored)`, CTest 26/27.
+  - It fails the same way at `507fc7b`, so neither the flip nor the new tests caused it.
+    The section dates from `d9b11ab`, and this branch has not yet run in CI.
+  - On that arm every node in check takes the check extension
+    (`src/search_kernel_core.cpp:842`), so the section's child is a depth-1 negamax node
+    that stores, not a quiescence node. The section's premise fails there; the search does
+    not.
+  - The repair is the maintainer's: PROCESS leaves an old path unmaintained, but CI runs
+    this one, and the branch's PR will show it red until the expectation is limited to
+    `kB3Proof`.
+- Disposition: **CLOSED 2026-11-07.** All three SPRTs H1: `B4_QSEARCH` defaults ON at
+  **4,144,790**, and the OFF arm stays compilable at 6,090,091 until the search programme's
+  cleanup.

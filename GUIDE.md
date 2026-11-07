@@ -11,9 +11,9 @@ in `docs/PROCESS.md`; where the engine stands is PLAN §1.
 | Item | Value |
 |---|---|
 | Released baseline | **1.10.2** on `master`, tagged `v1.10.2` (2026-10-08), `bench 13` 14,978,465 |
-| Bench fingerprint | **6,090,091** (`bench 13`, since B.4.2's SEE repairs; 5,361,058 at B.3.6; 5,369,042 at B.3.5; 11,880,564 at B.14; 16,615,757 at B.12; 19,470,325 at A.13.2; 19,108,490 at A.13.1; 16,092,165 at A.11.11; 8,913,394 at A.11.10; 7,857,713 at A.11.9; 7,384,101 at A.11.7; 7,233,823 at A.11.6; 8,753,339 at A.11.2; 9,260,429 at A.11.1; 8,437,148 at B.10; 11,099,210 at B.2.4; 14,978,465 for 1.10.0 to 1.10.2) |
-| Active experiment | BAS-S52 (B.4.7's gates; (b) and (c) H1, (a) and (d) prepared) |
-| Long job | None (B.4.1 to B.4.6 are on `b4-quiescence`, not yet on `master`) |
+| Bench fingerprint | **4,144,790** (`bench 13`, since B.4.7's gates turned Cluster 3 on; 6,090,091 at B.4.2; 5,361,058 at B.3.6; 5,369,042 at B.3.5; 11,880,564 at B.14; 16,615,757 at B.12; 19,470,325 at A.13.2; 19,108,490 at A.13.1; 16,092,165 at A.11.11; 8,913,394 at A.11.10; 7,857,713 at A.11.9; 7,384,101 at A.11.7; 7,233,823 at A.11.6; 8,753,339 at A.11.2; 9,260,429 at A.11.1; 8,437,148 at B.10; 11,099,210 at B.2.4; 14,978,465 for 1.10.0 to 1.10.2) |
+| Active experiment | None (BAS-S52 closed: B.4.7's gates, all H1) |
+| Long job | None (B.4 is on `b4-quiescence`, not yet on `master`) |
 | Next release | **1.11.0** after B (B.11.2), then 1.12.0 after C, 1.13.0 after E; **2.0.0** is the first NNUE release |
 
 ## Model by class
@@ -34,7 +34,7 @@ generations change. These are maintainer judgments, not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **B.4.7** `[V]` Cluster 3 gates — Claude Sonnet 5 — High
+**Next step:** **B.5** `[I2]` Cluster 4 — root and aspiration — Claude Opus 5 — High
 
 ### Phase A — Reset: documents, harness, instruments, baselines (EXTENDED)
 
@@ -97,14 +97,14 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     - [x] **B.16.3** `[V]` Loss analysis by cell (ANY TIME) — before B.4
     - [x] **B.16.4** `[I1]` Identical-tree counter read (ANY TIME) — before B.4
     - [x] **B.16.5** `[I1]` Prompt helper stop (ANY TIME) — before B.4
-- [ ] **B.4** Cluster 3 — quiescence
+- [x] **B.4** Cluster 3 — quiescence
     - [x] **B.4.1** `[I1]` Legal positions in the floors' generator
     - [x] **B.4.2** `[I2]` SEE's created pins and promotion recaptures
     - [x] **B.4.3** `[R2]` Research and handoff on the repaired head
     - [x] **B.4.4** `[I2]` Implement behind the umbrella switch
     - [x] **B.4.5** `[V]` Diagnostics and the unfitted paired run
     - [x] **B.4.6** `[V]` Curvature sweep, then SPSA in blocks
-    - [ ] **B.4.7** `[V]` Cluster 3 gates
+    - [x] **B.4.7** `[V]` Cluster 3 gates
 - [ ] **B.5** `[I2]` Cluster 4 — root and aspiration
 - [ ] **B.6** Donor-form reconciliation, then joint search SPSA
     - [ ] **B.6.1** `[R2]` Donor-form reconciliation

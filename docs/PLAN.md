@@ -1686,7 +1686,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       - Gate 2026-11-05, `CLOSED`, retained: the cap without a boundary
         (3,000 games, LLR −0.96), −2.2 ± 7.1 Elo at 4T, no faults or time
         losses; the cap keeps a repair (BAS-R09).
-- [ ] **B.4** Cluster 3 — quiescence
+- [x] **B.4** Cluster 3 — quiescence
   TT cutoff, corrected stand-pat with interpolated fail-high, futility base,
   move-count and SEE pruning, evasions only in check, TT write on exit; SPRT
   `[0,3]`.
@@ -2109,7 +2109,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           tune binary's replay of theta; OFF 6,090,091 unchanged.
         - Release CTest 27/27 on both arms. The floors hold to 480,000
           nodes; KBN-K's five-budget sum is 119.
-    - [ ] **B.4.7** `[V]` Cluster 3 gates
+    - [x] **B.4.7** `[V]` Cluster 3 gates
       SPRT `[0,3]` for the cluster, and each categorical and deletion arm
       at the bounds the packet registers.
       - Registered 2026-11-07, before any of its games (BAS-S52):
@@ -2126,6 +2126,22 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           deletion. The delta rule stays deleted and the candidate is
           unchanged.
         - (a) and (d) are unlocked in `tools/run_b47_gates.ps1`.
+      - Closed 2026-11-07 (BAS-S52 *RESULT*; maintainer-run, every count
+        recounted, no fault):
+        - (a) **H1, +31.7 ± 8.6 Elo** (2,460 games) against the OFF arm.
+        - (b) **H1, +6.5 ± 3.6 Elo** (12,632 games) for the fit itself.
+        - (c) **H1** (2,594 games): the delta rule stays deleted.
+        - (d) **+38.4 ± 9.2 Elo** at `10+0.1` (2,000 games).
+        - `a346d22` binds the ten clauses, each shown to fail on its mutant
+          on Diag and Release trees.
+        - So `B4_QSEARCH` defaults ON (`312dd5b`), and the fingerprint
+          record moves to 4,144,790. The OFF arm stays compilable at
+          6,090,091.
+        - A fresh default build reads 4,144,790 and passes Release CTest
+          27/27, as `B4_QSEARCH=OFF` does at 6,090,091.
+        - Open for the maintainer: CI's `B3_PROOF=OFF` job fails one section
+          of `test_b4_qsearch`, as it did before this leaf (BAS-S52
+          *RESULT*). The PR will show it red until it is settled.
       - From B.4.4's review: (c)'s registration says that `B4QsDelta` 1
         restores the delta rule under the arm's band guard, not the OFF
         arm's.
@@ -2881,7 +2897,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.4.7 | GAME_GATE | V | BAS-S52: (b) and (c) accepted H1 and P9 is closed; (a) and (d) are the maintainer's to run |
 | B.5 | RESEARCH | I2 | Contents fixed by B.0; the ply cap and the clean child frame added 2026-11-05 |
 | B.6.1 | RESEARCH | R2 | Added 2026-10-31; after B.4 and B.5 close |
 | B.6.2 | RESEARCH | V | Runs (maintainer 2026-11-05); the curvature evidence chooses its surface |
