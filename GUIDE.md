@@ -120,6 +120,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     - [ ] **B.8.3** `[I1]` Allocation guard
     - [ ] **B.8.4** `[I1]` Large pages on every platform
     - [ ] **B.8.5** `[I1]` Speed pass
+    - [x] **B.8.6** `[I1]` Delete the old search arms (ANY TIME) — before B.5
 - [ ] **B.9** Robustness and protocol before the release
     - [ ] **B.9.1** `[R2]` Lifecycle and protocol audit and tests
     - [ ] **B.9.2** `[I2]` Repairs and the repair gate

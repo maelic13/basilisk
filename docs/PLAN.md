@@ -2456,8 +2456,8 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         `tools/diag` tests pass but `test_profile_regions`, which fails on
         master already (`version.cpp` and `version.h` are unmapped).
     - [ ] **B.8.2** `[I1]` Dead parameters, switches and diagnostics
-      What B.8 keeps after the kernel's deletion. The ten zero counters
-      leave the counter contract only with the oracle's side of it.
+      What B.8.1 and B.8.6 kept (their *Kept* lines). The thirteen zero
+      counters leave the counter contract only with the oracle's side of it.
       Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
       are its items):
       - Delete the dead shallower re-search (B-63) and the probably-dead PVS
@@ -2586,6 +2586,41 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         branch in `record_node`, `flush_shared_nodes`, helper paths): one 4T
         pooled read of a profile trained on `bench 13` plus a Threads-2 run,
         kept only if 4T gains and 1T stays within the floor.
+    - [x] **B.8.6** `[I1]` Delete the old search arms (ANY TIME) — before B.5
+      Done 2026-11-08 at the maintainer's request, out of turn, so that
+      Cluster 4 builds on one search path; every gate the arms served is
+      read. Deleted: the `B3_PROOF`, `B4_QSEARCH` and `COLOUR_HISTORY`
+      options and their defines; the kernel's OFF-only paths (null move,
+      ProbCut, IIR and singular extension in their old forms; quiescence's
+      old ordering, pruning, depth cap and in-check search); the colourless
+      history index; CI's two OFF-arm builds; the lines only those paths
+      read (`NullBase`, `NullEvalDiv`, `ProbCutMargin`, `SingularMinDepth`,
+      `SingularBetaMult`, `SingularDoubleMargin`, `DoubleExtMax`,
+      `CoreIirMinDepth`) and the `double_exts` stack field. The default SPSA
+      surface regenerates from 19 coordinates to 12 and the core surface
+      from 49 to 48; the B.3.3 and B.4.6 surfaces are unchanged.
+      - Kept, for B.8.2: the clusters' refit tables
+        (`BASILISK_B3_CORE_DEFAULTS`, `_B4_CORE_DEFAULTS`), which still
+        apply over their X lines, because folding them in moves the core
+        surface's start values; three more zero counters (`sing_cap_bound`,
+        `qs_cap_hits`, `qs_late_pruned`) with the `QsLatePrune` trace event
+        and the `QsLate` price rule. The `B4QsDelta` switch stays: it
+        restores the old delta rule.
+      - `test_search`'s lone-move section bound the deleted singular
+        margin; it now binds the graded extension's boundary (one ply at
+        margins of one, two below). Its count falls by one expectation per
+        deleted line in every build and one more in Tune (Release 735 to
+        728, Tune 804 to 789, each with the section's added check); the
+        other suites' counts are unchanged.
+      - Exact fingerprint: `bench 13` 4,144,790 on fresh Release, Tune and
+        Diag builds, each passing CTest 27/27; the Ablate build's
+        `test_uci_protocol` passes and the Texel build's `--verify`
+        reconstructs all seven positions; `generate_spsa_surface.py
+        --check` and the `tools/diag` tests (177) pass. Not run: the
+        sanitizers, and the macOS and Linux builds, which CI runs.
+      - The gate scripts that built an OFF arm (`tools/run_b32_games.ps1`,
+        `run_b36_gate.ps1`, `run_b45_games.ps1`) reproduce only at the
+        commits their entries record.
 - [ ] **B.9** Robustness and protocol before the release
   Added 2026-11-05 (maintainer: every correctness fix before the next
   release): the lifecycle and protocol work that was D.3.2, the
