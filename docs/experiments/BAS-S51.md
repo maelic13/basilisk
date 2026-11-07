@@ -108,3 +108,23 @@
 - **Launch:** `pwsh -NoProfile -File tools/spsa_colosseum.ps1 -Engine tools/test_engines/basilisk-b45s-on-tune-pext-tune-pgo.exe -ExpectBench 4003560 -ExpectRevision 516d42224038ee28ebd840f11cfbcc8188a2e480 -Tune tools/spsa_configs/colosseum/b46.tune.toml -Seed 46001 -Dir tools/results/b46-spsa-block1`.
 - Disposition: the sweep sends B.4.6 to SPSA; block 1 is prepared, maintainer-run, not
   started.
+
+#### Block 1 (maintainer-run 2026-11-06 to 2026-11-07)
+
+- **Run:** `tools/results/b46-spsa-block1/`, seed 46001, one launch, 44,024 seconds at
+  4,906 games an hour. 2,000 iterations, 60,000 games, 0 engine faults, 0 time losses,
+  0 infrastructure faults. `result.json` 414a668f…, `tuned-options.txt` b9748818…,
+  `games.jsonl` 0b5a891a…; binary FDB8D28C… as registered.
+- **The rule:** one of 15 coordinates moved a full step (`B3NmpPerPly` 16 → 13, −1.50
+  steps), so **STOP**: theta is block 1's rounded centres.
+- **Theta:** `B4QsFutBase` 82, `B4QsStandPatBlend` 437, `B4QsFailHighBlend` 466,
+  `CoreRazorMargin` 261, `CoreRfpPerPly` 107, `CoreRfpImproving` 94, `CoreRfpWorsening`
+  13, `CoreRfpCorrMult` 457, `CoreRfpBetaWeight` 660, `CoreRfpDepthCap` 10, `B3NmpBase`
+  172, `B3IirMinDepth` 6, `CoreLmrCutNodeNoTt` 856, `B3NmpPerPly` 13,
+  `CoreResearchDeeper` 13.
+- **Fitted-constant analysis** (`analysis/b46_constants_2026-11-07.md`): no rail and no
+  clamped perturbation. `B3NmpPerPly` is the only clear gradient (z −4.08) and had not
+  settled; the null move's entry tightens by 18 to 69 by depth, for B.6. The quiescence
+  coordinates read flat, against the hypothesis. Theta reads `bench 13` 4,144,790 on the
+  replay and WAC 254. Nothing blocks the bake.
+- Disposition: tuned, not baked. Theta's bake is the leaf's last step.

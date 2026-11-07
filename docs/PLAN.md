@@ -2092,6 +2092,14 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         - None is flat, so all 15 coordinates stay. Each is proved live.
         - The surface is generated (`14a1810`). Block 1 is prepared (seed
           46001) and its dry run accepted. Maintainer-run overnight.
+      - Block 1 read 2026-11-07 (`analysis/b46_constants_2026-11-07.md`):
+        - 60,000 games, no faults. One of 15 coordinates moved a full step
+          (`B3NmpPerPly` 16 → 13), so the rule stops the tune and theta is
+          block 1's rounded centres.
+        - No rail and no clamped perturbation. The null move's entry tightens
+          and had not settled; the quiescence coordinates read flat. Both
+          null-move readings go to B.6.
+        - The bake is the leaf's last step.
       - From B.4.4's review: `test_tt_switches_live` follows the tree
         (three unrelated quiescence mutants flip it). If the bake trips
         it, its precondition is repaired in its own commit.
@@ -2853,7 +2861,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.4.6 | RESEARCH | V | The sweep sends it to SPSA (three of five curved); block 1 is prepared on 15 coordinates and the maintainer's to run (BAS-S51) |
+| B.4.6 | RESEARCH | V | The tune stopped after block 1 and theta is analysed (BAS-S51); the bake is what remains |
 | B.4.7 | RESEARCH | V | After B.4.6. P9's falsifier binds before its gate; its handling is the maintainer's (BAS-S50 *RESULT*) |
 | B.5 | RESEARCH | I2 | Contents fixed by B.0; the ply cap and the clean child frame added 2026-11-05 |
 | B.6.1 | RESEARCH | R2 | Added 2026-10-31; after B.4 and B.5 close |
