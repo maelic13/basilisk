@@ -510,8 +510,8 @@ option(B3_PROOF "Compile Cluster 2's proof searches and extensions into the node
 option(COLOUR_HISTORY "Index the piece-keyed histories by coloured piece (sets BASILISK_COLOUR_HISTORY)" ON)
 # B4_QSEARCH is Cluster 3, the donor's quiescence, built as `if constexpr`
 # branches inside the node kernel so both arms compile on every build. It
-# stays OFF until its gate.
-option(B4_QSEARCH "Compile Cluster 3's quiescence into the node kernel (sets BASILISK_B4_QSEARCH)" OFF)
+# passed its gate and defaults ON.
+option(B4_QSEARCH "Compile Cluster 3's quiescence into the node kernel (sets BASILISK_B4_QSEARCH)" ON)
 option(PROFILE_SYMBOLS "Emit line tables with inline records in Release builds for the sampling profiler; code generation is unchanged" OFF)
 set(BASILISK_PGO_ARM_OPTION "" CACHE STRING "Boolean CMake option identifying an umbrella arm in PGO child builds")
 set(BASILISK_PGO_ARM_STATE "OFF" CACHE STRING "Value for BASILISK_PGO_ARM_OPTION in PGO child builds")
