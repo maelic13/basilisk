@@ -543,7 +543,7 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S51](experiments/BAS-S51.md) — B.4.6: the Cluster 3 curvature sweep, then SPSA in blocks — one block, theta baked per arm, ON `bench 13` 4,144,790
 
-- [BAS-S52](experiments/BAS-S52.md) — B.4.7: the Cluster 3 gates — registered; (b) and (c) prepared
+- [BAS-S52](experiments/BAS-S52.md) — B.4.7: the Cluster 3 gates — registered; (b) and (c) running
 
 | ID | Title | Disposition |
 |---|---|---|

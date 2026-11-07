@@ -243,6 +243,7 @@ Notes on the frozen table (the table stands):
   228 on the OFF arm, 1.78% of the run against 0.95%, about 0.8 points of the gap. The
   arm's tree holds more interior nodes, which by estimate gives 2.6 to 3 points. P9
   stays a miss. The ratio after the speed work reads 0.945×, [−5.61%, −5.37%].
+  The maintainer closed it on 2026-11-07 without returning ticket 1 (BAS-S52 *RESULT*).
 - **Binaries re-pinned before any game used them.** The speed work (BAS-P29) made
   both arms faster at unchanged trees: the arm +3.99% [+3.84, +4.14], the OFF arm
   +4.16% [+4.00, +4.33]. `tools/run_b45_games.ps1` now plays `516d422`: Release ON pool

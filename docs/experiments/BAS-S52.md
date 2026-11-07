@@ -101,3 +101,8 @@ Added before exposure:
   - `B4QsDelta` 1 is live on the Tune build: the `bench 13` replay reads 4,069,419
     against the control's 4,144,790.
   - WAC at 100,000 nodes on the Release builds: fitted 254, OFF 247.
+- **The maintainer's P9 choice (2026-11-07): closed, ticket 1 not returned.** The evasion
+  delivery stays as built. It measured about 0.8 of the 5.5-point `bench 13` gap, and in
+  play the unfitted arm ran level with the OFF arm (0.99 to 1.01× by game phase). P9 stays
+  a miss. The fitted arm's speed has not been read. This clears P9 from the order; (a) and
+  (d) still wait on (c)'s verdict.
