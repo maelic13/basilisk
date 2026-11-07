@@ -64,6 +64,7 @@ struct NodeRead {
     int root_alpha = -INF_SCORE + 1; // the node's window is the negation
     int root_beta = INF_SCORE - 1;
     bool seed = false;               // store `table_move` for the node first
+    bool seed_pv = false;            // the seeded entry carries the PV mark
     Move table_move = MOVE_NONE;
     void (*set)(SearchParams&) = nullptr;
     int depth = 1;
@@ -92,7 +93,7 @@ static Run read_node(const NodeRead& r) {
         Board child = b;
         child.make_move(root_move);
         tt.store(child.position_key(), TT_DEPTH_UNSEARCHED, VALUE_NONE, TT_NONE, r.table_move, 1,
-                 INF_SCORE, false);
+                 INF_SCORE, r.seed_pv);
     }
     SearchLimits lim;
     lim.depth = r.depth;
@@ -658,6 +659,238 @@ static void test_stand_pat_returns_and_stores_the_blend() {
     end_section();
 }
 
+// ---- The clauses the fingerprint alone bound ------------------------------------
+//
+// Each section here fails on the mutant B.4.4's review named for its clause.
+
+// Rd8+ leaves Black Kh7 and Qxd8, which gives the queen for a rook to the rook
+// behind. Once Kh7, from the table, holds the node the capture is skipped.
+static void test_a_losing_evasion_capture_is_skipped() {
+    NodeRead r;
+    r.fen = "6k1/5pp1/7p/q7/8/8/3R1PPP/3R2K1 w - - 0 1";
+    r.from = D2;
+    r.to = D8;
+    Board child;
+    child.set_fen(r.fen);
+    child.make_move(legal_move(child, D2, D8));
+    r.seed = true;
+    r.table_move = legal_move(child, G8, H7);
+    const Run pruned = read_node(r);
+    r.set = evasions_all;
+    const Run searched = read_node(r);
+    begin_section("evasions: a capture that loses material is skipped once the node holds");
+    if constexpr (kB4Qsearch) {
+        EXPECT(pruned.result.nodes < searched.result.nodes);
+        if constexpr (kCounters) {
+            EXPECT(counter(pruned, "qs_evasion_see_pruned") >= 1);
+            EXPECT_EQ(counter(searched, "qs_evasion_see_pruned"), 0);
+        }
+    } else {
+        EXPECT_EQ(pruned.result.nodes, searched.result.nodes);
+    }
+    end_section();
+}
+
+// An evasion node keeps the table's PV mark at its fail-high store and at its
+// exit store. The OFF arm stores no evasion node.
+static void test_the_evasion_stores_keep_the_pv_mark() {
+    NodeRead high = back_rank_check();
+    Board child;
+    child.set_fen(high.fen);
+    child.make_move(legal_move(child, D1, D8));
+    high.seed = true;
+    high.seed_pv = true;
+    high.table_move = legal_move(child, G8, H7);
+    const Run fail_high = read_node(high);
+
+    NodeRead low = knight_takes_rook();
+    Board exit_child;
+    exit_child.set_fen(low.fen);
+    exit_child.make_move(legal_move(exit_child, A5, E5));
+    low.seed = true;
+    low.seed_pv = true;
+    low.table_move = legal_move(exit_child, F7, E5);
+    const Run exit = read_node(low);
+
+    begin_section("evasions: both stores keep the PV mark");
+    if constexpr (kB4Qsearch) {
+        EXPECT(fail_high.node_entry.bound() == TT_BETA);
+        EXPECT(fail_high.node_entry.is_pv());
+        EXPECT(exit.node_entry.bound() == TT_ALPHA);
+        EXPECT(exit.node_entry.is_pv());
+    }
+    end_section();
+}
+
+// A null move or the start of the line leaves no square to recapture on, even
+// for a capture landing where the sentinel's bits point.
+static void test_a_sentinel_is_no_previous_move() {
+    begin_section("gain rules: a null move or no move has no recapture");
+    EXPECT(b4::is_recapture(make_move(E4, D5), make_move(D8, D5)));
+    EXPECT(!b4::is_recapture(make_move(E4, D5), make_move(D8, D7)));
+    EXPECT(!b4::is_recapture(make_move(E4, to_sq(MOVE_NULL)), MOVE_NULL));
+    EXPECT(!b4::is_recapture(make_move(E4, to_sq(MOVE_NONE)), MOVE_NONE));
+    end_section();
+}
+
+// Rxa7 takes a loose pawn far below alpha. With the king on h7 it checks, so
+// the gain rules pass it by; with the king on h8 futility prunes it.
+static void test_a_checking_capture_is_exempt() {
+    NodeRead check;
+    check.fen = "6k1/p7/8/8/8/8/8/R5K1 b - - 0 1";
+    check.from = G8;
+    check.to = H7;
+    NodeRead quiet = check;
+    quiet.to = H8;
+    set_node_alpha(check, node_eval(check) + 500);
+    set_node_alpha(quiet, node_eval(quiet) + 500);
+    const Run exempt = read_node(check);
+    const Run judged = read_node(quiet);
+    begin_section("gain rules: a checking capture below alpha is searched");
+    if constexpr (kB4Qsearch) {
+        EXPECT(exempt.result.nodes > judged.result.nodes);
+        if constexpr (kCounters) {
+            EXPECT_EQ(counter(exempt, "qs_gain_tested"), 0);
+            EXPECT_EQ(counter(exempt, "qs_futility_pruned"), 0);
+            EXPECT(counter(exempt, "qs_searched") >= 1);
+            EXPECT_EQ(counter(judged, "qs_gain_tested"), 1);
+            EXPECT_EQ(counter(judged, "qs_futility_pruned"), 1);
+            EXPECT_EQ(counter(judged, "qs_searched"), 0);
+        }
+    }
+    end_section();
+}
+
+// Rxa7+ is exempt from the gain rules but gives the rook for a pawn to the
+// knight, so the plain SEE every capture must clear stops it.
+static void test_the_plain_see_binds_an_exempt_capture() {
+    NodeRead r;
+    r.fen = "6k1/p7/2n5/8/8/8/8/R5K1 b - - 0 1";
+    r.from = G8;
+    r.to = H7;
+    const Run pruned = read_node(r);
+    r.set = [](SearchParams& p) { p.b4_qs_see_margin = -1000; };
+    const Run searched = read_node(r);
+    begin_section("gain rules: a losing check is stopped by the plain SEE");
+    if constexpr (kB4Qsearch) {
+        EXPECT(pruned.result.nodes < searched.result.nodes);
+        if constexpr (kCounters) {
+            EXPECT_EQ(counter(pruned, "qs_see_pruned"), 1);
+            EXPECT_EQ(counter(pruned, "qs_searched"), 0);
+            EXPECT(counter(searched, "qs_searched") >= 1);
+        }
+    }
+    end_section();
+}
+
+// Nxd5 trades knights: its SEE is level, and it is credited a knight. With
+// alpha 100 over the futility base the credit clears alpha and the exchange
+// does not, so the alpha-relative SEE prunes it, and the base it leaves is the
+// node's bound. One under the base it is searched.
+static void test_the_alpha_relative_see() {
+    NodeRead r;
+    r.fen = "7k/8/4p3/3n4/8/2N5/8/6K1 b - - 0 1";
+    r.from = H8;
+    r.to = G8;
+    const SearchParams defaults;
+    const int base = node_eval(r) + defaults.b4_qs_fut_base;
+    NodeRead above = r;
+    set_node_alpha(above, base + 100);
+    NodeRead below = r;
+    set_node_alpha(below, base - 1);
+    const Run pruned = read_node(above);
+    const Run searched = read_node(below);
+    begin_section("gain rules: the alpha-relative SEE prunes a level exchange and leaves the base");
+    if constexpr (kB4Qsearch) {
+        EXPECT(pruned.result.nodes < searched.result.nodes);
+        EXPECT(pruned.node_entry.bound() == TT_ALPHA);
+        EXPECT_EQ(TranspositionTable::score_from_tt(pruned.node_entry.score, 1, 0), base);
+        if constexpr (kCounters) {
+            EXPECT_EQ(counter(pruned, "qs_see_pruned"), 1);
+            EXPECT_EQ(counter(pruned, "qs_searched"), 0);
+            EXPECT_EQ(counter(pruned, "qs_futility_pruned"), 0);
+            EXPECT(counter(searched, "qs_searched") >= 1);
+        }
+    }
+    end_section();
+}
+
+// Qxd5 and Rxb5 lose material and are pruned, then gxh5 takes a loose pawn. The
+// count rule counts delivered captures, so the third is past it though nothing
+// has been searched.
+static void test_the_count_rule_counts_pruned_captures() {
+    NodeRead r;
+    r.fen = "7k/8/p3p3/1n1r3p/6P1/8/8/1R1Q2K1 b - - 0 1";
+    r.from = H8;
+    r.to = G7;
+    const Run limited = read_node(r);
+    r.set = [](SearchParams& p) { p.b4_qs_move_count = 64; };
+    const Run unlimited = read_node(r);
+    begin_section("gain rules: a pruned capture takes its place in the count");
+    if constexpr (kB4Qsearch) {
+        EXPECT(limited.result.nodes < unlimited.result.nodes);
+        if constexpr (kCounters) {
+            EXPECT_EQ(counter(limited, "qs_count_pruned"), 1);
+            EXPECT_EQ(counter(limited, "qs_see_pruned"), 2);
+            EXPECT_EQ(counter(limited, "qs_searched"), 0);
+            EXPECT_EQ(counter(unlimited, "qs_count_pruned"), 0);
+            EXPECT(counter(unlimited, "qs_searched") >= 1);
+        }
+    }
+    end_section();
+}
+
+// Nxc3 is credited a rook, and alpha lies 20 over the sum, so futility prunes
+// it. The sum, above the stand-pat, is the node's upper bound.
+static void test_futility_leaves_its_sum() {
+    NodeRead r;
+    r.fen = "7k/8/8/8/8/2r5/8/1N4K1 b - - 0 1";
+    r.from = H8;
+    r.to = G8;
+    const SearchParams defaults;
+    const int sum = node_eval(r) + defaults.b4_qs_fut_base + PIECE_VALUE[ROOK];
+    set_node_alpha(r, sum + 20);
+    const Run run = read_node(r);
+    begin_section("gain rules: futility leaves its sum as the node's bound");
+    if constexpr (kB4Qsearch) {
+        EXPECT(run.node_entry.bound() == TT_ALPHA);
+        EXPECT_EQ(TranspositionTable::score_from_tt(run.node_entry.score, 1, 0), sum);
+        if constexpr (kCounters)
+            EXPECT_EQ(counter(run, "qs_futility_pruned"), 1);
+    }
+    end_section();
+}
+
+// Rxd3 wins the queen from a stand-pat 300 under beta. The node returns and
+// stores the value pulled toward beta; a blend of 1024 reads the value itself.
+static void test_a_capture_fail_high_returns_and_stores_the_blend() {
+    NodeRead r;
+    r.fen = "k7/pp6/8/8/3q4/8/PP6/3R2K1 b - - 0 1";
+    r.from = D4;
+    r.to = D3;
+    const int beta = node_eval(r) + 300;
+    set_node_alpha(r, beta - 1);
+    Board child;
+    child.set_fen(r.fen);
+    child.make_move(legal_move(child, D4, D3));
+    const Run blended = read_node(r);
+    r.set = [](SearchParams& p) { p.b4_qs_fail_high_blend = 1024; };
+    const Run plain = read_node(r);
+    const SearchParams defaults;
+    const int value = -plain.result.score;
+    const int expected = kB4Qsearch
+                       ? b4::fail_high_value(value, beta, defaults.b4_qs_fail_high_blend)
+                       : value;
+    begin_section("blends: a capture fail high returns and stores the value");
+    EXPECT(value > beta + 100);
+    EXPECT_EQ(blended.result.score, -expected);
+    EXPECT(blended.node_stored);
+    EXPECT(blended.node_entry.bound() == TT_BETA);
+    EXPECT_EQ(move_from_tt(blended.node_entry.move16), legal_move(child, D1, D3));
+    EXPECT_EQ(TranspositionTable::score_from_tt(blended.node_entry.score, 1, 0), expected);
+    end_section();
+}
+
 // ---- Stalemate ----------------------------------------------------------------------
 
 // Rxh3 takes Black's last piece and leaves a bare king with a blocked pawn and
@@ -1000,6 +1233,15 @@ int main() {
     test_the_see_vector_reaches_the_search();
     test_a_quiet_mate_at_the_first_ply();
     test_which_quiet_checks_are_searched();
+    test_a_losing_evasion_capture_is_skipped();
+    test_the_evasion_stores_keep_the_pv_mark();
+    test_a_sentinel_is_no_previous_move();
+    test_a_checking_capture_is_exempt();
+    test_the_plain_see_binds_an_exempt_capture();
+    test_the_alpha_relative_see();
+    test_the_count_rule_counts_pruned_captures();
+    test_futility_leaves_its_sum();
+    test_a_capture_fail_high_returns_and_stores_the_blend();
 
     return harness_summary();
 }
