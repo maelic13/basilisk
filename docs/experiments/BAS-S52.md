@@ -84,3 +84,20 @@ Added before exposure:
 | G3 | (d) reads above 0 | 80% | at or below 0 |
 
 #### RESULT — append after exposure
+
+- **The arms (2026-11-07).** Every build is a clean final-PGO PEXT build at `507fc7b`,
+  whose engine is `916618c`'s (clang 23.1.5):
+
+  | Build | Bench 13 | SHA-256 |
+  |---|---:|---|
+  | ON Release (`basilisk-b47-on-pext-pgo.exe`) | 4,144,790 | AB97234E… |
+  | OFF Release (`basilisk-b47-off-pext-pgo.exe`) | 6,090,091 | DB15A497… |
+  | ON Tune (`basilisk-b47-on-tune-pext-tune-pgo.exe`) | 4,144,790 | AA404AB3… |
+  | Unfitted ON (`basilisk-b45s-on-pgo1-pext-pgo.exe`, `516d422`) | 4,003,560 | 9C9E463E… |
+
+  - `tools/run_b47_gates.ps1` pins them. Its dry runs of all four are accepted, and the
+    resolved seeds, caps and clocks were checked against this entry. (a) and (d) refuse a
+    real run until the order allows it, as both refusals showed.
+  - `B4QsDelta` 1 is live on the Tune build: the `bench 13` replay reads 4,069,419
+    against the control's 4,144,790.
+  - WAC at 100,000 nodes on the Release builds: fitted 254, OFF 247.
