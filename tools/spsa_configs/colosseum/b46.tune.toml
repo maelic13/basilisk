@@ -5,42 +5,42 @@
 
 [[parameters]]
 name = "B4QsFutBase"
-initial = 86
+initial = 82
 min = 40
 max = 220
 c_end = 5.0663
 
 [[parameters]]
 name = "B4QsStandPatBlend"
-initial = 441
+initial = 437
 min = 256
 max = 1024
 c_end = 22.1073
 
 [[parameters]]
 name = "B4QsFailHighBlend"
-initial = 462
+initial = 466
 min = 256
 max = 1024
 c_end = 22.1073
 
 [[parameters]]
 name = "CoreRazorMargin"
-initial = 269
+initial = 261
 min = 128
 max = 527
 c_end = 11.5142
 
 [[parameters]]
 name = "CoreRfpPerPly"
-initial = 99
+initial = 107
 min = 40
 max = 227
 c_end = 5.5268
 
 [[parameters]]
 name = "CoreRfpImproving"
-initial = 98
+initial = 94
 min = 35
 max = 160
 c_end = 3.6846
@@ -54,7 +54,7 @@ c_end = 1.8423
 
 [[parameters]]
 name = "CoreRfpCorrMult"
-initial = 498
+initial = 457
 min = 0
 max = 2048
 c_end = 58.9529
@@ -75,28 +75,28 @@ c_end = 0.9211
 
 [[parameters]]
 name = "B3NmpBase"
-initial = 163
+initial = 172
 min = 50
 max = 300
 c_end = 7.3691
 
 [[parameters]]
 name = "B3IirMinDepth"
-initial = 5
+initial = 6
 min = 3
 max = 10
 c_end = 0.9211
 
 [[parameters]]
 name = "CoreLmrCutNodeNoTt"
-initial = 864
+initial = 856
 min = 0
 max = 2500
 c_end = 71.8488
 
 [[parameters]]
 name = "B3NmpPerPly"
-initial = 16
+initial = 13
 min = 2
 max = 32
 c_end = 0.9211

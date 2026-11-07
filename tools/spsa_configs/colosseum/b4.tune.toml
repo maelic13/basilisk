@@ -4,21 +4,21 @@
 
 [[parameters]]
 name = "B4QsFutBase"
-initial = 86
+initial = 82
 min = 40
 max = 220
 c_end = 5.0663
 
 [[parameters]]
 name = "B4QsStandPatBlend"
-initial = 441
+initial = 437
 min = 256
 max = 1024
 c_end = 22.1073
 
 [[parameters]]
 name = "B4QsFailHighBlend"
-initial = 462
+initial = 466
 min = 256
 max = 1024
 c_end = 22.1073

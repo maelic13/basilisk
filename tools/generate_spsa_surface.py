@@ -91,10 +91,14 @@ B4_TABLE = "#define BASILISK_B4_PARAMS("
 # A(field, UciName, value) lines. The core surface keeps the X lines' values
 # (the OFF arm's); a surface tuned on the B3_PROOF arm starts from these.
 B3_CORE_DEFAULTS_TABLE = "#define BASILISK_B3_CORE_DEFAULTS("
-TABLES = (CORE_TABLE, B3_TABLE, B4_TABLE, B3_CORE_DEFAULTS_TABLE)
+# The B4_QSEARCH arm's own defaults for earlier clusters' lines, in the same
+# form; a surface tuned on that arm starts from these, over the B3 table's.
+B4_CORE_DEFAULTS_TABLE = "#define BASILISK_B4_CORE_DEFAULTS("
+TABLES = (CORE_TABLE, B3_TABLE, B4_TABLE, B3_CORE_DEFAULTS_TABLE, B4_CORE_DEFAULTS_TABLE)
 ARM_DEFAULT_RE = re.compile(
     r"^\s*A\(\s*[a-z][a-z0-9_]*\s*,\s*([A-Za-z][A-Za-z0-9]*)\s*,\s*(-?\d+)\s*\)"
 )
+SWITCH_RE = re.compile(r"^\s*S\(\s*[a-z][a-z0-9_]*\s*,\s*([A-Za-z][A-Za-z0-9]*)\s*,", re.M)
 
 
 def split_tables(text: str) -> dict[str, list[str]]:
@@ -178,6 +182,32 @@ def b3_core_defaults(text: str) -> dict[str, int]:
     return overrides
 
 
+def b4_core_defaults(text: str) -> dict[str, int]:
+    """The B4_QSEARCH arm's own defaults for earlier clusters' X lines, each
+    checked: inside its range, off its line's default, named once. A switch
+    is never on a surface, so its line here is passed over."""
+    lines = {name: (default, minimum, maximum)
+             for name, default, minimum, maximum in
+             [*parse_parameters(text, core=True), *parse_parameters(text, b3=True)]}
+    switches = set(SWITCH_RE.findall(text))
+    overrides: dict[str, int] = {}
+    for line in split_tables(text)[B4_CORE_DEFAULTS_TABLE]:
+        match = ARM_DEFAULT_RE.match(line)
+        if not match:
+            continue
+        name, value = match.group(1), int(match.group(2))
+        if name in switches:
+            continue
+        if name not in lines:
+            raise ValueError(f"B4_QSEARCH default {name} names no X line")
+        default, minimum, maximum = lines[name]
+        if not minimum <= value <= maximum or value == default or name in overrides:
+            raise ValueError(f"B4_QSEARCH default {name} {value}: must lie in "
+                             f"[{minimum}, {maximum}] off {default}, once")
+        overrides[name] = value
+    return overrides
+
+
 def sweep_notes(text: str, coordinates: dict[str, tuple[int, ...]],
                 extra_points: dict[str, tuple[int, ...]]) -> list[str]:
     """The B3 table's sweep registrations as comment lines, each checked: a
@@ -230,9 +260,9 @@ def b33_parameters(text: str) -> list[tuple[str, int, int, int]]:
 def b46_parameters(text: str) -> list[tuple[str, int, int, int]]:
     """B.4.6's fit surface: the B4 X lines, then the coordinates B46_ADMITTED
     names from the core and B3 tables, in that order; every name is checked.
-    Each starts from the value the arm runs, so a core coordinate from the
-    B3_PROOF arm's own default where it has one."""
-    overrides = b3_core_defaults(text)
+    Each starts from the value the arm runs: the B4_QSEARCH arm's own default
+    where it has one, then the B3_PROOF arm's."""
+    overrides = {**b3_core_defaults(text), **b4_core_defaults(text)}
     earlier = {name: (name, overrides.get(name, default), minimum, maximum)
                for name, default, minimum, maximum in
                [*parse_parameters(text, core=True), *parse_parameters(text, b3=True)]}

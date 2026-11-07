@@ -1,18 +1,18 @@
 {
     "B4QsFutBase": {
-        "value": 86,
+        "value": 82,
         "min_value": 40,
         "max_value": 220,
         "step": 11
     },
     "B4QsStandPatBlend": {
-        "value": 441,
+        "value": 437,
         "min_value": 256,
         "max_value": 1024,
         "step": 48
     },
     "B4QsFailHighBlend": {
-        "value": 462,
+        "value": 466,
         "min_value": 256,
         "max_value": 1024,
         "step": 48
