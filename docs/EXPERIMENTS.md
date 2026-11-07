@@ -541,7 +541,9 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S50](experiments/BAS-S50.md) — B.4.5: Cluster 3 diagnostics, the unfitted paired run and the categoricals — paired +29.3 ± 9.5; every default stands
 
-- [BAS-S51](experiments/BAS-S51.md) — B.4.6: the Cluster 3 curvature sweep, then SPSA in blocks — stopped after block 1 (one full-step mover); theta analysed, not baked
+- [BAS-S51](experiments/BAS-S51.md) — B.4.6: the Cluster 3 curvature sweep, then SPSA in blocks — one block, theta baked per arm, ON `bench 13` 4,144,790
+
+- [BAS-S52](experiments/BAS-S52.md) — B.4.7: the Cluster 3 gates — registered
 
 | ID | Title | Disposition |
 |---|---|---|

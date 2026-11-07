@@ -2077,7 +2077,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           phase) against 0.945× on `bench 13`. P9 stays a miss and its
           falsifier still binds before B.4.7's gate.
         - B.4.6 fits this arm, `bench 13` 4,003,560. CLOSED.
-    - [ ] **B.4.6** `[V]` Curvature sweep, then SPSA in blocks
+    - [x] **B.4.6** `[V]` Curvature sweep, then SPSA in blocks
       The packet's registered sweep, then SPSA in blocks on Cluster 3's
       surface (with B-21's RFP, razoring and NMP-base coordinates); the
       fitted-constant analysis precedes the bake.
@@ -2099,13 +2099,24 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         - No rail and no clamped perturbation. The null move's entry tightens
           and had not settled; the quiescence coordinates read flat. Both
           null-move readings go to B.6.
-        - The bake is the leaf's last step.
       - From B.4.4's review: `test_tt_switches_live` follows the tree
         (three unrelated quiescence mutants flip it). If the bake trips
-        it, its precondition is repaired in its own commit.
+        it, its precondition is repaired in its own commit. It did not.
+      - Closed 2026-11-07 (BAS-S51):
+        - `916618c`, the bake: three constants in their X lines, eight in
+          `BASILISK_B4_CORE_DEFAULTS`, so the OFF arm keeps its values.
+        - ON `bench 13` **4,144,790** (was 4,003,560), equal to the old
+          tune binary's replay of theta; OFF 6,090,091 unchanged.
+        - Release CTest 27/27 on both arms. The floors hold to 480,000
+          nodes; KBN-K's five-budget sum is 119.
     - [ ] **B.4.7** `[V]` Cluster 3 gates
       SPRT `[0,3]` for the cluster, and each categorical and deletion arm
       at the bounds the packet registers.
+      - Registered 2026-11-07, before any of its games (BAS-S52):
+        - (b) cap 12,000 pairs; (c) `[-5,0]`, cap 18,000 pairs; (a) cap
+          4,500 pairs; (d) 2,000 games at `10+0.1`.
+        - The order: (b), (c), the maintainer's P9 choice, then (a) and
+          (d). (c) runs before (a) because its H0 changes the candidate.
       - From B.4.4's review: (c)'s registration says that `B4QsDelta` 1
         restores the delta rule under the arm's band guard, not the OFF
         arm's.
@@ -2861,8 +2872,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.4.6 | RESEARCH | V | The tune stopped after block 1 and theta is analysed (BAS-S51); the bake is what remains |
-| B.4.7 | RESEARCH | V | After B.4.6. P9's falsifier binds before its gate; its handling is the maintainer's (BAS-S50 *RESULT*) |
+| B.4.7 | GAME_GATE | V | BAS-S52 is registered: (b), then (c), then the maintainer's P9 choice, then (a) and (d) |
 | B.5 | RESEARCH | I2 | Contents fixed by B.0; the ply cap and the clean child frame added 2026-11-05 |
 | B.6.1 | RESEARCH | R2 | Added 2026-10-31; after B.4 and B.5 close |
 | B.6.2 | RESEARCH | V | Runs (maintainer 2026-11-05); the curvature evidence chooses its surface |

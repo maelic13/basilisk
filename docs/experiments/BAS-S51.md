@@ -128,3 +128,24 @@
   coordinates read flat, against the hypothesis. Theta reads `bench 13` 4,144,790 on the
   replay and WAC 254. Nothing blocks the bake.
 - Disposition: tuned, not baked. Theta's bake is the leaf's last step.
+
+#### The bake (2026-11-07)
+
+- `336b103` lets a later arm table override an earlier one in the arm-defaults test,
+  passing on both arms before the bake. `916618c` is the bake: the three Cluster 3
+  constants in their X lines, the eight earlier-cluster ones in
+  `BASILISK_B4_CORE_DEFAULTS`. `22b509f` seeds the arm's surfaces from its own defaults,
+  so `config_b46.json` now equals theta (the registered seeds are `14a1810`'s).
+- **ON `bench 13` 4,144,790** (was 4,003,560), equal to the old tune binary's replay of
+  theta. OFF stays 6,090,091. Both hold on Release and Tune builds.
+- Release CTest 27/27 on both arms. `test_search`, `test_b3_proof` and `test_b4_qsearch`
+  pass on both Tune builds. `test_tt_switches_live` did not trip, so its precondition
+  needs no repair.
+- **Floors under generous limits** (`tools/results/b46-bake/floors.txt`): KQ-K, KR-K and
+  KBB-K 24 of 24 at 30,000, 45,000, 60,000, 90,000, 120,000, 240,000 and 480,000 nodes.
+  KBN-K 23 at 30,000 and 24 at every other budget, a five-budget sum of 119 against the
+  unfitted arm's 118 and P7's 112. `test_endgames` 191/191.
+  - Runs from 90,000 nodes up exit 1 on KQ-K's staleness guard only, which fires when
+    conversion is faster than the ceiling assumes. B.4.5 read it from 120,000.
+- Disposition: **CLOSED 2026-11-07.** One block, theta baked per arm. Whether the fit is
+  worth anything is BAS-S52 (b).
