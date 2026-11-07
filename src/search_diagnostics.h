@@ -120,7 +120,7 @@ using InfoCallback = std::function<void(const std::string&)>;
        after the node sets its flag. Denominator: tbhits. */                 \
     X(tb_store_stale_pv)                                                     \
     /* Singular firings whose margin admitted the double extension but whose \
-       path had reached DoubleExtMax. Denominator: sing_fired. */            \
+       path had reached DoubleExtMax. The rule is deleted: 0. */             \
     X(sing_cap_bound)                                                        \
     /* IIR: reductions, those taken on a stale TT entry (a TT move present), \
        and those at a node hindsight had already reduced. */                \
@@ -134,7 +134,7 @@ using InfoCallback = std::function<void(const std::string&)>;
        null_cuts. */                                                      \
     X(null_tries_d1_3) X(null_tries_d4_7) X(null_tries_d8p)                \
     X(null_cuts_d1_3) X(null_cuts_d4_7) X(null_cuts_d8p)                   \
-    /* Cluster 2 (the B3_PROOF arm; the OFF arm leaves most at 0).         \
+    /* Cluster 2.                                                          \
        Null-move verification: searches run, those that failed to reach   \
        beta (denominator null_verifications), and nodes the region kept   \
        from trying a null move (denominator interior_nodes). */           \
@@ -223,7 +223,7 @@ using InfoCallback = std::function<void(const std::string&)>;
        bound (denominator rfp_cuts), and nodes the margin's correction    \
        term alone kept from cutting, with those of them on a table bound. */ \
     X(rfp_cuts_tt_eval) X(rfp_corr_blocked) X(rfp_corr_blocked_tt_eval)   \
-    /* Cluster 3 (the B4_QSEARCH arm; the OFF arm leaves them at 0).        \
+    /* Cluster 3.                                                           \
        Captures the count rule pruned (denominator qs_moves); recaptures    \
        the exemption alone kept from the gain rules (denominator            \
        qs_gain_tested plus itself);                                         \

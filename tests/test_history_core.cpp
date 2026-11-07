@@ -172,17 +172,11 @@ static void test_row_addressing() {
     end_section();
 
     begin_section("footprint: the sizes the architecture review registered");
-    if constexpr (kColourHistory) {
-        // Coloured piece keys: the continuation history's rows and leaves
-        // both double, the pawn history's leaves and the correction's rows.
-        EXPECT_EQ(sizeof(ContinuationHistory), size_t(6'422'528));   // 6,272 KiB
-        EXPECT_EQ(sizeof(PawnHistory), size_t(14'680'064));          // 14,336 KiB at 8,192 buckets
-        EXPECT_EQ(sizeof(ContinuationCorrection), size_t(802'816));  // 784 KiB
-    } else {
-        EXPECT_EQ(sizeof(ContinuationHistory), size_t(1'605'632));   // 1,568 KiB
-        EXPECT_EQ(sizeof(PawnHistory), size_t(7'340'032));           // 7,168 KiB at 8,192 buckets
-        EXPECT_EQ(sizeof(ContinuationCorrection), size_t(401'408));  // 392 KiB
-    }
+    // Coloured piece keys: the continuation history's rows and leaves, the
+    // pawn history's leaves and the correction's rows.
+    EXPECT_EQ(sizeof(ContinuationHistory), size_t(6'422'528));   // 6,272 KiB
+    EXPECT_EQ(sizeof(PawnHistory), size_t(14'680'064));          // 14,336 KiB at 8,192 buckets
+    EXPECT_EQ(sizeof(ContinuationCorrection), size_t(802'816));  // 784 KiB
     EXPECT_EQ(sizeof(MainHistory), size_t(16'384));
     EXPECT_EQ(sizeof(LowPlyHistory), size_t(40'960));
     end_section();

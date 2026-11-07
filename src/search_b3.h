@@ -1,8 +1,7 @@
 #pragma once
 
 // Cluster 2's arithmetic, kept free of the kernel so tests read it directly:
-// the per-line extension budget and the previous-PV predicate. The kernel
-// calls these on the B3_PROOF arm only.
+// the per-line extension budget and the previous-PV predicate.
 
 #include "move.h"
 #include <algorithm>

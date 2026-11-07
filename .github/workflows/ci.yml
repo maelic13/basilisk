@@ -359,30 +359,6 @@ jobs:
           cmake --build build/ablate-pext --target basilisk test_uci_protocol
           ctest --test-dir build/ablate-pext -R test_uci_protocol --output-on-failure --no-tests=error
 
-      # The pre-Cluster-2 arm (B3_PROOF=OFF, with the colourless histories and
-      # the quiescence it had), kept compilable until the search programme's
-      # cleanup: built, and its fingerprint printed. The tests bind the default
-      # arm alone, and the bench agreement compares it too.
-      - name: Build the B3_PROOF=OFF arm
-        run: |
-          cmake --preset release -B build/b3proof-off-pext -DUSE_PEXT=ON -DPORTABLE_BUILD=ON -DCOMP=clang \
-            -DTUNE=OFF -DDIAGNOSTIC=OFF -DABLATION=OFF -DTEXEL=OFF -DB3_PROOF=OFF -DCOLOUR_HISTORY=OFF -DB4_QSEARCH=OFF
-          cmake --build build/b3proof-off-pext --target basilisk
-          out=$(printf "bench 13\nquit\n" | ./build/b3proof-off-pext/basilisk)
-          echo "$out" | tail -8
-          echo "$out" | grep -qE "Nodes searched *: *[0-9]+" || { echo "FAIL: no node count"; exit 1; }
-
-      # The pre-Cluster-3 arm (B4_QSEARCH=OFF), kept compilable until the
-      # search programme's cleanup: built, and its fingerprint printed.
-      - name: Build the B4_QSEARCH=OFF arm
-        run: |
-          cmake --preset release -B build/b4qsearch-off-pext -DUSE_PEXT=ON -DPORTABLE_BUILD=ON -DCOMP=clang \
-            -DTUNE=OFF -DDIAGNOSTIC=OFF -DABLATION=OFF -DTEXEL=OFF -DB4_QSEARCH=OFF
-          cmake --build build/b4qsearch-off-pext --target basilisk
-          out=$(printf "bench 13\nquit\n" | ./build/b4qsearch-off-pext/basilisk)
-          echo "$out" | tail -8
-          echo "$out" | grep -qE "Nodes searched *: *[0-9]+" || { echo "FAIL: no node count"; exit 1; }
-
       - name: Build and verify TEXEL flavor
         run: |
           cmake --preset release -B build/texel-pext -DUSE_PEXT=ON -DPORTABLE_BUILD=ON -DCOMP=clang \

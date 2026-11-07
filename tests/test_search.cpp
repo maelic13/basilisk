@@ -16,6 +16,7 @@
 #include "eval.h"
 #include "move.h"
 #include "search.h"
+#include "search_b3.h"
 #include "syzygy.h"
 #include "tt.h"
 #include "zobrist.h"
@@ -1527,7 +1528,7 @@ static void test_singular_lone_move_fails_low_by_one() {
     // Rarog's forced position: White is in check and Kxg2 is the only legal
     // move. When the singular search excludes it, the node has no move left;
     // it must fail low by exactly one, not read as checkmate, so the forced
-    // move extends by one ply and never takes the double extension.
+    // move takes a second ply only where a margin is below one.
     Board b;
     b.set_fen("7k/8/8/8/8/8/6q1/7K w - - 0 1");
     MoveList legal;
@@ -1546,10 +1547,10 @@ static void test_singular_lone_move_fails_low_by_one() {
     EXPECT_EQ(no_move_score(true, false, s_beta - 1, ply), s_beta - 1);
     end_section();
 
-    begin_section("singular lone move: one ply of extension, never two");
-    const SearchParams defaults;
+    begin_section("singular lone move: one ply at margins of one, two below");
     EXPECT(s_val < s_beta);
-    EXPECT(!(s_val < s_beta - defaults.singular_double_margin));
+    EXPECT_EQ(b3::graded_extension(s_val, s_beta, 1, 1), 1);
+    EXPECT_EQ(b3::graded_extension(s_val, s_beta, 0, 1), 2);
     end_section();
 
     begin_section("no move searched without an exclusion: mate or stalemate");

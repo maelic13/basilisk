@@ -17,8 +17,9 @@
 //
 //   BASILISK_ROOT_PARAMS            the driver's: aspiration and time management;
 //   BASILISK_CORE_KERNEL_PARAMS     the node kernel's, which includes the
-//                                   groups it inherited from the kernel it
-//                                   replaced (the BASILISK_LEGACY_* groups).
+//                                   line it inherited from the kernel it
+//                                   replaced (BASILISK_LEGACY_LMR_SINGULAR);
+//   BASILISK_B3_PARAMS, _B4_PARAMS  Cluster 2's and Cluster 3's.
 //
 // BASILISK_SEARCH_PARAMS, the table every consumer expands, is the kernel
 // table followed by the root table.
@@ -53,41 +54,18 @@
     X(tm_effort_lo_mult,     TmEffortLoMult,       120,  100,   200)     \
     X(tm_instability,        TmInstability,         35,    0,   100)
 
-// ---- Groups inherited from the replaced kernel ------------------------------
+// ---- The line inherited from the replaced kernel ----------------------------
 //
-// The node kernel still runs three groups of the kernel it replaced at their
-// old values; they keep their old names.
-//
-// double_ext_max caps stacked 2-ply singular extensions so a pathological line
-//   cannot chain them without bound. 16 is a live bound the bench suite never
-//   reaches; at 1 it shrinks the tree by about 9%, so it is not inert. A seed
-//   of 5 broke the KBNK/KQK mate-resolution tests, and caps of 6 and 12 grew
-//   the bench by 18.5% and 30%: the double extensions are productive.
-//
-// Checking moves are extended and never reduced, deliberately: a path cap on
-//   the check extension was rejected in play (BAS-S16, -3.48 +/- 3.32), and
-//   reducing at checking nodes failed the WAC floor (137 -> 124, floor 130).
-#define BASILISK_LEGACY_NULL_PROBCUT(X)                                  \
-    /* Null-move pruning */                                              \
-    X(null_base,             NullBase,               3,    2,     6)     \
-    X(null_eval_div,         NullEvalDiv,          192,   80,   400)     \
-    /* ProbCut */                                                        \
-    X(probcut_margin,        ProbCutMargin,        189,   80,   360)
-
-#define BASILISK_LEGACY_SINGULAR(X)                                      \
-    /* Singular extension */                                             \
-    X(singular_min_depth,    SingularMinDepth,       5,    4,     8)     \
-    X(singular_beta_mult,    SingularBetaMult,       4,    1,     6)     \
-    X(singular_double_margin, SingularDoubleMargin,  4,    0,    60)     \
-    X(double_ext_max,        DoubleExtMax,          16,    1,   200)
-
+// lmr_singular_quiet: the old relaxation of a singular node's quiet
+//   reductions, read only when B3SingularQuietLmr restores it. It keeps its
+//   old name.
 #define BASILISK_LEGACY_LMR_SINGULAR(X)                                  \
     X(lmr_singular_quiet,    LmrSingularQuiet,     401,    0,  3072)
 
 // ---- The node kernel (Cluster 1, the selectivity core) ----------------------
 //
-// The kernel reads the inherited groups above for the mechanisms it has not
-// replaced, and its own coordinates at the cluster's seeds. Units are evaluation units unless a line says otherwise.
+// The kernel reads the inherited line above and its own coordinates at the
+// cluster's seeds. Units are evaluation units unless a line says otherwise.
 //
 // Node margins: razoring at depth <= CoreRazorDepthCap returns quiescence
 //   when the estimate is below alpha - margin * depth. Reverse futility at
@@ -131,8 +109,6 @@
 // SPSA surface. quiet_see_coeff: SEE values here are multiples of 100, so
 // neighbouring coefficients prune the same quiets at every common lmrDepth.
 #define BASILISK_CORE_KERNEL_PARAMS(X, F)                                \
-    BASILISK_LEGACY_NULL_PROBCUT(X)                                      \
-    BASILISK_LEGACY_SINGULAR(X)                                          \
     BASILISK_LEGACY_LMR_SINGULAR(X)                                      \
     /* Node margins */                                                   \
     X(razor_margin,          CoreRazorMargin,       269,  128,   527)    \
@@ -142,7 +118,6 @@
     X(rfp_corr_mult,         CoreRfpCorrMult,       538,    0,  2048)    \
     X(rfp_depth_cap,         CoreRfpDepthCap,         10,    6,    19)    \
     X(rfp_beta_weight,       CoreRfpBetaWeight,     660,  512,  1024)    \
-    X(iir_min_depth,         CoreIirMinDepth,         8,    3,     8)    \
     /* Move-loop pruning */                                              \
     X(lmp_base,              CoreLmpBase,             3,    1,     8)    \
     X(lmp_square_scale,      CoreLmpSquareScale,     16,    8,    32)    \
@@ -219,13 +194,11 @@
     S(lmp_exempt_checks,     CoreLmpExemptChecks,    0,    0,     1)     \
     S(lmr_negative_allowed,  CoreLmrNegativeAllowed, 1,    0,     1)
 
-// ---- Cluster 2 (the B3_PROOF arm) -------------------------------------------
+// ---- Cluster 2, the proof searches and extensions ---------------------------
 //
 // B(X, F, S): X the coordinates at the packet's seeds, F the donor's fixed
 // terms (read and advertised, never on a surface), S the categoricals and
-// attribution switches. Every arm compiles the fields so the kernel's
-// `if constexpr` branches compile on both; only the B3_PROOF arm reads them,
-// and tune builds advertise them there alone.
+// attribution switches. Tune builds advertise them.
 //
 // b3_check_ext: 1 extends every in-check node by a ply (the legacy policy);
 //   0, the donor's, extends none.
@@ -289,7 +262,7 @@
 //
 // TT: b3_fail_low_store: 1 stores no move after a fail low (the entry keeps
 //   its own; B-12's repair, the donor's form); 0 stores the best-scored move
-//   (the OFF arm's form). b3_tt_penalty: 1 lowers by one
+//   (the form before Cluster 2). b3_tt_penalty: 1 lowers by one
 //   ply the depth of an entry deep enough to cut at a non-PV node of depth
 //   6 or more whose bound lies on the wrong side of beta; 0 none.
 #define BASILISK_B3_PARAMS(X, F, S)                                   \
@@ -358,12 +331,11 @@
     S(b3_fail_low_store,     B3FailLowStore,         0,    0,     1)     \
     S(b3_tt_penalty,         B3TtPenalty,            1,    0,     1)
 
-// The B3_PROOF arm's own defaults for Cluster 1 coordinates fitted on its tree
-// beside Cluster 2's: A(field, UciName, value). Both arms share the X line,
-// which keeps the OFF arm's value so the OFF arm does not take a fit made on
-// the other tree; the ON arm compiles and advertises these instead, and its
-// generated surfaces start from them. Each lies in its X line's range and
-// differs from its default (test_search checks both).
+// Cluster 2's refit of Cluster 1 coordinates, fitted on its tree beside its
+// own: A(field, UciName, value). The X line keeps Cluster 1's own fit, which
+// the core surface starts from; the engine compiles and advertises these
+// instead, and the later clusters' surfaces start from them. Each lies in its
+// X line's range and differs from its default (test_search checks both).
 #define BASILISK_B3_CORE_DEFAULTS(A)                                     \
     A(rfp_per_ply,           CoreRfpPerPly,          99)                \
     A(rfp_corr_mult,         CoreRfpCorrMult,       498)                \
@@ -373,10 +345,9 @@
     A(cont_hist_prune_slope, CoreContHistPruneSlope, 3832)              \
     A(corr_update_scale,     CoreCorrUpdateScale,    17)
 
-// ---- Cluster 3 (the B4_QSEARCH arm) -----------------------------------------
+// ---- Cluster 3, quiescence ---------------------------------------------------
 //
-// B(X, F, S) as Cluster 2's: every arm compiles the fields, the kernel reads
-// them on the arm alone, and tune builds advertise them there alone.
+// B(X, F, S) as Cluster 2's.
 //
 // Quiescence's margins. b4_qs_fut_base is added to the corrected static eval
 // (not the table-tightened stand-pat) to give the futility base. The blends
@@ -402,7 +373,8 @@
 //   hold; 0 stands pat on it.
 // b4_rfp_seek_mate: 1 applies b4_rfp_seek_mate_cap; 0 no cap, reverse
 //   futility as at any root depth.
-// b4_qs_delta: 1 restores the OFF arm's delta rule; 0 none.
+// b4_qs_delta: 1 restores the delta rule quiescence ran before Cluster 3;
+//   0 none.
 // b4_gain_values: the captured value quiescence's gain rules read. 0 the
 //   search's PIECE_VALUE; 1 the evaluation's material.
 // b4_see_values: the vector every `see` and `see_ge` call reads, on the same
@@ -425,12 +397,11 @@
     S(b4_see_values,         B4SeeValues,            0,    0,     1)     \
     S(b4_quiet_checks,       B4QuietChecks,          0,    0,     6)
 
-// The B4_QSEARCH arm's own defaults for earlier clusters' lines, in the form of
-// BASILISK_B3_CORE_DEFAULTS, applied after it, so a line here wins on the arm.
-// The coordinates are fitted on this arm's tree beside Cluster 3's, so the OFF
-// arm keeps its values. b3_fail_low_store: one form of the fail-low store
-// for both searches; on the arm 1 stores no move in either, and 0 stores the
-// best-scored searched move in both.
+// Cluster 3's refit of earlier clusters' lines, in the form of
+// BASILISK_B3_CORE_DEFAULTS, applied after it, so a line here wins. The
+// coordinates are fitted on Cluster 3's tree beside its own. b3_fail_low_store:
+// one form of the fail-low store for both searches; 1 stores no move in
+// either, and 0 stores the best-scored searched move in both.
 #define BASILISK_B4_CORE_DEFAULTS(A)                                     \
     A(b3_fail_low_store,     B3FailLowStore,          1)                \
     A(razor_margin,          CoreRazorMargin,       261)                \
@@ -458,16 +429,10 @@ struct SearchParams {
     BASILISK_B4_PARAMS(BASILISK_SEARCH_PARAM_FIELD, BASILISK_SEARCH_PARAM_FIELD,
                        BASILISK_SEARCH_PARAM_FIELD)
 #undef BASILISK_SEARCH_PARAM_FIELD
-#if defined(BASILISK_B3_PROOF) || defined(BASILISK_B4_QSEARCH)
     constexpr SearchParams() noexcept {
 #define BASILISK_ARM_DEFAULT(field, uci, value) field = value;
-#if defined(BASILISK_B3_PROOF)
         BASILISK_B3_CORE_DEFAULTS(BASILISK_ARM_DEFAULT)
-#endif
-#if defined(BASILISK_B4_QSEARCH)
         BASILISK_B4_CORE_DEFAULTS(BASILISK_ARM_DEFAULT)
-#endif
 #undef BASILISK_ARM_DEFAULT
     }
-#endif
 };

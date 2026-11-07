@@ -1,7 +1,7 @@
 #pragma once
 
 // Cluster 3's arithmetic, kept free of the kernel so tests read it directly.
-// The kernel calls these on the B4_QSEARCH arm, and pricing on either arm.
+// The kernel and pricing call these.
 
 #include "move.h"
 #include "search_types.h"

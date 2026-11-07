@@ -210,21 +210,17 @@ std::string Parameters::uci_options() {
 #ifdef BASILISK_TUNE
     // Generated from the SearchParams X-macro table — the advertised
     // default IS the compiled default by construction: it is read from a
-    // default-constructed struct, which carries the arm's own defaults.
+    // default-constructed struct, which carries the clusters' refits.
     const SearchParams compiled;
 #define BASILISK_SEARCH_PARAM_OPT(field, uci, def, lo, hi)                    \
     opts += "option name " #uci " type spin default " + std::to_string(compiled.field) + \
             " min " + std::to_string(lo) + " max " + std::to_string(hi) + "\n";
     BASILISK_SEARCH_PARAMS(BASILISK_SEARCH_PARAM_OPT)
     BASILISK_KERNEL_SWITCHES(BASILISK_SEARCH_PARAM_OPT)
-#ifdef BASILISK_B3_PROOF
     BASILISK_B3_PARAMS(BASILISK_SEARCH_PARAM_OPT, BASILISK_SEARCH_PARAM_OPT,
                        BASILISK_SEARCH_PARAM_OPT)
-#endif
-#ifdef BASILISK_B4_QSEARCH
     BASILISK_B4_PARAMS(BASILISK_SEARCH_PARAM_OPT, BASILISK_SEARCH_PARAM_OPT,
                        BASILISK_SEARCH_PARAM_OPT)
-#endif
 #undef BASILISK_SEARCH_PARAM_OPT
 #endif
     return opts;
@@ -443,14 +439,10 @@ void Parameters::set_option(const std::string& args) {
     else if (uci_option_name_is(name_lower, #uci)) { search_params.field = std::clamp(parsed, lo, hi); }
     BASILISK_SEARCH_PARAMS(BASILISK_SEARCH_PARAM_SET)
     BASILISK_KERNEL_SWITCHES(BASILISK_SEARCH_PARAM_SET)
-#ifdef BASILISK_B3_PROOF
     BASILISK_B3_PARAMS(BASILISK_SEARCH_PARAM_SET, BASILISK_SEARCH_PARAM_SET,
                        BASILISK_SEARCH_PARAM_SET)
-#endif
-#ifdef BASILISK_B4_QSEARCH
     BASILISK_B4_PARAMS(BASILISK_SEARCH_PARAM_SET, BASILISK_SEARCH_PARAM_SET,
                        BASILISK_SEARCH_PARAM_SET)
-#endif
 #undef BASILISK_SEARCH_PARAM_SET
 #endif
     // An unrecognised option name must not fall off the end of this chain in

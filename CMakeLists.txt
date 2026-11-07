@@ -498,20 +498,8 @@ option(RELEASE_DIAG_COUNTERS "Count diagnostic search events in production build
 # Cluster umbrellas (PROCESS, Cluster delivery shape): a Boolean option that
 # compiles one search cluster in. It defaults OFF until the cluster passes its
 # gate, then ON; OFF then reproduces the previous fingerprint and stays
-# compilable, unmaintained, until the search programme's cleanup deletes it.
-# B3_PROOF is Cluster 2, the proof searches and extensions, built as
-# `if constexpr` branches inside the node kernel so both arms compile on
-# every build. It passed its gate and defaults ON.
-option(B3_PROOF "Compile Cluster 2's proof searches and extensions into the node kernel (sets BASILISK_B3_PROOF)" ON)
-# COLOUR_HISTORY indexes the capture, continuation and pawn histories and the
-# continuation correction by coloured piece, the donor's form. It passed its
-# gate and defaults ON; OFF indexes them by piece type, the colours sharing
-# entries, and reproduces the previous fingerprint.
-option(COLOUR_HISTORY "Index the piece-keyed histories by coloured piece (sets BASILISK_COLOUR_HISTORY)" ON)
-# B4_QSEARCH is Cluster 3, the donor's quiescence, built as `if constexpr`
-# branches inside the node kernel so both arms compile on every build. It
-# passed its gate and defaults ON.
-option(B4_QSEARCH "Compile Cluster 3's quiescence into the node kernel (sets BASILISK_B4_QSEARCH)" ON)
+# compilable, unmaintained, until it is deleted. None is open: Clusters 2 and 3
+# and the coloured histories passed their gates, and their OFF arms are gone.
 option(PROFILE_SYMBOLS "Emit line tables with inline records in Release builds for the sampling profiler; code generation is unchanged" OFF)
 set(BASILISK_PGO_ARM_OPTION "" CACHE STRING "Boolean CMake option identifying an umbrella arm in PGO child builds")
 set(BASILISK_PGO_ARM_STATE "OFF" CACHE STRING "Value for BASILISK_PGO_ARM_OPTION in PGO child builds")
@@ -623,27 +611,6 @@ endif()
 
 if(RELEASE_DIAG_COUNTERS)
     target_compile_definitions(basilisk_engine PRIVATE BASILISK_RELEASE_DIAG_COUNTERS)
-endif()
-
-if(COLOUR_HISTORY)
-    foreach(_tgt IN LISTS _ALL_TARGETS)
-        target_compile_definitions(${_tgt} PRIVATE BASILISK_COLOUR_HISTORY)
-    endforeach()
-    message(STATUS "COLOUR_HISTORY: the piece-keyed histories are indexed by coloured piece")
-endif()
-
-if(B3_PROOF)
-    foreach(_tgt IN LISTS _ALL_TARGETS)
-        target_compile_definitions(${_tgt} PRIVATE BASILISK_B3_PROOF)
-    endforeach()
-    message(STATUS "B3_PROOF arm: Cluster 2's proof searches are compiled in (BASILISK_B3_PROOF defined)")
-endif()
-
-if(B4_QSEARCH)
-    foreach(_tgt IN LISTS _ALL_TARGETS)
-        target_compile_definitions(${_tgt} PRIVATE BASILISK_B4_QSEARCH)
-    endforeach()
-    message(STATUS "B4_QSEARCH arm: Cluster 3's quiescence is compiled in (BASILISK_B4_QSEARCH defined)")
 endif()
 
 if(TUNE)
