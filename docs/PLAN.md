@@ -2119,6 +2119,13 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           (d). (c) runs before (a) because its H0 changes the candidate.
       - The maintainer's P9 choice (2026-11-07): closed, ticket 1 not
         returned; the evasion delivery stays as built. P9 stays a miss.
+      - (b) and (c) returned 2026-11-07 (BAS-S52 *RESULT*), no fault:
+        - (b) H1 at 6,316 pairs, first-crossing +6.5 ± 3.6 Elo. The fit
+          stands.
+        - (c) H1 at 1,297 pairs, first-crossing +15.0 ± 8.0 Elo for the
+          deletion. The delta rule stays deleted and the candidate is
+          unchanged.
+        - (a) and (d) are unlocked in `tools/run_b47_gates.ps1`.
       - From B.4.4's review: (c)'s registration says that `B4QsDelta` 1
         restores the delta rule under the arm's band guard, not the OFF
         arm's.
@@ -2874,7 +2881,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.4.7 | GAME_GATE | V | BAS-S52's arms are pinned at `507fc7b`: (b) and (c) are running; P9 is closed; (a) and (d) wait on (c)'s verdict |
+| B.4.7 | GAME_GATE | V | BAS-S52: (b) and (c) accepted H1 and P9 is closed; (a) and (d) are the maintainer's to run |
 | B.5 | RESEARCH | I2 | Contents fixed by B.0; the ply cap and the clean child frame added 2026-11-05 |
 | B.6.1 | RESEARCH | R2 | Added 2026-10-31; after B.4 and B.5 close |
 | B.6.2 | RESEARCH | V | Runs (maintainer 2026-11-05); the curvature evidence chooses its surface |

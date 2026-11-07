@@ -106,3 +106,29 @@ Added before exposure:
   play the unfitted arm ran level with the OFF arm (0.99 to 1.01× by game phase). P9 stays
   a miss. The fitted arm's speed has not been read. This clears P9 from the order; (a) and
   (d) still wait on (c)'s verdict.
+- **(b): H1 (2026-11-07).** LLR +2.95 at 6,316 pairs, 12,632 games, about 2 hours (cap
+  12,000 pairs). First-crossing estimate **+6.5 ± 3.6 Elo, +10.9 ± 6.1 nElo**;
+  pentanomial [164, 1444, 2911, 1585, 212]. No fault, no time loss, no anomaly.
+  `tools/results/b47-gate-b/` (`result.json` 3a88a240…). The fit stands, and G2 is a hit at
+  35%.
+- **(c): H1 (2026-11-07).** LLR +2.95 at 1,297 pairs, 2,594 games, 26 minutes (cap 18,000
+  pairs). First-crossing estimate **+15.0 ± 8.0 Elo, +25.1 ± 13.4 nElo** for the deletion;
+  pentanomial [31, 271, 599, 347, 49]. No fault, no time loss, no anomaly.
+  `tools/results/b47-gate-c/` (`result.json` 4d62c266…). The deletion stands, the candidate is
+  unchanged, and P11 is a hit.
+  - The stop is early because the reading is far from the bracket: at +25 nElo the drift
+    model gives 2.94 / (5 · 27.6 / 245²) ≈ 1,290 pairs, against about 14,100 at the
+    expected 0.
+  - The expected value of 0 was wrong in sign, and this does not price the rule. Theta was
+    fitted with the rule off, so arm B carries it unfitted, and the estimate is a
+    first-crossing one. Only the verdict is the record.
+- **Both verdicts were recounted** from `games.jsonl`: pentanomials equal the run records,
+  every pair has one opening with colours reversed, the 30 post-terminal games of each
+  run are outside the sample, and a normal-approximation LLR reads +2.95 and +2.96. All
+  three binaries still hash to their pins.
+- **Speed as (b)'s games read it**, recorded and carrying no rule: the fitted arm 1.97M
+  nodes a second against the unfitted arm's 2.01M, 0.977×, at 137,284 against 140,356
+  nodes a move, and mean depth without mate scores 16.48 against 16.74. (a) reads the
+  fitted arm against the OFF arm directly.
+- **(a) and (d) are unlocked:** P9 is closed and (c) left the candidate as pinned, so
+  `$candidateFixed` is set and no binary changes.

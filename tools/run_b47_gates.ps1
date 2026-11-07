@@ -32,7 +32,7 @@ $candidate = @{ Path = Join-Path $engines 'basilisk-b47-on-pext-pgo.exe';       
 $off       = @{ Path = Join-Path $engines 'basilisk-b47-off-pext-pgo.exe';           Sha = 'DB15A497012E23CB31E923F529349AE83A411B0EFA415CE37EABDE1B6BAF2CEA';  Bench = 6090091 }
 $tune      = @{ Path = Join-Path $engines 'basilisk-b47-on-tune-pext-tune-pgo.exe';  Sha = 'AA404AB333E4938E60D5A33E73C084D9A4F4C3DDB827714D90DB12B749A151B7'; Bench = 4144790 }
 $unfitted  = @{ Path = Join-Path $engines 'basilisk-b45s-on-pgo1-pext-pgo.exe';      Sha = '9C9E463E9AC691860BCF51FFA6D15A72AEDD7375E4615D171FF1A15785915F27'; Bench = 4003560 }
-$candidateFixed = $false
+$candidateFixed = $true
 
 if ($Gate -in @('a', 'd') -and -not $candidateFixed -and -not $DryRun) {
     throw "ORDER - (a) and (d) wait for (c)'s verdict and the maintainer's P9 choice (BAS-S52)."
