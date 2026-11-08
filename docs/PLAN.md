@@ -2268,6 +2268,57 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     root depth recovery after a fail-high (−1.82 ± 4.54) and a cap on root
     reductions (−5.80 ± 5.93) did not pay (TS-15). Printing the final line
     after a stop, so that bestmove heads the last PV, is B.9.1's (TR-3).
+  - Research closed `READY_FOR_IMPLEMENTATION` 2026-11-08 on the entry
+    head `ad17d2b` (`analysis/b5_cluster4_research_2026-11-08.md`; run
+    on the `R3` model at the maintainer's request). No engine source
+    changed; the reads used a throwaway census build at `bench 13`
+    4,144,790 (packet §13).
+    - Zero-game reads (packet §2), `suite_v2` at depth 14: 53.7% of the
+      nodes searched inside a window lie in windows that failed (B-70),
+      1.50 re-searches per window; the donor's root reduction would
+      reduce 44.1% of root moves after the first by 2.0 plies (S4); the
+      root's TT move equals the last iteration's best at every first
+      window and differs after 1.1% of fail lows, so S6 is not a
+      one-thread defect; 51.6% of negative-reduction extensions fall on
+      lines already holding one (TS-1's population); the ply cap is not
+      reached at depth 14.
+    - The won-ending battery passes with no stop at `60000+600`: every
+      search under 0.21× the maximum, the same nodes with and without
+      the stop. BAS-R07's rec1 ends at depth 20 in 3.8 s on the won tier,
+      so the 2026-10-25 falsifier for "the cascade is gone" fired and the
+      battery re-read it. At `180000+2000` rec1 thinks 2.46× the optimum
+      through the give-up window, with ten fail highs on the previous
+      best all before the optimum: the hole of
+      `analysis/b5_failhigh_stop_2026-10-25.md` §2.3, the stop never
+      firing. M1 stays as registered and runs on the arm (BAS-R10).
+    - In the gate (a) and `10+0.1` games, 0.76% and 1.51% of the head's
+      moves spend half the clock left or more, three to one in lost
+      positions (D.1's); 77.6% and 77.8% of draws are by repetition, the
+      input B-84's blindness read takes.
+    - Decisions: the donor's root-move record, its aspiration loop (the
+      average as centre, the mean square as width, growth 47/128, beta
+      to alpha after a fail low, no give-up hatch) and its root reduction
+      as one arm behind `B5_ROOT`, in ten tickets (packet §10); the LMR
+      window term's null-window unit corrected so the fitted regime does
+      not move with the window (`B5LmrWindowUnits`); `B5NegExtMax` 0/1/2
+      (default 0) and `B5FailHighReduce` (default 0) as the categoricals;
+      the in-check draw at the ply cap on both arms, the cap kept at 128
+      (raising it moves the HCE's won tiers into the tablebase band and
+      overflows the table's depth byte); optimism not built (an
+      NNUE-blend term; waits on F); the draw jitter waits on a judge read
+      of the repetition draws.
+    - The denser conversion floor is registered (packet §11): the four
+      families over the 25-budget grid, KQ-K, KR-K and KBB-K at least
+      598 of 600 each, KBN-K at least 575 of 600 with the five-budget sum
+      at least 112; `floors_grid.py` is promoted in ticket 0.
+    - Seeds (packet §7): `B5AspBase` 1, `B5AspMsqDiv` 2874, `B5AspGrowth`
+      47, by B.0's 0.282 ratio. Surface for the fit: those three plus
+      the Cluster 1 to 3 coordinates whose firing share moves by 10% of
+      itself (packet §5.8).
+    - IDs reserved: BAS-R10 (M1), BAS-S53, BAS-S54, BAS-S55; the
+      predictions are frozen in packet §11. Sub-steps B.5.1 to B.5.5 in
+      B.4's shape are proposed in packet §16 for the maintainer's
+      sign-off.
 - [ ] **B.6** Donor-form reconciliation, then joint search SPSA
   Joint search SPSA over the coordinates the four clusters left live;
   registered surface; PGO bake; SPRT `[0,3]`. It runs (maintainer
@@ -2931,7 +2982,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.5 | RESEARCH | I2 | Contents fixed by B.0; the ply cap and the clean child frame added 2026-11-05 |
+| B.5 | READY_FOR_IMPLEMENTATION | I2 | Research closed 2026-11-08 (`analysis/b5_cluster4_research_2026-11-08.md`); the implementation under its §10 is next |
 | B.6.1 | RESEARCH | R2 | Added 2026-10-31; after B.4 and B.5 close |
 | B.6.2 | RESEARCH | V | Runs (maintainer 2026-11-05); the curvature evidence chooses its surface |
 | B.7.1 | RESEARCH | R2 | Was D.3.1, then B.15.1; after B.6, the board's safety net |
