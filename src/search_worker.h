@@ -271,7 +271,6 @@ private:
     // from-square and a legal move. TT moves have no publication guarantee.
     [[nodiscard]] bool tt_move_playable(Move m) const;
 
-    static constexpr int MAX_QSEARCH_PLY = 10; // max extra plies of captures in qsearch
     template<NodeType NT>
     int negamax(int depth, int alpha, int beta, int ply,
                 SearchStack* ss, bool allow_null, bool cut_node);

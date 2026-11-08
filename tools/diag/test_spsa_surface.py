@@ -26,7 +26,9 @@ class SurfaceTests(unittest.TestCase):
         parameters = surface.parse_parameters(surface.HEADER.read_text(encoding="utf-8"))
         generated = json.loads(surface.CONFIG.read_text(encoding="utf-8"))
         self.assertEqual([item[0] for item in parameters], list(generated))
-        self.assertEqual(len(parameters), 19)
+        # The root table and the one inherited line.
+        self.assertEqual(len(parameters), 12)
+        self.assertEqual(parameters[-1][0], "LmrSingularQuiet")
 
     def test_core_arm_table_is_not_on_the_registered_surface(self):
         text = (
@@ -65,7 +67,7 @@ class SurfaceTests(unittest.TestCase):
         generated = json.loads(surface.CORE_CONFIG.read_text(encoding="utf-8"))
         self.assertEqual([item[0] for item in parameters], list(generated))
         # The core table's X lines; its F line (CoreQuietSeeCoeff) stays off.
-        self.assertEqual(len(parameters), 49)
+        self.assertEqual(len(parameters), 48)
         self.assertNotIn("CoreQuietSeeCoeff", generated)
         self.assertTrue(all(name.startswith("Core") for name in generated))
         self.assertFalse(set(generated) & {"NullBase", "ProbCutMargin", "LmrSingularQuiet"})
@@ -143,7 +145,7 @@ class SurfaceTests(unittest.TestCase):
                          + list(surface.B33_ADMITTED_CORE))
         self.assertEqual(len(generated), 29)
         # The core coordinates keep the core table's ranges and steps and
-        # start from the B3_PROOF arm's own default where it has one.
+        # start from Cluster 2's refit where it has one.
         core = json.loads(surface.CORE_CONFIG.read_text(encoding="utf-8"))
         overrides = surface.b3_core_defaults(text)
         self.assertTrue(overrides)
@@ -160,7 +162,7 @@ class SurfaceTests(unittest.TestCase):
         )
         self.assertEqual(surface.b3_core_defaults(head + "    A(b_field, Beta, 7)\n"),
                          {"Beta": 7})
-        # The core surface is the X lines' values, not the arm's.
+        # The core surface is the X lines' values, not the refit's.
         text = head + "    A(b_field, Beta, 7)\n"
         self.assertEqual(surface.parse_parameters(text, core=True), [("Beta", 5, 0, 10)])
         for body in ("    A(e_field, Epsilon, 7)\n",          # an F line
@@ -188,8 +190,8 @@ class SurfaceTests(unittest.TestCase):
         self.assertEqual(list(generated), b4 + list(surface.B46_ADMITTED))
         self.assertEqual(len(generated), 15)
         # The admitted coordinates keep their tables' ranges and steps and
-        # start from the value the arm runs: its own default where it has
-        # one, over the B3_PROOF arm's and the line's.
+        # start from the value the engine runs: Cluster 3's refit where it
+        # has one, over Cluster 2's and the line's.
         self.assertEqual(generated["CoreRfpPerPly"]["value"], 107)
         self.assertEqual(generated["CoreRfpCorrMult"]["value"], 457)
         self.assertEqual(generated["B3NmpBase"]["value"], 172)

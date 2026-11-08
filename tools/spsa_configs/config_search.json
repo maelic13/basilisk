@@ -65,48 +65,6 @@
         "max_value": 100,
         "step": 6
     },
-    "NullBase": {
-        "value": 3,
-        "min_value": 2,
-        "max_value": 6,
-        "step": 2
-    },
-    "NullEvalDiv": {
-        "value": 192,
-        "min_value": 80,
-        "max_value": 400,
-        "step": 20
-    },
-    "ProbCutMargin": {
-        "value": 189,
-        "min_value": 80,
-        "max_value": 360,
-        "step": 18
-    },
-    "SingularMinDepth": {
-        "value": 5,
-        "min_value": 4,
-        "max_value": 8,
-        "step": 2
-    },
-    "SingularBetaMult": {
-        "value": 4,
-        "min_value": 1,
-        "max_value": 6,
-        "step": 2
-    },
-    "SingularDoubleMargin": {
-        "value": 4,
-        "min_value": 0,
-        "max_value": 60,
-        "step": 4
-    },
-    "DoubleExtMax": {
-        "value": 16,
-        "min_value": 1,
-        "max_value": 200,
-        "step": 12
-    },
     "LmrSingularQuiet": {
         "value": 401,
         "min_value": 0,

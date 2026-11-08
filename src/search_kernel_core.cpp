@@ -203,18 +203,16 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         if (state_.stopped) return 0;
         if (ply >= MAX_PLY) return evaluator_.evaluate(*state_.board);
         if (state_.board->is_draw(ply)) return 0;
-        // Cluster 2's upcoming repetition, as at an interior node (which
-        // made the test for a node it hands here).
-        if constexpr (kB3Proof) {
-            if (alpha < 0 && config_.limits.params.b3_cuckoo
-                && state_.board->upcoming_repetition(ply)) {
-                DIAG_COUNT(++state_.diag.cuckoo_draws);
-                TRACE_DECISION(TraceEvent::CuckooDraw, ply, 0, MOVE_NONE,
-                               alpha, beta, VALUE_NONE, -1, VALUE_NONE, VALUE_NONE,
-                               0, 0, 0, 0);
-                alpha = 0;
-                if (alpha >= beta) return alpha;
-            }
+        // The upcoming repetition, as at an interior node (which made the
+        // test for a node it hands here).
+        if (alpha < 0 && config_.limits.params.b3_cuckoo
+            && state_.board->upcoming_repetition(ply)) {
+            DIAG_COUNT(++state_.diag.cuckoo_draws);
+            TRACE_DECISION(TraceEvent::CuckooDraw, ply, 0, MOVE_NONE,
+                           alpha, beta, VALUE_NONE, -1, VALUE_NONE, VALUE_NONE,
+                           0, 0, 0, 0);
+            alpha = 0;
+            if (alpha >= beta) return alpha;
         }
     }
 
@@ -277,139 +275,58 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     };
 #endif
 
-    [[maybe_unused]] const auto& kp = config_.limits.params;
+    const auto& kp = config_.limits.params;
 
-    // Cluster 3's arm answers a check through the node kernel's own picker: the
+    // A check is answered through the node kernel's own picker: the
     // table move first when it is a legal evasion, then the picker's stages,
     // so the history a node has learned orders its evasions. Once one evasion
     // holds a value that is not a loss, the quiets stay undelivered and a
     // capture that loses material is skipped; while the best is a loss every
     // evasion is searched, so a mate score here is a proven mate.
-    if constexpr (kB4Qsearch) {
-        if (in_check) {
-            int best = -INF_SCORE;
-            Move best_move = MOVE_NONE;
-            Move best_scored = MOVE_NONE;
-            DIAG_COUNT(state_.diag.qs_evasion_nodes++);
-            const PieceToHistory* const conts[6] = {
-                (ss - 1)->cont_hist, (ss - 2)->cont_hist, (ss - 3)->cont_hist,
-                (ss - 4)->cont_hist, (ss - 5)->cont_hist, (ss - 6)->cont_hist};
-            CoreMovePicker picker(*state_.board, hist_, pawn_bucket(), conts, tt_move, MOVE_NONE,
-                                  0, ply, nullptr, state_.move_buffers[ply][0]);
-            int evasions_searched = 0;
-            [[maybe_unused]] int quiets_searched = 0;
-            PRICE(MoveList quiets_tried);
-            for (Move m = picker.next(); m != MOVE_NONE; m = picker.next()) {
-                DIAG_COUNT(state_.diag.qs_evasion_tt_move
-                           += picker.last_source() == CoreMovePicker::Src::TT);
-                const bool holds = kp.b4_evasion_prune && best > -tablebaseWinInMaxPly;
-                if (holds && !state_.board->see_ge(m, kp.b4_qs_see_margin)) {
-                    TRACE_DECISION(TraceEvent::QsEvasionPrune, ply, 0, m,
-                                   alpha, beta, best, -1, VALUE_NONE, VALUE_NONE,
-                                   evasions_searched, 0, kp.b4_qs_see_margin, alpha);
-                    PRICE(price_move(PriceRule::QsEvasion, m, evasions_searched + 1,
-                                     price_class(capture_victim(*state_.board, m),
-                                                 b4::is_recapture(m, (ss - 1)->move))));
-                    DIAG_COUNT(++state_.diag.qs_evasion_see_pruned);
-                    continue;
-                }
-                [[maybe_unused]] const bool quiet = !is_capture_stage(*state_.board, m);
-                do_move(ss, m);
-                const int s = -quiescence<NT>(-beta, -alpha, ply + 1, qply + 1, ss + 1);
-                undo_move(ss, m);
-                if (state_.stopped) return 0;
-                DIAG_COUNT(++state_.diag.qs_evasion_moves);
-                DIAG_COUNT(quiets_searched += quiet);
-                PRICE(if (quiet) quiets_tried.push(m));
-                ++evasions_searched;
-                if (s > best) {
-                    best = s;
-                    best_scored = m;
-                }
-                if (s > alpha) {
-                    alpha = s;
-                    best_move = m;
-                }
-                if (alpha >= beta) {
-                    TRACE_DECISION(TraceEvent::QsBetaCutoff, ply, 0, m,
-                                   alpha, beta, VALUE_NONE, -1, VALUE_NONE, VALUE_NONE,
-                                   0, 0, VALUE_NONE, s);
-                    DIAG_COUNT(++state_.diag.qs_evasion_fail_highs);
-                    DIAG_COUNT(state_.diag.qs_evasion_fail_high_first += evasions_searched == 1);
-                    DIAG_COUNT(state_.diag.qs_evasion_fail_high_index_sum += evasions_searched - 1);
-                    DIAG_COUNT(state_.diag.qs_evasion_tt_cuts += m == tt_move);
-                    PRICE(settle(s));
-                    const int value = b4::fail_high_value(s, beta, kp.b4_qs_fail_high_blend);
-                    tt_store(hash, 0, value, TT_BETA, m, ply, INF_SCORE, pv_hit);
-                    return value;
-                }
-                if (kp.b4_evasion_prune && best > -tablebaseWinInMaxPly && !picker.quiets_skipped())
-                    picker.skip_quiets();
-            }
-            if (evasions_searched == 0) {
-                CORE_NODE_CHECK(has_no_legal_move(*state_.board));
-                return -(MATE_SCORE - ply);
-            }
-#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC) \
-    || defined(BASILISK_RELEASE_DIAG_COUNTERS)
-            // What the rule left unsearched at a node that found no cutoff. It
-            // costs a generation of the quiets, so it runs only for its readers:
-            // the counters and the trace under Diag, the prices under Pricing.
-            // Unread, it would make a tune build's rule dearer than its switch.
-            bool accounted = config_.limits.diag;
-#ifdef BASILISK_PRICING
-            accounted = accounted || state_.price.enabled();
-#endif
-            if (accounted && picker.quiets_skipped()) {
-                MoveList quiets;
-                state_.board->gen_legal_quiets(quiets);
-                DIAG_COUNT(state_.diag.qs_evasion_quiets_pruned
-                           += static_cast<int>(quiets.size()) - quiets_searched);
-                TRACE_DECISION(TraceEvent::QsEvasionPrune, ply, 0, MOVE_NONE,
-                               alpha, beta, best, -1, VALUE_NONE, VALUE_NONE,
-                               evasions_searched, 0, VALUE_NONE, alpha);
-#ifdef BASILISK_PRICING
-                int move_number = evasions_searched;
-                for (Move m : quiets)
-                    if (std::find(quiets_tried.begin(), quiets_tried.end(), m) == quiets_tried.end())
-                        price_move(PriceRule::QsEvasion, m, ++move_number,
-                                   price_class(NO_PIECE_TYPE, false));
-#endif
-            }
-#endif
-            PRICE(settle(best));
-            if (best_move == MOVE_NONE && !kp.b3_fail_low_store)
-                best_move = best_scored;
-            tt_store(hash, 0, best, TT_ALPHA, best_move, ply, INF_SCORE, pv_hit);
-            return best;
-        }
-    }
-
     if (in_check) {
-        // No qsearch-depth cap for evasion nodes: a static eval of an
-        // in-check position is not a valid bound and can mask mates in long
-        // check chains, poisoning parent TT stores (search audit 7).
-        // The ply >= MAX_PLY guard at the top of quiescence() remains the
-        // termination backstop; check chains cannot exceed it.
-        MoveList legal;
-        state_.board->gen_legal(legal);
         int best = -INF_SCORE;
+        Move best_move = MOVE_NONE;
+        Move best_scored = MOVE_NONE;
         DIAG_COUNT(state_.diag.qs_evasion_nodes++);
-        DIAG_COUNT(state_.diag.qs_evasion_tt_move
-                   += tt_move != MOVE_NONE
-                      && std::find(legal.begin(), legal.end(), tt_move) != legal.end());
-        [[maybe_unused]] int evasions_searched = 0;
-        bool has_legal = false;
-        for (Move m : legal) {
-            has_legal = true;
+        const PieceToHistory* const conts[6] = {
+            (ss - 1)->cont_hist, (ss - 2)->cont_hist, (ss - 3)->cont_hist,
+            (ss - 4)->cont_hist, (ss - 5)->cont_hist, (ss - 6)->cont_hist};
+        CoreMovePicker picker(*state_.board, hist_, pawn_bucket(), conts, tt_move, MOVE_NONE,
+                              0, ply, nullptr, state_.move_buffers[ply][0]);
+        int evasions_searched = 0;
+        [[maybe_unused]] int quiets_searched = 0;
+        PRICE(MoveList quiets_tried);
+        for (Move m = picker.next(); m != MOVE_NONE; m = picker.next()) {
+            DIAG_COUNT(state_.diag.qs_evasion_tt_move
+                       += picker.last_source() == CoreMovePicker::Src::TT);
+            const bool holds = kp.b4_evasion_prune && best > -tablebaseWinInMaxPly;
+            if (holds && !state_.board->see_ge(m, kp.b4_qs_see_margin)) {
+                TRACE_DECISION(TraceEvent::QsEvasionPrune, ply, 0, m,
+                               alpha, beta, best, -1, VALUE_NONE, VALUE_NONE,
+                               evasions_searched, 0, kp.b4_qs_see_margin, alpha);
+                PRICE(price_move(PriceRule::QsEvasion, m, evasions_searched + 1,
+                                 price_class(capture_victim(*state_.board, m),
+                                             b4::is_recapture(m, (ss - 1)->move))));
+                DIAG_COUNT(++state_.diag.qs_evasion_see_pruned);
+                continue;
+            }
+            [[maybe_unused]] const bool quiet = !is_capture_stage(*state_.board, m);
             do_move(ss, m);
-            int s = -quiescence<NT>(-beta, -alpha, ply + 1, qply + 1, ss + 1);
+            const int s = -quiescence<NT>(-beta, -alpha, ply + 1, qply + 1, ss + 1);
             undo_move(ss, m);
             if (state_.stopped) return 0;
             DIAG_COUNT(++state_.diag.qs_evasion_moves);
-            DIAG_COUNT(++evasions_searched);
-            if (s > best) best = s;
-            if (s > alpha) alpha = s;
+            DIAG_COUNT(quiets_searched += quiet);
+            PRICE(if (quiet) quiets_tried.push(m));
+            ++evasions_searched;
+            if (s > best) {
+                best = s;
+                best_scored = m;
+            }
+            if (s > alpha) {
+                alpha = s;
+                best_move = m;
+            }
             if (alpha >= beta) {
                 TRACE_DECISION(TraceEvent::QsBetaCutoff, ply, 0, m,
                                alpha, beta, VALUE_NONE, -1, VALUE_NONE, VALUE_NONE,
@@ -418,11 +335,50 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
                 DIAG_COUNT(state_.diag.qs_evasion_fail_high_first += evasions_searched == 1);
                 DIAG_COUNT(state_.diag.qs_evasion_fail_high_index_sum += evasions_searched - 1);
                 DIAG_COUNT(state_.diag.qs_evasion_tt_cuts += m == tt_move);
-                best = s;
-                break;
+                PRICE(settle(s));
+                const int value = b4::fail_high_value(s, beta, kp.b4_qs_fail_high_blend);
+                tt_store(hash, 0, value, TT_BETA, m, ply, INF_SCORE, pv_hit);
+                return value;
             }
+            if (kp.b4_evasion_prune && best > -tablebaseWinInMaxPly && !picker.quiets_skipped())
+                picker.skip_quiets();
         }
-        return has_legal ? best : -(MATE_SCORE - ply);
+        if (evasions_searched == 0) {
+            CORE_NODE_CHECK(has_no_legal_move(*state_.board));
+            return -(MATE_SCORE - ply);
+        }
+#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC) \
+    || defined(BASILISK_RELEASE_DIAG_COUNTERS)
+        // What the rule left unsearched at a node that found no cutoff. It
+        // costs a generation of the quiets, so it runs only for its readers:
+        // the counters and the trace under Diag, the prices under Pricing.
+        // Unread, it would make a tune build's rule dearer than its switch.
+        bool accounted = config_.limits.diag;
+#ifdef BASILISK_PRICING
+        accounted = accounted || state_.price.enabled();
+#endif
+        if (accounted && picker.quiets_skipped()) {
+            MoveList quiets;
+            state_.board->gen_legal_quiets(quiets);
+            DIAG_COUNT(state_.diag.qs_evasion_quiets_pruned
+                       += static_cast<int>(quiets.size()) - quiets_searched);
+            TRACE_DECISION(TraceEvent::QsEvasionPrune, ply, 0, MOVE_NONE,
+                           alpha, beta, best, -1, VALUE_NONE, VALUE_NONE,
+                           evasions_searched, 0, VALUE_NONE, alpha);
+#ifdef BASILISK_PRICING
+            int move_number = evasions_searched;
+            for (Move m : quiets)
+                if (std::find(quiets_tried.begin(), quiets_tried.end(), m) == quiets_tried.end())
+                    price_move(PriceRule::QsEvasion, m, ++move_number,
+                               price_class(NO_PIECE_TYPE, false));
+#endif
+        }
+#endif
+        PRICE(settle(best));
+        if (best_move == MOVE_NONE && !kp.b3_fail_low_store)
+            best_move = best_scored;
+        tt_store(hash, 0, best, TT_ALPHA, best_move, ply, INF_SCORE, pv_hit);
+        return best;
     }
 
     // Stand-pat evaluation. The TT holds the evaluation without the halfmove
@@ -435,7 +391,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     const int raw_eval = damp_rule50(tt_eval, state_.board->rule50_count());
 
     int stand_pat = corrected_eval(raw_eval, correction_value(ss));
-    [[maybe_unused]] const int static_eval = stand_pat;
+    const int static_eval = stand_pat;
 #if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
     const int correction = stand_pat - raw_eval;
 #endif
@@ -455,11 +411,9 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     if (stand_pat >= beta) {
         DIAG_COUNT(++state_.diag.qs_standpat_cuts);
         DIAG_COUNT(state_.diag.qs_standpat_excess += stand_pat - beta);
-        // Cluster 3's arm returns a value near the bound it proved, so the main
+        // The value returned lies near the bound it proved, so the main
         // search's margins read a leaf's value and not its excess.
-        const int value = kB4Qsearch
-                        ? b4::fail_high_value(stand_pat, beta, kp.b4_qs_stand_pat_blend)
-                        : stand_pat;
+        const int value = b4::fail_high_value(stand_pat, beta, kp.b4_qs_stand_pat_blend);
         TRACE_DECISION(TraceEvent::QsStandPatCutoff, ply, 0, MOVE_NONE,
                        alpha, beta, stand_pat, -1, correction, VALUE_NONE,
                        0, 0, 0, value);
@@ -471,16 +425,17 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     // when the opponent holds a known win: a capture there can end the
     // ending, as Kxh8 ends a KBB-K in a dead draw, and the stand-pat says
     // nothing about what it leaves (the oracle's futilityBase > -KNOWN_WIN).
-    // Cluster 3's arm reads the gain against the static eval, not the table's
-    // tighter stand-pat: a bound proved for this node says nothing about what
-    // a capture leaves.
-    [[maybe_unused]] const int futility_base = static_eval + kp.b4_qs_fut_base;
-    const bool prune_by_gain = (kB4Qsearch ? futility_base : stand_pat + 150) > -KNOWN_WIN;
+    // The gain is read against the static eval, not the table's tighter
+    // stand-pat: a bound proved for this node says nothing about what a
+    // capture leaves.
+    const int futility_base = static_eval + kp.b4_qs_fut_base;
+    const bool prune_by_gain = futility_base > -KNOWN_WIN;
 
-    // Delta pruning: even capturing a queen with a margin to spare cannot
-    // raise alpha, so that optimistic value is the node's upper bound.
+    // Delta pruning (B4QsDelta, off by default): even capturing a queen with a
+    // margin to spare cannot raise alpha, so that optimistic value is the
+    // node's upper bound.
     const int delta_bound = stand_pat + PIECE_VALUE[QUEEN] + 200;
-    if ((!kB4Qsearch || kp.b4_qs_delta) && !bare && prune_by_gain && delta_bound < alpha) {
+    if (kp.b4_qs_delta && !bare && prune_by_gain && delta_bound < alpha) {
         DIAG_COUNT(++state_.diag.qs_delta_pruned);
         TRACE_DECISION(TraceEvent::QsDeltaPrune, ply, 0, MOVE_NONE,
                        alpha, beta, stand_pat, -1, correction, VALUE_NONE,
@@ -503,55 +458,28 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     int best = stand_pat;
     if (stand_pat > alpha) alpha = stand_pat;
 
-    if (!kB4Qsearch && qply >= MAX_QSEARCH_PLY) {
-        DIAG_COUNT(++state_.diag.qs_cap_hits);
-        return stand_pat;
-    }
-
     MoveList captures;
     state_.board->gen_legal_captures(captures);
 
-    // Score captures: MVV + cap_hist; prefer TT move. Cluster 3's arm orders
-    // them as the picker's capture stage does.
+    // Score captures as the picker's capture stage does, the TT move first.
     ScoredMove* sm = state_.move_buffers[ply][0];
     int nm = 0;
-    for (Move m : captures) {
-        if constexpr (kB4Qsearch) {
-            sm[nm++] = {m, m == tt_move ? 10'000'000
-                                        : capture_order_score(*state_.board, hist_, m)};
-            continue;
-        }
-        PieceType atk = type_of(state_.board->piece_on(from_sq(m)));
-        PieceType cap = (move_type(m) == EN_PASSANT) ? PAWN : type_of(state_.board->piece_on(to_sq(m)));
-        int score = (m == tt_move) ? 10'000'000
-                  : PIECE_VALUE[cap] * 16 - PIECE_VALUE[atk]
-                    + hist_.capture.entry[hist_piece(state_.board->turn(), atk)][to_sq(m)][cap];
-        HIST_SHADOW(m == tt_move ? void() : hist_.shadow->read(
-            ShadowTable::Capture,
-            CoreHistoryTables::capture_cell(hist_piece(state_.board->turn(), atk), Square(to_sq(m)), cap),
-            state_.board->turn()));
-        sm[nm++] = {m, score};
-    }
+    for (Move m : captures)
+        sm[nm++] = {m, m == tt_move ? 10'000'000
+                                    : capture_order_score(*state_.board, hist_, m)};
 
     Move best_move = MOVE_NONE;
     DIAG_COUNT(state_.diag.qs_moves += nm);
     [[maybe_unused]] int captures_searched = 0;
-    [[maybe_unused]] int move_count = 0;
-    [[maybe_unused]] const Move previous_move = (ss - 1)->move;
-    [[maybe_unused]] Move best_scored = MOVE_NONE;
-    [[maybe_unused]] int best_scored_value = -INF_SCORE;
+    int move_count = 0;
+    const Move previous_move = (ss - 1)->move;
+    Move best_scored = MOVE_NONE;
+    int best_scored_value = -INF_SCORE;
 
     for (int i = 0; i < nm; i++) {
         Move m = pick_next(sm, i, nm);
 
-        const MoveType mt = move_type(m);
-        const bool is_promo = mt == PROMOTION;
-        const Piece target = state_.board->piece_on(to_sq(m));
-        const int captured_value = (mt == EN_PASSANT) ? PIECE_VALUE[PAWN]
-                                 : (target != NO_PIECE) ? PIECE_VALUE[type_of(target)]
-                                 : 0;
-        const int promotion_gain = is_promo ? PIECE_VALUE[promo_type(m)] - PIECE_VALUE[PAWN] : 0;
-        const int tactical_gain = captured_value + promotion_gain;
+        const bool is_promo = move_type(m) == PROMOTION;
 
         bool gives_check_known = false;
         bool gives_check = false;
@@ -566,90 +494,53 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         const int move_class = price_class(capture_victim(*state_.board, m),
                                            b4::is_recapture(m, (ss - 1)->move));
 #endif
-        if constexpr (kB4Qsearch) {
-            // A static margin is nearly exact for a capture that starts an
-            // exchange and often wrong for one that finishes it, so a
-            // recapture, like a check or a promotion, is not judged by what
-            // it takes. Every capture must still clear the plain SEE.
-            ++move_count;
-            const bool recapture = kp.b4_qs_recapture && b4::is_recapture(m, previous_move);
-            DIAG_COUNT(state_.diag.qs_recapture_exempt
-                       += prune_by_gain && !is_promo && recapture && !move_gives_check());
-            if (prune_by_gain && !is_promo && !recapture && !move_gives_check()) {
-                DIAG_COUNT(++state_.diag.qs_gain_tested);
-                if (move_count > kp.b4_qs_move_count) {
-                    TRACE_DECISION(TraceEvent::QsCountPrune, ply, 0, m,
-                                   alpha, beta, stand_pat, -1, correction, VALUE_NONE,
-                                   i, 0, kp.b4_qs_move_count, alpha);
-                    PRICE(price_move(PriceRule::QsCount, m, i + 1, move_class));
-                    DIAG_COUNT(++state_.diag.qs_count_pruned);
-                    continue;
-                }
-                const int gain = b4::gain_value(capture_victim(*state_.board, m),
-                                                kp.b4_gain_values);
-                const int futility_value = futility_base + gain;
-                if (futility_value <= alpha) {
-                    TRACE_DECISION(TraceEvent::QsFutilityPrune, ply, 0, m,
-                                   alpha, beta, stand_pat, -1, correction, VALUE_NONE,
-                                   i, 0, kp.b4_qs_fut_base + gain, alpha);
-                    PRICE(price_move(PriceRule::QsFutility, m, i + 1, move_class));
-                    DIAG_COUNT(++state_.diag.qs_futility_pruned);
-                    best = std::max(best, futility_value);
-                    continue;
-                }
-                if (!state_.board->see_ge(m, alpha - futility_base)) {
-                    TRACE_DECISION(TraceEvent::QsSeePrune, ply, 0, m,
-                                   alpha, beta, stand_pat, -1, correction, VALUE_NONE,
-                                   i, 0, alpha - futility_base, alpha);
-                    PRICE(price_move(PriceRule::QsSee, m, i + 1, move_class));
-                    DIAG_COUNT(++state_.diag.qs_see_pruned);
-                    best = std::max(best, std::min(alpha, futility_base));
-                    continue;
-                }
-            }
-            if (!state_.board->see_ge(m, kp.b4_qs_see_margin)) {
-                TRACE_DECISION(TraceEvent::QsSeePrune, ply, 0, m,
+        // A static margin is nearly exact for a capture that starts an
+        // exchange and often wrong for one that finishes it, so a
+        // recapture, like a check or a promotion, is not judged by what
+        // it takes. Every capture must still clear the plain SEE.
+        ++move_count;
+        const bool recapture = kp.b4_qs_recapture && b4::is_recapture(m, previous_move);
+        DIAG_COUNT(state_.diag.qs_recapture_exempt
+                   += prune_by_gain && !is_promo && recapture && !move_gives_check());
+        if (prune_by_gain && !is_promo && !recapture && !move_gives_check()) {
+            DIAG_COUNT(++state_.diag.qs_gain_tested);
+            if (move_count > kp.b4_qs_move_count) {
+                TRACE_DECISION(TraceEvent::QsCountPrune, ply, 0, m,
                                alpha, beta, stand_pat, -1, correction, VALUE_NONE,
-                               i, 0, kp.b4_qs_see_margin, alpha);
-                PRICE(price_move(PriceRule::QsSee, m, i + 1, move_class));
-                DIAG_COUNT(++state_.diag.qs_see_pruned);
+                               i, 0, kp.b4_qs_move_count, alpha);
+                PRICE(price_move(PriceRule::QsCount, m, i + 1, move_class));
+                DIAG_COUNT(++state_.diag.qs_count_pruned);
                 continue;
             }
-        } else {
-            // Futility: the capture's optimistic value cannot raise alpha, and
-            // stands in for the move in the node's upper bound.
-            const int futility_value = stand_pat + tactical_gain + 150;
-            if (prune_by_gain && !is_promo
-                && futility_value <= alpha
-                && !move_gives_check()) {
+            const int gain = b4::gain_value(capture_victim(*state_.board, m),
+                                            kp.b4_gain_values);
+            const int futility_value = futility_base + gain;
+            if (futility_value <= alpha) {
                 TRACE_DECISION(TraceEvent::QsFutilityPrune, ply, 0, m,
                                alpha, beta, stand_pat, -1, correction, VALUE_NONE,
-                               i, 0, tactical_gain + 150, alpha);
+                               i, 0, kp.b4_qs_fut_base + gain, alpha);
                 PRICE(price_move(PriceRule::QsFutility, m, i + 1, move_class));
                 DIAG_COUNT(++state_.diag.qs_futility_pruned);
                 best = std::max(best, futility_value);
                 continue;
             }
-
-            const int see_threshold = prune_by_gain
-                                    ? std::clamp(alpha - stand_pat - 200, -800, 200) : 0;
-            if (!state_.board->see_ge(m, see_threshold)) {
+            if (!state_.board->see_ge(m, alpha - futility_base)) {
                 TRACE_DECISION(TraceEvent::QsSeePrune, ply, 0, m,
                                alpha, beta, stand_pat, -1, correction, VALUE_NONE,
-                               i, 0, see_threshold, alpha);
+                               i, 0, alpha - futility_base, alpha);
                 PRICE(price_move(PriceRule::QsSee, m, i + 1, move_class));
                 DIAG_COUNT(++state_.diag.qs_see_pruned);
+                best = std::max(best, std::min(alpha, futility_base));
                 continue;
             }
-
-            if (!is_promo && i >= 6 && !state_.board->see_ge(m, -50) && !move_gives_check()) {
-                TRACE_DECISION(TraceEvent::QsLatePrune, ply, 0, m,
-                               alpha, beta, stand_pat, -1, correction, VALUE_NONE,
-                               i, 0, -50, alpha);
-                PRICE(price_move(PriceRule::QsLate, m, i + 1));
-                DIAG_COUNT(++state_.diag.qs_late_pruned);
-                continue;
-            }
+        }
+        if (!state_.board->see_ge(m, kp.b4_qs_see_margin)) {
+            TRACE_DECISION(TraceEvent::QsSeePrune, ply, 0, m,
+                           alpha, beta, stand_pat, -1, correction, VALUE_NONE,
+                           i, 0, kp.b4_qs_see_margin, alpha);
+            PRICE(price_move(PriceRule::QsSee, m, i + 1, move_class));
+            DIAG_COUNT(++state_.diag.qs_see_pruned);
+            continue;
         }
 
         do_move(ss, m);
@@ -659,11 +550,9 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         if (state_.stopped) return 0;
         DIAG_COUNT(++state_.diag.qs_searched);
         DIAG_COUNT(++captures_searched);
-        if constexpr (kB4Qsearch) {
-            if (s > best_scored_value) {
-                best_scored_value = s;
-                best_scored = m;
-            }
+        if (s > best_scored_value) {
+            best_scored_value = s;
+            best_scored = m;
         }
         if (s > best) best = s;
         if (s > alpha) {
@@ -679,8 +568,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
                            alpha, beta, stand_pat, -1, correction, VALUE_NONE,
                            i, 0, VALUE_NONE, s);
             PRICE(settle(s));
-            const int value = kB4Qsearch
-                            ? b4::fail_high_value(s, beta, kp.b4_qs_fail_high_blend) : s;
+            const int value = b4::fail_high_value(s, beta, kp.b4_qs_fail_high_blend);
             tt_store(hash, 0, value, TT_BETA, m, ply, tt_eval, pv_hit);
             return value;
         }
@@ -689,46 +577,44 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     // A quiet check is the one threat the captures cannot show. At the first
     // ply, after them, up to the limit are searched as captures are; a check
     // that hangs the piece shows nothing a stand-pat does not.
-    if constexpr (kB4Qsearch) {
-        if (kp.b4_quiet_checks > 0 && qply == 0) {
-            MoveList checks;
-            state_.board->gen_quiet_checks(checks);
-            int tried = 0;
-            for (Move m : checks) {
-                if (tried == kp.b4_quiet_checks)
-                    break;
-                if (!state_.board->see_ge(m, 0))
-                    continue;
-                ++tried;
-                do_move(ss, m);
-                const int s = -quiescence<NT>(-beta, -alpha, ply + 1, qply + 1, ss + 1);
-                undo_move(ss, m);
-                if (state_.stopped) return 0;
-                DIAG_COUNT(++state_.diag.qs_searched);
-                DIAG_COUNT(++state_.diag.qs_quiet_checks);
-                DIAG_COUNT(++captures_searched);
-                if (s > best_scored_value) {
-                    best_scored_value = s;
-                    best_scored = m;
-                }
-                if (s > best) best = s;
-                if (s > alpha) {
-                    alpha = s;
-                    best_move = m;
-                }
-                if (s >= beta) {
-                    DIAG_COUNT(++state_.diag.qs_fail_highs);
-                    DIAG_COUNT(state_.diag.qs_fail_high_first += captures_searched == 1);
-                    DIAG_COUNT(state_.diag.qs_fail_high_index_sum += captures_searched - 1);
-                    DIAG_COUNT(state_.diag.qs_fail_high_excess += is_decisive(s) ? 0 : s - beta);
-                    TRACE_DECISION(TraceEvent::QsBetaCutoff, ply, 0, m,
-                                   alpha, beta, stand_pat, -1, correction, VALUE_NONE,
-                                   nm + tried - 1, 0, VALUE_NONE, s);
-                    PRICE(settle(s));
-                    const int value = b4::fail_high_value(s, beta, kp.b4_qs_fail_high_blend);
-                    tt_store(hash, 0, value, TT_BETA, m, ply, tt_eval, pv_hit);
-                    return value;
-                }
+    if (kp.b4_quiet_checks > 0 && qply == 0) {
+        MoveList checks;
+        state_.board->gen_quiet_checks(checks);
+        int tried = 0;
+        for (Move m : checks) {
+            if (tried == kp.b4_quiet_checks)
+                break;
+            if (!state_.board->see_ge(m, 0))
+                continue;
+            ++tried;
+            do_move(ss, m);
+            const int s = -quiescence<NT>(-beta, -alpha, ply + 1, qply + 1, ss + 1);
+            undo_move(ss, m);
+            if (state_.stopped) return 0;
+            DIAG_COUNT(++state_.diag.qs_searched);
+            DIAG_COUNT(++state_.diag.qs_quiet_checks);
+            DIAG_COUNT(++captures_searched);
+            if (s > best_scored_value) {
+                best_scored_value = s;
+                best_scored = m;
+            }
+            if (s > best) best = s;
+            if (s > alpha) {
+                alpha = s;
+                best_move = m;
+            }
+            if (s >= beta) {
+                DIAG_COUNT(++state_.diag.qs_fail_highs);
+                DIAG_COUNT(state_.diag.qs_fail_high_first += captures_searched == 1);
+                DIAG_COUNT(state_.diag.qs_fail_high_index_sum += captures_searched - 1);
+                DIAG_COUNT(state_.diag.qs_fail_high_excess += is_decisive(s) ? 0 : s - beta);
+                TRACE_DECISION(TraceEvent::QsBetaCutoff, ply, 0, m,
+                               alpha, beta, stand_pat, -1, correction, VALUE_NONE,
+                               nm + tried - 1, 0, VALUE_NONE, s);
+                PRICE(settle(s));
+                const int value = b4::fail_high_value(s, beta, kp.b4_qs_fail_high_blend);
+                tt_store(hash, 0, value, TT_BETA, m, ply, tt_eval, pv_hit);
+                return value;
             }
         }
     }
@@ -736,25 +622,23 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     // A side with only king and pawns that has just lost a piece may have no
     // move at all, which the stand-pat cannot see. The value is the draw, exact,
     // so it takes no blend and may lie on either side of the window.
-    if constexpr (kB4Qsearch) {
-        if (kp.b4_stalemate && nm == 0 && type_of(state_.board->captured_piece()) >= KNIGHT
-            && !state_.board->has_non_pawn_material(state_.board->turn())) {
-            MoveList legal;
-            state_.board->gen_legal(legal);
-            if (legal.empty()) {
-                DIAG_COUNT(++state_.diag.qs_stalemates);
-                TRACE_DECISION(TraceEvent::QsStalemate, ply, 0, MOVE_NONE,
-                               alpha, beta, stand_pat, -1, correction, VALUE_NONE,
-                               0, 0, VALUE_NONE, 0);
-                best = 0;
-            }
+    if (kp.b4_stalemate && nm == 0 && type_of(state_.board->captured_piece()) >= KNIGHT
+        && !state_.board->has_non_pawn_material(state_.board->turn())) {
+        MoveList legal;
+        state_.board->gen_legal(legal);
+        if (legal.empty()) {
+            DIAG_COUNT(++state_.diag.qs_stalemates);
+            TRACE_DECISION(TraceEvent::QsStalemate, ply, 0, MOVE_NONE,
+                           alpha, beta, stand_pat, -1, correction, VALUE_NONE,
+                           0, 0, VALUE_NONE, 0);
+            best = 0;
         }
     }
 
     PRICE(settle(best));
     DIAG_COUNT(++state_.diag.qs_fail_lows);
     DIAG_COUNT(state_.diag.qs_fail_low_searched += captures_searched > 0);
-    if (kB4Qsearch && best_move == MOVE_NONE && !kp.b3_fail_low_store)
+    if (best_move == MOVE_NONE && !kp.b3_fail_low_store)
         best_move = best_scored;
     tt_store(hash, 0, best, best >= beta ? TT_BETA : TT_ALPHA, best_move, ply, tt_eval, pv_hit);
     return best;
@@ -798,19 +682,17 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     state_.pv_len[ply] = ply;
 
     if (!is_root && state_.board->is_draw(ply)) return 0;
-    // Cluster 2: a reversible move to a repetition is available, so the
+    // A reversible move to a repetition is available, so the
     // node is worth at least the draw (B3Cuckoo; never when alpha is
     // already at it).
-    if constexpr (kB3Proof) {
-        if (!is_root && alpha < 0 && config_.limits.params.b3_cuckoo
-            && state_.board->upcoming_repetition(ply)) {
-            DIAG_COUNT(++state_.diag.cuckoo_draws);
-            TRACE_DECISION(TraceEvent::CuckooDraw, ply, depth, MOVE_NONE,
-                           alpha, beta, VALUE_NONE, -1, VALUE_NONE, VALUE_NONE,
-                           0, 0, 0, 0);
-            alpha = 0;
-            if (alpha >= beta) return alpha;
-        }
+    if (!is_root && alpha < 0 && config_.limits.params.b3_cuckoo
+        && state_.board->upcoming_repetition(ply)) {
+        DIAG_COUNT(++state_.diag.cuckoo_draws);
+        TRACE_DECISION(TraceEvent::CuckooDraw, ply, depth, MOVE_NONE,
+                       alpha, beta, VALUE_NONE, -1, VALUE_NONE, VALUE_NONE,
+                       0, 0, 0, 0);
+        alpha = 0;
+        if (alpha >= beta) return alpha;
     }
 
     bool in_check = state_.board->is_in_check();
@@ -820,26 +702,17 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     // The grandchildren's record starts this node's children clean: the
     // children share (ss + 1), and each that fails high counts in it.
     (ss + 2)->cutoff_cnt = 0;
-    if constexpr (kB3Proof) {
-        ss->follow_pv = b3::follow_pv(is_root, (ss - 1)->follow_pv, ply, (ss - 1)->move,
-                                      state_.prev_pv, state_.prev_pv_len);
-        ss->ext_taken = 0;
-    }
+    ss->follow_pv = b3::follow_pv(is_root, (ss - 1)->follow_pv, ply, (ss - 1)->move,
+                                  state_.prev_pv, state_.prev_pv_len);
+    ss->ext_taken = 0;
 
-    // Check extension: when the side to move is in check, extend by 1 ply.
-    // Guard with ss->excluded to prevent stacking with singular extensions.
+    // Check extension: the donor's policy extends no in-check node; the
+    // B3CheckExt categorical restores a ply for every one. ss->excluded keeps
+    // it from stacking with a singular extension.
     if (in_check) DIAG_COUNT(state_.diag.in_check_nodes++);
-    // The extension is unconditional: every in-check node gets a ply.
-    //
-    // There is no per-path cap on the accumulation: check_ext_path_cap
-    // defaulted to 0 (disabled) and was the residue of a failed trial
-    // (BAS-S16 REJECTED at -3.48 +/- 3.32), not an avenue still open.
-    // Reducing extension at checking nodes was measured to fail our WAC floor.
-    // Cluster 2's arm takes the donor's policy instead (no extension in check)
-    // unless the categorical restores it.
     bool did_check_ext = false;
     if (!ABLATED(6) && in_check && ss->excluded == MOVE_NONE && ply < MAX_PLY - 2
-        && (!kB3Proof || config_.limits.params.b3_check_ext)) {
+        && config_.limits.params.b3_check_ext) {
         depth++;
         did_check_ext = true;
         DIAG_COUNT(state_.diag.check_exts++);
@@ -851,8 +724,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     if (depth <= 0)
         return quiescence<QsType>(alpha, beta, ply, 0, ss, true);
     DIAG_COUNT(state_.diag.interior_nodes++);
-    if constexpr (kB3Proof)
-        if (ss->follow_pv) DIAG_COUNT(++state_.diag.follow_pv_nodes);
+    if (ss->follow_pv) DIAG_COUNT(++state_.diag.follow_pv_nodes);
 
     // Mate distance pruning
     if (!is_root) {
@@ -864,9 +736,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     // The reduction the parent applied to reach this node, read once: a
     // re-search of the same move must not see it again.
     const auto& kp = config_.limits.params;
-    // Cluster 2's check policy: in-check nodes are reduced and move-loop
-    // pruned as the donor's are (quiet futility excepted).
-    const bool check_prune = kB3Proof && kp.b3_check_prune;
+    // The check policy: in-check nodes are reduced and move-loop pruned as
+    // the donor's are (quiet futility excepted), unless B3CheckPrune is 0.
+    const bool check_prune = kp.b3_check_prune;
     const int prior_reduction = (ss - 1)->reduction;
     (ss - 1)->reduction = 0;
 
@@ -943,14 +815,12 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     CORE_NODE_CHECK((ss + 1)->excluded == MOVE_NONE);
     CORE_NODE_CHECK(ss->excluded != MOVE_NONE
                     || ss->tt_pv == (is_pv || (tt_found && tte.is_pv())));
-    // Cluster 2: a child's extension plies are its parent's plus the
+    // A child's extension plies are its parent's plus the
     // parent's positive extension, and only a node whose parent follows
     // the previous PV can follow it.
-    if constexpr (kB3Proof) {
-        CORE_NODE_CHECK(is_root || ss->ext_plies == (ss - 1)->ext_plies + (ss - 1)->ext_taken);
-        CORE_NODE_CHECK(!kp.b3_ext_budget || ss->ext_plies <= root_depth_);
-        CORE_NODE_CHECK(is_root || !ss->follow_pv || (ss - 1)->follow_pv);
-    }
+    CORE_NODE_CHECK(is_root || ss->ext_plies == (ss - 1)->ext_plies + (ss - 1)->ext_taken);
+    CORE_NODE_CHECK(!kp.b3_ext_budget || ss->ext_plies <= root_depth_);
+    CORE_NODE_CHECK(is_root || !ss->follow_pv || (ss - 1)->follow_pv);
 
     // Is the TT move from the capture stage (a capture or a promotion)?
     const bool tt_capture = tt_move != MOVE_NONE
@@ -969,8 +839,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     int tt_static_eval = INF_SCORE;
     if (in_check) {
         // The record carries the eval from two plies up, so `improving` reads
-        // across the check; only Cluster 2's arm prunes on it here (capture
-        // futility, the donor's form).
+        // across the check; only capture futility, the donor's form, prunes
+        // on it here.
         ss->eval = (ss - 2)->eval;
         static_eval = VALUE_NONE;
     } else if (ss->excluded != MOVE_NONE) {
@@ -1092,7 +962,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                            0, 0, tt_depth, tt_score);
             return tt_score;
         }
-    } else if (kB3Proof && kp.b3_tt_penalty && !is_pv && ss->excluded == MOVE_NONE
+    } else if (kp.b3_tt_penalty && !is_pv && ss->excluded == MOVE_NONE
                && tt_score != VALUE_NONE && tt_depth > depth - (tt_score <= beta)
                && tt_flag == (tt_score >= beta ? TT_ALPHA : TT_BETA) && depth > 5) {
         // Deep enough to cut, but the bound lies on the wrong side of beta:
@@ -1205,7 +1075,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 DIAG_COUNT(++state_.diag.rfp_corr_blocked);
                 DIAG_COUNT(state_.diag.rfp_corr_blocked_tt_eval += eval != static_eval);
             }
-            const bool seek_mate_capped = kB4Qsearch && kp.b4_rfp_seek_mate
+            const bool seek_mate_capped = kp.b4_rfp_seek_mate
                 && b4::rfp_past_seek_mate_cap(
                        b3::seek_mate(root_depth_, root_score_, kp.b4_rfp_seek_mate_depth,
                                      kp.b3_seek_mate_score),
@@ -1229,255 +1099,165 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             }
         }
 
-        // Null-move pruning (the OFF arm's form)
-        if (!kB3Proof && !bare && !ABLATED(2) && allow_null && depth >= 3
-            && eval >= beta
-            && state_.board->has_non_pawn_material(state_.board->turn())
-            && (ss-1)->move != MOVE_NULL) {
-
-            int r = config_.limits.params.null_base + depth / 4
-                  + std::min((eval - beta) / config_.limits.params.null_eval_div, 3);
-            DIAG_COUNT(state_.diag.null_tries++);
-            DIAG_COUNT(++(depth <= 3 ? state_.diag.null_tries_d1_3
-                          : depth <= 7 ? state_.diag.null_tries_d4_7
-                                       : state_.diag.null_tries_d8p));
-            do_null_move(ss);
-            shared_.tt.prefetch(state_.board->position_key());
-            int null_score = -negamax<NodeType::NonPV>(std::max(0, depth - r), -beta, -(beta - 1),
-                                      ply + 1, ss + 1, false, true);
-            undo_null_move(ss);
-            if (state_.stopped) return 0;
-            if (null_score >= beta) {
-                if (is_decisive(null_score)) null_score = beta;
-                bool verified = true;
-                if (depth >= 10) {
-                    const int verify_depth = std::max(1, depth - r);
-                    const int verify_score = negamax<NodeType::NonPV>(verify_depth, beta - 1, beta,
-                                                     ply, ss, false, false);
-                    if (state_.stopped) return 0;
-                    verified = verify_score >= beta;
-                }
-                if (verified) {
-                    DIAG_COUNT(state_.diag.null_cuts++);
-                    DIAG_COUNT(++(depth <= 3 ? state_.diag.null_cuts_d1_3
-                                  : depth <= 7 ? state_.diag.null_cuts_d4_7
-                                               : state_.diag.null_cuts_d8p));
-                    TRACE_DECISION(TraceEvent::NullCutoff, ply, depth, MOVE_NULL,
-                                   alpha, beta, eval, improving, correction, VALUE_NONE,
-                                   0, r, VALUE_NONE, null_score);
-                    return null_score;
-                }
-            }
-        }
-
-        // Null-move pruning (Cluster 2, the donor's form): at an expected cut
+        // Null-move pruning, the donor's form: at an expected cut
         // node whose static eval clears a depth-scaled margin. The null child
         // is an all node, and a win is never returned unproven. A deep cut
         // outside a verification is verified at this ply with null moves
         // barred above a region of plies below it.
-        if constexpr (kB3Proof) {
-            if (!bare && !ABLATED(2) && (cut_node || !kp.b3_nmp_cut_only) && allow_null
-                && (ss - 1)->move != MOVE_NULL
-                && static_eval >= beta - kp.b3_nmp_per_ply * depth
-                                  - kp.b3_nmp_improving * improving + kp.b3_nmp_base
-                && beta >= kp.b3_nmp_beta_floor && (!kp.b3_nmp_eval_gate || eval >= beta)
-                && state_.board->has_non_pawn_material(state_.board->turn())) {
-                const int r = kp.b3_nmp_red_base + depth / kp.b3_nmp_red_depth_div
-                            + std::max((static_eval - beta) / kp.b3_nmp_red_eval_div, 0);
-                if (ply < nmp_min_ply_) {
-                    DIAG_COUNT(++state_.diag.null_region_refusals);
-                    TRACE_DECISION(TraceEvent::NullRegionRefused, ply, depth, MOVE_NULL,
-                                   alpha, beta, static_eval, improving, correction, VALUE_NONE,
-                                   0, r, nmp_min_ply_, VALUE_NONE);
-                } else {
-                    DIAG_COUNT(state_.diag.null_tries++);
-                    DIAG_COUNT(++(depth <= 3 ? state_.diag.null_tries_d1_3
-                                  : depth <= 7 ? state_.diag.null_tries_d4_7
-                                               : state_.diag.null_tries_d8p));
-                    do_null_move(ss);
-                    shared_.tt.prefetch(state_.board->position_key());
-                    (ss + 1)->ext_plies = ss->ext_plies;
-                    int null_score = -negamax<NodeType::NonPV>(std::max(0, depth - r), -beta,
-                                                               -(beta - 1), ply + 1, ss + 1,
-                                                               false, false);
-                    undo_null_move(ss);
-                    if (state_.stopped) return 0;
-                    if (null_score >= beta && !is_decisive(null_score)) {
-                        const int mode = kp.b3_nmp_verify;
-                        const bool verify = mode == 1 ? nmp_min_ply_ == 0
-                                                        && depth >= kp.b3_nmp_verify_depth
-                                          : mode == 2 && depth >= 10;
-                        bool verified = true;
-                        if (verify) {
-                            // The verification re-enters this record; the
-                            // fields its move loop leaves behind are put back,
-                            // so ProbCut's children read this node's own.
-                            const int saved_move_count = ss->move_count;
-                            const int saved_stat_score = ss->stat_score;
-                            int v;
-                            if (mode == 1) {
-                                nmp_min_ply_ = ply + 3 * (depth - r) / 4;
-                                v = negamax<NodeType::NonPV>(depth - r, beta - 1, beta,
-                                                             ply, ss, true, false);
-                                nmp_min_ply_ = 0;
-                            } else {
-                                v = negamax<NodeType::NonPV>(std::max(1, depth - r), beta - 1,
-                                                             beta, ply, ss, false, false);
-                            }
-                            ss->move_count = saved_move_count;
-                            ss->stat_score = saved_stat_score;
-                            if (state_.stopped) return 0;
-                            verified = v >= beta;
-                            DIAG_COUNT(++state_.diag.null_verifications);
-                            if (!verified) DIAG_COUNT(++state_.diag.null_verify_failed);
-                            TRACE_DECISION(TraceEvent::NullVerify, ply, depth, MOVE_NULL,
-                                           alpha, beta, static_eval, improving, correction,
-                                           VALUE_NONE, 0, r, null_score, v);
+        if (!bare && !ABLATED(2) && (cut_node || !kp.b3_nmp_cut_only) && allow_null
+            && (ss - 1)->move != MOVE_NULL
+            && static_eval >= beta - kp.b3_nmp_per_ply * depth
+                              - kp.b3_nmp_improving * improving + kp.b3_nmp_base
+            && beta >= kp.b3_nmp_beta_floor && (!kp.b3_nmp_eval_gate || eval >= beta)
+            && state_.board->has_non_pawn_material(state_.board->turn())) {
+            const int r = kp.b3_nmp_red_base + depth / kp.b3_nmp_red_depth_div
+                        + std::max((static_eval - beta) / kp.b3_nmp_red_eval_div, 0);
+            if (ply < nmp_min_ply_) {
+                DIAG_COUNT(++state_.diag.null_region_refusals);
+                TRACE_DECISION(TraceEvent::NullRegionRefused, ply, depth, MOVE_NULL,
+                               alpha, beta, static_eval, improving, correction, VALUE_NONE,
+                               0, r, nmp_min_ply_, VALUE_NONE);
+            } else {
+                DIAG_COUNT(state_.diag.null_tries++);
+                DIAG_COUNT(++(depth <= 3 ? state_.diag.null_tries_d1_3
+                              : depth <= 7 ? state_.diag.null_tries_d4_7
+                                           : state_.diag.null_tries_d8p));
+                do_null_move(ss);
+                shared_.tt.prefetch(state_.board->position_key());
+                (ss + 1)->ext_plies = ss->ext_plies;
+                int null_score = -negamax<NodeType::NonPV>(std::max(0, depth - r), -beta,
+                                                           -(beta - 1), ply + 1, ss + 1,
+                                                           false, false);
+                undo_null_move(ss);
+                if (state_.stopped) return 0;
+                if (null_score >= beta && !is_decisive(null_score)) {
+                    const int mode = kp.b3_nmp_verify;
+                    const bool verify = mode == 1 ? nmp_min_ply_ == 0
+                                                    && depth >= kp.b3_nmp_verify_depth
+                                      : mode == 2 && depth >= 10;
+                    bool verified = true;
+                    if (verify) {
+                        // The verification re-enters this record; the
+                        // fields its move loop leaves behind are put back,
+                        // so ProbCut's children read this node's own.
+                        const int saved_move_count = ss->move_count;
+                        const int saved_stat_score = ss->stat_score;
+                        int v;
+                        if (mode == 1) {
+                            nmp_min_ply_ = ply + 3 * (depth - r) / 4;
+                            v = negamax<NodeType::NonPV>(depth - r, beta - 1, beta,
+                                                         ply, ss, true, false);
+                            nmp_min_ply_ = 0;
+                        } else {
+                            v = negamax<NodeType::NonPV>(std::max(1, depth - r), beta - 1,
+                                                         beta, ply, ss, false, false);
                         }
-                        if (verified) {
-                            DIAG_COUNT(state_.diag.null_cuts++);
-                            DIAG_COUNT(++(depth <= 3 ? state_.diag.null_cuts_d1_3
-                                          : depth <= 7 ? state_.diag.null_cuts_d4_7
-                                                       : state_.diag.null_cuts_d8p));
-                            TRACE_DECISION(TraceEvent::NullCutoff, ply, depth, MOVE_NULL,
-                                           alpha, beta, static_eval, improving, correction,
-                                           VALUE_NONE, 0, r, VALUE_NONE, null_score);
-                            PRICE(price_node(PriceRule::NullMove, null_score));
-                            return null_score;
-                        }
+                        ss->move_count = saved_move_count;
+                        ss->stat_score = saved_stat_score;
+                        if (state_.stopped) return 0;
+                        verified = v >= beta;
+                        DIAG_COUNT(++state_.diag.null_verifications);
+                        if (!verified) DIAG_COUNT(++state_.diag.null_verify_failed);
+                        TRACE_DECISION(TraceEvent::NullVerify, ply, depth, MOVE_NULL,
+                                       alpha, beta, static_eval, improving, correction,
+                                       VALUE_NONE, 0, r, null_score, v);
+                    }
+                    if (verified) {
+                        DIAG_COUNT(state_.diag.null_cuts++);
+                        DIAG_COUNT(++(depth <= 3 ? state_.diag.null_cuts_d1_3
+                                      : depth <= 7 ? state_.diag.null_cuts_d4_7
+                                                   : state_.diag.null_cuts_d8p));
+                        TRACE_DECISION(TraceEvent::NullCutoff, ply, depth, MOVE_NULL,
+                                       alpha, beta, static_eval, improving, correction,
+                                       VALUE_NONE, 0, r, VALUE_NONE, null_score);
+                        PRICE(price_node(PriceRule::NullMove, null_score));
+                        return null_score;
                     }
                 }
             }
         }
 
-        // ProbCut: if a capture is likely to fail high at reduced depth
-        if (!kB3Proof && !bare && !ABLATED(3) && depth >= 5 && !is_decisive(beta)) {
-            int pc_beta = std::min(beta + config_.limits.params.probcut_margin,
-                                   MATE_SCORE - MAX_PLY - 1);
-            MoveList pcaps;
-            state_.board->gen_legal_captures(pcaps);
-            for (Move m : pcaps) {
-                if (m == ss->excluded) continue;
-                if (!state_.board->see_ge(m, pc_beta - static_eval)) continue;
-
-                DIAG_COUNT(state_.diag.probcut_tries++);
-                do_move(ss, m);
-                shared_.tt.prefetch(state_.board->position_key());
-                // Quick check via QSearch first
-                int val = -quiescence<NodeType::NonPV>(-pc_beta, -pc_beta + 1, ply + 1, 0, ss + 1);
-                if (val >= pc_beta)
-                    val = -negamax<NodeType::NonPV>(depth - 4, -pc_beta, -pc_beta + 1,
-                                   ply + 1, ss + 1, true, true);
-                undo_move(ss, m);
-                if (state_.stopped) return 0;
-                if (val >= pc_beta) {
-                    tt_store(hash, depth - 3, pc_beta, TT_BETA, m, ply,
-                              tt_static_eval, ss->tt_pv);
-                    DIAG_COUNT(state_.diag.probcut_cuts++);
-                    TRACE_DECISION(TraceEvent::ProbcutCutoff, ply, depth, m,
-                                   alpha, beta, eval, improving, correction, VALUE_NONE,
-                                   0, depth - 4, pc_beta - static_eval, pc_beta);
-                    return pc_beta;
-                }
-            }
-        }
     }
 
     if (!in_check)
         improving = improving || ss->eval >= beta;
 
-    // IIR: reduce non-PV nodes when no TT move (or a stale TT entry) guides the search.
-    if (!kB3Proof && !ABLATED(4) && !is_pv && depth >= kp.iir_min_depth
-        && (tt_move == MOVE_NONE || (tt_found && tt_depth < depth - 3))) {
+    // IIR, the donor's form: a PV or cut node off the previous
+    // iteration's PV, not in check, without a TT move loses a ply.
+    if (!ABLATED(4) && kp.b3_iir && !in_check && !ss->follow_pv && (is_pv || cut_node)
+        && depth >= kp.b3_iir_min_depth
+        && (tt_move == MOVE_NONE
+            || (kp.b3_iir_stale && tt_found && tt_depth < depth - 3))) {
         TRACE_DECISION(TraceEvent::IirReduction, ply, depth, tt_move,
                        alpha, beta, eval, improving, correction, VALUE_NONE,
                        0, 1, depth - 3, depth - 1);
         DIAG_COUNT(++state_.diag.iir_reductions);
         if (tt_move != MOVE_NONE) DIAG_COUNT(++state_.diag.iir_stale);
         if (hindsight_reduced)    DIAG_COUNT(++state_.diag.iir_after_hindsight);
+        if (is_pv)                DIAG_COUNT(++state_.diag.iir_pv_nodes);
         depth--;
     }
 
-    // IIR (Cluster 2, the donor's form): a PV or cut node off the previous
-    // iteration's PV, not in check, without a TT move loses a ply.
-    if constexpr (kB3Proof) {
-        if (!ABLATED(4) && kp.b3_iir && !in_check && !ss->follow_pv && (is_pv || cut_node)
-            && depth >= kp.b3_iir_min_depth
-            && (tt_move == MOVE_NONE
-                || (kp.b3_iir_stale && tt_found && tt_depth < depth - 3))) {
-            TRACE_DECISION(TraceEvent::IirReduction, ply, depth, tt_move,
-                           alpha, beta, eval, improving, correction, VALUE_NONE,
-                           0, 1, depth - 3, depth - 1);
-            DIAG_COUNT(++state_.diag.iir_reductions);
-            if (tt_move != MOVE_NONE) DIAG_COUNT(++state_.diag.iir_stale);
-            if (hindsight_reduced)    DIAG_COUNT(++state_.diag.iir_after_hindsight);
-            if (is_pv)                DIAG_COUNT(++state_.diag.iir_pv_nodes);
-            depth--;
-        }
-    }
-
-    // ProbCut (Cluster 2, the donor's form), after IIR and at PV nodes too:
+    // ProbCut, the donor's form, after IIR and at PV nodes too:
     // a capture or queen promotion that holds a margin above beta in
     // quiescence and at a reduced depth proves the node, which returns the
     // value less the margin; a valid TT score below the margin says none will.
-    if constexpr (kB3Proof) {
-        const int pc_beta = beta + kp.b3_probcut_base - kp.b3_probcut_improving * improving;
-        if (!bare && !ABLATED(3) && !is_root && !in_check && (!is_pv || kp.b3_probcut_pv)
-            && depth >= kp.b3_probcut_min_depth && !is_decisive(beta)
-            && !(tt_score != VALUE_NONE && tt_score < pc_beta)) {
-            const int pc_depth = depth - (improving ? kp.b3_probcut_depth_improving
-                                                    : kp.b3_probcut_depth);
-            // The store keeps the raw evaluation; an exclusion search, which
-            // computed none, keeps the entry's own.
-            const int store_eval = tt_static_eval != INF_SCORE ? tt_static_eval
-                                 : tt_found ? int(tte.static_eval) : INF_SCORE;
-            ProbCutPicker pc(*state_.board, hist_, tt_move, ss->excluded, pc_beta - static_eval,
-                             state_.move_buffers[ply][1]);
-            for (Move m = pc.next(); m != MOVE_NONE; m = pc.next()) {
-                DIAG_COUNT(state_.diag.probcut_tries++);
-                if (is_pv) DIAG_COUNT(++state_.diag.probcut_pv_tries);
-                do_move(ss, m);
-                shared_.tt.prefetch(state_.board->position_key());
-                (ss + 1)->ext_plies = ss->ext_plies;
-                int val = -quiescence<NodeType::NonPV>(-pc_beta, -pc_beta + 1, ply + 1, 0, ss + 1);
-                if (val >= pc_beta && pc_depth > 0)
-                    val = -negamax<NodeType::NonPV>(pc_depth, -pc_beta, -pc_beta + 1,
-                                                    ply + 1, ss + 1, true, !cut_node);
-                undo_move(ss, m);
-                if (state_.stopped) return 0;
-                if (val >= pc_beta) {
-                    // Priced before the store at this position, which the
-                    // probe would otherwise read.
-                    PRICE(if (!is_decisive(val))
-                              price_node(PriceRule::ProbCut, val - (pc_beta - beta)));
-                    tt_store(hash, pc_depth + 1, val, TT_BETA, m, ply, store_eval, ss->tt_pv);
-                    if (!is_decisive(val)) {
-                        DIAG_COUNT(state_.diag.probcut_cuts++);
-                        TRACE_DECISION(TraceEvent::ProbcutCutoff, ply, depth, m,
-                                       alpha, beta, eval, improving, correction, VALUE_NONE,
-                                       0, depth - pc_depth, pc_beta - static_eval,
-                                       val - (pc_beta - beta));
-                        return val - (pc_beta - beta);
-                    }
+    const int pc_beta = beta + kp.b3_probcut_base - kp.b3_probcut_improving * improving;
+    if (!bare && !ABLATED(3) && !is_root && !in_check && (!is_pv || kp.b3_probcut_pv)
+        && depth >= kp.b3_probcut_min_depth && !is_decisive(beta)
+        && !(tt_score != VALUE_NONE && tt_score < pc_beta)) {
+        const int pc_depth = depth - (improving ? kp.b3_probcut_depth_improving
+                                                : kp.b3_probcut_depth);
+        // The store keeps the raw evaluation; an exclusion search, which
+        // computed none, keeps the entry's own.
+        const int store_eval = tt_static_eval != INF_SCORE ? tt_static_eval
+                             : tt_found ? int(tte.static_eval) : INF_SCORE;
+        ProbCutPicker pc(*state_.board, hist_, tt_move, ss->excluded, pc_beta - static_eval,
+                         state_.move_buffers[ply][1]);
+        for (Move m = pc.next(); m != MOVE_NONE; m = pc.next()) {
+            DIAG_COUNT(state_.diag.probcut_tries++);
+            if (is_pv) DIAG_COUNT(++state_.diag.probcut_pv_tries);
+            do_move(ss, m);
+            shared_.tt.prefetch(state_.board->position_key());
+            (ss + 1)->ext_plies = ss->ext_plies;
+            int val = -quiescence<NodeType::NonPV>(-pc_beta, -pc_beta + 1, ply + 1, 0, ss + 1);
+            if (val >= pc_beta && pc_depth > 0)
+                val = -negamax<NodeType::NonPV>(pc_depth, -pc_beta, -pc_beta + 1,
+                                                ply + 1, ss + 1, true, !cut_node);
+            undo_move(ss, m);
+            if (state_.stopped) return 0;
+            if (val >= pc_beta) {
+                // Priced before the store at this position, which the
+                // probe would otherwise read.
+                PRICE(if (!is_decisive(val))
+                          price_node(PriceRule::ProbCut, val - (pc_beta - beta)));
+                tt_store(hash, pc_depth + 1, val, TT_BETA, m, ply, store_eval, ss->tt_pv);
+                if (!is_decisive(val)) {
+                    DIAG_COUNT(state_.diag.probcut_cuts++);
+                    TRACE_DECISION(TraceEvent::ProbcutCutoff, ply, depth, m,
+                                   alpha, beta, eval, improving, correction, VALUE_NONE,
+                                   0, depth - pc_depth, pc_beta - static_eval,
+                                   val - (pc_beta - beta));
+                    return val - (pc_beta - beta);
                 }
             }
         }
+    }
 
-        // The small ProbCut, when switched on, in check too: a lower bound
-        // nearly deep enough that clears beta by a wide margin returns that
-        // margin.
-        const int tt_pc_beta = beta + kp.b3_probcut_tt_margin;
-        if (!bare && !ABLATED(3) && kp.b3_probcut_tt && !is_root && proves_lower(tt_flag)
-            && tt_depth >= depth - kp.b3_probcut_tt_depth
-            && tt_score != VALUE_NONE && tt_score >= tt_pc_beta
-            && !is_decisive(beta) && !is_decisive(tt_score)) {
-            DIAG_COUNT(++state_.diag.probcut_tt_cuts);
-            TRACE_DECISION(TraceEvent::ProbcutTtCutoff, ply, depth, tt_move,
-                           alpha, beta, eval, improving, correction, VALUE_NONE,
-                           0, 0, kp.b3_probcut_tt_margin, tt_pc_beta);
-            PRICE(price_node(PriceRule::ProbCutTt, tt_pc_beta));
-            return tt_pc_beta;
-        }
+    // The small ProbCut, when switched on, in check too: a lower bound
+    // nearly deep enough that clears beta by a wide margin returns that
+    // margin.
+    const int tt_pc_beta = beta + kp.b3_probcut_tt_margin;
+    if (!bare && !ABLATED(3) && kp.b3_probcut_tt && !is_root && proves_lower(tt_flag)
+        && tt_depth >= depth - kp.b3_probcut_tt_depth
+        && tt_score != VALUE_NONE && tt_score >= tt_pc_beta
+        && !is_decisive(beta) && !is_decisive(tt_score)) {
+        DIAG_COUNT(++state_.diag.probcut_tt_cuts);
+        TRACE_DECISION(TraceEvent::ProbcutTtCutoff, ply, depth, tt_move,
+                       alpha, beta, eval, improving, correction, VALUE_NONE,
+                       0, 0, kp.b3_probcut_tt_margin, tt_pc_beta);
+        PRICE(price_node(PriceRule::ProbCutTt, tt_pc_beta));
+        return tt_pc_beta;
     }
 
     int  orig_alpha  = alpha;
@@ -1549,11 +1329,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         int64_t probe_nodes = 0;
         const int v = isolated_probe(ss, ply, probe_nodes, [&] {
             if (!made) {
-                (ss + 1)->double_exts = ss->double_exts;
-                if constexpr (kB3Proof) {
-                    ss->ext_taken = 0;
-                    (ss + 1)->ext_plies = ss->ext_plies;
-                }
+                ss->ext_taken = 0;
+                (ss + 1)->ext_plies = ss->ext_plies;
                 do_move(ss, m);
             }
             const int s = -negamax<PvChild>(child_depth, -beta, -alpha, ply + 1, ss + 1, true,
@@ -1635,7 +1412,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 #endif
 
         // ---- Move-loop pruning ---------------------------------------------
-        // Not at the root, in check (off Cluster 2's arm) or before a move
+        // Not at the root, in check (unless B3CheckPrune) or before a move
         // was searched, not while
         // the best score is a proven loss, and not for a side left with king
         // and pawns. Each test reads the depth the move's reduced search
@@ -1712,9 +1489,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                     PRICE(price_move(PriceRule::CaptureSee, m));
                     return false;
                 }
-            } else if (!is_pv || (kB3Proof && kp.b3_pv_quiet_prune && !ss->follow_pv)) {
-                // Cluster 2's arm also prunes quiets at a PV node off the
-                // previous iteration's PV, as the donor does (B3PvQuietPrune).
+            } else if (!is_pv || (kp.b3_pv_quiet_prune && !ss->follow_pv)) {
+                // Quiets are also pruned at a PV node off the previous
+                // iteration's PV, as the donor does (B3PvQuietPrune).
                 // Continuation-history pruning: the two nearest continuations
                 // and the pawn history rate the move this far below zero.
 #ifdef BASILISK_DIAGNOSTIC
@@ -1783,200 +1560,114 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
         // ---- Extensions -------------------------------------------------------
         int extension = 0;
-        // Cluster 2's singular extension also deepens the node by a ply for
+        // The singular extension also deepens the node by a ply for
         // the moves after this one (the donor's form); this move's own depth
         // is not raised by it.
         int depth_bump = 0;
 
-        // ---- Singular extension (only for TT move) -------------------------
-        if (!kB3Proof && !ABLATED(6) && !is_root && m == tt_move && ss->excluded == MOVE_NONE
-            && depth >= config_.limits.params.singular_min_depth
-            && tt_found && tt_depth >= depth - 3
-            && (tt_flag == TT_BETA || tt_flag == TT_EXACT)
-            && !is_decisive(tt_score)) {
-
-            int s_beta  = tt_score - config_.limits.params.singular_beta_mult * depth;
-            int s_depth = (depth - 1) / 2;
-
-            DIAG_COUNT(++state_.diag.sing_tries);
-            ss->excluded = m;
-            int s_val = negamax<NodeType::NonPV>(s_depth, s_beta - 1, s_beta, ply, ss, false, true);
-            ss->excluded = MOVE_NONE;
-
-            if (state_.stopped) {
-                immediate_return = true;
-                immediate_score = 0;
-                return true;
-            }
-
-            if (s_val < s_beta) {
-                // TT move is singular — extend it. Cap stacked
-                // 2-ply extensions along this path so a pathological line can't
-                // chain unbounded double-extensions.
-                bool allow_double = !is_pv
-                    && s_val < s_beta - config_.limits.params.singular_double_margin
-                    && ss->double_exts < config_.limits.params.double_ext_max;
-                // REFUTED: our per-node check extension composes with
-                // this per-move one, so a checking node with a singular TT move
-                // can take 3 plies where the reference allows 1. Making them
-                // exclusive was measured and is WORSE -- WAC 137 -> 124 against
-                // a floor of 130, failing outright; the intermediate "no double
-                // when in check" still cost 5 solved for +0.009 ply. Our check
-                // extension is unconditional where the reference gates on
-                // discovery-or-SEE, so removing the composition removes strictly
-                // more than it would there. Composition stays. (BAS-D11)
-                extension += allow_double ? 2 : 1;
-                TRACE_DECISION(TraceEvent::SingularExtension, ply, depth, m,
-                               alpha, beta, eval, improving, correction, trace_history,
-                               searched, extension, s_beta, s_val);
-
-                // Probe: count the stack, do not change it yet.
-                DIAG_COUNT(++state_.diag.sing_fired);
-                if (allow_double)   DIAG_COUNT(++state_.diag.sing_double);
-                if (did_check_ext)  DIAG_COUNT(++state_.diag.sing_in_check);
-                if (allow_double && did_check_ext) DIAG_COUNT(++state_.diag.sing_triple);
-                if (!is_pv && s_val < s_beta - config_.limits.params.singular_double_margin
-                    && !allow_double)
-                    DIAG_COUNT(++state_.diag.sing_cap_bound);
-
-                // Relax LMR for this node's remaining moves. Suppressed
-                // when the TT move is a capture -- a singular capture says the
-                // tactics are forced, not that the quiet alternatives are
-                // delicate, and `lmr_tt_capture` already raises r for exactly
-                // that case. Letting both fire would have them cancel.
-                singular_quiet_lmr = !tt_capture;
-            } else if (s_beta >= beta) {
-                // Multicut: likely to fail high without this move too
-                DIAG_COUNT(++state_.diag.sing_multicut);
-                TRACE_DECISION(TraceEvent::SingularMulticut, ply, depth, m,
-                               alpha, beta, eval, improving, correction, trace_history,
-                               searched, 0, s_beta, s_val);
-                immediate_return = true;
-                immediate_score = s_beta;
-                return true;
-            } else if (tt_score >= beta) {
-                DIAG_COUNT(++state_.diag.sing_ttbeta);
-                TRACE_DECISION(TraceEvent::SingularNegative, ply, depth, m,
-                               alpha, beta, eval, improving, correction, trace_history,
-                               searched, -1, s_beta, s_val);
-
-                // REFUTED: the reference replaces this negative
-                // extension with a SECOND verification search that can cut the
-                // whole subtree. Implemented behind a knob and measured: depth
-                // at equal nodes was mean +0.383 ply but **median +0.0**, with
-                // 27 better against 25 worse -- the mean carried entirely by
-                // three trivial pawn/king endgames (+11, +11, +9) where depth is
-                // cheap. WAC 138 vs 137, noise. No broad gain by either
-                // instrument, and it costs an extra search. Ours stays. (BAS-D13)
-                extension--; // Negative extension: not clearly best
-            }
-        }
-
-        // ---- Singular extension (Cluster 2, the donor's form) ---------------
+        // ---- Singular extension, the donor's form -------------------------
         // The TT move is searched alone against a bound just below its score:
         // when every other move falls below it, the move is extended one to
         // three plies by how far they fell, within the line's budget, and the
         // node deepens; when they clear the node's beta it is a multi-cut;
         // otherwise a move the table says fails high, or one at an expected
         // cut node, is searched shallower.
-        if constexpr (kB3Proof) {
-            if (!ABLATED(6) && !is_root && m == tt_move && ss->excluded == MOVE_NONE
-                && ply < MAX_PLY - 2 && depth >= kp.b3_sing_min_depth + int(ss->tt_pv)
-                && tt_score != VALUE_NONE && !is_decisive(tt_score) && proves_lower(tt_flag)
-                && tt_depth >= depth - (kp.b3_sing_tt_depth ? 2 : 3)) {
-                if (b3::is_shuffling(tt_capture, state_.board->rule50_count(),
-                                     state_.board->plies_since_null(), ply, m,
-                                     (ss - 2)->move, (ss - 4)->move)) {
-                    DIAG_COUNT(++state_.diag.sing_shuffle_refused);
-                } else if (b3::seek_mate(root_depth_, root_score_, kp.b3_seek_mate_depth,
-                                         kp.b3_seek_mate_score)) {
-                    DIAG_COUNT(++state_.diag.sing_seekmate_refused);
-                } else {
-                    const int s_beta = b3::singular_beta(tt_score, depth, ss->tt_pv && !is_pv,
-                                                         kp.b3_sing_margin, kp.b3_sing_margin_ttpv);
-                    const int s_depth = (depth - 1) / 2;
+        if (!ABLATED(6) && !is_root && m == tt_move && ss->excluded == MOVE_NONE
+            && ply < MAX_PLY - 2 && depth >= kp.b3_sing_min_depth + int(ss->tt_pv)
+            && tt_score != VALUE_NONE && !is_decisive(tt_score) && proves_lower(tt_flag)
+            && tt_depth >= depth - (kp.b3_sing_tt_depth ? 2 : 3)) {
+            if (b3::is_shuffling(tt_capture, state_.board->rule50_count(),
+                                 state_.board->plies_since_null(), ply, m,
+                                 (ss - 2)->move, (ss - 4)->move)) {
+                DIAG_COUNT(++state_.diag.sing_shuffle_refused);
+            } else if (b3::seek_mate(root_depth_, root_score_, kp.b3_seek_mate_depth,
+                                     kp.b3_seek_mate_score)) {
+                DIAG_COUNT(++state_.diag.sing_seekmate_refused);
+            } else {
+                const int s_beta = b3::singular_beta(tt_score, depth, ss->tt_pv && !is_pv,
+                                                     kp.b3_sing_margin, kp.b3_sing_margin_ttpv);
+                const int s_depth = (depth - 1) / 2;
 
-                    DIAG_COUNT(++state_.diag.sing_tries);
-                    ss->excluded = m;
-                    const int s_val = negamax<NodeType::NonPV>(s_depth, s_beta - 1, s_beta, ply, ss,
-                                                               false, cut_node);
-                    ss->excluded = MOVE_NONE;
+                DIAG_COUNT(++state_.diag.sing_tries);
+                ss->excluded = m;
+                const int s_val = negamax<NodeType::NonPV>(s_depth, s_beta - 1, s_beta, ply, ss,
+                                                           false, cut_node);
+                ss->excluded = MOVE_NONE;
 
-                    if (state_.stopped) {
-                        immediate_return = true;
-                        immediate_score = 0;
-                        return true;
-                    }
+                if (state_.stopped) {
+                    immediate_return = true;
+                    immediate_score = 0;
+                    return true;
+                }
 
-                    if (s_val < s_beta) {
-                        const int corr_adj = std::min(std::abs(correction_raw) / kp.b3_sing_corr_div,
-                                                      kp.b3_sing_corr_cap);
-                        const bool deep = ply > root_depth_;
-                        const int double_margin = kp.b3_sing_double_base + kp.b3_sing_double_pv * is_pv
-                            + kp.b3_sing_double_quiet * !tt_capture - corr_adj
-                            - kp.b3_sing_tmh_mult * hist_.tt_move.value / 114178
-                            + kp.b3_sing_double_deep * deep;
-                        const int triple_margin = kp.b3_sing_triple_base + kp.b3_sing_triple_pv * is_pv
-                            + kp.b3_sing_triple_quiet * !tt_capture
-                            + kp.b3_sing_triple_ttpv * ss->tt_pv - corr_adj
-                            + kp.b3_sing_triple_deep * deep;
-                        const int graded = b3::graded_extension(s_val, s_beta, double_margin,
-                                                                triple_margin);
-                        extension = graded;
-                        if (kp.b3_ext_budget) {
-                            bool truncated = false;
-                            extension = b3::budget_extension(graded, ss->ext_plies, ext_budget(),
-                                                             truncated);
-                            if (truncated) {
-                                DIAG_COUNT(++state_.diag.ext_budget_bound);
-                                TRACE_DECISION(TraceEvent::ExtBudgetTruncate, ply, depth, m,
-                                               alpha, beta, eval, improving, correction, VALUE_NONE,
-                                               searched, extension, ss->ext_plies, ext_budget());
-                            }
+                if (s_val < s_beta) {
+                    const int corr_adj = std::min(std::abs(correction_raw) / kp.b3_sing_corr_div,
+                                                  kp.b3_sing_corr_cap);
+                    const bool deep = ply > root_depth_;
+                    const int double_margin = kp.b3_sing_double_base + kp.b3_sing_double_pv * is_pv
+                        + kp.b3_sing_double_quiet * !tt_capture - corr_adj
+                        - kp.b3_sing_tmh_mult * hist_.tt_move.value / 114178
+                        + kp.b3_sing_double_deep * deep;
+                    const int triple_margin = kp.b3_sing_triple_base + kp.b3_sing_triple_pv * is_pv
+                        + kp.b3_sing_triple_quiet * !tt_capture
+                        + kp.b3_sing_triple_ttpv * ss->tt_pv - corr_adj
+                        + kp.b3_sing_triple_deep * deep;
+                    const int graded = b3::graded_extension(s_val, s_beta, double_margin,
+                                                            triple_margin);
+                    extension = graded;
+                    if (kp.b3_ext_budget) {
+                        bool truncated = false;
+                        extension = b3::budget_extension(graded, ss->ext_plies, ext_budget(),
+                                                         truncated);
+                        if (truncated) {
+                            DIAG_COUNT(++state_.diag.ext_budget_bound);
+                            TRACE_DECISION(TraceEvent::ExtBudgetTruncate, ply, depth, m,
+                                           alpha, beta, eval, improving, correction, VALUE_NONE,
+                                           searched, extension, ss->ext_plies, ext_budget());
                         }
-                        ++depth;
-                        depth_bump = 1;
-                        TRACE_DECISION(TraceEvent::SingularExtension, ply, depth, m,
-                                       alpha, beta, eval, improving, correction, trace_history,
-                                       searched, extension, s_beta, s_val);
-                        DIAG_COUNT(++state_.diag.sing_fired);
-                        if (graded >= 2) DIAG_COUNT(++state_.diag.sing_double);
-                        if (graded == 3) DIAG_COUNT(++state_.diag.sing_ext3);
-                        if (did_check_ext) DIAG_COUNT(++state_.diag.sing_in_check);
-                        if (graded >= 2 && did_check_ext) DIAG_COUNT(++state_.diag.sing_triple);
-                        singular_quiet_lmr = kp.b3_singular_quiet_lmr && !tt_capture;
-                    } else if (!bare && b3::multicut_admits(kp.b3_multi_cut, s_val, s_beta, beta,
-                                                            is_decisive(s_val))) {
-                        // Priced before the multi-cut's training.
-                        PRICE(price_node(PriceRule::MultiCut, s_val));
-                        // The node fails high without its TT move too: the
-                        // TT move's history learns it was not needed, and the
-                        // correction learns the static eval was low.
-                        if (!PRICE_PROBING())
-                            TTMoveHistory::update(hist_.tt_move.value,
-                                                  -kp.b3_sing_mc_tmh_base
-                                                  - kp.b3_sing_mc_tmh_slope * depth);
-                        if (!in_check && s_val > static_eval) {
-                            const int bonus = std::clamp(
-                                (s_val - static_eval) * 1000 / 282 * s_depth * kp.b3_sing_mc_corr / 1024,
-                                -256, 256);
-                            update_correction_history(ss, bonus);
-                        }
-                        DIAG_COUNT(++state_.diag.sing_multicut);
-                        TRACE_DECISION(TraceEvent::SingularMulticut, ply, depth, m,
-                                       alpha, beta, eval, improving, correction, trace_history,
-                                       searched, 0, s_beta, s_val);
-                        immediate_return = true;
-                        immediate_score = s_val;
-                        return true;
-                    } else if (b3::negative_extension(tt_score, beta, cut_node)) {
-                        extension = -kp.b3_sing_negative;
-                        DIAG_COUNT(++state_.diag.sing_ttbeta);
-                        if (tt_score < beta) DIAG_COUNT(++state_.diag.sing_negative_cut);
-                        TRACE_DECISION(TraceEvent::SingularNegative, ply, depth, m,
-                                       alpha, beta, eval, improving, correction, trace_history,
-                                       searched, extension, s_beta, s_val);
                     }
+                    ++depth;
+                    depth_bump = 1;
+                    TRACE_DECISION(TraceEvent::SingularExtension, ply, depth, m,
+                                   alpha, beta, eval, improving, correction, trace_history,
+                                   searched, extension, s_beta, s_val);
+                    DIAG_COUNT(++state_.diag.sing_fired);
+                    if (graded >= 2) DIAG_COUNT(++state_.diag.sing_double);
+                    if (graded == 3) DIAG_COUNT(++state_.diag.sing_ext3);
+                    if (did_check_ext) DIAG_COUNT(++state_.diag.sing_in_check);
+                    if (graded >= 2 && did_check_ext) DIAG_COUNT(++state_.diag.sing_triple);
+                    singular_quiet_lmr = kp.b3_singular_quiet_lmr && !tt_capture;
+                } else if (!bare && b3::multicut_admits(kp.b3_multi_cut, s_val, s_beta, beta,
+                                                        is_decisive(s_val))) {
+                    // Priced before the multi-cut's training.
+                    PRICE(price_node(PriceRule::MultiCut, s_val));
+                    // The node fails high without its TT move too: the
+                    // TT move's history learns it was not needed, and the
+                    // correction learns the static eval was low.
+                    if (!PRICE_PROBING())
+                        TTMoveHistory::update(hist_.tt_move.value,
+                                              -kp.b3_sing_mc_tmh_base
+                                              - kp.b3_sing_mc_tmh_slope * depth);
+                    if (!in_check && s_val > static_eval) {
+                        const int bonus = std::clamp(
+                            (s_val - static_eval) * 1000 / 282 * s_depth * kp.b3_sing_mc_corr / 1024,
+                            -256, 256);
+                        update_correction_history(ss, bonus);
+                    }
+                    DIAG_COUNT(++state_.diag.sing_multicut);
+                    TRACE_DECISION(TraceEvent::SingularMulticut, ply, depth, m,
+                                   alpha, beta, eval, improving, correction, trace_history,
+                                   searched, 0, s_beta, s_val);
+                    immediate_return = true;
+                    immediate_score = s_val;
+                    return true;
+                } else if (b3::negative_extension(tt_score, beta, cut_node)) {
+                    extension = -kp.b3_sing_negative;
+                    DIAG_COUNT(++state_.diag.sing_ttbeta);
+                    if (tt_score < beta) DIAG_COUNT(++state_.diag.sing_negative_cut);
+                    TRACE_DECISION(TraceEvent::SingularNegative, ply, depth, m,
+                                   alpha, beta, eval, improving, correction, trace_history,
+                                   searched, extension, s_beta, s_val);
                 }
             }
         }
@@ -2014,15 +1705,10 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         do_move(ss, m);
         shared_.tt.prefetch(state_.board->position_key());
         state_.sel_depth = std::max(state_.sel_depth, ply + 1);
-        if constexpr (kB3Proof) {
-            ss->ext_taken = std::max(extension, 0);
-            (ss + 1)->ext_plies = ss->ext_plies + ss->ext_taken;
-        }
+        ss->ext_taken = std::max(extension, 0);
+        (ss + 1)->ext_plies = ss->ext_plies + ss->ext_taken;
 
         int new_depth = depth - 1 + extension - depth_bump;
-        // Propagate the stacked double-extension count to the
-        // child so a chain of singular double-extensions is eventually capped.
-        (ss + 1)->double_exts = ss->double_exts + (extension >= 2 ? 1 : 0);
 
         // ---- The move's reduction (1024ths of a ply) ------------------------
         // Less near a PV the table knows, more at expected cut and all nodes,
@@ -2053,8 +1739,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         if (!capture_stage && !is_decisive(alpha))
             // The difference in the donor's evaluation units, under its clamp.
             r += kp.lmr_alpha_eval_scale * std::clamp((alpha - lmr_eval) * 1000 / 282, -64, 96);
-        // A singular TT move relaxes its quiet siblings' reductions (the
-        // singular search keeps its own form until B.3).
+        // A singular TT move relaxes its quiet siblings' reductions when
+        // B3SingularQuietLmr keeps the old relaxation.
         if (!capture_stage && singular_quiet_lmr)
             r -= kp.lmr_singular_quiet;
         if (all_node)
@@ -2064,7 +1750,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         if (searched == 0) {
             // At a non-PV node a first move whose reduction would be large is
             // searched one or two plies shallower (never at the root, nor in
-            // check off Cluster 2's arm), as later moves without LMR are.
+            // check unless B3CheckPrune), as later moves without LMR are.
             int step = 0;
             if (!is_pv && !ABLATED(7) && !is_root && (!in_check || check_prune)) {
                 const int rr = r + (tt_move == MOVE_NONE ? 1127 : 0);
@@ -2081,7 +1767,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             score = -negamax<PvChild>(new_depth - step, -beta, -alpha, ply + 1, ss + 1, true,
                                       !is_pv && !cut_node);
         } else {
-            // Nothing is reduced at the root, nor in check off Cluster 2's arm.
+            // Nothing is reduced at the root, nor in check unless B3CheckPrune.
             const bool reducible = !ABLATED(7) && !is_root && (!in_check || check_prune);
             if (!ABLATED(7) && !is_root) {
                 DIAG_COUNT(++state_.diag.lmr_eligible);
@@ -2173,7 +1859,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         }
 
         undo_move(ss, m);
-        if constexpr (kB3Proof) ss->ext_taken = 0;
+        ss->ext_taken = 0;
 
         if (state_.stopped)
             return true;
@@ -2227,7 +1913,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 cut_alpha = alpha;
                 alpha = score;
                 // Once a move raised alpha the rest are searched shallower
-                // (never at the root, nor in check off Cluster 2's arm).
+                // (never at the root, nor in check unless B3CheckPrune).
                 if (score < beta && depth > 3 && depth < 12 && !is_decisive(score)
                     && !is_root && (!in_check || check_prune))
                     depth -= 3;
@@ -2354,15 +2040,15 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     // Correction training: never in check, under exclusion, from a decisive
     // score or from a node whose best move is a capture. The default
     // admission takes the error only where its sign agrees with the bound:
-    // above the static eval exactly when a move raised alpha. Cluster 2's arm
+    // above the static eval exactly when a move raised alpha. It also
     // trains on decisive scores (B3CorrDecisive) and under exclusion
     // (B3CorrExcluded), as the donor does, except at an exclusion node whose
     // raw static eval is 0: that is the evaluator's verdict (a recognised
     // draw), and the value without the only move is no error of it. The
     // bonus is clamped either way.
     const bool raised_alpha = best_score > orig_alpha;
-    const bool train_decisive = kB3Proof && kp.b3_corr_decisive;
-    const bool train_excluded = kB3Proof && kp.b3_corr_excluded;
+    const bool train_decisive = kp.b3_corr_decisive;
+    const bool train_excluded = kp.b3_corr_excluded;
     if (!in_check && (ss->excluded == MOVE_NONE || (train_excluded && ss->raw_eval != 0))
         && static_eval != VALUE_NONE
         && (train_decisive || !is_decisive(best_score))
@@ -2387,10 +2073,10 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 :                             TT_ALPHA;
     // A later MultiPV line searched the root without its best moves; its
     // result is not the root's, so it is not stored (Stockfish skips it too).
-    // Cluster 2's arm stores no move after a fail low (B3FailLowStore): no
-    // move proved itself, and the entry keeps the move it had. Cluster 3's arm
-    // sets quiescence's store by the same switch.
-    const Move stored_move = (kB3Proof && kp.b3_fail_low_store && flag == TT_ALPHA)
+    // No move is stored after a fail low (B3FailLowStore): no move proved
+    // itself, and the entry keeps the move it had. Quiescence's store follows
+    // the same switch.
+    const Move stored_move = (kp.b3_fail_low_store && flag == TT_ALPHA)
                            ? MOVE_NONE : best_move;
     if (ss->excluded == MOVE_NONE && !(is_root && !state_.root_excluded.empty()))
         tt_store(hash, depth, best_score, flag, stored_move, ply, tt_static_eval,
@@ -2407,9 +2093,8 @@ void Searcher::kernel_new_game() {
 }
 
 void Searcher::kernel_begin_search() {
-    if constexpr (kB3Proof)
-        if (hist_fresh_ && config_.limits.params.core_history_fills)
-            hist_.clear(true);
+    if (hist_fresh_ && config_.limits.params.core_history_fills)
+        hist_.clear(true);
     hist_fresh_ = false;
     nmp_min_ply_ = 0;
     reductions_[0] = 0;

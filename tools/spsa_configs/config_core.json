@@ -41,12 +41,6 @@
         "max_value": 1024,
         "step": 32
     },
-    "CoreIirMinDepth": {
-        "value": 8,
-        "min_value": 3,
-        "max_value": 8,
-        "step": 2
-    },
     "CoreLmpBase": {
         "value": 3,
         "min_value": 1,

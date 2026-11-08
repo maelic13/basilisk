@@ -7,11 +7,10 @@
 // policy in search_history_core.cpp.
 //
 // The capture, continuation and pawn histories and the continuation
-// correction key a move by its piece: by coloured piece under COLOUR_HISTORY,
-// the donor's form and the default, or by type, where the colours share an
-// entry. Sharing is not redundant: a continuation row is read one ply on by
-// the other side and two plies on by its own, so a colourless row serves one
-// colour the other's training. The main history is [colour][from][to]: promotions share
+// correction key a move by its coloured piece, the donor's form. A key by
+// type alone would not be redundant but shared: a continuation row is read
+// one ply on by the other side and two plies on by its own, so a colourless
+// row would serve one colour the other's training. The main history is [colour][from][to]: promotions share
 // their from-to, which differs from keying the whole move only for
 // under-promotions.
 
@@ -30,17 +29,11 @@
 #define HIST_SHADOW(statement) ((void)0)
 #endif
 
-#if defined(BASILISK_COLOUR_HISTORY)
-inline constexpr bool kColourHistory = true;
-#else
-inline constexpr bool kColourHistory = false;
-#endif
-
-// The piece index of the piece-keyed tables: the type, or colour * 7 + type
-// under COLOUR_HISTORY. NO_PIECE_TYPE is 0 either way.
-inline constexpr int HIST_PIECE_NB = kColourHistory ? int(NCOLORS) * int(PIECE_TYPE_NB) : int(PIECE_TYPE_NB);
+// The piece index of the piece-keyed tables: colour * 7 + type, so
+// NO_PIECE_TYPE of either colour is 0 or 7.
+inline constexpr int HIST_PIECE_NB = int(NCOLORS) * int(PIECE_TYPE_NB);
 inline constexpr int hist_piece(Color c, PieceType pt) {
-    return kColourHistory ? int(c) * PIECE_TYPE_NB + int(pt) : int(pt);
+    return int(c) * PIECE_TYPE_NB + int(pt);
 }
 inline constexpr int hist_piece(Piece p) { return hist_piece(color_of(p), type_of(p)); }
 

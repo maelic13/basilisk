@@ -80,55 +80,6 @@ max = 100
 c_end = 2.7634
 
 [[parameters]]
-name = "NullBase"
-initial = 3
-min = 2
-max = 6
-c_end = 0.9211
-
-[[parameters]]
-name = "NullEvalDiv"
-initial = 192
-min = 80
-max = 400
-c_end = 9.2114
-
-[[parameters]]
-name = "ProbCutMargin"
-initial = 189
-min = 80
-max = 360
-c_end = 8.2902
-
-[[parameters]]
-name = "SingularMinDepth"
-initial = 5
-min = 4
-max = 8
-c_end = 0.9211
-
-[[parameters]]
-name = "SingularBetaMult"
-initial = 4
-min = 1
-max = 6
-c_end = 0.9211
-
-[[parameters]]
-name = "SingularDoubleMargin"
-initial = 4
-min = 0
-max = 60
-c_end = 1.8423
-
-[[parameters]]
-name = "DoubleExtMax"
-initial = 16
-min = 1
-max = 200
-c_end = 5.5268
-
-[[parameters]]
 name = "LmrSingularQuiet"
 initial = 401
 min = 0
