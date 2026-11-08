@@ -2148,7 +2148,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         the arm's quiescence that no test binds (packet *Review — B.4.4
         accepted with named follow-ups*, §5) get tests in their own
         commit, each shown to fail on its mutant.
-- [ ] **B.5** `[I2]` Cluster 4 — root and aspiration
+- [ ] **B.5** Cluster 4 — root and aspiration
   Cluster 4 — root, aspiration and iterative deepening: aspiration centred on
   the root move's average score with width from its mean squared score,
   optimism, root-move effort, the `pvIdx` root structure with a `MultiPV`
@@ -2316,9 +2316,39 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       the Cluster 1 to 3 coordinates whose firing share moves by 10% of
       itself (packet §5.8).
     - IDs reserved: BAS-R10 (M1), BAS-S53, BAS-S54, BAS-S55; the
-      predictions are frozen in packet §11. Sub-steps B.5.1 to B.5.5 in
-      B.4's shape are proposed in packet §16 for the maintainer's
-      sign-off.
+      predictions are frozen in packet §11.
+  Split into leaves 2026-11-08 (maintainer, on packet §16) in the
+  standard cluster shape (PROCESS *Cluster delivery shape*): B.5.1
+  research, B.5.2 implement, B.5.3 diagnostics, M1 and the paired
+  run, B.5.4 sweep and SPSA, B.5.5 gates.
+    - [x] **B.5.1** `[R3]` Research and handoff on the entry head
+      The packet above (`analysis/b5_cluster4_research_2026-11-08.md`),
+      closed `READY_FOR_IMPLEMENTATION` 2026-11-08 on `ad17d2b`: the
+      zero-game reads, the battery and the games census, the
+      mechanism decisions, the seeds, the denser floor, the
+      predictions and the registrations.
+    - [ ] **B.5.2** `[I2]` Implement behind the umbrella switch
+      The packet's §10 contract behind one umbrella option `B5_ROOT`,
+      both arms building, in its ten ordered tickets; the OFF arm
+      keeps `bench 13` 4,144,790 at every commit; its cheap
+      qualification in full; accepted by an independent review that
+      reproduces the fingerprints before diagnostics start.
+    - [ ] **B.5.3** `[V]` Diagnostics, M1 and the unfitted paired run
+      The packet's zero-game screens on both arms (BAS-S53), M1's
+      replay on the arm (BAS-R10) deciding the fail-high stop's
+      threshold by its registered rule, the blindness judge read of
+      the repetition draws, the unfitted paired run of the whole arm,
+      then the two categoricals by paired runs.
+    - [ ] **B.5.4** `[V]` Curvature sweep, then SPSA in blocks
+      The packet's registered sweep on the three window seeds and the
+      Cluster 1 to 3 coordinates §5.8 pulls onto the surface, then
+      SPSA in blocks (BAS-S54); the fitted-constant analysis precedes
+      the bake into `BASILISK_B5_CORE_DEFAULTS`.
+    - [ ] **B.5.5** `[V]` Cluster 4 gates
+      SPRT `[0,3]` for the cluster, and each categorical and
+      attribution arm at the bounds the packet registers (BAS-S55);
+      then the flip, the OFF arm deleted and the fingerprint record
+      moved.
 - [ ] **B.6** Donor-form reconciliation, then joint search SPSA
   Joint search SPSA over the coordinates the four clusters left live;
   registered surface; PGO bake; SPRT `[0,3]`. It runs (maintainer
@@ -2982,7 +3012,10 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.5 | READY_FOR_IMPLEMENTATION | I2 | Research closed 2026-11-08 (`analysis/b5_cluster4_research_2026-11-08.md`); the implementation under its §10 is next |
+| B.5.2 | READY_FOR_IMPLEMENTATION | I2 | On B.5.1's packet §10 (`analysis/b5_cluster4_research_2026-11-08.md`); next |
+| B.5.3 | RESEARCH | V | After B.5.2's review; BAS-S53 and BAS-R10 registered in the packet |
+| B.5.4 | RESEARCH | V | After B.5.3; BAS-S54 |
+| B.5.5 | RESEARCH | V | After B.5.4; BAS-S55 |
 | B.6.1 | RESEARCH | R2 | Added 2026-10-31; after B.4 and B.5 close |
 | B.6.2 | RESEARCH | V | Runs (maintainer 2026-11-05); the curvature evidence chooses its surface |
 | B.7.1 | RESEARCH | R2 | Was D.3.1, then B.15.1; after B.6, the board's safety net |
