@@ -34,6 +34,10 @@ enum PieceType : int {
     PIECE_TYPE_NB = 7
 };
 
+// The evaluation's material, the mean of its two phases rounded down: the
+// second choice of quiescence's gain values and of the SEE vector.
+inline constexpr int HCE_PIECE_VALUE[PIECE_TYPE_NB] = {0, 88, 316, 343, 538, 1041, 20000};
+
 // Piece encoding: color*8 + type.  NO_PIECE = 0.
 enum Piece : int {
     NO_PIECE  = 0,

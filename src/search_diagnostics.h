@@ -183,7 +183,64 @@ using InfoCallback = std::function<void(const std::string&)>;
     X(xc_pawn_reads) X(xc_pawn_other_only) X(xc_pawn_mixed)               \
     X(xc_pawn_other_ppm)                                                   \
     X(xc_corr_reads) X(xc_corr_other_only) X(xc_corr_mixed)               \
-    X(xc_corr_other_ppm)
+    X(xc_corr_other_ppm)                                                   \
+    /* Quiescence's population (denominator qs_nodes): PV nodes, table     \
+       cutoffs, stand-pat fail highs and the sum of their margins over    \
+       beta, stand-pats a table bound replaced and the sum of the         \
+       distances it moved them, nodes the delta rule cut, and nodes that  \
+       stopped at the quiescence ply cap. */                              \
+    X(qs_pv_nodes) X(qs_tt_cutoffs) X(qs_standpat_cuts) X(qs_standpat_excess) \
+    X(qs_standpat_refined) X(qs_standpat_refine_mass)                      \
+    X(qs_delta_pruned) X(qs_cap_hits)                                      \
+    /* Its move loop outside check: captures generated at nodes that      \
+       reached it, those each rule pruned and those searched (the four    \
+       sum to qs_moves at a node that fails low); fail highs, those on    \
+       the first searched move, the sum of the searched index at the      \
+       cutoff and of the margins over beta (decisive values excluded);    \
+       nodes that ended without a cutoff, and those of them that searched \
+       a move. */                                                         \
+    X(qs_moves) X(qs_futility_pruned) X(qs_see_pruned) X(qs_late_pruned)   \
+    X(qs_searched)                                                         \
+    X(qs_fail_highs) X(qs_fail_high_first) X(qs_fail_high_index_sum)       \
+    X(qs_fail_high_excess)                                                 \
+    X(qs_fail_lows) X(qs_fail_low_searched)                                \
+    /* Its evasion nodes (denominator qs_evasion_nodes): evasions         \
+       searched; fail highs, those on the first evasion and the sum of    \
+       the searched index at the cutoff; nodes whose table move is a      \
+       legal evasion, and cutoffs that move made. */                      \
+    X(qs_evasion_moves)                                                    \
+    X(qs_evasion_fail_highs) X(qs_evasion_fail_high_first)                 \
+    X(qs_evasion_fail_high_index_sum)                                      \
+    X(qs_evasion_tt_move) X(qs_evasion_tt_cuts)                            \
+    /* Interior nodes whose pruning estimate a table bound replaced, the  \
+       sum of the distances, and the share of both from entries at depth  \
+       0 or below, which quiescence wrote (denominator interior_nodes);   \
+       interior nodes whose table move came from such an entry. */        \
+    X(eval_refined) X(eval_refined_d0)                                     \
+    X(eval_refine_mass) X(eval_refine_mass_d0)                             \
+    X(tt_move_d0)                                                          \
+    /* Reverse futility by the estimate's source: cuts taken on a table   \
+       bound (denominator rfp_cuts), and nodes the margin's correction    \
+       term alone kept from cutting, with those of them on a table bound. */ \
+    X(rfp_cuts_tt_eval) X(rfp_corr_blocked) X(rfp_corr_blocked_tt_eval)   \
+    /* Cluster 3 (the B4_QSEARCH arm; the OFF arm leaves them at 0).        \
+       Captures the count rule pruned (denominator qs_moves); recaptures    \
+       the exemption alone kept from the gain rules (denominator            \
+       qs_gain_tested plus itself);                                         \
+       quiet evasions the rule left unsearched at nodes that ended without \
+       a cutoff, and evasion captures it skipped on SEE (denominator        \
+       qs_evasion_moves plus themselves); stalemates quiescence found       \
+       (denominator qs_nodes); quiet checks searched (denominator           \
+       qs_nodes); reverse-futility cuts the seek_mate cap refused           \
+       (denominator rfp_cuts plus itself); and captures that entered the    \
+       gain rules' block: no check, promotion or exempt recapture, at a     \
+       node where the rules run (denominator the captures the loop          \
+       delivered: qs_searched less qs_quiet_checks plus the rules'          \
+       prunes). */                                                          \
+    X(qs_count_pruned) X(qs_recapture_exempt)                              \
+    X(qs_evasion_quiets_pruned) X(qs_evasion_see_pruned)                   \
+    X(qs_stalemates) X(qs_quiet_checks) X(rfp_seekmate_capped)             \
+    X(qs_gain_tested)
 
 struct DiagCounters {
 #define BASILISK_DIAG_COUNTER_FIELD(name) int64_t name = 0;
@@ -206,7 +263,7 @@ struct DiagCounters {
 // aggregate and the field count stay in step with the table.
 static_assert(sizeof(DiagCounters) == DiagCounters::COUNT * sizeof(int64_t),
               "DiagCounters holds something that is not a counter from the table");
-static_assert(DiagCounters::COUNT == 133, "the counter contract has 133 entries; extend, never rename");
+static_assert(DiagCounters::COUNT == 174, "the counter contract has 174 entries; extend, never rename");
 
 // One search's counters as `info string diag` lines, followed by the
 // evaluator's speed telemetry.
@@ -231,7 +288,9 @@ enum class TraceEvent : uint8_t {
     SkipQuiets,
     // Cluster 2's events.
     NullVerify, NullRegionRefused, ProbcutTtCutoff, ExtBudgetTruncate,
-    CuckooDraw, TtPenalty
+    CuckooDraw, TtPenalty,
+    // Cluster 3's events.
+    QsCountPrune, QsEvasionPrune, QsStalemate
 };
 // The pruning family a record belongs to, so the move-loop family's members
 // can be told apart where one event name covers several rules.

@@ -16,6 +16,27 @@ and next step).
 
 ### Changed
 
+- **Rebuilt the search of captures at the end of each line.** Where the main
+  search stops, the engine plays out captures until the position is quiet.
+  That step now follows modern Stockfish:
+  - it tries only the first few captures, and skips those that lose
+    material or cannot reach the score it needs, unless they check, promote
+    or recapture;
+  - out of check it stops looking once a reply holds, but keeps searching
+    while every reply so far loses, so a mate it reports is proven;
+  - it pulls a score above the search window back toward the window;
+  - it sees stalemate when a bare king and blocked pawns have no move.
+
+  Its constants were then fitted by tuning. Measured against the previous
+  search at `3+0.03`, it gained **+32 ± 9 Elo** (2,460 games, a sequential
+  test stopped when it was sure), of which the tuning gave **+7 ± 4 Elo**
+  (12,632 games). At `10+0.1` it gained **+38 ± 9 Elo** (2,000 games). In
+  the same time it searches one to one and a half plies (half-moves) deeper.
+  `bench 13` is now 4,144,790.
+- **About 4% faster.** The evaluation caches its material imbalance and sums
+  material in one pass, and the exchange evaluator recomputes less (BAS-P29:
+  +4.16% nodes per second). It plays the same moves: `bench 13` is unchanged at
+  6,090,091.
 - **About 2% faster.** The evaluation no longer computes terms whose weight
   was zero (BAS-P25: +2.35% nodes per second). It plays the same moves:
   `bench 13` is unchanged at 19,470,325.
@@ -110,6 +131,14 @@ and next step).
   `Basilisk 1.11.0`.
 
 ### Fixed
+
+- **Exchanges count promotions and new pins.** When the engine judges
+  whether a capture or a quiet move is safe, a pawn that recaptures on the
+  last rank now counts as promoting, and a piece that becomes pinned
+  partway through the exchange no longer recaptures. Measured at
+  `3+0.03`: **+1.9 ± 4.4 Elo** (8,000 games) for the promotions and
+  **−3.8 ± 7.6 Elo** (3,000 games) for the pins, no measurable effect on
+  strength. `bench 13` is now 6,090,091.
 
 - **A quicker answer with several threads.** Before it answered, the
   engine waited for every helper thread to notice that the search had

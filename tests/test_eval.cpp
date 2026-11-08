@@ -20,6 +20,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <memory>
 #include <random>
 #include <string>
 #include <vector>
@@ -831,6 +832,44 @@ static constexpr int PESTO_PUBLISHED[2][6][64] = {
     },
 };
 
+// The imbalance table answers by the piece counts, and a parameter change must
+// not leave it answering on the old coefficients.
+static void test_imbalance_cache() {
+    const char* const fens[] = {
+        "r3k3/pppp4/8/8/8/8/PPPP4/2B1K3 w - - 0 1",
+        "r1bqkbnr/pppppppp/2n5/8/8/5N2/PPPPPPPP/RNBQKB1R w KQkq - 0 1",
+        "4k3/pp6/8/8/8/8/PP6/R3K3 w - - 0 1",
+        "2r3k1/1q2Rp1p/p2p2p1/1p1P4/1Pp1P3/2Q5/1P4PP/6K1 w - - 0 1",
+    };
+    auto warm = std::make_unique<Evaluator>();
+    begin_section("imbalance table: a warm evaluator reads as a fresh one");
+    for (int round = 0; round < 2; ++round)
+        for (const char* fen : fens) {
+            Board b;
+            b.set_fen(fen);
+            auto fresh = std::make_unique<Evaluator>();
+            EXPECT_EQ(warm->evaluate(b), fresh->evaluate(b));
+        }
+    end_section();
+
+    Board b;
+    b.set_fen(fens[0]);
+    const int before = warm->evaluate(b);
+    const int saved = g_eval_params.imb_linear[3];
+    g_eval_params.imb_linear[3] = saved + 40;
+    init_eval_tables();
+    const int changed = warm->evaluate(b);
+    auto fresh = std::make_unique<Evaluator>();
+    const int expected = fresh->evaluate(b);
+    g_eval_params.imb_linear[3] = saved;
+    init_eval_tables();
+    begin_section("imbalance table: new coefficients are read at once");
+    EXPECT(changed != before);
+    EXPECT_EQ(changed, expected);
+    EXPECT_EQ(warm->evaluate(b), before);
+    end_section();
+}
+
 static void test_pst_orientation() {
     static const char* const kNames[2][6] = {
         { "mg pawn", "mg knight", "mg bishop", "mg rook", "mg queen", "mg king" },
@@ -901,6 +940,9 @@ int main() {
 
     std::printf("\nPST orientation\n");
     test_pst_orientation();
+
+    std::printf("\nImbalance table\n");
+    test_imbalance_cache();
 
 #ifdef BASILISK_TUNE
     std::printf("\nEndgame occurrence classifier\n");

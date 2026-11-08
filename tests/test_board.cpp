@@ -1126,7 +1126,8 @@ static void test_history_growth_and_exact_unwind() {
 // infra audit 4.3/4.4)
 // ---------------------------------------------------------------------------
 
-static constexpr int ORACLE_VALUES[PIECE_TYPE_NB] = {0, 100, 300, 300, 500, 900, 20000};
+static constexpr int ORACLE_SEARCH_VALUES[PIECE_TYPE_NB] = {0, 100, 300, 300, 500, 900, 20000};
+static const int* ORACLE_VALUES = ORACLE_SEARCH_VALUES;
 
 // Value, for the side to move, of continuing the capture sequence on `to`
 // with its least valuable LEGAL attacker (may decline: >= 0). Uses real
@@ -1195,6 +1196,68 @@ static void check_see_case(const char* label, const char* fen,
         EXPECT(b.see_ge(m, expected) && !b.see_ge(m, expected + 1));
     }
     end_section();
+}
+
+// The evaluation's vector, on the seam's own values: a bishop for a knight is
+// no longer an even trade, and the oracle agrees capture by capture.
+static void test_see_on_the_second_vector() {
+#ifdef BASILISK_TUNE
+    struct Case { const char* label; const char* fen; Square from, to; int expected; };
+    const Case cases[] = {
+        {"second vector: pawn takes a loose pawn", "4k3/8/8/4p3/3P4/8/8/4K3 w - - 0 1", D4, E5, 88},
+        {"second vector: pawn takes a loose knight", "4k3/8/8/3n4/4P3/8/8/4K3 w - - 0 1", E4, D5, 316},
+        {"second vector: pawn takes a loose queen", "7k/8/8/3q4/4P3/8/8/K7 w - - 0 1", E4, D5, 1041},
+        {"second vector: rook takes a loose rook", "7k/4r3/8/8/4R3/8/8/K7 w - - 0 1", E4, E7, 538},
+        {"second vector: bishop for a knight loses 27", "4k3/2p5/3n4/8/1B6/8/8/K7 w - - 0 1", B4, D6, -27},
+    };
+    ORACLE_VALUES = HCE_PIECE_VALUE;
+    for (const Case& c : cases) {
+        Board b;
+        b.set_fen(c.fen);
+        b.set_see_vector(1);
+        const Move m = find_capture(b, c.from, c.to);
+        begin_section(c.label);
+        EXPECT(m != MOVE_NONE);
+        EXPECT_EQ(b.see(m), c.expected);
+        EXPECT_EQ(oracle_see(b, m), c.expected);
+        EXPECT(b.see_ge(m, c.expected) && !b.see_ge(m, c.expected + 1));
+        end_section();
+    }
+
+    begin_section("second vector: see_ge's boundary is the oracle's on every capture");
+    const char* const fens[] = {
+        "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
+        "r1bq1rk1/ppp2ppp/2np1n2/2b1p3/2B1P3/2NP1N2/PPP2PPP/R1BQ1RK1 w - - 0 1",
+        "4k2r/6P1/8/8/8/8/8/4K3 w - - 0 1",
+    };
+    int captures = 0, disagreements = 0;
+    for (const char* fen : fens) {
+        Board b;
+        b.set_fen(fen);
+        b.set_see_vector(1);
+        MoveList legal;
+        b.gen_legal(legal);
+        for (Move m : legal) {
+            if (b.piece_on(to_sq(m)) == NO_PIECE)
+                continue;
+            ++captures;
+            const int truth = oracle_see(b, m);
+            disagreements += !(b.see_ge(m, truth) && !b.see_ge(m, truth + 1));
+        }
+    }
+    EXPECT(captures > 0);
+    EXPECT_EQ(disagreements, 0);
+    end_section();
+
+    begin_section("second vector: back on the first, the fixtures read as ever");
+    Board b;
+    b.set_fen("4k3/2p5/3n4/8/1B6/8/8/K7 w - - 0 1");
+    b.set_see_vector(1);
+    b.set_see_vector(0);
+    EXPECT_EQ(b.see(find_capture(b, B4, D6)), 0);
+    end_section();
+    ORACLE_VALUES = ORACLE_SEARCH_VALUES;
+#endif
 }
 
 static void test_see_pin_legality() {
@@ -1291,10 +1354,6 @@ static void test_see_king_legality() {
 }
 
 
-// 15.0.c: the two SEE approximations Basilisk deliberately keeps. These
-// fixtures pin BOTH the truth (the promotion-aware legality oracle) and the
-// kernel's approximate answer, so the divergence cannot drift unnoticed and
-// cannot be "fixed" by accident without this test going red.
 static int see_ge_boundary(const Board& b, Move m) {
     // see_ge(m, t) is monotone non-increasing in t; return the largest true t.
     int lo = -30000, hi = 30000;
@@ -1305,29 +1364,11 @@ static int see_ge_boundary(const Board& b, Move m) {
     return lo;
 }
 
-static void check_see_approx(const char* label, const char* fen,
-                             Square from, Square to,
-                             int truth, int kernel_see, int kernel_ge_boundary) {
-    Board b;
-    b.set_fen(fen);
-    Move m = find_capture(b, from, to);
-    begin_section(label);
-    EXPECT(m != MOVE_NONE);
-    if (m != MOVE_NONE) {
-        EXPECT_EQ(oracle_see(b, m), truth);              // what is actually true
-        EXPECT_EQ(b.see(m), kernel_see);                 // what the kernel says
-        EXPECT_EQ(see_ge_boundary(b, m), kernel_ge_boundary);
-    }
-    end_section();
-}
-
-// Created pins and promotion recaptures (15.0.c). Fixtures ported from Rarog's
+// Created pins and promotion recaptures. Fixtures ported from Rarog's
 // `see-contract-v1.tsv` / `see-repair-v1.tsv`, retargeted to Basilisk's
-// 100/300/300/500/900 vector. CLOSED as a documented approximation, not a
-// repair: neither defect changed a single verdict in 339,607 production
-// `see_ge` calls, and the created-pin repair costs +16.8% of the SEE column.
+// 100/300/300/500/900 vector. Both kernels score them exactly.
 static void test_see_created_pins_and_promotions() {
-    // --- Created pins: three of the four Rarog fixtures already pass. -------
+    // --- Created pins -------------------------------------------------------
     // `see_pins` is computed on the exchange occupancy with the MOVER already
     // removed, so a pin opened by the mover's own departure is honoured.
     check_see_case("created pin: opened by the mover's departure",
@@ -1338,37 +1379,36 @@ static void test_see_created_pins_and_promotions() {
     check_see_case("created pin: skip the pinned attacker, choose the rook",
                    "2kr4/2n5/2B5/3p4/8/8/8/2R1K3 w - - 0 1", C6, D5, -200);
 
-    // The one that genuinely fails: the pin is opened mid-exchange by a LATER
-    // capturer (the c6 bishop's own recapture), not by the initial mover, so
-    // the once-computed pin set never sees it and Nc7 is allowed to recapture.
-    // Truth -300; see() reaches -300 only because its X-ray truncation happens
-    // to stop first, while the exact see_ge carries the illegal knight
-    // recapture and lands at -400. ACCEPTED APPROXIMATION -- see 15.0.c.
-    check_see_approx("created pin: opened mid-exchange (accepted approximation)",
-                     "2k5/2n5/2B1p3/3p4/8/8/3R4/2R4K w - - 0 1", D2, D5,
-                     /*truth*/ -300, /*see()*/ -300, /*see_ge boundary*/ -400);
+    // The pin opened mid-exchange by a LATER capturer: the c6 bishop's own
+    // recapture opens the c-file, so Nc7 may no longer recapture. Pins
+    // computed once at the start let it, and see_ge read -400 for -300.
+    check_see_case("created pin: opened mid-exchange",
+                   "2k5/2n5/2B1p3/3p4/8/8/3R4/2R4K w - - 0 1", D2, D5, -300);
 
     // --- Promotion recaptures ----------------------------------------------
     // A promotion made by the INITIAL move is handled exactly by both kernels.
     check_see_case("promotion as the initial capture: queen",
                    "1r2k3/P7/8/8/8/8/8/4K3 w - - 0 1", A7, B8, 1300);
 
-    // A promotion made by a RECAPTURE is scored as a plain pawn: the kernel
-    // adds no promotion gain and leaves a pawn, not a queen, on the square.
-    // Those two errors are each worth (queen - pawn) = 800 and cancel EXACTLY
-    // when the promoted piece is immediately recaptured -- so this one is
-    // correct by cancellation, not by handling:
-    check_see_case("promotion recapture: errors cancel when it is recaptured",
+    // A promotion made by a RECAPTURE wins the queen's surplus and leaves a
+    // queen on the square. When the queen is recaptured at once the surplus
+    // is given back, so a kernel scoring the pawn recapture as a plain pawn
+    // gets this one right by cancellation:
+    check_see_case("promotion recapture: the queen is recaptured",
                    "7k/8/8/8/8/8/pR6/1rR1K3 w - - 0 1", B2, B1, 100);
 
-    // ...and only survives when the promoted piece stands. Truth -800, kernel
-    // 0: the full 800. ACCEPTED APPROXIMATION -- see 15.0.c.
-    check_see_approx("promotion recapture: promoted piece survives (accepted)",
-                     "7k/8/8/8/8/7K/pR6/1r6 w - - 0 1", B2, B1,
-                     /*truth*/ -800, /*see()*/ 0, /*see_ge boundary*/ 0);
-    check_see_approx("promotion recapture: promoted piece survives, mirror",
-                     "1R6/Pr6/7k/8/8/8/8/7K b - - 0 1", B7, B8,
-                     /*truth*/ -800, /*see()*/ 0, /*see_ge boundary*/ 0);
+    // ...and only this one tells them apart: the promoted queen stands, and
+    // Rxb1 axb1=Q loses the rook and the surplus (-800). A plain-pawn kernel
+    // reads 0, and its "safe even if the rook is taken" exit says so before
+    // looking at the recapture.
+    check_see_case("promotion recapture: the promoted queen stands",
+                   "7k/8/8/8/8/7K/pR6/1r6 w - - 0 1", B2, B1, -800);
+    check_see_case("promotion recapture: the promoted queen stands, mirror",
+                   "1R6/Pr6/7k/8/8/8/8/7K b - - 0 1", B7, B8, -800);
+    // A pinned pawn cannot promote by recapture (Ra8 pins a2 to Ka1): the
+    // surplus is not at risk, and Kxb1 makes the exchange level.
+    check_see_case("promotion recapture: the pawn is pinned",
+                   "R6K/8/8/8/8/8/pR6/kr6 w - - 0 1", B2, B1, 0);
 }
 
 // A quiet move's SEE is the exchange the opponent can start on its
@@ -1376,11 +1416,11 @@ static void test_see_created_pins_and_promotions() {
 // semantics): never above 0, never below minus the mover's value. Checked for
 // every legal quiet on the SEE FEN list and a fixed-seed random-walk corpus
 // against the legality oracle. The kernel's legality model is the one
-// captures already use (pins computed once on the starting occupancy, checks
-// not modelled), so a quiet diverges from the oracle in the same geometries a
-// capture does: a pawn recapture that promotes, a check the move discovers,
-// or an exchange in which legality removes an attacker (a pin or a check
-// opened mid-exchange). Each geometry is pinned by count on the corpus; a
+// captures already use (pins followed through the exchange, checks not
+// modelled), so a quiet diverges from the oracle in the same geometries a
+// capture does: a check the move discovers, or an exchange in which legality
+// removes an attacker (a check opened mid-exchange). Each geometry
+// is pinned by count on the corpus, a pawn recapture that promotes at zero; a
 // divergence in none of them fails.
 struct QuietSeeTally {
     int quiets = 0;
@@ -1429,8 +1469,17 @@ static void check_quiet_see(Board& b, QuietSeeTally& tally) {
         if (!quiet)
             continue;
         ++tally.quiets;
+        // The most a quiet move can lose is the moved piece, and the queen's
+        // surplus over a pawn when an enemy pawn takes it on a back rank and
+        // promotes.
         const int mover = ORACLE_VALUES[type_of(b.piece_on(from_sq(m)))];
-        if (!b.see_ge(m, -mover) || b.see_ge(m, 1))
+        const Square dest = to_sq(m);
+        const bool promoting_recapture =
+            (rank_of(dest) == RANK_1 || rank_of(dest) == RANK_8)
+            && (PawnAttacks[b.turn()][dest] & b.piece_bb(~b.turn(), PAWN));
+        const int worst = mover
+                        + (promoting_recapture ? ORACLE_VALUES[QUEEN] - ORACLE_VALUES[PAWN] : 0);
+        if (!b.see_ge(m, -worst) || b.see_ge(m, 1))
             ++tally.bound_failures;
         const int boundary = see_ge_boundary(b, m);
         const int truth = oracle_see(b, m);
@@ -1460,10 +1509,10 @@ static void check_quiet_see(Board& b, QuietSeeTally& tally) {
 }
 
 // The corpus's divergences by geometry (seed 0x5EE0F1E7, 400 walks, 10,872
-// quiets, 41 divergences). Captures diverge in the same three geometries.
-static constexpr int PINNED_PROMOTION_RECAPTURES = 22;
+// quiets, 15 divergences). Captures diverge in the same geometries.
+static constexpr int PINNED_PROMOTION_RECAPTURES = 0;
 static constexpr int PINNED_DISCOVERED_CHECKS = 8;
-static constexpr int PINNED_LEGALITY_FILTERED = 11;
+static constexpr int PINNED_LEGALITY_FILTERED = 7;
 
 static void test_see_quiet_moves() {
     begin_section("quiet SEE: boundary == oracle, within [-mover, 0], on the SEE FENs");
@@ -1549,6 +1598,7 @@ int main() {
 
     std::printf("\nHistory-capacity release guard\n");
     test_history_growth_and_exact_unwind();
+    test_see_on_the_second_vector();
     test_see_pin_legality();
     test_see_king_legality();
     test_see_created_pins_and_promotions();

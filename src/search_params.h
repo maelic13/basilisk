@@ -373,6 +373,75 @@
     A(cont_hist_prune_slope, CoreContHistPruneSlope, 3832)              \
     A(corr_update_scale,     CoreCorrUpdateScale,    17)
 
+// ---- Cluster 3 (the B4_QSEARCH arm) -----------------------------------------
+//
+// B(X, F, S) as Cluster 2's: every arm compiles the fields, the kernel reads
+// them on the arm alone, and tune builds advertise them there alone.
+//
+// Quiescence's margins. b4_qs_fut_base is added to the corrected static eval
+// (not the table-tightened stand-pat) to give the futility base. The blends
+// are the value's weight in 1024ths, the rest going to beta, at a stand-pat
+// cut and at any other fail high; 1024 returns the value as it is.
+// b4_qs_move_count: captures after this many, in delivery order and pruned
+//   ones included, are pruned unless a check, promotion or recapture; 64
+//   turns the rule off. An F line: it is a count.
+// b4_qs_see_margin: every capture, and an evasion capture once the node holds
+//   a value that is not a loss, must clear this SEE. An F line: on the
+//   default vector every value from -99 to 0 prunes the same captures.
+// b4_rfp_seek_mate_cap: reverse futility's deepest node in a mate drive.
+// b4_rfp_seek_mate_depth: the root depth from which that cap binds, with a
+//   root score of at least b3_seek_mate_score either way. Its own bar:
+//   b3_seek_mate_depth is the singular half's, set to bound a tree this cap
+//   would grow.
+//
+// b4_evasion_prune: 1 once an evasion holds a value that is not a loss,
+//   quiets and SEE-losing captures are skipped; 0 every evasion is searched.
+// b4_qs_recapture: 1 a recapture on the previous move's square is exempt from
+//   the count rule, futility and the alpha-relative SEE; 0 not exempt.
+// b4_stalemate: 1 tests for stalemate where quiescence's cheap conditions
+//   hold; 0 stands pat on it.
+// b4_rfp_seek_mate: 1 applies b4_rfp_seek_mate_cap; 0 no cap, reverse
+//   futility as at any root depth.
+// b4_qs_delta: 1 restores the OFF arm's delta rule; 0 none.
+// b4_gain_values: the captured value quiescence's gain rules read. 0 the
+//   search's PIECE_VALUE; 1 the evaluation's material.
+// b4_see_values: the vector every `see` and `see_ge` call reads, on the same
+//   two choices (tune builds; release builds keep the constants).
+// b4_quiet_checks: quiet checks searched at the first quiescence ply; 0 none.
+#define BASILISK_B4_PARAMS(X, F, S)                                      \
+    X(b4_qs_fut_base,        B4QsFutBase,           82,   40,   220)     \
+    X(b4_qs_stand_pat_blend, B4QsStandPatBlend,    437,  256,  1024)     \
+    X(b4_qs_fail_high_blend, B4QsFailHighBlend,    466,  256,  1024)     \
+    F(b4_qs_move_count,      B4QsMoveCount,          2,    1,    64)     \
+    F(b4_qs_see_margin,      B4QsSeeMargin,        -28, -200,     0)     \
+    F(b4_rfp_seek_mate_cap,  B4RfpSeekMateCap,       5,    1,    19)     \
+    F(b4_rfp_seek_mate_depth, B4RfpSeekMateDepth,   16,    8,    64)     \
+    S(b4_evasion_prune,      B4EvasionPrune,         1,    0,     1)     \
+    S(b4_qs_recapture,       B4QsRecapture,          1,    0,     1)     \
+    S(b4_stalemate,          B4Stalemate,            1,    0,     1)     \
+    S(b4_rfp_seek_mate,      B4RfpSeekMate,          0,    0,     1)     \
+    S(b4_qs_delta,           B4QsDelta,              0,    0,     1)     \
+    S(b4_gain_values,        B4GainValues,           0,    0,     1)     \
+    S(b4_see_values,         B4SeeValues,            0,    0,     1)     \
+    S(b4_quiet_checks,       B4QuietChecks,          0,    0,     6)
+
+// The B4_QSEARCH arm's own defaults for earlier clusters' lines, in the form of
+// BASILISK_B3_CORE_DEFAULTS, applied after it, so a line here wins on the arm.
+// The coordinates are fitted on this arm's tree beside Cluster 3's, so the OFF
+// arm keeps its values. b3_fail_low_store: one form of the fail-low store
+// for both searches; on the arm 1 stores no move in either, and 0 stores the
+// best-scored searched move in both.
+#define BASILISK_B4_CORE_DEFAULTS(A)                                     \
+    A(b3_fail_low_store,     B3FailLowStore,          1)                \
+    A(razor_margin,          CoreRazorMargin,       261)                \
+    A(rfp_per_ply,           CoreRfpPerPly,         107)                \
+    A(rfp_improving,         CoreRfpImproving,       94)                \
+    A(rfp_corr_mult,         CoreRfpCorrMult,       457)                \
+    A(lmr_cut_node_no_tt,    CoreLmrCutNodeNoTt,    856)                \
+    A(b3_nmp_base,           B3NmpBase,             172)                \
+    A(b3_nmp_per_ply,        B3NmpPerPly,            13)                \
+    A(b3_iir_min_depth,      B3IirMinDepth,           6)
+
 #define BASILISK_KERNEL_PARAMS(X) BASILISK_CORE_KERNEL_PARAMS(X, X)
 #define BASILISK_KERNEL_SWITCHES(S) BASILISK_CORE_KERNEL_SWITCHES(S)
 
@@ -386,12 +455,19 @@ struct SearchParams {
     BASILISK_KERNEL_SWITCHES(BASILISK_SEARCH_PARAM_FIELD)
     BASILISK_B3_PARAMS(BASILISK_SEARCH_PARAM_FIELD, BASILISK_SEARCH_PARAM_FIELD,
                        BASILISK_SEARCH_PARAM_FIELD)
+    BASILISK_B4_PARAMS(BASILISK_SEARCH_PARAM_FIELD, BASILISK_SEARCH_PARAM_FIELD,
+                       BASILISK_SEARCH_PARAM_FIELD)
 #undef BASILISK_SEARCH_PARAM_FIELD
-#if defined(BASILISK_B3_PROOF)
+#if defined(BASILISK_B3_PROOF) || defined(BASILISK_B4_QSEARCH)
     constexpr SearchParams() noexcept {
-#define BASILISK_B3_CORE_DEFAULT(field, uci, value) field = value;
-        BASILISK_B3_CORE_DEFAULTS(BASILISK_B3_CORE_DEFAULT)
-#undef BASILISK_B3_CORE_DEFAULT
+#define BASILISK_ARM_DEFAULT(field, uci, value) field = value;
+#if defined(BASILISK_B3_PROOF)
+        BASILISK_B3_CORE_DEFAULTS(BASILISK_ARM_DEFAULT)
+#endif
+#if defined(BASILISK_B4_QSEARCH)
+        BASILISK_B4_CORE_DEFAULTS(BASILISK_ARM_DEFAULT)
+#endif
+#undef BASILISK_ARM_DEFAULT
     }
 #endif
 };

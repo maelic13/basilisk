@@ -15,7 +15,7 @@ evaluation, SEE, TT probes) does not allocate (no `new`, no growing
 solved with references, make/unmake and per-thread arrays. An exception states
 its reason in one sentence and carries an NPS measurement by PROCESS's method.
 A shared atomic states what it signals and which search it belongs to. PLAN
-B.7.1's allocation guard checks the first clause.
+B.8.3's allocation guard checks the first clause.
 
 ## Qualifying a change
 

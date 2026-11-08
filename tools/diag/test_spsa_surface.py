@@ -94,6 +94,18 @@ class SurfaceTests(unittest.TestCase):
         # F lines and switches stay off it.
         self.assertFalse(set(generated) & {"B3NmpBetaFloor", "B3NmpVerify", "B3CheckExt"})
 
+    def test_b4_surface_is_the_clusters_coordinates(self):
+        text = surface.HEADER.read_text(encoding="utf-8")
+        parameters = surface.parse_parameters(text, b4=True)
+        generated = json.loads(surface.B4_CONFIG.read_text(encoding="utf-8"))
+        self.assertEqual([item[0] for item in parameters], list(generated))
+        self.assertEqual(list(generated),
+                         ["B4QsFutBase", "B4QsStandPatBlend", "B4QsFailHighBlend"])
+        # Its table stays off every other surface.
+        for other in (surface.parse_parameters(text), surface.parse_parameters(text, core=True),
+                      surface.parse_parameters(text, b3=True)):
+            self.assertFalse({item[0] for item in other} & set(generated))
+
     def test_b3_sweep_notes_are_checked_against_the_table(self):
         text = (
             "#define BASILISK_B3_PARAMS(X, F, S) \\\n"
@@ -168,6 +180,56 @@ class SurfaceTests(unittest.TestCase):
                 surface.b33_parameters(text)
         finally:
             surface.B33_ADMITTED_CORE = saved
+
+    def test_b46_surface_is_the_b4_lines_and_the_admissions(self):
+        text = surface.HEADER.read_text(encoding="utf-8")
+        b4 = [item[0] for item in surface.parse_parameters(text, b4=True)]
+        generated = json.loads(surface.B46_CONFIG.read_text(encoding="utf-8"))
+        self.assertEqual(list(generated), b4 + list(surface.B46_ADMITTED))
+        self.assertEqual(len(generated), 15)
+        # The admitted coordinates keep their tables' ranges and steps and
+        # start from the value the arm runs: its own default where it has
+        # one, over the B3_PROOF arm's and the line's.
+        self.assertEqual(generated["CoreRfpPerPly"]["value"], 107)
+        self.assertEqual(generated["CoreRfpCorrMult"]["value"], 457)
+        self.assertEqual(generated["B3NmpBase"]["value"], 172)
+        self.assertEqual(generated["CoreRfpDepthCap"]["value"], 10)
+        core = json.loads(surface.CORE_CONFIG.read_text(encoding="utf-8"))
+        b3 = json.loads(surface.B3_CONFIG.read_text(encoding="utf-8"))
+        for name in surface.B46_ADMITTED:
+            source = core[name] if name in core else b3[name]
+            self.assertEqual({k: generated[name][k] for k in ("min_value", "max_value", "step")},
+                             {k: source[k] for k in ("min_value", "max_value", "step")})
+
+    def test_b4_core_defaults_are_checked_against_the_earlier_tables(self):
+        head = (
+            "#define BASILISK_CORE_KERNEL_PARAMS(X, F) \\\n"
+            "    X(b_field, Beta, 5, 0, 10) \\\n"
+            "    F(e_field, Epsilon, 5, 0, 10)\n"
+            "#define BASILISK_B3_PARAMS(X, F, S) \\\n"
+            "    X(c_field, Gamma, 5, 0, 10) \\\n"
+            "    S(s_field, Sigma, 0, 0, 1)\n"
+            "#define BASILISK_B4_CORE_DEFAULTS(A) \\\n"
+        )
+        body = "    A(s_field, Sigma, 1) \\\n    A(b_field, Beta, 7) \\\n    A(c_field, Gamma, 8)\n"
+        self.assertEqual(surface.b4_core_defaults(head + body), {"Beta": 7, "Gamma": 8})
+        for body in ("    A(e_field, Epsilon, 7)\n",          # an F line
+                     "    A(z_field, Zeta, 7)\n",             # no line
+                     "    A(b_field, Beta, 5)\n",             # the default
+                     "    A(c_field, Gamma, 11)\n",           # out of range
+                     "    A(b_field, Beta, 7) \\\n    A(b_field, Beta, 8)\n"):  # twice
+            with self.assertRaises(ValueError):
+                surface.b4_core_defaults(head + body)
+
+    def test_b46_surface_rejects_a_name_with_no_x_line(self):
+        text = surface.HEADER.read_text(encoding="utf-8")
+        saved = surface.B46_ADMITTED
+        try:
+            surface.B46_ADMITTED = saved + ("CoreNoSuchCoordinate",)
+            with self.assertRaises(ValueError):
+                surface.b46_parameters(text)
+        finally:
+            surface.B46_ADMITTED = saved
 
     def test_steps_are_half_up_range_sixteenths_with_floor(self):
         self.assertEqual(surface.perturbation(0, 40), 3)

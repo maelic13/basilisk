@@ -1690,8 +1690,30 @@ void Board::see_pins(Bitboard occ, Bitboard pinned[NCOLORS], Square pinner_of[SQ
     }
 }
 
+bool Board::see_departure_opens_line(Square s, Bitboard occ) const {
+    // A superset test, cheap and rarely true: a pin needs a king, the vacated
+    // square and an enemy slider of the line's kind on one line.
+    for (int ci = 0; ci < NCOLORS; ++ci) {
+        const Color c = Color(ci);
+        const Square ksq = king_sq[c];
+        const Bitboard line = BB_LINE[ksq][s];
+        if (!line)
+            continue;
+        const bool straight = rank_of(ksq) == rank_of(s) || file_of(ksq) == file_of(s);
+        const Bitboard sliders = pieces[~c][QUEEN]
+                               | (straight ? pieces[~c][ROOK] : pieces[~c][BISHOP]);
+        if (line & sliders & occ)
+            return true;
+    }
+    return false;
+}
+
 int Board::see(Move m) const {
+#ifdef BASILISK_TUNE
+    const int* const SEE_VALUES = see_values_;
+#else
     static constexpr int SEE_VALUES[PIECE_TYPE_NB] = {0, 100, 300, 300, 500, 900, 20000};
+#endif
 
     Square from = from_sq(m);
     Square to   = to_sq(m);
@@ -1727,11 +1749,14 @@ int Board::see(Move m) const {
     }
 
     Color side = ~side_to_move; // first recapture is by opponent
+    const bool promo_sq = (sq_bb(to) & (BB_RANKS[RANK_1] | BB_RANKS[RANK_8])) != 0;
 
     // Absolutely pinned pieces cannot recapture while their pinner is
     // still on the board, unless the exchange square lies on the pin line.
-    // Pins are computed once against the pre-move board; a pinner that is
-    // captured or moves during the exchange leaves `occ`, releasing the pin.
+    // Pins are computed on the exchange occupancy, so the mover's departure
+    // counts; a pinner that is captured or moves during the exchange leaves
+    // `occ`, releasing the pin, and a later departure that opens a king's
+    // line recomputes them, since it can pin a piece that was free.
     Bitboard pinned[NCOLORS];
     Square pinner_of[SQUARE_NB];
     see_pins(occ, pinned, pinner_of);
@@ -1782,8 +1807,12 @@ int Board::see(Move m) const {
         if (attacker_type == KING && (attackers & occupancy[~side] & occ))
             break;
 
+        // A pawn capturing onto a back rank promotes: it wins the queen's
+        // surplus over the pawn and leaves a queen on the square.
+        const bool promotes = attacker_type == PAWN && promo_sq;
         depth++;
-        gain[depth] = SEE_VALUES[piece_on_sq] - gain[depth-1];
+        gain[depth] = SEE_VALUES[piece_on_sq] - gain[depth-1]
+                    + (promotes ? SEE_VALUES[QUEEN] - SEE_VALUES[PAWN] : 0);
 
         // Early exit: even capturing for free doesn't help. This standard
         // gain-array prune is NOT exact — a slider X-ray revealed deep in the
@@ -1800,7 +1829,9 @@ int Board::see(Move m) const {
         // Remove attacker (reveals X-ray)
         Bitboard lva_bit = attacker_bb & (-attacker_bb); // lowest set bit
         occ ^= lva_bit;
-        piece_on_sq = attacker_type;
+        if (see_departure_opens_line(Square(lsb(lva_bit)), occ))
+            see_pins(occ, pinned, pinner_of);
+        piece_on_sq = promotes ? QUEEN : attacker_type;
         side = ~side;
 
         // Recompute attackers (X-ray sliders revealed)
@@ -1818,7 +1849,11 @@ int Board::see(Move m) const {
 
 bool Board::see_ge(Move m, int threshold) const {
     ++diag_see_ge_calls;
+#ifdef BASILISK_TUNE
+    const int* const SEE_VALUES = see_values_;
+#else
     static constexpr int SEE_VALUES[PIECE_TYPE_NB] = {0, 100, 300, 300, 500, 900, 20000};
+#endif
 
     const Square from = from_sq(m);
     const Square to   = to_sq(m);
@@ -1849,8 +1884,16 @@ bool Board::see_ge(Move m, int threshold) const {
     if (mt == PROMOTION)
         attacker_type = promo_type(m);
 
+    // A pawn capturing onto a back rank promotes. In the swap form that leaves
+    // `swap` unchanged (the queen's surplus is won and the queen left on the
+    // square is worth as much more), but it moves both "already safe even if
+    // my piece is taken" exits below: losing the piece to a promoting pawn
+    // costs the surplus as well.
+    const bool promo_sq = (sq_bb(to) & (BB_RANKS[RANK_1] | BB_RANKS[RANK_8])) != 0;
+    const int PROMO_SURPLUS = SEE_VALUES[QUEEN] - SEE_VALUES[PAWN];
+
     swap = SEE_VALUES[attacker_type] - swap;
-    if (swap <= 0)
+    if (swap <= 0 && !promo_sq)
         return true;
 
     Bitboard occ = all_occ ^ sq_bb(from);
@@ -1866,7 +1909,8 @@ bool Board::see_ge(Move m, int threshold) const {
     // Nobody of the other side attacks `to`: the loop would stop at its first
     // step with the move standing. The pin filter only removes attackers, so
     // answering here is exact and skips the pin computation.
-    if (!(attackers_to(to, occ) & occ & occupancy[~stm]))
+    Bitboard attackers = attackers_to(to, occ) & occ;
+    if (!(attackers & occupancy[~stm]))
         return true;
 
     // Same pin exclusion as see() (see the comment there).
@@ -1884,7 +1928,15 @@ bool Board::see_ge(Move m, int threshold) const {
         return bb;
     };
 
-    Bitboard attackers = attackers_to(to, occ) & occ;
+    // The surplus `c` would add by recapturing now: its least valuable
+    // attacker is a pawn whenever it has one the pins allow.
+    auto promo_threat = [&](Color c) {
+        return promo_sq && pin_filtered(attackers & pieces[c][PAWN], c)
+             ? PROMO_SURPLUS : 0;
+    };
+    if (swap + promo_threat(~stm) <= 0)
+        return true;
+
     int result = 1;
 
     while (true) {
@@ -1915,12 +1967,27 @@ bool Board::see_ge(Move m, int threshold) const {
 
         result ^= 1;
         swap = SEE_VALUES[next_attacker] - swap;
-        if (swap < result)
+        if (swap < result && !promo_sq)
             break;
 
         Bitboard lva_bit = attacker_bb & (0ULL - attacker_bb);
         occ ^= lva_bit;
-        attackers = attackers_to(to, occ) & occ;
+        if (see_departure_opens_line(Square(lsb(lva_bit)), occ))
+            see_pins(occ, pinned, pinner_of);
+        // A piece attacking `to` stands on one of its lines, so taking it away
+        // opens that kind of line alone: pawns and bishops the diagonals, rooks
+        // the files and ranks, queens both.
+        attackers &= occ;
+        if (next_attacker == PAWN || next_attacker == BISHOP || next_attacker == QUEEN)
+            attackers |= bishop_attacks(to, occ) & occ
+                       & (pieces[WHITE][BISHOP] | pieces[WHITE][QUEEN]
+                          | pieces[BLACK][BISHOP] | pieces[BLACK][QUEEN]);
+        if (next_attacker == ROOK || next_attacker == QUEEN)
+            attackers |= rook_attacks(to, occ) & occ
+                       & (pieces[WHITE][ROOK] | pieces[WHITE][QUEEN]
+                          | pieces[BLACK][ROOK] | pieces[BLACK][QUEEN]);
+        if (promo_sq && swap + promo_threat(~stm) < result)
+            break;
     }
 
     return result != 0;

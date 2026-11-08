@@ -38,6 +38,24 @@ Example:
   -Dir tools/results/<experiment>
 ```
 
+A run where either side has more than one thread is sibling-free: the
+wrapper cuts Colosseum's automatic slots to one logical CPU per physical core
+and passes them as `--placement`, and refuses an automatic multi-thread slot
+(PROCESS *Harness*). A self-relative scaling leg plays one binary against
+itself, arm B at its own thread count or clock:
+
+```powershell
+./tools/colosseum.ps1 -Mode match -Games 1000 -Seed <seed> `
+  -EngineA tools/test_engines/<build>.exe -EngineB tools/test_engines/<build>.exe `
+  -NameA b-1t -NameB b-4t -Threads 1 -ThreadsB 4 -Hash 256 `
+  -RunFile tools/colosseum/match-fixed-ltc.toml -BaseMs 10000 -IncrementMs 100 `
+  -ExpectBench <bench>,<bench> -Dir tools/results/<leg>
+```
+
+`-BaseMsB`/`-IncrementMsB` give the time-odds leg (arm B at twice the clock).
+Start `tools/host_sampler.ps1 -OutDir tools/results/<leg>-sampler` beside a
+multi-thread leg and read it with `tools/diag/smp_read.py`.
+
 `tools/spsa_colosseum.ps1` runs the generated primary tune path and
 `tools/spsa.ps1` remains the weather-factory backup. `docs/PROCESS.md`'s *Harness*
 section owns the operator procedure and cross-check triggers.

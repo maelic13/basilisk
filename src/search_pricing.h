@@ -19,6 +19,10 @@
 // therefore visits exactly the nodes it visits with pricing off; a clock
 // would count the probes' time. The board's and evaluator's work counters
 // and the cross-colour history reads do include the probes. One thread only.
+//
+// Quiescence has no remaining depth to count by, so the cells of its move
+// rules carry the move's class in the depth slot instead (price_class below);
+// tools/diag/pricing.py reads those rules' depth as the class.
 
 #if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
 #define BASILISK_PRICING 1
@@ -34,7 +38,7 @@ enum class PriceRule : uint8_t {
     Razor, Rfp, NullMove, ProbCut, ProbCutTt, MultiCut, QsDelta,
     // Move rules: one move is not searched.
     CaptureFutility, CaptureSee, ContHist, QuietFutility, QuietSee, SkipQuiets,
-    QsFutility, QsSee, QsLate,
+    QsFutility, QsSee, QsLate, QsCount, QsEvasion,
     // A reduced search that failed low.
     LmrFailLow,
     Count
@@ -43,6 +47,13 @@ enum class PriceRule : uint8_t {
 // The node a decision was taken at: a PV node, an expected cut or all node,
 // or a null-window quiescence node.
 enum class PriceNode : uint8_t { Pv, Cut, All, Qs, Count };
+
+// A quiescence move's class: the piece it takes (PAWN to QUEEN, NO_PIECE_TYPE
+// for none) and whether it lands on the previous move's square.
+inline constexpr int PRICE_RECAPTURE = 6;
+[[nodiscard]] constexpr int price_class(PieceType victim, bool recapture) {
+    return static_cast<int>(victim) + (recapture ? PRICE_RECAPTURE : 0);
+}
 
 struct PriceCell {
     int64_t decisions = 0;    // the rule's decisions in the engine's own tree

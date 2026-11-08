@@ -284,7 +284,9 @@ static bool random_family(Lcg& rng, std::string& out_fen, Color winner,
             if (((a / 8 + a % 8) & 1) == ((c / 8 + c % 8) & 1)) continue;
         }
         Board probe;
-        if (!probe.try_set_fen(fen)) continue;
+        // Strict: a draw with the bare king in check, White to move, is not a
+        // chess position (24 of the 96 once were; the harness played them).
+        if (!probe.try_set_fen(fen, /*validate_legal_position=*/true)) continue;
         if (probe.is_in_check()) continue;      // side to move already in check
         MoveList ml; probe.gen_legal(ml);
         if (ml.empty()) continue;
@@ -309,7 +311,10 @@ constexpr double STALE_PLIES_RATIO = 2.0 / 3.0;
 // quiescence on it (`69ecf42`): KQ-K 24/24 both, mean 13.0 and 12.7 plies;
 // KR-K 24/24 both, 23.1 and 23.6; KBB-K 24/24 both, 25.3 and 25.2; KBN-K
 // 24/24 and 23/24, 49.7 and 55.0. Floors from the lower count, ceilings a
-// quarter above the higher mean.
+// quarter above the higher mean. Read again 2026-10-31 on the legal sample
+// (`43b4c35`): 24/24 in every family, means 12.2, 23.0, 24.4 and 54.4; and
+// 2026-11-05 on `7a926de`: 24/24 in every family, means 12.1, 21.2, 24.5 and
+// 56.2. Every bound holds, so none moves.
 constexpr int FLOOR_KQ = 24, FLOOR_KR = 24, FLOOR_KBB = 23, FLOOR_KBN = 22;
 constexpr double PLIES_KQ = 16.3, PLIES_KR = 29.5, PLIES_KBB = 31.6, PLIES_KBN = 68.8;
 

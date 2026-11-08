@@ -43,8 +43,10 @@ static const int TEST_DEPTH = 6;
 // floor of 130 sat 57 below the count and guarded nothing.
 // Cluster 2's arm turns nodes into depth, so its depth-6 tree is a different
 // budget: its floor is its own count (132 at bench 6,723,172) less the same
-// 13 of headroom.
-static const int FLOOR = kB3Proof ? 119 : 175;
+// 13 of headroom. Cluster 3's arm is likewise its own budget: its final tree
+// solves 149 at depth 6 (bench 4,003,560), above the stale bound of the floor
+// before it, and its floor is that count less 13.
+static const int FLOOR = 136;
 static const int STALE_HEADROOM = 20;
 
 static void test_request_parser() {

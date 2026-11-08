@@ -15,7 +15,8 @@ constexpr int CELLS = RULES * PruningPrice::DEPTHS * NODES * PruningPrice::MOVE_
 constexpr std::array<const char*, RULES> RULE_NAMES = {
     "razor", "rfp", "null_move", "probcut", "probcut_tt", "multicut", "qs_delta",
     "capture_futility", "capture_see", "cont_hist", "quiet_futility", "quiet_see",
-    "skip_quiets", "qs_futility", "qs_see", "qs_late", "lmr_fail_low"};
+    "skip_quiets", "qs_futility", "qs_see", "qs_late", "qs_count", "qs_evasion",
+    "lmr_fail_low"};
 constexpr std::array<const char*, NODES> NODE_NAMES = {"pv", "cut", "all", "qs"};
 constexpr std::array<const char*, PruningPrice::MOVE_BUCKETS> MOVE_NAMES = {
     "-", "1-3", "4-6", "7-10", "11-16", "17+"};

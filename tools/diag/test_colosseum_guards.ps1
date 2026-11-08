@@ -104,44 +104,81 @@ try {
     Invoke-Case 'unknown UCI option' 'does not advertise' {
         Assert-AdvertisedOptions $options @('NoSuchOption=1') 'armA'
     }
+    # Values against the advertised range, on a synthetic option table.
+    $ranged = @(
+        [pscustomobject]@{ Name = 'Hash'; Type = 'spin'; Min = 1; Max = 1024; Raw = 'option name Hash type spin default 16 min 1 max 1024' }
+        [pscustomobject]@{ Name = 'Ponder'; Type = 'check'; Min = $null; Max = $null; Raw = 'option name Ponder type check default false' }
+        [pscustomobject]@{ Name = 'Mode'; Type = 'combo'; Min = $null; Max = $null; Raw = 'option name Mode type combo default a var a var b' }
+    )
+    Invoke-Case 'control: option values in range' '' {
+        Assert-AdvertisedOptions $ranged @('Hash=1024', 'hash=1', 'Ponder=false', 'Mode=b', 'Hash') 'synthetic'
+        Assert-AdvertisedOptions $options @('Hash=64', 'Threads=1') 'armA'
+    }
+    Invoke-Case 'spin value above its range' 'Hash=1025 (outside' {
+        Assert-AdvertisedOptions $ranged @('Hash=1025') 'synthetic'
+    }
+    Invoke-Case 'spin value below its range' 'Hash=0 (outside' {
+        Assert-AdvertisedOptions $ranged @('Hash=0') 'synthetic'
+    }
+    Invoke-Case 'check value not boolean' 'not true or false' {
+        Assert-AdvertisedOptions $ranged @('Ponder=1') 'synthetic'
+    }
+    Invoke-Case 'combo value not listed' 'not one of a, b' {
+        Assert-AdvertisedOptions $ranged @('Mode=c') 'synthetic'
+    }
     Invoke-Case 'busy host threshold' 'HOST NOT IDLE' {
         Assert-HarnessHostIdle -MaxBusyPercent -1 | Out-Null
     }
 
-    $goodPlacement = [pscustomobject]@{
-        execution = [pscustomobject]@{
-            concurrency = 1
-            placement_policy = [pscustomobject]@{ mode = 'auto'; headroom_physical_cores = 1 }
-            allocation = [pscustomobject]@{ mode = 'shared'; cores_per_game = 4 }
-            slots = @([pscustomobject]@{
-                slot_index = 0
-                asymmetries = @()
-                engine_a = [pscustomobject]@{
-                    physical_core_count = 4
-                    allocation = [pscustomobject]@{
-                        mode = 'enforced'
-                        cpus = @(0..7 | ForEach-Object { [pscustomobject]@{ group = 0; number = $_ } })
-                    }
-                }
-                engine_b = [pscustomobject]@{
-                    physical_core_count = 4
-                    allocation = [pscustomobject]@{
-                        mode = 'enforced'
-                        cpus = @(0..7 | ForEach-Object { [pscustomobject]@{ group = 0; number = $_ } })
-                    }
-                }
-            })
+    # Resolved placements in the shape Colosseum 0.5.0 gives, on a synthetic
+    # host whose game cores are the even logical CPUs 2..30 (the 5950X's).
+    $hostGameCpus = @(1..15 | ForEach-Object { 2 * $_ })
+    function New-Cpus([int[]]$Numbers) { @($Numbers | ForEach-Object { [pscustomobject]@{ group = 0; number = $_ } }) }
+    function New-Placement([string]$Mode, [int[][]]$SlotCpus, [int[]]$Listed = @()) {
+        $policy = if ($Mode -eq 'auto') { [pscustomobject]@{ mode = 'auto'; headroom_physical_cores = 1 } }
+                  else { [pscustomobject]@{ mode = 'explicit'; cpus = (New-Cpus $Listed) } }
+        $index = 0
+        $slots = foreach ($cpus in $SlotCpus) {
+            $side = { [pscustomobject]@{ physical_core_count = 4
+                allocation = [pscustomobject]@{ mode = 'enforced'; cpus = (New-Cpus $cpus) } } }
+            [pscustomobject]@{ slot_index = $index++; asymmetries = @(); engine_a = (& $side); engine_b = (& $side) }
         }
+        [pscustomobject]@{ execution = [pscustomobject]@{
+            concurrency = $SlotCpus.Count; placement_policy = $policy
+            allocation = [pscustomobject]@{ mode = 'shared'; cores_per_game = 4 }; slots = @($slots) } }
     }
-    Invoke-Case 'control: resolved 4T placement' '' {
-        Assert-HarnessResolvedPlacement $goodPlacement 1 4
+    $autoPlacement = New-Placement 'auto' @(, @(2..9))
+    Invoke-Case '4T in an automatic slot' 'SMT siblings' {
+        Assert-HarnessResolvedPlacement $autoPlacement 1 4
+    }
+    Invoke-Case 'control: sibling-free list from the auto plan' '' {
+        $plan = New-Placement 'auto' @(@(2..9), @(16..23))
+        $list = @(Get-HarnessSiblingFreeCpuList -AutoResolved $plan -GameCpus $hostGameCpus)
+        if (($list -join ',') -ne '2,4,6,8,16,18,20,22') { throw "derived list is '$($list -join ',')'" }
+    }
+    $goodPlacement = New-Placement 'explicit' @(, @(2, 4, 6, 8)) @(2, 4, 6, 8)
+    Invoke-Case 'control: resolved 4T sibling-free placement' '' {
+        Assert-HarnessResolvedPlacement $goodPlacement 1 4 -Placement 'sibling-free' -GameCpus $hostGameCpus
+    }
+    $sibling = New-Placement 'explicit' @(, @(2, 3, 4, 6, 8)) @(2, 3, 4, 6, 8)
+    Invoke-Case 'SMT sibling in the explicit list' 'outside the game-core set (3)' {
+        Assert-HarnessResolvedPlacement $sibling 1 4 -Placement 'sibling-free' -GameCpus $hostGameCpus
+    }
+    Invoke-Case 'two logical CPUs on one core' 'logical CPUs on 4 physical cores' {
+        Assert-HarnessResolvedPlacement $sibling 1 4 -Placement 'sibling-free' -GameCpus @(2, 3, 4, 6, 8, 10)
+    }
+    Invoke-Case 'explicit list with no free game core' 'no game core free' {
+        Assert-HarnessResolvedPlacement $goodPlacement 1 4 -Placement 'sibling-free' -GameCpus @(2, 4, 6, 8)
+    }
+    Invoke-Case 'auto plan passed as sibling-free' "expected an explicit sibling-free list" {
+        Assert-HarnessResolvedPlacement $autoPlacement 1 4 -Placement 'sibling-free' -GameCpus $hostGameCpus
     }
     $badPlacement = $goodPlacement | ConvertTo-Json -Depth 8 | ConvertFrom-Json
     $badPlacement.execution.allocation.cores_per_game = 1
     $badPlacement.execution.slots[0].engine_a.physical_core_count = 1
     $badPlacement.execution.slots[0].engine_b.physical_core_count = 1
     Invoke-Case 'underallocated 4T placement' 'cores per game is 1, expected 4' {
-        Assert-HarnessResolvedPlacement $badPlacement 1 4
+        Assert-HarnessResolvedPlacement $badPlacement 1 4 -Placement 'sibling-free' -GameCpus $hostGameCpus
     }
 
     $wrongPin = Join-Path $scratch 'wrong-pin.json'
@@ -203,6 +240,35 @@ try {
         Dir = (Join-Path $scratch 'dry-run'); DryRun = $true; AllowBusyHost = $true
     }
     Invoke-Case 'control: wrapper dry run' '' { & $wrapper @base | Out-Null }
+    # Self-relative scaling: one binary at four threads against itself at
+    # one, and at twice the clock; both resolve sibling-free.
+    $selfThreads = $base.Clone()
+    $selfThreads.EngineB = $armA; $selfThreads.ExpectBench = @($benchA, $benchA)
+    $selfThreads.ThreadsB = 4
+    $selfThreads.Dir = Join-Path $scratch 'self-threads'
+    Invoke-Case 'control: 4T against 1T, sibling-free' '' {
+        & $wrapper @selfThreads | Out-Null
+        $manifest = Get-ChildItem (Join-Path $repo 'tools\results') -Filter 'colosseum_match_self-threads_*.manifest.txt' |
+            Sort-Object LastWriteTime | Select-Object -Last 1
+        $text = Get-Content -LiteralPath $manifest.FullName -Raw
+        if ($text -notmatch 'threads:\s+A 1, B 4' -or $text -notmatch 'placement:\s+sibling-free') { throw "manifest does not record it: $($manifest.Name)" }
+    }
+    $selfClock = $base.Clone()
+    $selfClock.EngineB = $armA; $selfClock.ExpectBench = @($benchA, $benchA)
+    $selfClock.BaseMsB = 6000; $selfClock.IncrementMsB = 60
+    $selfClock.Dir = Join-Path $scratch 'self-clock'
+    Invoke-Case 'control: time odds' '' { & $wrapper @selfClock | Out-Null }
+    $autoThreads = $selfThreads.Clone()
+    $autoThreads.Placement = 'auto'; $autoThreads.Dir = Join-Path $scratch 'auto-threads'
+    Invoke-Case 'auto placement at four threads' 'packs them on SMT siblings' { & $wrapper @autoThreads | Out-Null }
+    $nullOdds = $base.Clone()
+    $nullOdds.Mode = 'calibrate'; $nullOdds.EngineB = $armA; $nullOdds.ThreadsB = 4
+    $nullOdds.Dir = Join-Path $scratch 'null-odds'
+    Invoke-Case 'null pair with thread odds' 'refuses -ThreadsB' { & $wrapper @nullOdds | Out-Null }
+    $sameArms = $base.Clone()
+    $sameArms.EngineB = $armA; $sameArms.ExpectBench = @($benchA, $benchA)
+    $sameArms.Dir = Join-Path $scratch 'same-arms'
+    Invoke-Case 'identical arms outside calibrate' 'require -Mode calibrate' { & $wrapper @sameArms | Out-Null }
     $badPolicy = $base.Clone()
     $badPolicy.RunFile = Join-Path $repo 'tools\colosseum\match-fixed-ltc.toml'
     $badPolicy.Dir = Join-Path $scratch 'bad-policy'
@@ -232,6 +298,9 @@ try {
         Dir = (Join-Path $scratch 'gauntlet'); DryRun = $true; AllowBusyHost = $true
     }
     Invoke-Case 'control: external gauntlet provenance' '' { & $wrapper @gauntlet | Out-Null }
+    $gauntlet4 = $gauntlet.Clone()
+    $gauntlet4.Threads = 4; $gauntlet4.Dir = Join-Path $scratch 'gauntlet-4t'
+    Invoke-Case 'control: four-thread gauntlet, sibling-free' '' { & $wrapper @gauntlet4 | Out-Null }
     $wrongGauntletHash = $gauntlet.Clone()
     $wrongGauntletHash.ExpectSha256 = @($gauntlet.ExpectSha256[0], ('0' * 64))
     $wrongGauntletHash.Dir = Join-Path $scratch 'gauntlet-bad-hash'

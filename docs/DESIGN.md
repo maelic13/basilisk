@@ -51,7 +51,7 @@ gate, not a failure to deliver. See `agents/research.md`, "Refutation and refusa
   an only-move failure class and refuted the blanket claim that an evaluator
   cannot resolve it: Stockfish resolved the paired nodes at the same nominal
   budget. That result does not identify a transferable HCE mechanism or make a
-  recogniser equivalent to a gradient; PLAN C.5.4 owns the question.
+  recogniser equivalent to a gradient; PLAN C.7.4 owns the question.
 - **Draw scaling never asserts a draw it cannot prove.** Heuristic scaling is
   floored (`SCALE_FLOOR`) so a misfire discounts rather than throwing a win.
 
@@ -134,9 +134,11 @@ line names where it lives.
   must record the policy and never mix with natural-termination evidence.
 - Strength is measured at **3+0.03**, paired UHO openings, normalized Elo,
   **tablebases off** — the harness and the games are blind the same way.
-- **Bench signature** of the accepted head: `bench 13` = **5,361,058**
-  nodes (since B.3.6's gate indexed the histories by coloured piece.
-  Earlier: 5,369,042 at B.3.5's gate, which turned Cluster 2's proof
+- **Bench signature** of the accepted head: `bench 13` = **4,144,790**
+  nodes (since B.4.7's gates, which turned Cluster 3's quiescence on.
+  Earlier: 6,090,091 at B.4.2's SEE repairs of promotion recaptures and
+  created pins, 5,361,058 at B.3.6's gate, which indexed the histories
+  by coloured piece, 5,369,042 at B.3.5's gate, which turned Cluster 2's proof
   searches and extensions on; 11,880,564 at B.14's verdict guard, 16,615,757 at B.12's quiescence repair, 19,470,325 at A.13.2's
   pawnless scaler, 19,108,490 at A.13.1's
   won KPK, 16,092,165 at A.11.11's
@@ -178,8 +180,8 @@ The four layers, kept separate (`analysis/endgame_measurement_layers_v1.md`):
 
 - **The board is not the bottleneck, and "make it faster" is not a motivation.**
   BAS-X16 measured this source ahead of a peer engine by 22-46% on every board
-  microbenchmark. Board work starts as a **defect hunt** (PLAN B.15.1). The
-  review against Stockfish's and Triumviratus's boards (B.15.2, maintainer
+  microbenchmark. Board work starts as a **defect hunt** (PLAN B.7.1). The
+  review against Stockfish's and Triumviratus's boards (B.7.2, maintainer
   decision 2026-11-03) replaces a component only where the other form
   measures better, and keeps Basilisk's otherwise.
 - **Nodes-to-depth, not raw NPS, is where the peer gap lives.**

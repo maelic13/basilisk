@@ -20,6 +20,7 @@ namespace BasiliskHarness {
     public sealed class CpuCore {
         public int Cpu { get; set; }
         public int EfficiencyClass { get; set; }
+        public int[] Logical { get; set; }
     }
 
     public static class CpuTopology {
@@ -66,6 +67,7 @@ namespace BasiliskHarness {
                             throw new InvalidOperationException("A physical core has no logical processors.");
                         result.Add(new CpuCore {
                             Cpu = logical.Min(),
+                            Logical = logical.OrderBy(c => c).ToArray(),
                             EfficiencyClass = efficiencyClass
                         });
                     }
@@ -222,22 +224,84 @@ function Get-HarnessAffinityCpuList {
     (($cores | Select-Object -First $needed).Cpu -join ',')
 }
 
+function Get-HarnessSiblingFreeCpuList {
+    <#
+        The explicit placement list for a multi-thread run: Colosseum's own
+        automatic slots (which keep a slot inside one cache domain and leave a
+        core of headroom), each cut to one logical CPU per physical core, the
+        game-core set's. An automatic slot holds both SMT siblings of its
+        cores, and Windows packs a four-thread engine onto two or three cores'
+        siblings inside it, where a thread keeps about 0.63 of its work
+        (Rarog RAR-P54, RAR-M82: 2.65 times one thread packed, 4.03
+        sibling-free).
+    #>
+    param(
+        [Parameter(Mandatory)][object]$AutoResolved,
+        [int[]]$GameCpus = @()
+    )
+
+    if ("$($AutoResolved.execution.placement_policy.mode)" -ne 'auto') {
+        throw 'the sibling-free list is derived from an automatic plan'
+    }
+    if (-not $GameCpus.Count) { $GameCpus = @(Get-HarnessGameCpus | ForEach-Object { [int]$_.Cpu }) }
+    $list = [System.Collections.Generic.List[int]]::new()
+    foreach ($slot in @($AutoResolved.execution.slots)) {
+        foreach ($cpu in @($slot.engine_a.allocation.cpus)) {
+            if ([int]$cpu.group -ne 0) { throw 'an explicit placement list names group-0 logical CPUs only' }
+            if ($GameCpus -contains [int]$cpu.number) { $list.Add([int]$cpu.number) }
+        }
+    }
+    if (-not $list.Count) { throw 'the automatic plan holds no game core' }
+    @($list)
+}
+
 function Assert-HarnessResolvedPlacement {
-    <# Verify that a non-ponder match received one physical core per engine thread. #>
+    <#
+        Verify that a non-ponder match received one physical core per engine
+        thread. A one-thread run uses automatic placement with a core of
+        headroom; a multi-thread run names its game cores explicitly, one
+        logical CPU per physical core (Get-HarnessSiblingFreeCpuList), with
+        a game core left free.
+    #>
     param(
         [Parameter(Mandatory)][object]$Resolved,
         [Parameter(Mandatory)][int]$ExpectedConcurrency,
-        [Parameter(Mandatory)][int]$ThreadsPerGame
+        [Parameter(Mandatory)][int]$ThreadsPerGame,
+        [ValidateSet('auto', 'sibling-free')][string]$Placement = 'auto',
+        [int[]]$GameCpus = @()
     )
 
     if ([int]$Resolved.execution.concurrency -ne $ExpectedConcurrency) {
         throw "concurrency is $($Resolved.execution.concurrency), expected $ExpectedConcurrency"
     }
-    if ("$($Resolved.execution.placement_policy.mode)" -ne 'auto') {
-        throw 'placement is not auto'
-    }
-    if ([int]$Resolved.execution.placement_policy.headroom_physical_cores -lt 1) {
-        throw 'placement leaves no physical-core headroom'
+    $policy = $Resolved.execution.placement_policy
+    if ($Placement -eq 'auto') {
+        if ($ThreadsPerGame -gt 1) {
+            throw ("placement is auto for Threads=$ThreadsPerGame; an automatic slot holds both SMT siblings " +
+                "of its cores and Windows packs the threads on them, so a multi-thread run is sibling-free")
+        }
+        if ("$($policy.mode)" -ne 'auto') {
+            throw 'placement is not auto'
+        }
+        if ([int]$policy.headroom_physical_cores -lt 1) {
+            throw 'placement leaves no physical-core headroom'
+        }
+    } else {
+        if ("$($policy.mode)" -ne 'explicit') {
+            throw "placement is '$($policy.mode)', expected an explicit sibling-free list"
+        }
+        if (-not $GameCpus.Count) { $GameCpus = @(Get-HarnessGameCpus | ForEach-Object { [int]$_.Cpu }) }
+        $listed = @($policy.cpus | ForEach-Object { [int]$_.group * 64 + [int]$_.number } | Sort-Object -Unique)
+        $notGame = @($listed | Where-Object { $GameCpus -notcontains $_ })
+        if ($notGame.Count) {
+            throw ("explicit placement names logical CPUs outside the game-core set (" + ($notGame -join ',') +
+                "): one logical CPU per physical core, never CPU 0, no SMT sibling")
+        }
+        $slotCpus = @($Resolved.execution.slots | ForEach-Object { $_.engine_a.allocation.cpus } |
+            ForEach-Object { [int]$_.group * 64 + [int]$_.number })
+        if (-not @($GameCpus | Where-Object { $slotCpus -notcontains $_ }).Count) {
+            throw 'explicit placement leaves no game core free as headroom'
+        }
     }
     if ("$($Resolved.execution.allocation.mode)" -ne 'shared') {
         throw "allocation mode is '$($Resolved.execution.allocation.mode)', expected shared"
@@ -262,6 +326,10 @@ function Assert-HarnessResolvedPlacement {
             }
             if ([int]$allocation.physical_core_count -ne $ThreadsPerGame) {
                 throw "slot $($slot.slot_index) $side has $($allocation.physical_core_count) physical cores, expected $ThreadsPerGame"
+            }
+            $logical = @($allocation.allocation.cpus).Count
+            if ($Placement -eq 'sibling-free' -and $logical -ne $ThreadsPerGame) {
+                throw "slot $($slot.slot_index) $side has $logical logical CPUs on $ThreadsPerGame physical cores; a sibling-free slot has one per core"
             }
         }
         $aCpus = @($slot.engine_a.allocation.cpus | ForEach-Object { "$($_.group):$($_.number)" })
@@ -359,6 +427,31 @@ function Assert-AdvertisedOptions {
         Where-Object { $have -notcontains (& $normalize $_) })
     if ($missing.Count -gt 0) {
         throw "$Label does not advertise: $($missing -join ', '). Rebuild it before measuring; the runner would otherwise use defaults."
+    }
+    # The engine clamps a spin value to its range without a word, so an arm set
+    # outside it would measure the clamp, not the value asked for.
+    $refused = foreach ($item in @($Wanted | Where-Object { $_ -and $_.Contains('=') })) {
+        $name, $value = $item -split '=', 2
+        $value = $value.Trim()
+        $option = @($Advertised | Where-Object { (& $normalize $_.Name) -eq (& $normalize $name) }) | Select-Object -First 1
+        if (-not $option) { continue }
+        switch ("$($option.Type)".ToLowerInvariant()) {
+            'spin' {
+                $number = 0L
+                if (-not [long]::TryParse($value, [ref]$number)) { "$item (not an integer)" }
+                elseif (($null -ne $option.Min -and $number -lt $option.Min) -or ($null -ne $option.Max -and $number -gt $option.Max)) {
+                    "$item (outside [$($option.Min), $($option.Max)])"
+                }
+            }
+            'check' { if ($value -notin @('true', 'false')) { "$item (not true or false)" } }
+            'combo' {
+                $vars = @([regex]::Matches("$($option.Raw)", '(?:^|\s)var\s+(\S+)') | ForEach-Object { $_.Groups[1].Value })
+                if ($vars.Count -and $vars -notcontains $value) { "$item (not one of $($vars -join ', '))" }
+            }
+        }
+    }
+    if (@($refused).Count -gt 0) {
+        throw "OPTION OUT OF RANGE - $Label would clamp or reject: $(@($refused) -join '; ')."
     }
 }
 

@@ -18,7 +18,9 @@ leaves to their current identifiers. Rows from BAS-X30 on cite the lettered
 roadmap. Rarog identifiers (`RAR-*`) and Rarog paths cited anywhere in this
 ledger resolve in the pinned snapshot `docs/reference/rarog/` (Rarog
 `015bccae`), or for BAS-X35 in `docs/reference/rarog-2026-10-06/`, or for
-BAS-X36 in Rarog's live repository at `ec6f5b5`, read under A.12's exception;
+BAS-X36 in Rarog's live repository at `ec6f5b5`, or for BAS-X41 at `019646a`
+(with the run artifacts copied to `tools/results/imported-rarog-2026-11-04/`),
+read under A.12's exception;
 `docs/reference/README.md` says how. Triumviratus items (`TS-1`, `TB-1`
 and the like) and paths cited by BAS-X37–X40 resolve in
 `analysis/triumviratus_review_2026-11-03.md` and the snapshots
@@ -533,6 +535,16 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S47](experiments/BAS-S47.md) — B.16.2: what pruning and reductions hide, each rule's decisions searched again as denied — observation: instrument validated (isolation clean, planted rules higher); most hidden: quiescence futility, reduced fail-lows, reverse futility; razoring 12.4% (25% at cut nodes)
 
+- [BAS-S48](experiments/BAS-S48.md) — B.4.2: SEE scores promoting recaptures, `[-5,5]` — cap, +1.9 ± 4.4; repair kept
+
+- [BAS-S49](experiments/BAS-S49.md) — B.4.2: SEE follows pins opened during the exchange, `[-5,5]` — cap, −3.8 ± 7.6; repair kept
+
+- [BAS-S50](experiments/BAS-S50.md) — B.4.5: Cluster 3 diagnostics, the unfitted paired run and the categoricals — paired +29.3 ± 9.5; every default stands
+
+- [BAS-S51](experiments/BAS-S51.md) — B.4.6: the Cluster 3 curvature sweep, then SPSA in blocks — one block, theta baked per arm, ON `bench 13` 4,144,790
+
+- [BAS-S52](experiments/BAS-S52.md) — B.4.7: the Cluster 3 gates — H1, +31.7 ± 8.6 Elo; `B4_QSEARCH` defaults ON, `bench 13` 4,144,790
+
 | ID | Title | Disposition |
 |---|---|---|
 | [BAS-S17](experiments/BAS-S17.md) | Razoring depth reach in Elo (B.0.1, maintainer). | +2.4 ± 9.9; interval holds 0, the cluster decides the cap |
@@ -629,6 +641,7 @@ not accept any new feature, vector or label policy by themselves.
 | [BAS-P26](experiments/BAS-P26.md) | Instruction-specific speed: compressed PEXT tables and code generation. | COMPLETE: nothing faster; compressed −0.98%, znver3 tuning −0.95%, v3 +0.02%; native's −1.04% is its tuning |
 | [BAS-P27](experiments/BAS-P27.md) | Clang for Microsoft's ABI from winget against the MSYS2 build. | COMPLETE: −5.10% [−5.28, −4.92], FAIL (Windows stays on MSYS2) |
 | [BAS-P28](experiments/BAS-P28.md) | Speed at an identical tree from hardware counters, validated on BAS-P25 (B.16.4). | Registered; the read runs at B.15.4 |
+| [BAS-P29](experiments/BAS-P29.md) | The evaluation's material, SEE's exchange and the quiet stage made cheaper (B.4.5). | COMPLETE: arm +3.99% [+3.84, +4.14], OFF +4.16% [+4.00, +4.33], kept |
 
 ## 7. Correctness and protocol lessons
 
@@ -642,7 +655,7 @@ not accept any new feature, vector or label policy by themselves.
 | [BAS-C06](experiments/BAS-C06.md) | Positive Syzygy tests depended on `D:\\chess\\Syzygy345`; when that private directory was absent | Test-instrument repair accepted; search unchanged. |
 | [BAS-C07](experiments/BAS-C07.md) | `Board` exposed writable bitboards, occupancies, mailbox, king/check caches, incremental keys and u… | API containment accepted; search unchanged. |
 | [BAS-C08](experiments/BAS-C08.md) | SEE king legality (15.0.a). | Repaired and closed 2026-09-09. |
-| [BAS-C09](experiments/BAS-C09.md) | Created pins and recapture promotions (15.0.c). | CLOSED 2026-09-10 as a documented approximation, no engine… |
+| [BAS-C09](experiments/BAS-C09.md) | Created pins and recapture promotions (15.0.c). | Approximation closed 2026-09-10; both repaired 2026-11-05 in B.4.2 (BAS-S48, BAS-S49) |
 | [BAS-C10](experiments/BAS-C10.md) | Lost `ponderhit` after an instant opponent reply (1.10.1). | Fixed in 1.10.1; bench unchanged at 14,978,465. |
 | [BAS-C11](experiments/BAS-C11.md) | Setup work charged to the clock (1.10.1). | Repaired 2026-09-27; bench unchanged at 14,978,465. |
 | [BAS-C12](experiments/BAS-C12.md) | Rejected `position` searched the previous board (1.10.1). | Policy flipped by maintainer decision 2026-09-27; bench unc… |
@@ -727,6 +740,7 @@ evaluator is weaker than Basilisk's, and its verdicts do not transfer
 | [BAS-X34](experiments/BAS-X34.md) | Rarog's measurements of Basilisk and of the target pool | import |
 | [BAS-X35](experiments/BAS-X35.md) | Rarog 2.4.0→2.5.0, the final import | import |
 | [BAS-X36](experiments/BAS-X36.md) | One longer tune near an optimum (rule 7c's amendment) | import |
+| [BAS-X41](experiments/BAS-X41.md) | Self-relative thread scaling, sibling-free: Stockfish 18 and Reckless as D.2's references | import |
 
 ## 8b. Cross-engine evidence imported from Manta
 

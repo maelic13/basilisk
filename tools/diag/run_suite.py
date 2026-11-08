@@ -121,6 +121,35 @@ assert len(B3_COUNTER_UNITS) == 22
 assert not set(B3_COUNTER_UNITS) & (set(CORE_COUNTER_UNITS) | set(B2_COUNTER_UNITS))
 
 
+# Quiescence's counters and what its depth-0 entries feed in the main search.
+# Each is read against the denominator its engine table names. Validated when
+# present, all or none.
+B4_COUNTER_UNITS = {
+    **{name: "nodes" for name in """
+        qs_pv_nodes qs_tt_cutoffs qs_standpat_cuts qs_standpat_refined
+        qs_delta_pruned qs_cap_hits qs_fail_highs qs_fail_high_first
+        qs_fail_lows qs_fail_low_searched qs_evasion_fail_highs
+        qs_evasion_fail_high_first qs_evasion_tt_move qs_evasion_tt_cuts
+        eval_refined eval_refined_d0 tt_move_d0 rfp_cuts_tt_eval
+        rfp_corr_blocked rfp_corr_blocked_tt_eval qs_stalemates
+        rfp_seekmate_capped
+    """.split()},
+    **{name: "moves" for name in """
+        qs_moves qs_futility_pruned qs_see_pruned qs_late_pruned qs_searched
+        qs_evasion_moves qs_fail_high_index_sum qs_evasion_fail_high_index_sum
+        qs_count_pruned qs_recapture_exempt qs_evasion_quiets_pruned
+        qs_evasion_see_pruned qs_quiet_checks qs_gain_tested
+    """.split()},
+    **{name: "evaluation units" for name in """
+        qs_standpat_excess qs_standpat_refine_mass qs_fail_high_excess
+        eval_refine_mass eval_refine_mass_d0
+    """.split()},
+}
+assert len(B4_COUNTER_UNITS) == 41
+assert not set(B4_COUNTER_UNITS) & (set(CORE_COUNTER_UNITS) | set(B2_COUNTER_UNITS)
+                                    | set(B3_COUNTER_UNITS))
+
+
 def pct(a, b):
     return 100.0 * a / b if a is not None and b else 0.0
 
@@ -316,6 +345,56 @@ def validate_diag(counters):
                 c["pv_quiet_pruned"] <= c.get("moveloop_tested", 0)
             ),
         })
+    present = set(B4_COUNTER_UNITS) & set(counters)
+    if present and present != set(B4_COUNTER_UNITS):
+        raise ValueError("partial quiescence counters: missing "
+                         + ", ".join(sorted(set(B4_COUNTER_UNITS) - present)))
+    if present:
+        c = counters
+        checks.update({
+            "quiescence node populations within its nodes": (
+                c["qs_pv_nodes"] <= c["qs_nodes"]
+                and c["qs_tt_cutoffs"] + c["qs_standpat_cuts"] + c["qs_delta_pruned"]
+                + c["qs_cap_hits"] + c["qs_fail_highs"] + c["qs_fail_lows"]
+                + c["qs_evasion_nodes"] <= c["qs_nodes"]
+            ),
+            # A quiet check counts as searched and was never a delivered capture.
+            "quiescence move rules within its captures": (
+                c["qs_futility_pruned"] + c["qs_see_pruned"] + c["qs_late_pruned"]
+                + c["qs_count_pruned"] + c["qs_searched"] - c["qs_quiet_checks"]
+                <= c["qs_moves"]
+            ),
+            "quiescence recaptures exempt and gains tested within what the loop delivered": (
+                c["qs_recapture_exempt"] + c["qs_gain_tested"]
+                <= c["qs_searched"] - c["qs_quiet_checks"]
+                + c["qs_futility_pruned"] + c["qs_see_pruned"] + c["qs_late_pruned"]
+                + c["qs_count_pruned"]
+            ),
+            "quiescence's rare exits within its nodes": (
+                c["qs_stalemates"] <= c["qs_fail_lows"] + c["qs_fail_highs"]
+                and c["qs_quiet_checks"] <= c["qs_searched"]
+            ),
+            "quiescence fail highs are bounded": (
+                c["qs_fail_high_first"] <= c["qs_fail_highs"] <= c["qs_searched"]
+                and c["qs_fail_low_searched"] <= c["qs_fail_lows"]
+            ),
+            "evasion fail highs are bounded": (
+                c["qs_evasion_fail_high_first"] <= c["qs_evasion_fail_highs"]
+                <= c["qs_evasion_nodes"]
+                and c["qs_evasion_fail_highs"] <= c["qs_evasion_moves"]
+                and c["qs_evasion_tt_cuts"] <= c["qs_evasion_fail_highs"]
+                and c["qs_evasion_tt_move"] <= c["qs_evasion_nodes"]
+            ),
+            "depth-0 shares within their totals": (
+                c["eval_refined_d0"] <= c["eval_refined"] <= c["interior_nodes"]
+                and c["eval_refine_mass_d0"] <= c["eval_refine_mass"]
+                and c["tt_move_d0"] <= c["interior_nodes"]
+            ),
+            "reverse futility by source within its cuts": (
+                c["rfp_cuts_tt_eval"] <= c["rfp_cuts"]
+                and c["rfp_corr_blocked_tt_eval"] <= c["rfp_corr_blocked"]
+            ),
+        })
     failed = [name for name, passed in checks.items() if not passed]
     if failed:
         raise ValueError("diagnostic invariant failed: " + "; ".join(failed))
@@ -432,7 +511,8 @@ def main():
               "depth": args.depth, "nodes": args.nodes, "hash_mb": args.hash,
               "sampling_stride": 1, "counter_units": CORE_COUNTER_UNITS,
               "b2_counter_units": B2_COUNTER_UNITS,
-              "b3_counter_units": B3_COUNTER_UNITS}
+              "b3_counter_units": B3_COUNTER_UNITS,
+              "b4_counter_units": B4_COUNTER_UNITS}
 
     # A fresh engine process is started per position, so options are re-applied
     # every time rather than once at startup.

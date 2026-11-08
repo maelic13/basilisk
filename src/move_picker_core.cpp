@@ -6,15 +6,26 @@
 void partial_insertion_sort(ScoredMove* begin, ScoredMove* end, int limit) {
     if (end - begin < 2)
         return;
-    for (ScoredMove *sorted_end = begin, *p = begin + 1; p < end; ++p)
-        if (p->score >= limit) {
-            const ScoredMove tmp = *p;
-            *p = *++sorted_end;
-            ScoredMove* q = sorted_end;
-            for (; q != begin && (q - 1)->score < tmp.score; --q)
-                *q = *(q - 1);
-            *q = tmp;
-        }
+    // The scores decide this scan at random, so it does not branch on them: each
+    // move at or above the limit swaps into the prefix, and a move below it
+    // swaps with itself. The prefix then holds its moves in arrival order.
+    ScoredMove* sorted_end = begin;
+    for (ScoredMove* p = begin + 1; p < end; ++p) {
+        const ScoredMove tmp = *p;
+        ScoredMove* const slot = sorted_end + 1;
+        const bool above = tmp.score >= limit;
+        ScoredMove* const swap_with = above ? slot : p;
+        *p = *swap_with;
+        *swap_with = tmp;
+        sorted_end += above;
+    }
+    for (ScoredMove* p = begin + 1; p <= sorted_end; ++p) {
+        const ScoredMove tmp = *p;
+        ScoredMove* q = p;
+        for (; q != begin && (q - 1)->score < tmp.score; --q)
+            *q = *(q - 1);
+        *q = tmp;
+    }
 }
 
 int CoreMovePicker::root_ordering(Move m) const {
@@ -74,11 +85,10 @@ void CoreMovePicker::score_quiets(int begin, int end) {
 
     // A quiet move away from a square a cheaper enemy piece attacks escapes a
     // threat; one onto such a square walks into it. Pawns and kings have no
-    // cheaper attacker that matters here.
-    const Threats threats = threats_against(board_, us);
-    const Bitboard threat_by_lesser[PIECE_TYPE_NB] = {
-        0, 0, threats.by_pawn, threats.by_pawn, threats.by_minor, threats.by_rook, 0};
-
+    // cheaper attacker that matters here. So the attack maps wait for the first
+    // quiet of another piece: an evasion's quiets are often king moves alone.
+    Bitboard threat_by_lesser[PIECE_TYPE_NB] = {};
+    bool threats_known = false;
 
     const auto& main = history_.main.entry[us];
     const auto* low_ply = ply_ < LowPlyHistory::PLIES ? &history_.low_ply.entry[ply_] : nullptr;
@@ -104,9 +114,18 @@ void CoreMovePicker::score_quiets(int begin, int end) {
         if ((checks_for(pt) & sq_bb(to)) && board_.see_ge(m, -75))
             v += 16384;
 
-        v += HIST_PIECE_VALUE[pt] * 20
-           * (int((threat_by_lesser[pt] & sq_bb(from)) != 0)
-              - int((threat_by_lesser[pt] & sq_bb(to)) != 0));
+        if (pt != KING && pt != PAWN) {
+            if (!threats_known) {
+                const Threats threats = threats_against(board_, us);
+                threat_by_lesser[KNIGHT] = threat_by_lesser[BISHOP] = threats.by_pawn;
+                threat_by_lesser[ROOK] = threats.by_minor;
+                threat_by_lesser[QUEEN] = threats.by_rook;
+                threats_known = true;
+            }
+            v += HIST_PIECE_VALUE[pt] * 20
+               * (int((threat_by_lesser[pt] & sq_bb(from)) != 0)
+                  - int((threat_by_lesser[pt] & sq_bb(to)) != 0));
+        }
 
         if (low_ply)
             v += 8 * (*low_ply)[from][to] / (1 + ply_);
