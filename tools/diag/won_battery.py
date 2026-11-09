@@ -128,14 +128,25 @@ def hole_class(soft: int, hard: int, start: int, length: int, wall: float, fired
     return None
 
 
-def parse_search(lines: list[str], wall_ms: float) -> dict:
-    """One search's row from its output."""
+def completed_iterations(lines: list[str]) -> dict[int, str]:
+    """Each completed iteration's line: exact, and the last one of its depth."""
     completed: dict[int, str] = {}
     for line in lines:
         match = EXACT_DEPTH.match(line)
         if match and " score " in line and "bound" not in line and " pv " in line:
             completed[int(match.group(1))] = line
-    firsts = [completed[depth].split(" pv ")[1].split()[0] for depth in completed]
+    return completed
+
+
+def root_changes(completed: dict[int, str]) -> int:
+    """The root's best-move changes between completed iterations."""
+    firsts = [line.split(" pv ")[1].split()[0] for line in completed.values()]
+    return sum(a != b for a, b in zip(firsts, firsts[1:]))
+
+
+def parse_search(lines: list[str], wall_ms: float) -> dict:
+    """One search's row from its output."""
+    completed = completed_iterations(lines)
     last = completed[next(reversed(completed))] if completed else ""
     tm = next((m for m in map(TM_LINE.search, lines) if m), None)
     counters = {name: int(value) for line in lines for name, value in COUNTER.findall(line)}
@@ -146,7 +157,7 @@ def parse_search(lines: list[str], wall_ms: float) -> dict:
            "depth": max(completed, default=None), "score": score.group(1) if score else None,
            "nodes": counters["interior_nodes"] + counters["qs_nodes"] if {"interior_nodes", "qs_nodes"} <= set(counters) else None,
            "nodes_last_depth": int(nodes_last.group(1)) if nodes_last else None,
-           "iterations": len(firsts), "changes": sum(a != b for a, b in zip(firsts, firsts[1:])),
+           "iterations": len(completed), "changes": root_changes(completed),
            "fired": counters.get("fhstop_fired"), "longest_start_ms": None, "longest_ms": None, "hole": None,
            "bestmove": best[1] if best and len(best) > 1 else None}
     if tm:

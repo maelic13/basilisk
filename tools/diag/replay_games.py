@@ -6,7 +6,9 @@ side played, `position ... moves ...` and `go` with both clocks rebuilt from the
 PGN's `t=` comments and the header's control. `TM_Debug` and `Diag` are on, so a
 row holds the budget the engine set, what the search spent and the counters of
 the fail-high stop's firing read (the aspiration counters, `fhstop_fired`, the
-ply-cap counters, the longest window's start and length).
+ply-cap counters, the time manager's effort counters, the longest window's start
+and length), and the root's best-move changes over its completed iterations.
+`replay_read.py` turns the rows into the firing read's outputs.
 
 The game is replayed, not played: the engine's own move is thrown away and the
 game's next position is searched, so every arm reads the same positions at the
@@ -37,7 +39,10 @@ try:
 except ImportError:  # pragma: no cover
     sys.exit("python-chess is required: pip install chess")
 
-CONTROL = re.compile(r"white (\d+)ms\+(\d+)ms; black (\d+)ms\+(\d+)ms")
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from won_battery import completed_iterations, root_changes
+
+CONTROL =re.compile(r"white (\d+)ms\+(\d+)ms; black (\d+)ms\+(\d+)ms")
 COMMENT_TIME = re.compile(r"\bt=(\d+)ms")
 INFO_SCORE = re.compile(r"\bscore (cp|mate) (-?\d+)")
 INFO_DEPTH = re.compile(r"^info depth (\d+)\b")
@@ -141,8 +146,14 @@ def search_row(engine: Engine, root_fen: str, row: dict) -> dict:
     wall_ms = (time.perf_counter() - began) * 1000.0
     engine.send("isready")
     lines += engine.read_until("readyok")
+    return parse_row(lines, wall_ms)
 
-    out: dict = {"wall_ms": round(wall_ms, 1), "score": None, "depth": 0}
+
+def parse_row(lines: list[str], wall_ms: float) -> dict:
+    """A search's row from its output."""
+    completed = completed_iterations(lines)
+    out: dict = {"wall_ms": round(wall_ms, 1), "score": None, "depth": 0,
+                 "iterations": len(completed), "changes": root_changes(completed)}
     counters: dict[str, int] = {}
     tm = None
     for line in lines:

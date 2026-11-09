@@ -106,5 +106,40 @@ class ClockReconstruction(unittest.TestCase):
             replay_games.rebuild_clocks(read(no_time))
 
 
+KV = ("info string diag kv asp_windows=9 asp_fail_low=1 asp_fail_high=2 asp_researches=3 asp_giveup=0 "
+      "asp_nodes_windowed=8 asp_nodes_failed=4 asp_nodes_giveup=0 asp_fail_high_research_nodes=2 fhstop_fired=1 "
+      "ply_cap_hits=0 ply_cap_in_check=0 qs_ply_cap_hits=0 qs_ply_cap_in_check=0 root_effort_hi=3 root_effort_lo=5 "
+      "interior_nodes=70 qs_nodes=30")
+TM = "info string tm soft_ms=75 hard_ms=403 elapsed_ms=38 dispatch_ms=0 longest_window_start_ms=16 longest_window_ms=8"
+
+
+def depth(number, move, kind=""):
+    return f"info depth {number} seldepth {number} multipv 1 score cp 50{kind} nodes 9 nps 1 time 1 pv {move} a7a6"
+
+
+class SearchRow(unittest.TestCase):
+    LINES = [depth(1, "e2e4"), depth(2, "d2d4"), depth(3, "g1f3", " lowerbound"), depth(3, "d2d4"), depth(4, "e2e4"),
+             depth(5, "c2c4", " upperbound"), KV, TM, "bestmove e2e4"]
+
+    def test_a_row_counts_the_best_move_changes_of_its_completed_iterations(self):
+        row = replay_games.parse_row(self.LINES, 40.0)
+        self.assertEqual((row["iterations"], row["changes"]), (4, 2))
+
+    def test_the_row_reads_the_last_line_as_before(self):
+        row = replay_games.parse_row(self.LINES, 40.0)
+        self.assertEqual((row["depth"], row["score"], row["wall_ms"], row["elapsed"]), (5, "cp 50", 40.0, 38))
+        self.assertEqual((row["optimum"], row["maximum"], row["longest_window_start"], row["longest_window"]), (75, 403, 16, 8))
+
+    def test_a_row_carries_the_time_managers_inputs(self):
+        row = replay_games.parse_row(self.LINES, 40.0)
+        self.assertEqual((row["root_effort_hi"], row["root_effort_lo"], row["asp_windows"], row["fhstop_fired"]), (3, 5, 9, 1))
+
+    def test_a_missing_counter_or_tm_line_stops_the_read(self):
+        with self.assertRaisesRegex(SystemExit, "root_effort_lo"):
+            replay_games.parse_row([depth(1, "e2e4"), KV.replace("root_effort_lo=5 ", ""), TM], 1.0)
+        with self.assertRaisesRegex(SystemExit, "no tm line"):
+            replay_games.parse_row([depth(1, "e2e4"), KV], 1.0)
+
+
 if __name__ == "__main__":
     unittest.main()
