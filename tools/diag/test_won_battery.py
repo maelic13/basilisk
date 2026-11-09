@@ -137,6 +137,11 @@ class Parse(unittest.TestCase):
         self.assertEqual(self.classify(100, 1800, soft=1000, hard=1900), "before")
         self.assertIsNone(self.classify(100, 1700, soft=1000, hard=1900))
 
+    def test_without_the_counter_a_late_search_is_still_classed_by_its_start(self):
+        row = self.row([line(1, "e2e4"), tm(soft=1000, hard=8000, elapsed=5000, start=900, length=4100), "bestmove e2e4"], 5000.0)
+        self.assertIsNone(row["fired"])
+        self.assertEqual(row["hole"], "before")
+
     def test_a_late_search_whose_longest_ended_early_is_named_apart(self):
         self.assertEqual(self.classify(100, 1000, wall=2500), "other")
 
@@ -168,6 +173,10 @@ class Summary(unittest.TestCase):
             "changes_per_iteration": 0.08, "hole_before": 1, "hole_after": 1, "hole_other": 0, "fired": 1})
         self.assertEqual(table["W"]["changes_per_iteration"], 0.5)
         self.assertEqual(table["W"]["over_half"], 0)
+
+    def test_a_read_without_diag_says_it_did_not_read_the_stop(self):
+        rows = [{**row, "fired": None} for row in self.ROWS]
+        self.assertIsNone(won_battery.summarize(rows)["E"]["fired"])
 
 
 def column(over_half, spend):
@@ -225,6 +234,24 @@ NEVER = UCI_HEAD + textwrap.indent(textwrap.dedent("""\
     elif line.startswith('go'):
         print('info depth 1 seldepth 1 multipv 1 score cp 900 nodes 7 nps 1 time 1 pv a1a2', flush=True)
 """), "    ")
+# Answers only when Diag was not set, or only when it was: Diag slows a search, and a clock read must not carry it unasked.
+NO_DIAG = UCI_HEAD + textwrap.indent(textwrap.dedent("""    elif line.startswith('setoption name Diag'):
+        sys.exit(4)
+    elif line.startswith('go'):
+        print('info string tm soft_ms=10 hard_ms=80 elapsed_ms=1 dispatch_ms=0 longest_window_start_ms=0 longest_window_ms=1', flush=True)
+        print('bestmove a1a2', flush=True)
+    elif line.startswith('quit'):
+        break
+"""), "    ")
+NEEDS_DIAG = UCI_HEAD + textwrap.indent(textwrap.dedent("""    elif line.startswith('setoption name Diag value true'):
+        seen = True
+    elif line.startswith('go') and 'seen' in globals():
+        print('info string diag kv fhstop_fired=1 interior_nodes=5 qs_nodes=2', flush=True)
+        print('info string tm soft_ms=10 hard_ms=80 elapsed_ms=1 dispatch_ms=0 longest_window_start_ms=0 longest_window_ms=1', flush=True)
+        print('bestmove a1a2', flush=True)
+    elif line.startswith('quit'):
+        break
+"""), "    ")
 DIES_AT_GO = UCI_HEAD + textwrap.indent("elif line.startswith('go'):\n    sys.exit(3)\n", "    ")
 SILENT = "import sys\nfor line in sys.stdin:\n    pass\n"
 WANTS_OPTION = UCI_HEAD + textwrap.indent(textwrap.dedent("""\
@@ -245,15 +272,26 @@ class Engine(unittest.TestCase):
         self.addCleanup(directory.cleanup)
         self.directory = pathlib.Path(directory.name)
 
-    def search(self, source, watchdog=20.0, options=()):
+    def search(self, source, watchdog=20.0, options=(), **keywords):
         script = self.directory / "engine.py"
         script.write_text(source, encoding="utf-8")
-        return won_battery.search([sys.executable, str(script)], FEN, 60000, 600, list(options), 64, watchdog)
+        return won_battery.search([sys.executable, str(script)], FEN, 60000, 600, list(options), 64, watchdog, **keywords)
 
     def test_an_engine_that_answers_gives_a_row_with_its_nodes(self):
         row = self.search(ANSWERS)
         self.assertTrue(row["answered"])
         self.assertEqual((row["bestmove"], row["nodes"], row["soft_ms"], row["exit"]), ("a1a2", 7, 10, 0))
+
+    def test_a_clock_read_does_not_turn_diag_on(self):
+        row = self.search(NO_DIAG, watchdog=5.0)
+        self.assertTrue(row["answered"])
+        self.assertIsNone(row["fired"])
+
+    def test_diag_is_on_only_when_asked_for(self):
+        self.assertFalse(self.search(NEEDS_DIAG, watchdog=1.0)["answered"])
+        row = self.search(NEEDS_DIAG, watchdog=5.0, diag=True)
+        self.assertTrue(row["answered"])
+        self.assertEqual((row["fired"], row["nodes"]), (1, 7))
 
     def test_an_engine_that_never_answers_is_counted_and_does_not_hang(self):
         row = self.search(NEVER, watchdog=1.0)
@@ -294,6 +332,14 @@ class Engine(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual((document["wtime"], document["inc"], document["hash"], document["threads"]), (60000, 600, 64, 1))
         self.assertEqual(document["summary"]["E"]["searches"], 1)
+
+    def test_the_tool_records_whether_diag_was_on(self):
+        code, document = self.tool(NO_DIAG)
+        self.assertEqual((code, document["diag"]), (0, False))
+        self.assertIsNone(document["summary"]["E"]["fired"])
+        code, document = self.tool(NEEDS_DIAG, "--diag")
+        self.assertEqual((code, document["diag"]), (0, True))
+        self.assertEqual(document["summary"]["E"]["fired"], 1)
 
     def test_an_option_the_engine_does_not_advertise_is_refused_before_any_search(self):
         code, document = self.tool(ANSWERS, "--option", "Absent=1")
