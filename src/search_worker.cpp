@@ -530,6 +530,9 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
         return window_score;
     };
 
+    int last_best_score = kRootScoreNone;
+    std::vector<Move> last_best_pv;
+
     for (int depth = start_depth; depth <= max_depth && !state_.stopped; depth++) {
         state_.pv_len[0] = 0;
         state_.sel_depth = 0;
@@ -712,6 +715,26 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
                    += windowed && state_.root_best_effort >= limits.params.tm_effort_hi);
         DIAG_COUNT(state_.diag.root_effort_lo
                    += windowed && state_.root_best_effort <= limits.params.tm_effort_lo);
+
+        // A proven mate stands against an iteration that lost it: the previous
+        // line and score are kept.
+        if constexpr (kB5Root) {
+            if (!state_.root_moves.empty() && state_.root_moves.front().score != kRootScoreNone) {
+                const auto kept = std::find_if(state_.root_moves.begin(), state_.root_moves.end(), [&](const RootMove& rm) {
+                    return !last_best_pv.empty() && rm.move == last_best_pv.front();
+                });
+                if (b5::forgotten_mate(last_best_score, state_.root_moves.front().score)
+                    && kept != state_.root_moves.end()) {
+                    std::rotate(state_.root_moves.begin(), kept, kept + 1);
+                    state_.root_moves.front().score = last_best_score;
+                    state_.root_moves.front().pv = last_best_pv;
+                    score = last_best_score;
+                } else {
+                    last_best_score = state_.root_moves.front().score;
+                    last_best_pv = state_.root_moves.front().pv;
+                }
+            }
+        }
 
         // The iteration's first line: the record's on the arm, whose first
         // entry a stop at depth 1 may have left without a score.

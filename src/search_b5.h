@@ -108,6 +108,14 @@ struct RootWindow {
     return allowed ? new_depth + (max == 0 || path < max ? 2 : 0) : new_depth;
 }
 
+// A later iteration can lose a mate an earlier one proved: its window and its
+// reductions are not the ones that found it, and a proof does not stop being one.
+// `last` is the best line's score over the search so far.
+[[nodiscard]] inline bool forgotten_mate(int last, int score) {
+    const auto magnitude = [](int value) { return value < 0 ? -value : value; };
+    return last != kRootScoreNone && magnitude(last) >= MATE_SCORE - MAX_PLY && magnitude(score) < magnitude(last);
+}
+
 // The record's order: by score, then by the last iteration's score. Every move
 // but the line's best holds the "none" score, so a stable sort keeps the rest in
 // the order they had.

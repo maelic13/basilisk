@@ -589,6 +589,38 @@ static void test_the_lines_of_a_multipv_search() {
     end_section();
 }
 
+// ---- The forgotten mate --------------------------------------------------------
+
+static void test_a_proven_mate_stands() {
+    begin_section("a proven mate stands");
+    const int mate_in_8 = MATE_SCORE - 15;
+    EXPECT(!b5::forgotten_mate(kRootScoreNone, 100));
+    EXPECT(!b5::forgotten_mate(100, 50));               // no mate to lose
+    EXPECT(!b5::forgotten_mate(mate_in_8, mate_in_8));
+    EXPECT(!b5::forgotten_mate(mate_in_8, MATE_SCORE - 3));   // a shorter one
+    EXPECT(b5::forgotten_mate(mate_in_8, 2607));
+    EXPECT(b5::forgotten_mate(mate_in_8, MATE_SCORE - 19));   // a longer one
+    EXPECT(b5::forgotten_mate(-mate_in_8, -2607));      // being mated, likewise
+    // At depth 15 the arm proves this mate, and at depth 16 it reads 2607.
+    if (kB5Root) {
+        SearchLimits lim;
+        lim.depth = 16;
+        const Run run = search_limits("r1bq1r2/pp4k1/4p2p/3pPp1Q/3N1R1P/2PB4/6P1/6K1 w - - 0 1", lim);
+        EXPECT_EQ(run.result.score, mate_in_8);
+        EXPECT_STR(move_to_uci(run.result.bestmove), "f4g4");
+        // Every line from the proof on says so.
+        int after_the_proof = 0;
+        for (const std::string& line : run.lines) {
+            if (line.rfind("info depth 16 ", 0) == 0 && line.find("bound") == std::string::npos) {
+                ++after_the_proof;
+                EXPECT(line.find(" score mate 8 ") != std::string::npos);
+            }
+        }
+        EXPECT_EQ(after_the_proof, 1);
+    }
+    end_section();
+}
+
 // A proved mate keeps the open window: no iteration after it has a window.
 static void test_a_mate_score_keeps_the_open_window() {
     begin_section("a mate score keeps the open window");
@@ -775,6 +807,7 @@ int main(int argc, char** argv) {
     test_every_child_starts_clean(suite);
     test_the_limit_holds_on_the_line(suite);
     test_the_lines_of_a_multipv_search();
+    test_a_proven_mate_stands();
     test_a_mate_score_keeps_the_open_window();
     test_the_bound_lines();
     test_no_give_up_on_the_arm();
