@@ -304,33 +304,43 @@ static void test_the_root_move_comes_from_the_record() {
 
 static void test_the_window_arithmetic() {
     begin_section("the window's width, growth and bounds");
-    // At the seeds, in this engine's units: a level score, a pawn, three pawns, ten.
-    EXPECT_EQ(b5::window_delta(1, 0, 0, 2874), 1);
-    EXPECT_EQ(b5::window_delta(1, 0, 100 * 100, 2874), 4);
-    EXPECT_EQ(b5::window_delta(1, 0, -100 * 100, 2874), 4);
-    EXPECT_EQ(b5::window_delta(1, 0, 300 * 300, 2874), 32);
-    EXPECT_EQ(b5::window_delta(1, 0, 1000 * 1000, 2874), 348);
-    // The thread's offset: the donor's in this engine's units, first felt at the fourth.
-    EXPECT_EQ(b5::window_delta(1, 3, 0, 2874), 1);
-    EXPECT_EQ(b5::window_delta(1, 4, 0, 2874), 2);
-    EXPECT_EQ(b5::window_delta(1, 7, 0, 2874), 2);
-    EXPECT_EQ(b5::window_delta(1, 8, 0, 2874), 1);
-    // The ranges' edges, and the won tier and an empty record, which are open.
-    EXPECT_EQ(b5::window_delta(40, 0, 0, 12000), 40);
-    EXPECT_EQ(b5::window_delta(1, 0, 20000LL * 20000, 1000), b5::kMaxWindowDelta);
-    EXPECT_EQ(b5::window_delta(1, 0, kRootMeanSqNone, 12000), b5::kMaxWindowDelta);
-    const b5::RootWindow won = b5::first_window(20000, b5::window_delta(1, 0, 20000LL * 20000, 2874));
+    // The first window at the seeds: a level score, and half a pawn to ten pawns.
+    const auto first_delta = [](int64_t score, int thread = 0) {
+        return b5::width_delta(b5::first_width(1410, thread, score * score, 2874));
+    };
+    EXPECT_EQ(b5::first_width(1410, 0, 0, 2874), 1410);
+    EXPECT_EQ(first_delta(0), 2);
+    EXPECT_EQ(first_delta(50), 3);
+    EXPECT_EQ(first_delta(100), 5);
+    EXPECT_EQ(first_delta(150), 10);
+    EXPECT_EQ(first_delta(300), 33);
+    EXPECT_EQ(first_delta(1000), 350);
+    EXPECT_EQ(b5::first_width(1410, 0, -100 * 100, 2874), b5::first_width(1410, 0, 100 * 100, 2874));
+    // After failures at a level score.
+    int64_t level = b5::first_width(1410, 0, 0, 2874);
+    for (const int expected : {2, 2, 3, 4, 5, 7, 10, 13, 18, 24}) {
+        EXPECT_EQ(b5::width_delta(level), expected);
+        level = b5::grow_width(level, 47);
+    }
+    // The thread's offset, in thousandths, wrapping at the eighth.
+    const int helpers[] = {2, 2, 3, 3, 3, 4, 4};
+    for (int thread = 1; thread <= 7; ++thread)
+        EXPECT_EQ(first_delta(0, thread), helpers[thread - 1]);
+    EXPECT_EQ(b5::first_width(1410, 3, 0, 2874), 1410 + 3 * 282);
+    EXPECT_EQ(first_delta(0, 8), first_delta(0));
+    // The cap, and the won tier and an empty record, which are open.
+    EXPECT_EQ(b5::first_width(40000, 0, 0, 12000), 40000);
+    EXPECT_EQ(b5::first_width(500, 0, 20000LL * 20000, 1000), b5::kMaxWindowWidth);
+    EXPECT_EQ(b5::first_width(500, 0, kRootMeanSqNone, 12000), b5::kMaxWindowWidth);
+    EXPECT_EQ(b5::grow_width(b5::kMaxWindowWidth, 96), b5::kMaxWindowWidth);
+    EXPECT_EQ(b5::grow_width(b5::kMaxWindowWidth - 1, 96), b5::kMaxWindowWidth);
+    EXPECT_EQ(b5::width_delta(b5::kMaxWindowWidth), b5::kMaxWindowDelta);
+    const b5::RootWindow won = b5::first_window(20000, b5::width_delta(b5::first_width(1410, 0, 20000LL * 20000, 2874)));
     EXPECT_EQ(won.alpha, -INF_SCORE);
     EXPECT_EQ(won.beta, INF_SCORE);
-    const b5::RootWindow unseen = b5::first_window(kRootScoreNone, b5::window_delta(1, 0, kRootMeanSqNone, 2874));
+    const b5::RootWindow unseen = b5::first_window(kRootScoreNone, b5::width_delta(b5::first_width(1410, 0, kRootMeanSqNone, 2874)));
     EXPECT_EQ(unseen.alpha, -INF_SCORE);
     EXPECT_EQ(unseen.beta, INF_SCORE);
-
-    EXPECT_EQ(b5::grow_delta(1, 47), 1);      // 47/128 of a unit rounds away
-    EXPECT_EQ(b5::grow_delta(3, 47), 4);
-    EXPECT_EQ(b5::grow_delta(128, 47), 175);
-    EXPECT_EQ(b5::grow_delta(128, 96), 224);
-    EXPECT_EQ(b5::grow_delta(b5::kMaxWindowDelta, 96), b5::kMaxWindowDelta);
 
     const b5::RootWindow first = b5::first_window(50, 5);
     EXPECT_EQ(first.alpha, 45);
@@ -347,13 +357,65 @@ static void test_the_window_arithmetic() {
     EXPECT_EQ(b5::after_fail_high(first, 80, 100).alpha, 45);   // alpha never falls
     EXPECT_EQ(b5::after_fail_high(first, INF_SCORE - 3, 7).beta, INF_SCORE);
 
-    // LMR's term: at a PV node's window about the root's, 577 either way; at a
-    // null window the donor's unit, in ours, against today's 577 per unit.
-    EXPECT_EQ(b5::lmr_window_term(38, 38), 577);
-    EXPECT_EQ(b5::lmr_window_term(2, 2), 577);
-    EXPECT_EQ(b5::lmr_window_term(1, 2), 81);
-    EXPECT_EQ(b5::lmr_window_term(1, 38), 4);
-    EXPECT_EQ(b5::lmr_window_term(1, 1), 163);
+    // LMR's term: at a PV node 577 per unit of the root's width, whatever the
+    // node's window; at a non-PV node, whose window is one unit, the donor's unit
+    // in ours.
+    EXPECT_EQ(b5::lmr_window_term(true, 38, 38), 577);
+    EXPECT_EQ(b5::lmr_window_term(true, 2, 2), 577);
+    EXPECT_EQ(b5::lmr_window_term(true, 1, 1), 577);
+    EXPECT_EQ(b5::lmr_window_term(true, 1, 4), 144);
+    EXPECT_EQ(b5::lmr_window_term(false, 1, 1), 163);
+    EXPECT_EQ(b5::lmr_window_term(false, 1, 2), 81);
+    EXPECT_EQ(b5::lmr_window_term(false, 1, 38), 4);
+    end_section();
+}
+
+// Nothing but the width's growth ends the loop, so on the whole registered surface
+// it has to keep growing: strictly at every failure until it holds the cap, within
+// a bounded number of failures, its whole-unit distance never falling and never
+// standing still for long. Corners and a grid between them, at a level score.
+static void test_the_width_grows_everywhere_on_the_ranges() {
+    begin_section("the width grows everywhere on the registered ranges");
+    const int bases[] = {500, 501, 750, 1000, 1410, 2000, 2820, 4230, 5640, 9870, 19000, 30000, 39999, 40000};
+    const int divisors[] = {1000, 2874, 12000};
+    int points = 0, worst_failures = 0, worst_repeat = 0, corner_failures = 0, corner_repeat = 0;
+    bool strict = true, never_falls = true;
+    for (const int base : bases) {
+        for (int growth = 32; growth <= 96; ++growth) {
+            for (const int divisor : divisors) {
+                for (int thread = 0; thread <= 8; ++thread) {
+                    ++points;
+                    int64_t width = b5::first_width(base, thread, 0, divisor);
+                    int failures = 0, repeat = 1, longest = 1;
+                    while (width < b5::kMaxWindowWidth && failures < 1000) {
+                        const int64_t next = b5::grow_width(width, growth);
+                        strict = strict && next > width;
+                        const int delta = b5::width_delta(width), next_delta = b5::width_delta(next);
+                        never_falls = never_falls && next_delta >= delta;
+                        repeat = next_delta == delta ? repeat + 1 : 1;
+                        longest = std::max(longest, repeat);
+                        width = next;
+                        ++failures;
+                    }
+                    worst_failures = std::max(worst_failures, failures);
+                    worst_repeat = std::max(worst_repeat, longest);
+                    if (base == 500 && growth == 32 && thread == 0) {
+                        corner_failures = failures;
+                        corner_repeat = longest;
+                    }
+                }
+            }
+        }
+    }
+    EXPECT_EQ(points, 14 * 65 * 3 * 9);
+    EXPECT(strict);
+    EXPECT(never_falls);
+    EXPECT(worst_failures <= 60);
+    EXPECT(worst_repeat <= 4);
+    // The worst corner, base 500 at growth 32: 53 failures, and one unit four times.
+    EXPECT_EQ(corner_failures, 53);
+    EXPECT_EQ(worst_repeat, 4);
+    EXPECT_EQ(corner_repeat, 4);
     end_section();
 }
 
@@ -437,6 +499,7 @@ int main() {
     test_the_record_arithmetic();
     test_the_root_move_comes_from_the_record();
     test_the_window_arithmetic();
+    test_the_width_grows_everywhere_on_the_ranges();
     test_a_mate_score_keeps_the_open_window();
     test_the_bound_lines();
     test_no_give_up_on_the_arm();

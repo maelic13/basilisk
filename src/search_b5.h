@@ -42,17 +42,28 @@ struct EmaWeights {
 // every window is open already.
 inline constexpr int kMaxWindowDelta = 2 * INF_SCORE;
 
-// A root line's window width: the base, the thread's offset in this engine's
-// units, and the mean square of the line's scores over its divisor, so a stable
-// level score searches narrowly and a won one is open from its first search.
-[[nodiscard]] inline int window_delta(int base, int thread_id, int64_t mean_sq, int msq_div) {
-    const int64_t magnitude = (mean_sq < 0 ? -mean_sq : mean_sq) / msq_div;
-    return static_cast<int>(std::min<int64_t>(base + (thread_id % 8) * 282 / 1000 + magnitude,
-                                              kMaxWindowDelta));
+// A root line's window width, in thousandths of a unit. A whole-unit width cannot
+// carry it: 47/128 of a width under three units truncates to nothing, the width
+// then never grows, and a loop with no other way out cycles for ever between
+// bounds the table keeps answering the same way.
+inline constexpr int64_t kMaxWindowWidth = int64_t(1000) * kMaxWindowDelta;
+
+// The first width: the base, the thread's offset, and the mean square of the
+// line's scores over its divisor, so a stable level score searches narrowly and a
+// won one is open from its first search.
+[[nodiscard]] inline int64_t first_width(int base, int thread_id, int64_t mean_sq, int msq_div) {
+    const int64_t magnitude = mean_sq < 0 ? -mean_sq : mean_sq;
+    return std::min<int64_t>(base + (thread_id % 8) * 282 + magnitude * 1000 / msq_div, kMaxWindowWidth);
 }
 
-[[nodiscard]] inline int grow_delta(int delta, int growth) {
-    return std::min(delta + growth * delta / 128, kMaxWindowDelta);
+[[nodiscard]] inline int64_t grow_width(int64_t width, int growth) {
+    return std::min<int64_t>(width + growth * width / 128, kMaxWindowWidth);
+}
+
+// The bound's distance in whole units, rounded up: on integer scores the open
+// interval (average - width, average + width) exactly.
+[[nodiscard]] inline int width_delta(int64_t width) {
+    return static_cast<int>((width + 999) / 1000);
 }
 
 struct RootWindow {
@@ -78,9 +89,10 @@ struct RootWindow {
 // LMR's share of the node's window against the root's. A null window is one unit
 // of this engine's scale, and the donor's 577 reads its own unit, 0.282 of ours:
 // at a root window as narrow as the donor's the fitted reductions stay where they
-// were only with the null window in the donor's units.
-[[nodiscard]] inline int lmr_window_term(int delta, int root_delta) {
-    return (delta > 1 ? delta * 577 : 163) / root_delta;
+// were only with the null window in the donor's units. The node's type says which
+// it is, since a PV node's window can narrow to one unit too.
+[[nodiscard]] inline int lmr_window_term(bool pv, int delta, int root_delta) {
+    return (pv ? delta * 577 : 163) / root_delta;
 }
 
 // The record's order: by score, then by the last iteration's score. Every move

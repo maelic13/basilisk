@@ -589,8 +589,9 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
             // enough to give up on is open from its first search.
             windowed = true;
             const RootMove& line = state_.root_moves[static_cast<size_t>(state_.root_line)];
-            int delta = b5::window_delta(limits.params.b5_asp_base, config_.thread_id, line.mean_sq,
-                                         limits.params.b5_asp_msq_div);
+            int64_t width = b5::first_width(limits.params.b5_asp_base, config_.thread_id, line.mean_sq,
+                                            limits.params.b5_asp_msq_div);
+            int delta = b5::width_delta(width);
             b5::RootWindow window = b5::first_window(line.average, delta);
             DIAG_COUNT(++state_.diag.asp_windows);
             [[maybe_unused]] int last_window = 0;
@@ -622,7 +623,8 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
                 } else {
                     break;
                 }
-                delta = b5::grow_delta(delta, limits.params.b5_asp_growth);
+                width = b5::grow_width(width, limits.params.b5_asp_growth);
+                delta = b5::width_delta(width);
             }
         } else {
             windowed = true;

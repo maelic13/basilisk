@@ -415,11 +415,12 @@
 
 // ---- Cluster 4: the root and the aspiration window (the B5_ROOT arm) ---------
 //
-// The window of a root line is `b5_asp_base + (thread % 8) * 282 / 1000 +
-// |mean square of the line's scores| / b5_asp_msq_div` either side of the
-// line's average score, and grows by b5_asp_growth/128 per failure: the
-// donor's 5 and 10193 in this engine's evaluation units (0.282 of the donor's),
-// its 47 unchanged.
+// The width of a root line's window counts thousandths of a unit:
+// `b5_asp_base + (thread % 8) * 282 + |mean square of the line's scores| * 1000 /
+// b5_asp_msq_div`, rounded up to a whole unit either side of the line's average
+// score, and it grows by b5_asp_growth/128 per failure. These are the donor's 5
+// and 10193 in this engine's evaluation units (0.282 of the donor's), its 47
+// unchanged.
 //
 // S lines. Categoricals, each settled by a paired run:
 //   b5_fail_high_reduce: 1 the re-search after a fail high runs that many plies
@@ -429,12 +430,12 @@
 // Attribution switches, whose defaults are the arm's form:
 //   b5_window: 1 the loop above; 0 the driver's older loop on the record.
 //   b5_root_lmr: 1 root moves after the first are reduced at depth 2 or more.
-//   b5_lmr_window_units: 1 the LMR window term reads a null window in the
-//     donor's units (577 * 0.282 = 163); 0 reads 577 at every node.
+//   b5_lmr_window_units: 1 the LMR window term reads a non-PV node's window in
+//     the donor's units (577 * 0.282 = 163); 0 reads 577 at every node.
 // b5_fail_high_stop, on both arms: the percent of the optimum past which a fail
 //   high on the previous best ends the search; 0 never.
 #define BASILISK_B5_PARAMS(X, F, S)                                      \
-    X(b5_asp_base,           B5AspBase,              1,    1,    40)     \
+    X(b5_asp_base,           B5AspBase,           1410,  500, 40000)     \
     X(b5_asp_msq_div,        B5AspMsqDiv,         2874, 1000, 12000)     \
     X(b5_asp_growth,         B5AspGrowth,           47,   32,    96)     \
     S(b5_fail_high_reduce,   B5FailHighReduce,       0,    0,     1)     \

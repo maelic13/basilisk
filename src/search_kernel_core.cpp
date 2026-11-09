@@ -74,13 +74,13 @@ static TablebaseProbe tablebase_probe(Syzygy::Wdl wdl, int ply, bool rule50) {
     std::unreachable();
 }
 
-int Searcher::lmr_reduction(bool improving, int depth, int move_count, int delta) const {
+int Searcher::lmr_reduction(bool improving, int depth, int move_count, int delta, bool pv) const {
     const auto& p = config_.limits.params;
     const int scale = reductions_[std::min(depth, 255)] * reductions_[std::min(move_count, 255)];
     int window_term = delta * 577 / root_delta_;
     if constexpr (kB5Root) {
         if (p.b5_lmr_window_units)
-            window_term = b5::lmr_window_term(delta, root_delta_);
+            window_term = b5::lmr_window_term(pv, delta, root_delta_);
     }
     return scale - window_term
          + (improving ? 0 : scale * p.lmr_not_improving / 512) + p.lmr_offset;
@@ -1431,7 +1431,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             && std::find(state_.root_excluded.begin(), state_.root_excluded.end(), m) != state_.root_excluded.end())
             return false;
         ss->move_count = ++move_count;
-        int r = lmr_reduction(improving, depth, ss->move_count, beta - alpha);
+        int r = lmr_reduction(improving, depth, ss->move_count, beta - alpha, is_pv);
         if (ss->tt_pv)
             r += kp.lmr_tt_pv;
 

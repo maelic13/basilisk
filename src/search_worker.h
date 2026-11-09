@@ -272,7 +272,7 @@ private:
     // The base reduction of a move, in 1024ths of a ply: the product of the
     // depth's and the move count's entries, less a share of the node's window
     // against the root's, more when not improving, plus an offset.
-    [[nodiscard]] int lmr_reduction(bool improving, int depth, int move_count, int delta) const;
+    [[nodiscard]] int lmr_reduction(bool improving, int depth, int move_count, int delta, bool pv) const;
 
     // Every TT store in the search goes through this wrapper, so the same-key
     // telemetry cannot drift out of sync with the store sites.
