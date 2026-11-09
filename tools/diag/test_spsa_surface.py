@@ -114,6 +114,10 @@ class SurfaceTests(unittest.TestCase):
         generated = json.loads(surface.B5_CONFIG.read_text(encoding="utf-8"))
         self.assertEqual([item[0] for item in parameters], list(generated))
         self.assertEqual(list(generated), ["B5AspBase", "B5AspMsqDiv", "B5AspGrowth"])
+        # The base counts thousandths of a unit: the donor's 5 x 282, on a range
+        # whose every point the window's growth can leave.
+        base = generated["B5AspBase"]
+        self.assertEqual((base["value"], base["min_value"], base["max_value"]), (1410, 500, 40000))
         # Its table stays off every other surface.
         for other in (surface.parse_parameters(text), surface.parse_parameters(text, core=True),
                       surface.parse_parameters(text, b3=True), surface.parse_parameters(text, b4=True)):

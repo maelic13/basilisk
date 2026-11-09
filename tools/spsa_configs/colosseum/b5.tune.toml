@@ -4,10 +4,10 @@
 
 [[parameters]]
 name = "B5AspBase"
-initial = 1
-min = 1
-max = 40
-c_end = 0.9211
+initial = 1410
+min = 500
+max = 40000
+c_end = 1137.1455
 
 [[parameters]]
 name = "B5AspMsqDiv"
