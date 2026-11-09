@@ -33,7 +33,8 @@ FAMILIES = {
     "quiet_see", "capture_futility", "capture_see",
 }
 # The engine's event names (TraceEvent); Cluster 2 appended the six from
-# null_verify, Cluster 3 the last three.
+# null_verify, Cluster 3 the next three, Cluster 4 the last, which only a test's
+# root trace prints.
 EVENTS = {
     "check_extension", "tt_cutoff", "rfp_prune", "razor_prune",
     "null_cutoff", "probcut_cutoff", "iir_reduction", "futility_prune",
@@ -44,7 +45,7 @@ EVENTS = {
     "qs_futility_prune", "qs_see_prune", "qs_late_prune", "qs_beta_cutoff",
     "skip_quiets", "null_verify", "null_region_refused", "probcut_tt_cutoff",
     "ext_budget_truncate", "cuckoo_draw", "tt_penalty",
-    "qs_count_prune", "qs_evasion_prune", "qs_stalemate",
+    "qs_count_prune", "qs_evasion_prune", "qs_stalemate", "root_pv_research",
 }
 
 
