@@ -2156,7 +2156,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     // the same switch.
     const Move stored_move = (kp.b3_fail_low_store && flag == TT_ALPHA)
                            ? MOVE_NONE : best_move;
-    if (ss->excluded == MOVE_NONE && !(is_root && !state_.root_excluded.empty()))
+    if (ss->excluded == MOVE_NONE
+        && !(is_root && (!state_.root_excluded.empty() || (kB5Root && state_.root_line > 0))))
         tt_store(hash, depth, best_score, flag, stored_move, ply, tt_static_eval,
                   ss->tt_pv);
 
@@ -2225,8 +2226,7 @@ int Searcher::root_search(int depth, int alpha, int beta, int searched_depth) {
     root_score_ = state_.prev_root_score;
     const int score = negamax<NodeType::Root>(searched_depth, alpha, beta, 0, state_.stack + STACK_SENTINELS,
                                               true, false);
-    // A later MultiPV line searches without the earlier lines' moves.
-    if constexpr (kB5Root) if (state_.root_excluded.empty()) {
+    if constexpr (kB5Root) {
         const auto first = state_.root_moves.begin() + state_.root_line;
         std::stable_sort(first, state_.root_moves.end(), b5::root_move_before);
         // Inside its window the search's result is the record's first line.

@@ -581,15 +581,12 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
             return false;
         };
 
-        if (limits.root_alpha != limits.root_beta) {
-            score = search_window(depth, limits.root_alpha, limits.root_beta);
-        } else if (depth <= 3 || std::abs(prev_score) >= MATE_SCORE - MAX_PLY) {
-            score = search_window(depth, -INF_SCORE, INF_SCORE);
-        } else if (kB5Root && limits.params.b5_window && !state_.root_moves.empty()) {
-            // The window of the line's own record: around its average, as wide
-            // as its scores are large. There is no give-up hatch: a window wide
-            // enough to give up on is open from its first search.
-            windowed = true;
+        // The window of the line's own record: around its average, as wide as
+        // its scores are large. There is no give-up hatch: a window wide enough
+        // to give up on is open from its first search. Only line 1 prints its
+        // bounds and can end the search on a fail high.
+        auto search_line_window = [&]() {
+            const bool line_one = state_.root_line == 0;
             const RootMove& line = state_.root_moves[static_cast<size_t>(state_.root_line)];
             int64_t width = b5::first_width(limits.params.b5_asp_base, config_.thread_id, line.mean_sq,
                                             limits.params.b5_asp_msq_div);
@@ -598,33 +595,37 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
             DIAG_COUNT(++state_.diag.asp_windows);
             [[maybe_unused]] int last_window = 0;
             int failed_high_cnt = 0;
+            int line_score;
             while (true) {
-                DIAG_COUNT(diag_root_tt(last_window, result.bestmove));
+                if (line_one)
+                    DIAG_COUNT(diag_root_tt(last_window, result.bestmove));
                 [[maybe_unused]] const int64_t window_nodes = state_.nodes;
-                score = search_window(depth, window.alpha, window.beta,
-                                      b5::adjusted_depth(depth, failed_high_cnt, limits.params.b5_fail_high_reduce != 0));
+                line_score = search_window(depth, window.alpha, window.beta,
+                                           b5::adjusted_depth(depth, failed_high_cnt, limits.params.b5_fail_high_reduce != 0));
                 if (state_.stopped) break;
                 DIAG_COUNT(state_.diag.asp_nodes_windowed += state_.nodes - window_nodes);
                 DIAG_COUNT(state_.diag.asp_nodes_failed
-                           += (score <= window.alpha || score >= window.beta)
+                           += (line_score <= window.alpha || line_score >= window.beta)
                                   ? state_.nodes - window_nodes : 0);
                 DIAG_COUNT(state_.diag.asp_fail_high_research_nodes
                            += last_window == 2 ? state_.nodes - window_nodes : 0);
-                if (score <= window.alpha) {
-                    bound_line(score, false);
+                if (line_score <= window.alpha) {
+                    if (line_one)
+                        bound_line(line_score, false);
                     last_window = 1;
                     DIAG_COUNT(++state_.diag.asp_fail_low);
                     DIAG_COUNT(++state_.diag.asp_researches);
-                    window = b5::after_fail_low(window, score, delta);
+                    window = b5::after_fail_low(window, line_score, delta);
                     failed_high_cnt = 0;
-                } else if (score >= window.beta) {
-                    bound_line(score, true);
+                } else if (line_score >= window.beta) {
+                    if (line_one)
+                        bound_line(line_score, true);
                     last_window = 2;
                     DIAG_COUNT(++state_.diag.asp_fail_high);
-                    if (fail_high_stop())
+                    if (line_one && fail_high_stop())
                         break;
                     DIAG_COUNT(++state_.diag.asp_researches);
-                    window = b5::after_fail_high(window, score, delta);
+                    window = b5::after_fail_high(window, line_score, delta);
                     ++failed_high_cnt;
                 } else {
                     break;
@@ -632,6 +633,16 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
                 width = b5::grow_width(width, limits.params.b5_asp_growth);
                 delta = b5::width_delta(width);
             }
+            return line_score;
+        };
+
+        if (limits.root_alpha != limits.root_beta) {
+            score = search_window(depth, limits.root_alpha, limits.root_beta);
+        } else if (depth <= 3 || std::abs(prev_score) >= MATE_SCORE - MAX_PLY) {
+            score = search_window(depth, -INF_SCORE, INF_SCORE);
+        } else if (kB5Root && limits.params.b5_window && !state_.root_moves.empty()) {
+            windowed = true;
+            score = search_line_window();
         } else {
             windowed = true;
             int delta = config_.limits.params.aspiration_delta;
@@ -770,7 +781,48 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
         // is not reported; its previous depth stands.
         struct ExtraLine { int score; std::vector<Move> pv; };
         std::vector<ExtraLine> extra_lines;
-        if (state_.multipv_lines > 1 && cur_best != MOVE_NONE && !state_.stopped) {
+        if constexpr (kB5Root) {
+            // On the record, each line is the first not yet searched this
+            // iteration, under its own window and following its own last line.
+            // The record keeps the finished lines in order at its front.
+            int finished = 1;
+            for (int k = 2; k <= state_.multipv_lines && cur_best != MOVE_NONE && !state_.stopped; ++k) {
+                state_.root_line = k - 1;
+                const RootMove& line = state_.root_moves[static_cast<size_t>(state_.root_line)];
+                state_.prev_pv_len = 0;
+                if (state_.root_iterations > 0) {
+                    state_.prev_pv_len = std::min<int>(static_cast<int>(line.previous_pv.size()), MAX_PLY);
+                    std::copy_n(line.previous_pv.begin(), state_.prev_pv_len, state_.prev_pv);
+                }
+                state_.pv_len[0] = 0;
+                state_.sel_depth = 0;
+                // A move that was no line's last iteration has no previous score.
+                const bool was_mate = line.previous_score != kRootScoreNone
+                                   && std::abs(line.previous_score) >= MATE_SCORE - MAX_PLY;
+                if (depth <= 3 || !limits.params.b5_window || was_mate)
+                    search_window(depth, -INF_SCORE, INF_SCORE);
+                else
+                    search_line_window();
+                if (state_.stopped || state_.pv_len[0] == 0)
+                    break;
+                ++finished;
+                std::stable_sort(state_.root_moves.begin(), state_.root_moves.begin() + finished,
+                                 b5::root_move_before);
+            }
+            state_.root_line = 0;
+            if (finished > 1) {
+                // Line 1 is now the best of the lines, and what the next
+                // iteration reads of this one.
+                const RootMove& best = state_.root_moves.front();
+                prev_score = best.score;
+                state_.sel_depth = best.sel_depth;
+                result.seldepth = best.sel_depth;
+                for (int k = 0; k < finished; ++k) {
+                    const RootMove& rm = state_.root_moves[static_cast<size_t>(k)];
+                    extra_lines.push_back({rm.score, rm.pv});
+                }
+            }
+        } else if (state_.multipv_lines > 1 && cur_best != MOVE_NONE && !state_.stopped) {
             // A later line follows no previous PV.
             state_.prev_pv_len = 0;
             state_.root_excluded.assign(1, cur_best);
@@ -800,14 +852,16 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
             // `bestmove` is always line 1: a later line searched without the
             // first can score above it.
             std::vector<ExtraLine> lines;
-            lines.push_back({reported_score, first_line});
+            if constexpr (!kB5Root)
+                lines.push_back({reported_score, first_line});
             for (ExtraLine& line : extra_lines) {
                 const int tb_display = root_tablebase_display(line.pv.front());
                 lines.push_back({tb_display != VALUE_NONE ? tb_display : line.score,
                                  std::move(line.pv)});
             }
-            std::stable_sort(lines.begin(), lines.end(),
-                             [](const ExtraLine& a, const ExtraLine& b) { return a.score > b.score; });
+            if constexpr (!kB5Root)
+                std::stable_sort(lines.begin(), lines.end(),
+                                 [](const ExtraLine& a, const ExtraLine& b) { return a.score > b.score; });
             if (lines.front().pv.front() != result.bestmove) {
                 result.bestmove   = lines.front().pv.front();
                 result.pv         = lines.front().pv;

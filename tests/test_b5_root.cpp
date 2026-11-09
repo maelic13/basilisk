@@ -529,6 +529,66 @@ static void test_the_limit_holds_on_the_line(const char* suite) {
     end_section();
 }
 
+// ---- MultiPV on the record -----------------------------------------------------
+
+// Every line searches under its own window, from depth 4 on, and only line 1's
+// search reaches the table: a later line searched the root without the best moves,
+// so its result is not the root's.
+static void test_the_lines_of_a_multipv_search() {
+    begin_section("MultiPV lines on the record");
+    const std::string fen = "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3";
+    // A queen for nothing: line 1 cannot be overtaken, so its move is the search's.
+    const std::string queen = "4k3/8/8/3q4/4P3/8/8/4K3 w - - 0 1";
+    TranspositionTable tt(16);
+    std::atomic_bool stop{false};
+    std::vector<std::string> lines;
+    std::map<std::string, int64_t> diag;
+    const std::regex token("([a-z_0-9]+)=(-?[0-9]+)");
+    auto info = [&](const std::string& line) {
+        lines.push_back(line);
+        const std::string prefix = "info string diag kv ";
+        if (line.compare(0, prefix.size(), prefix) == 0)
+            for (std::sregex_iterator it(line.begin(), line.end(), token), end; it != end; ++it)
+                diag[(*it)[1].str()] = std::stoll((*it)[2].str());
+    };
+    auto searcher = std::make_unique<Searcher>(tt, stop, info);
+    Board b;
+    b.set_fen(fen);
+    SearchLimits lim;
+    lim.depth = 10;
+    lim.multipv = 3;
+    lim.diag = true;
+    const SearchResult result = searcher->search(b, lim);
+    const auto pv_of = [&](int line_number, int depth) {
+        const std::string head = "info depth " + std::to_string(depth) + " ";
+        const std::string tag = " multipv " + std::to_string(line_number) + " ";
+        for (const std::string& line : lines)
+            if (line.rfind(head, 0) == 0 && line.find(tag) != std::string::npos && line.find("bound") == std::string::npos)
+                return line.substr(line.find(" pv ") + 4, 4);
+        return std::string();
+    };
+    EXPECT(result.bestmove != MOVE_NONE);
+    EXPECT_STR(pv_of(1, 10), move_to_uci(result.bestmove));
+    EXPECT(!pv_of(3, 10).empty());
+    if (kCounters && kB5Root)
+        EXPECT_EQ(diag["asp_windows"], 3 * (10 - 3));
+    if (kB5Root) {
+        TranspositionTable queen_tt(16);
+        auto queen_searcher = std::make_unique<Searcher>(queen_tt, stop);
+        Board queen_board;
+        queen_board.set_fen(queen);
+        SearchLimits queen_lim;
+        queen_lim.depth = 8;
+        queen_lim.multipv = 3;
+        const SearchResult taken = queen_searcher->search(queen_board, queen_lim);
+        EXPECT_STR(move_to_uci(taken.bestmove), "e4d5");
+        TTEntry entry{};
+        EXPECT(queen_tt.probe_copy(queen_board.position_key(), entry));
+        EXPECT_STR(move_to_uci(move_from_tt(entry.move16)), "e4d5");
+    }
+    end_section();
+}
+
 // A proved mate keeps the open window: no iteration after it has a window.
 static void test_a_mate_score_keeps_the_open_window() {
     begin_section("a mate score keeps the open window");
@@ -714,6 +774,7 @@ int main(int argc, char** argv) {
     test_the_ceiling();
     test_every_child_starts_clean(suite);
     test_the_limit_holds_on_the_line(suite);
+    test_the_lines_of_a_multipv_search();
     test_a_mate_score_keeps_the_open_window();
     test_the_bound_lines();
     test_no_give_up_on_the_arm();
