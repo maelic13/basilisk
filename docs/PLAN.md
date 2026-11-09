@@ -2339,7 +2339,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       zero-game reads, the battery and the games census, the
       mechanism decisions, the seeds, the denser floor, the
       predictions and the registrations.
-    - [ ] **B.5.2** `[I2]` Implement behind the umbrella switch
+    - [x] **B.5.2** `[I2]` Implement behind the umbrella switch
       The packet's §10 contract behind one umbrella option `B5_ROOT`,
       both arms building, in its ten ordered tickets; the OFF arm
       keeps `bench 13` 4,144,790 at every commit; its cheap
@@ -2381,6 +2381,36 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         no switch owns it, and at `3+0.03` the arm's long searches are
         no worse than the OFF arm's. Recorded under §10 and not returned.
         Awaits the independent review; CI has not run.
+      - Accepted with named follow-ups 2026-11-09 by an independent
+        review in a separate session (packet *Review — B.5.2 accepted
+        with named follow-ups*). Every fingerprint and test reproduces
+        from a clean tree on both arms and every flavour: `bench 13`
+        4,144,790 and 3,920,652, `bench 10` sanitizer 1,310,057 and
+        1,212,940, CTest 28/28 and 26/26, WAC 149 and 199 at depth 6 and
+        253 and 263 at 100,000 nodes, the floors grid, the census and
+        the cost screen; six commits rebuilt on both arms, ticket 3's
+        two forms among them. The code is §10 as §A1.5 amends it, the
+        OFF arm edited only at shared seams.
+        - The battery's miss reproduces and does not gate this leaf:
+          §10 marks it recorded, and both long searches are one
+          open-window iteration that no stop setting can reach, as
+          packet §5.4 describes. It is systematic, though. On 60 won
+          endings from the `10+0.1` games the arm reads 5 searches over
+          half the maximum at `60000+600` against the OFF arm's 1,
+          spends a third more clock at both clocks and changes its root
+          move 1.7 to 1.8 times as often. No switch owns it, and
+          `B5NegExtMax` 1 reads none over half. At `3+0.03` twenty
+          replayed games spend the same on both arms, the arm's stop
+          ending 25.1% of searches against 10.8%.
+        - Three statements of the record are corrected by reads made
+          in the review: reduced root moves are seldom searched again
+          because they seldom fail high (0.17%); `cont_hist_pruned`
+          halves because it fires inside the OFF arm's fail-high
+          cascades on a few decided positions; and the long searches
+          are not scatter.
+        - The follow-ups sit in B.5.3, B.5.4 and B.5.5 below. CI has
+          not run; the arm's cell prints its fingerprint and asserts no
+          value.
     - [ ] **B.5.3** `[V]` Diagnostics, M1 and the unfitted paired run
       The packet's zero-game screens on both arms (BAS-S53), M1's
       replay on the arm (BAS-R10) deciding the fail-high stop's
@@ -2393,16 +2423,44 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         read by games. It sets the width the categoricals are read
         at and where B.5.4's SPSA starts; it moves no default.
         Agreed by the maintainer 2026-11-09.
+      - Owed at the opening, from B.5.2's review (packet *Review —
+        B.5.2 accepted with named follow-ups*, §9):
+        - Research amendment 2, before M1 and before any long-clock
+          read. The stop's rule gates each of its options on a battery
+          under 0.5× the maximum, and the arm fails it at every stop
+          setting, so as registered M1 has no admissible option on the
+          arm. P8's 1 to 6% is contradicted at 25.1%. Nothing
+          registered reads a long clock before the flip. The review's
+          position: the widened battery as a BAS-S53 screen on both
+          arms and at `B5NegExtMax` 1, time per move by score band in
+          the direction run, and a long-clock condition on the flip;
+          D.1's in-iteration clock test is not pulled forward. The
+          amendment's prompt is
+          `tools/results/b5-20261109/review/fable_amend2_prompt.md`.
+        - The whole-arm paired run at `3+0.03` does not wait on it.
+        - Calibration owed in the entries: P4's re-search share, P8's
+          firing rate and P11's low-effort share.
     - [ ] **B.5.4** `[V]` Curvature sweep, then SPSA in blocks
       The packet's registered sweep on the three window seeds and the
       Cluster 1 to 3 coordinates §5.8 pulls onto the surface, then
       SPSA in blocks (BAS-S54); the fitted-constant analysis precedes
       the bake into `BASILISK_B5_CORE_DEFAULTS`.
+      - Owed at the opening, from B.5.2's review (§9): `B5AspBase`'s
+        generated SPSA step (`c_end` 1,137) exceeds the seed's distance
+        to its lower bound (910), so the low perturbation clamps; and
+        `cont_hist_pruned`'s −51.6% is a few decided positions, so the
+        packet's §5.8 joiner rule is read by the median position before
+        `cont_hist_prune_slope` joins the surface.
     - [ ] **B.5.5** `[V]` Cluster 4 gates
       SPRT `[0,3]` for the cluster, and each categorical and
       attribution arm at the bounds the packet registers (BAS-S55);
       then the flip, the OFF arm deleted and the fingerprint record
       moved.
+      - From B.5.2's review (§8, §9): the flip carries the long-clock
+        condition research amendment 2 registers. At the pull request
+        the arm's printed fingerprint is read, since its CI cell
+        asserts no value; the counter-reading tests run in no CI cell;
+        `CHANGELOG.md` owes a line for the ply cap's repair.
 - [ ] **B.6** Donor-form reconciliation, then joint search SPSA
   Joint search SPSA over the coordinates the four clusters left live;
   registered surface; PGO bake; SPRT `[0,3]`. It runs (maintainer
@@ -3071,8 +3129,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.5.2 | IMPLEMENTED | I2 | At `c6f2440`, the record in `analysis/b5_cluster4_research_2026-11-08.md`; awaits the independent review, whose first question is §10's battery line |
-| B.5.3 | RESEARCH | V | After B.5.2's review; BAS-S53 and BAS-R10 registered in the packet |
+| B.5.3 | RESEARCH | V | The next action: B.5.2 closed 2026-11-09, accepted with named follow-ups (`analysis/b5_cluster4_research_2026-11-08.md`, *Review — B.5.2 accepted with named follow-ups*); research amendment 2 is owed before M1 and any long-clock read; BAS-S53 and BAS-R10 registered in the packet |
 | B.5.4 | RESEARCH | V | After B.5.3; BAS-S54 |
 | B.5.5 | RESEARCH | V | After B.5.4; BAS-S55 |
 | B.6.1 | RESEARCH | R2 | Added 2026-10-31; after B.4 and B.5 close |

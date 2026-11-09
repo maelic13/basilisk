@@ -1132,7 +1132,8 @@ no NPS read started.
 - Not yet done, for the resumption: two of ticket 1's three mutants did not build
   and must be rerun; the per-commit check of both arms; §10's cheap qualification.
 - What the reviewer must check: deferred to the implementation's final record.
-- Review: not yet requested.
+- Review: with the record of tickets 3 to 9 (*Review — B.5.2 accepted with named follow-ups*, at the end of this
+  file).
 
 ## Research amendment 1 — answers Return 1: the width in a finer unit (2026-11-09)
 
@@ -1879,4 +1880,439 @@ Those of the record at Return 1 stand; §A1.2 accepts them. New:
    `MultiPV 1` line for line.
 8. CI has not run. The arm's cell first runs at the PR.
 
-- Review: not yet requested.
+- Review: **accepted with named follow-ups**, 2026-11-09, by an independent review in a separate session (*Review —
+  B.5.2 accepted with named follow-ups*, below). Reproduced from that session's own clean tree at `c6f2440`: `bench 13`
+  4,144,790 (OFF) and 3,920,652 (ON) on Release, Tune, Diag and Ablate; `bench 10` sanitizer 1,310,057 and 1,212,940;
+  CTest 28/28 on both arms on Release, Tune and Diag, 26/26 under the sanitizers; WAC 149 and 199 at depth 6, 253 and
+  263 at 100,000 nodes; six commits on both arms, ticket 3's two forms among them (5,039,771 and 4,022,487); the floors
+  grid, the census, the cost screen, the depth-bound read, the clock test and the battery, each as this record reads
+  them. The battery's miss does not gate this leaf; it is systematic, and research amendment 2 is owed before M1.
+
+## Review — B.5.2 accepted with named follow-ups (2026-11-09)
+
+Independent review of B.5.2 at `c6f2440` (`c7a034b` records it and changes
+no source), in a separate session from the implementing one (§10
+*Review*; the record's *What the reviewer must check*). Nothing was
+fixed. No engine source, default, seed, floor, test or clause was moved,
+and no game, SPSA or NPS read ran. Every tree was built by this session
+from a detached worktree of `c6f2440` (`build/b5-review`; release preset,
+PEXT portable, Clang 23.1.5, target `all`; the `debug` preset for the
+sanitizer trees). The probe of §6 is a throwaway tree
+(`build/b5-review-probe`, `rv_probe_patch.py`). The clock reads ran on a
+quiet host, the node reads beside each other. Evidence:
+`tools/results/b5-20261109/review/` (ignored storage).
+
+**Verdict: accept, with the follow-ups of §9.** Every fingerprint and
+test reproduces from clean sources on both arms and every flavour. The
+code is §10 as §A1.5 amends it, one mechanism a ticket, the OFF arm
+edited only at shared seams, no constant outside §7 moved. The
+invariants hold. The battery's miss reproduces, and it is larger than
+the record says: it is systematic, not two positions. It still does not
+return this leaf. §10 marks the line recorded, the arm's long searches
+are the mechanism §5.4 describes and not a defect of the code, and
+nothing this leaf owns can change them. What it breaks is registered
+for the next leaf: M1's rule has no admissible option on the arm, and
+nothing between here and the flip reads a long clock. That needs a
+research amendment before M1 runs, not a repair here.
+
+What would change this: a defect in the arm's code behind the long
+iteration (none was found: both are open-window iterations, as §5.4
+says they would be), or a floor failing on a reread (none did).
+
+### 1. The battery, first
+
+**Reproduced** (`battery.py` on this session's Tune builds, `60000+600`,
+share of the engine's own maximum):
+
+| | rec1 | rec2 | rec3 | KRB-K | KR-K | KBN-K |
+|---|---:|---:|---:|---:|---:|---:|
+| OFF arm, stop 100 | 0.104 | 0.067 | 0.153 | 0.101 | 0.101 | 0.173 |
+| OFF arm, stop 0 | 0.102 | 0.066 | 0.178 | 0.102 | 0.100 | 0.172 |
+| The arm, stop 100 | **1.002** | 0.043 | 0.105 | 0.121 | 0.077 | **1.002** |
+| The arm, stop 0 | **1.002** | 0.045 | 0.111 | 0.114 | 0.080 | **1.002** |
+
+At `30000+300` (Release, default stop) the clock test passes on the arm
+(rec1 3,546 ms, the win kept) and KBN-K reads 1.003; the OFF arm's worst
+is 0.288. `blowup.py` on this session's trees reproduces every node
+count and score of the record's.
+
+**What the two searches are** (the logs' own lines):
+
+- rec1. The OFF arm holds `e5e6` from depth 13 and stops after depth 20
+  at 3.3 s, 0.70 of the optimum, on the stability discount. The arm's
+  best move changes at 7 of the 10 iterations from depth 17 to 26, among
+  `e3f4`, `e5e6` and `f7d7`, all in the won tier. So the discount is
+  lost and the instability term extends the budget: depth 26 ends at
+  6.13 s, 1.30 of the optimum, and the depth-27 search then runs 26.2 s
+  to the maximum without returning.
+- KBN-K. The arm reaches depth 54 in 1.43 s, `b1c3` since depth 43, and
+  its depth-55 search runs 28.6 s to the maximum. At fixed depth that
+  search costs 111.3M nodes and ends in mate 34. The OFF arm proves mate
+  34 at depth 49 in 12.8M nodes and stops at 5.2 s. At this clock the
+  arm plays `b1c3` on `cp 16318` where the OFF arm announces the mate.
+
+Both are one open-window iteration: no fail high, nothing for the stop
+to act on at any setting, and the clock read only between iterations.
+That is §5.4's own description. What §5.4 and §10 did not expect is the
+clock at which the arm meets it.
+
+**Widened, because two positions cannot say whether it is scatter.**
+Sixty won endings from the `10+0.1` direction run's games
+(`rv_wide.py`: one a game in file order, the first position where the
+mover reports 1,500 or more and no mate with at most eight men;
+`wide_positions_60.json`), each searched from a fresh process, Threads
+1, Hash 64. "Changes" is root best-move changes per completed iteration.
+
+| `60000+600`, 60 searches | over 0.5× the maximum | at the maximum | spent | changes |
+|---|---:|---:|---:|---:|
+| OFF arm | 1 | 1 | 252.0 s | 0.125 |
+| The arm | 5 | 3 | 341.5 s | 0.225 |
+| The arm, `B5RootLmr` 0 | 2 | 2 | 268.0 s | 0.173 |
+| The arm, `B5Window` 0 | 4 | 2 | 322.2 s | 0.166 |
+| The arm, `B5NegExtMax` 1 | 0 | 0 | 193.1 s | 0.183 |
+| The arm, root searches never past the full depth (probe) | 4 | 3 | 308.1 s | 0.168 |
+
+At `10000+100`: the OFF arm none over half the maximum, 40.3 s, 0.170
+changes; the arm 2 over half, none at the maximum, 52.5 s, 0.281.
+
+Reading it:
+
+- **It is systematic.** The arm spends a third more clock on won
+  endings at both clocks, changes its root move 1.7 to 1.8 times as
+  often, and meets the maximum three to five times as often. The counts are
+  small (5 against 1); the spend and the change rate are not.
+- **The hole is the OFF arm's too**: one of the sixty is at the maximum
+  on both arms. The arm reaches it sooner and more often.
+- **No switch owns it**, as the record says. Root reduction and the
+  window each carry part of the change rate, and removing the root's
+  searches past the full depth brings the rate to the level of no root
+  reduction without moving the count at the maximum.
+- **`B5NegExtMax` 1 removes the tail** on this sample and spends less
+  than the OFF arm. That is zero-game evidence for §9 item 1 and moves
+  no default.
+- **`blowup.py` cannot attribute.** It reads each setting at one depth,
+  the arm's own last. On KBN-K no setting that reads cheap there has
+  found the mate by depth 55, which is what the arm's depth 55 pays
+  for. The table above reads each switch under the clock instead.
+
+**At the gates' clock it does not show**, on three times the record's
+sample (`replay_games.py`, twenty gate (a) games at `3+0.03`, 1,226
+searches):
+
+| Replay | spent | over 0.5× the maximum | at the maximum | searches the stop ended |
+|---|---:|---:|---:|---:|
+| OFF arm, stop 100 | 89,018 ms | 42 | 13 | 10.8% |
+| OFF arm, stop 0 | 95,289 ms | 63 | 17 | — |
+| The arm, stop 100 | 90,282 ms | 37 | 10 | 25.1% |
+| The arm, stop 0 | 100,385 ms | 65 | 17 | — |
+
+**What it means.**
+
+- *For this leaf:* not a gate. The code is the contract's, and no repair
+  inside §10's non-goals exists.
+- *For M1 (BAS-R10):* PLAN gates every option of the stop's rule on a
+  battery under 0.5× the maximum, and the arm fails it at every setting
+  by searches the stop cannot reach. As registered, M1 has no
+  admissible option on the arm; removal is closed outright. The rule
+  must be amended before M1 runs. P8 is already contradicted: the stop
+  ends 25.1% of the arm's searches on twenty games, against 1 to 6%
+  predicted. At that rate the registered rule sends the arm to 2×
+  against 1×.
+- *For B.5.3's paired runs at `3+0.03`:* valid as registered. Both arms
+  spend the same clock there with the stop at 100. They are blind to
+  the long clocks, and the stop is carrying the arm's clock at that
+  control: a moved stop moves the arm's time use more than the OFF
+  arm's.
+- *For the direction run (d) at `10+0.1`:* the arm's extra spend on won
+  endings is present at that clock (1.30× on this sample). The run is
+  direction only and reads Elo, so it would show a large cost and miss
+  a small one.
+- *For the long clocks:* nothing registered between here and the flip
+  reads `60+0.6` except this battery.
+
+Position: research amendment 2 before M1 and before any long-clock
+read (§9, item 1). The whole-arm paired run does not wait on it. D.1's
+in-iteration clock test is not pulled forward on this evidence.
+
+### 2. Rebuilt from clean sources, every row reproduced
+
+| Read | OFF | ON | Record |
+|---|---:|---:|---|
+| `bench 13`, Release / Tune / Diag / Ablate | 4,144,790 × 4 | 3,920,652 × 4 | equal |
+| `bench 10`, sanitizer | 1,310,057 | 1,212,940 | equal |
+| CTest, Release | 28/28 | 28/28 | equal |
+| CTest, sanitizer, `-LE strength` | 26/26 | 26/26 | equal |
+| CTest, Diag and Tune (the counter-reading tests run only here) | 28/28, 28/28 | 28/28, 28/28 | not in the record's table |
+| WAC at depth 6 | 149 | 199 | equal |
+| WAC at 100,000 nodes, 300 records | 253 | 263 | equal |
+| Depth-bound read, seed and four corners | — | 0 of 300 unfinished at each | equal |
+| `find_spin`'s self-test; `test_replay_games`, `test_run_suite`, `test_spsa_surface` | pass | pass | |
+| Floors grid on the arm | — | PASS: 600 / 598 / 600 / 597, five budgets 118; the wrong-bishop draws pass | equal |
+| Depth-14 census on the arm | — | 2.77 re-searches per window; failed share 69.6%; fail-high re-search share 45.9%; 11,689,507 nodes; `root_lmr_reduced` 20,151, `root_lmr_researched` 10 | equal |
+| Cost screen, §R's form | — | PASS on all five, no stop, no depth missing; steps 20 to 22 geometric means 1.102, 0.882, 0.793, 1.046, 0.894 | equal, number for number |
+
+Six commits rebuilt on both arms in their own worktrees (`rv_more.py`):
+`e767c0a`, `03b4a1a`, `9a77439`, `4e17bdf`, `9df2cc7` and `62df532`. The
+OFF arm reads 4,144,790 at each; the arm reads 4,144,790, 4,144,790,
+**5,039,771** (ticket 3 as the handoff wrote it), **4,022,487** (ticket 3
+amended), 3,920,652 and 3,920,652, as the records say. The other
+eighteen of `t9/every_commit.txt` stay the record's claim.
+
+`find_spin.py` writes no node count, so a clean read does not show its
+options reached the search. They do: `go depth 14` from the start
+position reads 140,035 nodes at the seed, 203,738 at 500/32 and 82,043
+at 40000/96 on the Tune build. `bench` ignores UCI options by design.
+Every B5 option but the stop moves a depth-15 search on the Tune build.
+
+Not rerun: the mutants, the deep-line stack read and the decision
+traces. They stay the record's claims.
+
+### 3. The code against §10, §7 and §A1.5
+
+Read whole: `search_b5.h`, the driver's and the kernel's diffs from the
+entry head, the parameter table, the CMake and CI edits, the tests.
+
+- **One mechanism a ticket**, by each commit's files and diff. Ticket 4
+  also adds the root's trace event its test reads.
+- **The OFF arm** changes only at §10's seams: the counters, the stop's
+  option (`b5_fail_high_stop / 100.0` of the optimum, identical at
+  100), the ply cap's repair, `root_search`'s second depth (equal to the
+  first), the hoisted bound-line and stop lambdas, the timing wrapper.
+  Every `kB5Root` branch folds to today's form.
+- **Constants**: §7's rows as §A1.5 amends them, each clamped to its
+  range at the UCI boundary; the donor's 12, 24, 16 and 32 in the
+  average, checked against `sf_19` `:1437-1468` line for line; 577 and
+  163; nothing else moved.
+- **`search_line_window`**: the donor's loop. The bounds use the width
+  before it grows; a fail low sets `failed_high_cnt` to 0; only line 1
+  prints bounds, counts table probes or can be ended by the stop. The
+  reference it holds into the record is read only before the first
+  search, so the sort inside `root_search` cannot stale it. A move with
+  no average yet gets the open window through the "none" mean square.
+  The loop ends by construction: at the cap the window is open within
+  two more failures (§4).
+- **The MultiPV branch**: line `k` searches the record from index
+  `k − 1`, which excludes the finished lines; the finished lines are
+  sorted among themselves after each line, so a later line can overtake
+  the first and the result follows it; the root stores nothing for a
+  later line. At `MultiPV 1` the loop does not run and the path is the
+  single-PV one. Probed beyond `test_multipv`, on WAC's first forty
+  positions at `MultiPV 4` and depth 9 on both arms: at every depth the
+  lines are numbered once each, distinct and best first, and `bestmove`
+  is line 1; `MultiPV 1` against no option is line for line on twenty
+  positions; five lines asked of two `searchmoves` report two.
+- **The record**: effort before the blend, the first move or a move
+  above alpha writing score, bounds and line, everything else "none";
+  the stop returns before the bookkeeping, so a stopped search writes no
+  score. The node check in `root_search` binds the record's first line
+  to the kernel's own inside the window.
+
+Differences the records do not list, none a change of mechanism:
+
+1. **The helper's filter counts differently on the arm.** The record
+   numbers the moves that pass `searchmoves` and the tablebase filter,
+   in generation order; the OFF arm numbers in the picker's order,
+   before the tablebase filter. The pool sets no filter today, so
+   nothing plays differently. D.2's.
+2. **`multipv_lines` is counted without the filter**, so a filtered
+   main thread with MultiPV above its record's size would index past
+   it. Unreachable today, for the same reason. D.2's.
+3. **The arm sorts with `std::stable_sort` at the root**, which may
+   allocate. §10's invariant is "below the root", and it holds.
+
+### 4. Ticket 3's arithmetic and the range property
+
+`search_b5.h` is §A1.5: thousandths in 64 bits, truncating divisions,
+the cap `1000 × kMaxWindowDelta`, `delta = (width + 999) / 1000`. The
+tests bind the widths §A1.5 lists.
+
+The grid test bounds the loop, and the property holds beyond the grid.
+The width grows whenever `growth × width ≥ 128`; the smallest registered
+width is 500 and the smallest growth 32, so the step is at least 125
+thousandths everywhere on the surface, and the options clamp to their
+ranges. From the cap the loop needs at most two more failures: a fail
+low then sets alpha to −INF, and the fail high after it sets beta to
+INF. So no search fails more than 62 times, 55 at the worst corner. Two
+notes: the grid's divisor loop is vacuous at a level score, where the
+mean square is 0 (it costs nothing and proves nothing); and the test
+grows the width in isolation, with the loop itself sampled by the
+depth-bound read.
+
+### 5. The deviations, on their merits
+
+- **Ticket 8's guard reads line 1's search.** Accepted. At `MultiPV 1`
+  it is the donor's test, on both signs: a mated score is as much a
+  proof here as there, since the move loop stops pruning while the best
+  score is a proven loss (`best_score > -tablebaseWinInMaxPly`), as the
+  donor's does. With
+  more lines, a later line that overtakes with a faster mate is taken
+  (the sort), but the guard's memory is not told, so that mate is not
+  protected in the next iteration. Analysis mode only; a departures
+  row (§9). The missing "inexact" clause is right: a stopped iteration
+  is discarded here, so no completed line is inexact.
+- **The fixture earns its test.** Stockfish (a development build, 8
+  threads, 20 s) proves mate in 8 by `f4g4` at depth 90. The arm proves
+  it at depth 15 and, by the record and its mutant, reads 2607 at 16
+  without the guard. The OFF arm holds the mate from depth 14 to 18:
+  the forgetting is the arm's own, which is what the guard is for.
+- **The arm's WAC floor of 186.** Accepted as the file's rule, with its
+  meaning stated: depth 6 is not the same search on the two arms (§6).
+  The floor is a tripwire for the arm's own tree. The like-for-like
+  tactical read is WAC at 100,000 nodes, 263 against 253.
+- **Ticket 4's chain test on the whole root.** Accepted: the assertions
+  are §10's (the re-search at the full depth give or take the margin's
+  ply, then the node's window), and a root of two moves almost never
+  reduces its second. Its `again.result > again.alpha` reads the reduced
+  search's score, which is what triggers the re-search.
+- **Ticket 6's planted line as mutants**, `B5FailHighStop`'s liveness
+  by replay, ticket 9 without a commit: accepted as recorded.
+- **The counter-reading tests run in no CI cell.** The chain test, the
+  clean-frame and limit tests, the MultiPV window count and the no
+  give-up test need the counters, so they run on Tune and Diag builds
+  only; CI's Diag cell runs `test_uci_protocol` alone and the arm's cell
+  is a Release build. This is B.3's and B.4's practice too. They pass
+  here on all four such trees.
+
+### 6. The two readings, measured; `cont_hist_pruned`
+
+The probe is the arm with counters on the root's later moves and two
+environment switches; with neither set it reads `bench 13` 3,920,652.
+
+**Why so few reduced root moves are searched again.** The record's
+reason is not the cause. On `bench 13` the root searches 26,955 moves
+after the first: 6,547 reduced, 5,729 at the full depth, 13,533 past it
+(by 1.40 plies on average) and 1,146 outside the reduced path. Of the
+6,547 reduced, **11 fail high (0.17%), and all 11 are searched again**.
+A reduced root move almost never beats alpha, because alpha at the root
+is the best move's own exact score and the reduced moves are the late
+ones. P4's 5 to 15% was an interior node's rate. What the record
+describes is where the new best moves come from: 123 of the 190 the
+root's later moves produce are moves searched past the full depth.
+
+**Why WAC at depth 6 reads 199.** The record's reading holds. With the
+root never reduced the arm solves 143; reduced but never past the full
+depth, 145; as built, 199. At depth 6, 84% of the root's reduced-path
+searches go past the full depth, by 1.63 plies on average. "Depth 6" on
+the arm is a deeper search for most root moves.
+
+**Why `cont_hist_pruned` halves.** It is a population effect, and not
+the narrow window. On `suite_v2` at depth 12 (Tune builds) its share of
+move-loop tests reads 1.700% on the OFF arm, 1.022% on the arm, 1.400%
+with `B5Window` 0, and falls further as the window widens (0.689% at
+base 19000, 0.624% at 40000). Eight positions carry 73,050 of the OFF
+arm's 100,840 prunes. Positions 42 and 50, the two won positions of
+§A1.3, carry 43,518, and on the arm 16: the rule fires inside the OFF
+arm's fail-high cascades on decided positions, and the mean-square
+width removes those trees. The median position's share moves from
+0.549% to 0.486%. A width effect remains in ordinary positions (0.334%
+at base 19000) and is not explained here.
+
+One more read from the same runs: the share of iterations at or under
+`TmEffortLo` is 44.5% on the OFF arm and 56.6% on the arm (34.9% at
+base 19000); the high share is 8.8% against 8.9%. P11 bounded the high
+share alone.
+
+### 7. The invariants, in chess terms
+
+- **A draw before the cap, a draw in check at it.** By the tests, which
+  read behaviour on every flavour: a checked side at the cap reads 0
+  where its evaluation is far from 0, a fifty-move draw at the cap
+  reads 0 in check and out of it, and the same move off the boundary
+  reads the evaluation. `pv_len` is not written at the cap.
+- **No table store for a later line.** By the code and by the queen
+  fixture, whose mutant died.
+- **A stop discards its iteration.** The break precedes every use of
+  the iteration; the fail-high stop sets the same flag, so the move
+  played is the last completed iteration's, which the stop's own
+  condition requires to be the move that failed high. The record is
+  mutated by a discarded iteration and is not read again.
+- **`MultiPV 1` line for line.** By construction, and `test_multipv` on
+  both arms.
+- **`bestmove` and `ponder` legal; the last line names the move
+  played.** The shared sanitation and the shared repeat line; the
+  record's line is the kernel's own, and a kept mate line was legal
+  from the same root.
+- **Mate and tablebase bands untouched.** No static score enters them;
+  the guard compares mate scores only.
+- **Helpers on the record.** Each thread owns its record; the pool
+  table takes the raw score as today; CTest's threading tests and the
+  sanitizer trees pass on the arm. No thread sanitizer ran.
+
+### 8. CI has not run
+
+Nothing is pushed. Open until the pull request:
+
+- the workflow edit itself, and the arm's cell on the runner;
+- the new code under the other compilers and warnings CI builds with;
+- the fingerprints on CI's platform. The arm's cell **prints**
+  `bench 13` and asserts only that a count exists, as §10 asked. Its
+  3,920,652 has to be read from the cell's output at the pull request;
+- the universal and PGO builds of the arm;
+- the counter-reading tests, which CI does not run on either arm (§5).
+
+### 9. Follow-ups
+
+None blocks the acceptance. Owners in brackets.
+
+1. **Research amendment 2, before M1 and before any long-clock read**
+   (research; B.5.3's opening). It answers: what gates M1's options on
+   the arm, now that the battery fails at every stop setting by a
+   search the stop cannot reach; why P8 missed by a factor of four or
+   more; what reads the long clocks before the flip. This review's
+   position on the last: register the widened battery as a BAS-S53
+   screen on both arms and at `B5NegExtMax` 1, with a frozen prediction
+   and a rule; read time per move by score band in the direction run
+   (d); give BAS-S55's flip a long-clock condition. A prompt for the
+   amendment is `review/fable_amend2_prompt.md`.
+2. **§9 item 1 reads the battery beside its paired run** (research, in
+   amendment 2): `B5NegExtMax` 1 is the one setting with no search over
+   half the maximum.
+3. **The time manager's inputs move on the arm** (research; D.1): the
+   root's best-move changes nearly double in won endings and the
+   low-effort share rises 12 points. Recorded for D.1, or read in
+   B.5.3, as the amendment decides.
+4. **§5.8's joiner rule and `cont_hist_pruned`** (research; B.5.4's
+   opening): the −51.6% is a few decided positions. Read the rule by
+   the median position before `cont_hist_prune_slope` joins the surface.
+5. **`B5AspBase`'s SPSA step** (research; B.5.4's opening): `c_end`
+   1,137 on a seed 910 above its lower bound, so the low perturbation
+   clamps from the first iterate. The record raised it; it needs a
+   decision before the fit.
+6. **Calibration owed in the entries**: P4's share misses, for the
+   reason of §6 and not the record's; P8 is contradicted at twenty
+   games; P11's low share is unpredicted.
+7. **§14's table** (records; B.6.1): the forgotten mate read after line
+   1; the root's later moves searched past the full depth, with its
+   effect on every depth-denominated read.
+8. **At the pull request** (maintainer): read the arm's printed
+   fingerprint; decide whether the arm's cell also runs `test_b5_root`
+   on a Diag tree until the flip.
+9. **D.2** (recorded, nothing now): the helper filter's count on the
+   arm and `multipv_lines` under a filter (§3).
+10. **`find_spin.py`** (tooling, any time): print each search's node
+    count, so a read shows its options were live.
+11. **`CHANGELOG.md`** (records; with the pull request): no line for
+    the ply cap's repair, which is live on the default arm since
+    ticket 1.
+
+### Corrections to the implementation record
+
+- "A negative reduction leaves `d ≥ new_depth`" is not why few reduced
+  root moves are searched again (§6).
+- "One late root resolution falling differently, the scatter §A1.3
+  describes, rather than a mechanism" understates it: no switch owns
+  it, and it is systematic (§1).
+- "One switch moved removes it nearly everywhere" is not shown by
+  `blowup.py`, which reads one depth a setting (§1).
+
+### Artifacts (`tools/results/b5-20261109/review/`, ignored storage)
+
+`rv_build.py` and `hashes.json` (the ten trees; Release OFF `d0df8b0a…`,
+ON `f4377a3c…`; Tune OFF `384fdd42…`, ON `c818fb5d…`), `rv_fp.py` and
+`rv_fp.json` (the table), `rv_more.py` (the six commits, CTest on Diag
+and Tune), `battery-*` (the battery's logs at both clocks), `rv_blowup.py`
+and `rv_blowup.out`, `rv_wide.py` (`a51cb446…`), `wide_positions_60.json`
+(`581c8822…`) and `wide_*.json`, `replay-*.jsonl`, `rv_probe_patch.py`
+(`35b47e55…`; the probe binary `f8654944…`) and `probe-*`, `spin-*`,
+`ch-*.json` (the `cont_hist_pruned` and effort reads), `floors/`,
+`suite14.json`, `screen.json`, `fable_amend2_prompt.md`.
