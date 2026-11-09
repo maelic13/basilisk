@@ -114,6 +114,9 @@ struct SearchLimits {
     // A test caps the per-line extension budget below the root depth with
     // this (0 = the root depth alone), to prove the bound live.
     int ext_budget_cap = 0;
+    // A test lowers the ply cap with this (0 = MAX_PLY), to read what the
+    // search returns there without a line 128 plies long.
+    int ply_cap = 0;
     // A test fixes every iteration's root window with these (equal = the
     // driver's own windows), to read a cutoff at a node below the root.
     int root_alpha = 0;

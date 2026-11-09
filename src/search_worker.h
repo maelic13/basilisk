@@ -245,6 +245,8 @@ private:
     // Cluster 2's null-move verification region: while a verification runs,
     // nodes above this ply try no null move (0 outside a verification).
     int nmp_min_ply_ = 0;
+    // The ply at which a line ends: MAX_PLY, or a test's cap below it.
+    int ply_cap_ = MAX_PLY;
     // The positive extension plies a line may take: the iteration's depth, or
     // a test's cap below it.
     [[nodiscard]] int ext_budget() const {

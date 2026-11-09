@@ -210,12 +210,15 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         if ((state_.nodes & 2047) == 0 || shared_.stop.load(std::memory_order_relaxed))
             check_stop();
         if (state_.stopped) return 0;
-        if (ply >= MAX_PLY) {
-            DIAG_COUNT(++state_.diag.qs_ply_cap_hits);
-            DIAG_COUNT(state_.diag.qs_ply_cap_in_check += state_.board->is_in_check());
-            return evaluator_.evaluate(*state_.board);
-        }
+        // A draw outranks the cap, and a side in check at the cap has no
+        // evaluation to stand on: the search cannot see its escape.
         if (state_.board->is_draw(ply)) return 0;
+        if (ply >= ply_cap_) {
+            DIAG_COUNT(++state_.diag.qs_ply_cap_hits);
+            const bool at_cap_in_check = state_.board->is_in_check();
+            DIAG_COUNT(state_.diag.qs_ply_cap_in_check += at_cap_in_check);
+            return at_cap_in_check ? 0 : evaluator_.evaluate(*state_.board);
+        }
         // The upcoming repetition, as at an interior node (which made the
         // test for a node it hands here).
         if (alpha < 0 && config_.limits.params.b3_cuckoo
@@ -691,14 +694,19 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         check_stop();
     if (state_.stopped) return 0;
 
-    if (ply >= MAX_PLY) {
-        DIAG_COUNT(++state_.diag.ply_cap_hits);
-        DIAG_COUNT(state_.diag.ply_cap_in_check += state_.board->is_in_check());
-        return evaluator_.evaluate(*state_.board);
-    }
-    state_.pv_len[ply] = ply;
+    // pv_len has no entry for the ply past the last; every return below this
+    // leaves an empty line for the parent to read.
+    if (ply < MAX_PLY) state_.pv_len[ply] = ply;
 
     if (!is_root && state_.board->is_draw(ply)) return 0;
+    // A draw outranks the cap, and a side in check at the cap has no
+    // evaluation to stand on: the search cannot see its escape.
+    if (ply >= ply_cap_) {
+        DIAG_COUNT(++state_.diag.ply_cap_hits);
+        const bool at_cap_in_check = state_.board->is_in_check();
+        DIAG_COUNT(state_.diag.ply_cap_in_check += at_cap_in_check);
+        return at_cap_in_check ? 0 : evaluator_.evaluate(*state_.board);
+    }
     // A reversible move to a repetition is available, so the
     // node is worth at least the draw (B3Cuckoo; never when alpha is
     // already at it).
@@ -2125,6 +2133,7 @@ void Searcher::kernel_begin_search() {
         hist_.clear(true);
     hist_fresh_ = false;
     nmp_min_ply_ = 0;
+    ply_cap_ = config_.limits.ply_cap > 0 ? std::min(config_.limits.ply_cap, MAX_PLY) : MAX_PLY;
     reductions_[0] = 0;
     for (int i = 1; i < 256; ++i)
         reductions_[i] = int(config_.limits.params.lmr_table_scale / 128.0 * std::log(i));
