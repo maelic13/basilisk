@@ -5,6 +5,7 @@ The engines here are small scripts with a known behaviour: a read that passes an
 engine which never answers would pass anything, so that is the case that matters.
 """
 
+import json
 import pathlib
 import subprocess
 import sys
@@ -67,6 +68,32 @@ class FindSpinTest(unittest.TestCase):
         code = subprocess.run([sys.executable, str(tool), "--engine", str(self.directory / "none.exe")],
                               capture_output=True, text=True, timeout=60).returncode
         self.assertEqual(code, 2)
+
+    def test_each_search_prints_and_records_its_node_count(self):
+        engine = READ_ALL + ("    if line.startswith('go'):\n"
+                             "        print('info depth 1 score cp 0 nodes 41 nps 1 time 1 pv e2e4', flush=True)\n"
+                             "        print('info string a note', flush=True)\n"
+                             "        print('bestmove e2e4', flush=True)\n")
+        script = self.directory / "engine.py"
+        script.write_text(engine, encoding="utf-8")
+        if sys.platform == "win32":
+            launcher = self.directory / "engine.cmd"
+            launcher.write_text(f'@"{sys.executable}" "{script}"\n', encoding="utf-8")
+        else:
+            launcher = self.directory / "engine.sh"
+            launcher.write_text(f'#!/bin/sh\nexec "{sys.executable}" "{script}"\n', encoding="utf-8")
+            launcher.chmod(0o755)
+        epd, out = self.directory / "one.epd", self.directory / "out.json"
+        epd.write_text(FEN.rsplit(" ", 2)[0] + ' bm Qg6; id "X.1";\n', encoding="utf-8")
+        done = subprocess.run([sys.executable, str(pathlib.Path(find_spin.__file__)), "--engine", str(launcher), "--epd", str(epd),
+                               "--limit", "20", "--out", str(out)], capture_output=True, text=True, timeout=60)
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertIn("0 nodes 41", done.stdout)
+        self.assertEqual(json.loads(out.read_text(encoding="utf-8"))["nodes"], [41])
+
+    def test_the_last_node_count_is_the_last_line_that_has_one(self):
+        self.assertEqual(find_spin.last_nodes(["info depth 1 nodes 5", "info depth 2 nodes 9 pv e2e4", "info string x", "bestmove e2e4"]), 9)
+        self.assertIsNone(find_spin.last_nodes(["bestmove e2e4"]))
 
     def test_the_positions_are_read_from_their_four_fields(self):
         epd = self.directory / "two.epd"

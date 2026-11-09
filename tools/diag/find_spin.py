@@ -5,7 +5,8 @@ Runs each position of an EPD at a fixed depth, in a fresh engine process, under 
 time limit, and names the ones with no `bestmove` in time. A fixed-depth search has
 only its own loops to end it, so a loop that cannot end shows here and nowhere a
 node or clock limit is in force. An engine that dies, or says nothing, counts as
-unfinished.
+unfinished. Each search prints its node count, so a read shows its options were
+live: an option that moves nothing moves no count.
 
 Exit status: 0 when everything finished, 1 when anything did not, 2 on bad input.
 
@@ -19,12 +20,14 @@ from __future__ import annotations
 import argparse
 import json
 import pathlib
+import re
 import subprocess
 import sys
 import threading
 import time
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
+NODES = re.compile(r"^info .*\bnodes (\d+)")
 
 
 def read_positions(path: pathlib.Path) -> list[str]:
@@ -35,6 +38,15 @@ def read_positions(path: pathlib.Path) -> list[str]:
         if len(fields) >= 4:
             fens.append(" ".join(fields[:4]) + " 0 1")
     return fens
+
+
+def last_nodes(lines: list[str]) -> int | None:
+    """The node count of the last `info` line that has one."""
+    for line in reversed(lines):
+        match = NODES.search(line)
+        if match:
+            return int(match.group(1))
+    return None
 
 
 def search_finishes(command: list[str], fen: str, depth: int, limit: float, options: list[str], hash_mb: int) -> tuple[bool, list[str]]:
@@ -107,19 +119,24 @@ def main() -> int:
 
     command = [str(args.engine.resolve())]
     unfinished = []
+    node_counts: list[int | None] = []
     for index, fen in enumerate(positions):
         finished, lines = search_finishes(command, fen, args.depth, args.limit, args.option, args.hash)
-        if not finished:
+        nodes = last_nodes(lines)
+        node_counts.append(nodes)
+        if finished:
+            print(f"{index} nodes {nodes}", flush=True)
+        else:
             unfinished.append(fen)
-            print(f"UNFINISHED {index} {fen}", flush=True)
+            print(f"UNFINISHED {index} {fen} nodes {nodes}", flush=True)
             for line in lines:
                 print("   ", line[:170], flush=True)
     print(f"depth {args.depth}, {args.limit:g} s each, {args.option or 'defaults'}: "
-          f"{len(unfinished)} of {len(positions)} unfinished", flush=True)
+          f"{len(unfinished)} of {len(positions)} unfinished; {sum(n or 0 for n in node_counts):,} nodes", flush=True)
     if args.out:
         args.out.write_text(json.dumps({"engine": str(args.engine), "depth": args.depth, "limit": args.limit,
                                         "options": args.option, "positions": len(positions),
-                                        "unfinished": unfinished}, indent=1), encoding="utf-8")
+                                        "unfinished": unfinished, "nodes": node_counts}, indent=1), encoding="utf-8")
     return 1 if unfinished else 0
 
 
