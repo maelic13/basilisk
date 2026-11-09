@@ -2345,6 +2345,14 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       keeps `bench 13` 4,144,790 at every commit; its cheap
       qualification in full; accepted by an independent review that
       reproduces the fingerprints before diagnostics start.
+      - Returned 2026-11-09 at ticket 3 (packet *Return 1*): at the
+        seed `B5AspBase` 1 and growth 47 the width cannot grow
+        (`47 × delta / 128` is 0 at 1 and 2), so the loop does not
+        end on 3 of 300 WAC positions; where it ends, 14.03
+        re-searches per window, 80.1% failed share and WAC 236 fail
+        P3 and P6. Every repair read ends the loop and restores WAC,
+        and all stay above P3's 58% failed share. Tickets 0 to 3 are
+        committed; tickets 4 to 9 wait on a research amendment.
     - [ ] **B.5.3** `[V]` Diagnostics, M1 and the unfitted paired run
       The packet's zero-game screens on both arms (BAS-S53), M1's
       replay on the arm (BAS-R10) deciding the fail-high stop's
@@ -3029,7 +3037,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.5.2 | READY_FOR_IMPLEMENTATION | I2 | On B.5.1's packet §10 (`analysis/b5_cluster4_research_2026-11-08.md`); next |
+| B.5.2 | RESEARCH | I2 | Returned at ticket 3 (packet *Return 1*, `analysis/b5_cluster4_research_2026-11-08.md`); the amendment is next |
 | B.5.3 | RESEARCH | V | After B.5.2's review; BAS-S53 and BAS-R10 registered in the packet |
 | B.5.4 | RESEARCH | V | After B.5.3; BAS-S54 |
 | B.5.5 | RESEARCH | V | After B.5.4; BAS-S55 |

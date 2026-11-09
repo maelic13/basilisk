@@ -918,3 +918,211 @@ gates. The same five are proposed, as a structure change for sign-off:
 Until the split is applied, B.5's register row reads
 `READY_FOR_IMPLEMENTATION` and the implementation runs under §10 as
 B.5's next unit.
+
+## Return 1 — B.5.2 ticket 3: at the seed the window's width cannot grow, and the loop does not end (2026-11-09)
+
+**The premise.** §3 and §10 ticket 3: `delta = B5AspBase + (thread_id % 8) ×
+282 / 1000 + |mean_sq| / B5AspMsqDiv`, then after each failure `delta +=
+B5AspGrowth × delta / 128`; "a window inside its bounds ends the loop", with
+no give-up hatch. §7 seeds `B5AspBase` at 1, the donor's 5 converted (1.41)
+and truncated, and `B5AspGrowth` at 47. The clause assumes the width grows, so
+that the loop ends.
+
+**The failure.** In integer arithmetic `47 × delta / 128` is 0 at `delta` 1 and
+2. At a level score the mean-square term is 0 too (under 2874 of mean square,
+about 53 units), so the width stays at 1 for every failure and the loop has no
+reason to end. The donor starts at 5, where the same expression grows (5, 6,
+8, 10, 13, ...), so the donor's own loop never meets this.
+
+- `tools/results/b5-20261109/find_spin.py` on ticket 3's Release binary, WAC at
+  depth 6, a fresh process per position, 20 s each: **3 of 300 do not finish**
+  (`2r1k3/6pr/p1nBP3/1p3p1p/2q5/2P5/P1R4P/K2Q2R1 w`,
+  `r5k1/pppb3p/2np1n2/8/3PqNpP/3Q2P1/PPP5/R4RK1 w`,
+  `6k1/5p2/p3p3/1p3qp1/2p1Qn2/2P1R3/PP1r1PPP/4R1K1 b`), each above 95M nodes
+  at depth 5.
+- A probe printing the loop's own values (`t3_probe/trace_*.txt`, 4,000 windows
+  each): the width ends at 1, 2 and 1 and stays there. The second position is an
+  exact cycle at `delta` 2: (197, 201) fails low at 197, (195, 197) fails high at
+  197, (195, 199) fails high at 199, and the next window is (197, 201) again.
+  Search instability through the table gives the loop a fixed point it cannot
+  leave.
+- `test_wac_floor` timed out at 1500 s; `test_wac --count` was killed after 72
+  minutes of one core. `go depth N` on such a position does not return. Under a
+  clock the stop ends the loop, with the iteration unfinished and its time gone.
+- Bench 13 and every earlier test finish, so no fingerprint showed it.
+
+**Where the loop ends it still costs.** P3 and P6 fail, both frozen, and the
+width is the cause: ticket 3 has neither root reduction nor the record's later
+tickets, and the variants below restore WAC with no other change.
+
+| Read, the arm | Ticket 2 | Ticket 3 | Frozen |
+|---|---:|---:|---:|
+| re-searches per window (bench positions, depth 13) | 1.23 | **14.03** | P3 2.0–3.5 on `suite_v2` depth 14 |
+| failed share of windowed nodes (same) | 48.7% | **80.1%** | P3 ≤ 48%; above 58% the falsifier |
+| interior nodes (same) | 2,346,643 | 3,638,191 (1.55×) | |
+| WAC at 100,000 nodes | not read | **236** of 300 | P6 [246, 262]; under 246 a floor failure |
+| floors grid | not read | PASS 600 / 598 / 600 / 595, five budgets 119 | P7 |
+
+23 Cluster 1 to 3 rows moved over 20% at ticket 3 (`t3/compare.md`), among them
+`tt_cutoffs` +85.7%, `follow_pv_nodes` +161.4%, `sing_multicut` +128.3%,
+`in_check_nodes` −41.7%. The cause is the repeated root re-search at nearly the
+same window, which turns the tree over the table. They are reported, not
+repaired, and were not re-read on the variants.
+
+**This was in plain sight, and the implementer's test fixed it in place.**
+`tests/test_b5_root.cpp` asserts `grow_delta(1, 47) == 1`, commented "47/128 of a
+unit rounds away". The arithmetic was noticed and bound, and its consequence for
+the loop was not followed. That test passes and must change on whatever the
+amendment decides.
+
+**Reads on throwaway builds, evidence only.** Each variant is one edit on a
+copy of ticket 3's source (`probe_t3.py`, `build/b5-probe/`); nothing below is
+in the tree.
+
+- **V1:** the width grows by at least one each failure.
+- **V2:** `B5AspBase` 3, the smallest base whose width grows at growth 47.
+- **V3:** the width carried in thousandths from the donor's converted 1.41,
+  growing by 47/128 untruncated, rounded down at use.
+
+| Tree | bench 13 | WAC spins, depth 6 | WAC 100k | floors grid | bench positions: re-searches, failed share | `suite_v2` d14: re-searches, failed share | d14 interior / qs |
+|---|---:|---:|---:|---|---:|---:|---:|
+| OFF head (§2, census) | 4,144,790 | none (CTest) | 254 | — | — | 1.503, 53.7% | 7,116,466 / 4,893,846 |
+| Ticket 3 as written | 5,039,771 | 3 | **236** | PASS | 14.03, 80.1% | not read, it can spin | — |
+| V1 | 3,984,800 | 0 | 253 | PASS | 3.03, 67.4% | 3.56, 74.3% | 7,785,642 / 5,301,231 |
+| V2 | 3,631,713 | 0 | 246 | PASS | 2.14, 63.6% | 2.69, 69.5% | 6,671,605 / 4,615,645 |
+| V3 | 4,639,581 | 0 | 252 | PASS | 3.00, 66.7% | 3.46, 73.3% | 7,660,371 / 5,233,865 |
+
+Reading it:
+
+- **Every variant ends the loop**, at depth 6 by the read and at any depth by
+  construction, since each width grows without bound. The spin read was not run
+  deeper on ticket 3 or on the variants.
+- **No repair restores P3's failed share.** All three stay above the 58% that
+  P3's falsifier names, on the registered population, where the OFF head reads
+  53.7%. So "the narrow windows cost more than they save" is open with the
+  termination repaired, and P3 says to read `B5AspBase`'s sweep before the whole
+  arm is blamed. The re-search rate of V2 and V3 is inside P3's range, and V1's
+  is just above it.
+- **The floors grid cannot choose among these.** All four trees read the same
+  grid, 2,400 of 2,400 playouts equal to the ply (`floors_differ.py`), on four
+  distinct binaries. That is real, not a tool fault: in a won ending the
+  mean-square term opens the window from its first search (16535² / 2874 ≈
+  95,000; no bound lines at all on the four positions of `floors_visible.py`), so
+  base and growth never bind. The grid does see the arm, whose searches differ
+  from the OFF arm's on those positions. KR-K's 598 sits on the floor, its two
+  misses independent of the width.
+- **The bench and counter columns are different runs**: bench 13 shares its
+  process and hash, the counters run cold per position, so V3's bench total and
+  interior count do not rank the same way as V1's. Neither is a strength read.
+- **WAC at V2 is on the floor**, 246.
+
+**The whole range is exposed, not just the seed.** The width grows only when
+`growth × delta ≥ 128`: from `delta` 3 at growth 47, from 4 at the range's
+growth 32, from 2 at 96. §7's ranges (base 1–40, growth 32–96) therefore reach a
+stuck width anywhere low on the surface, so a seed-only repair leaves B.5.4's
+sweep and SPSA able to hang a game's iteration: base 3 is stuck at growths 32 to
+42.
+
+**As built and kept.** Tickets 0 to 3 stand as committed; ticket 3 (`9a77439`) is
+§10's loop as written, with the spin in it, so the failure can be reproduced from
+the tree. On ticket 3's source the OFF arm reads 4,144,790 and CTest 28/28; the arm
+reads 5,039,771 and CTest 27/28 (`test_wac_floor` times out). The counters, the
+record, `replay_games.py` and `floors_grid.py` stand whichever way this goes.
+Ticket 3's tests other than the growth row are unaffected.
+
+**Options.**
+
+1. *Carry the width in a finer unit (V3's mechanism).* Answers the cause: 1.41
+   was truncated to 1, and the donor's width is a real quantity on its own scale
+   that truncates only where it no longer matters. No constant moves in meaning,
+   and every growth in the range terminates. Cost: `B5AspBase` must become a
+   finer unit or a fixed fraction for the seed to say 1.41, a change to §7's row
+   and to the SPSA surface; V3's `1410 + (delta − 1) × 1000` is a probe's form,
+   not a proposal.
+2. *Grow by at least one (V1).* One line, no coordinate changes, terminates over
+   the whole range, keeps every seed. Cost: a form the donor does not have, whose
+   first steps (1, 2, 3, 4, 5, 6, 8) differ from 47/128 at the small widths that
+   matter most here.
+3. *Raise the base (V2).* No new arithmetic. Cost: a seed chosen because it
+   passes, WAC on the floor, and the range's bottom must rise with it: base at
+   least 4 to be safe at growth 32.
+4. *Restore a bound on the loop.* Open the window after N failures, or at a
+   width. It guarantees termination whatever the arithmetic, and §3 removed the
+   hatch deliberately. It also leaves the windows stuck until the bound, so it
+   answers neither P3 nor P6 on its own.
+
+Recommendation: option 1, on the same reasoning as this cluster's other unit
+corrections (§5.1's null window), since the defect is a unit conversion that
+truncated the donor's quantity. Whichever is chosen, §10's test becomes a
+property over the whole registered range, that the width strictly grows from
+every reachable `delta`, with a WAC-at-depth run in the cheap qualification
+guarding the loop. Main counter-argument: V1 reads about the same as V3 on WAC
+and the census (253 against 252; 3.56 and 74.3% against 3.46 and 73.3%) for one
+line and no surface change, and nothing measured here separates them on strength;
+a reviewer who weighs simplicity over faithfulness has good grounds.
+
+**Questions for the amendment.**
+
+1. Which termination repair, and does it change §7's coordinates or ranges?
+2. P3's failed share is above its falsifier under every repair. Does the seed
+   stand into B.5.3 with the unfitted run deciding, or does its `B5AspBase` read
+   come first? P3 names the read and not its timing against the paired run.
+3. The floors cannot discriminate width choices. Is WAC at 100,000 nodes with the
+   spin read enough for ticket 3's cheap qualification, or is another read
+   needed before ticket 4?
+4. Is §10's ticket 3 test list amended with the range property, and is a
+   time-bounded depth read added to §10's cheap qualification?
+5. Do tickets 4 to 9 stand as written on the repaired width? They have not
+   started, and their reads take ticket 3's new fingerprint.
+
+**State at the return.** Tickets 0 to 3 are committed. Tickets 4 to 9 have not
+started, because `AGENTS.md` resumes implementation only on the amended contract;
+ticket 4's edit script is written and unapplied. No game ran, no default moved,
+no NPS read started.
+
+## Implementation record — tickets 0 to 3, at Return 1 (2026-11-09)
+
+- Commits per ticket: 0 `e767c0a` (engine), `3a52800` (tools), `4adad6e` (tools,
+  below); 1 `2757cfa` (engine), `910c9b1` (tools); 2 `03b4a1a`; 3 `9a77439`. The
+  maintainer's `dd5d0b6` (docs) landed on the branch during ticket 0.
+- Fingerprints (`bench 13`, PEXT, clang), read on Release, Tune and Diag trees of
+  both arms at tickets 0 to 2, and for ticket 3 on all six before the read hung:
+
+| Ticket | OFF | ON | CTest OFF / ON |
+|---|---:|---:|---|
+| 0 | 4,144,790 | 4,144,790 | 27/27, 27/27 |
+| 1 | 4,144,790 | 4,144,790 | 28/28, 28/28 |
+| 2 | 4,144,790 | 4,144,790 | 28/28, 27/28 (below) |
+| 3 | 4,144,790 | 5,039,771 | 28/28, 27/28 (`test_wac_floor` times out) |
+
+- Tests added: `tests/test_b5_root.cpp` (the ply cap through a lowered cap, the
+  record's arithmetic, the root's first move from the record, the window's
+  arithmetic, a mate score's open window, the bound lines, no give-up on the arm);
+  `tools/diag/test_replay_games.py`; `test_run_suite.py` and `test_spsa_surface.py`
+  extended.
+- Deviations from the handoff, each with its reason:
+  - The negative-extension stack fields landed at ticket 0, since the chain
+    counters need them; written only where counters compile until ticket 6.
+  - M1 must run on a Tune build: a Diag build advertises no `S` lines, and BAS-R10
+    says Diag. The longest window is read from `TM_Debug` fields, not counters.
+  - §2.1's "seven replaced entries" do not exist: they are a new move failing
+    high then failing low, where table and record agree. Arm identity held on 40 of
+    40 positions at depths 10 and 13, including those with `root_tt_mismatch_fl`
+    above 0.
+  - Ticket 2 left the arm's `test_search` failing on the promotion fixture
+    (`3r4/P7/2K1p3/R7/5p2/6kP/8/8 w`): the rule that searches the queen before the
+    underpromotion makes the queen the record's first after a fail low while the
+    table holds the rook, and the win was sighted only at 207,370 nodes. The test
+    was not relaxed and ticket 3 cures it (32,565 nodes).
+  - `root_effort_*` count windowed iterations; the EMA truncates toward zero where
+    the donor's arithmetic floors negatives, a sub-unit difference; the sort and the
+    node check are skipped while `root_excluded` is in use, until ticket 7.
+  - `floors_grid.py` was promoted at ticket 0 assuming a per-playout print that
+    only B.4's patched harness had, and its dry run did not exercise the real
+    binary, so its first real run failed at ticket 3. `test_endgames --list` now
+    prints them (`4adad6e`). The grid gained a correctness run for the wrong-bishop
+    draws.
+- Not yet done, for the resumption: two of ticket 1's three mutants did not build
+  and must be rerun; the per-commit check of both arms; §10's cheap qualification.
+- What the reviewer must check: deferred to the implementation's final record.
+- Review: not yet requested.
