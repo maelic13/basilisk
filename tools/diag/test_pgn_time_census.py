@@ -142,7 +142,8 @@ class TableR1(unittest.TestCase):
         for run, arms in self.TABLE.items():
             with (REPO / "tools/results" / run / "games.pgn").open(encoding="utf-8", errors="replace") as handle:
                 report = pgn_time_census.census(handle)
-            stored = json.loads((AMEND2 / f"r1_{"ltc" if "ltc" in run else "stc"}.json").read_text(encoding="utf-8"))
+            stored_name = "r1_ltc.json" if "ltc" in run else "r1_stc.json"
+            stored = json.loads((AMEND2 / stored_name).read_text(encoding="utf-8"))
             self.assertEqual(json.loads(json.dumps(report))["engines"], stored["engines"], run)
             engines = report["engines"]
             for arm, (d300, d800, d1500, mean_won, half_won, half_lost) in arms.items():
