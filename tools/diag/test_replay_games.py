@@ -17,9 +17,9 @@ import chess.pgn
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import replay_games
 
-# The first moves of games 1 and 2 of the B.4.7 gate (a) PGN, and of game 1 of
-# its 10+0.1 direction run's shape: a set position with Black to move, the
-# standard start, and unequal controls.
+# The first moves of games 1 and 2 of the B.4.7 gate (a) PGN and of game 1 of
+# its 10+0.1 direction run, then a game written here for unequal controls, which
+# the gates never play.
 GAME_BLACK_FIRST = """[White "basilisk-b47-on-pext-pgo"]
 [Black "basilisk-b47-off-pext-pgo"]
 [Result "*"]
@@ -31,12 +31,27 @@ GAME_BLACK_FIRST = """[White "basilisk-b47-on-pext-pgo"]
 {s=-91 d=15 t=57ms h=0ms n=102860} Bxd2+ {s=47 d=15 t=69ms h=1ms n=126447} 3.
 Qxd2 {s=-57 d=16 t=53ms h=0ms n=94186} *
 """
-GAME_WHITE_FIRST = """[White "other"]
+GAME_SECOND = """[White "basilisk-b47-off-pext-pgo"]
+[Black "basilisk-b47-on-pext-pgo"]
+[Result "*"]
+[TimeControl "white 3000ms+30ms; black 3000ms+30ms"]
+[SetUp "1"]
+[FEN "rnbqk1nr/pppp1ppp/3b4/8/1PPP4/8/P4PPP/RNBQKBNR b KQkq - 0 1"]
+
+1... Bxb4+ {s=95 d=14 t=37ms h=1ms n=70102} 2. Bd2
+{s=-106 d=16 t=44ms h=0ms n=79592} Bxd2+ {s=58 d=16 t=96ms h=0ms n=174312} 3.
+Qxd2 {s=-63 d=14 t=111ms h=1ms n=198882} d5 {s=66 d=16 t=55ms h=1ms n=101552} *
+"""
+GAME_WHITE_FIRST = """[White "basilisk-b47-off-pext-pgo"]
 [Black "basilisk-b47-on-pext-pgo"]
 [Result "*"]
 [TimeControl "white 10000ms+100ms; black 10000ms+100ms"]
+[SetUp "1"]
+[FEN "r1bqkb1r/p4ppp/2p5/2ppN3/4nP2/8/PPPP2PP/RNBQK2R w KQkq - 0 1"]
 
-1. e4 {s=20 d=10 t=250ms} e5 {s=-20 d=11 t=300ms} 2. Nf3 {s=25 d=12 t=125ms} *
+1. Qf3 {s=-84 d=17 t=182ms h=1ms n=285025} c4 {s=82 d=15 t=233ms h=1ms n=384758}
+2. Nxc6 {s=-107 d=15 t=687ms h=0ms n=1250189} Qc7
+{s=60 d=15 t=315ms h=1ms n=538363} *
 """
 GAME_UNEQUAL = """[White "a"]
 [Black "b"]
@@ -65,10 +80,16 @@ class ClockReconstruction(unittest.TestCase):
         self.assertEqual(rows[0]["side"], chess.BLACK)
         self.assertEqual(rows[2]["moves"], ["d6b4", "c1d2"])
 
-    def test_the_standard_start(self):
+    def test_the_other_side_replays_the_same_opening(self):
+        rows = replay_games.rebuild_clocks(read(GAME_SECOND))
+        self.assertEqual([(r["wtime"], r["btime"]) for r in rows],
+                         [(3000, 3000), (3000, 2993), (2986, 2993), (2986, 2927), (2905, 2927)])
+        self.assertEqual(rows[4]["moves"], ["d6b4", "c1d2", "b4d2", "d1d2"])
+
+    def test_white_to_move_at_the_longer_control(self):
         rows = replay_games.rebuild_clocks(read(GAME_WHITE_FIRST))
         self.assertEqual([(r["wtime"], r["btime"]) for r in rows],
-                         [(10000, 10000), (9850, 10000), (9850, 9800)])
+                         [(10000, 10000), (9918, 10000), (9918, 9867), (9331, 9867)])
         self.assertEqual({(r["winc"], r["binc"]) for r in rows}, {(100, 100)})
 
     def test_each_side_keeps_its_own_control(self):
