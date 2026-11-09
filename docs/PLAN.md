@@ -2379,6 +2379,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         `B5AspBase` 19000 against 1410 on the tune build, the width
         read by games. It sets the width the categoricals are read
         at and where B.5.4's SPSA starts; it moves no default.
+        Agreed by the maintainer 2026-11-09.
     - [ ] **B.5.4** `[V]` Curvature sweep, then SPSA in blocks
       The packet's registered sweep on the three window seeds and the
       Cluster 1 to 3 coordinates §5.8 pulls onto the surface, then

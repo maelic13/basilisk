@@ -1570,8 +1570,9 @@ value, BAS-S55 (c) reads item 2 again at the fitted width.
 
 **§11's registrations**, each change stated:
 
-- **BAS-S53 gains the width run**, after the whole-arm paired run and
-  before §9's items: 2,000 games at `3+0.03` on the arm's tune build,
+- **BAS-S53 gains the width run** (agreed by the maintainer
+  2026-11-09), after the whole-arm paired run and before §9's items:
+  2,000 games at `3+0.03` on the arm's tune build,
   `B5AspBase` 19000 (arm A) against 1410 (arm B), every other option at
   its default. Read by §9's rule: at +5 Elo or more for 19000 with the
   95% interval excluding 0, §9's items are read with both arms at 19000
