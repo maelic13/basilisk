@@ -130,6 +130,12 @@ struct SearchState {
     // while TM_Debug is on: a stop tests the clock only as a window returns.
     double  longest_window = 0.0;
     double  longest_window_start = 0.0;
+    // Cluster 4's record of the root moves (the B5_ROOT arm; empty otherwise):
+    // the line being searched, as an index into it, and the iterations
+    // completed, of which the record's lines are the last.
+    std::vector<RootMove> root_moves;
+    int root_line = 0;
+    int root_iterations = 0;
     // The last completed iteration, which Cluster 2 reads: its first line's
     // PV (empty before one completes and while a MultiPV line after the first
     // is searched) and its raw root score (0 before one completes).
@@ -184,6 +190,11 @@ private:
     // Searches the root at `depth` inside [alpha, beta] and returns its score;
     // the line, selective depth and root effort land in state_.
     int  root_search(int depth, int alpha, int beta);
+    // The kernel's root loop, on the arm: the record of a root move the search
+    // may play (null when the limits forbid it), and its bookkeeping after a
+    // search that cost `nodes`, the line taken from the child's table.
+    [[nodiscard]] RootMove* root_record_find(Move m);
+    void root_record_searched(RootMove& rm, int value, int64_t nodes, bool first, int alpha, int beta);
     // Prepares the kernel's tables and stack for one `go`: the LMR table from
     // the parameters, history ageing, a clean stack.
     void kernel_begin_search();
@@ -213,6 +224,11 @@ private:
     // last completed iteration's best, by what the window before it did
     // (0 none, 1 failed low, 2 failed high).
     void   diag_root_tt(int last_window, Move best);
+    // The record, on the arm: every root move the limits allow in generation
+    // order, each with a line of one move; and an iteration's start, which saves
+    // the last one's scores and lines and takes line 1's for the search to follow.
+    void   root_record_init(const Board& board);
+    void   root_record_begin_iteration();
 
     // ---- Node kernel -------------------------------------------------------
     // Everything from here to the end of the class belongs to the node kernel

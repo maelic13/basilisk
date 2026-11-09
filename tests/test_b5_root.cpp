@@ -10,11 +10,13 @@
 #include "board.h"
 #include "eval.h"
 #include "parameters.h"
+#include "search_b5.h"
 #include "search_worker.h"
 #include "test_harness.h"
 #include "tt.h"
 #include "zobrist.h"
 
+#include <algorithm>
 #include <atomic>
 #include <cstdio>
 #include <map>
@@ -212,6 +214,92 @@ static void test_a_search_under_a_low_cap() {
     end_section();
 }
 
+// ---- The record ---------------------------------------------------------------
+
+static void test_the_record_arithmetic() {
+    begin_section("the record's weights and blends");
+    // The share of this search in the move's effort, in 32nds, between 12 and 24.
+    EXPECT_EQ(b5::ema_weights(1000, 0).average, 24);       // the first search: 64000/2003, clamped
+    EXPECT_EQ(b5::ema_weights(1, 1000).average, 12);       // a sliver: clamped from below
+    EXPECT_EQ(b5::ema_weights(1000, 1000).average, 12);    // 64000/5000
+    EXPECT_EQ(b5::ema_weights(1000, 500).average, 18);     // 64000/3500
+    EXPECT_EQ(b5::ema_weights(1000, 400).average, 20);     // 64000/3200
+    // The mean square's weight stops at 16.
+    EXPECT_EQ(b5::ema_weights(1000, 500).mean_sq, 16);
+    EXPECT_EQ(b5::ema_weights(1000, 1000).mean_sq, 12);
+
+    EXPECT_EQ(b5::blend_average(kRootScoreNone, -37, 24), -37);
+    EXPECT_EQ(b5::blend_average(0, 100, 24), 75);
+    EXPECT_EQ(b5::blend_average(0, -100, 24), -75);
+    EXPECT_EQ(b5::blend_average(100, 0, 12), 62);          // 2000/32 truncated
+
+    EXPECT_EQ(b5::blend_mean_sq(kRootMeanSqNone, 100, 16), 10000);
+    EXPECT_EQ(b5::blend_mean_sq(kRootMeanSqNone, -100, 16), -10000);
+    EXPECT_EQ(b5::blend_mean_sq(10000, -100, 16), 0);
+    EXPECT_EQ(b5::blend_mean_sq(0, 20000, 16), 200000000);  // no overflow in the won tier
+
+    // By score, then the last score; the none score last, in the order it had.
+    std::vector<RootMove> moves(4);
+    moves[0].move = Move(1);
+    moves[1].move = Move(2);
+    moves[1].score = 5;
+    moves[1].previous_score = 1;
+    moves[2].move = Move(3);
+    moves[3].move = Move(4);
+    moves[3].score = 5;
+    moves[3].previous_score = 2;
+    std::stable_sort(moves.begin(), moves.end(), b5::root_move_before);
+    EXPECT(moves[0].move == Move(4));
+    EXPECT(moves[1].move == Move(2));
+    EXPECT(moves[2].move == Move(1));
+    EXPECT(moves[3].move == Move(3));
+    end_section();
+}
+
+// The arm's root takes its first move from its own line once an iteration
+// completed, whatever the table holds: rewriting the root entry's move at every
+// depth line, its score and bound kept, leaves the arm's tree as it was, and
+// moves the OFF arm's.
+static int64_t nodes_with_a_foreign_root_move(const std::string& fen, int depth, bool rewrite) {
+    TranspositionTable tt(16);
+    std::atomic_bool stop{false};
+    Board b;
+    b.set_fen(fen);
+    const Key key = b.position_key();
+    MoveList legal;
+    b.gen_legal(legal);
+    auto info = [&](const std::string& line) {
+        if (!rewrite || line.rfind("info depth", 0) != 0)
+            return;
+        TTEntry entry{};
+        if (!tt.probe_copy(key, entry))
+            return;
+        // The legal move furthest down the generation order that is not the entry's.
+        Move other = MOVE_NONE;
+        for (Move m : legal)
+            if (m != move_from_tt(entry.move16))
+                other = m;
+        tt.store(key, entry.depth, TranspositionTable::score_from_tt(entry.score, 0, 0), entry.bound(),
+                 other, 0, entry.static_eval, entry.is_pv());
+    };
+    auto searcher = std::make_unique<Searcher>(tt, stop, info);
+    SearchLimits lim;
+    lim.depth = depth;
+    return searcher->search(b, lim).nodes;
+}
+
+static void test_the_root_move_comes_from_the_record() {
+    begin_section("the root's first move comes from the record");
+    const char* const fen = "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3";
+    const int64_t plain = nodes_with_a_foreign_root_move(fen, 10, false);
+    const int64_t foreign = nodes_with_a_foreign_root_move(fen, 10, true);
+    if (kB5Root)
+        EXPECT_EQ(foreign, plain);
+    else
+        EXPECT(foreign != plain);
+    end_section();
+}
+
 int main() {
     init_bitboards();
     init_attacks();
@@ -225,6 +313,8 @@ int main() {
     test_the_cap_in_quiescence();
     test_a_draw_at_the_cap();
     test_a_search_under_a_low_cap();
+    test_the_record_arithmetic();
+    test_the_root_move_comes_from_the_record();
 
     return harness_summary();
 }

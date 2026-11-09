@@ -9,6 +9,7 @@
 #include "constants.h"
 #include "search_b3.h"
 #include "search_b4.h"
+#include "search_b5.h"
 #include "syzygy.h"
 #include <algorithm>
 #include <bit>
@@ -820,6 +821,12 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         tt_depth = tte.depth;
         tt_flag  = tte.bound();
     }
+    // The root's first move comes from its own line once an iteration completed:
+    // the table's may be a fail low's older entry or a helper's.
+    if constexpr (kB5Root && is_root) {
+        if (state_.root_iterations > 0 && state_.root_line < int(state_.root_moves.size()))
+            tt_move = state_.root_moves[static_cast<size_t>(state_.root_line)].move;
+    }
     if (tt_move == MOVE_NONE) DIAG_COUNT(++state_.diag.tt_move_absent);
     else if (tt_depth <= 0) DIAG_COUNT(++state_.diag.tt_move_d0);
 
@@ -1398,15 +1405,23 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     int  root_queen_count = 0;
 
     auto search_one = [&](Move m, CoreMovePicker::Src picker_src) {
-        if (is_root && !move_in_root_moves(m, config_.limits.root_moves))
-            return false;
-        if (is_root && config_.root_filter_index >= 0) {
-            const int ordinal = root_ordinal++;
-            if ((ordinal % config_.root_filter_count) != config_.root_filter_index)
+        [[maybe_unused]] RootMove* root_record = nullptr;
+        if constexpr (kB5Root && is_root) {
+            // The record holds what the limits allow, once per `go`.
+            root_record = root_record_find(m);
+            if (root_record == nullptr)
+                return false;
+        } else {
+            if (is_root && !move_in_root_moves(m, config_.limits.root_moves))
+                return false;
+            if (is_root && config_.root_filter_index >= 0) {
+                const int ordinal = root_ordinal++;
+                if ((ordinal % config_.root_filter_count) != config_.root_filter_index)
+                    return false;
+            }
+            if (is_root && !root_tablebase_allows(m))
                 return false;
         }
-        if (is_root && !root_tablebase_allows(m))
-            return false;
         if (is_root && !state_.root_excluded.empty()
             && std::find(state_.root_excluded.begin(), state_.root_excluded.end(), m) != state_.root_excluded.end())
             return false;
@@ -1928,6 +1943,10 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             }
         }
 
+        if constexpr (kB5Root && is_root)
+            root_record_searched(*root_record, score, std::max<int64_t>(0, move_nodes),
+                                 searched == 1, alpha, beta);
+
         // A move equal to the best, deep in the tree, sometimes replaces it
         // as though it had just exceeded alpha. Never at the root: there a
         // later move is searched with a null window at alpha, so an equal
@@ -2150,10 +2169,48 @@ void Searcher::kernel_begin_search() {
     }
 }
 
+RootMove* Searcher::root_record_find(Move m) {
+    for (auto it = state_.root_moves.begin() + state_.root_line; it != state_.root_moves.end(); ++it)
+        if (it->move == m)
+            return &*it;
+    return nullptr;
+}
+
+void Searcher::root_record_searched(RootMove& rm, int value, int64_t nodes, bool first,
+                                    int alpha, int beta) {
+    const b5::EmaWeights w = b5::ema_weights(nodes, rm.effort);
+    rm.effort += nodes;
+    rm.average = b5::blend_average(rm.average, value, w.average);
+    rm.mean_sq = b5::blend_mean_sq(rm.mean_sq, value, w.mean_sq);
+    if (first || value > alpha) {
+        rm.score = value;
+        rm.sel_depth = state_.sel_depth;
+        rm.lower_bound = value >= beta;
+        rm.upper_bound = value <= alpha;
+        // The child's line, as the node's own PV takes it.
+        const int child_pv_len = std::clamp(state_.pv_len[1], 1, MAX_PLY);
+        rm.pv.resize(1);
+        rm.pv.insert(rm.pv.end(), state_.pv_table[1] + 1, state_.pv_table[1] + child_pv_len);
+    } else {
+        rm.score = kRootScoreNone;
+    }
+}
+
 int Searcher::root_search(int depth, int alpha, int beta) {
     root_delta_ = std::max(1, beta - alpha);
     root_depth_ = depth;
     root_score_ = state_.prev_root_score;
-    return negamax<NodeType::Root>(depth, alpha, beta, 0, state_.stack + STACK_SENTINELS,
-                                   true, false);
+    const int score = negamax<NodeType::Root>(depth, alpha, beta, 0, state_.stack + STACK_SENTINELS,
+                                              true, false);
+    // A later MultiPV line searches without the earlier lines' moves.
+    if constexpr (kB5Root) if (state_.root_excluded.empty()) {
+        const auto first = state_.root_moves.begin() + state_.root_line;
+        std::stable_sort(first, state_.root_moves.end(), b5::root_move_before);
+        // Inside its window the search's result is the record's first line.
+        CORE_NODE_CHECK(state_.stopped || score <= alpha || score >= beta
+                        || (first->move == state_.pv_table[0][0] && first->score == score
+                            && int(first->pv.size()) == std::clamp(state_.pv_len[0], 0, MAX_PLY)
+                            && std::equal(first->pv.begin(), first->pv.end(), state_.pv_table[0])));
+    }
+    return score;
 }

@@ -1,5 +1,6 @@
 #include "search_worker.h"
 #include "constants.h"
+#include "search_b5.h"
 #include "syzygy.h"
 #include <algorithm>
 #include <bit>
@@ -338,6 +339,49 @@ void Searcher::diag_root_tt([[maybe_unused]] int last_window, [[maybe_unused]] M
     }
 }
 
+void Searcher::root_record_init(const Board& board) {
+    state_.root_moves.clear();
+    state_.root_line = 0;
+    state_.root_iterations = 0;
+    MoveList legal;
+    board.gen_legal(legal);
+    int ordinal = 0;
+    for (Move m : legal) {
+        if (!move_in_root_moves(m, config_.limits.root_moves) || !root_tablebase_allows(m))
+            continue;
+        const int place = ordinal++;
+        if (config_.root_filter_index >= 0
+            && place % config_.root_filter_count != config_.root_filter_index)
+            continue;
+        RootMove& rm = state_.root_moves.emplace_back();
+        rm.move = m;
+        rm.tb_rank = root_tablebase_ordering_score(state_.root_tb_moves, m);
+        // Reserved here so that nothing below the root allocates.
+        rm.pv.reserve(MAX_PLY);
+        rm.previous_pv.reserve(MAX_PLY);
+        rm.pv.push_back(m);
+    }
+}
+
+void Searcher::root_record_begin_iteration() {
+    state_.root_line = 0;
+    for (RootMove& rm : state_.root_moves) {
+        rm.previous_score = rm.score;
+        rm.previous_pv = rm.pv;
+    }
+    // Line 1's last score, the input of the rules that read it, and its line,
+    // which the iteration follows. Before an iteration completed there is
+    // neither, whatever the records hold.
+    state_.prev_pv_len = 0;
+    state_.prev_root_score = 0;
+    if (state_.root_iterations > 0 && !state_.root_moves.empty()) {
+        const RootMove& line = state_.root_moves.front();
+        state_.prev_pv_len = std::min<int>(static_cast<int>(line.previous_pv.size()), MAX_PLY);
+        std::copy_n(line.previous_pv.begin(), state_.prev_pv_len, state_.prev_pv);
+        state_.prev_root_score = line.previous_score;
+    }
+}
+
 // ---- Iterative deepening ---------------------------------------------------
 
 SearchResult Searcher::search(Board board, const SearchLimits& limits) {
@@ -406,6 +450,8 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
     state_.prev_root_score = 0;
     init_root_tablebase_scores(board);
     state_.root_ordering = RootOrdering{&state_.root_tb_moves, shared_.pool.root_table};
+    if constexpr (kB5Root)
+        root_record_init(board);
 
     SearchResult result;
     int prev_score      = 0;
@@ -488,6 +534,8 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
         state_.root_depth_nodes = 0;
         state_.root_best_nodes = 0;
         state_.root_best_effort = 0;
+        if constexpr (kB5Root)
+            root_record_begin_iteration();
         int score;
         [[maybe_unused]] bool windowed = false;
 
@@ -600,8 +648,20 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
         DIAG_COUNT(state_.diag.root_effort_lo
                    += windowed && state_.root_best_effort <= limits.params.tm_effort_lo);
 
+        // The iteration's first line: the record's on the arm, whose first
+        // entry a stop at depth 1 may have left without a score.
+        const Move* best_line = state_.pv_table[0];
+        int best_line_len = std::clamp(state_.pv_len[0], 0, MAX_PLY);
+        if constexpr (kB5Root) {
+            best_line_len = 0;
+            if (!state_.root_moves.empty() && state_.root_moves.front().score != kRootScoreNone) {
+                best_line = state_.root_moves.front().pv.data();
+                best_line_len = static_cast<int>(state_.root_moves.front().pv.size());
+            }
+        }
+
         // Track best-move stability for adaptive soft time limit
-        Move cur_best = (state_.pv_len[0] > 0) ? state_.pv_table[0][0] : MOVE_NONE;
+        Move cur_best = best_line_len > 0 ? best_line[0] : MOVE_NONE;
 
         int reported_score = score;
         if (cur_best != MOVE_NONE) {
@@ -626,15 +686,19 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
                 best_move_changes += 1.0;
         }
 
-        if (state_.pv_len[0] > 0) {
-            result.bestmove   = state_.pv_table[0][0];
-            result.pondermove = (state_.pv_len[0] > 1) ? state_.pv_table[0][1] : MOVE_NONE;
-            result.pv.assign(state_.pv_table[0], state_.pv_table[0] + std::clamp(state_.pv_len[0], 0, MAX_PLY));
+        if (best_line_len > 0) {
+            result.bestmove   = best_line[0];
+            result.pondermove = best_line_len > 1 ? best_line[1] : MOVE_NONE;
+            result.pv.assign(best_line, best_line + best_line_len);
             if (result.pondermove == MOVE_NONE)
                 result.pondermove = ponder_from_tt(board, result.bestmove);
         }
         result.score = reported_score;
         result.depth = depth;
+        if constexpr (kB5Root) {
+            if (best_line_len > 0)
+                state_.sel_depth = state_.root_moves.front().sel_depth;
+        }
         result.seldepth = state_.sel_depth;
 
         // The table is given the raw `score`, not the tablebase-corrected
@@ -645,7 +709,7 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
             shared_.pool.root_table->update(result.bestmove, result.pondermove, depth, score);
 
         // The first line's own PV, before any later line overwrites the table.
-        const std::vector<Move> first_line(state_.pv_table[0], state_.pv_table[0] + std::clamp(state_.pv_len[0], 0, MAX_PLY));
+        const std::vector<Move> first_line(best_line, best_line + best_line_len);
 
         // MultiPV lines 2..N: each is the best of the root moves the earlier
         // lines did not play, searched at full width. A line a stop cuts short
@@ -701,6 +765,8 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
                 send_info(depth, static_cast<int>(k) + 1, lines[k].score, lines[k].pv,
                           current_nodes(), elapsed);
         }
+
+        ++state_.root_iterations;
 
         // Adaptive soft time limit:
         // The more stable the best move, the less time we need to confirm it.
@@ -776,6 +842,9 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
     state_.root_ordering = RootOrdering{};
     state_.pondering = false;
     state_.root_tb_moves.clear();
+    state_.root_moves.clear();
+    state_.root_line = 0;
+    state_.root_iterations = 0;
     result.nodes      = state_.nodes;
     result.tbhits     = state_.tb_hits;
     result.elapsed_ms = int64_t(elapsed_seconds() * 1000.0);
