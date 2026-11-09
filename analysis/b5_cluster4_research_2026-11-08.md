@@ -19,6 +19,13 @@ conversion floor), §12 the four questions, §13 the artifacts, §14 the
 departures table, §15 the instruments that inform this cluster, §16 the
 sub-steps proposed to the maintainer.
 
+**Amended 2026-11-09 by research amendment 1**, at the end of this file,
+which answers *Return 1*. §3's width and growth arithmetic, §5.1's
+formula, §7's `B5AspBase` row, ticket 3's tests and reads, two lines of
+§10's cheap qualification, §9 item 2 and four of §11's registrations are
+read as its §A1.5 amends them. The sections themselves are left as
+written.
+
 **How the reads of §2 were taken.** They were run on 2026-11-08 before
 this packet was written, with no prediction frozen for them. They size
 the head and do not decide anything by themselves; every rule in §9 and
@@ -1228,3 +1235,398 @@ base 9870 and 19000, and the depth-17 read was registered only up to 5640.
 prior. W7 (low-moderate): both read under 0.90 of the OFF head's
 32,125,699 nodes at depth 17, with the median position under 1.00. It
 chooses no seed.
+
+### A1.1 Verdict
+
+Return 1 is right, and the error is this packet's: §7 truncated the
+donor's 1.41 to 1, and at 1 the growth rounds to nothing. The width is
+carried in thousandths of a unit and rounded up at use (§A1.5). That ends
+the loop everywhere on the registered ranges, restores the donor's first
+window, and keeps the three coordinates live where the windows are. The
+seed stays the donor's quantity, 1410. Tickets 4 to 9 stand. B.5.2 returns
+to `READY_FOR_IMPLEMENTATION` and resumes at ticket 3.
+
+Two things the Return did not ask weigh as much as what it did:
+
+- **The narrow width is not paid for.** Two positions of 106, both won by
+  a piece or more, give back 2.07M of the OFF head's 12.0M nodes at every
+  width: the mean-square term stops the OFF head's fail-high cascade
+  there. On the other 104 the seed costs 20% more nodes to depth 14 than
+  today's loop and 24% more to depth 17; the same loop at base 19000 costs
+  15% and 8% less (§A1.3). Fail-high re-searches are 29 to 53% of windowed
+  nodes on every tree read (§9 item 2's gate is 20%). The donor runs them
+  at reduced depth; the arm's default runs them at full depth. Games
+  decide the width (B-71), so the seed stands, and the width is read by
+  games in B.5.3 before the categoricals (§A1.5).
+- **Zero-game totals cannot rank repairs.** Neighbouring bases differ by
+  10 to 15% in depth-14 nodes without order (1410, 2000 and 2820 read 0.99,
+  0.99 and 1.14 of the OFF head), so the Return's variant table separates
+  nothing, and neither does this read between rounding rules. Only the
+  trend across a tenfold range of the base is a signal.
+
+### A1.2 The Return, checked
+
+Reproduced:
+
+- The arithmetic. `47 × delta / 128` is 0 at 1 and 2.
+- Ticket 3's Release binary reads `bench 13` 5,039,771 and leaves the same
+  three WAC positions unfinished at depth 6 (`control-ticket3-spin6.log`).
+  So the detector detects, and a zero from it is a zero.
+- The probe method. The Return's trace tree, ticket 3's source with one
+  print, reads 5,039,771, so a patched copy built this way is the arm plus
+  its patch and nothing else. Build options of the probe trees and the
+  committed trees are the same.
+- V1 to V3's census figures, from their own counter files.
+- The floors' blindness to the width. It is by construction: the
+  mean-square term opens the window in a won ending, and the probe's grid
+  reads the same 600 / 598 / 600 / 595 and 119. Nothing about the width can
+  reach conversion while that term stands, and a test binds it (the won
+  tier's first window is open).
+
+Wrong or missing in the Return:
+
+- **The attribution of the 23 rows (question 6).** With the loop ending,
+  V1 moves 17 Cluster 1 to 3 rows over 20% against ticket 2, V2 13, V3 11
+  and the probe 10 (`*-compare-t2.md`). The spin is the cause of about
+  half; the narrow, re-searched root is the cause of the rest. The ten on
+  the probe: `cont_hist_pruned` −51.6%, `corr_cont2_updates` and
+  `corr_cont4_updates` −21.7%, `in_check_nodes` −25.0%, `null_tries`
+  +28.3%, `null_cuts` +29.4%, `sing_multicut` +24.9%,
+  `null_region_refusals` −75.4%, `follow_pv_nodes` +59.8%,
+  `qs_evasion_nodes` −23.2%. `cont_hist_pruned` moves −3.8% on ticket 3 as
+  written and −45 to −52% on all four trees that end the loop; the cause
+  was not found here. They are reported under §10's rule, not repaired,
+  and §5.8 reads them for the surface.
+- **The fail-high share**, above. The counter was there to read.
+- **The node columns as evidence between repairs.** They are single draws
+  from a scatter of 10 to 15%.
+
+This packet's own errors, found while checking:
+
+1. §7's truncation, and its size. On integer scores a window `±delta` admits
+   `2 × delta − 1` scores. The donor's ±5 admits nine of its scores, 2.5 of
+   ours; ±1 admits one, the average itself. Ticket 3 as written searched
+   under half the donor's window before any growth.
+2. §5.1 keyed the corrected unit on `delta > 1`. Its own sentence says "a
+   null-window node"; a PV node whose window has narrowed to one unit is
+   not one, and read 163 where it should read 577.
+3. §10's cheap qualification words the cost screen as a geometric mean of
+   at most 3. B.3.0's research amendment 7 §R replaced that rule, and B.4's
+   review ran §R's form. §A1.0's addendum repeated the error before it was
+   caught.
+4. BAS-R10 asks for three arms on one Diag binary. Tune and Diag are
+   exclusive flavours, and only a Tune build advertises `B5FailHighStop`.
+   The implementation record's deviation is right.
+5. §2.1's "seven replaced entries". The record's reading (a new move
+   failing high, then low, table and record agreeing) is accepted.
+
+### A1.3 The read (`tools/results/b5-20261109/amend1/`)
+
+Registered in `f8d3311`, `af7d3e6`, `de6d008` and `b8be98e`, each before
+its run. The OFF arm's binaries read 4,144,790 before the comparisons.
+"Median" is the median over positions of nodes against the OFF head's
+census on the same position. "Without two" leaves out `suite_v2` 42 and 50
+(the cost screen's positions 4 and 3), where the OFF head spends 1.26M and
+0.84M nodes and every point about 15,000 each. Both are won by a piece or
+more. On 42 the OFF head proves mate in 9 at depth 11 through a fail-high
+cascade; the arm reports +20 at depth 14 with the same move, its first
+window some ±1000 wide by the mean-square term. That is the arm's form
+working as §3 intends, at every width alike, and depth does not mean the
+same thing on the two arms there. The saving is the window's and not the
+record's: today's loop on the record (`B5Window` 0) spends 0.73M and
+0.89M on the two (`two_positions.txt`).
+
+`suite_v2` at depth 14, `bench 13` and WAC, growth 47 unless named:
+
+| Point | `bench 13` | WAC 100k | re-searches per window | failed share | fail-high re-search share | nodes / OFF | median | without two |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| OFF head (§2.1) | 4,144,790 | 254 | 1.50 | 53.7% | — | 1.000 | 1.000 | 1.000 |
+| base 500 | 3,597,259 | 248 | 3.39 | 72.5% | 51.2% | 1.104 | 1.135 | 1.334 |
+| base 1000 | 3,600,470 | 250 | 3.06 | 69.3% | 44.3% | 1.078 | 1.184 | 1.302 |
+| **base 1410, the seed** | **4,022,487** | **249** | **2.93** | **70.4%** | **49.2%** | **0.993** | **1.148** | **1.200** |
+| base 2000 | 4,026,375 | 250 | 2.65 | 69.2% | 40.2% | 0.992 | 1.015 | 1.200 |
+| base 2820 | 3,726,469 | 254 | 2.46 | 72.5% | 53.0% | 1.143 | 1.037 | 1.382 |
+| base 4230 | 3,826,763 | 258 | 2.04 | 61.8% | 40.8% | 0.838 | 1.019 | 1.011 |
+| base 5640 | 2,860,299 | 249 | 1.82 | 61.5% | 48.5% | 0.951 | 1.000 | 1.149 |
+| base 9870 | 3,165,834 | 250 | 1.36 | 54.6% | 35.6% | 0.733 | 0.946 | 0.885 |
+| base 19000 | 2,556,002 | 248 | 0.90 | 42.3% | 29.3% | 0.706 | 0.926 | 0.853 |
+| seed, growth 32 | 3,870,439 | 250 | 3.14 | 71.4% | 47.4% | 1.002 | 1.142 | 1.211 |
+| seed, growth 64 | 3,593,192 | 255 | 2.56 | 67.4% | 41.6% | 0.897 | 1.071 | 1.083 |
+| seed, growth 96 | 3,292,694 | 257 | 2.35 | 63.6% | 44.9% | 0.906 | 1.000 | 1.095 |
+| seed, rounded down | 3,925,785 | 254 | 3.14 | 69.9% | 42.9% | 0.958 | 1.110 | — |
+| seed, rounded to nearest | 4,021,096 | 250 | 3.00 | 71.0% | 45.4% | 1.078 | 1.158 | — |
+| seed, ticket 3's LMR form | 3,795,838 | 246 | 2.94 | 69.5% | 47.7% | 1.039 | 1.136 | — |
+| Return's V1 / V2 / V3 | 3,984,800 / 3,631,713 / 4,639,581 | 253 / 246 / 252 | 3.56 / 2.69 / 3.46 | 74.3 / 69.5 / 73.3% | 47.7 / 43.3 / 47.1% | 1.090 / 0.940 / 1.074 | 1.212 / 1.008 / 1.168 | — |
+
+`suite_v2` at depth 17 (the OFF head 32,125,699 nodes, 1.39 re-searches
+per window, failed share 48.3%):
+
+| Base | nodes / OFF | median | without two | re-searches per window | failed share | fail-high re-search share |
+|---|---:|---:|---:|---:|---:|---:|
+| 1410 | 1.100 | 1.000 | 1.241 | 2.83 | 60.7% | 50.1% |
+| 2820 | 1.101 | 1.038 | 1.243 | 2.37 | 60.5% | 44.6% |
+| 5640 | 0.944 | 1.000 | 1.057 | 1.73 | 54.8% | 44.5% |
+| 9870 | 0.886 | 0.992 | 0.994 | 1.28 | 45.3% | 36.4% |
+| 19000 | 0.828 | 0.955 | 0.922 | 0.81 | 36.7% | 24.7% |
+
+The three statistics do not agree on size (at the seed, depth 17: total
++10%, median level, without two +24%), because a few positions carry any
+total. They agree on direction across the range: wider is cheaper.
+
+Termination: no position unfinished at depth 6 at any of the fifteen
+points or the four corners (500/32, 500/96, 40000/32, 40000/96); none at
+depth 10 at the seed; no watchdog stop and no missing depth to depth 25 on
+the five screen positions at any of five trees. The seed's floors grid
+passes (600 / 598 / 600 / 595, five budgets 119).
+
+The cost screen in §R's form passes on all five trees (the seed, 2820,
+5640, 19000 and V1 against the OFF arm; V1 under (c) on position 5). Its
+absolute ratios are recorded and wild: 0.13 to 0.33 on positions 3 and 4
+on every tree (the two won positions above), and on position 5 at depth
+22 0.72 at the seed against 4.5 to 11.2 on the other four. One late root resolution on one position moves
+a tree's total by more than any width does.
+
+Scored:
+
+| # | Result |
+|---|---|
+| W1 | **hit.** Nothing unfinished anywhere |
+| W2 | **hit** on all four: 2.93, 70.4%, 11,925,525, WAC 249 |
+| W3 | **half.** Re-searches fall with the base at every step. The failed share falls only in trend (1410 and 2820 rise). The least nodes are at 19000, the top of the sweep, 29% under the OFF head, not at 2820 to 9870 and 3 to 12% under |
+| W4 | **hit, barely,** and half wrong in its detail: 10 rows; `follow_pv_nodes` is among them, `tt_cutoffs` (+7.6%) is not |
+| W5 | **missed.** 5.6% of `bench 13`'s nodes. Every one-line change here moves `bench 13` by that much (base 1410 to 2820: 7.4%), so the miss measures the scatter, not the form |
+| W6 | **half.** The three bases keep their order at depth 17, 1410 and 2820 a tie. The screen half was written for the wrong rule; under it 5640 fails on position 5 (3.32) and the positions' means run 0.07 to 3.3, not 0.7 to 1.4 |
+| W7 | **hit.** 0.886 and 0.828, medians 0.992 and 0.955 |
+
+What the misses say about the model. P3 and W3 share one error: this
+packet expected failed windows at a narrow width to be cheap, as null
+windows are. They are not. At 2.9 re-searches per window and a 70% failed
+share, a failed search costs about four fifths of the one that succeeds.
+The table carries the work between them, which is why the total stays
+near the OFF head's instead of trebling.
+
+### A1.4 The six questions
+
+**1. Which repair; does it change §7?** The finer unit, on four grounds,
+none of them the Return's recommendation:
+
+- It is the donor's window. Rounded up, 1.41 admits the three scores the
+  donor's ±5 admits on our scale; V1 keeps the one-score first window.
+- The growth stays live. In whole units the growth does nothing below
+  `128 / growth`, so under V1 growth 32 and growth 47 give the same first
+  six widths, where at 2.9 re-searches per window nearly every re-search
+  happens. B.5.4 would fit a coordinate that integer division had
+  switched off.
+- The base gets a usable step. In whole units the smallest move from 1 is
+  +100%.
+- The mean square's fraction and the helper's offset count. Both were
+  truncated: up to a unit of a two-unit window, and three helpers of
+  seven reading 0.
+
+It changes §7's `B5AspBase` row (unit, seed, range) and nothing else on
+the surface: `B5AspMsqDiv` and `B5AspGrowth` keep their seeds and ranges.
+V2 is refused: a seed chosen because it passes, and stuck below it. A
+bound on the loop is refused while the property test holds: it would hide
+the next stuck width instead of forbidding it.
+
+*Falsifiers.* An unfinished search at any point of the registered ranges
+adds the bound after all. If B.5.4 finds `B5AspGrowth` and the sub-unit
+part of `B5AspBase` flat, V1 would have fitted as well and the finer unit
+bought the range guarantee alone. Nothing zero-game separates the two on
+strength, and this amendment does not claim it does.
+
+**2. Does the seed stand into B.5.3?** Yes, as the arm's default and as
+P1's subject, and P3's base read comes next, by games, before the
+categoricals. The zero-game half of that read is §A1.3; it was registered
+to choose no seed and chooses none. A constant is a seed on the donor's
+scale, converted, then fitted (PLAN rule 2), and window changes are
+decided by games (B-71). Rarog's surface fell toward wider windows
+(B-72); this engine's node read rises toward narrower ones. Those
+disagree, and a node count is not the arbiter. What changes:
+
+- **The width read by games** joins BAS-S53, straight after the whole-arm
+  run: one paired run on the tune build, `B5AspBase` 19000 against 1410
+  (§A1.5). At 19000 the arm's window is today's width on the donor's
+  form, so the run reads the width alone. It runs before the
+  categoricals because item 2's population halves between the two widths
+  (49% of windowed nodes against 29%), and a verdict read at a width the
+  fit then leaves is a run spent twice. Its consumers are item 2's run
+  and B.5.4's start, both downstream in the same two leaves.
+- On a P1 stop that run is the first read, before any switch is ablated.
+- §9 item 2's gate is met at ticket 3 already, so its paired run is owed.
+- B.5.4's sweep takes its points and its statistic from §A1.3.
+
+*Falsifier.* If B.5.4's games rank the base against the node read
+(narrower better), fixed-depth nodes are not a prior for this coordinate
+and are not used as one in the later clusters.
+
+**3. Is WAC at 100,000 nodes with the spin read enough before ticket 4?**
+Yes, with the property test, which is the real bound: the spin read
+samples what the test proves. The floors need not see the width. No
+other read comes before ticket 4; the cost screen stays in the final
+qualification, in its right form. *Falsifier:* an unfinished search, or
+WAC under 246, at ticket 3 returns the leaf as registered.
+
+**4. The tests.** Accepted, stated more strongly (§A1.5): strict growth to
+the cap, a bound on the number of failures, and a bound on how often one
+whole-unit width repeats. The time-bounded fixed-depth read is accepted
+at the seed and the four corners, at ticket 3 and in the final
+qualification.
+
+**5. Tickets 4 to 9.** They stand as written. Three notes, none a change:
+ticket 5's read will show the gate met; ticket 7's lines use the same
+width function; ticket 9's liveness for `B5AspBase` steps a whole unit
+(1410 to 2410), since a sub-unit step can leave `bench 13` unmoved.
+
+**6. What is wrong in the Return.** §A1.2: the attribution, the unread
+fail-high share, and the node columns taken as evidence.
+
+### A1.5 The amended contract
+
+**The width** (replaces the arithmetic of §3's "Window width" and "Growth"
+rows, §7's `B5AspBase` row and the width clause of *The arm's root, stated
+once*; the bounds, the centre, the fail-low and fail-high rules and the
+absence of a hatch are unchanged).
+
+- `width` counts thousandths of a unit, in 64 bits; divisions truncate;
+  `cap = 1000 × kMaxWindowDelta`.
+- First: `width = min(B5AspBase + (thread_id % 8) × 282 + |mean_sq| × 1000
+  / B5AspMsqDiv, cap)`.
+- Wherever the loop uses `delta`: `delta = (width + 999) / 1000`.
+- After each failure: `width = min(width + B5AspGrowth × width / 128, cap)`.
+
+| Coordinate | Donor | Seed | Range | Kind |
+|---|---:|---:|---|---|
+| `B5AspBase`, in thousandths | 5 | **1410** (5 × 282) | 500–40000 | X |
+| `B5AspMsqDiv` | 10193 | 2874 | 1000–12000 | X, unchanged |
+| `B5AspGrowth` | 47 | 47 | 32–96 | X, unchanged |
+
+At the seeds the first window is ±2 at a level score, ±3 at 50 units, ±5
+at 100, ±10 at 150, ±33 at 300, ±350 at 1000, open in the won tier; after
+failures at a level score ±2, 2, 3, 4, 5, 7, 10, 13, 18, 24. The donor's
+own integers give 2, 2, 3, 3, 4, 5, 7, 9, 12, 17 on our scale: its growth
+truncates at small widths and this one does not. Helpers 1 to 7 start at
+±2, 2, 3, 3, 3, 4, 4.
+
+**LMR's window term** (replaces §5.1's formula): `(pv ? delta × 577 : 163)
+/ root_delta_` under `B5LmrWindowUnits` 1, `pv` the node's type. A non-PV
+node's window is always one unit.
+
+**Ticket 3's tests**, replacing the growth rows and
+`grow_delta(1, 47) == 1`:
+
+- the widths above at the seeds, the thread offsets, the clamp at the cap,
+  an empty record and the won tier open;
+- **the range property:** for every base, growth, divisor and thread on
+  the registered ranges' corners and a grid between them, at a level
+  score, the width strictly grows at every failure until it equals the
+  cap; it reaches the cap within 60 failures (the worst corner, 500 with
+  32, takes 53); `delta` never falls; and no value of `delta` is used more
+  than 4 times running (500 with 32 uses ±1 four times);
+- the term: PV at `delta` 1 against a root window of 1 reads 577 and of 4
+  reads 144; non-PV reads 163, 81 and 4 against 1, 2 and 38; PV at the
+  root's own width reads 577.
+
+**Ticket 3's reads before ticket 4.** Each figure is the probe's, whose
+arithmetic is the one above, so the implementation should reproduce it;
+a difference is found and explained in the record before ticket 4 and is
+not by itself a failure.
+
+- Both arms' CTest, `test_wac_floor` finishing; the OFF arm 4,144,790.
+- The arm's `bench 13`: **4,022,487**.
+- The depth-bound read: WAC at depth 6, a fresh process a position, 20 s
+  each, nothing unfinished, on the Release arm at the seed and on the Tune
+  build at 500/32, 500/96, 40000/32 and 40000/96. The Return's
+  `find_spin.py` is promoted to `tools/diag/` with an option argument and
+  a self-test that an engine which never answers is counted; the review
+  reruns it.
+- WAC at 100,000 nodes at least 246 (249).
+- The depth-14 census: 2.93 re-searches per window, failed share 70.4%,
+  fail-high re-search share 49.2%, 7,052,433 interior and 4,873,092
+  quiescence nodes.
+- The floors grid, the mate fixtures and the won-ending clock test (600 /
+  598 / 600 / 595 and 119).
+- The `bench 13` counters against ticket 2's, the rows over 20% listed
+  (§A1.2's ten).
+
+**§10's cheap qualification**, two lines changed:
+
+- the cost screen is read in B.3.0's research amendment 7 §R's form
+  (`--depth-min 16 --depth-max 25 --watchdog 60 --hash 64`, scorer
+  `tools/results/b31-20261030/t10/a7/screen_score_a7.py`, SHA-256
+  `57c0ea35…`), as B.4's review ran it. The tool's own verdict and the
+  absolute ratios are recorded, not judged. Position 5 is knife-edged to
+  the width (§A1.3), so a failure there is reported with its growth steps
+  on the arm at `B5AspBase` 1000 and 2000 beside it before any mechanism
+  is blamed;
+- the depth-bound read above is added, on the final arm.
+
+**§9 item 2**, one clause added. Its gate is met on every tree read (29 to
+53% against 20%), so the paired run is owed. The share falls with the
+width (49% at the seed, 29% at 19000), so the verdict holds at the width
+it was read at: it is read at the width BAS-S53's width run leaves (below),
+and if B.5.4 then moves `B5AspBase` to more than twice or under half that
+value, BAS-S55 (c) reads item 2 again at the fitted width.
+
+**§11's registrations**, each change stated:
+
+- **BAS-S53 gains the width run**, after the whole-arm paired run and
+  before §9's items: 2,000 games at `3+0.03` on the arm's tune build,
+  `B5AspBase` 19000 (arm A) against 1410 (arm B), every other option at
+  its default. Read by §9's rule: at +5 Elo or more for 19000 with the
+  95% interval excluding 0, §9's items are read with both arms at 19000
+  and BAS-S54's SPSA starts `B5AspBase` there; otherwise they are read at
+  the seed and SPSA starts at the seed. It moves no default in the
+  source: the base is a fitted coordinate, and the fit sets it. At −5 or
+  less with the interval excluding 0, fixed-depth nodes mislead on this
+  coordinate (question 2's falsifier).
+- P1's falsifier, order amended: on a read below −20, the width run is
+  read first, then the switches in the order written, at the width that
+  run leaves. P3 already said the base is read before the arm is blamed;
+  P1's list put it last.
+- P1's and BAS-S54's values are in the new unit: "`B5AspBase` 19" is
+  19000 and "1 to 19 swept" is 1000 to 19000. BAS-S54's sweep reads
+  `B5AspBase` at 1000, 1410, 2000, 2820, 4230, 5640, 9870, 19000 and
+  30000, and `B5AspGrowth` 32, 64 and 96 at the seed and at the cheapest
+  base, at depths 14 and 17, by the median position beside the total.
+- BAS-R10's instrument: the three stop arms on a Tune build of the arm
+  through `B5FailHighStop`, the longest window from its `TM_Debug`
+  fields; the ply-cap and aspiration counters (P9) from one more replay
+  of the same games on a Diag build at the default stop.
+- Each entry file takes this text as amended when its leaf opens.
+
+**§14 gains two rows** (and loses the per-thread offset's "rounds the
+first four threads to 0"):
+
+| Place | Basilisk's form (kept) | The donor's form | Why kept | Waits on |
+|---|---|---|---|---|
+| The window's width unit | thousandths of a unit, rounded up at use; growth untruncated | an integer of its own unit, 0.282 of ours; `47 × delta / 128` truncates (5, 6, 8, 10) | the donor's integer is exact on its scale and is not on ours; its truncation is an artefact of the scale, not a mechanism | B.5.4's fit of the three coordinates |
+| LMR's window term, the unit by node type | 163 at a non-PV node, `delta × 577` at a PV node | `delta × 577` at every node | the donor's one-unit window is a null window; ours can be a PV node's | B.6's joint surface |
+
+### A1.6 Predictions, frozen 2026-11-09, and calibration owed
+
+P1 to P12 stay as frozen and are scored as written in their entries.
+Owed there: P3 missed on the failed share (70% against at most 48%) and
+held on re-searches (2.93 in 2.0 to 3.5); P12's "gate not met (70%)" is
+already contradicted at ticket 3; P6 holds at ticket 3 on the probe.
+
+| # | Prediction | Confidence | Falsifier |
+|---|---|---|---|
+| A1 | Ticket 3 as amended reproduces the probe: `bench 13` 4,022,487, WAC 249, 2.93 re-searches per window | high | a difference is an arithmetic difference between the probe and the implementation, to be found before ticket 4 |
+| A2 | What research now expects of the unfitted paired run, beside P1 and not instead of it: **−8 Elo**, 80% interval [−22, +6], probability positive 20%. The seed's width costs a fifth more nodes in undecided positions; root reduction gives some back | low-moderate | below −20 is P1's stop; above +6 says fixed-depth nodes overstate the width's cost |
+| A5 | The width run, 19000 against 1410: **+10 Elo**, 80% interval [−2, +22]; at +5 or more with its interval excluding 0 with 55% | low-moderate | at 0 or below, the node read does not carry to games here |
+| A3 | B.5.4's fit moves `B5AspBase` up: at or above 2820 with 80%, at or above 4000 with 65% | low-moderate | a fitted base at or under the seed says the node read misleads on this coordinate (question 2's falsifier) |
+| A4 | §9 item 2's paired run at the seed reads the reduction within ±6 (55%); positive with 55% | low | at +5 or more with its interval excluding 0 it is adopted, and re-read after the fit under §A1.5's clause |
+
+### A1.7 Artifacts (`tools/results/b5-20261109/amend1/`, ignored storage)
+
+`a1_build.py` (the probe's patch; `a6877f8a…`), `a1_read.py` and
+`a1_read.json` (the fifteen points and the corners), `a1_deep.py` and
+`a1_deep.json` (the screens to depth 19 and depth 17 at three bases),
+`a1_screen25.py` and `a1_screen25.json` (the screens in §R's form),
+`suite17-b9870.json` and `suite17-b19000.json`, `a1_table.py` (the
+per-position reading), `a1_two_positions.py` and `two_positions.txt`
+(`suite_v2` 42 and 50 on the OFF arm, on today's loop on the record and
+on the probe), `*-compare-t2.md` (the rows against ticket 2),
+`b1410-floors/`, `control-ticket3-spin6.log`, `SHA256SUMS.txt`. Probe
+binaries: `build/b5-probe/a1-rel` (`bfd5c9c2…`), `a1-diag` (`5a897b86…`).

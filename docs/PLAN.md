@@ -2353,12 +2353,32 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         P3 and P6. Every repair read ends the loop and restores WAC,
         and all stay above P3's 58% failed share. Tickets 0 to 3 are
         committed; tickets 4 to 9 wait on a research amendment.
+      - Research amendment 1, 2026-11-09 (packet *Research amendment
+        1*; reads registered before they ran, on a throwaway probe):
+        the width is carried in thousandths of a unit and rounded up
+        at use, `B5AspBase` 1410 (the donor's 5 × 282) on 500–40000,
+        growth and divisor unchanged; LMR's window term keys its unit
+        on the node type. Nothing is left unfinished at any of 15
+        points, the ranges' four corners, WAC at depth 10 or the cost
+        screen to depth 25; the probe reads `bench 13` 4,022,487, WAC
+        249 and 2.93 re-searches per window, and ticket 3 is to
+        reproduce them. The seed stands. Two won positions of 106
+        give back 17% of the OFF head's depth-14 nodes at every
+        width; on the other 104 the seed costs 20% more nodes than
+        today's loop and base 19000 costs 15% less, so the width is
+        read by games in B.5.3. Tickets 4 to 9 stand; ticket 3
+        resumes on packet §A1.5.
     - [ ] **B.5.3** `[V]` Diagnostics, M1 and the unfitted paired run
       The packet's zero-game screens on both arms (BAS-S53), M1's
       replay on the arm (BAS-R10) deciding the fail-high stop's
       threshold by its registered rule, the blindness judge read of
       the repetition draws, the unfitted paired run of the whole arm,
       then the two categoricals by paired runs.
+      - B.5.2's research amendment 1 (packet §A1.5) puts one more
+        paired run between the whole-arm run and the categoricals:
+        `B5AspBase` 19000 against 1410 on the tune build, the width
+        read by games. It sets the width the categoricals are read
+        at and where B.5.4's SPSA starts; it moves no default.
     - [ ] **B.5.4** `[V]` Curvature sweep, then SPSA in blocks
       The packet's registered sweep on the three window seeds and the
       Cluster 1 to 3 coordinates §5.8 pulls onto the surface, then
@@ -3037,7 +3057,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.5.2 | RESEARCH | I2 | Returned at ticket 3 (packet *Return 1*, `analysis/b5_cluster4_research_2026-11-08.md`); the amendment is next |
+| B.5.2 | READY_FOR_IMPLEMENTATION | I2 | Research amendment 1 answers Return 1 (`analysis/b5_cluster4_research_2026-11-08.md` §A1.5); ticket 3 resumes on it |
 | B.5.3 | RESEARCH | V | After B.5.2's review; BAS-S53 and BAS-R10 registered in the packet |
 | B.5.4 | RESEARCH | V | After B.5.3; BAS-S54 |
 | B.5.5 | RESEARCH | V | After B.5.4; BAS-S55 |
