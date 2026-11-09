@@ -546,6 +546,8 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S52](experiments/BAS-S52.md) — B.4.7: the Cluster 3 gates — H1, +31.7 ± 8.6 Elo; `B4_QSEARCH` defaults ON, `bench 13` 4,144,790
 
+- [BAS-S53](experiments/BAS-S53.md) — B.5.3: Cluster 4 diagnostics, M1 and the unfitted paired run — registered; no game yet
+
 | ID | Title | Disposition |
 |---|---|---|
 | [BAS-S17](experiments/BAS-S17.md) | Razoring depth reach in Elo (B.0.1, maintainer). | +2.4 ± 9.9; interval holds 0, the cluster decides the cap |
@@ -588,6 +590,7 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 | [BAS-R07](experiments/BAS-R07.md) | Fail-high clock stop sink probes: B.10 ended rec1's sink by a mate proof; cascade and the stop's hole remain. | Observation |
 | [BAS-R08](experiments/BAS-R08.md) | Wall-clock overhead read against Stockfish 19 at Threads 1 and 4. | Observation: 1T passes (gaps ≤ +0.77 ms); 4T movetime overshoot +1.08 to +1.14 ms over the line, a repair finding |
 | [BAS-R09](experiments/BAS-R09.md) | Helpers read the stop flag at every node (4T stop latency). | Retained: cap 3,000 games at 4T, −2.2 ± 7.1 Elo, LLR −0.96; 4T stop latency −0.25 ms |
+| [BAS-R10](experiments/BAS-R10.md) | B.5.3: M1, the fail-high stop's firing read, on the arm. | Registered; no replay yet |
 
 ## 5. Evaluation and data experiments
 
