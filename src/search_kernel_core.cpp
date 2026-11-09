@@ -1816,9 +1816,11 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             score = -negamax<PvChild>(new_depth - step, -beta, -alpha, ply + 1, ss + 1, true,
                                       !is_pv && !cut_node);
         } else {
-            // Nothing is reduced at the root, nor in check unless B3CheckPrune.
-            const bool reducible = !ABLATED(7) && !is_root && (!in_check || check_prune);
-            if (!ABLATED(7) && !is_root) {
+            // Nothing is reduced in check unless B3CheckPrune, nor at the root
+            // but on the arm, as at any PV node.
+            const bool root_reduces = kB5Root && is_root && kp.b5_root_lmr;
+            const bool reducible = !ABLATED(7) && (!is_root || root_reduces) && (!in_check || check_prune);
+            if (!ABLATED(7) && (!is_root || root_reduces)) {
                 DIAG_COUNT(++state_.diag.lmr_eligible);
                 if (depth < 2)     DIAG_COUNT(++state_.diag.lmr_blocked_depth);
                 else if (in_check && !check_prune) DIAG_COUNT(++state_.diag.lmr_blocked_in_check);
@@ -1840,6 +1842,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                     DIAG_COUNT(++state_.diag.lmr_floor_hits);
                     DIAG_COUNT(++state_.diag.lmr_clamped_high);
                 }
+                [[maybe_unused]] const bool root_reduced = is_root && d < new_depth;
+                DIAG_COUNT(state_.diag.root_lmr_reduced += root_reduced);
                 if (d < new_depth) {
                     DIAG_COUNT(state_.diag.lmr_applied++);
                     DIAG_COUNT(state_.diag.lmr_reduction_plies += new_depth - d);
@@ -1878,6 +1882,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                     new_depth += int(deeper) - int(shallower);
                     if (new_depth > d) {
                         DIAG_COUNT(state_.diag.lmr_researched++);
+                        DIAG_COUNT(state_.diag.root_lmr_researched += root_reduced);
                         TRACE_DECISION(TraceEvent::LmrResearch, ply, depth, m,
                                        alpha, beta, eval, improving, correction, stat_score,
                                        ss->move_count, new_depth - d, VALUE_NONE, score,
@@ -1894,7 +1899,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 // Without LMR the move is searched at full depth, one or two
                 // plies less when its reduction would have been large.
                 int step = 0;
-                if (reducible) {
+                if (reducible && !is_root) {
                     const int rr = r + (tt_move == MOVE_NONE ? 1127 : 0);
                     step = (rr > 5234) + (rr > 5487 && new_depth > 2);
                 }
@@ -1909,6 +1914,10 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                     && ((tt_score != VALUE_NONE && is_decisive(tt_score) && tt_depth > 0)
                         || tt_depth > 1))
                     new_depth = std::max(new_depth, 1);
+                if (is_root)
+                    TRACE_DECISION(TraceEvent::RootPvResearch, ply, new_depth, m, alpha, beta, eval,
+                                   improving, correction, stat_score, ss->move_count, 0, VALUE_NONE,
+                                   score);
                 score = -negamax<NodeType::PV>(new_depth, -beta, -alpha,
                                                ply + 1, ss + 1, true, false);
             }

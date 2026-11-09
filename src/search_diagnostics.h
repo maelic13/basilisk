@@ -330,7 +330,9 @@ enum class TraceEvent : uint8_t {
     NullVerify, NullRegionRefused, ProbcutTtCutoff, ExtBudgetTruncate,
     CuckooDraw, TtPenalty,
     // Cluster 3's events.
-    QsCountPrune, QsEvasionPrune, QsStalemate
+    QsCountPrune, QsEvasionPrune, QsStalemate,
+    // Cluster 4's event: a root move searched again with the full window.
+    RootPvResearch
 };
 // The pruning family a record belongs to, so the move-loop family's members
 // can be told apart where one event name covers several rules.
@@ -368,7 +370,8 @@ public:
     static constexpr size_t CAPACITY = 32768;
 
     // Starts a search: clears the records and allocates them when enabled.
-    void start(bool enabled);
+    // `root_only` records the root's decisions instead of plies 1 and 2.
+    void start(bool enabled, bool root_only = false);
     [[nodiscard]] bool enabled() const { return enabled_; }
     void record(TraceEvent event, int ply, int depth, Move move,
                 int alpha, int beta, int estimated_score,
@@ -384,5 +387,6 @@ private:
     size_t count_ = 0;
     bool enabled_ = false;
     bool overflow_ = false;
+    bool root_only_ = false;
 };
 #endif

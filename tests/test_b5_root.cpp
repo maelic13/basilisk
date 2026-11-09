@@ -483,6 +483,105 @@ static void test_no_give_up_on_the_arm() {
     end_section();
 }
 
+// ---- Root reduction -------------------------------------------------------------
+
+// One root search's trace, as records of what a root move's searches were.
+struct RootEvent {
+    std::string event, move;
+    int depth = 0, alpha = 0, beta = 0, reduction = 0, result = 0;
+};
+
+static int trace_field(const std::string& line, const std::string& name) {
+    const size_t at = line.find(" " + name + "=");
+    return at == std::string::npos ? 0 : std::stoi(line.substr(at + name.size() + 2));
+}
+
+static std::string trace_text(const std::string& line, const std::string& name) {
+    const size_t at = line.find(" " + name + "=");
+    if (at == std::string::npos)
+        return "";
+    const size_t begin = at + name.size() + 2;
+    return line.substr(begin, line.find(' ', begin) - begin);
+}
+
+[[maybe_unused]] static std::vector<RootEvent> root_trace(const std::string& fen, int depth) {
+    SearchLimits lim;
+    lim.depth = depth;
+#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
+    lim.decision_trace = true;
+    lim.trace_root = true;
+#endif
+    const Run run = search_limits(fen, lim);
+    std::vector<RootEvent> events;
+    for (const std::string& line : run.lines) {
+        if (line.rfind("info string trace record", 0) != 0)
+            continue;
+        RootEvent e;
+        e.event = trace_text(line, "event");
+        e.move = trace_text(line, "move");
+        e.depth = trace_field(line, "depth");
+        e.alpha = trace_field(line, "alpha");
+        e.beta = trace_field(line, "beta");
+        e.reduction = trace_field(line, "reduction");
+        e.result = trace_field(line, "result");
+        events.push_back(e);
+    }
+    return events;
+}
+
+// A reduced root move that fails high is searched again at its full depth and
+// then with the full window. The trace reads each root move's searches in order.
+static void test_a_reduced_root_move_that_fails_high() {
+    begin_section("a reduced root move that fails high");
+    if (kCounters && kB5Root) {
+        // The whole root: a second move is hardly ever reduced, since it has the
+        // smallest move count and the ply a PV node adds back.
+        int chains = 0;
+        for (std::string_view fen : bench_fens()) {
+            const std::vector<RootEvent> events = root_trace(std::string(fen), 14);
+            for (size_t k = 0; k + 2 < events.size(); ++k) {
+                const RootEvent& reduced = events[k];
+                const RootEvent& again = events[k + 1];
+                const RootEvent& full = events[k + 2];
+                if (reduced.event != "lmr_reduction" || reduced.reduction <= 0
+                    || again.event != "lmr_research" || full.event != "root_pv_research"
+                    || again.move != reduced.move || full.move != reduced.move)
+                    continue;
+                ++chains;
+                // The re-search is at the move's full depth, the depth the reduced
+                // one was short of, give or take the ply a margin adds or takes.
+                EXPECT(again.reduction >= reduced.reduction - 1);
+                EXPECT(again.reduction <= reduced.reduction + 1);
+                // It failed high, and only then the window opens to the node's.
+                EXPECT(again.result > again.alpha);
+                EXPECT(full.alpha == again.alpha);
+                EXPECT(full.beta > full.alpha + 1 || full.beta == again.beta);
+            }
+        }
+        EXPECT(chains > 0);
+    }
+    end_section();
+}
+
+// Reduced root moves are counted, are searched again no more often than they are
+// reduced, and exist only on the arm.
+static void test_root_reduction_counters() {
+    begin_section("root reduction fires on the arm alone");
+    if (kCounters) {
+        SearchLimits lim;
+        lim.depth = 12;
+        const Run run = search_limits("r1bq1rk1/pp2bppp/2n1pn2/2pp4/3P1B2/2PBPN2/PP1N1PPP/R2QK2R w KQ - 0 9", lim);
+        if (kB5Root) {
+            EXPECT(counter(run, "root_lmr_reduced") > 0);
+            EXPECT(counter(run, "root_lmr_researched") <= counter(run, "root_lmr_reduced"));
+        } else {
+            EXPECT_EQ(counter(run, "root_lmr_reduced"), 0);
+            EXPECT_EQ(counter(run, "root_lmr_researched"), 0);
+        }
+    }
+    end_section();
+}
+
 int main() {
     init_bitboards();
     init_attacks();
@@ -503,6 +602,8 @@ int main() {
     test_a_mate_score_keeps_the_open_window();
     test_the_bound_lines();
     test_no_give_up_on_the_arm();
+    test_a_reduced_root_move_that_fails_high();
+    test_root_reduction_counters();
 
     return harness_summary();
 }

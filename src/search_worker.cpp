@@ -418,7 +418,8 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
 #if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
     state_.trace.start(limits.decision_trace && limits.diag && shared_.info
                        && config_.thread_count == 1 && config_.thread_id == 0
-                       && limits.root_moves.size() == 1);
+                       && (limits.trace_root || limits.root_moves.size() == 1),
+                       limits.trace_root);
     if (limits.decision_trace && shared_.info && !state_.trace.enabled())
         shared_.info("info string trace error requires Diag=true Threads=1 and exactly one searchmoves root");
     // Pricing probes restore a single thread's state; the trace would record
