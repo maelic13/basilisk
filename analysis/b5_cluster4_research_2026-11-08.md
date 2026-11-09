@@ -2316,3 +2316,65 @@ and `rv_blowup.out`, `rv_wide.py` (`a51cb446…`), `wide_positions_60.json`
 (`35b47e55…`; the probe binary `f8654944…`) and `probe-*`, `spin-*`,
 `ch-*.json` (the `cont_hist_pruned` and effort reads), `floors/`,
 `suite14.json`, `screen.json`, `fable_amend2_prompt.md`.
+
+## Research amendment 2 — answers the review of B.5.2: the stop's rule on the arm, and the long clocks (2026-11-09)
+
+The maintainer accepted the review's positions on 2026-11-09: no engine
+change now; this amendment before M1; B.5.3 then measures, and its games
+choose any repair; D.1's clock test inside an iteration is not pulled
+forward. Written in the reviewing session, so it leans on the review's
+reads (§1 and §6 there), which were taken with no prediction frozen.
+They size the questions and decide nothing by themselves; every rule
+below is frozen from this commit, and each read the amendment registers
+for B.5.3 and B.5.5 runs on positions and games nobody has seen.
+
+### A2.0 Registered before its runs: two calibration reads (zero-game)
+
+Written and committed before either read below runs.
+
+**R1, the games census on the B.4.7 runs.** `amend2/a2_census.py` over
+`tools/results/b47-direction-ltc/games.pgn` (2,000 games at `10+0.1`) and
+`tools/results/b47-gate-a/games.pgn` (`3+0.03`), both arms of each run,
+from the PGN's own `s=` and `t=` comments. Per arm and threshold T of
+300, 800 and 1,500: the games in which that side's own score was at
+least T on two of its consecutive moves ("decided for it"), and of
+those the games it did not win ("unconverted"); and, per score band,
+the mean time a move and the share of moves spending at least half the
+clock left. No engine runs. It is an instrument's base rate on a pair
+of arms that differ by Cluster 3, not a read of the B.5 arm.
+
+- *What it sets:* the threshold of §A2.5's flip census. It is the
+  highest of 1,500, 800 and 300 at which each B.4.7 arm has at least 15
+  unconverted games in the 2,000 at `10+0.1`. If none has, the census is
+  read at 300 and the amendment says the instrument is weak.
+- *What it cannot set:* the census's bound, which is fixed here without
+  it. The condition fails when the arm's unconverted games exceed the
+  OFF arm's, in the run being read, by more than the larger of 6 and
+  three times the square root of the OFF arm's count (the difference of
+  two equal Poisson counts has a standard deviation of 1.41 square
+  roots, so this is about two of them).
+- *Predictions.* C1 (low): at 1,500 each arm's unconverted share of its
+  decided games at `10+0.1` is 0.5 to 4%. C2 (low-moderate): the two
+  arms' unconverted counts at 1,500 differ by at most 8. C3 (low): at
+  300 the unconverted share is 8 to 20%. C4 (moderate): the Cluster 3
+  arm, which won that run by 38 Elo, spends within 5% of the other
+  arm's time a move in the won band (300 or more).
+
+**R2, the battery's noise and the stop's reach, on the review's 60
+positions.** `review/rv_wide.py` at `60000+600` on this session's Tune
+builds, a fresh process a search, a quiet host: the arm at
+`B5FailHighStop` 0 and 200 and at the default once more, and the OFF
+arm once more. The positions are the review's, already seen, so this is
+a calibration and not a test of the arm.
+
+- *What it sets:* the tolerance of §A2.5's battery gate for the stop's
+  options: the larger of 2 searches and twice the largest difference
+  between two runs at the same setting, the review's runs included; and
+  the same for spend, the larger of 10% and twice the largest
+  difference.
+- *Predictions.* C5 (moderate): the arm reads 3 to 7 searches over half
+  the maximum and 2 to 4 at it at every stop setting, and spends 315 to
+  370 s; the OFF arm reads 0 to 2 over half and spends 235 to 270 s. C6
+  (moderate): the stop's setting moves the arm's count over half the
+  maximum by no more than 2 either way, because the long searches are
+  ones no fail high interrupts.
