@@ -2210,11 +2210,11 @@ void Searcher::root_record_searched(RootMove& rm, int value, int64_t nodes, bool
     }
 }
 
-int Searcher::root_search(int depth, int alpha, int beta) {
+int Searcher::root_search(int depth, int alpha, int beta, int searched_depth) {
     root_delta_ = std::max(1, beta - alpha);
     root_depth_ = depth;
     root_score_ = state_.prev_root_score;
-    const int score = negamax<NodeType::Root>(depth, alpha, beta, 0, state_.stack + STACK_SENTINELS,
+    const int score = negamax<NodeType::Root>(searched_depth, alpha, beta, 0, state_.stack + STACK_SENTINELS,
                                               true, false);
     // A later MultiPV line searches without the earlier lines' moves.
     if constexpr (kB5Root) if (state_.root_excluded.empty()) {

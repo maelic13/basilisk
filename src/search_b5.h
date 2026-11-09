@@ -95,6 +95,12 @@ struct RootWindow {
     return (pv ? delta * 577 : 163) / root_delta;
 }
 
+// The depth of a root search inside its window's loop: the iteration's, less one
+// for each fail high since the last fail low when that is on, at least one ply.
+[[nodiscard]] inline int adjusted_depth(int depth, int failed_high_cnt, bool on) {
+    return on ? std::max(1, depth - failed_high_cnt) : depth;
+}
+
 // The record's order: by score, then by the last iteration's score. Every move
 // but the line's best holds the "none" score, so a stable sort keeps the rest in
 // the order they had.

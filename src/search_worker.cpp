@@ -519,9 +519,10 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
 
     // One root search, with the longest timed for TM_Debug. A stopped search
     // counts: it is the think the stop's test did not reach.
-    auto search_window = [&](int window_depth, int window_alpha, int window_beta) {
+    auto search_window = [&](int window_depth, int window_alpha, int window_beta, int searched_depth = 0) {
         const double began = limits.tm_debug ? elapsed_seconds() : 0.0;
-        const int window_score = root_search(window_depth, window_alpha, window_beta);
+        const int window_score = root_search(window_depth, window_alpha, window_beta,
+                                             searched_depth > 0 ? searched_depth : window_depth);
         if (limits.tm_debug && elapsed_seconds() - began > state_.longest_window) {
             state_.longest_window = elapsed_seconds() - began;
             state_.longest_window_start = began;
@@ -596,10 +597,12 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
             b5::RootWindow window = b5::first_window(line.average, delta);
             DIAG_COUNT(++state_.diag.asp_windows);
             [[maybe_unused]] int last_window = 0;
+            int failed_high_cnt = 0;
             while (true) {
                 DIAG_COUNT(diag_root_tt(last_window, result.bestmove));
                 [[maybe_unused]] const int64_t window_nodes = state_.nodes;
-                score = search_window(depth, window.alpha, window.beta);
+                score = search_window(depth, window.alpha, window.beta,
+                                      b5::adjusted_depth(depth, failed_high_cnt, limits.params.b5_fail_high_reduce != 0));
                 if (state_.stopped) break;
                 DIAG_COUNT(state_.diag.asp_nodes_windowed += state_.nodes - window_nodes);
                 DIAG_COUNT(state_.diag.asp_nodes_failed
@@ -613,6 +616,7 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
                     DIAG_COUNT(++state_.diag.asp_fail_low);
                     DIAG_COUNT(++state_.diag.asp_researches);
                     window = b5::after_fail_low(window, score, delta);
+                    failed_high_cnt = 0;
                 } else if (score >= window.beta) {
                     bound_line(score, true);
                     last_window = 2;
@@ -621,6 +625,7 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
                         break;
                     DIAG_COUNT(++state_.diag.asp_researches);
                     window = b5::after_fail_high(window, score, delta);
+                    ++failed_high_cnt;
                 } else {
                     break;
                 }

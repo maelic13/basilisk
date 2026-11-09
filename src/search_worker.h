@@ -189,7 +189,9 @@ private:
     // ---- The driver's view of the kernel ---------------------------------
     // Searches the root at `depth` inside [alpha, beta] and returns its score;
     // the line, selective depth and root effort land in state_.
-    int  root_search(int depth, int alpha, int beta);
+    // `searched_depth` is how deep this root search goes; `depth` is the iteration's,
+    // which is what the kernel's own depth tests read.
+    int  root_search(int depth, int alpha, int beta, int searched_depth);
     // The kernel's root loop, on the arm: the record of a root move the search
     // may play (null when the limits forbid it), and its bookkeeping after a
     // search that cost `nodes`, the line taken from the child's table.

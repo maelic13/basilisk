@@ -419,6 +419,21 @@ static void test_the_width_grows_everywhere_on_the_ranges() {
     end_section();
 }
 
+static void test_the_adjusted_depth() {
+    begin_section("the fail-high depth reduction");
+    // Off, the iteration's depth whatever has failed.
+    EXPECT_EQ(b5::adjusted_depth(14, 0, false), 14);
+    EXPECT_EQ(b5::adjusted_depth(14, 5, false), 14);
+    // On, a ply less per fail high, at least one ply.
+    EXPECT_EQ(b5::adjusted_depth(14, 0, true), 14);
+    EXPECT_EQ(b5::adjusted_depth(14, 1, true), 13);
+    EXPECT_EQ(b5::adjusted_depth(14, 5, true), 9);
+    EXPECT_EQ(b5::adjusted_depth(5, 4, true), 1);
+    EXPECT_EQ(b5::adjusted_depth(5, 5, true), 1);
+    EXPECT_EQ(b5::adjusted_depth(5, 9, true), 1);
+    end_section();
+}
+
 // A proved mate keeps the open window: no iteration after it has a window.
 static void test_a_mate_score_keeps_the_open_window() {
     begin_section("a mate score keeps the open window");
@@ -599,6 +614,7 @@ int main() {
     test_the_root_move_comes_from_the_record();
     test_the_window_arithmetic();
     test_the_width_grows_everywhere_on_the_ranges();
+    test_the_adjusted_depth();
     test_a_mate_score_keeps_the_open_window();
     test_the_bound_lines();
     test_no_give_up_on_the_arm();
