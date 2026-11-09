@@ -21,6 +21,7 @@
 #include "eval.h"
 #include "move.h"
 #include "search.h"
+#include "search_types.h"
 #include "tt.h"
 #include "attacks.h"
 #include "bitboard.h"
@@ -46,7 +47,11 @@ static const int TEST_DEPTH = 6;
 // 13 of headroom. Cluster 3's arm is likewise its own budget: its final tree
 // solves 149 at depth 6 (bench 4,003,560), above the stale bound of the floor
 // before it, and its floor is that count less 13.
-static const int FLOOR = 136;
+// Cluster 4's arm is its own budget too: root reduction lets a later root move
+// search past the first move's depth, with the PV ply and a negative reduction, so
+// its depth 6 searches further. It solves 199 (bench 3,920,652), and its floor is
+// that count less 13.
+static const int FLOOR = kB5Root ? 186 : 136;
 static const int STALE_HEADROOM = 20;
 
 static void test_request_parser() {
