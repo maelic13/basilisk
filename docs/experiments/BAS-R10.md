@@ -116,11 +116,27 @@ points. §5.2's mechanism for the effort share was wrong (§A2.4 e).
 
 - **A column the frozen table reads and the list does not hold.** A6's "4 to 8%"
   for the OFF arm's time removed needs the OFF arm at stop 0, which §11, §A2.5 and
-  this leaf's list do not name; the review's twenty games had it. The queue's
-  `-Column OffStop0` plays it when the maintainer agrees; without it that clause is
+  this leaf's list do not name; the review's twenty games had it. The launcher's
+  `-OffStop0` plays it when the maintainer agrees; without it that clause is
   scored "not read".
 
 #### RESULT — append after exposure
 
-- *No replay has run.* The dry run on three games and the replays' results land
-  here.
+- **Dry run** (2026-11-09, `tools/results/b53-m1-dry/`, three games a column, seven
+  columns with `-OffStop0`, both corpora; `b5-20261109/b53/dry-m1.log`): exit 0, the
+  reader's rule reached its report. Three games read: the gate corpus's arm at 1× ended
+  24.72% of searches with 8.13% of spend removed, the OFF arm 12.36% and 8.67%, rule "2x
+  against 1x". These are three games and score nothing.
+- **Guards** (`b5-20261109/b53/guard_test.ps1`, `guard_test.txt`): 16 launcher cases and
+  the reader's rule on synthetic results of both signs, 0 failures. `-CheckOnly` passes
+  on the real pins.
+- **The gate of a stop option is read** (BAS-S53 *RESULT*): stop 200 passes; removal
+  fails on W's spend, so the Remove branch is closed. The rule and the hole remain
+  M1's.
+- **`Diag` runs in every column.** `replay_games.py` turns `Diag` on, as it did for the
+  review's twenty games, because the firing rate needs `fhstop_fired`. BAS-S53's anchor
+  measured what that costs a search: about 8% slower, which moves where the clock stops
+  it. The registered instrument is kept, and it matches A6's source. But M1's firing
+  rate and time removed are of a search about 8% slower than the one that played, and
+  are read with that stated.
+- *No replay has run.* The replays' results land here.

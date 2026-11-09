@@ -2464,6 +2464,57 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         - Calibration owed in the entries: P4's re-search share, P8's
           firing rate and P11's low-effort share. A6 to A13 are frozen
           in the packet's §A2.6.
+      - Opened 2026-11-09 on research amendment 2 (BAS-S53 and BAS-R10
+        *RESULT*), at the head `d07380d`:
+        - Tools, each with a test that failed first:
+          `tools/diag/won_battery.py` (`9c96740`, `2662a5e`, `efb87ff`),
+          `tools/diag/pgn_time_census.py` (`c671a25`, `0236a58`),
+          `replay_games.py`'s new rows and `tools/diag/replay_read.py`
+          (`ada160f`), and `find_spin.py`'s node count (`23a080a`). The
+          launchers are `tools/run_b53_m1.ps1` and
+          `tools/run_b53_games.ps1` (`8ce1e50`).
+        - Entries: BAS-S53 and BAS-R10 are registered (`d07380d`).
+        - Builds at `d07380d`, each reading its `bench 13` directly (ON
+          3,920,652, OFF 4,144,790): release pool build 1 `A1D8CE88…` and
+          `64E4ECC7…`, Tune `D8D9BC67…` and `6DD0B156…`, Diag `DD0258A8…`
+          and `63C9C26F…`; pools `b53-on` and `b53-off`, four builds each.
+      - Node-budget screens 2026-11-09, on both arms:
+        - The floors and the cost screen pass. WAC at 100,000 nodes reads
+          263 against 254.
+        - P3 misses on the failed share (69.6%, above its falsifier's 58%),
+          so `B5AspBase`'s sweep is read before the whole-arm run is
+          blamed. P4's mean hits (0.924) and its share misses. P5 hits on
+          nodes (−6.06%) and misses by 0.12 plies on selective depth. P6
+          misses by one, high. P7 hits.
+        - The blindness read finds 0 of 885 repetition draws with the
+          repeating side at +150 or more, so there is no H.2 card.
+        - §9 item 2's gate is met (45.9% against 20%), so its paired run
+          is owed.
+      - Battery screen 2026-11-09, on a quiet host (BAS-S53 *RESULT*):
+        - The anchor exposed a fault in the new tool. `won_battery.py`
+          had turned `Diag` on, which slows a search about 8% and moved
+          the OFF arm's 60 positions 5%. With `Diag` off the anchor holds
+          (`efb87ff`), and whether the stop fired is read in separate
+          columns.
+        - A9 misses and its falsifier fires: on 120 unseen decided
+          endings the arm spends 1.07 of the OFF arm, with 8 searches
+          over half the maximum on each, mostly different positions. So
+          the review's 60 overstated the excess at this clock. Nothing in
+          §A2.5's contract rests on the excess, so the leaf is not
+          returned; the research owner reads it.
+        - A10 misses low on W's spend (0.94) and holds on its other two
+          clauses. A11 hits (0.74, 3 over half).
+        - M1's gate: stop 200 passes. Removal fails on W's spend, mostly
+          one position, so A7's "both pass" misses and the Remove branch
+          is closed.
+      - Handed over, none started: M1, the pooled NPS read and the
+        whole-arm paired run, each with its guards tested and its commands
+        in the opening's report. M1 and the whole-arm run were dry-run;
+        the NPS read's pools were validated and it was not smoke-tested,
+        since it needs an idle host.
+      - Owed from the returned runs: BAS-R10's rule, A6 to A8 and P8, P9
+        and P11; P10; P1, P2, A12 and the census of the whole-arm PGN. Then
+        the width run and the categoricals, in §A1.5's order.
     - [ ] **B.5.4** `[V]` Curvature sweep, then SPSA in blocks
       The packet's registered sweep on the three window seeds and the
       Cluster 1 to 3 coordinates §5.8 pulls onto the surface, then
@@ -3164,7 +3215,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.5.3 | READY_FOR_IMPLEMENTATION | V | The next action: B.5.2 closed 2026-11-09, accepted with named follow-ups, and research amendment 2 answers its review (`analysis/b5_cluster4_research_2026-11-08.md`, §A2.5). The opening builds the battery and census tools and the two entries (BAS-S53, BAS-R10), then the screens, M1 and the paired runs |
+| B.5.3 | GAME_GATE | V | The next action is the maintainer's: M1 (BAS-R10), the pooled NPS read on an idle host, and the whole-arm paired run (BAS-S53) are prepared, dry-run and handed over; the tools, entries, builds, node-budget screens and battery screen are recorded. A9's falsifier fired on the battery, for the research owner to read. Then the width run and the categoricals |
 | B.5.4 | RESEARCH | V | After B.5.3; BAS-S54 |
 | B.5.5 | RESEARCH | V | After B.5.4; BAS-S55 |
 | B.6.1 | RESEARCH | R2 | Added 2026-10-31; after B.4 and B.5 close |

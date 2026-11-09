@@ -232,7 +232,7 @@ Packet §11's table, frozen 2026-11-08, before any ON-arm build; A1 to A5 frozen
   - **§9 item 1's reads at `B5NegExtMax` 1** (Tune, `b53/seldepth.py`, 105 positions; the
     106th has no search): nodes −6.06%; mean selective depth 19.51 to 18.59, −0.92 plies.
     The cost screen at 1 is ticket 6's, on the same source, and passes. Its battery
-    column is owed.
+    column is read below.
   - **§9 item 2's gate:** 45.9% against 20%, met. Its paired run is owed at the width the
     width run leaves.
 
@@ -247,7 +247,101 @@ Packet §11's table, frozen 2026-11-08, before any ON-arm build; A1 to A5 frozen
   | P7 | the grid passes | **hit** |
   | P12 | item 2's gate is met | that clause **missed**, as §A1.6 says |
 
-- *The battery screen, M1, the NPS read and the games have not run.*
+- **The battery screen** (2026-11-09, a quiet host the maintainer gave, its idle guard
+  read before each read but the last, of 27, every exit status 0, no search unanswered;
+  `tools/results/b5-20261109/b53/battery/`, `battery.ps1`, the logs beside it).
+
+  **The anchor found a difference, and it was the tool's.** On the review's 60 and
+  the review's Tune builds, the first read held the arm's picture (4, 3, 338.1 s) and
+  missed the OFF arm's spend (1, 1, 246.5 s against 252 to 259 s). Alternating the two
+  tools on one host: `rv_wide.py` 258,882 and 258,881 ms, `won_battery.py` 246,530
+  and 245,984 ms, so a repeatable 5% and not scatter. The tool had turned `Diag` on,
+  for `fhstop_fired`; neither the packet's conditions nor the review's script do.
+  `Diag` slows a search by about 8% (median ratio 1.08 on the rows that reached the
+  same depth and node count, both arms) and moves where the clock stops it: 14 of the
+  60 rows stopped an iteration earlier. `2662a5e` (tests, carried alone by a failed
+  edit's unchained commit, and named so) and `efb87ff` make it opt-in. Read again, no
+  other change: the arm 4, 3, 334.6 s; the OFF arm 1, 1, 256.8 s, **the anchor holds**,
+  55 of 60 rows at `rv_wide.py`'s depth and nodes, up from 46. The remaining 2.1 s is
+  35 ms a search, which fits `rv_wide.py`'s clock starting before the engine is ready;
+  that is an inference and was not separately tested. Evidence: `anchor-check/`.
+
+  **Every clock column below is read without `Diag`.** So a clock column's holes count
+  every late search. Whether the stop fired is read by `firing-arm` and `firing-off`,
+  their own columns with `Diag` on, never used as a clock read.
+
+  | `60000+600` | E: over half, at max, spend | W | six | E: changes an iteration |
+  |---|---|---|---|---:|
+  | the arm, run 1 | 8, 6, 689.0 s | 0, 0, 186.2 s | 2, 1, 70.0 s | 0.228 |
+  | the arm, run 2 | 8, 6, 690.3 s | 0, 0, 184.5 s | 2, 1, 69.8 s | 0.228 |
+  | OFF arm | 8, 6, 646.2 s | 1, 0, 198.0 s | 0, 0, 21.4 s | 0.109 |
+  | stop 200 | 8, 6, 707.3 s | 0, 0, 197.5 s | 2, 1, 70.1 s | 0.228 |
+  | stop 0 | 9, 7, 728.7 s | 1, 1, 214.2 s | 2, 1, 69.6 s | 0.228 |
+  | `B5NegExtMax` 1 | 3, 2, 478.4 s | 0, 0, 156.4 s | 0, 0, 20.3 s | 0.186 |
+  | `B5AspBase` 19000 | 12, 4, 707.7 s | 0, 0, 171.6 s | 1, 1, 51.7 s | 0.223 |
+
+  | `10000+100` | E | W | six |
+  |---|---|---|---|
+  | the arm, run 1 | 2, 1, 83.5 s | 0, 0, 29.3 s | 0, 0, 4.1 s |
+  | the arm, run 2 | 2, 1, 83.4 s | 0, 0, 29.7 s | 0, 0, 4.1 s |
+  | OFF arm | 1, 1, 71.3 s | 0, 0, 30.5 s | 0, 0, 3.7 s |
+  | stop 200 | 2, 1, 88.6 s | 0, 0, 31.2 s | 0, 0, 4.3 s |
+  | stop 0 | 3, 1, 90.4 s | 0, 0, 31.3 s | 0, 0, 4.3 s |
+  | `B5NegExtMax` 1 | 2, 1, 71.1 s | 0, 0, 27.8 s | 0, 0, 3.4 s |
+  | `B5AspBase` 19000 | 4, 2, 93.6 s | 0, 0, 28.3 s | 0, 0, 4.2 s |
+
+  The six at `180000+2000`, none over half: the arm 120.8 and 112.3 s (`rec1` read 39.3
+  and 30.3 s, the one place the two runs differ by more than 1.3%), OFF arm 73.4,
+  stop 200 120.6, stop 0 120.9, `B5NegExtMax` 1 67.9, `B5AspBase` 19000 86.3.
+
+  | Holes, stop silent: before, after, other; searches the stop ended | E | W | six |
+  |---|---|---|---|
+  | `firing-arm`, `60000+600` | 12, 2, 2; 7 | 0, 0, 0; 7 | 1, 1, 0; 0 |
+  | `firing-off`, `60000+600` | 8, 2, 0; 12 | 0, 1, 0; 11 | 0, 0, 0; 0 |
+  | `firing-arm`, `10000+100` | 0, 10, 1; 9 | 1, 0, 0; 7 | 0, 0, 0; 1 |
+  | `firing-off`, `10000+100` | 1, 0, 0; 14 | 0, 1, 0; 5 | 0, 0, 0; 1 |
+
+  - **Scored as frozen:**
+
+    | # | Read | Verdict |
+    |---|---|---|
+    | A9 | E's spend 1.066 and 1.068 of the OFF arm against 1.15 to 1.50; the arm over half 8 against 5 to 16; the OFF arm 8 against 0 to 5; changes 2.09× against 1.4 to 2.0 | **miss** on spend and **its falsifier fires**: under 1.10 says the review's 60 were unlucky. **Hit** on the arm's count. **Miss** on the OFF arm's count and, by 0.09, on changes |
+    | A10 | W's spend 0.940 and 0.932 against 0.95 to 1.25; over half 0 and 1 against at most 4; stop 0 +15.6% against 5 to 20% | spend **miss**, low; the other two **hit**; the falsifier does not fire (0 against 8 or more) |
+    | A11 | `B5NegExtMax` 1, E: 0.740 of the OFF arm against 0.65 to 0.95; 3 over half against at most 3 | **hit** |
+
+  - **What A9's miss says.** The review's 60 read 1.30 on this tool; the unseen 120 read
+    1.07, and the arm's tail is the OFF arm's size. Each has 8 over half and 36% of spend
+    in its ten longest, and the arm's median search is the shorter (3.40 s against 3.57
+    s). The tail is not scatter, since the two runs of the arm repeat it to 0.19% of
+    spend, but it is mostly other positions: 1 of E's searches is over half on both arms,
+    7 on the arm alone and 7 on the OFF arm alone. The review's "systematic" holds for
+    a given binary and a given position, and does not hold as an excess on decided
+    endings at this clock. Not in A9's reach: the six still read 3.3× at `60000+600`
+    (`kbnk` 30.0 s against 4.5, `rec1` 29.3 against 3.8) and 1.5 to 1.6× at
+    `180000+2000`, but they were chosen for that. At `10000+100` E's ratio is 1.17, with
+    10 holes beginning after the optimum against 0, the direction A8 expects.
+  - **M1's gate reads against** the two 1× runs at `60000+600`. Over half: E 8 and 8, W 0
+    and 0, six 2 and 2, so limits 10, 2 and 4. Spend: E 690.3 s, W 186.2 s, six 70.0 s
+    at the larger, so limits 759.3, 204.8 and 77.0 s. The runs differ by no search and
+    by 0.2%, 0.9% and 0.2%, inside R2's 4.1%.
+    - **Stop 200 passes** in all three strata.
+    - **Removal fails**, on W's spend: 214.2 s against 204.8 s; its counts pass. So A7's
+      "both options pass" is a miss, and §A2.5's Remove branch is closed by the gate.
+      The stop's guard is mostly one position, `2r5/6k1/4p1B1/2p3PP/3n3K/4R3/8/8 w`: 3.8
+      s at 1×, 24.2 s at the maximum without the stop, 4.9 s on the OFF arm. It is 20.5
+      of the 28.0 s; without that row stop 0 reads +4.1%. A7's falsifier reads as
+      registered, and the gate is not re-read without the row.
+  - **§9 item 1's battery column:** `B5NegExtMax` 1 has the smallest tail of the settings in
+    E and the six and ties in W at `60000+600`, as A11 says, and at `10000+100` E it spends 0.998
+    of the OFF arm. Its verdict is its paired run's.
+  - **BAS-S55 (e)'s trigger** reads the fitted binaries, later. On today's arm W reads 0
+    over half against the OFF arm's 1, which would not trigger it.
+  - **`B5AspBase` 19000** is recorded for the width run and judged by nothing here. The
+    wider seed trades at-maximum searches for over-half ones in E (12 and 4 against 8
+    and 6).
+
+- *M1, the NPS read and the games have not run.* The whole-arm launcher's dry run and
+  four-game smoke passed on the quiet host; `pgn_time_census.py` read the smoke's PGN.
 
 #### PREDICTION CALIBRATION — preserve the original prediction above
 
