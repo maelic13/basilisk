@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """The denser conversion floor: the four families on the 25-budget grid.
 
-Runs `test_endgames --conversion --nodes N` at each budget, one after another
+Runs `test_endgames --conversion --nodes N --list` at each budget, one after another
 (the harness spreads its playouts over the host's threads), names every playout
 in `floors.json` and applies the registered bound, which prints as PASS or FAIL
 and sets the exit status:
@@ -118,7 +118,7 @@ def main() -> int:
             continue
         log = args.out / f"conversion_{nodes}.log"
         with log.open("w", encoding="utf-8", errors="replace") as stream:
-            code = subprocess.run([str(args.binary), args.epd, "--conversion", "--nodes", str(nodes)],
+            code = subprocess.run([str(args.binary), args.epd, "--conversion", "--nodes", str(nodes), "--list"],
                                   cwd=REPO, stdout=stream, stderr=subprocess.STDOUT).returncode
         rows = parse_playouts(log.read_text(encoding="utf-8", errors="replace"))
         if len(rows) != PLAYOUTS_PER_RUN:
