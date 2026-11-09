@@ -69,6 +69,18 @@ top 100, established by CCRL's own testing after a public release.
 The evaluation deficit is older than 1.10.x and comes from a coarser estimator
 than a paired run; the search deficit was re-measured on 1.10.1 at A.7.3.
 
+### Where we stand (interim read, 2026-11-09)
+
+The table above stays the starting point. An unregistered maintainer round
+robin (BAS-M15: twelve engines, 800 games per pair, `3+0.03` 1T, UHO, no
+adjudication) played the head after Clusters 1 to 3, with B.5 to B.8 still to
+come. In the pool it stands **+314.2** [+305.1, +323.2] over 1.10.2, **+74.6**
+[+67.2, +83.3] over Rarog 2.5.0, Rarog's release at the end of its Phase B, and
+**−80.6** [−89.1, −72.7] under Rarog 2.6.0, the release after its evaluation
+programme. Critter 1.6a, the one E.2 target in the field, scored 29.94%. That
+gain already exceeds B's planned band below; B.11.1 corrects the table, and E.2
+is unread until its own field plays, at 1T and 4T.
+
 Both halves of the engine have room of the same order. **The search is
 attacked first**, for four reasons:
 
@@ -2822,6 +2834,11 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         similar evaluations (`analysis/rarog_sweep_2026-11-04.md`).
       - The floors' legality patch moved to B.4's opening, the first point
         between clusters (B.9 until 2026-11-05).
+      Added 2026-11-09:
+      - BAS-M15 played 1.10.2 and the head after Clusters 1 to 3 in the
+        maintainer's pool. It is an interim observation and does not replace
+        this leaf's reads: the final head and three of the four targets are
+        still unplayed.
     - [ ] **B.11.2** `[M]` Interim release 1.11.0
       Maintainer decision 2026-10-24, replacing 2026-09-28's no-interim
       rule: the search programme's head is released when B.11.1 closes, as

@@ -135,6 +135,7 @@ X is good/bad”. If conditions or artifacts are unknown, say so.
 | [BAS-M12](experiments/BAS-M12.md) | Houdini 3 crashes at 4T: diagnosis (observation, 2026-10-05). | A race in Houdini 3's multi-thread start-up, triggered |
 | [BAS-M13](experiments/BAS-M13.md) | Frozen before any game, the 1.10.2 verification match against 1.10.1 with tablebases. | WITHDRAWN unplayed |
 | [BAS-M14](experiments/BAS-M14.md) | Loss analysis by cell: stored games judged by Stockfish 19, worst errors re-searched (B.16.3). | Withdrawn unplayed: instrument built, the read moves to D.1 |
+| [BAS-M15](experiments/BAS-M15.md) | "Dev Test": the head after Clusters 1 to 3 in a twelve-engine 1T round robin. | Observation: pool +314.2 over 1.10.2, +74.6 over Rarog 2.5.0 |
 
 ## 3. Search and selectivity
 
