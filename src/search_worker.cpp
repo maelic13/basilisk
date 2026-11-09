@@ -539,36 +539,96 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
         int score;
         [[maybe_unused]] bool windowed = false;
 
+        // A long iteration whose window fails reports the bound it proved,
+        // with the line that failed high, or the previous line on a fail low.
+        // At a tablebase root the line's move shows its tablebase score,
+        // without a bound, as the depth lines do.
+        auto bound_line = [&](int bound_score, bool lower) {
+            if (!shared_.info || elapsed_seconds() <= config_.limits.bound_line_after)
+                return;
+            std::vector<Move> line = result.pv;
+            if (lower && state_.pv_len[0] > 0)
+                line.assign(state_.pv_table[0], state_.pv_table[0] + std::clamp(state_.pv_len[0], 0, MAX_PLY));
+            line = legal_line(*state_.board, line);
+            const int tb_display = line.empty() ? VALUE_NONE : root_tablebase_display(line.front());
+            const bool tb_root = tb_display != VALUE_NONE;
+            shared_.info(format_info_line(depth, state_.sel_depth, 1,
+                                      tb_root ? tb_display : bound_score,
+                                      tb_root ? "" : (lower ? "lowerbound" : "upperbound"),
+                                      current_nodes(), elapsed_seconds(), current_tbhits(),
+                                      shared_.tt.hashfull(), line));
+            if (!line.empty())
+                state_.last_line_move = line.front();
+        };
+        // Past the optimum, a fail-high on the move the last iteration chose
+        // only proves that move better than the window expected: play it rather
+        // than spend the rest of the budget measuring by how much. A rising
+        // score in a won ending otherwise re-searches at full depth until the
+        // hard maximum. The iteration is discarded as on any stop, so the move
+        // played is that iteration's, and it is this one.
+        auto fail_high_stop = [&]() {
+            if (state_.soft_limit > 0.0 && !state_.pondering && config_.thread_id == 0
+                && state_.pv_len[0] > 0 && state_.pv_table[0][0] == result.bestmove
+                && limits.params.b5_fail_high_stop > 0
+                && elapsed_seconds() >= state_.soft_limit
+                                        * (limits.params.b5_fail_high_stop / 100.0)) {
+                DIAG_COUNT(++state_.diag.fhstop_fired);
+                state_.stopped = true;
+                return true;
+            }
+            return false;
+        };
+
         if (limits.root_alpha != limits.root_beta) {
             score = search_window(depth, limits.root_alpha, limits.root_beta);
         } else if (depth <= 3 || std::abs(prev_score) >= MATE_SCORE - MAX_PLY) {
             score = search_window(depth, -INF_SCORE, INF_SCORE);
+        } else if (kB5Root && limits.params.b5_window && !state_.root_moves.empty()) {
+            // The window of the line's own record: around its average, as wide
+            // as its scores are large. There is no give-up hatch: a window wide
+            // enough to give up on is open from its first search.
+            windowed = true;
+            const RootMove& line = state_.root_moves[static_cast<size_t>(state_.root_line)];
+            int delta = b5::window_delta(limits.params.b5_asp_base, config_.thread_id, line.mean_sq,
+                                         limits.params.b5_asp_msq_div);
+            b5::RootWindow window = b5::first_window(line.average, delta);
+            DIAG_COUNT(++state_.diag.asp_windows);
+            [[maybe_unused]] int last_window = 0;
+            while (true) {
+                DIAG_COUNT(diag_root_tt(last_window, result.bestmove));
+                [[maybe_unused]] const int64_t window_nodes = state_.nodes;
+                score = search_window(depth, window.alpha, window.beta);
+                if (state_.stopped) break;
+                DIAG_COUNT(state_.diag.asp_nodes_windowed += state_.nodes - window_nodes);
+                DIAG_COUNT(state_.diag.asp_nodes_failed
+                           += (score <= window.alpha || score >= window.beta)
+                                  ? state_.nodes - window_nodes : 0);
+                DIAG_COUNT(state_.diag.asp_fail_high_research_nodes
+                           += last_window == 2 ? state_.nodes - window_nodes : 0);
+                if (score <= window.alpha) {
+                    bound_line(score, false);
+                    last_window = 1;
+                    DIAG_COUNT(++state_.diag.asp_fail_low);
+                    DIAG_COUNT(++state_.diag.asp_researches);
+                    window = b5::after_fail_low(window, score, delta);
+                } else if (score >= window.beta) {
+                    bound_line(score, true);
+                    last_window = 2;
+                    DIAG_COUNT(++state_.diag.asp_fail_high);
+                    if (fail_high_stop())
+                        break;
+                    DIAG_COUNT(++state_.diag.asp_researches);
+                    window = b5::after_fail_high(window, score, delta);
+                } else {
+                    break;
+                }
+                delta = b5::grow_delta(delta, limits.params.b5_asp_growth);
+            }
         } else {
             windowed = true;
             int delta = config_.limits.params.aspiration_delta;
             int asp_a = prev_score - delta;
             int asp_b = prev_score + delta;
-            // A long iteration whose window fails reports the bound it proved,
-            // with the line that failed high, or the previous line on a fail low.
-            // At a tablebase root the line's move shows its tablebase score,
-            // without a bound, as the depth lines do.
-            auto bound_line = [&](int bound_score, bool lower) {
-                if (!shared_.info || elapsed_seconds() <= config_.limits.bound_line_after)
-                    return;
-                std::vector<Move> line = result.pv;
-                if (lower && state_.pv_len[0] > 0)
-                    line.assign(state_.pv_table[0], state_.pv_table[0] + std::clamp(state_.pv_len[0], 0, MAX_PLY));
-                line = legal_line(*state_.board, line);
-                const int tb_display = line.empty() ? VALUE_NONE : root_tablebase_display(line.front());
-                const bool tb_root = tb_display != VALUE_NONE;
-                shared_.info(format_info_line(depth, state_.sel_depth, 1,
-                                          tb_root ? tb_display : bound_score,
-                                          tb_root ? "" : (lower ? "lowerbound" : "upperbound"),
-                                          current_nodes(), elapsed_seconds(), current_tbhits(),
-                                          shared_.tt.hashfull(), line));
-                if (!line.empty())
-                    state_.last_line_move = line.front();
-            };
             DIAG_COUNT(++state_.diag.asp_windows);
             [[maybe_unused]] int last_window = 0;
             while (true) {
@@ -603,22 +663,8 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
                     bound_line(score, true);
                     last_window = 2;
                     DIAG_COUNT(++state_.diag.asp_fail_high);
-                    // Past the optimum, a fail-high on the move the last
-                    // iteration chose only proves that move better than the
-                    // window expected: play it rather than spend the rest of
-                    // the budget measuring by how much. A rising score in a won
-                    // ending otherwise re-searches at full depth until the hard
-                    // maximum. The iteration is discarded as on any stop, so
-                    // the move played is that iteration's, and it is this one.
-                    if (state_.soft_limit > 0.0 && !state_.pondering && config_.thread_id == 0
-                        && state_.pv_len[0] > 0 && state_.pv_table[0][0] == result.bestmove
-                        && limits.params.b5_fail_high_stop > 0
-                        && elapsed_seconds() >= state_.soft_limit
-                                                * (limits.params.b5_fail_high_stop / 100.0)) {
-                        DIAG_COUNT(++state_.diag.fhstop_fired);
-                        state_.stopped = true;
+                    if (fail_high_stop())
                         break;
-                    }
                     DIAG_COUNT(++state_.diag.asp_researches);
                     asp_b  = std::min(score + delta, INF_SCORE);
                     delta += delta / 2;

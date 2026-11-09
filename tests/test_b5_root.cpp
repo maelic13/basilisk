@@ -300,6 +300,127 @@ static void test_the_root_move_comes_from_the_record() {
     end_section();
 }
 
+// ---- The window ---------------------------------------------------------------
+
+static void test_the_window_arithmetic() {
+    begin_section("the window's width, growth and bounds");
+    // At the seeds, in this engine's units: a level score, a pawn, three pawns, ten.
+    EXPECT_EQ(b5::window_delta(1, 0, 0, 2874), 1);
+    EXPECT_EQ(b5::window_delta(1, 0, 100 * 100, 2874), 4);
+    EXPECT_EQ(b5::window_delta(1, 0, -100 * 100, 2874), 4);
+    EXPECT_EQ(b5::window_delta(1, 0, 300 * 300, 2874), 32);
+    EXPECT_EQ(b5::window_delta(1, 0, 1000 * 1000, 2874), 348);
+    // The thread's offset: the donor's in this engine's units, first felt at the fourth.
+    EXPECT_EQ(b5::window_delta(1, 3, 0, 2874), 1);
+    EXPECT_EQ(b5::window_delta(1, 4, 0, 2874), 2);
+    EXPECT_EQ(b5::window_delta(1, 7, 0, 2874), 2);
+    EXPECT_EQ(b5::window_delta(1, 8, 0, 2874), 1);
+    // The ranges' edges, and the won tier and an empty record, which are open.
+    EXPECT_EQ(b5::window_delta(40, 0, 0, 12000), 40);
+    EXPECT_EQ(b5::window_delta(1, 0, 20000LL * 20000, 1000), b5::kMaxWindowDelta);
+    EXPECT_EQ(b5::window_delta(1, 0, kRootMeanSqNone, 12000), b5::kMaxWindowDelta);
+    const b5::RootWindow won = b5::first_window(20000, b5::window_delta(1, 0, 20000LL * 20000, 2874));
+    EXPECT_EQ(won.alpha, -INF_SCORE);
+    EXPECT_EQ(won.beta, INF_SCORE);
+    const b5::RootWindow unseen = b5::first_window(kRootScoreNone, b5::window_delta(1, 0, kRootMeanSqNone, 2874));
+    EXPECT_EQ(unseen.alpha, -INF_SCORE);
+    EXPECT_EQ(unseen.beta, INF_SCORE);
+
+    EXPECT_EQ(b5::grow_delta(1, 47), 1);      // 47/128 of a unit rounds away
+    EXPECT_EQ(b5::grow_delta(3, 47), 4);
+    EXPECT_EQ(b5::grow_delta(128, 47), 175);
+    EXPECT_EQ(b5::grow_delta(128, 96), 224);
+    EXPECT_EQ(b5::grow_delta(b5::kMaxWindowDelta, 96), b5::kMaxWindowDelta);
+
+    const b5::RootWindow first = b5::first_window(50, 5);
+    EXPECT_EQ(first.alpha, 45);
+    EXPECT_EQ(first.beta, 55);
+    // A fail low pulls beta to the old alpha and alpha below the score.
+    const b5::RootWindow low = b5::after_fail_low(first, 30, 7);
+    EXPECT_EQ(low.alpha, 23);
+    EXPECT_EQ(low.beta, 45);
+    EXPECT_EQ(b5::after_fail_low(first, -INF_SCORE + 3, 7).alpha, -INF_SCORE);
+    // A fail high raises alpha to the old beta less the width, and beta above the score.
+    const b5::RootWindow high = b5::after_fail_high(first, 80, 7);
+    EXPECT_EQ(high.alpha, 48);
+    EXPECT_EQ(high.beta, 87);
+    EXPECT_EQ(b5::after_fail_high(first, 80, 100).alpha, 45);   // alpha never falls
+    EXPECT_EQ(b5::after_fail_high(first, INF_SCORE - 3, 7).beta, INF_SCORE);
+
+    // LMR's term: at a PV node's window about the root's, 577 either way; at a
+    // null window the donor's unit, in ours, against today's 577 per unit.
+    EXPECT_EQ(b5::lmr_window_term(38, 38), 577);
+    EXPECT_EQ(b5::lmr_window_term(2, 2), 577);
+    EXPECT_EQ(b5::lmr_window_term(1, 2), 81);
+    EXPECT_EQ(b5::lmr_window_term(1, 38), 4);
+    EXPECT_EQ(b5::lmr_window_term(1, 1), 163);
+    end_section();
+}
+
+// A proved mate keeps the open window: no iteration after it has a window.
+static void test_a_mate_score_keeps_the_open_window() {
+    begin_section("a mate score keeps the open window");
+    SearchLimits lim;
+    lim.depth = 10;
+    const Run run = search_limits("6k1/8/5K2/8/8/8/8/R7 w - - 0 1", lim);
+    EXPECT_EQ(run.result.score, MATE_SCORE - 3);
+    // The iteration that first read the mate is the last with a window.
+    int first_mate = 0;
+    for (const std::string& line : run.lines) {
+        if (first_mate == 0 && line.rfind("info depth", 0) == 0 && line.find(" score mate ") != std::string::npos)
+            first_mate = std::stoi(line.substr(11));
+    }
+    EXPECT(first_mate > 0);
+    EXPECT(first_mate < 10);
+    if (kCounters)
+        EXPECT_EQ(counter(run, "asp_windows"), std::max(0, first_mate - 3));
+    end_section();
+}
+
+// Each failed window prints its bound, the line that failed high on a lower
+// bound, and every printed score is inside what the search found.
+static void test_the_bound_lines() {
+    begin_section("the bound lines");
+    SearchLimits lim;
+    lim.depth = 14;
+    lim.bound_line_after = 0.0;
+    const Run run = search_limits("r1bq1rk1/pp2bppp/2n1pn2/2pp4/3P1B2/2PBPN2/PP1N1PPP/R2QK2R w KQ - 0 9", lim);
+    int lower = 0, upper = 0, exact = 0;
+    for (const std::string& line : run.lines) {
+        if (line.rfind("info depth", 0) != 0)
+            continue;
+        if (line.find(" lowerbound ") != std::string::npos) ++lower;
+        else if (line.find(" upperbound ") != std::string::npos) ++upper;
+        else ++exact;
+        EXPECT(line.find(" pv ") != std::string::npos);
+    }
+    EXPECT(lower + upper > 0);
+    EXPECT_EQ(exact, 14);
+    if (kCounters) {
+        EXPECT_EQ(lower, counter(run, "asp_fail_high"));
+        EXPECT_EQ(upper, counter(run, "asp_fail_low"));
+    }
+    end_section();
+}
+
+// The arm has no give-up hatch, and in a won ending its window is open.
+static void test_no_give_up_on_the_arm() {
+    begin_section("no give-up window on the arm");
+    SearchLimits lim;
+    lim.depth = 20;
+    const Run run = search_limits("8/8/8/8/3k4/8/3KBN2/8 w - - 0 1", lim);
+    EXPECT(run.result.bestmove != MOVE_NONE);
+    if (kCounters) {
+        if (kB5Root) {
+            EXPECT_EQ(counter(run, "asp_giveup"), 0);
+            EXPECT_EQ(counter(run, "asp_nodes_giveup"), 0);
+        } else {
+            EXPECT(counter(run, "asp_giveup") > 0);
+        }
+    }
+    end_section();
+}
+
 int main() {
     init_bitboards();
     init_attacks();
@@ -315,6 +436,10 @@ int main() {
     test_a_search_under_a_low_cap();
     test_the_record_arithmetic();
     test_the_root_move_comes_from_the_record();
+    test_the_window_arithmetic();
+    test_a_mate_score_keeps_the_open_window();
+    test_the_bound_lines();
+    test_no_give_up_on_the_arm();
 
     return harness_summary();
 }

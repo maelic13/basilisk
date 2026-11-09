@@ -77,7 +77,12 @@ static TablebaseProbe tablebase_probe(Syzygy::Wdl wdl, int ply, bool rule50) {
 int Searcher::lmr_reduction(bool improving, int depth, int move_count, int delta) const {
     const auto& p = config_.limits.params;
     const int scale = reductions_[std::min(depth, 255)] * reductions_[std::min(move_count, 255)];
-    return scale - delta * 577 / root_delta_
+    int window_term = delta * 577 / root_delta_;
+    if constexpr (kB5Root) {
+        if (p.b5_lmr_window_units)
+            window_term = b5::lmr_window_term(delta, root_delta_);
+    }
+    return scale - window_term
          + (improving ? 0 : scale * p.lmr_not_improving / 512) + p.lmr_offset;
 }
 
