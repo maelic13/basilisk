@@ -19,7 +19,7 @@
 //   BASILISK_CORE_KERNEL_PARAMS     the node kernel's, which includes the
 //                                   line it inherited from the kernel it
 //                                   replaced (BASILISK_LEGACY_LMR_SINGULAR);
-//   BASILISK_B3_PARAMS, _B4_PARAMS  Cluster 2's and Cluster 3's.
+//   BASILISK_B3_PARAMS, _B4_PARAMS, _B5_PARAMS  Clusters 2, 3 and 4's.
 //
 // BASILISK_SEARCH_PARAMS, the table every consumer expands, is the kernel
 // table followed by the root table.
@@ -413,6 +413,37 @@
     A(b3_nmp_per_ply,        B3NmpPerPly,            13)                \
     A(b3_iir_min_depth,      B3IirMinDepth,           6)
 
+// ---- Cluster 4: the root and the aspiration window (the B5_ROOT arm) ---------
+//
+// The window of a root line is `b5_asp_base + (thread % 8) * 282 / 1000 +
+// |mean square of the line's scores| / b5_asp_msq_div` either side of the
+// line's average score, and grows by b5_asp_growth/128 per failure: the
+// donor's 5 and 10193 in this engine's evaluation units (0.282 of the donor's),
+// its 47 unchanged.
+//
+// S lines. Categoricals, each settled by a paired run:
+//   b5_fail_high_reduce: 1 the re-search after a fail high runs that many plies
+//     shallower, at least one deep; 0 full depth.
+//   b5_neg_ext_max: extensions from a negative reduction a line may hold before
+//     the ceiling stops granting them; 0 unbounded.
+// Attribution switches, whose defaults are the arm's form:
+//   b5_window: 1 the loop above; 0 the driver's older loop on the record.
+//   b5_root_lmr: 1 root moves after the first are reduced at depth 2 or more.
+//   b5_lmr_window_units: 1 the LMR window term reads a null window in the
+//     donor's units (577 * 0.282 = 163); 0 reads 577 at every node.
+// b5_fail_high_stop, on both arms: the percent of the optimum past which a fail
+//   high on the previous best ends the search; 0 never.
+#define BASILISK_B5_PARAMS(X, F, S)                                      \
+    X(b5_asp_base,           B5AspBase,              1,    1,    40)     \
+    X(b5_asp_msq_div,        B5AspMsqDiv,         2874, 1000, 12000)     \
+    X(b5_asp_growth,         B5AspGrowth,           47,   32,    96)     \
+    S(b5_fail_high_reduce,   B5FailHighReduce,       0,    0,     1)     \
+    S(b5_neg_ext_max,        B5NegExtMax,            0,    0,     2)     \
+    S(b5_window,             B5Window,               1,    0,     1)     \
+    S(b5_root_lmr,           B5RootLmr,              1,    0,     1)     \
+    S(b5_lmr_window_units,   B5LmrWindowUnits,       1,    0,     1)     \
+    S(b5_fail_high_stop,     B5FailHighStop,       100,    0,   400)
+
 #define BASILISK_KERNEL_PARAMS(X) BASILISK_CORE_KERNEL_PARAMS(X, X)
 #define BASILISK_KERNEL_SWITCHES(S) BASILISK_CORE_KERNEL_SWITCHES(S)
 
@@ -427,6 +458,8 @@ struct SearchParams {
     BASILISK_B3_PARAMS(BASILISK_SEARCH_PARAM_FIELD, BASILISK_SEARCH_PARAM_FIELD,
                        BASILISK_SEARCH_PARAM_FIELD)
     BASILISK_B4_PARAMS(BASILISK_SEARCH_PARAM_FIELD, BASILISK_SEARCH_PARAM_FIELD,
+                       BASILISK_SEARCH_PARAM_FIELD)
+    BASILISK_B5_PARAMS(BASILISK_SEARCH_PARAM_FIELD, BASILISK_SEARCH_PARAM_FIELD,
                        BASILISK_SEARCH_PARAM_FIELD)
 #undef BASILISK_SEARCH_PARAM_FIELD
     constexpr SearchParams() noexcept {

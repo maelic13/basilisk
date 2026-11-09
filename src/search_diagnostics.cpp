@@ -373,6 +373,25 @@ void print_search_diag(const DiagCounters& d, const Evaluator& evaluator,
             d.qs_evasion_see_pruned, d.qs_stalemates, d.qs_quiet_checks,
             d.rfp_seekmate_capped, d.qs_gain_tested);
         emit(buf);
+        // Cluster 4's root and aspiration.
+        buf = std::format("kv ply_cap_hits={} ply_cap_in_check={} qs_ply_cap_hits={} "
+            "qs_ply_cap_in_check={} negext_total={} negext_chain1={} negext_chain2p={} "
+            "root_lmr_reduced={} root_lmr_researched={}",
+            d.ply_cap_hits, d.ply_cap_in_check, d.qs_ply_cap_hits, d.qs_ply_cap_in_check,
+            d.negext_total, d.negext_chain1, d.negext_chain2p,
+            d.root_lmr_reduced, d.root_lmr_researched);
+        emit(buf);
+        buf = std::format("kv root_tt_probe_first={} root_tt_mismatch_first={} "
+            "root_tt_probe_fl={} root_tt_mismatch_fl={} root_tt_probe_fh={} "
+            "root_tt_mismatch_fh={}",
+            d.root_tt_probe_first, d.root_tt_mismatch_first, d.root_tt_probe_fl,
+            d.root_tt_mismatch_fl, d.root_tt_probe_fh, d.root_tt_mismatch_fh);
+        emit(buf);
+        buf = std::format("kv asp_nodes_windowed={} asp_nodes_failed={} asp_nodes_giveup={} "
+            "asp_fail_high_research_nodes={} fhstop_fired={} root_effort_hi={} root_effort_lo={}",
+            d.asp_nodes_windowed, d.asp_nodes_failed, d.asp_nodes_giveup,
+            d.asp_fail_high_research_nodes, d.fhstop_fired, d.root_effort_hi, d.root_effort_lo);
+        emit(buf);
     }
     // Speed telemetry: the evaluation rate, the pawn-cache hit rate, the
     // gives_check rate and SEE calls per node.

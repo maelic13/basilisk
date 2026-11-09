@@ -126,6 +126,10 @@ struct SearchState {
     int64_t root_depth_nodes = 0;
     int64_t root_best_nodes = 0;
     int     root_best_effort = 0;
+    // The longest root search of this `go` and when it began, in seconds, read
+    // while TM_Debug is on: a stop tests the clock only as a window returns.
+    double  longest_window = 0.0;
+    double  longest_window_start = 0.0;
     // The last completed iteration, which Cluster 2 reads: its first line's
     // PV (empty before one completes and while a MultiPV line after the first
     // is searched) and its raw root score (0 before one completes).
@@ -205,6 +209,10 @@ private:
     int    root_tablebase_display(Move move) const;
     bool   root_tablebase_allows(Move move) const;
     Move   ponder_from_tt(const Board& root, Move bestmove) const;
+    // The counters' read of the table's root move before a window: against the
+    // last completed iteration's best, by what the window before it did
+    // (0 none, 1 failed low, 2 failed high).
+    void   diag_root_tt(int last_window, Move best);
 
     // ---- Node kernel -------------------------------------------------------
     // Everything from here to the end of the class belongs to the node kernel

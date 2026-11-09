@@ -60,7 +60,20 @@ struct SearchStack {
     bool      follow_pv   = false;
     int       ext_plies   = 0;
     int       ext_taken   = 0;
+    // The extensions from a negative reduction on the line to this node, and
+    // the one the move searched from here takes, written where the counters
+    // are compiled in.
+    int       negext_path  = 0;
+    int       negext_taken = 0;
 };
+
+// Cluster 4's umbrella (CMake B5_ROOT): the driver's and the kernel's root
+// branches are `if constexpr` on this, so both arms compile on every build.
+#if defined(BASILISK_B5_ROOT)
+inline constexpr bool kB5Root = true;
+#else
+inline constexpr bool kB5Root = false;
+#endif
 
 // A single-PV aspiration failure prints its bound only once a search has run
 // this long, as Stockfish does, so fast games print the same lines as before.

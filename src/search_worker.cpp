@@ -321,6 +321,23 @@ Move Searcher::ponder_from_tt(const Board& root, Move bestmove) const {
 }
 
 
+void Searcher::diag_root_tt([[maybe_unused]] int last_window, [[maybe_unused]] Move best) {
+    TTEntry entry{};
+    if (!shared_.tt.probe_copy(state_.board->position_key(), entry))
+        return;
+    [[maybe_unused]] const bool mismatch = move_from_tt(entry.move16) != best;
+    if (last_window == 0) {
+        DIAG_COUNT(++state_.diag.root_tt_probe_first);
+        DIAG_COUNT(state_.diag.root_tt_mismatch_first += mismatch);
+    } else if (last_window == 1) {
+        DIAG_COUNT(++state_.diag.root_tt_probe_fl);
+        DIAG_COUNT(state_.diag.root_tt_mismatch_fl += mismatch);
+    } else {
+        DIAG_COUNT(++state_.diag.root_tt_probe_fh);
+        DIAG_COUNT(state_.diag.root_tt_mismatch_fh += mismatch);
+    }
+}
+
 // ---- Iterative deepening ---------------------------------------------------
 
 SearchResult Searcher::search(Board board, const SearchLimits& limits) {
@@ -350,6 +367,8 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
     state_.sel_depth    = 0;
     state_.stopped      = false;
     state_.last_line_move = MOVE_NONE;
+    state_.longest_window = 0.0;
+    state_.longest_window_start = 0.0;
     state_.pondering    = limits.ponder;
     state_.root_side    = board.turn();
 #if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
@@ -451,6 +470,18 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
     if (config_.thread_id > 0 && max_depth > 2)
         start_depth = 1 + (config_.thread_id % 2);
 
+    // One root search, with the longest timed for TM_Debug. A stopped search
+    // counts: it is the think the stop's test did not reach.
+    auto search_window = [&](int window_depth, int window_alpha, int window_beta) {
+        const double began = limits.tm_debug ? elapsed_seconds() : 0.0;
+        const int window_score = root_search(window_depth, window_alpha, window_beta);
+        if (limits.tm_debug && elapsed_seconds() - began > state_.longest_window) {
+            state_.longest_window = elapsed_seconds() - began;
+            state_.longest_window_start = began;
+        }
+        return window_score;
+    };
+
     for (int depth = start_depth; depth <= max_depth && !state_.stopped; depth++) {
         state_.pv_len[0] = 0;
         state_.sel_depth = 0;
@@ -458,12 +489,14 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
         state_.root_best_nodes = 0;
         state_.root_best_effort = 0;
         int score;
+        [[maybe_unused]] bool windowed = false;
 
         if (limits.root_alpha != limits.root_beta) {
-            score = root_search(depth, limits.root_alpha, limits.root_beta);
+            score = search_window(depth, limits.root_alpha, limits.root_beta);
         } else if (depth <= 3 || std::abs(prev_score) >= MATE_SCORE - MAX_PLY) {
-            score = root_search(depth, -INF_SCORE, INF_SCORE);
+            score = search_window(depth, -INF_SCORE, INF_SCORE);
         } else {
+            windowed = true;
             int delta = config_.limits.params.aspiration_delta;
             int asp_a = prev_score - delta;
             int asp_b = prev_score + delta;
@@ -489,16 +522,25 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
                     state_.last_line_move = line.front();
             };
             DIAG_COUNT(++state_.diag.asp_windows);
+            [[maybe_unused]] int last_window = 0;
             while (true) {
+                DIAG_COUNT(diag_root_tt(last_window, result.bestmove));
+                [[maybe_unused]] const int64_t window_nodes = state_.nodes;
                 // Full depth on every re-search. Stockfish re-searches
                 // shallower after each fail high; here that read WAC 137 -> 119
                 // against a floor of 130 and raised re-searches 1305 -> 1450,
                 // because a root failing high is often a tactical shot that a
                 // shallower search misses (BAS-D17).
-                score = root_search(depth, asp_a, asp_b);
+                score = search_window(depth, asp_a, asp_b);
                 if (state_.stopped) break;
+                DIAG_COUNT(state_.diag.asp_nodes_windowed += state_.nodes - window_nodes);
+                DIAG_COUNT(state_.diag.asp_nodes_failed
+                           += (score <= asp_a || score >= asp_b) ? state_.nodes - window_nodes : 0);
+                DIAG_COUNT(state_.diag.asp_fail_high_research_nodes
+                           += last_window == 2 ? state_.nodes - window_nodes : 0);
                 if (score <= asp_a) {
                     bound_line(score, false);
+                    last_window = 1;
                     DIAG_COUNT(++state_.diag.asp_fail_low);
                     DIAG_COUNT(++state_.diag.asp_researches);
                     // Only alpha moves, and delta grows by half. Pulling beta
@@ -511,6 +553,7 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
                     delta += delta / 2;
                 } else if (score >= asp_b) {
                     bound_line(score, true);
+                    last_window = 2;
                     DIAG_COUNT(++state_.diag.asp_fail_high);
                     // Past the optimum, a fail-high on the move the last
                     // iteration chose only proves that move better than the
@@ -521,7 +564,10 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
                     // the move played is that iteration's, and it is this one.
                     if (state_.soft_limit > 0.0 && !state_.pondering && config_.thread_id == 0
                         && state_.pv_len[0] > 0 && state_.pv_table[0][0] == result.bestmove
-                        && elapsed_seconds() >= state_.soft_limit) {
+                        && limits.params.b5_fail_high_stop > 0
+                        && elapsed_seconds() >= state_.soft_limit
+                                                * (limits.params.b5_fail_high_stop / 100.0)) {
+                        DIAG_COUNT(++state_.diag.fhstop_fired);
                         state_.stopped = true;
                         break;
                     }
@@ -536,7 +582,9 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
                     DIAG_COUNT(++state_.diag.asp_researches);
                     asp_a = -INF_SCORE;
                     asp_b =  INF_SCORE;
-                    score = root_search(depth, asp_a, asp_b);
+                    [[maybe_unused]] const int64_t giveup_nodes = state_.nodes;
+                    score = search_window(depth, asp_a, asp_b);
+                    DIAG_COUNT(state_.diag.asp_nodes_giveup += state_.nodes - giveup_nodes);
                     break;
                 }
             }
@@ -547,6 +595,10 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
         if (state_.root_depth_nodes > 0)
             state_.root_best_effort = static_cast<int>(
                 std::min<int64_t>(100, state_.root_best_nodes * 100 / state_.root_depth_nodes));
+        DIAG_COUNT(state_.diag.root_effort_hi
+                   += windowed && state_.root_best_effort >= limits.params.tm_effort_hi);
+        DIAG_COUNT(state_.diag.root_effort_lo
+                   += windowed && state_.root_best_effort <= limits.params.tm_effort_lo);
 
         // Track best-move stability for adaptive soft time limit
         Move cur_best = (state_.pv_len[0] > 0) ? state_.pv_table[0][0] : MOVE_NONE;
@@ -606,7 +658,7 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
             state_.root_excluded.assign(1, cur_best);
             for (int k = 2; k <= state_.multipv_lines; ++k) {
                 state_.pv_len[0] = 0;
-                const int line_score = root_search(depth, -INF_SCORE, INF_SCORE);
+                const int line_score = search_window(depth, -INF_SCORE, INF_SCORE);
                 if (state_.stopped || state_.pv_len[0] == 0)
                     break;
                 extra_lines.push_back({line_score, std::vector<Move>(
@@ -747,7 +799,9 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
         shared_.info("info string tm soft_ms=" + std::to_string(int64_t(state_.soft_limit * 1000.0))
                + " hard_ms="     + std::to_string(int64_t(state_.hard_limit * 1000.0))
                + " elapsed_ms="  + std::to_string(int64_t(elapsed_seconds() * 1000.0))
-               + " dispatch_ms=" + std::to_string(dispatch_ms));
+               + " dispatch_ms=" + std::to_string(dispatch_ms)
+               + " longest_window_start_ms=" + std::to_string(int64_t(state_.longest_window_start * 1000.0))
+               + " longest_window_ms=" + std::to_string(int64_t(state_.longest_window * 1000.0)));
     }
     return result;
 }

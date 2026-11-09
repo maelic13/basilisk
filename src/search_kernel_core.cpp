@@ -158,6 +158,15 @@ static constexpr int LMR_HISTORY_DIVISOR[16] = {
     3637, 2787, 2761, 2939, 3171, 3347, 3147, 2762,
     2772, 3106, 3107, 3060, 3112, 2991, 3090, 3542};
 
+// A line's extensions from a negative reduction: what the move about to be
+// searched from `ss` takes, and so what its child's line holds.
+static inline void set_negext([[maybe_unused]] SearchStack* ss, [[maybe_unused]] int taken) {
+    if constexpr (kDiagCountersCompiled) {
+        ss->negext_taken = taken;
+        (ss + 1)->negext_path = ss->negext_path + taken;
+    }
+}
+
 // ---- Quiescence search -----------------------------------------------------
 
 // A capture, an en passant or a promotion: what the picker's capture stage
@@ -201,7 +210,11 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         if ((state_.nodes & 2047) == 0 || shared_.stop.load(std::memory_order_relaxed))
             check_stop();
         if (state_.stopped) return 0;
-        if (ply >= MAX_PLY) return evaluator_.evaluate(*state_.board);
+        if (ply >= MAX_PLY) {
+            DIAG_COUNT(++state_.diag.qs_ply_cap_hits);
+            DIAG_COUNT(state_.diag.qs_ply_cap_in_check += state_.board->is_in_check());
+            return evaluator_.evaluate(*state_.board);
+        }
         if (state_.board->is_draw(ply)) return 0;
         // The upcoming repetition, as at an interior node (which made the
         // test for a node it hands here).
@@ -678,7 +691,11 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         check_stop();
     if (state_.stopped) return 0;
 
-    if (ply >= MAX_PLY) return evaluator_.evaluate(*state_.board);
+    if (ply >= MAX_PLY) {
+        DIAG_COUNT(++state_.diag.ply_cap_hits);
+        DIAG_COUNT(state_.diag.ply_cap_in_check += state_.board->is_in_check());
+        return evaluator_.evaluate(*state_.board);
+    }
     state_.pv_len[ply] = ply;
 
     if (!is_root && state_.board->is_draw(ply)) return 0;
@@ -1125,6 +1142,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 do_null_move(ss);
                 shared_.tt.prefetch(state_.board->position_key());
                 (ss + 1)->ext_plies = ss->ext_plies;
+                set_negext(ss, 0);
                 int null_score = -negamax<NodeType::NonPV>(std::max(0, depth - r), -beta,
                                                            -(beta - 1), ply + 1, ss + 1,
                                                            false, false);
@@ -1220,6 +1238,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             do_move(ss, m);
             shared_.tt.prefetch(state_.board->position_key());
             (ss + 1)->ext_plies = ss->ext_plies;
+            set_negext(ss, 0);
             int val = -quiescence<NodeType::NonPV>(-pc_beta, -pc_beta + 1, ply + 1, 0, ss + 1);
             if (val >= pc_beta && pc_depth > 0)
                 val = -negamax<NodeType::NonPV>(pc_depth, -pc_beta, -pc_beta + 1,
@@ -1331,6 +1350,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             if (!made) {
                 ss->ext_taken = 0;
                 (ss + 1)->ext_plies = ss->ext_plies;
+                set_negext(ss, 0);
                 do_move(ss, m);
             }
             const int s = -negamax<PvChild>(child_depth, -beta, -alpha, ply + 1, ss + 1, true,
@@ -1707,6 +1727,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         state_.sel_depth = std::max(state_.sel_depth, ply + 1);
         ss->ext_taken = std::max(extension, 0);
         (ss + 1)->ext_plies = ss->ext_plies + ss->ext_taken;
+        set_negext(ss, 0);
 
         int new_depth = depth - 1 + extension - depth_bump;
 
@@ -1781,6 +1802,12 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 const int reduced = new_depth - r / 1024;
                 const int ceiling = kp.lmr_negative_allowed ? new_depth + 2 : new_depth;
                 const int d = std::max(1, std::min(reduced, ceiling)) + is_pv;
+                // A search past the full depth, the PV ply aside.
+                const bool negext = d - int(is_pv) > new_depth;
+                set_negext(ss, int(negext));
+                DIAG_COUNT(state_.diag.negext_total += negext);
+                DIAG_COUNT(state_.diag.negext_chain1 += negext && ss->negext_path == 1);
+                DIAG_COUNT(state_.diag.negext_chain2p += negext && ss->negext_path >= 2);
                 if (reduced < 1) {
                     DIAG_COUNT(++state_.diag.lmr_floor_hits);
                     DIAG_COUNT(++state_.diag.lmr_clamped_high);
@@ -1801,6 +1828,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 score = -negamax<NodeType::NonPV>(d, -alpha - 1, -alpha,
                                                   ply + 1, ss + 1, true, true);
                 ss->reduction = 0;
+                set_negext(ss, 0);
 #ifdef BASILISK_PRICING
                 // A reduced search that failed low, searched again at the
                 // move's full depth.

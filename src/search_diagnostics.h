@@ -240,7 +240,47 @@ using InfoCallback = std::function<void(const std::string&)>;
     X(qs_count_pruned) X(qs_recapture_exempt)                              \
     X(qs_evasion_quiets_pruned) X(qs_evasion_see_pruned)                   \
     X(qs_stalemates) X(qs_quiet_checks) X(rfp_seekmate_capped)             \
-    X(qs_gain_tested)
+    X(qs_gain_tested)                                                      \
+    /* Cluster 4.                                                           \
+       Returns at the ply cap and those in check, in the search (denominator \
+       interior_nodes) and in quiescence (denominator qs_nodes);            \
+       searches a negative reduction took past the move's full depth, the   \
+       PV ply aside (denominator the reduced searches, lmr_applied plus     \
+       lmr_clamped_zero), and those on a line already holding one and two   \
+       or more (denominator negext_total);                                  \
+       root moves reduced and those searched again (denominator             \
+       root_lmr_reduced for the second); the table's root move probed before \
+       a window and how often it is not the last completed iteration's best, \
+       at an iteration's first window, after a fail low and after a fail    \
+       high (denominator the matching probe);                               \
+       nodes in the windows of an iteration at depth > 3 (denominator all   \
+       nodes), in those that failed, in give-up windows and in the windows  \
+       that follow a fail high (denominator asp_nodes_windowed, which holds \
+       every one of them but the give-up windows);                          \
+       fail-high stops that ended a search (denominator asp_fail_high);     \
+       completed iterations with a window whose best move's share of the   \
+       nodes reached TmEffortHi and fell to TmEffortLo (denominator         \
+       asp_windows). */                                                     \
+    X(ply_cap_hits) X(ply_cap_in_check)                                    \
+    X(qs_ply_cap_hits) X(qs_ply_cap_in_check)                              \
+    X(negext_total) X(negext_chain1) X(negext_chain2p)                     \
+    X(root_lmr_reduced) X(root_lmr_researched)                             \
+    X(root_tt_probe_first) X(root_tt_mismatch_first)                       \
+    X(root_tt_probe_fl) X(root_tt_mismatch_fl)                             \
+    X(root_tt_probe_fh) X(root_tt_mismatch_fh)                             \
+    X(asp_nodes_windowed) X(asp_nodes_failed) X(asp_nodes_giveup)          \
+    X(asp_fail_high_research_nodes) X(fhstop_fired)                        \
+    X(root_effort_hi) X(root_effort_lo)
+
+// The stack's negative-reduction fields are written where a counter or the
+// mechanism reads them.
+inline constexpr bool kDiagCountersCompiled =
+#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC) \
+    || defined(BASILISK_RELEASE_DIAG_COUNTERS)
+    true;
+#else
+    false;
+#endif
 
 struct DiagCounters {
 #define BASILISK_DIAG_COUNTER_FIELD(name) int64_t name = 0;
@@ -263,7 +303,7 @@ struct DiagCounters {
 // aggregate and the field count stay in step with the table.
 static_assert(sizeof(DiagCounters) == DiagCounters::COUNT * sizeof(int64_t),
               "DiagCounters holds something that is not a counter from the table");
-static_assert(DiagCounters::COUNT == 174, "the counter contract has 174 entries; extend, never rename");
+static_assert(DiagCounters::COUNT == 196, "the counter contract has 196 entries; extend, never rename");
 
 // One search's counters as `info string diag` lines, followed by the
 // evaluator's speed telemetry.

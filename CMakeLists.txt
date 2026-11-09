@@ -498,8 +498,12 @@ option(RELEASE_DIAG_COUNTERS "Count diagnostic search events in production build
 # Cluster umbrellas (PROCESS, Cluster delivery shape): a Boolean option that
 # compiles one search cluster in. It defaults OFF until the cluster passes its
 # gate, then ON; OFF then reproduces the previous fingerprint and stays
-# compilable, unmaintained, until it is deleted. None is open: Clusters 2 and 3
-# and the coloured histories passed their gates, and their OFF arms are gone.
+# compilable, unmaintained, until it is deleted. Clusters 2 and 3 and the
+# coloured histories passed their gates, and their OFF arms are gone.
+# B5_ROOT is Cluster 4, the donor's root-move record, aspiration loop and root
+# reduction, built as `if constexpr` branches in the driver and the node kernel
+# so both arms compile on every build.
+option(B5_ROOT "Compile Cluster 4's root and aspiration into the search (sets BASILISK_B5_ROOT)" OFF)
 option(PROFILE_SYMBOLS "Emit line tables with inline records in Release builds for the sampling profiler; code generation is unchanged" OFF)
 set(BASILISK_PGO_ARM_OPTION "" CACHE STRING "Boolean CMake option identifying an umbrella arm in PGO child builds")
 set(BASILISK_PGO_ARM_STATE "OFF" CACHE STRING "Value for BASILISK_PGO_ARM_OPTION in PGO child builds")
@@ -611,6 +615,13 @@ endif()
 
 if(RELEASE_DIAG_COUNTERS)
     target_compile_definitions(basilisk_engine PRIVATE BASILISK_RELEASE_DIAG_COUNTERS)
+endif()
+
+if(B5_ROOT)
+    foreach(_tgt IN LISTS _ALL_TARGETS)
+        target_compile_definitions(${_tgt} PRIVATE BASILISK_B5_ROOT)
+    endforeach()
+    message(STATUS "B5_ROOT arm: Cluster 4's root and aspiration are compiled in (BASILISK_B5_ROOT defined)")
 endif()
 
 if(TUNE)
