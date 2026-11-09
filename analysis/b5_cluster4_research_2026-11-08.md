@@ -1126,3 +1126,65 @@ no NPS read started.
   and must be rerun; the per-commit check of both arms; §10's cheap qualification.
 - What the reviewer must check: deferred to the implementation's final record.
 - Review: not yet requested.
+
+## Research amendment 1 — answers Return 1: the width in a finer unit (2026-11-09)
+
+### A1.0 Registered before its runs: the width read (zero-game)
+
+Written and committed before any run of the probe below. Only the
+Return's own evidence (`tools/results/b5-20261109/`) was read first.
+
+**What is probed.** The repair this amendment intends to specify, on a
+throwaway tree of ticket 3's source (`a1_build.py`, SHA-256 `a6877f8a…`;
+Release `bfd5c9c2…`, Diag `5a897b86…`; `build/b5-probe/a1-*`):
+
+- the width is carried in thousandths of a unit: `width = base + (thread_id
+  % 8) × 282 + |mean_sq| × 1000 / B5AspMsqDiv`, the base 1410 (the donor's 5
+  × 282); after each failure `width += growth × width / 128`;
+- the bounds use the width rounded up to a whole unit, `delta = ceil(width /
+  1000)`: on integer scores that is the open interval `(average − width,
+  average + width)` exactly;
+- LMR's window term keys the unit on the node type, `(pv ? delta × 577 : 163)
+  / root_delta_`, where ticket 3 keys it on `delta > 1` (§5.1 says "a
+  null-window node"; a PV node whose window is one unit wide is not one).
+
+The base, the growth, the rounding and the LMR form come from the
+environment, so one pair of binaries serves every point.
+
+**Points.** Base 500, 1000, 1410, 2000, 2820, 4230, 5640, 9870 and 19000 at
+growth 47; growth 32, 64 and 96 at base 1410; rounding down and to nearest
+at the seed; ticket 3's LMR form at the seed; and, for termination only, the
+corners 500/32, 500/96, 40000/32 and 40000/96.
+
+**Reads per point.** `bench 13` (Release); WAC at depth 6, a fresh process
+per position, 20 s each, the unfinished counted (`find_spin.py`); WAC at
+100,000 nodes; `suite_v2` at depth 14, stride 1 (windows, re-searches,
+windowed, failed and fail-high re-search nodes, interior and quiescence
+nodes). At the seed also WAC at depth 10 with 60 s each, the floors grid,
+and the `bench 13` counters against ticket 2's for the rows over 20%.
+
+**Predictions, frozen.**
+
+| # | Prediction | Confidence |
+|---|---|---|
+| W1 | No position is left unfinished at any point, the corners included | high (by construction) |
+| W2 | At the seed: 2.7 to 3.3 re-searches per window; failed share 68 to 74%; interior plus quiescence nodes 11.4M to 12.9M (the OFF head 12,010,312); WAC at 100,000 nodes in [246, 256], at least 246 with 80% | moderate |
+| W3 | Along the base at growth 47, re-searches per window and the failed share fall as the base rises; nodes to depth 14 are least at a base between 2820 and 9870, there 3 to 12% under the OFF head | low-moderate |
+| W4 | At the seed at most 10 Cluster 1 to 3 rows move over 20% against ticket 2 (ticket 3 as written: 23), `tt_cutoffs` and `follow_pv_nodes` among them | low-moderate |
+| W5 | The node-type LMR form moves `bench 13` by under 1% of its nodes at the seed | moderate |
+
+**What the read decides, and what it cannot.**
+
+- Termination: any unfinished position at any point refuses the form as
+  probed, and the amendment adds a bound on the loop instead.
+- The seed is the donor's quantity, 1410 with 47 and 2874, whatever the
+  cost columns read. Nodes to depth, re-searches and the failed share are
+  priors for B.5.4's sweep points; they are not strength (B-71), and no
+  seed is chosen from them.
+- WAC at 100,000 nodes under 246 at the seed: the seed is not handed on as
+  qualified. The neighbouring points' reads are reported as the floor's
+  sensitivity to the width, and the choice between the floor and the seed
+  goes to the maintainer with a recommendation; neither is moved here.
+- W4 answers the Return's attribution of the 23 rows: if the rows stay over
+  20% in number with the loop ending, the cause is the narrow window, not
+  the spin.
