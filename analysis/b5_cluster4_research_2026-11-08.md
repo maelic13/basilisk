@@ -1206,3 +1206,17 @@ depth 14 may not rank the widths as the depths a game reaches do:
 W6 (low confidence): the three bases rank at depth 17 as they do at depth
 14, and every screen passes with each position's mean between 0.7 and 1.4.
 Neither read chooses a seed.
+
+**Correction to the addendum, registered before its run** (the main read
+and the addendum's two reads were seen first; this screen's result was
+not). The addendum ran the cost screen at depths 16 to 19 under the tool's
+own absolute rule, a geometric mean of at most 3, because §10's cheap
+qualification words the clause that way. That wording is this packet's
+error: B.3.0's research amendment 7 §R replaced the absolute rule with the
+growth rule, read to depth 25 and scored by `screen_score_a7.py` (SHA-256
+`57c0ea35…`), and says the tool's own verdict is not the verdict. B.4's
+review ran §R's form. The screen is therefore read again in §R's form
+(`--depth-min 16 --depth-max 25 --watchdog 60 --hash 64`, §R's scorer) on
+the same five trees against the OFF arm. The depth 16 to 19 results stay
+in the evidence and are reported, not judged. No prediction is added: W6's
+screen half was written for the wrong rule and is scored as it reads.
