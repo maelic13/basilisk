@@ -2513,7 +2513,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         the NPS read's pools were validated and it was not smoke-tested,
         since it needs an idle host.
       - Owed from the returned runs: BAS-R10's rule, A6 to A8 and P8, P9
-        and P11; P10; P1, P2, A12 and the census of the whole-arm PGN. Then
+        and P11; P10; P1, A12 and the census of the whole-arm PGN. Then
         the width run and the categoricals, in §A1.5's order.
     - [ ] **B.5.4** `[V]` Curvature sweep, then SPSA in blocks
       The packet's registered sweep on the three window seeds and the
