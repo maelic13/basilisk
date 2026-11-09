@@ -101,6 +101,13 @@ struct RootWindow {
     return on ? std::max(1, depth - failed_high_cnt) : depth;
 }
 
+// How far past the full depth a reduced search may go: two plies, when negative
+// reductions are allowed and the line holds fewer of them than its limit, 0 being
+// no limit. A line of them is otherwise bounded only by the correction term.
+[[nodiscard]] inline int negext_ceiling(bool allowed, int new_depth, int path, int max) {
+    return allowed ? new_depth + (max == 0 || path < max ? 2 : 0) : new_depth;
+}
+
 // The record's order: by score, then by the last iteration's score. Every move
 // but the line's best holds the "none" score, so a stable sort keeps the rest in
 // the order they had.

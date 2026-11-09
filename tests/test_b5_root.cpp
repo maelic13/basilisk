@@ -19,9 +19,11 @@
 #include <algorithm>
 #include <atomic>
 #include <cstdio>
+#include <fstream>
 #include <map>
 #include <memory>
 #include <regex>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -434,6 +436,99 @@ static void test_the_adjusted_depth() {
     end_section();
 }
 
+// ---- The negative-reduction cap ----------------------------------------------
+
+static void test_the_ceiling() {
+    begin_section("the negative-reduction ceiling");
+    // Unbounded at 0, whatever the line holds.
+    EXPECT_EQ(b5::negext_ceiling(true, 10, 0, 0), 12);
+    EXPECT_EQ(b5::negext_ceiling(true, 10, 7, 0), 12);
+    // A limit stops the extra plies once the line holds that many.
+    EXPECT_EQ(b5::negext_ceiling(true, 10, 0, 1), 12);
+    EXPECT_EQ(b5::negext_ceiling(true, 10, 1, 1), 10);
+    EXPECT_EQ(b5::negext_ceiling(true, 10, 1, 2), 12);
+    EXPECT_EQ(b5::negext_ceiling(true, 10, 2, 2), 10);
+    EXPECT_EQ(b5::negext_ceiling(true, 10, 5, 2), 10);
+    // Negative reductions switched off is the full depth at any setting.
+    EXPECT_EQ(b5::negext_ceiling(false, 10, 0, 0), 10);
+    EXPECT_EQ(b5::negext_ceiling(false, 10, 0, 2), 10);
+    end_section();
+}
+
+static std::vector<std::string> suite_positions(const char* path, size_t count) {
+    std::vector<std::string> all;
+    std::ifstream in(path);
+    for (std::string line; std::getline(in, line);) {
+        if (line.empty() || line[0] == '#')
+            continue;
+        std::istringstream fields(line);
+        std::string board, side, castling, ep;
+        if (fields >> board >> side >> castling >> ep)
+            all.push_back(board + " " + side + " " + castling + " " + ep + " 0 1");
+    }
+    // Spread over the suite, which is ordered.
+    std::vector<std::string> picked;
+    for (size_t k = 0; k < count && !all.empty(); ++k)
+        picked.push_back(all[k * all.size() / count]);
+    return picked;
+}
+
+// Every node starts clean, whichever way it was entered: the node checks are live
+// on a Diag build and abort on a stale line, so finishing is the proof, and the
+// counters show the entry paths were walked.
+static void test_every_child_starts_clean(const char* suite) {
+    begin_section("a line's negative reductions, on every entry path");
+    if (kCounters) {
+        const std::vector<std::string> positions = suite_positions(suite, 20);
+        EXPECT_EQ(positions.size(), size_t(20));
+        int64_t nulls = 0, probcuts = 0, singulars = 0, drops = 0, extended = 0;
+        for (const std::string& fen : positions) {
+            SearchLimits lim;
+            lim.depth = 8;
+            const Run run = search_limits(fen, lim);
+            nulls += counter(run, "null_tries");
+            probcuts += counter(run, "probcut_tries");
+            singulars += counter(run, "sing_tries");
+            drops += counter(run, "qs_nodes");
+            extended += counter(run, "negext_total");
+        }
+        EXPECT(nulls > 0);
+        EXPECT(probcuts > 0);
+        EXPECT(singulars > 0);
+        EXPECT(drops > 0);
+        EXPECT(extended > 0);
+    }
+    end_section();
+}
+
+// With a limit, no line goes past it.
+static void test_the_limit_holds_on_the_line(const char* suite) {
+    begin_section("a line holds no more than its limit");
+    if (kCounters && kB5Root) {
+        int64_t unlimited = 0, at_one = 0, chained_at_one = 0, at_two = 0, chained_at_two = 0;
+        for (const std::string& fen : suite_positions(suite, 20)) {
+            SearchLimits lim;
+            lim.depth = 10;
+            const Run open = search_limits(fen, lim);
+            unlimited += counter(open, "negext_chain1") + counter(open, "negext_chain2p");
+            lim.params.b5_neg_ext_max = 1;
+            const Run one = search_limits(fen, lim);
+            at_one += counter(one, "negext_total");
+            chained_at_one += counter(one, "negext_chain1") + counter(one, "negext_chain2p");
+            lim.params.b5_neg_ext_max = 2;
+            const Run two = search_limits(fen, lim);
+            at_two += counter(two, "negext_chain1");
+            chained_at_two += counter(two, "negext_chain2p");
+        }
+        EXPECT(unlimited > 0);      // the limit has something to bind
+        EXPECT(at_one > 0);
+        EXPECT_EQ(chained_at_one, 0);
+        EXPECT(at_two > 0);
+        EXPECT_EQ(chained_at_two, 0);
+    }
+    end_section();
+}
+
 // A proved mate keeps the open window: no iteration after it has a window.
 static void test_a_mate_score_keeps_the_open_window() {
     begin_section("a mate score keeps the open window");
@@ -597,7 +692,8 @@ static void test_root_reduction_counters() {
     end_section();
 }
 
-int main() {
+int main(int argc, char** argv) {
+    const char* const suite = argc > 1 ? argv[1] : "tools/diag/suite_v2.epd";
     init_bitboards();
     init_attacks();
     Zobrist::init();
@@ -615,6 +711,9 @@ int main() {
     test_the_window_arithmetic();
     test_the_width_grows_everywhere_on_the_ranges();
     test_the_adjusted_depth();
+    test_the_ceiling();
+    test_every_child_starts_clean(suite);
+    test_the_limit_holds_on_the_line(suite);
     test_a_mate_score_keeps_the_open_window();
     test_the_bound_lines();
     test_no_give_up_on_the_arm();

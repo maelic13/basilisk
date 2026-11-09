@@ -165,9 +165,12 @@ static constexpr int LMR_HISTORY_DIVISOR[16] = {
     2772, 3106, 3107, 3060, 3112, 2991, 3090, 3542};
 
 // A line's extensions from a negative reduction: what the move about to be
-// searched from `ss` takes, and so what its child's line holds.
+// searched from `ss` takes, and so what its child's line holds. The OFF arm reads
+// them only to count them.
+inline constexpr bool kNegextWritten = kDiagCountersCompiled || kB5Root;
+
 static inline void set_negext([[maybe_unused]] SearchStack* ss, [[maybe_unused]] int taken) {
-    if constexpr (kDiagCountersCompiled) {
+    if constexpr (kNegextWritten) {
         ss->negext_taken = taken;
         (ss + 1)->negext_path = ss->negext_path + taken;
     }
@@ -858,6 +861,10 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     CORE_NODE_CHECK(is_root || ss->ext_plies == (ss - 1)->ext_plies + (ss - 1)->ext_taken);
     CORE_NODE_CHECK(!kp.b3_ext_budget || ss->ext_plies <= root_depth_);
     CORE_NODE_CHECK(is_root || !ss->follow_pv || (ss - 1)->follow_pv);
+    // Likewise a line's extensions from a negative reduction, and a node starts
+    // with none taken.
+    CORE_NODE_CHECK(is_root || ss->negext_path == (ss - 1)->negext_path + (ss - 1)->negext_taken);
+    CORE_NODE_CHECK(ss->negext_taken == 0);
 
     // Is the TT move from the capture stage (a capture or a promotion)?
     const bool tt_capture = tt_move != MOVE_NONE
@@ -1830,7 +1837,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 // full depth (a negative reduction) unless that is switched
                 // off, plus one at PV nodes.
                 const int reduced = new_depth - r / 1024;
-                const int ceiling = kp.lmr_negative_allowed ? new_depth + 2 : new_depth;
+                const int ceiling = kB5Root
+                    ? b5::negext_ceiling(kp.lmr_negative_allowed, new_depth, ss->negext_path, kp.b5_neg_ext_max)
+                    : (kp.lmr_negative_allowed ? new_depth + 2 : new_depth);
                 const int d = std::max(1, std::min(reduced, ceiling)) + is_pv;
                 // A search past the full depth, the PV ply aside.
                 const bool negext = d - int(is_pv) > new_depth;
