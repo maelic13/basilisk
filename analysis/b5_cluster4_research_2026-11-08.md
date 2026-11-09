@@ -1188,3 +1188,21 @@ and the `bench 13` counters against ticket 2's for the rows over 20%.
 - W4 answers the Return's attribution of the 23 rows: if the rows stay over
   20% in number with the loop ending, the cause is the narrow window, not
   the spin.
+
+**Addendum to the registration, before any result of the read was seen**
+(the first runs were in progress and unread). Two deeper reads, since
+depth 14 may not rank the widths as the depths a game reaches do:
+
+- the deep-iteration cost screen (`deep_iteration_screen.py`, depths 16 to
+  19, B.3's five positions, 60 s watchdog) of the probe at base 1410, 2820,
+  5640 and 19000 and of the Return's V1 binary, each against the OFF arm's
+  Release binary. Its registered clause stands (a geometric mean of at most
+  3, no depth the OFF arm finishes left unfinished); an unfinished depth at
+  any point is a termination failure as above;
+- `suite_v2` at depth 17, stride 1, at base 1410, 2820 and 5640 and on the
+  OFF arm's Diag binary: interior plus quiescence nodes and re-searches per
+  window.
+
+W6 (low confidence): the three bases rank at depth 17 as they do at depth
+14, and every screen passes with each position's mean between 0.7 and 1.4.
+Neither read chooses a seed.
