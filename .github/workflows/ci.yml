@@ -359,6 +359,18 @@ jobs:
           cmake --build build/ablate-pext --target basilisk test_uci_protocol
           ctest --test-dir build/ablate-pext -R test_uci_protocol --output-on-failure --no-tests=error
 
+      # Cluster 4's arm (B5_ROOT=ON), built and tested beside the default until
+      # its gates flip it, and its fingerprint printed.
+      - name: Build and test the B5_ROOT=ON arm
+        run: |
+          cmake --preset release -B build/b5root-on-pext -DUSE_PEXT=ON -DPORTABLE_BUILD=ON -DCOMP=clang \
+            -DTUNE=OFF -DDIAGNOSTIC=OFF -DABLATION=OFF -DTEXEL=OFF -DB5_ROOT=ON
+          cmake --build build/b5root-on-pext --target all
+          ctest --test-dir build/b5root-on-pext --output-on-failure --no-tests=error
+          out=$(printf "bench 13\nquit\n" | ./build/b5root-on-pext/basilisk)
+          echo "$out" | tail -8
+          echo "$out" | grep -qE "Nodes searched *: *[0-9]+" || { echo "FAIL: no node count"; exit 1; }
+
       - name: Build and verify TEXEL flavor
         run: |
           cmake --preset release -B build/texel-pext -DUSE_PEXT=ON -DPORTABLE_BUILD=ON -DCOMP=clang \

@@ -1,0 +1,20 @@
+{
+    "B5AspBase": {
+        "value": 1,
+        "min_value": 1,
+        "max_value": 40,
+        "step": 2
+    },
+    "B5AspMsqDiv": {
+        "value": 2874,
+        "min_value": 1000,
+        "max_value": 12000,
+        "step": 688
+    },
+    "B5AspGrowth": {
+        "value": 47,
+        "min_value": 32,
+        "max_value": 96,
+        "step": 4
+    }
+}

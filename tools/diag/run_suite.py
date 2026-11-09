@@ -149,6 +149,27 @@ assert not set(B4_COUNTER_UNITS) & (set(CORE_COUNTER_UNITS) | set(B2_COUNTER_UNI
                                     | set(B3_COUNTER_UNITS))
 
 
+# Cluster 4's root and aspiration, and the ply cap. Each is read against the
+# denominator its engine table names. Validated when present, all or none.
+B5_COUNTER_UNITS = {
+    **{name: "events" for name in """
+        ply_cap_hits ply_cap_in_check qs_ply_cap_hits qs_ply_cap_in_check
+        negext_total negext_chain1 negext_chain2p
+        root_lmr_reduced root_lmr_researched
+        root_tt_probe_first root_tt_mismatch_first root_tt_probe_fl
+        root_tt_mismatch_fl root_tt_probe_fh root_tt_mismatch_fh fhstop_fired
+    """.split()},
+    **{name: "nodes" for name in """
+        asp_nodes_windowed asp_nodes_failed asp_nodes_giveup
+        asp_fail_high_research_nodes
+    """.split()},
+    **{name: "iterations" for name in "root_effort_hi root_effort_lo".split()},
+}
+assert len(B5_COUNTER_UNITS) == 22
+assert not set(B5_COUNTER_UNITS) & (set(CORE_COUNTER_UNITS) | set(B2_COUNTER_UNITS)
+                                    | set(B3_COUNTER_UNITS) | set(B4_COUNTER_UNITS))
+
+
 def pct(a, b):
     return 100.0 * a / b if a is not None and b else 0.0
 
@@ -344,6 +365,37 @@ def validate_diag(counters):
                 c["pv_quiet_pruned"] <= c.get("moveloop_tested", 0)
             ),
         })
+    present = set(B5_COUNTER_UNITS) & set(counters)
+    if present and present != set(B5_COUNTER_UNITS):
+        raise ValueError("partial Cluster 4 counters: missing "
+                         + ", ".join(sorted(set(B5_COUNTER_UNITS) - present)))
+    if present:
+        c = counters
+        checks.update({
+            "ply-cap returns in check within the returns": (
+                c["ply_cap_in_check"] <= c["ply_cap_hits"]
+                and c["qs_ply_cap_in_check"] <= c["qs_ply_cap_hits"]
+            ),
+            "negative-reduction chains within the extensions": (
+                c["negext_chain1"] + c["negext_chain2p"] <= c["negext_total"]
+            ),
+            "root moves searched again within those reduced": (
+                c["root_lmr_researched"] <= c["root_lmr_reduced"]
+            ),
+            "root table mismatches within the probes": (
+                c["root_tt_mismatch_first"] <= c["root_tt_probe_first"]
+                and c["root_tt_mismatch_fl"] <= c["root_tt_probe_fl"]
+                and c["root_tt_mismatch_fh"] <= c["root_tt_probe_fh"]
+            ),
+            "failed and fail-high windows within the windowed nodes": (
+                c["asp_nodes_failed"] <= c["asp_nodes_windowed"]
+                and c["asp_fail_high_research_nodes"] <= c["asp_nodes_windowed"]
+            ),
+            "fail-high stops within the fail highs": c["fhstop_fired"] <= c["asp_fail_high"],
+            "effort readings within the iterations with a window": (
+                c["root_effort_hi"] + c["root_effort_lo"] <= c["asp_windows"]
+            ),
+        })
     present = set(B4_COUNTER_UNITS) & set(counters)
     if present and present != set(B4_COUNTER_UNITS):
         raise ValueError("partial quiescence counters: missing "
@@ -511,7 +563,8 @@ def main():
               "sampling_stride": 1, "counter_units": CORE_COUNTER_UNITS,
               "b2_counter_units": B2_COUNTER_UNITS,
               "b3_counter_units": B3_COUNTER_UNITS,
-              "b4_counter_units": B4_COUNTER_UNITS}
+              "b4_counter_units": B4_COUNTER_UNITS,
+              "b5_counter_units": B5_COUNTER_UNITS}
 
     # A fresh engine process is started per position, so options are re-applied
     # every time rather than once at startup.

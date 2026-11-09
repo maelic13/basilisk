@@ -37,6 +37,9 @@ B3_TUNE = COLOSSEUM / "b3.tune.toml"
 # B.4.6 admits the earlier clusters' coordinates to its fit.
 B4_CONFIG = ROOT / "tools" / "spsa_configs" / "config_b4.json"
 B4_TUNE = COLOSSEUM / "b4.tune.toml"
+# Cluster 4's surface: its table's X lines alone, on the same run file.
+B5_CONFIG = ROOT / "tools" / "spsa_configs" / "config_b5.json"
+B5_TUNE = COLOSSEUM / "b5.tune.toml"
 # B.3.3's curvature-sweep registrations on the B3 surface (packet
 # b30_cluster2_research_2026-10-30, amendment 3 section 4). A sweep coordinate is
 # an F line the sweep reads at the listed points and SPSA never fits; an extra
@@ -86,6 +89,7 @@ LINE_RE = re.compile(
 CORE_TABLE = "#define BASILISK_CORE_KERNEL_PARAMS("
 B3_TABLE = "#define BASILISK_B3_PARAMS("
 B4_TABLE = "#define BASILISK_B4_PARAMS("
+B5_TABLE = "#define BASILISK_B5_PARAMS("
 # Cluster 2's refit of core coordinates: A(field, UciName, value) lines. The
 # core surface keeps the X lines' values (Cluster 1's fit); a surface tuned
 # after Cluster 2 starts from these.
@@ -93,7 +97,8 @@ B3_CORE_DEFAULTS_TABLE = "#define BASILISK_B3_CORE_DEFAULTS("
 # Cluster 3's refit of earlier clusters' lines, in the same form; a surface
 # tuned after Cluster 3 starts from these, over the B3 table's.
 B4_CORE_DEFAULTS_TABLE = "#define BASILISK_B4_CORE_DEFAULTS("
-TABLES = (CORE_TABLE, B3_TABLE, B4_TABLE, B3_CORE_DEFAULTS_TABLE, B4_CORE_DEFAULTS_TABLE)
+TABLES = (CORE_TABLE, B3_TABLE, B4_TABLE, B5_TABLE, B3_CORE_DEFAULTS_TABLE,
+          B4_CORE_DEFAULTS_TABLE)
 ARM_DEFAULT_RE = re.compile(
     r"^\s*A\(\s*[a-z][a-z0-9_]*\s*,\s*([A-Za-z][A-Za-z0-9]*)\s*,\s*(-?\d+)\s*\)"
 )
@@ -127,6 +132,10 @@ def b4_arm_lines(text: str) -> list[str]:
     return split_tables(text)[B4_TABLE]
 
 
+def b5_arm_lines(text: str) -> list[str]:
+    return split_tables(text)[B5_TABLE]
+
+
 def default_arm_lines(text: str) -> list[str]:
     return split_arm_lines(text)[0]
 
@@ -136,10 +145,10 @@ def core_arm_lines(text: str) -> list[str]:
 
 
 def parse_parameters(text: str, core: bool = False, b3: bool = False,
-                     b4: bool = False) -> list[tuple[str, int, int, int]]:
+                     b4: bool = False, b5: bool = False) -> list[tuple[str, int, int, int]]:
     parameters = []
     seen = set()
-    lines = (b4_arm_lines(text) if b4 else b3_arm_lines(text) if b3
+    lines = (b5_arm_lines(text) if b5 else b4_arm_lines(text) if b4 else b3_arm_lines(text) if b3
              else core_arm_lines(text) if core else default_arm_lines(text))
     for line in lines:
         match = PARAM_RE.match(line)
@@ -328,8 +337,8 @@ option = ["Hash=64", "Threads=1"]
 
 
 def render_all(text: str, iterations: int) -> dict[pathlib.Path, str]:
-    """The default surface and run file, then the core, B3, B.3.3, B4 and
-    B.4.6 surfaces."""
+    """The default surface and run file, then the core, B3, B.3.3, B4, B.4.6
+    and B5 surfaces."""
     outputs = render(parse_parameters(text), iterations)
     outputs.update(render(parse_parameters(text, core=True), iterations,
                           config=CORE_CONFIG, tune=CORE_TUNE, run=None))
@@ -348,6 +357,8 @@ def render_all(text: str, iterations: int) -> dict[pathlib.Path, str]:
                           config=B46_CONFIG, tune=B46_TUNE, run=None,
                           notes=["# B.4.6's fit surface (BAS-S51): the B4 X lines with "
                                  "section 5.8's coordinates."]))
+    outputs.update(render(parse_parameters(text, b5=True), iterations,
+                          config=B5_CONFIG, tune=B5_TUNE, run=None))
     return outputs
 
 
