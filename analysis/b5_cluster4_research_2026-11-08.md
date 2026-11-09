@@ -1220,3 +1220,11 @@ review ran §R's form. The screen is therefore read again in §R's form
 the same five trees against the OFF arm. The depth 16 to 19 results stay
 in the evidence and are reported, not judged. No prediction is added: W6's
 screen half was written for the wrong rule and is scored as it reads.
+
+**One follow-up read, registered before its run** (every result above was
+seen first). The depth-14 totals fall to 0.73 and 0.71 of the OFF head at
+base 9870 and 19000, and the depth-17 read was registered only up to 5640.
+`suite_v2` at depth 17 is read at 9870 and 19000 as well, for B.5.4's
+prior. W7 (low-moderate): both read under 0.90 of the OFF head's
+32,125,699 nodes at depth 17, with the median position under 1.00. It
+chooses no seed.
