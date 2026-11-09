@@ -2368,6 +2368,19 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         today's loop and base 19000 costs 15% less, so the width is
         read by games in B.5.3. Tickets 4 to 9 stand; ticket 3
         resumes on packet §A1.5.
+      - Implemented 2026-11-09 at `c6f2440` (packet *Implementation
+        record*), the OFF arm 4,144,790 at all 24 commits and the arm
+        `bench 13` 3,920,652. Ticket 3 reproduces the probe on every
+        figure. From a clean tree: CTest and the sanitizers pass on both
+        arms; WAC at 100,000 nodes 263 (the floor 246); the floors grid
+        passes; nothing unfinished at the seed or the four corners; the
+        cost screen passes. Ticket 8 landed on a fixture. Open for the
+        review, first: §10's battery line misses. The arm reaches the
+        maximum on two won endings at `60000+600`, the stop on or off,
+        where the OFF arm reads at most 0.17. The searches finish,
+        no switch owns it, and at `3+0.03` the arm's long searches are
+        no worse than the OFF arm's. Recorded under §10 and not returned.
+        Awaits the independent review; CI has not run.
     - [ ] **B.5.3** `[V]` Diagnostics, M1 and the unfitted paired run
       The packet's zero-game screens on both arms (BAS-S53), M1's
       replay on the arm (BAS-R10) deciding the fail-high stop's
@@ -3058,7 +3071,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.5.2 | READY_FOR_IMPLEMENTATION | I2 | Research amendment 1 answers Return 1 (`analysis/b5_cluster4_research_2026-11-08.md` §A1.5); ticket 3 resumes on it |
+| B.5.2 | IMPLEMENTED | I2 | At `c6f2440`, the record in `analysis/b5_cluster4_research_2026-11-08.md`; awaits the independent review, whose first question is §10's battery line |
 | B.5.3 | RESEARCH | V | After B.5.2's review; BAS-S53 and BAS-R10 registered in the packet |
 | B.5.4 | RESEARCH | V | After B.5.3; BAS-S54 |
 | B.5.5 | RESEARCH | V | After B.5.4; BAS-S55 |

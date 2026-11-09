@@ -132,6 +132,12 @@ and next step).
 
 ### Fixed
 
+- **The end of a very long line.** A line that reached the deepest ply the
+  engine searches took the position's evaluation even when it was a draw by
+  repetition or the fifty-move rule, or when the side to move was in check.
+  The draw now comes first, and a side in check there scores a draw. No line
+  reached that ply in the reads made, so ordinary searches do not change: the
+  bench is the same.
 - **Exchanges count promotions and new pins.** When the engine judges
   whether a capture or a quiet move is safe, a pawn that recaptures on the
   last rank now counts as promoting, and a piece that becomes pinned

@@ -1631,3 +1631,252 @@ per-position reading), `a1_two_positions.py` and `two_positions.txt`
 on the probe), `*-compare-t2.md` (the rows against ticket 2),
 `b1410-floors/`, `control-ticket3-spin6.log`, `SHA256SUMS.txt`. Probe
 binaries: `build/b5-probe/a1-rel` (`bfd5c9c2…`), `a1-diag` (`5a897b86…`).
+
+## Implementation record — tickets 3 to 9, on research amendment 1 (2026-11-09)
+
+Continues the record of tickets 0 to 3 (above, at Return 1), on §A1.5. Branch
+`b5-root-aspiration`. Builds: the release preset, PEXT portable, Clang, non-PGO
+`all` trees; the sanitizer trees are the `debug` preset, ASan and UBSan. Per-ticket
+reads used `build/b5-{on,off}`, `-diag`, `-tune`. The final table used a detached
+worktree at `c6f2440` with every flavour built from nothing (`build/b5-clean`).
+Evidence: `tools/results/b5-20261109/{t3c,t4,t5,t6,t7,t8,t9,qual}/` (ignored
+storage); `qual.py` holds the final table's recipe, `qual.out` and `qual2.out` its
+output, and `qual/hashes.json` every binary's SHA-256. No game, SPSA or NPS read
+ran.
+
+### Per ticket
+
+| Ticket | Commits | OFF `bench 13` | ON `bench 13` | CTest OFF / ON | Settings read |
+|---|---|---:|---:|---|---|
+| 3, amended | `4e17bdf` engine, `8222878` tools | 4,144,790 | **4,022,487** | 28/28, 28/28 | |
+| 4 | `9df2cc7` engine, `8926890` the arm's floor, `4c4f4dc` tools | 4,144,790 | **3,920,652** | 28/28, 28/28 after `8926890` | |
+| 5 | `f9845b0` | 4,144,790 | 3,920,652 | 28/28, 28/28 | `B5FailHighReduce` 1: 2,889,790 |
+| 6 | `62df532` | 4,144,790 | 3,920,652 | not run alone; ticket 7's | `B5NegExtMax` 1: 3,585,026; 2: 4,170,358 |
+| 7 | `ee346b1` | 4,144,790 | 3,920,652 | 28/28, 28/28 | |
+| 8 | `c6f2440` | 4,144,790 | 3,920,652 | 28/28, 28/28 | |
+| 9 | none: no source changed | | | | below |
+
+Both arms at all 24 commits since the entry head, each built and read in order
+(`t9/every_commit.txt`): the OFF arm 4,144,790 at every one, no build failure.
+
+### Ticket 3 against the probe (§A1.5's reads)
+
+Prediction A1 hits on every figure, so no arithmetic difference is left to
+explain. `bench 13` 4,022,487; WAC at 100,000 nodes 249; `suite_v2` at depth 14,
+2.93 re-searches per window, failed share 70.4%, fail-high re-search share 49.2%,
+7,052,433 interior and 4,873,092 quiescence nodes; the floors grid 600 / 598 / 600
+/ 595, five budgets 119; nothing unfinished at depth 6 at the seed or at 500/32,
+500/96, 40000/32 and 40000/96, with the options shown to reach the search on the
+Tune build (`t3c_corners.py`: node counts move with them).
+
+Ten Cluster 1 to 3 rows over 20% against ticket 2, the ten §A1.2 names:
+`cont_hist_pruned` −51.6%, `corr_cont2_updates` and `corr_cont4_updates` −21.7%,
+`in_check_nodes` −25.0%, `null_tries` +28.3%, `null_cuts` +29.4%, `sing_multicut`
++24.9%, `null_region_refusals` −75.4%, `follow_pv_nodes` +59.8%,
+`qs_evasion_nodes` −23.2%. Cause: the narrow, re-searched root (§A1.2). Why
+`cont_hist_pruned` halves is still not found. Reported, not repaired.
+
+### Ticket 4's reads
+
+Against ticket 3, on `suite_v2` at depth 14: nodes 0.980 (11,689,507, 0.973 of the
+OFF head's 12,010,312); 2.77 re-searches per window; failed share 69.6%; fail-high
+re-search share 45.9%. `root_lmr_reduced` 20,151, `root_lmr_researched` **10**.
+`root_effort_hi` 124 and `root_effort_lo` 570 of 1,049 windows. The floors grid
+passes, 600 / 598 / 600 / 597, five budgets 118. WAC at 100,000 nodes **263**, WAC at
+depth 6 **199** (OFF 149). One row over 20%: `null_region_refusals` −64.1%, a share
+of 0.0005%.
+
+The depth-6 count rises because root reduction lets a later root move search past
+the first move's depth, with the PV ply and a negative reduction, up to three plies.
+So depth means more at the root on the arm. The same reason is why so few reduced
+root moves are searched again: where `d ≥ new_depth` the only re-search is with the
+full window. This is reasoned from the code and the counters, not separately read.
+
+### Ticket 5's read
+
+`asp_fail_high_research_nodes` is 45.9% of windowed nodes at depth 14: §9 item 2's
+gate is met, as §A1.4 expected, and its default stays 0.
+
+### Ticket 6's reads
+
+| `B5NegExtMax` | nodes at depth 14 | of 0 | `negext_total` | chain 1 | chain 2+ | the screen, §R's form |
+|---:|---:|---:|---:|---:|---:|---|
+| 0 | 11,689,507 | 1.000 | 303,535 | 83,095 | 36,215 | PASS |
+| 1 | 10,978,840 | 0.939 | 181,660 | 0 | 0 | PASS |
+| 2 | 11,893,709 | 1.017 | 266,032 | 81,834 | 0 | PASS |
+
+The clean-frame test walks the entry paths (null move, ProbCut, singular, quiescence)
+at depth 8 over 20 `suite_v2` positions, with the counters showing each walked. Each
+planted stale line aborts the node check: the null move, ProbCut, the move loop and
+after the reduced search. The singular verification shares its node's frame and has no
+site of its own.
+
+### Mutants
+
+Killed: the width's growth truncated to whole units; the width rounded down; LMR's term
+keyed on the width again; root reduction off; the ceiling ignoring its limit; a later
+line reaching the table; a later line with no window; the lines not sorted; the proven
+mate not kept; ticket 1's two owed mutants, quiescence's and the search's cap evaluating
+in check. Two survivors, both explained. First, two ticket 6 anchors hit the pricing
+probe, which this build compiles out, and were replaced by the null move's own site.
+Second, "a later line reaches the table" survived my first test, whose assertion admitted
+a reordered line; the test was tightened to a position with an unmistakable best move
+and the mutant then died.
+
+### The two-arm table (clean tree at `c6f2440`)
+
+| Read | OFF | ON |
+|---|---:|---:|
+| `bench 13`, Release | 4,144,790 | 3,920,652 |
+| `bench 13`, Tune | 4,144,790 | 3,920,652 |
+| `bench 13`, Diag | 4,144,790 | 3,920,652 |
+| `bench 13`, Ablate | 4,144,790 | 3,920,652 |
+| `bench 10`, sanitizer | 1,310,057 | 1,212,940 |
+| CTest, Release | 28/28 | 28/28 |
+| CTest, sanitizer, `-LE strength` | 26/26 | 26/26 |
+| WAC at depth 6 (floor 136; arm 186) | 149 | 199 |
+| WAC at 100,000 nodes | 253 | 263 |
+
+The OFF arm's WAC at 100,000 nodes reads 253 where the packet says the head reads 254.
+It is not this work: built at the entry commit `9c9c233`, the same read matches the final
+OFF arm on all 300 records (`off_wac.py`). The 254 was read on some other binary, which I
+did not identify.
+
+The arm with `B5Window`, `B5RootLmr` and `B5LmrWindowUnits` all 0 reproduces the OFF arm's
+node counts exactly on the two positions read (`blowup.py`: rec1 19,340,283, KBN-K
+17,359,875). `B5RootLmr` 0 alone reads ticket 3's 4,022,487.
+
+### Ticket 9 and the rest of the qualification
+
+- **The mask.** No bit is re-declared: bit 7 is `lmr`, and root reduction falls under it.
+  All eight bits are live on both arms (`t9/ablation.json`).
+- **Liveness.** `bench 13` moves for each: `B5AspBase` 2410 3,493,675; `B5AspMsqDiv` 3874
+  4,734,646; `B5AspGrowth` 64 3,298,290; `B5FailHighReduce` 1 2,889,790; `B5NegExtMax` 1
+  3,585,026 and 2 4,170,358; `B5Window` 0 5,135,809; `B5RootLmr` 0 4,022,487;
+  `B5LmrWindowUnits` 0 3,856,870. `B5FailHighStop` cannot move a bench, which has no clock;
+  its replay of six gate games fires 122 stops at 100 and none at 0.
+- **The floors grid** PASS: 600 / 598 / 600 / 597, five budgets 118; the wrong-bishop draws
+  pass. KR-K sits on its floor, as on every tree read here.
+- **The depth-bound read**, final arm: nothing unfinished of 300 at the seed or the four
+  corners.
+- **The cost screen**, §R's form: PASS on all five, no stop, no depth missing. Steps 20 to 22
+  geometric means 1.102, 0.882, 0.793, 1.046, 0.894; absolute at 22 recorded, not judged:
+  2.340, 0.473, 0.248, 0.225, 2.737. Position 5 did not fail, so its side read was not owed.
+- **The won-ending clock test:** rec1 at `30000+300` 3,570 ms, under 8 s, the win kept.
+- **The deep-line read.** No search reached the cap within 10 s, or at 30 s, on 22 endings
+  tried: the deepest line reads seldepth 121. So the stack was read instead, in a throwaway
+  tree recording the frame address at node entry over 15 s searches: 843 bytes per ply to ply
+  126 (max ply 127) on KNN-KP, 1,012 per ply on a middlegame. At 128 plies that is about 126
+  KiB of the 8 MiB the executable reserves. The read does not include callees below the node.
+- **The decision trace** on WAC.001, 085, 203 and 253 (depth 8, the WAC move as root, Diag):
+  ON 479 / 294 / 792 / 116 records, OFF 479 / 749 / 1,002 / 158, status ok on all;
+  `qual/trace_{on,off}_WAC.*.json`.
+- **Not run.** CI: nothing is pushed, so it first runs at the PR, the arm's cell included. NPS:
+  P10 is the maintainer's.
+
+### The battery misses §10's line (recorded, and the review should weigh it first)
+
+§10's line is "no search over 0.5× the maximum (recorded; the stop's decision stays M1's)". At
+`60000+600` with `B5FailHighStop` 0 the arm reads **1.001** of the maximum on rec1 and on KBN-K.
+This is the arm's own, and the stop at its default does not help:
+
+| Share of the maximum, `60000+600` | rec1 | rec2 | rec3 | KRB-K | KR-K | KBN-K | worst |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| OFF arm, stop 100 | 0.100 | 0.060 | 0.167 | 0.098 | 0.102 | 0.167 | 0.167 |
+| OFF arm, stop 0 | 0.099 | 0.061 | 0.169 | 0.097 | 0.096 | 0.167 | 0.169 |
+| The arm, stop 100 | **1.001** | 0.042 | 0.104 | 0.120 | 0.085 | **1.001** | 1.001 |
+| The arm, stop 0 | **1.001** | 0.041 | 0.105 | 0.120 | 0.085 | **1.001** | 1.001 |
+
+At `30000+300` with the default stop KBN-K also reads 1.003, 14.7 s of a 30 s clock; the clock
+test proper, rec1, passes there at 0.227.
+
+What it is. Neither search spins: under a 120 s watchdog at fixed depth both finish
+(`blowup.py`). On KBN-K the arm finishes depth 54 at 4.4M nodes, and depth 55 costs 115.7M and
+ends in mate 34; the OFF arm has held mate 33 since depth 50 at 17M. On rec1 depth 26 is 16.9M
+and depth 27 118.9M, still cp 19871. One root search runs from 5.9 s to the maximum. The won
+tier's window is open, so there is no fail high for the stop to act on, and the driver reads the
+clock only between iterations. This is the hole the stop packet names (A-47), reached on the arm
+at clocks where the OFF arm does not reach it.
+
+No rule owns it. One switch moved removes it nearly everywhere (depth 27 on rec1: `B5RootLmr` 0
+14.9M, `B5LmrWindowUnits` 0 20.5M, `B5NegExtMax` 1 11.2M, `B5FailHighReduce` 1 22.2M, `B5AspBase`
+19000 20.6M, `B5AspMsqDiv` 12000 20.0M), yet `B5Window` 0 costs 154.1M there and ends in mate 23,
+and on KBN-K three of them leave it unchanged. That reads as one late root resolution falling
+differently, the scatter §A1.3 describes, rather than a mechanism; two positions cannot say more.
+
+At the gates' clock it does not show. Six gate games replayed at `3+0.03`, 472 searches:
+
+| Replay | spent | over 0.5× the maximum | at the maximum | stops fired |
+|---|---:|---:|---:|---:|
+| OFF arm, stop 100 | 31,427 ms | 18 | 5 | 46 |
+| OFF arm, stop 0 | 32,893 ms | 21 | 1 | 0 |
+| The arm, stop 100 | 31,438 ms | 16 | 2 | 122 |
+| The arm, stop 0 | 35,432 ms | 31 | 8 | 0 |
+
+Why this is not a Return. §10 marks the line recorded; the time manager and the hole's repair are
+non-goals here (D.1), the stop is M1's, no floor failed, and nothing moved it that this leaf owns.
+My position: proceed to the review with this at its head. A reviewer who reads the line as a gate
+should return the leaf, and that would be a fair reading. It bears on B.5.3 and on the long clocks of
+the direction run.
+
+Two things for BAS-R10 to expect. Six games is no measure, but the arm's stop fired on 122 of 472
+searches (25.8%; the OFF arm 9.7%), against P8's 1 to 6%. The stop's removal costs the arm more than it
+costs the OFF arm (31 long searches against 21).
+
+### Predictions, as read here
+
+| # | Read | Against the frozen |
+|---|---|---|
+| P3 | 2.77 re-searches per window; failed share 69.6%; give-up nodes 0 | re-searches inside; failed share misses, above the falsifier's 58% (§A1.6) |
+| P4 | geometric mean **0.924** against the OFF head's census over the 105 positions with nodes (`p4.py`; ticket 3 0.956), median 1.142, total 0.973; **0.05%** of reduced root searches searched again | the mean inside 0.80 to 0.97, though the median says the typical position costs more (§A1.3's two won positions carry the mean); the share misses 5 to 15% badly |
+| P5 | `B5NegExtMax` 1: −6.1% at depth 14; the screen passes | inside on nodes and the screen; selective depth not read |
+| P6 | WAC at 100,000 nodes 263 | one above the range's top; the falsifier is under 246 |
+| P7 | the grid passes | hit |
+| P9 | no ply-cap return in any census or bench | the games' rate is BAS-R10's |
+| P11 | `root_effort_hi` 14.8% to 17.2% of windows on the bench positions | inside at bench depth; the games' rate is owed |
+| A1 | every figure | hit |
+
+### Deviations from the handoff
+
+Those of the record at Return 1 stand; §A1.2 accepts them. New:
+
+- **Ticket 4's chain test reads the whole root**, not `searchmoves` of two moves. A second move is
+  almost never reduced: over five pairs on each of the first positions a reduced second move appeared at
+  most three times in a position and no chain at all. The whole root gives chains over the bench
+  positions at depth 14.
+- **The arm's own WAC floor at depth 6, 186** (`8926890`, its own commit): root reduction moved the count
+  to 199, above the old stale bound, as Cluster 2's and 3's arms did. The OFF arm's bounds are unchanged.
+  The floor is that count less 13 by the file's own rule; research did not set it.
+- **Ticket 6's planted stale line is mutants, not a test in the tree.** The check aborts the process, so
+  a planted failure cannot live in a passing test binary.
+- **Ticket 7.** A move that was no line's last iteration holds the "none" previous score, which §3's mate
+  test does not mean: it searches under its window, or open when it has no average yet. Only line 1 prints
+  bound lines, counts the root's table probes, or can end the search on a fail high. Only finished lines
+  are sorted, so a stopped line cannot displace one.
+- **Ticket 8 landed**, on a fixture found by scanning 462 positions at 2M nodes (one position loses a proven
+  mate): `r1bq1r2/pp4k1/4p2p/3pPp1Q/3N1R1P/2PB4/6P1/6K1 w`, mate 8 at depth 15, cp 2607 at depth 16. The test
+  fails without the guard. Two differences from the donor. It reads line 1's search, before the later lines
+  where the donor reads after them; a later line overtaking a lost mate in the same iteration is not covered.
+  And there is no "inexact" clause, since this engine discards a stopped iteration and has no completed
+  inexact one.
+- **Ticket 9 changed no source** and has no commit of its own.
+- **`B5FailHighStop`'s liveness is a replay, not a bench**, which has no clock.
+- **`B5AspBase`'s SPSA step** is the generator's 2,469 (a sixteenth of the range), larger than the seed
+  1,410. Left as generated. BAS-S54 may want to read that before it starts.
+
+### What the reviewer must check
+
+1. **The battery, first:** whether §10's line gates this leaf, and what the arm's long searches in won endings
+   mean for B.5.3. Rerun `battery.py` and `blowup.py`.
+2. Reproduce every fingerprint and CTest of the table from a clean tree, on both arms and every flavour.
+3. Ticket 3's arithmetic in `search_b5.h` against §A1.5, and the range property's grid in `test_b5_root.cpp`;
+   rerun `tools/diag/find_spin.py` at the seed and the four corners, as §A1.5 asks.
+4. Each ticket's diff against §10 and §7, one mechanism per ticket; that the OFF arm's code changed only at
+   §10's seams. The driver's `search_line_window` lambda and the MultiPV branch deserve the slowest read.
+5. Ticket 8's two differences from the donor, and whether the fixture earns its test.
+6. The arm's WAC floor of 186, which I set by the file's rule.
+7. The invariants of §10: a draw before the cap, no store for a later line, the stop discarding its iteration,
+   `MultiPV 1` line for line.
+8. CI has not run. The arm's cell first runs at the PR.
+
+- Review: not yet requested.
